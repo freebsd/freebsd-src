@@ -751,7 +751,7 @@ _xfs_create(
 
 	if (error == 0) {
 		*ap->a_vpp = xvp->v_vnode;
-		VOP_LOCK(xvp->v_vnode, LK_EXCLUSIVE, td);
+		VOP_LOCK(xvp->v_vnode, LK_EXCLUSIVE);
 	}
 
 	return (error);
@@ -886,7 +886,7 @@ _xfs_symlink(
 
 	if (error == 0) {
 		*ap->a_vpp = xvp->v_vnode;
-		VOP_LOCK(xvp->v_vnode, LK_EXCLUSIVE, td);
+		VOP_LOCK(xvp->v_vnode, LK_EXCLUSIVE);
 	}
 
 	return (error);
@@ -922,7 +922,7 @@ _xfs_mknod(
 
 	if (error == 0) {
 		*ap->a_vpp = xvp->v_vnode;
-		VOP_LOCK(xvp->v_vnode, LK_EXCLUSIVE, td);
+		VOP_LOCK(xvp->v_vnode, LK_EXCLUSIVE);
 	}
 
 	return (error);
@@ -956,7 +956,7 @@ _xfs_mkdir(
 
 	if (error == 0) {
 		*ap->a_vpp = xvp->v_vnode;
-		VOP_LOCK(xvp->v_vnode, LK_EXCLUSIVE, td);
+		VOP_LOCK(xvp->v_vnode, LK_EXCLUSIVE);
 	}
 
 	return (error);
@@ -1322,7 +1322,7 @@ _xfs_cachedlookup(
 	}
 
 	if (flags & ISDOTDOT) {
-		VOP_UNLOCK(dvp, 0, td);
+		VOP_UNLOCK(dvp, 0);
 		error = vn_lock(tvp, cnp->cn_lkflags);
 		if (error) {
 			vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY);

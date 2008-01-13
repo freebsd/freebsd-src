@@ -254,7 +254,7 @@ fail1:
 	}
 	if ((ap->a_mode & O_NONBLOCK) == 0) {
 		if ((ap->a_mode & FREAD) && fip->fi_writers == 0) {
-			VOP_UNLOCK(vp, 0, td);
+			VOP_UNLOCK(vp, 0);
 			error = msleep(&fip->fi_readers, &fifo_mtx,
 			    PDROP | PCATCH | PSOCK, "fifoor", 0);
 			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
@@ -274,7 +274,7 @@ fail1:
 			 */
 		}
 		if ((ap->a_mode & FWRITE) && fip->fi_readers == 0) {
-			VOP_UNLOCK(vp, 0, td);
+			VOP_UNLOCK(vp, 0);
 			error = msleep(&fip->fi_writers, &fifo_mtx,
 			    PDROP | PCATCH | PSOCK, "fifoow", 0);
 			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);

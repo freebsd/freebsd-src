@@ -115,7 +115,6 @@ cd9660_lookup(ap)
 	struct componentname *cnp = ap->a_cnp;
 	int flags = cnp->cn_flags;
 	int nameiop = cnp->cn_nameiop;
-	struct thread *td = cnp->cn_thread;
 
 	bp = NULL;
 	*vpp = NULL;
@@ -349,7 +348,7 @@ found:
 	 */
 	if (flags & ISDOTDOT) {
 		saved_ino = dp->i_ino;
-		VOP_UNLOCK(pdp, 0, td);	/* race to get the inode */
+		VOP_UNLOCK(pdp, 0);	/* race to get the inode */
 		error = cd9660_vget_internal(vdp->v_mount, saved_ino,
 					     LK_EXCLUSIVE, &tdp,
 					     saved_ino != ino, ep);

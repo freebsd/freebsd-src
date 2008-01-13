@@ -939,7 +939,7 @@ vfs_domount(
 		mp->mnt_flag |= fsflags &
 		    (MNT_RELOAD | MNT_FORCE | MNT_UPDATE | MNT_SNAPSHOT | MNT_ROOTFS);
 		MNT_IUNLOCK(mp);
-		VOP_UNLOCK(vp, 0, td);
+		VOP_UNLOCK(vp, 0);
 		mp->mnt_optnew = fsdata;
 		vfs_mergeopts(mp->mnt_optnew, mp->mnt_opt);
 	} else {
@@ -983,7 +983,7 @@ vfs_domount(
 		 * Allocate and initialize the filesystem.
 		 */
 		mp = vfs_mount_alloc(vp, vfsp, fspath, td);
-		VOP_UNLOCK(vp, 0, td);
+		VOP_UNLOCK(vp, 0);
 
 		/* XXXMAC: pass to vfs_mount_alloc? */
 		mp->mnt_optnew = fsdata;
@@ -1081,7 +1081,7 @@ vfs_domount(
 			panic("mount: lost mount");
 		mountcheckdirs(vp, newdp);
 		vput(newdp);
-		VOP_UNLOCK(vp, 0, td);
+		VOP_UNLOCK(vp, 0);
 		if ((mp->mnt_flag & MNT_RDONLY) == 0)
 			error = vfs_allocate_syncvnode(mp);
 		vfs_unbusy(mp, td);
@@ -1212,7 +1212,7 @@ dounmount(mp, flags, td)
 		 */
 		if (coveredvp->v_mountedhere != mp ||
 		    coveredvp->v_mountedhere->mnt_gen != mnt_gen_r) {
-			VOP_UNLOCK(coveredvp, 0, td);
+			VOP_UNLOCK(coveredvp, 0);
 			return (EBUSY);
 		}
 	}
@@ -1223,7 +1223,7 @@ dounmount(mp, flags, td)
 	error = vfs_suser(mp, td);
 	if (error) {
 		if (coveredvp)
-			VOP_UNLOCK(coveredvp, 0, td);
+			VOP_UNLOCK(coveredvp, 0);
 		return (error);
 	}
 
@@ -1231,7 +1231,7 @@ dounmount(mp, flags, td)
 	if (mp->mnt_kern_flag & MNTK_UNMOUNT) {
 		MNT_IUNLOCK(mp);
 		if (coveredvp)
-			VOP_UNLOCK(coveredvp, 0, td);
+			VOP_UNLOCK(coveredvp, 0);
 		return (EBUSY);
 	}
 	mp->mnt_kern_flag |= MNTK_UNMOUNT | MNTK_NOINSMNTQ;
@@ -1248,7 +1248,7 @@ dounmount(mp, flags, td)
 			wakeup(mp);
 		MNT_IUNLOCK(mp);
 		if (coveredvp)
-			VOP_UNLOCK(coveredvp, 0, td);
+			VOP_UNLOCK(coveredvp, 0);
 		return (error);
 	}
 	vn_start_write(NULL, &mp, V_WAIT);
@@ -1319,7 +1319,7 @@ dounmount(mp, flags, td)
 			wakeup(mp);
 		MNT_IUNLOCK(mp);
 		if (coveredvp)
-			VOP_UNLOCK(coveredvp, 0, td);
+			VOP_UNLOCK(coveredvp, 0);
 		return (error);
 	}
 	mtx_lock(&mountlist_mtx);
@@ -1479,7 +1479,7 @@ set_rootvnode(struct thread *td)
 
 	FILEDESC_SUNLOCK(p->p_fd);
 
-	VOP_UNLOCK(rootvnode, 0, td);
+	VOP_UNLOCK(rootvnode, 0);
 }
 
 /*
@@ -1574,7 +1574,7 @@ devfs_fixup(struct thread *td)
 	mtx_lock(&mountlist_mtx);
 	TAILQ_INSERT_TAIL(&mountlist, mp, mnt_list);
 	mtx_unlock(&mountlist_mtx);
-	VOP_UNLOCK(vp, 0, td);
+	VOP_UNLOCK(vp, 0);
 	vput(dvp);
 	vfs_unbusy(mp, td);
 

@@ -474,7 +474,7 @@ restart:
 	unp->unp_flags &= ~UNP_BINDING;
 	UNP_PCB_UNLOCK(unp);
 	UNP_GLOBAL_WUNLOCK();
-	VOP_UNLOCK(vp, 0, td);
+	VOP_UNLOCK(vp, 0);
 	vn_finished_write(mp);
 	VFS_UNLOCK_GIANT(vfslocked);
 	free(buf, M_TEMP);

@@ -922,7 +922,7 @@ coda_lookup(struct vop_lookup_args *ap)
      */
     if (!error || (error == EJUSTRETURN)) {
 	if (cnp->cn_flags & ISDOTDOT) {
-	    if ((error = VOP_UNLOCK(dvp, 0, td))) {
+	    if ((error = VOP_UNLOCK(dvp, 0))) {
 		return error; 
 	    }	    
 	    /* 
@@ -930,7 +930,7 @@ coda_lookup(struct vop_lookup_args *ap)
 	     * lock it without bothering to check anything else. 
 	     */
 	    if (*ap->a_vpp) {
-		if ((error = VOP_LOCK(*ap->a_vpp, LK_EXCLUSIVE, td))) {
+		if ((error = VOP_LOCK(*ap->a_vpp, LK_EXCLUSIVE))) {
 		    vn_lock(dvp, LK_RETRY|LK_EXCLUSIVE);
 		    return (error);
 		}
@@ -940,7 +940,7 @@ coda_lookup(struct vop_lookup_args *ap)
 	    /* The parent is locked, and may be the same as the child */
 	    if (*ap->a_vpp && (*ap->a_vpp != dvp)) {
 		/* Different, go ahead and lock it. */
-		if ((error = VOP_LOCK(*ap->a_vpp, LK_EXCLUSIVE, td))) {
+		if ((error = VOP_LOCK(*ap->a_vpp, LK_EXCLUSIVE))) {
 		    return (error);
 		}
 	    }
@@ -1026,7 +1026,7 @@ coda_create(struct vop_create_args *ap)
 
     if (!error) {
 	if (cnp->cn_flags & LOCKLEAF) {
-	    if ((error = VOP_LOCK(*ap->a_vpp, LK_EXCLUSIVE, td))) {
+	    if ((error = VOP_LOCK(*ap->a_vpp, LK_EXCLUSIVE))) {
 		printf("coda_create: ");
 		panic("unlocked parent but couldn't lock child");
 	    }

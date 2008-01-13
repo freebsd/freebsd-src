@@ -657,7 +657,7 @@ ntfs_lookup(ap)
 		if(error)
 			return (error);
 
-		VOP_UNLOCK(dvp,0,cnp->cn_thread);
+		VOP_UNLOCK(dvp,0);
 		dprintf(("ntfs_lookup: parentdir: %d\n",
 			 vap->va_a_name->n_pnumber));
 		error = VFS_VGET(ntmp->ntm_mountp, vap->va_a_name->n_pnumber,

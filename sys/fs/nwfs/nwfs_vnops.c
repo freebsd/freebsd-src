@@ -958,7 +958,7 @@ printf("dvp %d:%d:%d\n", (int)mp, (int)dvp->v_vflag & VV_ROOT, (int)flags & ISDO
 		return (0);
 	}
 	if (flags & ISDOTDOT) {
-		VOP_UNLOCK(dvp, 0, td);		/* race to get the inode */
+		VOP_UNLOCK(dvp, 0);		/* race to get the inode */
 		error = nwfs_nget(mp, fid, NULL, NULL, &vp);
 		vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY);
 		if (error)

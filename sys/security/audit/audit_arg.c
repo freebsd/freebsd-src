@@ -632,7 +632,7 @@ audit_arg_file(struct proc *p, struct file *fp)
 		vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 		audit_arg_vnode(vp, ARG_VNODE1);
-		VOP_UNLOCK(vp, 0, curthread);
+		VOP_UNLOCK(vp, 0);
 		VFS_UNLOCK_GIANT(vfslocked);
 		break;
 
@@ -850,7 +850,7 @@ audit_sysclose(struct thread *td, int fd)
 	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	audit_arg_vnode(vp, ARG_VNODE1);
-	VOP_UNLOCK(vp, 0, td);
+	VOP_UNLOCK(vp, 0);
 	VFS_UNLOCK_GIANT(vfslocked);
 	fdrop(fp, td);
 }

@@ -138,7 +138,7 @@ audit_record_write(struct vnode *vp, struct ucred *cred, struct thread *td,
 		goto fail;
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	error = VOP_GETATTR(vp, &vattr, cred, td);
-	VOP_UNLOCK(vp, 0, td);
+	VOP_UNLOCK(vp, 0);
 	if (error)
 		goto fail;
 	audit_fstat.af_currsz = vattr.va_size;
@@ -251,9 +251,9 @@ audit_record_write(struct vnode *vp, struct ucred *cred, struct thread *td,
 	 */
 	if (audit_in_failure) {
 		if (audit_q_len == 0 && audit_pre_q_len == 0) {
-			VOP_LOCK(vp, LK_DRAIN | LK_INTERLOCK, td);
+			VOP_LOCK(vp, LK_DRAIN | LK_INTERLOCK);
 			(void)VOP_FSYNC(vp, MNT_WAIT, td);
-			VOP_UNLOCK(vp, 0, td);
+			VOP_UNLOCK(vp, 0);
 			panic("Audit store overflow; record queue drained.");
 		}
 	}
@@ -268,9 +268,9 @@ fail_enospc:
 	 * space, or ENOSPC returned by the vnode write call.
 	 */
 	if (audit_fail_stop) {
-		VOP_LOCK(vp, LK_DRAIN | LK_INTERLOCK, td);
+		VOP_LOCK(vp, LK_DRAIN | LK_INTERLOCK);
 		(void)VOP_FSYNC(vp, MNT_WAIT, td);
-		VOP_UNLOCK(vp, 0, td);
+		VOP_UNLOCK(vp, 0);
 		panic("Audit log space exhausted and fail-stop set.");
 	}
 	(void)send_trigger(AUDIT_TRIGGER_NO_SPACE);
@@ -283,9 +283,9 @@ fail:
 	 * lost, which may require an immediate system halt.
 	 */
 	if (audit_panic_on_write_fail) {
-		VOP_LOCK(vp, LK_DRAIN | LK_INTERLOCK, td);
+		VOP_LOCK(vp, LK_DRAIN | LK_INTERLOCK);
 		(void)VOP_FSYNC(vp, MNT_WAIT, td);
-		VOP_UNLOCK(vp, 0, td);
+		VOP_UNLOCK(vp, 0);
 		panic("audit_worker: write error %d\n", error);
 	} else if (ppsratecheck(&last_fail, &cur_fail, 1))
 		printf("audit_worker: write error %d\n", error);

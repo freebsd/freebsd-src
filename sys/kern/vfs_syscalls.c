@@ -371,7 +371,7 @@ kern_fstatfs(struct thread *td, int fd, struct statfs *buf)
 	mp = vp->v_mount;
 	if (mp)
 		vfs_ref(mp);
-	VOP_UNLOCK(vp, 0, td);
+	VOP_UNLOCK(vp, 0);
 	fdrop(fp, td);
 	if (vp->v_iflag & VI_DOOMED) {
 		error = EBADF;
@@ -756,7 +756,7 @@ fchdir(td, uap)
 		VFS_UNLOCK_GIANT(vfslocked);
 		return (error);
 	}
-	VOP_UNLOCK(vp, 0, td);
+	VOP_UNLOCK(vp, 0);
 	VFS_UNLOCK_GIANT(vfslocked);
 	FILEDESC_XLOCK(fdp);
 	vpold = fdp->fd_cdir;
@@ -807,7 +807,7 @@ kern_chdir(struct thread *td, char *path, enum uio_seg pathseg)
 		NDFREE(&nd, NDF_ONLY_PNBUF);
 		return (error);
 	}
-	VOP_UNLOCK(nd.ni_vp, 0, td);
+	VOP_UNLOCK(nd.ni_vp, 0);
 	VFS_UNLOCK_GIANT(vfslocked);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	FILEDESC_XLOCK(fdp);
@@ -894,7 +894,7 @@ chroot(td, uap)
 	if ((error = mac_vnode_check_chroot(td->td_ucred, nd.ni_vp)))
 		goto e_vunlock;
 #endif
-	VOP_UNLOCK(nd.ni_vp, 0, td);
+	VOP_UNLOCK(nd.ni_vp, 0);
 	error = change_root(nd.ni_vp, td);
 	vrele(nd.ni_vp);
 	VFS_UNLOCK_GIANT(vfslocked);
@@ -1080,7 +1080,7 @@ kern_open(struct thread *td, char *path, enum uio_seg pathseg, int flags,
 		finit(fp, flags & FMASK, DTYPE_VNODE, vp, &vnops);
 	}
 
-	VOP_UNLOCK(vp, 0, td);
+	VOP_UNLOCK(vp, 0);
 	if (flags & (O_EXLOCK | O_SHLOCK)) {
 		lf.l_whence = SEEK_SET;
 		lf.l_start = 0;
@@ -1109,7 +1109,7 @@ kern_open(struct thread *td, char *path, enum uio_seg pathseg, int flags,
 		if (error == 0)
 #endif
 			error = VOP_SETATTR(vp, &vat, td->td_ucred, td);
-		VOP_UNLOCK(vp, 0, td);
+		VOP_UNLOCK(vp, 0);
 		vn_finished_write(mp);
 		if (error)
 			goto bad;
@@ -1474,7 +1474,7 @@ kern_link(struct thread *td, char *path, char *link, enum uio_seg segflg)
 			if (error == 0)
 #endif
 				error = VOP_LINK(nd.ni_dvp, vp, &nd.ni_cnd);
-			VOP_UNLOCK(vp, 0, td);
+			VOP_UNLOCK(vp, 0);
 			vput(nd.ni_dvp);
 		}
 		NDFREE(&nd, NDF_ONLY_PNBUF);
@@ -1769,7 +1769,7 @@ lseek(td, uap)
 	case L_XTND:
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 		error = VOP_GETATTR(vp, &vattr, cred, td);
-		VOP_UNLOCK(vp, 0, td);
+		VOP_UNLOCK(vp, 0);
 		if (error)
 			break;
 		if (noneg &&
@@ -2406,7 +2406,7 @@ setfflags(td, vp, flags)
 	if (error == 0)
 #endif
 		error = VOP_SETATTR(vp, &vattr, td->td_ucred, td);
-	VOP_UNLOCK(vp, 0, td);
+	VOP_UNLOCK(vp, 0);
 	vn_finished_write(mp);
 	return (error);
 }
@@ -2502,7 +2502,7 @@ fchflags(td, uap)
 #ifdef AUDIT
 	vn_lock(fp->f_vnode, LK_EXCLUSIVE | LK_RETRY);
 	AUDIT_ARG(vnode, fp->f_vnode, ARG_VNODE1);
-	VOP_UNLOCK(fp->f_vnode, 0, td);
+	VOP_UNLOCK(fp->f_vnode, 0);
 #endif
 	error = setfflags(td, fp->f_vnode, uap->flags);
 	VFS_UNLOCK_GIANT(vfslocked);
@@ -2534,7 +2534,7 @@ setfmode(td, vp, mode)
 	if (error == 0)
 #endif
 		error = VOP_SETATTR(vp, &vattr, td->td_ucred, td);
-	VOP_UNLOCK(vp, 0, td);
+	VOP_UNLOCK(vp, 0);
 	vn_finished_write(mp);
 	return (error);
 }
@@ -2642,7 +2642,7 @@ fchmod(td, uap)
 #ifdef AUDIT
 	vn_lock(fp->f_vnode, LK_EXCLUSIVE | LK_RETRY);
 	AUDIT_ARG(vnode, fp->f_vnode, ARG_VNODE1);
-	VOP_UNLOCK(fp->f_vnode, 0, td);
+	VOP_UNLOCK(fp->f_vnode, 0);
 #endif
 	error = setfmode(td, fp->f_vnode, uap->mode);
 	VFS_UNLOCK_GIANT(vfslocked);
@@ -2677,7 +2677,7 @@ setfown(td, vp, uid, gid)
 	if (error == 0)
 #endif
 		error = VOP_SETATTR(vp, &vattr, td->td_ucred, td);
-	VOP_UNLOCK(vp, 0, td);
+	VOP_UNLOCK(vp, 0);
 	vn_finished_write(mp);
 	return (error);
 }
@@ -2799,7 +2799,7 @@ fchown(td, uap)
 #ifdef AUDIT
 	vn_lock(fp->f_vnode, LK_EXCLUSIVE | LK_RETRY);
 	AUDIT_ARG(vnode, fp->f_vnode, ARG_VNODE1);
-	VOP_UNLOCK(fp->f_vnode, 0, td);
+	VOP_UNLOCK(fp->f_vnode, 0);
 #endif
 	error = setfown(td, fp->f_vnode, uap->uid, uap->gid);
 	VFS_UNLOCK_GIANT(vfslocked);
@@ -2880,7 +2880,7 @@ setutimes(td, vp, ts, numtimes, nullflag)
 #endif
 	if (error == 0)
 		error = VOP_SETATTR(vp, &vattr, td->td_ucred, td);
-	VOP_UNLOCK(vp, 0, td);
+	VOP_UNLOCK(vp, 0);
 	vn_finished_write(mp);
 	return (error);
 }
@@ -3012,7 +3012,7 @@ kern_futimes(struct thread *td, int fd, struct timeval *tptr,
 #ifdef AUDIT
 	vn_lock(fp->f_vnode, LK_EXCLUSIVE | LK_RETRY);
 	AUDIT_ARG(vnode, fp->f_vnode, ARG_VNODE1);
-	VOP_UNLOCK(fp->f_vnode, 0, td);
+	VOP_UNLOCK(fp->f_vnode, 0);
 #endif
 	error = setutimes(td, fp->f_vnode, ts, 2, tptr == NULL);
 	VFS_UNLOCK_GIANT(vfslocked);
@@ -3174,7 +3174,7 @@ fsync(td, uap)
 	}
 	error = VOP_FSYNC(vp, MNT_WAIT, td);
 
-	VOP_UNLOCK(vp, 0, td);
+	VOP_UNLOCK(vp, 0);
 	vn_finished_write(mp);
 drop:
 	VFS_UNLOCK_GIANT(vfslocked);
@@ -3229,9 +3229,9 @@ kern_rename(struct thread *td, char *from, char *to, enum uio_seg pathseg)
 #ifdef MAC
 	error = mac_vnode_check_rename_from(td->td_ucred, fromnd.ni_dvp,
 	    fromnd.ni_vp, &fromnd.ni_cnd);
-	VOP_UNLOCK(fromnd.ni_dvp, 0, td);
+	VOP_UNLOCK(fromnd.ni_dvp, 0);
 	if (fromnd.ni_dvp != fromnd.ni_vp)
-		VOP_UNLOCK(fromnd.ni_vp, 0, td);
+		VOP_UNLOCK(fromnd.ni_vp, 0);
 #endif
 	fvp = fromnd.ni_vp;
 	if (error == 0)
@@ -3555,7 +3555,7 @@ unionread:
 #ifdef MAC
 	error = mac_vnode_check_readdir(td->td_ucred, vp);
 	if (error) {
-		VOP_UNLOCK(vp, 0, td);
+		VOP_UNLOCK(vp, 0);
 		VFS_UNLOCK_GIANT(vfslocked);
 		fdrop(fp, td);
 		return (error);
@@ -3613,7 +3613,7 @@ unionread:
 		FREE(dirbuf, M_TEMP);
 	}
 	if (error) {
-		VOP_UNLOCK(vp, 0, td);
+		VOP_UNLOCK(vp, 0);
 		VFS_UNLOCK_GIANT(vfslocked);
 		fdrop(fp, td);
 		return (error);
@@ -3631,7 +3631,7 @@ unionread:
 		VFS_UNLOCK_GIANT(vfslocked);
 		goto unionread;
 	}
-	VOP_UNLOCK(vp, 0, td);
+	VOP_UNLOCK(vp, 0);
 	VFS_UNLOCK_GIANT(vfslocked);
 	error = copyout(&loff, uap->basep, sizeof(long));
 	fdrop(fp, td);
@@ -3704,7 +3704,7 @@ unionread:
 		    NULL);
 	fp->f_offset = auio.uio_offset;
 	if (error) {
-		VOP_UNLOCK(vp, 0, td);
+		VOP_UNLOCK(vp, 0);
 		VFS_UNLOCK_GIANT(vfslocked);
 		goto fail;
 	}
@@ -3721,7 +3721,7 @@ unionread:
 		VFS_UNLOCK_GIANT(vfslocked);
 		goto unionread;
 	}
-	VOP_UNLOCK(vp, 0, td);
+	VOP_UNLOCK(vp, 0);
 	VFS_UNLOCK_GIANT(vfslocked);
 	if (uap->basep != NULL) {
 		error = copyout(&loff, uap->basep, sizeof(long));
@@ -4048,7 +4048,7 @@ fhopen(td, uap)
 			goto bad;
 	}
 	if (fmode & O_TRUNC) {
-		VOP_UNLOCK(vp, 0, td);				/* XXX */
+		VOP_UNLOCK(vp, 0);				/* XXX */
 		if ((error = vn_start_write(NULL, &mp, V_WAIT | PCATCH)) != 0) {
 			vrele(vp);
 			goto out;
@@ -4104,7 +4104,7 @@ fhopen(td, uap)
 		type = F_FLOCK;
 		if ((fmode & FNONBLOCK) == 0)
 			type |= F_WAIT;
-		VOP_UNLOCK(vp, 0, td);
+		VOP_UNLOCK(vp, 0);
 		if ((error = VOP_ADVLOCK(vp, (caddr_t)fp, F_SETLK, &lf,
 			    type)) != 0) {
 			/*
@@ -4124,7 +4124,7 @@ fhopen(td, uap)
 		atomic_set_int(&fp->f_flag, FHASLOCK);
 	}
 
-	VOP_UNLOCK(vp, 0, td);
+	VOP_UNLOCK(vp, 0);
 	fdrop(fp, td);
 	vfs_rel(mp);
 	VFS_UNLOCK_GIANT(vfslocked);

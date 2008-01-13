@@ -263,7 +263,8 @@ vop_stdlock(ap)
 {
 	struct vnode *vp = ap->a_vp;
 
-	return (_lockmgr(vp->v_vnlock, ap->a_flags, VI_MTX(vp), ap->a_td, ap->a_file, ap->a_line));
+	return (_lockmgr(vp->v_vnlock, ap->a_flags, VI_MTX(vp), curthread,
+	     ap->a_file, ap->a_line));
 }
 
 /* See above. */
@@ -278,7 +279,7 @@ vop_stdunlock(ap)
 	struct vnode *vp = ap->a_vp;
 
 	return (lockmgr(vp->v_vnlock, ap->a_flags | LK_RELEASE, VI_MTX(vp),
-	    ap->a_td));
+	    curthread));
 }
 
 /* See above. */
@@ -594,7 +595,7 @@ loop:
 			allerror = error;
 
 		/* Do not turn this into vput.  td is not always curthread. */
-		VOP_UNLOCK(vp, 0, td);
+		VOP_UNLOCK(vp, 0);
 		vrele(vp);
 		MNT_ILOCK(mp);
 	}
@@ -660,7 +661,7 @@ vfs_stdextattrctl(mp, cmd, filename_vp, attrnamespace, attrname, td)
 {
 
 	if (filename_vp != NULL)
-		VOP_UNLOCK(filename_vp, 0, td);
+		VOP_UNLOCK(filename_vp, 0);
 	return (EOPNOTSUPP);
 }
 

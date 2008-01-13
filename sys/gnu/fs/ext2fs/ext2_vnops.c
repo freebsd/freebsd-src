@@ -767,7 +767,6 @@ ext2_rename(ap)
 	struct vnode *fdvp = ap->a_fdvp;
 	struct componentname *tcnp = ap->a_tcnp;
 	struct componentname *fcnp = ap->a_fcnp;
-	struct thread *td = fcnp->cn_thread;
 	struct inode *ip, *xp, *dp;
 	struct dirtemplate dirbuf;
 	int doingdirectory = 0, oldparent = 0, newparent = 0;
@@ -818,13 +817,13 @@ abortit:
 	dp = VTOI(fdvp);
 	ip = VTOI(fvp);
  	if (ip->i_nlink >= LINK_MAX) {
- 		VOP_UNLOCK(fvp, 0, td);
+ 		VOP_UNLOCK(fvp, 0);
  		error = EMLINK;
  		goto abortit;
  	}
 	if ((ip->i_flags & (NOUNLINK | IMMUTABLE | APPEND))
 	    || (dp->i_flags & APPEND)) {
-		VOP_UNLOCK(fvp, 0, td);
+		VOP_UNLOCK(fvp, 0);
 		error = EPERM;
 		goto abortit;
 	}
@@ -835,7 +834,7 @@ abortit:
 		if ((fcnp->cn_namelen == 1 && fcnp->cn_nameptr[0] == '.') ||
 		    dp == ip || (fcnp->cn_flags | tcnp->cn_flags) & ISDOTDOT ||
 		    (ip->i_flag & IN_RENAME)) {
-			VOP_UNLOCK(fvp, 0, td);
+			VOP_UNLOCK(fvp, 0);
 			error = EINVAL;
 			goto abortit;
 		}
@@ -863,7 +862,7 @@ abortit:
 	ip->i_nlink++;
 	ip->i_flag |= IN_CHANGE;
 	if ((error = ext2_update(fvp, 1)) != 0) {
-		VOP_UNLOCK(fvp, 0, td);
+		VOP_UNLOCK(fvp, 0);
 		goto bad;
 	}
 
@@ -878,7 +877,7 @@ abortit:
 	 * call to checkpath().
 	 */
 	error = VOP_ACCESS(fvp, VWRITE, tcnp->cn_cred, tcnp->cn_thread);
-	VOP_UNLOCK(fvp, 0, td);
+	VOP_UNLOCK(fvp, 0);
 	if (oldparent != dp->i_number)
 		newparent = dp->i_number;
 	if (doingdirectory && newparent) {
@@ -1264,7 +1263,6 @@ ext2_rmdir(ap)
 	struct vnode *vp = ap->a_vp;
 	struct vnode *dvp = ap->a_dvp;
 	struct componentname *cnp = ap->a_cnp;
-	struct thread *td = cnp->cn_thread;
 	struct inode *ip, *dp;
 	int error;
 
@@ -1299,7 +1297,7 @@ ext2_rmdir(ap)
 	dp->i_nlink--;
 	dp->i_flag |= IN_CHANGE;
 	cache_purge(dvp);
-	VOP_UNLOCK(dvp, 0, td);
+	VOP_UNLOCK(dvp, 0);
 	/*
 	 * Truncate inode.  The only stuff left
 	 * in the directory is "." and "..".  The
@@ -1312,7 +1310,8 @@ ext2_rmdir(ap)
 	 * worry about them later.
 	 */
 	ip->i_nlink -= 2;
-	error = ext2_truncate(vp, (off_t)0, IO_SYNC, cnp->cn_cred, td);
+	error = ext2_truncate(vp, (off_t)0, IO_SYNC, cnp->cn_cred,
+	    cnp->cn_thread);
 	cache_purge(ITOV(ip));
 	vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY);
 out:

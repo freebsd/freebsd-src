@@ -495,7 +495,7 @@ dirloop:
 			AUDIT_ARG(vnode, dp, ARG_VNODE2);
 
 		if (!(cnp->cn_flags & (LOCKPARENT | LOCKLEAF)))
-			VOP_UNLOCK(dp, 0, td);
+			VOP_UNLOCK(dp, 0);
 		/* XXX This should probably move to the top of function. */
 		if (cnp->cn_flags & SAVESTART)
 			panic("lookup: SAVESTART");
@@ -626,7 +626,7 @@ unionlookup:
 			goto bad;
 		}
 		if ((cnp->cn_flags & LOCKPARENT) == 0)
-			VOP_UNLOCK(dp, 0, td);
+			VOP_UNLOCK(dp, 0);
 		/*
 		 * This is a temporary assert to make sure I know what the
 		 * behavior here was.
@@ -713,7 +713,7 @@ unionlookup:
 		 * Symlink code always expects an unlocked dvp.
 		 */
 		if (ndp->ni_dvp != ndp->ni_vp)
-			VOP_UNLOCK(ndp->ni_dvp, 0, td);
+			VOP_UNLOCK(ndp->ni_dvp, 0);
 		goto success;
 	}
 
@@ -767,7 +767,7 @@ nextname:
 		VFS_UNLOCK_GIANT(dvfslocked);
 		dvfslocked = 0;
 	} else if ((cnp->cn_flags & LOCKPARENT) == 0 && ndp->ni_dvp != dp)
-		VOP_UNLOCK(ndp->ni_dvp, 0, td);
+		VOP_UNLOCK(ndp->ni_dvp, 0);
 
 	if (cnp->cn_flags & AUDITVNODE1)
 		AUDIT_ARG(vnode, dp, ARG_VNODE1);
@@ -775,7 +775,7 @@ nextname:
 		AUDIT_ARG(vnode, dp, ARG_VNODE2);
 
 	if ((cnp->cn_flags & LOCKLEAF) == 0)
-		VOP_UNLOCK(dp, 0, td);
+		VOP_UNLOCK(dp, 0);
 success:
 	/*
 	 * Because of lookup_shared we may have the vnode shared locked, but
@@ -813,7 +813,6 @@ bad:
 int
 relookup(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp)
 {
-	struct thread *td = cnp->cn_thread;
 	struct vnode *dp = 0;		/* the directory we are searching */
 	int wantparent;			/* 1 => wantparent or lockparent flag */
 	int rdonly;			/* lookup read-only flag bit */
@@ -859,7 +858,7 @@ relookup(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp)
 			goto bad;
 		}
 		if (!(cnp->cn_flags & LOCKLEAF))
-			VOP_UNLOCK(dp, 0, td);
+			VOP_UNLOCK(dp, 0);
 		*vpp = dp;
 		/* XXX This should probably move to the top of function. */
 		if (cnp->cn_flags & SAVESTART)
@@ -892,7 +891,7 @@ relookup(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp)
 		if (cnp->cn_flags & SAVESTART)
 			VREF(dvp);
 		if ((cnp->cn_flags & LOCKPARENT) == 0)
-			VOP_UNLOCK(dp, 0, td);
+			VOP_UNLOCK(dp, 0);
 		/*
 		 * This is a temporary assert to make sure I know what the
 		 * behavior here was.
@@ -926,7 +925,7 @@ relookup(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp)
 	 */
 	if ((cnp->cn_flags & LOCKPARENT) == 0 && dvp != dp) {
 		if (wantparent)
-			VOP_UNLOCK(dvp, 0, td);
+			VOP_UNLOCK(dvp, 0);
 		else
 			vput(dvp);
 	} else if (!wantparent)
@@ -942,7 +941,7 @@ relookup(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp)
 		VREF(dvp);
 	
 	if ((cnp->cn_flags & LOCKLEAF) == 0)
-		VOP_UNLOCK(dp, 0, td);
+		VOP_UNLOCK(dp, 0);
 	return (0);
 bad:
 	vput(dp);
@@ -979,7 +978,7 @@ NDFREE(struct nameidata *ndp, const u_int flags)
 		ndp->ni_vp = NULL;
 	}
 	if (unlock_vp)
-		VOP_UNLOCK(ndp->ni_vp, 0, ndp->ni_cnd.cn_thread);
+		VOP_UNLOCK(ndp->ni_vp, 0);
 	if (!(flags & NDF_NO_DVP_UNLOCK) &&
 	    (ndp->ni_cnd.cn_flags & LOCKPARENT) &&
 	    ndp->ni_dvp != ndp->ni_vp)
@@ -994,7 +993,7 @@ NDFREE(struct nameidata *ndp, const u_int flags)
 		ndp->ni_dvp = NULL;
 	}
 	if (unlock_dvp)
-		VOP_UNLOCK(ndp->ni_dvp, 0, ndp->ni_cnd.cn_thread);
+		VOP_UNLOCK(ndp->ni_dvp, 0);
 	if (!(flags & NDF_NO_STARTDIR_RELE) &&
 	    (ndp->ni_cnd.cn_flags & SAVESTART)) {
 		vrele(ndp->ni_startdir);

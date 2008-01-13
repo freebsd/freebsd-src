@@ -245,11 +245,9 @@ void
 devfs_delete(struct devfs_mount *dm, struct devfs_dirent *de, int vp_locked)
 {
 	struct vnode *vp;
-	struct thread *td;
 
 	KASSERT((de->de_flags & DE_DOOMED) == 0,
 		("devfs_delete doomed dirent"));
-	td = curthread;
 	de->de_flags |= DE_DOOMED;
 	mtx_lock(&devfs_de_interlock);
 	vp = de->de_vnode;
@@ -264,7 +262,7 @@ devfs_delete(struct devfs_mount *dm, struct devfs_dirent *de, int vp_locked)
 			VI_UNLOCK(vp);
 		vgone(vp);
 		if (!vp_locked)
-			VOP_UNLOCK(vp, 0, td);
+			VOP_UNLOCK(vp, 0);
 		vdrop(vp);
 		sx_xlock(&dm->dm_lock);
 	} else

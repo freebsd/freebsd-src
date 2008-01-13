@@ -532,7 +532,7 @@ mdstart_vnode(struct md_s *sc, struct bio *bp)
 		(void) vn_start_write(vp, &mp, V_WAIT);
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 		error = VOP_FSYNC(vp, MNT_WAIT, td);
-		VOP_UNLOCK(vp, 0, td);
+		VOP_UNLOCK(vp, 0);
 		vn_finished_write(mp);
 		VFS_UNLOCK_GIANT(vfslocked);
 		return (error);
@@ -562,13 +562,13 @@ mdstart_vnode(struct md_s *sc, struct bio *bp)
 	if (bp->bio_cmd == BIO_READ) {
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 		error = VOP_READ(vp, &auio, IO_DIRECT, sc->cred);
-		VOP_UNLOCK(vp, 0, td);
+		VOP_UNLOCK(vp, 0);
 	} else {
 		(void) vn_start_write(vp, &mp, V_WAIT);
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 		error = VOP_WRITE(vp, &auio, sc->flags & MD_ASYNC ? 0 : IO_SYNC,
 		    sc->cred);
-		VOP_UNLOCK(vp, 0, td);
+		VOP_UNLOCK(vp, 0);
 		vn_finished_write(mp);
 	}
 	VFS_UNLOCK_GIANT(vfslocked);
@@ -897,7 +897,7 @@ mdsetcred(struct md_s *sc, struct ucred *cred)
 		auio.uio_resid = aiov.iov_len;
 		vn_lock(sc->vnode, LK_EXCLUSIVE | LK_RETRY);
 		error = VOP_READ(sc->vnode, &auio, 0, sc->cred);
-		VOP_UNLOCK(sc->vnode, 0, curthread);
+		VOP_UNLOCK(sc->vnode, 0);
 		free(tmpbuf, M_TEMP);
 	}
 	return (error);
@@ -928,13 +928,13 @@ mdcreate_vnode(struct md_s *sc, struct md_ioctl *mdio, struct thread *td)
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (nd.ni_vp->v_type != VREG ||
 	    (error = VOP_GETATTR(nd.ni_vp, &vattr, td->td_ucred, td))) {
-		VOP_UNLOCK(nd.ni_vp, 0, td);
+		VOP_UNLOCK(nd.ni_vp, 0);
 		(void)vn_close(nd.ni_vp, flags, td->td_ucred, td);
 		VFS_UNLOCK_GIANT(vfslocked);
 		return (error ? error : EINVAL);
 	}
 	nd.ni_vp->v_vflag |= VV_MD;
-	VOP_UNLOCK(nd.ni_vp, 0, td);
+	VOP_UNLOCK(nd.ni_vp, 0);
 
 	if (mdio->md_fwsectors != 0)
 		sc->fwsectors = mdio->md_fwsectors;
@@ -949,7 +949,7 @@ mdcreate_vnode(struct md_s *sc, struct md_ioctl *mdio, struct thread *td)
 	if (error != 0) {
 		vn_lock(nd.ni_vp, LK_EXCLUSIVE | LK_RETRY);
 		nd.ni_vp->v_vflag &= ~VV_MD;
-		VOP_UNLOCK(nd.ni_vp, 0, td);
+		VOP_UNLOCK(nd.ni_vp, 0);
 		(void)vn_close(nd.ni_vp, flags, td->td_ucred, td);
 		VFS_UNLOCK_GIANT(vfslocked);
 		return (error);
@@ -986,7 +986,7 @@ mddestroy(struct md_s *sc, struct thread *td)
 		vfslocked = VFS_LOCK_GIANT(sc->vnode->v_mount);
 		vn_lock(sc->vnode, LK_EXCLUSIVE | LK_RETRY);
 		sc->vnode->v_vflag &= ~VV_MD;
-		VOP_UNLOCK(sc->vnode, 0, td);
+		VOP_UNLOCK(sc->vnode, 0);
 		(void)vn_close(sc->vnode, sc->flags & MD_READONLY ?
 		    FREAD : (FREAD|FWRITE), sc->cred, td);
 		VFS_UNLOCK_GIANT(vfslocked);

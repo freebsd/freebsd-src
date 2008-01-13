@@ -158,7 +158,6 @@ static int
 do_aout_hdr(struct imgact_gzip * gz)
 {
 	int             error;
-	struct thread  *td = curthread;
 	struct vmspace *vmspace;
 	vm_offset_t     vmaddr;
 
@@ -234,7 +233,7 @@ do_aout_hdr(struct imgact_gzip * gz)
 	 * However, in cases where the vnode lock is external, such as nullfs,
 	 * v_usecount may become zero.
 	 */
-	VOP_UNLOCK(gz->ip->vp, 0, td);
+	VOP_UNLOCK(gz->ip->vp, 0);
 
 	/*
 	 * Destroy old process VM and create a new one (with a new stack)

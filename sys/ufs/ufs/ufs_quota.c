@@ -530,7 +530,7 @@ quotaon(td, mp, type, fname)
 	vfslocked = NDHASGIANT(&nd);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vp = nd.ni_vp;
-	VOP_UNLOCK(vp, 0, td);
+	VOP_UNLOCK(vp, 0);
 	if (vp->v_type != VREG) {
 		(void) vn_close(vp, FREAD|FWRITE, td->td_ucred, td);
 		VFS_UNLOCK_GIANT(vfslocked);
@@ -556,7 +556,7 @@ quotaon(td, mp, type, fname)
 
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	vp->v_vflag |= VV_SYSTEM;
-	VOP_UNLOCK(vp, 0, td);
+	VOP_UNLOCK(vp, 0);
 	*vpp = vp;
 	VFS_UNLOCK_GIANT(vfslocked);
 	/*
@@ -596,13 +596,13 @@ again:
 			goto again;
 		}
 		if (vp->v_type == VNON || vp->v_writecount == 0) {
-			VOP_UNLOCK(vp, 0, td);
+			VOP_UNLOCK(vp, 0);
 			vrele(vp);
 			MNT_ILOCK(mp);
 			continue;
 		}
 		error = getinoquota(VTOI(vp));
-		VOP_UNLOCK(vp, 0, td);
+		VOP_UNLOCK(vp, 0);
 		vrele(vp);
 		MNT_ILOCK(mp);
 		if (error) {
@@ -677,7 +677,7 @@ again:
 		dq = ip->i_dquot[type];
 		ip->i_dquot[type] = NODQUOT;
 		dqrele(vp, dq);
-		VOP_UNLOCK(vp, 0, td);
+		VOP_UNLOCK(vp, 0);
 		vrele(vp);
 		MNT_ILOCK(mp);
 	}
@@ -695,7 +695,7 @@ again:
 	vfslocked = VFS_LOCK_GIANT(qvp->v_mount);
 	vn_lock(qvp, LK_EXCLUSIVE | LK_RETRY);
 	qvp->v_vflag &= ~VV_SYSTEM;
-	VOP_UNLOCK(qvp, 0, td);
+	VOP_UNLOCK(qvp, 0);
 	error = vn_close(qvp, FREAD|FWRITE, td->td_ucred, td);
 	VFS_UNLOCK_GIANT(vfslocked);
 	crfree(cr);

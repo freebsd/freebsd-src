@@ -462,7 +462,7 @@ again:
 eof:
 	td->td_retval[0] = uap->nbytes - resid;
 out:
-	VOP_UNLOCK(vp, 0, td);
+	VOP_UNLOCK(vp, 0);
 	VFS_UNLOCK_GIANT(vfslocked);
 	fdrop(fp, td);
 	if (cookies)
@@ -628,7 +628,7 @@ again:
 eof:
 	td->td_retval[0] = uap->nbytes - resid;
 out:
-	VOP_UNLOCK(vp, 0, td);
+	VOP_UNLOCK(vp, 0);
 	VFS_UNLOCK_GIANT(vfslocked);
 	fdrop(fp, td);
 	if (cookies)

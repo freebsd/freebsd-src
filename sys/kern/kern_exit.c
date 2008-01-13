@@ -326,7 +326,7 @@ exit1(struct thread *td, int rv)
 					sp->s_ttyvp = NULL;
 					SESS_UNLOCK(p->p_session);
 					sx_xunlock(&proctree_lock);
-					VOP_LOCK(ttyvp, LK_EXCLUSIVE, td);
+					VOP_LOCK(ttyvp, LK_EXCLUSIVE);
 					VOP_REVOKE(ttyvp, REVOKEALL);
 					vput(ttyvp);
 					sx_xlock(&proctree_lock);

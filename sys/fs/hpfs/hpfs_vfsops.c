@@ -236,7 +236,7 @@ hpfs_mountfs(devvp, mp, td)
 	error = g_vfs_open(devvp, &cp, "hpfs", ronly ? 0 : 1);
 	g_topology_unlock();
 	PICKUP_GIANT();
-	VOP_UNLOCK(devvp, 0, td);
+	VOP_UNLOCK(devvp, 0);
 	if (error)
 		return (error);
 

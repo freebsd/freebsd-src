@@ -788,7 +788,7 @@ out:
 		linker_file_unload(lf, LINKER_UNLOAD_FORCE);
 	if (hdr)
 		free(hdr, M_LINKER);
-	VOP_UNLOCK(nd.ni_vp, 0, td);
+	VOP_UNLOCK(nd.ni_vp, 0);
 	vn_close(nd.ni_vp, FREAD, td->td_ucred, td);
 	VFS_UNLOCK_GIANT(vfslocked);
 

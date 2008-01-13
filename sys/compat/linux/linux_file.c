@@ -598,7 +598,7 @@ out:
 	if (cookies)
 		free(cookies, M_TEMP);
 
-	VOP_UNLOCK(vp, 0, td);
+	VOP_UNLOCK(vp, 0);
 	VFS_UNLOCK_GIANT(vfslocked);
 	fdrop(fp, td);
 	free(buf, M_TEMP);

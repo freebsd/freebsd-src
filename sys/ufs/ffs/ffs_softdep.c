@@ -1031,7 +1031,7 @@ softdep_flushworklist(oldmnt, countp, td)
 		*countp += count;
 		vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY);
 		error = VOP_FSYNC(devvp, MNT_WAIT, td);
-		VOP_UNLOCK(devvp, 0, td);
+		VOP_UNLOCK(devvp, 0);
 		if (error)
 			break;
 	}
@@ -5075,7 +5075,7 @@ softdep_fsync(vp)
 		 */
 		FREE_LOCK(&lk);
 		if (ffs_vget(mp, parentino, LK_NOWAIT | LK_EXCLUSIVE, &pvp)) {
-			VOP_UNLOCK(vp, 0, td);
+			VOP_UNLOCK(vp, 0);
 			error = ffs_vget(mp, parentino, LK_EXCLUSIVE, &pvp);
 			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 			if (error != 0)

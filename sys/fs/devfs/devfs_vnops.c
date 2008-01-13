@@ -361,7 +361,7 @@ devfs_close(struct vop_close_args *ap)
 	vholdl(vp);
 	VI_UNLOCK(vp);
 	vp_locked = VOP_ISLOCKED(vp, td);
-	VOP_UNLOCK(vp, 0, td);
+	VOP_UNLOCK(vp, 0);
 	KASSERT(dev->si_refcount > 0,
 	    ("devfs_close() on un-referenced struct cdev *(%s)", devtoname(dev)));
 	if (!(dsw->d_flags & D_NEEDGIANT)) {
@@ -587,7 +587,7 @@ devfs_lookupx(struct vop_lookup_args *ap, int *dm_unlock)
 	if (flags & ISDOTDOT) {
 		if ((flags & ISLASTCN) && nameiop != LOOKUP)
 			return (EINVAL);
-		VOP_UNLOCK(dvp, 0, td);
+		VOP_UNLOCK(dvp, 0);
 		de = TAILQ_FIRST(&dd->de_dlist);	/* "." */
 		de = TAILQ_NEXT(de, de_list);		/* ".." */
 		de = de->de_dir;
@@ -770,7 +770,7 @@ devfs_open(struct vop_open_args *ap)
 	if (dsw->d_flags & D_TTY)
 		vp->v_vflag |= VV_ISTTY;
 
-	VOP_UNLOCK(vp, 0, td);
+	VOP_UNLOCK(vp, 0);
 
 	if(!(dsw->d_flags & D_NEEDGIANT)) {
 		DROP_GIANT();
@@ -1059,7 +1059,7 @@ devfs_revoke(struct vop_revoke_args *ap)
 	vgone(vp);
 	vdrop(vp);
 
-	VOP_UNLOCK(vp,0,curthread);
+	VOP_UNLOCK(vp,0);
  loop:
 	for (;;) {
 		mtx_lock(&devfs_de_interlock);

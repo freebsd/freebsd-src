@@ -1247,7 +1247,7 @@ smbfs_lookup(ap)
 		return 0;
 	}
 	if (flags & ISDOTDOT) {
-		VOP_UNLOCK(dvp, 0, td);
+		VOP_UNLOCK(dvp, 0);
 		error = smbfs_nget(mp, dvp, name, nmlen, NULL, &vp);
 		vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY);
 		if (error)
