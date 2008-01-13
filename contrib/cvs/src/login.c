@@ -1,5 +1,10 @@
 /*
- * Copyright (c) 1995, Cyclic Software, Bloomington, IN, USA
+ * Copyright (C) 1986-2005 The Free Software Foundation, Inc.
+ *
+ * Portions Copyright (C) 1998-2005 Derek Price, Ximbiot <http://ximbiot.com>,
+ *                                  and others.
+ *
+ * Portions Copyright (c) 1995, Cyclic Software, Bloomington, IN, USA
  * 
  * You may distribute under the terms of the GNU General Public License as
  * specified in the README file that comes with CVS.
@@ -384,7 +389,8 @@ process:
 
 	/* create and open a temp file */
 	if ((tmp_fp = cvs_temp_file (&tmp_name)) == NULL)
-	    error (1, errno, "unable to open temp file %s", tmp_name);
+	    error (1, errno, "unable to open temp file %s",
+		   tmp_name ? tmp_name : "(null)");
 
 	line = 0;
 	while ((line_length = getline (&linebuf, &linebuf_len, fp)) >= 0)
@@ -457,7 +463,7 @@ process:
 	if (fprintf (fp, "/1 %s %s\n", cvsroot_canonical, newpassword) == EOF)
 	    error (1, errno, "cannot write %s", passfile);
 	if (fclose (fp) < 0)
-	    error (0, errno, "cannot close %s", passfile);
+	    error (1, errno, "cannot close %s", passfile);
     }
 
     /* Utter, total, raving paranoia, I know. */
