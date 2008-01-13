@@ -30,7 +30,6 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#ifdef IFNET_MULTIQUEUE
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -93,7 +92,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 extern struct sysctl_oid_list sysctl__hw_cxgb_children;
-static int cxgb_pcpu_tx_coalesce = 1;
+static int cxgb_pcpu_tx_coalesce = 0;
 TUNABLE_INT("hw.cxgb.tx_coalesce", &cxgb_pcpu_tx_coalesce);
 SYSCTL_UINT(_hw_cxgb, OID_AUTO, tx_coalesce, CTLFLAG_RDTUN, &cxgb_pcpu_tx_coalesce, 0,
     "coalesce small packets into a single work request");
@@ -111,40 +110,29 @@ SYSCTL_UINT(_hw_cxgb, OID_AUTO, txq_mr_size, CTLFLAG_RDTUN, &cxgb_txq_buf_ring_s
 
 static inline int32_t cxgb_pcpu_calc_cookie(struct ifnet *ifp, struct mbuf *immpkt);
 static void cxgb_pcpu_start_proc(void *arg);
+#ifdef IFNET_MULTIQUEUE
 static int cxgb_pcpu_cookie_to_qidx(struct port_info *, uint32_t cookie);
-
+#endif
 static inline int
 cxgb_pcpu_enqueue_packet_(struct sge_qset *qs, struct mbuf *m)
 {
 	struct sge_txq *txq;
-	struct buf_ring *mr;
-	int prod, cons, mask;
 	int err = 0;
-	
+
+	KASSERT(m != NULL, ("null mbuf"));
+	KASSERT(m->m_type == MT_DATA, ("bad mbuf type %d", m->m_type));
 	if (qs->qs_flags & QS_EXITING) {
 		m_freem(m);
 		return (ENXIO);
 	}
 	txq = &qs->txq[TXQ_ETH];
-
-	mr = &txq->txq_mr;
-	mtx_lock(&mr->br_lock);
-	cons = mr->br_cons;
-	prod = mr->br_prod;
-	mask = mr->br_size - 1;
-	if (((prod + 1) & mask) != cons) {
-		mr->br_ring[prod] = (caddr_t)m;
-		mb();
-		mr->br_prod = (prod + 1) & mask;
-	} else {
+	err = buf_ring_enqueue(&txq->txq_mr, m);
+	if (err) {
 		txq->txq_drops++;
-		err = ENOBUFS;
+		m_freem(m);
 	}
-	mtx_unlock(&mr->br_lock);
 	if ((qs->txq[TXQ_ETH].flags & TXQ_TRANSMITTING) == 0)
 		wakeup(qs);
-	if (err) 
-		m_freem(m);
 
 	return (err);
 }
@@ -152,16 +140,17 @@ cxgb_pcpu_enqueue_packet_(struct sge_qset *qs, struct mbuf *m)
 int
 cxgb_pcpu_enqueue_packet(struct ifnet *ifp, struct mbuf *m)
 {
-	struct port_info *pi;
+	struct port_info *pi = ifp->if_softc;
 	struct sge_qset *qs;
-	int err, qidx;
+	int err = 0, qidx;
+#ifdef IFNET_MULTIQUEUE
 	int32_t calc_cookie;
-
-	pi = ifp->if_softc;
-	err = 0;
 
 	calc_cookie = m->m_pkthdr.rss_hash;
 	qidx = cxgb_pcpu_cookie_to_qidx(pi, calc_cookie);
+#else
+	qidx = 0;
+#endif	    
 	qs = &pi->adapter->sge.qs[qidx];
 
 	err = cxgb_pcpu_enqueue_packet_(qs, m);
@@ -176,11 +165,13 @@ cxgb_dequeue_packet(struct ifnet *unused, struct sge_txq *txq, struct mbuf **m_v
 	struct sge_qset *qs;
 	int count, size, coalesced;
 	struct adapter *sc;
-	struct buf_ring *mr;
-	
-	mr = &txq->txq_mr;
-	coalesced = count = size = 0;
+#ifndef IFNET_MULTIQUEUE
+	struct port_info *pi = txq->port;
+#endif
 
+	mtx_assert(&txq->lock, MA_OWNED);
+
+	coalesced = count = size = 0;
 	qs = txq_to_qset(txq, TXQ_ETH);
 	if (qs->qs_flags & QS_EXITING)
 		return (0);
@@ -193,26 +184,43 @@ cxgb_dequeue_packet(struct ifnet *unused, struct sge_txq *txq, struct mbuf **m_v
 	}
 	sc = qs->port->adapter;
 
-	m = buf_ring_dequeue(mr);
+#ifndef IFNET_MULTIQUEUE
+	/*
+	 * This is terrible from a cache and locking efficiency standpoint
+	 * but then again ... so is ifnet.
+	 */
+	while (!IFQ_DRV_IS_EMPTY(&pi->ifp->if_snd) && !buf_ring_full(&txq->txq_mr)) {
+		struct mbuf *m = NULL;
+
+		IFQ_DRV_DEQUEUE(&pi->ifp->if_snd, m);
+		if (m) {
+			KASSERT(m->m_type == MT_DATA, ("bad mbuf type %d", m->m_type));
+			if (buf_ring_enqueue(&txq->txq_mr, m))
+				panic("ring full");
+		} else
+			break;
+	}
+#endif    
+	m = buf_ring_dequeue(&txq->txq_mr);
 	if (m == NULL)
 		return (0);
 
+	KASSERT(m->m_type == MT_DATA, ("bad mbuf type %d", m->m_type));
 	m_vec[0] = m;
-	if (m->m_pkthdr.tso_segsz > 0 || m->m_pkthdr.len > TX_WR_SIZE_MAX || m->m_next != NULL) {
-		DPRINTF("returning 1 packet\n");
+	if (m->m_pkthdr.tso_segsz > 0 || m->m_pkthdr.len > TX_WR_SIZE_MAX || m->m_next != NULL ||
+	    (cxgb_pcpu_tx_coalesce == 0)) {
 		return (1);
 	}
 	count = 1;
 	size = m->m_pkthdr.len;
-	for (m = buf_ring_peek(mr); m != NULL; m = buf_ring_peek(mr)) {
+	for (m = buf_ring_peek(&txq->txq_mr); m != NULL; m = buf_ring_peek(&txq->txq_mr)) {
 
 		if (m->m_pkthdr.tso_segsz > 0 || size + m->m_pkthdr.len > TX_WR_SIZE_MAX || m->m_next != NULL)
 			break;
 
-		buf_ring_dequeue(mr);
+		buf_ring_dequeue(&txq->txq_mr);
 		size += m->m_pkthdr.len;
 		m_vec[count++] = m;
-
 
 		if (count == TX_WR_COUNT_MAX || (cxgb_pcpu_tx_coalesce == 0))
 			break;
@@ -224,7 +232,7 @@ cxgb_dequeue_packet(struct ifnet *unused, struct sge_txq *txq, struct mbuf **m_v
 	return (count);
 }
 
-int32_t
+static int32_t
 cxgb_pcpu_get_cookie(struct ifnet *ifp, struct in6_addr *lip, uint16_t lport, struct in6_addr *rip, uint16_t rport, int ipv6)
 {
 	uint32_t base;
@@ -403,14 +411,14 @@ cxgb_pcpu_start_(struct sge_qset *qs, struct mbuf *immpkt, int tx_flush)
 	pi = qs->port;
 	initerr = err = i = reclaimed = 0;
 	sc = pi->adapter;
+	txq = &qs->txq[TXQ_ETH];
 	
  retry:	
 	if (!pi->link_config.link_ok)
 		initerr = ENXIO;
 	else if (qs->qs_flags & QS_EXITING)
 		initerr = ENXIO;
-	else {
-		txq = &qs->txq[TXQ_ETH];
+	else if (immpkt) {
 
 		if (!buf_ring_empty(&txq->txq_mr)) 
 			initerr = cxgb_pcpu_enqueue_packet_(qs, immpkt);
@@ -427,7 +435,8 @@ cxgb_pcpu_start_(struct sge_qset *qs, struct mbuf *immpkt, int tx_flush)
 		return (initerr);
 	}
 
-	if ((tx_flush && (desc_reclaimable(txq) > 0)) || (desc_reclaimable(txq) > (TX_ETH_Q_SIZE>>1))) {
+	if ((tx_flush && (desc_reclaimable(txq) > 0)) ||
+	    (desc_reclaimable(txq) > (TX_ETH_Q_SIZE>>1))) {
 		int reclaimed = 0;
 
 		if (cxgb_debug) {
@@ -444,8 +453,14 @@ cxgb_pcpu_start_(struct sge_qset *qs, struct mbuf *immpkt, int tx_flush)
 	stopped = isset(&qs->txq_stopped, TXQ_ETH);
 	flush = ((!buf_ring_empty(&txq->txq_mr) && !stopped) || txq->immpkt); 
 	max_desc = tx_flush ? TX_ETH_Q_SIZE : TX_START_MAX_DESC;
-	err = flush ? cxgb_tx_common(qs->port->ifp, qs, max_desc) : ENOSPC;
+
+	if (cxgb_debug)
+		printf("stopped=%d flush=%d max_desc=%d\n",
+		    stopped, flush, max_desc);
 	
+	err = flush ? cxgb_tx_common(qs->port->ifp, qs, max_desc) : ENOSPC;
+
+
 	if ((tx_flush && flush && err == 0) && !buf_ring_empty(&txq->txq_mr)) {
 		struct thread *td = curthread;
 
@@ -467,6 +482,7 @@ cxgb_pcpu_start_(struct sge_qset *qs, struct mbuf *immpkt, int tx_flush)
 	return (err);
 }
 
+
 int
 cxgb_pcpu_start(struct ifnet *ifp, struct mbuf *immpkt)
 {
@@ -481,26 +497,36 @@ cxgb_pcpu_start(struct ifnet *ifp, struct mbuf *immpkt)
 	sc = pi->adapter;
 	qs = NULL;
 	qidx = resid = err = cookie = locked = 0;
-	
+
+#ifdef IFNET_MULTIQUEUE	
 	if (immpkt && (immpkt->m_pkthdr.rss_hash != 0)) {
 		cookie = immpkt->m_pkthdr.rss_hash;
 		qidx = cxgb_pcpu_cookie_to_qidx(pi, cookie);
 		DPRINTF("hash=0x%x qidx=%d cpu=%d\n", immpkt->m_pkthdr.rss_hash, qidx, curcpu);
 		qs = &pi->adapter->sge.qs[qidx];
-	} else 
+	} else
+#endif		
 		qs = &pi->adapter->sge.qs[pi->first_qset];
 	
 	txq = &qs->txq[TXQ_ETH];
 
-	if (((sc->tunq_coalesce == 0) || (buf_ring_count(&txq->txq_mr) > TX_WR_COUNT_MAX)) && mtx_trylock(&txq->lock)) {
+	if (((sc->tunq_coalesce == 0) || (buf_ring_count(&txq->txq_mr) >= TX_WR_COUNT_MAX) ||
+		(cxgb_pcpu_tx_coalesce == 0)) && mtx_trylock(&txq->lock)) {
+		if (cxgb_debug)
+			printf("doing immediate transmit\n");
+		
 		txq->flags |= TXQ_TRANSMITTING;
 		err = cxgb_pcpu_start_(qs, immpkt, FALSE);
 		txq->flags &= ~TXQ_TRANSMITTING;
 		resid = (buf_ring_count(&txq->txq_mr) > 64) || (desc_reclaimable(txq) > 64);
 		mtx_unlock(&txq->lock);
-	} else if (immpkt)
+	} else if (immpkt) {
+		if (cxgb_debug)
+			printf("deferred coalesce=%lx ring_count=%d mtx_owned=%d\n",
+			    sc->tunq_coalesce, buf_ring_count(&txq->txq_mr), mtx_owned(&txq->lock));
 		err = cxgb_pcpu_enqueue_packet_(qs, immpkt);
-
+	}
+	
 	if (resid && (txq->flags & TXQ_TRANSMITTING) == 0)
 		wakeup(qs);
 
@@ -510,53 +536,21 @@ cxgb_pcpu_start(struct ifnet *ifp, struct mbuf *immpkt)
 void
 cxgb_start(struct ifnet *ifp)
 {
-	struct port_info *pi = ifp->if_softc;	
-	struct sge_qset *qs;
-	struct mbuf *m, *head, *tail, *lhead, *ltail;
-	int calc_cookie, qidx, i;
+	struct mbuf *m = NULL;
+	struct port_info *p = ifp->if_softc;
+		
+	if (!p->link_config.link_ok)
+		return;
 
-	IFQ_LOCK(&ifp->if_snd);
-	IFQ_DEQUEUE_NOLOCK(&ifp->if_snd, m);
-	head = tail = m;
-	i = 0;
-	while (m != NULL) {
-		IFQ_DEQUEUE_NOLOCK(&ifp->if_snd, m);
-		tail->m_nextpkt = m;
-		tail = m;
-		i++;
-	} 
-	IFQ_UNLOCK(&ifp->if_snd);
-	printf("dequeued %d packets\n", i);
-	lhead = ltail = NULL;
-	for (m = head; m != NULL; m = head->m_nextpkt) {
-		calc_cookie = cxgb_pcpu_calc_cookie(ifp, m);
-		qidx = cxgb_pcpu_cookie_to_qidx(pi, calc_cookie);
-		qs = &pi->adapter->sge.qs[qidx];
-		critical_enter();
-		if (qs->qs_cpuid == curcpu) {
-			if (lhead == NULL)
-				lhead = m;
-			else
-				ltail->m_nextpkt = m;
-			ltail = m;
-			critical_exit();
-		} else {
-			critical_exit();
-			cxgb_pcpu_enqueue_packet_(qs, m);
-		}
-	}
-	if (curcpu < SGE_QSETS) {
-		qs = &pi->adapter->sge.qs[curcpu]; 
-		/*
-		 * Assume one-to-one mapping of qset to CPU for now XXX 
-		 */
+	if (IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+		return;
 
-		(void)cxgb_pcpu_start_(qs, NULL, TRUE);
-		/*
-			 * XXX multiple packets
-			 */
-			cxgb_pcpu_enqueue_packet_(qs, lhead);
-	}
+	IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
+#ifdef INVARIANTS
+	if (m)
+		KASSERT(m->m_type == MT_DATA, ("bad mbuf type %d", m->m_type));
+#endif	
+	cxgb_pcpu_start(ifp, m);
 }
 
 static void
@@ -566,11 +560,12 @@ cxgb_pcpu_start_proc(void *arg)
 	struct thread *td;
 	struct sge_txq *txq = &qs->txq[TXQ_ETH];
 	int idleticks, err = 0;
+#ifdef notyet	
 	struct adapter *sc = qs->port->adapter;
-
+#endif
 	td = curthread;
 
-	sleep_ticks = hz/100;
+	sleep_ticks = max(hz/1000, 1);
 	qs->qs_flags |= QS_RUNNING;
 	thread_lock(td);
 	sched_bind(td, qs->qs_cpuid);
@@ -599,7 +594,7 @@ cxgb_pcpu_start_proc(void *arg)
 			mtx_unlock(&txq->lock);
 		} else
 			err = EINPROGRESS;
-
+#ifdef notyet
 		if (mtx_trylock(&qs->rspq.lock)) {
 			process_responses(sc, qs, -1);
 
@@ -610,6 +605,7 @@ cxgb_pcpu_start_proc(void *arg)
 
 			mtx_unlock(&qs->rspq.lock);
 		}
+#endif		
 		if ((!buf_ring_empty(&txq->txq_mr)) && err == 0) {
 			if (cxgb_debug)
 				printf("head=%p cons=%d prod=%d\n",
@@ -632,6 +628,7 @@ cxgb_pcpu_start_proc(void *arg)
 	kproc_exit(0);
 }
 
+#ifdef IFNET_MULTIQUEUE
 static int
 cxgb_pcpu_cookie_to_qidx(struct port_info *pi, uint32_t cookie)
 {
@@ -647,7 +644,7 @@ cxgb_pcpu_cookie_to_qidx(struct port_info *pi, uint32_t cookie)
 
 	return (qidx);
 }
-
+#endif
 
 void
 cxgb_pcpu_startup_threads(struct adapter *sc)
@@ -695,4 +692,3 @@ cxgb_pcpu_shutdown_threads(struct adapter *sc)
 		}
 	}
 }
-#endif
