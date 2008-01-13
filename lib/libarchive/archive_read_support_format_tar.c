@@ -295,23 +295,7 @@ archive_read_format_tar_bid(struct archive_read *a)
 	const void *h;
 	const struct archive_entry_header_ustar *header;
 
-	/*
-	 * If we're already reading a non-tar file, don't
-	 * bother to bid.
-	 */
-	if (a->archive.archive_format != 0 &&
-	    (a->archive.archive_format & ARCHIVE_FORMAT_BASE_MASK) !=
-	    ARCHIVE_FORMAT_TAR)
-		return (0);
 	bid = 0;
-
-	/*
-	 * If we're already reading a tar format, start the bid at 1 as
-	 * a failsafe.
-	 */
-	if ((a->archive.archive_format & ARCHIVE_FORMAT_BASE_MASK) ==
-	    ARCHIVE_FORMAT_TAR)
-		bid++;
 
 	/* Now let's look at the actual header and see if it matches. */
 	if (a->decompressor->read_ahead != NULL)
@@ -324,13 +308,14 @@ archive_read_format_tar_bid(struct archive_read *a)
 		return (0);
 
 	/* If it's an end-of-archive mark, we can handle it. */
-	if ((*(const char *)h) == 0 && archive_block_is_null((const unsigned char *)h)) {
-		/* If it's a known tar file, end-of-archive is definite. */
-		if ((a->archive.archive_format & ARCHIVE_FORMAT_BASE_MASK) ==
-		    ARCHIVE_FORMAT_TAR)
-			return (512);
-		/* Empty archive? */
-		return (1);
+	if ((*(const char *)h) == 0
+	    && archive_block_is_null((const unsigned char *)h)) {
+		/*
+		 * Usually, I bid the number of bits verified, but
+		 * in this case, 4096 seems excessive so I picked 10 as
+		 * an arbitrary but reasonable-seeming value.
+		 */
+		return (10);
 	}
 
 	/* If it's not an end-of-archive mark, it must have a valid checksum.*/
@@ -590,6 +575,10 @@ tar_read_header(struct archive_read *a, struct tar *tar,
 		if (bytes > 0)
 			(a->decompressor->consume)(a, bytes);
 		archive_set_error(&a->archive, 0, NULL);
+		if (a->archive.archive_format_name == NULL) {
+			a->archive.archive_format = ARCHIVE_FORMAT_TAR;
+			a->archive.archive_format_name = "tar";
+		}
 		return (ARCHIVE_EOF);
 	}
 
