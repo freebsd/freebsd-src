@@ -1,5 +1,10 @@
 /*
- * Copyright (c) 1993 david d zuhn
+ * Copyright (C) 1986-2005 The Free Software Foundation, Inc.
+ *
+ * Portions Copyright (C) 1998-2005 Derek Price, Ximbiot <http://ximbiot.com>,
+ *                                  and others.
+ *
+ * Portions Copyright (C) 1993 david d zuhn
  * 
  * Written by david d `zoo' zuhn while at Cygnus Support
  * 
@@ -120,9 +125,9 @@ read_cvsrc (argc, argv, cmdname)
     if (found)
     {
 	/* skip over command in the options line */
-	for (optstart = strtok (line + command_len, "\t \n");
+	for (optstart = strtok (line + command_len, "\t \n\r");
 	     optstart;
-	     optstart = strtok (NULL, "\t \n"))
+	     optstart = strtok (NULL, "\t \n\r"))
 	{
 	    new_argv [new_argc++] = xstrdup (optstart);
 	  

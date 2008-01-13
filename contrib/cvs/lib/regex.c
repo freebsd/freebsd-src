@@ -4001,7 +4001,7 @@ static boolean alt_match_null_string_p (),
 
 /* Free everything we malloc.  */
 #ifdef MATCH_MAY_ALLOCATE
-#define FREE_VAR(var) if (var) { (void)REGEX_FREE ((void *)var); var = NULL; } else
+#define FREE_VAR(var) if (var) { REGEX_FREE (var); var = NULL; } else
 #define FREE_VARIABLES()						\
   do {									\
     REGEX_FREE_STACK (fail_stack.stack);				\
@@ -6084,7 +6084,7 @@ re_comp (s)
   if (!s)
     {
       if (!re_comp_buf.buffer)
-	return gettext ("No previous regular expression");
+	return (char *) gettext ("No previous regular expression");
       return 0;
     }
 

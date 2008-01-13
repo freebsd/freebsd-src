@@ -1,5 +1,17 @@
 /* expand_path.c -- expand environmental variables in passed in string
  *
+ * Copyright (C) 1995-2005 The Free Software Foundation, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2, or (at your option)
+ * any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
  * The main routine is expand_path(), it is the routine that handles
  * the '~' character in four forms: 
  *     ~name
@@ -97,15 +109,13 @@ expand_path (name, file, line)
     const char *file;
     int line;
 {
-    const char *s;
-    char *d;
+    size_t s, d, p;
+    char *e;
 
     char *mybuf = NULL;
     size_t mybuf_size = 0;
     char *buf = NULL;
     size_t buf_size = 0;
-
-    size_t doff;
 
     char *result;
 
@@ -117,82 +127,74 @@ expand_path (name, file, line)
        thusly.  */
 
     /* First copy from NAME to MYBUF, expanding $<foo> as we go.  */
-    s = name;
-    d = mybuf;
-    doff = d - mybuf;
-    expand_string (&mybuf, &mybuf_size, doff + 1);
-    d = mybuf + doff;
-    while ((*d++ = *s))
+    s = d = 0;
+    while (name[s] != '\0')
     {
-	if (*s++ == '$')
+	if (name[s] == '$')
 	{
-	    char *p = d;
-	    char *e;
-	    int flag = (*s == '{');
-
-	    doff = d - mybuf;
-	    expand_string (&mybuf, &mybuf_size, doff + 1);
-	    d = mybuf + doff;
-	    for (; (*d++ = *s); s++)
+	    p = d;
+	    if (name[++s] == '{')
 	    {
-		if (flag
-		    ? *s =='}'
-		    : isalnum ((unsigned char) *s) == 0 && *s != '_')
-		    break;
-		doff = d - mybuf;
-		expand_string (&mybuf, &mybuf_size, doff + 1);
-		d = mybuf + doff;
+		while (name[++s] != '}' && name[s] != '\0')
+		{
+		    expand_string (&mybuf, &mybuf_size, p + 1);
+		    mybuf[p++] = name[s];
+		}
+		if (name[s] != '\0') ++s;
 	    }
-	    *--d = '\0';
-	    e = expand_variable (&p[flag], file, line);
+	    else
+	    {
+		while (isalnum ((unsigned char) name[s]) || name[s] == '_')
+		{
+		    expand_string (&mybuf, &mybuf_size, p + 1);
+		    mybuf[p++] = name[s++];
+		}
+	    }
+	    expand_string (&mybuf, &mybuf_size, p + 1);
+	    mybuf[p] = '\0';
+	    e = expand_variable (mybuf + d, file, line);
 
 	    if (e)
 	    {
-		doff = d - mybuf;
-		expand_string (&mybuf, &mybuf_size, doff + 1);
-		d = mybuf + doff;
-		for (d = &p[-1]; (*d++ = *e++);)
-		{
-		    doff = d - mybuf;
-		    expand_string (&mybuf, &mybuf_size, doff + 1);
-		    d = mybuf + doff;
-		}
-		--d;
-		if (flag && *s)
-		    s++;
+		p = strlen(e);
+		expand_string (&mybuf, &mybuf_size, d + p);
+		memcpy(mybuf + d, e, p);
+		d += p;
 	    }
 	    else
 		/* expand_variable has already printed an error message.  */
 		goto error_exit;
 	}
-	doff = d - mybuf;
-	expand_string (&mybuf, &mybuf_size, doff + 1);
-	d = mybuf + doff;
+	else
+	{
+	    expand_string (&mybuf, &mybuf_size, d + 1);
+	    mybuf[d++] = name[s++];
+	}
     }
-    doff = d - mybuf;
-    expand_string (&mybuf, &mybuf_size, doff + 1);
-    d = mybuf + doff;
-    *d = '\0';
+    expand_string (&mybuf, &mybuf_size, d + 1);
+    mybuf[d++] = '\0';
 
     /* Then copy from MYBUF to BUF, expanding ~.  */
-    s = mybuf;
-    d = buf;
+    s = d = 0;
     /* If you don't want ~username ~/ to be expanded simply remove
      * This entire if statement including the else portion
      */
-    if (*s++ == '~')
+    if (mybuf[s] == '~')
     {
-	char *t;
-	char *p, *pstart;
-	pstart = p = xstrdup (s);
-	if (*pstart=='/' || *pstart==0)
-	    t = get_homedir ();
+	p = d;
+	while (mybuf[++s] != '/' && mybuf[s] != '\0')
+	{
+	    expand_string (&buf, &buf_size, p + 1);
+	    buf[p++] = name[s];
+	}
+	expand_string (&buf, &buf_size, p + 1);
+	buf[p] = '\0';
+
+	if (p == d)
+	    e = get_homedir ();
 	else
 	{
 #ifdef GETPWNAM_MISSING
-	    for (; *p!='/' && *p; p++)
-		;
-	    *p = 0;
 	    if (line != 0)
 		error (0, 0,
 		       "%s:%d:tilde expansion not supported on this system",
@@ -200,57 +202,34 @@ expand_path (name, file, line)
 	    else
 		error (0, 0, "%s:tilde expansion not supported on this system",
 		       file);
-	    return NULL;
+	    goto error_exit;
 #else
 	    struct passwd *ps;
-	    for (; *p!='/' && *p; p++)
-		;
-	    *p = 0;
-	    ps = getpwnam (pstart);
-	    if (ps == 0)
+	    ps = getpwnam (buf + d);
+	    if (ps == NULL)
 	    {
 		if (line != 0)
 		    error (0, 0, "%s:%d: no such user %s",
-			   file, line, pstart);
+			   file, line, buf + d);
 		else
-		    error (0, 0, "%s: no such user %s", file, pstart);
-		return NULL;
+		    error (0, 0, "%s: no such user %s", file, buf + d);
+		goto error_exit;
 	    }
-	    t = ps->pw_dir;
+	    e = ps->pw_dir;
 #endif
 	}
-	if (t == NULL)
+	if (e == NULL)
 	    error (1, 0, "cannot find home directory");
 
-	doff = d - buf;
-	expand_string (&buf, &buf_size, doff + 1);
-	d = buf + doff;
-	while ((*d++ = *t++))
-	{
-	    doff = d - buf;
-	    expand_string (&buf, &buf_size, doff + 1);
-	    d = buf + doff;
-	}
-	--d;
-	s+=p-pstart;
-	free (pstart);
+	p = strlen(e);
+	expand_string (&buf, &buf_size, d + p);
+	memcpy(buf + d, e, p);
+	d += p;
     }
-    else
-	--s;
-	/* Kill up to here */
-    doff = d - buf;
-    expand_string (&buf, &buf_size, doff + 1);
-    d = buf + doff;
-    while ((*d++ = *s++))
-    {
-	doff = d - buf;
-	expand_string (&buf, &buf_size, doff + 1);
-	d = buf + doff;
-    }
-    doff = d - buf;
-    expand_string (&buf, &buf_size, doff + 1);
-    d = buf + doff;
-    *d = '\0';
+    /* Kill up to here */
+    p = strlen(mybuf + s) + 1;
+    expand_string (&buf, &buf_size, d + p);
+    memcpy(buf + d, mybuf + s, p);
 
     /* OK, buf contains the value we want to return.  Clean up and return
        it.  */

@@ -1,3 +1,17 @@
+/*
+ * Copyright (C) 1994-2005 The Free Software Foundation, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2, or (at your option)
+ * any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
 /* Interface between the client and the rest of CVS.  */
 
 /* Stuff shared with the server.  */
@@ -119,11 +133,10 @@ send_files PROTO((int argc, char **argv, int local, int aflag,
 
 /* Send an argument to the remote server.  */
 void
-send_arg PROTO((char *string));
+send_arg PROTO((const char *string));
 
 /* Send a string of single-char options to the remote server, one by one.  */
-void
-send_option_string PROTO((char *string));
+void send_options PROTO ((int argc, char * const *argv));
 
 extern void send_a_repository PROTO ((const char *, const char *,
                                       const char *));
