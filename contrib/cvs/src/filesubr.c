@@ -24,6 +24,8 @@
 #include <assert.h>
 #include "cvs.h"
 
+#include "xsize.h"
+
 static int deep_remove_dir PROTO((const char *path));
 
 /*
@@ -109,7 +111,7 @@ copy_file (from, to)
 	    error (1, errno, "cannot close %s", to);
     }
 
-    /* now, set the times for the copied file to match those of the original */
+    /* preserve last access & modification times */
     memset ((char *) &t, 0, sizeof (t));
     t.actime = sb.st_atime;
     t.modtime = sb.st_mtime;
@@ -437,14 +439,10 @@ unlink_file_dir (f)
 {
     struct stat sb;
 
-    if (trace
-#ifdef SERVER_SUPPORT
-	/* This is called by the server parent process in contexts where
-	   it is not OK to send output (e.g. after we sent "ok" to the
-	   client).  */
-	&& !server_active
-#endif
-	)
+    /* This is called by the server parent process in contexts where
+       it is not OK to send output (e.g. after we sent "ok" to the
+       client).  */
+    if (trace && !server_active)
 	(void) fprintf (stderr, "-> unlink_file_dir(%s)\n", f);
 
     if (noexec)
@@ -708,7 +706,8 @@ cvs_temp_name ()
 
     fp = cvs_temp_file (&fn);
     if (fp == NULL)
-	error (1, errno, "Failed to create temporary file");
+	error (1, errno, "Failed to create temporary file %s",
+	       fn ? fn : "(null)");
     if (fclose (fp) == EOF)
 	error (0, errno, "Failed to close temporary file %s", fn);
     return fn;
@@ -745,7 +744,8 @@ cvs_temp_name ()
  * NFS locking thing, but until I hear of more problems, I'm not going to
  * bother.
  */
-FILE *cvs_temp_file (filename)
+FILE *
+cvs_temp_file (filename)
     char **filename;
 {
     char *fn;
@@ -784,7 +784,11 @@ FILE *cvs_temp_file (filename)
 	errno = save_errno;
     }
 
-    if (fp == NULL) free (fn);
+    if (fp == NULL)
+    {
+	free (fn);
+	fn = NULL;
+    }
     /* mkstemp is defined to open mode 0600 using glibc 2.0.7+ */
     /* FIXME - configure can probably tell us which version of glibc we are
      * linking to and not chmod for 2.0.7+
@@ -799,7 +803,11 @@ FILE *cvs_temp_file (filename)
 
     fn = tempnam (Tmpdir, "cvs");
     if (fn == NULL) fp = NULL;
-    else if ((fp = CVS_FOPEN (fn, "w+")) == NULL) free (fn);
+    else if ((fp = CVS_FOPEN (fn, "w+")) == NULL)
+    {
+	free (fn);
+	fn = NULL;
+    }
     else chmod (fn, 0600);
 
     /* tempnam returns a pointer to a newly malloc'd string, so there's
@@ -849,6 +857,11 @@ FILE *cvs_temp_file (filename)
 #endif
 
     *filename = fn;
+    if (fn == NULL && fp != NULL)
+    {
+	fclose (fp);
+	fp = NULL;
+    }
     return fp;
 }
 
@@ -871,32 +884,48 @@ FILE *cvs_temp_file (filename)
  *  This function exits with a fatal error if it fails to read the link for
  *  any reason.
  */
+#define MAXSIZE (SIZE_MAX < SSIZE_MAX ? SIZE_MAX : SSIZE_MAX)
+
 char *
 xreadlink (link)
     const char *link;
 {
     char *file = NULL;
-    int buflen = BUFSIZ;
-    int link_name_len;
+    size_t buflen = BUFSIZ;
 
-    /* Get the name of the file to which `from' is linked.
-       FIXME: what portability issues arise here?  Are readlink &
-       ENAMETOOLONG defined on all systems? -twp */
-    do
+    /* Get the name of the file to which `from' is linked. */
+    while (1)
     {
+	ssize_t r;
+	size_t link_name_len;
+
 	file = xrealloc (file, buflen);
-	errno = 0;
-	link_name_len = readlink (link, file, buflen - 1);
-	buflen *= 2;
+	r = readlink (link, file, buflen);
+	link_name_len = r;
+
+	if (r < 0
+#ifdef ERANGE
+	    /* AIX 4 and HP-UX report ERANGE if the buffer is too small. */
+	    && errno != ERANGE
+#endif
+	    )
+	    error (1, errno, "cannot readlink %s", link);
+
+	/* If there is space for the NUL byte, set it and return. */
+	if (r >= 0 && link_name_len < buflen)
+	{
+	    file[link_name_len] = '\0';
+	    return file;
+	}
+
+	if (buflen <= MAXSIZE / 2)
+	    buflen *= 2;
+	else if (buflen < MAXSIZE)
+	    buflen = MAXSIZE;
+	else
+	    /* Our buffer cannot grow any bigger.  */
+	    error (1, ENAMETOOLONG, "cannot readlink %s", link);
     }
-    while (link_name_len < 0 && errno == ENAMETOOLONG);
-
-    if (link_name_len < 0)
-	error (1, errno, "cannot readlink %s", link);
-
-    file[link_name_len] = '\0';
-
-    return file;
 }
 #endif /* HAVE_READLINK */
 
@@ -949,7 +978,8 @@ last_component (path)
     const char *path;
 {
     const char *last = strrchr (path, '/');
-    
+
+    assert (path);
     if (last && (last != path))
         return last + 1;
     else
@@ -989,11 +1019,7 @@ get_homedir ()
     if (home != NULL)
 	return home;
 
-    if (
-#ifdef SERVER_SUPPORT
-	!server_active &&
-#endif
-	(env = getenv ("HOME")) != NULL)
+    if (!server_active && (env = getenv ("HOME")) != NULL)
 	home = env;
     else if ((pw = (struct passwd *) getpwuid (getuid ()))
 	     && pw->pw_dir)
@@ -1034,6 +1060,7 @@ expand_wild (argc, argv, pargc, pargv)
     char ***pargv;
 {
     int i;
+    assert (argv || !argc);
     if (size_overflow_p (xtimes (argc, sizeof (char *)))) {
 	*pargc = 0;
 	*pargv = NULL;
