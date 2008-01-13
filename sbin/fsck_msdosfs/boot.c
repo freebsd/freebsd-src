@@ -123,7 +123,7 @@ readboot(dosfs, boot)
 		    || fsinfo[0x3fd]
 		    || fsinfo[0x3fe] != 0x55
 		    || fsinfo[0x3ff] != 0xaa) {
-			pwarn("Invalid signature in fsinfo block");
+			pwarn("Invalid signature in fsinfo block, ");
 			if (ask(0, "fix")) {
 				memcpy(fsinfo, "RRaA", 4);
 				memcpy(fsinfo + 0x1e4, "rrAa", 4);
