@@ -235,7 +235,6 @@ retry:
 		m_freem(*m);
 		n = m0;
 		*m = n;
-		DPRINTF("collapsed into immediate - list:%d\n", !SLIST_EMPTY(&m0->m_pkthdr.tags));
 		goto retry;
 	}
 	
