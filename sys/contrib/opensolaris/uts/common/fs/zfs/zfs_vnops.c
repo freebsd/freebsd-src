@@ -1114,7 +1114,7 @@ zfs_lookup(vnode_t *dvp, char *nm, vnode_t **vpp, struct componentname *cnp,
 
 		if (cnp->cn_flags & ISDOTDOT) {
 			ltype = VOP_ISLOCKED(dvp, td);
-			VOP_UNLOCK(dvp, 0, td);
+			VOP_UNLOCK(dvp, 0);
 		}
 		error = vn_lock(*vpp, cnp->cn_lkflags);
 		if (cnp->cn_flags & ISDOTDOT)

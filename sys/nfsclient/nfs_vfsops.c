@@ -947,7 +947,7 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 	/*
 	 * Lose the lock but keep the ref.
 	 */
-	VOP_UNLOCK(*vpp, 0, curthread);
+	VOP_UNLOCK(*vpp, 0);
 
 	return (0);
 bad:
@@ -1065,7 +1065,7 @@ loop:
 		error = VOP_FSYNC(vp, waitfor, td);
 		if (error)
 			allerror = error;
-		VOP_UNLOCK(vp, 0, td);
+		VOP_UNLOCK(vp, 0);
 		vrele(vp);
 
 		MNT_ILOCK(mp);

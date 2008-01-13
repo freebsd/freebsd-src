@@ -3113,12 +3113,12 @@ restart:
 	/* Don't dump to non-regular files or files with links. */
 	if (vp->v_type != VREG ||
 	    VOP_GETATTR(vp, &vattr, cred, td) || vattr.va_nlink != 1) {
-		VOP_UNLOCK(vp, 0, td);
+		VOP_UNLOCK(vp, 0);
 		error = EFAULT;
 		goto close;
 	}
 
-	VOP_UNLOCK(vp, 0, td);
+	VOP_UNLOCK(vp, 0);
 	lf.l_whence = SEEK_SET;
 	lf.l_start = 0;
 	lf.l_len = 0;
@@ -3144,7 +3144,7 @@ restart:
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	VOP_LEASE(vp, td, cred, LEASE_WRITE);
 	VOP_SETATTR(vp, &vattr, cred, td);
-	VOP_UNLOCK(vp, 0, td);
+	VOP_UNLOCK(vp, 0);
 	vn_finished_write(mp);
 	PROC_LOCK(p);
 	p->p_acflag |= ACORE;

@@ -205,10 +205,10 @@ ext2_mount(mp, td)
 			if (error)
 				error = priv_check(td, PRIV_VFS_MOUNT_PERM);
 			if (error) {
-				VOP_UNLOCK(devvp, 0, td);
+				VOP_UNLOCK(devvp, 0);
 				return (error);
 			}
-			VOP_UNLOCK(devvp, 0, td);
+			VOP_UNLOCK(devvp, 0);
 			DROP_GIANT();
 			g_topology_lock();
 			error = g_access(ump->um_cp, 0, 1, 0);
@@ -520,7 +520,7 @@ ext2_reload(struct mount *mp, struct thread *td)
 	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY);
 	if (vinvalbuf(devvp, 0, td, 0, 0) != 0)
 		panic("ext2_reload: dirty1");
-	VOP_UNLOCK(devvp, 0, td);
+	VOP_UNLOCK(devvp, 0);
 
 	/*
 	 * Step 2: re-read superblock from disk.
@@ -572,7 +572,7 @@ loop:
 		    bread(devvp, fsbtodb(fs, ino_to_fsba(fs, ip->i_number)),
 		    (int)fs->s_blocksize, NOCRED, &bp);
 		if (error) {
-			VOP_UNLOCK(vp, 0, td);
+			VOP_UNLOCK(vp, 0);
 			vrele(vp);
 			MNT_VNODE_FOREACH_ABORT(mp, mvp);
 			return (error);
@@ -580,7 +580,7 @@ loop:
 		ext2_ei2i((struct ext2_inode *) ((char *)bp->b_data +
 		    EXT2_INODE_SIZE * ino_to_fsbo(fs, ip->i_number)), ip);
 		brelse(bp);
-		VOP_UNLOCK(vp, 0, td);
+		VOP_UNLOCK(vp, 0);
 		vrele(vp);
 		MNT_ILOCK(mp);
 	}
@@ -614,7 +614,7 @@ ext2_mountfs(devvp, mp, td)
 	error = g_vfs_open(devvp, &cp, "ext2fs", ronly ? 0 : 1);
 	g_topology_unlock();
 	PICKUP_GIANT();
-	VOP_UNLOCK(devvp, 0, td);
+	VOP_UNLOCK(devvp, 0);
 	if (error)
 		return (error);
 
@@ -907,7 +907,7 @@ loop:
 		}
 		if ((error = VOP_FSYNC(vp, waitfor, td)) != 0)
 			allerror = error;
-		VOP_UNLOCK(vp, 0, td);
+		VOP_UNLOCK(vp, 0);
 		vrele(vp);
 		MNT_ILOCK(mp);
 	}
@@ -919,7 +919,7 @@ loop:
 		vn_lock(ump->um_devvp, LK_EXCLUSIVE | LK_RETRY);
 		if ((error = VOP_FSYNC(ump->um_devvp, waitfor, td)) != 0)
 			allerror = error;
-		VOP_UNLOCK(ump->um_devvp, 0, td);
+		VOP_UNLOCK(ump->um_devvp, 0);
 	}
 	/*
 	 * Write back modified superblock.

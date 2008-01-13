@@ -68,7 +68,6 @@ exec_svr4_imgact(imgp)
     vm_offset_t buffer;
     unsigned long bss_size;
     int error;
-    struct thread *td = curthread;
 
     if (((a_out->a_magic >> 16) & 0xff) != 0x64)
 	return -1;
@@ -115,7 +114,7 @@ exec_svr4_imgact(imgp)
     }
     PROC_UNLOCK(imgp->proc);
 
-    VOP_UNLOCK(imgp->vp, 0, td);
+    VOP_UNLOCK(imgp->vp, 0);
 
     /*
      * Destroy old process VM and create a new one (with a new stack)

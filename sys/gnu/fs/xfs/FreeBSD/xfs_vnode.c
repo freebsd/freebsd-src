@@ -139,7 +139,7 @@ vn_purge(struct xfs_vnode        *xfs_vp)
 	if (vp->v_holdcnt == 0)
 		vhold(vp);
 	vgone(vp);
-        VOP_UNLOCK(vp, 0, curthread);
+        VOP_UNLOCK(vp, 0);
 }
 
 void xfs_ichgtime(

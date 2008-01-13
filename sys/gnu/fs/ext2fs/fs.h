@@ -146,7 +146,7 @@ extern u_char *fragtbl[];
  */
 #define  DEVVP(inode)		(VFSTOEXT2(ITOV(inode)->v_mount)->um_devvp)
 #define  lock_super(devvp)   	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY)
-#define  unlock_super(devvp) 	VOP_UNLOCK(devvp, 0, curthread)
+#define  unlock_super(devvp) 	VOP_UNLOCK(devvp, 0)
 
 /*
  * Historically, ext2fs kept it's metadata buffers on the LOCKED queue.  Now,

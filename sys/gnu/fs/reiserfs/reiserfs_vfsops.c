@@ -449,7 +449,7 @@ reiserfs_mountfs(struct vnode *devvp, struct mount *mp, struct thread *td)
 
 	error = vinvalbuf(devvp, V_SAVE, td->td_ucred, td, 0, 0);
 	if (error) {
-		VOP_UNLOCK(devvp, 0, td);
+		VOP_UNLOCK(devvp, 0);
 		return (error);
 	}
 
@@ -458,7 +458,7 @@ reiserfs_mountfs(struct vnode *devvp, struct mount *mp, struct thread *td)
 	 * for now
 	 */
 	error = VOP_OPEN(devvp, FREAD, FSCRED, td, NULL);
-	VOP_UNLOCK(devvp, 0, td);
+	VOP_UNLOCK(devvp, 0);
 	if (error)
 		return (error);
 #else
@@ -467,7 +467,7 @@ reiserfs_mountfs(struct vnode *devvp, struct mount *mp, struct thread *td)
 	error = g_vfs_open(devvp, &cp, "reiserfs", /* read-only */ 0);
 	g_topology_unlock();
 	PICKUP_GIANT();
-	VOP_UNLOCK(devvp, 0, td);
+	VOP_UNLOCK(devvp, 0);
 	if (error)
 		return (error);
 

@@ -87,7 +87,7 @@ znode_pageout_func(dmu_buf_t *dbuf, void *user_ptr)
 		mutex_exit(&zp->z_lock);
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 		vrecycle(vp, curthread);
-		VOP_UNLOCK(vp, 0, curthread);
+		VOP_UNLOCK(vp, 0);
 		vdrop(vp);
 		zfs_znode_free(zp);
 	} else {

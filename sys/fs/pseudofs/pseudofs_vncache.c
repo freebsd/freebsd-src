@@ -268,9 +268,9 @@ pfs_purge(struct pfs_node *pn)
 			vnp = pvd->pvd_vnode;
 			vhold(vnp);
 			mtx_unlock(&pfs_vncache_mutex);
-			VOP_LOCK(vnp, LK_EXCLUSIVE, curthread);
+			VOP_LOCK(vnp, LK_EXCLUSIVE);
 			vgone(vnp);
-			VOP_UNLOCK(vnp, 0, curthread);
+			VOP_UNLOCK(vnp, 0);
 			vdrop(vnp);
 			mtx_lock(&pfs_vncache_mutex);
 			pvd = pfs_vncache;

@@ -153,7 +153,6 @@ ufs_lookup(ap)
 	struct ucred *cred = cnp->cn_cred;
 	int flags = cnp->cn_flags;
 	int nameiop = cnp->cn_nameiop;
-	struct thread *td = cnp->cn_thread;
 	ino_t saved_ino;
 
 	bp = NULL;
@@ -559,7 +558,7 @@ found:
 	pdp = vdp;
 	if (flags & ISDOTDOT) {
 		saved_ino = dp->i_ino;
-		VOP_UNLOCK(pdp, 0, td);	/* race to get the inode */
+		VOP_UNLOCK(pdp, 0);	/* race to get the inode */
 		error = VFS_VGET(pdp->v_mount, saved_ino,
 		    cnp->cn_lkflags, &tdp);
 		vn_lock(pdp, LK_EXCLUSIVE | LK_RETRY);
@@ -784,7 +783,7 @@ ufs_direnter(dvp, tvp, dirp, cnp, newdirbp)
 			if ((error = bwrite(bp)))
 				return (error);
 			if (tvp != NULL)
-				VOP_UNLOCK(tvp, 0, td);
+				VOP_UNLOCK(tvp, 0);
 			error = VOP_FSYNC(dvp, MNT_WAIT, td);
 			if (tvp != NULL)
 				vn_lock(tvp, LK_EXCLUSIVE | LK_RETRY);
@@ -942,7 +941,7 @@ ufs_direnter(dvp, tvp, dirp, cnp, newdirbp)
 	 */
 	if (error == 0 && dp->i_endoff && dp->i_endoff < dp->i_size) {
 		if (tvp != NULL)
-			VOP_UNLOCK(tvp, 0, td);
+			VOP_UNLOCK(tvp, 0);
 #ifdef UFS_DIRHASH
 		if (dp->i_dirhash != NULL)
 			ufsdirhash_dirtrunc(dp, dp->i_endoff);

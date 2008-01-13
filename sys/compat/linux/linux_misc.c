@@ -377,7 +377,7 @@ linux_uselib(struct thread *td, struct linux_uselib_args *args)
 	 * Lock no longer needed
 	 */
 	locked = 0;
-	VOP_UNLOCK(vp, 0, td);
+	VOP_UNLOCK(vp, 0);
 	VFS_UNLOCK_GIANT(vfslocked);
 
 	/*
@@ -458,7 +458,7 @@ linux_uselib(struct thread *td, struct linux_uselib_args *args)
 cleanup:
 	/* Unlock vnode if needed */
 	if (locked) {
-		VOP_UNLOCK(vp, 0, td);
+		VOP_UNLOCK(vp, 0);
 		VFS_UNLOCK_GIANT(vfslocked);
 	}
 

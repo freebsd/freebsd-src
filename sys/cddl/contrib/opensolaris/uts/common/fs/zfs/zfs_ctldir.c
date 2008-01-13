@@ -391,7 +391,7 @@ zfsctl_root_lookup(vnode_t *dvp, char *nm, vnode_t **vpp, pathname_t *pnp,
 	if (strcmp(nm, "..") == 0) {
 		err = VFS_ROOT(dvp->v_vfsp, LK_EXCLUSIVE, vpp, curthread);
 		if (err == 0)
-			VOP_UNLOCK(*vpp, 0, curthread);
+			VOP_UNLOCK(*vpp, 0);
 	} else {
 		err = gfs_dir_lookup(dvp, nm, vpp);
 	}
@@ -882,7 +882,7 @@ zfsctl_snapshot_inactive(ap)
 
 	VERIFY(gfs_dir_lookup(vp, "..", &dvp) == 0);
 	sdp = dvp->v_data;
-	VOP_UNLOCK(dvp, 0, ap->a_td);
+	VOP_UNLOCK(dvp, 0);
 
 	if (!(locked = MUTEX_HELD(&sdp->sd_lock)))
 		mutex_enter(&sdp->sd_lock);

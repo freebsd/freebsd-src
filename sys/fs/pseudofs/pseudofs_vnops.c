@@ -366,7 +366,7 @@ pfs_lookup(struct vop_cachedlookup_args *va)
 	if (cnp->cn_flags & ISDOTDOT) {
 		if (pd->pn_type == pfstype_root)
 			PFS_RETURN (EIO);
-		VOP_UNLOCK(vn, 0, cnp->cn_thread);
+		VOP_UNLOCK(vn, 0);
 		KASSERT(pd->pn_parent != NULL,
 		    ("%s(): non-root directory has no parent", __func__));
 		/*

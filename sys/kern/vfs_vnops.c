@@ -421,7 +421,7 @@ vn_rdwr(rw, vp, base, len, offset, segflg, ioflg, active_cred, file_cred,
 	if ((ioflg & IO_NODELOCKED) == 0) {
 		if (rw == UIO_WRITE && vp->v_type != VCHR)
 			vn_finished_write(mp);
-		VOP_UNLOCK(vp, 0, td);
+		VOP_UNLOCK(vp, 0);
 	}
 	return (error);
 }
@@ -546,7 +546,7 @@ vn_read(fp, uio, active_cred, flags, td)
 		mtx_unlock(mtxp);
 	}
 	fp->f_nextoff = uio->uio_offset;
-	VOP_UNLOCK(vp, 0, td);
+	VOP_UNLOCK(vp, 0);
 	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
 }
@@ -600,7 +600,7 @@ vn_write(fp, uio, active_cred, flags, td)
 	if ((flags & FOF_OFFSET) == 0)
 		fp->f_offset = uio->uio_offset;
 	fp->f_nextoff = uio->uio_offset;
-	VOP_UNLOCK(vp, 0, td);
+	VOP_UNLOCK(vp, 0);
 	if (vp->v_type != VCHR)
 		vn_finished_write(mp);
 unlock:
@@ -649,7 +649,7 @@ vn_truncate(fp, length, active_cred, td)
 		error = VOP_SETATTR(vp, &vattr, fp->f_cred, td);
 	}
 out:
-	VOP_UNLOCK(vp, 0, td);
+	VOP_UNLOCK(vp, 0);
 	vn_finished_write(mp);
 	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
@@ -672,7 +672,7 @@ vn_statfile(fp, sb, active_cred, td)
 	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	error = vn_stat(vp, sb, active_cred, fp->f_cred, td);
-	VOP_UNLOCK(vp, 0, td);
+	VOP_UNLOCK(vp, 0);
 	VFS_UNLOCK_GIANT(vfslocked);
 
 	return (error);
@@ -807,7 +807,7 @@ vn_ioctl(fp, com, data, active_cred, td)
 		if (com == FIONREAD) {
 			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 			error = VOP_GETATTR(vp, &vattr, active_cred, td);
-			VOP_UNLOCK(vp, 0, td);
+			VOP_UNLOCK(vp, 0);
 			if (!error)
 				*(int *)data = vattr.va_size - fp->f_offset;
 		}
@@ -844,7 +844,7 @@ vn_poll(fp, events, active_cred, td)
 #ifdef MAC
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	error = mac_vnode_check_poll(active_cred, fp->f_cred, vp);
-	VOP_UNLOCK(vp, 0, td);
+	VOP_UNLOCK(vp, 0);
 	if (!error)
 #endif
 
@@ -881,8 +881,7 @@ _vn_lock(struct vnode *vp, int flags, char *file, int line)
 		 * lockmgr drops interlock before it will return for
 		 * any reason.  So force the code above to relock it.
 		 */
-		error = VOP_LOCK1(vp, flags | LK_INTERLOCK, curthread, file,
-		    line);
+		error = VOP_LOCK1(vp, flags | LK_INTERLOCK, file, line);
 		flags &= ~LK_INTERLOCK;
 		KASSERT((flags & LK_RETRY) == 0 || error == 0,
 		    ("LK_RETRY set with incompatible flags %d\n", flags));
@@ -892,7 +891,7 @@ _vn_lock(struct vnode *vp, int flags, char *file, int line)
 		 */
 		if (error == 0 && vp->v_iflag & VI_DOOMED &&
 		    (flags & LK_RETRY) == 0) {
-			VOP_UNLOCK(vp, 0, curthread);
+			VOP_UNLOCK(vp, 0);
 			error = ENOENT;
 			break;
 		}
@@ -1232,7 +1231,7 @@ vn_extattr_get(struct vnode *vp, int ioflg, int attrnamespace,
 	    td);
 
 	if ((ioflg & IO_NODELOCKED) == 0)
-		VOP_UNLOCK(vp, 0, td);
+		VOP_UNLOCK(vp, 0);
 
 	if (error == 0) {
 		*buflen = *buflen - auio.uio_resid;
@@ -1277,7 +1276,7 @@ vn_extattr_set(struct vnode *vp, int ioflg, int attrnamespace,
 
 	if ((ioflg & IO_NODELOCKED) == 0) {
 		vn_finished_write(mp);
-		VOP_UNLOCK(vp, 0, td);
+		VOP_UNLOCK(vp, 0);
 	}
 
 	return (error);
@@ -1306,7 +1305,7 @@ vn_extattr_rm(struct vnode *vp, int ioflg, int attrnamespace,
 
 	if ((ioflg & IO_NODELOCKED) == 0) {
 		vn_finished_write(mp);
-		VOP_UNLOCK(vp, 0, td);
+		VOP_UNLOCK(vp, 0);
 	}
 
 	return (error);

@@ -1632,7 +1632,7 @@ linker_lookup_file(const char *path, int pathlen, const char *name,
 			type = nd.ni_vp->v_type;
 			if (vap)
 				VOP_GETATTR(nd.ni_vp, vap, td->td_ucred, td);
-			VOP_UNLOCK(nd.ni_vp, 0, td);
+			VOP_UNLOCK(nd.ni_vp, 0);
 			vn_close(nd.ni_vp, FREAD, td->td_ucred, td);
 			VFS_UNLOCK_GIANT(vfslocked);
 			if (type == VREG)
@@ -1701,7 +1701,7 @@ linker_hints_lookup(const char *path, int pathlen, const char *modname,
 	    UIO_SYSSPACE, IO_NODELOCKED, cred, NOCRED, &reclen, td);
 	if (error)
 		goto bad;
-	VOP_UNLOCK(nd.ni_vp, 0, td);
+	VOP_UNLOCK(nd.ni_vp, 0);
 	vn_close(nd.ni_vp, FREAD, cred, td);
 	VFS_UNLOCK_GIANT(vfslocked);
 	nd.ni_vp = NULL;
@@ -1770,7 +1770,7 @@ bad:
 	if (hints)
 		free(hints, M_TEMP);
 	if (nd.ni_vp != NULL) {
-		VOP_UNLOCK(nd.ni_vp, 0, td);
+		VOP_UNLOCK(nd.ni_vp, 0);
 		vn_close(nd.ni_vp, FREAD, cred, td);
 		VFS_UNLOCK_GIANT(vfslocked);
 	}

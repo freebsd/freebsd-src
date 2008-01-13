@@ -1063,7 +1063,7 @@ hpfs_lookup(ap)
 
 		if (VFS_VGET(hpmp->hpm_mp, dhp->h_fn.fn_parent,
 		    LK_NOWAIT | LK_EXCLUSIVE, ap->a_vpp)) {
-			VOP_UNLOCK(dvp,0,cnp->cn_thread);
+			VOP_UNLOCK(dvp,0);
 			error = VFS_VGET(hpmp->hpm_mp,
 				 dhp->h_fn.fn_parent, LK_EXCLUSIVE, ap->a_vpp); 
 			vn_lock(dvp, LK_EXCLUSIVE|LK_RETRY);

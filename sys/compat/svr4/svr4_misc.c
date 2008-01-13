@@ -396,7 +396,7 @@ again:
 eof:
 	td->td_retval[0] = nbytes - resid;
 out:
-	VOP_UNLOCK(vp, 0, td);
+	VOP_UNLOCK(vp, 0);
 	VFS_UNLOCK_GIANT(vfslocked);
 	fdrop(fp, td);
 	if (cookies)
@@ -529,7 +529,7 @@ again:
 eof:
 	*retval = uap->nbytes - resid;
 out:
-	VOP_UNLOCK(vp, 0, td);
+	VOP_UNLOCK(vp, 0);
 	VFS_UNLOCK_GIANT(vfslocked);
 	fdrop(fp, td);
 	if (cookiebuf)
@@ -629,7 +629,7 @@ svr4_sys_fchroot(td, uap)
 	if (error)
 		goto fail;
 #endif
-	VOP_UNLOCK(vp, 0, td);
+	VOP_UNLOCK(vp, 0);
 	error = change_root(vp, td);
 	vrele(vp);
 	VFS_UNLOCK_GIANT(vfslocked);

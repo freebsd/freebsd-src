@@ -175,7 +175,7 @@ zfs_vn_open(char *pnamep, enum uio_seg seg, int filemode, int createmode,
 	if (error == 0) {
 		/* We just unlock so we hold a reference. */
 		VN_HOLD(nd.ni_vp);
-		VOP_UNLOCK(nd.ni_vp, 0, td);
+		VOP_UNLOCK(nd.ni_vp, 0);
 		*vpp = nd.ni_vp;
 	}
 	return (error);
@@ -213,7 +213,6 @@ zfs_vn_rdwr(enum uio_rw rw, vnode_t *vp, caddr_t base, ssize_t len,
 static __inline int
 zfs_vop_fsync(vnode_t *vp, int flag, cred_t *cr)
 {
-	struct thread *td = curthread;
 	struct mount *mp;
 	int error, vfslocked;
 
@@ -223,8 +222,8 @@ zfs_vop_fsync(vnode_t *vp, int flag, cred_t *cr)
 	if ((error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0)
 		goto drop;
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
-	error = VOP_FSYNC(vp, MNT_WAIT, td);
-	VOP_UNLOCK(vp, 0, td);
+	error = VOP_FSYNC(vp, MNT_WAIT, curthread);
+	VOP_UNLOCK(vp, 0);
 	vn_finished_write(mp);
 drop:
 	VFS_UNLOCK_GIANT(vfslocked);

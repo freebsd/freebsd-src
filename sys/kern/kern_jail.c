@@ -148,7 +148,7 @@ jail(struct thread *td, struct jail_args *uap)
 		goto e_killmtx;
 	vfslocked = NDHASGIANT(&nd);
 	pr->pr_root = nd.ni_vp;
-	VOP_UNLOCK(nd.ni_vp, 0, td);
+	VOP_UNLOCK(nd.ni_vp, 0);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	VFS_UNLOCK_GIANT(vfslocked);
 	error = copyinstr(j.hostname, &pr->pr_host, sizeof(pr->pr_host), 0);
@@ -261,7 +261,7 @@ jail_attach(struct thread *td, struct jail_attach_args *uap)
 	if ((error = mac_vnode_check_chroot(td->td_ucred, pr->pr_root)))
 		goto e_unlock;
 #endif
-	VOP_UNLOCK(pr->pr_root, 0, td);
+	VOP_UNLOCK(pr->pr_root, 0);
 	change_root(pr->pr_root, td);
 	VFS_UNLOCK_GIANT(vfslocked);
 
@@ -276,7 +276,7 @@ jail_attach(struct thread *td, struct jail_attach_args *uap)
 	crfree(oldcred);
 	return (0);
 e_unlock:
-	VOP_UNLOCK(pr->pr_root, 0, td);
+	VOP_UNLOCK(pr->pr_root, 0);
 	VFS_UNLOCK_GIANT(vfslocked);
 	mtx_lock(&pr->pr_mtx);
 	pr->pr_ref--;

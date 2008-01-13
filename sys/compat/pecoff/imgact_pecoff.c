@@ -316,7 +316,7 @@ pecoff_load_file(struct thread * td, const char *file, u_long * addr, u_long * e
 	 * Check permissions, modes, uid, etc on the file, and "open" it.
 	 */
 	error = exec_check_permissions(imgp);
-	VOP_UNLOCK(nd.ni_vp, 0, td);
+	VOP_UNLOCK(nd.ni_vp, 0);
 	if (error)
 		goto fail;
 	if ((error = pecoff_read_from(td, imgp->vp, 0, (caddr_t) & dh, sizeof(dh))) != 0)
@@ -579,14 +579,13 @@ imgact_pecoff(struct image_params * imgp)
 	imgp->image_header;
 	struct coff_filehdr *fp;
 	int             error, peofs;
-	struct thread *td = curthread;
 
 	error = pecoff_signature(FIRST_THREAD_IN_PROC(imgp->proc),
 	    imgp->vp, dp);
 	if (error) {
 		return -1;
 	}
-	VOP_UNLOCK(imgp->vp, 0, td);
+	VOP_UNLOCK(imgp->vp, 0);
 
 	peofs = dp->d_peofs + sizeof(signature) - 1;
 	fp = malloc(PECOFF_HDR_SIZE, M_TEMP, M_WAITOK);

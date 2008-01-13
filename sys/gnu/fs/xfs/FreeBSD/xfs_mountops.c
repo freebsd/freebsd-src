@@ -302,7 +302,7 @@ _xfs_root(mp, flags, vpp, td)
         XVFS_ROOT(MNTTOVFS(mp), &vp, error);
 	if (error == 0) {
 		*vpp = vp->v_vnode;
-		VOP_LOCK(*vpp, flags, curthread);
+		VOP_LOCK(*vpp, flags);
 	}
 	return (error);
 }

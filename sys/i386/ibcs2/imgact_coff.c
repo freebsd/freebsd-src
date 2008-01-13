@@ -211,7 +211,7 @@ coff_load_file(struct thread *td, char *name)
 	 * Lose the lock on the vnode. It's no longer needed, and must not
 	 * exist for the pagefault paging to work below.
 	 */
-	VOP_UNLOCK(vp, 0, td);
+	VOP_UNLOCK(vp, 0);
 
   	if ((error = vm_mmap(kernel_map,
 			    (vm_offset_t *) &ptr,
@@ -285,7 +285,7 @@ coff_load_file(struct thread *td, char *name)
     		panic("%s vm_map_remove failed", __func__);
 
  fail:
-	VOP_UNLOCK(vp, 0, td);
+	VOP_UNLOCK(vp, 0);
  unlocked_fail:
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vrele(nd.ni_vp);
@@ -307,7 +307,6 @@ exec_coff_imgact(imgp)
 	unsigned long data_offset = 0, data_address = 0, data_size = 0;
 	unsigned long bss_size = 0;
 	caddr_t hole;
-	struct thread *td = curthread;
 
 	if (fhdr->f_magic != I386_COFF ||
 	    !(fhdr->f_flags & F_EXEC)) {
@@ -335,7 +334,7 @@ exec_coff_imgact(imgp)
 	       ((const char*)(imgp->image_header) + sizeof(struct filehdr) +
 		sizeof(struct aouthdr));
 
-	VOP_UNLOCK(imgp->vp, 0, td);
+	VOP_UNLOCK(imgp->vp, 0);
 
 	error = exec_new_vmspace(imgp, &ibcs2_svr3_sysvec);
 	if (error)

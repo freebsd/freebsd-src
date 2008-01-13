@@ -610,7 +610,7 @@ vlrureclaim(struct mount *mp)
 		}
 		MNT_IUNLOCK(mp);
 		vholdl(vp);
-		if (VOP_LOCK(vp, LK_INTERLOCK|LK_EXCLUSIVE|LK_NOWAIT, td)) {
+		if (VOP_LOCK(vp, LK_INTERLOCK|LK_EXCLUSIVE|LK_NOWAIT)) {
 			vdrop(vp);
 			goto next_iter_mntunlocked;
 		}
@@ -630,13 +630,13 @@ vlrureclaim(struct mount *mp)
 		if (vp->v_usecount || !LIST_EMPTY(&(vp)->v_cache_src) ||
 		    (vp->v_object != NULL &&
 		    vp->v_object->resident_page_count > trigger)) {
-			VOP_UNLOCK(vp, LK_INTERLOCK, td);
+			VOP_UNLOCK(vp, LK_INTERLOCK);
 			goto next_iter_mntunlocked;
 		}
 		KASSERT((vp->v_iflag & VI_DOOMED) == 0,
 		    ("VI_DOOMED unexpectedly detected in vlrureclaim()"));
 		vgonel(vp);
-		VOP_UNLOCK(vp, 0, td);
+		VOP_UNLOCK(vp, 0);
 		vdropl(vp);
 		done++;
 next_iter_mntunlocked:
@@ -836,7 +836,6 @@ vdestroy(struct vnode *vp)
 static int
 vtryrecycle(struct vnode *vp)
 {
-	struct thread *td = curthread;
 	struct mount *vnmp;
 
 	CTR1(KTR_VFS, "vtryrecycle: trying vp %p", vp);
@@ -846,13 +845,13 @@ vtryrecycle(struct vnode *vp)
 	 * This vnode may found and locked via some other list, if so we
 	 * can't recycle it yet.
 	 */
-	if (VOP_LOCK(vp, LK_EXCLUSIVE | LK_NOWAIT, td) != 0)
+	if (VOP_LOCK(vp, LK_EXCLUSIVE | LK_NOWAIT) != 0)
 		return (EWOULDBLOCK);
 	/*
 	 * Don't recycle if its filesystem is being suspended.
 	 */
 	if (vn_start_write(vp, &vnmp, V_NOWAIT) != 0) {
-		VOP_UNLOCK(vp, 0, td);
+		VOP_UNLOCK(vp, 0);
 		return (EBUSY);
 	}
 	/*
@@ -863,13 +862,13 @@ vtryrecycle(struct vnode *vp)
 	 */
 	VI_LOCK(vp);
 	if (vp->v_usecount) {
-		VOP_UNLOCK(vp, LK_INTERLOCK, td);
+		VOP_UNLOCK(vp, LK_INTERLOCK);
 		vn_finished_write(vnmp);
 		return (EBUSY);
 	}
 	if ((vp->v_iflag & VI_DOOMED) == 0)
 		vgonel(vp);
-	VOP_UNLOCK(vp, LK_INTERLOCK, td);
+	VOP_UNLOCK(vp, LK_INTERLOCK);
 	vn_finished_write(vnmp);
 	CTR1(KTR_VFS, "vtryrecycle: recycled vp %p", vp);
 	return (0);
@@ -1664,7 +1663,7 @@ restart:
 	}
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	(void) VOP_FSYNC(vp, MNT_LAZY, td);
-	VOP_UNLOCK(vp, 0, td);
+	VOP_UNLOCK(vp, 0);
 	vn_finished_write(mp);
 	VI_LOCK(vp);
 	if (((*bo)->bo_flag & BO_ONWORKLST) != 0) {
@@ -2073,7 +2072,7 @@ vget(struct vnode *vp, int flags, struct thread *td)
 			vinactive(vp, td);
 		VI_UNLOCK(vp);
 		if ((oldflags & LK_TYPE_MASK) == 0)
-			VOP_UNLOCK(vp, 0, td);
+			VOP_UNLOCK(vp, 0);
 	} else
 		VI_UNLOCK(vp);
 	return (0);
@@ -2160,7 +2159,7 @@ vrele(struct vnode *vp)
 			vp->v_iflag &= ~VI_OWEINACT;
 		if (vp->v_iflag & VI_OWEINACT)
 			vinactive(vp, td);
-		VOP_UNLOCK(vp, 0, td);
+		VOP_UNLOCK(vp, 0);
 	} else {
 		VI_LOCK(vp);
 		if (vp->v_usecount > 0)
@@ -2191,7 +2190,7 @@ vput(struct vnode *vp)
 
 	if (vp->v_usecount > 1 || ((vp->v_iflag & VI_DOINGINACT) &&
 	    vp->v_usecount == 1)) {
-		VOP_UNLOCK(vp, 0, td);
+		VOP_UNLOCK(vp, 0);
 		v_decr_usecount(vp);
 		return;
 	}
@@ -2210,7 +2209,7 @@ vput(struct vnode *vp)
 	v_decr_useonly(vp);
 	vp->v_iflag |= VI_OWEINACT;
 	if (VOP_ISLOCKED(vp, NULL) != LK_EXCLUSIVE) {
-		error = VOP_LOCK(vp, LK_UPGRADE|LK_INTERLOCK|LK_NOWAIT, td);
+		error = VOP_LOCK(vp, LK_UPGRADE|LK_INTERLOCK|LK_NOWAIT);
 		VI_LOCK(vp);
 		if (error) {
 			if (vp->v_usecount > 0)
@@ -2222,7 +2221,7 @@ vput(struct vnode *vp)
 		vp->v_iflag &= ~VI_OWEINACT;
 	if (vp->v_iflag & VI_OWEINACT)
 		vinactive(vp, td);
-	VOP_UNLOCK(vp, 0, td);
+	VOP_UNLOCK(vp, 0);
 done:
 	vdropl(vp);
 }
@@ -2370,7 +2369,7 @@ loop:
 		 * Skip over a vnodes marked VV_SYSTEM.
 		 */
 		if ((flags & SKIPSYSTEM) && (vp->v_vflag & VV_SYSTEM)) {
-			VOP_UNLOCK(vp, 0, td);
+			VOP_UNLOCK(vp, 0);
 			vdrop(vp);
 			MNT_ILOCK(mp);
 			continue;
@@ -2387,7 +2386,7 @@ loop:
 			if ((vp->v_type == VNON ||
 			    (error == 0 && vattr.va_nlink > 0)) &&
 			    (vp->v_writecount == 0 || vp->v_type != VREG)) {
-				VOP_UNLOCK(vp, 0, td);
+				VOP_UNLOCK(vp, 0);
 				vdropl(vp);
 				MNT_ILOCK(mp);
 				continue;
@@ -2412,7 +2411,7 @@ loop:
 				vprint("vflush: busy vnode", vp);
 #endif
 		}
-		VOP_UNLOCK(vp, 0, td);
+		VOP_UNLOCK(vp, 0);
 		vdropl(vp);
 		MNT_ILOCK(mp);
 	}
@@ -2428,9 +2427,9 @@ loop:
 		    ("vflush: usecount %d < rootrefs %d",
 		     rootvp->v_usecount, rootrefs));
 		if (busy == 1 && rootvp->v_usecount == rootrefs) {
-			VOP_LOCK(rootvp, LK_EXCLUSIVE|LK_INTERLOCK, td);
+			VOP_LOCK(rootvp, LK_EXCLUSIVE|LK_INTERLOCK);
 			vgone(rootvp);
-			VOP_UNLOCK(rootvp, 0, td);
+			VOP_UNLOCK(rootvp, 0);
 			busy = 0;
 		} else
 			VI_UNLOCK(rootvp);
@@ -3877,7 +3876,7 @@ vfs_knlunlock(void *arg)
 {
 	struct vnode *vp = arg;
 
-	VOP_UNLOCK(vp, 0, curthread);
+	VOP_UNLOCK(vp, 0);
 }
 
 static int

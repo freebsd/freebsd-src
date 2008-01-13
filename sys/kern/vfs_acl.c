@@ -101,7 +101,7 @@ vacl_set_acl(struct thread *td, struct vnode *vp, acl_type_t type,
 #ifdef MAC
 out:
 #endif
-	VOP_UNLOCK(vp, 0, td);
+	VOP_UNLOCK(vp, 0);
 	vn_finished_write(mp);
 	return(error);
 }
@@ -127,7 +127,7 @@ vacl_get_acl(struct thread *td, struct vnode *vp, acl_type_t type,
 #ifdef MAC
 out:
 #endif
-	VOP_UNLOCK(vp, 0, td);
+	VOP_UNLOCK(vp, 0);
 	if (error == 0)
 		error = copyout(&inkernelacl, aclp, sizeof(struct acl));
 	return (error);
@@ -156,7 +156,7 @@ vacl_delete(struct thread *td, struct vnode *vp, acl_type_t type)
 #ifdef MAC
 out:
 #endif
-	VOP_UNLOCK(vp, 0, td);
+	VOP_UNLOCK(vp, 0);
 	vn_finished_write(mp);
 	return (error);
 }
