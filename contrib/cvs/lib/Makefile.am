@@ -1,8 +1,10 @@
 ## Process this file with automake to produce Makefile.in
 # Makefile for library files used by GNU CVS.
-# Copyright (C) 1986, 1987, 1988, 1989, 1990, 1991, 1992, 1993, 1994,
-#               1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003
-#               Free Software Foundation, Inc.
+#
+# Copyright (C) 1986-2005 The Free Software Foundation, Inc.
+#
+# Portions Copyright (C) 1998-2005 Derek Price, Ximbiot <http://ximbiot.com>,
+#                                  and others.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -86,7 +88,23 @@ EXTRA_DIST = \
 	ChangeLog.fsf \
 	build_lib.com \
 	libcvs.dep libcvs.dsp libcvs.mak \
-	xgssapi.h
+	xgssapi.h \
+	test-getdate.sh
+
+TESTS =
+MOSTLYCLEANFILES =
+check_PROGRAMS =
+
+# Test GNULIB getdate module.
+TESTS += test-getdate.sh
+MOSTLYCLEANFILES += getdate-expected getdate-got getdate.diff
+# Program required by test-getdate.sh for testing getdate.y.
+check_PROGRAMS += getdate
+EXTRA_DIST += $(check_PROGRAMS)
+getdate_SOURCES = getdate.y
+getdate_CPPFLAGS = -DTEST
+##getdate_LDADD = \
+##	$(noinst_LIBRARIES)
 
 # For the xsize module from GNULIB.
 libcvs_a_SOURCES += xsize.h
