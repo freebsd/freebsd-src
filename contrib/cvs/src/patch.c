@@ -1,6 +1,11 @@
 /*
- * Copyright (c) 1992, Brian Berliner and Jeff Polk
- * Copyright (c) 1989-1992, Brian Berliner
+ * Copyright (C) 1986-2005 The Free Software Foundation, Inc.
+ *
+ * Portions Copyright (C) 1998-2005 Derek Price, Ximbiot <http://ximbiot.com>,
+ *                                  and others.
+ *
+ * Portions Copyright (C) 1992, Brian Berliner and Jeff Polk
+ * Portions Copyright (C) 1989-1992, Brian Berliner
  * 
  * You may distribute under the terms of the GNU General Public License as
  * specified in the README file that comes with the CVS source distribution.
@@ -42,7 +47,7 @@ static int unidiff = 0;
 
 static const char *const patch_usage[] =
 {
-    "Usage: %s %s [-flR] [-c|-u] [-s|-t] [-V %%d]\n",
+    "Usage: %s %s [-flR] [-c|-u] [-s|-t] [-V %%d] [-k kopt]\n",
     "    -r rev|-D date [-r rev2 | -D date2] modules...\n",
     "\t-f\tForce a head revision match if tag/date not found.\n",
     "\t-l\tLocal directory only, not recursive\n",
@@ -51,9 +56,10 @@ static const char *const patch_usage[] =
     "\t-u\tUnidiff format.\n",
     "\t-s\tShort patch - one liner per file.\n",
     "\t-t\tTop two diffs - last change made to the file.\n",
+    "\t-V vers\tUse RCS Version \"vers\" for keyword expansion.\n",
+    "\t-k kopt\tSpecify keyword expansion mode.\n",
     "\t-D date\tDate.\n",
     "\t-r rev\tRevision - symbolic or numeric.\n",
-    "\t-V vers\tUse RCS Version \"vers\" for keyword expansion.\n",
     "(Specify the --help global option for a list of other help options)\n",
     NULL
 };
@@ -81,11 +87,9 @@ patch (argc, argv)
 	{
 	    case 'Q':
 	    case 'q':
-#ifdef SERVER_SUPPORT
 		/* The CVS 1.5 client sends these options (in addition to
 		   Global_option requests), so we must ignore them.  */
 		if (!server_active)
-#endif
 		    error (1, 0,
 			   "-q or -Q must be specified before \"%s\"",
 			   cvs_cmd_name);
@@ -338,6 +342,7 @@ patch_proc (argc, argv, xwhere, mwhere, mfile, shorten, local_specified,
     {
 	error (0, errno, "cannot chdir to %s", repository);
 	free (repository);
+	free (where);
 	return 1;
     }
 
@@ -385,6 +390,7 @@ patch_fileproc (callerdat, finfo)
     struct utimbuf t;
     char *vers_tag, *vers_head;
     char *rcs = NULL;
+    char *rcs_orig = NULL;
     RCSNode *rcsfile;
     FILE *fp1, *fp2, *fp3;
     int ret = 0;
@@ -399,6 +405,9 @@ patch_fileproc (callerdat, finfo)
     char *cp1, *cp2;
     FILE *fp;
     int line_length;
+    int dargc = 0;
+    size_t darg_allocated = 0;
+    char **dargv = NULL;
 
     line1 = NULL;
     line1_chars_allocated = 0;
@@ -415,7 +424,7 @@ patch_fileproc (callerdat, finfo)
     if ((rcsfile->flags & VALID) && (rcsfile->flags & INATTIC))
 	isattic = 1;
 
-    rcs = xmalloc (strlen (finfo->file) + sizeof (RCSEXT) + 5);
+    rcs_orig = rcs = xmalloc (strlen (finfo->file) + sizeof (RCSEXT) + 5);
     (void) sprintf (rcs, "%s%s", finfo->file, RCSEXT);
 
     /* if vers_head is NULL, may have been removed from the release */
@@ -509,7 +518,8 @@ patch_fileproc (callerdat, finfo)
      */
     if ((fp1 = cvs_temp_file (&tmpfile1)) == NULL)
     {
-	error (0, errno, "cannot create temporary file %s", tmpfile1);
+	error (0, errno, "cannot create temporary file %s",
+	       tmpfile1 ? tmpfile1 : "(null)");
 	ret = 1;
 	goto out;
     }
@@ -518,7 +528,8 @@ patch_fileproc (callerdat, finfo)
 	    error (0, errno, "warning: cannot close %s", tmpfile1);
     if ((fp2 = cvs_temp_file (&tmpfile2)) == NULL)
     {
-	error (0, errno, "cannot create temporary file %s", tmpfile2);
+	error (0, errno, "cannot create temporary file %s",
+	       tmpfile2 ? tmpfile2 : "(null)");
 	ret = 1;
 	goto out;
     }
@@ -527,7 +538,8 @@ patch_fileproc (callerdat, finfo)
 	    error (0, errno, "warning: cannot close %s", tmpfile2);
     if ((fp3 = cvs_temp_file (&tmpfile3)) == NULL)
     {
-	error (0, errno, "cannot create temporary file %s", tmpfile3);
+	error (0, errno, "cannot create temporary file %s",
+	       tmpfile3 ? tmpfile3 : "(null)");
 	ret = 1;
 	goto out;
     }
@@ -578,8 +590,10 @@ patch_fileproc (callerdat, finfo)
 	    (void)utime (tmpfile2, &t);
     }
 
-    switch (diff_exec (tmpfile1, tmpfile2, NULL, NULL, unidiff ? "-u" : "-c",
-                       tmpfile3))
+    if (unidiff) run_add_arg_p (&dargc, &darg_allocated, &dargv, "-u");
+    else run_add_arg_p (&dargc, &darg_allocated, &dargv, "-c");
+    switch (diff_exec (tmpfile1, tmpfile2, NULL, NULL, dargc, dargv,
+		       tmpfile3))
     {
 	case -1:			/* fork/wait failure */
 	    error (1, errno, "fork for diff failed on %s", rcs);
@@ -741,24 +755,41 @@ failed to read diff file header %s for %s: end of file", tmpfile3, rcs);
         free (line1);
     if (line2)
         free (line2);
-    if (CVS_UNLINK (tmpfile1) < 0)
-	error (0, errno, "cannot unlink %s", tmpfile1);
-    if (CVS_UNLINK (tmpfile2) < 0)
-	error (0, errno, "cannot unlink %s", tmpfile2);
-    if (CVS_UNLINK (tmpfile3) < 0)
-	error (0, errno, "cannot unlink %s", tmpfile3);
-    free (tmpfile1);
-    free (tmpfile2);
-    free (tmpfile3);
-    tmpfile1 = tmpfile2 = tmpfile3 = NULL;
+    if (tmpfile1 != NULL)
+    {
+	if (CVS_UNLINK (tmpfile1) < 0)
+	    error (0, errno, "cannot unlink %s", tmpfile1);
+	free (tmpfile1);
+	tmpfile1 = NULL;
+    }
+    if (tmpfile2 != NULL)
+    {
+	if (CVS_UNLINK (tmpfile2) < 0)
+	    error (0, errno, "cannot unlink %s", tmpfile2);
+	free (tmpfile2);
+	tmpfile2 = NULL;
+    }
+    if (tmpfile3 != NULL)
+    {
+	if (CVS_UNLINK (tmpfile3) < 0)
+	    error (0, errno, "cannot unlink %s", tmpfile3);
+	free (tmpfile3);
+	tmpfile3 = NULL;
+    }
+
+    if (dargc)
+    {
+	run_arg_free_p (dargc, dargv);
+	free (dargv);
+    }
 
  out2:
     if (vers_tag != NULL)
 	free (vers_tag);
     if (vers_head != NULL)
 	free (vers_head);
-    if (rcs != NULL)
-	free (rcs);
+    if (rcs_orig)
+	free (rcs_orig);
     return ret;
 }
 

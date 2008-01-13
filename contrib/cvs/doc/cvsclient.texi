@@ -82,7 +82,7 @@ It does not depend on NFS, rdist, etc.
 @item
 Providing a reliable transport is outside this protocol.  The protocol
 expects a reliable transport that is transparent (that is, there is no
-translation of characters, including characters such as such as
+translation of characters, including characters such as
 linefeeds or carriage returns), and can transmit all 256 octets (for
 example for proper handling of binary files, compression, and
 encryption).  The encoding of characters specified by the protocol (the
@@ -535,12 +535,13 @@ Here are the requests:
 @table @code
 @item Root @var{pathname} \n
 Response expected: no.  Tell the server which @code{CVSROOT} to use.
-Note that @var{pathname} is a local directory and @emph{not} a fully
-qualified @code{CVSROOT} variable.  @var{pathname} must
-already exist; if creating a new root, use the @code{init} request, not
-@code{Root}.  @var{pathname} does not include the hostname of the
-server, how to access the server, etc.; by the time the CVS protocol is
-in use, connection, authentication, etc., are already taken care of.
+Note that @var{pathname} is @emph{not} a fully qualified @code{CVSROOT}
+variable, but only the local directory part of it.  @var{pathname} must
+already exist on the server; if creating a new root, use the @code{init}
+request, not @code{Root}.  Again, @var{pathname} @emph{does not} include
+the hostname of the server, how to access the server, etc.; by the time
+the CVS protocol is in use, connection, authentication, etc., are
+already taken care of.
 
 The @code{Root} request must be sent only once, and it must be sent
 before any requests other than @code{Valid-responses},
@@ -870,6 +871,15 @@ Response expected: no.  To specify the version of the protocol described
 in this document, servers must support this request (although it need
 not do anything) and clients must issue it.
 The @code{Root} request need not have been previously sent.
+
+@item Empty-conflicts \n
+Response expected: yes.  This request is an alias for @code{noop}.  Its
+presence in the list of @code{valid-requests} is intended to be used as a
+placeholder to alert the client that the server does not require the contents
+of files with conflicts that have not been modified since the merge, for
+operations other than diff.  It was a bug in pre 1.11.22 & pre 1.12.14 servers
+that the contents of files with conflicts was required for the server to
+acknowledge the existence of the conflicts.
 
 @item Notify @var{filename} \n
 Response expected: no.
@@ -2014,7 +2024,7 @@ working directory, and the meaning of sending @code{Entries} without
 A number of enhancements are possible.  Also see the file @sc{todo} in
 the @sc{cvs} source distribution, which has further ideas concerning
 various aspects of @sc{cvs}, some of which impact the protocol.
-Similarly, the @code{http://www.cvshome.org} site, in particular the
+Similarly, the @code{http://cvs.nongnu.org} site, in particular the
 @cite{Development} pages.
 
 @itemize @bullet

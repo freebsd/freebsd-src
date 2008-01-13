@@ -1,8 +1,8 @@
 /*
- * Copyright (c) 2003 The Free Software Foundation.
+ * Copyright (C) 1986-2005 The Free Software Foundation, Inc.
  *
- * Portions Copyright (c) 2003 Derek Price
- *                         and Ximbiot <http://ximbiot.com>,
+ * Portions Copyright (C) 1998-2005 Derek Price, Ximbiot <http://ximbiot.com>,
+ *                                  and others.
  *
  * You may distribute under the terms of the GNU General Public License as
  * specified in the README file that comes with the CVS kit.
@@ -21,6 +21,12 @@
 
 
 /*
+ * Nonzero if we are using the server.  Used by various places to call
+ * server-specific functions.
+ */
+extern int server_active;
+
+/*
  * Expand to `S', ` ', or the empty string.  Used in `%s-> ...' trace printfs.
  */
 #ifdef SERVER_SUPPORT
@@ -30,12 +36,6 @@
 #endif
 
 #ifdef SERVER_SUPPORT
-
-/*
- * Nonzero if we are using the server.  Used by various places to call
- * server-specific functions.
- */
-extern int server_active;
 
 /* Server functions exported to the rest of CVS.  */
 

@@ -1,6 +1,11 @@
 /*
- * Copyright (c) 1992, Brian Berliner and Jeff Polk
- * Copyright (c) 1989-1992, Brian Berliner
+ * Copyright (C) 1986-2005 The Free Software Foundation, Inc.
+ *
+ * Portions Copyright (C) 1998-2005 Derek Price, Ximbiot <http://ximbiot.com>,
+ *                                  and others.
+ *
+ * Portions Copyright (C) 1992, Brian Berliner and Jeff Polk
+ * Portions Copyright (C) 1989-1992, Brian Berliner
  * 
  * You may distribute under the terms of the GNU General Public License as
  * specified in the README file that comes with the CVS source distribution.
@@ -224,7 +229,8 @@ void RCS_setexpand PROTO ((RCSNode *, const char *));
 int RCS_checkout PROTO ((RCSNode *, const char *, const char *, const char *,
                          const char *, const char *, RCSCHECKOUTPROC, void *));
 int RCS_checkin PROTO ((RCSNode *rcs, const char *workfile,
-                        const char *message, const char *rev, int flags));
+                        const char *message, const char *rev, time_t citime,
+			int flags));
 int RCS_cmp_file PROTO((RCSNode *, const char *, char **, const char *,
                         const char *, const char *));
 int RCS_settag PROTO ((RCSNode *, const char *, const char *));
