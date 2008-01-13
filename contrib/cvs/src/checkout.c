@@ -1,6 +1,11 @@
 /*
- * Copyright (c) 1992, Brian Berliner and Jeff Polk
- * Copyright (c) 1989-1992, Brian Berliner
+ * Copyright (C) 1986-2005 The Free Software Foundation, Inc.
+ *
+ * Portions Copyright (C) 1998-2005 Derek Price, Ximbiot <http://ximbiot.com>,
+ *                                  and others.
+ *
+ * Portions Copyright (C) 1992, Brian Berliner and Jeff Polk
+ * Portions Copyright (C) 1989-1992, Brian Berliner
  * 
  * You may distribute under the terms of the GNU General Public License as
  * specified in the README file that comes with the CVS source distribution.
@@ -72,13 +77,13 @@ static const char *const checkout_usage[] =
 
 static const char *const export_usage[] =
 {
-    "Usage: %s %s [-NRfln] [-r rev] [-D date] [-d dir] [-k kopt] module...\n",
+    "Usage: %s %s [-NRfln] [-r tag] [-D date] [-d dir] [-k kopt] module...\n",
     "\t-N\tDon't shorten module paths if -d specified.\n",
     "\t-f\tForce a head revision match if tag/date not found.\n",
     "\t-l\tLocal directory only, not recursive\n",
     "\t-R\tProcess directories recursively (default).\n",
     "\t-n\tDo not run module program (if any).\n",
-    "\t-r rev\tExport revision or tag.\n",
+    "\t-r tag\tExport tagged revisions.\n",
     "\t-D date\tExport revisions as of date.\n",
     "\t-d dir\tExport into dir instead of module name.\n",
     "\t-k kopt\tUse RCS kopt -k option on checkout.\n",
@@ -179,11 +184,9 @@ checkout (argc, argv)
 		break;
 	    case 'Q':
 	    case 'q':
-#ifdef SERVER_SUPPORT
 		/* The CVS 1.5 client sends these options (in addition to
 		   Global_option requests), so we must ignore them.  */
 		if (!server_active)
-#endif
 		    error (1, 0,
 			   "-q or -Q must be specified before \"%s\"",
 			   cvs_cmd_name);
@@ -437,10 +440,8 @@ safe_location (where)
 			CLIENT_SERVER_STR,
 			where ? where : "(null)");
 
-#ifdef CLIENT_SUPPORT
     /* Don't compare remote CVSROOTs to our destination directory. */
-    if ( current_parsed_root->isremote ) return 1;
-#endif /* CLIENT_SUPPORT */
+    if (current_parsed_root->isremote) return 1;
 
     /* set current - even if where is set we'll need to cd back... */
     current = xgetwd ();
@@ -1062,7 +1063,8 @@ internal error: %s doesn't start with %s in checkout_proc",
 	which = W_REPOS;
 	if (tag != NULL && !tag_validated)
 	{
-	    tag_check_valid (tag, argc - 1, argv + 1, 0, aflag, NULL);
+	    tag_check_valid (tag, argc - 1, argv + 1, 0, aflag,
+			     repository);
 	    tag_validated = 1;
 	}
     }
