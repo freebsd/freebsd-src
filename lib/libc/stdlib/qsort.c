@@ -111,7 +111,8 @@ qsort(void *a, size_t n, size_t es, cmp_t *cmp)
 #endif
 {
 	char *pa, *pb, *pc, *pd, *pl, *pm, *pn;
-	int d, r, swaptype, swap_cnt;
+	size_t d, r;
+	int swaptype, swap_cnt;
 
 loop:	SWAPINIT(a, es);
 	swap_cnt = 0;
