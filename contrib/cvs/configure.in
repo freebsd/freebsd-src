@@ -1,5 +1,6 @@
 dnl configure.in for cvs
-AC_INIT([Concurrent Versions System (CVS)],[1.11.17],[bug-cvs@gnu.org],[cvs])
+AC_INIT([Concurrent Versions System (CVS)],[1.11.22],
+        [bug-cvs@nongnu.org],[cvs])
 AC_CONFIG_SRCDIR(src/cvs.h)
 AM_INIT_AUTOMAKE([gnu 1.7.9 dist-bzip2 no-define])
 AC_PREREQ(2.58)
@@ -494,6 +495,58 @@ dnl
 dnl done finding an editor
 dnl
 dnl end --with-editor
+dnl
+
+dnl
+dnl begin --with-rsh
+dnl
+dnl Many sites no longer desire the use of "rsh" as the default
+dnl remote shell program. They typically favor "ssh" as the default
+
+# What remote shell transport should our client cvs default to using?
+AC_ARG_WITH(
+  [rsh],
+  AC_HELP_STRING(
+    [--with-rsh],
+    [The default remote shell CVS will use for :ext: transport
+     (default autodetects)]), ,
+  dnl `remsh' is only useful on HP-UX, where `rsh' is the `restricted shell'
+  dnl and `remsh' is the remote shell, but look for it first since it
+  dnl probably won't exist on any platform where it shouldn't be preferred
+  dnl to `rsh'.
+  [with_rsh="remsh rsh ssh"])
+
+if test no = "$with_rsh"; then
+  AC_MSG_WARN([Failed to find usable remote shell. Using 'rsh'.])
+  with_rsh=rsh
+elif test yes = "$with_rsh"; then
+  # Make --with-rsh mean the same thing as --with-rsh=rsh
+  with_rsh=rsh
+fi
+
+if echo $with_rsh |grep ^/ >/dev/null; then
+  # If $with_rsh is an absolute path, issue a warning if the executable
+  # doesn't exist or isn't usable, but then trust the user and use it
+  # regardless
+  with_default_rsh=$with_rsh
+  AC_MSG_CHECKING([for a remote shell])
+  if ! test -f $with_rsh \
+      || ! test -x $with_rsh; then
+    # warn the user that they may encounter problems
+    AC_MSG_WARN([$with_rsh is not a path to an executable file])
+  fi
+else
+  # Search for a remote shell
+  AC_CHECK_PROGS([with_default_rsh], [$with_rsh], "rsh")
+fi
+
+AC_DEFINE_UNQUOTED(
+  [RSH_DFLT], ["$with_default_rsh"],
+  [The default remote shell to use, if one does not specify the
+   CVS_RSH environment variable.])
+dnl done with finding a default CVS_RSH value
+dnl
+dnl end --with-rsh
 dnl
 
 
@@ -1021,7 +1074,7 @@ AC_CONFIG_FILES(contrib/pvcs2rcs, [chmod +x contrib/pvcs2rcs])
 AC_CONFIG_FILES(contrib/rcs2log:contrib/rcs2log.sh, [chmod +x contrib/rcs2log])
 AC_CONFIG_FILES(contrib/rcslock, [chmod +x contrib/rcslock])
 AC_CONFIG_FILES(contrib/sccs2rcs, [chmod +x contrib/sccs2rcs])
-AC_CONFIG_FILES(doc/mkman, [chmod +x doc/mkman])
+AC_CONFIG_FILES(doc/mkman:doc/mkman.pl, [chmod +x doc/mkman])
 AC_CONFIG_FILES(src/cvsbug, [chmod +x src/cvsbug])
 AC_CONFIG_FILES(windows-NT/fix-msvc-mak:windows-NT/fix-msvc-mak-head.pl:windows-NT/fix-msvc-mak.pl,
                 [chmod +x windows-NT/fix-msvc-mak])
@@ -1053,7 +1106,7 @@ m4_bmatch(m4_defn([AC_PACKAGE_VERSION]),  [[0-9]*\.[0-9]*\.[0-9]*\.[0-9]],
 [    cat <<EOF
 
 You are about to use an unreleased version of CVS.  Be sure to
-read the relevant mailing lists, most importantly <info-cvs@gnu.org>.
+read the relevant mailing lists, most importantly <info-cvs@nongnu.org>.
 
 Below you will find information on the status of this version of CVS.
 

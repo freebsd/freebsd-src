@@ -71,8 +71,7 @@ An attempt at a table of Contents for this directory:
 			useful.
 
 	debug_check_log	A shell script to help analyze sanity check failures.
-			Contributed by Derek R. Price
-			<derek.price@openavenue.com>
+			Contributed by Derek R. Price <derek@ximbiot.com>.
 
 	descend		A shell script that can be used to recursively
 	descend.man	descend through a directory.  In CVS 1.2, this was

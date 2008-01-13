@@ -1,6 +1,11 @@
 /*
- * Copyright (c) 1992, Brian Berliner and Jeff Polk
- * Copyright (c) 1989-1992, Brian Berliner
+ * Copyright (C) 1986-2005 The Free Software Foundation, Inc.
+ *
+ * Portions Copyright (C) 1998-2005 Derek Price, Ximbiot <http://ximbiot.com>,
+ *                                  and others.
+ *
+ * Portions Copyright (C) 1992, Brian Berliner and Jeff Polk
+ * Portions Copyright (C) 1989-1992, Brian Berliner
  * 
  * You may distribute under the terms of the GNU General Public License as
  * specified in the README file that comes with the CVS source distribution.
@@ -279,7 +284,9 @@ Classify_File (finfo, tag, date, options, force_tag_match, aflag, versp,
 			error (0, 0, "warning: %s was lost", finfo->fullname);
 		ret = T_CHECKOUT;
 	    }
-	    else if (strcmp (vers->ts_user, vers->ts_rcs) == 0)
+	    else if (!strcmp (vers->ts_user,
+			      vers->ts_conflict
+			      ? vers->ts_conflict : vers->ts_rcs))
 	    {
 
 		/*
@@ -293,6 +300,8 @@ Classify_File (finfo, tag, date, options, force_tag_match, aflag, versp,
 		if (vers->entdata->options &&
 		    strcmp (vers->entdata->options, vers->options) != 0)
 		    ret = T_CHECKOUT;
+		else if (vers->ts_conflict)
+		    ret = T_CONFLICT;
 		else
 		{
 		    sticky_ck (finfo, aflag, vers);
@@ -313,6 +322,13 @@ Classify_File (finfo, tag, date, options, force_tag_match, aflag, versp,
 		else
 		    ret = T_NEEDS_MERGE;
 #else
+		/* Files with conflict markers and new timestamps fall through
+		 * here, but they need to.  T_CONFLICT is an error in
+		 * commit_fileproc, whereas T_CONFLICT with conflict markers
+		 * is caught but only warned about.  Similarly, update_fileproc
+		 * currently reregisters a file that was conflicted but lost
+		 * its markers.
+		 */
 		ret = T_MODIFIED;
 		sticky_ck (finfo, aflag, vers);
 #endif

@@ -1,6 +1,36 @@
-#! @PERL@
+#! @PERL@ -T
 # -*-Perl-*-
+
+# Copyright (C) 1994-2005 The Free Software Foundation, Inc.
+
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2, or (at your option)
+# any later version.
 #
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+###############################################################################
+###############################################################################
+###############################################################################
+#
+# THIS SCRIPT IS PROBABLY BROKEN.  REMOVING THE -T SWITCH ON THE #! LINE ABOVE
+# WOULD FIX IT, BUT THIS IS INSECURE.  WE RECOMMEND FIXING THE ERRORS WHICH THE
+# -T SWITCH WILL CAUSE PERL TO REPORT BEFORE RUNNING THIS SCRIPT FROM A CVS
+# SERVER TRIGGER.  PLEASE SEND PATCHES CONTAINING THE CHANGES YOU FIND
+# NECESSARY TO RUN THIS SCRIPT WITH THE TAINT-CHECKING ENABLED BACK TO THE
+# <@PACKAGE_BUGREPORT@> MAILING LIST.
+#
+# For more on general Perl security and taint-checking, please try running the
+# `perldoc perlsec' command.
+#
+###############################################################################
+###############################################################################
+###############################################################################
+
 # Perl filter to handle the log messages from the checkin of files in
 # a directory.  This script will group the lists of files by log
 # message, and mail a single consolidated log message at the end of
@@ -51,7 +81,7 @@ $rcsidinfo = 2;
 # When set properly, this will cause links to aspects of the project to
 # print in the commit emails.
 #$CVSWEB_SCHEME = "http";
-#$CVSWEB_DOMAIN = "cvshome.org";
+#$CVSWEB_DOMAIN = "nongnu.org";
 #$CVSWEB_PORT = "80";
 #$CVSWEB_URI = "source/browse/";
 #$SEND_URL = "true";
@@ -60,7 +90,7 @@ $SEND_DIFF = "true";
 
 # Set this to a domain to have CVS pretend that all users who make
 # commits have mail accounts within that domain.
-#$EMULATE_LOCAL_MAIL_USER="cvshome.org"; 
+#$EMULATE_LOCAL_MAIL_USER="nongnu.org"; 
 
 # Set this to '-c' for context diffs; defaults to '-u' for unidiff format.
 $difftype = '-uN';
@@ -273,7 +303,7 @@ sub change_summary {
         }
 
         $diff = "\n\n";
-        $vhost = @path[0];
+        $vhost = $path[0];
         if ($CVSWEB_PORT eq "80") {
           $cvsweb_base = "$CVSWEB_SCHEME://$vhost.$CVSWEB_DOMAIN/$CVSWEB_URI";
         }
@@ -369,7 +399,7 @@ sub build_header {
 #sub mlist_map
 #{
 #    local($path) = @_;
-#    my $domain = "cvshome.org";
+#    my $domain = "nongnu.org";
 #    
 #    if ($path =~ /^([^\/]+)/) {
 #        return "cvs\@$1.$domain";
@@ -457,7 +487,7 @@ sub mail_notification
 
     my $subj = &derive_subject_from_changes_file ();
 
-    if ($EMULATE_LOCAL_MAIL_USER NE "") {
+    if ($EMULATE_LOCAL_MAIL_USER ne "") {
         $MAIL_FROM = "$cvs_user\@$EMULATE_LOCAL_MAIL_USER";
     }
 
@@ -536,7 +566,6 @@ $state = $STATE_NONE;
 $cvs_user = $ENV{'USER'} || getlogin || (getpwuid($<))[0] || sprintf("uid#%d",$<);
 @files = process_argv(@ARGV);
 @path = split('/', $files[0]);
-$repository = $path[0];
 if ($#path == 0) {
     $dir = ".";
 } else {
