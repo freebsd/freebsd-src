@@ -37,7 +37,12 @@
 #endif
 
 char *
+#if __STDC__
 getpass (const char *prompt)
+#else
+getpass (prompt)
+     const char *prompt;
+#endif
 {
   FILE *in, *out;
   struct termios s, t;

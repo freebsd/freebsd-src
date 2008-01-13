@@ -2,9 +2,9 @@
 .\" cvs.man.header, cvs.texinfo, & cvs.man.footer files.  Please make changes
 .\" there.  A full copyright & license notice may also be found in cvs.texinfo.
 .\"
-.\" Copyright 2004 The Free Software Foundation,
-.\"                Derek R. Price,
-.\"                & Ximbiot <http://ximbiot.com>
+.\" Man page autogeneration, including this header file, is
+.\" Copyright 2004-2005 The Free Software Foundation, Inc.,
+.\"                     Derek R. Price, & Ximbiot <http://ximbiot.com>.
 .\"
 .\" This documentation is free software; you can redistribute it and/or modify
 .\" it under the terms of the GNU General Public License as published by
@@ -428,7 +428,7 @@ option as in other commands.  (Other command options,
 which are listed with the individual commands, may have
 different behavior from one \fBcvs\fR command to the other).
 .SP
-\fBNote: the \fBhistory\fB command is an exception; it supports
+\fBThe \fBhistory\fB command is an exception; it supports
 many options that conflict even with these standard options.\fR
 .SP
 .IX "Dates"
@@ -561,7 +561,7 @@ file, and continues to use it with future update
 commands on the same file until you specify otherwise.
 .SP
 The \fB-k\fR option is available with the \fBadd\fR,
-\fBcheckout\fR, \fBdiff\fR, \fBimport\fR and
+\fBcheckout\fR, \fBdiff\fR, \fBrdiff\fR, \fBimport\fR and
 \fBupdate\fR commands.
 .SP
 .IP "" 0
@@ -594,10 +594,10 @@ Do not run any tag program.  (A program can be
 specified to run in the modules
 database (see node `modules\(aq in the CVS manual); this option bypasses it).
 .SP
-\fBNote: this is not the same as the \fBcvs -n\fB
+\fBThis is not the same as the \fBcvs -n\fB
 program option, which you can specify to the left of a cvs command!\fR
 .SP
-Available with the \fBcheckout\fR, \fBcommit\fR, \fBexport\fR,
+Available with the \fBcheckout\fR, \fBexport\fR,
 and \fBrtag\fR commands.
 .SP
 .IP "" 0
@@ -644,17 +644,20 @@ on sticky tags/dates, see node `Sticky tags\(aq in the CVS manual).
 The tag can be either a symbolic or numeric tag, as
 described in see node `Tags\(aq in the CVS manual, or the name of a branch, as
 described in see node `Branching and merging\(aq in the CVS manual.
+When a command expects a specific revision,
+the name of a branch is interpreted as the most recent
+revision on that branch.
 .SP
 Specifying the \fB-q\fR global option along with the
 \fB-r\fR command option is often useful, to suppress
 the warning messages when the \fBrcs\fR file
 does not contain the specified tag.
 .SP
-\fBNote: this is not the same as the overall \fBcvs -r\fB option,
+\fBThis is not the same as the overall \fBcvs -r\fB option,
 which you can specify to the left of a \fBcvs\fB command!\fR
 .SP
-\fB-r\fR is available with the \fBcheckout\fR, \fBcommit\fR,
-\fBdiff\fR, \fBhistory\fR, \fBexport\fR, \fBrdiff\fR,
+\fB-r\fR is available with the \fBannotate\fR, \fBcheckout\fR,
+\fBcommit\fR, \fBdiff\fR, \fBhistory\fR, \fBexport\fR, \fBrdiff\fR, 
 \fBrtag\fR, and \fBupdate\fR commands.
 .SP
 .IP "" 0
@@ -984,10 +987,10 @@ it is created.  The state is visible in the output from
 \fIcvs log\fR (see node `log\(aq in the CVS manual), and in the
 \fB$\fP\fPLog$\fR and \fB$\fP\fPState$\fR keywords
 (see node `Keyword substitution\(aq in the CVS manual).  Note that \fBcvs\fR
-uses the \fBdead\fR state for its own purposes; to
+uses the \fBdead\fR state for its own purposes (see node `Attic\(aq in the CVS manual); to
 take a file to or from the \fBdead\fR state use
-commands like \fBcvs remove\fR and \fBcvs add\fR, not
-\fBcvs admin -s\fR.
+commands like \fBcvs remove\fR and \fBcvs add\fR
+(see node `Adding and removing\(aq in the CVS manual), not \fBcvs admin -s\fR.
 .SP
 .IP "" 0
 \fB-t[\fIfile\fB]\fR
@@ -1283,6 +1286,7 @@ options with \fBcheckout\fR:
 \fB-A\fR
 .IP "" 2
 Reset any sticky tags, dates, or \fB-k\fR options.
+Does not reset sticky \fB-k\fR options on modified files.
 See see node `Sticky tags\(aq in the CVS manual, for more information on sticky tags/dates.
 .SP
 .IP "" 0
@@ -1393,7 +1397,7 @@ $ cvs checkout -D yesterday tc
 .IX "commit (subcommand)"
 .SP
 .IP "\(bu" 2
-Synopsis: commit [-lnRf] [-m \(aqlog_message\(aq |
+Synopsis: commit [-lRf] [-m \(aqlog_message\(aq |
 -F file] [-r revision] [files\&...]
 .IP "\(bu" 2
 Requires: working directory, repository.
@@ -2562,7 +2566,7 @@ various formats.
 Logging must be enabled by creating the file
 \fB$CVSROOT/CVSROOT/history\fR.
 .SP
-\fBNote: \fBhistory\fB uses \fB-f\fB, \fB-l\fB,
+\fB\fBhistory\fB uses \fB-f\fB, \fB-l\fB,
 \fB-n\fB, and \fB-p\fB in ways that conflict with the
 normal use inside \fBcvs\fB (see node `Common options\(aq in the CVS manual).\fR
 .SP
@@ -2807,8 +2811,10 @@ At least three arguments are required.
 \fIrepository\fR is needed to identify the collection
 of source.  \fIvendortag\fR is a tag for the entire
 branch (e.g., for 1.1.1).  You must also specify at
-least one \fIreleasetag\fR to identify the files at
-the leaves created each time you execute \fBimport\fR.
+least one \fIreleasetag\fR to uniquely identify the files at
+the leaves created each time you execute \fBimport\fR.  The
+\fIreleasetag\fR should be new, not previously existing in the
+repository file, and uniquely identify the imported release,
 .SP
 Note that \fBimport\fR does \fInot\fR change the
 directory in which you invoke it.  In particular, it
@@ -2939,13 +2945,18 @@ message are printed.  All times are displayed in
 Coordinated Universal Time (UTC).  (Other parts of
 \fBcvs\fR print times in the local timezone).
 .SP
-\fBNote: \fBlog\fB uses \fB-R\fB in a way that conflicts
+\fB\fBlog\fB uses \fB-R\fB in a way that conflicts
 with the normal use inside \fBcvs\fB (see node `Common options\(aq in the CVS manual).\fR
 .SP
 .SH "log options"
 .SP
 By default, \fBlog\fR prints all information that is
-available.  All other options restrict the output.
+available.  All other options restrict the output.  Note that the revision
+selection options (\fB-d\fR, \fB-r\fR, \fB-s\fR, and \fB-w\fR) have no
+effect, other than possibly causing a search for files in Attic directories,
+when used in conjunction with the options that restrict the output to only
+\fBlog\fR header fields (\fB-b\fR, \fB-h\fR, \fB-R\fR, and \fB-t\fR)
+unless the \fB-S\fR option is also specified.
 .SP
 .IP "" 0
 \fB-b\fR
@@ -3103,7 +3114,10 @@ Suppress the header if no revisions are selected.
 .IP "" 2
 Print information about revisions whose state
 attributes match one of the states given in the
-comma-separated list \fIstates\fR.
+comma-separated list \fIstates\fR.  Individual states may
+be any text string, though \fBcvs\fR commonly only uses two
+states, \fBExp\fR and \fBdead\fR.  See see node `admin options\(aq in the CVS manual
+for more information.
 .SP
 .IP "" 0
 \fB-t\fR
@@ -3178,6 +3192,12 @@ Use the most recent revision no later than \fIdate\fR.
 .IP "" 2
 If no matching revision is found, retrieve the most
 recent revision (instead of ignoring the file).
+.SP
+.IP "" 0
+\fB-k \fIkflag\fB\fR
+.IP "" 2
+Process keywords according to \fIkflag\fR.  See
+see node `Keyword substitution\(aq in the CVS manual.
 .SP
 .IP "" 0
 \fB-l\fR
@@ -3484,6 +3504,7 @@ These special options are also available with
 \fB-A\fR
 .IP "" 2
 Reset any sticky tags, dates, or \fB-k\fR options.
+Does not reset sticky \fB-k\fR options on modified files.
 See see node `Sticky tags\(aq in the CVS manual, for more information on sticky tags/dates.
 .SP
 .IP "" 0
@@ -3572,7 +3593,7 @@ by one character indicating the status of the file:
 .IP "" 2
 The file was brought up to date with respect to the
 repository.  This is done for any file that exists in
-the repository but not in your source, and for files
+the repository but not in your working directory, and for files
 that you haven\(aqt changed but are not the most recent
 versions available in the repository.
 .SP
@@ -3690,9 +3711,7 @@ to CVS, development of CVS, and more, see:
 .SP
 .PD 0
 .IP "" 4
-.B http://cvshome.org
-.IP "" 4
-.B http://www.loria.fr/~molli/cvs-index.html
+.B http://cvs.nongnu.org
 .in -1i
 .SP
 .BR ci ( 1 ),
