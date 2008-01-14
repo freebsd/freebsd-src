@@ -3104,7 +3104,7 @@ pmap_is_prefaultable(pmap_t pmap, vm_offset_t addr)
 	PMAP_LOCK(pmap);
 	pde = pmap_pde(pmap, addr);
 	if (pde != NULL && (*pde & PG_V)) {
-		pte = vtopte(addr);
+		pte = pmap_pde_to_pte(pde, addr);
 		rv = (*pte & PG_V) == 0;
 	}
 	PMAP_UNLOCK(pmap);
