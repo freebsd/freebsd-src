@@ -193,4 +193,8 @@ FBSD_1.1 {
 	nan;
 	nanf;
 	nanl;
+	llrintl;
+	lrintl;
+	nearbyintl;
+	rintl;
 };

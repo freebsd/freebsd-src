@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004 David Schultz <das@FreeBSD.ORG>
+ * Copyright (c) 2008 David Schultz <das@FreeBSD.ORG>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,32 +24,12 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
-#include <fenv.h>
-#include <math.h>
-
-/*
- * We save and restore the floating-point environment to avoid raising
- * an inexact exception.  We can get away with using fesetenv()
- * instead of feclearexcept()/feupdateenv() to restore the environment
- * because the only exception defined for rint() is overflow, and
- * rounding can't overflow as long as emax >= p.
- */
-#define	DECL(type, fn, rint)	\
-type				\
-fn(type x)			\
-{				\
-	type ret;		\
-	fenv_t env;		\
-				\
-	fegetenv(&env);		\
-	ret = rint(x);		\
-	fesetenv(&env);		\
-	return (ret);		\
-}
-
-DECL(double, nearbyint, rint)
-DECL(float, nearbyintf, rintf)
-DECL(long double, nearbyintl, rintl)
+#include <machine/asm.h>
+__FBSDID("$FreeBSD$"); 
+	
+ENTRY(lrintl)
+	fldt	4(%esp)
+	subl	$4,%esp
+	fistpl	(%esp)
+	popl	%eax
+	ret

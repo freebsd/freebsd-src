@@ -75,11 +75,11 @@ VERSION_DEF=	${LIBCDIR}/Versions.def
 SYMBOL_MAPS=	${SYM_MAPS}
 
 # C99 long double functions
-COMMON_SRCS+=	s_copysignl.c s_fabsl.c s_modfl.c
+COMMON_SRCS+=	s_copysignl.c s_fabsl.c s_llrintl.c s_lrintl.c s_modfl.c
 .if ${LDBL_PREC} != 53
 # If long double != double use these; otherwise, we alias the double versions.
 COMMON_SRCS+=	s_fmal.c s_frexpl.c s_logbl.c s_nanl.c \
-	s_nextafterl.c s_nexttoward.c s_scalbnl.c
+	s_nextafterl.c s_nexttoward.c s_rintl.c s_scalbnl.c
 .endif
 
 # C99 complex functions
@@ -150,7 +150,8 @@ MLINKS+=ilogb.3 ilogbf.3 ilogb.3 ilogbl.3 \
 MLINKS+=j0.3 j1.3 j0.3 jn.3 j0.3 y0.3 j0.3 y1.3 j0.3 y1f.3 j0.3 yn.3
 MLINKS+=j0.3 j0f.3 j0.3 j1f.3 j0.3 jnf.3 j0.3 y0f.3 j0.3 ynf.3
 MLINKS+=lgamma.3 gamma.3 lgamma.3 gammaf.3 lgamma.3 lgammaf.3 lgamma.3 tgamma.3
-MLINKS+=lrint.3 llrint.3 lrint.3 llrintf.3 lrint.3 lrintf.3
+MLINKS+=lrint.3 llrint.3 lrint.3 llrintf.3 lrint.3 llrintl.3 \
+	lrint.3 lrintf.3 lrint.3 lrintl.3
 MLINKS+=lround.3 llround.3 lround.3 llroundf.3 lround.3 llroundl.3 \
 	lround.3 lroundf.3 lround.3 lroundl.3
 MLINKS+=nan.3 nanf.3 nan.3 nanl.3
@@ -159,7 +160,8 @@ MLINKS+=nextafter.3 nexttoward.3 nextafter.3 nexttowardf.3
 MLINKS+=nextafter.3 nexttowardl.3
 MLINKS+=remainder.3 remainderf.3
 MLINKS+=remainder.3 remquo.3 remainder.3 remquof.3
-MLINKS+=rint.3 rintf.3 rint.3 nearbyint.3 rint.3 nearbyintf.3
+MLINKS+=rint.3 rintf.3 rint.3 rintl.3 \
+	rint.3 nearbyint.3 rint.3 nearbyintf.3 rint.3 nearbyintl.3
 MLINKS+=round.3 roundf.3 round.3 roundl.3
 MLINKS+=scalbn.3 scalbln.3 scalbn.3 scalblnf.3 scalbn.3 scalblnl.3
 MLINKS+=scalbn.3 scalbnf.3 scalbn.3 scalbnl.3

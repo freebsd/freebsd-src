@@ -24,6 +24,8 @@ static char rcsid[] = "$FreeBSD$";
  *	Inexact flag raised if x not equal to rint(x).
  */
 
+#include <float.h>
+
 #include "math.h"
 #include "math_private.h"
 
@@ -85,3 +87,7 @@ rint(double x)
 	*(volatile double *)&w = TWO52[sx]+x;	/* clip any extra precision */
 	return w-TWO52[sx];
 }
+
+#if (LDBL_MANT_DIG == 53)
+__weak_reference(rint, rintl);
+#endif

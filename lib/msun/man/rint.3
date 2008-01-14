@@ -28,14 +28,16 @@
 .\"     from: @(#)rint.3	5.1 (Berkeley) 5/2/91
 .\" $FreeBSD$
 .\"
-.Dd July 5, 2004
+.Dd January 13, 2008
 .Dt RINT 3
 .Os
 .Sh NAME
 .Nm nearbyint ,
 .Nm nearbyintf ,
+.Nm nearbyintl ,
 .Nm rint ,
-.Nm rintf
+.Nm rintf ,
+.Nm rintl
 .Nd round to integral value in floating-point format
 .Sh LIBRARY
 .Lb libm
@@ -45,15 +47,20 @@
 .Fn nearbyint "double x"
 .Ft float
 .Fn nearbyintf "float x"
+.Ft long double
+.Fn nearbyintl "long double x"
 .Ft double
 .Fn rint "double x"
 .Ft float
 .Fn rintf "float x"
+.Ft long double
+.Fn rintl "long double x"
 .Sh DESCRIPTION
 The
-.Fn rint
-and the
-.Fn rintf
+.Fn rint ,
+.Fn rintf ,
+and
+.Fn rintl
 functions return the integral value nearest to
 .Fa x
 according to the prevailing rounding mode.
@@ -61,9 +68,10 @@ These functions raise an inexact exception when the original argument
 is not an exact integer.
 .Pp
 The
-.Fn nearbyint
+.Fn nearbyint ,
+.Fn nearbyintf ,
 and
-.Fn nearbyintf
+.Fn nearbyintl
 functions perform the same operation, except that they do not raise
 an inexact exception.
 .Sh SEE ALSO
@@ -78,13 +86,7 @@ an inexact exception.
 .Xr math 3 ,
 .Xr round 3
 .Sh STANDARDS
-The
-.Fn nearbyint ,
-.Fn nearbyintf ,
-.Fn rint ,
-and
-.Fn rintf
-functions conform to
+These functions conform to
 .St -isoC-99 .
 .Sh HISTORY
 A
@@ -96,4 +98,6 @@ The
 and
 .Fn nearbyintf
 functions appeared in
-.Fx 5.3 .
+.Fx 5.3 ,
+and the long double variants were first available in
+.Fx 8.0 .

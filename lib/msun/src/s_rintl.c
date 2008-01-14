@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004 David Schultz <das@FreeBSD.ORG>
+ * Copyright (c) 2008 David Schultz <das@FreeBSD.ORG>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,29 +27,51 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <fenv.h>
+#include <float.h>
 #include <math.h>
 
-/*
- * We save and restore the floating-point environment to avoid raising
- * an inexact exception.  We can get away with using fesetenv()
- * instead of feclearexcept()/feupdateenv() to restore the environment
- * because the only exception defined for rint() is overflow, and
- * rounding can't overflow as long as emax >= p.
- */
-#define	DECL(type, fn, rint)	\
-type				\
-fn(type x)			\
-{				\
-	type ret;		\
-	fenv_t env;		\
-				\
-	fegetenv(&env);		\
-	ret = rint(x);		\
-	fesetenv(&env);		\
-	return (ret);		\
-}
+#include "fpmath.h"
 
-DECL(double, nearbyint, rint)
-DECL(float, nearbyintf, rintf)
-DECL(long double, nearbyintl, rintl)
+static const long double
+shift[2]={
+#if LDBL_MANT_DIG == 64
+	0x1.0p63, -0x1.0p63
+#elif LDBL_MANT_DIG == 113
+	0x1.0p112, -0x1.0p112
+#else
+#error "Unsupported long double format"
+#endif
+};
+
+long double
+rintl(long double x)
+{
+	union IEEEl2bits u;
+	short sign;
+
+	u.e = x;
+
+	if (u.bits.exp >= LDBL_MANT_DIG + LDBL_MAX_EXP - 2) {
+		/*
+		 * The biased exponent is greater than the number of digits
+		 * in the mantissa, so x is inf, NaN, or an integer.
+		 */
+		if (u.bits.exp == 2 * LDBL_MAX_EXP - 1)
+			return (x + x);	/* inf or NaN */
+		else
+			return (x);
+	}
+
+	/*
+	 * The following code assumes that intermediate results are
+	 * evaluated in long double precision. If they are evaluated in
+	 * greater precision, double rounding will occur, and if they are
+	 * evaluated in less precision (as on i386), results will be
+	 * wildly incorrect.
+	 */
+	sign = u.bits.sign;
+	u.e = shift[sign] + x;
+	u.e -= shift[sign];
+	u.bits.sign = sign;
+	return (u.e);
+}
