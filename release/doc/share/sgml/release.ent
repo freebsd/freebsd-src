@@ -25,11 +25,11 @@
 <!ENTITY release.branch "6.3-STABLE">
 
 <!-- The URL for obtaining this version of FreeBSD. -->
-<!ENTITY release.url "http://www.FreeBSD.org/snapshots/">
+<!ENTITY release.url "ftp://ftp.FreeBSD.org/">
 
 <!-- The type of release (usually this will be either "snapshot"
      or "release" -->
-<!ENTITY release.type "snapshot">
+<!ENTITY release.type "release">
 <!ENTITY % release.type.current  "IGNORE">
 <!ENTITY % release.type.snapshot "IGNORE">
 <!ENTITY % release.type.release "INCLUDE">
