@@ -24,14 +24,16 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 11, 2005
+.Dd January 13, 2008
 .Dt LRINT 3
 .Os
 .Sh NAME
 .Nm llrint ,
 .Nm llrintf ,
+.Nm llrintl ,
 .Nm lrint ,
-.Nm lrintf
+.Nm lrintf ,
+.Nm lrintl
 .Nd "convert to integer"
 .Sh LIBRARY
 .Lb libm
@@ -41,10 +43,14 @@
 .Fn llrint "double x"
 .Ft "long long"
 .Fn llrintf "float x"
+.Ft "long long"
+.Fn llrintl "long double x"
 .Ft long
 .Fn lrint "double x"
 .Ft long
 .Fn lrintf "float x"
+.Ft long
+.Fn lrintl "long double x"
 .Sh DESCRIPTION
 The
 .Fn lrint
@@ -70,8 +76,10 @@ is equivalent to
 The
 .Fn llrint ,
 .Fn llrintf ,
+.Fn llrintl ,
+.Fn lrintf ,
 and
-.Fn lrintf
+.Fn lrintl
 functions differ from
 .Fn lrint
 only in their input and output types.
@@ -81,14 +89,16 @@ only in their input and output types.
 .Xr rint 3 ,
 .Xr round 3
 .Sh STANDARDS
+These functions conform to
+.St -isoC-99 .
+.Sh HISTORY
 The
 .Fn llrint ,
 .Fn llrintf ,
 .Fn lrint ,
 and
 .Fn lrintf
-functions conform to
-.St -isoC-99 .
-.Sh HISTORY
-These routines first appeared in
+routines first appeared in
 .Fx 5.4 .
+The long double variants were introduced in
+.Fx 8.0 .
