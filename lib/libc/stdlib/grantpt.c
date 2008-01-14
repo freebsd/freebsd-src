@@ -214,24 +214,30 @@ char *
 ptsname(int fildes)
 {
 	static char slave[] = _PATH_DEV PTS_PREFIX "XY";
-	char *retval;
+	const char *master;
 	struct stat sbuf;
 
-	retval = NULL;
+	/* All master pty's must be char devices. */
+	if (_fstat(fildes, &sbuf) == -1)
+		goto invalid;
+	if (!S_ISCHR(sbuf.st_mode))
+		goto invalid;
 
-	if (_fstat(fildes, &sbuf) == 0) {
-		if (!ISPTM(sbuf))
-			errno = EINVAL;
-		else {
-			(void)snprintf(slave, sizeof(slave),
-				       _PATH_DEV PTS_PREFIX "%s",
-				       devname(sbuf.st_rdev, S_IFCHR) +
-				       strlen(PTM_PREFIX));
-			retval = slave;
-		}
-	}
+	/* Check to see if this device is a pty(4) master. */
+	master = devname(sbuf.st_rdev, S_IFCHR);
+	if (strlen(master) != strlen(PTM_PREFIX "XY"))
+		goto invalid;
+	if (strncmp(master, PTM_PREFIX, strlen(PTM_PREFIX)) != 0)
+		goto invalid;
 
-	return (retval);
+	/* It is, so generate the corresponding pty(4) slave name. */
+	(void)snprintf(slave, sizeof(slave), _PATH_DEV PTS_PREFIX "%s",
+	    master + strlen(PTM_PREFIX));
+	return (slave);
+
+invalid:
+	errno = EINVAL;
+	return (NULL);
 }
 
 /*
@@ -240,18 +246,14 @@ ptsname(int fildes)
 int
 unlockpt(int fildes)
 {
-	int retval;
-	struct stat sbuf;
 
 	/*
 	 * Unlocking a master/slave pseudo-terminal pair has no meaning in a
 	 * non-streams PTY environment.  However, we do ensure fildes is a
 	 * valid master pseudo-terminal device.
 	 */
-	if ((retval = _fstat(fildes, &sbuf)) == 0 && !ISPTM(sbuf)) {
-		errno = EINVAL;
-		retval = -1;
-	}
+	if (ptsname(fildes) == NULL)
+		return (-1);
 
-	return (retval);
+	return (0);
 }
