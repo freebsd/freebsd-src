@@ -76,8 +76,7 @@ openpty(int *amaster, int *aslave, char *name, struct termios *termp, struct win
 					break; /* try the next pty group */
 			} else {
 				line[5] = 't';
-				(void) chown(line, getuid(), ttygid);
-				(void) chmod(line, S_IRUSR|S_IWUSR|S_IWGRP);
+				(void) grantpt(master);
 				(void) revoke(line);
 				if ((slave = open(line, O_RDWR, 0)) != -1) {
 					*amaster = master;
