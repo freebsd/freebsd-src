@@ -192,7 +192,7 @@ static __inline int
 buf_ring_count(struct buf_ring *mr)
 {
 	int size = mr->br_size;
-	int mask = size - 1;
+	uint32_t mask = size - 1;
 	
 	return ((size + mr->br_prod - mr->br_cons) & mask);
 }
@@ -206,7 +206,10 @@ buf_ring_empty(struct buf_ring *mr)
 static __inline int
 buf_ring_full(struct buf_ring *mr)
 {
-	return (mr->br_cons == (mr->br_prod + 1));
+	uint32_t mask;
+
+	mask = mr->br_size - 1;
+	return (mr->br_cons == ((mr->br_prod + 1) & mask));
 }
 
 /*
@@ -217,35 +220,72 @@ buf_ring_full(struct buf_ring *mr)
 static __inline void *
 buf_ring_dequeue(struct buf_ring *mr)
 {
-	int prod, cons, mask;
+	uint32_t prod, cons, mask;
 	caddr_t *ring, m;
 	
 	ring = (caddr_t *)mr->br_ring;
 	mask = mr->br_size - 1;
+	mtx_lock(&mr->br_lock);	/* XXX temporary ? */
 	cons = mr->br_cons;
 	mb();
 	prod = mr->br_prod;
 	m = NULL;
 	if (cons != prod) {
 		m = ring[cons];
+		ring[cons] = NULL;
 		mr->br_cons = (cons + 1) & mask;
 		mb();
 	}
+	mtx_unlock(&mr->br_lock);	/* XXX temporary ? */
 	return (m);
 }
 
+#ifdef DEBUG_BUFRING
+static __inline void
+__buf_ring_scan(struct buf_ring *mr, void *m, char *file, int line)
+{
+	int i;
+
+	for (i = 0; i < mr->br_size; i++)
+		if (m == mr->br_ring[i])
+			panic("%s:%d m=%p present prod=%d cons=%d idx=%d", file,
+			    line, m, mr->br_prod, mr->br_cons, i);
+}
+
+static __inline void
+buf_ring_scan(struct buf_ring *mr, void *m, char *file, int line)
+{
+	mtx_lock(&mr->br_lock);
+	__buf_ring_scan(mr, m, file, line);
+	mtx_unlock(&mr->br_lock);
+}
+
+#else
+static __inline void
+__buf_ring_scan(struct buf_ring *mr, void *m, char *file, int line)
+{
+}
+
+static __inline void
+buf_ring_scan(struct buf_ring *mr, void *m, char *file, int line)
+{
+}
+#endif
 
 static __inline int
-__buf_ring_enqueue(struct buf_ring *mr, void *m)
+__buf_ring_enqueue(struct buf_ring *mr, void *m, char *file, int line)
 {
 	
-	int prod, cons, mask, err;
+	uint32_t prod, cons, mask;
+	int err;
 	
 	mask = mr->br_size - 1;
 	prod = mr->br_prod;
 	mb();
 	cons = mr->br_cons;
+	__buf_ring_scan(mr, m, file, line);
 	if (((prod + 1) & mask) != cons) {
+		KASSERT(mr->br_ring[prod] == NULL, ("overwriting entry"));
 		mr->br_ring[prod] = m;
 		mb();
 		mr->br_prod = (prod + 1) & mask;
@@ -257,16 +297,19 @@ __buf_ring_enqueue(struct buf_ring *mr, void *m)
 }
 
 static __inline int
-buf_ring_enqueue(struct buf_ring *mr, void *m)
+buf_ring_enqueue_(struct buf_ring *mr, void *m, char *file, int line)
 {
 	int err;
 	
 	mtx_lock(&mr->br_lock);
-	err = __buf_ring_enqueue(mr, m);
+	err = __buf_ring_enqueue(mr, m, file, line);
 	mtx_unlock(&mr->br_lock);
 
 	return (err);
 }
+
+#define buf_ring_enqueue(mr, m) buf_ring_enqueue_((mr), (m), __FILE__, __LINE__)
+
 
 static __inline void *
 buf_ring_peek(struct buf_ring *mr)
