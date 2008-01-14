@@ -84,14 +84,6 @@ __FBSDID("$FreeBSD$");
 			 minor((x).st_rdev) < PTY_MAX)
 
 
-static int
-is_pts(int fd)
-{
-	int nb;
-
-	return (_ioctl(fd, TIOCGPTN, &nb) == 0);
-}
-
 #if 0
 int
 __use_pts(void)
@@ -255,33 +247,43 @@ char *
 ptsname(int fildes)
 {
 	static char pty_slave[] = _PATH_DEV PTYS_PREFIX "XY";
+#if 0
 	static char ptmx_slave[] = _PATH_DEV PTMXS_PREFIX "4294967295";
-	char *retval;
+#endif
+	const char *master;
 	struct stat sbuf;
+#if 0
+	int ptn;
 
-	retval = NULL;
-
-	if (_fstat(fildes, &sbuf) == 0) {
-		if (!ISPTM(sbuf))
-			errno = EINVAL;
-		else {
-			if (!is_pts(fildes)) {
-				(void)snprintf(pty_slave, sizeof(pty_slave),
-					       _PATH_DEV PTYS_PREFIX "%s",
-					       devname(sbuf.st_rdev, S_IFCHR) +
-					       strlen(PTYM_PREFIX));
-				retval = pty_slave;
-			} else {
-				(void)snprintf(ptmx_slave, sizeof(ptmx_slave),
-					       _PATH_DEV PTMXS_PREFIX "%s",
-					       devname(sbuf.st_rdev, S_IFCHR) +
-					       strlen(PTMXM_PREFIX));
-				retval = ptmx_slave;
-			}
-		}
+	/* Handle pts(4) masters first. */
+	if (_ioctl(fildes, TIOCGPTN, &ptn) == 0) {
+		(void)snprintf(ptmx_slave, sizeof(ptmx_slave),
+		    _PATH_DEV PTMXS_PREFIX "%d", ptn);
+		return (ptmx_slave);
 	}
+#endif
 
-	return (retval);
+	/* All master pty's must be char devices. */
+	if (_fstat(fildes, &sbuf) == -1)
+		goto invalid;
+	if (!S_ISCHR(sbuf.st_mode))
+		goto invalid;
+
+	/* Check to see if this device is a pty(4) master. */
+	master = devname(sbuf.st_rdev, S_IFCHR);
+	if (strlen(master) != strlen(PTYM_PREFIX "XY"))
+		goto invalid;
+	if (strncmp(master, PTYM_PREFIX, strlen(PTYM_PREFIX)) != 0)
+		goto invalid;
+
+	/* It is, so generate the corresponding pty(4) slave name. */
+	(void)snprintf(pty_slave, sizeof(pty_slave), _PATH_DEV PTYS_PREFIX "%s",
+	    master + strlen(PTYM_PREFIX));
+	return (pty_slave);
+
+invalid:
+	errno = EINVAL;
+	return (NULL);
 }
 
 /*
@@ -290,18 +292,14 @@ ptsname(int fildes)
 int
 unlockpt(int fildes)
 {
-	int retval;
-	struct stat sbuf;
 
 	/*
 	 * Unlocking a master/slave pseudo-terminal pair has no meaning in a
 	 * non-streams PTY environment.  However, we do ensure fildes is a
 	 * valid master pseudo-terminal device.
 	 */
-	if ((retval = _fstat(fildes, &sbuf)) == 0 && !ISPTM(sbuf)) {
-		errno = EINVAL;
-		retval = -1;
-	}
+	if (ptsname(fildes) == NULL)
+		return (-1);
 
-	return (retval);
+	return (0);
 }
