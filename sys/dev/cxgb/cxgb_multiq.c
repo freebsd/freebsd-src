@@ -173,6 +173,9 @@ cxgb_dequeue_packet(struct ifnet *unused, struct sge_txq *txq, struct mbuf **m_v
 	struct adapter *sc;
 #ifndef IFNET_MULTIQUEUE
 	struct port_info *pi = txq->port;
+
+	if (txq->immpkt != NULL)
+		panic("immediate packet set");
 #endif
 
 	mtx_assert(&txq->lock, MA_OWNED);
@@ -495,7 +498,6 @@ cxgb_pcpu_start_(struct sge_qset *qs, struct mbuf *immpkt, int tx_flush)
 	return (err);
 }
 
-
 int
 cxgb_pcpu_start(struct ifnet *ifp, struct mbuf *immpkt)
 {
@@ -535,7 +537,7 @@ cxgb_pcpu_start(struct ifnet *ifp, struct mbuf *immpkt)
 		mtx_unlock(&txq->lock);
 	} else if (immpkt) {
 		if (cxgb_debug)
-			printf("deferred coalesce=%lx ring_count=%d mtx_owned=%d\n",
+			printf("deferred coalesce=%jx ring_count=%d mtx_owned=%d\n",
 			    sc->tunq_coalesce, buf_ring_count(&txq->txq_mr), mtx_owned(&txq->lock));
 		err = cxgb_pcpu_enqueue_packet_(qs, immpkt);
 	}
