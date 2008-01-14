@@ -60,10 +60,12 @@ def disc3_packages():
             'devel/gmake',
             'editors/emacs',
             'editors/vim-lite',
+            'editors/xemacs',
             'emulators/mtools',
             'graphics/png',
             'graphics/xv',
             'irc/xchat',
+            'lang/php5',
             'mail/exim',
             'mail/fetchmail',
             'mail/mutt',
@@ -71,6 +73,8 @@ def disc3_packages():
             'mail/popd',
             'mail/xfmail',
             'mail/postfix',
+            'misc/compat5x',
+            'misc/compat6x',
             'net/cvsup-without-gui',
             'net/rsync',
             'net/samba3',
@@ -82,15 +86,23 @@ def disc3_packages():
             'print/ghostscript-gnu-nox11',
             'print/gv',
             'print/psutils-letter',
+            'print/teTeX',
             'shells/bash',
             'shells/pdksh',
             'shells/zsh',
             'security/sudo',
+            'textproc/docproj-jadetex',
+            'www/apache13',
+            'www/apache13-modssl',
+            'www/apache22',
             'www/links',
             'www/lynx',
             'x11/rxvt',
             # Formerly on disc3
             'ports-mgmt/portaudit']
+    if arch == 'i386':
+        pkgs.extend(['www/opera',
+            'misc/compat4x'])
     return pkgs
 
 # The list of desired packages
