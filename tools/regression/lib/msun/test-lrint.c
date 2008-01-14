@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005 David Schultz <das@FreeBSD.org>
+ * Copyright (c) 2005-2008 David Schultz <das@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,6 +37,10 @@ __FBSDID("$FreeBSD$");
 #include <math.h>
 #include <stdio.h>
 
+#ifdef	__i386__
+#include <ieeefp.h>
+#endif
+
 #define	test(func, x, result, excepts)	do {				\
 	assert(feclearexcept(FE_ALL_EXCEPT) == 0);			\
 	assert((func)(x) == (result) || fetestexcept(FE_INVALID));	\
@@ -46,19 +50,19 @@ __FBSDID("$FreeBSD$");
 #define	testall(x, result, excepts)	do {				\
 	test(lrint, x, result, excepts);				\
 	test(lrintf, x, result, excepts);				\
+	test(lrintl, x, result, excepts);				\
 	test(llrint, x, result, excepts);				\
 	test(llrintf, x, result, excepts);				\
+	test(llrintl, x, result, excepts);				\
 } while (0)
 
 #define	IGNORE	0
 
 #pragma STDC FENV_ACCESS ON
 
-int
-main(int argc, char *argv[])
+void
+run_tests(void)
 {
-
-	printf("1..1\n");
 
 	assert(fesetround(FE_DOWNWARD) == 0);
 	testall(0.75, 0, FE_INEXACT);
@@ -119,6 +123,19 @@ main(int argc, char *argv[])
 	test(llrintf, -0x8000000000000000.0p0f, -0x8000000000000000ll, 0);
 #else
 #error "Unsupported long long size"
+#endif
+}
+
+int
+main(int argc, char *argv[])
+{
+
+	printf("1..1\n");
+
+	run_tests();
+#ifdef	__i386__
+	fpsetprec(FP_PE);
+	run_tests();
 #endif
 
 	printf("ok 1 - lrint\n");
