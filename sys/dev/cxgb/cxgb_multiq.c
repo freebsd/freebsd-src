@@ -27,6 +27,8 @@ POSSIBILITY OF SUCH DAMAGE.
 
 ***************************************************************************/
 
+#define DEBUG_BUFRING
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -55,7 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/taskqueue.h>
 #include <sys/unistd.h>
-#include <sys/unistd.h>
+#include <sys/syslog.h>
 
 #include <net/bpf.h>
 #include <net/ethernet.h>
@@ -119,6 +121,10 @@ cxgb_pcpu_enqueue_packet_(struct sge_qset *qs, struct mbuf *m)
 	struct sge_txq *txq;
 	int err = 0;
 
+#ifndef IFNET_MULTIQUEUE
+	panic("not expecting enqueue without multiqueue");
+#endif	
+	
 	KASSERT(m != NULL, ("null mbuf"));
 	KASSERT(m->m_type == MT_DATA, ("bad mbuf type %d", m->m_type));
 	if (qs->qs_flags & QS_EXITING) {
@@ -189,7 +195,8 @@ cxgb_dequeue_packet(struct ifnet *unused, struct sge_txq *txq, struct mbuf **m_v
 	 * This is terrible from a cache and locking efficiency standpoint
 	 * but then again ... so is ifnet.
 	 */
-	while (!IFQ_DRV_IS_EMPTY(&pi->ifp->if_snd) && !buf_ring_full(&txq->txq_mr)) {
+	while (((qs->qs_flags & QS_EXITING) == 0) && !IFQ_DRV_IS_EMPTY(&pi->ifp->if_snd) && !buf_ring_full(&txq->txq_mr)) {
+		
 		struct mbuf *m = NULL;
 
 		IFQ_DRV_DEQUEUE(&pi->ifp->if_snd, m);
@@ -205,24 +212,30 @@ cxgb_dequeue_packet(struct ifnet *unused, struct sge_txq *txq, struct mbuf **m_v
 	if (m == NULL)
 		return (0);
 
+	buf_ring_scan(&txq->txq_mr, m, __FILE__, __LINE__);
 	KASSERT(m->m_type == MT_DATA, ("bad mbuf type %d", m->m_type));
 	m_vec[0] = m;
 	if (m->m_pkthdr.tso_segsz > 0 || m->m_pkthdr.len > TX_WR_SIZE_MAX || m->m_next != NULL ||
 	    (cxgb_pcpu_tx_coalesce == 0)) {
 		return (1);
 	}
+#ifndef IFNET_MULTIQUEUE
+	panic("coalesce not supported yet");
+#endif	
 	count = 1;
 	size = m->m_pkthdr.len;
-	for (m = buf_ring_peek(&txq->txq_mr); m != NULL; m = buf_ring_peek(&txq->txq_mr)) {
+	for (m = buf_ring_peek(&txq->txq_mr); m != NULL;
+	     m = buf_ring_peek(&txq->txq_mr)) {
 
-		if (m->m_pkthdr.tso_segsz > 0 || size + m->m_pkthdr.len > TX_WR_SIZE_MAX || m->m_next != NULL)
+		if (m->m_pkthdr.tso_segsz > 0 ||
+		    size + m->m_pkthdr.len > TX_WR_SIZE_MAX || m->m_next != NULL)
 			break;
 
 		buf_ring_dequeue(&txq->txq_mr);
 		size += m->m_pkthdr.len;
 		m_vec[count++] = m;
 
-		if (count == TX_WR_COUNT_MAX || (cxgb_pcpu_tx_coalesce == 0))
+		if (count == TX_WR_COUNT_MAX)
 			break;
 
 		coalesced++;
@@ -429,7 +442,7 @@ cxgb_pcpu_start_(struct sge_qset *qs, struct mbuf *immpkt, int tx_flush)
 	}
 	if (initerr && initerr != ENOBUFS) {
 		if (cxgb_debug)
-			printf("cxgb link down\n");
+			log(LOG_WARNING, "cxgb link down\n");
 		if (immpkt)
 			m_freem(immpkt);
 		return (initerr);
@@ -451,11 +464,11 @@ cxgb_pcpu_start_(struct sge_qset *qs, struct mbuf *immpkt, int tx_flush)
 	}
 
 	stopped = isset(&qs->txq_stopped, TXQ_ETH);
-	flush = ((!buf_ring_empty(&txq->txq_mr) && !stopped) || txq->immpkt); 
+	flush = (((!buf_ring_empty(&txq->txq_mr) || (!IFQ_DRV_IS_EMPTY(&pi->ifp->if_snd))) && !stopped) || txq->immpkt); 
 	max_desc = tx_flush ? TX_ETH_Q_SIZE : TX_START_MAX_DESC;
 
 	if (cxgb_debug)
-		printf("stopped=%d flush=%d max_desc=%d\n",
+		DPRINTF("stopped=%d flush=%d max_desc=%d\n",
 		    stopped, flush, max_desc);
 	
 	err = flush ? cxgb_tx_common(qs->port->ifp, qs, max_desc) : ENOSPC;
@@ -536,7 +549,6 @@ cxgb_pcpu_start(struct ifnet *ifp, struct mbuf *immpkt)
 void
 cxgb_start(struct ifnet *ifp)
 {
-	struct mbuf *m = NULL;
 	struct port_info *p = ifp->if_softc;
 		
 	if (!p->link_config.link_ok)
@@ -545,12 +557,7 @@ cxgb_start(struct ifnet *ifp)
 	if (IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		return;
 
-	IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
-#ifdef INVARIANTS
-	if (m)
-		KASSERT(m->m_type == MT_DATA, ("bad mbuf type %d", m->m_type));
-#endif	
-	cxgb_pcpu_start(ifp, m);
+	cxgb_pcpu_start(ifp, NULL);
 }
 
 static void
