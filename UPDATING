@@ -8,6 +8,9 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20080118:	p18	FreeBSD-SA-08:01.pty
+	Fix issues which allow snooping on ptys.
+
 20071129:	p17	FreeBSD-SA-07:09.random, FreeBSD-SA-07:10.gtar
 	Correct a random value disclosure in random(4). [07:09]
 
