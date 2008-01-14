@@ -72,55 +72,6 @@ clearKernel(dialogMenuItem *self)
     return DITEM_SUCCESS | DITEM_REDRAW;
 }
 
-static int
-setX11Misc(dialogMenuItem *self)
-{
-    XOrgDists |= DIST_XORG_MISC_ALL;
-    Dists |= DIST_XORG;
-    return DITEM_SUCCESS | DITEM_REDRAW;
-}
-
-static int
-clearX11Misc(dialogMenuItem *self)
-{
-    XOrgDists &= ~DIST_XORG_MISC_ALL;
-    if (!XOrgDists)
-	Dists &= ~DIST_XORG;
-    return DITEM_SUCCESS | DITEM_REDRAW;
-}
-
-static int
-setX11Servers(dialogMenuItem *self)
-{
-    XOrgDists |= DIST_XORG_SERVER_ALL;
-    return DITEM_SUCCESS | DITEM_REDRAW;
-}
-
-static int
-clearX11Servers(dialogMenuItem *self)
-{
-    XOrgDists &= ~DIST_XORG_SERVER_ALL;
-    if (!XOrgDists)
-	Dists &= ~DIST_XORG;
-    return DITEM_SUCCESS | DITEM_REDRAW;
-}
-
-static int
-setX11Fonts(dialogMenuItem *self)
-{
-    XOrgDists |= DIST_XORG_FONTS_ALL;
-    return DITEM_SUCCESS | DITEM_REDRAW;
-}
-
-static int
-clearX11Fonts(dialogMenuItem *self)
-{
-    XOrgDists &= ~DIST_XORG_FONTS_ALL;
-    if (!XOrgDists)
-	Dists &= ~DIST_XORG;
-    return DITEM_SUCCESS | DITEM_REDRAW;
-}
-
 #define _IS_SET(dist, set) (((dist) & (set)) == (set))
 
 #define IS_DEVELOPER(dist, extra) (_IS_SET(dist, _DIST_DEVELOPER | extra) || \
@@ -245,7 +196,6 @@ DMenu MenuIndex = {
       { " Dists, User",		"Select average user distribution.",	checkDistUser, distSetUser },
       { " Dists, X User",	"Select average X user distribution.",	checkDistXUser, distSetXUser },
       { " Distributions, Adding", "Installing additional distribution sets", NULL, distExtractAll },
-      { " Distributions, X.Org","X.Org distribution menu.",		NULL, distSetXOrg },
       { " Documentation",	"Installation instructions, README, etc.", NULL, dmenuSubmenu, NULL, &MenuDocumentation },
       { " Doc, README",		"The distribution README file.",	NULL, dmenuDisplayFile, NULL, "README" },
       { " Doc, Errata",		"The distribution errata.",	NULL, dmenuDisplayFile, NULL, "ERRATA" },
@@ -309,8 +259,6 @@ DMenu MenuIndex = {
       { " Upgrade",		"Upgrade an existing system.",		NULL, installUpgrade },
       { " Usage",		"Quick start - How to use this menu system.",	NULL, dmenuDisplayFile, NULL, "usage" },
       { " User Management",	"Add user and group information.",	NULL, dmenuSubmenu, NULL, &MenuUsermgmt },
-      { " X.Org, Fonts",	"X.Org Font selection menu.",		NULL, dmenuSubmenu, NULL, &MenuXOrgSelectFonts },
-      { " X.Org, Server",	"X.Org Server selection menu.",	NULL, dmenuSubmenu, NULL, &MenuXOrgSelectServer },
       { NULL } },
 };
 
@@ -1024,7 +972,7 @@ DMenu MenuSubDistributions = {
       { " local",	"Local additions collection",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_LOCAL},
       { " X.Org",	"The X.Org distribution",
-	x11FlagCheck,	distSetXOrg },
+	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_XORG },
       { NULL } },
 };
 
@@ -1106,149 +1054,6 @@ DMenu MenuSrcDistributions = {
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &SrcDists, '[', 'X', ']', DIST_SRC_UBIN },
       { " usbin",	"/usr/src/usr.sbin (aux system binaries)",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &SrcDists, '[', 'X', ']', DIST_SRC_USBIN },
-      { NULL } },
-};
-
-DMenu MenuXOrgConfig = {
-    DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
-    "Please select the X.Org configuration tool you want to use.",
-    "The first option, xorgcfg, is fully graphical.\n"
-    "The second option provides a menu-based interface similar to\n"
-    "what you are currently using. "
-    "The third option, xorgconfig, is\n"
-    "a more simplistic shell-script based tool and less friendly to\n"
-    "new users, but it may work in situations where the other options\n"
-    "do not.",
-    NULL,
-    NULL,
-    { { "X Exit", "Exit this menu (returning to previous)",
-	NULL, dmenuExit },
-      { "2 xorgcfg",	"Fully graphical X.Org configuration tool.",
-	NULL, dmenuSetVariable, NULL, VAR_XORG_CONFIG "=xorgcfg" },
-      { "3 xorgcfg -textmode",	"ncurses-based X.Org configuration tool.",
-	NULL, dmenuSetVariable, NULL, VAR_XORG_CONFIG "=xorgcfg -textmode" },
-      { "4 xorgconfig",	"Shell-script based X.Org configuration tool.",
-	NULL, dmenuSetVariable, NULL, VAR_XORG_CONFIG "=xorgconfig" },
-      { "D XDesktop",	"X already set up, just do desktop configuration.",
-	NULL, dmenuSubmenu, NULL, &MenuXDesktops },
-      { NULL } },
-};
-
-DMenu MenuXDesktops = {
-    DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
-    "Please select the default X desktop to use.",
-    "By default, X.Org comes with a fairly vanilla desktop which\n"
-    "is based around the twm(1) window manager and does not offer\n"
-    "much in the way of features.  It does have the advantage of\n"
-    "being a standard part of X so you don't need to load anything\n"
-    "extra in order to use it.  If, however, you have access to a\n"
-    "reasonably full packages collection on your installation media,\n"
-    "you can choose any one of the following desktops as alternatives.",
-    NULL,
-    NULL,
-    { { "X Exit", "Exit this menu (returning to previous)",
-	NULL, dmenuExit },
-      { "2 KDE",		"The K Desktop Environment (Lite Edition)",
-	NULL, dmenuSetVariable, NULL, VAR_DESKSTYLE "=kde" },
-      { "3 GNOME 2",		"The GNOME 2 Desktop Environment (Lite Edition)",
-	NULL, dmenuSetVariable, NULL, VAR_DESKSTYLE "=gnome2" },
-      { "4 Afterstep",	"The Afterstep window manager",
-	NULL, dmenuSetVariable, NULL, VAR_DESKSTYLE "=afterstep" },
-      { "5 Windowmaker",	"The Windowmaker window manager",
-	NULL, dmenuSetVariable, NULL, VAR_DESKSTYLE "=windowmaker" },
-      { "6 fvwm",		"The fvwm window manager",
-	NULL, dmenuSetVariable, NULL, VAR_DESKSTYLE "=fvwm2" },
-      { NULL } },
-};
-
-DMenu MenuXOrgSelect = {
-    DMENU_NORMAL_TYPE,
-    "X.Org Distribution",
-    "Please select the components you need from the X.Org\n"
-    "distribution sets.",
-    NULL,
-    NULL,
-    { { "X Exit", "Exit this menu (returning to previous)", NULL, dmenuExit },
-      { "Basic",	"Basic component menu (required)",	NULL, dmenuSubmenu, NULL, &MenuXOrgSelectCore },
-      { "Server",	"X server menu",			NULL, dmenuSubmenu, NULL, &MenuXOrgSelectServer },
-      { "Fonts",	"Font set menu",			NULL, dmenuSubmenu, NULL, &MenuXOrgSelectFonts },
-      { NULL } },
-};
-
-DMenu MenuXOrgSelectCore = {
-    DMENU_CHECKLIST_TYPE | DMENU_SELECTION_RETURNS,
-    "X.Org base distribution types",
-    "Please check off the basic X.Org components you wish to install.\n"
-    "Bin, lib, and set are recommended for a minimum installaion.",
-    NULL,
-    NULL,
-    { { "X Exit",	"Exit this menu (returning to previous)",
-	checkTrue, dmenuExit, NULL, NULL, '<', '<', '<' },
-      { "All",		"Select all below",
-	NULL,		setX11Misc, NULL, NULL, ' ', ' ', ' ' },
-      { "Reset",	"Reset all below",
-	NULL,		clearX11Misc, NULL, NULL, ' ', ' ', ' ' },
-      { " lib",         "Shared libraries and data files needed at runtime",
-	dmenuFlagCheck, dmenuSetFlag, NULL, &XOrgDists, '[', 'X', ']', DIST_XORG_LIB },
-      { " bin", 	"Client applications",
-	dmenuFlagCheck, dmenuSetFlag, NULL, &XOrgDists, '[', 'X', ']', DIST_XORG_APPS },
-      { " doc",         "Documentation",
-	dmenuFlagCheck, dmenuSetFlag, NULL, &XOrgDists, '[', 'X', ']', DIST_XORG_DOC },
-      { " prog",        "Programming tools",
-	dmenuFlagCheck, dmenuSetFlag, NULL, &XOrgDists, '[', 'X', ']', DIST_XORG_IMAKE },
-      { NULL } },
-};
-
-DMenu MenuXOrgSelectFonts = {
-    DMENU_CHECKLIST_TYPE | DMENU_SELECTION_RETURNS,
-    "X.Org Font distribution selection.",
-    "Please check off the individual font distributions you wish to\n\
-install.  At the minimum, you should install the standard\n\
-75 DPI and misc fonts if you're also installing an X server\n\
-(these are selected by default).  The TrueType set is also \n\
-highly recommended.  The font server is unnecessary in most\n\
-configurations.",
-    NULL,
-    NULL,
-    { { "X Exit",	"Exit this menu (returning to previous)",
-	checkTrue, dmenuExit, NULL, NULL, '<', '<', '<' },
-      { "All",		"All fonts",
-	NULL,		setX11Fonts, NULL, NULL, ' ', ' ', ' ' },
-      { "Reset",	"Reset font selections",
-	NULL,		clearX11Fonts, NULL, NULL, ' ', ' ', ' ' },
-      { " fmsc",	"Standard miscellaneous fonts",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &XOrgDists, '[', 'X', ']', DIST_XORG_FONTS_MISC },
-      { " f75",		"75 DPI fonts",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &XOrgDists, '[', 'X', ']', DIST_XORG_FONTS_75 },
-      { " f100",	"100 DPI fonts",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &XOrgDists, '[', 'X', ']', DIST_XORG_FONTS_100 },
-      { " fcyr",	"Cyrillic Fonts",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &XOrgDists, '[', 'X', ']', DIST_XORG_FONTS_CYR },
-      { " ft1",		"Type1 scalable fonts",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &XOrgDists, '[', 'X', ']', DIST_XORG_FONTS_T1 },
-      { " ftt",		"TrueType scalable fonts",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &XOrgDists, '[', 'X', ']', DIST_XORG_FONTS_TT },
-      { NULL } },
-};
-
-DMenu MenuXOrgSelectServer = {
-    DMENU_CHECKLIST_TYPE | DMENU_SELECTION_RETURNS,
-    "X.Org X Server selection.",
-    "Please check off the types of X servers you wish to install.\n",
-    NULL,
-    NULL,
-    { { "X Exit",	"Exit this menu (returning to previous)",
-	checkTrue, dmenuExit, NULL, NULL, '<', '<', '<' },
-      { "All",		"Select all of the above",
-	NULL,		setX11Servers, NULL, NULL, ' ', ' ', ' ' },
-      { "Reset",	"Reset all of the above",
-	NULL,		clearX11Servers, NULL, NULL, ' ', ' ', ' ' },
-      { " srv",		"Standard Graphics Framebuffer",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &XOrgDists, '[', 'X', ']', DIST_XORG_SERVER },
-      { " nest",	"Nested X Server",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &XOrgDists, '[', 'X', ']', DIST_XORG_NESTSERVER },
-      { " vfb",		"Virtual Framebuffer",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &XOrgDists, '[', 'X', ']', DIST_XORG_VFBSERVER },
       { NULL } },
 };
 
