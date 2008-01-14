@@ -292,6 +292,13 @@ CTASSERT(1 << PDESHIFT == sizeof(pd_entry_t));
 CTASSERT(1 << PTESHIFT == sizeof(pt_entry_t));
 
 /*
+ * If you get an error here, then you set KVA_PAGES wrong! See the
+ * description of KVA_PAGES in sys/i386/include/pmap.h. It must be
+ * multiple of 4 for a normal kernel, or a multiple of 8 for a PAE.
+ */
+CTASSERT(KERNBASE % (1 << 24) == 0);
+
+/*
  * Move the kernel virtual free pointer to the next
  * 4MB.  This is used to help improve performance
  * by using a large (4MB) page for much of the kernel
