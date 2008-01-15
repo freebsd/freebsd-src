@@ -2234,7 +2234,7 @@ re_encap(sc, m_head)
 	uint32_t		cmdstat, csum_flags;
 
 	RL_LOCK_ASSERT(sc);
-	M_ASSERTPKTHDR(*m_head);
+	M_ASSERTPKTHDR((*m_head));
 
 	/*
 	 * With some of the RealTek chips, using the checksum offload
