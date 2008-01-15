@@ -34,7 +34,7 @@
 #include <sys/param.h>
 #include <sys/types.h>
 
-#include <crypto/rijndael/rijndael.h>
+#include <crypto/rijndael/rijndael-api-fst.h>
 
 #define LL 32 
 int
