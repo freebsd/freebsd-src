@@ -8,7 +8,7 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
-20080118:	p22	FreeBSD-SA-08:01.pty
+20080114:	p22	FreeBSD-SA-08:01.pty
 	Fix issues which allow snooping on ptys.
 
 20071129:	p21	FreeBSD-SA-07:09.random
