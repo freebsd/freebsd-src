@@ -85,10 +85,11 @@ typedef struct
 	int cl_size;
 	int alloc_fail;
 	int mask;			/* number of rx slots -1 */
-} mxge_rx_buf_t;
+} mxge_rx_ring_t;
 
 typedef struct
 {
+	struct mtx mtx;
 	volatile mcp_kreq_ether_send_t *lanai;	/* lanai ptr for sendq	*/
 	mcp_kreq_ether_send_t *req_list;	/* host shadow of sendq */
 	char *req_bytes;
@@ -99,14 +100,15 @@ typedef struct
 	int mask;			/* number of transmit slots -1 */
 	int done;			/* transmits completed	*/
 	int pkt_done;			/* packets completed */
-	int boundary;			/* boundary transmits cannot cross*/
 	int max_desc;			/* max descriptors per xmit */
 	int stall;			/* #times hw queue exhausted */
 	int wake;			/* #times irq re-enabled xmit */
 	int watchdog_req;		/* cache of req */
 	int watchdog_done;		/* cache of done */
 	int watchdog_rx_pause;		/* cache of pause rq recvd */
-} mxge_tx_buf_t;
+	int defrag;
+	char mtx_name[16];
+} mxge_tx_ring_t;
 
 struct lro_entry;
 struct lro_entry
@@ -133,30 +135,42 @@ struct lro_entry
 };
 SLIST_HEAD(lro_head, lro_entry);
 
-typedef struct {
-	struct ifnet* ifp;
-	struct mtx tx_mtx;
-	int csum_flag;			/* rx_csums? 		*/
-	mxge_tx_buf_t tx;		/* transmit ring 	*/
-	mxge_rx_buf_t rx_small;
-	mxge_rx_buf_t rx_big;
+struct mxge_softc;
+typedef struct mxge_softc mxge_softc_t;
+
+struct mxge_slice_state {
+	mxge_softc_t *sc;
+	mxge_tx_ring_t tx;		/* transmit ring 	*/
+	mxge_rx_ring_t rx_small;
+	mxge_rx_ring_t rx_big;
 	mxge_rx_done_t rx_done;
 	mcp_irq_data_t *fw_stats;
-	bus_dma_tag_t	parent_dmat;
-	volatile uint8_t *sram;
+	volatile uint32_t *irq_claim;
+	u_long ipackets;
 	struct lro_head lro_active;
 	struct lro_head lro_free;
 	int lro_queued;
 	int lro_flushed;
 	int lro_bad_csum;
+	mxge_dma_t fw_stats_dma;
+	struct sysctl_oid *sysctl_tree;
+	struct sysctl_ctx_list sysctl_ctx;
+	char scratch[256];
+};
+
+struct mxge_softc {
+	struct ifnet* ifp;
+	struct mxge_slice_state *ss;
+	int csum_flag;			/* rx_csums? 		*/
+	int tx_boundary;		/* boundary transmits cannot cross*/
 	int lro_cnt;
+	bus_dma_tag_t	parent_dmat;
+	volatile uint8_t *sram;
 	int sram_size;
 	volatile uint32_t *irq_deassert;
-	volatile uint32_t *irq_claim;
 	mcp_cmd_response_t *cmd;
 	mxge_dma_t cmd_dma;
 	mxge_dma_t zeropad_dma;
-	mxge_dma_t fw_stats_dma;
 	struct pci_dev *pdev;
 	int msi_enabled;
 	int link_state;
@@ -170,11 +184,15 @@ typedef struct {
 	int stop_queue;
 	int down_cnt;
 	int watchdog_resets;
-	int tx_defragged;
+	int watchdog_countdown;
 	int pause;
 	struct resource *mem_res;
 	struct resource *irq_res;
+	struct resource **msix_irq_res;
+	struct resource *msix_table_res;
+	struct resource *msix_pba_res;
 	void *ih; 
+	void **msix_ih;
 	char *fw_name;
 	char eeprom_strings[MXGE_EEPROM_STRINGS_SIZE];
 	char fw_version[128];
@@ -193,17 +211,19 @@ typedef struct {
 	int tx_defrag;
 	int media_flags;
 	int need_media_probe;
+	int num_slices;
+	int rx_ring_size;
 	mxge_dma_t dmabench_dma;
 	struct callout co_hdl;
+	struct sysctl_oid *slice_sysctl_tree;
+	struct sysctl_ctx_list slice_sysctl_ctx;
 	char *mac_addr_string;
 	uint8_t	mac_addr[6];		/* eeprom mac address */
 	char product_code_string[64];
 	char serial_number_string[64];
-	char scratch[256];
-	char tx_mtx_name[16];
 	char cmd_mtx_name[16];
 	char driver_mtx_name[16];
-} mxge_softc_t;
+};
 
 #define MXGE_PCI_VENDOR_MYRICOM 	0x14c1
 #define MXGE_PCI_DEVICE_Z8E 	0x0008
@@ -255,8 +275,9 @@ mxge_pio_copy(volatile void *to_v, void *from_v, size_t size)
 
 }
 
-void mxge_lro_flush(mxge_softc_t *mgp, struct lro_entry *lro);
-int mxge_lro_rx(mxge_softc_t *mgp, struct mbuf *m_head, uint32_t csum);
+void mxge_lro_flush(struct mxge_slice_state *ss, struct lro_entry *lro);
+int mxge_lro_rx(struct mxge_slice_state *ss, struct mbuf *m_head,
+		uint32_t csum);
 		
 
 

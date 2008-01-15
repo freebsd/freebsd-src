@@ -1,6 +1,6 @@
 /*******************************************************************************
 
-Copyright (c) 2006-2007, Myricom Inc.
+Copyright (c) 2006-2008, Myricom Inc.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -52,20 +52,25 @@ struct mcp_dma_addr {
 };
 typedef struct mcp_dma_addr mcp_dma_addr_t;
 
-/* 4 Bytes.  8 Bytes for NDIS drivers. */
+/* 4 Bytes */
 struct mcp_slot {
-#ifdef MXGEFW_NDIS
-  /* Place at the top so it gets written before length.
-   * The driver polls length.
-   */
-  uint32_t hash;
-#endif
   uint16_t checksum;
   uint16_t length;
 };
 typedef struct mcp_slot mcp_slot_t;
 
 #ifdef MXGEFW_NDIS
+/* 8-byte descriptor, exclusively used by NDIS drivers. */
+struct mcp_slot_8 {
+  /* Place hash value at the top so it gets written before length.
+   * The driver polls length.
+   */
+  uint32_t hash;
+  uint16_t checksum;
+  uint16_t length;
+};
+typedef struct mcp_slot_8 mcp_slot_8_t;
+
 /* Two bits of length in mcp_slot are used to indicate hash type. */
 #define MXGEFW_RSS_HASH_NULL (0 << 14) /* bit 15:14 = 00 */
 #define MXGEFW_RSS_HASH_IPV4 (1 << 14) /* bit 15:14 = 01 */
@@ -289,10 +294,14 @@ enum myri10ge_mcp_cmd_type {
   MXGEFW_CMD_GET_MAX_RSS_QUEUES,
   MXGEFW_CMD_ENABLE_RSS_QUEUES,
   /* data0 = number of slices n (0, 1, ..., n-1) to enable
-   * data1 = interrupt mode. 0=share one INTx/MSI, 1=use one MSI-X per queue.
+   * data1 = interrupt mode.
+   * 0=share one INTx/MSI, 1=use one MSI-X per queue.
    * If all queues share one interrupt, the driver must have set
    * RSS_SHARED_INTERRUPT_DMA before enabling queues.
    */
+#define MXGEFW_SLICE_INTR_MODE_SHARED 0
+#define MXGEFW_SLICE_INTR_MODE_ONE_PER_SLICE 1
+  
   MXGEFW_CMD_GET_RSS_SHARED_INTERRUPT_MASK_OFFSET,
   MXGEFW_CMD_SET_RSS_SHARED_INTERRUPT_DMA,
   /* data0, data1 = bus address lsw, msw */
@@ -309,11 +318,15 @@ enum myri10ge_mcp_cmd_type {
    * 0: disable rss.  nic does not distribute receive packets.
    * 1: enable rss.  nic distributes receive packets among queues.
    * data1 = hash type
-   * 1: IPV4
-   * 2: TCP_IPV4
-   * 3: IPV4 | TCP_IPV4
+   * 1: IPV4            (required by RSS)
+   * 2: TCP_IPV4        (required by RSS)
+   * 3: IPV4 | TCP_IPV4 (required by RSS)
+   * 4: source port
    */
-
+#define MXGEFW_RSS_HASH_TYPE_IPV4      0x1
+#define MXGEFW_RSS_HASH_TYPE_TCP_IPV4  0x2
+#define MXGEFW_RSS_HASH_TYPE_SRC_PORT  0x4
+  
   MXGEFW_CMD_GET_MAX_TSO6_HDR_SIZE,
   /* Return data = the max. size of the entire headers of a IPv6 TSO packet.
    * If the header size of a IPv6 TSO packet is larger than the specified
@@ -328,6 +341,8 @@ enum myri10ge_mcp_cmd_type {
    * 0: Linux/FreeBSD style (NIC default)
    * 1: NDIS/NetBSD style
    */
+#define MXGEFW_TSO_MODE_LINUX  0
+#define MXGEFW_TSO_MODE_NDIS   1
 
   MXGEFW_CMD_MDIO_READ,
   /* data0 = dev_addr (PMA/PMD or PCS ...), data1 = register/addr */
@@ -343,12 +358,45 @@ enum myri10ge_mcp_cmd_type {
    * During the i2c operation,  MXGEFW_CMD_XFP_I2C_READ or MXGEFW_CMD_XFP_BYTE attempts
    *  will return MXGEFW_CMD_ERROR_BUSY
    */
-  MXGEFW_CMD_XFP_BYTE
+  MXGEFW_CMD_XFP_BYTE,
   /* Return the last obtained copy of a given byte in the xfp i2c table
    * (copy cached during the last relevant MXGEFW_CMD_XFP_I2C_READ)
    *   data0 : index of the desired table entry
    *  Return data = the byte stored at the requested index in the table
    */
+
+  MXGEFW_CMD_GET_VPUMP_OFFSET,
+  /* Return data = NIC memory offset of mcp_vpump_public_global */
+  MXGEFW_CMD_RESET_VPUMP,
+  /* Resets the VPUMP state */
+
+  MXGEFW_CMD_SET_RSS_MCP_SLOT_TYPE,
+  /* data0 = mcp_slot type to use.
+   * 0 = the default 4B mcp_slot
+   * 1 = 8B mcp_slot_8
+   */
+#define MXGEFW_RSS_MCP_SLOT_TYPE_MIN        0
+#define MXGEFW_RSS_MCP_SLOT_TYPE_WITH_HASH  1
+
+  MXGEFW_CMD_SET_THROTTLE_FACTOR,
+  /* set the throttle factor for ethp_z8e
+     data0 = throttle_factor
+     throttle_factor = 256 * pcie-raw-speed / tx_speed
+     tx_speed = 256 * pcie-raw-speed / throttle_factor
+
+     For PCI-E x8: pcie-raw-speed == 16Gb/s
+     For PCI-E x4: pcie-raw-speed == 8Gb/s
+
+     ex1: throttle_factor == 0x1a0 (416), tx_speed == 1.23GB/s == 9.846 Gb/s
+     ex2: throttle_factor == 0x200 (512), tx_speed == 1.0GB/s == 8 Gb/s
+
+     with tx_boundary == 2048, max-throttle-factor == 8191 => min-speed == 500Mb/s
+     with tx_boundary == 4096, max-throttle-factor == 4095 => min-speed == 1Gb/s
+  */
+
+  MXGEFW_CMD_VPUMP_UP
+  /* Allocates VPump Connection, Send Request and Zero copy buffer address tables */
+
 };
 typedef enum myri10ge_mcp_cmd_type myri10ge_mcp_cmd_type_t;
 
@@ -406,6 +454,7 @@ struct mcp_irq_data {
 typedef struct mcp_irq_data mcp_irq_data_t;
 
 #ifdef MXGEFW_NDIS
+/* Exclusively used by NDIS drivers */
 struct mcp_rss_shared_interrupt {
   uint8_t pad[2];
   uint8_t queue;

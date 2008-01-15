@@ -1,6 +1,6 @@
 /******************************************************************************
 
-Copyright (c) 2007, Myricom Inc.
+Copyright (c) 2007-2008, Myricom Inc.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>
+#include <sys/sysctl.h>
 
 #include <net/if.h>
 #include <net/ethernet.h>
@@ -73,8 +74,9 @@ mxge_csum_generic(uint16_t *raw, int len)
 
 
 void
-mxge_lro_flush(mxge_softc_t *mgp, struct lro_entry *lro)
+mxge_lro_flush(struct mxge_slice_state *ss, struct lro_entry *lro)
 {
+	mxge_softc_t *mgp = ss->sc;
 	struct ifnet *ifp;
 	struct ip *ip;
 	struct tcphdr *tcp;
@@ -132,16 +134,16 @@ mxge_lro_flush(mxge_softc_t *mgp, struct lro_entry *lro)
 	}
 	ifp = mgp->ifp;
 	(*ifp->if_input)(mgp->ifp, lro->m_head);
-	mgp->lro_queued += lro->append_cnt + 1;
-	mgp->lro_flushed++;
+	ss->lro_queued += lro->append_cnt + 1;
+	ss->lro_flushed++;
 	lro->m_head = NULL;
 	lro->timestamp = 0;
 	lro->append_cnt = 0;
-	SLIST_INSERT_HEAD(&mgp->lro_free, lro, next);
+	SLIST_INSERT_HEAD(&ss->lro_free, lro, next);
 }
 
 int
-mxge_lro_rx(mxge_softc_t *mgp, struct mbuf *m_head, uint32_t csum)
+mxge_lro_rx(struct mxge_slice_state *ss, struct mbuf *m_head, uint32_t csum)
 {
 	struct ether_header *eh;
 	struct ip *ip;
@@ -171,7 +173,7 @@ mxge_lro_rx(mxge_softc_t *mgp, struct mbuf *m_head, uint32_t csum)
 	/* verify that the IP header checksum is correct */
 	tmp_csum = mxge_csum_generic((uint16_t *)ip, sizeof (*ip));
 	if (__predict_false((tmp_csum ^ 0xffff) != 0)) {
-		mgp->lro_bad_csum++;
+		ss->lro_bad_csum++;
 		return -1;
 	}
 
@@ -224,7 +226,7 @@ mxge_lro_rx(mxge_softc_t *mgp, struct mbuf *m_head, uint32_t csum)
 	hlen = ip_len + ETHER_HDR_LEN - tcp_data_len;
 	seq = ntohl(tcp->th_seq);
 
-	SLIST_FOREACH(lro, &mgp->lro_active, next) {
+	SLIST_FOREACH(lro, &ss->lro_active, next) {
 		if (lro->source_port == tcp->th_sport && 
 		    lro->dest_port == tcp->th_dport &&
 		    lro->source_ip == ip->ip_src.s_addr && 
@@ -233,9 +235,9 @@ mxge_lro_rx(mxge_softc_t *mgp, struct mbuf *m_head, uint32_t csum)
 
 			if (__predict_false(seq != lro->next_seq)) {
 				/* out of order packet */
-				SLIST_REMOVE(&mgp->lro_active, lro,
+				SLIST_REMOVE(&ss->lro_active, lro,
 					     lro_entry, next);
-				mxge_lro_flush(mgp, lro);
+				mxge_lro_flush(ss, lro);
 				return -1;
 			}
 
@@ -287,23 +289,23 @@ mxge_lro_rx(mxge_softc_t *mgp, struct mbuf *m_head, uint32_t csum)
 			/* advance the last pointer */
 			lro->m_tail = m_tail;
 			/* flush packet if required */
-			device_mtu = mgp->ifp->if_mtu;
+			device_mtu = ss->sc->ifp->if_mtu;
 			if (lro->len > (65535 - device_mtu)) {
-				SLIST_REMOVE(&mgp->lro_active, lro,
+				SLIST_REMOVE(&ss->lro_active, lro,
 					     lro_entry, next);
-				mxge_lro_flush(mgp, lro);
+				mxge_lro_flush(ss, lro);
 			}
 			return 0;
 		}
 	}
 
-	if (SLIST_EMPTY(&mgp->lro_free))
+	if (SLIST_EMPTY(&ss->lro_free))
 	    return -1;
 
 	/* start a new chain */
-	lro = SLIST_FIRST(&mgp->lro_free);
-	SLIST_REMOVE_HEAD(&mgp->lro_free, next);
-	SLIST_INSERT_HEAD(&mgp->lro_active, lro, next);
+	lro = SLIST_FIRST(&ss->lro_free);
+	SLIST_REMOVE_HEAD(&ss->lro_free, next);
+	SLIST_INSERT_HEAD(&ss->lro_active, lro, next);
 	lro->source_port = tcp->th_sport;
 	lro->dest_port = tcp->th_dport;
 	lro->source_ip = ip->ip_src.s_addr;
