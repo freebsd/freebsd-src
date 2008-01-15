@@ -14,6 +14,7 @@
     <year>2005</year>
     <year>2006</year>
     <year>2007</year>
+    <year>2008</year>
     <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
   </copyright>
 
@@ -139,6 +140,20 @@
       Information regarding this issue can be found in security
       advisory
       <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-07:09.random.asc">FreeBSD-SA-07:09.random</ulink>.</para>
+
+    <para>Information disclosure issues found in &man.openpty.3; and
+      &man.ptsname.3; have been corrected.
+      Information regarding this issue can be found in security
+      advisory
+      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-08:01.pty.asc">FreeBSD-SA-08:01.pty</ulink>.</para>
+
+    <para>A programming error in &man.inet.network.3; Internet
+      address manipulation function that could lead to
+      overwriting a region of memory with user defined data
+      has been corrected.
+      Information regarding this issue can be found in security
+      advisory
+      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-08:02.libc.asc">FreeBSD-SA-08:02.libc</ulink>.</para>
   </sect2>
 
   <sect2 id="kernel">
