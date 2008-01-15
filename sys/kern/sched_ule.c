@@ -1113,7 +1113,7 @@ sched_pickcpu(struct td_sched *ts, int flags)
 	 * This may improve locality among sleepers and wakers when there
 	 * is shared data.
 	 */
-	if (tryself && pri < curthread->td_priority) {
+	if (tryself && pri < TDQ_CPU(self)->tdq_lowpri) {
 		CTR1(KTR_ULE, "tryself %d",
 		    curthread->td_priority);
 		return (self);
@@ -2410,9 +2410,10 @@ sched_add(struct thread *td, int flags)
 	 * Pick the destination cpu and if it isn't ours transfer to the
 	 * target cpu.
 	 */
-	if (td->td_priority <= PRI_MAX_ITHD && THREAD_CAN_MIGRATE(td))
-		cpu = cpuid;
-	else if (!THREAD_CAN_MIGRATE(td))
+	if (td->td_priority <= PRI_MAX_ITHD && THREAD_CAN_MIGRATE(td) &&
+	    curthread->td_intr_nesting_level)
+		ts->ts_cpu = cpuid;
+	if (!THREAD_CAN_MIGRATE(td))
 		cpu = ts->ts_cpu;
 	else
 		cpu = sched_pickcpu(ts, flags);
