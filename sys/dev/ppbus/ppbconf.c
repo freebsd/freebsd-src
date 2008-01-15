@@ -36,6 +36,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/malloc.h>
+#include <sys/rman.h>
+
+#include <machine/resource.h>
 
 #include <dev/ppbus/ppbconf.h>
 #include <dev/ppbus/ppb_1284.h>
@@ -380,9 +383,38 @@ end_scan:
 
 #endif /* !DONTPROBE_1284 */
 
+static void
+ppbus_dummy_intr(void *arg)
+{
+}
+
 static int
 ppbus_attach(device_t dev)
 {
+	struct ppb_data *ppb = (struct ppb_data *)device_get_softc(dev);
+	uintptr_t irq;
+	int error, rid;
+
+	/* Attach a dummy interrupt handler to suck up any stray interrupts. */
+	BUS_READ_IVAR(device_get_parent(dev), dev, PPC_IVAR_IRQ, &irq);
+
+	if (irq > 0) {
+		rid = 0;
+		ppb->irq_res = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, irq,
+		    irq, 1, RF_SHAREABLE);
+		if (ppb->irq_res != NULL) {
+			error = bus_setup_intr(dev, ppb->irq_res,
+			    INTR_TYPE_TTY | INTR_MPSAFE, NULL, ppbus_dummy_intr,
+			    ppb, &ppb->intr_cookie);
+			if (error) {
+				device_printf(dev,
+				    "failed to setup interrupt handler\n");
+				bus_release_resource(dev, SYS_RES_IRQ, 0,
+				    ppb->irq_res);
+				return (error);
+			}
+		}
+	}
 
 	/* Locate our children */
 	bus_generic_probe(dev);
@@ -401,6 +433,7 @@ ppbus_attach(device_t dev)
 static int
 ppbus_detach(device_t dev)
 {
+	struct ppb_data *ppb = (struct ppb_data *)device_get_softc(dev);
         device_t *children;
         int nchildren, i;
 
@@ -412,6 +445,10 @@ ppbus_detach(device_t dev)
 		free(children, M_TEMP);
         }
 
+	if (ppb->irq_res != NULL) {
+		bus_teardown_intr(dev, ppb->irq_res, ppb->intr_cookie);
+		bus_release_resource(dev, SYS_RES_IRQ, 0, ppb->irq_res);
+	}
 	return (0);
 }
 
