@@ -1251,7 +1251,7 @@ t3_encap(struct sge_qset *qs, struct mbuf **m, int count)
 	KASSERT(txsd->mi.mi_base == NULL, ("overwrting valid entry mi_base==%p",
 		txsd->mi.mi_base));
 	if (cxgb_debug)
-		printf("uipc_mvec PIO_LEN=%ld\n", PIO_LEN);
+		printf("uipc_mvec PIO_LEN=%zd\n", PIO_LEN);
 
 	if (count > 1) {
 		panic("count > 1 not support in CVS\n");
