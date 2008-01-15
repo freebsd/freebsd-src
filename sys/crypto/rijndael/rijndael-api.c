@@ -30,7 +30,9 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
+#ifdef _KERNEL
 #include <sys/systm.h>
+#endif
 
 #include <crypto/rijndael/rijndael.h>
 
