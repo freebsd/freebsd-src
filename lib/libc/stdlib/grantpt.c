@@ -58,15 +58,13 @@ __FBSDID("$FreeBSD$");
 
 #define PTYM_PREFIX	"pty"	/* pty(4) master naming convention */
 #define PTYS_PREFIX	"tty"	/* pty(4) slave naming convention */
-#define PTMXM_PREFIX	"ptc/"	/* pts(4) master naming convention */
 #define PTMXS_PREFIX	"pts/"	/* pts(4) slave naming convention */
 #define PTMX		"ptmx"
 
 /*
  * The following are range values for pseudo TTY devices.  Pseudo TTYs have a
- * name of /dev/[pt]ty[l-sL-S][0-9a-v], yielding 256 combinations per major.
+ * name of /dev/[pt]ty[l-sL-S][0-9a-v].
  */
-#define PTY_MAX		256
 #define	PTY_DEV1	"pqrsPQRSlmnoLMNO"
 #define PTY_DEV2	"0123456789abcdefghijklmnopqrstuv"
 
