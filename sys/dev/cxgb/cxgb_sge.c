@@ -26,6 +26,8 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 
 ***************************************************************************/
+#define DEBUG_BUFRING
+
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -72,7 +74,7 @@ __FBSDID("$FreeBSD$");
 
 int      txq_fills = 0;
 static int bogus_imm = 0;
-static int recycle_enable = 1;
+static int recycle_enable = 0;
 extern int cxgb_txq_buf_ring_size;
 int cxgb_cached_allocations;
 int cxgb_cached;
@@ -92,10 +94,6 @@ extern int cxgb_use_16k_clusters;
  */
 #define TX_RECLAIM_PERIOD       (hz >> 1)
 
-/* 
- * work request size in bytes
- */
-#define WR_LEN (WR_FLITS * 8)
 
 /* 
  * Values for sge_txq.flags
@@ -218,13 +216,6 @@ reclaim_completed_tx_(struct sge_txq *q, int reclaim_min)
 	return (reclaim);
 }
 
-int
-reclaim_completed_tx(struct sge_txq *q, int reclaim_min)
-{
-	return reclaim_completed_tx_(q, reclaim_min);
-}
-
-	
 /**
  *	should_restart_tx - are there enough resources to restart a Tx queue?
  *	@q: the Tx queue
@@ -672,8 +663,7 @@ alloc_ring(adapter_t *sc, size_t nelem, size_t elem_size, size_t sw_size,
 
 	if (sw_size) {
 		len = nelem * sw_size;
-		s = malloc(len, M_DEVBUF, M_WAITOK);
-		bzero(s, len);
+		s = malloc(len, M_DEVBUF, M_WAITOK|M_ZERO);
 		*(void **)sdesc = s;
 	}
 	if (parent_entry_tag == NULL)
@@ -736,17 +726,16 @@ sge_timer_cb(void *arg)
 	struct sge_qset *qs;
 	struct sge_txq  *txq;
 	int i, j;
-	int reclaim_eth, reclaim_ofl, refill_rx;
+	int reclaim_ofl, refill_rx;
 
 	for (i = 0; i < sc->params.nports; i++) 
 		for (j = 0; j < sc->port[i].nqsets; j++) {
 			qs = &sc->sge.qs[i + j];
 			txq = &qs->txq[0];
-			reclaim_eth = txq[TXQ_ETH].processed - txq[TXQ_ETH].cleaned;
 			reclaim_ofl = txq[TXQ_OFLD].processed - txq[TXQ_OFLD].cleaned;
 			refill_rx = ((qs->fl[0].credits < qs->fl[0].size) || 
 			    (qs->fl[1].credits < qs->fl[1].size));
-			if (reclaim_eth || reclaim_ofl || refill_rx) {
+			if (reclaim_ofl || refill_rx) {
 				pi = &sc->port[i];
 				taskqueue_enqueue(pi->tq, &pi->timer_reclaim_task);
 				break;
@@ -834,31 +823,14 @@ refill_rspq(adapter_t *sc, const struct sge_rspq *q, u_int credits)
 static __inline void
 sge_txq_reclaim_(struct sge_txq *txq, int force)
 {
-	int reclaimable, n;
-	struct port_info *pi;
 
-	pi = txq->port;
-reclaim_more:
-	n = 0;
-	if ((reclaimable = desc_reclaimable(txq)) < 16)
+	if (desc_reclaimable(txq) < 16)
 		return;
 	if (mtx_trylock(&txq->lock) == 0) 
 		return;
-	n = reclaim_completed_tx_(txq, 16);
+	reclaim_completed_tx_(txq, 16);
 	mtx_unlock(&txq->lock);
 
-	if (pi && pi->ifp->if_drv_flags & IFF_DRV_OACTIVE &&
-	    txq->size - txq->in_use >= TX_START_MAX_DESC) {
-		struct sge_qset *qs = txq_to_qset(txq, TXQ_ETH);
-
-		txq_fills++;
-		pi->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-		clrbit(&qs->txq_stopped, TXQ_ETH);		
-		taskqueue_enqueue(pi->tq, &pi->start_task);
-	}
-
-	if (n)
-		goto reclaim_more;
 }
 
 static void
@@ -886,8 +858,6 @@ sge_timer_reclaim(void *arg, int ncount)
 #endif 
 	for (i = 0; i < nqsets; i++) {
 		qs = &sc->sge.qs[i];
-		txq = &qs->txq[TXQ_ETH];
-		sge_txq_reclaim_(txq, FALSE);
 
 		txq = &qs->txq[TXQ_OFLD];
 		sge_txq_reclaim_(txq, FALSE);
@@ -1184,7 +1154,7 @@ write_wr_hdr_sgl(unsigned int ndesc, struct tx_desc *txd, struct txq_state *txqs
 			 * is freed all clusters will be freed
 			 * with it
 			 */
-			txsd->mi.mi_base = NULL;
+			KASSERT(txsd->mi.mi_base == NULL, ("overwrting valid entry mi_base==%p", txsd->mi.mi_base));
 			wrp = (struct work_request_hdr *)txd;
 			wrp->wr_hi = htonl(V_WR_DATATYPE(1) |
 			    V_WR_SGLSFLT(1)) | wr_hi;
@@ -1244,6 +1214,7 @@ t3_encap(struct sge_qset *qs, struct mbuf **m, int count)
 		
 	DPRINTF("t3_encap cpu=%d ", curcpu);
 
+	mi = NULL;
 	pi = qs->port;
 	sc = pi->adapter;
 	txq = &qs->txq[TXQ_ETH];
@@ -1252,9 +1223,13 @@ t3_encap(struct sge_qset *qs, struct mbuf **m, int count)
 	sgl = txq->txq_sgl;
 	segs = txq->txq_segs;
 	m0 = *m;
+	
 	DPRINTF("t3_encap port_id=%d qsidx=%d ", pi->port_id, pi->first_qset);
 	DPRINTF("mlen=%d txpkt_intf=%d tx_chan=%d\n", m[0]->m_pkthdr.len, pi->txpkt_intf, pi->tx_chan);
-
+	if (cxgb_debug)
+		printf("mi_base=%p cidx=%d pidx=%d\n\n", txsd->mi.mi_base, txq->cidx, txq->pidx);
+	
+	mtx_assert(&txq->lock, MA_OWNED);
 	cntrl = V_TXPKT_INTF(pi->txpkt_intf);
 /*
  * XXX need to add VLAN support for 6.x
@@ -1263,7 +1238,9 @@ t3_encap(struct sge_qset *qs, struct mbuf **m, int count)
 	if  (m0->m_pkthdr.csum_flags & (CSUM_TSO))
 		tso_info = V_LSO_MSS(m0->m_pkthdr.tso_segsz);
 #endif
-	
+	KASSERT(txsd->mi.mi_base == NULL, ("overwrting valid entry mi_base==%p",
+		txsd->mi.mi_base));
+
 	if (count > 1) {
 		panic("count > 1 not support in CVS\n");
 		if ((err = busdma_map_sg_vec(m, &m0, segs, count)))
@@ -1276,13 +1253,10 @@ t3_encap(struct sge_qset *qs, struct mbuf **m, int count)
 	} 
 	KASSERT(m0->m_pkthdr.len, ("empty packet nsegs=%d count=%d", nsegs, count));
 
-	if (m0->m_type == MT_DATA)
-		DPRINTF("mbuf type=%d tags:%d head=%p", m0->m_type, !SLIST_EMPTY(&m0->m_pkthdr.tags),
-		    SLIST_FIRST(&m0->m_pkthdr.tags));
-	 
-	mi_collapse_mbuf(&txsd->mi, m0);
-	mi = &txsd->mi;
-
+	if (m0->m_pkthdr.len > PIO_LEN) {
+		mi_collapse_mbuf(&txsd->mi, m0);
+		mi = &txsd->mi;
+	}
 	if (count > 1) {
 		struct cpl_tx_pkt_batch *cpl_batch = (struct cpl_tx_pkt_batch *)txd;
 		int i, fidx;
@@ -1373,25 +1347,11 @@ t3_encap(struct sge_qset *qs, struct mbuf **m, int count)
 		mlen = m0->m_pkthdr.len;
 		cpl->len = htonl(mlen | 0x80000000);
 
-		if (mlen <= WR_LEN - sizeof(*cpl)) {
+		if (mlen <= PIO_LEN) {
 			txq_prod(txq, 1, &txqs);
-			
-			DPRINTF("mlen==%d max=%ld\n", mlen, (WR_LEN - sizeof(*cpl)));
-			if (mi->mi_type != MT_IOVEC &&
-			    mi->mi_type != MT_CLIOVEC) 
-				memcpy(&txd->flit[2], mi->mi_data, mlen);
-			else {
-				/*
-				 * XXX mbuf_iovec
-				 */
-#if 0
-				m_copydata(m0, 0, mlen, (caddr_t)&txd->flit[2]);
-#endif
-				printf("bailing on m_copydata\n");
-			}
-			m_freem_iovec(&txsd->mi);
-			txsd->mi.mi_base = NULL;
-
+			m_copydata(m0, 0, mlen, (caddr_t)&txd->flit[2]);
+			m_freem(m0);
+			m0 = NULL;
 			flits = (mlen + 7) / 8 + 2;
 			cpl->wr.wr_hi = htonl(V_WR_BCNTLFLT(mlen & 7) |
 					  V_WR_OP(FW_WROPCODE_TUNNEL_TX_PKT) |
@@ -1797,13 +1757,18 @@ t3_sge_stop(adapter_t *sc)
 	
 	for (nqsets = i = 0; i < (sc)->params.nports; i++) 
 		nqsets += sc->port[i].nqsets;
-	
+#ifdef notyet
+	/*
+	 * 
+	 * XXX
+	 */
 	for (i = 0; i < nqsets; ++i) {
 		struct sge_qset *qs = &sc->sge.qs[i];
 		
 		taskqueue_drain(sc->tq, &qs->txq[TXQ_OFLD].qresume_task);
 		taskqueue_drain(sc->tq, &qs->txq[TXQ_CTRL].qresume_task);
 	}
+#endif
 }
 
 /**
@@ -1839,7 +1804,8 @@ t3_free_tx_desc(struct sge_txq *q, int reclaimable)
 				bus_dmamap_unload(q->entry_tag, txsd->map);
 				txsd->flags &= ~TX_SW_DESC_MAPPED;
 			}
-			m_freem_iovec(&txsd->mi);
+			m_freem_iovec(&txsd->mi);	
+			buf_ring_scan(&q->txq_mr, txsd->mi.mi_base, __FILE__, __LINE__);
 			txsd->mi.mi_base = NULL;
 
 #if defined(DIAGNOSTIC) && 0
@@ -2513,7 +2479,7 @@ init_cluster_mbuf(caddr_t cl, int flags, int type, uma_zone_t zone)
 
 static int
 get_packet(adapter_t *adap, unsigned int drop_thres, struct sge_qset *qs,
-    struct t3_mbuf_hdr *mh, struct rsp_desc *r, struct mbuf *m)
+    struct t3_mbuf_hdr *mh, struct rsp_desc *r)
 {
 
 	unsigned int len_cq =  ntohl(r->len_cq);
@@ -2522,6 +2488,7 @@ get_packet(adapter_t *adap, unsigned int drop_thres, struct sge_qset *qs,
 	uint32_t len = G_RSPD_LEN(len_cq);
 	uint32_t flags = ntohl(r->flags);
 	uint8_t sopeop = G_RSPD_SOP_EOP(flags);
+	struct mbuf *m;
 	uint32_t *ref;
 	int ret = 0;
 
@@ -2536,13 +2503,13 @@ get_packet(adapter_t *adap, unsigned int drop_thres, struct sge_qset *qs,
 		cl = mtod(m0, void *);
 		memcpy(cl, sd->data, len);
 		recycle_rx_buf(adap, fl, fl->cidx);
-		*m = m0;
+		m = m0;
 	} else {
 	skip_recycle:
 		int flags = 0;
 		bus_dmamap_unload(fl->entry_tag, sd->map);
 		cl = sd->rxsd_cl;
-		*m = m0 = (struct mbuf *)cl;
+		m = m0 = (struct mbuf *)cl;
 
 		m0->m_len = len;
 		if ((sopeop == RSPQ_SOP_EOP) ||
@@ -2561,8 +2528,7 @@ get_packet(adapter_t *adap, unsigned int drop_thres, struct sge_qset *qs,
 	case RSPQ_NSOP_NEOP:
 		DBG(DBG_RX, ("get_packet: NO_SOP-NO_EOP m %p\n", m));
 		if (mh->mh_tail == NULL) {
-			if (cxgb_debug)
-				printf("discarding intermediate descriptor entry\n");
+			printf("discarding intermediate descriptor entry\n");
 			m_freem(m);
 			break;
 		}
@@ -2798,18 +2764,7 @@ process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
 			int drop_thresh = eth ? SGE_RX_DROP_THRES : 0;
 			
 #ifdef DISABLE_MBUF_IOVEC
-			struct mbuf *m;
-			m = m_gethdr(M_DONTWAIT, MT_DATA);
-
-			if (m == NULL) {
-				log(LOG_WARNING, "failed to get mbuf for packet\n");
-				budget_left--;
-				break;	
-			} else {
-				m->m_next = m->m_nextpkt = NULL;
-			}
-
-			eop = get_packet(adap, drop_thresh, qs, &rspq->rspq_mh, r, m);
+			eop = get_packet(adap, drop_thresh, qs, &rspq->rspq_mh, r);
 #else
 			eop = get_packet(adap, drop_thresh, qs, &rspq->rspq_mbuf, r);
 #ifdef IFNET_MULTIQUEUE

@@ -149,11 +149,22 @@ enum {				/* adapter flags */
 #define FL_Q_SIZE	4096
 #define JUMBO_Q_SIZE	1024
 #define RSPQ_Q_SIZE	1024
+#if 0
 #define TX_ETH_Q_SIZE	1024
+#else
+#define TX_ETH_Q_SIZE	64
+#endif
 
 enum { TXQ_ETH = 0,
        TXQ_OFLD = 1,
        TXQ_CTRL = 2, };
+
+
+/* 
+ * work request size in bytes
+ */
+#define WR_LEN (WR_FLITS * 8)
+#define PIO_LEN (WR_LEN - sizeof(struct cpl_tx_pkt))
 
 
 /* careful, the following are set on priv_flags and must not collide with
@@ -288,7 +299,6 @@ struct sge_txq {
 	struct mtx      lock;
 	struct sg_ent  txq_sgl[TX_MAX_SEGS / 2 + 1];
 	bus_dma_segment_t txq_segs[TX_MAX_SEGS];
-	struct mbuf     *txq_m_vec[TX_WR_COUNT_MAX];
 #define TXQ_NAME_LEN  32
 	char            lockbuf[TXQ_NAME_LEN];
 };
@@ -610,10 +620,7 @@ void cxgb_pcpu_shutdown_threads(struct adapter *sc);
 void cxgb_pcpu_startup_threads(struct adapter *sc);
 
 int process_responses(adapter_t *adap, struct sge_qset *qs, int budget);
-int cxgb_tx_common(struct ifnet *ifp, struct sge_qset  *qs, uint32_t txmax);
 void t3_free_qset(adapter_t *sc, struct sge_qset *q);
-int cxgb_dequeue_packet(struct ifnet *, struct sge_txq *, struct mbuf **);
 void cxgb_start(struct ifnet *ifp);
 void refill_fl_service(adapter_t *adap, struct sge_fl *fl);
-int reclaim_completed_tx(struct sge_txq *q, int reclaim_min);
 #endif

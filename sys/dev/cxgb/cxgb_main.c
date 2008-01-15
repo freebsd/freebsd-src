@@ -281,21 +281,6 @@ struct cxgb_ident {
 
 static int set_eeprom(struct port_info *pi, const uint8_t *data, int len, int offset);
 
-static __inline void
-check_pkt_coalesce(struct sge_qset *qs)
-{
-	struct adapter *sc;
-	struct sge_txq *txq;
-
-	txq = &qs->txq[TXQ_ETH];
-	sc = qs->port->adapter;
-
-	if (sc->tunq_fill[qs->idx] && (txq->in_use < (txq->size - (txq->size>>2)))) 
-		sc->tunq_fill[qs->idx] = 0;
-	else if (!sc->tunq_fill[qs->idx] && (txq->in_use > (txq->size - (txq->size>>2)))) 
-		sc->tunq_fill[qs->idx] = 1;
-}
-
 static __inline char
 t3rev2char(struct adapter *adapter)
 {
@@ -1863,64 +1848,6 @@ cxgb_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 		break;
 	}
 	return (error);
-}
-
-int
-cxgb_tx_common(struct ifnet *ifp, struct sge_qset *qs, uint32_t txmax)
-{
-	struct sge_txq *txq;
-	int err, in_use_init, count;
-	struct mbuf **m_vec;
-
-	txq = &qs->txq[TXQ_ETH];
-	m_vec = txq->txq_m_vec;
-	in_use_init = txq->in_use;
-	err = 0;
-	while ((txq->in_use - in_use_init < txmax) &&
-	    (txq->size > txq->in_use + TX_MAX_DESC)) {
-		check_pkt_coalesce(qs);
-		count = cxgb_dequeue_packet(ifp, txq, m_vec);
-		if (count == 0)
-			break;
-		ETHER_BPF_MTAP(ifp, m_vec[0]);
-		
-		if ((err = t3_encap(qs, m_vec, count)) != 0)
-			break;
-		txq->txq_enqueued += count;
-	}
-#if 0 /* !MULTIQ */
-	if (__predict_false(err)) {
-		if (err == ENOMEM) {
-			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-			IFQ_LOCK(&ifp->if_snd);
-			IFQ_DRV_PREPEND(&ifp->if_snd, m_vec[0]);
-			IFQ_UNLOCK(&ifp->if_snd);
-		}
-	}
-	if (err == 0 && m_vec[0] == NULL) {
-		err = ENOBUFS;
-	}
-	else if ((err == 0) &&  (txq->size <= txq->in_use + TX_MAX_DESC) &&
-	    (ifp->if_drv_flags & IFF_DRV_OACTIVE) == 0) {
-		setbit(&qs->txq_stopped, TXQ_ETH);
-		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-		err = ENOSPC;
-	}
-#else
-	if ((err == 0) &&  (txq->size <= txq->in_use + TX_MAX_DESC)) {
-		err = ENOSPC;
-		setbit(&qs->txq_stopped, TXQ_ETH);
-	}
-	if (err == ENOMEM) {
-		int i;
-		/*
-		 * Sub-optimal :-/
-		 */
-		for (i = 0; i < count; i++)
-			m_freem(m_vec[i]);
-	}
-#endif
-	return (err);
 }
 
 static int
