@@ -232,13 +232,15 @@ m_freem_iovec(struct mbuf_iovec *mi)
 	struct mbuf *m;
 
 	switch (mi->mi_type) {
+	case EXT_MBUF:
+		m_free_fast((struct mbuf *)mi->mi_base);
+		break;
 	case EXT_IOVEC:
 	case EXT_CLIOVEC:
 	case EXT_JMPIOVEC:
 		m = (struct mbuf *)mi->mi_base;
 		m_free_iovec(m, mi->mi_type);
 		break;
-	case EXT_MBUF:
 	case EXT_CLUSTER:
 	case EXT_JUMBOP:
 	case EXT_JUMBO9:
