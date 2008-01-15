@@ -128,7 +128,7 @@
 #define RL_TBI_LPAR		0x006A
 #define RL_GMEDIASTAT		0x006C	/* 8 bits */
 #define RL_MAXRXPKTLEN		0x00DA	/* 16 bits, chip multiplies by 8 */
-#define RL_GTXSTART		0x0038	/* 16 bits */
+#define RL_GTXSTART		0x0038	/* 8 bits */
 
 /*
  * TX config register bits
@@ -636,24 +636,35 @@ struct rl_stats {
 /*
  * Rx/Tx descriptor parameters (8139C+ and 8169 only)
  *
- * Tx/Rx count must be equal.  Shared code like re_dma_map_desc assumes this.
- * Buffers must be a multiple of 8 bytes.  Currently limit to 64 descriptors
- * due to the 8139C+.  We need to put the number of descriptors in the ring
- * structure and use that value instead.
+ * 8139C+
+ *  Number of descriptors supported : up to 64
+ *  Descriptor alignment : 256 bytes
+ *  Tx buffer : At least 4 bytes in length.
+ *  Rx buffer : At least 8 bytes in length and 8 bytes alignment required.
+ *  
+ * 8169
+ *  Number of descriptors supported : up to 1024
+ *  Descriptor alignment : 256 bytes
+ *  Tx buffer : At least 4 bytes in length.
+ *  Rx buffer : At least 8 bytes in length and 8 bytes alignment required.
  */
 #ifndef	__NO_STRICT_ALIGNMENT
 #define RE_FIXUP_RX	1
 #endif
 
-#define RL_TX_DESC_CNT		64
-#define RL_TX_DESC_THLD		4
-#define RL_RX_DESC_CNT		RL_TX_DESC_CNT
+#define RL_8169_TX_DESC_CNT	256
+#define RL_8169_RX_DESC_CNT	256
+#define RL_8139_TX_DESC_CNT	64
+#define RL_8139_RX_DESC_CNT	64
+#define RL_TX_DESC_CNT		RL_8169_TX_DESC_CNT
+#define RL_RX_DESC_CNT		RL_8169_RX_DESC_CNT
+#define	RL_NTXSEGS		32
 
-#define RL_RX_LIST_SZ		(RL_RX_DESC_CNT * sizeof(struct rl_desc))
-#define RL_TX_LIST_SZ		(RL_TX_DESC_CNT * sizeof(struct rl_desc))
 #define RL_RING_ALIGN		256
 #define RL_IFQ_MAXLEN		512
-#define RL_DESC_INC(x)		(x = (x + 1) % RL_TX_DESC_CNT)
+#define RL_TX_DESC_NXT(sc,x)	((x + 1) & ((sc)->rl_ldata.rl_tx_desc_cnt - 1))
+#define RL_TX_DESC_PRV(sc,x)	((x - 1) & ((sc)->rl_ldata.rl_tx_desc_cnt - 1))
+#define RL_RX_DESC_NXT(sc,x)	((x + 1) & ((sc)->rl_ldata.rl_rx_desc_cnt - 1))
 #define RL_OWN(x)		(le32toh((x)->rl_cmdstat) & RL_RDESC_STAT_OWN)
 #define RL_RXBYTES(x)		(le32toh((x)->rl_cmdstat) & sc->rl_rxlenmask)
 #define RL_PKTSZ(x)		((x)/* >> 3*/)
@@ -674,25 +685,29 @@ struct rl_stats {
 #define RL_JUMBO_FRAMELEN	7440
 #define RL_JUMBO_MTU		(RL_JUMBO_FRAMELEN-ETHER_HDR_LEN-ETHER_CRC_LEN)
 
-struct rl_softc;
+struct rl_txdesc {
+	struct mbuf		*tx_m;
+	bus_dmamap_t		tx_dmamap;
+};
 
-struct rl_dmaload_arg {
-	int			rl_idx;
-	int			rl_maxsegs;
-	uint32_t		rl_flags;
-	struct rl_desc		*rl_ring;
+struct rl_rxdesc {
+	struct mbuf		*rx_m;
+	bus_dmamap_t		rx_dmamap;
+	bus_size_t		rx_size;
 };
 
 struct rl_list_data {
-	struct mbuf		*rl_tx_mbuf[RL_TX_DESC_CNT];
-	struct mbuf		*rl_rx_mbuf[RL_RX_DESC_CNT];
+	struct rl_txdesc	rl_tx_desc[RL_TX_DESC_CNT];
+	struct rl_rxdesc	rl_rx_desc[RL_RX_DESC_CNT];
+	int			rl_tx_desc_cnt;
+	int			rl_rx_desc_cnt;
 	int			rl_tx_prodidx;
 	int			rl_rx_prodidx;
 	int			rl_tx_considx;
 	int			rl_tx_free;
-	bus_dmamap_t		rl_tx_dmamap[RL_TX_DESC_CNT];
-	bus_dmamap_t		rl_rx_dmamap[RL_RX_DESC_CNT];
-	bus_dma_tag_t		rl_mtag;	/* mbuf mapping tag */
+	bus_dma_tag_t		rl_tx_mtag;	/* mbuf TX mapping tag */
+	bus_dma_tag_t		rl_rx_mtag;	/* mbuf RX mapping tag */
+	bus_dmamap_t		rl_rx_sparemap;
 	bus_dma_tag_t		rl_stag;	/* stats mapping tag */
 	bus_dmamap_t		rl_smap;	/* stats map */
 	struct rl_stats		*rl_stats;
@@ -742,7 +757,6 @@ struct rl_softc {
 	struct task		rl_txtask;
 	struct task		rl_inttask;
 
-	struct mtx		rl_intlock;
 	int			rl_txstart;
 	int			rl_link;
 	int			rl_msi;
