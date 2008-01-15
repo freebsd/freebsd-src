@@ -32,7 +32,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/arm/sys/brk.S,v 1.2 2004/11/09 16:49:14 cognet Exp $");
 #include "SYS.h"
 
 	.globl	_C_LABEL(end)

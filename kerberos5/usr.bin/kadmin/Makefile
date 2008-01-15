@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/kerberos5/usr.bin/kadmin/Makefile,v 1.18 2004/02/05 18:51:51 ru Exp $
 
 PROG=	kadmin
 MAN=	kadmin.8

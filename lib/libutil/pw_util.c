@@ -43,7 +43,7 @@
 static const char sccsid[] = "@(#)pw_util.c	8.3 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/lib/libutil/pw_util.c,v 1.35.8.1 2006/09/25 10:05:37 thomas Exp $";
 #endif /* not lint */
 
 /*

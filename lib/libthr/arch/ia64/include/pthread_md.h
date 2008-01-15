@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libthr/arch/ia64/include/pthread_md.h,v 1.1.2.1 2006/09/02 01:14:12 marcel Exp $
  */
 
 #ifndef _PTHREAD_MD_H_

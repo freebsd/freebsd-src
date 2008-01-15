@@ -38,7 +38,7 @@
 	.asciz "@(#)sigreturn.s	5.2 (Berkeley) 12/17/90"
 #endif /* SYSLIBC_SCCS and not lint */
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/i386/sys/sigreturn.S,v 1.12 2002/03/23 02:10:28 obrien Exp $");
 
 #include "SYS.h"
 

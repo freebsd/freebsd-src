@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/include/kenv.h,v 1.1.14.1 2007/01/04 19:59:41 jhb Exp $
  */
 
 #ifndef _KENV_H_

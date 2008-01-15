@@ -26,7 +26,7 @@
 
 #include <machine/asm.h>
 #include <machine/asmacros.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/arm/arm/support.S,v 1.9 2005/04/12 22:46:09 cognet Exp $");
 
 #include "assym.s"
 

@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 # $NetBSD: yppasswdd,v 1.6 2002/03/22 04:34:01 thorpej Exp $
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/yppasswdd,v 1.10.2.1 2007/10/25 14:36:11 mtm Exp $
 #
 
 # PROVIDE: yppasswdd

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/mii/e1000phyreg.h,v 1.3.2.2 2007/11/01 04:27:30 yongari Exp $ */
 /*-
  * Principal Author: Parag Patel
  * Copyright (c) 2001

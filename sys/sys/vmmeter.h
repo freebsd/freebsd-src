@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vmmeter.h	8.2 (Berkeley) 7/10/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/vmmeter.h,v 1.26.8.2 2006/12/01 12:49:07 ru Exp $
  */
 
 #ifndef _SYS_VMMETER_H_

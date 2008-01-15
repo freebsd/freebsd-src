@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/contrib/ipfilter/ipsend/iptest.c,v 1.2.2.1 2006/08/24 07:37:04 guido Exp $	*/
 
 /*
  * ipsend.c (C) 1995-1998 Darren Reed

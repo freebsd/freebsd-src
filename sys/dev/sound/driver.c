@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THEPOSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sound/driver.c,v 1.13.2.3 2007/05/13 21:11:40 ariff Exp $
  */
 
 #include <dev/sound/pcm/sound.h>

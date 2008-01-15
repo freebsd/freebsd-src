@@ -64,7 +64,7 @@
 
 #include <machine/asm.h>
 
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/arm/string/memcmp.S,v 1.3 2004/11/09 16:49:14 cognet Exp $");
 
 ENTRY(memcmp)
 	mov	ip, r0

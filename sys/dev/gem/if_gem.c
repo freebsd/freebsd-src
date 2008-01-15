@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/gem/if_gem.c,v 1.29.2.7 2007/09/15 10:49:57 marius Exp $");
 
 /*
  * Driver for Sun GEM ethernet controllers.

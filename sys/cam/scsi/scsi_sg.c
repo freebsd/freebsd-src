@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/cam/scsi/scsi_sg.c,v 1.4.2.2 2007/04/17 01:21:08 scottl Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -57,7 +57,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/subr_turnstile.c,v 1.152.2.11 2007/09/27 20:24:55 jhb Exp $");
 
 #include "opt_ddb.h"
 #include "opt_turnstile_profiling.h"

@@ -41,7 +41,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/nfsclient/bootp_subr.c,v 1.64.2.2 2007/10/30 00:49:40 sam Exp $");
 
 #include "opt_bootp.h"
 

@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/drm/sis_drm.h,v 1.5.2.1 2005/12/14 00:52:59 anholt Exp $");
 
 #ifndef __SIS_DRM_H__
 #define __SIS_DRM_H__

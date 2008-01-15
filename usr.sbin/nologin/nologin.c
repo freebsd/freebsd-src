@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/nologin/nologin.c,v 1.6 2005/01/04 20:07:12 delphij Exp $");
 
 #include <stdio.h>
 #include <syslog.h>

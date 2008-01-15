@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/netipsec/ipsec_osdep.h,v 1.2.2.1 2006/09/04 10:36:47 pjd Exp $	*/
 /*	$NetBSD: ipsec_osdep.h,v 1.1 2003/08/13 20:06:51 jonathan Exp $	*/
 
 /*-

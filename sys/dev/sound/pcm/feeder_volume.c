@@ -29,7 +29,7 @@
 #include <dev/sound/pcm/sound.h>
 #include "feeder_if.h"
 
-SND_DECLARE_FILE("$FreeBSD$");
+SND_DECLARE_FILE("$FreeBSD: src/sys/dev/sound/pcm/feeder_volume.c,v 1.2.2.1 2005/12/30 19:55:54 netchild Exp $");
 
 static int
 feed_volume_s16(struct pcm_feeder *f, struct pcm_channel *c, uint8_t *b,

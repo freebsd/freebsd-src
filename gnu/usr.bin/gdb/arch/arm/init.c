@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/gnu/usr.bin/gdb/arch/arm/init.c,v 1.1.2.1.4.1 2007/12/02 14:38:21 cognet Exp $ */
 
 /* Do not modify this file.  */
 /* It is created automatically by the Makefile.  */

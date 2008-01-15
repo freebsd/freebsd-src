@@ -33,7 +33,7 @@
  *
  *      @(#)bpf_filter.c	8.1 (Berkeley) 6/10/93
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/net/bpf_filter.c,v 1.23.2.2 2007/11/02 16:27:22 dwmalone Exp $
  */
 
 #include <sys/param.h>

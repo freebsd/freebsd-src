@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/syscons/keymaps/kk.pt154.kst.kbd,v 1.1 2004/01/29 16:28:22 ache Exp $
 # KST KazSSR 903-90 keyboard implementation
 # Birsh T <birsh@mail.kz>, 2003-12-02
 #                                                         alt

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/conf/kern.mk,v 1.45 2005/03/31 22:53:58 peter Exp $
 
 #
 # Warning flags for compiling the kernel and components of the kernel.

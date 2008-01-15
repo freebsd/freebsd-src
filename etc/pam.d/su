@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/pam.d/su,v 1.16 2003/07/09 18:40:49 des Exp $
 #
 # PAM configuration for the "su" service
 #

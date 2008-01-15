@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/binutils/libopcodes/Makefile.m68k,v 1.1 1999/11/06 21:02:48 jb Exp $
 #
 
 SRCS+=		m68k-dis.c m68k-opc.c

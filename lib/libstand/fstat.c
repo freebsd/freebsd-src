@@ -36,7 +36,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libstand/fstat.c,v 1.4 2004/01/21 20:12:23 jhb Exp $");
 
 #include "stand.h"
 

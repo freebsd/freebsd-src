@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/alpha/osf1/osf1_sysvec.c,v 1.12 2005/01/29 23:11:57 sobomax Exp $");
 
 /* XXX we use functions that might not exist. */
 #include "opt_compat.h"

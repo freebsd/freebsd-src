@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/alpha/include/smp.h,v 1.8 2005/01/05 20:05:50 imp Exp $
  *
  */
 

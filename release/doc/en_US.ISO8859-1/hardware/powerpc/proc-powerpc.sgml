@@ -1,5 +1,5 @@
 <!--
-	$FreeBSD$
+	$FreeBSD: src/release/doc/en_US.ISO8859-1/hardware/powerpc/proc-powerpc.sgml,v 1.1.2.1 2007/01/07 18:37:58 marcel Exp $
 -->
 <sect1 id="proc-powerpc">
   <title>Supported Processors and Motherboards</title>

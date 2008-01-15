@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/msun/src/s_exp2f.c,v 1.1 2005/04/05 02:57:15 das Exp $");
 
 #include "math.h"
 #include "math_private.h"

@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/stdlib/reallocf.c,v 1.4 2002/03/22 21:53:10 obrien Exp $");
 
 #include <stdlib.h>
 

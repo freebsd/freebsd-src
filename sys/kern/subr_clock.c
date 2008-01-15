@@ -54,7 +54,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/subr_clock.c,v 1.6 2005/01/06 23:35:39 imp Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

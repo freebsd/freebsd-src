@@ -44,7 +44,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`$FreeBSD$')
+VERSIONID(`$FreeBSD: src/etc/sendmail/freebsd.mc,v 1.30.2.4 2007/11/22 16:20:01 gshapiro Exp $')
 OSTYPE(freebsd6)
 DOMAIN(generic)
 

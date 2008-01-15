@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libutil/expand_number.c,v 1.2.2.1 2007/09/21 14:35:02 obrien Exp $");
 
 #include <sys/types.h>
 #include <ctype.h>

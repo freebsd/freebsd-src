@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/geom/geom_slice.h,v 1.17.10.1 2006/03/01 17:57:11 pjd Exp $
  */
 
 #ifndef _GEOM_GEOM_SLICE_H_

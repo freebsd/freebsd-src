@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/lib/libc/powerpc/gen/_set_tp.c,v 1.1.2.1 2006/09/02 01:09:30 marcel Exp $
  */
 
 void

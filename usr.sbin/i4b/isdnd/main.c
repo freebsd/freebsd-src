@@ -27,7 +27,7 @@
  *	i4b daemon - main program entry
  *	-------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/i4b/isdnd/main.c,v 1.16.14.1 2006/07/16 00:39:58 cperciva Exp $
  *
  *      last edit-date: [Wed Dec 26 12:51:00 2001]
  *

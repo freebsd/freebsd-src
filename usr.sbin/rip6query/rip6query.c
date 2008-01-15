@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/rip6query/rip6query.c,v 1.7 2005/05/13 16:31:11 ume Exp $
  */
 
 #include <stdio.h>

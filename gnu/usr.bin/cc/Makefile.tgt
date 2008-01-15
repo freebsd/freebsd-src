@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/cc/Makefile.tgt,v 1.8.8.1 2006/09/29 01:50:03 obrien Exp $
 
 TARGET_ARCH?=	${MACHINE_ARCH}
 

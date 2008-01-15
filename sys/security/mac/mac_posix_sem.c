@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/security/mac/mac_posix_sem.c,v 1.1.10.1 2007/12/22 17:04:16 rwatson Exp $");
 
 #include "opt_mac.h"
 #include "opt_posix.h"

@@ -31,7 +31,7 @@ POSSIBILITY OF SUCH DAMAGE.
 
 ***************************************************************************/
 
-/* $FreeBSD$*/
+/* $FreeBSD: src/sys/dev/em/if_em.c,v 1.65.2.28 2007/11/07 01:33:28 jfv Exp $*/
 
 #ifdef HAVE_KERNEL_OPTION_HEADERS
 #include "opt_device_polling.h"

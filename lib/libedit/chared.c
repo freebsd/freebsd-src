@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)chared.c	8.1 (Berkeley) 6/4/93";
 #endif /* not lint && not SCCSID */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libedit/chared.c,v 1.8.14.1 2005/10/09 03:44:01 delphij Exp $");
 
 /*
  * chared.c: Character editor utilities

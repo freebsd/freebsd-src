@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/pmclog.h,v 1.2 2005/06/30 19:01:26 jkoshy Exp $
  */
 
 #ifndef	_SYS_PMCLOG_H_

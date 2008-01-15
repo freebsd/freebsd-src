@@ -28,7 +28,7 @@
  * SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/pcf/envctrl.c,v 1.5.2.1 2007/05/12 06:10:10 nyan Exp $");
 
 /*
  * Device specific driver for the SUNW,envctrl device found on some

@@ -35,7 +35,7 @@
  *
  *	@(#)SYS.h	5.5 (Berkeley) 5/7/91
  *	from: FreeBSD: src/lib/libc/i386/SYS.h,v 1.20 2001/01/29
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/sparc64/SYS.h,v 1.4 2002/03/22 23:41:58 obrien Exp $
  */
 
 #include <sys/syscall.h>

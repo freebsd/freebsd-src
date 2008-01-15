@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/acpi/acpi/Makefile,v 1.11.2.4 2007/06/28 21:23:56 njl Exp $
 
 .if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "ia64"
 .error "ACPI can only be compiled into the kernel on the amd64 and ia64 platforms"

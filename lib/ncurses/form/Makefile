@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/ncurses/form/Makefile,v 1.13.2.2 2007/06/14 02:53:23 rafan Exp $
 
 .include "${.CURDIR}/../config.mk"
 

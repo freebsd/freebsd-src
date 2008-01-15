@@ -59,7 +59,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/login/login_fbtab.c,v 1.16.14.1 2007/06/10 07:04:09 dwmalone Exp $");
 
 #include <sys/types.h>
 #include <sys/stat.h>

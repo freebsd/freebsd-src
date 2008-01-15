@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/netoptions,v 1.141.2.2 2007/05/29 09:28:10 des Exp $
 #
 
 # PROVIDE: netoptions

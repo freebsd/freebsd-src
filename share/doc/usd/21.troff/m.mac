@@ -36,7 +36,7 @@
 .\"
 .\"	@(#)m.mac	8.1 (Berkeley) 8/14/93
 .\"
-.\" $FreeBSD$
+.\" $FreeBSD: src/share/doc/usd/21.troff/m.mac,v 1.3 2002/05/20 13:52:35 ru Exp $
 .if \n(mo=1 .ds mo January
 .if \n(mo=2 .ds mo February
 .if \n(mo=3 .ds mo March

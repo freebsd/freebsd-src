@@ -2,7 +2,7 @@
 The FreeBSD Simplified Chinese Project
 
 Original Revision: 1.15
-$FreeBSD$
+$FreeBSD: src/release/doc/zh_CN.GB2312/installation/sparc64/install.sgml,v 1.1.8.1 2006/10/11 17:50:03 delphij Exp $
 
 This file contains sparc64-specific installation instructions.
 

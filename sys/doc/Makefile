@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/doc/Makefile,v 1.1 2004/07/11 16:13:57 dfr Exp $
 
 .PATH:	${.CURDIR}/../kern
 

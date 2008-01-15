@@ -47,7 +47,7 @@ static char sccsid[] = "@(#)join.c	8.6 (Berkeley) 5/4/95";
 #endif
 #endif /* not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/join/join.c,v 1.20 2004/08/26 06:28:05 maxim Exp $");
 
 #include <sys/param.h>
 

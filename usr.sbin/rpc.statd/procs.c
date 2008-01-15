@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/rpc.statd/procs.c,v 1.14.10.2 2007/04/12 07:47:44 matteo Exp $");
 
 #include <errno.h>
 #include <stdio.h>

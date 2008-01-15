@@ -67,7 +67,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/mii/ukphy.c,v 1.17.2.3 2007/09/15 10:41:33 marius Exp $");
 
 /*
  * driver for generic unknown PHYs

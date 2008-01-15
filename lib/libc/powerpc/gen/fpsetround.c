@@ -38,7 +38,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/powerpc/gen/fpsetround.c,v 1.1 2004/02/12 09:11:06 grehan Exp $");
 
 #include <sys/types.h>
 #include <ieeefp.h>

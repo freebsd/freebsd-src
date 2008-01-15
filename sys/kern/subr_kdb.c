@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/subr_kdb.c,v 1.12.2.1 2005/10/02 10:06:15 rwatson Exp $");
 
 #include "opt_kdb.h"
 

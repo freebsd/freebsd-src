@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/alpha/pci/lca.c,v 1.21 2005/01/31 23:07:42 ticso Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

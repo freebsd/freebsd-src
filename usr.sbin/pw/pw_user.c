@@ -27,7 +27,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.sbin/pw/pw_user.c,v 1.57.8.3 2007/05/04 17:36:37 le Exp $";
 #endif /* not lint */
 
 #include <ctype.h>

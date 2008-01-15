@@ -23,7 +23,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/arm/at91/at91.c,v 1.7.2.3 2007/02/25 23:09:50 cognet Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/contrib/ipfilter/lib/getproto.c,v 1.2.2.2 2007/11/18 11:03:21 darrenr Exp $	*/
 
 /*
  * Copyright (C) 2002-2005 by Darren Reed.

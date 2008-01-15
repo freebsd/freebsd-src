@@ -56,7 +56,7 @@
 **                                                       and cause g_vfs_done() read write error
 **     1.20.00.15   10/10/2007         Erich Chen        support new RAID adapter type ARC120x
 ******************************************************************************************
-* $FreeBSD$
+* $FreeBSD: src/sys/dev/arcmsr/arcmsr.c,v 1.8.2.4.2.1 2007/12/09 19:53:59 scottl Exp $
 */
 #include <sys/param.h>
 #include <sys/systm.h>

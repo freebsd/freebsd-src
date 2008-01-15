@@ -1,5 +1,5 @@
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/pci/nfsmb.c,v 1.2.2.4 2007/11/14 09:52:15 remko Exp $");
 
 #include <sys/param.h>
 #include <sys/kernel.h>

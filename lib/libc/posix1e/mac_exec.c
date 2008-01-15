@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/posix1e/mac_exec.c,v 1.2 2003/02/16 17:29:10 nectar Exp $
  */
 
 #include <sys/types.h>

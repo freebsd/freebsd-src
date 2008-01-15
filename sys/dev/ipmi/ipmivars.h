@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ipmi/ipmivars.h,v 1.1.2.2 2006/09/29 21:21:52 jhb Exp $
  */
 
 #ifndef __IPMIVARS_H__

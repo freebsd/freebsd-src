@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/hostapd,v 1.1.2.1 2006/02/12 22:13:15 flz Exp $
 #
 
 # PROVIDE: hostapd

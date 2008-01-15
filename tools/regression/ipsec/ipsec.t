@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/ipsec/ipsec.t,v 1.1.2.1 2006/09/04 13:07:59 pjd Exp $
 
 ipbase="127.255"
 netif="lo0"

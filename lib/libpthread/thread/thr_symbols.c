@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libpthread/thread/thr_symbols.c,v 1.1.8.2 2006/05/23 11:33:57 davidxu Exp $
  */
 
 #include <sys/types.h>

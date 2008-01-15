@@ -24,7 +24,7 @@
  */
 
 #include "includes.h"
-__RCSID("$FreeBSD$");
+__RCSID("$FreeBSD: src/crypto/openssh/auth-skey.c,v 1.15.8.2 2006/10/06 14:07:12 des Exp $");
 
 #ifdef SKEY
 

@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/arm/include/armreg.h,v 1.2 2005/01/05 21:58:48 imp Exp $
  */
 
 #ifndef MACHINE_ARMREG_H

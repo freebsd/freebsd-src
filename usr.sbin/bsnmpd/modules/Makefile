@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/bsnmpd/modules/Makefile,v 1.8.2.2 2007/03/08 09:29:01 syrinx Exp $
 
 .PATH: ${.CURDIR}/../../../contrib/bsnmp/snmpd
 

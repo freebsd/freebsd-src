@@ -25,7 +25,7 @@ CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 
-$FreeBSD$
+$FreeBSD: src/sys/dev/mxge/ethp_z8e.h,v 1.2.2.1.2.1 2008/01/15 15:41:30 gallatin Exp $
 ***************************************************************************/
 
 /* Using zlib-1.1.3.  gendat version $Name:  $ */

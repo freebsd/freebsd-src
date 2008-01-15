@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/named,v 1.22.2.3 2007/10/28 00:28:34 dougb Exp $
 #
 
 # PROVIDE: named

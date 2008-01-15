@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/arm/include/vmparam.h,v 1.5.2.1 2007/10/16 21:24:44 cognet Exp $
  */
 
 #ifndef	_MACHINE_VMPARAM_H_

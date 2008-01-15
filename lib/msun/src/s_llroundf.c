@@ -1,5 +1,5 @@
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/msun/src/s_llroundf.c,v 1.2 2005/04/08 00:52:27 das Exp $");
 
 #define type		float
 #define	roundit		roundf

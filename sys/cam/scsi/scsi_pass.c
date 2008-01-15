@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/cam/scsi/scsi_pass.c,v 1.43.2.1 2006/08/17 19:55:35 jhb Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -34,7 +34,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/ufs/ffs/ffs_snapshot.c,v 1.103.2.24 2007/06/11 10:53:48 kib Exp $");
 
 #include "opt_quota.h"
 

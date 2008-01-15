@@ -29,7 +29,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i386/cpufreq/powernow.c,v 1.2.2.1 2007/05/15 08:19:21 bruno Exp $");
 
 #include <sys/param.h>
 #include <sys/bus.h>

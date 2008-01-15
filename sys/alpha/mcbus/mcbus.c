@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/alpha/mcbus/mcbus.c,v 1.6 2005/01/05 20:05:51 imp Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

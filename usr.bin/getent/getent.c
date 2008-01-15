@@ -37,7 +37,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/getent/getent.c,v 1.2.2.1 2006/06/04 10:28:56 maxim Exp $");
 
 #include <sys/socket.h>
 #include <sys/param.h>

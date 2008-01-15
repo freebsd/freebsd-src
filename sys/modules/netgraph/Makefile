@@ -1,5 +1,5 @@
 # $Whistle: Makefile,v 1.5 1999/01/24 06:48:37 archie Exp $
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/netgraph/Makefile,v 1.45.2.2 2007/01/28 17:14:57 glebius Exp $
 
 SUBDIR=	async \
 	atm \

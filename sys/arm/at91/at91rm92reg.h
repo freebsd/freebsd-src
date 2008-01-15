@@ -22,7 +22,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* $$FreeBSD$ */
+/* $$FreeBSD: src/sys/arm/at91/at91rm92reg.h,v 1.3.2.2.4.1 2007/12/02 14:21:26 cognet Exp $ */
 
 #ifndef AT91RM92REG_H_
 #define AT91RM92REG_H_

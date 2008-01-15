@@ -1,4 +1,4 @@
-#$FreeBSD$
+#$FreeBSD: src/sys/arm/xscale/ixp425/files.ixp425,v 1.2.2.2 2007/11/17 18:24:46 cognet Exp $
 arm/arm/cpufunc_asm_xscale.S		standard
 arm/arm/irq_dispatch.S			standard
 arm/xscale/ixp425/ixp425.c		standard

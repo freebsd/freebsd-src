@@ -62,7 +62,7 @@ static char *rcsid = "$OpenBSD: getopt_long.c,v 1.16 2004/02/04 18:17:25 millert
 #endif /* LIBC_SCCS and not lint */
 #endif
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/stdlib/getopt_long.c,v 1.12.8.1 2006/09/25 17:19:28 ache Exp $");
 
 #include <err.h>
 #include <errno.h>

@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)read.c	8.1 (Berkeley) 6/4/93";
 #endif /* not lint && not SCCSID */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libedit/read.c,v 1.11.14.2 2007/04/03 20:47:25 stefanf Exp $");
 
 /*
  * read.c: Clean this junk up! This is horrible code.

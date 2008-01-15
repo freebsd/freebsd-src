@@ -35,7 +35,7 @@
 **(INCLUDING NEGLIGENCE OR OTHERWISE)ARISING IN ANY WAY OUT OF THE USE OF
 ** THIS SOFTWARE,EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 **************************************************************************
-* $FreeBSD$
+* $FreeBSD: src/sys/dev/arcmsr/arcmsr.h,v 1.1.4.2.2.1 2007/12/09 19:53:59 scottl Exp $
 */
 #define ARCMSR_DRIVER_VERSION                        "Driver Version 1.20.00.15 2007-10-07"
 #define ARCMSR_SCSI_INITIATOR_ID                                              255

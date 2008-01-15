@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/fb/creator.c,v 1.8.2.2 2006/08/27 12:42:55 marius Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

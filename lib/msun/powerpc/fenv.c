@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/msun/powerpc/fenv.c,v 1.1 2004/06/06 10:05:10 das Exp $
  */
 
 #include <fenv.h>

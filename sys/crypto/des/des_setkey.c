@@ -57,7 +57,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/crypto/des/des_setkey.c,v 1.7 2004/06/14 00:38:16 obrien Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

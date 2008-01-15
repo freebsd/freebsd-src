@@ -40,7 +40,7 @@
 #include "opt_ddb.h"
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/kern_sx.c,v 1.25.2.9 2007/09/27 20:24:55 jhb Exp $");
 
 #include <sys/param.h>
 #include <sys/ktr.h>

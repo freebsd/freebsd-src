@@ -80,5 +80,5 @@ o The Streaming Mode service is not supported.
 o The Abort service is not supported.
 
 
-	@(#) $FreeBSD$
+	@(#) $FreeBSD: src/share/examples/atm/cpcs-design.txt,v 1.2 1999/08/28 00:19:07 peter Exp $
 

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/tools/tinybsd/conf/wireless/etc/pf.os,v 1.1.2.1 2006/09/28 21:09:09 julian Exp $
 # passive OS fingerprinting
 # -------------------------
 #

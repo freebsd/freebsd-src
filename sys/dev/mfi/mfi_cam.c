@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/mfi/mfi_cam.c,v 1.1.2.1 2007/06/05 21:27:21 scottl Exp $");
 
 #include "opt_mfi.h"
 

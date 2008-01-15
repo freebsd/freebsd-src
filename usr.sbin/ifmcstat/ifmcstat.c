@@ -32,7 +32,7 @@
 /* TODO: use sysctl. */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/ifmcstat/ifmcstat.c,v 1.12.2.1 2007/04/03 00:39:34 bms Exp $");
 
 #include <sys/types.h>
 #include <sys/param.h>

@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/firewire/sbp_targ.c,v 1.8.2.3 2007/05/14 00:58:23 simokawa Exp $
  */
 
 #include <sys/param.h>

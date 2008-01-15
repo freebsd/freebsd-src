@@ -25,7 +25,7 @@ CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 
-$FreeBSD$
+$FreeBSD: src/sys/dev/cxgb/common/cxgb_sge_defs.h,v 1.1.2.2.2.1 2007/12/06 00:02:00 kmacy Exp $
 
 ***************************************************************************/
 /*

@@ -1,7 +1,7 @@
 /*
  * Kirche in Deutschland
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/calendar/calendars/de_DE.ISO8859-1/calendar.kirche,v 1.7 2001/06/11 03:06:13 ache Exp $
  */
 
 #ifndef _de_DE_ISO8859_1_kirche_

@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/rpc.yppasswdd/yppasswdd_main.c,v 1.26 2005/05/02 14:02:43 delphij Exp $");
 
 #include <sys/param.h>
 #include <sys/ioctl.h>

@@ -4,7 +4,7 @@
  * PC9801 original PCMCIA controller code for NS/A,Ne,NX/C,NR/L.
  * by Noriyuki Hosobuchi <hoso@ce.mbn.or.jp>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/pccard/meciareg.h,v 1.2 2001/05/15 23:53:18 imp Exp $
  */
 
 /*--- I/O port definition */

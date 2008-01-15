@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/posix4/ksem.h,v 1.2 2005/05/04 10:39:14 rwatson Exp $
  */
 
 #ifndef _POSIX4_KSEM_H_

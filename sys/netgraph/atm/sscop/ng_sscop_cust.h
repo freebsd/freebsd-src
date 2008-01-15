@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netgraph/atm/sscop/ng_sscop_cust.h,v 1.5 2005/01/07 01:45:41 imp Exp $
  *
  * Customisation of the SSCOP code to ng_sscop.
  */

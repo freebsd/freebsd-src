@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/pc98/cdboot/Makefile,v 1.1.2.1 2006/06/16 13:40:50 nyan Exp $
 
 PROG=	cdboot
 STRIP=

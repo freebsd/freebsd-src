@@ -1,5 +1,5 @@
 #GW2348-4 board configuration
-#$FreeBSD$
+#$FreeBSD: src/sys/arm/xscale/ixp425/std.avila,v 1.1.2.1 2007/02/26 23:13:09 cognet Exp $
 include		"../xscale/ixp425/std.ixp425"
 files		"../xscale/ixp425/files.avila"
 makeoptions	KERNPHYSADDR=0x10200000

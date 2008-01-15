@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/mfi/mfi_ioctl.h,v 1.1.2.3 2007/06/06 15:59:29 ambrisko Exp $");
 
 #if defined(__amd64__) /* Assume amd64 wants 32 bit Linux */
 struct iovec32 {

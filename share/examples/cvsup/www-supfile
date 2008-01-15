@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/examples/cvsup/www-supfile,v 1.6.8.1 2007/09/10 17:30:44 gabor Exp $
 #
 # This file contains all of the "CVSup collections" that make up the
 # source of the FreeBSD www tree

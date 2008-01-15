@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$FreeBSD: src/sbin/ipf/libipf/Makefile,v 1.2.2.2 2007/11/19 00:48:39 darrenr Exp $
 
 LIB=		ipf
 INTERNALLIB=

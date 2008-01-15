@@ -20,7 +20,7 @@
  * only.
  * END_BLOCK
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/arm/at91/bootspi/arm_init.S,v 1.2.2.1 2006/08/17 22:57:08 imp Exp $
  ******************************************************************************/
 
 	.equ	ARM_MODE_USER,	0x10

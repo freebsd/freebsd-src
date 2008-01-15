@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libutil/flopen.c,v 1.9.2.1 2007/09/21 14:41:55 obrien Exp $");
 
 #include <sys/file.h>
 #include <sys/stat.h>

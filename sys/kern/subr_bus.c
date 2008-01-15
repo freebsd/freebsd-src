@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/subr_bus.c,v 1.184.2.6 2007/11/05 11:49:44 phk Exp $");
 
 #include "opt_bus.h"
 

@@ -37,7 +37,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/mk48txx/mk48txx.c,v 1.6.2.3 2007/03/30 19:17:37 n_hibma Exp $");
 
 /*
  * Mostek MK48T02, MK48T08, MK48T18, MK48T59 time-of-day chip subroutines.

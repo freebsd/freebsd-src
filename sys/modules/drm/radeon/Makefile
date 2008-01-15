@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/drm/radeon/Makefile,v 1.5.8.2 2006/05/17 07:40:12 anholt Exp $
 
 .PATH:	${.CURDIR}/../../../dev/drm
 KMOD	= radeon

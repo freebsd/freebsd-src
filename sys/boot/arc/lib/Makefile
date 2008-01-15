@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/arc/lib/Makefile,v 1.10 2004/10/24 15:32:49 ru Exp $
 
 LIB=		arc
 INTERNALLIB=

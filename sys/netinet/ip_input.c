@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/ip_input.c,v 1.301.2.14 2007/04/03 08:16:05 julian Exp $
  */
 
 #include "opt_bootp.h"

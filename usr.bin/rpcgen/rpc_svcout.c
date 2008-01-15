@@ -35,7 +35,7 @@ static char sccsid[] = "@(#)rpc_svcout.c 1.29 89/03/30 (C) 1987 SMI";
 #endif
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/rpcgen/rpc_svcout.c,v 1.16.2.1 2006/07/05 11:35:17 rwatson Exp $");
 
 /*
  * rpc_svcout.c, Server-skeleton outputter for the RPC protocol compiler

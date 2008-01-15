@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/mii/ciphy.c,v 1.2.2.4 2007/02/25 17:57:12 marius Exp $");
 
 /*
  * Driver for the Cicada CS8201 10/100/1000 copper PHY.

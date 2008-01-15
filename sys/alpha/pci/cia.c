@@ -87,7 +87,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/alpha/pci/cia.c,v 1.44.10.1 2007/12/10 20:16:07 jhb Exp $");
 
 #include "opt_cpu.h"
 

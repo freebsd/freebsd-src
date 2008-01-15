@@ -36,7 +36,7 @@
 /* The actual program logic is in the file procs.c			*/
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/rpc.statd/statd.c,v 1.12.8.2 2007/08/12 01:46:19 truckman Exp $");
 
 #include <err.h>
 #include <stdio.h>

@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
  * SUCH DAMAGE. 
  */
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/com_err/parse.y,v 1.3 2004/04/03 21:17:01 nectar Exp $ */
 
 #include "compile_et.h"
 #include "lex.h"

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/hptrr/himfuncs.h,v 1.1.6.1 2007/12/15 06:32:33 scottl Exp $
  */
 #include <dev/hptrr/hptrr_config.h>
 /* $Id: himfuncs.h,v 1.14 2005/12/22 00:13:11 gmm Exp $

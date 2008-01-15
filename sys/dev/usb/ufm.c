@@ -29,7 +29,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/usb/ufm.c,v 1.23.2.1 2007/06/17 09:38:26 brueffer Exp $");
 
 
 #include <sys/param.h>

@@ -1,7 +1,7 @@
 /*
  * Prototypes for the OSTA functions
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/fs/udf/osta.h,v 1.2 2003/11/05 06:55:23 scottl Exp $
  */
 
 #ifndef UNIX

@@ -2,7 +2,7 @@ static const char	elsieid[] = "@(#)zic.c	7.116";
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.sbin/zic/zic.c,v 1.17.12.1 2007/12/07 05:17:34 kevlo Exp $";
 #endif /* not lint */
 
 #include "private.h"

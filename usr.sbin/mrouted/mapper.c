@@ -23,7 +23,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.sbin/mrouted/mapper.c,v 1.16 2002/09/09 15:45:28 nectar Exp $";
 #endif /* not lint */
 
 #include <err.h>

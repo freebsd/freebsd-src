@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/powerpc/powerpc/ofw_machdep.c,v 1.13.2.1 2005/11/11 05:21:08 grehan Exp $");
 
 #include <sys/param.h>
 #include <sys/bus.h>

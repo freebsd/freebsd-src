@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/pmcstat/pmcstat_log.c,v 1.3.2.1 2005/09/17 13:04:10 jkoshy Exp $");
 
 /*
  * Transform a hwpmc(4) log into human readable form and into gprof(1)

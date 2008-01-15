@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/ppbus/vpo.c,v 1.33.8.1 2006/12/14 02:57:07 mjacob Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

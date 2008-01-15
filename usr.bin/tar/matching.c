@@ -24,7 +24,7 @@
  */
 
 #include "bsdtar_platform.h"
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/tar/matching.c,v 1.9.2.2 2007/08/07 04:55:21 kientzle Exp $");
 
 #ifdef HAVE_ERRNO_H
 #include <errno.h>

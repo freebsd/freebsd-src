@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netatm/spans/spans_arp.c,v 1.21 2005/06/10 16:49:20 brooks Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/cpio/src/main.c,v 1.3.2.1 2006/10/23 03:33:27 delphij Exp $ */
 
 /* main.c - main program and argument processing for cpio.
    Copyright (C) 1990, 1991, 1992, 2001, 2003, 2004 Free Software Foundation, Inc.

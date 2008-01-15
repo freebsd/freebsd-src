@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/security/audit/audit_trigger.c,v 1.3.2.3 2007/11/08 16:40:01 rwatson Exp $
  */
 
 #include <sys/param.h>

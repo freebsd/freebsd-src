@@ -19,7 +19,7 @@
 static const char rcsid[] = "$Id: inet_pton.c,v 1.2.206.2 2005/07/28 07:43:18 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/inet/inet_pton.c,v 1.2.2.1 2006/07/17 10:09:56 ume Exp $");
 
 #include "port_before.h"
 #include <sys/param.h>

@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/contrib/ipfilter/l4check/l4check.c,v 1.2.2.1 2007/11/18 11:03:20 darrenr Exp $	*/
 
 /*
  * (C)Copyright March, 2000 - Darren Reed.

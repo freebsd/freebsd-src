@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/hostapd/eap.h,v 1.2.2.1 2006/03/24 01:42:33 sam Exp $ */
 
 #ifndef EAP_H
 #define EAP_H

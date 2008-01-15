@@ -56,7 +56,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sbin/ifconfig/ifvlan.c,v 1.7.2.5 2006/03/22 15:32:30 yar Exp $";
 #endif
 static struct vlanreq		__vreq;
 static int			__have_dev = 0;

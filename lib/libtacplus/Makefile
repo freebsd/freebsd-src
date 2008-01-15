@@ -22,7 +22,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	$FreeBSD$
+#	$FreeBSD: src/lib/libtacplus/Makefile,v 1.6.8.1 2005/07/22 17:29:08 kensmith Exp $
 
 LIB=		tacplus
 SRCS=		taclib.c

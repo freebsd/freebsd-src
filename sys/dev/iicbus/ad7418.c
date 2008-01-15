@@ -23,7 +23,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/iicbus/ad7418.c,v 1.1.2.1 2007/02/26 23:17:51 cognet Exp $");
 /*
  * Analog Devices AD7418 chip sitting on the I2C bus.
  */

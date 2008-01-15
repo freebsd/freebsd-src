@@ -29,7 +29,7 @@
 #include <machine/asm.h>
 #else
 __KERNEL_RCSID(2, "$NetBSD: prom_disp.s,v 1.8 1997/11/03 04:22:03 ross Exp $");
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/alpha/alpha/prom_disp.s,v 1.6 2005/01/05 20:05:49 imp Exp $");
 #endif
 
 	.globl	prom_dispatch_v

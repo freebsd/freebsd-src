@@ -29,7 +29,7 @@
 
 <sect1 id="support">
   <sect1info>
-    <pubdate>$FreeBSD$</pubdate>
+    <pubdate>$FreeBSD: src/release/doc/en_US.ISO8859-1/hardware/common/dev.sgml,v 1.282.2.17 2007/09/13 16:25:43 brueffer Exp $</pubdate>
   </sect1info>
 
   <title>Supported Devices</title>

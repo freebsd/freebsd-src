@@ -65,7 +65,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libstand/lseek.c,v 1.4 2001/09/30 22:28:01 dillon Exp $");
 
 #include "stand.h"
 

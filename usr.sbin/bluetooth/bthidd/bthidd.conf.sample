@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/bluetooth/bthidd/bthidd.conf.sample,v 1.2.2.1 2006/10/09 21:00:17 emax Exp $
 
 device {
 	bdaddr			00:50:f2:e5:68:84;

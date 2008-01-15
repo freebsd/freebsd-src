@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/mc146818/mc146818.c,v 1.4 2005/06/04 23:24:50 marius Exp $");
 
 /*
  * mc146818 and compatible time of day chip subroutines

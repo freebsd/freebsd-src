@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/tools/diag/README,v 1.6 2002/02/06 17:50:05 phantom Exp $
 
 This directory is for diagnostic programs.
 

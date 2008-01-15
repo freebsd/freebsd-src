@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/pci/if_rl.c,v 1.152.2.7.2.1 2007/12/02 09:04:11 remko Exp $");
 
 /*
  * RealTek 8129/8139 PCI NIC driver

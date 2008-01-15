@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/pf,v 1.7.2.5 2007/05/24 16:14:37 des Exp $
 #
 
 # PROVIDE: pf

@@ -35,7 +35,7 @@
 static char sccsid[] = "@(#)isatty.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/gen/isatty.c,v 1.5 2002/02/01 00:57:29 obrien Exp $");
 
 #include <termios.h>
 #include <unistd.h>

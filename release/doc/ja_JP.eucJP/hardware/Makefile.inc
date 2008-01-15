@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/release/doc/ja_JP.eucJP/hardware/Makefile.inc,v 1.2 2004/09/20 11:19:32 hrs Exp $
 # Original revision: 1.3
 
 .ifdef NO_LANGCODE_IN_DESTDIR

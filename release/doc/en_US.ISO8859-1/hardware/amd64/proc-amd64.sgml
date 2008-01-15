@@ -1,5 +1,5 @@
 <!--
-	$FreeBSD$
+	$FreeBSD: src/release/doc/en_US.ISO8859-1/hardware/amd64/proc-amd64.sgml,v 1.5.2.1 2005/09/28 16:51:27 brueffer Exp $
 -->
 <sect1 id="proc">
   <title>Supported Processors and Motherboards</title>

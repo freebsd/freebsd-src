@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i386/linux/linux_dummy.c,v 1.38.8.1 2007/08/29 15:04:26 netchild Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

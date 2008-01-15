@@ -27,7 +27,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/security/audit/audit_bsm_klib.c,v 1.4.2.4 2007/11/15 19:31:15 rwatson Exp $
  */
 
 #include <sys/param.h>

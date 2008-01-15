@@ -60,7 +60,7 @@
 
 #include <sys/cdefs.h>
 
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/systat/iostat.c,v 1.21.10.1 2007/01/05 11:55:34 yar Exp $");
 
 #ifdef lint
 static const char sccsid[] = "@(#)iostat.c	8.1 (Berkeley) 6/6/93";

@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/amd64/linux32/linux32_sysvec.c,v 1.7.2.10 2007/09/03 13:18:42 netchild Exp $");
 
 /* XXX we use functions that might not exist. */
 #include "opt_compat.h"

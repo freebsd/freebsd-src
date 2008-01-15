@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libpthread/thread/thr_nanosleep.c,v 1.24.8.1 2006/03/16 23:29:08 deischen Exp $
  */
 #include <stdio.h>
 #include <errno.h>

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/cvs/Makefile.inc,v 1.6 2005/06/10 06:12:50 des Exp $
 
 .if !defined(CVSDIR)
 

@@ -32,7 +32,7 @@
 
 #include "mixer_if.h"
 
-SND_DECLARE_FILE("$FreeBSD$");
+SND_DECLARE_FILE("$FreeBSD: src/sys/dev/sound/pcm/ac97.c,v 1.53.2.6 2007/10/31 04:00:07 ariff Exp $");
 
 MALLOC_DEFINE(M_AC97, "ac97", "ac97 codec");
 

@@ -24,7 +24,7 @@
  *	+1-313-764-2278
  *	netatalk@umich.edu
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netatalk/ddp_usrreq.c,v 1.45.2.1 2006/06/11 16:17:22 rwatson Exp $
  */
 
 #include <sys/param.h>

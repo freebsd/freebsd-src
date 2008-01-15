@@ -97,4 +97,4 @@ __asm__("eprol:");
 __asm__(".previous");
 #endif
 
-__asm__(".ident\t\"$FreeBSD$\"");
+__asm__(".ident\t\"$FreeBSD: src/lib/csu/amd64/crt1.c,v 1.14 2004/08/15 16:18:51 dfr Exp $\"");

@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/opencrypto/cryptodev.c,v 1.25.2.4 2007/10/12 10:24:21 kib Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

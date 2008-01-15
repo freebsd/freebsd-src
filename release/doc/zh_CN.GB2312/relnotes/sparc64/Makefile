@@ -1,5 +1,5 @@
 # Original Revision: 1.1
-# $FreeBSD$
+# $FreeBSD: src/release/doc/zh_CN.GB2312/relnotes/sparc64/Makefile,v 1.1.18.1 2007/12/07 04:04:52 delphij Exp $
 
 RELN_ROOT?= ${.CURDIR}/../../..
 

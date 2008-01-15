@@ -30,7 +30,7 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 
 ***************************************************************************/
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/em/e1000_osdep.h,v 1.3.2.1 2007/10/05 22:49:07 jfv Exp $ */
 
 
 #ifndef _FREEBSD_OS_H_

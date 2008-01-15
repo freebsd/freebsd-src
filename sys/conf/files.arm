@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/conf/files.arm,v 1.8.2.4 2007/03/10 00:19:24 sam Exp $
 crypto/blowfish/bf_enc.c	optional	crypto | ipsec ipsec_esp
 crypto/des/des_enc.c		optional	crypto | ipsec ipsec_esp | \
 						netsmb

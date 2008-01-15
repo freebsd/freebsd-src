@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/i386/intr_machdep.c,v 1.14.2.4.2.1 2007/11/26 15:42:43 scottl Exp $
  */
 
 /*

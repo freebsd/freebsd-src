@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/net/ieee8023ad_lacp.c,v 1.7.2.3 2007/09/15 01:11:26 thompsa Exp $");
 
 #include <sys/param.h>
 #include <sys/callout.h>

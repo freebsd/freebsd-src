@@ -16,7 +16,7 @@
 # If you are in doubt as to the purpose or necessity of a line, check first 
 # in NOTES.
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/arm/conf/AVILA,v 1.3.2.2 2007/02/27 00:27:50 cognet Exp $
 
 machine		arm
 ident		AVILA

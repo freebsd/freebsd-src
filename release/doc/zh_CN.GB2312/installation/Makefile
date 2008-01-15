@@ -1,5 +1,5 @@
 # Original Revision: 1.6.10.1
-# $FreeBSD$
+# $FreeBSD: src/release/doc/zh_CN.GB2312/installation/Makefile,v 1.1.18.1 2007/12/07 04:04:51 delphij Exp $
 
 RELN_ROOT?= ${.CURDIR}/../..
 

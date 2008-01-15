@@ -35,7 +35,7 @@
 static char sccsid[] = "@(#)getservent.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/net/getservent.c,v 1.19.2.2 2007/01/20 14:59:12 ume Exp $");
 
 #include <sys/param.h>
 #include <sys/types.h>

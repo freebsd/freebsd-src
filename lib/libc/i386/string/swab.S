@@ -29,7 +29,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/i386/string/swab.S,v 1.9 2003/01/01 18:48:42 schweikh Exp $");
 
 /*
  * void

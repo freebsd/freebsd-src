@@ -36,7 +36,7 @@
  */
 
 #include <sys/types.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sbin/rcorder/rcorder.c,v 1.1.1.2.14.2 2006/06/21 09:59:01 delphij Exp $");
 
 #include <sys/stat.h>
 

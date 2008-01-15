@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/periodic/daily/405.status-ata-raid,v 1.1 2003/10/27 20:14:53 jesper Exp $
 #
 
 # If there is a global system configuration file, suck it in.

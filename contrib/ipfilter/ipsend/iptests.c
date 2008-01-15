@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/contrib/ipfilter/ipsend/iptests.c,v 1.10.2.2 2007/11/18 11:03:20 darrenr Exp $	*/
 
 /*
  * Copyright (C) 1993-1998 by Darren Reed.

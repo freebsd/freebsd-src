@@ -84,7 +84,7 @@
 #define HDA_DRV_TEST_REV	"20071129_0050"
 #define HDA_WIDGET_PARSER_REV	1
 
-SND_DECLARE_FILE("$FreeBSD$");
+SND_DECLARE_FILE("$FreeBSD: src/sys/dev/sound/pci/hda/hdac.c,v 1.36.2.6.2.3 2007/12/06 05:21:07 ariff Exp $");
 
 #define HDA_BOOTVERBOSE(stmt)	do {			\
 	if (bootverbose != 0) {				\

@@ -26,7 +26,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/security/audit/audit_syscalls.c,v 1.1.2.12 2007/11/10 17:08:41 csjp Exp $
  */
 
 #include <sys/param.h>

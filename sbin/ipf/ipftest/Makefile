@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$FreeBSD: src/sbin/ipf/ipftest/Makefile,v 1.3.2.1 2007/11/19 00:48:38 darrenr Exp $
 
 WARNS=0
 

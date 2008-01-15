@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/boot/ia64/ski/copy.c,v 1.4 2004/09/24 03:53:50 marcel Exp $");
 
 /*
  * MD primitives supporting placement of module data 

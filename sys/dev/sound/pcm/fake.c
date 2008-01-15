@@ -26,7 +26,7 @@
 
 #include <dev/sound/pcm/sound.h>
 
-SND_DECLARE_FILE("$FreeBSD$");
+SND_DECLARE_FILE("$FreeBSD: src/sys/dev/sound/pcm/fake.c,v 1.14.2.1 2005/12/30 19:55:54 netchild Exp $");
 
 static u_int32_t fk_fmt[] = {
 	AFMT_MU_LAW,

@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/mii/amphy.c,v 1.17.2.4 2007/02/25 18:25:14 marius Exp $");
 
 /*
  * driver for AMD AM79c873 PHYs

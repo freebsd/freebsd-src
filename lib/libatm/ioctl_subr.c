@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libatm/ioctl_subr.c,v 1.11 2004/02/21 16:29:10 harti Exp $");
 
 /*
  * User Space Library Functions

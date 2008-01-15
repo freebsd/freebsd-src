@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/tar/config_freebsd.h,v 1.1.2.1 2007/08/25 03:58:25 kientzle Exp $
  */
 
 /* A default configuration for FreeBSD, used if there is no config.h. */

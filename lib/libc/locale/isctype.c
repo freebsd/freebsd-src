@@ -43,7 +43,7 @@
 static char sccsid[] = "@(#)isctype.c	8.3 (Berkeley) 2/24/94";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/locale/isctype.c,v 1.9.14.2 2007/11/21 01:31:48 rafan Exp $");
 
 #include <ctype.h>
 

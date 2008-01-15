@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/libexec/lukemftpd/config.h,v 1.4 2004/08/21 03:36:47 obrien Exp $ */
 
 
 /* config.h.  Generated automatically by configure.  */

@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/netstat/mcast.c,v 1.2.8.2 2007/07/23 15:40:25 jhb Exp $");
 
 /*
  * Print the running system's current multicast group memberships.

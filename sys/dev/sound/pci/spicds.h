@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THEPOSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sound/pci/spicds.h,v 1.3.2.2 2007/06/11 19:33:28 ariff Exp $
  */
 
 /* supported CODECs */

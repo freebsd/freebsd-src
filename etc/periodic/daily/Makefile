@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/etc/periodic/daily/Makefile,v 1.12.10.2 2007/06/16 08:07:08 maxim Exp $
 
 FILES=	100.clean-disks \
 	110.clean-tmps \

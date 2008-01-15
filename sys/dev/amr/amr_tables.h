@@ -53,7 +53,7 @@
  * SUCH DAMAGE.
  *
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/dev/amr/amr_tables.h,v 1.3 2002/10/30 22:00:11 emoore Exp $
  */
 
 /*

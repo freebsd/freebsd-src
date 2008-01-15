@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/usr.bin/netstat/pfkey.c,v 1.1.2.3 2007/10/04 18:27:45 obrien Exp $	*/
 /*	$NetBSD: inet.c,v 1.35.2.1 1999/04/29 14:57:08 perry Exp $	*/
 /*	$KAME: ipsec.c,v 1.25 2001/03/12 09:04:39 itojun Exp $	*/
 
@@ -70,7 +70,7 @@
 static char sccsid[] = "@(#)inet.c	8.5 (Berkeley) 5/24/95";
 */
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.bin/netstat/pfkey.c,v 1.1.2.3 2007/10/04 18:27:45 obrien Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>

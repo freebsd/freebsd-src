@@ -26,7 +26,7 @@
  * SUCH DAMAGE.
  *
  * $Id: log.c,v 1.1 2004/01/07 23:15:00 max Exp $
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/bluetooth/sdpd/log.c,v 1.1 2004/01/20 20:48:26 emax Exp $
  */
 
 #include <sys/types.h>

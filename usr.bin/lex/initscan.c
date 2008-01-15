@@ -5,7 +5,7 @@
  * $Header: /home/daffy/u0/vern/flex/RCS/flex.skl,v 2.91 96/09/10 16:58:48 vern Exp $
  */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/lex/initscan.c,v 1.9 2002/08/25 13:22:44 charnier Exp $");
 
 #define FLEX_SCANNER
 #define YY_FLEX_MAJOR_VERSION 2
@@ -1276,7 +1276,7 @@ char *yytext;
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.bin/lex/initscan.c,v 1.9 2002/08/25 13:22:44 charnier Exp $";
 #endif /* not lint */
 
 #include "flexdef.h"

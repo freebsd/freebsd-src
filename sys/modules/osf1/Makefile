@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/osf1/Makefile,v 1.13.2.1 2006/02/10 00:38:05 yar Exp $
 
 .PATH: ${.CURDIR}/../../alpha/osf1
 

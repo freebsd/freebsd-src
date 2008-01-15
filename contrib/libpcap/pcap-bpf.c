@@ -18,7 +18,7 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/libpcap/pcap-bpf.c,v 1.1.1.10.2.2 2006/10/16 00:47:37 sam Exp $
  */
 #ifndef lint
 static const char rcsid[] _U_ =

@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/pppoed,v 1.3.2.1 2007/10/25 14:36:11 mtm Exp $
 #
 
 # PROVIDE: pppoed

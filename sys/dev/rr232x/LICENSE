@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/sys/dev/rr232x/LICENSE,v 1.1.2.1 2006/04/30 17:11:34 scottl Exp $
 
 Unless otherwise noted, all program source, header, and binary data files
 in this directory are governed by the following copyright and license:

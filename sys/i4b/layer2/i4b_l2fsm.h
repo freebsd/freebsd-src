@@ -28,7 +28,7 @@
  *      i4b_l2fsm.h - layer 2 FSM
  *      -------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i4b/layer2/i4b_l2fsm.h,v 1.9 2005/01/06 22:18:21 imp Exp $
  *
  *      last edit-date: [Sat Mar  9 17:47:53 2002]
  *

@@ -110,7 +110,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/le/am79900.c,v 1.1.2.4 2007/09/15 10:56:00 marius Exp $");
 
 #include <sys/param.h>
 #include <sys/bus.h>

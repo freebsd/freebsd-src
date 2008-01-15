@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/stdio/xprintf.c,v 1.3.2.2 2006/10/30 13:55:25 kib Exp $
  */
 
 #include <namespace.h>

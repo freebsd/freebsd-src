@@ -35,7 +35,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/kern_exit.c,v 1.263.2.15 2007/05/17 13:52:37 jhb Exp $");
 
 #include "opt_compat.h"
 #include "opt_ktrace.h"

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/asf/asf.h,v 1.1.2.1 2006/07/22 11:58:11 yar Exp $
  */
 
 #define	KERNFILE	"kernel"

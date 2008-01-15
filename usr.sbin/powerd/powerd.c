@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/powerd/powerd.c,v 1.6.2.5 2007/06/22 00:01:55 marck Exp $");
 
 #include <sys/param.h>
 #include <sys/ioctl.h>

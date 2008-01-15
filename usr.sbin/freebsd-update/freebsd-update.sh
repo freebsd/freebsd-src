@@ -25,7 +25,7 @@
 # IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/freebsd-update/freebsd-update.sh,v 1.2.2.8 2007/11/21 14:37:03 cperciva Exp $
 
 #### Usage function -- called from command-line handling code.
 

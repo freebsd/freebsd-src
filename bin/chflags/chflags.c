@@ -40,7 +40,7 @@ static char sccsid[] = "@(#)chflags.c	8.5 (Berkeley) 4/1/94";
 #endif
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/bin/chflags/chflags.c,v 1.23 2005/05/14 23:23:10 dd Exp $");
 
 #include <sys/types.h>
 #include <sys/stat.h>

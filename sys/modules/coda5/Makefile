@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/coda5/Makefile,v 1.4.2.3 2006/03/03 22:05:23 yar Exp $
 
 .PATH: ${.CURDIR}/../../coda
 

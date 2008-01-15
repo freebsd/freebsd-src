@@ -21,7 +21,7 @@
  *  Internet, ethernet, port, and protocol string to address
  *  and address to string conversion routines
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/tcpdump/addrtoname.c,v 1.14.2.1 2006/10/16 00:47:38 sam Exp $
  */
 #ifndef lint
 static const char rcsid[] _U_ =

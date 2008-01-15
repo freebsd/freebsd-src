@@ -30,7 +30,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsdiskless.h	8.2 (Berkeley) 3/30/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/nfsclient/nfsdiskless.h,v 1.17.2.1 2007/10/30 00:49:41 sam Exp $
  */
 
 #ifndef _NFSCLIENT_NFSDISKLESS_H_

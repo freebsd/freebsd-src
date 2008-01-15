@@ -23,7 +23,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/dev/mmc/mmcbr_if.m,v 1.1.2.1 2006/11/20 07:16:28 imp Exp $
 #
 
 #include <sys/types.h>

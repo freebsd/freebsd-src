@@ -1,5 +1,5 @@
 /* dovend.h */
-/* $FreeBSD$ */
+/* $FreeBSD: src/libexec/bootpd/dovend.h,v 1.2 2002/05/28 18:31:41 alfred Exp $ */
 
 extern int dovend_rfc1497(struct host *hp, u_char *buf, int len);
 extern int insert_ip(int, struct in_addr_list *, u_char **, int *);

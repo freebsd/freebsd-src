@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/kern_poll.c,v 1.19.2.3 2006/06/16 22:11:55 jhb Exp $");
 
 #include "opt_device_polling.h"
 

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/less/forwback.c,v 1.4.8.2 2007/07/03 05:12:41 delphij Exp $ */
 /*
  * Copyright (C) 1984-2007  Mark Nudelman
  *

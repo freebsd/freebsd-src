@@ -61,7 +61,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/uipc_mbuf2.c,v 1.31.2.1 2005/07/25 00:08:12 rwatson Exp $");
 
 /*#define PULLDOWN_DEBUG*/
 

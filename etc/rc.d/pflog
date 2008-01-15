@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/pflog,v 1.5.2.4 2007/05/24 16:14:37 des Exp $
 #
 
 # PROVIDE: pflog

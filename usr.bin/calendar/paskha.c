@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/calendar/paskha.c,v 1.7 2001/12/10 21:13:03 dwmalone Exp $");
 
 #include <stdio.h>
 #include <stdlib.h>

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libc/softfloat/templates/milieu.h,v 1.1 2004/05/14 12:13:06 cognet Exp $ */
 
 /*
 ===============================================================================

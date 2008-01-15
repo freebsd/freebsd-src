@@ -12,7 +12,7 @@
 
 /* INDENT OFF */
 #ifndef lint
-static char rcsid[] = "$FreeBSD$";
+static char rcsid[] = "$FreeBSD: src/lib/msun/src/k_tan.c,v 1.10.2.1 2007/06/14 04:16:14 bde Exp $";
 #endif
 
 /* __kernel_tan( x, y, k )

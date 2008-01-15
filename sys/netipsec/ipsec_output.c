@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netipsec/ipsec_output.c,v 1.10.8.1 2006/07/24 23:20:59 thompsa Exp $
  */
 
 /*

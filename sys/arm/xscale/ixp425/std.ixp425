@@ -1,5 +1,5 @@
 #XScale IXP425 generic configuration
-#$FreeBSD$
+#$FreeBSD: src/sys/arm/xscale/ixp425/std.ixp425,v 1.1.2.1 2007/02/26 23:13:09 cognet Exp $
 files		"../xscale/ixp425/files.ixp425"
 include		"../xscale/std.xscale"
 cpu 		CPU_XSCALE_IXP425

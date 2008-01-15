@@ -41,7 +41,7 @@ static const char copyright[] =
 static const char sccsid[] = "@(#)logname.c	8.2 (Berkeley) 4/3/94";
 #endif /* not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/logname/logname.c,v 1.8 2005/01/25 14:22:20 ssouhlal Exp $");
 
 #include <err.h>
 #include <unistd.h>

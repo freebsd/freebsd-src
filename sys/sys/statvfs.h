@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/statvfs.h,v 1.4 2005/01/07 02:29:24 imp Exp $
  */
 
 #ifndef _SYS_STATVFS_H_

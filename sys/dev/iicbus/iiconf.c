@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/iicbus/iiconf.c,v 1.14.10.1 2007/02/26 23:17:51 cognet Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

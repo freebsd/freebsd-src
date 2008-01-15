@@ -58,7 +58,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/puc/puc_pci.c,v 1.14 2005/03/05 18:10:49 imp Exp $");
 
 #include "opt_puc.h"
 

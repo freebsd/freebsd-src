@@ -35,7 +35,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/kern_clock.c,v 1.178.2.4 2007/02/20 22:56:28 n_hibma Exp $");
 
 #include "opt_device_polling.h"
 #include "opt_hwpmc_hooks.h"

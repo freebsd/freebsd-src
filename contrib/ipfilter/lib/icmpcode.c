@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/contrib/ipfilter/lib/icmpcode.c,v 1.2.2.2 2007/11/18 11:03:21 darrenr Exp $	*/
 
 /*
  * Copyright (C) 2000-2006 by Darren Reed.

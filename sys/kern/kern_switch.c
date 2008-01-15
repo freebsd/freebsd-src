@@ -86,7 +86,7 @@ reassigned to keep this true.
 ***/
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/kern_switch.c,v 1.116.2.2 2006/12/13 09:26:02 davidxu Exp $");
 
 #include "opt_sched.h"
 

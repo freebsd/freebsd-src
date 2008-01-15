@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/crypto/rijndael/Makefile,v 1.3 2004/12/21 08:47:18 ru Exp $
 
 PROG=test00
 NO_MAN=

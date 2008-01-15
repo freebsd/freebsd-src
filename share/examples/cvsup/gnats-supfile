@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/examples/cvsup/gnats-supfile,v 1.7.8.1 2007/09/10 17:29:10 gabor Exp $
 #
 # This file contains all of the "CVSup collections" that make up the
 # FreeBSD GNATS bug report database.

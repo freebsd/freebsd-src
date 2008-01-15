@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/alpha/isa/mcclock_isa.c,v 1.12 2005/05/29 04:42:15 nyan Exp $");
 
 #include <sys/param.h>
 #include <sys/kernel.h>

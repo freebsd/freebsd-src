@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/boot/i386/libi386/biosdisk.c,v 1.45.2.5 2007/11/08 20:13:03 jhb Exp $");
 
 /*
  * BIOS disk device handling.

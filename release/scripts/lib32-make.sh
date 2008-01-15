@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/release/scripts/lib32-make.sh,v 1.1 2005/06/16 18:16:13 ru Exp $
 #
 
 # Clean the dust.

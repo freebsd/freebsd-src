@@ -1,5 +1,5 @@
 /*	$NetBSD: pucvar.h,v 1.2 1999/02/06 06:29:54 cgd Exp $	*/
-/*	$FreeBSD$ */
+/*	$FreeBSD: src/sys/dev/puc/pucvar.h,v 1.15 2005/01/11 06:24:40 imp Exp $ */
 
 /*-
  * Copyright (c) 2002 JF Hay.  All rights reserved.

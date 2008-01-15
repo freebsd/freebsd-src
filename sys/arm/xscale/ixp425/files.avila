@@ -1,4 +1,4 @@
-#$FreeBSD$
+#$FreeBSD: src/sys/arm/xscale/ixp425/files.avila,v 1.2.2.1 2007/02/26 23:13:09 cognet Exp $
 arm/xscale/ixp425/avila_machdep.c	standard
 arm/xscale/ixp425/avila_ata.c		optional avila_ata
 arm/xscale/ixp425/avila_led.c		optional avila_led

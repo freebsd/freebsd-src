@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/sysinstall/variable.c,v 1.37 2004/03/11 11:58:16 bde Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.

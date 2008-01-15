@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netatm/uni/unisig_encode.c,v 1.14.2.1 2006/01/29 06:55:03 sam Exp $");
 
 #include <sys/param.h>
 #include <sys/types.h>

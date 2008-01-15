@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/i386/mbr/Makefile,v 1.15 2004/12/21 08:47:15 ru Exp $
 
 PROG=	mbr
 STRIP=

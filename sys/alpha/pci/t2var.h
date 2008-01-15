@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/alpha/pci/t2var.h,v 1.5 2001/06/01 17:39:11 gallatin Exp $
  */
 
 extern vm_offset_t	sable_lynx_base;

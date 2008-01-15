@@ -29,7 +29,7 @@
 */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/contrib/bzip2/bzlib.c,v 1.2.2.1 2007/07/11 07:04:05 delphij Exp $");
 
 #include "bzlib_private.h"
 

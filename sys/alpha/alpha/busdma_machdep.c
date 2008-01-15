@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/alpha/alpha/busdma_machdep.c,v 1.51.2.1.8.2 2007/12/10 20:16:07 jhb Exp $");
 
 #include <sys/param.h>
 #include <sys/bus.h>

@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)hash.h	8.1 (Berkeley) 6/6/93
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/make/hash.h,v 1.20 2005/05/13 08:53:00 harti Exp $
  */
 
 #ifndef hash_h_f6312f46

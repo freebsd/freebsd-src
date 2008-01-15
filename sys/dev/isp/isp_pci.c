@@ -28,7 +28,7 @@
  * FreeBSD Version.
  */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/isp/isp_pci.c,v 1.104.2.12 2007/05/11 06:29:00 mjacob Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/mountlate,v 1.1.2.2 2007/10/25 14:04:19 mtm Exp $
 #
 
 # PROVIDE: mountlate

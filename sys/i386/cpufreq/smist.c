@@ -36,7 +36,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i386/cpufreq/smist.c,v 1.1.2.1 2007/06/28 21:26:11 njl Exp $");
 
 #include <sys/param.h>
 #include <sys/bus.h>

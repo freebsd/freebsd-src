@@ -34,7 +34,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/powerpc/include/_stdint.h,v 1.2 2004/05/18 16:04:57 stefanf Exp $
  */
 
 #ifndef _MACHINE__STDINT_H_

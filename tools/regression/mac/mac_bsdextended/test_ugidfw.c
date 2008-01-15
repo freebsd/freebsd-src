@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/regression/mac/mac_bsdextended/test_ugidfw.c,v 1.2.2.1 2006/08/21 15:59:48 dwmalone Exp $
  */
 
 #include <sys/param.h>

@@ -1,6 +1,6 @@
 # Copyright (C) 1999-2000 by Maksim Yevmenkin <m_evmenkin@yahoo.com>
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/if_tap/Makefile,v 1.4.2.2 2007/08/21 08:58:22 hm Exp $
 
 .PATH: ${.CURDIR}/../../net
 

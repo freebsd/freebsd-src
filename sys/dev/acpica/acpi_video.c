@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/acpica/acpi_video.c,v 1.10.2.2 2006/08/16 13:51:05 bruno Exp $");
 
 #include <sys/param.h>
 #include <sys/kernel.h>

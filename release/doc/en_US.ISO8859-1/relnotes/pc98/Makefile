@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/release/doc/en_US.ISO8859-1/relnotes/pc98/Makefile,v 1.1 2002/05/31 18:00:39 nyan Exp $
 
 RELN_ROOT?= ${.CURDIR}/../../..
 

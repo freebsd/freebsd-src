@@ -32,7 +32,7 @@
  *
  *	Last Edit-Date: [Fri Mar 31 10:24:43 2000]
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/pcvt/ispcvt/ispcvt.c,v 1.11 2001/03/01 06:22:44 imp Exp $
  *
  *---------------------------------------------------------------------------*/
 

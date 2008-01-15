@@ -43,7 +43,7 @@
  * From: Utah Hdr: defs.h 3.1 92/07/06
  * Author: Jeff Forys, University of Utah CSS
  *
- * $FreeBSD$
+ * $FreeBSD: src/libexec/rbootd/defs.h,v 1.4 2002/02/07 23:57:00 imp Exp $
  */
 
 #include "rmp.h"

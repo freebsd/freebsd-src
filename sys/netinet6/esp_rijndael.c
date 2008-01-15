@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/netinet6/esp_rijndael.c,v 1.5 2005/01/07 02:30:34 imp Exp $	*/
 /*	$KAME: esp_rijndael.c,v 1.14 2003/08/28 08:23:20 itojun Exp $	*/
 
 /*-

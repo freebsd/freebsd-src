@@ -26,7 +26,7 @@
 
 #ifdef __FreeBSD__
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/tar/getdate.y,v 1.4.2.3 2007/08/07 04:38:22 kientzle Exp $");
 #endif
 
 #include <ctype.h>

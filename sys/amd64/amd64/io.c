@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/amd64/amd64/io.c,v 1.1 2004/08/01 11:40:50 markm Exp $");
 
 #include <sys/param.h>
 #include <sys/conf.h>

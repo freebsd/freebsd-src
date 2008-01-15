@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/digi/digi/Makefile,v 1.3.14.1 2006/02/10 00:38:00 yar Exp $
 
 .PATH:	${.CURDIR}/../../../dev/digi
 KMOD=	digi

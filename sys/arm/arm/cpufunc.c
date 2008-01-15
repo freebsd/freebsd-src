@@ -45,7 +45,7 @@
  * Created      : 30/01/97
  */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/arm/arm/cpufunc.c,v 1.9.2.2 2007/02/25 23:08:22 cognet Exp $");
 
 #include <sys/cdefs.h>
 

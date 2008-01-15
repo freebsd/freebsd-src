@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/mrouted/route.h,v 1.9 1999/08/28 01:17:09 peter Exp $
  * route.h,v 3.8.4.6 1997/07/01 23:02:35 fenner Exp
  */
 

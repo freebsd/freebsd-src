@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/sys/power.h,v 1.3 2002/07/15 14:06:03 markm Exp $
  */
 
 #ifndef _SYS_POWER_H_

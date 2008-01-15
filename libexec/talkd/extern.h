@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/libexec/talkd/extern.h,v 1.3 2003/04/03 05:13:27 jmallett Exp $
  */
 
 int	announce(CTL_MSG *, const char *);

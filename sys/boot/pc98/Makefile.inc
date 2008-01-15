@@ -1,6 +1,6 @@
 # Common defines for all of /sys/boot/pc98/
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/pc98/Makefile.inc,v 1.5.8.2 2007/10/24 11:50:07 nyan Exp $
 
 BINDIR?=	/boot
 

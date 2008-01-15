@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/arm/_fpmath.h,v 1.4 2005/03/20 00:53:52 cognet Exp $
  */
 
 union IEEEl2bits {

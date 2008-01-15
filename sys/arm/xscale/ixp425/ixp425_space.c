@@ -34,7 +34,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/arm/xscale/ixp425/ixp425_space.c,v 1.1.2.1 2007/02/26 23:13:09 cognet Exp $");
 
 /*
  * bus_space I/O functions for ixp425

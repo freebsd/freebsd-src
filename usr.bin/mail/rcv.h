@@ -32,7 +32,7 @@
  *
  *	@(#)rcv.h	8.1 (Berkeley) 6/6/93
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/mail/rcv.h,v 1.2 2001/03/25 04:57:04 mikeh Exp $
  */
 
 /*

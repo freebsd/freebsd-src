@@ -33,7 +33,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/mtest/mtest.c,v 1.6.10.1 2007/04/07 03:04:49 bms Exp $");
 
 #include <sys/types.h>
 #include <sys/errno.h>

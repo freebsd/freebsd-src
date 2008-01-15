@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/libkern/rindex.c,v 1.11 2005/01/07 00:24:32 imp Exp $");
 
 #include <sys/param.h>
 #include <sys/libkern.h>

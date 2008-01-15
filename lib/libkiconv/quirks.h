@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libkiconv/quirks.h,v 1.1 2003/09/26 20:26:20 fjoe Exp $
  */
 
 #ifndef _KICONV_QUIRKS_H_

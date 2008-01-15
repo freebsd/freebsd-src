@@ -25,7 +25,7 @@ CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 
-$FreeBSD$
+$FreeBSD: src/sys/dev/cxgb/common/cxgb_firmware_exports.h,v 1.1.2.2 2007/06/17 23:52:16 kmacy Exp $
 
 ***************************************************************************/
 #ifndef _FIRMWARE_EXPORTS_H_

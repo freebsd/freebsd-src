@@ -26,7 +26,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/ia64/ia64/exception.S,v 1.56.2.1 2005/09/13 21:07:14 marcel Exp $");
 
 #include <machine/pte.h>
 #include <assym.s>

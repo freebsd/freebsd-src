@@ -45,7 +45,7 @@
 	RCSID("$NetBSD: ntohs.S,v 1.1 1998/09/11 04:56:31 eeh Exp $")
 #endif
 #endif /* LIBC_SCCS and not lint */
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/sparc64/net/ntohs.S,v 1.3 2002/06/30 05:36:49 obrien Exp $");
 
 /* hostorder = ntohs(netorder) */
         .weak CNAME(ntohs)

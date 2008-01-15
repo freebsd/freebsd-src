@@ -1,4 +1,4 @@
-#$FreeBSD$
+#$FreeBSD: src/sys/conf/options.arm,v 1.5.2.4.2.1 2007/12/02 14:21:27 cognet Exp $
 ARM32_NEW_VM_LAYOUT	opt_vm.h
 ARM9_CACHE_WRITE_THROUGH	opt_global.h
 ARM_CACHE_LOCK_ENABLE	opt_global.h

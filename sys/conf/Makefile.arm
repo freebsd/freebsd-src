@@ -1,7 +1,7 @@
 # Makefile.arm -- with config changes.
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-# $FreeBSD$
+# $FreeBSD: src/sys/conf/Makefile.arm,v 1.10.2.3 2007/02/26 23:18:21 cognet Exp $
 #
 # Makefile for FreeBSD
 #

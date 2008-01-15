@@ -12,7 +12,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/cksum/crc32.c,v 1.9 2003/03/13 23:32:28 robert Exp $");
 
 #include <sys/types.h>
 

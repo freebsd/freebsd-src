@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.109.2.3 2007/10/30 10:21:03 remko Exp $
 /* $NetBSD: pcmciadevs,v 1.186 2003/09/16 08:26:37 onoe Exp $ */
 /* $OpenBSD: pcmciadevs,v 1.93 2002/06/21 08:31:10 henning Exp $ */
 

@@ -23,7 +23,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i386/ibcs2/ibcs2_other.c,v 1.17 2005/02/07 22:02:18 jhb Exp $");
 
 /*
  * IBCS2 compatibility module.

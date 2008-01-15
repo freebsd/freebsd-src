@@ -46,7 +46,7 @@
  * become a "Registered Developer" of the I2O SIG. This can be done by calling
  * 415-750-8352 in the US, or via http://www.i2osig.org.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/asr/i2odep.h,v 1.8 2005/01/06 01:42:29 imp Exp $
  *
  **************************************************************************/
 

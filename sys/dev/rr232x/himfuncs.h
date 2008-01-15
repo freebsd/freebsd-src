@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/rr232x/himfuncs.h,v 1.1.2.1 2006/04/30 17:11:35 scottl Exp $
  *
  * define _HIM_INTERFACE before include this file, and
  * undef it after include this file.

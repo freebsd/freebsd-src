@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_var.h
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netipx/ipx_var.h,v 1.22 2005/01/07 01:45:47 imp Exp $
  */
 
 #ifndef _NETIPX_IPX_VAR_H_

@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/mii/mlphy.c,v 1.20.2.2 2007/02/25 17:57:12 marius Exp $");
 
 /*
  * driver for Micro Linear 6692 PHYs

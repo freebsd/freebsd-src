@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/ip6addrctl,v 1.4.2.1 2007/05/24 16:14:37 des Exp $
 #
 
 # PROVIDE: ip6addrctl

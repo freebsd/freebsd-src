@@ -40,7 +40,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libstand/ether.c,v 1.4 2002/03/21 23:38:48 obrien Exp $");
 
 #include <sys/param.h>
 #include <sys/socket.h>

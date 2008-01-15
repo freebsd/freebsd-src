@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/boot/efi/include/efi.h,v 1.3 2002/05/19 03:17:20 marcel Exp $ */
 /*++
 
 Copyright (c) 1998  Intel Corporation

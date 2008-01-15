@@ -33,7 +33,7 @@
  *
  *      @(#)bpf.c	8.4 (Berkeley) 1/9/95
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/net/bpf.c,v 1.153.2.12 2007/11/03 17:13:16 csjp Exp $
  */
 
 #include "opt_bpf.h"

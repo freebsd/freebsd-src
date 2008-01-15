@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/pci/intpmreg.h,v 1.2.36.1 2006/10/04 19:09:43 jhb Exp $
  */
 
 #ifndef __INTPMREG_H__

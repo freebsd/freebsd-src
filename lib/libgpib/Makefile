@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libgpib/Makefile,v 1.1.4.1 2005/07/22 17:29:05 kensmith Exp $
 
 LIB =		gpib
 SHLIBDIR ?=	/lib

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libc/resolv/res_private.h,v 1.1.1.1.2.1 2006/07/17 10:09:58 ume Exp $ */
 
 #ifndef res_private_h
 #define res_private_h

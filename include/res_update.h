@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/include/res_update.h,v 1.2.2.1 2006/07/17 10:09:54 ume Exp $ */
 
 #ifndef _RES_UPDATE_H_
 #define _RES_UPDATE_H_

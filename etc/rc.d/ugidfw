@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/ugidfw,v 1.3.2.1 2005/11/04 18:18:20 maxim Exp $
 
 # PROVIDE: ugidfw
 # REQUIRE:

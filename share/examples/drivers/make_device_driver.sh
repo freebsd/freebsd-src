@@ -20,7 +20,7 @@
 #   o generate foo_isa.c, foo_pci.c, foo_pccard.c, foo_cardbus.c, and foovar.h
 #   o Put pccard stuff in here.
 #
-# $FreeBSD$"
+# $FreeBSD: src/share/examples/drivers/make_device_driver.sh,v 1.21.10.1 2006/08/24 11:13:30 rik Exp $"
 #
 #
 if [ "X${1}" = "X" ]; then

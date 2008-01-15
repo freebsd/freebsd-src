@@ -74,7 +74,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/mii/gentbi.c,v 1.1.2.3 2007/02/26 20:56:34 jhb Exp $");
 
 /*
  * Driver for generic unknown ten-bit interfaces(1000BASE-{LX,SX}

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/alpha/include/floatingpoint.h,v 1.4 2005/01/05 20:05:50 imp Exp $
  */
 
 #include <machine/ieeefp.h>

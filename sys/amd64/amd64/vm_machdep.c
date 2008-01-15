@@ -41,7 +41,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/amd64/amd64/vm_machdep.c,v 1.248.2.3 2007/06/18 22:44:57 jhb Exp $");
 
 #include "opt_isa.h"
 #include "opt_cpu.h"

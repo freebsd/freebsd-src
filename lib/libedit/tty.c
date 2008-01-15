@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)tty.c	8.1 (Berkeley) 6/4/93";
 #endif /* not lint && not SCCSID */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libedit/tty.c,v 1.7.14.2 2007/04/03 20:47:25 stefanf Exp $");
 
 /*
  * tty.c: tty interface stuff

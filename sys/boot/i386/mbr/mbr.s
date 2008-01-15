@@ -13,7 +13,7 @@
 # purpose.
 #
 
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/i386/mbr/mbr.s,v 1.7 2004/08/28 08:39:35 yar Exp $
 
 # A 512 byte MBR boot manager that simply boots the active partition.
 

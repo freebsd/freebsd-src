@@ -80,7 +80,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/net/if_bridge.c,v 1.11.2.53.2.1 2007/12/21 05:30:47 thompsa Exp $");
 
 #include "opt_inet.h"
 #include "opt_inet6.h"

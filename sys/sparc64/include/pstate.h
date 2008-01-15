@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/include/pstate.h,v 1.7 2001/12/29 07:01:34 jake Exp $
  */
 
 #ifndef	_MACHINE_PSTATE_H_

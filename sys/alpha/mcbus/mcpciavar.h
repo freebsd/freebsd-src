@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/mcbus/mcpciavar.h,v 1.4 2005/01/05 20:05:51 imp Exp $ */
 
 /*-
  * Copyright (c) 1998, 2000 by Matthew Jacob

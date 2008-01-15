@@ -1,5 +1,5 @@
 # $Id: Makefile,v 1.2 2003/04/27 00:22:11 max Exp $
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/netgraph/bluetooth/Makefile,v 1.2 2003/05/10 21:44:37 julian Exp $
 
 SUBDIR=	\
 	bluetooth \

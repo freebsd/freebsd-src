@@ -1,4 +1,4 @@
-#$FreeBSD$
+#$FreeBSD: src/sys/arm/at91/std.kb920x,v 1.2.2.2.4.1 2007/12/02 14:21:27 cognet Exp $
 include "../at91/std.at91"
 files	"../at91/files.kb920x"
 

@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/compat/ndis/usbd_var.h,v 1.1 2005/02/24 21:49:14 wpaul Exp $
  */
 
 #ifndef _USBD_VAR_H_

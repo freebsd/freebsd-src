@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/Makefile,v 1.33.2.3 2006/11/17 00:32:53 obrien Exp $
 
 .if ${MACHINE_ARCH} == "arm"
 NO_BOOT=

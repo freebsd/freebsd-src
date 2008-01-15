@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sbin/ggate/shared/ggate.h,v 1.3.2.1 2006/12/18 11:25:02 pjd Exp $
  */
 
 #ifndef _GGATE_H_

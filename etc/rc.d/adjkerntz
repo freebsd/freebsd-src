@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/adjkerntz,v 1.5.2.1 2007/05/24 16:14:37 des Exp $
 #
 
 # PROVIDE: adjkerntz

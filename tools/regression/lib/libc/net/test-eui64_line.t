@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/lib/libc/net/test-eui64_line.t,v 1.1 2004/11/11 19:47:52 nik Exp $
 
 cd `dirname $0`
 

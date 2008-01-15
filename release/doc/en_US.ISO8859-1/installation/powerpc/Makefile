@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/release/doc/en_US.ISO8859-1/installation/powerpc/Makefile,v 1.1.2.1 2007/01/07 18:37:58 marcel Exp $
 
 RELN_ROOT?= ${.CURDIR}/../../..
 

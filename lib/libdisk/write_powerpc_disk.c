@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libdisk/write_powerpc_disk.c,v 1.1 2004/04/21 23:21:13 grehan Exp $");
 
 #include <stdio.h>
 #include <stdlib.h>

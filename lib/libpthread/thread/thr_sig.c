@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libpthread/thread/thr_sig.c,v 1.83.2.2 2006/06/23 10:51:35 maxim Exp $
  */
 #include <sys/param.h>
 #include <sys/types.h>

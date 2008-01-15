@@ -26,7 +26,7 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 
 
-$FreeBSD$
+$FreeBSD: src/sys/dev/cxgb/cxgb_adapter.h,v 1.2.2.8.2.1 2007/12/05 23:46:44 kmacy Exp $
 
 ***************************************************************************/
 

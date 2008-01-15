@@ -26,7 +26,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGES.
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/tools/ath/athstats/athstats.h,v 1.1.2.1 2006/09/02 17:18:34 sam Exp $
  */
 
 #ifndef _ATHSTATS_H_

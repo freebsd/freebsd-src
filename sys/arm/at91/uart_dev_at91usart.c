@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/arm/at91/uart_dev_at91usart.c,v 1.6.2.6 2006/07/25 23:17:46 cognet Exp $");
 
 #include "opt_comconsole.h"
 

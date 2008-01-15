@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/net/sockatmark.c,v 1.1 2002/12/13 22:22:55 fenner Exp $
  */
 #include <sys/ioctl.h>
 

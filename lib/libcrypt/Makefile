@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/lib/libcrypt/Makefile,v 1.35.2.1 2005/07/22 17:29:04 kensmith Exp $
 #
 
 SHLIB_MAJOR=	3

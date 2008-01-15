@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/sockets/socketpair/Makefile,v 1.3 2004/12/21 08:47:24 ru Exp $
 #
 
 PROG=	socketpair

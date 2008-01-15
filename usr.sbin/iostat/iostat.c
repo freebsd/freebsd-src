@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/iostat/iostat.c,v 1.28.12.4 2007/08/17 19:09:00 maxim Exp $
  */
 /*
  * Parts of this program are derived from the original FreeBSD iostat

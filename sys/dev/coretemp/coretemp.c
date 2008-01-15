@@ -23,7 +23,7 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/coretemp/coretemp.c,v 1.2.2.1 2007/09/28 08:54:40 des Exp $
  *
  */
 
@@ -33,7 +33,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/coretemp/coretemp.c,v 1.2.2.1 2007/09/28 08:54:40 des Exp $");
 
 #include <sys/param.h>
 #include <sys/bus.h>

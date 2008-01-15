@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/hptmv/entry.c,v 1.8.2.2 2007/01/11 16:31:47 jhb Exp $
  */
  
 #include <sys/param.h>

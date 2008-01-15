@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/if_lagg/Makefile,v 1.1.2.1 2007/05/17 01:45:15 thompsa Exp $
 
 .PATH:	${.CURDIR}/../../net
 KMOD=	if_lagg

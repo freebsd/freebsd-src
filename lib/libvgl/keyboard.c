@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libvgl/keyboard.c,v 1.7 2002/06/02 20:05:39 schweikh Exp $");
 
 #include <stdio.h>
 #include <sys/types.h>

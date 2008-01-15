@@ -1,6 +1,6 @@
 /*
  * file: sbcard.h
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sound/isa/sb.h,v 1.15 2004/05/13 11:32:54 truckman Exp $
  */
 
 #ifndef SB_H

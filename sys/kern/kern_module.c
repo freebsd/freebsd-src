@@ -27,7 +27,7 @@
 #include "opt_compat.h"
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/kern_module.c,v 1.48.2.1 2006/06/29 03:27:04 maxim Exp $");
 
 #include <sys/param.h>
 #include <sys/kernel.h>

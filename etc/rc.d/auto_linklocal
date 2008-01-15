@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/auto_linklocal,v 1.1.2.5 2006/12/29 16:01:12 hrs Exp $
 #
 
 # PROVIDE: auto_linklocal

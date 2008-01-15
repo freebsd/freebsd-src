@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/nmdm/Makefile,v 1.2.12.1 2006/02/10 00:38:05 yar Exp $
 
 .PATH: ${.CURDIR}/../../dev/nmdm
 

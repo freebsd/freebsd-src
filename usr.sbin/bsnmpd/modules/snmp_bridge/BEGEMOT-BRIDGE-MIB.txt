@@ -23,7 +23,7 @@
 -- OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 -- SUCH DAMAGE.
 --
--- $FreeBSD$
+-- $FreeBSD: src/usr.sbin/bsnmpd/modules/snmp_bridge/BEGEMOT-BRIDGE-MIB.txt,v 1.2.2.2 2007/08/23 08:19:09 syrinx Exp $
 --
 
 BEGEMOT-BRIDGE-MIB DEFINITIONS ::= BEGIN

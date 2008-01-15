@@ -1,4 +1,4 @@
- $FreeBSD$
+ $FreeBSD: src/sys/compat/freebsd32/syscalls.master,v 1.50.2.12 2007/06/18 22:44:58 jhb Exp $
 ;	from: @(#)syscalls.master	8.2 (Berkeley) 1/13/94
 ;	from: src/sys/kern/syscalls.master 1.107
 ;

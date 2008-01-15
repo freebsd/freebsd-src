@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/setfmac/setfmac.c,v 1.8 2005/01/27 14:44:39 delphij Exp $
  */
 
 #include <sys/types.h>

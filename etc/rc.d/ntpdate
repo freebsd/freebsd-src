@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/ntpdate,v 1.13.2.2 2006/08/02 18:44:12 flz Exp $
 #
 
 # PROVIDE: ntpdate

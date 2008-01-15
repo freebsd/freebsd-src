@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/acpi/acpi_toshiba/Makefile,v 1.4 2004/11/15 05:54:14 imp Exp $
 
 .PATH:	${.CURDIR}/../../../dev/acpi_support
 

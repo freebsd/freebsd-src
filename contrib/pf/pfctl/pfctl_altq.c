@@ -20,7 +20,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/contrib/pf/pfctl/pfctl_altq.c,v 1.7.2.1 2006/12/03 18:32:51 mlaier Exp $");
 
 #include <sys/param.h>
 #include <sys/ioctl.h>

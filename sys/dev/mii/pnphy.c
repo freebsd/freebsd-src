@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/mii/pnphy.c,v 1.18.2.2 2007/02/11 16:01:37 marius Exp $");
 
 /*
  * Pseudo-driver for media selection on the Lite-On PNIC 82c168

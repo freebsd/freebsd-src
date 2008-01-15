@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 # $NetBSD: root,v 1.2 2000/05/13 08:45:09 lukem Exp $
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/root,v 1.10.2.4 2007/10/25 18:02:10 mtm Exp $
 #
 
 # PROVIDE: root

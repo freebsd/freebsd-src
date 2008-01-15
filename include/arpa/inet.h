@@ -56,7 +56,7 @@
 /*
  *	@(#)inet.h	8.1 (Berkeley) 6/2/93
  *	$Id: inet.h,v 1.1.206.1 2004/03/09 08:33:30 marka Exp $
- * $FreeBSD$
+ * $FreeBSD: src/include/arpa/inet.h,v 1.25.14.1 2006/07/17 10:09:55 ume Exp $
  */
 
 #ifndef _ARPA_INET_H_

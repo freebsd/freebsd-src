@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/ed/if_ed.c,v 1.254.2.5 2007/05/12 06:10:10 nyan Exp $");
 
 /*
  * Device driver for National Semiconductor DS8390/WD83C690 based ethernet

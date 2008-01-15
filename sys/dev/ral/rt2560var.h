@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/dev/ral/rt2560var.h,v 1.2.2.1 2006/12/23 07:14:42 fjoe Exp $	*/
 
 /*-
  * Copyright (c) 2005, 2006

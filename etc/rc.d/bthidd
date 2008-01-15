@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/bthidd,v 1.1.2.1 2006/10/09 21:00:17 emax Exp $
 #
 
 # PROVIDE: bthidd

@@ -1,6 +1,6 @@
 # Common defines for all of /sys/boot/i386/
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/i386/Makefile.inc,v 1.10.2.1 2006/10/25 15:03:29 jhb Exp $
 
 BINDIR?=	/boot
 

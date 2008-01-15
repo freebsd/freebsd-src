@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/lib/Makefile,v 1.40 2004/08/14 03:23:24 kan Exp $
 
 SUBDIR= csu libgcc libgcov libdialog libregex libreadline
 

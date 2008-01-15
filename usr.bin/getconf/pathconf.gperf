@@ -2,7 +2,7 @@
 /*
  * Copyright is disclaimed as to the contents of this file.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/getconf/pathconf.gperf,v 1.4 2003/08/22 17:32:07 markm Exp $
  */
 
 #include <sys/types.h>

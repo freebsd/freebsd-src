@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 # $NetBSD: fsck,v 1.2 2001/06/18 06:42:35 lukem Exp $
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/fsck,v 1.10.2.1 2007/10/25 14:04:18 mtm Exp $
 #
 
 # PROVIDE: fsck

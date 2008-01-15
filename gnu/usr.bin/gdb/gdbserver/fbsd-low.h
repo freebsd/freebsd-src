@@ -19,7 +19,7 @@
    Boston, MA 02111-1307, USA.  */
 
 /*
- * $FreeBSD$
+ * $FreeBSD: src/gnu/usr.bin/gdb/gdbserver/fbsd-low.h,v 1.2.6.1 2007/12/04 18:02:47 obrien Exp $
  */
 
 typedef void (*regset_fill_func) (void *);

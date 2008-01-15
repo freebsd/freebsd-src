@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/contrib/ipfilter/iplang/iplang_l.l,v 1.2.2.1 2006/08/24 07:37:03 guido Exp $	*/
 
 %{
 /*

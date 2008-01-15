@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/mac.h,v 1.67.2.4 2006/09/19 15:45:22 csjp Exp $
  */
 /*
  * Userland/kernel interface for Mandatory Access Control.

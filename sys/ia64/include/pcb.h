@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/ia64/include/pcb.h,v 1.16 2004/08/16 19:05:08 marcel Exp $
  */
 
 #ifndef _MACHINE_PCB_H_

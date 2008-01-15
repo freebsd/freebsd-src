@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/contrib/ipfilter/lib/optprintv6.c,v 1.2.2.2 2007/11/18 11:03:21 darrenr Exp $	*/
 
 /*
  * Copyright (C) 2003 by Darren Reed.

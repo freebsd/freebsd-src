@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/security/mac_partition/mac_partition.c,v 1.10.8.1 2005/09/26 14:36:53 phk Exp $
  */
 
 /*

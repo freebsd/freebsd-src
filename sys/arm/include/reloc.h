@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)reloc.h	8.1 (Berkeley) 6/10/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/arm/include/reloc.h,v 1.1 2004/05/14 11:46:44 cognet Exp $
  */
 
 #ifndef _MACHINE_RELOC_H_

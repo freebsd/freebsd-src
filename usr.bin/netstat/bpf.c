@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/netstat/bpf.c,v 1.5.2.4 2007/10/04 18:27:45 obrien Exp $
  */
 #include <sys/types.h>
 #include <sys/protosw.h>

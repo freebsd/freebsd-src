@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/boot/i386/libi386/bioscd.c,v 1.8.2.1 2007/11/01 18:20:36 jhb Exp $");
 
 /*
  * BIOS CD device handling for CD's that have been booted off of via no

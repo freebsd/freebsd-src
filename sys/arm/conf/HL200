@@ -16,7 +16,7 @@
 # If you are in doubt as to the purpose or necessity of a line, check first 
 # in NOTES.
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/arm/conf/HL200,v 1.2.6.1 2007/12/02 14:21:27 cognet Exp $
 
 machine		arm
 ident		HL200

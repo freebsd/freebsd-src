@@ -32,7 +32,7 @@ POSSIBILITY OF SUCH DAMAGE.
 
 ***************************************************************************/
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/cxgbtool/cxgbtool.c,v 1.1.2.2 2007/03/15 04:05:33 kmacy Exp $");
 
 #include <stdlib.h>
 #include <stdio.h>

@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/lock_profile.h,v 1.14.2.1 2007/09/04 22:40:40 alfred Exp $
  */
 
 #ifndef	_LOCK_PROFILE_H_

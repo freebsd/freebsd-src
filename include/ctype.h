@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ctype.h	8.4 (Berkeley) 1/21/94
- *      $FreeBSD$
+ *      $FreeBSD: src/include/ctype.h,v 1.28.8.2 2007/11/21 01:31:48 rafan Exp $
  */
 
 #ifndef _CTYPE_H_

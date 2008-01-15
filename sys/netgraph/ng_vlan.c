@@ -25,7 +25,7 @@
  *
  * Author: Ruslan Ermilov <ru@FreeBSD.org>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netgraph/ng_vlan.c,v 1.3.2.1 2007/02/01 14:32:37 ru Exp $
  */
 
 #include <sys/param.h>

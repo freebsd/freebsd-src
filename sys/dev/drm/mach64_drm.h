@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/drm/mach64_drm.h,v 1.1.2.2 2007/02/03 20:01:54 flz Exp $");
 
 #ifndef __MACH64_DRM_H__
 #define __MACH64_DRM_H__

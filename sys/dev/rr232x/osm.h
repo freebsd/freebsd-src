@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/rr232x/osm.h,v 1.1.2.1 2006/04/30 17:11:35 scottl Exp $
  */
 #ifndef _HPT_OSM_H_
 #define _HPT_OSM_H_

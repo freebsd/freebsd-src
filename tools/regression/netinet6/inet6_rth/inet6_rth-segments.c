@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/tools/regression/netinet6/inet6_rth/inet6_rth-segments.c,v 1.1.2.1 2007/05/22 22:17:44 mtm Exp $");
 
 #include <sys/types.h>
 #include <sys/socket.h>
