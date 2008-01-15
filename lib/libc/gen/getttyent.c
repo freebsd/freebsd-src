@@ -97,7 +97,7 @@ getttyent()
 			return (NULL);
 		}
 		/* extend buffer if line was too big, and retry */
-		while (!index(p, '\n')) {
+		while (!index(p, '\n') && !feof(tf)) {
 			i = strlen(p);
 			lbsize += MALLOCCHUNK;
 			if ((p = realloc(line, lbsize)) == NULL) {
