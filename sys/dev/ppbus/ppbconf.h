@@ -248,6 +248,9 @@ struct ppb_data {
 				 * NIBBLE, PS2, EPP or ECP */
 
 	void *ppb_owner;	/* device which owns the bus */
+
+	struct resource *irq_res;
+	void *intr_cookie;
 };
 
 #ifdef _KERNEL
