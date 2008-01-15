@@ -275,6 +275,7 @@ chkquota(fsname, mntpt, qnp)
 	union dinode *dp;
 	int cg, i, mode, errs = 0;
 	ino_t ino, inosused, userino = 0, groupino = 0;
+	dev_t dev, userdev = 0, groupdev = 0;
 	char *cp;
 	struct stat sb;
 
@@ -282,6 +283,11 @@ chkquota(fsname, mntpt, qnp)
 		warn("%s", fsname);
 		return (1);
 	}
+	if ((stat(mntpt, &sb)) < 0) {
+		warn("%s", mntpt);
+		return (1);
+	}
+	dev = sb.st_dev;
 	if (vflag) {
 		(void)printf("*** Checking ");
 		if (qnp->flags & HASUSR)
@@ -292,12 +298,16 @@ chkquota(fsname, mntpt, qnp)
 		(void)printf(" quotas for %s (%s)\n", fsname, mntpt);
 	}
 	if (qnp->flags & HASUSR) {
-		if (stat(qnp->usrqfname, &sb) == 0)
+		if (stat(qnp->usrqfname, &sb) == 0) {
 			userino = sb.st_ino;
+			userdev = sb.st_dev;
+		}
 	}
 	if (qnp->flags & HASGRP) {
-		if (stat(qnp->grpqfname, &sb) == 0)
+		if (stat(qnp->grpqfname, &sb) == 0) {
 			groupino = sb.st_ino;
+			groupdev = sb.st_dev;
+		}
 	}
 	sync();
 	dev_bsize = 1;
@@ -379,7 +389,8 @@ chkquota(fsname, mntpt, qnp)
 			if (DIP(dp, di_flags) & SF_SNAPSHOT)
 				continue;
 #endif
-			if (ino == userino || ino == groupino)
+			if ((ino == userino && dev == userdev) ||
+			    (ino == groupino && dev == groupdev))
 				continue;
 			if (qnp->flags & HASGRP) {
 				fup = addid((u_long)DIP(dp, di_gid), GRPQUOTA,
