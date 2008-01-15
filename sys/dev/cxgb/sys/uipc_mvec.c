@@ -75,6 +75,7 @@ extern uint32_t mb_free_vec_free;
 
 uma_zone_t zone_miovec;
 static int mi_inited = 0;
+int mbufs_outstanding = 0;
 
 void
 mi_init(void)
@@ -198,12 +199,18 @@ busdma_map_sg_collapse(struct mbuf **m, bus_dma_segment_t *segs, int *nsegs)
 	struct mbuf *marray[TX_MAX_SEGS];
 	int i, type, seg_count, defragged = 0, err = 0;
 	struct mbuf_vec *mv;
+	int skipped, freed, outstanding;
 
+	
+	
 	KASSERT(n->m_pkthdr.len, ("packet has zero header len"));
 		
 	if (n->m_flags & M_PKTHDR && !SLIST_EMPTY(&n->m_pkthdr.tags)) 
 		m_tag_delete_chain(n, NULL);
 
+	if (cxgb_debug)
+		printf("cxgb_sge PIO_LEN=%ld\n", PIO_LEN);
+	
 	if (n->m_pkthdr.len <= PIO_LEN)
 		return (0);
 retry:
@@ -211,16 +218,21 @@ retry:
 	if (n->m_next == NULL) {
 		busdma_map_mbuf_fast(n, segs);
 		*nsegs = 1;
+		if ((n->m_flags & M_NOFREE) == 0)
+			mbufs_outstanding++;
 		return (0);
 	}
+	skipped = freed = outstanding = 0;
 	while (n && seg_count < TX_MAX_SEGS) {
 		marray[seg_count] = n;
-
+		
 		/*
 		 * firmware doesn't like empty segments
 		 */
-		if (__predict_true(n->m_len != 0)) 
+		if (__predict_true(n->m_len != 0))  
 			seg_count++;
+		else
+			skipped++;
 
 		n = n->m_next;
 	}
@@ -265,24 +277,35 @@ retry:
 	}
 	n = *m;
 	while (n) {
-		if (n->m_ext.ext_type == EXT_PACKET)
+		if (n->m_len == 0)
+			/* do nothing - free if mbuf or cluster */; 
+		else if (((n->m_flags & M_EXT) == 0) ||
+		    ((n->m_flags & M_EXT) && (n->m_ext.ext_type == EXT_PACKET)) ||
+		    (n->m_flags & M_NOFREE))
 			goto skip; 
-		else if (n->m_len == 0)
-			/* do nothing */;
 		else if ((n->m_flags & (M_EXT|M_NOFREE)) == M_EXT)
 			n->m_flags &= ~M_EXT; 
-		else
-			goto skip;
 		mhead = n->m_next;
 		m_free(n);
 		n = mhead;
+		freed++;
 		continue;
 	skip:
+		/*
+		 * is an immediate mbuf or is from the packet zone
+		 */
+		outstanding++;
 		n = n->m_next;
 	}
 	*nsegs = seg_count;
 	*m = m0;
 	DPRINTF("pktlen=%d m0=%p *m=%p m=%p\n", m0->m_pkthdr.len, m0, *m, m);
+	mbufs_outstanding += outstanding;
+	KASSERT(outstanding + freed == skipped + seg_count,
+	    ("outstanding=%d freed=%d   skipped=%d seg_count=%d",
+		outstanding, freed, skipped, seg_count));
+	
+
 	return (0);
 err_out:
 	m_freem(*m);
@@ -325,6 +348,7 @@ busdma_map_sg_vec(struct mbuf **m, struct mbuf **mret, bus_dma_segment_t *segs, 
 		(*mp)->m_next = (*mp)->m_nextpkt = NULL;
 		if (((*mp)->m_flags & (M_EXT|M_NOFREE)) == M_EXT) {
 			(*mp)->m_flags &= ~M_EXT;
+			mbufs_outstanding--;
 			m_free(*mp);
 		}
 	}
@@ -336,29 +360,17 @@ busdma_map_sg_vec(struct mbuf **m, struct mbuf **mret, bus_dma_segment_t *segs, 
 void
 mb_free_ext_fast(struct mbuf_iovec *mi, int type, int idx)
 {
-	u_int cnt;
 	int dofree;
 	caddr_t cl;
 	
 	/* Account for lazy ref count assign. */
 	dofree = (mi->mi_refcnt == NULL);
-
-	/*
-	 * This is tricky.  We need to make sure to decrement the
-	 * refcount in a safe way but to also clean up if we're the
-	 * last reference.  This method seems to do it without race.
-	 */
-	while (dofree == 0) {
-		cnt = *(mi->mi_refcnt);
-		if (cnt == 1) {
-			dofree = 1;
-			break;
-		}
-		if (atomic_cmpset_int(mi->mi_refcnt, cnt, cnt - 1)) {
-			if (cnt == 1)
-				dofree = 1;
-			break;
-		}
+	if (dofree == 0) {
+		    KASSERT(mi->mi_type != EXT_MBUF,
+			("refcnt must be null for mbuf"));
+		    if (*(mi->mi_refcnt) == 1 ||
+		    atomic_fetchadd_int(mi->mi_refcnt, -1) == 1)
+			    dofree = 1;
 	}
 	if (dofree == 0)
 		return;
@@ -366,6 +378,8 @@ mb_free_ext_fast(struct mbuf_iovec *mi, int type, int idx)
 	cl = mi->mi_base;
 	switch (type) {
 	case EXT_MBUF:
+		KASSERT((mi->mi_flags & M_NOFREE) == 0, ("no free set on mbuf"));
+		mbufs_outstanding--;
 		m_free_fast((struct mbuf *)cl);
 		break;
 	case EXT_CLUSTER:
@@ -395,6 +409,7 @@ mb_free_ext_fast(struct mbuf_iovec *mi, int type, int idx)
 		    mi->mi_ext.ext_args);
 		break;
 	case EXT_PACKET:
+		mbufs_outstanding--;
 		if (*(mi->mi_refcnt) == 0)
 			*(mi->mi_refcnt) = 1;
 		uma_zfree(zone_pack, mi->mi_mbuf);

@@ -422,6 +422,7 @@ cxgb_pcpu_start_(struct sge_qset *qs, struct mbuf *immpkt, int tx_flush)
 	txq = &qs->txq[TXQ_ETH];
 	
 	mtx_assert(&txq->lock, MA_OWNED);
+	KASSERT(qs->idx == 0, ("invalid qs %d", qs->idx));
 	
  retry:	
 	if (!pi->link_config.link_ok)
@@ -667,13 +668,14 @@ cxgb_pcpu_startup_threads(struct adapter *sc)
 #else
 	nqsets = 1;
 #endif	
-		for (j = 0; j < pi->nqsets; ++j) {
+		for (j = 0; j < nqsets; ++j) {
 			struct sge_qset *qs;
 
 			qs = &sc->sge.qs[pi->first_qset + j];
 			qs->port = pi;
 			qs->qs_cpuid = ((pi->first_qset + j) % mp_ncpus);
-			device_printf(sc->dev, "starting thread for %d\n", qs->qs_cpuid);
+			device_printf(sc->dev, "starting thread for %d\n",
+			    qs->qs_cpuid);
 
 			kproc_create(cxgb_pcpu_start_proc, qs, &p,
 			    RFNOWAIT, 0, "cxgbsp");
@@ -686,11 +688,18 @@ void
 cxgb_pcpu_shutdown_threads(struct adapter *sc)
 {
 	int i, j;
+	int nqsets;
+
+#ifdef IFNET_MULTIQUEUE
+	nqsets = pi->nqsets;
+#else
+	nqsets = 1;
+#endif	
 	
 	for (i = 0; i < sc->params.nports; i++) {
 		struct port_info *pi = &sc->port[i];
 		int first = pi->first_qset;
-		for (j = 0; j < pi->nqsets; j++) {
+		for (j = 0; j < nqsets; j++) {
 			struct sge_qset *qs = &sc->sge.qs[first + j];
 
 			qs->qs_flags |= QS_EXITING;
