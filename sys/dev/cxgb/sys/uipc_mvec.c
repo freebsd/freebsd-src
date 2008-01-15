@@ -209,7 +209,7 @@ busdma_map_sg_collapse(struct mbuf **m, bus_dma_segment_t *segs, int *nsegs)
 		m_tag_delete_chain(n, NULL);
 
 	if (cxgb_debug)
-		printf("cxgb_sge PIO_LEN=%ld\n", PIO_LEN);
+		printf("cxgb_sge PIO_LEN=%zd\n", PIO_LEN);
 	
 	if (n->m_pkthdr.len <= PIO_LEN)
 		return (0);
