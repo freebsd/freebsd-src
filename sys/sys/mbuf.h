@@ -634,7 +634,7 @@ m_last(struct mbuf *m)
 
 /* Check if the supplied mbuf has a packet header, or else panic. */
 #define	M_ASSERTPKTHDR(m)						\
-	KASSERT(m != NULL && m->m_flags & M_PKTHDR,			\
+	KASSERT((m) != NULL && (m)->m_flags & M_PKTHDR,			\
 	    ("%s: no mbuf packet header!", __func__))
 
 /*
