@@ -162,7 +162,7 @@ _mcl_collapse_mbuf(struct mbuf_iovec *mi, struct mbuf *m)
 	}
 	KASSERT(mi->mi_len != 0, ("miov has len 0"));
 	KASSERT(mi->mi_type > 0, ("mi_type is invalid"));
-
+	KASSERT(mi->mi_base, ("mi_base is invalid"));
 	return (n);
 }
 
@@ -204,40 +204,15 @@ busdma_map_sg_collapse(struct mbuf **m, bus_dma_segment_t *segs, int *nsegs)
 	if (n->m_flags & M_PKTHDR && !SLIST_EMPTY(&n->m_pkthdr.tags)) 
 		m_tag_delete_chain(n, NULL);
 
+	if (n->m_pkthdr.len <= PIO_LEN)
+		return (0);
 retry:
 	seg_count = 0;
 	if (n->m_next == NULL) {
 		busdma_map_mbuf_fast(n, segs);
 		*nsegs = 1;
-
 		return (0);
 	}
-
-	if (n->m_pkthdr.len <= 104) {
-		caddr_t data;
-
-		if ((m0 = m_gethdr(M_DONTWAIT, MT_DATA)) == NULL) 
-			return (ENOMEM);
-
-		data = m0->m_data;
-		memcpy(m0, n, sizeof(struct m_hdr) + sizeof(struct pkthdr));
-		m0->m_data = data;
-		m0->m_len = n->m_pkthdr.len;
-		m0->m_flags &= ~M_EXT;
-		m0->m_next = NULL;
-		m0->m_type = n->m_type;
-		n->m_flags &= ~M_PKTHDR;
-		while (n) {
-			memcpy(data, n->m_data, n->m_len);
-			data += n->m_len;
-			n = n->m_next;
-		}
-		m_freem(*m);
-		n = m0;
-		*m = n;
-		goto retry;
-	}
-	
 	while (n && seg_count < TX_MAX_SEGS) {
 		marray[seg_count] = n;
 
@@ -249,18 +224,6 @@ retry:
 
 		n = n->m_next;
 	}
-#if 0
-	/*
-	 * XXX needs more careful consideration
-	 */
-	if (__predict_false(seg_count == 1)) {
-		n = marray[0];
-		if (n != *m)
-			
-		/* XXX */
-		goto retry;
-	}
-#endif	
 	if (seg_count == 0) {
 		if (cxgb_debug)
 			printf("empty segment chain\n");
@@ -302,16 +265,20 @@ retry:
 	}
 	n = *m;
 	while (n) {
-		if (((n->m_flags & (M_EXT|M_NOFREE)) == M_EXT) &&
-		    (n->m_len > 0) && (n->m_ext.ext_type != EXT_PACKET) )
+		if (n->m_ext.ext_type == EXT_PACKET)
+			goto skip; 
+		else if (n->m_len == 0)
+			/* do nothing */;
+		else if ((n->m_flags & (M_EXT|M_NOFREE)) == M_EXT)
 			n->m_flags &= ~M_EXT; 
-		else if ((n->m_len > 0) || (n->m_ext.ext_type == EXT_PACKET)) {
-			n = n->m_next;
-			continue;
-		}
+		else
+			goto skip;
 		mhead = n->m_next;
 		m_free(n);
 		n = mhead;
+		continue;
+	skip:
+		n = n->m_next;
 	}
 	*nsegs = seg_count;
 	*m = m0;
