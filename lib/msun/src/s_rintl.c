@@ -32,8 +32,10 @@ __FBSDID("$FreeBSD$");
 
 #include "fpmath.h"
 
-static const long double
-shift[2]={
+#define	BIAS	(LDBL_MAX_EXP - 1)
+
+static const float
+shift[2] = {
 #if LDBL_MANT_DIG == 64
 	0x1.0p63, -0x1.0p63
 #elif LDBL_MANT_DIG == 113
@@ -51,27 +53,30 @@ rintl(long double x)
 
 	u.e = x;
 
-	if (u.bits.exp >= LDBL_MANT_DIG + LDBL_MAX_EXP - 2) {
+	if (u.bits.exp >= BIAS + LDBL_MANT_DIG - 1) {
 		/*
 		 * The biased exponent is greater than the number of digits
 		 * in the mantissa, so x is inf, NaN, or an integer.
 		 */
-		if (u.bits.exp == 2 * LDBL_MAX_EXP - 1)
-			return (x + x);	/* inf or NaN */
-		else
-			return (x);
+		return (x);
 	}
+	sign = u.bits.sign;
 
 	/*
 	 * The following code assumes that intermediate results are
 	 * evaluated in long double precision. If they are evaluated in
-	 * greater precision, double rounding will occur, and if they are
+	 * greater precision, double rounding may occur, and if they are
 	 * evaluated in less precision (as on i386), results will be
 	 * wildly incorrect.
 	 */
-	sign = u.bits.sign;
-	u.e = shift[sign] + x;
-	u.e -= shift[sign];
-	u.bits.sign = sign;
-	return (u.e);
+	x += shift[sign];
+	x -= shift[sign];
+
+	/*
+	 * If the result is +-0, then it must have the same sign as x, but
+	 * the above calculation doesn't always give this.  Fix up the sign.
+	 */
+	if (x == 0.0L)
+		return (sign ? -0.0L : 0.0L);
+	return (x);
 }
