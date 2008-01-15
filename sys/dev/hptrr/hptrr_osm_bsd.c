@@ -1031,7 +1031,8 @@ static void hpt_final_init(void *dummy)
 	}
 
 	if (!i) {
-		os_printk("no controller detected.");
+		if (bootverbose)
+			os_printk("no controller detected.");
 		return;
 	}
 
@@ -1218,7 +1219,8 @@ static void override_kernel_driver(void)
 
 static void hpt_init(void *dummy)
 {
-	os_printk("%s %s", driver_name_long, driver_ver);
+	if (bootverbose)
+		os_printk("%s %s", driver_name_long, driver_ver);
 
 	override_kernel_driver();
 	init_config();
