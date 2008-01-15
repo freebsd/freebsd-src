@@ -225,7 +225,6 @@ buf_ring_dequeue(struct buf_ring *mr)
 	
 	ring = (caddr_t *)mr->br_ring;
 	mask = mr->br_size - 1;
-	mtx_lock(&mr->br_lock);	/* XXX temporary ? */
 	cons = mr->br_cons;
 	mb();
 	prod = mr->br_prod;
@@ -236,7 +235,6 @@ buf_ring_dequeue(struct buf_ring *mr)
 		mr->br_cons = (cons + 1) & mask;
 		mb();
 	}
-	mtx_unlock(&mr->br_lock);	/* XXX temporary ? */
 	return (m);
 }
 
