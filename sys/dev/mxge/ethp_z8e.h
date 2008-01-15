@@ -29,10 +29,10 @@ $FreeBSD$
 ***************************************************************************/
 
 /* Using zlib-1.1.3.  gendat version $Name:  $ */
-const unsigned int ethp_z8e_uncompressed_length = 615208;
+static unsigned int ethp_z8e_uncompressed_length = 615208;
 #define U (unsigned char)
-const unsigned int ethp_z8e_length = 52908;
-const unsigned char ethp_z8e[52908] = {
+static unsigned int ethp_z8e_length = 52908;
+static unsigned char ethp_z8e[52908] = {
 U 0x78,U 0xDA,U 0xEC,U 0xBD,
 U 0x0F,U 0x74,U 0x54,U 0xD5,
 U 0xB5,U 0x3F,U 0xBE,U 0x67,
