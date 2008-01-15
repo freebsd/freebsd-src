@@ -82,6 +82,24 @@ hpet_get_timecount(struct timecounter *tc)
 	return (bus_read_4(sc->mem_res, HPET_OFFSET_VALUE));
 }
 
+static void
+hpet_enable(struct acpi_hpet_softc *sc)
+{
+	uint32_t val;
+	
+	val = bus_read_4(sc->mem_res, HPET_OFFSET_ENABLE);
+	bus_write_4(sc->mem_res, HPET_OFFSET_ENABLE, val | 1);
+}
+
+static void
+hpet_disable(struct acpi_hpet_softc *sc)
+{
+	uint32_t val;
+	
+	val = bus_read_4(sc->mem_res, HPET_OFFSET_ENABLE);
+	bus_write_4(sc->mem_res, HPET_OFFSET_ENABLE, val & ~1);
+}
+
 /* Discover the HPET via the ACPI table of the same name. */
 static void 
 acpi_hpet_identify(driver_t *driver, device_t parent)
@@ -166,10 +184,17 @@ acpi_hpet_attach(device_t dev)
 	}
 
 	/* Be sure timer is enabled. */
-	bus_write_4(sc->mem_res, HPET_OFFSET_ENABLE, 1);
+	hpet_enable(sc);
 
 	/* Read basic statistics about the timer. */
 	val = bus_read_4(sc->mem_res, HPET_OFFSET_PERIOD);
+	if (val == 0) {
+		device_printf(dev, "invalid period\n");
+		hpet_disable(sc);
+		bus_free_resource(dev, SYS_RES_MEMORY, sc->mem_res);
+		return (ENXIO);
+	}
+
 	freq = (1000000000000000LL + val / 2) / val;
 	if (bootverbose) {
 		val = bus_read_4(sc->mem_res, HPET_OFFSET_INFO);
@@ -192,7 +217,7 @@ acpi_hpet_attach(device_t dev)
 	val2 = bus_read_4(sc->mem_res, HPET_OFFSET_VALUE);
 	if (val == val2) {
 		device_printf(dev, "HPET never increments, disabling\n");
-		bus_write_4(sc->mem_res, HPET_OFFSET_ENABLE, 0);
+		hpet_disable(sc);
 		bus_free_resource(dev, SYS_RES_MEMORY, sc->mem_res);
 		return (ENXIO);
 	}
@@ -214,13 +239,29 @@ acpi_hpet_detach(device_t dev)
 }
 
 static int
+acpi_hpet_suspend(device_t dev)
+{
+	struct acpi_hpet_softc *sc;
+
+	/*
+	 * Disable the timer during suspend.  The timer will not lose
+	 * its state in S1 or S2, but we are required to disable
+	 * it.
+	 */
+	sc = device_get_softc(dev);
+	hpet_disable(sc);
+
+	return (0);
+}
+
+static int
 acpi_hpet_resume(device_t dev)
 {
 	struct acpi_hpet_softc *sc;
 
 	/* Re-enable the timer after a resume to keep the clock advancing. */
 	sc = device_get_softc(dev);
-	bus_write_4(sc->mem_res, HPET_OFFSET_ENABLE, 1);
+	hpet_enable(sc);
 
 	return (0);
 }
@@ -260,6 +301,7 @@ static device_method_t acpi_hpet_methods[] = {
 	DEVMETHOD(device_probe, acpi_hpet_probe),
 	DEVMETHOD(device_attach, acpi_hpet_attach),
 	DEVMETHOD(device_detach, acpi_hpet_detach),
+	DEVMETHOD(device_suspend, acpi_hpet_suspend),
 	DEVMETHOD(device_resume, acpi_hpet_resume),
 
 	{0, 0}
