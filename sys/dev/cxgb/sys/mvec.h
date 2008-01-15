@@ -45,6 +45,7 @@ void cxgb_cache_refill(void);
 extern int cxgb_cached_allocations;
 extern int cxgb_cached;
 extern int cxgb_ext_freed;
+extern int mbufs_outstanding;
 
 #define mtomv(m)          ((struct mbuf_vec *)((m)->m_pktdat))
 #define M_IOVEC               0x100000 /* mbuf immediate data area is used for cluster ptrs */
@@ -162,7 +163,7 @@ m_explode(struct mbuf *m)
 static __inline void
 busdma_map_mbuf_fast(struct mbuf *m, bus_dma_segment_t *seg)
 {
-	seg->ds_addr = pmap_kextract((vm_offset_t)m->m_data);
+	seg->ds_addr = pmap_kextract(mtod(m, vm_offset_t));
 	seg->ds_len = m->m_len;
 }
 
@@ -229,11 +230,17 @@ m_free_iovec(struct mbuf *m, int type)
 static __inline void
 m_freem_iovec(struct mbuf_iovec *mi)
 {
-	struct mbuf *m;
+	struct mbuf *m = (struct mbuf *)mi->mi_base;
 
 	switch (mi->mi_type) {
 	case EXT_MBUF:
-		m_free_fast((struct mbuf *)mi->mi_base);
+#ifdef PIO_LEN		
+		KASSERT(m->m_pkthdr.len > PIO_LEN, ("freeing PIO buf"));
+#endif
+		KASSERT((mi->mi_flags & M_NOFREE) == 0, ("no free set on mbuf"));
+		KASSERT(m->m_next == NULL, ("freeing chain"));
+		mbufs_outstanding--;
+		m_free_fast(m);
 		break;
 	case EXT_IOVEC:
 	case EXT_CLIOVEC:

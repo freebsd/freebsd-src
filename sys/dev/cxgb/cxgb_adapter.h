@@ -298,8 +298,7 @@ struct sge_txq {
 	unsigned long   txq_frees;
 	struct mtx      lock;
 	struct sg_ent  txq_sgl[TX_MAX_SEGS / 2 + 1];
-	bus_dma_segment_t txq_segs[TX_MAX_SEGS];
-#define TXQ_NAME_LEN  32
+	#define TXQ_NAME_LEN  32
 	char            lockbuf[TXQ_NAME_LEN];
 };
      	

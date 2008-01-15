@@ -927,7 +927,17 @@ txq_prod(struct sge_txq *txq, unsigned int ndesc, struct txq_state *txqs)
 	txq->unacked &= 7;
 	txqs->pidx = txq->pidx;
 	txq->pidx += ndesc;
-	
+#ifdef INVARIANTS
+	if (((txqs->pidx > txq->cidx) &&
+		(txq->pidx < txqs->pidx) &&
+		(txq->pidx >= txq->cidx)) ||
+	    ((txqs->pidx < txq->cidx) &&
+		(txq->pidx >= txq-> cidx)) ||
+	    ((txqs->pidx < txq->cidx) &&
+		(txq->cidx < txqs->pidx)))
+		panic("txqs->pidx=%d txq->pidx=%d txq->cidx=%d",
+		    txqs->pidx, txq->pidx, txq->cidx);
+#endif
 	if (txq->pidx >= txq->size) {
 		txq->pidx -= txq->size;
 		txq->gen ^= 1;
@@ -1205,23 +1215,23 @@ t3_encap(struct sge_qset *qs, struct mbuf **m, int count)
 	struct work_request_hdr *wrp;
 	struct tx_sw_desc *txsd;
 	struct sg_ent *sgp, *sgl;
-	bus_dma_segment_t *segs;
 	uint32_t wr_hi, wr_lo, sgl_flits; 
+	bus_dma_segment_t segs[TX_MAX_SEGS];
 
 	struct tx_desc *txd;
 	struct mbuf_vec *mv;
 	struct mbuf_iovec *mi;
 		
 	DPRINTF("t3_encap cpu=%d ", curcpu);
+	KASSERT(qs->idx == 0, ("invalid qs %d", qs->idx));
 
 	mi = NULL;
 	pi = qs->port;
 	sc = pi->adapter;
 	txq = &qs->txq[TXQ_ETH];
-	txsd = &txq->sdesc[txq->pidx];
 	txd = &txq->desc[txq->pidx];
+	txsd = &txq->sdesc[txq->pidx];
 	sgl = txq->txq_sgl;
-	segs = txq->txq_segs;
 	m0 = *m;
 	
 	DPRINTF("t3_encap port_id=%d qsidx=%d ", pi->port_id, pi->first_qset);
@@ -1240,6 +1250,8 @@ t3_encap(struct sge_qset *qs, struct mbuf **m, int count)
 #endif
 	KASSERT(txsd->mi.mi_base == NULL, ("overwrting valid entry mi_base==%p",
 		txsd->mi.mi_base));
+	if (cxgb_debug)
+		printf("uipc_mvec PIO_LEN=%ld\n", PIO_LEN);
 
 	if (count > 1) {
 		panic("count > 1 not support in CVS\n");
@@ -1253,7 +1265,7 @@ t3_encap(struct sge_qset *qs, struct mbuf **m, int count)
 	} 
 	KASSERT(m0->m_pkthdr.len, ("empty packet nsegs=%d count=%d", nsegs, count));
 
-	if (m0->m_pkthdr.len > PIO_LEN) {
+	if (!(m0->m_pkthdr.len <= PIO_LEN)) {
 		mi_collapse_mbuf(&txsd->mi, m0);
 		mi = &txsd->mi;
 	}
@@ -1393,8 +1405,11 @@ t3_encap(struct sge_qset *qs, struct mbuf **m, int count)
 	write_wr_hdr_sgl(ndesc, txd, &txqs, txq, sgl, flits, sgl_flits, wr_hi, wr_lo);
 	check_ring_tx_db(pi->adapter, txq);
 
-	if ((m0->m_type == MT_DATA) && ((m0->m_flags & (M_EXT|M_NOFREE)) == M_EXT)) {
+	if ((m0->m_type == MT_DATA) &&
+	    ((m0->m_flags & (M_EXT|M_NOFREE)) == M_EXT) &&
+	    (m0->m_ext.ext_type != EXT_PACKET)) {
 		m0->m_flags &= ~M_EXT ;
+		mbufs_outstanding--;
 		m_free(m0);
 	}
 	
@@ -1797,6 +1812,7 @@ t3_free_tx_desc(struct sge_txq *q, int reclaimable)
 	cidx = q->cidx;
 	txsd = &q->sdesc[cidx];
 	DPRINTF("reclaiming %d WR\n", reclaimable);
+	mtx_assert(&q->lock, MA_OWNED);
 	while (reclaimable--) {
 		DPRINTF("cidx=%d d=%p\n", cidx, txsd);
 		if (txsd->mi.mi_base != NULL) {
@@ -2208,6 +2224,7 @@ t3_sge_alloc_qset(adapter_t *sc, u_int id, int nports, int irq_vec_idx,
 	}
 
 	init_qset_cntxt(q, id);
+	q->idx = id;
 	
 	if ((ret = alloc_ring(sc, p->fl_size, sizeof(struct rx_desc),
 		    sizeof(struct rx_sw_desc), &q->fl[0].phys_addr,
@@ -3203,7 +3220,11 @@ t3_add_attach_sysctls(adapter_t *sc)
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
 	    "ext_freed",
 	    CTLFLAG_RD, &cxgb_ext_freed,
-	    0, "#times a cluster was freed through ext_free"); 
+	    0, "#times a cluster was freed through ext_free");
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
+	    "mbufs_outstanding",
+	    CTLFLAG_RD, &mbufs_outstanding,
+	    0, "#mbufs in flight in the driver"); 	
 }
 
 
