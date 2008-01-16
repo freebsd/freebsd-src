@@ -102,8 +102,7 @@ opentcp(void)
 }
 
 void
-closetcp(w)
-	WINDOW *w;
+closetcp(WINDOW *w)
 {
 	if (w == NULL)
 		return;

@@ -51,9 +51,7 @@ static const char sccsid[] = "@(#)fetch.c	8.1 (Berkeley) 6/6/93";
 #include "extern.h"
 
 int
-kvm_ckread(a, b, l)
-	void *a, *b;
-	int l;
+kvm_ckread(void *a, void *b, int l)
 {
 	if (kvm_read(kd, (u_long)a, b, l) != l) {
 		if (verbose)
@@ -64,10 +62,7 @@ kvm_ckread(a, b, l)
 		return (1);
 }
 
-void getsysctl(name, ptr, len)
-	const char *name;
-	void *ptr;
-	size_t len;
+void getsysctl(const char *name, void *ptr, size_t len)
 {
 	size_t nlen = len;
 	if (sysctlbyname(name, ptr, &nlen, NULL, 0) != 0) {
@@ -103,9 +98,7 @@ void getsysctl(name, ptr, len)
 #define SD_MAXMIB  16
 
 char *
-sysctl_dynread(n, szp)
-	const char *n;
-	size_t *szp;
+sysctl_dynread(const char *n, size_t *szp)
 {
 	char   *rv = NULL;
 	int    mib[SD_MAXMIB];
