@@ -1,5 +1,5 @@
 # $FreeBSD$
 
-SUBDIR = lib libdiff cvs cvsbug doc
+SUBDIR = lib libdiff cvs contrib cvsbug doc
 
 .include <bsd.subdir.mk>

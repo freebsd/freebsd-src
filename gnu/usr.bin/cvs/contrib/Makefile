@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.POSIX:
+
 .include "../Makefile.inc"
 
 .PATH:	${CVSDIR}/contrib
