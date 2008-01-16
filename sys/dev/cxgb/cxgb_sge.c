@@ -1409,7 +1409,7 @@ t3_encap(struct sge_qset *qs, struct mbuf **m, int count)
 	    ((m0->m_flags & (M_EXT|M_NOFREE)) == M_EXT) &&
 	    (m0->m_ext.ext_type != EXT_PACKET)) {
 		m0->m_flags &= ~M_EXT ;
-		mbufs_outstanding--;
+		cxgb_mbufs_outstanding--;
 		m_free(m0);
 	}
 	
@@ -3223,8 +3223,12 @@ t3_add_attach_sysctls(adapter_t *sc)
 	    0, "#times a cluster was freed through ext_free");
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
 	    "mbufs_outstanding",
-	    CTLFLAG_RD, &mbufs_outstanding,
-	    0, "#mbufs in flight in the driver"); 	
+	    CTLFLAG_RD, &cxgb_mbufs_outstanding,
+	    0, "#mbufs in flight in the driver");
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
+	    "pack_outstanding",
+	    CTLFLAG_RD, &cxgb_pack_outstanding,
+	    0, "#packet in flight in the driver"); 	
 }
 
 
