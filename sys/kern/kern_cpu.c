@@ -606,6 +606,17 @@ cf_levels_method(device_t dev, struct cf_level *levels, int *count)
 	/* Finally, output the list of levels. */
 	i = 0;
 	TAILQ_FOREACH(lev, &sc->all_levels, link) {
+		/*
+		 * Skip levels that are too close in frequency to the
+		 * previous levels.  Some systems report bogus duplicate
+		 * settings (i.e., for acpi_perf).
+		 */
+		if (i > 0 && CPUFREQ_CMP(lev->total_set.freq,
+		    levels[i - 1].total_set.freq)) {
+			sc->all_count--;
+			continue;
+		}
+
 		/* Skip levels that have a frequency that is too low. */
 		if (lev->total_set.freq < cf_lowest_freq) {
 			sc->all_count--;
