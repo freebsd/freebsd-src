@@ -98,8 +98,7 @@ openip6(void)
 }
 
 void
-closeip6(w)
-	WINDOW *w;
+closeip6(WINDOW *w)
 {
 	if (w == NULL)
 		return;

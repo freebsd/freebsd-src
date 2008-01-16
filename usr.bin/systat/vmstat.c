@@ -154,7 +154,7 @@ struct	utmp utmp;
 
 
 WINDOW *
-openkre()
+openkre(void)
 {
 
 	ut = open(_PATH_UTMP, O_RDONLY);
@@ -164,8 +164,7 @@ openkre()
 }
 
 void
-closekre(w)
-	WINDOW *w;
+closekre(WINDOW *w)
 {
 
 	(void) close(ut);
@@ -206,7 +205,7 @@ closekre(w)
 #define	MAXDRIVES	DRIVESPACE	 /* max # to display */
 
 int
-initkre()
+initkre(void)
 {
 	char *cp, *cp1, *cp2, *intrnamebuf, *nextcp;
 	int i;
@@ -296,7 +295,7 @@ initkre()
 }
 
 void
-fetchkre()
+fetchkre(void)
 {
 	time_t now;
 	struct tm *tp;
@@ -313,7 +312,7 @@ fetchkre()
 }
 
 void
-labelkre()
+labelkre(void)
 {
 	int i, j;
 
@@ -416,7 +415,7 @@ static	char cpuorder[CPUSTATES] = { CP_SYS, CP_INTR, CP_USER, CP_NICE,
 				     CP_IDLE };
 
 void
-showkre()
+showkre(void)
 {
 	float f1, f2;
 	int psiz, inttotal;
@@ -568,8 +567,7 @@ showkre()
 }
 
 int
-cmdkre(cmd, args)
-	const char *cmd, *args;
+cmdkre(const char *cmd, const char *args)
 {
 	int retval;
 
@@ -633,7 +631,7 @@ cmdkre(cmd, args)
 
 /* calculate number of users on the system */
 static int
-ucount()
+ucount(void)
 {
 	int nusers = 0;
 
@@ -648,8 +646,7 @@ ucount()
 }
 
 static float
-cputime(indx)
-	int indx;
+cputime(int indx)
 {
 	double lt;
 	int i;
@@ -663,8 +660,7 @@ cputime(indx)
 }
 
 static void
-putint(n, l, lc, w)
-	int n, l, lc, w;
+putint(int n, int l, int lc, int w)
 {
 	int snr;
 	char b[128];
@@ -694,9 +690,7 @@ putint(n, l, lc, w)
 }
 
 static void
-putfloat(f, l, lc, w, d, nz)
-	double f;
-	int l, lc, w, d, nz;
+putfloat(double f, int l, int lc, int w, int d, int nz)
 {
 	int snr;
 	char b[128];
@@ -724,9 +718,7 @@ putfloat(f, l, lc, w, d, nz)
 }
 
 static void
-putlongdouble(f, l, lc, w, d, nz)
-	long double f;
-	int l, lc, w, d, nz;
+putlongdouble(long double f, int l, int lc, int w, int d, int nz)
 {
 	int snr;
 	char b[128];
@@ -754,8 +746,7 @@ putlongdouble(f, l, lc, w, d, nz)
 }
 
 static void
-getinfo(ls)
-	struct Info *ls;
+getinfo(struct Info *ls)
 {
 	struct devinfo *tmp_dinfo;
 	size_t size;
@@ -833,8 +824,7 @@ getinfo(ls)
 }
 
 static void
-allocinfo(ls)
-	struct Info *ls;
+allocinfo(struct Info *ls)
 {
 
 	ls->intrcnt = (long *) calloc(nintr, sizeof(long));
@@ -843,8 +833,7 @@ allocinfo(ls)
 }
 
 static void
-copyinfo(from, to)
-	struct Info *from, *to;
+copyinfo(struct Info *from, struct Info *to)
 {
 	long *intrcnt;
 
@@ -860,9 +849,7 @@ copyinfo(from, to)
 }
 
 static void
-dinfo(dn, lc, now, then)
-	int dn, lc;
-	struct statinfo *now, *then;
+dinfo(int dn, int lc, struct statinfo *now, struct statinfo *then)
 {
 	long double transfers_per_second;
 	long double kb_per_transfer, mb_per_second;

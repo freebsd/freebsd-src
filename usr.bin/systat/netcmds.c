@@ -81,8 +81,7 @@ static int selecthost(struct in_addr *, int);
 static void showhosts(void);
 
 int
-netcmd(cmd, args)
-	const char *cmd, *args;
+netcmd(const char *cmd, const char *args)
 {
 
 	if (prefix(cmd, "proto")) {
@@ -128,9 +127,7 @@ netcmd(cmd, args)
 
 
 static void
-changeitems(args, onoff)
-	const char *args;
-	int onoff;
+changeitems(const char *args, int onoff)
 {
 	char *cp, *tmpstr, *tmpstr1;
 	struct servent *sp;
@@ -172,8 +169,7 @@ changeitems(args, onoff)
 }
 
 static int
-selectproto(proto)
-	const char *proto;
+selectproto(const char *proto)
 {
 
 	if (proto == 0 || streq(proto, "all"))
@@ -189,7 +185,7 @@ selectproto(proto)
 }
 
 static void
-showprotos()
+showprotos(void)
 {
 
 	if ((protos&TCP) == 0)
@@ -206,11 +202,9 @@ static	struct pitem {
 } *ports;
 
 static int
-selectport(port, onoff)
-	long port;
-	int onoff;
+selectport(long port, int onoff)
 {
-	register struct pitem *p;
+	struct pitem *p;
 
 	if (port == -1) {
 		if (ports == 0)
@@ -235,10 +229,9 @@ selectport(port, onoff)
 }
 
 int
-checkport(inp)
-	register struct inpcb *inp;
+checkport(struct inpcb *inp)
 {
-	register struct pitem *p;
+	struct pitem *p;
 
 	if (ports)
 	for (p = ports; p < ports+nports; p++)
@@ -248,9 +241,9 @@ checkport(inp)
 }
 
 static void
-showports()
+showports(void)
 {
-	register struct pitem *p;
+	struct pitem *p;
 	struct servent *sp;
 
 	for (p = ports; p < ports+nports; p++) {
@@ -266,11 +259,9 @@ showports()
 }
 
 static int
-selecthost(in, onoff)
-	struct in_addr *in;
-	int onoff;
+selecthost(struct in_addr *in, int onoff)
 {
-	register struct hitem *p;
+	struct hitem *p;
 
 	if (in == 0) {
 		if (hosts == 0)
@@ -295,10 +286,9 @@ selecthost(in, onoff)
 }
 
 int
-checkhost(inp)
-	register struct inpcb *inp;
+checkhost(struct inpcb *inp)
 {
-	register struct hitem *p;
+	struct hitem *p;
 
 	if (hosts)
 	for (p = hosts; p < hosts+nhosts; p++)
@@ -309,9 +299,9 @@ checkhost(inp)
 }
 
 static void
-showhosts()
+showhosts(void)
 {
-	register struct hitem *p;
+	struct hitem *p;
 	struct hostent *hp;
 
 	for (p = hosts; p < hosts+nhosts; p++) {

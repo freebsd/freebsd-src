@@ -173,7 +173,7 @@ dscmd(const char *cmd, const char *args, int maxshowdevs, struct statinfo *s1)
 			return(2);
 	}
 	if (prefix(cmd, "drives")) {
-		register int i;
+		int i;
 		move(CMDLINE, 0);
 		clrtoeol();
 		for (i = 0; i < num_devices; i++) {
