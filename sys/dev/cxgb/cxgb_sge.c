@@ -74,7 +74,7 @@ __FBSDID("$FreeBSD$");
 
 int      txq_fills = 0;
 static int bogus_imm = 0;
-static int recycle_enable = 0;
+static int recycle_enable = 1;
 extern int cxgb_txq_buf_ring_size;
 int cxgb_cached_allocations;
 int cxgb_cached;
@@ -93,7 +93,6 @@ extern int cxgb_use_16k_clusters;
  * frequently as Tx buffers are usually reclaimed by new Tx packets.
  */
 #define TX_RECLAIM_PERIOD       (hz >> 1)
-
 
 /* 
  * Values for sge_txq.flags
@@ -1250,9 +1249,6 @@ t3_encap(struct sge_qset *qs, struct mbuf **m, int count)
 #endif
 	KASSERT(txsd->mi.mi_base == NULL, ("overwrting valid entry mi_base==%p",
 		txsd->mi.mi_base));
-	if (cxgb_debug)
-		printf("uipc_mvec PIO_LEN=%zd\n", PIO_LEN);
-
 	if (count > 1) {
 		panic("count > 1 not support in CVS\n");
 		if ((err = busdma_map_sg_vec(m, &m0, segs, count)))
