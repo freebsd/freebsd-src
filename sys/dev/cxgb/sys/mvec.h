@@ -45,7 +45,8 @@ void cxgb_cache_refill(void);
 extern int cxgb_cached_allocations;
 extern int cxgb_cached;
 extern int cxgb_ext_freed;
-extern int mbufs_outstanding;
+extern int cxgb_mbufs_outstanding;
+extern int cxgb_pack_outstanding;
 
 #define mtomv(m)          ((struct mbuf_vec *)((m)->m_pktdat))
 #define M_IOVEC               0x100000 /* mbuf immediate data area is used for cluster ptrs */
@@ -239,8 +240,12 @@ m_freem_iovec(struct mbuf_iovec *mi)
 #endif
 		KASSERT((mi->mi_flags & M_NOFREE) == 0, ("no free set on mbuf"));
 		KASSERT(m->m_next == NULL, ("freeing chain"));
-		mbufs_outstanding--;
+		cxgb_mbufs_outstanding--;
 		m_free_fast(m);
+		break;
+	case EXT_PACKET:
+		cxgb_pack_outstanding--;
+		m_free(mi->mi_mbuf);
 		break;
 	case EXT_IOVEC:
 	case EXT_CLIOVEC:
@@ -256,7 +261,6 @@ m_freem_iovec(struct mbuf_iovec *mi)
 	case EXT_NET_DRV:
 	case EXT_MOD_TYPE:
 	case EXT_DISPOSABLE:
-	case EXT_PACKET:	
 	case EXT_EXTREF:
 		mb_free_ext_fast(mi, mi->mi_type, -1);
 		break;
@@ -289,6 +293,9 @@ m_getzonefromtype(int type)
 	case EXT_JUMBO16:
 		zone = zone_jumbo16;
 		break;
+	case EXT_PACKET:
+		zone = zone_pack;
+		break;
 	default:
 		panic("%s: invalid cluster type %d", __func__, type);
 	}
@@ -305,6 +312,7 @@ m_getsizefromtype(int type)
 		size = MSIZE;
 		break;
 	case EXT_CLUSTER:
+	case EXT_PACKET:		
 		size = MCLBYTES;
 		break;
 #if MJUMPAGESIZE != MCLBYTES
