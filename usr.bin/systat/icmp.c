@@ -96,8 +96,7 @@ openicmp(void)
 }
 
 void
-closeicmp(w)
-	WINDOW *w;
+closeicmp(WINDOW *w)
 {
 	if (w == NULL)
 		return;

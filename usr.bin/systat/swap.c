@@ -68,14 +68,13 @@ static int ulen, oulen;
 static int pagesize;
 
 WINDOW *
-openswap()
+openswap(void)
 {
 	return (subwin(stdscr, LINES-3-1, 0, MAINWIN_ROW, 0));
 }
 
 void
-closeswap(w)
-	WINDOW *w;
+closeswap(WINDOW *w)
 {
 	if (w == NULL)
 		return;
@@ -100,7 +99,7 @@ static void calclens(void);
 #define CONVERT(v)	((int)((int64_t)(v) * pagesize / blocksize))
 
 static void
-calclens()
+calclens(void)
 {
 	int i, n;
 	int len;
@@ -119,7 +118,7 @@ calclens()
 }
 
 int
-initswap()
+initswap(void)
 {
 	static int once = 0;
 
@@ -144,7 +143,7 @@ initswap()
 }
 
 void
-fetchswap()
+fetchswap(void)
 {
 
 	okvnsw = kvnsw;
@@ -159,7 +158,7 @@ fetchswap()
 }
 
 void
-labelswap()
+labelswap(void)
 {
 	const char *name;
 	int i;
@@ -184,7 +183,7 @@ labelswap()
 }
 
 void
-showswap()
+showswap(void)
 {
 	int count;
 	int i;

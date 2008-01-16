@@ -93,7 +93,7 @@ static void inetprint(struct sockaddr *, const char *);
 #define	YMAX(w)		((w)->_maxy-1)
 
 WINDOW *
-opennetstat()
+opennetstat(void)
 {
 	sethostent(1);
 	setnetent(1);
@@ -122,8 +122,7 @@ static	int nflag = 0;
 static	int lastrow = 1;
 
 void
-closenetstat(w)
-        WINDOW *w;
+closenetstat(WINDOW *w)
 {
 	struct netinfo *p;
 
@@ -157,14 +156,14 @@ struct nlist namelist[] = {
 };
 
 int
-initnetstat()
+initnetstat(void)
 {
 	protos = TCP|UDP;
 	return(1);
 }
 
 void
-fetchnetstat()
+fetchnetstat(void)
 {
 	if (use_kvm)
 		fetchnetstat_kvm();
@@ -173,7 +172,7 @@ fetchnetstat()
 }
 
 static void
-fetchnetstat_kvm()
+fetchnetstat_kvm(void)
 {
 	struct inpcb *next;
 	struct netinfo *p;
@@ -245,7 +244,7 @@ again:
 }
 
 static void
-fetchnetstat_sysctl()
+fetchnetstat_sysctl(void)
 {
 	struct netinfo *p;
 	int idx;
@@ -334,11 +333,7 @@ fetchnetstat_sysctl()
 }
 
 static void
-enter_kvm(inp, so, state, proto)
-	struct inpcb *inp;
-	struct socket *so;
-	int state;
-	const char *proto;
+enter_kvm(struct inpcb *inp, struct socket *so, int state, const char *proto)
 {
 	struct netinfo *p;
 
@@ -349,11 +344,7 @@ enter_kvm(inp, so, state, proto)
 }
 
 static void
-enter_sysctl(inp, so, state, proto)
-	struct inpcb *inp;
-	struct xsocket *so;
-	int state;
-	const char *proto;
+enter_sysctl(struct inpcb *inp, struct xsocket *so, int state, const char *proto)
 {
 	struct netinfo *p;
 
@@ -365,10 +356,7 @@ enter_sysctl(inp, so, state, proto)
 
 
 static struct netinfo *
-enter(inp, state, proto)
-	struct inpcb *inp;
-	int state;
-	const char *proto;
+enter(struct inpcb *inp, int state, const char *proto)
 {
 	struct netinfo *p;
 	struct sockaddr_storage lsa, fsa;
@@ -456,7 +444,7 @@ enter(inp, state, proto)
 
 
 void
-labelnetstat()
+labelnetstat(void)
 {
 	if (use_kvm && namelist[X_TCB].n_type == 0)
 		return;
@@ -470,7 +458,7 @@ labelnetstat()
 }
 
 void
-shownetstat()
+shownetstat(void)
 {
 	struct netinfo *p, *q;
 	char proto[6];
@@ -551,9 +539,7 @@ shownetstat()
  * If the nflag was specified, use numbers instead of names.
  */
 static void
-inetprint(sa, proto)
-	struct sockaddr *sa;
-	const char *proto;
+inetprint(struct sockaddr *sa, const char *proto)
 {
 	struct servent *sp = 0;
 	char line[80], *cp;
@@ -596,8 +582,7 @@ inetprint(sa, proto)
  * numeric value, otherwise try for symbolic name.
  */
 static char *
-inetname(sa)
-	struct sockaddr *sa;
+inetname(struct sockaddr *sa)
 {
 	char *cp = 0;
 	static char line[NI_MAXHOST];
@@ -647,8 +632,7 @@ inetname(sa)
 }
 
 int
-cmdnetstat(cmd, args)
-	const char *cmd, *args;
+cmdnetstat(const char *cmd, const char *args)
 {
 	if (prefix(cmd, "all")) {
 		aflag = !aflag;
