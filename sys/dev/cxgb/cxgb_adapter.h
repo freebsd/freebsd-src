@@ -149,11 +149,7 @@ enum {				/* adapter flags */
 #define FL_Q_SIZE	4096
 #define JUMBO_Q_SIZE	1024
 #define RSPQ_Q_SIZE	1024
-#if 0
 #define TX_ETH_Q_SIZE	1024
-#else
-#define TX_ETH_Q_SIZE	64
-#endif
 
 enum { TXQ_ETH = 0,
        TXQ_OFLD = 1,
