@@ -1772,15 +1772,15 @@ cxgb_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 		break;
 	case SIOCSIFADDR:
 	case SIOCGIFADDR:
-		PORT_LOCK(p);
 		if (ifa->ifa_addr->sa_family == AF_INET) {
+			PORT_LOCK(p);
 			ifp->if_flags |= IFF_UP;
 			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) 
 				cxgb_init_locked(p);
 			arp_ifinit(ifp, ifa);
+			PORT_UNLOCK(p);
 		} else
 			error = ether_ioctl(ifp, command, data);
-		PORT_UNLOCK(p);
 		break;
 	case SIOCSIFFLAGS:
 		callout_drain(&p->adapter->cxgb_tick_ch);
