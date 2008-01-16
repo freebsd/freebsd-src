@@ -31,9 +31,6 @@
  *
  * TODO:
  *
- * (1) Convert test utilities into regression tests and import them into
- *     src/tools/regression.
- *
  * (2) Need to export data to a userland tool via a sysctl.  Should ipcs(1)
  *     and ipcrm(1) be expanded or should new tools to manage both POSIX
  *     kernel semaphores and POSIX shared memory be written?
