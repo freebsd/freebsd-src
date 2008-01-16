@@ -180,7 +180,7 @@ main(int argc, char **argv)
 }
 
 void
-labels()
+labels(void)
 {
 	if (curcmd->c_flags & CF_LOADAV) {
 		mvaddstr(0, 20,
@@ -195,8 +195,7 @@ labels()
 }
 
 void
-display(signo)
-	int signo __unused;
+display(int signo __unused)
 {
 	int i, j;
 
@@ -231,7 +230,7 @@ display(signo)
 }
 
 void
-load()
+load(void)
 {
 
 	(void) getloadavg(avenrun, sizeof(avenrun)/sizeof(avenrun[0]));
@@ -241,8 +240,7 @@ load()
 }
 
 void
-die(signo)
-	int signo __unused;
+die(int signo __unused)
 {
 	move(CMDLINE, 0);
 	clrtoeol();
@@ -278,8 +276,7 @@ error(const char *fmt, ...)
 }
 
 void
-nlisterr(n_list)
-	struct nlist n_list[];
+nlisterr(struct nlist n_list[])
 {
 	int i, n;
 

@@ -70,14 +70,13 @@ static int    fscale;
 static double  lccpu;
 
 WINDOW *
-openpigs()
+openpigs(void)
 {
 	return (subwin(stdscr, LINES-3-1, 0, MAINWIN_ROW, 0));
 }
 
 void
-closepigs(w)
-	WINDOW *w;
+closepigs(WINDOW *w)
 {
 	if (w == NULL)
 		return;
@@ -88,9 +87,9 @@ closepigs(w)
 
 
 void
-showpigs()
+showpigs(void)
 {
-	register int i, j, y, k;
+	int i, j, y, k;
 	const char *uname, *pname;
 	char pidname[30];
 
@@ -118,7 +117,7 @@ showpigs()
 }
 
 int
-initpigs()
+initpigs(void)
 {
 	fixpt_t ccpu;
 	size_t len;
@@ -144,7 +143,7 @@ initpigs()
 }
 
 void
-fetchpigs()
+fetchpigs(void)
 {
 	int i;
 	float ftime;
@@ -183,7 +182,7 @@ fetchpigs()
 }
 
 void
-labelpigs()
+labelpigs(void)
 {
 	wmove(wnd, 0, 0);
 	wclrtoeol(wnd);
@@ -192,8 +191,7 @@ labelpigs()
 }
 
 int
-compar(a, b)
-	const void *a, *b;
+compar(const void *a, const void *b)
 {
 	return (((const struct p_times *) a)->pt_pctcpu >
 		((const struct p_times *) b)->pt_pctcpu)? -1: 1;

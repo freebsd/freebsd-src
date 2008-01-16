@@ -126,7 +126,7 @@ get_scale(const char *name)
 }
 
 const char *
-get_helplist()
+get_helplist(void)
 {
 	int i;
 	size_t len;

@@ -103,8 +103,7 @@ openip(void)
 }
 
 void
-closeip(w)
-	WINDOW *w;
+closeip(WINDOW *w)
 {
 	if (w == NULL)
 		return;

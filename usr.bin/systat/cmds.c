@@ -49,8 +49,7 @@ static const char sccsid[] = "@(#)cmds.c	8.2 (Berkeley) 4/29/95";
 #include "extern.h"
 
 void
-command(cmd)
-        const char *cmd;
+command(const char *cmd)
 {
         struct cmdtab *p;
         char *cp, *tmpstr, *tmpstr1;
@@ -150,8 +149,7 @@ done:
 }
 
 struct cmdtab *
-lookup(name)
-	const char *name;
+lookup(const char *name)
 {
 	const char *p, *q;
 	struct cmdtab *ct, *found;
@@ -179,7 +177,7 @@ lookup(name)
 }
 
 void
-status()
+status(void)
 {
 
         error("Showing %s, refresh every %d seconds.",
@@ -187,8 +185,7 @@ status()
 }
 
 int
-prefix(s1, s2)
-        const char *s1, *s2;
+prefix(const char *s1, const char *s2)
 {
 
         while (*s1 == *s2) {
