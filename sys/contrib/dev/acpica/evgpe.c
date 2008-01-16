@@ -123,6 +123,10 @@
 
 /* Local prototypes */
 
+static void
+AcpiEvAsynchEnableGpe (
+    void                    *Context);
+
 static void ACPI_SYSTEM_XFACE
 AcpiEvAsynchExecuteGpeMethod (
     void                    *Context);
@@ -684,14 +688,26 @@ AcpiEvAsynchExecuteGpeMethod (
         }
     }
 
-    if ((LocalGpeEventInfo.Flags & ACPI_GPE_XRUPT_TYPE_MASK) ==
+    /* Defer enabling of GPE until all notify handlers are done */
+    AcpiOsExecute(OSL_NOTIFY_HANDLER, AcpiEvAsynchEnableGpe, GpeEventInfo);
+    return_VOID;
+}
+
+static void
+AcpiEvAsynchEnableGpe (
+    void                    *Context)
+{
+    ACPI_GPE_EVENT_INFO     *GpeEventInfo = (void *) Context;
+    ACPI_STATUS             Status;
+
+    if ((GpeEventInfo->Flags & ACPI_GPE_XRUPT_TYPE_MASK) ==
             ACPI_GPE_LEVEL_TRIGGERED)
     {
         /*
          * GPE is level-triggered, we clear the GPE status bit after
          * handling the event.
          */
-        Status = AcpiHwClearGpe (&LocalGpeEventInfo);
+        Status = AcpiHwClearGpe (GpeEventInfo);
         if (ACPI_FAILURE (Status))
         {
             return_VOID;
@@ -700,7 +716,7 @@ AcpiEvAsynchExecuteGpeMethod (
 
     /* Enable this GPE */
 
-    (void) AcpiHwWriteGpeEnableReg (&LocalGpeEventInfo);
+    (void) AcpiHwWriteGpeEnableReg (GpeEventInfo);
     return_VOID;
 }
 
