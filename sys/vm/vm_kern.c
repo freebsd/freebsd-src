@@ -296,14 +296,21 @@ kmem_malloc(map, size, flags)
 	vm_map_lock(map);
 	if (vm_map_findspace(map, vm_map_min(map), size, &addr)) {
 		vm_map_unlock(map);
-		if ((flags & M_NOWAIT) == 0) {
-			EVENTHANDLER_INVOKE(vm_lowmem, 0);
-			uma_reclaim();
-			vm_map_lock(map);
-			if (vm_map_findspace(map, vm_map_min(map), size, &addr)) {
+                if ((flags & M_NOWAIT) == 0) {
+			for (i = 0; i < 8; i++) {
+				EVENTHANDLER_INVOKE(vm_lowmem, 0);
+				uma_reclaim();
+				vm_map_lock(map);
+				if (vm_map_findspace(map, vm_map_min(map),
+				    size, &addr) == 0) {
+					break;
+				}
 				vm_map_unlock(map);
+				tsleep(&i, 0, "nokva", (hz / 4) * (i + 1));
+			}
+			if (i == 8) {
 				panic("kmem_malloc(%ld): kmem_map too small: %ld total allocated",
-					(long)size, (long)map->size);
+				    (long)size, (long)map->size);
 			}
 		} else {
 			return (0);
