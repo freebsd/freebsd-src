@@ -75,7 +75,7 @@ static int dumpnr;
 static int verbose;
 
 static char crashdir[PATH_MAX];
-static char *kernel;
+char *kernel;
 static char *remote;
 static char *vmcore;
 
@@ -178,7 +178,7 @@ out:
 		kgdb_new_objfile_chain(objfile);
 }
 
-static CORE_ADDR
+CORE_ADDR
 kgdb_parse(const char *exp)
 {
 	struct cleanup *old_chain;
