@@ -154,6 +154,22 @@ do {								\
   (d) = sf_u.value;						\
 } while (0)
 
+#ifdef FLT_EVAL_METHOD
+/*
+ * Attempt to get strict C99 semantics for assignment with non-C99 compilers.
+ */
+#if FLT_EVAL_METHOD == 0 || __GNUC__ == 0
+#define	STRICT_ASSIGN(type, lval, rval)	((lval) = (rval))
+#else
+#define	STRICT_ASSIGN(type, lval, rval) do {	\
+	volatile type __lval;			\
+						\
+	__lval = (rval);			\
+	(lval) = __lval;			\
+} while (0)
+#endif
+#endif
+
 /*
  * Common routine to process the arguments to nan(), nanf(), and nanl().
  */
