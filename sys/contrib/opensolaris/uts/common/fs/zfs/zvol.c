@@ -335,13 +335,6 @@ zvol_serve_one(zvol_state_t *zv, struct bio *bp)
 	bp->bio_completed = bp->bio_length - resid;
 	if (bp->bio_completed < bp->bio_length)
 		bp->bio_error = (off > volsize ? EINVAL : error);
-
-	/*
-	 * XXX: We are devilering here?
-	 * Looks like I don't understand something here, but I was sure it was
-	 * an async request.
-	 */
-	g_io_deliver(bp, bp->bio_error);
 }
 
 static void
@@ -366,12 +359,19 @@ zvol_worker(void *arg)
 			continue;
 		}
 		mtx_unlock(&zv->zv_queue_mtx);
-		if (bp->bio_cmd == BIO_FLUSH) {
-			zil_commit(zv->zv_zilog, UINT64_MAX, ZVOL_OBJ);
-			g_io_deliver(bp, 0);
-		} else {
+		switch (bp->bio_cmd) {
+		case BIO_FLUSH:
+			break;
+		case BIO_READ:
+		case BIO_WRITE:
 			zvol_serve_one(zv, bp);
+			break;
 		}
+
+		if (bp->bio_cmd != BIO_READ && !zil_disable)
+			zil_commit(zv->zv_zilog, UINT64_MAX, ZVOL_OBJ);
+
+		g_io_deliver(bp, bp->bio_error);
 	}
 }
 
