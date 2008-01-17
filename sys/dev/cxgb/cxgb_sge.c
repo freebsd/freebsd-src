@@ -73,13 +73,13 @@ __FBSDID("$FreeBSD$");
 #endif
 
 int      txq_fills = 0;
-static int bogus_imm = 0;
 static int recycle_enable = 1;
 extern int cxgb_txq_buf_ring_size;
 int cxgb_cached_allocations;
 int cxgb_cached;
 int cxgb_ext_freed;
 extern int cxgb_use_16k_clusters;
+extern int cxgb_pcpu_cache_enable;
 
 
 #define USE_GTS 0
@@ -3202,9 +3202,9 @@ t3_add_attach_sysctls(adapter_t *sc)
 	    CTLFLAG_RD, &txq_fills,
 	    0, "#times txq overrun");
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
-	    "bogus_imm",
-	    CTLFLAG_RD, &bogus_imm,
-	    0, "#times a bogus immediate response was seen");	
+	    "pcpu_cache_enable",
+	    CTLFLAG_RD, &cxgb_pcpu_cache_enable,
+	    0, "#enable driver local pcpu caches");
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
 	    "cache_alloc",
 	    CTLFLAG_RD, &cxgb_cached_allocations,
