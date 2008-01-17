@@ -3828,7 +3828,8 @@ pmap_pinit(pmap_t pmap)
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
 	pmap->pm_stats.resident_count = 1;
 	if (vector_page < KERNBASE) {
-		pmap_enter(pmap, vector_page, PHYS_TO_VM_PAGE(systempage.pv_pa),
+		pmap_enter(pmap, vector_page, 
+		    VM_PROT_READ, PHYS_TO_VM_PAGE(systempage.pv_pa),
 		    VM_PROT_READ, 1);
 	} 
 	return (1);
