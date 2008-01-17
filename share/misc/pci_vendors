@@ -218,7 +218,7 @@
 	005A	SAS 3000 series, 6-port with 1066E -StorPort
 	005C	SAS1064A PCI-X Fusion-MPT SAS
 	005E	SAS 3000 series, 6-port with 1066 -StorPort
-	0060	SAS1078 PCI-X Fusion-MPT SAS
+	0060	MegaRAID SAS 1078
 	0062	LSISAS1078 PCI-Express Fusion-MPT SAS
 	008F	53C810 LSI 53C8xx SCSI host adapter chip
 	0407	MegaRAID
