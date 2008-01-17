@@ -1846,6 +1846,17 @@ vdev_set_state(vdev_t *vd, boolean_t isopen, vdev_state_t state, vdev_aux_t aux)
 	vd->vdev_state = state;
 	vd->vdev_stat.vs_aux = aux;
 
+	/*
+	 * If we are setting the vdev state to anything but an open state, then
+	 * always close the underlying device.  Otherwise, we keep accessible
+	 * but invalid devices open forever.  We don't call vdev_close() itself,
+	 * because that implies some extra checks (offline, etc) that we don't
+	 * want here.  This is limited to leaf devices, because otherwise
+	 * closing the device will affect other children.
+	 */
+	if (vdev_is_dead(vd) && vd->vdev_ops->vdev_op_leaf)
+		vd->vdev_ops->vdev_op_close(vd);
+
 	if (state == VDEV_STATE_CANT_OPEN) {
 		/*
 		 * If we fail to open a vdev during an import, we mark it as
