@@ -223,7 +223,6 @@ WITHOUT_${var}=
     DYNAMICROOT \
     EXAMPLES \
     FORTH \
-    FORTRAN \
     FP_LIBC \
     GAMES \
     GCOV \
@@ -311,7 +310,6 @@ WITH_IDEA=
     DYNAMICROOT \
     EXAMPLES \
     FORTH \
-    FORTRAN \
     FP_LIBC \
     GAMES \
     GCOV \
