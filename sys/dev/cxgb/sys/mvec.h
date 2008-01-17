@@ -114,7 +114,6 @@ void mi_init(void);
 void mi_deinit(void);
 
 int _m_explode(struct mbuf *);
-int _m_collapse(struct mbuf *, int maxbufs, struct mbuf **);
 void mb_free_vec(struct mbuf *m);
 
 static __inline void 
@@ -184,19 +183,6 @@ static __inline int busdma_map_sgl(bus_dma_segment_t *vsegs, bus_dma_segment_t *
 struct mbuf *mi_collapse_mbuf(struct mbuf_iovec *mi, struct mbuf *m);
 struct mbuf *mi_collapse_sge(struct mbuf_iovec *mi, bus_dma_segment_t *seg);
 void *mcl_alloc(int seg_count, int *type);
-
-static __inline int
-m_collapse(struct mbuf *m, int maxbufs, struct mbuf **mnew) 
-{
-#if (!defined(__sparc64__) && !defined(__sun4v__)) 	
-	if (m->m_next == NULL)
-#endif		
-	{
-		*mnew = m;
-		return (0);
-	}
-	return _m_collapse(m, maxbufs, mnew);
-} 
 
 void mb_free_ext_fast(struct mbuf_iovec *mi, int type, int idx);
 
