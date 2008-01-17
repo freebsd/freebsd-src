@@ -806,7 +806,7 @@ _rw_downgrade(struct rwlock *rw, const char *file, int line)
 	    (v & RW_LOCK_WRITE_WAITERS));
 	if (v & RW_LOCK_READ_WAITERS)
 		turnstile_unpend(ts, TS_EXCLUSIVE_LOCK);
-	else if (ts)
+	else
 		turnstile_disown(ts);
 	turnstile_chain_unlock(&rw->lock_object);
 out:
