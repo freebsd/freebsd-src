@@ -149,11 +149,7 @@ __FBSDID("$FreeBSD$");
 #define PMAP_SHPGPERPROC 200
 #endif
 
-#if defined(DIAGNOSTIC)
-#define PMAP_DIAGNOSTIC
-#endif
-
-#if !defined(PMAP_DIAGNOSTIC)
+#if !defined(DIAGNOSTIC)
 #define PMAP_INLINE	__gnu89_inline
 #else
 #define PMAP_INLINE
@@ -2249,12 +2245,9 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 	boolean_t invlva;
 
 	va = trunc_page(va);
-#ifdef PMAP_DIAGNOSTIC
-	if (va > VM_MAX_KERNEL_ADDRESS)
-		panic("pmap_enter: toobig");
-	if ((va >= UPT_MIN_ADDRESS) && (va < UPT_MAX_ADDRESS))
-		panic("pmap_enter: invalid to pmap_enter page table pages (va: 0x%lx)", va);
-#endif
+	KASSERT(va <= VM_MAX_KERNEL_ADDRESS, ("pmap_enter: toobig"));
+	KASSERT(va < UPT_MIN_ADDRESS || va >= UPT_MAX_ADDRESS,
+	    ("pmap_enter: invalid to pmap_enter page table pages (va: 0x%lx)", va));
 
 	mpte = NULL;
 
@@ -2268,19 +2261,9 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 	if (va < VM_MAXUSER_ADDRESS) {
 		mpte = pmap_allocpte(pmap, va, M_WAITOK);
 	}
-#if 0 && defined(PMAP_DIAGNOSTIC)
-	else {
-		pd_entry_t *pdeaddr = pmap_pde(pmap, va);
-		origpte = *pdeaddr;
-		if ((origpte & PG_V) == 0) { 
-			panic("pmap_enter: invalid kernel page table page, pde=%p, va=%p\n",
-				origpte, va);
-		}
-	}
-#endif
 
 	pde = pmap_pde(pmap, va);
-	if (pde != NULL) {
+	if (pde != NULL && (*pde & PG_V) != 0) {
 		if ((*pde & PG_PS) != 0)
 			panic("pmap_enter: attempted pmap_enter on 2MB page");
 		pte = pmap_pde_to_pte(pde, va);
@@ -2291,7 +2274,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 	 * Page Directory table entry not valid, we need a new PT page
 	 */
 	if (pte == NULL)
-		panic("pmap_enter: invalid page directory va=%#lx\n", va);
+		panic("pmap_enter: invalid page directory va=%#lx", va);
 
 	pa = VM_PAGE_TO_PHYS(m);
 	om = NULL;
@@ -2745,8 +2728,8 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 		pdp_entry_t *pdpe;
 		pd_entry_t srcptepaddr, *pde;
 
-		if (addr >= UPT_MIN_ADDRESS)
-			panic("pmap_copy: invalid to pmap_copy page tables");
+		KASSERT(addr < UPT_MIN_ADDRESS,
+		    ("pmap_copy: invalid to pmap_copy page tables"));
 
 		pml4e = pmap_pml4e(src_pmap, addr);
 		if ((*pml4e & PG_V) == 0) {
@@ -2784,8 +2767,8 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 		}
 
 		srcmpte = PHYS_TO_VM_PAGE(srcptepaddr & PG_FRAME);
-		if (srcmpte->wire_count == 0)
-			panic("pmap_copy: source page table page is unused");
+		KASSERT(srcmpte->wire_count > 0,
+		    ("pmap_copy: source page table page is unused"));
 
 		if (va_next > end_addr)
 			va_next = end_addr;
