@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 extern int cxgb_use_16k_clusters;
+int cxgb_pcpu_cache_enable = 0;
 
 struct buf_stack {
 	caddr_t            *bs_stack;
@@ -201,16 +202,18 @@ cxgb_cache_get(uma_zone_t zone)
 {
 	caddr_t cl = NULL;
 	struct cxgb_cache_pcpu *ccp;
-	
-	critical_enter();
-	ccp = &cxgb_caches->ccs_array[curcpu];
-	if (zone == zone_clust) {
-		cl = buf_stack_pop(&ccp->ccp_cluster_free);
-	} else if (zone == ccp->ccp_jumbo_zone) {
-		cl = buf_stack_pop(&ccp->ccp_jumbo_free);
-	}
-	critical_exit();
 
+	if (cxgb_pcpu_cache_enable) {
+		critical_enter();
+		ccp = &cxgb_caches->ccs_array[curcpu];
+		if (zone == zone_clust) {
+			cl = buf_stack_pop(&ccp->ccp_cluster_free);
+		} else if (zone == ccp->ccp_jumbo_zone) {
+			cl = buf_stack_pop(&ccp->ccp_jumbo_free);
+		}
+		critical_exit();
+	}
+	
 	if (cl == NULL) 
 		cl = uma_zalloc(zone, M_NOWAIT);
 	else
@@ -224,15 +227,17 @@ cxgb_cache_put(uma_zone_t zone, void *cl)
 {
 	struct cxgb_cache_pcpu *ccp;
 	int err = ENOSPC;
-	
-	critical_enter();
-	ccp = &cxgb_caches->ccs_array[curcpu];
-	if (zone == zone_clust) {
-		err = buf_stack_push(&ccp->ccp_cluster_free, cl);
-	} else if (zone == ccp->ccp_jumbo_zone){
-		err = buf_stack_push(&ccp->ccp_jumbo_free, cl);
+
+	if (cxgb_pcpu_cache_enable) {
+		critical_enter();
+		ccp = &cxgb_caches->ccs_array[curcpu];
+		if (zone == zone_clust) {
+			err = buf_stack_push(&ccp->ccp_cluster_free, cl);
+		} else if (zone == ccp->ccp_jumbo_zone){
+			err = buf_stack_push(&ccp->ccp_jumbo_free, cl);
+		}
+		critical_exit();
 	}
-	critical_exit();
 	
 	if (err)
 		uma_zfree(zone, cl);
@@ -250,7 +255,6 @@ cxgb_cache_refill(void)
 
 
 	return;
-	
 restart:
 	critical_enter();
 	ccp = &cxgb_caches->ccs_array[curcpu];
