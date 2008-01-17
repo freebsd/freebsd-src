@@ -46,6 +46,17 @@ union IEEEl2bits {
 		unsigned int	manl	:32;
 #endif
 	} bits;
+	struct {
+#if _BYTE_ORDER == _LITTLE_ENDIAN
+		unsigned long	man	:64;
+		unsigned int	expsign	:16;
+		unsigned long	junk	:48;
+#else /* _BIG_ENDIAN */
+		unsigned long	junk	:48;
+		unsigned int	expsign	:16;
+		unsigned long	man	:64;
+#endif
+	} xbits;
 };
 
 #if _BYTE_ORDER == _LITTLE_ENDIAN
@@ -68,4 +79,4 @@ union IEEEl2bits {
 #define	LDBL_TO_ARRAY32(u, a) do {			\
 	(a)[0] = (uint32_t)(u).bits.manl;		\
 	(a)[1] = (uint32_t)(u).bits.manh;		\
-} while(0)
+} while (0)
