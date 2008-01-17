@@ -3264,7 +3264,7 @@ ndis_scan(void *arg, int npending)
 		return;
 	}
 
-	tsleep(&error, PWAIT, "ssidscan", hz * 3);
+	pause("ssidscan", hz * 3);
 	if (!NDIS_INITIALIZED(sc))
 		/* The interface was downed while we were sleeping */
 		return;
