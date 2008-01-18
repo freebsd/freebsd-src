@@ -739,7 +739,7 @@ printhdr(int ncpus, u_long cpumask)
 	(void)printf("   faults         ");
 	if (Pflag) {
 		for (i = 0; i < ncpus; i++) {
-			if (cpumask && (1ul << i))
+			if (cpumask & (1ul << i))
 				printf("cpu%-2d    ", i);
 		}
 		printf("\n");
@@ -976,7 +976,7 @@ pcpustats(int ncpus, u_long cpumask, int maxid)
 
 	/* devstats does this for cp_time */
 	for (i = 0; i <= maxid; i++) {
-		if (cpumask && (1ul << i) == 0)
+		if ((cpumask & (1ul << i)) == 0)
 			continue;
 		for (state = 0; state < CPUSTATES; ++state) {
 			tmp = cur_cp_times[i * CPUSTATES + state];
@@ -987,7 +987,7 @@ pcpustats(int ncpus, u_long cpumask, int maxid)
 
 	over = 0;
 	for (i = 0; i <= maxid; i++) {
-		if (cpumask && (1ul << i) == 0)
+		if ((cpumask & (1ul << i)) == 0)
 			continue;
 		total = 0;
 		for (state = 0; state < CPUSTATES; ++state)
