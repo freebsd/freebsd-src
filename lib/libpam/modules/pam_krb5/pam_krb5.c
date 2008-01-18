@@ -106,7 +106,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 	krb5_get_init_creds_opt opts;
 	struct passwd *pwd;
 	int retval;
-	void *ccache_data;
+	const void *ccache_data;
 	const char *user, *pass;
 	const void *sourceuser, *service;
 	char *principal, *princ_name, *ccache_name, luser[32], *srvdup;
@@ -347,7 +347,7 @@ pam_sm_setcred(pam_handle_t *pamh, int flags,
 	int retval;
 	const char *cache_name, *q;
 	const void *user;
-	void *cache_data;
+	const void *cache_data;
 	char *cache_name_buf = NULL, *p;
 
 	uid_t euid;
@@ -589,7 +589,7 @@ pam_sm_acct_mgmt(pam_handle_t *pamh, int flags __unused,
 	krb5_principal princ;
 	int retval;
 	const void *user;
-	void *ccache_name;
+	const void *ccache_name;
 
 	retval = pam_get_item(pamh, PAM_USER, &user);
 	if (retval != PAM_SUCCESS)
