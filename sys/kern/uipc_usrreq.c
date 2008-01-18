@@ -1122,7 +1122,6 @@ unp_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	struct sockaddr *sa;
 
 	UNP_GLOBAL_WLOCK_ASSERT();
-	UNP_GLOBAL_WUNLOCK();
 
 	unp = sotounpcb(so);
 	KASSERT(unp != NULL, ("unp_connect: unp == NULL"));
@@ -1137,6 +1136,7 @@ unp_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		UNP_PCB_UNLOCK(unp);
 		return (EALREADY);
 	}
+	UNP_GLOBAL_WUNLOCK();
 	unp->unp_flags |= UNP_CONNECTING;
 	UNP_PCB_UNLOCK(unp);
 
