@@ -65,6 +65,12 @@ mtree_verifyspec(FILE *fi)
 }
 
 static int
+nsort(const FTSENT * const *a, const FTSENT * const *b)
+{
+	return (strcmp((*a)->fts_name, (*b)->fts_name));
+}
+
+static int
 vwalk(void)
 {
 	FTS *t;
@@ -76,7 +82,7 @@ vwalk(void)
 
 	argv[0] = dot;
 	argv[1] = NULL;
-	if ((t = fts_open(argv, ftsoptions, NULL)) == NULL)
+	if ((t = fts_open(argv, ftsoptions, nsort)) == NULL)
 		err(1, "line %d: fts_open", lineno);
 	level = root;
 	specdepth = rval = 0;
