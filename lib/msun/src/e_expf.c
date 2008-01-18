@@ -24,7 +24,6 @@ static const float
 one	= 1.0,
 halF[2]	= {0.5,-0.5,},
 huge	= 1.0e+30,
-twom100 = 7.8886090522e-31,      /* 2**-100=0x0d800000 */
 o_threshold=  8.8721679688e+01,  /* 0x42b17180 */
 u_threshold= -1.0397208405e+02,  /* 0xc2cff1b5 */
 ln2HI[2]   ={ 6.9314575195e-01,		/* 0x3f317200 */
@@ -37,6 +36,8 @@ P2   = -2.7777778450e-03, /* 0xbb360b61 */
 P3   =  6.6137559770e-05, /* 0x388ab355 */
 P4   = -1.6533901999e-06, /* 0xb5ddea0e */
 P5   =  4.1381369442e-08; /* 0x3331bb4c */
+
+static volatile float twom100 = 7.8886090522e-31;      /* 2**-100=0x0d800000 */
 
 float
 __ieee754_expf(float x)	/* default IEEE double exp */
