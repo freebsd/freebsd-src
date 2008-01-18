@@ -27,6 +27,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <float.h>
+
 #include "math.h"
 #include "math_private.h"
 
@@ -387,3 +389,7 @@ exp2(double x)
 		return (r * twom1000);
 	}
 }
+
+#if (LDBL_MANT_DIG == 53)
+__weak_reference(exp2, exp2l);
+#endif
