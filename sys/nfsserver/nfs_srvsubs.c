@@ -569,7 +569,6 @@ nfsrv_modevent(module_t mod, int type, void *data)
 			syscall_deregister(&nfssvc_offset, &nfssvc_prev_sysent);
 		callout_drain(&nfsrv_callout);
 		nfsrv_destroycache();	/* Free the server request cache */
-		nfsrv_destroycache();	/* Free the server request cache */
 		mtx_destroy(&nfsd_mtx);
 		break;
 	default:
