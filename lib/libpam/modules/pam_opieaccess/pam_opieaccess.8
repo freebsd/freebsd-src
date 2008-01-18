@@ -34,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 21, 2002
+.Dd October 26, 2007
 .Dt PAM_OPIEACCESS 8
 .Os
 .Sh NAME
@@ -88,7 +88,7 @@ The user has OPIE enabled, and the remote host is listed as a trusted
 host in
 .Pa /etc/opieaccess ,
 and the user does not have a file named
-.Pa opiealways
+.Pa \&.opiealways
 in his home directory.
 .El
 .Pp
@@ -115,12 +115,14 @@ These messages include reasons why the user's authentication attempt
 was declined.
 .El
 .Sh FILES
-.Bl -tag -width ".Pa /etc/opieaccess"
+.Bl -tag -width ".Pa $HOME/.opiealways"
 .It Pa /etc/opieaccess
 List of trusted hosts or networks.
 See
 .Xr opieaccess 5
 for a description of its syntax.
+.It Pa $HOME/.opiealways
+The presence of this file makes OPIE mandatory for the user.
 .El
 .Sh SEE ALSO
 .Xr opie 4 ,
