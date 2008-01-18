@@ -1229,7 +1229,7 @@ stge_encap(struct stge_softc *sc, struct mbuf **m_head)
 	error =  bus_dmamap_load_mbuf_sg(sc->sc_cdata.stge_tx_tag,
 	    txd->tx_dmamap, *m_head, txsegs, &nsegs, 0);
 	if (error == EFBIG) {
-		m = m_defrag(*m_head, M_DONTWAIT);
+		m = m_collapse(*m_head, M_DONTWAIT, STGE_MAXTXSEGS);
 		if (m == NULL) {
 			m_freem(*m_head);
 			*m_head = NULL;
