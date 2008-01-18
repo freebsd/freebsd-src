@@ -337,7 +337,9 @@ exec_coff_imgact(imgp)
 
 	VOP_UNLOCK(imgp->vp, 0, td);
 
-	exec_new_vmspace(imgp, &ibcs2_svr3_sysvec);
+	error = exec_new_vmspace(imgp, &ibcs2_svr3_sysvec);
+	if (error)
+		goto fail;
 	vmspace = imgp->proc->p_vmspace;
 
 	for (i = 0; i < nscns; i++) {

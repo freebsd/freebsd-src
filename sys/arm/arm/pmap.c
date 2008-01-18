@@ -3813,7 +3813,7 @@ pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
  * such as one in a vmspace structure.
  */
 
-void
+int
 pmap_pinit(pmap_t pmap)
 {
 	PDEBUG(1, printf("pmap_pinit: pmap = %08x\n", (uint32_t) pmap));
@@ -3832,6 +3832,7 @@ pmap_pinit(pmap_t pmap)
 		pmap_enter(pmap, vector_page, PHYS_TO_VM_PAGE(systempage.pv_pa),
 		    VM_PROT_READ, 1);
 	} 
+	return (1);
 }
 
 
