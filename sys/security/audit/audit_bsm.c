@@ -429,6 +429,7 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 	switch(ar->ar_event) {
 	case AUE_ACCEPT:
 	case AUE_BIND:
+	case AUE_LISTEN:
 	case AUE_CONNECT:
 	case AUE_RECV:
 	case AUE_RECVFROM:
