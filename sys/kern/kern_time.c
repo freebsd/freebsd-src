@@ -247,8 +247,9 @@ kern_clock_gettime(struct thread *td, clockid_t clock_id, struct timespec *ats)
 		critical_enter();
 		switchtime = PCPU_GET(switchtime);
 		curtime = cpu_ticks();
+		runtime = td->td_runtime;
 		critical_exit();
-		runtime = cputick2usec(td->td_runtime + curtime - switchtime);
+		runtime = cputick2usec(runtime + curtime - switchtime);
 		ats->tv_sec = runtime / 1000000;
 		ats->tv_nsec = runtime % 1000000 * 1000;
 		break;
