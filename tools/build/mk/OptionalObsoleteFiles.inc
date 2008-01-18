@@ -381,18 +381,6 @@ OLD_FILES+=usr/share/man/man8/zpool.8.gz
 # to be filled in
 #.endif
 
-.if ${MK_FORTRAN} == no
-OLD_FILES+=usr/bin/f77
-OLD_FILES+=usr/include/g2c.h
-OLD_FILES+=usr/lib/libg2c.a
-OLD_FILES+=usr/lib/libg2c_p.a
-OLD_FILES+=usr/lib/libg2c.so.2
-OLD_FILES+=usr/lib/libg2c.so
-OLD_FILES+=usr/libexec/f771
-OLD_FILES+=usr/share/info/g77.info.gz
-OLD_FILES+=usr/share/man/man1/f77.1.gz
-.endif
-
 #.if ${MK_GAMES} == no
 # to be filled in
 #.endif
