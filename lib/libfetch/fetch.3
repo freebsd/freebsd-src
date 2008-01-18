@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 22, 2007
+.Dd December 18, 2007
 .Dt FETCH 3
 .Os
 .Sh NAME
@@ -532,6 +532,14 @@ See
 .Xr ftp 1
 for a description of the file format.
 This feature is experimental.
+.It Ev NO_PROXY
+Either a single asterisk, which disables the use of proxies
+altogether, or a comma- or whitespace-separated list of hosts for
+which proxies should not be used.
+.It Ev no_proxy
+Same as
+.Ev NO_PROXY ,
+for compatibility.
 .El
 .Sh EXAMPLES
 To access a proxy server on
@@ -554,6 +562,14 @@ environment variable:
 .Bd -literal -offset indent
 HTTP_PROXY=http://proxy.example.com:8080
 HTTP_PROXY_AUTH=basic:*:<user>:<pwd>
+.Ed
+.Pp
+To disable the use of a proxy for an HTTP server running on the local
+host, define
+.Ev NO_PROXY
+as follows:
+.Bd -literal -offset indent
+NO_PROXY=localhost,127.0.0.1
 .Ed
 .Sh SEE ALSO
 .Xr fetch 1 ,
