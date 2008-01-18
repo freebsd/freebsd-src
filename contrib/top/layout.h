@@ -4,26 +4,28 @@
  *  This file defines the locations on tne screen for various parts of the
  *  display.  These definitions are used by the routines in "display.c" for
  *  cursor addressing.
+ *
+ * $FreeBSD$
  */
 
-#define  x_lastpid	10
-#define  y_lastpid	0
-#define  x_loadave	33
-#define  x_loadave_nompid	15
-#define  y_loadave	0
-#define  x_procstate	0
-#define  y_procstate	1
-#define  x_brkdn	15
-#define  y_brkdn	1
-#define  x_mem		5
-#define  y_mem		3
-#define  x_swap		6
-#define  y_swap		4
-#define  y_message	5
-#define  x_header	0
-#define  y_header	6
-#define  x_idlecursor	0
-#define  y_idlecursor	5
-#define  y_procs	7
+extern int  x_lastpid;		/* 10 */
+extern int  y_lastpid;		/* 0 */
+extern int  x_loadave;		/* 33 */
+extern int  x_loadave_nompid;	/* 15 */
+extern int  y_loadave;		/* 0 */
+extern int  x_procstate;	/* 0 */
+extern int  y_procstate;	/* 1 */
+extern int  x_brkdn;		/* 15 */
+extern int  y_brkdn;		/* 1 */
+extern int  x_mem;		/* 5 */
+extern int  y_mem;		/* 3 */
+extern int  x_swap;		/* 6 */
+extern int  y_swap;		/* 4 */
+extern int  y_message;		/* 5 */
+extern int  x_header;		/* 0 */
+extern int  y_header;		/* 6 */
+extern int  x_idlecursor;	/* 0 */
+extern int  y_idlecursor;	/* 5 */
+extern int  y_procs;		/* 7 */
 
-#define  y_cpustates	2
+extern int  y_cpustates;	/* 2 */
