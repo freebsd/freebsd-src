@@ -120,7 +120,7 @@ run_generic_tests(void)
 
 	/* exp(small) == 0, underflow and inexact exceptions */
 	testall0(-50000.0, 0.0, ALL_STD_EXCEPT, FE_UNDERFLOW | FE_INEXACT);
-	testall1(-50000.0, -1.0, ALL_STD_EXCEPT, FE_UNDERFLOW | FE_INEXACT);
+	testall1(-50000.0, -1.0, ALL_STD_EXCEPT, FE_INEXACT);
 }
 
 void
