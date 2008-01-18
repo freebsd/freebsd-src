@@ -2106,60 +2106,6 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 
 	eh = mtod(m, struct ether_header *);
 
-	if (memcmp(eh->ether_dhost, IF_LLADDR(bifp),
-	    ETHER_ADDR_LEN) == 0) {
-		/* Block redundant paths to us */
-		if ((bif->bif_flags & IFBIF_STP) &&
-		    bif->bif_stp.bp_state == BSTP_IFSTATE_DISCARDING) {
-			BRIDGE_UNLOCK(sc);
-			return (m);
-		}
-
-		/*
-		 * Filter on the physical interface.
-		 */
-		if (pfil_local_phys && (PFIL_HOOKED(&inet_pfil_hook)
-#ifdef INET6
-		    || PFIL_HOOKED(&inet6_pfil_hook)
-#endif
-		    )) {
-			if (bridge_pfil(&m, NULL, ifp, PFIL_IN) != 0 ||
-			    m == NULL) {
-				BRIDGE_UNLOCK(sc);
-				return (NULL);
-			}
-		}
-
-		/*
-		 * If the packet is for us, set the packets source as the
-		 * bridge, and return the packet back to ether_input for
-		 * local processing.
-		 */
-
-		/* Note where to send the reply to */
-		if (bif->bif_flags & IFBIF_LEARNING) {
-			error = bridge_rtupdate(sc,
-			    eh->ether_shost, vlan, bif, 0, IFBAF_DYNAMIC);
-			/*
-			 * If the interface has addresses limits then deny any
-			 * source that is not in the cache.
-			 */
-			if (error && bif->bif_addrmax) {
-				BRIDGE_UNLOCK(sc);
-				m_freem(m);
-				return (NULL);
-			}
-		}
-
-		/* Mark the packet as arriving on the bridge interface */
-		m->m_pkthdr.rcvif = bifp;
-		ETHER_BPF_MTAP(bifp, m);
-		bifp->if_ipackets++;
-
-		BRIDGE_UNLOCK(sc);
-		return (m);
-	}
-
 	bridge_span(sc, m);
 
 	if (m->m_flags & (M_BCAST|M_MCAST)) {
@@ -2234,6 +2180,13 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 #   define OR_CARP_CHECK_WE_ARE_SRC(iface)
 #endif
 
+#ifdef INET6
+#   define OR_PFIL_HOOKED_INET6 \
+	|| PFIL_HOOKED(&inet6_pfil_hook)
+#else
+#   define OR_PFIL_HOOKED_INET6
+#endif
+
 #define GRAB_OUR_PACKETS(iface) \
 	if ((iface)->if_type == IFT_GIF) \
 		continue; \
@@ -2241,6 +2194,20 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 	if (memcmp(IF_LLADDR((iface)), eh->ether_dhost,  ETHER_ADDR_LEN) == 0 \
 	    OR_CARP_CHECK_WE_ARE_DST((iface))				\
 	    ) {								\
+		if ((iface)->if_type == IFT_BRIDGE) {			\
+			ETHER_BPF_MTAP(iface, m);			\
+			iface->if_ipackets++;				\
+			/* Filter on the physical interface. */		\
+			if (pfil_local_phys &&				\
+			    (PFIL_HOOKED(&inet_pfil_hook)		\
+			     OR_PFIL_HOOKED_INET6)) {			\
+				if (bridge_pfil(&m, NULL, ifp,		\
+				    PFIL_IN) != 0 || m == NULL) {	\
+					BRIDGE_UNLOCK(sc);		\
+					return (NULL);			\
+				}					\
+			}						\
+		}							\
 		if (bif->bif_flags & IFBIF_LEARNING) {			\
 			error = bridge_rtupdate(sc, eh->ether_shost,	\
 			    vlan, bif, 0, IFBAF_DYNAMIC);		\
@@ -2265,8 +2232,11 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 	}
 
 	/*
-	 * Unicast.  Make sure it's not for us.
-	 *
+	 * Unicast.  Make sure it's not for the bridge.
+	 */
+	do { GRAB_OUR_PACKETS(bifp) } while (0);
+
+	/*
 	 * Give a chance for ifp at first priority. This will help when	the
 	 * packet comes through the interface like VLAN's with the same MACs
 	 * on several interfaces from the same bridge. This also will save
@@ -2282,6 +2252,7 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 
 #undef OR_CARP_CHECK_WE_ARE_DST
 #undef OR_CARP_CHECK_WE_ARE_SRC
+#undef OR_PFIL_HOOKED_INET6
 #undef GRAB_OUR_PACKETS
 
 	/* Perform the bridge forwarding function. */
