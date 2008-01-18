@@ -262,7 +262,7 @@ sysctl_an_dump(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_hw_an, OID_AUTO, an_dump, CTLTYPE_STRING | CTLFLAG_RW,
-            0, sizeof(an_conf), sysctl_an_dump, "A", "");
+	    0, sizeof(an_conf), sysctl_an_dump, "A", "");
 
 static int
 sysctl_an_cache_mode(SYSCTL_HANDLER_ARGS)
@@ -300,7 +300,7 @@ sysctl_an_cache_mode(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_hw_an, OID_AUTO, an_cache_mode, CTLTYPE_STRING | CTLFLAG_RW,
-            0, sizeof(an_conf_cache), sysctl_an_cache_mode, "A", "");
+	    0, sizeof(an_conf_cache), sysctl_an_cache_mode, "A", "");
 
 /*
  * Setup the lock for PCI attachment since it skips the an_probe
@@ -311,7 +311,7 @@ SYSCTL_PROC(_hw_an, OID_AUTO, an_cache_mode, CTLTYPE_STRING | CTLFLAG_RW,
 int
 an_pci_probe(device_t dev)
 {
-        struct an_softc *sc = device_get_softc(dev);
+	struct an_softc *sc = device_get_softc(dev);
 
 	mtx_init(&sc->an_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF | MTX_RECURSE);
@@ -328,7 +328,7 @@ an_pci_probe(device_t dev)
 int
 an_probe(device_t dev)
 {
-        struct an_softc *sc = device_get_softc(dev);
+	struct an_softc *sc = device_get_softc(dev);
 	struct an_ltv_ssidlist_new	ssid;
 	int	error;
 
@@ -354,10 +354,10 @@ an_probe(device_t dev)
 	ssid.an_len = sizeof(ssid);
 	ssid.an_type = AN_RID_SSIDLIST;
 
-        /* Make sure interrupts are disabled. */
+	/* Make sure interrupts are disabled. */
 	sc->mpi350 = 0;
-        CSR_WRITE_2(sc, AN_INT_EN(sc->mpi350), 0);
-        CSR_WRITE_2(sc, AN_EVENT_ACK(sc->mpi350), 0xFFFF);
+	CSR_WRITE_2(sc, AN_INT_EN(sc->mpi350), 0);
+	CSR_WRITE_2(sc, AN_EVENT_ACK(sc->mpi350), 0xFFFF);
 
 	mtx_init(&sc->an_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF | MTX_RECURSE);
@@ -493,7 +493,7 @@ an_dma_malloc(struct an_softc *sc, bus_size_t size, struct an_dma_alloc *dma,
 		goto fail_1;
 
 	r = bus_dmamap_load(sc->an_dtag, dma->an_dma_map, dma->an_dma_vaddr,
-		            size,
+			    size,
 			    an_dma_malloc_cb,
 			    &dma->an_dma_paddr,
 			    mapflags | BUS_DMA_NOWAIT);
@@ -1726,8 +1726,8 @@ an_write_data(struct an_softc *sc, int id, int off, caddr_t buf, int len)
 	for (i = len; i > 1; i -= 2)
 		CSR_WRITE_2(sc, AN_DATA0, *ptr++);
 	if (i) {
-	        ptr2 = (u_int8_t *)ptr;
-	        CSR_WRITE_1(sc, AN_DATA0, *ptr2);
+		ptr2 = (u_int8_t *)ptr;
+		CSR_WRITE_1(sc, AN_DATA0, *ptr2);
 	}
 
 	return(0);
@@ -2016,7 +2016,7 @@ an_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		an_setdef(sc, &sc->areq);
 		AN_UNLOCK(sc);
 		break;
-	case SIOCGPRIVATE_0:              /* used by Cisco client utility */
+	case SIOCGPRIVATE_0:		/* used by Cisco client utility */
 		if ((error = priv_check(td, PRIV_DRIVER)))
 			goto out;
 		error = copyin(ifr->ifr_data, &l_ioctl, sizeof(l_ioctl));
@@ -2040,7 +2040,7 @@ an_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			error = copyout(&l_ioctl, ifr->ifr_data, sizeof(l_ioctl));
 		}
 		break;
-	case SIOCGPRIVATE_1:              /* used by Cisco client utility */
+	case SIOCGPRIVATE_1:		/* used by Cisco client utility */
 		if ((error = priv_check(td, PRIV_DRIVER)))
 			goto out;
 		error = copyin(ifr->ifr_data, &l_ioctl, sizeof(l_ioctl));
@@ -2049,7 +2049,7 @@ an_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		l_ioctl.command = 0;
 		error = AIROMAGIC;
 		(void) copyout(&error, l_ioctl.data, sizeof(error));
-	        error = 0;
+		error = 0;
 		break;
 	case SIOCG80211:
 		sc->areq.an_len = sizeof(sc->areq);
@@ -2746,7 +2746,7 @@ an_start(struct ifnet *ifp)
 	struct an_txframe_802_3	tx_frame_802_3;
 	struct ether_header	*eh;
 	int			id, idx, i;
-	unsigned char           txcontrol;
+	unsigned char		txcontrol;
 	struct an_card_tx_desc an_tx_desc;
 	u_int8_t		*buf;
 
@@ -3060,9 +3060,9 @@ an_resume(device_t dev)
 
 #ifdef documentation
 
-int an_sigitems;                                /* number of cached entries */
-struct an_sigcache an_sigcache[MAXANCACHE];  /*  array of cache entries */
-int an_nextitem;                                /*  index/# of entries */
+int an_sigitems;				/* number of cached entries */
+struct an_sigcache an_sigcache[MAXANCACHE];	/* array of cache entries */
+int an_nextitem;				/* index/# of entries */
 
 
 #endif
@@ -3099,7 +3099,7 @@ an_cache_store(struct an_softc *sc, struct ether_header *eh, struct mbuf *m,
 	struct ip *ip = 0;
 	int i;
 	static int cache_slot = 0; 	/* use this cache entry */
-	static int wrapindex = 0;       /* next "free" cache entry */
+	static int wrapindex = 0;	/* next "free" cache entry */
 	int type_ipv4 = 0;
 
 	/* filters:
@@ -3172,7 +3172,7 @@ an_cache_store(struct an_softc *sc, struct ether_header *eh, struct mbuf *m,
 			sc->an_nextitem++;
 			sc->an_sigitems = sc->an_nextitem;
 		}
-        	/* no space found, so simply wrap anth wrap index
+		/* no space found, so simply wrap anth wrap index
 		 * and "zap" the next entry
 		 */
 		else {
@@ -3404,7 +3404,7 @@ static int
 writerids(struct ifnet *ifp, struct aironet_ioctl *l_ioctl)
 {
 	struct an_softc *sc;
-	int             rid, command, error;
+	int		rid, command, error;
 
 	sc = ifp->if_softc;
 	AN_LOCK_ASSERT(sc);
@@ -3532,9 +3532,9 @@ unstickbusy(struct ifnet *ifp)
 static int
 WaitBusy(struct ifnet *ifp, int uSec)
 {
-	int             statword = 0xffff;
-	int             delay = 0;
-	struct an_softc *sc = ifp->if_softc;
+	int		statword = 0xffff;
+	int		delay = 0;
+	struct an_softc	*sc = ifp->if_softc;
 
 	while ((statword & AN_CMD_BUSY) && delay <= (1000 * 100)) {
 		FLASH_DELAY(sc, 10);
@@ -3556,8 +3556,8 @@ WaitBusy(struct ifnet *ifp, int uSec)
 static int
 cmdreset(struct ifnet *ifp)
 {
-	int             status;
-	struct an_softc *sc = ifp->if_softc;
+	int		status;
+	struct an_softc	*sc = ifp->if_softc;
 
 	an_stop(sc);
 
@@ -3592,8 +3592,8 @@ cmdreset(struct ifnet *ifp)
 static int
 setflashmode(struct ifnet *ifp)
 {
-	int             status;
-	struct an_softc *sc = ifp->if_softc;
+	int		status;
+	struct an_softc	*sc = ifp->if_softc;
 
 	CSR_WRITE_2(sc, AN_SW0(sc->mpi350), FLASH_COMMAND);
 	CSR_WRITE_2(sc, AN_SW1(sc->mpi350), FLASH_COMMAND);
@@ -3620,10 +3620,10 @@ setflashmode(struct ifnet *ifp)
 static int
 flashgchar(struct ifnet *ifp, int matchbyte, int dwelltime)
 {
-	int             rchar;
-	unsigned char   rbyte = 0;
-	int             success = -1;
-	struct an_softc *sc = ifp->if_softc;
+	int		rchar;
+	unsigned char	rbyte = 0;
+	int		success = -1;
+	struct an_softc	*sc = ifp->if_softc;
 
 
 	do {
@@ -3656,9 +3656,9 @@ flashgchar(struct ifnet *ifp, int matchbyte, int dwelltime)
 static int
 flashpchar(struct ifnet *ifp, int byte, int dwelltime)
 {
-	int             echo;
-	int             pollbusy, waittime;
-	struct an_softc *sc = ifp->if_softc;
+	int		echo;
+	int		pollbusy, waittime;
+	struct an_softc	*sc = ifp->if_softc;
 
 	byte |= 0x8000;
 
@@ -3714,8 +3714,8 @@ static int
 flashputbuf(struct ifnet *ifp)
 {
 	unsigned short *bufp;
-	int             nwords;
-	struct an_softc *sc = ifp->if_softc;
+	int		nwords;
+	struct an_softc	*sc = ifp->if_softc;
 
 	/* Write stuff */
 
@@ -3747,8 +3747,8 @@ flashputbuf(struct ifnet *ifp)
 static int
 flashrestart(struct ifnet *ifp)
 {
-	int             status = 0;
-	struct an_softc *sc = ifp->if_softc;
+	int		status = 0;
+	struct an_softc	*sc = ifp->if_softc;
 
 	FLASH_DELAY(sc, 1024);		/* Added 12/7/00 */
 
@@ -3767,7 +3767,7 @@ flashrestart(struct ifnet *ifp)
 static int
 flashcard(struct ifnet *ifp, struct aironet_ioctl *l_ioctl)
 {
-	int             z = 0, status;
+	int		z = 0, status;
 	struct an_softc	*sc;
 
 	sc = ifp->if_softc;
