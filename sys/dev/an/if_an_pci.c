@@ -118,7 +118,7 @@ static int
 an_probe_pci(device_t dev)
 {
 	struct an_type		*t;
-        struct an_softc *sc = device_get_softc(dev);
+	struct an_softc *sc = device_get_softc(dev);
 
 	bzero(sc, sizeof(struct an_softc));
 	t = an_devs;
@@ -231,7 +231,7 @@ an_attach_pci(dev)
 	error = an_alloc_irq(dev, 0, RF_SHAREABLE);
 	if (error) {
 		goto fail;
-        }
+	}
 
 	sc->an_dev = dev;
 	error = an_attach(sc, device_get_unit(dev), flags);
@@ -268,20 +268,20 @@ an_resume_pci(device_t dev)
 }
 
 static device_method_t an_pci_methods[] = {
-        /* Device interface */
-        DEVMETHOD(device_probe,         an_probe_pci),
-        DEVMETHOD(device_attach,        an_attach_pci),
+	/* Device interface */
+	DEVMETHOD(device_probe,		an_probe_pci),
+	DEVMETHOD(device_attach,	an_attach_pci),
 	DEVMETHOD(device_detach,	an_detach),
 	DEVMETHOD(device_shutdown,	an_shutdown),
 	DEVMETHOD(device_suspend,	an_suspend_pci),
 	DEVMETHOD(device_resume,	an_resume_pci),
-        { 0, 0 }
+	{ 0, 0 }
 };
 
 static driver_t an_pci_driver = {
-        "an",
-        an_pci_methods,
-        sizeof(struct an_softc),
+	"an",
+	an_pci_methods,
+	sizeof(struct an_softc),
 };
 
 static devclass_t an_devclass;
