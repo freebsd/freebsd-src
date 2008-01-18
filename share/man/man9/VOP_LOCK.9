@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 10, 2008
+.Dd January 19, 2008
 .Os
 .Dt VOP_LOCK 9
 .Sh NAME
@@ -42,9 +42,9 @@
 .In sys/lock.h
 .In sys/vnode.h
 .Ft int
-.Fn VOP_LOCK "struct vnode *vp" "int flags" "struct thread *td"
+.Fn VOP_LOCK "struct vnode *vp" "int flags"
 .Ft int
-.Fn VOP_UNLOCK "struct vnode *vp" "int flags" "struct thread *td"
+.Fn VOP_UNLOCK "struct vnode *vp" "int flags"
 .Ft int
 .Fn VOP_ISLOCKED "struct vnode *vp" "struct thread *td"
 .Ft int
