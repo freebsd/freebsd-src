@@ -33,8 +33,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <sys/uio.h>
+
 #include <netinet/in.h>
 
+#include <ctype.h>
 #include <errno.h>
 #include <netdb.h>
 #include <pwd.h>
@@ -53,7 +55,7 @@ __FBSDID("$FreeBSD$");
 /*
  * Error messages for resolver errors
  */
-static struct fetcherr _netdb_errlist[] = {
+static struct fetcherr netdb_errlist[] = {
 #ifdef EAI_NODATA
 	{ EAI_NODATA,	FETCH_RESOLV,	"Host not found" },
 #endif
@@ -73,7 +75,7 @@ static const char ENDL[2] = "\r\n";
  * Map error code to string
  */
 static struct fetcherr *
-_fetch_finderr(struct fetcherr *p, int e)
+fetch_finderr(struct fetcherr *p, int e)
 {
 	while (p->num != -1 && p->num != e)
 		p++;
@@ -84,9 +86,9 @@ _fetch_finderr(struct fetcherr *p, int e)
  * Set error code
  */
 void
-_fetch_seterr(struct fetcherr *p, int e)
+fetch_seterr(struct fetcherr *p, int e)
 {
-	p = _fetch_finderr(p, e);
+	p = fetch_finderr(p, e);
 	fetchLastErrCode = p->cat;
 	snprintf(fetchLastErrString, MAXERRSTRING, "%s", p->string);
 }
@@ -95,7 +97,7 @@ _fetch_seterr(struct fetcherr *p, int e)
  * Set error code according to errno
  */
 void
-_fetch_syserr(void)
+fetch_syserr(void)
 {
 	switch (errno) {
 	case 0:
@@ -155,7 +157,7 @@ default:
  * Emit status message
  */
 void
-_fetch_info(const char *fmt, ...)
+fetch_info(const char *fmt, ...)
 {
 	va_list ap;
 
@@ -172,7 +174,7 @@ _fetch_info(const char *fmt, ...)
  * Return the default port for a scheme
  */
 int
-_fetch_default_port(const char *scheme)
+fetch_default_port(const char *scheme)
 {
 	struct servent *se;
 
@@ -189,7 +191,7 @@ _fetch_default_port(const char *scheme)
  * Return the default proxy port for a scheme
  */
 int
-_fetch_default_proxy_port(const char *scheme)
+fetch_default_proxy_port(const char *scheme)
 {
 	if (strcasecmp(scheme, SCHEME_FTP) == 0)
 		return (FTP_DEFAULT_PROXY_PORT);
@@ -203,7 +205,7 @@ _fetch_default_proxy_port(const char *scheme)
  * Create a connection for an existing descriptor.
  */
 conn_t *
-_fetch_reopen(int sd)
+fetch_reopen(int sd)
 {
 	conn_t *conn;
 
@@ -220,7 +222,7 @@ _fetch_reopen(int sd)
  * Bump a connection's reference count.
  */
 conn_t *
-_fetch_ref(conn_t *conn)
+fetch_ref(conn_t *conn)
 {
 
 	++conn->ref;
@@ -232,7 +234,7 @@ _fetch_ref(conn_t *conn)
  * Bind a socket to a specific local address
  */
 int
-_fetch_bind(int sd, int af, const char *addr)
+fetch_bind(int sd, int af, const char *addr)
 {
 	struct addrinfo hints, *res, *res0;
 	int err;
@@ -254,7 +256,7 @@ _fetch_bind(int sd, int af, const char *addr)
  * Establish a TCP connection to the specified port on the specified host.
  */
 conn_t *
-_fetch_connect(const char *host, int port, int af, int verbose)
+fetch_connect(const char *host, int port, int af, int verbose)
 {
 	conn_t *conn;
 	char pbuf[10];
@@ -265,7 +267,7 @@ _fetch_connect(const char *host, int port, int af, int verbose)
 	DEBUG(fprintf(stderr, "---> %s:%d\n", host, port));
 
 	if (verbose)
-		_fetch_info("looking up %s", host);
+		fetch_info("looking up %s", host);
 
 	/* look up host name and set up socket address structure */
 	snprintf(pbuf, sizeof(pbuf), "%d", port);
@@ -274,13 +276,13 @@ _fetch_connect(const char *host, int port, int af, int verbose)
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_protocol = 0;
 	if ((err = getaddrinfo(host, pbuf, &hints, &res0)) != 0) {
-		_netdb_seterr(err);
+		netdb_seterr(err);
 		return (NULL);
 	}
 	bindaddr = getenv("FETCH_BIND_ADDRESS");
 
 	if (verbose)
-		_fetch_info("connecting to %s:%d", host, port);
+		fetch_info("connecting to %s:%d", host, port);
 
 	/* try to connect */
 	for (sd = -1, res = res0; res; sd = -1, res = res->ai_next) {
@@ -288,8 +290,8 @@ _fetch_connect(const char *host, int port, int af, int verbose)
 			 res->ai_protocol)) == -1)
 			continue;
 		if (bindaddr != NULL && *bindaddr != '\0' &&
-		    _fetch_bind(sd, res->ai_family, bindaddr) != 0) {
-			_fetch_info("failed to bind to '%s'", bindaddr);
+		    fetch_bind(sd, res->ai_family, bindaddr) != 0) {
+			fetch_info("failed to bind to '%s'", bindaddr);
 			close(sd);
 			continue;
 		}
@@ -299,12 +301,12 @@ _fetch_connect(const char *host, int port, int af, int verbose)
 	}
 	freeaddrinfo(res0);
 	if (sd == -1) {
-		_fetch_syserr();
+		fetch_syserr();
 		return (NULL);
 	}
 
-	if ((conn = _fetch_reopen(sd)) == NULL) {
-		_fetch_syserr();
+	if ((conn = fetch_reopen(sd)) == NULL) {
+		fetch_syserr();
 		close(sd);
 	}
 	return (conn);
@@ -315,7 +317,7 @@ _fetch_connect(const char *host, int port, int af, int verbose)
  * Enable SSL on a connection.
  */
 int
-_fetch_ssl(conn_t *conn, int verbose)
+fetch_ssl(conn_t *conn, int verbose)
 {
 
 #ifdef WITH_SSL
@@ -373,7 +375,7 @@ _fetch_ssl(conn_t *conn, int verbose)
  * Read a character from a connection w/ timeout
  */
 ssize_t
-_fetch_read(conn_t *conn, char *buf, size_t len)
+fetch_read(conn_t *conn, char *buf, size_t len)
 {
 	struct timeval now, timeout, wait;
 	fd_set readfds;
@@ -399,7 +401,7 @@ _fetch_read(conn_t *conn, char *buf, size_t len)
 			}
 			if (wait.tv_sec < 0) {
 				errno = ETIMEDOUT;
-				_fetch_syserr();
+				fetch_syserr();
 				return (-1);
 			}
 			errno = 0;
@@ -407,7 +409,7 @@ _fetch_read(conn_t *conn, char *buf, size_t len)
 			if (r == -1) {
 				if (errno == EINTR && fetchRestartCalls)
 					continue;
-				_fetch_syserr();
+				fetch_syserr();
 				return (-1);
 			}
 		}
@@ -438,7 +440,7 @@ _fetch_read(conn_t *conn, char *buf, size_t len)
 #define MIN_BUF_SIZE 1024
 
 int
-_fetch_getln(conn_t *conn)
+fetch_getln(conn_t *conn)
 {
 	char *tmp;
 	size_t tmpsize;
@@ -457,7 +459,7 @@ _fetch_getln(conn_t *conn)
 	conn->buflen = 0;
 
 	do {
-		len = _fetch_read(conn, &c, 1);
+		len = fetch_read(conn, &c, 1);
 		if (len == -1)
 			return (-1);
 		if (len == 0)
@@ -485,13 +487,13 @@ _fetch_getln(conn_t *conn)
  * Write to a connection w/ timeout
  */
 ssize_t
-_fetch_write(conn_t *conn, const char *buf, size_t len)
+fetch_write(conn_t *conn, const char *buf, size_t len)
 {
 	struct iovec iov;
 
 	iov.iov_base = __DECONST(char *, buf);
 	iov.iov_len = len;
-	return _fetch_writev(conn, &iov, 1);
+	return fetch_writev(conn, &iov, 1);
 }
 
 /*
@@ -499,7 +501,7 @@ _fetch_write(conn_t *conn, const char *buf, size_t len)
  * Note: can modify the iovec.
  */
 ssize_t
-_fetch_writev(conn_t *conn, struct iovec *iov, int iovcnt)
+fetch_writev(conn_t *conn, struct iovec *iov, int iovcnt)
 {
 	struct timeval now, timeout, wait;
 	fd_set writefds;
@@ -525,7 +527,7 @@ _fetch_writev(conn_t *conn, struct iovec *iov, int iovcnt)
 			}
 			if (wait.tv_sec < 0) {
 				errno = ETIMEDOUT;
-				_fetch_syserr();
+				fetch_syserr();
 				return (-1);
 			}
 			errno = 0;
@@ -547,7 +549,7 @@ _fetch_writev(conn_t *conn, struct iovec *iov, int iovcnt)
 		if (wlen == 0) {
 			/* we consider a short write a failure */
 			errno = EPIPE;
-			_fetch_syserr();
+			fetch_syserr();
 			return (-1);
 		}
 		if (wlen < 0) {
@@ -574,7 +576,7 @@ _fetch_writev(conn_t *conn, struct iovec *iov, int iovcnt)
  * Write a line of text to a connection w/ timeout
  */
 int
-_fetch_putln(conn_t *conn, const char *str, size_t len)
+fetch_putln(conn_t *conn, const char *str, size_t len)
 {
 	struct iovec iov[2];
 	int ret;
@@ -585,9 +587,9 @@ _fetch_putln(conn_t *conn, const char *str, size_t len)
 	iov[1].iov_base = __DECONST(char *, ENDL);
 	iov[1].iov_len = sizeof(ENDL);
 	if (len == 0)
-		ret = _fetch_writev(conn, &iov[1], 1);
+		ret = fetch_writev(conn, &iov[1], 1);
 	else
-		ret = _fetch_writev(conn, iov, 2);
+		ret = fetch_writev(conn, iov, 2);
 	if (ret == -1)
 		return (-1);
 	return (0);
@@ -598,7 +600,7 @@ _fetch_putln(conn_t *conn, const char *str, size_t len)
  * Close connection
  */
 int
-_fetch_close(conn_t *conn)
+fetch_close(conn_t *conn)
 {
 	int ret;
 
@@ -614,7 +616,7 @@ _fetch_close(conn_t *conn)
 /*** Directory-related utility functions *************************************/
 
 int
-_fetch_add_entry(struct url_ent **p, int *size, int *len,
+fetch_add_entry(struct url_ent **p, int *size, int *len,
     const char *name, struct url_stat *us)
 {
 	struct url_ent *tmp;
@@ -628,7 +630,7 @@ _fetch_add_entry(struct url_ent **p, int *size, int *len,
 		tmp = realloc(*p, (*size * 2 + 1) * sizeof(**p));
 		if (tmp == NULL) {
 			errno = ENOMEM;
-			_fetch_syserr();
+			fetch_syserr();
 			return (-1);
 		}
 		*size = (*size * 2 + 1);
@@ -649,7 +651,7 @@ _fetch_add_entry(struct url_ent **p, int *size, int *len,
 /*** Authentication-related utility functions ********************************/
 
 static const char *
-_fetch_read_word(FILE *f)
+fetch_read_word(FILE *f)
 {
 	static char word[1024];
 
@@ -662,7 +664,7 @@ _fetch_read_word(FILE *f)
  * Get authentication data for a URL from .netrc
  */
 int
-_fetch_netrc_auth(struct url *url)
+fetch_netrc_auth(struct url *url)
 {
 	char fn[PATH_MAX];
 	const char *word;
@@ -671,7 +673,7 @@ _fetch_netrc_auth(struct url *url)
 
 	if ((p = getenv("NETRC")) != NULL) {
 		if (snprintf(fn, sizeof(fn), "%s", p) >= (int)sizeof(fn)) {
-			_fetch_info("$NETRC specifies a file name "
+			fetch_info("$NETRC specifies a file name "
 			    "longer than PATH_MAX");
 			return (-1);
 		}
@@ -689,39 +691,39 @@ _fetch_netrc_auth(struct url *url)
 
 	if ((f = fopen(fn, "r")) == NULL)
 		return (-1);
-	while ((word = _fetch_read_word(f)) != NULL) {
+	while ((word = fetch_read_word(f)) != NULL) {
 		if (strcmp(word, "default") == 0) {
-			DEBUG(_fetch_info("Using default .netrc settings"));
+			DEBUG(fetch_info("Using default .netrc settings"));
 			break;
 		}
 		if (strcmp(word, "machine") == 0 &&
-		    (word = _fetch_read_word(f)) != NULL &&
+		    (word = fetch_read_word(f)) != NULL &&
 		    strcasecmp(word, url->host) == 0) {
-			DEBUG(_fetch_info("Using .netrc settings for %s", word));
+			DEBUG(fetch_info("Using .netrc settings for %s", word));
 			break;
 		}
 	}
 	if (word == NULL)
 		goto ferr;
-	while ((word = _fetch_read_word(f)) != NULL) {
+	while ((word = fetch_read_word(f)) != NULL) {
 		if (strcmp(word, "login") == 0) {
-			if ((word = _fetch_read_word(f)) == NULL)
+			if ((word = fetch_read_word(f)) == NULL)
 				goto ferr;
 			if (snprintf(url->user, sizeof(url->user),
 				"%s", word) > (int)sizeof(url->user)) {
-				_fetch_info("login name in .netrc is too long");
+				fetch_info("login name in .netrc is too long");
 				url->user[0] = '\0';
 			}
 		} else if (strcmp(word, "password") == 0) {
-			if ((word = _fetch_read_word(f)) == NULL)
+			if ((word = fetch_read_word(f)) == NULL)
 				goto ferr;
 			if (snprintf(url->pwd, sizeof(url->pwd),
 				"%s", word) > (int)sizeof(url->pwd)) {
-				_fetch_info("password in .netrc is too long");
+				fetch_info("password in .netrc is too long");
 				url->pwd[0] = '\0';
 			}
 		} else if (strcmp(word, "account") == 0) {
-			if ((word = _fetch_read_word(f)) == NULL)
+			if ((word = fetch_read_word(f)) == NULL)
 				goto ferr;
 			/* XXX not supported! */
 		} else {
@@ -733,4 +735,52 @@ _fetch_netrc_auth(struct url *url)
  ferr:
 	fclose(f);
 	return (-1);
+}
+
+/*
+ * The no_proxy environment variable specifies a set of domains for
+ * which the proxy should not be consulted; the contents is a comma-,
+ * or space-separated list of domain names.  A single asterisk will
+ * override all proxy variables and no transactions will be proxied
+ * (for compatability with lynx and curl, see the discussion at
+ * <http://curl.haxx.se/mail/archive_pre_oct_99/0009.html>).
+ */
+int
+fetch_no_proxy_match(const char *host)
+{
+	const char *no_proxy, *p, *q;
+	size_t h_len, d_len;
+
+	if ((no_proxy = getenv("NO_PROXY")) == NULL &&
+	    (no_proxy = getenv("no_proxy")) == NULL)
+		return (0);
+
+	/* asterisk matches any hostname */
+	if (strcmp(no_proxy, "*") == 0)
+		return (1);
+
+	h_len = strlen(host);
+	p = no_proxy;
+	do {
+		/* position p at the beginning of a domain suffix */
+		while (*p == ',' || isspace((unsigned char)*p))
+			p++;
+
+		/* position q at the first separator character */
+		for (q = p; *q; ++q)
+			if (*q == ',' || isspace((unsigned char)*q))
+				break;
+
+		d_len = q - p;
+		if (d_len > 0 && h_len > d_len &&
+		    strncasecmp(host + h_len - d_len,
+			p, d_len) == 0) {
+			/* domain name matches */
+			return (1);
+		}
+
+		p = q + 1;
+	} while (*q);
+
+	return (0);
 }
