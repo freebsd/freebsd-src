@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\" "
-.Dd February 24, 2005
+.Dd January 18, 2008
 .Os
 .Dt CLOCKS 7
 .Sh NAME
@@ -79,7 +79,7 @@ This is a virtual clock with a frequency that happens to be 128.
 Its actual frequency is given by the macro
 .Dv CLK_TCK
 (deprecated; do not use) and by
-.Fn sysconf SC_CLK_TCK
+.Fn sysconf _SC_CLK_TCK
 and by
 .Xr sysctl 3 .
 Note that its frequency may be different from
