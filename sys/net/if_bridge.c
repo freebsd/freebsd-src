@@ -1925,6 +1925,7 @@ bridge_forward(struct bridge_softc *sc, struct bridge_iflist *sbif,
 	struct ifnet *src_if, *dst_if, *ifp;
 	struct ether_header *eh;
 	uint16_t vlan;
+	uint8_t *dst;
 	int error;
 
 	src_if = m->m_pkthdr.rcvif;
@@ -1939,6 +1940,7 @@ bridge_forward(struct bridge_softc *sc, struct bridge_iflist *sbif,
 		goto drop;
 
 	eh = mtod(m, struct ether_header *);
+	dst = eh->ether_dhost;
 
 	/* If the interface is learning, record the address. */
 	if (sbif->bif_flags & IFBIF_LEARNING) {
@@ -1966,10 +1968,21 @@ bridge_forward(struct bridge_softc *sc, struct bridge_iflist *sbif,
 	 * "this" side of the bridge, drop it.
 	 */
 	if ((m->m_flags & (M_BCAST|M_MCAST)) == 0) {
-		dst_if = bridge_rtlookup(sc, eh->ether_dhost, vlan);
+		dst_if = bridge_rtlookup(sc, dst, vlan);
 		if (src_if == dst_if)
 			goto drop;
 	} else {
+		/*
+		 * Check if its a reserved multicast address, any address
+		 * listed in 802.1D section 7.12.6 may not be forwarded by the
+		 * bridge.
+		 * This is currently 01-80-C2-00-00-00 to 01-80-C2-00-00-0F
+		 */
+		if (dst[0] == 0x01 && dst[1] == 0x80 &&
+		    dst[2] == 0xc2 && dst[3] == 0x00 &&
+		    dst[4] == 0x00 && dst[5] <= 0x0f)
+			goto drop;
+
 		/* ...forward it to all interfaces. */
 		ifp->if_imcasts++;
 		dst_if = NULL;
