@@ -478,7 +478,7 @@ _archive_write_data_block(struct archive *_a,
 	/* Write the data. */
 	while (size > 0 && a->offset < a->filesize) {
 		if (a->offset + size > a->filesize) {
-			size = a->filesize - a->offset;
+			size = (size_t)(a->filesize - a->offset);
 			archive_set_error(&a->archive, errno,
 			    "Write request too large");
 			r = ARCHIVE_WARN;
