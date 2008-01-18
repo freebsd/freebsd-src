@@ -35,6 +35,11 @@ union IEEEl2bits {
 		unsigned long	manh	:48;
 		unsigned long	manl	:64;
 	} bits;
+	struct {
+		unsigned int	expsign	:16;
+		unsigned long	manh	:48;
+		unsigned long	manl	:64;
+	} xbits;
 };
 
 #define	mask_nbit_l(u)	((void)0)
