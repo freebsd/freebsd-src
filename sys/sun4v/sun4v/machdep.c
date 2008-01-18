@@ -364,7 +364,7 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	 * Initialize proc0 stuff (p_contested needs to be done early).
 	 */
 
-	proc_linkup(&proc0, &thread0);
+	proc_linkup0(&proc0, &thread0);
 	proc0.p_md.md_sigtramp = NULL;
 	proc0.p_md.md_utrap = NULL;
 	frame0.tf_tstate = TSTATE_IE | TSTATE_PEF | TSTATE_PRIV;

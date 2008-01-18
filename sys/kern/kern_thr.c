@@ -175,6 +175,8 @@ create_thread(struct thread *td, mcontext_t *ctx,
 
 	/* Initialize our td */
 	newtd = thread_alloc();
+	if (newtd == NULL)
+		return (ENOMEM);
 
 	/*
 	 * Try the copyout as soon as we allocate the td so we don't
