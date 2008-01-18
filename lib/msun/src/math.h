@@ -408,7 +408,9 @@ long double	coshl(long double);
 long double	cosl(long double);
 long double	erfcl(long double);
 long double	erfl(long double);
+#endif
 long double	exp2l(long double);
+#if 0
 long double	expl(long double);
 long double	expm1l(long double);
 #endif
