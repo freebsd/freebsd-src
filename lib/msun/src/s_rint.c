@@ -51,7 +51,7 @@ rint(double x)
 		i0 &= 0xfffe0000;
 		i0 |= ((i1|-i1)>>12)&0x80000;
 		SET_HIGH_WORD(x,i0);
-	        w = TWO52[sx]+x;
+	        STRICT_ASSIGN(double,w,TWO52[sx]+x);
 	        t =  w-TWO52[sx];
 		GET_HIGH_WORD(i0,t);
 		SET_HIGH_WORD(t,(i0&0x7fffffff)|(sx<<31));
@@ -84,7 +84,7 @@ rint(double x)
 	    if((i1&i)!=0) i1 = (i1&(~i))|((0x40000000)>>(j0-20));
 	}
 	INSERT_WORDS(x,i0,i1);
-	*(volatile double *)&w = TWO52[sx]+x;	/* clip any extra precision */
+	STRICT_ASSIGN(double,w,TWO52[sx]+x);
 	return w-TWO52[sx];
 }
 
