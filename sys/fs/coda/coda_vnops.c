@@ -106,10 +106,9 @@ static int coda_lockdebug = 0;
 /* Definition of the vnode operation vector */
 
 struct vop_vector coda_vnodeops = {
-    .vop_default = VOP_PANIC,
+    .vop_default = &default_vnodeops,
     .vop_lookup = coda_lookup,		/* lookup */
     .vop_create = coda_create,		/* create */
-    .vop_mknod = VOP_PANIC,	/* mknod */
     .vop_open = coda_open,		/* open */
     .vop_close = coda_close,		/* close */
     .vop_access = coda_access,		/* access */
@@ -135,8 +134,6 @@ struct vop_vector coda_vnodeops = {
     .vop_print = VOP_NULL,		/* print */
     .vop_islocked = coda_islocked,	/* islocked */
     .vop_pathconf = coda_pathconf,	/* pathconf */
-    .vop_advlock = VOP_NULL,	/* advlock */
-    .vop_lease = VOP_NULL,		/* lease */
     .vop_poll = vop_stdpoll,
     .vop_getpages = vop_stdgetpages,	/* pager intf.*/
     .vop_putpages = vop_stdputpages,	/* pager intf.*/
