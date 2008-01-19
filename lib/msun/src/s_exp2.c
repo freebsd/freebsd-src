@@ -364,7 +364,7 @@ exp2(double x)
 	}
 
 	/* Reduce x, computing z, i0, and k. */
-	t = x + redux;
+	STRICT_ASSIGN(double, t, x + redux);
 	GET_LOW_WORD(i0, t);
 	i0 += TBLSIZE / 2;
 	k = (i0 >> TBLBITS) << 20;
