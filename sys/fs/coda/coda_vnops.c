@@ -244,6 +244,8 @@ coda_open(struct vop_open_args *ap)
     if (error) {
     	printf("coda_open: VOP_OPEN on container failed %d\n", error);
 	return (error);
+    } else {
+	(*vpp)->v_object = vp->v_object;
     }
 /* grab (above) does this when it calls newvnode unless it's in the cache*/
 
@@ -747,6 +749,8 @@ coda_inactive(struct vop_inactive_args *ap)
 
     CODADEBUG(CODA_INACTIVE, myprintf(("in inactive, %s, vfsp %p\n",
 				  coda_f2s(&cp->c_fid), vp->v_mount));)
+
+    vp->v_object = NULL;
  
     /* If an array has been allocated to hold the symlink, deallocate it */
     if ((coda_symlink_cache) && (VALID_SYMLINK(cp))) {
@@ -1552,7 +1556,7 @@ coda_reclaim(struct vop_reclaim_args *ap)
     cache_purge(vp);
     coda_free(VTOC(vp));
     vp->v_data = NULL;
-    vnode_destroy_vobject(vp);
+    vp->v_object = NULL;
     return (0);
 }
 
