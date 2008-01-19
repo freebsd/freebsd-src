@@ -10,9 +10,8 @@
  * ====================================================
  */
 
-#ifndef lint
-static char rcsid[] = "$FreeBSD$";
-#endif
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /* double log1p(double x)
  *
@@ -79,6 +78,8 @@ static char rcsid[] = "$FreeBSD$";
  *	 See HP-15C Advanced Functions Handbook, p.193.
  */
 
+#include <float.h>
+
 #include "math.h"
 #include "math_private.h"
 
@@ -124,7 +125,7 @@ log1p(double x)
 	if (hx >= 0x7ff00000) return x+x;
 	if(k!=0) {
 	    if(hx<0x43400000) {
-		u  = 1.0+x;
+		STRICT_ASSIGN(double,u,1.0+x);
 		GET_HIGH_WORD(hu,u);
 	        k  = (hu>>20)-1023;
 	        c  = (k>0)? 1.0-(u-x):x-(u-1.0);/* correction term */
