@@ -67,14 +67,13 @@ fi
 #
 # For a more advanced treatment of Internet Security read:
 #
-#	Firewalls & Internet Security
-#	Repelling the wily hacker
-#	William R. Cheswick, Steven M. Bellowin
+#	Firewalls and Internet Security: Repelling the Wily Hacker, 2nd Edition
+#	William R. Cheswick, Steven M. Bellowin, Aviel D. Rubin
 #
-#	Addison-Wesley
-#	ISBN 0-201-63357-4
-#	http://www.awl.com/
-#	http://www.awlonline.com/product/0%2C2627%2C0201633574%2C00.html
+#	Addison-Wesley / Prentice Hall
+#	ISBN 0-201-63466-X
+#	http://www.pearsonhighered.com/
+#	http://www.pearsonhighered.com/educator/academic/product/0,3110,020163466X,00.html
 #
 
 setup_loopback () {
