@@ -224,10 +224,10 @@ coda_unmount(vfsp, mntflags, td)
 	printf("coda_unmount: ROOT: vp %p, cp %p\n", mi->mi_rootvp, VTOC(mi->mi_rootvp));
 #endif
 	vrele(mi->mi_rootvp);
+	mi->mi_rootvp = NULL;
 	vrele(coda_ctlvp);
+	coda_ctlvp = NULL;
 	active = coda_kill(vfsp, NOT_DOWNCALL);
-	ASSERT_VOP_LOCKED(mi->mi_rootvp, "coda_unmount");
-	mi->mi_rootvp->v_vflag &= ~VV_ROOT;
 	error = vflush(mi->mi_vfsp, 0, FORCECLOSE, td);
 #ifdef CODA_VERBOSE
 	printf("coda_unmount: active = %d, vflush active %d\n", active, error);
@@ -240,7 +240,6 @@ coda_unmount(vfsp, mntflags, td)
 
 	/* No more vfsp's to hold onto */
 	mi->mi_vfsp = NULL;
-	mi->mi_rootvp = NULL;
 
 	if (error)
 	    MARK_INT_FAIL(CODA_UMOUNT_STATS);
