@@ -20,7 +20,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 18, 2004
+.Dd January 12, 2008
 .Dt MBUF_TAGS 9
 .Os
 .Sh NAME
@@ -69,9 +69,8 @@ delete tags.
 Tags are identified using an ID and cookie that uniquely identify a class
 of data tagged onto the packet, and may contain an arbitrary amount of
 additional storage.
-Typical uses of mbuf tags include the storage of VLAN tags as described in
-.Xr vlan 4 ,
-Mandatory Access Control (MAC) labels as described in
+Typical uses of mbuf tags include Mandatory Access Control (MAC) labels as
+described in
 .Xr mac 9 ,
 IPsec policy information as described in
 .Xr ipsec 4 ,
