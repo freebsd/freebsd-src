@@ -63,13 +63,8 @@
  * 2nd try -- same, except dir fid.vnode instead of cp
  */
 
-#ifdef	oldhash
-#define CODA_NC_HASH(name, namelen, cp) \
-	((name[0] + name[namelen-1] + namelen + (int)(intptr_t)(cp)) & (coda_nc_hashsize-1))
-#else
 #define CODA_NC_HASH(name, namelen, cp) \
 	((name[0] + (name[namelen-1]<<4) + namelen + (((int)(intptr_t)cp)>>8)) & (coda_nc_hashsize-1))
-#endif
 
 #define CODA_NAMEMATCH(cp, name, namelen, dcp) \
 	((namelen == cp->namelen) && (dcp == cp->dcp) && \
