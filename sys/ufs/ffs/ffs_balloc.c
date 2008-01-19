@@ -102,6 +102,7 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 	ufs2_daddr_t newb;
 	ufs1_daddr_t *bap, pref;
 	ufs1_daddr_t *allocib, *blkp, *allocblk, allociblk[NIADDR + 1];
+	ufs2_daddr_t *lbns_remfree, lbns[NIADDR + 1];
 	int unwindidx = -1;
 
 	ip = VTOI(vp);
@@ -231,6 +232,7 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 	nb = dp->di_ib[indirs[0].in_off];
 	allocib = NULL;
 	allocblk = allociblk;
+	lbns_remfree = lbns;
 	if (nb == 0) {
 		UFS_LOCK(ump);
 		pref = ffs_blkpref_ufs1(ip, lbn, 0, (ufs1_daddr_t *)0);
@@ -239,6 +241,7 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 			return (error);
 		nb = newb;
 		*allocblk++ = nb;
+		*lbns_remfree++ = indirs[1].in_lbn;
 		bp = getblk(vp, indirs[1].in_lbn, fs->fs_bsize, 0, 0, 0);
 		bp->b_blkno = fsbtodb(fs, nb);
 		vfs_bio_clrbuf(bp);
@@ -289,6 +292,7 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 		}
 		nb = newb;
 		*allocblk++ = nb;
+		*lbns_remfree++ = indirs[i].in_lbn;
 		nbp = getblk(vp, indirs[i].in_lbn, fs->fs_bsize, 0, 0, 0);
 		nbp->b_blkno = fsbtodb(fs, nb);
 		vfs_bio_clrbuf(nbp);
@@ -342,6 +346,7 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 		}
 		nb = newb;
 		*allocblk++ = nb;
+		*lbns_remfree++ = lbn;
 		nbp = getblk(vp, lbn, fs->fs_bsize, 0, 0, 0);
 		nbp->b_blkno = fsbtodb(fs, nb);
 		if (flags & BA_CLRBUF)
@@ -403,7 +408,22 @@ fail:
 	 * have an error to return to the user.
 	 */
 	(void) ffs_syncvnode(vp, MNT_WAIT);
-	for (deallocated = 0, blkp = allociblk; blkp < allocblk; blkp++) {
+	for (deallocated = 0, blkp = allociblk, lbns_remfree = lbns;
+	     blkp < allocblk; blkp++, lbns_remfree++) {
+		/*
+		 * We shall not leave the freed blocks on the vnode
+		 * buffer object lists.
+		 */
+		bp = getblk(vp, *lbns_remfree, fs->fs_bsize, 0, 0, GB_NOCREAT);
+		if (bp != NULL) {
+			bp->b_flags |= (B_INVAL | B_RELBUF);
+			bp->b_flags &= ~B_ASYNC;
+			brelse(bp);
+		}
+
+		/*
+		 * After the buffer is invalidated, free the block.
+		 */
 		ffs_blkfree(ump, fs, ip->i_devvp, *blkp, fs->fs_bsize,
 		    ip->i_number);
 		deallocated += fs->fs_bsize;
@@ -464,6 +484,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 	struct indir indirs[NIADDR + 2];
 	ufs2_daddr_t nb, newb, *bap, pref;
 	ufs2_daddr_t *allocib, *blkp, *allocblk, allociblk[NIADDR + 1];
+	ufs2_daddr_t *lbns_remfree, lbns[NIADDR + 1];
 	int deallocated, osize, nsize, num, i, error;
 	int unwindidx = -1;
 
@@ -703,6 +724,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 	nb = dp->di_ib[indirs[0].in_off];
 	allocib = NULL;
 	allocblk = allociblk;
+	lbns_remfree = lbns;
 	if (nb == 0) {
 		UFS_LOCK(ump);
 		pref = ffs_blkpref_ufs2(ip, lbn, 0, (ufs2_daddr_t *)0);
@@ -711,6 +733,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 			return (error);
 		nb = newb;
 		*allocblk++ = nb;
+		*lbns_remfree++ = indirs[1].in_lbn;
 		bp = getblk(vp, indirs[1].in_lbn, fs->fs_bsize, 0, 0, 0);
 		bp->b_blkno = fsbtodb(fs, nb);
 		vfs_bio_clrbuf(bp);
@@ -761,6 +784,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 		}
 		nb = newb;
 		*allocblk++ = nb;
+		*lbns_remfree++ = indirs[i].in_lbn;
 		nbp = getblk(vp, indirs[i].in_lbn, fs->fs_bsize, 0, 0, 0);
 		nbp->b_blkno = fsbtodb(fs, nb);
 		vfs_bio_clrbuf(nbp);
@@ -814,6 +838,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 		}
 		nb = newb;
 		*allocblk++ = nb;
+		*lbns_remfree++ = lbn;
 		nbp = getblk(vp, lbn, fs->fs_bsize, 0, 0, 0);
 		nbp->b_blkno = fsbtodb(fs, nb);
 		if (flags & BA_CLRBUF)
@@ -881,7 +906,22 @@ fail:
 	 * have an error to return to the user.
 	 */
 	(void) ffs_syncvnode(vp, MNT_WAIT);
-	for (deallocated = 0, blkp = allociblk; blkp < allocblk; blkp++) {
+	for (deallocated = 0, blkp = allociblk, lbns_remfree = lbns;
+	     blkp < allocblk; blkp++, lbns_remfree++) {
+		/*
+		 * We shall not leave the freed blocks on the vnode
+		 * buffer object lists.
+		 */
+		bp = getblk(vp, *lbns_remfree, fs->fs_bsize, 0, 0, GB_NOCREAT);
+		if (bp != NULL) {
+			bp->b_flags |= (B_INVAL | B_RELBUF);
+			bp->b_flags &= ~B_ASYNC;
+			brelse(bp);
+		}
+
+		/*
+		 * After the buffer is invalidated, free the block.
+		 */
 		ffs_blkfree(ump, fs, ip->i_devvp, *blkp, fs->fs_bsize,
 		    ip->i_number);
 		deallocated += fs->fs_bsize;
