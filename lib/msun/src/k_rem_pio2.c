@@ -11,9 +11,8 @@
  * ====================================================
  */
 
-#ifndef lint
-static char rcsid[] = "$FreeBSD$";
-#endif
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * __kernel_rem_pio2(x,y,e0,nx,prec,ipio2)
@@ -130,6 +129,8 @@ static char rcsid[] = "$FreeBSD$";
  * compiler will convert from decimal to binary accurately enough 
  * to produce the hexadecimal values shown.
  */
+
+#include <float.h>
 
 #include "math.h"
 #include "math_private.h"
@@ -277,6 +278,7 @@ recompute:
 	    case 2:
 		fw = 0.0;
 		for (i=jz;i>=0;i--) fw += fq[i]; 
+		STRICT_ASSIGN(float,fw,fw);
 		y[0] = (ih==0)? fw: -fw; 
 		fw = fq[0]-fw;
 		for (i=1;i<=jz;i++) fw += fq[i];
