@@ -27,6 +27,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <float.h>
+
 #include "math.h"
 #include "math_private.h"
 
@@ -91,8 +93,7 @@ float
 exp2f(float x)
 {
 	double tv;
-	float r, z;
-	volatile float t;	/* prevent gcc from using too much precision */
+	float r, t, z;
 	uint32_t hx, hr, ix, i0;
 	int32_t k;
 
@@ -115,7 +116,7 @@ exp2f(float x)
 	}
 
 	/* Reduce x, computing z, i0, and k. */
-	t = x + redux;
+	STRICT_ASSIGN(float, t, x + redux);
 	GET_FLOAT_WORD(i0, t);
 	i0 += TBLSIZE / 2;
 	k = (i0 >> TBLBITS) << 23;
