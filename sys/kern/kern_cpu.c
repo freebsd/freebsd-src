@@ -37,10 +37,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/proc.h>
 #include <sys/queue.h>
+#include <sys/sbuf.h>
 #include <sys/sched.h>
+#include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
-#include <sys/sbuf.h>
 #include <sys/sx.h>
 #include <sys/timetc.h>
 #include <sys/taskqueue.h>
@@ -242,6 +243,21 @@ cf_set_method(device_t dev, const struct cf_level *level, int priority)
 	}
 
 	CF_MTX_LOCK(&sc->lock);
+
+#ifdef SMP
+	/*
+	 * If still booting and secondary CPUs not started yet, don't allow
+	 * changing the frequency until they're online.  This is because we
+	 * can't switch to them using sched_bind() and thus we'd only be
+	 * switching the main CPU.  XXXTODO: Need to think more about how to
+	 * handle having different CPUs at different frequencies.  
+	 */
+	if (mp_ncpus > 1 && !smp_active) {
+		device_printf(dev, "rejecting change, SMP not started yet\n");
+		error = ENXIO;
+		goto out;
+	}
+#endif /* SMP */
 
 	/*
 	 * If the requested level has a lower priority, don't allow
@@ -590,6 +606,17 @@ cf_levels_method(device_t dev, struct cf_level *levels, int *count)
 	/* Finally, output the list of levels. */
 	i = 0;
 	TAILQ_FOREACH(lev, &sc->all_levels, link) {
+		/*
+		 * Skip levels that are too close in frequency to the
+		 * previous levels.  Some systems report bogus duplicate
+		 * settings (i.e., for acpi_perf).
+		 */
+		if (i > 0 && CPUFREQ_CMP(lev->total_set.freq,
+		    levels[i - 1].total_set.freq)) {
+			sc->all_count--;
+			continue;
+		}
+
 		/* Skip levels that have a frequency that is too low. */
 		if (lev->total_set.freq < cf_lowest_freq) {
 			sc->all_count--;
