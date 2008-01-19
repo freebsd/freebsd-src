@@ -2446,8 +2446,9 @@ nfs4_strategy(struct vop_strategy_args *ap)
 	struct ucred *cr;
 	int error = 0;
 
-	KASSERT(!(bp->b_flags & B_DONE), ("nfs4_strategy: buffer %p unexpectedly marked B_DONE", bp));
-	KASSERT(BUF_REFCNT(bp) > 0, ("nfs4_strategy: buffer %p not locked", bp));
+	KASSERT(!(bp->b_flags & B_DONE),
+	    ("nfs4_strategy: buffer %p unexpectedly marked B_DONE", bp));
+	KASSERT(BUF_ISLOCKED(bp), ("nfs4_strategy: buffer %p not locked", bp));
 
 	if (bp->b_iocmd == BIO_READ)
 		cr = bp->b_rcred;
@@ -2525,7 +2526,7 @@ again:
 		bveccount = 0;
 		VI_LOCK(vp);
 		TAILQ_FOREACH_SAFE(bp, &vp->v_bufobj.bo_dirty.bv_hd, b_bobufs, nbp) {
-			if (BUF_REFCNT(bp) == 0 &&
+			if (!BUF_ISLOCKED(bp) &&
 			    (bp->b_flags & (B_DELWRI | B_NEEDCOMMIT))
 				== (B_DELWRI | B_NEEDCOMMIT))
 				bveccount++;
@@ -2807,7 +2808,7 @@ nfs4_writebp(struct buf *bp, int force __unused, struct thread *td)
 	off_t off;
 #endif
 
-	if (BUF_REFCNT(bp) == 0)
+	if (!BUF_ISLOCKED(bp))
 		panic("bwrite: buffer is not locked???");
 
 	if (bp->b_flags & B_INVAL) {
