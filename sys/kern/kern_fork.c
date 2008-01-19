@@ -195,6 +195,7 @@ fork1(td, flags, pages, procp)
 	struct filedesc_to_leader *fdtol;
 	struct thread *td2;
 	struct sigacts *newsigacts;
+	struct vmspace *vm2;
 	int error;
 
 	/* Can't copy and clear. */
@@ -218,7 +219,9 @@ fork1(td, flags, pages, procp)
 			PROC_UNLOCK(p1);
 		}
 
-		vm_forkproc(td, NULL, NULL, flags);
+		error = vm_forkproc(td, NULL, NULL, NULL, flags);
+		if (error)
+			goto norfproc_fail;
 
 		/*
 		 * Close all file descriptors.
@@ -236,6 +239,7 @@ fork1(td, flags, pages, procp)
 		if (flags & RFFDG) 
 			fdunshare(p1, td);
 
+norfproc_fail:
 		if ((p1->p_flag & P_HADTHREADS) &&
 		    (flags & (RFCFDG | RFFDG))) {
 			PROC_LOCK(p1);
@@ -243,11 +247,37 @@ fork1(td, flags, pages, procp)
 			PROC_UNLOCK(p1);
 		}
 		*procp = NULL;
-		return (0);
+		return (error);
 	}
 
 	/* Allocate new proc. */
 	newproc = uma_zalloc(proc_zone, M_WAITOK);
+	if (TAILQ_EMPTY(&newproc->p_threads)) {
+		td2 = thread_alloc();
+		if (td2 == NULL) {
+			error = ENOMEM;
+			goto fail1;
+		}
+		proc_linkup(newproc, td2);
+		sched_newproc(newproc, td2);
+	} else
+		td2 = FIRST_THREAD_IN_PROC(newproc);
+
+	/* Allocate and switch to an alternate kstack if specified. */
+	if (pages != 0) {
+		if (!vm_thread_new_altkstack(td2, pages)) {
+			error = ENOMEM;
+			goto fail1;
+		}
+	}
+	if ((flags & RFMEM) == 0) {
+		vm2 = vmspace_fork(p1->p_vmspace);
+		if (vm2 == NULL) {
+			error = ENOMEM;
+			goto fail1;
+		}
+	} else
+		vm2 = NULL;
 #ifdef MAC
 	mac_init_proc(newproc);
 #endif
@@ -374,7 +404,6 @@ again:
 		lastpid = trypid;
 
 	p2 = newproc;
-	td2 = FIRST_THREAD_IN_PROC(newproc);
 	p2->p_state = PRS_NEW;		/* protect against others */
 	p2->p_pid = trypid;
 	/*
@@ -450,9 +479,6 @@ again:
 	 * Start by zeroing the section of proc that is zero-initialized,
 	 * then copy the section that is copied directly from the parent.
 	 */
-	/* Allocate and switch to an alternate kstack if specified. */
-	if (pages != 0)
-		vm_thread_new_altkstack(td2, pages);
 
 	PROC_LOCK(p2);
 	PROC_LOCK(p1);
@@ -624,7 +650,7 @@ again:
 	 * Finish creating the child process.  It will return via a different
 	 * execution path later.  (ie: directly into user mode)
 	 */
-	vm_forkproc(td, p2, td2, flags);
+	vm_forkproc(td, p2, td2, vm2, flags);
 
 	if (flags == (RFFDG | RFPROC)) {
 		PCPU_INC(cnt.v_forks);
@@ -707,6 +733,7 @@ fail:
 #ifdef MAC
 	mac_destroy_proc(newproc);
 #endif
+fail1:
 	uma_zfree(proc_zone, newproc);
 	pause("fork", hz / 2);
 	return (error);

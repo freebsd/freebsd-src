@@ -193,10 +193,11 @@ pmap_page_init(vm_page_t m)
 	MMU_PAGE_INIT(mmu_obj, m);
 }
 
-void
+int
 pmap_pinit(pmap_t pmap)
 {
 	MMU_PINIT(mmu_obj, pmap);
+	return (1);
 }
 
 void

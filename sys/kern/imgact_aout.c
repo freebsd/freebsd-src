@@ -198,9 +198,11 @@ exec_aout_imgact(imgp)
 	/*
 	 * Destroy old process VM and create a new one (with a new stack)
 	 */
-	exec_new_vmspace(imgp, &aout_sysvec);
+	error = exec_new_vmspace(imgp, &aout_sysvec);
 
 	vn_lock(imgp->vp, LK_EXCLUSIVE | LK_RETRY, td);
+	if (error)
+		return (error);
 
 	/*
 	 * The vm space can be changed by exec_new_vmspace
