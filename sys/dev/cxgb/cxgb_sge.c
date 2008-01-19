@@ -3203,7 +3203,7 @@ t3_add_attach_sysctls(adapter_t *sc)
 	    0, "#times txq overrun");
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
 	    "pcpu_cache_enable",
-	    CTLFLAG_RD, &cxgb_pcpu_cache_enable,
+	    CTLFLAG_RW, &cxgb_pcpu_cache_enable,
 	    0, "#enable driver local pcpu caches");
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
 	    "cache_alloc",

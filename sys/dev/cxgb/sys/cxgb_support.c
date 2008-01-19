@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 extern int cxgb_use_16k_clusters;
-int cxgb_pcpu_cache_enable = 0;
+int cxgb_pcpu_cache_enable = 1;
 
 struct buf_stack {
 	caddr_t            *bs_stack;
