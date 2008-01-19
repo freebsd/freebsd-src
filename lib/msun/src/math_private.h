@@ -164,8 +164,12 @@ do {								\
 #define	STRICT_ASSIGN(type, lval, rval) do {	\
 	volatile type __lval;			\
 						\
-	__lval = (rval);			\
-	(lval) = __lval;			\
+	if (sizeof(type) >= sizeof(double))	\
+		(lval) = (rval);		\
+	else {					\
+		__lval = (rval);		\
+		(lval) = __lval;		\
+	}					\
 } while (0)
 #endif
 #endif
