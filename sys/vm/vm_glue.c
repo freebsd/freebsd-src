@@ -321,7 +321,7 @@ vm_imgact_unmap_page(struct sf_buf *sf)
  * This routine directly affects the fork perf for a process and
  * create performance for a thread.
  */
-void
+int
 vm_thread_new(struct thread *td, int pages)
 {
 	vm_object_t ksobj;
@@ -338,18 +338,22 @@ vm_thread_new(struct thread *td, int pages)
 	 * Allocate an object for the kstack.
 	 */
 	ksobj = vm_object_allocate(OBJT_DEFAULT, pages);
-	td->td_kstack_obj = ksobj;
 	/*
 	 * Get a kernel virtual address for this thread's kstack.
 	 */
 	ks = kmem_alloc_nofault(kernel_map,
 	   (pages + KSTACK_GUARD_PAGES) * PAGE_SIZE);
-	if (ks == 0)
-		panic("vm_thread_new: kstack allocation failed");
+	if (ks == 0) {
+		printf("vm_thread_new: kstack allocation failed\n");
+		vm_object_deallocate(ksobj);
+		return (0);
+	}
+	
 	if (KSTACK_GUARD_PAGES != 0) {
 		pmap_qremove(ks, KSTACK_GUARD_PAGES);
 		ks += KSTACK_GUARD_PAGES * PAGE_SIZE;
 	}
+	td->td_kstack_obj = ksobj;
 	td->td_kstack = ks;
 	/*
 	 * Knowing the number of pages allocated is useful when you
@@ -372,6 +376,7 @@ vm_thread_new(struct thread *td, int pages)
 	}
 	VM_OBJECT_UNLOCK(ksobj);
 	pmap_qenter(ks, ma, pages);
+	return (1);
 }
 
 /*
@@ -403,6 +408,7 @@ vm_thread_dispose(struct thread *td)
 	vm_object_deallocate(ksobj);
 	kmem_free(kernel_map, ks - (KSTACK_GUARD_PAGES * PAGE_SIZE),
 	    (pages + KSTACK_GUARD_PAGES) * PAGE_SIZE);
+	td->td_kstack = 0;
 }
 
 /*
@@ -468,7 +474,7 @@ vm_thread_swapin(struct thread *td)
 /*
  * Set up a variable-sized alternate kstack.
  */
-void
+int
 vm_thread_new_altkstack(struct thread *td, int pages)
 {
 
@@ -476,7 +482,7 @@ vm_thread_new_altkstack(struct thread *td, int pages)
 	td->td_altkstack_obj = td->td_kstack_obj;
 	td->td_altkstack_pages = td->td_kstack_pages;
 
-	vm_thread_new(td, pages);
+	return (vm_thread_new(td, pages));
 }
 
 /*
@@ -504,14 +510,16 @@ vm_thread_dispose_altkstack(struct thread *td)
  * ready to run.  The new process is set up so that it returns directly
  * to user mode to avoid stack copying and relocation problems.
  */
-void
-vm_forkproc(td, p2, td2, flags)
+int
+vm_forkproc(td, p2, td2, vm2, flags)
 	struct thread *td;
 	struct proc *p2;
 	struct thread *td2;
+	struct vmspace *vm2;
 	int flags;
 {
 	struct proc *p1 = td->td_proc;
+	int error;
 
 	if ((flags & RFPROC) == 0) {
 		/*
@@ -521,11 +529,13 @@ vm_forkproc(td, p2, td2, flags)
 		 */
 		if ((flags & RFMEM) == 0) {
 			if (p1->p_vmspace->vm_refcnt > 1) {
-				vmspace_unshare(p1);
+				error = vmspace_unshare(p1);
+				if (error)
+					return (error);
 			}
 		}
 		cpu_fork(td, p2, td2, flags);
-		return;
+		return (0);
 	}
 
 	if (flags & RFMEM) {
@@ -538,7 +548,7 @@ vm_forkproc(td, p2, td2, flags)
 	}
 
 	if ((flags & RFMEM) == 0) {
-		p2->p_vmspace = vmspace_fork(p1->p_vmspace);
+		p2->p_vmspace = vm2;
 		if (p1->p_vmspace->vm_shm)
 			shmfork(p1, p2);
 	}
@@ -548,6 +558,7 @@ vm_forkproc(td, p2, td2, flags)
 	 * and make the child ready to run.
 	 */
 	cpu_fork(td, p2, td2, flags);
+	return (0);
 }
 
 /*

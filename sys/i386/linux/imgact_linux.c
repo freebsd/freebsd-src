@@ -119,7 +119,9 @@ exec_linux_imgact(struct image_params *imgp)
     /*
      * Destroy old process VM and create a new one (with a new stack)
      */
-    exec_new_vmspace(imgp, &linux_sysvec);
+    error = exec_new_vmspace(imgp, &linux_sysvec);
+    if (error)
+	    goto fail;
     vmspace = imgp->proc->p_vmspace;
 
     /*

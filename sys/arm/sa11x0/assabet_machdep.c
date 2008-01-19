@@ -422,7 +422,7 @@ initarm(void *arg, void *arg2)
 
 	/* Set stack for exception handlers */
 	
-	proc_linkup(&proc0, &thread0);
+	proc_linkup0(&proc0, &thread0);
 	thread0.td_kstack = kernelstack.pv_va;
 	thread0.td_pcb = (struct pcb *)
 		(thread0.td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
