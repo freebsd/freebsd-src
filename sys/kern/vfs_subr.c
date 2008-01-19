@@ -3570,7 +3570,7 @@ vop_strategy_pre(void *ap)
 	if ((bp->b_flags & B_CLUSTER) != 0)
 		return;
 
-	if (BUF_REFCNT(bp) < 1) {
+	if (!BUF_ISLOCKED(bp)) {
 		if (vfs_badlock_print)
 			printf(
 			    "VOP_STRATEGY: bp is not locked but should be\n");
