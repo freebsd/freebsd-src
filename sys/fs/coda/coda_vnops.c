@@ -221,9 +221,6 @@ coda_open(struct vop_open_args *ap)
 
     CODADEBUG( CODA_OPEN,myprintf(("open: vp %p result %d\n", vp, error));)
 
-    /* Keep a reference until the close comes in. */
-    vref(*vpp);                
-
     /* Save the vnode pointer for the cache file. */
     if (cp->c_ovp == NULL) {
 	cp->c_ovp = vp;
@@ -292,8 +289,6 @@ coda_close(struct vop_close_args *ap)
     if (!IS_UNMOUNTING(cp))
          error = venus_close(vtomi(vp), &cp->c_fid, flag, cred, td->td_proc);
     else error = ENODEV;
-
-    vrele(vp);
 
     CODADEBUG(CODA_CLOSE, myprintf(("close: result %d\n",error)); )
     return(error);
