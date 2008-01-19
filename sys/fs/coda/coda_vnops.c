@@ -1296,7 +1296,11 @@ coda_mkdir(struct vop_mkdir_args *ap)
 
 	/* Invalidate the parent's attr cache, the modification time has changed */
 	VTOC(dvp)->c_flags &= ~C_VATTR;
-	
+
+	if ((error = VOP_LOCK(*vpp, LK_EXCLUSIVE))) {
+	    panic("coda_create: couldn't lock child");
+	}
+
 	CODADEBUG( CODA_MKDIR, myprintf(("mkdir: %s result %d\n",
 					 coda_f2s(&VFid), error)); )
 	} else {
