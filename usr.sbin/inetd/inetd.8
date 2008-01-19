@@ -28,7 +28,7 @@
 .\"     from: @(#)inetd.8	8.3 (Berkeley) 4/13/94
 .\" $FreeBSD$
 .\"
-.Dd September 14, 2006
+.Dd January 12, 2008
 .Dt INETD 8
 .Os
 .Sh NAME
@@ -177,6 +177,7 @@ service, the entry would contain these fields:
 service-name/version
 socket-type
 rpc/protocol
+{wait|nowait}[/max-child[/max-connections-per-ip-per-minute[/max-child-per-ip]]]
 user[:group][/login-class]
 server-program
 server-program-arguments
