@@ -13,9 +13,10 @@
  * ====================================================
  */
 
-#ifndef lint
-static char rcsid[] = "$FreeBSD$";
-#endif
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
+#include <float.h>
 
 #include "math.h"
 #include "math_private.h"
@@ -62,7 +63,7 @@ log1pf(float x)
 	if (hx >= 0x7f800000) return x+x;
 	if(k!=0) {
 	    if(hx<0x5a000000) {
-		*(volatile float *)&u = (float)1.0+x;
+		STRICT_ASSIGN(float,u,(float)1.0+x);
 		GET_FLOAT_WORD(hu,u);
 	        k  = (hu>>23)-127;
 		/* correction term */
