@@ -160,7 +160,6 @@ xfs_buf_get_error(struct buf *bp)
 
 #define XFS_BUF_HOLD(x)		((void)0)
 #define XFS_BUF_UNHOLD(x)	((void)0)
-#define XFS_BUF_ISHOLD(x)	BUF_REFCNT(x)
 
 #define XFS_BUF_READ(x)		((x)->b_iocmd = BIO_READ)
 #define XFS_BUF_UNREAD(x)	((x)->b_iocmd = 0)
@@ -234,7 +233,7 @@ xfs_buf_offset(xfs_buf_t *bp, size_t offset)
 #define	XFS_BUF_SET_VTYPE(bp, type)
 #define	XFS_BUF_SET_REF(bp, ref)
 
-#define	XFS_BUF_VALUSEMA(bp)	(BUF_REFCNT(bp)? 0 : 1)
+#define	XFS_BUF_VALUSEMA(bp)	(BUF_ISLOCKED(bp) ? 0 : 1)
 #define	XFS_BUF_CPSEMA(bp) \
 	(BUF_LOCK(bp, LK_EXCLUSIVE|LK_CANRECURSE | LK_SLEEPFAIL, NULL) == 0)
 

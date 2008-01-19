@@ -86,7 +86,7 @@ xfs_buf_get_empty(size_t size,  xfs_buftarg_t *target)
 		bp->b_bufsize = size;
 		bp->b_bcount = size;
 
-		KASSERT(BUF_REFCNT(bp) == 1,
+		KASSERT(BUF_ISLOCKED(bp),
 			("xfs_buf_get_empty: bp %p not locked",bp));
 
 		xfs_buf_set_target(bp, target);
@@ -103,7 +103,7 @@ xfs_buf_get_noaddr(size_t len, xfs_buftarg_t *target)
 
 	bp = geteblk(len);
 	if (bp != NULL) {
-		KASSERT(BUF_REFCNT(bp) == 1,
+		KASSERT(BUF_ISLOCKED(bp),
 			("xfs_buf_get_empty: bp %p not locked",bp));
 
 		xfs_buf_set_target(bp, target);
@@ -163,7 +163,7 @@ XFS_bwrite(xfs_buf_t *bp)
 		if ((bp->b_flags & B_ASYNC) == 0) {
 			error = bufwait(bp);
 #if 0
-			if (BUF_REFCNT(bp) > 1)
+			if (BUF_LOCKRECURSED(bp))
 				BUF_UNLOCK(bp);
 			else
 				brelse(bp);
