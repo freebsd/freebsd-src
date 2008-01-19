@@ -420,12 +420,6 @@ fail:
 			bp->b_flags &= ~B_ASYNC;
 			brelse(bp);
 		}
-
-		/*
-		 * After the buffer is invalidated, free the block.
-		 */
-		ffs_blkfree(ump, fs, ip->i_devvp, *blkp, fs->fs_bsize,
-		    ip->i_number);
 		deallocated += fs->fs_bsize;
 	}
 	if (allocib != NULL) {
@@ -461,6 +455,14 @@ fail:
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
 	}
 	(void) ffs_syncvnode(vp, MNT_WAIT);
+	/*
+	 * After the buffers are invalidated and on-disk pointers are
+	 * cleared, free the blocks.
+	 */
+	for (blkp = allociblk; blkp < allocblk; blkp++) {
+		ffs_blkfree(ump, fs, ip->i_devvp, *blkp, fs->fs_bsize,
+		    ip->i_number);
+	}
 	return (error);
 }
 
@@ -918,12 +920,6 @@ fail:
 			bp->b_flags &= ~B_ASYNC;
 			brelse(bp);
 		}
-
-		/*
-		 * After the buffer is invalidated, free the block.
-		 */
-		ffs_blkfree(ump, fs, ip->i_devvp, *blkp, fs->fs_bsize,
-		    ip->i_number);
 		deallocated += fs->fs_bsize;
 	}
 	if (allocib != NULL) {
@@ -959,5 +955,13 @@ fail:
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
 	}
 	(void) ffs_syncvnode(vp, MNT_WAIT);
+	/*
+	 * After the buffers are invalidated and on-disk pointers are
+	 * cleared, free the blocks.
+	 */
+	for (blkp = allociblk; blkp < allocblk; blkp++) {
+		ffs_blkfree(ump, fs, ip->i_devvp, *blkp, fs->fs_bsize,
+		    ip->i_number);
+	}
 	return (error);
 }
