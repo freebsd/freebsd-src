@@ -72,7 +72,7 @@
 #define	SIGBUS		10	/* bus error */
 #endif
 #define	SIGSEGV		11	/* segmentation violation */
-#if __BSD_VISIBLE
+#if __POSIX_VISIBLE >= 200112 || __XSI_VISIBLE
 #define	SIGSYS		12	/* non-existent system call invoked */
 #endif
 #if __POSIX_VISIBLE || __XSI_VISIBLE
