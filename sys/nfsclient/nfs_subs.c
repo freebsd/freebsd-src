@@ -918,7 +918,7 @@ nfs_clearcommit(struct mount *mp)
 		}
 		MNT_IUNLOCK(mp);
 		TAILQ_FOREACH_SAFE(bp, &vp->v_bufobj.bo_dirty.bv_hd, b_bobufs, nbp) {
-			if (BUF_REFCNT(bp) == 0 &&
+			if (!BUF_ISLOCKED(bp) &&
 			    (bp->b_flags & (B_DELWRI | B_NEEDCOMMIT))
 				== (B_DELWRI | B_NEEDCOMMIT))
 				bp->b_flags &= ~(B_NEEDCOMMIT | B_CLUSTEROK);

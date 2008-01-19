@@ -1718,7 +1718,7 @@ ffs_bufwrite(struct buf *bp)
 
 	oldflags = bp->b_flags;
 
-	if (BUF_REFCNT(bp) == 0)
+	if (!BUF_ISLOCKED(bp))
 		panic("bufwrite: buffer is not busy???");
 	s = splbio();
 	/*

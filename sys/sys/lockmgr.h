@@ -204,6 +204,8 @@ int	lockcount(struct lock *);
 int	lockwaiters(struct lock *);
 
 #define lockmgr(lock, flags, mtx, td) _lockmgr((lock), (flags), (mtx), (td), __FILE__, __LINE__)
+#define	lockmgr_recursed(lkp)						\
+	((lkp)->lk_exclusivecount > 1)
 #ifdef DDB
 int	lockmgr_chain(struct thread *td, struct thread **ownerp);
 #endif

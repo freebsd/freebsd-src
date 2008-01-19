@@ -320,11 +320,22 @@ BUF_UNLOCK(struct buf *bp)
 }
 
 /*
+ * Check if a buffer lock is recursed.
+ */
+#define	BUF_LOCKRECURSED(bp)						\
+	(lockmgr_recursed(&(bp)->b_lock))
+
+/*
+ * Check if a buffer lock is currently held.
+ */
+#define	BUF_ISLOCKED(bp)						\
+	(lockstatus(&(bp)->b_lock, curthread))
+/*
  * Free a buffer lock.
  */
 #define BUF_LOCKFREE(bp) 			\
 do {						\
-	if (BUF_REFCNT(bp) > 0)			\
+	if (BUF_ISLOCKED(bp))			\
 		panic("free locked buf");	\
 	lockdestroy(&(bp)->b_lock);		\
 } while (0)
@@ -344,29 +355,6 @@ BUF_KERNPROC(struct buf *bp)
 	lockmgr_disown(&bp->b_lock);
 }
 #endif
-/*
- * Find out the number of references to a lock.
- */
-static __inline int BUF_REFCNT(struct buf *);
-static __inline int
-BUF_REFCNT(struct buf *bp)
-{
-	int s, ret;
-
-	/*
-	 * When the system is panicing, the lock manager grants all lock
-	 * requests whether or not the lock is available. To avoid "unlocked
-	 * buffer" panics after a crash, we just claim that all buffers
-	 * are locked when cleaning up after a system panic.
-	 */
-	if (panicstr != NULL)
-		return (1);
-	s = splbio();
-	ret = lockcount(&(bp)->b_lock);
-	splx(s);
-	return ret;
-}
-
 
 /*
  * Find out the number of waiters on a lock.
