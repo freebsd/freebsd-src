@@ -676,11 +676,11 @@ devstats(int perf_select, long double etime, int havelast)
 		printf("\n");
 		if (Iflag == 0)
 			printf(
-		"device     r/s   w/s    kr/s    kw/s wait svc_t  %b  "
+		"device     r/s   w/s    kr/s    kw/s wait svc_t  %%b  "
 			    );
 		else
 			printf(
-		"device     r/i   w/i    kr/i    kw/i wait svc_t  %b  "
+		"device     r/i   w/i    kr/i    kw/i wait svc_t  %%b  "
 			    );
 		if (Tflag > 0)
 			printf("tin tout ");
@@ -735,9 +735,10 @@ devstats(int perf_select, long double etime, int havelast)
 		}
 
 		if (xflag > 0) {
-			asprintf(&devname, "%s%d",
+			if (asprintf(&devname, "%s%d",
 			    cur.dinfo->devices[di].device_name,
-			    cur.dinfo->devices[di].unit_number);
+			    cur.dinfo->devices[di].unit_number) == -1)
+				err(1, "asprintf");
 			/*
 			 * If zflag is set, skip any devices with zero I/O.
 			 */
@@ -781,6 +782,7 @@ devstats(int perf_select, long double etime, int havelast)
 				}
 				printf("\n");
 			}
+			free(devname);
 		} else if (oflag > 0) {
 			int msdig = (ms_per_transaction < 100.0) ? 1 : 0;
 
