@@ -2514,6 +2514,10 @@ sysctl_kern_proc_filedesc(SYSCTL_HANDLER_ARGS)
 			kif->kf_type = KF_TYPE_MQUEUE;
 			break;
 
+		case DTYPE_SHM:
+			kif->kf_type = KF_TYPE_SHM;
+			break;
+
 		default:
 			kif->kf_type = KF_TYPE_UNKNOWN;
 			break;
