@@ -49,6 +49,7 @@ MAN=	aac.4 \
 	ciss.4 \
 	cm.4 \
 	cnw.4 \
+	${_coretemp.4} \
 	cpufreq.4 \
 	crypto.4 \
 	cue.4 \
@@ -519,6 +520,7 @@ MLINKS+=watchdog.4 SW_WATCHDOG.4
 
 .if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386"
 _amdsmb.4=	amdsmb.4
+_coretemp.4=	coretemp.4
 _if_nve.4=	if_nve.4
 _ipmi.4=	ipmi.4
 _nfsmb.4=	nfsmb.4
