@@ -201,6 +201,10 @@ procstat_files(pid_t pid, struct kinfo_proc *kipp)
 			str = "m";
 			break;
 
+		case KF_TYPE_SHM:
+			str = "h";
+			break;
+
 		case KF_TYPE_NONE:
 		case KF_TYPE_UNKNOWN:
 		default:
