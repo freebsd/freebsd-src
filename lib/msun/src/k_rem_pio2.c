@@ -278,7 +278,7 @@ recompute:
 	    case 2:
 		fw = 0.0;
 		for (i=jz;i>=0;i--) fw += fq[i]; 
-		STRICT_ASSIGN(float,fw,fw);
+		STRICT_ASSIGN(double,fw,fw);
 		y[0] = (ih==0)? fw: -fw; 
 		fw = fq[0]-fw;
 		for (i=1;i<=jz;i++) fw += fq[i];
