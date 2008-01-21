@@ -1823,13 +1823,13 @@ sf_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 				    "DMA error, resetting\n");
 				sf_init_locked(sc);
 			} else if ((status & SF_ISR_NO_TX_CSUM) != 0) {
-				sc->sf_statistics.tx_gfp_stall++;
+				sc->sf_statistics.sf_tx_gfp_stall++;
 #ifdef	SF_GFP_DEBUG
 				device_printf(sc->sf_dev,
 				    "TxGFP is not responding!\n");
 #endif
 			} else if ((status & SF_ISR_RXGFP_NORESP) != 0) {
-				sc->sf_statistics.rx_gfp_stall++;
+				sc->sf_statistics.sf_rx_gfp_stall++;
 #ifdef	SF_GFP_DEBUG
 				device_printf(sc->sf_dev,
 				    "RxGFP is not responding!\n");
