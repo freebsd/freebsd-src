@@ -119,7 +119,7 @@ __FBSDID("$FreeBSD$");
 
 #define SF_USEIOSPACE
 
-#include <pci/if_sfreg.h>
+#include <dev/sf/if_sfreg.h>
 
 MODULE_DEPEND(sf, pci, 1, 1, 1);
 MODULE_DEPEND(sf, ether, 1, 1, 1);
