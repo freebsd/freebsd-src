@@ -926,19 +926,14 @@ coda_lookup(struct vop_lookup_args *ap)
 	     * lock it without bothering to check anything else. 
 	     */
 	    if (*ap->a_vpp) {
-		if ((error = VOP_LOCK(*ap->a_vpp, LK_EXCLUSIVE))) {
-		    vn_lock(dvp, LK_RETRY|LK_EXCLUSIVE);
-		    return (error);
-		}
+		vn_lock(*ap->a_vpp, LK_EXCLUSIVE | LK_RETRY);
 	    }
 	    vn_lock(dvp, LK_RETRY|LK_EXCLUSIVE);
 	} else {
 	    /* The parent is locked, and may be the same as the child */
 	    if (*ap->a_vpp && (*ap->a_vpp != dvp)) {
 		/* Different, go ahead and lock it. */
-		if ((error = VOP_LOCK(*ap->a_vpp, LK_EXCLUSIVE))) {
-		    return (error);
-		}
+		vn_lock(*ap->a_vpp, LK_EXCLUSIVE | LK_RETRY);
 	    }
 	}
     } else {
@@ -1022,10 +1017,7 @@ coda_create(struct vop_create_args *ap)
 
     if (!error) {
 	if (cnp->cn_flags & LOCKLEAF) {
-	    if ((error = VOP_LOCK(*ap->a_vpp, LK_EXCLUSIVE))) {
-		printf("coda_create: ");
-		panic("unlocked parent but couldn't lock child");
-	    }
+	    vn_lock(*ap->a_vpp, LK_EXCLUSIVE | LK_RETRY);
 	}
 #ifdef OLD_DIAGNOSTIC
 	else {
@@ -1289,9 +1281,7 @@ coda_mkdir(struct vop_mkdir_args *ap)
 	/* Invalidate the parent's attr cache, the modification time has changed */
 	VTOC(dvp)->c_flags &= ~C_VATTR;
 
-	if ((error = VOP_LOCK(*vpp, LK_EXCLUSIVE))) {
-	    panic("coda_create: couldn't lock child");
-	}
+	vn_lock(*vpp, LK_EXCLUSIVE | LK_RETRY);
 
 	CODADEBUG( CODA_MKDIR, myprintf(("mkdir: %s result %d\n",
 					 coda_f2s(&VFid), error)); )
