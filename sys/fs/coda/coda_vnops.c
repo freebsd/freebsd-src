@@ -341,7 +341,9 @@ coda_rdwr(struct vnode *vp, struct uio *uiop, enum uio_rw rw, int ioflag,
 	opened_internally = 1;
 	MARK_INT_GEN(CODA_OPEN_STATS);
 	error = VOP_OPEN(vp, (rw == UIO_READ ? FREAD : FWRITE), cred, td, NULL);
+#ifdef CODA_VERBOSE
 	printf("coda_rdwr: Internally Opening %p\n", vp);
+#endif
 	if (error) {
 		printf("coda_rdwr: VOP_OPEN on container failed %d\n", error);
 		return (error);
