@@ -50,6 +50,7 @@ MAN=	aac.4 \
 	ciss.4 \
 	cm.4 \
 	cnw.4 \
+	coda.4 \
 	${_coretemp.4} \
 	cpufreq.4 \
 	crypto.4 \
