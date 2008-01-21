@@ -21,6 +21,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20080121:
+	To upgrade to -current after this date, you must be running
+	FreeBSD after the RELENG_6 branch point.  This means any of the
+	6.x releases are supported and should work.  Upgrading to current
+	from 5.x now requires a stop over at RELENG_6 or RELENG_7 systems.
+	FreeBSD_version must be 600029 or higher, although this isn't
+	enforced in the Makefile at this time.
+
 20071128:
 	The ADAPTIVE_GIANT kernel option has been retired because its
 	functionality is the default now.
