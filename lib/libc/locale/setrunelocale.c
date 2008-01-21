@@ -126,6 +126,8 @@ __setrunelocale(const char *encoding)
 	rl->__sgetrune = NULL;
 	if (strcmp(rl->__encoding, "NONE") == 0)
 		ret = _none_init(rl);
+	else if (strcmp(rl->__encoding, "ASCII") == 0)
+		ret = _ascii_init(rl);
 	else if (strcmp(rl->__encoding, "UTF-8") == 0)
 		ret = _UTF8_init(rl);
 	else if (strcmp(rl->__encoding, "EUC") == 0)
