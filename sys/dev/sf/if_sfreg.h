@@ -196,13 +196,13 @@
 #define SF_TXDQ_CTL		0x0090
 #define SF_TXDQ_ADDR_HIPRIO	0x0094
 #define SF_TXDQ_ADDR_LOPRIO	0x0098
-#define SF_TXDQ_ADDR_HIADDR	0x009C
+#define SF_TXDQ_ADDR_HI		0x009C
 #define SF_TXDQ_PRODIDX		0x00A0
 #define SF_TXDQ_CONSIDX		0x00A4
 #define SF_TXDMA_STS1		0x00A8
 #define SF_TXDMA_STS2		0x00AC
 #define SF_TX_FRAMCTL		0x00B0
-#define SF_TXCQ_ADDR_HI		0x00B4
+#define SF_CQ_ADDR_HI		0x00B4
 #define SF_TXCQ_CTL		0x00B8
 #define SF_RXCQ_CTL_1		0x00BC
 #define SF_RXCQ_CTL_2		0x00C0
@@ -212,7 +212,7 @@
 #define SF_RXDMA_CTL		0x00D0
 #define SF_RXDQ_CTL_1		0x00D4
 #define SF_RXDQ_CTL_2		0x00D8
-#define SF_RXDQ_ADDR_HIADDR	0x00DC
+#define SF_RXDQ_ADDR_HI		0x00DC
 #define SF_RXDQ_ADDR_Q1		0x00E0
 #define SF_RXDQ_ADDR_Q2		0x00E4
 #define SF_RXDQ_PTR_Q1		0x00E8
@@ -248,6 +248,11 @@
 #define SF_TIMER_EARLYRX2_DLY	0x20000000
 #define SF_TIMER_RXQ1DONE_DLY	0x40000000
 #define SF_TIMER_EARLYRX1_DLY	0x80000000
+
+/* Timer resolution is 0.8us * 128. */
+#define	SF_IM_MIN		0
+#define	SF_IM_MAX		0x1F	/* 3.276ms */
+#define	SF_IM_DEFAULT		1	/* 102.4us */
 
 /* Interrupt status register */
 #define SF_ISR_PCIINT_ASSERTED	0x00000001
@@ -347,10 +352,11 @@
 
 #define SF_INTRS	\
 	(SF_IMR_RXDQ2_NOBUFS|SF_IMR_RXDQ1_DMADONE|SF_IMR_RXDQ2_DMADONE|	\
-	 SF_IMR_TX_TXDONE|SF_IMR_RXDQ1_NOBUFS|SF_IMR_RXDQ2_DMADONE|	\
+	 SF_IMR_TX_DMADONE|SF_IMR_RXDQ1_NOBUFS|SF_IMR_RXDQ2_DMADONE|	\
 	 SF_IMR_NORMALINTR|SF_IMR_ABNORMALINTR|SF_IMR_TXCQ_NOBUFS|	\
 	 SF_IMR_RXCQ1_NOBUFS|SF_IMR_RXCQ2_NOBUFS|SF_IMR_STATSOFLOW|	\
-	 SF_IMR_TX_LOFIFO)
+	 SF_IMR_TX_LOFIFO|SF_IMR_DMAERR|SF_IMR_RXGFP_NORESP|		\
+	 SF_IMR_NO_TX_CSUM)
 
 /* TX descriptor queue control registers */
 #define SF_TXDQCTL_DESCTYPE	0x00000007
@@ -360,6 +366,9 @@
 #define SF_TXDQCTL_BURSTLEN	0x00003F00
 #define SF_TXDQCTL_SKIPLEN	0x001F0000
 #define SF_TXDQCTL_HIPRIOTHRESH	0xFF000000
+
+#define	SF_TXDMA_HIPRIO_THRESH	2
+#define	SF_TXDDMA_BURST		(128 / 32)
 
 #define SF_TXBUFDESC_TYPE0	0x00000000
 #define SF_TXBUFDESC_TYPE1	0x00000001
@@ -434,9 +443,6 @@
 #define SF_CQ_TXTHRMODE_INT_ON	0x80000000
 #define SF_CQ_TXTHRMODE_INT_OFF	0x00000000
 
-#define SF_IDX_LO(x)		((x) & 0x000007FF)
-#define SF_IDX_HI(x)		(((x) >> 16) & 0x000007FF)
-
 /* RX DMA control register */
 #define SF_RXDMA_BURSTSIZE	0x0000007F
 #define SF_RXDMA_FPTESTMODE	0x00000080
@@ -453,6 +459,8 @@
 #define SF_RXDMA_DMABADPKTS	0x20000000
 #define SF_RXDMA_DMARUNTS	0x40000000
 #define SF_RXDMA_REPORTBADPKTS	0x80000000
+#define	SF_RXDMA_HIGHPRIO_THRESH	6
+#define	SF_RXDMA_BURST		(64 / 32)
 
 #define SF_RXDQMODE_Q1ONLY	0x00100000
 #define SF_RXDQMODE_Q2_ON_FP	0x00200000
@@ -567,8 +575,8 @@
 #define SF_MII_DATAPORT		0x0000FFFF
 
 #define SF_PHY_REG(phy, reg)						\
-	(SF_MIIADDR_BASE + (phy * SF_MII_BLOCKS * sizeof(u_int32_t)) +	\
-	(reg * sizeof(u_int32_t)))
+	(SF_MIIADDR_BASE + ((phy) * SF_MII_BLOCKS * sizeof(uint32_t)) +	\
+	((reg) * sizeof(uint32_t)))
 
 /*
  * Ethernet extra registers 0x4000 to 0x4FFF
@@ -613,6 +621,8 @@
 #define SF_MACCFG1_MIILOOPBK	0x00004000
 #define SF_MACCFG1_SOFTRESET	0x00008000
 
+#define	SF_MACCFG2_AUTOVLANPAD	0x00000020
+
 /*
  * There are the recommended IPG nibble counter settings
  * specified in the Adaptec manual for full duplex and
@@ -643,13 +653,53 @@
 #define SF_STATS_BASE		0x7000
 #define SF_STATS_END		0x7FFF
 
+#define	SF_STATS_TX_FRAMES	0x0000
+#define	SF_STATS_TX_SINGLE_COL	0x0004
+#define	SF_STATS_TX_MULTI_COL	0x0008
+#define	SF_STATS_TX_CRC_ERRS	0x000C
+#define	SF_STATS_TX_BYTES	0x0010
+#define	SF_STATS_TX_DEFERRED	0x0014
+#define	SF_STATS_TX_LATE_COL	0x0018
+#define	SF_STATS_TX_PAUSE	0x001C
+#define	SF_STATS_TX_CTL_FRAME	0x0020
+#define	SF_STATS_TX_EXCESS_COL	0x0024
+#define	SF_STATS_TX_EXCESS_DEF	0x0028
+#define	SF_STATS_TX_MULTI	0x002C
+#define	SF_STATS_TX_BCAST	0x0030
+#define	SF_STATS_TX_FRAME_LOST	0x0034
+#define	SF_STATS_RX_FRAMES	0x0038
+#define	SF_STATS_RX_CRC_ERRS	0x003C
+#define	SF_STATS_RX_ALIGN_ERRS	0x0040
+#define	SF_STATS_RX_BYTES	0x0044
+#define	SF_STATS_RX_PAUSE	0x0048
+#define	SF_STATS_RX_CTL_FRAME	0x004C
+#define	SF_STATS_RX_UNSUP_FRAME	0x0050
+#define	SF_STATS_RX_GIANTS	0x0054
+#define	SF_STATS_RX_RUNTS	0x0058
+#define	SF_STATS_RX_JABBER	0x005C
+#define	SF_STATS_RX_FRAGMENTS	0x0060
+#define	SF_STATS_RX_64		0x0064
+#define	SF_STATS_RX_65_127	0x0068
+#define	SF_STATS_RX_128_255	0x006C
+#define	SF_STATS_RX_256_511	0x0070
+#define	SF_STATS_RX_512_1023	0x0074
+#define	SF_STATS_RX_1024_1518	0x0078
+#define	SF_STATS_RX_FRAME_LOST	0x007C
+#define	SF_STATS_TX_UNDERRUN	0x0080
+
 /*
  * TX frame processor instruction space 0x8000 to 0x9FFF
  */
+#define SF_TXGFP_MEM_BASE	0x8000
+#define SF_TXGFP_MEM_END	0x8FFF
 
+/* Number of bytes of an GFP instruction. */
+#define	SF_GFP_INST_BYTES	6
 /*
  * RX frame processor instruction space 0xA000 to 0xBFFF
  */
+#define SF_RXGFP_MEM_BASE	0xA000
+#define SF_RXGFP_MEM_END	0xBFFF
 
 /*
  * Ethernet FIFO access space 0xC000 to 0xDFFF
@@ -663,52 +713,31 @@
  * Descriptor data structures.
  */
 
-
-/* Receive descriptor formats. */
-#define SF_RX_MINSPACING	8
-#define SF_RX_DLIST_CNT		256
-#define SF_RX_CLIST_CNT		1024
-#define SF_RX_HOSTADDR(x)	(((x) >> 2) & 0x3FFFFFFF)
-
 /*
- * RX buffer descriptor type 0, 32-bit addressing. Note that we
- * program the RX buffer queue control register(s) to allow a
- * descriptor spacing of 16 bytes, which leaves room after each
- * descriptor to store a pointer to the mbuf for each buffer.
+ * RX buffer descriptor type 0, 32-bit addressing.
  */
 struct sf_rx_bufdesc_type0 {
-	u_int32_t		sf_valid:1,
-				sf_end:1,
-				sf_addrlo:30;
-	u_int32_t		sf_pad0;
-#ifdef __i386__
-	u_int32_t		sf_pad1;
-#endif
-	struct mbuf		*sf_mbuf;
+	uint32_t		sf_addrlo;
+#define	SF_RX_DESC_VALID	0x00000001
+#define	SF_RX_DESC_END		0x00000002
 };
 
 /*
- * RX buffer descriptor type 0, 64-bit addressing.
+ * RX buffer descriptor type 1, 64-bit addressing.
  */
 struct sf_rx_bufdesc_type1 {
-	u_int32_t		sf_valid:1,
-				sf_end:1,
-				sf_addrlo:30;
-	u_int32_t		sf_addrhi;
-#ifdef __i386__
-	u_int32_t		sf_pad;
-#endif
-	struct mbuf		*sf_mbuf;
+	uint64_t		sf_addr;
 };
 
 /*
  * RX completion descriptor, type 0 (short).
  */
 struct sf_rx_cmpdesc_type0 {
-	u_int32_t		sf_len:16,
-				sf_endidx:11,
-				sf_status1:3,
-				sf_id:2;
+	uint32_t		sf_rx_status1;
+#define	SF_RX_CMPDESC_LEN	0x0000ffff
+#define	SF_RX_CMPDESC_EIDX	0x07ff0000
+#define	SF_RX_CMPDESC_STAT1	0x38000000
+#define	SF_RX_CMPDESC_ID	0x40000000
 };
 
 /*
@@ -716,12 +745,10 @@ struct sf_rx_cmpdesc_type0 {
  * if this is a vlan-addressed packet, plus extended status.
  */
 struct sf_rx_cmpdesc_type1 {
-	u_int32_t		sf_len:16,
-				sf_endidx:11,
-				sf_status1:3,
-				sf_id:2;
-	u_int16_t		sf_status2;
-	u_int16_t		sf_vlanid;
+	uint32_t		sf_rx_status1;
+	uint32_t		sf_rx_status2;
+#define	SF_RX_CMPDESC_VLAN	0x0000ffff
+#define	SF_RX_CMPDESC_STAT2	0xffff0000
 };
 
 /*
@@ -729,12 +756,9 @@ struct sf_rx_cmpdesc_type1 {
  * checksum instead of vlan tag, plus extended status.
  */
 struct sf_rx_cmpdesc_type2 {
-	u_int32_t		sf_len:16,
-				sf_endidx:11,
-				sf_status1:3,
-				sf_id:2;
-	u_int16_t		sf_status2;
-	u_int16_t		sf_cksum;
+	uint32_t		sf_rx_status1;
+	uint32_t		sf_rx_status2;
+#define	SF_RX_CMPDESC_CSUM2	0x0000ffff
 };
 
 /*
@@ -742,81 +766,64 @@ struct sf_rx_cmpdesc_type2 {
  * TCP/IP checksum, vlan tag plus priority, two extended status fields.
  */
 struct sf_rx_cmpdesc_type3 {
-	u_int32_t		sf_len:16,
-				sf_endidx:11,
-				sf_status1:3,
-				sf_id:2;
-	u_int32_t		sf_startidx:10,
-				sf_status3:6,
-				sf_status2:16;
-	u_int16_t		sf_cksum;
-	u_int16_t		sf_vlanid_prio;
-	u_int32_t		sf_timestamp;
+	uint32_t		sf_rx_status1;
+	uint32_t		sf_rx_status2;
+	uint32_t		sf_rx_status3;
+#define	SF_RX_CMPDESC_CSUM3	0xffff0000
+#define	SF_RX_CMPDESC_VLANPRI	0x0000ffff
+	uint32_t		sf_rx_timestamp;
 };
 
-#define SF_RXSTAT1_QUEUE	0x1
-#define SF_RXSTAT1_FIFOFULL	0x2
-#define SF_RXSTAT1_OK		0x4
+#define SF_RXSTAT1_QUEUE	0x08000000
+#define SF_RXSTAT1_FIFOFULL	0x10000000
+#define SF_RXSTAT1_OK		0x20000000
 
-					/* 0=unknown,5=unsupported */
-#define SF_RXSTAT2_FRAMETYPE	0x0007	/* 1=IPv4,2=IPv2,3=IPX,4=ICMP */
-#define SF_RXSTAT2_UDP		0x0008
-#define SF_RXSTAT2_TCP		0x0010
-#define SF_RXSTAT2_FRAG		0x0020
-#define SF_RXSTAT2_PCSUM_OK	0x0040	/* partial checksum ok */
-#define SF_RXSTAT2_CSUM_BAD	0x0080	/* TCP/IP checksum bad */
-#define SF_RXSTAT2_CSUM_OK	0x0100	/* TCP/IP checksum ok */
-#define SF_RXSTAT2_VLAN		0x0200
-#define SF_RXSTAT2_BADRXCODE	0x0400
-#define SF_RXSTAT2_DRIBBLE	0x0800
-#define SF_RXSTAT2_ISL_CRCERR	0x1000
-#define SF_RXSTAT2_CRCERR	0x2000
-#define SF_RXSTAT2_HASH		0x4000
-#define SF_RXSTAT2_PERFECT	0x8000
+#define SF_RXSTAT2_FRAMETYPE_MASK	0x00070000
+#define SF_RXSTAT2_FRAMETYPE_UNKN	0x00000000
+#define SF_RXSTAT2_FRAMETYPE_IPV4	0x00010000
+#define SF_RXSTAT2_FRAMETYPE_IPV6	0x00020000
+#define SF_RXSTAT2_FRAMETYPE_IPX	0x00030000
+#define SF_RXSTAT2_FRAMETYPE_ICMP	0x00040000
+#define SF_RXSTAT2_FRAMETYPE_UNSPRT	0x00050000
+#define SF_RXSTAT2_UDP		0x00080000
+#define SF_RXSTAT2_TCP		0x00100000
+#define SF_RXSTAT2_FRAG		0x00200000
+#define SF_RXSTAT2_PCSUM_OK	0x00400000	/* partial checksum ok */
+#define SF_RXSTAT2_CSUM_BAD	0x00800000	/* TCP/IP checksum bad */
+#define SF_RXSTAT2_CSUM_OK	0x01000000	/* TCP/IP checksum ok */
+#define SF_RXSTAT2_VLAN		0x02000000
+#define SF_RXSTAT2_BADRXCODE	0x04000000
+#define SF_RXSTAT2_DRIBBLE	0x08000000
+#define SF_RXSTAT2_ISL_CRCERR	0x10000000
+#define SF_RXSTAT2_CRCERR	0x20000000
+#define SF_RXSTAT2_HASH		0x40000000
+#define SF_RXSTAT2_PERFECT	0x80000000
+#define	SF_RXSTAT2_MASK		0xFFFF0000
 
-#define SF_RXSTAT3_TRAILER	0x01
-#define SF_RXSTAT3_HEADER	0x02
-#define SF_RXSTAT3_CONTROL	0x04
-#define SF_RXSTAT3_PAUSE	0x08
-#define SF_RXSTAT3_ISL		0x10
-
-/*
- * Transmit descriptor formats.
- * Each transmit descriptor type allows for a skip field at the
- * start of each structure. The size of the skip field can vary,
- * however we always set it for 8 bytes, which is enough to hold
- * a pointer (32 bits on x86, 64-bits on alpha) that we can use
- * to hold the address of the head of the mbuf chain for the
- * frame or fragment associated with the descriptor. This saves
- * us from having to create a separate pointer array to hold
- * the mbuf addresses.
- */
-#define SF_TX_BUFDESC_ID		0xB
-#define SF_MAXFRAGS			14
-#define SF_TX_MINSPACING		128
-#define SF_TX_DLIST_CNT			128
-#define SF_TX_DLIST_SIZE		16384
-#define SF_TX_SKIPLEN			1
-#define SF_TX_CLIST_CNT			1024
+#define SF_RXSTAT3_ISL		0x00008000
+#define SF_RXSTAT3_PAUSE	0x00004000
+#define SF_RXSTAT3_CONTROL	0x00002000
+#define SF_RXSTAT3_HEADER	0x00001000
+#define SF_RXSTAT3_TRAILER	0x00000800
+#define	SF_RXSTAT3_START_IDX_MASK	0x000007FF
 
 struct sf_frag {
-	u_int32_t		sf_addr;
-	u_int16_t		sf_fraglen;
-	u_int16_t		sf_pktlen;
+	uint32_t		sf_addr;
+	uint16_t		sf_fraglen;
+	uint16_t		sf_pktlen;
 };
 
 struct sf_frag_msdos {
-	u_int16_t		sf_pktlen;
-	u_int16_t		sf_fraglen;
-	u_int32_t		sf_addr;
+	uint16_t		sf_pktlen;
+	uint16_t		sf_fraglen;
+	uint32_t		sf_addr;
 };
 
 /*
  * TX frame descriptor type 0, 32-bit addressing. One descriptor can
- * be used to map multiple packet fragments. We use this format since
- * BSD networking fragments packet data across mbuf chains. Note that
- * the number of fragments can be variable depending on how the descriptor
- * spacing is specified in the TX descriptor queue control register.
+ * be used to map multiple packet fragments. Note that the number of
+ * fragments can be variable depending on how the descriptor spacing
+ * is specified in the TX descriptor queue control register.
  * We always use a spacing of 128 bytes, and a skipfield length of 8
  * bytes: this means 16 bytes for the descriptor, including the skipfield,
  * with 121 bytes left for fragment maps. Each fragment requires 8 bytes,
@@ -825,20 +832,18 @@ struct sf_frag_msdos {
  * 128 bytes per descriptor, we have room for 128 descriptors in the queue.
  */
 struct sf_tx_bufdesc_type0 {
-#ifdef __i386__
-	u_int32_t		sf_pad;
-#endif
-	struct mbuf		*sf_mbuf;
-	u_int32_t		sf_rsvd0:24,
-				sf_crcen:1,
-				sf_caltcp:1,
-				sf_end:1,
-				sf_intr:1,
-				sf_id:4;
-	u_int8_t		sf_fragcnt;
-	u_int8_t		sf_rsvd2;
-	u_int16_t		sf_rsvd1;
-	struct sf_frag		sf_frags[14];
+	uint32_t		sf_tx_ctrl;
+#define	SF_TX_DESC_CRCEN	0x01000000
+#define	SF_TX_DESC_CALTCP	0x02000000
+#define	SF_TX_DESC_END		0x04000000
+#define	SF_TX_DESC_INTR		0x08000000
+#define	SF_TX_DESC_ID		0xb0000000
+	uint32_t		sf_tx_frag;
+	/*
+	 * Depending on descriptor spacing/skip field length it
+	 * can have fixed number of struct sf_frag.
+	 * struct sf_frag		sf_frags[14];
+	 */
 };
 
 /*
@@ -846,18 +851,10 @@ struct sf_tx_bufdesc_type0 {
  * maps a single fragment.
  */
 struct sf_tx_bufdesc_type1 {
-#ifdef __i386__
-	u_int32_t		sf_pad;
-#endif
-	struct mbuf		*sf_mbuf;
-	u_int32_t		sf_fraglen:16,
-				sf_fragcnt:8,
-				sf_crcen:1,
-				sf_caltcp:1,
-				sf_end:1,
-				sf_intr:1,
-				sf_id:4;
-	u_int32_t		sf_addr;
+	uint32_t		sf_tx_ctrl;
+#define	SF_TX_DESC_FRAGLEN	0x0000ffff
+#define	SF_TX_DESC_FRAGCNT	0x00ff0000
+	uint32_t		sf_addrlo;
 };
 
 /*
@@ -865,19 +862,9 @@ struct sf_tx_bufdesc_type1 {
  * maps a single fragment.
  */
 struct sf_tx_bufdesc_type2 {
-#ifdef __i386__
-	u_int32_t		sf_pad;
-#endif
-	struct mbuf		*sf_mbuf;
-	u_int32_t		sf_fraglen:16,
-				sf_fragcnt:8,
-				sf_crcen:1,
-				sf_caltcp:1,
-				sf_end:1,
-				sf_intr:1,
-				sf_id:4;
-	u_int32_t		sf_addrlo;
-	u_int32_t		sf_addrhi;
+	uint32_t		sf_tx_ctrl;
+	uint32_t		sf_tx_reserved;
+	uint64_t		sf_addr;
 };
 
 /* TX buffer descriptor type 3 is not defined. */
@@ -889,20 +876,14 @@ struct sf_tx_bufdesc_type2 {
  * to optimize copies in MS-DOS and OS/2 drivers.
  */
 struct sf_tx_bufdesc_type4 {
-#ifdef __i386__
-	u_int32_t		sf_pad;
-#endif
-	struct mbuf		*sf_mbuf;
-	u_int32_t		sf_rsvd0:24,
-				sf_crcen:1,
-				sf_caltcp:1,
-				sf_end:1,
-				sf_intr:1,
-				sf_id:4;
-	u_int8_t		sf_fragcnt;
-	u_int8_t		sf_rsvd2;
-	u_int16_t		sf_rsvd1;
-	struct sf_frag_msdos	sf_frags[14];
+	uint32_t		sf_tx_ctrl;
+	uint32_t		sf_tx_frag;
+	/*
+	 * Depending on descriptor spacing/skip field length it
+	 * can have fixed number of struct sf_frag_msdos.
+	 *
+	 * struct sf_frag_msdos		sf_frags[14];
+	 */
 };
 
 /*
@@ -912,139 +893,203 @@ struct sf_tx_bufdesc_type4 {
 /*
  * Transmit DMA completion descriptor, type 0.
  */
-#define SF_TXCMPTYPE_DMA	0x4
+#define SF_TXCMPTYPE_DMA	0x80000000
+#define SF_TXCMPTYPE_TX		0xa0000000
 struct sf_tx_cmpdesc_type0 {
-	u_int32_t		sf_index:15,
-				sf_priority:1,
-				sf_timestamp:13,
-				sf_type:3;
+	uint32_t		sf_tx_status1;
+#define	SF_TX_CMPDESC_IDX	0x00007fff
+#define	SF_TX_CMPDESC_HIPRI	0x00008000
+#define	SF_TX_CMPDESC_STAT	0x1fff0000
+#define	SF_TX_CMPDESC_TYPE	0xe0000000
 };
 
 /*
  * Transmit completion descriptor, type 1.
  */
-#define SF_TXCMPTYPE_TX		0x5
 struct sf_tx_cmpdesc_type1 {
-	u_int32_t		sf_index:15,
-				sf_priority:1,
-				sf_txstat:13,
-				sf_type:3;
+	uint32_t		sf_tx_status1;
+	uint32_t		sf_tx_status2;
 };
 
-#define SF_TXSTAT_CRCERR	0x0001
-#define SF_TXSTAT_LENCHECKERR	0x0002
-#define SF_TXSTAT_LENRANGEERR	0x0004
-#define SF_TXSTAT_TX_OK		0x0008
-#define SF_TXSTAT_TX_DEFERED	0x0010
-#define SF_TXSTAT_EXCESS_DEFER	0x0020
-#define SF_TXSTAT_EXCESS_COLL	0x0040
-#define SF_TXSTAT_LATE_COLL	0x0080
-#define SF_TXSTAT_TOOBIG	0x0100
-#define SF_TXSTAT_TX_UNDERRUN	0x0200
-#define SF_TXSTAT_CTLFRAME_OK	0x0400
-#define SF_TXSTAT_PAUSEFRAME_OK	0x0800
-#define SF_TXSTAT_PAUSED	0x1000
+#define SF_TXSTAT_CRCERR	0x00010000
+#define SF_TXSTAT_LENCHECKERR	0x00020000
+#define SF_TXSTAT_LENRANGEERR	0x00040000
+#define SF_TXSTAT_TX_OK		0x00080000
+#define SF_TXSTAT_TX_DEFERED	0x00100000
+#define SF_TXSTAT_EXCESS_DEFER	0x00200000
+#define SF_TXSTAT_EXCESS_COLL	0x00400000
+#define SF_TXSTAT_LATE_COLL	0x00800000
+#define SF_TXSTAT_TOOBIG	0x01000000
+#define SF_TXSTAT_TX_UNDERRUN	0x02000000
+#define SF_TXSTAT_CTLFRAME_OK	0x04000000
+#define SF_TXSTAT_PAUSEFRAME_OK	0x08000000
+#define SF_TXSTAT_PAUSED	0x10000000
 
 /* Statistics counters. */
 struct sf_stats {
-	u_int32_t		sf_tx_frames;
-	u_int32_t		sf_tx_single_colls;
-	u_int32_t		sf_tx_multi_colls;
-	u_int32_t		sf_tx_crcerrs;
-	u_int32_t		sf_tx_bytes;
-	u_int32_t		sf_tx_defered;
-	u_int32_t		sf_tx_late_colls;
-	u_int32_t		sf_tx_pause_frames;
-	u_int32_t		sf_tx_control_frames;
-	u_int32_t		sf_tx_excess_colls;
-	u_int32_t		sf_tx_excess_defer;
-	u_int32_t		sf_tx_mcast_frames;
-	u_int32_t		sf_tx_bcast_frames;
-	u_int32_t		sf_tx_frames_lost;
-	u_int32_t		sf_rx_rx_frames;
-	u_int32_t		sf_rx_crcerrs;
-	u_int32_t		sf_rx_alignerrs;
-	u_int32_t		sf_rx_bytes;
-	u_int32_t		sf_rx_control_frames;
-	u_int32_t		sf_rx_unsup_control_frames;
-	u_int32_t		sf_rx_giants;
-	u_int32_t		sf_rx_runts;
-	u_int32_t		sf_rx_jabbererrs;
-	u_int32_t		sf_rx_pkts_64;
-	u_int32_t		sf_rx_pkts_65_127;
-	u_int32_t		sf_rx_pkts_128_255;
-	u_int32_t		sf_rx_pkts_256_511;
-	u_int32_t		sf_rx_pkts_512_1023;
-	u_int32_t		sf_rx_pkts_1024_1518;
-	u_int32_t		sf_rx_frames_lost;
-	u_int16_t		sf_tx_underruns;
-	u_int16_t		sf_pad;
+	uint64_t		sf_tx_frames;
+	uint32_t		sf_tx_single_colls;
+	uint32_t		sf_tx_multi_colls;
+	uint32_t		sf_tx_crcerrs;
+	uint64_t		sf_tx_bytes;
+	uint32_t		sf_tx_deferred;
+	uint32_t		sf_tx_late_colls;
+	uint32_t		sf_tx_pause_frames;
+	uint32_t		sf_tx_control_frames;
+	uint32_t		sf_tx_excess_colls;
+	uint32_t		sf_tx_excess_defer;
+	uint32_t		sf_tx_mcast_frames;
+	uint32_t		sf_tx_bcast_frames;
+	uint32_t		sf_tx_frames_lost;
+	uint64_t		sf_rx_frames;
+	uint32_t		sf_rx_crcerrs;
+	uint32_t		sf_rx_alignerrs;
+	uint64_t		sf_rx_bytes;
+	uint32_t		sf_rx_pause_frames;
+	uint32_t		sf_rx_control_frames;
+	uint32_t		sf_rx_unsup_control_frames;
+	uint32_t		sf_rx_giants;
+	uint32_t		sf_rx_runts;
+	uint32_t		sf_rx_jabbererrs;
+	uint32_t		sf_rx_fragments;
+	uint64_t		sf_rx_pkts_64;
+	uint64_t		sf_rx_pkts_65_127;
+	uint64_t		sf_rx_pkts_128_255;
+	uint64_t		sf_rx_pkts_256_511;
+	uint64_t		sf_rx_pkts_512_1023;
+	uint64_t		sf_rx_pkts_1024_1518;
+	uint32_t		sf_rx_frames_lost;
+	uint32_t		sf_tx_underruns;
+	uint32_t		sf_tx_gfp_stall;
+	uint32_t		sf_rx_gfp_stall;
 };
 
 /*
  * register space access macros
  */
 #define CSR_WRITE_4(sc, reg, val)	\
-	bus_space_write_4(sc->sf_btag, sc->sf_bhandle, reg, val)
+	bus_write_4((sc)->sf_res, reg, val)
 
 #define CSR_READ_4(sc, reg)		\
-	bus_space_read_4(sc->sf_btag, sc->sf_bhandle, reg)
+	bus_read_4((sc)->sf_res, reg)
 
 #define CSR_READ_1(sc, reg)		\
-	bus_space_read_1(sc->sf_btag, sc->sf_bhandle, reg)
+	bus_read_1((sc)->sf_res, reg)
 
 
 struct sf_type {
-	u_int16_t		sf_vid;
-	u_int16_t		sf_did;
+	uint16_t		sf_vid;
+	uint16_t		sf_did;
 	char			*sf_name;
+	uint16_t		sf_sdid;
+	char			*sf_sname;
 };
 
-#define SF_INC(x, y)	(x) = (x + 1) % y
+/* Use Tx descriptor type 2 : 64bit buffer descriptor */
+#define	sf_tx_rdesc	sf_tx_bufdesc_type2
+/* Use Rx descriptor type 1 : 64bit buffer descriptor */
+#define	sf_rx_rdesc	sf_rx_bufdesc_type1
+/* Use Tx completion type 0 */
+#define	sf_tx_rcdesc	sf_tx_cmpdesc_type0
+/* Use Rx completion type 2  : checksum */
+#define	sf_rx_rcdesc	sf_rx_cmpdesc_type2
 
-#define ETHER_ALIGN 2
+#define SF_TX_DLIST_CNT		256
+#define SF_RX_DLIST_CNT		256
+#define SF_TX_CLIST_CNT		1024
+#define SF_RX_CLIST_CNT		1024
+#define	SF_TX_DLIST_SIZE	(sizeof(struct sf_tx_rdesc) * SF_TX_DLIST_CNT)
+#define	SF_TX_CLIST_SIZE	(sizeof(struct sf_tx_rcdesc) * SF_TX_CLIST_CNT)
+#define	SF_RX_DLIST_SIZE	(sizeof(struct sf_rx_rdesc) * SF_RX_DLIST_CNT)
+#define	SF_RX_CLIST_SIZE	(sizeof(struct sf_rx_rcdesc) * SF_RX_CLIST_CNT)
+#define	SF_RING_ALIGN		256
+#define	SF_RX_ALIGN		sizeof(uint32_t)
+#define	SF_MAXTXSEGS		16
 
-/*
- * Note: alignment is important here: each list must be aligned to
- * a 256-byte boundary. It turns out that each ring is some multiple
- * of 4K in length, so we can stack them all on top of each other
- * and just worry about aligning the whole mess. There's one transmit
- * buffer ring and two receive buffer rings: one RX ring is for small
- * packets and the other is for large packets. Each buffer ring also
- * has a companion completion queue.
- */
-struct sf_list_data {
-	struct sf_tx_bufdesc_type0	sf_tx_dlist[SF_TX_DLIST_CNT];
-	struct sf_tx_cmpdesc_type1	sf_tx_clist[SF_TX_CLIST_CNT];
-	struct sf_rx_bufdesc_type0	sf_rx_dlist_big[SF_RX_DLIST_CNT];
-#ifdef notdef
-	/*
-	 * Unfortunately, because the Starfire doesn't allow arbitrary
-	 * byte alignment, we have to copy packets in the RX handler in
-	 * order to align the payload correctly. This means that we
-	 * don't gain anything by having separate large and small descriptor
-	 * lists, so for now we don't bother with the small one.
-	 */
-	struct sf_rx_bufdesc_type0	sf_rx_dlist_small[SF_RX_DLIST_CNT];
-#endif
-	struct sf_rx_cmpdesc_type3	sf_rx_clist[SF_RX_CLIST_CNT];
+#define	SF_ADDR_LO(x)	((uint64_t)(x) & 0xffffffff)
+#define	SF_ADDR_HI(x)	((uint64_t)(x) >> 32)
+#define	SF_TX_DLIST_ADDR(sc, i)	\
+    ((sc)->sf_rdata.sf_tx_ring_paddr + sizeof(struct sf_tx_rdesc) * (i))
+#define	SF_TX_CLIST_ADDR(sc, i)	\
+    ((sc)->sf_rdata.sf_tx_cring_paddr + sizeof(struct sf_tx_crdesc) * (i))
+#define	SF_RX_DLIST_ADDR(sc, i)	\
+    ((sc)->sf_rdata.sf_rx_ring_paddr + sizeof(struct sf_rx_rdesc) * (i))
+#define	SF_RX_CLIST_ADDR(sc, i)	\
+    ((sc)->sf_rdata.sf_rx_cring_paddr + sizeof(struct sf_rx_rcdesc) * (i))
+
+#define SF_INC(x, y)		(x) = ((x) + 1) % y
+
+#define	SF_MAX_FRAMELEN		1536
+#define	SF_TX_THRESHOLD_UNIT	16
+#define	SF_MAX_TX_THRESHOLD	(SF_MAX_FRAMELEN / SF_TX_THRESHOLD_UNIT)
+#define	SF_MIN_TX_THRESHOLD	(128 / SF_TX_THRESHOLD_UNIT)
+
+struct sf_txdesc {
+	struct mbuf		*tx_m;
+	int			ndesc;
+	bus_dmamap_t		tx_dmamap;
 };
+
+struct sf_rxdesc {
+	struct mbuf		*rx_m;
+	bus_dmamap_t		rx_dmamap;
+};
+
+struct sf_chain_data {
+	bus_dma_tag_t		sf_parent_tag;
+	bus_dma_tag_t		sf_tx_tag;
+	struct sf_txdesc	sf_txdesc[SF_TX_DLIST_CNT];
+	bus_dma_tag_t		sf_rx_tag;
+	struct sf_rxdesc	sf_rxdesc[SF_RX_DLIST_CNT];
+	bus_dma_tag_t		sf_tx_ring_tag;
+	bus_dma_tag_t		sf_rx_ring_tag;
+	bus_dma_tag_t		sf_tx_cring_tag;
+	bus_dma_tag_t		sf_rx_cring_tag;
+	bus_dmamap_t		sf_tx_ring_map;
+	bus_dmamap_t		sf_rx_ring_map;
+	bus_dmamap_t		sf_rx_sparemap;
+	bus_dmamap_t		sf_tx_cring_map;
+	bus_dmamap_t		sf_rx_cring_map;
+	int			sf_tx_prod;
+	int			sf_tx_cnt;
+	int			sf_txc_cons;
+	int			sf_rxc_cons;
+};
+
+struct sf_ring_data {
+	struct sf_tx_rdesc	*sf_tx_ring;
+	bus_addr_t		sf_tx_ring_paddr;
+	struct sf_tx_rcdesc	*sf_tx_cring;
+	bus_addr_t		sf_tx_cring_paddr;
+	struct sf_rx_rdesc	*sf_rx_ring;
+	bus_addr_t		sf_rx_ring_paddr;
+	struct sf_rx_rcdesc	*sf_rx_cring;
+	bus_addr_t		sf_rx_cring_paddr;
+};
+
 
 struct sf_softc {
 	struct ifnet		*sf_ifp;	/* interface info */
 	device_t		sf_dev;		/* device info */
-	bus_space_handle_t	sf_bhandle;	/* bus space handle */
-	bus_space_tag_t		sf_btag;	/* bus space tag */
 	void			*sf_intrhand;	/* interrupt handler cookie */
 	struct resource		*sf_irq;	/* irq resource descriptor */
 	struct resource		*sf_res;	/* mem/ioport resource */
+	int			sf_restype;
+	int			sf_rid;
 	struct sf_type		*sf_info;	/* Starfire adapter info */
 	device_t		sf_miibus;
-	struct sf_list_data	*sf_ldata;
-	int			sf_tx_cnt;
-	u_int8_t		sf_link;
+	struct sf_chain_data	sf_cdata;
+	struct sf_ring_data	sf_rdata;
 	int			sf_if_flags;
-	struct callout		sf_stat_callout;
+	struct callout		sf_co;
+	int			sf_watchdog_timer;
+	struct task		sf_link_task;
+	int			sf_link;
+	int			sf_suspended;
+	int			sf_detach;
+	uint32_t		sf_txthresh;
+	int			sf_int_mod;
+	struct sf_stats		sf_statistics;
 	struct mtx		sf_mtx;
 #ifdef DEVICE_POLLING
 	int			rxcycles;
