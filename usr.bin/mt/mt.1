@@ -33,7 +33,7 @@
 .\"	@(#)mt.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd June 6, 1993
+.Dd January 20, 2008
 .Dt MT 1
 .Os
 .Sh NAME
@@ -78,7 +78,7 @@ end-of-file (EOF) marks at the current position.
 .It Cm smk
 Write
 .Ar count
-setmarks at the current position.
+setmarks at the current position (DDS drives only).
 .It Cm fsf
 Forward space
 .Ar count
@@ -90,7 +90,7 @@ records.
 .It Cm fss
 Forward space
 .Ar count
-setmarks.
+setmarks (DDS drives only).
 .It Cm bsf
 Backward space
 .Ar count
@@ -102,7 +102,7 @@ records.
 .It Cm bss
 Backward space
 .Ar count
-setmarks.
+setmarks (DDS drives only).
 .It Cm erase
 Erase the tape using a long (often very long) method.
 With a
