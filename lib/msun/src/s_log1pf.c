@@ -50,9 +50,9 @@ log1pf(float x)
 		if(x==(float)-1.0) return -two25/zero; /* log1p(-1)=+inf */
 		else return (x-x)/(x-x);	/* log1p(x<-1)=NaN */
 	    }
-	    if(ax<0x31000000) {			/* |x| < 2**-29 */
+	    if(ax<0x38000000) {			/* |x| < 2**-15 */
 		if(two25+x>zero			/* raise inexact */
-	            &&ax<0x24800000) 		/* |x| < 2**-54 */
+	            &&ax<0x33800000) 		/* |x| < 2**-24 */
 		    return x;
 		else
 		    return x - x*x*(float)0.5;
