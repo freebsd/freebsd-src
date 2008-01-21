@@ -1,5 +1,5 @@
 .\" $FreeBSD$
-.Dd December 10, 2007
+.Dd January 20, 2008
 .Dt NATD 8
 .Os
 .Sh NAME
@@ -508,6 +508,10 @@ rules starting from the rule number
 .Ar basenumber
 will be used for punching firewall holes.
 The range will be cleared for all rules on startup.
+This option has no effect when the kernel is in security
+level 3, see
+.Xr init 8
+for more information.
 .It Fl skinny_port Ar port
 This option allows you to specify the TCP port used for
 the Skinny Station protocol.
@@ -642,6 +646,7 @@ disaster.
 .Xr rc.conf 5 ,
 .Xr services 5 ,
 .Xr syslog.conf 5 ,
+.Xr init 8 ,
 .Xr ipfw 8 ,
 .Xr ppp 8
 .Sh AUTHORS
