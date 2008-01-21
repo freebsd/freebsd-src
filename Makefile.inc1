@@ -841,10 +841,6 @@ update:
 # legacy: Build compatibility shims for the next three targets
 #
 legacy:
-.if ${BOOTSTRAPPING} < 503000
-	@echo "ERROR: Source upgrades from versions prior to 5.3 not supported."; \
-	false
-.endif
 .for _tool in tools/build
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,includes,depend,all,install)"; \
 	    cd ${.CURDIR}/${_tool}; \
@@ -871,26 +867,6 @@ _groff=		gnu/usr.bin/groff/tmac
 .endif
 .endif
 
-.if ${BOOTSTRAPPING} < 600029
-_texinfo=	gnu/usr.bin/texinfo
-.endif
-
-.if ${BOOTSTRAPPING} < 600015
-_cap_mkdb=	usr.bin/cap_mkdb
-.endif
-
-.if ${BOOTSTRAPPING} < 600018
-_colldef=	usr.bin/colldef
-.endif
-
-.if ${BOOTSTRAPPING} < 600017
-_gencat=	usr.bin/gencat
-.endif
-
-.if ${BOOTSTRAPPING} < 600016
-_mklocale=	usr.bin/mklocale
-.endif
-
 .if ${BOOTSTRAPPING} < 700018
 _gensnmptree=	usr.sbin/bsnmpd/gensnmptree
 .endif
@@ -898,10 +874,6 @@ _gensnmptree=	usr.sbin/bsnmpd/gensnmptree
 .if ${MK_RESCUE} != "no" && \
     ${BOOTSTRAPPING} < 700026
 _crunchgen=	usr.sbin/crunch/crunchgen
-.endif
-
-.if ${BOOTSTRAPPING} < 600020
-_pwd_mkdb=	usr.sbin/pwd_mkdb
 .endif
 
 bootstrap-tools:
