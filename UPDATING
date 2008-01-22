@@ -19,7 +19,8 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	related kernel options, INVARIANTS, malloc debugging flags
 	in userland, and various verbose features in the kernel.  Many
 	developers choose to disable these features on build machines
-	to maximize performance.
+	to maximize performance.  (To disable malloc debugging, run
+	ln -s aj /etc/malloc.conf.)
 
 20080121:
 	To upgrade to -current after this date, you must be running
