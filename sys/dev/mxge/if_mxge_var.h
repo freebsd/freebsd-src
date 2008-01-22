@@ -39,6 +39,12 @@ $FreeBSD$
 #define MXGE_EEPROM_STRINGS_SIZE 256
 #define MXGE_MAX_SEND_DESC 128
 
+#if (__FreeBSD_version < 800005)
+#define MXGE_VIRT_JUMBOS 1
+#else
+#define MXGE_VIRT_JUMBOS 0
+#endif
+
 typedef struct {
 	void *addr;
 	bus_addr_t bus_addr;
