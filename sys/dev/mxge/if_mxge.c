@@ -2204,14 +2204,19 @@ mxge_get_buf_big(struct mxge_slice_state *ss, bus_dmamap_t map, int idx)
 		goto done;
 	}
 	rx->info[idx].m = m;
+	rx->shadow[idx].addr_low = 
+		htobe32(MXGE_LOWPART_TO_U32(seg->ds_addr));
+	rx->shadow[idx].addr_high = 
+		htobe32(MXGE_HIGHPART_TO_U32(seg->ds_addr));
 
-	for (i = 0; i < cnt; i++) {
+#if MXGE_VIRT_JUMBOS
+	for (i = 1; i < cnt; i++) {
 		rx->shadow[idx + i].addr_low = 
 			htobe32(MXGE_LOWPART_TO_U32(seg[i].ds_addr));
 		rx->shadow[idx + i].addr_high = 
 			htobe32(MXGE_HIGHPART_TO_U32(seg[i].ds_addr));
        }
-
+#endif
 
 done:
        for (i = 0; i < rx->nbufs; i++) {
@@ -2911,13 +2916,22 @@ mxge_alloc_slice_rings(struct mxge_slice_state *ss, int rx_ring_entries,
 
 	err = bus_dma_tag_create(sc->parent_dmat,	/* parent */
 				 1,			/* alignment */
+#if MXGE_VIRT_JUMBOS
 				 4096,			/* boundary */
+#else
+				 0,			/* boundary */
+#endif
 				 BUS_SPACE_MAXADDR,	/* low */
 				 BUS_SPACE_MAXADDR,	/* high */
 				 NULL, NULL,		/* filter */
 				 3*4096,		/* maxsize */
+#if MXGE_VIRT_JUMBOS
 				 3,			/* num segs */
-				 4096,			/* maxsegsize */
+				 4096,			/* maxsegsize*/
+#else
+				 1,			/* num segs */
+				 MJUM9BYTES,		/* maxsegsize*/
+#endif
 				 BUS_DMA_ALLOCNOW,	/* flags */
 				 NULL, NULL,		/* lock */
 				 &ss->rx_big.dmat);	/* tag */
@@ -3086,6 +3100,7 @@ mxge_choose_params(int mtu, int *big_buf_size, int *cl_size, int *nbufs)
 		*nbufs = 1;
 		return;
 	}
+#if MXGE_VIRT_JUMBOS
 	/* now we need to use virtually contiguous buffers */
 	*cl_size = MJUM9BYTES;
 	*big_buf_size = 4096;
@@ -3093,6 +3108,11 @@ mxge_choose_params(int mtu, int *big_buf_size, int *cl_size, int *nbufs)
 	/* needs to be a power of two, so round up */
 	if (*nbufs == 3)
 		*nbufs = 4;
+#else
+	*cl_size = MJUM9BYTES;
+	*big_buf_size = MJUM9BYTES;
+	*nbufs = 1;
+#endif
 }
 
 static int
