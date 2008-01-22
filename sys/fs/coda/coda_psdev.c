@@ -51,9 +51,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-
-extern int coda_nc_initialized;    /* Set if cache has been initialized */
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/ioccom.h>
