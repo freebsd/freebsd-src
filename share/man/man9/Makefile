@@ -12,9 +12,11 @@ MAN=	accept_filter.9 \
 	boot.9 \
 	bpf.9 \
 	buf.9 \
+	BUF_ISLOCKED.9 \
 	BUF_LOCK.9 \
 	BUF_LOCKFREE.9 \
 	BUF_LOCKINIT.9 \
+	BUF_RECURSED.9 \
 	BUF_TIMELOCK.9 \
 	BUF_UNLOCK.9 \
 	bus_activate_resource.9 \
