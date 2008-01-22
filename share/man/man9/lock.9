@@ -36,7 +36,8 @@
 .Nm lockmgr ,
 .Nm lockstatus ,
 .Nm lockmgr_disown ,
-.Nm lockmgr_printinfo
+.Nm lockmgr_printinfo ,
+.Nm lockmgr_recursed
 .Nd "lockmgr family of functions"
 .Sh SYNOPSIS
 .In sys/types.h
@@ -55,6 +56,8 @@
 .Fn lockmgr_disown "struct lock *lkp"
 .Ft void
 .Fn lockmgr_printinfo "struct lock *lkp"
+.Ft int
+.Fn lockmgr_recursed "struct lock *lkp"
 .Sh DESCRIPTION
 The
 .Fn lockinit
@@ -201,6 +204,11 @@ function prints debugging information about the lock.
 It is used primarily by
 .Xr VOP_PRINT 9
 functions.
+.Pp
+The
+.Fn lockmgr_recursed
+function returns true if the lock is recursed, 0
+otherwise.
 .Sh RETURN VALUES
 The
 .Fn lockcount
