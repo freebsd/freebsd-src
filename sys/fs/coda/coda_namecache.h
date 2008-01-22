@@ -63,13 +63,8 @@
  * 2nd try -- same, except dir fid.vnode instead of cp
  */
 
-#ifdef	oldhash
-#define CODA_NC_HASH(name, namelen, cp) \
-	((name[0] + name[namelen-1] + namelen + (int)(intptr_t)(cp)) & (coda_nc_hashsize-1))
-#else
 #define CODA_NC_HASH(name, namelen, cp) \
 	((name[0] + (name[namelen-1]<<4) + namelen + (((int)(intptr_t)cp)>>8)) & (coda_nc_hashsize-1))
-#endif
 
 #define CODA_NAMEMATCH(cp, name, namelen, dcp) \
 	((namelen == cp->namelen) && (dcp == cp->dcp) && \
@@ -136,21 +131,28 @@ struct coda_hash {		/* Start of Hash chain */
 #define CODA_NC_DEBUG(N, STMT)     { if (coda_nc_debug & (1 <<N)) { STMT } }
 
 /* Prototypes of functions exported within cfs */
-extern void coda_nc_init(void);
-extern void coda_nc_enter(struct cnode *, const char *, int, struct ucred *, struct cnode *);
-extern struct cnode *coda_nc_lookup(struct cnode *, const char *, int, struct ucred *);
+void coda_nc_init(void);
+void coda_nc_enter(struct cnode *, const char *, int, struct ucred *, struct cnode *);
+struct cnode *coda_nc_lookup(struct cnode *, const char *, int, struct ucred *);
 
-extern void coda_nc_zapParentfid(CodaFid *, enum dc_status);
-extern void coda_nc_zapfid(CodaFid *, enum dc_status);
-extern void coda_nc_zapvnode(CodaFid *, struct ucred *, enum dc_status);
-extern void coda_nc_zapfile(struct cnode *, const char *, int);
-extern void coda_nc_purge_user(uid_t, enum dc_status);
-extern void coda_nc_flush(enum dc_status);
+void coda_nc_zapParentfid(CodaFid *, enum dc_status);
+void coda_nc_zapfid(CodaFid *, enum dc_status);
+void coda_nc_zapvnode(CodaFid *, struct ucred *, enum dc_status);
+void coda_nc_zapfile(struct cnode *, const char *, int);
+void coda_nc_purge_user(uid_t, enum dc_status);
+void coda_nc_flush(enum dc_status);
 
-extern void print_coda_nc(void);
-extern void coda_nc_gather_stats(void);
-extern int  coda_nc_resize(int, int, enum dc_status);
-extern void coda_nc_name(struct cnode *cp);
+void print_coda_nc(void);
+void coda_nc_gather_stats(void);
+int  coda_nc_resize(int, int, enum dc_status);
+void coda_nc_name(struct cnode *cp);
+
+/*
+ * Global variables tracking and controlling Coda namecache operation.
+ */
+extern int coda_nc_debug;		/* Set to enable debugging printfs */
+extern int coda_nc_initialized;		/* Set if cache has been initialized */
+extern int coda_nc_use;			/* Indicate use of CODA Name Cache */
 
 /*
  * Structure to contain statistics on the cache usage

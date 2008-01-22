@@ -74,15 +74,9 @@ do {                                                                      \
 #define CODA_FREE(ptr, size)  free((ptr), M_CODA)
 
 /*
- * global cache state control
- */
-extern int coda_nc_use;
-
-/*
  * Used to select debugging statements throughout the cfs code.
  */
 extern int codadebug;
-extern int coda_nc_debug;
 extern int coda_printf_delay;
 extern int coda_vnop_print_entry;
 extern int coda_psdev_print_entry;
