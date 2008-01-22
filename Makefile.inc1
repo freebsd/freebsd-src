@@ -881,19 +881,13 @@ bootstrap-tools:
     ${_strfile} \
     ${_gperf} \
     ${_groff} \
-    ${_texinfo} \
-    ${_cap_mkdb} \
-    ${_colldef} \
-    ${_gencat} \
     usr.bin/lorder \
     usr.bin/makewhatis \
-    ${_mklocale} \
     usr.bin/rpcgen \
     usr.bin/xinstall \
     ${_gensnmptree} \
     usr.sbin/config \
-    ${_crunchgen} \
-    ${_pwd_mkdb}
+    ${_crunchgen}
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all,install)"; \
 		cd ${.CURDIR}/${_tool}; \
 		${MAKE} DIRPRFX=${_tool}/ obj; \
