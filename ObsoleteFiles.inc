@@ -14,6 +14,8 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20080122: Removed from the tree
+OLD_FILES+=usr/share/man/man9/BUF_REFCNT.9.gz
 # 20080108: Moved to section 2
 OLD_FILES+=usr/share/man/man3/shm_open.3.gz
 OLD_FILES+=usr/share/man/man3/shm_unlink.3.gz
