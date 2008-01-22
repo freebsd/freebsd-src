@@ -12,7 +12,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 18, 2007
+.Dd January 22, 2008
 .Dt SYNCACHE 4
 .Os
 .Sh NAME
@@ -24,6 +24,8 @@ MIBs for controlling TCP SYN caching
 .Bl -item -compact
 .It
 .Nm sysctl Cm net.inet.tcp.syncookies
+.It
+.Nm sysctl Cm net.inet.tcp.syncoockies_only
 .El
 .Pp
 .Bl -item -compact
@@ -97,6 +99,14 @@ As the returning ACK establishes the connection, it may be possible for
 an attacker to ACK flood a machine in an attempt to create a connection.
 While steps have been taken to mitigate this risk, this may provide a way
 to bypass firewalls which filter incoming segments with the SYN bit set.
+.Pp
+To disable the
+.Nm syncache
+and run only with
+.Nm syncookies ,
+set
+.Va net.inet.tcp.syncookies_only
+to 1.
 .Pp
 The
 .Nm
