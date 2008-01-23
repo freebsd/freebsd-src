@@ -59,9 +59,8 @@ __FBSDID("$FreeBSD$");
 
 /*
  * The following are range values for pseudo TTY devices.  Pseudo TTYs have a
- * name of /dev/[pt]ty[l-sL-S][0-9a-v], yielding 256 combinations per major.
+ * name of /dev/[pt]ty[l-sL-S][0-9a-v].
  */
-#define PT_MAX		256
 #define	PT_DEV1		"pqrsPQRSlmnoLMNO"
 #define PT_DEV2		"0123456789abcdefghijklmnopqrstuv"
 
@@ -69,14 +68,6 @@ __FBSDID("$FreeBSD$");
  * grantpt(3) support utility.
  */
 #define _PATH_PTCHOWN	"/usr/libexec/pt_chown"
-
-/*
- * ISPTM(x) returns 0 for struct stat x if x is not a pty master.
- * The bounds checking may be unnecessary but it does eliminate doubt.
- */
-#define ISPTM(x)	(S_ISCHR((x).st_mode) && 			\
-			 minor((x).st_rdev) >= 0 &&			\
-			 minor((x).st_rdev) < PT_MAX)
 
 /*
  * grantpt():  grant ownership of a slave pseudo-terminal device to the
