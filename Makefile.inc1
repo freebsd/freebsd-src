@@ -876,8 +876,13 @@ _gensnmptree=	usr.sbin/bsnmpd/gensnmptree
 _crunchgen=	usr.sbin/crunch/crunchgen
 .endif
 
+.if ${BOOTSTRAPPING} < 800013
+_mklocale=	usr.bin/mklocale
+.endif
+
 bootstrap-tools:
 .for _tool in \
+    ${_mklocale} \
     ${_strfile} \
     ${_gperf} \
     ${_groff} \
