@@ -3,7 +3,7 @@
  *
  * $FreeBSD$
  */
-ENCODING        "NONE"
+ENCODING        "ASCII"
 VARIABLE        Strict 7bit US-ASCII locale
 
 ALPHA		'A' - 'Z' 'a' - 'z'
