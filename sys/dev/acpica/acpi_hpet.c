@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 
 #include <contrib/dev/acpica/acpi.h>
 #include <dev/acpica/acpivar.h>
+#include <dev/acpica/acpi_hpet.h>
 
 ACPI_SERIAL_DECL(hpet, "ACPI HPET support");
 
@@ -58,12 +59,6 @@ static void acpi_hpet_test(struct acpi_hpet_softc *sc);
 
 static char *hpet_ids[] = { "PNP0103", NULL };
 
-#define HPET_MEM_WIDTH		0x400	/* Expected memory region size */
-#define HPET_OFFSET_INFO	0	/* Location of info in region */
-#define HPET_OFFSET_PERIOD	4	/* Location of period (1/hz) */
-#define HPET_OFFSET_ENABLE	0x10	/* Location of enable word */
-#define HPET_OFFSET_VALUE	0xf0	/* Location of actual timer value */
-
 #define DEV_HPET(x)	(acpi_get_magic(x) == (uintptr_t)&acpi_hpet_devclass)
 
 struct timecounter hpet_timecounter = {
@@ -79,7 +74,25 @@ hpet_get_timecount(struct timecounter *tc)
 	struct acpi_hpet_softc *sc;
 
 	sc = tc->tc_priv;
-	return (bus_read_4(sc->mem_res, HPET_OFFSET_VALUE));
+	return (bus_read_4(sc->mem_res, HPET_MAIN_COUNTER));
+}
+
+static void
+hpet_enable(struct acpi_hpet_softc *sc)
+{
+	uint32_t val;
+
+	val = bus_read_4(sc->mem_res, HPET_CONFIG);
+	bus_write_4(sc->mem_res, HPET_CONFIG, val | HPET_CNF_ENABLE);
+}
+
+static void
+hpet_disable(struct acpi_hpet_softc *sc)
+{
+	uint32_t val;
+
+	val = bus_read_4(sc->mem_res, HPET_CONFIG);
+	bus_write_4(sc->mem_res, HPET_CONFIG, val & ~HPET_CNF_ENABLE);
 }
 
 /* Temporary define for 6.x */
@@ -170,18 +183,26 @@ acpi_hpet_attach(device_t dev)
 	}
 
 	/* Be sure timer is enabled. */
-	bus_write_4(sc->mem_res, HPET_OFFSET_ENABLE, 1);
+	hpet_enable(sc);
 
 	/* Read basic statistics about the timer. */
-	val = bus_read_4(sc->mem_res, HPET_OFFSET_PERIOD);
+	val = bus_read_4(sc->mem_res, HPET_PERIOD);
+	if (val == 0) {
+		device_printf(dev, "invalid period\n");
+		hpet_disable(sc);
+		bus_free_resource(dev, SYS_RES_MEMORY, sc->mem_res);
+		return (ENXIO);
+	}
+
 	freq = (1000000000000000LL + val / 2) / val;
 	if (bootverbose) {
-		val = bus_read_4(sc->mem_res, HPET_OFFSET_INFO);
+		val = bus_read_4(sc->mem_res, HPET_CAPABILITIES);
 		device_printf(dev,
 		    "vend: 0x%x rev: 0x%x num: %d hz: %jd opts:%s%s\n",
-		    val >> 16, val & 0xff, (val >> 18) & 0xf, freq,
-		    ((val >> 15) & 1) ? " leg_route" : "",
-		    ((val >> 13) & 1) ? " count_size" : "");
+		    val >> 16, val & HPET_CAP_REV_ID,
+		    (val & HPET_CAP_NUM_TIM) >> 8, freq,
+		    (val & HPET_CAP_LEG_RT) ? " legacy_route" : "",
+		    (val & HPET_CAP_COUNT_SIZE) ? " 64-bit" : "");
 	}
 
 	if (testenv("debug.acpi.hpet_test"))
@@ -191,12 +212,12 @@ acpi_hpet_attach(device_t dev)
 	 * Don't attach if the timer never increments.  Since the spec
 	 * requires it to be at least 10 MHz, it has to change in 1 us.
 	 */
-	val = bus_read_4(sc->mem_res, HPET_OFFSET_VALUE);
+	val = bus_read_4(sc->mem_res, HPET_MAIN_COUNTER);
 	DELAY(1);
-	val2 = bus_read_4(sc->mem_res, HPET_OFFSET_VALUE);
+	val2 = bus_read_4(sc->mem_res, HPET_MAIN_COUNTER);
 	if (val == val2) {
 		device_printf(dev, "HPET never increments, disabling\n");
-		bus_write_4(sc->mem_res, HPET_OFFSET_ENABLE, 0);
+		hpet_disable(sc);
 		bus_free_resource(dev, SYS_RES_MEMORY, sc->mem_res);
 		return (ENXIO);
 	}
@@ -218,13 +239,29 @@ acpi_hpet_detach(device_t dev)
 }
 
 static int
+acpi_hpet_suspend(device_t dev)
+{
+	struct acpi_hpet_softc *sc;
+
+	/*
+	 * Disable the timer during suspend.  The timer will not lose
+	 * its state in S1 or S2, but we are required to disable
+	 * it.
+	 */
+	sc = device_get_softc(dev);
+	hpet_disable(sc);
+
+	return (0);
+}
+
+static int
 acpi_hpet_resume(device_t dev)
 {
 	struct acpi_hpet_softc *sc;
 
 	/* Re-enable the timer after a resume to keep the clock advancing. */
 	sc = device_get_softc(dev);
-	bus_write_4(sc->mem_res, HPET_OFFSET_ENABLE, 1);
+	hpet_enable(sc);
 
 	return (0);
 }
@@ -241,11 +278,11 @@ acpi_hpet_test(struct acpi_hpet_softc *sc)
 	binuptime(&b0);
 	binuptime(&b0);
 	binuptime(&b1);
-	u1 = bus_read_4(sc->mem_res, HPET_OFFSET_VALUE);
+	u1 = bus_read_4(sc->mem_res, HPET_MAIN_COUNTER);
 	for (i = 1; i < 1000; i++)
-		u2 = bus_read_4(sc->mem_res, HPET_OFFSET_VALUE);
+		u2 = bus_read_4(sc->mem_res, HPET_MAIN_COUNTER);
 	binuptime(&b2);
-	u2 = bus_read_4(sc->mem_res, HPET_OFFSET_VALUE);
+	u2 = bus_read_4(sc->mem_res, HPET_MAIN_COUNTER);
 
 	bintime_sub(&b2, &b1);
 	bintime_sub(&b1, &b0);
@@ -264,6 +301,7 @@ static device_method_t acpi_hpet_methods[] = {
 	DEVMETHOD(device_probe, acpi_hpet_probe),
 	DEVMETHOD(device_attach, acpi_hpet_attach),
 	DEVMETHOD(device_detach, acpi_hpet_detach),
+	DEVMETHOD(device_suspend, acpi_hpet_suspend),
 	DEVMETHOD(device_resume, acpi_hpet_resume),
 
 	{0, 0}
