@@ -48,13 +48,13 @@ The function
 .Fn openpty
 attempts to obtain the next available pseudo-terminal from the system (see
 .Xr pty 4 ) .
-If it successfully finds one, it subsequently tries to change the
+If it successfully finds one, it subsequently changes the
 ownership of the slave device to the real UID of the current process,
 the group membership to the group
 .Dq tty
 (if such a group exists in the system), the access permissions for
-reading and writing by the owner, and for writing by the group, and to
-invalidate any current use of the line by calling
+reading and writing by the owner, and for writing by the group, and
+invalidates any current use of the line by calling
 .Xr revoke 2 .
 .Pp
 If the argument
@@ -114,12 +114,19 @@ The
 function returns -1 on failure, 0 in the slave process, and the process ID of
 the slave process in the parent process.
 .Sh ERRORS
-On failure,
+The
 .Fn openpty
-will set the global variable
+function may fail and set the global variable
 .Dv errno
-to
-.Er ENOENT .
+for any of the errors specified for the
+.Xr grantpt 3 ,
+.Xr posix_openpt 3 ,
+.Xr ptsname 3 ,
+and
+.Xr unlockpt 3
+functions and the
+.Xr revoke 2
+system call.
 .Pp
 In addition to this,
 .Fn forkpty
@@ -136,14 +143,3 @@ may set it to any value as described for
 .Xr pty 4 ,
 .Xr termios 4 ,
 .Xr group 5
-.Sh BUGS
-The calling process must have an effective UID of super-user in order
-to perform all the intended actions.
-No notification will occur if
-.Fn openpty
-or
-.Fn forkpty
-failed to proceed with one of the described steps, as long as they could
-at least allocate the pty at all (and create the new process in the case
-of
-.Fn forkpty ) .
