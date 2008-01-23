@@ -841,6 +841,10 @@ update:
 # legacy: Build compatibility shims for the next three targets
 #
 legacy:
+.if ${BOOTSTRAPPING} < 600034 && ${BOOTSTRAPPING} != 0
+	@echo "ERROR: Source upgrades from versions prior to 6.0 not supported."; \
+	false
+.endif
 .for _tool in tools/build
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,includes,depend,all,install)"; \
 	    cd ${.CURDIR}/${_tool}; \
