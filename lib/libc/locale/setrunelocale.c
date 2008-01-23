@@ -77,7 +77,7 @@ __setrunelocale(const char *encoding)
 	 * The "C" and "POSIX" locale are always here.
 	 */
 	if (strcmp(encoding, "C") == 0 || strcmp(encoding, "POSIX") == 0) {
-		_none_init(&_DefaultRuneLocale);
+		(void) _none_init(&_DefaultRuneLocale);
 		return (0);
 	}
 
@@ -142,8 +142,10 @@ __setrunelocale(const char *encoding)
 		ret = _BIG5_init(rl);
 	else if (strcmp(rl->__encoding, "MSKanji") == 0)
 		ret = _MSKanji_init(rl);
-	else
+	else {
+		(void) _none_init(&_DefaultRuneLocale);
 		ret = EFTYPE;
+	}
 	if (ret == 0) {
 		if (CachedRuneLocale != NULL) {
 			/* See euc.c */
