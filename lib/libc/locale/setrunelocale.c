@@ -51,6 +51,15 @@ extern _RuneLocale	*_Read_RuneMagi(FILE *);
 
 static int		__setrunelocale(const char *);
 
+static void convinit(void)
+{
+	__mbrtowc = NULL;
+	__mbsinit = NULL;
+	__mbsnrtowcs = __mbsnrtowcs_std;
+	__wcrtomb = NULL;
+	__wcsnrtombs = __wcsnrtombs_std;
+}
+
 static int
 __setrunelocale(const char *encoding)
 {
@@ -117,35 +126,38 @@ __setrunelocale(const char *encoding)
 	}
 	(void)fclose(fp);
 
-	__mbrtowc = NULL;
-	__mbsinit = NULL;
-	__mbsnrtowcs = __mbsnrtowcs_std;
-	__wcrtomb = NULL;
-	__wcsnrtombs = __wcsnrtombs_std;
 	rl->__sputrune = NULL;
 	rl->__sgetrune = NULL;
-	if (strcmp(rl->__encoding, "NONE") == 0)
+	if (strcmp(rl->__encoding, "NONE") == 0) {
+		convinit();
 		ret = _none_init(rl);
-	else if (strcmp(rl->__encoding, "ASCII") == 0)
+	} else if (strcmp(rl->__encoding, "ASCII") == 0) {
+		convinit();
 		ret = _ascii_init(rl);
-	else if (strcmp(rl->__encoding, "UTF-8") == 0)
+	} else if (strcmp(rl->__encoding, "UTF-8") == 0) {
+		convinit();
 		ret = _UTF8_init(rl);
-	else if (strcmp(rl->__encoding, "EUC") == 0)
+	} else if (strcmp(rl->__encoding, "EUC") == 0) {
+		convinit();
 		ret = _EUC_init(rl);
- 	else if (strcmp(rl->__encoding, "GB18030") == 0)
+	} else if (strcmp(rl->__encoding, "GB18030") == 0) {
+		convinit();
  		ret = _GB18030_init(rl);
-	else if (strcmp(rl->__encoding, "GB2312") == 0)
+	} else if (strcmp(rl->__encoding, "GB2312") == 0) {
+		convinit();
 		ret = _GB2312_init(rl);
-	else if (strcmp(rl->__encoding, "GBK") == 0)
+	} else if (strcmp(rl->__encoding, "GBK") == 0) {
+		convinit();
 		ret = _GBK_init(rl);
-	else if (strcmp(rl->__encoding, "BIG5") == 0)
+	} else if (strcmp(rl->__encoding, "BIG5") == 0) {
+		convinit();
 		ret = _BIG5_init(rl);
-	else if (strcmp(rl->__encoding, "MSKanji") == 0)
+	} else if (strcmp(rl->__encoding, "MSKanji") == 0) {
+		convinit();
 		ret = _MSKanji_init(rl);
-	else {
-		(void) _none_init(&_DefaultRuneLocale);
+	} else
 		ret = EFTYPE;
-	}
+
 	if (ret == 0) {
 		if (CachedRuneLocale != NULL) {
 			/* See euc.c */
