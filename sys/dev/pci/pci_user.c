@@ -303,7 +303,7 @@ pci_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *t
 
 			/* Populate pd_name and pd_unit */
 			name = NULL;
-			if (dinfo->cfg.dev && dinfo->conf.pd_name[0] == '\0')
+			if (dinfo->cfg.dev)
 				name = device_get_name(dinfo->cfg.dev);
 			if (name) {
 				strncpy(dinfo->conf.pd_name, name,
@@ -311,6 +311,9 @@ pci_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *t
 				dinfo->conf.pd_name[PCI_MAXNAMELEN] = 0;
 				dinfo->conf.pd_unit =
 					device_get_unit(dinfo->cfg.dev);
+			} else {
+				dinfo->conf.pd_name[0] = '\0';
+				dinfo->conf.pd_unit = 0;
 			}
 
 			if ((pattern_buf == NULL) ||
