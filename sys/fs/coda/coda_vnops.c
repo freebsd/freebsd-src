@@ -106,10 +106,9 @@ static int coda_lockdebug = 0;
 /* Definition of the vnode operation vector */
 
 struct vop_vector coda_vnodeops = {
-    .vop_default = VOP_PANIC,
+    .vop_default = &default_vnodeops,
     .vop_lookup = coda_lookup,		/* lookup */
     .vop_create = coda_create,		/* create */
-    .vop_mknod = VOP_PANIC,	/* mknod */
     .vop_open = coda_open,		/* open */
     .vop_close = coda_close,		/* close */
     .vop_access = coda_access,		/* access */
@@ -132,11 +131,9 @@ struct vop_vector coda_vnodeops = {
     .vop_lock1 = coda_lock,		/* lock */
     .vop_unlock = coda_unlock,		/* unlock */
     .vop_bmap = coda_bmap,		/* bmap */
-    .vop_print = VOP_PANIC,	/* print */
+    .vop_print = VOP_NULL,		/* print */
     .vop_islocked = coda_islocked,	/* islocked */
     .vop_pathconf = coda_pathconf,	/* pathconf */
-    .vop_advlock = VOP_NULL,	/* advlock */
-    .vop_lease = VOP_NULL,		/* lease */
     .vop_poll = vop_stdpoll,
     .vop_getpages = vop_stdgetpages,	/* pager intf.*/
     .vop_putpages = vop_stdputpages,	/* pager intf.*/
@@ -221,9 +218,6 @@ coda_open(struct vop_open_args *ap)
 
     CODADEBUG( CODA_OPEN,myprintf(("open: vp %p result %d\n", vp, error));)
 
-    /* Keep a reference until the close comes in. */
-    vref(*vpp);                
-
     /* Save the vnode pointer for the cache file. */
     if (cp->c_ovp == NULL) {
 	cp->c_ovp = vp;
@@ -244,6 +238,8 @@ coda_open(struct vop_open_args *ap)
     if (error) {
     	printf("coda_open: VOP_OPEN on container failed %d\n", error);
 	return (error);
+    } else {
+	(*vpp)->v_object = vp->v_object;
     }
 /* grab (above) does this when it calls newvnode unless it's in the cache*/
 
@@ -290,8 +286,6 @@ coda_close(struct vop_close_args *ap)
     if (!IS_UNMOUNTING(cp))
          error = venus_close(vtomi(vp), &cp->c_fid, flag, cred, td->td_proc);
     else error = ENODEV;
-
-    vrele(vp);
 
     CODADEBUG(CODA_CLOSE, myprintf(("close: result %d\n",error)); )
     return(error);
@@ -347,7 +341,9 @@ coda_rdwr(struct vnode *vp, struct uio *uiop, enum uio_rw rw, int ioflag,
 	opened_internally = 1;
 	MARK_INT_GEN(CODA_OPEN_STATS);
 	error = VOP_OPEN(vp, (rw == UIO_READ ? FREAD : FWRITE), cred, td, NULL);
+#ifdef CODA_VERBOSE
 	printf("coda_rdwr: Internally Opening %p\n", vp);
+#endif
 	if (error) {
 		printf("coda_rdwr: VOP_OPEN on container failed %d\n", error);
 		return (error);
@@ -747,6 +743,8 @@ coda_inactive(struct vop_inactive_args *ap)
 
     CODADEBUG(CODA_INACTIVE, myprintf(("in inactive, %s, vfsp %p\n",
 				  coda_f2s(&cp->c_fid), vp->v_mount));)
+
+    vp->v_object = NULL;
  
     /* If an array has been allocated to hold the symlink, deallocate it */
     if ((coda_symlink_cache) && (VALID_SYMLINK(cp))) {
@@ -930,19 +928,14 @@ coda_lookup(struct vop_lookup_args *ap)
 	     * lock it without bothering to check anything else. 
 	     */
 	    if (*ap->a_vpp) {
-		if ((error = VOP_LOCK(*ap->a_vpp, LK_EXCLUSIVE, td))) {
-		    vn_lock(dvp, LK_RETRY|LK_EXCLUSIVE, td);
-		    return (error);
-		}
+		vn_lock(*ap->a_vpp, LK_EXCLUSIVE | LK_RETRY, td);
 	    }
 	    vn_lock(dvp, LK_RETRY|LK_EXCLUSIVE, td);
 	} else {
 	    /* The parent is locked, and may be the same as the child */
 	    if (*ap->a_vpp && (*ap->a_vpp != dvp)) {
 		/* Different, go ahead and lock it. */
-		if ((error = VOP_LOCK(*ap->a_vpp, LK_EXCLUSIVE, td))) {
-		    return (error);
-		}
+		vn_lock(*ap->a_vpp, LK_EXCLUSIVE | LK_RETRY, td);
 	    }
 	}
     } else {
@@ -1026,10 +1019,7 @@ coda_create(struct vop_create_args *ap)
 
     if (!error) {
 	if (cnp->cn_flags & LOCKLEAF) {
-	    if ((error = VOP_LOCK(*ap->a_vpp, LK_EXCLUSIVE, td))) {
-		printf("coda_create: ");
-		panic("unlocked parent but couldn't lock child");
-	    }
+	    vn_lock(*ap->a_vpp, LK_EXCLUSIVE | LK_RETRY, td);
 	}
 #ifdef OLD_DIAGNOSTIC
 	else {
@@ -1292,7 +1282,9 @@ coda_mkdir(struct vop_mkdir_args *ap)
 
 	/* Invalidate the parent's attr cache, the modification time has changed */
 	VTOC(dvp)->c_flags &= ~C_VATTR;
-	
+
+	vn_lock(*vpp, LK_EXCLUSIVE | LK_RETRY, td);
+
 	CODADEBUG( CODA_MKDIR, myprintf(("mkdir: %s result %d\n",
 					 coda_f2s(&VFid), error)); )
 	} else {
@@ -1552,7 +1544,7 @@ coda_reclaim(struct vop_reclaim_args *ap)
     cache_purge(vp);
     coda_free(VTOC(vp));
     vp->v_data = NULL;
-    vnode_destroy_vobject(vp);
+    vp->v_object = NULL;
     return (0);
 }
 
