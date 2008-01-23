@@ -60,6 +60,23 @@ static void create_reg_file(struct archive_entry *ae, const char *msg)
 	/* Write the entry to disk. */
 	assert((ad = archive_write_disk_new()) != NULL);
 	failure("%s", msg);
+	/*
+	 * A touchy API design issue: archive_write_data() does (as of
+	 * 2.4.12) enforce the entry size as a limit on the data
+	 * written to the file.  This was not enforced prior to
+	 * 2.4.12.  The change was prompted by the refined
+	 * hardlink-restore semantics introduced at that time.  In
+	 * short, libarchive needs to know whether a "hardlink entry"
+	 * is going to overwrite the contents so that it can know
+	 * whether or not to open the file for writing.  This implies
+	 * that there is a fundamental semantic difference between an
+	 * entry with a zero size and one with a non-zero size in the
+	 * case of hardlinks and treating the hardlink case
+	 * differently from the regular file case is just asking for
+	 * trouble.  So, a zero size must always mean that no data
+	 * will be accepted, which is consistent with the file size in
+	 * the entry being a maximum size.
+	 */
 	archive_entry_set_size(ae, sizeof(data));
 	assertEqualIntA(ad, 0, archive_write_header(ad, ae));
 	assertEqualInt(sizeof(data), archive_write_data(ad, data, sizeof(data)));
@@ -93,6 +110,10 @@ static void create_reg_file2(struct archive_entry *ae, const char *msg)
 	/* Write the entry to disk. */
 	assert((ad = archive_write_disk_new()) != NULL);
 	failure("%s", msg);
+	/*
+	 * See above for an explanation why this next call
+	 * is necessary.
+	 */
 	archive_entry_set_size(ae, datasize);
 	assertEqualIntA(ad, 0, archive_write_header(ad, ae));
 	for (i = 0; i < datasize - 999; i += 1000) {
