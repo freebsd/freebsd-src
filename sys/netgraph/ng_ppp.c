@@ -1952,7 +1952,7 @@ ng_ppp_mp_xmit(node_p node, item_p item, uint16_t proto)
 	int firstFragment;
 	int activeLinkNum;
 	struct mbuf *m;
-	int	len;
+	int	plen;
 	int	frags;
 	int32_t	seq;
 
@@ -1963,11 +1963,11 @@ ng_ppp_mp_xmit(node_p node, item_p item, uint16_t proto)
 	}
 	
 	/* Save length for later stats. */
-	len = NGI_M(item)->m_pkthdr.len;
+	plen = NGI_M(item)->m_pkthdr.len;
 
 	if (!priv->conf.enableMultilink) {
 		return (ng_ppp_link_xmit(node, item, proto,
-		    priv->activeLinks[0], len));
+		    priv->activeLinks[0], plen));
 	}
 
 	/* Extract mbuf. */
@@ -2104,7 +2104,7 @@ deliver:
 			/* Send fragment */
 			if ((item = ng_package_data(m2, NG_NOFLAGS)) != NULL) {
 				error = ng_ppp_link_xmit(node, item, PROT_MP,
-					    linkNum, (firstFragment?len:0));
+					    linkNum, (firstFragment?plen:0));
 				if (error != 0) {
 					if (!lastFragment)
 						NG_FREE_M(m);
