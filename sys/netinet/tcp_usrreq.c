@@ -605,6 +605,7 @@ tcp_usr_accept(struct socket *so, struct sockaddr **nam)
 
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("tcp_usr_accept: inp == NULL"));
+	INP_INFO_RLOCK(&tcbinfo);
 	INP_LOCK(inp);
 	if (inp->inp_vflag & (INP_TIMEWAIT | INP_DROPPED)) {
 		error = ECONNABORTED;
@@ -624,6 +625,7 @@ tcp_usr_accept(struct socket *so, struct sockaddr **nam)
 out:
 	TCPDEBUG2(PRU_ACCEPT);
 	INP_UNLOCK(inp);
+	INP_INFO_RUNLOCK(&tcbinfo);
 	if (error == 0)
 		*nam = in_sockaddr(port, &addr);
 	return error;
