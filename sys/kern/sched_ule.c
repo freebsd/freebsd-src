@@ -1617,16 +1617,18 @@ sched_thread_priority(struct thread *td, u_char prio)
 		sched_rem(td);
 		td->td_priority = prio;
 		sched_add(td, SRQ_BORROWING);
-	} else {
 #ifdef SMP
+	} else if (TD_IS_RUNNING(td)) {
 		struct tdq *tdq;
 
 		tdq = TDQ_CPU(ts->ts_cpu);
-		if (prio < tdq->tdq_lowpri)
+		if (prio < tdq->tdq_lowpri ||
+		   (td->td_priority == tdq->tdq_lowpri && tdq->tdq_load <= 1))
 			tdq->tdq_lowpri = prio;
-#endif
 		td->td_priority = prio;
-	}
+#endif
+	} else
+		td->td_priority = prio;
 }
 
 /*
@@ -1843,8 +1845,6 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 	mtx = td->td_lock;
 #ifdef SMP
 	ts->ts_rltick = ticks;
-	if (newtd && newtd->td_priority < tdq->tdq_lowpri)
-		tdq->tdq_lowpri = newtd->td_priority;
 #endif
 	td->td_lastcpu = td->td_oncpu;
 	td->td_oncpu = NOCPU;
@@ -2265,6 +2265,7 @@ sched_choose(void)
 	struct tdq_group *tdg;
 #endif
 	struct td_sched *ts;
+	struct thread *td;
 	struct tdq *tdq;
 
 	tdq = TDQ_SELF();
@@ -2274,6 +2275,7 @@ sched_choose(void)
 		tdq_runq_rem(tdq, ts);
 		return (ts->ts_thread);
 	}
+	td = PCPU_GET(idlethread);
 #ifdef SMP
 	/*
 	 * We only set the idled bit when all of the cpus in the group are
@@ -2284,9 +2286,9 @@ sched_choose(void)
 	tdg->tdg_idlemask |= PCPU_GET(cpumask);
 	if (tdg->tdg_idlemask == tdg->tdg_cpumask)
 		atomic_set_int(&tdq_idle, tdg->tdg_mask);
-	tdq->tdq_lowpri = PRI_MAX_IDLE;
+	tdq->tdq_lowpri = td->td_priority;
 #endif
-	return (PCPU_GET(idlethread));
+	return (td);
 }
 
 /*
