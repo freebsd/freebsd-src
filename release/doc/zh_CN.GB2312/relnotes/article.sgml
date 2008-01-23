@@ -6,7 +6,7 @@
 %release;
 
 <!-- The FreeBSD Simplified Chinese Project -->
-<!-- Original Revision: 1.1068.2.21 -->
+<!-- Original Revision: 1.1068.2.20.2.2 -->
 <!-- Text constants which probably don't need to be changed.-->
 
 <!-- The marker for MFCs. -->
@@ -33,6 +33,7 @@
     <year>2005</year>
     <year>2006</year>
     <year>2007</year>
+    <year>2008</year>
     <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
   </copyright>
 
@@ -160,6 +161,16 @@
     <para>修正了一个 &man.random.4; 可能泄漏前一次生成数据的缺陷。
       要进一步了解详情， 请参阅安全公告
       <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-07:09.random.asc">FreeBSD-SA-07:09.random</ulink>. &merged;</para>
+
+    <para>修正了 &man.openpty.3; 和
+      &man.ptsname.3; 中发现的信息泄露问题。
+      要进一步了解详情， 请参阅安全公告
+      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-08:01.pty.asc">FreeBSD-SA-08:01.pty</ulink>. &merged;</para>
+
+    <para>修正了 &man.inet.network.3; Internet
+      地址管理函数中的一处可能导致覆盖用户定义的数据区内存内容的问题。
+      要进一步了解详情， 请参阅安全公告
+      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-08:02.libc.asc">FreeBSD-SA-08:02.libc</ulink>. &merged;</para>
   </sect2>
 
   <sect2 id="kernel">
