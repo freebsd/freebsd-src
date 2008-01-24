@@ -14,9 +14,9 @@ CFLAGS+= -I${.CURDIR}/../../../sys/contrib/opensolaris/uts/common/fs/zfs
 CFLAGS+= -I${.CURDIR}/../../../sys/contrib/opensolaris/uts/common
 CFLAGS+= -I${.CURDIR}/../../../sys/contrib/opensolaris/uts/common/sys
 CFLAGS+= -I${.CURDIR}/../../../contrib/opensolaris/head
-CFLAGS+= -I${.CURDIR}/../../../sys
 CFLAGS+= -I${.CURDIR}/..
 
 all: ${OBJS}
-CLEANFILES=	${OBJS}
+CLEANFILES= ${OBJS}
+
 .include <bsd.lib.mk>
