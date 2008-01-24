@@ -137,7 +137,6 @@ static int
 nwfs_allocvp(struct mount *mp, ncpfid fid, struct nw_entry_info *fap,
 	struct vnode *dvp, struct vnode **vpp)
 {
-	struct thread *td = curthread;	/* XXX */
 	struct nwnode *np;
 	struct nwnode_hash_head *nhpp;
 	struct nwmount *nmp = VFSTONWFS(mp);
@@ -145,20 +144,20 @@ nwfs_allocvp(struct mount *mp, ncpfid fid, struct nw_entry_info *fap,
 	int error;
 
 loop:
-	lockmgr(&nwhashlock, LK_EXCLUSIVE, NULL, td);
+	lockmgr(&nwhashlock, LK_EXCLUSIVE, NULL);
 rescan:
 	if (nwfs_hashlookup(nmp, fid, &np) == 0) {
 		vp = NWTOV(np);
 		mtx_lock(&vp->v_interlock);
-		lockmgr(&nwhashlock, LK_RELEASE, NULL, td);
-		if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, td))
+		lockmgr(&nwhashlock, LK_RELEASE, NULL);
+		if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, curthread))
 			goto loop;
 		if (fap)
 			np->n_attr = fap->attributes;
 		*vpp = vp;
 		return(0);
 	}
-	lockmgr(&nwhashlock, LK_RELEASE, NULL, td);
+	lockmgr(&nwhashlock, LK_RELEASE, NULL);
 
 	if (fap == NULL || ((fap->attributes & aDIR) == 0 && dvp == NULL))
 		panic("nwfs_allocvp: fap = %p, dvp = %p\n", fap, dvp);
@@ -190,7 +189,7 @@ rescan:
 		np->n_parent = VTONW(dvp)->n_fid;
 	}
 	vp->v_vnlock->lk_flags |= LK_CANRECURSE;
-	lockmgr(&nwhashlock, LK_EXCLUSIVE, NULL, td);
+	lockmgr(&nwhashlock, LK_EXCLUSIVE, NULL);
 	/*
 	 * Another process can create vnode while we blocked in malloc() or
 	 * getnewvnode(). Rescan list again.
@@ -206,7 +205,7 @@ rescan:
 	nhpp = NWNOHASH(fid);
 	LIST_INSERT_HEAD(nhpp, np, n_hash);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
-	lockmgr(&nwhashlock, LK_RELEASE, NULL, td);
+	lockmgr(&nwhashlock, LK_RELEASE, NULL);
 	
 	ASSERT_VOP_LOCKED(dvp, "nwfs_allocvp");
 	if (vp->v_type == VDIR && dvp && (dvp->v_vflag & VV_ROOT) == 0) {
@@ -239,9 +238,9 @@ nwfs_lookupnp(struct nwmount *nmp, ncpfid fid, struct thread *td,
 {
 	int error;
 
-	lockmgr(&nwhashlock, LK_EXCLUSIVE, NULL, td);
+	lockmgr(&nwhashlock, LK_EXCLUSIVE, NULL);
 	error = nwfs_hashlookup(nmp, fid, npp);
-	lockmgr(&nwhashlock, LK_RELEASE, NULL, td);
+	lockmgr(&nwhashlock, LK_RELEASE, NULL);
 	return error;
 }
 
@@ -274,9 +273,9 @@ nwfs_reclaim(ap)
 			NCPVNDEBUG("%s: has no parent ?\n",np->n_name);
 		}
 	}
-	lockmgr(&nwhashlock, LK_EXCLUSIVE, NULL, td);
+	lockmgr(&nwhashlock, LK_EXCLUSIVE, NULL);
 	LIST_REMOVE(np, n_hash);
-	lockmgr(&nwhashlock, LK_RELEASE, NULL, td);
+	lockmgr(&nwhashlock, LK_RELEASE, NULL);
 	if (nmp->n_root == np) {
 		nmp->n_root = NULL;
 	}

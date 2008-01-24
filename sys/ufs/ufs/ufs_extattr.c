@@ -104,14 +104,14 @@ ufs_extattr_uepm_lock(struct ufsmount *ump, struct thread *td)
 
 	/* Ideally, LK_CANRECURSE would not be used, here. */
 	lockmgr(&ump->um_extattr.uepm_lock, LK_EXCLUSIVE | LK_RETRY |
-	    LK_CANRECURSE, 0, td);
+	    LK_CANRECURSE, 0);
 }
 
 static void
 ufs_extattr_uepm_unlock(struct ufsmount *ump, struct thread *td)
 {
 
-	lockmgr(&ump->um_extattr.uepm_lock, LK_RELEASE, 0, td);
+	lockmgr(&ump->um_extattr.uepm_lock, LK_RELEASE, 0);
 }
 
 /*-

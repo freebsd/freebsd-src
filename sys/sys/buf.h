@@ -277,7 +277,7 @@ BUF_LOCK(struct buf *bp, int locktype, struct mtx *interlock)
 	locktype |= LK_INTERNAL;
 	bp->b_lock.lk_wmesg = buf_wmesg;
 	bp->b_lock.lk_prio = PRIBIO + 4;
-	ret = lockmgr(&(bp)->b_lock, locktype, interlock, curthread);
+	ret = lockmgr(&(bp)->b_lock, locktype, interlock);
 	splx(s);
 	return ret;
 }
@@ -298,7 +298,7 @@ BUF_TIMELOCK(struct buf *bp, int locktype, struct mtx *interlock,
 	bp->b_lock.lk_wmesg = wmesg;
 	bp->b_lock.lk_prio = (PRIBIO + 4) | catch;
 	bp->b_lock.lk_timo = timo;
-	ret = lockmgr(&(bp)->b_lock, (locktype), interlock, curthread);
+	ret = lockmgr(&(bp)->b_lock, (locktype), interlock);
 	splx(s);
 	return ret;
 }
@@ -315,7 +315,7 @@ BUF_UNLOCK(struct buf *bp)
 	s = splbio();
 	KASSERT((bp->b_flags & B_REMFREE) == 0,
 	    ("BUF_UNLOCK %p while B_REMFREE is still set.", bp));
-	lockmgr(&(bp)->b_lock, LK_RELEASE, NULL, curthread);
+	lockmgr(&(bp)->b_lock, LK_RELEASE, NULL);
 	splx(s);
 }
 

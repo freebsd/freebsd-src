@@ -613,7 +613,7 @@ udf_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 	unode->udfmp = udfmp;
 	vp->v_data = unode;
 
-	lockmgr(vp->v_vnlock, LK_EXCLUSIVE, NULL, td);
+	lockmgr(vp->v_vnlock, LK_EXCLUSIVE, NULL);
 	error = insmntque(vp, mp);
 	if (error != 0) {
 		uma_zfree(udf_zone_node, unode);

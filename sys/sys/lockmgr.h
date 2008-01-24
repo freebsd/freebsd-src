@@ -166,44 +166,21 @@ struct lock {
 #define LK_KERNPROC ((struct thread *)-2)
 #define LK_NOPROC ((struct thread *) -1)
 
-#ifdef INVARIANTS
-#define	LOCKMGR_ASSERT(lkp, what, p) do {				\
-	switch ((what)) {						\
-	case LK_SHARED:							\
-		if (lockstatus((lkp), (p)) == LK_SHARED)		\
-			break;						\
-		/* fall into exclusive */				\
-	case LK_EXCLUSIVE:						\
-		if (lockstatus((lkp), (p)) != LK_EXCLUSIVE)		\
-			panic("lock %s %s not held at %s:%d",		\
-			    (lkp)->lk_wmesg, #what, __FILE__,		\
-			    __LINE__);					\
-		break;							\
-	default:							\
-		panic("unknown LOCKMGR_ASSERT at %s:%d", __FILE__,	\
-		    __LINE__);						\
-	}								\
-} while (0)
-#else	/* INVARIANTS */
-#define	LOCKMGR_ASSERT(lkp, p, what)
-#endif	/* INVARIANTS */
-
-void dumplockinfo(struct lock *lkp);
 struct thread;
 
 void	lockinit(struct lock *, int prio, const char *wmesg,
 			int timo, int flags);
 void	lockdestroy(struct lock *);
 
-int	_lockmgr(struct lock *, u_int flags,
-		 struct mtx *, struct thread *p, char *file, int line);
+int	_lockmgr(struct lock *, u_int flags, struct mtx *, char *file,
+	     int line);
 void	lockmgr_disown(struct lock *);
 void	lockmgr_printinfo(struct lock *);
 int	lockstatus(struct lock *, struct thread *);
-int	lockcount(struct lock *);
 int	lockwaiters(struct lock *);
 
-#define lockmgr(lock, flags, mtx, td) _lockmgr((lock), (flags), (mtx), (td), __FILE__, __LINE__)
+#define lockmgr(lock, flags, mtx)					\
+	_lockmgr((lock), (flags), (mtx), __FILE__, __LINE__)
 #define	lockmgr_recursed(lkp)						\
 	((lkp)->lk_exclusivecount > 1)
 #ifdef DDB
