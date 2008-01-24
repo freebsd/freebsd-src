@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 22, 2006
+.Dd October 24, 2007
 .Os
 .Dt GPT 8
 .Sh NAME
@@ -130,10 +130,51 @@ option allows the user to specify the partition type.
 The type is given as an UUID, but
 .Nm
 accepts
-.Cm efi , swap , ufs , hfs , linux
+.Cm boot , efi , swap , ufs , hfs , linux
 and
 .Cm windows
 as aliases for the most commonly used partition types.
+.\" ==== boot ====
+.It Xo
+.Nm
+.Ic boot
+.Op Fl b Ar pmbr
+.Op Fl g Ar gptboot
+.Op Fl s Ar count
+.Ar device ...
+.Xc
+The
+.Ic boot
+command allows the user to make a GPT labeled disk bootable via the BIOS
+bootstrap on i386 and amd64 machines.
+By default,
+the
+.Pa /boot/pmbr
+boot loader is installed into the PMBR and the
+.Pa /boot/gptboot
+boot loader is installed into the first boot partition.
+If no boot partition exists and there is available space,
+a boot partition will be created.
+.Pp
+The
+.Fl b Ar pmbr
+option allows the user to specify an alternate path for the PMBR boot loader.
+.Pp
+The
+.Fl g Ar gptboot
+option allows the user to specify an alternate path for the GPT boot loader
+that is installed into the boot partition.
+.Pp
+The
+.Fl s Ar count
+option allows the user to specify the size in sectors of the boot partition
+if one does not already exist.
+A boot partition must be at least 16 kilobytes.
+By default,
+a size of 64 kilobytes is used.
+Note that the PMBR boot loader will load the entire boot partition into
+memory.
+As a result, the boot partition may not exceed 545 kilobytes.
 .\" ==== create ====
 .It Nm Ic create Oo Fl fp Oc Ar device ...
 The
