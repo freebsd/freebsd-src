@@ -43,7 +43,7 @@ CFLAGS		?=	-O2 -fno-strict-aliasing -pipe
 .endif
 
 CXX		?=	c++
-CXXFLAGS	?=	${CFLAGS:N-std=*:N-Wnested-externs:N-W*-prototypes}
+CXXFLAGS	?=	${CFLAGS:N-std=*:N-Wnested-externs:N-W*-prototypes:N-Wno-pointer-sign}
 
 CPP		?=	cpp
 
