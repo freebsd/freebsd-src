@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 16, 2005
+.Dd January 23, 2008
 .Dt XL 4
 .Os
 .Sh NAME
@@ -244,6 +244,11 @@ attempt to guess the proper media type based on the PCI device ID
 word.
 The driver makes a lot of noise about this condition because
 the author considers it a manufacturing defect.
+.It xl%d: transmission error: %d
+.It xl%d: tx underrun, increasing tx start threshold to %d bytes
+This message may appear while the adapter tunes its transmission
+buffers under various load amounts and are mostly harmless.
+It is probably safe to ignore them.
 .El
 .Sh SEE ALSO
 .Xr altq 4 ,
