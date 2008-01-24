@@ -1181,7 +1181,11 @@ fetchStatFTP(struct url *url, struct url_stat *us, const char *flags)
 	f = ftp_request(url, "STAT", us, ftp_get_proxy(url, flags), flags);
 	if (f == NULL)
 		return (-1);
-	fclose(f);
+	/*
+	 * When op is "STAT", ftp_request() will return either NULL or
+	 * (FILE *)1, never a valid FILE *, so we mustn't fclose(f) before
+	 * returning, as it would cause a segfault.
+	 */
 	return (0);
 }
 
