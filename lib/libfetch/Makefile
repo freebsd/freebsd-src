@@ -1,28 +1,35 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=		fetch
 CFLAGS+=	-I.
-CFLAGS+=	-DINET6
 SRCS=		fetch.c common.c ftp.c http.c file.c \
 		ftperr.h httperr.h
 INCS=		fetch.h
 MAN=		fetch.3
 CLEANFILES=	ftperr.h httperr.h
 
-.if !defined(NO_CRYPT) && !defined(NO_OPENSSL)
+.if ${MK_INET6_SUPPORT} != "no"
+CFLAGS+=	-DINET6
+.endif
+
+.if ${MK_OPENSSL} != "no"
 CFLAGS+=	-DWITH_SSL
 DPADD=		${LIBSSL} ${LIBCRYPTO}
 LDADD=		-lssl -lcrypto
 .endif
 
+CFLAGS+=	-DFTP_COMBINE_CWDS
+
 CSTD?=		c99
 WARNS?=		2
 
-SHLIB_MAJOR=    4
+SHLIB_MAJOR=    5
 
-ftperr.h: ftp.errors
-	@echo "static struct fetcherr _ftp_errlist[] = {" > ${.TARGET}
-	@cat ${.ALLSRC} \
+ftperr.h: ftp.errors ${.CURDIR}/Makefile
+	@echo "static struct fetcherr ftp_errlist[] = {" > ${.TARGET}
+	@cat ${.CURDIR}/ftp.errors \
 	  | grep -v ^# \
 	  | sort \
 	  | while read NUM CAT STRING; do \
@@ -31,9 +38,9 @@ ftperr.h: ftp.errors
 	@echo "    { -1, FETCH_UNKNOWN, \"Unknown FTP error\" }" >> ${.TARGET}
 	@echo "};" >> ${.TARGET}
 
-httperr.h: http.errors
-	@echo "static struct fetcherr _http_errlist[] = {" > ${.TARGET}
-	@cat ${.ALLSRC} \
+httperr.h: http.errors ${.CURDIR}/Makefile
+	@echo "static struct fetcherr http_errlist[] = {" > ${.TARGET}
+	@cat ${.CURDIR}/http.errors \
 	  | grep -v ^# \
 	  | sort \
 	  | while read NUM CAT STRING; do \
