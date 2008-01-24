@@ -31,7 +31,7 @@ CFLAGS+=	-include osreldate.h
 TGTOBJS=	crtsavres.o
 SRCS+=		crtsavres.asm
 .endif
-.if ${MACHINE_ARCH} == "alpha" || ${MACHINE_ARCH} == "sparc64"
+.if ${MACHINE_ARCH} == "sparc64"
 TGTOBJS=	crtfastmath.o
 SRCS+=		crtfastmath.c
 .endif
