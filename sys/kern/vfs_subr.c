@@ -361,7 +361,7 @@ vfs_busy(struct mount *mp, int flags, struct mtx *interlkp,
 	if (interlkp)
 		mtx_unlock(interlkp);
 	lkflags = LK_SHARED | LK_INTERLOCK;
-	if (lockmgr(&mp->mnt_lock, lkflags, MNT_MTX(mp), td))
+	if (lockmgr(&mp->mnt_lock, lkflags, MNT_MTX(mp)))
 		panic("vfs_busy: unexpected lock failure");
 	return (0);
 }
@@ -373,7 +373,7 @@ void
 vfs_unbusy(struct mount *mp, struct thread *td)
 {
 
-	lockmgr(&mp->mnt_lock, LK_RELEASE, NULL, td);
+	lockmgr(&mp->mnt_lock, LK_RELEASE, NULL);
 	vfs_rel(mp);
 }
 

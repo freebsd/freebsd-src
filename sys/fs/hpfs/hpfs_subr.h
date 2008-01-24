@@ -79,9 +79,9 @@ int		hpfs_breadstruct (struct hpfsmount *, lsn_t, u_int, u_int32_t,
 
 #if 0
 #define	hpfs_hplock(hp, p)						\
-	lockmgr(&(hp)->h_intlock, LK_EXCLUSIVE, (p), curthread)
+	lockmgr(&(hp)->h_intlock, LK_EXCLUSIVE, (p))
 #define	hpfs_hpunlock(hp, p)						\
-	lockmgr(&(hp)->h_intlock, LK_RELEASE, (p), curthread)
+	lockmgr(&(hp)->h_intlock, LK_RELEASE, (p))
 #endif
 
 int		hpfs_hpbmap (struct hpfsnode *, daddr_t, daddr_t *, int *);

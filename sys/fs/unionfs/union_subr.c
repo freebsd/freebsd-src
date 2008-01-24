@@ -198,7 +198,7 @@ unionfs_noderem(struct vnode *vp, struct thread *td)
 
 	vp->v_vnlock = &(vp->v_lock);
 	vp->v_data = NULL;
-	lockmgr(vp->v_vnlock, LK_EXCLUSIVE | LK_INTERLOCK, VI_MTX(vp), td);
+	lockmgr(vp->v_vnlock, LK_EXCLUSIVE | LK_INTERLOCK, VI_MTX(vp));
 	if (lvp != NULLVP)
 		VOP_UNLOCK(lvp, 0);
 	if (uvp != NULLVP)

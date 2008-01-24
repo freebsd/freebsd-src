@@ -1239,7 +1239,7 @@ dounmount(mp, flags, td)
 	if (flags & MNT_FORCE)
 		mp->mnt_kern_flag |= MNTK_UNMOUNTF;
 	error = lockmgr(&mp->mnt_lock, LK_DRAIN | LK_INTERLOCK |
-	    ((flags & MNT_FORCE) ? 0 : LK_NOWAIT), MNT_MTX(mp), td);
+	    ((flags & MNT_FORCE) ? 0 : LK_NOWAIT), MNT_MTX(mp));
 	if (error) {
 		MNT_ILOCK(mp);
 		mp->mnt_kern_flag &= ~(MNTK_UNMOUNT | MNTK_NOINSMNTQ |
@@ -1314,7 +1314,7 @@ dounmount(mp, flags, td)
 		mp->mnt_flag |= async_flag;
 		if ((mp->mnt_flag & MNT_ASYNC) != 0 && mp->mnt_noasync == 0)
 			mp->mnt_kern_flag |= MNTK_ASYNC;
-		lockmgr(&mp->mnt_lock, LK_RELEASE, NULL, td);
+		lockmgr(&mp->mnt_lock, LK_RELEASE, NULL);
 		if (mp->mnt_kern_flag & MNTK_MWAIT)
 			wakeup(mp);
 		MNT_IUNLOCK(mp);
@@ -1330,7 +1330,7 @@ dounmount(mp, flags, td)
 		vput(coveredvp);
 	}
 	vfs_event_signal(NULL, VQ_UNMOUNT, 0);
-	lockmgr(&mp->mnt_lock, LK_RELEASE, NULL, td);
+	lockmgr(&mp->mnt_lock, LK_RELEASE, NULL);
 	vfs_mount_destroy(mp);
 	return (0);
 }

@@ -189,23 +189,18 @@ acquire(struct lock **lkpp, int extflags, int wanted, int *contested, uint64_t *
  * accepted shared locks and shared-to-exclusive upgrades to go away.
  */
 int
-_lockmgr(struct lock *lkp, u_int flags, struct mtx *interlkp, 
-	 struct thread *td, char *file, int line)
+_lockmgr(struct lock *lkp, u_int flags, struct mtx *interlkp, char *file,
+    int line)
 
 {
+	struct thread *td;
 	int error;
 	int extflags, lockflags;
 	int contested = 0;
 	uint64_t waitstart = 0;
 
-	/*
-	 * Lock owner can only be curthread in order to have a deadlock
-	 * free implementation of the primitive.
-	 */
-	KASSERT(td == curthread,
-	    ("lockmgr: owner thread (%p) cannot differ from curthread", td));
-
 	error = 0;
+	td = curthread;
 
 	if ((flags & LK_INTERNAL) == 0)
 		mtx_lock(lkp->lk_interlock);
@@ -576,6 +571,9 @@ lockstatus(lkp, td)
 	int lock_type = 0;
 	int interlocked;
 
+	KASSERT(td == NULL || td == curthread,
+	    ("%s: thread passed argument (%p) is not valid", __func__, td));
+
 	if (!kdb_active) {
 		interlocked = 1;
 		mtx_lock(lkp->lk_interlock);
@@ -591,21 +589,6 @@ lockstatus(lkp, td)
 	if (interlocked)
 		mtx_unlock(lkp->lk_interlock);
 	return (lock_type);
-}
-
-/*
- * Determine the number of holders of a lock.
- */
-int
-lockcount(lkp)
-	struct lock *lkp;
-{
-	int count;
-
-	mtx_lock(lkp->lk_interlock);
-	count = lkp->lk_exclusivecount + lkp->lk_sharecount;
-	mtx_unlock(lkp->lk_interlock);
-	return (count);
 }
 
 /*

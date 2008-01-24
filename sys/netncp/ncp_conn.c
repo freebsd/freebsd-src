@@ -99,13 +99,13 @@ ncp_conn_destroy(void)
 int
 ncp_conn_locklist(int flags, struct thread *td)
 {
-	return lockmgr(&listlock, flags | LK_CANRECURSE, 0, td);
+	return lockmgr(&listlock, flags | LK_CANRECURSE, 0);
 }
 
 void
 ncp_conn_unlocklist(struct thread *td)
 {
-	lockmgr(&listlock, LK_RELEASE, 0, td);
+	lockmgr(&listlock, LK_RELEASE, 0);
 }
 
 int
@@ -129,17 +129,17 @@ ncp_conn_lock_any(struct ncp_conn *conn, struct thread *td, struct ucred *cred)
 	int error;
 
 	if (conn->nc_id == 0) return EACCES;
-	error = lockmgr(&conn->nc_lock, LK_EXCLUSIVE | LK_CANRECURSE, 0, td);
+	error = lockmgr(&conn->nc_lock, LK_EXCLUSIVE | LK_CANRECURSE, 0);
 	if (error == ERESTART)
 		return EINTR;
 	error = ncp_chkintr(conn, td);
 	if (error) {
-		lockmgr(&conn->nc_lock, LK_RELEASE, 0, td);
+		lockmgr(&conn->nc_lock, LK_RELEASE, 0);
 		return error;
 	}
 
 	if (conn->nc_id == 0) {
-		lockmgr(&conn->nc_lock, LK_RELEASE, 0, td);
+		lockmgr(&conn->nc_lock, LK_RELEASE, 0);
 		return EACCES;
 	}
 	conn->td = td;		/* who currently operates */
@@ -187,7 +187,7 @@ ncp_conn_unlock(struct ncp_conn *conn, struct thread *td)
 	 * note, that LK_RELASE will do wakeup() instead of wakeup_one().
 	 * this will do a little overhead
 	 */
-	lockmgr(&conn->nc_lock, LK_RELEASE, 0, td);
+	lockmgr(&conn->nc_lock, LK_RELEASE, 0);
 }
 
 int
@@ -301,7 +301,7 @@ ncp_conn_free(struct ncp_conn *ncp)
 	/*
 	 * if signal is raised - how I do react ?
 	 */
-	lockmgr(&ncp->nc_lock, LK_DRAIN, 0, td);
+	lockmgr(&ncp->nc_lock, LK_DRAIN, 0);
 	lockdestroy(&ncp->nc_lock);
 	while (ncp->nc_lwant) {
 		printf("lwant = %d\n", ncp->nc_lwant);
@@ -525,14 +525,14 @@ ncp_conn_gethandle(struct ncp_conn *conn, struct thread *td, struct ncp_handle *
 {
 	struct ncp_handle *refp;
 
-	lockmgr(&lhlock, LK_EXCLUSIVE, 0, td);
+	lockmgr(&lhlock, LK_EXCLUSIVE, 0);
 	SLIST_FOREACH(refp, &lhlist, nh_next)
 		if (refp->nh_conn == conn && td == refp->nh_td) break;
 	if (refp) {
 		conn->ref_cnt++;
 		refp->nh_ref++;
 		*handle = refp;
-		lockmgr(&lhlock, LK_RELEASE, 0, td);
+		lockmgr(&lhlock, LK_RELEASE, 0);
 		return 0;
 	}
 	MALLOC(refp,struct ncp_handle *,sizeof(struct ncp_handle),M_NCPDATA,
@@ -544,7 +544,7 @@ ncp_conn_gethandle(struct ncp_conn *conn, struct thread *td, struct ncp_handle *
 	refp->nh_id = ncp_next_handle++;
 	*handle = refp;
 	conn->ref_cnt++;
-	lockmgr(&lhlock, LK_RELEASE, 0, td);
+	lockmgr(&lhlock, LK_RELEASE, 0);
 	return 0;
 }
 /*
@@ -555,7 +555,7 @@ ncp_conn_puthandle(struct ncp_handle *handle, struct thread *td, int force)
 {
 	struct ncp_handle *refp = handle;
 
-	lockmgr(&lhlock, LK_EXCLUSIVE, 0, td);
+	lockmgr(&lhlock, LK_EXCLUSIVE, 0);
 	refp->nh_ref--;
 	refp->nh_conn->ref_cnt--;
 	if (force) {
@@ -566,7 +566,7 @@ ncp_conn_puthandle(struct ncp_handle *handle, struct thread *td, int force)
 		SLIST_REMOVE(&lhlist, refp, ncp_handle, nh_next);
 		FREE(refp, M_NCPDATA);
 	}
-	lockmgr(&lhlock, LK_RELEASE, 0, td);
+	lockmgr(&lhlock, LK_RELEASE, 0);
 	return 0;
 }
 /*
@@ -576,10 +576,10 @@ int
 ncp_conn_findhandle(int connHandle, struct thread *td, struct ncp_handle **handle) {
 	struct ncp_handle *refp;
 
-	lockmgr(&lhlock, LK_SHARED, 0, td);
+	lockmgr(&lhlock, LK_SHARED, 0);
 	SLIST_FOREACH(refp, &lhlist, nh_next)
 		if (refp->nh_td == td && refp->nh_id == connHandle) break;
-	lockmgr(&lhlock, LK_RELEASE, 0, td);
+	lockmgr(&lhlock, LK_RELEASE, 0);
 	if (refp == NULL) {
 		return EBADF;
 	}
@@ -595,7 +595,7 @@ ncp_conn_putprochandles(struct thread *td)
 	struct ncp_handle *hp, *nhp;
 	int haveone = 0;
 
-	lockmgr(&lhlock, LK_EXCLUSIVE, 0, td);
+	lockmgr(&lhlock, LK_EXCLUSIVE, 0);
 	for (hp = SLIST_FIRST(&lhlist); hp; hp = nhp) {
 		nhp = SLIST_NEXT(hp, nh_next);
 		if (hp->nh_td != td) continue;
@@ -604,7 +604,7 @@ ncp_conn_putprochandles(struct thread *td)
 		SLIST_REMOVE(&lhlist, hp, ncp_handle, nh_next);
 		FREE(hp, M_NCPDATA);
 	}
-	lockmgr(&lhlock, LK_RELEASE, 0, td);
+	lockmgr(&lhlock, LK_RELEASE, 0);
 	return haveone;
 }
 /*
