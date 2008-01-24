@@ -812,10 +812,10 @@ reiserfs_iget(
 	 * must not release nor downgrade the lock (despite flags argument
 	 * says) till it is fully initialized.
 	 */
-	lockmgr(vp->v_vnlock, LK_EXCLUSIVE, (struct mtx *)0, td);
+	lockmgr(vp->v_vnlock, LK_EXCLUSIVE, (struct mtx *)0);
 #endif
 
-	lockmgr(vp->v_vnlock, LK_EXCLUSIVE, NULL, td);
+	lockmgr(vp->v_vnlock, LK_EXCLUSIVE, NULL);
 	error = insmntque(vp, mp);
 	if (error != 0) {
 		free(ip, M_REISERFSNODE);

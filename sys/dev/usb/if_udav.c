@@ -1777,11 +1777,7 @@ udav_lock_mii(struct udav_softc *sc)
 			__func__));
 
 	sc->sc_refcnt++;
-#if defined(__NetBSD__)
 	lockmgr(&sc->sc_mii_lock, LK_EXCLUSIVE, NULL);
-#elif defined(__FreeBSD__)
-	lockmgr(&sc->sc_mii_lock, LK_EXCLUSIVE, NULL, curthread);
-#endif
 }
 
 static void
@@ -1790,11 +1786,7 @@ udav_unlock_mii(struct udav_softc *sc)
 	DPRINTFN(0xff, ("%s: %s: enter\n", device_get_nameunit(sc->sc_dev),
 		       __func__));
 
-#if defined(__NetBSD__)
 	lockmgr(&sc->sc_mii_lock, LK_RELEASE, NULL);
-#elif defined(__FreeBSD__)
-	lockmgr(&sc->sc_mii_lock, LK_RELEASE, NULL, curthread);
-#endif
 	if (--sc->sc_refcnt < 0)
 		usb_detach_wakeup(sc->sc_dev);
 }

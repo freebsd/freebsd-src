@@ -1381,7 +1381,7 @@ ffs_vget(mp, ino, flags, vpp)
 #endif
 
 	td = curthread;
-	lockmgr(vp->v_vnlock, LK_EXCLUSIVE, NULL, td);
+	lockmgr(vp->v_vnlock, LK_EXCLUSIVE, NULL);
 	error = insmntque(vp, mp);
 	if (error != 0) {
 		uma_zfree(uma_inode, ip);

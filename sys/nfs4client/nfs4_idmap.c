@@ -74,9 +74,9 @@ struct idmap_hash {
 	struct lock hash_lock;
 };
 
-#define IDMAP_RLOCK(lock) lockmgr(lock, LK_SHARED, NULL, curthread)
-#define IDMAP_WLOCK(lock) lockmgr(lock, LK_EXCLUSIVE, NULL, curthread)
-#define IDMAP_UNLOCK(lock) lockmgr(lock, LK_RELEASE, NULL, curthread)
+#define IDMAP_RLOCK(lock) lockmgr(lock, LK_SHARED, NULL)
+#define IDMAP_WLOCK(lock) lockmgr(lock, LK_EXCLUSIVE, NULL)
+#define IDMAP_UNLOCK(lock) lockmgr(lock, LK_RELEASE, NULL)
 
 
 static struct idmap_hash idmap_uid_hash;

@@ -263,8 +263,8 @@ vop_stdlock(ap)
 {
 	struct vnode *vp = ap->a_vp;
 
-	return (_lockmgr(vp->v_vnlock, ap->a_flags, VI_MTX(vp), curthread,
-	     ap->a_file, ap->a_line));
+	return (_lockmgr(vp->v_vnlock, ap->a_flags, VI_MTX(vp), ap->a_file,
+	    ap->a_line));
 }
 
 /* See above. */
@@ -278,8 +278,7 @@ vop_stdunlock(ap)
 {
 	struct vnode *vp = ap->a_vp;
 
-	return (lockmgr(vp->v_vnlock, ap->a_flags | LK_RELEASE, VI_MTX(vp),
-	    curthread));
+	return (lockmgr(vp->v_vnlock, ap->a_flags | LK_RELEASE, VI_MTX(vp)));
 }
 
 /* See above. */
