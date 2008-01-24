@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 5, 2007
+.Dd January 21, 2008
 .Os
 .Dt SCHED_ULE 4
 .Sh NAME
@@ -36,10 +36,10 @@
 The
 .Nm
 scheduler
-is an experimental scheduler that provides a number of advanced scheduler
+provides a number of advanced scheduler
 features not present in
 .Xr sched_4bsd 4 ,
-the default system scheduler.
+the traditional system scheduler.
 These features address SMP and interactivity and include:
 .Pp
 .Bl -bullet -compact -offset indent
@@ -60,14 +60,6 @@ The following sysctls are relevant to the operation of
 .It Va kern.sched.name
 This read-only sysctl reports the name of the active scheduler.
 .El
-.Pp
-The
-.Nm
-scheduler
-is disabled by default as it is experimental.
-See the
-.Sx BUGS
-section for more information.
 .Sh SEE ALSO
 .Xr sched_4bsd 4 ,
 .Xr sysctl 8
