@@ -13,9 +13,10 @@ WARNS?=	6
 
 CFLAGS+=-D_KVM_VNODE
 
+# XXX This is a hack.
 .if ${MK_CDDL} != "no"
 CFLAGS+= -DZFS
-OBJS+= zfs/zfs.o
+OBJS+=	zfs/zfs.o
 SUBDIR=	zfs
 zfs/zfs.o: zfs
 .endif
