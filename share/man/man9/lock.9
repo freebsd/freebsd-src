@@ -26,13 +26,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 9, 2008
+.Dd January 24, 2008
 .Dt LOCK 9
 .Os
 .Sh NAME
 .Nm lockinit ,
 .Nm lockdestroy ,
-.Nm lockcount ,
 .Nm lockmgr ,
 .Nm lockstatus ,
 .Nm lockmgr_disown ,
@@ -47,9 +46,7 @@
 .Ft void
 .Fn lockdestroy "struct lock *lkp"
 .Ft int
-.Fn lockcount "struct lock *lkp"
-.Ft int
-.Fn lockmgr "struct lock *lkp" "u_int flags" "struct mtx *interlkp" "struct thread *td"
+.Fn lockmgr "struct lock *lkp" "u_int flags" "struct mtx *interlkp"
 .Ft int
 .Fn lockstatus "struct lock *lkp" "struct thread *td"
 .Ft void
@@ -99,12 +96,6 @@ The
 .Fn lockdestroy
 function is used to destroy a lock, and while it is called in a number of
 places in the kernel, it currently does nothing.
-.Pp
-The
-.Fn lockcount
-function returns a count of the number of exclusive locks and shared locks
-held against the lock
-.Fa lkp .
 .Pp
 The
 .Fn lockmgr
@@ -172,11 +163,6 @@ assumes
 is currently owned and not recursed, and will return it unlocked.
 See
 .Xr mtx_assert 9 .
-.It Fa td
-A thread responsible for this call.
-.Dv NULL
-becomes
-.Dv LK_KERNPROC .
 .El
 .Pp
 The
@@ -210,10 +196,6 @@ The
 function returns true if the lock is recursed, 0
 otherwise.
 .Sh RETURN VALUES
-The
-.Fn lockcount
-function returns an integer greater than or equal to zero.
-.Pp
 The
 .Fn lockmgr
 function returns 0 on success and non-zero on failure.
