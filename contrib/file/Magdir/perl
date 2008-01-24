@@ -13,10 +13,27 @@
 0	string		eval\ "exec\ /usr/local/bin/perl	perl script text executable
 0	string		eval\ '(exit\ $?0)'\ &&\ eval\ 'exec	perl script text
 
-# a couple more, by me
-# XXX: christos matches
-#0	regex		package		Perl5 module source text (via regex)
-0	string		package		Perl5 module source text
+
+# by Dmitry V. Levin and Alexey Tourbin
+# check the first line
+0	string		package
+>1	regex		\^package[\ \t]+[A-Za-z_]
+>>1	regex		\^package[\ \t]+[0-9A-Za-z_:]*\ *;	Perl5 module source text
+# not 'p', check other lines
+0	byte		!0x70
+>0	regex		\^package[\ \t]+[0-9A-Za-z_:]+\ *;
+>>0	regex		\^1\ *;|\^(use|sub|my)\ .*[(;{=]	Perl5 module source text
+
+
+
+# Perl POD documents
+# From: Tom Hukins <tom@eborcom.com>
+0	string/B	\=pod\n		Perl POD document
+0	string/B	\n\=pod\n	Perl POD document
+0	string/B	\=head1\ 	Perl POD document
+0	string/B	\n\=head1\ 	Perl POD document
+0	string/B	\=head2\ 	Perl POD document
+0	string/B	\n\=head2\ 	Perl POD document
 
 # Perl Storable data files.
 0	string	perl-store	perl Storable(v0.6) data

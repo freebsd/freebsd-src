@@ -27,7 +27,8 @@
 #
 0	string/b	#!\ /bin/awk		awk script text executable
 0	string/b	#!\ /usr/bin/awk	awk script text executable
-0	string		BEGIN			awk script text
+# update to distinguish from *.vcf files
+0	regex		BEGIN[[:space:]]*[{]	awk script text
 
 # AT&T Bell Labs' Plan 9 shell
 0	string/b	#!\ /bin/rc	Plan 9 rc shell script text executable
@@ -51,3 +52,5 @@
 0	string/b	#!\ /usr/bin/php	PHP script text executable
 
 0	string		Zend\x00		PHP script Zend Optimizer data
+
+0	string		$!			DCL command file

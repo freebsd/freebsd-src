@@ -15,11 +15,17 @@ magic: Header Localstuff $(magic_FRAGMENTS)
           cat $$f; \
 	done >> $@
 
+if IS_CROSS_COMPILE
+FILE_COMPILE = file
+else
+FILE_COMPILE = $(top_builddir)/src/file
+endif
+
 magic.mgc: magic
-	$(top_builddir)/src/file -C -m magic
+	$(FILE_COMPILE) -C -m magic
 
 magic.mime.mgc: magic.mime
-	$(top_builddir)/src/file -C -m $(srcdir)/magic.mime
+	$(FILE_COMPILE) -C -m $(srcdir)/magic.mime
 
 magic_FRAGMENTS = \
 Magdir/acorn \
@@ -38,21 +44,24 @@ Magdir/archive \
 Magdir/asterix \
 Magdir/att3b \
 Magdir/audio \
-Magdir/bFLT \
+Magdir/basis \
+Magdir/bflt \
 Magdir/blender \
 Magdir/blit \
 Magdir/bout \
 Magdir/bsdi \
+Magdir/btsnoop \
 Magdir/cad \
+Magdir/cafebabe \
 Magdir/c-lang \
 Magdir/c64 \
 Magdir/cddb \
-Magdir/chi \
 Magdir/chord \
 Magdir/cisco \
 Magdir/citrus \
 Magdir/claris \
 Magdir/clipper \
+Magdir/cracklib \
 Magdir/spec \
 Magdir/commands \
 Magdir/communications \
@@ -86,7 +95,6 @@ Magdir/gimp \
 Magdir/gnu \
 Magdir/grace \
 Magdir/gringotts \
-Magdir/hdf \
 Magdir/hitachi-sh \
 Magdir/hp \
 Magdir/human68k \
@@ -125,6 +133,7 @@ Magdir/modem \
 Magdir/motorola \
 Magdir/msdos \
 Magdir/msvc \
+Magdir/mup \
 Magdir/natinst \
 Magdir/ncr \
 Magdir/netbsd \
@@ -135,6 +144,7 @@ Magdir/ocaml \
 Magdir/octave \
 Magdir/olf \
 Magdir/os2 \
+Magdir/os400 \
 Magdir/os9 \
 Magdir/osf1 \
 Magdir/palm \
@@ -170,6 +180,7 @@ Magdir/sketch \
 Magdir/smalltalk \
 Magdir/sniffer \
 Magdir/dyadic \
+Magdir/scientific \
 Magdir/softquad \
 Magdir/spectrum \
 Magdir/sql \
@@ -185,6 +196,7 @@ Magdir/troff \
 Magdir/tuxedo \
 Magdir/typeset \
 Magdir/unknown \
+Magdir/unicode \
 Magdir/uuencode \
 Magdir/varied.out \
 Magdir/varied.script \

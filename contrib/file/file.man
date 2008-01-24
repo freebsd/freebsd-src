@@ -1,12 +1,12 @@
 .TH FILE __CSECTION__ "Copyright but distributable"
-.\" $Id: file.man,v 1.54 2003/10/27 18:09:08 christos Exp $
+.\" $Id: file.man,v 1.57 2005/08/18 15:18:22 christos Exp $
 .SH NAME
 file
 \- determine file type
 .SH SYNOPSIS
 .B file
 [
-.B \-bcikLnNprsvz
+.B \-bchikLnNprsvz
 ]
 [
 .B \-f
@@ -103,7 +103,13 @@ magic file
 .I __MAGIC__.mgc ,
 or 
 .I __MAGIC__
-if the compile file does not exist.
+if the compile file does not exist. In addition
+.B file
+will look in
+.I $HOME/.magic.mgc ,
+or
+.I $HOME/.magic
+for magic entries.
 .PP
 If a file does not match any of the entries in the magic file,
 it is examined to see if it seems to be a text file.
@@ -180,6 +186,13 @@ to test the standard input, use ``\-'' as a filename argument.
 Use the specified string as the separator between the filename and the
 file result returned. Defaults to ``:''.
 .TP 8
+.B "\-h, \-\-no-dereference"
+option causes symlinks not to be followed
+(on systems that support symbolic links). This is the default if the
+environment variable
+.I POSIXLY_CORRECT
+is not defined.
+.TP 8
 .B "\-i, \-\-mime"
 Causes the file command to output mime type strings rather than the more
 traditional human readable ones. Thus it may say
@@ -197,8 +210,11 @@ Don't stop at the first match, keep going.
 .TP 8
 .B "\-L, \-\-dereference"
 option causes symlinks to be followed, as the like-named option in
-.BR ls (1).
+.BR ls (1)
 (on systems that support symbolic links).
+This is the default if the environment variable
+.I POSIXLY_CORRECT
+is defined.
 .TP 8
 .BI "\-m, \-\-magic\-file" " list"
 Specify an alternate list of files containing magic numbers.
@@ -273,16 +289,29 @@ the -i option is specified.
 .I __MAGIC__.mime
 Default list of magic numbers, used to output mime types when the -i option
 is specified.
-.TP
-.I /etc/magic
-Local additions to magic wisdom.
 
 .SH ENVIRONMENT
 The environment variable
 .B MAGIC
 can be used to set the default magic number file name.
+If that variable is set, then
+.B file
+will not attempt to open
+.B $HOME/.magic .
 .B file
 adds ".mime" and/or ".mgc" to the value of this variable as appropriate.
+The environment variable
+.B POSIXLY_CORRECT
+controls (on systems that support symbolic links), if
+.B file
+will attempt to follow symlinks or not. If set, then
+.B file
+follows symlink, otherwise it does not. This is also controlled
+by the
+.B L
+and
+.B h
+options.
 .SH SEE ALSO
 .BR magic (__FSECTION__)
 \- description of magic file format.
@@ -410,7 +439,7 @@ to identify character codes and attempt to identify the languages
 of non-ASCII files.
 .PP
 The list of contributors to the "Magdir" directory (source for the
-/etc/magic
+.I __MAGIC__
 file) is too long to include here.
 You know who you are; thank you.
 .SH LEGAL NOTICE

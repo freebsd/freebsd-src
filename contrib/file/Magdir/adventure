@@ -12,27 +12,38 @@
 0	beshort	0x0206	ALAN game data
 >2	byte	<10	version 2.6%d
 
-# Conflicts with too much other stuff!
-# Infocom
-# (Note: to avoid false matches Z-machine version 1 and 2 are not
-# recognized since only the oldest Zork I and II used them.  Similarly
-# there are 4 Infocom games that use version 4 that are not recognized.)
-#0	byte	3	Infocom game data (Z-machine 3,
-#>2	beshort	<0x7fff	Release %3d,
-#>26	beshort >0	Size %d*2
-#>18	string	>\0	Serial %.6s)
-#0	byte	5	Infocom game data (Z-machine 5,
-#>2	beshort	<0x7fff	Release %3d,
-#>26	beshort >0	Size %d*4
-#>18	string	>\0	Serial %.6s)
-#0	byte	6	Infocom game data (Z-machine 6,
-#>2	beshort	<0x7fff	Release %3d,
-#>26	beshort >0	Size %d*8
-#>18	string	>\0	Serial %.6s)
-#0	byte	8	Infocom game data (Z-machine 8,
-#>2	beshort	<0x7fff	Release %3d,
-#>26	beshort >0	Size %d*8
-#>18	string	>\0	Serial %.6s)
+
+# Infocom (see z-machine)
+#------------------------------------------------------------------------------
+# Z-machine:  file(1) magic for Z-machine binaries.
+#
+# This will match ${TEX_BASE}/texmf/omega/ocp/char2uni/inbig5.ocp which
+# appears to be a version-0 Z-machine binary.
+#
+# The (false match) message is to correct that behavior.  Perhaps it is
+# not needed.
+#
+16	belong&0xfe00f0f0	0x3030	Infocom game data
+>0	ubyte			0	(false match)
+>0	ubyte			>0	(Z-machine %d,
+>>2	ubeshort		x	Release %d /
+>>18	string			>\0	Serial %.6s)
+
+#------------------------------------------------------------------------------
+# Glulx:  file(1) magic for Glulx binaries.
+#
+# I haven't checked for false matches yet.
+#
+0	string			Glul	Glulx game data
+>4	beshort			x	(Version %d
+>>6	byte			x	\b.%d
+>>8	byte			x	\b.%d)
+>36	string			Info	Compiled by Inform
+
+
+
+# For Quetzal and blorb magic see iff
+
 
 # TADS (Text Adventure Development System)
 #  All files are machine-independent (games compile to byte-code) and are tagged
@@ -61,3 +72,4 @@
 >10	belong	!0x0A0D1A00	saved game data, CORRUPTED
 >10	belong	 0x0A0D1A00
 >>14	string	>\0		%s saved game data
+

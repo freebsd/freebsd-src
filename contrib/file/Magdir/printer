@@ -114,3 +114,7 @@
 #------------------------------------------------------------------------------
 # HP LaserJet 1000 series downloadable firmware file
 0	string	\xbe\xefABCDEFGH	HP LaserJet 1000 series downloadable firmware   
+
+# From: Paolo <oopla@users.sf.net>
+# Epson ESC/Page, ESC/PageColor 
+0	string	\x1b\x01@EJL	Epson ESC/Page language printer data

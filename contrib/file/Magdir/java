@@ -1,9 +1,7 @@
 #------------------------------------------------------------
-# Java ByteCode
-# From Larry Schwimmer (schwim@cs.stanford.edu)
-0	belong		0xcafebabe	compiled Java class data,
->6	beshort x	version %d.
->4	beshort x	\b%d
+# Java ByteCode and Mach-O binaries (e.g., Mac OS X) use the
+# same magic number, 0xcafebabe, so they are both handled
+# in the entry called "cafebabe".
 #------------------------------------------------------------
 # Java serialization
 # From Martin Pool (m.pool@pharos.com.au)

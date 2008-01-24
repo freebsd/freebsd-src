@@ -3,7 +3,7 @@
 # wordprocessors:  file(1) magic fo word processors.
 #
 ####### PWP file format used on Smith Corona Personal Word Processors:
-2	string	\040\040\040\040\040\040\040\040\040\040\040ML4D\040\'92	Smith Corona PWP
+2	string	\040\040\040\040\040\040\040\040\040\040\040ML4D\040'92	Smith Corona PWP
 >24	byte	2	\b, single spaced
 >24	byte	3	\b, 1.5 spaced
 >24	byte	4	\b, double spaced
@@ -104,8 +104,33 @@
 #end of WordPerfect type files Version 1.6 - PLEASE DO NOT REMOVE THIS LINE
 
 # Hangul (Korean) Word Processor File
-0	string	HWP\ Document\ File	Hangul (Korean) Word Processor File
+0	string	HWP\ Document\ File	Hangul (Korean) Word Processor File 3.0
+# From: Won-Kyu Park <wkpark@kldp.org>
+512	string		R\0o\0o\0t\0	Hangul (Korean) Word Processor File 2000
 
-# CosmicBook, from BenoÃ®t Rouits
+# CosmicBook, from Benoît Rouits
 0       string  CSBK    Ted Neslson's CosmicBook hypertext file
 
+2       string  EYWR    AmigaWriter file
+
+# chi:  file(1) magic for ChiWriter files
+0       string          \\1cw\          ChiWriter file
+>5      string          >\0             version %s
+0       string          \\1cw           ChiWriter file
+
+# Quark Express from http://www.garykessler.net/library/file_sigs.html
+2	string	IIXPR3			Intel Quark Express Document (English)
+2	string	IIXPRa			Intel Quark Express Document (Korean)
+2	string	MMXPR3			Motorola Quark Express Document (English)
+2	string	MMXPRa			Motorola Quark Express Document (Korean)
+
+# adobe indesign (document, whatever...) from querkan
+0	belong	0x0606edf5		Adobe InDesign
+>16	string	DOCUMENT		Document
+
+# From: Michael Piefel <piefel@debian.org>
+# sqtroff intermediate language (replacement for ditroff int. lang.)
+0	string		X\ 495		SoftQuad troff Context intermediate for AT&T 495 laser printer
+0	string		X\ hp		SoftQuad troff Context intermediate for HP LaserJet
+0	string		X\ impr		SoftQuad troff Context intermediate for IMAGEN imPRESS
+0	string		X\ ps		SoftQuad troff Context intermediate for PostScript
