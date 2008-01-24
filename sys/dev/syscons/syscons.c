@@ -1071,6 +1071,8 @@ scioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 	if (error)
 	    return error;
 	scp = sc_get_stat(SC_DEV(sc, i));
+	if (scp == NULL)
+		return (ENXIO);
 	if (scp == scp->sc->cur_scp)
 	    return 0;
 	error = tsleep(&scp->smode, PZERO | PCATCH, "waitvt", 0);
