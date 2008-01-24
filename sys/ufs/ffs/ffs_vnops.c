@@ -370,8 +370,8 @@ ffs_lock(ap)
 				flags |= LK_INTERLOCK;
 			}
 			lkp = vp->v_vnlock;
-			result = _lockmgr(lkp, flags, VI_MTX(vp), curthread,
-			    ap->a_file, ap->a_line);
+			result = _lockmgr(lkp, flags, VI_MTX(vp), ap->a_file,
+			    ap->a_line);
 			if (lkp == vp->v_vnlock || result != 0)
 				break;
 			/*
@@ -382,7 +382,7 @@ ffs_lock(ap)
 			 * right lock.  Release it, and try to get the
 			 * new lock.
 			 */
-			(void) _lockmgr(lkp, LK_RELEASE, VI_MTX(vp), curthread,
+			(void) _lockmgr(lkp, LK_RELEASE, VI_MTX(vp),
 			    ap->a_file, ap->a_line);
 			if ((flags & LK_TYPE_MASK) == LK_UPGRADE)
 				flags = (flags & ~LK_TYPE_MASK) | LK_EXCLUSIVE;

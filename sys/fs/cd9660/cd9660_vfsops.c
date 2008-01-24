@@ -684,7 +684,7 @@ cd9660_vget_internal(mp, ino, flags, vpp, relocated, isodir)
 	ip->i_vnode = vp;
 	ip->i_number = ino;
 
-	lockmgr(vp->v_vnlock, LK_EXCLUSIVE, NULL, td);
+	lockmgr(vp->v_vnlock, LK_EXCLUSIVE, NULL);
 	error = insmntque(vp, mp);
 	if (error != 0) {
 		free(ip, M_ISOFSNODE);

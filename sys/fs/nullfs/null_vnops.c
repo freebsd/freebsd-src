@@ -674,8 +674,7 @@ null_reclaim(struct vop_reclaim_args *ap)
 	vnlock = vp->v_vnlock;
 	vp->v_vnlock = &vp->v_lock;
 	if (lowervp) {
-		lockmgr(vp->v_vnlock,
-		    LK_EXCLUSIVE|LK_INTERLOCK, VI_MTX(vp), curthread);
+		lockmgr(vp->v_vnlock, LK_EXCLUSIVE | LK_INTERLOCK, VI_MTX(vp));
 		vput(lowervp);
 	} else
 		panic("null_reclaim: reclaiming an node with now lowervp");

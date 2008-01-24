@@ -631,8 +631,8 @@ loop:
 		xp = NULL;
 	}
 	lockmgr(vp->v_vnlock, LK_INTERLOCK | LK_EXCLUSIVE | LK_RETRY,
-	    VI_MTX(vp), td);
-	lockmgr(&vp->v_lock, LK_RELEASE, NULL, td);
+	    VI_MTX(vp));
+	lockmgr(&vp->v_lock, LK_RELEASE, NULL);
 	/*
 	 * If this is the first snapshot on this filesystem, then we need
 	 * to allocate the space for the list of preallocated snapshot blocks.
@@ -1591,14 +1591,14 @@ ffs_snapremove(vp)
 		TAILQ_REMOVE(&sn->sn_head, ip, i_nextsnap);
 		ip->i_nextsnap.tqe_prev = 0;
 		VI_UNLOCK(devvp);
-		lockmgr(&vp->v_lock, LK_EXCLUSIVE, NULL, td);
+		lockmgr(&vp->v_lock, LK_EXCLUSIVE, NULL);
 		VI_LOCK(vp);
 		KASSERT(vp->v_vnlock == &sn->sn_lock,
 			("ffs_snapremove: lost lock mutation")); 
 		vp->v_vnlock = &vp->v_lock;
 		VI_UNLOCK(vp);
 		VI_LOCK(devvp);
-		lockmgr(&sn->sn_lock, LK_RELEASE, NULL, td);
+		lockmgr(&sn->sn_lock, LK_RELEASE, NULL);
 		try_free_snapdata(devvp, td);
 	} else
 		VI_UNLOCK(devvp);
@@ -1718,9 +1718,8 @@ retry:
 		VI_UNLOCK(devvp);
 		return (0);
 	}
-	if (lockmgr(&sn->sn_lock,
-		    LK_INTERLOCK | LK_EXCLUSIVE | LK_SLEEPFAIL,
-		    VI_MTX(devvp), td) != 0)
+	if (lockmgr(&sn->sn_lock, LK_INTERLOCK | LK_EXCLUSIVE | LK_SLEEPFAIL,
+	    VI_MTX(devvp)) != 0)
 		goto retry;
 	TAILQ_FOREACH(ip, &sn->sn_head, i_nextsnap) {
 		vp = ITOV(ip);
@@ -1807,7 +1806,7 @@ retry:
 			}
 			DIP_SET(ip, i_blocks, DIP(ip, i_blocks) + btodb(size));
 			ip->i_flag |= IN_CHANGE | IN_UPDATE;
-			lockmgr(vp->v_vnlock, LK_RELEASE, NULL, td);
+			lockmgr(vp->v_vnlock, LK_RELEASE, NULL);
 			return (1);
 		}
 		if (lbn >= NDADDR)
@@ -1873,7 +1872,7 @@ retry:
 	 * not be freed. Although space will be lost, the snapshot
 	 * will stay consistent.
 	 */
-	lockmgr(vp->v_vnlock, LK_RELEASE, NULL, td);
+	lockmgr(vp->v_vnlock, LK_RELEASE, NULL);
 	return (error);
 }
 
@@ -1965,8 +1964,8 @@ ffs_snapshot_mount(mp)
 			devvp->v_rdev->si_snapdata = sn;
 		}
 		lockmgr(vp->v_vnlock, LK_INTERLOCK | LK_EXCLUSIVE | LK_RETRY,
-		    VI_MTX(vp), td);
-		lockmgr(&vp->v_lock, LK_RELEASE, NULL, td);
+		    VI_MTX(vp));
+		lockmgr(&vp->v_lock, LK_RELEASE, NULL);
 		/*
 		 * Link it onto the active snapshot list.
 		 */
@@ -2048,21 +2047,17 @@ ffs_snapshot_unmount(mp)
 		vp = ITOV(xp);
 		TAILQ_REMOVE(&sn->sn_head, xp, i_nextsnap);
 		xp->i_nextsnap.tqe_prev = 0;
-		lockmgr(&sn->sn_lock, 
-			LK_INTERLOCK | LK_EXCLUSIVE,
-			VI_MTX(devvp),
-			td);
+		lockmgr(&sn->sn_lock, LK_INTERLOCK | LK_EXCLUSIVE,
+		    VI_MTX(devvp));
 		VI_LOCK(vp);
-		lockmgr(&vp->v_lock,
-			LK_INTERLOCK | LK_EXCLUSIVE,
-			VI_MTX(vp), td);
+		lockmgr(&vp->v_lock, LK_INTERLOCK | LK_EXCLUSIVE, VI_MTX(vp));
 		VI_LOCK(vp);
 		KASSERT(vp->v_vnlock == &sn->sn_lock,
 		("ffs_snapshot_unmount: lost lock mutation")); 
 		vp->v_vnlock = &vp->v_lock;
 		VI_UNLOCK(vp);
-		lockmgr(&vp->v_lock, LK_RELEASE, NULL, td);
-		lockmgr(&sn->sn_lock, LK_RELEASE, NULL, td);
+		lockmgr(&vp->v_lock, LK_RELEASE, NULL);
+		lockmgr(&sn->sn_lock, LK_RELEASE, NULL);
 		if (xp->i_effnlink > 0)
 			vrele(vp);
 		VI_LOCK(devvp);
@@ -2252,9 +2247,8 @@ ffs_copyonwrite(devvp, bp)
 	/*
 	 * Not in the precomputed list, so check the snapshots.
 	 */
-	while (lockmgr(&sn->sn_lock,
-		       LK_INTERLOCK | LK_EXCLUSIVE | LK_SLEEPFAIL,
-		       VI_MTX(devvp), td) != 0) {
+	while (lockmgr(&sn->sn_lock, LK_INTERLOCK | LK_EXCLUSIVE | LK_SLEEPFAIL,
+	    VI_MTX(devvp)) != 0) {
 		VI_LOCK(devvp);
 		sn = devvp->v_rdev->si_snapdata;
 		if (sn == NULL ||
@@ -2377,7 +2371,7 @@ ffs_copyonwrite(devvp, bp)
 		else
 			launched_async_io = 1;
 	}
-	lockmgr(vp->v_vnlock, LK_RELEASE, NULL, td);
+	lockmgr(vp->v_vnlock, LK_RELEASE, NULL);
 	td->td_pflags = (td->td_pflags & ~TDP_NORUNNINGBUF) |
 		prev_norunningbuf;
 	if (launched_async_io && (td->td_pflags & TDP_NORUNNINGBUF) == 0)
@@ -2517,8 +2511,8 @@ try_free_snapdata(struct vnode *devvp,
 	snapblklist = sn->sn_blklist;
 	sn->sn_blklist = NULL;
 	sn->sn_listsize = 0;
-	lockmgr(&sn->sn_lock, LK_DRAIN|LK_INTERLOCK, VI_MTX(devvp), td);
-	lockmgr(&sn->sn_lock, LK_RELEASE, NULL, td);
+	lockmgr(&sn->sn_lock, LK_DRAIN|LK_INTERLOCK, VI_MTX(devvp));
+	lockmgr(&sn->sn_lock, LK_RELEASE, NULL);
 	lockdestroy(&sn->sn_lock);
 	free(sn, M_UFSMNT);
 	if (snapblklist != NULL)

@@ -984,7 +984,7 @@ ext2_vget(mp, ino, flags, vpp)
 	ip->i_e2fs = fs = ump->um_e2fs;
 	ip->i_number = ino;
 
-	lockmgr(vp->v_vnlock, LK_EXCLUSIVE, NULL, td);
+	lockmgr(vp->v_vnlock, LK_EXCLUSIVE, NULL);
 	error = insmntque(vp, mp);
 	if (error != 0) {
 		free(ip, M_EXT2NODE);

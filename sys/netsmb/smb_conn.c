@@ -96,7 +96,7 @@ smb_sm_done(void)
 		SMBERROR("%d connections still active\n", smb_vclist.co_usecount - 1);
 		return EBUSY;
 	}
-	lockmgr(&smb_vclist.co_lock, LK_DRAIN, 0, curthread);
+	lockmgr(&smb_vclist.co_lock, LK_DRAIN, 0);
 	smb_co_done(&smb_vclist);
 	return 0;
 }
@@ -242,7 +242,7 @@ static void
 smb_co_done(struct smb_connobj *cp)
 {
 	smb_sl_destroy(&cp->co_interlock);
-	lockmgr(&cp->co_lock, LK_RELEASE, 0, curthread);
+	lockmgr(&cp->co_lock, LK_RELEASE, 0);
 	lockdestroy(&cp->co_lock);
 }
 
@@ -275,7 +275,6 @@ smb_co_ref(struct smb_connobj *cp)
 void
 smb_co_rele(struct smb_connobj *cp, struct smb_cred *scred)
 {
-	struct thread *td = scred->scr_td;
 
 	SMB_CO_LOCK(cp);
 	if (cp->co_usecount > 1) {
@@ -291,7 +290,7 @@ smb_co_rele(struct smb_connobj *cp, struct smb_cred *scred)
 	cp->co_usecount--;
 	cp->co_flags |= SMBO_GONE;
 
-	lockmgr(&cp->co_lock, LK_DRAIN | LK_INTERLOCK, &cp->co_interlock, td);
+	lockmgr(&cp->co_lock, LK_DRAIN | LK_INTERLOCK, &cp->co_interlock);
 	smb_co_gone(cp, scred);
 }
 
@@ -316,7 +315,6 @@ smb_co_get(struct smb_connobj *cp, int flags, struct smb_cred *scred)
 void
 smb_co_put(struct smb_connobj *cp, struct smb_cred *scred)
 {
-	struct thread *td = scred->scr_td;
 
 	SMB_CO_LOCK(cp);
 	if (cp->co_usecount > 1) {
@@ -327,10 +325,10 @@ smb_co_put(struct smb_connobj *cp, struct smb_cred *scred)
 	} else {
 		SMBERROR("negative usecount");
 	}
-	lockmgr(&cp->co_lock, LK_RELEASE | LK_INTERLOCK, &cp->co_interlock, td);
+	lockmgr(&cp->co_lock, LK_RELEASE | LK_INTERLOCK, &cp->co_interlock);
 	if ((cp->co_flags & SMBO_GONE) == 0)
 		return;
-	lockmgr(&cp->co_lock, LK_DRAIN, NULL, td);
+	lockmgr(&cp->co_lock, LK_DRAIN, NULL);
 	smb_co_gone(cp, scred);
 }
 
@@ -353,13 +351,13 @@ smb_co_lock(struct smb_connobj *cp, int flags, struct thread *td)
 		SMBERROR("recursive lock for object %d\n", cp->co_level);
 		return 0;
 	}
-	return lockmgr(&cp->co_lock, flags, &cp->co_interlock, td);
+	return lockmgr(&cp->co_lock, flags, &cp->co_interlock);
 }
 
 void
 smb_co_unlock(struct smb_connobj *cp, int flags, struct thread *td)
 {
-	(void)lockmgr(&cp->co_lock, flags | LK_RELEASE, &cp->co_interlock, td);
+	(void)lockmgr(&cp->co_lock, flags | LK_RELEASE, &cp->co_interlock);
 }
 
 static void
