@@ -2251,6 +2251,7 @@ filt_aioattach(struct knote *kn)
 	 */
 	if ((kn->kn_flags & EV_FLAG1) == 0)
 		return (EPERM);
+	kn->kn_ptr.p_aio = aiocbe;
 	kn->kn_flags &= ~EV_FLAG1;
 
 	knlist_add(&aiocbe->klist, kn, 0);
@@ -2262,7 +2263,7 @@ filt_aioattach(struct knote *kn)
 static void
 filt_aiodetach(struct knote *kn)
 {
-	struct aiocblist *aiocbe = (struct aiocblist *)kn->kn_sdata;
+	struct aiocblist *aiocbe = kn->kn_ptr.p_aio;
 
 	if (!knlist_empty(&aiocbe->klist))
 		knlist_remove(&aiocbe->klist, kn, 0);
@@ -2273,7 +2274,7 @@ filt_aiodetach(struct knote *kn)
 static int
 filt_aio(struct knote *kn, long hint)
 {
-	struct aiocblist *aiocbe = (struct aiocblist *)kn->kn_sdata;
+	struct aiocblist *aiocbe = kn->kn_ptr.p_aio;
 
 	kn->kn_data = aiocbe->uaiocb._aiocb_private.error;
 	if (aiocbe->jobstate != JOBST_JOBFINISHED)
@@ -2295,6 +2296,7 @@ filt_lioattach(struct knote *kn)
 	 */
 	if ((kn->kn_flags & EV_FLAG1) == 0)
 		return (EPERM);
+	kn->kn_ptr.p_lio = lj;
 	kn->kn_flags &= ~EV_FLAG1;
 
 	knlist_add(&lj->klist, kn, 0);
@@ -2306,7 +2308,7 @@ filt_lioattach(struct knote *kn)
 static void
 filt_liodetach(struct knote *kn)
 {
-	struct aioliojob * lj = (struct aioliojob *)kn->kn_sdata;
+	struct aioliojob * lj = kn->kn_ptr.p_lio;
 
 	if (!knlist_empty(&lj->klist))
 		knlist_remove(&lj->klist, kn, 0);
@@ -2317,7 +2319,7 @@ filt_liodetach(struct knote *kn)
 static int
 filt_lio(struct knote *kn, long hint)
 {
-	struct aioliojob * lj = (struct aioliojob *)kn->kn_sdata;
+	struct aioliojob * lj = kn->kn_ptr.p_lio;
 
 	return (lj->lioj_flags & LIOJ_KEVENT_POSTED);
 }
