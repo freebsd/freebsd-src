@@ -126,11 +126,20 @@
 
 #define AMR_CONFIG_READ_NVRAM_CONFIG	0x04
 #define AMR_CONFIG_WRITE_NVRAM_CONFIG	0x0d
+#define AMR_CONFIG_ENQ3_SOLICITED_NOTIFY       0x01
 #define AMR_CONFIG_PRODUCT_INFO		0x0e
 #define AMR_CONFIG_ENQ3			0x0f
 #define AMR_CONFIG_ENQ3_SOLICITED_NOTIFY	0x01
 #define AMR_CONFIG_ENQ3_SOLICITED_FULL		0x02
 #define AMR_CONFIG_ENQ3_UNSOLICITED		0x03
+
+/*
+ * Command for random deletion of logical drives
+ */
+#define FC_DEL_LOGDRV		0xA4
+#define OP_SUP_DEL_LOGDRV	0x2A
+#define OP_GET_LDID_MAP		0x18
+#define OP_DEL_LOGDRV		0x1C
 
 /*
  * Command for random deletion of logical drives

@@ -139,10 +139,11 @@ static int	amr_wait_command(struct amr_command *ac) __unused;
 static int	amr_mapcmd(struct amr_command *ac);
 static void	amr_unmapcmd(struct amr_command *ac);
 static int	amr_start(struct amr_command *ac);
-static void	amr_complete(void *context, int pending);
+static void	amr_complete(void *context, ac_qhead_t *head);
 static void	amr_setup_sg(void *arg, bus_dma_segment_t *segs, int nsegments, int error);
 static void	amr_setup_data(void *arg, bus_dma_segment_t *segs, int nsegments, int error);
 static void	amr_setup_ccb(void *arg, bus_dma_segment_t *segs, int nsegments, int error);
+static void	amr_abort_load(struct amr_command *ac);
 
 /*
  * Status monitoring
@@ -207,10 +208,9 @@ amr_attach(struct amr_softc *sc)
     /*
      * Initialise per-controller queues.
      */
-    TAILQ_INIT(&sc->amr_completed);
-    TAILQ_INIT(&sc->amr_freecmds);
+    amr_init_qhead(&sc->amr_freecmds);
+    amr_init_qhead(&sc->amr_ready);
     TAILQ_INIT(&sc->amr_cmd_clusters);
-    TAILQ_INIT(&sc->amr_ready);
     bioq_init(&sc->amr_bioq);
 
     debug(2, "queue init done");
@@ -236,12 +236,23 @@ amr_attach(struct amr_softc *sc)
 #endif
 
     /*
+     * Allocate initial commands.
+     */
+    amr_alloccmd_cluster(sc);
+
+    /*
      * Quiz controller for features and limits.
      */
     if (amr_query_controller(sc))
 	return(ENXIO);
 
     debug(2, "controller query complete");
+
+    /*
+     * preallocate the remaining commands.
+     */
+    while (sc->amr_nextslot < sc->amr_maxio)
+	amr_alloccmd_cluster(sc);
 
     /*
      * Setup sysctls.
@@ -356,6 +367,18 @@ amr_init_sysctl(struct amr_softc *sc)
     SYSCTL_ADD_INT(device_get_sysctl_ctx(sc->amr_dev),
 	SYSCTL_CHILDREN(device_get_sysctl_tree(sc->amr_dev)),
 	OID_AUTO, "allow_volume_configure", CTLFLAG_RW, &sc->amr_allow_vol_config, 0,
+	"");
+    SYSCTL_ADD_INT(device_get_sysctl_ctx(sc->amr_dev),
+	SYSCTL_CHILDREN(device_get_sysctl_tree(sc->amr_dev)),
+	OID_AUTO, "nextslot", CTLFLAG_RD, &sc->amr_nextslot, 0,
+	"");
+    SYSCTL_ADD_INT(device_get_sysctl_ctx(sc->amr_dev),
+	SYSCTL_CHILDREN(device_get_sysctl_tree(sc->amr_dev)),
+	OID_AUTO, "busyslots", CTLFLAG_RD, &sc->amr_busyslots, 0,
+	"");
+    SYSCTL_ADD_INT(device_get_sysctl_ctx(sc->amr_dev),
+	SYSCTL_CHILDREN(device_get_sysctl_tree(sc->amr_dev)),
+	OID_AUTO, "maxio", CTLFLAG_RD, &sc->amr_maxio, 0,
 	"");
 }
 
@@ -646,8 +669,18 @@ amr_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag,
 	    error = ENOIOCTL;
 	    break;
 	} else {
-	    if (len)
-		dp = malloc(len, M_AMR, M_WAITOK | M_ZERO);
+	    /*
+	     * Bug-for-bug compatibility with Linux!
+	     * Some apps will send commands with inlen and outlen set to 0,
+	     * even though they expect data to be transfered to them from the
+	     * card.  Linux accidentally allows this by allocating a 4KB
+	     * buffer for the transfer anyways, but it then throws it away
+	     * without copying it back to the app.
+	     */
+	    if (!len)
+		len = 4096;
+
+	    dp = malloc(len, M_AMR, M_WAITOK | M_ZERO);
 
 	    if (ali.inlen) {
 		error = copyin((void *)(uintptr_t)mb->mb_physaddr, dp, len);
@@ -793,8 +826,7 @@ amr_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag, d_thread_t *
 	    if (sc == NULL)
 		return (ENOENT);
 
-	return (amr_linux_ioctl_int(sc->amr_dev_t, cmd,
-	    addr, 0, td));
+	    return (amr_linux_ioctl_int(sc->amr_dev_t, cmd, addr, 0, td));
 	}
     default:
 	debug(1, "unknown ioctl 0x%lx", cmd);
@@ -955,13 +987,6 @@ amr_query_controller(struct amr_softc *sc)
     struct amr_enquiry	*ae;
     int			ldrv;
     int			status;
-
-    /* 
-     * If we haven't found the real limit yet, let us have a couple of commands in
-     * order to be able to probe.
-     */
-    if (sc->amr_maxio == 0)
-	sc->amr_maxio = 2;
 
     /*
      * Greater than 10 byte cdb support
@@ -1278,7 +1303,7 @@ amr_bio_command(struct amr_softc *sc, struct amr_command **acp)
     int			driveno;
     int			cmd;
 
-    *acp = NULL;
+    ac = NULL;
     error = 0;
 
     /* get a command */
@@ -1339,6 +1364,7 @@ amr_bio_command(struct amr_softc *sc, struct amr_command **acp)
 	ac->ac_mailbox.mb_drive |= 0x80;
 
     /* we fill in the s/g related data when the command is mapped */
+
 
     *acp = ac;
     return(error);
@@ -1410,6 +1436,12 @@ amr_setup_polled_dmamap(void *arg, bus_dma_segment_t *segs, int nsegs, int err)
     struct amr_command *ac = arg;
     struct amr_softc *sc = ac->ac_sc;
     int mb_channel;
+
+    if (err) {
+	device_printf(sc->amr_dev, "error %d in %s", err, __FUNCTION__);
+	ac->ac_status = AMR_STATUS_ABORTED;
+	return;
+    }
 
     amr_setup_sg(arg, segs, nsegs, err);
 
@@ -1565,9 +1597,6 @@ amr_setup_sg(void *arg, bus_dma_segment_t *segs, int nsegments, int error)
 
     debug_called(3);
 
-    if (error)
-	printf("amr_setup_sg: error %d\n", error);
-
     /* get base address of s/g table */
     sg = ac->ac_sg.sg32;
     sg64 = ac->ac_sg.sg64;
@@ -1610,6 +1639,12 @@ amr_setup_data(void *arg, bus_dma_segment_t *segs, int nsegs, int err)
     struct amr_softc *sc = ac->ac_sc;
     int mb_channel;
 
+    if (err) {
+	device_printf(sc->amr_dev, "error %d in %s", err, __FUNCTION__);
+	amr_abort_load(ac);
+	return;
+    }
+
     amr_setup_sg(arg, segs, nsegs, err);
 
     /* for AMR_CMD_CONFIG Read/Write the s/g count goes elsewhere */
@@ -1639,6 +1674,12 @@ amr_setup_ccb(void *arg, bus_dma_segment_t *segs, int nsegs, int err)
     struct amr_softc *sc = ac->ac_sc;
     struct amr_passthrough *ap = &ac->ac_ccb->ccb_pthru;
     struct amr_ext_passthrough *aep = &ac->ac_ccb->ccb_epthru;
+
+    if (err) {
+	device_printf(sc->amr_dev, "error %d in %s", err, __FUNCTION__);
+	amr_abort_load(ac);
+	return;
+    }
 
     /* Set up the mailbox portion of the command to point at the ccb */
     ac->ac_mailbox.mb_nsgelem = 0;
@@ -1729,6 +1770,23 @@ amr_unmapcmd(struct amr_command *ac)
     }
 }
 
+static void
+amr_abort_load(struct amr_command *ac)
+{
+    ac_qhead_t head;
+    struct amr_softc *sc = ac->ac_sc;
+
+    mtx_assert(&sc->amr_list_lock, MA_OWNED);
+
+    ac->ac_status = AMR_STATUS_ABORTED;
+    amr_init_qhead(&head);
+    amr_enqueue_completed(ac, &head);
+
+    mtx_unlock(&sc->amr_list_lock);
+    amr_complete(sc, &head);
+    mtx_lock(&sc->amr_list_lock);
+}
+
 /********************************************************************************
  * Take a command and give it to the controller, returns 0 if successful, or
  * EBUSY if the command should be retried later.
@@ -1774,6 +1832,7 @@ amr_start(struct amr_command *ac)
 int
 amr_done(struct amr_softc *sc)
 {
+    ac_qhead_t		head;
     struct amr_command	*ac;
     struct amr_mailbox	mbox;
     int			i, idx, result;
@@ -1782,6 +1841,7 @@ amr_done(struct amr_softc *sc)
 
     /* See if there's anything for us to do */
     result = 0;
+    amr_init_qhead(&head);
 
     /* loop collecting completed commands */
     for (;;) {
@@ -1803,7 +1863,7 @@ amr_done(struct amr_softc *sc)
 		
 		    /* save status for later use */
 		    ac->ac_status = mbox.mb_status;
-		    amr_enqueue_completed(ac);
+		    amr_enqueue_completed(ac, &head);
 		    debug(3, "completed command with status %x", mbox.mb_status);
 		} else {
 		    device_printf(sc->amr_dev, "bad slot %d completed\n", idx);
@@ -1814,7 +1874,7 @@ amr_done(struct amr_softc *sc)
     }
 
     /* handle completion and timeouts */
-    amr_complete(sc, 0);
+    amr_complete(sc, &head);
 
     return(result);
 }
@@ -1824,7 +1884,7 @@ amr_done(struct amr_softc *sc)
  */
 
 static void
-amr_complete(void *context, int pending)
+amr_complete(void *context, ac_qhead_t *head)
 {
     struct amr_softc	*sc = (struct amr_softc *)context;
     struct amr_command	*ac;
@@ -1833,7 +1893,7 @@ amr_complete(void *context, int pending)
 
     /* pull completed commands off the queue */
     for (;;) {
-	ac = amr_dequeue_completed(sc);
+	ac = amr_dequeue_completed(sc, head);
 	if (ac == NULL)
 	    break;
 
@@ -1894,10 +1954,6 @@ amr_alloccmd(struct amr_softc *sc)
 
     ac = amr_dequeue_free(sc);
     if (ac == NULL) {
-	amr_alloccmd_cluster(sc);
-	ac = amr_dequeue_free(sc);
-    }
-    if (ac == NULL) {
 	sc->amr_state |= AMR_STATE_QUEUE_FRZN;
 	return(NULL);
     }
@@ -1909,6 +1965,7 @@ amr_alloccmd(struct amr_softc *sc)
     ac->ac_bio = NULL;
     ac->ac_data = NULL;
     ac->ac_complete = NULL;
+    ac->ac_retries = 0;
     ac->ac_tag = NULL;
     ac->ac_datamap = NULL;
     return(ac);
@@ -1935,12 +1992,21 @@ amr_alloccmd_cluster(struct amr_softc *sc)
     struct amr_command		*ac;
     int				i, nextslot;
 
+    /* 
+     * If we haven't found the real limit yet, let us have a couple of
+     * commands in order to be able to probe.
+     */
+    if (sc->amr_maxio == 0)
+	sc->amr_maxio = 2;
+
     if (sc->amr_nextslot > sc->amr_maxio)
 	return;
     acc = malloc(AMR_CMD_CLUSTERSIZE, M_AMR, M_NOWAIT | M_ZERO);
     if (acc != NULL) {
 	nextslot = sc->amr_nextslot;
+	mtx_lock(&sc->amr_list_lock);
 	TAILQ_INSERT_TAIL(&sc->amr_cmd_clusters, acc, acc_link);
+	mtx_unlock(&sc->amr_list_lock);
 	for (i = 0; i < AMR_CMD_CLUSTERCOUNT; i++) {
 	    ac = &acc->acc_command[i];
 	    ac->ac_sc = sc;
@@ -1989,6 +2055,8 @@ amr_freecmd_cluster(struct amr_command_cluster *acc)
     int			i;
 
     for (i = 0; i < AMR_CMD_CLUSTERCOUNT; i++) {
+	if (acc->acc_command[i].ac_sc == NULL)
+	    break;
 	bus_dmamap_destroy(sc->amr_buffer_dmat, acc->acc_command[i].ac_dmamap);
 	if (AMR_IS_SG64(sc))
 		bus_dmamap_destroy(sc->amr_buffer64_dmat, acc->acc_command[i].ac_dma64map);
@@ -2009,6 +2077,8 @@ static int
 amr_quartz_submit_command(struct amr_command *ac)
 {
     struct amr_softc	*sc = ac->ac_sc;
+    static struct timeval lastfail;
+    static int		curfail;
     int			i = 0;
   
     mtx_lock(&sc->amr_hw_lock);
@@ -2016,6 +2086,12 @@ amr_quartz_submit_command(struct amr_command *ac)
         DELAY(1);
     if (sc->amr_mailbox->mb_busy) {
 	mtx_unlock(&sc->amr_hw_lock);
+	if (ac->ac_retries++ > 1000) {
+	    if (ppsratecheck(&lastfail, &curfail, 1))
+		device_printf(sc->amr_dev, "Too many retries on command %p.  "
+			      "Controller is likely dead\n", ac);
+	    ac->ac_retries = 0;
+	}
 	return (EBUSY);
     }
 
@@ -2040,10 +2116,18 @@ static int
 amr_std_submit_command(struct amr_command *ac)
 {
     struct amr_softc	*sc = ac->ac_sc;
+    static struct timeval lastfail;
+    static int		curfail;
   
     mtx_lock(&sc->amr_hw_lock);
     if (AMR_SGET_MBSTAT(sc) & AMR_SMBOX_BUSYFLAG) {
 	mtx_unlock(&sc->amr_hw_lock);
+	if (ac->ac_retries++ > 1000) {
+	    if (ppsratecheck(&lastfail, &curfail, 1))
+		device_printf(sc->amr_dev, "Too many retries on command %p.  "
+			      "Controller is likely dead\n", ac);
+	    ac->ac_retries = 0;
+	}
 	return (EBUSY);
     }
 
