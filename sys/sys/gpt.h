@@ -84,6 +84,8 @@ struct gpt_ent {
 	{0x516e7cb8,0x6ecf,0x11d6,0x8f,0xf8,{0x00,0x02,0x2d,0x09,0x71,0x2b}}
 #define	GPT_ENT_TYPE_FREEBSD_ZFS	\
 	{0x516e7cba,0x6ecf,0x11d6,0x8f,0xf8,{0x00,0x02,0x2d,0x09,0x71,0x2b}}
+#define	GPT_ENT_TYPE_FREEBSD_BOOT	\
+	{0x83bd6b9d,0x7f41,0x11dc,0xbe,0x0b,{0x00,0x15,0x60,0xb8,0x4f,0x0f}}
 
 /*
  * The following are unused but documented here to avoid reuse.
@@ -95,7 +97,7 @@ struct gpt_ent {
 /*
  * Foreign partition types that we're likely to encounter. Note that Linux
  * apparently choose to share data partitions with MS. I don't what the
- * advantage might be. I can see how sharing swap partitions is advantaous
+ * advantage might be. I can see how sharing swap partitions is advantageous
  * though.
  */
 #define	GPT_ENT_TYPE_MS_RESERVED	\

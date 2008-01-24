@@ -66,6 +66,7 @@ struct g_part_alias_list {
 } g_part_alias_list[G_PART_ALIAS_COUNT] = {
 	{ "efi", G_PART_ALIAS_EFI },
 	{ "freebsd", G_PART_ALIAS_FREEBSD },
+	{ "freebsd-boot", G_PART_ALIAS_FREEBSD_BOOT },
 	{ "freebsd-swap", G_PART_ALIAS_FREEBSD_SWAP },
 	{ "freebsd-ufs", G_PART_ALIAS_FREEBSD_UFS },
 	{ "freebsd-vinum", G_PART_ALIAS_FREEBSD_VINUM },
