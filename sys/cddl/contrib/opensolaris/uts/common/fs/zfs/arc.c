@@ -1439,7 +1439,7 @@ arc_reclaim_needed(void)
 		return (1);
 #endif
 #else
-	if (kmem_used() > (kmem_size() * 4) / 5)
+	if (kmem_used() > (kmem_size() * 3) / 4)
 		return (1);
 #endif
 
@@ -2729,7 +2729,7 @@ arc_init(void)
 		arc_c_max = (arc_c * 8) - (1<<30);
 	else
 		arc_c_max = arc_c_min;
-	arc_c_max = MAX(arc_c * 6, arc_c_max);
+	arc_c_max = MAX(arc_c * 5, arc_c_max);
 #ifdef _KERNEL
 	/*
 	 * Allow the tunables to override our calculations if they are
@@ -2800,11 +2800,12 @@ arc_init(void)
 	arc_dead = FALSE;
 
 #ifdef _KERNEL
-	/* Warn about ZFS memory requirements. */
+	/* Warn about ZFS memory and address space requirements. */
 	if (((uint64_t)physmem * PAGESIZE) < (256 + 128 + 64) * (1 << 20)) {
 		printf("ZFS WARNING: Recommended minimum RAM size is 512MB; "
 		    "expect unstable behavior.\n");
-	} else if (kmem_size() < 512 * (1 << 20)) {
+	}
+	if (kmem_size() < 512 * (1 << 20)) {
 		printf("ZFS WARNING: Recommended minimum kmem_size is 512MB; "
 		    "expect unstable behavior.\n");
 		printf("	     Consider tuning vm.kmem_size and "
