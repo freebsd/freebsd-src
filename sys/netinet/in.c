@@ -294,7 +294,8 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 	case SIOCSIFNETMASK:
 	case SIOCSIFDSTADDR:
 		if (td != NULL) {
-			error = priv_check(td, PRIV_NET_ADDIFADDR);
+			error = priv_check(td, (cmd == SIOCDIFADDR) ? 
+			    PRIV_NET_DELIFADDR : PRIV_NET_ADDIFADDR);
 			if (error)
 				return (error);
 		}
