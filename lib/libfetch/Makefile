@@ -1,31 +1,24 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
-
 LIB=		fetch
 CFLAGS+=	-I.
+CFLAGS+=	-DINET6
 SRCS=		fetch.c common.c ftp.c http.c file.c \
 		ftperr.h httperr.h
 INCS=		fetch.h
 MAN=		fetch.3
 CLEANFILES=	ftperr.h httperr.h
 
-.if ${MK_INET6_SUPPORT} != "no"
-CFLAGS+=	-DINET6
-.endif
-
-.if ${MK_OPENSSL} != "no"
+.if !defined(NO_CRYPT) && !defined(NO_OPENSSL)
 CFLAGS+=	-DWITH_SSL
 DPADD=		${LIBSSL} ${LIBCRYPTO}
 LDADD=		-lssl -lcrypto
 .endif
 
-CFLAGS+=	-DFTP_COMBINE_CWDS
-
 CSTD?=		c99
 WARNS?=		2
 
-SHLIB_MAJOR=    5
+SHLIB_MAJOR=    4
 
 ftperr.h: ftp.errors ${.CURDIR}/Makefile
 	@echo "static struct fetcherr ftp_errlist[] = {" > ${.TARGET}
