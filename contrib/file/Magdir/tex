@@ -29,25 +29,25 @@
 0	string		This\ is\ Info\ file	GNU Info text
 
 # TeX documents, from Daniel Quinlan (quinlan@yggdrasil.com)
-0	string		\\input		TeX document text
-0	string		\\section	LaTeX document text
-0	string		\\setlength	LaTeX document text
-0	string		\\documentstyle	LaTeX document text
-0	string		\\chapter	LaTeX document text
-0	string		\\documentclass	LaTeX 2e document text
-0	string		\\relax		LaTeX auxiliary file
-0	string		\\contentsline	LaTeX  table of contents
-0	string		%\ -*-latex-*-	LaTeX document text
+0	search/400	\\input		TeX document text
+0	search/400	\\section	LaTeX document text
+0	search/400	\\setlength	LaTeX document text
+0	search/400	\\documentstyle	LaTeX document text
+0	search/400	\\chapter	LaTeX document text
+0	search/400	\\documentclass	LaTeX 2e document text
+0	search/400	\\relax		LaTeX auxiliary file
+0	search/400	\\contentsline	LaTeX table of contents
+0	search/400	%\ -*-latex-*-	LaTeX document text
 
 # Tex document, from Hendrik Scholz <hendrik@scholz.net>
 0   string      \\ifx       TeX document text
 
 # Index and glossary files
-0	string		\\indexentry	LaTeX raw index file
-0	string		\\begin{theindex}	LaTeX sorted index
-0	string		\\glossaryentry	LaTeX raw glossary
-0	string		\\begin{theglossary}	LaTeX sorted glossary
-0	string		This\ is\ makeindex	Makeindex log file
+0	search/400	\\indexentry	LaTeX raw index file
+0	search/400	\\begin{theindex}	LaTeX sorted index
+0	search/400	\\glossaryentry	LaTeX raw glossary
+0	search/400	\\begin{theglossary}	LaTeX sorted glossary
+0	search/400	This\ is\ makeindex	Makeindex log file
 
 # End of TeX
 

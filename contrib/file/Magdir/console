@@ -161,37 +161,33 @@
 >2	beshort		x		RAM start $%04x
 >6	string		BS93
 
-#------------------------------------------------------------------------------
-# Z-machine:  file(1) magic for Z-machine binaries.
-#
-# This will match ${TEX_BASE}/texmf/omega/ocp/char2uni/inbig5.ocp which
-# appears to be a version-0 Z-machine binary.
-#
-# The (false match) message is to correct that behavior.  Perhaps it is
-# not needed.
-#
->16	belong&0xfe00f0f0	0x3030	Infocom game data
->0	ubyte			0	(false match)
->0	ubyte			>0	(Z-machine %d,
->>2	ubeshort		x	Release %d /
->>18	string			>\0	Serial %.6s)
+# Opera file system that is used on the 3DO console
+# From: Serge van den Boom <svdb@stack.nl>
+0	string		\x01ZZZZZ\x01	3DO "Opera" file system
 
-#------------------------------------------------------------------------------
-# Glulx:  file(1) magic for Glulx binaries.
-#
-# I haven't checked for false matches yet.
-#
-0	string			Glul	Glulx game data
+# From Gürkan Sengün <gurkan@linuks.mine.nu>, www.linuks.mine.nu
+0	string		GBS		Nintendo Gameboy Music/Audio Data
+12	string		GameBoy\ Music\ Module	Nintendo Gameboy Music Module
 
+# Playstations Patch Files from: From: Thomas Klausner <tk@giga.or.at>
+0	string	PPF30			Playstation Patch File version 3.0
+>5	byte	0			\b, PPF 1.0 patch
+>5	byte	1			\b, PPF 2.0 patch
+>5	byte	2			\b, PPF 3.0 patch
+>>56	byte	0			\b, Imagetype BIN (any)
+>>56	byte	1			\b, Imagetype GI (PrimoDVD)
+>>57	byte	0			\b, Blockcheck disabled
+>>57	byte	1			\b, Blockcheck enabled
+>>58	byte	0			\b, Undo data not available
+>>58	byte	1			\b, Undo data available
+>6	string	x			\b, description: %s
 
+0	string	PPF20			Playstation Patch File version 2.0
+>5	byte	0			\b, PPF 1.0 patch
+>5	byte	1			\b, PPF 2.0 patch
+>>56	lelong	>0			\b, size of file to patch %d
+>6	string	x			\b, description: %s
 
-# These go at the end of the iff rules
-#
-# I don't see why these might collide with anything else.
-#
-# Interactive Fiction related formats
-#
->8	string		IFRS		\b, Blorb Interactive Fiction
->>24	string		Exec		with executable chunk
->8	string          IFZS		\b, Z-machine or Glulx saved game file (Quetzal)
-
+0	string	PPF10			Playstation Patch File version 1.0
+>5	byte	0			\b, Simple Encoding
+>6	string	x			\b, description: %s

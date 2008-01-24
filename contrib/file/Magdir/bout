@@ -5,5 +5,5 @@
 >16	long		>0		not stripped
 #
 # b.out archive (hp-rt on i960)
-0	string		!<bout>		b.out archive
+0	string		=!<bout>	b.out archive
 >8	string		__.SYMDEF	random library

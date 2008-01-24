@@ -11,7 +11,7 @@
 >5	string	       \064\000\000\000\000		   DWG ver. R14
 
 # Microstation DGN/CIT Files (www.bentley.com)
-# Written October 30, 2003 by Lester Hightower
+# Last updated July 29, 2005 by Lester Hightower
 # DGN is the default file extension of Microstation/Intergraph CAD files.
 # CIT is the proprietary raster format (similar to TIFF) used to attach
 # raster underlays to Microstation DGN (vector) drawings.
@@ -24,13 +24,46 @@
 # 3F86C928&method=display&p_objectid=97F351F5-9C35-4E5E-89C280A93F86C928
 # http://www.bentley.com/products/default.cfm?objectid=A5C2FD43-3AC9-4C71-B682
 # 721C479F&method=display&p_objectid=A5C2FD43-3AC9-4C71-B682C7BE721C479F
-0	string	       \010\011\376			   Microstation
->3	string	       \002
->>30	string	       \372\104				   DGN File
->>30	string	       \172\104				   DGN File
->>30	string	       \026\105				   DGN File
->4	string	       \030\000\000			   CIT File
+0	string	\010\011\376			Microstation
+>3	string	\002
+>>30	string	\026\105			DGNFile
+>>30	string	\034\105			DGNFile
+>>30	string	\073\107			DGNFile
+>>30	string	\073\110			DGNFile
+>>30	string	\106\107			DGNFile
+>>30	string	\110\103			DGNFile
+>>30	string	\120\104			DGNFile
+>>30	string	\172\104			DGNFile
+>>30	string	\172\105			DGNFile
+>>30	string	\172\106			DGNFile
+>>30	string	\234\106			DGNFile
+>>30	string	\273\105			DGNFile
+>>30	string	\306\106			DGNFile
+>>30	string	\310\104			DGNFile
+>>30	string	\341\104			DGNFile
+>>30	string	\372\103			DGNFile
+>>30	string	\372\104			DGNFile
+>>30	string	\372\106			DGNFile
+>>30	string	\376\103			DGNFile
+>4	string	\030\000\000			CITFile
+>4	string	\030\000\003			CITFile
 
 # AutoCad, from Nahuel Greco
+# AutoCAD DWG versions R12/R13/R14 (www.autodesk.com)
 0	string AC1012	AutoCad (release 12)
+0	string AC1013	AutoCad (release 13)
 0	string AC1014	AutoCad (release 14)
+
+# CAD: file(1) magic for computer aided design files
+# Phillip Griffith <phillip dot griffith at gmail dot com>
+# AutoCAD magic taken from the Open Design Alliance's OpenDWG specifications.
+#
+0	belong	0x08051700	Bentley/Intergraph MicroStation DGN cell library
+0	belong	0x0809fe02	Bentley/Intergraph MicroStation DGN vector CAD
+0	belong	0xc809fe02	Bentley/Intergraph MicroStation DGN vector CAD
+0	beshort	0x0809		Bentley/Intergraph MicroStation
+>0x02	byte	0xfe
+>>0x04	beshort	0x1800		CIT raster CAD
+0	string	AC1012		AutoDesk AutoCAD R13
+0	string	AC1014		AutoDesk AutoCAD R14 
+0	string	AC1015		AutoDesk AutoCAD R2000

@@ -32,7 +32,6 @@
 # that is {VERSION major_version miunor_version computer_type version_string}
 0	string	{VERSION\ 	Maple worksheet
 >9	string	>\0	version %.1s.
->>10	string
 >>>11	string	>\0	%.1s
 
 # .mps

@@ -22,22 +22,28 @@
 >2	byte		<8		\b, reserved method
 >2	byte		>8		\b, unknown method
 >3	byte		&0x01		\b, ASCII
->3	byte		&0x02		\b, continuation
+>3	byte		&0x02		\b, has CRC
 >3	byte		&0x04		\b, extra field
 >3	byte&0xC	=0x08
 >>10	string		x		\b, was "%s"
->9	byte		=0x00		\b, from MS-DOS
+>3	byte		&0x10		\b, has comment
+>9	byte		=0x00		\b, from FAT filesystem (MS-DOS, OS/2, NT)
 >9	byte		=0x01		\b, from Amiga
 >9	byte		=0x02		\b, from VMS
 >9	byte		=0x03		\b, from Unix
+>9	byte		=0x04		\b, from VM/CMS
 >9	byte		=0x05		\b, from Atari
->9	byte		=0x06		\b, from OS/2
+>9	byte		=0x06		\b, from HPFS filesystem (OS/2, NT)
 >9	byte		=0x07		\b, from MacOS
->9	byte		=0x0A		\b, from Tops/20
->9	byte		=0x0B		\b, from Win/32
+>9	byte		=0x08		\b, from Z-System
+>9	byte		=0x09		\b, from CP/M
+>9	byte		=0x0A		\b, from TOPS/20
+>9	byte		=0x0B		\b, from NTFS filesystem (NT)
+>9	byte		=0x0C		\b, from QDOS
+>9	byte		=0x0D		\b, from Acorn RISCOS
 >3	byte		&0x10		\b, comment
 >3	byte		&0x20		\b, encrypted
-### >4	ledate		x		last modified: %s,
+>4	ledate		>0		\b, last modified: %s
 >8	byte		2		\b, max compression
 >8	byte		4		\b, max speed
 
@@ -161,12 +167,23 @@
 >4	belong		0x090A0C0C	very good compression
 >4	belong		0x090A0C0D	best compression
 
-# 7z archiver, from Thomas Klausner (wiz@danbala.tuwien.ac.at)
+# 7-zip archiver, from Thomas Klausner (wiz@danbala.tuwien.ac.at)
 # http://www.7-zip.org or DOC/7zFormat.txt 
 #
-0	string		7z\274\257\047\034	7z archive data,
+0	string		7z\274\257\047\034	7-zip archive data,
 >6	byte		x			version %d
 >7	byte		x			\b.%d
 
 # AFX compressed files (Wolfram Kleff)
 2	string		-afx-		AFX compressed file data
+
+# Supplementary magic data for the file(1) command to support
+# rzip(1).  The format is described in magic(5).
+#
+# Copyright (C) 2003 by Andrew Tridgell.  You may do whatever you want with
+# this file.
+#
+0	string		RZIP		rzip compressed data
+>4	byte		x		- version %d
+>5	byte		x		\b.%d
+>6	belong		x		(%d bytes)

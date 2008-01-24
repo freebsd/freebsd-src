@@ -6,7 +6,7 @@
 # Provided 1998/08/22 by
 # David Mediavilla <davidme.news@REMOVEIFNOTSPAMusa.net>
 1	string	InternetShortcut	MS Windows 95 Internet shortcut text
->24	string	>\			(URL=<%s>)
+>24	string	>\ 			(URL=<%s>)
 
 # OS/2 URL objects
 # Provided 1998/08/22 by

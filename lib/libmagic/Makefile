@@ -6,6 +6,8 @@ CONTRDIR=	${.CURDIR}/../../contrib/file
 
 LIB=	magic
 SHLIB_MAJOR=	2
+DPADD=	${LIBZ}
+LDADD=	-lz
 MAN=	libmagic.3 magic.5
 
 SRCS=	apprentice.c apptype.c ascmagic.c compress.c fsmagic.c funcs.c \
@@ -14,7 +16,7 @@ INCS=	magic.h
 
 MAGICPATH?=	/usr/share/misc
 
-CFLAGS+= -DMAGIC='"${MAGICPATH}/magic"' -DBUILTIN_ELF -DELFCORE -DHAVE_CONFIG_H
+CFLAGS+= -DMAGIC='"${MAGICPATH}/magic"' -DHAVE_CONFIG_H
 CFLAGS+= -I${.CURDIR} -I${CONTRDIR}
 
 CLEANFILES+=	magic magic.mgc magic.mime.mgc
