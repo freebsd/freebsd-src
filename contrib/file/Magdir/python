@@ -12,3 +12,8 @@
 0	belong		0x2aeb0d0a	python 2.1 byte-compiled
 0	belong		0x2ded0d0a	python 2.2 byte-compiled
 0	belong		0x3bf20d0a	python 2.3 byte-compiled
+0	belong		0x6df20d0a	python 2.4 byte-compiled
+0	belong		0xb3f20d0a	python 2.5 byte-compiled
+
+0	string/b  #!\ /usr/bin/python	python script text executable
+

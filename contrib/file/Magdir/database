@@ -67,6 +67,15 @@
 >16	belong	>0		(Queue, version %d, big-endian)
 12	lelong	0x00042253	Berkeley DB
 >16	lelong	>0		(Queue, version %d, little-endian)
+
+# From Max Bowsher.
+12	long	0x00040988	Berkeley DB
+>16	long	>0		(Log, version %d, native byte-order)
+12	belong	0x00040988	Berkeley DB 
+>16	belong	>0		(Log, version %d, big-endian)
+12	lelong	0x00040988	Berkeley DB
+>16	lelong	>0		(Log, version %d, little-endian)
+
 #
 #
 # Round Robin Database Tool by Tobias Oetiker <oetiker@ee.ethz.ch>

@@ -53,10 +53,15 @@
 >3	byte		>0		8x%d
 # Linux swap file, from Daniel Quinlan <quinlan@yggdrasil.com>
 4086	string		SWAP-SPACE	Linux/i386 swap file
+# From: Jeff Bailey <jbailey@ubuntu.com>
+# Linux swap file with swsusp1 image, from Jeff Bailey <jbailey@ubuntu.com>
+4076	string		SWAPSPACE2S1SUSPEND	Linux/i386 swap file (new style) with SWSUSP1 image
 # according to man page of mkswap (8) March 1999
 4086	string		SWAPSPACE2	Linux/i386 swap file (new style)
 >0x400	long		x		%d (4K pages)
 >0x404	long		x		size %d pages
+>>4086	string		SWAPSPACE2	
+>>>1052	string		>\0		Label %s
 # ECOFF magic for OSF/1 and Linux (only tested under Linux though)
 #
 #	from Erik Troan (ewt@redhat.com) examining od dumps, so this
@@ -79,7 +84,7 @@
 # Linux kernel boot images (i386 arch) (Wolfram Kleff)
 514	string		HdrS		Linux kernel
 >510	leshort		0xAA55		x86 boot executable
->>518	leshort		>=3D0x200
+>>518	leshort		>=0x200
 >>529	byte		0		zImage,
 >>>529	byte		1		bzImage,
 >>>(526.s+0x200) string	>\0		version %s,
@@ -178,3 +183,66 @@
 0	lelong	=0x1413f33d		SYSLINUX' LSS16 image data
 >4	leshort	x			\b, width %d
 >6	leshort	x			\b, height %d
+
+0	string	OOOM			User-Mode-Linux's Copy-On-Write disk image
+>4	belong	x			version %d
+
+# SE Linux policy database
+# From: Mike Frysinger <vapier@gentoo.org>
+0	lelong	0xf97cff8c		SE Linux policy
+>16	lelong	x			v%d
+>20	lelong	1			MLS
+>24	lelong	x			%d symbols
+>28	lelong	x			%d ocons
+
+# Linux Logical Volume Manager (LVM) 
+# Emmanuel VARAGNAT <emmanuel.varagnat@guzu.net>
+#
+# System ID, UUID and volume group name are 128 bytes long
+# but they should never be full and initialized with zeros...
+#
+# LVM1
+#
+0x0	string	HM\001		LVM1 (Linux Logical Volume Manager), version 1
+>0x12c	string	>\0		, System ID: %s
+
+0x0	string	HM\002		LVM1 (Linux Logical Volume Manager), version 2
+>0x12c	string	>\0		, System ID: %s
+
+#  LVM2
+#
+# It seems that the label header can be in one the four first sector
+# of the disk... (from _find_labeller in lib/label/label.c of LVM2)
+#
+# 0x200 seems to be the common case
+
+0x218		 string	LVM2\ 001	LVM2 (Linux Logical Volume Manager)
+# read the offset to add to the start of the header, and the header
+# start in 0x200
+>(0x214.l+0x200) string	>\0		, UUID: %s
+
+0x018		 string	LVM2\ 001	LVM2 (Linux Logical Volume Manager)
+>(0x014.l)	 string	>\0		, UUID: %s
+
+0x418		 string	LVM2\ 001	LVM2 (Linux Logical Volume Manager)
+>(0x414.l+0x400) string	>\0		, UUID: %s
+
+0x618		 string	LVM2\ 001	LVM2 (Linux Logical Volume Manager)
+>(0x614.l+0x600) string	>\0		, UUID: %s
+
+# SE Linux policy database
+0	lelong	0xf97cff8c		SE Linux policy
+>16	lelong	x			v%d
+>20	lelong	1			MLS
+>24	lelong	x			%d symbols
+>28	lelong	x			%d ocons
+
+# LUKS: Linux Unified Key Setup, On-Disk Format, http://luks.endorphin.org/spec
+# Anthon van der Neut (anthon@mnt.org)
+0	string	LUKS\xba\xbe	LUKS encrypted file,
+>6	beshort x		ver %d
+>8	string	x		[%s,
+>40	string	x		%s,
+>72	string	x		%s]
+>168	string	x		UUID: %s
+

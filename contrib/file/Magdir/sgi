@@ -48,12 +48,12 @@
 >17	byte	x				hash %d,
 >11	byte	x				dataformat %d
 
-# Alias|Wavefront Maya files
-0	string	//Maya ASCII	Alias|Wavefront Maya Ascii File,
+# Alias Maya files
+0	string	//Maya ASCII	Alias Maya Ascii File,
 >13	string	>\0	version %s
-8	string	MAYAFOR4	Alias|Wavefront Maya Binary File,
+8	string	MAYAFOR4	Alias Maya Binary File,
 >32	string	>\0	version %s scene
-8	string	MayaFOR4	Alias|Wavefront Maya Binary File,
+8	string	MayaFOR4	Alias Maya Binary File,
 >32	string	>\0	version %s scene
-8	string	CIMG		Alias|Wavefront Maya Image File
-8	string	DEEP		Alias|Wavefront Maya Image File
+8	string	CIMG		Alias Maya Image File
+8	string	DEEP		Alias Maya Image File

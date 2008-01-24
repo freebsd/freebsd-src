@@ -25,7 +25,7 @@
 >12	belong		19		16-bit linear compressed,
 >12	belong		20		16-bit linear with emphasis and compression,
 >12	belong		21		Music kit DSP commands,
->12	belong		23		8-bit ISDN mu-law compressed (CCITT G.721 ADPCM voice data encoding),
+>12	belong		23		8-bit ISDN mu-law compressed (CCITT G.721 ADPCM voice enc.),
 >12	belong		24		compressed (8-bit CCITT G.722 ADPCM)
 >12	belong		25		compressed (3-bit CCITT G.723.3 ADPCM),
 >12	belong		26		compressed (5-bit CCITT G.723.5 ADPCM),
@@ -55,7 +55,7 @@
 >12	belong		19		16-bit linear compressed,
 >12	belong		20		16-bit linear with emphasis and compression,
 >12	belong		21		Music kit DSP commands,
->12	lelong		23		8-bit ISDN mu-law compressed (CCITT G.721 ADPCM voice data encoding),
+>12	lelong		23		8-bit ISDN mu-law compressed (CCITT G.721 ADPCM voice enc.),
 >12	belong		24		compressed (8-bit CCITT G.722 ADPCM)
 >12	belong		25		compressed (3-bit CCITT G.723.3 ADPCM),
 >12	belong		26		compressed (5-bit CCITT G.723.5 ADPCM),
@@ -131,7 +131,7 @@
 0	string	Extended\ Module: Fasttracker II module sound data
 >17	string	>\0		Title: "%s"
 
-21	string/c	!SCREAM!	Screamtracker 2 module sound data
+21	string/c	=!SCREAM!	Screamtracker 2 module sound data
 21	string	BMOD2STM	Screamtracker 2 module sound data
 1080	string	M.K.		4-channel Protracker module sound data
 >0	string	>\0		Title: "%s"
@@ -221,9 +221,41 @@
 # SGI SoundTrack <mpruett@sgi.com>
 0	string		_SGI_SoundTrack		SGI SoundTrack project file
 # ID3 version 2 tags <waschk@informatik.uni-rostock.de>
-0	string		ID3	MP3 file with ID3 version 2.
+0	string		ID3	Audio file with ID3 version 2
 >3	ubyte	<0xff	\b%d.
 >4	ubyte	<0xff	\b%d tag
+>2584	string	fLaC		\b, FLAC encoding
+>>2588	byte&0x7f		>0		\b, unknown version
+>>2588	byte&0x7f		0		\b
+# some common bits/sample values
+>>>2600	beshort&0x1f0		0x030		\b, 4 bit
+>>>2600	beshort&0x1f0		0x050		\b, 6 bit
+>>>2600	beshort&0x1f0		0x070		\b, 8 bit
+>>>2600	beshort&0x1f0		0x0b0		\b, 12 bit
+>>>2600	beshort&0x1f0		0x0f0		\b, 16 bit
+>>>2600	beshort&0x1f0		0x170		\b, 24 bit
+>>>2600	byte&0xe		0x0		\b, mono
+>>>2600	byte&0xe		0x2		\b, stereo
+>>>2600	byte&0xe		0x4		\b, 3 channels
+>>>2600	byte&0xe		0x6		\b, 4 channels
+>>>2600	byte&0xe		0x8		\b, 5 channels
+>>>2600	byte&0xe		0xa		\b, 6 channels
+>>>2600	byte&0xe		0xc		\b, 7 channels
+>>>2600	byte&0xe		0xe		\b, 8 channels
+# some common sample rates
+>>>2597	belong&0xfffff0		0x0ac440	\b, 44.1 kHz
+>>>2597	belong&0xfffff0		0x0bb800	\b, 48 kHz
+>>>2597	belong&0xfffff0		0x07d000	\b, 32 kHz
+>>>2597	belong&0xfffff0		0x056220	\b, 22.05 kHz
+>>>2597	belong&0xfffff0		0x05dc00	\b, 24 kHz
+>>>2597	belong&0xfffff0		0x03e800	\b, 16 kHz
+>>>2597	belong&0xfffff0		0x02b110	\b, 11.025 kHz
+>>>2597	belong&0xfffff0		0x02ee00	\b, 12 kHz
+>>>2597	belong&0xfffff0		0x01f400	\b, 8 kHz
+>>>2597	belong&0xfffff0		0x177000	\b, 96 kHz
+>>>2597	belong&0xfffff0		0x0fa000	\b, 64 kHz
+>>>2601	byte&0xf		>0		\b, >4G samples
+>2584	string	!fLaC		\b, MP3 encoding
 
 # NSF (NES sound file) magic
 0	string		NESM\x1a	NES Sound File
@@ -236,7 +268,7 @@
 >122	byte&0x1	=1		PAL
 >122	byte&0x1	=0		NTSC
 
-# Impuse tracker module (audio/x-it)
+# Impulse tracker module (audio/x-it)
 0	string		IMPM		Impulse Tracker module sound data -
 >4	string		>\0		"%s"
 >40	leshort		!0		compatible w/ITv%x
@@ -399,13 +431,128 @@
 # From "Simon Hosie
 0       string  TFMX-SONG       TFMX module sound data
 
+# Monkey's Audio compressed audio format (.ape)
 # From danny.milo@gmx.net (Danny Milosavljevic)
-# monkeysaudio for magic.mime
-0	string	MAC\	X/Monkey audio,
->4	leshort >0	version %d,
->6	leshort >0	compression level %d,
->8	leshort >0	flags %x,
->10	leshort >0	channels %d,
->12	lelong	>0	samplerate %d,
->24	lelong	>0	frames %d
+# New version from Abel Cheung <abel (@) oaka.org>
+0		string		MAC\040		Monkey's Audio compressed format
+>4		uleshort	>0x0F8B		version %d
+>>(0x08.l)	uleshort	=1000		with fast compression
+>>(0x08.l)	uleshort	=2000		with normal compression
+>>(0x08.l)	uleshort	=3000		with high compression
+>>(0x08.l)	uleshort	=4000		with extra high compression
+>>(0x08.l)	uleshort	=5000		with insane compression
+>>(0x08.l+18)	uleshort	=1		\b, mono
+>>(0x08.l+18)	uleshort	=2		\b, stereo
+>>(0x08.l+20)	ulelong		x		\b, sample rate %d
+>4		uleshort	<0x0F8C		version %d
+>>6		uleshort	=1000		with fast compression
+>>6		uleshort	=2000		with normal compression
+>>6		uleshort	=3000		with high compression
+>>6		uleshort	=4000		with extra high compression
+>>6		uleshort	=5000		with insane compression
+>>10		uleshort	=1		\b, mono
+>>10		uleshort	=2		\b, stereo
+>>12		ulelong		x		\b, sample rate %d
+
+# adlib sound files
+# From Gürkan Sengün <gurkan@linuks.mine.nu>, http://www.linuks.mine.nu
+0    	string		RAWADATA	RdosPlay RAW
+
+1068	string		RoR		AMUSIC Adlib Tracker
+
+0	string		JCH		EdLib
+
+0	string		mpu401tr	MPU-401 Trakker
+
+0	string		SAdT		Surprise! Adlib Tracker
+>4	byte		x		Version %d
+
+0	string		XAD!		eXotic ADlib
+
+0	string		ofTAZ!		eXtra Simple Music
+
+# Spectrum 128 tunes (.ay files).
+# From: Emanuel Haupt <ehaupt@critical.ch>
+0	string		ZXAYEMUL	Spectrum 128 tune
+
+0	string		\0BONK		BONK,
+#>5	byte		x		version %d
+>14	byte		x		%d channel(s),
+>15	byte		=1		lossless,
+>15	byte		=0		lossy,
+>16	byte		x		mid-side
+
+384	string		LockStream	LockStream Embedded file (mostly MP3 on old Nokia phones)
+
+# format VQF (proprietary codec for sound)
+# some infos on the header file available at :
+# http://www.twinvq.org/english/technology_format.html
+0	string		TWIN97012000	VQF data
+>27	short		0		\b, Mono
+>27	short		1		\b, Stereo
+>31	short 		>0		\b, %d kbit/s
+>35	short 		>0		\b, %d kHz
+
+# Nelson A. de Oliveira (naoliv@gmail.com)
+# .eqf
+0	string	Winamp\ EQ\ library\ file	%s
+# it will match only versions like v<digit>.<digit>
+# Since I saw only eqf files with version v1.1 I think that it's OK
+>23	string	x	\b%.4s
+# .preset
+0	string	[Equalizer\ preset]	XMMS equalizer preset
+# .m3u
+0	string	#EXTM3U			M3U playlist
+# .pls
+0	string	[playlist]		PLS playlist
+# licq.conf
+1	string	[licq]			LICQ configuration file
+
+# Atari ST audio files by Dirk Jagdmann <doj@cubic.org>
+0	string		ICE!		SNDH Atari ST music
+0	string		SC68\ Music-file\ /\ (c)\ (BeN)jami	sc68 Atari ST music
+
+# musepak support From: "Jiri Pejchal" <jiri.pejchal@gmail.com>
+0       string          MP+     Musepack audio
+>3      byte            255     \b, SV pre8
+>3      byte&0xF        0x6     \b, SV 6
+>3      byte&0xF        0x8     \b, SV 8
+>3      byte&0xF        0x7     \b, SV 7
+>>3     byte&0xF0       0x0     \b.0
+>>3     byte&0xF0       0x10    \b.1
+>>3     byte&0xF0       240     \b.15
+>>10    byte&0xF0       0x0     \b, no profile
+>>10    byte&0xF0       0x10    \b, profile 'Unstable/Experimental'
+>>10    byte&0xF0       0x50    \b, quality 0
+>>10    byte&0xF0       0x60    \b, quality 1
+>>10    byte&0xF0       0x70    \b, quality 2 (Telephone)
+>>10    byte&0xF0       0x80    \b, quality 3 (Thumb)
+>>10    byte&0xF0       0x90    \b, quality 4 (Radio)
+>>10    byte&0xF0       0xA0    \b, quality 5 (Standard)
+>>10    byte&0xF0       0xB0    \b, quality 6 (Xtreme)
+>>10    byte&0xF0       0xC0    \b, quality 7 (Insane)
+>>10    byte&0xF0       0xD0    \b, quality 8 (BrainDead)
+>>10    byte&0xF0       0xE0    \b, quality 9
+>>10    byte&0xF0       0xF0    \b, quality 10
+>>27    byte            0x0     \b, Buschmann 1.7.0-9, Klemm 0.90-1.05
+>>27    byte            102     \b, Beta 1.02
+>>27    byte            104     \b, Beta 1.04
+>>27    byte            105     \b, Alpha 1.05
+>>27    byte            106     \b, Beta 1.06
+>>27    byte            110     \b, Release 1.1
+>>27    byte            111     \b, Alpha 1.11
+>>27    byte            112     \b, Beta 1.12
+>>27    byte            113     \b, Alpha 1.13
+>>27    byte            114     \b, Beta 1.14
+>>27    byte            115     \b, Alpha 1.15
+
+# IMY
+# from http://filext.com/detaillist.php?extdetail=IMY
+# http://cellphones.about.com/od/cellularfaqs/f/rf_imelody.htm
+# http://download.ncl.ie/doc/api/ie/ncl/media/music/IMelody.html
+# http://www.wx800.com/msg/download/irda/iMelody.pdf
+0	string	BEGIN:IMELODY	iMelody Ringtone Format
+
+# From: Matthew Flaschen <matthew.flaschen@gatech.edu>
+0	string	#EXTM3U 	M3U playlist text
 
