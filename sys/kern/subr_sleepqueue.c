@@ -817,8 +817,7 @@ sleepq_timeout(void *arg)
 	 * sleepq_catch_signals().
 	 */
 	if (TD_ON_SLEEPQ(td)) {
-		td->td_flags |= TDF_TIMEOUT | TDF_INTERRUPT;
-		td->td_intrval = EWOULDBLOCK;
+		td->td_flags |= TDF_TIMEOUT;
 		thread_unlock(td);
 		return;
 	}
