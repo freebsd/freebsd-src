@@ -439,17 +439,36 @@ static void
 sleepq_switch(void *wchan)
 {
 	struct sleepqueue_chain *sc;
+	struct sleepqueue *sq;
 	struct thread *td;
 
 	td = curthread;
 	sc = SC_LOOKUP(wchan);
 	mtx_assert(&sc->sc_lock, MA_OWNED);
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
-	/* We were removed */
+
+	/* 
+	 * If we have a sleep queue, then we've already been woken up, so
+	 * just return.
+	 */
 	if (td->td_sleepqueue != NULL) {
 		mtx_unlock_spin(&sc->sc_lock);
 		return;
 	}
+
+	/*
+	 * If TDF_TIMEOUT is set, then our sleep has been timed out
+	 * already but we are still on the sleep queue, so dequeue the
+	 * thread and return.
+	 */
+	if (td->td_flags & TDF_TIMEOUT) {
+		MPASS(TD_ON_SLEEPQ(td));
+		sq = sleepq_lookup(wchan);
+		sleepq_resume_thread(sq, td, -1);
+		mtx_unlock_spin(&sc->sc_lock);
+		return;		
+	}
+
 	thread_lock_set(td, &sc->sc_lock);
 
 	MPASS(td->td_sleepqueue == NULL);
@@ -790,10 +809,12 @@ sleepq_timeout(void *arg)
 		thread_unlock(td);
 		return;
 	}
+
 	/*
-	 * If the thread is on the SLEEPQ but not sleeping and we have it
-	 * locked it must be in sleepq_catch_signals().  Let it know we've
- 	 * timedout here so it can remove itself.
+	 * If the thread is on the SLEEPQ but isn't sleeping yet, it
+	 * can either be on another CPU in between sleepq_add() and
+	 * one of the sleepq_*wait*() routines or it can be in
+	 * sleepq_catch_signals().
 	 */
 	if (TD_ON_SLEEPQ(td)) {
 		td->td_flags |= TDF_TIMEOUT | TDF_INTERRUPT;
