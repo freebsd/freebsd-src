@@ -73,7 +73,7 @@ __kernel_cos(double x, double y)
 
 	z  = x*x;
 	r  = z*(C1+z*(C2+z*(C3+z*(C4+z*(C5+z*C6)))));
-	hz = (float)0.5*z;
+	hz = 0.5*z;
 	w  = one-hz;
 	return w + (((one-w)-hz) + (z*r-x*y));
 }
