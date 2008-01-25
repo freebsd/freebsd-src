@@ -121,6 +121,7 @@ static void	uftdi_read(void *sc, int portno, u_char **ptr,u_int32_t *count);
 static void	uftdi_write(void *sc, int portno, u_char *to, u_char *from,
 			    u_int32_t *count);
 static void	uftdi_break(void *sc, int portno, int onoff);
+static int	uftdi_8u232am_getrate(speed_t speed, int *rate);
 
 struct ucom_callback uftdi_callback = {
 	uftdi_get_status,
@@ -569,25 +570,8 @@ uftdi_param(void *vsc, int portno, struct termios *t)
 		break;
 
 	case UFTDI_TYPE_8U232AM:
-		switch(t->c_ospeed) {
-		case 300: rate = ftdi_8u232am_b300; break;
-		case 600: rate = ftdi_8u232am_b600; break;
-		case 1200: rate = ftdi_8u232am_b1200; break;
-		case 2400: rate = ftdi_8u232am_b2400; break;
-		case 4800: rate = ftdi_8u232am_b4800; break;
-		case 9600: rate = ftdi_8u232am_b9600; break;
-		case 19200: rate = ftdi_8u232am_b19200; break;
-		case 38400: rate = ftdi_8u232am_b38400; break;
-		case 57600: rate = ftdi_8u232am_b57600; break;
-		case 115200: rate = ftdi_8u232am_b115200; break;
-		case 230400: rate = ftdi_8u232am_b230400; break;
-		case 460800: rate = ftdi_8u232am_b460800; break;
-		case 921600: rate = ftdi_8u232am_b921600; break;
-		case 2000000: rate = ftdi_8u232am_b2000000; break;
-		case 3000000: rate = ftdi_8u232am_b3000000; break;
-		default:
+		if (uftdi_8u232am_getrate(t->c_ospeed, &rate) == -1)
 			return (EINVAL);
-		}
 		break;
 	}
 	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
@@ -700,6 +684,70 @@ uftdi_break(void *vsc, int portno, int onoff)
 	USETW(req.wIndex, portno);
 	USETW(req.wLength, 0);
 	(void)usbd_do_request(ucom->sc_udev, &req, NULL);
+}
+
+static int
+uftdi_8u232am_getrate(speed_t speed, int *rate)
+{
+	/* Table of the nearest even powers-of-2 for values 0..15. */
+	static const unsigned char roundoff[16] = {
+		0, 2, 2, 4,  4,  4,  8,  8,
+		8, 8, 8, 8, 16, 16, 16, 16,
+	};
+
+	unsigned int d, freq;
+	int result;
+
+	if (speed <= 0)
+		return (-1);
+
+	/* Special cases for 2M and 3M. */
+	if (speed >= 3000000 * 100 / 103 &&
+	    speed <= 3000000 * 100 / 97) {
+		result = 0;
+		goto done;
+	}
+	if (speed >= 2000000 * 100 / 103 &&
+	    speed <= 2000000 * 100 / 97) {
+		result = 1;
+		goto done;
+	}
+
+	d = (FTDI_8U232AM_FREQ << 4) / speed;
+	d = (d & ~15) + roundoff[d & 15];
+
+	if (d < FTDI_8U232AM_MIN_DIV)
+		d = FTDI_8U232AM_MIN_DIV;
+	else if (d > FTDI_8U232AM_MAX_DIV)
+		d = FTDI_8U232AM_MAX_DIV;
+
+	/* 
+	 * Calculate the frequency needed for d to exactly divide down
+	 * to our target speed, and check that the actual frequency is
+	 * within 3% of this.
+	 */
+	freq = speed * d;
+	if (freq < (quad_t)(FTDI_8U232AM_FREQ << 4) * 100 / 103 ||
+	    freq > (quad_t)(FTDI_8U232AM_FREQ << 4) * 100 / 97)
+		return (-1);
+
+	/* 
+	 * Pack the divisor into the resultant value.  The lower
+	 * 14-bits hold the integral part, while the upper 2 bits
+	 * encode the fractional component: either 0, 0.5, 0.25, or
+	 * 0.125.
+	 */
+	result = d >> 4;
+	if (d & 8)
+		result |= 0x4000;
+	else if (d & 4)
+		result |= 0x8000;
+	else if (d & 2)
+		result |= 0xc000;
+
+done:
+	*rate = result;
+	return (0);
 }
 
 static device_method_t uftdi_methods[] = {
