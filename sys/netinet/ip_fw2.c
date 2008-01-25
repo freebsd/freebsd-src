@@ -68,6 +68,9 @@ __FBSDID("$FreeBSD$");
 #include <net/radix.h>
 #include <net/route.h>
 #include <net/pf_mtag.h>
+
+#define	IPFW_INTERNAL	/* Access to protected data structures in ip_fw.h. */
+
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
