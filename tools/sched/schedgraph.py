@@ -978,7 +978,7 @@ class KTRFile:
 
 	def synchstamp(self, lines):
 		status.startup("Rationalizing Timestamps")
-		tstamp_re = re.compile("\s+\d+\s+(\d+)\s+(\d+)\s+.*")
+		tstamp_re = re.compile("\s*\d+\s+(\d+)\s+(\d+)\s+.*")
 		for line in lines:
 			m = tstamp_re.match(line)
 			if (m != None):
@@ -989,7 +989,7 @@ class KTRFile:
 
 	def monostamp(self, lines):
 		laststamp = None
-		tstamp_re = re.compile("\s+\d+\s+(\d+)\s+(\d+)\s+.*")
+		tstamp_re = re.compile("\s*\d+\s+(\d+)\s+(\d+)\s+.*")
 		for line in lines:
 			m = tstamp_re.match(line)
 			if (m == None):
