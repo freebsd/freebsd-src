@@ -310,18 +310,25 @@ typedef struct  _ipfw_insn_log {
 	u_int32_t log_left;	/* how many left to log 	*/
 } ipfw_insn_log;
 
+/*
+ * Data structures required by both ipfw(8) and ipfw(4) but not part of the
+ * management API are protcted by IPFW_INTERNAL.
+ */
+#ifdef IPFW_INTERNAL
 /* Server pool support (LSNAT). */
 struct cfg_spool {
 	LIST_ENTRY(cfg_spool)   _next;          /* chain of spool instances */
 	struct in_addr          addr;
 	u_short                 port;
 };
+#endif
 
 /* Redirect modes id. */
 #define REDIR_ADDR      0x01
 #define REDIR_PORT      0x02
 #define REDIR_PROTO     0x04
 
+#ifdef IPFW_INTERNAL
 /* Nat redirect configuration. */
 struct cfg_redir {
 	LIST_ENTRY(cfg_redir)   _next;          /* chain of redir instances */
@@ -341,8 +348,11 @@ struct cfg_redir {
 	/* chain of spool instances */
 	LIST_HEAD(spool_chain, cfg_spool) spool_chain;
 };
+#endif
 
 #define NAT_BUF_LEN     1024
+
+#ifdef IPFW_INTERNAL
 /* Nat configuration data struct. */
 struct cfg_nat {
 	/* chain of nat instances */
@@ -357,6 +367,7 @@ struct cfg_nat {
 	/* chain of redir instances */
 	LIST_HEAD(redir_chain, cfg_redir) redir_chain;  
 };
+#endif
 
 #define SOF_NAT         sizeof(struct cfg_nat)
 #define SOF_REDIR       sizeof(struct cfg_redir)
