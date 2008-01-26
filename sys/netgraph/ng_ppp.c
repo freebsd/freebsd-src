@@ -1974,11 +1974,12 @@ ng_ppp_mp_xmit(node_p node, item_p item, uint16_t proto)
 
 	/* Extract mbuf. */
 	NGI_GET_M(item, m);
-	NG_FREE_ITEM(item);
 
 	/* Prepend protocol number, possibly compressed. */
-	if ((m = ng_ppp_addproto(m, proto, 1)) == NULL)
+	if ((m = ng_ppp_addproto(m, proto, 1)) == NULL) {
+		NG_FREE_ITEM(item);
 		return (ENOBUFS);
+	}
 
 	/* Clear distribution plan */
 	bzero(&distrib, priv->numActiveLinks * sizeof(distrib[0]));
@@ -2067,6 +2068,8 @@ deliver:
 
 				if (n == NULL) {
 					NG_FREE_M(m);
+					if (firstFragment)
+						NG_FREE_ITEM(item);
 					return (ENOMEM);
 				}
 				m_tag_copy_chain(n, m, M_DONTWAIT);
@@ -2100,11 +2103,18 @@ deliver:
 			if (m2 == NULL) {
 				if (!lastFragment)
 					m_freem(m);
+				if (firstFragment)
+					NG_FREE_ITEM(item);
 				return (ENOBUFS);
 			}
 
 			/* Send fragment */
-			if ((item = ng_package_data(m2, NG_NOFLAGS)) != NULL) {
+			if (firstFragment) {
+				NGI_M(item) = m2; /* Reuse original item. */
+			} else {
+				item = ng_package_data(m2, NG_NOFLAGS);
+			}
+			if (item != NULL) {
 				error = ng_ppp_link_xmit(node, item, PROT_MP,
 					    linkNum, (firstFragment?plen:0));
 				if (error != 0) {
