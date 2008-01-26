@@ -28,7 +28,7 @@
 .\"     @(#)fts.3	8.5 (Berkeley) 4/16/94
 .\" $FreeBSD$
 .\"
-.Dd January 7, 2005
+.Dd January 26, 2008
 .Dt FTS 3
 .Os
 .Sh NAME
@@ -133,17 +133,16 @@ structure contains at least the following fields, which are
 described in greater detail below:
 .Bd -literal
 typedef struct _ftsent {
-	u_short fts_info;		/* flags for FTSENT structure */
+	int fts_info;			/* status for FTSENT structure */
 	char *fts_accpath;		/* access path */
 	char *fts_path;			/* root path */
-	u_short fts_pathlen;		/* strlen(fts_path) */
+	size_t fts_pathlen;		/* strlen(fts_path) */
 	char *fts_name;			/* file name */
-	u_short fts_namelen;		/* strlen(fts_name) */
-	short fts_level;		/* depth (\-1 to N) */
+	size_t fts_namelen;		/* strlen(fts_name) */
+	long fts_level;			/* depth (\-1 to N) */
 	int fts_errno;			/* file errno */
-	long fts_number;		/* local numeric value */
+	long long fts_number;		/* local numeric value */
 	void *fts_pointer;		/* local address value */
-	int64_t fts_bignum;		/* local 64-bit numeric value */
 	struct ftsent *fts_parent;	/* parent directory */
 	struct ftsent *fts_link;	/* next file structure */
 	struct ftsent *fts_cycle;	/* cycle structure */
@@ -292,8 +291,6 @@ not modified by the
 .Nm
 functions.
 It is initialized to 0.
-Note that this field is overlaid by
-.Fa fts_bignum .
 .It Fa fts_pointer
 This field is provided for the use of the application program and is
 not modified by the
@@ -301,18 +298,6 @@ not modified by the
 functions.
 It is initialized to
 .Dv NULL .
-Note that this field is overlaid by
-.Fa fts_bignum .
-.It Fa fts_bignum
-This field is provided for the use of the application program and is
-not modified by the
-.Nm
-functions.
-It is initialized to 0.
-Note that this field overlays
-.Fa fts_number
-and
-.Fa fts_pointer .
 .It Fa fts_parent
 A pointer to the
 .Vt FTSENT
