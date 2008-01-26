@@ -43,6 +43,7 @@
 #include <unistd.h>
 #include <float.h>
 #include <err.h>
+#include <errno.h>
 
 #include "systat.h"
 #include "extern.h"
@@ -217,10 +218,9 @@ initifstat(void)
 	SLIST_INIT(&curlist);
 
 	for (i = 0; i < n; i++) {
-		p = (struct if_stat *)malloc(sizeof(struct if_stat));
+		p = (struct if_stat *)calloc(1, sizeof(struct if_stat));
 		if (p == NULL)
 			IFSTAT_ERR(1, "out of memory");
-		memset((void *)p, 0, sizeof(struct if_stat));
 		SLIST_INSERT_HEAD(&curlist, p, link);
 		p->if_row = i+1;
 		getifmibdata(p->if_row, &p->if_mib);
@@ -391,8 +391,8 @@ getifmibdata(int row, struct ifmibdata *data)
 	datalen = sizeof(*data);
 	name[4] = row;
 
-	if (sysctl(name, 6, (void *)data, (size_t *)&datalen, (void *)NULL,
-	    (size_t)0) != 0)
+	if ((sysctl(name, 6, (void *)data, (size_t *)&datalen, (void *)NULL,
+	    (size_t)0) != 0) && (errno != ENOENT))
 		IFSTAT_ERR(2, "sysctl error getting interface data");
 }
 
