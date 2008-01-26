@@ -24,7 +24,7 @@ ipfw_start()
 
 	if [ -r "${firewall_script}" ]; then
 		if [ -f /etc/rc.d/natd ] ; then
-			/etc/rc.d/natd start
+			/etc/rc.d/natd quietstart
 		fi
 		/bin/sh "${firewall_script}"
 		echo 'Firewall rules loaded.'
@@ -52,7 +52,7 @@ ipfw_stop()
 	#
 	${SYSCTL_W} net.inet.ip.fw.enable=0
 	if [ -f /etc/rc.d/natd ] ; then
-		/etc/rc.d/natd stop
+		/etc/rc.d/natd quietstop
 	fi
 }
 
