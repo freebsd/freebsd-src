@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 7, 2005
+.Dd January 26, 2008
 .Dt DCONS 4
 .Os
 .Sh NAME
@@ -98,11 +98,22 @@ application.
 See
 .Xr dconschat 8
 for more details.
+.Pp
+If you want to use
+.Xr dcons 4
+as a
+.Xr gdb 1
+port, add the following line into
+.Xr loader.conf 5
+.Bd -literal -offset indent
+dcons_gdb="1"
+.Ed
 .Sh SEE ALSO
 .Xr dcons_crom 4 ,
 .Xr ddb 4 ,
 .Xr firewire 4 ,
 .Xr fwohci 4 ,
+.Xr gdb 4 ,
 .Xr ttys 5 ,
 .Xr conscontrol 8 ,
 .Xr dconschat 8 ,
