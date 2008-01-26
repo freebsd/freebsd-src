@@ -2361,12 +2361,7 @@ copypktopts(struct ip6_pktopts *dst, struct ip6_pktopts *src, int canwait)
 	return (0);
 
   bad:
-	if (dst->ip6po_pktinfo) free(dst->ip6po_pktinfo, M_IP6OPT);
-	if (dst->ip6po_nexthop) free(dst->ip6po_nexthop, M_IP6OPT);
-	if (dst->ip6po_hbh) free(dst->ip6po_hbh, M_IP6OPT);
-	if (dst->ip6po_dest1) free(dst->ip6po_dest1, M_IP6OPT);
-	if (dst->ip6po_dest2) free(dst->ip6po_dest2, M_IP6OPT);
-	if (dst->ip6po_rthdr) free(dst->ip6po_rthdr, M_IP6OPT);
+	ip6_clearpktopts(dst, -1);
 	return (ENOBUFS);
 }
 #undef PKTOPT_EXTHDRCPY
