@@ -188,13 +188,25 @@ is used by the
 .Xr fsck 8
 and
 .Xr quotacheck 8
-programs to determine the order in which file system checks are done
-at reboot time.
+programs to determine the order in which file system and quota
+checks are done at reboot time.
+The
+.Fa fs_passno
+field can be any value between 0 and 
+.Ql INT_MAX Ns -1 .
+.Pp
 The root file system should be specified with a
 .Fa fs_passno
 of 1, and other file systems should have a
 .Fa fs_passno
-of 2.
+of 2 or greater.
+A file system with a
+.Fa fs_passno
+value of 1 is always checked sequentially and be completed before 
+another file system is processed, and it will be processed before
+all file systems with a larger
+.Fa fs_passno .
+.Pp
 File systems within a drive will be checked sequentially,
 but file systems on different drives will be checked at the
 same time to utilize parallelism available in the hardware.
@@ -204,6 +216,14 @@ a value of zero is returned and
 and
 .Xr quotacheck 8
 will assume that the file system does not need to be checked.
+.Pp
+The
+.Fa fs_passno
+field can be used to implement finer control when 
+the system utilities may determine that the file system resides
+on a different physical device, when it actually does not, as with a
+.Xr ccd 4
+device.
 .Bd -literal
 #define	FSTAB_RW	"rw"	/* read/write device */
 #define	FSTAB_RQ	"rq"	/* read/write with quotas */
@@ -241,6 +261,7 @@ resides in
 .Sh SEE ALSO
 .Xr getfsent 3 ,
 .Xr getvfsbyname 3 ,
+.Xr ccd 4 ,
 .Xr dump 8 ,
 .Xr fsck 8 ,
 .Xr mount 8 ,
