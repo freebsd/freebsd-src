@@ -1,3 +1,5 @@
+/*	$NetBSD: preen.c,v 1.18 1998/07/26 20:02:36 mycroft Exp $	*/
+
 /*
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -25,259 +27,254 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
-#if 0
-#ifndef lint
-static const char sccsid[] = "@(#)preen.c	8.5 (Berkeley) 4/28/95";
-#endif /* not lint */
-#endif
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+#ifndef lint
+#if 0
+static char sccsid[] = "@(#)preen.c	8.5 (Berkeley) 4/28/95";
+#else
+__RCSID("$NetBSD: preen.c,v 1.18 1998/07/26 20:02:36 mycroft Exp $");
+#endif
+#endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
+#include <sys/queue.h>
 
-#include <ufs/ufs/dinode.h>
-#include <ufs/ffs/fs.h>
-
+#include <err.h>
 #include <ctype.h>
-#include <errno.h>
 #include <fstab.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 
-char *blockcheck(char *origname);
+#include "quotacheck.h"
 
+struct partentry {
+	TAILQ_ENTRY(partentry)	 p_entries;
+	char		  	*p_devname;	/* device name */
+	char			*p_mntpt;	/* mount point */
+	char		  	*p_type;	/* file system type */
+	struct quotaname	*p_quota;	/* quota file info ptr */
+};
 
-struct part {
-	struct	part *next;		/* forward link of partitions on disk */
-	char	*name;			/* device name */
-	char	*fsname;		/* mounted file system name */
-	void	*auxdata;		/* auxiliary data for application */
-} *badlist, **badnext = &badlist;
+TAILQ_HEAD(part, partentry) badh;
 
-struct disk {
-	char	*name;			/* disk base name */
-	struct	disk *next;		/* forward link for list of disks */
-	struct	part *part;		/* head of list of partitions on disk */
-	int	pid;			/* If != 0, pid of proc working on */
-} *disks;
+struct diskentry {
+	TAILQ_ENTRY(diskentry) 	    d_entries;
+	char		       	   *d_name;	/* disk base name */
+	TAILQ_HEAD(prt, partentry)  d_part;	/* list of partitions on disk */
+	int			    d_pid;	/* 0 or pid of fsck proc */
+};
 
-int	nrun, ndisks;
+TAILQ_HEAD(disk, diskentry) diskh;
 
-static void addpart(char *name, char *fsname, void *auxdata);
-static struct disk *finddisk(char *name);
-static int startdisk(struct disk *dk,
-    int (*checkit)(char *, char *, void *, int));
+static struct diskentry *finddisk(const char *);
+static void addpart(const char *, const char *, const char *,
+    struct quotaname *);
+static int startdisk(struct diskentry *);
+extern void *emalloc(size_t);
+extern char *estrdup(const char *);
 
 int
-checkfstab(int preen, int maxrun, void *(*docheck)(struct fstab *),
-    int (*chkit)(char *, char *, void *, int))
+checkfstab()
 {
-	struct fstab *fsp;
-	struct disk *dk, *nextdisk;
-	struct part *pt;
-	int ret, pid, retcode, passno, sumstatus, status;
-	void *auxdata;
+	struct fstab *fs;
+	struct diskentry *d, *nextdisk;
+	struct partentry *p;
+	int ret, pid, retcode, passno, sumstatus, status, nextpass;
 	char *name;
+	struct quotaname *qnp;
+
+	TAILQ_INIT(&badh);
+	TAILQ_INIT(&diskh);
 
 	sumstatus = 0;
-	for (passno = 1; passno <= 2; passno++) {
+
+	nextpass = 0;
+	for (passno = 1; nextpass != INT_MAX; passno = nextpass) {
+		nextpass = INT_MAX;
 		if (setfsent() == 0) {
-			fprintf(stderr, "Can't open checklist file: %s\n",
-			    _PATH_FSTAB);
+			warnx("Can't open checklist file: %s\n", _PATH_FSTAB);
 			return (8);
 		}
-		while ((fsp = getfsent()) != 0) {
-			if ((auxdata = (*docheck)(fsp)) == NULL)
+		while ((fs = getfsent()) != 0) {
+			name = fs->fs_spec;
+			if (fs->fs_passno > passno && fs->fs_passno < nextpass)
+				nextpass = fs->fs_passno;
+
+			if (passno != fs->fs_passno)
 				continue;
-			if (preen == 0 ||
-			    (passno == 1 && fsp->fs_passno == 1)) {
-				if ((name = blockcheck(fsp->fs_spec)) != 0) {
-					if ((sumstatus = (*chkit)(name,
-					    fsp->fs_file, auxdata, 0)) != 0)
-						return (sumstatus);
-				} else if (preen)
-					return (8);
-			} else if (passno == 2 && fsp->fs_passno > 1) {
-				if ((name = blockcheck(fsp->fs_spec)) == NULL) {
-					fprintf(stderr, "BAD DISK NAME %s\n",
-						fsp->fs_spec);
-					sumstatus |= 8;
-					continue;
-				}
-				addpart(name, fsp->fs_file, auxdata);
+
+			if ((qnp = needchk(fs)) == NULL)
+				continue;
+
+			if (passno == 1) {
+				sumstatus = chkquota(name, fs->fs_file, qnp);
+
+				if (sumstatus)
+					return (sumstatus);
+				continue;
+			} 
+			if (name == NULL) {
+				(void) fprintf(stderr,
+				    "BAD DISK NAME %s\n", fs->fs_spec);
+				sumstatus |= 8;
+				continue;
 			}
+			addpart(fs->fs_vfstype, name, fs->fs_file, qnp);
 		}
-		if (preen == 0)
-			return (0);
-	}
-	if (preen) {
-		if (maxrun == 0)
-			maxrun = ndisks;
-		if (maxrun > ndisks)
-			maxrun = ndisks;
-		nextdisk = disks;
-		for (passno = 0; passno < maxrun; ++passno) {
-			while ((ret = startdisk(nextdisk, chkit)) && nrun > 0)
-				sleep(10);
-			if (ret)
-				return (ret);
-			nextdisk = nextdisk->next;
+
+		if (passno == 1)
+			continue;
+
+		TAILQ_FOREACH(nextdisk, &diskh, d_entries) {
+			if ((ret = startdisk(nextdisk)) != 0)
+				return ret;
 		}
+
 		while ((pid = wait(&status)) != -1) {
-			for (dk = disks; dk; dk = dk->next)
-				if (dk->pid == pid)
+			TAILQ_FOREACH(d, &diskh, d_entries) 
+				if (d->d_pid == pid)
 					break;
-			if (dk == 0) {
-				printf("Unknown pid %d\n", pid);
+
+			if (d == NULL) {
+				warnx("Unknown pid %d\n", pid);
 				continue;
 			}
+
 			if (WIFEXITED(status))
 				retcode = WEXITSTATUS(status);
 			else
 				retcode = 0;
+
+			p = TAILQ_FIRST(&d->d_part);
+
 			if (WIFSIGNALED(status)) {
-				printf("%s (%s): EXITED WITH SIGNAL %d\n",
-					dk->part->name, dk->part->fsname,
-					WTERMSIG(status));
+				(void) fprintf(stderr,
+				    "%s: %s (%s): EXITED WITH SIGNAL %d\n",
+				    p->p_type, p->p_devname, p->p_mntpt,
+				    WTERMSIG(status));
 				retcode = 8;
 			}
-			if (retcode != 0) {
-				sumstatus |= retcode;
-				*badnext = dk->part;
-				badnext = &dk->part->next;
-				dk->part = dk->part->next;
-				*badnext = NULL;
-			} else
-				dk->part = dk->part->next;
-			dk->pid = 0;
-			nrun--;
-			if (dk->part == NULL)
-				ndisks--;
 
-			if (nextdisk == NULL) {
-				if (dk->part) {
-					while ((ret = startdisk(dk, chkit)) &&
-					    nrun > 0)
-						sleep(10);
-					if (ret)
-						return (ret);
-				}
-			} else if (nrun < maxrun && nrun < ndisks) {
-				for ( ;; ) {
-					if ((nextdisk = nextdisk->next) == NULL)
-						nextdisk = disks;
-					if (nextdisk->part != NULL &&
-					    nextdisk->pid == 0)
-						break;
-				}
-				while ((ret = startdisk(nextdisk, chkit)) &&
-				    nrun > 0)
-					sleep(10);
-				if (ret)
-					return (ret);
+			TAILQ_REMOVE(&d->d_part, p, p_entries);
+
+			if (retcode != 0) {
+				TAILQ_INSERT_TAIL(&badh, p, p_entries);
+				sumstatus |= retcode;
+			} else {
+				free(p->p_type);
+				free(p->p_devname);
+				free(p);
+			}
+			d->d_pid = 0;
+
+			if (TAILQ_EMPTY(&d->d_part)) {
+				TAILQ_REMOVE(&diskh, d, d_entries);
+			} else {
+				if ((ret = startdisk(d)) != 0)
+					return ret;
 			}
 		}
 	}
+
 	if (sumstatus) {
-		if (badlist == 0)
+		p = TAILQ_FIRST(&badh);
+		if (p == NULL)
 			return (sumstatus);
-		fprintf(stderr, "THE FOLLOWING FILE SYSTEM%s HAD AN %s\n\t",
-			badlist->next ? "S" : "", "UNEXPECTED INCONSISTENCY:");
-		for (pt = badlist; pt; pt = pt->next)
-			fprintf(stderr, "%s (%s)%s", pt->name, pt->fsname,
-			    pt->next ? ", " : "\n");
-		return (sumstatus);
+
+		(void) fprintf(stderr,
+			"THE FOLLOWING FILE SYSTEM%s HAD AN %s\n\t",
+			TAILQ_NEXT(p, p_entries) ? "S" : "",
+			"UNEXPECTED INCONSISTENCY:");
+
+		for (; p; p = TAILQ_NEXT(p, p_entries))
+			(void) fprintf(stderr,
+			    "%s: %s (%s)%s", p->p_type, p->p_devname,
+			    p->p_mntpt, TAILQ_NEXT(p, p_entries) ? ", " : "\n");
+
+		return sumstatus;
 	}
-	(void)endfsent();
+	(void) endfsent();
 	return (0);
 }
 
-static struct disk *
-finddisk(char *name)
+
+static struct diskentry *
+finddisk(const char *name)
 {
-	struct disk *dk, **dkp;
-	char *p;
-	size_t len;
+	const char *p;
+	size_t len = 0;
+	struct diskentry *d;
 
 	p = strrchr(name, '/');
-	p = p == NULL ? name : p + 1;
-	while (*p != '\0' && !isdigit((u_char)*p))
+	if (p == NULL)
+		p = name;
+	else
 		p++;
-	while (isdigit((u_char)*p))
-		p++;
-	len = (size_t)(p - name);
-	for (dk = disks, dkp = &disks; dk; dkp = &dk->next, dk = dk->next) {
-		if (strncmp(dk->name, name, len) == 0 &&
-		    dk->name[len] == 0)
-			return (dk);
-	}
-	if ((*dkp = (struct disk *)malloc(sizeof(struct disk))) == NULL) {
-		fprintf(stderr, "out of memory");
-		exit (8);
-	}
-	dk = *dkp;
-	if ((dk->name = malloc(len + 1)) == NULL) {
-		fprintf(stderr, "out of memory");
-		exit (8);
-	}
-	(void)strncpy(dk->name, name, len);
-	dk->name[len] = '\0';
-	dk->part = NULL;
-	dk->next = NULL;
-	dk->pid = 0;
-	ndisks++;
-	return (dk);
+	for (; *p && !isdigit(*p); p++)
+		continue;
+	for (; *p && isdigit(*p); p++)
+		continue;
+	len = p - name;
+	if (len == 0)
+		len = strlen(name);
+
+	TAILQ_FOREACH(d, &diskh, d_entries) 
+		if (strncmp(d->d_name, name, len) == 0 && d->d_name[len] == 0)
+			return d;
+
+	d = emalloc(sizeof(*d));
+	d->d_name = estrdup(name);
+	d->d_name[len] = '\0';
+	TAILQ_INIT(&d->d_part);
+	d->d_pid = 0;
+
+	TAILQ_INSERT_TAIL(&diskh, d, d_entries);
+
+	return d;
 }
 
 static void
-addpart(char *name, char *fsname, void *auxdata)
+addpart(const char *type, const char *devname, const char *mntpt,
+    struct quotaname *qnp)
 {
-	struct disk *dk = finddisk(name);
-	struct part *pt, **ppt = &dk->part;
+	struct diskentry *d = finddisk(devname);
+	struct partentry *p;
 
-	for (pt = dk->part; pt; ppt = &pt->next, pt = pt->next)
-		if (strcmp(pt->name, name) == 0) {
-			printf("%s in fstab more than once!\n", name);
+	TAILQ_FOREACH(p, &d->d_part, p_entries)
+		if (strcmp(p->p_devname, devname) == 0) {
+			warnx("%s in fstab more than once!\n", devname);
 			return;
 		}
-	if ((*ppt = (struct part *)malloc(sizeof(struct part))) == NULL) {
-		fprintf(stderr, "out of memory");
-		exit (8);
-	}
-	pt = *ppt;
-	if ((pt->name = malloc(strlen(name) + 1)) == NULL) {
-		fprintf(stderr, "out of memory");
-		exit (8);
-	}
-	(void)strcpy(pt->name, name);
-	if ((pt->fsname = malloc(strlen(fsname) + 1)) == NULL) {
-		fprintf(stderr, "out of memory");
-		exit (8);
-	}
-	(void)strcpy(pt->fsname, fsname);
-	pt->next = NULL;
-	pt->auxdata = auxdata;
+
+	p = emalloc(sizeof(*p));
+	p->p_devname = estrdup(devname);
+	p->p_mntpt = estrdup(mntpt);
+	p->p_type = estrdup(type);
+	p->p_quota = qnp;
+
+	TAILQ_INSERT_TAIL(&d->d_part, p, p_entries);
 }
 
-static int
-startdisk(struct disk *dk, int (*checkit)(char *, char *, void *, int))
-{
-	struct part *pt = dk->part;
 
-	dk->pid = fork();
-	if (dk->pid < 0) {
+static int
+startdisk(struct diskentry *d)
+{
+	struct partentry *p = TAILQ_FIRST(&d->d_part);
+
+	d->d_pid = fork();
+	if (d->d_pid < 0) {
 		perror("fork");
 		return (8);
 	}
-	if (dk->pid == 0)
-		exit((*checkit)(pt->name, pt->fsname, pt->auxdata, 1));
-	nrun++;
+	if (d->d_pid == 0)
+		exit(chkquota(p->p_devname, p->p_mntpt, p->p_quota));
 	return (0);
 }
-
