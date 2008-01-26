@@ -11,7 +11,7 @@ SRCS+=  __getosreldate.c __xuname.c \
 	crypt.c ctermid.c daemon.c devname.c dirname.c disklabel.c \
 	dlfcn.c dlfunc.c drand48.c erand48.c err.c errlst.c errno.c \
 	exec.c feature_present.c fmtcheck.c fmtmsg.c fnmatch.c \
-	fpclassify.c frexp.c fstab.c ftok.c fts.c ftw.c \
+	fpclassify.c frexp.c fstab.c ftok.c fts.c fts-compat.c ftw.c \
 	getbootfile.c getbsize.c \
 	getcap.c getcwd.c getdomainname.c getgrent.c getgrouplist.c \
 	gethostname.c getloadavg.c getlogin.c getmntinfo.c getnetgrent.c \

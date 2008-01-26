@@ -134,14 +134,6 @@ FBSD_1.0 {
 	setfsent;
 	endfsent;
 	ftok;
-	fts_open;
-	fts_close;
-	fts_read;
-	fts_set;
-	fts_children;
-	fts_get_clientptr;
-	fts_get_stream;
-	fts_set_clientptr;
 	ftw;
 	glob;
 	globfree;
@@ -334,6 +326,17 @@ FBSD_1.0 {
 	waitpid;
 	wordexp;
 	wordfree;
+};
+
+FBSD_1.1 {
+	fts_open;
+	fts_close;
+	fts_read;
+	fts_set;
+	fts_children;
+	fts_get_clientptr;
+	fts_get_stream;
+	fts_set_clientptr;
 };
 
 FBSDprivate_1.0 {
