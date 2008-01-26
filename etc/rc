@@ -56,7 +56,7 @@ if [ "$1" = autoboot ]; then
 	rc_fast=yes        # run_rc_command(): do fast booting
 else
 	autoboot=no
-	_boot="start"
+	_boot="quietstart"
 fi
 
 dlv=`/sbin/sysctl -n vfs.nfs.diskless_valid 2> /dev/null`
