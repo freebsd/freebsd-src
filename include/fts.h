@@ -44,8 +44,8 @@ typedef struct {
 	dev_t fts_dev;			/* starting device # */
 	char *fts_path;			/* path for this descent */
 	int fts_rfd;			/* fd for root */
-	int fts_pathlen;		/* sizeof(path) */
-	int fts_nitems;			/* elements in the sort array */
+	size_t fts_pathlen;		/* sizeof(path) */
+	size_t fts_nitems;		/* elements in the sort array */
 	int (*fts_compar)		/* compare function */
 	    (const struct _ftsent * const *, const struct _ftsent * const *);
 
@@ -69,22 +69,15 @@ typedef struct _ftsent {
 	struct _ftsent *fts_cycle;	/* cycle node */
 	struct _ftsent *fts_parent;	/* parent directory */
 	struct _ftsent *fts_link;	/* next file in directory */
-	union {
-		struct {
-			long __fts_number;	/* local numeric value */
-			void *__fts_pointer;	/* local address value */
-		} __struct_ftsent;
-		int64_t __fts_bignum;
-	} __union_ftsent;
-#define	fts_number	__union_ftsent.__struct_ftsent.__fts_number
-#define	fts_pointer	__union_ftsent.__struct_ftsent.__fts_pointer
-#define	fts_bignum	__union_ftsent.__fts_bignum
+	long long fts_number;		/* local numeric value */
+#define	fts_bignum	fts_number	/* XXX non-std, should go away */
+	void *fts_pointer;		/* local address value */
 	char *fts_accpath;		/* access path */
 	char *fts_path;			/* root path */
 	int fts_errno;			/* errno for this node */
 	int fts_symfd;			/* fd for symlink */
-	u_short fts_pathlen;		/* strlen(fts_path) */
-	u_short fts_namelen;		/* strlen(fts_name) */
+	size_t fts_pathlen;		/* strlen(fts_path) */
+	size_t fts_namelen;		/* strlen(fts_name) */
 
 	ino_t fts_ino;			/* inode */
 	dev_t fts_dev;			/* device */
@@ -92,7 +85,7 @@ typedef struct _ftsent {
 
 #define	FTS_ROOTPARENTLEVEL	-1
 #define	FTS_ROOTLEVEL		 0
-	short fts_level;		/* depth (-1 to N) */
+	long fts_level;			/* depth (-1 to N) */
 
 #define	FTS_D		 1		/* preorder directory */
 #define	FTS_DC		 2		/* directory that causes cycles */
@@ -108,18 +101,18 @@ typedef struct _ftsent {
 #define	FTS_SL		12		/* symbolic link */
 #define	FTS_SLNONE	13		/* symbolic link without target */
 #define	FTS_W		14		/* whiteout object */
-	u_short fts_info;		/* user flags for FTSENT structure */
+	int fts_info;			/* user status for FTSENT structure */
 
 #define	FTS_DONTCHDIR	 0x01		/* don't chdir .. to the parent */
 #define	FTS_SYMFOLLOW	 0x02		/* followed a symlink to get here */
 #define	FTS_ISW		 0x04		/* this is a whiteout object */
-	u_short fts_flags;		/* private flags for FTSENT structure */
+	unsigned fts_flags;		/* private flags for FTSENT structure */
 
 #define	FTS_AGAIN	 1		/* read node again */
 #define	FTS_FOLLOW	 2		/* follow symbolic link */
 #define	FTS_NOINSTR	 3		/* no instructions */
 #define	FTS_SKIP	 4		/* discard node */
-	u_short fts_instr;		/* fts_set() instructions */
+	int fts_instr;			/* fts_set() instructions */
 
 	struct stat *fts_statp;		/* stat(2) information */
 	char *fts_name;			/* file name */

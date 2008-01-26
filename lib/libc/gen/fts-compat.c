@@ -46,11 +46,21 @@ __FBSDID("$FreeBSD$");
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <fts.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include "fts-compat.h"
 #include "un-namespace.h"
+
+FTSENT	*__fts_children_44bsd(FTS *, int);
+int	 __fts_close_44bsd(FTS *);
+void	*__fts_get_clientptr_44bsd(FTS *);
+FTS	*__fts_get_stream_44bsd(FTSENT *);
+FTS	*__fts_open_44bsd(char * const *, int,
+	    int (*)(const FTSENT * const *, const FTSENT * const *));
+FTSENT	*__fts_read_44bsd(FTS *);
+int	 __fts_set_44bsd(FTS *, FTSENT *, int);
+void	 __fts_set_clientptr_44bsd(FTS *, void *);
 
 static FTSENT	*fts_alloc(FTS *, char *, int);
 static FTSENT	*fts_build(FTS *, int);
@@ -107,7 +117,7 @@ static const char *ufslike_filesystems[] = {
 };
 
 FTS *
-fts_open(argv, options, compar)
+__fts_open_44bsd(argv, options, compar)
 	char * const *argv;
 	int options;
 	int (*compar)(const FTSENT * const *, const FTSENT * const *);
@@ -246,7 +256,7 @@ fts_load(sp, p)
 }
 
 int
-fts_close(sp)
+__fts_close_44bsd(sp)
 	FTS *sp;
 {
 	FTSENT *freep, *p;
@@ -301,7 +311,7 @@ fts_close(sp)
 	    ? p->fts_pathlen - 1 : p->fts_pathlen)
 
 FTSENT *
-fts_read(sp)
+__fts_read_44bsd(sp)
 	FTS *sp;
 {
 	FTSENT *p, *tmp;
@@ -495,7 +505,7 @@ name:		t = sp->fts_path + NAPPEND(p->fts_parent);
  */
 /* ARGSUSED */
 int
-fts_set(sp, p, instr)
+__fts_set_44bsd(sp, p, instr)
 	FTS *sp;
 	FTSENT *p;
 	int instr;
@@ -510,7 +520,7 @@ fts_set(sp, p, instr)
 }
 
 FTSENT *
-fts_children(sp, instr)
+__fts_children_44bsd(sp, instr)
 	FTS *sp;
 	int instr;
 {
@@ -582,7 +592,7 @@ fts_children(sp, instr)
 #endif
 
 void *
-(fts_get_clientptr)(FTS *sp)
+(__fts_get_clientptr_44bsd)(FTS *sp)
 {
 
 	return (fts_get_clientptr(sp));
@@ -593,13 +603,13 @@ void *
 #endif
 
 FTS *
-(fts_get_stream)(FTSENT *p)
+(__fts_get_stream_44bsd)(FTSENT *p)
 {
 	return (fts_get_stream(p));
 }
 
 void
-fts_set_clientptr(FTS *sp, void *clientptr)
+__fts_set_clientptr_44bsd(FTS *sp, void *clientptr)
 {
 
 	sp->fts_clientptr = clientptr;
@@ -1220,3 +1230,12 @@ fts_ufslinks(FTS *sp, const FTSENT *ent)
 	}
 	return (priv->ftsp_linksreliable);
 }
+
+__sym_compat(fts_open, __fts_open_44bsd, FBSD_1.0);
+__sym_compat(fts_close, __fts_close_44bsd, FBSD_1.0);
+__sym_compat(fts_read, __fts_read_44bsd, FBSD_1.0);
+__sym_compat(fts_set, __fts_set_44bsd, FBSD_1.0);
+__sym_compat(fts_children, __fts_children_44bsd, FBSD_1.0);
+__sym_compat(fts_get_clientptr, __fts_get_clientptr_44bsd, FBSD_1.0);
+__sym_compat(fts_get_stream, __fts_get_stream_44bsd, FBSD_1.0);
+__sym_compat(fts_set_clientptr, __fts_set_clientptr_44bsd, FBSD_1.0);
