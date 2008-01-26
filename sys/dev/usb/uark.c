@@ -225,29 +225,21 @@ static int
 uark_param(void *vsc, int portno, struct termios *t)
 {
 	struct uark_softc *sc = (struct uark_softc *)vsc;
-	int data;
+	int data, divisor;
+	speed_t speed = t->c_ospeed;
 
-	switch (t->c_ospeed) {
-	case 300:
-	case 600:
-	case 1200:
-	case 1800:
-	case 2400:
-	case 4800:
-	case 9600:
-	case 19200:
-	case 38400:
-	case 57600:
-	case 115200:
-		uark_cmd(sc, 3, 0x83);
-		uark_cmd(sc, 0, (UARK_BAUD_REF / t->c_ospeed) & 0xFF);
-		uark_cmd(sc, 1, (UARK_BAUD_REF / t->c_ospeed) >> 8);
-		uark_cmd(sc, 3, 0x03);
-		break;
-	default:
+	if (speed < 300 || speed > 115200)
 		return (EINVAL);
-		/* NOTREACHED */
-	}
+	divisor = (UARK_BAUD_REF + speed / 2) / speed;
+	/* Check that we're within 3% of the requested rate. */
+	if (speed * divisor < UARK_BAUD_REF * 100 / 103 ||
+	    speed * divisor > UARK_BAUD_REF * 100 / 97)
+		return (EINVAL);
+	uark_cmd(sc, 3, 0x83);
+	uark_cmd(sc, 0, divisor & 0xFF);
+	uark_cmd(sc, 1, divisor >> 8);
+	uark_cmd(sc, 3, 0x03);
+
 	if (ISSET(t->c_cflag, CSTOPB))
 		data = UARK_STOP_BITS_2;
 	else
