@@ -312,7 +312,7 @@ static void	ng_ppp_bump_mseq(node_p node, int32_t new_mseq);
 static int	ng_ppp_frag_drop(node_p node);
 static int	ng_ppp_check_packet(node_p node);
 static void	ng_ppp_get_packet(node_p node, struct mbuf **mp);
-static int	ng_ppp_frag_process(node_p node);
+static int	ng_ppp_frag_process(node_p node, item_p oitem);
 static int	ng_ppp_frag_trim(node_p node);
 static void	ng_ppp_frag_timeout(node_p node, hook_p hook, void *arg1,
 		    int arg2);
@@ -1510,7 +1510,6 @@ ng_ppp_mp_recv(node_p node, item_p item, uint16_t proto, uint16_t linkNum)
 	}
 
 	NGI_GET_M(item, m);
-	NG_FREE_ITEM(item);
 
 	/* Get a new frag struct from the free queue */
 	if ((frag = TAILQ_FIRST(&priv->fragsfree)) == NULL) {
@@ -1600,10 +1599,13 @@ ng_ppp_mp_recv(node_p node, item_p item, uint16_t proto, uint16_t linkNum)
 process:
 	/* Process the queue */
 	/* NOTE: rmtx will be unlocked for sending time! */
-	error = ng_ppp_frag_process(node);
+	error = ng_ppp_frag_process(node, item);
+	mtx_unlock(&priv->rmtx);
+	return (error);
 
 done:
 	mtx_unlock(&priv->rmtx);
+	NG_FREE_ITEM(item);
 	return (error);
 }
 
@@ -1790,7 +1792,7 @@ ng_ppp_frag_drop(node_p node)
  * Run the queue, restoring the queue invariants
  */
 static int
-ng_ppp_frag_process(node_p node)
+ng_ppp_frag_process(node_p node, item_p oitem)
 {
 	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct mbuf *m;
@@ -1808,7 +1810,14 @@ ng_ppp_frag_process(node_p node)
 				NG_FREE_M(m);
 				continue;
 			}
-			if ((item = ng_package_data(m, NG_NOFLAGS)) != NULL) {
+			if (oitem) { /* If original item present - reuse it. */
+				item = oitem;
+				oitem = NULL;
+				NGI_M(item) = m;
+			} else {
+				item = ng_package_data(m, NG_NOFLAGS);
+			}
+			if (item != NULL) {
 				/* Stats */
 				priv->bundleStats.recvFrames++;
 				priv->bundleStats.recvOctets += 
@@ -1825,6 +1834,9 @@ ng_ppp_frag_process(node_p node)
 		}
 	  /* Delete dead fragments and try again */
 	} while (ng_ppp_frag_trim(node) || ng_ppp_frag_drop(node));
+	
+	/* If we haven't reused original item - free it. */
+	if (oitem) NG_FREE_ITEM(oitem);
 
 	/* Done */
 	return (0);
