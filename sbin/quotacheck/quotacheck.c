@@ -67,6 +67,8 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
+#include "quotacheck.h"
+
 char *qfname = QUOTAFILENAME;
 char *qfextension[] = INITQFNAMES;
 char *quotagroup = QUOTAGROUP;
@@ -92,11 +94,6 @@ union dinode {
 	((sblock.fs_magic == FS_UFS1_MAGIC) ? \
 	(dp)->dp1.field : (dp)->dp2.field)
 
-struct quotaname {
-	long	flags;
-	char	grpqfname[PATH_MAX];
-	char	usrqfname[PATH_MAX];
-};
 #define	HASUSR	1
 #define	HASGRP	2
 
@@ -121,9 +118,6 @@ struct fileusage *
 	 addid(u_long, int, char *, char *);
 char	*blockcheck(char *);
 void	 bread(ufs2_daddr_t, char *, long);
-extern int checkfstab(int, int, void * (*)(struct fstab *),
-				int (*)(char *, char *, struct quotaname *));
-int	 chkquota(char *, char *, struct quotaname *);
 void	 freeinodebuf(void);
 union dinode *
 	 getnextinode(ino_t);
@@ -131,7 +125,7 @@ int	 getquotagid(void);
 int	 hasquota(struct fstab *, int, char **);
 struct fileusage *
 	 lookup(u_long, int);
-void	*needchk(struct fstab *);
+struct quotaname *needchk(struct fstab *);
 int	 oneof(char *, char*[], int);
 void	 printchanges(char *, int, struct dqblk *, struct fileusage *, u_long);
 void	 setinodebuf(ino_t);
@@ -146,7 +140,7 @@ main(argc, argv)
 	struct fstab *fs;
 	struct passwd *pw;
 	struct group *gr;
-	struct quotaname *auxdata;
+	struct quotaname *qnp;
 	int i, argnum, maxrun, errs, ch;
 	long done = 0;
 	char *name;
@@ -196,22 +190,21 @@ main(argc, argv)
 		endpwent();
 	}
 	/*
-	 * Setting maxrun (-l) makes no sense without the -a flag.
-	 * Historically this was never an error, so we just warn.
+	 * The maxrun (-l) option is now deprecated.
 	 */
-	if (maxrun > 0 && !aflag)
-		warnx("ignoring -l without -a");
+	if (maxrun > 0)
+		warnx("the -l option is now deprecated");
 	if (aflag)
-		exit(checkfstab(1, maxrun, needchk, chkquota));
+		exit(checkfstab());
 	if (setfsent() == 0)
 		errx(1, "%s: can't open", FSTAB);
 	while ((fs = getfsent()) != NULL) {
 		if (((argnum = oneof(fs->fs_file, argv, argc)) >= 0 ||
 		    (argnum = oneof(fs->fs_spec, argv, argc)) >= 0) &&
-		    (auxdata = needchk(fs)) &&
+		    (qnp = needchk(fs)) &&
 		    (name = blockcheck(fs->fs_spec))) {
 			done |= 1 << argnum;
-			errs += chkquota(name, fs->fs_file, auxdata);
+			errs += chkquota(name, fs->fs_file, qnp);
 		}
 	}
 	endfsent();
@@ -231,7 +224,7 @@ usage()
 	exit(1);
 }
 
-void *
+struct quotaname *
 needchk(fs)
 	struct fstab *fs;
 {
@@ -279,6 +272,8 @@ chkquota(fsname, mntpt, qnp)
 	char *cp;
 	struct stat sb;
 
+	if (qnp == NULL)
+		err(1, "null quota information passed to chkquota()\n");
 	if ((fi = open(fsname, O_RDONLY, 0)) < 0) {
 		warn("%s", fsname);
 		return (1);
