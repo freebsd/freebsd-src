@@ -105,6 +105,7 @@ static struct kauai_pci_dev {
         { 0x0033106b, "Uninorth2 Kauai ATA Controller" },
         { 0x003b106b, "Intrepid Kauai ATA Controller" },
         { 0x0043106b, "K2 Kauai ATA Controller" },
+        { 0x0069106b, "Intrepid-2 Kauai ATA Controller" },
         { 0, NULL }
 };
 
