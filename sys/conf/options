@@ -48,6 +48,8 @@ TWA_FLASH_FIRMWARE	opt_twa.h
 
 # Debugging options.
 DDB
+DDB_CAPTURE_DEFAULTBUFSIZE	opt_ddb.h
+DDB_CAPTURE_MAXBUFSIZE	opt_ddb.h
 DDB_NUMSYM	opt_ddb.h
 GDB
 KDB		opt_global.h
