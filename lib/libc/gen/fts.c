@@ -52,15 +52,15 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include "un-namespace.h"
 
-static FTSENT	*fts_alloc(FTS *, char *, int);
+static FTSENT	*fts_alloc(FTS *, char *, size_t);
 static FTSENT	*fts_build(FTS *, int);
 static void	 fts_lfree(FTSENT *);
 static void	 fts_load(FTS *, FTSENT *);
 static size_t	 fts_maxarglen(char * const *);
 static void	 fts_padjust(FTS *, FTSENT *);
 static int	 fts_palloc(FTS *, size_t);
-static FTSENT	*fts_sort(FTS *, FTSENT *, int);
-static u_short	 fts_stat(FTS *, FTSENT *, int);
+static FTSENT	*fts_sort(FTS *, FTSENT *, size_t);
+static int	 fts_stat(FTS *, FTSENT *, int);
 static int	 fts_safe_changedir(FTS *, FTSENT *, int, char *);
 static int	 fts_ufslinks(FTS *, const FTSENT *);
 
@@ -115,9 +115,8 @@ fts_open(argv, options, compar)
 	struct _fts_private *priv;
 	FTS *sp;
 	FTSENT *p, *root;
-	int nitems;
 	FTSENT *parent, *tmp;
-	int len;
+	size_t len, nitems;
 
 	/* Options check. */
 	if (options & ~FTS_OPTIONMASK) {
@@ -224,7 +223,7 @@ fts_load(sp, p)
 	FTS *sp;
 	FTSENT *p;
 {
-	int len;
+	size_t len;
 	char *cp;
 
 	/*
@@ -626,14 +625,14 @@ fts_build(sp, type)
 {
 	struct dirent *dp;
 	FTSENT *p, *head;
-	int nitems;
 	FTSENT *cur, *tail;
 	DIR *dirp;
 	void *oldaddr;
-	size_t dnamlen;
-	int cderrno, descend, len, level, maxlen, nlinks, oflag, saved_errno,
-	    nostat, doadjust;
 	char *cp;
+	int cderrno, descend, oflag, saved_errno, nostat, doadjust;
+	long level;
+	long nlinks;	/* has to be signed because -1 is a magic value */
+	size_t dnamlen, len, maxlen, nitems;
 
 	/* Set current node pointer. */
 	cur = sp->fts_cur;
@@ -741,7 +740,7 @@ fts_build(sp, type)
 		if (!ISSET(FTS_SEEDOT) && ISDOT(dp->d_name))
 			continue;
 
-		if ((p = fts_alloc(sp, dp->d_name, (int)dnamlen)) == NULL)
+		if ((p = fts_alloc(sp, dp->d_name, dnamlen)) == NULL)
 			goto mem1;
 		if (dnamlen >= maxlen) {	/* include space for NUL */
 			oldaddr = sp->fts_path;
@@ -770,21 +769,6 @@ mem1:				saved_errno = errno;
 			maxlen = sp->fts_pathlen - len;
 		}
 
-		if (len + dnamlen >= USHRT_MAX) {
-			/*
-			 * In an FTSENT, fts_pathlen is a u_short so it is
-			 * possible to wraparound here.  If we do, free up
-			 * the current structure and the structures already
-			 * allocated, then error out with ENAMETOOLONG.
-			 */
-			free(p);
-			fts_lfree(head);
-			(void)closedir(dirp);
-			cur->fts_info = FTS_ERR;
-			SET(FTS_STOP);
-			errno = ENAMETOOLONG;
-			return (NULL);
-		}
 		p->fts_level = level;
 		p->fts_parent = sp->fts_cur;
 		p->fts_pathlen = len + dnamlen;
@@ -885,7 +869,7 @@ mem1:				saved_errno = errno;
 	return (head);
 }
 
-static u_short
+static int
 fts_stat(sp, p, follow)
 	FTS *sp;
 	FTSENT *p;
@@ -987,7 +971,7 @@ static FTSENT *
 fts_sort(sp, head, nitems)
 	FTS *sp;
 	FTSENT *head;
-	int nitems;
+	size_t nitems;
 {
 	FTSENT **ap, *p;
 
@@ -1019,7 +1003,7 @@ static FTSENT *
 fts_alloc(sp, name, namelen)
 	FTS *sp;
 	char *name;
-	int namelen;
+	size_t namelen;
 {
 	FTSENT *p;
 	size_t len;
@@ -1091,18 +1075,6 @@ fts_palloc(sp, more)
 {
 
 	sp->fts_pathlen += more + 256;
-	/*
-	 * Check for possible wraparound.  In an FTS, fts_pathlen is
-	 * a signed int but in an FTSENT it is an unsigned short.
-	 * We limit fts_pathlen to USHRT_MAX to be safe in both cases.
-	 */
-	if (sp->fts_pathlen < 0 || sp->fts_pathlen >= USHRT_MAX) {
-		if (sp->fts_path)
-			free(sp->fts_path);
-		sp->fts_path = NULL;
-		errno = ENAMETOOLONG;
-		return (1);
-	}
 	sp->fts_path = reallocf(sp->fts_path, sp->fts_pathlen);
 	return (sp->fts_path == NULL);
 }

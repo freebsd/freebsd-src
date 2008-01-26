@@ -22,6 +22,20 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20080126:
+	The fts(3) structures have been changed to use adequate
+	integer types for their members and so to be able to cope
+	with huge file trees.  The old fts(3) ABI is preserved
+	through symbol versioning in libc, so third-party binaries
+	using fts(3) should still work, although they will not take
+	advantage of the extended types.  At the same time, some
+	third-party software might fail to build after this change
+	due to unportable assumptions made in its source code about
+	fts(3) structure members.  Such software should be fixed
+	by its vendor or, in the worst case, in the ports tree.
+	FreeBSD_version 800015 marks this change for the unlikely
+	case that a portable fix is impossible.
+
 20080123:
 	To upgrade to -current after this date, you must be running
 	FreeBSD not older than 6.0-RELEASE.  Upgrading to -current
