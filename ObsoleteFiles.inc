@@ -14,6 +14,9 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20080126: oldcard.4 removal
+OLD_FILES+=usr/share/man/man4/card.4.gz
+OLD_FILES+=usr/share/man/man4/oldcard.4.gz
 # 20080122: Removed from the tree
 OLD_FILES+=usr/share/man/man9/BUF_REFCNT.9.gz
 # 20080108: Moved to section 2

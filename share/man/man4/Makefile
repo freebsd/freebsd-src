@@ -253,7 +253,6 @@ MAN=	aac.4 \
 	${_nve.4} \
 	${_nxge.4} \
 	ohci.4 \
-	oldcard.4 \
 	orm.4 \
 	pass.4 \
 	patm.4 \
@@ -491,7 +490,6 @@ MLINKS+=${_nfe.4} ${_if_nfe.4}
 MLINKS+=nge.4 if_nge.4
 MLINKS+=${_nve.4} ${_if_nve.4}
 MLINKS+=${_nxge.4} ${_if_nxge.4}
-MLINKS+=oldcard.4 card.4
 MLINKS+=patm.4 if_patm.4
 MLINKS+=pccbb.4 cbb.4
 MLINKS+=pcm.4 snd.4 \
