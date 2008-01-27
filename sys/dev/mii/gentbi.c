@@ -182,7 +182,6 @@ gentbi_attach(device_t dev)
 	sc->mii_phy = ma->mii_phyno;
 	sc->mii_service = gentbi_service;
 	sc->mii_pdata = mii;
-	sc->mii_flags |= MIIF_NOISOLATE;
 
 	mii->mii_instance++;
 
@@ -287,7 +286,7 @@ gentbi_status(struct mii_softc *sc)
 
 	if (bmcr & BMCR_AUTOEN) {
 		/*
-		 * The media status bits are only valid of autonegotiation
+		 * The media status bits are only valid if autonegotiation
 		 * has completed (or it's disabled).
 		 */
 		if ((bmsr & BMSR_ACOMP) == 0) {
