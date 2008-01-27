@@ -29,8 +29,11 @@
  */
 #ifndef CXGB_TCP_H_
 #define CXGB_TCP_H_
-
+#ifdef TCP_USRREQS_OVERLOAD
 struct tcpcb *cxgb_tcp_drop(struct tcpcb *tp, int errno);
+#else
+#define cxgb_tcp_drop	tcp_drop
+#endif
 void cxgb_tcp_ctlinput(int cmd, struct sockaddr *sa, void *vip);
 struct tcpcb *cxgb_tcp_close(struct tcpcb *tp);
 
