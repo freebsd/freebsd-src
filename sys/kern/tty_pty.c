@@ -157,12 +157,14 @@ ptyinit(struct cdev *devc, struct thread *td)
 }
 
 static void
-pty_create_slave(struct ucred *cred, struct ptsc *pt, int n)
+pty_create_slave(struct ucred *cred, struct ptsc *pt, int m)
 {
+	int n;
 
+	n = minor2unit(m);
 	KASSERT(n >= 0 && n / 32 < sizeof(names),
 	    ("pty_create_slave: n %d ptsc %p", n, pt));
-	pt->devs = make_dev_cred(&pts_cdevsw, n, cred, UID_ROOT, GID_WHEEL,
+	pt->devs = make_dev_cred(&pts_cdevsw, m, cred, UID_ROOT, GID_WHEEL,
 	    0666, "tty%c%r", names[n / 32], n % 32);
 	pt->devs->si_drv1 = pt;
 	pt->devs->si_tty = pt->pt_tty;
@@ -352,7 +354,7 @@ ptcopen(struct cdev *dev, int flag, int devtype, struct thread *td)
 	pt->pt_ucntl = 0;
 
 	if (!pt->devs)
-		pty_create_slave(td->td_ucred, pt, minor2unit(minor(dev)));
+		pty_create_slave(td->td_ucred, pt, minor(dev));
 	pt->pt_devc_open = 1;
 
 	return (0);
