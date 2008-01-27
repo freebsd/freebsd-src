@@ -11,6 +11,13 @@ then
     source_periodic_confs
 fi
 
+case "$daily_status_mail_rejects_shorten" in
+[Yy][Ee][Ss])
+    sed_output='\4 \3...';;
+*)
+    sed_output='\2 (\3... \4)';;
+esac
+
 case "$daily_status_mail_rejects_enable" in
     [Yy][Ee][Ss])
 	if [ ! -d /etc/mail ]
@@ -51,7 +58,7 @@ case "$daily_status_mail_rejects_enable" in
 		done
 		cat /var/log/maillog
 	    } |
-		sed -n -E "s/^$start"'.*ruleset=check_[^ ]+, +arg1=<?([^@]+@)?([^>,]+).*reject=([^ ]+) .* ([^ ]+)$/\2 (\3... \4)/p' |
+		sed -n -E "s/^$start"'.*ruleset=check_[^ ]+, +arg1=<?([^@]+@)?([^>,]+).*reject=([^ ]+) .* ([^ ]+)$/'"$sed_output"'/p' |
 		sort -f | uniq -ic | sort -fnr | tee /dev/stderr | wc -l)
 	    [ $rc -gt 0 ] && rc=1
 	fi;;
