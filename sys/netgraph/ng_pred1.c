@@ -565,7 +565,7 @@ static int
 Pred1Compress(node_p node, u_char *source, u_char *dest, int len)
 {
 	const priv_p 	priv = NG_NODE_PRIVATE(node);
-	int		i, bitmask;
+	int		i;
 	u_char		flags;
 	u_char		*flagdest, *orgdest;
 
@@ -573,10 +573,10 @@ Pred1Compress(node_p node, u_char *source, u_char *dest, int len)
 	while (len) {
 		flagdest = dest++;
 		flags = 0;	/* All guesses are wrong initially. */
-		for (bitmask = 1, i = 0; i < 8 && len; i++, bitmask <<= 1) {
+		for (i = 0; i < 8 && len; i++) {
     			if (priv->GuessTable[priv->Hash] == *source)
 				/* Guess was right - don't output. */
-				flags |= bitmask;
+				flags |= (1 << i);
     			else {
 				/* Guess wrong, output char. */
 				priv->GuessTable[priv->Hash] = *source;
@@ -600,17 +600,17 @@ static int
 Pred1Decompress(node_p node, u_char *source, u_char *dest, int slen, int dlen)
 {
 	const priv_p 	priv = NG_NODE_PRIVATE(node);
-	int		i, bitmask;
+	int		i;
 	u_char		flags, *orgdest;
 
 	orgdest = dest;
 	while (slen) {
 		flags = *source++;
 		slen--;
-		for (i = 0, bitmask = 1; i < 8; i++, bitmask <<= 1) {
+		for (i = 0; i < 8; i++, flags >>= 1) {
 			if (dlen <= 0)
 				return(-1);
-			if (flags & bitmask)
+			if (flags & 0x01)
 				/* Guess correct */
 				*dest = priv->GuessTable[priv->Hash];
 			else {
