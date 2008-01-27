@@ -65,6 +65,9 @@ __FBSDID("$FreeBSD$");
 #include <sysexits.h>
 #include <unistd.h>
 
+/* Exit code for a failed exec. */
+#define EXEC_FAILED 127
+
 int fflg, iflg, nflg, vflg;
 
 int	copy(char *, char *);
@@ -198,6 +201,11 @@ do_move(char *from, char *to)
 			}
 		}
 	}
+	/*
+	 * Rename on FreeBSD will fail with EISDIR and ENOTDIR, before failing
+	 * with EXDEV.  Therefore, copy() doesn't have to perform the checks
+	 * specified in the Step 3 of the POSIX mv specification.
+	 */
 	if (!rename(from, to)) {
 		if (vflg)
 			printf("%s -> %s\n", from, to);
@@ -219,7 +227,7 @@ do_move(char *from, char *to)
 		if (!S_ISLNK(sb.st_mode)) {
 			/* Can't mv(1) a mount point. */
 			if (realpath(from, path) == NULL) {
-				warnx("cannot resolve %s: %s", from, path);
+				warn("cannot resolve %s: %s", from, path);
 				return (1);
 			}
 			if (!statfs(path, &sfs) &&
@@ -252,9 +260,9 @@ fastcopy(char *from, char *to, struct stat *sbp)
 	struct timeval tval[2];
 	static u_int blen;
 	static char *bp;
+	acl_t acl;
 	mode_t oldmode;
 	int nread, from_fd, to_fd;
-	acl_t acl;
 
 	if ((from_fd = open(from, O_RDONLY, 0)) < 0) {
 		warn("%s", from);
@@ -305,7 +313,7 @@ err:		if (unlink(to))
 	}
 	/*
 	 * POSIX 1003.2c states that if _POSIX_ACL_EXTENDED is in effect
-	 * for dest_file, then it's ACLs shall reflect the ACLs of the
+	 * for dest_file, then its ACLs shall reflect the ACLs of the
 	 * source_file.
 	 */
 	if (fpathconf(to_fd, _PC_ACL_EXTENDED) == 1 &&
@@ -355,43 +363,76 @@ err:		if (unlink(to))
 int
 copy(char *from, char *to)
 {
+	struct stat sb;
 	int pid, status;
 
-	if ((pid = fork()) == 0) {
+	if (lstat(to, &sb) == 0) {
+		/* Destination path exists. */
+		if (S_ISDIR(sb.st_mode)) {
+			if (rmdir(to) != 0) {
+				warn("rmdir %s", to);
+				return (1);
+			}
+		} else {
+			if (unlink(to) != 0) {
+				warn("unlink %s", to);
+				return (1);
+			}
+		}
+	} else if (errno != ENOENT) {
+		warn("%s", to);
+		return (1);
+	}
+
+	/* Copy source to destination. */
+	if (!(pid = vfork())) {
 		execl(_PATH_CP, "mv", vflg ? "-PRpv" : "-PRp", "--", from, to,
 		    (char *)NULL);
-		warn("%s", _PATH_CP);
-		_exit(1);
+		_exit(EXEC_FAILED);
 	}
 	if (waitpid(pid, &status, 0) == -1) {
-		warn("%s: waitpid", _PATH_CP);
+		warn("%s %s %s: waitpid", _PATH_CP, from, to);
 		return (1);
 	}
 	if (!WIFEXITED(status)) {
-		warnx("%s: did not terminate normally", _PATH_CP);
+		warnx("%s %s %s: did not terminate normally",
+		    _PATH_CP, from, to);
 		return (1);
 	}
-	if (WEXITSTATUS(status)) {
-		warnx("%s: terminated with %d (non-zero) status",
-		    _PATH_CP, WEXITSTATUS(status));
+	switch (WEXITSTATUS(status)) {
+	case 0:
+		break;
+	case EXEC_FAILED:
+		warnx("%s %s %s: exec failed", _PATH_CP, from, to);
+		return (1);
+	default:
+		warnx("%s %s %s: terminated with %d (non-zero) status",
+		    _PATH_CP, from, to, WEXITSTATUS(status));
 		return (1);
 	}
+
+	/* Delete the source. */
 	if (!(pid = vfork())) {
 		execl(_PATH_RM, "mv", "-rf", "--", from, (char *)NULL);
-		warn("%s", _PATH_RM);
-		_exit(1);
+		_exit(EXEC_FAILED);
 	}
 	if (waitpid(pid, &status, 0) == -1) {
-		warn("%s: waitpid", _PATH_RM);
+		warn("%s %s: waitpid", _PATH_RM, from);
 		return (1);
 	}
 	if (!WIFEXITED(status)) {
-		warnx("%s: did not terminate normally", _PATH_RM);
+		warnx("%s %s: did not terminate normally", _PATH_RM, from);
 		return (1);
 	}
-	if (WEXITSTATUS(status)) {
-		warnx("%s: terminated with %d (non-zero) status",
-		    _PATH_RM, WEXITSTATUS(status));
+	switch (WEXITSTATUS(status)) {
+	case 0:
+		break;
+	case EXEC_FAILED:
+		warnx("%s %s: exec failed", _PATH_RM, from);
+		return (1);
+	default:
+		warnx("%s %s: terminated with %d (non-zero) status",
+		    _PATH_RM, from, WEXITSTATUS(status));
 		return (1);
 	}
 	return (0);
