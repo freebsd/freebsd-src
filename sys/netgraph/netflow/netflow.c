@@ -631,13 +631,8 @@ export_add(item_p item, struct flow_entry *fle)
 	struct netflow_v5_header *header = &dgram->header;
 	struct netflow_v5_record *rec;
 
-	if (header->count == 0 ) {	/* first record */
-		rec = &dgram->r[0];
-		header->count = 1;
-	} else {			/* continue filling datagram */
-		rec = &dgram->r[header->count];
-		header->count ++;
-	}
+	rec = &dgram->r[header->count];
+	header->count ++;
 
 	KASSERT(header->count <= NETFLOW_V5_MAX_RECORDS,
 	    ("ng_netflow: export too big"));
