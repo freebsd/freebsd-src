@@ -2195,6 +2195,12 @@ acpi_ReqSleepState(struct acpi_softc *sc, int state)
 	}
     }
 
+    /* If devd(8) is not running, immediately enter the sleep state. */
+    if (devctl_process_running() == FALSE) {
+    	ACPI_UNLOCK(acpi);
+	return (ACPI_FAILURE(acpi_EnterSleepState(sc, sc->acpi_next_sstate)));
+    }
+
     /* Now notify devd(8) also. */
     acpi_UserNotify("Suspend", ACPI_ROOT_OBJECT, state);
 
