@@ -292,18 +292,6 @@ sgl_len(unsigned int n)
  *
  *	Return a packet containing the immediate data of the given response.
  */
-#ifdef DISABLE_MBUF_IOVEC
-static __inline int
-get_imm_packet(adapter_t *sc, const struct rsp_desc *resp, struct t3_mbuf_hdr *mh)
-{
-	struct mbuf *m = mh->m_head;
-		
-	memcpy(mtod(m, uint8_t *), resp->imm_data, IMMED_PKT_SIZE);
-	m->m_pkthdr.len = m->m_len = len;
-	return (0);
-}
-
-#else
 static int
 get_imm_packet(adapter_t *sc, const struct rsp_desc *resp, struct mbuf *m, void *cl, uint32_t flags)
 {
@@ -313,7 +301,6 @@ get_imm_packet(adapter_t *sc, const struct rsp_desc *resp, struct mbuf *m, void 
 	return (0);
 	
 }
-#endif
 
 static __inline u_int
 flits_to_desc(u_int n)
@@ -2501,10 +2488,10 @@ get_packet(adapter_t *adap, unsigned int drop_thres, struct sge_qset *qs,
 	uint32_t len = G_RSPD_LEN(len_cq);
 	uint32_t flags = ntohl(r->flags);
 	uint8_t sopeop = G_RSPD_SOP_EOP(flags);
-	struct mbuf *m;
-	uint32_t *ref;
+	caddr_t cl;
+	struct mbuf *m, *m0;
 	int ret = 0;
-
+	
 	prefetch(sd->rxsd_cl);
 
 	fl->credits--;
@@ -2517,20 +2504,20 @@ get_packet(adapter_t *adap, unsigned int drop_thres, struct sge_qset *qs,
 		memcpy(cl, sd->data, len);
 		recycle_rx_buf(adap, fl, fl->cidx);
 		m = m0;
+		m0->m_len = len;
 	} else {
 	skip_recycle:
-		int flags = 0;
+
 		bus_dmamap_unload(fl->entry_tag, sd->map);
 		cl = sd->rxsd_cl;
 		m = m0 = (struct mbuf *)cl;
 
-		m0->m_len = len;
 		if ((sopeop == RSPQ_SOP_EOP) ||
 		    (sopeop == RSPQ_SOP))
 			flags = M_PKTHDR;
 		init_cluster_mbuf(cl, flags, fl->type, fl->zone);
+		m0->m_len = len;
 	}		
-	
 	switch(sopeop) {
 	case RSPQ_SOP_EOP:
 		DBG(DBG_RX, ("get_packet: SOP-EOP m %p\n", m));
@@ -2541,7 +2528,7 @@ get_packet(adapter_t *adap, unsigned int drop_thres, struct sge_qset *qs,
 	case RSPQ_NSOP_NEOP:
 		DBG(DBG_RX, ("get_packet: NO_SOP-NO_EOP m %p\n", m));
 		if (mh->mh_tail == NULL) {
-			printf("discarding intermediate descriptor entry\n");
+			log(LOG_ERR, "discarding intermediate descriptor entry\n");
 			m_freem(m);
 			break;
 		}
@@ -2738,41 +2725,26 @@ process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
 
 		} else if  (flags & F_RSPD_IMM_DATA_VALID) {
 			struct mbuf *m = NULL;
-			
-#ifdef DISABLE_MBUF_IOVEC
-			DPRINTF("IMM DATA VALID opcode=0x%x rspq->cidx=%d\n",
-			    r->rss_hdr.opcode, rspq->cidx);
-			
-			m = rspq->rspq_mh.mh_head = m_gethdr(M_DONTWAIT, MT_DATA);
-			if (m == NULL) {
-				rspq->next_holdoff = NOMEM_INTR_DELAY;
-				budget_left--;
-				break;
-			}
 
-			get_imm_packet(adap, r, &rspq->rspq_mh);
-			eop = 1;
-#else
 			DPRINTF("IMM DATA VALID opcode=0x%x rspq->cidx=%d\n",
 			    r->rss_hdr.opcode, rspq->cidx);
-			if (rspq->rspq_mbuf == NULL)
-				rspq->rspq_mbuf = m_gethdr(M_DONTWAIT, MT_DATA);
+			if (rspq->rspq_mh.mh_head == NULL)
+				rspq->rspq_mh.mh_head = m_gethdr(M_DONTWAIT, MT_DATA);
                         else 
 				m = m_gethdr(M_DONTWAIT, MT_DATA);
 
 			/*
 			 * XXX revisit me
 			 */
-			if (rspq->rspq_mbuf == NULL &&  m == NULL) {
+			if (rspq->rspq_mh.mh_head == NULL &&  m == NULL) {
 				rspq->next_holdoff = NOMEM_INTR_DELAY;
 				budget_left--;
 				break;
 			}
-			get_imm_packet(adap, r, rspq->rspq_mbuf, m, flags);
+			get_imm_packet(adap, r, rspq->rspq_mh.mh_head, m, flags);
 			
 			eop = 1;
 			rspq->imm_data++;
-#endif			
 		} else if (r->len_cq) {			
 			int drop_thresh = eth ? SGE_RX_DROP_THRES : 0;
 			
