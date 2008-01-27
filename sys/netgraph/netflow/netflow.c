@@ -617,6 +617,8 @@ export_send(priv_p priv, item_p item, int flags)
 
 	if (priv->export != NULL)
 		NG_FWD_ITEM_HOOK_FLAGS(error, item, priv->export, flags);
+	else
+		NG_FREE_ITEM(item);
 
 	return (error);
 }
