@@ -798,6 +798,7 @@ dev/mii/miibus_if.m		optional miibus | mii
 dev/mii/mlphy.c			optional miibus | mlphy
 dev/mii/nsgphy.c		optional miibus | nsgphy
 dev/mii/nsphy.c			optional miibus | nsphy
+dev/mii/nsphyter.c		optional miibus | nsphyter
 dev/mii/pnaphy.c		optional miibus | pnaphy
 dev/mii/qsphy.c			optional miibus | qsphy
 dev/mii/rgephy.c		optional miibus | rgephy
