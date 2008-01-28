@@ -1,6 +1,5 @@
 #!/bin/sh
 #
-# $NetBSD: bootparams,v 1.6 2002/03/22 04:33:58 thorpej Exp $
 # $FreeBSD$
 #
 
