@@ -2965,6 +2965,11 @@ mxge_watchdog_reset(mxge_softc_t *sc)
 
 		/* and redo any changes we made to our config space */
 		mxge_setup_cfg_space(sc);
+
+		if (sc->ifp->if_drv_flags & IFF_DRV_RUNNING) {
+			mxge_close(sc);
+			err = mxge_open(sc);
+		}
 	} else {
 		device_printf(sc->dev, "NIC did not reboot, ring state:\n");
 		device_printf(sc->dev, "tx.req=%d tx.done=%d\n",
@@ -2972,11 +2977,7 @@ mxge_watchdog_reset(mxge_softc_t *sc)
 		device_printf(sc->dev, "pkt_done=%d fw=%d\n",
 			      sc->tx.pkt_done,
 			      be32toh(sc->fw_stats->send_done_count));
-	}
-
-	if (sc->ifp->if_drv_flags & IFF_DRV_RUNNING) {
-		mxge_close(sc);
-		err = mxge_open(sc);
+		device_printf(sc->dev, "not resetting\n");
 	}
 
 abort:
