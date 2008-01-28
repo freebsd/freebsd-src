@@ -7,7 +7,7 @@
 # built are visible:
 #
 # csu must be built before all shared libaries for ELF.
-# libc must be built before all other shared libraries
+# libc must be built before all other shared libraries.
 # libcom_err must be built before libkrb5 and libpam.
 # libcrypt must be built before libkrb5 and libpam.
 # libkvm must be built before libdevstat.
@@ -31,7 +31,7 @@ SUBDIR=	${_csu} libc libbsm libcom_err libcrypt libelf libkvm msun libmd \
 	libbegemot ${_libbluetooth} libbsnmp libbz2 \
 	libcalendar libcam libcompat libdevinfo libdevstat libdisk \
 	libedit libexpat libfetch libftpio libgeom ${_libgpib} \
-	libgssapi libipsec \
+	${_libgssapi} libipsec \
 	${_libipx} libkiconv libmagic libmemstat ${_libmilter} ${_libmp} \
 	${_libncp} ${_libngatm} libopie libpam libpcap \
 	libpmc ${_libkse} librt ${_libsdp} ${_libsm} ${_libsmb} \
@@ -60,6 +60,10 @@ _bind=		bind
 .if ${MK_BLUETOOTH} != "no"
 _libbluetooth=	libbluetooth
 _libsdp=	libsdp
+.endif
+
+.if ${MK_GSSAPI} != "no"
+_libgssapi=	libgssapi
 .endif
 
 .if ${MK_IPX} != "no"
