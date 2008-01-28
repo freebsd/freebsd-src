@@ -551,6 +551,7 @@ audit_cred_kproc0(struct ucred *cred)
 {
 
 	cred->cr_audit.ai_auid = AU_DEFAUDITID;
+	cred->cr_audit.ai_termid.at_type = AU_IPv4;
 }
 
 void
@@ -558,6 +559,7 @@ audit_cred_proc1(struct ucred *cred)
 {
 
 	cred->cr_audit.ai_auid = AU_DEFAUDITID;
+	cred->cr_audit.ai_termid.at_type = AU_IPv4;
 }
 
 void
