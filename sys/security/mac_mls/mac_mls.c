@@ -964,9 +964,7 @@ mls_ifnet_check_relabel(struct ucred *cred, struct ifnet *ifp,
 	/*
 	 * Relabeling network interfaces requires MLS privilege.
 	 */
-	error = mls_subject_privileged(subj);
-
-	return (0);
+	return (mls_subject_privileged(subj));
 }
 
 static int
