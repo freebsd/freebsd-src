@@ -381,8 +381,8 @@ ng_bpf_rcvdata(hook_p hook, item_p item)
 {
 	const hinfo_p hip = NG_HOOK_PRIVATE(hook);
 	int totlen;
-	int needfree = 0, error = 0;
-	u_char *data;
+	int needfree = 0, error = 0, usejit = 0;
+	u_char *data = NULL;
 	hinfo_p dhip;
 	hook_p dest;
 	u_int len;
@@ -396,9 +396,14 @@ ng_bpf_rcvdata(hook_p hook, item_p item)
 	hip->stats.recvFrames++; 
 	hip->stats.recvOctets += totlen;
 
+#ifdef BPF_JITTER
+	if (bpf_jitter_enable != 0 && hip->jit_prog != NULL)
+		usejit = 1;
+#endif
+
 	/* Need to put packet in contiguous memory for bpf */
-	if (m->m_next != NULL) {
-		if (totlen > MHLEN) {
+	if (m->m_next != NULL && totlen > MHLEN) {
+		if (usejit) {
 			MALLOC(data, u_char *, totlen, M_NETGRAPH_BPF, M_NOWAIT);
 			if (data == NULL) {
 				NG_FREE_ITEM(item);
@@ -406,27 +411,34 @@ ng_bpf_rcvdata(hook_p hook, item_p item)
 			}
 			needfree = 1;
 			m_copydata(m, 0, totlen, (caddr_t)data);
-		} else {
+		}
+	} else {
+		if (m->m_next != NULL) {
 			NGI_M(item) = m = m_pullup(m, totlen);
 			if (m == NULL) {
 				NG_FREE_ITEM(item);
 				return (ENOBUFS);
 			}
-			data = mtod(m, u_char *);
 		}
-	} else
 		data = mtod(m, u_char *);
+	}
 
 	/* Run packet through filter */
 	if (totlen == 0)
 		len = 0;	/* don't call bpf_filter() with totlen == 0! */
 	else {
 #ifdef BPF_JITTER
-		if (bpf_jitter_enable != 0 && hip->jit_prog != NULL)
+		if (usejit)
 			len = (*(hip->jit_prog->func))(data, totlen, totlen);
 		else
 #endif
-		len = bpf_filter(hip->prog->bpf_prog, data, totlen, totlen);
+		if (data) {
+			len = bpf_filter(hip->prog->bpf_prog, data,
+			    totlen, totlen);
+		} else {
+			len = bpf_filter(hip->prog->bpf_prog, (u_char *) m,
+			    totlen, 0);
+		}
 	}
 	if (needfree)
 		FREE(data, M_NETGRAPH_BPF);
