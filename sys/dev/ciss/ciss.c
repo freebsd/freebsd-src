@@ -3133,10 +3133,14 @@ static void
 ciss_nop_complete(struct ciss_request *cr)
 {
     struct ciss_softc		*sc;
+    static int			first_time = 1;
 
     sc = cr->cr_sc;
     if (ciss_report_request(cr, NULL, NULL) != 0) {
-	ciss_printf(sc, "SENDING NOP MESSAGE FAILED\n");
+	if (first_time == 1) {
+	    first_time = 0;
+	    ciss_printf(sc, "SENDING NOP MESSAGE FAILED (not logging anymore)\n");
+	}
     }
 
     ciss_release_request(cr);
