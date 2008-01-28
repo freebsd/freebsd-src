@@ -1,6 +1,5 @@
 #!/bin/sh
 #
-# $NetBSD: isdnd,v 1.9 2002/04/10 23:37:13 martin Exp $
 # $FreeBSD$
 #
 # Mostly based on original script (/etc/rc.isdn) written by  Hellmuth Michaelis

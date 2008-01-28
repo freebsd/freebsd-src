@@ -1,6 +1,5 @@
 #!/bin/sh
 #
-# $NetBSD: DAEMON,v 1.8 2002/03/22 04:33:57 thorpej Exp $
 # $FreeBSD$
 #
 
