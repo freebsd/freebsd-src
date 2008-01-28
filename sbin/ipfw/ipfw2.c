@@ -47,6 +47,8 @@
 #include <unistd.h>
 #include <fcntl.h>
 
+#define IPFW_INTERNAL	/* Access to protected structures in ip_fw.h. */
+
 #include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_dl.h>
