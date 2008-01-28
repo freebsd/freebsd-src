@@ -1807,6 +1807,14 @@ sctp_notify_authentication(struct sctp_tcb *stcb, uint32_t indication,
 	struct sctp_authkey_event *auth;
 	struct sctp_queued_to_read *control;
 
+	if ((stcb == NULL) ||
+	    (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE) ||
+	    (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_SOCKET_ALLGONE) ||
+	    (stcb->asoc.state & SCTP_STATE_CLOSED_SOCKET)
+	    ) {
+		/* If the socket is gone we are out of here */
+		return;
+	}
 	if (sctp_is_feature_off(stcb->sctp_ep, SCTP_PCB_FLAGS_AUTHEVNT))
 		/* event not enabled */
 		return;
