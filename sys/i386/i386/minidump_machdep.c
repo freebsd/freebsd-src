@@ -109,7 +109,7 @@ blk_flush(struct dumperinfo *di)
 	if (fragsz == 0)
 		return (0);
 
-	error = di->dumper(di->priv, dump_va, 0, dumplo, fragsz);
+	error = dump_write(di, dump_va, 0, dumplo, fragsz);
 	dumplo += fragsz;
 	fragsz = 0;
 	return (error);
@@ -151,7 +151,7 @@ blk_write(struct dumperinfo *di, char *ptr, vm_paddr_t pa, size_t sz)
 			counter &= (1<<24) - 1;
 		}
 		if (ptr) {
-			error = di->dumper(di->priv, ptr, 0, dumplo, len);
+			error = dump_write(di, ptr, 0, dumplo, len);
 			if (error)
 				return (error);
 			dumplo += len;
@@ -281,7 +281,7 @@ minidumpsys(struct dumperinfo *di)
 	printf("Dumping %llu MB:", (long long)dumpsize >> 20);
 
 	/* Dump leader */
-	error = di->dumper(di->priv, &kdh, 0, dumplo, sizeof(kdh));
+	error = dump_write(di, &kdh, 0, dumplo, sizeof(kdh));
 	if (error)
 		goto fail;
 	dumplo += sizeof(kdh);
@@ -359,13 +359,13 @@ minidumpsys(struct dumperinfo *di)
 		goto fail;
 
 	/* Dump trailer */
-	error = di->dumper(di->priv, &kdh, 0, dumplo, sizeof(kdh));
+	error = dump_write(di, &kdh, 0, dumplo, sizeof(kdh));
 	if (error)
 		goto fail;
 	dumplo += sizeof(kdh);
 
 	/* Signal completion, signoff and exit stage left. */
-	di->dumper(di->priv, NULL, 0, 0, 0);
+	dump_write(di, NULL, 0, 0, 0);
 	printf("\nDump complete\n");
 	return;
 
