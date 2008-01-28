@@ -239,4 +239,5 @@ kgdb_target(void)
 	add_com ("add-kld", class_files, kgdb_add_kld_cmd,
 	   "Usage: add-kld FILE\n\
 Load the symbols from the kernel loadable module FILE.");
+	kgdb_auto_load_klds();
 }
