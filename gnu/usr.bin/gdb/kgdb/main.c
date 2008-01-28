@@ -72,6 +72,7 @@ kvm_t *kvm;
 static char kvm_err[_POSIX2_LINE_MAX];
 
 static int dumpnr;
+static int quiet;
 static int verbose;
 
 static char crashdir[PATH_MAX];
@@ -239,6 +240,8 @@ kgdb_init_target(void)
 	 * Display the unread portion of the message buffer. This gives the
 	 * user a some initial data to work from.
 	 */
+	if (quiet)
+		return;
 	bufp = kgdb_parse("msgbufp->msg_ptr");
 	size = (int)kgdb_parse("msgbufp->msg_size");
 	rseq = (int)kgdb_parse("msgbufp->msg_rseq");
@@ -302,7 +305,7 @@ main(int argc, char *argv[])
 	struct stat st;
 	struct captured_main_args args;
 	char *s;
-	int a, ch, quiet, writecore;
+	int a, ch, writecore;
 
 	dumpnr = -1;
 
