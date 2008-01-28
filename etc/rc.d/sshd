@@ -1,6 +1,5 @@
 #!/bin/sh
 #
-# $NetBSD: sshd,v 1.18 2002/04/29 08:23:34 lukem Exp $
 # $FreeBSD$
 #
 
