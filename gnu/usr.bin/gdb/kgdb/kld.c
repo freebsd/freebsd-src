@@ -41,6 +41,16 @@ __FBSDID("$FreeBSD$");
 
 #include "kgdb.h"
 
+/*
+ * TODO
+ *
+ * - Use 'target_read_memory()' instead of kvm_read().
+ * - Hook into the solib stuff perhaps?
+ */
+
+/* Offsets of fields in linker_file structure. */
+static CORE_ADDR off_address, off_filename, off_pathname, off_next;
+
 static int
 kld_ok (char *path)
 {
@@ -52,68 +62,72 @@ kld_ok (char *path)
 }
 
 /*
- * Look for a matching file in the following order:
+ * Look for a matching file checking for debug suffixes before the raw file:
  * - filename + ".symbols" (e.g. foo.ko.symbols)
  * - filename + ".debug" (e.g. foo.ko.debug)
  * - filename (e.g. foo.ko)
- * - dirname(kernel) + filename + ".symbols" (e.g. /boot/kernel/foo.ko.symbols)
- * - dirname(kernel) + filename + ".debug" (e.g. /boot/kernel/foo.ko.debug)
- * - dirname(kernel) + filename (e.g. /boot/kernel/foo.ko)
- * - iterate over each path in the module path looking for:
- *   - dir + filename + ".symbols" (e.g. /boot/modules/foo.ko.symbols)
- *   - dir + filename + ".debug" (e.g. /boot/modules/foo.ko.debug)
- *   - dir + filename (e.g. /boot/modules/foo.ko)
+ */
+static const char *kld_suffixes[] = {
+	".symbols",
+	".debug",
+	"",
+	NULL
+};
+
+static int
+check_kld_path (char *path, size_t path_size)
+{
+	const char **suffix;
+	char *ep;
+
+	ep = path + strlen(path);
+	suffix = kld_suffixes;
+	while (*suffix != NULL) {
+		if (strlcat(path, *suffix, path_size) < path_size) {
+			if (kld_ok(path))
+				return (1);
+		}
+
+		/* Restore original path to remove suffix. */
+		*ep = '\0';
+		suffix++;
+	}
+	return (0);
+}
+
+/*
+ * Try to find the path for a kld by looking in the kernel's directory and
+ * in the various paths in the module path.
  */
 static int
 find_kld_path (char *filename, char *path, size_t path_size)
 {
 	CORE_ADDR module_path_addr;
-	char module_path[PATH_MAX];
+	char *module_path;
 	char *kernel_dir, *module_dir, *cp;
+	int error;
 
-	snprintf(path, path_size, "%s.symbols", filename);
-	if (kld_ok(path))
-		return (1);
-	snprintf(path, path_size, "%s.debug", filename);
-	if (kld_ok(path))
-		return (1);
-	snprintf(path, path_size, "%s", filename);
-	if (kld_ok(path))
-		return (1);
 	kernel_dir = dirname(kernel);
 	if (kernel_dir != NULL) {
-		snprintf(path, path_size, "%s/%s.symbols", kernel_dir,
-		    filename);
-		if (kld_ok(path))
-			return (1);
-		snprintf(path, path_size, "%s/%s.debug", kernel_dir, filename);
-		if (kld_ok(path))
-			return (1);
 		snprintf(path, path_size, "%s/%s", kernel_dir, filename);
-		if (kld_ok(path))
+		if (check_kld_path(path, path_size))
 			return (1);
 	}
 	module_path_addr = kgdb_parse("linker_path");
-	if (module_path_addr != 0 &&
-	    kvm_read(kvm, module_path_addr, module_path, sizeof(module_path)) ==
-	    sizeof(module_path)) {
-		module_path[PATH_MAX - 1] = '\0';
-		cp = module_path;
-		while ((module_dir = strsep(&cp, ";")) != NULL) {
-			snprintf(path, path_size, "%s/%s.symbols", module_dir,
-			    filename);
-			if (kld_ok(path))
-				return (1);
-			snprintf(path, path_size, "%s/%s.debug", module_dir,
-			    filename);
-			if (kld_ok(path))
-				return (1);
-			snprintf(path, path_size, "%s/%s", module_dir,
-			    filename);
-			if (kld_ok(path))
-				return (1);			
+	if (module_path_addr != 0) {
+		target_read_string(module_path_addr, &module_path, PATH_MAX,
+		    &error);
+		if (error == 0) {
+			make_cleanup(xfree, module_path);
+			cp = module_path;
+			while ((module_dir = strsep(&cp, ";")) != NULL) {
+				snprintf(path, path_size, "%s/%s", module_dir,
+				    filename);
+				if (check_kld_path(path, path_size))
+					return (1);
+			}
 		}
-	}	
+	}
 	return (0);
 }
 
@@ -150,36 +164,29 @@ read_pointer (CORE_ADDR address)
 static int
 find_kld_address (char *arg, CORE_ADDR *address)
 {
-	CORE_ADDR kld, filename_addr;
-	CORE_ADDR off_address, off_filename, off_next;
-	char kld_filename[PATH_MAX];
+	CORE_ADDR kld;
+	char *kld_filename;
 	char *filename;
-	size_t filelen;
+	int error;
 
-	/* Compute offsets of relevant members in struct linker_file. */
-	off_address = kgdb_parse("&((struct linker_file *)0)->address");
-	off_filename = kgdb_parse("&((struct linker_file *)0)->filename");
-	off_next = kgdb_parse("&((struct linker_file *)0)->link.tqe_next");
 	if (off_address == 0 || off_filename == 0 || off_next == 0)
 		return (0);
 
 	filename = basename(arg);
-	filelen = strlen(filename) + 1;
 	kld = kgdb_parse("linker_files.tqh_first");
 	while (kld != 0) {
 		/* Try to read this linker file's filename. */
-		filename_addr = read_pointer(kld + off_filename);
-		if (filename_addr == 0)
-			goto next_kld;
-		if (kvm_read(kvm, filename_addr, kld_filename, filelen) !=
-		    filelen)
+		target_read_string(read_pointer(kld + off_filename),
+		    &kld_filename, PATH_MAX, &error);
+		if (error)
 			goto next_kld;
 
 		/* Compare this kld's filename against our passed in name. */
-		if (kld_filename[filelen - 1] != '\0')
+		if (strcmp(kld_filename, filename) != 0) {
+			xfree(kld_filename);
 			goto next_kld;
-		if (strcmp(kld_filename, filename) != 0)
-			goto next_kld;
+		}
+		xfree(kld_filename);
 
 		/*
 		 * We found a match, use its address as the base
@@ -196,109 +203,208 @@ find_kld_address (char *arg, CORE_ADDR *address)
 	return (0);
 }
 
-static void
-add_section(struct section_addr_info *section_addrs, int *sect_indexp,
-    char *name, CORE_ADDR address)
-{
+struct add_section_info {
+	struct section_addr_info *section_addrs;
 	int sect_index;
+	CORE_ADDR base_addr;
+	int add_kld_command;
+};
 
-	sect_index = *sect_indexp;
-	section_addrs->other[sect_index].name = name;
-	section_addrs->other[sect_index].addr = address;
-	printf_unfiltered("\t%s_addr = %s\n", name,
-	    local_hex_string(address));
-	sect_index++;
-	*sect_indexp = sect_index;
+static void
+add_section (bfd *bfd, asection *sect, void *arg)
+{
+	struct add_section_info *asi = arg;
+	CORE_ADDR address;
+	char *name;
+
+	/* Ignore non-resident sections. */
+	if ((bfd_get_section_flags(bfd, sect) & (SEC_ALLOC | SEC_LOAD)) == 0)
+		return;
+
+	name = xstrdup(bfd_get_section_name(bfd, sect));
+	make_cleanup(xfree, name);
+	address = asi->base_addr + bfd_get_section_vma(bfd, sect);
+	asi->section_addrs->other[asi->sect_index].name = name;
+	asi->section_addrs->other[asi->sect_index].addr = address;
+	asi->section_addrs->other[asi->sect_index].sectindex = sect->index;
+	if (asi->add_kld_command)
+		printf_unfiltered("\t%s_addr = %s\n", name,
+		    local_hex_string(address));
+	asi->sect_index++;
+}
+
+static void
+load_kld (char *path, CORE_ADDR base_addr, int from_tty, int add_kld_command)
+{
+	struct add_section_info asi;
+	struct cleanup *cleanup;
+	bfd *bfd;
+
+	/* Open the kld. */
+	bfd = bfd_openr(path, gnutarget);
+	if (bfd == NULL)
+		error("\"%s\": can't open: %s", path,
+		    bfd_errmsg(bfd_get_error()));
+	cleanup = make_cleanup_bfd_close(bfd);
+
+	if (!bfd_check_format(bfd, bfd_object))
+		error("\%s\": not an object file", path);
+
+	/* Make sure we have a .text section. */
+	if (bfd_get_section_by_name (bfd, ".text") == NULL)
+		error("\"%s\": can't find text section", path);
+
+	if (add_kld_command)
+		printf_unfiltered("add symbol table from file \"%s\" at\n",
+		    path);
+
+	/* Build a section table for symbol_file_add() from the bfd sections. */
+	asi.section_addrs = alloc_section_addr_info(bfd_count_sections(bfd));
+	cleanup = make_cleanup(xfree, asi.section_addrs);
+	asi.sect_index = 0;
+	asi.base_addr = base_addr;
+	asi.add_kld_command = add_kld_command;
+	bfd_map_over_sections(bfd, add_section, &asi);
+
+	if (from_tty && (!query("%s", "")))
+		error("Not confirmed.");
+
+	symbol_file_add(path, from_tty, asi.section_addrs, 0,
+	    add_kld_command ? OBJF_USERLOADED : 0);
+
+	do_cleanups(cleanup);
 }
 
 void
 kgdb_add_kld_cmd (char *arg, int from_tty)
 {
-	struct section_addr_info *section_addrs;
-	struct cleanup *cleanup;
 	char path[PATH_MAX];
-	asection *sect;
 	CORE_ADDR base_addr;
-	bfd *bfd;
-	CORE_ADDR text_addr, data_addr, bss_addr, rodata_addr;
-	int sect_count, sect_index;
 
-	if (!find_kld_path(arg, path, sizeof(path))) {
-		error("unable to locate kld");
-		return;
+	/* Try to open the raw path to handle absolute paths first. */
+	snprintf(path, sizeof(path), "%s", arg);
+	if (!check_kld_path(path, sizeof(path))) {
+
+		/*
+		 * If that didn't work, look in the various possible
+		 * paths for the module.
+		 */
+		if (!find_kld_path(arg, path, sizeof(path))) {
+			error("Unable to locate kld");
+			return;
+		}
 	}
 
 	if (!find_kld_address(arg, &base_addr)) {
-		error("unable to find kld in kernel");
+		error("Unable to find kld in kernel");
 		return;
 	}
 
-	/* Open the kld and find the offsets of the various sections. */
-	bfd = bfd_openr(path, gnutarget);
-	if (bfd == NULL) {
-		error("\"%s\": can't open: %s", path,
-		    bfd_errmsg(bfd_get_error()));
-		return;
-	}
-	cleanup = make_cleanup_bfd_close(bfd);
-
-	if (!bfd_check_format(bfd, bfd_object)) {
-		do_cleanups(cleanup);
-		error("\%s\": not an object file", path);
-		return;
-	}
-
-	data_addr = bss_addr = rodata_addr = 0;
-	sect = bfd_get_section_by_name (bfd, ".text");
-	if (sect == NULL) {
-		do_cleanups(cleanup);
-		error("\"%s\": can't find text section", path);
-		return;
-	}
-	text_addr = bfd_get_section_vma(bfd, sect);
-	sect_count = 1;
-
-	/* Save the offsets of relevant sections. */
-	sect = bfd_get_section_by_name (bfd, ".data");
-	if (sect != NULL) {
-		data_addr = bfd_get_section_vma(bfd, sect);
-		sect_count++;
-	}
-
-	sect = bfd_get_section_by_name (bfd, ".bss");
-	if (sect != NULL) {
-		bss_addr = bfd_get_section_vma(bfd, sect);
-		sect_count++;
-	}
-
-	sect = bfd_get_section_by_name (bfd, ".rodata");
-	if (sect != NULL) {
-		rodata_addr = bfd_get_section_vma(bfd, sect);
-		sect_count++;
-	}
-
-	do_cleanups(cleanup);
-
-	printf_unfiltered("add symbol table from file \"%s\" at\n", path);
-
-	/* Build a section table for symbol_file_add(). */
-	section_addrs = alloc_section_addr_info(sect_count);
-	cleanup = make_cleanup(xfree, section_addrs);
-	sect_index = 0;
-	add_section(section_addrs, &sect_index, ".text", base_addr + text_addr);
-	if (data_addr != 0)
-		add_section(section_addrs, &sect_index, ".data",
-		    base_addr + data_addr);
-	if (bss_addr != 0)
-		add_section(section_addrs, &sect_index, ".bss",
-		    base_addr + bss_addr);
-	if (rodata_addr != 0)
-		add_section(section_addrs, &sect_index, ".rodata",
-		    base_addr + rodata_addr);
-
-	symbol_file_add(path, from_tty, section_addrs, 0, OBJF_USERLOADED);
+	load_kld(path, base_addr, from_tty, 1);
 
 	reinit_frame_cache();
+}
+
+static void
+dummy_cleanup (void *arg)
+{
+}
+
+static void
+load_single_kld (CORE_ADDR kld)
+{
+	CORE_ADDR address;
+	char kldpath[PATH_MAX];
+	char *path, *filename;
+	int errcode, path_ok;
+
+	/* Try to read this linker file's filename. */
+	target_read_string(read_pointer(kld + off_filename), &filename,
+	    PATH_MAX, &errcode);
+	if (errcode)
+		error("Unable to read kld filename");
+
+	make_cleanup(xfree, filename);
+	path_ok = 0;
+
+	/* Try to read this linker file's pathname. */
+	if (off_pathname != 0) {
+		target_read_string(read_pointer(kld + off_pathname), &path,
+		    PATH_MAX, &errcode);
+		if (errcode == 0) {
+			make_cleanup(xfree, path);
+
+			/*
+			 * If we have a pathname, try to load the kld
+			 * from there.
+			 */
+			strlcpy(kldpath, path, sizeof(kldpath));
+			if (check_kld_path(kldpath, sizeof(kldpath)))
+				path_ok = 1;
+		}
+	}
+
+	/*
+	 * If we didn't get a pathname from the linker file path, try
+	 * to find this kld in the various search paths.
+	 */
+	if (!path_ok && !find_kld_path(filename, kldpath, sizeof(kldpath)))
+		error("Unable to find kld file for \"%s\".", filename);
+
+	/* Read this kld's base address and add its symbols. */
+	address = read_pointer(kld + off_address);
+	if (address == 0)
+		error("Invalid address for kld \"%s\"", filename);
+
+	load_kld(kldpath, address, 0, 0);
+
+	printf_unfiltered("Loaded symbols for kld \"%s\" from \"%s\"\n",
+	    filename, path);
+}
+
+static int
+load_kld_stub (void *arg)
+{
+	CORE_ADDR kld = *(CORE_ADDR *)arg;
+
+	load_single_kld(kld);
+
+	return (1);
+}
+
+void
+kgdb_auto_load_klds (void)
+{
+	struct cleanup *cleanup;
+	CORE_ADDR kld, kernel;
+	int loaded_kld;
+
+	/* Compute offsets of relevant members in struct linker_file. */
+	off_address = kgdb_parse("&((struct linker_file *)0)->address");
+	off_filename = kgdb_parse("&((struct linker_file *)0)->filename");
+	off_pathname = kgdb_parse("&((struct linker_file *)0)->pathname");
+	off_next = kgdb_parse("&((struct linker_file *)0)->link.tqe_next");
+	if (off_address == 0 || off_filename == 0 || off_next == 0)
+		return;
+
+	/* Walk the list of linker files auto-loading klds. */
+	cleanup = make_cleanup(dummy_cleanup, NULL);
+	loaded_kld = 0;
+	kld = kgdb_parse("linker_files.tqh_first");
+	kernel = kgdb_parse("linker_kernel_file");
+	for (kld = kgdb_parse("linker_files.tqh_first"); kld != 0;
+	     kld = read_pointer(kld + off_next)) {
+		/* Skip the main kernel file. */
+		if (kld == kernel)
+			continue;
+
+		if (catch_errors(load_kld_stub, &kld,
+		    "Error while reading kld symbols:\n", RETURN_MASK_ALL))
+			loaded_kld = 1;
+	}
 
 	do_cleanups(cleanup);
+
+	if (loaded_kld)
+		reinit_frame_cache();
 }
