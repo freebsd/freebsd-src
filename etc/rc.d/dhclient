@@ -1,12 +1,10 @@
 #!/bin/sh
 #
-# $NetBSD: dhclient,v 1.8 2002/03/22 04:33:58 thorpej Exp $
 # $FreeBSD$
 #
 
 # PROVIDE: dhclient
 # KEYWORD: nojail nostart
-#
 
 . /etc/rc.subr
 . /etc/network.subr

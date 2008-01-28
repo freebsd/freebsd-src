@@ -4,7 +4,6 @@
 #
 
 # Start keyserv if we are running Secure RPC
-#
 
 # PROVIDE: keyserv
 # REQUIRE: ypbind
