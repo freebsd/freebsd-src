@@ -1,6 +1,5 @@
 #!/bin/sh
 #
-# $NetBSD: ipfilter,v 1.10 2001/02/28 17:03:50 lukem Exp $
 # $FreeBSD$
 #
 

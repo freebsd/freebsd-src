@@ -1,6 +1,5 @@
 #!/bin/sh
 #
-# $NetBSD: newsyslog,v 1.5 2002/03/24 15:51:26 lukem Exp $
 # $FreeBSD$
 #
 
