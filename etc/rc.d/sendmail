@@ -1,6 +1,5 @@
 #!/bin/sh
 #
-# $NetBSD: sendmail,v 1.14 2002/02/12 01:26:36 lukem Exp $
 # $FreeBSD$
 #
 
@@ -11,7 +10,7 @@
 
 # XXX - Get together with sendmail mantainer to figure out how to
 #	better handle SENDMAIL_ENABLE and 3rd party MTAs.
-#
+
 . /etc/rc.subr
 
 name="sendmail"
