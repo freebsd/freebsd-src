@@ -93,12 +93,12 @@ float
 exp2f(float x)
 {
 	double tv;
-	float r, t, z;
-	uint32_t hx, hr, ix, i0;
+	float t, z;
+	uint32_t hx, htv, ix, i0;
 	int32_t k;
 
 	/* Filter out exceptional cases. */
-	GET_FLOAT_WORD(hx,x);
+	GET_FLOAT_WORD(hx, x);
 	ix = hx & 0x7fffffff;		/* high word of |x| */
 	if(ix >= 0x43000000) {			/* |x| >= 128 */
 		if(ix >= 0x7f800000) {
@@ -119,25 +119,19 @@ exp2f(float x)
 	STRICT_ASSIGN(float, t, x + redux);
 	GET_FLOAT_WORD(i0, t);
 	i0 += TBLSIZE / 2;
-	k = (i0 >> TBLBITS) << 23;
+	k = (i0 >> TBLBITS) << 20;
 	i0 &= TBLSIZE - 1;
 	t -= redux;
 	z = x - t;
 
 	/* Compute r = exp2(y) = exp2ft[i0] * p(z). */
 	tv = exp2ft[i0];
-	r = tv + tv * (z * (P1 + z * (P2 + z * (P3 + z * P4))));
+	tv = tv + tv * (z * (P1 + z * (P2 + z * (P3 + z * P4))));
 
-	/* Scale by 2**(k>>23). */
-	if(k >= -125 << 23) {
-		if (k != 0) {
-			GET_FLOAT_WORD(hr, r);
-			SET_FLOAT_WORD(r, hr + k);
-		}
-		return (r);
-	} else {
-		GET_FLOAT_WORD(hr, r);
-		SET_FLOAT_WORD(r, hr + (k + (100 << 23)));
-		return (r * twom100);
+	/* Scale by 2**(k>>20). */
+	if (k != 0) {
+		GET_HIGH_WORD(htv, tv);
+		SET_HIGH_WORD(tv, htv + k);
 	}
+	return (tv);
 }
