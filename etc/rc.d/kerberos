@@ -10,7 +10,6 @@
 
 name="kerberos5"
 rcvar="kerberos5_server_enable"
-command_args="--detach"
 
 load_rc_config $name
 command="${kerberos5_server}"
