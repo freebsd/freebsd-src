@@ -1,6 +1,5 @@
 #!/bin/sh
 #
-# $NetBSD: savecore,v 1.5 2002/03/22 04:34:00 thorpej Exp $
 # $FreeBSD$
 #
 
