@@ -173,18 +173,18 @@ find_kld_address (char *arg, CORE_ADDR *address)
 		return (0);
 
 	filename = basename(arg);
-	kld = kgdb_parse("linker_files.tqh_first");
-	while (kld != 0) {
+	for (kld = kgdb_parse("linker_files.tqh_first"); kld != 0;
+	     kld = read_pointer(kld + off_next)) {
 		/* Try to read this linker file's filename. */
 		target_read_string(read_pointer(kld + off_filename),
 		    &kld_filename, PATH_MAX, &error);
 		if (error)
-			goto next_kld;
+			continue;
 
 		/* Compare this kld's filename against our passed in name. */
 		if (strcmp(kld_filename, filename) != 0) {
 			xfree(kld_filename);
-			goto next_kld;
+			continue;
 		}
 		xfree(kld_filename);
 
@@ -196,9 +196,6 @@ find_kld_address (char *arg, CORE_ADDR *address)
 		if (*address == 0)
 			return (0);
 		return (1);
-
-	next_kld:
-		kld = read_pointer(kld + off_next);
 	}
 	return (0);
 }
