@@ -141,8 +141,10 @@ kgdb_trgt_fetch_tss(void)
 	 */ 
 	if (trunc_page(tss) == 0xffc00000) {
 		addr = kgdb_lookup("_cpu0prvpage");
-		if (addr == 0)
+		if (addr == 0) {
+			warnx("kvm_nlist(_cpu0prvpage): %s", kvm_geterr(kvm));
 			return (0);
+		}
 		if (kvm_read(kvm, addr, &cpu0prvpage, sizeof(cpu0prvpage)) !=
 		    sizeof(cpu0prvpage)) {
 			warnx("kvm_read: %s", kvm_geterr(kvm));
