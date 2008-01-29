@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 23, 2005
+.Dd January 29, 2008
 .Dt EXTATTR 2
 .Os
 .Sh NAME
@@ -120,6 +120,8 @@ is
 .Dv NULL
 in a call to
 .Fn extattr_get_file
+and
+.Fn extattr_list_file
 then the size of defined extended attribute data will be returned, rather
 than the quantity read, permitting applications to test the size of the
 data without performing a read.
@@ -134,8 +136,9 @@ they do not follow symlinks.
 The
 .Fn extattr_get_fd ,
 .Fn extattr_set_fd ,
+.Fn extattr_delete_fd ,
 and
-.Fn extattr_delete_fd
+.Fn extattr_list_fd ,
 calls are identical to their
 .Qq Li _file
 counterparts except for the first argument.
@@ -170,9 +173,10 @@ change as applications are adapted to use it.
 Developers are discouraged from relying on its stability.
 .Sh RETURN VALUES
 If successful, the
-.Fn extattr_get_file
+.Fn extattr_get_file ,
+.Fn extattr_set_file ,
 and
-.Fn extattr_set_file
+.Fn extattr_list_file
 calls return the number of bytes
 that were read or written from the
 .Fa data ,
@@ -182,7 +186,9 @@ was
 .Dv NULL ,
 then
 .Fn extattr_get_file
-returns the number of bytes available to read.
+and
+.Fn extattr_list_file
+return the number of bytes available to read.
 If any of the calls are unsuccessful, the value \-1 is returned
 and the global variable
 .Va errno
@@ -213,8 +219,9 @@ The attribute name was longer than
 The
 .Fn extattr_get_fd ,
 .Fn extattr_set_fd ,
+.Fn extattr_delete_fd ,
 and
-.Fn extattr_delete_fd
+.Fn extattr_list_fd
 system calls may also fail if:
 .Bl -tag -width Er
 .It Bq Er EBADF
