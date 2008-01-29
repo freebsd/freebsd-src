@@ -71,7 +71,7 @@
 #include "patchlevel.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$File: file.c,v 1.111 2007/05/08 14:44:18 christos Exp $")
+FILE_RCSID("@(#)$File: file.c,v 1.117 2007/12/27 16:35:58 christos Exp $")
 #endif	/* lint */
 
 
@@ -122,7 +122,8 @@ private void load(const char *, int);
 int
 main(int argc, char *argv[])
 {
-	int c, i;
+	int c;
+	size_t i;
 	int action = 0, didsomefiles = 0, errflg = 0;
 	int flags = 0;
 	char *home, *usermagic;
@@ -133,33 +134,15 @@ main(int argc, char *argv[])
 	int longindex;
 	static const struct option long_options[] =
 	{
-		{"version", 0, 0, 'v'},
-		{"help", 0, 0, 0},
-		{"brief", 0, 0, 'b'},
-		{"checking-printout", 0, 0, 'c'},
-		{"debug", 0, 0, 'd'},
-		{"exclude", 1, 0, 'e' },
-		{"files-from", 1, 0, 'f'},
-		{"separator", 1, 0, 'F'},
-		{"mime", 0, 0, 'i'},
-		{"keep-going", 0, 0, 'k'},
-#ifdef S_IFLNK
-		{"dereference", 0, 0, 'L'},
-		{"no-dereference", 0, 0, 'h'},
-#endif
-		{"magic-file", 1, 0, 'm'},
-#if defined(HAVE_UTIME) || defined(HAVE_UTIMES)
-		{"preserve-date", 0, 0, 'p'},
-#endif
-		{"uncompress", 0, 0, 'z'},
-		{"raw", 0, 0, 'r'},
-		{"no-buffer", 0, 0, 'n'},
-		{"no-pad", 0, 0, 'N'},
-		{"special-files", 0, 0, 's'},
-		{"compile", 0, 0, 'C'},
-		{"print0", 0, 0, '0'},
-		{0, 0, 0, 0},
-	};
+#define OPT(shortname, longname, opt, doc)      \
+    {longname, opt, NULL, shortname},
+#define OPT_LONGONLY(longname, opt, doc)        \
+    {longname, opt, NULL, 0},
+#include "file_opts.h"
+#undef OPT
+#undef OPT_LONGONLY
+    {0, 0, NULL, 0}
+};
 #endif
 
 	static const struct {
@@ -170,7 +153,6 @@ main(int argc, char *argv[])
 		{ "ascii",	MAGIC_NO_CHECK_ASCII },
 		{ "compress",	MAGIC_NO_CHECK_COMPRESS },
 		{ "elf",	MAGIC_NO_CHECK_ELF },
-		{ "fortran",	MAGIC_NO_CHECK_FORTRAN },
 		{ "soft",	MAGIC_NO_CHECK_SOFT },
 		{ "tar",	MAGIC_NO_CHECK_TAR },
 		{ "tokens",	MAGIC_NO_CHECK_TOKENS },
@@ -220,15 +202,24 @@ main(int argc, char *argv[])
 		switch (c) {
 #ifdef HAVE_GETOPT_LONG
 		case 0 :
-			if (longindex == 1)
+			switch (longindex) {
+			case 0:
 				help();
+				break;
+			case 10:
+				flags |= MAGIC_MIME_TYPE;
+				break;
+			case 11:
+				flags |= MAGIC_MIME_ENCODING;
+				break;
+			}
 			break;
 #endif
 		case '0':
 			nulsep = 1;
 			break;
 		case 'b':
-			++bflag;
+			bflag++;
 			break;
 		case 'c':
 			action = FILE_CHECK;
@@ -287,9 +278,9 @@ main(int argc, char *argv[])
 			flags |= MAGIC_DEVICES;
 			break;
 		case 'v':
-			(void)fprintf(stdout, "%s-%d.%.2d\n", progname,
+			(void)fprintf(stderr, "%s-%d.%.2d\n", progname,
 				       FILE_VERSION_MAJOR, patchlevel);
-			(void)fprintf(stdout, "magic file from %s\n",
+			(void)fprintf(stderr, "magic file from %s\n",
 				       magicfile);
 			return 1;
 		case 'z':
@@ -341,11 +332,18 @@ main(int argc, char *argv[])
 		}
 	}
 	else {
-		int i, wid, nw;
-		for (wid = 0, i = optind; i < argc; i++) {
-			nw = file_mbswidth(argv[i]);
+		size_t j, wid, nw;
+		for (wid = 0, j = (size_t)optind; j < (size_t)argc; j++) {
+			nw = file_mbswidth(argv[j]);
 			if (nw > wid)
 				wid = nw;
+		}
+		/*
+		 * If bflag is only set twice, set it depending on
+		 * number of files [this is undocumented, and subject to change]
+		 */
+		if (bflag == 2) {
+			bflag = optind >= argc - 1;
 		}
 		for (; optind < argc; optind++)
 			process(argv[optind], wid);
@@ -383,7 +381,6 @@ unwrap(char *fn)
 	char buf[MAXPATHLEN];
 	FILE *f;
 	int wid = 0, cwid;
-	size_t len;
 
 	if (strcmp("-", fn) == 0) {
 		f = stdin;
@@ -396,9 +393,7 @@ unwrap(char *fn)
 		}
 
 		while (fgets(buf, MAXPATHLEN, f) != NULL) {
-			len = strlen(buf);
-			if (len > 0 && buf[len - 1] == '\n')
-				buf[len - 1] = '\0';
+			buf[strcspn(buf, "\n")] = '\0';
 			cwid = file_mbswidth(buf);
 			if (cwid > wid)
 				wid = cwid;
@@ -407,10 +402,8 @@ unwrap(char *fn)
 		rewind(f);
 	}
 
-	while (fgets(buf, MAXPATHLEN, f) != NULL) {
-		len = strlen(buf);
-		if (len > 0 && buf[len - 1] == '\n')
-			buf[len - 1] = '\0';
+	while (fgets(buf, sizeof(buf), f) != NULL) {
+		buf[strcspn(buf, "\n")] = '\0';
 		process(buf, wid);
 		if(nobuffer)
 			(void)fflush(stdout);
@@ -551,38 +544,17 @@ usage(void)
 private void
 help(void)
 {
-	(void)puts(
-"Usage: file [OPTION]... [FILE]...\n"
-"Determine file type of FILEs.\n"
-"\n"
-"  -m, --magic-file LIST      use LIST as a colon-separated list of magic\n"
-"                               number files\n"
-"  -z, --uncompress           try to look inside compressed files\n"
-"  -b, --brief                do not prepend filenames to output lines\n"
-"  -c, --checking-printout    print the parsed form of the magic file, use in\n"
-"                               conjunction with -m to debug a new magic file\n"
-"                               before installing it\n"
-"  -e, --exclude              exclude test from the list of test to be\n"
-"                               performed for file. Valid tests are:\n"
-"                               ascii, apptype, elf, compress, soft, tar\n"
-"  -f, --files-from FILE      read the filenames to be examined from FILE\n"
-"  -F, --separator string     use string as separator instead of `:'\n"
-"  -i, --mime                 output mime type strings\n"
-"  -k, --keep-going           don't stop at the first match\n"
-"  -L, --dereference          causes symlinks to be followed\n"
-"  -n, --no-buffer            do not buffer output\n"
-"  -N, --no-pad               do not pad output\n"
-"  -p, --preserve-date        preserve access times on files\n"
-"  -r, --raw                  don't translate unprintable chars to \\ooo\n"
-"  -s, --special-files        treat special (block/char devices) files as\n"
-"                             ordinary ones\n"
-"or\n"
-"      --help                 display this help and exit\n"
-"or\n"
-"      --version              output version information and exit\n"
-"or\n"
-"  -C, --compile              compile file specified by -m\n"
-);
+	(void)fputs(
+"Usage: file [OPTION...] [FILE...]\n"
+"Determine type of FILEs.\n"
+"\n", stderr);
+#define OPT(shortname, longname, opt, doc)      \
+        fprintf(stderr, "  -%c, --" longname doc, shortname);
+#define OPT_LONGONLY(longname, opt, doc)        \
+        fprintf(stderr, "      --" longname doc);
+#include "file_opts.h"
+#undef OPT
+#undef OPT_LONGONLY
 	exit(0);
 }
 #endif
