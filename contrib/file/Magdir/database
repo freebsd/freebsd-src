@@ -210,3 +210,13 @@
 16	string		MIT-MAGIC-COOKIE-1	X11 Xauthority data
 17	string		MIT-MAGIC-COOKIE-1	X11 Xauthority data
 18	string		MIT-MAGIC-COOKIE-1	X11 Xauthority data
+
+# From: Maxime Henrion <mux@FreeBSD.org>
+# PostgreSQL's custom dump format, Maxime Henrion <mux@FreeBSD.org>
+0	string		PGDMP		PostgreSQL custom database dump
+>5	byte		x		- v%d
+>6	byte		x		\b.%d
+>5	beshort		<=0x100		\b-0
+>5	beshort		>0x100
+>>7	byte		x		\b-%d
+
