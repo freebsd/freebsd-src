@@ -13,7 +13,7 @@
 .\"     @(#)kbdcontrol.1
 .\" $FreeBSD$
 .\"
-.Dd November 16, 2006
+.Dd January 29, 2008
 .Dt KBDCONTROL 1
 .Os
 .Sh NAME
@@ -122,6 +122,9 @@ Install keyboard map file from
 .Ar keymap_file .
 You may load the keyboard map file from a menu-driven command,
 .Xr kbdmap 1 .
+The format of keyboard map files is documented in the
+.Xr kbdmap 5
+manual page.
 .It Fl d
 Dump the current keyboard map onto stdout.
 The output may be redirected to a file and can be loaded
