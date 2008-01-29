@@ -204,7 +204,6 @@ static void
 kgdb_init_target(void)
 {
 	CORE_ADDR bufp;
-	bfd *kern_bfd;
 	int size, rseq, wseq;
 	int kern_desc;
 	char c;
@@ -228,7 +227,6 @@ kgdb_init_target(void)
         }
 
 	set_gdbarch_from_file (kern_bfd);
-	bfd_close(kern_bfd);
 
 	symbol_file_add_main (kernel, 0);
 	if (remote)
