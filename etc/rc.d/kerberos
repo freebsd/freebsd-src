@@ -13,4 +13,5 @@ rcvar="kerberos5_server_enable"
 
 load_rc_config $name
 command="${kerberos5_server}"
+kerberos5_flags="${kerberos5_server_flags}"
 run_rc_command "$1"
