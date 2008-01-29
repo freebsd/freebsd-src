@@ -50,6 +50,7 @@ extern struct kthr *curkthr;
 
 void kgdb_add_kld_cmd(char *, int);
 void kgdb_auto_load_klds(void);
+void kgdb_kld_init(void);
 void kgdb_target(void);
 void kgdb_trgt_fetch_registers(int);
 void kgdb_trgt_store_registers(int);
