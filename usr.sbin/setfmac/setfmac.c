@@ -156,13 +156,11 @@ main(int argc, char **argv)
 		case FTS_W:		/* do whiteout */
 			if (apply_specs(specs, ftsent, hflag, vflag)) {
 				if (eflag) {
-					errx(1, "labeling not supported in "
-					    "%.*s", (int) ftsent->fts_pathlen,
+					errx(1, "labeling not supported in %s",
 					    ftsent->fts_path);
 				}
 				if (!qflag)
-					warnx("labeling not supported in %.*s",
-					    (int) ftsent->fts_pathlen,
+					warnx("labeling not supported in %s",
 					    ftsent->fts_path);
 				fts_set(fts, ftsent, FTS_SKIP);
 			}
@@ -170,12 +168,10 @@ main(int argc, char **argv)
 		case FTS_DNR:		/* die on all errors */
 		case FTS_ERR:
 		case FTS_NS:
-			err(1, "traversing %.*s", (int) ftsent->fts_pathlen,
-			    ftsent->fts_path);
+			err(1, "traversing %s", ftsent->fts_path);
 		default:
-			errx(1, "CANNOT HAPPEN (%d) traversing %.*s",
-			    ftsent->fts_info, (int) ftsent->fts_pathlen,
-			    ftsent->fts_path);
+			errx(1, "CANNOT HAPPEN (%d) traversing %s",
+			    ftsent->fts_info, ftsent->fts_path);
 		}
 	}
 	fts_close(fts);
@@ -438,8 +434,7 @@ apply_specs(struct label_specs *specs, FTSENT *ftsent, int hflag, int vflag)
 			ls->match = ent;
 			if (vflag) {
 				if (matchedby == 0) {
-					printf("%.*s matched by ",
-					    (int) ftsent->fts_pathlen,
+					printf("%s matched by ",
 					    ftsent->fts_path);
 					matchedby = 1;
 				}
@@ -483,8 +478,7 @@ apply_specs(struct label_specs *specs, FTSENT *ftsent, int hflag, int vflag)
 			free(macstr);
 			return (1);
 		}
-		err(1, "mac_set_link(%.*s, %s)", (int) ftsent->fts_pathlen,
-		    ftsent->fts_path, macstr);
+		err(1, "mac_set_link(%s, %s)", ftsent->fts_path, macstr);
 	}
 	mac_free(mac);
 	free(macstr);
