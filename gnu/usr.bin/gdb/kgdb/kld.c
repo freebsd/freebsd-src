@@ -136,25 +136,12 @@ find_kld_path (char *filename, char *path, size_t path_size)
 static CORE_ADDR
 read_pointer (CORE_ADDR address)
 {
-	union {
-		uint32_t d32;
-		uint64_t d64;
-	} val;
+	CORE_ADDR value;
 
-	switch (TARGET_PTR_BIT) {
-	case 32:
-		if (kvm_read(kvm, address, &val.d32, sizeof(val.d32)) !=
-		    sizeof(val.d32))
-			return (0);
-		return (val.d32);
-	case 64:
-		if (kvm_read(kvm, address, &val.d64, sizeof(val.d64)) !=
-		    sizeof(val.d64))
-			return (0);
-		return (val.d64);
-	default:
-		return (0);
-	}
+	if (target_read_memory(address, (char *)&value, TARGET_PTR_BIT / 8) !=
+	    0)
+		return (0);	
+	return (extract_unsigned_integer(&value, TARGET_PTR_BIT / 8));
 }
 
 /*
