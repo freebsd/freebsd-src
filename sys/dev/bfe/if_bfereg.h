@@ -73,6 +73,10 @@
 #define BFE_CTRL_LED        0x000000e0 /* Onchip EPHY LED Control */
 #define BFE_CTRL_LED_SHIFT  5
 
+#define BFE_MAC_FLOW        0x000000AC /* MAC Flow Control */
+#define BFE_FLOW_RX_HIWAT   0x000000ff /* Onchip FIFO HI Water Mark */
+#define BFE_FLOW_PAUSE_ENAB 0x00008000 /* Enable Pause Frame Generation */
+
 #define BFE_RCV_LAZY        0x00000100 /* Lazy Interrupt Control */
 #define BFE_LAZY_TO_MASK    0x00ffffff /* Timeout */
 #define BFE_LAZY_FC_MASK    0xff000000 /* Frame Count */
@@ -504,7 +508,7 @@ struct bfe_softc
     void                    *bfe_intrhand;
     struct resource         *bfe_irq;
     struct resource         *bfe_res;
-    struct callout_handle   bfe_stat_ch;
+    struct callout          bfe_stat_co;
     struct bfe_hw_stats     bfe_hwstats;
     struct bfe_desc         *bfe_tx_list, *bfe_rx_list;
     struct bfe_data         bfe_tx_ring[BFE_TX_LIST_CNT]; /* XXX */
@@ -517,6 +521,7 @@ struct bfe_softc
     u_int32_t               bfe_rx_cnt, bfe_rx_prod, bfe_rx_cons;
     u_int32_t               bfe_tx_dma, bfe_rx_dma;
     u_int32_t               bfe_link;
+    int                     bfe_watchdog_timer;
     u_int8_t                bfe_phyaddr; /* Address of the card's PHY */
     u_int8_t                bfe_mdc_port;
     u_int8_t                bfe_unit;   /* interface number */
