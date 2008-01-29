@@ -243,8 +243,5 @@ kgdb_target(void)
 	   "Set current process context");
 	add_com ("tid", class_obscure, kgdb_set_tid_cmd,
 	   "Set current thread context");
-	add_com ("add-kld", class_files, kgdb_add_kld_cmd,
-	   "Usage: add-kld FILE\n\
-Load the symbols from the kernel loadable module FILE.");
-	kgdb_auto_load_klds();
+	kgdb_kld_init();
 }
