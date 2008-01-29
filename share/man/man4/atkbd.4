@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 21, 1999
+.Dd January 29, 2008
 .Dt ATKBD 4
 .Os
 .Sh NAME
@@ -68,6 +68,11 @@ They are numbered as follows and can be associated with strings
 by the
 .Xr kbdcontrol 1
 command.
+You can use a keyboard map file (see
+.Xr kbdmap 5 )
+to map them to arbitrary keys, particularly
+the functions in the range from 65 to 96
+which are not used by default.
 .Pp
 .Bl -tag -width "Function Key Number" -compact
 .It "Function Key number"
@@ -112,6 +117,8 @@ Left GUI Key
 Right GUI Key
 .It 64
 Menu
+.It "65, 66,...96"
+free (not used by default)
 .El
 .Pp
 See the man page for the
@@ -205,6 +212,7 @@ In both cases, you also need to have following lines in
 .Xr atkbdc 4 ,
 .Xr psm 4 ,
 .Xr syscons 4 ,
+.Xr kbdmap 5 ,
 .Xr loader 8
 .Sh HISTORY
 The
