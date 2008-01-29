@@ -711,6 +711,9 @@ int drm_close(struct cdev *kdev, int flags, int fmt, DRM_STRUCTPROC *p)
 		return EINVAL;
 	}
 
+	if (--priv->refs != 0)
+		goto done;
+
 	if (dev->driver.preclose != NULL)
 		dev->driver.preclose(dev, filp);
 
@@ -786,17 +789,17 @@ int drm_close(struct cdev *kdev, int flags, int fmt, DRM_STRUCTPROC *p)
 	dev->buf_pgid = 0;
 #endif /* __NetBSD__  || __OpenBSD__ */
 
-	if (--priv->refs == 0) {
-		if (dev->driver.postclose != NULL)
-			dev->driver.postclose(dev, priv);
-		TAILQ_REMOVE(&dev->files, priv, link);
-		free(priv, M_DRM);
-	}
+	if (dev->driver.postclose != NULL)
+		dev->driver.postclose(dev, priv);
+
+	TAILQ_REMOVE(&dev->files, priv, link);
+	free(priv, M_DRM);
 
 	/* ========================================================
 	 * End inline drm_release
 	 */
 
+	done:
 	atomic_inc( &dev->counts[_DRM_STAT_CLOSES] );
 #ifdef __FreeBSD__
 	device_unbusy(dev->device);
