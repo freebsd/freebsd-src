@@ -217,9 +217,11 @@ struct ng_ppp_private {
 	uint8_t			vjCompHooked;		/* VJ comp hooked up? */
 	uint8_t			allLinksEqual;		/* all xmit the same? */
 	hook_p			hooks[HOOK_INDEX_MAX];	/* non-link hooks */
+	struct ng_ppp_frag	fragsmem[MP_MAX_QUEUE_LEN]; /* fragments storage */
 	TAILQ_HEAD(ng_ppp_fraglist, ng_ppp_frag)	/* fragment queue */
 				frags;
-	int			qlen;			/* fraq queue length */
+	TAILQ_HEAD(ng_ppp_fragfreelist, ng_ppp_frag)	/* free fragment queue */
+				fragsfree;
 	struct callout		fragTimer;		/* fraq queue check */
 	struct mtx		rmtx;			/* recv mutex */
 	struct mtx		xmtx;			/* xmit mutex */
@@ -310,7 +312,7 @@ static void	ng_ppp_bump_mseq(node_p node, int32_t new_mseq);
 static int	ng_ppp_frag_drop(node_p node);
 static int	ng_ppp_check_packet(node_p node);
 static void	ng_ppp_get_packet(node_p node, struct mbuf **mp);
-static int	ng_ppp_frag_process(node_p node);
+static int	ng_ppp_frag_process(node_p node, item_p oitem);
 static int	ng_ppp_frag_trim(node_p node);
 static void	ng_ppp_frag_timeout(node_p node, hook_p hook, void *arg1,
 		    int arg2);
@@ -496,6 +498,9 @@ ng_ppp_constructor(node_p node)
 
 	/* Initialize state */
 	TAILQ_INIT(&priv->frags);
+	TAILQ_INIT(&priv->fragsfree);
+	for (i = 0; i < MP_MAX_QUEUE_LEN; i++)
+		TAILQ_INSERT_TAIL(&priv->fragsfree, &priv->fragsmem[i], f_qent);
 	for (i = 0; i < NG_PPP_MAX_LINKS; i++)
 		priv->links[i].seq = MP_NOSEQ;
 	ng_callout_init(&priv->fragTimer);
@@ -1489,7 +1494,7 @@ ng_ppp_mp_recv(node_p node, item_p item, uint16_t proto, uint16_t linkNum)
 {
 	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct ng_ppp_link *const link = &priv->links[linkNum];
-	struct ng_ppp_frag frag0, *frag = &frag0;
+	struct ng_ppp_frag *frag;
 	struct ng_ppp_frag *qent;
 	int i, diff, inserted;
 	struct mbuf *m;
@@ -1505,7 +1510,13 @@ ng_ppp_mp_recv(node_p node, item_p item, uint16_t proto, uint16_t linkNum)
 	}
 
 	NGI_GET_M(item, m);
-	NG_FREE_ITEM(item);
+
+	/* Get a new frag struct from the free queue */
+	if ((frag = TAILQ_FIRST(&priv->fragsfree)) == NULL) {
+		printf("No free fragments headers in ng_ppp!\n");
+		NG_FREE_M(m);
+		goto process;
+	}
 
 	/* Extract fragment information from MP header */
 	if (priv->conf.recvShortSeq) {
@@ -1564,13 +1575,8 @@ ng_ppp_mp_recv(node_p node, item_p item, uint16_t proto, uint16_t linkNum)
 			priv->mseq = alink->seq;
 	}
 
-	/* Allocate a new frag struct for the queue */
-	MALLOC(frag, struct ng_ppp_frag *, sizeof(*frag), M_NETGRAPH_PPP, M_NOWAIT);
-	if (frag == NULL) {
-		NG_FREE_M(m);
-		goto process;
-	}
-	*frag = frag0;
+	/* Remove frag struct from free queue. */
+	TAILQ_REMOVE(&priv->fragsfree, frag, f_qent);
 
 	/* Add fragment to queue, which is sorted by sequence number */
 	inserted = 0;
@@ -1583,21 +1589,23 @@ ng_ppp_mp_recv(node_p node, item_p item, uint16_t proto, uint16_t linkNum)
 		} else if (diff == 0) {	     /* should never happen! */
 			link->stats.dupFragments++;
 			NG_FREE_M(frag->data);
-			FREE(frag, M_NETGRAPH_PPP);
+			TAILQ_INSERT_HEAD(&priv->fragsfree, frag, f_qent);
 			ERROUT(EINVAL);
 		}
 	}
 	if (!inserted)
 		TAILQ_INSERT_HEAD(&priv->frags, frag, f_qent);
-	priv->qlen++;
 
 process:
 	/* Process the queue */
 	/* NOTE: rmtx will be unlocked for sending time! */
-	error = ng_ppp_frag_process(node);
+	error = ng_ppp_frag_process(node, item);
+	mtx_unlock(&priv->rmtx);
+	return (error);
 
 done:
 	mtx_unlock(&priv->rmtx);
+	NG_FREE_ITEM(item);
 	return (error);
 }
 
@@ -1693,8 +1701,7 @@ ng_ppp_get_packet(node_p node, struct mbuf **mp)
 			/* Bump MSEQ if necessary */
 			ng_ppp_bump_mseq(node, qent->seq);
 		}
-		FREE(qent, M_NETGRAPH_PPP);
-		priv->qlen--;
+		TAILQ_INSERT_HEAD(&priv->fragsfree, qent, f_qent);
 	}
 	*mp = m;
 }
@@ -1742,8 +1749,7 @@ ng_ppp_frag_trim(node_p node)
 			priv->bundleStats.dropFragments++;
 			TAILQ_REMOVE(&priv->frags, qent, f_qent);
 			NG_FREE_M(qent->data);
-			FREE(qent, M_NETGRAPH_PPP);
-			priv->qlen--;
+			TAILQ_INSERT_HEAD(&priv->fragsfree, qent, f_qent);
 			removed = 1;
 		}
 	}
@@ -1760,7 +1766,7 @@ ng_ppp_frag_drop(node_p node)
 	const priv_p priv = NG_NODE_PRIVATE(node);
 
 	/* Check queue length */
-	if (priv->qlen > MP_MAX_QUEUE_LEN) {
+	if (TAILQ_EMPTY(&priv->fragsfree)) {
 		struct ng_ppp_frag *qent;
 
 		/* Get oldest fragment */
@@ -1775,8 +1781,7 @@ ng_ppp_frag_drop(node_p node)
 		priv->bundleStats.dropFragments++;
 		TAILQ_REMOVE(&priv->frags, qent, f_qent);
 		NG_FREE_M(qent->data);
-		FREE(qent, M_NETGRAPH_PPP);
-		priv->qlen--;
+		TAILQ_INSERT_HEAD(&priv->fragsfree, qent, f_qent);
 
 		return (1);
 	}
@@ -1787,7 +1792,7 @@ ng_ppp_frag_drop(node_p node)
  * Run the queue, restoring the queue invariants
  */
 static int
-ng_ppp_frag_process(node_p node)
+ng_ppp_frag_process(node_p node, item_p oitem)
 {
 	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct mbuf *m;
@@ -1805,7 +1810,14 @@ ng_ppp_frag_process(node_p node)
 				NG_FREE_M(m);
 				continue;
 			}
-			if ((item = ng_package_data(m, NG_NOFLAGS)) != NULL) {
+			if (oitem) { /* If original item present - reuse it. */
+				item = oitem;
+				oitem = NULL;
+				NGI_M(item) = m;
+			} else {
+				item = ng_package_data(m, NG_NOFLAGS);
+			}
+			if (item != NULL) {
 				/* Stats */
 				priv->bundleStats.recvFrames++;
 				priv->bundleStats.recvOctets += 
@@ -1822,6 +1834,9 @@ ng_ppp_frag_process(node_p node)
 		}
 	  /* Delete dead fragments and try again */
 	} while (ng_ppp_frag_trim(node) || ng_ppp_frag_drop(node));
+	
+	/* If we haven't reused original item - free it. */
+	if (oitem) NG_FREE_ITEM(oitem);
 
 	/* Done */
 	return (0);
@@ -1894,8 +1909,7 @@ ng_ppp_frag_checkstale(node_p node)
 			priv->bundleStats.dropFragments++;
 			TAILQ_REMOVE(&priv->frags, qent, f_qent);
 			NG_FREE_M(qent->data);
-			FREE(qent, M_NETGRAPH_PPP);
-			priv->qlen--;
+			TAILQ_INSERT_HEAD(&priv->fragsfree, qent, f_qent);
 		}
 
 		/* Extract completed packet */
@@ -1972,11 +1986,12 @@ ng_ppp_mp_xmit(node_p node, item_p item, uint16_t proto)
 
 	/* Extract mbuf. */
 	NGI_GET_M(item, m);
-	NG_FREE_ITEM(item);
 
 	/* Prepend protocol number, possibly compressed. */
-	if ((m = ng_ppp_addproto(m, proto, 1)) == NULL)
+	if ((m = ng_ppp_addproto(m, proto, 1)) == NULL) {
+		NG_FREE_ITEM(item);
 		return (ENOBUFS);
+	}
 
 	/* Clear distribution plan */
 	bzero(&distrib, priv->numActiveLinks * sizeof(distrib[0]));
@@ -2065,6 +2080,8 @@ deliver:
 
 				if (n == NULL) {
 					NG_FREE_M(m);
+					if (firstFragment)
+						NG_FREE_ITEM(item);
 					return (ENOMEM);
 				}
 				m_tag_copy_chain(n, m, M_DONTWAIT);
@@ -2098,11 +2115,18 @@ deliver:
 			if (m2 == NULL) {
 				if (!lastFragment)
 					m_freem(m);
+				if (firstFragment)
+					NG_FREE_ITEM(item);
 				return (ENOBUFS);
 			}
 
 			/* Send fragment */
-			if ((item = ng_package_data(m2, NG_NOFLAGS)) != NULL) {
+			if (firstFragment) {
+				NGI_M(item) = m2; /* Reuse original item. */
+			} else {
+				item = ng_package_data(m2, NG_NOFLAGS);
+			}
+			if (item != NULL) {
 				error = ng_ppp_link_xmit(node, item, PROT_MP,
 					    linkNum, (firstFragment?plen:0));
 				if (error != 0) {
@@ -2548,10 +2572,9 @@ ng_ppp_frag_reset(node_p node)
 	for (qent = TAILQ_FIRST(&priv->frags); qent; qent = qnext) {
 		qnext = TAILQ_NEXT(qent, f_qent);
 		NG_FREE_M(qent->data);
-		FREE(qent, M_NETGRAPH_PPP);
+		TAILQ_INSERT_HEAD(&priv->fragsfree, qent, f_qent);
 	}
 	TAILQ_INIT(&priv->frags);
-	priv->qlen = 0;
 }
 
 /*
