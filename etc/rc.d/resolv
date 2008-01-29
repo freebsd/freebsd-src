@@ -34,6 +34,7 @@
 . /etc/rc.subr
 
 name="resolv"
+stop_cmd=':'
 
 load_rc_config $name
 
