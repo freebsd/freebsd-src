@@ -97,7 +97,7 @@ static int  bfe_ioctl				(struct ifnet *, u_long, caddr_t);
 static void bfe_init				(void *);
 static void bfe_init_locked			(void *);
 static void bfe_stop				(struct bfe_softc *);
-static void bfe_watchdog			(struct ifnet *);
+static void bfe_watchdog			(struct bfe_softc *);
 static int  bfe_shutdown			(device_t);
 static void bfe_tick				(void *);
 static void bfe_txeof				(struct bfe_softc *);
@@ -335,6 +335,7 @@ bfe_attach(device_t dev)
 	sc = device_get_softc(dev);
 	mtx_init(&sc->bfe_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 			MTX_DEF);
+	callout_init_mtx(&sc->bfe_stat_co, &sc->bfe_mtx, 0);
 
 	unit = device_get_unit(dev);
 	sc->bfe_dev = dev;
@@ -388,7 +389,6 @@ bfe_attach(device_t dev)
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = bfe_ioctl;
 	ifp->if_start = bfe_start;
-	ifp->if_watchdog = bfe_watchdog;
 	ifp->if_init = bfe_init;
 	ifp->if_mtu = ETHERMTU;
 	IFQ_SET_MAXLEN(&ifp->if_snd, BFE_TX_QLEN);
@@ -410,7 +410,6 @@ bfe_attach(device_t dev)
 	}
 
 	ether_ifattach(ifp, sc->bfe_enaddr);
-	callout_handle_init(&sc->bfe_stat_ch);
 
 	/*
 	 * Tell the upper layer(s) we support long frames.
@@ -444,13 +443,16 @@ bfe_detach(device_t dev)
 	sc = device_get_softc(dev);
 
 	KASSERT(mtx_initialized(&sc->bfe_mtx), ("bfe mutex not initialized"));
-	BFE_LOCK(sc);
 
 	ifp = sc->bfe_ifp;
 
 	if (device_is_attached(dev)) {
+		BFE_LOCK(sc);
 		bfe_stop(sc);
-		ether_ifdetach(ifp);
+		BFE_UNLOCK(sc);
+		callout_drain(&sc->bfe_stat_co);
+		if (ifp != NULL)
+			ether_ifdetach(ifp);
 	}
 
 	bfe_chip_reset(sc);
@@ -460,7 +462,6 @@ bfe_detach(device_t dev)
 		device_delete_child(dev, sc->bfe_miibus);
 
 	bfe_release_resources(sc);
-	BFE_UNLOCK(sc);
 	mtx_destroy(&sc->bfe_mtx);
 
 	return (0);
@@ -548,7 +549,42 @@ bfe_miibus_writereg(device_t dev, int phy, int reg, int val)
 static void
 bfe_miibus_statchg(device_t dev)
 {
-	return;
+	struct bfe_softc *sc;
+	struct mii_data *mii;
+	u_int32_t val, flow;
+
+	sc = device_get_softc(dev);
+	mii = device_get_softc(sc->bfe_miibus);
+
+	if ((mii->mii_media_status & IFM_ACTIVE) != 0) {
+		if (IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE)
+			sc->bfe_link = 1;
+	} else
+		sc->bfe_link = 0;
+
+	/* XXX Should stop Rx/Tx engine prior to touching MAC. */
+	val = CSR_READ_4(sc, BFE_TX_CTRL);
+	val &= ~BFE_TX_DUPLEX;
+	if ((IFM_OPTIONS(mii->mii_media_active) & IFM_FDX) != 0) {
+		val |= BFE_TX_DUPLEX;
+		flow = 0;
+#ifdef notyet
+		flow = CSR_READ_4(sc, BFE_RXCONF);
+		flow &= ~BFE_RXCONF_FLOW;
+		if ((IFM_OPTIONS(sc->sc_mii->mii_media_active) &
+		    IFM_ETH_RXPAUSE) != 0)
+			flow |= BFE_RXCONF_FLOW;
+		CSR_WRITE_4(sc, BFE_RXCONF, flow);
+		/*
+		 * It seems that the hardware has Tx pause issues
+		 * so enable only Rx pause.
+		 */
+		flow = CSR_READ_4(sc, BFE_MAC_FLOW);
+		flow &= ~BFE_FLOW_PAUSE_ENAB;
+		CSR_WRITE_4(sc, BFE_MAC_FLOW, flow);
+#endif
+	}
+	CSR_WRITE_4(sc, BFE_TX_CTRL, val);
 }
 
 static void
@@ -1152,10 +1188,9 @@ bfe_txeof(struct bfe_softc *sc)
 		sc->bfe_tx_cons = i;
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	}
-	if(sc->bfe_tx_cnt == 0)
-		ifp->if_timer = 0;
-	else
-		ifp->if_timer = 5;
+
+	if (sc->bfe_tx_cnt == 0)
+		sc->bfe_watchdog_timer = 0;
 }
 
 /* Pass a received packet up the stack */
@@ -1412,7 +1447,8 @@ bfe_start_locked(struct ifnet *ifp)
 	if (!sc->bfe_link && ifp->if_snd.ifq_len < 10)
 		return;
 
-	if (ifp->if_drv_flags & IFF_DRV_OACTIVE)
+	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
+	    IFF_DRV_RUNNING)
 		return;
 
 	while(sc->bfe_tx_ring[idx].bfe_mbuf == NULL) {
@@ -1448,7 +1484,7 @@ bfe_start_locked(struct ifnet *ifp)
 		/*
 		 * Set a timeout in case the chip goes out to lunch.
 		 */
-		ifp->if_timer = 5;
+		sc->bfe_watchdog_timer = 5;
 	}
 }
 
@@ -1465,8 +1501,11 @@ bfe_init_locked(void *xsc)
 {
 	struct bfe_softc *sc = (struct bfe_softc*)xsc;
 	struct ifnet *ifp = sc->bfe_ifp;
+	struct mii_data *mii;
 
 	BFE_LOCK_ASSERT(sc);
+
+	mii = device_get_softc(sc->bfe_miibus);
 
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 		return;
@@ -1488,11 +1527,14 @@ bfe_init_locked(void *xsc)
 	/* Enable interrupts */
 	CSR_WRITE_4(sc, BFE_IMASK, BFE_IMASK_DEF);
 
-	bfe_ifmedia_upd(ifp);
+	/* Clear link state and change media. */
+	sc->bfe_link = 0;
+	mii_mediachg(mii);
+
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
-	sc->bfe_stat_ch = timeout(bfe_tick, sc, hz);
+	callout_reset(&sc->bfe_stat_co, hz, bfe_tick, sc);
 }
 
 /*
@@ -1503,20 +1545,22 @@ bfe_ifmedia_upd(struct ifnet *ifp)
 {
 	struct bfe_softc *sc;
 	struct mii_data *mii;
+	int error;
 
 	sc = ifp->if_softc;
+	BFE_LOCK(sc);
 
 	mii = device_get_softc(sc->bfe_miibus);
-	sc->bfe_link = 0;
 	if (mii->mii_instance) {
 		struct mii_softc *miisc;
 		for (miisc = LIST_FIRST(&mii->mii_phys); miisc != NULL;
 				miisc = LIST_NEXT(miisc, mii_list))
 			mii_phy_reset(miisc);
 	}
-	mii_mediachg(mii);
+	error = mii_mediachg(mii);
+	BFE_UNLOCK(sc);
 
-	return (0);
+	return (error);
 }
 
 /*
@@ -1528,10 +1572,12 @@ bfe_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 	struct bfe_softc *sc = ifp->if_softc;
 	struct mii_data *mii;
 
+	BFE_LOCK(sc);
 	mii = device_get_softc(sc->bfe_miibus);
 	mii_pollstat(mii);
 	ifmr->ifm_active = mii->mii_media_active;
 	ifmr->ifm_status = mii->mii_media_status;
+	BFE_UNLOCK(sc);
 }
 
 static int
@@ -1576,22 +1622,25 @@ bfe_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 }
 
 static void
-bfe_watchdog(struct ifnet *ifp)
+bfe_watchdog(struct bfe_softc *sc)
 {
-	struct bfe_softc *sc;
+	struct ifnet *ifp;
 
-	sc = ifp->if_softc;
+	BFE_LOCK_ASSERT(sc);
 
-	BFE_LOCK(sc);
+	if (sc->bfe_watchdog_timer == 0 || --sc->bfe_watchdog_timer)
+		return;
+
+	ifp = sc->bfe_ifp;
 
 	printf("bfe%d: watchdog timeout -- resetting\n", sc->bfe_unit);
 
+	ifp->if_oerrors++;
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	bfe_init_locked(sc);
 
-	ifp->if_oerrors++;
-
-	BFE_UNLOCK(sc);
+	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+		bfe_start_locked(ifp);
 }
 
 static void
@@ -1600,27 +1649,13 @@ bfe_tick(void *xsc)
 	struct bfe_softc *sc = xsc;
 	struct mii_data *mii;
 
-	if (sc == NULL)
-		return;
-
-	BFE_LOCK(sc);
+	BFE_LOCK_ASSERT(sc);
 
 	mii = device_get_softc(sc->bfe_miibus);
-
-	bfe_stats_update(sc);
-	sc->bfe_stat_ch = timeout(bfe_tick, sc, hz);
-
-	if(sc->bfe_link) {
-		BFE_UNLOCK(sc);
-		return;
-	}
-
 	mii_tick(mii);
-	if (!sc->bfe_link && mii->mii_media_status & IFM_ACTIVE &&
-			IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE)
-		sc->bfe_link++;
-
-	BFE_UNLOCK(sc);
+	bfe_stats_update(sc);
+	bfe_watchdog(sc);
+	callout_reset(&sc->bfe_stat_co, hz, bfe_tick, sc);
 }
 
 /*
@@ -1634,13 +1669,13 @@ bfe_stop(struct bfe_softc *sc)
 
 	BFE_LOCK_ASSERT(sc);
 
-	untimeout(bfe_tick, sc, sc->bfe_stat_ch);
-
 	ifp = sc->bfe_ifp;
+	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
+	sc->bfe_link = 0;
+	callout_stop(&sc->bfe_stat_co);
+	sc->bfe_watchdog_timer = 0;
 
 	bfe_chip_halt(sc);
 	bfe_tx_ring_free(sc);
 	bfe_rx_ring_free(sc);
-
-	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 }
