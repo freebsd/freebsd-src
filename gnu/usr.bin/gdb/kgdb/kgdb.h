@@ -33,6 +33,7 @@ struct thread_info;
 
 extern kvm_t *kvm;
 extern char *kernel;
+extern bfd *kern_bfd;
 
 struct kthr {
 	struct kthr	*next;

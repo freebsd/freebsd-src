@@ -31,10 +31,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/sysctl.h>
 #include <sys/user.h>
+#include <err.h>
 #include <kvm.h>
 
 #include <defs.h>
 #include <command.h>
+#include <exec.h>
 #include <frame-unwind.h>
 #include <gdbthread.h>
 #include <inferior.h>
@@ -44,6 +46,8 @@ __FBSDID("$FreeBSD$");
 #include "kgdb.h"
 
 static struct target_ops kgdb_trgt_ops;
+
+bfd *kern_bfd;
 
 #define	KERNOFF		(kgdb_kernbase ())
 #define	INKERNEL(x)	((x) >= KERNOFF)
@@ -81,11 +85,8 @@ kgdb_trgt_extra_thread_info(struct thread_info *ti)
 static void
 kgdb_trgt_files_info(struct target_ops *target)
 {
-	struct target_ops *tb;
 
-	tb = find_target_beneath(target);
-	if (tb->to_files_info != NULL)
-		tb->to_files_info(tb);
+	print_section_info(target, kern_bfd);
 }
 
 static void
@@ -207,7 +208,7 @@ kgdb_target(void)
 
 	kgdb_trgt_ops.to_magic = OPS_MAGIC;
 	kgdb_trgt_ops.to_shortname = "kernel";
-	kgdb_trgt_ops.to_longname = "kernel core files.";
+	kgdb_trgt_ops.to_longname = "kernel core files";
 	kgdb_trgt_ops.to_doc = "Kernel core files.";
 	kgdb_trgt_ops.to_stratum = thread_stratum;
 	kgdb_trgt_ops.to_has_memory = 1;
@@ -222,6 +223,12 @@ kgdb_target(void)
 	kgdb_trgt_ops.to_store_registers = kgdb_trgt_store_registers;
 	kgdb_trgt_ops.to_thread_alive = kgdb_trgt_thread_alive;
 	kgdb_trgt_ops.to_xfer_memory = kgdb_trgt_xfer_memory;
+
+	if (build_section_table(kern_bfd, &kgdb_trgt_ops.to_sections,
+	    &kgdb_trgt_ops.to_sections_end) != 0)
+		errx(1, "\"%s\": can't find the file sections: %s",
+		    kernel, bfd_errmsg(bfd_get_error()));
+
 	add_target(&kgdb_trgt_ops);
 	push_target(&kgdb_trgt_ops);
 
