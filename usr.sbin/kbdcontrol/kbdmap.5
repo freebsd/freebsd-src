@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 11, 2000
+.Dd January 29, 2008
 .Dt KBDMAP 5
 .Os
 .Sh NAME
@@ -165,7 +165,15 @@ Act as the
 function key,
 where
 .Ar N
-is a decimal number.
+is a decimal number in the range from 1 to 96.
+Refer to the
+.Xr atkbd 4
+manual page for a list of predefined function keys.
+You can use the
+.Fl f
+option of the
+.Xr kbdcontrol 1
+utility to assign arbitrary strings to function keys.
 .It lshift
 Act as left shift key.
 .It rshift
