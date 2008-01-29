@@ -335,14 +335,10 @@ machine_init(struct statics *statics, char do_unames)
 			Header_lines += ncpus - 1; /* 7 */
 		}
 		size = sizeof(long) * ncpus * CPUSTATES;
-		pcpu_cp_time = malloc(size);
-		pcpu_cp_old = malloc(size);
-		pcpu_cp_diff = malloc(size);
-		pcpu_cpu_states = malloc(size);
-		bzero(pcpu_cp_time, size);
-		bzero(pcpu_cp_old, size);
-		bzero(pcpu_cp_diff, size);
-		bzero(pcpu_cpu_states, size);
+		pcpu_cp_time = calloc(1, size);
+		pcpu_cp_old = calloc(1, size);
+		pcpu_cp_diff = calloc(1, size);
+		pcpu_cpu_states = calloc(1, size);
 		statics->ncpus = ncpus;
 	} else {
 		statics->ncpus = 1;
