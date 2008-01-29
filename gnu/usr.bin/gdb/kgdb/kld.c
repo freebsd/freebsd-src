@@ -68,7 +68,6 @@ kld_ok (char *path)
  * - filename (e.g. foo.ko)
  */
 static const char *kld_suffixes[] = {
-	".symbols",
 	".debug",
 	"",
 	NULL
