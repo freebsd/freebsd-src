@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: openpam_version.h 409 2007-12-21 11:38:50Z des $
+ * $Id: openpam_version.h 412 2008-01-29 19:31:46Z des $
  */
 
 #ifndef SECURITY_OPENPAM_VERSION_H_INCLUDED
@@ -41,5 +41,8 @@
 #define OPENPAM
 #define OPENPAM_VERSION	20071221
 #define OPENPAM_RELEASE	"Hydrangea"
+
+/* violates reserved namespace, but can't be removed for legacy reasons */
+#define _OPENPAM
 
 #endif /* !SECURITY_OPENPAM_VERSION_H_INCLUDED */
