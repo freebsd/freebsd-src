@@ -28,7 +28,7 @@ static const char rcsid[] =
 #include <sys/types.h>
 #include <sys/socket.h>
 extern int debug, dolog;
-extern unsigned long route_addr;
+extern in_addr_t route_addr;
 extern char *bootpfile;
 
 #define MAXLEN 800
@@ -48,7 +48,7 @@ bootparamproc_whoami_1_svc(whoami, req)
 bp_whoami_arg *whoami;
 struct svc_req *req;
 {
-  long haddr;
+  in_addr_t haddr;
   static bp_whoami_res res;
   if (debug)
     fprintf(stderr,"whoami got question for %d.%d.%d.%d\n",
@@ -81,7 +81,7 @@ struct svc_req *req;
 
     if (  res.router_address.address_type != IP_ADDR_TYPE ) {
       res.router_address.address_type = IP_ADDR_TYPE;
-      bcopy( &route_addr, &res.router_address.bp_address_u.ip_addr, 4);
+      bcopy( &route_addr, &res.router_address.bp_address_u.ip_addr, sizeof(in_addr_t));
     }
     if (debug) fprintf(stderr,
 		       "Returning %s   %s    %d.%d.%d.%d\n",
