@@ -33,4 +33,16 @@ CFLAGS+= -I${.CURDIR}
 DPADD=	${LIBMAGIC} ${LIBZ}
 LDADD=	-lmagic -lz
 
+FILEVER!= awk '$$1 == "\#define" && $$2 == "VERSION" { print $$3; exit }' \
+			${.CURDIR}/config.h
+
+CLEANFILES+=	${MAN}
+
 .include <bsd.prog.mk>
+
+.for mp in ${MAN}
+${mp}: ${mp:C/[0-9]/man/}
+	sed -e 's/__FSECTION__/5/g' -e 's/__CSECTION__/1/g' \
+		-e 's/__VERSION__/${FILEVER}/g' \
+		-e 's,__MAGIC__,${MAGICPATH}/magic,g' ${.ALLSRC} > ${.TARGET}
+.endfor
