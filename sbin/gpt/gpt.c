@@ -268,6 +268,13 @@ parse_uuid(const char *s, uuid_t *uuid)
 		return (0);
 
 	switch (*s) {
+	case 'b':
+		if (strcmp(s, "boot") == 0) {
+			uuid_t boot = GPT_ENT_TYPE_FREEBSD_BOOT;
+			*uuid = boot;
+			return (0);
+		}
+		break;
 	case 'e':
 		if (strcmp(s, "efi") == 0) {
 			uuid_t efi = GPT_ENT_TYPE_EFI;
