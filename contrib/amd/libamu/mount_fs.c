@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2004 Erez Zadok
+ * Copyright (c) 1997-2006 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -36,10 +36,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      %W% (Berkeley) %G%
  *
- * $Id: mount_fs.c,v 1.11.2.12 2004/01/06 03:15:24 ezk Exp $
- * $FreeBSD$
+ * File: am-utils/libamu/mount_fs.c
  *
  */
 
@@ -51,9 +49,10 @@
 
 
 /* ensure that mount table options are delimited by a comma */
-#define append_opts(old, new) { \
-	if (*(old) != '\0') strcat(old, ","); \
-	strcat(old, new); }
+#define append_opts(old, l, new) { \
+	if (*(old) != '\0') \
+	  xstrlcat(old, ",", l); \
+	xstrlcat(old, new, l); }
 
 /*
  * Standard mount flags
@@ -108,7 +107,9 @@ struct opt_tab mnt_flags[] =
 
   /*
    * Do not define MNT2_NFS_OPT_* entries here!  This is for generic
-   * mount(2) options only, not for NFS mount options.
+   * mount(2) options only, not for NFS mount options.  If you need to put
+   * something here, it's probably not the right place: see
+   * include/am_compat.h.
    */
 
   {0, 0}
@@ -123,7 +124,7 @@ compute_mount_flags(mntent_t *mntp)
   int flags = 0;
 
 #ifdef MNT2_GEN_OPT_NEWTYPE
-  flags = MNT2_GEN_OPT_NEWTYPE;
+  flags |= MNT2_GEN_OPT_NEWTYPE;
 #endif /* MNT2_GEN_OPT_NEWTYPE */
 #ifdef MNT2_GEN_OPT_AUTOMOUNTED
   flags |= MNT2_GEN_OPT_AUTOMOUNTED;
@@ -133,7 +134,7 @@ compute_mount_flags(mntent_t *mntp)
    * Crack basic mount options
    */
   for (opt = mnt_flags; opt->opt; opt++) {
-    flags |= hasmntopt(mntp, opt->opt) ? opt->flag : 0;
+    flags |= amu_hasmntopt(mntp, opt->opt) ? opt->flag : 0;
   }
 
   return flags;
@@ -158,31 +159,33 @@ compute_automounter_mount_flags(mntent_t *mntp)
 
 
 int
-mount_fs(mntent_t *mnt, int flags, caddr_t mnt_data, int retry, MTYPE_TYPE type, u_long nfs_version, const char *nfs_proto, const char *mnttabname)
+mount_fs(mntent_t *mnt, int flags, caddr_t mnt_data, int retry, MTYPE_TYPE type, u_long nfs_version, const char *nfs_proto, const char *mnttabname, int on_autofs)
 {
   int error = 0;
 #ifdef MOUNT_TABLE_ON_FILE
-# ifdef MNTTAB_OPT_DEV
-  struct stat stb;
-# endif /* MNTTAB_OPT_DEV */
   char *zopts = NULL, *xopts = NULL;
-# if defined(MNTTAB_OPT_DEV) || (defined(HAVE_FS_NFS3) && defined(MNTTAB_OPT_VERS)) || defined(MNTTAB_OPT_PROTO)
-  char optsbuf[48];
-# endif /* defined(MNTTAB_OPT_DEV) || (defined(HAVE_FS_NFS3) && defined(MNTTAB_OPT_VERS)) || defined(MNTTAB_OPT_PROTO) */
+  size_t l;
 #endif /* MOUNT_TABLE_ON_FILE */
+  char *mnt_dir = 0;
 
-#ifdef DEBUG
-  dlog("%s fstype " MTYPE_PRINTF_TYPE " (%s) flags %#x (%s)",
-       mnt->mnt_dir, type, mnt->mnt_type, flags, mnt->mnt_opts);
-#endif /* DEBUG */
+#ifdef NEED_AUTOFS_SPACE_HACK
+  char *old_mnt_dir = 0;
+  /* perform space hack */
+  if (on_autofs) {
+    old_mnt_dir = mnt->mnt_dir;
+    mnt->mnt_dir = mnt_dir = autofs_strdup_space_hack(old_mnt_dir);
+  } else
+#endif /* NEED_AUTOFS_SPACE_HACK */
+    mnt_dir = strdup(mnt->mnt_dir);
+
+  dlog("'%s' fstype " MTYPE_PRINTF_TYPE " (%s) flags %#x (%s)",
+       mnt_dir, type, mnt->mnt_type, flags, mnt->mnt_opts);
 
 again:
-  clock_valid = 0;
-
   error = MOUNT_TRAP(type, mnt, flags, mnt_data);
 
   if (error < 0) {
-    plog(XLOG_ERROR, "%s: mount: %m", mnt->mnt_dir);
+    plog(XLOG_ERROR, "'%s': mount: %m", mnt_dir);
     /*
      * The following code handles conditions which shouldn't
      * occur.  They are possible either because amd screws up
@@ -190,33 +193,18 @@ again:
      * messed with the mount point.  Both have been known to
      * happen. -- stolcke 2/22/95
      */
-    if (errno == ENOENT) {
-      /*
-       * Occasionally the mount point vanishes, probably
-       * due to some race condition.  Just recreate it
-       * as necessary.
-       */
-      errno = mkdirs(mnt->mnt_dir, 0555);
-      if (errno != 0 && errno != EEXIST)
-	plog(XLOG_ERROR, "%s: mkdirs: %m", mnt->mnt_dir);
-      else {
-	plog(XLOG_WARNING, "extra mkdirs required for %s",
-	     mnt->mnt_dir);
-	error = MOUNT_TRAP(type, mnt, flags, mnt_data);
-      }
-    } else if (errno == EBUSY) {
+    if (errno == EBUSY) {
       /*
        * Also, sometimes unmount isn't called, e.g., because
        * our mountlist is garbled.  This leaves old mount
        * points around which need to be removed before we
        * can mount something new in their place.
        */
-      errno = umount_fs(mnt->mnt_dir, mnttabname);
+      errno = umount_fs(mnt_dir, mnttabname, on_autofs);
       if (errno != 0)
-	plog(XLOG_ERROR, "%s: umount: %m", mnt->mnt_dir);
+	plog(XLOG_ERROR, "'%s': umount: %m", mnt_dir);
       else {
-	plog(XLOG_WARNING, "extra umount required for %s",
-	     mnt->mnt_dir);
+	plog(XLOG_WARNING, "extra umount required for '%s'", mnt_dir);
 	error = MOUNT_TRAP(type, mnt, flags, mnt_data);
       }
     }
@@ -226,8 +214,16 @@ again:
     sleep(1);
     goto again;
   }
+
+#ifdef NEED_AUTOFS_SPACE_HACK
+  /* Undo space hack */
+  if (on_autofs)
+    mnt->mnt_dir = old_mnt_dir;
+#endif /* NEED_AUTOFS_SPACE_HACK */
+
   if (error < 0) {
-    return errno;
+    error = errno;
+    goto out;
   }
 
 #ifdef MOUNT_TABLE_ON_FILE
@@ -235,23 +231,28 @@ again:
    * Allocate memory for options:
    *        dev=..., vers={2,3}, proto={tcp,udp}
    */
-  zopts = (char *) xmalloc(strlen(mnt->mnt_opts) + 48);
+  l = strlen(mnt->mnt_opts) + 48;
+  zopts = (char *) xmalloc(l);
 
   /* copy standard options */
   xopts = mnt->mnt_opts;
 
-  strcpy(zopts, xopts);
+  xstrlcpy(zopts, xopts, l);
 
 # ifdef MNTTAB_OPT_DEV
-  /* add the extra dev= field to the mount table */
-  if (lstat(mnt->mnt_dir, &stb) == 0) {
-    if (sizeof(stb.st_dev) == 2) /* e.g. SunOS 4.1 */
-      sprintf(optsbuf, "%s=%04lx",
-	      MNTTAB_OPT_DEV, (u_long) stb.st_dev & 0xffff);
-    else			/* e.g. System Vr4 */
-      sprintf(optsbuf, "%s=%08lx",
-	      MNTTAB_OPT_DEV, (u_long) stb.st_dev);
-    append_opts(zopts, optsbuf);
+  {
+    /* add the extra dev= field to the mount table */
+    struct stat stb;
+    if (lstat(mnt_dir, &stb) == 0) {
+      char optsbuf[48];
+      if (sizeof(stb.st_dev) == 2) /* e.g. SunOS 4.1 */
+	xsnprintf(optsbuf, sizeof(optsbuf), "%s=%04lx",
+		  MNTTAB_OPT_DEV, (u_long) stb.st_dev & 0xffff);
+      else			/* e.g. System Vr4 */
+	xsnprintf(optsbuf, sizeof(optsbuf), "%s=%08lx",
+		  MNTTAB_OPT_DEV, (u_long) stb.st_dev);
+      append_opts(zopts, l, optsbuf);
+    }
   }
 # endif /* MNTTAB_OPT_DEV */
 
@@ -262,8 +263,10 @@ again:
    */
    if (nfs_version == NFS_VERSION3 &&
        hasmntval(mnt, MNTTAB_OPT_VERS) != NFS_VERSION3) {
-     sprintf(optsbuf, "%s=%d", MNTTAB_OPT_VERS, NFS_VERSION3);
-     append_opts(zopts, optsbuf);
+     char optsbuf[48];
+     xsnprintf(optsbuf, sizeof(optsbuf),
+	       "%s=%d", MNTTAB_OPT_VERS, NFS_VERSION3);
+     append_opts(zopts, l, optsbuf);
    }
 # endif /* defined(HAVE_FS_NFS3) && defined(MNTTAB_OPT_VERS) */
 
@@ -272,9 +275,10 @@ again:
    * add the extra proto={tcp,udp} field to the mount table,
    * unless already specified by user.
    */
-  if (nfs_proto && !hasmntopt(mnt, MNTTAB_OPT_PROTO)) {
-    sprintf(optsbuf, "%s=%s", MNTTAB_OPT_PROTO, nfs_proto);
-    append_opts(zopts, optsbuf);
+  if (nfs_proto && !amu_hasmntopt(mnt, MNTTAB_OPT_PROTO)) {
+    char optsbuf[48];
+    xsnprintf(optsbuf, sizeof(optsbuf), "%s=%s", MNTTAB_OPT_PROTO, nfs_proto);
+    append_opts(zopts, l, optsbuf);
   }
 # endif /* MNTTAB_OPT_PROTO */
 
@@ -290,14 +294,15 @@ again:
 # endif /* HAVE_MNTENT_T_MNT_CNODE */
 
 # ifdef HAVE_MNTENT_T_MNT_RO
-  mnt->mnt_ro = (hasmntopt(mnt, MNTTAB_OPT_RO) != NULL);
+  mnt->mnt_ro = (amu_hasmntopt(mnt, MNTTAB_OPT_RO) != NULL);
 # endif /* HAVE_MNTENT_T_MNT_RO */
 
 # ifdef HAVE_MNTENT_T_MNT_TIME
 #  ifdef HAVE_MNTENT_T_MNT_TIME_STRING
   {				/* allocate enough space for a long */
-    char *str = (char *) xmalloc(13 * sizeof(char));
-    sprintf(str, "%ld", time((time_t *) NULL));
+    size_t l = 13 * sizeof(char);
+    char *str = (char *) xmalloc(l);
+    xsnprintf(str, l, "%ld", time((time_t *) NULL));
     mnt->mnt_time = str;
   }
 #  else /* not HAVE_MNTENT_T_MNT_TIME_STRING */
@@ -315,7 +320,126 @@ again:
 # endif /* MNTTAB_OPT_DEV */
 #endif /* MOUNT_TABLE_ON_FILE */
 
-  return 0;
+ out:
+  XFREE(mnt_dir);
+  return error;
+}
+
+
+/*
+ * Compute all NFS attribute cache related flags separately.  Note that this
+ * function now computes attribute-cache flags for both Amd's automount
+ * points (NFS) as well as any normal NFS mount that Amd performs.  Edit
+ * with caution.
+ */
+static void
+compute_nfs_attrcache_flags(nfs_args_t *nap, mntent_t *mntp)
+{
+  int acval = 0;
+  int err_acval = 1;		/* 1 means we found no 'actimeo' value */
+#if defined(HAVE_NFS_ARGS_T_ACREGMIN) || defined(HAVE_NFS_ARGS_T_ACREGMAX) || defined(HAVE_NFS_ARGS_T_ACDIRMIN) || defined(HAVE_NFS_ARGS_T_ACDIRMAX)
+  int err_acrdmm;		/* for ac{reg,dir}{min,max} */
+#endif /* HAVE_NFS_ARGS_T_AC{REG,DIR}{MIN,MAX} */
+
+  /************************************************************************/
+  /***	ATTRIBUTE CACHES						***/
+  /************************************************************************/
+  /*
+   * acval is set to 0 at the top of the function.  If actimeo mount option
+   * exists and defined in mntopts, then its acval is set to it.
+   * If the value is non-zero, then we set all attribute cache fields to it.
+   * If acval is zero, it means it was never defined in mntopts or the
+   * actimeo mount option does not exist, in which case we check for
+   * individual mount options per attribute cache.
+   * Regardless of the value of acval, mount flags are set based directly
+   * on the values of the attribute caches.
+   */
+#ifdef MNTTAB_OPT_ACTIMEO
+  err_acval = hasmntvalerr(mntp, MNTTAB_OPT_ACTIMEO, &acval);	/* attr cache timeout (sec) */
+#endif /* MNTTAB_OPT_ACTIMEO */
+
+  /*** acregmin ***/
+#ifdef HAVE_NFS_ARGS_T_ACREGMIN
+  err_acrdmm = 1;		/* 1 means we found no acregmin value */
+  if (!err_acval) {
+    nap->acregmin = acval;	/* min ac timeout for reg files (sec) */
+  } else {
+# ifdef MNTTAB_OPT_ACREGMIN
+    err_acrdmm = hasmntvalerr(mntp, MNTTAB_OPT_ACREGMIN, (int *) &nap->acregmin);
+# else /* not MNTTAB_OPT_ACREGMIN */
+    nap->acregmin = 0;
+# endif /* not MNTTAB_OPT_ACREGMIN */
+  }
+  /* set this flag iff we changed acregmin (possibly to zero) */
+# ifdef MNT2_NFS_OPT_ACREGMIN
+  if (!err_acval || !err_acrdmm)
+    nap->flags |= MNT2_NFS_OPT_ACREGMIN;
+# endif /* MNT2_NFS_OPT_ACREGMIN */
+#endif /* HAVE_NFS_ARGS_T_ACREGMIN */
+
+  /*** acregmax ***/
+#ifdef HAVE_NFS_ARGS_T_ACREGMAX
+  err_acrdmm = 1;		/* 1 means we found no acregmax value */
+  if (!err_acval) {
+    nap->acregmax = acval;	/* max ac timeout for reg files (sec) */
+  } else {
+# ifdef MNTTAB_OPT_ACREGMAX
+    err_acrdmm = hasmntvalerr(mntp, MNTTAB_OPT_ACREGMAX, (int *) &nap->acregmax);
+# else /* not MNTTAB_OPT_ACREGMAX */
+    nap->acregmax = 0;
+# endif /* not MNTTAB_OPT_ACREGMAX */
+  }
+  /* set this flag iff we changed acregmax (possibly to zero) */
+# ifdef MNT2_NFS_OPT_ACREGMAX
+  if (!err_acval || !err_acrdmm)
+    nap->flags |= MNT2_NFS_OPT_ACREGMAX;
+# endif /* MNT2_NFS_OPT_ACREGMAX */
+#endif /* HAVE_NFS_ARGS_T_ACREGMAX */
+
+  /*** acdirmin ***/
+#ifdef HAVE_NFS_ARGS_T_ACDIRMIN
+  err_acrdmm = 1;		/* 1 means we found no acdirmin value */
+  if (!err_acval) {
+    nap->acdirmin = acval;	/* min ac timeout for dirs (sec) */
+  } else {
+# ifdef MNTTAB_OPT_ACDIRMIN
+    err_acrdmm = hasmntvalerr(mntp, MNTTAB_OPT_ACDIRMIN, (int *) &nap->acdirmin);
+# else /* not MNTTAB_OPT_ACDIRMIN */
+    nap->acdirmin = 0;
+# endif /* not MNTTAB_OPT_ACDIRMIN */
+  }
+  /* set this flag iff we changed acdirmin (possibly to zero) */
+# ifdef MNT2_NFS_OPT_ACDIRMIN
+  if (!err_acval || !err_acrdmm)
+    nap->flags |= MNT2_NFS_OPT_ACDIRMIN;
+# endif /* MNT2_NFS_OPT_ACDIRMIN */
+#endif /* HAVE_NFS_ARGS_T_ACDIRMIN */
+
+  /*** acdirmax ***/
+#ifdef HAVE_NFS_ARGS_T_ACDIRMAX
+  err_acrdmm = 1;		/* 1 means we found no acdirmax value */
+  if (!err_acval) {
+    nap->acdirmax = acval;	/* max ac timeout for dirs (sec) */
+  } else {
+# ifdef MNTTAB_OPT_ACDIRMAX
+    err_acrdmm = hasmntvalerr(mntp, MNTTAB_OPT_ACDIRMAX, (int *) &nap->acdirmax);
+# else /* not MNTTAB_OPT_ACDIRMAX */
+    nap->acdirmax = 0;
+# endif /* not MNTTAB_OPT_ACDIRMAX */
+  }
+  /* set this flag iff we changed acdirmax (possibly to zero) */
+# ifdef MNT2_NFS_OPT_ACDIRMAX
+  if (!err_acval || !err_acrdmm)
+    nap->flags |= MNT2_NFS_OPT_ACDIRMAX;
+# endif /* MNT2_NFS_OPT_ACDIRMAX */
+#endif /* HAVE_NFS_ARGS_T_ACDIRMAX */
+
+
+  /* don't cache attributes */
+#if defined(MNTTAB_OPT_NOAC) && defined(MNT2_NFS_OPT_NOAC)
+  if (amu_hasmntopt(mntp, MNTTAB_OPT_NOAC) != NULL)
+    nap->flags |= MNT2_NFS_OPT_NOAC;
+#endif /* defined(MNTTAB_OPT_NOAC) && defined(MNT2_NFS_OPT_NOAC) */
 }
 
 
@@ -334,31 +458,28 @@ again:
  * fs_name:	remote file system name to mount
  */
 void
-#ifdef HAVE_TRANSPORT_TYPE_TLI
-compute_nfs_args(nfs_args_t *nap, mntent_t *mntp, int genflags, struct netconfig *nfsncp, struct sockaddr_in *ip_addr, u_long nfs_version, char *nfs_proto, am_nfs_handle_t *fhp, char *host_name, char *fs_name)
-#else /* not HAVE_TRANSPORT_TYPE_TLI */
-compute_nfs_args(nfs_args_t *nap, mntent_t *mntp, int genflags, struct sockaddr_in *ip_addr, u_long nfs_version, char *nfs_proto, am_nfs_handle_t *fhp, char *host_name, char *fs_name)
-#endif /* not HAVE_TRANSPORT_TYPE_TLI */
+compute_nfs_args(nfs_args_t *nap,
+		 mntent_t *mntp,
+		 int genflags,
+		 struct netconfig *nfsncp,
+		 struct sockaddr_in *ip_addr,
+		 u_long nfs_version,
+		 char *nfs_proto,
+		 am_nfs_handle_t *fhp,
+		 char *host_name,
+		 char *fs_name)
 {
-  int acval = 0;
-#ifdef HAVE_FS_NFS3
-  static am_nfs_fh3 fh3;	/* static, b/c gcc on aix corrupts stack */
-#endif /* HAVE_FS_NFS3 */
-
   /* initialize just in case */
   memset((voidp) nap, 0, sizeof(nfs_args_t));
+
+  /* compute all of the NFS attribute-cache flags */
+  compute_nfs_attrcache_flags(nap, mntp);
 
   /************************************************************************/
   /***	FILEHANDLE DATA AND LENGTH					***/
   /************************************************************************/
 #ifdef HAVE_FS_NFS3
   if (nfs_version == NFS_VERSION3) {
-    memset((voidp) &fh3, 0, sizeof(am_nfs_fh3));
-    fh3.fh3_length = fhp->v3.mountres3_u.mountinfo.fhandle.fhandle3_len;
-    memmove(fh3.fh3_u.data,
-	    fhp->v3.mountres3_u.mountinfo.fhandle.fhandle3_val,
-	    fh3.fh3_length);
-
 # if defined(HAVE_NFS_ARGS_T_FHSIZE) || defined(HAVE_NFS_ARGS_T_FH_LEN)
     /*
      * Some systems (Irix/bsdi3) have a separate field in nfs_args for
@@ -366,9 +487,9 @@ compute_nfs_args(nfs_args_t *nap, mntent_t *mntp, int genflags, struct sockaddr_
      * the file handle set in nfs_args be plain bytes, and not
      * include the length field.
      */
-    NFS_FH_DREF(nap->NFS_FH_FIELD, &(fh3.fh3_u.data));
+    NFS_FH_DREF(nap->NFS_FH_FIELD, &fhp->v3.am_fh3_data);
 # else /* not defined(HAVE_NFS_ARGS_T_FHSIZE) || defined(HAVE_NFS_ARGS_T_FH_LEN) */
-    NFS_FH_DREF(nap->NFS_FH_FIELD, &fh3);
+    NFS_FH_DREF(nap->NFS_FH_FIELD, &fhp->v3);
 # endif /* not defined(HAVE_NFS_ARGS_T_FHSIZE) || defined(HAVE_NFS_ARGS_T_FH_LEN) */
 # ifdef MNT2_NFS_OPT_NFSV3
     nap->flags |= MNT2_NFS_OPT_NFSV3;
@@ -378,12 +499,12 @@ compute_nfs_args(nfs_args_t *nap, mntent_t *mntp, int genflags, struct sockaddr_
 # endif /* MNT2_NFS_OPT_VER3 */
   } else
 #endif /* HAVE_FS_NFS3 */
-    NFS_FH_DREF(nap->NFS_FH_FIELD, &(fhp->v2.fhs_fh));
+    NFS_FH_DREF(nap->NFS_FH_FIELD, &fhp->v2);
 
 #ifdef HAVE_NFS_ARGS_T_FHSIZE
 # ifdef HAVE_FS_NFS3
   if (nfs_version == NFS_VERSION3)
-    nap->fhsize = fh3.fh3_length;
+    nap->fhsize = fhp->v3.am_fh3_length;
   else
 # endif /* HAVE_FS_NFS3 */
     nap->fhsize = FHSIZE;
@@ -393,7 +514,7 @@ compute_nfs_args(nfs_args_t *nap, mntent_t *mntp, int genflags, struct sockaddr_
 #ifdef HAVE_NFS_ARGS_T_FH_LEN
 # ifdef HAVE_FS_NFS3
   if (nfs_version == NFS_VERSION3)
-    nap->fh_len = fh3.fh3_length;
+    nap->fh_len = fhp->v3.am_fh3_length;
   else
 # endif /* HAVE_FS_NFS3 */
     nap->fh_len = FHSIZE;
@@ -402,73 +523,15 @@ compute_nfs_args(nfs_args_t *nap, mntent_t *mntp, int genflags, struct sockaddr_
   /************************************************************************/
   /***	HOST NAME							***/
   /************************************************************************/
+  /*
+   * XXX: warning, using xstrlcpy in NFS_HN_DREF, which may corrupt a
+   * struct nfs_args, or truncate our concocted "hostname:/path"
+   * string prematurely.
+   */
   NFS_HN_DREF(nap->hostname, host_name);
 #ifdef MNT2_NFS_OPT_HOSTNAME
   nap->flags |= MNT2_NFS_OPT_HOSTNAME;
 #endif /* MNT2_NFS_OPT_HOSTNAME */
-
-  /************************************************************************/
-  /***	ATTRIBUTE CACHES						***/
-  /************************************************************************/
-  /*
-   * acval is set to 0 at the top of the function.  If actimeo mount option
-   * exists and defined in mntopts, then it acval is set to it.
-   * If the value is non-zero, then we set all attribute cache fields to it.
-   * If acval is zero, it means it was never defined in mntopts or the
-   * actimeo mount option does not exist, in which case we check for
-   * individual mount options per attribute cache.
-   * Regardless of the value of acval, mount flags are set based directly
-   * on the values of the attribute caches.
-   */
-#ifdef MNTTAB_OPT_ACTIMEO
-  acval = hasmntval(mntp, MNTTAB_OPT_ACTIMEO); /* attr cache timeout (sec) */
-#endif /* MNTTAB_OPT_ACTIMEO */
-
-  if (acval) {
-#ifdef HAVE_NFS_ARGS_T_ACREGMIN
-    nap->acregmin = acval;	/* min ac timeout for reg files (sec) */
-    nap->acregmax = acval;	/* max ac timeout for reg files (sec) */
-#endif /* HAVE_NFS_ARGS_T_ACREGMIN */
-#ifdef HAVE_NFS_ARGS_T_ACDIRMIN
-    nap->acdirmin = acval;	/* min ac timeout for dirs (sec) */
-    nap->acdirmax = acval;	/* max ac timeout for dirs (sec) */
-#endif /* HAVE_NFS_ARGS_T_ACDIRMIN */
-  } else {
-#ifdef MNTTAB_OPT_ACREGMIN
-    nap->acregmin = hasmntval(mntp, MNTTAB_OPT_ACREGMIN);
-#endif /* MNTTAB_OPT_ACREGMIN */
-#ifdef MNTTAB_OPT_ACREGMAX
-    nap->acregmax = hasmntval(mntp, MNTTAB_OPT_ACREGMAX);
-#endif /* MNTTAB_OPT_ACREGMAX */
-#ifdef MNTTAB_OPT_ACDIRMIN
-    nap->acdirmin = hasmntval(mntp, MNTTAB_OPT_ACDIRMIN);
-#endif /* MNTTAB_OPT_ACDIRMIN */
-#ifdef MNTTAB_OPT_ACDIRMAX
-    nap->acdirmax = hasmntval(mntp, MNTTAB_OPT_ACDIRMAX);
-#endif /* MNTTAB_OPT_ACDIRMAX */
-  } /* end of "if (acval)" statement */
-
-#ifdef MNT2_NFS_OPT_ACREGMIN
-  if (nap->acregmin)
-    nap->flags |= MNT2_NFS_OPT_ACREGMIN;
-#endif /* MNT2_NFS_OPT_ACREGMIN */
-#ifdef MNT2_NFS_OPT_ACREGMAX
-  if (nap->acregmax)
-    nap->flags |= MNT2_NFS_OPT_ACREGMAX;
-#endif /* MNT2_NFS_OPT_ACREGMAX */
-#ifdef MNT2_NFS_OPT_ACDIRMIN
-  if (nap->acdirmin)
-    nap->flags |= MNT2_NFS_OPT_ACDIRMIN;
-#endif /* MNT2_NFS_OPT_ACDIRMIN */
-#ifdef MNT2_NFS_OPT_ACDIRMAX
-  if (nap->acdirmax)
-    nap->flags |= MNT2_NFS_OPT_ACDIRMAX;
-#endif /* MNT2_NFS_OPT_ACDIRMAX */
-
-#ifdef MNTTAB_OPT_NOAC		/* don't cache attributes */
-  if (hasmntopt(mntp, MNTTAB_OPT_NOAC) != NULL)
-    nap->flags |= MNT2_NFS_OPT_NOAC;
-#endif /* MNTTAB_OPT_NOAC */
 
   /************************************************************************/
   /***	IP ADDRESS OF REMOTE HOST					***/
@@ -524,9 +587,9 @@ compute_nfs_args(nfs_args_t *nap, mntent_t *mntp, int genflags, struct sockaddr_
   /************************************************************************/
 #ifdef MNT2_NFS_OPT_NOCONN
   /* check if user specified to use unconnected or connected sockets */
-  if (hasmntopt(mntp, MNTTAB_OPT_NOCONN) != NULL)
+  if (amu_hasmntopt(mntp, MNTTAB_OPT_NOCONN) != NULL)
     nap->flags |= MNT2_NFS_OPT_NOCONN;
-  else if (hasmntopt(mntp, MNTTAB_OPT_CONN) != NULL)
+  else if (amu_hasmntopt(mntp, MNTTAB_OPT_CONN) != NULL)
     nap->flags &= ~MNT2_NFS_OPT_NOCONN;
   else {
     /*
@@ -554,7 +617,7 @@ compute_nfs_args(nfs_args_t *nap, mntent_t *mntp, int genflags, struct sockaddr_
 
 #ifdef MNT2_NFS_OPT_RESVPORT
 # ifdef MNTTAB_OPT_RESVPORT
-  if (hasmntopt(mntp, MNTTAB_OPT_RESVPORT) != NULL)
+  if (amu_hasmntopt(mntp, MNTTAB_OPT_RESVPORT) != NULL)
     nap->flags |= MNT2_NFS_OPT_RESVPORT;
 # else /* not MNTTAB_OPT_RESVPORT */
   nap->flags |= MNT2_NFS_OPT_RESVPORT;
@@ -588,12 +651,16 @@ compute_nfs_args(nfs_args_t *nap, mntent_t *mntp, int genflags, struct sockaddr_
   if (nap->rsize)
     nap->flags |= MNT2_NFS_OPT_RSIZE;
 #endif /* MNT2_NFS_OPT_RSIZE */
+  if (nfs_version == NFS_VERSION && nap->rsize > 8192)
+    nap->rsize = 8192;
 
   nap->wsize = hasmntval(mntp, MNTTAB_OPT_WSIZE);
 #ifdef MNT2_NFS_OPT_WSIZE
   if (nap->wsize)
     nap->flags |= MNT2_NFS_OPT_WSIZE;
 #endif /* MNT2_NFS_OPT_WSIZE */
+  if (nfs_version == NFS_VERSION && nap->wsize > 8192)
+    nap->wsize = 8192;
 
   nap->timeo = hasmntval(mntp, MNTTAB_OPT_TIMEO);
 #ifdef MNT2_NFS_OPT_TIMEO
@@ -612,11 +679,13 @@ compute_nfs_args(nfs_args_t *nap, mntent_t *mntp, int genflags, struct sockaddr_
     nap->flags |= MNT2_NFS_OPT_BIODS;
 #endif /* MNT2_NFS_OPT_BIODS */
 
-  if (hasmntopt(mntp, MNTTAB_OPT_SOFT) != NULL)
+#ifdef MNT2_NFS_OPT_SOFT
+  if (amu_hasmntopt(mntp, MNTTAB_OPT_SOFT) != NULL)
     nap->flags |= MNT2_NFS_OPT_SOFT;
+#endif /* MNT2_NFS_OPT_SOFT */
 
 #ifdef MNT2_NFS_OPT_SPONGY
-  if (hasmntopt(mntp, MNTTAB_OPT_SPONGY) != NULL) {
+  if (amu_hasmntopt(mntp, MNTTAB_OPT_SPONGY) != NULL) {
     nap->flags |= MNT2_NFS_OPT_SPONGY;
     if (nap->flags & MNT2_NFS_OPT_SOFT) {
       plog(XLOG_USER, "Mount opts soft and spongy are incompatible - soft ignored");
@@ -632,7 +701,7 @@ compute_nfs_args(nfs_args_t *nap, mntent_t *mntp, int genflags, struct sockaddr_
 #endif /* defined(MNT2_GEN_OPT_RONLY) && defined(MNT2_NFS_OPT_RONLY) */
 
 #ifdef MNTTAB_OPT_INTR
-  if (hasmntopt(mntp, MNTTAB_OPT_INTR) != NULL)
+  if (amu_hasmntopt(mntp, MNTTAB_OPT_INTR) != NULL)
     /*
      * Either turn on the "allow interrupts" option, or
      * turn off the "disallow interrupts" option"
@@ -652,17 +721,17 @@ compute_nfs_args(nfs_args_t *nap, mntent_t *mntp, int genflags, struct sockaddr_
 #endif /* MNTTAB_OPT_INTR */
 
 #ifdef MNTTAB_OPT_NODEVS
-  if (hasmntopt(mntp, MNTTAB_OPT_NODEVS) != NULL)
+  if (amu_hasmntopt(mntp, MNTTAB_OPT_NODEVS) != NULL)
     nap->flags |= MNT2_NFS_OPT_NODEVS;
 #endif /* MNTTAB_OPT_NODEVS */
 
 #ifdef MNTTAB_OPT_COMPRESS
-  if (hasmntopt(mntp, MNTTAB_OPT_COMPRESS) != NULL)
+  if (amu_hasmntopt(mntp, MNTTAB_OPT_COMPRESS) != NULL)
     nap->flags |= MNT2_NFS_OPT_COMPRESS;
 #endif /* MNTTAB_OPT_COMPRESS */
 
 #ifdef MNTTAB_OPT_PRIVATE	/* mount private, single-client tree */
-  if (hasmntopt(mntp, MNTTAB_OPT_PRIVATE) != NULL)
+  if (amu_hasmntopt(mntp, MNTTAB_OPT_PRIVATE) != NULL)
     nap->flags |= MNT2_NFS_OPT_PRIVATE;
 #endif /* MNTTAB_OPT_PRIVATE */
 
@@ -677,32 +746,37 @@ compute_nfs_args(nfs_args_t *nap, mntent_t *mntp, int genflags, struct sockaddr_
 #endif /* MNT2_NFS_OPT_PGTHRESH */
 
 #if defined(MNT2_NFS_OPT_NOCTO) && defined(MNTTAB_OPT_NOCTO)
-  if (hasmntopt(mntp, MNTTAB_OPT_NOCTO) != NULL)
+  if (amu_hasmntopt(mntp, MNTTAB_OPT_NOCTO) != NULL)
     nap->flags |= MNT2_NFS_OPT_NOCTO;
 #endif /* defined(MNT2_NFS_OPT_NOCTO) && defined(MNTTAB_OPT_NOCTO) */
 
 #if defined(MNT2_NFS_OPT_POSIX) && defined(MNTTAB_OPT_POSIX)
-  if (hasmntopt(mntp, MNTTAB_OPT_POSIX) != NULL) {
+  if (amu_hasmntopt(mntp, MNTTAB_OPT_POSIX) != NULL) {
     nap->flags |= MNT2_NFS_OPT_POSIX;
     nap->pathconf = NULL;
   }
 #endif /* MNT2_NFS_OPT_POSIX && MNTTAB_OPT_POSIX */
 
 #if defined(MNT2_NFS_OPT_PROPLIST) && defined(MNTTAB_OPT_PROPLIST)
-  if (hasmntopt(mntp, MNTTAB_OPT_PROPLIST) != NULL)
+  if (amu_hasmntopt(mntp, MNTTAB_OPT_PROPLIST) != NULL)
     nap->flags |= MNT2_NFS_OPT_PROPLIST;
 #endif /* defined(MNT2_NFS_OPT_PROPLIST) && defined(MNTTAB_OPT_PROPLIST) */
 
 #if defined(MNT2_NFS_OPT_MAXGRPS) && defined(MNTTAB_OPT_MAXGROUPS)
   nap->maxgrouplist = hasmntval(mntp, MNTTAB_OPT_MAXGROUPS);
-  if (nap->maxgrouplist != NULL)
+  if (nap->maxgrouplist != 0)
     nap->flags |= MNT2_NFS_OPT_MAXGRPS;
 #endif /* defined(MNT2_NFS_OPT_MAXGRPS) && defined(MNTTAB_OPT_MAXGROUPS) */
 
 #if defined(MNT2_NFS_OPT_NONLM) && defined(MNTTAB_OPT_NOLOCK)
-  if (hasmntopt(mntp, MNTTAB_OPT_NOLOCK) != NULL)
+  if (amu_hasmntopt(mntp, MNTTAB_OPT_NOLOCK) != NULL)
     nap->flags |= MNT2_NFS_OPT_NONLM;
 #endif /* defined(MNT2_NFS_OPT_NONLM) && defined(MNTTAB_OPT_NOLOCK) */
+
+#if defined(MNT2_NFS_OPT_XLATECOOKIE) && defined(MNTTAB_OPT_XLATECOOKIE)
+  if (amu_hasmntopt(mntp, MNTTAB_OPT_XLATECOOKIE) != NULL)
+    nap->flags |= MNT2_NFS_OPT_XLATECOOKIE;
+#endif /* defined(MNT2_NFS_OPT_XLATECOOKIE) && defined(MNTTAB_OPT_XLATECOOKIE) */
 
 #ifdef HAVE_NFS_ARGS_T_OPTSTR
   nap->optstr = mntp->mnt_opts;
@@ -762,28 +836,9 @@ compute_automounter_nfs_args(nfs_args_t *nap, mntent_t *mntp)
   nap->flags |= MNT2_NFS_OPT_DUMBTIMR;
 #endif /* MNT2_NFS_OPT_DUMBTIMR */
 
-#ifdef MNT2_NFS_OPT_NOAC
-  /*
-   * Don't cache attributes - they are changing under the kernel's feet.
-   * For example, IRIX5.2 will dispense with nfs lookup calls and hand stale
-   * filehandles to getattr unless we disable attribute caching on the
-   * automount points.
-   */
-  nap->flags |= MNT2_NFS_OPT_NOAC;
-#else /* not MNT2_NFS_OPT_NOAC */
-  /*
-   * Setting these to 0 results in an error on some systems, which is why
-   * it's better to use "noac" if possible.
-   */
-# if defined(MNT2_NFS_OPT_ACREGMIN) && defined(MNT2_NFS_OPT_ACREGMAX)
-  nap->acregmin = nap->acregmax = 0; /* XXX: was 1, but why? */
-  nap->flags |= MNT2_NFS_OPT_ACREGMIN | MNT2_NFS_OPT_ACREGMAX;
-# endif /* defined(MNT2_NFS_OPT_ACREGMIN) && defined(MNT2_NFS_OPT_ACREGMAX) */
-# if defined(MNT2_NFS_OPT_ACDIRMIN) && defined(MNT2_NFS_OPT_ACDIRMAX)
-  nap->acdirmin = nap->acdirmax = 0; /* XXX: was 1, but why? */
-  nap->flags |= MNT2_NFS_OPT_ACDIRMIN | MNT2_NFS_OPT_ACDIRMAX;
-# endif /* defined(MNT2_NFS_OPT_ACDIRMIN) && defined(MNT2_NFS_OPT_ACDIRMAX) */
-#endif /* not MNT2_NFS_OPT_NOAC */
+  /* compute all of the NFS attribute-cache flags */
+  compute_nfs_attrcache_flags(nap, mntp);
+
   /*
    * Provide a slight bit more security by requiring the kernel to use
    * reserved ports.
@@ -799,7 +854,7 @@ compute_automounter_nfs_args(nfs_args_t *nap, mntent_t *mntp)
 static char *
 get_hex_string(u_int len, const char *fhdata)
 {
-  int i;
+  u_int i;
   static char buf[128];		/* better not go over it! */
   char str[16];
   short int arr[64];
@@ -809,9 +864,9 @@ get_hex_string(u_int len, const char *fhdata)
   buf[0] = '\0';
   memset(&arr[0], 0, (64 * sizeof(short int)));
   memcpy(&arr[0], &fhdata[0], len);
-  for (i=0; i<len/sizeof(short int); i++) {
-    sprintf(str, "%04x", ntohs(arr[i]));
-    strcat(buf, str);
+  for (i=0; i<len/sizeof(unsigned short int); i++) {
+    xsnprintf(str, sizeof(str), "%04x", ntohs(arr[i]));
+    xstrlcat(buf, str, sizeof(buf));
   }
   return buf;
 }
@@ -824,7 +879,7 @@ get_hex_string(u_int len, const char *fhdata)
 void
 print_nfs_args(const nfs_args_t *nap, u_long nfs_version)
 {
-   int fhlen = 32;	/* default: NFS V.2 file handle length is 32 */
+  int fhlen = 32;	/* default: NFS V.2 file handle length is 32 */
 #ifdef HAVE_TRANSPORT_TYPE_TLI
   struct netbuf *nbp;
   struct knetconfig *kncp;
@@ -851,7 +906,7 @@ print_nfs_args(const nfs_args_t *nap, u_long nfs_version)
        nbp->maxlen, nbp->len,
        get_hex_string(nbp->len, nbp->buf));
   nbp = nap->syncaddr;
-  plog(XLOG_DEBUG, "NA->syncaddr {netbuf} 0x%x", (int) nbp);
+  plog(XLOG_DEBUG, "NA->syncaddr {netbuf} %p", nbp);
   kncp = nap->knconf;
   plog(XLOG_DEBUG, "NA->knconf->semantics %lu", (u_long) kncp->knc_semantics);
   plog(XLOG_DEBUG, "NA->knconf->protofmly \"%s\"", kncp->knc_protofmly);
@@ -859,18 +914,26 @@ print_nfs_args(const nfs_args_t *nap, u_long nfs_version)
   plog(XLOG_DEBUG, "NA->knconf->rdev %lu", (u_long) kncp->knc_rdev);
   /* don't print knconf->unused field */
 #else /* not HAVE_TRANSPORT_TYPE_TLI */
-  sap = (struct sockaddr_in *) &nap->addr;
+# ifdef NFS_ARGS_T_ADDR_IS_POINTER
+    sap = (struct sockaddr_in *) nap->addr;
+# else /* not NFS_ARGS_T_ADDR_IS_POINTER */
+    sap = (struct sockaddr_in *) &nap->addr;
+# endif /* not NFS_ARGS_T_ADDR_IS_POINTER */
   plog(XLOG_DEBUG, "NA->addr {sockaddr_in} (len=%d) = \"%s\"",
        (int) sizeof(struct sockaddr_in),
        get_hex_string(sizeof(struct sockaddr_in), (const char *)sap));
 #ifdef HAVE_STRUCT_SOCKADDR_SA_LEN
-  plog(XLOG_DEBUG, "NA->addr.sin_len = \"%d\"", sap->sin_len);
+  /* as per POSIX, sin_len need not be set (used internally by kernel) */
+  plog(XLOG_DEBUG, "NA->addr.sin_len = %d", sap->sin_len);
 #endif /* HAVE_STRUCT_SOCKADDR_SA_LEN */
-  plog(XLOG_DEBUG, "NA->addr.sin_family = \"%d\"", sap->sin_family);
-  plog(XLOG_DEBUG, "NA->addr.sin_port = \"%d\"", sap->sin_port);
+  plog(XLOG_DEBUG, "NA->addr.sin_family = %d", sap->sin_family);
+  plog(XLOG_DEBUG, "NA->addr.sin_port = %d", sap->sin_port);
   plog(XLOG_DEBUG, "NA->addr.sin_addr = \"%s\"",
        get_hex_string(sizeof(struct in_addr), (const char *) &sap->sin_addr));
 #endif /* not HAVE_TRANSPORT_TYPE_TLI */
+#ifdef HAVE_NFS_ARGS_T_ADDRLEN
+  plog(XLOG_DEBUG, "NA->addrlen = %d", nap->addrlen);
+#endif /* ifdef HAVE_NFS_ARGS_T_ADDRLEN */
 
   plog(XLOG_DEBUG, "NA->hostname = \"%s\"", nap->hostname ? nap->hostname : "null");
 #ifdef HAVE_NFS_ARGS_T_NAMLEN

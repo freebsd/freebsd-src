@@ -1,5 +1,47 @@
 /*
- * am_compat.h:
+ * Copyright (c) 1997-2006 Erez Zadok
+ * Copyright (c) 1990 Jan-Simon Pendry
+ * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
+ * Copyright (c) 1990 The Regents of the University of California.
+ * All rights reserved.
+ *
+ * This code is derived from software contributed to Berkeley by
+ * Jan-Simon Pendry at Imperial College, London.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgment:
+ *      This product includes software developed by the University of
+ *      California, Berkeley and its contributors.
+ * 4. Neither the name of the University nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ *
+ * File: am-utils/include/am_compat.h
+ *
+ */
+
+/*
  *
  * This file contains compatibility functions and macros, all of which
  * should be auto-discovered, but for one reason or another (mostly
@@ -59,6 +101,10 @@
 # define MNTTAB_OPT_PGTHRESH "pgthresh"
 #endif /* defined(MNT2_NFS_OPT_PGTHRESH) && !defined(MNTTAB_OPT_PGTHRESH) */
 
+#if defined(MNT2_NFS_OPT_PRIVATE) && !defined(MNTTAB_OPT_PRIVATE)
+# define MNTTAB_OPT_PRIVATE "private"
+#endif /* defined(MNT2_NFS_OPT_PRIVATE) && !defined(MNTTAB_OPT_PRIVATE) */
+
 #if defined(MNT2_NFS_OPT_RETRANS) && !defined(MNTTAB_OPT_RETRANS)
 # define MNTTAB_OPT_RETRANS "retrans"
 #endif /* defined(MNT2_NFS_OPT_RETRANS) && !defined(MNTTAB_OPT_RETRANS) */
@@ -93,6 +139,10 @@
 #if defined(MNT2_NFS_OPT_NONLM) && !defined(MNTTAB_OPT_NOLOCK)
 # define MNTTAB_OPT_NOLOCK "nolock"
 #endif /* defined(MNT2_NFS_OPT_NONLM) && !defined(MNTTAB_OPT_NOLOCK) */
+
+#if defined(MNT2_NFS_OPT_XLATECOOKIE) && !defined(MNTTAB_OPT_XLATECOOKIE)
+# define MNTTAB_OPT_XLATECOOKIE "xlatecookie"
+#endif /* defined(MNT2_NFS_OPT_XLATECOOKIE) && !defined(MNTTAB_OPT_XLATECOOKIE) */
 
 /*
  * Complete MNTTAB_OPT_* options based on MNT2_CDFS_OPT_* mount options.
@@ -129,6 +179,19 @@
 #if defined(MNT2_CDFS_OPT_EXTATT) && !defined(MNTTAB_OPT_EXTATT)
 # define MNTTAB_OPT_EXTATT "extatt"
 #endif /* defined(MNT2_CDFS_OPT_EXTATT) && !defined(MNTTAB_OPT_EXTATT) */
+
+/*
+ * Complete MNTTAB_OPT_* options based on MNT2_PCFS_OPT_* mount options.
+ */
+#if defined(MNT2_PCFS_OPT_LONGNAME) && !defined(MNTTAB_OPT_LONGNAME)
+# define MNTTAB_OPT_LONGNAME "longnames"
+#endif /* defined(MNT2_PCFS_OPT_LONGNAME) && !defined(MNTTAB_OPT_LONGNAME) */
+#if defined(MNT2_PCFS_OPT_NOWIN95) && !defined(MNTTAB_OPT_NOWIN95)
+# define MNTTAB_OPT_NOWIN95 "nowin95"
+#endif /* defined(MNT2_PCFS_OPT_NOWIN95) && !defined(MNTTAB_OPT_NOWIN95) */
+#if defined(MNT2_PCFS_OPT_SHORTNAME) && !defined(MNTTAB_OPT_SHORTNAME)
+# define MNTTAB_OPT_SHORTNAME "shortnames"
+#endif /* defined(MNT2_PCFS_OPT_SHORTNAME) && !defined(MNTTAB_OPT_SHORTNAME) */
 
 /*
  * Complete MNTTAB_OPT_* options based on MNT2_GEN_OPT_* mount options.
@@ -189,6 +252,10 @@
 # define MNTTAB_OPT_PORT "port"
 #endif /* not MNTTAB_OPT_PORT */
 
+#ifndef MNTTAB_OPT_PUBLIC
+# define MNTTAB_OPT_PUBLIC "public"
+#endif /* not MNTTAB_OPT_PUBLIC */
+
 #ifndef MNTTAB_OPT_RETRANS
 # define MNTTAB_OPT_RETRANS "retrans"
 #endif /* not MNTTAB_OPT_RETRANS */
@@ -217,6 +284,19 @@
 # define MNTTAB_OPT_WSIZE "wsize"
 #endif /* not MNTTAB_OPT_WSIZE */
 
+/* next four are useful for pcfs mounts */
+#ifndef MNTTAB_OPT_USER
+# define MNTTAB_OPT_USER "user"
+#endif /* not MNTTAB_OPT_USER */
+#ifndef MNTTAB_OPT_GROUP
+# define MNTTAB_OPT_GROUP "group"
+#endif /* not MNTTAB_OPT_GROUP */
+#ifndef MNTTAB_OPT_MASK
+# define MNTTAB_OPT_MASK "mask"
+#endif /* not MNTTAB_OPT_MASK */
+#ifndef MNTTAB_OPT_DIRMASK
+# define MNTTAB_OPT_DIRMASK "dirmask"
+#endif /* not MNTTAB_OPT_DIRMASK */
 
 /*
  * Incomplete filesystem definitions (sunos4, irix6, solaris2)
@@ -268,6 +348,10 @@ struct hsfs_args {
 # define xfs_args_t u_int
 #endif /* defined(HAVE_FS_XFS) && !defined(xfs_args_t) */
 
+#if defined(HAVE_FS_AUTOFS) && defined(MOUNT_TYPE_AUTOFS) && !defined(MNTTYPE_AUTOFS)
+# define MNTTYPE_AUTOFS "autofs"
+#endif /* defined(HAVE_FS_AUTOFS) && defined(MOUNT_TYPE_AUTOFS) && !defined(MNTTYPE_AUTOFS) */
+
 /*
  * If NFS3, then make sure that "proto" and "vers" mnttab options
  * are available.
@@ -280,5 +364,30 @@ struct hsfs_args {
 #  define MNTTAB_OPT_PROTO "proto"
 # endif /* not MNTTAB_OPT_PROTO */
 #endif /* not HAVE_FS_NFS3 */
+
+/*
+ * If loop device (header file) exists, define mount table option
+ */
+#if defined(HAVE_LOOP_DEVICE) && !defined(MNTTAB_OPT_LOOP)
+# define MNTTAB_OPT_LOOP "loop"
+#endif /* defined(HAVE_LOOP_DEVICE) && !defined(MNTTAB_OPT_LOOP) */
+
+/*
+ * Define a dummy struct netconfig for non-TLI systems
+ */
+#if !defined(HAVE_NETCONFIG_H) && !defined(HAVE_SYS_NETCONFIG_H)
+struct netconfig {
+  int dummy;
+};
+#endif /* not HAVE_NETCONFIG_H and not HAVE_SYS_NETCONFIG_H */
+
+/* some OSs don't define INADDR_NONE and assume it's unsigned -1 */
+#ifndef INADDR_NONE
+# define INADDR_NONE	0xffffffffU
+#endif /* INADDR_NONE */
+/* some OSs don't define INADDR_LOOPBACK */
+#ifndef INADDR_LOOPBACK
+# define INADDR_LOOPBACK	0x7f000001
+#endif /* not INADDR_LOOPBACK */
 
 #endif /* not _AM_COMPAT_H */

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2004 Erez Zadok
+ * Copyright (c) 1997-2006 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -36,31 +36,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      %W% (Berkeley) %G%
  *
- * $Id: amq.c,v 1.7.2.9 2004/01/06 03:15:16 ezk Exp $
+ * File: am-utils/amq/amq.c
  *
  */
-
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
 
 /*
  * Automounter query tool
  */
-
-#ifndef lint
-char copyright[] = "\
-@(#)Copyright (c) 1997-2004 Erez Zadok\n\
-@(#)Copyright (c) 1990 Jan-Simon Pendry\n\
-@(#)Copyright (c) 1990 Imperial College of Science, Technology & Medicine\n\
-@(#)Copyright (c) 1990 The Regents of the University of California.\n\
-@(#)All rights reserved.\n";
-#if __GNUC__ < 2
-static char rcsid[] = "$Id: amq.c,v 1.7.2.9 2004/01/06 03:15:16 ezk Exp $";
-static char sccsid[] = "%W% (Berkeley) %G%";
-#endif /* __GNUC__ < 2 */
-#endif /* not lint */
 
 #ifdef HAVE_CONFIG_H
 # include <config.h>
@@ -118,8 +101,8 @@ show_mti(amq_mount_tree *mt, enum show_opt e, int *mwid, int *dwid, int *twid)
 
   case Full:
     {
-      struct tm *tp = localtime((time_t *) &mt->mt_mounttime);
-      printf("%-*.*s %-*.*s %-*.*s %s\n\t%-5d %-7d %-6d %-7d %-7d %-6d %02d/%02d/%02d %02d:%02d:%02d\n",
+      struct tm *tp = localtime((time_t *) ((voidp) &mt->mt_mounttime));
+      printf("%-*.*s %-*.*s %-*.*s %s\n\t%-5d %-7d %-6d %-7d %-7d %-6d %02d/%02d/%04d %02d:%02d:%02d\n",
 	     *dwid, *dwid,
 	     *mt->mt_directory ? mt->mt_directory : "/",	/* XXX */
 	     *twid, *twid,
@@ -135,16 +118,16 @@ show_mti(amq_mount_tree *mt, enum show_opt e, int *mwid, int *dwid, int *twid)
 	     mt->mt_readlink,
 	     mt->mt_statfs,
 
-	     tp->tm_year > 99 ? tp->tm_year - 100 : tp->tm_year,
 	     tp->tm_mon + 1, tp->tm_mday,
+	     tp->tm_year < 1900 ? tp->tm_year + 1900 : tp->tm_year,
 	     tp->tm_hour, tp->tm_min, tp->tm_sec);
     }
   break;
 
   case Stats:
     {
-      struct tm *tp = localtime((time_t *) &mt->mt_mounttime);
-      printf("%-*.*s %-5d %-7d %-6d %-7d %-7d %-6d %02d/%02d/%02d %02d:%02d:%02d\n",
+      struct tm *tp = localtime((time_t *) ((voidp) &mt->mt_mounttime));
+      printf("%-*.*s %-5d %-7d %-6d %-7d %-7d %-6d %02d/%02d/%02d %02d:%02d:%04d\n",
 	     *dwid, *dwid,
 	     *mt->mt_directory ? mt->mt_directory : "/",	/* XXX */
 
@@ -155,8 +138,8 @@ show_mti(amq_mount_tree *mt, enum show_opt e, int *mwid, int *dwid, int *twid)
 	     mt->mt_readlink,
 	     mt->mt_statfs,
 
-	     tp->tm_year > 99 ? tp->tm_year - 100 : tp->tm_year,
 	     tp->tm_mon + 1, tp->tm_mday,
+	     tp->tm_year < 1900 ? tp->tm_year + 1900 : tp->tm_year,
 	     tp->tm_hour, tp->tm_min, tp->tm_sec);
     }
   break;
@@ -184,7 +167,7 @@ show_mti(amq_mount_tree *mt, enum show_opt e, int *mwid, int *dwid, int *twid)
  * Display a pwd data
  */
 static void
-show_pwd(amq_mount_tree *mt, char *path, int *flag)
+show_pwd(amq_mount_tree *mt, char *path, size_t l, int *flag)
 {
   int len;
 
@@ -192,13 +175,13 @@ show_pwd(amq_mount_tree *mt, char *path, int *flag)
     len = strlen(mt->mt_mountpoint);
     if (NSTREQ(path, mt->mt_mountpoint, len) &&
 	!STREQ(mt->mt_directory, mt->mt_mountpoint)) {
-      char buf[MAXPATHLEN+1];
-      strcpy(buf, mt->mt_directory);
-      strcat(buf, &path[len]);
-      strcpy(path, buf);
+      char buf[MAXPATHLEN+1];	/* must be same size as 'path' */
+      xstrlcpy(buf, mt->mt_directory, sizeof(buf));
+      xstrlcat(buf, &path[len], sizeof(buf));
+      xstrlcpy(path, buf, l);
       *flag = 1;
     }
-    show_pwd(mt->mt_next, path, flag);
+    show_pwd(mt->mt_next, path, l, flag);
     mt = mt->mt_child;
   }
 }
@@ -221,7 +204,7 @@ show_mt(amq_mount_tree *mt, enum show_opt e, int *mwid, int *dwid, int *pwid)
 static void
 show_mi(amq_mount_info_list *ml, enum show_opt e, int *mwid, int *dwid, int *twid)
 {
-  int i;
+  u_int i;
 
   switch (e) {
 
@@ -254,14 +237,7 @@ show_mi(amq_mount_info_list *ml, enum show_opt e, int *mwid, int *dwid, int *twi
 	       mi->mi_up > 0 ? "up" :
 	       mi->mi_up < 0 ? "starting" : "down");
 	if (mi->mi_error > 0) {
-	  if (mi->mi_error < sys_nerr)
-#ifdef HAVE_STRERROR
-	    printf(" (%s)", strerror(mi->mi_error));
-#else /* not HAVE_STRERROR */
-	    printf(" (%s)", sys_errlist[mi->mi_error]);
-#endif /* not HAVE_STRERROR */
-	  else
-	    printf(" (Error %d)", mi->mi_error);
+	  printf(" (%s)", strerror(mi->mi_error));
 	} else if (mi->mi_error < 0) {
 	  fputs(" (in progress)", stdout);
 	}
@@ -458,7 +434,8 @@ Usage: %s [-fmpsvwHTU] [-h hostname] [-l log_file|\"syslog\"]\n\
 	    am_get_progname(), server);
     exit(1);
   }
-  memset(&server_addr, 0, sizeof server_addr);
+  memset(&server_addr, 0, sizeof(server_addr));
+  /* as per POSIX, sin_len need not be set (used internally by kernel) */
   server_addr.sin_family = AF_INET;
   if (hp) {
     memmove((voidp) &server_addr.sin_addr, (voidp) hp->h_addr,
@@ -564,7 +541,8 @@ Usage: %s [-fmpsvwHTU] [-h hostname] [-l log_file|\"syslog\"]\n\
     char *wd = getcwd(path, MAXPATHLEN+1);
     amq_mount_tree_list *mlp = amqproc_export_1((voidp) 0, clnt);
     amq_mount_tree_p mt;
-    int i, flag;
+    u_int i;
+    int flag;
 
     if (!wd) {
       perror("getcwd");
@@ -574,7 +552,7 @@ Usage: %s [-fmpsvwHTU] [-h hostname] [-l log_file|\"syslog\"]\n\
       mt = mlp->amq_mount_tree_list_val[i];
       while (1) {
 	flag = 0;
-	show_pwd(mt, path, &flag);
+	show_pwd(mt, path, sizeof(path), &flag);
 	if (!flag) {
 	  printf("%s\n", path);
 	  break;
@@ -688,8 +666,9 @@ Usage: %s [-fmpsvwHTU] [-h hostname] [-l log_file|\"syslog\"]\n\
     if (mlp) {
       enum show_opt e = Calc;
       int mwid = 0, dwid = 0, pwid = 0;
+
       while (e != ShowDone) {
-	int i;
+	u_int i;
 	for (i = 0; i < mlp->amq_mount_tree_list_len; i++) {
 	  show_mt(mlp->amq_mount_tree_list_val[i],
 		  e, &mwid, &dwid, &pwid);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2004 Erez Zadok
+ * Copyright (c) 1997-2006 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -36,9 +36,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      %W% (Berkeley) %G%
  *
- * $Id: conf.c,v 1.7.2.8 2004/01/21 04:04:58 ib42 Exp $
+ * File: am-utils/amd/conf.c
  *
  */
 
@@ -76,12 +75,18 @@ struct _func_map {
  * FORWARD DECLARATIONS:
  */
 static int gopt_arch(const char *val);
+static int gopt_auto_attrcache(const char *val);
 static int gopt_auto_dir(const char *val);
+static int gopt_autofs_use_lofs(const char *val);
 static int gopt_browsable_dirs(const char *val);
 static int gopt_cache_duration(const char *val);
 static int gopt_cluster(const char *val);
+static int gopt_debug_mtab_file(const char *val);
 static int gopt_debug_options(const char *val);
 static int gopt_dismount_interval(const char *val);
+static int gopt_domain_strip(const char *val);
+static int gopt_exec_map_timeout(const char *val);
+static int gopt_forced_unmounts(const char *val);
 static int gopt_full_os(const char *val);
 static int gopt_fully_qualified_hosts(const char *val);
 static int gopt_hesiod_base(const char *val);
@@ -90,21 +95,34 @@ static int gopt_ldap_base(const char *val);
 static int gopt_ldap_cache_maxmem(const char *val);
 static int gopt_ldap_cache_seconds(const char *val);
 static int gopt_ldap_hostports(const char *val);
+static int gopt_ldap_proto_version(const char *val);
 static int gopt_local_domain(const char *val);
+static int gopt_localhost_address(const char *val);
 static int gopt_log_file(const char *val);
 static int gopt_log_options(const char *val);
+static int gopt_map_defaults(const char *val);
 static int gopt_map_options(const char *val);
+static int gopt_map_reload_interval(const char *val);
 static int gopt_map_type(const char *val);
 static int gopt_mount_type(const char *val);
 static int gopt_pid_file(const char *val);
 static int gopt_portmap_program(const char *val);
+static int gopt_preferred_amq_port(const char *val);
+static int gopt_nfs_allow_any_interface(const char *val);
 static int gopt_nfs_allow_insecure_port(const char *val);
 static int gopt_nfs_proto(const char *val);
 static int gopt_nfs_retransmit_counter(const char *val);
+static int gopt_nfs_retransmit_counter_udp(const char *val);
+static int gopt_nfs_retransmit_counter_tcp(const char *val);
+static int gopt_nfs_retransmit_counter_toplvl(const char *val);
 static int gopt_nfs_retry_interval(const char *val);
+static int gopt_nfs_retry_interval_udp(const char *val);
+static int gopt_nfs_retry_interval_tcp(const char *val);
+static int gopt_nfs_retry_interval_toplvl(const char *val);
 static int gopt_nfs_vers(const char *val);
 static int gopt_nis_domain(const char *val);
 static int gopt_normalize_hostnames(const char *val);
+static int gopt_normalize_slashes(const char *val);
 static int gopt_os(const char *val);
 static int gopt_osver(const char *val);
 static int gopt_plock(const char *val);
@@ -114,33 +132,43 @@ static int gopt_restart_mounts(const char *val);
 static int gopt_search_path(const char *val);
 static int gopt_selectors_in_defaults(const char *val);
 static int gopt_show_statfs_entries(const char *val);
+static int gopt_truncate_log(const char *val);
 static int gopt_unmount_on_exit(const char *val);
+static int gopt_use_tcpwrappers(const char *val);
 static int gopt_vendor(const char *val);
 static int process_global_option(const char *key, const char *val);
-static int process_regular_map(cf_map_t *cfm);
+static int process_one_regular_map(const cf_map_t *cfm);
 static int process_regular_option(const char *section, const char *key, const char *val, cf_map_t *cfm);
 static int ropt_browsable_dirs(const char *val, cf_map_t *cfm);
 static int ropt_map_name(const char *val, cf_map_t *cfm);
+static int ropt_map_defaults(const char *val, cf_map_t *cfm);
 static int ropt_map_options(const char *val, cf_map_t *cfm);
 static int ropt_map_type(const char *val, cf_map_t *cfm);
 static int ropt_mount_type(const char *val, cf_map_t *cfm);
 static int ropt_search_path(const char *val, cf_map_t *cfm);
 static int ropt_tag(const char *val, cf_map_t *cfm);
-static void reset_cf_map(cf_map_t *cfm);
+static void init_cf_map(cf_map_t *cfm);
 
 
 /*
  * STATIC VARIABLES:
  */
-static cf_map_t cur_map;
+static cf_map_t *head_map, *cur_map;
+
 static struct _func_map glob_functable[] = {
   {"arch",			gopt_arch},
+  {"auto_attrcache",		gopt_auto_attrcache},
   {"auto_dir",			gopt_auto_dir},
+  {"autofs_use_lofs",		gopt_autofs_use_lofs},
   {"browsable_dirs",		gopt_browsable_dirs},
   {"cache_duration",		gopt_cache_duration},
   {"cluster",			gopt_cluster},
+  {"debug_mtab_file",           gopt_debug_mtab_file},
   {"debug_options",		gopt_debug_options},
   {"dismount_interval",		gopt_dismount_interval},
+  {"domain_strip",		gopt_domain_strip},
+  {"exec_map_timeout",		gopt_exec_map_timeout},
+  {"forced_unmounts",		gopt_forced_unmounts},
   {"fully_qualified_hosts",	gopt_fully_qualified_hosts},
   {"full_os",			gopt_full_os},
   {"hesiod_base",		gopt_hesiod_base},
@@ -149,21 +177,34 @@ static struct _func_map glob_functable[] = {
   {"ldap_cache_maxmem",		gopt_ldap_cache_maxmem},
   {"ldap_cache_seconds",	gopt_ldap_cache_seconds},
   {"ldap_hostports",		gopt_ldap_hostports},
+  {"ldap_proto_version",	gopt_ldap_proto_version},
   {"local_domain",		gopt_local_domain},
+  {"localhost_address",		gopt_localhost_address},
   {"log_file",			gopt_log_file},
   {"log_options",		gopt_log_options},
+  {"map_defaults",		gopt_map_defaults},
   {"map_options",		gopt_map_options},
+  {"map_reload_interval",	gopt_map_reload_interval},
   {"map_type",			gopt_map_type},
   {"mount_type",		gopt_mount_type},
   {"pid_file",			gopt_pid_file},
   {"portmap_program",		gopt_portmap_program},
+  {"preferred_amq_port",	gopt_preferred_amq_port},
+  {"nfs_allow_any_interface",	gopt_nfs_allow_any_interface},
   {"nfs_allow_insecure_port",	gopt_nfs_allow_insecure_port},
   {"nfs_proto",			gopt_nfs_proto},
   {"nfs_retransmit_counter",	gopt_nfs_retransmit_counter},
+  {"nfs_retransmit_counter_udp",	gopt_nfs_retransmit_counter_udp},
+  {"nfs_retransmit_counter_tcp",	gopt_nfs_retransmit_counter_tcp},
+  {"nfs_retransmit_counter_toplvl",	gopt_nfs_retransmit_counter_toplvl},
   {"nfs_retry_interval",	gopt_nfs_retry_interval},
+  {"nfs_retry_interval_udp",	gopt_nfs_retry_interval_udp},
+  {"nfs_retry_interval_tcp",	gopt_nfs_retry_interval_tcp},
+  {"nfs_retry_interval_toplvl",	gopt_nfs_retry_interval_toplvl},
   {"nfs_vers",			gopt_nfs_vers},
   {"nis_domain",		gopt_nis_domain},
   {"normalize_hostnames",	gopt_normalize_hostnames},
+  {"normalize_slashes",		gopt_normalize_slashes},
   {"os",			gopt_os},
   {"osver",			gopt_osver},
   {"plock",			gopt_plock},
@@ -174,61 +215,43 @@ static struct _func_map glob_functable[] = {
   {"selectors_on_default",	gopt_selectors_in_defaults},
   {"selectors_in_defaults",	gopt_selectors_in_defaults},
   {"show_statfs_entries",	gopt_show_statfs_entries},
+  {"truncate_log",		gopt_truncate_log},
   {"unmount_on_exit",		gopt_unmount_on_exit},
+  {"use_tcpwrappers",		gopt_use_tcpwrappers},
   {"vendor",			gopt_vendor},
   {NULL, NULL}
 };
 
 
 /*
- * Reset a map.
+ * Initialize a map from [global] defaults.
  */
 static void
-reset_cf_map(cf_map_t *cfm)
+init_cf_map(cf_map_t *cfm)
 {
   if (!cfm)
     return;
 
-  if (cfm->cfm_dir) {
-    XFREE(cfm->cfm_dir);
-    cfm->cfm_dir = NULL;
-  }
-
-  if (cfm->cfm_name) {
-    XFREE(cfm->cfm_name);
-    cfm->cfm_name = NULL;
-  }
-
-  if (cfm->cfm_tag) {
-    XFREE(cfm->cfm_tag);
-    cfm->cfm_tag = NULL;
-  }
-
   /*
-   * reset/initialize a regular map's flags and other variables from the
+   * Initialize a regular map's flags and other variables from the
    * global ones, so that they are applied to all maps.  Of course, each map
    * can then override the flags individually.
    *
    * NOTES:
    * (1): Will only work for maps that appear after [global].
-   * (2): Also be careful not to free() a global option.
-   * (3): I'm doing direct char* pointer comparison, and not strcmp().  This
-   *      is correct!
+   * (2): I'm assigning pointers directly from the global map.
    */
 
   /* initialize map_type from [global] */
-  if (cfm->cfm_type && cfm->cfm_type != gopt.map_type)
-    XFREE(cfm->cfm_type);
   cfm->cfm_type = gopt.map_type;
 
+  /* initialize map_defaults from [global] */
+  cfm->cfm_defaults = gopt.map_defaults;
+
   /* initialize map_opts from [global] */
-  if (cfm->cfm_opts && cfm->cfm_opts != gopt.map_options)
-    XFREE(cfm->cfm_opts);
   cfm->cfm_opts = gopt.map_options;
 
   /* initialize search_path from [global] */
-  if (cfm->cfm_search_path && cfm->cfm_search_path != gopt.search_path)
-    XFREE(cfm->cfm_search_path);
   cfm->cfm_search_path = gopt.search_path;
 
   /*
@@ -242,7 +265,7 @@ reset_cf_map(cf_map_t *cfm)
 
 
 /*
- * Process configuration file options.
+ * Process configuration file options (called from YACC parser).
  * Return 0 if OK, 1 otherwise.
  */
 int
@@ -251,50 +274,67 @@ set_conf_kv(const char *section, const char *key, const char *val)
   int ret;
 
 #ifdef DEBUG_CONF
-  fprintf(stderr,"set_conf_kv: section=%s, key=%s, val=%s\n",
+  fprintf(stderr, "set_conf_kv: section=%s, key=%s, val=%s\n",
 	  section, key, val);
 #endif /* DEBUG_CONF */
 
   /*
-   * If global section, process them one at a time.
+   * If global section, process kv pairs one at a time.
    */
   if (STREQ(section, "global")) {
     /*
      * Check if a regular map was configured before "global",
-     * and process it as needed.
+     * and warn about it.
      */
-    if (cur_map.cfm_dir) {
-      fprintf(stderr,"processing regular map \"%s\" before global one.\n",
-	      section);
-      ret = process_regular_map(&cur_map); /* will reset map */
-      if (ret != 0)
-	return ret;
+    if (cur_map && cur_map->cfm_dir) {
+      static short printed_this_error;
+      if (!printed_this_error) {
+	fprintf(stderr, "found regular map \"%s\" before global one.\n",
+		cur_map->cfm_dir);
+	printed_this_error = 1;
+      }
     }
 
     /* process the global option first */
     ret = process_global_option(key, val);
-
-    /* reset default options for regular maps from just updated globals */
-    if (ret == 0)
-      reset_cf_map(&cur_map);
 
     /* return status from the processing of the global option */
     return ret;
   }
 
   /*
-   * otherwise save options and process a single map all at once.
+   * Otherwise we found a non-global option: store it after some testing.
    */
 
-  /* check if we found a new map, so process one already collected */
-  if (cur_map.cfm_dir && !STREQ(cur_map.cfm_dir, section)) {
-    ret = process_regular_map(&cur_map); /* will reset map */
-    if (ret != 0)
-      return ret;
+  /* initialize (static) global list head and current map pointer */
+  if (!head_map && !cur_map) {
+    cur_map = CALLOC(cf_map_t);
+    if (!cur_map) {
+      perror("calloc");
+      exit(1);
+    }
+    /* initialize first head map from global defaults */
+    init_cf_map(cur_map);
+    head_map = cur_map;
+  }
+
+  /* check if we found a new map, then allocate and initialize it */
+  if (cur_map->cfm_dir && !STREQ(cur_map->cfm_dir, section)) {
+    /* allocate new map struct */
+    cf_map_t *tmp_map = CALLOC(cf_map_t);
+    if (!tmp_map) {
+      perror("calloc");
+      exit(1);
+    }
+    /* initialize it from global defaults */
+    init_cf_map(tmp_map);
+    /* append it to end of linked list */
+    cur_map->cfm_next = tmp_map;
+    cur_map = tmp_map;
   }
 
   /* now process a single entry of a regular map */
-  return process_regular_option(section, key, val, &cur_map);
+  return process_regular_option(section, key, val, cur_map);
 }
 
 
@@ -332,10 +372,38 @@ gopt_arch(const char *val)
 
 
 static int
+gopt_auto_attrcache(const char *val)
+{
+  gopt.auto_attrcache = atoi(val);
+  if (gopt.auto_attrcache < 0) {
+    fprintf(stderr, "conf: bad attrcache value: \"%s\"\n", val);
+    return 1;
+  }
+  return 0;
+}
+
+
+static int
 gopt_auto_dir(const char *val)
 {
   gopt.auto_dir = strdup((char *)val);
   return 0;
+}
+
+
+static int
+gopt_autofs_use_lofs(const char *val)
+{
+  if (STREQ(val, "yes")) {
+    gopt.flags |= CFM_AUTOFS_USE_LOFS;
+    return 0;
+  } else if (STREQ(val, "no")) {
+    gopt.flags &= ~CFM_AUTOFS_USE_LOFS;
+    return 0;
+  }
+
+  fprintf(stderr, "conf: unknown value to autofs_use_lofs \"%s\"\n", val);
+  return 1;			/* unknown value */
 }
 
 
@@ -377,10 +445,18 @@ gopt_cluster(const char *val)
 
 
 static int
+gopt_debug_mtab_file(const char *val)
+{
+  gopt.debug_mtab_file = strdup((char*)val);
+  return 0;
+}
+
+
+static int
 gopt_debug_options(const char *val)
 {
 #ifdef DEBUG
-  usage += debug_option(strdup((char *)val));
+  usage += debug_option((char *)val);
   return 0;
 #else /* not DEBUG */
   fprintf(stderr, "%s: not compiled with DEBUG option -- sorry.\n",
@@ -397,6 +473,74 @@ gopt_dismount_interval(const char *val)
   if (gopt.am_timeo_w <= 0)
     gopt.am_timeo_w = AM_TTL_W;
   return 0;
+}
+
+
+static int
+gopt_domain_strip(const char *val)
+{
+  if (STREQ(val, "yes")) {
+    gopt.flags |= CFM_DOMAIN_STRIP;
+    return 0;
+  } else if (STREQ(val, "no")) {
+    gopt.flags &= ~CFM_DOMAIN_STRIP;
+    return 0;
+  }
+
+  fprintf(stderr, "conf: unknown value to domain_strip \"%s\"\n", val);
+  return 1;                     /* unknown value */
+}
+
+
+static int
+gopt_exec_map_timeout(const char *val)
+{
+  gopt.exec_map_timeout = atoi(val);
+  if (gopt.exec_map_timeout <= 0)
+    gopt.exec_map_timeout = AMFS_EXEC_MAP_TIMEOUT; /* default exec map timeout */
+  return 0;
+}
+
+
+static int
+gopt_forced_unmounts(const char *val)
+{
+  if (STREQ(val, "yes")) {
+#if !defined(MNT2_GEN_OPT_DETACH) && !defined(MNT2_GEN_OPT_FORCE)
+    fprintf(stderr, "conf: forced_unmounts unsupported on this system.\n");
+    return 1;
+#else /* defined(MNT2_GEN_OPT_DETACH) || defined(MNT2_GEN_OPT_FORCE) */
+# ifdef __linux__
+    /*
+     * HACK ALERT: Linux has had MNT_FORCE since 2.2, but it hasn't gotten
+     * stable until 2.4.  And it had MNT_DETACH since 2.4, but it hasn't
+     * gotten stable since 2.6.  So alert users if they're trying to use a
+     * feature that may not work well on their older kernel.
+     */
+    {
+      struct utsname un;
+      if (uname(&un) >= 0) {
+#  ifdef MNT2_GEN_OPT_FORCE
+	if (strcmp(un.release, "2.4.0") < 0)
+	  fprintf(stderr, "warning: forced-unmounts (MNT_FORCE) may not work well before 2.4.0\n");
+#  endif /* MNT2_GEN_OPT_FORCE */
+#  ifdef MNT2_GEN_OPT_DETACH
+	if (strcmp(un.release, "2.6.0") < 0)
+	  fprintf(stderr, "warning: lazy-unmounts (MNT_DETACH) may not work well before 2.6.0\n");
+#  endif /* MNT2_GEN_OPT_DETACH */
+      }
+    }
+# endif /* __linux__ */
+    gopt.flags |= CFM_FORCED_UNMOUNTS;
+    return 0;
+#endif /* defined(MNT2_GEN_OPT_DETACH) || defined(MNT2_GEN_OPT_FORCE) */
+  } else if (STREQ(val, "no")) {
+    gopt.flags &= ~CFM_FORCED_UNMOUNTS;
+    return 0;
+  }
+
+  fprintf(stderr, "conf: unknown value to unmount_on_exit \"%s\"\n", val);
+  return 1;			/* unknown value */
 }
 
 
@@ -457,6 +601,14 @@ static int
 gopt_local_domain(const char *val)
 {
   gopt.sub_domain = strdup((char *)val);
+  return 0;
+}
+
+
+static int
+gopt_localhost_address(const char *val)
+{
+  gopt.localhost_address = strdup((char *)val);
   return 0;
 }
 
@@ -527,6 +679,44 @@ gopt_ldap_hostports(const char *val)
 
 
 static int
+gopt_ldap_proto_version(const char *val)
+{
+#ifdef HAVE_MAP_LDAP
+  char *end;
+
+  gopt.ldap_proto_version = strtol((char *)val, &end, 10);
+  if (end == val) {
+    fprintf(stderr, "conf: bad ldap_proto_version option: %s\n",val);
+    return 1;
+  }
+
+  if (gopt.ldap_proto_version < 0 || gopt.ldap_proto_version > LDAP_VERSION_MAX) {
+    fprintf(stderr, "conf: bad ldap_proto_version option value: %s\n",val);
+    return 1;
+  }
+  switch (gopt.ldap_proto_version) {
+    /* XXX: what about LDAP_VERSION1? */
+  case LDAP_VERSION2:
+#ifdef LDAP_VERSION3
+  case LDAP_VERSION3:
+#endif /* LDAP_VERSION3 */
+#ifdef LDAP_VERSION4
+  case LDAP_VERSION4:
+#endif /* LDAP_VERSION4 */
+    break;
+  default:
+    fprintf(stderr, "conf: unsupported ldap_proto_version option value: %s\n",val);
+    return 1;
+  }
+  return 0;
+#else /* not HAVE_MAP_LDAP */
+  fprintf(stderr, "conf: ldap_proto_version option ignored.  No LDAP support available.\n");
+  return 1;
+#endif /* not HAVE_MAP_LDAP */
+}
+
+
+static int
 gopt_log_file(const char *val)
 {
   gopt.logfile = strdup((char *)val);
@@ -537,7 +727,15 @@ gopt_log_file(const char *val)
 static int
 gopt_log_options(const char *val)
 {
-  usage += switch_option(strdup((char *)val));
+  usage += switch_option((char *)val);
+  return 0;
+}
+
+
+static int
+gopt_map_defaults(const char *val)
+{
+  gopt.map_defaults = strdup((char *)val);
   return 0;
 }
 
@@ -546,6 +744,16 @@ static int
 gopt_map_options(const char *val)
 {
   gopt.map_options = strdup((char *)val);
+  return 0;
+}
+
+
+static int
+gopt_map_reload_interval(const char *val)
+{
+  gopt.map_reload_interval = atoi(val);
+  if (gopt.map_reload_interval <= 0)
+    gopt.map_reload_interval = ONE_HOUR;
   return 0;
 }
 
@@ -567,9 +775,14 @@ static int
 gopt_mount_type(const char *val)
 {
   if (STREQ(val, "autofs")) {
-    fprintf(stderr, "conf: no autofs support available, turning it off\n");
-    gopt.flags &= ~CFM_MOUNT_TYPE_AUTOFS;
+#ifdef HAVE_FS_AUTOFS
+    gopt.flags |= CFM_MOUNT_TYPE_AUTOFS;
+    amd_use_autofs++;
     return 0;
+#else /* not HAVE_FS_AUTOFS */
+    fprintf(stderr, "conf: no autofs support available\n");
+    return 1;
+#endif /* not HAVE_FS_AUTOFS */
   } else if (STREQ(val, "nfs")) {
     gopt.flags &= ~CFM_MOUNT_TYPE_AUTOFS;
     return 0;
@@ -583,7 +796,7 @@ gopt_mount_type(const char *val)
 static int
 gopt_portmap_program(const char *val)
 {
-  gopt.portmap_program = atoi(val);
+  gopt.portmap_program = atol(val);
   /*
    * allow alternate program numbers to be no more than 10 offset from
    * official amd program number (300019).
@@ -598,6 +811,35 @@ gopt_portmap_program(const char *val)
 
   set_amd_program_number(gopt.portmap_program);
   return 0;			/* all is OK */
+}
+
+
+static int
+gopt_preferred_amq_port(const char *val)
+{
+  gopt.preferred_amq_port = atoi(val);
+
+  /*
+   * No need to check value: preferred_amq_port is an unsigned short and 0
+   * is a valid number, meaning "any port".
+   */
+  return 0;			/* all is OK */
+}
+
+
+static int
+gopt_nfs_allow_any_interface(const char *val)
+{
+  if (STREQ(val, "yes")) {
+    gopt.flags |= CFM_NFS_ANY_INTERFACE;
+    return 0;
+  } else if (STREQ(val, "no")) {
+    gopt.flags &= ~CFM_NFS_ANY_INTERFACE;
+    return 0;
+  }
+
+  fprintf(stderr, "conf: unknown value to nfs_allow_insecure_port \"%s\"\n", val);
+  return 1;			/* unknown value */
 }
 
 
@@ -632,7 +874,34 @@ gopt_nfs_proto(const char *val)
 static int
 gopt_nfs_retransmit_counter(const char *val)
 {
-  gopt.amfs_auto_retrans = atoi(val);
+  int i;
+
+  for (i=0; i<AMU_TYPE_MAX; ++i)
+    gopt.amfs_auto_retrans[i] = atoi(val);
+  return 0;
+}
+
+
+static int
+gopt_nfs_retransmit_counter_udp(const char *val)
+{
+  gopt.amfs_auto_retrans[AMU_TYPE_UDP] = atoi(val);
+  return 0;
+}
+
+
+static int
+gopt_nfs_retransmit_counter_tcp(const char *val)
+{
+  gopt.amfs_auto_retrans[AMU_TYPE_TCP] = atoi(val);
+  return 0;
+}
+
+
+static int
+gopt_nfs_retransmit_counter_toplvl(const char *val)
+{
+  gopt.amfs_auto_retrans[AMU_TYPE_TOPLVL] = atoi(val);
   return 0;
 }
 
@@ -640,7 +909,34 @@ gopt_nfs_retransmit_counter(const char *val)
 static int
 gopt_nfs_retry_interval(const char *val)
 {
-  gopt.amfs_auto_timeo = atoi(val);
+  int i;
+
+  for (i=0; i<AMU_TYPE_MAX; ++i)
+    gopt.amfs_auto_timeo[i] = atoi(val);
+  return 0;
+}
+
+
+static int
+gopt_nfs_retry_interval_udp(const char *val)
+{
+  gopt.amfs_auto_timeo[AMU_TYPE_UDP] = atoi(val);
+  return 0;
+}
+
+
+static int
+gopt_nfs_retry_interval_tcp(const char *val)
+{
+  gopt.amfs_auto_timeo[AMU_TYPE_TCP] = atoi(val);
+  return 0;
+}
+
+
+static int
+gopt_nfs_retry_interval_toplvl(const char *val)
+{
+  gopt.amfs_auto_timeo[AMU_TYPE_TOPLVL] = atoi(val);
   return 0;
 }
 
@@ -684,6 +980,22 @@ gopt_normalize_hostnames(const char *val)
   }
 
   fprintf(stderr, "conf: unknown value to normalize_hostnames \"%s\"\n", val);
+  return 1;			/* unknown value */
+}
+
+
+static int
+gopt_normalize_slashes(const char *val)
+{
+  if (STREQ(val, "yes")) {
+    gopt.flags |= CFM_NORMALIZE_SLASHES;
+    return 0;
+  } else if (STREQ(val, "no")) {
+    gopt.flags &= ~CFM_NORMALIZE_SLASHES;
+    return 0;
+  }
+
+  fprintf(stderr, "conf: unknown value to normalize_slashes \"%s\"\n", val);
   return 1;			/* unknown value */
 }
 
@@ -740,7 +1052,9 @@ static int
 gopt_print_version(const char *val)
 {
   if (STREQ(val, "yes")) {
-    fputs(get_version_string(), stderr);
+    char *vers = get_version_string();
+    fputs(vers, stderr);
+    XFREE(vers);
     return 0;
   } else if (STREQ(val, "no")) {
     return 0;
@@ -808,6 +1122,22 @@ gopt_show_statfs_entries(const char *val)
 
 
 static int
+gopt_truncate_log(const char *val)
+{
+  if (STREQ(val, "yes")) {
+    gopt.flags |= CFM_TRUNCATE_LOG;
+    return 0;
+  } else if (STREQ(val, "no")) {
+    gopt.flags &= ~CFM_TRUNCATE_LOG;
+    return 0;
+  }
+
+  fprintf(stderr, "conf: unknown value to truncate_log \"%s\"\n", val);
+  return 1;			/* unknown value */
+}
+
+
+static int
 gopt_unmount_on_exit(const char *val)
 {
   if (STREQ(val, "yes")) {
@@ -819,6 +1149,27 @@ gopt_unmount_on_exit(const char *val)
   }
 
   fprintf(stderr, "conf: unknown value to unmount_on_exit \"%s\"\n", val);
+  return 1;			/* unknown value */
+}
+
+
+static int
+gopt_use_tcpwrappers(const char *val)
+{
+#if defined(HAVE_TCPD_H) && defined(HAVE_LIBWRAP)
+  if (STREQ(val, "yes")) {
+    gopt.flags |= CFM_USE_TCPWRAPPERS;
+    return 0;
+  } else if (STREQ(val, "no")) {
+    gopt.flags &= ~CFM_USE_TCPWRAPPERS;
+    return 0;
+  }
+#else /* not defined(HAVE_TCPD_H) && defined(HAVE_LIBWRAP) */
+    fprintf(stderr, "conf: no tcpd/libwrap support available\n");
+    return 1;
+#endif /* not defined(HAVE_TCPD_H) && defined(HAVE_LIBWRAP) */
+
+  fprintf(stderr, "conf: unknown value to use_tcpwrappers \"%s\"\n", val);
   return 1;			/* unknown value */
 }
 
@@ -856,6 +1207,9 @@ process_regular_option(const char *section, const char *key, const char *val, cf
 
   if (STREQ(key, "map_name"))
     return ropt_map_name(val, cfm);
+
+  if (STREQ(key, "map_defaults"))
+    return ropt_map_defaults(val, cfm);
 
   if (STREQ(key, "map_options"))
     return ropt_map_options(val, cfm);
@@ -906,6 +1260,14 @@ ropt_map_name(const char *val, cf_map_t *cfm)
 
 
 static int
+ropt_map_defaults(const char *val, cf_map_t *cfm)
+{
+  cfm->cfm_defaults = strdup((char *)val);
+  return 0;
+}
+
+
+static int
 ropt_map_options(const char *val, cf_map_t *cfm)
 {
   cfm->cfm_opts = strdup((char *)val);
@@ -930,9 +1292,14 @@ static int
 ropt_mount_type(const char *val, cf_map_t *cfm)
 {
   if (STREQ(val, "autofs")) {
-    fprintf(stderr, "conf: no autofs support available, turning it off\n");
-    cfm->cfm_flags &= ~CFM_MOUNT_TYPE_AUTOFS;
+#ifdef HAVE_FS_AUTOFS
+    cfm->cfm_flags |= CFM_MOUNT_TYPE_AUTOFS;
+    amd_use_autofs++;
     return 0;
+#else /* not HAVE_FS_AUTOFS */
+    fprintf(stderr, "conf: no autofs support available\n");
+    return 1;
+#endif /* not HAVE_FS_AUTOFS */
   } else if (STREQ(val, "nfs")) {
     cfm->cfm_flags &= ~CFM_MOUNT_TYPE_AUTOFS;
     return 0;
@@ -963,9 +1330,8 @@ ropt_tag(const char *val, cf_map_t *cfm)
  * Process one collected map.
  */
 static int
-process_regular_map(cf_map_t *cfm)
+process_one_regular_map(const cf_map_t *cfm)
 {
-
   if (!cfm->cfm_name) {
     fprintf(stderr, "conf: map_name must be defined for map \"%s\"\n", cfm->cfm_dir);
     return 1;
@@ -989,22 +1355,52 @@ process_regular_map(cf_map_t *cfm)
     fprintf(stderr, "skipping map %s...\n", cfm->cfm_dir);
   }
 
-  reset_cf_map(cfm);
   return 0;
 }
 
 
 /*
- * Process last map in conf file (if any)
+ * Process all regular maps in conf file (if any)
  */
 int
-process_last_regular_map(void)
+process_all_regular_maps(void)
 {
+  cf_map_t *tmp_map = head_map;
+
   /*
    * If the amd.conf file only has a [global] section (pretty useless
-   * IMHO), do not try to process a map that does not exist.
+   * IMHO), there's nothing to process
    */
-  if (!cur_map.cfm_dir)
+  if (!tmp_map)
     return 0;
-  return process_regular_map(&cur_map);
+
+  while (tmp_map) {
+    if (process_one_regular_map(tmp_map) != 0)
+      return 1;
+    tmp_map = tmp_map->cfm_next;
+  }
+  return 0;
+}
+
+
+/*
+ * Find a cf_map_t for a given map name.
+ * Return NULL if not found.
+ */
+cf_map_t *
+find_cf_map(const char *name)
+{
+
+  cf_map_t *tmp_map = head_map;
+
+  if (!tmp_map || !name)
+    return NULL;
+
+  while (tmp_map) {
+    if (STREQ(tmp_map->cfm_dir,name)) {
+      return tmp_map;
+    }
+    tmp_map = tmp_map->cfm_next;
+  }
+  return NULL;
 }

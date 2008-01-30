@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2004 Ion Badulescu
- * Copyright (c) 1997-2004 Erez Zadok
+ * Copyright (c) 2002-2006 Ion Badulescu
+ * Copyright (c) 1997-2006 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *
- * $Id: strerror.c,v 1.2.2.3 2004/01/06 03:15:24 ezk Exp $
+ * File: am-utils/libamu/strerror.c
  *
  */
 
@@ -58,7 +58,7 @@ strerror(int errnum)
 #ifdef HAVE_EXTERN_SYS_ERRLIST
   if (errnum < 0 || errnum >= (sizeof(sys_errlist) >> 2)) {
     static char errstr[30];
-    sprintf(errstr, "Unknown error #%d", errnum);
+    xsnprintf(errstr, sizeof(errstr), "Unknown error #%d", errnum);
     return errstr;
   }
   return sys_errlist[error];

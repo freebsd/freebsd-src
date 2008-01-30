@@ -18,10 +18,12 @@ my $mapname = $ARGV[0] or die $usage;
 my $base = $ARGV[1] or die $usage;
 $time = time();
 
-print "dn: cn=amdmap timestamp, $base\n";
-printf "$tfmt", "cn", "amdmap timestamp";
+print "dn: cn=amdmap $mapname timestamp, $base\n";
+printf "$tfmt", "cn", "amdmap $mapname timestamp";
 printf "$tfmt", "objectClass", "amdmapTimestamp";
+printf "$tfmt", "amdmapName", "$mapname";
 printf "$tfmt", "amdmapTimestamp", $time;
+printf "$tfmt", "amdmapName", $mapname;
 print "\n";
 
 my $line = "";

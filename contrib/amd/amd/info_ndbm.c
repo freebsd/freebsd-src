@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2004 Erez Zadok
+ * Copyright (c) 1997-2006 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -36,9 +36,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      %W% (Berkeley) %G%
  *
- * $Id: info_ndbm.c,v 1.3.2.4 2004/01/06 03:15:16 ezk Exp $
+ * File: am-utils/amd/info_ndbm.c
  *
  */
 
@@ -86,8 +85,8 @@ ndbm_search(mnt_map *m, char *map, char *key, char **pval, time_t *tp)
 #ifdef DBM_SUFFIX
     char dbfilename[256];
 
-    strcpy(dbfilename, map);
-    strcat(dbfilename, DBM_SUFFIX);
+    xstrlcpy(dbfilename, map, sizeof(dbfilename));
+    xstrlcat(dbfilename, DBM_SUFFIX, sizeof(dbfilename));
     error = stat(dbfilename, &stb);
 #else /* not DBM_SUFFIX */
     error = fstat(dbm_pagfno(db), &stb);
@@ -117,14 +116,14 @@ ndbm_init(mnt_map *m, char *map, time_t *tp)
 #ifdef DBM_SUFFIX
     char dbfilename[256];
 
-    strcpy(dbfilename, map);
-    strcat(dbfilename, DBM_SUFFIX);
+    xstrlcpy(dbfilename, map, sizeof(dbfilename));
+    xstrlcat(dbfilename, DBM_SUFFIX, sizeof(dbfilename));
     error = stat(dbfilename, &stb);
 #else /* not DBM_SUFFIX */
     error = fstat(dbm_pagfno(db), &stb);
 #endif /* not DBM_SUFFIX */
     if (error < 0)
-      *tp = clocktime();
+      *tp = clocktime(NULL);
     else
       *tp = stb.st_mtime;
     dbm_close(db);
