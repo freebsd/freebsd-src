@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2004 Erez Zadok
+ * Copyright (c) 1997-2006 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -36,9 +36,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      %W% (Berkeley) %G%
  *
- * $Id: ops_efs.c,v 1.3.2.5 2004/01/06 03:15:16 ezk Exp $
+ * File: am-utils/amd/ops_efs.c
  *
  */
 
@@ -54,8 +53,8 @@
 
 /* forward declarations */
 static char *efs_match(am_opts *fo);
-static int efs_fmount(mntfs *mf);
-static int efs_fumount(mntfs *mf);
+static int efs_mount(am_node *am, mntfs *mf);
+static int efs_umount(am_node *am, mntfs *mf);
 
 /*
  * Ops structure
@@ -65,17 +64,20 @@ am_ops efs_ops =
   "efs",
   efs_match,
   0,				/* efs_init */
-  amfs_auto_fmount,
-  efs_fmount,
-  amfs_auto_fumount,
-  efs_fumount,
-  amfs_error_lookuppn,
+  efs_mount,
+  efs_umount,
+  amfs_error_lookup_child,
+  amfs_error_mount_child,
   amfs_error_readdir,
   0,				/* efs_readlink */
   0,				/* efs_mounted */
   0,				/* efs_umounted */
-  find_amfs_auto_srvr,
-  FS_MKMNT | FS_NOTIMEOUT | FS_UBACKGROUND | FS_AMQINFO
+  amfs_generic_find_srvr,
+  0,				/* efs_get_wchan */
+  FS_MKMNT | FS_NOTIMEOUT | FS_UBACKGROUND | FS_AMQINFO, /* nfs_fs_flags */
+#ifdef HAVE_FS_AUTOFS
+  AUTOFS_EFS_FS_FLAGS,
+#endif /* HAVE_FS_AUTOFS */
 };
 
 
@@ -91,9 +93,7 @@ efs_match(am_opts *fo)
     return 0;
   }
 
-#ifdef DEBUG
   dlog("EFS: mounting device \"%s\" on \"%s\"", fo->opt_dev, fo->opt_fs);
-#endif /* DEBUG */
 
   /*
    * Determine magic cookie to put in mtab
@@ -103,7 +103,7 @@ efs_match(am_opts *fo)
 
 
 static int
-mount_efs(char *dir, char *fs_name, char *opts)
+mount_efs(char *mntdir, char *fs_name, char *opts, int on_autofs)
 {
   efs_args_t efs_args;
   mntent_t mnt;
@@ -120,12 +120,16 @@ mount_efs(char *dir, char *fs_name, char *opts)
    * Fill in the mount structure
    */
   memset((voidp) &mnt, 0, sizeof(mnt));
-  mnt.mnt_dir = dir;
+  mnt.mnt_dir = mntdir;
   mnt.mnt_fsname = fs_name;
   mnt.mnt_type = MNTTAB_TYPE_EFS;
   mnt.mnt_opts = opts;
 
   flags = compute_mount_flags(&mnt);
+#ifdef HAVE_FS_AUTOFS
+  if (on_autofs)
+    flags |= autofs_compute_mount_flags(&mnt);
+#endif /* HAVE_FS_AUTOFS */
 
 #ifdef HAVE_EFS_ARGS_T_FLAGS
   efs_args.flags = 0;		/* XXX: fix this to correct flags */
@@ -137,16 +141,17 @@ mount_efs(char *dir, char *fs_name, char *opts)
   /*
    * Call generic mount routine
    */
-  return mount_fs(&mnt, flags, (caddr_t) &efs_args, 0, type, 0, NULL, mnttab_file_name);
+  return mount_fs(&mnt, flags, (caddr_t) &efs_args, 0, type, 0, NULL, mnttab_file_name, on_autofs);
 }
 
 
 static int
-efs_fmount(mntfs *mf)
+efs_mount(am_node *am, mntfs *mf)
 {
+  int on_autofs = mf->mf_flags & MFF_ON_AUTOFS;
   int error;
 
-  error = mount_efs(mf->mf_mount, mf->mf_info, mf->mf_mopts);
+  error = mount_efs(mf->mf_mount, mf->mf_info, mf->mf_mopts, on_autofs);
   if (error) {
     errno = error;
     plog(XLOG_ERROR, "mount_efs: %m");
@@ -158,7 +163,10 @@ efs_fmount(mntfs *mf)
 
 
 static int
-efs_fumount(mntfs *mf)
+efs_umount(am_node *am, mntfs *mf)
 {
-  return UMOUNT_FS(mf->mf_mount, mnttab_file_name);
+  int unmount_flags = (mf->mf_flags & MFF_ON_AUTOFS) ? AMU_UMOUNT_AUTOFS : 0;
+
+  return UMOUNT_FS(mf->mf_mount, mnttab_file_name, unmount_flags);
 }
+

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2004 Erez Zadok
+ * Copyright (c) 1997-2006 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -36,9 +36,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      %W% (Berkeley) %G%
  *
- * $Id: info_union.c,v 1.3.2.4 2004/01/06 03:15:16 ezk Exp $
+ * File: am-utils/amd/info_union.c
  *
  */
 
@@ -81,10 +80,12 @@ union_search(mnt_map *m, char *map, char *key, char **pval, time_t *tp)
   char *mapd = strdup(map + UNION_PREFLEN);
   char **v = strsplit(mapd, ':', '\"');
   char **p;
+  size_t l;
 
   for (p = v; p[1]; p++) ;
-  *pval = xmalloc(strlen(*p) + 5);
-  sprintf(*pval, "fs:=%s", *p);
+  l = strlen(*p) + 5;
+  *pval = xmalloc(l);
+  xsnprintf(*pval, l, "fs:=%s", *p);
   XFREE(mapd);
   XFREE(v);
   return 0;
@@ -104,7 +105,7 @@ union_reload(mnt_map *m, char *map, void (*fn) (mnt_map *, char *, char *))
   (*fn) (m, strdup("/defaults"), strdup("type:=link;opts:=nounmount;sublink:=${key}"));
 
   for (dir = v; *dir; dir++) {
-    int dlen;
+    size_t l;
     struct dirent *dp;
 
     DIR *dirp = opendir(*dir);
@@ -112,11 +113,9 @@ union_reload(mnt_map *m, char *map, void (*fn) (mnt_map *, char *, char *))
       plog(XLOG_USER, "Cannot read directory %s: %m", *dir);
       continue;
     }
-    dlen = strlen(*dir);
+    l = strlen(*dir) + 5;
 
-#ifdef DEBUG
     dlog("Reading directory %s...", *dir);
-#endif /* DEBUG */
     while ((dp = readdir(dirp))) {
       char *val, *dpname = &dp->d_name[0];
       if (dpname[0] == '.' &&
@@ -124,11 +123,9 @@ union_reload(mnt_map *m, char *map, void (*fn) (mnt_map *, char *, char *))
 	   (dpname[1] == '.' && dpname[2] == '\0')))
 	continue;
 
-#ifdef DEBUG
       dlog("... gives %s", dp->d_name);
-#endif /* DEBUG */
-      val = xmalloc(dlen + 5);
-      sprintf(val, "fs:=%s", *dir);
+      val = xmalloc(l);
+      xsnprintf(val, l + 5, "fs:=%s", *dir);
       (*fn) (m, strdup(dp->d_name), val);
     }
     closedir(dirp);
@@ -138,9 +135,10 @@ union_reload(mnt_map *m, char *map, void (*fn) (mnt_map *, char *, char *))
    * Add wildcard entry
    */
   {
-    char *val = xmalloc(strlen(dir[-1]) + 5);
+    size_t l = strlen(*(dir-1)) + 5;
+    char *val = xmalloc(l);
 
-    sprintf(val, "fs:=%s", dir[-1]);
+    xsnprintf(val, l, "fs:=%s", *(dir-1));
     (*fn) (m, strdup("*"), val);
   }
   XFREE(mapd);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2004 Erez Zadok
+ * Copyright (c) 1997-2006 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -36,9 +36,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      %W% (Berkeley) %G%
  *
- * $Id: ops_lofs.c,v 1.3.2.5 2004/01/06 03:15:16 ezk Exp $
+ * File: am-utils/amd/ops_lofs.c
  *
  */
 
@@ -54,10 +53,8 @@
 
 /* forward definitions */
 static char *lofs_match(am_opts *fo);
-static int lofs_fmount(mntfs *mf);
-static int lofs_fumount(mntfs *mf);
-static int mount_lofs(char *dir, char *fs_name, char *opts);
-
+static int lofs_mount(am_node *am, mntfs *mf);
+static int lofs_umount(am_node *am, mntfs *mf);
 
 /*
  * Ops structure
@@ -67,17 +64,20 @@ am_ops lofs_ops =
   "lofs",
   lofs_match,
   0,				/* lofs_init */
-  amfs_auto_fmount,
-  lofs_fmount,
-  amfs_auto_fumount,
-  lofs_fumount,
-  amfs_error_lookuppn,
+  lofs_mount,
+  lofs_umount,
+  amfs_error_lookup_child,
+  amfs_error_mount_child,
   amfs_error_readdir,
   0,				/* lofs_readlink */
   0,				/* lofs_mounted */
   0,				/* lofs_umounted */
-  find_amfs_auto_srvr,
-  FS_MKMNT | FS_NOTIMEOUT | FS_UBACKGROUND | FS_AMQINFO
+  amfs_generic_find_srvr,
+  0,				/* lofs_get_wchan */
+  FS_MKMNT | FS_NOTIMEOUT | FS_UBACKGROUND | FS_AMQINFO, /* nfs_fs_flags */
+#ifdef HAVE_FS_AUTOFS
+  AUTOFS_LOFS_FS_FLAGS,
+#endif /* HAVE_FS_AUTOFS */
 };
 
 
@@ -91,10 +91,8 @@ lofs_match(am_opts *fo)
     plog(XLOG_USER, "lofs: no source filesystem specified");
     return 0;
   }
-#ifdef DEBUG
   dlog("LOFS: mounting fs \"%s\" on \"%s\"",
        fo->opt_rfs, fo->opt_fs);
-#endif /* DEBUG */
 
   /*
    * Determine magic cookie to put in mtab
@@ -103,8 +101,8 @@ lofs_match(am_opts *fo)
 }
 
 
-static int
-mount_lofs(char *dir, char *fs_name, char *opts)
+int
+mount_lofs(char *mntdir, char *fs_name, char *opts, int on_autofs)
 {
   mntent_t mnt;
   int flags;
@@ -118,26 +116,31 @@ mount_lofs(char *dir, char *fs_name, char *opts)
    * Fill in the mount structure
    */
   memset((voidp) &mnt, 0, sizeof(mnt));
-  mnt.mnt_dir = dir;
+  mnt.mnt_dir = mntdir;
   mnt.mnt_fsname = fs_name;
   mnt.mnt_type = MNTTAB_TYPE_LOFS;
   mnt.mnt_opts = opts;
 
   flags = compute_mount_flags(&mnt);
+#ifdef HAVE_FS_AUTOFS
+  if (on_autofs)
+    flags |= autofs_compute_mount_flags(&mnt);
+#endif /* HAVE_FS_AUTOFS */
 
   /*
    * Call generic mount routine
    */
-  return mount_fs(&mnt, flags, NULL, 0, type, 0, NULL, mnttab_file_name);
+  return mount_fs(&mnt, flags, NULL, 0, type, 0, NULL, mnttab_file_name, on_autofs);
 }
 
 
 static int
-lofs_fmount(mntfs *mf)
+lofs_mount(am_node *am, mntfs *mf)
 {
+  int on_autofs = mf->mf_flags & MFF_ON_AUTOFS;
   int error;
 
-  error = mount_lofs(mf->mf_mount, mf->mf_info, mf->mf_mopts);
+  error = mount_lofs(mf->mf_mount, mf->mf_info, mf->mf_mopts, on_autofs);
   if (error) {
     errno = error;
     plog(XLOG_ERROR, "mount_lofs: %m");
@@ -148,7 +151,9 @@ lofs_fmount(mntfs *mf)
 
 
 static int
-lofs_fumount(mntfs *mf)
+lofs_umount(am_node *am, mntfs *mf)
 {
-  return UMOUNT_FS(mf->mf_mount, mnttab_file_name);
+  int unmount_flags = (mf->mf_flags & MFF_ON_AUTOFS) ? AMU_UMOUNT_AUTOFS : 0;
+
+  return UMOUNT_FS(mf->mf_mount, mnttab_file_name, unmount_flags);
 }

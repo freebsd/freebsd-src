@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2004 Erez Zadok
+ * Copyright (c) 1997-2006 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -36,10 +36,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      %W% (Berkeley) %G%
  *
- * $Id: amq_subr.c,v 1.6.2.6 2004/01/19 00:25:55 ezk Exp $
- * $FreeBSD$
+ * File: am-utils/amd/amq_subr.c
  *
  */
 /*
@@ -112,8 +110,10 @@ amq_mount_tree_list *
 amqproc_export_1_svc(voidp argp, struct svc_req *rqstp)
 {
   static amq_mount_tree_list aml;
+  static am_node *mp;
 
-  aml.amq_mount_tree_list_val = (amq_mount_tree_p *) &exported_ap[0];
+  mp = get_exported_ap(0);
+  aml.amq_mount_tree_list_val = (amq_mount_tree_p *) ((void *) &mp);
   aml.amq_mount_tree_list_len = 1;	/* XXX */
 
   return &aml;
@@ -131,16 +131,14 @@ amqproc_setopt_1_svc(voidp argp, struct svc_req *rqstp)
   switch (opt->as_opt) {
 
   case AMOPT_DEBUG:
-#ifdef DEBUG
     if (debug_option(opt->as_str))
-#endif /* DEBUG */
       rc = EINVAL;
     break;
 
   case AMOPT_LOGFILE:
     if (gopt.logfile && opt->as_str
 	&& STREQ(gopt.logfile, opt->as_str)) {
-      if (switch_to_logfile(opt->as_str, orig_umask))
+      if (switch_to_logfile(opt->as_str, orig_umask, 0))
 	rc = EINVAL;
     } else {
       rc = EACCES;
@@ -156,8 +154,8 @@ amqproc_setopt_1_svc(voidp argp, struct svc_req *rqstp)
     if (amd_state == Run) {
       plog(XLOG_INFO, "amq says flush cache");
       do_mapc_reload = 0;
-      flush_nfs_fhandle_cache((fserver *) 0);
-      flush_srvr_nfs_cache();
+      flush_nfs_fhandle_cache((fserver *) NULL);
+      flush_srvr_nfs_cache((fserver *) NULL);
     }
     break;
   }
@@ -169,7 +167,7 @@ amqproc_setopt_1_svc(voidp argp, struct svc_req *rqstp)
 amq_mount_info_list *
 amqproc_getmntfs_1_svc(voidp argp, struct svc_req *rqstp)
 {
-  return (amq_mount_info_list *) ((void *)&mfhead); /* XXX */
+  return (amq_mount_info_list *) ((void *)&mfhead);	/* XXX */
 }
 
 
@@ -195,6 +193,64 @@ amqproc_getpid_1_svc(voidp argp, struct svc_req *rqstp)
 
 
 /*
+ * Process PAWD string of remote pawd tool.
+ *
+ * We repeat the resolution of the string until the resolved string resolves
+ * to itself.  This ensures that we follow path resolutions through all
+ * possible Amd mount points until we reach some sort of convergence.  To
+ * prevent possible infinite loops, we break out of this loop if the strings
+ * do not converge after MAX_PAWD_TRIES times.
+ */
+amq_string *
+amqproc_pawd_1_svc(voidp argp, struct svc_req *rqstp)
+{
+  static amq_string res;
+#define MAX_PAWD_TRIES 10
+  int index, len, maxagain = MAX_PAWD_TRIES;
+  am_node *mp;
+  char *mountpoint;
+  char *dir = *(char **) argp;
+  static char tmp_buf[MAXPATHLEN];
+  char prev_buf[MAXPATHLEN];
+
+  tmp_buf[0] = prev_buf[0] = '\0'; /* default is empty string: no match */
+  do {
+    for (mp = get_first_exported_ap(&index);
+	 mp;
+	 mp = get_next_exported_ap(&index)) {
+      if (STREQ(mp->am_mnt->mf_ops->fs_type, "toplvl"))
+	continue;
+      if (STREQ(mp->am_mnt->mf_ops->fs_type, "auto"))
+	continue;
+      mountpoint = (mp->am_link ? mp->am_link : mp->am_mnt->mf_mount);
+      len = strlen(mountpoint);
+      if (len == 0)
+	continue;
+      if (!NSTREQ(mountpoint, dir, len))
+	continue;
+      if (dir[len] != '\0' && dir[len] != '/')
+	continue;
+      xstrlcpy(tmp_buf, mp->am_path, sizeof(tmp_buf));
+      xstrlcat(tmp_buf, &dir[len], sizeof(tmp_buf));
+      break;
+    } /* end of "for" loop */
+    /* once tmp_buf and prev_buf are equal, break out of "do" loop */
+    if (STREQ(tmp_buf, prev_buf))
+      break;
+    else
+      xstrlcpy(prev_buf, tmp_buf, sizeof(prev_buf));
+  } while (--maxagain);
+  /* check if we couldn't resolve the string after MAX_PAWD_TRIES times */
+  if (maxagain <= 0)
+    plog(XLOG_WARNING, "path \"%s\" did not resolve after %d tries",
+	 tmp_buf, MAX_PAWD_TRIES);
+
+  res = tmp_buf;
+  return &res;
+}
+
+
+/*
  * XDR routines.
  */
 
@@ -202,7 +258,7 @@ amqproc_getpid_1_svc(voidp argp, struct svc_req *rqstp)
 bool_t
 xdr_amq_setopt(XDR *xdrs, amq_setopt *objp)
 {
-  if (!xdr_enum(xdrs, (enum_t *) & objp->as_opt)) {
+  if (!xdr_enum(xdrs, (enum_t *) ((voidp) &objp->as_opt))) {
     return (FALSE);
   }
   if (!xdr_string(xdrs, &objp->as_str, AMQ_STRLEN)) {
@@ -267,10 +323,16 @@ xdr_amq_mount_subtree(XDR *xdrs, amq_mount_tree *objp)
   if (!xdr_amq_mount_tree_node(xdrs, objp)) {
     return (FALSE);
   }
-  if (!xdr_pointer(xdrs, (char **) &mp->am_osib, sizeof(amq_mount_tree), (XDRPROC_T_TYPE) xdr_amq_mount_subtree)) {
+  if (!xdr_pointer(xdrs,
+		   (char **) ((voidp) &mp->am_osib),
+		   sizeof(amq_mount_tree),
+		   (XDRPROC_T_TYPE) xdr_amq_mount_subtree)) {
     return (FALSE);
   }
-  if (!xdr_pointer(xdrs, (char **) &mp->am_child, sizeof(amq_mount_tree), (XDRPROC_T_TYPE) xdr_amq_mount_subtree)) {
+  if (!xdr_pointer(xdrs,
+		   (char **) ((voidp) &mp->am_child),
+		   sizeof(amq_mount_tree),
+		   (XDRPROC_T_TYPE) xdr_amq_mount_subtree)) {
     return (FALSE);
   }
   return (TRUE);
@@ -281,15 +343,21 @@ bool_t
 xdr_amq_mount_tree(XDR *xdrs, amq_mount_tree *objp)
 {
   am_node *mp = (am_node *) objp;
-  am_node *mnil = 0;
+  am_node *mnil = NULL;
 
   if (!xdr_amq_mount_tree_node(xdrs, objp)) {
     return (FALSE);
   }
-  if (!xdr_pointer(xdrs, (char **) ((void *)&mnil), sizeof(amq_mount_tree), (XDRPROC_T_TYPE) xdr_amq_mount_subtree)) {
+  if (!xdr_pointer(xdrs,
+		   (char **) ((voidp) &mnil),
+		   sizeof(amq_mount_tree),
+		   (XDRPROC_T_TYPE) xdr_amq_mount_subtree)) {
     return (FALSE);
   }
-  if (!xdr_pointer(xdrs, (char **) &mp->am_child, sizeof(amq_mount_tree), (XDRPROC_T_TYPE) xdr_amq_mount_subtree)) {
+  if (!xdr_pointer(xdrs,
+		   (char **) ((voidp) &mp->am_child),
+		   sizeof(amq_mount_tree),
+		   (XDRPROC_T_TYPE) xdr_amq_mount_subtree)) {
     return (FALSE);
   }
   return (TRUE);
@@ -333,7 +401,7 @@ bool_t
 xdr_amq_mount_tree_list(XDR *xdrs, amq_mount_tree_list *objp)
 {
   if (!xdr_array(xdrs,
-		 (char **) &objp->amq_mount_tree_list_val,
+		 (char **) ((voidp) &objp->amq_mount_tree_list_val),
 		 (u_int *) &objp->amq_mount_tree_list_len,
 		 ~0,
 		 sizeof(amq_mount_tree_p),
@@ -355,7 +423,7 @@ xdr_amq_mount_info_qelem(XDR *xdrs, qelem *qhead)
   u_int len = 0;
 
   for (mf = AM_LAST(mntfs, qhead); mf != HEAD(mntfs, qhead); mf = PREV(mntfs, mf)) {
-    if (!(mf->mf_ops->fs_flags & FS_AMQINFO))
+    if (!(mf->mf_fsflags & FS_AMQINFO))
       continue;
     len++;
   }
@@ -366,7 +434,7 @@ xdr_amq_mount_info_qelem(XDR *xdrs, qelem *qhead)
    */
   for (mf = AM_LAST(mntfs, qhead); mf != HEAD(mntfs, qhead); mf = PREV(mntfs, mf)) {
     int up;
-    if (!(mf->mf_ops->fs_flags & FS_AMQINFO))
+    if (!(mf->mf_fsflags & FS_AMQINFO))
       continue;
 
     if (!xdr_amq_string(xdrs, &mf->mf_ops->fs_type)) {
@@ -387,20 +455,12 @@ xdr_amq_mount_info_qelem(XDR *xdrs, qelem *qhead)
     if (!xdr_int(xdrs, &mf->mf_refc)) {
       return (FALSE);
     }
-    if (mf->mf_server->fs_flags & FSF_ERROR)
+    if (FSRV_ERROR(mf->mf_server) || FSRV_ISDOWN(mf->mf_server))
       up = 0;
+    else if (FSRV_ISUP(mf->mf_server))
+      up = 1;
     else
-      switch (mf->mf_server->fs_flags & (FSF_DOWN | FSF_VALID)) {
-      case FSF_DOWN | FSF_VALID:
-	up = 0;
-	break;
-      case FSF_VALID:
-	up = 1;
-	break;
-      default:
-	up = -1;
-	break;
-      }
+      up = -1;
     if (!xdr_int(xdrs, &up)) {
       return (FALSE);
     }

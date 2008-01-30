@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2004 Erez Zadok
+ * Copyright (c) 1997-2006 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -37,8 +37,7 @@
  * SUCH DAMAGE.
  *
  *
- * $Id: fsinfo.c,v 1.5.2.7 2004/05/12 15:54:31 ezk Exp $
- * $FreeBSD$
+ * File: am-utils/fsinfo/fsinfo.c
  *
  */
 
@@ -125,7 +124,7 @@ fsi_get_args(int c, char *v[])
       break;
 
     case 'h':
-      strncpy(hostname, optarg, sizeof(hostname) - 1);
+      xstrlcpy(hostname, optarg, sizeof(hostname));
       break;
 
     case 'e':
@@ -157,7 +156,8 @@ fsi_get_args(int c, char *v[])
     case 'I':
     case 'D':
     case 'U':
-      sprintf(iptr, "-%c%s ", ch, optarg);
+      /* sizeof(iptr) is actually that of idvbuf.  See declaration above */
+      xsnprintf(iptr, sizeof(idvbuf), "-%c%s ", ch, optarg);
       iptr += strlen(iptr);
       break;
 
@@ -198,7 +198,7 @@ Usage: %s [-v] [-a autodir] [-h hostname] [-b bootparams] [-d dumpsets]\n\
 static char *
 find_username(void)
 {
-  char *u = getlogin();
+  const char *u = getlogin();
 
   if (!u) {
     struct passwd *pw = getpwuid(getuid());
@@ -235,6 +235,7 @@ main(int argc, char *argv[])
     perror("gethostname");
     exit(1);
   }
+  hostname[sizeof(hostname) - 1] = '\0';
 
   /*
    * Get the username

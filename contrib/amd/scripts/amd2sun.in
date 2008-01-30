@@ -2,7 +2,7 @@
 # convert amd maps to Sun automount maps
 # usage: amd2sun file
 #
-# Package:	am-utils-6.0
+# Package:	am-utils-6.x
 # Author:	"Mark D. Baushke" <mdb@cisco.com>
 
 print "# file created by amd2sun

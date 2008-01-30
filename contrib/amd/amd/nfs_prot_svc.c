@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2004 Erez Zadok
+ * Copyright (c) 1997-2006 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -36,10 +36,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      %W% (Berkeley) %G%
  *
- * $Id: nfs_prot_svc.c,v 1.5.2.6 2004/01/21 04:04:58 ib42 Exp $
- * $FreeBSD$
+ * File: am-utils/amd/nfs_prot_svc.c
  *
  */
 
@@ -70,7 +68,7 @@ extern nfsreaddirres *nfsproc_readdir_2_svc(nfsreaddirargs *, struct svc_req *);
 extern nfsstatfsres *nfsproc_statfs_2_svc(am_nfs_fh *, struct svc_req *);
 
 /* global variables */
-SVCXPRT *nfs_program_2_transp;
+SVCXPRT *current_transp;
 
 /* typedefs */
 typedef char *(*nfssvcproc_t)(voidp, struct svc_req *);
@@ -99,30 +97,60 @@ nfs_program_2(struct svc_req *rqstp, SVCXPRT *transp)
   char *result;
   xdrproc_t xdr_argument, xdr_result;
   nfssvcproc_t local;
+
+#ifdef HAVE_TRANSPORT_TYPE_TLI
+  /*
+   * On TLI systems we don't use an INET network type, but a "ticlts" (see
+   * /etc/netconfig and conf/transp_tli.c:create_nfs_service).  This means
+   * that packets could only come from the loopback interface, and we don't
+   * need to check them and filter possibly spoofed packets.  Therefore we
+   * only need to check if the UID caller is correct.
+   */
+# ifdef HAVE___RPC_GET_LOCAL_UID
+  uid_t u;
+  /* extern definition for an internal libnsl function */
+  extern int __rpc_get_local_uid(SVCXPRT *transp, uid_t *uid);
+  if (__rpc_get_local_uid(transp, &u) >= 0  &&  u != 0) {
+    plog(XLOG_WARNING, "ignoring request from UID %ld, must be 0", (long) u);
+    return;
+  }
+# else /* not HAVE___RPC_GET_LOCAL_UID */
+  dlog("cannot verify local uid for rpc request");
+# endif /* HAVE___RPC_GET_LOCAL_UID */
+#else /* not HAVE_TRANPORT_TYPE_TLI */
   struct sockaddr_in *sinp;
   char dq[20], dq2[28];
-
   sinp = amu_svc_getcaller(rqstp->rq_xprt);
-#ifdef MNT2_NFS_OPT_RESVPORT
+# ifdef MNT2_NFS_OPT_RESVPORT
   /* Verify that the request comes from a reserved port */
-  if ((ntohs(sinp->sin_port) >= IPPORT_RESERVED) &&
+  if (sinp &&
+      ntohs(sinp->sin_port) >= IPPORT_RESERVED &&
       !(gopt.flags & CFM_NFS_INSECURE_PORT)) {
     plog(XLOG_WARNING, "ignoring request from %s:%u, port not reserved",
-	 inet_dquad(dq, sinp->sin_addr.s_addr),
+	 inet_dquad(dq, sizeof(dq), sinp->sin_addr.s_addr),
 	 ntohs(sinp->sin_port));
     return;
   }
-#endif /* MNT2_NFS_OPT_RESVPORT */
+# endif /* MNT2_NFS_OPT_RESVPORT */
   /* if the address does not match, ignore the request */
-  if (sinp->sin_addr.s_addr && sinp->sin_addr.s_addr != myipaddr.s_addr) {
-    plog(XLOG_WARNING, "ignoring request from %s:%u, expected %s",
-	 inet_dquad(dq, sinp->sin_addr.s_addr),
-	 ntohs(sinp->sin_port),
-	 inet_dquad(dq2, myipaddr.s_addr));
-    return;
+  if (sinp && (sinp->sin_addr.s_addr != myipaddr.s_addr)) {
+    if (gopt.flags & CFM_NFS_ANY_INTERFACE) {
+      if (!is_interface_local(sinp->sin_addr.s_addr)) {
+	plog(XLOG_WARNING, "ignoring request from %s:%u, not a local interface",
+	     inet_dquad(dq, sizeof(dq), sinp->sin_addr.s_addr),
+	     ntohs(sinp->sin_port));
+      }
+    } else {
+      plog(XLOG_WARNING, "ignoring request from %s:%u, expected %s",
+	   inet_dquad(dq, sizeof(dq), sinp->sin_addr.s_addr),
+	   ntohs(sinp->sin_port),
+	   inet_dquad(dq2, sizeof(dq2), myipaddr.s_addr));
+      return;
+    }
   }
+#endif /* not HAVE_TRANPORT_TYPE_TLI */
 
-  nfs_program_2_transp = NULL;
+  current_transp = NULL;
 
   switch (rqstp->rq_proc) {
 
@@ -159,7 +187,7 @@ nfs_program_2(struct svc_req *rqstp, SVCXPRT *transp)
      * be stored in the am_node structure and later used for
      * quick_reply().
      */
-    nfs_program_2_transp = transp;
+    current_transp = transp;
     break;
 
   case NFSPROC_READLINK:
@@ -257,7 +285,7 @@ nfs_program_2(struct svc_req *rqstp, SVCXPRT *transp)
   }
   result = (*local) (&argument, rqstp);
 
-  nfs_program_2_transp = NULL;
+  current_transp = NULL;
 
   if (result != NULL && !svc_sendreply(transp,
 				       (XDRPROC_T_TYPE) xdr_result,

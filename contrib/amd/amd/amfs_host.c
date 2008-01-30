@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2004 Erez Zadok
+ * Copyright (c) 1997-2006 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -36,9 +36,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      %W% (Berkeley) %G%
  *
- * $Id: amfs_host.c,v 1.4.2.7 2004/01/06 03:15:16 ezk Exp $
+ * File: am-utils/amd/amfs_host.c
  *
  */
 
@@ -57,10 +56,10 @@
 #include <amd.h>
 
 static char *amfs_host_match(am_opts *fo);
-static int amfs_host_fmount(mntfs *mf);
-static int amfs_host_fumount(mntfs *mf);
 static int amfs_host_init(mntfs *mf);
-static void amfs_host_umounted(am_node *mp);
+static int amfs_host_mount(am_node *am, mntfs *mf);
+static int amfs_host_umount(am_node *am, mntfs *mf);
+static void amfs_host_umounted(mntfs *mf);
 
 /*
  * Ops structure
@@ -70,17 +69,20 @@ am_ops amfs_host_ops =
   "host",
   amfs_host_match,
   amfs_host_init,
-  amfs_auto_fmount,
-  amfs_host_fmount,
-  amfs_auto_fumount,
-  amfs_host_fumount,
-  amfs_error_lookuppn,
+  amfs_host_mount,
+  amfs_host_umount,
+  amfs_error_lookup_child,
+  amfs_error_mount_child,
   amfs_error_readdir,
   0,				/* amfs_host_readlink */
   0,				/* amfs_host_mounted */
   amfs_host_umounted,
   find_nfs_srvr,
-  FS_MKMNT | FS_BACKGROUND | FS_AMQINFO
+  0,				/* amfs_host_get_wchan */
+  FS_MKMNT | FS_BACKGROUND | FS_AMQINFO,
+#ifdef HAVE_FS_AUTOFS
+  AUTOFS_HOST_FS_FLAGS,
+#endif /* HAVE_FS_AUTOFS */
 };
 
 
@@ -95,21 +97,21 @@ am_ops amfs_host_ops =
  * allows the entire PC disk to be mounted.
  */
 static void
-make_mntpt(char *mntpt, const exports ex, const mntfs *mf)
+make_mntpt(char *mntpt, size_t l, const exports ex, const char *mf_mount)
 {
   if (ex->ex_dir[0] == '/') {
     if (ex->ex_dir[1] == 0)
-      strcpy(mntpt, (mf)->mf_mount);
+      xstrlcpy(mntpt, mf_mount, l);
     else
-      sprintf(mntpt, "%s%s", mf->mf_mount, ex->ex_dir);
+      xsnprintf(mntpt, l, "%s%s", mf_mount, ex->ex_dir);
   } else if (ex->ex_dir[0] >= 'a' &&
 	     ex->ex_dir[0] <= 'z' &&
 	     ex->ex_dir[1] == ':' &&
 	     ex->ex_dir[2] == '/' &&
 	     ex->ex_dir[3] == 0)
-    sprintf(mntpt, "%s/%c%%", mf->mf_mount, ex->ex_dir[0]);
+    xsnprintf(mntpt, l, "%s/%c%%", mf_mount, ex->ex_dir[0]);
   else
-    sprintf(mntpt, "%s/%s", mf->mf_mount, ex->ex_dir);
+    xsnprintf(mntpt, l, "%s/%s", mf_mount, ex->ex_dir);
 }
 
 
@@ -134,8 +136,7 @@ amfs_host_match(am_opts *fo)
 static int
 amfs_host_init(mntfs *mf)
 {
-  fserver *fs;
-  u_short port;
+  u_short mountd_port;
 
   if (strchr(mf->mf_info, ':') == 0)
     return ENOENT;
@@ -152,41 +153,39 @@ amfs_host_init(mntfs *mf)
    */
   /*
    * First, we find the fileserver for this mntfs and then call
-   * nfs_srvr_port with our mntfs passed as the wait channel.
-   * nfs_srvr_port will check some things and then schedule
+   * get_mountd_port with our mntfs passed as the wait channel.
+   * get_mountd_port will check some things and then schedule
    * it so that when the fileserver is ready, a wakeup is done
-   * on this mntfs.   amfs_auto_cont() is already sleeping on this mntfs
-   * so as soon as that wakeup happens amfs_auto_cont() is called and
+   * on this mntfs.   amfs_cont() is already sleeping on this mntfs
+   * so as soon as that wakeup happens amfs_cont() is called and
    * this mount is retried.
    */
-  if ((fs = mf->mf_server))
+  if (mf->mf_server)
     /*
      * We don't really care if there's an error returned.
      * Since this is just to help speed things along, the
      * error will get handled properly elsewhere.
      */
-    (void) nfs_srvr_port(fs, &port, (voidp) mf);
+    get_mountd_port(mf->mf_server, &mountd_port, get_mntfs_wchan(mf));
 
   return 0;
 }
 
 
 static int
-do_mount(am_nfs_handle_t *fhp, char *dir, char *fs_name, char *opts, mntfs *mf)
+do_mount(am_nfs_handle_t *fhp, char *mntdir, char *fs_name, mntfs *mf)
 {
   struct stat stb;
 
-#ifdef DEBUG
-  dlog("amfs_host: mounting fs %s on %s\n", fs_name, dir);
-#endif /* DEBUG */
+  dlog("amfs_host: mounting fs %s on %s\n", fs_name, mntdir);
 
-  (void) mkdirs(dir, 0555);
-  if (stat(dir, &stb) < 0 || (stb.st_mode & S_IFMT) != S_IFDIR) {
-    plog(XLOG_ERROR, "No mount point for %s - skipping", dir);
+  (void) mkdirs(mntdir, 0555);
+  if (stat(mntdir, &stb) < 0 || (stb.st_mode & S_IFMT) != S_IFDIR) {
+    plog(XLOG_ERROR, "No mount point for %s - skipping", mntdir);
     return ENOENT;
   }
 
-  return mount_nfs_fh(fhp, dir, fs_name, opts, mf);
+  return mount_nfs_fh(fhp, mntdir, fs_name, mf);
 }
 
 
@@ -208,6 +207,10 @@ fetch_fhandle(CLIENT *client, char *dir, am_nfs_handle_t *fhp, u_long nfs_versio
 {
   struct timeval tv;
   enum clnt_stat clnt_stat;
+  struct fhstatus res;
+#ifdef HAVE_FS_NFS3
+  struct am_mountres3 res3;
+#endif /* HAVE_FS_NFS3 */
 
   /*
    * Pick a number, any number...
@@ -215,9 +218,7 @@ fetch_fhandle(CLIENT *client, char *dir, am_nfs_handle_t *fhp, u_long nfs_versio
   tv.tv_sec = 20;
   tv.tv_usec = 0;
 
-#ifdef DEBUG
   dlog("Fetching fhandle for %s", dir);
-#endif /* DEBUG */
 
   /*
    * Call the mount daemon on the remote host to
@@ -227,25 +228,28 @@ fetch_fhandle(CLIENT *client, char *dir, am_nfs_handle_t *fhp, u_long nfs_versio
   plog(XLOG_INFO, "fetch_fhandle: NFS version %d", (int) nfs_version);
 #ifdef HAVE_FS_NFS3
   if (nfs_version == NFS_VERSION3) {
-    memset((char *) &fhp->v3, 0, sizeof(fhp->v3));
+    memset((char *) &res3, 0, sizeof(res3));
     clnt_stat = clnt_call(client,
 			  MOUNTPROC_MNT,
 			  (XDRPROC_T_TYPE) xdr_dirpath,
 			  (SVC_IN_ARG_TYPE) &dir,
-			  (XDRPROC_T_TYPE) xdr_mountres3,
-			  (SVC_IN_ARG_TYPE) &fhp->v3,
+			  (XDRPROC_T_TYPE) xdr_am_mountres3,
+			  (SVC_IN_ARG_TYPE) &res3,
 			  tv);
     if (clnt_stat != RPC_SUCCESS) {
       plog(XLOG_ERROR, "mountd rpc failed: %s", clnt_sperrno(clnt_stat));
       return EIO;
     }
     /* Check the status of the filehandle */
-    if ((errno = fhp->v3.fhs_status)) {
-#ifdef DEBUG
+    if ((errno = res3.fhs_status)) {
       dlog("fhandle fetch for mount version 3 failed: %m");
-#endif /* DEBUG */
       return errno;
     }
+    memset((voidp) &fhp->v3, 0, sizeof(am_nfs_fh3));
+    fhp->v3.am_fh3_length = res3.mountres3_u.mountinfo.fhandle.fhandle3_len;
+    memmove(fhp->v3.am_fh3_data,
+	    res3.mountres3_u.mountinfo.fhandle.fhandle3_val,
+	    fhp->v3.am_fh3_length);
   } else {			/* not NFS_VERSION3 mount */
 #endif /* HAVE_FS_NFS3 */
     clnt_stat = clnt_call(client,
@@ -253,20 +257,19 @@ fetch_fhandle(CLIENT *client, char *dir, am_nfs_handle_t *fhp, u_long nfs_versio
 			  (XDRPROC_T_TYPE) xdr_dirpath,
 			  (SVC_IN_ARG_TYPE) &dir,
 			  (XDRPROC_T_TYPE) xdr_fhstatus,
-			  (SVC_IN_ARG_TYPE) &fhp->v2,
+			  (SVC_IN_ARG_TYPE) &res,
 			  tv);
     if (clnt_stat != RPC_SUCCESS) {
       plog(XLOG_ERROR, "mountd rpc failed: %s", clnt_sperrno(clnt_stat));
       return EIO;
     }
     /* Check status of filehandle */
-    if (fhp->v2.fhs_status) {
-      errno = fhp->v2.fhs_status;
-#ifdef DEBUG
+    if (res.fhs_status) {
+      errno = res.fhs_status;
       dlog("fhandle fetch for mount version 1 failed: %m");
-#endif /* DEBUG */
       return errno;
     }
+    memmove(&fhp->v2, &res.fhs_fh, NFS_FHSIZE);
 #ifdef HAVE_FS_NFS3
   } /* end of "if (nfs_version == NFS_VERSION3)" statement */
 #endif /* HAVE_FS_NFS3 */
@@ -291,11 +294,8 @@ already_mounted(mntlist *mlist, char *dir)
 }
 
 
-/*
- * Mount the export tree from a host
- */
 static int
-amfs_host_fmount(mntfs *mf)
+amfs_host_mount(am_node *am, mntfs *mf)
 {
   struct timeval tv2;
   CLIENT *client;
@@ -317,6 +317,14 @@ amfs_host_fmount(mntfs *mf)
   u_long mnt_version;
 
   /*
+   * WebNFS servers don't necessarily run mountd.
+   */
+  if (mf->mf_flags & MFF_WEBNFS) {
+    plog(XLOG_ERROR, "amfs_host_mount: cannot support WebNFS");
+    return EIO;
+  }
+
+  /*
    * Read the mount list
    */
   mlist = read_mtab(mf->mf_mount, mnttab_file_name);
@@ -334,10 +342,10 @@ amfs_host_fmount(mntfs *mf)
    */
   host = mf->mf_server->fs_host;
   sin = *mf->mf_server->fs_ip;
-  plog(XLOG_INFO, "amfs_host_fmount: NFS version %d", (int) mf->mf_server->fs_version);
+  plog(XLOG_INFO, "amfs_host_mount: NFS version %d", (int) mf->mf_server->fs_version);
 #ifdef HAVE_FS_NFS3
   if (mf->mf_server->fs_version == NFS_VERSION3)
-    mnt_version = MOUNTVERS3;
+    mnt_version = AM_MOUNTVERS3;
   else
 #endif /* HAVE_FS_NFS3 */
     mnt_version = MOUNTVERS;
@@ -374,9 +382,7 @@ amfs_host_fmount(mntfs *mf)
   }
   client->cl_auth = nfs_auth;
 
-#ifdef DEBUG
   dlog("Fetching export list from %s", host);
-#endif /* DEBUG */
 
   /*
    * Fetch the export list
@@ -392,7 +398,7 @@ amfs_host_fmount(mntfs *mf)
 			tv2);
   if (clnt_stat != RPC_SUCCESS) {
     const char *msg = clnt_sperrno(clnt_stat);
-    plog(XLOG_ERROR, "host_fmount rpc failed: %s", msg);
+    plog(XLOG_ERROR, "host_mount rpc failed: %s", msg);
     /* clnt_perror(client, "rpc"); */
     error = EIO;
     goto out;
@@ -412,7 +418,7 @@ amfs_host_fmount(mntfs *mf)
    */
   ep = (exports *) xmalloc(n_export * sizeof(exports));
   for (j = 0, ex = exlist; ex; ex = ex->ex_next) {
-    make_mntpt(mntpt, ex, mf);
+    make_mntpt(mntpt, sizeof(mntpt), ex, mf->mf_mount);
     if (already_mounted(mlist, mntpt))
       /* we have at least one mounted f/s, so don't fail the mount */
       ok = TRUE;
@@ -442,9 +448,7 @@ amfs_host_fmount(mntfs *mf)
   for (j = k = 0; j < n_export; j++) {
     /* Check and avoid a duplicated export entry */
     if (j > k && ep[k] && STREQ(ep[j]->ex_dir, ep[k]->ex_dir)) {
-#ifdef DEBUG
       dlog("avoiding dup fhandle requested for %s", ep[j]->ex_dir);
-#endif /* DEBUG */
       ep[j] = 0;
     } else {
       k = j;
@@ -461,9 +465,9 @@ amfs_host_fmount(mntfs *mf)
    * error code 0 at the end.  If they all fail then return
    * the last error code.
    */
-  strncpy(fs_name, mf->mf_info, sizeof(fs_name));
+  xstrlcpy(fs_name, mf->mf_info, MAXPATHLEN);
   if ((rfs_dir = strchr(fs_name, ':')) == (char *) 0) {
-    plog(XLOG_FATAL, "amfs_host_fmount: mf_info has no colon");
+    plog(XLOG_FATAL, "amfs_host_mount: mf_info has no colon");
     error = EINVAL;
     goto out;
   }
@@ -471,9 +475,15 @@ amfs_host_fmount(mntfs *mf)
   for (j = 0; j < n_export; j++) {
     ex = ep[j];
     if (ex) {
-      strcpy(rfs_dir, ex->ex_dir);
-      make_mntpt(mntpt, ex, mf);
-      if (do_mount(&fp[j], mntpt, fs_name, mf->mf_mopts, mf) == 0)
+      /*
+       * Note: the sizeof space left in rfs_dir is what's left in fs_name
+       * after strchr() above returned a pointer _inside_ fs_name.  The
+       * calculation below also takes into account that rfs_dir was
+       * incremented by the ++ above.
+       */
+      xstrlcpy(rfs_dir, ex->ex_dir, sizeof(fs_name) - (rfs_dir - fs_name));
+      make_mntpt(mntpt, sizeof(mntpt), ex, mf->mf_mount);
+      if (do_mount(&fp[j], mntpt, fs_name, mf) == 0)
 	ok = TRUE;
     }
   }
@@ -522,9 +532,10 @@ directory_prefix(char *pref, char *dir)
  * Unmount a mount tree
  */
 static int
-amfs_host_fumount(mntfs *mf)
+amfs_host_umount(am_node *am, mntfs *mf)
 {
   mntlist *ml, *mprev;
+  int unmount_flags = (mf->mf_flags & MFF_ON_AUTOFS) ? AMU_UMOUNT_AUTOFS : 0;
   int xerror = 0;
 
   /*
@@ -559,18 +570,24 @@ amfs_host_fumount(mntfs *mf)
     char *dir = ml->mnt->mnt_dir;
     if (directory_prefix(mf->mf_mount, dir)) {
       int error;
-#ifdef DEBUG
       dlog("amfs_host: unmounts %s", dir);
-#endif /* DEBUG */
       /*
        * Unmount "dir"
        */
-      error = UMOUNT_FS(dir, mnttab_file_name);
+      error = UMOUNT_FS(dir, mnttab_file_name, unmount_flags);
       /*
        * Keep track of errors
        */
       if (error) {
-	if (!xerror)
+	/*
+	 * If we have not already set xerror and error is not ENOENT,
+	 * then set xerror equal to error and log it.
+	 * 'xerror' is the return value for this function.
+	 *
+	 * We do not want to pass ENOENT as an error because if the
+	 * directory does not exists our work is done anyway.
+	 */
+	if (!xerror && error != ENOENT)
 	  xerror = error;
 	if (error != EBUSY) {
 	  errno = error;
@@ -591,7 +608,7 @@ amfs_host_fumount(mntfs *mf)
    * Try to remount, except when we are shutting down.
    */
   if (xerror && amd_state != Finishing) {
-    xerror = amfs_host_fmount(mf);
+    xerror = amfs_host_mount(am, mf);
     if (!xerror) {
       /*
        * Don't log this - it's usually too verbose
@@ -611,9 +628,8 @@ amfs_host_fumount(mntfs *mf)
  * mountd protocol is badly broken anyway.
  */
 static void
-amfs_host_umounted(am_node *mp)
+amfs_host_umounted(mntfs *mf)
 {
-  mntfs *mf = mp->am_mnt;
   char *host;
   CLIENT *client;
   enum clnt_stat clnt_stat;
@@ -626,6 +642,14 @@ amfs_host_umounted(am_node *mp)
     return;
 
   /*
+   * WebNFS servers shouldn't ever get here.
+   */
+  if (mf->mf_flags & MFF_WEBNFS) {
+    plog(XLOG_ERROR, "amfs_host_umounted: cannot support WebNFS");
+    return;
+  }
+
+  /*
    * Take a copy of the server hostname, address, and NFS version
    * to mount version conversion.
    */
@@ -634,7 +658,7 @@ amfs_host_umounted(am_node *mp)
   plog(XLOG_INFO, "amfs_host_umounted: NFS version %d", (int) mf->mf_server->fs_version);
 #ifdef HAVE_FS_NFS3
   if (mf->mf_server->fs_version == NFS_VERSION3)
-    mnt_version = MOUNTVERS3;
+    mnt_version = AM_MOUNTVERS3;
   else
 #endif /* HAVE_FS_NFS3 */
     mnt_version = MOUNTVERS;
@@ -661,9 +685,7 @@ amfs_host_umounted(am_node *mp)
   }
   client->cl_auth = nfs_auth;
 
-#ifdef DEBUG
   dlog("Unmounting all from %s", host);
-#endif /* DEBUG */
 
   clnt_stat = clnt_call(client,
 			MOUNTPROC_UMNTALL,

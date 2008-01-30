@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2004 Erez Zadok
+ * Copyright (c) 1997-2006 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -36,9 +36,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      %W% (Berkeley) %G%
  *
- * $Id: pawd.c,v 1.6.2.4 2004/01/06 03:15:16 ezk Exp $
+ * File: am-utils/amq/pawd.c
  *
  */
 
@@ -58,47 +57,10 @@
 #include <am_defs.h>
 #include <amq.h>
 
+
 /* statics */
-static char *localhost="localhost";
-static char newdir[MAXPATHLEN];
+static char *localhost = "localhost";
 static char transform[MAXPATHLEN];
-
-static int
-find_mt(amq_mount_tree *mt, char *dir)
-{
-  while (mt) {
-    if (STREQ(mt->mt_type, "link") ||
-	STREQ(mt->mt_type, "nfs") ||
-	STREQ(mt->mt_type, "nfsl")) {
-      int len = strlen(mt->mt_mountpoint);
-      if (NSTREQ(mt->mt_mountpoint, dir, len) &&
-	  ((dir[len] == '\0') || (dir[len] == '/'))) {
-	char tmp_buf[MAXPATHLEN];
-	strcpy(tmp_buf, mt->mt_directory);
-	strcat(tmp_buf, &dir[len]);
-	strcpy(newdir, tmp_buf);
-	return 1;
-      }
-    }
-    if (find_mt(mt->mt_next,dir))
-      return 1;
-    mt = mt->mt_child;
-  }
-  return 0;
-}
-
-
-static int
-find_mlp(amq_mount_tree_list *mlp, char *dir)
-{
-  int i;
-
-  for (i = 0; i < mlp->amq_mount_tree_list_len; i++) {
-    if (find_mt(mlp->amq_mount_tree_list_val[i], dir))
-      return 1;
-  }
-  return 0;
-}
 
 
 #ifdef HAVE_CNODEID
@@ -160,7 +122,8 @@ hack_name(char *dir)
     fprintf(stderr, "partition %s, username %s\n", partition, username);
 #endif /* DEBUG */
 
-    sprintf(hesiod_lookup, "%s.homes-remote", username);
+    xsnprintf(hesiod_lookup, sizeof(hesiod_lookup),
+	      "%s.homes-remote", username);
     hes = hes_resolve(hesiod_lookup, "amd");
     if (!hes)
       return NULL;
@@ -184,9 +147,10 @@ hack_name(char *dir)
 #ifdef DEBUG
     fprintf(stderr, "A match, munging....\n");
 #endif /* DEBUG */
-    strcpy(transform, "/home/");
-    strcat(transform, username);
-    if (*ch) strcat(transform, ch);
+    xstrlcpy(transform, "/home/", sizeof(transform));
+    xstrlcat(transform, username, sizeof(transform));
+    if (*ch)
+      xstrlcat(transform, ch, sizeof(transform));
 #ifdef DEBUG
     fprintf(stderr, "Munged to <%s>\n", transform);
 #endif /* DEBUG */
@@ -216,8 +180,9 @@ transform_dir(char *dir)
   int s = RPC_ANYSOCK;
   CLIENT *clnt;
   struct hostent *hp;
-  amq_mount_tree_list *mlp;
   struct timeval tmo = {10, 0};
+  char *dummystr;
+  amq_string *spp;
 
 #ifdef DISK_HOME_HACK
   if (ch = hack_name(dir))
@@ -230,31 +195,37 @@ transform_dir(char *dir)
   server = localhost;
 #endif /* not HAVE_CNODEID */
 
-  if ((hp = gethostbyname(server)) == 0)
+  if ((hp = gethostbyname(server)) == NULL)
     return dir;
   memset(&server_addr, 0, sizeof(server_addr));
+  /* as per POSIX, sin_len need not be set (used internally by kernel) */
   server_addr.sin_family = AF_INET;
   server_addr.sin_addr = *(struct in_addr *) hp->h_addr;
 
   clnt = clntudp_create(&server_addr, AMQ_PROGRAM, AMQ_VERSION, tmo, &s);
-  if (clnt == 0)
+  if (clnt == NULL)
+    clnt = clnttcp_create(&server_addr, AMQ_PROGRAM, AMQ_VERSION, &s, 0, 0);
+  if (clnt == NULL)
     return dir;
 
-  strcpy(transform,dir);
-  while ( (mlp = amqproc_export_1((voidp)0, clnt)) &&
-	  find_mlp(mlp,transform) ) {
-    strcpy(transform,newdir);
+  xstrlcpy(transform, dir, sizeof(transform));
+  dummystr = transform;
+  spp = amqproc_pawd_1((amq_string *) &dummystr, clnt);
+  if (spp && *spp && **spp) {
+    xstrlcpy(transform, *spp, sizeof(transform));
+    XFREE(*spp);
   }
+  clnt_destroy(clnt);
   return transform;
 }
 
 
 /* getawd() is a substitute for getwd() which transforms the path */
 static char *
-getawd(char *path)
+getawd(char *path, size_t l)
 {
 #ifdef HAVE_GETCWD
-  char *wd = getcwd(path, MAXPATHLEN+1);
+  char *wd = getcwd(path, MAXPATHLEN);
 #else /* not HAVE_GETCWD */
   char *wd = getwd(path);
 #endif /* not HAVE_GETCWD */
@@ -262,7 +233,7 @@ getawd(char *path)
   if (wd == NULL) {
     return NULL;
   }
-  strcpy(path, transform_dir(wd));
+  xstrlcpy(path, transform_dir(wd), l);
   return path;
 }
 
@@ -273,7 +244,7 @@ main(int argc, char *argv[])
   char tmp_buf[MAXPATHLEN], *wd;
 
   if (argc == 1) {
-    wd = getawd(tmp_buf);
+    wd = getawd(tmp_buf, sizeof(tmp_buf));
     if (wd == NULL) {
       fprintf(stderr, "pawd: %s\n", tmp_buf);
       exit(1);

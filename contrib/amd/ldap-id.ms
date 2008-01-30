@@ -28,31 +28,31 @@ A directory (X.500 and LDAPv3) schema for Berkely automounter
 .fi
 .in 3
 This memo describes a directory (LDAP or X.500) schema for storing
-amd (Berkely-style automounter) mount info maps. The schema is currently 
-beeing supported by the (beta version of the) am-utils version 6 package 
-[AMUTILS]. 
+amd (Berkely-style automounter) mount info maps. The schema is currently
+beeing supported by the (beta version of the) am-utils version 6 package
+[AMUTILS].
 
 .ti 0
 2. Overview and Rationale
 
 Directory services such as X.500 [X500] or LDAP [RFC2251] are a natural
-choice of repository for amd mount map databases. All Object Identifiers 
-in this document are prefixed by amdSchema-id to be assigned later. The 
-relation between this schema and the automount schema elements in [HOWARD] 
+choice of repository for amd mount map databases. All Object Identifiers
+in this document are prefixed by amdSchema-id to be assigned later. The
+relation between this schema and the automount schema elements in [HOWARD]
 are mostly superficial. The model for the elements in [HOWARD] was the SUN
-automounter which has quite a different syntax for mount maps. Furthermore 
-the intended usage of this schema differs from that of [HOWARD] in many 
+automounter which has quite a different syntax for mount maps. Furthermore
+the intended usage of this schema differs from that of [HOWARD] in many
 respects.
 
 .ti 0
 3. DSA requirements
 
-Directory servers implementing this schema SHOULD maintain the 
-modifyTimestamp operational attribute. If not the amdMapCacheTtl 
+Directory servers implementing this schema SHOULD maintain the
+modifyTimestamp operational attribute. If not the amdMapCacheTtl
 attribute SHOULD be set to 0 indicating to clients that caching of
-map entries SHOULD be turned off. Clients wishing to use the amdMap 
-schema MAY use the modifyTimestamp information to set the ttl for 
-internal caching schemes. A value of 0 for the amdMapCacheTtl must 
+map entries SHOULD be turned off. Clients wishing to use the amdMap
+schema MAY use the modifyTimestamp information to set the ttl for
+internal caching schemes. A value of 0 for the amdMapCacheTtl must
 result in clients turning off any local caching.
 
 .ti 0
@@ -70,11 +70,11 @@ in BNF using definitions from [RFC2252]:
 
      amdlocationselection = amdlocation |
                             amdlocationselection whsp amdlocation
- 
+
      amdlocation          = amdlocationinfo |
                             "-" amdlocationinfo |
                             "-"
-  
+
      amdlocationinfo      = seloropt |
                             amdlocationinfo ";" seloropt |
                             ";"
@@ -87,7 +87,7 @@ in BNF using definitions from [RFC2252]:
 
      optass               = keystring \":=\" printablestring
 
-X.500 servers or LDAPv3 servers (supporting the binary attribute 
+X.500 servers or LDAPv3 servers (supporting the binary attribute
 option) may use the following syntax definition:
 
      AmdLocationList ::= SEQUENCE OF {
@@ -103,21 +103,21 @@ option) may use the following syntax definition:
                                not          [2] NULL
                             }
                          }
-   
+
      AmdLocationInfo ::= SET OF {
                             CHOICE {
                                selection    [0] AmdSelection
                                option       [1] AmdOption
                             }
                          }
-                               
+
      AmdSelection    ::= CHOICE {
                             eq     [0] AttributeAndValue
                             ne     [1] AttributeAndValue
                          }
 
      AmdOption       ::= AttributeAndValue
-	                                   
+
      AttributeAndValue ::= SEQUENCE {
                               attribute     IA5String
                               value         IA5String
@@ -127,7 +127,7 @@ option) may use the following syntax definition:
 5. Attribute types
 
 The following attribute types are defined in this document:
-    
+
      amdMapName
      amdMapCacheTtl
      amdMapEntry
@@ -136,21 +136,21 @@ The following attribute types are defined in this document:
 
      amdSchema-a OBJECT IDENTIFIER ::= { amdSchema-id 1 }
 
-     amdMapName 
+     amdMapName
 	ATTRIBUTE ::= {
            WITH SYNTAX              IA5String
            EQUALITY MATCHING RULE   caseIgoreExactMatch
            --ID                     { amdSchema-a 1 }
-           DESCRIPTION              
+           DESCRIPTION
             "This attribute is the symbolic and in the naming
              context unique name of an amd map. This corresponds
              in the case of a flat file database to the name of
              the file or the mount-point of the map."
         }
-                      
 
-     amdMapCacheTtl 
-        ATTRIBUTE ::= {  
+
+     amdMapCacheTtl
+        ATTRIBUTE ::= {
            WITH SYNTAX              Integer
            EQUALITY MATCHING RULE   integerExactMatch
            --ID                     { amdSchema-a 2 }
@@ -213,7 +213,7 @@ The following attribute types are defined in this document:
              using the syntax described above."
         }
 
-.ti 0 
+.ti 0
 6. Object classes
 
 The following object classes are defined in this document:
@@ -251,13 +251,13 @@ defined as follows:
 .ti 0
 7. Examples
 
- 
+
 
 .ti 0
 8. Security Considerations
 
 Due to the security problems posed by NFS care should be taken not to
-advertise exported filesystems. Therefore it is often desirable to limit 
+advertise exported filesystems. Therefore it is often desirable to limit
 access to entries carrying amd mount map information to those systems
 to which the corresponding filesystems have been exported.
 
@@ -282,13 +282,13 @@ to which the corresponding filesystems have been exported.
         Names", RFC 2253, December 1997.
 
    [HOWARD]
-        Luke Howard, "An Approach for Using LDAP as a Network 
+        Luke Howard, "An Approach for Using LDAP as a Network
         Information Service", draft-howard-nis-schema-??.txt, Internet
         draft.
 
-   [X500] 
+   [X500]
         ITU something or other.
- 
+
 .in 3
 
 
