@@ -189,3 +189,44 @@
 >0		byte		<5		\b
 >>13	byte		0x81	\b
 >>>14	uleshort	x		\b, system %hd
+
+#------------------------------------------------------------------------------
+# CAF: Apple CoreAudio File Format
+#
+# Container format for high-end audio purposes.
+# From: David Remahl <dremahl@apple.com>
+#
+0	string		caff		CoreAudio Format audio file
+>4	beshort		<10		version %d
+>6	beshort		x
+
+
+#------------------------------------------------------------------------------
+# Keychain database files
+0	string		kych		Mac OS X Keychain File
+
+#------------------------------------------------------------------------------
+# Code Signing related file types
+0	belong		0xfade0c00	Mac OS X Code Requirement
+>8	belong		1			(opExpr)
+>4	belong		x			- %d bytes
+
+0	belong		0xfade0c01	Mac OS X Code Requirement Set
+>8	belong		>1			containing %d items
+>4	belong		x			- %d bytes
+
+0	belong		0xfade0c02	Mac OS X Code Directory
+>8	belong		x			version %x
+>12	belong		>0			flags 0x%x
+>4	belong		x			- %d bytes
+
+0	belong		0xfade0cc0	Mac OS X Detached Code Signature (non-executable)
+>4	belong		x			- %d bytes
+
+0	belong		0xfade0cc1	Mac OS X Detached Code Signature
+>8	belong		>1			(%d elements)
+>4	belong		x			- %d bytes
+
+# From: "Nelson A. de Oliveira" <naoliv@gmail.com>
+# .vdi
+4	string innotek\ VirtualBox\ Disk\ Image %s
