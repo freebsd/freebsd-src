@@ -631,6 +631,20 @@ set_dumper(struct dumperinfo *di)
 	return (0);
 }
 
+/* Call dumper with bounds checking. */
+int
+dump_write(struct dumperinfo *di, void *virtual, vm_offset_t physical,
+    off_t offset, size_t length)
+{
+
+	if (length != 0 && (offset < di->mediaoffset ||
+	    offset - di->mediaoffset + length > di->mediasize)) {
+		printf("Attempt to write outside dump device boundaries.\n");
+		return (ENXIO);
+	}
+	return (di->dumper(di->priv, virtual, physical, offset, length));
+}
+
 #if defined(__powerpc__)
 void
 dumpsys(struct dumperinfo *di __unused)
