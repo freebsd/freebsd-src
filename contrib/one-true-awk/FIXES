@@ -25,6 +25,14 @@ THIS SOFTWARE.
 This file lists all bug fixes, changes, etc., made since the AWK book
 was sent to the printers in August, 1987.
 
+Oct 23, 2007:
+	minor fix in lib.c: increase inputFS to 100, change malloc
+	for fields to n+1.  
+
+	fixed memory fault caused by out of order test in setsval.
+
+	thanks to david o'brien, freebsd, for both fixes.
+
 May 1, 2007:
 	fiddle in makefile to fix for BSD make; thanks to igor sobrado.
 
