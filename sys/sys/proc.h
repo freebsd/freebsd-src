@@ -784,6 +784,20 @@ MALLOC_DECLARE(M_ZOMBIE);
 	curthread->td_pflags &= ~TDP_NOSLEEPING;			\
 } while (0)
 
+/*
+ * Get the current kernel thread stack usage.
+ * Prefer machine dependent version if present.
+ */
+#ifndef GET_STACK_USAGE
+#define GET_STACK_USAGE(total, used) do {				\
+	struct thread	*td = curthread;				\
+	(total) = td->td_kstack_pages * PAGE_SIZE;			\
+	(used) = (char *)td->td_kstack +				\
+	    td->td_kstack_pages * PAGE_SIZE -				\
+	    (char *)&td;						\
+} while (0)
+#endif /* GET_STACK_USAGE */
+
 #define	PIDHASH(pid)	(&pidhashtbl[(pid) & pidhash])
 extern LIST_HEAD(pidhashhead, proc) *pidhashtbl;
 extern u_long pidhash;
