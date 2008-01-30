@@ -32,7 +32,7 @@ static const char rcsid[] =
 
 int debug = 0;
 int dolog = 0;
-unsigned long route_addr = -1;
+in_addr_t route_addr = -1;
 struct sockaddr_in my_addr;
 char *bootpfile = "/etc/bootparams";
 
