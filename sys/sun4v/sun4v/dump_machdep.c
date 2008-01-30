@@ -92,7 +92,7 @@ buf_write(struct dumperinfo *di, char *ptr, size_t sz)
 		ptr += len;
 		sz -= len;
 		if (fragsz == DEV_BSIZE) {
-			error = di->dumper(di->priv, buffer, 0, dumplo,
+			error = dump_write(di, buffer, 0, dumplo,
 			    DEV_BSIZE);
 			if (error)
 				return error;
@@ -112,7 +112,7 @@ buf_flush(struct dumperinfo *di)
 	if (fragsz == 0)
 		return (0);
 
-	error = di->dumper(di->priv, buffer, 0, dumplo, DEV_BSIZE);
+	error = dump_write(di, buffer, 0, dumplo, DEV_BSIZE);
 	dumplo += DEV_BSIZE;
 	return (error);
 }
@@ -148,7 +148,7 @@ blk_dump(struct dumperinfo *di, vm_paddr_t pa, vm_size_t size)
 #ifdef notyet
 		va = TLB_PHYS_TO_DIRECT(pa + pos);
 #endif
-		error = di->dumper(di->priv, (void *)va, 0, dumplo, rsz);
+		error = dump_write(di, (void *)va, 0, dumplo, rsz);
 		if (error)
 			break;
 		dumplo += rsz;
@@ -198,7 +198,7 @@ dumpsys(struct dumperinfo *di)
 	printf("Dumping %lu MB (%d chunks)\n", (u_long)(size >> 20), nreg);
 
 	/* Dump leader */
-	error = di->dumper(di->priv, &kdh, 0, dumplo, sizeof(kdh));
+	error = dump_write(di, &kdh, 0, dumplo, sizeof(kdh));
 	if (error)
 		goto fail;
 	dumplo += sizeof(kdh);
@@ -234,12 +234,12 @@ dumpsys(struct dumperinfo *di)
 	}
 
 	/* Dump trailer */
-	error = di->dumper(di->priv, &kdh, 0, dumplo, sizeof(kdh));
+	error = dump_write(di, &kdh, 0, dumplo, sizeof(kdh));
 	if (error)
 		goto fail;
 
 	/* Signal completion, signoff and exit stage left. */
-	di->dumper(di->priv, NULL, 0, 0, 0);
+	dump_write(di, NULL, 0, 0, 0);
 	printf("\nDump complete\n");
 	return;
 
