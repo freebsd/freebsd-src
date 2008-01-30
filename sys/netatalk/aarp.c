@@ -354,6 +354,13 @@ at_aarpinput(struct ifnet *ifp, struct mbuf *m)
 		return;
 	}
 
+	/* Don't accept requests from broadcast address. */
+	if (!bcmp(ea->aarp_sha, ifp->if_broadcastaddr, ifp->if_addrlen)) {
+		log(LOG_ERR, "aarp: source link address is broadcast\n");
+		m_freem(m);
+		return;
+	}
+
 	op = ntohs(ea->aarp_op);
 	bcopy(ea->aarp_tpnet, &net, sizeof(net));
 
