@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2004 Erez Zadok
+ * Copyright (c) 1997-2006 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -36,9 +36,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      %W% (Berkeley) %G%
  *
- * $Id: amfs_union.c,v 1.3.2.5 2004/01/06 03:15:16 ezk Exp $
+ * File: am-utils/amd/amfs_union.c
  *
  */
 
@@ -55,6 +54,7 @@
 /****************************************************************************
  *** FORWARD DEFINITIONS                                                  ***
  ****************************************************************************/
+static int create_amfs_union_node(char *dir, opaque_t arg);
 static void amfs_union_mounted(mntfs *mf);
 
 
@@ -64,19 +64,22 @@ static void amfs_union_mounted(mntfs *mf);
 am_ops amfs_union_ops =
 {
   "union",
-  amfs_auto_match,
-  0,				/* amfs_auto_init */
+  amfs_generic_match,
+  0,				/* amfs_union_init */
   amfs_toplvl_mount,
-  0,
   amfs_toplvl_umount,
-  0,
-  amfs_auto_lookuppn,
-  amfs_auto_readdir,
-  0,				/* amfs_toplvl_readlink */
+  amfs_generic_lookup_child,
+  amfs_generic_mount_child,
+  amfs_generic_readdir,
+  0,				/* amfs_union_readlink */
   amfs_union_mounted,
-  0,				/* amfs_toplvl_umounted */
-  find_amfs_auto_srvr,
-  FS_MKMNT | FS_NOTIMEOUT | FS_BACKGROUND | FS_AMQINFO | FS_DIRECTORY
+  0,				/* amfs_union_umounted */
+  amfs_generic_find_srvr,
+  0,				/* amfs_union_get_wchan */
+  FS_MKMNT | FS_NOTIMEOUT | FS_BACKGROUND | FS_AMQINFO | FS_DIRECTORY,
+#ifdef HAVE_FS_AUTOFS
+  AUTOFS_UNION_FS_FLAGS,
+#endif /* HAVE_FS_AUTOFS */
 };
 
 
@@ -85,11 +88,14 @@ am_ops amfs_union_ops =
  * XXX: this function may not be used anywhere...
  */
 static int
-create_amfs_union_node(char *dir, voidp arg)
+create_amfs_union_node(char *dir, opaque_t arg)
 {
   if (!STREQ(dir, "/defaults")) {
     int error = 0;
-    (void) amfs_toplvl_ops.lookuppn(arg, dir, &error, VLOOK_CREATE);
+    am_node *am;
+    am = amfs_generic_lookup_child(arg, dir, &error, VLOOK_CREATE);
+    if (am && error < 0)
+      am = amfs_generic_mount_child(am, &error);
     if (error > 0) {
       errno = error;		/* XXX */
       plog(XLOG_ERROR, "unionfs: could not mount %s: %m", dir);
@@ -103,20 +109,22 @@ create_amfs_union_node(char *dir, voidp arg)
 static void
 amfs_union_mounted(mntfs *mf)
 {
-  int i;
+  int index;
+  am_node *mp;
 
-  amfs_auto_mkcacheref(mf);
+  amfs_mkcacheref(mf);
 
   /*
    * Having made the union mount point,
    * populate all the entries...
    */
-  for (i = 0; i <= last_used_map; i++) {
-    am_node *mp = exported_ap[i];
-    if (mp && mp->am_mnt == mf) {
+  for (mp = get_first_exported_ap(&index);
+       mp;
+       mp = get_next_exported_ap(&index)) {
+    if (mp->am_mnt == mf) {
       /* return value from create_amfs_union_node is ignored by mapc_keyiter */
       (void) mapc_keyiter((mnt_map *) mp->am_mnt->mf_private,
-			  (void (*)(char *, voidp)) create_amfs_union_node,
+			  create_amfs_union_node,
 			  mp);
       break;
     }

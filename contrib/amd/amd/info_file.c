@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2004 Erez Zadok
+ * Copyright (c) 1997-2006 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -36,9 +36,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      %W% (Berkeley) %G%
  *
- * $Id: info_file.c,v 1.3.2.5 2004/01/06 03:15:16 ezk Exp $
+ * File: am-utils/amd/info_file.c
  *
  */
 
@@ -55,10 +54,9 @@
 #define	MAX_LINE_LEN	1500
 
 /* forward declarations */
-int file_init(mnt_map *m, char *map, time_t *tp);
+int file_init_or_mtime(mnt_map *m, char *map, time_t *tp);
 int file_reload(mnt_map *m, char *map, void (*fn) (mnt_map *, char *, char *));
 int file_search(mnt_map *m, char *map, char *key, char **pval, time_t *tp);
-int file_mtime(mnt_map *m, char *map, time_t *tp);
 
 
 static int
@@ -87,7 +85,7 @@ read_line(char *buf, int size, FILE *fp)
 	return done;
       }
     }
-  } while (size > 0 && !feof(fp));
+  } while (size > 0 && !feof(fp) && !ferror(fp));
 
   return done;
 }
@@ -97,7 +95,12 @@ read_line(char *buf, int size, FILE *fp)
  * Try to locate a key in a file
  */
 static int
-search_or_reload_file(FILE *fp, char *map, char *key, char **val, mnt_map *m, void (*fn) (mnt_map *m, char *, char *))
+file_search_or_reload(FILE *fp,
+		      char *map,
+		      char *key,
+		      char **val,
+		      mnt_map *m,
+		      void (*fn) (mnt_map *m, char *, char *))
 {
   char key_val[MAX_LINE_LEN];
   int chuck = 0;
@@ -161,9 +164,7 @@ search_or_reload_file(FILE *fp, char *map, char *key, char **val, mnt_map *m, vo
 	  (*fn) (m, strdup(kp), dc);
 	} else {
 	  *val = dc;
-#ifdef DEBUG
 	  dlog("%s returns %s", key, dc);
-#endif /* DEBUG */
 	}
 	if (!fn)
 	  return 0;
@@ -196,7 +197,7 @@ file_open(char *map, time_t *tp)
   if (mapf && tp) {
     struct stat stb;
     if (fstat(fileno(mapf), &stb) < 0)
-      *tp = clocktime();
+      *tp = clocktime(NULL);
     else
       *tp = stb.st_mtime;
   }
@@ -205,7 +206,7 @@ file_open(char *map, time_t *tp)
 
 
 int
-file_init(mnt_map *m, char *map, time_t *tp)
+file_init_or_mtime(mnt_map *m, char *map, time_t *tp)
 {
   FILE *mapf = file_open(map, tp);
 
@@ -223,7 +224,7 @@ file_reload(mnt_map *m, char *map, void (*fn) (mnt_map *, char *, char *))
   FILE *mapf = file_open(map, (time_t *) 0);
 
   if (mapf) {
-    int error = search_or_reload_file(mapf, map, 0, 0, m, fn);
+    int error = file_search_or_reload(mapf, map, 0, 0, m, fn);
     (void) fclose(mapf);
     return error;
   }
@@ -243,23 +244,10 @@ file_search(mnt_map *m, char *map, char *key, char **pval, time_t *tp)
       *tp = t;
       error = -1;
     } else {
-      error = search_or_reload_file(mapf, map, key, pval, 0, 0);
+      error = file_search_or_reload(mapf, map, key, pval, 0, 0);
     }
     (void) fclose(mapf);
     return error;
-  }
-  return errno;
-}
-
-
-int
-file_mtime(mnt_map *m, char *map, time_t *tp)
-{
-  FILE *mapf = file_open(map, tp);
-
-  if (mapf) {
-    (void) fclose(mapf);
-    return 0;
   }
   return errno;
 }

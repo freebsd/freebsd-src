@@ -1,6 +1,6 @@
 \input texinfo          @c -*-texinfo-*-
 @c
-@c Copyright (c) 1997-2004 Erez Zadok
+@c Copyright (c) 1997-2006 Erez Zadok
 @c Copyright (c) 1989 Jan-Simon Pendry
 @c Copyright (c) 1989 Imperial College of Science, Technology & Medicine
 @c Copyright (c) 1989 The Regents of the University of California.
@@ -36,15 +36,15 @@
 @c LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 @c OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 @c
-@c      %W% (Berkeley) %G%
 @c
-@c $Id: am-utils.texi,v 1.21.2.32 2004/01/21 04:04:58 ib42 Exp $
+@c File: am-utils/doc/am-utils.texi
 @c
 @setfilename am-utils.info
 
 @include version.texi
 
 @c info directory entry
+@dircategory Administration
 @direntry
 * Am-utils: (am-utils).          The Amd automounter suite of utilities
 @end direntry
@@ -60,7 +60,7 @@
 (Originally by Jan-Simon Pendry and Nick Williams)
 
 @page
-Copyright @copyright{} 1997-2004 Erez Zadok
+Copyright @copyright{} 1997-2006 Erez Zadok
 @*
 Copyright @copyright{} 1989 Jan-Simon Pendry
 @*
@@ -93,7 +93,7 @@ For version @value{VERSION}, @value{UPDATED}
 @*
 (Originally by Jan-Simon Pendry and Nick Williams)
 
-Copyright @copyright{} 1997-2004 Erez Zadok
+Copyright @copyright{} 1997-2006 Erez Zadok
 @*
 Copyright @copyright{} 1989 Jan-Simon Pendry
 @*
@@ -117,12 +117,13 @@ tools within Am-utils.
 * License::                  Explains the terms and conditions for using
                              and distributing Am-utils.
 * Distrib::                  How to get the latest Am-utils distribution.
+* AddInfo::                  How to get additional information.
 * Intro::                    An introduction to Automounting concepts.
 * History::                  History of am-utils' development.
 * Overview::                 An overview of Amd.
 * Supported Platforms::      Machines and Systems supported by Amd.
-* Mount Maps::               Details of mount maps
-* Amd Command Line Options:: All the Amd command line options explained. 
+* Mount Maps::               Details of mount maps.
+* Amd Command Line Options:: All the Amd command line options explained.
 * Filesystem Types::         The different mount types supported by Amd.
 * Amd Configuration File::   The amd.conf file syntax and meaning.
 * Run-time Administration::  How to start, stop and control Amd.
@@ -131,7 +132,7 @@ tools within Am-utils.
 * Assorted Tools::           Other tools which come with am-utils.
 * Examples::                 Some examples showing how Amd might be used.
 * Internals::                Implementation details.
-* Acknowledgments & Trademarks:: Legal Notes
+* Acknowledgments & Trademarks:: Legal Notes.
 
 Indexes
 * Index::                    An item for each concept.
@@ -207,7 +208,7 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
 THE POSSIBILITY OF SUCH DAMAGE.
 
 @c ################################################################
-@node Distrib, Intro, License, Top
+@node Distrib, AddInfo, License, Top
 @unnumbered Source Distribution
 @cindex Source code distribution
 @cindex Obtaining the source code
@@ -236,29 +237,40 @@ Revision 6.0 was made independently by
 @email{ezk@@cs.columbia.edu,Erez Zadok} at the Computer Science
 Department of @uref{http://www.cs.columbia.edu/,Columbia University},
 as part of his
-@uref{http://www.cs.columbia.edu/~ezk/research/tp/thesis_proposal.html,PhD
+@uref{http://www.fsl.cs.sunysb.edu/docs/zadok-thesis-proposal/,PhD
 thesis work}.  Am-utils (especially version 6.1) continues to be
 developed and maintained at the
 @uref{http://www.cs.sunysb.edu/,Computer Science Department} of
 @uref{http://www.stonybrook.edu/,Stony Brook University}, as a service
 to the user community.
 
+
 @xref{History}, for more details.
+
+@c ################################################################
+@node AddInfo, Intro, Distrib, Top
+@unnumbered Getting Additional Information
+@cindex Getting Additional Information
 
 @unnumberedsec Bug Reports
 @cindex Bug reports
 
 Before reporting a bug, see if it is a known one in the
-@uref{http://www.am-utils.org/BUGS.txt,bugs} file.
-Send all bug reports to @email{am-utils@@am-utils.org}
-quoting the details of the release and your configuration.  These can be
-obtained by running the command @samp{amd -v}.  It would greatly help if
-you could provide a reproducible procedure for detecting the bug you are
+@uref{http://www.am-utils.org/docs/am-utils/BUGS.txt,bugs} file.
+
+If you find a problem and hopefully you can reproduce it, please
+describe it in detail and
+@uref{https://bugzilla.filesystems.org/,submit a bug report} via
+@uref{http://www.bugzilla.org/,Bugzilla}.  Alternatively, you can send
+your bug report to @email{am-utils@@am-utils.org} quoting the details
+of the release and your configuration.  These details can be obtained
+by running the command @samp{amd -v}.  It would greatly help if you
+could provide a reproducible procedure for detecting the bug you are
 reporting.
 
 Providing working patches is highly encouraged.  Every patch
 incorporated, however small, will get its author an honorable mention in
-the @uref{http://www.am-utils.org/AUTHORS.txt,authors
+the @uref{http://www.am-utils.org/docs/am-utils/AUTHORS.txt,authors
 file}.
 
 @unnumberedsec Mailing Lists
@@ -343,7 +355,7 @@ geared toward Linux users, it is general enough for any Unix
 administrator and contains specific sections for non-Linux systems.
 
 @c ################################################################
-@node Intro, History, Distrib, Top
+@node Intro, History, AddInfo, Top
 @unnumbered Introduction
 @cindex Introduction
 
@@ -377,7 +389,7 @@ numerous flavors of Unix.
 The @i{Amd} package has been without an official maintainer since 1992.
 Several people have stepped in to maintain it unofficially.  Most
 notable were the `upl' (Unofficial Patch Level) releases of @i{Amd},
-created by me (@email{ezk@@cs.columbia.edu,Erez Zadok}), and available from
+created by me (@email{ezk@@cs.sunysb.edu,Erez Zadok}), and available from
 @url{ftp://ftp.am-utils.org/pub/amd/}.  The last such unofficial
 release was `upl102'.
 
@@ -409,6 +421,15 @@ necessary to remove old or unused features, change various syntax files,
 etc.  However, great care was taken to ensure the maximum possible
 backwards compatibility.
 
+Am-utils version 6.1 has autofs support for Linux and Solaris 2.5+ as
+@i{the} major new feature, in addition to several other minor new
+features.  The autofs support is completely transparent to the
+end-user, aside from the fact that @code{/bin/pwd} now always returns
+the correct amd-ified path.  The administrator can easily switch
+between NFS and autofs mounts by changing one parameter in
+@code{amd.conf}.  Autofs support and maintenance was developed in
+conjunction with @email{ionut@@badula.org,Ion Badulescu}.
+
 @c ################################################################
 @node Overview, Supported Platforms, History, Top
 @chapter Overview
@@ -426,12 +447,12 @@ is loaded with additional features which have little practical use.  At
 some point the infrequently used components may be removed to streamline
 the production system.
 
-@c @i{Amd} supports the notion of @dfn{replicated} filesystems by evaluating
-@c each member of a list of possible filesystem locations in parallel.
-@c @i{Amd} checks that each cached mapping remains valid.  Should a mapping be
-@c lost -- such as happens when a fileserver goes down -- @i{Amd} automatically
-@c selects a replacement should one be available.
-@c
+@i{Amd} supports the notion of @dfn{replicated} filesystems by evaluating
+each member of a list of possible filesystem locations one by one.
+@i{Amd} checks that each cached mapping remains valid.  Should a mapping be
+lost -- such as happens when a fileserver goes down -- @i{Amd} automatically
+selects a replacement should one be available.
+
 @menu
 * Fundamentals::
 * Filesystems and Volumes::
@@ -635,7 +656,11 @@ Option, -w}) or the @i{amd.conf} parameter @samp{dismount_interval}
 value on a per-mount basis (@pxref{opts Option, opts, opts}).
 
 Filesystems can be forcefully timed out using the @i{Amq} command.
-@xref{Run-time Administration}.
+@xref{Run-time Administration}.  Note that on new enough systems that
+support forced unmounts, such as Linux, @i{Amd} can try to use the
+@b{umount2}(2) system call to force the unmount, if the regular
+@b{umount}(2) system call failed in a way that indicates that the
+mount point is hung or stale.  @xref{forced_unmounts Parameter}.
 
 @node Keep-alives, Non-blocking Operation, Automatic Unmounting, Overview
 @comment  node-name,  next,  previous,  up
@@ -667,7 +692,8 @@ While the server state is uncertain the requests are re-transmitted at
 three second intervals and if no reply is received after four attempts
 the server is marked down.  If a reply is received the fileserver is
 marked up and stays in that state for 30 seconds at which time another
-NFS ping is sent.
+NFS ping is sent.  This interval is configurable and can even be
+turned off using the @i{ping} option.  @xref{opts Option}.
 
 Once a fileserver is marked down, requests continue to be sent every 30
 seconds in order to determine when the fileserver comes back up.  During
@@ -737,457 +763,6 @@ machines, as well as 32 bit and 64 bit architectures.  Furthermore, when
 @i{Am-utils} ports to an Operating System on one architecture, it is generally
 readily portable to the same Operating System on all platforms on which
 it is available.
-
-The table below lists those platforms supported by the latest release.
-The listing is based on the standard output from GNU's
-@code{config.guess} script.  Since significant changes have been made to
-am-utils, not all systems listed here have been verified working for all
-features.
-
-@multitable {Auto-Configured System Name} {Config} {Compile} {Amd} {NFS3} {Shlib} {Hlfsd}
-@c @multitable @columnfractions .5 .1 .1 .1 .1 .1
-
-@item @b{Auto-Configured System Name}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab @b{Config} @tab @b{Compile} @tab @b{Amd} @tab @b{NFS3} @tab @b{Shlib} @tab @b{Hlfsd}
-
-@item @b{alpha-dec-osf2.1}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab ?     @tab no   @tab ?
-
-@item @b{alpha-dec-osf4.0}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab ?
-
-@item @b{alpha-dec-osf4.0f}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab ?
-
-@item @b{alpha-dec-osf5.1}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab ?
-
-@item @b{alphaev5-unknown-linux-gnu}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab n/a   @tab yes  @tab ?
-
-@item @b{alphaev5-unknown-linux-gnu-rh5.2}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab n/a   @tab yes  @tab ?
-
-@item @b{alphaev6-dec-osf5.0}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab ?
-
-@item @b{hppa1.0-hp-hpux11.00}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab no    @tab yes  @tab yes
-
-@item @b{hppa1.1-hp-hpux10.10}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab n/a   @tab no   @tab ?
-
-@item @b{hppa1.1-hp-hpux10.20}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab no    @tab no   @tab ?
-
-@item @b{hppa1.1-hp-hpux11.00}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab UDP    @tab yes  @tab yes
-
-@item @b{hppa1.1-hp-hpux9.01}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab n/a   @tab yes  @tab ?
-
-@item @b{hppa1.1-hp-hpux9.05}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab n/a   @tab yes  @tab ?
-
-@item @b{hppa1.1-hp-hpux9.07}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab n/a   @tab yes  @tab ?
-
-@item @b{hppa2.0w-hp-hpux11.00}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab n/a   @tab yes  @tab ?
-
-@item @b{i386-pc-bsdi2.1}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab n/a   @tab no   @tab ?
-
-@item @b{i386-pc-bsdi3.0}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab yes   @tab no   @tab ?
-
-@item @b{i386-pc-bsdi3.1}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab yes   @tab no   @tab ?
-
-@item @b{i386-pc-bsdi4.0}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab ?
-
-@item @b{i386-pc-bsdi4.0.1}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab ?
-
-@item @b{i386-pc-bsdi4.1}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab ?
-
-@item @b{i386-pc-linux-rh7.2}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab yes
-
-@item @b{i386-pc-solaris2.5.1}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab yes
-
-@item @b{i386-pc-solaris2.6}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab yes
-
-@item @b{i386-pc-solaris2.7}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab yes
-
-@item @b{i386-unknown-freebsd2.1.0}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab n/a   @tab ?    @tab ?
-
-@item @b{i386-unknown-freebsd2.2.1}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab n/a   @tab yes  @tab ?
-
-@item @b{i386-unknown-freebsd2.2.6}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab n/a   @tab yes  @tab ?
-
-@item @b{i386-unknown-freebsd2.2.7}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab n/a   @tab yes  @tab ?
-
-@item @b{i386-unknown-freebsd2.2.8}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab n/a   @tab yes  @tab ?
-
-@item @b{i386-unknown-freebsd3.0}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab ?
-
-@item @b{i386-unknown-freebsd4.2}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab ?
-
-@item @b{i386-unknown-freebsd4.4}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab ?
-
-@item @b{i386-unknown-freebsd5.0}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab ?
-
-@item @b{i386-unknown-freebsdelf3.0}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab ?
-
-@item @b{i386-unknown-freebsdelf3.1}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab ?
-
-@item @b{i386-unknown-freebsdelf3.2}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab ?
-
-@item @b{i386-unknown-freebsdelf3.3}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab ?
-
-@item @b{i386-unknown-freebsdelf3.4}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab ?
-
-@item @b{i386-unknown-freebsdelf4.0}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab ?
-
-@item @b{i386-unknown-netbsd1.2.1}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab ?
-
-@item @b{i386-unknown-netbsd1.3}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab ?
-
-@item @b{i386-unknown-netbsd1.3.1}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab ?
-
-@item @b{i386-unknown-netbsd1.3.2}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab ?
-
-@item @b{i386-unknown-netbsd1.3.3}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab ?
-
-@item @b{i386-unknown-netbsd1.4}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab ?
-
-@item @b{i386-unknown-netbsd1.4.1}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab ?
-
-@item @b{i386-unknown-openbsd2.1}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab ?
-
-@item @b{i386-unknown-openbsd2.2}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab ?
-
-@item @b{i386-unknown-openbsd2.3}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab ?
-
-@item @b{i386-unknown-openbsd2.4}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab ?
-
-@item @b{i386-unknown-openbsd2.5}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab ?
-
-@item @b{i486-ncr-sysv4.3.03}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab ?    @tab yes   @tab yes  @tab ?
-
-@item @b{i486-pc-linux-gnu-rh6.0}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab n/a   @tab yes  @tab ?
-
-@item @b{i486-pc-linux-gnulibc1}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab n/a   @tab yes  @tab ?
-
-@item @b{i486-pc-linux-gnulibc1-rh4.2}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab n/a   @tab yes  @tab ?
-
-@item @b{i486-pc-linux-gnuoldld}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab n/a   @tab yes  @tab ?
-
-@item @b{i586-pc-linux-gnu}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab n/a   @tab yes  @tab ?
-
-@item @b{i586-pc-linux-gnu-rh5.2}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab n/a   @tab yes  @tab ?
-
-@item @b{i586-pc-linux-gnu-rh6.0}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab n/a   @tab yes  @tab ?
-
-@item @b{i586-pc-linux-gnu-rh6.1}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab n/a   @tab yes  @tab ?
-
-@item @b{i586-pc-linux-gnu-rh6.2}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab n/a   @tab yes  @tab ?
-
-@item @b{i586-pc-linux-gnulibc1}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab n/a   @tab yes  @tab ?
-
-@item @b{i586-pc-linux-gnulibc1-rh4.2}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab n/a   @tab yes  @tab ?
-
-@item @b{i686-pc-linux-gnu}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab n/a   @tab yes  @tab ?
-
-@item @b{i686-pc-linux-gnu-rh5.2}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab n/a   @tab yes  @tab ?
-
-@item @b{i686-pc-linux-gnu-rh6.0}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab n/a   @tab yes  @tab ?
-
-@item @b{i686-pc-linux-gnu-rh6.2}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab n/a   @tab yes  @tab yes
-
-@item @b{i686-pc-linux-gnulibc}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab n/a   @tab yes  @tab ?
-
-@item @b{i686-pc-linux-gnulibc1}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab n/a   @tab yes  @tab ?
-
-@item @b{ia64-hp-hpux11.20}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab ?
-
-@item @b{ia64-unknown-linux-rh2.1AS}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab yes
-
-@item @b{ia64-unknown-linux-rh2.1AW}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab yes
-
-@item @b{ia64-unknown-linux-rh7.1}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab yes
-
-@item @b{ia64-unknown-linux-rh7.2}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab yes
-
-@item @b{m68k-hp-hpux9.00}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab n/a   @tab ?    @tab ?
-
-@item @b{m68k-sun-sunos4.1.1}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab n/a   @tab no   @tab ?
-
-@item @b{m68k-next-nextstep3}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab n/a   @tab no   @tab ?
-
-@item @b{mips-dec-ultrix4.3}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab n/a   @tab ?    @tab ?
-
-@item @b{mips-sgi-irix5.2}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab ?       @tab ?     @tab ?    @tab ?     @tab ?    @tab ?
-
-@item @b{mips-sgi-irix5.3}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab ?
-
-@item @b{mips-sgi-irix6.2}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab ?
-
-@item @b{mips-sgi-irix6.4}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab ?
-
-@item @b{mips-sgi-irix6.5}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes    @tab yes   @tab yes  @tab ?
-
-@item @b{powerpc-ibm-aix4.1.5.0}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab n/a   @tab no/broken @tab ?
-
-@item @b{powerpc-ibm-aix4.2.1.0}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab yes   @tab no/broken @tab ?
-
-@item @b{powerpc-ibm-aix4.3.1.0}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab ?    @tab yes   @tab ?    @tab ?
-
-@item @b{powerpc-unknown-linux-gnu}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab n/a   @tab yes  @tab ?
-
-@item @b{rs6000-ibm-aix3.2}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab n/a   @tab ?    @tab ?
-
-@item @b{rs6000-ibm-aix3.2.5}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab n/a   @tab ?    @tab ?
-
-@item @b{rs6000-ibm-aix4.1.4.0}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab n/a   @tab no/broken @tab ?
-
-@item @b{rs6000-ibm-aix4.1.5.0}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab n/a   @tab no/broken @tab ?
-
-@item @b{sparc-sun-solaris2.3}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab n/a   @tab yes  @tab ?
-
-@item @b{sparc-sun-solaris2.4}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab n/a   @tab yes  @tab ?
-
-@item @b{sparc-sun-solaris2.5}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab ?
-
-@item @b{sparc-sun-solaris2.5.1}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab yes
-
-@item @b{sparc-sun-solaris2.6}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab yes
-
-@item @b{sparc-sun-solaris2.7}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab yes
-
-@item @b{sparc-sun-solaris2.8}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab yes
-
-@item @b{sparc-sun-sunos4.1.1}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab n/a   @tab yes  @tab ?
-
-@item @b{sparc-sun-sunos4.1.3}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab n/a   @tab yes  @tab ?
-
-@item @b{sparc-sun-sunos4.1.3C}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab n/a   @tab yes  @tab ?
-
-@item @b{sparc-sun-sunos4.1.3_U1}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab n/a   @tab yes  @tab ?
-
-@item @b{sparc-sun-sunos4.1.4}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab n/a   @tab yes  @tab ?
-
-@item @b{sparc-unknown-linux-gnulibc1}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab n/a   @tab yes  @tab ?
-
-@item @b{sparc-unknown-netbsd1.2E}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab ?     @tab ?    @tab ?
-
-@item @b{sparc-unknown-netbsd1.2G}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab ?     @tab ?    @tab ?
-
-@item @b{sparc64-unknown-linux-gnu}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab n/a   @tab yes  @tab ?
-
-@item @b{sparc64-unknown-linux-suse7.3}
-@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab ?
-
-@end multitable
 
 See the @file{INSTALL} in the distribution for more specific details on
 building and/or configuring for some systems.
@@ -1265,8 +840,10 @@ list of map types configured on your machine.
 * Password maps::
 * Union maps::
 * LDAP maps::
+* Executable maps::
 @end menu
 
+@c ----------------------------------------------------------------
 @node File maps, ndbm maps, Map Types, Map Types
 @comment  node-name,  next,  previous,  up
 @subsection File maps
@@ -1321,6 +898,7 @@ file maps, or ndbm maps built with the @code{mk-amd-map} program.
 When caching is enabled, file maps have a default cache mode of
 @code{all} (@pxref{Automount Filesystem}).
 
+@c ----------------------------------------------------------------
 @node ndbm maps, NIS maps, File maps, Map Types
 @comment  node-name,  next,  previous,  up
 @subsection ndbm maps
@@ -1334,8 +912,10 @@ be sharable across machine architectures.  The notion of speed generally
 only applies to large maps; a small map, less than a single disk block,
 is almost certainly better implemented as a file map.
 
-ndbm maps have a default cache mode of @samp{all} (@pxref{Automount Filesystem}).
+ndbm maps have a default cache mode of @samp{all}
+(@pxref{Automount Filesystem}).
 
+@c ----------------------------------------------------------------
 @node NIS maps, NIS+ maps, ndbm maps, Map Types
 @comment  node-name,  next,  previous,  up
 @subsection NIS maps
@@ -1376,9 +956,10 @@ $(YPTSDIR)/amd.home.time: $(ETCDIR)/amd.home
     fi
 @end example
 
-Here @code{$(YPTSDIR)} contains the time stamp files, and @code{$(YPDBDIR)} contains
-the dbm format NIS files.
+Here @code{$(YPTSDIR)} contains the time stamp files, and
+@code{$(YPDBDIR)} contains the dbm format NIS files.
 
+@c ----------------------------------------------------------------
 @node NIS+ maps, Hesiod maps, NIS maps, Map Types
 @comment  node-name,  next,  previous,  up
 @subsection NIS+ maps
@@ -1389,6 +970,7 @@ enabled, have a default cache mode of @samp{inc}.
 
 XXX: FILL IN WITH AN EXAMPLE.
 
+@c ----------------------------------------------------------------
 @node Hesiod maps, Password maps, NIS+ maps, Map Types
 @comment  node-name,  next,  previous,  up
 @subsection Hesiod maps
@@ -1414,6 +996,7 @@ jsp.homes.automount HS TXT "rfs:=/home/charm;rhost:=charm;sublink:=jsp"
 njw.homes.automount HS TXT "rfs:=/home/dylan/dk2;rhost:=dylan;sublink:=njw"
 @end example
 
+@c ----------------------------------------------------------------
 @node Password maps, Union maps, Hesiod maps, Map Types
 @comment  node-name,  next,  previous,  up
 @subsection Password maps
@@ -1454,13 +1037,14 @@ Similarly, if the password file entry was
 /home/cc/sugar/mjh
 @end example
 
-the map entry used by @i{Amd} would be 
+the map entry used by @i{Amd} would be
 
 @example
 rfs:=/home/sugar;rhost:=sugar.cc;sublink:=jsp
 @end example
 
-@node Union maps, LDAP maps , Password maps, Map Types
+@c ----------------------------------------------------------------
+@node Union maps, LDAP maps, Password maps, Map Types
 @comment  node-name,  next,  previous,  up
 @subsection Union maps
 @cindex Union file maps
@@ -1475,7 +1059,8 @@ directories take precedence over earlier ones.  The union filesystem
 type then uses the map cache to determine the union of the names in all
 the directories.
 
-@node LDAP maps, , Union maps, Map Types
+@c ----------------------------------------------------------------
+@node LDAP maps, Executable maps, Union maps, Map Types
 @comment  node-name,  next,  previous,  up
 @subsection LDAP maps
 @cindex LDAP maps
@@ -1515,8 +1100,8 @@ dn: cn=amdmap amd.home[], CUCS
 cn          : amdmap amd.home[]
 objectClass : amdmap
 amdmapName  : amd.home
-amdmapKey   : 
-amdmapValue : 
+amdmapKey   :
+amdmapValue :
 
 dn: cn=amdmap amd.home[zing], CUCS
 cn          : amdmap amd.home[zing]
@@ -1526,8 +1111,42 @@ amdmapKey   : zing
 amdmapValue : -rhost:=shekel host==shekel host!=shekel;type:=nfs
 @end example
 
-@c subsection Gdbm
+@c ----------------------------------------------------------------
+@node Executable maps, , LDAP maps, Map Types
+@comment  node-name,  next,  previous,  up
+@subsection Executable maps
+@cindex Executable maps
 
+An executable map is a dynamic map in which the keys and values for
+the maps are generated on the fly by a program or script.  The program
+is expected to take a single parameter argument which is the key to
+lookup.  If the key is found, the program should print on stdout the
+key-value pair that were found; if the key was not found, nothing
+should be printed out.  Below is an sample of such a map script:
+
+@example
+#!/bin/sh
+# executable map example
+case "$1" in
+    "/defaults" )
+	echo "/defaults   type:=nfs;rfs:=filer"
+	;;
+    "a" )
+	echo "a   type:=nfs;fs:=/tmp"
+	;;
+    "b" )
+	echo "b   type:=link;fs:=/usr/local"
+	;;
+    * )  # no match, echo nothing
+	;;
+esac
+@end example
+
+@xref{exec_map_timeout Parameter}.
+
+@c ----------------------------------------------------------------
+@c subsection Gdbm
+@c ----------------------------------------------------------------
 @node Key Lookup, Location Format, Map Types, Mount Maps
 @comment  node-name,  next,  previous,  up
 @section How keys are looked up
@@ -1611,10 +1230,17 @@ White space is only allowed, and is mandatory, where shown with non-terminal
 @i{white-space}.
 
 A @dfn{location-selection} is a list of possible volumes with which to
-satisfy the request.  @dfn{location-selection}s are separated by the
-@samp{||} operator.  The effect of this operator is to prevent use of
+satisfy the request.  Each @dfn{location-selection} is tried
+sequentially, until either one succeeds or all fail.  This, by the
+way, is different from the historically documented behavior, which
+claimed (falsely, at least for last 3 years) that @i{Amd} would
+attempt to mount all @dfn{location-selection}s in parallel and the
+first one to succeed would be used.
+
+@dfn{location-selection}s are optionally separated by the @samp{||}
+operator.  The effect of this operator is to prevent use of
 location-selections to its right if any of the location-selections on
-its left were selected whether or not any of them were successfully
+its left were selected, whether or not any of them were successfully
 mounted (@pxref{Selectors}).@refill
 
 The location-selection, and singleton @dfn{location-list},
@@ -1798,6 +1424,7 @@ The following selectors are currently implemented.
 * netgrpd Selector Function::
 * in_network Selector Function::
 * true Selector Function::
+* xhost Selector Function::
 @end menu
 
 @c ----------------------------------------------------------------
@@ -1811,7 +1438,8 @@ The following selectors are currently implemented.
 
 The machine architecture which was automatically determined at compile
 time.  The architecture type can be displayed by running the command
-@samp{amd -v}.  @xref{Supported Platforms}.@refill
+@samp{amd -v}.  You can override this value also using the @code{-A}
+command line option.  @xref{Supported Platforms}.@refill
 
 @c ----------------------------------------------------------------
 @node autodir Selector Variable, byte Selector Variable, arch Selector Variable, Selectors
@@ -2164,18 +1792,41 @@ Always evaluates to false.  @i{ARG} is ignored.
 @cindex Mount selector; netgrp
 @cindex Selector; netgrp
 
-If the current host as determined by the value of @code{$@{host@}}
-(e.g., short host name) is a member of the netgroup @i{ARG}, this
-selector evaluates to true.  Otherwise it evaluates to false.
+The argument @i{ARG} of this selector is a netgroup name followed
+optionally by a comma and a host name.  If the host name is not
+specified, it defaults to @code{$@{host@}}.  If the host name (short
+name) is a member of the netgroup, this selector evaluates to
+true. Otherwise it evaluates to false.
 
 For example, suppose you have a netgroup @samp{ppp-hosts}, and for
-reasons of performance, these have a local @file{/home} partition, while
-all other clients on the faster network can access a shared home
-directory.  A common map to use for both might look like the following:
+reasons of performance, these have a local @file{/home} partition,
+while all other clients on the faster network can access a shared home
+directory.  A common map to use for both might look like the
+following:
 
 @example
 home/*  netgrp(ppp-hosts);type:=link;fs:=/local/$@{key@} \
         !netgrp(ppp-hosts);type:=nfs;rhost:=serv1;rfs:=/remote/$@{key@}
+@end example
+
+A more complex example that takes advantage of the two argument netgrp
+mount selector is given in the following scenario.  Suppose one wants
+to mount the local scratch space from a each host under
+@file{scratch/<hostname>} and some hosts have their scratch space in a
+different path than others.  Hosts in the netgroup @samp{apple-hosts}
+have their scratch space in the @file{/apple} path, where hosts in the
+netgroup @samp{cherry-hosts} have their scratch space in the
+@file{/cherry} path.  For hosts that are neither in the
+@samp{apple-hosts} or @samp{cherry-hosts} netgroups we want to make a
+symlink pointing to nowhere but provide a descriptive error message in
+the link destination:
+
+@example
+scratch/*	netgrp(apple-hosts,$@{/key@});type:=nfs;rhost:=$@{/key@};\
+		    rfs:="/apple" \
+		netgrp(cherry-hosts,$@{/key@});type:=nfs;rhost:=$@{/key@};\
+		    rfs:="/cherry" \
+		type:=link;rfs:="no local partition for $@{/key@}"
 @end example
 
 @c ----------------------------------------------------------------
@@ -2188,14 +1839,15 @@ home/*  netgrp(ppp-hosts);type:=link;fs:=/local/$@{key@} \
 @cindex Mount selector; netgrpd
 @cindex Selector; netgrpd
 
-If the current host as determined by the value of @code{$@{hostd@}} is a
-member of the netgroup @i{ARG}, this selector evaluates to true.
-Otherwise it evaluates to false.
+The argument @i{ARG} of this selector is a netgroup name followed
+optionally by a comma and a host name.  If the host name is not
+specified, it defaults to @code{$@{hostd@}}.  If the host name
+(fully-qualified name) is a member of the netgroup, this selector
+evaluates to true.  Otherwise it evaluates to false.
 
-The @samp{netgrpd} function uses fully-qualified host names
-(@code{$@{hostd@}}) to match netgroup names, while the @samp{netgrp}
-function (@pxref{netgrp Selector Function}) uses short host names
-(@code{$@{host@}}).
+The @samp{netgrpd} function uses fully-qualified host names to match
+netgroup names, while the @samp{netgrp} function (@pxref{netgrp
+Selector Function}) uses short host names.
 
 @c ----------------------------------------------------------------
 @node in_network Selector Function, true Selector Function, netgrpd Selector Function, Selectors
@@ -2210,7 +1862,7 @@ function (@pxref{netgrp Selector Function}) uses short host names
 This selector matches against any network name or number with an
 optional netmask.  First, if the current host has any network interface that is
 locally attached to the network specified in @i{ARG} (either via name or
-number), this selector evaluates to true. 
+number), this selector evaluates to true.
 
 Second, @samp{in_network} supports a network/netmask syntax such as
 @samp{128.59.16.0/255.255.255.0}, @samp{128.59.16.0/24},
@@ -2233,7 +1885,7 @@ opt in_network(foo-net.site.com);rhost:=serv1;rfs:=/opt \
 @end example
 
 @c ----------------------------------------------------------------
-@node true Selector Function, , in_network Selector Function, Selectors
+@node true Selector Function, xhost Selector Function, in_network Selector Function, Selectors
 @comment  node-name,  next,  previous,  up
 @subsubsection true Selector Function
 @cindex true Selector Function
@@ -2243,6 +1895,22 @@ opt in_network(foo-net.site.com);rhost:=serv1;rfs:=/opt \
 @cindex Selector; true
 
 Always evaluates to true.  @i{ARG} is ignored.
+
+@c ----------------------------------------------------------------
+@node xhost Selector Function, , true Selector Function, Selectors
+@comment  node-name,  next,  previous,  up
+@subsubsection xhost Selector Function
+@cindex xhost Selector Function
+@cindex xhost, boolean mount selector
+@cindex !xhost, boolean mount selector
+@cindex Mount selector; xhost
+@cindex Selector; xhost
+@cindex CNAMEs
+
+This function compares @i{ARG} against the current hostname, similarly
+to the @ref{host Selector Variable}.  However, this function will
+also match if @i{ARG} is a CNAME (DNS Canonical Name, or alias) for
+the current host's name.
 
 @c ================================================================
 @node Map Options,  , Selectors, Location Format
@@ -2443,6 +2111,13 @@ UID 0, and GID 0.  Useful for CD-ROMs formatted as ISO-9660.
 @cindex Mount flags; dev
 Allow local special devices on this filesystem.
 
+@item dirmask=@var{n}
+@cindex Mount flags; dirmask
+For PCFS mounts, specify the maximum file permissions for directories
+in the file system.  See the @samp{mask} option's description for more
+details.  The mask value of @var{n} can be specified in decimal,
+octal, or hexadecimal.
+
 @item dumbtimr
 @cindex Mount flags; dumbtimr
 Turn off the dynamic retransmit timeout estimator.  This may be useful
@@ -2462,6 +2137,13 @@ Set ID of filesystem.
 Enable generations in ISO-9660 file systems.  Generations allow you to
 see all versions of a given file.
 
+@item group=@var{n}
+@cindex Mount flags; group
+For PCFS mounts, set the group of the files in the file system to
+@var{n} (which can either be a group name or a GID number).  The
+default group is the group of the directory on which the file system
+is being mounted.
+
 @item grpid
 @cindex Mount flags; grpid
 Use BSD directory group-id semantics.
@@ -2475,6 +2157,20 @@ Allow keyboard interrupts on hard mounts.
 @item lock
 @cindex Mount flags; lock
 Use the NFS locking protocol (default)
+
+@item longname
+@cindex Mount Flags; longname
+For PCFS mounts, force Win95 long names.
+
+@item mask=@var{n}
+@cindex Mount flags; mask
+For PCFS mounts, specify the maximum file permissions for files in the
+file system.  For example, a mask of 755 specifies that, by default,
+the owner should have read, write, and execute permissions for files,
+but others should only have read and execute permissions.  Only the
+nine low-order bits of mask are used.  The default mask is taken from
+the directory on which the file system is being mounted.  The mask
+value of @var{n} can be specified in decimal, octal, or hexadecimal.
 
 @item multi
 @cindex Mount flags; multi
@@ -2557,6 +2253,10 @@ Don't allow set-uid or set-gid executables on this filesystem.
 Strip the extension @samp{;#} from the version string of files recorded
 on an ISO-9660 CD-ROM.
 
+@item nowin95
+@cindex Mount Flags; nowin95
+For PCFS mounts, completely ignore Win95 entries.
+
 @item optionstr
 @cindex Mount flags; optionstr
 Under Solaris 8, provide the kernel a string of options to parse and
@@ -2578,9 +2278,14 @@ Set the NFS port to @var{n}.
 @cindex Mount flags; posix
 Turn on POSIX static pathconf for mounts.
 
+@item private
+@cindex Mount flags; private
+Use local locking instead of the NLM protocol, useful for IRIX 6 only.
+
 @item proplist
 @cindex Mount flags; proplist
-Support property lists (ACLs) for this mount, useful primarily for DU-4.0.
+Support property lists (ACLs) for this mount, useful primarily for Tru64
+UNIX.
 
 @item proto=@var{s}
 @cindex Mount flags; proto
@@ -2628,6 +2333,10 @@ NFS/UDP through a gateway or a slow link.
 @cindex Mount flags; rw
 Allow reads and writes on this filesystem.
 
+@item shortname
+@cindex Mount Flags; longname
+For PCFS mounts, force old DOS short names only.
+
 @item soft
 @cindex Mount flags; soft
 Give up after @dfn{retrans} retransmissions.
@@ -2657,9 +2366,16 @@ support TCP/IP mounts.
 @cindex Mount flags; timeo
 The NFS timeout, in tenth-seconds, before a request is retransmitted.
 
+@item user=@var{n}
+@cindex Mount flags; user
+For PCFS mounts, set the owner of the files in the file system to
+@var{n} (which can either be a user name or a UID number).  The
+default owner is the owner of the directory on which the file system
+is being mounted.
+
 @item vers=@var{n}
 @cindex Mount flags; vers
- Use NFS protocol version number @var{n} (can be 2 or 3).
+Use NFS protocol version number @var{n} (can be 2 or 3).
 
 @item wsize=@var{n}
 @cindex Mount flags; wsize
@@ -2686,13 +2402,49 @@ mounting local disks, floppies, and CD-ROMs).  See also the related
 @cindex Mount flags; ping
 The interval, in seconds, between keep-alive pings.  When four
 consecutive pings have failed the mount point is marked as hung.  This
-interval defaults to 30 seconds.  If the ping interval is less than zero,
-no pings are sent and the host is assumed to be always
-up.  By default, pings are not sent for an NFS/TCP mount.
+interval defaults to 30 seconds; if the ping interval is set to zero,
+@i{Amd} will use the default 30-second interval.  If the interval is
+set to -1 (or any other negative value), no pings are sent and the
+host is assumed to be always up, which can cause unmounts to hang See
+the @i{softlookup} option for a better alternative.  Turning pings off
+can be useful in NFS-HA (High-Availability) sites where the NFS
+service rarely goes down.  Setting the ping value to a large value can
+reduce the amount of NFS_NULL chatter on your network considerably,
+especially in large sites.
+
+Note that if you have multiple @i{Amd} entries using the same file
+server, and each entry sets a different value of N, then each time Amd
+mounts a new entry, the ping value will be re-evaluated (and updated,
+turned off, or turned back on as needed).  Finally, note that NFS_NULL
+pings are sent for both UDP and TCP mounts, because even a hung TCP
+mount can cause user processes to hang.
+
+@item public
+@cindex Mount flags; public
+Use WebNFS multi-component lookup on the public file handle instead of
+the mount protocol to obtain NFS file handles, as documented in the
+WebNFS Client Specification, RFC 2054.  This means that @i{Amd} will not
+attempt to contact the remote portmapper or remote mountd daemon, and
+will only connect to the well-known NFS port 2049 or the port specified
+with the @i{port} mount option, thus making it easier to use NFS through
+a firewall.
 
 @item retry=@var{n}
 @cindex Mount flags; retry=@var{n}
 The number of times to retry the mount system call.
+
+@item softlookup
+@cindex Mount flags; softlookup
+Configures @i{Amd}'s behavior with respect to already-mounted shares from
+NFS fileservers that are unreachable.  If softlookup is specified,
+trying to access such a share will result in an error (EIO, which is
+changed from the ENOENT 6.0 used to return).  If it is not specified, a
+regular symlink is provided and the access will probably hang
+in the NFS filesystem.
+
+The default behavior depends on whether the mount is 'soft' or 'hard';
+softlookup can be used to change this default. This is changed from 6.0
+which always behaved as if softlookup was specified.
 
 @item unmount
 @cindex Mount flags; unmount
@@ -2706,11 +2458,18 @@ option.
 
 @item utimeout=@var{n}
 @cindex Mount flags; utimeout=@var{n}
-The interval, in seconds, by which the mount's
-time-to-live is extended after an unmount attempt
-has failed.  In fact the interval is extended before the unmount is
-attempted to avoid thrashing.  The default value is 120 seconds (two
-minutes) or as set by the @code{-w} command line option.
+The interval, in seconds, that looked up and mounted map entries are
+cached.  After that period of time, @i{Amd} will attempt to unmount
+the entries.  If, however, the unmount fails (with EBUSY), then
+@i{Amd} will extend the mount's time-to-live by the @i{utimeout} value
+before the next unmount attempt is made.  In fact the interval is
+extended before the unmount is attempted, to avoid thrashing.  The
+default value is 120 seconds (two minutes) or as set by the @code{-w}
+command line option.
+
+@item xlatecookie
+@cindex Mount flags; xlatecookie
+Translate directory cookies between 32-long and 64-long lengths.
 
 @end table
 
@@ -2797,7 +2556,7 @@ forks into the background.
 Note: Even if @i{Amd} has been built with @samp{-DDEBUG} (via
 @code{configure --enable-debug}), it will still background itself and
 disassociate itself from the controlling terminal.  To use a debugger it
-is necessary to specify @samp{-D nodaemon} on the command line.
+is necessary to specify @samp{-D daemon} on the command line.
 However, even with all of this, mounts and unmounts are performed in the
 background, and @i{Amd} will always fork before doing them.  Therefore,
 debugging what happens closely during un/mounts is more challenging.
@@ -2823,13 +2582,14 @@ exists.
 * -w Option::   Wait interval after failed unmount.
 * -x Option::   Log options.
 * -y Option::   NIS domain.
-* -C-Option::   Cluster name.
-* -D-Option::   Debug flags.
+* -A Option::   Operating system Architecture.
+* -C Option::   Cluster name.
+* -D Option::   Debug flags.
 * -F Option::   Amd configuration file.
 * -H Option::   Show brief help.
-* -O-Option::   Operating system name.
+* -O Option::   Operating system name.
 * -S Option::   Lock executable pages in memory.
-* -T-Option::   Set tag for configuration file.
+* -T Option::   Set tag for configuration file.
 @end menu
 
 @c ----------------------------------------------------------------
@@ -3017,7 +2777,7 @@ amd -p > /var/run/amd.pid ...
 @end example
 
 This option only has an affect if @i{Amd} is running in daemon mode.
-If @i{Amd} is started with the @code{-D nodaemon} debug flag, this
+If @i{Amd} is started with the @code{-D daemon} debug flag, this
 option is ignored.
 
 @c ----------------------------------------------------------------
@@ -3068,9 +2828,9 @@ Built by ezk@@cs.columbia.edu on date Wed Oct 22 15:21:03 EDT 1997.
 cpu=sparc (big-endian), arch=sun4, karch=sun4u.
 full_os=solaris2.5.1, os=sos5, osver=5.5.1, vendor=sun.
 Map support for: root, passwd, union, nisplus, nis, ndbm, file, error.
-AMFS: nfs, link, nfsx, nfsl, host, linkx, program, union, inherit, 
+AMFS: nfs, link, nfsx, nfsl, host, linkx, program, union, inherit,
       ufs, lofs, hsfs, pcfs, auto, direct, toplvl, error.
-FS: cachefs, cdfs, lofs, nfs, nfs3, pcfs, tfs, tmpfs, ufs.
+FS: autofs, cachefs, cdfs, lofs, nfs, nfs3, pcfs, tfs, tmpfs, ufs.
 Network 1: wire="mcl-lab-net.cs.columbia.edu" (netnumber=128.59.13).
 Network 2: wire="14-net.cs.columbia.edu" (netnumber=128.59.14).
 Network 3: wire="old-net.cs.columbia.edu" (netnumber=128.59.16).
@@ -3181,7 +2941,7 @@ If @i{Amd} was built with debugging enabled the @code{debug} option is
 automatically enabled regardless of the command line options.
 
 @c ----------------------------------------------------------------
-@node -y Option, -C-Option, -x Option, Amd Command Line Options
+@node -y Option, -A Option, -x Option, Amd Command Line Options
 @comment  node-name,  next,  previous,  up
 @section @code{-y} @var{NIS-domain}
 @cindex NIS (YP) domain name
@@ -3196,7 +2956,22 @@ immediately attempts to bind to a server for this domain.
 @c is specified, and whenever required in a mount map.
 
 @c ----------------------------------------------------------------
-@node -C-Option, -D-Option, -y Option, Amd Command Line Options
+@node -A Option, -C Option, -y Option, Amd Command Line Options
+@comment  node-name,  next,  previous,  up
+@section @code{-A} @var{architecture}
+@cindex Setting the operating system architecture
+
+Specifies the OS architecture of the system.
+The only effect of this option is to set the variable @code{$@{arch@}}.
+
+This option would be used as follows:
+
+@example
+amd -A i386 ...
+@end example
+
+@c ----------------------------------------------------------------
+@node -C Option, -D Option, -A Option, Amd Command Line Options
 @comment  node-name,  next,  previous,  up
 @section @code{-C} @var{cluster-name}
 @cindex Cluster names
@@ -3216,7 +2991,7 @@ amd -C `clustername` ...
 @end example
 
 @c ----------------------------------------------------------------
-@node -D-Option, -F Option, -C-Option, Amd Command Line Options
+@node -D Option, -F Option, -C Option, Amd Command Line Options
 @comment  node-name,  next,  previous,  up
 @section @code{-D} @var{opts}
 @cindex Debug options
@@ -3236,13 +3011,13 @@ can be prefixed with @samp{no} to turn it off.
 
 @table @code
 @item all
-all options
+all ``reasonable'' options (currently trace|str|full|mem|info|readdir)
 @item amq
-register for amq
+do not register for amq
 @item daemon
-enter daemon mode
+do not enter daemon mode
 @item fork
-fork server
+do not fork child worker (hlfsd only)
 @item full
 program trace
 @item hrtime
@@ -3253,7 +3028,8 @@ print high resolution time stamps (only if @b{syslog}(3) is not used)
 info service specific debugging (hesiod, nis, etc.)  In the case of
 hesiod maps, turns on the hesiod RES_DEBUG internal debugging option.
 @item mem
-trace memory allocations
+trace memory allocations. Needs to be explicitly enabled at compile
+time with --enable-debug=mem.
 @item mtab
 use local @file{./mtab} file
 @item readdir
@@ -3272,7 +3048,7 @@ You may also refer to the program source for a more detailed explanation
 of the available options.
 
 @c ----------------------------------------------------------------
-@node -F Option, -H Option, -D-Option, Amd Command Line Options
+@node -F Option, -H Option, -D Option, Amd Command Line Options
 @comment  node-name,  next,  previous,  up
 @section @code{-F} @var{conf-file}
 @cindex Amd configuration file; specifying name
@@ -3290,7 +3066,7 @@ options had been processed, regardless of the actual location of this
 option on the command line.
 
 @c ----------------------------------------------------------------
-@node -H Option, -O-Option, -F Option, Amd Command Line Options
+@node -H Option, -O Option, -F Option, Amd Command Line Options
 @comment  node-name,  next,  previous,  up
 @section @code{-H}
 @cindex Displaying brief help
@@ -3299,7 +3075,7 @@ option on the command line.
 Print a brief help and usage string.
 
 @c ----------------------------------------------------------------
-@node -O-Option, -S Option, -H Option, Amd Command Line Options
+@node -O Option, -S Option, -H Option, Amd Command Line Options
 @comment  node-name,  next,  previous,  up
 @section @code{-O} @var{op-sys-name}
 @cindex Operating System name
@@ -3312,14 +3088,16 @@ backward compatibility reasons.  For example, if the build in name is
 older maps which were written with the latter in mind.
 
 @c ----------------------------------------------------------------
-@node -S Option, -T-Option, -O-Option, Amd Command Line Options
+@node -S Option, -T Option, -O Option, Amd Command Line Options
 @comment  node-name,  next,  previous,  up
 @section @code{-S}
 @cindex plock; using
+@cindex mlockall; using
 @cindex locking executable pages in memory
 
 Do @emph{not} lock the running executable pages of @i{Amd} into memory.
 To improve @i{Amd}'s performance, systems that support the @b{plock}(3)
+or @b{mlockall}(2)
 call lock the @i{Amd} process into memory.  This way there is less
 chance the operating system will schedule, page out, and swap the
 @i{Amd} process as needed.  This tends to improve @i{Amd}'s performance,
@@ -3328,12 +3106,12 @@ it unavailable for other processes).  If this behavior is not desired,
 use the @code{-S} option.
 
 @c ----------------------------------------------------------------
-@node -T-Option, , -S Option, Amd Command Line Options
+@node -T Option, , -S Option, Amd Command Line Options
 @comment  node-name,  next,  previous,  up
 @section @code{-T} @var{tag}
 @cindex Tags for Amd configuration file
 @cindex Configuration file; tags
- 
+
 Specify a tag to use with @file{amd.conf}.  All map entries tagged with
 @var{tag} will be processed.  Map entries that are not tagged are always
 processed.  Map entries that are tagged with a tag other than @var{tag}
@@ -3431,16 +3209,24 @@ of file handles for remote file systems.  The cache entries have a
 lifetime of a few minutes.
 
 If a required file handle is not in the cache, @i{Amd} sends a request
-to the remote server to obtain it.  @i{Amd} @dfn{does not} wait for
-a response; it notes that one of the locations needs retrying, but
-continues with any remaining locations.  When the file handle becomes
-available, and assuming none of the other locations was successfully
-mounted, @i{Amd} will retry the mount.  This mechanism allows several
-NFS filesystems to be mounted in parallel.
+to the remote server to obtain it.
+@c  @i{Amd} @dfn{does not} wait for
+@c a response; it notes that one of the locations needs retrying, but
+@c continues with any remaining locations.  When the file handle becomes
+@c available, and assuming none of the other locations was successfully
+@c mounted, @i{Amd} will retry the mount.  This mechanism allows several
+@c NFS filesystems to be mounted in parallel.
 @c @footnote{The mechanism
 @c is general, however NFS is the only filesystem
 @c for which the required hooks have been written.}
-The first one which responds with a valid file handle will be used.
+@c The first one which responds with a valid file handle will be used.
+
+Historically, this documentation has maintained that @i{Amd} will try
+all the locations in parallel and use the first one which responds
+with a valid file handle. This has not been the case for quite some
+time, however. Instead, @i{Amd} will go through each location, one by
+one, and will only skip to the next one if the previous one either
+fails or times out.
 
 @noindent
 An NFS entry might be:
@@ -3536,8 +3322,12 @@ The @dfn{nfsx} (@samp{type:=nfsx}) filesystem allows a group of filesystems to b
 from a single NFS server.  The implementation is layered above the
 @samp{nfs} implementation so keep-alives work in the same way.
 
+@emph{WARNING}: @samp{nfsx} is meant to be a ``last resort'' kind of
+solution. It is racy and poorly supported. The authors @emph{highly}
+recommend that other solutions be considered before relying on it.
+
 The options are the same as for the @samp{nfs} filesystem with one
-difference.
+difference for @samp{rfs}, as explained below.
 
 @noindent
 The following options should be specified:
@@ -3563,7 +3353,7 @@ pub  type:=nfsx;rhost:=gould;\
 The first string defines the root of the tree, and is applied as a
 prefix to the remaining members of the list which define the individual
 filesystems.  The first string is @emph{not} used as a filesystem name.
-A parallel operation is used to determine the local mount points to
+A serial operation is used to determine the local mount points to
 ensure a consistent layout of a tree of mounts.
 
 Here, the @emph{three} filesystems, @samp{/public},
@@ -3623,6 +3413,11 @@ ez1   type:=efs;dev:=/dev/xd0a
 ez2   type:=xfs;dev:=/dev/sd3c
 @end example
 
+The UFS/XFS/EFS filesystems are never timed out by default, i.e. they
+will never be unmounted by @i{Amd}. If automatic unmounting is
+desired, the ``unmount'' option should be added to the mount options
+for the entry.
+
 @c ----------------------------------------------------------------
 @node Caching Filesystem, CD-ROM Filesystem, Unix Filesystem, Filesystem Types
 @comment  node-name,  next,  previous,  up
@@ -3661,6 +3456,10 @@ copt  type:=cachefs;cachedir:=/cache;rfs:=/import/opt;fs:=/n/import/copt
 Access to the pathname @file{/import/copt} will follow a symbolic link
 to @file{/n/import/copt}.  The latter is the mount point for a caching
 file system, that caches from @file{/import/opt} to @file{/cache}.
+
+The cachefs filesystem is never timed out by default, i.e. it will
+never be unmounted by @i{Amd}. If automatic unmounting is desired, the
+``unmount'' option should be added to the mount options for the entry.
 
 @b{Caveats}:
 @enumerate
@@ -3851,7 +3650,7 @@ Remote Virtual Disk (RVD) which has a programmatic interface via the
 commands @samp{rvdmount} and @samp{rvdunmount}.
 
 @noindent
-The following options must be specified:
+Both of the following options must be specified:
 
 @table @code
 @cindex mount, mount option
@@ -3860,29 +3659,47 @@ The following options must be specified:
 the program which will perform the mount.
 
 @cindex unmount, mount option
+@cindex umount, mount option
 @cindex Mount option; unmount
+@cindex Mount option; umount
 @item unmount
-the program which will perform the unmount.
+@item umount
+the program which will perform the unmount.  For convenience, you may
+use either @samp{unmount} or @samp{umount} but not both.  If neither
+is defined, @i{Amd} will default to @samp{umount $@{fs@}} (the actual
+unmount program pathname will be automatically determined at the time
+GNU @code{configure} runs.)
 @end table
 
 The exit code from these two programs is interpreted as a Unix error
 code.  As usual, exit code zero indicates success.  To execute the
-program @i{Amd} splits the string on whitespace to create an array of
+program, @i{Amd} splits the string on whitespace to create an array of
 substrings.  Single quotes @samp{'} can be used to quote whitespace
 if that is required in an argument.  There is no way to escape or change
-the quote character.
+the single quote character.
 
-To run the program @samp{rvdmount} with a host name and filesystem as
-arguments would be specified by
-@samp{fs:=$@{autodir@}$@{path@};mount:="/etc/rvdmount rvdmount fserver
-$@{fs@}"}.
+To run e.g. the program @samp{rvdmount} with a host name and filesystem as
+arguments, it would be specified by
+@samp{fs:=$@{autodir@}$@{path@};type:=program;mount:="/etc/rvdmount
+rvdmount fserver $@{fs@}";unmount:="/etc/rdvumount rvdumount $@{fs@}"}.
 
 The first element in the array is taken as the pathname of the program
-to execute.  The other members of the array form the argument vector to
-be passed to the program, @dfn{including argument zero}.  This means
-that the split string must have at least two elements.  The program is
-directly executed by @i{Amd}, not via a shell.  This means that scripts
-must begin with a @code{#!} interpreter specification.
+to execute.  The other members of the array form the argument vector
+to be passed to the program, @dfn{including argument zero}.  The array
+is exactly the same as the array passed to the execv() system call
+(man execv for details).  The split string must have at least two
+elements.  The programs are directly executed by @i{Amd}, not via a
+shell.  Therefore, if a script is to be used as a mount/umount
+program, it @dfn{must} begin with a @code{#!} interpreter specification.
+
+Often, this program mount type is used for Samba mounts, where you
+need a double slash in pathnames.  However, @i{Amd} normalizes
+sequences of slashes into one slash.  Therefore, you must use an
+escaped slash, preceded by an escaped backslash.  So to get a double
+slash in the mount command, you need the eight character sequence
+@samp{\\\/\\\/} in your map.  For example:
+
+@samp{mount="/sbin/mount mount -r -t smbfs -o-N,-Ihostname \\\/\\\/guest@@venus/mp3"}
 
 If a filesystem type is to be heavily used, it may be worthwhile adding
 a new filesystem type into @i{Amd}, but for most uses the program
@@ -3892,6 +3709,10 @@ When the program is run, standard input and standard error are inherited
 from the current values used by @i{Amd}.  Standard output is a
 duplicate of standard error.  The value specified with the @code{-l}
 command line option has no effect on standard error.
+
+@i{Amd} guarantees that the mountpoint will be created before calling
+the mount program, and that it will be removed after the umount
+program returns success.
 
 @c ----------------------------------------------------------------
 @node Symbolic Link Filesystem, Symbolic Link Filesystem II, Program Filesystem, Filesystem Types
@@ -3970,7 +3791,7 @@ entries.  In this case, a list of possible targets can be given and
 
 The @dfn{nfsl} (@samp{type:=nfsl}) filesystem type is a combination of two others:
 @samp{link} and @samp{nfs}.  If the local host name is equal to the
-value of @code{$@{rhost@}}, or if the target pathname listed in
+value of @code{$@{rhost@}} @emph{and} the target pathname listed in
 @code{$@{fs@}} exists, @samp{nfsl} will behave exactly as
 @samp{type:=link}, and refer to the target as a symbolic link.  If the
 local host name is not equal to the value of @code{$@{rhost@}}, or if
@@ -4103,13 +3924,17 @@ we are now stuck with it due to historical accident.
 
 @item pref
 alters the name that is looked up in the mount map.  If
-@code{$@{pref@}}, the @dfn{prefix}, is non-null then it is prepended to
-the name requested by the kernel @dfn{before} the map is searched.
+@code{$@{pref@}}, the @dfn{prefix}, is non-null then it is prepended
+to the name requested by the kernel @dfn{before} the map is
+searched. The default prefix is the prefix of the parent map (if any)
+with name of the auto node appended to it. That means if you want no
+prefix you must say so in the map: @samp{pref:=null}.
 
 @item opts
 Normally, @samp{auto} style maps are not browsable even if you turn on
 directory browsability (@pxref{browsable_dirs Parameter}).  To enable
-browsing entries in @samp{auto} maps, specify @samp{opts:=browsable} in
+browsing entries in @samp{auto} maps, specify @samp{opts:=browsable}
+or @samp{opts:=fullybrowsable} in
 the description of this map.
 
 @end table
@@ -4159,6 +3984,18 @@ In this example, @samp{man-server1} and @samp{man-server2} are file
 servers which export copies of the manual pages.  Note that the key
 which is looked up is the name of the automount point without the
 leading @samp{/}.
+
+Note that the implementation of the traditional @dfn{direct} filesystem is
+essentially a hack (pretending that the root of an NFS filesystem is a
+symlink) and many modern operating systems get very unhappy about
+it. For example, Linux kernel 2.4+ completely disallows it, and Solaris
+2.8 fails to unmount it when @i{Amd} shuts down. Therefore, the use of
+the traditional @dfn{direct} filesystem is strongly discouraged; it is
+only semi-supported, at best.
+
+The autofs implementations that permit direct mounts are fully
+supported, however. That currently includes all versions of
+Solaris. Linux autofs does NOT support direct mounts at all.
 
 @c ----------------------------------------------------------------
 @node Union Filesystem, Error Filesystem, Direct Automount Filesystem, Filesystem Types
@@ -4358,15 +4195,43 @@ specified only in the global section, it is applicable to all regular map
 sections that follow.
 
 @menu
+* autofs_use_lofs Parameter::
 * browsable_dirs Parameter::
+* map_defaults Parameter::
 * map_options Parameter::
 * map_type Parameter::
 * mount_type Parameter::
 * search_path Parameter::
+* selectors_in_defaults Parameter::
 @end menu
 
 @c ----------------------------------------------------------------
-@node browsable_dirs Parameter, map_options Parameter, Common Parameters, Common Parameters
+@node autofs_use_lofs Parameter, browsable_dirs Parameter, Common Parameters, Common Parameters
+@comment  node-name,  next,  previous,  up
+@subsection @t{autofs_use_lofs} Parameter
+@cindex autofs_use_lofs Parameter
+
+(type=string, default=@samp{yes}).
+When set to @samp{yes}, @i{Amd}'s autofs code will use lofs-type
+(loopback) mounts for @code{type:=link} mounts, as well as several
+other cases that require local references.  This has the advantage
+that @i{Amd} does not use a secondary mount point and users do not see
+external pathnames (the infamous @code{/bin/pwd} problem, where it
+reports a different path than the user chdir'ed into).  One of the
+disadvantages of using this option is that the autofs code is
+relatively new and the in-place mounts have not been throughly tested.
+
+If this option is set to @samp{no}, then @i{Amd}'s autofs code will
+use symlinks instead of lofs-type mounts for local references.  This
+has the advantage of using simpler (more stable) code, but at the
+expense of negating one of autofs's big advantages: the hiding of
+@i{Amd}'s internal paths.  Note that symlinks are not supported in all
+autofs implementations, especially those derived from Solaris Autofs
+v1.  Also, on Solaris 2.6 and newer, autofs symlinks are not cached,
+resulting in repeated up-call requests to @i{Amd}.
+
+@c ----------------------------------------------------------------
+@node browsable_dirs Parameter, map_defaults Parameter, autofs_use_lofs Parameter, Common Parameters
 @comment  node-name,  next,  previous,  up
 @subsection @t{browsable_dirs} Parameter
 @cindex browsable_dirs Parameter
@@ -4382,8 +4247,23 @@ a command which will attempt to @b{stat}(2) the entries, such as often
 done by @samp{ls -l} or @samp{ls -F}, @i{Amd} will attempt to mount
 @i{every} entry in that map.  This is often called a ``mount storm''.
 
+Note that mount storms are mostly avoided by using autofs mounts
+(@samp{mount_type = autofs}).
+
 @c ----------------------------------------------------------------
-@node map_options Parameter, map_type Parameter, browsable_dirs Parameter, Common Parameters
+@node map_defaults Parameter, map_options Parameter, browsable_dirs Parameter, Common Parameters
+@comment  node-name,  next,  previous,  up
+@subsection @t{map_defaults} Parameter
+@cindex map_defaults Parameter
+
+(type=string, default to empty).  This option sets a string to be used
+as the map's @code{/defaults} entry, overriding any @code{/defaults}
+specified in the map.  This allows local users to override a given
+map's defaults without modifying maps globally (which is impossible in
+sites where the maps are managed by a different administrative group).
+
+@c ----------------------------------------------------------------
+@node map_options Parameter, map_type Parameter, map_defaults Parameter, Common Parameters
 @comment  node-name,  next,  previous,  up
 @subsection @t{map_options} Parameter
 @cindex map_options Parameter
@@ -4429,13 +4309,13 @@ union maps
 @subsection @t{mount_type} Parameter
 @cindex mount_type Parameter
 
-(type=string, default=@samp{nfs}).  All @i{Amd} mount types must be NFS.
+(type=string, default=@samp{nfs}).  All @i{Amd} mount types default to NFS.
 That is, @i{Amd} is an NFS server on the map mount points, for the local
-host it is running on.  If @samp{autofs} is specified, @i{Amd} will log
-an error message and forcibly convert it to NFS.
+host it is running on.  If @samp{autofs} is specified, @i{Amd} will be
+an autofs server for those mount points.
 
 @c ----------------------------------------------------------------
-@node search_path Parameter, , mount_type Parameter, Common Parameters
+@node search_path Parameter, selectors_in_defaults Parameter, mount_type Parameter, Common Parameters
 @comment  node-name,  next,  previous,  up
 @subsection @t{search_path} Parameter
 @cindex search_path Parameter
@@ -4444,6 +4324,28 @@ an error message and forcibly convert it to NFS.
 (colon-delimited) search path for file maps.  Using a search path,
 sites can allow for local map customizations and overrides, and can
 distributed maps in several locations as needed.
+
+@c ----------------------------------------------------------------
+@node selectors_in_defaults Parameter, , search_path Parameter, Common Parameters
+@comment  node-name,  next,  previous,  up
+@subsection @t{selectors_in_defaults} Parameter
+@cindex selectors_in_defaults Parameter
+
+(type=boolean, default=@samp{no}).  If @samp{yes}, then the
+@samp{/defaults} entry of maps will search for and process any
+selectors before setting defaults for all other keys in that map.
+Useful when you want to set different options for a complete map based
+on some parameters.  For example, you may want to better the NFS
+performance over slow slip-based networks as follows:
+
+@example
+/defaults \
+    wire==slip-net;opts:=intr,rsize=1024,wsize=1024 \
+    wire!=slip-net;opts:=intr,rsize=8192,wsize=8192
+@end example
+
+Deprecated form: selectors_on_default.
+
 
 @c ================================================================
 @node Global Parameters, Regular Map Parameters, Common Parameters, Amd Configuration File
@@ -4454,55 +4356,150 @@ distributed maps in several locations as needed.
 The following parameters are applicable to the @samp{[global]} section only.
 
 @menu
-* arch Parameter::    
+* arch Parameter::
+* auto_attrcache Parameter::
 * auto_dir Parameter::
 * cache_duration Parameter::
-* cluster Parameter:: 
+* cluster Parameter::
+* debug_mtab_file Parameter::
 * debug_options Parameter::
 * dismount_interval Parameter::
+* domain_strip Parameter::
+* exec_map_timeout Parameter::
+* forced_unmounts Parameter::
 * full_os Parameter::
 * fully_qualified_hosts Parameter::
-* hesiod_base Parameter::   
-* karch Parameter::   
+* hesiod_base Parameter::
+* karch Parameter::
 * ldap_base Parameter::
 * ldap_cache_maxmem Parameter::
 * ldap_cache_seconds Parameter::
 * ldap_hostports Parameter::
+* ldap_proto_version Parameter::
 * local_domain Parameter::
+* localhost_address Parameter::
 * log_file Parameter::
 * log_options Parameter::
+* map_reload_interval Parameter::
+* nfs_allow_any_interface Parameter::
 * nfs_allow_insecure_port Parameter::
 * nfs_proto Parameter::
 * nfs_retransmit_counter Parameter::
+* nfs_retransmit_counter_udp Parameter::
+* nfs_retransmit_counter_tcp Parameter::
+* nfs_retransmit_counter_toplvl Parameter::
 * nfs_retry_interval Parameter::
+* nfs_retry_interval_udp Parameter::
+* nfs_retry_interval_tcp Parameter::
+* nfs_retry_interval_toplvl Parameter::
 * nfs_vers Parameter::
 * nis_domain Parameter::
 * normalize_hostnames Parameter::
-* os Parameter::      
-* osver Parameter::   
+* normalize_slashes Parameter::
+* os Parameter::
+* osver Parameter::
 * pid_file Parameter::
-* plock Parameter::   
+* plock Parameter::
 * portmap_program Parameter::
+* preferred_amq_port Parameter::
 * print_pid Parameter::
 * print_version Parameter::
 * restart_mounts Parameter::
-* selectors_in_defaults Parameter::
 * show_statfs_entries Parameter::
+* truncate_log Parameter::
 * unmount_on_exit Parameter::
+* use_tcpwrappers Parameter::
 * vendor Parameter::
 @end menu
 
 @c ----------------------------------------------------------------
-@node arch Parameter, auto_dir Parameter, Global Parameters, Global Parameters
+@node arch Parameter, auto_attrcache Parameter, Global Parameters, Global Parameters
 @comment  node-name,  next,  previous,  up
 @subsection @t{arch} Parameter
 @cindex arch Parameter
 
-(type=string, default to compiled in value).  Allows you to override the
-value of the @i{arch} @i{Amd} variable.
+(type=string, default to compiled in value).  Same as the @code{-A}
+option to @i{Amd}.  Allows you to override the value of the @i{arch}
+@i{Amd} variable.
 
 @c ----------------------------------------------------------------
-@node auto_dir Parameter, cache_duration Parameter, arch Parameter, Global Parameters
+@node auto_attrcache Parameter, auto_dir Parameter, arch Parameter, Global Parameters
+@comment  node-name,  next,  previous,  up
+@subsection @t{auto_attrcache} Parameter
+@cindex auto_attrcache Parameter
+
+(type=numeric, default=0).  Specify in seconds (or units of 0.1
+seconds, depending on the OS), what is the (kernel-side) NFS attribute
+cache timeout for @i{Amd}'s own automount points.  A value of 0 is
+supposed to turn off attribute caching, meaning that @i{Amd} will be
+consulted via a kernel-RPC each time someone stat()'s the mount point
+(which could be abused as a denial-of-service attack).
+
+@emph{WARNING}: @i{Amd} depends on being able to turn off the NFS
+attribute cache of the client OS.  If it cannot be turned off, then
+users may get ESTALE errors or symlinks that point to the wrong
+places.  This is more likely under heavy use of @i{Amd}, for example
+if your system is experiencing frequent map changes or frequent
+mounts/unmounts.  Therefore, under normal circumstances, this
+parameter should remain set to 0, to ensure that the attribute cache
+is indeed off.
+
+Unfortunately, some kernels (e.g., certain BSDs) don't have a way to
+turn off the NFS attribute cache.  Setting this parameter to 0 is
+supposed to turn off attribute caching entirely, but unfortunately it
+does not; instead, the attribute cache is set to some internal
+hard-coded default (usually anywhere from 5-30 seconds).  If you
+suspect that your OS doesn't have a reliable way of turning off the
+attribute cache, then it is better to set this parameter to the
+smallest possible non-zero value (set @samp{auto_attrcache=1} in your
+@code{amd.conf}).  This will not eliminate the problem, but reduce the
+risk window somewhat.  The best solutions are (1) to use @i{Amd} in
+Autofs mode, if it's supported in your OS, and (2) talk to your OS
+vendor to support a true @samp{noac} flag.  See the
+@uref{http://www.am-utils.org/docs/am-utils/attrcache.txt,README.attrcache}
+document for more details.
+
+If you are able to turn off the attribute cache on your OS, alas,
+@i{Amd}'s performance may degrade (when not using Autofs) because
+every traversal of an automounter-controlled pathname will result in a
+lookup request from the kernel to @i{Amd}.  Under heavy loads, for
+example when using recursive tools like @samp{find}, @samp{rdist}, or
+@samp{rsync}, this performance degradation can be noticeable.  There
+are two possible solutions that some administrators have chosen to
+improve performance:
+
+@enumerate
+
+@item
+First, you can turn off unmounting using the @samp{nounmount} mount
+option.  This will ensure that no @i{Amd} symlink could ever change,
+thereby the kernel's attribute cache and @i{Amd} will always be in
+sync.  However, this method will cause the number of mounts to keep
+growing, even if some are no longer in use; this has the disadvantage
+that your system could be more susceptible to hangs if even one of
+those accumulating mounts hangs due to a downed server.
+
+@item
+Second, you can turn on attribute caching carefully by setting a small
+automounter attribute cache value (say, one second), and a relatively
+large dismount interval (say, one hour).  (@xref{dismount_interval
+Parameter}.)  For example, you can set this in your @code{amd.conf}:
+
+@example
+[global]
+auto_attrcache = 1
+dismount_interval = 3600
+@end example
+
+This has the benefit of using the kernel's attribute cache and thus
+improving performance.  The disadvantage with this option is that the
+window of vulnerability is not eliminated entirely: it is only made
+smaller.
+
+@end enumerate
+
+@c ----------------------------------------------------------------
+@node auto_dir Parameter, cache_duration Parameter, auto_attrcache Parameter, Global Parameters
 @comment  node-name,  next,  previous,  up
 @subsection @t{auto_dir} Parameter
 @cindex auto_dir Parameter
@@ -4517,12 +4514,12 @@ sub-directories for its real mount points.
 @subsection @t{cache_duration} Parameter
 @cindex cache_duration Parameter
 
-(type=numeric, default=300).  Same as the @code{-c} option to
-@i{Amd}.  Sets the duration in seconds that looked up map entries remain
-in the cache.
+(type=numeric, default=300).  Same as the @code{-c} option to @i{Amd}.
+Sets the duration in seconds that looked-up or mounted map entries
+remain in the cache.
 
 @c ----------------------------------------------------------------
-@node cluster Parameter, debug_options Parameter, cache_duration Parameter, Global Parameters
+@node cluster Parameter, debug_mtab_file Parameter, cache_duration Parameter, Global Parameters
 @comment  node-name,  next,  previous,  up
 @subsection @t{cluster} Parameter
 @cindex cluster Parameter
@@ -4530,8 +4527,18 @@ in the cache.
 (type=string, default no cluster).  Same as the @code{-C} option to
 @i{Amd}.  Specifies the alternate HP-UX cluster to use.
 
+@c ---------------------------------------------------------------- 
+@node debug_mtab_file Parameter, debug_options Parameter, cluster Parameter, Global Parameters 
+@comment  node-name,  next,  previous,  up 
+@subsection @t{debug_mtab_file} Parameter 
+@cindex debug_mtab_file Parameter 
+
+(type=string, default="/tmp/mnttab").  Path to mtab file that is used 
+by @i{Amd} to store a list of mounted file systems during debug-mtab mode.  
+This option only applies to systems that store mtab information on disk.
+
 @c ----------------------------------------------------------------
-@node debug_options Parameter, dismount_interval Parameter, cluster Parameter, Global Parameters
+@node debug_options Parameter, dismount_interval Parameter, debug_mtab_file Parameter, Global Parameters
 @comment  node-name,  next,  previous,  up
 @subsection @t{debug_options} Parameter
 @cindex debug_options Parameter
@@ -4539,38 +4546,15 @@ in the cache.
 (type=string, default no debug options).  Same as the @code{-D} option
 to @i{Amd}.  Specify any debugging options for @i{Amd}.  Works only if
 am-utils was configured for debugging using the @code{--enable-debug}
-option.  The @samp{mem} option, as well as all other options, can be
-turned on via @code{--enable-debug=mem}.  Otherwise debugging options
-are ignored.  Options are comma delimited, and can be preceded by the
-string @samp{no} to negate their meaning.  You can get the list of
-supported debugging and logging options by running @code{amd -H}.
-Possible values are:
-
-@table @samp
-@item all
-all options
-@item amq
-register for amq
-@item daemon
-enter daemon mode
-@item fork
-fork server
-@item full
-program trace
-@item mem
-trace memory allocations
-@item mtab
-use local @file{./mtab} file
-@item str
-debug string munging
-@item test
-full debug but no daemon
-@item trace
-trace RPC protocol and NFS mount arguments
-@end table
+option.  The additional @samp{mem} option can be turned on via
+@code{--enable-debug=mem}.  Otherwise debugging options are ignored.
+Options are comma delimited, and can be preceded by the string
+@samp{no} to negate their meaning.  You can get the list of supported
+debugging and logging options by running @code{amd -H}.  Possible
+values those listed for the -D option.  @xref{-D Option}.
 
 @c ----------------------------------------------------------------
-@node dismount_interval Parameter, full_os Parameter, debug_options Parameter, Global Parameters
+@node dismount_interval Parameter, domain_strip Parameter, debug_options Parameter, Global Parameters
 @comment  node-name,  next,  previous,  up
 @subsection @t{dismount_interval} Parameter
 @cindex dismount_interval Parameter
@@ -4580,7 +4564,70 @@ trace RPC protocol and NFS mount arguments
 systems that have exceeded their cached times.
 
 @c ----------------------------------------------------------------
-@node full_os Parameter, fully_qualified_hosts Parameter, dismount_interval Parameter, Global Parameters
+@node domain_strip Parameter, exec_map_timeout Parameter, dismount_interval Parameter, Global Parameters
+@comment  node-name,  next,  previous,  up
+@subsection @t{domain_strip} Parameter
+@cindex domain_strip Parameter
+
+(type=boolean, default=@samp{yes}).  If @samp{yes}, then the domain
+name part referred to by @code{$@{rhost@}} is stripped off.  This is
+useful to keep logs and smaller.  If @samp{no}, then the domain name
+part is left changed.  This is useful when using multiple domains with
+the same maps (as you may have hosts whose domain-stripped name is
+identical).
+
+@c ----------------------------------------------------------------
+@node exec_map_timeout Parameter, forced_unmounts Parameter, domain_strip Parameter, Global Parameters
+@comment  node-name,  next,  previous,  up
+@subsection @t{exec_map_timeout} Parameter
+@cindex exec_map_timeout Parameter
+
+(type=numeric, default=10).  The timeout in seconds that @i{Amd} will
+wait for an executable map program before an answer is returned from
+that program (or script).  This value should be set to as small as
+possible while still allowing normal replies to be returned before the
+timer expires, because during the time that the executable map program
+is queried, @i{Amd} is essentially waiting and is thus not responding
+to any other queries.  @xref{Executable maps}.
+
+@c ----------------------------------------------------------------
+@node forced_unmounts Parameter, full_os Parameter, exec_map_timeout Parameter, Global Parameters
+@comment  node-name,  next,  previous,  up
+@subsection @t{forced_unmounts} Parameter
+@cindex forced_unmounts Parameter
+
+(type=boolean, default=@samp{no}).
+Sometimes, mount points are hung due to unrecoverable conditions, such
+as when NFS servers migrate, change their IP address, are down
+permanently, or due to hardware failures, and more.  In this case,
+attempting to unmount an existing mount point, or even just to
+@b{stat}(2) it, results in one of three fatal errors: EIO, ESTALE, or
+EBUSY.  At that point, @i{Amd} can do little to recover that hung
+point (in fact, the OS cannot automatically recover either).  For that
+reason, some OSs support special kinds of forced unmounts, which must
+be used very carefully: they will force an unmount immediately (or
+lazily on Linux), which could result in application data loss.
+However, that may be the only way to recover the entire host (without
+rebooting).  Once a hung mount point is forced out, @i{Amd} can then
+re-mount a replacement one (if available), bringing a mostly-hung
+system back to operation and avoiding a potentially costly reboot.
+
+If the @samp{forced_unmounts} option is set to @samp{yes}, and the
+client OS supports forced or lazy unmounts, then @i{Amd} will attempt
+to use them if it gets any of the three serious error conditions
+listed above.  Note that @i{Amd} will force the unmount of mount
+points that returned EBUSY only for @samp{type:=toplvl} mounts
+(@pxref{Top-level Filesystem}): that is, @i{Amd}'s own mount points.
+This is useful to recover from a previously hung @i{Amd}, and to
+ensure that an existing @i{Amd} can shutdown cleanly even if some
+processes are keeping its mount points busy (i.e., when a user's shell
+process uses @code{cd} to set its CWD to @i{Amd}'s own mount point).
+
+If this option is set to @samp{no} (the default), then @i{Amd} will
+not attempt this special recovery procedure.
+
+@c ----------------------------------------------------------------
+@node full_os Parameter, fully_qualified_hosts Parameter, forced_unmounts Parameter, Global Parameters
 @comment  node-name,  next,  previous,  up
 @subsection @t{full_os} Parameter
 @cindex full_os Parameter
@@ -4656,7 +4703,7 @@ should use to cache LDAP entries.
 entries in the cache.
 
 @c ----------------------------------------------------------------
-@node ldap_hostports Parameter, local_domain Parameter, ldap_cache_seconds Parameter, Global Parameters
+@node ldap_hostports Parameter, ldap_proto_version Parameter, ldap_cache_seconds Parameter, Global Parameters
 @comment  node-name,  next,  previous,  up
 @subsection @t{ldap_hostports} Parameter
 @cindex ldap_hostports Parameter
@@ -4665,7 +4712,16 @@ entries in the cache.
 Specify the LDAP host and port values.
 
 @c ----------------------------------------------------------------
-@node local_domain Parameter, log_file Parameter, ldap_hostports Parameter, Global Parameters
+@node ldap_proto_version Parameter, local_domain Parameter, ldap_hostports Parameter, Global Parameters
+@comment  node-name,  next,  previous,  up
+@subsection @t{ldap_proto_version} Parameter
+@cindex ldap_proto_version Parameter
+
+(type=numeric, default=2).  Specify the LDAP protocol version to use.
+With a value of 3 will use LDAPv3 protocol.
+
+@c ----------------------------------------------------------------
+@node local_domain Parameter, localhost_address Parameter, ldap_proto_version Parameter, Global Parameters
 @comment  node-name,  next,  previous,  up
 @subsection @t{local_domain} Parameter
 @cindex local_domain Parameter
@@ -4676,7 +4732,20 @@ the domain name is determined from the hostname, by removing the first
 component of the fully-qualified host name.
 
 @c ----------------------------------------------------------------
-@node log_file Parameter, log_options Parameter, local_domain Parameter, Global Parameters
+@node localhost_address Parameter, log_file Parameter, local_domain Parameter, Global Parameters
+@comment  node-name,  next,  previous,  up
+@subsection @t{localhost_address} Parameter
+@cindex localhost_address Parameter
+
+(type=string, default to localhost or 127.0.0.1).  Specify the name or
+IP address for @i{Amd} to use when connecting the sockets for the
+local NFS server and the RPC server.  This defaults to 127.0.0.1 or
+whatever the host reports as its local address.  This parameter is
+useful on hosts with multiple addresses where you want to force
+@i{Amd} to connect to a specific address.
+
+@c ----------------------------------------------------------------
+@node log_file Parameter, log_options Parameter, localhost_address Parameter, Global Parameters
 @comment  node-name,  next,  previous,  up
 @subsection @t{log_file} Parameter
 @cindex log_file Parameter
@@ -4700,7 +4769,7 @@ is generally a bad idea to use those reserved for other services such as
 @samp{kern}, @samp{lpr}, @samp{cron}, etc.
 
 @c ----------------------------------------------------------------
-@node log_options Parameter, nfs_allow_insecure_port Parameter, log_file Parameter, Global Parameters
+@node log_options Parameter, map_reload_interval Parameter, log_file Parameter, Global Parameters
 @comment  node-name,  next,  previous,  up
 @subsection @t{log_options} Parameter
 @cindex log_options Parameter
@@ -4737,21 +4806,45 @@ warnings
 @end table
 
 @c ----------------------------------------------------------------
-@node nfs_allow_insecure_port Parameter, nfs_proto Parameter, log_options Parameter, Global Parameters
+@node map_reload_interval Parameter, nfs_allow_any_interface Parameter, log_options Parameter, Global Parameters
+@comment  node-name,  next,  previous,  up
+@subsection @t{map_reload_interval} Parameter
+@cindex map_reload_interval Parameter
+
+(type=numeric, default=3600).  The number of seconds that @i{Amd} will
+wait before it checks to see if any maps have changed at their source
+(NIS servers, LDAP servers, files, etc.).  @i{Amd} will reload only
+those maps that have changed.
+
+@c ----------------------------------------------------------------
+@node nfs_allow_any_interface Parameter, nfs_allow_insecure_port Parameter, map_reload_interval Parameter, Global Parameters
+@comment  node-name,  next,  previous,  up
+@subsection @t{nfs_allow_any_interface} Parameter
+@cindex nfs_allow_any_interface Parameter
+
+(type=string, default=@samp{no}).  Normally @i{Amd} accepts local NFS
+packets only from 127.0.0.1.  If this parameter is set to @samp{yes},
+then @i{amd} will accept local NFS packets from any local interface;
+this is useful on hosts that may have multiple interfaces where the
+system is forced to send all outgoing packets (even those bound to the
+same host) via an address other than 127.0.0.1.
+
+@c ----------------------------------------------------------------
+@node nfs_allow_insecure_port Parameter, nfs_proto Parameter, nfs_allow_any_interface Parameter, Global Parameters
 @comment  node-name,  next,  previous,  up
 @subsection @t{nfs_allow_insecure_port} Parameter
 @cindex nfs_allow_insecure_port Parameter
 
-(type=string, default=@samp{no}).  Normally amd will refuse requests
-coming from unprivileged ports (i.e. ports >= 1024 on Unix systems),
+(type=string, default=@samp{no}).  Normally @i{Amd} will refuse requests
+coming from unprivileged ports (i.e., ports >= 1024 on Unix systems),
 so that only privileged users and the kernel can send NFS requests to
-it. However, some kernels (certain versions of Darwin, MacOS X, and
+it.  However, some kernels (certain versions of Darwin, MacOS X, and
 Linux) have bugs that cause them to use unprivileged ports in certain
-situations, which causes amd to stop dead in its tracks. This
-parameter allows amd to operate normally even on such systems, at the
-expense of a slight decrease in the security of its operations. If you
-see messages like ``ignoring request from foo:1234, port not
-reserved'' in your amd log, try enabling this parameter and give it
+situations, which causes @i{Amd} to stop dead in its tracks.  This
+parameter allows @i{Amd} to operate normally even on such systems, at the
+expense of a slight decrease in the security of its operations.  If
+you see messages like ``ignoring request from foo:1234, port not
+reserved'' in your @i{Amd} log, try enabling this parameter and give it
 another go.
 
 @c ----------------------------------------------------------------
@@ -4763,13 +4856,14 @@ another go.
 (type=string, default to trying version tcp then udp).  By default,
 @i{Amd} tries @code{tcp} and then @code{udp}.  This option forces the
 overall NFS protocol used to TCP or UDP.  It overrides what is in the
-@i{Amd} maps, and is useful when @i{Amd} is compiled with NFSv3 support
-that may not be stable.  With this option you can turn off the complete
-usage of NFSv3 dynamically (without having to recompile @i{Amd}) until
-such time as NFSv3 support is desired again.
+@i{Amd} maps, and is useful when @i{Amd} is compiled with TCP support
+in NFSv2/NFSv3 that may not be stable.  With this option you can turn
+off the complete usage of TCP for NFS dynamically (without having to
+recompile @i{Amd}), and use UDP only, until such time as TCP support
+is desired again.
 
 @c ----------------------------------------------------------------
-@node nfs_retransmit_counter Parameter, nfs_retry_interval Parameter, nfs_proto Parameter, Global Parameters
+@node nfs_retransmit_counter Parameter, nfs_retransmit_counter_udp Parameter, nfs_proto Parameter, Global Parameters
 @comment  node-name,  next,  previous,  up
 @subsection @t{nfs_retransmit_counter} Parameter
 @cindex nfs_retransmit_counter Parameter
@@ -4777,10 +4871,48 @@ such time as NFSv3 support is desired again.
 (type=numeric, default=11).  Same as the @i{retransmit} part of the
 @code{-t} @i{timeout.retransmit} option to @i{Amd}.  Specifies the
 number of NFS retransmissions that the kernel will use to communicate
-with @i{Amd}.  @xref{-t Option}.
+with @i{Amd} using either UDP or TCP mounts.  @xref{-t Option}.
 
 @c ----------------------------------------------------------------
-@node nfs_retry_interval Parameter, nfs_vers Parameter, nfs_retransmit_counter Parameter, Global Parameters
+@node nfs_retransmit_counter_udp Parameter, nfs_retransmit_counter_tcp Parameter, nfs_retransmit_counter Parameter, Global Parameters
+@comment  node-name,  next,  previous,  up
+@subsection @t{nfs_retransmit_counter_udp} Parameter
+@cindex nfs_retransmit_counter_udp Parameter
+@cindex nfs_retransmit_counter Parameter
+@cindex UDP
+
+(type=numeric, default=11).  Same as the @i{nfs_retransmit_counter}
+parameter, but applied globally only to UDP mounts.
+@xref{nfs_retransmit_counter Parameter}.
+
+@c ----------------------------------------------------------------
+@node nfs_retransmit_counter_tcp Parameter, nfs_retransmit_counter_toplvl Parameter, nfs_retransmit_counter_udp Parameter, Global Parameters
+@comment  node-name,  next,  previous,  up
+@subsection @t{nfs_retransmit_counter_tcp} Parameter
+@cindex nfs_retransmit_counter_tcp Parameter
+@cindex nfs_retransmit_counter Parameter
+@cindex TCP
+
+(type=numeric, default=11).  Same as the @i{nfs_retransmit_counter}
+parameter, but applied globally only to TCP mounts.
+@xref{nfs_retransmit_counter Parameter}.
+
+@c ----------------------------------------------------------------
+@node nfs_retransmit_counter_toplvl Parameter, nfs_retry_interval Parameter, nfs_retransmit_counter_tcp Parameter, Global Parameters
+@comment  node-name,  next,  previous,  up
+@subsection @t{nfs_retransmit_counter_toplvl} Parameter
+@cindex nfs_retransmit_counter_toplvl Parameter
+@cindex nfs_retransmit_counter Parameter
+@cindex UDP
+
+(type=numeric, default=11).  Same as the @i{nfs_retransmit_counter}
+parameter, applied only for @i{Amd}'s top-level UDP mounts.  On some
+systems it is useful to set this differently than the OS default, so
+as to better tune @i{Amd}'s responsiveness under heavy scheduler
+loads.  @xref{nfs_retransmit_counter Parameter}.
+
+@c ----------------------------------------------------------------
+@node nfs_retry_interval Parameter, nfs_retry_interval_udp Parameter, nfs_retransmit_counter_toplvl Parameter, Global Parameters
 @comment  node-name,  next,  previous,  up
 @subsection @t{nfs_retry_interval} Parameter
 @cindex nfs_retry_interval Parameter
@@ -4788,7 +4920,7 @@ with @i{Amd}.  @xref{-t Option}.
 (type=numeric, default=8).  Same as the @i{timeout} part of the
 @code{-t} @i{timeout.retransmit} option to @i{Amd}.  Specifies the NFS
 timeout interval, in @emph{tenths} of seconds, between NFS/RPC retries
-(for UDP only).  This is the value that the kernel will use to
+(for UDP or TCP).  This is the value that the kernel will use to
 communicate with @i{Amd}.  @xref{-t Option}.
 
 @i{Amd} relies on the kernel RPC retransmit mechanism to trigger mount
@@ -4798,18 +4930,57 @@ Too long an interval gives poor interactive response; too short an
 interval causes excessive retries.
 
 @c ----------------------------------------------------------------
-@node nfs_vers Parameter, nis_domain Parameter, nfs_retry_interval Parameter, Global Parameters
+@node nfs_retry_interval_udp Parameter, nfs_retry_interval_tcp Parameter, nfs_retry_interval Parameter, Global Parameters
+@comment  node-name,  next,  previous,  up
+@subsection @t{nfs_retry_interval_udp} Parameter
+@cindex nfs_retry_interval_udp Parameter
+@cindex nfs_retry_interval Parameter
+@cindex UDP
+
+(type=numeric, default=8).  Same as the @i{nfs_retry_interval}
+parameter, but applied globally only to UDP mounts.
+@xref{nfs_retry_interval Parameter}.
+
+@c ----------------------------------------------------------------
+@node nfs_retry_interval_tcp Parameter, nfs_retry_interval_toplvl Parameter, nfs_retry_interval_udp Parameter, Global Parameters
+@comment  node-name,  next,  previous,  up
+@subsection @t{nfs_retry_interval_tcp} Parameter
+@cindex nfs_retry_interval_tcp Parameter
+@cindex nfs_retry_interval Parameter
+@cindex TCP
+
+(type=numeric, default=8).  Same as the @i{nfs_retry_interval}
+parameter, but applied globally only to TCP mounts.
+@xref{nfs_retry_interval Parameter}.
+
+@c ----------------------------------------------------------------
+@node nfs_retry_interval_toplvl Parameter, nfs_vers Parameter, nfs_retry_interval_tcp Parameter, Global Parameters
+@comment  node-name,  next,  previous,  up
+@subsection @t{nfs_retry_interval_toplvl} Parameter
+@cindex nfs_retry_interval_toplvl Parameter
+@cindex nfs_retry_interval Parameter
+@cindex UDP
+
+(type=numeric, default=8).  Same as the @i{nfs_retry_interval}
+parameter, applied only for @i{Amd}'s top-level UDP mounts.  On some
+systems it is useful to set this differently than the OS default, so
+as to better tune @i{Amd}'s responsiveness under heavy scheduler
+loads.  @xref{nfs_retry_interval Parameter}.
+
+@c ----------------------------------------------------------------
+@node nfs_vers Parameter, nis_domain Parameter, nfs_retry_interval_toplvl Parameter, Global Parameters
 @comment  node-name,  next,  previous,  up
 @subsection @t{nfs_vers} Parameter
 @cindex nfs_vers Parameter
 
-(type=numeric, default to trying version 3 then 2).  By default, @i{Amd}
-tries version 3 and then version 2.  This option forces the overall NFS
-protocol used to version 3 or 2.  It overrides what is in the @i{Amd}
-maps, and is useful when @i{Amd} is compiled with NFSv3 support that may not
-be stable.  With this option you can turn off the complete usage of
-NFSv3 dynamically (without having to recompile @i{Amd}) until such time as
-NFSv3 support is desired again.
+(type=numeric, default to trying version 3 then 2).  By default,
+@i{Amd} tries version 3 and then version 2.  This option forces the
+overall NFS protocol used to version 3 or 2.  It overrides what is in
+the @i{Amd} maps, and is useful when @i{Amd} is compiled with NFSv3
+support that may not be stable.  With this option you can turn off the
+complete usage of NFSv3 dynamically (without having to recompile
+@i{Amd}), and use NFSv2 only, until such time as NFSv3 support is
+desired again.
 
 @c ----------------------------------------------------------------
 @node nis_domain Parameter, normalize_hostnames Parameter, nfs_vers Parameter, Global Parameters
@@ -4823,7 +4994,7 @@ which to fetch the NIS maps.  The default is the system domain name.
 This option is ignored if NIS support is not available.
 
 @c ----------------------------------------------------------------
-@node normalize_hostnames Parameter, os Parameter, nis_domain Parameter, Global Parameters
+@node normalize_hostnames Parameter, normalize_slashes Parameter, nis_domain Parameter, Global Parameters
 @comment  node-name,  next,  previous,  up
 @subsection @t{normalize_hostnames} Parameter
 @cindex normalize_hostnames Parameter
@@ -4834,7 +5005,20 @@ relative to the host database before being used.  The effect is to
 translate aliases into ``official'' names.
 
 @c ----------------------------------------------------------------
-@node os Parameter, osver Parameter, normalize_hostnames Parameter, Global Parameters
+@node normalize_slashes Parameter, os Parameter, normalize_hostnames Parameter, Global Parameters
+@comment  node-name,  next,  previous,  up
+@subsection @t{normalize_slashes} Parameter
+@cindex normalize_slashes Parameter
+
+(type=boolean, default=@samp{yes}).  If @samp{yes} then amd will
+condense all multiple @code{/} (slash) characters into one and remove
+all trailing slashes.  If @samp{no}, then amd will not touch strings
+that may contain repeated or trailing slashes.  The latter is
+sometimes useful with SMB mounts, which often require multiple slash
+characters in pathnames.
+
+@c ----------------------------------------------------------------
+@node os Parameter, osver Parameter, normalize_slashes Parameter, Global Parameters
 @comment  node-name,  next,  previous,  up
 @subsection @t{os} Parameter
 @cindex os Parameter
@@ -4884,6 +5068,7 @@ This file is used only if the @samp{print_pid} option is on
 (type=boolean, default=@samp{yes}).  Same as the @code{-S} option to @i{Amd}.
 If @samp{yes}, lock the running executable pages of @i{Amd} into memory.
 To improve @i{Amd}'s performance, systems that support the @b{plock}(3)
+or @b{mlockall}(2)
 call can lock the @i{Amd} process into memory.  This way there is less
 chance the operating system will schedule, page out, and swap the
 @i{Amd} process as needed.  This improves @i{Amd}'s performance, at the
@@ -4891,7 +5076,7 @@ cost of reserving the memory used by the @i{Amd} process (making it
 unavailable for other processes).
 
 @c ----------------------------------------------------------------
-@node portmap_program Parameter, print_pid Parameter, plock Parameter, Global Parameters
+@node portmap_program Parameter, preferred_amq_port Parameter, plock Parameter, Global Parameters
 @comment  node-name,  next,  previous,  up
 @subsection @t{portmap_program} Parameter
 @cindex portmap_program Parameter
@@ -4907,7 +5092,21 @@ number of an @i{Amd} to contact.  In this way, amq can fully control any
 number of @i{Amd} processes running on the same host.
 
 @c ----------------------------------------------------------------
-@node print_pid Parameter, print_version Parameter, portmap_program Parameter, Global Parameters
+@node preferred_amq_port Parameter, print_pid Parameter, portmap_program Parameter, Global Parameters
+@comment  node-name,  next,  previous,  up
+@subsection @t{preferred_amq_port} Parameter
+@cindex preferred_amq_port Parameter
+
+(type=numeric, default=0).  Specify an alternate Port-mapper RPC port
+number for @i{Amd}'s @i{Amq} service.  This is used for both UDP and
+TCP.  Setting this value to 0 (or not defining it) will cause @i{Amd}
+to select an arbitrary port number.  Setting the @i{Amq} RPC service
+port to a specific number is useful in firewalled or NAT'ed
+environments, where you need to know which port @i{Amd} will listen
+on.
+
+@c ----------------------------------------------------------------
+@node print_pid Parameter, print_version Parameter, preferred_amq_port Parameter, Global Parameters
 @comment  node-name,  next,  previous,  up
 @subsection @t{print_pid} Parameter
 @cindex print_pid Parameter
@@ -4927,7 +5126,7 @@ will print its version information string, which includes some
 configuration and compilation values.
 
 @c ----------------------------------------------------------------
-@node restart_mounts Parameter, selectors_in_defaults Parameter, print_version Parameter, Global Parameters
+@node restart_mounts Parameter, show_statfs_entries Parameter, print_version Parameter, Global Parameters
 @comment  node-name,  next,  previous,  up
 @subsection @t{restart_mounts} Parameter
 @cindex restart_mounts Parameter
@@ -4938,28 +5137,7 @@ systems are currently mounted.  Whenever one of these would have been
 auto-mounted, @i{Amd} inherits it.
 
 @c ----------------------------------------------------------------
-@node selectors_in_defaults Parameter, show_statfs_entries Parameter, restart_mounts Parameter, Global Parameters
-@comment  node-name,  next,  previous,  up
-@subsection @t{selectors_in_defaults} Parameter
-@cindex selectors_in_defaults Parameter
-
-(type=boolean, default=@samp{no}).  If @samp{yes}, then the @samp{/defaults} entry of
-maps will search for and process any selectors before setting defaults
-for all other keys in that map.  Useful when you want to set different
-options for a complete map based on some parameters.  For example, you
-may want to better the NFS performance over slow slip-based networks as
-follows:
-
-@example
-/defaults \
-    wire==slip-net;opts:=intr,rsize=1024,wsize=1024 \
-    wire!=slip-net;opts:=intr,rsize=8192,wsize=8192
-@end example
-
-Deprecated form: selectors_on_default.
-
-@c ----------------------------------------------------------------
-@node show_statfs_entries Parameter, unmount_on_exit Parameter, selectors_in_defaults Parameter, Global Parameters
+@node show_statfs_entries Parameter, truncate_log Parameter, restart_mounts Parameter, Global Parameters
 @comment  node-name,  next,  previous,  up
 @subsection @t{show_statfs_entries} Parameter
 @cindex show_statfs_entries Parameter
@@ -4970,19 +5148,65 @@ browsable will also show the number of entries (keys) they have when
 the @b{statfs}(2) system call).
 
 @c ----------------------------------------------------------------
-@node unmount_on_exit Parameter, vendor Parameter, show_statfs_entries Parameter, Global Parameters
+@node truncate_log Parameter, unmount_on_exit Parameter, show_statfs_entries Parameter, Global Parameters
+@comment  node-name,  next,  previous,  up
+@subsection @t{truncate_log} Parameter
+@cindex truncate_log Parameter
+
+(type=boolean), default=@samp{no}).  If @samp{yes}, then @i{Amd} will
+truncate the log file (if it's a regular file) on startup.  This could
+be useful when conducting extensive testing on @i{Amd} maps (or
+@i{Amd} itself) and you don't want to see log data from a previous run
+in the same file.
+
+@c ----------------------------------------------------------------
+@node unmount_on_exit Parameter, use_tcpwrappers Parameter, truncate_log Parameter, Global Parameters
 @comment  node-name,  next,  previous,  up
 @subsection @t{unmount_on_exit} Parameter
 @cindex unmount_on_exit Parameter
 
-(type=boolean), default=@samp{no}).  If @samp{yes}, then @i{Amd} will attempt
+(type=boolean, default=@samp{no}).  If @samp{yes}, then @i{Amd} will attempt
 to unmount all file systems which it knows about.  Normally it leaves
 all (esp. NFS) mounted file systems intact.  Note that @i{Amd} does not
 know about file systems mounted before it starts up, unless the
 @samp{restart_mounts} option is used (@pxref{restart_mounts Parameter}).
 
 @c ----------------------------------------------------------------
-@node vendor Parameter, , unmount_on_exit Parameter, Global Parameters
+@node use_tcpwrappers Parameter, vendor Parameter, unmount_on_exit Parameter, Global Parameters
+@comment  node-name,  next,  previous,  up
+@subsection @t{use_tcpwrappers} Parameter
+@cindex use_tcpwrappers Parameter
+
+(type=boolean), default=@samp{yes}).  If @samp{yes}, then amd will use
+the tcpwrappers (tcpd/librwap) library (if available) to control
+access to @i{Amd} via the @code{/etc/hosts.allow} and
+@code{/etc/hosts.deny} files.  @i{Amd} will verify that the host
+running @i{Amq} is authorized to connect.  The @code{amd} service name
+must used in the @code{/etc/hosts.allow} and @code{/etc/hosts.deny}
+files.  For example, to allow only localhost to connect to @i{Amd},
+add this line to @code{/etc/hosts.allow}:
+
+@example
+amd: localhost
+@end example
+
+and this line to @code{/etc/hosts.deny}:
+
+@example
+amd: ALL
+@end example
+
+Consult the man pages for @b{hosts_access}(5) for more information on using
+the tcpwrappers access-control library.
+
+Note that in particular, you should not configure your @code{hosts.allow}
+file to spawn a command for @i{Amd}: that will cause @i{Amd} to not be able
+to @code{waitpid} on the child process ID of any background un/mount that
+@i{Amd} issued, resulting in a confused @i{Amd} that does not know what
+happened to those background un/mount requests.
+
+@c ----------------------------------------------------------------
+@node vendor Parameter, , use_tcpwrappers Parameter, Global Parameters
 @comment  node-name,  next,  previous,  up
 @subsection @t{vendor} Parameter
 @cindex vendor Parameter
@@ -5003,7 +5227,7 @@ The following parameters are applicable only to regular map sections.
 
 @menu
 * map_name Parameter::
-* tag Parameter::     
+* tag Parameter::
 @end menu
 
 @c ----------------------------------------------------------------
@@ -5033,7 +5257,7 @@ command-line option matches that in the map section.
 @section amd.conf Examples
 @cindex amd.conf examples
 
-The following is the actual @code{amd.conf} file I use at the
+The following is the actual @code{amd.conf} file I used at the
 Computer Science Department of Columbia University.
 
 @example
@@ -5062,20 +5286,20 @@ fully_qualified_hosts =  no
 # DEFINE AN AMD MOUNT POINT
 [ /u ]
 map_name =               amd.u
-                         
-[ /proj ]                
+
+[ /proj ]
 map_name =               amd.proj
-                         
-[ /src ]                 
+
+[ /src ]
 map_name =               amd.src
-                         
-[ /misc ]                
+
+[ /misc ]
 map_name =               amd.misc
-                         
-[ /import ]              
+
+[ /import ]
 map_name =               amd.import
-                         
-[ /tftpboot/.amd ]       
+
+[ /tftpboot/.amd ]
 tag =                    tftpboot
 map_name =               amd.tftpboot
 @end example
@@ -5207,14 +5431,14 @@ mount point.
 * Amq default::       Default command behavior.
 * Amq -f option::     Flushing the map cache.
 * Amq -h option::     Controlling a non-local host.
-* Amq -H-option::     Print help message.
+* Amq -H option::     Print help message.
 * Amq -l option::     Controlling the log file.
 * Amq -m option::     Obtaining mount statistics.
 * Amq -p option::     Getting Amd's process ID.
-* Amq -P-option::     Contacting alternate Amd processes.
+* Amq -P option::     Contacting alternate Amd processes.
 * Amq -s option::     Obtaining global statistics.
 * Amq -T option::     Use TCP transport.
-* Amq -U-option::     Use UDP transport.
+* Amq -U option::     Use UDP transport.
 * Amq -u option::     Forcing volumes to time out.
 * Amq -v option::     Version information.
 * Amq -w option::     Print Amd current working directory.
@@ -5310,7 +5534,7 @@ also be synchronized with the map source by using the @samp{sync} option
 (@pxref{Automount Filesystem}).@refill
 
 @c ----------------------------------------------------------------
-@node Amq -h option, Amq -H-option, Amq -f option, Controlling Amd
+@node Amq -h option, Amq -H option, Amq -f option, Controlling Amd
 @comment  node-name,  next,  previous,  up
 @subsection @i{Amq} @code{-h} option
 @cindex Querying an alternate host
@@ -5321,7 +5545,7 @@ be running.  To query @i{Amd} on another host the @code{-h} option should
 be used.
 
 @c ----------------------------------------------------------------
-@node Amq -H-option, Amq -l option, Amq -h option, Controlling Amd
+@node Amq -H option, Amq -l option, Amq -h option, Controlling Amd
 @comment  node-name,  next,  previous,  up
 @subsection @i{Amq} @code{-H} option
 @cindex Displaying brief help
@@ -5330,7 +5554,7 @@ be used.
 Print a brief help and usage string.
 
 @c ----------------------------------------------------------------
-@node Amq -l option, Amq -m option, Amq -H-option, Controlling Amd
+@node Amq -l option, Amq -m option, Amq -H option, Controlling Amd
 @comment  node-name,  next,  previous,  up
 @subsection @i{Amq} @code{-l} option
 @cindex Resetting the Amd log file
@@ -5403,7 +5627,7 @@ filesystem mount list.
 @end ignore
 
 @c ----------------------------------------------------------------
-@node Amq -p option, Amq -P-option, Amq -m option, Controlling Amd
+@node Amq -p option, Amq -P option, Amq -m option, Controlling Amd
 @comment  node-name,  next,  previous,  up
 @subsection @i{Amq} @code{-p} option
 @cindex Process ID; Amd
@@ -5417,7 +5641,7 @@ rather not have to search through the process table.  This option is
 used in the @file{ctl-amd} script.
 
 @c ----------------------------------------------------------------
-@node Amq -P-option, Amq -s option, Amq -p option, Controlling Amd
+@node Amq -P option, Amq -s option, Amq -p option, Controlling Amd
 @comment  node-name,  next,  previous,  up
 @subsection @i{Amq} @code{-P} option
 @cindex Multiple Amd processes
@@ -5440,7 +5664,7 @@ kill `amq -p -P 300020`
 @end example
 
 @c ----------------------------------------------------------------
-@node Amq -s option, Amq -T option, Amq -P-option, Controlling Amd
+@node Amq -s option, Amq -T option, Amq -P option, Controlling Amd
 @comment  node-name,  next,  previous,  up
 @subsection @i{Amq} @code{-s} option
 @cindex Global statistics
@@ -5477,7 +5701,7 @@ should be increased.
 @end table
 
 @c ----------------------------------------------------------------
-@node Amq -T option, Amq -U-option, Amq -s option, Controlling Amd
+@node Amq -T option, Amq -U option, Amq -s option, Controlling Amd
 @comment  node-name,  next,  previous,  up
 @subsection @i{Amq} @code{-T} option
 @cindex Forcing Amq to use a TCP transport
@@ -5488,7 +5712,7 @@ transport only (connection oriented).  Normally, @i{Amq} will use TCP
 first, and if that failed, will try UDP.
 
 @c ----------------------------------------------------------------
-@node Amq -U-option, Amq -u option, Amq -T option, Controlling Amd
+@node Amq -U option, Amq -u option, Amq -T option, Controlling Amd
 @comment  node-name,  next,  previous,  up
 @subsection @i{Amq} @code{-U} option
 @cindex Forcing Amq to use a UDP transport
@@ -5499,7 +5723,7 @@ transport only (connectionless).  Normally, @i{Amq} will use TCP first,
 and if that failed, will try UDP.
 
 @c ----------------------------------------------------------------
-@node Amq -u option, Amq -v option, Amq -U-option, Controlling Amd
+@node Amq -u option, Amq -v option, Amq -U option, Controlling Amd
 @comment  node-name,  next,  previous,  up
 @subsection @i{Amq} @code{-u} option
 @cindex Forcing filesystem to time out
@@ -5566,7 +5790,7 @@ fsinfo.
 * Using FSinfo::                    Basic concepts.
 * FSinfo Grammar::                  Language syntax, semantics and examples.
 * FSinfo host definitions::         Defining a new host.
-* FSinfo host attributes::          Definable host attributes. 
+* FSinfo host attributes::          Definable host attributes.
 * FSinfo filesystems::              Defining locally attached filesystems.
 * FSinfo static mounts::            Defining additional static mounts.
 * FSinfo automount definitions::
@@ -5587,7 +5811,7 @@ The purpose of @i{FSinfo} is to generate all the important standard
 filesystem data files from a single set of input data.  Starting with a
 single data source guarantees that all the generated files are
 self-consistent.  One of the possible output data formats is a set of
-@i{Amd} maps which can be used amongst the set of hosts described in the
+@i{Amd} maps which can be used among the set of hosts described in the
 input data.
 
 @i{FSinfo} implements a declarative language.  This language is
@@ -5768,14 +5992,14 @@ host @{
 The options that can be given as host attributes are shown below.
 
 @menu
-* netif Option:         FSinfo host netif:
-* config Option:        FSinfo host config:
-* arch Option:          FSinfo host arch:
-* os Option:            FSinfo host os:
-* cluster Option:       FSinfo host cluster:
+* FSinfo netif Option::         FSinfo host netif.
+* FSinfo config Option::        FSinfo host config.
+* FSinfo arch Option::          FSinfo host arch.
+* FSinfo os Option::            FSinfo host os.
+* FSinfo cluster Option::       FSinfo host cluster.
 @end menu
 
-@node FSinfo host netif, FSinfo host config, , FSinfo host attributes
+@node FSinfo netif Option, FSinfo config Option, , FSinfo host attributes
 @comment  node-name,  next,  previous,  up
 @subsection netif Option
 
@@ -5806,7 +6030,7 @@ netif ie0 @{
 netif ec0 @{ @}
 @end example
 
-@node FSinfo host config, FSinfo host arch, FSinfo host netif, FSinfo host attributes
+@node FSinfo config Option, FSinfo arch Option, FSinfo netif Option, FSinfo host attributes
 @comment  node-name,  next,  previous,  up
 @subsection config Option
 @cindex FSinfo config host attribute
@@ -5825,7 +6049,7 @@ config "ZEPHYR=true"
 
 This option is currently unsupported.
 
-@node FSinfo host arch, FSinfo host os, FSinfo host config, FSinfo host attributes
+@node FSinfo arch Option, FSinfo os Option, FSinfo config Option, FSinfo host attributes
 @comment  node-name,  next,  previous,  up
 @subsection arch Option
 @cindex FSinfo arch host attribute
@@ -5840,7 +6064,7 @@ arch = hp300
 This is intended to be of use when building architecture specific
 mountmaps, however, the option is currently unsupported.
 
-@node FSinfo host os, FSinfo host cluster, FSinfo host arch, FSinfo host attributes
+@node FSinfo os Option, FSinfo cluster Option, FSinfo arch Option, FSinfo host attributes
 @comment  node-name,  next,  previous,  up
 @subsection os Option
 @cindex FSinfo os host attribute
@@ -5856,7 +6080,7 @@ This information is used when creating the @file{fstab} files, for
 example in choosing which format to use for the @file{fstab} entries
 within the file.
 
-@node FSinfo host cluster, , FSinfo host os, FSinfo host attributes
+@node FSinfo cluster Option, , FSinfo os Option, FSinfo host attributes
 @comment  node-name,  next,  previous,  up
 @subsection cluster Option
 @cindex FSinfo cluster host attribute
@@ -5967,16 +6191,16 @@ fs /dev/dsk/5s0 @{
 @end example
 
 @menu
-* fstype Option:        FSinfo filesystems fstype:
-* opts Option:          FSinfo filesystems opts:
-* passno Option:        FSinfo filesystems passno:
-* freq Option:          FSinfo filesystems freq:
-* mount Option:         FSinfo filesystems mount:
-* dumpset Option:       FSinfo filesystems dumpset:
-* log Option:           FSinfo filesystems log:
+* FSinfo fstype Option::        FSinfo filesystems fstype.
+* FSinfo opts Option::          FSinfo filesystems opts.
+* FSinfo passno Option::        FSinfo filesystems passno.
+* FSinfo freq Option::          FSinfo filesystems freq.
+* FSinfo mount Option::         FSinfo filesystems mount.
+* FSinfo dumpset Option::       FSinfo filesystems dumpset.
+* FSinfo log Option::           FSinfo filesystems log.
 @end menu
 
-@node FSinfo filesystems fstype, FSinfo filesystems opts, , FSinfo filesystems
+@node FSinfo fstype Option, FSinfo opts Option, , FSinfo filesystems
 @comment  node-name,  next,  previous,  up
 @subsection fstype Option
 @cindex FSinfo fstype filesystems option
@@ -6001,7 +6225,7 @@ Example:
 fstype = swap
 @end example
 
-@node FSinfo filesystems opts, FSinfo filesystems passno, FSinfo filesystems fstype, FSinfo filesystems
+@node FSinfo opts Option, FSinfo passno Option, FSinfo fstype Option, FSinfo filesystems
 @comment  node-name,  next,  previous,  up
 @subsection opts Option
 @cindex FSinfo opts filesystems option
@@ -6014,7 +6238,7 @@ This defines any options that should be given to @b{mount}(8) in the
 opts = rw,nosuid,grpid
 @end example
 
-@node FSinfo filesystems passno, FSinfo filesystems freq, FSinfo filesystems opts, FSinfo filesystems
+@node FSinfo passno Option, FSinfo freq Option, FSinfo opts Option, FSinfo filesystems
 @comment  node-name,  next,  previous,  up
 @subsection passno Option
 @cindex FSinfo passno filesystems option
@@ -6029,7 +6253,7 @@ Example:
 passno = 1
 @end example
 
-@node FSinfo filesystems freq, FSinfo filesystems mount, FSinfo filesystems passno, FSinfo filesystems
+@node FSinfo freq Option, FSinfo mount Option, FSinfo passno Option, FSinfo filesystems
 @comment  node-name,  next,  previous,  up
 @subsection freq Option
 @cindex FSinfo freq filesystems option
@@ -6044,7 +6268,7 @@ Example:
 freq = 3
 @end example
 
-@node FSinfo filesystems mount, FSinfo filesystems dumpset, FSinfo filesystems freq, FSinfo filesystems
+@node FSinfo mount Option, FSinfo dumpset Option, FSinfo freq Option, FSinfo filesystems
 @comment  node-name,  next,  previous,  up
 @subsection mount Option
 @cindex FSinfo mount filesystems option
@@ -6114,7 +6338,7 @@ filesystem.@refill
 
 @end table
 
-@node FSinfo filesystems dumpset, FSinfo filesystems log, FSinfo filesystems mount, FSinfo filesystems
+@node FSinfo dumpset Option, FSinfo log Option, FSinfo mount Option, FSinfo filesystems
 @comment  node-name,  next,  previous,  up
 @subsection dumpset Option
 @cindex FSinfo dumpset filesystems option
@@ -6123,7 +6347,7 @@ filesystem.@refill
 This provides support for Imperial College's local file backup tools and
 is not documented further here.
 
-@node FSinfo filesystems log, , FSinfo filesystems dumpset, FSinfo filesystems    
+@node FSinfo log Option, , FSinfo dumpset Option, FSinfo filesystems
 @comment  node-name,  next,  previous,  up
 @subsection log Option
 @cindex FSinfo log filesystems option
@@ -6619,8 +6843,8 @@ each level.
 
 @item pass number for @var{host}:@var{device} is non-zero
 Occurs if @var{device} has its @samp{fstype} declared to be @samp{swap}
-or @samp{export} and the @b{fsck}(8) pass number is set. Swap devices should not be
-fsck'd.  @xref{FSinfo filesystems fstype}.
+or @samp{export} and the @b{fsck}(8) pass number is set. Swap devices
+should not be fsck'd.  @xref{FSinfo fstype Option}.
 
 @item sub-directory @var{directory} of @var{directory-tree} starts with '/'
 Within the filesystem specification for a host, if an element
@@ -6684,7 +6908,7 @@ from anywhere.  It was designed and implemented by
 @email{dupuy@@cs.columbia.edu,Alexander Dupuy}, at the
 @uref{http://www.cs.columbia.edu/,Computer Science Department} of
 @uref{http://www.columbia.edu/,Columbia University}.  A
-@uref{http://www.cs.columbia.edu/~ezk/research/hlfsd/hlfsd.html,paper}
+@uref{http://www.fsl.cs.sunysb.edu/docs/hlfsd/hlfsd.html,paper}
 on @i{Hlfsd} was presented at the Usenix LISA VII conference in 1993.
 
 @i{Hlfsd} operates by mounting itself as an NFS server for the directory
@@ -6705,8 +6929,8 @@ dump its internal table of user IDs and home directories to the file
 
 @menu
 * Introduction to Hlfsd::
-* Background to Mail Delivery::        
-* Using Hlfsd::       
+* Background to Mail Delivery::
+* Using Hlfsd::
 @end menu
 
 @c ================================================================
@@ -7068,9 +7292,9 @@ discussed.
 @cindex Hlfsd; using
 
 @menu
-* Controlling Hlfsd:: 
-* Hlfsd Options::     
-* Hlfsd Files::       
+* Controlling Hlfsd::
+* Hlfsd Options::
+* Hlfsd Files::
 @end menu
 
 @c ----------------------------------------------------------------
@@ -7127,6 +7351,16 @@ as follows:
 mv /var/mail /var/alt_mail
 ln -s /mail/home /var/mail
 @end example
+
+@i{Hlfsd} also responds to the following signals:
+
+A @samp{SIGHUP} signal sent to @i{Hlfsd} will force it to reload the
+password map immediately.
+
+A @samp{SIGUSR1} signal sent to @i{Hlfsd} will cause it to dump its
+internal password map to the file @file{/usr/tmp/hlfsd.dump.XXXXXX},
+where @samp{XXXXXX} will be replaced by a random string generated by
+@b{mktemp}(3) or (the more secure) @b{mkstemp}(3).
 
 @c ----------------------------------------------------------------
 @node Hlfsd Options, Hlfsd Files, Controlling Hlfsd, Using Hlfsd
@@ -7221,11 +7455,7 @@ Select from a variety of debugging options.  Prefixing an option with
 the string @samp{no} reverses the effect of that option.  Options are
 cumulative.  The most useful option is @samp{all}.  Since this option is
 only used for debugging other options are not documented here.  A fuller
-description is available in the program source.  A @samp{SIGUSR1} sent
-to @i{Hlfsd} will cause it to dump its internal password map to the file
-@file{/usr/tmp/hlfsd.dump.XXXXXX}, where @samp{XXXXXX} will be replaced
-by a random string generated by @b{mktemp}(3) or (the more secure)
-@b{mkstemp}(3).
+description is available in the program source.
 
 @item -P @var{password-file}
 Read the user-name, user-id, and home directory information from the
@@ -7264,6 +7494,12 @@ directory to which @file{home} symbolic link returned by @i{Hlfsd}
 points if it is unable to verify the that user's home directory is
 accessible.
 
+@item /usr/tmp/hlfsd.dump.XXXXXX
+file to which @i{Hlfsd} will dump its internal password map when it
+receives the @samp{SIGUSR1} signal. @samp{XXXXXX} will be replaced by
+a random string generated by @b{mktemp}(3) or (the more secure)
+@b{mkstemp}(3).
+
 @end table
 
 For discussion on other files used by @i{Hlfsd}, see @xref{lostaltmail}, and
@@ -7279,25 +7515,25 @@ The following are additional utilities and scripts included with
 am-utils, and get installed.
 
 @menu
-* am-eject::          
-* amd.conf-sample::   
-* amd2ldif::          
-* amd2sun::           
-* automount2amd::           
-* ctl-amd::           
-* ctl-hlfsd::         
-* expn::              
-* fix-amd-map::       
-* fixmount::          
-* fixrmtab::          
-* lostaltmail::       
+* am-eject::
+* amd.conf-sample::
+* amd2ldif::
+* amd2sun::
+* automount2amd::
+* ctl-amd::
+* ctl-hlfsd::
+* expn::
+* fix-amd-map::
+* fixmount::
+* fixrmtab::
+* lostaltmail::
 * lostaltmail.conf-sample::
-* mk-amd-map::        
-* pawd::              
-* redhat-ctl-amd::              
-* wait4amd::          
-* wait4amd2die::      
-* wire-test::         
+* mk-amd-map::
+* pawd::
+* redhat-ctl-amd::
+* wait4amd::
+* wait4amd2die::
+* wire-test::
 @end menu
 
 @c ----------------------------------------------------------------
@@ -7315,7 +7551,7 @@ then attempts to eject the removable device.
 @section amd.conf-sample
 @pindex amd.conf-sample
 
-A sample @i{Amd} configuration file. @xref{Amd Configuration File}. 
+A sample @i{Amd} configuration file. @xref{Amd Configuration File}.
 
 @c ----------------------------------------------------------------
 @node amd2ldif, amd2sun, amd.conf-sample, Assorted Tools
@@ -7514,7 +7750,7 @@ an alternate directory.  This is useful to continue delivering mail,
 even if the user's file system was unavailable, full, or over quota.
 But, the mail which gets delivered to  the alternate directory needs to
 be resent to its respective users.  This is what the @samp{lostaltmail}
-script does. 
+script does.
 
 Use it as follows:
 
@@ -8295,7 +8531,7 @@ The mount daemon refused to return a file handle for the requested filesystem.
 The mount daemon gave some other error for the requested filesystem.
 
 @item Finishing with status @i{exit-status}
-@i{Amd} is about to exit with the given exit status. 
+@i{Amd} is about to exit with the given exit status.
 
 @item Re-synchronizing cache for map @t{$@{@i{map}@}}
 The named map has been modified and the internal cache is being re-synchronized.
@@ -8349,7 +8585,7 @@ Many thanks to the @email{am-utils@@am-utils.org,Am-Utils Users}
 mailing list through the months developing am-utils.  These members
 have contributed to the discussions, ideas, code and documentation,
 and subjected their systems to alpha quality code.  Special thanks go
-to those @uref{http://www.am-utils.org/AUTHORS.txt,authors} who have
+to those @uref{http://www.am-utils.org/docs/am-utils/AUTHORS.txt,authors} who have
 submitted patches, and especially to the maintainers:
 
 @itemize @bullet
@@ -8444,3 +8680,7 @@ All other registered trademarks are owned by their respective owners.
 @c LocalWords:  freebsdelf gnuoldld ifhtml defperm nodefperm norrip RRIP rrip
 @c LocalWords:  noversion attr XXXXXX netgrpd rh mkstemp uid gid noexec mntfs
 @c LocalWords:  nomnttab optionstr hrtime xdrtrace getpwd proplist redhat ctl
+@c LocalWords:  texinfo texi ib sp cartouche ified xlatecookie dircategory sc
+@c LocalWords:  AddInfo suse Novell softlookup ENOENT USB fullybrowsable LDAPv
+@c LocalWords:  amy ie xfffffe zebedee andrew diskfull hdmail searchable si
+@c LocalWords:  Orth ESTALE

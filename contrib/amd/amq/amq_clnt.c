@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2004 Erez Zadok
+ * Copyright (c) 1997-2006 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -36,9 +36,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      %W% (Berkeley) %G%
  *
- * $Id: amq_clnt.c,v 1.3.2.4 2004/01/06 03:15:16 ezk Exp $
+ * File: am-utils/amq/amq_clnt.c
  *
  */
 
@@ -76,7 +75,7 @@ amqproc_mnttree_1(amq_string *argp, CLIENT *clnt)
   memset((char *) &res, 0, sizeof(res));
   if (clnt_call(clnt, AMQPROC_MNTTREE,
 		(XDRPROC_T_TYPE) xdr_amq_string, (SVC_IN_ARG_TYPE) argp,
-		(XDRPROC_T_TYPE) xdr_amq_mount_tree_p, (SVC_IN_ARG_TYPE) & res,
+		(XDRPROC_T_TYPE) xdr_amq_mount_tree_p, (SVC_IN_ARG_TYPE) &res,
 		TIMEOUT) != RPC_SUCCESS) {
     return (NULL);
   }
@@ -109,7 +108,7 @@ amqproc_stats_1(voidp argp, CLIENT *clnt)
   if (clnt_call(clnt, AMQPROC_STATS,
 		(XDRPROC_T_TYPE) xdr_void, argp,
 		(XDRPROC_T_TYPE) xdr_amq_mount_stats,
-		(SVC_IN_ARG_TYPE) & res,
+		(SVC_IN_ARG_TYPE) &res,
 		TIMEOUT) != RPC_SUCCESS) {
     return (NULL);
   }
@@ -126,7 +125,7 @@ amqproc_export_1(voidp argp, CLIENT *clnt)
   if (clnt_call(clnt, AMQPROC_EXPORT,
 		(XDRPROC_T_TYPE) xdr_void, argp,
 		(XDRPROC_T_TYPE) xdr_amq_mount_tree_list,
-		(SVC_IN_ARG_TYPE) & res, TIMEOUT) != RPC_SUCCESS) {
+		(SVC_IN_ARG_TYPE) &res, TIMEOUT) != RPC_SUCCESS) {
     return (NULL);
   }
   return (&res);
@@ -141,7 +140,7 @@ amqproc_setopt_1(amq_setopt *argp, CLIENT *clnt)
   memset((char *) &res, 0, sizeof(res));
   if (clnt_call(clnt, AMQPROC_SETOPT, (XDRPROC_T_TYPE) xdr_amq_setopt,
 		(SVC_IN_ARG_TYPE) argp, (XDRPROC_T_TYPE) xdr_int,
-		(SVC_IN_ARG_TYPE) & res, TIMEOUT) != RPC_SUCCESS) {
+		(SVC_IN_ARG_TYPE) &res, TIMEOUT) != RPC_SUCCESS) {
     return (NULL);
   }
   return (&res);
@@ -156,7 +155,7 @@ amqproc_getmntfs_1(voidp argp, CLIENT *clnt)
   memset((char *) &res, 0, sizeof(res));
   if (clnt_call(clnt, AMQPROC_GETMNTFS, (XDRPROC_T_TYPE) xdr_void, argp,
 		(XDRPROC_T_TYPE) xdr_amq_mount_info_list,
-		(SVC_IN_ARG_TYPE) & res, TIMEOUT) != RPC_SUCCESS) {
+		(SVC_IN_ARG_TYPE) &res, TIMEOUT) != RPC_SUCCESS) {
     return (NULL);
   }
   return (&res);
@@ -170,7 +169,7 @@ amqproc_mount_1(voidp argp, CLIENT *clnt)
 
   memset((char *) &res, 0, sizeof(res));
   if (clnt_call(clnt, AMQPROC_MOUNT, (XDRPROC_T_TYPE) xdr_amq_string, argp,
-		(XDRPROC_T_TYPE) xdr_int, (SVC_IN_ARG_TYPE) & res,
+		(XDRPROC_T_TYPE) xdr_int, (SVC_IN_ARG_TYPE) &res,
 		TIMEOUT) != RPC_SUCCESS) {
     return (NULL);
   }
@@ -185,7 +184,7 @@ amqproc_getvers_1(voidp argp, CLIENT *clnt)
 
   memset((char *) &res, 0, sizeof(res));
   if (clnt_call(clnt, AMQPROC_GETVERS, (XDRPROC_T_TYPE) xdr_void, argp,
-		(XDRPROC_T_TYPE) xdr_amq_string, (SVC_IN_ARG_TYPE) & res,
+		(XDRPROC_T_TYPE) xdr_amq_string, (SVC_IN_ARG_TYPE) &res,
 		TIMEOUT) != RPC_SUCCESS) {
     return (NULL);
   }
@@ -200,7 +199,23 @@ amqproc_getpid_1(voidp argp, CLIENT *clnt)
 
   memset((char *) &res, 0, sizeof(res));
   if (clnt_call(clnt, AMQPROC_GETPID, (XDRPROC_T_TYPE) xdr_void, argp,
-		(XDRPROC_T_TYPE) xdr_int, (SVC_IN_ARG_TYPE) & res,
+		(XDRPROC_T_TYPE) xdr_int, (SVC_IN_ARG_TYPE) &res,
+		TIMEOUT) != RPC_SUCCESS) {
+    return (NULL);
+  }
+  return (&res);
+}
+
+
+amq_string *
+amqproc_pawd_1(amq_string *argp, CLIENT *clnt)
+{
+  static amq_string res;
+
+  memset((char *) &res, 0, sizeof(res));
+  if (clnt_call(clnt, AMQPROC_PAWD,
+		(XDRPROC_T_TYPE) xdr_amq_string, (SVC_IN_ARG_TYPE) argp,
+		(XDRPROC_T_TYPE) xdr_amq_string, (SVC_IN_ARG_TYPE) &res,
 		TIMEOUT) != RPC_SUCCESS) {
     return (NULL);
   }

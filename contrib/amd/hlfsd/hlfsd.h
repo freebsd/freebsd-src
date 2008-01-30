@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2004 Erez Zadok
+ * Copyright (c) 1997-2006 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -36,10 +36,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      %W% (Berkeley) %G%
  *
- * $Id: hlfsd.h,v 1.4.2.7 2004/01/06 03:15:23 ezk Exp $
- * $FreeBSD$
+ * File: am-utils/hlfsd/hlfsd.h
  *
  * HLFSD was written at Columbia University Computer Science Department, by
  * Erez Zadok <ezk@cs.columbia.edu> and Alexander Dupuy <dupuy@cs.columbia.edu>
@@ -101,9 +99,6 @@
 # define DEFAULT_LOGFILE 0
 #endif /* not HAVE)_SYSLOG */
 
-#define ERRM ": %m"
-#define fatalerror(str) \
-  (fatal (strcat (strnsave ((str), strlen ((str)) + sizeof (ERRM) - 1), ERRM)))
 
 /*
  * TYPEDEFS:
@@ -144,14 +139,14 @@ extern char *mailbox(int, char *);
 extern char *passwdfile;
 extern char *slinkname;
 extern gid_t hlfs_gid;
-extern int cache_interval;
+extern u_int cache_interval;
 extern int noverify;
 extern int serverpid;
 extern int untab_index(char *username);
 extern am_nfs_fh *root_fhp;
 extern am_nfs_fh root;
 extern nfstime startup;
-extern uid2home_t *plt_search(int);
+extern uid2home_t *plt_search(u_int);
 extern username2uid_t *untab;	/* user name table */
 extern void fatal(char *);
 extern void plt_init(void);

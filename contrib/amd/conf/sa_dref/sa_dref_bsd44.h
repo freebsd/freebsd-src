@@ -3,3 +3,4 @@
 		(dst)->addr = (struct sockaddr *) (src); \
 		(dst)->addrlen = sizeof(*src); \
 	}
+#define NFS_ARGS_T_ADDR_IS_POINTER 1

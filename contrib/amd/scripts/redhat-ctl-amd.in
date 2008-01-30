@@ -23,7 +23,9 @@ fi
 
 RETVAL=0
 prog=amd
-amd=@prefix@/sbin/amd
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+amd=@sbindir@/amd
 
 start() {
 	echo -n "Starting $prog: "

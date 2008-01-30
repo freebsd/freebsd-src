@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2004 Erez Zadok
+ * Copyright (c) 1997-2006 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -36,9 +36,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      %W% (Berkeley) %G%
  *
- * $Id: fsi_analyze.c,v 1.3.2.5 2004/01/06 03:15:23 ezk Exp $
+ * File: am-utils/fsinfo/fsi_analyze.c
  *
  */
 
@@ -112,10 +111,11 @@ domain_strip(char *otherdom, char *localdom)
 static char *
 compute_hostpath(char *hn)
 {
-  char *p = strdup(hn);
+  char *p = xmalloc(MAXPATHLEN);
   char *d;
   char path[MAXPATHLEN];
 
+  xstrlcpy(p, hn, MAXPATHLEN);
   domain_strip(p, hostname);
   path[0] = '\0';
 
@@ -123,16 +123,16 @@ compute_hostpath(char *hn)
     d = strrchr(p, '.');
     if (d) {
       *d = 0;
-      strcat(path, d + 1);
-      strcat(path, "/");
+      xstrlcat(path, d + 1, sizeof(path));
+      xstrlcat(path, "/", sizeof(path));
     } else {
-      strcat(path, p);
+      xstrlcat(path, p, sizeof(path));
     }
   } while (d);
 
   fsi_log("hostpath of '%s' is '%s'", hn, path);
 
-  strcpy(p, path);
+  xstrlcpy(p, path, MAXPATHLEN);
   return p;
 }
 
@@ -221,7 +221,7 @@ analyze_dkmount_tree(qelem *q, fsi_mount *parent, disk_fs *dk)
     fsi_log("Mount %s:", mp->m_name);
     if (parent) {
       char n[MAXPATHLEN];
-      sprintf(n, "%s/%s", parent->m_name, mp->m_name);
+      xsnprintf(n, sizeof(n), "%s/%s", parent->m_name, mp->m_name);
       if (*mp->m_name == '/')
 	lerror(mp->m_ioloc, "sub-directory %s of %s starts with '/'", mp->m_name, parent->m_name);
       else if (STREQ(mp->m_name, "default"))
@@ -281,10 +281,10 @@ analyze_dkmounts(disk_fs *dk, qelem *q)
   /*
    * Now see if a default mount point is required
    */
-  if (STREQ(mp2->m_name, "default")) {
+  if (mp2 && STREQ(mp2->m_name, "default")) {
     if (ISSET(mp2->m_mask, DM_VOLNAME)) {
       char nbuf[1024];
-      compute_automount_point(nbuf, dk->d_host, mp2->m_volname);
+      compute_automount_point(nbuf, sizeof(nbuf), dk->d_host, mp2->m_volname);
       XFREE(mp2->m_name);
       mp2->m_name = strdup(nbuf);
       fsi_log("%s:%s has default mount on %s", dk->d_host->h_hostname, dk->d_dev, mp2->m_name);
@@ -516,7 +516,8 @@ analyze_mounts(host *hp)
 	    ITER(dd, dict_data, &de->de_q) {
 	      fsi_mount *mp = (fsi_mount *) dd->dd_data;
 
-	      if (STREQ(mp->m_dk->d_host->h_hostname, fp->f_from)) {
+	      if (fp->f_from &&
+		  STREQ(mp->m_dk->d_host->h_hostname, fp->f_from)) {
 		mp2 = mp;
 		break;
 	      }
@@ -542,7 +543,8 @@ analyze_mounts(host *hp)
       lerror(fp->f_ioloc, "volname %s unknown", fp->f_volname);
     } else if (matched) {
 
-      fixup_required_mount_info(fp, de);
+      if (de)
+	fixup_required_mount_info(fp, de);
       req = ~fp->f_mask & FM_REQUIRED;
       if (req) {
 	show_required(fp->f_ioloc, req, fp->f_volname, hp->h_hostname,
@@ -631,7 +633,7 @@ analyze_automount_tree(qelem *q, char *pref, int lvl)
     if (lvl > 0 || ap->a_mount)
       if (ap->a_name[1] && strchr(ap->a_name + 1, '/'))
 	lerror(ap->a_ioloc, "not allowed '/' in a directory name");
-    sprintf(nname, "%s/%s", pref, ap->a_name);
+    xsnprintf(nname, sizeof(nname), "%s/%s", pref, ap->a_name);
     XFREE(ap->a_name);
     ap->a_name = strdup(nname[1] == '/' ? nname + 1 : nname);
     fsi_log("automount point %s:", ap->a_name);

@@ -32,12 +32,12 @@ fi
 cat << __EOF
 
 /* Define name of host */
-#define HOST_NAME "`hostname`"
+#define BUILD_HOST "`hostname`"
 
 /* Define user name */
-#define USER_NAME "`whoami`"
+#define BUILD_USER "`whoami`"
 
 /* Define configuration date */
-#define CONFIG_DATE "`LC_ALL=C date`"
+#define BUILD_DATE "`LC_ALL=C date`"
 
 __EOF

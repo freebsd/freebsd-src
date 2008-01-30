@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2004 Erez Zadok
+ * Copyright (c) 1997-2006 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -36,9 +36,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      %W% (Berkeley) %G%
  *
- * $Id: srvr_amfs_auto.c,v 1.3.2.6 2004/01/06 03:15:16 ezk Exp $
+ * File: am-utils/amd/srvr_amfs_auto.c
  *
  */
 
@@ -53,9 +52,9 @@
 #include <amd.h>
 
 /* globals */
-qelem amfs_auto_srvr_list = {&amfs_auto_srvr_list, &amfs_auto_srvr_list};
 
 /* statics */
+static qelem amfs_auto_srvr_list = {&amfs_auto_srvr_list, &amfs_auto_srvr_list};
 static fserver *localhost;
 
 
@@ -63,7 +62,7 @@ static fserver *localhost;
  * Find an nfs server for the local host
  */
 fserver *
-find_amfs_auto_srvr(mntfs *mf)
+amfs_generic_find_srvr(mntfs *mf)
 {
   fserver *fs = localhost;
 
@@ -73,8 +72,8 @@ find_amfs_auto_srvr(mntfs *mf)
     fs->fs_host = strdup("localhost");
     fs->fs_ip = 0;
     fs->fs_cid = 0;
-    fs->fs_pinger = 0;
-    fs->fs_flags = FSF_VALID;
+    fs->fs_pinger = AM_PINGER;
+    fs->fs_flags = FSF_VALID | FSF_PING_UNINIT;
     fs->fs_type = "local";
     fs->fs_private = 0;
     fs->fs_prfree = 0;
@@ -119,9 +118,7 @@ timeout_srvr(voidp v)
    * we are free to remove this node
    */
   if (fs->fs_refc == 0) {
-#ifdef DEBUG
     dlog("Deleting file server %s", fs->fs_host);
-#endif /* DEBUG */
     if (fs->fs_flags & FSF_WANT)
       wakeup_srvr(fs);
 
@@ -167,11 +164,9 @@ free_srvr(fserver *fs)
      * removed in AM_TTL seconds if no
      * other mntfs is referencing it.
      */
-    int ttl = (fs->fs_flags & (FSF_DOWN | FSF_ERROR)) ? 19 : AM_TTL;
+    int ttl = (FSRV_ERROR(fs) || FSRV_ISDOWN(fs)) ? 19 : AM_TTL;
 
-#ifdef DEBUG
     dlog("Last hard reference to file server %s - will timeout in %ds", fs->fs_host, ttl);
-#endif /* DEBUG */
     if (fs->fs_cid) {
       untimeout(fs->fs_cid);
       /*
