@@ -191,3 +191,64 @@
 0	string	PPF10			Playstation Patch File version 1.0
 >5	byte	0			\b, Simple Encoding
 >6	string	x			\b, description: %s
+
+# From: Daniel Dawson <ddawson@icehouse.net>
+# SNES9x .smv "movie" file format.
+0		string		SMV\x1A	SNES9x input recording
+>0x4		lelong		x	\b, version %d
+# version 4 is latest so far 
+>0x4		lelong		<5
+>>0x8		ledate		x	\b, recorded at %s
+>>0xc		lelong		>0	\b, rerecorded %d times
+>>0x10		lelong		x	\b, %d frames long
+>>0x14		byte		>0	\b, data for controller(s):
+>>>0x14		byte		&0x1	#1
+>>>0x14		byte		&0x2	#2
+>>>0x14		byte		&0x4	#3
+>>>0x14		byte		&0x8	#4
+>>>0x14		byte		&0x10	#5
+>>0x15		byte		^0x1	\b, begins from snapshot
+>>0x15		byte		&0x1	\b, begins from reset
+>>0x15		byte		^0x2	\b, NTSC standard
+>>0x15		byte		&0x2	\b, PAL standard
+>>0x17		byte		&0x1    \b, settings:
+# WIP1Timing not used as of version 4
+>>>0x4		lelong		<4
+>>>>0x17	byte		&0x2	WIP1Timing
+>>>0x17		byte		&0x4	Left+Right
+>>>0x17		byte		&0x8	VolumeEnvX
+>>>0x17		byte		&0x10	FakeMute
+>>>0x17		byte		&0x20	SyncSound
+# New flag as of version 4
+>>>0x4		lelong		>3
+>>>>0x17	byte		&0x80	NoCPUShutdown
+>>0x4		lelong		<4
+>>>0x18		lelong		>0x23
+>>>>0x20	leshort		!0
+>>>>>0x20	lestring16	x	\b, metadata: "%s"
+>>0x4		lelong		>3
+>>>0x24		byte		>0	\b, port 1:
+>>>>0x24	byte		1	joypad
+>>>>0x24	byte		2	mouse
+>>>>0x24	byte		3	SuperScope
+>>>>0x24	byte		4	Justifier
+>>>>0x24	byte		5	multitap
+>>>0x24		byte		>0	\b, port 2:
+>>>>0x25	byte		1	joypad
+>>>>0x25	byte		2	mouse
+>>>>0x25	byte		3	SuperScope
+>>>>0x25	byte		4	Justifier
+>>>>0x25	byte		5	multitap
+>>>0x18		lelong		>0x43
+>>>>0x40	leshort		!0
+>>>>>0x40	lestring16	x	\b, metadata: "%s"
+>>0x17		byte		&0x40   \b, ROM:
+>>>(0x18.l-26)	lelong		x	CRC32 0x%08x
+>>>(0x18.l-23)	string		x	"%s"
+
+# From: "Nelson A. de Oliveira" <naoliv@gmail.com>
+# .w3g
+0	string Warcraft\ III\ recorded\ game	%s
+# .w3m
+0	string HM3W				Warcraft III map file
+

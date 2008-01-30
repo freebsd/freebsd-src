@@ -1,7 +1,7 @@
 dnl Process this file with autoconf to produce a configure script.
 AC_INIT
 AC_CONFIG_SRCDIR([src/file.c])
-AM_INIT_AUTOMAKE(file, 4.21)
+AM_INIT_AUTOMAKE(file, 4.23)
 AM_CONFIG_HEADER([config.h])
 AM_MAINTAINER_MODE
 
@@ -49,6 +49,7 @@ fi], [
 ])
 AC_SUBST(fsect)
 AM_CONDITIONAL(FSECT5, test x$fsect = x5)
+AC_GNU_SOURCE
 
 dnl Checks for programs.
 AC_PROG_CC
@@ -66,11 +67,13 @@ AH_TEMPLATE([HAVE_LONG_LONG], [])
 AH_TEMPLATE([HAVE_TM_ISDST], [])
 AH_TEMPLATE([SIZEOF_UINT16_T], [])
 AH_TEMPLATE([SIZEOF_UINT32_T], [])
+AH_TEMPLATE([SIZEOF_INT64_T], [])
 AH_TEMPLATE([SIZEOF_UINT64_T], [])
 AH_TEMPLATE([SIZEOF_UINT8_T], [])
 AH_TEMPLATE([int32_t], [])
 AH_TEMPLATE([uint16_t], [])
 AH_TEMPLATE([uint32_t], [])
+AH_TEMPLATE([int64_t], [])
 AH_TEMPLATE([uint64_t], [])
 AH_TEMPLATE([uint8_t], [])
 
@@ -82,6 +85,7 @@ AC_HEADER_STDINT
 AC_CHECK_HEADERS(fcntl.h locale.h stdint.h inttypes.h unistd.h getopt.h)
 AC_CHECK_HEADERS(utime.h wchar.h wctype.h limits.h)
 AC_CHECK_HEADERS(sys/mman.h sys/stat.h sys/types.h sys/utime.h sys/time.h)
+AC_CHECK_HEADERS(zlib.h)
 
 dnl Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
@@ -106,20 +110,24 @@ AC_CHECK_TYPE_STDC(uint32_t, unsigned int)
 AC_CHECK_TYPE_STDC(int32_t, int)
 AC_C_LONG_LONG
 if test $ac_cv_c_long_long = yes; then
-  long64='unsigned long long';
+  ulong64='unsigned long long';
+  long64='long long';
 else
-  long64='unsigned long';
+  ulong64='unsigned long';
+  long64='long';
 fi
 dnl This needs a patch to autoconf 2.13 acgeneral.m4
-AC_CHECK_TYPE2_STDC(uint64_t, $long64)
+AC_CHECK_TYPE2_STDC(uint64_t, $ulong64)
+AC_CHECK_TYPE2_STDC(int64_t, $long64)
 
 AC_CHECK_SIZEOF_STDC_HEADERS(uint8_t, 0)
 AC_CHECK_SIZEOF_STDC_HEADERS(uint16_t, 0)
 AC_CHECK_SIZEOF_STDC_HEADERS(uint32_t, 0)
+AC_CHECK_SIZEOF_STDC_HEADERS(int64_t, 0)
 AC_CHECK_SIZEOF_STDC_HEADERS(uint64_t, 0)
 
 dnl Checks for functions
-AC_CHECK_FUNCS(mmap strerror strndup strtoul mbrtowc mkstemp getopt_long utimes utime wcwidth snprintf vsnprintf)
+AC_CHECK_FUNCS(mmap strerror strndup strtoul mbrtowc mkstemp getopt_long utimes utime wcwidth snprintf vsnprintf strtof)
 
 dnl Checks for libraries
 AC_CHECK_LIB(z,gzopen)

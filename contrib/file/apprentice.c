@@ -31,6 +31,7 @@
 
 #include "file.h"
 #include "magic.h"
+#include "patchlevel.h"
 #include <stdlib.h>
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
@@ -46,7 +47,7 @@
 #endif
 
 #ifndef	lint
-FILE_RCSID("@(#)$File: apprentice.c,v 1.105 2007/05/16 20:51:40 christos Exp $")
+FILE_RCSID("@(#)$File: apprentice.c,v 1.109 2007/12/27 20:52:36 christos Exp $")
 #endif	/* lint */
 
 #define	EATAB {while (isascii((unsigned char) *l) && \
@@ -110,6 +111,7 @@ private int apprentice_compile(struct magic_set *, struct magic **, uint32_t *,
     const char *);
 private int check_format_type(const char *, int);
 private int check_format(struct magic_set *, struct magic *);
+private int get_op(char);
 
 private size_t maxmagic = 0;
 private size_t magicsize = sizeof(struct magic);
@@ -188,6 +190,12 @@ static const struct type_tbl_s {
 	{ XX("qldate"),		FILE_QLDATE,		FILE_FMT_STR },
 	{ XX("leqldate"),	FILE_LEQLDATE,		FILE_FMT_STR },
 	{ XX("beqldate"),	FILE_BEQLDATE,		FILE_FMT_STR },
+	{ XX("float"),		FILE_FLOAT,		FILE_FMT_FLOAT },
+	{ XX("befloat"),	FILE_BEFLOAT,		FILE_FMT_FLOAT },
+	{ XX("lefloat"),	FILE_LEFLOAT,		FILE_FMT_FLOAT },
+	{ XX("double"),		FILE_DOUBLE,		FILE_FMT_DOUBLE },
+	{ XX("bedouble"),	FILE_BEDOUBLE,		FILE_FMT_DOUBLE },
+	{ XX("ledouble"),	FILE_LEDOUBLE,		FILE_FMT_DOUBLE },
 	{ XX_NULL,		FILE_INVALID,		FILE_FMT_NONE },
 # undef XX
 # undef XX_NULL
@@ -261,7 +269,6 @@ apprentice_1(struct magic_set *ms, const char *fn, int action,
 		rv = apprentice_file(ms, &magic, &nmagic, fn, action);
 		if (rv != 0)
 			return -1;
-		mapped = 0;
 	}
 
 	mapped = rv;
@@ -296,10 +303,12 @@ file_delmagic(struct magic *p, int type, size_t entries)
 	if (p == NULL)
 		return;
 	switch (type) {
+#ifdef QUICK
 	case 2:
 		p--;
 		(void)munmap((void *)p, sizeof(*p) * (entries + 1));
 		break;
+#endif
 	case 1:
 		p--;
 		/*FALLTHROUGH*/
@@ -431,6 +440,9 @@ apprentice_magic_strength(const struct magic *m)
 	case FILE_LELDATE:
 	case FILE_BELDATE:
 	case FILE_MELDATE:
+	case FILE_FLOAT:
+	case FILE_BEFLOAT:
+	case FILE_LEFLOAT:
 		val += 4 * MULT;
 		break;
 
@@ -443,6 +455,9 @@ apprentice_magic_strength(const struct magic *m)
 	case FILE_QLDATE:
 	case FILE_LEQLDATE:
 	case FILE_BEQLDATE:
+	case FILE_DOUBLE:
+	case FILE_BEDOUBLE:
+	case FILE_LEDOUBLE:
 		val += 8 * MULT;
 		break;
 
@@ -512,7 +527,7 @@ apprentice_file(struct magic_set *ms, struct magic **magicp, uint32_t *nmagicp,
 	private const char hdr[] =
 		"cont\toffset\ttype\topcode\tmask\tvalue\tdesc";
 	FILE *f;
-	char line[BUFSIZ+1];
+	char line[BUFSIZ];
 	int errs = 0;
 	struct magic_entry *marray;
 	uint32_t marraycount, i, mentrycount = 0;
@@ -541,7 +556,7 @@ apprentice_file(struct magic_set *ms, struct magic **magicp, uint32_t *nmagicp,
 		(void)fprintf(stderr, "%s\n", hdr);
 
 	/* read and parse this file */
-	for (ms->line = 1; fgets(line, BUFSIZ, f) != NULL; ms->line++) {
+	for (ms->line = 1; fgets(line, sizeof(line), f) != NULL; ms->line++) {
 		size_t len;
 		len = strlen(line);
 		if (len == 0) /* null line, garbage, etc */
@@ -646,6 +661,9 @@ file_signextend(struct magic_set *ms, struct magic *m, uint64_t v)
 		case FILE_BELONG:
 		case FILE_LELONG:
 		case FILE_MELONG:
+		case FILE_FLOAT:
+		case FILE_BEFLOAT:
+		case FILE_LEFLOAT:
 			v = (int32_t) v;
 			break;
 		case FILE_QUAD:
@@ -657,6 +675,9 @@ file_signextend(struct magic_set *ms, struct magic *m, uint64_t v)
 		case FILE_BEQLDATE:
 		case FILE_LEQDATE:
 		case FILE_LEQLDATE:
+		case FILE_DOUBLE:
+		case FILE_BEDOUBLE:
+		case FILE_LEDOUBLE:
 			v = (int64_t) v;
 			break;
 		case FILE_STRING:
@@ -959,6 +980,16 @@ parse(struct magic_set *ms, struct magic_entry **mentryp, uint32_t *nmentryp,
 			case 'B':
 				m->in_type = FILE_BYTE;
 				break;
+			case 'e':
+			case 'f':
+			case 'g':
+				m->in_type = FILE_LEDOUBLE;
+				break;
+			case 'E':
+			case 'F':
+			case 'G':
+				m->in_type = FILE_BEDOUBLE;
+				break;
 			default:
 				if (ms->flags & MAGIC_CHECK)
 					file_magwarn(ms,
@@ -1252,6 +1283,31 @@ check_format_type(const char *ptr, int type)
 			return -1;
 		}
 		
+	case FILE_FMT_FLOAT:
+	case FILE_FMT_DOUBLE:
+		if (*ptr == '-')
+			ptr++;
+		if (*ptr == '.')
+			ptr++;
+		while (isdigit((unsigned char)*ptr)) ptr++;
+		if (*ptr == '.')
+			ptr++;
+		while (isdigit((unsigned char)*ptr)) ptr++;
+	
+		switch (*ptr++) {
+		case 'e':
+		case 'E':
+		case 'f':
+		case 'F':
+		case 'g':
+		case 'G':
+			return 0;
+			
+		default:
+			return -1;
+		}
+		
+
 	case FILE_FMT_STR:
 		if (*ptr == '-')
 			ptr++;
@@ -1357,6 +1413,28 @@ getvalue(struct magic_set *ms, struct magic *m, const char **p, int action)
 			return -1;
 		}
 		m->vallen = slen;
+		return 0;
+	case FILE_FLOAT:
+	case FILE_BEFLOAT:
+	case FILE_LEFLOAT:
+		if (m->reln != 'x') {
+			char *ep;
+#ifdef HAVE_STRTOF
+			m->value.f = strtof(*p, &ep);
+#else
+			m->value.f = (float)strtod(*p, &ep);
+#endif
+			*p = ep;
+		}
+		return 0;
+	case FILE_DOUBLE:
+	case FILE_BEDOUBLE:
+	case FILE_LEDOUBLE:
+		if (m->reln != 'x') {
+			char *ep;
+			m->value.d = strtod(*p, &ep);
+			*p = ep;
+		}
 		return 0;
 	default:
 		if (m->reln != 'x') {
@@ -1685,8 +1763,9 @@ apprentice_map(struct magic_set *ms, struct magic **magicp, uint32_t *nmagicp,
 	else
 		version = ptr[1];
 	if (version != VERSIONNO) {
-		file_error(ms, 0, "version mismatch (%d != %d) in `%s'",
-		    version, VERSIONNO, dbname);
+		file_error(ms, 0, "File %d.%d supports only %d version magic "
+		    "files. `%s' is version %d", FILE_VERSION_MAJOR, patchlevel,
+		    VERSIONNO, dbname, version);
 		goto error;
 	}
 	*nmagicp = (uint32_t)(st.st_size / sizeof(struct magic)) - 1;
