@@ -14,6 +14,9 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20080126: oldcard.4 removal
+OLD_FILES+=usr/share/man/man4/card.4.gz
+OLD_FILES+=usr/share/man/man4/oldcard.4.gz
 # 20071207: Merged with fortunes-o.real
 OLD_FILES+=usr/share/games/fortune/fortunes2-o
 OLD_FILES+=usr/share/games/fortune/fortunes2-o.dat
