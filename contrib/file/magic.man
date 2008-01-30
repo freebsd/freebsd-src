@@ -1,389 +1,460 @@
-.TH MAGIC __FSECTION__ "Public Domain"
+.\" $File: magic.man,v 1.39 2007/11/08 00:31:37 christos Exp $
+.Dd January 10, 2007
+.Dt MAGIC __FSECTION__
+.Os
 .\" install as magic.4 on USG, magic.5 on V7 or Berkeley systems.
-.SH NAME
-magic \- file command's magic number file
-.SH DESCRIPTION
+.Sh NAME
+.Nm magic
+.Nd file command's magic number file
+.Sh DESCRIPTION
 This manual page documents the format of the magic file as
 used by the
-.BR file (__CSECTION__)
+.Xr file __CSECTION__
 command, version __VERSION__.
 The
-.BR file
+.Xr file __CSECTION__
 command identifies the type of a file using,
 among other tests,
 a test for whether the file begins with a certain
-.IR "magic number" .
+.Dq "magic number" .
 The file
-.I __MAGIC__
+.Pa __MAGIC__
 specifies what magic numbers are to be tested for,
 what message to print if a particular magic number is found,
 and additional information to extract from the file.
-.PP
+.Pp
 Each line of the file specifies a test to be performed.
 A test compares the data starting at a particular offset
 in the file with a 1-byte, 2-byte, or 4-byte numeric value or
 a string.
 If the test succeeds, a message is printed.
 The line consists of the following fields:
-.IP offset \w'message'u+2n
+.Bl -tag -width ".Dv message"
+.It Dv offset
 A number specifying the offset, in bytes, into the file of the data
 which is to be tested.
-.IP type
+.It Dv type
 The type of the data to be tested.
 The possible values are:
-.RS
-.IP byte \w'message'u+2n
+.Bl -tag -width ".Dv lestring16"
+.It Dv byte
 A one-byte value.
-.IP short
+.It Dv short
 A two-byte value (on most systems) in this machine's native byte order.
-.IP long
+.It Dv long
 A four-byte value (on most systems) in this machine's native byte order.
-.IP string
+.It Dv quad
+An eight-byte value (on most systems) in this machine's native byte order.
+.It Dv float
+A 32-bit (on most systems) single precision IEEE floating point number in this machine's native byte order.
+.It Dv double
+A 64-bit (on most systems) double precision IEEE floating point number in this machine's native byte order.
+.It Dv string
 A string of bytes.
 The string type specification can be optionally followed
 by /[Bbc]*.
-The ``B'' flag compacts whitespace in the target, which must
+The
+.Dq B
+flag compacts whitespace in the target, which must
 contain at least one whitespace character.
 If the magic has
-.I n
+.Dv n
 consecutive blanks, the target needs at least
-.I n
+.Dv n
 consecutive blanks to match.
-The ``b'' flag treats every blank in the target as an optional blank.
-Finally the ``c'' flag, specifies case insensitive matching: lowercase
+The
+.Dq b
+flag treats every blank in the target as an optional blank.
+Finally the
+.Dq c
+flag, specifies case insensitive matching: lowercase
 characters in the magic match both lower and upper case characters in the
 targer, whereas upper case characters in the magic, only much uppercase
 characters in the target.
-.IP pstring
+.It Dv pstring
 A pascal style string where the first byte is interpreted as the an
-unsigned length. The string is not NUL terminated.
-.IP date
+unsigned length.
+The string is not NUL terminated.
+.It Dv date
 A four-byte value interpreted as a UNIX date.
-.IP ldate
+.It Dv qdate
+A eight-byte value interpreted as a UNIX date.
+.It Dv ldate
 A four-byte value interpreted as a UNIX-style date, but interpreted as
 local time rather than UTC.
-.IP beshort
+.It Dv qldate
+An eight-byte value interpreted as a UNIX-style date, but interpreted as
+local time rather than UTC.
+.It Dv beshort
 A two-byte value (on most systems) in big-endian byte order.
-.IP belong
+.It Dv belong
 A four-byte value (on most systems) in big-endian byte order.
-.IP bedate
+.It Dv bequad
+An eight-byte value (on most systems) in big-endian byte order.
+.It Dv befloat
+A 32-bit (on most systems) single precision IEEE floating point number in big-endian byte order.
+.It Dv bedouble
+A 64-bit (on most systems) double precision IEEE floating point number in big-endian byte order.
+.It Dv bedate
 A four-byte value (on most systems) in big-endian byte order,
 interpreted as a Unix date.
-.IP beldate
+.It Dv beqdate
+An eight-byte value (on most systems) in big-endian byte order,
+interpreted as a Unix date.
+.It Dv beldate
 A four-byte value (on most systems) in big-endian byte order,
 interpreted as a UNIX-style date, but interpreted as local time rather
 than UTC.
-.IP bestring16
+.It Dv beqldate
+An eight-byte value (on most systems) in big-endian byte order,
+interpreted as a UNIX-style date, but interpreted as local time rather
+than UTC.
+.It Dv bestring16
 A two-byte unicode (UCS16) string in big-endian byte order.
-.IP leshort
+.It Dv leshort
 A two-byte value (on most systems) in little-endian byte order.
-.IP lelong
+.It Dv lelong
 A four-byte value (on most systems) in little-endian byte order.
-.IP ledate
+.It Dv lequad
+An eight-byte value (on most systems) in little-endian byte order.
+.It Dv lefloat
+A 32-bit (on most systems) single precision IEEE floating point number in little-endian byte order.
+.It Dv ledouble
+A 64-bit (on most systems) double precision IEEE floating point number in little-endian byte order.
+.It Dv ledate
 A four-byte value (on most systems) in little-endian byte order,
 interpreted as a UNIX date.
-.IP leldate
+.It Dv leqdate
+An eight-byte value (on most systems) in little-endian byte order,
+interpreted as a UNIX date.
+.It Dv leldate
 A four-byte value (on most systems) in little-endian byte order,
 interpreted as a UNIX-style date, but interpreted as local time rather
 than UTC.
-.IP lestring16
+.It Dv leqldate
+An eight-byte value (on most systems) in little-endian byte order,
+interpreted as a UNIX-style date, but interpreted as local time rather
+than UTC.
+.It Dv lestring16
 A two-byte unicode (UCS16) string in little-endian byte order.
-.IP melong
+.It Dv melong
 A four-byte value (on most systems) in middle-endian (PDP-11) byte order.
-.IP medate
+.It Dv medate
 A four-byte value (on most systems) in middle-endian (PDP-11) byte order,
 interpreted as a UNIX date.
-.IP meldate
+.It Dv meldate
 A four-byte value (on most systems) in middle-endian (PDP-11) byte order,
 interpreted as a UNIX-style date, but interpreted as local time rather
 than UTC.
-.IP regex
+.It Dv regex
 A regular expression match in extended POSIX regular expression syntax
 (much like egrep).
-The type specification can be optionally followed by
-.B /c
-for case-insensitive matches.
-The regular expression is always
-tested against the first
-.B N
+The type specification can be optionally followed by /[cse]*.
+The
+.Dq c
+flag makes the match case insensitive, while the
+.Dq s
+or
+.Dq e
+flags update the offset to the starting or ending offsets of the
+match (only one should be used).
+By default, regex does not update the offset.
+The regular expression is always tested against the first
+.Dv N
 lines, where
-.B N
+.Dv N
 is the given offset, thus it
 is only useful for (single-byte encoded) text.
-.B ^
+.Dv ^
 and
-.B $
+.Dv $
 will match the beginning and end of individual lines, respectively,
 not beginning and end of file.
-.IP search
-A literal string search starting at the given offset. It must be followed by
-.B /<number>
+.It Dv search
+A literal string search starting at the given offset.
+It must be followed by
+.Dv \*[Lt]number\*[Gt]
 which specifies how many matches shall be attempted (the range).
 This is suitable for searching larger binary expressions with variable
 offsets, using
-.B \e
+.Dv \e
 escapes for special characters.
-.RE
-.PP
+.It Dv default
+This is intended to be used with the text
+.Dv x
+(which is always true) and a message that is to be used if there are
+no other matches.
+.El
+.El
+.Pp
 The numeric types may optionally be followed by
-.B &
+.Dv \*[Am]
 and a numeric value,
 to specify that the value is to be AND'ed with the
 numeric value before any comparisons are done.
 Prepending a
-.B u
+.Dv u
 to the type indicates that ordered comparisons should be unsigned.
-.IP test
+.Bl -tag -width ".Dv message"
+.It Dv test
 The value to be compared with the value from the file.
 If the type is
 numeric, this value
 is specified in C form; if it is a string, it is specified as a C string
 with the usual escapes permitted (e.g. \en for new-line).
-.IP
+.Pp
 Numeric values
 may be preceded by a character indicating the operation to be performed.
 It may be
-.BR = ,
+.Dv = ,
 to specify that the value from the file must equal the specified value,
-.BR < ,
+.Dv \*[Lt] ,
 to specify that the value from the file must be less than the specified
 value,
-.BR > ,
+.Dv \*[Gt] ,
 to specify that the value from the file must be greater than the specified
 value,
-.BR & ,
+.Dv \*[Am] ,
 to specify that the value from the file must have set all of the bits
 that are set in the specified value,
-.BR ^ ,
+.Dv ^ ,
 to specify that the value from the file must have clear any of the bits
 that are set in the specified value, or
-.BR ~ ,
+.Dv ~ ,
 the value specified after is negated before tested.
-.BR x ,
+.Dv x ,
 to specify that any value will match.
 If the character is omitted, it is assumed to be
-.BR = .
-For all tests except
-.B string
+.Dv = .
+Operators
+.Dv \*[Am] ,
+.Dv ^ ,
 and
-.B regex,
+.Dv ~
+don't work with floats and doubles.
+For all tests except
+.Em string
+and
+.Em regex ,
 operation
-.BR !
+.Dv !
 specifies that the line matches if the test does
-.B not
+.Em not
 succeed.
-.IP
+.Pp
 Numeric values are specified in C form; e.g.
-.B 13
+.Dv 13
 is decimal,
-.B 013
+.Dv 013
 is octal, and
-.B 0x13
+.Dv 0x13
 is hexadecimal.
-.IP
+.Pp
 For string values, the byte string from the
 file must match the specified byte string.
 The operators
-.BR = ,
-.B <
+.Dv = ,
+.Dv \*[Lt]
 and
-.B >
+.Dv \*[Gt]
 (but not
-.BR & )
+.Dv \*[Am] )
 can be applied to strings.
 The length used for matching is that of the string argument
 in the magic file.
 This means that a line can match any string, and
 then presumably print that string, by doing
-.B >\e0
+.Em \*[Gt]\e0
 (because all strings are greater than the null string).
-.IP message
-The message to be printed if the comparison succeeds.  If the string
-contains a
-.BR printf (3)
+.Pp
+The special test
+.Em x
+always evaluates to true.
+.Dv message
+The message to be printed if the comparison succeeds.
+If the string contains a
+.Xr printf 3
 format specification, the value from the file (with any specified masking
 performed) is printed using the message as the format string.
-.PP
+If the string begins with ``\\b'', the message printed is the
+remainder of the string with no whitespace added before it: multiple
+matches are normally separated by a single space.
+.El
+.Pp
 Some file formats contain additional information which is to be printed
 along with the file type or need additional tests to determine the true
 file type.
 These additional tests are introduced by one or more
-.B >
+.Em \*[Gt]
 characters preceding the offset.
 The number of
-.B >
+.Em \*[Gt]
 on the line indicates the level of the test; a line with no
-.B >
+.Em \*[Gt]
 at the beginning is considered to be at level 0.
 Tests are arranged in a tree-like hierarchy:
 If a the test on a line at level
-.IB n
+.Em n
 succeeds, all following tests at level
-.IB n+1
+.Em n+1
 are performed, and the messages printed if the tests succeed, untile a line
 with level
-.IB n
+.Em n
 (or less) appears.
 For more complex files, one can use empty messages to get just the
 "if/then" effect, in the following way:
-.sp
-.nf
-    0      string   MZ
-    >0x18  leshort  <0x40   MS-DOS executable
-    >0x18  leshort  >0x3f   extended PC executable (e.g., MS Windows)
-.fi
-.PP
+.Bd -literal -offset indent
+0      string   MZ
+\*[Gt]0x18  leshort  \*[Lt]0x40   MS-DOS executable
+\*[Gt]0x18  leshort  \*[Gt]0x3f   extended PC executable (e.g., MS Windows)
+.Ed
+.Pp
 Offsets do not need to be constant, but can also be read from the file
 being examined.
 If the first character following the last
-.B >
+.Em \*[Gt]
 is a
-.B (
+.Em (
 then the string after the parenthesis is interpreted as an indirect offset.
 That means that the number after the parenthesis is used as an offset in
 the file.
 The value at that offset is read, and is used again as an offset
 in the file.
 Indirect offsets are of the form:
-.BI (( x [.[bslBSL]][+\-][ y ]).
+.Em (( x [.[bslBSL]][+\-][ y ]) .
 The value of
-.I x
-is used as an offset in the file. A byte, short or long is read at that offset
-depending on the
-.B [bslBSLm]
+.Em x
+is used as an offset in the file.
+A byte, short or long is read at that offset depending on the
+.Em [bslBSLm]
 type specifier.
 The capitalized types interpret the number as a big endian
 value, whereas the small letter versions interpret the number as a little
 endian value;
 the
-.B m
+.Em m
 type interprets the number as a middle endian (PDP-11) value.
 To that number the value of
-.I y
+.Em y
 is added and the result is used as an offset in the file.
 The default type if one is not specified is long.
-.PP
+.Pp
 That way variable length structures can be examined:
-.sp
-.nf
-    # MS Windows executables are also valid MS-DOS executables
-    0           string  MZ
-    >0x18       leshort <0x40   MZ executable (MS-DOS)
-    # skip the whole block below if it is not an extended executable
-    >0x18       leshort >0x3f
-    >>(0x3c.l)  string  PE\e0\e0  PE executable (MS-Windows)
-    >>(0x3c.l)  string  LX\e0\e0  LX executable (OS/2)
-.fi
-.PP
+.Bd -literal -offset indent
+# MS Windows executables are also valid MS-DOS executables
+0           string  MZ
+\*[Gt]0x18       leshort \*[Lt]0x40   MZ executable (MS-DOS)
+# skip the whole block below if it is not an extended executable
+\*[Gt]0x18       leshort \*[Gt]0x3f
+\*[Gt]\*[Gt](0x3c.l)  string  PE\e0\e0  PE executable (MS-Windows)
+\*[Gt]\*[Gt](0x3c.l)  string  LX\e0\e0  LX executable (OS/2)
+.Ed
+.Pp
 This strategy of examining has one drawback: You must make sure that
 you eventually print something, or users may get empty output (like, when
 there is neither PE\e0\e0 nor LE\e0\e0 in the above example)
-.PP
+.Pp
 If this indirect offset cannot be used as-is, there are simple calculations
 possible: appending
-.BI [+-*/%&|^]<number>
+.Em [+-*/%\*[Am]|^]\*[Lt]number\*[Gt]
 inside parentheses allows one to modify
 the value read from the file before it is used as an offset:
-.sp
-.nf
-    # MS Windows executables are also valid MS-DOS executables
-    0           string  MZ
-    # sometimes, the value at 0x18 is less that 0x40 but there's still an
-    # extended executable, simply appended to the file
-    >0x18       leshort <0x40
-    >>(4.s*512) leshort 0x014c  COFF executable (MS-DOS, DJGPP)
-    >>(4.s*512) leshort !0x014c MZ executable (MS-DOS)
-.fi
-.PP
+.Bd -literal -offset indent
+# MS Windows executables are also valid MS-DOS executables
+0           string  MZ
+# sometimes, the value at 0x18 is less that 0x40 but there's still an
+# extended executable, simply appended to the file
+\*[Gt]0x18       leshort \*[Lt]0x40
+\*[Gt]\*[Gt](4.s*512) leshort 0x014c  COFF executable (MS-DOS, DJGPP)
+\*[Gt]\*[Gt](4.s*512) leshort !0x014c MZ executable (MS-DOS)
+.Ed
+.Pp
 Sometimes you do not know the exact offset as this depends on the length or
-position (when indirection was used before) of preceding fields. You can
-specify an offset relative to the end of the last uplevel field using
-.BI &
+position (when indirection was used before) of preceding fields.
+You can specify an offset relative to the end of the last up-level
+field using
+.Sq \*[Am]
 as a prefix to the offset:
-.sp
-.nf
-    0           string  MZ
-    >0x18       leshort >0x3f
-    >>(0x3c.l)  string  PE\e0\e0    PE executable (MS-Windows)
-    # immediately following the PE signature is the CPU type
-    >>>&0       leshort 0x14c     for Intel 80386
-    >>>&0       leshort 0x184     for DEC Alpha
-.fi
-.PP
+.Bd -literal -offset indent
+0           string  MZ
+\*[Gt]0x18       leshort \*[Gt]0x3f
+\*[Gt]\*[Gt](0x3c.l)  string  PE\e0\e0    PE executable (MS-Windows)
+# immediately following the PE signature is the CPU type
+\*[Gt]\*[Gt]\*[Gt]\*[Am]0       leshort 0x14c     for Intel 80386
+\*[Gt]\*[Gt]\*[Gt]\*[Am]0       leshort 0x184     for DEC Alpha
+.Ed
+.Pp
 Indirect and relative offsets can be combined:
-.sp
-.nf
-    0             string  MZ
-    >0x18         leshort <0x40
-    >>(4.s*512)   leshort !0x014c MZ executable (MS-DOS)
-    # if it's not COFF, go back 512 bytes and add the offset taken
-    # from byte 2/3, which is yet another way of finding the start
-    # of the extended executable
-    >>>&(2.s-514) string  LE      LE executable (MS Windows VxD driver)
-.fi
-.PP
+.Bd -literal -offset indent
+0             string  MZ
+\*[Gt]0x18         leshort \*[Lt]0x40
+\*[Gt]\*[Gt](4.s*512)   leshort !0x014c MZ executable (MS-DOS)
+# if it's not COFF, go back 512 bytes and add the offset taken
+# from byte 2/3, which is yet another way of finding the start
+# of the extended executable
+\*[Gt]\*[Gt]\*[Gt]\*[Am](2.s-514) string  LE      LE executable (MS Windows VxD driver)
+.Ed
+.Pp
 Or the other way around:
-.sp
-.nf
-    0                 string  MZ
-    >0x18             leshort >0x3f
-    >>(0x3c.l)        string  LE\e0\e0  LE executable (MS-Windows)
-    # at offset 0x80 (-4, since relative offsets start at the end
-    # of the uplevel match) inside the LE header, we find the absolute
-    # offset to the code area, where we look for a specific signature
-    >>>(&0x7c.l+0x26) string  UPX     \eb, UPX compressed
-.fi
-.PP
+.Bd -literal -offset indent
+0                 string  MZ
+\*[Gt]0x18             leshort \*[Gt]0x3f
+\*[Gt]\*[Gt](0x3c.l)        string  LE\e0\e0  LE executable (MS-Windows)
+# at offset 0x80 (-4, since relative offsets start at the end
+# of the up-level match) inside the LE header, we find the absolute
+# offset to the code area, where we look for a specific signature
+\*[Gt]\*[Gt]\*[Gt](\*[Am]0x7c.l+0x26) string  UPX     \eb, UPX compressed
+.Ed
+.Pp
 Or even both!
-.sp
-.nf
-    0                string  MZ
-    >0x18            leshort >0x3f
-    >>(0x3c.l)       string  LE\e0\e0 LE executable (MS-Windows)
-    # at offset 0x58 inside the LE header, we find the relative offset
-    # to a data area where we look for a specific signature
-    >>>&(&0x54.l-3)  string  UNACE  \eb, ACE self-extracting archive
-.fi
-.PP
+.Bd -literal -offset indent
+0                string  MZ
+\*[Gt]0x18            leshort \*[Gt]0x3f
+\*[Gt]\*[Gt](0x3c.l)       string  LE\e0\e0 LE executable (MS-Windows)
+# at offset 0x58 inside the LE header, we find the relative offset
+# to a data area where we look for a specific signature
+\*[Gt]\*[Gt]\*[Gt]\*[Am](\*[Am]0x54.l-3)  string  UNACE  \eb, ACE self-extracting archive
+.Ed
+.Pp
 Finally, if you have to deal with offset/length pairs in your file, even the
-second value in a parenthesed expression can be taken from the file itself,
-using another set of parentheses. Note that this additional indirect offset
-is always relative to the start of the main indirect offset.
-.sp
-.nf
-    0                 string       MZ
-    >0x18             leshort      >0x3f
-    >>(0x3c.l)        string       PE\e0\e0 PE executable (MS-Windows)
-    # search for the PE section called ".idata"...
-    >>>&0xf4          search/0x140 .idata
-    # ...and go to the end of it, calculated from start+length;
-    # these are located 14 and 10 bytes after the section name
-    >>>>(&0xe.l+(-4)) string       PK\e3\e4 \eb, ZIP self-extracting archive
-.fi
-.SH BUGS
+second value in a parenthesized expression can be taken from the file itself,
+using another set of parentheses.
+Note that this additional indirect offset is always relative to the
+start of the main indirect offset.
+.Bd -literal -offset indent
+0                 string       MZ
+\*[Gt]0x18             leshort      \*[Gt]0x3f
+\*[Gt]\*[Gt](0x3c.l)        string       PE\e0\e0 PE executable (MS-Windows)
+# search for the PE section called ".idata"...
+\*[Gt]\*[Gt]\*[Gt]\*[Am]0xf4          search/0x140 .idata
+# ...and go to the end of it, calculated from start+length;
+# these are located 14 and 10 bytes after the section name
+\*[Gt]\*[Gt]\*[Gt]\*[Gt](\*[Am]0xe.l+(-4)) string       PK\e3\e4 \eb, ZIP self-extracting archive
+.Ed
+.Sh SEE ALSO
+.Xr file __CSECTION__
+\- the command that reads this file.
+.Sh BUGS
 The formats
-.IR long ,
-.IR belong ,
-.IR lelong ,
-.IR melong ,
-.IR short ,
-.IR beshort ,
-.IR leshort ,
-.IR date ,
-.IR bedate ,
-.IR medate ,
-.IR ledate ,
-.IR beldate ,
-.IR leldate ,
+.Dv long ,
+.Dv belong ,
+.Dv lelong ,
+.Dv melong ,
+.Dv short ,
+.Dv beshort ,
+.Dv leshort ,
+.Dv date ,
+.Dv bedate ,
+.Dv medate ,
+.Dv ledate ,
+.Dv beldate ,
+.Dv leldate ,
 and
-.I meldate
+.Dv meldate
 are system-dependent; perhaps they should be specified as a number
 of bytes (2B, 4B, etc),
 since the files being recognized typically come from
 a system on which the lengths are invariant.
-.SH SEE ALSO
-.BR file (__CSECTION__)
-\- the command that reads this file.
 .\"
 .\" From: guy@sun.uucp (Guy Harris)
 .\" Newsgroups: net.bugs.usg
@@ -397,4 +468,4 @@ a system on which the lengths are invariant.
 .\" the changes I posted to the S5R2 version.
 .\"
 .\" Modified for Ian Darwin's version of the file command.
-.\" @(#)$Id: magic.man,v 1.30 2006/02/19 18:16:03 christos Exp $
+.\" @(#)$Id: magic.man,v 1.39 2007/11/08 00:31:37 christos Exp $
