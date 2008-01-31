@@ -2874,7 +2874,7 @@ sctp_handle_segments(struct mbuf *m, int *offset, struct sctp_tcb *stcb, struct 
 			}
 			last_frag_high = frag_end + last_tsn;
 		}
-		for (j = frag_strt + last_tsn; j <= frag_end + last_tsn; j++) {
+		for (j = frag_strt + last_tsn; (compare_with_wrap((frag_end + last_tsn), j, MAX_TSN)); j++) {
 			while (tp1) {
 				if (tp1->rec.data.doing_fast_retransmit)
 					num_frs++;
