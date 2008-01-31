@@ -2429,8 +2429,9 @@ sctp_inpcb_bind(struct socket *so, struct sockaddr *addr,
 			if (prison) {
 				/*
 				 * For INADDR_ANY and  LOOPBACK the
-				 * prison_ip() call will tranmute the ip
-				 * address to the proper valie.
+				 * prison_ip() call will transmute the ip
+				 * address to the proper value (i.e. the IP
+				 * address owned by the jail).
 				 */
 				if (prison_ip(p->td_ucred, 0, &sin->sin_addr.s_addr)) {
 					SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, EINVAL);
@@ -2471,11 +2472,11 @@ sctp_inpcb_bind(struct socket *so, struct sockaddr *addr,
 			return (EAFNOSUPPORT);
 		}
 	}
+	SCTP_INP_INFO_WLOCK();
+	SCTP_INP_WLOCK(inp);
 	/* Setup a vrf_id to be the default for the non-bind-all case. */
 	vrf_id = inp->def_vrf_id;
 
-	SCTP_INP_INFO_WLOCK();
-	SCTP_INP_WLOCK(inp);
 	/* increase our count due to the unlock we do */
 	SCTP_INP_INCR_REF(inp);
 	if (lport) {
