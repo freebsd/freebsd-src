@@ -573,6 +573,7 @@ ng_iface_newhook(node_p node, hook_p hook, const char *name)
 	if (*hookptr != NULL)
 		return (EISCONN);
 	*hookptr = hook;
+	NG_HOOK_HI_STACK(hook);
 	return (0);
 }
 
