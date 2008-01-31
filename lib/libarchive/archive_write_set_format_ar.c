@@ -75,6 +75,7 @@ static int		 archive_write_ar_header(struct archive_write *,
 static ssize_t		 archive_write_ar_data(struct archive_write *,
 			     const void *buff, size_t s);
 static int		 archive_write_ar_destroy(struct archive_write *);
+static int		 archive_write_ar_finish(struct archive_write *);
 static int		 archive_write_ar_finish_entry(struct archive_write *);
 static const char	*ar_basename(const char *path);
 static int		 format_octal(int64_t v, char *p, int s);
@@ -126,7 +127,7 @@ archive_write_set_format_ar(struct archive_write *a)
 
 	a->format_write_header = archive_write_ar_header;
 	a->format_write_data = archive_write_ar_data;
-	a->format_finish = NULL;
+	a->format_finish = archive_write_ar_finish;
 	a->format_destroy = archive_write_ar_destroy;
 	a->format_finish_entry = archive_write_ar_finish_entry;
 	return (ARCHIVE_OK);
@@ -394,6 +395,23 @@ archive_write_ar_destroy(struct archive_write *a)
 
 	free(ar);
 	a->format_data = NULL;
+	return (ARCHIVE_OK);
+}
+
+static int
+archive_write_ar_finish(struct archive_write *a)
+{
+	int ret;
+
+	/*
+	 * If we haven't written anything yet, we need to write
+	 * the ar global header now to make it a valid ar archive.
+	 */
+	if (a->archive.file_position == 0) {
+		ret = (a->compressor.write)(a, "!<arch>\n", 8);
+		return (ret);
+	}
+
 	return (ARCHIVE_OK);
 }
 
