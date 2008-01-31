@@ -60,6 +60,7 @@
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
 #include <sys/refcount.h>
+#include <sys/proc.h>
 
 #include <net/netisr.h>
 
@@ -2300,8 +2301,6 @@ ng_snd_item(item_p item, int flags)
 		ERROUT(EINVAL);	/* No address */
 	}
 
-	queue = (flags & NG_QUEUE) ? 1 : 0;
-
 	switch(item->el_flags & NGQF_TYPE) {
 	case NGQF_DATA:
 		/*
@@ -2327,9 +2326,6 @@ ng_snd_item(item_p item, int flags)
 		|| (NG_NODE_NOT_VALID(NG_HOOK_NODE(hook)))) {
 			ERROUT(ENOTCONN);
 		}
-		if ((hook->hk_flags & HK_QUEUE)) {
-			queue = 1;
-		}
 		break;
 	case NGQF_MESG:
 		/*
@@ -2339,9 +2335,6 @@ ng_snd_item(item_p item, int flags)
 		 * References are held by the item on the node and
 		 * the hook if it is present.
 		 */
-		if (hook && (hook->hk_flags & HK_QUEUE)) {
-			queue = 1;
-		}
 		break;
 	case NGQF_FN:
 	case NGQF_FN2:
@@ -2369,6 +2362,27 @@ ng_snd_item(item_p item, int flags)
 	if ((node->nd_flags & NGF_FORCE_WRITER)
 	    || (hook && (hook->hk_flags & HK_FORCE_WRITER)))
 			rw = NGQRW_W;
+
+	/*
+	 * If sender or receiver requests queued delivery or stack usage
+	 * level is dangerous - enqueue message.
+	 */
+	queue = 0;
+	if ((flags & NG_QUEUE) || (hook && (hook->hk_flags & HK_QUEUE))) {
+		queue = 1;
+	}
+#ifdef GET_STACK_USAGE
+	else {
+		size_t	st, su;
+		GET_STACK_USAGE(st, su);
+		su = (su * 128) / st;
+		if ((su > 100) ||
+		    ((su > 64) && ((node->nd_flags & NGF_HI_STACK) ||
+		      (hook && (hook->hk_flags & HK_HI_STACK))))) {
+			queue = 1;
+		}
+	}
+#endif
 
 	if (queue) {
 		/* Put it on the queue for that node*/
