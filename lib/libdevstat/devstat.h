@@ -32,6 +32,7 @@
 #define _DEVSTAT_H
 #include <sys/cdefs.h>
 #include <sys/devicestat.h>
+#include <sys/resource.h>
 
 #include <kvm.h>
 
