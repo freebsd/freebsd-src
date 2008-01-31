@@ -44,4 +44,17 @@ struct mdthread {
 struct mdproc {
 };
 
+#ifdef	_KERNEL
+
+/* Get the current kernel thread stack usage. */
+#define GET_STACK_USAGE(total, used) do {				\
+	struct thread	*td = curthread;				\
+	(total) = td->td_kstack_pages * PAGE_SIZE;			\
+	(used) = (char *)td->td_kstack +				\
+	    td->td_kstack_pages * PAGE_SIZE -				\
+	    (char *)&td;						\
+} while (0)
+
+#endif  /* _KERNEL */
+
 #endif /* !_MACHINE_PROC_H_ */
