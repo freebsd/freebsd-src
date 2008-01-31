@@ -930,7 +930,7 @@ diskPartitionNonInteractive(Device *dev)
 		d->bios_cyl, d->bios_hd, d->bios_sect, d->name);
 	    Sanitize_Bios_Geom(d);
 	    msgDebug("Sanitized geometry for %s is %lu/%lu/%lu.\n",
-	    d->name, d->bios_cyl, d->bios_hd, d->bios_sect);
+		d->name, d->bios_cyl, d->bios_hd, d->bios_sect);
 	}
     }
 
