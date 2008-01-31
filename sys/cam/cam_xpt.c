@@ -1384,7 +1384,7 @@ ptstartover:
 			if (base_periph_found == 1) {
 				printf("xptioctl: pass driver is not in the "
 				       "kernel\n");
-				printf("xptioctl: put \"device pass0\" in "
+				printf("xptioctl: put \"device pass\" in "
 				       "your kernel config file\n");
 			}
 		}
