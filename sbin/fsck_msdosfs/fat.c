@@ -348,11 +348,11 @@ clustdiffer(cl_t cl, cl_t *cp1, cl_t *cp2, int fatnum)
 			}
 			pwarn("Cluster %u is marked %s in FAT 0, %s in FAT %d\n",
 			      cl, rsrvdcltype(*cp1), rsrvdcltype(*cp2), fatnum);
-			if (ask(0, "use FAT 0's entry")) {
+			if (ask(0, "Use FAT 0's entry")) {
 				*cp2 = *cp1;
 				return FSFATMOD;
 			}
-			if (ask(0, "use FAT %d's entry", fatnum)) {
+			if (ask(0, "Use FAT %d's entry", fatnum)) {
 				*cp1 = *cp2;
 				return FSFATMOD;
 			}
