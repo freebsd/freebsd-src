@@ -2293,14 +2293,13 @@ ng_snd_item(item_p item, int flags)
 	if (item->apply)
 		refcount_acquire(&item->apply->refs);
 
-	hook = NGI_HOOK(item);
 	node = NGI_NODE(item);
-	ngq = &node->nd_input_queue;
 	if (node == NULL) {
 		TRAP_ERROR();
 		ERROUT(EINVAL);	/* No address */
 	}
 
+	hook = NGI_HOOK(item);
 	switch(item->el_flags & NGQF_TYPE) {
 	case NGQF_DATA:
 		/*
@@ -2384,6 +2383,7 @@ ng_snd_item(item_p item, int flags)
 	}
 #endif
 
+	ngq = &node->nd_input_queue;
 	if (queue) {
 		/* Put it on the queue for that node*/
 #ifdef	NETGRAPH_DEBUG
@@ -2442,10 +2442,9 @@ ng_snd_item(item_p item, int flags)
 
 done:
 	/* Apply callback. */
-	if (item->apply != NULL &&
-	    refcount_release(&item->apply->refs)) {
+	if (item->apply != NULL && refcount_release(&item->apply->refs))
 		(*item->apply->apply)(item->apply->context, error);
-	}
+
 	NG_FREE_ITEM(item);
 	return (error);
 }
@@ -2497,16 +2496,14 @@ ng_apply_item(node_p node, item_p item, int rw)
 		error = (*rcvdata)(hook, item);
 		break;
 	case NGQF_MESG:
-		if (hook) {
-			if (NG_HOOK_NOT_VALID(hook)) {
-				/*
-				 * The hook has been zapped then we can't
-				 * use it. Immediately drop its reference.
-				 * The message may not need it.
-				 */
-				NG_HOOK_UNREF(hook);
-				hook = NULL;
-			}
+		if (hook && NG_HOOK_NOT_VALID(hook)) {
+			/*
+			 * The hook has been zapped then we can't use it.
+			 * Immediately drop its reference.
+			 * The message may not need it.
+			 */
+			NG_HOOK_UNREF(hook);
+			hook = NULL;
 		}
 		/*
 		 * Similarly, if the node is a zombie there is
@@ -2516,42 +2513,31 @@ ng_apply_item(node_p node, item_p item, int rw)
 			TRAP_ERROR();
 			error = EINVAL;
 			NG_FREE_ITEM(item);
-		} else {
-			/*
-			 * Call the appropriate message handler for the object.
-			 * It is up to the message handler to free the message.
-			 * If it's a generic message, handle it generically,
-			 * otherwise call the type's message handler
-			 * (if it exists)
-			 * XXX (race). Remember that a queued message may
-			 * reference a node or hook that has just been
-			 * invalidated. It will exist as the queue code
-			 * is holding a reference, but..
-			 */
-
-			struct ng_mesg *msg = NGI_MSG(item);
-
-			/*
-			 * check if the generic handler owns it.
-			 */
-			if ((msg->header.typecookie == NGM_GENERIC_COOKIE)
-			&& ((msg->header.flags & NGF_RESP) == 0)) {
-				error = ng_generic_msg(node, item, hook);
-				break;
-			}
-			/*
-			 * Now see if there is a handler (hook or node specific)
-			 * in the target node. If none, silently discard.
-			 */
-			if (((!hook) || (!(rcvmsg = hook->hk_rcvmsg)))
-			&& (!(rcvmsg = node->nd_type->rcvmsg))) {
-				TRAP_ERROR();
-				error = 0;
-				NG_FREE_ITEM(item);
-				break;
-			}
-			error = (*rcvmsg)(node, item, hook);
+			break;
 		}
+		/*
+		 * Call the appropriate message handler for the object.
+		 * It is up to the message handler to free the message.
+		 * If it's a generic message, handle it generically,
+		 * otherwise call the type's message handler (if it exists).
+		 * XXX (race). Remember that a queued message may
+		 * reference a node or hook that has just been
+		 * invalidated. It will exist as the queue code
+		 * is holding a reference, but..
+		 */
+		if ((NGI_MSG(item)->header.typecookie == NGM_GENERIC_COOKIE) &&
+		    ((NGI_MSG(item)->header.flags & NGF_RESP) == 0)) {
+			error = ng_generic_msg(node, item, hook);
+			break;
+		}
+		if (((!hook) || (!(rcvmsg = hook->hk_rcvmsg))) &&
+		    (!(rcvmsg = node->nd_type->rcvmsg))) {
+			TRAP_ERROR();
+			error = 0;
+			NG_FREE_ITEM(item);
+			break;
+		}
+		error = (*rcvmsg)(node, item, hook);
 		break;
 	case NGQF_FN:
 	case NGQF_FN2:
@@ -2582,9 +2568,8 @@ ng_apply_item(node_p node, item_p item, int rw)
 	 * that we took from the item. Now that we have
 	 * finished doing everything, drop those references.
 	 */
-	if (hook) {
+	if (hook)
 		NG_HOOK_UNREF(hook);
-	}
 
  	if (rw == NGQRW_R) {
 		ng_leave_read(&node->nd_input_queue);
@@ -2593,10 +2578,8 @@ ng_apply_item(node_p node, item_p item, int rw)
 	}
 
 	/* Apply callback. */
-	if (apply != NULL &&
-	    refcount_release(&apply->refs)) {
+	if (apply != NULL && refcount_release(&apply->refs))
 		(*apply->apply)(apply->context, error);
-	}
 
 	return (error);
 }
