@@ -366,6 +366,7 @@ _zzz=		zzz
 .if ${MACHINE_ARCH} == "powerpc"
 _mount_smbfs=	mount_smbfs
 _nvram=		nvram
+_ofwdump=	ofwdump
 .endif
 
 .if ${MACHINE_ARCH} == "sparc64"
