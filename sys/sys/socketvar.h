@@ -273,6 +273,13 @@ struct xsocket {
  */
 
 /*
+ * Flags to sblock().
+ */
+#define	SBL_WAIT	0x00000001	/* Wait if not immediately available. */
+#define	SBL_NOINTR	0x00000002	/* Force non-interruptible sleep. */
+#define	SBL_VALID	(SBL_WAIT | SBL_NOINTR)
+
+/*
  * Do we need to notify the other side when I/O is possible?
  */
 #define	sb_notify(sb)	(((sb)->sb_flags & (SB_WAIT | SB_SEL | SB_ASYNC | \
