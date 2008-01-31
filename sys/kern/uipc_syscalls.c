@@ -1863,8 +1863,13 @@ kern_sendfile(struct thread *td, struct sendfile_args *uap,
 		}
 	}
 
-	/* Protect against multiple writers to the socket. */
-	(void) sblock(&so->so_snd, M_WAITOK);
+	/*
+	 * Protect against multiple writers to the socket.
+	 *
+	 * XXXRW: Historically this has assumed non-interruptibility, so now
+	 * we implement that, but possibly shouldn't.
+	 */
+	(void)sblock(&so->so_snd, SBL_WAIT | SBL_NOINTR);
 
 	/*
 	 * Loop through the pages of the file, starting with the requested

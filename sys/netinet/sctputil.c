@@ -4993,7 +4993,7 @@ sctp_sorecvmsg(struct socket *so,
 		sctp_misc_ints(SCTP_SORECV_ENTERPL,
 		    rwnd_req, block_allowed, so->so_rcv.sb_cc, uio->uio_resid);
 	}
-	error = sblock(&so->so_rcv, (block_allowed ? M_WAITOK : 0));
+	error = sblock(&so->so_rcv, (block_allowed ? SBL_WAIT : 0));
 	sockbuf_lock = 1;
 	if (error) {
 		goto release_unlocked;
