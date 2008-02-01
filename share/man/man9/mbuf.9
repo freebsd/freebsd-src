@@ -45,8 +45,9 @@
 .Fa "struct mbuf *mbuf"
 .Fa "caddr_t buf"
 .Fa "u_int size"
-.Fa "void (*free)(void *opt_args)"
-.Fa "void *opt_args"
+.Fa "void (*free)(void *opt_arg1, void *opt_arg2)"
+.Fa "void *opt_arg1"
+.Fa "void *opt_arg2"
 .Fa "short flags"
 .Fa "int type"
 .Fc

@@ -833,8 +833,8 @@ msk_jumbo_newbuf(struct msk_if_softc *sc_if, int idx)
 		return (ENOBUFS);
 	}
 	/* Attach the buffer to the mbuf. */
-	MEXTADD(m, buf, MSK_JLEN, msk_jfree, (struct msk_if_softc *)sc_if, 0,
-	    EXT_NET_DRV);
+	MEXTADD(m, buf, MSK_JLEN, msk_jfree, buf,
+	    (struct msk_if_softc *)sc_if, 0, EXT_NET_DRV);
 	if ((m->m_flags & M_EXT) == 0) {
 		m_freem(m);
 		return (ENOBUFS);
