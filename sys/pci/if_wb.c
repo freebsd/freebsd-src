@@ -1036,8 +1036,8 @@ wb_newbuf(sc, c, m)
 			return(ENOBUFS);
 		m_new->m_data = c->wb_buf;
 		m_new->m_pkthdr.len = m_new->m_len = WB_BUFBYTES;
-		MEXTADD(m_new, c->wb_buf, WB_BUFBYTES, wb_bfree, NULL, 0,
-		    EXT_NET_DRV);
+		MEXTADD(m_new, c->wb_buf, WB_BUFBYTES, wb_bfree, c->wb_buf,
+		    NULL, 0, EXT_NET_DRV);
 	} else {
 		m_new = m;
 		m_new->m_len = m_new->m_pkthdr.len = WB_BUFBYTES;
