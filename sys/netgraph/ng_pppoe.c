@@ -600,7 +600,8 @@ pppoe_findsession(priv_p privp, const struct pppoe_full_hdr *wh)
 		}
 	}
 	mtx_unlock(&privp->sesshash[hash].mtx);
-	CTR3(KTR_NET, "%20s: matched %p for %d", __func__, sp, session);
+	CTR3(KTR_NET, "%20s: matched %p for %d", __func__, sp?sp->hook:NULL,
+	    session);
 
 	return (sp);
 }
