@@ -2509,7 +2509,8 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 			atomic_add_int(&(*stcb)->asoc.refcnt, 1);
 			SCTP_TCB_UNLOCK((*stcb));
 
-			sctp_pull_off_control_to_new_inp((*inp_p), inp, *stcb, M_NOWAIT);
+			sctp_pull_off_control_to_new_inp((*inp_p), inp, *stcb,
+			    0);
 			SCTP_TCB_LOCK((*stcb));
 			atomic_subtract_int(&(*stcb)->asoc.refcnt, 1);
 
