@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #define	SM(_v, _f)	(((_v) << _f##_S) & _f)
 
 /* XXX need max array size */
+/* NB: these are for HT20 w/ long GI */
 const int ieee80211_htrates[16] = {
 	13,		/* IFM_IEEE80211_MCS0 */
 	26,		/* IFM_IEEE80211_MCS1 */
@@ -1348,7 +1349,7 @@ ieee80211_aggr_recv_action(struct ieee80211_node *ni,
 
 			ac = TID_TO_WME_AC(tid);
 			tap = &ni->ni_tx_ampdu[ac];
-			if ((tap->txa_flags & ~IEEE80211_AGGR_XCHGPEND) == 0) {
+			if ((tap->txa_flags & IEEE80211_AGGR_XCHGPEND) == 0) {
 				IEEE80211_DISCARD_MAC(ic,
 				    IEEE80211_MSG_ACTION | IEEE80211_MSG_11N,
 				    ni->ni_macaddr, "ADDBA response",
