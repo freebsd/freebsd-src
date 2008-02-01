@@ -137,8 +137,12 @@ int
 sblock(struct sockbuf *sb, int flags)
 {
 
-	if (flags == M_WAITOK) {
-		if (sb->sb_flags & SB_NOINTR) {
+	KASSERT((flags & SBL_VALID) == flags,
+	    ("sblock: flags invalid (0x%x)", flags));
+
+	if (flags & SBL_WAIT) {
+		if ((sb->sb_flags & SB_NOINTR) ||
+		    (flags & SBL_NOINTR)) {
 			sx_xlock(&sb->sb_sx);
 			return (0);
 		}
