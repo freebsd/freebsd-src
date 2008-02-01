@@ -21,7 +21,11 @@ dhclient_start()
 	if [ -x /bin/pgrep ]; then
 		pids=`/bin/pgrep -f "dhclient: $ifn(\$| .*)"`
 		if [ -n "$pids" ]; then
-			exit 0
+			sleep 1
+			pids=`/bin/pgrep -f "dhclient: $ifn(\$| .*)"`
+			if [ -n "$pids" ]; then
+				exit 0
+			fi
 		fi
 	fi
 
