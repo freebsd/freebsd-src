@@ -160,8 +160,8 @@ socow_setup(struct mbuf *m0, struct uio *uio)
 	/* 
 	 * attach to mbuf
 	 */
-	MEXTADD(m0, sf_buf_kva(sf), PAGE_SIZE, socow_iodone, sf, M_RDONLY,
-	    EXT_SFBUF);
+	MEXTADD(m0, sf_buf_kva(sf), PAGE_SIZE, socow_iodone,
+	    (void*)sf_buf_kva(sf), sf, M_RDONLY, EXT_SFBUF);
 	m0->m_len = PAGE_SIZE - offset;
 	m0->m_data = (caddr_t)sf_buf_kva(sf) + offset;
 	socow_stats.success++;

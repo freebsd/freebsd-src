@@ -734,7 +734,7 @@ ndis_ptom(m0, p)
 		m->m_len = MmGetMdlByteCount(buf);
 		m->m_data = MmGetMdlVirtualAddress(buf);
 		MEXTADD(m, m->m_data, m->m_len, ndis_return_packet,
-		    p, 0, EXT_NDIS);
+		    m->m_data, p, 0, EXT_NDIS);
 		p->np_refcnt++;
 
 		totlen += m->m_len;

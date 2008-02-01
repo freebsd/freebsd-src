@@ -1503,7 +1503,8 @@ ti_newbuf_jumbo(sc, idx, m_old)
 			m[i]->m_data = (void *)sf_buf_kva(sf[i]);
 			m[i]->m_len = PAGE_SIZE;
 			MEXTADD(m[i], sf_buf_kva(sf[i]), PAGE_SIZE,
-			    sf_buf_mext, sf[i], 0, EXT_DISPOSABLE);
+			    sf_buf_mext, (void*)sf_buf_kva(sf[i]), sf[i],
+			    0, EXT_DISPOSABLE);
 			m[i]->m_next = m[i+1];
 		}
 		/* link the buffers to the header */

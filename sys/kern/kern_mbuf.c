@@ -463,7 +463,8 @@ mb_dtor_pack(void *mem, int size, void *arg)
 	KASSERT((m->m_flags & M_EXT) == M_EXT, ("%s: M_EXT not set", __func__));
 	KASSERT(m->m_ext.ext_buf != NULL, ("%s: ext_buf == NULL", __func__));
 	KASSERT(m->m_ext.ext_free == NULL, ("%s: ext_free != NULL", __func__));
-	KASSERT(m->m_ext.ext_args == NULL, ("%s: ext_args != NULL", __func__));
+	KASSERT(m->m_ext.ext_arg1 == NULL, ("%s: ext_arg1 != NULL", __func__));
+	KASSERT(m->m_ext.ext_arg2 == NULL, ("%s: ext_arg2 != NULL", __func__));
 	KASSERT(m->m_ext.ext_size == MCLBYTES, ("%s: ext_size != MCLBYTES", __func__));
 	KASSERT(m->m_ext.ext_type == EXT_PACKET, ("%s: ext_type != EXT_PACKET", __func__));
 	KASSERT(*m->m_ext.ref_cnt == 1, ("%s: ref_cnt != 1", __func__));
@@ -533,7 +534,8 @@ mb_ctor_clust(void *mem, int size, void *arg, int how)
 		m->m_data = m->m_ext.ext_buf;
 		m->m_flags |= M_EXT;
 		m->m_ext.ext_free = NULL;
-		m->m_ext.ext_args = NULL;
+		m->m_ext.ext_arg1 = NULL;
+		m->m_ext.ext_arg2 = NULL;
 		m->m_ext.ext_size = size;
 		m->m_ext.ext_type = type;
 		m->m_ext.ref_cnt = refcnt;
