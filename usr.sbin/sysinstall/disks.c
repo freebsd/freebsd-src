@@ -920,18 +920,18 @@ diskPartitionNonInteractive(Device *dev)
 	d->bios_cyl = strtol(cp, &cp, 0);
 	d->bios_hd = strtol(cp + 1, &cp, 0);
 	d->bios_sect = strtol(cp + 1, 0, 0);
-    }
-
+    } else {
 #ifdef PC98
-    if (d->bios_cyl >= 65536 || d->bios_hd > 256 || d->bios_sect >= 256) {
+	if (d->bios_cyl >= 65536 || d->bios_hd > 256 || d->bios_sect >= 256) {
 #else
-    if (d->bios_cyl > 65536 || d->bios_hd > 256 || d->bios_sect >= 64) {
+	if (d->bios_cyl > 65536 || d->bios_hd > 256 || d->bios_sect >= 64) {
 #endif
-	msgDebug("Warning:  A geometry of %lu/%lu/%lu for %s is incorrect.\n",
-	    d->bios_cyl, d->bios_hd, d->bios_sect, d->name);
-	Sanitize_Bios_Geom(d);
-	msgDebug("Sanitized geometry for %s is %lu/%lu/%lu.\n",
-	    d->name, d->bios_cyl, d->bios_hd, d->bios_sect);
+	    msgDebug("Warning:  A geometry of %lu/%lu/%lu for %s is incorrect.\n",
+		d->bios_cyl, d->bios_hd, d->bios_sect, d->name);
+	    Sanitize_Bios_Geom(d);
+	    msgDebug("Sanitized geometry for %s is %lu/%lu/%lu.\n",
+		d->name, d->bios_cyl, d->bios_hd, d->bios_sect);
+	}
     }
 
     cp = variable_get(VAR_PARTITION);
