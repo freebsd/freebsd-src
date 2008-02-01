@@ -2372,6 +2372,14 @@ ng_snd_item(item_p item, int flags)
 	}
 #ifdef GET_STACK_USAGE
 	else {
+		/*
+		 * Most of netgraph nodes has small stack consumption and
+		 * for them it is more then enogh 20% of free stack.
+		 * Nodes/hooks with higher stack usage should be marked as
+		 * HI_STACK. For them 50% of stack will be guarantied.
+		 * XXX: Values 50% (64/128) and 80% (100/128) are completely
+		 * empirical.
+		 */
 		size_t	st, su;
 		GET_STACK_USAGE(st, su);
 		su = (su * 128) / st;
