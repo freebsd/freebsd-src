@@ -1881,8 +1881,12 @@ carp_ioctl(struct ifnet *ifp, u_long cmd, caddr_t addr)
 				cif = (struct carp_if *)sc->sc_carpdev->if_carp;
 				TAILQ_FOREACH(vr, &cif->vhif_vrs, sc_list)
 					if (vr != sc &&
-					    vr->sc_vhid == carpr.carpr_vhid)
-						return EEXIST;
+					    vr->sc_vhid == carpr.carpr_vhid) {
+						error = EEXIST;
+						break;
+					}
+				if (error == EEXIST)
+					break;
 			}
 			sc->sc_vhid = carpr.carpr_vhid;
 			IFP2ENADDR(sc->sc_ifp)[0] = 0;
