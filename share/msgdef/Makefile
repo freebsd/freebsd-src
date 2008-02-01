@@ -37,6 +37,7 @@ LOCALES=	af_ZA.ISO8859-1 \
 		ja_JP.UTF-8 \
 		kk_KZ.PT154 \
 		kk_KZ.UTF-8 \
+		ko_KR.UTF-8 \
 		ko_KR.eucKR \
 		lt_LT.ISO8859-13 \
 		mn_MN.UTF-8 \
@@ -98,7 +99,6 @@ ENCODINGS=	Big5 Big5HKSCS CP949 eucKR GB2312 GBK \
 
 Big5_Big5HKSCS=	zh_TW:zh_HK
 eucKR_CP949=	ko_KR
-eucKR_UTF-8=	ko_KR
 GB2312_GBK=	zh_CN
 ISO8859-1_ISO8859-1= ${DE_LINKS} ${FR_LINKS} ${GB_LINKS} ${IT_LINKS} \
 		${NL_LINKS} ${NO_LINKS} ${PT_LINKS}
