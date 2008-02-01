@@ -4,11 +4,11 @@
 # WARNING: empty lines are essential too
 #
 # yesexpr
-^[yY£ù£Ù¿¹].*
+^[yYï½™ï¼¹ì˜ˆ].*
 # noexpr
-^[nN£î£Î¾Æ].*
+^[nNï½Žï¼®ì•„].*
 # yesstr
-¿¹
+ì˜ˆ
 # nostr
-¾Æ´Ï¿À
+ì•„ë‹ˆì˜¤
 # EOF
