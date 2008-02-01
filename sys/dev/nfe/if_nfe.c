@@ -2094,7 +2094,7 @@ nfe_jnewbuf(struct nfe_softc *sc, int idx)
 		return (ENOBUFS);
 	}
 	/* Attach the buffer to the mbuf. */
-	MEXTADD(m, buf, NFE_JLEN, nfe_jfree, (struct nfe_softc *)sc, 0,
+	MEXTADD(m, buf, NFE_JLEN, nfe_jfree, buf, (struct nfe_softc *)sc, 0,
 	    EXT_NET_DRV);
 	if ((m->m_flags & M_EXT) == 0) {
 		m_freem(m);

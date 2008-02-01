@@ -186,7 +186,7 @@ m_freem(struct mbuf *mb)
  */
 void
 m_extadd(struct mbuf *mb, caddr_t buf, u_int size,
-    void (*freef)(void *, void *), void *args, int flags, int type)
+    void (*freef)(void *, void *), void *arg1, void *arg2, int flags, int type)
 {
 	KASSERT(type != EXT_CLUSTER, ("%s: EXT_CLUSTER not allowed", __func__));
 
@@ -199,7 +199,8 @@ m_extadd(struct mbuf *mb, caddr_t buf, u_int size,
 		mb->m_data = mb->m_ext.ext_buf;
 		mb->m_ext.ext_size = size;
 		mb->m_ext.ext_free = freef;
-		mb->m_ext.ext_args = args;
+		mb->m_ext.ext_arg1 = arg1;
+		mb->m_ext.ext_arg2 = arg2;
 		mb->m_ext.ext_type = type;
         }
 }
@@ -254,8 +255,8 @@ mb_free_ext(struct mbuf *m)
 		case EXT_EXTREF:
 			KASSERT(m->m_ext.ext_free != NULL,
 				("%s: ext_free not set", __func__));
-			(*(m->m_ext.ext_free))(m->m_ext.ext_buf,
-			    m->m_ext.ext_args);
+			(*(m->m_ext.ext_free))(m->m_ext.ext_arg1,
+			    m->m_ext.ext_arg2);
 			break;
 		default:
 			KASSERT(m->m_ext.ext_type == 0,
@@ -271,7 +272,8 @@ mb_free_ext(struct mbuf *m)
 	 */
 	m->m_ext.ext_buf = NULL;
 	m->m_ext.ext_free = NULL;
-	m->m_ext.ext_args = NULL;
+	m->m_ext.ext_arg1 = NULL;
+	m->m_ext.ext_arg2 = NULL;
 	m->m_ext.ref_cnt = NULL;
 	m->m_ext.ext_size = 0;
 	m->m_ext.ext_type = 0;
@@ -296,7 +298,8 @@ mb_dupcl(struct mbuf *n, struct mbuf *m)
 		atomic_add_int(m->m_ext.ref_cnt, 1);
 	n->m_ext.ext_buf = m->m_ext.ext_buf;
 	n->m_ext.ext_free = m->m_ext.ext_free;
-	n->m_ext.ext_args = m->m_ext.ext_args;
+	n->m_ext.ext_arg1 = m->m_ext.ext_arg1;
+	n->m_ext.ext_arg2 = m->m_ext.ext_arg2;
 	n->m_ext.ext_size = m->m_ext.ext_size;
 	n->m_ext.ref_cnt = m->m_ext.ref_cnt;
 	n->m_ext.ext_type = m->m_ext.ext_type;

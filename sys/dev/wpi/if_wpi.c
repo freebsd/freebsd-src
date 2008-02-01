@@ -1060,7 +1060,7 @@ wpi_alloc_rx_ring(struct wpi_softc *sc, struct wpi_rx_ring *ring)
 
 		/* attach RxBuffer to mbuf */
 		MEXTADD(data->m, rbuf->vaddr, WPI_RBUF_SIZE,wpi_free_rbuf,
-		    rbuf,0,EXT_NET_DRV);
+		    rbuf->vaddr, rbuf, 0, EXT_NET_DRV);
 
 		if ((data->m->m_flags & M_EXT) == 0) {
 			m_freem(data->m);
@@ -1631,8 +1631,8 @@ wpi_rx_intr(struct wpi_softc *sc, struct wpi_rx_desc *desc,
 		}
 
 		/* attach Rx buffer to mbuf */
-		MEXTADD(mnew,rbuf->vaddr,WPI_RBUF_SIZE, wpi_free_rbuf, rbuf, 0,
-		    EXT_NET_DRV);
+		MEXTADD(mnew, rbuf->vaddr, WPI_RBUF_SIZE, wpi_free_rbuf,
+		    rbuf->vaddr, rbuf, 0, EXT_NET_DRV);
 		SLIST_REMOVE_HEAD(&sc->rxq.freelist, next);
 		data->m = mnew;
 

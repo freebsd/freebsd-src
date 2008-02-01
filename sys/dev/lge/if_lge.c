@@ -719,7 +719,7 @@ lge_newbuf(sc, c, m)
 		m_new->m_data = (void *)buf;
 		m_new->m_len = m_new->m_pkthdr.len = LGE_JUMBO_FRAMELEN;
 		MEXTADD(m_new, buf, LGE_JUMBO_FRAMELEN, lge_jfree,
-		    (struct lge_softc *)sc, 0, EXT_NET_DRV);
+		    buf, (struct lge_softc *)sc, 0, EXT_NET_DRV);
 	} else {
 		m_new = m;
 		m_new->m_len = m_new->m_pkthdr.len = LGE_JUMBO_FRAMELEN;

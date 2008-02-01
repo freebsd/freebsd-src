@@ -131,7 +131,8 @@ struct m_ext {
 	caddr_t		 ext_buf;	/* start of buffer */
 	void		(*ext_free)	/* free routine if not the usual */
 			    (void *, void *);
-	void		*ext_args;	/* optional argument pointer */
+	void		*ext_arg1;	/* optional argument pointer */
+	void		*ext_arg2;	/* optional argument pointer */
 	u_int		 ext_size;	/* size of buffer, for ext_free */
 	volatile u_int	*ref_cnt;	/* pointer to ref count info */
 	int		 ext_type;	/* type of external storage */
@@ -586,7 +587,7 @@ m_cljset(struct mbuf *m, void *cl, int type)
 	}
 
 	m->m_data = m->m_ext.ext_buf = cl;
-	m->m_ext.ext_free = m->m_ext.ext_args = NULL;
+	m->m_ext.ext_free = m->m_ext.ext_arg1 = m->m_ext.ext_arg2 = NULL;
 	m->m_ext.ext_size = size;
 	m->m_ext.ext_type = type;
 	m->m_ext.ref_cnt = uma_find_refcnt(zone, cl);
@@ -618,8 +619,8 @@ m_last(struct mbuf *m)
 #define	MGET(m, how, type)	((m) = m_get((how), (type)))
 #define	MGETHDR(m, how, type)	((m) = m_gethdr((how), (type)))
 #define	MCLGET(m, how)		m_clget((m), (how))
-#define	MEXTADD(m, buf, size, free, args, flags, type) 			\
-    m_extadd((m), (caddr_t)(buf), (size), (free), (args), (flags), (type))
+#define	MEXTADD(m, buf, size, free, arg1, arg2, flags, type)		\
+    m_extadd((m), (caddr_t)(buf), (size), (free),(arg1),(arg2),(flags), (type))
 #define	m_getm(m, len, how, type)					\
     m_getm2((m), (len), (how), (type), M_PKTHDR)
 
@@ -745,7 +746,7 @@ int		 m_apply(struct mbuf *, int, int,
 int		 m_append(struct mbuf *, int, c_caddr_t);
 void		 m_cat(struct mbuf *, struct mbuf *);
 void		 m_extadd(struct mbuf *, caddr_t, u_int,
-		    void (*)(void *, void *), void *, int, int);
+		    void (*)(void *, void *), void *, void *, int, int);
 struct mbuf	*m_collapse(struct mbuf *, int, int);
 void		 m_copyback(struct mbuf *, int, int, c_caddr_t);
 void		 m_copydata(const struct mbuf *, int, int, caddr_t);

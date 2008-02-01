@@ -1055,7 +1055,7 @@ sk_jumbo_newbuf(sc_if, idx)
 		return (ENOBUFS);
 	}
 	/* Attach the buffer to the mbuf */
-	MEXTADD(m, buf, SK_JLEN, sk_jfree, (struct sk_if_softc *)sc_if, 0,
+	MEXTADD(m, buf, SK_JLEN, sk_jfree, (struct sk_if_softc *)sc_if, buf, 0,
 	    EXT_NET_DRV);
 	if ((m->m_flags & M_EXT) == 0) {
 		m_freem(m);

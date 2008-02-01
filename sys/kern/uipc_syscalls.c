@@ -2099,7 +2099,7 @@ retry_space:
 				break;
 			}
 			MEXTADD(m0, sf_buf_kva(sf), PAGE_SIZE, sf_buf_mext,
-			    sf, M_RDONLY, EXT_SFBUF);
+			    (void*)sf_buf_kva(sf), sf, M_RDONLY, EXT_SFBUF);
 			m0->m_data = (char *)sf_buf_kva(sf) + pgoff;
 			m0->m_len = xfsize;
 

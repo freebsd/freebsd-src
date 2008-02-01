@@ -2452,7 +2452,8 @@ init_cluster_mbuf(caddr_t cl, int flags, int type, uma_zone_t zone)
 	m->m_ext.ref_cnt = (uint32_t *)(cl + header_size - sizeof(uint32_t));
 	m->m_ext.ext_size = m_getsizefromtype(type);
 	m->m_ext.ext_free = ext_free_handler;
-	m->m_ext.ext_args = (void *)(uintptr_t)type;
+	m->m_ext.ext_arg1 = cl;
+	m->m_ext.ext_arg2 = (void *)(uintptr_t)type;
 	m->m_ext.ext_type = EXT_EXTREF;
 	*(m->m_ext.ref_cnt) = 1;
 	DPRINTF("data=%p ref_cnt=%p\n", m->m_data, m->m_ext.ref_cnt); 

@@ -164,7 +164,7 @@ isc_sendPDU(isc_session_t *sp, pduq_t *pq)
 		md->m_ext.ref_cnt = &nil_refcnt;
                 l = min(MCLBYTES, len);
                 MEXTADD(md, pp->ds + off, l, nil_fn,
-                        NULL, 0, EXT_EXTREF);
+                        pp->ds + off, NULL, 0, EXT_EXTREF);
                 md->m_len = l;
                 md->m_next = NULL;
                 mh->m_pkthdr.len += l;
