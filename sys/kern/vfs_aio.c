@@ -119,6 +119,8 @@ static uint64_t jobseqno;
 #define AIOD_LIFETIME_DEFAULT	(30 * hz)
 #endif
 
+FEATURE(aio, "Asynchronous I/O");
+
 static SYSCTL_NODE(_vfs, OID_AUTO, aio, CTLFLAG_RW, 0, "Async IO management");
 
 static int max_aio_procs = MAX_AIO_PROCS;
