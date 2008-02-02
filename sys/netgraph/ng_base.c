@@ -2376,7 +2376,7 @@ ng_snd_item(item_p item, int flags)
 		 * Most of netgraph nodes have small stack consumption and
 		 * for them 20% of free stack space is more than enough.
 		 * Nodes/hooks with higher stack usage should be marked as
-		 * HI_STACK. For them 50% of stack will be guarantied then.
+		 * HI_STACK. For them 50% of stack will be guaranteed then.
 		 * XXX: Values 50% (64/128) and 80% (100/128) are completely
 		 * empirical.
 		 */
