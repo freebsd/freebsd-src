@@ -1041,7 +1041,7 @@ wpi_alloc_rx_ring(struct wpi_softc *sc, struct wpi_rx_ring *ring)
 	for (i = 0; i < WPI_RX_RING_COUNT; i++) {
 		data = &ring->data[i];
 
-		data->m = m_get(M_DONTWAIT, MT_HEADER);
+		data->m = m_gethdr(M_DONTWAIT, MT_DATA);
 		if (data->m == NULL) {
 			device_printf(sc->sc_dev,
 			    "could not allocate rx mbuf\n");
