@@ -916,7 +916,7 @@ out:
 }
 #endif /*ZERO_COPY_SOCKETS*/
 
-#define	SBLOCKWAIT(f)	(((f) & MSG_DONTWAIT) ? M_NOWAIT : M_WAITOK)
+#define	SBLOCKWAIT(f)	(((f) & MSG_DONTWAIT) ? 0 : SBL_WAIT)
 
 int
 sosend_dgram(struct socket *so, struct sockaddr *addr, struct uio *uio,
@@ -1884,10 +1884,16 @@ sorflush(struct socket *so)
 	 * however, we have to initialize and destroy the mutex in the copy
 	 * so that dom_dispose() and sbrelease() can lock t as needed.
 	 */
-	(void) sblock(sb, M_WAITOK);
-	SOCKBUF_LOCK(sb);
-	sb->sb_flags |= SB_NOINTR;
-	socantrcvmore_locked(so);
+
+	/*
+	 * Dislodge threads currently blocked in receive and wait to acquire
+	 * a lock against other simultaneous readers before clearing the
+	 * socket buffer.  Don't let our acquire be interrupted by a signal
+	 * despite any existing socket disposition on interruptable waiting.
+	 */
+	socantrcvmore(so);
+	(void) sblock(sb, SBL_WAIT | SBL_NOINTR);
+
 	/*
 	 * Invalidate/clear most of the sockbuf structure, but leave selinfo
 	 * and mutex data unchanged.
