@@ -87,9 +87,7 @@ CFLAGS+= ${INCLUDES} -D_KERNEL -DHAVE_KERNEL_OPTION_HEADERS -include opt_global.
 CFLAGS+= -fno-common -finline-limit=${INLINE_LIMIT}
 CFLAGS+= --param inline-unit-growth=100
 CFLAGS+= --param large-function-growth=1000
-.if ${MACHINE_ARCH} == "amd64" || ${MACHINE} == "i386" || \
-    ${MACHINE_ARCH} == "ia64" || ${MACHINE_ARCH} == "powerpc" || \
-    ${MACHINE_ARCH} == "sparc64"
+.if ${MACHINE} != "pc98" && ${MACHINE_ARCH} != "arm" && ${MACHINE} != "sun4v"
 WERROR?= -Werror
 .endif
 .endif
