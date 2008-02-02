@@ -218,6 +218,7 @@ close_and_restore(const struct magic_set *ms, const char *name, int fd,
 		 */
 #ifdef HAVE_UTIMES
 		struct timeval  utsbuf[2];
+		memset(utsbuf, 0, sizeof(struct timeval) * 2);
 		utsbuf[0].tv_sec = sb->st_atime;
 		utsbuf[1].tv_sec = sb->st_mtime;
 
@@ -225,6 +226,7 @@ close_and_restore(const struct magic_set *ms, const char *name, int fd,
 #elif defined(HAVE_UTIME_H) || defined(HAVE_SYS_UTIME_H)
 		struct utimbuf  utbuf;
 
+		memset(&utbuf, 0, sizeof(struct utimbuf));
 		utbuf.actime = sb->st_atime;
 		utbuf.modtime = sb->st_mtime;
 		(void) utime(name, &utbuf); /* don't care if loses */
