@@ -573,7 +573,7 @@ mfi_release_command(struct mfi_command *cm)
 	 * as 32 bit words.  Clear out the first S/G entry too for safety.
 	 */
 	hdr = &cm->cm_frame->header;
-	if (hdr->sg_count) {
+	if (cm->cm_data != NULL && hdr->sg_count) {
 		cm->cm_sg->sg32[0].len = 0;
 		cm->cm_sg->sg32[0].addr = 0;
 	}
@@ -2092,33 +2092,48 @@ mfi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
 		context = cm->cm_frame->header.context;
 
 		bcopy(ioc->mfi_frame.raw, cm->cm_frame,
-		      ioc->mfi_sgl_off); /* Linux can do 2 frames ? */
-		cm->cm_total_frame_size = ioc->mfi_sgl_off;
-		cm->cm_sg =
-		    (union mfi_sgl *)&cm->cm_frame->bytes[ioc->mfi_sgl_off];
-		cm->cm_flags = MFI_CMD_DATAIN | MFI_CMD_DATAOUT;
+		      2 * MFI_DCMD_FRAME_SIZE);  /* this isn't quite right */
+		cm->cm_total_frame_size = (sizeof(union mfi_sgl) * ioc->mfi_sge_count) + ioc->mfi_sgl_off;
+		if (ioc->mfi_sge_count) {
+			cm->cm_sg =
+			    (union mfi_sgl *)&cm->cm_frame->bytes[ioc->mfi_sgl_off];
+		}
+		cm->cm_flags = 0;
+		if (cm->cm_frame->header.flags & MFI_FRAME_DATAIN)
+			cm->cm_flags |= MFI_CMD_DATAIN;
+		if (cm->cm_frame->header.flags & MFI_FRAME_DATAOUT)
+			cm->cm_flags |= MFI_CMD_DATAOUT;
+		/* Legacy app shim */
+		if (cm->cm_flags == 0)
+			cm->cm_flags |= MFI_CMD_DATAIN | MFI_CMD_DATAOUT;
 		cm->cm_len = cm->cm_frame->header.data_len;
-		cm->cm_data = data = malloc(cm->cm_len, M_MFIBUF,
-					    M_WAITOK | M_ZERO);
-		if (cm->cm_data == NULL) {
-			device_printf(sc->mfi_dev, "Malloc failed\n");
-			goto out;
+		if (cm->cm_flags & (MFI_CMD_DATAIN | MFI_CMD_DATAOUT)) {
+			cm->cm_data = data = malloc(cm->cm_len, M_MFIBUF,
+			    M_WAITOK | M_ZERO);
+			if (cm->cm_data == NULL) {
+				device_printf(sc->mfi_dev, "Malloc failed\n");
+				goto out;
+			}
+		} else {
+			cm->cm_data = 0;
 		}
 
 		/* restore header context */
 		cm->cm_frame->header.context = context;
 
 		temp = data;
-		for (i = 0; i < ioc->mfi_sge_count; i++) {
-			error = copyin(ioc->mfi_sgl[i].iov_base,
-			       temp,
-			       ioc->mfi_sgl[i].iov_len);
-			if (error != 0) {
-				device_printf(sc->mfi_dev,
-				    "Copy in failed\n");
-				goto out;
+		if (cm->cm_flags & MFI_CMD_DATAOUT) {
+			for (i = 0; i < ioc->mfi_sge_count; i++) {
+				error = copyin(ioc->mfi_sgl[i].iov_base,
+				       temp,
+				       ioc->mfi_sgl[i].iov_len);
+				if (error != 0) {
+					device_printf(sc->mfi_dev,
+					    "Copy in failed\n");
+					goto out;
+				}
+				temp = &temp[ioc->mfi_sgl[i].iov_len];
 			}
-			temp = &temp[ioc->mfi_sgl[i].iov_len];
 		}
 
 		if (cm->cm_frame->header.cmd == MFI_CMD_DCMD)
@@ -2142,16 +2157,18 @@ mfi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
 		mtx_unlock(&sc->mfi_io_lock);
 
 		temp = data;
-		for (i = 0; i < ioc->mfi_sge_count; i++) {
-			error = copyout(temp,
-				ioc->mfi_sgl[i].iov_base,
-				ioc->mfi_sgl[i].iov_len);
-			if (error != 0) {
-				device_printf(sc->mfi_dev,
-				    "Copy out failed\n");
-				goto out;
+		if (cm->cm_flags & MFI_CMD_DATAIN) {
+			for (i = 0; i < ioc->mfi_sge_count; i++) {
+				error = copyout(temp,
+					ioc->mfi_sgl[i].iov_base,
+					ioc->mfi_sgl[i].iov_len);
+				if (error != 0) {
+					device_printf(sc->mfi_dev,
+					    "Copy out failed\n");
+					goto out;
+				}
+				temp = &temp[ioc->mfi_sgl[i].iov_len];
 			}
-			temp = &temp[ioc->mfi_sgl[i].iov_len];
 		}
 
 		if (ioc->mfi_sense_len) {
@@ -2278,31 +2295,46 @@ mfi_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_threa
 		context = cm->cm_frame->header.context;
 
 		bcopy(l_ioc.lioc_frame.raw, cm->cm_frame,
-		      l_ioc.lioc_sgl_off); /* Linux can do 2 frames ? */
-		cm->cm_total_frame_size = l_ioc.lioc_sgl_off;
-		cm->cm_sg =
-		    (union mfi_sgl *)&cm->cm_frame->bytes[l_ioc.lioc_sgl_off];
-		cm->cm_flags = MFI_CMD_DATAIN | MFI_CMD_DATAOUT;
+		      2 * MFI_DCMD_FRAME_SIZE);	/* this isn't quite right */
+		cm->cm_total_frame_size = (sizeof(union mfi_sgl) * l_ioc.lioc_sge_count) + l_ioc.lioc_sgl_off;
+		if (l_ioc.lioc_sge_count)
+			cm->cm_sg =
+			    (union mfi_sgl *)&cm->cm_frame->bytes[l_ioc.lioc_sgl_off];
+		cm->cm_flags = 0;
+		if (cm->cm_frame->header.flags & MFI_FRAME_DATAIN)
+			cm->cm_flags |= MFI_CMD_DATAIN;
+		if (cm->cm_frame->header.flags & MFI_FRAME_DATAOUT)
+			cm->cm_flags |= MFI_CMD_DATAOUT;
 		cm->cm_len = cm->cm_frame->header.data_len;
-		cm->cm_data = data = malloc(cm->cm_len, M_MFIBUF,
-					    M_WAITOK | M_ZERO);
+		if (cm->cm_flags & (MFI_CMD_DATAIN | MFI_CMD_DATAOUT)) {
+			cm->cm_data = data = malloc(cm->cm_len, M_MFIBUF,
+			    M_WAITOK | M_ZERO);
+			if (cm->cm_data == NULL) {
+				device_printf(sc->mfi_dev, "Malloc failed\n");
+				goto out;
+			}
+		} else {
+			cm->cm_data = 0;
+		}
 
 		/* restore header context */
 		cm->cm_frame->header.context = context;
 
 		temp = data;
-		for (i = 0; i < l_ioc.lioc_sge_count; i++) {
-			temp_convert =
-			    (void *)(uintptr_t)l_ioc.lioc_sgl[i].iov_base;
-			error = copyin(temp_convert,
-			       temp,
-			       l_ioc.lioc_sgl[i].iov_len);
-			if (error != 0) {
-				device_printf(sc->mfi_dev,
-				    "Copy in failed\n");
-				goto out;
+		if (cm->cm_flags & MFI_CMD_DATAOUT) {
+			for (i = 0; i < l_ioc.lioc_sge_count; i++) {
+				temp_convert =
+				    (void *)(uintptr_t)l_ioc.lioc_sgl[i].iov_base;
+				error = copyin(temp_convert,
+				       temp,
+				       l_ioc.lioc_sgl[i].iov_len);
+				if (error != 0) {
+					device_printf(sc->mfi_dev,
+					    "Copy in failed\n");
+					goto out;
+				}
+				temp = &temp[l_ioc.lioc_sgl[i].iov_len];
 			}
-			temp = &temp[l_ioc.lioc_sgl[i].iov_len];
 		}
 
 		if (cm->cm_frame->header.cmd == MFI_CMD_DCMD)
@@ -2326,18 +2358,20 @@ mfi_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_threa
 		mtx_unlock(&sc->mfi_io_lock);
 
 		temp = data;
-		for (i = 0; i < l_ioc.lioc_sge_count; i++) {
-			temp_convert =
-			    (void *)(uintptr_t)l_ioc.lioc_sgl[i].iov_base;
-			error = copyout(temp,
-				temp_convert,
-				l_ioc.lioc_sgl[i].iov_len);
-			if (error != 0) {
-				device_printf(sc->mfi_dev,
-				    "Copy out failed\n");
-				goto out;
+		if (cm->cm_flags & MFI_CMD_DATAIN) {
+			for (i = 0; i < l_ioc.lioc_sge_count; i++) {
+				temp_convert =
+				    (void *)(uintptr_t)l_ioc.lioc_sgl[i].iov_base;
+				error = copyout(temp,
+					temp_convert,
+					l_ioc.lioc_sgl[i].iov_len);
+				if (error != 0) {
+					device_printf(sc->mfi_dev,
+					    "Copy out failed\n");
+					goto out;
+				}
+				temp = &temp[l_ioc.lioc_sgl[i].iov_len];
 			}
-			temp = &temp[l_ioc.lioc_sgl[i].iov_len];
 		}
 
 		if (l_ioc.lioc_sense_len) {
