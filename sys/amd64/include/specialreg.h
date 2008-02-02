@@ -125,6 +125,9 @@
 #define	CPUID2_XTPR	0x00004000
 #define	CPUID2_PDCM	0x00008000
 #define	CPUID2_DCA	0x00040000
+#define	CPUID2_SSE41	0x00080000
+#define	CPUID2_SSE42	0x00100000
+#define	CPUID2_POPCNT	0x00800000
 
 /*
  * Important bits in the AMD extended cpuid flags
