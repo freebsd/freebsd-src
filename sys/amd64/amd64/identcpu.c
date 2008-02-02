@@ -223,7 +223,7 @@ printcpuinfo(void)
 				"\020"
 				"\001SSE3"	/* SSE3 */
 				"\002<b1>"
-				"\003RSVD2"	/* "Reserved" bit 2 */
+				"\003DTES64"	/* 64-bit Debug Trace */
 				"\004MON"	/* MONITOR/MWAIT Instructions */
 				"\005DS_CPL"	/* CPL Qualified Debug Store */
 				"\006VMX"	/* Virtual Machine Extensions */
@@ -242,7 +242,7 @@ printcpuinfo(void)
 				"\023DCA"	/* Direct Cache Access */
 				"\024SSE4.1"
 				"\025SSE4.2"
-				"\026<b21>"
+				"\026x2APIC"	/* xAPIC Extensions */
 				"\027<b22>"
 				"\030POPCNT"
 				"\031<b24>"
