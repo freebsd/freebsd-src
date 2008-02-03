@@ -82,11 +82,6 @@ hptrr_lib.o			optional	hptrr			\
 	compile-with	"uudecode < $S/dev/hptrr/i386-elf.hptrr_lib.o.uu" \
 	no-implicit-rule
 #
-rr232x_lib.o			optional	rr232x			\
-	dependency	"$S/dev/rr232x/i386-elf.rr232x_lib.o.uu"	\
-	compile-with	"uudecode < $S/dev/rr232x/i386-elf.rr232x_lib.o.uu" \
-	no-implicit-rule
-#
 compat/linprocfs/linprocfs.c	optional linprocfs
 compat/linsysfs/linsysfs.c	optional linsysfs
 compat/linux/linux_emul.c	optional compat_linux
@@ -231,9 +226,6 @@ dev/nve/if_nve.c		optional nve pci
 dev/nvram/nvram.c		optional nvram isa
 dev/pcf/pcf_isa.c		optional pcf
 dev/random/nehemiah.c		optional random
-dev/rr232x/os_bsd.c		optional rr232x
-dev/rr232x/osm_bsd.c		optional rr232x
-dev/rr232x/rr232x_config.c	optional rr232x
 dev/sbni/if_sbni.c		optional sbni
 dev/sbni/if_sbni_isa.c		optional sbni isa
 dev/sbni/if_sbni_pci.c		optional sbni pci
