@@ -5,6 +5,8 @@
 #
 # +++ variables +++
 #
+# CLEANDEPFILES Additional files to clean when doing cleandepend
+#
 # CTAGS		A tags file generation program [gtags]
 #
 # CTAGSFLAGS	Options for ctags(1) [not set]
@@ -181,6 +183,9 @@ cleandepend:
 	rm -f ${DEPENDFILE} GPATH GRTAGS GSYMS GTAGS
 .if defined(HTML)
 	rm -rf HTML
+.endif
+.if defined(CLEANDEPFILES)
+	rm -f ${CLEANDEPFILES}
 .endif
 .endif
 .endif
