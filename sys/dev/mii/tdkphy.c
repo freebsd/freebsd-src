@@ -239,10 +239,10 @@ tdkphy_status(struct mii_softc *phy)
 		 * ANLPAR doesn't get set on my card, but we check it anyway,
 		 * since it is mentioned in the 78Q2120 specs.
 		 */
-		if (anlpar & ANLPAR_T4)
-			mii->mii_media_active |= IFM_100_T4;
-		else if (anlpar & ANLPAR_TX_FD)
+		if (anlpar & ANLPAR_TX_FD)
 			mii->mii_media_active |= IFM_100_TX|IFM_FDX;
+		else if (anlpar & ANLPAR_T4)
+			mii->mii_media_active |= IFM_100_T4;
 		else if (anlpar & ANLPAR_TX)
 			mii->mii_media_active |= IFM_100_TX;
 		else if (anlpar & ANLPAR_10_FD)
