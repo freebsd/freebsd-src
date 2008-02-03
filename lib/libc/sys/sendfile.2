@@ -103,7 +103,9 @@ variable pointed to by
 .Pp
 The
 .Fa flags
-argument has one possible value:
+argument is a bitmap of these values:
+.Bl -item -offset indent 
+.It
 .Dv SF_NODISKIO .
 This flag causes any
 .Fn sendfile
@@ -112,6 +114,17 @@ return
 .Er EBUSY .
 Busy servers may benefit by transferring requests that would
 block to a separate I/O worker thread.
+.It
+.Dv SF_MNOWAIT .
+(description missing)
+.It
+.Dv SF_SYNC ,
+.Nm
+sleeps until the network stack no longer references the VM pages
+of the file, making subsequent modifications to it safe.
+Please note that this is not a guarantee that the data has actually
+been sent.
+.El
 .Pp
 When using a socket marked for non-blocking I/O,
 .Fn sendfile
