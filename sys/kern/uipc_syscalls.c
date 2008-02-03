@@ -1660,6 +1660,14 @@ getsockaddr(namp, uaddr, len)
 	return (error);
 }
 
+#include <sys/condvar.h>
+
+struct sendfile_sync {
+	struct mtx	mtx;
+	struct cv	cv;
+	unsigned 	count;
+};
+
 /*
  * Detach mapped page and release resources back to the system.
  */
@@ -1667,6 +1675,7 @@ void
 sf_buf_mext(void *addr, void *args)
 {
 	vm_page_t m;
+	struct sendfile_sync *sfs;
 
 	m = sf_buf_page(args);
 	sf_buf_free(args);
@@ -1680,6 +1689,14 @@ sf_buf_mext(void *addr, void *args)
 	if (m->wire_count == 0 && m->object == NULL)
 		vm_page_free(m);
 	vm_page_unlock_queues();
+	if (addr == NULL)
+		return;
+	sfs = addr;
+	mtx_lock(&sfs->mtx);
+	KASSERT(sfs->count> 0, ("Sendfile sync botchup count == 0"));
+	if (--sfs->count == 0)
+		cv_signal(&sfs->cv);
+	mtx_unlock(&sfs->mtx);
 }
 
 /*
@@ -1767,6 +1784,7 @@ kern_sendfile(struct thread *td, struct sendfile_args *uap,
 	off_t off, xfsize, fsbytes = 0, sbytes = 0, rem = 0;
 	int error, hdrlen = 0, mnw = 0;
 	int vfslocked;
+	struct sendfile_sync *sfs = NULL;
 
 	/*
 	 * The file descriptor must be a regular file and have a
@@ -1828,6 +1846,13 @@ kern_sendfile(struct thread *td, struct sendfile_args *uap,
 	 */
 	if (uap->flags & SF_MNOWAIT)
 		mnw = 1;
+
+	if (uap->flags & SF_SYNC) {
+		sfs = malloc(sizeof *sfs, M_TEMP, M_WAITOK);
+		memset(sfs, 0, sizeof *sfs);
+		mtx_init(&sfs->mtx, "sendfile", MTX_DEF, 0);
+		cv_init(&sfs->cv, "sendfile");
+	}
 
 #ifdef MAC
 	SOCK_LOCK(so);
@@ -2099,7 +2124,7 @@ retry_space:
 				break;
 			}
 			MEXTADD(m0, sf_buf_kva(sf), PAGE_SIZE, sf_buf_mext,
-			    (void*)sf_buf_kva(sf), sf, M_RDONLY, EXT_SFBUF);
+			    sfs, sf, M_RDONLY, EXT_SFBUF);
 			m0->m_data = (char *)sf_buf_kva(sf) + pgoff;
 			m0->m_len = xfsize;
 
@@ -2112,6 +2137,12 @@ retry_space:
 			/* Keep track of bits processed. */
 			loopbytes += xfsize;
 			off += xfsize;
+
+			if (sfs != NULL) {
+				mtx_lock(&sfs->mtx);
+				sfs->count++;
+				mtx_unlock(&sfs->mtx);
+			}
 		}
 
 		/* Add the buffer chain to the socket buffer. */
@@ -2189,6 +2220,16 @@ out:
 		fdrop(sock_fp, td);
 	if (m)
 		m_freem(m);
+
+	if (sfs != NULL) {
+		mtx_lock(&sfs->mtx);
+		if (sfs->count != 0)
+			cv_wait(&sfs->cv, &sfs->mtx);
+		KASSERT(sfs->count == 0, ("sendfile sync still busy"));
+		cv_destroy(&sfs->cv);
+		mtx_destroy(&sfs->mtx);
+		free(sfs, M_TEMP);
+	}
 
 	if (error == ERESTART)
 		error = EINTR;
