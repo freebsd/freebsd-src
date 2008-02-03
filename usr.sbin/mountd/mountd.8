@@ -28,7 +28,7 @@
 .\"     @(#)mountd.8	8.4 (Berkeley) 4/28/95
 .\" $FreeBSD$
 .\"
-.Dd February 3, 2007
+.Dd October 20, 2007
 .Dt MOUNTD 8
 .Os
 .Sh NAME
@@ -39,6 +39,7 @@ mount requests
 .Sh SYNOPSIS
 .Nm
 .Op Fl 2dlnr
+.Op Fl h Ar bindip
 .Op Fl p Ar port
 .Op Ar exportsfile ...
 .Sh DESCRIPTION
@@ -67,6 +68,23 @@ Output debugging information.
 .Nm
 will not detach from the controlling terminal and will print
 debugging messages to stderr.
+.It Fl h Ar bindip
+Specify specific IP addresses to bind to for TCP and UDP requests.
+This option may be specified multiple times.
+If no
+.Fl h
+option is specified,
+.Nm
+will bind to
+.Dv INADDR_ANY .
+Note that when specifying IP addresses with
+.Fl h ,
+.Nm
+will automatically add
+.Li 127.0.0.1
+and if IPv6 is enabled,
+.Li ::1
+to the list.
 .It Fl l
 Cause all succeeded
 .Nm
