@@ -189,9 +189,6 @@ ng_netflow_constructor(node_p node)
 	if ((error = ng_netflow_cache_init(priv)))
 		return (error);
 
-	/* Schedule expiry. */
-	callout_reset(&priv->exp_callout, (1*hz), &ng_netflow_expire,
-	    (void *)priv);
 	return (0);
 }
 
@@ -277,6 +274,10 @@ ng_netflow_newhook(node_p node, hook_p hook, const char *name)
 		 */
 		NG_HOOK_FORCE_QUEUE(NG_HOOK_PEER(hook));
 #endif
+
+		/* Exporter is ready. Let's schedule expiry. */
+		callout_reset(&priv->exp_callout, (1*hz), &ng_netflow_expire,
+		    (void *)priv);
 	} else
 		return (EINVAL);
 
@@ -648,8 +649,11 @@ ng_netflow_disconnect(hook_p hook)
 			iface->out = NULL;
 	}
 
-	if (hook == priv->export)
+	/* if export hook disconnected stop running expire(). */
+	if (hook == priv->export) {
+		callout_drain(&priv->exp_callout);
 		priv->export = NULL;
+	}
 
 	/* Removal of the last link destroys the node. */
 	if (NG_NODE_NUMHOOKS(node) == 0)
