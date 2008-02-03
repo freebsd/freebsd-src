@@ -398,8 +398,10 @@ done:
 		/*
 		 * Only used for autonegotiation.
 		 */
-		if (IFM_SUBTYPE(ife->ifm_media) != IFM_AUTO)
+		if (IFM_SUBTYPE(ife->ifm_media) != IFM_AUTO) {
+			sc->mii_ticks = 0;
 			break;
+		}
 
 		/*
 		 * check for link.
@@ -412,6 +414,8 @@ done:
 		}
 
 		/* Announce link loss right after it happens. */
+		if (sc->mii_ticks++ == 0)
+			break;
 		if (sc->mii_ticks <= sc->mii_anegticks)
 			return (0);
 
