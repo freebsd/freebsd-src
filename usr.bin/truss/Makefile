@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-WARNS?= 6	
+WARNS?= 6
 NO_WERROR=
 PROG=	truss
 SRCS=	main.c setup.c syscalls.c syscalls.h ioctl.c ${MACHINE_ARCH}-fbsd.c
@@ -9,8 +9,9 @@ SRCS+=	i386-linux.c linux_syscalls.h
 .endif
 
 CFLAGS+= -I${.CURDIR} -I.
-CLEANFILES+=i386l-syscalls.master syscalls.master linux_syscalls.h \
+CLEANDEPFILES=i386l-syscalls.master syscalls.master linux_syscalls.h \
 	syscalls.h ioctl.c
+CLEANFILES+=${CLEANDEPFILES}
 
 .SUFFIXES: .master
 
