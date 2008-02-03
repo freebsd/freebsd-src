@@ -1,5 +1,7 @@
-set -e
-
+#!/bin/sh
+#
+# $FreeBSD$
+#
 # Generates kdump_subr.c
 # mkioctls is a special-purpose script, and works fine as it is
 # now, so it remains independent. The idea behind how it generates
@@ -16,7 +18,7 @@ set -e
 # that the auto_*_type() functions are inappropriate for.
 # MANUAL: Manually entered and must therefore be manually updated.
 
-# $FreeBSD$
+set -e
 
 LC_ALL=C; export LC_ALL
 
@@ -426,7 +428,7 @@ void
 sendrecvflagsname (int flags)
 {
 	int	or = 0;
-	
+
 	if (flags == 0) {
 		(void)printf("0");
 		return;
