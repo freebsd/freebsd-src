@@ -87,6 +87,7 @@ int	__pthread_mutex_setspinloops_np(pthread_mutex_t *mutex, int count);
 int	_pthread_mutex_setyieldloops_np(pthread_mutex_t *mutex, int count);
 int	_pthread_mutex_getyieldloops_np(pthread_mutex_t *mutex, int *count);
 int	__pthread_mutex_setyieldloops_np(pthread_mutex_t *mutex, int count);
+int	_pthread_mutex_islocked_np(pthread_mutex_t *mutex);
 
 static int	mutex_self_trylock(pthread_mutex_t);
 static int	mutex_self_lock(pthread_mutex_t,
@@ -111,6 +112,7 @@ __weak_reference(_pthread_mutex_getspinloops_np, pthread_mutex_getspinloops_np);
 
 __weak_reference(__pthread_mutex_setyieldloops_np, pthread_mutex_setyieldloops_np);
 __weak_reference(_pthread_mutex_getyieldloops_np, pthread_mutex_getyieldloops_np);
+__weak_reference(_pthread_mutex_islocked_np, pthread_mutex_islocked_np);
 
 static int
 mutex_init(pthread_mutex_t *mutex,
@@ -862,4 +864,18 @@ __pthread_mutex_setyieldloops_np(pthread_mutex_t *mutex, int count)
 	}
 	(*mutex)->m_yieldloops = count;
 	return (0);
+}
+
+int
+_pthread_mutex_islocked_np(pthread_mutex_t *mutex)
+{
+	struct pthread *curthread = _get_curthread();
+	int ret;
+
+	if (__predict_false(*mutex == NULL)) {
+		ret = init_static(curthread, mutex);
+		if (__predict_false(ret))
+			return (ret);
+	}
+	return ((*mutex)->m_qe.tqe_prev != NULL);
 }
