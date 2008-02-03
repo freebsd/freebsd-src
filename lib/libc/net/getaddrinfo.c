@@ -425,27 +425,6 @@ getaddrinfo(const char *hostname, const char *servname,
 	}
 
 	/*
-	 * post-2553: AI_ALL and AI_V4MAPPED are effective only against
-	 * AF_INET6 query.  They need to be ignored if specified in other
-	 * occassions.
-	 */
-	switch (pai->ai_flags & (AI_ALL | AI_V4MAPPED)) {
-	case AI_V4MAPPED:
-	case AI_ALL | AI_V4MAPPED:
-		if (pai->ai_family != AF_INET6)
-			pai->ai_flags &= ~(AI_ALL | AI_V4MAPPED);
-		break;
-	case AI_ALL:
-#if 1
-		/* illegal */
-		ERR(EAI_BADFLAGS);
-#else
-		pai->ai_flags &= ~(AI_ALL | AI_V4MAPPED);
-#endif
-		break;
-	}
-
-	/*
 	 * check for special cases.  (1) numeric servname is disallowed if
 	 * socktype/protocol are left unspecified. (2) servname is disallowed
 	 * for raw and other inet{,6} sockets.
