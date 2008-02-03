@@ -395,3 +395,18 @@ global:
 local:
 	*;
 };
+
+FBSD_1.1 {
+global:
+	pthread_mutex_islocked_np;
+local:
+	*;
+} FBSD_1.0;
+
+FBSDprivate_1.1 {
+global:
+	_pthread_mutex_islocked_np;
+local:
+	*;
+} FBSDprivate_1.0;
+
