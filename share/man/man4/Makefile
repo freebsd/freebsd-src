@@ -463,6 +463,7 @@ MLINKS+=gif.4 if_gif.4
 MLINKS+=gre.4 if_gre.4
 MLINKS+=hatm.4 if_hatm.4
 MLINKS+=hme.4 if_hme.4
+MLINKS+=${_hptrr.4} ${_rr232x.4}
 MLINKS+=idt.4 if_idt.4
 MLINKS+=if_bridge.4 bridge.4
 MLINKS+=ip.4 rawip.4
@@ -559,9 +560,11 @@ _nfe.4=		nfe.4
 _nfsmb.4=	nfsmb.4
 _nve.4=		nve.4
 _nxge.4=	nxge.4
+_rr232x.4=	rr232x.4
 _speaker.4=	speaker.4
 _spkr.4=	spkr.4
 _wpi.4=		wpi.4
+
 .endif
 
 .if exists(${.CURDIR}/man4.${MACHINE_ARCH})
