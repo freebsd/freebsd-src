@@ -352,6 +352,8 @@ struct mfi_frame_header {
 	uint32_t	context;
 	uint32_t	pad0;
 	uint16_t	flags;
+#define MFI_FRAME_DATAOUT	0x08
+#define MFI_FRAME_DATAIN	0x10
 	uint16_t	timeout;
 	uint32_t	data_len;
 } __packed;
