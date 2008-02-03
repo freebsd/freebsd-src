@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 4, 1995
+.Dd February 3, 2008
 .Dt YPSERV 8
 .Os
 .Sh NAME
@@ -40,6 +40,7 @@
 .Nm
 .Op Fl n
 .Op Fl d
+.Op Fl P Ar port
 .Op Fl p Ar path
 .Sh DESCRIPTION
 .Tn NIS
@@ -403,6 +404,9 @@ in subprocesses, allowing the parent server process to go on handling
 other requests.)
 This makes it easier to trace the server with
 a debugging tool.
+.It Fl P Ar port
+Force ypserv to bind to a specific TCP/UDP port, rather than selecting
+its own.
 .It Fl p Ar path
 Normally,
 .Nm
