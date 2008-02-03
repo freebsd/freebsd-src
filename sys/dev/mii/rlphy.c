@@ -261,10 +261,10 @@ rlphy_status(struct mii_softc *phy)
 
 		if ((anlpar = PHY_READ(phy, MII_ANAR) &
 		    PHY_READ(phy, MII_ANLPAR))) {
-			if (anlpar & ANLPAR_T4)
-				mii->mii_media_active |= IFM_100_T4;
-			else if (anlpar & ANLPAR_TX_FD)
+			if (anlpar & ANLPAR_TX_FD)
 				mii->mii_media_active |= IFM_100_TX|IFM_FDX;
+			else if (anlpar & ANLPAR_T4)
+				mii->mii_media_active |= IFM_100_T4;
 			else if (anlpar & ANLPAR_TX)
 				mii->mii_media_active |= IFM_100_TX;
 			else if (anlpar & ANLPAR_10_FD)

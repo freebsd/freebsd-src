@@ -1695,10 +1695,10 @@ txp_ifmedia_sts(ifp, ifmr)
 			return;
 		}
 
-		if (anlpar & ANLPAR_T4)
-			ifmr->ifm_active |= IFM_100_T4;
-		else if (anlpar & ANLPAR_TX_FD)
+		if (anlpar & ANLPAR_TX_FD)
 			ifmr->ifm_active |= IFM_100_TX|IFM_FDX;
+		else if (anlpar & ANLPAR_T4)
+			ifmr->ifm_active |= IFM_100_T4;
 		else if (anlpar & ANLPAR_TX)
 			ifmr->ifm_active |= IFM_100_TX;
 		else if (anlpar & ANLPAR_10_FD)
