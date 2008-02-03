@@ -103,7 +103,6 @@ oltr	i386
 pcn	i386,pc98,ia64,amd64
 pst	i386
 rc	i386
-rr232x	i386,amd64
 ral	i386,amd64
 rue	i386,pc98,amd64
 rum	i386,amd64
