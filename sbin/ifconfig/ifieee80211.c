@@ -2461,19 +2461,23 @@ list_mac(int s)
 	if (verbose || c == '?')
 		printpolicy(policy);
 
-	if (get80211len(s, IEEE80211_MACCMD_LIST, NULL, 0, &len) < 0)
+	ireq.i_val = IEEE80211_MACCMD_LIST;
+	ireq.i_len = 0;
+	if (ioctl(s, SIOCG80211, &ireq) < 0)
 		err(1, "unable to get mac acl list size");
-	if (len == 0) {			/* NB: no acls */
+	if (ireq.i_len == 0) {		/* NB: no acls */
 		if (!(verbose || c == '?'))
 			printpolicy(policy);
 		return;
 	}
+	len = ireq.i_len;
 
 	data = malloc(len);
 	if (data == NULL)
 		err(1, "out of memory for acl list");
 
-	if (get80211(s, IEEE80211_MACCMD_LIST, data, len) < 0)
+	ireq.i_data = data;
+	if (ioctl(s, SIOCG80211, &ireq) < 0)
 		err(1, "unable to get mac acl list");
 	nacls = len / sizeof(*acllist);
 	acllist = (struct ieee80211req_maclist *) data;
