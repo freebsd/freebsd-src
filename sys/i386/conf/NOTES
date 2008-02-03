@@ -738,11 +738,6 @@ device		hptmv
 device		hptrr
 
 #
-# Highpoint RocketRAID 232x.  This is software RAID but with hardware
-# acceleration assistance for RAID_5.
-device		rr232x
-
-#
 # Highpoint RocketRaid 3xxx series SATA RAID
 device		hptiop
 
