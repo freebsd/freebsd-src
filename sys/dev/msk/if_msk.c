@@ -1521,7 +1521,7 @@ mskc_attach(device_t dev)
 	struct msk_softc *sc;
 	int error, *port, reg, rid;
 #ifdef	MSI_SUPPORT
-	int i, msic;
+	int i, msic, msir;
 #endif
 
 	sc = device_get_softc(dev);
@@ -1647,12 +1647,24 @@ mskc_attach(device_t dev)
 	 * port cards with separate MSI messages, so for now I disable MSI
 	 * on dual port cards.
 	 */
-	if (msic == 2 && msi_disable == 0 && sc->msk_num_port == 1 &&
-	    pci_alloc_msi(dev, &msic) == 0) {
-		if (msic == 2) {
-			sc->msk_msi = 1;
-		} else
-			pci_release_msi(dev);
+	if (msi_disable == 0) {
+		switch (msic) {
+		case 2:
+		case 1: /* 88E8058 reports 1 MSI message */
+			msir = msic;
+			if (sc->msk_num_port == 1 &&
+			    pci_alloc_msi(dev, &msir) == 0) {
+				if (msic == msir)
+					sc->msk_msi = msic;
+				else
+					pci_release_msi(dev);
+			}
+			break;
+		default:
+			device_printf(dev,
+			    "Unexpected number of MSI messages : %d\n", msic);
+			break;
+		}
 	}
 
 	if (sc->msk_msi == 0) {
@@ -1665,7 +1677,7 @@ mskc_attach(device_t dev)
 			goto fail;
 		}
 	} else {
-		for (i = 0, rid = 1; i < 2; i++, rid++) {
+		for (i = 0, rid = 1; i < sc->msk_msi; i++, rid++) {
 			sc->msk_irq[i] = bus_alloc_resource_any(dev, SYS_RES_IRQ,
 			    &rid, RF_ACTIVE);
 			if (sc->msk_irq[i] == NULL) {
@@ -1871,7 +1883,7 @@ mskc_detach(device_t dev)
 #ifdef	MSI_SUPPORT
 	if (sc->msk_msi) {
 		int i, rid;
-		for (i = 0, rid = 1; i < 2; i++, rid++) {
+		for (i = 0, rid = 1; i < sc->msk_msi; i++, rid++) {
 			if (sc->msk_irq[i] != NULL) {
 				bus_release_resource(dev, SYS_RES_IRQ, rid,
 				    sc->msk_irq[i]);
