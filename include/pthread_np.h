@@ -53,6 +53,7 @@ int pthread_mutex_getspinloops_np(pthread_mutex_t *mutex, int *count);
 int pthread_mutex_setspinloops_np(pthread_mutex_t *mutex, int count);
 int pthread_mutex_getyieldloops_np(pthread_mutex_t *mutex, int *count);
 int pthread_mutex_setyieldloops_np(pthread_mutex_t *mutex, int count);
+int pthread_mutex_islocked_np(pthread_mutex_t *mutex);
 int pthread_single_np(void);
 void pthread_suspend_all_np(void);
 int pthread_suspend_np(pthread_t);
