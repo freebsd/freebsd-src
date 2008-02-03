@@ -564,7 +564,6 @@ _rr232x.4=	rr232x.4
 _speaker.4=	speaker.4
 _spkr.4=	spkr.4
 _wpi.4=		wpi.4
-
 .endif
 
 .if exists(${.CURDIR}/man4.${MACHINE_ARCH})
