@@ -1,6 +1,8 @@
-set -e
-
+#!/bin/sh
+#
 # $FreeBSD$
+
+set -e
 
 if [ "x$1" = "x-s" ]; then
 	use_switch=1
@@ -70,13 +72,13 @@ BEGIN {
 }
 
 /^#[ 	]*define[ 	]+[A-Za-z_][A-Za-z0-9_]*[ 	]+_IO/ {
-	
+
 	# find where the name starts
 	for (i = 1; i <= NF; i++)
 		if ($i ~ /define/)
 			break;
 	++i;
-	# 
+	#
 	if (use_switch)
 		printf("\tcase %s:\n\t\treturn(\"%s\");\n", $i, $i);
 	else
