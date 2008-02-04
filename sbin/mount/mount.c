@@ -877,7 +877,6 @@ flags2opts(int flags)
 	if (flags & MNT_SUIDDIR)	res = catopt(res, "suiddir");
 	if (flags & MNT_MULTILABEL)	res = catopt(res, "multilabel");
 	if (flags & MNT_ACLS)		res = catopt(res, "acls");
-	if (flags & MNT_GJOURNAL)	res = catopt(res, "gjournal");
 
 	return (res);
 }
