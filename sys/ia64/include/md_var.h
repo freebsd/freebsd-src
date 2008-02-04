@@ -71,6 +71,11 @@ struct reg;
 struct thread;
 struct trapframe;
 
+struct ia64_init_return {
+	uint64_t	bspstore;
+	uint64_t	sp;
+};
+
 void	busdma_swi(void);
 int	copyout_regstack(struct thread *, uint64_t *, uint64_t *);
 void	cpu_mp_add(u_int, u_int, u_int);
@@ -82,7 +87,7 @@ int	ia64_flush_dirty(struct thread *, struct _special *);
 uint64_t ia64_get_hcdp(void);
 int	ia64_highfp_drop(struct thread *);
 int	ia64_highfp_save(struct thread *);
-void	ia64_init(void);
+struct ia64_init_return ia64_init(void);
 void	ia64_probe_sapics(void);
 void	interrupt(struct trapframe *);
 void	map_gateway_page(void);

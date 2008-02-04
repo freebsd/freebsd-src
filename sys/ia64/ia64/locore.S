@@ -110,6 +110,28 @@ ENTRY_NOPROFILE(__start, 1)
 	br.call.sptk.many rp=ia64_init
 	;;
 }
+	// We have the new bspstore in r8 and the new sp in r9.
+	// Switch onto the new stack and call mi_startup().
+{
+	mov	ar.rsc = 0
+	;;
+	mov	ar.bspstore = r8
+	mov	sp = r9
+	;;
+}
+{
+	loadrs
+	;;
+	mov	ar.rsc = 3
+	nop	0
+	;;
+}
+{
+	nop	0
+	nop	0
+	br.call.sptk.many rp=mi_startup
+	;;
+}
 	/* NOTREACHED */
 1:	br.cond.sptk.few 1b
 END(__start)
