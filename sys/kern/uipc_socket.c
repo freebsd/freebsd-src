@@ -1877,15 +1877,13 @@ sorflush(struct socket *so)
 	struct sockbuf asb;
 
 	/*
-	 * XXXRW: This is quite ugly.  Previously, this code made a copy of
-	 * the socket buffer, then zero'd the original to clear the buffer
-	 * fields.  However, with mutexes in the socket buffer, this causes
-	 * problems.  We only clear the zeroable bits of the original;
-	 * however, we have to initialize and destroy the mutex in the copy
-	 * so that dom_dispose() and sbrelease() can lock t as needed.
-	 */
-
-	/*
+	 * In order to avoid calling dom_dispose with the socket buffer mutex
+	 * held, and in order to generally avoid holding the lock for a long
+	 * time, we make a copy of the socket buffer and clear the original
+	 * (except locks, state).  The new socket buffer copy won't have
+	 * initialized locks so we can only call routines that won't use or
+	 * assert those locks.
+	 *
 	 * Dislodge threads currently blocked in receive and wait to acquire
 	 * a lock against other simultaneous readers before clearing the
 	 * socket buffer.  Don't let our acquire be interrupted by a signal
@@ -1907,11 +1905,13 @@ sorflush(struct socket *so)
 	SOCKBUF_UNLOCK(sb);
 	sbunlock(sb);
 
-	SOCKBUF_LOCK_INIT(&asb, "so_rcv");
+	/*
+	 * Dispose of special rights and flush the socket buffer.  Don't call
+	 * any unsafe routines (that rely on locks being initialized) on asb.
+	 */
 	if (pr->pr_flags & PR_RIGHTS && pr->pr_domain->dom_dispose != NULL)
 		(*pr->pr_domain->dom_dispose)(asb.sb_mb);
-	sbrelease(&asb, so);
-	SOCKBUF_LOCK_DESTROY(&asb);
+	sbrelease_internal(&asb, so);
 }
 
 /*
