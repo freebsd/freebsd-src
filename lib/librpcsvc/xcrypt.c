@@ -67,7 +67,9 @@ xencrypt(secret, passwd)
 	int len;
 
 	len = strlen(secret) / 2;
-	buf = malloc((unsigned)len);
+	if ((buf = malloc((unsigned)len)) == NULL) {
+		return(0);
+	}
 
 	hex2bin(len, secret, buf);
 	passwd2des(passwd, key);
@@ -100,7 +102,9 @@ xdecrypt(secret, passwd)
 	int len;
 
 	len = strlen(secret) / 2;
-	buf = malloc((unsigned)len);
+	if ((buf = malloc((unsigned)len)) == NULL) {
+		return(0);
+	}
 
 	hex2bin(len, secret, buf);
 	passwd2des(passwd, key);	
