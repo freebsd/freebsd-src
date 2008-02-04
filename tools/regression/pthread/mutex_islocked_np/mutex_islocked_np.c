@@ -37,8 +37,8 @@ thread(void *arg)
 {
 	pthread_mutex_t *mtx = arg;
 
-	if (pthread_mutex_islocked_np(mtx) == 0) {
-		printf("pthread_mutex_islocked_np() returned zero\n"
+	if (pthread_mutex_islocked_np(mtx) != 0) {
+		printf("pthread_mutex_islocked_np() returned non-zero\n"
 		    "for a mutex held by another thread\n");
 		exit(1);
 	}
