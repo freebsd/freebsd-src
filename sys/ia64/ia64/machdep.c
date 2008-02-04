@@ -109,8 +109,6 @@ u_int64_t pa_bootinfo;
 struct bootinfo bootinfo;
 
 struct pcpu pcpu0;
-extern char kstack[]; 
-vm_offset_t proc0kstack;
 
 extern u_int64_t kernel_text[], _end[];
 
@@ -152,8 +150,6 @@ vm_paddr_t phys_avail[PHYSMAP_SIZE + 2];
 
 /* must be 2 less so 0 0 can signal end of chunks */
 #define PHYS_AVAIL_ARRAY_END ((sizeof(phys_avail) / sizeof(vm_offset_t)) - 2)
-
-void mi_startup(void);		/* XXX should be in a MI header */
 
 struct kva_md_info kmi;
 
@@ -550,9 +546,10 @@ calculate_frequencies(void)
 	}
 }
 
-void
+struct ia64_init_return
 ia64_init(void)
 {
+	struct ia64_init_return ret;
 	int phys_avail_cnt;
 	vm_offset_t kernstart, kernend;
 	vm_offset_t kernstartpfn, kernendpfn, pfn0, pfn1;
@@ -793,8 +790,7 @@ ia64_init(void)
 	/*
 	 * Init mapping for kernel stack for proc 0
 	 */
-	proc0kstack = (vm_offset_t)kstack;
-	thread0.td_kstack = proc0kstack;
+	thread0.td_kstack = pmap_steal_memory(KSTACK_PAGES * PAGE_SIZE);
 	thread0.td_kstack_pages = KSTACK_PAGES;
 
 	mutex_init();
@@ -831,19 +827,9 @@ ia64_init(void)
 	ia64_set_tpr(0);
 	ia64_srlz_d();
 
-	/*
-	 * Save our current context so that we have a known (maybe even
-	 * sane) context as the initial context for new threads that are
-	 * forked from us. If any of those threads (including thread0)
-	 * does something wrong, we may be lucky and return here where
-	 * we're ready for them with a nice panic.
-	 */
-	if (!savectx(thread0.td_pcb))
-		mi_startup();
-
-	/* We should not get here. */
-	panic("ia64_init: Whooaa there!");
-	/* NOTREACHED */
+	ret.bspstore = thread0.td_pcb->pcb_special.bspstore;
+	ret.sp = thread0.td_pcb->pcb_special.sp;
+	return (ret);
 }
 
 __volatile void *
