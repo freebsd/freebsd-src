@@ -2056,14 +2056,17 @@ getrxseq(const struct ieee80211req_sta_info *si)
 }
 
 static int
-gettxrate(int txrate, int chanflags)
+gettxrate(const struct ieee80211req_sta_info *si)
 {
+	int txrate = si->isi_txrate;
+
 	if (txrate & 0x80) {
 		txrate = htrates[txrate & 0xf];
 		/* NB: could bump this more based on short gi */
-		return chanflags & IEEE80211_CHAN_HT40 ? txrate : txrate / 2;
+		return si->isi_flags & IEEE80211_CHAN_HT40 ?
+		    txrate : txrate / 2;
 	} else
-		return (txrate & IEEE80211_RATE_VAL) / 2;
+		return (si->isi_rates[txrate] & IEEE80211_RATE_VAL) / 2;
 }
 
 static void
@@ -2116,7 +2119,7 @@ list_stations(int s)
 			, ether_ntoa((const struct ether_addr*) si->isi_macaddr)
 			, IEEE80211_AID(si->isi_associd)
 			, ieee80211_mhz2ieee(si->isi_freq, si->isi_flags)
-			, gettxrate(si->isi_txrate, si->isi_flags)
+			, gettxrate(si)
 			, si->isi_rssi/2.
 			, si->isi_inact
 			, gettxseq(si)
