@@ -7,8 +7,7 @@ PROG=		kdump
 SRCS=		kdump.c ioctl.c kdump_subr.c subr.c
 CFLAGS+=	-I${.CURDIR}/../ktrace -I${.CURDIR} -I${.CURDIR}/../..
 
-CLEANDEPFILES=	ioctl.c kdump_subr.c
-CLEANFILES=	${CLEANDEPFILES}
+CLEANFILES=	ioctl.c kdump_subr.c
 
 ioctl.c: mkioctls
 	sh ${.CURDIR}/mkioctls ${DESTDIR}/usr/include > ${.TARGET}
