@@ -65,12 +65,13 @@
 /* Per hook info */
 struct hookinfo {
 	hook_p			hook;
+	struct hookinfo		*dest, *dup;
 	struct ng_tee_hookstat	stats;
 };
+typedef struct hookinfo *hi_p;
 
 /* Per node info */
 struct privdata {
-	node_p			node;
 	struct hookinfo		left;
 	struct hookinfo		right;
 	struct hookinfo		left2right;
@@ -79,13 +80,13 @@ struct privdata {
 typedef struct privdata *sc_p;
 
 /* Netgraph methods */
-static ng_constructor_t	ngt_constructor;
-static ng_rcvmsg_t	ngt_rcvmsg;
-static ng_close_t	ngt_close;
-static ng_shutdown_t	ngt_shutdown;
-static ng_newhook_t	ngt_newhook;
-static ng_rcvdata_t	ngt_rcvdata;
-static ng_disconnect_t	ngt_disconnect;
+static ng_constructor_t	ng_tee_constructor;
+static ng_rcvmsg_t	ng_tee_rcvmsg;
+static ng_close_t	ng_tee_close;
+static ng_shutdown_t	ng_tee_shutdown;
+static ng_newhook_t	ng_tee_newhook;
+static ng_rcvdata_t	ng_tee_rcvdata;
+static ng_disconnect_t	ng_tee_disconnect;
 
 /* Parse type for struct ng_tee_hookstat */
 static const struct ng_parse_struct_field ng_tee_hookstat_type_fields[]
@@ -133,13 +134,13 @@ static const struct ng_cmdlist ng_tee_cmds[] = {
 static struct ng_type ng_tee_typestruct = {
 	.version =	NG_ABI_VERSION,
 	.name =		NG_TEE_NODE_TYPE,
-	.constructor =	ngt_constructor,
-	.rcvmsg =	ngt_rcvmsg,
-	.close =	ngt_close,
-	.shutdown =	ngt_shutdown,
-	.newhook =	ngt_newhook,
-	.rcvdata =	ngt_rcvdata,
-	.disconnect =	ngt_disconnect,
+	.constructor =  ng_tee_constructor,
+	.rcvmsg =	ng_tee_rcvmsg,
+	.close =	ng_tee_close,
+	.shutdown =	ng_tee_shutdown,
+	.newhook =	ng_tee_newhook,
+	.rcvdata =	ng_tee_rcvdata,
+	.disconnect =	ng_tee_disconnect,
 	.cmdlist =	ng_tee_cmds,
 };
 NETGRAPH_INIT(tee, &ng_tee_typestruct);
@@ -148,7 +149,7 @@ NETGRAPH_INIT(tee, &ng_tee_typestruct);
  * Node constructor
  */
 static int
-ngt_constructor(node_p node)
+ng_tee_constructor(node_p node)
 {
 	sc_p privdata;
 
@@ -157,7 +158,6 @@ ngt_constructor(node_p node)
 		return (ENOMEM);
 
 	NG_NODE_SET_PRIVATE(node, privdata);
-	privdata->node = node;
 	return (0);
 }
 
@@ -165,28 +165,41 @@ ngt_constructor(node_p node)
  * Add a hook
  */
 static int
-ngt_newhook(node_p node, hook_p hook, const char *name)
+ng_tee_newhook(node_p node, hook_p hook, const char *name)
 {
-	const sc_p sc = NG_NODE_PRIVATE(node);
+	sc_p	privdata = NG_NODE_PRIVATE(node);
+	hi_p	hinfo;
 
+	/* Precalculate internal pathes. */
 	if (strcmp(name, NG_TEE_HOOK_RIGHT) == 0) {
-		sc->right.hook = hook;
-		bzero(&sc->right.stats, sizeof(sc->right.stats));
-		NG_HOOK_SET_PRIVATE(hook, &sc->right);
+		hinfo = &privdata->right;
+		if (privdata->left.dest)
+			privdata->left.dup = privdata->left.dest;
+		privdata->left.dest = hinfo;
+		privdata->right2left.dest = hinfo;
 	} else if (strcmp(name, NG_TEE_HOOK_LEFT) == 0) {
-		sc->left.hook = hook;
-		bzero(&sc->left.stats, sizeof(sc->left.stats));
-		NG_HOOK_SET_PRIVATE(hook, &sc->left);
+		hinfo = &privdata->left;
+		if (privdata->right.dest)
+			privdata->right.dup = privdata->right.dest;
+		privdata->right.dest = hinfo;
+		privdata->left2right.dest = hinfo;
 	} else if (strcmp(name, NG_TEE_HOOK_RIGHT2LEFT) == 0) {
-		sc->right2left.hook = hook;
-		bzero(&sc->right2left.stats, sizeof(sc->right2left.stats));
-		NG_HOOK_SET_PRIVATE(hook, &sc->right2left);
+		hinfo = &privdata->right2left;
+		if (privdata->right.dest)
+			privdata->right.dup = hinfo;
+		else    
+			privdata->right.dest = hinfo;
 	} else if (strcmp(name, NG_TEE_HOOK_LEFT2RIGHT) == 0) {
-		sc->left2right.hook = hook;
-		bzero(&sc->left2right.stats, sizeof(sc->left2right.stats));
-		NG_HOOK_SET_PRIVATE(hook, &sc->left2right);
+		hinfo = &privdata->left2right;
+		if (privdata->left.dest)
+			privdata->left.dup = hinfo;
+		else
+			privdata->left.dest = hinfo;
 	} else
 		return (EINVAL);
+	hinfo->hook = hook;
+	bzero(&hinfo->stats, sizeof(hinfo->stats));
+	NG_HOOK_SET_PRIVATE(hook, hinfo);
 	return (0);
 }
 
@@ -194,7 +207,7 @@ ngt_newhook(node_p node, hook_p hook, const char *name)
  * Receive a control message
  */
 static int
-ngt_rcvmsg(node_p node, item_p item, hook_p lasthook)
+ng_tee_rcvmsg(node_p node, item_p item, hook_p lasthook)
 {
 	const sc_p sc = NG_NODE_PRIVATE(node);
 	struct ng_mesg *resp = NULL;
@@ -246,21 +259,12 @@ ngt_rcvmsg(node_p node, item_p item, hook_p lasthook)
 		}
 		break;
 	case NGM_FLOW_COOKIE:
-		if (lasthook)  {
-			if (lasthook == sc->left.hook) {
-				if (sc->right.hook) {
-					NGI_MSG(item) = msg;
-					NG_FWD_ITEM_HOOK(error, item,
-							sc->right.hook);
-					return (error);
-				}
-			} else {
-				if (sc->left.hook) {
-					NGI_MSG(item) = msg;
-					NG_FWD_ITEM_HOOK(error, item, 
-							sc->left.hook);
-					return (error);
-				}
+		if (lasthook == sc->left.hook || lasthook == sc->right.hook)  {
+			hi_p const hinfo = NG_HOOK_PRIVATE(lasthook);
+			if (hinfo && hinfo->dest) {
+				NGI_MSG(item) = msg;
+				NG_FWD_ITEM_HOOK(error, item, hinfo->dest->hook);
+				return (error);
 			}
 		}
 		break;
@@ -285,68 +289,41 @@ done:
  * from the other side.
  */
 static int
-ngt_rcvdata(hook_p hook, item_p item)
+ng_tee_rcvdata(hook_p hook, item_p item)
 {
-	const sc_p sc = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
-	struct hookinfo *const hinfo = NG_HOOK_PRIVATE(hook);
-	struct hookinfo *dest;
-	struct hookinfo *dup;
-	int error = 0;
+	const hi_p hinfo = NG_HOOK_PRIVATE(hook);
+	hi_p	h;
+	int	error = 0;
 	struct mbuf *m;
 
 	m = NGI_M(item);
-	/* Which hook? */
-	if (hinfo == &sc->left) {
-		dup = &sc->left2right;
-		dest = &sc->right;
-	} else if (hinfo == &sc->right) {
-		dup = &sc->right2left;
-		dest = &sc->left;
-	} else if (hinfo == &sc->right2left) {
-		dup = NULL;
-		dest = &sc->right;
-	} else if (hinfo == &sc->left2right) {
-		dup = NULL;
-		dest = &sc->left;
-	} else {
-		panic("%s: no hook!", __func__);
-#ifdef	RESTARTABLE_PANICS
-		return(EINVAL);
-#endif
-	}
 
 	/* Update stats on incoming hook */
 	hinfo->stats.inOctets += m->m_pkthdr.len;
 	hinfo->stats.inFrames++;
 
-	/*
-	 * Don't make a copy if only the dup hook exists.
-	 */
-	if ((dup && dup->hook) && (dest->hook == NULL)) {
-		dest = dup;
-		dup = NULL;
-	}
-
 	/* Duplicate packet if requried */
-	if (dup && dup->hook) {
+	if (hinfo->dup) {
 		struct mbuf *m2;
 
 		/* Copy packet (failure will not stop the original)*/
 		m2 = m_dup(m, M_DONTWAIT);
 		if (m2) {
 			/* Deliver duplicate */
-			NG_SEND_DATA_ONLY(error, dup->hook, m2);
+			h = hinfo->dup;
+			NG_SEND_DATA_ONLY(error, h->hook, m2);
 			if (error == 0) {
-				dup->stats.outOctets += m->m_pkthdr.len;
-				dup->stats.outFrames++;
+				h->stats.outOctets += m->m_pkthdr.len;
+				h->stats.outFrames++;
 			}
 		}
 	}
 	/* Deliver frame out destination hook */
-	if (dest->hook) {
-		dest->stats.outOctets += m->m_pkthdr.len;
-		dest->stats.outFrames++;
-		NG_FWD_ITEM_HOOK(error, item, dest->hook);
+	if (hinfo->dest) {
+		h = hinfo->dest;
+		h->stats.outOctets += m->m_pkthdr.len;
+		h->stats.outFrames++;
+		NG_FWD_ITEM_HOOK(error, item, h->hook);
 	} else
 		NG_FREE_ITEM(item);
 	return (error);
@@ -360,7 +337,7 @@ ngt_rcvdata(hook_p hook, item_p item)
  * should just shut down as a normal node would.
  */
 static int
-ngt_close(node_p node)
+ng_tee_close(node_p node)
 {
 	const sc_p privdata = NG_NODE_PRIVATE(node);
 
@@ -374,12 +351,11 @@ ngt_close(node_p node)
  * Shutdown processing
  */
 static int
-ngt_shutdown(node_p node)
+ng_tee_shutdown(node_p node)
 {
 	const sc_p privdata = NG_NODE_PRIVATE(node);
 
 	NG_NODE_SET_PRIVATE(node, NULL);
-	NG_NODE_UNREF(privdata->node);
 	FREE(privdata, M_NETGRAPH);
 	return (0);
 }
@@ -388,15 +364,33 @@ ngt_shutdown(node_p node)
  * Hook disconnection
  */
 static int
-ngt_disconnect(hook_p hook)
+ng_tee_disconnect(hook_p hook)
 {
-	struct hookinfo *const hinfo = NG_HOOK_PRIVATE(hook);
+	sc_p	sc = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
+	hi_p const hinfo = NG_HOOK_PRIVATE(hook);
 
 	KASSERT(hinfo != NULL, ("%s: null info", __func__));
 	hinfo->hook = NULL;
-	if ((NG_NODE_NUMHOOKS(NG_HOOK_NODE(hook)) == 0)
-	&& (NG_NODE_IS_VALID(NG_HOOK_NODE(hook))))
+
+	/* Recalculate internal pathes. */
+	if (sc->left.dest == hinfo) {
+		sc->left.dest = sc->left.dup;
+		sc->left.dup = NULL;
+	} else if (sc->left.dup == hinfo)
+		sc->left.dup = NULL;
+	if (sc->right.dest == hinfo) {
+		sc->right.dest = sc->right.dup;
+		sc->right.dup = NULL;
+	} else if (sc->right.dup == hinfo)
+		sc->right.dup = NULL;
+	if (sc->left2right.dest == hinfo)
+		sc->left2right.dest = NULL;
+	if (sc->right2left.dest == hinfo)
+		sc->right2left.dest = NULL;
+
+	/* Die when last hook disconnected. */
+	if ((NG_NODE_NUMHOOKS(NG_HOOK_NODE(hook)) == 0) &&
+	    NG_NODE_IS_VALID(NG_HOOK_NODE(hook)))
 		ng_rmnode_self(NG_HOOK_NODE(hook));
 	return (0);
 }
-
