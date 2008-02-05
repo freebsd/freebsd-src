@@ -64,6 +64,7 @@ friendly(uuid_t *t)
 	static uuid_t swap = GPT_ENT_TYPE_FREEBSD_SWAP;
 	static uuid_t ufs = GPT_ENT_TYPE_FREEBSD_UFS;
 	static uuid_t vinum = GPT_ENT_TYPE_FREEBSD_VINUM;
+	static uuid_t zfs = GPT_ENT_TYPE_FREEBSD_ZFS;
 	static char buf[80];
 	char *s;
 
@@ -80,6 +81,8 @@ friendly(uuid_t *t)
 		return ("FreeBSD UFS/UFS2");
 	if (uuid_equal(t, &vinum, NULL))
 		return ("FreeBSD vinum");
+	if (uuid_equal(t, &zfs, NULL))
+		return ("FreeBSD ZFS");
 
 	if (uuid_equal(t, &freebsd, NULL))
 		return ("FreeBSD legacy");
