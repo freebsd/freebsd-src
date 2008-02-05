@@ -254,7 +254,7 @@ m_setiovec(struct mbuf_iovec *mi, struct mbuf *m, struct mbuf_ext *extvec, int *
 }
 
 int
-_m_collapse(struct mbuf *m, int maxbufs, struct mbuf **mnew)
+_cxgb_m_collapse(struct mbuf *m, int maxbufs, struct mbuf **mnew)
 {
 	struct mbuf *m0, *lmvec[MAX_BUFS];
 	struct mbuf **mnext;
