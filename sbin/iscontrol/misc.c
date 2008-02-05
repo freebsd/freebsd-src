@@ -158,7 +158,7 @@ char *
 bin2str(char *encoding, unsigned char *md, int blen)
 {
      int	len;
-     char	*dst, *ds, *cp;
+     unsigned char	*dst, *ds, *cp;
 
      if(strncasecmp(encoding, "0x", 2) == 0) {
 	  char	ofmt[5];
