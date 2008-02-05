@@ -68,10 +68,10 @@
         mov     r0, r0;                 /* NOP for previous instruction */ \
 	mrs	r0, spsr_all;		/* Put the SPSR on the stack */	   \
 	str	r0, [sp, #-4]!;						   \
-	mov	r0, #0xe0000004;					   \
+	ldr	r0, =ARM_RAS_START;					   \
 	mov	r1, #0;							   \
 	str	r1, [r0];						   \
-	mov	r0, #0xe0000008;					   \
+	ldr	r0, =ARM_RAS_END;					   \
 	mov	r1, #0xffffffff;					   \
 	str	r1, [r0];
 
@@ -119,11 +119,11 @@
 	add	r0, sp, #(4*13);	/* Adjust the stack pointer */	   \
 	stmia	r0, {r13-r14}^;		/* Push the user mode registers */ \
         mov     r0, r0;                 /* NOP for previous instruction */ \
-	ldr	r5, =0xe0000004;	/* Check if there's any RAS */	   \
+	ldr	r5, =ARM_RAS_START;	/* Check if there's any RAS */	   \
 	ldr	r3, [r5];						   \
 	cmp	r3, #0;			/* Is the update needed ? */	   \
 	ldrgt	lr, [r0, #16];						   \
-	ldrgt	r1, =0xe0000008;					   \
+	ldrgt	r1, =ARM_RAS_END;					   \
 	ldrgt	r4, [r1];		/* Get the end of the RAS */	   \
 	movgt	r2, #0;			/* Reset the magic addresses */	   \
 	strgt	r2, [r5];						   \

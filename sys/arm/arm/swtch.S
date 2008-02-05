@@ -205,7 +205,7 @@ ENTRY(cpu_throw)
 
 	/* Set the new tp */
 	ldr	r6, [r5, #(TD_MD + MD_TP)]
-	mov	r5, #ARM_TP_ADDRESS
+	ldr	r5, =ARM_TP_ADDRESS
 	strt	r6, [r5]
 
 	/* Hook in a new pcb */
@@ -263,7 +263,7 @@ ENTRY(cpu_switch)
 	 * them for the new process.
 	 */
 	/* Store the old tp */
-	mov	r3, #ARM_TP_ADDRESS
+	ldr	r3, =ARM_TP_ADDRESS
 	ldrt	r9, [r3]
 	str	r9, [r0, #(TD_MD + MD_TP)]
 
