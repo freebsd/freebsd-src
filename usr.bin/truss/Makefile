@@ -9,9 +9,8 @@ SRCS+=	i386-linux.c linux_syscalls.h
 .endif
 
 CFLAGS+= -I${.CURDIR} -I.
-CLEANDEPFILES=i386l-syscalls.master syscalls.master linux_syscalls.h \
+CLEANFILES=i386l-syscalls.master syscalls.master linux_syscalls.h \
 	syscalls.h ioctl.c
-CLEANFILES+=${CLEANDEPFILES}
 
 .SUFFIXES: .master
 
