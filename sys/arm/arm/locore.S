@@ -69,7 +69,7 @@ ASENTRY_NP(_start)
 #if defined (FLASHADDR) && defined(LOADERRAMADDR)
 	/* Check if we're running from flash. */
 	ldr	r7, =FLASHADDR
-	/* 
+	/*
 	 * If we're running with MMU disabled, test against the
 	 * physical address instead.
 	 */
@@ -88,7 +88,7 @@ flash_lower:
 	bls	from_ram
 do_copy:
 	ldr	r9, =KERNBASE
-	adr	r1, _start 
+	adr	r1, _start
 	ldr	r0, Lreal_start
 	ldr	r2, Lend
 	sub	r2, r2, r0
@@ -105,7 +105,7 @@ from_ram:
 	adr	r7, Lunmapped
 	bic     r7, r7, #0xff000000
 	orr     r7, r7, #PHYSADDR
-			
+
 
 disable_mmu:
 	/* Disable MMU for a while */
@@ -170,7 +170,7 @@ mmu_done:
 	ldr	pc, .Lvirt_done
 
 virt_done:
-	mov	fp, #0		/* trace back starts here */
+	mov	fp, #0			/* trace back starts here */
 	bl	_C_LABEL(initarm)	/* Off we go */
 
 	/* init arm will return the new stack pointer. */
@@ -180,7 +180,7 @@ virt_done:
 
 	adr	r0, .Lmainreturned
 	b	_C_LABEL(panic)
-	/* NOTEACHED */
+	/* NOTREACHED */
 #ifdef STARTUP_PAGETABLE_ADDR
 #define MMU_INIT(va,pa,n_sec,attr) \
 	.word	n_sec					    ; \
@@ -229,9 +229,6 @@ svcstk:
 	.text
 	.align	0
 
-#ifndef OFW
-	/* OFW based systems will used OF_boot() */
-
 .Lcpufuncs:
 	.word	_C_LABEL(cpufuncs)
 
@@ -260,7 +257,7 @@ ENTRY_NP(cpu_halt)
 	mov	r2, #0
 
 	/*
- 	 * MMU & IDC off, 32 bit program & data space
+	 * MMU & IDC off, 32 bit program & data space
 	 * Hurl ourselves into the ROM
 	 */
 	mov	r0, #(CPU_CONTROL_32BP_ENABLE | CPU_CONTROL_32BD_ENABLE)
@@ -285,7 +282,6 @@ ENTRY_NP(cpu_halt)
 .Lcpu_reset_needs_v4_MMU_disable:
 	.word	_C_LABEL(cpu_reset_needs_v4_MMU_disable)
 
-#endif	/* OFW */
 
 #ifdef IPKDB
 /*
