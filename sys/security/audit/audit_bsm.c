@@ -1185,7 +1185,8 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		if (ARG_IS_VALID(kar, ARG_GROUPSET)) {
 			for(ctr = 0; ctr < ar->ar_arg_groups.gidset_size; ctr++)
 			{
-				tok = au_to_arg32(1, "setgroups", 							ar->ar_arg_groups.gidset[ctr]);
+				tok = au_to_arg32(1, "setgroups",
+				    ar->ar_arg_groups.gidset[ctr]);
 				kau_write(rec, tok);
 			}
 		}
