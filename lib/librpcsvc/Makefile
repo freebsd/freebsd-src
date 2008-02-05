@@ -29,7 +29,7 @@ SRCS+= ${GENSRCS} ${OTHERSRCS} ${SECRPCSRCS}
 
 CLEANFILES+= ${GENSRCS}
 
-WARNS?=	2
+WARNS?=	1
 
 .include <bsd.lib.mk>
 
