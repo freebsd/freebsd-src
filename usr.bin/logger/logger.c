@@ -175,7 +175,7 @@ main(int argc, char *argv[])
 /*
  *  Send the message to syslog, either on the local host, or on a remote host
  */
-void 
+void
 logmessage(int pri, const char *host, const char *svcname, const char *buf)
 {
 	static struct socks *socks;
