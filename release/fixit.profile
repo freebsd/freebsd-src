@@ -9,7 +9,7 @@ export SCSI_MODES="/mnt2/usr/share/misc/scsi_modes"
 # the root MFS doesn't have /dev/nrsa0, pick a better default for mt(1)
 export TAPE=/mnt2/dev/nrsa0
 # make geom(8) utilities find their modules
-export GEOM_LIBRARY_PATH="/mnt2/lib/geom"
+export GEOM_LIBRARY_PATH="/mnt2/lib/geom:/lib/geom"
 
 alias ls="ls -F"
 alias ll="ls -l"
