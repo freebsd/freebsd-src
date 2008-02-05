@@ -118,6 +118,13 @@ migrate_disklabel(int fd, off_t start, struct gpt_ent *ent)
 			    ent->ent_name, 36);
 			break;
 		}
+		case FS_ZFS: {
+			uuid_t zfs = GPT_ENT_TYPE_FREEBSD_ZFS;
+			le_uuid_enc(&ent->ent_type, &zfs);
+			utf8_to_utf16("FreeBSD ZFS partition",
+			    ent->ent_name, 36);
+			break;
+		}
 		default:
 			warnx("%s: warning: unknown FreeBSD partition (%d)",
 			    device_name, dl->d_partitions[i].p_fstype);
