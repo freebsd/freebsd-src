@@ -91,13 +91,7 @@ ${FULLKERNEL}: ${SYSTEM_DEP} vers.o
 .endif
 	${SYSTEM_LD_TAIL}
 .if defined(MFS_IMAGE)
-	@dd if="${MFS_IMAGE}" ibs=8192 of="${FULLKERNEL}"		\
-	   obs=`strings -at d "${FULLKERNEL}" |				\
-	         grep "MFS Filesystem goes here" | awk '{print $$1}'`	\
-	   oseek=1 conv=notrunc 2>/dev/null &&				\
-	 strings ${FULLKERNEL} |					\
-	 grep 'MFS Filesystem had better STOP here' > /dev/null ||	\
-	 (rm ${FULLKERNEL} && echo 'MFS image too large' && false)
+	@sh ${S}/tools/embed_mfs.sh ${FULLKERNEL} ${MFS_IMAGE}
 .endif
 
 .if !exists(${.OBJDIR}/.depend)
