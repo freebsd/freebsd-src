@@ -37,6 +37,18 @@
 #ifndef _ARM_SYSARCH_H_
 #define _ARM_SYSARCH_H_
 
+#include <machine/armreg.h>
+/*
+ * The ARM_TP_ADDRESS points to a special purpose page, which is used as local
+ * store for the ARM per-thread data and Restartable Atomic Sequences support.
+ * Put it just above the "high" vectors' page.
+ */
+#define ARM_TP_ADDRESS		(ARM_VECTORS_HIGH + 0x1000)
+#define ARM_RAS_START		(ARM_TP_ADDRESS + 4)
+#define ARM_RAS_END		(ARM_TP_ADDRESS + 8)
+
+#ifndef LOCORE
+
 #include <sys/cdefs.h>
 
 /*
@@ -53,8 +65,6 @@
 #define ARM_SET_TP		2
 #define ARM_GET_TP		3
 
-#define ARM_TP_ADDRESS		0xe0000000 /* Magic */
-
 struct arm_sync_icache_args {
 	uintptr_t	addr;		/* Virtual start address */
 	size_t		len;		/* Region size */
@@ -67,5 +77,7 @@ int	arm_drain_writebuf (void);
 int	sysarch(int, void *);
 __END_DECLS
 #endif
+
+#endif /* LOCORE */
 
 #endif /* !_ARM_SYSARCH_H_ */
