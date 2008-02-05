@@ -315,6 +315,7 @@ _worldtmp:
 	rm -rf ${WORLDTMP}/legacy/usr/include
 #	XXX - These two can depend on any header file.
 	rm -f ${OBJTREE}${.CURDIR}/usr.bin/kdump/ioctl.c
+	rm -f ${OBJTREE}${.CURDIR}/usr.bin/kdump/kdump_subr.c
 	rm -f ${OBJTREE}${.CURDIR}/usr.bin/truss/ioctl.c
 .endif
 .for _dir in \
