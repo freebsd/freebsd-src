@@ -85,8 +85,9 @@ MALLOC_DEFINE(M_NETGRAPH_BPF, "netgraph_bpf", "netgraph bpf node ");
 
 /* Per hook private info */
 struct ng_bpf_hookinfo {
-	node_p			node;
 	hook_p			hook;
+	hook_p			match;
+	hook_p			nomatch;
 	struct ng_bpf_hookprog	*prog;
 #ifdef BPF_JITTER
 	bpf_jit_filter		*jit_prog;
@@ -234,12 +235,42 @@ ng_bpf_constructor(node_p node)
 }
 
 /*
+ * Callback functions to be used by NG_NODE_FOREACH_HOOK() macro.
+ */
+static int
+ng_bpf_addrefs(hook_p hook, void* arg)
+{
+	hinfo_p hip = NG_HOOK_PRIVATE(hook);
+	hook_p h = (hook_p)arg;
+
+	if (strcmp(hip->prog->ifMatch, NG_HOOK_NAME(h)) == 0)
+	    hip->match = h;
+	if (strcmp(hip->prog->ifNotMatch, NG_HOOK_NAME(h)) == 0)
+	    hip->nomatch = h;
+	return (1);
+}
+
+static int
+ng_bpf_remrefs(hook_p hook, void* arg)
+{
+	hinfo_p hip = NG_HOOK_PRIVATE(hook);
+	hook_p h = (hook_p)arg;
+
+	if (hip->match == h)
+	    hip->match = NULL;
+	if (hip->nomatch == h)
+	    hip->nomatch = NULL;
+	return (1);
+}
+
+/*
  * Add a hook
  */
 static int
 ng_bpf_newhook(node_p node, hook_p hook, const char *name)
 {
 	hinfo_p hip;
+	hook_p tmp;
 	int error;
 
 	/* Create hook private structure */
@@ -248,7 +279,9 @@ ng_bpf_newhook(node_p node, hook_p hook, const char *name)
 		return (ENOMEM);
 	hip->hook = hook;
 	NG_HOOK_SET_PRIVATE(hook, hip);
-	hip->node = node;
+
+	/* Add our reference into other hooks data. */
+	NG_NODE_FOREACH_HOOK(node, ng_bpf_addrefs, hook, tmp);
 
 	/* Attach the default BPF program */
 	if ((error = ng_bpf_setprog(hook, &ng_bpf_default_prog)) != 0) {
@@ -258,8 +291,7 @@ ng_bpf_newhook(node_p node, hook_p hook, const char *name)
 	}
 
 	/* Set hook name */
-	strncpy(hip->prog->thisHook, name, sizeof(hip->prog->thisHook) - 1);
-	hip->prog->thisHook[sizeof(hip->prog->thisHook) - 1] = '\0';
+	strlcpy(hip->prog->thisHook, name, sizeof(hip->prog->thisHook));
 	return (0);
 }
 
@@ -381,8 +413,8 @@ ng_bpf_rcvdata(hook_p hook, item_p item)
 {
 	const hinfo_p hip = NG_HOOK_PRIVATE(hook);
 	int totlen;
-	int needfree = 0, error = 0;
-	u_char *data;
+	int needfree = 0, error = 0, usejit = 0;
+	u_char *data = NULL;
 	hinfo_p dhip;
 	hook_p dest;
 	u_int len;
@@ -396,9 +428,20 @@ ng_bpf_rcvdata(hook_p hook, item_p item)
 	hip->stats.recvFrames++; 
 	hip->stats.recvOctets += totlen;
 
+	/* Don't call bpf_filter() with totlen == 0! */
+	if (totlen == 0) {
+		len = 0;
+		goto ready;
+	}
+
+#ifdef BPF_JITTER
+	if (bpf_jitter_enable != 0 && hip->jit_prog != NULL)
+		usejit = 1;
+#endif
+
 	/* Need to put packet in contiguous memory for bpf */
-	if (m->m_next != NULL) {
-		if (totlen > MHLEN) {
+	if (m->m_next != NULL && totlen > MHLEN) {
+		if (usejit) {
 			MALLOC(data, u_char *, totlen, M_NETGRAPH_BPF, M_NOWAIT);
 			if (data == NULL) {
 				NG_FREE_ITEM(item);
@@ -406,31 +449,31 @@ ng_bpf_rcvdata(hook_p hook, item_p item)
 			}
 			needfree = 1;
 			m_copydata(m, 0, totlen, (caddr_t)data);
-		} else {
+		}
+	} else {
+		if (m->m_next != NULL) {
 			NGI_M(item) = m = m_pullup(m, totlen);
 			if (m == NULL) {
 				NG_FREE_ITEM(item);
 				return (ENOBUFS);
 			}
-			data = mtod(m, u_char *);
 		}
-	} else
 		data = mtod(m, u_char *);
+	}
 
 	/* Run packet through filter */
-	if (totlen == 0)
-		len = 0;	/* don't call bpf_filter() with totlen == 0! */
-	else {
 #ifdef BPF_JITTER
-		if (bpf_jitter_enable != 0 && hip->jit_prog != NULL)
-			len = (*(hip->jit_prog->func))(data, totlen, totlen);
-		else
+	if (usejit)
+		len = (*(hip->jit_prog->func))(data, totlen, totlen);
+	else
 #endif
+	if (data)
 		len = bpf_filter(hip->prog->bpf_prog, data, totlen, totlen);
-	}
+	else
+		len = bpf_filter(hip->prog->bpf_prog, (u_char *)m, totlen, 0);
 	if (needfree)
 		FREE(data, M_NETGRAPH_BPF);
-
+ready:
 	/* See if we got a match and find destination hook */
 	if (len > 0) {
 
@@ -443,11 +486,11 @@ ng_bpf_rcvdata(hook_p hook, item_p item)
 		/* Assume this never changes m */
 		if (len < totlen) {
 			m_adj(m, -(totlen - len));
-			totlen -= len;
+			totlen = len;
 		}
-		dest = ng_findhook(hip->node, hip->prog->ifMatch);
+		dest = hip->match;
 	} else
-		dest = ng_findhook(hip->node, hip->prog->ifNotMatch);
+		dest = hip->nomatch;
 	if (dest == NULL) {
 		NG_FREE_ITEM(item);
 		return (0);
@@ -477,20 +520,24 @@ ng_bpf_shutdown(node_p node)
 static int
 ng_bpf_disconnect(hook_p hook)
 {
+	const node_p node = NG_HOOK_NODE(hook);
 	const hinfo_p hip = NG_HOOK_PRIVATE(hook);
+	hook_p tmp;
 
 	KASSERT(hip != NULL, ("%s: null info", __func__));
+
+	/* Remove our reference from other hooks data. */
+	NG_NODE_FOREACH_HOOK(node, ng_bpf_remrefs, hook, tmp);
+
 	FREE(hip->prog, M_NETGRAPH_BPF);
 #ifdef BPF_JITTER
 	if (hip->jit_prog != NULL)
 		bpf_destroy_jit_filter(hip->jit_prog);
 #endif
-	bzero(hip, sizeof(*hip));
 	FREE(hip, M_NETGRAPH_BPF);
-	NG_HOOK_SET_PRIVATE(hook, NULL);			/* for good measure */
-	if ((NG_NODE_NUMHOOKS(NG_HOOK_NODE(hook)) == 0)
-	&& (NG_NODE_IS_VALID(NG_HOOK_NODE(hook)))) {
-		ng_rmnode_self(NG_HOOK_NODE(hook));
+	if ((NG_NODE_NUMHOOKS(node) == 0) &&
+	    (NG_NODE_IS_VALID(node))) {
+		ng_rmnode_self(node);
 	}
 	return (0);
 }
@@ -535,5 +582,9 @@ ng_bpf_setprog(hook_p hook, const struct ng_bpf_hookprog *hp0)
 		bpf_destroy_jit_filter(hip->jit_prog);
 	hip->jit_prog = jit_prog;
 #endif
+
+	/* Prepare direct references on target hooks. */
+	hip->match = ng_findhook(NG_HOOK_NODE(hook), hip->prog->ifMatch);
+	hip->nomatch = ng_findhook(NG_HOOK_NODE(hook), hip->prog->ifNotMatch);
 	return (0);
 }
