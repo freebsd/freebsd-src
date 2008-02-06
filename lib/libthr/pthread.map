@@ -6,7 +6,6 @@
  * Use the same naming scheme as libc.
  */
 FBSD_1.0 {
-global:
 	__error;
 	accept;
 	aio_suspend;
@@ -171,8 +170,6 @@ global:
 	waitpid;
 	write;
 	writev;
-local:
-	*;
 };
 
 /*
@@ -180,7 +177,6 @@ local:
  * These are not part of our application ABI.
  */
 FBSDprivate_1.0 {
-global:
 	___creat;
 	___pause;
 	___pselect;
@@ -388,17 +384,12 @@ global:
 	_thread_size_key;
 	_thread_state_running;
 	_thread_state_zoombie;
-local:
-	*;
 };
 
 FBSD_1.1 {
-global:
 	pthread_mutex_getspinloops_np;
 	pthread_mutex_getyieldloops_np;
 	pthread_mutex_isowned_np;
 	pthread_mutex_setspinloops_np;
 	pthread_mutex_setyieldloops_np;
-local:
-	*;
-} FBSD_1.0;
+};
