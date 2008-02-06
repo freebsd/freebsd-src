@@ -2281,115 +2281,69 @@ ng_snd_item(item_p item, int flags)
 	struct ng_queue *ngq;
 	int error = 0;
 
-	if (item == NULL) {
-		TRAP_ERROR();
-		return (EINVAL);	/* failed to get queue element */
-	}
+	/* We are sending item, so it must be present! */
+	KASSERT(item != NULL, ("ng_snd_item: item is NULL"));
 
 #ifdef	NETGRAPH_DEBUG
 	_ngi_check(item, __FILE__, __LINE__);
 #endif
 
+	/* Item was sent once more, postpone apply() call. */
 	if (item->apply)
 		refcount_acquire(&item->apply->refs);
 
 	node = NGI_NODE(item);
-	if (node == NULL) {
-		TRAP_ERROR();
-		ERROUT(EINVAL);	/* No address */
-	}
+	/* Node is never optional. */
+	KASSERT(node != NULL, ("ng_snd_item: node is NULL"));
 
 	hook = NGI_HOOK(item);
-	switch(item->el_flags & NGQF_TYPE) {
-	case NGQF_DATA:
-		/*
-		 * DATA MESSAGE
-		 * Delivered to a node via a non-optional hook.
-		 * Both should be present in the item even though
-		 * the node is derivable from the hook.
-		 * References are held on both by the item.
-		 */
-
-		/* Protect nodes from sending NULL pointers
-		 * to each other
-		 */
+	/* Valid hook and mbuf are mandatory for data. */
+	if ((item->el_flags & NGQF_TYPE) == NGQF_DATA) {
+		KASSERT(hook != NULL, ("ng_snd_item: hook for data is NULL"));
 		if (NGI_M(item) == NULL)
 			ERROUT(EINVAL);
-
 		CHECK_DATA_MBUF(NGI_M(item));
-		if (hook == NULL) {
-			TRAP_ERROR();
-			ERROUT(EINVAL);
-		}
-		if ((NG_HOOK_NOT_VALID(hook))
-		|| (NG_NODE_NOT_VALID(NG_HOOK_NODE(hook)))) {
-			ERROUT(ENOTCONN);
-		}
-		break;
-	case NGQF_MESG:
-		/*
-		 * CONTROL MESSAGE
-		 * Delivered to a node.
-		 * Hook is optional.
-		 * References are held by the item on the node and
-		 * the hook if it is present.
-		 */
-		break;
-	case NGQF_FN:
-	case NGQF_FN2:
-		break;
-	default:
-		TRAP_ERROR();
-		ERROUT(EINVAL);
-	}
-	switch(item->el_flags & NGQF_RW) {
-	case NGQF_READER:
-		rw = NGQRW_R;
-		break;
-	case NGQF_WRITER:
-		rw = NGQRW_W;
-		break;
-	default:
-		panic("%s: invalid item flags %lx", __func__, item->el_flags);
 	}
 
 	/*
-	 * If the node specifies single threading, force writer semantics.
-	 * Similarly, the node may say one hook always produces writers.
-	 * These are overrides.
+	 * If the item or the node specifies single threading, force
+	 * writer semantics. Similarly, the node may say one hook always
+	 * produces writers. These are overrides.
 	 */
-	if ((node->nd_flags & NGF_FORCE_WRITER)
-	    || (hook && (hook->hk_flags & HK_FORCE_WRITER)))
-			rw = NGQRW_W;
+	if (((item->el_flags & NGQF_RW) == NGQRW_W) ||
+	    (node->nd_flags & NGF_FORCE_WRITER) ||
+	    (hook && (hook->hk_flags & HK_FORCE_WRITER))) {
+		rw = NGQRW_W;
+	} else {
+		rw = NGQRW_R;
+	}
 
 	/*
 	 * If sender or receiver requests queued delivery or stack usage
 	 * level is dangerous - enqueue message.
 	 */
-	queue = 0;
 	if ((flags & NG_QUEUE) || (hook && (hook->hk_flags & HK_QUEUE))) {
 		queue = 1;
-	}
+	} else {
+		queue = 0;
 #ifdef GET_STACK_USAGE
-	else {
 		/*
 		 * Most of netgraph nodes have small stack consumption and
-		 * for them 20% of free stack space is more than enough.
+		 * for them 25% of free stack space is more than enough.
 		 * Nodes/hooks with higher stack usage should be marked as
 		 * HI_STACK. For them 50% of stack will be guaranteed then.
-		 * XXX: Values 50% (64/128) and 80% (100/128) are completely
-		 * empirical.
+		 * XXX: Values 25% and 50% are completely empirical.
 		 */
-		size_t	st, su;
+		size_t	st, su, sl;
 		GET_STACK_USAGE(st, su);
-		su = (su * 128) / st;
-		if ((su > 100) ||
-		    ((su > 64) && ((node->nd_flags & NGF_HI_STACK) ||
+		sl = st - su;
+		if ((sl * 4 < st) ||
+		    ((sl * 2 < st) && ((node->nd_flags & NGF_HI_STACK) ||
 		      (hook && (hook->hk_flags & HK_HI_STACK))))) {
 			queue = 1;
 		}
-	}
 #endif
+	}
 
 	ngq = &node->nd_input_queue;
 	if (queue) {
@@ -2401,10 +2355,7 @@ ng_snd_item(item_p item, int flags)
 		ng_queue_rw(ngq, item, rw);
 		NG_QUEUE_UNLOCK(ngq);
 
-		if (flags & NG_PROGRESS)
-			return (EINPROGRESS);
-		else
-			return (0);
+		return ((flags & NG_PROGRESS) ? EINPROGRESS : 0);
 	}
 
 	/*
@@ -2417,12 +2368,9 @@ ng_snd_item(item_p item, int flags)
 		item = ng_acquire_write(ngq, item);
 
 
-	if (item == NULL) {
-		if (flags & NG_PROGRESS)
-			return (EINPROGRESS);
-		else
-			return (0);
-	}
+	/* Item was queued while trying to get permission. */
+	if (item == NULL)
+		return ((flags & NG_PROGRESS) ? EINPROGRESS : 0);
 
 #ifdef	NETGRAPH_DEBUG
 	_ngi_check(item, __FILE__, __LINE__);
@@ -2437,9 +2385,8 @@ ng_snd_item(item_p item, int flags)
 	 * whatever we just did caused it.. whatever we do, DO NOT
 	 * access the node again!
 	 */
-	if (NG_NODE_UNREF(node) == 0) {
+	if (NG_NODE_UNREF(node) == 0)
 		return (error);
-	}
 
 	NG_QUEUE_LOCK(ngq);
 	if (NEXT_QUEUED_ITEM_CAN_PROCEED(ngq))
@@ -2449,7 +2396,7 @@ ng_snd_item(item_p item, int flags)
 	return (error);
 
 done:
-	/* Apply callback. */
+	/* If was not sent, apply callback here. */
 	if (item->apply != NULL && refcount_release(&item->apply->refs))
 		(*item->apply->apply)(item->apply->context, error);
 
@@ -2472,6 +2419,10 @@ ng_apply_item(node_p node, item_p item, int rw)
 	ng_rcvmsg_t *rcvmsg;
 	struct ng_apply_info *apply;
 
+	/* Node and item are never optional. */
+	KASSERT(node != NULL, ("ng_apply_item: node is NULL"));
+	KASSERT(item != NULL, ("ng_apply_item: item is NULL"));
+
 	NGI_GET_HOOK(item, hook); /* clears stored hook */
 #ifdef	NETGRAPH_DEBUG
 	_ngi_check(item, __FILE__, __LINE__);
@@ -2484,9 +2435,9 @@ ng_apply_item(node_p node, item_p item, int rw)
 		/*
 		 * Check things are still ok as when we were queued.
 		 */
-		if ((hook == NULL)
-		|| NG_HOOK_NOT_VALID(hook)
-		|| NG_NODE_NOT_VALID(node) ) {
+		KASSERT(hook != NULL, ("ng_apply_item: hook for data is NULL"));
+		if (NG_HOOK_NOT_VALID(hook) ||
+		    NG_NODE_NOT_VALID(node)) {
 			error = EIO;
 			NG_FREE_ITEM(item);
 			break;
@@ -2579,11 +2530,10 @@ ng_apply_item(node_p node, item_p item, int rw)
 	if (hook)
 		NG_HOOK_UNREF(hook);
 
- 	if (rw == NGQRW_R) {
+ 	if (rw == NGQRW_R)
 		ng_leave_read(&node->nd_input_queue);
-	} else {
+	else
 		ng_leave_write(&node->nd_input_queue);
-	}
 
 	/* Apply callback. */
 	if (apply != NULL && refcount_release(&apply->refs))
@@ -3507,7 +3457,6 @@ ng_package_data(struct mbuf *m, int flags)
 	}
 	ITEM_DEBUG_CHECKS;
 	item->el_flags = NGQF_DATA | NGQF_READER;
-	item->el_next = NULL;
 	NGI_M(item) = m;
 	return (item);
 }
@@ -3534,7 +3483,6 @@ ng_package_msg(struct ng_mesg *msg, int flags)
 		item->el_flags = NGQF_MESG | NGQF_READER;
 	else
 		item->el_flags = NGQF_MESG | NGQF_WRITER;
-	item->el_next = NULL;
 	/*
 	 * Set the current lasthook into the queue item
 	 */
@@ -3669,7 +3617,6 @@ ng_package_msg_self(node_p here, hook_p hook, struct ng_mesg *msg)
 
 	/* Fill out the contents */
 	item->el_flags = NGQF_MESG | NGQF_WRITER;
-	item->el_next = NULL;
 	NG_NODE_REF(here);
 	NGI_SET_NODE(item, here);
 	if (hook) {
