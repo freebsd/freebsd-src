@@ -41,7 +41,8 @@ WARNS?=3
 # Enable extra internal consistancy checks.
 CFLAGS+=-D_PTHREADS_INVARIANTS -Wall
 
-VERSION_MAP=${.CURDIR}/kse.map
+VERSION_DEF=${.CURDIR}/../libc/Versions.def
+SYMBOLS_MAP=${.CURDIR}/kse.map
 
 PRECIOUSLIB=
 

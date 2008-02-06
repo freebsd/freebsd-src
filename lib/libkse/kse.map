@@ -4,7 +4,6 @@
  * Use the same naming scheme as libc.
  */
 FBSD_1.0 {
-global:
 	__error;
 	accept;
 	aio_suspend;
@@ -158,8 +157,6 @@ global:
 	waitpid;
 	write;
 	writev;
-local:
-	*;
 };
 
 /*
@@ -167,7 +164,6 @@ local:
  * These are not part of our application ABI.
  */
 FBSDprivate_1.0 {
-global:
 	___creat;
 	__accept;
 	__close;
@@ -363,7 +359,4 @@ global:
 	_thread_size_key;
 	_thread_state_running;
 	_thread_state_zoombie;
-
-local:
-	*;
 };
