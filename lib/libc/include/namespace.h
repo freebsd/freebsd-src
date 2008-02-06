@@ -143,6 +143,7 @@
 #define		pthread_mutex_destroy		_pthread_mutex_destroy
 #define		pthread_mutex_getprioceiling	_pthread_mutex_getprioceiling
 #define		pthread_mutex_init		_pthread_mutex_init
+#define		pthread_mutex_isowned_np	_pthread_mutex_isowned_np
 #define		pthread_mutex_lock		_pthread_mutex_lock
 #define		pthread_mutex_setprioceiling	_pthread_mutex_setprioceiling
 #define		pthread_mutex_timedlock		_pthread_mutex_timedlock
