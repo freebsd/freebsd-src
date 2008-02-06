@@ -27,7 +27,8 @@ CFLAGS+=-I${.CURDIR}/../../libexec/rtld-elf/${MACHINE_ARCH}
 CFLAGS+=-I${.CURDIR}/../libthread_db
 CFLAGS+=-Winline
 
-VERSION_MAP=${.CURDIR}/pthread.map
+VERSION_DEF=${.CURDIR}/../libc/Versions.def
+SYMBOL_MAPS=${.CURDIR}/pthread.map
 
 MAN=	libthr.3
 
