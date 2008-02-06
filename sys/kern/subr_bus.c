@@ -499,6 +499,15 @@ devpoll(struct cdev *dev, int events, d_thread_t *td)
 }
 
 /**
+ * @brief Return whether the userland process is running
+ */
+boolean_t
+devctl_process_running(void)
+{
+	return (devsoftc.async_proc != NULL);
+}
+
+/**
  * @brief Queue data to be read from the devctl device
  *
  * Generic interface to queue data to the devctl device.  It is
