@@ -161,8 +161,10 @@ struct rt2560_softc {
 	}			sc_txtapu;
 #define sc_txtap	sc_txtapu.th
 	int			sc_txtap_len;
-#define                 RAL_INPUT_RUNNING       1
-	int                     sc_flags;
+#define RT2560_F_INPUT_RUNNING	0x1
+#define RT2560_F_PRIO_OACTIVE	0x2
+#define RT2560_F_DATA_OACTIVE	0x4
+	int			sc_flags;
 };
 
 int	rt2560_attach(device_t, int);
