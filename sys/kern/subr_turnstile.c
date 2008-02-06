@@ -674,8 +674,6 @@ turnstile_wait(struct turnstile *ts, struct thread *owner, int queue)
 
 	td = curthread;
 	mtx_assert(&ts->ts_lock, MA_OWNED);
-	if (queue == TS_SHARED_QUEUE)
-		MPASS(owner != NULL);
 	if (owner)
 		MPASS(owner->td_proc->p_magic == P_MAGIC);
 	MPASS(queue == TS_SHARED_QUEUE || queue == TS_EXCLUSIVE_QUEUE);
@@ -766,8 +764,7 @@ turnstile_signal(struct turnstile *ts, int queue)
 	MPASS(ts != NULL);
 	mtx_assert(&ts->ts_lock, MA_OWNED);
 	MPASS(curthread->td_proc->p_magic == P_MAGIC);
-	MPASS(ts->ts_owner == curthread ||
-	    (queue == TS_EXCLUSIVE_QUEUE && ts->ts_owner == NULL));
+	MPASS(ts->ts_owner == curthread || ts->ts_owner == NULL);
 	MPASS(queue == TS_SHARED_QUEUE || queue == TS_EXCLUSIVE_QUEUE);
 
 	/*
@@ -818,8 +815,7 @@ turnstile_broadcast(struct turnstile *ts, int queue)
 	MPASS(ts != NULL);
 	mtx_assert(&ts->ts_lock, MA_OWNED);
 	MPASS(curthread->td_proc->p_magic == P_MAGIC);
-	MPASS(ts->ts_owner == curthread ||
-	    (queue == TS_EXCLUSIVE_QUEUE && ts->ts_owner == NULL));
+	MPASS(ts->ts_owner == curthread || ts->ts_owner == NULL);
 	/*
 	 * We must have the chain locked so that we can remove the empty
 	 * turnstile from the hash queue.
@@ -869,8 +865,7 @@ turnstile_unpend(struct turnstile *ts, int owner_type)
 
 	MPASS(ts != NULL);
 	mtx_assert(&ts->ts_lock, MA_OWNED);
-	MPASS(ts->ts_owner == curthread ||
-	    (owner_type == TS_SHARED_LOCK && ts->ts_owner == NULL));
+	MPASS(ts->ts_owner == curthread || ts->ts_owner == NULL);
 	MPASS(!TAILQ_EMPTY(&ts->ts_pending));
 
 	/*
