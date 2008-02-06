@@ -115,6 +115,7 @@ enum {
 
 /* mode options (opt) */
 #define NG_CAR_COLOR_AWARE	1
+#define NG_CAR_COUNT_PACKETS	2
 
 /* Bulk config */
 struct ng_car_bulkconf {

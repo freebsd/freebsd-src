@@ -263,6 +263,7 @@ ng_car_rcvdata(hook_p hook, item_p item )
 	hook_p dest = hinfo->dest;
 	struct mbuf *m = NULL;
 	int error = 0;
+	int len;
 
 	/* Node is useless without destination hook. */
 	if (dest == NULL) {
@@ -298,11 +299,18 @@ ng_car_rcvdata(hook_p hook, item_p item )
 		}					\
 	} while (0)
 
+	/* Packet is counted as 128 tokens for better resolution */
+	if (hinfo->conf.opt & NG_CAR_COUNT_PACKETS) {
+		len = 128;
+	} else {
+		len = m->m_pkthdr.len;
+	}
+
 	/* Check commited token bucket. */
-	if (hinfo->tc - m->m_pkthdr.len >= 0) {
+	if (hinfo->tc - len >= 0) {
 		/* This packet is green. */
 		++hinfo->stats.green_pkts;
-		hinfo->tc -= m->m_pkthdr.len;
+		hinfo->tc -= len;
 		NG_CAR_PERFORM_MATCH_ACTION(hinfo->conf.green_action);
 	} else {
 
@@ -310,10 +318,10 @@ ng_car_rcvdata(hook_p hook, item_p item )
 		ng_car_refillhook(hinfo);
 
 		 /* Check commited token bucket again after refill. */
-		if (hinfo->tc - m->m_pkthdr.len >= 0) {
+		if (hinfo->tc - len >= 0) {
 			/* This packet is green */
 			++hinfo->stats.green_pkts;
-			hinfo->tc -= m->m_pkthdr.len;
+			hinfo->tc -= len;
 			NG_CAR_PERFORM_MATCH_ACTION(hinfo->conf.green_action);
 
 		/* If not green and mode is SHAPE, enqueue packet. */
@@ -324,8 +332,7 @@ ng_car_rcvdata(hook_p hook, item_p item )
 		/* If not green and mode is RED, calculate probability. */
 		} else if (hinfo->conf.mode == NG_CAR_RED) {
 			/* Is packet is bigger then extended burst? */
-			if (m->m_pkthdr.len - (hinfo->tc - m->m_pkthdr.len) >
-			    hinfo->conf.ebs) {
+			if (len - (hinfo->tc - len) > hinfo->conf.ebs) {
 				/* This packet is definitely red. */
 				++hinfo->stats.red_pkts;
 				hinfo->te = 0;
@@ -333,13 +340,13 @@ ng_car_rcvdata(hook_p hook, item_p item )
 
 			/* Use token bucket to simulate RED-like drop
 			   probability. */
-			} else if (hinfo->te + (m->m_pkthdr.len - hinfo->tc) <
+			} else if (hinfo->te + (len - hinfo->tc) <
 			    hinfo->conf.ebs) {
 				/* This packet is yellow */
 				++hinfo->stats.yellow_pkts;
-				hinfo->te += m->m_pkthdr.len - hinfo->tc;
+				hinfo->te += len - hinfo->tc;
 				/* Go to negative tokens. */
-				hinfo->tc -= m->m_pkthdr.len;
+				hinfo->tc -= len;
 				NG_CAR_PERFORM_MATCH_ACTION(hinfo->conf.yellow_action);
 			} else {
 				/* This packet is probaly red. */
@@ -350,10 +357,10 @@ ng_car_rcvdata(hook_p hook, item_p item )
 		/* If not green and mode is SINGLE/DOUBLE RATE. */
 		} else {
 			/* Check extended token bucket. */
-			if (hinfo->te - m->m_pkthdr.len >= 0) {
+			if (hinfo->te - len >= 0) {
 				/* This packet is yellow */
 				++hinfo->stats.yellow_pkts;
-				hinfo->te -= m->m_pkthdr.len;
+				hinfo->te -= len;
 				NG_CAR_PERFORM_MATCH_ACTION(hinfo->conf.yellow_action);
 			} else {
 				/* This packet is red */
@@ -430,6 +437,19 @@ ng_car_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				    sizeof(bconf->downstream));
 				bcopy(&priv->lower.conf, &bconf->upstream,
 				    sizeof(bconf->upstream));
+				/* Convert internal 1/(8*128) of pps into pps */
+				if (bconf->downstream.opt & NG_CAR_COUNT_PACKETS) {
+				    bconf->downstream.cir /= 1024;
+				    bconf->downstream.pir /= 1024;
+				    bconf->downstream.cbs /= 128;
+				    bconf->downstream.ebs /= 128;
+				}
+				if (bconf->upstream.opt & NG_CAR_COUNT_PACKETS) {
+				    bconf->upstream.cir /= 1024;
+				    bconf->upstream.pir /= 1024;
+				    bconf->upstream.cbs /= 128;
+				    bconf->upstream.ebs /= 128;
+				}
 			}
 			break;
 		case NGM_CAR_SET_CONF:
@@ -438,16 +458,42 @@ ng_car_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				(struct ng_car_bulkconf *)msg->data;
 
 				/* Check for invalid or illegal config. */
-				if ((msg->header.arglen != sizeof(*bconf))
-				    || (bconf->downstream.cir > 1000000000)
-				    || (bconf->downstream.pir > 1000000000)
-				    || (bconf->upstream.cir > 1000000000)
-				    || (bconf->upstream.pir > 1000000000)
-				    || (bconf->downstream.cbs == 0
-					&& bconf->downstream.ebs == 0)
-				    || (bconf->upstream.cbs == 0
-					&& bconf->upstream.ebs == 0))
+				if (msg->header.arglen != sizeof(*bconf)) {
+					error = EINVAL;
+					break;
+				}
+				/* Convert pps into internal 1/(8*128) of pps */
+				if (bconf->downstream.opt & NG_CAR_COUNT_PACKETS) {
+				    bconf->downstream.cir *= 1024;
+				    bconf->downstream.pir *= 1024;
+				    bconf->downstream.cbs *= 125;
+				    bconf->downstream.ebs *= 125;
+				}
+				if (bconf->upstream.opt & NG_CAR_COUNT_PACKETS) {
+				    bconf->upstream.cir *= 1024;
+				    bconf->upstream.pir *= 1024;
+				    bconf->upstream.cbs *= 125;
+				    bconf->upstream.ebs *= 125;
+				}
+				if ((bconf->downstream.cir > 1000000000) ||
+				    (bconf->downstream.pir > 1000000000) ||
+				    (bconf->upstream.cir > 1000000000) ||
+				    (bconf->upstream.pir > 1000000000) ||
+				    (bconf->downstream.cbs == 0 &&
+					bconf->downstream.ebs == 0) ||
+				    (bconf->upstream.cbs == 0 &&
+					bconf->upstream.ebs == 0))
 				{
+					error = EINVAL;
+					break;
+				}
+				if ((bconf->upstream.mode == NG_CAR_SHAPE) &&
+				    (bconf->upstream.cir == 0)) {
+					error = EINVAL;
+					break;
+				}
+				if ((bconf->downstream.mode == NG_CAR_SHAPE) &&
+				    (bconf->downstream.cir == 0)) {
 					error = EINVAL;
 					break;
 				}
@@ -653,7 +699,11 @@ ng_car_q_event(node_p node, hook_p hook, void *arg, int arg2)
 
 			/* If we have more packet, try it. */
 			m = hinfo->q[hinfo->q_first];
-			hinfo->tc -= m->m_pkthdr.len;
+			if (hinfo->conf.opt & NG_CAR_COUNT_PACKETS) {
+				hinfo->tc -= 128;
+			} else {
+				hinfo->tc -= m->m_pkthdr.len;
+			}
 		}
 	}
 
@@ -707,7 +757,11 @@ ng_car_enqueue(struct hookinfo *hinfo, item_p item)
 
 		/* If this is a first packet in the queue. */
 		if (len == 0) {
-			hinfo->tc -= m->m_pkthdr.len;
+			if (hinfo->conf.opt & NG_CAR_COUNT_PACKETS) {
+				hinfo->tc -= 128;
+			} else {
+				hinfo->tc -= m->m_pkthdr.len;
+			}
 
 			/* Schedule queue processing. */
 			ng_car_schedule(hinfo);
