@@ -639,8 +639,8 @@ _callout_init_lock(c, lock, flags)
 	    ("callout_init_lock: bad flags %d", flags));
 	KASSERT(lock != NULL || (flags & CALLOUT_RETURNUNLOCKED) == 0,
 	    ("callout_init_lock: CALLOUT_RETURNUNLOCKED with no lock"));
-	KASSERT(lock == NULL || LOCK_CLASS(lock) == &lock_class_mtx_sleep ||
-	    LOCK_CLASS(lock) == &lock_class_rw, ("%s: invalid lock class",
+	KASSERT(lock == NULL || !(LOCK_CLASS(lock)->lc_flags &
+	    (LC_SPINLOCK | LC_SLEEPABLE)), ("%s: invalid lock class",
 	    __func__));
 	c->c_flags = flags & (CALLOUT_RETURNUNLOCKED | CALLOUT_SHAREDLOCK);
 }
