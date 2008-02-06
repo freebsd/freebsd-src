@@ -99,7 +99,10 @@ typedef HPT_U32 DEVICEID;
 #define AT_RAID1    2
 #define AT_RAID5    3
 #define AT_RAID6    4
+#define AT_RAID3    5
+#define AT_RAID4    6
 #define AT_JBOD     7
+#define AT_RAID1E   8
 
 /*
  * physical device type
@@ -162,8 +165,9 @@ typedef HPT_U32 DEVICEID;
 #define DEVICE_FLAG_BOOTDISK        0x00000002 /* disk has a active partition */
 #define DEVICE_FLAG_BOOTMARK        0x00000004 /* disk has boot mark set */
 #define DEVICE_FLAG_WITH_601        0x00000008 /* has HPT601 connected */
-#define DEVICE_FLAG_SATA            0x00000010 /* S-ATA device */
+#define DEVICE_FLAG_SATA            0x00000010 /* SATA or SAS device */
 #define DEVICE_FLAG_ON_PM_PORT      0x00000020 /* PM port */
+#define DEVICE_FLAG_SAS             0x00000040 /* SAS device */
 
 #define DEVICE_FLAG_UNINITIALIZED   0x00010000 /* device is not initialized, can't be used to create array */
 #define DEVICE_FLAG_LEGACY          0x00020000 /* single disk & mbr contains at least one partition */
@@ -276,6 +280,7 @@ typedef HPT_U32 DEVICEID;
 #define HPT_IOCTL_CREATE_ARRAY_V3           HPT_CTL_CODE(56)
 #define HPT_IOCTL_CREATE_TRANSFORM_V2       HPT_CTL_CODE(57)
 #define HPT_IOCTL_CALC_MAX_CAPACITY_V2      HPT_CTL_CODE(58)
+#define HPT_IOCTL_SCSI_PASSTHROUGH          HPT_CTL_CODE(59)
 
 
 #define HPT_IOCTL_GET_CONTROLLER_IDS        HPT_CTL_CODE(100)
@@ -307,6 +312,15 @@ typedef HPT_U32 DEVICEID;
 #define CHIP_TYPE_SI3112A     14
 #define CHIP_TYPE_ICH5        15
 #define CHIP_TYPE_ICH5R       16
+#define CHIP_TYPE_MV50XX      20
+#define CHIP_TYPE_MV60X1      21
+#define CHIP_TYPE_MV60X2      22
+#define CHIP_TYPE_MV70X2      23
+#define CHIP_TYPE_MV5182      24
+#define CHIP_TYPE_IOP331      31
+#define CHIP_TYPE_IOP333      32
+#define CHIP_TYPE_IOP341      33
+#define CHIP_TYPE_IOP348      34
 
 /*
  * Chip Flags
@@ -336,7 +350,8 @@ typedef struct _DRIVER_CAPABILITIES {
 	HPT_U8 MaximumArrayNameLength;
 	/* only one HPT_U8 left here! */
 #ifdef __BIG_ENDIAN_BITFIELD
-	HPT_U8 reserved: 4;
+	HPT_U8 reserved: 3;
+	HPT_U8 SupportVariableSectorSize: 1;
 	HPT_U8 SupportHotSwap: 1;
 	HPT_U8 HighPerformanceRAID1: 1;
 	HPT_U8 RebuildProcessInDriver: 1;
@@ -346,7 +361,8 @@ typedef struct _DRIVER_CAPABILITIES {
 	HPT_U8 RebuildProcessInDriver: 1;    /* Windows only. used by mid layer for rebuild control. */
 	HPT_U8 HighPerformanceRAID1: 1;      
 	HPT_U8 SupportHotSwap: 1;
-	HPT_U8 reserved: 4;
+	HPT_U8 SupportVariableSectorSize: 1;
+	HPT_U8 reserved: 3;
 #endif
 
 	
@@ -406,6 +422,7 @@ typedef struct _CONTROLLER_INFO_V2 {
 #define CEXF_BatteryBackupTime   0x20
 #define CEXF_FirmwareVersion     0x40
 #define CEXF_SerialNumber        0x80
+#define CEXF_BatteryTemperature 0x100
 
 typedef struct _CONTROLLER_INFO_V3 {
 	HPT_U8 ChipType;
@@ -422,13 +439,15 @@ typedef struct _CONTROLLER_INFO_V3 {
 	HPT_U32 ExFlags;
 	HPT_U8  IOPModel[32];
 	HPT_U32 SDRAMSize;
-	HPT_U8  BatteryInstalled;
+	HPT_U8  BatteryInstalled; 
 	HPT_U8  BatteryStatus; 
 	HPT_U16 BatteryVoltage; 
 	HPT_U32 BatteryBackupTime; 
 	HPT_U32 FirmwareVersion;
 	HPT_U8  SerialNumber[32];
-	HPT_U8  reserve[88];
+	HPT_U8  BatteryMBInstalled; 
+	HPT_U8  BatteryTemperature; 
+	HPT_U8  reserve[86];
 }
 CONTROLLER_INFO_V3, *PCONTROLLER_INFO_V3;
 typedef char check_CONTROLLER_INFO_V3[sizeof(CONTROLLER_INFO_V3)==256? 1:-1];
@@ -477,7 +496,7 @@ typedef struct _HPT_ARRAY_INFO {
 	HPT_U8      ArrayType;              /* array type */
 	HPT_U8      BlockSizeShift;         /* stripe size */
 	HPT_U8      nDisk;                  /* member count: Number of ID in Members[] */
-	HPT_U8      reserved;
+	HPT_U8      SubArrayType;
 
 	HPT_U32     Flags;                  /* working flags, see ARRAY_FLAG_XXX */
 	HPT_U32     Members[MAX_ARRAY_MEMBERS_V1];  /* member array/disks */
@@ -504,7 +523,7 @@ typedef struct _HPT_ARRAY_INFO_V2 {
 	HPT_U8      ArrayType;              /* array type */
 	HPT_U8      BlockSizeShift;         /* stripe size */
 	HPT_U8      nDisk;                  /* member count: Number of ID in Members[] */
-	HPT_U8      reserved;
+	HPT_U8      SubArrayType;
 
 	HPT_U32     Flags;                  /* working flags, see ARRAY_FLAG_XXX */
 	HPT_U32     Members[MAX_ARRAY_MEMBERS_V2];  /* member array/disks */
@@ -526,7 +545,7 @@ typedef struct _HPT_ARRAY_INFO_V3 {
 	HPT_U8      ArrayType;              /* array type */
 	HPT_U8      BlockSizeShift;         /* stripe size */
 	HPT_U8      nDisk;                  /* member count: Number of ID in Members[] */
-	HPT_U8      reserved;
+	HPT_U8      SubArrayType;
 
 	HPT_U32     Flags;                  /* working flags, see ARRAY_FLAG_XXX */
 	HPT_U32     Members[MAX_ARRAY_MEMBERS_V2];  /* member array/disks */
@@ -559,7 +578,7 @@ typedef struct _HPT_ARRAY_INFO_V4 {
 	HPT_U8      ArrayType;              /* array type */
 	HPT_U8      BlockSizeShift;         /* stripe size */
 	HPT_U8      nDisk;                  /* member count: Number of ID in Members[] */
-	HPT_U8      reserved;
+	HPT_U8      SubArrayType;
 
 	HPT_U32     Flags;                  /* working flags, see ARRAY_FLAG_XXX */
 	
@@ -570,7 +589,8 @@ typedef struct _HPT_ARRAY_INFO_V4 {
 	DEVICEID    TransformTarget;   /* destination device ID */
 	HPT_U32     TransformingProgress;
 	HPT_U32     Signature;          /* persistent identification*/
-	HPT_U32     reserved2[2];
+	HPT_U8       SectorSizeShift; /*sector size = 512B<<SectorSizeShift*/
+	HPT_U8       reserved2[7];
 	HPT_U64     Critical_Members;
 	HPT_U32     Members[MAX_ARRAY_MEMBERS_V3];  /* member array/disks */
 } HPT_ARRAY_INFO_V4, *PHPT_ARRAY_INFO_V4;
@@ -627,7 +647,7 @@ typedef struct _IDENTIFY_DATA2 {
 	HPT_U16 ReleaseTimeServiceCommand;
 	HPT_U16 MajorRevision;
 	HPT_U16 MinorRevision;
-} IDENTIFY_DATA2, *PIDENTIFY_DATA2;
+} __attribute__((packed)) IDENTIFY_DATA2, *PIDENTIFY_DATA2;
 #endif
 
 /*
@@ -878,14 +898,12 @@ typedef struct _ALTERABLE_ARRAY_INFO {
 	HPT_U32   ValidFields;              /* mark valid fields below */
 	HPT_U8  Name[MAX_ARRAYNAME_LEN];    /* array name */
 	HPT_U8  Description[64];            /* array description */
-}
-ALTERABLE_ARRAY_INFO, *PALTERABLE_ARRAY_INFO;
+}__attribute__((packed))ALTERABLE_ARRAY_INFO, *PALTERABLE_ARRAY_INFO;
 
 typedef struct _ALTERABLE_DEVICE_INFO {
 	HPT_U32   ValidFields;              /* mark valid fields below */
 	HPT_U8   DeviceModeSetting;         /* 0-4 PIO 0-4, 5-7 MW DMA0-2, 8-13 UDMA0-5 */
-}
-ALTERABLE_DEVICE_INFO, *PALTERABLE_DEVICE_INFO;
+}__attribute__((packed))ALTERABLE_DEVICE_INFO, *PALTERABLE_DEVICE_INFO;
 
 typedef struct _ALTERABLE_DEVICE_INFO_V2 {
 	HPT_U32   ValidFields;              /* mark valid fields below */
@@ -897,8 +915,7 @@ typedef struct _ALTERABLE_DEVICE_INFO_V2 {
 	HPT_U8   SpinUpMode;
 	HPT_U8   reserve[2];
 	HPT_U32  reserve2[13]; /* pad to 64 bytes */
-}
-ALTERABLE_DEVICE_INFO_V2, *PALTERABLE_DEVICE_INFO_V2;
+}__attribute__((packed))ALTERABLE_DEVICE_INFO_V2, *PALTERABLE_DEVICE_INFO_V2;
 
 #if HPT_INTERFACE_VERSION>=0x01020000
 
@@ -974,7 +991,8 @@ typedef struct _CREATE_ARRAY_PARAMS_V2 {
 typedef struct _CREATE_ARRAY_PARAMS_V3 {
 	HPT_U32  dwSize;
 	HPT_U8 revision;			/*CREATE_ARRAY_PARAMS_V3_REVISION*/
-	HPT_U8 reserved[7];
+	HPT_U8 reserved[6];
+	HPT_U8 SectorSizeShift;     /*sector size = 512B<<SectorSizeShift*/
 	HPT_U8 ArrayType;                   /* 1-level array type */
 	HPT_U8 nDisk;                       /* number of elements in Members[] array */
 	HPT_U8 BlockSizeShift;              /* Stripe size if ArrayType==AT_RAID0 / AT_RAID5 */
@@ -1072,6 +1090,10 @@ typedef struct _CREATE_ARRAY_PARAMS_V3 {
 #define ET_SMART_PASSED         23
 #define ET_SECTOR_REPAIR_FAIL     24
 #define ET_SECTOR_REPAIR_SUCCESS  25
+#define ET_ERASE_FAIL		26
+#define ET_ERASE_SUCCESS	27
+#define ET_CONTINUE_REBUILD_ON_ERROR 28
+
 
 /*
  * event structure
@@ -1107,6 +1129,28 @@ typedef struct _IDE_PASS_THROUGH_HEADER {
 	/* HPT_U8     DataBuffer[0]; */
 }
 IDE_PASS_THROUGH_HEADER, *PIDE_PASS_THROUGH_HEADER;
+
+typedef struct _HPT_SCSI_PASSTHROUGH_IN {
+	DEVICEID idDisk;
+	HPT_U8   protocol;
+	HPT_U8   reserve1;
+	HPT_U8   reserve2;
+	HPT_U8   cdbLength;
+	HPT_U8   cdb[16];
+	HPT_U32  dataLength;
+	/* data follows, if any */
+}
+HPT_SCSI_PASSTHROUGH_IN, *PHPT_SCSI_PASSTHROUGH_IN;
+
+typedef struct _HPT_SCSI_PASSTHROUGH_OUT {
+	HPT_U8   scsiStatus;
+	HPT_U8   reserve1;
+	HPT_U8   reserve2;
+	HPT_U8   reserve3;
+	HPT_U32  dataLength;
+	/* data/sense follows if any */
+}
+HPT_SCSI_PASSTHROUGH_OUT, *PHPT_SCSI_PASSTHROUGH_OUT;
 
 /*
  * device io packet format
@@ -1507,8 +1551,7 @@ int hpt_lock_device(DEVICEID idDisk, HPT_U32 Lba, HPT_U8 nSectors);
 int hpt_unlock_device(DEVICEID idDisk);
 
 /* hpt_ide_pass_through
- *  directly access controller's command and control registers.
- *  Can only call it on physical devices.
+ *  send a ATA passthrough command to a device.
  * Version compatibility: v1.0.0.3 or later
  * Parameters:
  *   p - IDE_PASS_THROUGH header pointer
@@ -1516,6 +1559,19 @@ int hpt_unlock_device(DEVICEID idDisk);
  *   0  Success
  */
 int hpt_ide_pass_through(PIDE_PASS_THROUGH_HEADER p);
+
+/* hpt_scsi_passthrough
+ *  send a SCSI passthrough command to a device.
+ * Version compatibility: v2.0.0.0 or later
+ * Parameters:
+ *   in  - HPT_SCSI_PASSTHROUGH_IN header pointer
+ *   out - PHPT_SCSI_PASSTHROUGH_OUT header pointer
+ *   insize, outsize - in/out buffer size
+ * Returns:
+ *   0  Success
+ */
+int hpt_scsi_passthrough(PHPT_SCSI_PASSTHROUGH_IN in, HPT_U32 insize,
+				PHPT_SCSI_PASSTHROUGH_OUT out, HPT_U32 outsize);
 
 /* hpt_verify_data_block
  *   verify data block on RAID1 or RAID5.
