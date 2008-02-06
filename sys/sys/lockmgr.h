@@ -117,6 +117,8 @@ struct lock {
 #define	LK_CANRECURSE	0x00000040	/* allow recursive exclusive lock */
 #define	LK_NOSHARE	0x00000080	/* Only allow exclusive locks */
 #define	LK_TIMELOCK	0x00000100	/* use lk_timo, else no timeout */
+#define	LK_NOWITNESS	0x00000200	/* disable WITNESS */
+#define	LK_NODUP	0x00000400	/* enable duplication logging */
 /*
  * Nonpersistent external flags.
  */
@@ -174,13 +176,15 @@ void	lockdestroy(struct lock *);
 
 int	_lockmgr(struct lock *, u_int flags, struct mtx *, char *file,
 	     int line);
-void	lockmgr_disown(struct lock *);
+void	_lockmgr_disown(struct lock *, const char *, int);
 void	lockmgr_printinfo(struct lock *);
 int	lockstatus(struct lock *, struct thread *);
 int	lockwaiters(struct lock *);
 
 #define lockmgr(lock, flags, mtx)					\
 	_lockmgr((lock), (flags), (mtx), __FILE__, __LINE__)
+#define	lockmgr_disown(lock)						\
+	_lockmgr_disown((lock), __FILE__, __LINE__)
 #define	lockmgr_recursed(lkp)						\
 	((lkp)->lk_exclusivecount > 1)
 #ifdef DDB
