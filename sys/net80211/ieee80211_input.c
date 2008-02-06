@@ -685,8 +685,12 @@ ieee80211_deliver_data(struct ieee80211com *ic,
 				ieee80211_free_node(sta);
 			}
 		}
-		if (m1 != NULL)
-			IF_HANDOFF(&ifp->if_snd, m1, ifp);
+		if (m1 != NULL) {
+			int error;
+
+			/* XXX does not work well with WME */
+			IFQ_HANDOFF(ifp, m1, error);
+		}
 	}
 	if (m != NULL) {
 		m->m_pkthdr.rcvif = ifp;
