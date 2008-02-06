@@ -27,13 +27,13 @@
  */
 #include <dev/hptrr/hptrr_config.h>
 /*
- * $Id: array.h,v 1.40 2007/03/12 10:05:44 gmm Exp $
+ * $Id: array.h,v 1.44 2007/11/01 03:05:27 gmm Exp $
  * Copyright (C) 2004-2005 HighPoint Technologies, Inc. All rights reserved.
  */
 #ifndef _HPT_ARRAY_H_
 #define _HPT_ARRAY_H_
 
-#define VERMAGIC_ARRAY 40
+#define VERMAGIC_ARRAY 43
 
 #if defined(__cplusplus)
 extern "C" {
@@ -121,6 +121,9 @@ typedef struct hpt_array
 	HPT_U8  ndisk;
 	HPT_U8  block_size_shift;
 	HPT_U16 strip_width;
+	HPT_U8  sector_size_shift; /*sector size = 512B<<sector_size_shift*/
+	HPT_U8  jid; 
+	HPT_U8  reserved[2];
 
 	
 	HPT_MMASK outdated_members;
@@ -159,15 +162,15 @@ void ldm_start_rebuild(struct _VDEV *pArray);
 
 typedef struct _raw_partition{
 	struct _raw_partition * next;
-	HPT_RAW_LBA start;
-	HPT_RAW_LBA capacity;
+	__HPT_RAW_LBA start;
+	__HPT_RAW_LBA capacity;
 	PVDEV   vd_part;
 } RAW_PARTITION, *PRAW_PARTITION;
 
 typedef struct hpt_partiton
 {
 	PVDEV raw_disk;
-	HPT_RAW_LBA des_location;
+	__HPT_RAW_LBA des_location;
 	PRAW_PARTITION raw_part;
 	HPT_U8  del_mbr;
 	HPT_U8  reserved[3];
