@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 24, 2008
+.Dd February 6, 2008
 .Dt LOCK 9
 .Os
 .Sh NAME
@@ -76,7 +76,7 @@ The timeout value passed to
 .Xr sleep 9 .
 .It Fa flags
 The flags the lock is to be initialized with.
-.Bl -tag -width ".Dv LG_CANRECURSE"
+.Bl -tag -width ".Dv LK_CANRECURSE"
 .It Dv LK_NOWAIT
 Do not sleep while acquiring the lock.
 .It Dv LK_SLEEPFAIL
@@ -85,6 +85,13 @@ Fail after a sleep.
 Allow recursive exclusive locks.
 .It Dv LK_NOSHARE
 Allow exclusive locks only.
+.It Dv LK_NOWITNESS
+Instruct
+.Xr witness 4
+to ignore this lock.
+.It Dv LK_NODUP
+.Xr witness 4
+should log messages about duplicate locks being acquired.
 .It Dv LK_TIMELOCK
 Use
 .Fa timo
