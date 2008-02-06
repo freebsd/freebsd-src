@@ -38,7 +38,7 @@
 
 
 #ifndef	lint
-FILE_RCSID("@(#)$File: softmagic.c,v 1.99 2007/05/08 14:44:18 christos Exp $")
+FILE_RCSID("@(#)$File: softmagic.c,v 1.103 2007/12/27 16:35:59 christos Exp $")
 #endif	/* lint */
 
 private int match(struct magic_set *, struct magic *, uint32_t,
@@ -254,9 +254,10 @@ match(struct magic_set *ms, struct magic *magic, uint32_t nmagic,
 				break;
 			}
 		}
-		firstline = 0;
-		if (printed_something)
+		if (printed_something) {
+			firstline = 0;
 			returnval = 1;
+		}
 		if ((ms->flags & MAGIC_CONTINUE) == 0 && printed_something) {
 			return 1; /* don't keep searching */
 		}			
@@ -310,6 +311,8 @@ private int32_t
 mprint(struct magic_set *ms, struct magic *m)
 {
 	uint64_t v;
+	float vf;
+	double vd;
 	int64_t t = 0;
  	char buf[512];
 	union VALUETYPE *p = &ms->ms_value;
@@ -398,11 +401,8 @@ mprint(struct magic_set *ms, struct magic *m)
 			t = ms->offset + m->vallen;
 		}
 		else {
-			if (*m->value.s == '\0') {
-				char *cp = strchr(p->s,'\n');
-				if (cp)
-					*cp = '\0';
-			}
+			if (*m->value.s == '\0')
+				p->s[strcspn(p->s, "\n")] = '\0';
 			if (file_printf(ms, m->desc, p->s) == -1)
 				return -1;
 			t = ms->offset + strlen(p->s);
@@ -444,6 +444,48 @@ mprint(struct magic_set *ms, struct magic *m)
 			return -1;
 		t = ms->offset + sizeof(uint64_t);
 		break;
+
+  	case FILE_FLOAT:
+  	case FILE_BEFLOAT:
+  	case FILE_LEFLOAT:
+		vf = p->f;
+		switch (check_fmt(ms, m)) {
+		case -1:
+			return -1;
+		case 1:
+			if (snprintf(buf, sizeof(buf), "%g", vf) < 0)
+				return -1;
+			if (file_printf(ms, m->desc, buf) == -1)
+				return -1;
+			break;
+		default:
+			if (file_printf(ms, m->desc, vf) == -1)
+				return -1;
+			break;
+		}
+		t = ms->offset + sizeof(float);
+  		break;
+
+  	case FILE_DOUBLE:
+  	case FILE_BEDOUBLE:
+  	case FILE_LEDOUBLE:
+		vd = p->d;
+		switch (check_fmt(ms, m)) {
+		case -1:
+			return -1;
+		case 1:
+			if (snprintf(buf, sizeof(buf), "%g", vd) < 0)
+				return -1;
+			if (file_printf(ms, m->desc, buf) == -1)
+				return -1;
+			break;
+		default:
+			if (file_printf(ms, m->desc, vd) == -1)
+				return -1;
+			break;
+		}
+		t = ms->offset + sizeof(double);
+  		break;
 
 	case FILE_REGEX: {
 		char *cp;
@@ -545,6 +587,35 @@ cvt_64(union VALUETYPE *p, const struct magic *m)
 	DO_CVT(q, (uint64_t));
 }
 
+#define DO_CVT2(fld, cast) \
+	if (m->num_mask) \
+		switch (m->mask_op & FILE_OPS_MASK) { \
+		case FILE_OPADD: \
+			p->fld += cast m->num_mask; \
+			break; \
+		case FILE_OPMINUS: \
+			p->fld -= cast m->num_mask; \
+			break; \
+		case FILE_OPMULTIPLY: \
+			p->fld *= cast m->num_mask; \
+			break; \
+		case FILE_OPDIVIDE: \
+			p->fld /= cast m->num_mask; \
+			break; \
+		} \
+
+private void
+cvt_float(union VALUETYPE *p, const struct magic *m)
+{
+	DO_CVT2(f, (float));
+}
+
+private void
+cvt_double(union VALUETYPE *p, const struct magic *m)
+{
+	DO_CVT2(d, (double));
+}
+
 /*
  * Convert the byte order of the data we are looking at
  * While we're here, let's apply the mask operation
@@ -644,6 +715,36 @@ mconvert(struct magic_set *ms, struct magic *m)
 		    ((p->hl[1]<<24)|(p->hl[0]<<16)|(p->hl[3]<<8)|(p->hl[2]));
 		cvt_32(p, m);
 		return 1;
+	case FILE_FLOAT:
+		cvt_float(p, m);
+		return 1;
+	case FILE_BEFLOAT:
+		p->l =  ((uint32_t)p->hl[0]<<24)|((uint32_t)p->hl[1]<<16)|
+			((uint32_t)p->hl[2]<<8) |((uint32_t)p->hl[3]);
+		cvt_float(p, m);
+		return 1;
+	case FILE_LEFLOAT:
+		p->l =  ((uint32_t)p->hl[3]<<24)|((uint32_t)p->hl[2]<<16)|
+			((uint32_t)p->hl[1]<<8) |((uint32_t)p->hl[0]);
+		cvt_float(p, m);
+		return 1;
+	case FILE_DOUBLE:
+		cvt_double(p, m);
+		return 1;
+	case FILE_BEDOUBLE:
+		p->q =  ((uint64_t)p->hq[0]<<56)|((uint64_t)p->hq[1]<<48)|
+			((uint64_t)p->hq[2]<<40)|((uint64_t)p->hq[3]<<32)|
+			((uint64_t)p->hq[4]<<24)|((uint64_t)p->hq[5]<<16)|
+			((uint64_t)p->hq[6]<<8) |((uint64_t)p->hq[7]);
+		cvt_double(p, m);
+		return 1;
+	case FILE_LEDOUBLE:
+		p->q =  ((uint64_t)p->hq[7]<<56)|((uint64_t)p->hq[6]<<48)|
+			((uint64_t)p->hq[5]<<40)|((uint64_t)p->hq[4]<<32)|
+			((uint64_t)p->hq[3]<<24)|((uint64_t)p->hq[2]<<16)|
+			((uint64_t)p->hq[1]<<8) |((uint64_t)p->hq[0]);
+		cvt_double(p, m);
+		return 1;
 	case FILE_REGEX:
 	case FILE_SEARCH:
 	case FILE_DEFAULT:
@@ -730,13 +831,17 @@ mcopy(struct magic_set *ms, union VALUETYPE *p, int type, int indir,
 				    offset);
 				return -1;
 			}
-			for (/*EMPTY*/; src < esrc; src++, dst++) {
+			for (/*EMPTY*/; src < esrc; src += 2, dst++) {
 				if (dst < edst)
-					*dst = *src++;
+					*dst = *src;
 				else
 					break;
-				if (*dst == '\0')
-					*dst = ' ';
+				if (*dst == '\0') {
+					if (type == FILE_BESTRING16 ?
+					    *(src - 1) != '\0' :
+					    *(src + 1) != '\0')
+						*dst = ' ';
+				}
 			}
 			*edst = '\0';
 			return 0;
@@ -1289,10 +1394,20 @@ mget(struct magic_set *ms, const unsigned char *s,
 	case FILE_BELDATE:
 	case FILE_LELDATE:
 	case FILE_MELDATE:
+	case FILE_FLOAT:
+	case FILE_BEFLOAT:
+	case FILE_LEFLOAT:
 		if (nbytes < (offset + 4))
 			return 0;
 		break;
 		
+	case FILE_DOUBLE:
+	case FILE_BEDOUBLE:
+	case FILE_LEDOUBLE:
+		if (nbytes < (offset + 8))
+			return 0;
+		break;
+
 	case FILE_STRING:
 	case FILE_PSTRING:
 	case FILE_SEARCH:
@@ -1395,6 +1510,8 @@ magiccheck(struct magic_set *ms, struct magic *m)
 {
 	uint64_t l = m->value.q;
 	uint64_t v;
+	float fl, fv;
+	double dl, dv;
 	int matched;
 	union VALUETYPE *p = &ms->ms_value;
 
@@ -1435,6 +1552,72 @@ magiccheck(struct magic_set *ms, struct magic *m)
 	case FILE_LEQLDATE:
 		v = p->q;
 		break;
+
+	case FILE_FLOAT:
+	case FILE_BEFLOAT:
+	case FILE_LEFLOAT:
+		fl = m->value.f;
+		fv = p->f;
+		switch (m->reln) {
+		case 'x':
+			matched = 1;
+			break;
+	
+		case '!':
+			matched = fv != fl;
+			break;
+	
+		case '=':
+			matched = fv == fl;
+			break;
+	
+		case '>':
+			matched = fv > fl;
+			break;
+	
+		case '<':
+			matched = fv < fl;
+			break;
+	
+		default:
+			matched = 0;
+			file_magerror(ms, "cannot happen with float: invalid relation `%c'", m->reln);
+			return -1;
+		}
+		return matched;
+
+	case FILE_DOUBLE:
+	case FILE_BEDOUBLE:
+	case FILE_LEDOUBLE:
+		dl = m->value.d;
+		dv = p->d;
+		switch (m->reln) {
+		case 'x':
+			matched = 1;
+			break;
+	
+		case '!':
+			matched = dv != dl;
+			break;
+	
+		case '=':
+			matched = dv == dl;
+			break;
+	
+		case '>':
+			matched = dv > dl;
+			break;
+	
+		case '<':
+			matched = dv < dl;
+			break;
+	
+		default:
+			matched = 0;
+			file_magerror(ms, "cannot happen with double: invalid relation `%c'", m->reln);
+			return -1;
+		}
+		return matched;
 
 	case FILE_DEFAULT:
 		l = 0;

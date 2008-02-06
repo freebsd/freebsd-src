@@ -27,7 +27,7 @@
  */
 /*
  * file.h - definitions for file(1) program
- * @(#)$File: file.h,v 1.91 2007/03/25 03:13:47 christos Exp $
+ * @(#)$File: file.h,v 1.92 2007/11/08 00:31:37 christos Exp $
  */
 
 #ifndef __file_h__
@@ -146,7 +146,13 @@ struct magic {
 #define				FILE_QLDATE	30
 #define				FILE_LEQLDATE	31
 #define				FILE_BEQLDATE	32
-#define				FILE_NAMES_SIZE	33/* size of array to contain all names */
+#define				FILE_FLOAT	33
+#define				FILE_BEFLOAT	34
+#define				FILE_LEFLOAT	35
+#define				FILE_DOUBLE	36
+#define				FILE_BEDOUBLE	37
+#define				FILE_LEDOUBLE	38
+#define				FILE_NAMES_SIZE	39/* size of array to contain all names */
 
 #define IS_STRING(t) \
 	((t) == FILE_STRING || \
@@ -161,6 +167,8 @@ struct magic {
 #define FILE_FMT_NUM  1 /* "cduxXi" */
 #define FILE_FMT_STR  2 /* "s" */
 #define FILE_FMT_QUAD 3 /* "ll" */
+#define FILE_FMT_FLOAT 4 /* "eEfFgG" */
+#define FILE_FMT_DOUBLE 5 /* "eEfFgG" */
 
 	/* Word 3 */
 	uint8_t in_op;		/* operator for indirection */
@@ -224,6 +232,8 @@ struct magic {
 		uint8_t hl[4];	/* 4 bytes of a fixed-endian "long" */
 		uint8_t hq[8];	/* 8 bytes of a fixed-endian "quad" */
 		char s[MAXstring];	/* the search string or regex pattern */
+		float f;
+		double d;
 	} value;		/* either number or string */
 	/* Words 17..31 */
 	char desc[MAXDESC];	/* description */

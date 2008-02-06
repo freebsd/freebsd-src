@@ -157,8 +157,6 @@ fi
 dnl AC_HEADER_STDINT
 AC_DEFUN([AC_HEADER_STDINT], [AC_CHECK_HEADERS(stdint.h)])
 
-#serial 19
-
 dnl By default, many hosts won't let programs access large files;
 dnl one must use special compiler options to get large-file access to work.
 dnl For more details about this brain damage please see:
@@ -251,8 +249,6 @@ AC_DEFUN([AC_FUNC_FSEEKO],
      AC_DEFINE(HAVE_FSEEKO, 1,
        [Define if fseeko (and presumably ftello) exists and is declared.])
    fi])
-
-# serial 9
 
 # From Paul Eggert.
 

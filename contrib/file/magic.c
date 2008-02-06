@@ -63,7 +63,7 @@
 #include "patchlevel.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$File: magic.c,v 1.41 2007/03/26 17:59:50 christos Exp $")
+FILE_RCSID("@(#)$File: magic.c,v 1.45 2007/12/27 16:35:59 christos Exp $")
 #endif	/* lint */
 
 #ifdef __EMX__
@@ -76,6 +76,9 @@ private void free_mlist(struct mlist *);
 private void close_and_restore(const struct magic_set *, const char *, int,
     const struct stat *);
 private int info_from_stat(struct magic_set *, mode_t);
+#ifndef COMPILE_ONLY
+private const char *file_or_fd(struct magic_set *, const char *, int);
+#endif
 
 #ifndef	STDIN_FILENO
 #define	STDIN_FILENO	0
@@ -215,6 +218,7 @@ close_and_restore(const struct magic_set *ms, const char *name, int fd,
 		 */
 #ifdef HAVE_UTIMES
 		struct timeval  utsbuf[2];
+		memset(utsbuf, 0, sizeof(struct timeval) * 2);
 		utsbuf[0].tv_sec = sb->st_atime;
 		utsbuf[1].tv_sec = sb->st_mtime;
 
@@ -222,6 +226,7 @@ close_and_restore(const struct magic_set *ms, const char *name, int fd,
 #elif defined(HAVE_UTIME_H) || defined(HAVE_SYS_UTIME_H)
 		struct utimbuf  utbuf;
 
+		memset(&utbuf, 0, sizeof(struct utimbuf));
 		utbuf.actime = sb->st_atime;
 		utbuf.modtime = sb->st_mtime;
 		(void) utime(name, &utbuf); /* don't care if loses */
@@ -230,13 +235,28 @@ close_and_restore(const struct magic_set *ms, const char *name, int fd,
 }
 
 #ifndef COMPILE_ONLY
+
+/*
+ * find type of descriptor
+ */
+public const char *
+magic_descriptor(struct magic_set *ms, int fd)
+{
+	return file_or_fd(ms, NULL, fd);
+}
+
 /*
  * find type of named file
  */
 public const char *
 magic_file(struct magic_set *ms, const char *inname)
 {
-	int	fd = 0;
+	return file_or_fd(ms, inname, STDIN_FILENO);
+}
+
+private const char *
+file_or_fd(struct magic_set *ms, const char *inname, int fd)
+{
 	int	rv = -1;
 	unsigned char *buf;
 	struct stat	sb;
@@ -265,7 +285,6 @@ magic_file(struct magic_set *ms, const char *inname)
 	}
 
 	if (inname == NULL) {
-		fd = STDIN_FILENO;
 		if (fstat(fd, &sb) == 0 && S_ISFIFO(sb.st_mode))
 			ispipe = 1;
 	} else {
@@ -279,16 +298,16 @@ magic_file(struct magic_set *ms, const char *inname)
 		errno = 0;
 		if ((fd = open(inname, flags)) < 0) {
 #ifdef __CYGWIN__
-		    char *tmp = alloca(strlen(inname) + 5);
-		    (void)strcat(strcpy(tmp, inname), ".exe");
-		    if ((fd = open(tmp, flags)) < 0) {
+			char *tmp = alloca(strlen(inname) + 5);
+			(void)strcat(strcpy(tmp, inname), ".exe");
+			if ((fd = open(tmp, flags)) < 0) {
 #endif
-			if (info_from_stat(ms, sb.st_mode) == -1)
-			    goto done;
-			rv = 0;
-			goto done;
+				if (info_from_stat(ms, sb.st_mode) == -1)
+					goto done;
+				rv = 0;
+				goto done;
 #ifdef __CYGWIN__
-		    }
+			}
 #endif
 		}
 #ifdef O_NONBLOCK
@@ -326,18 +345,9 @@ magic_file(struct magic_set *ms, const char *inname)
 		}
 	}
 
-	if (nbytes == 0) {
-		if (file_printf(ms, (ms->flags & MAGIC_MIME) ?
-		    "application/x-empty" : "empty") == -1)
-			goto done;
-	} else if (nbytes == 1) {
-		if (file_printf(ms, "very short file (no magic)") == -1)
-			goto done;
-	} else {
-		(void)memset(buf + nbytes, 0, SLOP); /* NUL terminate */
-		if (file_buffer(ms, fd, inname, buf, (size_t)nbytes) == -1)
-			goto done;
-	}
+	(void)memset(buf + nbytes, 0, SLOP); /* NUL terminate */
+	if (file_buffer(ms, fd, inname, buf, (size_t)nbytes) == -1)
+		goto done;
 	rv = 0;
 done:
 	free(buf);

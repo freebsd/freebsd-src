@@ -17,10 +17,6 @@
 100	regex/c =^[\ \t]{0,10}call[\ \t]{1,10}rxfunc OS/2 REXX batch file text
 100	regex/c =^[\ \t]{0,10}say\ ['"]	     OS/2 REXX batch file text
 
-
-100 regex/c =^\\s*call\\s+rxfuncadd.*sysloadfu OS/2 REXX batch file text
-100 regex/c =^\\s*say\ ['"] OS/2 REXX batch file text
-
 0	leshort		0x14c	MS Windows COFF Intel 80386 object file
 #>4	ledate		x	stamp %s
 0	leshort		0x166	MS Windows COFF MIPS R4000 object file
@@ -363,8 +359,6 @@
 >30	byte	12		(4kB sectors)
 
 # Popular applications
-# False positive with PPT
-#0       string \xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x3E\x00\x03\x00\xFE\xFF Microsoft Installer
 2080	string	Microsoft\ Word\ 6.0\ Document	%s
 2080	string	Documento\ Microsoft\ Word\ 6 Spanish Microsoft Word 6 document data
 # Pawel Wiecek <coven@i17linuxb.ists.pwr.wroc.pl> (for polish Word)
@@ -610,10 +604,44 @@
 0	string	VMDK		 VMware4 disk image
 0	string	KDMV		 VMware4 disk image
 
-0	belong	0x514649fb	QEMU Copy-On-Write disk image
->4	belong	x		version %d,
->24	belong	x		size %d +
->28	belong	x		%d
+#--------------------------------------------------------------------
+# Qemu Emulator Images
+# Lines written by Friedrich Schwittay (f.schwittay@yousable.de)
+# Made by reading sources and doing trial and error on existing
+# qcow files
+0       string  QFI     Qemu Image, Format: Qcow
+
+# Uncomment the following line to display Magic (only used for debugging
+# this magic number)
+#>0     string  x       , Magic: %s
+
+# There are currently 2 Versions: "1" and "2"
+# I do not use Version 2 and therefor branch here
+# but can assure: it works (tested on both versions)
+# Also my Qemu 0.9.0 which uses this Version 2 refuses
+# to start in its bios
+>0x04   belong  2       , Version: 2
+>0x04   belong  1       , Version: 1
+
+# Using the existence of the Backing File Offset to Branch or not
+# to read Backing File Information
+>>0xc    belong  >0      , Backing File( Offset: %d
+>>>(0xc.L)       string >\0     , Path: %s
+
+# Didnt got the Trick here how qemu stores the "Size" at this Position
+# There is actually something stored but nothing makes sense
+# The header in the sources talks about it
+#>>>16   lelong  x       , Size: %d
+
+# Modification time of the Backing File
+# Really usefull if you want to know if your backing
+# file is still usable together with this image
+>>>20    bedate x       , Mtime: %s )
+
+# Dont know how to calculate in Magicfiles
+# Also: this Information is not reliably
+#       stored in image-files
+>>24     lelong  x       , Disk Size could be: %d * 256 bytes
 
 0	string	QEVM		QEMU's suspend to disk image
 
@@ -624,5 +652,14 @@
 0	lelong	0x02468ace			Bochs Sparse disk image
 
 # from http://filext.com by Derek M Jones <derek@knosof.co.uk>
-0	string	\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x3E\x00\x03\x00\xFE\xFF	Microsoft Installer
+# False positive with PPT
+#0	string	\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x3E\x00\x03\x00\xFE\xFF	Microsoft Installer
 0	string	\320\317\021\340\241\261\032\341	Microsoft Office Document
+
+# From: "Nelson A. de Oliveira" <naoliv@gmail.com>
+# Magic type for Dell's BIOS .hdr files
+# Dell's .hdr
+0	string $RBU
+>23	string Dell			%s system BIOS
+>48	string x			version %.3s
+
