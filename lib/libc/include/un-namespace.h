@@ -124,6 +124,7 @@
 #undef		pthread_mutex_destroy
 #undef		pthread_mutex_getprioceiling
 #undef		pthread_mutex_init
+#undef		pthread_mutex_isowned_np
 #undef		pthread_mutex_lock
 #undef		pthread_mutex_setprioceiling
 #undef		pthread_mutex_timedlock
