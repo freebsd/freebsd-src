@@ -32,7 +32,7 @@
 .\"     @(#)malloc.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd January 3, 2008
+.Dd February 5, 2008
 .Dt MALLOC 3
 .Os
 .Sh NAME
@@ -95,7 +95,7 @@ bytes.
 The contents of the memory are unchanged up to the lesser of the new and
 old sizes.
 If the new size is larger,
-the value of the newly allocated portion of the memory is undefined.
+the contents of the newly allocated portion of the memory are undefined.
 Upon success, the memory referenced by
 .Fa ptr
 is freed and a pointer to the newly allocated memory is returned.
@@ -204,15 +204,16 @@ This option is enabled by default.
 See the
 .Dq M
 option for related information and interactions.
-.It H
-Use
-.Xr madvise 2
-when pages within a chunk are no longer in use, but the chunk as a whole cannot
-yet be deallocated.
-This is primarily of use when swapping is a real possibility, due to the high
-overhead of the
-.Fn madvise
-system call.
+.It F
+Double/halve the per-arena maximum number of dirty unused pages that are
+allowed to accumulate before informing the kernel about at least half of those
+pages via
+.Xr madvise 2 .
+This provides the kernel with sufficient information to recycle dirty pages if
+physical memory becomes scarce and the pages remain unused.
+The default is 512 pages per arena;
+.Ev MALLOC_OPTIONS=10f
+will prevent any dirty unused pages from accumulating.
 .It J
 Each byte of new memory allocated by
 .Fn malloc ,
@@ -384,11 +385,12 @@ separately in a single data structure that is shared by all threads.
 Huge objects are used by applications infrequently enough that this single
 data structure is not a scalability issue.
 .Pp
-Each chunk that is managed by an arena tracks its contents in a page map as
-runs of contiguous pages (unused, backing a set of small objects, or backing
-one large object).
+Each chunk that is managed by an arena tracks its contents as runs of
+contiguous pages (unused, backing a set of small objects, or backing one large
+object).
 The combination of chunk alignment and chunk page maps makes it possible to
-determine all metadata regarding small and large allocations in constant time.
+determine all metadata regarding small and large allocations in
+constant and logarithmic time, respectively.
 .Pp
 Small objects are managed in groups by page runs.
 Each run maintains a bitmap that tracks which regions are in use.
