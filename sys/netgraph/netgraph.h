@@ -127,6 +127,7 @@ struct ng_hook {
 #define HK_QUEUE		0x0002	/* queue for later delivery */
 #define HK_FORCE_WRITER		0x0004	/* Incoming data queued as a writer */
 #define HK_DEAD			0x0008	/* This is the dead hook.. don't free */
+#define HK_HI_STACK		0x0010	/* Hook has hi stack usage */
 
 /*
  * Public Methods for hook
@@ -147,6 +148,7 @@ void ng_unref_hook(hook_p hook); /* don't move this */
 #define _NG_HOOK_FORCE_WRITER(hook)				\
 		do { hook->hk_flags |= HK_FORCE_WRITER; } while (0)
 #define _NG_HOOK_FORCE_QUEUE(hook) do { hook->hk_flags |= HK_QUEUE; } while (0)
+#define _NG_HOOK_HI_STACK(hook) do { hook->hk_flags |= HK_HI_STACK; } while (0)
 
 /* Some shortcuts */
 #define NG_PEER_NODE(hook)	NG_HOOK_NODE(NG_HOOK_PEER(hook))
@@ -277,6 +279,13 @@ _ng_hook_force_queue(hook_p hook, char * file, int line)
 	_NG_HOOK_FORCE_QUEUE(hook);
 }
 
+static __inline void
+_ng_hook_hi_stack(hook_p hook, char * file, int line)
+{
+	_chkhook(hook, file, line);
+	_NG_HOOK_HI_STACK(hook);
+}
+
 
 #define	NG_HOOK_REF(hook)		_ng_hook_ref(hook, _NN_)
 #define NG_HOOK_NAME(hook)		_ng_hook_name(hook, _NN_)
@@ -291,6 +300,7 @@ _ng_hook_force_queue(hook_p hook, char * file, int line)
 #define NG_HOOK_PEER(hook)		_ng_hook_peer(hook, _NN_)
 #define NG_HOOK_FORCE_WRITER(hook)	_ng_hook_force_writer(hook, _NN_)
 #define NG_HOOK_FORCE_QUEUE(hook)	_ng_hook_force_queue(hook, _NN_)
+#define NG_HOOK_HI_STACK(hook)		_ng_hook_hi_stack(hook, _NN_)
 
 #else	/* NETGRAPH_DEBUG */ /*----------------------------------------------*/
 
@@ -307,6 +317,7 @@ _ng_hook_force_queue(hook_p hook, char * file, int line)
 #define NG_HOOK_PEER(hook)		_NG_HOOK_PEER(hook)
 #define NG_HOOK_FORCE_WRITER(hook)	_NG_HOOK_FORCE_WRITER(hook)
 #define NG_HOOK_FORCE_QUEUE(hook)	_NG_HOOK_FORCE_QUEUE(hook)
+#define NG_HOOK_HI_STACK(hook)		_NG_HOOK_HI_STACK(hook)
 
 #endif	/* NETGRAPH_DEBUG */ /*----------------------------------------------*/
 
@@ -360,6 +371,7 @@ struct ng_node {
 #define NG_CLOSING	NGF_CLOSING	/* compat for old code */
 #define NGF_REALLY_DIE	0x00000010	/* "persistent" node is unloading */
 #define NG_REALLY_DIE	NGF_REALLY_DIE	/* compat for old code */
+#define NGF_HI_STACK	0x00000020	/* node has hi stack usage */
 #define NGF_TYPE1	0x10000000	/* reserved for type specific storage */
 #define NGF_TYPE2	0x20000000	/* reserved for type specific storage */
 #define NGF_TYPE3	0x40000000	/* reserved for type specific storage */
@@ -382,6 +394,8 @@ int	ng_unref_node(node_p node); /* don't move this */
 #define _NG_NODE_NUMHOOKS(node)	((node)->nd_numhooks + 0) /* rvalue */
 #define _NG_NODE_FORCE_WRITER(node)					\
 	do{ node->nd_flags |= NGF_FORCE_WRITER; }while (0)
+#define _NG_NODE_HI_STACK(node)						\
+	do{ node->nd_flags |= NGF_HI_STACK; }while (0)
 #define _NG_NODE_REALLY_DIE(node)					\
 	do{ node->nd_flags |= (NGF_REALLY_DIE|NGF_INVALID); }while (0)
 #define _NG_NODE_REVIVE(node) \
@@ -513,6 +527,13 @@ _ng_node_force_writer(node_p node, char *file, int line)
 }
 
 static __inline void
+_ng_node_hi_stack(node_p node, char *file, int line)
+{
+	_chknode(node, file, line);
+	_NG_NODE_HI_STACK(node);
+}
+
+static __inline void
 _ng_node_really_die(node_p node, char *file, int line)
 {
 	_chknode(node, file, line);
@@ -546,6 +567,7 @@ _ng_node_foreach_hook(node_p node, ng_fn_eachhook *fn, void *arg,
 #define NG_NODE_IS_VALID(node)		_ng_node_is_valid(node, _NN_)
 #define NG_NODE_NOT_VALID(node)		_ng_node_not_valid(node, _NN_)
 #define NG_NODE_FORCE_WRITER(node) 	_ng_node_force_writer(node, _NN_)
+#define NG_NODE_HI_STACK(node) 		_ng_node_hi_stack(node, _NN_)
 #define NG_NODE_REALLY_DIE(node) 	_ng_node_really_die(node, _NN_)
 #define NG_NODE_NUMHOOKS(node)		_ng_node_numhooks(node, _NN_)
 #define NG_NODE_REVIVE(node)		_ng_node_revive(node, _NN_)
@@ -566,6 +588,7 @@ _ng_node_foreach_hook(node_p node, ng_fn_eachhook *fn, void *arg,
 #define NG_NODE_IS_VALID(node)		_NG_NODE_IS_VALID(node)	
 #define NG_NODE_NOT_VALID(node)		_NG_NODE_NOT_VALID(node)	
 #define NG_NODE_FORCE_WRITER(node) 	_NG_NODE_FORCE_WRITER(node)
+#define NG_NODE_HI_STACK(node) 		_NG_NODE_HI_STACK(node)
 #define NG_NODE_REALLY_DIE(node) 	_NG_NODE_REALLY_DIE(node)
 #define NG_NODE_NUMHOOKS(node)		_NG_NODE_NUMHOOKS(node)	
 #define NG_NODE_REVIVE(node)		_NG_NODE_REVIVE(node)
