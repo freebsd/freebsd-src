@@ -229,8 +229,9 @@ struct thread {
 	u_char		td_lastcpu;	/* (t) Last cpu we were on. */
 	u_char		td_oncpu;	/* (t) Which cpu we are on. */
 	volatile u_char td_owepreempt;  /* (k*) Preempt on last critical_exit */
-	short		td_locks;	/* (k) Count of non-spin locks. */
 	u_char		td_tsqueue;	/* (t) Turnstile queue blocked on. */
+	short		td_locks;	/* (k) Count of non-spin locks. */
+	short		td_rw_rlocks;	/* (k) count of rwlock read locks. */
 	struct turnstile *td_blocked;	/* (t) Lock thread is blocked on. */
 	const char	*td_lockname;	/* (t) Name of lock blocked on. */
 	LIST_HEAD(, turnstile) td_contested;	/* (q) Contested locks. */
