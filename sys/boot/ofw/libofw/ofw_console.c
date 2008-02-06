@@ -97,10 +97,10 @@ ofw_cons_getchar()
 		return l;
 	}
 
-	while ((l = OF_read(stdin, &ch, 1)) != 1)
-		if (l != -2 && l != 0)
-			return -1;
-	return ch;
+	if (OF_read(stdin, &ch, 1) > 0)
+		return (ch);
+
+	return (-1);
 }
 
 int
