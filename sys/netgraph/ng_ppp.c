@@ -1399,7 +1399,8 @@ ng_ppp_rcvdata(hook_p hook, item_p item)
 	/* Strip address and control fields, if present. */
 	if (m->m_len < 2 && (m = m_pullup(m, 2)) == NULL)
 		ERROUT(ENOBUFS);
-	if (bcmp(mtod(m, uint8_t *), &ng_ppp_acf, 2) == 0)
+	if (mtod(m, uint8_t *)[0] == 0xff &&
+	    mtod(m, uint8_t *)[1] == 0x03)
 		m_adj(m, 2);
 
 	/* Get protocol number */

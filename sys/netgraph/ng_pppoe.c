@@ -1179,8 +1179,6 @@ ng_pppoe_rcvdata(hook_p hook, item_p item)
 	switch (sp->state) {
 	case	PPPOE_NEWCONNECTED:
 	case	PPPOE_CONNECTED: {
-		static const u_char addrctrl[] = { 0xff, 0x03 };
-
 		/*
 		 * Remove PPP address and control fields, if any.
 		 * For example, ng_ppp(4) always sends LCP packets
@@ -1190,7 +1188,8 @@ ng_pppoe_rcvdata(hook_p hook, item_p item)
 		if (m->m_pkthdr.len >= 2) {
 			if (m->m_len < 2 && !(m = m_pullup(m, 2)))
 				LEAVE(ENOBUFS);
-			if (bcmp(mtod(m, u_char *), addrctrl, 2) == 0)
+			if (mtod(m, u_char *)[0] == 0xff &&
+			    mtod(m, u_char *)[1] == 0x03)
 				m_adj(m, 2);
 		}
 		/*
