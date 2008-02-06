@@ -280,7 +280,6 @@ MAN=	aac.4 \
 	rndtest.4 \
 	route.4 \
 	rp.4 \
-	${_rr232x.4} \
 	rue.4 \
 	rum.4 \
 	sa.4 \
@@ -461,6 +460,7 @@ MLINKS+=gif.4 if_gif.4
 MLINKS+=gre.4 if_gre.4
 MLINKS+=hatm.4 if_hatm.4
 MLINKS+=hme.4 if_hme.4
+MLINKS+=${_hptrr.4} ${_rr232x.4}
 MLINKS+=idt.4 if_idt.4
 MLINKS+=if_bridge.4 bridge.4
 MLINKS+=ip.4 rawip.4
