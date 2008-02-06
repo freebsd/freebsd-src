@@ -257,7 +257,7 @@ _lockmgr(struct lock *lkp, u_int flags, struct mtx *interlkp, char *file,
 		 */
 		if (lkp->lk_lockholder != td) {
 			lockflags = LK_HAVE_EXCL;
-			if (td != NULL && !(td->td_pflags & TDP_DEADLKTREAT))
+			if (!(td->td_pflags & TDP_DEADLKTREAT))
 				lockflags |= LK_WANT_EXCL | LK_WANT_UPGRADE;
 			error = acquire(&lkp, extflags, lockflags, &contested, &waitstart);
 			if (error)
