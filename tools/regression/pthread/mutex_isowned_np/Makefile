@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-PROG=	mutex_islocked_np
+PROG=	mutex_isowned_np
 NO_MAN=
 
 LDADD=	-lpthread
