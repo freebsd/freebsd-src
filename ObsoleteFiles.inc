@@ -3947,7 +3947,9 @@ OLD_FILES+=usr/share/man/man5/usbd.conf.5.gz
 .if ${TARGET_ARCH} != "i386" && ${TARGET_ARCH} != "amd64"
 OLD_FILES+=usr/share/man/man8/boot_i386.8.gz
 .endif
+.if ${TARGET_ARCH} != "powerpc" && ${TARGET_ARCH} != "sparc64"
 OLD_FILES+=usr/share/man/man8/ofwdump.8.gz
+.endif
 OLD_FILES+=usr/share/man/man8/mount_reiserfs.8.gz
 OLD_FILES+=usr/share/man/man9/VFS_START.9.gz
 OLD_FILES+=usr/share/man/man9/cpu_critical_exit.9.gz
