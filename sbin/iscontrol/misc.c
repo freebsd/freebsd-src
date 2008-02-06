@@ -185,7 +185,7 @@ bin2str(char *encoding, unsigned char *md, int blen)
 	  strcpy(dst, encoding);
 	  ds = dst + 2;
 	  cp = md;
-	  b6 = 0; // to keep copiler happy.
+	  b6 = 0; // to keep compiler happy.
 	  for(i = 0; i < blen; i++) {
 	       switch(i % 3) {
 	       case 0:
