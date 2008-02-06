@@ -87,7 +87,6 @@ int	__pthread_mutex_setspinloops_np(pthread_mutex_t *mutex, int count);
 int	_pthread_mutex_setyieldloops_np(pthread_mutex_t *mutex, int count);
 int	_pthread_mutex_getyieldloops_np(pthread_mutex_t *mutex, int *count);
 int	__pthread_mutex_setyieldloops_np(pthread_mutex_t *mutex, int count);
-int	_pthread_mutex_isowned_np(pthread_mutex_t *mutex);
 
 static int	mutex_self_trylock(pthread_mutex_t);
 static int	mutex_self_lock(pthread_mutex_t,
