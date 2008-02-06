@@ -283,6 +283,7 @@ FBSDprivate_1.0 {
 	_pthread_mutex_getyieldloops_np;
 	_pthread_mutex_init;
 	_pthread_mutex_init_calloc_cb;
+	_pthread_mutex_isowned_np;
 	_pthread_mutex_lock;
 	_pthread_mutex_setprioceiling;
 	_pthread_mutex_setspinloops_np;
