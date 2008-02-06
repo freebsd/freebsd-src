@@ -1,3 +1,84 @@
+2007-12-28 15:06 Christos Zoulas <christos@zoulas.com>
+
+	* strtof detection
+
+	* remove bogus regex magic that could cause a DoS
+
+	* better mismatch version message
+
+2007-12-27 11:35 Christos Zoulas <christos@zoulas.com>
+
+	* bring back some fixes from OpenBSD
+
+	* treat ELF dynamic objects as executables
+
+	* fix gcc warnings
+
+2007-12-01 19:55 Christos Zoulas <christos@zoulas.com>
+
+	* make sure we have zlib.h and libz to compile the builtin
+	  decompress code
+
+2007-10-28 20:48 Christos Zoulas <christos@zoulas.com>
+
+ 	* float and double magic support (Behan Webster) 
+
+2007-10-28 20:48 Christos Zoulas <christos@zoulas.com>
+
+	* Convert fortran to a soft test (Reuben Thomas)
+
+2007-10-23  5:25 Christos Zoulas <christos@zoulas.com>
+
+	* Add --with-filename, and --no-filename (Reuben Thomas)
+
+2007-10-23  3:59 Christos Zoulas <christos@zoulas.com>
+
+	* Rest of the mime split (Reuben Thomas)
+
+	* Make usage message generated from the flags so that
+	  they stay consistent (Reuben Thomas)
+
+2007-10-20  3:06 Christos Zoulas <christos@zoulas.com>
+
+	* typo in comment, missing ifdef QUICK, remove unneeded code
+		(Charles Longeau)
+
+2007-10-17  3:33 Christos Zoulas <christos@zoulas.com>
+
+	* Fix problem printing -\012 in some entries
+
+	* Separate magic type and encoding flags (Reuben Thomas)
+
+2007-10-09  3:55 Christos Zoulas <christos@zoulas.com>
+
+	* configure fix for int64 and strndup (Reuben Thomas)
+
+2007-09-26  4:45 Christos Zoulas <christos@zoulas.com>
+
+	* Add magic_descriptor() function.
+
+	* Fix regression in elf reading code where the core name was
+	  not being printed.
+
+	* Don't convert NUL's to spaces in {l,b}estring16 (Daniel Dawson)
+
+2007-08-19  6:30 Christos Zoulas <christos@zoulas.com>
+
+	* Make mime format consistent so that it can
+	  be easily parsed:
+	      mimetype [charset=character-set] [encoding=encoding-mime-type]
+
+	  Remove spurious extra text from some MIME type printouts 
+	  (mostly in is_tar).
+
+	  Fix one case where -i produced nothing at all (for a 1-byte file,
+	  which is now classed as application/octet-stream).
+
+	  Remove 7/8bit classifications, since they were arbitrary
+	  and not based on the file data.
+
+	  This work was done by Reuben Thomas
+
 2007-05-24 10:00 Christos Zoulas <christos@zoulas.com>
 
 	* Fix another integer overflow (Colin Percival)

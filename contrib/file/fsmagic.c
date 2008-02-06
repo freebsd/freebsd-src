@@ -57,13 +57,14 @@
 #undef HAVE_MAJOR
 
 #ifndef	lint
-FILE_RCSID("@(#)$File: fsmagic.c,v 1.47 2007/01/12 17:38:28 christos Exp $")
+FILE_RCSID("@(#)$File: fsmagic.c,v 1.48 2007/10/17 19:33:31 christos Exp $")
 #endif	/* lint */
 
 protected int
 file_fsmagic(struct magic_set *ms, const char *fn, struct stat *sb)
 {
 	int ret = 0;
+	int mime = ms->flags & MAGIC_MIME;
 #ifdef	S_IFLNK
 	char buf[BUFSIZ+4];
 	int nch;
@@ -95,11 +96,12 @@ file_fsmagic(struct magic_set *ms, const char *fn, struct stat *sb)
 		return 1;
 	}
 
-	if ((ms->flags & MAGIC_MIME) != 0) {
+	if (mime) {
 		if ((sb->st_mode & S_IFMT) != S_IFREG) {
-			if (file_printf(ms, "application/x-not-regular-file")
+			if ((mime & MAGIC_MIME_TYPE) &&
+			    file_printf(ms, "application/x-not-regular-file")
 			    == -1)
-				return -1;
+				    return -1;
 			return 1;
 		}
 	}
@@ -303,8 +305,9 @@ file_fsmagic(struct magic_set *ms, const char *fn, struct stat *sb)
 	 * when we read the file.)
 	 */
 	if ((ms->flags & MAGIC_DEVICES) == 0 && sb->st_size == 0) {
-		if (file_printf(ms, (ms->flags & MAGIC_MIME) ?
-		    "application/x-empty" : "empty") == -1)
+		if ((!mime || (mime & MAGIC_MIME_TYPE)) &&
+		    file_printf(ms, mime ? "application/x-empty" :
+		    "empty") == -1)
 			return -1;
 		return 1;
 	}

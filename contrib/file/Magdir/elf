@@ -51,10 +51,10 @@
 >>>>36  lelong&0xf0000000	0x20000000	MIPS-III
 >>>>36  lelong&0xf0000000	0x30000000	MIPS-IV
 >>>>36  lelong&0xf0000000	0x40000000	MIPS-V
->>>>36  lelong&0xf0000000	0x60000000	MIPS32
->>>>36  lelong&0xf0000000	0x70000000	MIPS64
->>>>36  lelong&0xf0000000	0x80000000	MIPS32 rel2
->>>>36  lelong&0xf0000000	0x90000000	MIPS64 rel2
+>>>>36  lelong&0xf0000000	0x50000000	MIPS32
+>>>>36  lelong&0xf0000000	0x60000000	MIPS64
+>>>>36  lelong&0xf0000000	0x70000000	MIPS32 rel2
+>>>>36  lelong&0xf0000000	0x80000000	MIPS64 rel2
 # only for 64-bit
 >>>4	byte		2
 >>>>48  lelong&0xf0000000	0x00000000	MIPS-I
@@ -62,10 +62,10 @@
 >>>>48  lelong&0xf0000000	0x20000000	MIPS-III
 >>>>48  lelong&0xf0000000	0x30000000	MIPS-IV
 >>>>48  lelong&0xf0000000	0x40000000	MIPS-V
->>>>48  lelong&0xf0000000	0x60000000	MIPS32
->>>>48  lelong&0xf0000000	0x70000000	MIPS64 
->>>>48  lelong&0xf0000000	0x80000000	MIPS32 rel2
->>>>48  lelong&0xf0000000	0x90000000	MIPS64 rel2
+>>>>48  lelong&0xf0000000	0x50000000	MIPS32
+>>>>48  lelong&0xf0000000	0x60000000	MIPS64
+>>>>48  lelong&0xf0000000	0x70000000	MIPS32 rel2
+>>>>48  lelong&0xf0000000	0x80000000	MIPS64 rel2
 >>18	leshort		9		Amdahl - invalid byte order,
 >>18	leshort		10		MIPS (deprecated),
 >>18	leshort		11		RS6000 - invalid byte order,
@@ -139,10 +139,10 @@
 >>>>36  belong&0xf0000000	0x20000000	MIPS-III
 >>>>36  belong&0xf0000000	0x30000000	MIPS-IV
 >>>>36  belong&0xf0000000	0x40000000	MIPS-V
->>>>36  belong&0xf0000000	0x60000000	MIPS32
->>>>36  belong&0xf0000000	0x70000000	MIPS64
->>>>36  belong&0xf0000000	0x80000000	MIPS32 rel2
->>>>36  belong&0xf0000000	0x90000000	MIPS64 rel2
+>>>>36  belong&0xf0000000	0x50000000	MIPS32
+>>>>36  belong&0xf0000000	0x60000000	MIPS64
+>>>>36  belong&0xf0000000	0x70000000	MIPS32 rel2
+>>>>36  belong&0xf0000000	0x80000000	MIPS64 rel2
 # only for 64-bit
 >>>4	byte		2
 >>>>48	belong&0xf0000000	0x00000000	MIPS-I
@@ -150,10 +150,10 @@
 >>>>48	belong&0xf0000000	0x20000000	MIPS-III
 >>>>48	belong&0xf0000000	0x30000000	MIPS-IV
 >>>>48	belong&0xf0000000	0x40000000	MIPS-V
->>>>48	belong&0xf0000000	0x60000000	MIPS32
->>>>48	belong&0xf0000000	0x70000000	MIPS64 
->>>>48	belong&0xf0000000	0x80000000	MIPS32 rel2
->>>>48	belong&0xf0000000	0x90000000	MIPS64 rel2
+>>>>48	belong&0xf0000000	0x50000000	MIPS32
+>>>>48	belong&0xf0000000	0x60000000	MIPS64
+>>>>48	belong&0xf0000000	0x70000000	MIPS32 rel2
+>>>>48	belong&0xf0000000	0x80000000	MIPS64 rel2
 >>18	beshort		9		Amdahl,
 >>18	beshort		10		MIPS (deprecated),
 >>18	beshort		11		RS6000,
@@ -196,6 +196,7 @@
 >>18	beshort		88		Renesas M32R,
 >>18	beshort		94		Tensilica Xtensa,
 >>18	beshort		97		NatSemi 32k,
+>>18	beshort		0x18ad		AVR32 (unofficial),
 >>18	beshort		0x9026		Alpha (unofficial),
 >>18	beshort		0xa390		IBM S/390 (obsolete),
 >>20	belong		0		invalid version

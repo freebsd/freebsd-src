@@ -49,7 +49,7 @@
 #include "names.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$File: ascmagic.c,v 1.50 2007/03/15 14:51:00 christos Exp $")
+FILE_RCSID("@(#)$File: ascmagic.c,v 1.53 2007/10/29 00:54:08 christos Exp $")
 #endif	/* lint */
 
 typedef unsigned long unichar;
@@ -76,6 +76,7 @@ file_ascmagic(struct magic_set *ms, const unsigned char *buf, size_t nbytes)
 	size_t ulen;
 	struct names *p;
 	int rv = -1;
+	int mime = ms->flags & MAGIC_MIME;
 
 	const char *code = NULL;
 	const char *code_mime = NULL;
@@ -184,13 +185,6 @@ file_ascmagic(struct magic_set *ms, const unsigned char *buf, size_t nbytes)
 		}
 	}
 
-	if ((ms->flags & MAGIC_NO_CHECK_FORTRAN) == 0 &&
-	    (*buf == 'c' || *buf == 'C') && ISSPC(buf[1])) {
-		subtype_mime = "text/fortran";
-		subtype = "fortran program";
-		goto subtype_identified;
-	}
-
 	/* look for tokens from names.h - this is expensive! */
 
 	if ((ms->flags & MAGIC_NO_CHECK_TOKENS) != 0)
@@ -271,21 +265,27 @@ subtype_identified:
 	if (seen_cr && nbytes < HOWMANY)
 		n_cr++;
 
-	if ((ms->flags & MAGIC_MIME)) {
-		if (subtype_mime) {
-			if (file_printf(ms, subtype_mime) == -1)
-				goto done;
-		} else {
-			if (file_printf(ms, "text/plain") == -1)
-				goto done;
+	if (mime) {
+		if (mime & MAGIC_MIME_TYPE) {
+			if (subtype_mime) {
+				if (file_printf(ms, subtype_mime) == -1)
+					goto done;
+			} else {
+				if (file_printf(ms, "text/plain") == -1)
+					goto done;
+			}
 		}
 
-		if (code_mime) {
-			if (file_printf(ms, "; charset=") == -1)
+		if ((mime == 0 || mime == MAGIC_MIME) && code_mime) {
+			if ((mime & MAGIC_MIME_TYPE) &&
+			    file_printf(ms, " charset=") == -1)
 				goto done;
 			if (file_printf(ms, code_mime) == -1)
 				goto done;
 		}
+
+		if (mime == MAGIC_MIME_ENCODING)
+			file_printf(ms, "binary");
 	} else {
 		if (file_printf(ms, code) == -1)
 			goto done;
