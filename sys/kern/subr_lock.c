@@ -494,7 +494,7 @@ lock_profile_obtain_lock_success(struct lock_object *lo, int contested,
 	if (lock_prof_skipcount &&
 	    (++lock_prof_count % lock_prof_skipcount) != 0)
 		return;
-	spin = LOCK_CLASS(lo) == &lock_class_mtx_spin;
+	spin = (LOCK_CLASS(lo)->lc_flags & LC_SPINLOCK) ? 1 : 0;
 	if (spin && lock_prof_skipspin == 1)
 		return;
 	l = lock_profile_object_lookup(lo, spin, file, line);
@@ -523,7 +523,7 @@ lock_profile_release_lock(struct lock_object *lo)
 
 	if (!lock_prof_enable || (lo->lo_flags & LO_NOPROFILE))
 		return;
-	spin = LOCK_CLASS(lo) == &lock_class_mtx_spin;
+	spin = (LOCK_CLASS(lo)->lc_flags & LC_SPINLOCK) ? 1 : 0;
 	head = &curthread->td_lprof[spin];
 	critical_enter();
 	LIST_FOREACH(l, head, lpo_link)
