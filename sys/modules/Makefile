@@ -221,7 +221,6 @@ SUBDIR=	${_3dfx} \
 	reiserfs \
 	rl \
 	rp \
-	${_rr232x} \
 	rue \
 	rum \
 	${_s3} \
@@ -473,7 +472,6 @@ _wpifw=		wpifw
 _padlock=	padlock
 .endif
 .endif
-_rr232x=	rr232x
 _s3=		s3
 _twa=		twa
 _vesa=		vesa
@@ -531,7 +529,6 @@ _nve=		nve
 _nvram=		nvram
 _nxge=		nxge
 _pccard=	pccard
-_rr232x=	rr232x
 _safe=		safe
 _scsi_low=	scsi_low
 _smbfs=		smbfs

@@ -78,10 +78,6 @@ hptrr_lib.o			optional	hptrr			\
 	compile-with	"uudecode < $S/dev/hptrr/amd64-elf.hptrr_lib.o.uu" \
 	no-implicit-rule
 #
-rr232x_lib.o		optional	rr232x				\
-	dependency	"$S/dev/rr232x/amd64-elf.rr232x_lib.o.uu"	\
-	compile-with	"uudecode < $S/dev/rr232x/amd64-elf.rr232x_lib.o.uu" \
-	no-implicit-rule
 #
 amd64/acpica/OsdEnvironment.c	optional	acpi
 amd64/acpica/acpi_machdep.c	optional	acpi
@@ -195,9 +191,6 @@ dev/mem/memutil.c		optional	mem
 dev/nfe/if_nfe.c		optional	nfe pci
 dev/nve/if_nve.c		optional	nve pci
 dev/nvram/nvram.c		optional	nvram isa
-dev/rr232x/os_bsd.c		optional	rr232x
-dev/rr232x/osm_bsd.c		optional	rr232x
-dev/rr232x/rr232x_config.c	optional	rr232x
 dev/sio/sio.c			optional	sio
 dev/sio/sio_isa.c		optional	sio isa
 dev/sio/sio_pccard.c		optional	sio pccard
