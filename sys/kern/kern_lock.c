@@ -60,6 +60,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/stack.h>
 #endif
 
+#define	LOCKMGR_TRYOP(x)	((x) & LK_NOWAIT)
+#define	LOCKMGR_TRYW(x)		(LOCKMGR_TRYOP((x)) ? LOP_TRYLOCK : 0)
+
 static void	assert_lockmgr(struct lock_object *lock, int what);
 #ifdef DDB
 #include <ddb/ddb.h>
@@ -240,6 +243,9 @@ _lockmgr(struct lock *lkp, u_int flags, struct mtx *interlkp, char *file,
 	switch (flags & LK_TYPE_MASK) {
 
 	case LK_SHARED:
+		if (!LOCKMGR_TRYOP(extflags))
+			WITNESS_CHECKORDER(&lkp->lk_object, LOP_NEWORDER, file,
+			    line);
 		/*
 		 * If we are not the exclusive lock holder, we have to block
 		 * while there is an exclusive lock holder or while an
@@ -259,6 +265,8 @@ _lockmgr(struct lock *lkp, u_int flags, struct mtx *interlkp, char *file,
 			sharelock(td, lkp, 1);
 			if (lkp->lk_sharecount == 1)
 				lock_profile_obtain_lock_success(&lkp->lk_object, contested, waitstart, file, line);
+			WITNESS_LOCK(&lkp->lk_object, LOCKMGR_TRYW(extflags),
+			    file, line);
 
 #if defined(DEBUG_LOCKS)
 			stack_save(&lkp->lk_stack);
@@ -269,9 +277,6 @@ _lockmgr(struct lock *lkp, u_int flags, struct mtx *interlkp, char *file,
 		 * We hold an exclusive lock, so downgrade it to shared.
 		 * An alternative would be to fail with EDEADLK.
 		 */
-		sharelock(td, lkp, 1);
-		if (lkp->lk_sharecount == 1)
-			lock_profile_obtain_lock_success(&lkp->lk_object, contested, waitstart, file, line);
 		/* FALLTHROUGH downgrade */
 
 	case LK_DOWNGRADE:
@@ -280,6 +285,7 @@ _lockmgr(struct lock *lkp, u_int flags, struct mtx *interlkp, char *file,
 			"(owner thread (%p) != thread (%p), exlcnt (%d) != 0",
 			lkp->lk_lockholder, td, lkp->lk_exclusivecount));
 		sharelock(td, lkp, lkp->lk_exclusivecount);
+		WITNESS_DOWNGRADE(&lkp->lk_object, 0, file, line);
 		COUNT(td, -lkp->lk_exclusivecount);
 		lkp->lk_exclusivecount = 0;
 		lkp->lk_flags &= ~LK_HAVE_EXCL;
@@ -311,6 +317,7 @@ _lockmgr(struct lock *lkp, u_int flags, struct mtx *interlkp, char *file,
 		    ((lkp->lk_flags & LK_WANT_UPGRADE) ||
 		     lkp->lk_sharecount > 1)) {
 			error = EBUSY;
+			WITNESS_UNLOCK(&lkp->lk_object, 0, file, line);
 			break;
 		}
 		if ((lkp->lk_flags & LK_WANT_UPGRADE) == 0) {
@@ -326,6 +333,7 @@ _lockmgr(struct lock *lkp, u_int flags, struct mtx *interlkp, char *file,
 			if (error) {
 			         if ((lkp->lk_flags & ( LK_WANT_EXCL | LK_WAIT_NONZERO)) == (LK_WANT_EXCL | LK_WAIT_NONZERO))
 			                   wakeup((void *)lkp);
+				WITNESS_UNLOCK(&lkp->lk_object, 0, file, line);
 			         break;
 			}
 			if (lkp->lk_exclusivecount != 0)
@@ -333,6 +341,8 @@ _lockmgr(struct lock *lkp, u_int flags, struct mtx *interlkp, char *file,
 			lkp->lk_flags |= LK_HAVE_EXCL;
 			lkp->lk_lockholder = td;
 			lkp->lk_exclusivecount = 1;
+			WITNESS_UPGRADE(&lkp->lk_object, LOP_EXCLUSIVE |
+			    LOP_TRYLOCK, file, line);
 			COUNT(td, 1);
 			lock_profile_obtain_lock_success(&lkp->lk_object, contested, waitstart, file, line);
 #if defined(DEBUG_LOCKS)
@@ -345,12 +355,16 @@ _lockmgr(struct lock *lkp, u_int flags, struct mtx *interlkp, char *file,
 		 * lock, awaken upgrade requestor if we are the last shared
 		 * lock, then request an exclusive lock.
 		 */
+		WITNESS_UNLOCK(&lkp->lk_object, 0, file, line);
 		if ( (lkp->lk_flags & (LK_SHARE_NONZERO|LK_WAIT_NONZERO)) ==
 			LK_WAIT_NONZERO)
 			wakeup((void *)lkp);
 		/* FALLTHROUGH exclusive request */
 
 	case LK_EXCLUSIVE:
+		if (!LOCKMGR_TRYOP(extflags))
+			WITNESS_CHECKORDER(&lkp->lk_object, LOP_NEWORDER |
+			    LOP_EXCLUSIVE, file, line);
 		if (lkp->lk_lockholder == td) {
 			/*
 			 *	Recursive lock.
@@ -359,6 +373,8 @@ _lockmgr(struct lock *lkp, u_int flags, struct mtx *interlkp, char *file,
 				panic("lockmgr: locking against myself");
 			if ((extflags & LK_CANRECURSE) != 0) {
 				lkp->lk_exclusivecount++;
+				WITNESS_LOCK(&lkp->lk_object, LOP_EXCLUSIVE |
+				    LOCKMGR_TRYW(extflags), file, line);
 				COUNT(td, 1);
 				break;
 			}
@@ -393,6 +409,8 @@ _lockmgr(struct lock *lkp, u_int flags, struct mtx *interlkp, char *file,
 		if (lkp->lk_exclusivecount != 0)
 			panic("lockmgr: non-zero exclusive count");
 		lkp->lk_exclusivecount = 1;
+		WITNESS_LOCK(&lkp->lk_object, LOP_EXCLUSIVE |
+		    LOCKMGR_TRYW(extflags), file, line);
 		COUNT(td, 1);
 		lock_profile_obtain_lock_success(&lkp->lk_object, contested, waitstart, file, line);
 #if defined(DEBUG_LOCKS)
@@ -408,8 +426,11 @@ _lockmgr(struct lock *lkp, u_int flags, struct mtx *interlkp, char *file,
 				    td, "exclusive lock holder",
 				    lkp->lk_lockholder);
 			}
-			if (lkp->lk_lockholder != LK_KERNPROC)
+			if (lkp->lk_lockholder != LK_KERNPROC) {
+				WITNESS_UNLOCK(&lkp->lk_object, LOP_EXCLUSIVE,
+				    file, line);
 				COUNT(td, -1);
+			}
 			if (lkp->lk_exclusivecount == 1) {
 				lkp->lk_flags &= ~LK_HAVE_EXCL;
 				lkp->lk_lockholder = LK_NOPROC;
@@ -418,9 +439,10 @@ _lockmgr(struct lock *lkp, u_int flags, struct mtx *interlkp, char *file,
 			} else {
 				lkp->lk_exclusivecount--;
 			}
-		} else if (lkp->lk_flags & LK_SHARE_NONZERO)
+		} else if (lkp->lk_flags & LK_SHARE_NONZERO) {
+			WITNESS_UNLOCK(&lkp->lk_object, 0, file, line);
 			shareunlock(td, lkp, 1);
-		else  {
+		} else  {
 			printf("lockmgr: thread %p unlocking unheld lock\n",
 			    td);
 			kdb_backtrace();
@@ -437,6 +459,9 @@ _lockmgr(struct lock *lkp, u_int flags, struct mtx *interlkp, char *file,
 		 * check for holding a shared lock, but at least we can
 		 * check for an exclusive one.
 		 */
+		if (!LOCKMGR_TRYOP(extflags))
+			WITNESS_CHECKORDER(&lkp->lk_object, LOP_NEWORDER |
+			    LOP_EXCLUSIVE, file, line);
 		if (lkp->lk_lockholder == td)
 			panic("lockmgr: draining against myself");
 
@@ -446,6 +471,8 @@ _lockmgr(struct lock *lkp, u_int flags, struct mtx *interlkp, char *file,
 		lkp->lk_flags |= LK_DRAINING | LK_HAVE_EXCL;
 		lkp->lk_lockholder = td;
 		lkp->lk_exclusivecount = 1;
+		WITNESS_LOCK(&lkp->lk_object, LOP_EXCLUSIVE |
+		    LOCKMGR_TRYW(extflags), file, line);
 		COUNT(td, 1);
 #if defined(DEBUG_LOCKS)
 		stack_save(&lkp->lk_stack);
@@ -500,11 +527,13 @@ lockinit(lkp, prio, wmesg, timo, flags)
 	int timo;
 	int flags;
 {
+	int iflags;
+
 	CTR5(KTR_LOCK, "lockinit(): lkp == %p, prio == %d, wmesg == \"%s\", "
 	    "timo == %d, flags = 0x%x\n", lkp, prio, wmesg, timo, flags);
 
 	lkp->lk_interlock = mtx_pool_alloc(mtxpool_lockbuilder);
-	lkp->lk_flags = (flags & LK_EXTFLG_MASK);
+	lkp->lk_flags = (flags & LK_EXTFLG_MASK) & ~(LK_NOWITNESS | LK_NODUP);
 	lkp->lk_sharecount = 0;
 	lkp->lk_waitcount = 0;
 	lkp->lk_exclusivecount = 0;
@@ -512,11 +541,15 @@ lockinit(lkp, prio, wmesg, timo, flags)
 	lkp->lk_timo = timo;
 	lkp->lk_lockholder = LK_NOPROC;
 	lkp->lk_newlock = NULL;
+	iflags = LO_RECURSABLE | LO_SLEEPABLE | LO_UPGRADABLE;
+	if (!(flags & LK_NODUP))
+		iflags |= LO_DUPOK;
+	if (!(flags & LK_NOWITNESS))
+		iflags |= LO_WITNESS;
 #ifdef DEBUG_LOCKS
 	stack_zero(&lkp->lk_stack);
 #endif
-	lock_init(&lkp->lk_object, &lock_class_lockmgr, wmesg, NULL,
-	    LO_RECURSABLE | LO_SLEEPABLE | LO_UPGRADABLE);
+	lock_init(&lkp->lk_object, &lock_class_lockmgr, wmesg, NULL, iflags);
 }
 
 /*
@@ -536,7 +569,7 @@ lockdestroy(lkp)
  * Disown the lockmgr.
  */
 void
-lockmgr_disown(struct lock *lkp)
+_lockmgr_disown(struct lock *lkp, const char *file, int line)
 {
 	struct thread *td;
 
@@ -555,8 +588,10 @@ lockmgr_disown(struct lock *lkp)
 	 * owner can be alredy KERNPROC, so in that case just skip the
 	 * decrement.
 	 */
-	if (lkp->lk_lockholder == td)
+	if (lkp->lk_lockholder == td) {	
+		WITNESS_UNLOCK(&lkp->lk_object, LOP_EXCLUSIVE, file, line);
 		td->td_locks--;
+	}
 	lkp->lk_lockholder = LK_KERNPROC;
 }
 
