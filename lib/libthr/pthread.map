@@ -84,13 +84,9 @@ global:
 	pthread_multi_np;
 	pthread_mutex_destroy;
 	pthread_mutex_getprioceiling;
-	pthread_mutex_getspinloops_np;
-	pthread_mutex_getyieldloops_np;
 	pthread_mutex_init;
 	pthread_mutex_lock;
 	pthread_mutex_setprioceiling;
-	pthread_mutex_setspinloops_np;
-	pthread_mutex_setyieldloops_np;
 	pthread_mutex_timedlock;
 	pthread_mutex_trylock;
 	pthread_mutex_unlock;
@@ -398,15 +394,11 @@ local:
 
 FBSD_1.1 {
 global:
+	pthread_mutex_getspinloops_np;
+	pthread_mutex_getyieldloops_np;
 	pthread_mutex_isowned_np;
+	pthread_mutex_setspinloops_np;
+	pthread_mutex_setyieldloops_np;
 local:
 	*;
 } FBSD_1.0;
-
-FBSDprivate_1.1 {
-global:
-	_pthread_mutex_isowned_np;
-local:
-	*;
-} FBSDprivate_1.0;
-
