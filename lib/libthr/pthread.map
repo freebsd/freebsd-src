@@ -398,14 +398,14 @@ local:
 
 FBSD_1.1 {
 global:
-	pthread_mutex_islocked_np;
+	pthread_mutex_isowned_np;
 local:
 	*;
 } FBSD_1.0;
 
 FBSDprivate_1.1 {
 global:
-	_pthread_mutex_islocked_np;
+	_pthread_mutex_isowned_np;
 local:
 	*;
 } FBSDprivate_1.0;
