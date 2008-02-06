@@ -14,8 +14,6 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
-# 20080203: rr232x.4 removal in favor of hptrr.
-OLD_FILES+=usr/share/man/man4/rr232x.4.gz
 # 20080126: oldcard.4 removal
 OLD_FILES+=usr/share/man/man4/card.4.gz
 OLD_FILES+=usr/share/man/man4/oldcard.4.gz
