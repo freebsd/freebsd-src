@@ -1,27 +1,17 @@
-/* $OpenBSD: ip_id.c,v 1.2 1999/08/26 13:37:01 provos Exp $ */
 
 /*-
- * Copyright 1998 Niels Provos <provos@citi.umich.edu>
+ * Copyright (c) 2008 Michael J. Silbersack.
  * All rights reserved.
- *
- * Theo de Raadt <deraadt@openbsd.org> came up with the idea of using
- * such a mathematical system to generate more random (yet non-repeating)
- * ids to solve the resolver/named problem.  But Niels designed the
- * actual system based on the constraints.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    notice unmodified, this list of conditions, and the following
+ *    disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by Niels Provos.
- * 4. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -35,167 +25,185 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/*-
- * seed = random 15bit
- * n = prime, g0 = generator to n,
- * j = random so that gcd(j,n-1) == 1
- * g = g0^j mod n will be a generator again.
- *
- * X[0] = random seed.
- * X[n] = a*X[n-1]+b mod m is a Linear Congruential Generator
- * with a = 7^(even random) mod m,
- *      b = random with gcd(b,m) == 1
- *      m = 31104 and a maximal period of m-1.
- *
- * The transaction id is determined by:
- * id[n] = seed xor (g^X[n] mod n)
- *
- * Effectivly the id is restricted to the lower 15 bits, thus yielding two
- * different cycles by toggling the msb on and off.  This avoids reuse issues
- * caused by reseeding.
- */
-
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_pf.h"
+/*
+ * IP ID generation is a fascinating topic.
+ *
+ * In order to avoid ID collisions during packet reassembly, common sense
+ * dictates that the period between reuse of IDs be as large as possible.
+ * This leads to the classic implementation of a system-wide counter, thereby
+ * ensuring that IDs repeat only once every 2^16 packets.
+ *
+ * Subsequent security researchers have pointed out that using a global
+ * counter makes ID values predictable.  This predictability allows traffic
+ * analysis, idle scanning, and even packet injection in specific cases.
+ * These results suggest that IP IDs should be as random as possible.
+ *
+ * The "searchable queues" algorithm used in this IP ID implementation was
+ * proposed by Amit Klein.  It is a compromise between the above two
+ * viewpoints that has provable behavior that can be tuned to the user's
+ * requirements.
+ *
+ * The basic concept is that we supplement a standard random number generator
+ * with a queue of the last L IDs that we have handed out to ensure that all
+ * IDs have a period of at least L.
+ *
+ * To efficiently implement this idea, we keep two data structures: a
+ * circular array of IDs of size L and a bitstring of 65536 bits.
+ *
+ * To start, we ask the RNG for a new ID.  A quick index into the bitstring
+ * is used to determine if this is a recently used value.  The process is
+ * repeated until a value is returned that is not in the bitstring.
+ *
+ * Having found a usable ID, we remove the ID stored at the current position
+ * in the queue from the bitstring and replace it with our new ID.  Our new
+ * ID is then added to the bitstring and the queue pointer is incremented.
+ *
+ * The lower limit of 512 was chosen because there doesn't seem to be much
+ * point to having a smaller value.  The upper limit of 32768 was chosen for
+ * two reasons.  First, every step above 32768 decreases the entropy.  Taken
+ * to an extreme, 65533 would offer 1 bit of entropy.  Second, the number of
+ * attempts it takes the algorithm to find an unused ID drastically
+ * increases, killing performance.  The default value of 8192 was chosen
+ * because it provides a good tradeoff between randomness and non-repetition.
+ *
+ * With L=8192, the queue will use 16K of memory.  The bitstring always
+ * uses 8K of memory.  No memory is allocated until the use of random ids is
+ * enabled.
+ */
+
+#include <sys/types.h>
+#include <sys/malloc.h>
 #include <sys/param.h>
 #include <sys/time.h>
 #include <sys/kernel.h>
+#include <sys/libkern.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/random.h>
+#include <sys/systm.h>
+#include <sys/sysctl.h>
+#include <netinet/in.h>
+#include <netinet/ip_var.h>
+#include <sys/bitstring.h>
 
-#define	RU_OUT  180		/* Time after wich will be reseeded */
-#define	RU_MAX	30000		/* Uniq cycle, avoid blackjack prediction */
-#define	RU_GEN	2		/* Starting generator */
-#define	RU_N	32749		/* RU_N-1 = 2*2*3*2729 */
-#define	RU_AGEN	7		/* determine ru_a as RU_AGEN^(2*rand) */
-#define	RU_M	31104		/* RU_M = 2^7*3^5 - don't change */
+static MALLOC_DEFINE(M_IPID, "ipid", "randomized ip id state");
 
-#define	PFAC_N 3
-const static u_int16_t pfacts[PFAC_N] = {
-	2,
-	3,
-	2729
-};
+static u_int16_t 	*id_array = NULL;
+static bitstr_t		*id_bits = NULL;
+static int		 array_ptr = 0;
+static int		 array_size = 8192;
+static int		 random_id_collisions = 0;
+static int		 random_id_total = 0;
+static struct mtx	 ip_id_mtx;
 
-static u_int16_t ru_x;
-static u_int16_t ru_seed, ru_seed2;
-static u_int16_t ru_a, ru_b;
-static u_int16_t ru_g;
-static u_int16_t ru_counter = 0;
-static u_int16_t ru_msb = 0;
-static long ru_reseed;
-static u_int32_t tmp;		/* Storage for unused random */
+static void	ip_initid(void);
+static int	sysctl_ip_id_change(SYSCTL_HANDLER_ARGS);
 
-static u_int16_t	pmod(u_int16_t, u_int16_t, u_int16_t);
-static void		ip_initid(void);
-u_int16_t		ip_randomid(void);
+MTX_SYSINIT(ip_id_mtx, &ip_id_mtx, "ip_id_mtx", MTX_DEF);
 
-/*
- * Do a fast modular exponation, returned value will be in the range of 0 -
- * (mod-1).
- */
+SYSCTL_DECL(_net_inet_ip);
+SYSCTL_PROC(_net_inet_ip, OID_AUTO, random_id_period, CTLTYPE_INT|CTLFLAG_RW,
+    &array_size, 0, sysctl_ip_id_change, "IU", "IP ID Array size");
+SYSCTL_INT(_net_inet_ip, OID_AUTO, random_id_collisions, CTLFLAG_RD,
+    &random_id_collisions, 0, "Count of IP ID collisions");
+SYSCTL_INT(_net_inet_ip, OID_AUTO, random_id_total, CTLFLAG_RD,
+    &random_id_total, 0, "Count of IP IDs created");
 
-static u_int16_t
-pmod(u_int16_t gen, u_int16_t exp, u_int16_t mod)
+static int
+sysctl_ip_id_change(SYSCTL_HANDLER_ARGS)
 {
-	u_int16_t s, t, u;
+	int error, new;
 
-	s = 1;
-	t = gen;
-	u = exp;
-
-	while (u) {
-		if (u & 1)
-			s = (s*t) % mod;
-		u >>= 1;
-		t = (t*t) % mod;
+	new = array_size;
+	error = sysctl_handle_int(oidp, &new, 0, req);
+	if (error == 0 && req->newptr) {
+		if (new >= 512 && new <= 32768) {
+			mtx_lock(&ip_id_mtx);
+			array_size = new;
+			ip_initid();
+			mtx_unlock(&ip_id_mtx);
+		} else
+			error = EINVAL;
 	}
-	return (s);
+	return (error);
 }
 
 /*
- * Initalizes the seed and chooses a suitable generator.  Also toggles the
- * msb flag.  The msb flag is used to generate two distinct cycles of random
- * numbers and thus avoiding reuse of ids.
- *
- * This function is called from id_randomid() when needed, an application
- * does not have to worry about it.
+ * ip_initid() runs with a mutex held and may execute in a network context.
+ * As a result, it uses M_NOWAIT.  Ideally, we would always do this
+ * allocation from the sysctl contact and have it be an invariant that if
+ * this random ID allocation mode is selected, the buffers are present.  This
+ * would also avoid potential network context failures of IP ID generation.
  */
 static void
 ip_initid(void)
 {
-	u_int16_t j, i;
-	int noprime = 1;
-	struct timeval time;
 
-	getmicrotime(&time);
-	read_random((void *) &tmp, sizeof(tmp));
-	ru_x = (tmp & 0xFFFF) % RU_M;
+	mtx_assert(&ip_id_mtx, MA_OWNED);
 
-	/* 15 bits of random seed. */
-	ru_seed = (tmp >> 16) & 0x7FFF;
-	read_random((void *) &tmp, sizeof(tmp));
-	ru_seed2 = tmp & 0x7FFF;
-
-	read_random((void *) &tmp, sizeof(tmp));
-
-	/* Determine the LCG we use. */
-	ru_b = (tmp & 0xfffe) | 1;
-	ru_a = pmod(RU_AGEN, (tmp >> 16) & 0xfffe, RU_M);
-	while (ru_b % 3 == 0)
-	  ru_b += 2;
-
-	read_random((void *) &tmp, sizeof(tmp));
-	j = tmp % RU_N;
-	tmp = tmp >> 16;
-
-	/*
-	 * Do a fast gcd(j,RU_N-1), so we can find a j with gcd(j, RU_N-1) ==
-	 * 1, giving a new generator for RU_GEN^j mod RU_N.
-	 */
-	while (noprime) {
-		for (i=0; i<PFAC_N; i++)
-			if (j%pfacts[i] == 0)
-				break;
-
-		if (i>=PFAC_N)
-			noprime = 0;
-		else
-			j = (j+1) % RU_N;
+	if (id_array != NULL) {
+		free(id_array, M_IPID);
+		free(id_bits, M_IPID);
 	}
-
-	ru_g = pmod(RU_GEN,j,RU_N);
-	ru_counter = 0;
-
-	ru_reseed = time.tv_sec + RU_OUT;
-	ru_msb = ru_msb == 0x8000 ? 0 : 0x8000;
+	random_id_collisions = 0;
+	random_id_total = 0;
+	array_ptr = 0;
+	id_array = (u_int16_t *) malloc(array_size * sizeof(u_int16_t),
+	    M_IPID, M_NOWAIT | M_ZERO);
+	id_bits = (bitstr_t *) malloc(bitstr_size(65536), M_IPID,
+	    M_NOWAIT | M_ZERO);
+	if (id_array == NULL || id_bits == NULL) {
+		/* Neither or both. */
+		if (id_array != NULL) {
+			free(id_array, M_IPID);
+			id_array = NULL;
+		}
+		if (id_bits != NULL) {
+			free(id_bits, M_IPID);
+			id_bits = NULL;
+		}
+	}
 }
 
 u_int16_t
 ip_randomid(void)
 {
-	int i, n;
-	struct timeval time;
+	u_int16_t new_id;
 
-	/* XXX not reentrant */
-	getmicrotime(&time);
-	if (ru_counter >= RU_MAX || time.tv_sec > ru_reseed)
+	mtx_lock(&ip_id_mtx);
+	if (id_array == NULL)
 		ip_initid();
 
-	if (!tmp)
-		read_random((void *) &tmp, sizeof(tmp));
+	/*
+	 * Fail gracefully; return a fixed id if memory allocation failed;
+	 * ideally we wouldn't do allocation in this context in order to
+	 * avoid the possibility of this failure mode.
+	 */
+	if (id_array == NULL) {
+		mtx_unlock(&ip_id_mtx);
+		return (1);
+	}
 
-	/* Skip a random number of ids. */
-	n = tmp & 0x3; tmp = tmp >> 2;
-	if (ru_counter + n >= RU_MAX)
-		ip_initid();
-
-	for (i = 0; i <= n; i++)
-		/* Linear Congruential Generator. */
-		ru_x = (ru_a*ru_x + ru_b) % RU_M;
-
-	ru_counter += i;
-
-	return (ru_seed ^ pmod(ru_g,ru_seed2 ^ ru_x,RU_N)) | ru_msb;
+	/*
+	 * To avoid a conflict with the zeros that the array is initially
+	 * filled with, we never hand out an id of zero.
+	 */
+	new_id = 0;
+	do {
+		if (new_id != 0)
+			random_id_collisions++;
+		arc4rand(&new_id, sizeof(new_id), 0);
+	} while (bit_test(id_bits, new_id) || new_id == 0);
+	bit_clear(id_bits, id_array[array_ptr]);
+	bit_set(id_bits, new_id);
+	id_array[array_ptr] = new_id;
+	array_ptr++;
+	if (array_ptr == array_size)
+		array_ptr = 0;
+	random_id_total++;
+	mtx_unlock(&ip_id_mtx);
+	return (new_id);
 }
