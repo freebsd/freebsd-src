@@ -351,7 +351,6 @@ in_inithead(void **head, int off)
  * plug back in.
  */
 struct in_ifadown_arg {
-	struct radix_node_head *rnh;
 	struct ifaddr *ifa;
 	int del;
 };
@@ -389,7 +388,7 @@ in_ifadown(struct ifaddr *ifa, int delete)
 	if (ifa->ifa_addr->sa_family != AF_INET)
 		return 1;
 
-	arg.rnh = rnh = rt_tables[AF_INET];
+	rnh = rt_tables[AF_INET];
 	arg.ifa = ifa;
 	arg.del = delete;
 	RADIX_NODE_HEAD_LOCK(rnh);
