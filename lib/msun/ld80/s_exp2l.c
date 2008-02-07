@@ -214,8 +214,8 @@ static const double tbl[TBLSIZE * 2] = {
 long double
 exp2l(long double x)
 {
-	union IEEEl2bits u;
-	long double r, z;
+	union IEEEl2bits u, v;
+	long double r, twopk, twopkp10000, z;
 	uint32_t hx, ix, i0;
 	int k;
 
@@ -267,6 +267,14 @@ exp2l(long double x)
 	i0 = (i0 & (TBLSIZE - 1)) << 1;
 	u.e -= redux;
 	z = x - u.e;
+	v.xbits.man = 1ULL << 63;
+	if (k >= LDBL_MIN_EXP) {
+		v.xbits.expsign = LDBL_MAX_EXP - 1 + k;
+		twopk = v.e;
+	} else {
+		v.xbits.expsign = LDBL_MAX_EXP - 1 + k + 10000;
+		twopkp10000 = v.e;
+	}
 
 	/* Compute r = exp2l(y) = exp2lt[i0] * p(z). */
 	long double t_hi = tbl[i0];
@@ -277,15 +285,10 @@ exp2l(long double x)
 
 	/* Scale by 2**k. */
 	if (k >= LDBL_MIN_EXP) {
-		if (k != 0) {
-			u.e = r;
-			u.xbits.expsign += k;
-			return (u.e);
-		}
-		return (r);
+		if (k == LDBL_MAX_EXP)
+			return (r * 2.0 * 0x1p16383L);
+		return (r * twopk);
 	} else {
-		u.e = r;
-		u.xbits.expsign += k + 10000;
-		return (u.e * twom10000);
+		return (r * twopkp10000 * twom10000);
 	}
 }

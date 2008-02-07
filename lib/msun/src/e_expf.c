@@ -43,7 +43,7 @@ static volatile float twom100 = 7.8886090522e-31;      /* 2**-100=0x0d800000 */
 float
 __ieee754_expf(float x)	/* default IEEE double exp */
 {
-	float y,hi=0.0,lo=0.0,c,t;
+	float y,hi=0.0,lo=0.0,c,t,twopk;
 	int32_t k=0,xsb;
 	u_int32_t hx;
 
@@ -80,18 +80,17 @@ __ieee754_expf(float x)	/* default IEEE double exp */
 
     /* x is now in primary range */
 	t  = x*x;
+	if(k >= -125)
+	    SET_FLOAT_WORD(twopk,0x3f800000+(k<<23));
+	else
+	    SET_FLOAT_WORD(twopk,0x3f800000+((k+100)<<23));
 	c  = x - t*(P1+t*P2);
 	if(k==0) 	return one-((x*c)/(c-(float)2.0)-x);
 	else 		y = one-((lo-(x*c)/((float)2.0-c))-hi);
 	if(k >= -125) {
-	    u_int32_t hy;
-	    GET_FLOAT_WORD(hy,y);
-	    SET_FLOAT_WORD(y,hy+(k<<23));	/* add k to y's exponent */
-	    return y;
+	    if(k==128) return y*2.0F*0x1p127F;
+	    return y*twopk;
 	} else {
-	    u_int32_t hy;
-	    GET_FLOAT_WORD(hy,y);
-	    SET_FLOAT_WORD(y,hy+((k+100)<<23));	/* add k to y's exponent */
-	    return y*twom100;
+	    return y*twopk*twom100;
 	}
 }

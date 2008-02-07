@@ -92,7 +92,7 @@ static const double exp2ft[TBLSIZE] = {
 float
 exp2f(float x)
 {
-	double tv;
+	double tv, twopk;
 	float t, z;
 	uint32_t hx, htv, ix, i0;
 	int32_t k;
@@ -129,9 +129,6 @@ exp2f(float x)
 	tv = tv + tv * (z * (P1 + z * (P2 + z * (P3 + z * P4))));
 
 	/* Scale by 2**(k>>20). */
-	if (k != 0) {
-		GET_HIGH_WORD(htv, tv);
-		SET_HIGH_WORD(tv, htv + k);
-	}
-	return (tv);
+	INSERT_WORDS(twopk, 0x3ff00000 + k, 0);
+	return (tv * twopk);
 }
