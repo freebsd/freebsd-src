@@ -1504,7 +1504,7 @@ carp_set_addr(struct carp_softc *sc, struct sockaddr_in *sin)
 		TAILQ_FOREACH(vr, &cif->vhif_vrs, sc_list)
 			if (vr != sc && vr->sc_vhid == sc->sc_vhid) {
 				CARP_UNLOCK(cif);
-				error = EINVAL;
+				error = EEXIST;
 				goto cleanup;
 			}
 	}
