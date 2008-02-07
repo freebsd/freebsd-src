@@ -13,9 +13,8 @@
  * ====================================================
  */
 
-#ifndef lint
-static char rcsid[] = "$FreeBSD$";
-#endif
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "math.h"
 #include "math_private.h"
@@ -38,7 +37,7 @@ Q5  =  -2.0109921195e-07; /* 0xb457edbb */
 float
 expm1f(float x)
 {
-	float y,hi,lo,c,t,e,hxs,hfx,r1;
+	float y,hi,lo,c,t,e,hxs,hfx,r1,twopk;
 	int32_t k,xsb;
 	u_int32_t hx;
 
@@ -92,6 +91,7 @@ expm1f(float x)
 	e  = hxs*((r1-t)/((float)6.0 - x*t));
 	if(k==0) return x - (x*e-hxs);		/* c is 0 */
 	else {
+	    SET_FLOAT_WORD(twopk,0x3f800000+(k<<23));	/* 2^k */
 	    e  = (x*(e-c)-c);
 	    e -= hxs;
 	    if(k== -1) return (float)0.5*(x-e)-(float)0.5;
@@ -99,26 +99,21 @@ expm1f(float x)
 	       	if(x < (float)-0.25) return -(float)2.0*(e-(x+(float)0.5));
 	       	else 	      return  one+(float)2.0*(x-e);
 	    if (k <= -2 || k>56) {   /* suffice to return exp(x)-1 */
-	        int32_t i;
 	        y = one-(e-x);
-		GET_FLOAT_WORD(i,y);
-		SET_FLOAT_WORD(y,i+(k<<23));	/* add k to y's exponent */
+		if (k == 128) y = y*2.0F*0x1p127F;
+		else y = y*twopk;
 	        return y-one;
 	    }
 	    t = one;
 	    if(k<23) {
-	        int32_t i;
 	        SET_FLOAT_WORD(t,0x3f800000 - (0x1000000>>k)); /* t=1-2^-k */
 	       	y = t-(e-x);
-		GET_FLOAT_WORD(i,y);
-		SET_FLOAT_WORD(y,i+(k<<23));	/* add k to y's exponent */
+		y = y*twopk;
 	   } else {
-	        int32_t i;
 		SET_FLOAT_WORD(t,((0x7f-k)<<23));	/* 2^-k */
 	       	y = x-(e+t);
 	       	y += one;
-		GET_FLOAT_WORD(i,y);
-		SET_FLOAT_WORD(y,i+(k<<23));	/* add k to y's exponent */
+		y = y*twopk;
 	    }
 	}
 	return y;
