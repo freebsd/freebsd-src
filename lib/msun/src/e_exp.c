@@ -102,7 +102,7 @@ P5   =  4.13813679705723846039e-08; /* 0x3E663769, 0x72BEA4D0 */
 double
 __ieee754_exp(double x)	/* default IEEE double exp */
 {
-	double y,hi=0.0,lo=0.0,c,t;
+	double y,hi=0.0,lo=0.0,c,t,twopk;
 	int32_t k=0,xsb;
 	u_int32_t hx;
 
@@ -142,18 +142,17 @@ __ieee754_exp(double x)	/* default IEEE double exp */
 
     /* x is now in primary range */
 	t  = x*x;
+	if(k >= -1021)
+	    INSERT_WORDS(twopk,0x3ff00000+(k<<20), 0);
+	else
+	    INSERT_WORDS(twopk,0x3ff00000+((k+1000)<<20), 0);
 	c  = x - t*(P1+t*(P2+t*(P3+t*(P4+t*P5))));
 	if(k==0) 	return one-((x*c)/(c-2.0)-x); 
 	else 		y = one-((lo-(x*c)/(2.0-c))-hi);
 	if(k >= -1021) {
-	    u_int32_t hy;
-	    GET_HIGH_WORD(hy,y);
-	    SET_HIGH_WORD(y,hy+(k<<20));	/* add k to y's exponent */
-	    return y;
+	    if (k==1024) return y*2.0*0x1p1023;
+	    return y*twopk;
 	} else {
-	    u_int32_t hy;
-	    GET_HIGH_WORD(hy,y);
-	    SET_HIGH_WORD(y,hy+((k+1000)<<20));	/* add k to y's exponent */
-	    return y*twom1000;
+	    return y*twopk*twom1000;
 	}
 }
