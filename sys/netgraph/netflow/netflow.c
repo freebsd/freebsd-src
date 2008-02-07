@@ -237,9 +237,9 @@ static __inline int
 hash_insert(priv_p priv, struct flow_hash_entry  *hsh, struct flow_rec *r,
 	int plen, uint8_t tcp_flags)
 {
-	struct flow_entry	*fle;
-	struct route ro;
-	struct sockaddr_in *sin;
+	struct flow_entry *fle;
+	struct sockaddr_in sin;
+	struct rtentry *rt;
 
 	mtx_assert(&hsh->mtx, MA_OWNED);
 
@@ -265,15 +265,12 @@ hash_insert(priv_p priv, struct flow_hash_entry  *hsh, struct flow_rec *r,
 	 * First we do route table lookup on destination address. So we can
 	 * fill in out_ifx, dst_mask, nexthop, and dst_as in future releases.
 	 */
-	bzero((caddr_t)&ro, sizeof(ro));
-	sin = (struct sockaddr_in *)&ro.ro_dst;
-	sin->sin_len = sizeof(*sin);
-	sin->sin_family = AF_INET;
-	sin->sin_addr = fle->f.r.r_dst;
-	rtalloc_ign(&ro, RTF_CLONING);
-	if (ro.ro_rt != NULL) {
-		struct rtentry *rt = ro.ro_rt;
-
+	bzero(&sin, sizeof(sin));
+	sin.sin_len = sizeof(struct sockaddr_in);
+	sin.sin_family = AF_INET;
+	sin.sin_addr = fle->f.r.r_dst;
+	rt = rtalloc1((struct sockaddr *)&sin, 0, RTF_CLONING);
+	if (rt != NULL) {
 		fle->f.fle_o_ifx = rt->rt_ifp->if_index;
 
 		if (rt->rt_flags & RTF_GATEWAY &&
@@ -288,20 +285,16 @@ hash_insert(priv_p priv, struct flow_hash_entry  *hsh, struct flow_rec *r,
 			/* Give up. We can't determine mask :( */
 			fle->f.dst_mask = 32;
 
-		RTFREE(ro.ro_rt);
+		RTFREE_LOCKED(rt);
 	}
 
 	/* Do route lookup on source address, to fill in src_mask. */
-
-	bzero((caddr_t)&ro, sizeof(ro));
-	sin = (struct sockaddr_in *)&ro.ro_dst;
-	sin->sin_len = sizeof(*sin);
-	sin->sin_family = AF_INET;
-	sin->sin_addr = fle->f.r.r_src;
-	rtalloc_ign(&ro, RTF_CLONING);
-	if (ro.ro_rt != NULL) {
-		struct rtentry *rt = ro.ro_rt;
-
+	bzero(&sin, sizeof(sin));
+	sin.sin_len = sizeof(struct sockaddr_in);
+	sin.sin_family = AF_INET;
+	sin.sin_addr = fle->f.r.r_src;
+	rt = rtalloc1((struct sockaddr *)&sin, 0, RTF_CLONING);
+	if (rt != NULL) {
 		if (rt_mask(rt))
 			fle->f.src_mask = bitcount32(((struct sockaddr_in *)
 			    rt_mask(rt))->sin_addr.s_addr);
@@ -309,7 +302,7 @@ hash_insert(priv_p priv, struct flow_hash_entry  *hsh, struct flow_rec *r,
 			/* Give up. We can't determine mask :( */
 			fle->f.src_mask = 32;
 
-		RTFREE(ro.ro_rt);
+		RTFREE_LOCKED(rt);
 	}
 
 	/* Push new flow at the and of hash. */
