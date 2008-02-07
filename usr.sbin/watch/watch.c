@@ -152,19 +152,18 @@ fatal(int error, const char *buf)
 static int
 open_snp(void)
 {
-	char            snp[] = {_PATH_DEV "snpX"};
-	char            c;
-	int             f, mode, pos;
+	char		snp[] = {_PATH_DEV "snpXXX"};
+	int		f, mode, pos, c;
 
-	pos = strlen(snp) - 1;
+	pos = strlen(snp) - 3;
 	if (opt_write)
 		mode = O_RDWR;
 	else
 		mode = O_RDONLY;
 
 	if (opt_snpdev == NULL)
-		for (c = '0'; c <= '9'; c++) {
-			snp[pos] = c;
+		for (c = 0; c <= 999; c++) {
+			snprintf(snp+pos, 4, "%d", c);
 			if ((f = open(snp, mode)) < 0) {
 				if (errno == EBUSY)
 					continue;
