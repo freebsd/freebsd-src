@@ -180,7 +180,7 @@ propagate_priority(struct thread *td)
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	pri = td->td_priority;
 	ts = td->td_blocked;
-	MPASS(td->td_lock == &ts->ts_lock);
+	THREAD_LOCKPTR_ASSERT(td, &ts->ts_lock);
 	/*
 	 * Grab a recursive lock on this turnstile chain so it stays locked
 	 * for the whole operation.  The caller expects us to return with
@@ -267,7 +267,7 @@ propagate_priority(struct thread *td)
 		 */
 		ts = td->td_blocked;
 		MPASS(ts != NULL);
-		MPASS(td->td_lock == &ts->ts_lock);
+		THREAD_LOCKPTR_ASSERT(td, &ts->ts_lock);
 		/* Resort td on the list if needed. */
 		if (!turnstile_adjust_thread(ts, td)) {
 			mtx_unlock_spin(&ts->ts_lock);
@@ -308,7 +308,7 @@ turnstile_adjust_thread(struct turnstile *ts, struct thread *td)
 	 * It needs to be moved if either its priority is lower than
 	 * the previous thread or higher than the next thread.
 	 */
-	MPASS(td->td_lock == &ts->ts_lock);
+	THREAD_LOCKPTR_ASSERT(td, &ts->ts_lock);
 	td1 = TAILQ_PREV(td, threadqueue, td_lockq);
 	td2 = TAILQ_NEXT(td, td_lockq);
 	if ((td1 != NULL && td->td_priority < td1->td_priority) ||
@@ -422,7 +422,7 @@ turnstile_adjust(struct thread *td, u_char oldpri)
 	 */
 	ts = td->td_blocked;
 	MPASS(ts != NULL);
-	MPASS(td->td_lock == &ts->ts_lock);
+	THREAD_LOCKPTR_ASSERT(td, &ts->ts_lock);
 	mtx_assert(&ts->ts_lock, MA_OWNED);
 
 	/* Resort the turnstile on the list. */
@@ -645,7 +645,7 @@ turnstile_claim(struct turnstile *ts)
 	td = turnstile_first_waiter(ts);
 	MPASS(td != NULL);
 	MPASS(td->td_proc->p_magic == P_MAGIC);
-	MPASS(td->td_lock == &ts->ts_lock);
+	THREAD_LOCKPTR_ASSERT(td, &ts->ts_lock);
 
 	/*
 	 * Update the priority of the new owner if needed.
@@ -740,7 +740,7 @@ turnstile_wait(struct turnstile *ts, struct thread *owner, int queue)
 		CTR4(KTR_LOCK, "%s: td %d blocked on [%p] %s", __func__,
 		    td->td_tid, lock, lock->lo_name);
 
-	MPASS(td->td_lock == &ts->ts_lock);
+	THREAD_LOCKPTR_ASSERT(td, &ts->ts_lock);
 	SCHED_STAT_INC(switch_turnstile);
 	mi_switch(SW_VOL, NULL);
 
@@ -918,7 +918,7 @@ turnstile_unpend(struct turnstile *ts, int owner_type)
 		td = TAILQ_FIRST(&pending_threads);
 		TAILQ_REMOVE(&pending_threads, td, td_lockq);
 		thread_lock(td);
-		MPASS(td->td_lock == &ts->ts_lock);
+		THREAD_LOCKPTR_ASSERT(td, &ts->ts_lock);
 		MPASS(td->td_proc->p_magic == P_MAGIC);
 		MPASS(TD_ON_LOCK(td));
 		TD_CLR_LOCK(td);

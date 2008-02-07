@@ -313,6 +313,17 @@ do {									\
 		mtx_assert(__m, (type));				\
 } while (0)
 
+#ifdef INVARIANTS
+#define	THREAD_LOCKPTR_ASSERT(td, lock)					\
+do {									\
+	struct mtx *__m = (td)->td_lock;				\
+	KASSERT((__m == &blocked_lock || __m == (lock)),		\
+	    ("Thread %p lock %p does not match %p", td, __m, (lock)));	\
+} while (0)
+#else
+#define	THREAD_LOCKPTR_ASSERT(td, lock)
+#endif
+
 /*
  * Flags kept in td_flags:
  * To change these you MUST have the scheduler lock.
