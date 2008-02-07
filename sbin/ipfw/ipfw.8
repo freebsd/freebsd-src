@@ -2711,3 +2711,9 @@ ipfw nat is not compatible with the tcp segmentation offloading
 (TSO). Thus, to reliably nat your network traffic, please disable TSO
 on your NICs using
 .Xr ifconfig 8 .
+.Pp
+ICMP error messages are not implicitly matched by dynamic rules
+for the respective conversations.
+To avoid failures of network error detection and path MTU discovery,
+ICMP error messages may need to be allowed explicitly through static
+rules.
