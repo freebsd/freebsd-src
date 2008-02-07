@@ -775,7 +775,7 @@ p_rtentry(struct rtentry *rt)
 }
 
 char *
-routename(u_long in)
+routename(in_addr_t in)
 {
 	char *cp;
 	static char line[MAXHOSTNAMELEN];
@@ -783,8 +783,7 @@ routename(u_long in)
 
 	cp = 0;
 	if (!numeric_addr) {
-		hp = gethostbyaddr((char *)&in, sizeof (struct in_addr),
-			AF_INET);
+		hp = gethostbyaddr(&in, sizeof (struct in_addr), AF_INET);
 		if (hp) {
 			cp = hp->h_name;
 			trimdomain(cp, strlen(cp));
@@ -796,7 +795,7 @@ routename(u_long in)
 	} else {
 #define	C(x)	((x) & 0xff)
 		in = ntohl(in);
-		sprintf(line, "%lu.%lu.%lu.%lu",
+		sprintf(line, "%u.%u.%u.%u",
 		    C(in >> 24), C(in >> 16), C(in >> 8), C(in));
 	}
 	return (line);
@@ -841,7 +840,7 @@ domask(char *dst, u_long addr __unused, u_long mask)
  * The address is assumed to be that of a net or subnet, not a host.
  */
 char *
-netname(u_long in, u_long mask)
+netname(in_addr_t in, u_long mask)
 {
 	char *cp = 0;
 	static char line[MAXHOSTNAMELEN];
@@ -860,7 +859,7 @@ netname(u_long in, u_long mask)
 		strncpy(line, cp, sizeof(line) - 1);
 		line[sizeof(line) - 1] = '\0';
 	} else {
-		inet_ntop(AF_INET, (char *)&in, line, sizeof(line) - 1);
+		inet_ntop(AF_INET, &in, line, sizeof(line) - 1);
 	}
 	domask(line + strlen(line), i, mask);
 	return (line);
