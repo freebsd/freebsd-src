@@ -186,8 +186,10 @@ setthetime(const char *fmt, const char *p, int jflag, int nflag)
 	const char *dot, *t;
 	int century;
 
+	lt = localtime(&tval);
+	lt->tm_isdst = -1;		/* divine correct DST */
+
 	if (fmt != NULL) {
-		lt = localtime(&tval);
 		t = strptime(p, fmt, lt);
 		if (t == NULL) {
 			fprintf(stderr, "Failed conversion of ``%s''"
@@ -207,8 +209,6 @@ setthetime(const char *fmt, const char *p, int jflag, int nflag)
 			}
 			badformat();
 		}
-
-		lt = localtime(&tval);
 
 		if (dot != NULL) {			/* .ss */
 			dot++; /* *dot++ = '\0'; */
@@ -263,9 +263,6 @@ setthetime(const char *fmt, const char *p, int jflag, int nflag)
 			badformat();
 		}
 	}
-
-	/* Let mktime() decide whether summer time is in effect. */
-	lt->tm_isdst = -1;
 
 	/* convert broken-down time to GMT clock time */
 	if ((tval = mktime(lt)) == -1)
