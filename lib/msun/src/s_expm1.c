@@ -10,9 +10,8 @@
  * ====================================================
  */
 
-#ifndef lint
-static char rcsid[] = "$FreeBSD$";
-#endif
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /* expm1(x)
  * Returns exp(x)-1, the exponential of x minus 1.
@@ -130,7 +129,7 @@ Q5  =  -2.01099218183624371326e-07; /* BE8AFDB7 6E09C32D */
 double
 expm1(double x)
 {
-	double y,hi,lo,c,t,e,hxs,hfx,r1;
+	double y,hi,lo,c,t,e,hxs,hfx,r1,twopk;
 	int32_t k,xsb;
 	u_int32_t hx;
 
@@ -187,6 +186,7 @@ expm1(double x)
 	e  = hxs*((r1-t)/(6.0 - x*t));
 	if(k==0) return x - (x*e-hxs);		/* c is 0 */
 	else {
+	    INSERT_WORDS(twopk,0x3ff00000+(k<<20),0);	/* 2^k */
 	    e  = (x*(e-c)-c);
 	    e -= hxs;
 	    if(k== -1) return 0.5*(x-e)-0.5;
@@ -194,26 +194,21 @@ expm1(double x)
 	       	if(x < -0.25) return -2.0*(e-(x+0.5));
 	       	else 	      return  one+2.0*(x-e);
 	    if (k <= -2 || k>56) {   /* suffice to return exp(x)-1 */
-	        u_int32_t high;
 	        y = one-(e-x);
-		GET_HIGH_WORD(high,y);
-		SET_HIGH_WORD(y,high+(k<<20));	/* add k to y's exponent */
+		if (k == 1024) y = y*2.0*0x1p1023;
+		else y = y*twopk;
 	        return y-one;
 	    }
 	    t = one;
 	    if(k<20) {
-	        u_int32_t high;
 	        SET_HIGH_WORD(t,0x3ff00000 - (0x200000>>k));  /* t=1-2^-k */
 	       	y = t-(e-x);
-		GET_HIGH_WORD(high,y);
-		SET_HIGH_WORD(y,high+(k<<20));	/* add k to y's exponent */
+		y = y*twopk;
 	   } else {
-	        u_int32_t high;
 		SET_HIGH_WORD(t,((0x3ff-k)<<20));	/* 2^-k */
 	       	y = x-(e+t);
 	       	y += one;
-		GET_HIGH_WORD(high,y);
-		SET_HIGH_WORD(y,high+(k<<20));	/* add k to y's exponent */
+		y = y*twopk;
 	    }
 	}
 	return y;
