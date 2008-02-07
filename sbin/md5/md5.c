@@ -79,7 +79,7 @@ typedef union {
 	RIPEMD160_CTX ripemd160;
 } DIGEST_CTX;
 
-/* max(MD5_DIGEST_LENGTH, SHA_DIGEST_LENGTH, 
+/* max(MD5_DIGEST_LENGTH, SHA_DIGEST_LENGTH,
 	SHA256_DIGEST_LENGTH, RIPEMD160_DIGEST_LENGTH)*2+1 */
 #define HEX_DIGEST_LENGTH 65
 
@@ -118,22 +118,22 @@ Arguments (may be any combination):
 int
 main(int argc, char *argv[])
 {
-	int     ch;
+	int	ch;
 	char   *p;
 	char	buf[HEX_DIGEST_LENGTH];
-	int     failed;
+	int	failed;
  	unsigned	digest;
  	const char*	progname;
- 
+
  	if ((progname = strrchr(argv[0], '/')) == NULL)
  		progname = argv[0];
  	else
  		progname++;
- 
+
  	for (digest = 0; digest < sizeof(Algorithm)/sizeof(*Algorithm); digest++)
  		if (strcasecmp(Algorithm[digest].progname, progname) == 0)
  			break;
- 
+
  	if (digest == sizeof(Algorithm)/sizeof(*Algorithm))
  		digest = 0;
 
@@ -177,7 +177,8 @@ main(int argc, char *argv[])
 				else if (rflag)
 					printf("%s %s\n", p, *argv);
 				else
-					printf("%s (%s) = %s\n", Algorithm[digest].name, *argv, p);
+					printf("%s (%s) = %s\n",
+					    Algorithm[digest].name, *argv, p);
 			}
 		} while (*++argv);
 	} else if (!sflag && (optind == 1 || qflag || rflag))
@@ -185,7 +186,7 @@ main(int argc, char *argv[])
 
 	if (failed != 0)
 		return (1);
- 
+
 	return (0);
 }
 /*
@@ -216,10 +217,9 @@ MDTimeTrial(Algorithm_t *alg)
 	float seconds;
 	unsigned char block[TEST_BLOCK_LEN];
 	unsigned int i;
-	char   *p, buf[HEX_DIGEST_LENGTH];
+	char *p, buf[HEX_DIGEST_LENGTH];
 
-	printf
-	    ("%s time trial. Digesting %d %d-byte blocks ...",
+	printf("%s time trial. Digesting %d %d-byte blocks ...",
 	    alg->name, TEST_BLOCK_COUNT, TEST_BLOCK_LEN);
 	fflush(stdout);
 
@@ -244,8 +244,7 @@ MDTimeTrial(Algorithm_t *alg)
 	printf(" done\n");
 	printf("Digest = %s", p);
 	printf("\nTime = %f seconds\n", seconds);
-	printf
-	    ("Speed = %f bytes/second\n",
+	printf("Speed = %f bytes/second\n",
 	    (float) TEST_BLOCK_LEN * (float) TEST_BLOCK_COUNT / seconds);
 }
 /*
@@ -253,7 +252,7 @@ MDTimeTrial(Algorithm_t *alg)
  */
 
 const char *MDTestInput[MDTESTCOUNT] = {
-	"", 
+	"",
 	"a",
 	"abc",
 	"message digest",
