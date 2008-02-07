@@ -801,7 +801,7 @@ sleepq_timeout(void *arg)
 	if (TD_IS_SLEEPING(td) && TD_ON_SLEEPQ(td)) {
 		wchan = td->td_wchan;
 		sc = SC_LOOKUP(wchan);
-		MPASS(td->td_lock == &sc->sc_lock);
+		THREAD_LOCKPTR_ASSERT(td, &sc->sc_lock);
 		sq = sleepq_lookup(wchan);
 		MPASS(sq != NULL);
 		td->td_flags |= TDF_TIMEOUT;
