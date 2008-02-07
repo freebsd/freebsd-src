@@ -480,22 +480,42 @@ library_path(void)
 static void
 load_library(void)
 {
-	char path[MAXPATHLEN];
+	char *curpath, path[MAXPATHLEN], *totalpath;
 	uint32_t *lib_version;
 	void *dlh;
+	int ret;
 
-	snprintf(path, sizeof(path), "%s/geom_%s.so", library_path(),
-	    class_name);
-	if (access(path, F_OK) == -1) {
-		if (errno == ENOENT) {
-			/*
-			 * If we cannot find library, that's ok, standard
-			 * commands can still be used.
-			 */
-			return;
+	ret = 0;
+	totalpath = strdup(library_path());
+	if (totalpath == NULL)
+		err(EXIT_FAILURE, "Not enough memory for library path");
+
+	if (strchr(totalpath, ':') != NULL)
+		curpath = strsep(&totalpath, ":");
+	else
+		curpath = totalpath;
+	/* Traverse the paths to find one that contains the library we want. */
+	while (curpath != NULL) {
+		snprintf(path, sizeof(path), "%s/geom_%s.so", curpath,
+		    class_name);
+		ret = access(path, F_OK);
+		if (ret == -1) {
+			if (errno == ENOENT) {
+				/*
+				 * If we cannot find library, try the next
+				 * path.
+				 */
+				curpath = strsep(&totalpath, ":");
+				continue;
+			}
+			err(EXIT_FAILURE, "Cannot access library");
 		}
-		err(EXIT_FAILURE, "Cannot access library");
+		break;
 	}
+	free(totalpath);
+	/* No library was found, but standard commands can still be used */
+	if (ret == -1)
+		return;
 	dlh = dlopen(path, RTLD_NOW);
 	if (dlh == NULL)
 		errx(EXIT_FAILURE, "Cannot open library: %s.", dlerror());
