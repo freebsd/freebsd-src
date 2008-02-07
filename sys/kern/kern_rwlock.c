@@ -679,11 +679,11 @@ _rw_wunlock_hard(struct rwlock *rw, uintptr_t tid, const char *file, int line)
 	 * of waiters or doing some complicated lock handoff gymnastics.
 	 */
 	v = RW_UNLOCKED;
-	if (rw->rw_lock & RW_LOCK_READ_WAITERS) {
-		queue = TS_SHARED_QUEUE;
-		v |= (rw->rw_lock & RW_LOCK_WRITE_WAITERS);
-	} else
+	if (rw->rw_lock & RW_LOCK_WRITE_WAITERS) {
 		queue = TS_EXCLUSIVE_QUEUE;
+		v |= (rw->rw_lock & RW_LOCK_READ_WAITERS);
+	} else
+		queue = TS_SHARED_QUEUE;
 
 	/* Wake up all waiters for the specific queue. */
 	if (LOCK_LOG_TEST(&rw->lock_object, 0))
