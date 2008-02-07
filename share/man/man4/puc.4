@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 7, 2002
+.Dd February 7, 2008
 .Dt PUC 4
 .Os
 .Sh NAME
@@ -37,7 +37,6 @@ Communications driver
 .Cd "device puc"
 .Cd "device sio"
 .Cd "device ppc"
-.Cd "options PUC_FASTINTR"
 .Sh DESCRIPTION
 This driver acts as a shim to connect PCI serial and parallel ports to the
 .Xr sio 4
@@ -48,16 +47,6 @@ driver.
 The list of supported devices is in
 .Pa sys/dev/puc/pucdata.c .
 Support for new cards should be added there.
-.Pp
-If the
-.Dv PUC_FASTINTR
-option is used, the driver will try to use fast interrupts.
-This should lower the interrupt latency and should be used if the
-.Xr sio 4
-driver reports
-.Sy "silo overflow"
-errors.
-It cannot be used if the interrupt is shared.
 .Sh SEE ALSO
 .Xr ppc 4 ,
 .Xr sio 4
