@@ -158,7 +158,8 @@ char *
 bin2str(char *encoding, unsigned char *md, int blen)
 {
      int	len;
-     char	*dst, *ds, *cp;
+     char	*dst, *ds;
+     unsigned char *cp;
 
      if(strncasecmp(encoding, "0x", 2) == 0) {
 	  char	ofmt[5];
@@ -167,7 +168,7 @@ bin2str(char *encoding, unsigned char *md, int blen)
 	  dst = malloc(len + 3);
 	  strcpy(dst, encoding);
 	  ds = dst + 2;
-	  cp = (char *)md;
+	  cp = md;
 	  sprintf(ofmt, "%%02%c", encoding[1]);
 	  while(blen-- > 0) {
 	       sprintf(ds, ofmt, *cp++);
@@ -183,8 +184,8 @@ bin2str(char *encoding, unsigned char *md, int blen)
 	  dst = malloc(len + 3);
 	  strcpy(dst, encoding);
 	  ds = dst + 2;
-	  cp = (char *)md;
-	  b6 = 0; // to keep copiler happy.
+	  cp = md;
+	  b6 = 0; // to keep compiler happy.
 	  for(i = 0; i < blen; i++) {
 	       switch(i % 3) {
 	       case 0:
