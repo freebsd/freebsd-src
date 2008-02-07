@@ -79,7 +79,7 @@ char **argv;
   bp_getfile_res *getfile_res, stat_getfile_res;
 
 
-  long the_inet_addr;
+  in_addr_t the_inet_addr;
   CLIENT *clnt;
   enum clnt_stat clnt_stat;
 
