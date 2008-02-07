@@ -13,14 +13,14 @@
 ;           on server           FTP.INTERNIC.NET
 ;       -OR-                    RS.INTERNIC.NET
 ;
-;       last update:    Nov 01, 2007
-;       related version of root zone:   2007110100
-;
+;       last update:    Feb 04, 2008
+;       related version of root zone:   2008020400
 ;
 ; formerly NS.INTERNIC.NET
 ;
 .                        3600000  IN  NS    A.ROOT-SERVERS.NET.
 A.ROOT-SERVERS.NET.      3600000      A     198.41.0.4
+A.ROOT-SERVERS.NET.      3600000      AAAA  2001:503:BA3E::2:30
 ;
 ; formerly NS1.ISI.EDU
 ;
@@ -46,6 +46,7 @@ E.ROOT-SERVERS.NET.      3600000      A     192.203.230.10
 ;
 .                        3600000      NS    F.ROOT-SERVERS.NET.
 F.ROOT-SERVERS.NET.      3600000      A     192.5.5.241
+F.ROOT-SERVERS.NET.      3600000      AAAA  2001:500:2f::f
 ;
 ; formerly NS.NIC.DDN.MIL
 ;
@@ -56,6 +57,7 @@ G.ROOT-SERVERS.NET.      3600000      A     192.112.36.4
 ;
 .                        3600000      NS    H.ROOT-SERVERS.NET.
 H.ROOT-SERVERS.NET.      3600000      A     128.63.2.53
+H.ROOT-SERVERS.NET.      3600000      AAAA  2001:500:1::803f:235
 ;
 ; formerly NIC.NORDU.NET
 ;
@@ -66,11 +68,13 @@ I.ROOT-SERVERS.NET.      3600000      A     192.36.148.17
 ;
 .                        3600000      NS    J.ROOT-SERVERS.NET.
 J.ROOT-SERVERS.NET.      3600000      A     192.58.128.30
+J.ROOT-SERVERS.NET.      3600000      AAAA  2001:503:C27::2:30
 ;
 ; operated by RIPE NCC
 ;
 .                        3600000      NS    K.ROOT-SERVERS.NET.
 K.ROOT-SERVERS.NET.      3600000      A     193.0.14.129
+K.ROOT-SERVERS.NET.      3600000      AAAA  2001:7fd::1
 ;
 ; operated by ICANN
 ;
@@ -81,4 +85,5 @@ L.ROOT-SERVERS.NET.      3600000      A     199.7.83.42
 ;
 .                        3600000      NS    M.ROOT-SERVERS.NET.
 M.ROOT-SERVERS.NET.      3600000      A     202.12.27.33
+M.ROOT-SERVERS.NET.      3600000      AAAA  2001:dc3::35
 ; End of File
