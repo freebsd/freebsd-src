@@ -287,6 +287,10 @@ shm_dotruncate(struct shmfd *shmfd, off_t length)
 			if (m->dirty != 0)
 				m->dirty = VM_PAGE_BITS_ALL;
 			vm_page_unlock_queues();
+		} else if ((length & PAGE_MASK) &&
+		    __predict_false(object->cache != NULL)) {
+			vm_page_cache_free(object, OFF_TO_IDX(length),
+			    nobjsize);
 		}
 	}
 	shmfd->shm_size = length;
