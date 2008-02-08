@@ -929,30 +929,24 @@ static void	*arena_malloc_large(arena_t *arena, size_t size, bool zero);
 static void	*arena_palloc(arena_t *arena, size_t alignment, size_t size,
     size_t alloc_size);
 static size_t	arena_salloc(const void *ptr);
-static void	arena_ralloc_resize_shrink(arena_t *arena, arena_chunk_t *chunk,
-    void *ptr, size_t size, size_t oldsize);
-static bool	arena_ralloc_resize_grow(arena_t *arena, arena_chunk_t *chunk,
-    void *ptr, size_t size, size_t oldsize);
-static bool	arena_ralloc_resize(void *ptr, size_t size, size_t oldsize);
-static void	*arena_ralloc(void *ptr, size_t size, size_t oldsize);
 #ifdef MALLOC_LAZY_FREE
 static void	arena_dalloc_lazy_hard(arena_t *arena, arena_chunk_t *chunk,
     void *ptr, size_t pageind, arena_chunk_map_t *mapelm);
 #endif
 static void	arena_dalloc_large(arena_t *arena, arena_chunk_t *chunk,
     void *ptr);
+static void	arena_ralloc_resize_shrink(arena_t *arena, arena_chunk_t *chunk,
+    void *ptr, size_t size, size_t oldsize);
+static bool	arena_ralloc_resize_grow(arena_t *arena, arena_chunk_t *chunk,
+    void *ptr, size_t size, size_t oldsize);
+static bool	arena_ralloc_resize(void *ptr, size_t size, size_t oldsize);
+static void	*arena_ralloc(void *ptr, size_t size, size_t oldsize);
 static bool	arena_new(arena_t *arena);
 static arena_t	*arenas_extend(unsigned ind);
 static void	*huge_malloc(size_t size, bool zero);
 static void	*huge_palloc(size_t alignment, size_t size);
 static void	*huge_ralloc(void *ptr, size_t size, size_t oldsize);
 static void	huge_dalloc(void *ptr);
-static void	*imalloc(size_t size);
-static void	*ipalloc(size_t alignment, size_t size);
-static void	*icalloc(size_t size);
-static size_t	isalloc(const void *ptr);
-static void	*iralloc(void *ptr, size_t size);
-static void	idalloc(void *ptr);
 static void	malloc_print_stats(void);
 static bool	malloc_init_hard(void);
 
@@ -2312,6 +2306,7 @@ arena_run_split(arena_t *arena, arena_run_t *run, size_t size, bool small,
 			    == 0) {
 				memset((void *)((uintptr_t)chunk + ((run_ind
 				    + i) << pagesize_2pow)), 0, pagesize);
+				/* CHUNK_MAP_UNTOUCHED is cleared below. */
 			}
 		}
 
@@ -2379,6 +2374,8 @@ arena_chunk_alloc(arena_t *arena)
 		 * Initialize the map to contain one maximal free untouched
 		 * run.
 		 */
+		memset(chunk->map, (CHUNK_MAP_LARGE | CHUNK_MAP_POS_MASK),
+		    arena_chunk_header_npages);
 		memset(&chunk->map[arena_chunk_header_npages],
 		    CHUNK_MAP_UNTOUCHED, (chunk_npages -
 		    arena_chunk_header_npages));
@@ -2498,7 +2495,8 @@ arena_purge(arena_t *arena)
 				if (chunk->map[i] & CHUNK_MAP_DIRTY) {
 					size_t npages;
 
-					chunk->map[i] = 0;
+					chunk->map[i] = (CHUNK_MAP_LARGE |
+					    CHUNK_MAP_POS_MASK);
 					chunk->ndirty--;
 					arena->ndirty--;
 					/* Find adjacent dirty run(s). */
@@ -2507,7 +2505,8 @@ arena_purge(arena_t *arena)
 					    (chunk->map[i - 1] &
 					    CHUNK_MAP_DIRTY); npages++) {
 						i--;
-						chunk->map[i] = 0;
+						chunk->map[i] = (CHUNK_MAP_LARGE
+						    | CHUNK_MAP_POS_MASK);
 						chunk->ndirty--;
 						arena->ndirty--;
 					}
@@ -2556,7 +2555,9 @@ arena_run_dalloc(arena_t *arena, arena_run_t *run, bool dirty)
 		size_t i;
 
 		for (i = 0; i < run_pages; i++) {
-			chunk->map[run_ind + i] = CHUNK_MAP_DIRTY;
+			assert((chunk->map[run_ind + i] & CHUNK_MAP_DIRTY) ==
+			    0);
+			chunk->map[run_ind + i] |= CHUNK_MAP_DIRTY;
 			chunk->ndirty++;
 			arena->ndirty++;
 		}
@@ -3005,6 +3006,28 @@ arena_malloc(arena_t *arena, size_t size, bool zero)
 		return (arena_malloc_large(arena, size, zero));
 }
 
+static inline void *
+imalloc(size_t size)
+{
+
+	assert(size != 0);
+
+	if (size <= arena_maxclass)
+		return (arena_malloc(choose_arena(), size, false));
+	else
+		return (huge_malloc(size, false));
+}
+
+static inline void *
+icalloc(size_t size)
+{
+
+	if (size <= arena_maxclass)
+		return (arena_malloc(choose_arena(), size, true));
+	else
+		return (huge_malloc(size, true));
+}
+
 /* Only handles large allocations that require more than page alignment. */
 static void *
 arena_palloc(arena_t *arena, size_t alignment, size_t size, size_t alloc_size)
@@ -3084,6 +3107,101 @@ arena_palloc(arena_t *arena, size_t alignment, size_t size, size_t alloc_size)
 	return (ret);
 }
 
+static inline void *
+ipalloc(size_t alignment, size_t size)
+{
+	void *ret;
+	size_t ceil_size;
+
+	/*
+	 * Round size up to the nearest multiple of alignment.
+	 *
+	 * This done, we can take advantage of the fact that for each small
+	 * size class, every object is aligned at the smallest power of two
+	 * that is non-zero in the base two representation of the size.  For
+	 * example:
+	 *
+	 *   Size |   Base 2 | Minimum alignment
+	 *   -----+----------+------------------
+	 *     96 |  1100000 |  32
+	 *    144 | 10100000 |  32
+	 *    192 | 11000000 |  64
+	 *
+	 * Depending on runtime settings, it is possible that arena_malloc()
+	 * will further round up to a power of two, but that never causes
+	 * correctness issues.
+	 */
+	ceil_size = (size + (alignment - 1)) & (-alignment);
+	/*
+	 * (ceil_size < size) protects against the combination of maximal
+	 * alignment and size greater than maximal alignment.
+	 */
+	if (ceil_size < size) {
+		/* size_t overflow. */
+		return (NULL);
+	}
+
+	if (ceil_size <= pagesize || (alignment <= pagesize
+	    && ceil_size <= arena_maxclass))
+		ret = arena_malloc(choose_arena(), ceil_size, false);
+	else {
+		size_t run_size;
+
+		/*
+		 * We can't achieve sub-page alignment, so round up alignment
+		 * permanently; it makes later calculations simpler.
+		 */
+		alignment = PAGE_CEILING(alignment);
+		ceil_size = PAGE_CEILING(size);
+		/*
+		 * (ceil_size < size) protects against very large sizes within
+		 * pagesize of SIZE_T_MAX.
+		 *
+		 * (ceil_size + alignment < ceil_size) protects against the
+		 * combination of maximal alignment and ceil_size large enough
+		 * to cause overflow.  This is similar to the first overflow
+		 * check above, but it needs to be repeated due to the new
+		 * ceil_size value, which may now be *equal* to maximal
+		 * alignment, whereas before we only detected overflow if the
+		 * original size was *greater* than maximal alignment.
+		 */
+		if (ceil_size < size || ceil_size + alignment < ceil_size) {
+			/* size_t overflow. */
+			return (NULL);
+		}
+
+		/*
+		 * Calculate the size of the over-size run that arena_palloc()
+		 * would need to allocate in order to guarantee the alignment.
+		 */
+		if (ceil_size >= alignment)
+			run_size = ceil_size + alignment - pagesize;
+		else {
+			/*
+			 * It is possible that (alignment << 1) will cause
+			 * overflow, but it doesn't matter because we also
+			 * subtract pagesize, which in the case of overflow
+			 * leaves us with a very large run_size.  That causes
+			 * the first conditional below to fail, which means
+			 * that the bogus run_size value never gets used for
+			 * anything important.
+			 */
+			run_size = (alignment << 1) - pagesize;
+		}
+
+		if (run_size <= arena_maxclass) {
+			ret = arena_palloc(choose_arena(), alignment, ceil_size,
+			    run_size);
+		} else if (alignment <= chunksize)
+			ret = huge_malloc(ceil_size, false);
+		else
+			ret = huge_palloc(alignment, ceil_size);
+	}
+
+	assert(((uintptr_t)ret & (alignment - 1)) == 0);
+	return (ret);
+}
+
 /* Return the size of the allocation pointed to by ptr. */
 static size_t
 arena_salloc(const void *ptr)
@@ -3099,12 +3217,11 @@ arena_salloc(const void *ptr)
 	chunk = (arena_chunk_t *)CHUNK_ADDR2BASE(ptr);
 	pageind = (((uintptr_t)ptr - (uintptr_t)chunk) >> pagesize_2pow);
 	mapelm = chunk->map[pageind];
-	if (mapelm != CHUNK_MAP_LARGE) {
+	if ((mapelm & CHUNK_MAP_LARGE) == 0) {
 		arena_run_t *run;
 
 		/* Small allocation size is in the run header. */
-		assert(mapelm <= CHUNK_MAP_POS_MASK);
-		pageind -= mapelm;
+		pageind -= (mapelm & CHUNK_MAP_POS_MASK);
 		run = (arena_run_t *)((uintptr_t)chunk + (pageind <<
 		    pagesize_2pow));
 		assert(run->magic == ARENA_RUN_MAGIC);
@@ -3127,166 +3244,38 @@ arena_salloc(const void *ptr)
 	return (ret);
 }
 
-static void
-arena_ralloc_resize_shrink(arena_t *arena, arena_chunk_t *chunk, void *ptr,
-    size_t size, size_t oldsize)
+static inline size_t
+isalloc(const void *ptr)
 {
-	extent_node_t *node, key;
-
-	assert(size < oldsize);
-
-	/*
-	 * Shrink the run, and make trailing pages available for other
-	 * allocations.
-	 */
-	key.addr = (void *)((uintptr_t)ptr);
-#ifdef MALLOC_BALANCE
-	arena_lock_balance(arena);
-#else
-	malloc_spin_lock(&arena->lock);
-#endif
-	node = RB_FIND(extent_tree_ad_s, &arena->runs_alloced_ad, &key);
-	assert(node != NULL);
-	arena_run_trim_tail(arena, chunk, node, (arena_run_t *)ptr, oldsize,
-	    size, true);
-#ifdef MALLOC_STATS
-	arena->stats.allocated_large -= oldsize - size;
-#endif
-	malloc_spin_unlock(&arena->lock);
-}
-
-static bool
-arena_ralloc_resize_grow(arena_t *arena, arena_chunk_t *chunk, void *ptr,
-    size_t size, size_t oldsize)
-{
-	extent_node_t *nodeC, key;
-
-	/* Try to extend the run. */
-	assert(size > oldsize);
-	key.addr = (void *)((uintptr_t)ptr + oldsize);
-#ifdef MALLOC_BALANCE
-	arena_lock_balance(arena);
-#else
-	malloc_spin_lock(&arena->lock);
-#endif
-	nodeC = RB_FIND(extent_tree_ad_s, &arena->runs_avail_ad, &key);
-	if (nodeC != NULL && oldsize + nodeC->size >= size) {
-		extent_node_t *nodeA, *nodeB;
-
-		/*
-		 * The next run is available and sufficiently large.  Split the
-		 * following run, then merge the first part with the existing
-		 * allocation.  This results in a bit more tree manipulation
-		 * than absolutely necessary, but it substantially simplifies
-		 * the code.
-		 */
-		arena_run_split(arena, (arena_run_t *)nodeC->addr, size -
-		    oldsize, false, false);
-
-		key.addr = ptr;
-		nodeA = RB_FIND(extent_tree_ad_s, &arena->runs_alloced_ad,
-		    &key);
-		assert(nodeA != NULL);
-
-		key.addr = (void *)((uintptr_t)ptr + oldsize);
-		nodeB = RB_FIND(extent_tree_ad_s, &arena->runs_alloced_ad,
-		    &key);
-		assert(nodeB != NULL);
-
-		nodeA->size += nodeB->size;
-
-		RB_REMOVE(extent_tree_ad_s, &arena->runs_alloced_ad, nodeB);
-		arena_chunk_node_dealloc(chunk, nodeB);
-
-#ifdef MALLOC_STATS
-		arena->stats.allocated_large += size - oldsize;
-#endif
-		malloc_spin_unlock(&arena->lock);
-		return (false);
-	}
-	malloc_spin_unlock(&arena->lock);
-
-	return (true);
-}
-
-/*
- * Try to resize a large allocation, in order to avoid copying.  This will
- * always fail if growing an object, and the following run is already in use.
- */
-static bool
-arena_ralloc_resize(void *ptr, size_t size, size_t oldsize)
-{
+	size_t ret;
 	arena_chunk_t *chunk;
-	arena_t *arena;
+
+	assert(ptr != NULL);
 
 	chunk = (arena_chunk_t *)CHUNK_ADDR2BASE(ptr);
-	arena = chunk->arena;
-	assert(arena->magic == ARENA_MAGIC);
+	if (chunk != ptr) {
+		/* Region. */
+		assert(chunk->arena->magic == ARENA_MAGIC);
 
-	if (size < oldsize) {
-		arena_ralloc_resize_shrink(arena, chunk, ptr, size, oldsize);
-		return (false);
+		ret = arena_salloc(ptr);
 	} else {
-		return (arena_ralloc_resize_grow(arena, chunk, ptr, size,
-		    oldsize));
-	}
-}
+		extent_node_t *node, key;
 
-static void *
-arena_ralloc(void *ptr, size_t size, size_t oldsize)
-{
-	void *ret;
+		/* Chunk (huge allocation). */
 
-	/* Try to avoid moving the allocation. */
-	if (size < small_min) {
-		if (oldsize < small_min &&
-		    ffs((int)(pow2_ceil(size) >> (TINY_MIN_2POW + 1)))
-		    == ffs((int)(pow2_ceil(oldsize) >> (TINY_MIN_2POW + 1))))
-			goto IN_PLACE; /* Same size class. */
-	} else if (size <= small_max) {
-		if (oldsize >= small_min && oldsize <= small_max &&
-		    (QUANTUM_CEILING(size) >> opt_quantum_2pow)
-		    == (QUANTUM_CEILING(oldsize) >> opt_quantum_2pow))
-			goto IN_PLACE; /* Same size class. */
-	} else if (size <= bin_maxclass) {
-		if (oldsize > small_max && oldsize <= bin_maxclass &&
-		    pow2_ceil(size) == pow2_ceil(oldsize))
-			goto IN_PLACE; /* Same size class. */
-	} else if (oldsize > bin_maxclass && oldsize <= arena_maxclass) {
-		size_t psize;
+		malloc_mutex_lock(&huge_mtx);
 
-		assert(size > bin_maxclass);
-		psize = PAGE_CEILING(size);
+		/* Extract from tree of huge allocations. */
+		key.addr = __DECONST(void *, ptr);
+		node = RB_FIND(extent_tree_ad_s, &huge, &key);
+		assert(node != NULL);
 
-		if (psize == oldsize)
-			goto IN_PLACE; /* Same size class. */
+		ret = node->size;
 
-		if (arena_ralloc_resize(ptr, psize, oldsize) == false)
-			goto IN_PLACE;
+		malloc_mutex_unlock(&huge_mtx);
 	}
 
-	/*
-	 * If we get here, then size and oldsize are different enough that we
-	 * need to move the object.  In that case, fall back to allocating new
-	 * space and copying.
-	 */
-	ret = arena_malloc(choose_arena(), size, false);
-	if (ret == NULL)
-		return (NULL);
-
-	/* Junk/zero-filling were already done by arena_malloc(). */
-	if (size < oldsize)
-		memcpy(ret, ptr, size);
-	else
-		memcpy(ret, ptr, oldsize);
-	idalloc(ptr);
 	return (ret);
-IN_PLACE:
-	if (opt_junk && size < oldsize)
-		memset((void *)((uintptr_t)ptr + size), 0x5a, oldsize - size);
-	else if (opt_zero && size > oldsize)
-		memset((void *)((uintptr_t)ptr + oldsize), 0, size - oldsize);
-	return (ptr);
 }
 
 static inline void
@@ -3297,8 +3286,7 @@ arena_dalloc_small(arena_t *arena, arena_chunk_t *chunk, void *ptr,
 	arena_bin_t *bin;
 	size_t size;
 
-	assert(mapelm <= CHUNK_MAP_POS_MASK);
-	pageind -= mapelm;
+	pageind -= (mapelm & CHUNK_MAP_POS_MASK);
 
 	run = (arena_run_t *)((uintptr_t)chunk + (pageind << pagesize_2pow));
 	assert(run->magic == ARENA_RUN_MAGIC);
@@ -3486,9 +3474,8 @@ arena_dalloc(arena_t *arena, arena_chunk_t *chunk, void *ptr)
 
 	pageind = (((uintptr_t)ptr - (uintptr_t)chunk) >> pagesize_2pow);
 	mapelm = &chunk->map[pageind];
-	if (*mapelm != CHUNK_MAP_LARGE) {
+	if ((*mapelm & CHUNK_MAP_LARGE) == 0) {
 		/* Small allocation. */
-		assert(*mapelm <= CHUNK_MAP_POS_MASK);
 #ifdef MALLOC_LAZY_FREE
 		arena_dalloc_lazy(arena, chunk, ptr, pageind, mapelm);
 #else
@@ -3500,6 +3487,197 @@ arena_dalloc(arena_t *arena, arena_chunk_t *chunk, void *ptr)
 		assert((*mapelm & CHUNK_MAP_POS_MASK) == 0);
 		arena_dalloc_large(arena, chunk, ptr);
 	}
+}
+
+static inline void
+idalloc(void *ptr)
+{
+	arena_chunk_t *chunk;
+
+	assert(ptr != NULL);
+
+	chunk = (arena_chunk_t *)CHUNK_ADDR2BASE(ptr);
+	if (chunk != ptr)
+		arena_dalloc(chunk->arena, chunk, ptr);
+	else
+		huge_dalloc(ptr);
+}
+
+static void
+arena_ralloc_resize_shrink(arena_t *arena, arena_chunk_t *chunk, void *ptr,
+    size_t size, size_t oldsize)
+{
+	extent_node_t *node, key;
+
+	assert(size < oldsize);
+
+	/*
+	 * Shrink the run, and make trailing pages available for other
+	 * allocations.
+	 */
+	key.addr = (void *)((uintptr_t)ptr);
+#ifdef MALLOC_BALANCE
+	arena_lock_balance(arena);
+#else
+	malloc_spin_lock(&arena->lock);
+#endif
+	node = RB_FIND(extent_tree_ad_s, &arena->runs_alloced_ad, &key);
+	assert(node != NULL);
+	arena_run_trim_tail(arena, chunk, node, (arena_run_t *)ptr, oldsize,
+	    size, true);
+#ifdef MALLOC_STATS
+	arena->stats.allocated_large -= oldsize - size;
+#endif
+	malloc_spin_unlock(&arena->lock);
+}
+
+static bool
+arena_ralloc_resize_grow(arena_t *arena, arena_chunk_t *chunk, void *ptr,
+    size_t size, size_t oldsize)
+{
+	extent_node_t *nodeC, key;
+
+	/* Try to extend the run. */
+	assert(size > oldsize);
+	key.addr = (void *)((uintptr_t)ptr + oldsize);
+#ifdef MALLOC_BALANCE
+	arena_lock_balance(arena);
+#else
+	malloc_spin_lock(&arena->lock);
+#endif
+	nodeC = RB_FIND(extent_tree_ad_s, &arena->runs_avail_ad, &key);
+	if (nodeC != NULL && oldsize + nodeC->size >= size) {
+		extent_node_t *nodeA, *nodeB;
+
+		/*
+		 * The next run is available and sufficiently large.  Split the
+		 * following run, then merge the first part with the existing
+		 * allocation.  This results in a bit more tree manipulation
+		 * than absolutely necessary, but it substantially simplifies
+		 * the code.
+		 */
+		arena_run_split(arena, (arena_run_t *)nodeC->addr, size -
+		    oldsize, false, false);
+
+		key.addr = ptr;
+		nodeA = RB_FIND(extent_tree_ad_s, &arena->runs_alloced_ad,
+		    &key);
+		assert(nodeA != NULL);
+
+		key.addr = (void *)((uintptr_t)ptr + oldsize);
+		nodeB = RB_FIND(extent_tree_ad_s, &arena->runs_alloced_ad,
+		    &key);
+		assert(nodeB != NULL);
+
+		nodeA->size += nodeB->size;
+
+		RB_REMOVE(extent_tree_ad_s, &arena->runs_alloced_ad, nodeB);
+		arena_chunk_node_dealloc(chunk, nodeB);
+
+#ifdef MALLOC_STATS
+		arena->stats.allocated_large += size - oldsize;
+#endif
+		malloc_spin_unlock(&arena->lock);
+		return (false);
+	}
+	malloc_spin_unlock(&arena->lock);
+
+	return (true);
+}
+
+/*
+ * Try to resize a large allocation, in order to avoid copying.  This will
+ * always fail if growing an object, and the following run is already in use.
+ */
+static bool
+arena_ralloc_resize(void *ptr, size_t size, size_t oldsize)
+{
+	arena_chunk_t *chunk;
+	arena_t *arena;
+
+	chunk = (arena_chunk_t *)CHUNK_ADDR2BASE(ptr);
+	arena = chunk->arena;
+	assert(arena->magic == ARENA_MAGIC);
+
+	if (size < oldsize) {
+		arena_ralloc_resize_shrink(arena, chunk, ptr, size, oldsize);
+		return (false);
+	} else {
+		return (arena_ralloc_resize_grow(arena, chunk, ptr, size,
+		    oldsize));
+	}
+}
+
+static void *
+arena_ralloc(void *ptr, size_t size, size_t oldsize)
+{
+	void *ret;
+	size_t copysize;
+
+	/* Try to avoid moving the allocation. */
+	if (size < small_min) {
+		if (oldsize < small_min &&
+		    ffs((int)(pow2_ceil(size) >> (TINY_MIN_2POW + 1)))
+		    == ffs((int)(pow2_ceil(oldsize) >> (TINY_MIN_2POW + 1))))
+			goto IN_PLACE; /* Same size class. */
+	} else if (size <= small_max) {
+		if (oldsize >= small_min && oldsize <= small_max &&
+		    (QUANTUM_CEILING(size) >> opt_quantum_2pow)
+		    == (QUANTUM_CEILING(oldsize) >> opt_quantum_2pow))
+			goto IN_PLACE; /* Same size class. */
+	} else if (size <= bin_maxclass) {
+		if (oldsize > small_max && oldsize <= bin_maxclass &&
+		    pow2_ceil(size) == pow2_ceil(oldsize))
+			goto IN_PLACE; /* Same size class. */
+	} else if (oldsize > bin_maxclass && oldsize <= arena_maxclass) {
+		size_t psize;
+
+		assert(size > bin_maxclass);
+		psize = PAGE_CEILING(size);
+
+		if (psize == oldsize)
+			goto IN_PLACE; /* Same size class. */
+
+		if (arena_ralloc_resize(ptr, psize, oldsize) == false)
+			goto IN_PLACE;
+	}
+
+	/*
+	 * If we get here, then size and oldsize are different enough that we
+	 * need to move the object.  In that case, fall back to allocating new
+	 * space and copying.
+	 */
+	ret = arena_malloc(choose_arena(), size, false);
+	if (ret == NULL)
+		return (NULL);
+
+	/* Junk/zero-filling were already done by arena_malloc(). */
+	copysize = (size < oldsize) ? size : oldsize;
+	memcpy(ret, ptr, copysize);
+	idalloc(ptr);
+	return (ret);
+IN_PLACE:
+	if (opt_junk && size < oldsize)
+		memset((void *)((uintptr_t)ptr + size), 0x5a, oldsize - size);
+	else if (opt_zero && size > oldsize)
+		memset((void *)((uintptr_t)ptr + oldsize), 0, size - oldsize);
+	return (ptr);
+}
+
+static inline void *
+iralloc(void *ptr, size_t size)
+{
+	size_t oldsize;
+
+	assert(ptr != NULL);
+	assert(size != 0);
+
+	oldsize = isalloc(ptr);
+
+	if (size <= arena_maxclass)
+		return (arena_ralloc(ptr, size, oldsize));
+	else
+		return (huge_ralloc(ptr, size, oldsize));
 }
 
 static bool
@@ -3531,12 +3709,10 @@ arena_new(arena_t *arena)
 #endif
 #ifdef MALLOC_LAZY_FREE
 	if (opt_lazy_free_2pow >= 0) {
-		arena->free_cache = (void **) base_alloc(sizeof(void *)
+		arena->free_cache = (void **) base_calloc(1, sizeof(void *)
 		    * (1U << opt_lazy_free_2pow));
 		if (arena->free_cache == NULL)
 			return (true);
-		memset(arena->free_cache, 0, sizeof(void *)
-		    * (1U << opt_lazy_free_2pow));
 	} else
 		arena->free_cache = NULL;
 #endif
@@ -3766,6 +3942,7 @@ static void *
 huge_ralloc(void *ptr, size_t size, size_t oldsize)
 {
 	void *ret;
+	size_t copysize;
 
 	/* Avoid moving the allocation if the size class would not change. */
 	if (oldsize > arena_maxclass &&
@@ -3789,10 +3966,8 @@ huge_ralloc(void *ptr, size_t size, size_t oldsize)
 	if (ret == NULL)
 		return (NULL);
 
-	if (size < oldsize)
-		memcpy(ret, ptr, size);
-	else
-		memcpy(ret, ptr, oldsize);
+	copysize = (size < oldsize) ? size : oldsize;
+	memcpy(ret, ptr, copysize);
 	idalloc(ptr);
 	return (ret);
 }
@@ -3826,187 +4001,6 @@ huge_dalloc(void *ptr)
 	chunk_dealloc(node->addr, node->size);
 
 	base_node_dealloc(node);
-}
-
-static void *
-imalloc(size_t size)
-{
-
-	assert(size != 0);
-
-	if (size <= arena_maxclass)
-		return (arena_malloc(choose_arena(), size, false));
-	else
-		return (huge_malloc(size, false));
-}
-
-static void *
-ipalloc(size_t alignment, size_t size)
-{
-	void *ret;
-	size_t ceil_size;
-
-	/*
-	 * Round size up to the nearest multiple of alignment.
-	 *
-	 * This done, we can take advantage of the fact that for each small
-	 * size class, every object is aligned at the smallest power of two
-	 * that is non-zero in the base two representation of the size.  For
-	 * example:
-	 *
-	 *   Size |   Base 2 | Minimum alignment
-	 *   -----+----------+------------------
-	 *     96 |  1100000 |  32
-	 *    144 | 10100000 |  32
-	 *    192 | 11000000 |  64
-	 *
-	 * Depending on runtime settings, it is possible that arena_malloc()
-	 * will further round up to a power of two, but that never causes
-	 * correctness issues.
-	 */
-	ceil_size = (size + (alignment - 1)) & (-alignment);
-	/*
-	 * (ceil_size < size) protects against the combination of maximal
-	 * alignment and size greater than maximal alignment.
-	 */
-	if (ceil_size < size) {
-		/* size_t overflow. */
-		return (NULL);
-	}
-
-	if (ceil_size <= pagesize || (alignment <= pagesize
-	    && ceil_size <= arena_maxclass))
-		ret = arena_malloc(choose_arena(), ceil_size, false);
-	else {
-		size_t run_size;
-
-		/*
-		 * We can't achieve sub-page alignment, so round up alignment
-		 * permanently; it makes later calculations simpler.
-		 */
-		alignment = PAGE_CEILING(alignment);
-		ceil_size = PAGE_CEILING(size);
-		/*
-		 * (ceil_size < size) protects against very large sizes within
-		 * pagesize of SIZE_T_MAX.
-		 *
-		 * (ceil_size + alignment < ceil_size) protects against the
-		 * combination of maximal alignment and ceil_size large enough
-		 * to cause overflow.  This is similar to the first overflow
-		 * check above, but it needs to be repeated due to the new
-		 * ceil_size value, which may now be *equal* to maximal
-		 * alignment, whereas before we only detected overflow if the
-		 * original size was *greater* than maximal alignment.
-		 */
-		if (ceil_size < size || ceil_size + alignment < ceil_size) {
-			/* size_t overflow. */
-			return (NULL);
-		}
-
-		/*
-		 * Calculate the size of the over-size run that arena_palloc()
-		 * would need to allocate in order to guarantee the alignment.
-		 */
-		if (ceil_size >= alignment)
-			run_size = ceil_size + alignment - pagesize;
-		else {
-			/*
-			 * It is possible that (alignment << 1) will cause
-			 * overflow, but it doesn't matter because we also
-			 * subtract pagesize, which in the case of overflow
-			 * leaves us with a very large run_size.  That causes
-			 * the first conditional below to fail, which means
-			 * that the bogus run_size value never gets used for
-			 * anything important.
-			 */
-			run_size = (alignment << 1) - pagesize;
-		}
-
-		if (run_size <= arena_maxclass) {
-			ret = arena_palloc(choose_arena(), alignment, ceil_size,
-			    run_size);
-		} else if (alignment <= chunksize)
-			ret = huge_malloc(ceil_size, false);
-		else
-			ret = huge_palloc(alignment, ceil_size);
-	}
-
-	assert(((uintptr_t)ret & (alignment - 1)) == 0);
-	return (ret);
-}
-
-static void *
-icalloc(size_t size)
-{
-
-	if (size <= arena_maxclass)
-		return (arena_malloc(choose_arena(), size, true));
-	else
-		return (huge_malloc(size, true));
-}
-
-static size_t
-isalloc(const void *ptr)
-{
-	size_t ret;
-	arena_chunk_t *chunk;
-
-	assert(ptr != NULL);
-
-	chunk = (arena_chunk_t *)CHUNK_ADDR2BASE(ptr);
-	if (chunk != ptr) {
-		/* Region. */
-		assert(chunk->arena->magic == ARENA_MAGIC);
-
-		ret = arena_salloc(ptr);
-	} else {
-		extent_node_t *node, key;
-
-		/* Chunk (huge allocation). */
-
-		malloc_mutex_lock(&huge_mtx);
-
-		/* Extract from tree of huge allocations. */
-		key.addr = __DECONST(void *, ptr);
-		node = RB_FIND(extent_tree_ad_s, &huge, &key);
-		assert(node != NULL);
-
-		ret = node->size;
-
-		malloc_mutex_unlock(&huge_mtx);
-	}
-
-	return (ret);
-}
-
-static void *
-iralloc(void *ptr, size_t size)
-{
-	size_t oldsize;
-
-	assert(ptr != NULL);
-	assert(size != 0);
-
-	oldsize = isalloc(ptr);
-
-	if (size <= arena_maxclass)
-		return (arena_ralloc(ptr, size, oldsize));
-	else
-		return (huge_ralloc(ptr, size, oldsize));
-}
-
-static void
-idalloc(void *ptr)
-{
-	arena_chunk_t *chunk;
-
-	assert(ptr != NULL);
-
-	chunk = (arena_chunk_t *)CHUNK_ADDR2BASE(ptr);
-	if (chunk != ptr)
-		arena_dalloc(chunk->arena, chunk, ptr);
-	else
-		huge_dalloc(ptr);
 }
 
 static void
@@ -4250,10 +4244,11 @@ malloc_init_hard(void)
 			break;
 		case 2:
 			if (_malloc_options != NULL) {
-			    /*
-			     * Use options that were compiled into the program.
-			     */
-			    opts = _malloc_options;
+				/*
+				 * Use options that were compiled into the
+				 * program.
+				 */
+				opts = _malloc_options;
 			} else {
 				/* No configuration specified. */
 				buf[0] = '\0';
@@ -4279,10 +4274,10 @@ malloc_init_hard(void)
 						nreps += opts[j] - '0';
 						break;
 					default:
-						goto OUT;
+						goto MALLOC_OUT;
 				}
 			}
-OUT:
+MALLOC_OUT:
 			if (nseen == false)
 				nreps = 1;
 
