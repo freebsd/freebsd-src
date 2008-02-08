@@ -22,6 +22,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20080208:
+	Belatedly note the addition of m_collapse for compacting
+	mbuf chains.
+
 20080126:
 	The fts(3) structures have been changed to use adequate
 	integer types for their members and so to be able to cope
