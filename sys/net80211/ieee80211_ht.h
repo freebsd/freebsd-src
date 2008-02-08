@@ -55,6 +55,7 @@ struct ieee80211_tx_ampdu {
 	int		txa_lastrequest;/* time of last ADDBA request */
 	struct ifqueue	txa_q;		/* packet queue */
 	struct callout	txa_timer;
+	void		*txa_private;	/* driver-private storage */
 };
 
 /* return non-zero if AMPDU tx for the TID is running */
