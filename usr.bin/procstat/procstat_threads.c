@@ -42,7 +42,8 @@ void
 procstat_threads(pid_t pid, struct kinfo_proc *kipp)
 {
 	struct kinfo_proc *kip;
-	int error, i, name[4];
+	int error, name[4];
+	unsigned int i;
 	const char *str;
 	size_t len;
 
