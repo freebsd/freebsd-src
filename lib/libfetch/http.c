@@ -265,7 +265,7 @@ http_readfn(void *v, char *buf, int len)
 		l = io->buflen - io->bufpos;
 		if (len < l)
 			l = len;
-		bcopy(io->buf + io->bufpos, buf + pos, l);
+		memcpy(buf + pos, io->buf + io->bufpos, l);
 		io->bufpos += l;
 	}
 
