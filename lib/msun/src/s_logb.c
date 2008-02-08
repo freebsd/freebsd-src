@@ -10,9 +10,8 @@
  * ====================================================
  */
 
-#ifndef lint
-static char rcsid[] = "$FreeBSD$";
-#endif
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * double logb(x)
@@ -38,9 +37,9 @@ logb(double x)
 	if(ix>=0x7ff00000) return x*x;
 	if(ix<0x00100000) {
 		x *= two54;		 /* convert subnormal x to normal */
-		GET_FLOAT_WORD(ix,x);
+		GET_HIGH_WORD(ix,x);
 		ix &= 0x7fffffff;
-		return (float) ((ix>>20)-1023-54);
+		return (double) ((ix>>20)-1023-54);
 	} else
 		return (double) ((ix>>20)-1023);
 }
