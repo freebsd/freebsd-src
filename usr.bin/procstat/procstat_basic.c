@@ -37,7 +37,7 @@
 #include "procstat.h"
 
 void
-procstat_basic(pid_t pid, struct kinfo_proc *kipp)
+procstat_basic(pid_t pid __unused, struct kinfo_proc *kipp)
 {
 
 	if (!hflag)
