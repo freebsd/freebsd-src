@@ -606,7 +606,7 @@ lockstatus(lkp, td)
 	int lock_type = 0;
 	int interlocked;
 
-	KASSERT(td == NULL || td == curthread,
+	KASSERT(td == curthread,
 	    ("%s: thread passed argument (%p) is not valid", __func__, td));
 
 	if (!kdb_active) {
@@ -615,7 +615,7 @@ lockstatus(lkp, td)
 	} else
 		interlocked = 0;
 	if (lkp->lk_exclusivecount != 0) {
-		if (td == NULL || lkp->lk_lockholder == td)
+		if (lkp->lk_lockholder == td)
 			lock_type = LK_EXCLUSIVE;
 		else
 			lock_type = LK_EXCLOTHER;
