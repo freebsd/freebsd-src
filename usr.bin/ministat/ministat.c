@@ -249,7 +249,6 @@ VitalsHead(void)
 static void
 Vitals(struct dataset *ds, int flag)
 {
-	double a;
 
 	printf("%c %3d %13.8g %13.8g %13.8g %13.8g %13.8g", symbol[flag],
 	    ds->n, Min(ds), Max(ds), Median(ds), Avg(ds), Stddev(ds));
@@ -260,7 +259,7 @@ static void
 Relative(struct dataset *ds, struct dataset *rs, int confidx)
 {
 	double spool, s, d, e, t;
-	int i, c;
+	int i;
 
 	i = ds->n + rs->n - 2;
 	if (i > NSTUDENT)
@@ -466,7 +465,7 @@ DumpPlot(void)
 
 
 static struct dataset *
-ReadSet(char *n, int column, char *delim)
+ReadSet(const char *n, int column, const char *delim)
 {
 	FILE *f;
 	char buf[BUFSIZ], *p, *t;
@@ -548,7 +547,7 @@ main(int argc, char **argv)
 	struct dataset *ds[7];
 	int nds;
 	double a;
-	char *delim = " \t";
+	const char *delim = " \t";
 	char *p;
 	int c, i, ci;
 	int column = 1;
