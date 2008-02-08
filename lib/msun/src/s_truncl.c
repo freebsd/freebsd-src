@@ -37,6 +37,7 @@ static char rcsid[] = "$FreeBSD$";
 #endif
 
 static const long double huge = 1.0e300;
+static const float zero[] = { 0.0, -0.0 };
 
 long double
 truncl(long double x)
@@ -47,7 +48,7 @@ truncl(long double x)
 	if (e < MANH_SIZE - 1) {
 		if (e < 0) {			/* raise inexact if x != 0 */
 			if (huge + x > 0.0)
-				u.e = 0.0;
+				u.e = zero[u.bits.sign];
 		} else {
 			uint64_t m = ((1llu << MANH_SIZE) - 1) >> (e + 1);
 			if (((u.bits.manh & m) | u.bits.manl) == 0)
