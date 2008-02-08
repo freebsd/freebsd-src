@@ -1638,7 +1638,7 @@ restart:
 		VFS_UNLOCK_GIANT(vfslocked);
 		vfslocked = 0;
 	}
-	if (VOP_ISLOCKED(vp, NULL) != 0) {
+	if (VOP_ISLOCKED(vp, curthread) != 0) {
 		VFS_UNLOCK_GIANT(vfslocked);
 		return (1);
 	}
@@ -2208,7 +2208,7 @@ vput(struct vnode *vp)
 	 */
 	v_decr_useonly(vp);
 	vp->v_iflag |= VI_OWEINACT;
-	if (VOP_ISLOCKED(vp, NULL) != LK_EXCLUSIVE) {
+	if (VOP_ISLOCKED(vp, curthread) != LK_EXCLUSIVE) {
 		error = VOP_LOCK(vp, LK_UPGRADE|LK_INTERLOCK|LK_NOWAIT);
 		VI_LOCK(vp);
 		if (error) {
@@ -2684,7 +2684,8 @@ DB_SHOW_COMMAND(lockedvnods, lockedvnodes)
 	for (mp = TAILQ_FIRST(&mountlist); mp != NULL; mp = nmp) {
 		nmp = TAILQ_NEXT(mp, mnt_list);
 		TAILQ_FOREACH(vp, &mp->mnt_nvnodelist, v_nmntvnodes) {
-			if (vp->v_type != VMARKER && VOP_ISLOCKED(vp, NULL))
+			if (vp->v_type != VMARKER &&
+			    VOP_ISLOCKED(vp, curthread))
 				vprint("", vp);
 		}
 		nmp = TAILQ_NEXT(mp, mnt_list);
@@ -2971,7 +2972,7 @@ vfs_msync(struct mount *mp, int flags)
 	MNT_VNODE_FOREACH(vp, mp, mvp) {
 		VI_LOCK(vp);
 		if ((vp->v_iflag & VI_OBJDIRTY) &&
-		    (flags == MNT_WAIT || VOP_ISLOCKED(vp, NULL) == 0)) {
+		    (flags == MNT_WAIT || VOP_ISLOCKED(vp, curthread) == 0)) {
 			MNT_IUNLOCK(mp);
 			if (!vget(vp,
 			    LK_EXCLUSIVE | LK_RETRY | LK_INTERLOCK,
@@ -3478,7 +3479,7 @@ void
 assert_vop_locked(struct vnode *vp, const char *str)
 {
 
-	if (vp && !IGNORE_LOCK(vp) && VOP_ISLOCKED(vp, NULL) == 0)
+	if (vp && !IGNORE_LOCK(vp) && VOP_ISLOCKED(vp, curthread) == 0)
 		vfs_badlock("is not locked but should be", str, vp);
 }
 
