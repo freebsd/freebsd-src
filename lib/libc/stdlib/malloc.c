@@ -315,7 +315,8 @@ __FBSDID("$FreeBSD$");
     * trials (each deallocation is a trial), so the actual average threshold
     * for clearing the cache is somewhat lower.
     */
-#  define LAZY_FREE_NPROBES	5
+#  define LAZY_FREE_NPROBES_2POW_MIN	2
+#  define LAZY_FREE_NPROBES_2POW_MAX	3
 #endif
 
 /*
@@ -931,7 +932,7 @@ static void	*arena_palloc(arena_t *arena, size_t alignment, size_t size,
 static size_t	arena_salloc(const void *ptr);
 #ifdef MALLOC_LAZY_FREE
 static void	arena_dalloc_lazy_hard(arena_t *arena, arena_chunk_t *chunk,
-    void *ptr, size_t pageind, arena_chunk_map_t *mapelm);
+    void *ptr, size_t pageind, arena_chunk_map_t *mapelm, unsigned slot);
 #endif
 static void	arena_dalloc_large(arena_t *arena, arena_chunk_t *chunk,
     void *ptr);
@@ -3348,7 +3349,7 @@ arena_dalloc_lazy(arena_t *arena, arena_chunk_t *chunk, void *ptr,
     size_t pageind, arena_chunk_map_t *mapelm)
 {
 	void **free_cache = arena->free_cache;
-	unsigned i, slot;
+	unsigned i, nprobes, slot;
 
 	if (__isthreaded == false || opt_lazy_free_2pow < 0) {
 		malloc_spin_lock(&arena->lock);
@@ -3357,7 +3358,9 @@ arena_dalloc_lazy(arena_t *arena, arena_chunk_t *chunk, void *ptr,
 		return;
 	}
 
-	for (i = 0; i < LAZY_FREE_NPROBES; i++) {
+	nprobes = (1U << LAZY_FREE_NPROBES_2POW_MIN) + PRN(lazy_free,
+	    (LAZY_FREE_NPROBES_2POW_MAX - LAZY_FREE_NPROBES_2POW_MIN));
+	for (i = 0; i < nprobes; i++) {
 		slot = PRN(lazy_free, opt_lazy_free_2pow);
 		if (atomic_cmpset_ptr((uintptr_t *)&free_cache[slot],
 		    (uintptr_t)NULL, (uintptr_t)ptr)) {
@@ -3365,15 +3368,15 @@ arena_dalloc_lazy(arena_t *arena, arena_chunk_t *chunk, void *ptr,
 		}
 	}
 
-	arena_dalloc_lazy_hard(arena, chunk, ptr, pageind, mapelm);
+	arena_dalloc_lazy_hard(arena, chunk, ptr, pageind, mapelm, slot);
 }
 
 static void
 arena_dalloc_lazy_hard(arena_t *arena, arena_chunk_t *chunk, void *ptr,
-    size_t pageind, arena_chunk_map_t *mapelm)
+    size_t pageind, arena_chunk_map_t *mapelm, unsigned slot)
 {
 	void **free_cache = arena->free_cache;
-	unsigned i, slot;
+	unsigned i;
 
 	malloc_spin_lock(&arena->lock);
 	arena_dalloc_small(arena, chunk, ptr, pageind, *mapelm);
