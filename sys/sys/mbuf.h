@@ -743,6 +743,7 @@ int		 m_append(struct mbuf *, int, c_caddr_t);
 void		 m_cat(struct mbuf *, struct mbuf *);
 void		 m_extadd(struct mbuf *, caddr_t, u_int,
 		    void (*)(void *, void *), void *, int, int);
+struct mbuf	*m_collapse(struct mbuf *, int, int);
 void		 m_copyback(struct mbuf *, int, int, c_caddr_t);
 void		 m_copydata(const struct mbuf *, int, int, caddr_t);
 struct mbuf	*m_copym(struct mbuf *, int, int, int);
