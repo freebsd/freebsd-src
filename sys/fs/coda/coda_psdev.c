@@ -116,7 +116,7 @@ vc_nb_open(dev, flag, mode, td)
     struct cdev *dev;      
     int          flag;     
     int          mode;     
-    struct thread *td;             /* NetBSD only */
+    struct thread *td;
 {
     struct vcomm *vcp;
     struct coda_mntinfo *mnt;
