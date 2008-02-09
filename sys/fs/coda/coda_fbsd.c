@@ -53,13 +53,13 @@ __FBSDID("$FreeBSD$");
 static struct cdevsw codadevsw = {
 	.d_version =	D_VERSION,
 	.d_flags =	D_NEEDGIANT,
-	.d_open =	vc_nb_open,
-	.d_close =	vc_nb_close,
-	.d_read =	vc_nb_read,
-	.d_write =	vc_nb_write,
-	.d_ioctl =	vc_nb_ioctl,
-	.d_poll =	vc_nb_poll,
-	.d_name =	"Coda",
+	.d_open =	vc_open,
+	.d_close =	vc_close,
+	.d_read =	vc_read,
+	.d_write =	vc_write,
+	.d_ioctl =	vc_ioctl,
+	.d_poll =	vc_poll,
+	.d_name =	"coda",
 };
 
 static eventhandler_tag clonetag;

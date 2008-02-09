@@ -203,8 +203,8 @@ coda_nc_find(dcp, name, namelen, cred, hash)
 		printf("nref %d, nuid %d, ngid %d // oref %d, ocred %d, ogid %d\n",
 			cred->cr_ref, cred->cr_uid, cred->cr_gid,
 			cncp->cred->cr_ref, cncp->cred->cr_uid, cncp->cred->cr_gid);
-		print_cred(cred);
-		print_cred(cncp->cred);
+		coda_print_cred(cred);
+		coda_print_cred(cncp->cred);
 	    }
 #endif
 	}
@@ -421,7 +421,6 @@ coda_nc_zapParentfid(fid, dcstat)
 	}
 }
 
-
 /*
  * Remove all entries which have the same fid as the input
  */
@@ -459,6 +458,8 @@ coda_nc_zapfid(fid, dcstat)
 
 /* 
  * Remove all entries which match the fid and the cred
+ *
+ * XXX: This is unused.
  */
 void
 coda_nc_zapvnode(fid, cred, dcstat)	
@@ -477,9 +478,6 @@ coda_nc_zapvnode(fid, cred, dcstat)
 	CODA_NC_DEBUG(CODA_NC_ZAPVNODE,
 		      myprintf(("Zapvnode: fid %s cred %p\n",
 				coda_f2s(fid), cred)); )
-
- 
-
 }
 
 /*
