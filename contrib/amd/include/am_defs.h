@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2004 Erez Zadok
+ * Copyright (c) 1997-2006 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -36,8 +36,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      %W% (Berkeley) %G%
  *
+ * File: am-utils/include/am_defs.h
  * $Id: am_defs.h,v 1.15.2.16 2004/05/12 15:54:31 ezk Exp $
  * $FreeBSD$
  *
@@ -69,26 +69,6 @@
 # endif /* not HAVE_STRCHR */
 char *strchr(), *strrchr(), *strdup();
 #endif /* not STDC_HEADERS */
-
-/* AIX requires this to be the first thing in the file. */
-#ifndef __GNUC__
-# if HAVE_ALLOCA_H
-#  include <alloca.h>
-# else /* not HAVE_ALLOCA_H */
-#  ifdef _AIX
-/*
- * This pragma directive is indented so that pre-ANSI C compilers will
- * ignore it, rather than choke on it.
- */
- #pragma alloca
-#  else /* not _AIX */
-#   ifndef alloca
-/* predefined by HP cc +Olibcalls */
-voidp alloca();
-#   endif /* not alloca */
-#  endif /* not _AIX */
-# endif /* not HAVE_ALLOCA_H */
-#endif /* not __GNUC__ */
 
 /*
  * Handle gcc __attribute__ if available.
@@ -126,6 +106,15 @@ voidp alloca();
  */
 #if TIME_WITH_SYS_TIME
 # include <sys/time.h>
+# ifdef _ALL_SOURCE
+/*
+ * AIX 5.2 needs struct sigevent from signal.h to be defined, but I
+ * don't want to move the inclusion of signal.h this early into this
+ * file.  Luckily, amd doesn't need the size of this structure in any
+ * other structure that it uses.  So we sidestep it for now.
+ */
+struct sigevent;
+# endif /* _ALL_SOURCE */
 # include <time.h>
 #else /* not TIME_WITH_SYS_TIME */
 # if HAVE_SYS_TIME_H
@@ -157,6 +146,13 @@ voidp alloca();
 #if HAVE_SYS_TYPES_H
 # include <sys/types.h>
 #endif /* HAVE_SYS_TYPES_H */
+
+/*
+ * Actions to take if HAVE_LIMITS_H is defined.
+ */
+#if HAVE_LIMITS_H_H
+# include <limits.h>
+#endif /* HAVE_LIMITS_H */
 
 /*
  * Actions to take if HAVE_UNISTD_H is defined.
@@ -213,6 +209,12 @@ voidp alloca();
  * Actions to take if HAVE_FCNTL_H is defined.
  */
 #if HAVE_FCNTL_H
+# ifdef HAVE_LINUX_LOOP_H
+/* so I can mount large files as loop devices */
+/* XXX: need to move these two LARGEFILE defines to a better place */
+#  define _LARGEFILE64_SOURCE
+#  define __USE_LARGEFILE64
+# endif /* HAVE_LINUX_LOOP_H */
 # include <fcntl.h>
 #endif /* HAVE_FCNTL_H */
 
@@ -365,6 +367,13 @@ extern int errno;
 #endif /* HAVE_NET_ERRNO_H */
 
 /*
+ * Actions to take if <net/if.h> exists.
+ */
+#ifdef HAVE_NET_IF_H
+# include <net/if.h>
+#endif /* HAVE_NET_IF_H */
+
+/*
  * Actions to take if <net/route.h> exists.
  */
 #ifdef HAVE_NET_ROUTE_H
@@ -398,11 +407,11 @@ extern int errno;
 #endif /* HAVE_SYS_MBUF_H */
 
 /*
- * Actions to take if <net/if.h> exists.
+ * Actions to take if <sys/mman.h> exists.
  */
-#ifdef HAVE_NET_IF_H
-# include <net/if.h>
-#endif /* HAVE_NET_IF_H */
+#ifdef HAVE_SYS_MMAN_H
+# include <sys/mman.h>
+#endif /* HAVE_SYS_MMAN_H */
 
 /*
  * Actions to take if <netdb.h> exists.
@@ -600,15 +609,77 @@ struct ypall_callback;
 #endif /* HAVE_CDFS_CDFSMOUNT_H */
 
 /*
- * Actions to take if <linux/auto_fs.h> exists.
+ * Actions to take if <linux/loop.h> exists.
+ */
+#ifdef HAVE_LINUX_LOOP_H
+# ifdef HAVE_LINUX_POSIX_TYPES_H
+#  include <linux/posix_types.h>
+# endif /* HAVE_LINUX_POSIX_TYPES_H */
+/* next dev_t lines needed due to changes in kernel code */
+# undef dev_t
+# define dev_t unsigned short	/* compatible with Red Hat and SuSE */
+# include <linux/loop.h>
+#endif /* HAVE_LINUX_LOOP_H */
+
+/*
+ * AUTOFS PROTOCOL HEADER FILES:
+ */
+
+/*
+ * Actions to take if <linux/auto_fs[4].h> exists.
  * We really don't want <linux/fs.h> pulled in here
  */
 #ifndef _LINUX_FS_H
 #define _LINUX_FS_H
 #endif /* _LINUX_FS_H */
-#ifdef HAVE_LINUX_AUTO_FS_H
-# include <linux/auto_fs.h>
-#endif /* HAVE_LINUX_AUTO_FS_H */
+#ifdef HAVE_LINUX_AUTO_FS4_H
+# include <linux/auto_fs4.h>
+#else  /* not HAVE_LINUX_AUTO_FS4_H */
+# ifdef HAVE_LINUX_AUTO_FS_H
+#  include <linux/auto_fs.h>
+# endif /* HAVE_LINUX_AUTO_FS_H */
+#endif /* not HAVE_LINUX_AUTO_FS4_H */
+
+/*
+ * Actions to take if <sys/fs/autofs.h> exists.
+ */
+#ifdef HAVE_SYS_FS_AUTOFS_H
+# include <sys/fs/autofs.h>
+#endif /* HAVE_SYS_FS_AUTOFS_H */
+
+/*
+ * Actions to take if <rpcsvc/autofs_prot.h> or <sys/fs/autofs_prot.h> exist.
+ */
+#ifdef HAVE_RPCSVC_AUTOFS_PROT_H
+# include <rpcsvc/autofs_prot.h>
+#else  /* not HAVE_RPCSVC_AUTOFS_PROT_H */
+# ifdef HAVE_SYS_FS_AUTOFS_PROT_H
+#  include <sys/fs/autofs_prot.h>
+# endif /* HAVE_SYS_FS_AUTOFS_PROT_H */
+#endif /* not HAVE_RPCSVC_AUTOFS_PROT_H */
+
+/*
+ * Actions to take if <lber.h> exists.
+ * This header file is required before <ldap.h> can be included.
+ */
+#ifdef HAVE_LBER_H
+# include <lber.h>
+#endif /* HAVE_LBER_H */
+
+/*
+ * Actions to take if <ldap.h> exists.
+ */
+#ifdef HAVE_LDAP_H
+# include <ldap.h>
+#endif /* HAVE_LDAP_H */
+
+/****************************************************************************
+ ** IMPORTANT!!!							   **
+ ** We always include am-utils' amu_autofs_prot.h.			   **
+ ** That is actually defined in "conf/autofs/autofs_${autofs_style}.h"     **
+ ****************************************************************************/
+#include <amu_autofs_prot.h>
+
 
 /*
  * NFS PROTOCOL HEADER FILES:
@@ -623,7 +694,7 @@ struct ypall_callback;
 
 /****************************************************************************
  ** IMPORTANT!!!							   **
- ** We always include am-util's amu_nfs_prot.h.				   **
+ ** We always include am-utils' amu_nfs_prot.h.				   **
  ** That is actually defined in "conf/nfs_prot/nfs_prot_${host_os_name}.h" **
  ****************************************************************************/
 #include <amu_nfs_prot.h>
@@ -666,13 +737,29 @@ struct ypall_callback;
 #ifdef HAVE_SYS_FS_NFS_CLNT_H
 # include <sys/fs/nfs_clnt.h>
 #endif /* HAVE_SYS_FS_NFS_CLNT_H */
+
+/* complex rules for linux/nfs_mount.h: broken on so many systems */
 #ifdef HAVE_LINUX_NFS_MOUNT_H
-# define _LINUX_NFS_H
-# define _LINUX_NFS2_H
-# define _LINUX_NFS3_H
-# define _LINUX_NFS_FS_H
-# define _LINUX_IN_H
+# ifndef _LINUX_NFS_H
+#  define _LINUX_NFS_H
+# endif /* not _LINUX_NFS_H */
+# ifndef _LINUX_NFS2_H
+#  define _LINUX_NFS2_H
+# endif /* not _LINUX_NFS2_H */
+# ifndef _LINUX_NFS3_H
+#  define _LINUX_NFS3_H
+# endif /* not _LINUX_NFS3_H */
+# ifndef _LINUX_NFS_FS_H
+#  define _LINUX_NFS_FS_H
+# endif /* not _LINUX_NFS_FS_H */
+# ifndef _LINUX_IN_H
+#  define _LINUX_IN_H
+# endif /* not _LINUX_IN_H */
+# ifndef __KERNEL__
+#  define __KERNEL__
+# endif /* __KERNEL__ */
 # include <linux/nfs_mount.h>
+# undef __KERNEL__
 #endif /* HAVE_LINUX_NFS_MOUNT_H */
 
 /*
@@ -688,21 +775,6 @@ struct ypall_callback;
 #ifdef HAVE_HESIOD_H
 # include <hesiod.h>
 #endif /* HAVE_HESIOD_H */
-
-/*
- * Actions to take if <lber.h> exists.
- * This header file is required before <ldap.h> can be included.
- */
-#ifdef HAVE_LBER_H
-# include <lber.h>
-#endif /* HAVE_LBER_H */
-
-/*
- * Actions to take if <ldap.h> exists.
- */
-#ifdef HAVE_LDAP_H
-# include <ldap.h>
-#endif /* HAVE_LDAP_H */
 
 /*
  * Actions to take if <arpa/nameser.h> exists.
@@ -737,6 +809,14 @@ struct sockaddr_dl;
  * Actions to take if <resolv.h> exists.
  */
 #ifdef HAVE_RESOLV_H
+/*
+ * On AIX 5.2, both <resolv.h> and <arpa/nameser_compat.h> define MAXDNAME,
+ * if compiling with gcc -D_USE_IRS (so that we get extern definitions for
+ * hstrerror() and others).
+ */
+# if defined(_AIX) && defined(MAXDNAME) && defined(_USE_IRS)
+#  undef MAXDNAME
+# endif /* defined(_AIX) && defined(MAXDNAME) && defined(_USE_IRS) */
 # include <resolv.h>
 #endif /* HAVE_RESOLV_H */
 
@@ -767,6 +847,13 @@ struct sockaddr_dl;
 #ifdef HAVE_MSDOSFS_MSDOSFSMOUNT_H
 # include <msdosfs/msdosfsmount.h>
 #endif /* HAVE_MSDOSFS_MSDOSFSMOUNT_H */
+#ifdef HAVE_FS_MSDOSFS_MSDOSFSMOUNT_H
+# include <fs/msdosfs/msdosfsmount.h>
+#endif /* HAVE_FS_MSDOSFS_MSDOSFSMOUNT_H */
+
+/*
+ * Actions to take if <fs/msdosfs/msdosfsmount.h> exists.
+ */
 #ifdef HAVE_FS_MSDOSFS_MSDOSFSMOUNT_H
 # include <fs/msdosfs/msdosfsmount.h>
 #endif /* HAVE_FS_MSDOSFS_MSDOSFSMOUNT_H */
@@ -921,6 +1008,22 @@ struct sockaddr_dl;
  * Actions to take if <rpcsvc/nis.h> exists.
  */
 #ifdef HAVE_RPCSVC_NIS_H
+/*
+ * Solaris 10 (build 72) defines GROUP_OBJ in <sys/acl.h>, which is included
+ * in many other header files.  <rpcsvc/nis.h> uses GROUP_OBJ inside enum
+ * zotypes.  So if you're unlucky enough to include both headers, you get a
+ * compile error because the two symbols conflict.
+ * A similar conflict arises with Sun cc and the definition of "GROUP".
+ *
+ * Temp hack: undefine acl.h's GROUP_OBJ and GROUP because they're not needed
+ * for am-utils.
+ */
+# ifdef GROUP_OBJ
+#  undef GROUP_OBJ
+# endif /* GROUP_OBJ */
+# ifdef GROUP
+#  undef GROUP
+# endif /* GROUP */
 # include <rpcsvc/nis.h>
 #endif /* HAVE_RPCSVC_NIS_H */
 
@@ -1125,6 +1228,13 @@ extern char *nc_sperror(void);
 #endif /* HAVE_SYS_STATFS_H */
 
 /*
+ * Actions to take if <sys/statvfs.h> exists.
+ */
+#ifdef HAVE_SYS_STATVFS_H
+# include <sys/statvfs.h>
+#endif /* HAVE_SYS_STATVFS_H */
+
+/*
  * Actions to take if <sys/vfs.h> exists.
  */
 #ifdef HAVE_SYS_VFS_H
@@ -1217,6 +1327,13 @@ extern char *nc_sperror(void);
 # include <regex.h>
 #endif /* HAVE_REGEX_H */
 
+/*
+ * Actions to take if <tcpd.h> exists.
+ */
+#if defined(HAVE_TCPD_H) && defined(HAVE_LIBWRAP)
+# include <tcpd.h>
+#endif /* defined(HAVE_TCPD_H) && defined(HAVE_LIBWRAP) */
+
 
 /****************************************************************************/
 /*
@@ -1298,6 +1415,16 @@ typedef struct _am_mntent {
 # endif /* not HAVE_STRUCT_MNTTAB */
 #endif /* not HAVE_STRUCT_MNTENT */
 
+/*
+ * Provide FD_* macros for systems that lack them.
+ */
+#ifndef FD_SET
+# define FD_SET(fd, set) (*(set) |= (1 << (fd)))
+# define FD_ISSET(fd, set) (*(set) & (1 << (fd)))
+# define FD_CLR(fd, set) (*(set) &= ~(1 << (fd)))
+# define FD_ZERO(set) (*(set) = 0)
+#endif /* not FD_SET */
+
 
 /*
  * Complete external definitions missing from some systems.
@@ -1354,6 +1481,10 @@ extern int getpagesize(void);
 extern char *getwd(char *s);
 #endif /* not HAVE_EXTERN_GETWD */
 
+#if defined(HAVE_TCPD_H) && defined(HAVE_LIBWRAP) && !defined(HAVE_EXTERN_HOSTS_CTL)
+extern int hosts_ctl(char *daemon, char *client_name, char *client_addr, char *client_user);
+#endif /* defined(HAVE_TCPD_H) && defined(HAVE_LIBWRAP) && !defined(HAVE_EXTERN_HOSTS_CTL) */
+
 #ifndef HAVE_EXTERN_INNETGR
 extern int innetgr(char *, char *, char *, char *);
 #endif /* not HAVE_EXTERN_INNETGR */
@@ -1374,6 +1505,10 @@ extern int seteuid(uid_t euid);
 extern int setitimer(int, struct itimerval *, struct itimerval *);
 #endif /* defined(HAVE_SETITIMER) && !defined(HAVE_EXTERN_SETITIMER) */
 
+#ifndef HAVE_EXTERN_SLEEP
+extern unsigned int sleep(unsigned int seconds);
+#endif /* not HAVE_EXTERN_SETITIMER */
+
 #ifndef HAVE_EXTERN_STRCASECMP
 /*
  * define this extern even if function does not exist, for it will
@@ -1389,6 +1524,22 @@ extern int strcasecmp(const char *s1, const char *s2);
  */
 extern char *strdup(const char *s);
 #endif /* not HAVE_EXTERN_STRDUP */
+
+#ifndef HAVE_EXTERN_STRLCAT
+/*
+ * define this extern even if function does not exist, for it will
+ * be filled in by libamu/strlcat.c
+ */
+extern size_t strlcat(char *dst, const char *src, size_t siz);
+#endif /* not HAVE_EXTERN_STRLCAT */
+
+#ifndef HAVE_EXTERN_STRLCPY
+/*
+ * define this extern even if function does not exist, for it will
+ * be filled in by libamu/strlcpy.c
+ */
+extern size_t strlcpy(char *dst, const char *src, size_t siz);
+#endif /* not HAVE_EXTERN_STRLCPY */
 
 #if defined(HAVE_STRSTR) && !defined(HAVE_EXTERN_STRSTR)
 extern char *strstr(const char *s1, const char *s2);
@@ -1425,11 +1576,11 @@ extern bool_t xdr_opaque_auth(XDR *xdrs, struct opaque_auth *auth);
 #ifdef THIS_HEADER_FILE_IS_INCLUDED_ABOVE
 # include <amu_nfs_prot.h>
 #endif /* THIS_HEADER_FILE_IS_INCLUDED_ABOVE */
+#include <am_compat.h>
+#include <am_xdr_func.h>
 #include <am_utils.h>
 #include <amq_defs.h>
 #include <aux_conf.h>
-/* compatibility with old amd, while autoconfiscating it */
-#include <am_compat.h>
 
 
 /****************************************************************************/
@@ -1438,14 +1589,14 @@ extern bool_t xdr_opaque_auth(XDR *xdrs, struct opaque_auth *auth);
  * and those are probably declared in any of the above headers.
  */
 
-#ifndef HAVE_HASMNTOPT
-extern char *hasmntopt(mntent_t *mnt, char *opt);
+#ifdef HAVE_HASMNTOPT
+# ifdef HAVE_BAD_HASMNTOPT
+extern char *amu_hasmntopt(mntent_t *mnt, char *opt);
+# else /* not HAVE_BAD_HASMNTOPT */
+#  define amu_hasmntopt hasmntopt
+# endif /* not HAVE_BAD_HASMNTOPT */
+#else /* not HAVE_HASMNTOPT */
+extern char *amu_hasmntopt(mntent_t *mnt, char *opt);
 #endif /* not HAVE_HASMNTOPT */
-
-/*
- * include definitions of all possible xdr functions that are otherwise
- * not defined elsewhere.
- */
-#include <am_xdr_func.h>
 
 #endif /* not _AM_DEFS_H */

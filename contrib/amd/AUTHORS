@@ -12,6 +12,11 @@ The most significant changes were made by Erez Zadok in terms of bug fixes,
 ports, and new features added.  Erez Zadok is the current maintainer of
 am-utils, as of January 1997.
 
+* Ion Badulescu <ion@cs.columbia.edu>
+
+Co-maintainer of am-utils since late 1999: Linux and Solaris autofs support,
+Linux NFSv3 support, major code reorganization, etc...
+
 * Randall S. Winchester <rsw@glue.umd.edu>
 
 May 7, 1997: contributed a special version of upl102 that included NFS V.3
@@ -154,7 +159,7 @@ that do not allow forwarding of RPC messages to other services.
 August 10, 1997: netbsd and other bsd systems have a mask flag for
 pcfs_args (msdos mount).
 
-* Christos Zoulas <christos@deshaw.com>
+* Christos Zoulas <christos@zoulas.com>
 
 September 25, 1997: fix to initialize uid/gid fields of pcfs_args_t on
 netbsd.
@@ -163,8 +168,18 @@ October 10, 1997: compile time cleanups of printf()s in hlfsd code.  If nfs
 server is down or does not support a portmapper call, then mark it down as
 version 2, and try again later.
 
+November 29, 2002: compile fixes for NetBSD, a couple of bug fixes (one
+already fixed by maintainers)
+
 April 12, 2003: support new "unmount" option, useful to timeout removable
 local media mounts.
+
+October 12, 2004: patch to support two new amd.conf options, domain_strip
+and auto_attrcache.  Patch to cleanup NFS attribute-cache flag computation.
+Patch to fix an inconsistency in timeouts in the RPC code between socket and
+TLI implementations.  Patch to print version string (amd -v) after all
+options had been initialized, so we can print domain, host, and hostd.
+Linux patch to use umount2(2) if umount(2) fails.
 
 * Bill Paul <wpaul@ctr.columbia.edu>
 
@@ -190,6 +205,8 @@ and proto.
 * Albert Chin <china@pprd.abbott.com>
 
 January 12, 1998: minor bug in output of amd -H.
+
+June 23, 2005: assortment of small compile bugs on aix4, and solaris 5/6/7.
 
 * Thomas Richter <richter@chemie.fu-berlin.de>
 
@@ -302,8 +319,12 @@ January 25, 2000: allow browsable auto maps.
 * Wolfram Klaus	<klaus@physik.fu-berlin.de>.
 November 21, 2000: recognize proplist mnttab flag.
 
-* Thomas Klausner <wiz@danbala.ifoer.tuwien.ac.at>
+* Thomas Klausner <tk@giga.or.at>
 November 21, 2000: lots of NetBSD fixes (many of which are generic).
+
+April 18, 2003: patch to reference am-utils info pages in man page.
+
+November 28, 2004: small fixes to typos in amd.conf(5) man page.
 
 * Olaf Kirch <okir@caldera.de>
 February 1, 2001: important Linux NFS error number mapping fixed
@@ -318,16 +339,31 @@ March 27, 2002: LDAP bug and port to HPUX-11.
 
 * Philippe Troin <phil@fifi.org>
 July 12, 2001: Proper handling of GNU getopt, support for optionally
-disabling LDAP/Hesiod, fixes for the dev/nodev option on Linux
+disabling LDAP/Hesiod, fixes for the dev/nodev option on Linux.  Texi
+documentation fix.
 
 November 28, 2001: Bug fix.  Support "nolock" as an NFS option, not a
 generic mount option.
 
-July 17, 2003: Debian fixes.  Null am_pref free.
+July 17, 2003: pref:=null core dump fix.  libgdbm portability.  tcpd/librap
+support.  And a few other things for the 6.0 branch.
 
 * Trond Myklebust <trond.myklebust@fys.uio.no>
 January 10, 2002: Proper initialization of the timeo parameter on Linux, TCP
 _must_ have a timeout 2 orders of magnitude larger than UDP
+
+* George Ross <gdmr@dcs.ed.ac.uk>
+April 29, 2002: Rework of old code, support for wildcards in LDAP queries,
+and an FD leak fix.  Amd -A support.
+
+October 21, 2002: ldap_unbind fix for SIGPIPE, and support for LDAPv3
+protocol version parameter (with Tim Colles <timc@inf.ed.ac.uk>).
+
+* Matthias Scheler <tron@zhadum.de>
+June 14, 2002: patch to use "xlatecookie" NFS mount option.
+
+* Jun-ichiro itojun Hagino <itojun@iijlab.net>.
+June 11, 2002: minor fixes to support NetBSD 1.6A.
 
 * Sean Fagan <sef@apple.com>
 March 14, 2003: detect and use the MNT2_GEN_OPT_AUTOMNTFS mount flag
@@ -335,3 +371,60 @@ on OS X / Darwin.
 
 * Hendrik Scholz <hscholz@raisdorf.net>
 June 9, 2003: mk-amd-map should open temp db file using O_EXCL.
+
+* Mark Davies <mark@mcs.vuw.ac.nz>
+July 14, 2003: define "xlatecookie" mnttab option if not defined (for
+NetBSD).  Support null hesiod entries if they start with a ".".
+
+* Eric S. Raymond <esr@thyrsus.com>
+December 9, 2003: fix unbalanced [] typo in fsinfo man page.
+
+* Martin Blapp <mb@imp.ch>
+July 6, 2004: recognize fields in pcfs_args_t in FreeBSD 5.
+
+* Dan Nelson <dnelson@allantgroup.com>
+August 2, 2004: pawd to recognize "host" type mounts.
+
+* Hauke Fath <hauke@Espresso.Rhein-Neckar.DE>
+August 3, 2004: pawd to recognize "linkx" type mounts.
+
+* Michael van Elst <M.van.Elst@science-computing.de>
+September 1, 2004: bug fix to avoid race condition in calls to mntctl on
+AIX.
+
+* Jonathan Chen <jon+amd@spock.org>
+October 22, 2004: patch/fix to move mlock/mlockall/plock code after the
+fork().
+June 29, 2005: core dump going off end of exported_ap[] array.
+September 29, 2005: patch/fix for pawd not to go into an infinite loop.
+October 25, 2005: patch/fix for pawd to repeatedly resolve path.
+
+* David Rage <rage@ucl.ac.uk>
+January 17, 2005: prevent Amd from logging 'Read-only filesystem' errors
+when the mount point has an ancestor (i.e. '/') that is mounted read-only.
+
+* Kevin Layer <layer@franz.com>
+January 28, 2005: basic instructions how to setup Amd on Mac OS-X.
+
+* Dan Ottavio <dottavio@ic.sunysb.edu>
+March 2, 2005: new global amd.conf option debug_mtab_file, to set the debug
+mtab file when using debug_options=mtab.  Default has changed from "./mtab"
+to "/tmp/mtab" to avoid security problem.  Bug fixed to ensure that Amd
+terminates properly even mtab file doesn't exist.
+
+* Erik Kline <ekline at ekline dot com>
+January 3, 2005: implementation of executable maps for Amd.
+
+* Jim Zajkowski <jim.zajkowski@gmail.com>
+March 14, 2005: small patch to amd2ldif.
+
+* Adam Morley <adam at gmi dot com>
+January 27, 2005: synchronize what amd2ldif does vs. what the ldap.schema
+expects.
+
+* Graeme Wilford <G.Wilford@surrey.ac.uk>
+July 4, 2005: buffer overflow in pawd.
+
+* Steve Plite <splite-amutils@sigint.cs.purdue.edu>
+September 22, 2005: repair reversed meaning of D_AMQ, so amq will unregister
+on exit.

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2004 Erez Zadok
+ * Copyright (c) 1997-2006 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -36,9 +36,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      %W% (Berkeley) %G%
  *
- * $Id: rpc_fwd.c,v 1.3.2.5 2004/01/06 03:15:16 ezk Exp $
+ * File: am-utils/amd/rpc_fwd.c
  *
  */
 
@@ -58,7 +57,7 @@
  * is no need to convert to and from network byte ordering.
  */
 
-#define	XID_ALLOC(struct )	(xid++)
+#define	XID_ALLOC()		(xid++)
 #define	MAX_PACKET_SIZE	8192	/* Maximum UDP packet size */
 
 /*
@@ -75,7 +74,7 @@ struct rpc_forward {
   time_t rf_ttl;		/* Time to live */
   u_int rf_xid;			/* Packet id */
   u_int rf_oldid;		/* Original packet id */
-  fwd_fun rf_fwd;		/* Forwarding function */
+  fwd_fun *rf_fwd;		/* Forwarding function */
   voidp rf_ptr;
   struct sockaddr_in rf_sin;
 };
@@ -94,7 +93,7 @@ static u_int xid;
 static rpc_forward *
 fwd_alloc(void)
 {
-  time_t now = clocktime();
+  time_t now = clocktime(NULL);
   rpc_forward *p = 0, *p2;
 
   /*
@@ -117,9 +116,7 @@ fwd_alloc(void)
      * Call forwarding function to say that
      * this message was junked.
      */
-#ifdef DEBUG
     dlog("Re-using packet forwarding slot - id %#x", p->rf_xid);
-#endif /* DEBUG */
     if (p->rf_fwd)
       (*p->rf_fwd) (0, 0, 0, &p->rf_sin, p->rf_ptr, FALSE);
     rem_que(&p->rf_q);
@@ -228,7 +225,7 @@ fwd_locate(u_int id)
  * different address.
  */
 int
-fwd_packet(int type_id, voidp pkt, int len, struct sockaddr_in *fwdto, struct sockaddr_in *replyto, voidp i, fwd_fun cb)
+fwd_packet(int type_id, char *pkt, int len, struct sockaddr_in *fwdto, struct sockaddr_in *replyto, opaque_t cb_arg, fwd_fun cb)
 {
   rpc_forward *p;
   u_int *pkt_int;
@@ -247,36 +244,33 @@ fwd_packet(int type_id, voidp pkt, int len, struct sockaddr_in *fwdto, struct so
    * Otherwise make sure the type_id is
    * fully qualified by allocating an id here.
    */
-#ifdef DEBUG
   switch (type_id & RPC_XID_MASK) {
   case RPC_XID_PORTMAP:
-    dlog("Sending PORTMAP request");
+    dlog("Sending PORTMAP request %#x", type_id);
     break;
   case RPC_XID_MOUNTD:
     dlog("Sending MOUNTD request %#x", type_id);
     break;
   case RPC_XID_NFSPING:
-    dlog("Sending NFS ping");
+    dlog("Sending NFS ping %#x", type_id);
+    break;
+  case RPC_XID_WEBNFS:
+    dlog("Sending WebNFS lookup %#x", type_id);
     break;
   default:
-    dlog("UNKNOWN RPC XID");
+    dlog("UNKNOWN RPC XID %#x", type_id);
     break;
   }
-#endif /* DEBUG */
 
   if (type_id & ~RPC_XID_MASK) {
     p = fwd_locate(type_id);
     if (p) {
-#ifdef DEBUG
       dlog("Discarding earlier rpc fwd handle");
-#endif /* DEBUG */
       fwd_free(p);
     }
   } else {
-#ifdef DEBUG
     dlog("Allocating a new xid...");
-#endif /* DEBUG */
-    type_id = MK_RPC_XID(type_id, XID_ALLOC(struct ));
+    type_id = MK_RPC_XID(type_id, XID_ALLOC());
   }
 
   p = fwd_alloc();
@@ -290,12 +284,13 @@ fwd_packet(int type_id, voidp pkt, int len, struct sockaddr_in *fwdto, struct so
   /*
    * Get the original packet id
    */
-  p->rf_oldid = *pkt_int;
+  p->rf_oldid = ntohl(*pkt_int);
 
   /*
    * Replace with newly allocated id
    */
-  p->rf_xid = *pkt_int = type_id;
+  p->rf_xid = type_id;
+  *pkt_int = htonl(type_id);
 
   /*
    * The sendto may fail if, for example, the route
@@ -307,9 +302,9 @@ fwd_packet(int type_id, voidp pkt, int len, struct sockaddr_in *fwdto, struct so
   {
     char dq[20];
     if (p && fwdto)
-      dlog("Sending packet id %#x to %s.%d",
+      dlog("Sending packet id %#x to %s:%d",
 	   p->rf_xid,
-	   inet_dquad(dq, fwdto->sin_addr.s_addr),
+	   inet_dquad(dq, sizeof(dq), fwdto->sin_addr.s_addr),
 	   ntohs(fwdto->sin_port));
   }
 #endif /* DEBUG */
@@ -349,7 +344,7 @@ out:
     p->rf_sin = *replyto;
   else
     memset((voidp) &p->rf_sin, 0, sizeof(p->rf_sin));
-  p->rf_ptr = i;
+  p->rf_ptr = cb_arg;
 
   return error;
 }
@@ -364,6 +359,7 @@ fwd_reply(void)
   int len;
   u_int pkt[MAX_PACKET_SIZE / sizeof(u_int) + 1];
   u_int *pkt_int;
+  u_int pkt_xid;
   int rc;
   rpc_forward *p;
   struct sockaddr_in src_addr;
@@ -396,6 +392,12 @@ again:
     rc = ud.udata.len;
   else {
     plog(XLOG_ERROR,"fwd_reply failed: t_errno=%d, errno=%d, flags=%d",t_errno,errno, flags);
+    /*
+     * Clear error indication, otherwise the error condition persists and
+     * amd gets into an infinite loop.
+     */
+    if (t_errno == TLOOK)
+      t_rcvuderr(fwd_sock, NULL);
   }
 #else /* not HAVE_TRANSPORT_TYPE_TLI */
   rc = recvfrom(fwd_sock,
@@ -428,29 +430,29 @@ again:
    * Find packet reference
    */
   pkt_int = (u_int *) pkt;
+  pkt_xid = ntohl(*pkt_int);
 
-#ifdef DEBUG
-  switch (*pkt_int & RPC_XID_MASK) {
+  switch (pkt_xid & RPC_XID_MASK) {
   case RPC_XID_PORTMAP:
-    dlog("Receiving PORTMAP reply");
+    dlog("Receiving PORTMAP reply %#x", pkt_xid);
     break;
   case RPC_XID_MOUNTD:
-    dlog("Receiving MOUNTD reply %#x", *pkt_int);
+    dlog("Receiving MOUNTD reply %#x", pkt_xid);
     break;
   case RPC_XID_NFSPING:
-    dlog("Receiving NFS ping %#x", *pkt_int);
+    dlog("Receiving NFS ping %#x", pkt_xid);
+    break;
+  case RPC_XID_WEBNFS:
+    dlog("Receiving WebNFS lookup %#x", pkt_xid);
     break;
   default:
-    dlog("UNKNOWN RPC XID");
+    dlog("UNKNOWN RPC XID %#x", pkt_xid);
     break;
   }
-#endif /* DEBUG */
 
-  p = fwd_locate(*pkt_int);
+  p = fwd_locate(pkt_xid);
   if (!p) {
-#ifdef DEBUG
-    dlog("Can't forward reply id %#x", *pkt_int);
-#endif /* DEBUG */
+    dlog("Can't forward reply id %#x", pkt_xid);
     goto out;
   }
 
@@ -459,7 +461,7 @@ again:
      * Put the original message id back
      * into the packet.
      */
-    *pkt_int = p->rf_oldid;
+    *pkt_int = htonl(p->rf_oldid);
 
     /*
      * Call forwarding function

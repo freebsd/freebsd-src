@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2004 Erez Zadok
+ * Copyright (c) 1997-2006 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -36,10 +36,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      %W% (Berkeley) %G%
  *
- * $Id: xutil.c,v 1.11.2.13 2004/01/06 03:15:24 ezk Exp $
+ * File: am-utils/libamu/xutil.c
  *
+ */
+
+/*
+ * Miscellaneous Utilities: Logging, TTY, timers, signals, RPC, memory, etc.
  */
 
 #ifdef HAVE_CONFIG_H
@@ -56,13 +59,11 @@
 FILE *logfp = NULL;
 
 static char *am_progname = "unknown";	/* "amd" */
-static char am_hostname[MAXHOSTNAMELEN + 1] = "unknown"; /* Hostname */
+static char am_hostname[MAXHOSTNAMELEN] = "unknown"; /* Hostname */
 pid_t am_mypid = -1;		/* process ID */
 serv_state amd_state;		/* amd's state */
 int foreground = 1;		/* 1 == this is the top-level server */
-#ifdef DEBUG
 int debug_flags = 0;
-#endif /* DEBUG */
 
 #ifdef HAVE_SYSLOG
 int syslogging;
@@ -71,12 +72,11 @@ int xlog_level = XLOG_ALL & ~XLOG_MAP & ~XLOG_STATS;
 int xlog_level_init = ~0;
 static int amd_program_number = AMQ_PROGRAM;
 
-time_t clock_valid = 0;
-time_t xclock_valid = 0;
-
 #ifdef DEBUG_MEM
+# if defined(HAVE_MALLINFO) && defined(HAVE_MALLOC_VERIFY)
 static int mem_bytes;
 static int orig_mem_bytes;
+# endif /* not defined(HAVE_MALLINFO) && defined(HAVE_MALLOC_VERIFY) */
 #endif /* DEBUG_MEM */
 
 /* forward definitions */
@@ -91,23 +91,21 @@ static void real_plog(int lvl, const char *fmt, va_list vargs)
  */
 struct opt_tab dbg_opt[] =
 {
-  {"all", D_ALL},		/* All */
-  {"amq", D_AMQ},		/* Register for AMQ program */
-  {"daemon", D_DAEMON},		/* Enter daemon mode */
-  {"fork", D_FORK},		/* Fork server (nofork = don't fork) */
+  {"all", D_ALL},		/* All non-disruptive options */
+  {"amq", D_AMQ},		/* Don't register for AMQ program */
+  {"daemon", D_DAEMON},		/* Don't enter daemon mode */
+  {"fork", D_FORK},		/* Don't fork server */
   {"full", D_FULL},		/* Program trace */
 #ifdef HAVE_CLOCK_GETTIME
   {"hrtime", D_HRTIME},		/* Print high resolution time stamps */
 #endif /* HAVE_CLOCK_GETTIME */
   /* info service specific debugging (hesiod, nis, etc) */
   {"info", D_INFO},
-# ifdef DEBUG_MEM
   {"mem", D_MEM},		/* Trace memory allocations */
-# endif /* DEBUG_MEM */
   {"mtab", D_MTAB},		/* Use local mtab file */
-  {"readdir", D_READDIR},	/* check on browsable_dirs progress */
+  {"readdir", D_READDIR},	/* Check on browsable_dirs progress */
   {"str", D_STR},		/* Debug string munging */
-  {"test", D_TEST},		/* Full debug - but no daemon */
+  {"test", D_TEST},		/* Full debug - no daemon, no amq, local mtab */
   {"trace", D_TRACE},		/* Protocol trace */
   {"xdrtrace", D_XDRTRACE},	/* Trace xdr routines */
   {0, 0}
@@ -152,8 +150,7 @@ am_get_progname(void)
 void
 am_set_hostname(char *hn)
 {
-  strncpy(am_hostname, hn, MAXHOSTNAMELEN);
-  am_hostname[MAXHOSTNAMELEN] = '\0';
+  xstrlcpy(am_hostname, hn, MAXHOSTNAMELEN);
 }
 
 
@@ -172,6 +169,13 @@ am_set_mypid(void)
 }
 
 
+long
+get_server_pid()
+{
+  return (long) (foreground ? am_mypid : getppid());
+}
+
+
 voidp
 xmalloc(int len)
 {
@@ -187,10 +191,8 @@ xmalloc(int len)
   do {
     p = (voidp) malloc((unsigned) len);
     if (p) {
-#if defined(DEBUG) && defined(DEBUG_MEM)
-      amuDebug(D_MEM)
-	plog(XLOG_DEBUG, "Allocated size %d; block %#x", len, p);
-#endif /* defined(DEBUG) && defined(DEBUG_MEM) */
+      if (amuDebug(D_MEM))
+	plog(XLOG_DEBUG, "Allocated size %d; block %p", len, p);
       return p;
     }
     if (retries > 0) {
@@ -223,9 +225,8 @@ xzalloc(int len)
 voidp
 xrealloc(voidp ptr, int len)
 {
-#if defined(DEBUG) && defined(DEBUG_MEM)
-  amuDebug(D_MEM) plog(XLOG_DEBUG, "Reallocated size %d; block %#x", len, ptr);
-#endif /* defined(DEBUG) && defined(DEBUG_MEM) */
+  if (amuDebug(D_MEM))
+    plog(XLOG_DEBUG, "Reallocated size %d; block %p", len, ptr);
 
   if (len == 0)
     len = 1;
@@ -244,20 +245,19 @@ xrealloc(voidp ptr, int len)
 }
 
 
-#if defined(DEBUG) && defined(DEBUG_MEM)
+#ifdef DEBUG_MEM
 void
 dxfree(char *file, int line, voidp ptr)
 {
-  amuDebug(D_MEM)
-    plog(XLOG_DEBUG, "Free in %s:%d: block %#x", file, line, ptr);
+  if (amuDebug(D_MEM))
+    plog(XLOG_DEBUG, "Free in %s:%d: block %p", file, line, ptr);
   /* this is the only place that must NOT use XFREE()!!! */
   free(ptr);
   ptr = NULL;			/* paranoid */
 }
-#endif /* defined(DEBUG) && defined(DEBUG_MEM) */
 
 
-#ifdef DEBUG_MEM
+# if defined(HAVE_MALLINFO) && defined(HAVE_MALLOC_VERIFY)
 static void
 checkup_mem(void)
 {
@@ -280,6 +280,7 @@ checkup_mem(void)
   }
   malloc_verify();
 }
+# endif /* not defined(HAVE_MALLINFO) && defined(HAVE_MALLOC_VERIFY) */
 #endif /* DEBUG_MEM */
 
 
@@ -289,16 +290,16 @@ checkup_mem(void)
  * 'e' never gets longer than maxlen characters.
  */
 static const char *
-expand_error(const char *f, char *e, int maxlen)
+expand_error(const char *f, char *e, size_t maxlen)
 {
   const char *p;
   char *q;
   int error = errno;
   int len = 0;
 
-  for (p = f, q = e; (*q = *p) && len < maxlen; len++, q++, p++) {
+  for (p = f, q = e; (*q = *p) && (size_t) len < maxlen; len++, q++, p++) {
     if (p[0] == '%' && p[1] == 'm') {
-      strcpy(q, strerror(error));
+      xstrlcpy(q, strerror(error), maxlen);
       len += strlen(q) - 1;
       q += strlen(q) - 1;
       p++;
@@ -318,27 +319,27 @@ show_time_host_and_name(int lvl)
   static time_t last_t = 0;
   static char *last_ctime = 0;
   time_t t;
-#ifdef HAVE_CLOCK_GETTIME
+#if defined(HAVE_CLOCK_GETTIME) && defined(DEBUG)
   struct timespec ts;
-#endif /* HAVE_CLOCK_GETTIME */
-  char nsecs[11] = "";	/* '.' + 9 digits + '\0' */
+#endif /* defined(HAVE_CLOCK_GETTIME) && defined(DEBUG) */
+  char nsecs[11];		/* '.' + 9 digits + '\0' */
   char *sev;
 
-#ifdef HAVE_CLOCK_GETTIME
+  nsecs[0] = '\0';
+
+#if defined(HAVE_CLOCK_GETTIME) && defined(DEBUG)
   /*
    * Some systems (AIX 4.3) seem to implement clock_gettime() as stub
    * returning ENOSYS.
    */
   if (clock_gettime(CLOCK_REALTIME, &ts) == 0) {
     t = ts.tv_sec;
-#ifdef DEBUG
-    amuDebug(D_HRTIME)
-      sprintf(nsecs, ".%09ld", ts.tv_nsec);
-#endif /* DEBUG */
+    if (amuDebug(D_HRTIME))
+      xsnprintf(nsecs, sizeof(nsecs), ".%09ld", ts.tv_nsec);
   }
   else
-#endif /* HAVE_CLOCK_GETTIME */
-    t = clocktime();
+#endif /* defined(HAVE_CLOCK_GETTIME) && defined(DEBUG) */
+    t = clocktime(NULL);
 
   if (t != last_t) {
     last_ctime = ctime(&t);
@@ -435,29 +436,20 @@ real_plog(int lvl, const char *fmt, va_list vargs)
     return;
 
 #ifdef DEBUG_MEM
+# if defined(HAVE_MALLINFO) && defined(HAVE_MALLOC_VERIFY)
   checkup_mem();
+# endif /* not defined(HAVE_MALLINFO) && defined(HAVE_MALLOC_VERIFY) */
 #endif /* DEBUG_MEM */
 
-#ifdef HAVE_VSNPRINTF
   /*
-   * XXX: ptr is 1024 bytes long, but we may write to ptr[strlen(ptr) + 2]
-   * (to add an '\n', see code below) so we have to limit the string copy
-   * to 1023 (including the '\0').
+   * Note: xvsnprintf() may call plog() if a truncation happened, but the
+   * latter has some code to break out of an infinite loop.  See comment in
+   * xsnprintf() below.
    */
-  vsnprintf(ptr, 1023, expand_error(fmt, efmt, 1024), vargs);
-  msg[1022] = '\0';		/* null terminate, to be sure */
-#else /* not HAVE_VSNPRINTF */
-  /*
-   * XXX: ptr is 1024 bytes long.  It is possible to write into it
-   * more than 1024 bytes, if efmt is already large, and vargs expand
-   * as well.  This is not as safe as using vsnprintf().
-   */
-  vsprintf(ptr, expand_error(fmt, efmt, 1023), vargs);
-  msg[1023] = '\0';		/* null terminate, to be sure */
-#endif /* not HAVE_VSNPRINTF */
+  xvsnprintf(ptr, 1023, expand_error(fmt, efmt, 1024), vargs);
 
   ptr += strlen(ptr);
-  if (ptr[-1] == '\n')
+  if (*(ptr-1) == '\n')
     *--ptr = '\0';
 
 #ifdef HAVE_SYSLOG
@@ -505,7 +497,8 @@ real_plog(int lvl, const char *fmt, va_list vargs)
   switch (last_count) {
   case 0:			/* never printed at all */
     last_count = 1;
-    strncpy(last_msg, msg, 1024);
+    if (strlcpy(last_msg, msg, 1024) >= 1024) /* don't use xstrlcpy here (recursive!) */
+      fprintf(stderr, "real_plog: string \"%s\" truncated to \"%s\"\n", last_msg, msg);
     last_lvl = lvl;
     show_time_host_and_name(lvl); /* mimic syslog header */
     fwrite(msg, ptr - msg, 1, logfp);
@@ -517,7 +510,8 @@ real_plog(int lvl, const char *fmt, va_list vargs)
       last_count++;
     } else {			/* last msg printed once, new one differs */
       /* last_count remains at 1 */
-      strncpy(last_msg, msg, 1024);
+      if (strlcpy(last_msg, msg, 1024) >= 1024) /* don't use xstrlcpy here (recursive!) */
+	fprintf(stderr, "real_plog: string \"%s\" truncated to \"%s\"\n", last_msg, msg);
       last_lvl = lvl;
       show_time_host_and_name(lvl); /* mimic syslog header */
       fwrite(msg, ptr - msg, 1, logfp);
@@ -531,7 +525,8 @@ real_plog(int lvl, const char *fmt, va_list vargs)
      * cycles like crazy.
      */
     show_time_host_and_name(last_lvl);
-    sprintf(last_msg, "last message repeated %d times\n", last_count);
+    xsnprintf(last_msg, sizeof(last_msg),
+	      "last message repeated %d times\n", last_count);
     fwrite(last_msg, strlen(last_msg), 1, logfp);
     fflush(logfp);
     last_count = 0;		/* start from scratch */
@@ -542,9 +537,11 @@ real_plog(int lvl, const char *fmt, va_list vargs)
       last_count++;
     } else {		/* last msg repeated+skipped, new one differs */
       show_time_host_and_name(last_lvl);
-      sprintf(last_msg, "last message repeated %d times\n", last_count);
+      xsnprintf(last_msg, sizeof(last_msg),
+		"last message repeated %d times\n", last_count);
       fwrite(last_msg, strlen(last_msg), 1, logfp);
-      strncpy(last_msg, msg, 1024);
+      if (strlcpy(last_msg, msg, 1024) >= 1024) /* don't use xstrlcpy here (recursive!) */
+	fprintf(stderr, "real_plog: string \"%s\" truncated to \"%s\"\n", last_msg, msg);
       last_count = 1;
       last_lvl = lvl;
       show_time_host_and_name(lvl); /* mimic syslog header */
@@ -667,6 +664,7 @@ switch_option(char *opt)
   return rc;
 }
 
+
 #ifdef LOG_DAEMON
 /*
  * get syslog facility to use.
@@ -771,7 +769,7 @@ get_syslog_facility(const char *logfile)
  * Change current logfile
  */
 int
-switch_to_logfile(char *logfile, int old_umask)
+switch_to_logfile(char *logfile, int old_umask, int truncate_log)
 {
   FILE *new_logfp = stderr;
 
@@ -789,9 +787,6 @@ switch_to_logfile(char *logfile, int old_umask)
       new_logfp = stderr;
       openlog(am_get_progname(),
 	      LOG_PID
-# ifdef LOG_CONS
-	      | LOG_CONS
-# endif /* LOG_CONS */
 # ifdef LOG_NOWAIT
 	      | LOG_NOWAIT
 # endif /* LOG_NOWAIT */
@@ -803,8 +798,10 @@ switch_to_logfile(char *logfile, int old_umask)
       plog(XLOG_WARNING, "syslog option not supported, logging unchanged");
 #endif /* not HAVE_SYSLOG */
 
-    } else {
+    } else {			/* regular log file */
       (void) umask(old_umask);
+      if (truncate_log)
+	truncate(logfile, 0);
       new_logfp = fopen(logfile, "a");
       umask(0);
     }
@@ -837,11 +834,14 @@ switch_to_logfile(char *logfile, int old_umask)
 void
 unregister_amq(void)
 {
-#ifdef DEBUG
-  amuDebug(D_AMQ)
-#endif /* DEBUG */
+  if (!amuDebug(D_AMQ)) {
     /* find which instance of amd to unregister */
-    pmap_unset(get_amd_program_number(), AMQ_VERSION);
+    u_long amd_prognum = get_amd_program_number();
+
+    if (pmap_unset(amd_prognum, AMQ_VERSION) != 1)
+      dlog("failed to de-register Amd program %lu, version %lu",
+	   amd_prognum, AMQ_VERSION);
+  }
 }
 
 
@@ -855,14 +855,21 @@ going_down(int rc)
       unregister_amq();
     }
   }
+
+#ifdef MOUNT_TABLE_ON_FILE
+  /*
+   * Call unlock_mntlist to free any important resources such as an on-disk
+   * lock file (/etc/mtab~).
+   */
+  unlock_mntlist();
+#endif /* MOUNT_TABLE_ON_FILE */
+
   if (foreground) {
     plog(XLOG_INFO, "Finishing with status %d", rc);
   } else {
-#ifdef DEBUG
     dlog("background process exiting with status %d", rc);
-#endif /* DEBUG */
   }
-
+  /* bye bye... */
   exit(rc);
 }
 
@@ -896,10 +903,7 @@ set_amd_program_number(int program)
 void
 amu_release_controlling_tty(void)
 {
-#ifdef TIOCNOTTY
   int fd;
-#endif /* TIOCNOTTY */
-  int tempfd;
 
   /*
    * In daemon mode, leaving open file descriptors to terminals or pipes
@@ -917,11 +921,15 @@ amu_release_controlling_tty(void)
    *
    * XXX We should also probably set the SIGPIPE handler to SIG_IGN.
    */
-  tempfd = open("/dev/null", O_RDWR);
-  fflush(stdin);  close(0); dup2(tempfd, 0);
-  fflush(stdout); close(1); dup2(tempfd, 1);
-  fflush(stderr); close(2); dup2(tempfd, 2);
-  close(tempfd);
+  fd = open("/dev/null", O_RDWR);
+  if (fd < 0) {
+    plog(XLOG_WARNING, "Could not open /dev/null for rw: %m");
+  } else {
+    fflush(stdin);  close(0); dup2(fd, 0);
+    fflush(stdout); close(1); dup2(fd, 1);
+    fflush(stderr); close(2); dup2(fd, 2);
+    close(fd);
+  }
 
 #ifdef HAVE_SETSID
   /* XXX: one day maybe use vhangup(2) */
@@ -950,4 +958,134 @@ amu_release_controlling_tty(void)
 #endif /* not TIOCNOTTY */
 
   plog(XLOG_ERROR, "unable to release controlling tty");
+}
+
+
+/* setup a single signal handler */
+void
+setup_sighandler(int signum, void (*handler)(int))
+{
+#ifdef HAVE_SIGACTION
+  struct sigaction sa;
+  memset(&sa, 0, sizeof(sa));
+  sa.sa_flags = 0;		/* unnecessary */
+  sa.sa_handler = handler;
+  sigemptyset(&(sa.sa_mask));	/* probably unnecessary too */
+  sigaddset(&(sa.sa_mask), signum);
+  sigaction(signum, &sa, NULL);
+#else /* not HAVE_SIGACTION */
+  (void) signal(signum, handler);
+#endif /* not HAVE_SIGACTION */
+}
+
+
+/*
+ * Return current time in seconds.  If passed a non-null argyument, then
+ * fill it in with the current time in seconds and microseconds (useful
+ * for mtime updates).
+ */
+time_t
+clocktime(nfstime *nt)
+{
+  static struct timeval now;	/* keep last time, as default */
+
+  if (gettimeofday(&now, NULL) < 0) {
+    plog(XLOG_ERROR, "clocktime: gettimeofday: %m");
+    /* hack: force time to have incremented by at least 1 second */
+    now.tv_sec++;
+  }
+  /* copy seconds and microseconds. may demote a long to an int */
+  if (nt) {
+    nt->nt_seconds = (u_int) now.tv_sec;
+    nt->nt_useconds = (u_int) now.tv_usec;
+  }
+  return (time_t) now.tv_sec;
+}
+
+
+/*
+ * Make all the directories in the path.
+ */
+int
+mkdirs(char *path, int mode)
+{
+  /*
+   * take a copy in case path is in readonly store
+   */
+  char *p2 = strdup(path);
+  char *sp = p2;
+  struct stat stb;
+  int error_so_far = 0;
+
+  /*
+   * Skip through the string make the directories.
+   * Mostly ignore errors - the result is tested at the end.
+   *
+   * This assumes we are root so that we can do mkdir in a
+   * mode 555 directory...
+   */
+  while ((sp = strchr(sp + 1, '/'))) {
+    *sp = '\0';
+    if (mkdir(p2, mode) < 0) {
+      error_so_far = errno;
+    } else {
+      dlog("mkdir(%s)", p2);
+    }
+    *sp = '/';
+  }
+
+  if (mkdir(p2, mode) < 0) {
+    error_so_far = errno;
+  } else {
+    dlog("mkdir(%s)", p2);
+  }
+
+  XFREE(p2);
+
+  return stat(path, &stb) == 0 &&
+    (stb.st_mode & S_IFMT) == S_IFDIR ? 0 : error_so_far;
+}
+
+
+/*
+ * Remove as many directories in the path as possible.
+ * Give up if the directory doesn't appear to have
+ * been created by Amd (not mode dr-x) or an rmdir
+ * fails for any reason.
+ */
+void
+rmdirs(char *dir)
+{
+  char *xdp = strdup(dir);
+  char *dp;
+
+  do {
+    struct stat stb;
+    /*
+     * Try to find out whether this was
+     * created by amd.  Do this by checking
+     * for owner write permission.
+     */
+    if (stat(xdp, &stb) == 0 && (stb.st_mode & 0200) == 0) {
+      if (rmdir(xdp) < 0) {
+	if (errno != ENOTEMPTY &&
+	    errno != EBUSY &&
+	    errno != EEXIST &&
+	    errno != EROFS &&
+	    errno != EINVAL)
+	  plog(XLOG_ERROR, "rmdir(%s): %m", xdp);
+	break;
+      } else {
+	dlog("rmdir(%s)", xdp);
+      }
+    } else {
+      break;
+    }
+
+    dp = strrchr(xdp, '/');
+    if (dp)
+      *dp = '\0';
+  } while (dp && dp > xdp);
+
+  XFREE(xdp);
 }

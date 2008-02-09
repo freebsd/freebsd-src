@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2004 Erez Zadok
+ * Copyright (c) 1997-2006 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -36,9 +36,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      %W% (Berkeley) %G%
  *
- * $Id: am_ops.c,v 1.6.2.7 2004/01/06 03:15:16 ezk Exp $
+ * File: am-utils/amd/am_ops.c
  *
  */
 
@@ -87,9 +86,6 @@ static am_ops *vops[] =
 #ifdef HAVE_AMU_FS_UNION
   &amfs_union_ops,		/* union F/S */
 #endif /* HAVE_AMU_FS_UNION */
-#ifdef HAVE_AMU_FS_INHERIT
-  &amfs_inherit_ops,		/* inheritance F/S */
-#endif /* HAVE_AMU_FS_INHERIT */
 
   /*
    * A few more native filesystems.
@@ -126,7 +122,7 @@ static am_ops *vops[] =
 #endif /* HAVE_FS_UMAPFS */
 
   /*
-   * These 5 should be last, in the order:
+   * These 4 should be last, in the order:
    *	(1) amfs_auto
    *	(2) amfs_direct
    *	(3) amfs_toplvl
@@ -149,107 +145,111 @@ static am_ops *vops[] =
 
 
 void
-ops_showamfstypes(char *buf)
+ops_showamfstypes(char *buf, size_t l)
 {
   struct am_ops **ap;
-  int l = 0;
+  int linesize = 0;
 
   buf[0] = '\0';
   for (ap = vops; *ap; ap++) {
-    strcat(buf, (*ap)->fs_type);
+    xstrlcat(buf, (*ap)->fs_type, l);
     if (ap[1])
-      strcat(buf, ", ");
-    l += strlen((*ap)->fs_type) + 2;
-    if (l > 62) {
-      l = 0;
-      strcat(buf, "\n      ");
+      xstrlcat(buf, ", ", l);
+    linesize += strlen((*ap)->fs_type) + 2;
+    if (linesize > 62) {
+      linesize = 0;
+      xstrlcat(buf, "\n      ", l);
     }
   }
 }
 
 
 static void
-ops_show1(char *buf, int *lp, const char *name)
+ops_show1(char *buf, size_t l, int *linesizep, const char *name)
 {
-  strcat(buf, name);
-  strcat(buf, ", ");
-  *lp += strlen(name) + 2;
-  if (*lp > 60) {
-    strcat(buf, "\t\n");
-    *lp = 0;
+  xstrlcat(buf, name, l);
+  xstrlcat(buf, ", ", l);
+  *linesizep += strlen(name) + 2;
+  if (*linesizep > 60) {
+    xstrlcat(buf, "\t\n", l);
+    *linesizep = 0;
   }
 }
 
 
 void
-ops_showfstypes(char *buf)
+ops_showfstypes(char *buf, size_t l)
 {
-  int l = 0;
+  int linesize = 0;
 
   buf[0] = '\0';
 
+#ifdef MNTTAB_TYPE_AUTOFS
+  ops_show1(buf, l, &linesize, MNTTAB_TYPE_AUTOFS);
+#endif /* MNTTAB_TYPE_AUTOFS */
+
 #ifdef MNTTAB_TYPE_CACHEFS
-  ops_show1(buf, &l, MNTTAB_TYPE_CACHEFS);
+  ops_show1(buf, l, &linesize, MNTTAB_TYPE_CACHEFS);
 #endif /* MNTTAB_TYPE_CACHEFS */
 
 #ifdef MNTTAB_TYPE_CDFS
-  ops_show1(buf, &l, MNTTAB_TYPE_CDFS);
+  ops_show1(buf, l, &linesize, MNTTAB_TYPE_CDFS);
 #endif /* MNTTAB_TYPE_CDFS */
 
 #ifdef MNTTAB_TYPE_CFS
-  ops_show1(buf, &l, MNTTAB_TYPE_CFS);
+  ops_show1(buf, l, &linesize, MNTTAB_TYPE_CFS);
 #endif /* MNTTAB_TYPE_CFS */
 
 #ifdef MNTTAB_TYPE_LOFS
-  ops_show1(buf, &l, MNTTAB_TYPE_LOFS);
+  ops_show1(buf, l, &linesize, MNTTAB_TYPE_LOFS);
 #endif /* MNTTAB_TYPE_LOFS */
 
 #ifdef MNTTAB_TYPE_EFS
-  ops_show1(buf, &l, MNTTAB_TYPE_EFS);
+  ops_show1(buf, l, &linesize, MNTTAB_TYPE_EFS);
 #endif /* MNTTAB_TYPE_EFS */
 
 #ifdef MNTTAB_TYPE_MFS
-  ops_show1(buf, &l, MNTTAB_TYPE_MFS);
+  ops_show1(buf, l, &linesize, MNTTAB_TYPE_MFS);
 #endif /* MNTTAB_TYPE_MFS */
 
 #ifdef MNTTAB_TYPE_NFS
-  ops_show1(buf, &l, MNTTAB_TYPE_NFS);
+  ops_show1(buf, l, &linesize, MNTTAB_TYPE_NFS);
 #endif /* MNTTAB_TYPE_NFS */
 
 #ifdef MNTTAB_TYPE_NFS3
-  ops_show1(buf, &l, "nfs3");	/* always hard-code as nfs3 */
+  ops_show1(buf, l, &linesize, "nfs3"); /* always hard-code as nfs3 */
 #endif /* MNTTAB_TYPE_NFS3 */
 
 #ifdef MNTTAB_TYPE_NULLFS
-  ops_show1(buf, &l, MNTTAB_TYPE_NULLFS);
+  ops_show1(buf, l, &linesize, MNTTAB_TYPE_NULLFS);
 #endif /* MNTTAB_TYPE_NULLFS */
 
 #ifdef MNTTAB_TYPE_PCFS
-  ops_show1(buf, &l, MNTTAB_TYPE_PCFS);
+  ops_show1(buf, l, &linesize, MNTTAB_TYPE_PCFS);
 #endif /* MNTTAB_TYPE_PCFS */
 
 #ifdef MNTTAB_TYPE_TFS
-  ops_show1(buf, &l, MNTTAB_TYPE_TFS);
+  ops_show1(buf, l, &linesize, MNTTAB_TYPE_TFS);
 #endif /* MNTTAB_TYPE_TFS */
 
 #ifdef MNTTAB_TYPE_TMPFS
-  ops_show1(buf, &l, MNTTAB_TYPE_TMPFS);
+  ops_show1(buf, l, &linesize, MNTTAB_TYPE_TMPFS);
 #endif /* MNTTAB_TYPE_TMPFS */
 
 #ifdef MNTTAB_TYPE_UFS
-  ops_show1(buf, &l, MNTTAB_TYPE_UFS);
+  ops_show1(buf, l, &linesize, MNTTAB_TYPE_UFS);
 #endif /* MNTTAB_TYPE_UFS */
 
 #ifdef MNTTAB_TYPE_UMAPFS
-  ops_show1(buf, &l, MNTTAB_TYPE_UMAPFS);
+  ops_show1(buf, l, &linesize, MNTTAB_TYPE_UMAPFS);
 #endif /* MNTTAB_TYPE_UMAPFS */
 
 #ifdef MNTTAB_TYPE_UNIONFS
-  ops_show1(buf, &l, MNTTAB_TYPE_UNIONFS);
+  ops_show1(buf, l, &linesize, MNTTAB_TYPE_UNIONFS);
 #endif /* MNTTAB_TYPE_UNIONFS */
 
 #ifdef MNTTAB_TYPE_XFS
-  ops_show1(buf, &l, MNTTAB_TYPE_XFS);
+  ops_show1(buf, l, &linesize, MNTTAB_TYPE_XFS);
 #endif /* MNTTAB_TYPE_XFS */
 
   /* terminate with a period, newline, and NULL */
@@ -257,7 +257,7 @@ ops_showfstypes(char *buf)
     buf[strlen(buf) - 4] = '\0';
   else
     buf[strlen(buf) - 2] = '\0';
-  strcat(buf, ".\n");
+  xstrlcat(buf, ".\n", l);
 }
 
 
@@ -289,11 +289,11 @@ reverse_option(const char *opt)
 
   /* check if string starts with 'no' and chop it */
   if (NSTREQ(opt, "no", 2)) {
-    strcpy(buf, &opt[2]);
+    xstrlcpy(buf, &opt[2], sizeof(buf));
   } else {
     /* finally return a string prepended with 'no' */
-    strcpy(buf, "no");
-    strcat(buf, opt);
+    xstrlcpy(buf, "no", sizeof(buf));
+    xstrlcat(buf, opt, sizeof(buf));
   }
   return buf;
 }
@@ -315,7 +315,7 @@ merge_opts(const char *opts1, const char *opts2)
   char *eq;			/* pointer to whatever follows '=' within temp */
   char oneopt[80];		/* one option w/o value if any */
   char *revoneopt;		/* reverse of oneopt */
-  int len = strlen(opts1) + strlen(opts2) + 2; /* space for "," and NULL */
+  size_t len = strlen(opts1) + strlen(opts2) + 2; /* space for "," and NULL */
   char *s1 = strdup(opts1);	/* copy of opts1 to munge */
 
   /* initialization */
@@ -327,31 +327,30 @@ merge_opts(const char *opts1, const char *opts2)
        tmpstr;
        tmpstr = strtok(NULL, ",")) {
     /* copy option to temp buffer */
-    strncpy(oneopt, tmpstr, 80);
-    oneopt[79] = '\0';
+    xstrlcpy(oneopt, tmpstr, 80);
     /* if option has a value such as rsize=1024, chop the value part */
     if ((eq = haseq(oneopt)))
       *eq = '\0';
     /* find reverse option of oneopt */
     revoneopt = reverse_option(oneopt);
     /* if option orits reverse exist in opts2, ignore it */
-    if (hasmntopt(&mnt2, oneopt) || hasmntopt(&mnt2, revoneopt))
+    if (amu_hasmntopt(&mnt2, oneopt) || amu_hasmntopt(&mnt2, revoneopt))
       continue;
     /* add option to returned string */
-    if (newstr && newstr[0]) {
-      strcat(newstr, ",");
-      strcat(newstr, tmpstr);
+    if (newstr[0]) {
+      xstrlcat(newstr, ",", len);
+      xstrlcat(newstr, tmpstr, len);
     } else {
-      strcpy(newstr, tmpstr);
+      xstrlcpy(newstr, tmpstr, len);
     }
   }
 
   /* finally, append opts2 itself */
-  if (newstr && newstr[0]) {
-    strcat(newstr, ",");
-    strcat(newstr, opts2);
+  if (newstr[0]) {
+    xstrlcat(newstr, ",", len);
+    xstrlcat(newstr, opts2, len);
   } else {
-    strcpy(newstr, opts2);
+    xstrlcpy(newstr, opts2, len);
   }
 
   XFREE(s1);
@@ -360,10 +359,22 @@ merge_opts(const char *opts1, const char *opts2)
 
 
 am_ops *
-ops_match(am_opts *fo, char *key, char *g_key, char *path, char *keym, char *map)
+ops_search(char *type)
 {
   am_ops **vp;
   am_ops *rop = 0;
+  for (vp = vops; (rop = *vp); vp++)
+    if (STREQ(rop->fs_type, type))
+      break;
+  return rop;
+}
+
+
+am_ops *
+ops_match(am_opts *fo, char *key, char *g_key, char *path, char *keym, char *map)
+{
+  am_ops *rop = 0;
+  char *link_dir;
 
   /*
    * First crack the global opts and the local opts
@@ -377,9 +388,7 @@ ops_match(am_opts *fo, char *key, char *g_key, char *path, char *keym, char *map
     /*
      * Next find the correct filesystem type
      */
-    for (vp = vops; (rop = *vp); vp++)
-      if (STREQ(rop->fs_type, fo->opt_type))
-	break;
+    rop = ops_search(fo->opt_type);
     if (!rop) {
       plog(XLOG_USER, "fs type \"%s\" not recognized", fo->opt_type);
       rop = &amfs_error_ops;
@@ -434,17 +443,33 @@ ops_match(am_opts *fo, char *key, char *g_key, char *path, char *keym, char *map
   }
 
   /*
+   * Initialize opt_mount_type to "nfs", if it's not initialized already
+   */
+  if (!fo->opt_mount_type)
+    fo->opt_mount_type = "nfs";
+
+  /* Normalize the sublink and make it absolute */
+  link_dir = fo->opt_sublink;
+  if (link_dir && link_dir[0] && link_dir[0] != '/') {
+    link_dir = str3cat((char *) 0, fo->opt_fs, "/", link_dir);
+    normalize_slash(link_dir);
+    XFREE(fo->opt_sublink);
+    fo->opt_sublink = link_dir;
+  }
+
+  /*
    * Check the filesystem is happy
    */
   if (fo->fs_mtab)
     XFREE(fo->fs_mtab);
 
-  if ((fo->fs_mtab = (*rop->fs_match) (fo)))
+  fo->fs_mtab = rop->fs_match(fo);
+  if (fo->fs_mtab)
     return rop;
 
   /*
    * Return error file system
    */
-  fo->fs_mtab = (*amfs_error_ops.fs_match) (fo);
+  fo->fs_mtab = amfs_error_ops.fs_match(fo);
   return &amfs_error_ops;
 }
