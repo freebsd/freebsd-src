@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/conf.h>
 #include <sys/ioccom.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
@@ -87,8 +88,6 @@ int coda_pcatch = PCATCH;
 
 #define ENTRY if(coda_psdev_print_entry) myprintf(("Entered %s\n",__func__))
 
-void vcodaattach(int n);
-
 struct vmsg {
     struct queue vm_chain;
     caddr_t	 vm_data;
@@ -102,17 +101,10 @@ struct vmsg {
 
 #define	VM_READ	    1
 #define	VM_WRITE    2
-#define	VM_INTR	    4
-
-/* vcodaattach: do nothing */
-void
-vcodaattach(n)
-    int n;
-{
-}
+#define	VM_INTR	    4		/* Unused. */
 
 int 
-vc_nb_open(dev, flag, mode, td)    
+vc_open(dev, flag, mode, td)    
     struct cdev *dev;      
     int          flag;     
     int          mode;     
@@ -145,7 +137,7 @@ vc_nb_open(dev, flag, mode, td)
 }
 
 int 
-vc_nb_close (dev, flag, mode, td)    
+vc_close (dev, flag, mode, td)    
     struct cdev *dev;      
     int          flag;     
     int          mode;     
@@ -226,7 +218,7 @@ vc_nb_close (dev, flag, mode, td)
 }
 
 int 
-vc_nb_read(dev, uiop, flag)   
+vc_read(dev, uiop, flag)   
     struct cdev *dev;  
     struct uio  *uiop; 
     int          flag;
@@ -254,7 +246,7 @@ vc_nb_read(dev, uiop, flag)
 
 #ifdef OLD_DIAGNOSTIC    
     if (vmp->vm_chain.forw == 0 || vmp->vm_chain.back == 0)
-	panic("vc_nb_read: bad chain");
+	panic("vc_read: bad chain");
 #endif
 
     REMQUE(vmp->vm_chain);
@@ -277,7 +269,7 @@ vc_nb_read(dev, uiop, flag)
 }
 
 int
-vc_nb_write(dev, uiop, flag)   
+vc_write(dev, uiop, flag)   
     struct cdev *dev;  
     struct uio  *uiop; 
     int          flag;
@@ -394,7 +386,7 @@ vc_nb_write(dev, uiop, flag)
 }
 
 int
-vc_nb_ioctl(dev, cmd, addr, flag, td) 
+vc_ioctl(dev, cmd, addr, flag, td) 
     struct cdev *dev;       
     u_long        cmd;       
     caddr_t       addr;      
@@ -448,7 +440,7 @@ vc_nb_ioctl(dev, cmd, addr, flag, td)
 }
 
 int
-vc_nb_poll(dev, events, td)         
+vc_poll(dev, events, td)         
     struct cdev *dev;    
     int           events;   
     struct thread *td;

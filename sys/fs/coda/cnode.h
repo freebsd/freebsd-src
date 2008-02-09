@@ -101,7 +101,7 @@ struct cnode {
     struct vattr	 c_vattr; 	/* attributes */
     char		*c_symlink;	/* pointer to symbolic link */
     u_short		 c_symlen;	/* length of symbolic link */
-    struct cnode	*c_next;	/* links if on NetBSD machine */
+    struct cnode	*c_next;	/* links if on FreeBSD machine */
 };
 #define	VTOC(vp)	((struct cnode *)(vp)->v_data)
 #define	CTOV(cp)	((struct vnode *)((cp)->c_vnode))
@@ -195,4 +195,3 @@ int coda_vnodeopstats_init(void);
 #define CODA_RDWR ((u_long) 31)
 
 #endif	/* _CNODE_H_ */
-
