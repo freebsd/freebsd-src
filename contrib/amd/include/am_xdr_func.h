@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2004 Erez Zadok
+ * Copyright (c) 1997-2006 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -36,11 +36,146 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      %W% (Berkeley) %G%
  *
- * $Id: am_xdr_func.h,v 1.3.2.6 2004/01/06 03:15:24 ezk Exp $
+ * File: am-utils/include/am_xdr_func.h
  *
  */
+
+#ifdef HAVE_FS_NFS3
+
+#define AM_FHSIZE3 64		/* size in bytes of a file handle (v3) */
+#define	AM_MOUNTVERS3 ((unsigned long)(3))
+
+/* NFSv3 handle */
+struct am_nfs_fh3 {
+  u_int am_fh3_length;
+  char am_fh3_data[AM_FHSIZE3];
+};
+typedef struct am_nfs_fh3 am_nfs_fh3;
+
+#define AM_NFSPROC3_LOOKUP ((u_long) 3)
+enum am_nfsstat3 {
+	AM_NFS3_OK = 0,
+	AM_NFS3ERR_PERM = 1,
+	AM_NFS3ERR_NOENT = 2,
+	AM_NFS3ERR_IO = 5,
+	AM_NFS3ERR_NXIO = 6,
+	AM_NFS3ERR_ACCES = 13,
+	AM_NFS3ERR_EXIST = 17,
+	AM_NFS3ERR_XDEV = 18,
+	AM_NFS3ERR_NODEV = 19,
+	AM_NFS3ERR_NOTDIR = 20,
+	AM_NFS3ERR_ISDIR = 21,
+	AM_NFS3ERR_INVAL = 22,
+	AM_NFS3ERR_FBIG = 27,
+	AM_NFS3ERR_NOSPC = 28,
+	AM_NFS3ERR_ROFS = 30,
+	AM_NFS3ERR_MLINK = 31,
+	AM_NFS3ERR_NAMETOOLONG = 63,
+	AM_NFS3ERR_NOTEMPTY = 66,
+	AM_NFS3ERR_DQUOT = 69,
+	AM_NFS3ERR_STALE = 70,
+	AM_NFS3ERR_REMOTE = 71,
+	AM_NFS3ERR_BADHANDLE = 10001,
+	AM_NFS3ERR_NOT_SYNC = 10002,
+	AM_NFS3ERR_BAD_COOKIE = 10003,
+	AM_NFS3ERR_NOTSUPP = 10004,
+	AM_NFS3ERR_TOOSMALL = 10005,
+	AM_NFS3ERR_SERVERFAULT = 10006,
+	AM_NFS3ERR_BADTYPE = 10007,
+	AM_NFS3ERR_JUKEBOX = 10008
+};
+typedef enum am_nfsstat3 am_nfsstat3;
+
+typedef struct {
+  u_int fhandle3_len;
+  char *fhandle3_val;
+} am_fhandle3;
+
+enum am_mountstat3 {
+       AM_MNT3_OK = 0,
+       AM_MNT3ERR_PERM = 1,
+       AM_MNT3ERR_NOENT = 2,
+       AM_MNT3ERR_IO = 5,
+       AM_MNT3ERR_ACCES = 13,
+       AM_MNT3ERR_NOTDIR = 20,
+       AM_MNT3ERR_INVAL = 22,
+       AM_MNT3ERR_NAMETOOLONG = 63,
+       AM_MNT3ERR_NOTSUPP = 10004,
+       AM_MNT3ERR_SERVERFAULT = 10006
+};
+typedef enum am_mountstat3 am_mountstat3;
+
+struct am_mountres3_ok {
+       am_fhandle3 fhandle;
+       struct {
+               u_int auth_flavors_len;
+               int *auth_flavors_val;
+       } auth_flavors;
+};
+typedef struct am_mountres3_ok am_mountres3_ok;
+
+struct am_mountres3 {
+       am_mountstat3 fhs_status;
+       union {
+               am_mountres3_ok mountinfo;
+       } mountres3_u;
+};
+typedef struct am_mountres3 am_mountres3;
+
+typedef char *am_filename3;
+
+struct am_diropargs3 {
+	am_nfs_fh3 dir;
+	am_filename3 name;
+};
+typedef struct am_diropargs3 am_diropargs3;
+
+struct am_LOOKUP3args {
+	am_diropargs3 what;
+};
+typedef struct am_LOOKUP3args am_LOOKUP3args;
+
+struct am_LOOKUP3resok {
+	am_nfs_fh3 object;
+#if 0
+	post_op_attr obj_attributes;
+	post_op_attr dir_attributes;
+#endif
+};
+typedef struct am_LOOKUP3resok am_LOOKUP3resok;
+
+struct am_LOOKUP3resfail {
+#if 0
+	post_op_attr dir_attributes;
+#else
+	char dummy;		/* cannot have an empty declaration */
+#endif
+};
+typedef struct am_LOOKUP3resfail am_LOOKUP3resfail;
+
+struct am_LOOKUP3res {
+	am_nfsstat3 status;
+	union {
+		am_LOOKUP3resok ok;
+		am_LOOKUP3resfail fail;
+	} res_u;
+};
+typedef struct am_LOOKUP3res am_LOOKUP3res;
+#endif /* HAVE_FS_NFS3 */
+
+/*
+ * Multi-protocol NFS file handle
+ */
+union am_nfs_handle {
+				/* placeholder for V4 file handle */
+#ifdef HAVE_FS_NFS3
+  am_nfs_fh3		v3;	/* NFS version 3 handle */
+#endif /* HAVE_FS_NFS3 */
+  am_nfs_fh		v2;	/* NFS version 2 handle */
+};
+typedef union am_nfs_handle am_nfs_handle_t;
+
 
 /*
  * Definitions of all possible xdr functions that are otherwise
@@ -110,17 +245,6 @@ bool_t xdr_mountbody(XDR *xdrs, mountbody *objp);
 #ifndef HAVE_XDR_MOUNTLIST
 bool_t xdr_mountlist(XDR *xdrs, mountlist *objp);
 #endif /* not HAVE_XDR_MOUNTLIST */
-
-/*
- * NFS3 XDR FUNCTIONS:
- */
-#if defined(HAVE_FS_NFS3) && !defined(HAVE_XDR_MOUNTRES3)
-bool_t xdr_fhandle3(XDR *xdrs, fhandle3 *objp);
-bool_t xdr_mountstat3(XDR *xdrs, mountstat3 *objp);
-bool_t xdr_mountres3_ok(XDR *xdrs, mountres3_ok *objp);
-bool_t xdr_mountres3(XDR *xdrs, mountres3 *objp);
-#endif /* defined(HAVE_FS_NFS3) && !defined(HAVE_XDR_MOUNTRES3) */
-
 #ifndef HAVE_XDR_NAME
 bool_t xdr_name(XDR *xdrs, name *objp);
 #endif /* not HAVE_XDR_NAME */
@@ -181,5 +305,23 @@ bool_t xdr_symlinkargs(XDR *xdrs, nfssymlinkargs *objp);
 #ifndef HAVE_XDR_WRITEARGS
 bool_t xdr_writeargs(XDR *xdrs, nfswriteargs *objp);
 #endif /* not HAVE_XDR_WRITEARGS */
+
+/*
+ * NFS3 XDR FUNCTIONS:
+ */
+#ifdef HAVE_FS_NFS3
+bool_t xdr_am_fhandle3(XDR *xdrs, am_fhandle3 *objp);
+bool_t xdr_am_mountstat3(XDR *xdrs, am_mountstat3 *objp);
+bool_t xdr_am_mountres3_ok(XDR *xdrs, am_mountres3_ok *objp);
+bool_t xdr_am_mountres3(XDR *xdrs, am_mountres3 *objp);
+bool_t xdr_am_diropargs3(XDR *xdrs, am_diropargs3 *objp);
+bool_t xdr_am_filename3(XDR *xdrs, am_filename3 *objp);
+bool_t xdr_am_LOOKUP3args(XDR *xdrs, am_LOOKUP3args *objp);
+bool_t xdr_am_LOOKUP3res(XDR *xdrs, am_LOOKUP3res *objp);
+bool_t xdr_am_LOOKUP3resfail(XDR *xdrs, am_LOOKUP3resfail *objp);
+bool_t xdr_am_LOOKUP3resok(XDR *xdrs, am_LOOKUP3resok *objp);
+bool_t xdr_am_nfsstat3(XDR *xdrs, am_nfsstat3 *objp);
+bool_t xdr_am_nfs_fh3(XDR *xdrs, am_nfs_fh3 *objp);
+#endif /* HAVE_FS_NFS3 */
 
 #endif /* not _AM_XDR_FUNC_H */

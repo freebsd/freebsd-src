@@ -15,7 +15,7 @@ $SOCK_STREAM = &SOCK_STREAM;
 # system requirements:
 # 	must have 'nslookup' and 'hostname' programs.
 
-# $Header: /home/cvsroot/am-utils/scripts/expn.in,v 1.2.2.2 2002/07/11 14:27:02 ezk Exp $
+# $Header: /home/cvsroot/am-utils/scripts/expn.in,v 1.5 2002/07/11 14:28:20 ezk Exp $
 
 # TODO:
 #	less magic should apply to command-line addresses

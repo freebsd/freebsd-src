@@ -2,7 +2,7 @@
 # control starting, stopping, or restarting hlfsd.
 # usage: ctl-hlfsd [start | stop | restart]
 #
-# Package:	am-utils-6.0
+# Package:	am-utils-6.x
 # Author:	Erez Zadok <ezk@cs.columbia.edu>
 #
 # chkconfig: - 72 28
@@ -51,6 +51,10 @@ fi
 return 1
 }
 
+# before running any real programs, chdir to / to avoid possible hangs on (NFS)
+# mounts.
+cd /
+
 # locate logs directory
 if [ -d /var/log ]; then
 	logdir="/var/log"
@@ -71,8 +75,8 @@ else
 fi
 
 # locate any optional password file
-if [ -f ${prefix}/etc/passwd ]; then
-	PASSWD_FILE="-P ${prefix}/etc/passwd"
+if [ -f @sysconfdir@/passwd ]; then
+	PASSWD_FILE="-P @sysconfdir@/passwd"
 else
 	PASSWD_FILE=""
 fi
@@ -84,8 +88,8 @@ case "$1" in
 	#
 	if [ -x @sbindir@/hlfsd -a -h $maildir ]
 	then
-		echo @sbindir@/hlfsd ${PASSWD_FILE} -a $altmaildir -x all -D fork -l $logdir/hlfsd /mail/home .mailspool
-		@sbindir@/hlfsd ${PASSWD_FILE} -a $altmaildir -x all -D fork -l $logdir/hlfsd /mail/home .mailspool &
+		echo @sbindir@/hlfsd ${PASSWD_FILE} -a $altmaildir -x all -l $logdir/hlfsd /mail/home .mailspool
+		@sbindir@/hlfsd ${PASSWD_FILE} -a $altmaildir -x all -l $logdir/hlfsd /mail/home .mailspool &
 		test -x /var/lock/subsys && touch /var/lock/subsys/hlfsd
 	fi
 	;;

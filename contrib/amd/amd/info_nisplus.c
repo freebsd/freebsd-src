@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2004 Erez Zadok
+ * Copyright (c) 1997-2006 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -36,9 +36,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      %W% (Berkeley) %G%
  *
- * $Id: info_nisplus.c,v 1.3.2.5 2004/01/06 03:15:16 ezk Exp $
+ * File: am-utils/amd/info_nisplus.c
  *
  */
 
@@ -74,9 +73,7 @@ nisplus_callback(const nis_name key, const nis_object *value, voidp opaquedata)
   char *vp = strnsave(ENTRY_VAL(value, 1), ENTRY_LEN(value, 1));
   struct nis_callback_data *data = (struct nis_callback_data *) opaquedata;
 
-#ifdef DEBUG
   dlog("NISplus callback for <%s,%s>", kp, vp);
-#endif /* DEBUG */
 
   (*data->ncd_fn) (data->ncd_m, kp, vp);
 
@@ -95,6 +92,7 @@ nisplus_reload(mnt_map *m, char *map, void (*fn) ())
   nis_result *result;
   char *org;		/* if map does not have ".org_dir" then append it */
   nis_name map_name;
+  size_t l;
 
   org = strstr(map, NISPLUS_ORGDIR);
   if (org == NULL)
@@ -103,21 +101,20 @@ nisplus_reload(mnt_map *m, char *map, void (*fn) ())
     org = "";
 
   /* make some room for the NIS map_name */
-  map_name = xmalloc(strlen(map) + sizeof(NISPLUS_ORGDIR));
+  l = strlen(map) + sizeof(NISPLUS_ORGDIR);
+  map_name = xmalloc(l);
   if (map_name == NULL) {
     plog(XLOG_ERROR, "Unable to create map_name %s: %s",
 	 map, strerror(ENOMEM));
     return ENOMEM;
   }
-  sprintf(map_name, "%s%s", map, org);
+  xsnprintf(map_name, l, "%s%s", map, org);
 
   data.ncd_m = m;
   data.ncd_map = map_name;
   data.ncd_fn = fn;
 
-#ifdef DEBUG
   dlog("NISplus reload for %s", map);
-#endif /* DEBUG */
 
   result = nis_list(map_name,
 		    EXPAND_NAME | FOLLOW_LINKS | FOLLOW_PATH,
@@ -145,10 +142,8 @@ nisplus_search_callback(const nis_name key, const nis_object *value, voidp opaqu
 {
   struct nisplus_search_callback_data *data = (struct nisplus_search_callback_data *) opaquedata;
 
-#ifdef DEBUG
   dlog("NISplus search callback for <%s>", ENTRY_VAL(value, 0));
   dlog("NISplus search callback value <%s>", ENTRY_VAL(value, 1));
-#endif /* DEBUG */
 
   data->value = strnsave(ENTRY_VAL(value, 1), ENTRY_LEN(value, 1));
   return TRUE;
@@ -166,6 +161,7 @@ nisplus_search(mnt_map *m, char *map, char *key, char **val, time_t *tp)
   struct nisplus_search_callback_data data;
   nis_name index;
   char *org;		/* if map does not have ".org_dir" then append it */
+  size_t l;
 
   org = strstr(map, NISPLUS_ORGDIR);
   if (org == NULL)
@@ -174,14 +170,14 @@ nisplus_search(mnt_map *m, char *map, char *key, char **val, time_t *tp)
     org = "";
 
   /* make some room for the NIS index */
-  index = xmalloc(sizeof('[')	/* for opening selection criteria */
-		  +sizeof(NISPLUS_KEY)
-		  + strlen(key)
-		  + sizeof(']')	/* for closing selection criteria */
-		  +sizeof(',')	/* + 1 for , separator */
-		  +strlen(map)
-		  + sizeof(NISPLUS_ORGDIR)
-		  );
+  l = sizeof('[')		/* for opening selection criteria */
+    + sizeof(NISPLUS_KEY)
+    + strlen(key)
+    + sizeof(']')		/* for closing selection criteria */
+    + sizeof(',')		/* + 1 for , separator */
+    + strlen(map)
+    + sizeof(NISPLUS_ORGDIR);
+  index = xmalloc(l);
   if (index == NULL) {
     plog(XLOG_ERROR,
 	 "Unable to create index %s: %s",
@@ -189,14 +185,12 @@ nisplus_search(mnt_map *m, char *map, char *key, char **val, time_t *tp)
 	 strerror(ENOMEM));
     return ENOMEM;
   }
-  sprintf(index, "[%s%s],%s%s", NISPLUS_KEY, key, map, org);
+  xsnprintf(index, l, "[%s%s],%s%s", NISPLUS_KEY, key, map, org);
 
   data.key = key;
   data.value = NULL;
 
-#ifdef DEBUG
   dlog("NISplus search for %s", index);
-#endif /* DEBUG */
 
   result = nis_list(index,
 		    EXPAND_NAME | FOLLOW_LINKS | FOLLOW_PATH,
@@ -220,11 +214,9 @@ nisplus_search(mnt_map *m, char *map, char *key, char **val, time_t *tp)
 
     if (data.value == NULL) {
       nis_object *value = result->objects.objects_val;
-#ifdef DEBUG
       dlog("NISplus search found <nothing>");
       dlog("NISplus search for %s: %s(%d)",
 	   map, nis_sperrno(result->status), result->status);
-#endif /* DEBUG */
 
       if (value != NULL)
 	data.value = strnsave(ENTRY_VAL(value, 1), ENTRY_LEN(value, 1));
@@ -233,23 +225,17 @@ nisplus_search(mnt_map *m, char *map, char *key, char **val, time_t *tp)
 
     if (*val) {
       error = 0;
-#ifdef DEBUG
       dlog("NISplus search found %s", *val);
-#endif /* DEBUG */
     } else {
       error = ENOENT;
-#ifdef DEBUG
       dlog("NISplus search found nothing");
-#endif /* DEBUG */
     }
 
     *tp = 0;
     break;
 
   case NIS_NOSUCHNAME:
-#ifdef DEBUG
     dlog("NISplus search returned %d", result->status);
-#endif /* DEBUG */
     error = ENOENT;
     break;
 
@@ -271,6 +257,7 @@ nisplus_init(mnt_map *m, char *map, time_t *tp)
   char *org;		/* if map does not have ".org_dir" then append it */
   nis_name map_name;
   int error = 0;
+  size_t l;
 
   org = strstr(map, NISPLUS_ORGDIR);
   if (org == NULL)
@@ -279,7 +266,8 @@ nisplus_init(mnt_map *m, char *map, time_t *tp)
     org = "";
 
   /* make some room for the NIS map_name */
-  map_name = xmalloc(strlen(map) + sizeof(NISPLUS_ORGDIR));
+  l = strlen(map) + sizeof(NISPLUS_ORGDIR);
+  map_name = xmalloc(l);
   if (map_name == NULL) {
     plog(XLOG_ERROR,
 	 "Unable to create map_name %s: %s",
@@ -287,7 +275,7 @@ nisplus_init(mnt_map *m, char *map, time_t *tp)
 	 strerror(ENOMEM));
     return ENOMEM;
   }
-  sprintf(map_name, "%s%s", map, org);
+  xsnprintf(map_name, l, "%s%s", map, org);
 
   result = nis_lookup(map_name, (EXPAND_NAME | FOLLOW_LINKS | FOLLOW_PATH));
 
@@ -300,10 +288,8 @@ nisplus_init(mnt_map *m, char *map, time_t *tp)
   }
 
   if (result->status != NIS_SUCCESS) {
-#ifdef DEBUG
     dlog("NISplus init <%s>: %s (%d)",
 	 map, nis_sperrno(result->status), result->status);
-#endif /* DEBUG */
 
     error = ENOENT;
   }

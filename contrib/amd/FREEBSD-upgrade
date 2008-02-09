@@ -1,21 +1,19 @@
 # ex:ts=8
 $FreeBSD$
 
-AMD (am-utils) 6.0.9
-    originals can be found at: ftp://shekel.mcl.cs.columbia.edu/pub/am-utils/
-    (http://www.cs.columbia.edu/~ezk/am-utils/index.html)
-
+AMD (am-utils) 6.1.5
+    originals can be found at: ftp://ftp.am-utils.org/pub/am-utils/
 
 For the import of AMD many files were pruned by:
 
-	tar -X FREEBSD-Xlist -xzf am-utils-6.0.9.tar.gz
+	tar -X FREEBSD-Xlist -xf am-utils-6.1.5.tar.gz
 
 and `find . -name '.cvsignore' -delete`
 
 Then imported by:
 
-	cvs import -m 'Virgin import of AMD (am-utils) v6.0.9' \
-		src/contrib/amd COLUMBIA amd_6_0_9
+	cvs import -m 'Virgin import of AMD (am-utils) v6.1.5' \
+		src/contrib/amd COLUMBIA amd_6_1_5
 
 After the import, a separate extraction of am-utils was GNU configured in
 the "normal" way.  The resulting config.h file should be compared with
@@ -25,8 +23,11 @@ updated as needed.
 To make local changes to amd, simply patch and commit to the main
 branch (aka HEAD).  Never make local changes on the vendor (COLUMBIA) branch.
 
-All local changes should be submitted to "amd-dev@majordomo.cs.columbia.edu"
-for inclusion in the next vendor release.
+Note, we don't trim anything in scripts/ as sysadmins may find the bits
+as a useful reference.
+
+All local changes should be submitted to "am-utils@am-utils.org" or
+https://bugzilla.am-utils.org for inclusion in the next vendor release.
 
 Local changes:
 

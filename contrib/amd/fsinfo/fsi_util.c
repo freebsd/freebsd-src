@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2004 Erez Zadok
+ * Copyright (c) 1997-2006 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -33,9 +33,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      %W% (Berkeley) %G%
  *
- * $Id: fsi_util.c,v 1.3.2.6 2004/01/06 03:15:23 ezk Exp $
+ * File: am-utils/fsinfo/fsi_util.c
  *
  */
 
@@ -77,7 +76,7 @@ show_total(void)
 
     if (total_mmm < 0)
       fputc('*', stdout);
-    sprintf(n, "%d", total_shown);
+    xsnprintf(n, sizeof(n), "%d", total_shown);
     len = strlen(n);
     if (col_output(len))
       fputc(' ', stdout);
@@ -276,7 +275,7 @@ pref_open(char *pref, char *hn, void (*hdr) (FILE *, char *), char *arg)
   char p[MAXPATHLEN];
   FILE *ef;
 
-  sprintf(p, "%s%s", pref, hn);
+  xsnprintf(p, sizeof(p), "%s%s", pref, hn);
   fsi_log("Writing %s info for %s to %s", pref, hn, p);
   ef = fopen(p, "w");
   if (ef) {
@@ -301,20 +300,9 @@ pref_close(FILE *fp)
  * Determine where Amd would automount the host/volname pair
  */
 void
-compute_automount_point(char *buf, host *hp, char *vn)
+compute_automount_point(char *buf, size_t l, host *hp, char *vn)
 {
-  sprintf(buf, "%s/%s%s", autodir, hp->h_lochost, vn);
-}
-
-
-char *
-xcalloc(int i, int s)
-{
-  char *p = (char *) calloc(i, (unsigned) s);
-
-  if (!p)
-    fatal("Out of memory");
-  return p;
+  xsnprintf(buf, l, "%s/%s%s", autodir, hp->h_lochost, vn);
 }
 
 
@@ -463,7 +451,7 @@ set_ether_if(ether_if *ep, int k, char *v)
 
   case EF_INADDR:{
       ep->e_inaddr.s_addr = inet_addr(v);
-      if (ep->e_inaddr.s_addr == (u_long) - 1)
+      if ((int) ep->e_inaddr.s_addr == (int) INADDR_NONE)
 	yyerror("malformed IP dotted quad: %s", v);
       XFREE(v);
     }

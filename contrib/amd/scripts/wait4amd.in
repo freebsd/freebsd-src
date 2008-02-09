@@ -3,7 +3,7 @@
 # usage: wait4amd <hostname> [<command> [args ...]]
 # If only hostname is supplied, command defaults to rsh $hostname
 #
-# Package:	am-utils-6.0
+# Package:	am-utils-6.x
 # Author:	Erez Zadok <ezk@cs.columbia.edu>
 
 #set -x

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2004 Erez Zadok
+ * Copyright (c) 1997-2006 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -36,9 +36,8 @@ n * modification, are permitted provided that the following conditions
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      %W% (Berkeley) %G%
  *
- * $Id: hasmntopt.c,v 1.3.2.4 2004/01/06 03:15:24 ezk Exp $
+ * File: am-utils/libamu/hasmntopt.c
  *
  */
 
@@ -49,7 +48,7 @@ n * modification, are permitted provided that the following conditions
 #include <amu.h>
 
 #ifndef MNTMAXSTR
-# define MNTMAXSTR	128
+# define MNTMAXSTR	256
 #endif /* not MNTMAXSTR */
 
 
@@ -59,7 +58,6 @@ n * modification, are permitted provided that the following conditions
  *
  * From: Piete Brooks <pb@cl.cam.ac.uk>
  */
-
 static char *
 nextmntopt(char **p)
 {
@@ -69,7 +67,7 @@ nextmntopt(char **p)
   /*
    * Skip past white space
    */
-  while (*cp && isspace(*cp))
+  while (*cp && isspace((int) *cp))
     cp++;
 
   /*
@@ -98,18 +96,19 @@ nextmntopt(char **p)
   return rp;
 }
 
+
 /*
  * replacement for hasmntopt if the system does not have it.
  */
 char *
-hasmntopt(mntent_t *mnt, char *opt)
+amu_hasmntopt(mntent_t *mnt, char *opt)
 {
   char t[MNTMAXSTR];
   char *f;
   char *o = t;
   int l = strlen(opt);
 
-  strcpy(t, mnt->mnt_opts);
+  xstrlcpy(t, mnt->mnt_opts, sizeof(t));
 
   while (*(f = nextmntopt(&o)))
     if (NSTREQ(opt, f, l))

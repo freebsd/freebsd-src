@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2004 Erez Zadok
+ * Copyright (c) 1997-2006 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -36,9 +36,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      %W% (Berkeley) %G%
  *
- * $Id: info_hesiod.c,v 1.6.2.4 2004/01/06 03:15:16 ezk Exp $
+ * File: am-utils/amd/info_hesiod.c
  *
  */
 
@@ -75,13 +74,11 @@ int hesiod_isup(mnt_map *m, char *map);
 int
 amu_hesiod_init(mnt_map *m, char *map, time_t *tp)
 {
-#ifdef DEBUG
   dlog("amu_hesiod_init(%s)", map);
-#endif /* DEBUG */
   *tp = 0;
 
 #ifdef HAVE_HESIOD_INIT
-  if(!hesiod_context && hesiod_init(&hesiod_context) != 0)
+  if (!hesiod_context && hesiod_init(&hesiod_context) != 0)
     return ENOENT;
 #endif /* HAVE_HESIOD_INIT */
 
@@ -102,22 +99,21 @@ hesiod_search(mnt_map *m, char *map, char *key, char **pval, time_t *tp)
   int error;
 #endif /* not HAVE_HESIOD_INIT */
 
-#ifdef DEBUG
   dlog("hesiod_search(m=%lx, map=%s, key=%s, pval=%lx tp=%lx)",
        (unsigned long) m, map, key, (unsigned long) pval, (unsigned long) tp);
-#endif /* DEBUG */
 
-  sprintf(hes_key, "%s.%s", key, map + HES_PREFLEN);
+  if (key[0] == '.')
+    return ENOENT;
+
+  xsnprintf(hes_key, sizeof(hes_key), "%s.%s", key, map + HES_PREFLEN);
 
   /*
    * Call the resolver
    */
-#ifdef DEBUG
   dlog("Hesiod base is: %s\n", gopt.hesiod_base);
   dlog("hesiod_search: hes_resolve(%s, %s)", hes_key, gopt.hesiod_base);
-  if (debug_flags & D_INFO)
+  if (amuDebug(D_INFO))
     _res.options |= RES_DEBUG;
-#endif /* DEBUG */
 
 #ifdef HAVE_HESIOD_INIT
   /* new style hesiod */
@@ -144,9 +140,7 @@ hesiod_search(mnt_map *m, char *map, char *key, char **pval, time_t *tp)
   /*
    * Otherwise reflect the hesiod error into a Un*x error
    */
-# ifdef DEBUG
   dlog("hesiod_search: Error: %d", hes_error());
-# endif /* DEBUG */
   switch (hes_error()) {
   case HES_ER_NOTFOUND:
     error = ENOENT;
@@ -161,9 +155,7 @@ hesiod_search(mnt_map *m, char *map, char *key, char **pval, time_t *tp)
     error = EINVAL;
     break;
   }
-# ifdef DEBUG
   dlog("hesiod_search: Returning: %d", error);
-# endif /* DEBUG */
   return error;
 #endif /* not HAVE_HESIOD_INIT */
 }
@@ -183,9 +175,7 @@ hesiod_isup(mnt_map *m, char *map)
   static int last_status = 1;	/* assume up by default */
 
   error = hesiod_search(m, map, "/defaults", &val, &mtime);
-#ifdef DEBUG
   dlog("hesiod_isup(%s): %s", map, strerror(error));
-#endif /* DEBUG */
   if (error != 0 && error != ENOENT) {
     plog(XLOG_ERROR,
 	 "hesiod_isup: error getting `/defaults' entry in map %s: %m", map);

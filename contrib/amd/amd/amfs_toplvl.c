@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2004 Erez Zadok
+ * Copyright (c) 1997-2006 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -36,9 +36,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      %W% (Berkeley) %G%
  *
- * $Id: amfs_toplvl.c,v 1.7.2.5 2004/01/06 03:15:16 ezk Exp $
+ * File: am-utils/amd/amfs_toplvl.c
  *
  */
 
@@ -55,7 +54,7 @@
 /****************************************************************************
  *** FORWARD DEFINITIONS                                                  ***
  ****************************************************************************/
-
+static int amfs_toplvl_init(mntfs *mf);
 
 /****************************************************************************
  *** OPS STRUCTURES                                                       ***
@@ -63,19 +62,23 @@
 am_ops amfs_toplvl_ops =
 {
   "toplvl",
-  amfs_auto_match,
-  0,				/* amfs_auto_init */
+  amfs_generic_match,
+  amfs_toplvl_init,		/* amfs_toplvl_init */
   amfs_toplvl_mount,
-  0,
   amfs_toplvl_umount,
-  0,
-  amfs_auto_lookuppn,
-  amfs_auto_readdir,		/* browsable version of readdir() */
+  amfs_generic_lookup_child,
+  amfs_generic_mount_child,
+  amfs_generic_readdir,
   0,				/* amfs_toplvl_readlink */
-  amfs_toplvl_mounted,
+  amfs_generic_mounted,
   0,				/* amfs_toplvl_umounted */
-  find_amfs_auto_srvr,
-  FS_MKMNT | FS_NOTIMEOUT | FS_BACKGROUND | FS_AMQINFO | FS_DIRECTORY
+  amfs_generic_find_srvr,
+  0,				/* amfs_toplvl_get_wchan */
+  FS_MKMNT | FS_NOTIMEOUT | FS_BACKGROUND |
+	  FS_AMQINFO | FS_DIRECTORY, /* nfs_fs_flags */
+#ifdef HAVE_FS_AUTOFS
+  AUTOFS_TOPLVL_FS_FLAGS,
+#endif /* HAVE_FS_AUTOFS */
 };
 
 
@@ -83,166 +86,79 @@ am_ops amfs_toplvl_ops =
  *** FUNCTIONS                                                             ***
  ****************************************************************************/
 
+static void
+set_auto_attrcache_timeout(char *preopts, char *opts, size_t l)
+{
+
+#ifdef MNTTAB_OPT_NOAC
+  /*
+   * Don't cache attributes - they are changing under the kernel's feet.
+   * For example, IRIX5.2 will dispense with nfs lookup calls and hand stale
+   * filehandles to getattr unless we disable attribute caching on the
+   * automount points.
+   */
+  if (gopt.auto_attrcache == 0) {
+    xsnprintf(preopts, l, ",%s", MNTTAB_OPT_NOAC);
+    xstrlcat(opts, preopts, l);
+  }
+#endif /* MNTTAB_OPT_NOAC */
+
+  /*
+   * XXX: note that setting these to 0 in the past resulted in an error on
+   * some systems, which is why it's better to use "noac" if possible.  For
+   * now, we're setting everything possible, but if this will cause trouble,
+   * then we'll have to condition the remainder of this on OPT_NOAC.
+   */
+#ifdef MNTTAB_OPT_ACTIMEO
+  xsnprintf(preopts, l, ",%s=%d", MNTTAB_OPT_ACTIMEO, gopt.auto_attrcache);
+  xstrlcat(opts, preopts, l);
+#else /* MNTTAB_OPT_ACTIMEO */
+# ifdef MNTTAB_OPT_ACDIRMIN
+  xsnprintf(preopts, l, ",%s=%d", MNTTAB_OPT_ACTDIRMIN, gopt.auto_attrcache);
+  xstrlcat(opts, preopts, l);
+# endif /* MNTTAB_OPT_ACDIRMIN */
+# ifdef MNTTAB_OPT_ACDIRMAX
+  xsnprintf(preopts, l, ",%s=%d", MNTTAB_OPT_ACTDIRMAX, gopt.auto_attrcache);
+  xstrlcat(opts, preopts, l);
+# endif /* MNTTAB_OPT_ACDIRMAX */
+# ifdef MNTTAB_OPT_ACREGMIN
+  xsnprintf(preopts, l, ",%s=%d", MNTTAB_OPT_ACTREGMIN, gopt.auto_attrcache);
+  xstrlcat(opts, preopts, l);
+# endif /* MNTTAB_OPT_ACREGMIN */
+# ifdef MNTTAB_OPT_ACREGMAX
+  xsnprintf(preopts, l, ",%s=%d", MNTTAB_OPT_ACTREGMAX, gopt.auto_attrcache);
+  xstrlcat(opts, preopts, l);
+# endif /* MNTTAB_OPT_ACREGMAX */
+#endif /* MNTTAB_OPT_ACTIMEO */
+}
+
+
 /*
- * Mount an automounter directory.
- * The automounter is connected into the system
- * as a user-level NFS server.  mount_amfs_toplvl constructs
- * the necessary NFS parameters to be given to the
- * kernel so that it will talk back to us.
+ * Initialize a top-level mount.  In our case, if the user asked for
+ * forced_unmounts, and the OS supports it, then we try forced/lazy unmounts
+ * on any previous toplvl mounts.  This is useful if a previous Amd died and
+ * left behind toplvl mount points (this Amd will clean them up).
  *
- * NOTE: automounter mounts in themselves are using NFS Version 2.
+ * WARNING: Don't use forced/lazy unmounts if you have another valid Amd
+ * running, because this code WILL force those valid toplvl mount points to
+ * be detached as well!
  */
 static int
-mount_amfs_toplvl(char *dir, char *opts)
+amfs_toplvl_init(mntfs *mf)
 {
-  char fs_hostname[MAXHOSTNAMELEN + MAXPATHLEN + 1];
-  int retry, error, genflags;
-  mntent_t mnt;
-  nfs_args_t nfs_args;
-  am_nfs_fh *fhp;
-  am_nfs_handle_t anh;
-  MTYPE_TYPE type = MOUNT_TYPE_NFS;
-#ifndef HAVE_TRANSPORT_TYPE_TLI
-  u_short port;
-  struct sockaddr_in sin;
-#endif /* not HAVE_TRANSPORT_TYPE_TLI */
+  int error = 0;
 
-  memset((voidp) &mnt, 0, sizeof(mnt));
-  mnt.mnt_dir = dir;
-  mnt.mnt_fsname = pid_fsname;
-  mnt.mnt_opts = opts;
-
-  /*
-   * Make sure that amd's top-level NFS mounts are hidden by default
-   * from df.
-   * If they don't appear to support the either the "ignore" mnttab
-   * option entry, or the "auto" one, set the mount type to "nfs".
-   */
-  mnt.mnt_type = HIDE_MOUNT_TYPE;
-
-  retry = hasmntval(&mnt, MNTTAB_OPT_RETRY);
-  if (retry <= 0)
-    retry = 2;			/* XXX */
-
-  /*
-   * SET MOUNT ARGS
-   */
-  /*
-   * get fhandle of remote path for automount point
-   */
-  fhp = root_fh(dir);
-  if (!fhp) {
-    plog(XLOG_FATAL, "Can't find root file handle for %s", dir);
-    return EINVAL;
+#if defined(MNT2_GEN_OPT_FORCE) || defined(MNT2_GEN_OPT_DETACH)
+  if (gopt.flags & CFM_FORCED_UNMOUNTS) {
+    plog(XLOG_INFO, "amfs_toplvl_init: trying forced/lazy unmount of %s",
+	 mf->mf_mount);
+    error = umount2_fs(mf->mf_mount, AMU_UMOUNT_FORCE | AMU_UMOUNT_DETACH);
+    if (error)
+      plog(XLOG_INFO, "amfs_toplvl_init: forced/lazy unmount failed: %m");
+    else
+      dlog("amfs_toplvl_init: forced/lazy unmount succeeded");
   }
-
-#ifndef HAVE_TRANSPORT_TYPE_TLI
-  /*
-   * Create sockaddr to point to the local machine.  127.0.0.1
-   * is not used since that will not work in HP-UX clusters and
-   * this is no more expensive.
-   */
-  memset((voidp) &sin, 0, sizeof(sin));
-  sin.sin_family = AF_INET;
-  sin.sin_addr = myipaddr;
-  port = hasmntval(&mnt, MNTTAB_OPT_PORT);
-  if (port) {
-    sin.sin_port = htons(port);
-  } else {
-    plog(XLOG_ERROR, "no port number specified for %s", dir);
-    return EINVAL;
-  }
-#endif /* not HAVE_TRANSPORT_TYPE_TLI */
-
-  /*
-   * Make a ``hostname'' string for the kernel
-   */
-  sprintf(fs_hostname, "pid%ld@%s:%s",
-	  (long) (foreground ? am_mypid : getppid()),
-	  am_get_hostname(),
-	  dir);
-  /*
-   * Most kernels have a name length restriction (64 bytes)...
-   */
-  if (strlen(fs_hostname) >= MAXHOSTNAMELEN)
-    strcpy(fs_hostname + MAXHOSTNAMELEN - 3, "..");
-#ifdef HOSTNAMESZ
-  /*
-   * ... and some of these restrictions are 32 bytes (HOSTNAMESZ)
-   * If you need to get the definition for HOSTNAMESZ found, you may
-   * add the proper header file to the conf/nfs_prot/nfs_prot_*.h file.
-   */
-  if (strlen(fs_hostname) >= HOSTNAMESZ)
-    strcpy(fs_hostname + HOSTNAMESZ - 3, "..");
-#endif /* HOSTNAMESZ */
-
-  /*
-   * Finally we can compute the mount genflags set above,
-   * and add any automounter specific flags.
-   */
-  genflags = compute_mount_flags(&mnt);
-  genflags |= compute_automounter_mount_flags(&mnt);
-
-  /* setup the many fields and flags within nfs_args */
-  memmove(&anh.v2.fhs_fh, fhp, sizeof(*fhp));
-#ifdef HAVE_TRANSPORT_TYPE_TLI
-  compute_nfs_args(&nfs_args,
-		   &mnt,
-		   genflags,
-		   nfsncp,
-		   NULL,	/* remote host IP addr is set below */
-		   NFS_VERSION,	/* version 2 */
-		   "udp",
-		   &anh,
-		   fs_hostname,
-		   pid_fsname);
-  /*
-   * IMPORTANT: set the correct IP address AFTERWARDS.  It cannot
-   * be done using the normal mechanism of compute_nfs_args(), because
-   * that one will allocate a new address and use NFS_SA_DREF() to copy
-   * parts to it, while assuming that the ip_addr passed is always
-   * a "struct sockaddr_in".  That assumption is incorrect on TLI systems,
-   * because they define a special macro HOST_SELF which is DIFFERENT
-   * than localhost (127.0.0.1)!
-   */
-  nfs_args.addr = &nfsxprt->xp_ltaddr;
-#else /* not HAVE_TRANSPORT_TYPE_TLI */
-  compute_nfs_args(&nfs_args,
-		   &mnt,
-		   genflags,
-		   &sin,
-		   NFS_VERSION,	/* version 2 */
-		   "udp",
-		   &anh,
-		   fs_hostname,
-		   pid_fsname);
-#endif /* not HAVE_TRANSPORT_TYPE_TLI */
-
-  /*************************************************************************
-   * NOTE: while compute_nfs_args() works ok for regular NFS mounts	   *
-   * the toplvl one is not, and so some options must be corrected by hand  *
-   * more carefully, *after* compute_nfs_args() runs.			   *
-   *************************************************************************/
-  compute_automounter_nfs_args(&nfs_args, &mnt);
-
-  /* This is it!  Here we try to mount amd on its mount points */
-#ifdef DEBUG
-  amuDebug(D_TRACE) {
-    print_nfs_args(&nfs_args, 0);
-    plog(XLOG_DEBUG, "Generic mount flags 0x%x", genflags);
-  }
-#endif /* DEBUG */
-  error = mount_fs(&mnt, genflags, (caddr_t) &nfs_args, retry, type,
-		   0, NULL, mnttab_file_name);
-
-#ifdef HAVE_TRANSPORT_TYPE_TLI
-  free_knetconfig(nfs_args.knconf);
-  /*
-   * local automounter mounts do not allocate a special address, so
-   * no need to XFREE(nfs_args.addr) under TLI.
-   */
-#endif /* HAVE_TRANSPORT_TYPE_TLI */
-
+#endif /* MNT2_GEN_OPT_FORCE || MNT2_GEN_OPT_DETACH */
   return error;
 }
 
@@ -251,13 +167,11 @@ mount_amfs_toplvl(char *dir, char *opts)
  * Mount the top-level
  */
 int
-amfs_toplvl_mount(am_node *mp)
+amfs_toplvl_mount(am_node *mp, mntfs *mf)
 {
-  mntfs *mf = mp->am_mnt;
   struct stat stb;
-  char opts[256], preopts[256];
+  char opts[SIZEOF_OPTS], preopts[SIZEOF_OPTS], toplvl_opts[40];
   int error;
-  char *mnttype;
 
   /*
    * Mounting the automounter.
@@ -271,16 +185,6 @@ amfs_toplvl_mount(am_node *mp)
     plog(XLOG_WARNING, "%s is not a directory", mp->am_path);
     return ENOTDIR;
   }
-  if (mf->mf_ops == &amfs_toplvl_ops)
-    mnttype = "indirect";
-  else if (mf->mf_ops == &amfs_direct_ops)
-    mnttype = "direct";
-#ifdef HAVE_AMU_FS_UNION
-  else if (mf->mf_ops == &amfs_union_ops)
-    mnttype = "union";
-#endif /* HAVE_AMU_FS_UNION */
-  else
-    mnttype = "auto";
 
   /*
    * Construct some mount options:
@@ -288,38 +192,58 @@ amfs_toplvl_mount(am_node *mp)
    * Tack on magic map=<mapname> option in mtab to emulate
    * SunOS automounter behavior.
    */
-  preopts[0] = '\0';
+
+#ifdef HAVE_FS_AUTOFS
+  if (mf->mf_flags & MFF_IS_AUTOFS) {
+    autofs_get_opts(opts, sizeof(opts), mp->am_autofs_fh);
+  } else
+#endif /* HAVE_FS_AUTOFS */
+  {
+    preopts[0] = '\0';
 #ifdef MNTTAB_OPT_INTR
-  strcat(preopts, MNTTAB_OPT_INTR);
-  strcat(preopts, ",");
+    xstrlcat(preopts, MNTTAB_OPT_INTR, sizeof(preopts));
+    xstrlcat(preopts, ",", sizeof(preopts));
 #endif /* MNTTAB_OPT_INTR */
 #ifdef MNTTAB_OPT_IGNORE
-  strcat(preopts, MNTTAB_OPT_IGNORE);
-  strcat(preopts, ",");
+    xstrlcat(preopts, MNTTAB_OPT_IGNORE, sizeof(preopts));
+    xstrlcat(preopts, ",", sizeof(preopts));
 #endif /* MNTTAB_OPT_IGNORE */
-  sprintf(opts, "%s%s,%s=%d,%s=%d,%s=%d,%s,map=%s",
-	  preopts,
-	  MNTTAB_OPT_RW,
-	  MNTTAB_OPT_PORT, nfs_port,
-	  MNTTAB_OPT_TIMEO, gopt.amfs_auto_timeo,
-	  MNTTAB_OPT_RETRANS, gopt.amfs_auto_retrans,
-	  mnttype, mf->mf_info);
+    /* write most of the initial options + preopts */
+    xsnprintf(opts, sizeof(opts), "%s%s,%s=%d,%s,map=%s",
+	      preopts,
+	      MNTTAB_OPT_RW,
+	      MNTTAB_OPT_PORT, nfs_port,
+	      mf->mf_ops->fs_type, mf->mf_info);
+
+    /* process toplvl timeo/retrans options, if any */
+    if (gopt.amfs_auto_timeo[AMU_TYPE_TOPLVL] > 0) {
+      xsnprintf(toplvl_opts, sizeof(toplvl_opts), ",%s=%d",
+		MNTTAB_OPT_TIMEO, gopt.amfs_auto_timeo[AMU_TYPE_TOPLVL]);
+      xstrlcat(opts, toplvl_opts, sizeof(opts));
+    }
+    if (gopt.amfs_auto_retrans[AMU_TYPE_TOPLVL] > 0) {
+      xsnprintf(toplvl_opts, sizeof(toplvl_opts), ",%s=%d",
+		MNTTAB_OPT_RETRANS, gopt.amfs_auto_retrans[AMU_TYPE_TOPLVL]);
+      xstrlcat(opts, toplvl_opts, sizeof(opts));
+    }
+
+#ifdef MNTTAB_OPT_NOAC
+    if (gopt.auto_attrcache == 0) {
+      xstrlcat(opts, ",", sizeof(opts));
+      xstrlcat(opts, MNTTAB_OPT_NOAC, sizeof(opts));
+    } else
+#endif /* MNTTAB_OPT_NOAC */
+      set_auto_attrcache_timeout(preopts, opts, sizeof(preopts));
+  }
 
   /* now do the mount */
-  error = mount_amfs_toplvl(mf->mf_mount, opts);
+  error = amfs_mount(mp, mf, opts);
   if (error) {
     errno = error;
-    plog(XLOG_FATAL, "amfs_toplvl_mount: mount_amfs_toplvl failed: %m");
+    plog(XLOG_FATAL, "amfs_toplvl_mount: amfs_mount failed: %m");
     return error;
   }
   return 0;
-}
-
-
-void
-amfs_toplvl_mounted(mntfs *mf)
-{
-  amfs_auto_mkcacheref(mf);
 }
 
 
@@ -327,10 +251,12 @@ amfs_toplvl_mounted(mntfs *mf)
  * Unmount a top-level automount node
  */
 int
-amfs_toplvl_umount(am_node *mp)
+amfs_toplvl_umount(am_node *mp, mntfs *mf)
 {
-  int error;
   struct stat stb;
+  int unmount_flags = (mf->mf_flags & MFF_ON_AUTOFS) ? AMU_UMOUNT_AUTOFS : 0;
+  int error;
+  int count = 0;		/* how many times did we try to unmount? */
 
 again:
   /*
@@ -345,15 +271,48 @@ again:
    * actually fixed the problem - so simulate an ls -ld here.
    */
   if (lstat(mp->am_path, &stb) < 0) {
-#ifdef DEBUG
+    error = errno;
     dlog("lstat(%s): %m", mp->am_path);
-#endif /* DEBUG */
+    goto out;
   }
-  error = UMOUNT_FS(mp->am_path, mnttab_file_name);
+  if ((stb.st_mode & S_IFMT) != S_IFDIR) {
+    plog(XLOG_ERROR, "amfs_toplvl_umount: %s is not a directory, aborting.", mp->am_path);
+    error = ENOTDIR;
+    goto out;
+  }
+
+  error = UMOUNT_FS(mp->am_path, mnttab_file_name, unmount_flags);
   if (error == EBUSY) {
+#ifdef HAVE_FS_AUTOFS
+    /*
+     * autofs mounts are "in place", so it is possible
+     * that we can't just unmount our mount points and go away.
+     * If that's the case, just give up.
+     */
+    if (mf->mf_flags & MFF_IS_AUTOFS)
+      return error;
+#endif /* HAVE_FS_AUTOFS */
     plog(XLOG_WARNING, "amfs_toplvl_unmount retrying %s in 1s", mp->am_path);
-    sleep(1);			/* XXX */
+    count++;
+    sleep(1);
+    /*
+     * If user wants forced/lazy unmount semantics, then set those flags,
+     * but only after we've tried normal lstat/umount a few times --
+     * otherwise forced unmounts may hang this very same Amd (by preventing
+     * it from achieving a clean unmount).
+     */
+    if (gopt.flags & CFM_FORCED_UNMOUNTS) {
+      if (count == 5) {		/* after 5 seconds, try MNT_FORCE */
+	dlog("enabling forced unmounts for toplvl node %s", mp->am_path);
+	unmount_flags |= AMU_UMOUNT_FORCE;
+      }
+      if (count == 10) {	/* after 10 seconds, try MNT_DETACH */
+	dlog("enabling detached unmounts for toplvl node %s", mp->am_path);
+	unmount_flags |= AMU_UMOUNT_DETACH;
+      }
+    }
     goto again;
   }
+out:
   return error;
 }

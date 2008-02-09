@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2004 Erez Zadok
+ * Copyright (c) 1997-2006 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *
- * $Id: fsinfo.h,v 1.4.2.7 2004/05/12 15:54:31 ezk Exp $
+ * File: am-utils/fsinfo/fsinfo.h
  *
  */
 
@@ -80,7 +80,7 @@ extern fsi_mount *new_mount(void);
 extern qelem *new_que(void);
 extern void analyze_automounts(qelem *);
 extern void analyze_hosts(qelem *);
-extern void compute_automount_point(char *, host *, char *);
+extern void compute_automount_point(char *, size_t, host *, char *);
 extern void dict_add(dict *, char *, char *);
 extern void error(char *fmt, ...)
 	__attribute__((__format__(__printf__, 1, 2)));

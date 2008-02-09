@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2004 Erez Zadok
+ * Copyright (c) 1997-2006 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -36,9 +36,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      %W% (Berkeley) %G%
  *
- * $Id: clock.c,v 1.4.2.4 2004/01/06 03:15:16 ezk Exp $
+ * File: am-utils/amd/clock.c
  *
  */
 
@@ -59,14 +58,13 @@
 #include <am_defs.h>
 #include <amd.h>
 
-int timeout(u_int secs, void (*fn) (voidp), voidp closure);
 void reschedule_timeouts(time_t now, time_t then);
 
 typedef struct callout callout;
 struct callout {
   callout *c_next;		/* List of callouts */
-  void (*c_fn) (voidp);		/* Function to call */
-  voidp c_closure;		/* Closure to pass to call */
+  callout_fun *c_fn;		/* Function to call */
+  opaque_t c_arg;		/* Argument to pass to call */
   time_t c_time;		/* Time of call */
   int c_id;			/* Unique identifier */
 };
@@ -87,7 +85,7 @@ time_t next_softclock;		/* Time of next call to softclock() */
 /*
  * Global assumption: valid id's are non-zero.
  */
-#define	CID_ALLOC(struct )	(++callout_id)
+#define	CID_ALLOC()		(++callout_id)
 #define	CID_UNDEF		(0)
 
 
@@ -121,22 +119,22 @@ free_callout(callout *cp)
 /*
  * Schedule a callout.
  *
- * (*fn)(closure) will be called at clocktime() + secs
+ * (*fn)(fn_arg) will be called at clocktime(NULL) + secs
  */
 int
-timeout(u_int secs, void (*fn) (voidp), voidp closure)
+timeout(u_int secs, callout_fun *fn, opaque_t fn_arg)
 {
   callout *cp, *cp2;
-  time_t t = clocktime() + secs;
+  time_t t = clocktime(NULL) + secs;
 
   /*
    * Allocate and fill in a new callout structure
    */
   callout *cpnew = alloc_callout();
-  cpnew->c_closure = closure;
+  cpnew->c_arg = fn_arg;
   cpnew->c_fn = fn;
   cpnew->c_time = t;
-  cpnew->c_id = CID_ALLOC(struct );
+  cpnew->c_id = CID_ALLOC();
 
   if (t < next_softclock)
     next_softclock = t;
@@ -189,10 +187,8 @@ reschedule_timeouts(time_t now, time_t then)
   for (cp = callouts.c_next; cp; cp = cp->c_next) {
     if (cp->c_time >= now && cp->c_time <= then) {
       plog(XLOG_WARNING, "job %d rescheduled to run immediately", cp->c_id);
-#ifdef DEBUG
       dlog("rescheduling job %d back %ld seconds",
 	   cp->c_id, (long) (cp->c_time - now));
-#endif /* DEBUG */
       next_softclock = cp->c_time = now;
     }
   }
@@ -212,14 +208,14 @@ softclock(void)
     if (task_notify_todo)
       do_task_notify();
 
-    now = clocktime();
+    now = clocktime(NULL);
 
     /*
      * While there are more callouts waiting...
      */
     while ((cp = callouts.c_next) && cp->c_time <= now) {
       /*
-       * Extract first from list, save fn & closure and
+       * Extract first from list, save fn & fn_arg and
        * unlink callout from list and free.
        * Finally call function.
        *
@@ -228,12 +224,12 @@ softclock(void)
        * function will call timeout()
        * and try to allocate a callout
        */
-      void (*fn) (voidp) = cp->c_fn;
-      voidp closure = cp->c_closure;
+      callout_fun *fn = cp->c_fn;
+      opaque_t fn_arg = cp->c_arg;
 
       callouts.c_next = cp->c_next;
       free_callout(cp);
-      (*fn) (closure);
+      (*fn) (fn_arg);
     }
 
   } while (task_notify_todo);
