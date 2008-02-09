@@ -64,7 +64,7 @@ struct s_subst {
 	char *wfile;				/* NULL if no wfile */
 	int wfd;				/* Cached file descriptor */
 	regex_t *re;				/* Regular expression */
-	int maxbref;				/* Largest backreference. */
+	unsigned int maxbref;			/* Largest backreference. */
 	u_long linenum;				/* Line number. */
 	char *new;				/* Replacement text */
 };
@@ -75,9 +75,9 @@ struct s_subst {
 struct s_tr {
 	unsigned char bytetab[256];
 	struct trmulti {
-		int fromlen;
+		size_t fromlen;
 		char from[MB_LEN_MAX];
-		int tolen;
+		size_t tolen;
 		char to[MB_LEN_MAX];
 	} *multis;
 	int nmultis;
