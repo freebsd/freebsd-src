@@ -443,7 +443,7 @@ compile_re(char *re, int case_insensitive)
 		flags |= REG_ICASE;
 	if ((rep = malloc(sizeof(regex_t))) == NULL)
 		err(1, "malloc");
-	if (eval = regcomp(rep, re, flags) != 0)
+	if ((eval = regcomp(rep, re, flags)) != 0)
 		errx(1, "%lu: %s: RE error: %s",
 				linenum, fname, strregerror(eval, rep));
 	if (maxnsub < rep->re_nsub)
