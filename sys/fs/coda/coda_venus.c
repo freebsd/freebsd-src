@@ -621,6 +621,9 @@ venus_symlink(void *mdp, CodaFid *fid,
     return error;
 }
 
+/*
+ * XXX: Unused.
+ */
 int
 venus_readdir(void *mdp, CodaFid *fid,
     	int count, int offset,
