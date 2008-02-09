@@ -205,8 +205,8 @@ nfsuint64 *nfs_getcookie(struct nfsnode *, off_t, int);
 uint64_t *nfs4_getcookie(struct nfsnode *, off_t, int);
 void	nfs_invaldir(struct vnode *);
 void	nfs4_invaldir(struct vnode *);
-int	nfs_upgrade_vnlock(struct vnode *vp, struct thread *td);
-void	nfs_downgrade_vnlock(struct vnode *vp, struct thread *td, int old_lock);
+int	nfs_upgrade_vnlock(struct vnode *vp);
+void	nfs_downgrade_vnlock(struct vnode *vp, int old_lock);
 void	nfs_printf(const char *fmt, ...);
 
 void nfs_dircookie_lock(struct nfsnode *np);
