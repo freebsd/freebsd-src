@@ -182,9 +182,9 @@ int	lockstatus(struct lock *, struct thread *);
 int	lockwaiters(struct lock *);
 
 #define lockmgr(lock, flags, mtx)					\
-	_lockmgr((lock), (flags), (mtx), __FILE__, __LINE__)
+	_lockmgr((lock), (flags), (mtx), LOCK_FILE, LOCK_LINE)
 #define	lockmgr_disown(lock)						\
-	_lockmgr_disown((lock), __FILE__, __LINE__)
+	_lockmgr_disown((lock), LOCK_FILE, LOCK_LINE)
 #define	lockmgr_recursed(lkp)						\
 	((lkp)->lk_exclusivecount > 1)
 #ifdef DDB
