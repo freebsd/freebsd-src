@@ -129,7 +129,7 @@ struct vop_vector coda_vnodeops = {
     .vop_reclaim = coda_reclaim,	/* reclaim */
     .vop_lock1 = coda_lock,		/* lock */
     .vop_unlock = coda_unlock,		/* unlock */
-    .vop_bmap = coda_bmap,		/* bmap */
+    .vop_bmap = VOP_EOPNOTSUPP,		/* bmap */
     .vop_print = VOP_NULL,		/* print */
     .vop_islocked = coda_islocked,	/* islocked */
     .vop_pathconf = coda_pathconf,	/* pathconf */
@@ -1487,42 +1487,6 @@ coda_readdir(struct vop_readdir_args *ap)
     }
 
     return(error);
-}
-
-/*
- * Convert from filesystem blocks to device blocks
- */
-int
-coda_bmap(struct vop_bmap_args *ap)
-{
-    /* XXX on the global proc */
-/* true args */
-    struct vnode *vp __attribute__((unused)) = ap->a_vp;	/* file's vnode */
-    daddr_t bn __attribute__((unused)) = ap->a_bn;	/* fs block number */
-    struct bufobj **bop = ap->a_bop;			/* RETURN bufobj of device */
-    daddr_t *bnp __attribute__((unused)) = ap->a_bnp;	/* RETURN device block number */
-    struct thread *td __attribute__((unused)) = curthread;
-/* upcall decl */
-/* locals */
-
-	int ret = 0;
-	struct cnode *cp;
-
-	cp = VTOC(vp);
-	if (cp->c_ovp) {
-		return EINVAL;
-		ret =  VOP_BMAP(cp->c_ovp, bn, bop, bnp, ap->a_runp, ap->a_runb);
-#if	0
-		printf("VOP_BMAP(cp->c_ovp %p, bn %p, bop %p, bnp %lld, ap->a_runp %p, ap->a_runb %p) = %d\n",
-			cp->c_ovp, bn, bop, bnp, ap->a_runp, ap->a_runb, ret);
-#endif
-		return ret;
-	} else {
-#if	0
-		printf("coda_bmap: no container\n");
-#endif
-		return(EOPNOTSUPP);
-	}
 }
 
 int
