@@ -27,12 +27,13 @@ o_threshold	= 8.8721679688e+01,/* 0x42b17180 */
 ln2_hi		= 6.9313812256e-01,/* 0x3f317180 */
 ln2_lo		= 9.0580006145e-06,/* 0x3717f7d1 */
 invln2		= 1.4426950216e+00,/* 0x3fb8aa3b */
-	/* scaled coefficients related to expm1 */
-Q1  =  -3.3333335072e-02, /* 0xbd088889 */
-Q2  =   1.5873016091e-03, /* 0x3ad00d01 */
-Q3  =  -7.9365076090e-05, /* 0xb8a670cd */
-Q4  =   4.0082177293e-06, /* 0x36867e54 */
-Q5  =  -2.0109921195e-07; /* 0xb457edbb */
+/*
+ * Domain [-0.34568, 0.34568], range ~[-6.694e-10, 6.696e-10]:
+ * |6 / x * (1 + 2 * (1 / (exp(x) - 1) - 1 / x)) - q(x)| < 2**-30.04
+ * Scaled coefficients: Qn_here = 2**n * Qn_for_q (see s_expm1.c):
+ */
+Q1 = -3.3333212137e-2,		/* -0x888868.0p-28 */
+Q2 =  1.5807170421e-3;		/*  0xcf3010.0p-33 */
 
 float
 expm1f(float x)
@@ -86,7 +87,7 @@ expm1f(float x)
     /* x is now in primary range */
 	hfx = (float)0.5*x;
 	hxs = x*hfx;
-	r1 = one+hxs*(Q1+hxs*(Q2+hxs*(Q3+hxs*(Q4+hxs*Q5))));
+	r1 = one+hxs*(Q1+hxs*Q2);
 	t  = (float)3.0-r1*hfx;
 	e  = hxs*((r1-t)/((float)6.0 - x*t));
 	if(k==0) return x - (x*e-hxs);		/* c is 0 */
