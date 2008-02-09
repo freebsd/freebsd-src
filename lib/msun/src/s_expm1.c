@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
  * 		Q3  =  -9.9206344733435987357E-6,
  * 		Q4  =   2.5051361420808517002E-7,
  * 		Q5  =  -6.2843505682382617102E-9;
- *  	(where z=r*r, and the values of Q1 to Q5 are listed below)
+ *		z   =  r*r,
  *	with error bounded by
  *	    |                  5           |     -61
  *	    | 1.0+Q1*z+...+Q5*z   -  R1(z) | <= 2
@@ -119,7 +119,7 @@ o_threshold	= 7.09782712893383973096e+02,/* 0x40862E42, 0xFEFA39EF */
 ln2_hi		= 6.93147180369123816490e-01,/* 0x3fe62e42, 0xfee00000 */
 ln2_lo		= 1.90821492927058770002e-10,/* 0x3dea39ef, 0x35793c76 */
 invln2		= 1.44269504088896338700e+00,/* 0x3ff71547, 0x652b82fe */
-	/* scaled coefficients related to expm1 */
+/* Scaled Q's: Qn_here = 2**n * Qn_above, for R(2*z) where z = hxs = x*x/2: */
 Q1  =  -3.33333333333331316428e-02, /* BFA11111 111110F4 */
 Q2  =   1.58730158725481460165e-03, /* 3F5A01A0 19FE5585 */
 Q3  =  -7.93650757867487942473e-05, /* BF14CE19 9EAADBB7 */
