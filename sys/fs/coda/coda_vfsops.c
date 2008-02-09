@@ -353,9 +353,9 @@ coda_nb_statfs(vfsp, sbp, td)
     struct thread *td;
 {
     ENTRY;
-/*  MARK_ENTRY(CODA_STATFS_STATS); */
+    MARK_ENTRY(CODA_STATFS_STATS);
     if (!CODA_MOUNTED(vfsp)) {
-/*	MARK_INT_FAIL(CODA_STATFS_STATS);*/
+	MARK_INT_FAIL(CODA_STATFS_STATS);
 	return(EINVAL);
     }
     
@@ -372,7 +372,7 @@ coda_nb_statfs(vfsp, sbp, td)
     sbp->f_bavail = NB_SFS_SIZ;
     sbp->f_files = NB_SFS_SIZ;
     sbp->f_ffree = NB_SFS_SIZ;
-/*  MARK_INT_SAT(CODA_STATFS_STATS); */
+    MARK_INT_SAT(CODA_STATFS_STATS);
     return(0);
 }
 
