@@ -468,27 +468,6 @@ getNewVnode(vpp)
 		      NULL, NULL);
 }
 
-#include <ufs/ufs/extattr.h>
-#include <ufs/ufs/quota.h>
-#include <ufs/ufs/ufsmount.h>
-/* get the mount structure corresponding to a given device.  Assume 
- * device corresponds to a UFS. Return NULL if no device is found.
- */ 
-struct mount *devtomp(dev)
-    struct cdev *dev;
-{
-    struct mount *mp;
-   
-    TAILQ_FOREACH(mp, &mountlist, mnt_list) {
-	if (((VFSTOUFS(mp))->um_dev == dev)) {
-	    /* mount corresponds to UFS and the device matches one we want */
-	    return(mp); 
-	}
-    }
-    /* mount structure wasn't found */ 
-    return(NULL); 
-}
-
 struct vfsops coda_vfsops = {
     .vfs_mount =		coda_mount,
     .vfs_root = 		coda_root,
