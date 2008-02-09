@@ -347,7 +347,7 @@ coda_root(vfsp, flags, vpp, td)
  * Get filesystem statistics.
  */
 int
-coda_nb_statfs(vfsp, sbp, td)
+coda_statfs(vfsp, sbp, td)
     register struct mount *vfsp;
     struct statfs *sbp;
     struct thread *td;
@@ -361,17 +361,17 @@ coda_nb_statfs(vfsp, sbp, td)
     
     /* XXX - what to do about f_flags, others? --bnoble */
     /* Below This is what AFS does
-    	#define NB_SFS_SIZ 0x895440
+    	#define CODA_SFS_SIZ 0x895440
      */
     sbp->f_flags = 0;
     sbp->f_bsize = 8192; /* XXX */
     sbp->f_iosize = 8192; /* XXX */
-#define NB_SFS_SIZ 0x8AB75D
-    sbp->f_blocks = NB_SFS_SIZ;
-    sbp->f_bfree = NB_SFS_SIZ;
-    sbp->f_bavail = NB_SFS_SIZ;
-    sbp->f_files = NB_SFS_SIZ;
-    sbp->f_ffree = NB_SFS_SIZ;
+#define CODA_SFS_SIZ 0x8AB75D
+    sbp->f_blocks = CODA_SFS_SIZ;
+    sbp->f_bfree = CODA_SFS_SIZ;
+    sbp->f_bavail = CODA_SFS_SIZ;
+    sbp->f_files = CODA_SFS_SIZ;
+    sbp->f_ffree = CODA_SFS_SIZ;
     MARK_INT_SAT(CODA_STATFS_STATS);
     return(0);
 }
@@ -395,6 +395,11 @@ coda_sync(vfsp, waitfor, td)
  * fhtovp is now what vget used to be in 4.3-derived systems.  For
  * some silly reason, vget is now keyed by a 32 bit ino_t, rather than
  * a type-specific fid.  
+ *
+ * XXX: coda_fhtovp is currently not hooked up, so no NFS export for Coda.
+ * We leave it here in the hopes that someone will find it someday and hook
+ * it up.  Among other things, it will need some reworking to match the
+ * vfs_fhtovp_t prototype.
  */
 int
 coda_fhtovp(vfsp, fhp, nam, vpp, exflagsp, creadanonp)
@@ -439,39 +444,10 @@ coda_fhtovp(vfsp, fhp, nam, vpp, exflagsp, creadanonp)
     return(error);
 }
 
-/*
- * To allow for greater ease of use, some vnodes may be orphaned when
- * Venus dies.  Certain operations should still be allowed to go
- * through, but without propagating ophan-ness.  So this function will
- * get a new vnode for the file from the current run of Venus.  */
- 
-int
-getNewVnode(vpp)
-     struct vnode **vpp;
-{
-    struct cfid cfid;
-    struct coda_mntinfo *mi = vftomi((*vpp)->v_mount);
-    
-    ENTRY;
-
-    cfid.cfid_len = (short)sizeof(CodaFid);
-    cfid.cfid_fid = VTOC(*vpp)->c_fid;	/* Structure assignment. */
-    /* XXX ? */
-
-    /* We're guessing that if set, the 1st element on the list is a
-     * valid vnode to use. If not, return ENODEV as venus is dead.
-     */
-    if (mi->mi_vfsp == NULL)
-	return ENODEV;
-    
-    return coda_fhtovp(mi->mi_vfsp, (struct fid*)&cfid, NULL, vpp,
-		      NULL, NULL);
-}
-
 struct vfsops coda_vfsops = {
     .vfs_mount =		coda_mount,
     .vfs_root = 		coda_root,
-    .vfs_statfs =		coda_nb_statfs,
+    .vfs_statfs =		coda_statfs,
     .vfs_sync = 		coda_sync,
     .vfs_unmount =		coda_unmount,
 };

@@ -53,10 +53,5 @@ int coda_fhtovp(struct mount *, struct fid *, struct mbuf *, struct vnode **,
 vfs_mount_t	coda_mount;
 vfs_unmount_t	coda_unmount;
 vfs_root_t	coda_root;
-vfs_quotactl_t	coda_quotactl;
-vfs_statfs_t	coda_nb_statfs;
+vfs_statfs_t	coda_statfs;
 vfs_sync_t	coda_sync;
-vfs_vget_t	coda_vget;
-vfs_init_t	coda_init;
-
-int getNewVnode(struct vnode **vpp);

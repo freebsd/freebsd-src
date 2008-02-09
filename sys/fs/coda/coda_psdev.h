@@ -31,9 +31,9 @@
  * 
  */
 
-int vc_nb_open(struct cdev *dev, int flag, int mode, struct thread *p);
-int vc_nb_close (struct cdev *dev, int flag, int mode, struct thread *p);
-int vc_nb_read(struct cdev *dev, struct uio *uiop, int flag);
-int vc_nb_write(struct cdev *dev, struct uio *uiop, int flag);
-int vc_nb_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *p);
-int vc_nb_poll(struct cdev *dev, int events, struct thread *p);
+d_open_t	vc_open;
+d_close_t	vc_close;
+d_read_t	vc_read;
+d_write_t	vc_write;
+d_ioctl_t	vc_ioctl;
+d_poll_t	vc_poll;
