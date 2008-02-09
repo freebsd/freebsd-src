@@ -390,7 +390,7 @@ nfs_bioread_check_cons(struct vnode *vp, struct thread *td, struct ucred *cred)
 	 * XXX - We can make this cheaper later (by acquiring cheaper locks).
 	 * But for now, this suffices.
 	 */
-	old_lock = nfs_upgrade_vnlock(vp, td);
+	old_lock = nfs_upgrade_vnlock(vp);
 	mtx_lock(&np->n_mtx);
 	if (np->n_flag & NMODIFIED) {
 		mtx_unlock(&np->n_mtx);
@@ -430,7 +430,7 @@ nfs_bioread_check_cons(struct vnode *vp, struct thread *td, struct ucred *cred)
 		mtx_unlock(&np->n_mtx);
 	}
 out:	
-	nfs_downgrade_vnlock(vp, td, old_lock);
+	nfs_downgrade_vnlock(vp, old_lock);
 	return error;
 }
 
@@ -1306,7 +1306,7 @@ nfs_vinvalbuf(struct vnode *vp, int flags, struct thread *td, int intrflg)
 		slptimeo = 0;
 	}
 
-	old_lock = nfs_upgrade_vnlock(vp, td);
+	old_lock = nfs_upgrade_vnlock(vp);
 	/*
 	 * Now, flush as required.
 	 */
@@ -1334,7 +1334,7 @@ nfs_vinvalbuf(struct vnode *vp, int flags, struct thread *td, int intrflg)
 		np->n_flag &= ~NMODIFIED;
 	mtx_unlock(&np->n_mtx);
 out:
-	nfs_downgrade_vnlock(vp, td, old_lock);
+	nfs_downgrade_vnlock(vp, old_lock);
 	return error;
 }
 

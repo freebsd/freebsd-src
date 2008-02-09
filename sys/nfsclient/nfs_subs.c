@@ -480,11 +480,11 @@ nfs_dircookie_unlock(struct nfsnode *np)
 }
 
 int
-nfs_upgrade_vnlock(struct vnode *vp, struct thread *td)
+nfs_upgrade_vnlock(struct vnode *vp)
 {
 	int old_lock;
 	
- 	if ((old_lock = VOP_ISLOCKED(vp, td)) != LK_EXCLUSIVE) {
+ 	if ((old_lock = VOP_ISLOCKED(vp, curthread)) != LK_EXCLUSIVE) {
  		if (old_lock == LK_SHARED) {
  			/* Upgrade to exclusive lock, this might block */
  			vn_lock(vp, LK_UPGRADE | LK_RETRY);
@@ -496,7 +496,7 @@ nfs_upgrade_vnlock(struct vnode *vp, struct thread *td)
 }
 
 void
-nfs_downgrade_vnlock(struct vnode *vp, struct thread *td, int old_lock)
+nfs_downgrade_vnlock(struct vnode *vp, int old_lock)
 {
 	if (old_lock != LK_EXCLUSIVE) {
  		if (old_lock == LK_SHARED) {
