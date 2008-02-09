@@ -229,7 +229,7 @@ redirect:
 				    O_WRONLY|O_APPEND|O_CREAT|O_TRUNC,
 				    DEFFILEMODE)) == -1)
 					err(1, "%s", cp->t);
-				if (write(cp->u.fd, ps, psl) != psl ||
+				if (write(cp->u.fd, ps, psl) != (ssize_t)psl ||
 				    write(cp->u.fd, "\n", 1) != 1)
 					err(1, "%s", cp->t);
 				break;
@@ -363,7 +363,7 @@ substitute(struct s_command *cp)
 	if (re == NULL) {
 		if (defpreg != NULL && cp->u.s->maxbref > defpreg->re_nsub) {
 			linenum = cp->u.s->linenum;
-			errx(1, "%lu: %s: \\%d not defined in the RE",
+			errx(1, "%lu: %s: \\%u not defined in the RE",
 					linenum, fname, cp->u.s->maxbref);
 		}
 	}
@@ -449,7 +449,7 @@ substitute(struct s_command *cp)
 		if (cp->u.s->wfd == -1 && (cp->u.s->wfd = open(cp->u.s->wfile,
 		    O_WRONLY|O_APPEND|O_CREAT|O_TRUNC, DEFFILEMODE)) == -1)
 			err(1, "%s", cp->u.s->wfile);
-		if (write(cp->u.s->wfd, ps, psl) != psl ||
+		if (write(cp->u.s->wfd, ps, psl) != (ssize_t)psl ||
 		    write(cp->u.s->wfd, "\n", 1) != 1)
 			err(1, "%s", cp->u.s->wfile);
 	}
@@ -554,7 +554,7 @@ lputs(char *s, size_t len)
 {
 	static const char escapes[] = "\\\a\b\f\r\t\v";
 	int c, col, width;
-	char *p;
+	const char *p;
 	struct winsize win;
 	static int termwidth = -1;
 	size_t clen, i;
@@ -572,6 +572,8 @@ lputs(char *s, size_t len)
 		else
 			termwidth = 60;
 	}
+	if (termwidth <= 0)
+		termwidth = 1;
 
 	memset(&mbs, 0, sizeof(mbs));
 	col = 0;
@@ -607,7 +609,7 @@ lputs(char *s, size_t len)
 			fprintf(outfile, "\\%c", "\\abfrtv"[p - escapes]);
 			col += 2;
 		} else {
-			if (col + 4 * clen >= termwidth) {
+			if (col + 4 * clen >= (unsigned)termwidth) {
 				fprintf(outfile, "\\\n");
 				col = 0;
 			}
