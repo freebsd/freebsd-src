@@ -2,7 +2,7 @@
 # auto-unmount floppy/cd directory before ejecting device
 # script taken from Debian Linux's amd
 #
-# Package:		am-utils-6.0
+# Package:		am-utils-6.x
 # (Additional) author:	Erez Zadok <ezk@cs.columbia.edu>
 
 # set path

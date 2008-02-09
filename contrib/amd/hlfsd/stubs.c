@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2004 Erez Zadok
+ * Copyright (c) 1997-2006 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -36,9 +36,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      %W% (Berkeley) %G%
  *
- * $Id: stubs.c,v 1.5.2.7 2004/01/06 03:15:23 ezk Exp $
+ * File: am-utils/hlfsd/stubs.c
  *
  * HLFSD was written at Columbia University Computer Science Department, by
  * Erez Zadok <ezk@cs.columbia.edu> and Alexander Dupuy <dupuy@cs.columbia.edu>
@@ -127,8 +126,18 @@ nfsproc_getattr_2_svc(am_nfs_fh *argp, struct svc_req *rqstp)
     res.ns_status = NFSERR_STALE;
     return &res;
   }
-
   if (eq_fh(argp, &root)) {
+#if 0
+    /*
+     * XXX: increment mtime of parent directory, causes NFS clients to
+     * invalidate their cache for that directory.
+     * Some NFS clients may need this code.
+     */
+    if (uid != rootfattr.na_uid) {
+      clocktime(&rootfattr.na_mtime);
+      rootfattr.na_uid = uid;
+    }
+#endif
     res.ns_status = NFS_OK;
     res.ns_u.ns_attr_u = rootfattr;
   } else if (eq_fh(argp, &slink)) {
@@ -144,7 +153,7 @@ nfsproc_getattr_2_svc(am_nfs_fh *argp, struct svc_req *rqstp)
      * so we must update the nt_seconds field every time.
      */
     if (uid != slinkfattr.na_uid) {
-      slinkfattr.na_mtime.nt_seconds++;
+      clocktime(&slinkfattr.na_mtime);
       slinkfattr.na_uid = uid;
     }
 #endif /* not MNT2_NFS_OPT_SYMTTL */
@@ -161,10 +170,8 @@ nfsproc_getattr_2_svc(am_nfs_fh *argp, struct svc_req *rqstp)
 	res.ns_status = NFS_OK;
 	un_fattr.na_fileid = uid;
 	res.ns_u.ns_attr_u = un_fattr;
-#ifdef DEBUG
 	dlog("nfs_getattr: successful search for uid=%ld, gid=%ld",
 	     (long) uid, (long) gid);
-#endif /* DEBUG */
       } else {			/* not found */
 	res.ns_status = NFSERR_STALE;
       }
@@ -219,12 +226,22 @@ nfsproc_lookup_2_svc(nfsdiropargs *argp, struct svc_req *rqstp)
     res.dr_status = NFSERR_NOENT;
     return &res;
   }
-
   if (eq_fh(&argp->da_fhandle, &root)) {
     if (argp->da_name[0] == '.' &&
 	(argp->da_name[1] == '\0' ||
 	 (argp->da_name[1] == '.' &&
 	  argp->da_name[2] == '\0'))) {
+#if 0
+    /*
+     * XXX: increment mtime of parent directory, causes NFS clients to
+     * invalidate their cache for that directory.
+     * Some NFS clients may need this code.
+     */
+      if (uid != rootfattr.na_uid) {
+	clocktime(&rootfattr.na_mtime);
+	rootfattr.na_uid = uid;
+      }
+#endif
       res.dr_u.dr_drok_u.drok_fhandle = root;
       res.dr_u.dr_drok_u.drok_attributes = rootfattr;
       res.dr_status = NFS_OK;
@@ -243,7 +260,7 @@ nfsproc_lookup_2_svc(nfsdiropargs *argp, struct svc_req *rqstp)
        * so we must update the nt_seconds field every time.
        */
       if (uid != slinkfattr.na_uid) {
-	slinkfattr.na_mtime.nt_seconds++;
+	clocktime(&slinkfattr.na_mtime);
 	slinkfattr.na_uid = uid;
       }
 #endif /* not MNT2_NFS_OPT_SYMTTL */
@@ -267,15 +284,13 @@ nfsproc_lookup_2_svc(nfsdiropargs *argp, struct svc_req *rqstp)
       res.dr_u.dr_drok_u.drok_attributes = un_fattr;
       memset((char *) &un_fhandle, 0, sizeof(am_nfs_fh));
       *(u_int *) un_fhandle.fh_data = (u_int) untab[idx].uid;
-      strncpy((char *) &un_fhandle.fh_data[sizeof(int)],
-	      untab[idx].username,
-	      sizeof(am_nfs_fh) - sizeof(int));
+      xstrlcpy((char *) &un_fhandle.fh_data[sizeof(int)],
+	       untab[idx].username,
+	       sizeof(am_nfs_fh) - sizeof(int));
       res.dr_u.dr_drok_u.drok_fhandle = un_fhandle;
       res.dr_status = NFS_OK;
-#ifdef DEBUG
       dlog("nfs_lookup: successful lookup for uid=%ld, gid=%ld: username=%s",
 	   (long) uid, (long) gid, untab[idx].username);
-#endif /* DEBUG */
       return &res;
     }
   } /* end of "if (eq_fh(argp->dir.data, root.data)) {" */
@@ -302,7 +317,7 @@ nfsproc_readlink_2_svc(am_nfs_fh *argp, struct svc_req *rqstp)
     if (getcreds(rqstp, &userid, &groupid, nfsxprt) < 0)
       return (nfsreadlinkres *) NULL;
 
-    gettimeofday((struct timeval *) &slinkfattr.na_atime, (struct timezone *) 0);
+    clocktime(&slinkfattr.na_atime);
 
     res.rlr_status = NFS_OK;
     if (groupid == hlfs_gid) {
@@ -340,7 +355,7 @@ nfsproc_readlink_2_svc(am_nfs_fh *argp, struct svc_req *rqstp)
     last_uid = userid;
   }
 
-  /* I don't think will pass this if -D nofork */
+  /* I don't think it will pass this if -D fork */
   if (serverpid == getpid())
     return &res;
 
@@ -359,15 +374,13 @@ nfsproc_readlink_2_svc(am_nfs_fh *argp, struct svc_req *rqstp)
   else
     retval = 0;
 
-#ifdef DEBUG
   /*
-   * If asked for -D nofork, then must return the value,
+   * If asked for -D fork, then must return the value,
    * NOT exit, or else the main hlfsd server exits.
-   * Bug where is that status information being collected?
+   * Bug: where is that status information being collected?
    */
-  amuDebugNo(D_FORK)
+  if (amuDebug(D_FORK))
     return &res;
-#endif /* DEBUG */
 
   exit(retval);
 }
@@ -476,7 +489,7 @@ nfsproc_readdir_2_svc(nfsreaddirargs *argp, struct svc_req *rqstp)
   if (eq_fh(&argp->rda_fhandle, &slink)) {
     res.rdr_status = NFSERR_NOTDIR;
   } else if (eq_fh(&argp->rda_fhandle, &root)) {
-    gettimeofday((struct timeval *) &rootfattr.na_atime, (struct timezone *) 0);
+    clocktime(&rootfattr.na_atime);
 
     res.rdr_status = NFS_OK;
     switch (argp->rda_cookie[0]) {

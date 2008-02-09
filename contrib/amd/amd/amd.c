@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2004 Erez Zadok
+ * Copyright (c) 1997-2006 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -36,12 +36,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      %W% (Berkeley) %G%
  *
  * $Id: amd.c,v 1.8.2.6 2004/01/06 03:15:16 ezk Exp $
- * $FreeBSD$
+ * File: am-utils/amd/amd.c
  *
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * Automounter
@@ -55,9 +57,10 @@
 
 struct amu_global_options gopt;	/* where global options are stored */
 
-char pid_fsname[16 + MAXHOSTNAMELEN];	/* "kiska.southseas.nz:(pid%d)" */
+char pid_fsname[SIZEOF_PID_FSNAME]; /* "kiska.southseas.nz:(pid%d)" */
 char *hostdomain = "unknown.domain";
-char hostd[2 * MAXHOSTNAMELEN + 1]; /* Host+domain */
+#define SIZEOF_HOSTD (2 * MAXHOSTNAMELEN + 1)	/* Host+domain */
+char hostd[SIZEOF_HOSTD];	/* Host+domain */
 char *endian = ARCH_ENDIAN;	/* Big or Little endian */
 char *cpu = HOST_CPU;		/* CPU type */
 char *PrimNetName;		/* name of primary network */
@@ -71,6 +74,10 @@ jmp_buf select_intr;
 struct amd_stats amd_stats;	/* Server statistics */
 struct in_addr myipaddr;	/* (An) IP address of this host */
 time_t do_mapc_reload = 0;	/* mapc_reload() call required? */
+
+#ifdef HAVE_FS_AUTOFS
+int amd_use_autofs = 0;
+#endif /* HAVE_FS_AUTOFS */
 
 #ifdef HAVE_SIGACTION
 sigset_t masked_sigs;
@@ -119,10 +126,8 @@ sighup(int sig)
   signal(sig, sighup);
 #endif /* REINSTALL_SIGNAL_HANDLER */
 
-#ifdef DEBUG
   if (sig != SIGHUP)
     dlog("spurious call to sighup");
-#endif /* DEBUG */
   /*
    * Force a reload by zero'ing the timer
    */
@@ -134,7 +139,26 @@ sighup(int sig)
 static RETSIGTYPE
 parent_exit(int sig)
 {
-  exit(0);
+  /*
+   * This signal handler is called during Amd initialization.  The parent
+   * forks a child to do all the hard automounting work, and waits for a
+   * SIGQUIT signal from the child.  When the parent gets the signal it's
+   * supposed to call this handler and exit(3), thus completing the
+   * daemonizing process.  Alas, on some systems, especially Linux 2.4/2.6
+   * with Glibc, exit(3) doesn't always terminate the parent process.
+   * Worse, the parent process now refuses to accept any more SIGQUIT
+   * signals -- they are blocked.  What's really annoying is that this
+   * doesn't happen all the time, suggesting a race condition somewhere.
+   * (This happens even if I change the logic to use another signal.)  I
+   * traced this to something which exit(3) does in addition to exiting the
+   * process, probably some atexit() stuff or other side-effects related to
+   * signal handling.  Either way, since at this stage the parent process
+   * just needs to terminate, I'm simply calling _exit(2).  Note also that
+   * the OpenGroup doesn't list exit(3) as a recommended "Base Interface"
+   * but they do list _exit(2) as one.  This fix seems to work reliably all
+   * the time. -Erez (2/27/2005)
+   */
+  _exit(0);
 }
 
 
@@ -146,6 +170,7 @@ daemon_mode(void)
 #ifdef HAVE_SIGACTION
   struct sigaction sa, osa;
 
+  memset(&sa, 0, sizeof(sa));
   sa.sa_handler = parent_exit;
   sa.sa_flags = 0;
   sigemptyset(&(sa.sa_mask));
@@ -218,6 +243,7 @@ init_global_options(void)
 #if defined(HAVE_SYS_UTSNAME_H) && defined(HAVE_UNAME)
   static struct utsname un;
 #endif /* defined(HAVE_SYS_UTSNAME_H) && defined(HAVE_UNAME) */
+  int i;
 
   memset(&gopt, 0, sizeof(struct amu_global_options));
 
@@ -227,8 +253,14 @@ init_global_options(void)
   /* automounter temp dir */
   gopt.auto_dir = "/.amd_mnt";
 
+  /* toplevel attribute cache timeout */
+  gopt.auto_attrcache = 0;
+
   /* cluster name */
   gopt.cluster = NULL;
+
+  /* executable map timeout */
+  gopt.exec_map_timeout = AMFS_EXEC_MAP_TIMEOUT;
 
   /*
    * kernel architecture: this you must get from uname() if possible.
@@ -261,11 +293,11 @@ init_global_options(void)
   /* local domain */
   gopt.sub_domain = NULL;
 
-  /* NFS retransmit counter */
-  gopt.amfs_auto_retrans = -1;
-
-  /* NFS retry interval */
-  gopt.amfs_auto_timeo = -1;
+  /* reset NFS (and toplvl) retransmit counter and retry interval */
+  for (i=0; i<AMU_TYPE_MAX; ++i) {
+    gopt.amfs_auto_retrans[i] = -1; /* -1 means "never set before" */
+    gopt.amfs_auto_timeo[i] = -1; /* -1 means "never set before" */
+  }
 
   /* cache duration */
   gopt.am_timeo = AM_TTL;
@@ -273,11 +305,13 @@ init_global_options(void)
   /* dismount interval */
   gopt.am_timeo_w = AM_TTL_W;
 
+  /* map reload intervl */
+  gopt.map_reload_interval = ONE_HOUR;
+
   /*
-   * various CFM_* flags.
-   * by default, only the "plock" option is on (if available).
+   * various CFM_* flags that are on by default.
    */
-  gopt.flags = CFM_PROCESS_LOCK;
+  gopt.flags = CFM_DEFAULT_FLAGS;
 
 #ifdef HAVE_MAP_HESIOD
   /* Hesiod rhs zone */
@@ -294,6 +328,9 @@ init_global_options(void)
   /* LDAP cache */
   gopt.ldap_cache_seconds = 0;
   gopt.ldap_cache_maxmem = 131072;
+
+  /* LDAP protocol version */
+  gopt.ldap_proto_version = 2;
 #endif /* HAVE_MAP_LDAP */
 
 #ifdef HAVE_MAP_NIS
@@ -303,17 +340,58 @@ init_global_options(void)
 }
 
 
+/*
+ * Lock process text and data segment in memory (after forking the daemon)
+ */
+static void
+do_memory_locking(void)
+{
+#if defined(HAVE_PLOCK) || defined(HAVE_MLOCKALL)
+  int locked_ok = 0;
+#else /* not HAVE_PLOCK and not HAVE_MLOCKALL */
+  plog(XLOG_WARNING, "Process memory locking not supported by the OS");
+#endif /* not HAVE_PLOCK and not HAVE_MLOCKALL */
+#ifdef HAVE_PLOCK
+# ifdef _AIX
+  /*
+   * On AIX you must lower the stack size using ulimit() before calling
+   * plock.  Otherwise plock will reserve a lot of memory space based on
+   * your maximum stack size limit.  Since it is not easily possible to
+   * tell what should the limit be, I print a warning before calling
+   * plock().  See the manual pages for ulimit(1,3,4) on your AIX system.
+   */
+  plog(XLOG_WARNING, "AIX: may need to lower stack size using ulimit(3) before calling plock");
+# endif /* _AIX */
+  if (!locked_ok && plock(PROCLOCK) != 0)
+    plog(XLOG_WARNING, "Couldn't lock process pages in memory using plock(): %m");
+  else
+    locked_ok = 1;
+#endif /* HAVE_PLOCK */
+#ifdef HAVE_MLOCKALL
+  if (!locked_ok && mlockall(MCL_CURRENT|MCL_FUTURE) != 0)
+    plog(XLOG_WARNING, "Couldn't lock process pages in memory using mlockall(): %m");
+  else
+    locked_ok = 1;
+#endif /* HAVE_MLOCKALL */
+#if defined(HAVE_PLOCK) || defined(HAVE_MLOCKALL)
+  if (locked_ok)
+    plog(XLOG_INFO, "Locked process pages in memory");
+#endif /* HAVE_PLOCK || HAVE_MLOCKALL */
+
+#if defined(HAVE_MADVISE) && defined(MADV_PROTECT)
+    madvise(0, 0, MADV_PROTECT); /* may be redundant of the above worked out */
+#endif /* defined(HAVE_MADVISE) && defined(MADV_PROTECT) */
+}
+
+
 int
 main(int argc, char *argv[])
 {
-  char *domdot, *verstr;
+  char *domdot, *verstr, *vertmp;
   int ppid = 0;
   int error;
   char *progname = NULL;		/* "amd" */
   char hostname[MAXHOSTNAMELEN + 1] = "localhost"; /* Hostname */
-#ifdef HAVE_SIGACTION
-  struct sigaction sa;
-#endif /* HAVE_SIGACTION */
 
   /*
    * Make sure some built-in assumptions are true before we start
@@ -364,11 +442,6 @@ main(int argc, char *argv[])
     going_down(1);
   }
 
-#ifdef DEBUG
-  /* initialize debugging flags (Register AMQ, Enter daemon mode) */
-  debug_flags = D_AMQ | D_DAEMON;
-#endif /* DEBUG */
-
   /*
    * Initialize global options structure.
    */
@@ -387,73 +460,31 @@ main(int argc, char *argv[])
     *domdot++ = '\0';
     hostdomain = domdot;
   }
-  strcpy(hostd, hostname);
+  xstrlcpy(hostd, hostname, sizeof(hostd));
   am_set_hostname(hostname);
 
   /*
-   * Trap interrupts for shutdowns.
+   * Setup signal handlers
    */
-#ifdef HAVE_SIGACTION
-  sa.sa_handler = sigterm;
-  sa.sa_flags = 0;
-  sigemptyset(&(sa.sa_mask));
-  sigaddset(&(sa.sa_mask), SIGINT);
-  sigaddset(&(sa.sa_mask), SIGTERM);
-  sigaction(SIGINT, &sa, NULL);
-  sigaction(SIGTERM, &sa, NULL);
-#else /* not HAVE_SIGACTION */
-  (void) signal(SIGINT, sigterm);
-#endif /* not HAVE_SIGACTION */
-
+  /* SIGINT: trap interrupts for shutdowns */
+  setup_sighandler(SIGINT, sigterm);
+  /* SIGTERM: trap terminate so we can shutdown cleanly (some chance) */
+  setup_sighandler(SIGTERM, sigterm);
+  /* SIGHUP: hangups tell us to reload the cache */
+  setup_sighandler(SIGHUP, sighup);
   /*
-   * Trap Terminate so that we can shutdown gracefully (some chance)
+   * SIGCHLD: trap Death-of-a-child.  These allow us to pick up the exit
+   * status of backgrounded mounts.  See "sched.c".
    */
+  setup_sighandler(SIGCHLD, sigchld);
 #ifdef HAVE_SIGACTION
-  sa.sa_handler = sigterm;
-  sa.sa_flags = 0;
-  sigemptyset(&(sa.sa_mask));
-  sigaddset(&(sa.sa_mask), SIGTERM);
-  sigaction(SIGTERM, &sa, NULL);
-#else /* not HAVE_SIGACTION */
-  (void) signal(SIGTERM, sigterm);
-#endif /* not HAVE_SIGACTION */
-
-  /*
-   * Hangups tell us to reload the cache
-   */
-#ifdef HAVE_SIGACTION
-  sa.sa_handler = sighup;
-  sa.sa_flags = 0;
-  sigemptyset(&(sa.sa_mask));
-  sigaddset(&(sa.sa_mask), SIGHUP);
-  sigaction(SIGHUP, &sa, NULL);
-#else /* not HAVE_SIGACTION */
-  (void) signal(SIGHUP, sighup);
-#endif /* not HAVE_SIGACTION */
-
-  /*
-   * Trap Death-of-a-child.  These allow us to
-   * pick up the exit status of backgrounded mounts.
-   * See "sched.c".
-   */
-#ifdef HAVE_SIGACTION
-  sa.sa_handler = sigchld;
-  sa.sa_flags = 0;
-  sigemptyset(&(sa.sa_mask));
-  sigaddset(&(sa.sa_mask), SIGCHLD);
-  sigaction(SIGCHLD, &sa, NULL);
-
-  /*
-   * construct global "masked_sigs" used in nfs_start.c
-   */
+  /* construct global "masked_sigs" used in nfs_start.c */
   sigemptyset(&masked_sigs);
+  sigaddset(&masked_sigs, SIGINT);
+  sigaddset(&masked_sigs, SIGTERM);
   sigaddset(&masked_sigs, SIGHUP);
   sigaddset(&masked_sigs, SIGCHLD);
-  sigaddset(&masked_sigs, SIGTERM);
-  sigaddset(&masked_sigs, SIGINT);
-#else /* not HAVE_SIGACTION */
-  (void) signal(SIGCHLD, sigchld);
-#endif /* not HAVE_SIGACTION */
+#endif /* HAVE_SIGACTION */
 
   /*
    * Fix-up any umask problems.  Most systems default
@@ -474,18 +505,21 @@ main(int argc, char *argv[])
   /*
    * Log version information.
    */
-  verstr = strtok(get_version_string(), "\n");
+  vertmp = get_version_string();
+  verstr = strtok(vertmp, "\n");
   plog(XLOG_INFO, "AM-UTILS VERSION INFORMATION:");
   while (verstr) {
     plog(XLOG_INFO, "%s", verstr);
     verstr = strtok(NULL, "\n");
   }
+  XFREE(vertmp);
 
   /*
-   * Get our own IP address so that we
-   * can mount the automounter.
+   * Get our own IP address so that we can mount the automounter.  We pass
+   * localhost_address which could be used as the default localhost
+   * name/address in amu_get_myaddress().
    */
-  amu_get_myaddress(&myipaddr);
+  amu_get_myaddress(&myipaddr, gopt.localhost_address);
   plog(XLOG_INFO, "My ip addr is %s", inet_ntoa(myipaddr));
 
   /* avoid hanging on other NFS servers if started elsewhere */
@@ -500,29 +534,6 @@ main(int argc, char *argv[])
     going_down(1);
   }
 
-  /*
-   * Lock process text and data segment in memory.
-   */
-#ifdef HAVE_PLOCK
-  if (gopt.flags & CFM_PROCESS_LOCK) {
-# ifdef _AIX
-    /*
-     * On AIX you must lower the stack size using ulimit() before calling
-     * plock.  Otherwise plock will reserve a lot of memory space based on
-     * your maximum stack size limit.  Since it is not easily possible to
-     * tell what should the limit be, I print a warning before calling
-     * plock().  See the manual pages for ulimit(1,3,4) on your AIX system.
-     */
-    plog(XLOG_WARNING, "AIX: may need to lower stack size using ulimit(3) before calling plock");
-# endif /* _AIX */
-    if (plock(PROCLOCK) != 0) {
-      plog(XLOG_WARNING, "Couldn't lock process text and data segment in memory: %m");
-    } else {
-      plog(XLOG_INFO, "Locked process text and data segment in memory");
-    }
-  }
-#endif /* HAVE_PLOCK */
-
 #ifdef HAVE_MAP_NIS
   /*
    * If the domain was specified then bind it here
@@ -535,14 +546,17 @@ main(int argc, char *argv[])
   }
 #endif /* HAVE_MAP_NIS */
 
-#ifdef DEBUG
-  amuDebug(D_DAEMON)
-#endif /* DEBUG */
+  if (!amuDebug(D_DAEMON))
     ppid = daemon_mode();
 
-  sprintf(pid_fsname, "%s:(pid%ld)", am_get_hostname(), (long) am_mypid);
+  /*
+   * Lock process text and data segment in memory.
+   */
+  if (gopt.flags & CFM_PROCESS_LOCK) {
+    do_memory_locking();
+  }
 
-  do_mapc_reload = clocktime() + ONE_HOUR;
+  do_mapc_reload = clocktime(NULL) + gopt.map_reload_interval;
 
   /*
    * Register automounter with system.
@@ -550,6 +564,16 @@ main(int argc, char *argv[])
   error = mount_automounter(ppid);
   if (error && ppid)
     kill(ppid, SIGALRM);
+
+#ifdef HAVE_FS_AUTOFS
+  /*
+   * XXX this should be part of going_down(), but I can't move it there
+   * because it would be calling non-library code from the library... ugh
+   */
+  if (amd_use_autofs)
+    destroy_autofs_service();
+#endif /* HAVE_FS_AUTOFS */
+
   going_down(error);
 
   abort();

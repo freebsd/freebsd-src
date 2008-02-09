@@ -1,26 +1,16 @@
-			  AM-UTILS-6.0 TASKS TODO
+			  AM-UTILS-6.1 TASKS TODO
 
 Please volunteer to do any of the following:
 
-- complete testing of untested platforms in INSTALL file
-	ncr2
-	sunos 3.5
-
-- autofs support: see README.autofs for details. [done in 6.1]
+- autofs support: see README.autofs for details.
 
 - deal with everything that has XXX on it in the sources
 - documentation update ("XXX: FILL IN" sections).
 
-- hlfsd should be able to not use /var/alt_mail, but send code 75 back to
-  sendmail (telling it to re-queue the mail and retry later).
-
 - compatibility with Sun's automount maps?
 	should be easier via the amd.conf file to specify type of map
-	perhaps done at the same time autofs support is done.
 
 - convert to using my own rpcgen .x files for amq/amq/nfs (v2 and v3)
-
-- support multiple "fail-over read-only" NFS mounts in Solaris 2.6+.
 
 - use packaging info for various OSs (such as RPM, Redhat Package Manager)
 
@@ -28,32 +18,20 @@ Please volunteer to do any of the following:
 
 - multiple nfsl should be matched if one matched and nfs mount failed.  fall
   through.
-- fall through syntax?  opts:=nofail,fallthrough?
+- support multiple "fail-over read-only" NFS mounts in Solaris 2.6+.
 
 - random nfs rhost:={srv1, srv2, srv3}
 
 - nfslx, same as nfsl, but using linkx
 
-- find out why this sometimes works and sometimes not:
-	mcl	-rhost:=minetta host!=${rhost};type:=nfs host==${rhost}
-
 - loadable info_*, amfs_*, and ops_* modules (lazy evaluation).
 
-- hlfsd for ~root/.mailspool (getpwnam("root"))
 - hlfsd should daemonize even if -DDEBUG, then use -D nofork
 
 - fixmount should use generic code from transp/transp_{tli,sockets}.c
 
-- report netbsd/openbsd bugs in BUGS file
-
 - reverse notion of -F and other cmd-line options, so they override the
-amd.conf file (right now amd.conf overrides cmd-line options).
-
-- y2k compliance.
-
-- an un/install script for binaries
-
-- update README
+  amd.conf file (right now amd.conf overrides cmd-line options).
 
 - add am-utils URL and COPYRIGHT to all distributed scripts and sources and
   programs etc. also to amq -v output.
@@ -61,31 +39,13 @@ amd.conf file (right now amd.conf overrides cmd-line options).
 - ion: browsable_dirs only works for nis if in [global] broken if it is file
   maps.
 
-- all if statements should have an else clause because of Ultrix's /bin/sh.
-
-- look for obsolete AM_* macros and use newer AC_* ones
-- use 3rd arg to AC_CHECK_TYPE (headers)
-
-- FreeBSD 3.1 doesn't have SYMTTL flag, so the mtime of the hlfsd symlink is
-  always new.  This breaks hlfsd on FreeBSD 3.1, b/c the acregmin/max code
-  depends on the time that the symlink was created.  Solution: best is to
-  support NOAC in the FreeBSD kernel, otherwise hlfsd will have to know not
-  to turn on this code in hlfsd/stubs.c:
-
-    if (++slinkfattr.na_mtime.nt_useconds == 0)
-      ++slinkfattr.na_mtime.nt_seconds;
-
-- support nqnfs as per Jeffrey C Honig <jch@BSDI.COM>: "Besides having
-  NFSMNT_NQNFS set when you try to do the mount, NQNFS requires that you do
-  the nfssvc() call to create an nqnfs client daemon.  I can't see any
-  obvious way to check if the server supports NQNFS."
-
 - browsable 'auto' style maps.
 
 - mention signals in amd man page
 
 - ALLOWED_MOUNT_TIME of 40 seconds is way too long!
-- need option to turn off pings of portmapper before trying a mount
+- detecting down'ed hosts faster: use default portmap TTL variables?
+- push get_nfs_version() down into a child process
 
 - type:=program should not require umount command. can use default
   umount(). it works for smbmount/umount.
@@ -97,30 +57,55 @@ amd.conf file (right now amd.conf overrides cmd-line options).
 
 - support port=n, for machines that use NFS on a different port
 
-- support WebNFS (cf. Solaris mount_nfs(1M) -o public)
-
 - nfsl may be buggy when fs:= is specified explicitly (lockup?)
-
-- detecting down'ed hosts faster: use default portmap TTL variables?
-
-- entries w/ $key in /defaults, see "defaults" instead of the actual
-  entry. [fixed in 6.1]
 
 - y2k: amq /home (mounted time uses YY instead of YYYY)
 
 - new amd.conf option to disable amq listener altogether (security)
+	Should be available even if DEBUG is off.
 
 - new amd.conf option dynamic_system_params to recompute osver, karch,
   etc. from uname() dynamically.
 
-- change uid (gid?) of hlfsd symlink each time, to circumvent symlink cache
-  on openbsd.
-
 - solaris 8 doesn't pick up hsfs/pcfs/etc *_args structures and mount flags
 
-- support opts:=loop for linux loopback mounts
-
-- map reloading interval timer (do_mapc_reload = clocktime() + ONE_HOUR);
-  right now it's fixed to 3600 seconds.
-
 - avoid having to compile ops_nfs3.o
+
+- linux support for ext3
+
+- be able to pass generic mount options to systems w/ a mount(2) that
+  supports it (Linux).  Perhaps genopt="foo,bar" syntax.
+
+- support several different nfs servers inside one nfsx entry
+
+- reimplement the "parallel mounting" for multiple matching sub-entries
+
+- fix amd.conf parser so it can parse key=value without spaces around the
+  "=" sign.  Note this isn't so trivial because 'value' may include "="
+  signs.
+
+- NFSv4 support (such a short "tasks" entry given how much work it is :-)
+
+
+* documentation
+- document what can and what can't be a top-level mount type (i.e. a
+  map-backed or map-holding type). Currently that's toplvl, auto, and
+  direct.
+- document how to add a direct map to amd.conf.
+
+* autofs stuff
+Linux:
+- host mounts broken with autofs v3
+- nfsx status unknown
+- local filesystems (ufs, etc) status unknown
+
+Solaris:
+- host mounts status unknown
+- nfsx status unknown
+- local filesystems (ufs, etc) status unknown
+
+FreeBSD:
+- just do it
+
+All:
+- mntfs->mf_fo->opt_fs can contain garbage sometimes??

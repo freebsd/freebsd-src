@@ -1,3 +1,47 @@
+/*
+ * Copyright (c) 1997-2006 Erez Zadok
+ * Copyright (c) 1990 Jan-Simon Pendry
+ * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
+ * Copyright (c) 1990 The Regents of the University of California.
+ * All rights reserved.
+ *
+ * This code is derived from software contributed to Berkeley by
+ * Jan-Simon Pendry at Imperial College, London.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgment:
+ *      This product includes software developed by the University of
+ *      California, Berkeley and its contributors.
+ * 4. Neither the name of the University nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ *
+ * File: am-utils/include/mount_headers1.h
+ *
+ */
+
+
 #ifdef HAVE_SYS_TYPES_H
 # include <sys/types.h>
 #endif /* HAVE_SYS_TYPES_H */
@@ -131,17 +175,12 @@
 #ifdef HAVE_UFS_UFS_MOUNT_H
 # include <ufs/ufs_mount.h>
 #endif /* HAVE_UFS_UFS_MOUNT_H */
-#ifdef HAVE_UFS_UFS_UFSMOUNT_H
-# ifndef MAXQUOTAS
-#  define MAXQUOTAS     2
-# endif /* not MAXQUOTAS */
-struct netexport { int this_is_SO_wrong; }; /* for bsdi-2.1 */
-/* netbsd-1.4 does't protect <ufs/ufs/ufsmount.h> */
-# ifndef _UFS_UFS_UFSMOUNT_H
-#  include <ufs/ufs/ufsmount.h>
-#  define _UFS_UFS_UFSMOUNT_H
-# endif /* not _UFS_UFS_UFSMOUNT_H */
-#endif /* HAVE_UFS_UFS_UFSMOUNT_H */
+#ifdef	HAVE_UFS_UFS_UFSMOUNT_H_off
+# error do not include this file here because on *bsd it
+# error causes errors with other header files.  Instead, add it to the
+# error specific conf/nfs_prot_*.h file.
+# include <ufs/ufs/ufsmount.h>
+#endif	/* HAVE_UFS_UFS_UFSMOUNT_H_off */
 
 #ifdef HAVE_CDFS_CDFS_MOUNT_H
 # include <cdfs/cdfs_mount.h>
@@ -152,6 +191,16 @@ struct netexport { int this_is_SO_wrong; }; /* for bsdi-2.1 */
 #ifdef HAVE_ISOFS_CD9660_CD9660_MOUNT_H
 # include <isofs/cd9660/cd9660_mount.h>
 #endif /* HAVE_ISOFS_CD9660_CD9660_MOUNT_H */
+
+#ifdef HAVE_SYS_FS_PC_FS_H
+# include <sys/fs/pc_fs.h>
+#endif /* HAVE_SYS_FS_PC_FS_H */
+#ifdef HAVE_MSDOSFS_MSDOSFSMOUNT_H
+# include <msdosfs/msdosfsmount.h>
+#endif /* HAVE_MSDOSFS_MSDOSFSMOUNT_H */
+#ifdef HAVE_FS_MSDOSFS_MSDOSFSMOUNT_H
+# include <fs/msdosfs/msdosfsmount.h>
+#endif /* HAVE_FS_MSDOSFS_MSDOSFSMOUNT_H */
 
 #ifdef HAVE_RPC_RPC_H
 # include <rpc/rpc.h>
