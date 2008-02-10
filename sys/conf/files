@@ -758,6 +758,8 @@ dev/mii/nsgphy.c		optional miibus
 dev/mii/nsgphy.c		optional nsgphy
 dev/mii/nsphy.c			optional miibus
 dev/mii/nsphy.c			optional nsphy
+dev/mii/nsphyter.c		optional miibus
+dev/mii/nsphyter.c		optional nsphyter
 dev/mii/pnaphy.c		optional miibus
 dev/mii/pnaphy.c		optional pnaphy
 dev/mii/pnphy.c			optional miibus
