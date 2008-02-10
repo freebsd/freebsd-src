@@ -1,4 +1,4 @@
-.\" Copyright (c) 2006 Joseph Koshy.  All rights reserved.
+.\" Copyright (c) 2006,2008 Joseph Koshy.  All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 3, 2006
+.Dd February 5, 2008
 .Os
 .Dt GELF_FSIZE 3
 .Sh NAME
@@ -40,6 +40,7 @@
 .Ft size_t
 .Fn elf64_fsize "Elf_Type type" "size_t count" "unsigned int version"
 .In gelf.h
+.Ft size_t
 .Fn gelf_fsize "Elf *elf" "Elf_Type type" "size_t count" "unsigned int version"
 .Sh DESCRIPTION
 These functions return the size in bytes of the file representation of
