@@ -72,7 +72,7 @@ _libelf_xlate_shtype(uint32_t sht)
 	case SHT_GNU_verneed:	/* == SHT_SUNW_verneed */
 		return (ELF_T_VNEED);
 	case SHT_GNU_versym:	/* == SHT_SUNW_versym */
-		return (-1);	/* XXX */
+		return (ELF_T_HALF);
 	case SHT_SUNW_move:
 		return (ELF_T_MOVE);
 	case SHT_SUNW_syminfo:
