@@ -32,7 +32,7 @@
 .\"     @(#)timed.8	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd June 6, 1993
+.Dd December 8, 2007
 .Dt TIMED 8
 .Os
 .Sh NAME
@@ -77,19 +77,44 @@ are used by
 This option may be specified multiple times
 to add more than one network to the list.
 .It Fl F Ar host ...
+.in +2
+.ti -2
+-
 Create a list of trusted hosts.
-The
+.ti -2
+-
+Can take one or more parameters.
+.ti -2
+-
 .Nm
-utility will only accept trusted hosts as masters.
+will only accept trusted hosts as masters.
 If it finds an untrusted host claiming to be master,
 .Nm
 will suppress incoming messages from that host
 and call for a new election.
-This option implies the
+.ti -2
+-
+Use real host names (resolvable by RDNS) not aliases (eg in 
+.Xr named 8
+parlance: use A names, not C names).
+.ti -2
+-
+Use full names eg time1.domain.com not time1.
+.ti -2
+-
+.Fl F
+automatically includes the fuctionality of 
 .Fl M
-option.
-If this option is not specified,
-all hosts on the connected networks are treated as trustworthy.
+( so
+.Fl M
+does not need to asserted).
+.ti -2
+-
+If 
+.Fl F
+is not specified,
+all hosts on connected networks are treated as trustworthy.
+.in -2
 .It Fl M
 Allow this host to become a
 .Nm
