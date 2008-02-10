@@ -78,6 +78,14 @@ struct option {
 
 #include "bsdtar.h"
 
+#if !HAVE_DECL_OPTARG
+extern int optarg;
+#endif
+
+#if !HAVE_DECL_OPTIND
+extern int optind;
+#endif
+
 /*
  * Per POSIX.1-1988, tar defaults to reading/writing archives to/from
  * the default tape device for the system.  Pick something reasonable here.
@@ -383,19 +391,9 @@ main(int argc, char **argv)
 		case 'L': /* BSD convention */
 			bsdtar->symlink_mode = 'L';
 			break;
-	        case 'l': /* SUSv2 and GNU conflict badly here */
-			if (getenv("POSIXLY_CORRECT") != NULL) {
-				/* User has asked for POSIX/SUS behavior. */
-				bsdtar->option_warn_links = 1;
-			} else {
-				fprintf(stderr,
-"Error: -l has different behaviors in different tar programs.\n");
-				fprintf(stderr,
-"  For the GNU behavior, use --one-file-system instead.\n");
-				fprintf(stderr,
-"  For the POSIX behavior, use --check-links instead.\n");
-				usage(bsdtar);
-			}
+	        case 'l': /* SUSv2 and GNU tar beginning with 1.16 */
+			/* GNU tar 1.13  used -l for --one-file-system */
+			bsdtar->option_warn_links = 1;
 			break;
 		case 'm': /* SUSv2 */
 			bsdtar->extract_flags &= ~ARCHIVE_EXTRACT_TIME;
@@ -784,7 +782,9 @@ usage(struct bsdtar *bsdtar)
 static void
 version(void)
 {
-	printf("bsdtar %s - %s\n", PACKAGE_VERSION, archive_version());
+	printf("bsdtar %s - %s\n",
+	    BSDTAR_VERSION_STRING,
+	    archive_version());
 	exit(1);
 }
 
