@@ -28,7 +28,6 @@
 /* A default configuration for FreeBSD, used if there is no config.h. */
 
 #include <sys/param.h>  /* __FreeBSD_version */
-#define	PACKAGE_NAME "bsdtar"
 
 #if __FreeBSD__ > 4
 #define	HAVE_ACL_GET_PERM 0
@@ -39,6 +38,8 @@
 #undef	HAVE_ATTR_XATTR_H
 #define	HAVE_BZLIB_H 1
 #define	HAVE_CHFLAGS 1
+#define	HAVE_DECL_OPTARG 1
+#define	HAVE_DECL_OPTIND 1
 #define	HAVE_DIRENT_D_NAMLEN 1
 #define	HAVE_DIRENT_H 1
 #define	HAVE_D_MD_ORDER 1
