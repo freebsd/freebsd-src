@@ -1,11 +1,11 @@
 /*-
- * 
+ *
  *             Coda: an Experimental Distributed File System
  *                              Release 3.1
- * 
+ *
  *           Copyright (c) 1987-1998 Carnegie Mellon University
  *                          All Rights Reserved
- * 
+ *
  * Permission  to  use, copy, modify and distribute this software and its
  * documentation is hereby granted,  provided  that  both  the  copyright
  * notice  and  this  permission  notice  appear  in  all  copies  of the
@@ -14,21 +14,21 @@
  * that credit is given to Carnegie Mellon University  in  all  documents
  * and publicity pertaining to direct or indirect use of this code or its
  * derivatives.
- * 
+ *
  * CODA IS AN EXPERIMENTAL SOFTWARE SYSTEM AND IS  KNOWN  TO  HAVE  BUGS,
  * SOME  OF  WHICH MAY HAVE SERIOUS CONSEQUENCES.  CARNEGIE MELLON ALLOWS
  * FREE USE OF THIS SOFTWARE IN ITS "AS IS" CONDITION.   CARNEGIE  MELLON
  * DISCLAIMS  ANY  LIABILITY  OF  ANY  KIND  FOR  ANY  DAMAGES WHATSOEVER
  * RESULTING DIRECTLY OR INDIRECTLY FROM THE USE OF THIS SOFTWARE  OR  OF
  * ANY DERIVATIVE WORK.
- * 
+ *
  * Carnegie  Mellon  encourages  users  of  this  software  to return any
  * improvements or extensions that  they  make,  and  to  grant  Carnegie
  * Mellon the rights to redistribute these changes without encumbrance.
- * 
- * 	@(#) src/sys/coda/coda_namecache.h,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $ 
+ *
+ * 	@(#) src/sys/coda/coda_namecache.h,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $
  * $FreeBSD$
- * 
+ *
  */
 
 /*-
@@ -45,107 +45,117 @@
  */
 
 #ifndef _CODA_NC_HEADER_
-#define _CODA_NC_HEADER_
+#define	_CODA_NC_HEADER_
 
 /*
- * Coda constants
+ * Coda constants.
  */
-#define CODA_NC_NAMELEN	15		/* longest name stored in cache */
-#define CODA_NC_CACHESIZE 256		/* Default cache size */
-#define CODA_NC_HASHSIZE	64		/* Must be multiple of 2 */
+#define	CODA_NC_NAMELEN		15	/* Longest name stored in cache */
+#define	CODA_NC_CACHESIZE	256	/* Default cache size */
+#define	CODA_NC_HASHSIZE	64	/* Must be multiple of 2 */
 
 /*
  * Hash function for the primary hash.
- */
-
-/* 
+ *
  * First try -- (first + last letters + length + (int)cp) mod size
  * 2nd try -- same, except dir fid.vnode instead of cp
  */
+#define	CODA_NC_HASH(name, namelen, cp)					\
+	((name[0] + (name[namelen-1]<<4) + namelen +			\
+	    (((int)(intptr_t)cp)>>8)) & (coda_nc_hashsize-1))
 
-#define CODA_NC_HASH(name, namelen, cp) \
-	((name[0] + (name[namelen-1]<<4) + namelen + (((int)(intptr_t)cp)>>8)) & (coda_nc_hashsize-1))
-
-#define CODA_NAMEMATCH(cp, name, namelen, dcp) \
-	((namelen == cp->namelen) && (dcp == cp->dcp) && \
-		 (bcmp(cp->name,name,namelen) == 0))
+#define	CODA_NAMEMATCH(cp, name, namelen, dcp)				\
+	((namelen == cp->namelen) && (dcp == cp->dcp) &&		\
+	    (bcmp(cp->name,name,namelen) == 0))
 
 /*
- * Functions to modify the hash and lru chains.
- * insque and remque assume that the pointers are the first thing
- * in the list node, thus the trickery for lru.
+ * Functions to modify the hash and LRU chains.  insque and remque assume
+ * that the pointers are the first thing in the list node, thus the trickery
+ * for LRU.
  */
-
-#define CODA_NC_HSHINS(elem, pred)	insque(elem,pred)
-#define CODA_NC_HSHREM(elem)		remque(elem)
-#define CODA_NC_HSHNUL(elem)		(elem)->hash_next = \
+#define	CODA_NC_HSHINS(elem, pred)	insque(elem,pred)
+#define	CODA_NC_HSHREM(elem)		remque(elem)
+#define	CODA_NC_HSHNUL(elem)		(elem)->hash_next = \
 					(elem)->hash_prev = (elem)
 
-#define CODA_NC_LRUINS(elem, pred)	insque(LRU_PART(elem), LRU_PART(pred))
-#define CODA_NC_LRUREM(elem)		remque(LRU_PART(elem));
-#define CODA_NC_LRUGET(lruhead)		LRU_TOP((lruhead).lru_prev)
+#define	CODA_NC_LRUINS(elem, pred)	insque(LRU_PART(elem), LRU_PART(pred))
+#define	CODA_NC_LRUREM(elem)		remque(LRU_PART(elem));
+#define	CODA_NC_LRUGET(lruhead)		LRU_TOP((lruhead).lru_prev)
 
-#define CODA_NC_VALID(cncp)	(cncp->dcp != (struct cnode *)0)
- 
-#define LRU_PART(cncp)			(struct coda_cache *) \
-				((char *)cncp + (2*sizeof(struct coda_cache *)))
-#define LRU_TOP(cncp)				(struct coda_cache *) \
-			((char *)cncp - (2*sizeof(struct coda_cache *)))
-#define DATA_PART(cncp)				(struct coda_cache *) \
-			((char *)cncp + (4*sizeof(struct coda_cache *)))
-#define DATA_SIZE	(sizeof(struct coda_cache)-(4*sizeof(struct coda_cache *)))
+#define	CODA_NC_VALID(cncp)	(cncp->dcp != (struct cnode *)0)
+
+#define	LRU_PART(cncp)	(struct coda_cache *) ((char *)cncp + \
+			    (2*sizeof(struct coda_cache *)))
+#define	LRU_TOP(cncp)	(struct coda_cache *) ((char *)cncp - \
+			    (2*sizeof(struct coda_cache *)))
+#define	DATA_PART(cncp)	(struct coda_cache *) ((char *)cncp + \
+			    (4*sizeof(struct coda_cache *)))
+#define	DATA_SIZE	(sizeof(struct coda_cache) - \
+			    (4*sizeof(struct coda_cache *)))
 
 /*
  * Structure for an element in the CODA Name Cache.
- * NOTE: I use the position of arguments and their size in the
- * implementation of the functions CODA_NC_LRUINS, CODA_NC_LRUREM, and
- * DATA_PART.
+ *
+ * NOTE: I use the position of arguments and their size in the implementation
+ * of the functions CODA_NC_LRUINS, CODA_NC_LRUREM, and DATA_PART.
  */
-
-struct coda_cache {	
-	struct coda_cache	*hash_next,*hash_prev;	/* Hash list */
+struct coda_cache {
+	struct coda_cache	*hash_next, *hash_prev;	/* Hash list */
 	struct coda_cache	*lru_next, *lru_prev;	/* LRU list */
 	struct cnode	*cp;			/* vnode of the file */
 	struct cnode	*dcp;			/* parent's cnode */
 	struct ucred	*cred;			/* user credentials */
-	char		name[CODA_NC_NAMELEN];	/* segment name */
-	int		namelen;		/* length of name */
+	char		 name[CODA_NC_NAMELEN];	/* segment name */
+	int		 namelen;		/* length of name */
 };
 
-struct	coda_lru {		/* Start of LRU chain */
-	char *dummy1, *dummy2;			/* place holders */
-	struct coda_cache *lru_next, *lru_prev;   /* position of pointers is important */
-};
-
-
-struct coda_hash {		/* Start of Hash chain */
-	struct coda_cache *hash_next, *hash_prev; /* NOTE: chain pointers must be first */
-        int length;                             /* used for tuning purposes */
-};
-
-
-/* 
- * Symbols to aid in debugging the namecache code. Assumes the existence
- * of the variable coda_nc_debug, which is defined in cfs_namecache.c
+/*
+ * Start of an LRU chain -- notice position of pointers.
  */
-#define CODA_NC_DEBUG(N, STMT)     { if (coda_nc_debug & (1 <<N)) { STMT } }
+struct coda_lru {
+	char	*dummy1, *dummy2;
+	struct coda_cache *lru_next, *lru_prev;
+};
 
-/* Prototypes of functions exported within cfs */
-void coda_nc_init(void);
-void coda_nc_enter(struct cnode *, const char *, int, struct ucred *, struct cnode *);
-struct cnode *coda_nc_lookup(struct cnode *, const char *, int, struct ucred *);
+/*
+ * Start of Hash chain -- notice position of pointers -- chain pointers must
+ * be first.
+ */
+struct coda_hash {
+	struct coda_cache *hash_next, *hash_prev;
+        int	length;			/* Used for tuning purposes. */
+};
 
-void coda_nc_zapParentfid(CodaFid *, enum dc_status);
-void coda_nc_zapfid(CodaFid *, enum dc_status);
-void coda_nc_zapvnode(CodaFid *, struct ucred *, enum dc_status);
-void coda_nc_zapfile(struct cnode *, const char *, int);
-void coda_nc_purge_user(uid_t, enum dc_status);
-void coda_nc_flush(enum dc_status);
+/*
+ * Symbols to aid in debugging the namecache code. Assumes the existence of
+ * the variable coda_nc_debug, which is defined in cfs_namecache.c
+ */
+#define	CODA_NC_DEBUG(N, STMT) do {					\
+	if (coda_nc_debug & (1 << N)) {					\
+		STMT							\
+	}								\
+} while (0)
 
-void print_coda_nc(void);
-void coda_nc_gather_stats(void);
-int  coda_nc_resize(int, int, enum dc_status);
-void coda_nc_name(struct cnode *cp);
+/*
+ * Prototypes of functions exported within cfs.
+ */
+void	 coda_nc_init(void);
+void	 coda_nc_enter(struct cnode *, const char *, int, struct ucred *,
+	    struct cnode *);
+struct cnode	*coda_nc_lookup(struct cnode *, const char *, int,
+		    struct ucred *);
+
+void	coda_nc_zapParentfid(CodaFid *, enum dc_status);
+void	coda_nc_zapfid(CodaFid *, enum dc_status);
+void	coda_nc_zapvnode(CodaFid *, struct ucred *, enum dc_status);
+void	coda_nc_zapfile(struct cnode *, const char *, int);
+void	coda_nc_purge_user(uid_t, enum dc_status);
+void	coda_nc_flush(enum dc_status);
+
+void	print_coda_nc(void);
+void	coda_nc_gather_stats(void);
+int	coda_nc_resize(int, int, enum dc_status);
+void	coda_nc_name(struct cnode *cp);
 
 /*
  * Global variables tracking and controlling Coda namecache operation.
@@ -155,42 +165,41 @@ extern int coda_nc_initialized;		/* Set if cache has been initialized */
 extern int coda_nc_use;			/* Indicate use of CODA Name Cache */
 
 /*
- * Structure to contain statistics on the cache usage
+ * Structure to contain statistics on the cache usage.
  */
-
 struct coda_nc_statistics {
-	unsigned	hits;
-	unsigned	misses;
-	unsigned	enters;
-	unsigned	dbl_enters;
-	unsigned	long_name_enters;
-	unsigned	long_name_lookups;
-	unsigned	long_remove;
-	unsigned	lru_rm;
-	unsigned	zapPfids;
-	unsigned	zapFids;
-	unsigned	zapFile;
-	unsigned	zapUsers;
-	unsigned	Flushes;
-	unsigned        Sum_bucket_len;
-	unsigned        Sum2_bucket_len;
-	unsigned        Max_bucket_len;
-	unsigned        Num_zero_len;
-	unsigned        Search_len;
+	u_int	hits;
+	u_int	misses;
+	u_int	enters;
+	u_int	dbl_enters;
+	u_int	long_name_enters;
+	u_int	long_name_lookups;
+	u_int	long_remove;
+	u_int	lru_rm;
+	u_int	zapPfids;
+	u_int	zapFids;
+	u_int	zapFile;
+	u_int	zapUsers;
+	u_int	Flushes;
+	u_int	Sum_bucket_len;
+	u_int	Sum2_bucket_len;
+	u_int	Max_bucket_len;
+	u_int	Num_zero_len;
+	u_int	Search_len;
 };
 
-#define CODA_NC_FIND		((u_long) 1)
-#define CODA_NC_REMOVE		((u_long) 2)
-#define CODA_NC_INIT		((u_long) 3)
-#define CODA_NC_ENTER		((u_long) 4)
-#define CODA_NC_LOOKUP		((u_long) 5)
-#define CODA_NC_ZAPPFID		((u_long) 6)
-#define CODA_NC_ZAPFID		((u_long) 7)
-#define CODA_NC_ZAPVNODE		((u_long) 8)
-#define CODA_NC_ZAPFILE		((u_long) 9)
-#define CODA_NC_PURGEUSER		((u_long) 10)
-#define CODA_NC_FLUSH		((u_long) 11)
-#define CODA_NC_PRINTCODA_NC	((u_long) 12)
-#define CODA_NC_PRINTSTATS	((u_long) 13)
+#define	CODA_NC_FIND		((u_long) 1)
+#define	CODA_NC_REMOVE		((u_long) 2)
+#define	CODA_NC_INIT		((u_long) 3)
+#define	CODA_NC_ENTER		((u_long) 4)
+#define	CODA_NC_LOOKUP		((u_long) 5)
+#define	CODA_NC_ZAPPFID		((u_long) 6)
+#define	CODA_NC_ZAPFID		((u_long) 7)
+#define	CODA_NC_ZAPVNODE	((u_long) 8)
+#define	CODA_NC_ZAPFILE		((u_long) 9)
+#define	CODA_NC_PURGEUSER	((u_long) 10)
+#define	CODA_NC_FLUSH		((u_long) 11)
+#define	CODA_NC_PRINTCODA_NC	((u_long) 12)
+#define	CODA_NC_PRINTSTATS	((u_long) 13)
 
-#endif
+#endif /* !_CODA_NC_HEADER_ */
