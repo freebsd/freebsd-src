@@ -3,16 +3,17 @@
 .PATH: ${.CURDIR}/../../dev/mii
 
 KMOD=	miibus
-SRCS=	mii.c mii_physubr.c ukphy.c ukphy_subr.c bus_if.h pci_if.h
-SRCS+=	miibus_if.h miidevs.h device_if.h miibus_if.c e1000phy.c exphy.c nsphy.c
-SRCS+=	mlphy.c tlphy.c rlphy.c amphy.c dcphy.c pnphy.c inphy.c tdkphy.c
-SRCS+=	bmtphy.c brgphy.c xmphy.c pnaphy.c lxtphy.c qsphy.c acphy.c nsgphy.c
-SRCS+=	rgephy.c ruephy.c gentbi.c ip1000phy.c
+SRCS=	acphy.c amphy.c bmtphy.c brgphy.c bus_if.h ciphy.c dcphy.c device_if.h
+SRCS+=	e1000phy.c exphy.c gentbi.c inphy.c ip1000phy.c
+SRCS+=	lxtphy.c miibus_if.c miibus_if.h mii.c miidevs.h mii_physubr.c
+SRCS+=	mlphy.c nsgphy.c nsphy.c pci_if.h pnaphy.c pnphy.c qsphy.c
+SRCS+=	rgephy.c rlphy.c ruephy.c tdkphy.c tlphy.c ukphy.c ukphy_subr.c
+SRCS+=	xmphy.c
 
 EXPORT_SYMS=	mii_mediachg	\
-		mii_tick	\
-		mii_pollstat	\
 		mii_phy_probe	\
-		mii_phy_reset
+		mii_phy_reset	\
+		mii_pollstat	\
+		mii_tick
 
 .include <bsd.kmod.mk>
