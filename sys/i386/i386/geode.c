@@ -40,41 +40,50 @@ __FBSDID("$FreeBSD$");
 #include <machine/pc/bios.h>
 
 static struct bios_oem bios_soekris = {
-	{ 0xf0000, 0xf1000 },
-	{
-		{ "Soekris", 0, 8 },	/* Soekris Engineering. */
-		{ "net4", 0, 8 },	/* net45xx */
-		{ "comBIOS", 0, 54 },	/* comBIOS ver. 1.26a  20040819 ... */
-		{ NULL, 0, 0 },
-	}
+    { 0xf0000, 0xf1000 },
+    {
+	{ "Soekris", 0, 8 },		/* Soekris Engineering. */
+	{ "net4", 0, 8 },		/* net45xx */
+	{ "comBIOS", 0, 54 },		/* comBIOS ver. 1.26a  20040819 ... */
+	{ NULL, 0, 0 },
+    }
 };
 
 static struct bios_oem bios_soekris_55 = {
-	{ 0xf0000, 0xf1000 },
-	{
-		{ "Soekris", 0, 8 },	/* Soekris Engineering. */
-		{ "net5", 0, 8 },	/* net5xxx */
-		{ "comBIOS", 0, 54 },	/* comBIOS ver. 1.26a  20040819 ... */
-		{ NULL, 0, 0 },
-	}
+    { 0xf0000, 0xf1000 },
+    {
+	{ "Soekris", 0, 8 },		/* Soekris Engineering. */
+	{ "net5", 0, 8 },		/* net5xxx */
+	{ "comBIOS", 0, 54 },		/* comBIOS ver. 1.26a  20040819 ... */
+	{ NULL, 0, 0 },
+    }
 };
 
 static struct bios_oem bios_pcengines = {
-	{ 0xf9000, 0xfa000 },
-	{
-		{ "PC Engines WRAP", 0, 28 },	/* PC Engines WRAP.1C v1.03 */
-		{ "tinyBIOS", 0, 28 },		/* tinyBIOS V1.4a (C)1997-2003 */
-		{ NULL, 0, 0 },
-	}
+    { 0xf9000, 0xfa000 },
+    {
+	{ "PC Engines WRAP", 0, 28 },	/* PC Engines WRAP.1C v1.03 */
+	{ "tinyBIOS", 0, 28 },		/* tinyBIOS V1.4a (C)1997-2003 */
+	{ NULL, 0, 0 },
+    }
+};
+
+static struct bios_oem bios_pcengines_55 = {
+    { 0xf9000, 0xfa000 },
+    {
+	{ "PC Engines ALIX", 0, 28 },	/* PC Engines ALIX */
+	{ "tinyBIOS", 0, 28 },		/* tinyBIOS V1.4a (C)1997-2005 */
+	{ NULL, 0, 0 },
+    }
 };
 
 static struct bios_oem bios_advantech = {
-	{ 0xfe000, 0xff000 },
-	{
-		{ "**** PCM-582", 5, 33 },	/* PCM-5823 BIOS V1.12 ... */
-		{ "GXm-Cx5530",	-11, 35 },	/* 06/07/2002-GXm-Cx5530... */
-		{ NULL, 0, 0 },
-	}
+    { 0xfe000, 0xff000 },
+    {
+	{ "**** PCM-582", 5, 33 },	/* PCM-5823 BIOS V1.12 ... */
+	{ "GXm-Cx5530",	-11, 35 },	/* 06/07/2002-GXm-Cx5530... */
+	{ NULL, 0, 0 },
+    }
 };
 
 static unsigned	cba;
@@ -117,6 +126,11 @@ cs5536_led_func(void *ptr, int onoff)
 	}
 
 	a = rdmsr(0x5140000c);
+	if (bit >= 16) {
+		a += 0x80;
+		bit -= 16;
+	}
+
 	if (onoff)
 		outl(a, 1 << bit);
 	else
@@ -256,11 +270,13 @@ geode_probe(device_t self)
 			 * by the bios, see p161 in data sheet.
 			 */
 			cba = pci_read_config(self, 0x64, 4);
-			printf("Geode CBA@ 0x%x\n", cba);
+			if (bootverbose)
+				printf("Geode CBA@ 0x%x\n", cba);
 			geode_counter = cba + 0x08;
 			outl(cba + 0x0d, 2);
-			printf("Geode rev: %02x %02x\n",
-				inb(cba + 0x3c), inb(cba + 0x3d));
+			if (bootverbose)
+				printf("Geode rev: %02x %02x\n",
+					inb(cba + 0x3c), inb(cba + 0x3d));
 			tc_init(&geode_timecounter);
 			EVENTHANDLER_REGISTER(watchdog_list, geode_watchdog,
 			    NULL, 0);
@@ -270,13 +286,14 @@ geode_probe(device_t self)
 	case 0x0510100b:
 		gpio = pci_read_config(self, PCIR_BAR(0), 4);
 		gpio &= ~0x1f;
-		printf("Geode GPIO@ = %x\n", gpio);
-		if ( bios_oem_strings(&bios_soekris,
-					bios_oem, BIOS_OEM_MAXLEN) > 0 ) {
+		if (bootverbose)
+			printf("Geode GPIO@ = %x\n", gpio);
+		if (bios_oem_strings(&bios_soekris,
+		    bios_oem, sizeof bios_oem) > 0 ) {
 			led1b = 20;
 			led1 = led_create(led_func, &led1b, "error");
-		} else if ( bios_oem_strings(&bios_pcengines,
-					bios_oem, BIOS_OEM_MAXLEN) > 0 ) {
+		} else if (bios_oem_strings(&bios_pcengines,
+		    bios_oem, sizeof bios_oem) > 0 ) {
 			led1b = -2;
 			led2b = -3;
 			led3b = -18;
@@ -289,27 +306,41 @@ geode_probe(device_t self)
 		 	*/
 			led_func(&led1b, 1);
 		}
-		if ( strlen(bios_oem) )
+		if (*bios_oem)
 			printf("Geode %s\n", bios_oem);
 		break;
 	case 0x01011078:
-		if ( bios_oem_strings(&bios_advantech,
-				bios_oem, BIOS_OEM_MAXLEN) > 0 ) {
+		if (bios_oem_strings(&bios_advantech,
+		    bios_oem, sizeof bios_oem) > 0 ) {
 			printf("Geode %s\n", bios_oem);
 			EVENTHANDLER_REGISTER(watchdog_list, advantech_watchdog,
 			    NULL, 0);
 		}
 		break;
 	case 0x20801022:
-		if ( bios_oem_strings(&bios_soekris_55,
-		    bios_oem, BIOS_OEM_MAXLEN) > 0 ) {
-			printf("Geode LX: %s\n", bios_oem);
+		if (bios_oem_strings(&bios_soekris_55,
+		    bios_oem, sizeof bios_oem) > 0 ) {
 			led1b = 6;
 			led1 = led_create(cs5536_led_func, &led1b, "error");
+		} else if (bios_oem_strings(&bios_pcengines_55,
+		    bios_oem, sizeof bios_oem) > 0 ) {
+			led1b = -6;
+			led2b = -25;
+			led3b = -27;
+			led1 = led_create(cs5536_led_func, &led1b, "led1");
+			led2 = led_create(cs5536_led_func, &led2b, "led2");
+			led3 = led_create(cs5536_led_func, &led3b, "led3");
+			/*
+		 	* Turn on first LED so we don't make
+			* people think their box just died.
+		 	*/
+			cs5536_led_func(&led1b, 1);
 		}
-		printf("MFGPT bar: %jx\n", rdmsr(0x5140000d));
-		EVENTHANDLER_REGISTER(watchdog_list, cs5536_watchdog,
-		    NULL, 0);
+		if (*bios_oem)
+			printf("Geode LX: %s\n", bios_oem);
+		if (bootverbose)
+			printf("MFGPT bar: %jx\n", rdmsr(0x5140000d));
+		EVENTHANDLER_REGISTER(watchdog_list, cs5536_watchdog, NULL, 0);
 		break;
 	}
 	return (ENXIO);
