@@ -84,6 +84,12 @@ drives) are only exposed as
 devices.
 Hot-insertion and removal of devices is supported but a bus
 rescan might be necessary.
+.Pp
+The problem which adapter freezes with the message
+.Dq ADAPTER HEARTBEAT FAILED
+might be solved by updating the firmware and/or setting the
+.Va hw.ciss.nop_message_heartbeat
+tunable to non-zero at boot time.
 .Sh HARDWARE
 Controllers supported by the
 .Nm
