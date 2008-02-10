@@ -28,7 +28,7 @@
 .\"     @(#)access.2	8.2 (Berkeley) 4/1/94
 .\" $FreeBSD$
 .\"
-.Dd September 21, 2001
+.Dd December 8, 2007
 .Dt ACCESS 2
 .Os
 .Sh NAME
@@ -140,6 +140,15 @@ The
 .Fn eaccess
 system call
 likewise may be subject to races if used inappropriately.
+.Pp
+.Fn access
+remains useful for providing clues to users as to whether operations
+make sense for particular filesystem objects (e.g. 'delete' menu
+item only highlighted in a writable folder ... avoiding interpretation
+of the st_mode bits that the application might not understand --
+e.g. in the case of AFS).  It also allows a cheaper file existance
+test than
+.Ns Xr stat 2 .
 .Sh SEE ALSO
 .Xr chmod 2 ,
 .Xr intro 2 ,
