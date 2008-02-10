@@ -41,7 +41,7 @@
 #include <sys/stack.h> /* XXX */
 #endif
 #include <sys/queue.h>
-#include <sys/_lock.h>
+#include <sys/lock.h>
 
 struct	mtx;
 
