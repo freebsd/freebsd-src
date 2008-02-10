@@ -31,7 +31,7 @@
 .\"	@(#)disklabel.8	8.2 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd December 29, 2006
+.Dd December 8, 2007
 .Dt BSDLABEL 8
 .Os
 .Sh NAME
@@ -143,7 +143,8 @@ If the drive
 .Ar type
 is specified, the entry of that name in the
 .Xr disktab 5
-file is used; otherwise a default layout is used.
+file is used; otherwise, or if the type is specified as 'auto',  a default
+layout is used.
 .Ss Editing an Existing Disk Label
 To edit an existing disk label, use the form
 .Pp
