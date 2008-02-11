@@ -173,4 +173,7 @@ struct decompressor_t
 	    int (*bid)(const void *, size_t),
 	    int (*init)(struct archive_read *, const void *, size_t));
 
+const void
+	*__archive_read_ahead(struct archive_read *, size_t);
+
 #endif

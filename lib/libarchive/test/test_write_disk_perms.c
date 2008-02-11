@@ -244,16 +244,18 @@ DEFINE_TEST(test_write_disk_perms)
 	failure("Opportunistic SUID failure shouldn't return error.");
 	assertEqualInt(0, archive_write_finish_entry(a));
 
-	assert(archive_entry_clear(ae) != NULL);
-	archive_entry_copy_pathname(ae, "file_bad_suid2");
-	archive_entry_set_mode(ae, S_IFREG | S_ISUID | 0742);
-	archive_entry_set_uid(ae, getuid() + 1);
-	archive_write_disk_set_options(a,
-	    ARCHIVE_EXTRACT_PERM | ARCHIVE_EXTRACT_OWNER);
-	assertA(0 == archive_write_header(a, ae));
-	/* Owner change should fail here. */
-	failure("Non-opportunistic SUID failure should return error.");
-	assertEqualInt(ARCHIVE_WARN, archive_write_finish_entry(a));
+        if (getuid() != 0) {
+		assert(archive_entry_clear(ae) != NULL);
+		archive_entry_copy_pathname(ae, "file_bad_suid2");
+		archive_entry_set_mode(ae, S_IFREG | S_ISUID | 0742);
+		archive_entry_set_uid(ae, getuid() + 1);
+		archive_write_disk_set_options(a,
+		    ARCHIVE_EXTRACT_PERM | ARCHIVE_EXTRACT_OWNER);
+		assertA(0 == archive_write_header(a, ae));
+		/* Owner change should fail here. */
+		failure("Non-opportunistic SUID failure should return error.");
+		assertEqualInt(ARCHIVE_WARN, archive_write_finish_entry(a));
+	}
 
 	/* Write a regular file with ARCHIVE_EXTRACT_PERM & SGID bit */
 	assert(archive_entry_clear(ae) != NULL);
@@ -403,10 +405,13 @@ DEFINE_TEST(test_write_disk_perms)
 	failure("file_bad_suid: st.st_mode=%o", st.st_mode);
 	assert((st.st_mode & 07777) == (0742));
 
-	/* SUID bit should NOT have been set here. */
-	assert(0 == stat("file_bad_suid2", &st));
-	failure("file_bad_suid2: st.st_mode=%o", st.st_mode);
-	assert((st.st_mode & 07777) == (0742));
+	/* Some things don't fail if you're root, so suppress this. */
+	if (getuid() != 0) {
+		/* SUID bit should NOT have been set here. */
+		assert(0 == stat("file_bad_suid2", &st));
+		failure("file_bad_suid2: st.st_mode=%o", st.st_mode);
+		assert((st.st_mode & 07777) == (0742));
+	}
 
 	/* SGID should be set here. */
 	assert(0 == stat("file_perm_sgid", &st));
