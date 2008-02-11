@@ -32,7 +32,7 @@
 .\"     @(#)fstab.5	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd June 5, 1993
+.Dd February 11, 2008
 .Dt FSTAB 5
 .Os
 .Sh NAME
@@ -207,9 +207,16 @@ another file system is processed, and it will be processed before
 all file systems with a larger
 .Fa fs_passno .
 .Pp
-File systems within a drive will be checked sequentially,
+For any given value of
+.Fa fs_passno ,
+file systems within a drive will be checked sequentially,
 but file systems on different drives will be checked at the
 same time to utilize parallelism available in the hardware.
+Once all file system checks are complete for the current
+.Fa fs_passno ,
+the same process will start over for the next
+.Fa fs_passno .
+.Pp
 If the sixth field is not present or is zero,
 a value of zero is returned and
 .Xr fsck 8
@@ -224,6 +231,27 @@ the system utilities may determine that the file system resides
 on a different physical device, when it actually does not, as with a
 .Xr ccd 4
 device.
+All file systems with a lower
+.Fa fs_passno
+value will be completed before starting on file systems with a
+higher
+.Fa fs_passno
+value.
+E.g. all file systems with a
+.Fa fs_passno
+of 2 will be completed before any file systems with a
+.Fa fs_passno
+of 3 or greater are started.
+Gaps are allowed between the different
+.Fa fs_passno
+values.
+E.g. file systems listed in
+.Pa /etc/fstab
+may have
+.Fa fs_passno
+values such as 0, 1, 2, 15, 100, 200, 300, and may appear in any order
+within
+.Pa /etc/fstab .
 .Bd -literal
 #define	FSTAB_RW	"rw"	/* read/write device */
 #define	FSTAB_RQ	"rq"	/* read/write with quotas */
