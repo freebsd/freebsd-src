@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2007 Free Software Foundation, Inc.                        *
+ * Copyright (c) 2007,2008 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -32,7 +32,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: use_window.c,v 1.2 2007/10/20 19:57:55 tom Exp $")
+MODULE_ID("$Id: use_window.c,v 1.3 2008/01/13 00:36:22 tom Exp $")
 
 #ifdef USE_PTHREADS
 NCURSES_EXPORT(void)
@@ -43,7 +43,7 @@ _nc_lock_window(WINDOW *win)
     _nc_lock_global(windowlist);
     for (p = _nc_windows; p != 0; p = p->next) {
 	if (&(p->win) == win) {
-	    pthread_mutex_lock(&(p->mutex_use_window));
+	    _nc_mutex_lock(&(p->mutex_use_window));
 	    break;
 	}
     }
@@ -58,7 +58,7 @@ _nc_unlock_window(WINDOW *win)
     _nc_lock_global(windowlist);
     for (p = _nc_windows; p != 0; p = p->next) {
 	if (&(p->win) == win) {
-	    pthread_mutex_unlock(&(p->mutex_use_window));
+	    _nc_mutex_unlock(&(p->mutex_use_window));
 	    break;
 	}
     }

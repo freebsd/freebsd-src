@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -41,7 +41,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_newwin.c,v 1.42 2007/12/22 23:20:18 tom Exp $")
+MODULE_ID("$Id: lib_newwin.c,v 1.44 2008/01/13 00:28:13 tom Exp $")
 
 static WINDOW *
 remove_window_from_screen(WINDOW *win)
@@ -234,7 +234,7 @@ _nc_makenew(int num_lines, int num_columns, int begy, int begx, int flags)
     {
 	pthread_mutexattr_t recattr;
 	memset(&recattr, 0, sizeof(recattr));
-	pthread_mutexattr_settype(&recattr, PTHREAD_MUTEX_RECURSIVE);
+	pthread_mutexattr_settype(&recattr, PTHREAD_MUTEX_NORMAL);
 	pthread_mutex_init(&(wp->mutex_use_window), &recattr);
     }
 #endif

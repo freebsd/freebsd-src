@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -53,7 +53,7 @@
 
 #include <term.h>		/* lines, columns, cur_term */
 
-MODULE_ID("$Id: lib_setup.c,v 1.100 2007/09/01 20:58:26 tom Exp $")
+MODULE_ID("$Id: lib_setup.c,v 1.102 2008/01/19 21:07:45 tom Exp $")
 
 /****************************************************************************
  *
@@ -99,6 +99,9 @@ MODULE_ID("$Id: lib_setup.c,v 1.100 2007/09/01 20:58:26 tom Exp $")
 # endif
 #endif
 
+/*
+ * Wrap global variables in this module.
+ */
 #if USE_REENTRANT
 NCURSES_EXPORT(char *)
 NCURSES_PUBLIC_VAR(ttytype) (void)
@@ -126,6 +129,24 @@ NCURSES_EXPORT_VAR(char) ttytype[NAMESIZE] = "";
 NCURSES_EXPORT_VAR(int) LINES = 0;
 NCURSES_EXPORT_VAR(int) COLS = 0;
 NCURSES_EXPORT_VAR(int) TABSIZE = 0;
+#endif
+
+#if NCURSES_EXT_FUNCS
+NCURSES_EXPORT(int)
+set_tabsize(int value)
+{
+    int code = OK;
+#if USE_REENTRANT
+    if (SP) {
+	SP->_TABSIZE = value;
+    } else {
+	code = ERR;
+    }
+#else
+    TABSIZE = value;
+#endif
+    return code;
+}
 #endif
 
 #if USE_SIGWINCH

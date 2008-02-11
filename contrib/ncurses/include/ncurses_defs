@@ -1,6 +1,6 @@
-# $Id: ncurses_defs,v 1.35 2007/10/06 21:18:16 tom Exp $
+# $Id: ncurses_defs,v 1.38 2008/02/10 00:12:03 tom Exp $
 ##############################################################################
-# Copyright (c) 2000-2006,2007 Free Software Foundation, Inc.                #
+# Copyright (c) 2000-2007,2008 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -46,6 +46,8 @@ HAVE_BSD_CGETENT
 HAVE_BSD_SIGNAL_H
 HAVE_BTOWC 
 HAVE_BUILTIN_H
+HAVE_CHGAT	1
+HAVE_COLOR_SET	1
 HAVE_DIRENT_H
 HAVE_ERRNO
 HAVE_FCNTL_H
@@ -58,6 +60,7 @@ HAVE_GETEGID
 HAVE_GETEUID
 HAVE_GETMAXX	1
 HAVE_GETNSTR
+HAVE_GETPARX	1
 HAVE_GETOPT_H
 HAVE_GETTIMEOFDAY
 HAVE_GETTTYNAM
