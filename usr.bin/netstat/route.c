@@ -135,7 +135,7 @@ static const char *fmt_sockaddr(struct sockaddr *sa, struct sockaddr *mask,
 static void p_flags(int, const char *);
 static const char *fmt_flags(int f);
 static void p_rtentry(struct rtentry *);
-static void domask(char *, u_long, u_long);
+static void domask(char *, in_addr_t, u_long);
 
 /*
  * Print routing tables.
@@ -808,7 +808,7 @@ routename(in_addr_t in)
 	0)
 
 static void
-domask(char *dst, u_long addr __unused, u_long mask)
+domask(char *dst, in_addr_t addr __unused, u_long mask)
 {
 	int b, i;
 
@@ -845,7 +845,7 @@ netname(in_addr_t in, u_long mask)
 	char *cp = 0;
 	static char line[MAXHOSTNAMELEN];
 	struct netent *np = 0;
-	u_long i;
+	in_addr_t i;
 
 	i = ntohl(in);
 	if (!numeric_addr && i) {
