@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -48,7 +48,7 @@
 #include <term.h>		/* clear_screen, cup & friends, cur_term */
 #include <tic.h>
 
-MODULE_ID("$Id: lib_newterm.c,v 1.67 2007/04/21 20:47:32 tom Exp $")
+MODULE_ID("$Id: lib_newterm.c,v 1.68 2008/01/12 20:24:40 tom Exp $")
 
 #ifndef ONLCR			/* Allows compilation under the QNX 4.2 OS */
 #define ONLCR 0
@@ -123,7 +123,7 @@ newterm(NCURSES_CONST char *name, FILE *ofp, FILE *ifp)
 {
     int value;
     int errret;
-    int slk_format = _nc_slk_format;
+    int slk_format = _nc_globals.slk_format;
     SCREEN *current;
     SCREEN *result = 0;
 

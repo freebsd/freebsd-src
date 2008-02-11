@@ -1,0 +1,113 @@
+.\"***************************************************************************
+.\" Copyright (c) 2008 Free Software Foundation, Inc.                        *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: curs_threads.3x,v 1.4 2008/01/19 23:29:24 tom Exp $
+.TH curs_threads 3X ""
+.na
+.hy 0
+.SH NAME
+\fBuse_screen\fR,
+\fBuse_window\fR - \fBcurses\fR thread support
+.ad
+.hy
+.SH SYNOPSIS
+\fB#include <curses.h>\fR
+.sp
+\fBtypedef int (*NCURSES_CALLBACK)(WINDOW *, void *);\fR
+.br
+\fBint set_escdelay(int size);\fR
+.br
+\fBint set_tabsize(int size);\fR
+.br
+\fBint use_screen(SCREEN *scr, NCURSES_CALLBACK func, void *data);\fR
+.br
+\fBint use_window(WINDOW *win, NCURSES_CALLBACK func, void *data);\fR
+.br
+.SH DESCRIPTION
+This implementation can be configured to provide rudimentary support
+for multi-threaded applications.
+This makes a different set of libraries, e.g., \fIlibncursest\fP since
+the binary interfaces are different.
+.PP
+Rather than modify the interfaces to pass a thread specifier to
+each function, it adds a few functions which can be used in any
+configuration which hide the mutex's needed to prevent concurrent
+use of the global variables when configured for threading.
+.PP
+In addition to forcing access to members of the \fBWINDOW\fP structure
+to be via functions (see \fBcurs_opaque\fP(3x)),
+it makes functions of the common global variables,
+e.g.,
+COLORS,
+COLOR_PAIRS,
+COLS,
+ESCDELAY,
+LINES,
+TABSIZE
+curscr,
+newscr and
+ttytype.
+Those variables are maintained as read-only values, stored in the \fBSCREEN\fP
+structure.
+.PP
+Even this is not enough to make a thread-safe application using curses.
+A multi-threaded application would be expected to have threads updating
+separate windows (within the same device),
+or updating on separate screens (on different devices).
+Also, a few of the global variables are considered writable by some
+applications.
+The functions described here address these special situations.
+.PP
+The ESCDELAY and TABSIZE global variables are modified by some applications.
+To modify them in any configuration,
+use the \fBset_escdelay\fP or \fBset_tabsize\fP functions.
+Other global variables are not modifiable.
+.PP
+The \fBuse_window\fP and \fBuse_screen\fP functions provide coarse
+granularity mutexes for their respective \fBWINDOW\fP and \fBSCREEN\fP
+parameters, and call a user-supplied function,
+passing it a \fIdata\fP parameter,
+and returning the value from the user-supplied function to the application.
+.SH RETURN VALUE
+These functions all return TRUE or FALSE, except as noted.
+.SH NOTES
+Both a macro and a function are provided for each name.
+.SH PORTABILITY
+These routines are specific to ncurses.
+They were not supported on Version 7, BSD or System V implementations.
+It is recommended that any code depending on ncurses extensions
+be conditioned using NCURSES_VERSION.
+.SH SEE ALSO
+\fBcurses\fR(3X),
+\fBcurs_opaque\fR(3X)
+.\"#
+.\"# The following sets edit modes for GNU EMACS
+.\"# Local Variables:
+.\"# mode:nroff
+.\"# fill-column:79
+.\"# End:

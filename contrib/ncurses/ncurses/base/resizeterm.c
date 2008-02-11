@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -41,7 +41,7 @@
 #include <curses.priv.h>
 #include <term.h>
 
-MODULE_ID("$Id: resizeterm.c,v 1.24 2007/12/22 23:20:31 tom Exp $")
+MODULE_ID("$Id: resizeterm.c,v 1.30 2008/01/12 22:26:56 tom Exp $")
 
 #define stolen_lines (screen_lines - SP->_lines_avail)
 
@@ -81,6 +81,10 @@ show_window_sizes(const char *name)
 }
 #endif
 
+/*
+ * Return true if the given dimensions do not match the internal terminal
+ * structure's size.
+ */
 NCURSES_EXPORT(bool)
 is_term_resized(int ToLines, int ToCols)
 {
@@ -89,6 +93,48 @@ is_term_resized(int ToLines, int ToCols)
 	       && ToCols > 0
 	       && (ToLines != screen_lines
 		   || ToCols != screen_columns));
+}
+
+/*
+ */
+static ripoff_t *
+ripped_window(WINDOW *win)
+{
+    ripoff_t *result = 0;
+    ripoff_t *rop;
+
+    if (win != 0) {
+	for (rop = ripoff_stack; (rop - ripoff_stack) < N_RIPS; rop++) {
+	    if (rop->win == win && rop->line != 0) {
+		result = rop;
+		break;
+	    }
+	}
+    }
+    return result;
+}
+
+/*
+ * Returns the number of lines from the bottom for the beginning of a ripped
+ * off window.
+ */
+static int
+ripped_bottom(WINDOW *win)
+{
+    int result = 0;
+    ripoff_t *rop;
+
+    if (win != 0) {
+	for (rop = ripoff_stack; (rop - ripoff_stack) < N_RIPS; rop++) {
+	    if (rop->line < 0) {
+		result -= rop->line;
+		if (rop->win == win) {
+		    break;
+		}
+	    }
+	}
+    }
+    return result;
 }
 
 /*
@@ -141,32 +187,44 @@ adjust_window(WINDOW *win, int ToLines, int ToCols, int stolen EXTRA_DCLS)
     int bottom = CurLines + SP->_topstolen - stolen;
     int myLines = win->_maxy + 1;
     int myCols = win->_maxx + 1;
+    ripoff_t *rop = ripped_window(win);
 
-    T((T_CALLED("adjust_window(%p,%d,%d) currently %ldx%ld at %ld,%ld"),
+    T((T_CALLED("adjust_window(%p,%d,%d)%s depth %d/%d currently %ldx%ld at %ld,%ld"),
        win, ToLines, ToCols,
+       (rop != 0) ? " (rip)" : "",
+       parent_depth(win),
+       child_depth(win),
        (long) getmaxy(win), (long) getmaxx(win),
-       (long) getbegy(win), (long) getbegx(win)));
+       (long) getbegy(win) + win->_yoffset, (long) getbegx(win)));
 
-    if (win->_begy >= bottom) {
+    if (rop != 0 && rop->line < 0) {
+	/*
+	 * If it is a ripped-off window at the bottom of the screen, simply
+	 * move it to the same relative position.
+	 */
+	win->_begy = ToLines - ripped_bottom(win) - 0 - win->_yoffset;
+    } else if (win->_begy >= bottom) {
+	/*
+	 * If it is below the bottom of the new screen, move up by the same
+	 * amount that the screen shrank.
+	 */
 	win->_begy += (ToLines - CurLines);
     } else {
-	if (myLines == CurLines - stolen
-	    && ToLines != CurLines)
+	if (myLines == (CurLines - stolen)
+	    && ToLines != CurLines) {
 	    myLines = ToLines - stolen;
-	else if (myLines == CurLines
-		 && ToLines != CurLines)
+	} else if (myLines == CurLines
+		   && ToLines != CurLines) {
 	    myLines = ToLines;
+	}
     }
 
-    if (myLines > ToLines)
+    if (myLines > ToLines) {
 	myLines = ToLines;
+    }
 
     if (myCols > ToCols)
 	myCols = ToCols;
-
-    if (myLines == CurLines
-	&& ToLines != CurLines)
-	myLines = ToLines;
 
     if (myCols == CurCols
 	&& ToCols != CurCols)
@@ -347,13 +405,49 @@ resizeterm(int ToLines, int ToCols)
 	SP->_sig_winch = FALSE;
 
 	if (is_term_resized(ToLines, ToCols)) {
+#if USE_SIGWINCH
+	    ripoff_t *rop;
+	    bool slk_visible = (SP != 0
+				&& SP->_slk != 0
+				&& !(SP->_slk->hidden));
+
+	    if (slk_visible) {
+		slk_clear();
+	    }
+#endif
+	    result = resize_term(ToLines, ToCols);
 
 #if USE_SIGWINCH
 	    ungetch(KEY_RESIZE);	/* so application can know this */
 	    clearok(curscr, TRUE);	/* screen contents are unknown */
-#endif
 
-	    result = resize_term(ToLines, ToCols);
+	    /* ripped-off lines are a special case: if we did not lengthen
+	     * them, we haven't moved them either.  repaint them, too.
+	     *
+	     * for the rest - stdscr and other windows - the client has to
+	     * decide which to repaint, since without panels, ncurses does
+	     * not know which are really on top.
+	     */
+	    for (rop = ripoff_stack; (rop - ripoff_stack) < N_RIPS; rop++) {
+		if (rop->win != stdscr
+		    && rop->win != 0
+		    && rop->line < 0) {
+
+		    if (rop->hook != _nc_slk_initialize) {
+			touchwin(rop->win);
+			wnoutrefresh(rop->win);
+		    }
+		}
+	    }
+
+	    /* soft-keys are a special case: we _know_ how to repaint them */
+	    if (slk_visible) {
+		slk_restore();
+		slk_touch();
+
+		slk_refresh();
+	    }
+#endif
 	}
     }
 

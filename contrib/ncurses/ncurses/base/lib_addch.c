@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2006,2008 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -36,7 +36,7 @@
 #include <curses.priv.h>
 #include <ctype.h>
 
-MODULE_ID("$Id: lib_addch.c,v 1.104 2006/10/14 20:31:19 tom Exp $")
+MODULE_ID("$Id: lib_addch.c,v 1.108 2008/02/03 18:50:27 tom Exp $")
 
 static const NCURSES_CH_T blankchar = NewChar(BLANK_TEXT);
 
@@ -219,17 +219,15 @@ _nc_build_wch(WINDOW *win, ARG_CH_T ch)
 	attr_t attrs = AttrOf(CHDEREF(ch));
 	SetChar(CHDEREF(ch), result, attrs);
 	WINDOW_EXT(win, addch_used) = 0;
-    } else {
-	if (len == -1) {
-	    /*
-	     * An error occurred.  We could either discard everything,
-	     * or assume that the error was in the previous input.
-	     * Try the latter.
-	     */
-	    TR(TRACE_VIRTPUT, ("Alert! mbrtowc returns error"));
-	    buffer[0] = CharOf(CHDEREF(ch));
-	    WINDOW_EXT(win, addch_used) = 1;
-	}
+    } else if (len == -1) {
+	/*
+	 * An error occurred.  We could either discard everything,
+	 * or assume that the error was in the previous input.
+	 * Try the latter.
+	 */
+	TR(TRACE_VIRTPUT, ("Alert! mbrtowc returns error"));
+	/* handle this with unctrl() */
+	WINDOW_EXT(win, addch_used) = 0;
     }
     return len;
 }
@@ -264,13 +262,16 @@ waddch_literal(WINDOW *win, NCURSES_CH_T ch)
 	if (WINDOW_EXT(win, addch_used) != 0 || !Charable(ch)) {
 	    int len = _nc_build_wch(win, CHREF(ch));
 
-	    if (len > 0) {
+	    if (len >= -1) {
+		/* handle EILSEQ */
 		if (is8bits(CharOf(ch))) {
 		    const char *s = unctrl((chtype) CharOf(ch));
 		    if (s[1] != 0) {
 			return waddstr(win, s);
 		    }
 		}
+		if (len == -1)
+		    return waddch(win, ' ');
 	    } else {
 		return OK;
 	    }

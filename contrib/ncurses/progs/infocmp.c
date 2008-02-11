@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -42,7 +42,7 @@
 
 #include <dump_entry.h>
 
-MODULE_ID("$Id: infocmp.c,v 1.94 2007/11/17 23:34:26 tom Exp $")
+MODULE_ID("$Id: infocmp.c,v 1.96 2008/01/19 21:08:07 tom Exp $")
 
 #define L_CURL "{"
 #define R_CURL "}"
@@ -1215,6 +1215,8 @@ dump_termtype(TERMTYPE *term)
 		  NUM_STRINGS(term) - STRCOUNT);
 
     (void) printf("#endif /* NCURSES_XNAMES */\n");
+#else
+    (void) term;
 #endif /* NCURSES_XNAMES */
     (void) printf("\t%s\n", R_CURL);
 }
@@ -1450,7 +1452,7 @@ main(int argc, char *argv[])
 	}
     }
 
-    maxterms = (argc + 1 - optind);
+    maxterms = (argc + 2 - optind);
     tfile = typeMalloc(path, maxterms);
     tname = typeCalloc(char *, maxterms);
     entries = typeCalloc(ENTRY, maxterms);
