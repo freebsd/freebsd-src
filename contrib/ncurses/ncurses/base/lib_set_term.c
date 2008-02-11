@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -44,7 +44,7 @@
 #include <term.h>		/* cur_term */
 #include <tic.h>
 
-MODULE_ID("$Id: lib_set_term.c,v 1.100 2007/09/08 21:23:43 tom Exp $")
+MODULE_ID("$Id: lib_set_term.c,v 1.103 2008/02/03 20:31:08 tom Exp $")
 
 NCURSES_EXPORT(SCREEN *)
 set_term(SCREEN *screenp)
@@ -221,9 +221,6 @@ extract_fgbg(char *src, int *result)
 }
 #endif
 
-#define ripoff_sp	_nc_prescreen.rsp
-#define ripoff_stack	_nc_prescreen.rippedoff
-
 /* OS-independent screen initializations */
 NCURSES_EXPORT(int)
 _nc_setupscreen(int slines GCC_UNUSED,
@@ -232,6 +229,7 @@ _nc_setupscreen(int slines GCC_UNUSED,
 		bool filtered,
 		int slk_format)
 {
+    char *env;
     int bottom_stolen = 0;
     bool support_cookies = USE_XMC_SUPPORT;
     ripoff_t *rop;
@@ -504,13 +502,12 @@ _nc_setupscreen(int slines GCC_UNUSED,
     _nc_init_wacs();
 
     SP->_screen_acs_fix = (_nc_unicode_locale() && _nc_locale_breaks_acs());
-    {
-	char *env = _nc_get_locale();
-	SP->_legacy_coding = ((env == 0)
-			      || !strcmp(env, "C")
-			      || !strcmp(env, "POSIX"));
-    }
 #endif
+    env = _nc_get_locale();
+    SP->_legacy_coding = ((env == 0)
+			  || !strcmp(env, "C")
+			  || !strcmp(env, "POSIX"));
+    T(("legacy-coding %d", SP->_legacy_coding));
 
     _nc_idcok = TRUE;
     _nc_idlok = FALSE;
@@ -568,10 +565,12 @@ _nc_setupscreen(int slines GCC_UNUSED,
 			? SP->_lines_avail - count
 			: 0),
 		       0);
-	    if (w)
+	    if (w) {
+		rop->win = w;
 		rop->hook(w, scolumns);
-	    else
+	    } else {
 		returnCode(ERR);
+	    }
 	    if (rop->line < 0)
 		bottom_stolen += count;
 	    else
@@ -622,6 +621,7 @@ _nc_ripoffline(int line, int (*init) (WINDOW *, int))
 NCURSES_EXPORT(int)
 ripoffline(int line, int (*init) (WINDOW *, int))
 {
+    START_TRACE();
     T((T_CALLED("ripoffline(%d,%p)"), line, init));
 
     if (line == 0)
