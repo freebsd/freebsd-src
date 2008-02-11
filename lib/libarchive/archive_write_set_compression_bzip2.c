@@ -320,6 +320,10 @@ drive_compressor(struct archive_write *a, struct private_data *state, int finish
 			state->stream.avail_out = bytes_written;
 		}
 
+		/* If there's nothing to do, we're done. */
+		if (!finishing && state->stream.avail_in == 0)
+			return (ARCHIVE_OK);
+
 		ret = BZ2_bzCompress(&(state->stream),
 		    finishing ? BZ_FINISH : BZ_RUN);
 
@@ -339,7 +343,9 @@ drive_compressor(struct archive_write *a, struct private_data *state, int finish
 			/* Any other return value indicates an error */
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_PROGRAMMER,
-			    "Bzip2 compression failed");
+			    "Bzip2 compression failed;"
+			    " BZ2_bzCompress() returned %d",
+			    ret);
 			return (ARCHIVE_FATAL);
 		}
 	}

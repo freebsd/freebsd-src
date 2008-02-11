@@ -25,7 +25,6 @@
 #include "test.h"
 __FBSDID("$FreeBSD$");
 
-
 static int
 is_hex(const char *p, size_t l)
 {

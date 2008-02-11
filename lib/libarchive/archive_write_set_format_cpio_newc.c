@@ -176,9 +176,15 @@ archive_write_newc_header(struct archive_write *a, struct archive_entry *entry)
 
 	cpio->entry_bytes_remaining = archive_entry_size(entry);
 	cpio->padding = 3 & (-cpio->entry_bytes_remaining);
+
 	/* Write the symlink now. */
-	if (p != NULL  &&  *p != '\0')
+	if (p != NULL  &&  *p != '\0') {
 		ret = (a->compressor.write)(a, p, strlen(p));
+		if (ret != ARCHIVE_OK)
+			return (ARCHIVE_FATAL);
+		pad = 0x3 & -strlen(p);
+		ret = (a->compressor.write)(a, "\0\0\0", pad);
+	}
 
 	return (ret);
 }

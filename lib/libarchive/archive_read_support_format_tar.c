@@ -128,8 +128,8 @@ struct archive_entry_header_gnutar {
 	char	isextended[1];
 	char	realsize[12];
 	/*
-	 * GNU doesn't use POSIX 'prefix' field; they use the 'L' (longname)
-	 * entry instead.
+	 * Old GNU format doesn't use POSIX 'prefix' field; they use
+	 * the 'L' (longname) entry instead.
 	 */
 };
 
@@ -164,7 +164,6 @@ struct tar {
 	struct sparse_block	*sparse_last;
 	int64_t			 sparse_offset;
 	int64_t			 sparse_numbytes;
-	int64_t			 sparse_realsize;
 	int			 sparse_gnu_major;
 	int			 sparse_gnu_minor;
 	char			 sparse_gnu_pending;
@@ -279,6 +278,8 @@ archive_read_format_tar_cleanup(struct archive_read *a)
 	archive_string_free(&tar->line);
 	archive_string_free(&tar->pax_global);
 	archive_string_free(&tar->pax_header);
+	archive_string_free(&tar->longname);
+	archive_string_free(&tar->longlink);
 	free(tar->pax_entry);
 	free(tar);
 	(a->format->data) = NULL;
@@ -294,23 +295,7 @@ archive_read_format_tar_bid(struct archive_read *a)
 	const void *h;
 	const struct archive_entry_header_ustar *header;
 
-	/*
-	 * If we're already reading a non-tar file, don't
-	 * bother to bid.
-	 */
-	if (a->archive.archive_format != 0 &&
-	    (a->archive.archive_format & ARCHIVE_FORMAT_BASE_MASK) !=
-	    ARCHIVE_FORMAT_TAR)
-		return (0);
 	bid = 0;
-
-	/*
-	 * If we're already reading a tar format, start the bid at 1 as
-	 * a failsafe.
-	 */
-	if ((a->archive.archive_format & ARCHIVE_FORMAT_BASE_MASK) ==
-	    ARCHIVE_FORMAT_TAR)
-		bid++;
 
 	/* Now let's look at the actual header and see if it matches. */
 	if (a->decompressor->read_ahead != NULL)
@@ -319,32 +304,18 @@ archive_read_format_tar_bid(struct archive_read *a)
 		bytes_read = 0; /* Empty file. */
 	if (bytes_read < 0)
 		return (ARCHIVE_FATAL);
-	if (bytes_read == 0  &&  bid > 0) {
-		/* An archive without a proper end-of-archive marker. */
-		/* Hold our nose and bid 1 anyway. */
-		return (1);
-	}
-	if (bytes_read < 512) {
-		/* If it's a new archive, then just return a zero bid. */
-		if (bid == 0)
-			return (0);
-		/*
-		 * If we already know this is a tar archive,
-		 * then we have a problem.
-		 */
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-		    "Truncated tar archive");
-		return (ARCHIVE_FATAL);
-	}
+	if (bytes_read < 512)
+		return (0);
 
 	/* If it's an end-of-archive mark, we can handle it. */
-	if ((*(const char *)h) == 0 && archive_block_is_null((const unsigned char *)h)) {
-		/* If it's a known tar file, end-of-archive is definite. */
-		if ((a->archive.archive_format & ARCHIVE_FORMAT_BASE_MASK) ==
-		    ARCHIVE_FORMAT_TAR)
-			return (512);
-		/* Empty archive? */
-		return (1);
+	if ((*(const char *)h) == 0
+	    && archive_block_is_null((const unsigned char *)h)) {
+		/*
+		 * Usually, I bid the number of bits verified, but
+		 * in this case, 4096 seems excessive so I picked 10 as
+		 * an arbitrary but reasonable-seeming value.
+		 */
+		return (10);
 	}
 
 	/* If it's not an end-of-archive mark, it must have a valid checksum.*/
@@ -441,7 +412,7 @@ archive_read_format_tar_read_header(struct archive_read *a,
 		free(sp);
 	}
 	tar->sparse_last = NULL;
-	tar->sparse_realsize = -1; /* Mark this as "unset" */
+	tar->realsize = -1; /* Mark this as "unset" */
 
 	r = tar_read_header(a, tar, entry);
 
@@ -451,8 +422,6 @@ archive_read_format_tar_read_header(struct archive_read *a,
 	 */
 	if (tar->sparse_list == NULL)
 		gnu_add_sparse_entry(tar, 0, tar->entry_bytes_remaining);
-
-	tar->realsize = archive_entry_size(entry);
 
 	if (r == ARCHIVE_OK) {
 		/*
@@ -581,15 +550,23 @@ tar_read_header(struct archive_read *a, struct tar *tar,
 
 	/* Read 512-byte header record */
 	bytes = (a->decompressor->read_ahead)(a, &h, 512);
-	if (bytes < 512) {
+	if (bytes < 0)
+		return (bytes);
+	if (bytes == 0) {
 		/*
-		 * If we're here, it's becase the _bid function accepted
-		 * this file.  So just call a short read end-of-archive
-		 * and be done with it.
+		 * An archive that just ends without a proper
+		 * end-of-archive marker.  Yes, there are tar programs
+		 * that do this; hold our nose and accept it.
 		 */
 		return (ARCHIVE_EOF);
 	}
+	if (bytes < 512) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+		    "Truncated tar archive");
+		return (ARCHIVE_FATAL);
+	}
 	(a->decompressor->consume)(a, 512);
+
 
 	/* Check for end-of-archive mark. */
 	if (((*(const char *)h)==0) && archive_block_is_null((const unsigned char *)h)) {
@@ -598,6 +575,10 @@ tar_read_header(struct archive_read *a, struct tar *tar,
 		if (bytes > 0)
 			(a->decompressor->consume)(a, bytes);
 		archive_set_error(&a->archive, 0, NULL);
+		if (a->archive.archive_format_name == NULL) {
+			a->archive.archive_format = ARCHIVE_FORMAT_TAR;
+			a->archive.archive_format_name = "tar";
+		}
 		return (ARCHIVE_EOF);
 	}
 
@@ -936,6 +917,7 @@ header_common(struct archive_read *a, struct tar *tar,
 	archive_entry_set_uid(entry, tar_atol(header->uid, sizeof(header->uid)));
 	archive_entry_set_gid(entry, tar_atol(header->gid, sizeof(header->gid)));
 	tar->entry_bytes_remaining = tar_atol(header->size, sizeof(header->size));
+	tar->realsize = tar->entry_bytes_remaining;
 	archive_entry_set_size(entry, tar->entry_bytes_remaining);
 	archive_entry_set_mtime(entry, tar_atol(header->mtime, sizeof(header->mtime)), 0);
 
@@ -961,30 +943,46 @@ header_common(struct archive_read *a, struct tar *tar,
 		 * A tricky point: Traditionally, tar readers have
 		 * ignored the size field when reading hardlink
 		 * entries, and some writers put non-zero sizes even
-		 * though the body is empty.  POSIX.1-2001 broke with
-		 * this tradition by permitting hardlink entries to
-		 * store valid bodies in pax interchange format, but
-		 * not in ustar format.  Since there is no hard and
-		 * fast way to distinguish pax interchange from
-		 * earlier archives (the 'x' and 'g' entries are
-		 * optional, after all), we need a heuristic.  Here, I
-		 * use the bid function to test whether or not there's
-		 * a valid header following.  Of course, if we know
-		 * this is pax interchange format, then we must obey
-		 * the size.
-		 *
-		 * This heuristic will only fail for a pax interchange
-		 * archive that is storing hardlink bodies, no pax
-		 * extended attribute entries have yet occurred, and
-		 * we encounter a hardlink entry for a file that is
-		 * itself an uncompressed tar archive.
+		 * though the body is empty.  POSIX blessed this
+		 * convention in the 1988 standard, but broke with
+		 * this tradition in 2001 by permitting hardlink
+		 * entries to store valid bodies in pax interchange
+		 * format, but not in ustar format.  Since there is no
+		 * hard and fast way to distinguish pax interchange
+		 * from earlier archives (the 'x' and 'g' entries are
+		 * optional, after all), we need a heuristic.
 		 */
-		if (archive_entry_size(entry) > 0  &&
-		    a->archive.archive_format != ARCHIVE_FORMAT_TAR_PAX_INTERCHANGE  &&
-		    archive_read_format_tar_bid(a) > 50) {
+		if (archive_entry_size(entry) == 0) {
+			/* If the size is already zero, we're done. */
+		}  else if (a->archive.archive_format
+		    == ARCHIVE_FORMAT_TAR_PAX_INTERCHANGE) {
+			/* Definitely pax extended; must obey hardlink size. */
+		} else if (a->archive.archive_format == ARCHIVE_FORMAT_TAR
+		    || a->archive.archive_format == ARCHIVE_FORMAT_TAR_GNUTAR)
+		{
+			/* Old-style or GNU tar: we must ignore the size. */
+			archive_entry_set_size(entry, 0);
+			tar->entry_bytes_remaining = 0;
+		} else if (archive_read_format_tar_bid(a) > 50) {
+			/*
+			 * We don't know if it's pax: If the bid
+			 * function sees a valid ustar header
+			 * immediately following, then let's ignore
+			 * the hardlink size.
+			 */
 			archive_entry_set_size(entry, 0);
 			tar->entry_bytes_remaining = 0;
 		}
+		/*
+		 * TODO: There are still two cases I'd like to handle:
+		 *   = a ustar non-pax archive with a hardlink entry at
+		 *     end-of-archive.  (Look for block of nulls following?)
+		 *   = a pax archive that has not seen any pax headers
+		 *     and has an entry which is a hardlink entry storing
+		 *     a body containing an uncompressed tar archive.
+		 * The first is worth addressing; I don't see any reliable
+		 * way to deal with the second possibility.
+		 */
 		break;
 	case '2': /* Symlink */
 		archive_entry_set_filetype(entry, AE_IFLNK);
@@ -1367,9 +1365,10 @@ pax_attribute(struct tar *tar, struct archive_entry *entry,
 				tar->sparse_numbytes = -1;
 			}
 		}
-		if (wcscmp(key, L"GNU.sparse.size") == 0)
-			archive_entry_set_size(entry,
-			    tar_atol10(value, wcslen(value)));
+		if (wcscmp(key, L"GNU.sparse.size") == 0) {
+			tar->realsize = tar_atol10(value, wcslen(value));
+			archive_entry_set_size(entry, tar->realsize);
+		}
 
 		/* GNU "0.1" sparse pax format. */
 		if (wcscmp(key, L"GNU.sparse.map") == 0) {
@@ -1391,8 +1390,8 @@ pax_attribute(struct tar *tar, struct archive_entry *entry,
 		if (wcscmp(key, L"GNU.sparse.name") == 0)
 			archive_entry_copy_pathname_w(entry, value);
 		if (wcscmp(key, L"GNU.sparse.realsize") == 0) {
-			tar->sparse_realsize = tar_atol10(value, wcslen(value));
-			archive_entry_set_size(entry, tar->sparse_realsize);
+			tar->realsize = tar_atol10(value, wcslen(value));
+			archive_entry_set_size(entry, tar->realsize);
 		}
 		break;
 	case 'L':
@@ -1425,6 +1424,10 @@ pax_attribute(struct tar *tar, struct archive_entry *entry,
 			archive_entry_set_ino(entry, tar_atol10(value, wcslen(value)));
 		else if (wcscmp(key, L"SCHILY.nlink")==0)
 			archive_entry_set_nlink(entry, tar_atol10(value, wcslen(value)));
+		else if (wcscmp(key, L"SCHILY.realsize")==0) {
+			tar->realsize = tar_atol10(value, wcslen(value));
+			archive_entry_set_size(entry, tar->realsize);
+		}
 		break;
 	case 'a':
 		if (wcscmp(key, L"atime")==0) {
@@ -1481,12 +1484,14 @@ pax_attribute(struct tar *tar, struct archive_entry *entry,
 			 * But, "size" is not necessarily the size of
 			 * the file on disk; if this is a sparse file,
 			 * the disk size may have already been set from
-			 * GNU.sparse.realsize.
+			 * GNU.sparse.realsize or GNU.sparse.size or
+			 * an old GNU header field or SCHILY.realsize
+			 * or ....
 			 */
-			if (tar->sparse_realsize < 0) {
+			if (tar->realsize < 0) {
 				archive_entry_set_size(entry,
 				    tar->entry_bytes_remaining);
-				tar->sparse_realsize
+				tar->realsize
 				    = tar->entry_bytes_remaining;
 			}
 		}
@@ -1608,8 +1613,9 @@ header_gnutar(struct archive_read *a, struct tar *tar,
 	archive_entry_set_ctime(entry,
 	    tar_atol(header->ctime, sizeof(header->ctime)), 0);
 	if (header->realsize[0] != 0) {
-		archive_entry_set_size(entry,
-		    tar_atol(header->realsize, sizeof(header->realsize)));
+		tar->realsize
+		    = tar_atol(header->realsize, sizeof(header->realsize));
+		archive_entry_set_size(entry, tar->realsize);
 	}
 
 	if (header->sparse[0].offset[0] != 0) {
