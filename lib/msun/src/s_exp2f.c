@@ -82,7 +82,8 @@ static const double exp2ft[TBLSIZE] = {
  *
  *   We compute exp2(i/TBLSIZE) via table lookup and exp2(z) via a
  *   degree-4 minimax polynomial with maximum error under 1.4 * 2**-33.
- *   Using double precision in the final calculation avoids roundoff error.
+ *   Using double precision for everything except the reduction makes
+ *   roundoff error insignificant and simplifies the scaling step.
  *
  *   This method is due to Tang, but I do not use his suggested parameters:
  *
@@ -92,8 +93,8 @@ static const double exp2ft[TBLSIZE] = {
 float
 exp2f(float x)
 {
-	double tv, twopk;
-	float t, z;
+	double tv, twopk, z;
+	float t;
 	uint32_t hx, htv, ix, i0;
 	int32_t k;
 
