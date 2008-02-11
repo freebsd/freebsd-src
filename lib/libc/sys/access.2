@@ -32,7 +32,7 @@
 .\"     @(#)access.2	8.2 (Berkeley) 4/1/94
 .\" $FreeBSD$
 .\"
-.Dd December 8, 2007
+.Dd January 16, 2007
 .Dt ACCESS 2
 .Os
 .Sh NAME
@@ -150,9 +150,9 @@ remains useful for providing clues to users as to whether operations
 make sense for particular filesystem objects (e.g. 'delete' menu
 item only highlighted in a writable folder ... avoiding interpretation
 of the st_mode bits that the application might not understand --
-e.g. in the case of AFS).  It also allows a cheaper file existance
-test than
-.Ns Xr stat 2 .
+e.g. in the case of AFS).
+It also allows a cheaper file existence test than
+.Xr stat 2 .
 .Sh SEE ALSO
 .Xr chmod 2 ,
 .Xr intro 2 ,
