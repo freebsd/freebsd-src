@@ -758,21 +758,22 @@ linux_mmap_common(struct thread *td, struct l_mmap_argv *linux_args)
 			PROC_UNLOCK(p);
 		}
 
-		/* This gives us our maximum stack size */
-		if (linux_args->len > STACK_SIZE - GUARD_SIZE)
-			bsd_args.len = linux_args->len;
-		else
-			bsd_args.len  = STACK_SIZE - GUARD_SIZE;
-
-		/* 
-		 * This gives us a new BOS.  If we're using VM_STACK, then
-		 * mmap will just map the top SGROWSIZ bytes, and let
-		 * the stack grow down to the limit at BOS.  If we're
-		 * not using VM_STACK we map the full stack, since we
-		 * don't have a way to autogrow it.
+		/*
+		 * This gives us our maximum stack size and a new BOS.
+		 * If we're using VM_STACK, then mmap will just map
+		 * the top SGROWSIZ bytes, and let the stack grow down
+		 * to the limit at BOS.  If we're not using VM_STACK
+		 * we map the full stack, since we don't have a way
+		 * to autogrow it.
 		 */
-		bsd_args.addr = (caddr_t)PTRIN(linux_args->addr) -
-		    bsd_args.len;
+		if (linux_args->len > STACK_SIZE - GUARD_SIZE) {
+			bsd_args.addr = (caddr_t)PTRIN(linux_args->addr);
+			bsd_args.len = linux_args->len;
+		} else {
+			bsd_args.addr = (caddr_t)PTRIN(linux_args->addr) -
+			    (STACK_SIZE - GUARD_SIZE - linux_args->len);
+			bsd_args.len = STACK_SIZE - GUARD_SIZE;
+		}
 	} else {
 		bsd_args.addr = (caddr_t)PTRIN(linux_args->addr);
 		bsd_args.len  = linux_args->len;
