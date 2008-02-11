@@ -264,7 +264,7 @@ g_lvm_start(struct bio *bp)
 			    + in_chunk_offset + sg->sg_pvoffset;
 		}
 
-		KASSERT(pv != NULL, ("Can't find PV for chunk %d",
+		KASSERT(pv != NULL, ("Can't find PV for chunk %zu",
 		    chunk_index));
 
 		cb->bio_to = pv->pv_gprov;
