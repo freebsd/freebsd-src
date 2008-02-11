@@ -47,7 +47,6 @@ __FBSDID("$FreeBSD$");
 #include "archive_read_private.h"
 
 struct ar {
-	int	 bid;
 	off_t	 entry_bytes_remaining;
 	off_t	 entry_offset;
 	off_t	 entry_padding;
@@ -103,7 +102,6 @@ archive_read_support_format_ar(struct archive *_a)
 		return (ARCHIVE_FATAL);
 	}
 	memset(ar, 0, sizeof(*ar));
-	ar->bid = -1;
 	ar->strtab = NULL;
 
 	r = __archive_read_register_format(a,
@@ -148,9 +146,6 @@ archive_read_format_ar_bid(struct archive_read *a)
 
 	ar = (struct ar *)(a->format->data);
 
-	if (ar->bid > 0)
-		return (ar->bid);
-
 	/*
 	 * Verify the 8-byte file signature.
 	 * TODO: Do we need to check more than this?
@@ -159,8 +154,7 @@ archive_read_format_ar_bid(struct archive_read *a)
 	if (bytes_read < 8)
 		return (-1);
 	if (strncmp((const char*)h, "!<arch>\n", 8) == 0) {
-		ar->bid = 64;
-		return (ar->bid);
+		return (64);
 	}
 	return (-1);
 }

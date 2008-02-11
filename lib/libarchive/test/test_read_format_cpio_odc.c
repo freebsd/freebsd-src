@@ -54,7 +54,7 @@ DEFINE_TEST(test_read_format_cpio_odc)
 	assertA(0 == archive_read_support_compression_all(a));
 	assertA(0 == archive_read_support_format_all(a));
 	assertA(0 == archive_read_open_memory(a, archive, sizeof(archive)));
-	assertA(0 == archive_read_next_header(a, &ae));
+	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
 	assertA(archive_compression(a) == ARCHIVE_COMPRESSION_NONE);
 	assertA(archive_format(a) == ARCHIVE_FORMAT_CPIO_POSIX);
 	assert(0 == archive_read_close(a));

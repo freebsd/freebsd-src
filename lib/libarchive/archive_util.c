@@ -60,7 +60,7 @@ archive_version_stamp(void)
 const char *
 archive_version(void)
 {
-	return (PACKAGE_NAME " " PACKAGE_VERSION);
+	return (ARCHIVE_LIBRARY_VERSION);
 }
 
 int

@@ -74,6 +74,8 @@ It currently supports the most popular GNU extensions, including
 modern long filename and linkname support, as well as atime and ctime data.
 The libarchive library does not support multi-volume
 archives, nor the old GNU long filename format.
+It can read GNU sparse file entries, including the new POSIX-based
+formats, but cannot write GNU sparse file entries.
 .It Cm pax
 The
 .Xr libarchive 3
@@ -93,7 +95,7 @@ defined by Joerg Schilling's
 .Dq star
 archiver.
 The libarchive library can read most of the SCHILY keys.
-It ignores any keywords that it does not understand.
+It silently ignores any keywords that it does not understand.
 .It Cm restricted pax
 The libarchive library can also write pax archives in which it
 attempts to suppress the extended attributes entry whenever
@@ -139,19 +141,18 @@ In particular, it supports base-256 values in certain numeric fields.
 This essentially removes the limitations on file size, modification time,
 and device numbers.
 .Pp
-The first tar program appeared in Sixth Edition Unix (circa 1976).
-This makes the tar format one of the oldest and most widely-supported
-archive formats.
+The first tar program appeared in Seventh Edition Unix in 1979.
 The first official standard for the tar file format was the
 .Dq ustar
 (Unix Standard Tar) format defined by POSIX in 1988.
 POSIX.1-2001 extended the ustar format to create the
 .Dq pax interchange
 format.
-There have also been many custom variations.
 .Ss Cpio Formats
 The libarchive library can read a number of common cpio variants and can write
 .Dq odc
+and
+.Dq newc
 format archives.
 A cpio archive stores each entry as a fixed-size header followed
 by a variable-length filename and variable-length data.
@@ -184,15 +185,26 @@ The SVR4 format can optionally include a CRC of the file
 contents, although libarchive does not currently verify this CRC.
 .El
 .Pp
-Cpio is an old format that was widely used because of its simplicity
-and its support for very long filenames.
-Unfortunately, it has many limitations that make it unsuitable
+Cpio first appeared in PWB/UNIX 1.0, which was released within
+AT&T in 1977.
+PWB/UNIX 1.0 formed the basis of System III Unix, released outside
+of AT&T in 1981.
+This makes cpio older than tar, although cpio was not included
+in Version 7 AT&T Unix.
+As a result, the tar command became much better known in universities
+and research groups that used Version 7.
+The combination of the
+.Nm find
+and
+.Nm cpio
+utilities provided very precise control over file selection.
+Unfortunately, the format has many limitations that make it unsuitable
 for widespread use.
 Only the POSIX format permits files over 4GB, and its 18-bit
 limit for most other fields makes it unsuitable for modern systems.
 In addition, cpio formats only store numeric UID/GID values (not
 usernames and group names), which can make it very difficult to correctly
-transfer archives across systems.
+transfer archives across systems with dissimilar user numbering.
 .Ss Shar Formats
 A
 .Dq shell archive
@@ -255,4 +267,6 @@ Libarchive provides read and write support for both variants.
 .Xr tar 1 ,
 .Xr zip 1 ,
 .Xr zlib 3 ,
+.Xr cpio 5 ,
+.Xr mtree 5 ,
 .Xr tar 5

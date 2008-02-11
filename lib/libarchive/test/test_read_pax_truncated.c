@@ -29,9 +29,9 @@ DEFINE_TEST(test_read_pax_truncated)
 {
 	struct archive_entry *ae;
 	struct archive *a;
-	size_t used, i;
+	ssize_t used, i;
 	size_t buff_size = 1000000;
-	size_t filedata_size = 100000;
+	ssize_t filedata_size = 100000;
 	char *buff = malloc(buff_size);
 	char *buff2 = malloc(buff_size);
 	char *filedata = malloc(filedata_size);
