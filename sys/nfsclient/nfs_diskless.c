@@ -204,8 +204,8 @@ match_done:
 	/* set up root mount */
 	nd->root_args.rsize = 8192;		/* XXX tunable? */
 	nd->root_args.wsize = 8192;
-	nd->root_args.sotype = SOCK_DGRAM;
-	nd->root_args.flags = (NFSMNT_WSIZE | NFSMNT_RSIZE | NFSMNT_RESVPORT);
+	nd->root_args.sotype = SOCK_STREAM;
+	nd->root_args.flags = (NFSMNT_NFSV3 | NFSMNT_WSIZE | NFSMNT_RSIZE | NFSMNT_RESVPORT);
 	if (inaddr_to_sockaddr("boot.nfsroot.server", &nd->root_saddr)) {
 		printf("nfs_diskless: no server\n");
 		return;

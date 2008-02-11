@@ -155,7 +155,7 @@ struct nfs_args nfsdefargs = {
 	NFS_ARGSVERSION,
 	NULL,
 	sizeof (struct sockaddr_in),
-	SOCK_DGRAM,
+	SOCK_STREAM,
 	0,
 	NULL,
 	0,
