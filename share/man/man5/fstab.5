@@ -64,15 +64,8 @@ doing their thing.
 .Pp
 The first field,
 .Pq Fa fs_spec ,
-describes the block special device or
+describes the special device or
 remote file system to be mounted.
-For file systems of type
-.Em ufs ,
-the special file name is the block special file name,
-and not the character special file name.
-If a program needs the character special file name,
-the program must create it by appending a ``r'' after the
-last ``/'' in the special file name.
 .Pp
 The second field,
 .Pq Fa fs_file ,
