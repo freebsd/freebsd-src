@@ -54,7 +54,8 @@ currently supports linear stripes with segments on one or more physical disks.
 The parser is able to read LVM2 Text Format metadata, the logical volumes will
 be assembled and made available under
 .Pa /dev/lvm/ .
-The metadata is read only, logical volumes can not be allocated or resized.
+The metadata is read-only, logical volumes cannot be allocated or resized.
+.Sh EXAMPLES
 To view which
 .Nm
 devices are available:
@@ -76,10 +77,9 @@ Consumers:
    Sectorsize: 512
    Mode: r0w0e0
 .Ed
-.Pp
 .Sh SEE ALSO
 .Xr GEOM 4 ,
-.Xr geom 8 ,
+.Xr geom 8
 .Sh AUTHORS
 .An -nosplit
 The
