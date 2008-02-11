@@ -292,6 +292,10 @@ kvm_close(kd)
 		_kvm_freevtop(kd);
 	if (kd->procbase != 0)
 		free((void *)kd->procbase);
+	if (kd->argbuf != 0)
+		free((void *) kd->argbuf);
+	if (kd->argspc != 0)
+		free((void *) kd->argspc);
 	if (kd->argv != 0)
 		free((void *)kd->argv);
 	free((void *)kd);
