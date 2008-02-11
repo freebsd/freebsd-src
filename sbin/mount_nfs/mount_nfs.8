@@ -142,11 +142,11 @@ The default is a retry count of zero, which means to keep retrying
 forever.
 There is a 60 second delay between each attempt.
 .It Fl T
-Use TCP transport instead of UDP.
-This is recommended for servers that are not on the same LAN cable as
-the client.
-Not all NFS servers support this method, especially older ones;
-caution should be observed in these cases.
+Use TCP transport.
+This is the default option, as it provides for increased reliability on both
+LAN and WAN configurations compared to UDP.
+Some old NFS servers do not support this method; UDP mounts may be required
+for interoperability.
 .It Fl U
 Force the mount protocol to use UDP transport, even for TCP NFS mounts.
 (Necessary for some old

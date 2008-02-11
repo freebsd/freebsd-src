@@ -22,6 +22,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20080211:
+	The default NFS mount mode has changed from UDP to TCP for
+	increased reliability.  If you rely on (insecurely) NFS
+	mounting across a firewall you may need to update your
+	firewall rules.
+
 20080208:
 	Belatedly note the addition of m_collapse for compacting
 	mbuf chains.
