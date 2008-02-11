@@ -571,6 +571,7 @@
 ./man/curs_termattrs.3x
 ./man/curs_termcap.3x
 ./man/curs_terminfo.3x
+./man/curs_threads.3x
 ./man/curs_touch.3x
 ./man/curs_trace.3x
 ./man/curs_util.3x
@@ -810,6 +811,7 @@
 ./ncurses/curses.priv.h
 ./ncurses/fifo_defs.h
 ./ncurses/llib-lncurses
+./ncurses/llib-lncursest
 ./ncurses/llib-lncursesw
 ./ncurses/modules
 ./ncurses/tinfo/MKcaptab.awk

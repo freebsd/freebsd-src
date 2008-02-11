@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -32,7 +32,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: frm_driver.c,v 1.85 2007/11/24 21:32:53 tom Exp $")
+MODULE_ID("$Id: frm_driver.c,v 1.86 2008/01/19 20:11:03 tom Exp $")
 
 /*----------------------------------------------------------------------------
   This is the core module of the form library. It contains the majority
@@ -676,7 +676,7 @@ Field_Grown(FIELD *field, int amount)
 	      new_bp[new_buflen] = myZEROS;
 	    }
 
-#if USE_WIDEC_SUPPORT
+#if USE_WIDEC_SUPPORT && NCURSES_EXT_FUNCS
 	  if (wresize(field->working, 1, Buffer_Length(field) + 1) == ERR)
 	    result = FALSE;
 #endif

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -32,7 +32,7 @@
  *     and: Thomas E. Dickey                        1996-on                 *
  ****************************************************************************/
 
-/* $Id: curses.h.in,v 1.181 2007/11/18 00:32:03 tom Exp $ */
+/* $Id: curses.h.in,v 1.183 2008/01/19 20:03:48 tom Exp $ */
 
 #ifndef __NCURSES_H
 #define __NCURSES_H
@@ -827,7 +827,6 @@ extern NCURSES_EXPORT(int) getpary (const WINDOW *);			/* generated */
 /*
  * These functions are extensions - not in X/Open Curses.
  */
-#undef  NCURSES_EXT_FUNCS
 #if @NCURSES_EXT_FUNCS@
 #undef  NCURSES_EXT_FUNCS
 #define NCURSES_EXT_FUNCS @NCURSES_PATCH@
@@ -841,6 +840,8 @@ extern NCURSES_EXPORT(int) key_defined (const char *);
 extern NCURSES_EXPORT(int) keyok (int, bool);
 extern NCURSES_EXPORT(int) resize_term (int, int);
 extern NCURSES_EXPORT(int) resizeterm (int, int);
+extern NCURSES_EXPORT(int) set_escdelay (int);
+extern NCURSES_EXPORT(int) set_tabsize (int);
 extern NCURSES_EXPORT(int) use_default_colors (void);
 extern NCURSES_EXPORT(int) use_extended_names (bool);
 extern NCURSES_EXPORT(int) use_legacy_coding (int);
