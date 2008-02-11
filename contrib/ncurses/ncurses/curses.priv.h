@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -34,7 +34,7 @@
 
 
 /*
- * $Id: curses.priv.h,v 1.353 2007/12/23 00:15:38 tom Exp $
+ * $Id: curses.priv.h,v 1.357 2008/01/13 00:33:10 tom Exp $
  *
  *	curses.priv.h
  *
@@ -314,9 +314,12 @@ color_t;
 #ifdef USE_PTHREADS
 #if USE_REENTRANT
 #include <pthread.h>
-#define _nc_lock_global(name)	pthread_mutex_lock(&_nc_globals.mutex_##name)
-#define _nc_try_global(name)    pthread_mutex_trylock(&_nc_globals.mutex_##name)
-#define _nc_unlock_global(name)	pthread_mutex_unlock(&_nc_globals.mutex_##name)
+extern NCURSES_EXPORT(int) _nc_mutex_lock(pthread_mutex_t *);
+extern NCURSES_EXPORT(int) _nc_mutex_trylock(pthread_mutex_t *);
+extern NCURSES_EXPORT(int) _nc_mutex_unlock(pthread_mutex_t *);
+#define _nc_lock_global(name)	_nc_mutex_lock(&_nc_globals.mutex_##name)
+#define _nc_try_global(name)    _nc_mutex_trylock(&_nc_globals.mutex_##name)
+#define _nc_unlock_global(name)	_nc_mutex_unlock(&_nc_globals.mutex_##name)
 
 extern NCURSES_EXPORT(void) _nc_lock_window(WINDOW *);
 extern NCURSES_EXPORT(void) _nc_unlock_window(WINDOW *);
@@ -417,6 +420,7 @@ typedef struct _SLK {
 #endif	/* USE_TERMLIB */
 
 typedef	struct {
+	WINDOW *win;		/* the window used in the hook      */
 	int	line;		/* lines to take, < 0 => from bottom*/
 	int	(*hook)(WINDOW *, int); /* callback for user	    */
 } ripoff_t;
@@ -539,6 +543,8 @@ typedef struct {
 	char		*first_name;
 	char		**keyname_table;
 
+	int		slk_format;
+
 	char		*safeprint_buf;
 	size_t		safeprint_used;
 
@@ -622,6 +628,9 @@ typedef struct {
 #endif
 #endif
 } NCURSES_PRESCREEN;
+
+#define ripoff_sp	_nc_prescreen.rsp
+#define ripoff_stack	_nc_prescreen.rippedoff
 
 extern NCURSES_EXPORT_VAR(NCURSES_PRESCREEN) _nc_prescreen;
 
@@ -1603,7 +1612,6 @@ extern NCURSES_EXPORT_VAR(SCREEN *) SP;
 #define screen_lines	SP->_lines
 #define screen_columns	SP->_columns
 
-extern NCURSES_EXPORT_VAR(int) _nc_slk_format;  /* != 0 if slk_init() called */
 extern NCURSES_EXPORT(int) _nc_slk_initialize (WINDOW *, int);
 
 /*

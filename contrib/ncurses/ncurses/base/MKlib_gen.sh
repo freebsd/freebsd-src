@@ -2,10 +2,10 @@
 #
 # MKlib_gen.sh -- generate sources from curses.h macro definitions
 #
-# ($Id: MKlib_gen.sh,v 1.29 2007/08/18 13:17:14 tom Exp $)
+# ($Id: MKlib_gen.sh,v 1.30 2008/01/05 23:21:10 tom Exp $)
 #
 ##############################################################################
-# Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.                #
+# Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -422,4 +422,5 @@ $preprocessor $TMP 2>/dev/null \
 | sed \
 	-e 's/^.*T_CALLED.*returnCode( \([a-z].*) \));/	return \1;/' \
 	-e 's/^.*T_CALLED.*returnCode( \((wmove.*) \));/	return \1;/' \
+	-e 's/gen_//' \
 | sed -f $ED4

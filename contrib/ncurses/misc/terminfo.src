@@ -6,8 +6,8 @@
 # Report bugs and new terminal descriptions to
 #	bug-ncurses@gnu.org
 #
-#	$Revision: 1.318 $
-#	$Date: 2007/11/03 19:02:01 $
+#	$Revision: 1.326 $
+#	$Date: 2007/11/12 00:22:07 $
 #
 # The original header is preserved below for reference.  It is noted that there
 # is a "newer" version which differs in some cosmetic details (but actually
@@ -3017,10 +3017,8 @@ xterm-xf86-v44|xterm terminal emulator (XFree86 4.4 Window System),
 	cnorm=\E[?12l\E[?25h, cvvis=\E[?12;25h, indn=\E[%p1%dS,
 	rin=\E[%p1%dT, use=xterm-xf86-v43,
 
-# This is the most common alias for xterm-new.
 xterm-xfree86|xterm terminal emulator (XFree86),
-	use=xterm-new,
-#	use=xterm-old,
+	use=xterm-xf86-v44,
 
 # This version reflects the current xterm features.
 xterm-new|modern xterm terminal emulator,
@@ -3048,7 +3046,16 @@ xterm-new|modern xterm terminal emulator,
 # The meta key may also be used as a modifier in this scheme, adding another
 # bit to the parameter.
 xterm+pcfkeys|fragment for PC-style fkeys,
-	use=xterm+pcf2, use=xterm+pcc2,
+	use=xterm+app, use=xterm+pcf2, use=xterm+pcc2,
+	use=xterm+pce2,
+#
+xterm+noapp|fragment with cursor keys in normal mode,
+	kcub1=\E[D, kcud1=\E[B, kcuf1=\E[C, kcuu1=\E[A, kend=\E[F,
+	khome=\E[H,
+
+xterm+app|fragment with cursor keys in application mode,
+	kcub1=\EOD, kcud1=\EOB, kcuf1=\EOC, kcuu1=\EOA, kend=\EOF,
+	khome=\EOH,
 #
 # The "PC-style" modifier scheme was introduced in xterm patch #94 (1999/3/27)
 # and revised in patch #167 (2002/8/24).  Some other terminal emulators copied
@@ -3071,28 +3078,39 @@ xterm+pcfkeys|fragment for PC-style fkeys,
 # that might apply to xterm+pcfkeys with different values of that resource.
 xterm+pcc3|fragment with modifyCursorKeys:3,
 	kLFT=\E[>1;2D, kRIT=\E[>1;2C, kind=\E[>1;2B,
-	kri=\E[>1;2A, kDN=\E[>1;2B, kDN5=\E[>1;5B, kDN6=\E[>1;6B,
-	kLFT5=\E[>1;5D, kLFT6=\E[>1;6D, kRIT5=\E[>1;5C,
-	kRIT6=\E[>1;6C, kUP=\E[>1;2A, kUP5=\E[>1;5A,
-	kUP6=\E[>1;6A,
+	kri=\E[>1;2A, kDN=\E[>1;2B, kDN3=\E[>1;3B, kDN4=\E[>1;4B,
+	kDN5=\E[>1;5B, kDN6=\E[>1;6B, kDN7=\E[>1;7B,
+	kLFT3=\E[>1;3D, kLFT4=\E[>1;4D, kLFT5=\E[>1;5D,
+	kLFT6=\E[>1;6D, kLFT7=\E[>1;7D, kRIT3=\E[>1;3C,
+	kRIT4=\E[>1;4C, kRIT5=\E[>1;5C, kRIT6=\E[>1;6C,
+	kRIT7=\E[>1;7C, kUP=\E[>1;2A, kUP3=\E[>1;3A,
+	kUP4=\E[>1;4A, kUP5=\E[>1;5A, kUP6=\E[>1;6A,
+	kUP7=\E[>1;7A,
 
 xterm+pcc2|fragment with modifyCursorKeys:2,
 	kLFT=\E[1;2D, kRIT=\E[1;2C, kind=\E[1;2B, kri=\E[1;2A,
-	kDN=\E[1;2B, kDN5=\E[1;5B, kDN6=\E[1;6B, kLFT5=\E[1;5D,
-	kLFT6=\E[1;6D, kRIT5=\E[1;5C, kRIT6=\E[1;6C, kUP=\E[1;2A,
-	kUP5=\E[1;5A, kUP6=\E[1;6A,
+	kDN=\E[1;2B, kDN3=\E[1;3B, kDN4=\E[1;4B, kDN5=\E[1;5B,
+	kDN6=\E[1;6B, kDN7=\E[1;7B, kLFT3=\E[1;3D, kLFT4=\E[1;4D,
+	kLFT5=\E[1;5D, kLFT6=\E[1;6D, kLFT7=\E[1;7D,
+	kRIT3=\E[1;3C, kRIT4=\E[1;4C, kRIT5=\E[1;5C,
+	kRIT6=\E[1;6C, kRIT7=\E[1;7C, kUP=\E[1;2A, kUP3=\E[1;3A,
+	kUP4=\E[1;4A, kUP5=\E[1;5A, kUP6=\E[1;6A, kUP7=\E[1;7A,
 
 xterm+pcc1|fragment with modifyCursorKeys:1,
 	kLFT=\E[2D, kRIT=\E[2C, kind=\E[2B, kri=\E[2A, kDN=\E[2B,
-	kDN5=\E[5B, kDN6=\E[6B, kLFT5=\E[5D, kLFT6=\E[6D,
-	kRIT5=\E[5C, kRIT6=\E[6C, kUP=\E[2A, kUP5=\E[5A,
-	kUP6=\E[6A,
+	kDN3=\E[3B, kDN4=\E[4B, kDN5=\E[5B, kDN6=\E[6B, kDN7=\E[7B,
+	kLFT3=\E[3D, kLFT4=\E[4D, kLFT5=\E[5D, kLFT6=\E[6D,
+	kLFT7=\E[7D, kRIT3=\E[3C, kRIT4=\E[4C, kRIT5=\E[5C,
+	kRIT6=\E[6C, kRIT7=\E[7C, kUP=\E[2A, kUP3=\E[3A,
+	kUP4=\E[4A, kUP5=\E[5A, kUP6=\E[6A, kUP7=\E[7A,
 
 xterm+pcc0|fragment with modifyCursorKeys:0,
 	kLFT=\EO2D, kRIT=\EO2C, kind=\EO2B, kri=\EO2A, kDN=\EO2B,
-	kDN5=\EO5B, kDN6=\EO6B, kLFT5=\EO5D, kLFT6=\EO6D,
-	kRIT5=\EO5C, kRIT6=\EO6C, kUP=\EO2A, kUP5=\EO5A,
-	kUP6=\EO6A,
+	kDN3=\EO3B, kDN4=\EO4B, kDN5=\EO5B, kDN6=\EO6B, kDN7=\EO7B,
+	kLFT3=\EO3D, kLFT4=\EO4D, kLFT5=\EO5D, kLFT6=\EO6D,
+	kLFT7=\EO7D, kRIT3=\EO3C, kRIT4=\EO4C, kRIT5=\EO5C,
+	kRIT6=\EO6C, kRIT7=\EO7C, kUP=\EO2A, kUP3=\EO3A,
+	kUP4=\EO4A, kUP5=\EO5A, kUP6=\EO6A, kUP7=\EO7A,
 
 #
 # Here are corresponding fragments from xterm patch #216:
@@ -3136,6 +3154,32 @@ xterm+pcf2|fragment with modifyFunctionKeys:2,
 	kf61=\E[1;4P, kf62=\E[1;4Q, kf63=\E[1;4R, kf7=\E[18~,
 	kf8=\E[19~, kf9=\E[20~,
 #
+# Chunks from xterm #230:
+xterm+pce2|fragment with modifyCursorKeys:2,
+	kDC=\E[3;2~, kEND=\E[1;2F, kHOM=\E[1;2H, kIC=\E[2;2~,
+	kNXT=\E[6;2~, kPRV=\E[5;2~, kich1=\E[2~, knp=\E[6~,
+	kpp=\E[5~, kDC3=\E[3;3~, kDC4=\E[3;4~, kDC5=\E[3;5~,
+	kDC6=\E[3;6~, kDC7=\E[3;7~, kEND3=\E[1;3F, kEND4=\E[1;4F,
+	kEND5=\E[1;5F, kEND6=\E[1;6F, kEND7=\E[1;7F,
+	kHOM3=\E[1;3H, kHOM4=\E[1;4H, kHOM5=\E[1;5H,
+	kHOM6=\E[1;6H, kHOM7=\E[1;7H, kIC3=\E[2;3~, kIC4=\E[2;4~,
+	kIC5=\E[2;5~, kIC6=\E[2;6~, kIC7=\E[2;7~, kNXT3=\E[6;3~,
+	kNXT4=\E[6;4~, kNXT5=\E[6;5~, kNXT6=\E[6;6~,
+	kNXT7=\E[6;7~, kPRV3=\E[5;3~, kPRV4=\E[5;4~,
+	kPRV5=\E[5;5~, kPRV6=\E[5;6~, kPRV7=\E[5;7~,
+	use=xterm+edit,
+
+xterm+edit|fragment for 6-key editing-keypad,
+	kdch1=\E[3~, kich1=\E[2~, knp=\E[6~, kpp=\E[5~,
+	use=xterm+pc+edit,
+
+xterm+pc+edit|fragment for pc-style editing keypad,
+	kend=\E[4~, khome=\E[1~,
+
+xterm+vt+edit|fragment for vt220-style editing keypad,
+	kfnd=\E[1~, kslt=\E[4~,
+
+#
 # Those chunks use the new-style (the xterm oldFunctionKeys resource is false).
 # Alternatively, the same scheme with old-style function keys as in xterm-r6
 # is shown here (because that is used in mrxvt and mlterm):
@@ -3163,8 +3207,8 @@ xterm-basic|modern xterm terminal emulator - common,
 	flash=\E[?5h$<100/>\E[?5l, home=\E[H, hpa=\E[%i%p1%dG,
 	ht=^I, hts=\EH, ich=\E[%p1%d@, il=\E[%p1%dL, il1=\E[L,
 	ind=^J, invis=\E[8m, is2=\E[!p\E[?3;4l\E[4l\E>, kbs=^H,
-	kdch1=\E[3~, kmous=\E[M, mc0=\E[i, mc4=\E[4i, mc5=\E[5i,
-	meml=\El, memu=\Em, op=\E[39;49m, rc=\E8, rev=\E[7m, ri=\EM,
+	kmous=\E[M, mc0=\E[i, mc4=\E[4i, mc5=\E[5i, meml=\El,
+	memu=\Em, op=\E[39;49m, rc=\E8, rev=\E[7m, ri=\EM,
 	rmacs=\E(B, rmam=\E[?7l, rmcup=\E[?1049l, rmir=\E[4l,
 	rmkx=\E[?1l\E>, rmm=\E[?1034l, rmso=\E[27m, rmul=\E[24m,
 	rs1=\Ec, rs2=\E[!p\E[?3;4l\E[4l\E>, sc=\E7,
@@ -3310,7 +3354,8 @@ xterm-vt220|xterm emulating vt220,
 	kf17=\E[31~, kf18=\E[32~, kf19=\E[33~, kf20=\E[34~,
 	kf5=\E[15~, kf6=\E[17~, kf7=\E[18~, kf8=\E[19~, kf9=\E[20~,
 	khome=\E[1~, kich1=\E[2~, kmous=\E[M, knp=\E[6~, kpp=\E[5~,
-	use=xterm-basic, use=vt220+keypad,
+	use=xterm+app, use=xterm+edit, use=xterm-basic,
+	use=vt220+keypad,
 
 xterm-vt52|xterm emulating dec vt52,
 	cols#80, it#8, lines#24,
@@ -3321,11 +3366,11 @@ xterm-vt52|xterm emulating dec vt52,
 	kcuf1=\EC, kcuu1=\EA, nel=^M^J, ri=\EI, rmacs=\EG, smacs=\EF,
 
 xterm-noapp|xterm with cursor keys in normal mode,
-	kcub1=\E[D, kcud1=\E[B, kcuf1=\E[C, kcuu1=\E[A, rmcup@,
-	rmkx=\E>, smcup@, smkx=\E=, use=xterm,
+	rmcup@, rmkx=\E>, smcup@, smkx=\E=, use=xterm+noapp,
+	use=xterm,
 
 xterm-24|vs100|xterms|xterm terminal emulator (X Window System),
-	lines#24, use=xterm,
+	lines#24, use=xterm-old,
 
 # This is xterm for ncurses.
 xterm|xterm terminal emulator (X Window System),
@@ -3349,7 +3394,7 @@ xterm+sl-twm|access X title line (pacify twm-descended window managers),
 #
 # xterm with bold instead of underline
 xterm-bold|xterm terminal emulator (X11R6 Window System) standout w/bold,
-	smso=\E[7m, smul=\E[1m, use=xterm,
+	smso=\E[7m, smul=\E[1m, use=xterm-old,
 # (kterm: this had extension capabilities ":KJ:TY=ascii:" -- esr)
 # (kterm should not invoke DEC Graphics as the alternate character set
 #  -- Kenji Rikitake)
@@ -21606,6 +21651,15 @@ v3220|LANPAR Vision II model 3220/3221/3222,
 #
 # 2007-11-03
 #	* correct acsc strings for h19 and z100 (Benjamin Sittler)
+#
+# 2007-11-11
+#	* use xterm-xf86-v44 for "xterm-xfree86", reflecting changes to
+#	  xterm starting with patch #216 -TD
+#	* make legacy xterm entries such as xterm-24 inherit from xterm-old,
+#	  to match xterm #230 -TD
+#	* extend xterm+pccX entries to match xterm #230 -TD
+#	* add xterm+app, xterm+noapp, from xterm #230 -TD
+#	* add/use xterm+pce2 from xterm #230, in xterm+pcfkeys -TD
 #
 # The following sets edit modes for GNU EMACS.
 # Local Variables:
