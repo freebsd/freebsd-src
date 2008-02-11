@@ -88,6 +88,7 @@ sparc64/pci/psycho.c		optional	pci
 sparc64/sbus/dma_sbus.c		optional	sbus
 sparc64/sbus/sbus.c		optional	sbus
 sparc64/sbus/lsi64854.c		optional	sbus
+sparc64/sparc64/ata_machdep.c	optional	atadisk
 sparc64/sparc64/autoconf.c	standard
 sparc64/sparc64/bus_machdep.c	standard
 sparc64/sparc64/cache.c		standard
