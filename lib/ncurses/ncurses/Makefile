@@ -501,6 +501,7 @@ MAN=	\
 	curs_termattrs.3 \
 	curs_termcap.3 \
 	curs_terminfo.3 \
+	curs_threads.3 \
 	curs_touch.3 \
 	curs_trace.3 \
 	curs_util.3 \
@@ -845,6 +846,10 @@ MLINKS=	ncurses.3 curses.3 \
 	curs_terminfo.3 vid_puts.3 \
 	curs_terminfo.3 vidattr.3 \
 	curs_terminfo.3 vidputs.3 \
+	curs_threads.3 set_escdelay.3 \
+	curs_threads.3 set_tabsize.3 \
+	curs_threads.3 use_screen.3 \
+	curs_threads.3 use_window.3 \
 	curs_touch.3 is_linetouched.3 \
 	curs_touch.3 is_wintouched.3 \
 	curs_touch.3 touchline.3 \

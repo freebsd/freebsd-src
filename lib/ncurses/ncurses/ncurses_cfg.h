@@ -144,7 +144,7 @@
 #define NCURSES_EXT_FUNCS 1
 #define NCURSES_NO_PADDING 1
 #define NCURSES_PATHSEP ':'
-#define NCURSES_VERSION_STRING "5.6.20071222"
+#define NCURSES_VERSION_STRING "5.6.20080209"
 #define NDEBUG 1
 #define RETSIGTYPE void
 #define SIG_ATOMIC_T volatile sig_atomic_t
@@ -164,15 +164,15 @@
 #define USE_TERMCAP 1
 #ifdef ENABLE_WIDEC
 #define USE_WIDEC_SUPPORT 1
-#define HAVE_PUTWC 1
 #define HAVE_BTOWC 1
-#define HAVE_WCTOB 1
-#define HAVE_MBTOWC 1
-#define HAVE_WCTOMB 1
 #define HAVE_MBLEN 1
 #define HAVE_MBRLEN 1
 #define HAVE_MBRTOWC 1
-#define NEED_WCHAR_H 1 
+#define HAVE_MBTOWC 1
+#define HAVE_PUTWC 1
+#define HAVE_WCTOB 1
+#define HAVE_WCTOMB 1
+#define NEED_WCHAR_H 1
 #endif
 
 #include <ncurses_def.h>
