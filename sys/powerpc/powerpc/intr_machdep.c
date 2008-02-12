@@ -132,7 +132,7 @@ powerpc_intr_unmask(void *arg)
 }
 
 void
-powerpc_register_pic(device_t dev)
+powerpc_register_pic(device_t dev, u_int ipi)
 {
 
 	pic = dev;
