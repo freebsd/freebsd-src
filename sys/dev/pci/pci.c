@@ -595,12 +595,9 @@ pci_read_extcap(device_t pcib, pcicfgregs *cfg)
 		case PCIY_EXPRESS:	/* PCI-express */
 			/*
 			 * Assume we have a PCI-express chipset if we have
-			 * at least one PCI-express root port.
+			 * at least one PCI-express device.
 			 */
-			val = REG(ptr + PCIR_EXPRESS_FLAGS, 2);
-			if ((val & PCIM_EXP_FLAGS_TYPE) ==
-			    PCIM_EXP_TYPE_ROOT_PORT)
-				pcie_chipset = 1;
+			pcie_chipset = 1;
 			break;
 		default:
 			break;
