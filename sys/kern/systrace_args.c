@@ -391,7 +391,7 @@ systrace_args(int sysnum, void *params, u_int64_t *uarg, int *n_args)
 		struct readlink_args *p = params;
 		uarg[0] = (intptr_t) p->path; /* char * */
 		uarg[1] = (intptr_t) p->buf; /* char * */
-		iarg[2] = p->count; /* int */
+		uarg[2] = p->count; /* size_t */
 		*n_args = 3;
 		break;
 	}
