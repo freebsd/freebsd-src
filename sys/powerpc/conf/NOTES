@@ -59,7 +59,6 @@ nodevice	dcons_crom
 
 nooption 	SMP
 nooption 	ADAPTIVE_SX
-nooption 	GDB
 nooption	PPC_DEBUG
 nooption	PPC_PROBE_CHIPSET
 nooption 	SC_NO_MODE_CHANGE
