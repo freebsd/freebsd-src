@@ -67,6 +67,8 @@
 # developer convenience only.  They are intentionally not documented and
 # completely subject to change without notice.
 #
+# For more information, see the build(7) manual page.
+#
 TGTS=	all all-man buildenv buildkernel buildworld check-old checkdpadd \
 	clean cleandepend cleandir delete-old delete-old-libs depend \
 	distribute distributeworld distrib-dirs distribution everything \
