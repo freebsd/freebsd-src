@@ -63,7 +63,6 @@ static struct mem_region OFmem[OFMEM_REGIONS + 1], OFavail[OFMEM_REGIONS + 3];
 static struct mem_region OFfree[OFMEM_REGIONS + 3];
 
 extern register_t ofmsr[5];
-extern struct   pcpu __pcpu[MAXCPU];
 extern struct	pmap ofw_pmap;
 static int	(*ofwcall)(void *);
 
