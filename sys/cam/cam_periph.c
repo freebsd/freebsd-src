@@ -1615,7 +1615,7 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 			ccb->ccb_h.retry_count--;
 			error = ERESTART;
 		} else {
-			action_string = "Retries Exausted";
+			action_string = "Retries Exhausted";
 			error = EIO;
 		}
 		break;
