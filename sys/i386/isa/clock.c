@@ -298,6 +298,7 @@ DELAY(int n)
 		start = rdtsc();
 		end = start + (tsc_freq * n) / 1000000;
 		do {
+			cpu_spinwait();
 			now = rdtsc();
 		} while (now < end || (now > start && end < start));
 		sched_unpin();
