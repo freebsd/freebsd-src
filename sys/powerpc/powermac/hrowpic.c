@@ -68,6 +68,7 @@ static int	hrowpic_attach(device_t);
 static void	hrowpic_dispatch(device_t, struct trapframe *);
 static void	hrowpic_enable(device_t, u_int, u_int);
 static void	hrowpic_eoi(device_t, u_int);
+static void	hrowpic_ipi(device_t, u_int);
 static void	hrowpic_mask(device_t, u_int);
 static void	hrowpic_unmask(device_t, u_int);
 
@@ -80,6 +81,7 @@ static device_method_t  hrowpic_methods[] = {
 	DEVMETHOD(pic_dispatch,		hrowpic_dispatch),
 	DEVMETHOD(pic_enable,		hrowpic_enable),
 	DEVMETHOD(pic_eoi,		hrowpic_eoi),
+	DEVMETHOD(pic_ipi,		hrowpic_ipi),
 	DEVMETHOD(pic_mask,		hrowpic_mask),
 	DEVMETHOD(pic_unmask,		hrowpic_unmask),
 
@@ -167,7 +169,7 @@ hrowpic_attach(device_t dev)
 	hrowpic_write_reg(sc, HPIC_ENABLE, HPIC_SECONDARY, 0);
 	hrowpic_write_reg(sc, HPIC_CLEAR,  HPIC_SECONDARY, 0xffffffff);
 
-	powerpc_register_pic(dev);
+	powerpc_register_pic(dev, 64);
 	return (0);
 }
 
@@ -247,6 +249,12 @@ hrowpic_eoi(device_t dev __unused, u_int irq __unused)
 	sc = device_get_softc(dev);
 	bank = (irq >= 32) ? HPIC_SECONDARY : HPIC_PRIMARY ;
 	hrowpic_write_reg(sc, HPIC_CLEAR, bank, 1U << (irq & 0x1f));
+}
+
+static void
+hrowpic_ipi(device_t dev, u_int irq)
+{
+	/* No SMP support. */
 }
 
 static void
