@@ -405,7 +405,7 @@ int	 getlogin_r(char *, int);
 /* 1003.1-2001 */
 #if __POSIX_VISIBLE >= 200112 || __XSI_VISIBLE
 int	 fchown(int, uid_t, gid_t);
-int	 readlink(const char *, char *, int);
+ssize_t	 readlink(const char *, char *, size_t);
 #endif
 #if __POSIX_VISIBLE >= 200112
 int	 gethostname(char *, size_t);

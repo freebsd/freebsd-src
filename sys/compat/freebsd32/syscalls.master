@@ -132,8 +132,8 @@
 55	AUE_REBOOT	NOPROTO	{ int reboot(int opt); }
 56	AUE_REVOKE	NOPROTO	{ int revoke(char *path); }
 57	AUE_SYMLINK	NOPROTO	{ int symlink(char *path, char *link); }
-58	AUE_READLINK	NOPROTO	{ int readlink(char *path, char *buf, \
-				    int count); }
+58	AUE_READLINK	NOPROTO	{ ssize_t readlink(char *path, char *buf, \
+				    size_t count); }
 59	AUE_EXECVE	STD	{ int freebsd32_execve(char *fname, \
 				    u_int32_t *argv, u_int32_t *envv); }
 60	AUE_UMASK	NOPROTO	{ int umask(int newmask); } umask \
