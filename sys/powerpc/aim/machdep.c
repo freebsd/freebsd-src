@@ -127,8 +127,8 @@ extern vm_offset_t ksym_start, ksym_end;
 
 int cold = 1;
 
-struct		pcpu __pcpu[MAXCPU];
-struct		trapframe frame0;
+static struct pcpu pcpu0;
+static struct trapframe frame0;
 
 vm_offset_t	kstack0;
 vm_offset_t	kstack0_phys;
@@ -234,14 +234,6 @@ cpu_startup(void *dummy)
 
 	EVENTHANDLER_REGISTER(shutdown_final, powerpc_ofw_shutdown, 0,
 	    SHUTDOWN_PRI_LAST);
-
-#ifdef SMP
-	/*
-	 * OK, enough kmem_alloc/malloc state should be up, lets get on with it!
-	 */
-	mp_start();			/* fire up the secondaries */
-	mp_announce();
-#endif  /* SMP */
 }
 
 extern char	kernel_text[], _end[];
@@ -298,7 +290,7 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
 	/*
 	 * Set up per-cpu data.
 	 */
-	pc = &__pcpu[0];
+	pc = &pcpu0;
 	pcpu_init(pc, 0, sizeof(struct pcpu));
 	pc->pc_curthread = &thread0;
 	pc->pc_curpcb = thread0.td_pcb;
