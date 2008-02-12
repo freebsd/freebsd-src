@@ -57,6 +57,7 @@ int	openpic_attach(device_t);
 void	openpic_dispatch(device_t, struct trapframe *);
 void	openpic_enable(device_t, u_int, u_int);
 void	openpic_eoi(device_t, u_int);
+void	openpic_ipi(device_t, u_int);
 void	openpic_mask(device_t, u_int);
 void	openpic_unmask(device_t, u_int);
 

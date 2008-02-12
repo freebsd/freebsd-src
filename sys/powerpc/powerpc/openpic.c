@@ -66,21 +66,23 @@ openpic_write(struct openpic_softc *sc, u_int reg, uint32_t val)
 }
 
 static __inline void
-openpic_set_priority(struct openpic_softc *sc, int cpu, int pri)
+openpic_set_priority(struct openpic_softc *sc, int pri)
 {
+	u_int tpr;
 	uint32_t x;
 
-	x = openpic_read(sc, OPENPIC_CPU_PRIORITY(cpu));
-	x &= ~OPENPIC_CPU_PRIORITY_MASK;
+	tpr = OPENPIC_PCPU_TPR(PCPU_GET(cpuid));
+	x = openpic_read(sc, tpr);
+	x &= ~OPENPIC_TPR_MASK;
 	x |= pri;
-	openpic_write(sc, OPENPIC_CPU_PRIORITY(cpu), x);
+	openpic_write(sc, tpr, x);
 }
 
 int
 openpic_attach(device_t dev)
 {
 	struct openpic_softc *sc;
-	u_int     irq;
+	u_int     ipi, irq;
 	u_int32_t x;
 
 	sc = device_get_softc(dev);
@@ -130,11 +132,25 @@ openpic_attach(device_t dev)
 		    "Version %s, supports %d CPUs and %d irqs\n",
 		    sc->sc_version, sc->sc_ncpu, sc->sc_nirq);
 
-	/* disable all interrupts */
-	for (irq = 0; irq < sc->sc_nirq; irq++)
-		openpic_write(sc, OPENPIC_SRC_VECTOR(irq), OPENPIC_IMASK);
+	/* Reset and disable all interrupts. */
+	for (irq = 0; irq < sc->sc_nirq; irq++) {
+		x = irq;                /* irq == vector. */
+		x |= OPENPIC_IMASK;
+		x |= OPENPIC_POLARITY_POSITIVE;
+		x |= OPENPIC_SENSE_LEVEL;
+		x |= 8 << OPENPIC_PRIORITY_SHIFT;
+		openpic_write(sc, OPENPIC_SRC_VECTOR(irq), x);
+	}
 
-	openpic_set_priority(sc, 0, 15);
+	/* Reset and disable all IPIs. */
+	for (ipi = 0; ipi < 4; ipi++) {
+		x = sc->sc_nirq + ipi;
+		x |= OPENPIC_IMASK;
+		x |= 15 << OPENPIC_PRIORITY_SHIFT;
+		openpic_write(sc, OPENPIC_IPI_VECTOR(ipi), x);
+	}
+
+	openpic_set_priority(sc, 15);
 
 	/* we don't need 8259 passthrough mode */
 	x = openpic_read(sc, OPENPIC_CONFIG);
@@ -145,27 +161,17 @@ openpic_attach(device_t dev)
 	for (irq = 0; irq < sc->sc_nirq; irq++)
 		openpic_write(sc, OPENPIC_IDEST(irq), 1 << 0);
 
-	for (irq = 0; irq < sc->sc_nirq; irq++) {
-		x = irq;		/* irq == vector. */
-		x |= OPENPIC_IMASK;
-		x |= OPENPIC_POLARITY_POSITIVE;
-		x |= OPENPIC_SENSE_LEVEL;
-		x |= 8 << OPENPIC_PRIORITY_SHIFT;
-		openpic_write(sc, OPENPIC_SRC_VECTOR(irq), x);
-	}
-
-	/* XXX IPI */
 	/* XXX set spurious intr vector */
 
-	openpic_set_priority(sc, 0, 0);
+	openpic_set_priority(sc, 0);
 
 	/* clear all pending interrupts */
 	for (irq = 0; irq < sc->sc_nirq; irq++) {
-		(void)openpic_read(sc, OPENPIC_IACK(0));
-		openpic_write(sc, OPENPIC_EOI(0), 0);
+		(void)openpic_read(sc, OPENPIC_PCPU_IACK(PCPU_GET(cpuid)));
+		openpic_write(sc, OPENPIC_PCPU_EOI(PCPU_GET(cpuid)), 0);
 	}
 
-	powerpc_register_pic(dev);
+	powerpc_register_pic(dev, sc->sc_nirq);
 
 	return (0);
 }
@@ -182,7 +188,7 @@ openpic_dispatch(device_t dev, struct trapframe *tf)
 
 	sc = device_get_softc(dev);
 	while (1) {
-		vector = openpic_read(sc, OPENPIC_IACK(0));
+		vector = openpic_read(sc, OPENPIC_PCPU_IACK(PCPU_GET(cpuid)));
 		vector &= OPENPIC_VECTOR_MASK;
 		if (vector == 255)
 			break;
@@ -197,10 +203,17 @@ openpic_enable(device_t dev, u_int irq, u_int vector)
 	uint32_t x;
 
 	sc = device_get_softc(dev);
-	x = openpic_read(sc, OPENPIC_SRC_VECTOR(irq));
-	x &= ~(OPENPIC_IMASK | OPENPIC_VECTOR_MASK);
-	x |= vector;
-	openpic_write(sc, OPENPIC_SRC_VECTOR(irq), x);
+	if (irq < sc->sc_nirq) {
+		x = openpic_read(sc, OPENPIC_SRC_VECTOR(irq));
+		x &= ~(OPENPIC_IMASK | OPENPIC_VECTOR_MASK);
+		x |= vector;
+		openpic_write(sc, OPENPIC_SRC_VECTOR(irq), x);
+	} else {
+		x = openpic_read(sc, OPENPIC_IPI_VECTOR(0));
+		x &= ~(OPENPIC_IMASK | OPENPIC_VECTOR_MASK);
+		x |= vector;
+		openpic_write(sc, OPENPIC_IPI_VECTOR(0), x);
+	}
 }
 
 void
@@ -209,7 +222,17 @@ openpic_eoi(device_t dev, u_int irq __unused)
 	struct openpic_softc *sc;
 
 	sc = device_get_softc(dev);
-	openpic_write(sc, OPENPIC_EOI(0), 0);
+	openpic_write(sc, OPENPIC_PCPU_EOI(PCPU_GET(cpuid)), 0);
+}
+
+void
+openpic_ipi(device_t dev, u_int cpu)
+{
+	struct openpic_softc *sc;
+
+	sc = device_get_softc(dev);
+	openpic_write(sc, OPENPIC_PCPU_IPI_DISPATCH(PCPU_GET(cpuid), 0),
+	    1u << cpu);
 }
 
 void
@@ -219,10 +242,16 @@ openpic_mask(device_t dev, u_int irq)
 	uint32_t x;
 
 	sc = device_get_softc(dev);
-	x = openpic_read(sc, OPENPIC_SRC_VECTOR(irq));
-	x |= OPENPIC_IMASK;
-	openpic_write(sc, OPENPIC_SRC_VECTOR(irq), x);
-	openpic_write(sc, OPENPIC_EOI(0), 0);
+	if (irq < sc->sc_nirq) {
+		x = openpic_read(sc, OPENPIC_SRC_VECTOR(irq));
+		x |= OPENPIC_IMASK;
+		openpic_write(sc, OPENPIC_SRC_VECTOR(irq), x);
+	} else {
+		x = openpic_read(sc, OPENPIC_IPI_VECTOR(0));
+		x |= OPENPIC_IMASK;
+		openpic_write(sc, OPENPIC_IPI_VECTOR(0), x);
+	}
+	openpic_write(sc, OPENPIC_PCPU_EOI(PCPU_GET(cpuid)), 0);
 }
 
 void
@@ -232,7 +261,13 @@ openpic_unmask(device_t dev, u_int irq)
 	uint32_t x;
 
 	sc = device_get_softc(dev);
-	x = openpic_read(sc, OPENPIC_SRC_VECTOR(irq));
-	x &= ~OPENPIC_IMASK;
-	openpic_write(sc, OPENPIC_SRC_VECTOR(irq), x);
+	if (irq < sc->sc_nirq) {
+		x = openpic_read(sc, OPENPIC_SRC_VECTOR(irq));
+		x &= ~OPENPIC_IMASK;
+		openpic_write(sc, OPENPIC_SRC_VECTOR(irq), x);
+	} else {
+		x = openpic_read(sc, OPENPIC_IPI_VECTOR(0));
+		x &= ~OPENPIC_IMASK;
+		openpic_write(sc, OPENPIC_IPI_VECTOR(0), x);
+	}
 }

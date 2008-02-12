@@ -48,6 +48,11 @@ METHOD void eoi {
 	u_int		irq;
 };
 
+METHOD void ipi {
+	device_t	dev;
+	u_int		cpu;
+};
+
 METHOD void mask {
 	device_t	dev;
 	u_int		irq;
