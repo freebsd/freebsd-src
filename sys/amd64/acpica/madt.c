@@ -109,9 +109,11 @@ static struct apic_enumerator madt_enumerator = {
 /*
  * Code to abuse the crashdump map to map in the tables for the early
  * probe.  We cheat and make the following assumptions about how we
- * use this KVA: page 0 is used to map in the first page of each table
- * found via the RSDT or XSDT and pages 1 to n are used to map in the
- * RSDT or XSDT.  The offset is in pages; the length is in bytes.
+ * use this KVA: pages 0 and 1 are used to map in the header of each
+ * table found via the RSDT or XSDT and pages 2 to n are used to map
+ * in the RSDT or XSDT.  We have to use 2 pages for the table headers
+ * in case a header spans a page boundary.  The offset is in pages;
+ * the length is in bytes.
  */
 static void *
 madt_map(vm_paddr_t pa, int offset, vm_offset_t length)
@@ -232,7 +234,7 @@ madt_probe(void)
 				printf("MADT: RSDP failed extended checksum\n");
 			return (ENXIO);
 		}
-		xsdt = madt_map_table(rsdp->XsdtPhysicalAddress, 1,
+		xsdt = madt_map_table(rsdp->XsdtPhysicalAddress, 2,
 		    ACPI_SIG_XSDT);
 		if (xsdt == NULL) {
 			if (bootverbose)
@@ -246,7 +248,7 @@ madt_probe(void)
 				break;
 		madt_unmap_table(xsdt);
 	} else {
-		rsdt = madt_map_table(rsdp->RsdtPhysicalAddress, 1,
+		rsdt = madt_map_table(rsdp->RsdtPhysicalAddress, 2,
 		    ACPI_SIG_RSDT);
 		if (rsdt == NULL) {
 			if (bootverbose)
