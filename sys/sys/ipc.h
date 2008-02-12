@@ -100,6 +100,9 @@ struct ipc_perm {
 #define	IPC_SET		1	/* set options */
 #define	IPC_STAT	2	/* get options */
 #if __BSD_VISIBLE
+/*
+ * For Linux compatability.
+ */
 #define	IPC_INFO	3	/* get info */
 #endif
 

@@ -545,6 +545,15 @@ kern_shmctl(td, shmid, cmd, buf, bufsz)
 
 	mtx_lock(&Giant);
 	switch (cmd) {
+	/*
+	 * It is possible that kern_shmctl is being called from the Linux ABI
+	 * layer, in which case, we will need to implement IPC_INFO.  It should
+	 * be noted that other shmctl calls will be funneled through here for
+	 * Linix binaries as well.
+	 *
+	 * NB: The Linux ABI layer will convert this data to structure(s) more
+	 * consistent with the Linux ABI.
+	 */
 	case IPC_INFO:
 		memcpy(buf, &shminfo, sizeof(shminfo));
 		if (bufsz)
@@ -639,6 +648,15 @@ shmctl(td, uap)
 	struct shmid_ds buf;
 	size_t bufsz;
 	
+	/*
+	 * The only reason IPC_INFO, SHM_INFO, SHM_STAT exists is to support
+	 * Linux binaries.  If we see the call come through the FreeBSD ABI,
+	 * return an error back to the user since we do not to support this.
+	 */
+	if (uap->cmd == IPC_INFO || uap->cmd == SHM_INFO ||
+	    uap->cmd == SHM_STAT)
+		return (EINVAL);
+
 	/* IPC_SET needs to copyin the buffer before calling kern_shmctl */
 	if (uap->cmd == IPC_SET) {
 		if ((error = copyin(uap->buf, &buf, sizeof(struct shmid_ds))))
@@ -651,9 +669,6 @@ shmctl(td, uap)
 	
 	/* Cases in which we need to copyout */
 	switch (uap->cmd) {
-	case IPC_INFO:
-	case SHM_INFO:
-	case SHM_STAT:
 	case IPC_STAT:
 		error = copyout(&buf, uap->buf, bufsz);
 		break;
