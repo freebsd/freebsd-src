@@ -34,7 +34,9 @@ extern device_t pic;
 
 struct trapframe;
 
-void	powerpc_register_pic(device_t);
+driver_filter_t powerpc_ipi_handler;
+
+void	powerpc_register_pic(device_t, u_int);
 
 void	powerpc_dispatch_intr(u_int, struct trapframe *);
 int	powerpc_enable_intr(void);

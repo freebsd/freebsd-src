@@ -33,16 +33,35 @@
 #define	OPENPIC_SIZE			0x40000
 
 /*
- * GLOBAL/TIMER register (IDU base + 0x1000)
+ * Per Processor Registers [private access] (0x00000 - 0x00fff)
+ */
+
+/* IPI dispatch command reg */
+#define	OPENPIC_IPI_DISPATCH(ipi)	(0x40 + (ipi) * 0x10)
+
+/* current task priority reg */
+#define	OPENPIC_TPR			0x80
+#define  OPENPIC_TPR_MASK			0x0000000f
+
+#define	OPENPIC_WHOAMI			0x90
+
+/* interrupt acknowledge reg */
+#define	OPENPIC_IACK			0xa0
+
+/* end of interrupt reg */
+#define	OPENPIC_EOI			0xb0
+
+/*
+ * Global registers (0x01000-0x0ffff)
  */
 
 /* feature reporting reg 0 */
 #define OPENPIC_FEATURE			0x1000
-#define	OPENPIC_FEATURE_VERSION_MASK	0x000000ff
-#define	OPENPIC_FEATURE_LAST_CPU_MASK	0x00001f00
-#define	OPENPIC_FEATURE_LAST_CPU_SHIFT	8
-#define	OPENPIC_FEATURE_LAST_IRQ_MASK	0x07ff0000
-#define	OPENPIC_FEATURE_LAST_IRQ_SHIFT	16
+#define	 OPENPIC_FEATURE_VERSION_MASK		0x000000ff
+#define	 OPENPIC_FEATURE_LAST_CPU_MASK		0x00001f00
+#define	 OPENPIC_FEATURE_LAST_CPU_SHIFT		8
+#define	 OPENPIC_FEATURE_LAST_IRQ_MASK		0x07ff0000
+#define	 OPENPIC_FEATURE_LAST_IRQ_SHIFT		16
 
 /* global config reg 0 */
 #define OPENPIC_CONFIG			0x1020
@@ -51,9 +70,9 @@
 
 /* interrupt configuration mode (direct or serial) */
 #define OPENPIC_ICR			0x1030
-#define  OPENPIC_ICR_SERIAL_MODE	(1 << 27)
-#define  OPENPIC_ICR_SERIAL_RATIO_MASK	(0x7 << 28)
-#define  OPENPIC_ICR_SERIAL_RATIO_SHIFT	28
+#define  OPENPIC_ICR_SERIAL_MODE		(1 << 27)
+#define  OPENPIC_ICR_SERIAL_RATIO_MASK		(0x7 << 28)
+#define  OPENPIC_ICR_SERIAL_RATIO_SHIFT		28
 
 /* vendor ID */
 #define OPENPIC_VENDOR_ID		0x1080
@@ -67,9 +86,16 @@
 /* spurious intr. vector */
 #define OPENPIC_SPURIOUS_VECTOR		0x10e0
 
+/* Timer registers */
+#define	OPENPIC_TIMERS			4
+#define	OPENPIC_TFREQ			0x10f0
+#define	OPENPIC_TCNT(t)			(0x1100 + (t) * 0x40)
+#define	OPENPIC_TBASE(t)		(0x1110 + (t) * 0x40)
+#define	OPENPIC_TVEC(t)			(0x1120 + (t) * 0x40)
+#define	OPENPIC_TDST(t)			(0x1130 + (t) * 0x40)
 
 /*
- * INTERRUPT SOURCE register (IDU base + 0x10000)
+ * Interrupt Source Configuration Registers (0x10000 - 0x1ffff)
  */
 
 /* interrupt vector/priority reg */
@@ -92,18 +118,23 @@
 #endif
 
 /*
- * PROCESSOR register (IDU base + 0x20000)
+ * Per Processor Registers [global access] (0x20000 - 0x3ffff)
  */
 
-/* IPI command reg */
-#define OPENPIC_IPI(cpu, ipi)		(0x20040 + (cpu) * 0x1000 + (ipi))
+#define	OPENPIC_PCPU_BASE(cpu)		(0x20000 + (cpu) * 0x1000)
 
-/* current task priority reg */
-#define OPENPIC_CPU_PRIORITY(cpu)	(0x20080 + (cpu) * 0x1000)
-#define  OPENPIC_CPU_PRIORITY_MASK		0x0000000f
+#define	OPENPIC_PCPU_IPI_DISPATCH(cpu, ipi)	\
+	(OPENPIC_PCPU_BASE(cpu) + OPENPIC_IPI_DISPATCH(ipi))
 
-/* interrupt acknowledge reg */
-#define OPENPIC_IACK(cpu)		(0x200a0 + (cpu) * 0x1000)
+#define	OPENPIC_PCPU_TPR(cpu)		\
+	(OPENPIC_PCPU_BASE(cpu) + OPENPIC_TPR)
 
-/* end of interrupt reg */
-#define OPENPIC_EOI(cpu)		(0x200b0 + (cpu) * 0x1000)
+#define	OPENPIC_PCPU_WHOAMI(cpu)		\
+	(OPENPIC_PCPU_BASE(cpu) + OPENPIC_WHOAMI)
+
+#define OPENPIC_PCPU_IACK(cpu)			\
+	(OPENPIC_PCPU_BASE(cpu) + OPENPIC_IACK)
+
+#define OPENPIC_PCPU_EOI(cpu)			\
+	(OPENPIC_PCPU_BASE(cpu) + OPENPIC_EOI)
+
