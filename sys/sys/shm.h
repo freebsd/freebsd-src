@@ -56,7 +56,7 @@
 #define	SHM_LOCK	11
 #define	SHM_UNLOCK	12
 
-/* ipcs shmctl commands */
+/* ipcs shmctl commands for Linux compatability */
 #define	SHM_STAT	13
 #define	SHM_INFO	14
 
