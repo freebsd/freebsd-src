@@ -28,7 +28,7 @@
 .\"     @(#)readlink.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd February 12, 2008
 .Dt READLINK 2
 .Os
 .Sh NAME
@@ -38,8 +38,8 @@
 .Lb libc
 .Sh SYNOPSIS
 .In unistd.h
-.Ft int
-.Fn readlink "const char *path" "char *buf" "int bufsiz"
+.Ft ssize_t
+.Fn readlink "const char *path" "char *buf" "size_t bufsiz"
 .Sh DESCRIPTION
 The
 .Fn readlink
@@ -58,7 +58,7 @@ character to
 .Fa buf .
 .Sh RETURN VALUES
 The call returns the count of characters placed in the buffer
-if it succeeds, or a -1 if an error occurs, placing the error
+if it succeeds, or a \-1 if an error occurs, placing the error
 code in the global variable
 .Va errno .
 .Sh ERRORS

@@ -2307,7 +2307,7 @@ kern_pathconf(struct thread *td, char *path, enum uio_seg pathseg, int name)
 struct readlink_args {
 	char	*path;
 	char	*buf;
-	int	count;
+	size_t	count;
 };
 #endif
 int
@@ -2316,7 +2316,7 @@ readlink(td, uap)
 	register struct readlink_args /* {
 		char *path;
 		char *buf;
-		int count;
+		size_t count;
 	} */ *uap;
 {
 
@@ -2326,7 +2326,7 @@ readlink(td, uap)
 
 int
 kern_readlink(struct thread *td, char *path, enum uio_seg pathseg, char *buf,
-    enum uio_seg bufseg, int count)
+    enum uio_seg bufseg, size_t count)
 {
 	register struct vnode *vp;
 	struct iovec aiov;
