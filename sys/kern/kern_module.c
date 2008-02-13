@@ -414,6 +414,8 @@ modfind(struct thread *td, struct modfind_args *uap)
 	return (error);
 }
 
+MODULE_VERSION(kernel, __FreeBSD_version);
+
 #ifdef COMPAT_IA32
 #include <sys/mount.h>
 #include <sys/socket.h>
