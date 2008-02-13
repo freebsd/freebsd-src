@@ -478,12 +478,6 @@ handleDownCall(struct coda_mntinfo *mnt, int opcode, union outputArgs *out)
 		coda_acccache_purgeuser(mnt->mi_vfsp,
 		    out->coda_purgeuser.uid);
 #endif
-		/*
-		 * For now, we flush the entire namecache, but this is
-		 * undesirable.  Once we have an access control cache, we
-		 * should just flush that instead.
-		 */
-		cache_purgevfs(mnt->mi_vfsp);
 		return (0);
 	}
 
@@ -570,7 +564,6 @@ handleDownCall(struct coda_mntinfo *mnt, int opcode, union outputArgs *out)
 			 * fid, and reinsert.
 			 */
 			vref(CTOV(cp));
-			cache_purge(CTOV(cp));
 			coda_unsave(cp);
 			cp->c_fid = out->coda_replace.NewFid;
 			coda_save(cp);
