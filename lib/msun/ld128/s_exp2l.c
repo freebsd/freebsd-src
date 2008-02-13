@@ -371,7 +371,7 @@ exp2l(long double x)
 			if (u.xbits.manh != 0
 			    || u.xbits.manl != 0
 			    || (hx & 0x8000) == 0)
-				return (x); 	/* x is NaN or +Inf */
+				return (x + x);	/* x is NaN or +Inf */
 			else 
 				return (0.0);	/* x is -Inf */
 		}
