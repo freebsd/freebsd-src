@@ -177,7 +177,7 @@ init_sleepqueues(void)
 	for (i = 0; i < SC_TABLESIZE; i++) {
 		LIST_INIT(&sleepq_chains[i].sc_queues);
 		mtx_init(&sleepq_chains[i].sc_lock, "sleepq chain", NULL,
-		    MTX_SPIN);
+		    MTX_SPIN | MTX_RECURSE);
 #ifdef SLEEPQUEUE_PROFILING
 		snprintf(chain_name, sizeof(chain_name), "%d", i);
 		chain_oid = SYSCTL_ADD_NODE(NULL, 
