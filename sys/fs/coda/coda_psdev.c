@@ -69,7 +69,6 @@ __FBSDID("$FreeBSD$");
 
 #include <fs/coda/coda.h>
 #include <fs/coda/cnode.h>
-#include <fs/coda/coda_namecache.h>
 #include <fs/coda/coda_io.h>
 #include <fs/coda/coda_psdev.h>
 
@@ -118,8 +117,6 @@ vc_open(struct cdev *dev, int flag, int mode, struct thread *td)
 	struct coda_mntinfo *mnt;
 
 	ENTRY;
-	if (!coda_nc_initialized)
-		coda_nc_init();
 	mnt = dev2coda_mntinfo(dev);
 	KASSERT(mnt, ("Coda: tried to open uninitialized cfs device"));
 	vcp = &mnt->mi_vcomm;
@@ -306,7 +303,7 @@ vc_write(struct cdev *dev, struct uio *uiop, int flag)
 			    "seq %ld)\n", error, opcode, seq));
 			return (EINVAL);
 		}
-		return (handleDownCall(opcode, &pbuf));
+		return (handleDownCall(dev2coda_mntinfo(dev), opcode, &pbuf));
 	}
 
 	/*
@@ -409,26 +406,14 @@ vc_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 
 	ENTRY;
 	switch(cmd) {
-	case CODARESIZE: {
-		struct coda_resize *data = (struct coda_resize *)addr;
-
-		return (coda_nc_resize(data->hashsize, data->heapsize,
-		    IS_DOWNCALL));
-	}
+	case CODARESIZE:
+		return (ENODEV);
 
 	case CODASTATS:
-		if (coda_nc_use) {
-			coda_nc_gather_stats();
-			return (0);
-		} else
-			return (ENODEV);
+		return (ENODEV);
 
 	case CODAPRINT:
-		if (coda_nc_use) {
-			print_coda_nc();
-			return (0);
-		} else
-			return (ENODEV);
+		return (ENODEV);
 
 	case CIOC_KERNEL_VERSION:
 		switch (*(u_int *)addr) {
