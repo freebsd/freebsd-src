@@ -11,9 +11,8 @@
  * From: @(#)s_floor.c 5.1 93/09/24
  */
 
-#ifndef lint
-static char rcsid[] = "$FreeBSD$";
-#endif
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * truncl(x)
