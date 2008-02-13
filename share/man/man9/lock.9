@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 6, 2008
+.Dd February 13, 2008
 .Dt LOCK 9
 .Os
 .Sh NAME
@@ -36,7 +36,8 @@
 .Nm lockstatus ,
 .Nm lockmgr_disown ,
 .Nm lockmgr_printinfo ,
-.Nm lockmgr_recursed
+.Nm lockmgr_recursed ,
+.Nm lockmgr_assert
 .Nd "lockmgr family of functions"
 .Sh SYNOPSIS
 .In sys/types.h
@@ -55,6 +56,11 @@
 .Fn lockmgr_printinfo "struct lock *lkp"
 .Ft int
 .Fn lockmgr_recursed "struct lock *lkp"
+.Pp
+.Cd "options INVARIANTS"
+.Cd "options INVARIANT_SUPPORT"
+.Ft void
+.Fn lockmgr_assert "struct lock *lkp" "int what"
 .Sh DESCRIPTION
 The
 .Fn lockinit
@@ -202,6 +208,69 @@ The
 .Fn lockmgr_recursed
 function returns true if the lock is recursed, 0
 otherwise.
+.Pp
+When compiled with
+.Cd "options INVARIANTS"
+and
+.Cd "options INVARIANT_SUPPORT" ,
+the
+.Fn lockmgr_assert
+function tests
+.Fa lkp
+for the assertions specified in
+.Fa what ,
+and panics if they are not met.
+One of the following assertions must be specified:
+.Bl -tag -width ".Dv KA_UNLOCKED"
+.It Dv KA_LOCKED
+Assert that the current thread has either a shared or an exclusive lock on the
+.Vt lkp
+lock pointed to by the first argument.
+.It Dv KA_SLOCKED
+Assert that the current thread has a shared lock on the
+.Vt lkp
+lock pointed to by the first argument.
+.It Dv KA_XLOCKED
+Assert that the current thread has an exclusive lock on the
+.Vt lkp
+lock pointed to by the first argument.
+.It Dv KA_UNLOCKED
+Assert that the current thread has no lock on the
+.Vt lkp
+lock pointed to by the first argument.
+.It Dv KA_HELD
+Assert that the a not specified thread has a lock on the
+.Vt lkp
+lock pointed to by the first argument.
+.It Dv KA_UNHELD
+Assert that no thread has a lock on the
+.Vt lkp
+lock pointed to by the first argument.
+.El
+.Pp
+In addition, one of the following optional assertions can be used with
+either an
+.Dv KA_LOCKED ,
+.Dv KA_SLOCKED ,
+or
+.Dv KA_XLOCKED
+assertion:
+.Bl -tag -width ".Dv KA_NOTRECURSED"
+.It Dv KA_RECURSED
+Assert that the current thread has a recursed lock on
+.Fa lkp .
+.It Dv KA_NOTRECURSED
+Assert that the current thread has not a recursed lock on
+.Fa lkp .
+.El
+.Pp
+It also worths note that
+.Dv KA_HELD
+and
+.Dv KA_UNHELD
+usage is highly discouraged.  They are intended to cater a bad behaviour
+introduced by buffer cache locks handling and hopefully they will be
+made useless by revisiting such locks.
 .Sh RETURN VALUES
 The
 .Fn lockmgr
