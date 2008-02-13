@@ -46,12 +46,12 @@ COMMON_SRCS= b_exp.c b_log.c b_tgamma.c \
 	k_cos.c k_cosf.c k_rem_pio2.c k_sin.c k_sinf.c \
 	k_tan.c k_tanf.c \
 	s_asinh.c s_asinhf.c s_atan.c s_atanf.c s_carg.c s_cargf.c \
-	s_cbrt.c s_cbrtf.c s_ceil.c s_ceilf.c s_ceill.c \
+	s_cbrt.c s_cbrtf.c s_ceil.c s_ceilf.c \
 	s_copysign.c s_copysignf.c s_cos.c s_cosf.c \
 	s_csqrt.c s_csqrtf.c s_erf.c s_erff.c \
 	s_exp2.c s_exp2f.c s_expm1.c s_expm1f.c s_fabsf.c s_fdim.c \
 	s_finite.c s_finitef.c \
-	s_floor.c s_floorf.c s_floorl.c s_fma.c s_fmaf.c \
+	s_floor.c s_floorf.c s_fma.c s_fmaf.c \
 	s_fmax.c s_fmaxf.c s_fmaxl.c s_fmin.c \
 	s_fminf.c s_fminl.c s_frexp.c s_frexpf.c s_ilogb.c s_ilogbf.c \
 	s_ilogbl.c s_isfinite.c s_isnan.c s_isnormal.c \
@@ -62,8 +62,8 @@ COMMON_SRCS= b_exp.c b_log.c b_tgamma.c \
 	s_nexttowardf.c s_remquo.c s_remquof.c \
 	s_rint.c s_rintf.c s_round.c s_roundf.c s_roundl.c \
 	s_scalbln.c s_scalbn.c s_scalbnf.c s_signbit.c \
-	s_signgam.c s_significand.c s_significandf.c s_sin.c s_sinf.c s_tan.c \
-	s_tanf.c s_tanh.c s_tanhf.c s_trunc.c s_truncf.c s_truncl.c \
+	s_signgam.c s_significand.c s_significandf.c s_sin.c s_sinf.c \
+	s_tan.c s_tanf.c s_tanh.c s_tanhf.c s_trunc.c s_truncf.c \
 	w_cabs.c w_cabsf.c w_drem.c w_dremf.c
 
 # Location of fpmath.h and _fpmath.h
@@ -78,8 +78,9 @@ SYMBOL_MAPS=	${SYM_MAPS}
 COMMON_SRCS+=	s_copysignl.c s_fabsl.c s_llrintl.c s_lrintl.c s_modfl.c
 .if ${LDBL_PREC} != 53
 # If long double != double use these; otherwise, we alias the double versions.
-COMMON_SRCS+=	s_exp2l.c s_fmal.c s_frexpl.c s_logbl.c s_nanl.c \
-	s_nextafterl.c s_nexttoward.c s_rintl.c s_scalbnl.c
+COMMON_SRCS+=	s_ceill.c s_exp2l.c s_floorl.c s_fmal.c s_frexpl.c \
+	s_logbl.c s_nanl.c s_nextafterl.c s_nexttoward.c s_rintl.c \
+	s_scalbnl.c s_truncl.c
 .endif
 
 # C99 complex functions
