@@ -2448,7 +2448,7 @@ nfs4_strategy(struct vop_strategy_args *ap)
 
 	KASSERT(!(bp->b_flags & B_DONE),
 	    ("nfs4_strategy: buffer %p unexpectedly marked B_DONE", bp));
-	KASSERT(BUF_ISLOCKED(bp), ("nfs4_strategy: buffer %p not locked", bp));
+	BUF_ASSERT_HELD(bp);
 
 	if (bp->b_iocmd == BIO_READ)
 		cr = bp->b_rcred;
@@ -2808,8 +2808,7 @@ nfs4_writebp(struct buf *bp, int force __unused, struct thread *td)
 	off_t off;
 #endif
 
-	if (!BUF_ISLOCKED(bp))
-		panic("bwrite: buffer is not locked???");
+	BUF_ASSERT_HELD(bp);
 
 	if (bp->b_flags & B_INVAL) {
 		brelse(bp);

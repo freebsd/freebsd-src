@@ -62,6 +62,8 @@ __FBSDID("$FreeBSD$");
 
 #define	LOCKMGR_TRYOP(x)	((x) & LK_NOWAIT)
 #define	LOCKMGR_TRYW(x)		(LOCKMGR_TRYOP((x)) ? LOP_TRYLOCK : 0)
+#define	LOCKMGR_UNHELD(x)	(((x) & (LK_HAVE_EXCL | LK_SHARE_NONZERO)) == 0)
+#define	LOCKMGR_NOTOWNER(td)	((td) != curthread && (td) != LK_KERNPROC)
 
 static void	assert_lockmgr(struct lock_object *lock, int what);
 #ifdef DDB
@@ -81,6 +83,10 @@ struct lock_class lock_class_lockmgr = {
 	.lc_lock = lock_lockmgr,
 	.lc_unlock = unlock_lockmgr,
 };
+
+#ifndef INVARIANTS
+#define	_lockmgr_assert(lkp, what, file, line)
+#endif
 
 /*
  * Locking primitives implementation.
@@ -205,6 +211,15 @@ _lockmgr(struct lock *lkp, u_int flags, struct mtx *interlkp, char *file,
 	error = 0;
 	td = curthread;
 
+#ifdef INVARIANTS
+	if (lkp->lk_flags & LK_DESTROYED) {
+		if (flags & LK_INTERLOCK)
+			mtx_unlock(interlkp);
+		if (panicstr != NULL)
+			return (0);
+		panic("%s: %p lockmgr is destroyed", __func__, lkp);
+	}
+#endif
 	if ((flags & LK_INTERNAL) == 0)
 		mtx_lock(lkp->lk_interlock);
 	CTR6(KTR_LOCK,
@@ -280,10 +295,7 @@ _lockmgr(struct lock *lkp, u_int flags, struct mtx *interlkp, char *file,
 		/* FALLTHROUGH downgrade */
 
 	case LK_DOWNGRADE:
-		KASSERT(lkp->lk_lockholder == td && lkp->lk_exclusivecount != 0,
-			("lockmgr: not holding exclusive lock "
-			"(owner thread (%p) != thread (%p), exlcnt (%d) != 0",
-			lkp->lk_lockholder, td, lkp->lk_exclusivecount));
+		_lockmgr_assert(lkp, KA_XLOCKED, file, line);
 		sharelock(td, lkp, lkp->lk_exclusivecount);
 		WITNESS_DOWNGRADE(&lkp->lk_object, 0, file, line);
 		COUNT(td, -lkp->lk_exclusivecount);
@@ -303,10 +315,7 @@ _lockmgr(struct lock *lkp, u_int flags, struct mtx *interlkp, char *file,
 		 * after the upgrade). If we return an error, the file
 		 * will always be unlocked.
 		 */
-		if (lkp->lk_lockholder == td)
-			panic("lockmgr: upgrade exclusive lock");
-		if (lkp->lk_sharecount <= 0)
-			panic("lockmgr: upgrade without shared");
+		_lockmgr_assert(lkp, KA_SLOCKED, file, line);
 		shareunlock(td, lkp, 1);
 		if (lkp->lk_sharecount == 0)
 			lock_profile_release_lock(&lkp->lk_object);
@@ -419,33 +428,21 @@ _lockmgr(struct lock *lkp, u_int flags, struct mtx *interlkp, char *file,
 		break;
 
 	case LK_RELEASE:
+		_lockmgr_assert(lkp, KA_LOCKED, file, line);
 		if (lkp->lk_exclusivecount != 0) {
-			if (lkp->lk_lockholder != td &&
-			    lkp->lk_lockholder != LK_KERNPROC) {
-				panic("lockmgr: thread %p, not %s %p unlocking",
-				    td, "exclusive lock holder",
-				    lkp->lk_lockholder);
-			}
 			if (lkp->lk_lockholder != LK_KERNPROC) {
 				WITNESS_UNLOCK(&lkp->lk_object, LOP_EXCLUSIVE,
 				    file, line);
 				COUNT(td, -1);
 			}
-			if (lkp->lk_exclusivecount == 1) {
+			if (lkp->lk_exclusivecount-- == 1) {
 				lkp->lk_flags &= ~LK_HAVE_EXCL;
 				lkp->lk_lockholder = LK_NOPROC;
-				lkp->lk_exclusivecount = 0;
 				lock_profile_release_lock(&lkp->lk_object);
-			} else {
-				lkp->lk_exclusivecount--;
 			}
 		} else if (lkp->lk_flags & LK_SHARE_NONZERO) {
 			WITNESS_UNLOCK(&lkp->lk_object, 0, file, line);
 			shareunlock(td, lkp, 1);
-		} else  {
-			printf("lockmgr: thread %p unlocking unheld lock\n",
-			    td);
-			kdb_backtrace();
 		}
 
 		if (lkp->lk_flags & LK_WAIT_NONZERO)
@@ -562,6 +559,10 @@ lockdestroy(lkp)
 
 	CTR2(KTR_LOCK, "lockdestroy(): lkp == %p (lk_wmesg == \"%s\")",
 	    lkp, lkp->lk_wmesg);
+	KASSERT((lkp->lk_flags & (LK_HAVE_EXCL | LK_SHARE_NONZERO)) == 0,
+	    ("lockmgr still held"));
+	KASSERT(lkp->lk_exclusivecount == 0, ("lockmgr still recursed"));
+	lkp->lk_flags = LK_DESTROYED;
 	lock_destroy(&lkp->lk_object);
 }
 
@@ -574,12 +575,9 @@ _lockmgr_disown(struct lock *lkp, const char *file, int line)
 	struct thread *td;
 
 	td = curthread;
-	KASSERT(panicstr != NULL || lkp->lk_exclusivecount,
-	    ("%s: %p lockmgr must be exclusively locked", __func__, lkp));
-	KASSERT(panicstr != NULL || lkp->lk_lockholder == td ||
-	    lkp->lk_lockholder == LK_KERNPROC,
-	    ("%s: %p lockmgr must be locked by curthread (%p)", __func__, lkp,
-	    td));
+	KASSERT(panicstr != NULL || (lkp->lk_flags & LK_DESTROYED) == 0,
+	    ("%s: %p lockmgr is destroyed", __func__, lkp));
+	_lockmgr_assert(lkp, KA_XLOCKED | KA_NOTRECURSED, file, line);
 
 	/*
 	 * Drop the lock reference and switch the owner.  This will result
@@ -608,6 +606,8 @@ lockstatus(lkp, td)
 
 	KASSERT(td == curthread,
 	    ("%s: thread passed argument (%p) is not valid", __func__, td));
+	KASSERT((lkp->lk_flags & LK_DESTROYED) == 0,
+	    ("%s: %p lockmgr is destroyed", __func__, lkp));
 
 	if (!kdb_active) {
 		interlocked = 1;
@@ -635,6 +635,8 @@ lockwaiters(lkp)
 {
 	int count;
 
+	KASSERT((lkp->lk_flags & LK_DESTROYED) == 0,
+	    ("%s: %p lockmgr is destroyed", __func__, lkp));
 	mtx_lock(lkp->lk_interlock);
 	count = lkp->lk_waitcount;
 	mtx_unlock(lkp->lk_interlock);
@@ -663,6 +665,93 @@ lockmgr_printinfo(lkp)
 	stack_print_ddb(&lkp->lk_stack);
 #endif
 }
+
+#ifdef INVARIANT_SUPPORT
+#ifndef INVARIANTS
+#undef _lockmgr_assert
+#endif
+
+void
+_lockmgr_assert(struct lock *lkp, int what, const char *file, int line)
+{
+	struct thread *td;
+	u_int x;
+	int slocked = 0;
+
+	x = lkp->lk_flags;
+	td = lkp->lk_lockholder;
+	if (panicstr != NULL)
+		return;
+	switch (what) {
+	case KA_SLOCKED:
+	case KA_SLOCKED | KA_NOTRECURSED:
+	case KA_SLOCKED | KA_RECURSED:
+		slocked = 1;
+	case KA_LOCKED:
+	case KA_LOCKED | KA_NOTRECURSED:
+	case KA_LOCKED | KA_RECURSED:
+#ifdef WITNESS
+		/*
+		 * We cannot trust WITNESS if the lock is held in
+		 * exclusive mode and a call to lockmgr_disown() happened.
+		 * Workaround this skipping the check if the lock is
+		 * held in exclusive mode even for the KA_LOCKED case.
+		 */
+		if (slocked || (x & LK_HAVE_EXCL) == 0) {
+			witness_assert(&lkp->lk_object, what, file, line);
+			break;
+		}
+#endif
+		if (LOCKMGR_UNHELD(x) || ((x & LK_SHARE_NONZERO) == 0 &&
+		    (slocked || LOCKMGR_NOTOWNER(td))))
+			panic("Lock %s not %slocked @ %s:%d\n",
+			    lkp->lk_object.lo_name, slocked ? "share " : "",
+			    file, line);
+		if ((x & LK_SHARE_NONZERO) == 0) {
+			if (lockmgr_recursed(lkp)) {
+				if (what & KA_NOTRECURSED)
+					panic("Lock %s recursed @ %s:%d\n",
+					    lkp->lk_object.lo_name, file, line);
+			} else if (what & KA_RECURSED)
+				panic("Lock %s not recursed @ %s:%d\n",
+				    lkp->lk_object.lo_name, file, line);
+		}
+		break;
+	case KA_XLOCKED:
+	case KA_XLOCKED | KA_NOTRECURSED:
+	case KA_XLOCKED | KA_RECURSED:
+		if ((x & LK_HAVE_EXCL) == 0 || LOCKMGR_NOTOWNER(td))
+			panic("Lock %s not exclusively locked @ %s:%d\n",
+			    lkp->lk_object.lo_name, file, line);
+		if (lockmgr_recursed(lkp)) {
+			if (what & KA_NOTRECURSED)
+				panic("Lock %s recursed @ %s:%d\n",
+				    lkp->lk_object.lo_name, file, line);
+		} else if (what & KA_RECURSED)
+			panic("Lock %s not recursed @ %s:%d\n",
+			    lkp->lk_object.lo_name, file, line);
+		break;
+	case KA_UNLOCKED:
+		if (td == curthread || td == LK_KERNPROC)
+			panic("Lock %s exclusively locked @ %s:%d\n",
+			    lkp->lk_object.lo_name, file, line);
+		break;
+	case KA_HELD:
+	case KA_UNHELD:
+		if (LOCKMGR_UNHELD(x)) {
+			if (what & KA_HELD)
+				panic("Lock %s not locked by anyone @ %s:%d\n",
+				    lkp->lk_object.lo_name, file, line);
+		} else if (what & KA_UNHELD)
+			panic("Lock %s locked by someone @ %s:%d\n",
+			    lkp->lk_object.lo_name, file, line);
+		break;
+	default:
+		panic("Unknown lockmgr lock assertion: 0x%x @ %s:%d", what,
+		    file, line);
+	}
+}
+#endif	/* INVARIANT_SUPPORT */
 
 #ifdef DDB
 /*
