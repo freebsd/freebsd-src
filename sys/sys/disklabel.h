@@ -224,7 +224,14 @@ static const char *dktypenames[] = {
 #define	FS_BOOT		13		/* partition contains bootstrap */
 #define	FS_VINUM	14		/* Vinum drive */
 #define	FS_RAID		15		/* RAIDFrame drive */
+#define	FS_FILECORE	16		/* Acorn Filecore Filing System */
+#define	FS_EXT2FS	17		/* ext2fs */
+#define	FS_NTFS		18		/* Windows/NT file system */
+#define	FS_CCD		20		/* concatenated disk component */
 #define	FS_JFS2		21		/* IBM JFS2 */
+#define	FS_UDF		24		/* UDF */
+#define	FS_EFS		26		/* SGI's Extent File system */
+#define	FS_ZFS		27		/* Sun's ZFS */
 
 #ifdef	FSTYPENAMES
 static const char *fstypenames[] = {
@@ -244,11 +251,18 @@ static const char *fstypenames[] = {
 	"boot",
 	"vinum",
 	"raid",
+	"Filecore",
+	"EXT2FS",
+	"NTFS",
 	"?",
-	"?",
-	"?",
-	"?",
+	"ccd",
 	"jfs",
+	"?",
+	"?",
+	"UDF",
+	"?"
+	"EFS",
+	"ZFS",
 	NULL
 };
 #define FSMAXTYPES	(sizeof(fstypenames) / sizeof(fstypenames[0]) - 1)
