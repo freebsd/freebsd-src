@@ -63,7 +63,7 @@ ceill(long double x)
 			if (huge + x > 0.0)
 				if (u.bits.exp > 0 ||
 				    (u.bits.manh | u.bits.manl) != 0)
-					u.e = u.bits.sign ? 0.0 : 1.0;
+					u.e = u.bits.sign ? -0.0 : 1.0;
 		} else {
 			uint64_t m = ((1llu << MANH_SIZE) - 1) >> (e + 1);
 			if (((u.bits.manh & m) | u.bits.manl) == 0)
