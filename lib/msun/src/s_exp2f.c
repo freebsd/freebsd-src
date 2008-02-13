@@ -104,7 +104,7 @@ exp2f(float x)
 	if(ix >= 0x43000000) {			/* |x| >= 128 */
 		if(ix >= 0x7f800000) {
 			if ((ix & 0x7fffff) != 0 || (hx & 0x80000000) == 0)
-				return (x); 	/* x is NaN or +Inf */
+				return (x + x);	/* x is NaN or +Inf */
 			else 
 				return (0.0);	/* x is -Inf */
 		}
