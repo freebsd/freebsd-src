@@ -712,10 +712,10 @@ MLINKS+=ktr.9 CTR0.9 \
 	ktr.9 CTR3.9 \
 	ktr.9 CTR4.9 \
 	ktr.9 CTR5.9
-MLINKS+=lock.9 lockcount.9 \
-	lock.9 lockdestroy.9 \
+MLINKS+=lock.9 lockdestroy.9 \
 	lock.9 lockinit.9 \
 	lock.9 lockmgr.9 \
+	lock.9 lockmgr_assert.9 \
 	lock.9 lockmgr_disown.9 \
 	lock.9 lockmgr_printinfo.9 \
 	lock.9 lockmgr_recursed.9 \
