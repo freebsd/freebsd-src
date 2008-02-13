@@ -190,7 +190,8 @@ int	coda_call(struct coda_mntinfo *mntinfo, int inSize, int *outSize,
 extern int coda_kernel_version;
 
 /* cfs_subr.h */
-int	handleDownCall(int opcode, union outputArgs *out);
+int	handleDownCall(struct coda_mntinfo *mnt, int opcode,
+	    union outputArgs *out);
 void	coda_unmounting(struct mount *whoIam);
 int	coda_vmflush(struct cnode *cp);
 
