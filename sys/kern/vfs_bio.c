@@ -658,11 +658,11 @@ bremfree(struct buf *bp)
 {
 
 	CTR3(KTR_BUF, "bremfree(%p) vp %p flags %X", bp, bp->b_vp, bp->b_flags);
-	KASSERT(BUF_ISLOCKED(bp), ("bremfree: buf must be locked."));
 	KASSERT((bp->b_flags & B_REMFREE) == 0,
 	    ("bremfree: buffer %p already marked for delayed removal.", bp));
 	KASSERT(bp->b_qindex != QUEUE_NONE,
 	    ("bremfree: buffer %p not on a queue.", bp));
+	BUF_ASSERT_HELD(bp);
 
 	bp->b_flags |= B_REMFREE;
 	/* Fixup numfreebuffers count.  */
@@ -695,9 +695,9 @@ bremfreel(struct buf *bp)
 {
 	CTR3(KTR_BUF, "bremfreel(%p) vp %p flags %X",
 	    bp, bp->b_vp, bp->b_flags);
-	KASSERT(BUF_ISLOCKED(bp), ("bremfreel: buffer %p not locked.", bp));
 	KASSERT(bp->b_qindex != QUEUE_NONE,
 	    ("bremfreel: buffer %p not on a queue.", bp));
+	BUF_ASSERT_HELD(bp);
 	mtx_assert(&bqlock, MA_OWNED);
 
 	TAILQ_REMOVE(&bufqueues[bp->b_qindex], bp, b_freelist);
@@ -834,8 +834,7 @@ bufwrite(struct buf *bp)
 
 	oldflags = bp->b_flags;
 
-	if (!BUF_ISLOCKED(bp))
-		panic("bufwrite: buffer is not busy???");
+	BUF_ASSERT_HELD(bp);
 
 	if (bp->b_pin_count > 0)
 		bunpin_wait(bp);
@@ -952,7 +951,7 @@ bdwrite(struct buf *bp)
 
 	CTR3(KTR_BUF, "bdwrite(%p) vp %p flags %X", bp, bp->b_vp, bp->b_flags);
 	KASSERT(bp->b_bufobj != NULL, ("No b_bufobj %p", bp));
-	KASSERT(BUF_ISLOCKED(bp), ("bdwrite: buffer is not busy"));
+	BUF_ASSERT_HELD(bp);
 
 	if (bp->b_flags & B_INVAL) {
 		brelse(bp);
@@ -1047,10 +1046,10 @@ bdirty(struct buf *bp)
 
 	CTR3(KTR_BUF, "bdirty(%p) vp %p flags %X",
 	    bp, bp->b_vp, bp->b_flags);
-	KASSERT(BUF_ISLOCKED(bp), ("bdirty: bp %p not locked",bp));
 	KASSERT(bp->b_bufobj != NULL, ("No b_bufobj %p", bp));
 	KASSERT(bp->b_flags & B_REMFREE || bp->b_qindex == QUEUE_NONE,
 	    ("bdirty: buffer %p still on queue %d", bp, bp->b_qindex));
+	BUF_ASSERT_HELD(bp);
 	bp->b_flags &= ~(B_RELBUF);
 	bp->b_iocmd = BIO_WRITE;
 
@@ -1081,7 +1080,7 @@ bundirty(struct buf *bp)
 	KASSERT(bp->b_bufobj != NULL, ("No b_bufobj %p", bp));
 	KASSERT(bp->b_flags & B_REMFREE || bp->b_qindex == QUEUE_NONE,
 	    ("bundirty: buffer %p still on queue %d", bp, bp->b_qindex));
-	KASSERT(BUF_ISLOCKED(bp), ("bundirty: bp %p not locked",bp));
+	BUF_ASSERT_HELD(bp);
 
 	if (bp->b_flags & B_DELWRI) {
 		bp->b_flags &= ~B_DELWRI;
@@ -2660,7 +2659,7 @@ loop:
 		bp->b_flags &= ~B_DONE;
 	}
 	CTR4(KTR_BUF, "getblk(%p, %ld, %d) = %p", vp, (long)blkno, size, bp);
-	KASSERT(BUF_ISLOCKED(bp), ("getblk: bp %p not locked",bp));
+	BUF_ASSERT_HELD(bp);
 	KASSERT(bp->b_bufobj == bo,
 	    ("bp %p wrong b_bufobj %p should be %p", bp, bp->b_bufobj, bo));
 	return (bp);
@@ -2681,7 +2680,7 @@ geteblk(int size)
 		continue;
 	allocbuf(bp, size);
 	bp->b_flags |= B_INVAL;	/* b_dep cleared by getnewbuf() */
-	KASSERT(BUF_ISLOCKED(bp), ("geteblk: bp %p not locked",bp));
+	BUF_ASSERT_HELD(bp);
 	return (bp);
 }
 
@@ -2707,8 +2706,7 @@ allocbuf(struct buf *bp, int size)
 	int newbsize, mbsize;
 	int i;
 
-	if (!BUF_ISLOCKED(bp))
-		panic("allocbuf: buffer not busy");
+	BUF_ASSERT_HELD(bp);
 
 	if (bp->b_kvasize < size)
 		panic("allocbuf: buffer too small");
@@ -3150,8 +3148,8 @@ bufdone(struct buf *bp)
 	CTR3(KTR_BUF, "bufdone(%p) vp %p flags %X", bp, bp->b_vp, bp->b_flags);
 	dropobj = NULL;
 
-	KASSERT(BUF_ISLOCKED(bp), ("biodone: bp %p not busy", bp));
 	KASSERT(!(bp->b_flags & B_DONE), ("biodone: bp %p already done", bp));
+	BUF_ASSERT_HELD(bp);
 
 	runningbufwakeup(bp);
 	if (bp->b_iocmd == BIO_WRITE)
@@ -3175,7 +3173,7 @@ bufdone(struct buf *bp)
 void
 bufdone_finish(struct buf *bp)
 {
-	KASSERT(BUF_ISLOCKED(bp), ("biodone: bp %p not busy", bp));
+	BUF_ASSERT_HELD(bp);
 
 	if (!LIST_EMPTY(&bp->b_dep))
 		buf_complete(bp);

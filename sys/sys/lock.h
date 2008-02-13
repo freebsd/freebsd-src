@@ -105,6 +105,7 @@ struct lock_class {
 #define	LOP_DUPOK	0x00000010	/* Don't check for duplicate acquires */
 
 /* Flags passed to witness_assert. */
+#define	LA_MASKASSERT	0x000000ff	/* Mask for witness defined asserts. */
 #define	LA_UNLOCKED	0x00000000	/* Lock is unlocked. */
 #define	LA_LOCKED	0x00000001	/* Lock is at least share locked. */
 #define	LA_SLOCKED	0x00000002	/* Lock is exactly share locked. */

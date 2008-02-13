@@ -333,12 +333,33 @@ BUF_UNLOCK(struct buf *bp)
 /*
  * Free a buffer lock.
  */
-#define BUF_LOCKFREE(bp) 			\
-do {						\
-	if (BUF_ISLOCKED(bp))			\
-		panic("free locked buf");	\
-	lockdestroy(&(bp)->b_lock);		\
-} while (0)
+#define BUF_LOCKFREE(bp) 						\
+	(lockdestroy(&(bp)->b_lock))
+
+/*
+ * Buffer lock assertions.
+ */
+#if defined(INVARIANTS) && defined(INVARIANT_SUPPORT)
+#define	BUF_ASSERT_LOCKED(bp)						\
+	_lockmgr_assert(&(bp)->b_lock, KA_LOCKED, LOCK_FILE, LOCK_LINE)
+#define	BUF_ASSERT_SLOCKED(bp)						\
+	_lockmgr_assert(&(bp)->b_lock, KA_SLOCKED, LOCK_FILE, LOCK_LINE)
+#define	BUF_ASSERT_XLOCKED(bp)						\
+	_lockmgr_assert(&(bp)->b_lock, KA_XLOCKED, LOCK_FILE, LOCK_LINE)
+#define	BUF_ASSERT_UNLOCKED(bp)						\
+	_lockmgr_assert(&(bp)->b_lock, KA_UNLOCKED, LOCK_FILE, LOCK_LINE)
+#define	BUF_ASSERT_HELD(bp)						\
+	_lockmgr_assert(&(bp)->b_lock, KA_HELD, LOCK_FILE, LOCK_LINE)
+#define	BUF_ASSERT_UNHELD(bp)						\
+	_lockmgr_assert(&(bp)->b_lock, KA_UNHELD, LOCK_FILE, LOCK_LINE)
+#else
+#define	BUF_ASSERT_LOCKED(bp)
+#define	BUF_ASSERT_SLOCKED(bp)
+#define	BUF_ASSERT_XLOCKED(bp)
+#define	BUF_ASSERT_UNLOCKED(bp)
+#define	BUF_ASSERT_HELD(bp)
+#define	BUF_ASSERT_UNHELD(bp)
+#endif
 
 #ifdef _SYS_PROC_H_	/* Avoid #include <sys/proc.h> pollution */
 /*
