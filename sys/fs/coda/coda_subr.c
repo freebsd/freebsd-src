@@ -180,6 +180,57 @@ coda_find(CodaFid *fid)
 }
 
 /*
+ * Clear all cached access control decisions from Coda.
+ */
+static void
+coda_acccache_purge(struct mount *mnt)
+{
+	struct cnode *cp;
+	int hash;
+
+	for (hash = 0; hash < CODA_CACHESIZE; hash++) {
+		for (cp = coda_cache[hash]; cp != NULL;
+		    cp = CNODE_NEXT(cp)) {
+			if (CTOV(cp)->v_mount == mnt && VALID_ACCCACHE(cp)) {
+				CODADEBUG(CODA_FLUSH, myprintf(("acccache "
+				    "purge fid %s uid %d mode 0x%x\n",
+				    coda_f2s(&cp->c_fid), cp->c_cached_uid,
+				    cp->c_cached_mode)););
+				cp->c_flags &= ~C_ACCCACHE;
+			}
+		}
+	}
+}
+
+/*
+ * When a user loses their tokens (or other related events), we invalidate
+ * any cached access rights in the access cache.  In the Linux version of
+ * Coda, we maintain a global epoch and simply bump it to invalidate all
+ * cached results generated in the epoch.  For now, we walk all cnodes and
+ * manually invalidate just that uid in FreeBSD.
+ */
+static void
+coda_acccache_purgeuser(struct mount *mnt, uid_t uid)
+{
+	struct cnode *cp;
+	int hash;
+
+	for (hash = 0; hash < CODA_CACHESIZE; hash++) {
+		for (cp = coda_cache[hash]; cp != NULL;
+		    cp = CNODE_NEXT(cp)) {
+			if (CTOV(cp)->v_mount == mnt &&
+			    VALID_ACCCACHE(cp) && (cp->c_cached_uid == uid)) {
+				CODADEBUG(CODA_PURGEUSER, myprintf((
+				    "acccache purgeuser fid %s uid %d mode "
+				    "0x%x\n", coda_f2s(&cp->c_fid),
+				    cp->c_cached_uid, cp->c_cached_mode)););
+				cp->c_flags &= ~C_ACCCACHE;
+			}
+		}
+	}
+}
+
+/*
  * coda_kill is called as a side effect to vcopen.  To prevent any cnodes
  * left around from an earlier run of a venus or warden from causing problems
  * with the new instance, mark any outstanding cnodes as dying.  Future
@@ -244,6 +295,7 @@ coda_flush(struct coda_mntinfo *mnt, enum dc_status dcstat)
 	coda_clstat.ncalls++;
 	coda_clstat.reqs[CODA_FLUSH]++;
 
+	coda_acccache_purge(mnt->mi_vfsp);
 	cache_purgevfs(mnt->mi_vfsp);
 	for (hash = 0; hash < CODA_CACHESIZE; hash++) {
 		for (cp = coda_cache[hash]; cp != NULL;
@@ -415,13 +467,16 @@ handleDownCall(struct coda_mntinfo *mnt, int opcode, union outputArgs *out)
 		coda_clstat.reqs[CODA_PURGEUSER]++;
 
 		/* XXX - need to prevent fsync's. */
-#if 0
+
+		/*
+		 * Purge any access cache entries for the uid.
+		 */
 #ifdef CODA_COMPAT_5
-	  	coda_nc_purge_user(out->coda_purgeuser.cred.cr_uid,
-		    IS_DOWNCALL);
+	  	coda_acccache_purgeuser(mnt->mi_vfsp,
+		    out->coda_purgeuser.cred.cr_uid);
 #else
-		coda_nc_purge_user(out->coda_purgeuser.uid, IS_DOWNCALL);
-#endif
+		coda_acccache_purgeuser(mnt->mi_vfsp,
+		    out->coda_purgeuser.uid);
 #endif
 		/*
 		 * For now, we flush the entire namecache, but this is
@@ -442,7 +497,7 @@ handleDownCall(struct coda_mntinfo *mnt, int opcode, union outputArgs *out)
 		if (cp != NULL) {
 			vref(CTOV(cp));
 			cache_purge(CTOV(cp));
-			cp->c_flags &= ~C_VATTR;
+			cp->c_flags &= ~(C_VATTR | C_ACCCACHE);
 			ASSERT_VOP_LOCKED(CTOV(cp), "coda HandleDownCall");
 			if (CTOV(cp)->v_vflag & VV_TEXT)
 				error = coda_vmflush(cp);
@@ -466,7 +521,7 @@ handleDownCall(struct coda_mntinfo *mnt, int opcode, union outputArgs *out)
 		if (cp != NULL) {
 			vref(CTOV(cp));
 			cache_purge(CTOV(cp));
-			cp->c_flags &= ~C_VATTR;
+			cp->c_flags &= ~(C_VATTR | C_ACCCACHE);
 			CODADEBUG(CODA_ZAPDIR, myprintf(("zapdir: fid = %s, "
 			    "refcnt = %d\n", coda_f2s(&cp->c_fid),
 			    CTOV(cp)->v_usecount - 1)););
@@ -487,7 +542,7 @@ handleDownCall(struct coda_mntinfo *mnt, int opcode, union outputArgs *out)
 		if (cp != NULL) {
 			vref(CTOV(cp));
 			cache_purge(CTOV(cp));
-			cp->c_flags &= ~C_VATTR;
+			cp->c_flags &= ~(C_VATTR | C_ACCCACHE);
 			ASSERT_VOP_LOCKED(CTOV(cp), "coda HandleDownCall");
 			if (!(IS_DIR(out->coda_purgefid.Fid))
 			    && (CTOV(cp)->v_vflag & VV_TEXT))
