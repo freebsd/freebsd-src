@@ -138,12 +138,27 @@ struct lock {
 #define	LK_WAITDRAIN	0x00080000	/* process waiting for lock to drain */
 #define	LK_DRAINING	0x00100000	/* lock is being drained */
 #define	LK_INTERNAL	0x00200000/* The internal lock is already held */
+#define	LK_DESTROYED	0x00400000	/* lock is destroyed */
 /*
  * Internal state flags corresponding to lk_sharecount, and lk_waitcount
  */
 #define	LK_SHARE_NONZERO 0x01000000
 #define	LK_WAIT_NONZERO  0x02000000
 
+/*
+ * Assertion flags.
+ */
+#if defined(INVARIANTS) || defined(INVARIANT_SUPPORT)
+#define	KA_BASE		(LA_MASKASSERT + 1)
+#define	KA_LOCKED	LA_LOCKED
+#define	KA_SLOCKED	LA_SLOCKED
+#define	KA_XLOCKED	LA_XLOCKED
+#define	KA_UNLOCKED	LA_UNLOCKED
+#define	KA_RECURSED	LA_RECURSED
+#define	KA_NOTRECURSED	LA_NOTRECURSED
+#define	KA_HELD		(KA_BASE << 0x00)
+#define	KA_UNHELD	(KA_BASE << 0x01)
+#endif
 
 /*
  * Lock return status.
@@ -176,6 +191,9 @@ void	lockdestroy(struct lock *);
 
 int	_lockmgr(struct lock *, u_int flags, struct mtx *, char *file,
 	     int line);
+#if defined(INVARIANTS) || defined(INVARIANT_SUPPORT)
+void	_lockmgr_assert(struct lock *, int what, const char *, int);
+#endif
 void	_lockmgr_disown(struct lock *, const char *, int);
 void	lockmgr_printinfo(struct lock *);
 int	lockstatus(struct lock *, struct thread *);
@@ -187,6 +205,12 @@ int	lockwaiters(struct lock *);
 	_lockmgr_disown((lock), LOCK_FILE, LOCK_LINE)
 #define	lockmgr_recursed(lkp)						\
 	((lkp)->lk_exclusivecount > 1)
+#ifdef INVARIANTS
+#define	lockmgr_assert(lkp, what)					\
+	_lockmgr_assert((lkp), (what), LOCK_FILE, LOCK_LINE)
+#else
+#define	lockmgr_assert(lkp, what)
+#endif
 #ifdef DDB
 int	lockmgr_chain(struct thread *td, struct thread **ownerp);
 #endif
