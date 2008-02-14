@@ -876,5 +876,5 @@ _pthread_mutex_isowned_np(pthread_mutex_t *mutex)
 		if (__predict_false(ret))
 			return (ret);
 	}
-	return ((*mutex)->m_lock.m_owner == TID(curthread));
+	return ((*mutex)->m_owner == curthread);
 }
