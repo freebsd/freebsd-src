@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 15, 2006
+.Dd February 13, 2008
 .Dt MXGE 4
 .Os
 .Sh NAME
@@ -53,6 +53,8 @@ module at boot time, place the following lines in
 if_mxge_load="YES"
 mxge_ethp_z8e_load="YES"
 mxge_eth_z8e_load="YES"
+mxge_rss_ethp_z8e_load="YES"
+mxge_rss_eth_z8e_load="YES"
 .Ed
 .Sh DESCRIPTION
 The
@@ -60,7 +62,8 @@ The
 driver provides support for PCI Express 10 Gigabit Ethernet adapters based on
 the Myricom LANai Z8E chip.
 The driver supports Transmit/Receive checksum offload,
-Jumbo Frames as well as TCP segmentation offload (TSO).
+Jumbo Frames, TCP segmentation offload (TSO) as well
+as Large Receive Offload (LRO).
 For further hardware information, see
 .Pa http://www.myri.com/ .
 .Pp
@@ -106,12 +109,44 @@ This value delays the generation of all interrupts in units of
 The default value is 30.
 .It Va hw.mxge.skip_pio_read
 This value determines whether or not the driver may omit doing a
-pio read in the interrupt handler which ensures that the interrupt
+PIO read in the interrupt handler which ensures that the interrupt
 line has been deasserted when using xPIC interrupts.
 A non-zero value
 may result in lower CPU overhead, however it may also result in
 spurious interrupts.
 The default value is 0.
+This tunable has no effect when the device is
+using MSI or MSI-X interrupts.
+.It Va hw.mxge.max_slices
+This value determines the maximum number of slices the driver
+will attempt to use.
+The default value is 1.
+A slice is comprised
+of a set of receive queues and an associated interrupt thread.
+When using multiple slices, the NIC hashes traffic to different slices
+based on the value of
+.Va hw.mxge.rss_hash_type .
+Using multiple slices requires that your motherboard and Myri10GE NIC
+both be capable of MSI-X.
+Older Myri10GE NICs can be field upgraded to add
+MSI-X using the "10G NIC Tool Kit" for FreeBSD which is available from
+.Pa http://www.myri.com/scs/download-10g-tools.html .
+.Pp
+.It Va hw.mxge.rss_hash_type
+This value determines how incoming traffic is steered to different
+slices.
+This tunable is ignored when using just a single slice.
+The legal values for this tunable are:
+.Bl -tag -width "XXXX"
+.It 1
+Hash on the source and destination IPv4 addresses.
+.It 2
+Hash on source and destination IPv4 addresses and if the packet
+is TCP, then also hash on the TCP source and destination ports.
+.It 4
+Hash on the TCP or UDP source ports.
+This is the default value.
+.El
 .El
 .Sh DIAGNOSTICS
 .Bl -diag
@@ -121,7 +156,8 @@ A fatal initialization error has occurred.
 A fatal initialization error has occurred.
 .It "mxge%d: Could not find firmware image %s"
 The appropriate firmware kld module was not installed.
-This is a fatal initialization error.
+This is a non-fatal initialization error, but will
+result in running in a reduced performance mode.
 .El
 .Sh SUPPORT
 For general information and support,
