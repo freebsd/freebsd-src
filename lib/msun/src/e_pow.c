@@ -9,9 +9,8 @@
  * ====================================================
  */
 
-#ifndef lint
-static char rcsid[] = "$FreeBSD$";
-#endif
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /* __ieee754_pow(x,y) return x**y
  *
@@ -110,10 +109,10 @@ __ieee754_pow(double x, double y)
     /* y==zero: x**0 = 1 */
 	if((iy|ly)==0) return one; 	
 
-    /* +-NaN return x+y */
+    /* y!=zero: result is NaN if either arg is NaN */
 	if(ix > 0x7ff00000 || ((ix==0x7ff00000)&&(lx!=0)) ||
 	   iy > 0x7ff00000 || ((iy==0x7ff00000)&&(ly!=0))) 
-		return x+y;	
+		return (x+0.0)+(y+0.0);
 
     /* determine if y is an odd int when x < 0
      * yisint = 0	... y is not an integer
