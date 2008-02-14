@@ -143,6 +143,15 @@ coretemp_attach(device_t dev)
 	cpu_model += ((cpu_id >> 16) & 0xf) << 4;
 	cpu_mask = cpu_id & 15;
 
+	/*
+	 * Some CPUs, namely the PIII, don't have thermal sensors, but
+	 * report them when the CPUID check is performed in
+	 * coretemp_identify(). This leads to a later GPF when the sensor
+	 * is queried via a MSR, so we stop here.
+	 */
+	if (cpu_model < 0xe)
+		return (ENXIO);
+	
 #if 0 /*
        * XXXrpaulo: I have this CPU model and when it returns from C3
        * coretemp continues to function properly.
