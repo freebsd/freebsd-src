@@ -206,7 +206,7 @@ struct mxge_softc {
 	mxge_dma_t cmd_dma;
 	mxge_dma_t zeropad_dma;
 	struct pci_dev *pdev;
-	int msi_enabled;
+	int legacy_irq;
 	int link_state;
 	unsigned int rdma_tags_available;
 	int intr_coal_delay;
