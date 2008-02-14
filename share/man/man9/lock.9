@@ -239,7 +239,7 @@ Assert that the current thread has no lock on the
 .Vt lkp
 lock pointed to by the first argument.
 .It Dv KA_HELD
-Assert that the a not specified thread has a lock on the
+Assert that an unspecified thread has a lock on the
 .Vt lkp
 lock pointed to by the first argument.
 .It Dv KA_UNHELD
@@ -260,16 +260,18 @@ assertion:
 Assert that the current thread has a recursed lock on
 .Fa lkp .
 .It Dv KA_NOTRECURSED
-Assert that the current thread has not a recursed lock on
+Assert that the current thread does not have a recursed lock on
 .Fa lkp .
 .El
 .Pp
-It also worths note that
+Note that
 .Dv KA_HELD
 and
 .Dv KA_UNHELD
-usage is highly discouraged.  They are intended to cater a bad behaviour
-introduced by buffer cache locks handling and hopefully they will be
+usage is highly discouraged.
+They are intended to cater a bad behaviour
+introduced by buffer cache lock handling.
+They will hopefully be
 made useless by revisiting such locks.
 .Sh RETURN VALUES
 The
