@@ -134,7 +134,7 @@ static void p_flags (int, const char *);
 static const char *fmt_flags(int f);
 static void p_rtentry (struct rtentry *);
 static u_long forgemask (u_long);
-static void domask (char *, u_long, u_long);
+static void domask (char *, in_addr_t, u_long);
 
 /*
  * Print routing tables.
@@ -765,7 +765,7 @@ p_rtentry(struct rtentry *rt)
 }
 
 char *
-routename(u_long in)
+routename(in_addr_t in)
 {
 	char *cp;
 	static char line[MAXHOSTNAMELEN];
@@ -773,8 +773,7 @@ routename(u_long in)
 
 	cp = 0;
 	if (!numeric_addr) {
-		hp = gethostbyaddr((char *)&in, sizeof (struct in_addr),
-			AF_INET);
+		hp = gethostbyaddr(&in, sizeof (struct in_addr), AF_INET);
 		if (hp) {
 			cp = hp->h_name;
 			trimdomain(cp, strlen(cp));
@@ -786,7 +785,7 @@ routename(u_long in)
 	} else {
 #define C(x)	((x) & 0xff)
 		in = ntohl(in);
-		sprintf(line, "%lu.%lu.%lu.%lu",
+		sprintf(line, "%u.%u.%u.%u",
 		    C(in >> 24), C(in >> 16), C(in >> 8), C(in));
 	}
 	return (line);
@@ -807,7 +806,7 @@ forgemask(u_long a)
 }
 
 static void
-domask(char *dst, u_long addr, u_long mask)
+domask(char *dst, in_addr_t addr, u_long mask)
 {
 	int b, i;
 
@@ -839,13 +838,13 @@ domask(char *dst, u_long addr, u_long mask)
  * The address is assumed to be that of a net or subnet, not a host.
  */
 char *
-netname(u_long in, u_long mask)
+netname(in_addr_t in, u_long mask)
 {
 	char *cp = 0;
 	static char line[MAXHOSTNAMELEN];
 	struct netent *np = 0;
 	u_long dmask;
-	u_long i;
+	in_addr_t i;
 
 #define	NSHIFT(m) (							\
 	(m) == IN_CLASSA_NET ? IN_CLASSA_NSHIFT :			\
@@ -872,26 +871,26 @@ netname(u_long in, u_long mask)
 		switch (dmask) {
 		case IN_CLASSA_NET:
 			if ((i & IN_CLASSA_HOST) == 0) {
-				sprintf(line, "%lu", C(i >> 24));
+				sprintf(line, "%u", C(i >> 24));
 				break;
 			}
 			/* FALLTHROUGH */
 		case IN_CLASSB_NET:
 			if ((i & IN_CLASSB_HOST) == 0) {
-				sprintf(line, "%lu.%lu",
+				sprintf(line, "%u.%u",
 					C(i >> 24), C(i >> 16));
 				break;
 			}
 			/* FALLTHROUGH */
 		case IN_CLASSC_NET:
 			if ((i & IN_CLASSC_HOST) == 0) {
-				sprintf(line, "%lu.%lu.%lu",
+				sprintf(line, "%u.%u.%u",
 					C(i >> 24), C(i >> 16), C(i >> 8));
 				break;
 			}
 			/* FALLTHROUGH */
 		default:
-			sprintf(line, "%lu.%lu.%lu.%lu",
+			sprintf(line, "%u.%u.%u.%u",
 				C(i >> 24), C(i >> 16), C(i >> 8), C(i));
 			break;
 		}

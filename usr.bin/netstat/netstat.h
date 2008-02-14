@@ -124,8 +124,8 @@ char	*ipx_phost(struct sockaddr *);
 char	*ns_phost(struct sockaddr *);
 void	upHex(char *);
 
-char	*routename(u_long);
-char	*netname(u_long, u_long);
+char	*routename(in_addr_t);
+char	*netname(in_addr_t, u_long);
 char	*atalk_print(struct sockaddr *, int);
 char	*atalk_print2(struct sockaddr *, struct sockaddr *, int);
 char	*ipx_print(struct sockaddr *);
