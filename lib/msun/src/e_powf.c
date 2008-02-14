@@ -13,9 +13,8 @@
  * ====================================================
  */
 
-#ifndef lint
-static char rcsid[] = "$FreeBSD$";
-#endif
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "math.h"
 #include "math_private.h"
@@ -68,10 +67,10 @@ __ieee754_powf(float x, float y)
     /* y==zero: x**0 = 1 */
 	if(iy==0) return one;
 
-    /* +-NaN return x+y */
+    /* y!=zero: result is NaN if either arg is NaN */
 	if(ix > 0x7f800000 ||
 	   iy > 0x7f800000)
-		return x+y;
+		return (x+0.0F)+(y+0.0F);
 
     /* determine if y is an odd int when x < 0
      * yisint = 0	... y is not an integer
