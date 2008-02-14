@@ -1730,6 +1730,8 @@ mxge_submit_req(mxge_tx_ring_t *tx, mcp_kreq_ether_send_t *src,
         mb();
 }
 
+#if IFCAP_TSO4
+
 static void
 mxge_encap_tso(struct mxge_slice_state *ss, struct mbuf *m,
 	       int busdma_seg_cnt, int ip_off)
@@ -1889,6 +1891,9 @@ drop:
 
 }
 
+#endif /* IFCAP_TSO4 */
+
+#ifdef MXGE_NEW_VLAN_API
 /* 
  * We reproduce the software vlan tag insertion from
  * net/if_vlan.c:vlan_start() here so that we can advertise "hardware"
@@ -1920,6 +1925,7 @@ mxge_vlan_tag_insert(struct mbuf *m)
 	m->m_flags &= ~M_VLANTAG;
 	return m;
 }
+#endif /* MXGE_NEW_VLAN_API */
 
 static void
 mxge_encap(struct mxge_slice_state *ss, struct mbuf *m)
@@ -1941,13 +1947,14 @@ mxge_encap(struct mxge_slice_state *ss, struct mbuf *m)
 	tx = &ss->tx;
 
 	ip_off = sizeof (struct ether_header);
+#ifdef MXGE_NEW_VLAN_API
 	if (m->m_flags & M_VLANTAG) {
 		m = mxge_vlan_tag_insert(m);
 		if (__predict_false(m == NULL))
 			goto drop;
 		ip_off += ETHER_VLAN_ENCAP_LEN;
 	}
-
+#endif
 	/* (try to) map the frame for DMA */
 	idx = tx->req & tx->mask;
 	err = bus_dmamap_load_mbuf_sg(tx->dmat, tx->info[idx].map,
@@ -1976,12 +1983,13 @@ mxge_encap(struct mxge_slice_state *ss, struct mbuf *m)
 			BUS_DMASYNC_PREWRITE);
 	tx->info[idx].m = m;
 
-
+#if IFCAP_TSO4
 	/* TSO is different enough, we handle it in another routine */
 	if (m->m_pkthdr.csum_flags & (CSUM_TSO)) {
 		mxge_encap_tso(ss, m, cnt, ip_off);
 		return;
 	}
+#endif
 
 	req = tx->req_list;
 	cksum_offset = 0;
@@ -2291,8 +2299,21 @@ mxge_vlan_tag_remove(struct mbuf *m, uint32_t *csum)
 	*csum = htons(*csum);
 
 	/* save the tag */
-	m->m_flags |= M_VLANTAG;
+#ifdef MXGE_NEW_VLAN_API	
 	m->m_pkthdr.ether_vtag = ntohs(evl->evl_tag);
+#else
+	{
+		struct m_tag *mtag;
+		mtag = m_tag_alloc(MTAG_VLAN, MTAG_VLAN_TAG, sizeof(u_int),
+				   M_NOWAIT);
+		if (mtag == NULL)
+			return;
+		VLAN_TAG_VALUE(mtag) = ntohs(evl->evl_tag);
+		m_tag_prepend(m, mtag);
+	}
+
+#endif
+	m->m_flags |= M_VLANTAG;
 
 	/*
 	 * Remove the 802.1q header by copying the Ethernet
@@ -2557,7 +2578,7 @@ mxge_media_probe(mxge_softc_t *sc)
 	}
 
 	for (i = 0; i < 3; i++, ptr++) {
-		ptr = strchr(ptr, '-');
+		ptr = index(ptr, '-');
 		if (ptr == NULL) {
 			device_printf(sc->dev,
 				      "only %d dashes in PC?!?\n", i);
@@ -3954,8 +3975,10 @@ mxge_add_msix_irqs(mxge_softc_t *sc)
 	for (i = 0; i < sc->num_slices; i++) {
 		err = bus_setup_intr(sc->dev, sc->msix_irq_res[i], 
 				     INTR_TYPE_NET | INTR_MPSAFE,
-				     NULL, mxge_intr, &sc->ss[i],
-				     &sc->msix_ih[i]);
+#if __FreeBSD_version > 700030
+				     NULL,
+#endif
+				     mxge_intr, &sc->ss[i], &sc->msix_ih[i]);
 		if (err != 0) {
 			device_printf(sc->dev, "couldn't setup intr for "
 				      "message %d\n", i);
@@ -4028,7 +4051,10 @@ mxge_add_single_irq(mxge_softc_t *sc)
 			      rman_get_start(sc->irq_res));
 	err = bus_setup_intr(sc->dev, sc->irq_res, 
 			     INTR_TYPE_NET | INTR_MPSAFE,
-			     NULL, mxge_intr, &sc->ss[0], &sc->ih);
+#if __FreeBSD_version > 700030
+			     NULL,
+#endif
+			     mxge_intr, &sc->ss[0], &sc->ih);
 	if (err != 0) {
 		bus_release_resource(sc->dev, SYS_RES_IRQ,
 				     sc->msi_enabled ? 1 : 0, sc->irq_res);
@@ -4230,8 +4256,11 @@ mxge_attach(device_t dev)
 
 	ifp->if_baudrate = 100000000;
 	ifp->if_capabilities = IFCAP_RXCSUM | IFCAP_TXCSUM | IFCAP_TSO4 |
-		IFCAP_VLAN_MTU | IFCAP_VLAN_HWTAGGING | 
-		IFCAP_VLAN_HWCSUM | IFCAP_LRO;
+		IFCAP_VLAN_MTU | IFCAP_LRO;
+
+#ifdef MXGE_NEW_VLAN_API
+	ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_HWCSUM;
+#endif
 
 	sc->max_mtu = mxge_max_mtu(sc);
 	if (sc->max_mtu >= 9000)
@@ -4292,7 +4321,7 @@ mxge_detach(device_t dev)
 {
 	mxge_softc_t *sc = device_get_softc(dev);
 
-	if (sc->ifp->if_vlantrunk != NULL) {
+	if (mxge_vlans_active(sc)) {
 		device_printf(sc->dev,
 			      "Detach vlans before removing module\n");
 		return EBUSY;
