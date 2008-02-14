@@ -99,7 +99,3 @@ ceill(long double x)
 	}
 	return (u.e);
 }
-
-#if LDBL_MANT_DIG == 53
-__weak_reference(ceil, ceill);
-#endif
