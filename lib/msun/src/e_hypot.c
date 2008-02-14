@@ -11,9 +11,8 @@
  * ====================================================
  */
 
-#ifndef lint
-static char rcsid[] = "$FreeBSD$";
-#endif
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /* __ieee754_hypot(x,y)
  *
@@ -68,7 +67,8 @@ __ieee754_hypot(double x, double y)
 	if(ha > 0x5f300000) {	/* a>2**500 */
 	   if(ha >= 0x7ff00000) {	/* Inf or NaN */
 	       u_int32_t low;
-	       w = a+b;			/* for sNaN */
+	       /* Use original arg order iff result is NaN; quieten sNaNs. */
+	       w = fabs(x+0.0)+fabs(y+0.0);
 	       GET_LOW_WORD(low,a);
 	       if(((ha&0xfffff)|low)==0) w = a;
 	       GET_LOW_WORD(low,b);
