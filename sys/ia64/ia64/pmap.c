@@ -118,6 +118,9 @@ __FBSDID("$FreeBSD$");
 /* XXX move to a header. */
 extern uint64_t ia64_gateway_page[];
 
+/* XXX fc.i kluge (quick fix) */
+int ia64_icache_sync_kluge;
+
 MALLOC_DEFINE(M_PMAP, "PMAP", "PMAP Structures");
 
 #ifndef PMAP_SHPGPERPROC
@@ -1183,6 +1186,7 @@ static void
 pmap_set_pte(struct ia64_lpte *pte, vm_offset_t va, vm_offset_t pa,
     boolean_t wired, boolean_t managed)
 {
+	vm_offset_t lim;
 
 	pte->pte &= PTE_PROT_MASK | PTE_PL_MASK | PTE_AR_MASK | PTE_ED;
 	pte->pte |= PTE_PRESENT | PTE_MA_WB;
@@ -1193,6 +1197,15 @@ pmap_set_pte(struct ia64_lpte *pte, vm_offset_t va, vm_offset_t pa,
 	pte->itir = PAGE_SHIFT << 2;
 
 	pte->tag = ia64_ttag(va);
+
+	/* XXX fc.i kluge (quick fix) */
+	if (ia64_icache_sync_kluge) {
+		lim = va + PAGE_SIZE;
+		while (va < lim) {
+			__asm __volatile("fc.i %0" :: "r"(va));
+			va += 32;
+		}
+	}
 }
 
 /*
