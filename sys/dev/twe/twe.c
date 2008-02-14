@@ -1696,7 +1696,7 @@ twe_check_bits(struct twe_softc *sc, u_int32_t status_reg)
 	}
 	result = 1;
 	if (status_reg & TWE_STATUS_PCI_PARITY_ERROR) {
-	    twe_printf(sc, "PCI parity error: Reseat card, move card or buggy device present.");
+	    twe_printf(sc, "PCI parity error: Reseat card, move card or buggy device present.\n");
 	    twe_clear_pci_parity_error(sc);
 	}
 	if (status_reg & TWE_STATUS_PCI_ABORT) {
