@@ -8,6 +8,9 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20080214:	p11	FreeBSD-SA-08:02.sendfile
+	Fix sendfile(2) write-only file permission bypass.
+
 20080114:	p10	FreeBSD-SA-08:01.pty, FreeBSD-SA-08:02.libc
 	Fix issues which allow snooping on ptys. [08:01]
 	Fix an off-by-one error in inet_network(3). [08:02]
