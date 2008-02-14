@@ -59,3 +59,7 @@ trunc(double x)
 	INSERT_WORDS(x,i0,i1);
 	return x;
 }
+
+#if LDBL_MANT_DIG == 53
+__weak_reference(trunc, truncl);
+#endif
