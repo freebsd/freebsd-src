@@ -45,6 +45,34 @@ $FreeBSD$
 #define MXGE_VIRT_JUMBOS 0
 #endif
 
+#ifndef VLAN_CAPABILITIES
+#define VLAN_CAPABILITIES(ifp)
+#define mxge_vlans_active(sc) (sc)->ifp->if_nvlans
+#else
+#define mxge_vlans_active(sc) (sc)->ifp->if_vlantrunk
+#endif
+
+#ifndef VLAN_TAG_VALUE
+#define MXGE_NEW_VLAN_API
+#endif
+
+#ifndef IFCAP_LRO
+#define IFCAP_LRO 0
+#endif
+
+#ifndef IFCAP_TSO
+#define IFCAP_TSO 0
+#endif
+ 
+#ifndef IFCAP_TSO4
+#define IFCAP_TSO4 0
+#endif
+
+#ifndef CSUM_TSO
+#define CSUM_TSO 0
+#endif
+
+
 typedef struct {
 	void *addr;
 	bus_addr_t bus_addr;
