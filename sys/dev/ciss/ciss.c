@@ -247,6 +247,9 @@ static struct cdevsw ciss_cdevsw = {
 static unsigned int ciss_expose_hidden_physical = 0;
 TUNABLE_INT("hw.ciss.expose_hidden_physical", &ciss_expose_hidden_physical);
 
+static unsigned int ciss_nop_message_heartbeat = 0;
+TUNABLE_INT("hw.ciss.nop_message_heartbeat", &ciss_nop_message_heartbeat);
+
 /************************************************************************
  * CISS adapters amazingly don't have a defined programming interface
  * value.  (One could say some very despairing things about PCI and
@@ -3099,7 +3102,7 @@ ciss_periodic(void *arg)
     /*
      * Send the NOP message and wait for a response.
      */
-    if ((error = ciss_get_request(sc, &cr)) == 0) {
+    if (ciss_nop_message_heartbeat != 0 && (error = ciss_get_request(sc, &cr)) == 0) {
 	cc = CISS_FIND_COMMAND(cr);
 	cr->cr_complete = ciss_nop_complete;
 	cc->cdb.cdb_length = 1;
