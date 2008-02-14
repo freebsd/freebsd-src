@@ -13,9 +13,8 @@
  * ====================================================
  */
 
-#ifndef lint
-static char rcsid[] = "$FreeBSD$";
-#endif
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "math.h"
 #include "math_private.h"
@@ -37,7 +36,8 @@ __ieee754_hypotf(float x, float y)
 	k=0;
 	if(ha > 0x58800000) {	/* a>2**50 */
 	   if(ha >= 0x7f800000) {	/* Inf or NaN */
-	       w = a+b;			/* for sNaN */
+	       /* Use original arg order iff result is NaN; quieten sNaNs. */
+	       w = fabsf(x+0.0F)+fabsf(y+0.0F);
 	       if(ha == 0x7f800000) w = a;
 	       if(hb == 0x7f800000) w = b;
 	       return w;
