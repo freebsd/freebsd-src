@@ -100,6 +100,9 @@ __FBSDID("$FreeBSD$");
 
 #include <i386/include/specialreg.h>
 
+/* XXX fc.i kluge (quick fix) */
+extern int ia64_icache_sync_kluge;
+
 u_int64_t processor_frequency;
 u_int64_t bus_frequency;
 u_int64_t itc_frequency;
@@ -218,6 +221,9 @@ identifycpu(void)
 		}
 		break;
 	case 0x20:
+		/* XXX fc.i kluge (quick fix) */
+		ia64_icache_sync_kluge = 1;
+
 		family_name = "Itanium 2";
 		switch (model) {
 		case 0x00:
