@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 16, 2005
+.Dd February 14, 2008
 .Dt SK 4
 .Os
 .Sh NAME
@@ -191,17 +191,28 @@ SK-9844 SK-NET GE-SX dual port, multimode fiber adapter
 .It
 SMC 9452TX single port, 1000baseT adapter
 .El
+.Sh LOADER TUNABLES
+Tunables can be set at the
+.Xr loader 8
+prompt before booting the kernel or stored in
+.Xr loader.conf 5 .
+.Bl -tag -width xxxxxx
+.It Va hw.skc.jumbo_disable
+Disable jumbo frame support.
+Systems with less memory can set it to a non-zero value to save memory.
+The default value is 0.
+.El
 .Sh SYSCTL VARIABLES
 The following variable is available as both
 .Xr sysctl 8
 variable and
 .Xr loader 8
 tunable:
-.Bl -tag -width indent
+.Bl -tag -width xxxxxx
 .It Va dev.skc.%d.int_mod
-.Pp
 This variable controls interrupt moderation.
-The accepted range is 10 to 10000, default value is 100 microseconds.
+The accepted range is 10 to 10000.
+The default value is 100 microseconds.
 The interface has to be brought down and up again before a change takes effect.
 .El
 .Sh DIAGNOSTICS
