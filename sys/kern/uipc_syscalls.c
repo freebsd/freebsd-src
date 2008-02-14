@@ -1818,20 +1818,23 @@ kern_sendfile(struct thread *td, struct sendfile_args *uap,
 		goto done;
 	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
-	obj = vp->v_object;
-	if (obj != NULL) {
-		/*
-		 * Temporarily increase the backing VM object's reference
-		 * count so that a forced reclamation of its vnode does not
-		 * immediately destroy it.
-		 */
-		VM_OBJECT_LOCK(obj);
-		if ((obj->flags & OBJ_DEAD) == 0) {
-			vm_object_reference_locked(obj);
-			VM_OBJECT_UNLOCK(obj);
-		} else {
-			VM_OBJECT_UNLOCK(obj);
-			obj = NULL;
+	if (vp->v_type == VREG) {
+		obj = vp->v_object;
+		if (obj != NULL) {
+			/*
+			 * Temporarily increase the backing VM
+			 * object's reference count so that a forced
+			 * reclamation of its vnode does not
+			 * immediately destroy it.
+			 */
+			VM_OBJECT_LOCK(obj);
+			if ((obj->flags & OBJ_DEAD) == 0) {
+				vm_object_reference_locked(obj);
+				VM_OBJECT_UNLOCK(obj);
+			} else {
+				VM_OBJECT_UNLOCK(obj);
+				obj = NULL;
+			}
 		}
 	}
 	VOP_UNLOCK(vp, 0, td);
