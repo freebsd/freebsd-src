@@ -1723,10 +1723,11 @@ vfs_mountroot_try(const char *mountfrom)
 		strcpy(path, ROOTNAME);
 
 	error = kernel_vmount(
-	    MNT_RDONLY | MNT_ROOTFS,
+	    MNT_ROOTFS,
 	    "fstype", vfsname,
 	    "fspath", "/",
 	    "from", path,
+	    "ro", NULL,
 	    NULL);
 	if (error == 0) {
 		/*
@@ -2213,7 +2214,7 @@ mount_argsu(struct mntarg *ma, const char *name, const void *val, int len)
 /*
  * Plain argument.
  *
- * If length is -1, use printf.
+ * If length is -1, treat value as a C string.
  */
 struct mntarg *
 mount_arg(struct mntarg *ma, const char *name, const void *val, int len)
@@ -2300,7 +2301,7 @@ kernel_vmount(int flags, ...)
 		if (cp == NULL)
 			break;
 		vp = va_arg(ap, const void *);
-		ma = mount_arg(ma, cp, vp, -1);
+		ma = mount_arg(ma, cp, vp, (vp != NULL ? -1 : 0));
 	}
 	va_end(ap);
 
