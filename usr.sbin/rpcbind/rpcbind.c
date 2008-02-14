@@ -250,7 +250,7 @@ init_transport(struct netconfig *nconf)
 	int aicode;
 	int addrlen;
 	int nhostsbak;
-	int checkbind;
+	int bound;
 	struct sockaddr *sa;
 	u_int32_t host_addr[4];  /* IPv4 or IPv6 */
 	struct sockaddr_un sun;
@@ -340,7 +340,7 @@ init_transport(struct netconfig *nconf)
 	    /*
 	     * Bind to specific IPs if asked to
 	     */
-	    checkbind = 1;
+	    bound = 0;
 	    while (nhostsbak > 0) {
 		--nhostsbak;
 		/*
@@ -423,7 +423,7 @@ init_transport(struct netconfig *nconf)
 			freeaddrinfo(res);
 		    continue;
 		} else
-		    checkbind++;
+		    bound = 1;
 		(void)umask(oldmask);
 
 		/* Copy the address */
@@ -467,7 +467,7 @@ init_transport(struct netconfig *nconf)
 		    goto error;
 		}
 	    }
-	    if (!checkbind)
+	    if (!bound)
 		return 1;
 	} else {
 	    oldmask = umask(S_IXUSR|S_IXGRP|S_IXOTH);
