@@ -2014,7 +2014,7 @@ _fgetvp(struct thread *td, int fd, struct vnode **vpp, int flags)
 	GIANT_REQUIRED;		/* VFS */
 
 	*vpp = NULL;
-	if ((error = _fget(td, fd, &fp, 0, 0)) != 0)
+	if ((error = _fget(td, fd, &fp, flags, 0)) != 0)
 		return (error);
 	if (fp->f_vnode == NULL) {
 		error = EINVAL;
