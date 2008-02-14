@@ -239,10 +239,6 @@ vc_read(struct cdev *dev, struct uio *uiop, int flag)
 		myprintf(("vcread: error (%d) on uiomove\n", error));
 		error = EINVAL;
 	}
-#ifdef OLD_DIAGNOSTIC
-	if (vmp->vm_chain.forw == 0 || vmp->vm_chain.back == 0)
-		panic("vc_read: bad chain");
-#endif
 	REMQUE(vmp->vm_chain);
 
 	/*
