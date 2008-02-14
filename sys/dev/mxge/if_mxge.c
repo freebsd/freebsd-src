@@ -2685,7 +2685,7 @@ mxge_intr(void *arg)
 	}
 	valid = stats->valid;
 
-	if (!sc->msi_enabled) {
+	if (sc->legacy_irq) {
 		/* lower legacy IRQ  */
 		*sc->irq_deassert = 0;
 		if (!mxge_deassert_wait)
@@ -2705,6 +2705,8 @@ mxge_intr(void *arg)
 			mxge_clean_rx_done(ss);
 			send_done_count = be32toh(stats->send_done_count);
 		}
+		if (sc->legacy_irq && mxge_deassert_wait)
+			mb();
 	} while (*((volatile uint8_t *) &stats->valid));
 
 	if (__predict_false(stats->stats_updated)) {
@@ -4035,9 +4037,9 @@ mxge_add_single_irq(mxge_softc_t *sc)
 	count = pci_msi_count(sc->dev);
 	if (count == 1 && pci_alloc_msi(sc->dev, &count) == 0) {
 		rid = 1;
-		sc->msi_enabled = 1;
 	} else {
 		rid = 0;
+		sc->legacy_irq = 1;
 	}
 	sc->irq_res = bus_alloc_resource(sc->dev, SYS_RES_IRQ, &rid, 0, ~0,
 					 1, RF_SHAREABLE | RF_ACTIVE);
@@ -4047,7 +4049,7 @@ mxge_add_single_irq(mxge_softc_t *sc)
 	}
 	if (mxge_verbose)
 		device_printf(sc->dev, "using %s irq %ld\n",
-			      sc->msi_enabled ? "MSI" : "INTx",
+			      sc->legacy_irq ? "INTx" : "MSI",
 			      rman_get_start(sc->irq_res));
 	err = bus_setup_intr(sc->dev, sc->irq_res, 
 			     INTR_TYPE_NET | INTR_MPSAFE,
@@ -4057,8 +4059,8 @@ mxge_add_single_irq(mxge_softc_t *sc)
 			     mxge_intr, &sc->ss[0], &sc->ih);
 	if (err != 0) {
 		bus_release_resource(sc->dev, SYS_RES_IRQ,
-				     sc->msi_enabled ? 1 : 0, sc->irq_res);
-		if (sc->msi_enabled)
+				     sc->legacy_irq ? 0 : 1, sc->irq_res);
+		if (!sc->legacy_irq)
 			pci_release_msi(sc->dev);
 	}
 	return err;
@@ -4099,8 +4101,8 @@ mxge_rem_single_irq(mxge_softc_t *sc)
 {
 	bus_teardown_intr(sc->dev, sc->irq_res, sc->ih);
 	bus_release_resource(sc->dev, SYS_RES_IRQ,
-			     sc->msi_enabled ? 1 : 0, sc->irq_res);
-	if (sc->msi_enabled)
+			     sc->legacy_irq ? 0 : 1, sc->irq_res);
+	if (!sc->legacy_irq)
 		pci_release_msi(sc->dev);
 }
 
