@@ -1762,7 +1762,7 @@ static int
 do_sendfile(struct thread *td, struct sendfile_args *uap, int compat)
 {
 	struct vnode *vp;
-	struct vm_object *obj;
+	struct vm_object *obj = NULL;
 	struct socket *so = NULL;
 	struct mbuf *m, *m_header = NULL;
 	struct sf_buf *sf;
@@ -1783,7 +1783,8 @@ do_sendfile(struct thread *td, struct sendfile_args *uap, int compat)
 	if ((error = fgetvp_read(td, uap->fd, &vp)) != 0)
 		goto done;
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
-	obj = vp->v_object;
+	if (vp->v_type == VREG)
+		obj = vp->v_object;
 	VOP_UNLOCK(vp, 0, td);
 	if (obj == NULL) {
 		error = EINVAL;
