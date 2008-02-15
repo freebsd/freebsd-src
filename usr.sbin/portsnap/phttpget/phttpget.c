@@ -503,11 +503,11 @@ main(int argc, char *argv[])
 			 * Check for "Connection: close" or
 			 * "Connection: Keep-Alive" header
 			 */
-			if (strncmp(hln, "Connection:", 11) == 0) {
+			if (strncasecmp(hln, "Connection:", 11) == 0) {
 				hln += 11;
-				if (strstr(hln, "close") != NULL)
+				if (strcasestr(hln, "close") != NULL)
 					pipelined = 0;
-				if (strstr(hln, "Keep-Alive") != NULL)
+				if (strcasestr(hln, "Keep-Alive") != NULL)
 					keepalive = 1;
 
 				/* Next header... */
@@ -515,7 +515,7 @@ main(int argc, char *argv[])
 			}
 
 			/* Check for "Content-Length:" header */
-			if (strncmp(hln, "Content-Length:", 15) == 0) {
+			if (strncasecmp(hln, "Content-Length:", 15) == 0) {
 				hln += 15;
 				contentlength = 0;
 
@@ -539,9 +539,9 @@ main(int argc, char *argv[])
 			}
 
 			/* Check for "Transfer-Encoding: chunked" header */
-			if (strncmp(hln, "Transfer-Encoding:", 18) == 0) {
+			if (strncasecmp(hln, "Transfer-Encoding:", 18) == 0) {
 				hln += 18;
-				if (strstr(hln, "chunked") != NULL)
+				if (strcasestr(hln, "chunked") != NULL)
 					chunked = 1;
 
 				/* Next header... */
