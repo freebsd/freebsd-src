@@ -897,7 +897,6 @@ MLINKS+=rman.9 rman_activate_resource.9 \
 	rman.9 rman_await_resource.9 \
 	rman.9 rman_deactivate_resource.9 \
 	rman.9 rman_fini.9 \
-	rman.9 rman_fini.9 \
 	rman.9 rman_get_bushandle.9 \
 	rman.9 rman_get_bustag.9 \
 	rman.9 rman_get_device.9 \
