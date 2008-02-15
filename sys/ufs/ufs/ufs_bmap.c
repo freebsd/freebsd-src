@@ -215,7 +215,7 @@ ufs_bmaparray(vp, bn, bnp, nbp, runp, runb)
 		ap->in_exists = 1;
 		bp = getblk(vp, metalbn, mp->mnt_stat.f_iosize, 0, 0, 0);
 		if ((bp->b_flags & B_CACHE) == 0) {
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 			if (!daddr)
 				panic("ufs_bmaparray: indirect block not in cache");
 #endif
