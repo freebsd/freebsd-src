@@ -325,7 +325,7 @@ loop:
 				passes -= 1;
 				goto loop;
 			}
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 			if (!vn_isdisk(vp, NULL))
 				vprint("ffs_fsync: dirty", vp);
 #endif
@@ -443,7 +443,7 @@ ffs_read(ap)
 	seqcount = ap->a_ioflag >> IO_SEQSHIFT;
 	ip = VTOI(vp);
 
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 	if (uio->uio_rw != UIO_READ)
 		panic("ffs_read: mode");
 
@@ -645,7 +645,7 @@ ffs_write(ap)
 	seqcount = ap->a_ioflag >> IO_SEQSHIFT;
 	ip = VTOI(vp);
 
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 	if (uio->uio_rw != UIO_WRITE)
 		panic("ffs_write: mode");
 #endif
@@ -869,7 +869,7 @@ ffs_extread(struct vnode *vp, struct uio *uio, int ioflag)
 	fs = ip->i_fs;
 	dp = ip->i_din2;
 
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 	if (uio->uio_rw != UIO_READ || fs->fs_magic != FS_UFS2_MAGIC)
 		panic("ffs_extread: mode");
 
@@ -1031,7 +1031,7 @@ ffs_extwrite(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *ucred)
 	KASSERT(!(ip->i_flag & IN_SPACECOUNTED), ("inode %u: inode is dead",
 	    ip->i_number));
 
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 	if (uio->uio_rw != UIO_WRITE || fs->fs_magic != FS_UFS2_MAGIC)
 		panic("ffs_extwrite: mode");
 #endif
