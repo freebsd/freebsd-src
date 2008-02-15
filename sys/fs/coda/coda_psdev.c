@@ -76,7 +76,7 @@ __FBSDID("$FreeBSD$");
  * Variables to determine how Coda sleeps and whether or not it is
  * interruptible when it does sleep waiting for Venus.
  */
-#define	CTL_C
+/* #define	CTL_C */
 
 #ifdef CTL_C
 #include <sys/signalvar.h>
