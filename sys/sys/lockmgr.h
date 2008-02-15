@@ -137,13 +137,19 @@ struct lock {
 #define	LK_HAVE_EXCL	0x00040000	/* exclusive lock obtained */
 #define	LK_WAITDRAIN	0x00080000	/* process waiting for lock to drain */
 #define	LK_DRAINING	0x00100000	/* lock is being drained */
-#define	LK_INTERNAL	0x00200000/* The internal lock is already held */
-#define	LK_DESTROYED	0x00400000	/* lock is destroyed */
+#define	LK_DESTROYED	0x00200000	/* lock is destroyed */
 /*
  * Internal state flags corresponding to lk_sharecount, and lk_waitcount
  */
 #define	LK_SHARE_NONZERO 0x01000000
 #define	LK_WAIT_NONZERO  0x02000000
+
+/*
+ * Default values for lockmgr_args().
+ */
+#define	LK_WMESG_DEFAULT	(NULL)
+#define	LK_PRIO_DEFAULT		(-1)
+#define	LK_TIMO_DEFAULT		(0)
 
 /*
  * Assertion flags.
@@ -189,8 +195,8 @@ void	lockinit(struct lock *, int prio, const char *wmesg,
 			int timo, int flags);
 void	lockdestroy(struct lock *);
 
-int	_lockmgr(struct lock *, u_int flags, struct mtx *, char *file,
-	     int line);
+int	_lockmgr_args(struct lock *, u_int flags, struct mtx *,
+	    const char *wmesg, int prio, int timo, char *file, int line);
 #if defined(INVARIANTS) || defined(INVARIANT_SUPPORT)
 void	_lockmgr_assert(struct lock *, int what, const char *, int);
 #endif
@@ -200,9 +206,13 @@ int	lockstatus(struct lock *, struct thread *);
 int	lockwaiters(struct lock *);
 
 #define lockmgr(lock, flags, mtx)					\
-	_lockmgr((lock), (flags), (mtx), LOCK_FILE, LOCK_LINE)
+	_lockmgr_args((lock), (flags), (mtx), LK_WMESG_DEFAULT,		\
+	    LK_PRIO_DEFAULT, LK_TIMO_DEFAULT, LOCK_FILE, LOCK_LINE)
 #define	lockmgr_disown(lock)						\
 	_lockmgr_disown((lock), LOCK_FILE, LOCK_LINE)
+#define	lockmgr_args(lock, flags, mtx, wmesg, prio, timo)		\
+	_lockmgr_args((lock), (flags), (mtx), (wmesg), (prio), (timo),	\
+	    LOCK_FILE, LOCK_LINE)
 #define	lockmgr_recursed(lkp)						\
 	((lkp)->lk_exclusivecount > 1)
 #ifdef INVARIANTS
