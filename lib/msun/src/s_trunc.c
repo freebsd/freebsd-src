@@ -22,6 +22,8 @@ __FBSDID("$FreeBSD$");
  *	Inexact flag raised if x not equal to trunc(x).
  */
 
+#include <float.h>
+
 #include "math.h"
 #include "math_private.h"
 
