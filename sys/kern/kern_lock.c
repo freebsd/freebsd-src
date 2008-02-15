@@ -118,8 +118,10 @@ unlock_lockmgr(struct lock_object *lock)
 #define LK_ALL (LK_HAVE_EXCL | LK_WANT_EXCL | LK_WANT_UPGRADE | \
 	LK_SHARE_NONZERO | LK_WAIT_NONZERO)
 
-static int acquire(struct lock **lkpp, int extflags, int wanted, int *contested, uint64_t *waittime);
-static int acquiredrain(struct lock *lkp, int extflags) ;
+static int acquire(struct lock **lkpp, int extflags, int wanted,
+    const char *wmesg, int prio, int timo, int *contested, uint64_t *waittime);
+static int acquiredrain(struct lock *lkp, int extflags, const char *wmesg,
+    int prio, int timo);
 
 static __inline void
 sharelock(struct thread *td, struct lock *lkp, int incr) {
@@ -146,10 +148,17 @@ shareunlock(struct thread *td, struct lock *lkp, int decr) {
 }
 
 static int
-acquire(struct lock **lkpp, int extflags, int wanted, int *contested, uint64_t *waittime)
+acquire(struct lock **lkpp, int extflags, int wanted, const char *wmesg,
+    int prio, int timo, int *contested, uint64_t *waittime)
 {
 	struct lock *lkp = *lkpp;
-	int error;
+	const char *iwmesg;
+	int error, iprio, itimo;
+
+	iwmesg = (wmesg != LK_WMESG_DEFAULT) ? wmesg : lkp->lk_wmesg;
+	iprio = (prio != LK_PRIO_DEFAULT) ? prio : lkp->lk_prio;
+	itimo = (timo != LK_TIMO_DEFAULT) ? timo : lkp->lk_timo;
+
 	CTR3(KTR_LOCK,
 	    "acquire(): lkp == %p, extflags == 0x%x, wanted == 0x%x",
 	    lkp, extflags, wanted);
@@ -166,9 +175,8 @@ acquire(struct lock **lkpp, int extflags, int wanted, int *contested, uint64_t *
 		    lkp, lkp->lk_flags);
 		lkp->lk_flags |= LK_WAIT_NONZERO;
 		lkp->lk_waitcount++;
-		error = msleep(lkp, lkp->lk_interlock, lkp->lk_prio,
-		    lkp->lk_wmesg, 
-		    ((extflags & LK_TIMELOCK) ? lkp->lk_timo : 0));
+		error = msleep(lkp, lkp->lk_interlock, iprio, iwmesg,
+		    ((extflags & LK_TIMELOCK) ? itimo : 0));
 		lkp->lk_waitcount--;
 		if (lkp->lk_waitcount == 0)
 			lkp->lk_flags &= ~LK_WAIT_NONZERO;
@@ -198,8 +206,8 @@ acquire(struct lock **lkpp, int extflags, int wanted, int *contested, uint64_t *
  * accepted shared locks and shared-to-exclusive upgrades to go away.
  */
 int
-_lockmgr(struct lock *lkp, u_int flags, struct mtx *interlkp, char *file,
-    int line)
+_lockmgr_args(struct lock *lkp, u_int flags, struct mtx *interlkp,
+    const char *wmesg, int prio, int timo, char *file, int line)
 
 {
 	struct thread *td;
@@ -220,12 +228,12 @@ _lockmgr(struct lock *lkp, u_int flags, struct mtx *interlkp, char *file,
 		panic("%s: %p lockmgr is destroyed", __func__, lkp);
 	}
 #endif
-	if ((flags & LK_INTERNAL) == 0)
-		mtx_lock(lkp->lk_interlock);
+	mtx_lock(lkp->lk_interlock);
 	CTR6(KTR_LOCK,
 	    "lockmgr(): lkp == %p (lk_wmesg == \"%s\"), owner == %p, exclusivecount == %d, flags == 0x%x, "
-	    "td == %p", lkp, lkp->lk_wmesg, lkp->lk_lockholder,
-	    lkp->lk_exclusivecount, flags, td);
+	    "td == %p", lkp, (wmesg != LK_WMESG_DEFAULT) ? wmesg :
+	    lkp->lk_wmesg, lkp->lk_lockholder, lkp->lk_exclusivecount, flags,
+	    td);
 #ifdef DEBUG_LOCKS
 	{
 		struct stack stack; /* XXX */
@@ -242,7 +250,8 @@ _lockmgr(struct lock *lkp, u_int flags, struct mtx *interlkp, char *file,
 	if ((flags & (LK_NOWAIT|LK_RELEASE)) == 0)
 		WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK,
 		    &lkp->lk_interlock->lock_object,
-		    "Acquiring lockmgr lock \"%s\"", lkp->lk_wmesg);
+		    "Acquiring lockmgr lock \"%s\"",
+		    (wmesg != LK_WMESG_DEFAULT) ? wmesg : lkp->lk_wmesg);
 
 	if (panicstr != NULL) {
 		mtx_unlock(lkp->lk_interlock);
@@ -274,7 +283,8 @@ _lockmgr(struct lock *lkp, u_int flags, struct mtx *interlkp, char *file,
 			lockflags = LK_HAVE_EXCL;
 			if (!(td->td_pflags & TDP_DEADLKTREAT))
 				lockflags |= LK_WANT_EXCL | LK_WANT_UPGRADE;
-			error = acquire(&lkp, extflags, lockflags, &contested, &waitstart);
+			error = acquire(&lkp, extflags, lockflags, wmesg,
+			    prio, timo, &contested, &waitstart);
 			if (error)
 				break;
 			sharelock(td, lkp, 1);
@@ -336,7 +346,8 @@ _lockmgr(struct lock *lkp, u_int flags, struct mtx *interlkp, char *file,
 			 * drop to zero, then take exclusive lock.
 			 */
 			lkp->lk_flags |= LK_WANT_UPGRADE;
-			error = acquire(&lkp, extflags, LK_SHARE_NONZERO, &contested, &waitstart);
+			error = acquire(&lkp, extflags, LK_SHARE_NONZERO, wmesg,
+			    prio, timo, &contested, &waitstart);
 			lkp->lk_flags &= ~LK_WANT_UPGRADE;
 
 			if (error) {
@@ -399,14 +410,17 @@ _lockmgr(struct lock *lkp, u_int flags, struct mtx *interlkp, char *file,
 		/*
 		 * Try to acquire the want_exclusive flag.
 		 */
-		error = acquire(&lkp, extflags, (LK_HAVE_EXCL | LK_WANT_EXCL), &contested, &waitstart);
+		error = acquire(&lkp, extflags, (LK_HAVE_EXCL | LK_WANT_EXCL),
+		    wmesg, prio, timo, &contested, &waitstart);
 		if (error)
 			break;
 		lkp->lk_flags |= LK_WANT_EXCL;
 		/*
 		 * Wait for shared locks and upgrades to finish.
 		 */
-		error = acquire(&lkp, extflags, LK_HAVE_EXCL | LK_WANT_UPGRADE | LK_SHARE_NONZERO, &contested, &waitstart);
+		error = acquire(&lkp, extflags, LK_HAVE_EXCL | LK_WANT_UPGRADE |
+		    LK_SHARE_NONZERO, wmesg, prio, timo,
+		    &contested, &waitstart);
 		lkp->lk_flags &= ~LK_WANT_EXCL;
 		if (error) {
 			if (lkp->lk_flags & LK_WAIT_NONZERO)		
@@ -462,7 +476,7 @@ _lockmgr(struct lock *lkp, u_int flags, struct mtx *interlkp, char *file,
 		if (lkp->lk_lockholder == td)
 			panic("lockmgr: draining against myself");
 
-		error = acquiredrain(lkp, extflags);
+		error = acquiredrain(lkp, extflags, wmesg, prio, timo);
 		if (error)
 			break;
 		lkp->lk_flags |= LK_DRAINING | LK_HAVE_EXCL;
@@ -493,17 +507,23 @@ _lockmgr(struct lock *lkp, u_int flags, struct mtx *interlkp, char *file,
 }
 
 static int
-acquiredrain(struct lock *lkp, int extflags) {
-	int error;
+acquiredrain(struct lock *lkp, int extflags, const char *wmesg, int prio,
+    int timo)
+{
+	const char *iwmesg;
+	int error, iprio, itimo;
+
+	iwmesg = (wmesg != LK_WMESG_DEFAULT) ? wmesg : lkp->lk_wmesg;
+	iprio = (prio != LK_PRIO_DEFAULT) ? prio : lkp->lk_prio;
+	itimo = (timo != LK_TIMO_DEFAULT) ? timo : lkp->lk_timo;
 
 	if ((extflags & LK_NOWAIT) && (lkp->lk_flags & LK_ALL)) {
 		return EBUSY;
 	}
 	while (lkp->lk_flags & LK_ALL) {
 		lkp->lk_flags |= LK_WAITDRAIN;
-		error = msleep(&lkp->lk_flags, lkp->lk_interlock, lkp->lk_prio,
-			lkp->lk_wmesg, 
-			((extflags & LK_TIMELOCK) ? lkp->lk_timo : 0));
+		error = msleep(&lkp->lk_flags, lkp->lk_interlock, iprio, iwmesg,
+			((extflags & LK_TIMELOCK) ? itimo : 0));
 		if (error)
 			return error;
 		if (extflags & LK_SLEEPFAIL) {

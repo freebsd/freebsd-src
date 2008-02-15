@@ -266,42 +266,16 @@ extern const char *buf_wmesg;		/* Default buffer lock message */
  *
  * Get a lock sleeping non-interruptably until it becomes available.
  */
-static __inline int BUF_LOCK(struct buf *, int, struct mtx *);
-static __inline int
-BUF_LOCK(struct buf *bp, int locktype, struct mtx *interlock)
-{
-	int s, ret;
+#define	BUF_LOCK(bp, locktype, interlock)				\
+	(lockmgr(&(bp)->b_lock, (locktype), (interlock)))
 
-	s = splbio();
-	mtx_lock(bp->b_lock.lk_interlock);
-	locktype |= LK_INTERNAL;
-	bp->b_lock.lk_wmesg = buf_wmesg;
-	bp->b_lock.lk_prio = PRIBIO + 4;
-	ret = lockmgr(&(bp)->b_lock, locktype, interlock);
-	splx(s);
-	return ret;
-}
 /*
  * Get a lock sleeping with specified interruptably and timeout.
  */
-static __inline int BUF_TIMELOCK(struct buf *, int, struct mtx *,
-    char *, int, int);
-static __inline int
-BUF_TIMELOCK(struct buf *bp, int locktype, struct mtx *interlock,
-    char *wmesg, int catch, int timo)
-{
-	int s, ret;
+#define	BUF_TIMELOCK(bp, locktype, interlock, wmesg, catch, timo)	\
+	(lockmgr_args(&(bp)->b_lock, (locktype) | LK_TIMELOCK,		\
+	    (interlock), (wmesg), (PRIBIO + 4) | (catch), (timo)))
 
-	s = splbio();
-	mtx_lock(bp->b_lock.lk_interlock);
-	locktype |= LK_INTERNAL | LK_TIMELOCK;
-	bp->b_lock.lk_wmesg = wmesg;
-	bp->b_lock.lk_prio = (PRIBIO + 4) | catch;
-	bp->b_lock.lk_timo = timo;
-	ret = lockmgr(&(bp)->b_lock, (locktype), interlock);
-	splx(s);
-	return ret;
-}
 /*
  * Release a lock. Only the acquiring process may free the lock unless
  * it has been handed off to biodone.
