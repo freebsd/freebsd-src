@@ -128,6 +128,7 @@ murray [label="Murray Stokely\nmurray@FreeBSD.org\n2000/04/05"]
 netchild [label="Alexander Leidinger\nnetchild@FreeBSD.org\n2005/03/31"]
 njl [label="Nate Lawson\nnjl@FreeBSD.org\n2002/08/07"]
 obrien [label="David E. O'Brien\nobrien@FreeBSD.org\n1996/10/29"]
+olli [label="Oliver Fromme\nolli@FreeBSD.org\n2008/02/14"]
 onoe [label="Atsushi Onoe\nonoe@FreeBSD.org\n2000/07/21"]
 peadar [label="Peter Edwards\npeadar@FreeBSD.org\n2004/03/08"]
 peter [label="Peter Wemm\npeter@FreeBSD.org\n????/??/??"]
@@ -215,6 +216,7 @@ delphij -> rafan
 des -> anholt
 des -> hmp
 des -> mike
+des -> olli
 des -> ru
 
 dwmalone -> fanf
