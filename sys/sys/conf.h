@@ -299,6 +299,7 @@ struct dumperinfo {
 	dumper_t *dumper;	/* Dumping function. */
 	void    *priv;		/* Private parts. */
 	u_int   blocksize;	/* Size of block in bytes. */
+	u_int	maxiosize;	/* Max size allowed for an individual I/O */
 	off_t   mediaoffset;	/* Initial offset in bytes. */
 	off_t   mediasize;	/* Space available in bytes. */
 };
