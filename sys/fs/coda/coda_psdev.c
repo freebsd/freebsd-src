@@ -124,7 +124,7 @@ vc_open(struct cdev *dev, int flag, int mode, struct thread *td)
 		return (EBUSY);
 	bzero(&(vcp->vc_selproc), sizeof (struct selinfo));
 	INIT_QUEUE(vcp->vc_requests);
-	INIT_QUEUE(vcp->vc_replys);
+	INIT_QUEUE(vcp->vc_replies);
 	MARK_VC_OPEN(vcp);
 	mnt->mi_vfsp = NULL;
 	mnt->mi_rootvp = NULL;
@@ -187,8 +187,8 @@ vc_close(struct cdev *dev, int flag, int mode, struct thread *td)
 		outstanding_upcalls++;
 		wakeup(&vmp->vm_sleep);
 	}
-	for (vmp = (struct vmsg *)GETNEXT(vcp->vc_replys);
-	    !EOQ(vmp, vcp->vc_replys);
+	for (vmp = (struct vmsg *)GETNEXT(vcp->vc_replies);
+	    !EOQ(vmp, vcp->vc_replies);
 	    vmp = (struct vmsg *)GETNEXT(vmp->vm_chain)) {
 		outstanding_upcalls++;
 		wakeup(&vmp->vm_sleep);
@@ -254,7 +254,7 @@ vc_read(struct cdev *dev, struct uio *uiop, int flag)
 		return (error);
 	}
 	vmp->vm_flags |= VM_READ;
-	INSQUE(vmp->vm_chain, vcp->vc_replys);
+	INSQUE(vmp->vm_chain, vcp->vc_replies);
 	return (error);
 }
 
@@ -305,13 +305,13 @@ vc_write(struct cdev *dev, struct uio *uiop, int flag)
 	/*
 	 * Look for the message on the (waiting for) reply queue.
 	 */
-	for (vmp = (struct vmsg *)GETNEXT(vcp->vc_replys);
-	    !EOQ(vmp, vcp->vc_replys);
+	for (vmp = (struct vmsg *)GETNEXT(vcp->vc_replies);
+	    !EOQ(vmp, vcp->vc_replies);
 	    vmp = (struct vmsg *)GETNEXT(vmp->vm_chain)) {
 		if (vmp->vm_unique == seq)
 			break;
 	}
-	if (EOQ(vmp, vcp->vc_replys)) {
+	if (EOQ(vmp, vcp->vc_replies)) {
 		if (codadebug)
 			myprintf(("vcwrite: msg (%ld, %ld) not found\n",
 			    opcode, seq));
