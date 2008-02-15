@@ -10,9 +10,8 @@
  * ====================================================
  */
 
-#ifndef lint
-static char rcsid[] = "$FreeBSD$";
-#endif
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * floor(x)
@@ -22,6 +21,8 @@ static char rcsid[] = "$FreeBSD$";
  * Exception:
  *	Inexact flag raised if x not equal to floor(x).
  */
+
+#include <float.h>
 
 #include "math.h"
 #include "math_private.h"
