@@ -177,6 +177,7 @@ cb_dumpdata(struct md_pa *mdp, int seqnr, void *arg)
 	uint64_t pgs;
 	size_t counter, sz, chunk;
 	int i, c, error, twiddle;
+	u_int maxdumppgs;
 
 	error = 0;	/* catch case in which chunk size is 0 */
 	counter = 0;	/* Update twiddle every 16MB */
@@ -184,13 +185,16 @@ cb_dumpdata(struct md_pa *mdp, int seqnr, void *arg)
 	va = 0;
 	pgs = mdp->md_size / PAGE_SIZE;
 	pa = mdp->md_start;
+	maxdumppgs = di->maxiosize / PAGE_SIZE;
+	if (maxdumppgs == 0)	/* seatbelt */
+		maxdumppgs = 1;
 
 	printf("  chunk %d: %ldMB (%ld pages)", seqnr, PG2MB(pgs), pgs);
 
 	while (pgs) {
 		chunk = pgs;
-		if (chunk > MAXDUMPPGS)
-			chunk = MAXDUMPPGS;
+		if (chunk > maxdumppgs)
+			chunk = maxdumppgs;
 		sz = chunk << PAGE_SHIFT;
 		counter += sz;
 		if (counter >> 24) {

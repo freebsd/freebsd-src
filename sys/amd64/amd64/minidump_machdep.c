@@ -122,7 +122,11 @@ blk_write(struct dumperinfo *di, char *ptr, vm_paddr_t pa, size_t sz)
 {
 	size_t len;
 	int error, i, c;
+	u_int maxdumpsz;
 
+	maxdumpsz = di->maxiosize;
+	if (maxdumpsz == 0)	/* seatbelt */
+		maxdumpsz = PAGE_SIZE;
 	error = 0;
 	if ((sz % PAGE_SIZE) != 0) {
 		printf("size not page aligned\n");
@@ -143,7 +147,7 @@ blk_write(struct dumperinfo *di, char *ptr, vm_paddr_t pa, size_t sz)
 			return (error);
 	}
 	while (sz) {
-		len = (MAXDUMPPGS * PAGE_SIZE) - fragsz;
+		len = maxdumpsz - fragsz;
 		if (len > sz)
 			len = sz;
 		counter += len;
@@ -165,7 +169,7 @@ blk_write(struct dumperinfo *di, char *ptr, vm_paddr_t pa, size_t sz)
 			fragsz += len;
 			pa += len;
 			sz -= len;
-			if (fragsz == (MAXDUMPPGS * PAGE_SIZE)) {
+			if (fragsz == maxdumpsz) {
 				error = blk_flush(di);
 				if (error)
 					return (error);
