@@ -114,7 +114,11 @@
   <sect2 id="security">
     <title>Security Advisories</title>
 
-    <para></para>
+    <para>An error that could allow &man.sendfile.2; to
+      inappropriately access the contents of a file has been fixed.
+      For more information, see security advisory
+      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-08:03.sendfile.asc">FreeBSD-SA-08:03.sendfile</ulink>.</para>
+
   </sect2>
 
   <sect2 id="kernel">
