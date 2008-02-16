@@ -230,6 +230,24 @@
 	    <entry>29&nbsp;November&nbsp;2007</entry>
 	    <entry><para>&man.gtar.1; directory traversal vulnerability</para></entry>
 	  </row>
+
+	  <row>
+	    <entry><ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-08:01.pty.asc">SA-08:01.pty</ulink></entry>
+	    <entry>14&nbsp;January&nbsp;2008</entry>
+	    <entry><para>pty snooping</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-08:03.sendfile.asc">SA-08:03.sendfile</ulink></entry>
+	    <entry>14&nbsp;February&nbsp;2008</entry>
+	    <entry><para>&man.sendfile.2; write-only file permission bypass</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-08:04.ipsec.asc">SA-08:04.ipsec</ulink></entry>
+	    <entry>14&nbsp;February&nbsp;2008</entry>
+	    <entry><para>IPsec null pointer dereference panic</para></entry>
+	  </row>
 	</tbody>
       </tgroup>
     </informaltable>
