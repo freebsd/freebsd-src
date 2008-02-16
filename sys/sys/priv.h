@@ -448,9 +448,14 @@
 #define	PRIV_DDB_CAPTURE	620	/* Allow reading of DDB capture log. */
 
 /*
+ * Arla/nnpfs privileges.
+ */
+#define	PRIV_NNPFS_DEBUG	630	/* Perforn ARLA_VIOC_NNPFSDEBUG. */
+
+/*
  * Track end of privilege list.
  */
-#define	_PRIV_HIGHEST		621
+#define	_PRIV_HIGHEST		631
 
 /*
  * Validate that a named privilege is known by the privilege system.  Invalid
