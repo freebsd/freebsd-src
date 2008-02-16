@@ -7,9 +7,6 @@
 
 <!-- Text constants which probably don't need to be changed.-->
 
-<!-- The marker for MFCs. -->
-<!ENTITY merged "[MERGED]">
-
 <!ENTITY % include.historic "IGNORE">
 <!ENTITY % no.include.historic "IGNORE">
 ]>
@@ -115,8 +112,6 @@
   <para>This section describes
     the most user-visible new or changed features in &os;
     since &release.prev;.
-    In general, changes described here are unique to the &release.branch;
-    branch unless specifically marked as &merged; features.
   </para>
 
   <para>Typical release note items
@@ -203,7 +198,14 @@
   <sect2 id="contrib">
     <title>Contributed Software</title>
 
-    <para></para>
+    <para><application>AMD</application> has been updated from 6.0.10
+      to 6.1.5.</para>
+
+    <para><application>awk</application> has been updated from 1 May
+      2007 release to the 23 October 2007 release.</para>
+
+    <para><application>OpenPAM</application> has been updated from the
+      Figwort release to the Hydrangea release.</para>
 
   </sect2>
 
