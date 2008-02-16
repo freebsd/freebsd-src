@@ -173,6 +173,8 @@ static int			acpi_tz_override;
 static struct proc		*acpi_tz_proc;
 ACPI_LOCK_DECL(thermal, "ACPI thermal zone");
 
+static int			acpi_tz_cooling_unit = -1;
+
 static int
 acpi_tz_probe(device_t dev)
 {
@@ -206,17 +208,7 @@ acpi_tz_attach(device_t dev)
     sc->tz_cooling_proc_running = FALSE;
     sc->tz_cooling_active = FALSE;
     sc->tz_cooling_updated = FALSE;
-
-    /*
-     * Always attempt to enable passive cooling for tz0.  Users can enable
-     * it for other zones manually for now.
-     *
-     * XXX We need to test if multiple zones conflict with each other
-     * since cpufreq currently sets all CPUs to the given frequency whereas
-     * it's possible for different thermal zones to specify independent
-     * settings for multiple CPUs.
-     */
-    sc->tz_cooling_enabled = (device_get_unit(dev) == 0);
+    sc->tz_cooling_enabled = FALSE;
 
     /*
      * Parse the current state of the thermal zone and build control
@@ -325,16 +317,25 @@ acpi_tz_attach(device_t dev)
 	}
     }
 
-    /* Create a thread to handle passive cooling for each zone if enabled. */
+    /*
+     * Create a thread to handle passive cooling for 1st zone which
+     * has _PSV, _TSP, _TC1 and _TC2.  Users can enable it for other
+     * zones manually for now.
+     *
+     * XXX We enable only one zone to avoid multiple zones conflict
+     * with each other since cpufreq currently sets all CPUs to the
+     * given frequency whereas it's possible for different thermal
+     * zones to specify independent settings for multiple CPUs.
+     */
+    if (acpi_tz_cooling_unit < 0 && acpi_tz_cooling_is_available(sc))
+	sc->tz_cooling_enabled = TRUE;
     if (sc->tz_cooling_enabled) {
-	if (acpi_tz_cooling_is_available(sc)) {
-	    error = acpi_tz_cooling_thread_start(sc);
-	    if (error != 0) {
-		sc->tz_cooling_enabled = FALSE;
-		goto out;
-	    }
-	} else
+	error = acpi_tz_cooling_thread_start(sc);
+	if (error != 0) {
 	    sc->tz_cooling_enabled = FALSE;
+	    goto out;
+	}
+	acpi_tz_cooling_unit = device_get_unit(dev);
     }
 
     /*
