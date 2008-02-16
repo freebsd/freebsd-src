@@ -443,9 +443,14 @@
 #define	PRIV_MODULE15		615
 
 /*
+ * DDB(4) privileges.
+ */
+#define	PRIV_DDB_CAPTURE	620	/* Allow reading of DDB capture log. */
+
+/*
  * Track end of privilege list.
  */
-#define	_PRIV_HIGHEST		616
+#define	_PRIV_HIGHEST		621
 
 /*
  * Validate that a named privilege is known by the privilege system.  Invalid
