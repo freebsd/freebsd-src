@@ -287,7 +287,7 @@ udf_checktag(struct desc_tag *tag, uint16_t id)
 	if (tag->id != id)
 		return (EINVAL);
 
-	for (i = 0; i < 15; i++)
+	for (i = 0; i < 16; i++)
 		cksum = cksum + itag[i];
 	cksum = cksum - itag[4];
 
