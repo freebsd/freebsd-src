@@ -528,7 +528,8 @@ acpi_tz_monitor(void *Context)
     }
 
     /* Handle user override of active mode */
-    if (sc->tz_requested != TZ_ACTIVE_NONE && sc->tz_requested < newactive)
+    if (sc->tz_requested != TZ_ACTIVE_NONE && (newactive == TZ_ACTIVE_NONE
+        || sc->tz_requested < newactive))
 	newactive = sc->tz_requested;
 
     /* update temperature-related flags */
