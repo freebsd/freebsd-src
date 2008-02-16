@@ -277,6 +277,7 @@
 #define	PRIV_VFS_STICKYFILE	341	/* Can set sticky bit on file. */
 #define	PRIV_VFS_SYSFLAGS	342	/* Can modify system flags. */
 #define	PRIV_VFS_UNMOUNT	343	/* Can unmount(). */
+#define	PRIV_VFS_STAT		344	/* Override vnode MAC stat perm. */
 
 /*
  * Virtual memory privileges.
