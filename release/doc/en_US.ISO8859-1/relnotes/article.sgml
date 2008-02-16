@@ -180,13 +180,20 @@
       advisory
       <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-08:01.pty.asc">FreeBSD-SA-08:01.pty</ulink>. &merged;</para>
 
-    <para>A programming error in &man.inet.network.3; Internet
+    <para>A programming error in the &man.inet.network.3; Internet
       address manipulation function that could lead to
       overwriting a region of memory with user defined data
       has been corrected.
       Information regarding this issue can be found in security
       advisory
       <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-08:02.libc.asc">FreeBSD-SA-08:02.libc</ulink>. &merged;</para>
+
+    <para>An error that could allow &man.sendfile.2; to
+      inappropriately access the contents of a file has been fixed.
+      For more information, see security advisory
+      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-08:03.sendfile.asc">FreeBSD-SA-08:03.sendfile</ulink>. &merged;</para>
+    <para>
+
   </sect2>
 
   <sect2 id="kernel">
@@ -899,7 +906,8 @@
 	for consistency.</para>
 
       <para>[&arch.amd64;, &arch.i386;] The &man.hptiop.4; driver has been added.
-	It supports the Highpoint RocketRAID 3xxx series of controllers.</para>
+	It supports the Highpoint RocketRAID 3xxx and 4xxx series of
+	SAS and SATA RAID controllers.</para>
 
       <para>[&arch.amd64;, &arch.i386;] The &man.hptrr.4; driver has
 	been added, to support several HighPoint RocketRAID
@@ -922,6 +930,12 @@
 	64-bit PCI, and large data transfer.  &merged;</para>
 
       <para>The &man.mpt.4; driver is now MPSAFE.</para>
+
+      <para>The rr232x(4) driver, which appeared in some older
+        versions of &os;, is no longer supported, and has been
+        superceded by the &man.hptrr.4; driver.  At the request of
+        Highpoint, the rr232x(4) driver has been
+        removed. &merged;</para>
 
       <para>The &man.twa.4; driver has been updated to the 3.70.03.007
 	release on the 3ware Web site.  It now supports AMCC's 3ware
@@ -1470,7 +1484,7 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
       used in the boot loader has been updated to 3.03.</para>
 
     <para><application>FILE</application> has been updated from 4.12
-      to 4.21.</para>
+      to 4.23.</para>
 
     <para><application>GCC</application> has been updated from 3.4.6
       to 4.2.1.</para>
@@ -1640,6 +1654,11 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
     <para>The default value of <varname>X11BASE</varname> has been changed
       from <filename>/usr/X11R6</filename> to <filename>/usr/local</filename>,
       the default value of <varname>LOCALBASE</varname>.  &merged;</para>
+
+    <para>The ISO images for &os; are now sized for 700MB CDROM media.
+      For most prior versions of &os;, they assumed 650MB CDROM
+      media. &merged;</para>
+
   </sect2>
 
   <sect2 id="doc">
