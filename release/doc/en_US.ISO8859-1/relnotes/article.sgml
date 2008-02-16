@@ -229,6 +229,15 @@
   <sect2 id="contrib">
     <title>Contributed Software</title>
 
+    <para><application>AMD</application> has been updated from 6.0.10
+      to 6.1.5. &merged;</para>
+
+    <para><application>awk</application> has been updated from 1 May
+      2007 release to the 23 October 2007 release.  &merged;</para>
+
+    <para><application>CVS</application> has been updated from 1.11.17
+      to 1.11.22.</para>
+
     <para><application>IPFilter</application> has been updated from
       4.1.23 to 4.1.28.</para>
 
@@ -236,7 +245,10 @@
       v408 to v416.</para>
 
     <para><application>ncurses</application> has been updated from
-      5.6-20061217 to 5.6-20071222.</para>
+      5.6-20061217 to 5.6-20080209.</para>
+
+    <para><application>OpenPAM</application> has been updated from the
+      Figwort release to the Hydrangea release. &merged;</para>
 
     <para><application>sendmail</application> has been updated from
       8.14.1 to 8.14.2.  &merged;</para>
