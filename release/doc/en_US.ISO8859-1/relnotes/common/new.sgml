@@ -201,6 +201,22 @@
       system, has been fixed.  More information about this issue can
       be found in security advisory
       <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-07:10.gtar.asc">FreeBSD-SA-07:10.tar</ulink>.</para>
+
+    <para>Information disclosure issues found in &man.openpty.3; and
+      &man.ptsname.3; have been corrected.
+      Information regarding this issue can be found in security
+      advisory
+      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-08:01.pty.asc">FreeBSD-SA-08:01.pty</ulink>.</para>
+
+    <para>An error that could allow &man.sendfile.2; to
+      inappropriately access the contents of a file has been fixed.
+      For more information, see security advisory
+      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-08:03.sendfile.asc">FreeBSD-SA-08:03.sendfile</ulink>.</para>
+
+    <para>A null pointer dereference panic in IPsec has been
+      corrected.  More information can be found in security advisory
+      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-08:04.ipsec.asc">FreeBSD-SA-08:04.ipsec</ulink>.</para>
+
   </sect2>
 
   <sect2 id="kernel">
@@ -299,7 +315,7 @@
 
     <para>The timezone database has been updated from the
       <application>tzdata2006g</application> release to the
-      <application>tzdata2007h</application> release.</para>
+      <application>tzdata2007k</application> release.</para>
 
   </sect2>
 
