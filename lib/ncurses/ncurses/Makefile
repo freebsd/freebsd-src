@@ -808,7 +808,6 @@ MLINKS=	ncurses.3 curses.3 \
 	curs_terminfo.3 tigetnum.3 \
 	curs_terminfo.3 tigetstr.3 \
 	curs_terminfo.3 tparm.3 \
-	curs_terminfo.3 tputs.3 \
 	curs_terminfo.3 vid_attr.3 \
 	curs_terminfo.3 vid_puts.3 \
 	curs_terminfo.3 vidattr.3 \
