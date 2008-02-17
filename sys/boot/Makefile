@@ -17,6 +17,11 @@ SUBDIR+=		efi
 SUBDIR+=		ofw
 .endif
 
+# Build U-Boot library.
+.if ${MACHINE_ARCH} == "powerpc"
+SUBDIR+=		uboot
+.endif
+
 # Pick the machine-dependent subdir based on the target architecture.
 SUBDIR+=		${MACHINE:S/amd64/i386/:S/sun4v/sparc64/}
 
