@@ -597,9 +597,10 @@ ahd_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->protocol_version = SCSI_REV_2;
 		cpi->transport = XPORT_SPI;
 		cpi->transport_version = 2;
-		cpi->xport_specific.spi.ppr_options = SID_SPI_CLOCK_ST;
 		cpi->transport_version = 4;
-		cpi->xport_specific.spi.ppr_options = SID_SPI_CLOCK_DT_ST;
+		cpi->xport_specific.spi.ppr_options = SID_SPI_CLOCK_DT_ST
+						    | SID_SPI_IUS
+						    | SID_SPI_QAS;
 		cpi->ccb_h.status = CAM_REQ_CMP;
 		xpt_done(ccb);
 		break;
