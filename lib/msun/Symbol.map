@@ -198,4 +198,7 @@ FBSD_1.1 {
 	nearbyintl;
 	rintl;
 	exp2l;
+	sinl;
+	cosl;
+	tanl;
 };
