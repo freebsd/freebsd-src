@@ -167,7 +167,7 @@ SYSCTL_OPAQUE(_vfs_nfs, OID_AUTO, diskless_rootaddr, CTLFLAG_RD,
 
 
 void		nfsargs_ntoh(struct nfs_args *);
-static int	nfs_mountdiskless(char *, int,
+static int	nfs_mountdiskless(char *,
 		    struct sockaddr_in *, struct nfs_args *,
 		    struct thread *, struct vnode **, struct mount *);
 static void	nfs_convert_diskless(void);
@@ -495,7 +495,7 @@ nfs_mountroot(struct mount *mp, struct thread *td)
 		(l >> 24) & 0xff, (l >> 16) & 0xff,
 		(l >>  8) & 0xff, (l >>  0) & 0xff, nd->root_hostnam);
 	printf("NFS ROOT: %s\n", buf);
-	if ((error = nfs_mountdiskless(buf, MNT_RDONLY,
+	if ((error = nfs_mountdiskless(buf,
 	    &nd->root_saddr, &nd->root_args, td, &vp, mp)) != 0) {
 		return (error);
 	}
@@ -518,17 +518,13 @@ nfs_mountroot(struct mount *mp, struct thread *td)
  * Internal version of mount system call for diskless setup.
  */
 static int
-nfs_mountdiskless(char *path, int mountflag,
+nfs_mountdiskless(char *path,
     struct sockaddr_in *sin, struct nfs_args *args, struct thread *td,
     struct vnode **vpp, struct mount *mp)
 {
 	struct sockaddr *nam;
 	int error;
 
-	MNT_ILOCK(mp);
-	mp->mnt_kern_flag = 0;
-	mp->mnt_flag = mountflag;
-	MNT_IUNLOCK(mp);
 	nam = sodupsockaddr((struct sockaddr *)sin, M_WAITOK);
 	if ((error = mountnfs(args, mp, nam, path, vpp,
 	    td->td_ucred)) != 0) {
@@ -736,7 +732,7 @@ nfs_mount(struct mount *mp, struct thread *td)
 		goto out;
 	}
 
-	if (mp->mnt_flag & MNT_ROOTFS) {
+	if ((mp->mnt_flag & (MNT_ROOTFS | MNT_UPDATE)) == MNT_ROOTFS) {
 		error = nfs_mountroot(mp, td);
 		goto out;
 	}
@@ -749,6 +745,7 @@ nfs_mount(struct mount *mp, struct thread *td)
 		error = EPROGMISMATCH;
 		goto out;
 	}
+
 	if (mp->mnt_flag & MNT_UPDATE) {
 		struct nfsmount *nmp = VFSTONFS(mp);
 
@@ -846,7 +843,7 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 
 	if (mp->mnt_flag & MNT_UPDATE) {
 		nmp = VFSTONFS(mp);
-		/* update paths, file handles, etc, here	XXX */
+		printf("%s: MNT_UPDATE is no longer handled here\n", __func__);
 		FREE(nam, M_SONAME);
 		return (0);
 	} else {
