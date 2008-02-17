@@ -118,12 +118,7 @@ exit1(struct thread *td, int rv)
 	struct plimit *plim;
 	int locked;
 
-	/*
-	 * Drop Giant if caller has it.  Eventually we should warn about
-	 * being called with Giant held.
-	 */ 
-	while (mtx_owned(&Giant))
-		mtx_unlock(&Giant);
+	mtx_assert(&Giant, MA_NOTOWNED);
 
 	p = td->td_proc;
 	if (p == initproc) {
