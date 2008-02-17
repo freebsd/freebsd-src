@@ -596,7 +596,6 @@ ahd_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->protocol = PROTO_SCSI;
 		cpi->protocol_version = SCSI_REV_2;
 		cpi->transport = XPORT_SPI;
-		cpi->transport_version = 2;
 		cpi->transport_version = 4;
 		cpi->xport_specific.spi.ppr_options = SID_SPI_CLOCK_DT_ST
 						    | SID_SPI_IUS
