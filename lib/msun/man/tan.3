@@ -28,12 +28,13 @@
 .\"     from: @(#)tan.3	5.1 (Berkeley) 5/2/91
 .\" $FreeBSD$
 .\"
-.Dd May 2, 1991
+.Dd January 24, 2008
 .Dt TAN 3
 .Os
 .Sh NAME
 .Nm tan ,
-.Nm tanf
+.Nm tanf ,
+.Nm tanl
 .Nd tangent functions
 .Sh LIBRARY
 .Lb libm
@@ -43,11 +44,14 @@
 .Fn tan "double x"
 .Ft float
 .Fn tanf "float x"
+.Ft long double
+.Fn tanl "long double x"
 .Sh DESCRIPTION
 The
-.Fn tan
-and the
-.Fn tanf
+.Fn tan ,
+.Fn tanf ,
+and
+.Fn tanl
 functions compute the tangent of
 .Fa x
 (measured in radians).
@@ -57,8 +61,11 @@ For a discussion of error due to roundoff, see
 .Xr math 3 .
 .Sh RETURN VALUES
 The
-.Fn tan
-function returns the tangent value.
+.Fn tan ,
+.Fn tanf ,
+and
+.Fn tanl
+functions return the tangent value.
 .Sh SEE ALSO
 .Xr acos 3 ,
 .Xr asin 3 ,
@@ -71,7 +78,5 @@ function returns the tangent value.
 .Xr sinh 3 ,
 .Xr tanh 3
 .Sh STANDARDS
-The
-.Fn tan
-function conforms to
-.St -isoC .
+These functions conform to
+.St -isoC-99 .
