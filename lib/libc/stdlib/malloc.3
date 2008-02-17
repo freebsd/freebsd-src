@@ -32,7 +32,7 @@
 .\"     @(#)malloc.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd February 5, 2008
+.Dd February 17, 2008
 .Dt MALLOC 3
 .Os
 .Sh NAME
@@ -231,17 +231,6 @@ This is intended for debugging and will impact performance negatively.
 .It K
 Double/halve the virtual memory chunk size.
 The default chunk size is 1 MB.
-.It L
-Double/halve the per-arena number of slots for lazy deallocation.
-Lazy deallocation can decrease lock contention, especially for programs that use
-the producer/consumer model.
-The default is 256 slots per arena (so
-.Ev MALLOC_OPTIONS=9l
-will disable lazy deallocation), but note that due to algorithmic details, the
-cache is typically flushed well before it completely fills.
-This option has no impact unless there are multiple CPUs, and lazy deallocation
-does not activate unless the program uses multiple threads.
-This option is not available for some configurations (non-PIC).
 .It M
 Use
 .Xr mmap 2
