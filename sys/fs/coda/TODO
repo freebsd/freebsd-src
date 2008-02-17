@@ -12,7 +12,4 @@ Medium term:
 	Do performance profile.
 	Tune hash algorithm used in cfs_subr.
 
-Eventually:
-	Use standard queue macros.
-
 $FreeBSD$
