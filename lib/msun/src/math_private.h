@@ -281,17 +281,23 @@ cpackl(long double x, long double y)
 #define	__ieee754_scalbf scalbf
 
 /* fdlibm kernel function */
+int	__kernel_rem_pio2(double*,double*,int,int,int);
+
+/* double precision kernel functions */
 int	__ieee754_rem_pio2(double,double*);
 double	__kernel_sin(double,double,int);
 double	__kernel_cos(double,double);
 double	__kernel_tan(double,double,int);
-int	__kernel_rem_pio2(double*,double*,int,int,int,const int*);
 
-/* float versions of fdlibm kernel functions */
+/* float precision kernel functions */
 int	__ieee754_rem_pio2f(float,float*);
 float	__kernel_sindf(double);
 float	__kernel_cosdf(double);
 float	__kernel_tandf(double,int);
-int	__kernel_rem_pio2f(float*,float*,int,int,int,const int*);
+
+/* long double precision kernel functions */
+long double __kernel_sinl(long double, long double, int);
+long double __kernel_cosl(long double, long double);
+long double __kernel_tanl(long double, long double, int);
 
 #endif /* !_MATH_PRIVATE_H_ */
