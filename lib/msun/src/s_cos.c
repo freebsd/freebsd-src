@@ -45,6 +45,8 @@ static char rcsid[] = "$FreeBSD$";
  *	TRIG(x) returns trig(x) nearly rounded
  */
 
+#include <float.h>
+
 #include "math.h"
 #include "math_private.h"
 
@@ -80,3 +82,7 @@ cos(double x)
 	    }
 	}
 }
+
+#if (LDBL_MANT_DIG == 53)
+__weak_reference(cos, cosl);
+#endif
