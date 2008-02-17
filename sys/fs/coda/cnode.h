@@ -53,11 +53,6 @@
 MALLOC_DECLARE(M_CODA);
 
 /*
- * tmp below since we need struct queue.
- */
-#include <fs/coda/coda_kernel.h>
-
-/*
  * Cnode lookup stuff.
  *
  * NOTE: CODA_CACHESIZE must be a power of 2 for cfshash to work!
@@ -128,15 +123,16 @@ struct cnode {
 #define	IS_UNMOUNTING(cp)	((cp)->c_flags & C_UNMOUNTING)
 
 struct vcomm {
-	u_long		vc_seq;
-	struct selinfo	vc_selproc;
-	struct queue	vc_requests;
-	struct queue	vc_replies;
+	u_long			vc_seq;
+	struct selinfo		vc_selproc;
+	TAILQ_HEAD(, vmsg)	vc_requests;
+	TAILQ_HEAD(, vmsg)	vc_replies;
+	int			vc_open;
 };
 
-#define	VC_OPEN(vcp)		((vcp)->vc_requests.forw != NULL)
-#define	MARK_VC_CLOSED(vcp)	(vcp)->vc_requests.forw = NULL;
-#define	MARK_VC_OPEN(vcp)	/* MT */
+#define	VC_OPEN(vcp)		((vcp)->vc_open == 1)
+#define	MARK_VC_CLOSED(vcp)	(vcp)->vc_open = 0
+#define	MARK_VC_OPEN(vcp)	(vcp)->vc_open = 1
 
 struct coda_clstat {
 	int	ncalls;			/* client requests */

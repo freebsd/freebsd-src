@@ -96,7 +96,7 @@ int coda_pcatch = PCATCH;
 } while (0)
 
 struct vmsg {
-	struct queue	vm_chain;
+	TAILQ_ENTRY(vmsg)	vm_chain;
 	caddr_t		vm_data;
 	u_short		vm_flags;
 	u_short		vm_inSize;	/* Size is at most 5000 bytes */
@@ -123,8 +123,8 @@ vc_open(struct cdev *dev, int flag, int mode, struct thread *td)
 	if (VC_OPEN(vcp))
 		return (EBUSY);
 	bzero(&(vcp->vc_selproc), sizeof (struct selinfo));
-	INIT_QUEUE(vcp->vc_requests);
-	INIT_QUEUE(vcp->vc_replies);
+	TAILQ_INIT(&vcp->vc_requests);
+	TAILQ_INIT(&vcp->vc_replies);
 	MARK_VC_OPEN(vcp);
 	mnt->mi_vfsp = NULL;
 	mnt->mi_rootvp = NULL;
@@ -171,9 +171,7 @@ vc_close(struct cdev *dev, int flag, int mode, struct thread *td)
 	 * Wakeup clients so they can return.
 	 */
 	outstanding_upcalls = 0;
-	for (vmp = (struct vmsg *)GETNEXT(vcp->vc_requests);
-	    !EOQ(vmp, vcp->vc_requests); vmp = nvmp) {
-		nvmp = (struct vmsg *)GETNEXT(vmp->vm_chain);
+	TAILQ_FOREACH_SAFE(vmp, &vcp->vc_requests, vm_chain, nvmp) {
 		/*
 		 * Free signal request messages and don't wakeup cause no one
 		 * is waiting.
@@ -187,9 +185,7 @@ vc_close(struct cdev *dev, int flag, int mode, struct thread *td)
 		outstanding_upcalls++;
 		wakeup(&vmp->vm_sleep);
 	}
-	for (vmp = (struct vmsg *)GETNEXT(vcp->vc_replies);
-	    !EOQ(vmp, vcp->vc_replies);
-	    vmp = (struct vmsg *)GETNEXT(vmp->vm_chain)) {
+	TAILQ_FOREACH(vmp, &vcp->vc_replies, vm_chain) {
 		outstanding_upcalls++;
 		wakeup(&vmp->vm_sleep);
 	}
@@ -226,12 +222,15 @@ vc_read(struct cdev *dev, struct uio *uiop, int flag)
 	/*
 	 * Get message at head of request queue.
 	 */
-	if (EMPTY(vcp->vc_requests))
+	vmp = TAILQ_FIRST(&vcp->vc_requests);
+	if (vmp == NULL)
 		return (0);	/* Nothing to read */
-	vmp = (struct vmsg *)GETNEXT(vcp->vc_requests);
 
 	/*
 	 * Move the input args into userspace.
+	 *
+	 * XXXRW: This is not safe in the presence of >1 reader, as vmp is
+	 * still on the head of the list.
 	 */
 	uiop->uio_rw = UIO_READ;
 	error = uiomove(vmp->vm_data, vmp->vm_inSize, uiop);
@@ -239,7 +238,7 @@ vc_read(struct cdev *dev, struct uio *uiop, int flag)
 		myprintf(("vcread: error (%d) on uiomove\n", error));
 		error = EINVAL;
 	}
-	REMQUE(vmp->vm_chain);
+	TAILQ_REMOVE(&vcp->vc_requests, vmp, vm_chain);
 
 	/*
 	 * If request was a signal, free up the message and don't enqueue it
@@ -254,7 +253,7 @@ vc_read(struct cdev *dev, struct uio *uiop, int flag)
 		return (error);
 	}
 	vmp->vm_flags |= VM_READ;
-	INSQUE(vmp->vm_chain, vcp->vc_replies);
+	TAILQ_INSERT_TAIL(&vcp->vc_replies, vmp, vm_chain);
 	return (error);
 }
 
@@ -305,13 +304,11 @@ vc_write(struct cdev *dev, struct uio *uiop, int flag)
 	/*
 	 * Look for the message on the (waiting for) reply queue.
 	 */
-	for (vmp = (struct vmsg *)GETNEXT(vcp->vc_replies);
-	    !EOQ(vmp, vcp->vc_replies);
-	    vmp = (struct vmsg *)GETNEXT(vmp->vm_chain)) {
+	TAILQ_FOREACH(vmp, &vcp->vc_replies, vm_chain) {
 		if (vmp->vm_unique == seq)
 			break;
 	}
-	if (EOQ(vmp, vcp->vc_replies)) {
+	if (vmp == NULL) {
 		if (codadebug)
 			myprintf(("vcwrite: msg (%ld, %ld) not found\n",
 			    opcode, seq));
@@ -321,7 +318,7 @@ vc_write(struct cdev *dev, struct uio *uiop, int flag)
 	/*
 	 * Remove the message from the reply queue.
 	 */
-	REMQUE(vmp->vm_chain);
+	TAILQ_REMOVE(&vcp->vc_replies, vmp, vm_chain);
 
 	/*
 	 * Move data into response buffer.
@@ -444,7 +441,7 @@ vc_poll(struct cdev *dev, int events, struct thread *td)
 	event_msk = events & (POLLIN|POLLRDNORM);
 	if (!event_msk)
 		return (0);
-	if (!EMPTY(vcp->vc_requests))
+	if (!TAILQ_EMPTY(&vcp->vc_requests))
 		return (events & (POLLIN|POLLRDNORM));
 	selrecord(td, &(vcp->vc_selproc));
 	return (0);
@@ -511,7 +508,7 @@ coda_call(struct coda_mntinfo *mntinfo, int inSize, int *outSize,
 	/*
 	 * Append msg to request queue and poke Venus.
 	 */
-	INSQUE(vmp->vm_chain, vcp->vc_requests);
+	TAILQ_INSERT_TAIL(&vcp->vc_requests, vmp, vm_chain);
 	selwakeuppri(&(vcp->vc_selproc), coda_call_sleep);
 
 	/*
@@ -616,7 +613,7 @@ coda_call(struct coda_mntinfo *mntinfo, int inSize, int *outSize,
 				myprintf(("interrupted before read: op = "
 				    "%d.%d, flags = %x\n", vmp->vm_opcode,
 				    vmp->vm_unique, vmp->vm_flags));
-			REMQUE(vmp->vm_chain);
+			TAILQ_REMOVE(&vcp->vc_requests, vmp, vm_chain);
 			error = EINTR;
 		} else {
 			/*
@@ -637,7 +634,7 @@ coda_call(struct coda_mntinfo *mntinfo, int inSize, int *outSize,
 				myprintf(("Sending Venus a signal: op = "
 				    "%d.%d, flags = %x\n", vmp->vm_opcode,
 				    vmp->vm_unique, vmp->vm_flags));
-			REMQUE(vmp->vm_chain);
+			TAILQ_REMOVE(&vcp->vc_requests, vmp, vm_chain);
 			error = EINTR;
 			CODA_ALLOC(svmp, struct vmsg *, sizeof(struct vmsg));
 			CODA_ALLOC((svmp->vm_data), char *,
@@ -655,8 +652,10 @@ coda_call(struct coda_mntinfo *mntinfo, int inSize, int *outSize,
 
 			/*
 			 * Insert at head of queue!
+			 *
+			 * XXXRW: Actually, the tail.
 			 */
-			INSQUE(svmp->vm_chain, vcp->vc_requests);
+			TAILQ_INSERT_TAIL(&vcp->vc_requests, svmp, vm_chain);
 			selwakeuppri(&(vcp->vc_selproc), coda_call_sleep);
 		}
 	} else {
