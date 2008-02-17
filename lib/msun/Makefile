@@ -68,7 +68,8 @@ COMMON_SRCS= b_exp.c b_log.c b_tgamma.c \
 
 # Location of fpmath.h and _fpmath.h
 LIBCDIR=	${.CURDIR}/../libc
-CFLAGS+=	-I${LIBCDIR}/include -I${LIBCDIR}/${MACHINE_ARCH}
+CFLAGS+=	-I${.CURDIR}/src -I${LIBCDIR}/include \
+	-I${LIBCDIR}/${MACHINE_ARCH}
 SYM_MAPS+=	${.CURDIR}/Symbol.map
 
 VERSION_DEF=	${LIBCDIR}/Versions.def
@@ -78,9 +79,10 @@ SYMBOL_MAPS=	${SYM_MAPS}
 COMMON_SRCS+=	s_copysignl.c s_fabsl.c s_llrintl.c s_lrintl.c s_modfl.c
 .if ${LDBL_PREC} != 53
 # If long double != double use these; otherwise, we alias the double versions.
-COMMON_SRCS+=	s_ceill.c s_exp2l.c s_floorl.c s_fmal.c s_frexpl.c \
-	s_logbl.c s_nanl.c s_nextafterl.c s_nexttoward.c s_rintl.c \
-	s_scalbnl.c s_truncl.c
+COMMON_SRCS+=	k_cosl.c k_sinl.c k_tanl.c s_ceill.c s_cosl.c \
+	s_exp2l.c s_floorl.c s_fmal.c \
+	s_frexpl.c s_logbl.c s_nanl.c s_nextafterl.c s_nexttoward.c \
+	s_rintl.c s_scalbnl.c s_sinl.c s_tanl.c s_truncl.c
 .endif
 
 # C99 complex functions
@@ -123,7 +125,7 @@ MLINKS+=cimag.3 cimagf.3 cimag.3 cimagl.3 \
 	cimag.3 conj.3 cimag.3 conjf.3 cimag.3 conjl.3 \
 	cimag.3 creal.3 cimag.3 crealf.3 cimag.3 creall.3
 MLINKS+=copysign.3 copysignf.3 copysign.3 copysignl.3
-MLINKS+=cos.3 cosf.3
+MLINKS+=cos.3 cosf.3 cos.3 cosl.3
 MLINKS+=cosh.3 coshf.3
 MLINKS+=csqrt.3 csqrtf.3
 MLINKS+=erf.3 erfc.3 erf.3 erff.3 erf.3 erfcf.3
@@ -166,10 +168,10 @@ MLINKS+=rint.3 rintf.3 rint.3 rintl.3 \
 MLINKS+=round.3 roundf.3 round.3 roundl.3
 MLINKS+=scalbn.3 scalbln.3 scalbn.3 scalblnf.3 scalbn.3 scalblnl.3
 MLINKS+=scalbn.3 scalbnf.3 scalbn.3 scalbnl.3
-MLINKS+=sin.3 sinf.3
+MLINKS+=sin.3 sinf.3 sin.3 sinl.3
 MLINKS+=sinh.3 sinhf.3
 MLINKS+=sqrt.3 cbrt.3 sqrt.3 cbrtf.3 sqrt.3 sqrtf.3
-MLINKS+=tan.3 tanf.3
+MLINKS+=tan.3 tanf.3 tan.3 tanl.3
 MLINKS+=tanh.3 tanhf.3
 MLINKS+=trunc.3 truncf.3 trunc.3 truncl.3
 
