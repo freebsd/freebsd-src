@@ -28,12 +28,13 @@
 .\"     from: @(#)cos.3	5.1 (Berkeley) 5/2/91
 .\" $FreeBSD$
 .\"
-.Dd May 2, 1991
+.Dd January 24, 2008
 .Dt COS 3
 .Os
 .Sh NAME
 .Nm cos ,
-.Nm cosf
+.Nm cosf ,
+.Nm cosl
 .Nd cosine functions
 .Sh LIBRARY
 .Lb libm
@@ -43,11 +44,14 @@
 .Fn cos "double x"
 .Ft float
 .Fn cosf "float x"
+.Fn long double
+.Ft cosl "long double x"
 .Sh DESCRIPTION
 The
-.Fn cos
-and the
-.Fn cosf
+.Fn cos ,
+.Fn cosf ,
+and
+.Fn cosl
 functions compute the cosine of
 .Fa x
 (measured in radians).
@@ -57,9 +61,10 @@ For a discussion of error due to roundoff, see
 .Xr math 3 .
 .Sh RETURN VALUES
 The
-.Fn cos
-and the
-.Fn cosf
+.Fn cos ,
+.Fn cosf ,
+and
+.Fn cosl
 functions return the cosine value.
 .Sh SEE ALSO
 .Xr acos 3 ,
@@ -73,7 +78,5 @@ functions return the cosine value.
 .Xr tan 3 ,
 .Xr tanh 3
 .Sh STANDARDS
-The
-.Fn cos
-function conforms to
-.St -isoC .
+These functions conform to
+.St -isoC-99 .
