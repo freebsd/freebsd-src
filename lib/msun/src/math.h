@@ -405,7 +405,9 @@ long double	ceill(long double);
 long double	copysignl(long double, long double) __pure2;
 #if 0
 long double	coshl(long double);
+#endif
 long double	cosl(long double);
+#if 0
 long double	erfcl(long double);
 long double	erfl(long double);
 #endif
@@ -463,10 +465,14 @@ long double	scalblnl(long double, long);
 long double	scalbnl(long double, int);
 #if 0
 long double	sinhl(long double);
+#endif
 long double	sinl(long double);
+#if 0
 long double	sqrtl(long double);
 long double	tanhl(long double);
+#endif
 long double	tanl(long double);
+#if 0
 long double	tgammal(long double);
 #endif
 long double	truncl(long double);
