@@ -28,7 +28,7 @@
 .\"	@(#)getmntopts.3	8.3 (Berkeley) 3/30/95
 .\" $FreeBSD$
 .\"
-.Dd March 30, 1995
+.Dd February 17, 2008
 .Dt GETMNTOPTS 3
 .Os
 .Sh NAME
@@ -163,10 +163,11 @@ struct mntopt mopts[] = {
 .Sh DIAGNOSTICS
 If the external integer variable
 .Va getmnt_silent
-is non-zero then the
+is zero, then the
 .Fn getmntopts
 function displays an error message and exits if an
 unrecognized option is encountered.
+Otherwise unrecognized options are silently ignored.
 By default
 .Va getmnt_silent
 is zero.
