@@ -152,7 +152,7 @@ int
 main(int argc, char *argv[])
 {
 
-	printf("1..2\n");
+	printf("1..3\n");
 
 	run_generic_tests();
 	printf("ok 1 - exponential\n");
