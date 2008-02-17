@@ -6,7 +6,7 @@
 %release;
 
 <!-- The FreeBSD Simplified Chinese Project -->
-<!-- Original Revision: 1.1068.2.20.2.2 -->
+<!-- Original Revision: 1.1068.2.20.2.3 -->
 <!-- Text constants which probably don't need to be changed.-->
 
 <!-- The marker for MFCs. -->
@@ -171,6 +171,12 @@
       地址管理函数中的一处可能导致覆盖用户定义的数据区内存内容的问题。
       要进一步了解详情， 请参阅安全公告
       <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-08:02.libc.asc">FreeBSD-SA-08:02.libc</ulink>. &merged;</para>
+
+    <para>修正了可能导致 &man.sendfile.2; 越权访问文件内容的问题。
+      要进一步了解详情， 请参阅安全公告
+      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-08:03.sendfile.asc">FreeBSD-SA-08:03.sendfile</ulink>. &merged;</para>
+    <para>
+
   </sect2>
 
   <sect2 id="kernel">
@@ -824,7 +830,7 @@
 	改名为 <filename>geom_md.ko</filename>。</para>
 
       <para>[&arch.amd64;, &arch.i386;] 新增了 &man.hptiop.4; 驱动。
-	该驱动支持 Highpoint RocketRAID 3xxx 系列控制器。</para>
+	该驱动支持 Highpoint RocketRAID 3xxx 和 4xxx 系列的 SAS 和 SATA RAID控制器。</para>
 
       <para>[&arch.amd64;, &arch.i386;] 新增了 &man.hptrr.4; 驱动程序，
 	它能够支持多种 HighPoint RocketRAID
@@ -844,6 +850,10 @@
 	64-位 PCI 以及大规模数据传输的支持。 &merged;</para>
 
       <para>&man.mpt.4; 驱动程序是 MPSAFE 的了。</para>
+
+      <para>在较早版本的 &os; 中出现过的 rr232x(4) 驱动程序已不再支持，
+        其功能已经被 &man.hptrr.4; 驱动程序所取代。 根据
+        Highpoint 的要求， 这一版本中删去了 rr232x(4) 驱动程序。 &merged;</para>
 
       <para>&man.twa.4; 驱动更新到了 3ware 网站上公布的 3.70.03.007
 	版本。 这个版本对 AMCC 的 3ware
@@ -1322,7 +1332,7 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
       升级到了 3.03。</para>
 
     <para><application>FILE</application> 由 4.12
-      升级到了 4.21。</para>
+      升级到了 4.23。</para>
 
     <para><application>GCC</application> 由 3.4.6
       升级到了 4.2.1。</para>
@@ -1484,6 +1494,10 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
     <para>默认的 <varname>X11BASE</varname> 变量设置，
       已由 <filename>/usr/X11R6</filename> 改为 <filename>/usr/local</filename>，
       即与 <varname>LOCALBASE</varname> 的默认值相同。 &merged;</para>
+
+    <para>这一版本的 &os; 开始采用 700MB CDROM 介质的 ISO 映像文件。
+      多数较早的 &os; 版本采用的是 650MB 的 CDROM 介质。 &merged;</para>
+
   </sect2>
 
   <sect2 id="doc">
