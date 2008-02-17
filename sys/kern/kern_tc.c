@@ -857,7 +857,7 @@ tc_cpu_ticks(void)
 }
 
 /*
- * This function gets called ever 16 seconds on only one designated
+ * This function gets called every 16 seconds on only one designated
  * CPU in the system from hardclock() via tc_ticktock().
  *
  * Whenever the real time clock is stepped we get called with reset=1
