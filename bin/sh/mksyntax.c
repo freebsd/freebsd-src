@@ -139,10 +139,7 @@ main(int argc __unused, char **argv __unused)
 
 	/* Determine the characteristics of chars. */
 	c = -1;
-	if (c < 0)
-		sign = 1;
-	else
-		sign = 0;
+	sign = (c > 0) ? 0 : 1;
 	for (nbits = 1 ; ; nbits++) {
 		d = (1 << nbits) - 1;
 		if (d == c)
