@@ -316,7 +316,6 @@ ahd_done(struct ahd_softc *ahd, struct scb *scb)
 	} else if ((scb->flags & SCB_PKT_SENSE) != 0) {
 		struct scsi_status_iu_header *siu;
 		u_int sense_len;
-		int i;
 
 		/*
 		 * Copy only the sense data into the provided buffer.
@@ -328,11 +327,18 @@ ahd_done(struct ahd_softc *ahd, struct scb *scb)
 		memcpy(&ccb->csio.sense_data,
 		       ahd_get_sense_buf(ahd, scb) + SIU_SENSE_OFFSET(siu),
 		       sense_len);
-		printf("Copied %d bytes of sense data offset %d:", sense_len,
-		       SIU_SENSE_OFFSET(siu));
-		for (i = 0; i < sense_len; i++)
-			printf(" 0x%x", ((uint8_t *)&ccb->csio.sense_data)[i]);
-		printf("\n");
+#ifdef AHD_DEBUG
+		if ((ahd_debug & AHD_SHOW_SENSE) != 0) {
+			uint8_t *sense_data = (uint8_t *)&ccb->csio.sense_data;
+			u_int i;
+
+			printf("Copied %d bytes of sense data offset %d:",
+			       sense_len, SIU_SENSE_OFFSET(siu));
+			for (i = 0; i < sense_len; i++)
+				printf(" 0x%x", *sense_data++);
+			printf("\n");
+		}
+#endif
 		scb->io_ctx->ccb_h.status |= CAM_AUTOSNS_VALID;
 	}
 	ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
@@ -596,10 +602,10 @@ ahd_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->protocol = PROTO_SCSI;
 		cpi->protocol_version = SCSI_REV_2;
 		cpi->transport = XPORT_SPI;
-		cpi->transport_version = 2;
-		cpi->xport_specific.spi.ppr_options = SID_SPI_CLOCK_ST;
 		cpi->transport_version = 4;
-		cpi->xport_specific.spi.ppr_options = SID_SPI_CLOCK_DT_ST;
+		cpi->xport_specific.spi.ppr_options = SID_SPI_CLOCK_DT_ST
+						    | SID_SPI_IUS
+						    | SID_SPI_QAS;
 		cpi->ccb_h.status = CAM_REQ_CMP;
 		xpt_done(ccb);
 		break;
