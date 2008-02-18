@@ -327,6 +327,13 @@ bad:
 /*
  * Merge the old mount options with the new ones passed
  * in the MNT_UPDATE case.
+ *
+ * XXX This function will keep a "nofoo" option in the
+ *     new options if there is no matching "foo" option
+ *     to be cancelled in the old options.  This is a bug
+ *     if the option's canonical name is "foo".  E.g., "noro"
+ *     shouldn't end up in the mount point's active options,
+ *     but it can.
  */
 static void
 vfs_mergeopts(struct vfsoptlist *toopts, struct vfsoptlist *opts)
