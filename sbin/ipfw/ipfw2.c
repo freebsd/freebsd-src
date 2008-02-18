@@ -5924,7 +5924,7 @@ show_nat(int ac, char **av) {
 	struct cfg_nat *n;
 	struct cfg_redir *e;
 	int cmd, i, nbytes, do_cfg, do_rule, frule, lrule, nalloc, size;
-	int nat_cnt, r;
+	int nat_cnt, redir_cnt, r;
 	uint8_t *data, *p;
 	char **lav, *endptr;
 
@@ -5971,11 +5971,11 @@ show_nat(int ac, char **av) {
 			}
 			print_nat_config(&data[i]);
 			i += sizeof(struct cfg_nat);
-			e = (struct cfg_redir *)&data[i];
-			if (e->mode == REDIR_ADDR || e->mode == REDIR_PORT ||
-			    e->mode == REDIR_PROTO)
+			for (redir_cnt = 0; redir_cnt < n->redir_cnt; redir_cnt++) {
+				e = (struct cfg_redir *)&data[i];
 				i += sizeof(struct cfg_redir) + e->spool_cnt * 
 				    sizeof(struct cfg_spool);
+			}
 		}
 	} else {
 		for (i = 0; 1; i += LIBALIAS_BUF_SIZE + sizeof(int)) {
