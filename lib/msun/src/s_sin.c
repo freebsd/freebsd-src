@@ -10,9 +10,8 @@
  * ====================================================
  */
 
-#ifndef lint
-static char rcsid[] = "$FreeBSD$";
-#endif
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /* sin(x)
  * Return sine function of x.
@@ -48,7 +47,9 @@ static char rcsid[] = "$FreeBSD$";
 #include <float.h>
 
 #include "math.h"
+#define INLINE_REM_PIO2
 #include "math_private.h"
+#include "e_rem_pio2.c"
 
 double
 sin(double x)
