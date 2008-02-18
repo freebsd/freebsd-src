@@ -516,15 +516,6 @@ main(int argc, char *argv[])
 	/* resolve the mountpoint with realpath(3) */
 	(void)checkpath(name, mntpath);
 
-	/*
-	 * XXX This should go away when this NFS implementation
-	 *     is fully converted to nmount(2) semantics.
-	 */
-	if (mntflags & MNT_RDONLY)
-		build_iovec(&iov, &iovlen, "ro", NULL, 0);
-	else if (mntflags & MNT_UPDATE)
-		build_iovec(&iov, &iovlen, "noro", NULL, 0);
-
 	build_iovec(&iov, &iovlen, "nfs_args", nfsargsp, sizeof(*nfsargsp));
 	build_iovec(&iov, &iovlen, "fstype", fstype, (size_t)-1);
 	build_iovec(&iov, &iovlen, "fspath", mntpath, (size_t)-1);
