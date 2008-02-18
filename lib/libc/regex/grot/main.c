@@ -44,7 +44,7 @@ char *argv[];
 
 	progname = argv[0];
 
-	while ((c = getopt(argc, argv, "c:e:S:E:x")) != EOF)
+	while ((c = getopt(argc, argv, "c:e:S:E:x")) != -1)
 		switch (c) {
 		case 'c':	/* compile options */
 			copts = options('c', optarg);

@@ -133,7 +133,7 @@ main(argc, argv)
 	b.prefix = NULL;
 	b.lorder = 0;
 
-	while ((c = getopt(argc, argv, "bc:di:lp:ru")) != EOF) {
+	while ((c = getopt(argc, argv, "bc:di:lp:ru")) != -1) {
 		switch (c) {
 		case 'b':
 			b.lorder = BIG_ENDIAN;
