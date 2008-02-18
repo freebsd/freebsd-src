@@ -283,7 +283,7 @@ main(int argc, char *argv[])
 	struct iovec *iov;
 	int mntflags, altflags, num;
 	int iovlen;
-	char *name, *p, *spec, *fstype;
+	char *name, *p, *spec, *fstype, *val;
 	char mntpath[MAXPATHLEN], errmsg[255];
 
 	mntflags = 0;
@@ -380,6 +380,13 @@ main(int argc, char *argv[])
 			else if (mountmode == V3)
 				altflags |= ALTF_NFSV3;
 			getmntopts(optarg, mopts, &mntflags, &altflags);
+			p = strchr(optarg, '=');
+			val = NULL;
+			if (p != NULL) {
+				*p = '\0';
+				val = p + 1;
+			}
+			build_iovec(&iov, &iovlen, optarg, val, (size_t)-1);
 			set_flags(&altflags, &nfsargsp->flags, FALSE);
 			/*
 			 * Handle altflags which don't map directly to
