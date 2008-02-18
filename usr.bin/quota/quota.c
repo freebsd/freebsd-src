@@ -350,10 +350,12 @@ showquotas(int type, u_long id, const char *name)
 			} 
 			printf("%15s", nam);
 			if (hflag) {
-				prthumanval(7, dbtob(qup->dqblk.dqb_curblocks));
-				printf("%c", (msgb == (char *)0) ? ' ' : '*');
-				prthumanval(6, dbtob(qup->dqblk.dqb_bsoftlimit));
-				prthumanval(7, dbtob(qup->dqblk.dqb_bhardlimit));
+				printf("   ");
+				prthumanval(4, dbtob(qup->dqblk.dqb_curblocks));
+				printf("%c  ", (msgb == (char *)0) ? ' ' : '*');
+				prthumanval(4, dbtob(qup->dqblk.dqb_bsoftlimit));
+				printf("   ");
+				prthumanval(4, dbtob(qup->dqblk.dqb_bhardlimit));
 			} else {
 				printf(" %7ju%c %6ju %7ju",
 				    (uintmax_t)(dbtob(qup->dqblk.dqb_curblocks)
