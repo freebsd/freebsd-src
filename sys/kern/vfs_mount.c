@@ -1730,11 +1730,10 @@ vfs_mountroot_try(const char *mountfrom)
 		strcpy(path, ROOTNAME);
 
 	error = kernel_vmount(
-	    MNT_ROOTFS,
+	    MNT_RDONLY | MNT_ROOTFS,
 	    "fstype", vfsname,
 	    "fspath", "/",
 	    "from", path,
-	    "ro", NULL,
 	    NULL);
 	if (error == 0) {
 		/*
