@@ -201,4 +201,5 @@ FBSD_1.1 {
 	sinl;
 	cosl;
 	tanl;
+	tgammaf;
 };

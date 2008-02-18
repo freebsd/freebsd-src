@@ -331,6 +331,7 @@ float	erff(float);
 float	erfcf(float);
 float	hypotf(float, float);
 float	lgammaf(float);
+float	tgammaf(float);
 
 float	acoshf(float);
 float	asinhf(float);

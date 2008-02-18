@@ -40,7 +40,8 @@
 .Nm gamma_r ,
 .Nm gammaf ,
 .Nm gammaf_r ,
-.Nm tgamma
+.Nm tgamma ,
+.Nm tgammaf
 .Nd log gamma functions, gamma function
 .Sh LIBRARY
 .Lb libm
@@ -67,6 +68,8 @@
 .Fn gammaf_r "float x" "int *signgamp"
 .Ft double
 .Fn tgamma "double x"
+.Ft float
+.Fn tgammaf "float x"
 .Sh DESCRIPTION
 .Fn lgamma x
 and
@@ -80,7 +83,6 @@ return ln\||\(*G(x)| where
 .\}
 .if n \
 return ln\||\(*G(x)|.
-.Pp
 The external integer
 .Fa signgam
 returns the sign of \(*G(x).
@@ -94,6 +96,13 @@ and
 .Fn lgammaf x
 but the caller must provide an integer to store the sign of \(*G(x).
 .Pp
+The
+.Fn tgamma x
+and
+.Fn tgammaf x
+functions return \(*G(x), with no effect on
+.Fa signgam .
+.Pp
 .Fn gamma ,
 .Fn gammaf ,
 .Fn gamma_r ,
@@ -106,9 +115,6 @@ are deprecated aliases for
 and
 .Fn lgammaf_r ,
 respectively.
-.Fn tgamma x
-returns \(*G(x), with no effect on
-.Fa signgam .
 .Sh IDIOSYNCRASIES
 Do not use the expression
 .Dq Li signgam\(**exp(lgamma(x))
@@ -151,9 +157,11 @@ will underflow.
 .Xr math 3
 .Sh STANDARDS
 The
-.Fn lgamma
+.Fn lgamma ,
+.Fn lgammaf ,
+.Fn tgamma ,
 and
-.Fn tgamma
+.Fn tgammaf
 functions are expected to conform to
 .St -isoC-99 .
 .Sh HISTORY

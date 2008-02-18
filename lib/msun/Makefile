@@ -63,7 +63,7 @@ COMMON_SRCS= b_exp.c b_log.c b_tgamma.c \
 	s_rint.c s_rintf.c s_round.c s_roundf.c s_roundl.c \
 	s_scalbln.c s_scalbn.c s_scalbnf.c s_signbit.c \
 	s_signgam.c s_significand.c s_significandf.c s_sin.c s_sinf.c \
-	s_tan.c s_tanf.c s_tanh.c s_tanhf.c s_trunc.c s_truncf.c \
+	s_tan.c s_tanf.c s_tanh.c s_tanhf.c s_tgammaf.c s_trunc.c s_truncf.c \
 	w_cabs.c w_cabsf.c w_drem.c w_dremf.c
 
 # Location of fpmath.h and _fpmath.h
@@ -151,7 +151,8 @@ MLINKS+=ilogb.3 ilogbf.3 ilogb.3 ilogbl.3 \
 	ilogb.3 logb.3 ilogb.3 logbf.3 ilogb.3 logbl.3
 MLINKS+=j0.3 j1.3 j0.3 jn.3 j0.3 y0.3 j0.3 y1.3 j0.3 y1f.3 j0.3 yn.3
 MLINKS+=j0.3 j0f.3 j0.3 j1f.3 j0.3 jnf.3 j0.3 y0f.3 j0.3 ynf.3
-MLINKS+=lgamma.3 gamma.3 lgamma.3 gammaf.3 lgamma.3 lgammaf.3 lgamma.3 tgamma.3
+MLINKS+=lgamma.3 gamma.3 lgamma.3 gammaf.3 lgamma.3 lgammaf.3 \
+	lgamma.3 tgamma.3 lgamma.3 tgammaf.3
 MLINKS+=log.3 log10.3 log.3 log10f.3 log.3 log1p.3 log.3 log1pf.3 log.3 logf.3
 MLINKS+=lrint.3 llrint.3 lrint.3 llrintf.3 lrint.3 llrintl.3 \
 	lrint.3 lrintf.3 lrint.3 lrintl.3
