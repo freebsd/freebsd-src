@@ -387,7 +387,7 @@ main(int argc, char * argv[])
 	if (geteuid() != 0)
 		errx(1, "must be root to run");
 
-	while ((ch = getopt(argc, argv, "a:b:i:n:p:P:r:v")) != EOF)
+	while ((ch = getopt(argc, argv, "a:b:i:n:p:P:r:v")) != -1)
 		switch (ch) {
 		case 'a':
 			parse_mode(optarg, &mode_ac, ch);
