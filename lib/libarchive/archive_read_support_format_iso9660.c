@@ -1064,24 +1064,28 @@ time_from_tm(struct tm *t)
 	if (t->tm_isdst)
 		t->tm_hour -= 1;
 	return (mktime(t)); /* Re-convert. */
-#else
-	/*
-	 * If you don't have tm_gmtoff, let's try resetting the timezone
-	 * (yecch!).
-	 */
+#elif defined(HAVE_SETENV) && defined(HAVE_UNSETENV) && defined(HAVE_TZSET)
+	/* No timegm() and no tm_gmtoff, let's try forcing mktime() to UTC. */
 	time_t ret;
 	char *tz;
 
+	/* Reset the timezone, remember the old one. */
 	tz = getenv("TZ");
 	setenv("TZ", "UTC 0", 1);
 	tzset();
+
 	ret = mktime(t);
+
+	/* Restore the previous timezone. */
 	if (tz)
 	    setenv("TZ", tz, 1);
 	else
 	    unsetenv("TZ");
 	tzset();
 	return ret;
+#else
+	/* <sigh> We have no choice but to use localtime instead of UTC. */
+	return (mktime(t));
 #endif
 }
 
