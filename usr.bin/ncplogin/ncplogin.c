@@ -110,7 +110,7 @@ logout(int argc, char *argv[], struct ncp_conn_loginfo *li) {
 	int error = 0, connid, opt;
 
 	connid = -1;
-	while ((opt = getopt(argc, argv, STDPARAM_OPT"c:")) != EOF){
+	while ((opt = getopt(argc, argv, STDPARAM_OPT"c:")) != -1){
 		switch (opt) {
 		    case 'c':
 			connid = atoi(optarg);

@@ -324,7 +324,7 @@ man_getopt (argc, argv)
   extern void downcase ();
   extern char *manpath ();
 
-  while ((c = getopt (argc, argv, args)) != EOF)
+  while ((c = getopt (argc, argv, args)) != -1)
     {
       switch (c)
 	{
