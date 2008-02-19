@@ -11,9 +11,8 @@
  * ====================================================
  */
 
-#ifndef lint
-static char rcsid[] = "$FreeBSD$";
-#endif
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * __kernel_cos( x,  y )
@@ -72,7 +71,8 @@ __kernel_cos(double x, double y)
 	double hz,z,r,w;
 
 	z  = x*x;
-	r  = z*(C1+z*(C2+z*(C3+z*(C4+z*(C5+z*C6)))));
+	w  = z*z;
+	r  = z*(C1+z*(C2+z*C3)) + w*w*(C4+z*(C5+z*C6));
 	hz = 0.5*z;
 	w  = one-hz;
 	return w + (((one-w)-hz) + (z*r-x*y));

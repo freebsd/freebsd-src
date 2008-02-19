@@ -11,9 +11,8 @@
  * ====================================================
  */
 
-#ifndef lint
-static char rcsid[] = "$FreeBSD$";
-#endif
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /* __kernel_sin( x, y, iy)
  * kernel sin function on ~[-pi/4, pi/4] (except on -0), pi/4 ~ 0.7854
@@ -60,11 +59,12 @@ S6  =  1.58969099521155010221e-10; /* 0x3DE5D93A, 0x5ACFD57C */
 double
 __kernel_sin(double x, double y, int iy)
 {
-	double z,r,v;
+	double z,r,v,w;
 
 	z	=  x*x;
+	w	=  z*z;
+	r	=  S2+z*(S3+z*S4) + z*w*(S5+z*S6);
 	v	=  z*x;
-	r	=  S2+z*(S3+z*(S4+z*(S5+z*S6)));
 	if(iy==0) return x+v*(S1+z*r);
 	else      return x-((z*(half*y-v*r)-y)-v*S1);
 }
