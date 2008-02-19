@@ -78,7 +78,7 @@ main(argc, argv)
 
   prognam = mkprogname (argv[0]);
 
-  while ((c = getopt (argc, argv, "dhLq?")) != EOF)
+  while ((c = getopt (argc, argv, "dhLq?")) != -1)
     {
       switch (c)
 	{

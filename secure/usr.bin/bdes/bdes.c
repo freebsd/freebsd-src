@@ -179,7 +179,7 @@ main(int argc, char *argv[])
 
 	/* process the argument list */
 	kflag = 0;
-	while ((i = getopt(argc, argv, "abdF:f:k:m:o:pv:")) != EOF)
+	while ((i = getopt(argc, argv, "abdF:f:k:m:o:pv:")) != -1)
 		switch(i) {
 		case 'a':		/* key is ASCII */
 			keybase = KEY_ASCII;
