@@ -68,34 +68,72 @@ __ieee754_rem_pio2(double x, double *y)
 
 	GET_HIGH_WORD(hx,x);		/* high word of x */
 	ix = hx&0x7fffffff;
+#if 0 /* Must be handled in caller. */
 	if(ix<=0x3fe921fb)   /* |x| ~<= pi/4 , no need for reduction */
 	    {y[0] = x; y[1] = 0; return 0;}
-	if(ix<0x4002d97c) {  /* |x| < 3pi/4, special case with n=+-1 */
-	    if(hx>0) { 
-		z = x - pio2_1;
-		if(ix!=0x3ff921fb) { 	/* 33+53 bit pi is good enough */
+#endif
+	if (ix <= 0x400f6a7a) {		/* |x| ~<= 5pi/4 */
+	    if ((ix & 0xfffff) == 0x921fb)  /* |x| ~= pi/2 or 2pi/2 */
+		goto medium;		/* cancellation -- use medium case */
+	    if (ix <= 0x4002d97c) {	/* |x| ~<= 3pi/4 */
+		if (hx > 0) {
+		    z = x - pio2_1;	/* one round good to 85 bits */
 		    y[0] = z - pio2_1t;
 		    y[1] = (z-y[0])-pio2_1t;
-		} else {		/* near pi/2, use 33+33+53 bit pi */
-		    z -= pio2_2;
-		    y[0] = z - pio2_2t;
-		    y[1] = (z-y[0])-pio2_2t;
-		}
-		return 1;
-	    } else {	/* negative x */
-		z = x + pio2_1;
-		if(ix!=0x3ff921fb) { 	/* 33+53 bit pi is good enough */
+		    return 1;
+		} else {
+		    z = x + pio2_1;
 		    y[0] = z + pio2_1t;
 		    y[1] = (z-y[0])+pio2_1t;
-		} else {		/* near pi/2, use 33+33+53 bit pi */
-		    z += pio2_2;
-		    y[0] = z + pio2_2t;
-		    y[1] = (z-y[0])+pio2_2t;
+		    return -1;
 		}
-		return -1;
+	    } else {
+		if (hx > 0) {
+		    z = x - 2*pio2_1;
+		    y[0] = z - 2*pio2_1t;
+		    y[1] = (z-y[0])-2*pio2_1t;
+		    return 2;
+		} else {
+		    z = x + 2*pio2_1;
+		    y[0] = z + 2*pio2_1t;
+		    y[1] = (z-y[0])+2*pio2_1t;
+		    return -2;
+		}
+	    }
+	}
+	if (ix <= 0x401c463b) {		/* |x| ~<= 9pi/4 */
+	    if (ix <= 0x4015fdbc) {	/* |x| ~<= 7pi/4 */
+		if (ix == 0x4012d97c)	/* |x| ~= 3pi/2 */
+		    goto medium;
+		if (hx > 0) {
+		    z = x - 3*pio2_1;
+		    y[0] = z - 3*pio2_1t;
+		    y[1] = (z-y[0])-3*pio2_1t;
+		    return 3;
+		} else {
+		    z = x + 3*pio2_1;
+		    y[0] = z + 3*pio2_1t;
+		    y[1] = (z-y[0])+3*pio2_1t;
+		    return -3;
+		}
+	    } else {
+		if (ix == 0x401921fb)	/* |x| ~= 4pi/2 */
+		    goto medium;
+		if (hx > 0) {
+		    z = x - 4*pio2_1;
+		    y[0] = z - 4*pio2_1t;
+		    y[1] = (z-y[0])-4*pio2_1t;
+		    return 4;
+		} else {
+		    z = x + 4*pio2_1;
+		    y[0] = z + 4*pio2_1t;
+		    y[1] = (z-y[0])+4*pio2_1t;
+		    return -4;
+		}
 	    }
 	}
 	if(ix<=0x413921fb) { /* |x| ~<= 2^19*(pi/2), medium size */
+medium:
 	    t  = fabs(x);
 	    n  = (int32_t) (t*invpio2+half);
 	    fn = (double)n;
