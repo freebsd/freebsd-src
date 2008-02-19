@@ -270,7 +270,7 @@ char	**argv;
 {
 	int	ch;
 
-	while ((ch = getopt(argc, argv, "Cc:iorsx")) != EOF)
+	while ((ch = getopt(argc, argv, "Cc:iorsx")) != -1)
 		switch(ch) {
 		case 'C':			/* embedded comments */
 			Cflag++;
