@@ -190,7 +190,7 @@ int main (int argc, char **argv)
 
 	for (;;) {
 		switch (getopt (argc, argv, "svhf:")) {
-		case EOF:
+		case -1:
 			break;
 		case 's':
 			verbose = 0;

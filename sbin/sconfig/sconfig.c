@@ -1037,7 +1037,7 @@ main (int argc, char **argv)
 
 	for (;;) {
 		switch (getopt (argc, argv, "mseftucviax")) {
-		case EOF:
+		case -1:
 			break;
 		case 'a':
 			++aflag;
