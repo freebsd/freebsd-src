@@ -31,8 +31,9 @@
  * The goal of this file (and the matching test.c) is to
  * simplify the very repetitive test-*.c test programs.
  */
-
+#ifndef _FILE_OFFSET_BITS
 #define _FILE_OFFSET_BITS 64
+#endif
 
 #include <errno.h>
 #include <fcntl.h>
@@ -40,7 +41,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#ifndef _WIN32
 #include <unistd.h>
+#endif
 #include <wchar.h>
 
 #ifdef USE_DMALLOC
@@ -112,7 +115,7 @@
 void failure(const char *fmt, ...);
 void test_setup(const char *, int);
 void test_skipping(const char *fmt, ...);
-void test_assert(const char *, int, int, const char *, void *);
+int test_assert(const char *, int, int, const char *, void *);
 void test_assert_empty_file(const char *, ...);
 void test_assert_equal_file(const char *, const char *, ...);
 void test_assert_equal_int(const char *, int, int, const char *, int, const char *, void *);
