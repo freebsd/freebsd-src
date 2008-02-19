@@ -34,11 +34,8 @@
  */
 #define PROGRAM "LIBARCHIVE"
 
-/*
- * Various utility routines useful for test programs.
- * Each test program is linked against this file.
- */
 #include <errno.h>
+#include <locale.h>
 #include <stdarg.h>
 #include <time.h>
 
@@ -226,20 +223,21 @@ failure(const char *fmt, ...)
 }
 
 /* Generic assert() just displays the failed condition. */
-void
+int
 test_assert(const char *file, int line, int value, const char *condition, void *extra)
 {
 	++assertions;
 	if (value) {
 		msg[0] = '\0';
-		return;
+		return (value);
 	}
 	failures ++;
 	if (previous_failures(file, line))
-		return;
+		return (value);
 	fprintf(stderr, "%s:%d: Assertion failed\n", file, line);
 	fprintf(stderr, "   Condition: %s\n", condition);
 	report_failure(extra);
+	return (value);
 }
 
 /* assertEqualInt() displays the values of the two integers. */
@@ -553,6 +551,8 @@ static int test_run(int i, const char *tmpdir)
 		    tests[i].name);
 		exit(1);
 	}
+	/* Explicitly reset the locale before each test. */
+	setlocale(LC_ALL, "C");
 	/* Run the actual test. */
 	(*tests[i].func)();
 	/* Summarize the results of this test. */
