@@ -1543,7 +1543,7 @@ test_for_append(struct bsdtar *bsdtar)
 	if (stat(bsdtar->filename, &s) != 0)
 		return;
 
-	if (!S_ISREG(s.st_mode))
+	if (!S_ISREG(s.st_mode) && !S_ISBLK(s.st_mode))
 		bsdtar_errc(bsdtar, 1, 0,
 		    "Cannot append to %s: not a regular file.",
 		    bsdtar->filename);
