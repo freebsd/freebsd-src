@@ -298,5 +298,5 @@ void __os_dbgbreak(const char *file, int line)
     while (1);
 }
 
-int hptrr_dbg_level = 1;
+int hpt_dbg_level = 1;
 #endif
