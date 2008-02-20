@@ -512,9 +512,9 @@ main(int argc, char *argv[])
 	STAILQ_FOREACH_SAFE(fx, &funixes, next, fx1) {
 		(void)unlink(fx->name);
 		memset(&sunx, 0, sizeof(sunx));
-		sunx.sun_family = AF_UNIX;
+		sunx.sun_family = AF_LOCAL;
 		(void)strlcpy(sunx.sun_path, fx->name, sizeof(sunx.sun_path));
-		fx->s = socket(AF_UNIX, SOCK_DGRAM, 0);
+		fx->s = socket(PF_LOCAL, SOCK_DGRAM, 0);
 		if (fx->s < 0 ||
 		    bind(fx->s, (struct sockaddr *)&sunx, SUN_LEN(&sunx)) < 0 ||
 		    chmod(fx->name, fx->mode) < 0) {
@@ -1964,7 +1964,8 @@ cfline(const char *line, struct filed *f, const char *prog, const char *host)
 
 	case '|':
 		f->f_un.f_pipe.f_pid = 0;
-		(void)strlcpy(f->f_un.f_fname, p + 1, sizeof(f->f_un.f_fname));
+		(void)strlcpy(f->f_un.f_pipe.f_pname, p + 1,
+		    sizeof(f->f_un.f_pipe.f_pname));
 		f->f_type = F_PIPE;
 		break;
 
