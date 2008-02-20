@@ -22,6 +22,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20080220:
+	The new geom_lvm(4) geom class has been renamed to geom_linux_lvm(4),
+	likewise the kernel option is now GEOM_LINUX_LVM.
+
 20080211:
 	The default NFS mount mode has changed from UDP to TCP for
 	increased reliability.  If you rely on (insecurely) NFS
