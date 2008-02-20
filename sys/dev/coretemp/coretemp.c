@@ -144,6 +144,15 @@ coretemp_attach(device_t dev)
 	cpu_mask = cpu_id & 15;
 
 	/*
+	 * Some CPUs, namely the PIII, don't have thermal sensors, but
+	 * report them when the CPUID check is performed in
+	 * coretemp_identify(). This leads to a later GPF when the sensor
+	 * is queried via a MSR, so we stop here.
+	 */
+	if (cpu_model < 0xe)
+		return (ENXIO);
+
+	/*
 	 * Check for errata AE18.
 	 * "Processor Digital Thermal Sensor (DTS) Readout stops
 	 *  updating upon returning from C3/C4 state."
