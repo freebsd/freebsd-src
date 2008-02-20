@@ -35,10 +35,6 @@
 #ifndef _OS_BSD_H
 #define _OS_BSD_H
 
-#ifndef DBG
-#define  DBG	0
-#endif
-
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/cons.h>
