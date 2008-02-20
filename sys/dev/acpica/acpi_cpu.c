@@ -590,7 +590,7 @@ acpi_cpu_generic_cx_probe(struct acpi_cpu_softc *sc)
 	return;
 
     /* Validate and allocate resources for C3 (P_LVL3). */
-    if (AcpiGbl_FADT->Plvl3Lat <= 1000) {
+    if (AcpiGbl_FADT->Plvl3Lat <= 1000 && !(cpu_quirks & CPU_QUIRK_NO_C3)) {
 	gas.Address = sc->cpu_p_blk + 5;
 	acpi_bus_alloc_gas(sc->cpu_dev, &cx_ptr->res_type, &sc->cpu_rid, &gas,
 	    &cx_ptr->p_lvlx, RF_SHAREABLE);
