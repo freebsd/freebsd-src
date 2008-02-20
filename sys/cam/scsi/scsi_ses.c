@@ -516,7 +516,7 @@ sesioctl(struct cdev *dev, u_long cmd, caddr_t arg_addr, int flag, struct thread
 		cam_periph_unlock(periph);
 		return (ENXIO);
 	}
-	cam_periph_lock(periph);
+	cam_periph_unlock(periph);
 
 	error = 0;
 
@@ -555,14 +555,14 @@ sesioctl(struct cdev *dev, u_long cmd, caddr_t arg_addr, int flag, struct thread
 			obj.obj_id = i;
 			obj.subencid = ssc->ses_objmap[i].subenclosure;
 			obj.object_type = ssc->ses_objmap[i].enctype;
-			cam_periph_lock(periph);
+			cam_periph_unlock(periph);
 			error = copyout(&obj, uobj, sizeof (ses_object));
 			cam_periph_lock(periph);
 			if (error) {
 				break;
 			}
 		}
-		cam_periph_lock(periph);
+		cam_periph_unlock(periph);
 		break;
 
 	case SESIOC_GETENCSTAT:
