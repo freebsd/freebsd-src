@@ -14,6 +14,8 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20080220: geom_lvm rename to geom_linux_lvm
+OLD_FILES+=usr/share/man/man4/geom_lvm.4.gz
 # 20080126: oldcard.4 removal
 OLD_FILES+=usr/share/man/man4/card.4.gz
 OLD_FILES+=usr/share/man/man4/oldcard.4.gz
