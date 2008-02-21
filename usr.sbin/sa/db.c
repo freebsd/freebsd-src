@@ -67,7 +67,7 @@ db_copy_in(DB **mdb, const char *dbname, const char *uname, BTREEINFO *bti,
 	if (iflag)
 		return (0);
 
-	if ((ddb = dbopen(dbname, O_RDONLY, 0, DB_BTREE, NULL)) == NULL) {
+	if ((ddb = dbopen(dbname, O_RDONLY, 0, DB_BTREE, bti)) == NULL) {
 		if (errno == ENOENT)
 			return (0);
 		warn("retrieving %s summary", uname);
