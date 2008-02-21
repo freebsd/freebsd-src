@@ -68,14 +68,6 @@ SRCS+=	vdev_geom.c
 # Use FreeBSD's namecache.
 CFLAGS+=-DFREEBSD_NAMECACHE
 
-CWARNFLAGS=-Wall
-CWARNFLAGS+=-Wno-unknown-pragmas
-CWARNFLAGS+=-Wno-missing-braces
-CWARNFLAGS+=-Wno-parentheses
-CWARNFLAGS+=-Wno-uninitialized
-CWARNFLAGS+=-Wno-unused
-CWARNFLAGS+=-Wno-switch
-
 CFLAGS+=-I${.CURDIR}/../../compat/opensolaris
 CFLAGS+=-I${.CURDIR}/../../contrib/opensolaris/uts/common/fs/zfs
 CFLAGS+=-I${.CURDIR}/../../contrib/opensolaris/uts/common/zmod
@@ -85,9 +77,21 @@ CFLAGS+=-I${.CURDIR}/../../contrib/opensolaris/common/zfs
 CFLAGS+=-I${.CURDIR}/../../contrib/opensolaris/common
 CFLAGS+=-I${.CURDIR}/../../../include
 
-WARNS?=1
-
 #CFLAGS+=-DDEBUG=1
 #DEBUG_FLAGS=-g
 
 .include <bsd.kmod.mk>
+
+CWARNFLAGS+=-Wno-unknown-pragmas
+CWARNFLAGS+=-Wno-missing-prototypes
+CWARNFLAGS+=-Wno-undef
+CWARNFLAGS+=-Wno-strict-prototypes
+CWARNFLAGS+=-Wno-cast-qual
+CWARNFLAGS+=-Wno-parentheses
+CWARNFLAGS+=-Wno-redundant-decls
+CWARNFLAGS+=-Wno-missing-braces
+CWARNFLAGS+=-Wno-uninitialized
+CWARNFLAGS+=-Wno-unused
+CWARNFLAGS+=-Wno-inline
+CWARNFLAGS+=-Wno-switch
+CWARNFLAGS+=-Wno-pointer-arith
