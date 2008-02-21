@@ -40,6 +40,7 @@ LIBDIALOG?=	${DESTDIR}${LIBDIR}/libdialog.a
 LIBDISK?=	${DESTDIR}${LIBDIR}/libdisk.a
 LIBDNS?=	${DESTDIR}${LIBDIR}/libdns.a
 LIBEDIT?=	${DESTDIR}${LIBDIR}/libedit.a
+LIBELF?=	${DESTDIR}${LIBDIR}/libelf.a
 LIBFETCH?=	${DESTDIR}${LIBDIR}/libfetch.a
 LIBFL?=		"don't use LIBFL, use LIBL"
 LIBFORM?=	${DESTDIR}${LIBDIR}/libform.a
