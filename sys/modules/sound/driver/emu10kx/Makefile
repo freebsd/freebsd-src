@@ -2,7 +2,6 @@
 .PATH: ${.CURDIR}/../../../../dev/sound/pci \
        ${.CURDIR}/../../../../gnu/dev/sound/pci
 
-WARNS?=	2
 KMOD=	snd_emu10kx
 
 SRCS=	device_if.h bus_if.h pci_if.h
