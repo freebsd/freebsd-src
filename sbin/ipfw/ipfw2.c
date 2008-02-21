@@ -5932,6 +5932,8 @@ show_nat(int ac, char **av) {
 	nalloc = 1024;
 	size = 0;
 	data = NULL;
+	frule = 0;
+	lrule = 65535; /* max ipfw rule number */
 	ac--; av++;
 
 	/* Parse parameters. */
@@ -5960,16 +5962,13 @@ show_nat(int ac, char **av) {
 			    (cmd == IP_FW_NAT_GET_LOG) ? "LOG" : "CONFIG");
 	}
 	if (nbytes == 0)
-		exit(0); 
+		exit(0);
 	if (do_cfg) {
 		nat_cnt = *((int *)data);
 		for (i = sizeof(nat_cnt); nat_cnt; nat_cnt--) {
 			n = (struct cfg_nat *)&data[i];
-			if (do_rule) {
-				if (!(frule <= n->id && lrule >= n->id))
-					continue;
-			}
-			print_nat_config(&data[i]);
+			if (frule <= n->id && lrule >= n->id)
+				print_nat_config(&data[i]);
 			i += sizeof(struct cfg_nat);
 			for (redir_cnt = 0; redir_cnt < n->redir_cnt; redir_cnt++) {
 				e = (struct cfg_redir *)&data[i];
