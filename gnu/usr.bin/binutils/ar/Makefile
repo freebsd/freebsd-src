@@ -4,12 +4,7 @@
 
 .PATH: ${SRCDIR}/binutils ${SRCDIR}/binutils/doc
 
-.if defined(WITH_GNUAR)
 PROG=	ar
-.else
-PROG=	gar
-MAN=	ar.1
-.endif
 SRCS=	ar.c not-ranlib.c
 CFLAGS+= -D_GNU_SOURCE
 CFLAGS+= -I${.CURDIR}/${RELTOP}/libbinutils
