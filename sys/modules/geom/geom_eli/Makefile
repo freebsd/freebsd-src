@@ -11,6 +11,5 @@ SRCS+=	g_eli_key.c
 SRCS+=	g_eli_privacy.c
 SRCS+=	pkcs5v2.c
 SRCS+=	vnode_if.h
-WARNS?=	2
 
 .include <bsd.kmod.mk>
