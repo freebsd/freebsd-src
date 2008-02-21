@@ -232,6 +232,10 @@ SUBDIR=	alias \
 	${_ypmatch} \
 	${_ypwhich}
 
+.if !defined(WITH_GNUAR)
+SUBDIR+=	ar
+.endif
+
 .if ${MACHINE_ARCH} != "arm"
 _truss=		truss
 .endif
