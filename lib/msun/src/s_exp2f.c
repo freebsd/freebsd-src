@@ -95,7 +95,7 @@ exp2f(float x)
 {
 	double tv, twopk, u, z;
 	float t;
-	uint32_t hx, htv, ix, i0;
+	uint32_t hx, ix, i0;
 	int32_t k;
 
 	/* Filter out exceptional cases. */
