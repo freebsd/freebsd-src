@@ -11,9 +11,8 @@
  * ====================================================
  */
 
-#ifndef lint
-static char rcsid[] = "$FreeBSD$";
-#endif
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /* __ieee754_log10(x)
  * Return the base 10 logarithm of x
