@@ -20,6 +20,7 @@ MLINKS=	ar ranlib
 LINKS=	${BINDIR}/bsdar ${BINDIR}/bsdranlib
 MLINKS=	bsdar.1 bsdranlib.1
 
+CLEANFILES+= bsdar.1
 bsdar.1: ar.1
 	ln -sf ${.ALLSRC} ${.TARGET}
 .endif
