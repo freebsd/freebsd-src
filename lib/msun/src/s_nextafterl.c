@@ -10,9 +10,8 @@
  * ====================================================
  */
 
-#ifndef lint
-static char rcsid[] = "$FreeBSD$";
-#endif
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /* IEEE functions
  *	nextafter(x,y)
@@ -21,7 +20,6 @@ static char rcsid[] = "$FreeBSD$";
  *   Special cases:
  */
 
-#include <sys/cdefs.h>
 #include <float.h>
 
 #include "fpmath.h"
