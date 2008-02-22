@@ -54,14 +54,13 @@ __ieee754_rem_pio2f(float x, float *y)
     /* 33+53 bit pi is good enough for medium size */
 	if(ix<=0x49490f80) {		/* |x| ~<= 2^19*(pi/2), medium size */
 	    t  = fabsf(x);
-#ifdef HAVE_EFFICIENT_IRINT
 	    /* Use a specialized rint() to get fn.  Assume round-to-nearest. */
 	    STRICT_ASSIGN(double,fn,t*invpio2+0x1.8p52);
 	    fn = fn-0x1.8p52;
+#ifdef HAVE_EFFICIENT_IRINT
 	    n  = irint(fn);
 #else
-	    n  = (int32_t) (t*invpio2+half);
-	    fn = (double)n;
+	    n  = (int32_t)fn;
 #endif
 	    r  = t-fn*pio2_1;
 	    w  = fn*pio2_1t;
