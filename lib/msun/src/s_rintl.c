@@ -54,11 +54,9 @@ rintl(long double x)
 	u.e = x;
 
 	if (u.bits.exp >= BIAS + LDBL_MANT_DIG - 1) {
-		/*
-		 * The biased exponent is greater than the number of digits
-		 * in the mantissa, so x is inf, NaN, or an integer.
-		 */
-		return (x);
+		if (u.bits.exp == BIAS + LDBL_MAX_EXP)
+			return (x + x);	/* Inf, NaN, or unsupported format */
+		return (x);		/* finite and already an integer */
 	}
 	sign = u.bits.sign;
 
