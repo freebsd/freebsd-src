@@ -11,7 +11,7 @@
 
 SUBDIR=	alias \
 	apply \
-	ar \
+	${_ar} \
 	asa \
 	at \
 	${_atm} \
@@ -292,6 +292,7 @@ _vacation=	vacation
 .endif
 
 .if ${MK_TOOLCHAIN} != "no"
+_ar=		ar
 _c89=		c89
 _c99=		c99
 _gprof=		gprof
