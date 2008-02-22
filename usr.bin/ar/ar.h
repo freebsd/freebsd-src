@@ -26,6 +26,8 @@
  * $FreeBSD$
  */
 
+#define	BSDAR_VERSION	"1.0.2"
+
 /*
  * ar(1) options.
  */
