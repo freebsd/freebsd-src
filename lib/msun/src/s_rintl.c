@@ -32,6 +32,11 @@ __FBSDID("$FreeBSD$");
 
 #include "fpmath.h"
 
+#if LDBL_MAX_EXP != 0x4000
+/* We also require the usual bias, min exp and expsign packing. */
+#error "Unsupported long double format"
+#endif
+
 #define	BIAS	(LDBL_MAX_EXP - 1)
 
 static const float
@@ -50,16 +55,19 @@ long double
 rintl(long double x)
 {
 	union IEEEl2bits u;
-	short sign;
+	uint32_t expsign;
+	int ex, sign;
 
 	u.e = x;
+	expsign = u.xbits.expsign;
+	ex = expsign & 0x7fff;
 
-	if (u.bits.exp >= BIAS + LDBL_MANT_DIG - 1) {
-		if (u.bits.exp == BIAS + LDBL_MAX_EXP)
+	if (ex >= BIAS + LDBL_MANT_DIG - 1) {
+		if (ex == BIAS + LDBL_MAX_EXP)
 			return (x + x);	/* Inf, NaN, or unsupported format */
 		return (x);		/* finite and already an integer */
 	}
-	sign = u.bits.sign;
+	sign = expsign >> 15;
 
 	/*
 	 * The following code assumes that intermediate results are
@@ -75,7 +83,7 @@ rintl(long double x)
 	 * If the result is +-0, then it must have the same sign as x, but
 	 * the above calculation doesn't always give this.  Fix up the sign.
 	 */
-	if (u.bits.exp < BIAS && x == 0.0L)
+	if (ex < BIAS && x == 0.0L)
 		return (zero[sign]);
 
 	return (x);
