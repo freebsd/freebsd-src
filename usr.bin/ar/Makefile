@@ -13,6 +13,7 @@ DPADD=	${LIBARCHIVE} ${LIBBZ2} ${LIBZ} ${LIBELF}
 LDADD=	-larchive -lbz2 -lz -lelf
 
 .if defined(WITH_BSDAR)
+NO_SHARED?=	yes
 LINKS=	${BINDIR}/ar ${BINDIR}/ranlib
 MLINKS=	ar ranlib
 .else
