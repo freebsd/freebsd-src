@@ -588,6 +588,21 @@ linux_mremap(struct thread *td, struct linux_mremap_args *args)
 		    (unsigned long)args->new_len,
 		    (unsigned long)args->flags);
 #endif
+
+	if (args->flags & ~(LINUX_MREMAP_FIXED | LINUX_MREMAP_MAYMOVE)) {
+		td->td_retval[0] = 0;
+		return (EINVAL);
+	}
+
+	/*
+	 * Check for the page alignment.
+	 * Linux defines PAGE_MASK to be FreeBSD ~PAGE_MASK.
+	 */
+	if (args->addr & PAGE_MASK) {
+		td->td_retval[0] = 0;
+		return (EINVAL);
+	}
+
 	args->new_len = round_page(args->new_len);
 	args->old_len = round_page(args->old_len);
 
