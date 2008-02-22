@@ -10,9 +10,8 @@
  * ====================================================
  */
 
-#ifndef lint
-static char rcsid[] = "$FreeBSD$";
-#endif
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * for non-zero x
@@ -24,7 +23,6 @@ static char rcsid[] = "$FreeBSD$";
  * with *exp=0.
  */
 
-#include <sys/cdefs.h>
 #include <float.h>
 
 #include "math.h"

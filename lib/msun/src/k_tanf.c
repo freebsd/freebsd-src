@@ -14,9 +14,8 @@
  */
 
 #ifndef INLINE_KERNEL_TANDF
-#ifndef lint
-static char rcsid[] = "$FreeBSD$";
-#endif
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 #endif
 
 #include "math.h"
