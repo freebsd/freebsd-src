@@ -991,7 +991,6 @@ in_addmulti(ap, ifp)
 	 * a new record.  Otherwise, we are done.
 	 */
 	if (ifma->ifma_protospec != NULL) {
-		if_delmulti_ent(ifma);	/* We don't need another reference */
 		IN_MULTI_UNLOCK();
 		IFF_UNLOCKGIANT(ifp);
 		return ifma->ifma_protospec;
