@@ -44,6 +44,7 @@ shift[2] = {
 #error "Unsupported long double format"
 #endif
 };
+static const float zero[2] = { 0.0, -0.0 };
 
 long double
 rintl(long double x)
@@ -74,7 +75,8 @@ rintl(long double x)
 	 * If the result is +-0, then it must have the same sign as x, but
 	 * the above calculation doesn't always give this.  Fix up the sign.
 	 */
-	if (x == 0.0L)
-		return (sign ? -0.0L : 0.0L);
+	if (u.bits.exp < BIAS && x == 0.0L)
+		return (zero[sign]);
+
 	return (x);
 }
