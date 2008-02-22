@@ -11,6 +11,7 @@
 
 SUBDIR=	alias \
 	apply \
+	ar \
 	asa \
 	at \
 	${_atm} \
