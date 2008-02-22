@@ -21,6 +21,8 @@ __FBSDID("$FreeBSD$");
  * use __kernel_rem_pio2()
  */
 
+#include <float.h>
+
 #include "math.h"
 #include "math_private.h"
 
@@ -135,8 +137,15 @@ __ieee754_rem_pio2(double x, double *y)
 	if(ix<=0x413921fb) { /* |x| ~<= 2^19*(pi/2), medium size */
 medium:
 	    t  = fabs(x);
+#ifdef HAVE_EFFICIENT_IRINT
+	    /* Use a specialized rint() to get fn.  Assume round-to-nearest. */
+	    STRICT_ASSIGN(double,fn,t*invpio2+0x1.8p52);
+	    fn = fn-0x1.8p52;
+	    n  = irint(fn);
+#else
 	    n  = (int32_t) (t*invpio2+half);
 	    fn = (double)n;
+#endif
 	    r  = t-fn*pio2_1;
 	    w  = fn*pio2_1t;	/* 1st round good to 85 bit */
 	    if(n<32&&ix!=npio2_hw[n-1]) {	
