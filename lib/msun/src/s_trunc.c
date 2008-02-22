@@ -33,7 +33,7 @@ double
 trunc(double x)
 {
 	int32_t i0,i1,j0;
-	u_int32_t i,j;
+	u_int32_t i;
 	EXTRACT_WORDS(i0,i1,x);
 	j0 = ((i0>>20)&0x7ff)-0x3ff;
 	if(j0<20) {
