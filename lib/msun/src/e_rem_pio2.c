@@ -26,15 +26,6 @@ __FBSDID("$FreeBSD$");
 #include "math.h"
 #include "math_private.h"
 
-static const int32_t npio2_hw[] = {
-0x3FF921FB, 0x400921FB, 0x4012D97C, 0x401921FB, 0x401F6A7A, 0x4022D97C,
-0x4025FDBB, 0x402921FB, 0x402C463A, 0x402F6A7A, 0x4031475C, 0x4032D97C,
-0x40346B9C, 0x4035FDBB, 0x40378FDB, 0x403921FB, 0x403AB41B, 0x403C463A,
-0x403DD85A, 0x403F6A7A, 0x40407E4C, 0x4041475C, 0x4042106C, 0x4042D97C,
-0x4043A28C, 0x40446B9C, 0x404534AC, 0x4045FDBB, 0x4046C6CB, 0x40478FDB,
-0x404858EB, 0x404921FB,
-};
-
 /*
  * invpio2:  53 bits of 2/pi
  * pio2_1:   first  33 bit of pi/2
@@ -148,9 +139,7 @@ medium:
 #endif
 	    r  = t-fn*pio2_1;
 	    w  = fn*pio2_1t;	/* 1st round good to 85 bit */
-	    if(n<32&&ix!=npio2_hw[n-1]) {	
-		y[0] = r-w;	/* quick check no cancellation */
-	    } else {
+	    {
 	        u_int32_t high;
 	        j  = ix>>20;
 	        y[0] = r-w; 
