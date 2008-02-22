@@ -97,6 +97,41 @@
 #define __LITTLE_ENDIAN 1
 #endif
 
+#define BCE_DWORD_PRINTFB	\
+	"\020"					\
+	"\40b31"				\
+	"\37b30"				\
+	"\36b29"				\
+	"\35b28"				\
+	"\34b27"				\
+	"\33b26"				\
+	"\32b25"				\
+	"\31b24"				\
+	"\30b23"				\
+	"\27b22"				\
+	"\26b21"				\
+	"\25b20"				\
+	"\24b19"				\
+	"\23b18"				\
+	"\22b17"				\
+	"\21b16"				\
+	"\20b15"				\
+	"\17b14"				\
+	"\16b13"				\
+	"\15b12"				\
+	"\14b11"				\
+	"\13b10"				\
+	"\12b9"					\
+	"\11b8"					\
+	"\10b7"					\
+	"\07b6"					\
+	"\06b5"					\
+	"\05b4"					\
+	"\04b3"					\
+	"\03b2"					\
+	"\02b1"					\
+	"\01b0"
+
 /****************************************************************************/
 /* Debugging macros and definitions.                                        */
 /****************************************************************************/
@@ -190,34 +225,47 @@
 
 #ifdef BCE_DEBUG
 
+/* 
+ * Calculate the time delta between two reads 
+ * of the 25MHz free running clock.
+ */
+#define BCE_TIME_DELTA(start, end)	(start > end ? (start - end) : \
+	(~start + end + 1))
+
 /* Print a message based on the logging level and code path. */
 #define DBPRINT(sc, level, format, args...)					\
 	if (BCE_LOG_MSG(level)) {							\
 		device_printf(sc->bce_dev, format, ## args);						\
 	}
 
+/* Runs a particular command when debugging is enabled. */
+#define DBRUN(args...)			\
+	do {						\
+		args;					\
+	} while (0)
+
 /* Runs a particular command based on the logging level and code path. */
-#define DBRUN(m, args...) \
-	if (BCE_LOG_MSG(m)) { \
-		args; \
+#define DBRUNMSG(msg, args...)	\
+	if (BCE_LOG_MSG(msg)) {		\
+		args;					\
 	}
 
 /* Runs a particular command based on the logging level. */
 #define DBRUNLV(level, args...) \
 	if (BCE_MSG_LEVEL(level)) { \
-		args; \
+		args;					\
 	}
 
 /* Runs a particular command based on the code path. */
-#define DBRUNCP(cp, args...) \
-	if (BCE_CODE_PATH(cp)) { \
-		args; \
+#define DBRUNCP(cp, args...) 	\
+	if (BCE_CODE_PATH(cp)) { 	\
+		args; 					\
 	}
 
 /* Runs a particular command based on a condition. */
-#define DBRUNIF(cond, args...) \
-	if (cond) { \
-		args; \
+#define DBRUNIF(cond, args...)	\
+	if (cond) {					\
+		args;					\
 	}
 
 /* Needed for random() function which is only used in debugging. */
@@ -236,7 +284,8 @@
 #else
 
 #define DBPRINT(level, format, args...)
-#define DBRUN(m, args...)
+#define DBRUN(args...)
+#define DBRUNMSG(msg, args...)
 #define DBRUNLV(level, args...)
 #define DBRUNCP(cp, args...)
 #define DBRUNIF(cond, args...)
@@ -747,6 +796,7 @@ struct flash_spec {
 #define REG_RD_IND(sc, offset)		bce_reg_rd_ind(sc, offset)
 #define REG_WR_IND(sc, offset, val)	bce_reg_wr_ind(sc, offset, val)
 #define CTX_WR(sc, cid_addr, offset, val)	bce_ctx_wr(sc, cid_addr, offset, val)
+#define CTX_RD(sc, cid_addr, offset)		bce_ctx_rd(sc, cid_addr, offset)
 #define BCE_SETBIT(sc, reg, x)		REG_WR(sc, reg, (REG_RD(sc, reg) | (x)))
 #define BCE_CLRBIT(sc, reg, x)		REG_WR(sc, reg, (REG_RD(sc, reg) & ~(x)))
 #define PCI_SETBIT(dev, reg, x, s)	pci_write_config(dev, reg, (pci_read_config(dev, reg, s) | (x)), s)
@@ -1008,6 +1058,7 @@ struct l2_fhdr {
 		#define L2_FHDR_STATUS_TCP_SEGMENT	(1<<14)
 		#define L2_FHDR_STATUS_UDP_DATAGRAM	(1<<15)
 
+		#define L2_FHDR_STATUS_SPLIT		(1<<16)
 		#define L2_FHDR_ERRORS_BAD_CRC		(1<<17)
 		#define L2_FHDR_ERRORS_PHY_DECODE	(1<<18)
 		#define L2_FHDR_ERRORS_ALIGNMENT	(1<<19)
@@ -1030,30 +1081,62 @@ struct l2_fhdr {
 #endif
 };
 
+#define BCE_L2FHDR_PRINTFB	\
+	"\20"					\
+	"\40UDP_XSUM_ERR"		\
+	"\37b30"				\
+	"\36b29"				\
+	"\35TCP_XSUM_ERR"		\
+	"\34b27"				\
+	"\33b26"				\
+	"\32b25"				\
+	"\31b24"				\
+	"\30b23"				\
+	"\27b22"				\
+	"\26GIANT_ERR"			\
+	"\25SHORT_ERR"			\
+	"\24ALIGN_ERR"			\
+	"\23PHY_ERR"			\
+	"\22CRC_ERR"			\
+	"\21SPLIT"				\
+	"\20UDP"				\
+	"\17TCP"				\
+	"\16IP"					\
+	"\15b12"				\
+	"\14b11"				\
+	"\13b10"				\
+	"\12b09"				\
+	"\11RSS"				\
+	"\10SNAP"				\
+	"\07VLAN"				\
+	"\06P4"					\
+	"\05P3"					\
+	"\04P2"
+
 
 /*
  *  l2_context definition
  */
 #define BCE_L2CTX_TYPE					0x00000000
-#define BCE_L2CTX_TYPE_SIZE_L2				 ((0xc0/0x20)<<16)
-#define BCE_L2CTX_TYPE_TYPE				 (0xf<<28)
-#define BCE_L2CTX_TYPE_TYPE_EMPTY			 (0<<28)
-#define BCE_L2CTX_TYPE_TYPE_L2				 (1<<28)
+#define BCE_L2CTX_TYPE_SIZE_L2			((0xc0/0x20)<<16)
+#define BCE_L2CTX_TYPE_TYPE				(0xf<<28)
+#define BCE_L2CTX_TYPE_TYPE_EMPTY		(0<<28)
+#define BCE_L2CTX_TYPE_TYPE_L2			(1<<28)
 
-#define BCE_L2CTX_TX_HOST_BIDX				0x00000088
+#define BCE_L2CTX_TX_HOST_BIDX	 		0x00000088
 #define BCE_L2CTX_EST_NBD				0x00000088
 #define BCE_L2CTX_CMD_TYPE				0x00000088
-#define BCE_L2CTX_CMD_TYPE_TYPE			 (0xf<<24)
-#define BCE_L2CTX_CMD_TYPE_TYPE_L2			 (0<<24)
-#define BCE_L2CTX_CMD_TYPE_TYPE_TCP			 (1<<24)
+#define BCE_L2CTX_CMD_TYPE_TYPE	 		(0xf<<24)
+#define BCE_L2CTX_CMD_TYPE_TYPE_L2		(0<<24)
+#define BCE_L2CTX_CMD_TYPE_TYPE_TCP		(1<<24)
 
-#define BCE_L2CTX_TX_HOST_BSEQ				0x00000090
+#define BCE_L2CTX_TX_HOST_BSEQ			0x00000090
 #define BCE_L2CTX_TSCH_BSEQ				0x00000094
 #define BCE_L2CTX_TBDR_BSEQ				0x00000098
 #define BCE_L2CTX_TBDR_BOFF				0x0000009c
 #define BCE_L2CTX_TBDR_BIDX				0x0000009c
-#define BCE_L2CTX_TBDR_BHADDR_HI			0x000000a0
-#define BCE_L2CTX_TBDR_BHADDR_LO			0x000000a4
+#define BCE_L2CTX_TBDR_BHADDR_HI		0x000000a0
+#define BCE_L2CTX_TBDR_BHADDR_LO		0x000000a4
 #define BCE_L2CTX_TXP_BOFF				0x000000a8
 #define BCE_L2CTX_TXP_BIDX				0x000000a8
 #define BCE_L2CTX_TXP_BSEQ				0x000000ac
@@ -1062,20 +1145,39 @@ struct l2_fhdr {
 /*
  *  l2_bd_chain_context definition
  */
-#define BCE_L2CTX_BD_PRE_READ				0x00000000
+#define BCE_L2CTX_BD_PRE_READ			0x00000000
 #define BCE_L2CTX_CTX_SIZE				0x00000000
 #define BCE_L2CTX_CTX_TYPE				0x00000000
-#define BCE_L2CTX_CTX_TYPE_SIZE_L2			 ((0x20/20)<<16)
-#define BCE_L2CTX_CTX_TYPE_CTX_BD_CHN_TYPE		 (0xf<<28)
-#define BCE_L2CTX_CTX_TYPE_CTX_BD_CHN_TYPE_UNDEFINED	 (0<<28)
-#define BCE_L2CTX_CTX_TYPE_CTX_BD_CHN_TYPE_VALUE	 (1<<28)
+#define BCE_L2CTX_LO_WATER_MARK_DEFAULT	32
+#define BCE_L2CTX_LO_WATER_MARK_SCALE	4
+#define BCE_L2CTX_LO_WATER_MARK_DIS		0
+#define BCE_L2CTX_HI_WATER_MARK_SHIFT	4
+#define BCE_L2CTX_HI_WATER_MARK_SCALE	16
+#define BCE_L2CTX_WATER_MARKS_MSK		0x000000ff
 
-#define BCE_L2CTX_HOST_BDIDX				0x00000004
+#define BCE_L2CTX_CTX_TYPE_SIZE_L2		((0x20/20)<<16)
+#define BCE_L2CTX_CTX_TYPE_CTX_BD_CHN_TYPE	(0xf<<28)
+#define BCE_L2CTX_CTX_TYPE_CTX_BD_CHN_TYPE_UNDEFINED	(0<<28)
+#define BCE_L2CTX_CTX_TYPE_CTX_BD_CHN_TYPE_VALUE	(1<<28)
+
+#define BCE_L2CTX_HOST_BDIDX			0x00000004
 #define BCE_L2CTX_HOST_BSEQ				0x00000008
 #define BCE_L2CTX_NX_BSEQ				0x0000000c
 #define BCE_L2CTX_NX_BDHADDR_HI			0x00000010
 #define BCE_L2CTX_NX_BDHADDR_LO			0x00000014
 #define BCE_L2CTX_NX_BDIDX				0x00000018
+
+/* Page Buffer Descriptor Index */
+#define BCE_L2CTX_HOST_PG_BDIDX			0x00000044
+/* SKB and Page Buffer Size */
+#define BCE_L2CTX_PG_BUF_SIZE			0x00000048
+/* Page Chain BD Context */
+#define BCE_L2CTX_RBDC_KEY				0x0000004c
+#define BCE_L2CTX_RBDC_JUMBO_KEY		0x3ffe
+/* Page Chain Next BD Host Address */
+#define BCE_L2CTX_NX_PG_BDHADDR_HI		0x00000050
+#define BCE_L2CTX_NX_PG_BDHADDR_LO		0x00000054
+#define BCE_L2CTX_NX_PG_BDIDX			0x00000058
 
 
 /*
@@ -3012,6 +3114,25 @@ struct l2_fhdr {
 #define BCE_RPM_ACPI_DBG_BUF_W32			0x000019f8
 #define BCE_RPM_ACPI_DBG_BUF_W33			0x000019fc
 
+/*
+ *  timer_reg definition
+ *  offset: 0x4400
+ */
+
+#define BCE_TIMER_COMMAND					0x00004400
+#define BCE_TIMER_COMMAND_ENABLED			(1L<<0)
+
+#define BCE_TIMER_STATUS					0x00004404
+#define BCE_TIMER_STATUS_CMP_FTQ_WAIT 		(1L<<0)
+#define BCE_TIMER_STATUS_POLL_PASS_CNT		(1L<<8)
+#define BCE_TIMER_STATUS_TMR1_CNT			(1L<<9)
+#define BCE_TIMER_STATUS_TMR2_CNT			(1L<<10)
+#define BCE_TIMER_STATUS_TMR3_CNT			(1L<<11)
+#define BCE_TIMER_STATUS_TMR4_CNT			(1L<<12)
+#define BCE_TIMER_STATUS_TMR5_CNT			(1L<<13)
+
+#define BCE_TIMER_25MHZ_FREE_RUN			0x00004448
+
 
 /*
  *  rbuf_reg definition
@@ -4444,6 +4565,38 @@ struct l2_fhdr {
 /* End machine generated definitions.                                     */
 /****************************************************************************/
 
+/****************************************************************************/
+/* Begin firmware definitions.                                              */
+/****************************************************************************/
+/* The following definitions refer to pre-defined locations in processor    */
+/* memory space which allows the driver to enable particular functionality  */
+/* within the firmware or read specfic information about the running        */
+/* firmware.                                                                */
+/****************************************************************************/
+
+/* 
+ * Perfect match control register.
+ * 0 = Default.  All received unicst packets matching MAC address 
+ *     BCE_EMAC_MAC_MATCH[0:1,8:9,10:11,12:13,14:15] are sent to receive queue
+ *     0, all other perfect match registers are reserved.
+ * 1 = All received unicast packets matching MAC address 
+ *     BCE_EMAC_MAC_MATCH[0:1] are mapped to receive queue 0,
+ *     BCE_EMAC_MAC_MATCH[2:3] is mapped to receive queue 1, etc.
+ * 2 = All received unicast packets matching any BCE_EMAC_MAC_MATCH[] register
+ *     are sent to receive queue 0.
+ */
+#define BCE_RXP_PM_CTRL			0x0e00d0
+
+/*
+ * This firmware statistic records the number of frames that
+ * were dropped because there were no buffers available in the
+ * receive chain.
+ */
+#define BCE_COM_NO_BUFFERS		0x120084	
+/****************************************************************************/
+/* End firmware definitions.                                                */
+/****************************************************************************/
+
 #define NUM_MC_HASH_REGISTERS   8
 
 
@@ -4509,7 +4662,13 @@ struct l2_fhdr {
 /* XXX: This has only been tested on amd64/i386 systems using 4KB pages. */
 #define BCM_PAGE_BITS	PAGE_SHIFT	
 #define BCM_PAGE_SIZE	PAGE_SIZE
+#define BCM_PAGE_MASK	(BCM_PAGE_SIZE - 1)
+#define BCM_PAGES(x)	((((x) + BCM_PAGE_SIZE - 1) & BCM_PAGE_MASK) >> BCM_PAGE_BITS)
 
+/* 
+ * Page count must remain a power of 2 for all 
+ * of the math to work correctly. 
+ */
 #define TX_PAGES	2
 #define TOTAL_TX_BD_PER_PAGE  (BCM_PAGE_SIZE / sizeof(struct tx_bd))
 #define USABLE_TX_BD_PER_PAGE (TOTAL_TX_BD_PER_PAGE - 1)
@@ -4517,6 +4676,19 @@ struct l2_fhdr {
 #define USABLE_TX_BD (USABLE_TX_BD_PER_PAGE * TX_PAGES)
 #define MAX_TX_BD (TOTAL_TX_BD - 1)
 
+#define NEXT_TX_BD(x) (((x) & USABLE_TX_BD_PER_PAGE) ==	\
+		(USABLE_TX_BD_PER_PAGE - 1)) ?					  	\
+		(x) + 2 : (x) + 1
+
+#define TX_CHAIN_IDX(x) ((x) & MAX_TX_BD)
+
+#define TX_PAGE(x) (((x) & ~USABLE_TX_BD_PER_PAGE) >> (BCM_PAGE_BITS - 4))
+#define TX_IDX(x) ((x) & USABLE_TX_BD_PER_PAGE)
+
+/* 
+ * Page count must remain a power of 2 for all 
+ * of the math to work correctly. 
+ */
 #define RX_PAGES	2
 #define TOTAL_RX_BD_PER_PAGE  (BCM_PAGE_SIZE / sizeof(struct rx_bd))
 #define USABLE_RX_BD_PER_PAGE (TOTAL_RX_BD_PER_PAGE - 1)
@@ -4524,23 +4696,34 @@ struct l2_fhdr {
 #define USABLE_RX_BD (USABLE_RX_BD_PER_PAGE * RX_PAGES)
 #define MAX_RX_BD (TOTAL_RX_BD - 1)
 
-#define NEXT_TX_BD(x) (((x) & USABLE_TX_BD_PER_PAGE) ==	\
-		(USABLE_TX_BD_PER_PAGE - 1)) ?					  	\
-		(x) + 2 : (x) + 1
-
-#define TX_CHAIN_IDX(x) ((x) & MAX_TX_BD)
-
-#define TX_PAGE(x) (((x) & ~USABLE_TX_BD_PER_PAGE) >> 8)
-#define TX_IDX(x) ((x) & USABLE_TX_BD_PER_PAGE)
-
 #define NEXT_RX_BD(x) (((x) & USABLE_RX_BD_PER_PAGE) ==	\
 		(USABLE_RX_BD_PER_PAGE - 1)) ?					\
 		(x) + 2 : (x) + 1
 
 #define RX_CHAIN_IDX(x) ((x) & MAX_RX_BD)
 
-#define RX_PAGE(x) (((x) & ~USABLE_RX_BD_PER_PAGE) >> 8)
+#define RX_PAGE(x) (((x) & ~USABLE_RX_BD_PER_PAGE) >> (BCM_PAGE_BITS - 4))
 #define RX_IDX(x) ((x) & USABLE_RX_BD_PER_PAGE)
+
+/*
+ * To accomodate jumbo frames, the page chain should
+ * be 4 times larger than the receive chain.
+ */
+#define PG_PAGES	(RX_PAGES * 4)
+#define TOTAL_PG_BD_PER_PAGE  (BCM_PAGE_SIZE / sizeof(struct rx_bd))
+#define USABLE_PG_BD_PER_PAGE (TOTAL_PG_BD_PER_PAGE - 1)
+#define TOTAL_PG_BD (TOTAL_PG_BD_PER_PAGE * PG_PAGES)
+#define USABLE_PG_BD (USABLE_PG_BD_PER_PAGE * PG_PAGES)
+#define MAX_PG_BD (TOTAL_PG_BD - 1)
+
+#define NEXT_PG_BD(x) (((x) & USABLE_PG_BD_PER_PAGE) ==	\
+		(USABLE_PG_BD_PER_PAGE - 1)) ?					\
+		(x) + 2 : (x) + 1
+
+#define PG_CHAIN_IDX(x) ((x) & MAX_PG_BD)
+
+#define PG_PAGE(x) (((x) & ~USABLE_PG_BD_PER_PAGE) >> (BCM_PAGE_BITS - 4))
+#define PG_IDX(x) ((x) & USABLE_PG_BD_PER_PAGE)
 
 /* Context size. */
 #define CTX_SHIFT                   7
@@ -4699,6 +4882,7 @@ struct fw_info {
 #define BCE_STATS_BLK_SZ		sizeof(struct statistics_block)
 #define BCE_TX_CHAIN_PAGE_SZ	BCM_PAGE_SIZE
 #define BCE_RX_CHAIN_PAGE_SZ	BCM_PAGE_SIZE
+#define BCE_PG_CHAIN_PAGE_SZ	BCM_PAGE_SIZE
 
 struct bce_softc
 {
@@ -4742,7 +4926,7 @@ struct bce_softc
 	u32					bce_shared_hw_cfg;
 	u32					bce_port_hw_cfg;
 
-	bus_addr_t				max_bus_addr;
+	bus_addr_t			max_bus_addr;
 	u16					bus_speed_mhz;		/* PCI bus speed */
 	struct flash_spec	*bce_flash_info;	/* Flash NVRAM settings */
 	u32					bce_flash_size;		/* Flash NVRAM size */
@@ -4800,6 +4984,8 @@ struct bce_softc
 	u16					tx_prod;
 	u16					tx_cons;
 	u32					tx_prod_bseq;	/* Counts the bytes used.  */
+	u16					pg_prod;
+	u16					pg_cons;
 
 	int					bce_link;
 	struct callout		bce_tick_callout;
@@ -4809,7 +4995,8 @@ struct bce_softc
 
 	/* Frame size and mbuf allocation size for RX frames. */
 	u32					max_frame_size;
-	int					mbuf_alloc_size;
+	int					rx_bd_mbuf_alloc_size;
+	int					pg_bd_mbuf_alloc_size;
 
 	/* Receive mode settings (i.e promiscuous, multicast, etc.). */
 	u32					rx_mode;
@@ -4833,6 +5020,12 @@ struct bce_softc
 	struct rx_bd		*rx_bd_chain[RX_PAGES];
 	bus_addr_t			rx_bd_chain_paddr[RX_PAGES];
 
+	/* H/W maintained page buffer descriptor chain structure. */
+	bus_dma_tag_t		pg_bd_chain_tag;
+	bus_dmamap_t		pg_bd_chain_map[PG_PAGES];
+	struct rx_bd		*pg_bd_chain[PG_PAGES];
+	bus_addr_t			pg_bd_chain_paddr[PG_PAGES];
+
 	/* H/W maintained status block. */
 	bus_dma_tag_t		status_tag;
 	bus_dmamap_t		status_map;
@@ -4853,6 +5046,7 @@ struct bce_softc
 	/* Bus tag for RX/TX mbufs. */
 	bus_dma_tag_t		rx_mbuf_tag;
 	bus_dma_tag_t		tx_mbuf_tag;
+	bus_dma_tag_t		pg_mbuf_tag;
 
 	/* S/W maintained mbuf TX chain structure. */
 	bus_dmamap_t		tx_mbuf_map[TOTAL_TX_BD];
@@ -4862,11 +5056,17 @@ struct bce_softc
 	bus_dmamap_t		rx_mbuf_map[TOTAL_RX_BD];
 	struct mbuf			*rx_mbuf_ptr[TOTAL_RX_BD];
 
-	/* Track the number of rx_bd and tx_bd's in use. */
+	/* S/W maintained mbuf page chain structure. */
+	bus_dmamap_t		pg_mbuf_map[TOTAL_PG_BD];
+	struct mbuf			*pg_mbuf_ptr[TOTAL_PG_BD];
+
+	/* Track the number of buffer descriptors in use. */
 	u16 free_rx_bd;
 	u16 max_rx_bd;
 	u16 used_tx_bd;
 	u16 max_tx_bd;
+	u16 free_pg_bd;
+	u16 max_pg_bd;
 
 	/* Provides access to hardware statistics through sysctl. */
 	u64 stat_IfHCInOctets;
@@ -4936,11 +5136,9 @@ struct bce_softc
 
 #ifdef BCE_DEBUG
 	/* Track the number of enqueued mbufs. */
-	int	tx_mbuf_alloc;
-	int rx_mbuf_alloc;
-
-	/* Track the distribution buffer segments. */
-	u32 rx_mbuf_segs[BCE_MAX_SEGMENTS+1];
+	int	debug_tx_mbuf_alloc;
+	int debug_rx_mbuf_alloc;
+	int debug_pg_mbuf_alloc;
 
 	/* Track how many and what type of interrupts are generated. */
 	u32 interrupts_generated;
@@ -4948,11 +5146,22 @@ struct bce_softc
 	u32 rx_interrupts;
 	u32 tx_interrupts;
 
+	/* Track interrupt time (25MHz clock). */
+	u64 rx_intr_time;
+	u64 tx_intr_time;
+
 	u32	rx_low_watermark;			/* Lowest number of rx_bd's free. */
 	u32 rx_empty_count;				/* Number of times the RX chain was empty. */
+
+	u32	pg_low_watermark;			/* Lowest number of pages free. */
+	u32 pg_empty_count; 			/* Number of times the page chain was empty. */
+
 	u32 tx_hi_watermark;			/* Greatest number of tx_bd's used. */
 	u32	tx_full_count;				/* Number of times the TX chain was full. */
-	u32	mbuf_sim_alloc_failed;		/* Mbuf simulated allocation failure counter. */
+
+	/* Simulated mbuf allocation failure counter. */
+	u32	debug_mbuf_sim_alloc_failed;	
+	
 	u32 l2fhdr_status_errors;
 	u32 unexpected_attentions;
 	u32	lost_status_block_updates;
