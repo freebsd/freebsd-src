@@ -221,6 +221,36 @@ cpackl(long double x, long double y)
 }
 #endif /* _COMPLEX_H */
  
+#ifdef __GNUCLIKE_ASM
+
+/* Asm versions of some functions. */
+
+#ifdef __amd64__
+static __inline int
+irint(double x)
+{
+	int n;
+
+	asm("cvtsd2si %1,%0" : "=r" (n) : "Y" (x));
+	return (n);
+}
+#define	HAVE_EFFICIENT_IRINT
+#endif
+
+#ifdef __i386__
+static __inline int
+irint(double x)
+{
+	int n;
+
+	asm("fistl %0" : "=m" (n) : "t" (x));
+	return (n);
+}
+#define	HAVE_EFFICIENT_IRINT
+#endif
+
+#endif /* __GNUCLIKE_ASM */
+
 /*
  * ieee style elementary functions
  *
