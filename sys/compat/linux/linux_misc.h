@@ -42,4 +42,7 @@
 
 #define	LINUX_MAX_COMM_LEN	16	/* Maximum length of the process name. */
 
+#define	LINUX_MREMAP_MAYMOVE	1
+#define	LINUX_MREMAP_FIXED	2
+
 #endif	/* _LINUX_MISC_H_ */
