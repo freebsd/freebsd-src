@@ -151,6 +151,13 @@ struct ktr_csw {
 #define KTR_USER	7
 
 /*
+ * KTR_STRUCT - misc. structs
+ */
+#define KTR_STRUCT	8
+struct sockaddr;
+struct stat;
+
+/*
  * KTR_DROP - If this bit is set in ktr_type, then at least one event
  * between the previous record and this record was dropped.
  */
@@ -167,6 +174,7 @@ struct ktr_csw {
 #define	KTRFAC_PSIG	(1<<KTR_PSIG)
 #define KTRFAC_CSW	(1<<KTR_CSW)
 #define KTRFAC_USER	(1<<KTR_USER)
+#define KTRFAC_STRUCT	(1<<KTR_STRUCT)
 /*
  * trace flags (also in p_traceflags)
  */
@@ -185,6 +193,11 @@ void	ktrsyscall(int, int narg, register_t args[]);
 void	ktrsysret(int, int, register_t);
 void	ktrprocexit(struct thread *);
 void	ktruserret(struct thread *);
+void	ktrstruct(const char *, size_t, void *, size_t);
+#define ktrsockaddr(s) \
+	ktrstruct("sockaddr", 8, (s), ((struct sockaddr *)(s))->sa_len)
+#define ktrstat(s) \
+	ktrstruct("stat", 4, (s), sizeof(struct stat))
 
 #else
 
