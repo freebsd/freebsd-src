@@ -66,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/cxgb/common/cxgb_ctl_defs.h>
 #include <dev/cxgb/common/cxgb_t3_cpl.h>
 #include <dev/cxgb/cxgb_offload.h>
+#include <dev/cxgb/cxgb_include.h>
 #include <dev/cxgb/cxgb_l2t.h>
 #include <dev/cxgb/ulp/toecore/cxgb_toedev.h>
 #include <dev/cxgb/ulp/tom/cxgb_tom.h>
@@ -82,7 +83,7 @@ static struct tom_tunables default_tunable_vals = {
 	.delack = 1,
 	.max_conn = -1,
 	.soft_backlog_limit = 0,
-	.ddp = 0,
+	.ddp = 1,
 	.ddp_thres = 14 * 4096,
 	.ddp_copy_limit = 13 * 4096,
 	.ddp_push_wait = 1,
@@ -96,7 +97,8 @@ static struct tom_tunables default_tunable_vals = {
 	.activated = 1,
 };
 
-void t3_init_tunables(struct tom_data *t)
+void
+t3_init_tunables(struct tom_data *t)
 {
 	t->conf = default_tunable_vals;
 
@@ -104,3 +106,15 @@ void t3_init_tunables(struct tom_data *t)
 	t->conf.mss = T3C_DATA(t->cdev)->tx_max_chunk;
 	t->conf.max_wrs = T3C_DATA(t->cdev)->max_wrs;
 }
+
+void
+t3_sysctl_register(struct adapter *sc, const struct tom_tunables *p)
+{
+	struct sysctl_ctx_list *ctx;
+	struct sysctl_oid_list *children;
+
+	ctx = device_get_sysctl_ctx(sc->dev);
+	children = SYSCTL_CHILDREN(device_get_sysctl_tree(sc->dev));
+	
+}
+

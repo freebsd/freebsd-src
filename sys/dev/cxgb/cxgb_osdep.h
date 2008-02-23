@@ -83,6 +83,9 @@ struct t3_mbuf_hdr {
 #define m_set_socket(m, a) ((m)->m_pkthdr.header = (a))
 #define m_get_socket(m) ((m)->m_pkthdr.header)
 
+#define	KTR_CXGB	KTR_SPARE2
+void cxgb_log_tcb(struct adapter *sc, unsigned int tid);
+
 #define MT_DONTFREE  128
 
 #if __FreeBSD_version > 700030
@@ -338,13 +341,14 @@ static const int debug_flags = DBG_RX;
 #define DBG(...)
 #endif
 
+#include <sys/syslog.h>
+
 #define promisc_rx_mode(rm)  ((rm)->port->ifp->if_flags & IFF_PROMISC) 
 #define allmulti_rx_mode(rm) ((rm)->port->ifp->if_flags & IFF_ALLMULTI) 
 
-#define CH_ERR(adap, fmt, ...)device_printf(adap->dev, fmt, ##__VA_ARGS__);
-
-#define CH_WARN(adap, fmt, ...)	device_printf(adap->dev, fmt, ##__VA_ARGS__)
-#define CH_ALERT(adap, fmt, ...) device_printf(adap->dev, fmt, ##__VA_ARGS__)
+#define CH_ERR(adap, fmt, ...) log(LOG_ERR, fmt, ##__VA_ARGS__)
+#define CH_WARN(adap, fmt, ...)	log(LOG_WARNING, fmt, ##__VA_ARGS__)
+#define CH_ALERT(adap, fmt, ...) log(LOG_ALERT, fmt, ##__VA_ARGS__)
 
 #define t3_os_sleep(x) DELAY((x) * 1000)
 
@@ -370,13 +374,21 @@ static const int debug_flags = DBG_RX;
 #define MII_CTRL1000		MII_100T2CR
 
 #define ADVERTISE_PAUSE_CAP	ANAR_FC
-#define ADVERTISE_PAUSE_ASYM	0x0800
+#define ADVERTISE_PAUSE_ASYM	ANAR_X_PAUSE_ASYM
+#define ADVERTISE_PAUSE		ANAR_X_PAUSE_SYM
 #define ADVERTISE_1000HALF	ANAR_X_HD
 #define ADVERTISE_1000FULL	ANAR_X_FD
 #define ADVERTISE_10FULL	ANAR_10_FD
 #define ADVERTISE_10HALF	ANAR_10
 #define ADVERTISE_100FULL	ANAR_TX_FD
 #define ADVERTISE_100HALF	ANAR_TX
+
+
+#define ADVERTISE_1000XHALF	ANAR_X_HD
+#define ADVERTISE_1000XFULL	ANAR_X_FD
+#define ADVERTISE_1000XPSE_ASYM	ANAR_X_PAUSE_ASYM
+#define ADVERTISE_1000XPAUSE	ANAR_X_PAUSE_SYM
+
 
 /* Standard PCI Extended Capaibilities definitions */
 #define PCI_CAP_ID_VPD	0x03
@@ -399,23 +411,26 @@ static const int debug_flags = DBG_RX;
 #define udelay(x) DELAY(x)
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 #define le32_to_cpu(x) le32toh(x)
+#define le16_to_cpu(x) le16toh(x)
 #define cpu_to_le32(x) htole32(x)
 #define swab32(x) bswap32(x)
 #define simple_strtoul strtoul
 
 
-typedef uint8_t u8;
-typedef uint16_t u16;
-typedef uint32_t u32;
-typedef uint64_t u64;
+#ifndef LINUX_TYPES_DEFINED
+typedef uint8_t 	u8;
+typedef uint16_t 	u16;
+typedef uint32_t 	u32;
+typedef uint64_t 	u64;
  
-typedef uint8_t       __u8;
-typedef uint16_t __u16;
-typedef uint32_t __u32;
-typedef uint8_t __be8;
-typedef uint16_t __be16;
-typedef uint32_t __be32;
-typedef uint64_t __be64;
+typedef uint8_t		__u8;
+typedef uint16_t	__u16;
+typedef uint32_t	__u32;
+typedef uint8_t		__be8;
+typedef uint16_t	__be16;
+typedef uint32_t	__be32;
+typedef uint64_t	__be64;
+#endif
 
 
 #if BYTE_ORDER == BIG_ENDIAN

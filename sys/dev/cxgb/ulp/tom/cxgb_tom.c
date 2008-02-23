@@ -34,11 +34,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/fcntl.h>
+#include <sys/ktr.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/eventhandler.h>
 #include <sys/mbuf.h>
 #include <sys/module.h>
+#include <sys/condvar.h>
 #include <sys/mutex.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
@@ -90,16 +92,20 @@ static TAILQ_HEAD(, tom_data) cxgb_list;
 static struct mtx cxgb_list_lock;
 
 static int t3_toe_attach(struct toedev *dev, const struct offload_id *entry);
+static void cxgb_register_listeners(void);
+
 /*
  * Handlers for each CPL opcode
  */
-static cxgb_cpl_handler_func tom_cpl_handlers[NUM_CPL_CMDS];
+static cxgb_cpl_handler_func tom_cpl_handlers[256];
+
 
 static eventhandler_tag listen_tag;
 
 static struct offload_id t3_toe_id_tab[] = {
 	{ TOE_ID_CHELSIO_T3, 0 },
 	{ TOE_ID_CHELSIO_T3B, 0 },
+	{ TOE_ID_CHELSIO_T3C, 0 },
 	{ 0 }
 };
 
@@ -138,7 +144,7 @@ toepcb_alloc(void)
 {
 	struct toepcb *toep;
 	
-	toep = malloc(sizeof(struct toepcb), M_DEVBUF, M_NOWAIT);
+	toep = malloc(sizeof(struct toepcb), M_DEVBUF, M_NOWAIT|M_ZERO);
 	
 	if (toep == NULL)
 		return (NULL);
@@ -150,8 +156,8 @@ toepcb_alloc(void)
 void
 toepcb_init(struct toepcb *toep)
 {
-	bzero(toep, sizeof(*toep));
 	toep->tp_refcount = 1;
+	cv_init(&toep->tp_cv, "toep cv");
 }
 
 void
@@ -164,12 +170,9 @@ void
 toepcb_release(struct toepcb *toep)
 {
 	if (toep->tp_refcount == 1) {
-		printf("doing final toepcb free\n");
-		
 		free(toep, M_DEVBUF);
 		return;
 	}
-	
 	atomic_add_acq_int(&toep->tp_refcount, -1);
 }
 
@@ -179,11 +182,28 @@ toepcb_release(struct toepcb *toep)
 static void
 t3cdev_add(struct tom_data *t)
 {
-	printf("t3cdev_add\n");
-	
 	mtx_lock(&cxgb_list_lock);
 	TAILQ_INSERT_TAIL(&cxgb_list, t, entry);
 	mtx_unlock(&cxgb_list_lock);
+}
+
+static inline int
+cdev2type(struct t3cdev *cdev)
+{
+	int type = 0;
+
+	switch (cdev->type) {
+	case T3A:
+		type = TOE_ID_CHELSIO_T3;
+		break;
+	case T3B:
+		type = TOE_ID_CHELSIO_T3B;
+		break;
+	case T3C:
+		type = TOE_ID_CHELSIO_T3C;
+		break;
+	}
+	return (type);
 }
 
 /*
@@ -200,11 +220,7 @@ t3c_tom_add(struct t3cdev *cdev)
 	struct toedev *tdev;
 	struct adap_ports *port_info;
 
-	printf("%s called\n", __FUNCTION__);
-	
-	
 	t = malloc(sizeof(*t), M_CXGB, M_NOWAIT|M_ZERO);
-	
 	if (t == NULL)
 		return;
 
@@ -224,8 +240,7 @@ t3c_tom_add(struct t3cdev *cdev)
 
 	/* Register TCP offload device */
 	tdev = &t->tdev;
-	tdev->tod_ttid = (cdev->type == T3A ?
-		      TOE_ID_CHELSIO_T3 : TOE_ID_CHELSIO_T3B);
+	tdev->tod_ttid = cdev2type(cdev);
 	tdev->tod_lldev = cdev->lldev;
 
 	if (register_toedev(tdev, "toe%d")) {
@@ -234,13 +249,11 @@ t3c_tom_add(struct t3cdev *cdev)
 	}
 	TOM_DATA(tdev) = t;
 
-	printf("nports=%d\n", port_info->nports);
 	for (i = 0; i < port_info->nports; i++) {
 		struct ifnet *ifp = port_info->lldevs[i];
 		TOEDEV(ifp) = tdev;
 
-		printf("enabling toe on %p\n", ifp);
-		
+		CTR1(KTR_TOM, "enabling toe on %p", ifp);
 		ifp->if_capabilities |= IFCAP_TOE4;
 		ifp->if_capenable |= IFCAP_TOE4;
 	}
@@ -251,6 +264,7 @@ t3c_tom_add(struct t3cdev *cdev)
 
 	/* Activate TCP offload device */
 	activate_offload(tdev);
+	cxgb_register_listeners();
 	return;
 
 out_free_all:
@@ -269,8 +283,8 @@ static int
 do_bad_cpl(struct t3cdev *cdev, struct mbuf *m, void *ctx)
 {
 	log(LOG_ERR, "%s: received bad CPL command %u\n", cdev->name,
-	    *mtod(m, unsigned int *));
-
+	    0xFF & *mtod(m, unsigned int *));
+	kdb_backtrace();
 	return (CPL_RET_BUF_DONE | CPL_RET_BAD_MSG);
 }
 
@@ -282,7 +296,7 @@ do_bad_cpl(struct t3cdev *cdev, struct mbuf *m, void *ctx)
 void
 t3tom_register_cpl_handler(unsigned int opcode, cxgb_cpl_handler_func h)
 {
-	if (opcode < NUM_CPL_CMDS)
+	if (opcode < 256)
 		tom_cpl_handlers[opcode] = h ? h : do_bad_cpl;
 	else
 		log(LOG_ERR, "Chelsio T3 TOM: handler registration for "
@@ -327,7 +341,7 @@ init_cpl_handlers(void)
 {
 	int i;
 
-	for (i = 0; i < NUM_CPL_CMDS; ++i)
+	for (i = 0; i < 256; ++i)
 		tom_cpl_handlers[i] = do_bad_cpl;
 
 	t3_init_listen_cpl_handlers();
@@ -349,7 +363,7 @@ t3_toe_attach(struct toedev *dev, const struct offload_id *entry)
 #endif
 	t3_init_tunables(t);
 	mtx_init(&t->listen_lock, "tom data listeners", NULL, MTX_DEF);
-
+	CTR2(KTR_TOM, "t3_toe_attach dev=%p entry=%p", dev, entry);
 	/* Adjust TOE activation for this module */
 	t->conf.activated = activated;
 
@@ -374,19 +388,14 @@ t3_toe_attach(struct toedev *dev, const struct offload_id *entry)
 	t->ddp_ulimit = ddp.ulimit;
 	t->pdev = ddp.pdev;
 	t->rx_page_size = rx_page_info.page_size;
-#ifdef notyet
 	/* OK if this fails, we just can't do DDP */
 	t->nppods = (ddp.ulimit + 1 - ddp.llimit) / PPOD_SIZE;
-	t->ppod_map = t3_alloc_mem(t->nppods);
-#endif
+	t->ppod_map = malloc(t->nppods, M_DEVBUF, M_WAITOK|M_ZERO);
 
-#if 0
-	spin_lock_init(&t->ppod_map_lock);
-	tom_proc_init(dev);
-#ifdef CONFIG_SYSCTL
-	t->sysctl = t3_sysctl_register(dev, &t->conf);
-#endif
-#endif
+	mtx_init(&t->ppod_map_lock, "ppod map", NULL, MTX_DEF);
+
+
+	t3_sysctl_register(cdev->adapter, &t->conf);
 	return (0);
 }
 
@@ -411,11 +420,8 @@ cxgb_toe_listen_stop(void *unused, struct tcpcb *tp)
 	
 	mtx_lock(&cxgb_list_lock);
 	TAILQ_FOREACH(p, &cxgb_list, entry) {
-		if (tp->t_state == TCPS_LISTEN) {
-			printf("stopping listen on port=%d\n",
-			    ntohs(tp->t_inpcb->inp_lport));
+		if (tp->t_state == TCPS_LISTEN)
 			t3_listen_stop(&p->tdev, so, p->cdev);
-		}
 	}
 	mtx_unlock(&cxgb_list_lock);
 }
@@ -439,23 +445,12 @@ cxgb_register_listeners(void)
 static int
 t3_tom_init(void)
 {
-
-#if 0
-	struct socket *sock;
-	err = sock_create_kern(PF_INET, SOCK_STREAM, IPPROTO_TCP, &sock);
-	if (err < 0) {
-		printk(KERN_ERR "Could not create TCP socket, error %d\n", err);
-		return err;
-	}
-
-	t3_def_state_change = sock->sk->sk_state_change;
-	t3_def_data_ready = sock->sk->sk_data_ready;
-	t3_def_error_report = sock->sk->sk_error_report;
-	sock_release(sock);
-#endif
 	init_cpl_handlers();
-	if (t3_init_cpl_io() < 0)
+	if (t3_init_cpl_io() < 0) {
+		log(LOG_ERR,
+		    "Unable to initialize cpl io ops\n");
 		return -1;
+	}
 	t3_init_socket_ops();
 
 	 /* Register with the TOE device layer. */
@@ -466,7 +461,6 @@ t3_tom_init(void)
 		return -1;
 	}
 	INP_INFO_WLOCK(&tcbinfo);
-
 	INP_INFO_WUNLOCK(&tcbinfo);	    
 
 	mtx_init(&cxgb_list_lock, "cxgb tom list", NULL, MTX_DEF);
@@ -477,10 +471,8 @@ t3_tom_init(void)
 	TAILQ_INIT(&cxgb_list);
 	
 	/* Register to offloading devices */
-	printf("setting add to %p\n", t3c_tom_add);
 	t3c_tom_client.add = t3c_tom_add;
 	cxgb_register_client(&t3c_tom_client);
-	cxgb_register_listeners();
 	return (0);
 }
 
@@ -491,8 +483,6 @@ t3_tom_load(module_t mod, int cmd, void *arg)
 
 	switch (cmd) {
 	case MOD_LOAD:
-		printf("wheeeeee ...\n");
-		
 		t3_tom_init();
 		break;
 	case MOD_QUIESCE:

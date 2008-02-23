@@ -1,4 +1,3 @@
-
 /**************************************************************************
 
 Copyright (c) 2007, Chelsio Inc.
@@ -86,7 +85,6 @@ struct pagepod {
 #define M_PPOD_PGSZ    0x3
 #define V_PPOD_PGSZ(x) ((x) << S_PPOD_PGSZ)
 
-struct pci_dev;
 #include <vm/vm.h>
 #include <vm/vm_page.h>
 #include <machine/bus.h>
@@ -96,8 +94,7 @@ struct ddp_gather_list {
 	unsigned int	dgl_length;
 	unsigned int	dgl_offset;
 	unsigned int	dgl_nelem;
-	vm_page_t   	*dgl_pages;
-	bus_addr_t 	dgl_phys_addr[0];
+	vm_page_t   	dgl_pages[0];
 };
 
 struct ddp_buf_state {
@@ -107,7 +104,6 @@ struct ddp_buf_state {
 };
 
 struct ddp_state {
-	struct pci_dev *pdev;
 	struct ddp_buf_state buf_state[2];   /* per buffer state */
 	int cur_buf;
 	unsigned short kbuf_noinval;
@@ -119,6 +115,7 @@ struct ddp_state {
 	int get_tcb_count;
 	unsigned int kbuf_posted;
 	int cancel_ubuf;
+	int user_ddp_pending;
 	unsigned int kbuf_nppods[NUM_DDP_KBUF];
 	unsigned int kbuf_tag[NUM_DDP_KBUF];
 	struct ddp_gather_list *kbuf[NUM_DDP_KBUF]; /* kernel buffer for DDP prefetch */
@@ -132,54 +129,51 @@ enum {
 	DDP_BF_PSH     = 1 << 3,   /* set in skb->flags if the a DDP was 
 	                              completed with a segment having the
 				      PSH flag set */
+	DDP_BF_NODATA  = 1 << 4,   /* buffer completed before filling */ 
 };
 
-#ifdef notyet
+#include <dev/cxgb/ulp/tom/cxgb_toepcb.h>
+
 /*
  * Returns 1 if a UBUF DMA buffer might be active.
  */
-static inline int t3_ddp_ubuf_pending(struct sock *so)
+static inline int
+t3_ddp_ubuf_pending(struct toepcb *toep)
 {
-	struct tcp_sock *tp = tcp_sk(sk);
-	struct ddp_state *p = DDP_STATE(tp);
+	struct ddp_state *p = &toep->tp_ddp_state;
 
 	/* When the TOM_TUNABLE(ddp) is enabled, we're always in ULP_MODE DDP,
 	 * but DDP_STATE() is only valid if the connection actually enabled
 	 * DDP.
 	 */
-	if (!p)
-		return 0;
+	if (p->kbuf[0] == NULL)
+		return (0);
 
 	return (p->buf_state[0].flags & (DDP_BF_NOFLIP | DDP_BF_NOCOPY)) || 
 	       (p->buf_state[1].flags & (DDP_BF_NOFLIP | DDP_BF_NOCOPY));
 }
-#endif
 
 int t3_setup_ppods(struct socket *so, const struct ddp_gather_list *gl,
 		   unsigned int nppods, unsigned int tag, unsigned int maxoff,
 		   unsigned int pg_off, unsigned int color);
-int t3_alloc_ppods(struct tom_data *td, unsigned int n);
+int t3_alloc_ppods(struct tom_data *td, unsigned int n, int *tag);
 void t3_free_ppods(struct tom_data *td, unsigned int tag, unsigned int n);
-void t3_free_ddp_gl(struct pci_dev *pdev, struct ddp_gather_list *gl);
-int t3_pin_pages(struct pci_dev *pdev, unsigned long uaddr, size_t len,
-		 struct ddp_gather_list **newgl,
-		 const struct ddp_gather_list *gl);
-int t3_ddp_copy(const struct mbuf *skb, int offset, struct iovec *to,
-		int len);
+void t3_free_ddp_gl(struct ddp_gather_list *gl);
+int t3_ddp_copy(const struct mbuf *m, int offset, struct uio *uio, int len);
 //void t3_repost_kbuf(struct socket *so, int modulate, int activate);
-void t3_post_kbuf(struct socket *so, int modulate);
-int t3_post_ubuf(struct socket *so, const struct iovec *iov, int nonblock,
+void t3_post_kbuf(struct socket *so, int modulate, int nonblock);
+int t3_post_ubuf(struct socket *so, const struct uio *uio, int nonblock,
 		 int rcv_flags, int modulate, int post_kbuf);
-void t3_cancel_ubuf(struct socket *so);
-int t3_overlay_ubuf(struct socket *so, const struct iovec *iov, int nonblock,
-		    int rcv_flags, int modulate, int post_kbuf);
-int t3_enter_ddp(struct socket *so, unsigned int kbuf_size, unsigned int waitall);
-void t3_cleanup_ddp(struct socket *so);
+void t3_cancel_ubuf(struct toepcb *toep);
+int t3_overlay_ubuf(struct socket *so, const struct uio *uio, int nonblock,
+    int rcv_flags, int modulate, int post_kbuf);
+int t3_enter_ddp(struct socket *so, unsigned int kbuf_size, unsigned int waitall, int nonblock);
+void t3_cleanup_ddp(struct toepcb *toep);
 void t3_release_ddp_resources(struct toepcb *toep);
-void t3_cancel_ddpbuf(struct socket *so, unsigned int bufidx);
-void t3_overlay_ddpbuf(struct socket *so, unsigned int bufidx, unsigned int tag0,
+void t3_cancel_ddpbuf(struct toepcb *, unsigned int bufidx);
+void t3_overlay_ddpbuf(struct toepcb *, unsigned int bufidx, unsigned int tag0,
 		       unsigned int tag1, unsigned int len);
-void t3_setup_ddpbufs(struct socket *so, unsigned int len0, unsigned int offset0,
+void t3_setup_ddpbufs(struct toepcb *, unsigned int len0, unsigned int offset0,
 		      unsigned int len1, unsigned int offset1,
 		      uint64_t ddp_flags, uint64_t flag_mask, int modulate);
 #endif  /* T3_DDP_H */
