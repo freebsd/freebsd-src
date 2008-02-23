@@ -293,6 +293,12 @@ units.
 Please refer to the
 .Ic -atime
 primary description for information on supported time units.
+.It Ic -d
+Same as 
+.Ic depth .
+GNU find implements this as a primary in mistaken emulation of
+.Fx
+.Xr find 1 .
 .It Ic -delete
 Delete found files and/or directories.
 Always returns true.
@@ -365,6 +371,15 @@ The filename substituted for
 the string
 .Dq Li {}
 is not qualified.
+.It Ic -execdir Ar utility Oo Ar argument ... Oc Li {} +
+Same as
+.Ic -execdir ,
+except that
+.Dq Li {}
+is replaced with as many pathnames as possible for each invocation of
+.Ar utility .
+This behaviour is similar to that of
+.Xr xargs 1 .
 .It Ic -flags Oo Cm - Ns | Ns Cm + Oc Ns Ar flags , Ns Ar notflags
 The flags are specified using symbolic names (see
 .Xr chflags 1 ) .
@@ -428,6 +443,15 @@ the
 .Nm
 is being executed and the latter matches any file system which is
 mounted read-only.
+.It Ic -gid Ar gname
+The same thing as
+.Ar -group Ar gname 
+for compatibility with GNU find.
+GNU find imposes a restriction that
+.Ar gname 
+is numeric, while
+.Xr find 1 
+does not.
 .It Ic -group Ar gname
 True if the file belongs to the group
 .Ar gname .
@@ -436,6 +460,12 @@ If
 is numeric and there is no such group name, then
 .Ar gname
 is treated as a group ID.
+.It Ic -ignore_readdir_race
+This option is for GNU find compatibility and is ignored.
+.It Ic -ilname Ar pattern
+Like
+.Ic -lname ,
+but the match is case insensitive.
 .It Ic -iname Ar pattern
 Like
 .Ic -name ,
@@ -451,10 +481,18 @@ but the match is case insensitive.
 Like
 .Ic -regex ,
 but the match is case insensitive.
+.It Ic -iwholename Ar pattern
+The same thing as 
+.Ic -ipath ,
+for GNU find compatibility.
 .It Ic -links Ar n
 True if the file has
 .Ar n
 links.
+.It Ic -lname Ar pattern
+Like
+.Ic -name ,
+but the matched file must also be a symbolic link.
 .It Ic -ls
 This primary always evaluates to true.
 The following information for the current file is written to standard output:
@@ -497,6 +535,10 @@ minutes.
 .It Ic -mnewer Ar file
 Same as
 .Ic -newer .
+.It Ic -mount
+The same thing as 
+.Ic -xdev ,
+for GNU find compatibility.
 .It Ic -mtime Ar n Ns Op Cm smhdw
 If no units are specified, this primary evaluates to
 true if the difference between the file last modification time and the time
@@ -563,6 +605,13 @@ is equivalent to
 .Ic -newer .
 .It Ic -nogroup
 True if the file belongs to an unknown group.
+.It Ic -noignore_readdir_race
+This option is for GNU find compatibility and is ignored.
+.It Ic -noleaf
+This option is for GNU find compatibility.
+In GNU find it disables an optimization not relevant to 
+.Xr find 1 ,
+so it is ignored.
 .It Ic -nouser
 True if the file belongs to an unknown user.
 .It Ic -ok Ar utility Oo Ar argument ... Oc Li \&;
@@ -690,6 +739,14 @@ but not
 .Dq Li xyzzy
 or
 .Dq Li /foo/ .
+.It Ic -samefile Ar name
+True if the file is a hard link to
+.Ar name .
+If the command option
+.Ic -L
+is specified, it is also true if the file is a symbolic link and
+points to 
+.Ar name .
 .It Ic -size Ar n Ns Op Cm ckMGTP
 True if the file's size, rounded up, in 512-byte blocks is
 .Ar n .
@@ -739,6 +796,15 @@ FIFO
 .It Cm s
 socket
 .El
+.It Ic -uid Ar uname
+The same thing as
+.Ar -user Ar uname 
+for compatibility with GNU find.
+GNU find imposes a restriction that
+.Ar uname 
+is numeric, while
+.Xr find 1 
+does not.
 .It Ic -user Ar uname
 True if the file belongs to the user
 .Ar uname .
@@ -747,6 +813,10 @@ If
 is numeric and there is no such user name, then
 .Ar uname
 is treated as a user ID.
+.It Ic -wholename Ar pattern
+The same thing as 
+.Ic -path ,
+for GNU find compatibility.
 .El
 .Pp
 All primaries which take a numeric argument allow the number to be
@@ -770,12 +840,16 @@ This evaluates to true if the parenthesized expression evaluates to
 true.
 .Pp
 .It Cm \&! Ar expression
-.It Cm -false Ar expression
 .It Cm -not Ar expression
 This is the unary
 .Tn NOT
 operator.
 It evaluates to true if the expression is false.
+.Pp
+.It Cm -false
+Always false.
+.It Cm -true
+Always true.
 .Pp
 .It Ar expression Cm -and Ar expression
 .It Ar expression expression
