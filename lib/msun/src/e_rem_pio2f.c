@@ -44,7 +44,7 @@ pio2_1t =  6.07710050650619224932e-11; /* 0x3DD0B461, 0x1A626331 */
 int
 __ieee754_rem_pio2f(float x, float *y)
 {
-	double w,t,r,fn;
+	double w,r,fn;
 	double tx[1],ty[2];
 	float z;
 	int32_t e0,n,ix,hx;
@@ -53,21 +53,19 @@ __ieee754_rem_pio2f(float x, float *y)
 	ix = hx&0x7fffffff;
     /* 33+53 bit pi is good enough for medium size */
 	if(ix<=0x49490f80) {		/* |x| ~<= 2^19*(pi/2), medium size */
-	    t  = fabsf(x);
 	    /* Use a specialized rint() to get fn.  Assume round-to-nearest. */
-	    STRICT_ASSIGN(double,fn,t*invpio2+0x1.8p52);
+	    STRICT_ASSIGN(double,fn,x*invpio2+0x1.8p52);
 	    fn = fn-0x1.8p52;
 #ifdef HAVE_EFFICIENT_IRINT
 	    n  = irint(fn);
 #else
 	    n  = (int32_t)fn;
 #endif
-	    r  = t-fn*pio2_1;
+	    r  = x-fn*pio2_1;
 	    w  = fn*pio2_1t;
 	    y[0] = r-w;
 	    y[1] = (r-y[0])-w;
-	    if(hx<0) 	{y[0] = -y[0]; y[1] = -y[1]; return -n;}
-	    else	 return n;
+	    return n;
 	}
     /*
      * all other (large) arguments
