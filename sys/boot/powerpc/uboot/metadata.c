@@ -45,92 +45,95 @@ __FBSDID("$FreeBSD$");
  * Return a 'boothowto' value corresponding to the kernel arguments in
  * (kargs) and any relevant environment variables.
  */
-static struct 
+static struct
 {
-    const char	*ev;
-    int		mask;
+	const char	*ev;
+	int		mask;
 } howto_names[] = {
-    {"boot_askname",	RB_ASKNAME},
-    {"boot_cdrom",	RB_CDROM},
-    {"boot_ddb",	RB_KDB},
-    {"boot_dfltroot",	RB_DFLTROOT},
-    {"boot_gdb",	RB_GDB},
-    {"boot_multicons",	RB_MULTIPLE},
-    {"boot_mute",	RB_MUTE},
-    {"boot_pause",	RB_PAUSE},
-    {"boot_serial",	RB_SERIAL},
-    {"boot_single",	RB_SINGLE},
-    {"boot_verbose",	RB_VERBOSE},
-    {NULL,	0}
+	{"boot_askname",	RB_ASKNAME},
+	{"boot_cdrom",		RB_CDROM},
+	{"boot_ddb",		RB_KDB},
+	{"boot_dfltroot",	RB_DFLTROOT},
+	{"boot_gdb",		RB_GDB},
+	{"boot_multicons",	RB_MULTIPLE},
+	{"boot_mute",		RB_MUTE},
+	{"boot_pause",		RB_PAUSE},
+	{"boot_serial",		RB_SERIAL},
+	{"boot_single",		RB_SINGLE},
+	{"boot_verbose",	RB_VERBOSE},
+	{NULL,			0}
 };
 
 static int
 md_getboothowto(char *kargs)
 {
-    char	*cp;
-    int		howto;
-    int		active;
-    int		i;
-    
-    /* Parse kargs */
-    howto = 0;
-    if (kargs != NULL) {
-	cp = kargs;
-	active = 0;
-	while (*cp != 0) {
-	    if (!active && (*cp == '-')) {
-		active = 1;
-	    } else if (active)
-		switch (*cp) {
-		case 'a':
-		    howto |= RB_ASKNAME;
-		    break;
-		case 'C':
-		    howto |= RB_CDROM;
-		    break;
-		case 'd':
-		    howto |= RB_KDB;
-		    break;
-		case 'D':
-		    howto |= RB_MULTIPLE;
-		    break;
-		case 'm':
-		    howto |= RB_MUTE;
-		    break;
-		case 'g':
-		    howto |= RB_GDB;
-		    break;
-		case 'h':
-		    howto |= RB_SERIAL;
-		    break;
-		case 'p':
-		    howto |= RB_PAUSE;
-		    break;
-		case 'r':
-		    howto |= RB_DFLTROOT;
-		    break;
-		case 's':
-		    howto |= RB_SINGLE;
-		    break;
-		case 'v':
-		    howto |= RB_VERBOSE;
-		    break;
-		default:
-		    active = 0;
-		    break;
+	char	*cp;
+	int	howto;
+	int	active;
+	int	i;
+
+	/* Parse kargs */
+	howto = 0;
+	if (kargs != NULL) {
+		cp = kargs;
+		active = 0;
+		while (*cp != 0) {
+			if (!active && (*cp == '-'))
+				active = 1;
+			else if (active)
+				switch (*cp) {
+				case 'a':
+					howto |= RB_ASKNAME;
+					break;
+				case 'C':
+					howto |= RB_CDROM;
+					break;
+				case 'd':
+					howto |= RB_KDB;
+					break;
+				case 'D':
+					howto |= RB_MULTIPLE;
+					break;
+				case 'm':
+					howto |= RB_MUTE;
+					break;
+				case 'g':
+					howto |= RB_GDB;
+					break;
+				case 'h':
+					howto |= RB_SERIAL;
+					break;
+				case 'p':
+					howto |= RB_PAUSE;
+					break;
+				case 'r':
+					howto |= RB_DFLTROOT;
+					break;
+				case 's':
+					howto |= RB_SINGLE;
+					break;
+				case 'v':
+					howto |= RB_VERBOSE;
+					break;
+				default:
+					active = 0;
+					break;
+				}
+				cp++;
 		}
-	    cp++;
 	}
-    }
-    /* get equivalents from the environment */
-    for (i = 0; howto_names[i].ev != NULL; i++)
-	if (getenv(howto_names[i].ev) != NULL)
-	    howto |= howto_names[i].mask;
-    if (!strcmp(getenv("console"), "comconsole"))
-	howto |= RB_SERIAL;
-    if (!strcmp(getenv("console"), "nullconsole"))
-	howto |= RB_MUTE;
-    return(howto);
+
+	/* get equivalents from the environment */
+	for (i = 0; howto_names[i].ev != NULL; i++) {
+		if (getenv(howto_names[i].ev) != NULL)
+			howto |= howto_names[i].mask;
+	}
+	if (!strcmp(getenv("console"), "comconsole"))
+		howto |= RB_SERIAL;
+	if (!strcmp(getenv("console"), "nullconsole"))
+		howto |= RB_MUTE;
+
+	return(howto);
 }
 
 /*
@@ -141,24 +144,25 @@ md_getboothowto(char *kargs)
 static vm_offset_t
 md_copyenv(vm_offset_t addr)
 {
-    struct env_var	*ep;
-    
-    /* traverse the environment */
-    for (ep = environ; ep != NULL; ep = ep->ev_next) {
-	archsw.arch_copyin(ep->ev_name, addr, strlen(ep->ev_name));
-	addr += strlen(ep->ev_name);
-	archsw.arch_copyin("=", addr, 1);
-	addr++;
-	if (ep->ev_value != NULL) {
-	    archsw.arch_copyin(ep->ev_value, addr, strlen(ep->ev_value));
-	    addr += strlen(ep->ev_value);
+	struct env_var	*ep;
+
+	/* traverse the environment */
+	for (ep = environ; ep != NULL; ep = ep->ev_next) {
+		archsw.arch_copyin(ep->ev_name, addr, strlen(ep->ev_name));
+		addr += strlen(ep->ev_name);
+		archsw.arch_copyin("=", addr, 1);
+		addr++;
+		if (ep->ev_value != NULL) {
+			archsw.arch_copyin(ep->ev_value, addr,
+			    strlen(ep->ev_value));
+			addr += strlen(ep->ev_value);
+		}
+		archsw.arch_copyin("", addr, 1);
+		addr++;
 	}
 	archsw.arch_copyin("", addr, 1);
 	addr++;
-    }
-    archsw.arch_copyin("", addr, 1);
-    addr++;
-    return(addr);
+	return(addr);
 }
 
 /*
@@ -177,45 +181,45 @@ md_copyenv(vm_offset_t addr)
  * MOD_SIZE	sizeof(size_t)		module size
  * MOD_METADATA	(variable)		type-specific metadata
  */
-#define COPY32(v, a, c) {			\
+#define	COPY32(v, a, c) {			\
     u_int32_t	x = (v);			\
     if (c)					\
-        archsw.arch_copyin(&x, a, sizeof(x));	\
+	archsw.arch_copyin(&x, a, sizeof(x));	\
     a += sizeof(x);				\
 }
 
-#define MOD_STR(t, a, s, c) {			\
+#define	MOD_STR(t, a, s, c) {			\
     COPY32(t, a, c);				\
     COPY32(strlen(s) + 1, a, c)			\
     if (c)					\
-        archsw.arch_copyin(s, a, strlen(s) + 1);\
+	archsw.arch_copyin(s, a, strlen(s) + 1);\
     a += roundup(strlen(s) + 1, sizeof(u_long));\
 }
 
-#define MOD_NAME(a, s, c)	MOD_STR(MODINFO_NAME, a, s, c)
-#define MOD_TYPE(a, s, c)	MOD_STR(MODINFO_TYPE, a, s, c)
-#define MOD_ARGS(a, s, c)	MOD_STR(MODINFO_ARGS, a, s, c)
+#define	MOD_NAME(a, s, c)	MOD_STR(MODINFO_NAME, a, s, c)
+#define	MOD_TYPE(a, s, c)	MOD_STR(MODINFO_TYPE, a, s, c)
+#define	MOD_ARGS(a, s, c)	MOD_STR(MODINFO_ARGS, a, s, c)
 
-#define MOD_VAR(t, a, s, c) {			\
+#define	MOD_VAR(t, a, s, c) {			\
     COPY32(t, a, c);				\
     COPY32(sizeof(s), a, c);			\
     if (c)					\
-        archsw.arch_copyin(&s, a, sizeof(s));	\
+	archsw.arch_copyin(&s, a, sizeof(s));	\
     a += roundup(sizeof(s), sizeof(u_long));	\
 }
 
-#define MOD_ADDR(a, s, c)	MOD_VAR(MODINFO_ADDR, a, s, c)
-#define MOD_SIZE(a, s, c)	MOD_VAR(MODINFO_SIZE, a, s, c)
+#define	MOD_ADDR(a, s, c)	MOD_VAR(MODINFO_ADDR, a, s, c)
+#define	MOD_SIZE(a, s, c)	MOD_VAR(MODINFO_SIZE, a, s, c)
 
-#define MOD_METADATA(a, mm, c) {		\
+#define	MOD_METADATA(a, mm, c) {		\
     COPY32(MODINFO_METADATA | mm->md_type, a, c);\
     COPY32(mm->md_size, a, c);			\
     if (c)					\
-        archsw.arch_copyin(mm->md_data, a, mm->md_size);\
+	archsw.arch_copyin(mm->md_data, a, mm->md_size);\
     a += roundup(mm->md_size, sizeof(u_long));	\
 }
 
-#define MOD_END(a, c) {				\
+#define	MOD_END(a, c) {				\
     COPY32(MODINFO_END, a, c);			\
     COPY32(0, a, c);				\
 }
@@ -223,28 +227,27 @@ md_copyenv(vm_offset_t addr)
 static vm_offset_t
 md_copymodules(vm_offset_t addr)
 {
-    struct preloaded_file	*fp;
-    struct file_metadata	*md;
-    int				c;
+	struct preloaded_file	*fp;
+	struct file_metadata	*md;
+	int			c;
 
-    c = addr != 0;
-    /* start with the first module on the list, should be the kernel */
-    for (fp = file_findfile(NULL, NULL); fp != NULL; fp = fp->f_next) {
+	c = addr != 0;
+	/* start with the first module on the list, should be the kernel */
+	for (fp = file_findfile(NULL, NULL); fp != NULL; fp = fp->f_next) {
 
-	MOD_NAME(addr, fp->f_name, c);	/* this field must come first */
-	MOD_TYPE(addr, fp->f_type, c);
-	if (fp->f_args)
-	    MOD_ARGS(addr, fp->f_args, c);
-	MOD_ADDR(addr, fp->f_addr, c);
-	MOD_SIZE(addr, fp->f_size, c);
-	for (md = fp->f_metadata; md != NULL; md = md->md_next) {
-	    if (!(md->md_type & MODINFOMD_NOCOPY)) {
-		MOD_METADATA(addr, md, c);
-	    }
+		MOD_NAME(addr, fp->f_name, c);	/* this field must be first */
+		MOD_TYPE(addr, fp->f_type, c);
+		if (fp->f_args)
+			MOD_ARGS(addr, fp->f_args, c);
+		MOD_ADDR(addr, fp->f_addr, c);
+		MOD_SIZE(addr, fp->f_size, c);
+		for (md = fp->f_metadata; md != NULL; md = md->md_next) {
+			if (!(md->md_type & MODINFOMD_NOCOPY))
+				MOD_METADATA(addr, md, c);
+		}
 	}
-    }
-    MOD_END(addr, c);
-    return(addr);
+	MOD_END(addr, c);
+	return(addr);
 }
 
 /*
@@ -254,8 +257,8 @@ md_copymodules(vm_offset_t addr)
 static int
 md_bootinfo(struct bootinfo **addr)
 {
-#define TMP_MAX_ETH	8
-#define TMP_MAX_MR	8
+#define	TMP_MAX_ETH	8
+#define	TMP_MAX_MR	8
 	struct bootinfo		*bi;
 	struct bi_mem_region	tmp_mr[TMP_MAX_MR];
 	struct bi_eth_addr	tmp_eth[TMP_MAX_ETH];
@@ -347,86 +350,90 @@ md_bootinfo(struct bootinfo **addr)
 int
 md_load(char *args, vm_offset_t *modulep)
 {
-    struct preloaded_file	*kfp;
-    struct preloaded_file	*xp;
-    struct file_metadata	*md;
-    struct bootinfo		*bip;
-    vm_offset_t			kernend;
-    vm_offset_t			addr;
-    vm_offset_t			envp;
-    vm_offset_t			size;
-    vm_offset_t			vaddr;
-    char			*rootdevname;
-    int				howto;
-    int				bisize;
-    int				i;
+	struct preloaded_file	*kfp;
+	struct preloaded_file	*xp;
+	struct file_metadata	*md;
+	struct bootinfo		*bip;
+	vm_offset_t		kernend;
+	vm_offset_t		addr;
+	vm_offset_t		envp;
+	vm_offset_t		size;
+	vm_offset_t		vaddr;
+	char			*rootdevname;
+	int			howto;
+	int			bisize;
+	int			i;
 
-    /* This metadata addreses must be converted for kernel after relocation */
-    uint32_t			mdt[] = { MODINFOMD_SSYM, MODINFOMD_ESYM,
-	    				MODINFOMD_KERNEND, MODINFOMD_ENVP };
+	/*
+	 * These metadata addreses must be converted for kernel after
+	 * relocation.
+	 */
+	uint32_t		mdt[] = {
+	    MODINFOMD_SSYM, MODINFOMD_ESYM, MODINFOMD_KERNEND, MODINFOMD_ENVP
+	};
 
-    howto = md_getboothowto(args);
+	howto = md_getboothowto(args);
 
-    /* 
-     * Allow the environment variable 'rootdev' to override the supplied device 
-     * This should perhaps go to MI code and/or have $rootdev tested/set by
-     * MI code before launching the kernel.
-     */
-    rootdevname = getenv("rootdev");
-    if (rootdevname == NULL)
-	    rootdevname = getenv("currdev");
-    /* Try reading the /etc/fstab file to select the root device */
-    getrootmount(rootdevname);
+	/*
+	 * Allow the environment variable 'rootdev' to override the supplied
+	 * device. This should perhaps go to MI code and/or have $rootdev
+	 * tested/set by MI code before launching the kernel.
+	 */
+	rootdevname = getenv("rootdev");
+	if (rootdevname == NULL)
+		rootdevname = getenv("currdev");
+	/* Try reading the /etc/fstab file to select the root device */
+	getrootmount(rootdevname);
 
-    /* find the last module in the chain */
-    addr = 0;
-    for (xp = file_findfile(NULL, NULL); xp != NULL; xp = xp->f_next) {
-	if (addr < (xp->f_addr + xp->f_size))
-	    addr = xp->f_addr + xp->f_size;
-    }
-    /* pad to a page boundary */
-    addr = roundup(addr, PAGE_SIZE);
+	/* find the last module in the chain */
+	addr = 0;
+	for (xp = file_findfile(NULL, NULL); xp != NULL; xp = xp->f_next) {
+		if (addr < (xp->f_addr + xp->f_size))
+			addr = xp->f_addr + xp->f_size;
+	}
+	/* pad to a page boundary */
+	addr = roundup(addr, PAGE_SIZE);
 
-    /* copy our environment */
-    envp = addr;
-    addr = md_copyenv(addr);
+	/* copy our environment */
+	envp = addr;
+	addr = md_copyenv(addr);
 
-    /* pad to a page boundary */
-    addr = roundup(addr, PAGE_SIZE);
+	/* pad to a page boundary */
+	addr = roundup(addr, PAGE_SIZE);
 
-    /* prepare bootinfo */
-    bisize = md_bootinfo(&bip);
+	/* prepare bootinfo */
+	bisize = md_bootinfo(&bip);
 
-    kernend = 0;
-    kfp = file_findfile(NULL, "elf32 kernel");
-    if (kfp == NULL)
-	kfp = file_findfile(NULL, "elf kernel");
-    if (kfp == NULL)
-	panic("can't find kernel file");
-    file_addmetadata(kfp, MODINFOMD_HOWTO, sizeof howto, &howto);
-    file_addmetadata(kfp, MODINFOMD_BOOTINFO, bisize, bip);
-    file_addmetadata(kfp, MODINFOMD_ENVP, sizeof envp, &envp);
-    file_addmetadata(kfp, MODINFOMD_KERNEND, sizeof kernend, &kernend);
+	kernend = 0;
+	kfp = file_findfile(NULL, "elf32 kernel");
+	if (kfp == NULL)
+		kfp = file_findfile(NULL, "elf kernel");
+	if (kfp == NULL)
+		panic("can't find kernel file");
+	file_addmetadata(kfp, MODINFOMD_HOWTO, sizeof howto, &howto);
+	file_addmetadata(kfp, MODINFOMD_BOOTINFO, bisize, bip);
+	file_addmetadata(kfp, MODINFOMD_ENVP, sizeof envp, &envp);
+	file_addmetadata(kfp, MODINFOMD_KERNEND, sizeof kernend, &kernend);
 
-    *modulep = addr;
-    size = md_copymodules(0);
-    kernend = roundup(addr + size, PAGE_SIZE);
+	*modulep = addr;
+	size = md_copymodules(0);
+	kernend = roundup(addr + size, PAGE_SIZE);
 
-    md = file_findmetadata(kfp, MODINFOMD_KERNEND);
-    bcopy(&kernend, md->md_data, sizeof kernend);
+	md = file_findmetadata(kfp, MODINFOMD_KERNEND);
+	bcopy(&kernend, md->md_data, sizeof kernend);
 
-    /* Convert addresses to the final VA */
-    *modulep -= __elfN(relocation_offset);
+	/* Convert addresses to the final VA */
+	*modulep -= __elfN(relocation_offset);
 
-    for (i = 0; i < sizeof mdt / sizeof mdt[0]; i++) {
-    	md = file_findmetadata(kfp, mdt[i]);
-    	if (md) {
-		bcopy(md->md_data, &vaddr, sizeof vaddr);
-		vaddr -= __elfN(relocation_offset);
-		bcopy(&vaddr, md->md_data, sizeof vaddr);
-    	}
-    }
-    (void)md_copymodules(addr);
+	for (i = 0; i < sizeof mdt / sizeof mdt[0]; i++) {
+		md = file_findmetadata(kfp, mdt[i]);
+		if (md) {
+			bcopy(md->md_data, &vaddr, sizeof vaddr);
+			vaddr -= __elfN(relocation_offset);
+			bcopy(&vaddr, md->md_data, sizeof vaddr);
+		}
+	}
+	(void)md_copymodules(addr);
 
-    return(0);
+	return(0);
 }
