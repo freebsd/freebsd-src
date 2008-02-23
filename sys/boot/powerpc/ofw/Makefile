@@ -63,7 +63,7 @@ CFLAGS+=	-I.
 
 CLEANFILES+=	vers.c loader.help
 
-CFLAGS+=	-ffreestanding
+CFLAGS+=	-ffreestanding -msoft-float
 # load address. set in linker script
 RELOC?=		0x1C00000
 CFLAGS+=	-DRELOC=${RELOC}
