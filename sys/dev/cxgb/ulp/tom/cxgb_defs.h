@@ -40,6 +40,13 @@ $FreeBSD$
 #define toeptoso(toep) ((toep)->tp_tp->t_inpcb->inp_socket)
 #define sototoep(so) (sototcpcb((so))->t_toe)
 
+#define TRACE_ENTER printf("%s:%s entered\n", __FUNCTION__, __FILE__)
+#define TRACE_EXIT printf("%s:%s:%d exited\n", __FUNCTION__, __FILE__, __LINE__)
+	
+#define	KTR_TOM	KTR_SPARE2
+#define	KTR_TCB	KTR_SPARE3
+
+struct toepcb;
 struct listen_ctx;
 
 typedef void (*defer_handler_t)(struct toedev *dev, struct mbuf *m);
@@ -54,7 +61,8 @@ void t3_init_listen_cpl_handlers(void);
 int t3_init_cpl_io(void);
 void t3_init_wr_tab(unsigned int wr_len);
 uint32_t t3_send_rx_credits(struct tcpcb *tp, uint32_t credits, uint32_t dack, int nofail);
-void t3_cleanup_rbuf(struct tcpcb *tp);
+void t3_send_rx_modulate(struct toepcb *toep);
+void t3_cleanup_rbuf(struct tcpcb *tp, int copied);
 
 void t3_init_socket_ops(void);
 void t3_install_socket_ops(struct socket *so);

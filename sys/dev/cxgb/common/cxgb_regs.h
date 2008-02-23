@@ -35,6 +35,38 @@ $FreeBSD$
 
 #define A_SG_CONTROL 0x0
 
+#define S_CONGMODE    29
+#define V_CONGMODE(x) ((x) << S_CONGMODE)
+#define F_CONGMODE    V_CONGMODE(1U)
+
+#define S_TNLFLMODE    28
+#define V_TNLFLMODE(x) ((x) << S_TNLFLMODE)
+#define F_TNLFLMODE    V_TNLFLMODE(1U)
+
+#define S_FATLPERREN    27
+#define V_FATLPERREN(x) ((x) << S_FATLPERREN)
+#define F_FATLPERREN    V_FATLPERREN(1U)
+
+#define S_URGTNL    26
+#define V_URGTNL(x) ((x) << S_URGTNL)
+#define F_URGTNL    V_URGTNL(1U)
+
+#define S_NEWNOTIFY    25
+#define V_NEWNOTIFY(x) ((x) << S_NEWNOTIFY)
+#define F_NEWNOTIFY    V_NEWNOTIFY(1U)
+
+#define S_AVOIDCQOVFL    24
+#define V_AVOIDCQOVFL(x) ((x) << S_AVOIDCQOVFL)
+#define F_AVOIDCQOVFL    V_AVOIDCQOVFL(1U)
+
+#define S_OPTONEINTMULTQ    23
+#define V_OPTONEINTMULTQ(x) ((x) << S_OPTONEINTMULTQ)
+#define F_OPTONEINTMULTQ    V_OPTONEINTMULTQ(1U)
+
+#define S_CQCRDTCTRL    22
+#define V_CQCRDTCTRL(x) ((x) << S_CQCRDTCTRL)
+#define F_CQCRDTCTRL    V_CQCRDTCTRL(1U)
+
 #define S_EGRENUPBP    21
 #define V_EGRENUPBP(x) ((x) << S_EGRENUPBP)
 #define F_EGRENUPBP    V_EGRENUPBP(1U)
@@ -93,26 +125,6 @@ $FreeBSD$
 #define S_GLOBALENABLE    0
 #define V_GLOBALENABLE(x) ((x) << S_GLOBALENABLE)
 #define F_GLOBALENABLE    V_GLOBALENABLE(1U)
-
-#define S_URGTNL    26
-#define V_URGTNL(x) ((x) << S_URGTNL)
-#define F_URGTNL    V_URGTNL(1U)
-
-#define S_NEWNOTIFY    25
-#define V_NEWNOTIFY(x) ((x) << S_NEWNOTIFY)
-#define F_NEWNOTIFY    V_NEWNOTIFY(1U)
-
-#define S_AVOIDCQOVFL    24
-#define V_AVOIDCQOVFL(x) ((x) << S_AVOIDCQOVFL)
-#define F_AVOIDCQOVFL    V_AVOIDCQOVFL(1U)
-
-#define S_OPTONEINTMULTQ    23
-#define V_OPTONEINTMULTQ(x) ((x) << S_OPTONEINTMULTQ)
-#define F_OPTONEINTMULTQ    V_OPTONEINTMULTQ(1U)
-
-#define S_CQCRDTCTRL    22
-#define V_CQCRDTCTRL(x) ((x) << S_CQCRDTCTRL)
-#define F_CQCRDTCTRL    V_CQCRDTCTRL(1U)
 
 #define A_SG_KDOORBELL 0x4
 
@@ -366,11 +378,6 @@ $FreeBSD$
 
 #define A_SG_EGR_PRI_CNT 0x50
 
-#define S_EGRPRICNT    0
-#define M_EGRPRICNT    0x1f
-#define V_EGRPRICNT(x) ((x) << S_EGRPRICNT)
-#define G_EGRPRICNT(x) (((x) >> S_EGRPRICNT) & M_EGRPRICNT)
-
 #define S_EGRERROPCODE    24
 #define M_EGRERROPCODE    0xff
 #define V_EGRERROPCODE(x) ((x) << S_EGRERROPCODE)
@@ -385,6 +392,11 @@ $FreeBSD$
 #define M_EGRLOOPCODE    0xff
 #define V_EGRLOOPCODE(x) ((x) << S_EGRLOOPCODE)
 #define G_EGRLOOPCODE(x) (((x) >> S_EGRLOOPCODE) & M_EGRLOOPCODE)
+
+#define S_EGRPRICNT    0
+#define M_EGRPRICNT    0x1f
+#define V_EGRPRICNT(x) ((x) << S_EGRPRICNT)
+#define G_EGRPRICNT(x) (((x) >> S_EGRPRICNT) & M_EGRPRICNT)
 
 #define A_SG_EGR_RCQ_DRB_THRSH 0x54
 
@@ -406,6 +418,56 @@ $FreeBSD$
 #define G_EGRCNTXBADDR(x) (((x) >> S_EGRCNTXBADDR) & M_EGRCNTXBADDR)
 
 #define A_SG_INT_CAUSE 0x5c
+
+#define S_HIRCQPARITYERROR    31
+#define V_HIRCQPARITYERROR(x) ((x) << S_HIRCQPARITYERROR)
+#define F_HIRCQPARITYERROR    V_HIRCQPARITYERROR(1U)
+
+#define S_LORCQPARITYERROR    30
+#define V_LORCQPARITYERROR(x) ((x) << S_LORCQPARITYERROR)
+#define F_LORCQPARITYERROR    V_LORCQPARITYERROR(1U)
+
+#define S_HIDRBPARITYERROR    29
+#define V_HIDRBPARITYERROR(x) ((x) << S_HIDRBPARITYERROR)
+#define F_HIDRBPARITYERROR    V_HIDRBPARITYERROR(1U)
+
+#define S_LODRBPARITYERROR    28
+#define V_LODRBPARITYERROR(x) ((x) << S_LODRBPARITYERROR)
+#define F_LODRBPARITYERROR    V_LODRBPARITYERROR(1U)
+
+#define S_FLPARITYERROR    22
+#define M_FLPARITYERROR    0x3f
+#define V_FLPARITYERROR(x) ((x) << S_FLPARITYERROR)
+#define G_FLPARITYERROR(x) (((x) >> S_FLPARITYERROR) & M_FLPARITYERROR)
+
+#define S_ITPARITYERROR    20
+#define M_ITPARITYERROR    0x3
+#define V_ITPARITYERROR(x) ((x) << S_ITPARITYERROR)
+#define G_ITPARITYERROR(x) (((x) >> S_ITPARITYERROR) & M_ITPARITYERROR)
+
+#define S_IRPARITYERROR    19
+#define V_IRPARITYERROR(x) ((x) << S_IRPARITYERROR)
+#define F_IRPARITYERROR    V_IRPARITYERROR(1U)
+
+#define S_RCPARITYERROR    18
+#define V_RCPARITYERROR(x) ((x) << S_RCPARITYERROR)
+#define F_RCPARITYERROR    V_RCPARITYERROR(1U)
+
+#define S_OCPARITYERROR    17
+#define V_OCPARITYERROR(x) ((x) << S_OCPARITYERROR)
+#define F_OCPARITYERROR    V_OCPARITYERROR(1U)
+
+#define S_CPPARITYERROR    16
+#define V_CPPARITYERROR(x) ((x) << S_CPPARITYERROR)
+#define F_CPPARITYERROR    V_CPPARITYERROR(1U)
+
+#define S_R_REQ_FRAMINGERROR    15
+#define V_R_REQ_FRAMINGERROR(x) ((x) << S_R_REQ_FRAMINGERROR)
+#define F_R_REQ_FRAMINGERROR    V_R_REQ_FRAMINGERROR(1U)
+
+#define S_UC_REQ_FRAMINGERROR    14
+#define V_UC_REQ_FRAMINGERROR(x) ((x) << S_UC_REQ_FRAMINGERROR)
+#define F_UC_REQ_FRAMINGERROR    V_UC_REQ_FRAMINGERROR(1U)
 
 #define S_HICTLDRBDROPERR    13
 #define V_HICTLDRBDROPERR(x) ((x) << S_HICTLDRBDROPERR)
@@ -582,6 +644,10 @@ $FreeBSD$
 #define A_PCIX_INT_CAUSE 0x84
 #define A_PCIX_CFG 0x88
 
+#define S_DMASTOPEN    19
+#define V_DMASTOPEN(x) ((x) << S_DMASTOPEN)
+#define F_DMASTOPEN    V_DMASTOPEN(1U)
+
 #define S_CLIDECEN    18
 #define V_CLIDECEN(x) ((x) << S_CLIDECEN)
 #define F_CLIDECEN    V_CLIDECEN(1U)
@@ -721,15 +787,174 @@ $FreeBSD$
 #define V_SLEEPMODE0(x) ((x) << S_SLEEPMODE0)
 #define F_SLEEPMODE0    V_SLEEPMODE0(1U)
 
+#define A_PCIX_STAT0 0x98
+
+#define S_PIOREQFIFOLEVEL    26
+#define M_PIOREQFIFOLEVEL    0x3f
+#define V_PIOREQFIFOLEVEL(x) ((x) << S_PIOREQFIFOLEVEL)
+#define G_PIOREQFIFOLEVEL(x) (((x) >> S_PIOREQFIFOLEVEL) & M_PIOREQFIFOLEVEL)
+
+#define S_RFINIST    24
+#define M_RFINIST    0x3
+#define V_RFINIST(x) ((x) << S_RFINIST)
+#define G_RFINIST(x) (((x) >> S_RFINIST) & M_RFINIST)
+
+#define S_RFRESPRDST    22
+#define M_RFRESPRDST    0x3
+#define V_RFRESPRDST(x) ((x) << S_RFRESPRDST)
+#define G_RFRESPRDST(x) (((x) >> S_RFRESPRDST) & M_RFRESPRDST)
+
+#define S_TARCST    19
+#define M_TARCST    0x7
+#define V_TARCST(x) ((x) << S_TARCST)
+#define G_TARCST(x) (((x) >> S_TARCST) & M_TARCST)
+
+#define S_TARXST    16
+#define M_TARXST    0x7
+#define V_TARXST(x) ((x) << S_TARXST)
+#define G_TARXST(x) (((x) >> S_TARXST) & M_TARXST)
+
+#define S_WFREQWRST    13
+#define M_WFREQWRST    0x7
+#define V_WFREQWRST(x) ((x) << S_WFREQWRST)
+#define G_WFREQWRST(x) (((x) >> S_WFREQWRST) & M_WFREQWRST)
+
+#define S_WFRESPFIFOEMPTY    12
+#define V_WFRESPFIFOEMPTY(x) ((x) << S_WFRESPFIFOEMPTY)
+#define F_WFRESPFIFOEMPTY    V_WFRESPFIFOEMPTY(1U)
+
+#define S_WFREQFIFOEMPTY    11
+#define V_WFREQFIFOEMPTY(x) ((x) << S_WFREQFIFOEMPTY)
+#define F_WFREQFIFOEMPTY    V_WFREQFIFOEMPTY(1U)
+
+#define S_RFRESPFIFOEMPTY    10
+#define V_RFRESPFIFOEMPTY(x) ((x) << S_RFRESPFIFOEMPTY)
+#define F_RFRESPFIFOEMPTY    V_RFRESPFIFOEMPTY(1U)
+
+#define S_RFREQFIFOEMPTY    9
+#define V_RFREQFIFOEMPTY(x) ((x) << S_RFREQFIFOEMPTY)
+#define F_RFREQFIFOEMPTY    V_RFREQFIFOEMPTY(1U)
+
+#define S_PIORESPFIFOLEVEL    7
+#define M_PIORESPFIFOLEVEL    0x3
+#define V_PIORESPFIFOLEVEL(x) ((x) << S_PIORESPFIFOLEVEL)
+#define G_PIORESPFIFOLEVEL(x) (((x) >> S_PIORESPFIFOLEVEL) & M_PIORESPFIFOLEVEL)
+
+#define S_CFRESPFIFOEMPTY    6
+#define V_CFRESPFIFOEMPTY(x) ((x) << S_CFRESPFIFOEMPTY)
+#define F_CFRESPFIFOEMPTY    V_CFRESPFIFOEMPTY(1U)
+
+#define S_CFREQFIFOEMPTY    5
+#define V_CFREQFIFOEMPTY(x) ((x) << S_CFREQFIFOEMPTY)
+#define F_CFREQFIFOEMPTY    V_CFREQFIFOEMPTY(1U)
+
+#define S_VPDRESPFIFOEMPTY    4
+#define V_VPDRESPFIFOEMPTY(x) ((x) << S_VPDRESPFIFOEMPTY)
+#define F_VPDRESPFIFOEMPTY    V_VPDRESPFIFOEMPTY(1U)
+
+#define S_VPDREQFIFOEMPTY    3
+#define V_VPDREQFIFOEMPTY(x) ((x) << S_VPDREQFIFOEMPTY)
+#define F_VPDREQFIFOEMPTY    V_VPDREQFIFOEMPTY(1U)
+
+#define S_PIO_RSPPND    2
+#define V_PIO_RSPPND(x) ((x) << S_PIO_RSPPND)
+#define F_PIO_RSPPND    V_PIO_RSPPND(1U)
+
+#define S_DLYTRNPND    1
+#define V_DLYTRNPND(x) ((x) << S_DLYTRNPND)
+#define F_DLYTRNPND    V_DLYTRNPND(1U)
+
+#define S_SPLTRNPND    0
+#define V_SPLTRNPND(x) ((x) << S_SPLTRNPND)
+#define F_SPLTRNPND    V_SPLTRNPND(1U)
+
+#define A_PCIX_STAT1 0x9c
+
+#define S_WFINIST    26
+#define M_WFINIST    0xf
+#define V_WFINIST(x) ((x) << S_WFINIST)
+#define G_WFINIST(x) (((x) >> S_WFINIST) & M_WFINIST)
+
+#define S_ARBST    23
+#define M_ARBST    0x7
+#define V_ARBST(x) ((x) << S_ARBST)
+#define G_ARBST(x) (((x) >> S_ARBST) & M_ARBST)
+
+#define S_PMIST    21
+#define M_PMIST    0x3
+#define V_PMIST(x) ((x) << S_PMIST)
+#define G_PMIST(x) (((x) >> S_PMIST) & M_PMIST)
+
+#define S_CALST    19
+#define M_CALST    0x3
+#define V_CALST(x) ((x) << S_CALST)
+#define G_CALST(x) (((x) >> S_CALST) & M_CALST)
+
+#define S_CFREQRDST    17
+#define M_CFREQRDST    0x3
+#define V_CFREQRDST(x) ((x) << S_CFREQRDST)
+#define G_CFREQRDST(x) (((x) >> S_CFREQRDST) & M_CFREQRDST)
+
+#define S_CFINIST    15
+#define M_CFINIST    0x3
+#define V_CFINIST(x) ((x) << S_CFINIST)
+#define G_CFINIST(x) (((x) >> S_CFINIST) & M_CFINIST)
+
+#define S_CFRESPRDST    13
+#define M_CFRESPRDST    0x3
+#define V_CFRESPRDST(x) ((x) << S_CFRESPRDST)
+#define G_CFRESPRDST(x) (((x) >> S_CFRESPRDST) & M_CFRESPRDST)
+
+#define S_INICST    10
+#define M_INICST    0x7
+#define V_INICST(x) ((x) << S_INICST)
+#define G_INICST(x) (((x) >> S_INICST) & M_INICST)
+
+#define S_INIXST    7
+#define M_INIXST    0x7
+#define V_INIXST(x) ((x) << S_INIXST)
+#define G_INIXST(x) (((x) >> S_INIXST) & M_INIXST)
+
+#define S_INTST    4
+#define M_INTST    0x7
+#define V_INTST(x) ((x) << S_INTST)
+#define G_INTST(x) (((x) >> S_INTST) & M_INTST)
+
+#define S_PIOST    2
+#define M_PIOST    0x3
+#define V_PIOST(x) ((x) << S_PIOST)
+#define G_PIOST(x) (((x) >> S_PIOST) & M_PIOST)
+
+#define S_RFREQRDST    0
+#define M_RFREQRDST    0x3
+#define V_RFREQRDST(x) ((x) << S_RFREQRDST)
+#define G_RFREQRDST(x) (((x) >> S_RFREQRDST) & M_RFREQRDST)
+
 /* registers for module PCIE0 */
 #define PCIE0_BASE_ADDR 0x80
 
 #define A_PCIE_INT_ENABLE 0x80
 
-#define S_BISTERR    15
+#define S_BISTERR    19
 #define M_BISTERR    0xff
 #define V_BISTERR(x) ((x) << S_BISTERR)
 #define G_BISTERR(x) (((x) >> S_BISTERR) & M_BISTERR)
+
+#define S_TXPARERR    18
+#define V_TXPARERR(x) ((x) << S_TXPARERR)
+#define F_TXPARERR    V_TXPARERR(1U)
+
+#define S_RXPARERR    17
+#define V_RXPARERR(x) ((x) << S_RXPARERR)
+#define F_RXPARERR    V_RXPARERR(1U)
+
+#define S_RETRYLUTPARERR    16
+#define V_RETRYLUTPARERR(x) ((x) << S_RETRYLUTPARERR)
+#define F_RETRYLUTPARERR    V_RETRYLUTPARERR(1U)
+
+#define S_RETRYBUFPARERR    15
+#define V_RETRYBUFPARERR(x) ((x) << S_RETRYBUFPARERR)
+#define F_RETRYBUFPARERR    V_RETRYBUFPARERR(1U)
 
 #define S_PCIE_MSIXPARERR    12
 #define M_PCIE_MSIXPARERR    0x7
@@ -787,6 +1012,18 @@ $FreeBSD$
 #define A_PCIE_INT_CAUSE 0x84
 #define A_PCIE_CFG 0x88
 
+#define S_PCIE_DMASTOPEN    24
+#define V_PCIE_DMASTOPEN(x) ((x) << S_PCIE_DMASTOPEN)
+#define F_PCIE_DMASTOPEN    V_PCIE_DMASTOPEN(1U)
+
+#define S_PRIORITYINTA    23
+#define V_PRIORITYINTA(x) ((x) << S_PRIORITYINTA)
+#define F_PRIORITYINTA    V_PRIORITYINTA(1U)
+
+#define S_INIFULLPKT    22
+#define V_INIFULLPKT(x) ((x) << S_INIFULLPKT)
+#define F_INIFULLPKT    V_INIFULLPKT(1U)
+
 #define S_ENABLELINKDWNDRST    21
 #define V_ENABLELINKDWNDRST(x) ((x) << S_ENABLELINKDWNDRST)
 #define F_ENABLELINKDWNDRST    V_ENABLELINKDWNDRST(1U)
@@ -825,15 +1062,37 @@ $FreeBSD$
 #define V_CRSTWRMMODE(x) ((x) << S_CRSTWRMMODE)
 #define F_CRSTWRMMODE    V_CRSTWRMMODE(1U)
 
-#define S_PRIORITYINTA    23
-#define V_PRIORITYINTA(x) ((x) << S_PRIORITYINTA)
-#define F_PRIORITYINTA    V_PRIORITYINTA(1U)
-
-#define S_INIFULLPKT    22
-#define V_INIFULLPKT(x) ((x) << S_INIFULLPKT)
-#define F_INIFULLPKT    V_INIFULLPKT(1U)
-
 #define A_PCIE_MODE 0x8c
+
+#define S_TAR_STATE    29
+#define M_TAR_STATE    0x7
+#define V_TAR_STATE(x) ((x) << S_TAR_STATE)
+#define G_TAR_STATE(x) (((x) >> S_TAR_STATE) & M_TAR_STATE)
+
+#define S_RF_STATEINI    26
+#define M_RF_STATEINI    0x7
+#define V_RF_STATEINI(x) ((x) << S_RF_STATEINI)
+#define G_RF_STATEINI(x) (((x) >> S_RF_STATEINI) & M_RF_STATEINI)
+
+#define S_CF_STATEINI    23
+#define M_CF_STATEINI    0x7
+#define V_CF_STATEINI(x) ((x) << S_CF_STATEINI)
+#define G_CF_STATEINI(x) (((x) >> S_CF_STATEINI) & M_CF_STATEINI)
+
+#define S_PIO_STATEPL    20
+#define M_PIO_STATEPL    0x7
+#define V_PIO_STATEPL(x) ((x) << S_PIO_STATEPL)
+#define G_PIO_STATEPL(x) (((x) >> S_PIO_STATEPL) & M_PIO_STATEPL)
+
+#define S_PIO_STATEISC    18
+#define M_PIO_STATEISC    0x3
+#define V_PIO_STATEISC(x) ((x) << S_PIO_STATEISC)
+#define G_PIO_STATEISC(x) (((x) >> S_PIO_STATEISC) & M_PIO_STATEISC)
+
+#define S_NUMFSTTRNSEQRX    10
+#define M_NUMFSTTRNSEQRX    0xff
+#define V_NUMFSTTRNSEQRX(x) ((x) << S_NUMFSTTRNSEQRX)
+#define G_NUMFSTTRNSEQRX(x) (((x) >> S_NUMFSTTRNSEQRX) & M_NUMFSTTRNSEQRX)
 
 #define S_LNKCNTLSTATE    2
 #define M_LNKCNTLSTATE    0xff
@@ -848,10 +1107,76 @@ $FreeBSD$
 #define V_LNKINITIAL(x) ((x) << S_LNKINITIAL)
 #define F_LNKINITIAL    V_LNKINITIAL(1U)
 
-#define S_NUMFSTTRNSEQRX    10
-#define M_NUMFSTTRNSEQRX    0xff
-#define V_NUMFSTTRNSEQRX(x) ((x) << S_NUMFSTTRNSEQRX)
-#define G_NUMFSTTRNSEQRX(x) (((x) >> S_NUMFSTTRNSEQRX) & M_NUMFSTTRNSEQRX)
+#define A_PCIE_STAT 0x90
+
+#define S_INI_STATE    28
+#define M_INI_STATE    0xf
+#define V_INI_STATE(x) ((x) << S_INI_STATE)
+#define G_INI_STATE(x) (((x) >> S_INI_STATE) & M_INI_STATE)
+
+#define S_WF_STATEINI    24
+#define M_WF_STATEINI    0xf
+#define V_WF_STATEINI(x) ((x) << S_WF_STATEINI)
+#define G_WF_STATEINI(x) (((x) >> S_WF_STATEINI) & M_WF_STATEINI)
+
+#define S_PLM_REQFIFOCNT    22
+#define M_PLM_REQFIFOCNT    0x3
+#define V_PLM_REQFIFOCNT(x) ((x) << S_PLM_REQFIFOCNT)
+#define G_PLM_REQFIFOCNT(x) (((x) >> S_PLM_REQFIFOCNT) & M_PLM_REQFIFOCNT)
+
+#define S_ER_REQFIFOEMPTY    21
+#define V_ER_REQFIFOEMPTY(x) ((x) << S_ER_REQFIFOEMPTY)
+#define F_ER_REQFIFOEMPTY    V_ER_REQFIFOEMPTY(1U)
+
+#define S_WF_RSPFIFOEMPTY    20
+#define V_WF_RSPFIFOEMPTY(x) ((x) << S_WF_RSPFIFOEMPTY)
+#define F_WF_RSPFIFOEMPTY    V_WF_RSPFIFOEMPTY(1U)
+
+#define S_WF_REQFIFOEMPTY    19
+#define V_WF_REQFIFOEMPTY(x) ((x) << S_WF_REQFIFOEMPTY)
+#define F_WF_REQFIFOEMPTY    V_WF_REQFIFOEMPTY(1U)
+
+#define S_RF_RSPFIFOEMPTY    18
+#define V_RF_RSPFIFOEMPTY(x) ((x) << S_RF_RSPFIFOEMPTY)
+#define F_RF_RSPFIFOEMPTY    V_RF_RSPFIFOEMPTY(1U)
+
+#define S_RF_REQFIFOEMPTY    17
+#define V_RF_REQFIFOEMPTY(x) ((x) << S_RF_REQFIFOEMPTY)
+#define F_RF_REQFIFOEMPTY    V_RF_REQFIFOEMPTY(1U)
+
+#define S_RF_ACTEMPTY    16
+#define V_RF_ACTEMPTY(x) ((x) << S_RF_ACTEMPTY)
+#define F_RF_ACTEMPTY    V_RF_ACTEMPTY(1U)
+
+#define S_PIO_RSPFIFOCNT    11
+#define M_PIO_RSPFIFOCNT    0x1f
+#define V_PIO_RSPFIFOCNT(x) ((x) << S_PIO_RSPFIFOCNT)
+#define G_PIO_RSPFIFOCNT(x) (((x) >> S_PIO_RSPFIFOCNT) & M_PIO_RSPFIFOCNT)
+
+#define S_PIO_REQFIFOCNT    5
+#define M_PIO_REQFIFOCNT    0x3f
+#define V_PIO_REQFIFOCNT(x) ((x) << S_PIO_REQFIFOCNT)
+#define G_PIO_REQFIFOCNT(x) (((x) >> S_PIO_REQFIFOCNT) & M_PIO_REQFIFOCNT)
+
+#define S_CF_RSPFIFOEMPTY    4
+#define V_CF_RSPFIFOEMPTY(x) ((x) << S_CF_RSPFIFOEMPTY)
+#define F_CF_RSPFIFOEMPTY    V_CF_RSPFIFOEMPTY(1U)
+
+#define S_CF_REQFIFOEMPTY    3
+#define V_CF_REQFIFOEMPTY(x) ((x) << S_CF_REQFIFOEMPTY)
+#define F_CF_REQFIFOEMPTY    V_CF_REQFIFOEMPTY(1U)
+
+#define S_CF_ACTEMPTY    2
+#define V_CF_ACTEMPTY(x) ((x) << S_CF_ACTEMPTY)
+#define F_CF_ACTEMPTY    V_CF_ACTEMPTY(1U)
+
+#define S_VPD_RSPFIFOEMPTY    1
+#define V_VPD_RSPFIFOEMPTY(x) ((x) << S_VPD_RSPFIFOEMPTY)
+#define F_VPD_RSPFIFOEMPTY    V_VPD_RSPFIFOEMPTY(1U)
+
+#define S_VPD_REQFIFOEMPTY    0
+#define V_VPD_REQFIFOEMPTY(x) ((x) << S_VPD_REQFIFOEMPTY)
+#define F_VPD_REQFIFOEMPTY    V_VPD_REQFIFOEMPTY(1U)
 
 #define A_PCIE_CAL 0x90
 
@@ -883,7 +1208,36 @@ $FreeBSD$
 #define G_ZIN(x) (((x) >> S_ZIN) & M_ZIN)
 
 #define A_PCIE_WOL 0x94
+
+#define S_CF_RSPSTATE    12
+#define M_CF_RSPSTATE    0x3
+#define V_CF_RSPSTATE(x) ((x) << S_CF_RSPSTATE)
+#define G_CF_RSPSTATE(x) (((x) >> S_CF_RSPSTATE) & M_CF_RSPSTATE)
+
+#define S_RF_RSPSTATE    10
+#define M_RF_RSPSTATE    0x3
+#define V_RF_RSPSTATE(x) ((x) << S_RF_RSPSTATE)
+#define G_RF_RSPSTATE(x) (((x) >> S_RF_RSPSTATE) & M_RF_RSPSTATE)
+
+#define S_PME_STATE    7
+#define M_PME_STATE    0x7
+#define V_PME_STATE(x) ((x) << S_PME_STATE)
+#define G_PME_STATE(x) (((x) >> S_PME_STATE) & M_PME_STATE)
+
+#define S_INT_STATE    4
+#define M_INT_STATE    0x7
+#define V_INT_STATE(x) ((x) << S_INT_STATE)
+#define G_INT_STATE(x) (((x) >> S_INT_STATE) & M_INT_STATE)
+
 #define A_PCIE_PEX_CTRL0 0x98
+
+#define S_CPLTIMEOUTRETRY    31
+#define V_CPLTIMEOUTRETRY(x) ((x) << S_CPLTIMEOUTRETRY)
+#define F_CPLTIMEOUTRETRY    V_CPLTIMEOUTRETRY(1U)
+
+#define S_STRICTTSMN    30
+#define V_STRICTTSMN(x) ((x) << S_STRICTTSMN)
+#define F_STRICTTSMN    V_STRICTTSMN(1U)
 
 #define S_NUMFSTTRNSEQ    22
 #define M_NUMFSTTRNSEQ    0xff
@@ -903,25 +1257,7 @@ $FreeBSD$
 #define V_CPLPNDCHKEN(x) ((x) << S_CPLPNDCHKEN)
 #define F_CPLPNDCHKEN    V_CPLPNDCHKEN(1U)
 
-#define S_CPLTIMEOUTRETRY    31
-#define V_CPLTIMEOUTRETRY(x) ((x) << S_CPLTIMEOUTRETRY)
-#define F_CPLTIMEOUTRETRY    V_CPLTIMEOUTRETRY(1U)
-
-#define S_STRICTTSMN    30
-#define V_STRICTTSMN(x) ((x) << S_STRICTTSMN)
-#define F_STRICTTSMN    V_STRICTTSMN(1U)
-
 #define A_PCIE_PEX_CTRL1 0x9c
-
-#define S_T3A_DLLPTIMEOUTLMT    11
-#define M_T3A_DLLPTIMEOUTLMT    0xfffff
-#define V_T3A_DLLPTIMEOUTLMT(x) ((x) << S_T3A_DLLPTIMEOUTLMT)
-#define G_T3A_DLLPTIMEOUTLMT(x) (((x) >> S_T3A_DLLPTIMEOUTLMT) & M_T3A_DLLPTIMEOUTLMT)
-
-#define S_T3A_ACKLAT    0
-#define M_T3A_ACKLAT    0x7ff
-#define V_T3A_ACKLAT(x) ((x) << S_T3A_ACKLAT)
-#define G_T3A_ACKLAT(x) (((x) >> S_T3A_ACKLAT) & M_T3A_ACKLAT)
 
 #define S_RXPHYERREN    31
 #define V_RXPHYERREN(x) ((x) << S_RXPHYERREN)
@@ -937,33 +1273,47 @@ $FreeBSD$
 #define V_ACKLAT(x) ((x) << S_ACKLAT)
 #define G_ACKLAT(x) (((x) >> S_ACKLAT) & M_ACKLAT)
 
+#define S_T3A_DLLPTIMEOUTLMT    11
+#define M_T3A_DLLPTIMEOUTLMT    0xfffff
+#define V_T3A_DLLPTIMEOUTLMT(x) ((x) << S_T3A_DLLPTIMEOUTLMT)
+#define G_T3A_DLLPTIMEOUTLMT(x) (((x) >> S_T3A_DLLPTIMEOUTLMT) & M_T3A_DLLPTIMEOUTLMT)
+
+#define S_T3A_ACKLAT    0
+#define M_T3A_ACKLAT    0x7ff
+#define V_T3A_ACKLAT(x) ((x) << S_T3A_ACKLAT)
+#define G_T3A_ACKLAT(x) (((x) >> S_T3A_ACKLAT) & M_T3A_ACKLAT)
+
 #define A_PCIE_PEX_CTRL2 0xa0
 
-#define S_PMEXITL1REQ    29
+#define S_LNKCNTLDETDIR    30
+#define V_LNKCNTLDETDIR(x) ((x) << S_LNKCNTLDETDIR)
+#define F_LNKCNTLDETDIR    V_LNKCNTLDETDIR(1U)
+
+#define S_ENTERL1REN    29
+#define V_ENTERL1REN(x) ((x) << S_ENTERL1REN)
+#define F_ENTERL1REN    V_ENTERL1REN(1U)
+
+#define S_PMEXITL1REQ    28
 #define V_PMEXITL1REQ(x) ((x) << S_PMEXITL1REQ)
 #define F_PMEXITL1REQ    V_PMEXITL1REQ(1U)
 
-#define S_PMTXIDLE    28
+#define S_PMTXIDLE    27
 #define V_PMTXIDLE(x) ((x) << S_PMTXIDLE)
 #define F_PMTXIDLE    V_PMTXIDLE(1U)
 
-#define S_PCIMODELOOP    27
+#define S_PCIMODELOOP    26
 #define V_PCIMODELOOP(x) ((x) << S_PCIMODELOOP)
 #define F_PCIMODELOOP    V_PCIMODELOOP(1U)
 
-#define S_L1ASPMTXRXL0STIME    15
+#define S_L1ASPMTXRXL0STIME    14
 #define M_L1ASPMTXRXL0STIME    0xfff
 #define V_L1ASPMTXRXL0STIME(x) ((x) << S_L1ASPMTXRXL0STIME)
 #define G_L1ASPMTXRXL0STIME(x) (((x) >> S_L1ASPMTXRXL0STIME) & M_L1ASPMTXRXL0STIME)
 
-#define S_L0SIDLETIME    4
+#define S_L0SIDLETIME    3
 #define M_L0SIDLETIME    0x7ff
 #define V_L0SIDLETIME(x) ((x) << S_L0SIDLETIME)
 #define G_L0SIDLETIME(x) (((x) >> S_L0SIDLETIME) & M_L0SIDLETIME)
-
-#define S_ENTERL23    3
-#define V_ENTERL23(x) ((x) << S_ENTERL23)
-#define F_ENTERL23    V_ENTERL23(1U)
 
 #define S_ENTERL1ASPMEN    2
 #define V_ENTERL1ASPMEN(x) ((x) << S_ENTERL1ASPMEN)
@@ -977,15 +1327,16 @@ $FreeBSD$
 #define V_ENTERL0SEN(x) ((x) << S_ENTERL0SEN)
 #define F_ENTERL0SEN    V_ENTERL0SEN(1U)
 
-#define S_LNKCNTLDETDIR    30
-#define V_LNKCNTLDETDIR(x) ((x) << S_LNKCNTLDETDIR)
-#define F_LNKCNTLDETDIR    V_LNKCNTLDETDIR(1U)
-
-#define S_ENTERL1REN    29
-#define V_ENTERL1REN(x) ((x) << S_ENTERL1REN)
-#define F_ENTERL1REN    V_ENTERL1REN(1U)
+#define S_ENTERL23    3
+#define V_ENTERL23(x) ((x) << S_ENTERL23)
+#define F_ENTERL23    V_ENTERL23(1U)
 
 #define A_PCIE_PEX_ERR 0xa4
+
+#define S_CPLTIMEOUTID    18
+#define M_CPLTIMEOUTID    0x7f
+#define V_CPLTIMEOUTID(x) ((x) << S_CPLTIMEOUTID)
+#define G_CPLTIMEOUTID(x) (((x) >> S_CPLTIMEOUTID) & M_CPLTIMEOUTID)
 
 #define S_FLOWCTLOFLOWERR    17
 #define V_FLOWCTLOFLOWERR(x) ((x) << S_FLOWCTLOFLOWERR)
@@ -1059,10 +1410,16 @@ $FreeBSD$
 #define V_PSNCPL(x) ((x) << S_PSNCPL)
 #define F_PSNCPL    V_PSNCPL(1U)
 
-#define S_CPLTIMEOUTID    18
-#define M_CPLTIMEOUTID    0x7f
-#define V_CPLTIMEOUTID(x) ((x) << S_CPLTIMEOUTID)
-#define G_CPLTIMEOUTID(x) (((x) >> S_CPLTIMEOUTID) & M_CPLTIMEOUTID)
+#define A_PCIE_SERDES_CTRL 0xa8
+
+#define S_PMASEL    3
+#define V_PMASEL(x) ((x) << S_PMASEL)
+#define F_PMASEL    V_PMASEL(1U)
+
+#define S_LANE    0
+#define M_LANE    0x7
+#define V_LANE(x) ((x) << S_LANE)
+#define G_LANE(x) (((x) >> S_LANE) & M_LANE)
 
 #define A_PCIE_PIPE_CTRL 0xa8
 
@@ -1093,16 +1450,25 @@ $FreeBSD$
 #define V_PCLKOFFINP1(x) ((x) << S_PCLKOFFINP1)
 #define F_PCLKOFFINP1    V_PCLKOFFINP1(1U)
 
-#define S_PMASEL    3
-#define V_PMASEL(x) ((x) << S_PMASEL)
-#define F_PMASEL    V_PMASEL(1U)
+#define A_PCIE_SERDES_QUAD_CTRL0 0xac
 
-#define S_LANE    0
-#define M_LANE    0x7
-#define V_LANE(x) ((x) << S_LANE)
-#define G_LANE(x) (((x) >> S_LANE) & M_LANE)
+#define S_TESTSIG    10
+#define M_TESTSIG    0x7ffff
+#define V_TESTSIG(x) ((x) << S_TESTSIG)
+#define G_TESTSIG(x) (((x) >> S_TESTSIG) & M_TESTSIG)
 
-#define A_PCIE_SERDES_CTRL 0xac
+#define S_OFFSET    2
+#define M_OFFSET    0xff
+#define V_OFFSET(x) ((x) << S_OFFSET)
+#define G_OFFSET(x) (((x) >> S_OFFSET) & M_OFFSET)
+
+#define S_OFFSETEN    1
+#define V_OFFSETEN(x) ((x) << S_OFFSETEN)
+#define F_OFFSETEN    V_OFFSETEN(1U)
+
+#define S_IDDQB    0
+#define V_IDDQB(x) ((x) << S_IDDQB)
+#define F_IDDQB    V_IDDQB(1U)
 
 #define S_MANMODE    31
 #define V_MANMODE(x) ((x) << S_MANMODE)
@@ -1193,68 +1559,6 @@ $FreeBSD$
 #define V_PREEMPH(x) ((x) << S_PREEMPH)
 #define G_PREEMPH(x) (((x) >> S_PREEMPH) & M_PREEMPH)
 
-#define A_PCIE_SERDES_QUAD_CTRL0 0xac
-
-#define S_TESTSIG    10
-#define M_TESTSIG    0x7ffff
-#define V_TESTSIG(x) ((x) << S_TESTSIG)
-#define G_TESTSIG(x) (((x) >> S_TESTSIG) & M_TESTSIG)
-
-#define S_OFFSET    2
-#define M_OFFSET    0xff
-#define V_OFFSET(x) ((x) << S_OFFSET)
-#define G_OFFSET(x) (((x) >> S_OFFSET) & M_OFFSET)
-
-#define S_OFFSETEN    1
-#define V_OFFSETEN(x) ((x) << S_OFFSETEN)
-#define F_OFFSETEN    V_OFFSETEN(1U)
-
-#define S_IDDQB    0
-#define V_IDDQB(x) ((x) << S_IDDQB)
-#define F_IDDQB    V_IDDQB(1U)
-
-#define A_PCIE_SERDES_STATUS0 0xb0
-
-#define S_RXERRLANE7    21
-#define M_RXERRLANE7    0x7
-#define V_RXERRLANE7(x) ((x) << S_RXERRLANE7)
-#define G_RXERRLANE7(x) (((x) >> S_RXERRLANE7) & M_RXERRLANE7)
-
-#define S_RXERRLANE6    18
-#define M_RXERRLANE6    0x7
-#define V_RXERRLANE6(x) ((x) << S_RXERRLANE6)
-#define G_RXERRLANE6(x) (((x) >> S_RXERRLANE6) & M_RXERRLANE6)
-
-#define S_RXERRLANE5    15
-#define M_RXERRLANE5    0x7
-#define V_RXERRLANE5(x) ((x) << S_RXERRLANE5)
-#define G_RXERRLANE5(x) (((x) >> S_RXERRLANE5) & M_RXERRLANE5)
-
-#define S_RXERRLANE4    12
-#define M_RXERRLANE4    0x7
-#define V_RXERRLANE4(x) ((x) << S_RXERRLANE4)
-#define G_RXERRLANE4(x) (((x) >> S_RXERRLANE4) & M_RXERRLANE4)
-
-#define S_PCIE_RXERRLANE3    9
-#define M_PCIE_RXERRLANE3    0x7
-#define V_PCIE_RXERRLANE3(x) ((x) << S_PCIE_RXERRLANE3)
-#define G_PCIE_RXERRLANE3(x) (((x) >> S_PCIE_RXERRLANE3) & M_PCIE_RXERRLANE3)
-
-#define S_PCIE_RXERRLANE2    6
-#define M_PCIE_RXERRLANE2    0x7
-#define V_PCIE_RXERRLANE2(x) ((x) << S_PCIE_RXERRLANE2)
-#define G_PCIE_RXERRLANE2(x) (((x) >> S_PCIE_RXERRLANE2) & M_PCIE_RXERRLANE2)
-
-#define S_PCIE_RXERRLANE1    3
-#define M_PCIE_RXERRLANE1    0x7
-#define V_PCIE_RXERRLANE1(x) ((x) << S_PCIE_RXERRLANE1)
-#define G_PCIE_RXERRLANE1(x) (((x) >> S_PCIE_RXERRLANE1) & M_PCIE_RXERRLANE1)
-
-#define S_PCIE_RXERRLANE0    0
-#define M_PCIE_RXERRLANE0    0x7
-#define V_PCIE_RXERRLANE0(x) ((x) << S_PCIE_RXERRLANE0)
-#define G_PCIE_RXERRLANE0(x) (((x) >> S_PCIE_RXERRLANE0) & M_PCIE_RXERRLANE0)
-
 #define A_PCIE_SERDES_QUAD_CTRL1 0xb0
 
 #define S_FASTINIT    28
@@ -1338,6 +1642,120 @@ $FreeBSD$
 #define S_PCLKDETECT    0
 #define V_PCLKDETECT(x) ((x) << S_PCLKDETECT)
 #define F_PCLKDETECT    V_PCLKDETECT(1U)
+
+#define A_PCIE_SERDES_STATUS0 0xb0
+
+#define S_RXERRLANE7    21
+#define M_RXERRLANE7    0x7
+#define V_RXERRLANE7(x) ((x) << S_RXERRLANE7)
+#define G_RXERRLANE7(x) (((x) >> S_RXERRLANE7) & M_RXERRLANE7)
+
+#define S_RXERRLANE6    18
+#define M_RXERRLANE6    0x7
+#define V_RXERRLANE6(x) ((x) << S_RXERRLANE6)
+#define G_RXERRLANE6(x) (((x) >> S_RXERRLANE6) & M_RXERRLANE6)
+
+#define S_RXERRLANE5    15
+#define M_RXERRLANE5    0x7
+#define V_RXERRLANE5(x) ((x) << S_RXERRLANE5)
+#define G_RXERRLANE5(x) (((x) >> S_RXERRLANE5) & M_RXERRLANE5)
+
+#define S_RXERRLANE4    12
+#define M_RXERRLANE4    0x7
+#define V_RXERRLANE4(x) ((x) << S_RXERRLANE4)
+#define G_RXERRLANE4(x) (((x) >> S_RXERRLANE4) & M_RXERRLANE4)
+
+#define S_PCIE_RXERRLANE3    9
+#define M_PCIE_RXERRLANE3    0x7
+#define V_PCIE_RXERRLANE3(x) ((x) << S_PCIE_RXERRLANE3)
+#define G_PCIE_RXERRLANE3(x) (((x) >> S_PCIE_RXERRLANE3) & M_PCIE_RXERRLANE3)
+
+#define S_PCIE_RXERRLANE2    6
+#define M_PCIE_RXERRLANE2    0x7
+#define V_PCIE_RXERRLANE2(x) ((x) << S_PCIE_RXERRLANE2)
+#define G_PCIE_RXERRLANE2(x) (((x) >> S_PCIE_RXERRLANE2) & M_PCIE_RXERRLANE2)
+
+#define S_PCIE_RXERRLANE1    3
+#define M_PCIE_RXERRLANE1    0x7
+#define V_PCIE_RXERRLANE1(x) ((x) << S_PCIE_RXERRLANE1)
+#define G_PCIE_RXERRLANE1(x) (((x) >> S_PCIE_RXERRLANE1) & M_PCIE_RXERRLANE1)
+
+#define S_PCIE_RXERRLANE0    0
+#define M_PCIE_RXERRLANE0    0x7
+#define V_PCIE_RXERRLANE0(x) ((x) << S_PCIE_RXERRLANE0)
+#define G_PCIE_RXERRLANE0(x) (((x) >> S_PCIE_RXERRLANE0) & M_PCIE_RXERRLANE0)
+
+#define A_PCIE_SERDES_LANE_CTRL 0xb4
+
+#define S_EXTBISTCHKERRCLR    22
+#define V_EXTBISTCHKERRCLR(x) ((x) << S_EXTBISTCHKERRCLR)
+#define F_EXTBISTCHKERRCLR    V_EXTBISTCHKERRCLR(1U)
+
+#define S_EXTBISTCHKEN    21
+#define V_EXTBISTCHKEN(x) ((x) << S_EXTBISTCHKEN)
+#define F_EXTBISTCHKEN    V_EXTBISTCHKEN(1U)
+
+#define S_EXTBISTGENEN    20
+#define V_EXTBISTGENEN(x) ((x) << S_EXTBISTGENEN)
+#define F_EXTBISTGENEN    V_EXTBISTGENEN(1U)
+
+#define S_EXTBISTPAT    17
+#define M_EXTBISTPAT    0x7
+#define V_EXTBISTPAT(x) ((x) << S_EXTBISTPAT)
+#define G_EXTBISTPAT(x) (((x) >> S_EXTBISTPAT) & M_EXTBISTPAT)
+
+#define S_EXTPARRESET    16
+#define V_EXTPARRESET(x) ((x) << S_EXTPARRESET)
+#define F_EXTPARRESET    V_EXTPARRESET(1U)
+
+#define S_EXTPARLPBK    15
+#define V_EXTPARLPBK(x) ((x) << S_EXTPARLPBK)
+#define F_EXTPARLPBK    V_EXTPARLPBK(1U)
+
+#define S_MANRXTERMEN    14
+#define V_MANRXTERMEN(x) ((x) << S_MANRXTERMEN)
+#define F_MANRXTERMEN    V_MANRXTERMEN(1U)
+
+#define S_MANBEACONTXEN    13
+#define V_MANBEACONTXEN(x) ((x) << S_MANBEACONTXEN)
+#define F_MANBEACONTXEN    V_MANBEACONTXEN(1U)
+
+#define S_MANRXDETECTEN    12
+#define V_MANRXDETECTEN(x) ((x) << S_MANRXDETECTEN)
+#define F_MANRXDETECTEN    V_MANRXDETECTEN(1U)
+
+#define S_MANTXIDLEEN    11
+#define V_MANTXIDLEEN(x) ((x) << S_MANTXIDLEEN)
+#define F_MANTXIDLEEN    V_MANTXIDLEEN(1U)
+
+#define S_MANRXIDLEEN    10
+#define V_MANRXIDLEEN(x) ((x) << S_MANRXIDLEEN)
+#define F_MANRXIDLEEN    V_MANRXIDLEEN(1U)
+
+#define S_MANL1PWRDN    9
+#define V_MANL1PWRDN(x) ((x) << S_MANL1PWRDN)
+#define F_MANL1PWRDN    V_MANL1PWRDN(1U)
+
+#define S_MANRESET    8
+#define V_MANRESET(x) ((x) << S_MANRESET)
+#define F_MANRESET    V_MANRESET(1U)
+
+#define S_MANFMOFFSET    3
+#define M_MANFMOFFSET    0x1f
+#define V_MANFMOFFSET(x) ((x) << S_MANFMOFFSET)
+#define G_MANFMOFFSET(x) (((x) >> S_MANFMOFFSET) & M_MANFMOFFSET)
+
+#define S_MANFMOFFSETEN    2
+#define V_MANFMOFFSETEN(x) ((x) << S_MANFMOFFSETEN)
+#define F_MANFMOFFSETEN    V_MANFMOFFSETEN(1U)
+
+#define S_MANLANEEN    1
+#define V_MANLANEEN(x) ((x) << S_MANLANEEN)
+#define F_MANLANEEN    V_MANLANEEN(1U)
+
+#define S_INTSERLPBK    0
+#define V_INTSERLPBK(x) ((x) << S_INTSERLPBK)
+#define F_INTSERLPBK    V_INTSERLPBK(1U)
 
 #define A_PCIE_SERDES_STATUS1 0xb4
 
@@ -1441,77 +1859,40 @@ $FreeBSD$
 #define V_PCIE_RXOFLOWLANE0(x) ((x) << S_PCIE_RXOFLOWLANE0)
 #define F_PCIE_RXOFLOWLANE0    V_PCIE_RXOFLOWLANE0(1U)
 
-#define A_PCIE_SERDES_LANE_CTRL 0xb4
+#define A_PCIE_SERDES_LANE_STAT 0xb8
 
-#define S_EXTBISTCHKERRCLR    22
-#define V_EXTBISTCHKERRCLR(x) ((x) << S_EXTBISTCHKERRCLR)
-#define F_EXTBISTCHKERRCLR    V_EXTBISTCHKERRCLR(1U)
+#define S_EXTBISTCHKERRCNT    8
+#define M_EXTBISTCHKERRCNT    0xffffff
+#define V_EXTBISTCHKERRCNT(x) ((x) << S_EXTBISTCHKERRCNT)
+#define G_EXTBISTCHKERRCNT(x) (((x) >> S_EXTBISTCHKERRCNT) & M_EXTBISTCHKERRCNT)
 
-#define S_EXTBISTCHKEN    21
-#define V_EXTBISTCHKEN(x) ((x) << S_EXTBISTCHKEN)
-#define F_EXTBISTCHKEN    V_EXTBISTCHKEN(1U)
+#define S_EXTBISTCHKFMD    7
+#define V_EXTBISTCHKFMD(x) ((x) << S_EXTBISTCHKFMD)
+#define F_EXTBISTCHKFMD    V_EXTBISTCHKFMD(1U)
 
-#define S_EXTBISTGENEN    20
-#define V_EXTBISTGENEN(x) ((x) << S_EXTBISTGENEN)
-#define F_EXTBISTGENEN    V_EXTBISTGENEN(1U)
+#define S_BEACONDETECTCHG    6
+#define V_BEACONDETECTCHG(x) ((x) << S_BEACONDETECTCHG)
+#define F_BEACONDETECTCHG    V_BEACONDETECTCHG(1U)
 
-#define S_EXTBISTPAT    17
-#define M_EXTBISTPAT    0x7
-#define V_EXTBISTPAT(x) ((x) << S_EXTBISTPAT)
-#define G_EXTBISTPAT(x) (((x) >> S_EXTBISTPAT) & M_EXTBISTPAT)
+#define S_RXDETECTCHG    5
+#define V_RXDETECTCHG(x) ((x) << S_RXDETECTCHG)
+#define F_RXDETECTCHG    V_RXDETECTCHG(1U)
 
-#define S_EXTPARRESET    16
-#define V_EXTPARRESET(x) ((x) << S_EXTPARRESET)
-#define F_EXTPARRESET    V_EXTPARRESET(1U)
+#define S_TXIDLEDETECTCHG    4
+#define V_TXIDLEDETECTCHG(x) ((x) << S_TXIDLEDETECTCHG)
+#define F_TXIDLEDETECTCHG    V_TXIDLEDETECTCHG(1U)
 
-#define S_EXTPARLPBK    15
-#define V_EXTPARLPBK(x) ((x) << S_EXTPARLPBK)
-#define F_EXTPARLPBK    V_EXTPARLPBK(1U)
+#define S_BEACONDETECT    2
+#define V_BEACONDETECT(x) ((x) << S_BEACONDETECT)
+#define F_BEACONDETECT    V_BEACONDETECT(1U)
 
-#define S_MANRXTERMEN    14
-#define V_MANRXTERMEN(x) ((x) << S_MANRXTERMEN)
-#define F_MANRXTERMEN    V_MANRXTERMEN(1U)
+#define S_RXDETECT    1
+#define V_RXDETECT(x) ((x) << S_RXDETECT)
+#define F_RXDETECT    V_RXDETECT(1U)
 
-#define S_MANBEACONTXEN    13
-#define V_MANBEACONTXEN(x) ((x) << S_MANBEACONTXEN)
-#define F_MANBEACONTXEN    V_MANBEACONTXEN(1U)
-
-#define S_MANRXDETECTEN    12
-#define V_MANRXDETECTEN(x) ((x) << S_MANRXDETECTEN)
-#define F_MANRXDETECTEN    V_MANRXDETECTEN(1U)
-
-#define S_MANTXIDLEEN    11
-#define V_MANTXIDLEEN(x) ((x) << S_MANTXIDLEEN)
-#define F_MANTXIDLEEN    V_MANTXIDLEEN(1U)
-
-#define S_MANRXIDLEEN    10
-#define V_MANRXIDLEEN(x) ((x) << S_MANRXIDLEEN)
-#define F_MANRXIDLEEN    V_MANRXIDLEEN(1U)
-
-#define S_MANL1PWRDN    9
-#define V_MANL1PWRDN(x) ((x) << S_MANL1PWRDN)
-#define F_MANL1PWRDN    V_MANL1PWRDN(1U)
-
-#define S_MANRESET    8
-#define V_MANRESET(x) ((x) << S_MANRESET)
-#define F_MANRESET    V_MANRESET(1U)
-
-#define S_MANFMOFFSET    3
-#define M_MANFMOFFSET    0x1f
-#define V_MANFMOFFSET(x) ((x) << S_MANFMOFFSET)
-#define G_MANFMOFFSET(x) (((x) >> S_MANFMOFFSET) & M_MANFMOFFSET)
-
-#define S_MANFMOFFSETEN    2
-#define V_MANFMOFFSETEN(x) ((x) << S_MANFMOFFSETEN)
-#define F_MANFMOFFSETEN    V_MANFMOFFSETEN(1U)
-
-#define S_MANLANEEN    1
-#define V_MANLANEEN(x) ((x) << S_MANLANEEN)
-#define F_MANLANEEN    V_MANLANEEN(1U)
-
-#define S_INTSERLPBK    0
-#define V_INTSERLPBK(x) ((x) << S_INTSERLPBK)
-#define F_INTSERLPBK    V_INTSERLPBK(1U)
+#define S_TXIDLEDETECT    0
+#define V_TXIDLEDETECT(x) ((x) << S_TXIDLEDETECT)
+#define F_TXIDLEDETECT    V_TXIDLEDETECT(1U)
 
 #define A_PCIE_SERDES_STATUS2 0xb8
 
@@ -1643,40 +2024,22 @@ $FreeBSD$
 #define V_PCIE_RXADDSKIPLANE0(x) ((x) << S_PCIE_RXADDSKIPLANE0)
 #define F_PCIE_RXADDSKIPLANE0    V_PCIE_RXADDSKIPLANE0(1U)
 
-#define A_PCIE_SERDES_LANE_STAT 0xb8
+#define A_PCIE_PEX_WMARK 0xbc
 
-#define S_EXTBISTCHKERRCNT    8
-#define M_EXTBISTCHKERRCNT    0xffffff
-#define V_EXTBISTCHKERRCNT(x) ((x) << S_EXTBISTCHKERRCNT)
-#define G_EXTBISTCHKERRCNT(x) (((x) >> S_EXTBISTCHKERRCNT) & M_EXTBISTCHKERRCNT)
+#define S_P_WMARK    18
+#define M_P_WMARK    0x7ff
+#define V_P_WMARK(x) ((x) << S_P_WMARK)
+#define G_P_WMARK(x) (((x) >> S_P_WMARK) & M_P_WMARK)
 
-#define S_EXTBISTCHKFMD    7
-#define V_EXTBISTCHKFMD(x) ((x) << S_EXTBISTCHKFMD)
-#define F_EXTBISTCHKFMD    V_EXTBISTCHKFMD(1U)
+#define S_NP_WMARK    11
+#define M_NP_WMARK    0x7f
+#define V_NP_WMARK(x) ((x) << S_NP_WMARK)
+#define G_NP_WMARK(x) (((x) >> S_NP_WMARK) & M_NP_WMARK)
 
-#define S_BEACONDETECTCHG    6
-#define V_BEACONDETECTCHG(x) ((x) << S_BEACONDETECTCHG)
-#define F_BEACONDETECTCHG    V_BEACONDETECTCHG(1U)
-
-#define S_RXDETECTCHG    5
-#define V_RXDETECTCHG(x) ((x) << S_RXDETECTCHG)
-#define F_RXDETECTCHG    V_RXDETECTCHG(1U)
-
-#define S_TXIDLEDETECTCHG    4
-#define V_TXIDLEDETECTCHG(x) ((x) << S_TXIDLEDETECTCHG)
-#define F_TXIDLEDETECTCHG    V_TXIDLEDETECTCHG(1U)
-
-#define S_BEACONDETECT    2
-#define V_BEACONDETECT(x) ((x) << S_BEACONDETECT)
-#define F_BEACONDETECT    V_BEACONDETECT(1U)
-
-#define S_RXDETECT    1
-#define V_RXDETECT(x) ((x) << S_RXDETECT)
-#define F_RXDETECT    V_RXDETECT(1U)
-
-#define S_TXIDLEDETECT    0
-#define V_TXIDLEDETECT(x) ((x) << S_TXIDLEDETECT)
-#define F_TXIDLEDETECT    V_TXIDLEDETECT(1U)
+#define S_CPL_WMARK    0
+#define M_CPL_WMARK    0x7ff
+#define V_CPL_WMARK(x) ((x) << S_CPL_WMARK)
+#define G_CPL_WMARK(x) (((x) >> S_CPL_WMARK) & M_CPL_WMARK)
 
 #define A_PCIE_SERDES_BIST 0xbc
 
@@ -1831,54 +2194,6 @@ $FreeBSD$
 
 #define A_T3DBG_GPIO_IN 0xd4
 
-#define S_GPIO11_IN    11
-#define V_GPIO11_IN(x) ((x) << S_GPIO11_IN)
-#define F_GPIO11_IN    V_GPIO11_IN(1U)
-
-#define S_GPIO10_IN    10
-#define V_GPIO10_IN(x) ((x) << S_GPIO10_IN)
-#define F_GPIO10_IN    V_GPIO10_IN(1U)
-
-#define S_GPIO9_IN    9
-#define V_GPIO9_IN(x) ((x) << S_GPIO9_IN)
-#define F_GPIO9_IN    V_GPIO9_IN(1U)
-
-#define S_GPIO8_IN    8
-#define V_GPIO8_IN(x) ((x) << S_GPIO8_IN)
-#define F_GPIO8_IN    V_GPIO8_IN(1U)
-
-#define S_GPIO7_IN    7
-#define V_GPIO7_IN(x) ((x) << S_GPIO7_IN)
-#define F_GPIO7_IN    V_GPIO7_IN(1U)
-
-#define S_GPIO6_IN    6
-#define V_GPIO6_IN(x) ((x) << S_GPIO6_IN)
-#define F_GPIO6_IN    V_GPIO6_IN(1U)
-
-#define S_GPIO5_IN    5
-#define V_GPIO5_IN(x) ((x) << S_GPIO5_IN)
-#define F_GPIO5_IN    V_GPIO5_IN(1U)
-
-#define S_GPIO4_IN    4
-#define V_GPIO4_IN(x) ((x) << S_GPIO4_IN)
-#define F_GPIO4_IN    V_GPIO4_IN(1U)
-
-#define S_GPIO3_IN    3
-#define V_GPIO3_IN(x) ((x) << S_GPIO3_IN)
-#define F_GPIO3_IN    V_GPIO3_IN(1U)
-
-#define S_GPIO2_IN    2
-#define V_GPIO2_IN(x) ((x) << S_GPIO2_IN)
-#define F_GPIO2_IN    V_GPIO2_IN(1U)
-
-#define S_GPIO1_IN    1
-#define V_GPIO1_IN(x) ((x) << S_GPIO1_IN)
-#define F_GPIO1_IN    V_GPIO1_IN(1U)
-
-#define S_GPIO0_IN    0
-#define V_GPIO0_IN(x) ((x) << S_GPIO0_IN)
-#define F_GPIO0_IN    V_GPIO0_IN(1U)
-
 #define S_GPIO11_CHG_DET    27
 #define V_GPIO11_CHG_DET(x) ((x) << S_GPIO11_CHG_DET)
 #define F_GPIO11_CHG_DET    V_GPIO11_CHG_DET(1U)
@@ -1927,6 +2242,54 @@ $FreeBSD$
 #define V_GPIO0_CHG_DET(x) ((x) << S_GPIO0_CHG_DET)
 #define F_GPIO0_CHG_DET    V_GPIO0_CHG_DET(1U)
 
+#define S_GPIO11_IN    11
+#define V_GPIO11_IN(x) ((x) << S_GPIO11_IN)
+#define F_GPIO11_IN    V_GPIO11_IN(1U)
+
+#define S_GPIO10_IN    10
+#define V_GPIO10_IN(x) ((x) << S_GPIO10_IN)
+#define F_GPIO10_IN    V_GPIO10_IN(1U)
+
+#define S_GPIO9_IN    9
+#define V_GPIO9_IN(x) ((x) << S_GPIO9_IN)
+#define F_GPIO9_IN    V_GPIO9_IN(1U)
+
+#define S_GPIO8_IN    8
+#define V_GPIO8_IN(x) ((x) << S_GPIO8_IN)
+#define F_GPIO8_IN    V_GPIO8_IN(1U)
+
+#define S_GPIO7_IN    7
+#define V_GPIO7_IN(x) ((x) << S_GPIO7_IN)
+#define F_GPIO7_IN    V_GPIO7_IN(1U)
+
+#define S_GPIO6_IN    6
+#define V_GPIO6_IN(x) ((x) << S_GPIO6_IN)
+#define F_GPIO6_IN    V_GPIO6_IN(1U)
+
+#define S_GPIO5_IN    5
+#define V_GPIO5_IN(x) ((x) << S_GPIO5_IN)
+#define F_GPIO5_IN    V_GPIO5_IN(1U)
+
+#define S_GPIO4_IN    4
+#define V_GPIO4_IN(x) ((x) << S_GPIO4_IN)
+#define F_GPIO4_IN    V_GPIO4_IN(1U)
+
+#define S_GPIO3_IN    3
+#define V_GPIO3_IN(x) ((x) << S_GPIO3_IN)
+#define F_GPIO3_IN    V_GPIO3_IN(1U)
+
+#define S_GPIO2_IN    2
+#define V_GPIO2_IN(x) ((x) << S_GPIO2_IN)
+#define F_GPIO2_IN    V_GPIO2_IN(1U)
+
+#define S_GPIO1_IN    1
+#define V_GPIO1_IN(x) ((x) << S_GPIO1_IN)
+#define F_GPIO1_IN    V_GPIO1_IN(1U)
+
+#define S_GPIO0_IN    0
+#define V_GPIO0_IN(x) ((x) << S_GPIO0_IN)
+#define F_GPIO0_IN    V_GPIO0_IN(1U)
+
 #define A_T3DBG_INT_ENABLE 0xd8
 
 #define S_C_LOCK    21
@@ -1948,10 +2311,6 @@ $FreeBSD$
 #define S_PX_LOCK    17
 #define V_PX_LOCK(x) ((x) << S_PX_LOCK)
 #define F_PX_LOCK    V_PX_LOCK(1U)
-
-#define S_PE_LOCK    16
-#define V_PE_LOCK(x) ((x) << S_PE_LOCK)
-#define F_PE_LOCK    V_PE_LOCK(1U)
 
 #define S_GPIO11    11
 #define V_GPIO11(x) ((x) << S_GPIO11)
@@ -2001,18 +2360,27 @@ $FreeBSD$
 #define V_GPIO0(x) ((x) << S_GPIO0)
 #define F_GPIO0    V_GPIO0(1U)
 
+#define S_PE_LOCK    16
+#define V_PE_LOCK(x) ((x) << S_PE_LOCK)
+#define F_PE_LOCK    V_PE_LOCK(1U)
+
 #define A_T3DBG_INT_CAUSE 0xdc
 #define A_T3DBG_DBG0_RST_VALUE 0xe0
 
 #define S_DEBUGDATA    0
+#define M_DEBUGDATA    0xff
 #define V_DEBUGDATA(x) ((x) << S_DEBUGDATA)
-#define F_DEBUGDATA    V_DEBUGDATA(1U)
+#define G_DEBUGDATA(x) (((x) >> S_DEBUGDATA) & M_DEBUGDATA)
 
 #define A_T3DBG_PLL_OCLK_PAD_EN 0xe4
 
 #define S_PCIE_OCLK_EN    20
 #define V_PCIE_OCLK_EN(x) ((x) << S_PCIE_OCLK_EN)
 #define F_PCIE_OCLK_EN    V_PCIE_OCLK_EN(1U)
+
+#define S_PCLKTREE_DBG_EN    17
+#define V_PCLKTREE_DBG_EN(x) ((x) << S_PCLKTREE_DBG_EN)
+#define F_PCLKTREE_DBG_EN    V_PCLKTREE_DBG_EN(1U)
 
 #define S_PCIX_OCLK_EN    16
 #define V_PCIX_OCLK_EN(x) ((x) << S_PCIX_OCLK_EN)
@@ -2034,15 +2402,7 @@ $FreeBSD$
 #define V_C_OCLK_EN(x) ((x) << S_C_OCLK_EN)
 #define F_C_OCLK_EN    V_C_OCLK_EN(1U)
 
-#define S_PCLKTREE_DBG_EN    17
-#define V_PCLKTREE_DBG_EN(x) ((x) << S_PCLKTREE_DBG_EN)
-#define F_PCLKTREE_DBG_EN    V_PCLKTREE_DBG_EN(1U)
-
 #define A_T3DBG_PLL_LOCK 0xe8
-
-#define S_PCIE_LOCK    20
-#define V_PCIE_LOCK(x) ((x) << S_PCIE_LOCK)
-#define F_PCIE_LOCK    V_PCIE_LOCK(1U)
 
 #define S_PCIX_LOCK    16
 #define V_PCIX_LOCK(x) ((x) << S_PCIX_LOCK)
@@ -2064,11 +2424,16 @@ $FreeBSD$
 #define V_PLL_C_LOCK(x) ((x) << S_PLL_C_LOCK)
 #define F_PLL_C_LOCK    V_PLL_C_LOCK(1U)
 
+#define S_PCIE_LOCK    20
+#define V_PCIE_LOCK(x) ((x) << S_PCIE_LOCK)
+#define F_PCIE_LOCK    V_PCIE_LOCK(1U)
+
 #define A_T3DBG_SERDES_RBC_CFG 0xec
 
 #define S_X_RBC_LANE_SEL    16
+#define M_X_RBC_LANE_SEL    0x3
 #define V_X_RBC_LANE_SEL(x) ((x) << S_X_RBC_LANE_SEL)
-#define F_X_RBC_LANE_SEL    V_X_RBC_LANE_SEL(1U)
+#define G_X_RBC_LANE_SEL(x) (((x) >> S_X_RBC_LANE_SEL) & M_X_RBC_LANE_SEL)
 
 #define S_X_RBC_DBG_EN    12
 #define V_X_RBC_DBG_EN(x) ((x) << S_X_RBC_DBG_EN)
@@ -2079,8 +2444,9 @@ $FreeBSD$
 #define F_X_SERDES_SEL    V_X_SERDES_SEL(1U)
 
 #define S_PE_RBC_LANE_SEL    4
+#define M_PE_RBC_LANE_SEL    0x7
 #define V_PE_RBC_LANE_SEL(x) ((x) << S_PE_RBC_LANE_SEL)
-#define F_PE_RBC_LANE_SEL    V_PE_RBC_LANE_SEL(1U)
+#define G_PE_RBC_LANE_SEL(x) (((x) >> S_PE_RBC_LANE_SEL) & M_PE_RBC_LANE_SEL)
 
 #define S_PE_RBC_DBG_EN    0
 #define V_PE_RBC_DBG_EN(x) ((x) << S_PE_RBC_DBG_EN)
@@ -2107,10 +2473,6 @@ $FreeBSD$
 #define S_PX_LOCK_ACT_LOW    17
 #define V_PX_LOCK_ACT_LOW(x) ((x) << S_PX_LOCK_ACT_LOW)
 #define F_PX_LOCK_ACT_LOW    V_PX_LOCK_ACT_LOW(1U)
-
-#define S_PE_LOCK_ACT_LOW    16
-#define V_PE_LOCK_ACT_LOW(x) ((x) << S_PE_LOCK_ACT_LOW)
-#define F_PE_LOCK_ACT_LOW    V_PE_LOCK_ACT_LOW(1U)
 
 #define S_GPIO11_ACT_LOW    11
 #define V_GPIO11_ACT_LOW(x) ((x) << S_GPIO11_ACT_LOW)
@@ -2160,6 +2522,10 @@ $FreeBSD$
 #define V_GPIO0_ACT_LOW(x) ((x) << S_GPIO0_ACT_LOW)
 #define F_GPIO0_ACT_LOW    V_GPIO0_ACT_LOW(1U)
 
+#define S_PE_LOCK_ACT_LOW    16
+#define V_PE_LOCK_ACT_LOW(x) ((x) << S_PE_LOCK_ACT_LOW)
+#define F_PE_LOCK_ACT_LOW    V_PE_LOCK_ACT_LOW(1U)
+
 #define A_T3DBG_PMON_CFG 0xf4
 
 #define S_PMON_DONE    29
@@ -2171,20 +2537,24 @@ $FreeBSD$
 #define F_PMON_FAIL    V_PMON_FAIL(1U)
 
 #define S_PMON_FDEL_AUTO    22
+#define M_PMON_FDEL_AUTO    0x3f
 #define V_PMON_FDEL_AUTO(x) ((x) << S_PMON_FDEL_AUTO)
-#define F_PMON_FDEL_AUTO    V_PMON_FDEL_AUTO(1U)
+#define G_PMON_FDEL_AUTO(x) (((x) >> S_PMON_FDEL_AUTO) & M_PMON_FDEL_AUTO)
 
 #define S_PMON_CDEL_AUTO    16
+#define M_PMON_CDEL_AUTO    0x3f
 #define V_PMON_CDEL_AUTO(x) ((x) << S_PMON_CDEL_AUTO)
-#define F_PMON_CDEL_AUTO    V_PMON_CDEL_AUTO(1U)
+#define G_PMON_CDEL_AUTO(x) (((x) >> S_PMON_CDEL_AUTO) & M_PMON_CDEL_AUTO)
 
 #define S_PMON_FDEL_MANUAL    10
+#define M_PMON_FDEL_MANUAL    0x3f
 #define V_PMON_FDEL_MANUAL(x) ((x) << S_PMON_FDEL_MANUAL)
-#define F_PMON_FDEL_MANUAL    V_PMON_FDEL_MANUAL(1U)
+#define G_PMON_FDEL_MANUAL(x) (((x) >> S_PMON_FDEL_MANUAL) & M_PMON_FDEL_MANUAL)
 
 #define S_PMON_CDEL_MANUAL    4
+#define M_PMON_CDEL_MANUAL    0x3f
 #define V_PMON_CDEL_MANUAL(x) ((x) << S_PMON_CDEL_MANUAL)
-#define F_PMON_CDEL_MANUAL    V_PMON_CDEL_MANUAL(1U)
+#define G_PMON_CDEL_MANUAL(x) (((x) >> S_PMON_CDEL_MANUAL) & M_PMON_CDEL_MANUAL)
 
 #define S_PMON_MANUAL    1
 #define V_PMON_MANUAL(x) ((x) << S_PMON_MANUAL)
@@ -2740,6 +3110,54 @@ $FreeBSD$
 
 #define A_CIM_HOST_INT_ENABLE 0x298
 
+#define S_DTAGPARERR    28
+#define V_DTAGPARERR(x) ((x) << S_DTAGPARERR)
+#define F_DTAGPARERR    V_DTAGPARERR(1U)
+
+#define S_ITAGPARERR    27
+#define V_ITAGPARERR(x) ((x) << S_ITAGPARERR)
+#define F_ITAGPARERR    V_ITAGPARERR(1U)
+
+#define S_IBQTPPARERR    26
+#define V_IBQTPPARERR(x) ((x) << S_IBQTPPARERR)
+#define F_IBQTPPARERR    V_IBQTPPARERR(1U)
+
+#define S_IBQULPPARERR    25
+#define V_IBQULPPARERR(x) ((x) << S_IBQULPPARERR)
+#define F_IBQULPPARERR    V_IBQULPPARERR(1U)
+
+#define S_IBQSGEHIPARERR    24
+#define V_IBQSGEHIPARERR(x) ((x) << S_IBQSGEHIPARERR)
+#define F_IBQSGEHIPARERR    V_IBQSGEHIPARERR(1U)
+
+#define S_IBQSGELOPARERR    23
+#define V_IBQSGELOPARERR(x) ((x) << S_IBQSGELOPARERR)
+#define F_IBQSGELOPARERR    V_IBQSGELOPARERR(1U)
+
+#define S_OBQULPLOPARERR    22
+#define V_OBQULPLOPARERR(x) ((x) << S_OBQULPLOPARERR)
+#define F_OBQULPLOPARERR    V_OBQULPLOPARERR(1U)
+
+#define S_OBQULPHIPARERR    21
+#define V_OBQULPHIPARERR(x) ((x) << S_OBQULPHIPARERR)
+#define F_OBQULPHIPARERR    V_OBQULPHIPARERR(1U)
+
+#define S_OBQSGEPARERR    20
+#define V_OBQSGEPARERR(x) ((x) << S_OBQSGEPARERR)
+#define F_OBQSGEPARERR    V_OBQSGEPARERR(1U)
+
+#define S_DCACHEPARERR    19
+#define V_DCACHEPARERR(x) ((x) << S_DCACHEPARERR)
+#define F_DCACHEPARERR    V_DCACHEPARERR(1U)
+
+#define S_ICACHEPARERR    18
+#define V_ICACHEPARERR(x) ((x) << S_ICACHEPARERR)
+#define F_ICACHEPARERR    V_ICACHEPARERR(1U)
+
+#define S_DRAMPARERR    17
+#define V_DRAMPARERR(x) ((x) << S_DRAMPARERR)
+#define F_DRAMPARERR    V_DRAMPARERR(1U)
+
 #define S_TIMER1INTEN    15
 #define V_TIMER1INTEN(x) ((x) << S_TIMER1INTEN)
 #define F_TIMER1INTEN    V_TIMER1INTEN(1U)
@@ -3043,6 +3461,10 @@ $FreeBSD$
 #define V_DBMAXOPCNT(x) ((x) << S_DBMAXOPCNT)
 #define G_DBMAXOPCNT(x) (((x) >> S_DBMAXOPCNT) & M_DBMAXOPCNT)
 
+#define S_IPV6ENABLE    15
+#define V_IPV6ENABLE(x) ((x) << S_IPV6ENABLE)
+#define F_IPV6ENABLE    V_IPV6ENABLE(1U)
+
 #define S_NICMODE    14
 #define V_NICMODE(x) ((x) << S_NICMODE)
 #define F_NICMODE    V_NICMODE(1U)
@@ -3087,11 +3509,15 @@ $FreeBSD$
 #define V_CTUNNEL(x) ((x) << S_CTUNNEL)
 #define F_CTUNNEL    V_CTUNNEL(1U)
 
-#define S_IPV6ENABLE    15
-#define V_IPV6ENABLE(x) ((x) << S_IPV6ENABLE)
-#define F_IPV6ENABLE    V_IPV6ENABLE(1U)
-
 #define A_TP_OUT_CONFIG 0x304
+
+#define S_IPIDSPLITMODE    16
+#define V_IPIDSPLITMODE(x) ((x) << S_IPIDSPLITMODE)
+#define F_IPIDSPLITMODE    V_IPIDSPLITMODE(1U)
+
+#define S_VLANEXTRACTIONENABLE2NDPORT    13
+#define V_VLANEXTRACTIONENABLE2NDPORT(x) ((x) << S_VLANEXTRACTIONENABLE2NDPORT)
+#define F_VLANEXTRACTIONENABLE2NDPORT    V_VLANEXTRACTIONENABLE2NDPORT(1U)
 
 #define S_VLANEXTRACTIONENABLE    12
 #define V_VLANEXTRACTIONENABLE(x) ((x) << S_VLANEXTRACTIONENABLE)
@@ -3129,15 +3555,12 @@ $FreeBSD$
 #define V_OUT_CETHERNET(x) ((x) << S_OUT_CETHERNET)
 #define F_OUT_CETHERNET    V_OUT_CETHERNET(1U)
 
-#define S_IPIDSPLITMODE    16
-#define V_IPIDSPLITMODE(x) ((x) << S_IPIDSPLITMODE)
-#define F_IPIDSPLITMODE    V_IPIDSPLITMODE(1U)
-
-#define S_VLANEXTRACTIONENABLE2NDPORT    13
-#define V_VLANEXTRACTIONENABLE2NDPORT(x) ((x) << S_VLANEXTRACTIONENABLE2NDPORT)
-#define F_VLANEXTRACTIONENABLE2NDPORT    V_VLANEXTRACTIONENABLE2NDPORT(1U)
-
 #define A_TP_GLOBAL_CONFIG 0x308
+
+#define S_SYNCOOKIEPARAMS    26
+#define M_SYNCOOKIEPARAMS    0x3f
+#define V_SYNCOOKIEPARAMS(x) ((x) << S_SYNCOOKIEPARAMS)
+#define G_SYNCOOKIEPARAMS(x) (((x) >> S_SYNCOOKIEPARAMS) & M_SYNCOOKIEPARAMS)
 
 #define S_RXFLOWCONTROLDISABLE    25
 #define V_RXFLOWCONTROLDISABLE(x) ((x) << S_RXFLOWCONTROLDISABLE)
@@ -3206,11 +3629,6 @@ $FreeBSD$
 #define V_IPTTL(x) ((x) << S_IPTTL)
 #define G_IPTTL(x) (((x) >> S_IPTTL) & M_IPTTL)
 
-#define S_SYNCOOKIEPARAMS    26
-#define M_SYNCOOKIEPARAMS    0x3f
-#define V_SYNCOOKIEPARAMS(x) ((x) << S_SYNCOOKIEPARAMS)
-#define G_SYNCOOKIEPARAMS(x) (((x) >> S_SYNCOOKIEPARAMS) & M_SYNCOOKIEPARAMS)
-
 #define A_TP_GLOBAL_RX_CREDIT 0x30c
 #define A_TP_CMM_SIZE 0x310
 
@@ -3228,15 +3646,15 @@ $FreeBSD$
 
 #define A_TP_CMM_TIMER_BASE 0x318
 
-#define S_CMTIMERBASE    0
-#define M_CMTIMERBASE    0xfffffff
-#define V_CMTIMERBASE(x) ((x) << S_CMTIMERBASE)
-#define G_CMTIMERBASE(x) (((x) >> S_CMTIMERBASE) & M_CMTIMERBASE)
-
 #define S_CMTIMERMAXNUM    28
 #define M_CMTIMERMAXNUM    0x3
 #define V_CMTIMERMAXNUM(x) ((x) << S_CMTIMERMAXNUM)
 #define G_CMTIMERMAXNUM(x) (((x) >> S_CMTIMERMAXNUM) & M_CMTIMERMAXNUM)
+
+#define S_CMTIMERBASE    0
+#define M_CMTIMERBASE    0xfffffff
+#define V_CMTIMERBASE(x) ((x) << S_CMTIMERBASE)
+#define G_CMTIMERBASE(x) (((x) >> S_CMTIMERBASE) & M_CMTIMERBASE)
 
 #define A_TP_PMM_SIZE 0x31c
 
@@ -3339,6 +3757,26 @@ $FreeBSD$
 
 #define A_TP_PC_CONFIG 0x348
 
+#define S_CMCACHEDISABLE    31
+#define V_CMCACHEDISABLE(x) ((x) << S_CMCACHEDISABLE)
+#define F_CMCACHEDISABLE    V_CMCACHEDISABLE(1U)
+
+#define S_ENABLEOCSPIFULL    30
+#define V_ENABLEOCSPIFULL(x) ((x) << S_ENABLEOCSPIFULL)
+#define F_ENABLEOCSPIFULL    V_ENABLEOCSPIFULL(1U)
+
+#define S_ENABLEFLMERRORDDP    29
+#define V_ENABLEFLMERRORDDP(x) ((x) << S_ENABLEFLMERRORDDP)
+#define F_ENABLEFLMERRORDDP    V_ENABLEFLMERRORDDP(1U)
+
+#define S_LOCKTID    28
+#define V_LOCKTID(x) ((x) << S_LOCKTID)
+#define F_LOCKTID    V_LOCKTID(1U)
+
+#define S_FIXRCVWND    27
+#define V_FIXRCVWND(x) ((x) << S_FIXRCVWND)
+#define F_FIXRCVWND    V_FIXRCVWND(1U)
+
 #define S_TXTOSQUEUEMAPMODE    26
 #define V_TXTOSQUEUEMAPMODE(x) ((x) << S_TXTOSQUEUEMAPMODE)
 #define F_TXTOSQUEUEMAPMODE    V_TXTOSQUEUEMAPMODE(1U)
@@ -3436,27 +3874,23 @@ $FreeBSD$
 #define V_TABLELATENCYDELTA(x) ((x) << S_TABLELATENCYDELTA)
 #define G_TABLELATENCYDELTA(x) (((x) >> S_TABLELATENCYDELTA) & M_TABLELATENCYDELTA)
 
-#define S_CMCACHEDISABLE    31
-#define V_CMCACHEDISABLE(x) ((x) << S_CMCACHEDISABLE)
-#define F_CMCACHEDISABLE    V_CMCACHEDISABLE(1U)
-
-#define S_ENABLEOCSPIFULL    30
-#define V_ENABLEOCSPIFULL(x) ((x) << S_ENABLEOCSPIFULL)
-#define F_ENABLEOCSPIFULL    V_ENABLEOCSPIFULL(1U)
-
-#define S_ENABLEFLMERRORDDP    29
-#define V_ENABLEFLMERRORDDP(x) ((x) << S_ENABLEFLMERRORDDP)
-#define F_ENABLEFLMERRORDDP    V_ENABLEFLMERRORDDP(1U)
-
-#define S_LOCKTID    28
-#define V_LOCKTID(x) ((x) << S_LOCKTID)
-#define F_LOCKTID    V_LOCKTID(1U)
-
-#define S_FIXRCVWND    27
-#define V_FIXRCVWND(x) ((x) << S_FIXRCVWND)
-#define F_FIXRCVWND    V_FIXRCVWND(1U)
-
 #define A_TP_PC_CONFIG2 0x34c
+
+#define S_DISBLEDAPARBIT0    15
+#define V_DISBLEDAPARBIT0(x) ((x) << S_DISBLEDAPARBIT0)
+#define F_DISBLEDAPARBIT0    V_DISBLEDAPARBIT0(1U)
+
+#define S_ENABLEARPMISS    13
+#define V_ENABLEARPMISS(x) ((x) << S_ENABLEARPMISS)
+#define F_ENABLEARPMISS    V_ENABLEARPMISS(1U)
+
+#define S_ENABLENONOFDTNLSYN    12
+#define V_ENABLENONOFDTNLSYN(x) ((x) << S_ENABLENONOFDTNLSYN)
+#define F_ENABLENONOFDTNLSYN    V_ENABLENONOFDTNLSYN(1U)
+
+#define S_ENABLEIPV6RSS    11
+#define V_ENABLEIPV6RSS(x) ((x) << S_ENABLEIPV6RSS)
+#define F_ENABLEIPV6RSS    V_ENABLEIPV6RSS(1U)
 
 #define S_ENABLEDROPRQEMPTYPKT    10
 #define V_ENABLEDROPRQEMPTYPKT(x) ((x) << S_ENABLEDROPRQEMPTYPKT)
@@ -3482,9 +3916,9 @@ $FreeBSD$
 #define V_ENABLETXPORTFROMDA(x) ((x) << S_ENABLETXPORTFROMDA)
 #define F_ENABLETXPORTFROMDA    V_ENABLETXPORTFROMDA(1U)
 
-#define S_CHDRAFULL    4
-#define V_CHDRAFULL(x) ((x) << S_CHDRAFULL)
-#define F_CHDRAFULL    V_CHDRAFULL(1U)
+#define S_ENABLECHDRAFULL    4
+#define V_ENABLECHDRAFULL(x) ((x) << S_ENABLECHDRAFULL)
+#define F_ENABLECHDRAFULL    V_ENABLECHDRAFULL(1U)
 
 #define S_ENABLENONOFDSCBBIT    3
 #define V_ENABLENONOFDSCBBIT(x) ((x) << S_ENABLENONOFDSCBBIT)
@@ -3501,6 +3935,10 @@ $FreeBSD$
 #define S_ENABLEOLDRXFORWARD    0
 #define V_ENABLEOLDRXFORWARD(x) ((x) << S_ENABLEOLDRXFORWARD)
 #define F_ENABLEOLDRXFORWARD    V_ENABLEOLDRXFORWARD(1U)
+
+#define S_CHDRAFULL    4
+#define V_CHDRAFULL(x) ((x) << S_CHDRAFULL)
+#define F_CHDRAFULL    V_CHDRAFULL(1U)
 
 #define A_TP_TCP_BACKOFF_REG0 0x350
 
@@ -3662,6 +4100,10 @@ $FreeBSD$
 #define V_TXPACEAUTO(x) ((x) << S_TXPACEAUTO)
 #define F_TXPACEAUTO    V_TXPACEAUTO(1U)
 
+#define S_RXURGTUNNEL    6
+#define V_RXURGTUNNEL(x) ((x) << S_RXURGTUNNEL)
+#define F_RXURGTUNNEL    V_RXURGTUNNEL(1U)
+
 #define S_RXURGMODE    5
 #define V_RXURGMODE(x) ((x) << S_RXURGMODE)
 #define F_RXURGMODE    V_RXURGMODE(1U)
@@ -3682,10 +4124,6 @@ $FreeBSD$
 #define S_RXCOALESCEPSHEN    0
 #define V_RXCOALESCEPSHEN(x) ((x) << S_RXCOALESCEPSHEN)
 #define F_RXCOALESCEPSHEN    V_RXCOALESCEPSHEN(1U)
-
-#define S_RXURGTUNNEL    6
-#define V_RXURGTUNNEL(x) ((x) << S_RXURGTUNNEL)
-#define F_RXURGTUNNEL    V_RXURGTUNNEL(1U)
 
 #define A_TP_PARA_REG4 0x370
 
@@ -3720,6 +4158,10 @@ $FreeBSD$
 #define V_SCHDENABLE(x) ((x) << S_SCHDENABLE)
 #define F_SCHDENABLE    V_SCHDENABLE(1U)
 
+#define S_RXDDPOFFINIT    3
+#define V_RXDDPOFFINIT(x) ((x) << S_RXDDPOFFINIT)
+#define F_RXDDPOFFINIT    V_RXDDPOFFINIT(1U)
+
 #define S_ONFLYDDPENABLE    2
 #define V_ONFLYDDPENABLE(x) ((x) << S_ONFLYDDPENABLE)
 #define F_ONFLYDDPENABLE    V_ONFLYDDPENABLE(1U)
@@ -3739,33 +4181,33 @@ $FreeBSD$
 #define V_TXPDUSIZEADJ(x) ((x) << S_TXPDUSIZEADJ)
 #define G_TXPDUSIZEADJ(x) (((x) >> S_TXPDUSIZEADJ) & M_TXPDUSIZEADJ)
 
-#define S_ENABLEEPDU    14
-#define V_ENABLEEPDU(x) ((x) << S_ENABLEEPDU)
-#define F_ENABLEEPDU    V_ENABLEEPDU(1U)
+#define S_ENABLEDEFERACK    12
+#define V_ENABLEDEFERACK(x) ((x) << S_ENABLEDEFERACK)
+#define F_ENABLEDEFERACK    V_ENABLEDEFERACK(1U)
 
-#define S_T3A_ENABLEESND    13
-#define V_T3A_ENABLEESND(x) ((x) << S_T3A_ENABLEESND)
-#define F_T3A_ENABLEESND    V_T3A_ENABLEESND(1U)
+#define S_ENABLEESND    11
+#define V_ENABLEESND(x) ((x) << S_ENABLEESND)
+#define F_ENABLEESND    V_ENABLEESND(1U)
 
-#define S_T3A_ENABLECSND    12
-#define V_T3A_ENABLECSND(x) ((x) << S_T3A_ENABLECSND)
-#define F_T3A_ENABLECSND    V_T3A_ENABLECSND(1U)
+#define S_ENABLECSND    10
+#define V_ENABLECSND(x) ((x) << S_ENABLECSND)
+#define F_ENABLECSND    V_ENABLECSND(1U)
 
-#define S_T3A_ENABLEDEFERACK    9
-#define V_T3A_ENABLEDEFERACK(x) ((x) << S_T3A_ENABLEDEFERACK)
-#define F_T3A_ENABLEDEFERACK    V_T3A_ENABLEDEFERACK(1U)
+#define S_ENABLEPDUE    9
+#define V_ENABLEPDUE(x) ((x) << S_ENABLEPDUE)
+#define F_ENABLEPDUE    V_ENABLEPDUE(1U)
 
 #define S_ENABLEPDUC    8
 #define V_ENABLEPDUC(x) ((x) << S_ENABLEPDUC)
 #define F_ENABLEPDUC    V_ENABLEPDUC(1U)
 
-#define S_ENABLEPDUI    7
-#define V_ENABLEPDUI(x) ((x) << S_ENABLEPDUI)
-#define F_ENABLEPDUI    V_ENABLEPDUI(1U)
+#define S_ENABLEBUFI    7
+#define V_ENABLEBUFI(x) ((x) << S_ENABLEBUFI)
+#define F_ENABLEBUFI    V_ENABLEBUFI(1U)
 
-#define S_T3A_ENABLEPDUE    6
-#define V_T3A_ENABLEPDUE(x) ((x) << S_T3A_ENABLEPDUE)
-#define F_T3A_ENABLEPDUE    V_T3A_ENABLEPDUE(1U)
+#define S_ENABLEBUFE    6
+#define V_ENABLEBUFE(x) ((x) << S_ENABLEBUFE)
+#define F_ENABLEBUFE    V_ENABLEBUFE(1U)
 
 #define S_ENABLEDEFER    5
 #define V_ENABLEDEFER(x) ((x) << S_ENABLEDEFER)
@@ -3791,29 +4233,29 @@ $FreeBSD$
 #define V_DISABLEPDUXMT(x) ((x) << S_DISABLEPDUXMT)
 #define F_DISABLEPDUXMT    V_DISABLEPDUXMT(1U)
 
-#define S_ENABLEDEFERACK    12
-#define V_ENABLEDEFERACK(x) ((x) << S_ENABLEDEFERACK)
-#define F_ENABLEDEFERACK    V_ENABLEDEFERACK(1U)
+#define S_ENABLEEPDU    14
+#define V_ENABLEEPDU(x) ((x) << S_ENABLEEPDU)
+#define F_ENABLEEPDU    V_ENABLEEPDU(1U)
 
-#define S_ENABLEESND    11
-#define V_ENABLEESND(x) ((x) << S_ENABLEESND)
-#define F_ENABLEESND    V_ENABLEESND(1U)
+#define S_T3A_ENABLEESND    13
+#define V_T3A_ENABLEESND(x) ((x) << S_T3A_ENABLEESND)
+#define F_T3A_ENABLEESND    V_T3A_ENABLEESND(1U)
 
-#define S_ENABLECSND    10
-#define V_ENABLECSND(x) ((x) << S_ENABLECSND)
-#define F_ENABLECSND    V_ENABLECSND(1U)
+#define S_T3A_ENABLECSND    12
+#define V_T3A_ENABLECSND(x) ((x) << S_T3A_ENABLECSND)
+#define F_T3A_ENABLECSND    V_T3A_ENABLECSND(1U)
 
-#define S_ENABLEPDUE    9
-#define V_ENABLEPDUE(x) ((x) << S_ENABLEPDUE)
-#define F_ENABLEPDUE    V_ENABLEPDUE(1U)
+#define S_T3A_ENABLEDEFERACK    9
+#define V_T3A_ENABLEDEFERACK(x) ((x) << S_T3A_ENABLEDEFERACK)
+#define F_T3A_ENABLEDEFERACK    V_T3A_ENABLEDEFERACK(1U)
 
-#define S_ENABLEBUFI    7
-#define V_ENABLEBUFI(x) ((x) << S_ENABLEBUFI)
-#define F_ENABLEBUFI    V_ENABLEBUFI(1U)
+#define S_ENABLEPDUI    7
+#define V_ENABLEPDUI(x) ((x) << S_ENABLEPDUI)
+#define F_ENABLEPDUI    V_ENABLEPDUI(1U)
 
-#define S_ENABLEBUFE    6
-#define V_ENABLEBUFE(x) ((x) << S_ENABLEBUFE)
-#define F_ENABLEBUFE    V_ENABLEBUFE(1U)
+#define S_T3A_ENABLEPDUE    6
+#define V_T3A_ENABLEPDUE(x) ((x) << S_T3A_ENABLEPDUE)
+#define F_T3A_ENABLEPDUE    V_T3A_ENABLEPDUE(1U)
 
 #define A_TP_PARA_REG7 0x37c
 
@@ -4302,6 +4744,131 @@ $FreeBSD$
 #define G_CMMAXPSTRUCT(x) (((x) >> S_CMMAXPSTRUCT) & M_CMMAXPSTRUCT)
 
 #define A_TP_INT_ENABLE 0x470
+
+#define S_FLMTXFLSTEMPTY    30
+#define V_FLMTXFLSTEMPTY(x) ((x) << S_FLMTXFLSTEMPTY)
+#define F_FLMTXFLSTEMPTY    V_FLMTXFLSTEMPTY(1U)
+
+#define S_FLMRXFLSTEMPTY    29
+#define V_FLMRXFLSTEMPTY(x) ((x) << S_FLMRXFLSTEMPTY)
+#define F_FLMRXFLSTEMPTY    V_FLMRXFLSTEMPTY(1U)
+
+#define S_FLMPERRSET    28
+#define V_FLMPERRSET(x) ((x) << S_FLMPERRSET)
+#define F_FLMPERRSET    V_FLMPERRSET(1U)
+
+#define S_PROTOCOLSRAMPERR    27
+#define V_PROTOCOLSRAMPERR(x) ((x) << S_PROTOCOLSRAMPERR)
+#define F_PROTOCOLSRAMPERR    V_PROTOCOLSRAMPERR(1U)
+
+#define S_ARPLUTPERR    26
+#define V_ARPLUTPERR(x) ((x) << S_ARPLUTPERR)
+#define F_ARPLUTPERR    V_ARPLUTPERR(1U)
+
+#define S_CMRCFOPPERR    25
+#define V_CMRCFOPPERR(x) ((x) << S_CMRCFOPPERR)
+#define F_CMRCFOPPERR    V_CMRCFOPPERR(1U)
+
+#define S_CMCACHEPERR    24
+#define V_CMCACHEPERR(x) ((x) << S_CMCACHEPERR)
+#define F_CMCACHEPERR    V_CMCACHEPERR(1U)
+
+#define S_CMRCFDATAPERR    23
+#define V_CMRCFDATAPERR(x) ((x) << S_CMRCFDATAPERR)
+#define F_CMRCFDATAPERR    V_CMRCFDATAPERR(1U)
+
+#define S_DBL2TLUTPERR    22
+#define V_DBL2TLUTPERR(x) ((x) << S_DBL2TLUTPERR)
+#define F_DBL2TLUTPERR    V_DBL2TLUTPERR(1U)
+
+#define S_DBTXTIDPERR    21
+#define V_DBTXTIDPERR(x) ((x) << S_DBTXTIDPERR)
+#define F_DBTXTIDPERR    V_DBTXTIDPERR(1U)
+
+#define S_DBEXTPERR    20
+#define V_DBEXTPERR(x) ((x) << S_DBEXTPERR)
+#define F_DBEXTPERR    V_DBEXTPERR(1U)
+
+#define S_DBOPPERR    19
+#define V_DBOPPERR(x) ((x) << S_DBOPPERR)
+#define F_DBOPPERR    V_DBOPPERR(1U)
+
+#define S_TMCACHEPERR    18
+#define V_TMCACHEPERR(x) ((x) << S_TMCACHEPERR)
+#define F_TMCACHEPERR    V_TMCACHEPERR(1U)
+
+#define S_ETPOUTCPLFIFOPERR    17
+#define V_ETPOUTCPLFIFOPERR(x) ((x) << S_ETPOUTCPLFIFOPERR)
+#define F_ETPOUTCPLFIFOPERR    V_ETPOUTCPLFIFOPERR(1U)
+
+#define S_ETPOUTTCPFIFOPERR    16
+#define V_ETPOUTTCPFIFOPERR(x) ((x) << S_ETPOUTTCPFIFOPERR)
+#define F_ETPOUTTCPFIFOPERR    V_ETPOUTTCPFIFOPERR(1U)
+
+#define S_ETPOUTIPFIFOPERR    15
+#define V_ETPOUTIPFIFOPERR(x) ((x) << S_ETPOUTIPFIFOPERR)
+#define F_ETPOUTIPFIFOPERR    V_ETPOUTIPFIFOPERR(1U)
+
+#define S_ETPOUTETHFIFOPERR    14
+#define V_ETPOUTETHFIFOPERR(x) ((x) << S_ETPOUTETHFIFOPERR)
+#define F_ETPOUTETHFIFOPERR    V_ETPOUTETHFIFOPERR(1U)
+
+#define S_ETPINCPLFIFOPERR    13
+#define V_ETPINCPLFIFOPERR(x) ((x) << S_ETPINCPLFIFOPERR)
+#define F_ETPINCPLFIFOPERR    V_ETPINCPLFIFOPERR(1U)
+
+#define S_ETPINTCPOPTFIFOPERR    12
+#define V_ETPINTCPOPTFIFOPERR(x) ((x) << S_ETPINTCPOPTFIFOPERR)
+#define F_ETPINTCPOPTFIFOPERR    V_ETPINTCPOPTFIFOPERR(1U)
+
+#define S_ETPINTCPFIFOPERR    11
+#define V_ETPINTCPFIFOPERR(x) ((x) << S_ETPINTCPFIFOPERR)
+#define F_ETPINTCPFIFOPERR    V_ETPINTCPFIFOPERR(1U)
+
+#define S_ETPINIPFIFOPERR    10
+#define V_ETPINIPFIFOPERR(x) ((x) << S_ETPINIPFIFOPERR)
+#define F_ETPINIPFIFOPERR    V_ETPINIPFIFOPERR(1U)
+
+#define S_ETPINETHFIFOPERR    9
+#define V_ETPINETHFIFOPERR(x) ((x) << S_ETPINETHFIFOPERR)
+#define F_ETPINETHFIFOPERR    V_ETPINETHFIFOPERR(1U)
+
+#define S_CTPOUTCPLFIFOPERR    8
+#define V_CTPOUTCPLFIFOPERR(x) ((x) << S_CTPOUTCPLFIFOPERR)
+#define F_CTPOUTCPLFIFOPERR    V_CTPOUTCPLFIFOPERR(1U)
+
+#define S_CTPOUTTCPFIFOPERR    7
+#define V_CTPOUTTCPFIFOPERR(x) ((x) << S_CTPOUTTCPFIFOPERR)
+#define F_CTPOUTTCPFIFOPERR    V_CTPOUTTCPFIFOPERR(1U)
+
+#define S_CTPOUTIPFIFOPERR    6
+#define V_CTPOUTIPFIFOPERR(x) ((x) << S_CTPOUTIPFIFOPERR)
+#define F_CTPOUTIPFIFOPERR    V_CTPOUTIPFIFOPERR(1U)
+
+#define S_CTPOUTETHFIFOPERR    5
+#define V_CTPOUTETHFIFOPERR(x) ((x) << S_CTPOUTETHFIFOPERR)
+#define F_CTPOUTETHFIFOPERR    V_CTPOUTETHFIFOPERR(1U)
+
+#define S_CTPINCPLFIFOPERR    4
+#define V_CTPINCPLFIFOPERR(x) ((x) << S_CTPINCPLFIFOPERR)
+#define F_CTPINCPLFIFOPERR    V_CTPINCPLFIFOPERR(1U)
+
+#define S_CTPINTCPOPFIFOPERR    3
+#define V_CTPINTCPOPFIFOPERR(x) ((x) << S_CTPINTCPOPFIFOPERR)
+#define F_CTPINTCPOPFIFOPERR    V_CTPINTCPOPFIFOPERR(1U)
+
+#define S_CTPINTCPFIFOPERR    2
+#define V_CTPINTCPFIFOPERR(x) ((x) << S_CTPINTCPFIFOPERR)
+#define F_CTPINTCPFIFOPERR    V_CTPINTCPFIFOPERR(1U)
+
+#define S_CTPINIPFIFOPERR    1
+#define V_CTPINIPFIFOPERR(x) ((x) << S_CTPINIPFIFOPERR)
+#define F_CTPINIPFIFOPERR    V_CTPINIPFIFOPERR(1U)
+
+#define S_CTPINETHFIFOPERR    0
+#define V_CTPINETHFIFOPERR(x) ((x) << S_CTPINETHFIFOPERR)
+#define F_CTPINETHFIFOPERR    V_CTPINETHFIFOPERR(1U)
+
 #define A_TP_INT_CAUSE 0x474
 #define A_TP_FLM_FREE_PS_CNT 0x480
 
@@ -4333,16 +4900,6 @@ $FreeBSD$
 #define A_TP_TIMER_SEPARATOR 0x4a4
 #define A_TP_DEBUG_SEL 0x4a8
 #define A_TP_DEBUG_FLAGS 0x4ac
-
-#define S_RXDEBUGFLAGS    16
-#define M_RXDEBUGFLAGS    0xffff
-#define V_RXDEBUGFLAGS(x) ((x) << S_RXDEBUGFLAGS)
-#define G_RXDEBUGFLAGS(x) (((x) >> S_RXDEBUGFLAGS) & M_RXDEBUGFLAGS)
-
-#define S_TXDEBUGFLAGS    0
-#define M_TXDEBUGFLAGS    0xffff
-#define V_TXDEBUGFLAGS(x) ((x) << S_TXDEBUGFLAGS)
-#define G_TXDEBUGFLAGS(x) (((x) >> S_TXDEBUGFLAGS) & M_TXDEBUGFLAGS)
 
 #define S_RXTIMERDACKFIRST    26
 #define V_RXTIMERDACKFIRST(x) ((x) << S_RXTIMERDACKFIRST)
@@ -4436,13 +4993,23 @@ $FreeBSD$
 #define V_TXRCVADVLTMSS(x) ((x) << S_TXRCVADVLTMSS)
 #define F_TXRCVADVLTMSS    V_TXRCVADVLTMSS(1U)
 
+#define S_RXDEBUGFLAGS    16
+#define M_RXDEBUGFLAGS    0xffff
+#define V_RXDEBUGFLAGS(x) ((x) << S_RXDEBUGFLAGS)
+#define G_RXDEBUGFLAGS(x) (((x) >> S_RXDEBUGFLAGS) & M_RXDEBUGFLAGS)
+
+#define S_TXDEBUGFLAGS    0
+#define M_TXDEBUGFLAGS    0xffff
+#define V_TXDEBUGFLAGS(x) ((x) << S_TXDEBUGFLAGS)
+#define G_TXDEBUGFLAGS(x) (((x) >> S_TXDEBUGFLAGS) & M_TXDEBUGFLAGS)
+
+#define A_TP_PROXY_FLOW_CNTL 0x4b0
 #define A_TP_CM_FLOW_CNTL_MODE 0x4b0
 
 #define S_CMFLOWCACHEDISABLE    0
 #define V_CMFLOWCACHEDISABLE(x) ((x) << S_CMFLOWCACHEDISABLE)
 #define F_CMFLOWCACHEDISABLE    V_CMFLOWCACHEDISABLE(1U)
 
-#define A_TP_PROXY_FLOW_CNTL 0x4b0
 #define A_TP_PC_CONGESTION_CNTL 0x4b4
 
 #define S_EDROPTUNNEL    19
@@ -4811,6 +5378,38 @@ $FreeBSD$
 
 #define A_ULPRX_INT_ENABLE 0x504
 
+#define S_DATASELFRAMEERR0    7
+#define V_DATASELFRAMEERR0(x) ((x) << S_DATASELFRAMEERR0)
+#define F_DATASELFRAMEERR0    V_DATASELFRAMEERR0(1U)
+
+#define S_DATASELFRAMEERR1    6
+#define V_DATASELFRAMEERR1(x) ((x) << S_DATASELFRAMEERR1)
+#define F_DATASELFRAMEERR1    V_DATASELFRAMEERR1(1U)
+
+#define S_PCMDMUXPERR    5
+#define V_PCMDMUXPERR(x) ((x) << S_PCMDMUXPERR)
+#define F_PCMDMUXPERR    V_PCMDMUXPERR(1U)
+
+#define S_ARBFPERR    4
+#define V_ARBFPERR(x) ((x) << S_ARBFPERR)
+#define F_ARBFPERR    V_ARBFPERR(1U)
+
+#define S_ARBPF0PERR    3
+#define V_ARBPF0PERR(x) ((x) << S_ARBPF0PERR)
+#define F_ARBPF0PERR    V_ARBPF0PERR(1U)
+
+#define S_ARBPF1PERR    2
+#define V_ARBPF1PERR(x) ((x) << S_ARBPF1PERR)
+#define F_ARBPF1PERR    V_ARBPF1PERR(1U)
+
+#define S_PARERRPCMD    1
+#define V_PARERRPCMD(x) ((x) << S_PARERRPCMD)
+#define F_PARERRPCMD    V_PARERRPCMD(1U)
+
+#define S_PARERRDATA    0
+#define V_PARERRDATA(x) ((x) << S_PARERRDATA)
+#define F_PARERRDATA    V_PARERRDATA(1U)
+
 #define S_PARERR    0
 #define V_PARERR(x) ((x) << S_PARERR)
 #define F_PARERR    V_PARERR(1U)
@@ -4893,11 +5492,39 @@ $FreeBSD$
 
 #define A_ULPTX_CONFIG 0x580
 
+#define S_CFG_CQE_SOP_MASK    1
+#define V_CFG_CQE_SOP_MASK(x) ((x) << S_CFG_CQE_SOP_MASK)
+#define F_CFG_CQE_SOP_MASK    V_CFG_CQE_SOP_MASK(1U)
+
 #define S_CFG_RR_ARB    0
 #define V_CFG_RR_ARB(x) ((x) << S_CFG_RR_ARB)
 #define F_CFG_RR_ARB    V_CFG_RR_ARB(1U)
 
 #define A_ULPTX_INT_ENABLE 0x584
+
+#define S_CMD_FIFO_PERR_SET1    7
+#define V_CMD_FIFO_PERR_SET1(x) ((x) << S_CMD_FIFO_PERR_SET1)
+#define F_CMD_FIFO_PERR_SET1    V_CMD_FIFO_PERR_SET1(1U)
+
+#define S_CMD_FIFO_PERR_SET0    6
+#define V_CMD_FIFO_PERR_SET0(x) ((x) << S_CMD_FIFO_PERR_SET0)
+#define F_CMD_FIFO_PERR_SET0    V_CMD_FIFO_PERR_SET0(1U)
+
+#define S_LSO_HDR_SRAM_PERR_SET1    5
+#define V_LSO_HDR_SRAM_PERR_SET1(x) ((x) << S_LSO_HDR_SRAM_PERR_SET1)
+#define F_LSO_HDR_SRAM_PERR_SET1    V_LSO_HDR_SRAM_PERR_SET1(1U)
+
+#define S_LSO_HDR_SRAM_PERR_SET0    4
+#define V_LSO_HDR_SRAM_PERR_SET0(x) ((x) << S_LSO_HDR_SRAM_PERR_SET0)
+#define F_LSO_HDR_SRAM_PERR_SET0    V_LSO_HDR_SRAM_PERR_SET0(1U)
+
+#define S_IMM_DATA_PERR_SET_CH1    3
+#define V_IMM_DATA_PERR_SET_CH1(x) ((x) << S_IMM_DATA_PERR_SET_CH1)
+#define F_IMM_DATA_PERR_SET_CH1    V_IMM_DATA_PERR_SET_CH1(1U)
+
+#define S_IMM_DATA_PERR_SET_CH0    2
+#define V_IMM_DATA_PERR_SET_CH0(x) ((x) << S_IMM_DATA_PERR_SET_CH0)
+#define F_IMM_DATA_PERR_SET_CH0    V_IMM_DATA_PERR_SET_CH0(1U)
 
 #define S_PBL_BOUND_ERR_CH1    1
 #define V_PBL_BOUND_ERR_CH1(x) ((x) << S_PBL_BOUND_ERR_CH1)
@@ -5118,6 +5745,10 @@ $FreeBSD$
 
 #define A_MPS_CFG 0x600
 
+#define S_ENFORCEPKT    11
+#define V_ENFORCEPKT(x) ((x) << S_ENFORCEPKT)
+#define F_ENFORCEPKT    V_ENFORCEPKT(1U)
+
 #define S_SGETPQID    8
 #define M_SGETPQID    0x7
 #define V_SGETPQID(x) ((x) << S_SGETPQID)
@@ -5154,10 +5785,6 @@ $FreeBSD$
 #define S_PORT0ACTIVE    0
 #define V_PORT0ACTIVE(x) ((x) << S_PORT0ACTIVE)
 #define F_PORT0ACTIVE    V_PORT0ACTIVE(1U)
-
-#define S_ENFORCEPKT    11
-#define V_ENFORCEPKT(x) ((x) << S_ENFORCEPKT)
-#define F_ENFORCEPKT    V_ENFORCEPKT(1U)
 
 #define A_MPS_DRR_CFG1 0x604
 
@@ -5280,6 +5907,10 @@ $FreeBSD$
 #define V_CPL_PKT_TID(x) ((x) << S_CPL_PKT_TID)
 #define G_CPL_PKT_TID(x) (((x) >> S_CPL_PKT_TID) & M_CPL_PKT_TID)
 
+#define S_CIM_TO_UP_FULL_SIZE    4
+#define V_CIM_TO_UP_FULL_SIZE(x) ((x) << S_CIM_TO_UP_FULL_SIZE)
+#define F_CIM_TO_UP_FULL_SIZE    V_CIM_TO_UP_FULL_SIZE(1U)
+
 #define S_CPU_NO_3F_CIM_ENABLE    3
 #define V_CPU_NO_3F_CIM_ENABLE(x) ((x) << S_CPU_NO_3F_CIM_ENABLE)
 #define F_CPU_NO_3F_CIM_ENABLE    V_CPU_NO_3F_CIM_ENABLE(1U)
@@ -5312,6 +5943,10 @@ $FreeBSD$
 #define G_ZERO_CMD(x) (((x) >> S_ZERO_CMD) & M_ZERO_CMD)
 
 #define A_CPL_INTR_ENABLE 0x650
+
+#define S_CIM_OP_MAP_PERR    5
+#define V_CIM_OP_MAP_PERR(x) ((x) << S_CIM_OP_MAP_PERR)
+#define F_CIM_OP_MAP_PERR    V_CIM_OP_MAP_PERR(1U)
 
 #define S_CIM_OVFL_ERROR    4
 #define V_CIM_OVFL_ERROR(x) ((x) << S_CIM_OVFL_ERROR)
@@ -5704,6 +6339,10 @@ $FreeBSD$
 
 #define A_PL_INT_ENABLE0 0x6e0
 
+#define S_SW    25
+#define V_SW(x) ((x) << S_SW)
+#define F_SW    V_SW(1U)
+
 #define S_EXT    24
 #define V_EXT(x) ((x) << S_EXT)
 #define F_EXT    V_EXT(1U)
@@ -5792,18 +6431,14 @@ $FreeBSD$
 #define V_SGE3(x) ((x) << S_SGE3)
 #define F_SGE3    V_SGE3(1U)
 
-#define S_SW    25
-#define V_SW(x) ((x) << S_SW)
-#define F_SW    V_SW(1U)
-
 #define A_PL_INT_CAUSE0 0x6e4
 #define A_PL_INT_ENABLE1 0x6e8
 #define A_PL_INT_CAUSE1 0x6ec
 #define A_PL_RST 0x6f0
 
-#define S_CRSTWRM    1
-#define V_CRSTWRM(x) ((x) << S_CRSTWRM)
-#define F_CRSTWRM    V_CRSTWRM(1U)
+#define S_FATALPERREN    4
+#define V_FATALPERREN(x) ((x) << S_FATALPERREN)
+#define F_FATALPERREN    V_FATALPERREN(1U)
 
 #define S_SWINT1    3
 #define V_SWINT1(x) ((x) << S_SWINT1)
@@ -5812,6 +6447,10 @@ $FreeBSD$
 #define S_SWINT0    2
 #define V_SWINT0(x) ((x) << S_SWINT0)
 #define F_SWINT0    V_SWINT0(1U)
+
+#define S_CRSTWRM    1
+#define V_CRSTWRM(x) ((x) << S_CRSTWRM)
+#define F_CRSTWRM    V_CRSTWRM(1U)
 
 #define A_PL_REV 0x6f4
 
@@ -5861,9 +6500,13 @@ $FreeBSD$
 #define V_READ(x) ((x) << S_READ)
 #define F_READ    V_READ(1U)
 
-#define S_CAL_IMP_UPD    23
-#define V_CAL_IMP_UPD(x) ((x) << S_CAL_IMP_UPD)
-#define F_CAL_IMP_UPD    V_CAL_IMP_UPD(1U)
+#define S_IMP_SET_UPDATE    24
+#define V_IMP_SET_UPDATE(x) ((x) << S_IMP_SET_UPDATE)
+#define F_IMP_SET_UPDATE    V_IMP_SET_UPDATE(1U)
+
+#define S_CAL_UPDATE    23
+#define V_CAL_UPDATE(x) ((x) << S_CAL_UPDATE)
+#define F_CAL_UPDATE    V_CAL_UPDATE(1U)
 
 #define S_CAL_BUSY    22
 #define V_CAL_BUSY(x) ((x) << S_CAL_BUSY)
@@ -5915,13 +6558,9 @@ $FreeBSD$
 #define V_SET_PD(x) ((x) << S_SET_PD)
 #define G_SET_PD(x) (((x) >> S_SET_PD) & M_SET_PD)
 
-#define S_IMP_SET_UPDATE    24
-#define V_IMP_SET_UPDATE(x) ((x) << S_IMP_SET_UPDATE)
-#define F_IMP_SET_UPDATE    V_IMP_SET_UPDATE(1U)
-
-#define S_CAL_UPDATE    23
-#define V_CAL_UPDATE(x) ((x) << S_CAL_UPDATE)
-#define F_CAL_UPDATE    V_CAL_UPDATE(1U)
+#define S_CAL_IMP_UPD    23
+#define V_CAL_IMP_UPD(x) ((x) << S_CAL_IMP_UPD)
+#define F_CAL_IMP_UPD    V_CAL_IMP_UPD(1U)
 
 #define A_MC5_DB_CONFIG 0x704
 
@@ -5961,6 +6600,14 @@ $FreeBSD$
 #define V_BUILD(x) ((x) << S_BUILD)
 #define F_BUILD    V_BUILD(1U)
 
+#define S_FILTEREN    11
+#define V_FILTEREN(x) ((x) << S_FILTEREN)
+#define F_FILTEREN    V_FILTEREN(1U)
+
+#define S_CLIPUPDATE    10
+#define V_CLIPUPDATE(x) ((x) << S_CLIPUPDATE)
+#define F_CLIPUPDATE    V_CLIPUPDATE(1U)
+
 #define S_TM_IO_PDOWN    9
 #define V_TM_IO_PDOWN(x) ((x) << S_TM_IO_PDOWN)
 #define F_TM_IO_PDOWN    V_TM_IO_PDOWN(1U)
@@ -5982,6 +6629,10 @@ $FreeBSD$
 #define V_DBGIEN(x) ((x) << S_DBGIEN)
 #define F_DBGIEN    V_DBGIEN(1U)
 
+#define S_TCMCFGOVR    3
+#define V_TCMCFGOVR(x) ((x) << S_TCMCFGOVR)
+#define F_TCMCFGOVR    V_TCMCFGOVR(1U)
+
 #define S_TMRDY    2
 #define V_TMRDY(x) ((x) << S_TMRDY)
 #define F_TMRDY    V_TMRDY(1U)
@@ -5993,18 +6644,6 @@ $FreeBSD$
 #define S_TMMODE    0
 #define V_TMMODE(x) ((x) << S_TMMODE)
 #define F_TMMODE    V_TMMODE(1U)
-
-#define S_FILTEREN    11
-#define V_FILTEREN(x) ((x) << S_FILTEREN)
-#define F_FILTEREN    V_FILTEREN(1U)
-
-#define S_CLIPUPDATE    10
-#define V_CLIPUPDATE(x) ((x) << S_CLIPUPDATE)
-#define F_CLIPUPDATE    V_CLIPUPDATE(1U)
-
-#define S_TCMCFGOVR    3
-#define V_TCMCFGOVR(x) ((x) << S_TCMCFGOVR)
-#define F_TCMCFGOVR    V_TCMCFGOVR(1U)
 
 #define A_MC5_MISC 0x708
 
@@ -6021,13 +6660,13 @@ $FreeBSD$
 #define G_RTINDX(x) (((x) >> S_RTINDX) & M_RTINDX)
 
 #define A_MC5_DB_FILTER_TABLE 0x710
-#define A_MC5_DB_SERVER_INDEX 0x714
 
 #define S_SRINDX    0
 #define M_SRINDX    0x3fffff
 #define V_SRINDX(x) ((x) << S_SRINDX)
 #define G_SRINDX(x) (((x) >> S_SRINDX) & M_SRINDX)
 
+#define A_MC5_DB_SERVER_INDEX 0x714
 #define A_MC5_DB_LIP_RAM_ADDR 0x718
 
 #define S_RAMWR    8
@@ -6115,6 +6754,7 @@ $FreeBSD$
 #define V_CLIPMAPADDR(x) ((x) << S_CLIPMAPADDR)
 #define G_CLIPMAPADDR(x) (((x) >> S_CLIPMAPADDR) & M_CLIPMAPADDR)
 
+#define A_MC5_DB_SIZE 0x73c
 #define A_MC5_DB_INT_ENABLE 0x740
 
 #define S_MSGSEL    28
@@ -6630,6 +7270,14 @@ $FreeBSD$
 
 #define A_XGM_RXFIFO_CFG 0x884
 
+#define S_RXFIFO_EMPTY    31
+#define V_RXFIFO_EMPTY(x) ((x) << S_RXFIFO_EMPTY)
+#define F_RXFIFO_EMPTY    V_RXFIFO_EMPTY(1U)
+
+#define S_RXFIFO_FULL    30
+#define V_RXFIFO_FULL(x) ((x) << S_RXFIFO_FULL)
+#define F_RXFIFO_FULL    V_RXFIFO_FULL(1U)
+
 #define S_RXFIFOPAUSEHWM    17
 #define M_RXFIFOPAUSEHWM    0xfff
 #define V_RXFIFOPAUSEHWM(x) ((x) << S_RXFIFOPAUSEHWM)
@@ -6662,6 +7310,22 @@ $FreeBSD$
 
 #define A_XGM_TXFIFO_CFG 0x888
 
+#define S_TXFIFO_EMPTY    31
+#define V_TXFIFO_EMPTY(x) ((x) << S_TXFIFO_EMPTY)
+#define F_TXFIFO_EMPTY    V_TXFIFO_EMPTY(1U)
+
+#define S_TXFIFO_FULL    30
+#define V_TXFIFO_FULL(x) ((x) << S_TXFIFO_FULL)
+#define F_TXFIFO_FULL    V_TXFIFO_FULL(1U)
+
+#define S_UNDERUNFIX    22
+#define V_UNDERUNFIX(x) ((x) << S_UNDERUNFIX)
+#define F_UNDERUNFIX    V_UNDERUNFIX(1U)
+
+#define S_ENDROPPKT    21
+#define V_ENDROPPKT(x) ((x) << S_ENDROPPKT)
+#define F_ENDROPPKT    V_ENDROPPKT(1U)
+
 #define S_TXIPG    13
 #define M_TXIPG    0xff
 #define V_TXIPG(x) ((x) << S_TXIPG)
@@ -6688,10 +7352,6 @@ $FreeBSD$
 #define V_DISPREAMBLE(x) ((x) << S_DISPREAMBLE)
 #define F_DISPREAMBLE    V_DISPREAMBLE(1U)
 
-#define S_ENDROPPKT    21
-#define V_ENDROPPKT(x) ((x) << S_ENDROPPKT)
-#define F_ENDROPPKT    V_ENDROPPKT(1U)
-
 #define A_XGM_SLOW_TIMER 0x88c
 
 #define S_PAUSESLOWTIMEREN    31
@@ -6702,6 +7362,13 @@ $FreeBSD$
 #define M_PAUSESLOWTIMER    0xfffff
 #define V_PAUSESLOWTIMER(x) ((x) << S_PAUSESLOWTIMER)
 #define G_PAUSESLOWTIMER(x) (((x) >> S_PAUSESLOWTIMER) & M_PAUSESLOWTIMER)
+
+#define A_XGM_PAUSE_TIMER 0x890
+
+#define S_PAUSETIMER    0
+#define M_PAUSETIMER    0xfffff
+#define V_PAUSETIMER(x) ((x) << S_PAUSETIMER)
+#define G_PAUSETIMER(x) (((x) >> S_PAUSETIMER) & M_PAUSETIMER)
 
 #define A_XGM_SERDES_CTRL 0x890
 
@@ -6761,13 +7428,6 @@ $FreeBSD$
 #define V_TXENABLE(x) ((x) << S_TXENABLE)
 #define F_TXENABLE    V_TXENABLE(1U)
 
-#define A_XGM_PAUSE_TIMER 0x890
-
-#define S_PAUSETIMER    0
-#define M_PAUSETIMER    0xfffff
-#define V_PAUSETIMER(x) ((x) << S_PAUSETIMER)
-#define G_PAUSETIMER(x) (((x) >> S_PAUSETIMER) & M_PAUSETIMER)
-
 #define A_XGM_XAUI_PCS_TEST 0x894
 
 #define S_TESTPATTERN    1
@@ -6792,6 +7452,14 @@ $FreeBSD$
 
 #define A_XGM_RGMII_IMP 0x89c
 
+#define S_CALRESET    8
+#define V_CALRESET(x) ((x) << S_CALRESET)
+#define F_CALRESET    V_CALRESET(1U)
+
+#define S_CALUPDATE    7
+#define V_CALUPDATE(x) ((x) << S_CALUPDATE)
+#define F_CALUPDATE    V_CALUPDATE(1U)
+
 #define S_XGM_IMPSETUPDATE    6
 #define V_XGM_IMPSETUPDATE(x) ((x) << S_XGM_IMPSETUPDATE)
 #define F_XGM_IMPSETUPDATE    V_XGM_IMPSETUPDATE(1U)
@@ -6805,14 +7473,6 @@ $FreeBSD$
 #define M_RGMIIIMPPU    0x7
 #define V_RGMIIIMPPU(x) ((x) << S_RGMIIIMPPU)
 #define G_RGMIIIMPPU(x) (((x) >> S_RGMIIIMPPU) & M_RGMIIIMPPU)
-
-#define S_CALRESET    8
-#define V_CALRESET(x) ((x) << S_CALRESET)
-#define F_CALRESET    V_CALRESET(1U)
-
-#define S_CALUPDATE    7
-#define V_CALUPDATE(x) ((x) << S_CALUPDATE)
-#define F_CALUPDATE    V_CALUPDATE(1U)
 
 #define A_XGM_XAUI_IMP 0x8a0
 
@@ -6844,12 +7504,33 @@ $FreeBSD$
 
 #define A_XGM_RX_MAX_PKT_SIZE 0x8a8
 
+#define S_RXMAXFRAMERSIZE    17
+#define M_RXMAXFRAMERSIZE    0x3fff
+#define V_RXMAXFRAMERSIZE(x) ((x) << S_RXMAXFRAMERSIZE)
+#define G_RXMAXFRAMERSIZE(x) (((x) >> S_RXMAXFRAMERSIZE) & M_RXMAXFRAMERSIZE)
+
+#define S_RXENERRORGATHER    16
+#define V_RXENERRORGATHER(x) ((x) << S_RXENERRORGATHER)
+#define F_RXENERRORGATHER    V_RXENERRORGATHER(1U)
+
+#define S_RXENSINGLEFLIT    15
+#define V_RXENSINGLEFLIT(x) ((x) << S_RXENSINGLEFLIT)
+#define F_RXENSINGLEFLIT    V_RXENSINGLEFLIT(1U)
+
+#define S_RXENFRAMER    14
+#define V_RXENFRAMER(x) ((x) << S_RXENFRAMER)
+#define F_RXENFRAMER    V_RXENFRAMER(1U)
+
 #define S_RXMAXPKTSIZE    0
 #define M_RXMAXPKTSIZE    0x3fff
 #define V_RXMAXPKTSIZE(x) ((x) << S_RXMAXPKTSIZE)
 #define G_RXMAXPKTSIZE(x) (((x) >> S_RXMAXPKTSIZE) & M_RXMAXPKTSIZE)
 
 #define A_XGM_RESET_CTRL 0x8ac
+
+#define S_XGMAC_STOP_EN    4
+#define V_XGMAC_STOP_EN(x) ((x) << S_XGMAC_STOP_EN)
+#define F_XGMAC_STOP_EN    V_XGMAC_STOP_EN(1U)
 
 #define S_XG2G_RESET_    3
 #define V_XG2G_RESET_(x) ((x) << S_XG2G_RESET_)
@@ -6930,9 +7611,9 @@ $FreeBSD$
 
 #define A_XGM_INT_ENABLE 0x8d4
 
-#define S_SERDESCMULOCK_LOSS    24
-#define V_SERDESCMULOCK_LOSS(x) ((x) << S_SERDESCMULOCK_LOSS)
-#define F_SERDESCMULOCK_LOSS    V_SERDESCMULOCK_LOSS(1U)
+#define S_XAUIPCSDECERR    24
+#define V_XAUIPCSDECERR(x) ((x) << S_XAUIPCSDECERR)
+#define F_XAUIPCSDECERR    V_XAUIPCSDECERR(1U)
 
 #define S_RGMIIRXFIFOOVERFLOW    23
 #define V_RGMIIRXFIFOOVERFLOW(x) ((x) << S_RGMIIRXFIFOOVERFLOW)
@@ -6968,15 +7649,15 @@ $FreeBSD$
 #define V_RXFIFO_OVERFLOW(x) ((x) << S_RXFIFO_OVERFLOW)
 #define F_RXFIFO_OVERFLOW    V_RXFIFO_OVERFLOW(1U)
 
-#define S_SERDESBIST_ERR    8
-#define M_SERDESBIST_ERR    0xf
-#define V_SERDESBIST_ERR(x) ((x) << S_SERDESBIST_ERR)
-#define G_SERDESBIST_ERR(x) (((x) >> S_SERDESBIST_ERR) & M_SERDESBIST_ERR)
+#define S_SERDESBISTERR    8
+#define M_SERDESBISTERR    0xf
+#define V_SERDESBISTERR(x) ((x) << S_SERDESBISTERR)
+#define G_SERDESBISTERR(x) (((x) >> S_SERDESBISTERR) & M_SERDESBISTERR)
 
-#define S_SERDES_LOS    4
-#define M_SERDES_LOS    0xf
-#define V_SERDES_LOS(x) ((x) << S_SERDES_LOS)
-#define G_SERDES_LOS(x) (((x) >> S_SERDES_LOS) & M_SERDES_LOS)
+#define S_SERDESLOWSIGCHANGE    4
+#define M_SERDESLOWSIGCHANGE    0xf
+#define V_SERDESLOWSIGCHANGE(x) ((x) << S_SERDESLOWSIGCHANGE)
+#define G_SERDESLOWSIGCHANGE(x) (((x) >> S_SERDESLOWSIGCHANGE) & M_SERDESLOWSIGCHANGE)
 
 #define S_XAUIPCSCTCERR    3
 #define V_XAUIPCSCTCERR(x) ((x) << S_XAUIPCSCTCERR)
@@ -6994,15 +7675,19 @@ $FreeBSD$
 #define V_XGM_INT(x) ((x) << S_XGM_INT)
 #define F_XGM_INT    V_XGM_INT(1U)
 
-#define S_SERDESBISTERR    8
-#define M_SERDESBISTERR    0xf
-#define V_SERDESBISTERR(x) ((x) << S_SERDESBISTERR)
-#define G_SERDESBISTERR(x) (((x) >> S_SERDESBISTERR) & M_SERDESBISTERR)
+#define S_SERDESCMULOCK_LOSS    24
+#define V_SERDESCMULOCK_LOSS(x) ((x) << S_SERDESCMULOCK_LOSS)
+#define F_SERDESCMULOCK_LOSS    V_SERDESCMULOCK_LOSS(1U)
 
-#define S_SERDESLOWSIGCHANGE    4
-#define M_SERDESLOWSIGCHANGE    0xf
-#define V_SERDESLOWSIGCHANGE(x) ((x) << S_SERDESLOWSIGCHANGE)
-#define G_SERDESLOWSIGCHANGE(x) (((x) >> S_SERDESLOWSIGCHANGE) & M_SERDESLOWSIGCHANGE)
+#define S_SERDESBIST_ERR    8
+#define M_SERDESBIST_ERR    0xf
+#define V_SERDESBIST_ERR(x) ((x) << S_SERDESBIST_ERR)
+#define G_SERDESBIST_ERR(x) (((x) >> S_SERDESBIST_ERR) & M_SERDESBIST_ERR)
+
+#define S_SERDES_LOS    4
+#define M_SERDES_LOS    0xf
+#define V_SERDES_LOS(x) ((x) << S_SERDES_LOS)
+#define G_SERDES_LOS(x) (((x) >> S_SERDES_LOS) & M_SERDES_LOS)
 
 #define A_XGM_INT_CAUSE 0x8d8
 #define A_XGM_XAUI_ACT_CTRL 0x8dc
@@ -7298,6 +7983,14 @@ $FreeBSD$
 #define V_EXTBISTCHKFMD0(x) ((x) << S_EXTBISTCHKFMD0)
 #define F_EXTBISTCHKFMD0    V_EXTBISTCHKFMD0(1U)
 
+#define S_LOWSIGFORCEEN0    2
+#define V_LOWSIGFORCEEN0(x) ((x) << S_LOWSIGFORCEEN0)
+#define F_LOWSIGFORCEEN0    V_LOWSIGFORCEEN0(1U)
+
+#define S_LOWSIGFORCEVALUE0    1
+#define V_LOWSIGFORCEVALUE0(x) ((x) << S_LOWSIGFORCEVALUE0)
+#define F_LOWSIGFORCEVALUE0    V_LOWSIGFORCEVALUE0(1U)
+
 #define S_LOWSIG0    0
 #define V_LOWSIG0(x) ((x) << S_LOWSIG0)
 #define F_LOWSIG0    V_LOWSIG0(1U)
@@ -7312,6 +8005,14 @@ $FreeBSD$
 #define S_EXTBISTCHKFMD1    3
 #define V_EXTBISTCHKFMD1(x) ((x) << S_EXTBISTCHKFMD1)
 #define F_EXTBISTCHKFMD1    V_EXTBISTCHKFMD1(1U)
+
+#define S_LOWSIGFORCEEN1    2
+#define V_LOWSIGFORCEEN1(x) ((x) << S_LOWSIGFORCEEN1)
+#define F_LOWSIGFORCEEN1    V_LOWSIGFORCEEN1(1U)
+
+#define S_LOWSIGFORCEVALUE1    1
+#define V_LOWSIGFORCEVALUE1(x) ((x) << S_LOWSIGFORCEVALUE1)
+#define F_LOWSIGFORCEVALUE1    V_LOWSIGFORCEVALUE1(1U)
 
 #define S_LOWSIG1    0
 #define V_LOWSIG1(x) ((x) << S_LOWSIG1)
@@ -7328,6 +8029,14 @@ $FreeBSD$
 #define V_EXTBISTCHKFMD2(x) ((x) << S_EXTBISTCHKFMD2)
 #define F_EXTBISTCHKFMD2    V_EXTBISTCHKFMD2(1U)
 
+#define S_LOWSIGFORCEEN2    2
+#define V_LOWSIGFORCEEN2(x) ((x) << S_LOWSIGFORCEEN2)
+#define F_LOWSIGFORCEEN2    V_LOWSIGFORCEEN2(1U)
+
+#define S_LOWSIGFORCEVALUE2    1
+#define V_LOWSIGFORCEVALUE2(x) ((x) << S_LOWSIGFORCEVALUE2)
+#define F_LOWSIGFORCEVALUE2    V_LOWSIGFORCEVALUE2(1U)
+
 #define S_LOWSIG2    0
 #define V_LOWSIG2(x) ((x) << S_LOWSIG2)
 #define F_LOWSIG2    V_LOWSIG2(1U)
@@ -7342,6 +8051,14 @@ $FreeBSD$
 #define S_EXTBISTCHKFMD3    3
 #define V_EXTBISTCHKFMD3(x) ((x) << S_EXTBISTCHKFMD3)
 #define F_EXTBISTCHKFMD3    V_EXTBISTCHKFMD3(1U)
+
+#define S_LOWSIGFORCEEN3    2
+#define V_LOWSIGFORCEEN3(x) ((x) << S_LOWSIGFORCEEN3)
+#define F_LOWSIGFORCEEN3    V_LOWSIGFORCEEN3(1U)
+
+#define S_LOWSIGFORCEVALUE3    1
+#define V_LOWSIGFORCEVALUE3(x) ((x) << S_LOWSIGFORCEVALUE3)
+#define F_LOWSIGFORCEVALUE3    V_LOWSIGFORCEVALUE3(1U)
 
 #define S_LOWSIG3    0
 #define V_LOWSIG3(x) ((x) << S_LOWSIG3)

@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <sys/bus_dma.h>
+#include <sys/ktr.h>
 #include <sys/rman.h>
 #include <sys/ioccom.h>
 #include <sys/mbuf.h>
@@ -119,6 +120,7 @@ static int cxgb_get_regs_len(void);
 static int offload_open(struct port_info *pi);
 static void touch_bars(device_t dev);
 static int offload_close(struct t3cdev *tdev);
+static void cxgb_link_start(struct port_info *p);
 
 static device_method_t cxgb_controller_methods[] = {
 	DEVMETHOD(device_probe,		cxgb_controller_probe),
@@ -281,6 +283,32 @@ struct cxgb_ident {
 
 static int set_eeprom(struct port_info *pi, const uint8_t *data, int len, int offset);
 
+
+void
+cxgb_log_tcb(struct adapter *sc, unsigned int tid)
+{
+	char buf[TCB_SIZE];
+	uint64_t *tcb = (uint64_t *)buf;
+	int i, error;
+	struct mc7 *mem = &sc->cm;
+	
+	error = t3_mc7_bd_read(mem, tid*TCB_SIZE/8, TCB_SIZE/8, tcb);
+	if (error)
+		printf("cxgb_tcb_log failed\n");
+	
+	CTR1(KTR_CXGB, "TCB tid=%u", tid);
+	for (i = 0; i < TCB_SIZE / 32; i++) {
+		CTR5(KTR_CXGB, "%1d: %08x %08x %08x %08x",
+		    i, (uint32_t)tcb[1], (uint32_t)(tcb[1] >> 32),
+		    (uint32_t)tcb[0], (uint32_t)(tcb[0] >> 32));
+		tcb += 2;
+		CTR4(KTR_CXGB, "   %08x %08x %08x %08x",
+		    (uint32_t)tcb[1], (uint32_t)(tcb[1] >> 32),
+		    (uint32_t)tcb[0], (uint32_t)(tcb[0] >> 32));
+		tcb += 2;
+	}
+}
+
 static __inline char
 t3rev2char(struct adapter *adapter)
 {
@@ -397,7 +425,8 @@ cxgb_controller_attach(device_t dev)
 	int port_qsets = 1;
 #ifdef MSI_SUPPORTED
 	int msi_needed, reg;
-#endif	
+#endif
+	int must_load = 0;
 	sc = device_get_softc(dev);
 	sc->dev = dev;
 	sc->msi_count = 0;
@@ -434,9 +463,16 @@ cxgb_controller_attach(device_t dev)
 	sc->regs_rid = PCIR_BAR(0);
 	if ((sc->regs_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
 	    &sc->regs_rid, RF_ACTIVE)) == NULL) {
-		device_printf(dev, "Cannot allocate BAR\n");
+		device_printf(dev, "Cannot allocate BAR region 0\n");
 		return (ENXIO);
 	}
+	sc->udbs_rid = PCIR_BAR(2);
+	if ((sc->udbs_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
+           &sc->udbs_rid, RF_ACTIVE)) == NULL) {
+		device_printf(dev, "Cannot allocate BAR region 1\n");
+		error = ENXIO;
+		goto out;
+       }
 
 	snprintf(sc->lockbuf, ADAPTER_LOCK_NAME_LEN, "cxgb controller lock %d",
 	    device_get_unit(dev));
@@ -449,7 +485,7 @@ cxgb_controller_attach(device_t dev)
 	snprintf(sc->elmerlockbuf, ADAPTER_LOCK_NAME_LEN, "cxgb elmer lock %d",
 	    device_get_unit(dev));
 	
-	MTX_INIT(&sc->sge.reg_lock, sc->reglockbuf, NULL, MTX_DEF);
+	MTX_INIT(&sc->sge.reg_lock, sc->reglockbuf, NULL, MTX_SPIN);
 	MTX_INIT(&sc->mdio_lock, sc->mdiolockbuf, NULL, MTX_DEF);
 	MTX_INIT(&sc->elmer_lock, sc->elmerlockbuf, NULL, MTX_DEF);
 	
@@ -534,7 +570,7 @@ cxgb_controller_attach(device_t dev)
 	/* Create a periodic callout for checking adapter status */
 	callout_init(&sc->cxgb_tick_ch, TRUE);
 	
-	if (t3_check_fw_version(sc) != 0) {
+	if (t3_check_fw_version(sc, &must_load) != 0 && must_load) {
 		/*
 		 * Warn user that a firmware update will be attempted in init.
 		 */
@@ -545,7 +581,7 @@ cxgb_controller_attach(device_t dev)
 		sc->flags |= FW_UPTODATE;
 	}
 
-	if (t3_check_tpsram_version(sc) != 0) {
+	if (t3_check_tpsram_version(sc, &must_load) != 0 && must_load) {
 		/*
 		 * Warn user that a firmware update will be attempted in init.
 		 */
@@ -609,6 +645,8 @@ cxgb_controller_attach(device_t dev)
 	    G_FW_VERSION_MAJOR(vers), G_FW_VERSION_MINOR(vers),
 	    G_FW_VERSION_MICRO(vers));
 
+	device_printf(sc->dev, "Firmware Version %s\n", &sc->fw_version[0]);
+	callout_reset(&sc->cxgb_tick_ch, hz, cxgb_tick, sc);
 	t3_add_attach_sysctls(sc);
 out:
 	if (error)
@@ -634,9 +672,12 @@ cxgb_free(struct adapter *sc)
 {
 	int i;
 
-	
+	ADAPTER_LOCK(sc);
+	sc->flags |= CXGB_SHUTDOWN;
+	ADAPTER_UNLOCK(sc);
 	cxgb_pcpu_shutdown_threads(sc);
 	ADAPTER_LOCK(sc);
+
 /*
  * drops the lock
  */
@@ -654,11 +695,7 @@ cxgb_free(struct adapter *sc)
 		bus_release_resource(sc->dev, SYS_RES_MEMORY, sc->msix_regs_rid,
 		    sc->msix_regs_res);
 	}
-	
-	if (sc->tq != NULL) {
-		taskqueue_drain(sc->tq, &sc->ext_intr_task);
-		taskqueue_drain(sc->tq, &sc->tick_task);	
-	}	
+
 	t3_sge_deinit_sw(sc);
 	/*
 	 * Wait for last callout
@@ -672,8 +709,11 @@ cxgb_free(struct adapter *sc)
 	}
 		
 	bus_generic_detach(sc->dev);
-	if (sc->tq != NULL) 
+	if (sc->tq != NULL) {
 		taskqueue_free(sc->tq);
+		sc->tq = NULL;
+	}
+	
 	if (is_offload(sc)) {
 		cxgb_adapter_unofld(sc);
 		if (isset(&sc->open_device_map,	OFFLOAD_DEVMAP_BIT))
@@ -682,11 +722,18 @@ cxgb_free(struct adapter *sc)
 			printf("cxgb_free: DEVMAP_BIT not set\n");
 	} else
 		printf("not offloading set\n");	
+
+	if (sc->flags & CXGB_OFLD_INIT)
+		cxgb_offload_deactivate(sc);
 	free(sc->filters, M_DEVBUF);
 	t3_sge_free(sc);
 	
 	cxgb_offload_exit();
-	
+
+	if (sc->udbs_res != NULL)
+		bus_release_resource(sc->dev, SYS_RES_MEMORY, sc->udbs_rid,
+		    sc->udbs_res);
+
 	if (sc->regs_res != NULL)
 		bus_release_resource(sc->dev, SYS_RES_MEMORY, sc->regs_rid,
 		    sc->regs_res);
@@ -797,8 +844,6 @@ cxgb_setup_msix(adapter_t *sc, int msix_count)
 				return (EINVAL);
 			}
 			sc->msix_irq_rid[k] = rid;
-			printf("setting up interrupt for port=%d\n",
-			    qs->port->port_id);
 			if (bus_setup_intr(sc->dev, sc->msix_irq_res[k],
 				INTR_MPSAFE|INTR_TYPE_NET,
 #ifdef INTR_FILTERS
@@ -828,10 +873,11 @@ cxgb_port_probe(device_t dev)
 {
 	struct port_info *p;
 	char buf[80];
-
+	const char *desc;
+	
 	p = device_get_softc(dev);
-
-	snprintf(buf, sizeof(buf), "Port %d %s", p->port_id, p->port_type->desc);
+	desc = p->phy.desc;
+	snprintf(buf, sizeof(buf), "Port %d %s", p->port_id, desc);
 	device_set_desc_copy(dev, buf);
 	return (0);
 }
@@ -873,9 +919,11 @@ cxgb_port_attach(device_t dev)
 	struct port_info *p;
 	struct ifnet *ifp;
 	int err, media_flags;
+	struct adapter *sc;
+	
 	
 	p = device_get_softc(dev);
-
+	sc = p->adapter;
 	snprintf(p->lockbuf, PORT_NAME_LEN, "cxgb port lock %d:%d",
 	    device_get_unit(device_get_parent(dev)), p->port_id);
 	PORT_LOCK_INIT(p, p->lockbuf);
@@ -897,11 +945,12 @@ cxgb_port_attach(device_t dev)
 	ifp->if_ioctl = cxgb_ioctl;
 	ifp->if_start = cxgb_start;
 
+#if 0	
 #ifdef IFNET_MULTIQUEUE
 	ifp->if_flags |= IFF_MULTIQ;
 	ifp->if_mq_start = cxgb_pcpu_start;
 #endif
-	
+#endif	
 	ifp->if_timer = 0;	/* Disable ifnet watchdog */
 	ifp->if_watchdog = NULL;
 
@@ -934,14 +983,14 @@ cxgb_port_attach(device_t dev)
 	}
 	ifmedia_init(&p->media, IFM_IMASK, cxgb_media_change,
 	    cxgb_media_status);
-	
-	if (!strcmp(p->port_type->desc, "10GBASE-CX4")) {
+      
+	if (!strcmp(p->phy.desc,	"10GBASE-CX4")) {
 		media_flags = IFM_ETHER | IFM_10G_CX4 | IFM_FDX;
-	} else if (!strcmp(p->port_type->desc, "10GBASE-SR")) {
+	} else if (!strcmp(p->phy.desc, "10GBASE-SR")) {
 		media_flags = IFM_ETHER | IFM_10G_SR | IFM_FDX;
-	} else if (!strcmp(p->port_type->desc, "10GBASE-XR")) {
+	} else if (!strcmp(p->phy.desc, "10GBASE-XR")) {
 		media_flags = IFM_ETHER | IFM_10G_LR | IFM_FDX;
-	} else if (!strcmp(p->port_type->desc, "10/100/1000BASE-T")) {
+	} else if (!strcmp(p->phy.desc, "10/100/1000BASE-T")) {
 		ifmedia_add(&p->media, IFM_ETHER | IFM_10_T, 0, NULL);
 		ifmedia_add(&p->media, IFM_ETHER | IFM_10_T | IFM_FDX,
 			    0, NULL);
@@ -953,7 +1002,7 @@ cxgb_port_attach(device_t dev)
 			    0, NULL);
 		media_flags = 0;
 	} else {
-	        printf("unsupported media type %s\n", p->port_type->desc);
+	        printf("unsupported media type %s\n", p->phy.desc);
 		return (ENXIO);
 	}
 	if (media_flags) {
@@ -976,7 +1025,8 @@ cxgb_port_attach(device_t dev)
 	    taskqueue_thread_enqueue, &p->tq);
 #endif	
 	t3_sge_init_port(p);
-
+	cxgb_link_start(p);
+	t3_link_changed(sc, p->port_id);
 	return (0);
 }
 
@@ -1119,17 +1169,14 @@ t3_os_link_changed(adapter_t *adapter, int port_id, int link_status, int speed,
 	struct port_info *pi = &adapter->port[port_id];
 	struct cmac *mac = &adapter->port[port_id].mac;
 
-	if ((pi->ifp->if_flags & IFF_UP) == 0)
-		return;
-
 	if (link_status) {
 		t3_mac_enable(mac, MAC_DIRECTION_RX);
 		if_link_state_change(pi->ifp, LINK_STATE_UP);
 	} else {
-		if_link_state_change(pi->ifp, LINK_STATE_DOWN);
 		pi->phy.ops->power_down(&pi->phy, 1);
 		t3_mac_disable(mac, MAC_DIRECTION_RX);
 		t3_link_start(&pi->phy, mac, &pi->link_config);
+		if_link_state_change(pi->ifp, LINK_STATE_DOWN);
 	}
 }
 
@@ -1195,6 +1242,84 @@ cxgb_link_start(struct port_info *p)
 	t3_mac_enable(mac, MAC_DIRECTION_RX | MAC_DIRECTION_TX);
 }
 
+
+static int
+await_mgmt_replies(struct adapter *adap, unsigned long init_cnt,
+			      unsigned long n)
+{
+	int attempts = 5;
+
+	while (adap->sge.qs[0].rspq.offload_pkts < init_cnt + n) {
+		if (!--attempts)
+			return (ETIMEDOUT);
+		t3_os_sleep(10);
+	}
+	return 0;
+}
+
+static int
+init_tp_parity(struct adapter *adap)
+{
+	int i;
+	struct mbuf *m;
+	struct cpl_set_tcb_field *greq;
+	unsigned long cnt = adap->sge.qs[0].rspq.offload_pkts;
+
+	t3_tp_set_offload_mode(adap, 1);
+
+	for (i = 0; i < 16; i++) {
+		struct cpl_smt_write_req *req;
+
+		m = m_gethdr(M_WAITOK, MT_DATA);
+		req = mtod(m, struct cpl_smt_write_req *);
+		m->m_len = m->m_pkthdr.len = sizeof(*req);
+		memset(req, 0, sizeof(*req));
+		req->wr.wr_hi = htonl(V_WR_OP(FW_WROPCODE_FORWARD));
+		OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_SMT_WRITE_REQ, i));
+		req->iff = i;
+		t3_mgmt_tx(adap, m);
+	}
+
+	for (i = 0; i < 2048; i++) {
+		struct cpl_l2t_write_req *req;
+
+		m = m_gethdr(M_WAITOK, MT_DATA);
+		req = mtod(m, struct cpl_l2t_write_req *);
+		m->m_len = m->m_pkthdr.len = sizeof(*req);
+		memset(req, 0, sizeof(*req));
+		req->wr.wr_hi = htonl(V_WR_OP(FW_WROPCODE_FORWARD));
+		OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_L2T_WRITE_REQ, i));
+		req->params = htonl(V_L2T_W_IDX(i));
+		t3_mgmt_tx(adap, m);
+	}
+
+	for (i = 0; i < 2048; i++) {
+		struct cpl_rte_write_req *req;
+
+		m = m_gethdr(M_WAITOK, MT_DATA);
+		req = mtod(m, struct cpl_rte_write_req *);
+		m->m_len = m->m_pkthdr.len = sizeof(*req);
+		memset(req, 0, sizeof(*req));
+		req->wr.wr_hi = htonl(V_WR_OP(FW_WROPCODE_FORWARD));
+		OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_RTE_WRITE_REQ, i));
+		req->l2t_idx = htonl(V_L2T_W_IDX(i));
+		t3_mgmt_tx(adap, m);
+	}
+
+	m = m_gethdr(M_WAITOK, MT_DATA);
+	greq = mtod(m, struct cpl_set_tcb_field *);
+	m->m_len = m->m_pkthdr.len = sizeof(*greq);
+	memset(greq, 0, sizeof(*greq));
+	greq->wr.wr_hi = htonl(V_WR_OP(FW_WROPCODE_FORWARD));
+	OPCODE_TID(greq) = htonl(MK_OPCODE_TID(CPL_SET_TCB_FIELD, 0));
+	greq->mask = htobe64(1);
+	t3_mgmt_tx(adap, m);
+
+	i = await_mgmt_replies(adap, cnt, 16 + 2048 + 2048 + 1);
+	t3_tp_set_offload_mode(adap, 0);
+	return (i);
+}
+
 /**
  *	setup_rss - configure Receive Side Steering (per-queue connection demux) 
  *	@adap: the adapter
@@ -1224,11 +1349,9 @@ setup_rss(adapter_t *adap)
 
 		nq[pi->tx_chan] += pi->nqsets;
 	}
-	nq[0] = max(nq[0], 1U);
-	nq[1] = max(nq[1], 1U);
 	for (i = 0; i < RSS_TABLE_SIZE / 2; ++i) {
-		rspq_map[i] = i % nq[0];
-		rspq_map[i + RSS_TABLE_SIZE / 2] = (i % nq[1]) + nq[0];
+		rspq_map[i] = nq[0] ? i % nq[0] : 0;
+		rspq_map[i + RSS_TABLE_SIZE / 2] = nq[1] ? i % nq[1] + nq[0] : 0;
 	}
 	/* Calculate the reverse RSS map table */
 	for (i = 0; i < RSS_TABLE_SIZE; ++i)
@@ -1237,7 +1360,8 @@ setup_rss(adapter_t *adap)
 
 	t3_config_rss(adap, F_RQFEEDBACKENABLE | F_TNLLKPEN | F_TNLMAPEN |
 		      F_TNLPRTEN | F_TNL2TUPEN | F_TNL4TUPEN | F_OFDMAPEN |
-		      V_RRCPLCPUSIZE(6), cpus, rspq_map);
+	              F_RRCPLMAPEN | V_RRCPLCPUSIZE(6) | F_HASHTOEPLITZ,
+	              cpus, rspq_map);
 
 }
 
@@ -1470,6 +1594,7 @@ cxgb_up(struct adapter *sc)
 		if (err)
 			goto out;
 
+		t3_set_reg_field(sc, A_TP_PARA_REG5, 0, F_RXDDPOFFINIT);
 		t3_write_reg(sc, A_ULPRX_TDDP_PSZ, V_HPZ0(PAGE_SHIFT - 12));
 
 		err = setup_sge_qsets(sc);
@@ -1510,8 +1635,18 @@ cxgb_up(struct adapter *sc)
 	t3_sge_start(sc);
 	t3_intr_enable(sc);
 
+	if (sc->params.rev >= T3_REV_C && !(sc->flags & TP_PARITY_INIT) &&
+	    is_offload(sc) && init_tp_parity(sc) == 0)
+		sc->flags |= TP_PARITY_INIT;
+
+	if (sc->flags & TP_PARITY_INIT) {
+		t3_write_reg(sc, A_TP_INT_CAUSE,
+				F_CMCACHEPERR | F_ARPLUTPERR);
+		t3_write_reg(sc, A_TP_INT_ENABLE, 0x7fbfffff);
+	}
+
+	
 	if (!(sc->flags & QUEUES_BOUND)) {
-		printf("bind qsets\n");
 		bind_qsets(sc);
 		sc->flags |= QUEUES_BOUND;		
 	}
@@ -1529,7 +1664,6 @@ irq_err:
 static void
 cxgb_down_locked(struct adapter *sc)
 {
-	int i;
 	
 	t3_sge_stop(sc);
 	t3_intr_disable(sc);
@@ -1546,20 +1680,24 @@ cxgb_down_locked(struct adapter *sc)
 		sc->irq_res = NULL;
 	}
 	
-	if (sc->flags & USING_MSIX)
+	if (sc->flags & USING_MSIX) 
 		cxgb_teardown_msix(sc);
-	ADAPTER_UNLOCK(sc);
-
+	
 	callout_stop(&sc->cxgb_tick_ch);
 	callout_stop(&sc->sge_timer_ch);
 	callout_drain(&sc->cxgb_tick_ch);
 	callout_drain(&sc->sge_timer_ch);
 	
 	if (sc->tq != NULL) {
+		printf("draining slow intr\n");
+		
 		taskqueue_drain(sc->tq, &sc->slow_intr_task);
-		for (i = 0; i < sc->params.nports; i++) 
-			taskqueue_drain(sc->tq, &sc->port[i].timer_reclaim_task);
+			printf("draining ext intr\n");	
+		taskqueue_drain(sc->tq, &sc->ext_intr_task);
+		printf("draining tick task\n");
+		taskqueue_drain(sc->tq, &sc->tick_task);
 	}
+	ADAPTER_UNLOCK(sc);
 }
 
 static int
@@ -1573,7 +1711,7 @@ offload_open(struct port_info *pi)
 	int adap_up = adapter->open_device_map & PORT_MASK;
 	int err = 0;
 
-	printf("device_map=0x%x\n", adapter->open_device_map); 
+	CTR1(KTR_CXGB, "device_map=0x%x", adapter->open_device_map); 
 	if (atomic_cmpset_int(&adapter->open_device_map,
 		(adapter->open_device_map & ~(1<<OFFLOAD_DEVMAP_BIT)),
 		(adapter->open_device_map | (1<<OFFLOAD_DEVMAP_BIT))) == 0)
@@ -1620,11 +1758,8 @@ offload_close(struct t3cdev *tdev)
 {
 	struct adapter *adapter = tdev2adap(tdev);
 
-	if (!isset(&adapter->open_device_map, OFFLOAD_DEVMAP_BIT)) {
-		printf("offload_close: DEVMAP_BIT not set\n");
-	
+	if (!isset(&adapter->open_device_map, OFFLOAD_DEVMAP_BIT))
 		return (0);
-	}
 	
 	/* Call back all registered clients */
 	cxgb_remove_clients(tdev);
@@ -1638,7 +1773,6 @@ offload_close(struct t3cdev *tdev)
 		cxgb_down_locked(adapter);
 	else
 		ADAPTER_UNLOCK(adapter);
-	cxgb_offload_deactivate(adapter);
 	return (0);
 }
 
@@ -1680,17 +1814,12 @@ cxgb_init_locked(struct port_info *p)
 		if (err)
 			log(LOG_WARNING,
 			    "Could not initialize offload capabilities\n");
-		else
-			printf("offload opened\n");
 	}
-	cxgb_link_start(p);
-	t3_link_changed(sc, p->port_id);
 	ifp->if_baudrate = p->link_config.speed * 1000000;
 
 	device_printf(sc->dev, "enabling interrupts on port=%d\n", p->port_id);
 	t3_port_intr_enable(sc, p->port_id);
 
-	callout_reset(&sc->cxgb_tick_ch, hz, cxgb_tick, sc);
 	t3_sge_reset_adapter(sc);
 
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
@@ -1703,10 +1832,10 @@ cxgb_set_rxmode(struct port_info *p)
 	struct t3_rx_mode rm;
 	struct cmac *mac = &p->mac;
 
-	PORT_LOCK_ASSERT_OWNED(p);
-
 	t3_init_rx_mode(&rm, p);
+	mtx_lock(&p->adapter->mdio_lock);
 	t3_mac_set_rx_mode(mac, &rm);
+	mtx_unlock(&p->adapter->mdio_lock);
 }
 
 static void
@@ -1745,7 +1874,6 @@ cxgb_set_mtu(struct port_info *p, int mtu)
 		PORT_LOCK(p);
 		ifp->if_mtu = mtu;
 		if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-			callout_stop(&p->adapter->cxgb_tick_ch);
 			cxgb_stop_locked(p);
 			cxgb_init_locked(p);
 		}
@@ -1771,19 +1899,18 @@ cxgb_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 		error = cxgb_set_mtu(p, ifr->ifr_mtu);
 		break;
 	case SIOCSIFADDR:
-	case SIOCGIFADDR:
 		if (ifa->ifa_addr->sa_family == AF_INET) {
-			PORT_LOCK(p);
 			ifp->if_flags |= IFF_UP;
-			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) 
+			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
+				PORT_LOCK(p);
 				cxgb_init_locked(p);
+				PORT_UNLOCK(p);
+			}
 			arp_ifinit(ifp, ifa);
-			PORT_UNLOCK(p);
 		} else
 			error = ether_ioctl(ifp, command, data);
 		break;
 	case SIOCSIFFLAGS:
-		callout_drain(&p->adapter->cxgb_tick_ch);
 		PORT_LOCK(p);
 		if (ifp->if_flags & IFF_UP) {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
@@ -1797,12 +1924,13 @@ cxgb_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 		} else if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 			cxgb_stop_locked(p);
 				
-		if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-			adapter_t *sc = p->adapter;
-			callout_reset(&sc->cxgb_tick_ch, hz,
-			    cxgb_tick, sc);
-		}
 		PORT_UNLOCK(p);
+		break;
+	case SIOCADDMULTI:
+	case SIOCDELMULTI:
+		if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+			cxgb_set_rxmode(p);
+		}
 		break;
 	case SIOCSIFMEDIA:
 	case SIOCGIFMEDIA:
@@ -1929,7 +2057,7 @@ check_link_status(adapter_t *sc)
 	for (i = 0; i < (sc)->params.nports; ++i) {
 		struct port_info *p = &sc->port[i];
 
-		if (!(p->port_type->caps & SUPPORTED_IRQ)) 
+		if (!(p->phy.caps & SUPPORTED_IRQ)) 
 			t3_link_changed(sc, i);
 		p->ifp->if_baudrate = p->link_config.speed * 1000000;
 	}
@@ -1940,11 +2068,17 @@ check_t3b2_mac(struct adapter *adapter)
 {
 	int i;
 
+	if(adapter->flags & CXGB_SHUTDOWN)
+		return;
+	
 	for_each_port(adapter, i) {
 		struct port_info *p = &adapter->port[i];
 		struct ifnet *ifp = p->ifp;
 		int status;
-
+		
+		if(adapter->flags & CXGB_SHUTDOWN)
+			return;
+		
 		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) 
 			continue;
 		
@@ -1974,26 +2108,12 @@ static void
 cxgb_tick(void *arg)
 {
 	adapter_t *sc = (adapter_t *)arg;
-	int i, running = 0;
-	
-	for_each_port(sc, i) {
-		
-		struct port_info *p = &sc->port[i];
-		struct ifnet *ifp = p->ifp;
-		PORT_LOCK(p);
 
-		if ((ifp->if_drv_flags & IFF_DRV_RUNNING)) 
-			running = 1;
-		PORT_UNLOCK(p);
-	}	
-
-	if (running == 0)
+	if(sc->flags & CXGB_SHUTDOWN)
 		return;
-		
+
 	taskqueue_enqueue(sc->tq, &sc->tick_task);
-	
-	if (sc->open_device_map != 0) 
-		callout_reset(&sc->cxgb_tick_ch, hz, cxgb_tick, sc);
+	callout_reset(&sc->cxgb_tick_ch, hz, cxgb_tick, sc);
 }
 
 static void
@@ -2002,17 +2122,20 @@ cxgb_tick_handler(void *arg, int count)
 	adapter_t *sc = (adapter_t *)arg;
 	const struct adapter_params *p = &sc->params;
 
+	if(sc->flags & CXGB_SHUTDOWN)
+		return;
+
 	ADAPTER_LOCK(sc);
 	if (p->linkpoll_period)
 		check_link_status(sc);
 
 	/*
-	 * adapter lock can currently only be acquire after the
+	 * adapter lock can currently only be acquired after the
 	 * port lock
 	 */
 	ADAPTER_UNLOCK(sc);
 
-	if (p->rev == T3_REV_B2 && p->nports < 4) 
+	if (p->rev == T3_REV_B2 && p->nports < 4 && sc->open_device_map) 
 		check_t3b2_mac(sc);
 }
 
@@ -2180,7 +2303,7 @@ cxgb_extension_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data,
 	}
 	case CHELSIO_GET_SGE_CONTEXT: {
 		struct ch_cntxt *ecntxt = (struct ch_cntxt *)data;
-		mtx_lock(&sc->sge.reg_lock);
+		mtx_lock_spin(&sc->sge.reg_lock);
 		switch (ecntxt->cntxt_type) {
 		case CNTXT_TYPE_EGRESS:
 			error = t3_sge_read_ecntxt(sc, ecntxt->cntxt_id,
@@ -2202,7 +2325,7 @@ cxgb_extension_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data,
 			error = EINVAL;
 			break;
 		}
-		mtx_unlock(&sc->sge.reg_lock);
+		mtx_unlock_spin(&sc->sge.reg_lock);
 		break;
 	}
 	case CHELSIO_GET_SGE_DESC: {
@@ -2220,7 +2343,8 @@ cxgb_extension_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data,
 	case CHELSIO_SET_QSET_PARAMS: {
 		struct qset_params *q;
 		struct ch_qset_params *t = (struct ch_qset_params *)data;
-		
+		int i;
+	
 		if (t->qset_idx >= SGE_QSETS)
 			return (EINVAL);
 		if (!in_range(t->intr_lat, 0, M_NEWTIMER) ||
@@ -2236,6 +2360,18 @@ cxgb_extension_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data,
 			      MAX_RX_JUMBO_BUFFERS) ||
 		    !in_range(t->rspq_size, MIN_RSPQ_ENTRIES, MAX_RSPQ_ENTRIES))
 			return (EINVAL);
+
+		if ((sc->flags & FULL_INIT_DONE) && t->lro > 0)
+			for_each_port(sc, i) {
+				pi = adap2pinfo(sc, i);
+				if (t->qset_idx >= pi->first_qset &&
+				    t->qset_idx < pi->first_qset + pi->nqsets
+#if 0					
+					&& !pi->rx_csum_offload
+#endif					    
+					)
+					return -EINVAL;
+			}
 		if ((sc->flags & FULL_INIT_DONE) &&
 		    (t->rspq_size >= 0 || t->fl_size[0] >= 0 ||
 		     t->fl_size[1] >= 0 || t->txq_size[0] >= 0 ||

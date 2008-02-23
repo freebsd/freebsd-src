@@ -175,11 +175,8 @@ t3_l2t_send_slow(struct t3cdev *dev, struct mbuf *m, struct l2t_entry *e)
 	sin.sin_family = AF_INET;
 	sin.sin_len = sizeof(struct sockaddr_in);
 	sin.sin_addr.s_addr = e->addr;
-	
-	
-	
-	printf("send slow on rt=%p eaddr=0x%08x\n", rt, e->addr);
-	
+
+	CTR2(KTR_CXGB, "send slow on rt=%p eaddr=0x%08x\n", rt, e->addr);
 again:
 	switch (e->state) {
 	case L2T_STATE_STALE:     /* entry is stale, kick off revalidation */
@@ -199,8 +196,6 @@ again:
 		}
 		arpq_enqueue(e, m);
 		mtx_unlock(&e->lock);
-		printf("enqueueing arp request\n");
-		
 		/*
 		 * Only the first packet added to the arpq should kick off
 		 * resolution.  However, because the m_gethdr below can fail,
@@ -209,10 +204,9 @@ again:
 		 * A better way would be to use a work request to retry L2T
 		 * entries when there's no memory.
 		 */
-		printf("doing arpresolve on 0x%x \n", e->addr);
 		if (arpresolve(rt->rt_ifp, rt, NULL,
 		     (struct sockaddr *)&sin, e->dmac) == 0) {
-			printf("mac=%x:%x:%x:%x:%x:%x\n",
+			CTR6(KTR_CXGB, "mac=%x:%x:%x:%x:%x:%x\n",
 			    e->dmac[0], e->dmac[1], e->dmac[2], e->dmac[3], e->dmac[4], e->dmac[5]);
 			
 			if ((m = m_gethdr(M_NOWAIT, MT_DATA)) == NULL)
@@ -224,8 +218,7 @@ again:
 			else
 				m_freem(m);
 			mtx_unlock(&e->lock);
-		} else
-			printf("arpresolve returned non-zero\n");
+		}
 	}
 	return 0;
 }
@@ -396,8 +389,6 @@ t3_l2t_get(struct t3cdev *dev, struct rtentry *neigh, struct ifnet *ifp,
 	/* Need to allocate a new entry */
 	e = alloc_l2e(d);
 	if (e) {
-		printf("initializing new entry\n");
-		
 		mtx_lock(&e->lock);          /* avoid race with t3_l2t_free */
 		e->next = d->l2tab[hash].first;
 		d->l2tab[hash].first = e;
@@ -472,8 +463,6 @@ t3_l2t_update(struct t3cdev *dev, struct rtentry *neigh,
 	int hash = arp_hash(addr, ifidx, d);
 	struct llinfo_arp *la;
 
-	printf("t3_l2t_update called with arp info\n");
-	
 	rw_rlock(&d->lock);
 	for (e = d->l2tab[hash].first; e; e = e->next)
 		if (e->addr == addr && e->ifindex == ifidx) {
@@ -481,7 +470,7 @@ t3_l2t_update(struct t3cdev *dev, struct rtentry *neigh,
 			goto found;
 		}
 	rw_runlock(&d->lock);
-	printf("addr=0x%08x not found\n", addr);
+	CTR1(KTR_CXGB, "t3_l2t_update: addr=0x%08x not found", addr);
 	return;
 
 found:
@@ -543,6 +532,12 @@ t3_init_l2t(unsigned int l2t_capacity)
 void
 t3_free_l2t(struct l2t_data *d)
 {
+	int i;
+
+	rw_destroy(&d->lock);
+	for (i = 0; i < d->nentries; ++i) 
+		mtx_destroy(&d->l2tab[i].lock);
+
 	cxgb_free_mem(d);
 }
 

@@ -331,3 +331,10 @@ buf_ring_alloc(int count, int flags)
 
 	return (br);
 }
+
+void
+buf_ring_free(struct buf_ring *br)
+{
+	free(br->br_ring, M_DEVBUF);
+	free(br, M_DEVBUF);
+}

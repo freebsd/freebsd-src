@@ -30,45 +30,49 @@
 #ifndef CXGB_TOEPCB_H_
 #define CXGB_TOEPCB_H_
 #include <sys/bus.h>
+#include <sys/condvar.h>
 #include <dev/cxgb/sys/mbufq.h>
 
 struct toepcb {
-	struct toedev *tp_toedev;
-	struct l2t_entry *tp_l2t;
-	pr_ctloutput_t *tp_ctloutput;
-	unsigned int tp_tid;
-	int tp_wr_max;
-	int tp_wr_avail;
-	int tp_wr_unacked;
-	int tp_delack_mode;
-	int tp_mtu_idx;
-	int tp_ulp_mode;
-	int tp_qset_idx;
-	int tp_mss_clamp;
-	int tp_qset;
-	int tp_flags;
-	int tp_enqueued_bytes;
-	int tp_page_count;
-	int tp_state;
+	struct toedev 		*tp_toedev;
+	struct l2t_entry 	*tp_l2t;
+	pr_ctloutput_t 		*tp_ctloutput;
+	unsigned int 		tp_tid;
+	int 			tp_wr_max;
+	int 			tp_wr_avail;
+	int 			tp_wr_unacked;
+	int 			tp_delack_mode;
+	int 			tp_mtu_idx;
+	int 			tp_ulp_mode;
+	int 			tp_qset_idx;
+	int 			tp_mss_clamp;
+	int 			tp_qset;
+	int 			tp_flags;
+	int 			tp_enqueued_bytes;
+	int 			tp_page_count;
+	int 			tp_state;
 
-	tcp_seq tp_iss;
-	tcp_seq tp_delack_seq;
-	tcp_seq tp_rcv_wup;
-	tcp_seq tp_copied_seq;
-	uint64_t tp_write_seq;
+	tcp_seq 		tp_iss;
+	tcp_seq 		tp_delack_seq;
+	tcp_seq 		tp_rcv_wup;
+	tcp_seq 		tp_copied_seq;
+	uint64_t 		tp_write_seq;
 
-	volatile int tp_refcount;
-	vm_page_t *tp_pages;
+	volatile int 		tp_refcount;
+	vm_page_t 		*tp_pages;
 	
-	struct tcpcb *tp_tp;
-	struct mbuf  *tp_m_last;
-	bus_dma_tag_t	tp_tx_dmat;
-	bus_dmamap_t	tp_dmamap;
+	struct tcpcb 		*tp_tp;
+	struct mbuf  		*tp_m_last;
+	bus_dma_tag_t		tp_tx_dmat;
+	bus_dma_tag_t		tp_rx_dmat;
+	bus_dmamap_t		tp_dmamap;
 
-	LIST_ENTRY(toepcb) synq_entry;
-	struct mbuf_head wr_list;
-	struct mbuf_head out_of_order_queue;
-	struct ddp_state tp_ddp_state;
+	LIST_ENTRY(toepcb) 	synq_entry;
+	struct mbuf_head 	wr_list;
+	struct mbuf_head 	out_of_order_queue;
+	struct ddp_state 	tp_ddp_state;
+	struct cv		tp_cv;
+			   
 };
 
 static inline void
@@ -95,7 +99,7 @@ enqueue_wr(struct toepcb *toep, struct mbuf *m)
 }
 
 static inline struct mbuf *
-peek_wr(struct toepcb *toep)
+peek_wr(const struct toepcb *toep)
 {
 
 	return (mbufq_peek(&toep->wr_list));
@@ -107,6 +111,11 @@ dequeue_wr(struct toepcb *toep)
 
 	return (mbufq_dequeue(&toep->wr_list));
 }
+
+#define wr_queue_walk(toep, m) \
+	for (m = peek_wr(toep); m; m = m->m_nextpkt)
+
+
 
 #endif
 

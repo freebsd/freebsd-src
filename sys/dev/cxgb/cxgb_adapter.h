@@ -46,6 +46,7 @@ $FreeBSD$
 #include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_media.h>
+#include <net/if_dl.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -53,6 +54,7 @@ $FreeBSD$
 #include <sys/bus_dma.h>
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
+
 
 #ifdef CONFIG_DEFINED
 #include <cxgb_osdep.h>
@@ -144,6 +146,9 @@ enum {				/* adapter flags */
 	QUEUES_BOUND	= (1 << 3),
 	FW_UPTODATE     = (1 << 4),
 	TPS_UPTODATE    = (1 << 5),
+	CXGB_SHUTDOWN	= (1 << 6),
+	CXGB_OFLD_INIT	= (1 << 7),
+	TP_PARITY_INIT  = (1 << 8),
 };
 
 #define FL_Q_SIZE	4096
@@ -203,6 +208,7 @@ struct sge_rspq {
 	uint32_t	holdoff_tmr;
 	uint32_t	next_holdoff;
 	uint32_t        imm_data;
+	uint32_t        async_notif;
 	uint32_t	cntxt_id;
 	uint32_t        offload_pkts;
 	uint32_t        offload_bundles;
@@ -348,6 +354,8 @@ struct adapter {
 	/* PCI register resources */
 	int			regs_rid;
 	struct resource		*regs_res;
+	int			udbs_rid;
+	struct resource		*udbs_res;
 	bus_space_handle_t	bh;
 	bus_space_tag_t		bt;
 	bus_size_t              mmio_len;
@@ -508,10 +516,23 @@ static __inline uint8_t *
 t3_get_next_mcaddr(struct t3_rx_mode *rm)
 {
 	uint8_t *macaddr = NULL;
-	
-	if (rm->idx == 0)
-		macaddr = (uint8_t *)rm->port->hw_addr;
+	struct ifnet *ifp = rm->port->ifp;
+	struct ifmultiaddr *ifma;
+	int i = 0;
 
+	IF_ADDR_LOCK(ifp);
+	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+		if (ifma->ifma_addr->sa_family != AF_LINK)
+			continue;
+		if (i == rm->idx) {
+			macaddr = LLADDR((struct sockaddr_dl *)ifma->ifma_addr);
+			break;
+		}
+		i++;
+	}
+	IF_ADDR_UNLOCK(ifp);
+
+	
 	rm->idx++;
 	return (macaddr);
 }

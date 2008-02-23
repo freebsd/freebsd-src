@@ -31,6 +31,7 @@
 
 #ifndef _MVEC_H_
 #define _MVEC_H_
+#include <machine/bus.h>
 
 int cxgb_cache_init(void);
 
@@ -48,8 +49,10 @@ extern int cxgb_ext_freed;
 extern int cxgb_mbufs_outstanding;
 extern int cxgb_pack_outstanding;
 
-#define mtomv(m)          ((struct mbuf_vec *)((m)->m_pktdat))
-#define M_IOVEC               0x100000 /* mbuf immediate data area is used for cluster ptrs */
+#define	mtomv(m)          ((struct mbuf_vec *)((m)->m_pktdat))
+#define	M_IOVEC		0x100000	/* mbuf immediate data area is used for cluster ptrs */
+#define	M_DDP		0x200000	/* direct data placement mbuf */
+#define	EXT_PHYS	10		/* physical/bus address  */
 
 /*
  * duplication from mbuf.h - can't use directly because
@@ -59,7 +62,8 @@ struct m_ext_ {
 	caddr_t		 ext_buf;	/* start of buffer */
 	void		(*ext_free)	/* free routine if not the usual */
 			    (void *, void *);
-	void		*ext_args;	/* optional argument pointer */
+	void		*ext_arg1;	/* optional argument pointer */
+	void		*ext_arg2;	/* optional argument pointer */
 	u_int		 ext_size;	/* size of buffer, for ext_free */
 	volatile u_int	*ref_cnt;	/* pointer to ref count info */
 	int		 ext_type;	/* type of external storage */
@@ -72,6 +76,11 @@ struct m_ext_ {
 #define EXT_CLIOVEC     9
 #define EXT_JMPIOVEC    10
 
+#define m_cur_offset	m_ext.ext_size		/* override to provide ddp offset */
+#define m_seq		m_pkthdr.csum_data	/* stored sequence */
+#define m_ddp_gl	m_ext.ext_buf		/* ddp list	*/
+#define m_ddp_flags	m_pkthdr.csum_flags	/* ddp flags	*/
+#define m_ulp_mode	m_pkthdr.tso_segsz	/* upper level protocol	*/
 
 extern uma_zone_t zone_miovec;
 
@@ -181,10 +190,20 @@ static __inline int busdma_map_sgl(bus_dma_segment_t *vsegs, bus_dma_segment_t *
 }
 
 struct mbuf *mi_collapse_mbuf(struct mbuf_iovec *mi, struct mbuf *m);
-struct mbuf *mi_collapse_sge(struct mbuf_iovec *mi, bus_dma_segment_t *seg);
 void *mcl_alloc(int seg_count, int *type);
 
 void mb_free_ext_fast(struct mbuf_iovec *mi, int type, int idx);
+
+static __inline void
+mi_collapse_sge(struct mbuf_iovec *mi, bus_dma_segment_t *seg)
+{
+	mi->mi_flags = 0;
+	mi->mi_base = (caddr_t)seg->ds_addr;
+	mi->mi_len = seg->ds_len;
+	mi->mi_size = 0;
+	mi->mi_type = EXT_PHYS;
+	mi->mi_refcnt = NULL;
+}
 
 static __inline void
 m_free_iovec(struct mbuf *m, int type)
@@ -279,9 +298,11 @@ m_getzonefromtype(int type)
 	case EXT_JUMBO16:
 		zone = zone_jumbo16;
 		break;
+#ifdef PACKET_ZONE		
 	case EXT_PACKET:
 		zone = zone_pack;
 		break;
+#endif		
 	default:
 		panic("%s: invalid cluster type %d", __func__, type);
 	}
