@@ -284,7 +284,6 @@ do_bad_cpl(struct t3cdev *cdev, struct mbuf *m, void *ctx)
 {
 	log(LOG_ERR, "%s: received bad CPL command %u\n", cdev->name,
 	    0xFF & *mtod(m, unsigned int *));
-	kdb_backtrace();
 	return (CPL_RET_BUF_DONE | CPL_RET_BAD_MSG);
 }
 
