@@ -28,23 +28,24 @@
 
 #include <machine/asm.h>
 
-#define STACK_SIZE 8192
-
 /*
  * Entry point to the loader that U-Boot passes control to.
  */
-        .text   
-        .globl  _start
+	.text
+	.globl	_start
 _start:
-	/* Fix up a stack */
-	lis	%r1, stack@ha
-	addi	%r1, %r1, stack@l
-	addi	%r1, %r1, (STACK_SIZE - 32)
-	/* Save U-Boot's r14 and r29 */
+	/* Hint where to look for the API signature */
+	lis	%r11, uboot_address@ha
+	addi	%r11, %r11, uboot_address@l
+	stw	%r2, 0(%r11)
+	/* Save U-Boot's r14 */
 	lis	%r11, saved_regs@ha
 	addi	%r11, %r11, saved_regs@l
 	stw	%r14, 0(%r11)
-	stw	%r29, 4(%r11)
+	/* Disable interrupts */
+	mfmsr	%r11
+	andi.	%r11, %r11, ~0x8000@l
+	mtmsr	%r11
 	b	main
 
 /*
@@ -54,25 +55,30 @@ ENTRY(syscall)
 	stwu	%r1, -16(%r1)
 	mflr	%r0
 	stw	%r14, 8(%r1)
-	stw	%r29, 12(%r1)
 	stw	%r0, 20(%r1)
-	/* Restore U-Boot's r14 and r29 */
+	/* Restore U-Boot's r14 */
 	lis	%r11, saved_regs@ha
 	addi	%r11, %r11, saved_regs@l
 	lwz	%r14, 0(%r11)
-	lwz	%r29, 4(%r11)
-	/* Call into u-Boot */
+	/* Enable interrupts */
+	mfmsr	%r11
+	ori	%r11, %r11, 0x8000@l
+	mtmsr	%r11
+	/* Call into U-Boot */
 	lis	%r11, syscall_ptr@ha
 	addi	%r11, %r11, syscall_ptr@l
 	lwz	%r11, 0(%r11)
 	mtctr	%r11
 	bctrl
+	/* Disable interrupts */
+	mfmsr	%r11
+	andi.	%r11, %r11, ~0x8000@l
+	mtmsr	%r11
 	/* Epilogue */
 	lwz	%r11, 0(%r1)
 	lwz	%r0, 4(%r11)
 	mtlr	%r0
 	lwz	%r14, 8(%r1)
-	lwz	%r29, 12(%r1)
 	mr	%r1, %r11
 	blr
 
@@ -80,13 +86,9 @@ ENTRY(syscall)
  * Data section
  */
 	.data
-	.align	4
-stack:
-	.space	STACK_SIZE
-
 GLOBAL(syscall_ptr)
 	.long	0
 GLOBAL(saved_regs)
 	.long	0	/* R14 */
-	.long	0	/* R29 */
-
+GLOBAL(uboot_address)
+	.long	0
