@@ -51,6 +51,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/unistd.h>
 #include <sys/vnode.h>
+#include <sys/socket.h>
+#include <sys/stat.h>
 #include <sys/ktrace.h>
 #include <sys/sx.h>
 #include <sys/sysctl.h>
@@ -107,7 +109,8 @@ static int data_lengths[] = {
 	sizeof(struct ktr_genio),		/* KTR_GENIO */
 	sizeof(struct ktr_psig),		/* KTR_PSIG */
 	sizeof(struct ktr_csw),			/* KTR_CSW */
-	0					/* KTR_USER */
+	0,					/* KTR_USER */
+	0,					/* KTR_STRUCT */
 };
 
 static STAILQ_HEAD(, ktr_request) ktr_free;
@@ -551,6 +554,33 @@ ktrcsw(out, user)
 	kc->out = out;
 	kc->user = user;
 	ktr_enqueuerequest(curthread, req);
+}
+
+void
+ktrstruct(name, namelen, data, datalen)
+	const char *name;
+	size_t namelen;
+	void *data;
+	size_t datalen;
+{
+	struct ktr_request *req;
+	char *buf = NULL;
+	size_t buflen;
+
+	if (!data)
+		datalen = 0;
+	buflen = namelen + 1 + datalen;
+	buf = malloc(buflen, M_KTRACE, M_WAITOK);
+	bcopy(name, buf, namelen);
+	buf[namelen] = '\0';
+	bcopy(data, buf + namelen + 1, datalen);
+	if ((req = ktr_getrequest(KTR_STRUCT)) == NULL) {
+		free(buf, M_KTRACE);
+		return;
+	}
+	req->ktr_buffer = buf;
+	req->ktr_header.ktr_len = buflen;
+	ktr_submitrequest(curthread, req);
 }
 #endif /* KTRACE */
 

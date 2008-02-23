@@ -222,6 +222,10 @@ kern_bind(td, fd, sa)
 	if (error)
 		return (error);
 	so = fp->f_data;
+#ifdef KTRACE
+	if (KTRPOINT(td, KTR_STRUCT))
+		ktrsockaddr(sa);
+#endif
 #ifdef MAC
 	SOCK_LOCK(so);
 	error = mac_socket_check_bind(td->td_ucred, so, sa);
@@ -444,6 +448,10 @@ kern_accept(struct thread *td, int s, struct sockaddr **name,
 		/* check sa_len before it is destroyed */
 		if (*namelen > sa->sa_len)
 			*namelen = sa->sa_len;
+#ifdef KTRACE
+		if (KTRPOINT(td, KTR_STRUCT))
+			ktrsockaddr(sa);
+#endif
 		*name = sa;
 		sa = NULL;
 	}
@@ -538,6 +546,10 @@ kern_connect(td, fd, sa)
 		error = EALREADY;
 		goto done1;
 	}
+#ifdef KTRACE
+	if (KTRPOINT(td, KTR_STRUCT))
+		ktrsockaddr(sa);
+#endif
 #ifdef MAC
 	SOCK_LOCK(so);
 	error = mac_socket_check_connect(td->td_ucred, so, sa);
@@ -1052,6 +1064,10 @@ kern_recvit(td, s, mp, fromseg, controlp)
 	}
 out:
 	fdrop(fp, td);
+#ifdef KTRACE
+	if (fromsa && KTRPOINT(td, KTR_STRUCT))
+		ktrsockaddr(fromsa);
+#endif
 	if (fromsa)
 		FREE(fromsa, M_SONAME);
 
@@ -1456,6 +1472,10 @@ kern_getsockname(struct thread *td, int fd, struct sockaddr **sa,
 	else
 		len = MIN(*alen, (*sa)->sa_len);
 	*alen = len;
+#ifdef KTRACE
+	if (KTRPOINT(td, KTR_STRUCT))
+		ktrsockaddr(*sa);
+#endif
 bad:
 	fdrop(fp, td);
 	if (error && *sa) {
@@ -1553,6 +1573,10 @@ kern_getpeername(struct thread *td, int fd, struct sockaddr **sa,
 	else
 		len = MIN(*alen, (*sa)->sa_len);
 	*alen = len;
+#ifdef KTRACE
+	if (KTRPOINT(td, KTR_STRUCT))
+		ktrsockaddr(*sa);
+#endif
 bad:
 	if (error && *sa) {
 		free(*sa, M_SONAME);
@@ -2373,6 +2397,10 @@ sctp_generic_sendmsg (td, uap)
 	error = getsock(td->td_proc->p_fd, uap->sd, &fp, NULL);
 	if (error)
 		goto sctp_bad;
+#ifdef KTRACE
+	if (KTRPOINT(td, KTR_STRUCT))
+		ktrsockaddr(to);
+#endif
 
 	iov[0].iov_base = uap->msg;
 	iov[0].iov_len = uap->mlen;
@@ -2476,6 +2504,10 @@ sctp_generic_sendmsg_iov(td, uap)
 	error = copyiniov(uap->iov, uap->iovlen, &iov, EMSGSIZE);
 	if (error)
 		goto sctp_bad1;
+#ifdef KTRACE
+	if (KTRPOINT(td, KTR_STRUCT))
+		ktrsockaddr(to);
+#endif
 
 	so = (struct socket *)fp->f_data;
 #ifdef MAC
@@ -2659,6 +2691,10 @@ sctp_generic_recvmsg(td, uap)
 			goto out;
 		}
 	}
+#ifdef KTRACE
+	if (KTRPOINT(td, KTR_STRUCT))
+		ktrsockaddr(fromsa);
+#endif
 	if (uap->msg_flags) {
 		error = copyout(&msg_flags, uap->msg_flags, sizeof (int));
 		if (error) {
