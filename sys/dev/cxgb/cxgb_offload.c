@@ -105,16 +105,12 @@ cxgb_register_client(struct cxgb_client *client)
 	TAILQ_INSERT_TAIL(&client_list, client, client_entry);
 
 	if (client->add) {
-		printf("client->add set\n");
-		
 		TAILQ_FOREACH(tdev, &ofld_dev_list, entry) {
 			if (offload_activated(tdev)) {
-				printf("calling add=%p on %p\n",
-				    client->add, tdev);
-				
 				client->add(tdev);
 			} else
-				printf("%p not activated\n", tdev);
+				CTR1(KTR_CXGB,
+				    "cxgb_register_client: %p not activated", tdev);
 			
 		}
 	}
@@ -270,11 +266,10 @@ cxgb_ulp_iscsi_ctl(adapter_t *adapter, unsigned int req, void *data)
 				     t3_read_reg(adapter, A_PM1_TX_CFG) >> 17);
 		/* on rx, the iscsi pdu has to be < rx page size and the
 		   whole pdu + cpl headers has to fit into one sge buffer */
-		uiip->max_rxsz =
-		    (unsigned int)min(adapter->params.tp.rx_pg_size,
-			(adapter->sge.qs[0].fl[1].buf_size -
-			    sizeof(struct cpl_rx_data) * 2 -
-			    sizeof(struct cpl_rx_data_ddp)) );
+		/* also check the max rx data length programmed in TP */
+		uiip->max_rxsz = min(uiip->max_rxsz,
+				     ((t3_read_reg(adapter, A_TP_PARA_REG2))
+					>> S_MAXRXDATA) & M_MAXRXDATA);
 		break;
 	case ULP_ISCSI_SET_PARAMS:
 		t3_write_reg(adapter, A_ULPRX_ISCSI_TAGMASK, uiip->tagmask);
@@ -297,25 +292,24 @@ cxgb_rdma_ctl(adapter_t *adapter, unsigned int req, void *data)
 	case RDMA_GET_PARAMS: {
 		struct rdma_info *req = data;
 
-		req->udbell_physbase = rman_get_start(adapter->regs_res);
-		req->udbell_len = rman_get_size(adapter->regs_res);
+		req->udbell_physbase = rman_get_start(adapter->udbs_res);
+		req->udbell_len = rman_get_size(adapter->udbs_res);
 		req->tpt_base = t3_read_reg(adapter, A_ULPTX_TPT_LLIMIT);
 		req->tpt_top  = t3_read_reg(adapter, A_ULPTX_TPT_ULIMIT);
 		req->pbl_base = t3_read_reg(adapter, A_ULPTX_PBL_LLIMIT);
 		req->pbl_top  = t3_read_reg(adapter, A_ULPTX_PBL_ULIMIT);
 		req->rqt_base = t3_read_reg(adapter, A_ULPRX_RQ_LLIMIT);
 		req->rqt_top  = t3_read_reg(adapter, A_ULPRX_RQ_ULIMIT);
-		req->kdb_addr = (void *)(rman_get_start(adapter->regs_res) + A_SG_KDOORBELL);
-		break;
+		req->kdb_addr =  (void *)((unsigned long)rman_get_virtual(adapter->regs_res) + A_SG_KDOORBELL);		break;
 	}
 	case RDMA_CQ_OP: {
 		struct rdma_cq_op *req = data;
 
 		/* may be called in any context */
-		mtx_lock(&adapter->sge.reg_lock);
+		mtx_lock_spin(&adapter->sge.reg_lock);
 		ret = t3_sge_cqcntxt_op(adapter, req->id, req->op,
 					req->credits);
-		mtx_unlock(&adapter->sge.reg_lock);
+		mtx_unlock_spin(&adapter->sge.reg_lock);
 		break;
 	}
 	case RDMA_GET_MEM: {
@@ -341,28 +335,28 @@ cxgb_rdma_ctl(adapter_t *adapter, unsigned int req, void *data)
 	case RDMA_CQ_SETUP: {
 		struct rdma_cq_setup *req = data;
 
-		mtx_lock(&adapter->sge.reg_lock);
+		mtx_lock_spin(&adapter->sge.reg_lock);
 		ret = t3_sge_init_cqcntxt(adapter, req->id, req->base_addr,
 					  req->size, ASYNC_NOTIF_RSPQ,
 					  req->ovfl_mode, req->credits,
 					  req->credit_thres);
-		mtx_unlock(&adapter->sge.reg_lock);
+		mtx_unlock_spin(&adapter->sge.reg_lock);
 		break;
 	}
 	case RDMA_CQ_DISABLE:
-		mtx_lock(&adapter->sge.reg_lock);
+		mtx_lock_spin(&adapter->sge.reg_lock);
 		ret = t3_sge_disable_cqcntxt(adapter, *(unsigned int *)data);
-		mtx_unlock(&adapter->sge.reg_lock);
+		mtx_unlock_spin(&adapter->sge.reg_lock);
 		break;
 	case RDMA_CTRL_QP_SETUP: {
 		struct rdma_ctrlqp_setup *req = data;
 
-		mtx_lock(&adapter->sge.reg_lock);
+		mtx_lock_spin(&adapter->sge.reg_lock);
 		ret = t3_sge_init_ecntxt(adapter, FW_RI_SGEEC_START, 0,
 					 SGE_CNTXT_RDMA, ASYNC_NOTIF_RSPQ,
 					 req->base_addr, req->size,
 					 FW_RI_TID_START, 1, 0);
-		mtx_unlock(&adapter->sge.reg_lock);
+		mtx_unlock_spin(&adapter->sge.reg_lock);
 		break;
 	}
 	default:
@@ -380,6 +374,8 @@ cxgb_offload_ctl(struct t3cdev *tdev, unsigned int req, void *data)
 	struct iff_mac *iffmacp;
 	struct ddp_params *ddpp;
 	struct adap_ports *ports;
+	struct ofld_page_info *rx_page_info;
+	struct tp_params *tp = &adapter->params.tp;
 	int port;
 
 	switch (req) {
@@ -444,6 +440,11 @@ cxgb_offload_ctl(struct t3cdev *tdev, unsigned int req, void *data)
 	case FAILOVER_CLEAR:
 		t3_failover_clear(adapter);
 		break;
+	case GET_RX_PAGE_INFO:
+		rx_page_info = data;
+		rx_page_info->page_size = tp->rx_pg_size;
+		rx_page_info->num = tp->rx_num_pgs;
+		break;
 	case ULP_ISCSI_GET_PARAMS:
 	case ULP_ISCSI_SET_PARAMS:
 		if (!offload_running(adapter))
@@ -472,8 +473,6 @@ cxgb_offload_ctl(struct t3cdev *tdev, unsigned int req, void *data)
 static int
 rx_offload_blackhole(struct t3cdev *dev, struct mbuf **m, int n)
 {
-	CH_ERR(tdev2adap(dev), "%d unexpected offload packets, first data 0x%x\n",
-	    n, *mtod(m[0], uint32_t *));
 	while (n--)
 		m_freem(m[n]);
 	return 0;
@@ -629,7 +628,7 @@ cxgb_remove_tid(struct t3cdev *tdev, void *ctx, unsigned int tid)
 		m = m_get(M_NOWAIT, MT_DATA);
 		if (__predict_true(m != NULL)) {
 			mk_tid_release(m, tid);
-			printf("sending tid release\n");
+			CTR1(KTR_CXGB, "releasing tid=%u", tid);
 			
 			cxgb_ofld_send(tdev, m);
 			t->tid_tab[tid].ctx = NULL;
@@ -698,6 +697,19 @@ static int
 do_l2t_write_rpl(struct t3cdev *dev, struct mbuf *m)
 {
 	struct cpl_l2t_write_rpl *rpl = cplhdr(m);
+
+	if (rpl->status != CPL_ERR_NONE)
+		log(LOG_ERR,
+		       "Unexpected L2T_WRITE_RPL status %u for entry %u\n",
+		       rpl->status, GET_TID(rpl));
+
+	return CPL_RET_BUF_DONE;
+}
+
+static int
+do_rte_write_rpl(struct t3cdev *dev, struct mbuf *m)
+{
+	struct cpl_rte_write_rpl *rpl = cplhdr(m);
 
 	if (rpl->status != CPL_ERR_NONE)
 		log(LOG_ERR,
@@ -903,7 +915,7 @@ cxgb_arp_update_event(void *unused, struct rtentry *rt0,
     uint8_t *enaddr, struct sockaddr *sa)
 {
 
-	if (TOEDEV(rt0->rt_ifp) == NULL)
+	if (!is_offloading(rt0->rt_ifp))
 		return;
 
 	RT_ADDREF(rt0);
@@ -918,15 +930,21 @@ static void
 cxgb_redirect_event(void *unused, int event, struct rtentry *rt0,
     struct rtentry *rt1, struct sockaddr *sa)
 {
-	struct toedev *tdev0, *tdev1;
-
 	/* 
 	 * ignore events on non-offloaded interfaces
 	 */
-	tdev0 = TOEDEV(rt0->rt_ifp);
-	tdev1 = TOEDEV(rt1->rt_ifp);
-	if (tdev0 == NULL && tdev1 == NULL)
+	if (!is_offloading(rt0->rt_ifp))
 		return;
+
+	/*
+	 * Cannot redirect to non-offload device.
+	 */
+	if (!is_offloading(rt1->rt_ifp)) {
+		log(LOG_WARNING, "%s: Redirect to non-offload"
+		    "device ignored.\n", __FUNCTION__);
+		return;
+	}
+
         /*
 	 * avoid LORs by dropping the route lock but keeping a reference
 	 * 
@@ -952,14 +970,15 @@ static int
 do_bad_cpl(struct t3cdev *dev, struct mbuf *m)
 {
 	log(LOG_ERR, "%s: received bad CPL command 0x%x\n", dev->name,
-	    *mtod(m, uint32_t *));
+	    0xFF & *mtod(m, uint32_t *));
+	kdb_backtrace();
 	return (CPL_RET_BUF_DONE | CPL_RET_BAD_MSG);
 }
 
 /*
  * Handlers for each CPL opcode
  */
-static cpl_handler_func cpl_handlers[NUM_CPL_CMDS];
+static cpl_handler_func cpl_handlers[256];
 
 /*
  * Add a new handler to the CPL dispatch table.  A NULL handler may be supplied
@@ -1052,7 +1071,7 @@ void
 cxgb_neigh_update(struct rtentry *rt, uint8_t *enaddr, struct sockaddr *sa)
 {
 
-	if (is_offloading(rt->rt_ifp)) {
+	if (rt->rt_ifp && is_offloading(rt->rt_ifp) && (rt->rt_ifp->if_flags & IFCAP_TOE)) {
 		struct t3cdev *tdev = T3CDEV(rt->rt_ifp);
 
 		PANIC_IF(!tdev);
@@ -1159,7 +1178,6 @@ cxgb_free_mem(void *addr)
 	free(addr, M_CXGB);
 }
 
-
 /*
  * Allocate and initialize the TID tables.  Returns 0 on success.
  */
@@ -1208,6 +1226,8 @@ init_tid_tabs(struct tid_info *t, unsigned int ntids,
 static void
 free_tid_maps(struct tid_info *t)
 {
+	mtx_destroy(&t->stid_lock);
+	mtx_destroy(&t->atid_lock);
 	cxgb_free_mem(t->tid_tab);
 }
 
@@ -1226,11 +1246,6 @@ remove_adapter(adapter_t *adap)
 	TAILQ_REMOVE(&adapter_list, adap, adapter_entry);
 	rw_wunlock(&adapter_list_lock);
 }
-
-/*
- * XXX
- */
-#define t3_free_l2t(...)
 
 int
 cxgb_offload_activate(struct adapter *adapter)
@@ -1265,8 +1280,6 @@ cxgb_offload_activate(struct adapter *adapter)
 		device_printf(adapter->dev, "%s: t3_init_l2t failed\n", __FUNCTION__);
 		goto out_free;
 	}
-	
-
 	natids = min(tid_range.num / 2, MAX_ATIDS);
 	err = init_tid_tabs(&t->tid_maps, tid_range.num, natids,
 			    stid_range.num, ATID_BASE, stid_range.base);
@@ -1295,9 +1308,10 @@ cxgb_offload_activate(struct adapter *adapter)
 			log(LOG_ERR, "Unable to set offload capabilities\n");
 #endif
 	}
-	printf("adding adapter %p\n", adapter); 
+	CTR1(KTR_CXGB, "adding adapter %p", adapter); 
 	add_adapter(adapter);
 	device_printf(adapter->dev, "offload started\n");
+	adapter->flags |= CXGB_OFLD_INIT;
 #if 0
 	printf("failing as test\n");
 	return (ENOMEM);
@@ -1330,6 +1344,7 @@ cxgb_offload_deactivate(struct adapter *adapter)
 	T3C_DATA(tdev) = NULL;
 	t3_free_l2t(L2DATA(tdev));
 	L2DATA(tdev) = NULL;
+	mtx_destroy(&t->tid_release_lock);
 	free(t, M_CXGB);
 }
 
@@ -1353,6 +1368,26 @@ unregister_tdev(struct t3cdev *tdev)
 	mtx_unlock(&cxgb_db_lock);	
 }
 
+static __inline int
+adap2type(struct adapter *adapter) 
+{ 
+        int type = 0; 
+ 
+        switch (adapter->params.rev) { 
+        case T3_REV_A: 
+                type = T3A; 
+                break; 
+        case T3_REV_B: 
+        case T3_REV_B2: 
+                type = T3B; 
+                break; 
+        case T3_REV_C: 
+                type = T3C; 
+                break; 
+        } 
+        return type; 
+} 
+                 
 void
 cxgb_adapter_ofld(struct adapter *adapter)
 {
@@ -1361,9 +1396,8 @@ cxgb_adapter_ofld(struct adapter *adapter)
 	cxgb_set_dummy_ops(tdev);
 	tdev->send = t3_offload_tx;
 	tdev->ctl = cxgb_offload_ctl;
-	tdev->type = adapter->params.rev == 0 ?
-		     T3A : T3B;
-
+	tdev->type = adap2type(adapter);
+	
 	register_tdev(tdev);
 #if 0	
 	offload_proc_dev_init(tdev);
@@ -1398,10 +1432,11 @@ cxgb_offload_init(void)
 	TAILQ_INIT(&ofld_dev_list);
 	TAILQ_INIT(&adapter_list);
 	
-	for (i = 0; i < NUM_CPL_CMDS; ++i)
+	for (i = 0; i < 0x100; ++i)
 		cpl_handlers[i] = do_bad_cpl;
 	
 	t3_register_cpl_handler(CPL_SMT_WRITE_RPL, do_smt_write_rpl);
+	t3_register_cpl_handler(CPL_RTE_WRITE_RPL, do_rte_write_rpl);
 	t3_register_cpl_handler(CPL_L2T_WRITE_RPL, do_l2t_write_rpl);
 	t3_register_cpl_handler(CPL_PASS_OPEN_RPL, do_stid_rpl);
 	t3_register_cpl_handler(CPL_CLOSE_LISTSRV_RPL, do_stid_rpl);
@@ -1425,7 +1460,9 @@ cxgb_offload_init(void)
 	t3_register_cpl_handler(CPL_RX_DATA_DDP, do_hwtid_rpl);
 	t3_register_cpl_handler(CPL_RX_DDP_COMPLETE, do_hwtid_rpl);
 	t3_register_cpl_handler(CPL_ISCSI_HDR, do_hwtid_rpl);
-
+	t3_register_cpl_handler(CPL_GET_TCB_RPL, do_hwtid_rpl);
+	t3_register_cpl_handler(CPL_SET_TCB_RPL, do_hwtid_rpl);
+	
 	EVENTHANDLER_REGISTER(route_arp_update_event, cxgb_arp_update_event,
 	    NULL, EVENTHANDLER_PRI_ANY);
 	EVENTHANDLER_REGISTER(route_redirect_event, cxgb_redirect_event,

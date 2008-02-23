@@ -103,7 +103,7 @@ mbufq_dequeue(struct mbuf_head *l)
 }
 
 static __inline struct mbuf *
-mbufq_peek(struct mbuf_head *l)
+mbufq_peek(const struct mbuf_head *l)
 {
 	return (l->head);
 }

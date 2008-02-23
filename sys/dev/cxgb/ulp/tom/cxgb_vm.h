@@ -25,17 +25,16 @@ CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 
+
 $FreeBSD$
 
 ***************************************************************************/
-/*
- * Note that although this driver doesn't contain all of the functionality of the Linux driver
- * the common code is 99% the same. Hence we keep the same version number to indicate what linux
- * driver the common code corresponds to.
- */
-#ifndef __CHELSIO_VERSION_H
-#define __CHELSIO_VERSION_H
-#define DRV_DESC "Chelsio T3 Network Driver"
-#define DRV_NAME "cxgb"
-#define DRV_VERSION "1.0.129a"
+#ifndef CXGB_VM_H_
+#define CXGB_VM_H_
+
+#define VM_HOLD_WRITEABLE	0x1
+
+int vm_fault_hold_user_pages(vm_offset_t addr, vm_page_t *mp, int count, int flags);
+void vm_fault_unhold_pages(vm_page_t *mp, int count);
+
 #endif

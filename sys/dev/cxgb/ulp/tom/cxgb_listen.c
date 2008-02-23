@@ -180,7 +180,6 @@ listen_hash_add(struct tom_data *d, struct socket *so, unsigned int stid)
 	return p;
 }
 
-#if 0
 /*
  * Given a pointer to a listening socket return its server TID by consulting
  * the socket->stid map.  Returns -1 if the socket is not in the map.
@@ -191,16 +190,15 @@ listen_hash_find(struct tom_data *d, struct socket *so)
 	int stid = -1, bucket = listen_hashfn(so);
 	struct listen_info *p;
 
-	spin_lock(&d->listen_lock);
+	mtx_lock(&d->listen_lock);
 	for (p = d->listen_hash_tab[bucket]; p; p = p->next)
-		if (p->sk == sk) {
+		if (p->so == so) {
 			stid = p->stid;
 			break;
 		}
-	spin_unlock(&d->listen_lock);
+	mtx_unlock(&d->listen_lock);
 	return stid;
 }
-#endif
 
 /*
  * Delete the listen_info structure for a listening socket.  Returns the server
@@ -244,28 +242,24 @@ t3_listen_start(struct toedev *dev, struct socket *so, struct t3cdev *cdev)
 	if (!TOM_TUNABLE(dev, activated))
 		return;
 
-	printf("start listen\n");
+	if (listen_hash_find(d, so) != -1)
+		return;
 	
-	ctx = malloc(sizeof(*ctx), M_CXGB, M_NOWAIT);
+	CTR1(KTR_TOM, "start listen on port %u", ntohs(inp->inp_lport));
+	ctx = malloc(sizeof(*ctx), M_CXGB, M_NOWAIT|M_ZERO);
 
 	if (!ctx)
 		return;
 
 	ctx->tom_data = d;
 	ctx->lso = so;
-	ctx->ulp_mode = 0; /* DDP if the default */
+	ctx->ulp_mode = TOM_TUNABLE(dev, ddp) && !(so->so_options & SO_NO_DDP) ? ULP_MODE_TCPDDP : 0;
 	LIST_INIT(&ctx->synq_head);
 	
 	stid = cxgb_alloc_stid(d->cdev, d->client, ctx);
 	if (stid < 0)
 		goto free_ctx;
 
-#ifdef notyet
-	/*
-	 * XXX need to mark inpcb as referenced
-	 */
-	sock_hold(sk);
-#endif
 	m = m_gethdr(M_NOWAIT, MT_DATA);
 	if (m == NULL)
 		goto free_stid;

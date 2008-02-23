@@ -138,6 +138,8 @@ struct listen_ctx {
 
 void t3_init_tunables(struct tom_data *t);
 
+void t3_sysctl_register(struct adapter *sc, const struct tom_tunables *p);
+
 static __inline struct mbuf *
 m_gethdr_nofail(int len)
 {
