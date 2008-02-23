@@ -83,6 +83,8 @@ static char	*fake_modname(const char *name);
 const char	*__elfN(kerneltype) = "elf kernel";
 const char	*__elfN(moduletype) = "elf module";
 
+u_int64_t	__elfN(relocation_offset) = 0;
+
 /*
  * Attempt to load the file (file) as an ELF module.  It will be stored at
  * (dest), and a pointer to a module structure describing the loaded object
@@ -100,7 +102,7 @@ __elfN(loadfile)(char *filename, u_int64_t dest, struct preloaded_file **result)
 
     fp = NULL;
     bzero(&ef, sizeof(struct elf_file));
-    
+
     /*
      * Open the image, read and validate the ELF header 
      */
@@ -266,9 +268,33 @@ __elfN(loadimage)(struct preloaded_file *fp, elf_file_t ef, u_int64_t off)
 #else
 	off = - (off & 0xff000000u);	/* i386 relocates after locore */
 #endif
+#elif defined(__powerpc__)
+	/*
+	 * On the purely virtual memory machines like e500, the kernel is
+	 * linked against its final VA range, which is most often not
+	 * available at the loader stage, but only after kernel initializes
+	 * and completes its VM settings. In such cases we cannot use p_vaddr
+	 * field directly to load ELF segments, but put them at some
+	 * 'load-time' locations.
+	 */
+	if (off & 0xf0000000u) {
+	    off = -(off & 0xf0000000u);
+	    /*
+	     * XXX the physical load address should not be hardcoded. Note
+	     * that the Book-E kernel assumes that it's loaded at a 16MB
+	     * boundary for now...
+	     */
+	    off += 0x01000000;
+	    ehdr->e_entry += off;
+#ifdef ELF_VERBOSE
+	    printf("Converted entry 0x%08x\n", ehdr->e_entry);
+#endif
+	} else 
+	    off = 0;
 #else
 	off = 0;		/* other archs use direct mapped kernels */
 #endif
+	__elfN(relocation_offset) = off;
     }
     ef->off = off;
 
