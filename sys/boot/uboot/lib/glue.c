@@ -29,9 +29,10 @@ __FBSDID("$FreeBSD$");
 
 #include <stand.h>
 #include "api_public.h"
+#include "glue.h"
 
-#undef DEBUG
 #define DEBUG
+#undef DEBUG
 
 #ifdef DEBUG
 #define debugf(fmt, args...) do { printf("%s(): ", __func__); printf(fmt,##args); } while (0)
@@ -39,38 +40,8 @@ __FBSDID("$FreeBSD$");
 #define debugf(fmt, args...)
 #endif
 
-/* console */
-int			ub_getc(void);
-int			ub_tstc(void);
-void			ub_putc(char c);
-void			ub_puts(const char *s);
-
-/* system */
-void			ub_reset(void);
-struct sys_info *	ub_get_sys_info(void);
-
-/* time */
-void			ub_udelay(unsigned long);
-unsigned long		ub_get_timer(unsigned long);
-
-/* env vars */
-char *			ub_env_get(const char *name);
-void			ub_env_set(const char *name, char *value);
-const char *		ub_env_enum(const char *last);
-
-/* devices */
-int			ub_dev_enum(void);
-int			ub_dev_open(int handle);
-int			ub_dev_close(int handle);
-int			ub_dev_read(int handle, void *buf,
-				lbasize_t len, lbastart_t start);
-int			ub_dev_send(int handle, void *buf, int len);
-int			ub_dev_recv(int handle, void *buf, int len);
-
-int			api_search_sig(struct api_signature **sig);
-
-extern int		syscall(int, int *, ...);
-
+/* Some random address used by U-Boot. */
+extern long		uboot_address;
 
 /* crc32 stuff stolen from lib/libdisk/write_ia64_disk.c */
 static uint32_t crc32_tab[] = {
@@ -158,10 +129,6 @@ static int valid_sig(struct api_signature *sig)
 	return 1;
 }
 
-#define API_SEARCH_START	(255*1024*1024)		/* start at 1MB below the RAM top */
-//#define API_SEARCH_START	0
-#define API_SEARCH_END		(256 * 1024 * 1024 - 1)	/* ...and search to the end */
-
 /*
  * Searches for the U-Boot API signature
  *
@@ -169,14 +136,17 @@ static int valid_sig(struct api_signature *sig)
  */
 int api_search_sig(struct api_signature **sig) {
 
-	unsigned char *sp;
+	unsigned char *sp, *spend;
 
 	if (sig == NULL)
 		return 0;
 
-	sp = (unsigned char *)API_SEARCH_START;
+	if (uboot_address == 0)
+		uboot_address = 255 * 1024 * 1024;
 
-	while ((sp + (int)API_SIG_MAGLEN) < (unsigned char *)API_SEARCH_END) {
+	sp = (void *)(uboot_address & ~0x000fffff);
+	spend = sp + 0x00100000 - API_SIG_MAGLEN;
+	while (sp < spend) {
 		if (!bcmp(sp, API_SIG_MAGIC, API_SIG_MAGLEN)) {
 			*sig = (struct api_signature *)sp;
 			if (valid_sig(*sig))
@@ -188,15 +158,6 @@ int api_search_sig(struct api_signature **sig) {
 	*sig = NULL;
 	return 0;
 }
-
-
-/*
- * NOTICE: ub_ library calls are part of the application, not U-Boot code!
- * They are front-end wrappers that are used by the consumer application: they
- * prepare arguments for particular syscall and jump to the low level
- * syscall()
- *
- */
 
 /****************************************
  *
