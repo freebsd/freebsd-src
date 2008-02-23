@@ -155,6 +155,7 @@
 .Op Fl l Ar name
 .Op Fl M Ar members
 .Op Fl m Ar newmembers
+.Op Fl d Ar oldmembers
 .Op Fl h Ar fd | Fl H Ar fd
 .Op Fl N
 .Op Fl P
@@ -776,6 +777,15 @@ Similar to
 this option allows the
 .Em addition
 of existing users to a group without replacing the existing list of
+members.
+Login names or user ids may be used, and duplicate users are
+silently eliminated.
+.It Fl d Ar oldmembers
+Similar to
+.Fl M ,
+this option allows the
+.Em deletion
+of existing users from a group without replacing the existing list of
 members.
 Login names or user ids may be used, and duplicate users are
 silently eliminated.
