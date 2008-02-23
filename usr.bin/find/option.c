@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 int typecompare(const void *, const void *);
 
 /* NB: the following table must be sorted lexically. */
+/* Options listed with C++ comments are in gnu find, but not our find */
 static OPTION const options[] = {
 	{ "!",		c_simple,	f_not,		0 },
 	{ "(",		c_simple,	f_openparen,	0 },
@@ -74,26 +75,38 @@ static OPTION const options[] = {
 	{ "-cmin",	c_Xmin,		f_Xmin,		F_TIME_C },
 	{ "-cnewer",	c_newer,	f_newer,	F_TIME_C },
 	{ "-ctime",	c_Xtime,	f_Xtime,	F_TIME_C },
+	{ "-d",		c_depth,	f_depth,	0 },
+// -daystart
 	{ "-delete",	c_delete,	f_delete,	0 },
 	{ "-depth",	c_depth,	f_depth,	0 },
 	{ "-empty",	c_empty,	f_empty,	0 },
 	{ "-exec",	c_exec,		f_exec,		0 },
 	{ "-execdir",	c_exec,		f_exec,		F_EXECDIR },
-	{ "-false",	c_simple,	f_not,		0 },
+	{ "-false",	c_simple,	f_false,	0 },
 	{ "-flags",	c_flags,	f_flags,	0 },
+// -fls
 	{ "-follow",	c_follow,	f_always_true,	0 },
+// -fprint
+// -fprint0
+// -fprintf
 	{ "-fstype",	c_fstype,	f_fstype,	0 },
+	{ "-gid",	c_group,	f_group,	0 },
 	{ "-group",	c_group,	f_group,	0 },
+	{ "-ignore_readdir_race",c_simple, f_always_true,0 },
+	{ "-ilname",	c_name,		f_name,		F_LINK | F_IGNCASE },
 	{ "-iname",	c_name,		f_name,		F_IGNCASE },
 	{ "-inum",	c_inum,		f_inum,		0 },
 	{ "-ipath",	c_name,		f_path,		F_IGNCASE },
 	{ "-iregex",	c_regex,	f_regex,	F_IGNCASE },
+	{ "-iwholename",c_name,		f_path,		F_IGNCASE },
 	{ "-links",	c_links,	f_links,	0 },
+	{ "-lname",	c_name,		f_name,		F_LINK },
 	{ "-ls",	c_ls,		f_ls,		0 },
 	{ "-maxdepth",	c_mXXdepth,	f_always_true,	F_MAXDEPTH },
 	{ "-mindepth",	c_mXXdepth,	f_always_true,	0 },
 	{ "-mmin",	c_Xmin,		f_Xmin,		0 },
 	{ "-mnewer",	c_newer,	f_newer,	0 },
+	{ "-mount",	c_xdev,		f_always_true,	0 },
 	{ "-mtime",	c_Xtime,	f_Xtime,	0 },
 	{ "-name",	c_name,		f_name,		0 },
 	{ "-newer",	c_newer,	f_newer,	0 },
@@ -118,6 +131,8 @@ static OPTION const options[] = {
 	{ "-newermm",	c_newer,	f_newer,	0 },
 	{ "-newermt",	c_newer,	f_newer,	F_TIME2_T },
 	{ "-nogroup",	c_nogroup,	f_nogroup,	0 },
+	{ "-noignore_readdir_race",c_simple, f_always_true,0 },
+	{ "-noleaf",	c_simple,	f_always_true,	0 },
 	{ "-not",	c_simple,	f_not,		0 },
 	{ "-nouser",	c_nouser,	f_nouser,	0 },
 	{ "-o",		c_simple,	f_or,		0 },
@@ -128,12 +143,19 @@ static OPTION const options[] = {
 	{ "-perm",	c_perm,		f_perm,		0 },
 	{ "-print",	c_print,	f_print,	0 },
 	{ "-print0",	c_print,	f_print0,	0 },
+// -printf
 	{ "-prune",	c_simple,	f_prune,	0 },
+	{ "-quit",	c_simple,	f_quit,		0 },
 	{ "-regex",	c_regex,	f_regex,	0 },
+	{ "-samefile",	c_samefile,	f_inum,		0 },
 	{ "-size",	c_size,		f_size,		0 },
+	{ "-true",	c_simple,	f_always_true,	0 },
 	{ "-type",	c_type,		f_type,		0 },
+	{ "-uid",	c_user,		f_user,		0 },
 	{ "-user",	c_user,		f_user,		0 },
+	{ "-wholename",	c_name,		f_path,		0 },
 	{ "-xdev",	c_xdev,		f_always_true,	0 },
+// -xtype
 };
 
 /*
