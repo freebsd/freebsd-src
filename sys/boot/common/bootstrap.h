@@ -233,12 +233,14 @@ void file_addmetadata(struct preloaded_file *fp, int type, size_t size, void *p)
 int  file_addmodule(struct preloaded_file *fp, char *modname, int version,
 	struct kernel_module **newmp);
 
-
 /* MI module loaders */
 #ifdef __elfN
 /* Relocation types. */
 #define ELF_RELOC_REL	1
 #define ELF_RELOC_RELA	2
+
+/* Relocation offset for some architectures */
+extern u_int64_t __elfN(relocation_offset);
 
 struct elf_file;
 typedef Elf_Addr (symaddr_fn)(struct elf_file *ef, Elf_Size symidx);
