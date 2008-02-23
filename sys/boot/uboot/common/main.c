@@ -30,10 +30,11 @@
 __FBSDID("$FreeBSD$");
 
 #include <stand.h>
-#include "bootstrap.h"
 
-#include "libuboot.h"
 #include "api_public.h"
+#include "bootstrap.h"
+#include "glue.h"
+#include "libuboot.h"
 
 struct uboot_devdesc	currdev;
 struct arch_switch	archsw;		/* MI/MD interface boundary */
@@ -53,11 +54,6 @@ extern unsigned char __bss_start[];
 extern unsigned char __sbss_start[];
 extern unsigned char __sbss_end[];
 extern unsigned char _end[];
-
-extern void *		syscall_ptr;
-
-struct sys_info *	ub_get_sys_info(void);
-
 
 void dump_si(struct sys_info *si)
 {
@@ -96,17 +92,19 @@ dump_addr_info(void)
 static uint64_t
 memsize(int flags)
 {
-	int i;
-	struct sys_info * si;
+	int		i;
+	struct sys_info	*si;
+	uint64_t	size;
 
 	if ((si = ub_get_sys_info()) == NULL)
 		return 0;
-	
+
+	size = 0;
 	for (i = 0; i < si->mr_no; i++)
 		if (si->mr[i].flags == flags && si->mr[i].size)
-			return (si->mr[i].size);
+			size += (si->mr[i].size);
 
-	return 0;
+	return (size);
 }
 
 int
