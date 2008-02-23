@@ -143,8 +143,6 @@ static inline int l2t_send(struct t3cdev *dev, struct mbuf *m,
 	if (__predict_true(e->state == L2T_STATE_VALID)) {
 		return cxgb_ofld_send(dev, (struct mbuf *)m);
 	}
-	printf("send slow\n");
-	
 	return t3_l2t_send_slow(dev, (struct mbuf *)m, e);
 }
 

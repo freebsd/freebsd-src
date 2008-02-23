@@ -41,6 +41,8 @@ enum {
 	TOE_ID_CHELSIO_T2,
 	TOE_ID_CHELSIO_T3,
 	TOE_ID_CHELSIO_T3B,
-};
+	TOE_ID_CHELSIO_T3C,
+}
+	;
 
 #endif

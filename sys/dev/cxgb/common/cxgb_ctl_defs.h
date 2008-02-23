@@ -125,8 +125,8 @@ struct rdma_info {
 	unsigned int rqt_top;	 /* RQT last entry address */
 	unsigned int udbell_len; /* user doorbell region length */
 	unsigned long udbell_physbase;  /* user doorbell physical start addr */
-	void volatile *kdb_addr;  /* kernel doorbell register address */
-	struct pci_dev *pdev;    /* associated PCI device */
+	void *kdb_addr;  /* kernel doorbell register address */
+	struct device *pdev;    /* associated PCI device */
 };
 
 /*
