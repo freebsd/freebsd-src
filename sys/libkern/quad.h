@@ -101,6 +101,7 @@ typedef unsigned int	qshift_t;
 
 quad_t		__ashldi3(quad_t, qshift_t);
 quad_t		__ashrdi3(quad_t, qshift_t);
+int		__cmpdi2(quad_t a, quad_t b);
 quad_t		__divdi3(quad_t a, quad_t b);
 quad_t		__lshrdi3(quad_t, qshift_t);
 quad_t		__moddi3(quad_t a, quad_t b);
