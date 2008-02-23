@@ -1,9 +1,10 @@
 # $FreeBSD$
 
-PROG=		loader
+PROG=		ubldr
 NEWVERSWHAT=	"U-Boot loader" ${MACHINE_ARCH}
 BINDIR?=	/boot
 INSTALLFLAGS=	-b
+NO_MAN=
 
 # Architecture-specific loader code
 SRCS=		start.S conf.c metadata.c vers.c
@@ -59,7 +60,7 @@ LIBFICL=	${.OBJDIR}/../../ficl/libficl.a
 CFLAGS+=	-I${.CURDIR}/../../common
 CFLAGS+=	-I.
 
-CLEANFILES+=	vers.c loader.help
+CLEANFILES+=	vers.c ${PROG}.help
 
 CFLAGS+=	-ffreestanding
 
@@ -84,16 +85,11 @@ LDADD=		${LIBFICL} ${LIBUBOOT} -lstand
 vers.c:	${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version
 	sh ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version ${NEWVERSWHAT}
 
-loader.help: help.common help.uboot
+${PROG}.help: help.common help.uboot
 	cat ${.ALLSRC} | \
 	    awk -f ${.CURDIR}/../../common/merge_help.awk > ${.TARGET}
 
 .PATH: ${.CURDIR}/../../forth
-FILES=	loader.help loader.4th support.4th loader.conf
-FILESDIR_loader.conf=	/boot/defaults
-
-.if !exists(${DESTDIR}/boot/loader.rc)
-FILES+= loader.rc
-.endif
+FILES=	${PROG}.help
 
 .include <bsd.prog.mk>
