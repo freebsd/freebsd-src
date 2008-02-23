@@ -58,12 +58,26 @@ extern int errno;
 #include <sys/ktrace.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
+#include <sys/un.h>
+#ifdef IPX
+#include <sys/types.h>
+#include <netipx/ipx.h>
+#endif
+#ifdef NETATALK
+#include <netatalk/at.h>
+#endif
+#include <netinet/in.h>
 #include <dlfcn.h>
 #include <err.h>
+#include <grp.h>
+#include <inttypes.h>
 #include <locale.h>
+#include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 #include <vis.h>
 #include "ktrace.h"
@@ -80,13 +94,18 @@ void ktrgenio(struct ktr_genio *, int);
 void ktrpsig(struct ktr_psig *);
 void ktrcsw(struct ktr_csw *);
 void ktruser(int, unsigned char *);
+void ktrsockaddr(struct sockaddr *);
+void ktrstat(struct stat *);
+void ktrstruct(char *, size_t);
 void usage(void);
 const char *ioctlname(u_long);
 
-int timestamp, decimal, fancy = 1, suppressdata, tail, threads, maxdata;
+int timestamp, decimal, fancy = 1, suppressdata, tail, threads, maxdata,
+    resolv = 0;
 const char *tracefile = DEF_TRACEFILE;
 struct ktr_header ktr_header;
 
+#define TIME_FORMAT	"%b %e %T %Y"
 #define eqs(s1, s2)	(strcmp((s1), (s2)) == 0)
 
 int
@@ -100,7 +119,7 @@ main(int argc, char *argv[])
 
 	(void) setlocale(LC_CTYPE, "");
 
-	while ((ch = getopt(argc,argv,"f:dElm:np:HRsTt:")) != -1)
+	while ((ch = getopt(argc,argv,"f:dElm:np:HRrsTt:")) != -1)
 		switch((char)ch) {
 		case 'f':
 			tracefile = optarg;
@@ -119,6 +138,9 @@ main(int argc, char *argv[])
 			break;
 		case 'p':
 			pid = atoi(optarg);
+			break;
+		case 'r':
+			resolv = 1;
 			break;
 		case 's':
 			suppressdata = 1;
@@ -209,6 +231,9 @@ main(int argc, char *argv[])
 		case KTR_USER:
 			ktruser(ktrlen, m);
 			break;
+		case KTR_STRUCT:
+			ktrstruct(m, ktrlen);
+			break;
 		default:
 			printf("\n");
 			break;
@@ -259,6 +284,9 @@ dumpheader(struct ktr_header *kth)
 		break;
 	case KTR_USER:
 		type = "USER";
+		break;
+	case KTR_STRUCT:
+		type = "STRU";
 		break;
 	default:
 		(void)sprintf(unknown, "UNKNOWN(%d)", kth->ktr_type);
@@ -1129,9 +1157,216 @@ ktruser(int len, unsigned char *p)
 }
 
 void
+ktrsockaddr(struct sockaddr *sa)
+{
+/*
+ TODO: Support additional address families
+	#include <netatm/atm.h>
+	struct sockaddr_atm	*atm;
+	#include <netnatm/natm.h>
+	struct sockaddr_natm	*natm;
+	#include <netsmb/netbios.h>
+	struct sockaddr_nb	*nb;
+*/
+	char addr[64];
+
+	/*
+	 * note: ktrstruct() has already verified that sa points to a
+	 * buffer at least sizeof(struct sockaddr) bytes long and exactly
+	 * sa->sa_len bytes long.
+	 */
+	printf("struct sockaddr { ");
+	sockfamilyname(sa->sa_family);
+	printf(", ");
+
+#define check_sockaddr_len(n)					\
+	if (sa_##n->s##n##_len < sizeof(struct sockaddr_##n)) {	\
+		printf("invalid");				\
+		break;						\
+	}
+
+	switch(sa->sa_family) {
+	case AF_INET: {
+		struct sockaddr_in	*sa_in;
+
+		sa_in = (struct sockaddr_in *)sa;
+		check_sockaddr_len(in);
+		inet_ntop(AF_INET, &sa_in->sin_addr, addr, sizeof addr);
+		printf("%s:%u", addr, ntohs(sa_in->sin_port));
+		break;
+	}
+#ifdef NETATALK
+	case AF_APPLETALK: {
+		struct sockaddr_at	*sa_at;
+		struct netrange		*nr;
+
+		sa_at = (struct sockaddr_at *)sa;
+		check_sockaddr_len(at);
+		nr = &sa_at->sat_range.r_netrange;
+		printf("%d.%d, %d-%d, %d", ntohs(sa_at->sat_addr.s_net),
+			sa_at->sat_addr.s_node, ntohs(nr->nr_firstnet),
+			ntohs(nr->nr_lastnet), nr->nr_phase);
+		break;
+	}
+#endif
+	case AF_INET6: {
+		struct sockaddr_in6	*sa_in6;
+
+		sa_in6 = (struct sockaddr_in6 *)sa;
+		check_sockaddr_len(in6);
+		inet_ntop(AF_INET6, &sa_in6->sin6_addr, addr, sizeof addr);
+		printf("[%s]:%u", addr, htons(sa_in6->sin6_port));
+		break;
+	}
+#ifdef IPX
+	case AF_IPX: {
+		struct sockaddr_ipx	*sa_ipx;
+
+		sa_ipx = (struct sockaddr_ipx *)sa;
+		check_sockaddr_len(ipx);
+		/* XXX wish we had ipx_ntop */
+		printf("%s", ipx_ntoa(sa_ipx->sipx_addr));
+		break;
+	}
+#endif
+	case AF_UNIX: {
+		struct sockaddr_un *sa_un;
+
+		sa_un = (struct sockaddr_un *)sa;
+		check_sockaddr_len(un);
+		printf("%.*s", (int)sizeof(sa_un->sun_path), sa_un->sun_path);
+		break;
+	}
+	default:
+		printf("unknown address family");
+	}
+	printf(" }\n");
+}
+
+void
+ktrstat(struct stat *statp)
+{
+	char mode[12], timestr[PATH_MAX + 4];
+	struct passwd *pwd;
+	struct group  *grp;
+	struct tm *tm;
+
+	/*
+	 * note: ktrstruct() has already verified that statp points to a
+	 * buffer exactly sizeof(struct stat) bytes long.
+	 */
+	printf("struct stat {");
+	strmode(statp->st_mode, mode);
+	printf("dev=%ju, ino=%ju, mode=%s, nlink=%ju, ",
+		(uintmax_t)statp->st_dev, (uintmax_t)statp->st_ino, mode,
+		(uintmax_t)statp->st_nlink);
+	if (resolv == 0 || (pwd = getpwuid(statp->st_uid)) == NULL)
+		printf("uid=%ju, ", (uintmax_t)statp->st_uid);
+	else
+		printf("uid=\"%s\", ", pwd->pw_name);
+	if (resolv == 0 || (grp = getgrgid(statp->st_gid)) == NULL)
+		printf("gid=%ju, ", (uintmax_t)statp->st_gid);
+	else
+		printf("gid=\"%s\", ", grp->gr_name);
+	printf("rdev=%ju, ", (uintmax_t)statp->st_rdev);
+	printf("atime=");
+	if (resolv == 0)
+		printf("%ld", statp->st_atimespec.tv_sec);
+	else {
+		tm = localtime(&statp->st_atimespec.tv_sec);
+		(void)strftime(timestr, sizeof(timestr), TIME_FORMAT, tm);
+		printf("\"%s\"", timestr);
+	}
+	if (statp->st_atimespec.tv_nsec != 0)
+		printf(".%09ld, ", statp->st_atimespec.tv_nsec);
+	else
+		printf(", ");
+	printf("stime=");
+	if (resolv == 0)
+		printf("%ld", statp->st_mtimespec.tv_sec);
+	else {
+		tm = localtime(&statp->st_mtimespec.tv_sec);
+		(void)strftime(timestr, sizeof(timestr), TIME_FORMAT, tm);
+		printf("\"%s\"", timestr);
+	}
+	if (statp->st_mtimespec.tv_nsec != 0)
+		printf(".%09ld, ", statp->st_mtimespec.tv_nsec);
+	else
+		printf(", ");
+	printf("ctime=");
+	if (resolv == 0)
+		printf("%ld", statp->st_ctimespec.tv_sec);
+	else {
+		tm = localtime(&statp->st_ctimespec.tv_sec);
+		(void)strftime(timestr, sizeof(timestr), TIME_FORMAT, tm);
+		printf("\"%s\"", timestr);
+	}
+	if (statp->st_ctimespec.tv_nsec != 0)
+		printf(".%09ld, ", statp->st_ctimespec.tv_nsec);
+	else
+		printf(", ");
+	printf("birthtime=");
+	if (resolv == 0)
+		printf("%ld", statp->st_birthtimespec.tv_sec);
+	else {
+		tm = localtime(&statp->st_birthtimespec.tv_sec);
+		(void)strftime(timestr, sizeof(timestr), TIME_FORMAT, tm);
+		printf("\"%s\"", timestr);
+	}
+	if (statp->st_birthtimespec.tv_nsec != 0)
+		printf(".%09ld, ", statp->st_birthtimespec.tv_nsec);
+	else
+		printf(", ");
+	printf("size=%jd, blksize=%ju, blocks=%jd, flags=0x%x",
+		(uintmax_t)statp->st_size, (uintmax_t)statp->st_blksize,
+		(intmax_t)statp->st_blocks, statp->st_flags);
+	printf(" }\n");
+}
+
+void
+ktrstruct(char *buf, size_t buflen)
+{
+	char *name, *data;
+	size_t namelen, datalen;
+	int i;
+
+	for (name = buf, namelen = 0;
+	     namelen < buflen && name[namelen] != '\0';
+	     ++namelen)
+		/* nothing */;
+	if (namelen == buflen)
+		goto invalid;
+	if (name[namelen] != '\0')
+		goto invalid;
+	data = buf + namelen + 1;
+	datalen = buflen - namelen - 1;
+	if (datalen == 0)
+		goto invalid;
+	/* sanity check */
+	for (i = 0; i < namelen; ++i)
+		if (!isalpha((unsigned char)name[i]))
+			goto invalid;
+	if (strcmp(name, "stat") == 0) {
+		if (datalen != sizeof(struct stat))
+			goto invalid;
+		ktrstat((struct stat *)data);
+	} else if (strcmp(name, "sockaddr") == 0) {
+		if (datalen < sizeof(struct sockaddr) ||
+		    datalen != ((struct sockaddr *)(data))->sa_len)
+			goto invalid;
+		ktrsockaddr((struct sockaddr *)data);
+	} else {
+		printf("unknown structure\n");
+	}
+	return;
+invalid:
+	printf("invalid record\n");
+}
+
+void
 usage(void)
 {
-	(void)fprintf(stderr,
-  "usage: kdump [-dEnlHRsT] [-f trfile] [-m maxdata] [-p pid] [-t [cnisuw]]\n");
+	fprintf(stderr, "usage: kdump [-dEnlHRrsT] [-f trfile] "
+	    "[-m maxdata] [-p pid] [-t [cnistuw]]\n");
 	exit(1);
 }
