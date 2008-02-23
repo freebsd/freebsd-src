@@ -218,9 +218,8 @@ pw_group(struct userconf * cnf, int mode, struct cargs * args)
 			int	k = 0;
 
 			while (grp->gr_mem[k] != NULL) {
-				if (extendarray(&members, &grmembers, i + 2) != -1) {
+				if (extendarray(&members, &grmembers, i + 2) != -1)
 					members[i++] = grp->gr_mem[k];
-				}
 				k++;
 			}
 		}
