@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 1998 Michael Smith <msmith@freebsd.org>
- * Copyright (C) 2007 Semihalf, Piotr Kruszynski <ppk@semihalf.com>
+ * Copyright (C) 2007-2008 Semihalf, Piotr Kruszynski <ppk@semihalf.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -39,9 +39,7 @@ __FBSDID("$FreeBSD$");
 
 #include "api_public.h"
 #include "bootstrap.h"
-
-/* XXX should this go into header? */
-struct sys_info *ub_get_sys_info(void);
+#include "glue.h"
 
 /*
  * Return a 'boothowto' value corresponding to the kernel arguments in
@@ -66,7 +64,7 @@ static struct
     {NULL,	0}
 };
 
-int
+static int
 md_getboothowto(char *kargs)
 {
     char	*cp;
@@ -140,7 +138,7 @@ md_getboothowto(char *kargs)
  * Each variable is formatted as <name>=<value>, with a single nul
  * separating each variable, and a double nul terminating the environment.
  */
-vm_offset_t
+static vm_offset_t
 md_copyenv(vm_offset_t addr)
 {
     struct env_var	*ep;
@@ -222,7 +220,7 @@ md_copyenv(vm_offset_t addr)
     COPY32(0, a, c);				\
 }
 
-vm_offset_t
+static vm_offset_t
 md_copymodules(vm_offset_t addr)
 {
     struct preloaded_file	*fp;
@@ -250,6 +248,95 @@ md_copymodules(vm_offset_t addr)
 }
 
 /*
+ * Prepare the bootinfo structure. Put a ptr to the allocated struct in addr,
+ * return size.
+ */
+static int
+md_bootinfo(struct bootinfo **addr)
+{
+#define TMP_MAX_ETH	8
+#define TMP_MAX_MR	8
+	struct bootinfo		*bi;
+	struct bi_mem_region	tmp_mr[TMP_MAX_MR];
+	struct bi_eth_addr	tmp_eth[TMP_MAX_ETH];
+	struct sys_info		*si;
+	char			*str, *end;
+	const char		*env;
+	void			*ptr;
+	u_int8_t		tmp_addr[6];
+	int			i, mr_no, eth_no, size;
+
+	if ((si = ub_get_sys_info()) == NULL)
+		panic("can't retrieve U-Boot sysinfo");
+
+	/*
+	 * Handle mem regions (we only care about DRAM)
+	 */
+	for (i = 0, mr_no = 0; i < si->mr_no; i++) {
+		if (si->mr[i].flags == MR_ATTR_DRAM) {
+			if (mr_no >= TMP_MAX_MR) {
+				printf("too many memory regions: %d\n", mr_no);
+				break;
+			}
+			tmp_mr[mr_no].mem_base = si->mr[i].start;
+			tmp_mr[mr_no].mem_size = si->mr[i].size;
+			mr_no++;
+			continue;
+		}
+	}
+	if (mr_no == 0)
+		panic("can't retrieve RAM info");
+
+	size = (mr_no * sizeof(struct bi_mem_region) - sizeof(bi->bi_data));
+
+	/*
+	 * Handle Ethernet addresses: parse u-boot env for eth%daddr
+	 */
+	env = NULL;
+	eth_no = 0;
+	while ((env = ub_env_enum(env)) != NULL) {
+		if (strncmp(env, "eth", 3) == 0 &&
+		    strncmp(env + (strlen(env) - 4), "addr", 4) == 0) {
+
+			str = ub_env_get(env);
+			for (i = 0; i < 6; i++) {
+				tmp_addr[i] = str ? strtol(str, &end, 16) : 0;
+				if (str)
+					str = (*end) ? end + 1 : end;
+
+				tmp_eth[eth_no].mac_addr[i] = tmp_addr[i];
+			}
+			eth_no++;
+		}
+	}
+
+	size += (eth_no * sizeof(struct bi_eth_addr)) + sizeof(struct bootinfo);
+
+	/*
+	 * Once its whole size is calculated, allocate space for the bootinfo
+	 * and copy over the contents from temp containers.
+	 */
+	if ((bi = malloc(size)) == NULL)
+		panic("can't allocate mem for bootinfo");
+
+	ptr = (struct bi_mem_region *)bi->bi_data;
+	bcopy(tmp_mr, ptr, mr_no * sizeof(struct bi_mem_region));
+	ptr += mr_no * sizeof(struct bi_mem_region);
+	bcopy(tmp_eth, ptr, eth_no * sizeof(struct bi_eth_addr));
+
+	bi->bi_mem_reg_no = mr_no;
+	bi->bi_eth_addr_no = eth_no;
+	bi->bi_version = BI_VERSION;
+	bi->bi_bar_base = si->bar;
+	bi->bi_cpu_clk = si->clk_cpu;
+	bi->bi_bus_clk = si->clk_bus;
+
+	*addr = bi;
+
+	return (size);
+}
+
+/*
  * Load the information expected by a powerpc kernel.
  *
  * - The 'boothowto' argument is constructed
@@ -260,18 +347,18 @@ md_copymodules(vm_offset_t addr)
 int
 md_load(char *args, vm_offset_t *modulep)
 {
-    struct bootinfo		bootinfo;
     struct preloaded_file	*kfp;
     struct preloaded_file	*xp;
     struct file_metadata	*md;
+    struct bootinfo		*bip;
     vm_offset_t			kernend;
     vm_offset_t			addr;
     vm_offset_t			envp;
     vm_offset_t			size;
     vm_offset_t			vaddr;
-    struct sys_info		*si;
     char			*rootdevname;
     int				howto;
+    int				bisize;
     int				i;
 
     /* This metadata addreses must be converted for kernel after relocation */
@@ -307,32 +394,8 @@ md_load(char *args, vm_offset_t *modulep)
     /* pad to a page boundary */
     addr = roundup(addr, PAGE_SIZE);
 
-    /* Fill information structure */
-    if (!(si = ub_get_sys_info()))
-	panic("can't retrieve U-Boot sysinfo");
-
-    /* Extract mem info */
-    for (i = 0; i < si->mr_no; i++)
-        if (si->mr[i].flags == MR_ATTR_DRAM) {
-	    bootinfo.mem_base = si->mr[i].start;
-	    bootinfo.mem_size = si->mr[i].size;
-	    break;
-	}
-
-    if (i == si->mr_no)
-        panic("can't retrieve memory info");
-
-    bootinfo.version = 1;
-    bootinfo.bar_base = si->bar;
-    bootinfo.cpu_clk = si->clk_cpu;
-    bootinfo.bus_clk = si->clk_bus;
-
-#if 0
-    memcpy(bootinfo.eth0_addr, bd->bi_enetaddr, sizeof(bootinfo.eth0_addr));
-#ifdef CONFIG_HAS_ETH1
-    memcpy(bootinfo.eth1_addr, bd->bi_enet1addr, sizeof(bootinfo.eth1_addr));
-#endif
-#endif
+    /* prepare bootinfo */
+    bisize = md_bootinfo(&bip);
 
     kernend = 0;
     kfp = file_findfile(NULL, "elf32 kernel");
@@ -341,7 +404,7 @@ md_load(char *args, vm_offset_t *modulep)
     if (kfp == NULL)
 	panic("can't find kernel file");
     file_addmetadata(kfp, MODINFOMD_HOWTO, sizeof howto, &howto);
-    file_addmetadata(kfp, MODINFOMD_BOOTINFO, sizeof bootinfo, &bootinfo);
+    file_addmetadata(kfp, MODINFOMD_BOOTINFO, bisize, bip);
     file_addmetadata(kfp, MODINFOMD_ENVP, sizeof envp, &envp);
     file_addmetadata(kfp, MODINFOMD_KERNEND, sizeof kernend, &kernend);
 
