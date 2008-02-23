@@ -474,7 +474,7 @@ c_delete(OPTION *option, char ***argvp __unused)
 /*
  * always_true --
  *
- *	Always true, used for -maxdepth, -mindepth, -xdev and -follow
+ *	Always true, used for -maxdepth, -mindepth, -xdev, -follow, and -true
  */
 int
 f_always_true(PLAN *plan __unused, FTSENT *entry __unused)
@@ -970,7 +970,7 @@ c_group(OPTION *option, char ***argvp)
 	g = getgrnam(gname);
 	if (g == NULL) {
 		char* cp = gname;
-		if( gname[0] == '-' || gname[0] == '+' )
+		if (gname[0] == '-' || gname[0] == '+')
 			gname++;
 		gid = atoi(gname);
 		if (gid == 0 && gname[0] != '0')
@@ -1005,6 +1005,30 @@ c_inum(OPTION *option, char ***argvp)
 
 	new = palloc(option);
 	new->i_data = find_parsenum(new, option->name, inum_str, NULL);
+	return new;
+}
+
+/*
+ * -samefile FN
+ *
+ *	True if the file has the same inode (eg hard link) FN
+ */
+
+/* f_samefile is just f_inum */
+PLAN *
+c_samefile(OPTION *option, char ***argvp)
+{
+	char *fn;
+	PLAN *new;
+	struct stat sb;
+
+	fn = nextarg(option, argvp);
+	ftsoptions &= ~FTS_NOSTAT;
+
+	new = palloc(option);
+	if (stat(fn, &sb))
+		err(1, "%s", fn);
+	new->i_data = sb.st_ino;
 	return new;
 }
 
@@ -1063,6 +1087,8 @@ c_ls(OPTION *option, char ***argvp __unused)
 int
 f_name(PLAN *plan, FTSENT *entry)
 {
+	if ((plan->flags & F_LINK) && !S_ISLNK(entry->fts_statp->st_mode))
+		return 0;
 	return !fnmatch(plan->c_data, entry->fts_name,
 	    plan->flags & F_IGNCASE ? FNM_CASEFOLD : 0);
 }
@@ -1076,6 +1102,8 @@ c_name(OPTION *option, char ***argvp)
 	pattern = nextarg(option, argvp);
 	new = palloc(option);
 	new->c_data = pattern;
+	if (new->flags & F_LINK)
+        	ftsoptions &= ~FTS_NOSTAT;
 	return new;
 }
 
@@ -1353,7 +1381,7 @@ c_regex(OPTION *option, char ***argvp)
 	return new;
 }
 
-/* c_simple covers c_prune, c_openparen, c_closeparen, c_not, c_or */
+/* c_simple covers c_prune, c_openparen, c_closeparen, c_not, c_or, c_true, c_false */
 
 PLAN *
 c_simple(OPTION *option, char ***argvp __unused)
@@ -1635,3 +1663,29 @@ f_or(PLAN *plan, FTSENT *entry)
 }
 
 /* c_or == c_simple */
+
+/*
+ * -false
+ *
+ *	Always false.
+ */
+int
+f_false(PLAN *plan __unused, FTSENT *entry __unused)
+{
+	return 0;
+}
+
+/* c_false == c_simple */
+
+/*
+ * -quit
+ *
+ *	Exits the program
+ */
+int
+f_quit(PLAN *plan __unused, FTSENT *entry __unused)
+{
+	exit(0);
+}
+
+/* c_quit == c_simple */
