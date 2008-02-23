@@ -10,6 +10,7 @@
  * is preserved.
  * ====================================================
  *
+ * Optimized by Bruce D. Evans.
  */
 
 #include <sys/cdefs.h>
@@ -127,16 +128,15 @@ __ieee754_rem_pio2(double x, double *y)
 	}
 	if(ix<=0x413921fb) { /* |x| ~<= 2^19*(pi/2), medium size */
 medium:
-	    t  = fabs(x);
 	    /* Use a specialized rint() to get fn.  Assume round-to-nearest. */
-	    STRICT_ASSIGN(double,fn,t*invpio2+0x1.8p52);
+	    STRICT_ASSIGN(double,fn,x*invpio2+0x1.8p52);
 	    fn = fn-0x1.8p52;
 #ifdef HAVE_EFFICIENT_IRINT
 	    n  = irint(fn);
 #else
 	    n  = (int32_t)fn;
 #endif
-	    r  = t-fn*pio2_1;
+	    r  = x-fn*pio2_1;
 	    w  = fn*pio2_1t;	/* 1st round good to 85 bit */
 	    {
 	        u_int32_t high;
@@ -162,8 +162,7 @@ medium:
 		}
 	    }
 	    y[1] = (r-y[0])-w;
-	    if(hx<0) 	{y[0] = -y[0]; y[1] = -y[1]; return -n;}
-	    else	 return n;
+	    return n;
 	}
     /* 
      * all other (large) arguments
