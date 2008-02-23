@@ -1,5 +1,5 @@
 # $FreeBSD$
 
-SUBDIR=		ofw
+SUBDIR=		ofw uboot
 
 .include <bsd.subdir.mk>
