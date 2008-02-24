@@ -500,7 +500,10 @@ vm_object_deallocate(vm_object_t object)
 			VM_OBJECT_UNLOCK(object);
 			return;
 		} else if (object->ref_count == 1) {
-			if (object->shadow_count == 0) {
+			if (object->shadow_count == 0 &&
+			    object->handle == NULL &&
+			    (object->type == OBJT_DEFAULT ||
+			     object->type == OBJT_SWAP)) {
 				vm_object_set_flag(object, OBJ_ONEMAPPING);
 			} else if ((object->shadow_count == 1) &&
 			    (object->handle == NULL) &&
