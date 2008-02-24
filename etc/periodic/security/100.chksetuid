@@ -43,7 +43,7 @@ case "$daily_status_security_chksetuid_enable" in
     [Yy][Ee][Ss])
 	echo ""
 	echo 'Checking setuid files and devices:'
-	MP=`mount -t ufs,zfs | awk '$0 !~ /no(suid|exec)/ { print $3 }'`
+	MP=`mount -t ufs | awk '$0 !~ /no(suid|exec)/ { print $3 }'`
 	find -sx $MP /dev/null -type f \
 	    \( -perm -u+x -or -perm -g+x -or -perm -o+x \) \
 	    \( -perm -u+s -or -perm -g+s \) -print0 |
