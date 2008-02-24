@@ -1087,9 +1087,16 @@ c_ls(OPTION *option, char ***argvp __unused)
 int
 f_name(PLAN *plan, FTSENT *entry)
 {
-	if ((plan->flags & F_LINK) && !S_ISLNK(entry->fts_statp->st_mode))
-		return 0;
-	return !fnmatch(plan->c_data, entry->fts_name,
+	char fn[PATH_MAX];
+	const char *name;
+
+	if (plan->flags & F_LINK) {
+		name = fn;
+		if (readlink(entry->fts_path, fn, sizeof(fn)) == -1)
+			return 0;
+	} else
+		name = entry->fts_name;
+	return !fnmatch(plan->c_data, name,
 	    plan->flags & F_IGNCASE ? FNM_CASEFOLD : 0);
 }
 
@@ -1102,8 +1109,6 @@ c_name(OPTION *option, char ***argvp)
 	pattern = nextarg(option, argvp);
 	new = palloc(option);
 	new->c_data = pattern;
-	if (new->flags & F_LINK)
-        	ftsoptions &= ~FTS_NOSTAT;
 	return new;
 }
 
