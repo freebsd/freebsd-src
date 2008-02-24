@@ -1612,7 +1612,7 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 			break;
 
 		case O_NAT:
- 			printf("nat %u", cmd->arg1);
+			PRINT_UINT_ARG("nat ", cmd->arg1);
  			break;
 			
 		default:
@@ -4848,6 +4848,10 @@ add(int ac, char *av[])
 		action->opcode = O_COUNT;
 		break;
 
+	case TOK_NAT:
+ 		action->opcode = O_NAT;
+ 		action->len = F_INSN_SIZE(ipfw_insn_nat);
+		goto chkarg;
 	case TOK_QUEUE:
 		action->opcode = O_QUEUE;
 		goto chkarg;
@@ -4929,14 +4933,6 @@ chkarg:
 		action->opcode = O_COUNT;
 		ac++; av--;	/* go back... */
 		break;
-
-	case TOK_NAT:
- 		action->opcode = O_NAT;
- 		action->len = F_INSN_SIZE(ipfw_insn_nat);
- 		NEED1("missing nat number");
- 	        action->arg1 = strtoul(*av, NULL, 10);
- 		ac--; av++;
- 		break;
 		
 	default:
 		errx(EX_DATAERR, "invalid action %s\n", av[-1]);
