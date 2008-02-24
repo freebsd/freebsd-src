@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/netipsec/xform_ipcomp.c,v 1.11 2007/08/06 14:26:02 rwatson Exp $	*/
 /* $OpenBSD: ip_ipcomp.c,v 1.1 2001/07/05 12:08:52 jjbg Exp $ */
 
 /*-

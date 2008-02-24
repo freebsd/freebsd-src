@@ -1,4 +1,4 @@
-.\" $FreeBSD$
+.\" $FreeBSD: src/tools/build/options/WITHOUT_LIBKSE,v 1.2 2007/10/09 17:22:00 obrien Exp $
 Set to not build the
 .Nm libkse
 (M:N threading)

@@ -40,7 +40,7 @@
 ** SUCH DAMAGE.
 */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/boot/ficl/stack.c,v 1.5 2002/04/09 17:45:11 dcs Exp $ */
 
 #ifdef TESTMAIN
 #include <stdlib.h>

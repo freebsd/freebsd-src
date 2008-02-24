@@ -36,7 +36,7 @@
  *	...and...
  *	@(#)null_vnodeops.c 1.20 92/07/07 UCLA Ficus project
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/fs/nullfs/null_vnops.c,v 1.95.2.1 2007/10/22 05:44:07 daichi Exp $
  */
 
 /*

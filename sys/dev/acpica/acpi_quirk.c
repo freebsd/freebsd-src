@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/acpica/acpi_quirk.c,v 1.4 2007/03/22 18:16:40 jkim Exp $");
 
 #include <sys/param.h>
 #include <sys/bus.h>

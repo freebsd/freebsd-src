@@ -26,7 +26,7 @@
  *
  */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/sun4v/sun4v/simdisk.c,v 1.2 2006/11/24 05:27:49 kmacy Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

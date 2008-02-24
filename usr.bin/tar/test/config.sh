@@ -22,7 +22,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 # THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/tar/test/config.sh,v 1.2 2007/03/11 19:33:45 kientzle Exp $
 
 THISDIR=`cd \`dirname $0\`;/bin/pwd`
 

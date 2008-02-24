@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netsmb/smb_dev.c,v 1.33 2007/07/10 09:23:10 avatar Exp $");
 
 #include <sys/param.h>
 #include <sys/kernel.h>

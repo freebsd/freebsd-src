@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/digi/digi.c,v 1.63 2006/09/27 19:56:58 ru Exp $
  */
 
 /*-

@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/powerpc/powerpc/uma_machdep.c,v 1.4 2007/09/15 18:47:01 alc Exp $");
 
 #include <sys/param.h>
 #include <sys/kernel.h>

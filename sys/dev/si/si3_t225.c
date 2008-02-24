@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/si/si3_t225.c,v 1.9 2006/01/06 19:58:08 jhb Exp $");
 
 #include <sys/param.h>
 #include <sys/bus.h>

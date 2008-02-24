@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libarchive/test/test_entry.c,v 1.2 2007/07/06 15:43:11 kientzle Exp $");
 
 /*
  * Most of these tests are system-independent, though a few depend on

@@ -30,7 +30,7 @@
  *
  *	from: @(#)types.h 1.18 87/07/24 SMI
  *	from: @(#)types.h	2.3 88/08/15 4.0 RPCSRC
- * $FreeBSD$
+ * $FreeBSD: src/sys/rpc/types.h,v 1.12 2007/04/10 22:10:16 pjd Exp $
  */
 
 /*

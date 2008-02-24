@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/arm/conf/AVILA.hints,v 1.2 2007/05/29 18:10:42 jhay Exp $
 
 #
 # Device wiring for the Gateworks Avila 2384.

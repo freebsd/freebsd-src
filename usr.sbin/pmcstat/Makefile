@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/pmcstat/Makefile,v 1.5 2007/10/01 18:15:11 ru Exp $
 #
 
 PROG=	pmcstat

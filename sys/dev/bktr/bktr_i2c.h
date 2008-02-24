@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/bktr/bktr_i2c.h,v 1.5 2006/09/18 20:17:42 jhb Exp $
  *
  */
 #ifndef _BT848_I2C_H

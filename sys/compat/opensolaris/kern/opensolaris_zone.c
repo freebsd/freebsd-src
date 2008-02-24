@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/compat/opensolaris/kern/opensolaris_zone.c,v 1.1 2007/04/06 01:09:06 pjd Exp $");
 
 #include <sys/param.h>
 #include <sys/kernel.h>

@@ -41,7 +41,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/kern_lock.c,v 1.110 2007/05/18 15:04:59 jhb Exp $");
 
 #include "opt_ddb.h"
 #include "opt_global.h"

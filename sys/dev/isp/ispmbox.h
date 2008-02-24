@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/isp/ispmbox.h,v 1.59 2007/03/10 02:39:54 mjacob Exp $ */
 /*-
  *  Copyright (c) 1997-2007 by Matthew Jacob
  *  All rights reserved.

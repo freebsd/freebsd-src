@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/powerpc/include/md_var.h,v 1.29.2.1 2007/11/14 16:41:30 grehan Exp $
  */
 
 #ifndef _MACHINE_MD_VAR_H_

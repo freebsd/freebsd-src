@@ -32,7 +32,7 @@
 #include <time.h>
 
 #include "test.h"
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libarchive/test/main.c,v 1.8 2007/07/31 05:03:27 kientzle Exp $");
 
 /* Interix doesn't define these in a standard header. */
 #if __INTERIX__

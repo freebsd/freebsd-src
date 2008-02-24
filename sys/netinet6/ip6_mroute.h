@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/netinet6/ip6_mroute.h,v 1.12 2007/07/05 16:29:40 delphij Exp $	*/
 /*	$KAME: ip6_mroute.h,v 1.19 2001/06/14 06:12:55 suz Exp $	*/
 
 /*-

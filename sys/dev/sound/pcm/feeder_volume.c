@@ -29,7 +29,7 @@
 #include <dev/sound/pcm/sound.h>
 #include "feeder_if.h"
 
-SND_DECLARE_FILE("$FreeBSD$");
+SND_DECLARE_FILE("$FreeBSD: src/sys/dev/sound/pcm/feeder_volume.c,v 1.6 2007/06/16 20:36:39 ariff Exp $");
 
 #define FVOL_OSS_SCALE		100
 #define FVOL_RESOLUTION		PCM_FXSHIFT

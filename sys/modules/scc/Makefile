@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/scc/Makefile,v 1.2 2006/04/01 04:54:47 marcel Exp $
 
 .PATH: ${.CURDIR}/../../dev/scc
 

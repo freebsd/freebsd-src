@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/lib/libc/nss/test-getusershell.t,v 1.1 2007/04/15 11:02:31 bushman Exp $
 
 do_test() {
 	number=$1

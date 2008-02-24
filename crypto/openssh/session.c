@@ -34,7 +34,7 @@
  */
 
 #include "includes.h"
-__RCSID("$FreeBSD$");
+__RCSID("$FreeBSD: src/crypto/openssh/session.c,v 1.50 2006/11/10 16:52:41 des Exp $");
 
 #include <sys/types.h>
 #include <sys/param.h>

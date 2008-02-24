@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/IPXrouted/main.c,v 1.13 2006/09/21 02:01:46 kan Exp $
  */
 
 #ifndef lint

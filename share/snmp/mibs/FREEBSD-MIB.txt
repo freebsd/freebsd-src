@@ -3,7 +3,7 @@
 --
 -- FreeBSD SMI { enterprises 2238 }
 --
--- $FreeBSD$
+-- $FreeBSD: src/share/snmp/mibs/FREEBSD-MIB.txt,v 1.5 2006/10/31 10:09:10 harti Exp $
 --
 -- *****************************************************************
 

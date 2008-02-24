@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/include/elf.h,v 1.17 2006/10/04 21:37:09 jb Exp $
  */
 
 #ifndef _MACHINE_ELF_H_

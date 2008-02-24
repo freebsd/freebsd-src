@@ -22,7 +22,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/network.subr,v 1.180.2.1 2007/11/08 05:52:23 thompsa Exp $
 #
 
 #

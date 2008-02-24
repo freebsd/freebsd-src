@@ -31,7 +31,7 @@
  *---------------------------------------------------------------------------*/
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i4b/layer4/i4b_l4timer.c,v 1.14 2007/07/06 07:17:22 bz Exp $");
 
 #include <sys/param.h>
 #include <sys/kernel.h>

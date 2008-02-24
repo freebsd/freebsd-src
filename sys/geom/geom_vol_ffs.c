@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/geom/geom_vol_ffs.c,v 1.16 2005/11/30 22:15:00 sobomax Exp $");
 
 #include <sys/param.h>
 #include <sys/errno.h>

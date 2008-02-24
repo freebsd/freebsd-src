@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/rpc.statd/Makefile,v 1.16 2003/10/26 06:14:10 peter Exp $
 
 PROG=	rpc.statd
 MAN=	rpc.statd.8

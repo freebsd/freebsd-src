@@ -59,7 +59,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/sun4v/sun4v/intr_machdep.c,v 1.7 2007/05/31 19:25:35 piso Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

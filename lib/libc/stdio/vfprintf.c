@@ -34,7 +34,7 @@
 static char sccsid[] = "@(#)vfprintf.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/stdio/vfprintf.c,v 1.77 2007/05/08 03:08:28 das Exp $");
 
 /*
  * Actual printf innards.

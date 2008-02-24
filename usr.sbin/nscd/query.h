@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/nscd/query.h,v 1.3 2007/09/27 12:30:11 bushman Exp $
  */
 
 #ifndef __NSCD_QUERY_H__

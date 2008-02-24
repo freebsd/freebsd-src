@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/fdread/fdread.c,v 1.8 2006/07/20 09:38:46 stefanf Exp $
  */
 
 #include <sys/types.h>

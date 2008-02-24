@@ -38,7 +38,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/pkill/pkill.c,v 1.31 2006/11/23 11:55:17 yar Exp $");
 
 #include <sys/types.h>
 #include <sys/param.h>

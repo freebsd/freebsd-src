@@ -18,7 +18,7 @@
 #
 # For hardware specific information check HARDWARE.TXT
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/sparc64/conf/GENERIC,v 1.127.2.1 2007/10/11 06:20:27 kensmith Exp $
 
 cpu		SUN4U
 ident		GENERIC

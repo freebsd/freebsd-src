@@ -39,7 +39,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/vfs_subr.c,v 1.707.2.1 2007/12/13 11:58:00 kib Exp $");
 
 #include "opt_ddb.h"
 #include "opt_mac.h"

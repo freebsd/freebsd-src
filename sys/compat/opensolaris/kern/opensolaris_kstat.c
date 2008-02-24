@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/compat/opensolaris/kern/opensolaris_kstat.c,v 1.2 2007/06/04 18:25:03 dwmalone Exp $");
 
 #include <sys/param.h>
 #include <sys/kernel.h>

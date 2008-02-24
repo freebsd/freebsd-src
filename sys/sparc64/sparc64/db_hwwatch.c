@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/sparc64/db_hwwatch.c,v 1.6 2005/09/10 03:01:25 marcel Exp $
  */
 
 #include <sys/param.h>

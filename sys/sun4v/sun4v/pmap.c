@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/sun4v/sun4v/pmap.c,v 1.39.4.1 2008/01/19 18:15:06 kib Exp $");
 
 #include "opt_kstack_pages.h"
 #include "opt_msgbuf.h"

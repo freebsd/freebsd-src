@@ -18,7 +18,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/net/if_lagg.c,v 1.19.2.5 2007/12/21 05:33:48 thompsa Exp $");
 
 #include "opt_inet.h"
 #include "opt_inet6.h"

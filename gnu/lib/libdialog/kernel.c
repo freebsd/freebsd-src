@@ -78,7 +78,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/gnu/lib/libdialog/kernel.c,v 1.28 2003/05/03 21:31:08 obrien Exp $");
 
 #define __DIALOG_MAIN__
 

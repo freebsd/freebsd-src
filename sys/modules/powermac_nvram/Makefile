@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/powermac_nvram/Makefile,v 1.2 2006/10/29 17:23:54 marius Exp $
 
 .PATH: ${.CURDIR}/../../dev/powermac_nvram
 

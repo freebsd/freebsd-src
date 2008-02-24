@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)types.h	8.6 (Berkeley) 2/19/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/types.h,v 1.96 2006/08/04 22:54:10 jb Exp $
  */
 
 #ifndef _SYS_TYPES_H_

@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/drm/sis_ds.h,v 1.6 2006/04/09 20:45:45 anholt Exp $");
 
 #ifndef __SIS_DS_H__
 #define __SIS_DS_H__

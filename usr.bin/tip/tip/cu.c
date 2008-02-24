@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/tip/tip/cu.c,v 1.7 2006/09/07 19:48:52 ru Exp $");
 
 #ifndef lint
 #if 0

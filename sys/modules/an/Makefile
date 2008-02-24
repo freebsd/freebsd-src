@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/an/Makefile,v 1.8 2005/10/14 23:30:07 yar Exp $
 
 .PATH: ${.CURDIR}/../../dev/an
 

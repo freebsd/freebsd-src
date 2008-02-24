@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/bsnmpd/modules/snmp_hostres/hostres_network_tbl.c,v 1.3 2006/07/14 09:07:56 harti Exp $
  */
 
 /*

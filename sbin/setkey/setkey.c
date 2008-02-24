@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sbin/setkey/setkey.c,v 1.7 2007/07/01 12:08:06 gnn Exp $	*/
 /*	$KAME: setkey.c,v 1.28 2003/06/27 07:15:45 itojun Exp $	*/
 
 /*

@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/net/if_vlan.c,v 1.124.2.1 2007/10/28 16:24:16 thompsa Exp $
  */
 
 /*

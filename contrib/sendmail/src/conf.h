@@ -12,7 +12,7 @@
  *
  *	$Id: conf.h,v 8.574 2006/11/29 00:36:06 ca Exp $
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/contrib/sendmail/src/conf.h,v 1.25 2007/04/09 01:44:16 gshapiro Exp $
  *
  */
 

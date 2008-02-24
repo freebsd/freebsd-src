@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/amd64/amd64/exception.S,v 1.129.2.1 2007/11/21 16:38:54 jhb Exp $
  */
 
 #include "opt_atpic.h"

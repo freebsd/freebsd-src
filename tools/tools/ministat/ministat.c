@@ -9,7 +9,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/tools/tools/ministat/ministat.c,v 1.10 2006/08/28 08:27:02 phk Exp $");
 
 #include <stdio.h>
 #include <math.h>

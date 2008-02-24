@@ -25,7 +25,7 @@ CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 
-$FreeBSD$
+$FreeBSD: src/sys/dev/mxge/if_mxge_var.h,v 1.16 2007/09/13 21:29:02 gallatin Exp $
 
 ***************************************************************************/
 

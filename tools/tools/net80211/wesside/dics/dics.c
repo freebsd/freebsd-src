@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/tools/net80211/wesside/dics/dics.c,v 1.1 2006/08/07 00:05:03 sam Exp $
  */
 #include <sys/types.h>
 #include <sys/socket.h>

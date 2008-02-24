@@ -71,7 +71,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netinet/tcp_sack.c,v 1.40 2007/05/11 11:21:43 rwatson Exp $");
 
 #include "opt_inet.h"
 #include "opt_inet6.h"

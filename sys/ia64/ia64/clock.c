@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/ia64/ia64/clock.c,v 1.32 2007/08/04 19:28:19 marcel Exp $");
 
 #include <sys/param.h>
 #include <sys/kernel.h>

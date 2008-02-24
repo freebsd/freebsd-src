@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/gdb/libgdb/Makefile,v 1.11 2006/04/10 09:00:19 ru Exp $
 
 TARGET_ARCH?= ${MACHINE_ARCH}
 

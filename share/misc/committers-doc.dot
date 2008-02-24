@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/misc/committers-doc.dot,v 1.17 2007/08/02 15:23:01 loader Exp $
 
 # This file is meant to list all FreeBSD doc+www committers and describe the
 # mentor-mentee relationships between them.

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/wpa/hostapd_cli/Makefile,v 1.4 2007/07/09 16:26:48 sam Exp $
 
 CONTRIB=	${.CURDIR}/../../../contrib
 HOSTAPD_DISTDIR?= ${CONTRIB}/hostapd

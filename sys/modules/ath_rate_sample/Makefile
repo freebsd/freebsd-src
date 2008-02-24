@@ -33,7 +33,7 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
 # THE POSSIBILITY OF SUCH DAMAGES.
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/ath_rate_sample/Makefile,v 1.4 2007/01/28 04:36:05 sam Exp $
 #
 
 .PATH: ${.CURDIR}/../../dev/ath/ath_rate/sample

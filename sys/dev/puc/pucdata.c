@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/puc/pucdata.c,v 1.59 2007/06/07 06:28:48 peter Exp $");
 
 /*
  * PCI "universal" communications card driver configuration data (used to

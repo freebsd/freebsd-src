@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/security/mac_stub/mac_stub.c,v 1.68.2.1 2007/11/06 14:46:59 rwatson Exp $
  */
 
 /*

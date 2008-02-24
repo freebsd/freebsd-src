@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/bind/isccfg/Makefile,v 1.7 2007/06/02 23:19:56 dougb Exp $
 
 .include <bsd.own.mk>
 

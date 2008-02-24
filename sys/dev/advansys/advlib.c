@@ -42,7 +42,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/advansys/advlib.c,v 1.26 2006/11/02 00:54:33 mjacob Exp $");
 
 #include <sys/param.h>
 #include <sys/kernel.h>

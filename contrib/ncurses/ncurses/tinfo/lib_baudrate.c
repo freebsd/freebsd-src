@@ -31,7 +31,7 @@
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
  ****************************************************************************/
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/ncurses/ncurses/tinfo/lib_baudrate.c,v 1.2 2005/07/15 07:41:26 phk Exp $ */
 
 /*
  *	lib_baudrate.c

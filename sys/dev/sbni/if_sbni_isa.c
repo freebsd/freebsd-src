@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/sbni/if_sbni_isa.c,v 1.15 2007/02/23 12:18:53 piso Exp $");
 
 
 #include <sys/param.h>

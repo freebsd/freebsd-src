@@ -33,7 +33,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libpam/modules/pam_exec/pam_exec.c,v 1.6 2006/11/10 23:33:25 des Exp $");
 
 #include <sys/types.h>
 #include <sys/wait.h>

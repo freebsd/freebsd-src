@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/stdio/xprintf_quote.c,v 1.2 2006/03/02 08:53:45 phk Exp $
  */
 
 #include <namespace.h>

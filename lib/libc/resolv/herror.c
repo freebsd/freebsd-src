@@ -49,7 +49,7 @@ static const char sccsid[] = "@(#)herror.c	8.1 (Berkeley) 6/4/93";
 static const char rcsid[] = "$Id: herror.c,v 1.3.18.1 2005/04/27 05:01:09 sra Exp $";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/resolv/herror.c,v 1.4 2007/06/03 17:20:27 ume Exp $");
 
 #include "port_before.h"
 

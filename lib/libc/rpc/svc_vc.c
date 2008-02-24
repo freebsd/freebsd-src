@@ -34,7 +34,7 @@ static char *sccsid2 = "@(#)svc_tcp.c 1.21 87/08/11 Copyr 1984 Sun Micro";
 static char *sccsid = "@(#)svc_tcp.c	2.2 88/08/01 4.0 RPCSRC";
 #endif
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/rpc/svc_vc.c,v 1.26 2006/09/09 22:33:21 mbr Exp $");
 
 /*
  * svc_vc.c, Server side for Connection Oriented based RPC. 

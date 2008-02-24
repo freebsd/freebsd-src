@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/symlink/09.t,v 1.1 2007/01/17 01:42:11 pjd Exp $
 
 desc="symlink returns EPERM if the parent directory of the file named by name2 has its immutable flag set"
 

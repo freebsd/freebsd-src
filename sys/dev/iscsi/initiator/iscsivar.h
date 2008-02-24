@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/iscsi/initiator/iscsivar.h,v 1.1 2007/07/24 15:35:02 scottl Exp $
  */
 /*
  | $Id: iscsivar.h,v 1.30 2007/04/22 10:12:11 danny Exp danny $

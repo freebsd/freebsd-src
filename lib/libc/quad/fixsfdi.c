@@ -35,7 +35,7 @@
 static char sccsid[] = "@(#)fixsfdi.c	5.1 (Berkeley) 7/7/92";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/quad/fixsfdi.c,v 1.3 2007/01/09 00:28:03 imp Exp $");
 
 #include "quad.h"
 

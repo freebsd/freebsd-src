@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/drm/mga_drv.c,v 1.12 2006/05/17 06:36:28 anholt Exp $");
 
 #include "dev/drm/drmP.h"
 #include "dev/drm/drm.h"

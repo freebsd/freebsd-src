@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/contrib/altq/altq/altq_rmclass.c,v 1.2 2004/06/12 00:57:20 mlaier Exp $	*/
 /*	$KAME: altq_rmclass.c,v 1.18 2003/11/06 06:32:53 kjc Exp $	*/
 
 /*

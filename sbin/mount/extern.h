@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sbin/mount/extern.h,v 1.7 2005/11/23 23:22:56 rodrigc Exp $
  */
 
 /* vfslist.c */

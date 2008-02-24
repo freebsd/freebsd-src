@@ -44,7 +44,7 @@
  *	ftp://invisible-island.net/autoconf/
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/ncurses/ncurses/ncurses_cfg.h,v 1.8 2007/03/09 12:11:57 rafan Exp $ */
 
 #ifndef NC_CONFIG_H
 #define NC_CONFIG_H

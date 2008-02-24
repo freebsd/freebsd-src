@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $FreeBSD$
+ *	@(#) $FreeBSD: src/sys/netatm/atm_var.h,v 1.29 2006/04/01 15:41:59 rwatson Exp $
  *
  */
 

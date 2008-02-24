@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/ipmi/ipmi_pci.c,v 1.4 2007/03/31 21:39:02 jhb Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

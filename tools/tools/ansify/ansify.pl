@@ -25,7 +25,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/tools/ansify/ansify.pl,v 1.2 2005/12/13 22:21:46 des Exp $
 #
 
 use v5.6.0;

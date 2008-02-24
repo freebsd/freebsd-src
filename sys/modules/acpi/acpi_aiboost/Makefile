@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/acpi/acpi_aiboost/Makefile,v 1.1 2006/10/30 05:38:48 takawata Exp $
 
 .PATH:		${.CURDIR}/../../../dev/acpi_support
 

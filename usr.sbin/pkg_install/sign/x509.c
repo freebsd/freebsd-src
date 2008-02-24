@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/pkg_install/sign/x509.c,v 1.5 2006/03/15 01:19:23 krion Exp $");
 
 #include <sys/types.h>
 #include <sys/wait.h>

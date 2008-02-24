@@ -15,7 +15,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/usb/uark.c,v 1.7 2007/06/30 02:42:36 imp Exp $
  */
 
 #include <sys/param.h>

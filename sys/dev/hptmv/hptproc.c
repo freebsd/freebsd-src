@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/hptmv/hptproc.c,v 1.7 2005/12/04 02:12:41 ru Exp $
  */
 /*
  * hptproc.c  sysctl support

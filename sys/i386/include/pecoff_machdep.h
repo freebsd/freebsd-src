@@ -1,5 +1,5 @@
 /* $NetBSD: pecoff_machdep.h,v 1.5 2000/01/10 03:03:54 matt Exp $	 */
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/i386/include/pecoff_machdep.h,v 1.1 2000/12/20 12:50:50 takawata Exp $ */
 /*-
  * Copyright (c) 1997 The NetBSD Foundation, Inc.
  * All rights reserved.

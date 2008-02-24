@@ -1,4 +1,4 @@
-.\" $FreeBSD$
+.\" $FreeBSD: src/tools/build/options/WITHOUT_DYNAMICROOT,v 1.1 2006/03/21 07:50:49 ru Exp $
 Set this if you do not want to link
 .Pa /bin
 and

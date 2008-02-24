@@ -28,7 +28,7 @@ POSSIBILITY OF SUCH DAMAGE.
 ***************************************************************************/
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/cxgb/common/cxgb_mc5.c,v 1.5 2007/07/17 06:50:34 kmacy Exp $");
 
 #ifdef CONFIG_DEFINED
 #include <common/cxgb_common.h>

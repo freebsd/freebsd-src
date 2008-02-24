@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/sound/usb/uaudio.h,v 1.8 2007/03/16 17:19:03 ariff Exp $ */
 
 /*-
  * Copyright (c) 2000-2002 Hiroyuki Aizu <aizu@navi.org>

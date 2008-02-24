@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/regression/fifo/fifo_misc/fifo_misc.c,v 1.5 2006/05/29 10:56:27 maxim Exp $
  */
 
 #include <sys/types.h>

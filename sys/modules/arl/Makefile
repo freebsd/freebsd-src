@@ -1,5 +1,5 @@
 # $RISS: if_arl/modules/if_arl/Makefile,v 1.3 2003/01/13 08:05:29 frol Exp $
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/arl/Makefile,v 1.4 2005/10/14 23:30:07 yar Exp $
 
 .PATH:	${.CURDIR}/../../dev/arl
 

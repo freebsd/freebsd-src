@@ -52,7 +52,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sbin/fsck_ffs/gjournal.c,v 1.2 2006/11/01 10:56:33 ru Exp $");
 
 #include <sys/param.h>
 #include <sys/disklabel.h>

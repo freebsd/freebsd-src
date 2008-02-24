@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libthr/thread/thr_barrier.c,v 1.8 2006/12/05 23:46:11 davidxu Exp $
  */
 
 #include "namespace.h"

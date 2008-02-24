@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/geom/geom.h,v 1.100 2007/05/05 16:35:22 pjd Exp $
  */
 
 #ifndef _GEOM_GEOM_H_

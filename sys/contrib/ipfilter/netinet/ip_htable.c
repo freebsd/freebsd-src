@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/contrib/ipfilter/netinet/ip_htable.c,v 1.4.2.1 2007/10/31 05:00:37 darrenr Exp $	*/
 
 /*
  * Copyright (C) 1993-2001, 2003 by Darren Reed.

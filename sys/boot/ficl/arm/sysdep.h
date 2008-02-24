@@ -46,7 +46,7 @@
 ** contact me by email at the address above.
 **
 ** $Id: sysdep.h,v 1.6 2001-04-26 21:41:55-07 jsadler Exp jsadler $
-** $FreeBSD$
+** $FreeBSD: src/sys/boot/ficl/arm/sysdep.h,v 1.1 2006/08/18 21:41:43 imp Exp $
 */
 
 #if !defined (__SYSDEP_H__)

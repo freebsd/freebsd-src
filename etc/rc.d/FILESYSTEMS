@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/FILESYSTEMS,v 1.2 2007/04/09 08:44:50 des Exp $
 #
 
 # PROVIDE: FILESYSTEMS

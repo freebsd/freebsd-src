@@ -28,7 +28,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)udp_var.h	8.1 (Berkeley) 6/10/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/udp_var.h,v 1.33 2007/07/10 09:30:46 rwatson Exp $
  */
 
 #ifndef _NETINET_UDP_VAR_H_

@@ -1,6 +1,6 @@
 /* Derived from:  Id: linux_genassym.c,v 1.8 1998/07/29 15:50:41 bde Exp */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i386/svr4/svr4_genassym.c,v 1.9 2003/06/10 05:05:54 obrien Exp $");
 
 #include <sys/param.h>
 #include <sys/assym.h>

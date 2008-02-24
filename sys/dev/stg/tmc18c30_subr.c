@@ -37,7 +37,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/stg/tmc18c30_subr.c,v 1.6 2006/07/14 04:35:59 imp Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

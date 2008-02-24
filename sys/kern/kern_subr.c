@@ -35,7 +35,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/kern_subr.c,v 1.103 2007/06/05 00:00:54 jeff Exp $");
 
 #include "opt_zero.h"
 

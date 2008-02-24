@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libc/uuid/Makefile.inc,v 1.4 2006/03/13 01:15:01 deischen Exp $
 
 # DCE 1.1 UUID implementation sources
 

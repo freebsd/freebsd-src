@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/etc/group,v 1.35 2007/06/11 18:36:39 ceri Exp $
 #
 wheel:*:0:root
 daemon:*:1:

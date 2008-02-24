@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ed/if_ed_cbus.c,v 1.28 2007/02/23 12:18:38 piso Exp $
  */
 
 #include <sys/param.h>

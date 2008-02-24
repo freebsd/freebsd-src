@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/tools/regression/sockets/unix_cmsg/unix_cmsg.c,v 1.2 2006/05/31 08:10:34 maxim Exp $");
 
 #include <sys/types.h>
 #include <sys/resource.h>

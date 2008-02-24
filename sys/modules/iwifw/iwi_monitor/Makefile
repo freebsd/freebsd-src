@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/iwifw/iwi_monitor/Makefile,v 1.1 2007/03/02 11:42:56 flz Exp $
 
 .PATH: ${.CURDIR}/../../../contrib/dev/iwi
 

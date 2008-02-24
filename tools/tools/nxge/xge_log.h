@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/tools/nxge/xge_log.h,v 1.1.2.1 2007/11/02 00:52:34 rwatson Exp $
  */
 
 #ifndef XGE_CMN_H

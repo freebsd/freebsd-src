@@ -24,7 +24,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libthr/thread/thr_list.c,v 1.11 2006/11/24 09:57:38 davidxu Exp $
  */
 
 #include <sys/types.h>

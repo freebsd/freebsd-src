@@ -36,7 +36,7 @@ static char sccsid[] = "@(#)cmp.c	8.1 (Berkeley) 5/31/93";
 #endif /* not lint */
 #endif
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/bin/ls/cmp.c,v 1.18 2006/03/24 16:38:02 jhb Exp $");
 
 
 #include <sys/types.h>

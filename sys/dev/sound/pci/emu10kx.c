@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sound/pci/emu10kx.c,v 1.12 2007/09/12 07:43:42 ariff Exp $
  */
 
 #include <sys/param.h>

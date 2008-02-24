@@ -57,7 +57,7 @@
  * SUCH DAMAGE.
 */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/arm/xscale/ixp425/ixp425_qmgr.c,v 1.2 2007/02/25 22:17:54 cognet Exp $");
 
 /*
  * Intel XScale Queue Manager support.

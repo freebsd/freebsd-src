@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/contrib/altq/altq/altq_cbq.c,v 1.5 2007/07/03 12:46:05 mlaier Exp $	*/
 /*	$KAME: altq_cbq.c,v 1.19 2003/09/17 14:23:25 kjc Exp $	*/
 
 /*

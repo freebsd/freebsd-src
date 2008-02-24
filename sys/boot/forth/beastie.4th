@@ -23,7 +23,7 @@
 \ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 \ SUCH DAMAGE.
 \
-\ $FreeBSD$
+\ $FreeBSD: src/sys/boot/forth/beastie.4th,v 1.12 2006/03/31 21:36:17 scottl Exp $
 
 marker task-beastie.4th
 

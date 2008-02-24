@@ -57,7 +57,7 @@
 /* XXX is M_NETADDR correct? */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netinet/ip_encap.c,v 1.24 2007/10/07 20:44:23 silby Exp $");
 
 #include "opt_mrouting.h"
 #include "opt_inet.h"

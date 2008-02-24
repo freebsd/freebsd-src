@@ -23,7 +23,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/powerpc/powerpc/mmu_if.m,v 1.7 2006/12/05 04:01:52 grehan Exp $
 #
 
 #include <sys/param.h>

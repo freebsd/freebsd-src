@@ -57,7 +57,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/xe/if_xe.c,v 1.64 2007/02/23 12:18:59 piso Exp $");
 
 /*		
  * FreeBSD device driver for Xircom CreditCard PCMCIA Ethernet adapters.  The

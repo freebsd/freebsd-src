@@ -33,7 +33,7 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
 # THE POSSIBILITY OF SUCH DAMAGES.
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/ath/Makefile,v 1.5 2007/01/28 04:38:35 sam Exp $
 #
 
 .PATH: ${.CURDIR}/../../dev/ath

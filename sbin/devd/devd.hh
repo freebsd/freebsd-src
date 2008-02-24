@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sbin/devd/devd.hh,v 1.4 2006/01/30 22:50:13 pjd Exp $
  */
 
 #ifndef DEVD_HH

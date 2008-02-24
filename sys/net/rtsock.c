@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)rtsock.c	8.7 (Berkeley) 10/12/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/net/rtsock.c,v 1.143 2007/09/08 19:28:45 cognet Exp $
  */
 #include "opt_sctp.h"
 #include <sys/param.h>

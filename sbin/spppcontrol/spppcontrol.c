@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sbin/spppcontrol/spppcontrol.c,v 1.13 2003/05/03 18:41:59 obrien Exp $");
 
 #include <sys/types.h>
 #include <sys/ioctl.h>

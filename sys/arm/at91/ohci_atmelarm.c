@@ -23,7 +23,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/arm/at91/ohci_atmelarm.c,v 1.3 2007/07/31 17:43:18 imp Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

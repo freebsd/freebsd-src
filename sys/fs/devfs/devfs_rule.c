@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/fs/devfs/devfs_rule.c,v 1.23 2006/11/06 13:41:56 rwatson Exp $
  */
 
 /*

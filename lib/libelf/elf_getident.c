@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libelf/elf_getident.c,v 1.1 2006/11/11 17:16:33 jkoshy Exp $");
 
 #include <ar.h>
 #include <assert.h>

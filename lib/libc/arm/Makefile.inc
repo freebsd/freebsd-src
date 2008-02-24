@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libc/arm/Makefile.inc,v 1.4 2006/03/13 01:14:55 deischen Exp $
 #
 # Machine dependent definitions for the arm architecture.
 #

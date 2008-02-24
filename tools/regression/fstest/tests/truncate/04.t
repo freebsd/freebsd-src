@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/truncate/04.t,v 1.1 2007/01/17 01:42:12 pjd Exp $
 
 desc="truncate returns ENOENT if the named file does not exist"
 

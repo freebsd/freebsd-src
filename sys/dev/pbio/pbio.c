@@ -29,7 +29,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/pbio/pbio.c,v 1.10 2006/05/16 14:36:30 phk Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

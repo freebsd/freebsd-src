@@ -23,7 +23,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.firewall,v 1.52.4.1 2008/01/29 00:22:32 dougb Exp $
 #
 
 #

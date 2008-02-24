@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sun4v/include/pcb.h,v 1.3 2007/01/19 11:15:33 marius Exp $
  */
 
 #ifndef	_MACHINE_PCB_H_

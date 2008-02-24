@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)paths.h	8.1 (Berkeley) 6/2/93
- * $FreeBSD$
+ * $FreeBSD: src/include/paths.h,v 1.26 2007/06/11 02:21:18 simokawa Exp $
  */
 
 #ifndef _PATHS_H_

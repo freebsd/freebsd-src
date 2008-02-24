@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/include/cpufunc.h,v 1.21 2005/07/27 20:01:45 jhb Exp $
  */
 
 #ifndef	_MACHINE_CPUFUNC_H_

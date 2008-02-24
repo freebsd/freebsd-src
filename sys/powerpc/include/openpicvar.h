@@ -22,7 +22,7 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/powerpc/include/openpicvar.h,v 1.6 2007/08/11 19:25:31 marcel Exp $
  */
 
 #ifndef	_POWERPC_OPENPICVAR_H_

@@ -37,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/security/mac/mac_internal.h,v 1.121 2007/02/06 14:19:24 rwatson Exp $
  */
 
 #ifndef _SYS_SECURITY_MAC_MAC_INTERNAL_H_

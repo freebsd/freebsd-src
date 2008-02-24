@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/sbin/gbde/test.sh,v 1.5 2007/04/06 11:16:11 pjd Exp $
 
 set -e
 

@@ -28,7 +28,7 @@
  * Platform (FreeBSD) dependent common attachment code for Qlogic adapters.
  */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/isp/isp_freebsd.c,v 1.146 2007/08/23 15:57:13 jkim Exp $");
 #include <dev/isp/isp_freebsd.h>
 #include <sys/unistd.h>
 #include <sys/kthread.h>

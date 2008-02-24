@@ -1,6 +1,6 @@
 .file "__umoddi3.s"
 
-// $FreeBSD$
+// $FreeBSD: src/sys/libkern/ia64/__umoddi3.S,v 1.4 2005/01/07 00:24:33 imp Exp $
 
 //-
 // Copyright (c) 2000, Intel Corporation

@@ -1,4 +1,4 @@
-.\" $FreeBSD$
+.\" $FreeBSD: src/tools/build/options/WITHOUT_BIND_DNSSEC,v 1.1 2006/03/21 07:50:49 ru Exp $
 Set to avoid building or installing the DNSSEC related binaries,
 .Xr dnssec-keygen 8
 and

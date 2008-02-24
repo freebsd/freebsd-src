@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/unlink/10.t,v 1.1 2007/01/17 01:42:12 pjd Exp $
 
 desc="unlink returns EPERM if the parent directory of the named file has its immutable or append-only flag set"
 

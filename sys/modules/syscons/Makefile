@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/syscons/Makefile,v 1.15 2005/07/10 11:47:04 marius Exp $
 
 SUBDIR=	${_apm} \
 	blank \

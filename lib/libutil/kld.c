@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libutil/kld.c,v 1.2 2006/05/25 04:01:04 delphij Exp $
  */
 
 #include <sys/param.h>

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/rpcgen/Makefile,v 1.8 2005/08/31 19:44:40 stefanf Exp $
 
 PROG=	rpcgen
 SRCS=	rpc_main.c  rpc_clntout.c rpc_cout.c rpc_hout.c rpc_parse.c \

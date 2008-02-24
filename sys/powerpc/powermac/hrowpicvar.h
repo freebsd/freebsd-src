@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/powerpc/powermac/hrowpicvar.h,v 1.3 2007/08/11 19:25:32 marcel Exp $
  */
 
 #ifndef  _POWERPC_POWERMAC_HROWPICVAR_H_

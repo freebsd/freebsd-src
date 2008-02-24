@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.2 (Berkeley) 3/21/94
-# $FreeBSD$
+# $FreeBSD: src/sys/kern/Makefile,v 1.14 2007/06/25 05:06:56 rafan Exp $
 
 # Makefile for kernel tags files, init_sysent, etc.
 

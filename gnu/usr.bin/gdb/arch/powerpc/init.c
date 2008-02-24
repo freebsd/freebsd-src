@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/gnu/usr.bin/gdb/arch/powerpc/init.c,v 1.2 2007/05/01 18:29:34 marcel Exp $ */
 
 /* Do not modify this file.  */
 /* It is created automatically by the Makefile.  */

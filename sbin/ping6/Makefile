@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sbin/ping6/Makefile,v 1.15 2007/07/05 08:56:45 bz Exp $
 
 PROG=	ping6
 MAN=	ping6.8

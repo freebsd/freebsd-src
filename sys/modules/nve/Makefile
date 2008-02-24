@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/nve/Makefile,v 1.2 2005/03/12 08:02:06 obrien Exp $
 
 .PATH: ${.CURDIR}/../../dev/nve
 

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/bin/sh/builtins/command3.0,v 1.1 2005/10/28 14:02:42 stefanf Exp $
 command -v ls
 command -v true
 command -v /bin/ls

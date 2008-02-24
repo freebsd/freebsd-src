@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/net/if_mib.h,v 1.8 2006/01/04 12:57:09 harti Exp $
  */
 
 #ifndef _NET_IF_MIB_H

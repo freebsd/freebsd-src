@@ -29,7 +29,7 @@
  */
 /*	$KAME: sctp6_usrreq.c,v 1.38 2005/08/24 08:08:56 suz Exp $	*/
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netinet6/sctp6_usrreq.c,v 1.41 2007/09/13 10:36:43 rrs Exp $");
 
 
 #include <netinet/sctp_os.h>

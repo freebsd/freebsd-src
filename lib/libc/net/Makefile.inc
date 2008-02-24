@@ -1,5 +1,5 @@
 #	from @(#)Makefile.inc	8.2 (Berkeley) 9/5/93
-# $FreeBSD$
+# $FreeBSD: src/lib/libc/net/Makefile.inc,v 1.69.2.1 2007/11/16 07:18:12 ru Exp $
 
 # machine-independent net sources
 .PATH: ${.CURDIR}/net

@@ -41,7 +41,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netinet/in_rmx.c,v 1.57 2007/10/07 20:44:22 silby Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

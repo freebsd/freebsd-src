@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/secure/lib/libcrypto/opensslconf-sparc64.h,v 1.6 2006/10/01 07:56:44 simon Exp $ */
 /* opensslconf.h */
 /* WARNING: Generated automatically from opensslconf.h.in by Configure. */
 

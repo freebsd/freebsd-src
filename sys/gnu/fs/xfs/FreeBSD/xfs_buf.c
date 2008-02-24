@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/gnu/fs/xfs/FreeBSD/xfs_buf.c,v 1.2 2006/06/09 06:04:05 rodrigc Exp $
  */
 
 #include "xfs.h"

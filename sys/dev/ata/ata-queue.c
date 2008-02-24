@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/ata/ata-queue.c,v 1.69 2007/03/13 20:31:56 thomas Exp $");
 
 #include "opt_ata.h"
 #include <sys/param.h>

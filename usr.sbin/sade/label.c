@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/sade/label.c,v 1.155 2006/08/08 13:45:46 delphij Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.

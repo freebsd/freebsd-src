@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/cam/scsi/scsi_target.c,v 1.73 2007/04/15 08:49:11 scottl Exp $");
 
 
 #include <sys/param.h>

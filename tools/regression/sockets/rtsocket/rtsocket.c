@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/regression/sockets/rtsocket/rtsocket.c,v 1.1 2006/04/09 14:48:38 rwatson Exp $
  */
 
 /*

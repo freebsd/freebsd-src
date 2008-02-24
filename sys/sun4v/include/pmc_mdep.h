@@ -1,7 +1,7 @@
 /*-
  * This file is in the public domain.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sun4v/include/pmc_mdep.h,v 1.1 2006/10/05 06:14:26 kmacy Exp $
  */
 
 #ifndef _MACHINE_PMC_MDEP_H_

@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/gdb/gdb_packet.c,v 1.4 2007/06/09 21:55:17 marcel Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

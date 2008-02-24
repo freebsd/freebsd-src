@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/ftp-proxy/ftp-proxy/Makefile,v 1.1 2007/07/03 12:46:08 mlaier Exp $
 
 .PATH:	${.CURDIR}/../../../contrib/pf/ftp-proxy
 

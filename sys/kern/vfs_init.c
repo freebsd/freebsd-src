@@ -35,7 +35,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/vfs_init.c,v 1.85 2007/02/16 17:32:41 pjd Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

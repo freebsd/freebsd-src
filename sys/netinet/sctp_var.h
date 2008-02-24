@@ -31,7 +31,7 @@
 /* $KAME: sctp_var.h,v 1.24 2005/03/06 16:04:19 itojun Exp $	 */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netinet/sctp_var.h,v 1.20.2.1 2007/10/25 12:27:06 rrs Exp $");
 
 #ifndef _NETINET_SCTP_VAR_H_
 #define _NETINET_SCTP_VAR_H_

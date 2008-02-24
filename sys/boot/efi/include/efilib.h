@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/efi/include/efilib.h,v 1.6 2006/11/05 22:03:02 marcel Exp $
  */
 
 #include <stand.h>

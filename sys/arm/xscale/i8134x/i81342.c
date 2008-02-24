@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/arm/xscale/i8134x/i81342.c,v 1.2 2007/09/22 16:25:43 cognet Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -33,7 +33,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/vfs_default.c,v 1.138 2007/05/18 13:02:13 kib Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

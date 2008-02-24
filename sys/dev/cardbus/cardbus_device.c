@@ -26,7 +26,7 @@
  *
  */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/cardbus/cardbus_device.c,v 1.1 2005/12/29 01:43:47 imp Exp $");
 
 #include <sys/param.h>
 #include <sys/conf.h>

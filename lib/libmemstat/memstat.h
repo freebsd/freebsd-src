@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libmemstat/memstat.h,v 1.11 2007/03/15 10:44:18 rwatson Exp $
  */
 
 #ifndef _MEMSTAT_H_

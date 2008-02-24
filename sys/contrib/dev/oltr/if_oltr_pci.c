@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/contrib/dev/oltr/if_oltr_pci.c,v 1.3 2005/10/13 21:11:19 ru Exp $
  */
 
 #include <sys/param.h>

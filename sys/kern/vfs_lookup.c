@@ -35,7 +35,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/vfs_lookup.c,v 1.102 2007/09/21 10:16:56 pjd Exp $");
 
 #include "opt_ktrace.h"
 #include "opt_mac.h"

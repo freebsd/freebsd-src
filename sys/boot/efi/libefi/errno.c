@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/boot/efi/libefi/errno.c,v 1.1 2006/11/05 22:03:03 marcel Exp $");
 
 #include <efi.h>
 #include <efilib.h>

@@ -21,7 +21,7 @@
 # notice must be reproduced on all copies.
 #
 #	@(#) $Id: Makefile,v 1.5 1998/07/10 16:01:58 jpt Exp $
-# $FreeBSD$
+# $FreeBSD: src/lib/libatm/Makefile,v 1.14 2007/05/21 02:49:02 deischen Exp $
 
 LIB=	atm
 SHLIB_MAJOR= 5

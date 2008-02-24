@@ -19,7 +19,7 @@
  * suitability of this software for any purpose.  It is provided "as is"
  * without express or implied warranty.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libstand/bootp.h,v 1.2 2000/08/11 08:36:12 ps Exp $
  */
 
 

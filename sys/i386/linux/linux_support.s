@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/linux/linux_support.s,v 1.1 2007/05/23 08:33:06 kib Exp $
  */
 
 #include "linux_assym.h"		/* system definitions */

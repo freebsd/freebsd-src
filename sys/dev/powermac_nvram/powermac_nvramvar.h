@@ -23,7 +23,7 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/powermac_nvram/powermac_nvramvar.h,v 1.1 2006/08/01 22:19:00 sobomax Exp $
  */
 
 #ifndef	_POWERPC_POWERMAC_POWERMAC_NVRAMVAR_H_

@@ -26,7 +26,7 @@
  * SUCH DAMAGE.
  *
  * $Id: profile.h,v 1.6 2004/01/13 19:31:54 max Exp $
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/bluetooth/sdpd/profile.h,v 1.1 2004/01/20 20:48:26 emax Exp $
  */
 
 #ifndef _PROFILE_H_

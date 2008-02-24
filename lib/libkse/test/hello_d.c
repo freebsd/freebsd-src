@@ -2,7 +2,7 @@
  *
  * Simple diff mode test.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libkse/test/hello_d.c,v 1.2 2007/10/09 13:42:26 obrien Exp $
  *
  ****************************************************************************/
 

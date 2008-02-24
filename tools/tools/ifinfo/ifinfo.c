@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/tools/ifinfo/ifinfo.c,v 1.8 2006/01/04 12:57:09 harti Exp $
  */
 #include <sys/types.h>
 #include <sys/socket.h>		/* for PF_LINK */

@@ -40,7 +40,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/arm/arm/nexus.c,v 1.11 2007/02/23 12:18:27 piso Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

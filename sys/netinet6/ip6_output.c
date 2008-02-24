@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/netinet6/ip6_output.c,v 1.109 2007/07/05 16:29:40 delphij Exp $	*/
 /*	$KAME: ip6_output.c,v 1.279 2002/01/26 06:12:30 jinmei Exp $	*/
 
 /*-

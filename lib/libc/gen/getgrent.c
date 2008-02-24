@@ -31,7 +31,7 @@
  *
  */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/gen/getgrent.c,v 1.36 2006/09/18 09:34:48 maxim Exp $");
 
 #include "namespace.h"
 #include <sys/param.h>

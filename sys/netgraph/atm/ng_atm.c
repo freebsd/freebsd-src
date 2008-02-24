@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netgraph/atm/ng_atm.c,v 1.15 2005/08/10 06:25:40 obrien Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

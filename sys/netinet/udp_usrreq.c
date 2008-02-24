@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netinet/udp_usrreq.c,v 1.218 2007/10/07 20:44:24 silby Exp $");
 
 #include "opt_ipfw.h"
 #include "opt_inet6.h"

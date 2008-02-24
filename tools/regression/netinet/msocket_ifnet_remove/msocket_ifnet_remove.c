@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/regression/netinet/msocket_ifnet_remove/msocket_ifnet_remove.c,v 1.1 2005/09/05 13:23:01 rwatson Exp $
  */
 
 #include <sys/param.h>

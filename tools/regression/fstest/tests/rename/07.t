@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/rename/07.t,v 1.1 2007/01/17 01:42:10 pjd Exp $
 
 desc="rename returns EPERM if the parent directory of the file pointed at by the 'from' argument has its immutable or append-only flag set"
 

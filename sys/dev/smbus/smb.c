@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/smbus/smb.c,v 1.38 2006/09/26 14:38:56 jhb Exp $
  */
 
 #ifdef HAVE_KERNEL_OPTION_HEADERS

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/hptmv/ioctl.c,v 1.8 2007/05/21 09:26:47 mjacob Exp $
  */
 /*
  * ioctl.c   ioctl interface implementation

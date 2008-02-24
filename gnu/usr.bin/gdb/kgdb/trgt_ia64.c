@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/gnu/usr.bin/gdb/kgdb/trgt_ia64.c,v 1.4 2005/09/11 00:47:03 marcel Exp $");
 
 #include <sys/types.h>
 #include <machine/frame.h>

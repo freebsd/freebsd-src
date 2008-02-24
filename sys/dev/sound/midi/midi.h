@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sound/midi/midi.h,v 1.16 2007/02/25 13:51:51 netchild Exp $
  */
 
 #ifndef MIDI_H

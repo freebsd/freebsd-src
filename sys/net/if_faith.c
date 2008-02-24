@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/net/if_faith.c,v 1.42 2006/08/04 21:27:37 brooks Exp $
  */
 /*
  * derived from

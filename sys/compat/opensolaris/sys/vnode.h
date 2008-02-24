@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/compat/opensolaris/sys/vnode.h,v 1.3 2007/05/31 11:51:49 kib Exp $
  */
 
 #ifndef _OPENSOLARIS_SYS_VNODE_H_

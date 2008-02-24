@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/nslookup/Makefile,v 1.7 2007/06/02 23:19:57 dougb Exp $
 
 BIND_DIR=	${.CURDIR}/../../contrib/bind9
 LIB_BIND_REL=	../../lib/bind

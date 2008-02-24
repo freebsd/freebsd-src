@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/gnu/lib/libiberty/config.h,v 1.1 2001/03/31 07:02:02 obrien Exp $ */
 
 /* config.h.  Generated automatically by configure.  */
 /* config.in.  Generated automatically from configure.in by autoheader.  */

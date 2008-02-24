@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/regression/fifo/fifo_create/fifo_create.c,v 1.1 2005/09/10 21:09:26 rwatson Exp $
  */
 
 #include <sys/stat.h>

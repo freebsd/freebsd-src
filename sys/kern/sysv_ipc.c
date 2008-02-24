@@ -34,7 +34,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/sysv_ipc.c,v 1.34 2007/06/12 00:11:59 rwatson Exp $");
 
 #include "opt_sysvipc.h"
 

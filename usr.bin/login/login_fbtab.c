@@ -59,7 +59,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/login/login_fbtab.c,v 1.18 2007/09/21 01:55:11 kevlo Exp $");
 
 #include <sys/types.h>
 #include <sys/stat.h>

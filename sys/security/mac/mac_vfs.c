@@ -39,7 +39,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/security/mac/mac_vfs.c,v 1.122 2007/09/10 00:00:16 rwatson Exp $");
 
 #include "opt_mac.h"
 

@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/savecore,v 1.10.14.1 2008/01/28 07:58:31 dougb Exp $
 #
 
 # PROVIDE: savecore

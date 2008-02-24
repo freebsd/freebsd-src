@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/sound/usb/uaudio_pcm.c,v 1.24 2007/06/17 06:10:43 ariff Exp $ */
 
 /*-
  * Copyright (c) 2000-2002 Hiroyuki Aizu <aizu@navi.org>

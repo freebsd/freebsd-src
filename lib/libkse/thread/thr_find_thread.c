@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libkse/thread/thr_find_thread.c,v 1.16 2007/10/09 13:42:28 obrien Exp $
  */
 #include <errno.h>
 #include <pthread.h>

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sbin/ggate/ggatec/Makefile,v 1.7 2007/04/06 11:19:48 pjd Exp $
 
 .PATH: ${.CURDIR}/../shared
 

@@ -18,7 +18,7 @@
  * only.
  * END_BLOCK
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/arm/at91/libat91/eeprom.c,v 1.3 2006/12/20 18:19:52 imp Exp $
  *****************************************************************************/
 
 #include "at91rm9200_lowlevel.h"

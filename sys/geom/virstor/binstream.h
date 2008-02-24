@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/geom/virstor/binstream.h,v 1.1 2007/09/23 07:34:23 pjd Exp $
  */
 
 // $Id: binstream.h,v 1.1 2006/07/05 10:47:54 ivoras Exp $

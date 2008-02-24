@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libelf/elf_types.m4,v 1.2 2006/12/18 05:40:01 jkoshy Exp $
  */
 
 /*

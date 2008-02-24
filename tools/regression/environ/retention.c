@@ -29,7 +29,7 @@
 
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/tools/regression/environ/retention.c,v 1.1 2007/07/04 00:00:39 scf Exp $");
 
 
 extern char **environ;

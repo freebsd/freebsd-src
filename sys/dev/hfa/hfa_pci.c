@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/hfa/hfa_pci.c,v 1.7 2007/02/23 12:18:42 piso Exp $");
 
 /*
  *

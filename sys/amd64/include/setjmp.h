@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/amd64/include/setjmp.h,v 1.10 2007/01/12 07:24:06 imp Exp $
  */
 
 #ifndef _MACHINE_SETJMP_H_

@@ -105,7 +105,7 @@
 #endif
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/stdlib/malloc.c,v 1.147.2.1 2007/10/11 06:35:46 kensmith Exp $");
 
 #include "libc_private.h"
 #ifdef MALLOC_DEBUG

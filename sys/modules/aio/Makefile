@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/aio/Makefile,v 1.2 2006/10/15 14:22:13 netchild Exp $
 
 .PATH: ${.CURDIR}/../../kern
 

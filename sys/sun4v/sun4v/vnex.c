@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/sun4v/sun4v/vnex.c,v 1.6 2007/05/20 09:31:31 marius Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

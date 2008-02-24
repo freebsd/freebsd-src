@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libatm/cache_key.c,v 1.10 2007/04/04 03:24:01 kan Exp $");
 
 /*
  * User Space Library Functions

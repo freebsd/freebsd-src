@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libkse/thread/thr_mutex.c,v 1.53.2.1 2007/11/14 09:54:48 kris Exp $
  */
 #include <stdlib.h>
 #include <errno.h>

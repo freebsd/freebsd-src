@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/regression/lib/libc/net/test-ether.c,v 1.1 2007/05/13 14:03:21 rwatson Exp $
  */
 
 #include <sys/types.h>

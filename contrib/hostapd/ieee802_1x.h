@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/hostapd/ieee802_1x.h,v 1.4 2007/07/09 16:20:41 sam Exp $ */
 
 /*
  * hostapd / IEEE 802.1X Authenticator

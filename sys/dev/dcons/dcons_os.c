@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/dcons/dcons_os.c,v 1.19 2007/08/17 05:32:39 simokawa Exp $
  */
 
 #include <sys/param.h>

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/xfs/Makefile,v 1.3 2006/06/09 06:10:17 rodrigc Exp $
 
 .PATH:	${.CURDIR}/../../gnu/fs/xfs \
 	${.CURDIR}/../../gnu/fs/xfs/FreeBSD \

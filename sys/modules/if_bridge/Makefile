@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/if_bridge/Makefile,v 1.6 2006/07/26 22:15:14 thompsa Exp $
 
 .include <bsd.own.mk>
 

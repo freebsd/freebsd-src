@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libkse/thread/thr_join.c,v 1.32 2007/10/09 13:42:28 obrien Exp $
  */
 #include <errno.h>
 #include <pthread.h>

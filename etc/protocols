@@ -1,7 +1,7 @@
 #
 # Internet protocols
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/protocols,v 1.22 2007/05/20 03:55:22 grog Exp $
 #	from: @(#)protocols	5.1 (Berkeley) 4/17/89
 #
 # See also http://www.iana.org/assignments/protocol-numbers

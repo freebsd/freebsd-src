@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/ipsec/ipsec.t,v 1.3 2007/03/26 07:40:51 gnn Exp $
 #
 # IPsec regression test.
 #

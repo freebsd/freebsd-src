@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/include/clock.h,v 1.7 2006/10/02 12:59:58 phk Exp $
  */
 
 #ifndef	_MACHINE_CLOCK_H_

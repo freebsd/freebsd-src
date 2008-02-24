@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/contrib/altq/altq/altq_rio.c,v 1.4 2006/11/06 13:41:50 rwatson Exp $	*/
 /*	$KAME: altq_rio.c,v 1.17 2003/07/10 12:07:49 kjc Exp $	*/
 
 /*

@@ -28,7 +28,7 @@
  * 2550 Garcia Avenue
  * Mountain View, California  94043
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/rpc/rpc_com.h,v 1.8 2006/02/27 22:10:59 deischen Exp $
  */
 /*
  * Copyright (c) 1986 - 1991 by Sun Microsystems, Inc.

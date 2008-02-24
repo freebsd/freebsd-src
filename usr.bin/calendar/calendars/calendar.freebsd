@@ -1,7 +1,7 @@
 /*
  * FreeBSD
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/calendar/calendars/calendar.freebsd,v 1.219 2007/09/21 12:12:13 tabthorpe Exp $
  */
 
 #ifndef _calendar_freebsd_

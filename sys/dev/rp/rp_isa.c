@@ -35,7 +35,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/rp/rp_isa.c,v 1.8 2005/12/04 10:06:04 ru Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -15,7 +15,7 @@
  * %wpa_supplicant interfaces. In addition, this file contains number of
  * functions for managing network connections.
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/wpa_supplicant/wpa_supplicant.c,v 1.4 2007/07/11 15:58:51 sam Exp $
  */
 
 #include "includes.h"

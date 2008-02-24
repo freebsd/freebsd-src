@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)extern.h	8.1 (Berkeley) 6/6/93
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/sed/extern.h,v 1.15 2007/06/12 12:05:23 yar Exp $
  */
 
 extern struct s_command *prog;

@@ -31,7 +31,7 @@ POSSIBILITY OF SUCH DAMAGE.
 
 ***************************************************************************/
 
-/*$FreeBSD$*/
+/*$FreeBSD: src/sys/dev/ixgb/if_ixgb.c,v 1.22 2007/03/04 03:38:07 csjp Exp $*/
 
 #ifdef HAVE_KERNEL_OPTION_HEADERS
 #include "opt_device_polling.h"

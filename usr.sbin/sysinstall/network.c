@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/sysinstall/network.c,v 1.53 2006/02/09 14:43:42 delphij Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.

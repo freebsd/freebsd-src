@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/net/iso88025.h,v 1.16 2005/11/11 07:36:14 ru Exp $
  *
  * Information gathered from tokenring@freebsd, /sys/net/ethernet.h and
  * the Mach token ring driver.

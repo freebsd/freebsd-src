@@ -1,7 +1,7 @@
 /*
  * History
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/calendar/calendars/calendar.history,v 1.35 2006/12/29 06:39:35 ru Exp $
  */
 
 #ifndef _calendar_history_

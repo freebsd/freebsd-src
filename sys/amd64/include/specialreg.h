@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)specialreg.h	7.1 (Berkeley) 5/9/91
- * $FreeBSD$
+ * $FreeBSD: src/sys/amd64/include/specialreg.h,v 1.40 2007/08/15 19:26:01 des Exp $
  */
 
 #ifndef _MACHINE_SPECIALREG_H_

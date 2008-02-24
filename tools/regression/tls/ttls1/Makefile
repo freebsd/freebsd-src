@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/tls/ttls1/Makefile,v 1.4 2004/12/21 08:47:25 ru Exp $
 
 PROG=	ttls1
 LDADD+=	-L../libxx -lxx -Wl,--rpath=${.OBJDIR}/../libxx

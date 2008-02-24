@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/inetd/builtins.c,v 1.45 2006/04/17 19:55:25 dwmalone Exp $");
 
 #include <sys/filio.h>
 #include <sys/ioccom.h>

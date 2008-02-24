@@ -12,7 +12,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$FreeBSD$";
+static char rcsid[] = "$FreeBSD: src/lib/msun/src/k_sin.c,v 1.10 2005/11/02 13:06:49 bde Exp $";
 #endif
 
 /* __kernel_sin( x, y, iy)

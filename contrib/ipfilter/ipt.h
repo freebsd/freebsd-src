@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/contrib/ipfilter/ipt.h,v 1.4 2006/08/16 12:23:01 guido Exp $	*/
 
 /*
  * Copyright (C) 1993-2001 by Darren Reed.

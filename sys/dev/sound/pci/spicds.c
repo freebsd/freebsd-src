@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THEPOSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sound/pci/spicds.c,v 1.6 2007/05/27 19:58:39 joel Exp $
  */
 
 #include <dev/sound/pcm/sound.h>

@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/ip_options.h,v 1.3 2007/05/11 10:48:30 rwatson Exp $
  */
 
 #ifndef _NETINET_IP_OPTIONS_H_

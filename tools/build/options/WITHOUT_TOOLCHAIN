@@ -1,4 +1,4 @@
-.\" $FreeBSD$
+.\" $FreeBSD: src/tools/build/options/WITHOUT_TOOLCHAIN,v 1.2 2007/07/19 08:14:28 bz Exp $
 Set to not install
 programs used for program development,
 compilers, debuggers etc.

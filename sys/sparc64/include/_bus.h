@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/include/_bus.h,v 1.2 2006/06/13 19:18:09 marius Exp $
  */
 
 #ifndef SPARC64_INCLUDE__BUS_H

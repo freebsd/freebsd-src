@@ -2,7 +2,7 @@
 
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/usb/umodem.c,v 1.71 2007/07/29 18:16:43 imp Exp $");
 /*-
  * Copyright (c) 2003, M. Warner Losh <imp@freebsd.org>.
  * All rights reserved.

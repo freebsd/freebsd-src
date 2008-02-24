@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/netgraph/atm/ccatm/Makefile,v 1.1 2004/08/12 14:58:46 harti Exp $
 #
 # Author: Harti Brandt <harti@freebsd.org>
 #

@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/unlink/06.t,v 1.1 2007/01/17 01:42:12 pjd Exp $
 
 desc="unlink returns EACCES when write permission is denied on the directory containing the link to be removed"
 

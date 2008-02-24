@@ -36,7 +36,7 @@ static char sccsid[] = "@(#)fts.c	8.6 (Berkeley) 8/14/94";
 #endif
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/gen/fts.c,v 1.28 2007/01/09 00:27:53 imp Exp $");
 
 #include "namespace.h"
 #include <sys/param.h>

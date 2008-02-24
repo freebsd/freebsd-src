@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/compat/opensolaris/sys/lock.h,v 1.1 2007/04/09 01:05:31 pjd Exp $
  */
 
 #ifndef _OPENSOLARIS_SYS_LOCK_H_

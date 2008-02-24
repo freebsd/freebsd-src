@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/isa/pnpparse.c,v 1.15 2006/12/30 11:55:47 ceri Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

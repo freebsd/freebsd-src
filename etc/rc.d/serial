@@ -24,7 +24,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/serial,v 1.25 2006/03/23 08:48:38 ru Exp $
 #
 
 # PROVIDE: serial

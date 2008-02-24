@@ -33,7 +33,7 @@
 
 #include <sys/cdefs.h>
 
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/vgrind/vgrindefs.c,v 1.3 2001/12/11 23:10:26 markm Exp $");
 
 #define	BUFSIZ	1024
 #define MAXHOP	32	/* max number of tc= indirections */

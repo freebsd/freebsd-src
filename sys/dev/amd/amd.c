@@ -30,7 +30,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *********************************************************************
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/amd/amd.c,v 1.36 2007/06/17 05:55:47 scottl Exp $
  */
 
 /*

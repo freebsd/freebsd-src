@@ -41,7 +41,7 @@
  * Efficient memory file system supporting functions.
  */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/fs/tmpfs/tmpfs_subr.c,v 1.12.2.1 2007/11/26 06:46:44 delphij Exp $");
 
 #include <sys/param.h>
 #include <sys/namei.h>

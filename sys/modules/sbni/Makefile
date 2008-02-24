@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/sbni/Makefile,v 1.1 2001/11/21 22:29:35 fjoe Exp $
 
 .PATH: ${.CURDIR}/../../dev/sbni
 

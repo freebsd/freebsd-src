@@ -1,5 +1,5 @@
 #	$NetBSD: Makefile,v 1.3 2000/06/20 13:56:43 fvdl Exp $
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/rpcbind/Makefile,v 1.8 2006/03/17 18:54:43 ru Exp $
 
 .include <bsd.own.mk>
 

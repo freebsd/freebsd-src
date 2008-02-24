@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/cam/cam_debug.h,v 1.9 2006/05/16 14:37:57 phk Exp $
  */
 #ifndef	_CAM_CAM_DEBUG_H
 #define _CAM_CAM_DEBUG_H 1

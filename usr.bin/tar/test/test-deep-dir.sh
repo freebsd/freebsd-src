@@ -22,7 +22,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 # THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/tar/test/test-deep-dir.sh,v 1.1 2007/03/11 10:36:42 kientzle Exp $
 
 # Stress the deep directory logic; the actual depth here seems to
 # be limited by the shell.  This should be restructured to get around

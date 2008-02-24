@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sun4v/include/tte_hash.h,v 1.4 2006/11/22 04:33:34 kmacy Exp $
  */
 
 #ifndef	_MACHINE_TTE_HASH_H_

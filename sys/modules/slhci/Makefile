@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/slhci/Makefile,v 1.2 2007/06/20 00:29:51 delphij Exp $
 
 .PATH:	${.CURDIR}/../../dev/usb
 

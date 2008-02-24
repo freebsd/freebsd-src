@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/sun4v/mdesc/mdesc_bus_subr.c,v 1.1 2006/10/05 06:14:27 kmacy Exp $");
 
 #include <sys/types.h>
 #include <sys/param.h>

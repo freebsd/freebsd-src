@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sbin/gpt/recover.c,v 1.8 2005/08/31 01:47:19 marcel Exp $");
 
 #include <sys/types.h>
 

@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libkvm/kvm_getswapinfo.c,v 1.27 2007/02/07 17:43:10 jhb Exp $");
 
 #include <sys/param.h>
 #include <sys/time.h>

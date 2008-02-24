@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/include/namespace.h,v 1.20 2006/03/28 18:48:49 des Exp $
  */
 
 #ifndef _NAMESPACE_H_

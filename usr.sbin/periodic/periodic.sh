@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/periodic/periodic.sh,v 1.21 2007/06/22 10:04:05 dwmalone Exp $
 #
 # Run nightly periodic scripts
 #

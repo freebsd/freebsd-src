@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/msun/i387/fenv.c,v 1.3 2007/01/05 07:15:26 das Exp $
  */
 
 #include <sys/cdefs.h>

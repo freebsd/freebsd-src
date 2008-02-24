@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/ia64/include/exec.h,v 1.4 2007/01/12 07:24:36 imp Exp $
  */
 
 #ifndef	_MACHINE_EXEC_H_

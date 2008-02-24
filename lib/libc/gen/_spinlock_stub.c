@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/gen/_spinlock_stub.c,v 1.10 2007/01/12 07:31:30 imp Exp $");
 
 #include <stdio.h>
 

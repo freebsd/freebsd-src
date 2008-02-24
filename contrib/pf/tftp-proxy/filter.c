@@ -1,5 +1,5 @@
 /*	$OpenBSD: filter.c,v 1.1 2005/12/28 19:07:07 jcs Exp $ */
-/*	$FreeBSD$ */
+/*	$FreeBSD: src/contrib/pf/tftp-proxy/filter.c,v 1.2 2007/07/03 12:30:03 mlaier Exp $ */
 
 /*
  * Copyright (c) 2004, 2005 Camiel Dobbelaar, <cd@sentia.nl>

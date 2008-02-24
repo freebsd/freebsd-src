@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/misc/usb_hid_usages,v 1.2 2006/10/24 23:52:22 markus Exp $
 #
 # USB HID usage table
 # Syntax:

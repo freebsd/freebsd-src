@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/tools/tinybsd/conf/firewall/etc/pf.os,v 1.1 2006/09/20 22:24:18 julian Exp $
 # passive OS fingerprinting
 # -------------------------
 #

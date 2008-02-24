@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/mkdir/06.t,v 1.1 2007/01/17 01:42:09 pjd Exp $
 
 desc="mkdir returns EACCES when write permission is denied on the parent directory of the directory to be created"
 

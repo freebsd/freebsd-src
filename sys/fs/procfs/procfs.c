@@ -37,7 +37,7 @@
  *
  *	@(#)procfs_vfsops.c	8.7 (Berkeley) 5/10/95
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/fs/procfs/procfs.c,v 1.16 2007/03/12 12:16:52 des Exp $
  */
 
 #include <sys/param.h>

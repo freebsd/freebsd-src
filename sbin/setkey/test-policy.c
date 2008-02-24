@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sbin/setkey/test-policy.c,v 1.2 2007/07/01 12:08:06 gnn Exp $
  */
 
 #include <sys/types.h>

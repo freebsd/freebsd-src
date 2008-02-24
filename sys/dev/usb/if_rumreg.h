@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/dev/usb/if_rumreg.h,v 1.2 2007/06/11 03:36:52 sam Exp $	*/
 
 /*-
  * Copyright (c) 2005, 2006 Damien Bergamini <damien.bergamini@free.fr>

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $FreeBSD$
+ *	@(#) $FreeBSD: src/sys/netatm/spans/spans_cls.h,v 1.4 2005/01/07 01:45:38 imp Exp $
  *
  */
 

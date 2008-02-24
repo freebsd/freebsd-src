@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/ibcs2/Makefile,v 1.34 2002/08/12 07:20:15 alfred Exp $
 
 .PATH: ${.CURDIR}/../../i386/ibcs2
 

@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/boot/i386/libfirewire/firewire.c,v 1.1 2007/05/29 14:35:57 simokawa Exp $");
 
 /*
  * FireWire disk device handling.

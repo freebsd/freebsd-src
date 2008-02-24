@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/arm/gen/signalcontext.c,v 1.2 2004/11/05 23:53:02 cognet Exp $");
 
 #include <sys/param.h>
 #include <sys/signal.h>

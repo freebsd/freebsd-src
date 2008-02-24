@@ -1,4 +1,4 @@
-; $FreeBSD$
+; $FreeBSD: src/gnu/usr.bin/cc/cc_tools/i386-freebsd.opt,v 1.1 2007/05/19 04:25:58 kan Exp $
 
 mno-align-long-strings
 Target RejectNegative Report Mask(NO_ALIGN_LONG_STRINGS)

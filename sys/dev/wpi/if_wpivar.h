@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/dev/wpi/if_wpivar.h,v 1.1.2.1 2007/12/08 12:44:57 benjsc Exp $	*/
 
 /*-
  * Copyright (c) 2006,2007

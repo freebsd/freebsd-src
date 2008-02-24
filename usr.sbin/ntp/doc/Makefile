@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/ntp/doc/Makefile,v 1.14 2006/05/17 10:50:34 pav Exp $
 
 .include <bsd.own.mk>
 

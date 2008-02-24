@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/ip_mroute_mod/Makefile,v 1.16 2007/06/13 02:08:03 sepotvin Exp $
 
 .include <bsd.own.mk>
 

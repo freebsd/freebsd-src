@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/mk/bsd.init.mk,v 1.5 2005/04/11 07:13:29 harti Exp $
 
 # The include file <bsd.init.mk> includes ../Makefile.inc and
 # <bsd.own.mk>; this is used at the top of all <bsd.*.mk> files

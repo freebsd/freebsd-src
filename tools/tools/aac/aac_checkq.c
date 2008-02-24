@@ -24,7 +24,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/tools/tools/aac/aac_checkq.c,v 1.3 2005/11/06 15:47:06 maxim Exp $");
 
 #include <sys/types.h>
 #include <sys/fcntl.h>

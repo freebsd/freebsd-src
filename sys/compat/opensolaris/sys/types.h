@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/compat/opensolaris/sys/types.h,v 1.2 2007/04/23 00:52:06 pjd Exp $
  */
 
 #ifndef _OPENSOLARIS_SYS_TYPES_H_

@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/dumpon,v 1.11 2005/12/10 20:21:45 dougb Exp $
 #
 
 # PROVIDE: dumpon

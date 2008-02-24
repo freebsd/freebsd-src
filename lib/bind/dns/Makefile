@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/bind/dns/Makefile,v 1.8 2007/06/02 23:19:56 dougb Exp $
 
 .include <bsd.own.mk>
 

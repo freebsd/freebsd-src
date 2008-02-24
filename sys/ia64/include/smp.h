@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/sys/ia64/include/smp.h,v 1.10 2005/08/06 20:28:19 marcel Exp $
  */
 #ifndef _MACHINE_SMP_H_
 #define _MACHINE_SMP_H_

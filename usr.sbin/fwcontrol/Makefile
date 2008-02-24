@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/fwcontrol/Makefile,v 1.5 2006/10/26 22:33:38 imp Exp $
 
 PROG=	fwcontrol
 SRCS=	fwcontrol.c fwcrom.c fwdv.c fwmpegts.c

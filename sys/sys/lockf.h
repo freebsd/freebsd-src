@@ -30,7 +30,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lockf.h	8.1 (Berkeley) 6/11/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/lockf.h,v 1.20 2007/05/17 16:03:14 csjp Exp $
  */
 
 #ifndef _SYS_LOCKF_H_

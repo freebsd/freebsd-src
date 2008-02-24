@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/compat/opensolaris/sys/rwlock.h,v 1.3 2007/05/26 21:37:14 pjd Exp $
  */
 
 #ifndef _OPENSOLARIS_SYS_RWLOCK_H_

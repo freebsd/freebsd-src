@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/mk/bsd.cpu.mk,v 1.62.2.1 2007/10/19 17:08:38 cognet Exp $
 
 # Set default CPU compile flags and baseline CPUTYPE for each arch.  The
 # compile flags must support the minimum CPU type for each architecture but

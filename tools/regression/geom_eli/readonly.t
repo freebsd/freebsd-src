@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/geom_eli/readonly.t,v 1.1 2006/09/19 11:28:06 pjd Exp $
 
 base=`basename $0`
 no=45

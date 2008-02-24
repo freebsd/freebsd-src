@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/fs/msdosfs/msdosfs_denode.c,v 1.97 2007/08/07 03:59:49 bde Exp $ */
 /*	$NetBSD: msdosfs_denode.c,v 1.28 1998/02/10 14:10:00 mrg Exp $	*/
 
 /*-

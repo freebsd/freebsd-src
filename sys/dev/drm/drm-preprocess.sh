@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# $FreeBSD$
+# $FreeBSD: src/sys/dev/drm/drm-preprocess.sh,v 1.3 2006/04/09 20:45:44 anholt Exp $
 
 cvs up -CPd *.[ch]
 
@@ -14,7 +14,7 @@ rm via*.[ch]
 
 (cd /usr/src/drm/bsd-core/ && make drm_pciids.h)
 
-# Replace drm_pciids.h with one with a $FreeBSD$
+# Replace drm_pciids.h with one with a $FreeBSD: src/sys/dev/drm/drm-preprocess.sh,v 1.3 2006/04/09 20:45:44 anholt Exp $
 line=`grep \\\$FreeBSD drm_pciids.h.cvs`
 rm -f drm_pciids.h
 echo "/*" >> drm_pciids.h

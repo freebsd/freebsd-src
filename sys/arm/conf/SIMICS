@@ -15,7 +15,7 @@
 # If you are in doubt as to the purpose or necessity of a line, check first 
 # in NOTES.
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/arm/conf/SIMICS,v 1.13 2007/02/19 00:37:25 cognet Exp $
 
 machine		arm
 ident		SIMICS

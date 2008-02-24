@@ -35,7 +35,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-/* $FreeBSD$ */
+/* $FreeBSD: src/tools/regression/lib/libc/resolv/resolv.c,v 1.2 2005/05/04 12:02:10 ume Exp $ */
 #include <sys/cdefs.h>
 __RCSID("$NetBSD: resolv.c,v 1.6 2004/05/23 16:59:11 christos Exp $");
 

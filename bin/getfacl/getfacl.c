@@ -32,7 +32,7 @@
 
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/bin/getfacl/getfacl.c,v 1.12 2007/09/19 02:04:47 kevlo Exp $");
 
 #include <sys/types.h>
 #include <sys/param.h>

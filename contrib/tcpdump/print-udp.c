@@ -18,7 +18,7 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/tcpdump/print-udp.c,v 1.9.10.1 2007/10/19 03:04:00 mlaier Exp $
  */
 
 #ifndef lint

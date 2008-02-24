@@ -26,7 +26,7 @@
  * Bridge MIB implementation for SNMPd.
  * Bridge pfil controls.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/bsnmpd/modules/snmp_bridge/bridge_pf.c,v 1.2 2006/12/15 20:01:57 syrinx Exp $
  */
 
 #include <sys/types.h>

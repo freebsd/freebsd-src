@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/security/mac_portacl/mac_portacl.c,v 1.15 2007/06/12 00:12:00 rwatson Exp $
  */
 
 /*

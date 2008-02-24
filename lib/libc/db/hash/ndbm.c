@@ -34,7 +34,7 @@
 static char sccsid[] = "@(#)ndbm.c	8.4 (Berkeley) 7/21/94";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/db/hash/ndbm.c,v 1.7 2007/01/09 00:27:51 imp Exp $");
 
 /*
  * This package provides a dbm compatible interface to the new hashing

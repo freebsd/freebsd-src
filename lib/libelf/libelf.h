@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libelf/libelf.h,v 1.1 2006/11/11 17:16:33 jkoshy Exp $
  */
 
 #ifndef	_LIBELF_H_

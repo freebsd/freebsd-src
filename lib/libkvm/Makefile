@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
-# $FreeBSD$
+# $FreeBSD: src/lib/libkvm/Makefile,v 1.17 2006/10/09 05:12:54 kmacy Exp $
 
 LIB=	kvm
 SHLIBDIR?= /lib

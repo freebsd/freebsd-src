@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libncp/Makefile,v 1.9 2007/05/21 02:49:05 deischen Exp $
 
 LIB=		ncp
 

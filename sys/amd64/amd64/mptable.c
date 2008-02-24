@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/amd64/amd64/mptable.c,v 1.240 2007/05/08 22:01:02 jhb Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

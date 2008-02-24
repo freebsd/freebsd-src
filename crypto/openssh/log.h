@@ -1,5 +1,5 @@
 /* $OpenBSD: log.h,v 1.15 2006/08/18 09:13:25 deraadt Exp $ */
-/* $FreeBSD$ */
+/* $FreeBSD: src/crypto/openssh/log.h,v 1.8 2006/09/30 13:38:04 des Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/iwi/Makefile,v 1.4 2006/03/12 19:06:06 damien Exp $
 
 .PATH: ${.CURDIR}/../../dev/iwi
 

@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/aac/aac.c,v 1.120.2.3 2007/12/10 20:18:19 emaste Exp $");
 
 /*
  * Driver for the Adaptec 'FSA' family of PCI/SCSI RAID adapters.

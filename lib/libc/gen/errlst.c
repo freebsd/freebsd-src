@@ -31,7 +31,7 @@
 static char sccsid[] = "@(#)errlst.c	8.2 (Berkeley) 11/16/93";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/gen/errlst.c,v 1.9 2007/01/09 00:27:53 imp Exp $");
 
 #include <stdio.h>
 

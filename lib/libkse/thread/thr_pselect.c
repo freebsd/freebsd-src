@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libkse/thread/thr_pselect.c,v 1.7 2007/10/09 13:42:29 obrien Exp $");
 
 #include <sys/select.h>
 #include <sys/time.h>

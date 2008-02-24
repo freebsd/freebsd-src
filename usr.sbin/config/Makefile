@@ -1,5 +1,5 @@
 # 	@(#)Makefile	8.1 (Berkeley) 6/6/93
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/config/Makefile,v 1.38 2007/10/01 18:15:11 ru Exp $
 
 PROG=	config
 MAN=	config.5 config.8

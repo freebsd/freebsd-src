@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/net80211/ieee80211_amrr.h,v 1.1 2006/11/26 19:55:26 sam Exp $ */
 /*	$OpenBSD: ieee80211_amrr.h,v 1.3 2006/06/17 19:34:31 damien Exp $	*/
 
 /*-

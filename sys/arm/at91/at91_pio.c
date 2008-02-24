@@ -23,7 +23,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/arm/at91/at91_pio.c,v 1.5 2007/02/23 12:18:27 piso Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

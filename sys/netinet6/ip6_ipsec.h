@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet6/ip6_ipsec.h,v 1.2 2007/08/05 16:16:15 bz Exp $
  */
 
 #ifndef _NETINET_IP6_IPSEC_H_

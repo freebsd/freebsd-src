@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/libexec/atrun/Makefile,v 1.15 2007/10/01 18:17:23 ru Exp $
 
 MAINSRC=${.CURDIR}/../../usr.bin/at
 

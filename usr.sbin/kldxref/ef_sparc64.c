@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/kldxref/ef_sparc64.c,v 1.5 2005/12/18 04:52:37 marcel Exp $
  */
 
 #include <sys/types.h>

@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/boot/ofw/libofw/elf_freebsd.c,v 1.10 2005/10/20 10:39:09 marius Exp $");
 
 #include <sys/param.h>
 #include <sys/linker.h>

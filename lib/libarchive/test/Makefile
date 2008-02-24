@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libarchive/test/Makefile,v 1.11 2007/07/13 15:14:35 kientzle Exp $
 
 TESTS= \
 	test_acl_basic.c			\

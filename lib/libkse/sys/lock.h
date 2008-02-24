@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libkse/sys/lock.h,v 1.8 2007/10/09 13:42:26 obrien Exp $
  */
 
 #ifndef _LOCK_H_

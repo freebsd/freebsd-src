@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libelf/libelf_convert.m4,v 1.3 2007/09/09 02:10:53 jkoshy Exp $");
 
 #include <sys/types.h>
 #include <sys/elf32.h>

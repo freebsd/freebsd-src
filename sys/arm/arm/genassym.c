@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/arm/arm/genassym.c,v 1.10 2007/08/08 09:27:52 cognet Exp $");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/assym.h>

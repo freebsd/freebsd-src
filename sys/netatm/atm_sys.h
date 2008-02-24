@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $FreeBSD$
+ *	@(#) $FreeBSD: src/sys/netatm/atm_sys.h,v 1.9 2005/12/27 12:33:18 stefanf Exp $
  *
  */
 

@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/Makefile.inc1,v 1.588.2.2.2.2 2008/01/21 21:58:55 brueffer Exp $
 #
 # Make command line options:
 #	-DNO_CLEANDIR run ${MAKE} clean, instead of ${MAKE} cleandir

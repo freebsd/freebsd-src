@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/devd,v 1.10 2006/09/21 14:29:32 brooks Exp $
 #
 
 # PROVIDE: devd

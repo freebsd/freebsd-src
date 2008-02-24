@@ -30,7 +30,7 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
 # THE POSSIBILITY OF SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/ndiscvt/ndisgen.sh,v 1.5 2005/07/23 18:47:18 dougb Exp $
 #
 
 header () {

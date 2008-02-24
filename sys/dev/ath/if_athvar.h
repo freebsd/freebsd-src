@@ -26,7 +26,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGES.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ath/if_athvar.h,v 1.62 2007/06/11 03:36:49 sam Exp $
  */
 
 /*

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/ia64/common/Makefile,v 1.1 2006/11/05 22:03:03 marcel Exp $
 
 .include <bsd.own.mk>
 

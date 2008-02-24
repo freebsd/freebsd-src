@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/drm/i915_dma.c,v 1.6 2007/08/21 12:52:57 kib Exp $");
 
 #include "dev/drm/drmP.h"
 #include "dev/drm/drm.h"

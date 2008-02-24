@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/net80211/ieee80211_input.c,v 1.113.2.1.2.1 2008/02/05 18:29:03 sam Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

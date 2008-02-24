@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/secure/lib/libcrypto/opensslconf-arm.h,v 1.3 2006/10/01 07:56:43 simon Exp $ */
 /* opensslconf.h */
 /* WARNING: Generated automatically from opensslconf.h.in by Configure. */
 

@@ -10,7 +10,7 @@
 .\"
 .\"     @(#)vi.ref	8.88 (Berkeley) 10/19/96
 .\"
-.\" $FreeBSD$
+.\" $FreeBSD: src/contrib/nvi/docs/USD.doc/vi.ref/vi.ref,v 1.2 2005/08/17 15:56:04 cperciva Exp $
 .\"
 .so ref.so
 .tp

@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/make/globals.h,v 1.11 2007/03/08 09:16:10 fjoe Exp $
  */
 
 #ifndef globals_h_1c1edb96

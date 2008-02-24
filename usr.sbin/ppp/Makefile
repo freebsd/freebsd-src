@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/ppp/Makefile,v 1.110 2006/03/17 18:54:42 ru Exp $
 
 .include <bsd.own.mk>
 

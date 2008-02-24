@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/vacation/Makefile,v 1.14 2005/06/10 06:12:52 des Exp $
 
 SENDMAIL_DIR=${.CURDIR}/../../contrib/sendmail
 .PATH:	${SENDMAIL_DIR}/vacation

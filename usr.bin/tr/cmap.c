@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/tr/cmap.c,v 1.2 2004/07/14 08:36:09 tjr Exp $");
 
 #include <assert.h>
 #include <limits.h>

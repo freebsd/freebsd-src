@@ -134,4 +134,4 @@ __asm__("eprol:");
 __asm__(".previous");
 #endif
 
-__asm__(".ident\t\"$FreeBSD$\"");
+__asm__(".ident\t\"$FreeBSD: src/lib/csu/arm/crt1.c,v 1.3 2004/09/23 23:00:51 cognet Exp $\"");

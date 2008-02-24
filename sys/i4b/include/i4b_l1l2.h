@@ -28,7 +28,7 @@
  *	i4b_l1l2.h - i4b layer 1 / layer 2 interactions
  *	---------------------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i4b/include/i4b_l1l2.h,v 1.10 2007/07/06 07:17:18 bz Exp $
  *
  *	last edit-date: [Sat Mar  9 15:54:49 2002]
  *

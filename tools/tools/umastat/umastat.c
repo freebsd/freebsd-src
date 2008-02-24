@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/tools/umastat/umastat.c,v 1.5 2007/02/06 17:57:20 pjd Exp $
  */
 
 #include <sys/param.h>

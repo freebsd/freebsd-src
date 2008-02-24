@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ips/ips.h,v 1.17 2006/08/17 22:50:32 imp Exp $
  */
 #ifndef _IPS_H
 #define _IPS_H

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/cpu.h,v 1.4 2007/03/26 18:03:28 njl Exp $
  */
 
 #ifndef _SYS_CPU_H_

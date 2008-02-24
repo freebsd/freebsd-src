@@ -22,7 +22,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 # THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/tar/test/test-acl.sh,v 1.1 2007/03/11 10:36:42 kientzle Exp $
 
 # Exercise copying of ACLs
 echo "ACL handling"

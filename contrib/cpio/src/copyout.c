@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/cpio/src/copyout.c,v 1.3 2006/01/11 08:01:31 cperciva Exp $ */
 
 /* copyout.c - create a cpio archive
    Copyright (C) 1990, 1991, 1992, 2001, 2003, 2004 Free Software Foundation, Inc.

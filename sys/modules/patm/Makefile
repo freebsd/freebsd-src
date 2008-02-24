@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/patm/Makefile,v 1.3 2005/10/14 23:30:14 yar Exp $
 #
 # Author: Harti Brandt <harti@freebsd.org>
 #

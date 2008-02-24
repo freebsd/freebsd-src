@@ -27,7 +27,7 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  * 	@(#) src/sys/coda/coda_psdev.c,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/fs/coda/coda_psdev.h,v 1.6 2007/07/12 20:40:37 rwatson Exp $
  * 
  */
 

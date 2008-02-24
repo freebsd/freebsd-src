@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/esp/Makefile,v 1.5 2005/05/19 14:51:10 marius Exp $
 
 .PATH: ${.CURDIR}/../../dev/esp ${.CURDIR}/../../sparc64/sbus
 

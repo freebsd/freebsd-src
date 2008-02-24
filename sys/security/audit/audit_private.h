@@ -26,7 +26,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/security/audit/audit_private.h,v 1.16 2007/06/01 21:58:58 rwatson Exp $
  */
 
 /*

@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/fs/cd9660/cd9660_iconv.c,v 1.2 2007/02/11 13:54:25 rodrigc Exp $");
 
 #include <sys/param.h>
 #include <sys/kernel.h>

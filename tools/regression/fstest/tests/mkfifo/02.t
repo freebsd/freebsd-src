@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/mkfifo/02.t,v 1.1 2007/01/17 01:42:09 pjd Exp $
 
 desc="mkfifo returns ENAMETOOLONG if a component of a pathname exceeded 255 characters"
 

@@ -1,5 +1,5 @@
 /*
- *  $FreeBSD$
+ *  $FreeBSD: src/sys/dev/cxgb/cxgb_include.h,v 1.2 2007/09/10 00:59:51 kmacy Exp $
  */
 
 

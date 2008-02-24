@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/i386/mp_watchdog.c,v 1.5 2007/06/04 23:56:33 jeff Exp $
  */
 
 #include "opt_mp_watchdog.h"

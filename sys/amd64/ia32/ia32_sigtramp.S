@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/amd64/ia32/ia32_sigtramp.S,v 1.3 2006/09/23 13:42:09 davidxu Exp $
  */
 
 #include "opt_compat.h"

@@ -1,6 +1,6 @@
 # Slovenian keyboard
 # Blaz Zupan <blaz@amis.net>
-# $FreeBSD$
+# $FreeBSD: src/share/syscons/keymaps/hr.iso.kbd,v 1.4 2007/02/04 17:10:18 philip Exp $
 #                                                         alt
 # scan                       cntrl          alt    alt   cntrl lock
 # code  base   shift  cntrl  shift  alt    shift  cntrl  shift state

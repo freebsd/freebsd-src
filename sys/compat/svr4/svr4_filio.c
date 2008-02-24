@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/compat/svr4/svr4_filio.c,v 1.35 2007/04/04 09:11:31 rwatson Exp $");
 
 #include <sys/param.h>
 #include <sys/proc.h>

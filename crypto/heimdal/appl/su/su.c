@@ -31,7 +31,7 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 
 /*
- * $FreeBSD$
+ * $FreeBSD: src/crypto/heimdal/appl/su/su.c,v 1.2.10.1 2007/10/29 21:39:03 peter Exp $
  */
 
 #include <config.h>

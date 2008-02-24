@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libkse/sys/lock.c,v 1.11.4.1 2008/02/04 20:03:36 julian Exp $
  */
 
 #include <sys/types.h>

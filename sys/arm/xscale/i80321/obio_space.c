@@ -40,7 +40,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/arm/xscale/i80321/obio_space.c,v 1.4 2006/11/20 13:21:02 kevlo Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

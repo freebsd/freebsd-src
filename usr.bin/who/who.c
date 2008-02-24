@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/who/who.c,v 1.22 2006/02/21 13:01:00 cognet Exp $");
 
 #include <sys/param.h>
 #include <sys/types.h>

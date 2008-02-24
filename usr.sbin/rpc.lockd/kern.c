@@ -29,7 +29,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/rpc.lockd/kern.c,v 1.21 2006/08/17 05:55:20 maxim Exp $");
 
 #include <sys/param.h>
 #include <sys/mount.h>

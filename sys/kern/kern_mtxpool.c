@@ -44,7 +44,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/kern_mtxpool.c,v 1.12 2007/05/27 20:50:23 rwatson Exp $");
 
 #include <sys/param.h>
 #include <sys/proc.h>

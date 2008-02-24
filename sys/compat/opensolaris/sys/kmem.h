@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/compat/opensolaris/sys/kmem.h,v 1.2 2007/04/10 02:35:56 pjd Exp $
  */
 
 #ifndef _OPENSOLARIS_SYS_KMEM_H_

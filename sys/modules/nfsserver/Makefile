@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/nfsserver/Makefile,v 1.26 2005/10/14 23:30:13 yar Exp $
 
 .PATH: ${.CURDIR}/../../nfsserver ${.CURDIR}/../../nfs
 KMOD=	nfsserver

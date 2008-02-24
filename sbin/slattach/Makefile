@@ -1,6 +1,6 @@
 #	@(#)Makefile	5.4 (Berkeley) 5/11/90
 #
-# $FreeBSD$
+# $FreeBSD: src/sbin/slattach/Makefile,v 1.13 2004/02/23 20:13:56 johan Exp $
 
 PROG=	slattach
 WARNS?=	0

@@ -39,7 +39,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libnetgraph/msg.c,v 1.14 2007/05/14 14:18:41 mav Exp $");
 
 #include <sys/types.h>
 #include <sys/socket.h>

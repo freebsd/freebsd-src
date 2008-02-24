@@ -17,7 +17,7 @@
  * only.
  * END_BLOCK
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/arm/at91/libat91/tag_list.h,v 1.2 2006/04/21 07:12:12 imp Exp $
  ****************************************************************************/
 
 #ifndef _TAG_LIST_H_

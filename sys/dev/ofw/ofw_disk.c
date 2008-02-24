@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/ofw/ofw_disk.c,v 1.18 2005/10/31 03:09:38 grehan Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

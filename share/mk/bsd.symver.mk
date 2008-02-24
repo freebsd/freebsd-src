@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/mk/bsd.symver.mk,v 1.4 2007/05/21 09:01:23 ru Exp $
 
 .if !target(__<bsd.symver.mk>__)
 __<bsd.symver.mk>__:

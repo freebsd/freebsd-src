@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sbin/mount_reiserfs/Makefile,v 1.2 2005/11/13 01:47:04 rodrigc Exp $
 
 PROG = mount_reiserfs
 SRCS = mount_reiserfs.c getmntopts.c

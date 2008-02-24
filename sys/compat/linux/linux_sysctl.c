@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/compat/linux/linux_sysctl.c,v 1.17 2006/03/19 11:10:33 ru Exp $");
 
 #include "opt_compat.h"
 

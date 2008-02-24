@@ -25,7 +25,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/arm/string/strlen.S,v 1.2 2005/10/03 14:43:27 cognet Exp $");
 
 ENTRY(strlen)
 	mov	r1, #0

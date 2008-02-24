@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/bin/sh/errors/option-error.0,v 1.1 2006/04/02 19:02:49 stefanf Exp $
 IFS=,
 
 SPECIAL="break abc,\

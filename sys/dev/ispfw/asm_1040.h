@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/ispfw/asm_1040.h,v 1.5 2006/07/09 17:50:17 mjacob Exp $ */
 /*-
  * Copyright (C) 1995, 1996, 1997, 1998, 1999, 2000 Qlogic, Inc.
  * All rights reserved.

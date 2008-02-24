@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/Makefile,v 1.1 2007/01/17 01:42:07 pjd Exp $
 
 CFLAGS+=-DHAS_LCHMOD
 CFLAGS+=-DHAS_CHFLAGS

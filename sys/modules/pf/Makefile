@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/pf/Makefile,v 1.13 2007/07/03 12:46:06 mlaier Exp $
 
 .include <bsd.own.mk>
 

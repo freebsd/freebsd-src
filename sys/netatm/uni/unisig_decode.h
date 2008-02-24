@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $FreeBSD$
+ *	@(#) $FreeBSD: src/sys/netatm/uni/unisig_decode.h,v 1.5 2007/06/23 00:02:20 mjacob Exp $
  *
  */
 

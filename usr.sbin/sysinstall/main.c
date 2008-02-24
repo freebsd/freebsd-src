@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/sysinstall/main.c,v 1.77.4.1 2007/12/29 06:17:04 kensmith Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.

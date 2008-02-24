@@ -36,7 +36,7 @@
 
 #include <sys/cdefs.h>
 
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/tail/tail.c,v 1.23 2006/06/30 08:19:26 ru Exp $");
 
 #ifndef lint
 static const char copyright[] =

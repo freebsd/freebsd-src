@@ -30,7 +30,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/compat/linux/linux_futex.h,v 1.2 2007/02/25 12:40:35 netchild Exp $
  */
 
 #ifndef _LINUX_FUTEX_H

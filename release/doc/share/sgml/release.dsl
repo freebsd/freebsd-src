@@ -1,4 +1,4 @@
-<!-- $FreeBSD$ -->
+<!-- $FreeBSD: src/release/doc/share/sgml/release.dsl,v 1.10 2005/11/28 06:24:19 hrs Exp $ -->
 
 <!DOCTYPE style-sheet PUBLIC "-//James Clark//DTD DSSSL Style Sheet//EN" [
 <!ENTITY % output.html		"IGNORE">

@@ -1,6 +1,6 @@
 /*	$OpenBSD: if_zyd.c,v 1.52 2007/02/11 00:08:04 jsg Exp $	*/
 /*	$NetBSD: if_zyd.c,v 1.7 2007/06/21 04:04:29 kiyohara Exp $	*/
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/dev/usb/if_zyd.c,v 1.4.2.4 2007/11/30 15:39:22 ariff Exp $	*/
 
 /*-
  * Copyright (c) 2006 by Damien Bergamini <damien.bergamini@free.fr>

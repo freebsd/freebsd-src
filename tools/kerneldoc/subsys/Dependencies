@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/kerneldoc/subsys/Dependencies,v 1.2 2006/07/08 12:31:33 netchild Exp $
 #
 # makefile dependencies for doxygen tag files
 #

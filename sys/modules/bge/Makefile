@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/bge/Makefile,v 1.6 2007/06/10 00:58:41 kensmith Exp $
 
 .PATH: ${.CURDIR}/../../dev/bge
 

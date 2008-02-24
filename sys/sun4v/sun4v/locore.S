@@ -27,7 +27,7 @@
 
 	
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$"); 
+__FBSDID("$FreeBSD: src/sys/sun4v/sun4v/locore.S,v 1.1 2006/10/05 06:14:28 kmacy Exp $"); 
 
 #include <machine/asi.h>
 #include <machine/asmacros.h>

@@ -56,7 +56,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/boot98cfg/boot98cfg.c,v 1.7 2005/07/15 15:32:52 nyan Exp $");
 
 #include <sys/param.h>
 #include <sys/diskpc98.h>

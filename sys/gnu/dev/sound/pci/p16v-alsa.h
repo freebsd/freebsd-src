@@ -78,7 +78,7 @@
  *
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/gnu/dev/sound/pci/p16v-alsa.h,v 1.1 2006/07/15 19:36:28 netchild Exp $ */
 
 /********************************************************************************************************/
 /* Audigy2 P16V pointer-offset register set, accessed through the PTR2 and DATA2 registers                     */

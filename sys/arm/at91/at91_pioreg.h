@@ -22,7 +22,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/arm/at91/at91_pioreg.h,v 1.2 2007/01/01 00:46:54 imp Exp $ */
 
 #ifndef ARM_AT91_AT91_PIOREG_H
 #define ARM_AT91_AT91_PIOREG_H

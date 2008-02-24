@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/usr.sbin/acpi/acpidump/acpi_user.c,v 1.14 2007/07/28 17:46:04 marcel Exp $
  */
 
 #include <sys/param.h>

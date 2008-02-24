@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/conf/options.sun4v,v 1.2 2007/01/19 12:22:50 marius Exp $
 
 SUN4V			opt_global.h
 

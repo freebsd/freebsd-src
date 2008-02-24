@@ -33,7 +33,7 @@
 
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/stdlib/getenv.c,v 1.12 2007/09/22 02:30:44 scf Exp $");
 
 
 static const char CorruptEnvFindMsg[] =

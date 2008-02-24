@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/ipmi/ipmi.c,v 1.10 2007/03/27 21:03:36 n_hibma Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

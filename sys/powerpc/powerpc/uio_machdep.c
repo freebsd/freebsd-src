@@ -36,7 +36,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/powerpc/powerpc/uio_machdep.c,v 1.7 2007/06/09 21:55:16 marcel Exp $");
 
 #include <sys/param.h>
 #include <sys/kernel.h>

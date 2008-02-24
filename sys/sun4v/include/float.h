@@ -32,7 +32,7 @@
  *
  *	@(#)float.h	8.1 (Berkeley) 6/11/93
  *	from: NetBSD: float.h,v 1.3 2001/09/21 20:48:02 eeh Exp
- * $FreeBSD$
+ * $FreeBSD: src/sys/sun4v/include/float.h,v 1.1 2006/10/05 06:14:25 kmacy Exp $
  */
 
 #ifndef _MACHINE_FLOAT_H_

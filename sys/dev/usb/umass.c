@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/dev/usb/umass.c,v 1.160 2007/07/05 05:26:08 imp Exp $
  *	$NetBSD: umass.c,v 1.28 2000/04/02 23:46:53 augustss Exp $
  */
 

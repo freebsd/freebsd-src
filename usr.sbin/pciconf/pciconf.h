@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/pciconf/pciconf.h,v 1.1.4.1 2007/11/08 21:33:40 jhb Exp $
  */
 
 #ifndef __PCICONF_H__

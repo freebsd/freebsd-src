@@ -23,7 +23,7 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/nvram/nvram.c,v 1.1 2006/08/01 22:19:01 sobomax Exp $
  */
 
 #include <sys/types.h>

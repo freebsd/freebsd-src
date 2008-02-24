@@ -36,7 +36,7 @@
 
 /*	$NetBSD: lockf.c,v 1.1 1997/12/20 20:23:18 kleink Exp $	*/
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/gen/lockf.c,v 1.8 2002/02/01 00:57:29 obrien Exp $");
 
 #include "namespace.h"
 #include <errno.h>

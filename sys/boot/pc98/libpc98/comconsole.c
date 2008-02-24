@@ -24,7 +24,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/boot/pc98/libpc98/comconsole.c,v 1.7 2005/09/13 08:29:03 nyan Exp $");
 
 #include <stand.h>
 #include <bootstrap.h>

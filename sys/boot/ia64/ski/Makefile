@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/ia64/ski/Makefile,v 1.20 2006/11/05 22:03:04 marcel Exp $
 
 NO_MAN=
 

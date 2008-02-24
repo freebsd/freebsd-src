@@ -38,7 +38,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/sparc64/sparc64/mem.c,v 1.18 2007/05/20 13:06:45 marius Exp $");
 
 /*
  * Memory special file

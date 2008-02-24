@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/conf/options,v 1.608 2007/09/23 07:34:23 pjd Exp $
 #
 #        On the handling of kernel options
 #

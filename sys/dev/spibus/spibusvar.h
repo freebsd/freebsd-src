@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/spibus/spibusvar.h,v 1.2 2006/07/17 21:18:03 cognet Exp $ */
 
 #define SPIBUS_IVAR(d) (struct spibus_ivar *) device_get_ivars(d)
 #define SPIBUS_SOFTC(d) (struct spibus_softc *) device_get_softc(d)

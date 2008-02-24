@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/ia64/conf/NOTES,v 1.14 2006/10/23 13:23:13 ru Exp $
 #
 # This file contains machine dependent kernel configuration notes.  For
 # machine independent notes, look in /sys/conf/NOTES.

@@ -33,7 +33,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/lib/libc/powerpc/gen/syncicache.c,v 1.4 2007/06/10 16:32:08 marcel Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>

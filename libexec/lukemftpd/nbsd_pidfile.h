@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/libexec/lukemftpd/nbsd_pidfile.h,v 1.1 2006/08/31 16:57:46 obrien Exp $ */
 
 #include <sys/stdint.h>
 #include <sysexits.h>

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/uipaq/Makefile,v 1.1 2007/01/28 11:56:14 takawata Exp $
 
 S=	${.CURDIR}/../..
 .PATH: $S/dev/usb

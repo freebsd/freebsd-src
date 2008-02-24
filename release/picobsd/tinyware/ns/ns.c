@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/release/picobsd/tinyware/ns/ns.c,v 1.17 2005/09/27 18:10:43 mlaier Exp $
  */
 
 

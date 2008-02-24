@@ -43,7 +43,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/subr_pcpu.c,v 1.8 2005/11/03 21:06:29 jhb Exp $");
 
 #include "opt_ddb.h"
 

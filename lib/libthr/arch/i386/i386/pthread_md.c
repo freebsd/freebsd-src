@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libthr/arch/i386/i386/pthread_md.c,v 1.7 2006/04/04 03:26:06 davidxu Exp $
  */
 
 #include <sys/types.h>

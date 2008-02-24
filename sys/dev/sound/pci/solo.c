@@ -33,7 +33,7 @@
 
 #include "mixer_if.h"
 
-SND_DECLARE_FILE("$FreeBSD$");
+SND_DECLARE_FILE("$FreeBSD: src/sys/dev/sound/pci/solo.c,v 1.45 2007/06/17 06:10:42 ariff Exp $");
 
 #define SOLO_DEFAULT_BUFSZ 16384
 #define ABS(x) (((x) < 0)? -(x) : (x))

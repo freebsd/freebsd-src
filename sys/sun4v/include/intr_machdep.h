@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sun4v/include/intr_machdep.h,v 1.4 2007/02/23 12:19:06 piso Exp $
  */
 
 #ifndef	_MACHINE_INTR_MACHDEP_H_

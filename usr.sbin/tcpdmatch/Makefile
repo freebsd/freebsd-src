@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/tcpdmatch/Makefile,v 1.10 2006/03/17 18:54:43 ru Exp $
 
 .include <bsd.own.mk>
 

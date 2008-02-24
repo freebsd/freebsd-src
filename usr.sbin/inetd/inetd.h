@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/inetd/inetd.h,v 1.17 2006/09/14 08:36:53 ru Exp $
  */
 
 #include <sys/time.h>

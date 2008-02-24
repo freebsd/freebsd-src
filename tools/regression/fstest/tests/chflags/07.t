@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/chflags/07.t,v 1.1 2007/01/17 01:42:08 pjd Exp $
 
 desc="chflags returns EPERM when the effective user ID does not match the owner of the file and the effective user ID is not the super-user"
 

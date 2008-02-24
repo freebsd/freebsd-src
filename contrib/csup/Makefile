@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/contrib/csup/Makefile,v 1.1.1.2 2006/03/14 03:51:13 mux Exp $
 
 PREFIX?=	/usr/local
 BINDIR?=	${PREFIX}/bin

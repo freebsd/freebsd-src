@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/tools/regression/geom_gpt/test.c,v 1.3 2006/04/10 04:07:20 marcel Exp $");
 
 #include <sys/param.h>
 #include <errno.h>

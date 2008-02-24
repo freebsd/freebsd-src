@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/lib/libgssapi/gss_acquire_cred.c,v 1.1.2.1 2007/12/02 10:06:59 dfr Exp $
  */
 
 #include <gssapi/gssapi.h>

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/drm/Makefile,v 1.6 2005/12/03 01:23:50 anholt Exp $
 
 SUBDIR = \
 	drm \

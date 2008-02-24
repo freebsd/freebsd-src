@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/nfs4client/nfs4_vn_subs.c,v 1.5 2006/11/28 19:33:28 rees Exp $ */
 /* $Id: nfs4_vn_subs.c,v 1.9 2003/11/05 14:59:00 rees Exp $ */
 
 /*-

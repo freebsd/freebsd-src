@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/security/mac/mac_framework.h,v 1.84.2.1 2007/11/06 14:46:58 rwatson Exp $
  */
 
 /*

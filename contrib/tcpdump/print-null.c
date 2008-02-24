@@ -18,7 +18,7 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/tcpdump/print-null.c,v 1.12.2.1 2007/10/19 03:03:59 mlaier Exp $
  */
 
 #ifndef lint

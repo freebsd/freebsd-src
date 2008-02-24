@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/kerberos5/lib/libroken/Makefile,v 1.17 2006/05/21 15:15:20 ume Exp $
 
 LIB=	roken
 SHLIB_MAJOR=	9

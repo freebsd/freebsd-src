@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/regression/netinet/msocket/msocket.c,v 1.1 2005/07/22 19:36:29 rwatson Exp $
  */
 
 #include <sys/types.h>

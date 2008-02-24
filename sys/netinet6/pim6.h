@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/netinet6/pim6.h,v 1.3 2005/01/07 02:30:35 imp Exp $	*/
 /*	$KAME: pim6.h,v 1.3 2000/03/25 07:23:58 sumikawa Exp $	*/
 
 /*-

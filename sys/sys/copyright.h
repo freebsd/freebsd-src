@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/copyright.h,v 1.25.4.1 2007/12/26 16:47:43 imp Exp $
  */
 
 

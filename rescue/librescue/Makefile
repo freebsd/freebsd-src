@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/rescue/librescue/Makefile,v 1.9 2006/07/27 12:28:05 yar Exp $
 #
 
 .include <bsd.own.mk>

@@ -25,7 +25,7 @@
 #include "opt_uart.h"
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/arm/at91/uart_bus_at91usart.c,v 1.3 2006/05/13 23:41:16 cognet Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -55,7 +55,7 @@
  * copied and put under another distribution licence
  * [including the GNU Public Licence.]
  */
-/* $FreeBSD$ */
+/* $FreeBSD: src/crypto/openssl/crypto/rsa/rsa_lib.c,v 1.12 2007/03/15 20:07:27 simon Exp $ */
 
 #include <stdio.h>
 #include <openssl/crypto.h>

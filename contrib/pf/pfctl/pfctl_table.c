@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/contrib/pf/pfctl/pfctl_table.c,v 1.8 2007/07/03 12:30:02 mlaier Exp $");
 
 #include <sys/types.h>
 #include <sys/ioctl.h>

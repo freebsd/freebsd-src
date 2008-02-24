@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/contrib/ipfilter/samples/relay.c,v 1.4 2005/12/30 11:52:25 guido Exp $	*/
 
 /*
  * Sample program to be used as a transparent proxy.

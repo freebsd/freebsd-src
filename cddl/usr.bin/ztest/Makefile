@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/cddl/usr.bin/ztest/Makefile,v 1.4 2007/10/01 18:17:23 ru Exp $
 
 .PATH: ${.CURDIR}/../../../contrib/opensolaris/cmd/ztest
 

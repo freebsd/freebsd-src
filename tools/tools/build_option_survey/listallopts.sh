@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/tools/build_option_survey/listallopts.sh,v 1.1 2006/03/25 10:50:40 phk Exp $
 #
 # This file is in the public domain
 

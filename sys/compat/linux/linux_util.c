@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/compat/linux/linux_util.c,v 1.32 2007/02/24 16:49:24 netchild Exp $");
 
 #include "opt_compat.h"
 

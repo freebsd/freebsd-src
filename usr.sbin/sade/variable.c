@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/sade/variable.c,v 1.42 2007/07/04 00:00:41 scf Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.

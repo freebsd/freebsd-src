@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/etc/root/dot.profile,v 1.21 2007/05/29 06:33:10 dougb Exp $
 #
 PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/games:/usr/local/sbin:/usr/local/bin:~/bin
 export PATH

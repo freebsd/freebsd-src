@@ -35,7 +35,7 @@
 
 #include <machine/asm.h>
 
-RCSID("$FreeBSD$")
+RCSID("$FreeBSD: src/lib/msun/i387/e_exp.S,v 1.11 2005/10/30 12:21:02 bde Exp $")
 
 /* e^x = 2^(x * log2(e)) */
 ENTRY(exp)

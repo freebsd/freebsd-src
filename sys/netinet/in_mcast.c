@@ -37,7 +37,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netinet/in_mcast.c,v 1.3.2.1 2007/11/29 20:16:42 rwatson Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

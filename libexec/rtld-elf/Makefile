@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/libexec/rtld-elf/Makefile,v 1.41 2007/05/16 23:24:15 marcel Exp $
 
 .include <bsd.own.mk>
 

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/bin/sh/builtins/type1.0,v 1.1 2007/01/11 00:25:20 stefanf Exp $
 command -v not-here && exit 1
 command -v /not-here && exit 1
 command -V not-here && exit 1

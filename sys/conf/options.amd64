@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/conf/options.amd64,v 1.29 2007/07/04 00:18:38 bz Exp $
 # Options specific to AMD64 platform kernels
 
 AUTO_EOI_1		opt_auto_eoi.h

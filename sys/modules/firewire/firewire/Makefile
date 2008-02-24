@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/firewire/firewire/Makefile,v 1.8 2006/02/18 23:49:26 yar Exp $
 
 # Makefile for the IEEE1394 OHCI chipset
 

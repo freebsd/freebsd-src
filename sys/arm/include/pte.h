@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/arm/include/pte.h,v 1.5 2007/07/27 14:45:33 cognet Exp $
  */
 
 #ifndef _MACHINE_PTE_H_

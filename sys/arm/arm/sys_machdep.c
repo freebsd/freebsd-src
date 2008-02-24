@@ -34,7 +34,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/arm/arm/sys_machdep.c,v 1.5 2007/02/14 01:25:41 kevlo Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

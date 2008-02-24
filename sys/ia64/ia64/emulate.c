@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/ia64/ia64/emulate.c,v 1.1 2006/06/29 19:59:17 marcel Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

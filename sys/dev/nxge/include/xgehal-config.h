@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/nxge/include/xgehal-config.h,v 1.1.2.1 2007/11/02 00:52:32 rwatson Exp $
  */
 
 #ifndef XGE_HAL_CONFIG_H

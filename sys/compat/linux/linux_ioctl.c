@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/compat/linux/linux_ioctl.c,v 1.138.2.1 2007/11/15 10:38:06 kib Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

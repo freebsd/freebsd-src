@@ -1,5 +1,5 @@
 # $Id: Makefile,v 1.2 2002/11/24 20:50:56 max Exp $
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/netgraph/bluetooth/bt3c/Makefile,v 1.7 2006/02/18 23:49:27 yar Exp $
 
 .PATH: ${.CURDIR}/../../../../netgraph/bluetooth/drivers/bt3c
 

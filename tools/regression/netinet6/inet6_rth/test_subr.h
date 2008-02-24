@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/regression/netinet6/inet6_rth/test_subr.h,v 1.1 2007/04/21 11:23:33 mtm Exp $
  */
 
 #include <sys/types.h>

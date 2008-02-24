@@ -35,7 +35,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libstand/twiddle.c,v 1.4 2007/01/09 01:02:04 imp Exp $");
 
 #include <sys/types.h>
 #include "stand.h"

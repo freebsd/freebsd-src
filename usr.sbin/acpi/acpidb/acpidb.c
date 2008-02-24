@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/usr.sbin/acpi/acpidb/acpidb.c,v 1.6 2007/03/22 18:16:43 jkim Exp $
  */
 
 #include <sys/param.h>

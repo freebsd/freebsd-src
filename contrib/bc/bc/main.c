@@ -26,7 +26,7 @@
                 Western Washington University
                 Bellingham, WA 98226-9062
 
-$FreeBSD$
+$FreeBSD: src/contrib/bc/bc/main.c,v 1.8 2006/01/24 06:38:35 brooks Exp $
        
 *************************************************************************/
 

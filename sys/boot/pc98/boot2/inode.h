@@ -33,7 +33,7 @@
  *
  *	@(#)inode.h	8.9 (Berkeley) 5/14/95
  * %FreeBSD: src/sys/ufs/ufs/inode.h,v 1.28.2.2 2001/09/29 12:52:52 iedowse Exp %
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/pc98/boot2/inode.h,v 1.5 2006/09/26 04:15:57 tegge Exp $
  */
 
 #ifndef _UFS_UFS_INODE_H_

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/regression/file/ftruncate/ftruncate.c,v 1.3 2006/07/09 10:56:36 rwatson Exp $
  */
 
 /*

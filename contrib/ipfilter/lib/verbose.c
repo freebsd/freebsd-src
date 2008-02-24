@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/contrib/ipfilter/lib/verbose.c,v 1.4 2007/06/04 02:54:33 darrenr Exp $	*/
 
 /*
  * Copyright (C) 2000-2001 by Darren Reed.

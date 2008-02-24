@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libncp/sap.c,v 1.5 2007/01/09 23:27:39 imp Exp $");
 
 #include <stdlib.h>
 #include <string.h>

@@ -37,7 +37,7 @@ static char sccsid[] = "@(#)version.c	8.1 (Berkeley) 6/6/93";
 #endif
 #endif /* not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/mail/version.c,v 1.4 2002/06/30 05:25:06 obrien Exp $");
 
 /*
  * Just keep track of the date/sid of this version of Mail.

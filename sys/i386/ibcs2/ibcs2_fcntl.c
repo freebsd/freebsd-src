@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i386/ibcs2/ibcs2_fcntl.c,v 1.28 2005/02/07 22:02:18 jhb Exp $");
 
 #include "opt_spx_hack.h"
 

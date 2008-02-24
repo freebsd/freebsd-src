@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/chown/06.t,v 1.1 2007/01/17 01:42:08 pjd Exp $
 
 desc="chown returns ELOOP if too many symbolic links were encountered in translating the pathname"
 

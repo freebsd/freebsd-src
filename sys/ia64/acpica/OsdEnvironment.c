@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/ia64/acpica/OsdEnvironment.c,v 1.10 2007/03/22 18:16:42 jkim Exp $");
 
 #include <sys/types.h>
 #include <sys/linker_set.h>

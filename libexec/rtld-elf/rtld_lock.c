@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	from: FreeBSD: src/libexec/rtld-elf/sparc64/lockdflt.c,v 1.3 2002/10/09
- * $FreeBSD$
+ * $FreeBSD: src/libexec/rtld-elf/rtld_lock.c,v 1.4 2007/04/03 18:28:13 kan Exp $
  */
 
 /*

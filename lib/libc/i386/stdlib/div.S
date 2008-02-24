@@ -26,7 +26,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/i386/stdlib/div.S,v 1.11 2007/01/09 00:27:59 imp Exp $");
 
 ENTRY(div)
         movl    4(%esp),%eax

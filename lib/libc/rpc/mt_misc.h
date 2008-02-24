@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/rpc/mt_misc.h,v 1.2 2006/02/28 07:36:25 delphij Exp $
  */
 #ifndef _MT_MISC_H
 #define	_MT_MISC_H

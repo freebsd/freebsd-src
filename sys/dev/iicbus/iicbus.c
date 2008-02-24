@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/iicbus/iicbus.c,v 1.24 2007/03/23 23:08:28 imp Exp $");
 
 /*
  * Autoconfiguration and support routines for the Philips serial I2C bus

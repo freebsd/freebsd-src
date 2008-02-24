@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/contrib/ipfilter/tools/ipscan_y.y,v 1.3 2007/06/04 02:54:34 darrenr Exp $	*/
 
 /*
  * Copyright (C) 2001-2004 by Darren Reed.

@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/drm/drmP.h,v 1.18 2006/11/06 13:41:53 rwatson Exp $");
 
 #ifndef _DRM_P_H_
 #define _DRM_P_H_

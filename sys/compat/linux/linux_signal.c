@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/compat/linux/linux_signal.c,v 1.65 2007/01/07 19:14:06 netchild Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

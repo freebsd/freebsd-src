@@ -26,7 +26,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGES.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ath/ah_osdep.c,v 1.3 2007/06/06 15:49:15 sam Exp $
  */
 #include "opt_ah.h"
 

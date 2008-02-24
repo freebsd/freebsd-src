@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/tools/regression/ethernet/ethermulti/ethermulti.c,v 1.1 2007/02/25 01:58:02 bms Exp $");
 
 #include <sys/types.h>
 #include <sys/socket.h>

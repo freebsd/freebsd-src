@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/ppc/Makefile,v 1.3 2006/06/18 05:04:42 marcel Exp $
 
 .PATH:	${.CURDIR}/../../dev/ppc
 KMOD=	ppc

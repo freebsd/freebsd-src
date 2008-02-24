@@ -1,6 +1,6 @@
 #!/usr/bin/awk -f
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/tools/mfc/mfc.awk,v 1.2 2006/05/08 06:47:59 jmg Exp $
 #
 
 BEGIN {

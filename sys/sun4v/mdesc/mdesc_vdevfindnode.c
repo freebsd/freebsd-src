@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/sun4v/mdesc/mdesc_vdevfindnode.c,v 1.1 2006/12/18 07:22:25 kmacy Exp $");
 
 #include <sys/param.h>
 #include <sys/endian.h>

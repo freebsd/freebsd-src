@@ -23,7 +23,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/arm/xscale/i80321/i80321_dma.c,v 1.3 2006/03/02 14:06:38 cognet Exp $");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>

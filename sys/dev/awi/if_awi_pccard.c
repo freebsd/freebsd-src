@@ -24,7 +24,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/awi/if_awi_pccard.c,v 1.25 2007/02/23 12:18:33 piso Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

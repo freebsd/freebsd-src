@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netinet/in_pcb.c,v 1.196.4.1 2007/12/22 20:54:46 rwatson Exp $");
 
 #include "opt_ddb.h"
 #include "opt_ipsec.h"

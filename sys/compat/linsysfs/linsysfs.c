@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/compat/linsysfs/linsysfs.c,v 1.4 2007/03/12 12:16:52 des Exp $");
 
 #include <sys/param.h>
 #include <sys/queue.h>

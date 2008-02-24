@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libncp/ipx.c,v 1.8 2007/01/09 23:27:39 imp Exp $");
 
 #include <sys/param.h>
 #include <sys/ioctl.h>

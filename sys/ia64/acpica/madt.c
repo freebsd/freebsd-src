@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/ia64/acpica/madt.c,v 1.20 2007/03/22 18:16:42 jkim Exp $
  */
 
 #include <contrib/dev/acpica/acpi.h>

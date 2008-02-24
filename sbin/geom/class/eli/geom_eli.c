@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sbin/geom/class/eli/geom_eli.c,v 1.24 2007/05/15 20:25:16 marcel Exp $");
 
 #include <stdio.h>
 #include <stdint.h>

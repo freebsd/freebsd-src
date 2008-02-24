@@ -23,7 +23,7 @@
  *
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/gnu/dev/sound/pci/emu10k1-alsa.h,v 1.3 2006/07/15 19:19:54 netchild Exp $ */
 
 #ifdef __KERNEL__
 

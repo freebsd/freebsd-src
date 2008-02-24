@@ -8,7 +8,7 @@
 #
 # http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/mac.html 
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/ia64/conf/MAC,v 1.1 2005/09/18 03:15:35 csjp Exp $
 
 include 	GENERIC
 ident 		MAC

@@ -24,7 +24,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/boot/arm/at91/boot2/kb920x_board.c,v 1.4 2007/07/13 14:27:04 imp Exp $");
 
 #include <sys/param.h>
 

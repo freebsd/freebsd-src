@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/tx/Makefile,v 1.10 2005/09/27 18:10:39 mlaier Exp $
 
 .PATH: ${.CURDIR}/../../dev/tx
 

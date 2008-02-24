@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/mpt/mpt_cam.h,v 1.6 2007/05/05 20:18:24 mjacob Exp $ */
 /*-
  * LSI MPT Host Adapter FreeBSD Wrapper Definitions (CAM version)
  *

@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/dev/mly/mly.c,v 1.45 2007/06/17 05:55:51 scottl Exp $
  */
 
 #include <sys/param.h>

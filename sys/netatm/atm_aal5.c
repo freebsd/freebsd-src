@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netatm/atm_aal5.c,v 1.25 2006/07/21 17:11:13 rwatson Exp $");
 
 #include <sys/param.h>
 #include <sys/lock.h>

@@ -1,2 +1,2 @@
-.\" $FreeBSD$
+.\" $FreeBSD: src/tools/build/options/WITH_HESIOD,v 1.1 2006/03/21 07:50:50 ru Exp $
 Set to build Hesiod support.

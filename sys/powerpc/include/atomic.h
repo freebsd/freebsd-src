@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/powerpc/include/atomic.h,v 1.15 2007/07/10 04:40:00 marcel Exp $
  */
 
 #ifndef _MACHINE_ATOMIC_H_

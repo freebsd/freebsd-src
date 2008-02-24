@@ -24,7 +24,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/net80211/ieee80211_crypto_tkip.c,v 1.13 2007/06/11 03:36:54 sam Exp $");
 
 /*
  * IEEE 802.11i TKIP crypto support.

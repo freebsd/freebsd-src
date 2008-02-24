@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/release/Makefile,v 1.924.2.4 2007/12/22 06:29:13 kensmith Exp $
 #
 # make release [BUILDNAME=somename] CHROOTDIR=/some/dir CVSROOT=/cvs/dir \
 #     [RELEASETAG=tag]

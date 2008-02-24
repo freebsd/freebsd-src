@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/lib/libc/net/test-ether.t,v 1.1 2007/05/13 14:03:21 rwatson Exp $
 
 cd `dirname $0`
 

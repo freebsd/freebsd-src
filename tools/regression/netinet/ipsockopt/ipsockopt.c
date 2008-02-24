@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/regression/netinet/ipsockopt/ipsockopt.c,v 1.8 2007/06/12 16:24:55 bms Exp $
  */
 
 #include <sys/types.h>

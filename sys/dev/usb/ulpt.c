@@ -38,7 +38,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/usb/ulpt.c,v 1.80 2007/06/21 14:42:34 imp Exp $");
 
 /*
  * Printer Class spec: http://www.usb.org/developers/data/devclass/usbprint109.PDF

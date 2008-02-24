@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/spibus/spi.h,v 1.2 2006/07/17 21:18:03 cognet Exp $ */
 
 struct spi_command {
 	void	*tx_cmd;

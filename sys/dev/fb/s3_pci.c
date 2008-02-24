@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/fb/s3_pci.c,v 1.10 2005/09/28 14:54:06 marius Exp $");
 
 /* Enable LFB on S3 cards that has only VESA 1.2 BIOS */
 

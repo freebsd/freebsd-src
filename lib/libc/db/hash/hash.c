@@ -34,7 +34,7 @@
 static char sccsid[] = "@(#)hash.c	8.9 (Berkeley) 6/16/94";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/db/hash/hash.c,v 1.14 2007/05/25 09:57:48 delphij Exp $");
 
 #include "namespace.h"
 #include <sys/param.h>

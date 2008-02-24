@@ -16,7 +16,7 @@
 
 #ifndef INLINE_KERNEL_COSDF
 #ifndef lint
-static char rcsid[] = "$FreeBSD$";
+static char rcsid[] = "$FreeBSD: src/lib/msun/src/k_cosf.c,v 1.15 2005/11/30 11:51:17 bde Exp $";
 #endif
 #endif
 

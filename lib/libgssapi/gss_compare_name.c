@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/lib/libgssapi/gss_compare_name.c,v 1.1 2005/12/29 14:40:20 dfr Exp $
  */
 
 #include <gssapi/gssapi.h>

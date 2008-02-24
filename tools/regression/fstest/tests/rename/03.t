@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/rename/03.t,v 1.1 2007/01/17 01:42:10 pjd Exp $
 
 desc="rename returns ENOENT if a component of the 'from' path does not exist, or a path prefix of 'to' does not exist"
 

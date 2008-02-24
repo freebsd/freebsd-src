@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/smbfs/Makefile,v 1.12 2006/03/05 22:52:17 yar Exp $
 
 .PATH:	${.CURDIR}/../../crypto/des \
 	${.CURDIR}/../../crypto/des/arch/${MACHINE_ARCH} \

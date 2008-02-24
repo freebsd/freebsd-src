@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/less/search.c,v 1.9.2.1 2007/12/04 22:37:28 delphij Exp $ */
 /*
  * Copyright (C) 1984-2007  Mark Nudelman
  *

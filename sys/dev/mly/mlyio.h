@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/dev/mly/mlyio.h,v 1.2 2001/07/14 00:12:22 msmith Exp $
  */
 
 /********************************************************************************

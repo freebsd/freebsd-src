@@ -1,7 +1,7 @@
 # Towers of Hanoi in sed.
 #
 #	@(#)hanoi.sed	8.1 (Berkeley) 6/6/93
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/usr.bin/sed/hanoi.sed,v 1.4 2007/03/14 07:40:44 dds Exp $
 #
 #
 # Ex:

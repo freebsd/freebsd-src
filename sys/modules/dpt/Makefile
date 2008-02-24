@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/dpt/Makefile,v 1.2 2007/04/10 20:33:31 marius Exp $
 #
 
 .PATH:	${.CURDIR}/../../dev/dpt

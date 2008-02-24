@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/fs/smbfs/smbfs_subr.h,v 1.6 2005/05/04 15:05:46 takawata Exp $
  */
 #ifndef _FS_SMBFS_SMBFS_SUBR_H_
 #define _FS_SMBFS_SMBFS_SUBR_H_

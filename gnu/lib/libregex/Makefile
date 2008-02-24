@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/lib/libregex/Makefile,v 1.33 2007/06/18 18:47:53 rafan Exp $
 
 SUBDIR=		doc
 

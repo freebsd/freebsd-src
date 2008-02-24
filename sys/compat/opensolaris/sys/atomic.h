@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/compat/opensolaris/sys/atomic.h,v 1.1 2007/06/08 12:35:46 pjd Exp $
  */
 
 #ifndef _OPENSOLARIS_SYS_ATOMIC_H_

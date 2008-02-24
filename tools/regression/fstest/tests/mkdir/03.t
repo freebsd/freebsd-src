@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/mkdir/03.t,v 1.1 2007/01/17 01:42:09 pjd Exp $
 
 desc="mkdir returns ENAMETOOLONG if an entire path name exceeded 1023 characters"
 

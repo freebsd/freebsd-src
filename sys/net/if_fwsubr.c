@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/net/if_fwsubr.c,v 1.24 2007/06/05 14:15:45 simokawa Exp $
  */
 
 #include "opt_inet.h"

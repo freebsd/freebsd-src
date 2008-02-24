@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/msdosfs/Makefile,v 1.24 2007/02/01 04:21:03 avatar Exp $
 
 .PATH: ${.CURDIR}/../../fs/msdosfs
 

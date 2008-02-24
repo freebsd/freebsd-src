@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/sound/sound/Makefile,v 1.21 2007/05/31 18:43:33 ariff Exp $
 
 .PATH: ${.CURDIR}/../../../dev/sound
 .PATH: ${.CURDIR}/../../../dev/sound/pcm

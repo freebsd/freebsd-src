@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/jls/jls.c,v 1.5 2005/08/19 11:03:49 pjd Exp $
  */
 
 #include <sys/param.h>

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/compat/opensolaris/include/fsshare.h,v 1.1 2007/04/06 01:08:58 pjd Exp $
  */
 
 #ifndef _OPENSOLARIS_FSSHARE_H_

@@ -33,7 +33,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/kern_lockf.c,v 1.57 2007/08/07 09:04:50 kib Exp $");
 
 #include "opt_debug_lockf.h"
 

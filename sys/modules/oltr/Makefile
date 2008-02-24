@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/oltr/Makefile,v 1.5 2005/02/03 23:01:01 mdodd Exp $
 
 .PATH:	${.CURDIR}/../../contrib/dev/oltr
 KMOD=	if_oltr

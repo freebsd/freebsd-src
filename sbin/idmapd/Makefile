@@ -1,6 +1,6 @@
 #	@(#)Makefile	8.2 (Berkeley) 3/27/94
 #
-# $FreeBSD$
+# $FreeBSD: src/sbin/idmapd/Makefile,v 1.4 2006/10/15 13:51:49 ceri Exp $
 
 PROG=	idmapd
 MAN=	idmapd.8

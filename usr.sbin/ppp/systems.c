@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ppp/systems.c,v 1.68 2004/09/05 01:46:52 brian Exp $
  */
 
 #include <sys/param.h>

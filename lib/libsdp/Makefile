@@ -1,5 +1,5 @@
 # $Id: Makefile,v 1.2 2003/09/07 20:34:19 max Exp $
-# $FreeBSD$
+# $FreeBSD: src/lib/libsdp/Makefile,v 1.5 2007/05/21 02:49:06 deischen Exp $
 
 LIB=		sdp
 MAN=		sdp.3

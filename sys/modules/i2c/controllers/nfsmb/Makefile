@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/i2c/controllers/nfsmb/Makefile,v 1.1 2005/12/21 15:49:51 ru Exp $
 
 .PATH: ${.CURDIR}/../../../../pci
 

@@ -35,7 +35,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/tty_cons.c,v 1.139 2007/05/31 11:51:51 kib Exp $");
 
 #include "opt_ddb.h"
 

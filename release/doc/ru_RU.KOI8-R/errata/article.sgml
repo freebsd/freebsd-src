@@ -1,7 +1,7 @@
 <!--
    The FreeBSD Russian Documentation Project
 
-   $FreeBSD$
+   $FreeBSD: src/release/doc/ru_RU.KOI8-R/errata/article.sgml,v 1.1 2004/09/10 13:56:40 den Exp $
    $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/errata/article.sgml,v 1.5 2004/09/10 13:56:07 den Exp $
 
    Original revision: 1.72
@@ -34,7 +34,7 @@
     Проект &os;
     </corpauthor>
 
-    <pubdate>$FreeBSD$</pubdate>
+    <pubdate>$FreeBSD: src/release/doc/ru_RU.KOI8-R/errata/article.sgml,v 1.1 2004/09/10 13:56:40 den Exp $</pubdate>
 
     <copyright>
       <year>2000</year>

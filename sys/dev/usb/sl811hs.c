@@ -70,7 +70,7 @@
 #include <dev/usb/sl811hsreg.h>
 #include <dev/usb/sl811hsvar.h>
 
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/usb/sl811hs.c,v 1.6 2007/06/19 10:28:08 delphij Exp $");
 
 static inline u_int8_t sl11read(struct slhci_softc *, int);
 static inline void     sl11write(struct slhci_softc *, int, u_int8_t);

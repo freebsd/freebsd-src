@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $FreeBSD$
+ *	@(#) $FreeBSD: src/sys/netatm/atm_if.h,v 1.20 2005/06/10 16:49:20 brooks Exp $
  *
  */
 

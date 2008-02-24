@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/tools/tinybsd/conf/default/tinybsd.basefiles,v 1.4 2007/07/01 10:25:06 thompsa Exp $
 # contents of ${WORKDIR}/boot
 boot/boot0
 boot/boot1

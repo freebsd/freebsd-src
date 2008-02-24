@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netatm/ipatm/ipatm_if.c,v 1.18 2005/10/31 15:41:26 rwatson Exp $");
 
 #include <sys/param.h>
 #include <sys/types.h>

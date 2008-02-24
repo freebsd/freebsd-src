@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/groff/font/Makefile.tty,v 2.8 2005/10/20 10:57:52 ru Exp $
 
 FONTS?=R I B BI S L CW
 DEVFILES=$(FONTS) DESC

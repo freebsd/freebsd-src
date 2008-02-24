@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/sa/Makefile,v 1.12 2007/05/22 10:49:42 dds Exp $
 
 .PATH: ${.CURDIR}/../../usr.bin/lastcomm
 

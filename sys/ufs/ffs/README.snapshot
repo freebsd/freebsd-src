@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/sys/ufs/ffs/README.snapshot,v 1.4 2002/12/12 00:31:45 trhodes Exp $
 
 Soft Updates Status
 

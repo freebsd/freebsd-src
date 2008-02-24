@@ -25,7 +25,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/ia64/gen/_mcount.S,v 1.1 2004/08/25 07:42:34 marcel Exp $");
 
 	.text
 

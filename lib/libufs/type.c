@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libufs/type.c,v 1.16 2007/03/16 03:13:28 pjd Exp $");
 
 #include <sys/param.h>
 #include <sys/mount.h>

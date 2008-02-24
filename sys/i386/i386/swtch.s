@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/i386/swtch.s,v 1.156 2007/08/22 05:06:14 jkoshy Exp $
  */
 
 #include "opt_npx.h"

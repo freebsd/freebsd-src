@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/ugidfw/ugidfw.c,v 1.6 2006/04/23 17:06:18 dwmalone Exp $");
 
 #include <sys/param.h>
 #include <sys/errno.h>

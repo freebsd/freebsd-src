@@ -8,7 +8,7 @@
 #
 # http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/mac.html 
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/sun4v/conf/MAC,v 1.1 2006/10/05 06:14:25 kmacy Exp $
 
 include 	GENERIC
 ident 		MAC

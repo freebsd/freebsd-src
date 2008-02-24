@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/gnu/usr.bin/gdb/libgdb/frame-unwind.diff,v 1.1 2005/09/10 18:25:53 marcel Exp $
 
 Index: frame-unwind.c
 ===================================================================

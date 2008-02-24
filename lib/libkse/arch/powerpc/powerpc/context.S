@@ -25,7 +25,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libkse/arch/powerpc/powerpc/context.S,v 1.2 2007/10/09 13:42:25 obrien Exp $");
 
 #include "assym.s"
 

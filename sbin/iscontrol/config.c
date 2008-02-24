@@ -29,7 +29,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sbin/iscontrol/config.c,v 1.1 2007/07/24 15:35:01 scottl Exp $");
 
 #include <stdlib.h>
 #include <unistd.h>

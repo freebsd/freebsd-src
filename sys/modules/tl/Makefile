@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/tl/Makefile,v 1.16 2005/09/27 18:10:39 mlaier Exp $
 
 .PATH: ${.CURDIR}/../../pci
 

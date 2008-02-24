@@ -63,7 +63,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/sparc64/sbus/dma_sbus.c,v 1.5 2007/01/20 14:06:01 marius Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

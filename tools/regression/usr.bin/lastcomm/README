@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/tools/regression/usr.bin/lastcomm/README,v 1.2 2007/05/24 06:57:50 dds Exp $
 
 To create the files for regression testing do the following.
 

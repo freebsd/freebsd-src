@@ -20,7 +20,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libcompat/regexp/regsub.c,v 1.2 2002/03/21 23:37:30 obrien Exp $");
 
 #include <regexp.h>
 #include <stdio.h>

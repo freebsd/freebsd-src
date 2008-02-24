@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libdisk/write_ia64_disk.c,v 1.16 2006/08/09 20:19:15 marcel Exp $");
 
 #include <sys/types.h>
 #include <sys/disklabel.h>

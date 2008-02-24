@@ -33,7 +33,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/pc98/cbus/clock.c,v 1.162 2007/07/29 20:16:48 dwmalone Exp $");
 
 /*
  * Routines to handle clock hardware.

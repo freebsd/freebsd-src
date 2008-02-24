@@ -76,7 +76,7 @@
 
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/arm/sa11x0/sa11x0_irqhandler.c,v 1.6 2006/10/21 04:25:00 kevlo Exp $");
 
 #include <sys/param.h>
 #include <sys/kernel.h>

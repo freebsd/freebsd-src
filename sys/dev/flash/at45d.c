@@ -23,7 +23,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/flash/at45d.c,v 1.1 2006/11/29 08:05:55 imp Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/if_gif/Makefile,v 1.10 2006/03/17 18:54:37 ru Exp $
 
 .include <bsd.own.mk>
 

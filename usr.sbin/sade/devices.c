@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/sade/devices.c,v 1.170 2006/08/08 13:45:46 delphij Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.

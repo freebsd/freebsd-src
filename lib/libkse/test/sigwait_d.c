@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libkse/test/sigwait_d.c,v 1.3 2007/10/09 13:42:26 obrien Exp $
  */
 #include <stdlib.h>
 #include <unistd.h>

@@ -24,7 +24,7 @@
 #  OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 #  SUCH DAMAGE.
 # -------+---------+---------+-------- + --------+---------+---------+---------+
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/usr.bin/env/regress-sb.rb,v 1.1 2005/06/20 04:17:12 gad Exp $
 # -------+---------+---------+-------- + --------+---------+---------+---------+
 #   This script was written to provide a battery of regression-tests for some
 # changes I am making to the `env' command.  I wrote a new script for this

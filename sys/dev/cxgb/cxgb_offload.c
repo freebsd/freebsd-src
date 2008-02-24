@@ -31,7 +31,7 @@ POSSIBILITY OF SUCH DAMAGE.
 
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/cxgb/cxgb_offload.c,v 1.8 2007/08/17 05:57:04 kmacy Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

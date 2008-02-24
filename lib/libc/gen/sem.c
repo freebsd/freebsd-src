@@ -26,7 +26,7 @@
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/gen/sem.c,v 1.15 2005/10/18 17:24:03 stefanf Exp $
  */
 
 /*

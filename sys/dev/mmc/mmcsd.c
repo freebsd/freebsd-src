@@ -51,7 +51,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/mmc/mmcsd.c,v 1.3 2007/05/26 05:23:36 imp Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

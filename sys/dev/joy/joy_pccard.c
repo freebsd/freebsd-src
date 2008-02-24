@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/joy/joy_pccard.c,v 1.6 2005/09/20 19:51:26 imp Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

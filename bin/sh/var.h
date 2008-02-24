@@ -30,7 +30,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)var.h	8.2 (Berkeley) 5/4/95
- * $FreeBSD$
+ * $FreeBSD: src/bin/sh/var.h,v 1.14 2006/06/15 07:00:49 stefanf Exp $
  */
 
 /*

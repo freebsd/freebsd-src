@@ -22,7 +22,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 # THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/tar/test/test-basic.sh,v 1.5 2007/04/18 04:35:17 kientzle Exp $
 
 # Generate a dir tree with various data and copy it using
 # a variety of tools and flags.  This mostly checks that

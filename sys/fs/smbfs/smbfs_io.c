@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/fs/smbfs/smbfs_io.c,v 1.41 2007/06/04 21:45:16 attilio Exp $
  *
  */
 #include <sys/param.h>

@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/fs/ntfs/ntfs_vfsops.c,v 1.88 2007/09/21 23:50:15 rodrigc Exp $
  */
 
 

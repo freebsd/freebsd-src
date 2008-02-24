@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/rename/01.t,v 1.1 2007/01/17 01:42:10 pjd Exp $
 
 desc="rename returns ENAMETOOLONG if a component of either pathname exceeded 255 characters"
 

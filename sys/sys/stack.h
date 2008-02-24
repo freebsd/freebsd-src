@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/stack.h,v 1.2 2005/08/29 11:34:08 pjd Exp $
  */
 
 #ifndef _SYS_STACK_H_

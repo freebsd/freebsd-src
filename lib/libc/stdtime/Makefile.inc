@@ -1,5 +1,5 @@
 #	Makefile.inc,v 1.2 1994/09/13 21:26:01 wollman Exp
-# $FreeBSD$
+# $FreeBSD: src/lib/libc/stdtime/Makefile.inc,v 1.15 2006/03/13 01:15:00 deischen Exp $
 
 .PATH:	${.CURDIR}/stdtime ${.CURDIR}/../locale
 

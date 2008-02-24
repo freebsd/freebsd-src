@@ -45,7 +45,7 @@ static const char sccsid[] = "@(#)tsort.c	8.3 (Berkeley) 5/4/95";
 #endif /* not lint */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/tsort/tsort.c,v 1.17 2005/05/29 15:47:31 charnier Exp $");
 
 #include <sys/types.h>
 

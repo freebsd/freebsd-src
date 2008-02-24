@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/lib/libgomp/Makefile,v 1.2 2007/05/31 13:21:30 kan Exp $
 
 GCCDIR=	${.CURDIR}/../../../contrib/gcc
 GCCLIB=	${.CURDIR}/../../../contrib/gcclibs

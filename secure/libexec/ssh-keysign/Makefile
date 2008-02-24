@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/secure/libexec/ssh-keysign/Makefile,v 1.8 2006/05/13 21:38:15 des Exp $
 
 PROG=	ssh-keysign
 SRCS=	ssh-keysign.c readconf.c

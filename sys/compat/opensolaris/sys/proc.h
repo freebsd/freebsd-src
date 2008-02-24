@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/compat/opensolaris/sys/proc.h,v 1.2 2007/08/16 20:33:20 pjd Exp $
  */
 
 #ifndef _OPENSOLARIS_SYS_PROC_H_

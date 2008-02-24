@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/random/randomdev.c,v 1.61 2006/11/06 13:41:55 rwatson Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

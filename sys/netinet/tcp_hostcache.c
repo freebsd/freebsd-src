@@ -63,7 +63,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netinet/tcp_hostcache.c,v 1.17 2007/10/07 20:44:23 silby Exp $");
 
 #include "opt_inet6.h"
 

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/isp/isp_library.h,v 1.8 2007/04/02 01:04:20 mjacob Exp $ */
 /*-
  *  Copyright (c) 1997-2007 by Matthew Jacob
  *  All rights reserved.

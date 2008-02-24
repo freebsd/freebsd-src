@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/sdiff/Makefile,v 1.7 2007/06/15 07:09:33 delphij Exp $
 
 DIFFSRC=${.CURDIR}/../../../contrib/diff/src
 .PATH:  ${DIFFSRC} \

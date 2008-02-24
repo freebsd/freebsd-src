@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/amd64/linux32/linux32_dummy.c,v 1.9 2007/04/18 18:08:12 jkim Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

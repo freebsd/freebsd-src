@@ -1,4 +1,4 @@
-#  $FreeBSD$
+#  $FreeBSD: src/sys/boot/arm/at91/libat91/Makefile,v 1.10 2007/08/09 05:16:55 imp Exp $
 
 .include "${.CURDIR}/../Makefile.inc"
 

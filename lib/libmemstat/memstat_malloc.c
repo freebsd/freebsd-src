@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libmemstat/memstat_malloc.c,v 1.7 2007/05/21 18:16:04 rwatson Exp $
  */
 
 #include <sys/cdefs.h>

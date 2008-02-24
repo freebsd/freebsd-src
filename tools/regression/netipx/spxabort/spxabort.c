@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/regression/netipx/spxabort/spxabort.c,v 1.1 2006/03/27 00:03:37 rwatson Exp $
  */
 
 /*

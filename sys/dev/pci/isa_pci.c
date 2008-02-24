@@ -29,7 +29,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/pci/isa_pci.c,v 1.13 2005/09/29 15:00:09 jhb Exp $");
 
 /*
  * PCI:ISA bridge support

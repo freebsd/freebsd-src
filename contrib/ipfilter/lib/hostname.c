@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/contrib/ipfilter/lib/hostname.c,v 1.3 2007/06/04 02:54:32 darrenr Exp $	*/
 
 /*
  * Copyright (C) 2002-2003 by Darren Reed.

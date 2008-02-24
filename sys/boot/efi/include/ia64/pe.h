@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/boot/efi/include/ia64/pe.h,v 1.2 2006/11/02 02:42:48 marcel Exp $ */
 /* 
     PE32+ header file
  */

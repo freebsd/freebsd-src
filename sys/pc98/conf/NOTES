@@ -4,7 +4,7 @@
 # This file contains machine dependent kernel configuration notes.  For
 # machine independent notes, look in /sys/conf/NOTES.
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/pc98/conf/NOTES,v 1.85 2007/07/04 00:18:39 bz Exp $
 #
 
 #

@@ -45,7 +45,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/crypto/via/padlock_cipher.c,v 1.5 2006/09/15 10:44:55 pjd Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

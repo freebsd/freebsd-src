@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libelf/libelf_align.c,v 1.2 2006/12/18 05:36:23 jkoshy Exp $");
 
 #include <sys/types.h>
 

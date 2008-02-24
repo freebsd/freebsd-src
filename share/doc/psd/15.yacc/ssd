@@ -35,7 +35,7 @@
 .\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"	@(#)ssd	8.1 (Berkeley) 6/8/93
 .\"
-.\" $FreeBSD$
+.\" $FreeBSD: src/share/doc/psd/15.yacc/ssd,v 1.2 2002/05/19 05:14:02 grog Exp $
 .SH
 Appendix D: Old Features Supported but not Encouraged
 .PP

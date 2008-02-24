@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/libexec/tcpd/Makefile,v 1.6 2006/03/17 18:54:29 ru Exp $
 
 .include <bsd.own.mk>
 

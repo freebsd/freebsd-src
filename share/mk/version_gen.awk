@@ -22,7 +22,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/share/mk/version_gen.awk,v 1.3 2007/07/21 20:52:32 kan Exp $
 #
 
 #

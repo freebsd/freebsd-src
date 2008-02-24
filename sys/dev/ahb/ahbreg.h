@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ahb/ahbreg.h,v 1.6 2007/06/17 05:55:46 scottl Exp $
  */
 
 /* Resource Constatns */

@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/usb/usb_ethersubr.c,v 1.23 2007/01/08 23:21:06 alfred Exp $");
 
 /*
  * Callbacks in the USB code operate at splusb() (actually splbio()

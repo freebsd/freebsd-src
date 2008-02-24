@@ -38,7 +38,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/pc98/pc98/machdep.c,v 1.396.4.1 2008/01/19 18:15:05 kib Exp $");
 
 #include "opt_atalk.h"
 #include "opt_compat.h"

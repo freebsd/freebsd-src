@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/regression/sockets/pr_atomic/pr_atomic.c,v 1.1 2006/12/23 21:07:07 bms Exp $
  */
 
 /*

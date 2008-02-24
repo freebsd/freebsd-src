@@ -32,7 +32,7 @@
 
 #include <sys/cdefs.h>
 
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/ncplist/ncplist.c,v 1.3 2007/02/05 07:35:23 kevlo Exp $");
 
 #include <sys/param.h>
 #include <sys/time.h>

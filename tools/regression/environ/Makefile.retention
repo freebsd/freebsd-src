@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/environ/Makefile.retention,v 1.1 2007/07/04 00:00:39 scf Exp $
 #
 SRCS=	retention.c
 PROG=	retention

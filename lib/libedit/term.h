@@ -31,7 +31,7 @@
  *
  *	@(#)term.h	8.1 (Berkeley) 6/4/93
  *	$NetBSD: term.h,v 1.18 2006/11/24 00:01:17 christos Exp $
- * $FreeBSD$
+ * $FreeBSD: src/lib/libedit/term.h,v 1.8 2007/06/10 19:06:09 stefanf Exp $
  */
 
 /*

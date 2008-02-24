@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/mkdir/05.t,v 1.1 2007/01/17 01:42:09 pjd Exp $
 
 desc="mkdir returns EACCES when search permission is denied for a component of the path prefix"
 

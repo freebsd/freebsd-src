@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/net/ntoh.c,v 1.1 2006/11/06 22:07:47 cognet Exp $");
 
 #include <sys/endian.h>
 

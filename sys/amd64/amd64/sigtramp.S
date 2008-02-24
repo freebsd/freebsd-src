@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/amd64/amd64/sigtramp.S,v 1.1 2003/05/01 01:05:21 peter Exp $
  */
 
 #include <sys/syscall.h>

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/arcnet/Makefile,v 1.5 2006/02/07 18:13:56 yar Exp $
 
 .PATH: ${.CURDIR}/../../net
 

@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sk/yukonreg.h,v 1.3 2006/04/27 05:59:09 yongari Exp $
  */
 
 /* General Purpose Status Register (GPSR) */

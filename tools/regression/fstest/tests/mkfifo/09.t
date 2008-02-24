@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/mkfifo/09.t,v 1.1 2007/01/17 01:42:09 pjd Exp $
 
 desc="mkfifo returns EEXIST if the named file exists"
 

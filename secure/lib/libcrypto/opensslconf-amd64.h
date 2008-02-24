@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/secure/lib/libcrypto/opensslconf-amd64.h,v 1.8 2007/05/09 19:37:01 gnn Exp $ */
 /* opensslconf.h */
 /* WARNING: Generated automatically from opensslconf.h.in by Configure. */
 

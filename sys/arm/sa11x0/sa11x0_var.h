@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/arm/sa11x0/sa11x0_var.h,v 1.3 2006/05/29 19:32:32 cognet Exp $
  *
  */
 

@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/early.sh,v 1.3 2007/10/09 07:30:14 dougb Exp $
 #
 
 # PROVIDE: early

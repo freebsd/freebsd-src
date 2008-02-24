@@ -12,7 +12,7 @@
 # LIMITATION, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
 # A PARTICULAR PURPOSE.
 #
-# $FreeBSD$
+# $FreeBSD: src/sbin/rtsol/Makefile,v 1.14 2006/07/27 18:28:14 yar Exp $
 
 SRCDIR=	${.CURDIR}/../../usr.sbin/rtsold
 

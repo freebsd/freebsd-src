@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/tools/ath/athstats/Makefile,v 1.4 2007/02/02 02:39:56 sam Exp $
 
 PROG=	athstats
 BINDIR=	/usr/local/bin

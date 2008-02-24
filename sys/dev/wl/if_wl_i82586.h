@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie Mellon
  * the rights to redistribute these changes.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/wl/if_wl_i82586.h,v 1.1 2005/05/09 04:47:57 nyan Exp $
  */
 /*
   Copyright 1988, 1989 by Olivetti Advanced Technology Center, Inc.,

@@ -40,7 +40,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.h	8.6 (Berkeley) 1/21/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/tty.h,v 1.101 2006/01/04 09:59:06 phk Exp $
  */
 
 #ifndef _SYS_TTY_H_

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/pci/agppriv.h,v 1.6.2.1 2007/11/08 20:29:53 jhb Exp $
  */
 
 #ifndef _PCI_AGPPRIV_H_

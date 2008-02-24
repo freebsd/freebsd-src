@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/drm/r128_irq.c,v 1.6 2005/11/28 23:13:53 anholt Exp $");
 
 #include "dev/drm/drmP.h"
 #include "dev/drm/drm.h"

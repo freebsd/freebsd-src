@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/turnstile.h,v 1.12 2007/06/04 23:51:44 jeff Exp $
  */
 
 #ifndef _SYS_TURNSTILE_H_

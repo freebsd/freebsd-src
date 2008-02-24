@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/chmod/01.t,v 1.1 2007/01/17 01:42:08 pjd Exp $
 
 desc="chmod returns ENOTDIR if a component of the path prefix is not a directory"
 

@@ -28,7 +28,7 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netinet/sctp_os.h,v 1.9 2007/08/24 00:53:52 rrs Exp $");
 #ifndef __sctp_os_h__
 #define __sctp_os_h__
 

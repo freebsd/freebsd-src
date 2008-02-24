@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/geom/vinum/geom_vinum_rename.c,v 1.3 2005/11/20 12:14:18 le Exp $");
 
 #include <sys/param.h>
 #include <sys/libkern.h>

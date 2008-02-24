@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libstand/strcasecmp.c,v 1.4 2007/01/09 01:02:04 imp Exp $");
 
 #include <sys/cdefs.h>
 #include <string.h>

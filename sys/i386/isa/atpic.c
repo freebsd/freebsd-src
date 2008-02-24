@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i386/isa/atpic.c,v 1.28 2007/05/08 21:29:14 jhb Exp $");
 
 #include "opt_auto_eoi.h"
 #include "opt_isa.h"

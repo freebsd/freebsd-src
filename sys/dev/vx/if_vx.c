@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/vx/if_vx.c,v 1.60 2005/11/11 16:04:56 ru Exp $");
 
 /*
  * Created from if_ep.c driver by Fred Gray (fgray@rice.edu) to support

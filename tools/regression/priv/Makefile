@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/priv/Makefile,v 1.2 2007/09/09 23:08:39 rwatson Exp $
 #
 
 PROG=	priv

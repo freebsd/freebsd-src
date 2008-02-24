@@ -25,7 +25,7 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/crypto/rijndael/rijndael-alg-fst.c,v 1.11 2005/08/17 07:59:07 pjd Exp $");
 
 #include <sys/cdefs.h>
 #include <sys/types.h>

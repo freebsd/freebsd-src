@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/arm/include/sf_buf.h,v 1.2 2006/08/08 20:59:38 cognet Exp $
  */
 
 #ifndef _MACHINE_SF_BUF_H_

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/sys/shm.h,v 1.24 2005/08/06 07:20:17 csjp Exp $ */
 /*	$NetBSD: shm.h,v 1.15 1994/06/29 06:45:17 cgd Exp $	*/
 
 /*-

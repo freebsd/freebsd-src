@@ -46,7 +46,7 @@
  *	+1-313-764-2278
  *	netatalk@umich.edu
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netatalk/ddp_input.c,v 1.32 2007/01/12 15:07:51 rwatson Exp $
  */
 
 #include "opt_mac.h"

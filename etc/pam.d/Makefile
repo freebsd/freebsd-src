@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/etc/pam.d/Makefile,v 1.16 2007/06/17 17:25:52 yar Exp $
 
 NO_OBJ=
 

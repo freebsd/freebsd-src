@@ -31,7 +31,7 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  * 
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/firewire/firewire.h,v 1.21 2007/04/24 12:15:05 simokawa Exp $
  *
  */
 

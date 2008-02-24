@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/usb/ucycom.c,v 1.6 2007/06/21 14:42:33 imp Exp $
  */
 
 /*
@@ -39,7 +39,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/usb/ucycom.c,v 1.6 2007/06/21 14:42:33 imp Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

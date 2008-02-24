@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sound/driver.c,v 1.21 2007/01/31 08:53:45 joel Exp $
  */
 
 #include <dev/sound/pcm/sound.h>

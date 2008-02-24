@@ -30,7 +30,7 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 
 ***************************************************************************/
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/em/if_em.c,v 1.184.2.1 2007/11/28 23:24:38 jfv Exp $ */
 
 
 #ifdef HAVE_KERNEL_OPTION_HEADERS

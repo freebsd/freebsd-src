@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/bind/bind/port_after.h,v 1.3 2006/12/10 07:11:03 dougb Exp $ */
 
 #ifndef port_after_h
 #define port_after_h

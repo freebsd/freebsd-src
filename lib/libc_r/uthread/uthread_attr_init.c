@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/uthread/uthread_attr_init.c,v 1.8 2007/01/12 07:25:24 imp Exp $
  */
 #include <string.h>
 #include <stdlib.h>

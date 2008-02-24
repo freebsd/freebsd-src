@@ -35,7 +35,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/txp/if_txp.c,v 1.46 2007/06/12 04:33:21 yongari Exp $");
 
 /*
  * Driver for 3c990 (Typhoon) Ethernet ASIC
@@ -87,7 +87,7 @@ __FBSDID("$FreeBSD$");
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sys/dev/txp/if_txp.c,v 1.46 2007/06/12 04:33:21 yongari Exp $";
 #endif
 
 /*

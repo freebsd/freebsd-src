@@ -57,7 +57,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/arm/sa11x0/sa11x0.c,v 1.9 2007/03/06 10:56:54 piso Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

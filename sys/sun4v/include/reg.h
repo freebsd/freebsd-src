@@ -31,7 +31,7 @@
  *
  *	from: @(#)reg.h	5.5 (Berkeley) 1/18/91
  *	from: FreeBSD: src/sys/i386/include/reg.h,v 1.23 2000/09/21
- * $FreeBSD$
+ * $FreeBSD: src/sys/sun4v/include/reg.h,v 1.1 2006/10/05 06:14:26 kmacy Exp $
  */
 
 #ifndef	_MACHINE_REG_H_

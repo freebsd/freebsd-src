@@ -25,7 +25,7 @@
  *
  */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/tools/regression/lib/libmp/test-libmp.c,v 1.1 2006/07/28 16:00:59 simon Exp $");
 
 #include <mp.h>
 #include <stdio.h>

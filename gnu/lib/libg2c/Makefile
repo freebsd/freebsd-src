@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/lib/libg2c/Makefile,v 1.17 2006/03/18 21:37:03 ru Exp $
 
 .include <bsd.own.mk>
 

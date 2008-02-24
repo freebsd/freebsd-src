@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sound/version.h,v 1.2 2007/06/16 03:37:27 ariff Exp $
  */
 
 #ifndef _SND_VERSION_H_

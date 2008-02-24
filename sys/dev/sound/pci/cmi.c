@@ -53,7 +53,7 @@
 #include "mixer_if.h"
 #include "mpufoi_if.h"
 
-SND_DECLARE_FILE("$FreeBSD$");
+SND_DECLARE_FILE("$FreeBSD: src/sys/dev/sound/pci/cmi.c,v 1.44 2007/06/17 06:10:41 ariff Exp $");
 
 /* Supported chip ID's */
 #define CMI8338A_PCI_ID   0x010013f6

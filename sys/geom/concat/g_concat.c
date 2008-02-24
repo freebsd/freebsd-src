@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/geom/concat/g_concat.c,v 1.29 2006/10/31 21:23:50 pjd Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

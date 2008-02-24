@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/usr.bin/netstat/ipsec.c,v 1.17 2007/07/16 17:15:54 jhb Exp $	*/
 /*	$KAME: ipsec.c,v 1.33 2003/07/25 09:54:32 itojun Exp $	*/
 
 /*
@@ -96,7 +96,7 @@ static char sccsid[] = "@(#)inet.c	8.5 (Berkeley) 5/24/95";
 #endif
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/netstat/ipsec.c,v 1.17 2007/07/16 17:15:54 jhb Exp $");
 
 #include <sys/param.h>
 #include <sys/queue.h>

@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/contrib/ipfilter/ipsend/larp.c,v 1.3 2005/12/30 11:52:23 guido Exp $	*/
 
 /*
  * larp.c (C) 1995-1998 Darren Reed

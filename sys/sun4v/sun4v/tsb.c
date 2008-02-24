@@ -25,7 +25,7 @@
  *
  */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/sun4v/sun4v/tsb.c,v 1.10 2007/05/31 22:52:14 attilio Exp $");
 
 
 #include "opt_ddb.h"

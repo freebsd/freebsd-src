@@ -17,7 +17,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/pci/xrpu.c,v 1.41 2005/02/24 21:32:56 imp Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

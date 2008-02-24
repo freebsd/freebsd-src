@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/cxgbtool/Makefile,v 1.1 2007/03/14 02:51:57 kmacy Exp $
 
 PROG=	cxgbtool
 SRCS=	cxgbtool.c

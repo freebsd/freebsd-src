@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)route.c	8.3.1.1 (Berkeley) 2/23/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/net/route.c,v 1.120.2.1.2.1 2008/01/09 15:23:36 mux Exp $
  */
 
 #include "opt_inet.h"

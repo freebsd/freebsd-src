@@ -1,4 +1,4 @@
-# $FreeBSD$ 
+# $FreeBSD: src/sys/modules/streams/Makefile,v 1.12 2006/07/01 10:51:55 markm Exp $ 
 
 .PATH: ${.CURDIR}/../../dev/streams
 

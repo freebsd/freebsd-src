@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/sbsh/if_sbsh.c,v 1.19 2007/06/08 01:54:22 mjacob Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

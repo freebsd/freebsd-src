@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)defs.h	8.1 (Berkeley) 6/6/93
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/sed/defs.h,v 1.6 2007/07/04 16:42:41 ssouhlal Exp $
  */
 
 /*

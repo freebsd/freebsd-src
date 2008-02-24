@@ -99,7 +99,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/mpt/mpt_pci.c,v 1.51 2007/09/18 16:39:24 ambrisko Exp $");
 
 #include <dev/mpt/mpt.h>
 #include <dev/mpt/mpt_cam.h>

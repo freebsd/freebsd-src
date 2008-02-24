@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/mca/mca_bus.c,v 1.13 2003/08/24 17:54:09 obrien Exp $");
 
 /*
  * References:

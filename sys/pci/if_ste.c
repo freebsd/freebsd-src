@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/pci/if_ste.c,v 1.99 2007/06/15 21:45:41 thompsa Exp $");
 
 #ifdef HAVE_KERNEL_OPTION_HEADERS
 #include "opt_device_polling.h"

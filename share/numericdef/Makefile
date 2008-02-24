@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/numericdef/Makefile,v 1.61 2006/11/09 18:10:34 des Exp $
 
 LOCALES=	af_ZA.ISO8859-1 \
 		am_ET.UTF-8 \

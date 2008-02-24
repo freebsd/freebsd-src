@@ -19,7 +19,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/pkg_install/version/main.c,v 1.7 2006/06/12 22:39:32 obrien Exp $");
 
 #include "lib.h"
 #include "version.h"

@@ -24,7 +24,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/debugscripts/kld_deb.py,v 1.2 2005/03/20 02:08:21 jmg Exp $
 
 import sys
 import os

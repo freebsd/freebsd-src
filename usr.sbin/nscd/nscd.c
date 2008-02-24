@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/nscd/nscd.c,v 1.4 2007/09/27 12:30:11 bushman Exp $");
 
 #include <sys/types.h>
 #include <sys/event.h>

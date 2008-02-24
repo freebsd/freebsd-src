@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/netinet6/in6_src.c,v 1.46 2007/07/05 16:29:39 delphij Exp $	*/
 /*	$KAME: in6_src.c,v 1.132 2003/08/26 04:42:27 keiichi Exp $	*/
 
 /*-

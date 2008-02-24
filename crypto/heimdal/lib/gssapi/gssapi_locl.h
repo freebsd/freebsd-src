@@ -32,7 +32,7 @@
  */
 
 /* $Id: gssapi_locl.h,v 1.24.2.5 2003/09/18 22:01:52 lha Exp $ */
-/* $FreeBSD$ */
+/* $FreeBSD: src/crypto/heimdal/lib/gssapi/gssapi_locl.h,v 1.2 2006/01/02 11:28:42 dfr Exp $ */
 
 #ifndef GSSAPI_LOCL_H
 #define GSSAPI_LOCL_H

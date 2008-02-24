@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/tools/regression/netinet6/inet6_rth/test_subr.c,v 1.1 2007/04/21 11:23:33 mtm Exp $");
 
 #include <sys/types.h>
 

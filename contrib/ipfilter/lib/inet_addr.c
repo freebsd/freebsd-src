@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/contrib/ipfilter/lib/inet_addr.c,v 1.3 2005/12/30 11:52:23 guido Exp $	*/
 
 /*
  * ++Copyright++ 1983, 1990, 1993

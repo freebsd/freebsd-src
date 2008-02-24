@@ -26,7 +26,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/kern_priv.c,v 1.4 2007/07/02 14:03:29 rwatson Exp $
  */
 
 #include "opt_mac.h"

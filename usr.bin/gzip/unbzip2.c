@@ -35,7 +35,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/gzip/unbzip2.c,v 1.1 2007/01/26 10:19:07 delphij Exp $
  */
 
 /* This file is #included by gzip.c */

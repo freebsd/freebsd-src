@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/etc/isdn/Makefile,v 1.14 2006/03/07 09:53:11 yar Exp $
 
 NO_OBJ=
 

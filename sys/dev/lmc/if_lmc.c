@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/lmc/if_lmc.c,v 1.32 2007/05/27 20:50:23 rwatson Exp $
  *
  * Copyright (c) 2002-2004 David Boggs. <boggs@boggs.palo-alto.ca.us>
  * All rights reserved.

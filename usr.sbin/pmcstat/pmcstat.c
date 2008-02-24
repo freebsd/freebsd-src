@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/pmcstat/pmcstat.c,v 1.17 2007/04/27 12:09:31 jkoshy Exp $");
 
 #include <sys/types.h>
 #include <sys/event.h>

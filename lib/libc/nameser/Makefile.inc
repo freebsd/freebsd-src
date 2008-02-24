@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libc/nameser/Makefile.inc,v 1.2 2006/03/23 16:55:13 des Exp $
 
 # nameser sources
 .PATH: ${.CURDIR}/nameser

@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/vm/redzone.c,v 1.1 2006/01/31 11:09:20 pjd Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

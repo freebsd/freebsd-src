@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/sun4v/sun4v/tick.c,v 1.3 2007/05/20 09:31:31 marius Exp $");
 
 #include <sys/param.h>
 #include <sys/kernel.h>

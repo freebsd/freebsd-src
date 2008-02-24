@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/cc/cc_int/Makefile,v 1.52 2007/09/18 23:34:42 cognet Exp $
 
 .include "../Makefile.inc"
 .include "../Makefile.ver"

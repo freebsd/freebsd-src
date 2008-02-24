@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/groff/src/libs/libgroff/Makefile,v 1.9 2005/10/20 10:57:53 ru Exp $
 
 LIB=		groff
 INTERNALLIB=

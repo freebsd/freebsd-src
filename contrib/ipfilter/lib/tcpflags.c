@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/contrib/ipfilter/lib/tcpflags.c,v 1.4 2007/06/04 02:54:32 darrenr Exp $	*/
 
 /*
  * Copyright (C) 2001-2002 by Darren Reed.

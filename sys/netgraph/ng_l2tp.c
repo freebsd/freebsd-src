@@ -36,7 +36,7 @@
  * 
  * Author: Archie Cobbs <archie@freebsd.org>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netgraph/ng_l2tp.c,v 1.17.2.1.2.1 2008/01/09 19:55:51 mav Exp $
  */
 
 /*

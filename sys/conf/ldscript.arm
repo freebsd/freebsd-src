@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/conf/ldscript.arm,v 1.3 2005/11/24 02:25:49 cognet Exp $ */
 OUTPUT_FORMAT("elf32-littlearm", "elf32-bigarm", "elf32-littlearm")
 OUTPUT_ARCH(arm)
 ENTRY(_start)

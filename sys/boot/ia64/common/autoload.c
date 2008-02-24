@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/boot/ia64/common/autoload.c,v 1.1 2006/11/05 22:03:03 marcel Exp $");
 
 int
 ia64_autoload(void)

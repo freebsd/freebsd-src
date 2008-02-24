@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/usr.bin/awk/tran.c.diff,v 1.1 2006/10/25 21:23:20 ru Exp $
 
 Index: tran.c
 ===================================================================

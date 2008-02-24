@@ -1,4 +1,4 @@
-.\" $FreeBSD$
+.\" $FreeBSD: src/libexec/atrun/atrun.man,v 1.13 2007/06/17 14:02:31 yar Exp $
 .Dd June 17, 2007
 .Dt ATRUN 8
 .Os

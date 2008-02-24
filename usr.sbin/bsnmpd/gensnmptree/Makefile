@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/bsnmpd/gensnmptree/Makefile,v 1.4 2005/10/04 15:03:39 harti Exp $
 #
 # Author: Harti Brandt <harti@freebsd.org>
 

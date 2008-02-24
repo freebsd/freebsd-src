@@ -19,7 +19,7 @@
  * improvements that they make and grant CSL redistribution rights.
  *
  *      Utah $Hdr$
- * $FreeBSD$
+ * $FreeBSD: src/sys/gnu/fs/ext2fs/ext2_inode_cnv.c,v 1.15 2005/06/15 02:36:10 rodrigc Exp $
  */
 
 /*

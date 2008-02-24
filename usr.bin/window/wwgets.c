@@ -37,7 +37,7 @@
 #ifndef lint
 static char sccsid[] = "@(#)wwgets.c	8.1 (Berkeley) 6/6/93";
 static char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.bin/window/wwgets.c,v 1.6 2005/08/25 14:09:35 roberto Exp $";
 #endif /* not lint */
 
 #include "ww.h"

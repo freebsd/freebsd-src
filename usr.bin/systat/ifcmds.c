@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/systat/ifcmds.c,v 1.6 2006/11/27 16:14:32 yar Exp $
  */
 
 #include "systat.h"

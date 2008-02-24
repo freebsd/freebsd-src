@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libipsec/ipsec_get_policylen.c,v 1.4 2007/07/01 12:08:05 gnn Exp $");
 
 #include <sys/types.h>
 #include <sys/param.h>

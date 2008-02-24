@@ -54,7 +54,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/sparc64/sparc64/mp_machdep.c,v 1.36 2007/06/16 23:26:00 marius Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/arm/xscale/i8134x/i81342_pci.c,v 1.2 2007/09/30 11:05:14 marius Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

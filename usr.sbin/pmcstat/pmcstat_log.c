@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/pmcstat/pmcstat_log.c,v 1.10 2006/04/05 15:12:25 jkoshy Exp $");
 
 #include <sys/param.h>
 #include <sys/endian.h>

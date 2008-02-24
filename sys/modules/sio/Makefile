@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/sio/Makefile,v 1.10 2006/04/28 21:21:53 marcel Exp $
 
 .if ${MACHINE} == "pc98"
 .PATH: ${.CURDIR}/../../pc98/cbus

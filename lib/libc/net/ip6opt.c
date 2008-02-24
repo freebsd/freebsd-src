@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/net/ip6opt.c,v 1.8 2005/07/19 18:13:58 ume Exp $");
 
 #include <sys/param.h>
 #include <sys/types.h>

@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/compat/ndis/subr_ntoskrnl.c,v 1.90 2007/07/22 20:53:28 thompsa Exp $");
 
 #include <sys/ctype.h>
 #include <sys/unistd.h>

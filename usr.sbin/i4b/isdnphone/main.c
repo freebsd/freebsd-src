@@ -27,7 +27,7 @@
  *	isdnphone - main module
  *	=======================
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/i4b/isdnphone/main.c,v 1.5 2006/07/09 05:53:24 cperciva Exp $
  *
  *      last edit-date: [Tue Aug 27 16:38:55 2002]
  *

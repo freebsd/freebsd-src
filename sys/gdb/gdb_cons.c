@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/gdb/gdb_cons.c,v 1.2 2006/05/26 13:54:27 phk Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

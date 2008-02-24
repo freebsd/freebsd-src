@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sound/pcm/channel.h,v 1.37 2007/06/16 03:37:28 ariff Exp $
  */
 
 struct pcmchan_caps {

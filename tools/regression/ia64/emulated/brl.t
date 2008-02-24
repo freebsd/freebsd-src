@@ -24,7 +24,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 # THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/ia64/emulated/brl.t,v 1.1 2006/07/17 00:27:12 marcel Exp $
 
 my $srcdir = `dirname $0`;
 chomp $srcdir;

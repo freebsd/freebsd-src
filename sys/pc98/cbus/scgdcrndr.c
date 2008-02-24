@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/pc98/cbus/scgdcrndr.c,v 1.13 2005/05/29 11:53:14 nyan Exp $
  */
 
 #include "opt_syscons.h"

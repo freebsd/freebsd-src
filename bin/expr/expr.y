@@ -5,7 +5,7 @@
  *
  * Largely rewritten by J.T. Conklin (jtc@wimsey.com)
  *
- * $FreeBSD$
+ * $FreeBSD: src/bin/expr/expr.y,v 1.25 2007/02/18 19:48:58 ceri Exp $
  */
 
 #include <sys/types.h>

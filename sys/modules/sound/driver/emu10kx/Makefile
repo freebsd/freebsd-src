@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/sound/driver/emu10kx/Makefile,v 1.4 2007/09/12 07:43:43 ariff Exp $
 .PATH: ${.CURDIR}/../../../../dev/sound/pci \
        ${.CURDIR}/../../../../gnu/dev/sound/pci
 

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/netgraph/iface/Makefile,v 1.16 2005/10/14 23:30:13 yar Exp $
 # $Whistle: Makefile,v 1.2 1999/01/19 19:39:21 archie Exp $
 
 KMOD=	ng_iface

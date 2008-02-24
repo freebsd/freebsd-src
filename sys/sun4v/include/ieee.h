@@ -32,7 +32,7 @@
  *
  *	@(#)ieee.h	8.1 (Berkeley) 6/11/93
  *	from: NetBSD: ieee.h,v 1.1.1.1 1998/06/20 04:58:51 eeh Exp
- * $FreeBSD$
+ * $FreeBSD: src/sys/sun4v/include/ieee.h,v 1.1 2006/10/05 06:14:25 kmacy Exp $
  */
 
 #ifndef _MACHINE_IEEE_H_

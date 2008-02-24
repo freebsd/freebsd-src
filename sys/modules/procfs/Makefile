@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/procfs/Makefile,v 1.32 2006/09/27 19:57:01 ru Exp $
 
 .PATH: ${.CURDIR}/../../fs/procfs
 

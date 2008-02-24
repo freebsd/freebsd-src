@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/pc98/include/param.h,v 1.3 2006/01/09 06:05:57 imp Exp $
  */
 
 #define MACHINE		"pc98"

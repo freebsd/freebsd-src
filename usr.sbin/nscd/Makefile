@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/nscd/Makefile,v 1.4 2007/09/27 12:30:11 bushman Exp $
 
 PROG=	nscd
 MAN=	nscd.conf.5 nscd.8

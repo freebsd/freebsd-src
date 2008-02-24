@@ -33,7 +33,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/drm/mach64_drv.h,v 1.2 2005/11/28 23:13:53 anholt Exp $");
 
 #ifndef __MACH64_DRV_H__
 #define __MACH64_DRV_H__

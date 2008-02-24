@@ -36,7 +36,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/fs/tmpfs/tmpfs_fifoops.h,v 1.3 2007/06/28 02:36:41 delphij Exp $
  */
 
 #ifndef _FS_TMPFS_TMPFS_FIFOOPS_H_

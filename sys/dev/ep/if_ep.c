@@ -29,7 +29,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/ep/if_ep.c,v 1.148 2006/12/01 20:29:55 mlaier Exp $");
 
 /*
  *	Modified from the FreeBSD 1.1.5.1 version by:

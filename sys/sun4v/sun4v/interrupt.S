@@ -26,7 +26,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/sun4v/sun4v/interrupt.S,v 1.10 2007/01/19 11:15:34 marius Exp $");
 
 #include "opt_simulator.h"
 #include "opt_trap_trace.h"

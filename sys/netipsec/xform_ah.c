@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/netipsec/xform_ah.c,v 1.15 2007/08/06 14:26:02 rwatson Exp $	*/
 /*	$OpenBSD: ip_ah.c,v 1.63 2001/06/26 06:18:58 angelos Exp $ */
 /*-
  * The authors of this code are John Ioannidis (ji@tla.org),

@@ -18,7 +18,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sbin/sconfig/sconfig.c,v 1.4 2006/09/12 17:54:35 charnier Exp $");
 
 #include <stdio.h>
 #include <stdlib.h>

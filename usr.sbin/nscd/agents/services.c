@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/nscd/agents/services.c,v 1.3 2007/09/27 12:30:10 bushman Exp $");
 
 #include <sys/param.h>
 #include <sys/types.h>

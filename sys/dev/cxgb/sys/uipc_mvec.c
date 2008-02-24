@@ -29,7 +29,7 @@
  ***************************************************************************/
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/cxgb/sys/uipc_mvec.c,v 1.14 2007/05/28 22:57:27 kmacy Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

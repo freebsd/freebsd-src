@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/ti/Makefile,v 1.17 2005/12/10 00:38:32 scottl Exp $
 
 .PATH: ${.CURDIR}/../../dev/ti
 

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/geom/bde/g_bde_work.c,v 1.28 2006/08/04 07:56:34 yar Exp $
  */
 /*
  * This source file contains the state-engine which makes things happen in the

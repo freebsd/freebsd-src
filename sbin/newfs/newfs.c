@@ -48,7 +48,7 @@ static char sccsid[] = "@(#)newfs.c	8.13 (Berkeley) 5/1/95";
 #endif /* not lint */
 #endif
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sbin/newfs/newfs.c,v 1.82 2007/03/02 20:07:59 pjd Exp $");
 
 /*
  * newfs: friendly front end to mkfs

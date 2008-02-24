@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/yppush/yppush_main.c,v 1.22 2006/08/16 12:58:41 thomas Exp $");
 
 #include <errno.h>
 #include <signal.h>

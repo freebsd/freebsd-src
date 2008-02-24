@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/kernel,v 1.2 2006/07/30 12:54:37 mckay Exp $
 #
 
 # PROVIDE: kernel

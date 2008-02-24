@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/arm/include/armreg.h,v 1.6 2007/07/27 14:54:27 cognet Exp $
  */
 
 #ifndef MACHINE_ARMREG_H

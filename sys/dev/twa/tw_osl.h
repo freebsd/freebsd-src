@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/dev/twa/tw_osl.h,v 1.5.2.1 2007/10/19 15:21:16 scottl Exp $
  */
 
 /*

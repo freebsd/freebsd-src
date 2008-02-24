@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/3dfx/Makefile,v 1.13 2006/03/03 21:37:37 yar Exp $
 
 MAINTAINER=	cokane@FreeBSD.org
 

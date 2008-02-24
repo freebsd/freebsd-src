@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/arm/sa11x0/files.sa11x0,v 1.2 2004/05/14 13:26:52 cognet Exp $
 arm/sa11x0/assabet_machdep.c	optional	assabet
 arm/sa11x0/sa11x0.c		optional	saip
 arm/sa11x0/sa11x0_ost.c		optional	saip

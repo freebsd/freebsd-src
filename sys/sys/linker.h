@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/linker.h,v 1.46 2006/06/20 20:59:55 jhb Exp $
  */
 
 #ifndef _SYS_LINKER_H_

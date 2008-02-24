@@ -24,7 +24,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/net/getnetbynis.c,v 1.21 2006/04/15 16:20:27 ume Exp $");
 
 #include <sys/param.h>
 #include <sys/socket.h>

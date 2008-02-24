@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/nscd,v 1.6 2007/09/28 10:38:08 bushman Exp $
 #
 
 # PROVIDE: nscd

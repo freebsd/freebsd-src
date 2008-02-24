@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/contrib/ipfilter/lib/facpri.c,v 1.5 2007/06/04 02:54:32 darrenr Exp $	*/
 
 /*
  * Copyright (C) 2000-2006 by Darren Reed.

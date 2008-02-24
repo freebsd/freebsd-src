@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/firewire/if_fwipvar.h,v 1.5 2007/06/06 14:31:36 simokawa Exp $
  */
 
 #ifndef _NET_IF_FWIPVAR_H_

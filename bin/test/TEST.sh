@@ -28,7 +28,7 @@
 #
 # TEST.sh - check if test(1) or builtin test works
 #
-# $FreeBSD$
+# $FreeBSD: src/bin/test/TEST.sh,v 1.8 2005/01/10 08:39:26 imp Exp $
 
 # force a specified test program, e.g. `env test=/bin/test sh TEST.sh'
 : ${test=test}		

@@ -24,7 +24,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/boot/arm/at91/libat91/strcmp.c,v 1.2 2006/11/09 20:32:36 imp Exp $");
 
 #include "lib.h"
 

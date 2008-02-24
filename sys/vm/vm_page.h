@@ -57,7 +57,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/vm/vm_page.h,v 1.152 2007/09/27 04:21:59 alc Exp $
  */
 
 /*

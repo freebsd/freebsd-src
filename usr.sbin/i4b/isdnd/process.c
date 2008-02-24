@@ -29,7 +29,7 @@
  *
  *	$Id: process.c,v 1.8 1999/12/13 21:25:25 hm Exp $ 
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/i4b/isdnd/process.c,v 1.8 2006/05/13 12:42:55 hm Exp $
  *
  *      last edit-date: [Sat May 13 13:09:55 2006]
  *

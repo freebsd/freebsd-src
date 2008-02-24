@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sbin/camcontrol/Makefile,v 1.17 2007/09/08 20:24:12 ken Exp $
 
 PROG=	camcontrol
 SRCS=	camcontrol.c util.c

@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/contrib/ipfilter/ipsend/resend.c,v 1.5 2007/06/04 02:54:31 darrenr Exp $	*/
 
 /*
  * resend.c (C) 1995-1998 Darren Reed

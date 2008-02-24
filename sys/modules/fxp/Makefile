@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/fxp/Makefile,v 1.18 2005/09/27 18:10:34 mlaier Exp $
 
 .PATH: ${.CURDIR}/../../dev/fxp
 

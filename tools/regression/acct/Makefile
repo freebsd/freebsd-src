@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/acct/Makefile,v 1.1 2007/05/22 05:52:04 dds Exp $
 #
 # "make" will compile what is needed and run the regression tests.
 #

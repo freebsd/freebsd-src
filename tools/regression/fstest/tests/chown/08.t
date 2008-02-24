@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/chown/08.t,v 1.1 2007/01/17 01:42:08 pjd Exp $
 
 desc="chown returns EPERM if the named file has its immutable or append-only flag set"
 

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/crunch/crunchide/Makefile,v 1.8 2006/08/22 07:51:09 ru Exp $
 
 PROG=   crunchide
 SRCS=	crunchide.c

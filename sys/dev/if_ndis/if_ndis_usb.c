@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/if_ndis/if_ndis_usb.c,v 1.9 2007/06/18 22:24:32 imp Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

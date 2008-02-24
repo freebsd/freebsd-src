@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/secure/lib/libssl/Makefile,v 1.25 2006/07/29 19:41:38 simon Exp $
 
 LIB=		ssl
 SHLIB_MAJOR=	5

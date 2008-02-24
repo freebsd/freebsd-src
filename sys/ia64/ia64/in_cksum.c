@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/ia64/ia64/in_cksum.c,v 1.4 2005/01/06 22:18:22 imp Exp $ */
 /* $NetBSD: in_cksum.c,v 1.7 1997/09/02 13:18:15 thorpej Exp $ */
 
 /*-

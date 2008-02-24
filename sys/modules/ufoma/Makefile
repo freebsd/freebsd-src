@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/ufoma/Makefile,v 1.1 2006/01/09 17:46:36 takawata Exp $
 
 .PATH: ${.CURDIR}/../../dev/usb
 

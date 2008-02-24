@@ -1,5 +1,5 @@
 #	@(#)Makefile    5.11 (Berkeley) 9/6/90
-# $FreeBSD$
+# $FreeBSD: src/lib/libc/rpc/Makefile.inc,v 1.28 2006/03/13 01:14:59 deischen Exp $
 
 .PATH: ${.CURDIR}/rpc ${.CURDIR}/.
 SRCS+=	auth_none.c auth_unix.c authunix_prot.c bindresvport.c clnt_bcast.c \

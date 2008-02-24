@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/include/spinlock.h,v 1.8 2007/01/12 07:31:30 imp Exp $
  *
  * Lock definitions used in both libc and libpthread.
  *

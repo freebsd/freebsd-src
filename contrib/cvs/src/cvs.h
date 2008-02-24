@@ -9,7 +9,7 @@
 /*
  * basic information used in all source files
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/cvs/src/cvs.h,v 1.20 2004/06/10 19:12:50 peter Exp $
  */
 
 

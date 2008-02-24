@@ -45,7 +45,7 @@ static char sccsid[] = "@(#)field.c	8.4 (Berkeley) 4/2/94";
 #endif
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/chpass/field.c,v 1.9 2004/01/18 21:46:39 charnier Exp $");
 
 #include <sys/param.h>
 #include <sys/stat.h>

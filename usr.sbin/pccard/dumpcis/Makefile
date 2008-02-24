@@ -1,6 +1,6 @@
 #	pccardc Makefile
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/pccard/dumpcis/Makefile,v 1.1 2006/10/18 21:09:43 imp Exp $
 
 .PATH: ${.CURDIR}/../pccardd ${.CURDIR}/../pccardc
 

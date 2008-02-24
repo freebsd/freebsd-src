@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/opencrypto/criov.c,v 1.5 2006/06/04 22:15:13 pjd Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

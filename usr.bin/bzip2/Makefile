@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/bzip2/Makefile,v 1.9 2007/03/28 07:48:03 delphij Exp $
 
 BZ2DIR=	${.CURDIR}/../../contrib/bzip2
 .PATH: ${BZ2DIR}

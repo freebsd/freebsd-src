@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/Makefile,v 1.341.2.1 2007/11/22 01:33:08 delphij Exp $
 #
 # The user-driven targets are:
 #

@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libarchive/test/test_archive_api_feature.c,v 1.3 2007/07/06 15:43:11 kientzle Exp $");
 
 DEFINE_TEST(test_archive_api_feature)
 {

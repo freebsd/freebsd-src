@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/uthread/uthread_switch_np.c,v 1.5 2001/04/10 04:19:20 deischen Exp $
  */
 #include <errno.h>
 #include <pthread.h>

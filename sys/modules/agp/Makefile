@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/agp/Makefile,v 1.18 2006/09/05 16:55:13 anholt Exp $
 
 .PATH: ${.CURDIR}/../../pci
 

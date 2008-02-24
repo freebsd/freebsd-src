@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/re/Makefile,v 1.3 2005/09/27 18:10:37 mlaier Exp $
 
 .PATH: ${.CURDIR}/../../dev/re
 

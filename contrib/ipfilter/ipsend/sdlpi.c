@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/contrib/ipfilter/ipsend/sdlpi.c,v 1.4 2007/06/04 02:54:31 darrenr Exp $	*/
 
 /*
  * (C)opyright 1992-1998 Darren Reed. (from tcplog)

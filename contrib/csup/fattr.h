@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/csup/fattr.h,v 1.1.1.1 2006/03/03 04:11:26 mux Exp $
  */
 #ifndef _FATTR_H_
 #define _FATTR_H_

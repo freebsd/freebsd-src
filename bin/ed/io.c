@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/bin/ed/io.c,v 1.14 2003/01/01 18:48:39 schweikh Exp $");
 
 #include "ed.h"
 

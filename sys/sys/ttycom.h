@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ttycom.h	8.1 (Berkeley) 3/28/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/ttycom.h,v 1.25 2006/09/27 19:57:02 ru Exp $
  */
 
 #ifndef	_SYS_TTYCOM_H_

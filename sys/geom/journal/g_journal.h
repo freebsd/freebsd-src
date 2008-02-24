@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/geom/journal/g_journal.h,v 1.1 2006/10/31 21:31:00 pjd Exp $
  */
 
 #ifndef	_G_JOURNAL_H_

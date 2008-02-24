@@ -9,7 +9,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/inflate.c,v 1.20 2005/10/31 15:41:25 rwatson Exp $");
 
 #include <sys/param.h>
 #include <sys/inflate.h>

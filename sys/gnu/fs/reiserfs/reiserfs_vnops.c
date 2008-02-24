@@ -4,7 +4,7 @@
  * 
  * Ported to FreeBSD by Jean-Sébastien Pédron <jspedron@club-internet.fr>
  * 
- * $FreeBSD$
+ * $FreeBSD: src/sys/gnu/fs/reiserfs/reiserfs_vnops.c,v 1.2 2007/02/15 22:08:34 pjd Exp $
  */
 
 #include <gnu/fs/reiserfs/reiserfs_fs.h>

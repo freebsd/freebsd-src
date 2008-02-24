@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/csup/idcache.h,v 1.1.1.1 2006/03/14 03:51:12 mux Exp $
  */
 #ifndef _IDCACHE_H_
 #define _IDCACHE_H_

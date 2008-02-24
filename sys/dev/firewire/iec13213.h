@@ -31,7 +31,7 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  * 
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/firewire/iec13213.h,v 1.14 2005/01/06 01:42:41 imp Exp $
  *
  */
 

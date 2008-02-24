@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/geom/multipath/g_multipath.h,v 1.1 2007/02/27 04:01:58 mjacob Exp $
  */
 /*
  * Based upon work by Pawel Jakub Dawidek <pjd@FreeBSD.org> for all of the

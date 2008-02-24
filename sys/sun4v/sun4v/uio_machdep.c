@@ -36,7 +36,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/sun4v/sun4v/uio_machdep.c,v 1.2 2006/12/07 02:03:18 kmacy Exp $");
 
 #include <sys/param.h>
 #include <sys/kernel.h>

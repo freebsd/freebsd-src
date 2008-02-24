@@ -26,7 +26,7 @@
  * This file defines the ABI between the userland gpib library and the
  * kernel.  This file should not be used anywhere else.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ieee488/ibfoo_int.h,v 1.2 2005/02/12 21:07:09 phk Exp $
  */
 
 #include <sys/ioccom.h>

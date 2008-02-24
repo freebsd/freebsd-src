@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/nscd/debug.c,v 1.2 2007/09/27 12:30:11 bushman Exp $");
 
 #include <stdio.h>
 #include "debug.h"

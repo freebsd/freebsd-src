@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/compat/svr4/svr4_ioctl.c,v 1.24 2005/09/28 07:03:02 rwatson Exp $");
 
 #include <sys/param.h>
 #include <sys/proc.h>

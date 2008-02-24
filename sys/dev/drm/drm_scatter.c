@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/drm/drm_scatter.c,v 1.3 2006/05/17 06:29:36 anholt Exp $");
 
 #include "dev/drm/drmP.h"
 

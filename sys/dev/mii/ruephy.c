@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/mii/ruephy.c,v 1.6 2007/01/13 00:06:41 marius Exp $");
 
 /*
  * driver for RealTek RTL8150 internal PHY

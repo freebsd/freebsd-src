@@ -45,7 +45,7 @@ static char sccsid[] = "@(#)login.c	8.4 (Berkeley) 4/2/94";
 #endif
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/login/login.c,v 1.106 2007/07/04 00:00:40 scf Exp $");
 
 /*
  * login [ name ]

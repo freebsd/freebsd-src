@@ -19,7 +19,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/cdcontrol/cdcontrol.c,v 1.49 2005/10/19 15:37:43 stefanf Exp $");
 
 #include <sys/cdio.h>
 #include <sys/cdrio.h>

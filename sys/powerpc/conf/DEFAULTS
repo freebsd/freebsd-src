@@ -1,7 +1,7 @@
 #
 # DEFAULTS -- Default kernel configuration file for FreeBSD/powerpc
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/powerpc/conf/DEFAULTS,v 1.9 2007/06/13 05:07:42 marcel Exp $
 
 machine		powerpc
 

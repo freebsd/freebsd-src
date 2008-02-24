@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/boot/ia64/common/copy.c,v 1.9 2006/11/19 20:04:11 marcel Exp $");
 
 #include <stand.h>
 #include <ia64/include/vmparam.h>

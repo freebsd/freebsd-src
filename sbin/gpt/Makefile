@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sbin/gpt/Makefile,v 1.7 2005/09/01 02:49:20 marcel Exp $
 
 PROG=	gpt
 SRCS=	add.c create.c destroy.c gpt.c label.c map.c migrate.c recover.c \

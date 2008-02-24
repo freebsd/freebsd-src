@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/mk/bsd.port.mk,v 1.309 2006/11/19 16:28:52 ru Exp $
 
 PORTSDIR?=	/usr/ports
 BSDPORTMK?=	${PORTSDIR}/Mk/bsd.port.mk

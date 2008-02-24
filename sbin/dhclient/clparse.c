@@ -41,7 +41,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sbin/dhclient/clparse.c,v 1.3 2007/02/09 17:50:26 emaste Exp $");
 
 #include "dhcpd.h"
 #include "dhctoken.h"

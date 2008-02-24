@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/powerpc/powerpc/trap_subr.S,v 1.16 2005/12/23 13:05:27 grehan Exp $ */
 /* $NetBSD: trap_subr.S,v 1.20 2002/04/22 23:20:08 kleink Exp $	*/
 
 /*-

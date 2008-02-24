@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libkse/thread/thr_open.c,v 1.19 2007/10/09 13:42:28 obrien Exp $
  *
  */
 #include <stdarg.h>

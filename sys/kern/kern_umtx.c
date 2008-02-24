@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/kern_umtx.c,v 1.61.2.1 2007/12/20 07:15:40 davidxu Exp $");
 
 #include "opt_compat.h"
 #include <sys/param.h>

@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/sparc64/pci/ofw_pcibus.c,v 1.16.2.1 2007/12/04 21:40:47 marius Exp $");
 
 #include "opt_ofw_pci.h"
 

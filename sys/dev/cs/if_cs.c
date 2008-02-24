@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/cs/if_cs.c,v 1.45 2006/09/15 15:16:10 glebius Exp $");
 
 /*
  *

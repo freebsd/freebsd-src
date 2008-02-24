@@ -29,7 +29,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/ddb/db_access.c,v 1.20 2005/12/04 02:12:39 ru Exp $");
 
 #include <sys/param.h>
 #include <sys/kdb.h>

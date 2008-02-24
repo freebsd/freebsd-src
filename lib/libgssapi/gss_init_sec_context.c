@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/lib/libgssapi/gss_init_sec_context.c,v 1.4 2007/06/30 07:47:45 dfr Exp $
  */
 
 #include <gssapi/gssapi.h>

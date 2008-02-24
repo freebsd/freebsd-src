@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/tools/crypto/ipsecstats.c,v 1.2 2007/09/19 08:50:55 gnn Exp $
  */
 #include <stdio.h>
 #include <sys/types.h>

@@ -33,7 +33,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGES.
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/tools/ath/athdebug/athdebug.c,v 1.2 2005/12/13 22:13:41 sam Exp $
  */
 
 /*

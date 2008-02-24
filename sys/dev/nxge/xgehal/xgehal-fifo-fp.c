@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/nxge/xgehal/xgehal-fifo-fp.c,v 1.1.2.1 2007/11/02 00:52:33 rwatson Exp $
  */
 
 #ifdef XGE_DEBUG_FP

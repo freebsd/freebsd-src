@@ -57,7 +57,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/vm/vm_kern.h,v 1.29 2006/11/20 16:23:34 ru Exp $
  */
 
 #ifndef _VM_VM_KERN_H_

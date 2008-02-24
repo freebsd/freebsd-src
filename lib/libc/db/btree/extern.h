@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)extern.h	8.10 (Berkeley) 7/20/94
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/db/btree/extern.h,v 1.4 2007/01/09 00:27:50 imp Exp $
  */
 
 int	 __bt_close(DB *);

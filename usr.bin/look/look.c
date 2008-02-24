@@ -46,7 +46,7 @@ static char sccsid[] = "@(#)look.c	8.2 (Berkeley) 5/4/95";
 #endif
 #endif /* not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/look/look.c,v 1.18 2006/07/18 10:19:46 stefanf Exp $");
 
 /*
  * look -- find lines in a sorted list.

@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/string/fls.c,v 1.3 2007/01/09 00:28:12 imp Exp $");
 
 #include <strings.h>
 

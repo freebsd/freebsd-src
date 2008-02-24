@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/lib/libc/ia64/gen/_set_tp.c,v 1.2 2006/08/30 00:39:06 marcel Exp $
  */
 
 void

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libc/powerpc/sys/Makefile.inc,v 1.3 2007/07/04 23:23:00 peter Exp $
 
 MDASM+=	brk.S cerror.S exect.S pipe.S ptrace.S sbrk.S setlogin.S
 

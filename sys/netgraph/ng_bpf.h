@@ -37,7 +37,7 @@
  *
  * Author: Archie Cobbs <archie@freebsd.org>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netgraph/ng_bpf.h,v 1.11 2005/02/12 18:10:26 ru Exp $
  * $Whistle: ng_bpf.h,v 1.3 1999/12/03 20:30:23 archie Exp $
  */
 

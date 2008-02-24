@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/fs/udf/ecma167-udf.h,v 1.7 2006/07/25 14:15:50 yar Exp $
  */
 
 /* ecma167-udf.h */

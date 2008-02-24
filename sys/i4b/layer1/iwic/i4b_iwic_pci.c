@@ -32,7 +32,7 @@
  *---------------------------------------------------------------------------*/
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i4b/layer1/iwic/i4b_iwic_pci.c,v 1.16 2007/07/06 07:17:21 bz Exp $");
 
 #include "opt_i4b.h"
 

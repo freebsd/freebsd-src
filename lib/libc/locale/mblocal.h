@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/locale/mblocal.h,v 1.5 2005/02/27 15:11:09 phantom Exp $
  */
 
 #ifndef _MBLOCAL_H_

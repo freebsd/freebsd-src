@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/fdescfs/Makefile,v 1.12 2002/01/11 15:48:39 ru Exp $
 
 .PATH: ${.CURDIR}/../../fs/fdescfs
 

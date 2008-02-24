@@ -16,7 +16,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/gnu/usr.bin/man/man/man.c,v 1.65 2007/09/25 21:41:22 edwin Exp $";
 #endif /* not lint */
 
 #define MAN_MAIN

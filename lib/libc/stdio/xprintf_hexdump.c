@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/stdio/xprintf_hexdump.c,v 1.1 2005/12/16 18:56:38 phk Exp $
  */
 
 #include <namespace.h>

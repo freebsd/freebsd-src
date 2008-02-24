@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/ypbind,v 1.10.4.1 2008/01/28 07:58:32 dougb Exp $
 #
 
 # PROVIDE: ypbind

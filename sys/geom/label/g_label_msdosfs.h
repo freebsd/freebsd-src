@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/geom/label/g_label_msdosfs.h,v 1.2 2006/09/30 08:16:49 pjd Exp $
  */
 
 #include <sys/types.h>

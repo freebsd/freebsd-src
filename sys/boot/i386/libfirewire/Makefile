@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/i386/libfirewire/Makefile,v 1.1 2007/05/29 14:35:57 simokawa Exp $
 
 LIB=		firewire
 INTERNALLIB=

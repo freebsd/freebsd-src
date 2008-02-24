@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/bge/if_bge.c,v 1.198.2.2.2.1 2008/01/22 17:30:13 jkim Exp $");
 
 /*
  * Broadcom BCM570x family gigabit ethernet driver for FreeBSD.

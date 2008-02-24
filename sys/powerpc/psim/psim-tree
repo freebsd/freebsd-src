@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/powerpc/psim/psim-tree,v 1.2 2004/02/04 13:23:05 grehan Exp $
 #
 # Simple psim h/w description
 #

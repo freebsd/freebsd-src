@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tftp.h	8.1 (Berkeley) 6/2/93
- * $FreeBSD$
+ * $FreeBSD: src/include/arpa/tftp.h,v 1.6 2007/08/01 11:59:09 ticso Exp $
  */
 
 #ifndef _ARPA_TFTP_H_

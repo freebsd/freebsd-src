@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/lib/libsupc++/Makefile,v 1.9 2007/05/19 04:25:56 kan Exp $
 
 GCCDIR=	${.CURDIR}/../../../contrib/gcc
 GCCLIB=	${.CURDIR}/../../../contrib/gcclibs

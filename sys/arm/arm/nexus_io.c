@@ -37,7 +37,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/arm/arm/nexus_io.c,v 1.7 2006/11/19 23:46:50 sam Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

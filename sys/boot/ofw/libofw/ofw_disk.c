@@ -24,7 +24,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/boot/ofw/libofw/ofw_disk.c,v 1.13 2005/10/25 12:51:49 marius Exp $");
 
 /*
  * Disk I/O routines using Open Firmware

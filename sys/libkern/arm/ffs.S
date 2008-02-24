@@ -29,7 +29,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/libkern/arm/ffs.S,v 1.4 2005/01/07 00:24:33 imp Exp $");
 
 
 /*

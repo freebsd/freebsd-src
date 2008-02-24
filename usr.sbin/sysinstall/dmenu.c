@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/sysinstall/dmenu.c,v 1.47.2.1 2007/11/01 13:07:28 kensmith Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.

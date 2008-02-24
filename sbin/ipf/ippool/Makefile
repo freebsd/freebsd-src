@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$FreeBSD: src/sbin/ipf/ippool/Makefile,v 1.3 2006/09/10 08:58:47 obrien Exp $
 
 PROG=		ippool
 SRCS=		${GENHDRS} ippool_y.c ippool_l.c kmem.c ippool.c

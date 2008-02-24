@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netinet/in_cksum.c,v 1.10 2007/10/07 20:44:22 silby Exp $");
 
 #include <sys/param.h>
 #include <sys/mbuf.h>

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/arm/at91/Makefile.inc,v 1.7 2007/07/13 14:27:04 imp Exp $
 
 .if !target(__at91_boot_Makefile.inc__)
 .PATH:	${.CURDIR}/../../../../libkern ${.CURDIR}/../../../../libkern/arm

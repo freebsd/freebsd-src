@@ -1,4 +1,4 @@
-.\" $FreeBSD$
+.\" $FreeBSD: src/tools/build/options/WITHOUT_KVM_SUPPORT,v 1.1 2007/06/13 02:08:04 sepotvin Exp $
 Set to build some programs without optional
 .Nm libkvm
 support.

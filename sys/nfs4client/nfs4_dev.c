@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/nfs4client/nfs4_dev.c,v 1.9 2006/05/13 00:16:35 cel Exp $ */
 /* $Id: nfs4_dev.c,v 1.10 2003/11/05 14:58:59 rees Exp $ */
 
 /*-

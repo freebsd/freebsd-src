@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/rename/18.t,v 1.1 2007/01/17 01:42:10 pjd Exp $
 
 desc="rename returns EINVAL when the 'from' argument is a parent directory of 'to'"
 

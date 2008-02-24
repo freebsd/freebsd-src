@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/gem/if_gem.c,v 1.44.2.1 2007/10/18 05:12:20 yongari Exp $");
 
 /*
  * Driver for Apple GMAC, Sun ERI and Sun GEM Ethernet controllers

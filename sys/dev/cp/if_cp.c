@@ -22,7 +22,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/cp/if_cp.c,v 1.34 2007/07/27 11:59:56 rwatson Exp $");
 
 #include <sys/param.h>
 #include <sys/ucred.h>

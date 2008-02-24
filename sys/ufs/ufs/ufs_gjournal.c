@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/ufs/ufs/ufs_gjournal.c,v 1.2 2007/05/28 00:28:15 pjd Exp $");
 
 #include "opt_ufs.h"
 

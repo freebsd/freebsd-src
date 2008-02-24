@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/hifn/hifn7751reg.h,v 1.7 2007/03/21 03:42:49 sam Exp $ */
 /*	$OpenBSD: hifn7751reg.h,v 1.35 2002/04/08 17:49:42 jason Exp $	*/
 
 /*-

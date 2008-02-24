@@ -42,7 +42,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/stge/if_stge.c,v 1.9 2007/05/01 03:40:57 yongari Exp $");
 
 #ifdef HAVE_KERNEL_OPTION_HEADERS
 #include "opt_device_polling.h"

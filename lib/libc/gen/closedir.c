@@ -31,7 +31,7 @@
 static char sccsid[] = "@(#)closedir.c	8.1 (Berkeley) 6/10/93";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/gen/closedir.c,v 1.11 2007/01/09 00:27:53 imp Exp $");
 
 #include "namespace.h"
 #include <sys/types.h>

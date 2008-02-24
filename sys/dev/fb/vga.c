@@ -29,7 +29,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/fb/vga.c,v 1.36 2005/12/04 02:12:41 ru Exp $");
 
 #include "opt_vga.h"
 #include "opt_fb.h"

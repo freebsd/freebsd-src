@@ -41,7 +41,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/compat/svr4/svr4_socket.c,v 1.27 2006/07/21 20:40:13 jhb Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

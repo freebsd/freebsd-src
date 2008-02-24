@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/gnu/usr.bin/gdb/arch/powerpc/config.h,v 1.1 2006/08/24 02:44:59 marcel Exp $ */
 
 /* config.h.  Generated automatically by configure.  */
 /* config.in.  Generated automatically from configure.in by autoheader.  */

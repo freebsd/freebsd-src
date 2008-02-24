@@ -73,7 +73,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/fs/coda/coda_namecache.c,v 1.23 2007/07/12 21:04:57 rwatson Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

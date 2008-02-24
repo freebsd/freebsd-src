@@ -42,7 +42,7 @@ static char const sccsid[] = "@(#)from: arp.c	8.2 (Berkeley) 1/2/94";
 #endif /* not lint */
 #endif
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/arp/arp.c,v 1.65 2007/03/06 09:32:40 kevlo Exp $");
 
 /*
  * arp - display, set, and delete arp table entries

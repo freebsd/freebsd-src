@@ -34,7 +34,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/amd64/include/_stdint.h,v 1.3 2004/05/18 16:04:56 stefanf Exp $
  */
 
 #ifndef _MACHINE__STDINT_H_

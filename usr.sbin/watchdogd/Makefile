@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/watchdogd/Makefile,v 1.5 2005/08/24 19:28:33 pjd Exp $
 
 PROG=	watchdogd
 LINKS=	${BINDIR}/watchdogd ${BINDIR}/watchdog

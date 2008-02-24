@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/dig/Makefile,v 1.13 2007/06/02 23:19:57 dougb Exp $
 
 BIND_DIR=	${.CURDIR}/../../contrib/bind9
 LIB_BIND_REL=	../../lib/bind

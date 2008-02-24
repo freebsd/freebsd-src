@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/build/make_check/Makefile,v 1.29 2007/10/01 18:09:42 ru Exp $
 
 # Test for broken LHS expansion.
 # This *must* cause make(1) to detect a recursive variable, and fail as such.

@@ -36,7 +36,7 @@
  *---------------------------------------------------------------------------*/
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i4b/layer1/ihfc/i4b_ihfc_pnp.c,v 1.13 2007/07/06 07:17:19 bz Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

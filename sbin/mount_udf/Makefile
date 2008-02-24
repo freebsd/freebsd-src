@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sbin/mount_udf/Makefile,v 1.6 2006/07/17 20:53:25 stefanf Exp $
 
 PROG=	mount_udf
 SRCS=	mount_udf.c getmntopts.c

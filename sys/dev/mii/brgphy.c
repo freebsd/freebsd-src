@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/mii/brgphy.c,v 1.70 2007/06/08 02:34:44 davidch Exp $");
 
 /*
  * Driver for the Broadcom BCM54xx/57xx 1000baseTX PHY.

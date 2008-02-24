@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libmagic/config.h,v 1.6.4.1 2008/02/06 18:26:38 obrien Exp $ */
 
 #include <osreldate.h>
 

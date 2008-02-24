@@ -34,7 +34,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/at/parsetime.c,v 1.27 2005/08/18 08:18:02 stefanf Exp $");
 
 /* System Headers */
 

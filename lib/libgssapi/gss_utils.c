@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/lib/libgssapi/gss_utils.c,v 1.2 2007/04/04 02:28:48 kan Exp $
  */
 
 #include <gssapi/gssapi.h>

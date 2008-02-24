@@ -1,6 +1,6 @@
 #	@(#)README	8.1 (Berkeley) 6/6/93
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/col/README,v 1.2 2001/06/17 04:24:16 mikeh Exp $
 
 col - filter out reverse line feeds.
 

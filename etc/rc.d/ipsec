@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/ipsec,v 1.19.4.1 2008/01/28 07:58:31 dougb Exp $
 #
 
 # PROVIDE: ipsec

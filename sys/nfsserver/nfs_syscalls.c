@@ -33,7 +33,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/nfsserver/nfs_syscalls.c,v 1.116.2.1 2007/10/12 03:59:18 mohans Exp $");
 
 #include "opt_inet6.h"
 

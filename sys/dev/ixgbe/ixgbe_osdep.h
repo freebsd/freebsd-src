@@ -30,7 +30,7 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 
 ***************************************************************************/
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/ixgbe/ixgbe_osdep.h,v 1.3.2.1 2007/11/28 23:52:14 jfv Exp $ */
 
 #ifndef _IXGBE_OS_H_
 #define _IXGBE_OS_H_

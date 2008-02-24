@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/compat/linux/linux_futex.c,v 1.10 2007/05/23 08:33:05 kib Exp $");
 #if 0
 __KERNEL_RCSID(1, "$NetBSD: linux_futex.c,v 1.7 2006/07/24 19:01:49 manu Exp $");
 #endif

@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/cleartmp,v 1.18 2006/10/16 13:01:45 yar Exp $
 #
 
 # PROVIDE: cleartmp

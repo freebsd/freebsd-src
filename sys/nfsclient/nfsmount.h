@@ -30,7 +30,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsmount.h	8.3 (Berkeley) 3/30/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/nfsclient/nfsmount.h,v 1.32.2.1 2007/10/12 19:18:46 mohans Exp $
  */
 
 #ifndef _NFSCLIENT_NFSMOUNT_H_

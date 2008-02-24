@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/rmdir/05.t,v 1.1 2007/01/17 01:42:11 pjd Exp $
 
 desc="rmdir returns ELOOP if too many symbolic links were encountered in translating the pathname"
 

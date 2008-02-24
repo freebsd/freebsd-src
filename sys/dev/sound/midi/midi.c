@@ -42,7 +42,7 @@
   */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/sound/midi/midi.c,v 1.24 2007/04/02 06:03:47 ariff Exp $");
 
 #include <sys/param.h>
 #include <sys/queue.h>

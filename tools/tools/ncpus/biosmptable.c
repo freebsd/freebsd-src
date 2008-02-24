@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/tools/tools/ncpus/biosmptable.c,v 1.2 2006/03/06 21:51:27 sam Exp $");
 
 #include <sys/types.h>
 #include <machine/mptable.h>

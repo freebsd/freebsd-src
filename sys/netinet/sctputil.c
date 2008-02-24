@@ -31,7 +31,7 @@
 /* $KAME: sctputil.c,v 1.37 2005/03/07 23:26:09 itojun Exp $	 */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netinet/sctputil.c,v 1.65.2.4.2.1 2008/02/02 12:44:13 rwatson Exp $");
 
 #include <netinet/sctp_os.h>
 #include <netinet/sctp_pcb.h>

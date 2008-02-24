@@ -27,7 +27,7 @@
  *	i4b daemon - config file processing
  *	-----------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/i4b/isdnd/rc_config.c,v 1.18 2006/05/13 12:42:55 hm Exp $
  *
  *      last edit-date: [Sat May 13 13:11:48 2006]
  *

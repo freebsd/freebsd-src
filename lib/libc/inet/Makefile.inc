@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libc/inet/Makefile.inc,v 1.2 2006/03/23 16:55:12 des Exp $
 
 # inet sources
 .PATH: ${.CURDIR}/inet

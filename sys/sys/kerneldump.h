@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/kerneldump.h,v 1.8 2005/10/03 14:06:00 cognet Exp $
  */
 
 #ifndef _SYS_KERNELDUMP_H

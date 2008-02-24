@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/fs/nwfs/nwfs_subr.h,v 1.5 2005/01/06 18:10:39 imp Exp $
  */
 #ifndef _NWFS_SUBR_H_
 #define _NWFS_SUBR_H_

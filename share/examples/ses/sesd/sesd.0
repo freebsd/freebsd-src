@@ -29,7 +29,7 @@
 .\" Feral Software
 .\" mjacob@feral.com
 .\"
-.\" $FreeBSD$
+.\" $FreeBSD: src/share/examples/ses/sesd/sesd.0,v 1.5 2005/02/09 18:07:15 ru Exp $
 .\"
 .Dd February 21, 2000
 .Dt SESD 8

@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/compat/ndis/kern_ndis.c,v 1.96 2007/06/10 04:40:13 mjacob Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

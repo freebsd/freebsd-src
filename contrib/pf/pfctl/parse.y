@@ -28,7 +28,7 @@
  */
 %{
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/contrib/pf/pfctl/parse.y,v 1.8 2007/07/03 12:30:02 mlaier Exp $");
 
 #include <sys/types.h>
 #include <sys/socket.h>

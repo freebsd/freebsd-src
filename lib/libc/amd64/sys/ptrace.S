@@ -34,7 +34,7 @@
 	.asciz "@(#)ptrace.s	5.1 (Berkeley) 4/23/90"
 #endif /* SYSLIBC_SCCS and not lint */
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/amd64/sys/ptrace.S,v 1.12 2007/01/09 00:27:49 imp Exp $");
 
 #include "SYS.h"
 

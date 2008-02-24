@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)extern.h	8.2 (Berkeley) 4/1/94
- * $FreeBSD$
+ * $FreeBSD: src/bin/cp/extern.h,v 1.21 2006/08/24 20:45:38 julian Exp $
  */
 
 typedef struct {

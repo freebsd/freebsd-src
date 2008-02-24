@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/aic/aicvar.h,v 1.9 2007/06/17 05:55:46 scottl Exp $
  */
 
 struct aic_transinfo {

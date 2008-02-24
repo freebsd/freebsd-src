@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/pppd/Makefile,v 1.31 2006/11/12 17:36:58 ume Exp $
 
 .include <bsd.own.mk>
 

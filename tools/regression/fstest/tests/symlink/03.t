@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/symlink/03.t,v 1.1 2007/01/17 01:42:11 pjd Exp $
 
 desc="symlink returns ENAMETOOLONG if an entire length of either path name exceeded 1023 characters"
 

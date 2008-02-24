@@ -49,7 +49,7 @@
 #include "opt_ddb.h"
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/arm/xscale/ixp425/avila_machdep.c,v 1.5.4.1 2008/01/19 18:15:03 kib Exp $");
 
 #define _ARM32_BUS_DMA_PRIVATE
 #include <sys/param.h>

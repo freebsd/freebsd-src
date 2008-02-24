@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/mfi/mfi_linux.c,v 1.2 2006/11/14 16:48:00 ambrisko Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

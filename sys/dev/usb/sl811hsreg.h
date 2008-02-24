@@ -1,5 +1,5 @@
 /*	$NetBSD$	*/
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/dev/usb/sl811hsreg.h,v 1.1 2005/07/14 15:57:00 takawata Exp $	*/
 
 
 /*

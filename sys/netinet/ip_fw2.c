@@ -24,7 +24,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netinet/ip_fw2.c,v 1.175.4.1 2008/01/28 17:44:30 rwatson Exp $");
 
 #define        DEB(x)
 #define        DDB(x) x

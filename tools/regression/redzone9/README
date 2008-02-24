@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/tools/regression/redzone9/README,v 1.1 2006/01/31 11:20:13 pjd Exp $
 
 To verify that redzone(9) works properly:
 

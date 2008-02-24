@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/sade/list.h,v 1.4 2006/08/07 23:35:48 netchild Exp $
  *
  * Copyright (c) 1997 FreeBSD, Inc.
  * All rights reserved.

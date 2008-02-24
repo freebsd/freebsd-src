@@ -33,7 +33,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/contrib/smbfs/smbutil/view.c,v 1.3 2006/08/11 12:35:22 keramida Exp $");
 
 #include <sys/endian.h>
 #include <sys/param.h>

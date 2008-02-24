@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libkse/support/Makefile.inc,v 1.9 2007/10/09 13:42:25 obrien Exp $
 
 .PATH: ${.CURDIR}/support ${.CURDIR}/../libc/gen ${.CURDIR}/../libc/string
 .PATH: ${.CURDIR}/../libc/${MACHINE_ARCH}/sys

@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/lib/librt/Version.map,v 1.1 2007/04/29 14:01:45 deischen Exp $
  */
 
 FBSD_1.0 {

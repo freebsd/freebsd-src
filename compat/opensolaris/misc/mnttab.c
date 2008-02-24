@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/compat/opensolaris/misc/mnttab.c,v 1.1 2007/04/06 01:08:59 pjd Exp $");
 
 #include <sys/param.h>
 #include <sys/mount.h>

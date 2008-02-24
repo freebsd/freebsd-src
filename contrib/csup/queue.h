@@ -27,9 +27,9 @@
  * SUCH DAMAGE.
  *
  *	@(#)queue.h	8.5 (Berkeley) 8/20/94
- * $FreeBSD$
+ * $FreeBSD: src/contrib/csup/queue.h,v 1.1.1.3 2007/05/19 13:55:01 mux Exp $
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/csup/queue.h,v 1.1.1.3 2007/05/19 13:55:01 mux Exp $
  */
 
 #ifndef _QUEUE_H_

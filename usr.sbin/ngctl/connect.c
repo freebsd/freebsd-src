@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF WHISTLE COMMUNICATIONS IS ADVISED OF THE POSSIBILITY
  * OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ngctl/connect.c,v 1.5 2006/06/28 10:38:38 glebius Exp $
  */
 
 #include <err.h>

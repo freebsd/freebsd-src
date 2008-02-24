@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/release/doc/en_US.ISO8859-1/relnotes/Makefile,v 1.11 2006/12/07 17:45:45 hrs Exp $
 
 RELN_ROOT?= ${.CURDIR}/../..
 

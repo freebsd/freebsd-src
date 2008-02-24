@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/regression/fstest/fstest.c,v 1.2 2007/07/18 18:07:14 pjd Exp $
  */
 
 #include <sys/param.h>

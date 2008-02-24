@@ -24,7 +24,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libufs/libufs.h,v 1.12 2006/10/31 21:21:48 pjd Exp $
  */
 
 #ifndef	__LIBUFS_H__

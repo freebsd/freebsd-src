@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/regression/priv/priv_vm_madv_protect.c,v 1.2 2007/09/09 23:08:39 rwatson Exp $
  */
 
 /*

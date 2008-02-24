@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/stdlib/strfmon.c,v 1.15 2005/09/12 19:52:42 stefanf Exp $");
 
 #include <sys/types.h>
 #include <ctype.h>

@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/dev/twa/tw_osl_cam.c,v 1.12 2007/10/09 17:43:57 scottl Exp $
  */
 
 /*

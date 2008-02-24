@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/contrib/ipfilter/netinet/ip_state.c,v 1.39.2.1 2007/10/31 05:00:38 darrenr Exp $	*/
 
 /*
  * Copyright (C) 1995-2003 by Darren Reed.

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/syscons/keymaps/german.iso.acc.kbd,v 1.1 2003/06/19 08:34:38 murray Exp $
 #                                                         alt
 # scan                       cntrl          alt    alt   cntrl lock
 # code  base   shift  cntrl  shift  alt    shift  cntrl  shift state

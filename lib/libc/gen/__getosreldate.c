@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/gen/__getosreldate.c,v 1.1 2007/07/04 23:27:38 peter Exp $");
 
 #include <sys/param.h>
 #include <sys/sysctl.h>

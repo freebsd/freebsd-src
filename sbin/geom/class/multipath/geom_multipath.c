@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sbin/geom/class/multipath/geom_multipath.c,v 1.2 2007/05/15 20:25:17 marcel Exp $");
 #include <sys/param.h>
 #include <errno.h>
 #include <paths.h>

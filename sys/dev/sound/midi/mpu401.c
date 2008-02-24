@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/sound/midi/mpu401.c,v 1.3 2007/02/25 13:51:51 netchild Exp $");
 
 #include <sys/param.h>
 #include <sys/types.h>

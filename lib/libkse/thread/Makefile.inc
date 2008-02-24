@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libkse/thread/Makefile.inc,v 1.51 2007/10/09 13:42:27 obrien Exp $
 
 # thr sources
 .PATH: ${.CURDIR}/thread

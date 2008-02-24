@@ -33,7 +33,7 @@
  * THIS SOFTWARE, EVEN IF WHISTLE COMMUNICATIONS IS ADVISED OF THE POSSIBILITY
  * OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ngctl/config.c,v 1.6 2006/07/17 08:35:47 stefanf Exp $
  */
 
 #include <err.h>

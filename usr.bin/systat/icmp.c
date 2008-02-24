@@ -33,7 +33,7 @@
 
 #include <sys/cdefs.h>
 
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/systat/icmp.c,v 1.5 2006/04/30 04:47:23 bde Exp $");
 
 #ifdef lint
 static char sccsid[] = "@(#)mbufs.c	8.1 (Berkeley) 6/6/93";

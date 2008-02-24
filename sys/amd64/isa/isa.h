@@ -30,7 +30,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.h	5.7 (Berkeley) 5/9/91
- * $FreeBSD$
+ * $FreeBSD: src/sys/amd64/isa/isa.h,v 1.29 2005/05/14 10:14:56 nyan Exp $
  */
 
 #ifndef _I386_ISA_ISA_H_

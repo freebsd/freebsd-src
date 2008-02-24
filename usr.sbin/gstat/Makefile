@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/gstat/Makefile,v 1.8 2007/01/30 15:10:37 ru Exp $
 
 PROG=	gstat
 MAN=	gstat.8

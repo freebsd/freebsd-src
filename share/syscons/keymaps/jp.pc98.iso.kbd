@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/syscons/keymaps/jp.pc98.iso.kbd,v 1.1 2001/06/17 03:10:38 nyan Exp $
 #                                                         alt
 # scan                       cntrl          alt    alt   cntrl lock
 # code  base   shift  cntrl  shift  alt    shift  cntrl  shift state

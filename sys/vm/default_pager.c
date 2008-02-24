@@ -38,7 +38,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/vm/default_pager.c,v 1.35 2005/01/07 02:29:26 imp Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -20,7 +20,7 @@
 
 ; See the GCC internals manual for a description of this file's format.
 
-; $FreeBSD$
+; $FreeBSD: src/contrib/gcc/c.opt,v 1.4 2007/05/19 02:12:19 kan Exp $
 ; Please try to keep this file in ASCII collating order.
 
 Language

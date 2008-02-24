@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/vm/vm_phys.c,v 1.4 2007/09/25 06:25:06 alc Exp $");
 
 #include "opt_ddb.h"
 

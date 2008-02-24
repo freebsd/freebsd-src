@@ -38,7 +38,7 @@
 
 #include "mixer_if.h"
 
-SND_DECLARE_FILE("$FreeBSD$");
+SND_DECLARE_FILE("$FreeBSD: src/sys/dev/sound/isa/sb16.c,v 1.97 2007/06/17 06:10:40 ariff Exp $");
 
 #define SB16_BUFFSIZE	4096
 #define PLAIN_SB16(x) ((((x)->bd_flags) & (BD_F_SB16|BD_F_SB16X)) == BD_F_SB16)

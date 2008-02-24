@@ -34,7 +34,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/subr_acl_posix1e.c,v 1.52 2007/06/12 00:11:59 rwatson Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

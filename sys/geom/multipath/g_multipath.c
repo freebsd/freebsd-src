@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/geom/multipath/g_multipath.c,v 1.1 2007/02/27 04:01:58 mjacob Exp $");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>

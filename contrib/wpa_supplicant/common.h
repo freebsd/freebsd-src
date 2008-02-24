@@ -11,7 +11,7 @@
  *
  * See README and COPYING for more details.
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/wpa_supplicant/common.h,v 1.4 2007/07/11 15:58:51 sam Exp $
  */
 
 #ifndef COMMON_H

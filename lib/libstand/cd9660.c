@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libstand/cd9660.c,v 1.12 2005/10/18 13:35:08 des Exp $");
 
 /*
  * Stand-alone ISO9660 file reading package.

@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/sade/main.c,v 1.80 2007/07/04 00:00:41 scf Exp $
  *
  * Copyright (c) 1995
  *     Jordan Hubbard.  All rights reserved.

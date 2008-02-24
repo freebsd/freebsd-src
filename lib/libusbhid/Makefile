@@ -1,5 +1,5 @@
 #	$NetBSD: Makefile,v 1.5 1999/07/23 09:44:38 mrg Exp $
-#	$FreeBSD$
+#	$FreeBSD: src/lib/libusbhid/Makefile,v 1.11 2007/05/21 02:49:07 deischen Exp $
 
 LIB=	usbhid
 MAN=	usbhid.3

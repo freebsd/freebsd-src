@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libutil/trimdomain.c,v 1.6 2005/10/05 04:42:20 brooks Exp $");
 
 #include <sys/param.h>
 

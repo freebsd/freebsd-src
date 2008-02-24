@@ -27,7 +27,7 @@
  *
  * Author: Joe Marcus Clarke <marcus@FreeBSD.org>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/libalias/alias_skinny.c,v 1.14 2007/04/07 09:52:36 piso Exp $
  */
 
 #ifdef _KERNEL

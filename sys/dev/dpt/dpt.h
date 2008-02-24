@@ -40,7 +40,7 @@
  */
 
 
-#ident "$FreeBSD$"
+#ident "$FreeBSD: src/sys/dev/dpt/dpt.h,v 1.18 2007/06/17 05:55:49 scottl Exp $"
 
 #ifndef _DPT_H
 #define _DPT_H

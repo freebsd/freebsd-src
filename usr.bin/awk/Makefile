@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/awk/Makefile,v 1.14 2006/10/25 21:23:20 ru Exp $
 
 AWKSRC=	${.CURDIR}/../../contrib/one-true-awk
 .PATH: ${AWKSRC}

@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/rename/11.t,v 1.1 2007/01/17 01:42:10 pjd Exp $
 
 desc="rename returns ELOOP if too many symbolic links were encountered in translating one of the pathnames"
 

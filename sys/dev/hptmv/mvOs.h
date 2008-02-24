@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/hptmv/mvOs.h,v 1.5 2005/12/04 02:12:41 ru Exp $
  */
 #ifndef __INCmvOsBsdh
 #define __INCmvOsBsdh

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/geom/geom_eli/Makefile,v 1.4 2006/06/05 21:42:25 pjd Exp $
 
 .PATH: ${.CURDIR}/../../../geom/eli
 

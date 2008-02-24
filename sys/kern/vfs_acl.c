@@ -33,7 +33,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/vfs_acl.c,v 1.53 2007/03/05 13:26:07 rwatson Exp $");
 
 #include "opt_mac.h"
 

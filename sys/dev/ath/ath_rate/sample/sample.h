@@ -33,7 +33,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGES.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ath/ath_rate/sample/sample.h,v 1.7 2007/01/15 01:17:44 sam Exp $
  */
 
 /*

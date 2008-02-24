@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netinet/tcp_syncache.c,v 1.130.2.6 2007/12/20 12:34:32 ru Exp $");
 
 #include "opt_inet.h"
 #include "opt_inet6.h"

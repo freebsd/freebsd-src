@@ -33,7 +33,7 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
 # THE POSSIBILITY OF SUCH DAMAGES.
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/ath_hal/Makefile,v 1.8 2006/09/18 16:49:15 sam Exp $
 #
 
 #

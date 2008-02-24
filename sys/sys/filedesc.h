@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)filedesc.h	8.1 (Berkeley) 6/2/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/filedesc.h,v 1.78 2007/05/31 11:51:52 kib Exp $
  */
 
 #ifndef _SYS_FILEDESC_H_

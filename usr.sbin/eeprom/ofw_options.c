@@ -24,7 +24,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/eeprom/ofw_options.c,v 1.4 2006/09/01 20:07:15 marius Exp $");
 
 /*
  * Handlers for Open Firmware /options node.

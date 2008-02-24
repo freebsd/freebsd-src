@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/contrib/ipfilter/kmem.h,v 1.3 2005/12/30 11:52:22 guido Exp $	*/
 
 /*
  * Copyright (C) 1993-2001 by Darren Reed.

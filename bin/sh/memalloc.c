@@ -36,7 +36,7 @@ static char sccsid[] = "@(#)memalloc.c	8.3 (Berkeley) 5/4/95";
 #endif
 #endif /* not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/bin/sh/memalloc.c,v 1.27 2005/10/28 10:45:19 stefanf Exp $");
 
 #include <sys/param.h>
 #include "shell.h"

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/bin/csh/config_p.h,v 1.14 2007/05/16 21:22:38 mp Exp $ */
 /*
  * config.h -- configure various defines for tcsh
  *

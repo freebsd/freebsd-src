@@ -24,7 +24,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/boot/arm/at91/libat91/memcmp.c,v 1.3 2007/03/28 21:15:50 imp Exp $");
 
 #include "lib.h"
 

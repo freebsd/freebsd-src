@@ -35,7 +35,7 @@
 static char sccsid[] = "@(#)log.c	8.2 (Berkeley) 11/30/93";
 #endif /* not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/msun/bsdsrc/b_log.c,v 1.8 2005/09/19 11:28:19 bde Exp $");
 
 #include <math.h>
 #include <errno.h>

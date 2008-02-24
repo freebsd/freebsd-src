@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/csu/amd64/Makefile,v 1.18 2003/06/30 12:53:39 ru Exp $
 
 .PATH: ${.CURDIR}/../common
 

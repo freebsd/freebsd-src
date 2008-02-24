@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/sade/system.c,v 1.131 2006/08/09 09:12:01 netchild Exp $
  *
  * Jordan Hubbard
  *

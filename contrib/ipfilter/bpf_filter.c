@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/contrib/ipfilter/bpf_filter.c,v 1.6 2007/06/04 02:54:31 darrenr Exp $	*/
 
 /*-
  * Copyright (c) 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997

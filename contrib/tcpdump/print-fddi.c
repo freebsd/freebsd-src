@@ -18,7 +18,7 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/tcpdump/print-fddi.c,v 1.11.2.1 2007/10/19 03:03:58 mlaier Exp $
  */
 
 #ifndef lint

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/stdio/xprintf_time.c,v 1.3 2006/02/04 14:35:01 phk Exp $
  */
 #include <namespace.h>
 #include <stdio.h>

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/Makefile,v 1.32 2006/11/05 22:03:02 marcel Exp $
 
 .include <bsd.own.mk>
 

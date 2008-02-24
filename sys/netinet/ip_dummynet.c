@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netinet/ip_dummynet.c,v 1.110 2007/10/07 20:44:22 silby Exp $");
 
 #define	DUMMYNET_DEBUG
 

@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/contrib/ipfilter/lib/count4bits.c,v 1.4 2007/06/04 02:54:32 darrenr Exp $	*/
 
 /*
  * Copyright (C) 2002 by Darren Reed.

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sbin/pfctl/Makefile,v 1.7 2007/07/03 12:46:05 mlaier Exp $
 
 .PATH:	${.CURDIR}/../../contrib/pf/pfctl
 .PATH:	${.CURDIR}/../../sys/contrib/pf/net

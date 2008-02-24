@@ -72,7 +72,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/le/lance.c,v 1.4 2007/01/20 10:47:16 marius Exp $");
 
 #include <sys/param.h>
 #include <sys/bus.h>

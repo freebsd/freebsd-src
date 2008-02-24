@@ -32,7 +32,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)dirs	8.2 (Berkeley) 5/4/95
-# $FreeBSD$
+# $FreeBSD: src/bin/sh/funcs/dirs,v 1.8 2005/01/10 08:39:26 imp Exp $
 
 # pushd, popd, and dirs --- written by Chris Bertin
 # Pixel Computer Inc. ...!wjh12!pixel!pixutl!chris

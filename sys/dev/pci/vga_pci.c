@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/pci/vga_pci.c,v 1.5 2006/02/01 15:45:29 jhb Exp $");
 
 /*
  * Simple driver for PCI VGA display devices.  Drivers such as agp(4) and

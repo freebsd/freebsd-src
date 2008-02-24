@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/top/Makefile,v 1.11 2006/12/01 07:01:19 keramida Exp $
 
 TOPDIR=	${.CURDIR}/../../contrib/top
 .PATH: ${TOPDIR}

@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/pam.d/ftpd,v 1.19 2007/06/10 18:57:20 yar Exp $
 #
 # PAM configuration for the "ftpd" service
 #

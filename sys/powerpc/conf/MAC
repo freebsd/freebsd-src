@@ -8,7 +8,7 @@
 #
 # http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/mac.html 
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/powerpc/conf/MAC,v 1.1 2005/09/18 03:15:36 csjp Exp $
 
 include 	GENERIC
 ident 		MAC

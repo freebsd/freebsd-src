@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/auditd,v 1.3 2006/09/24 17:31:04 rwatson Exp $
 #
 # Start up for the Audit daemon.
 #

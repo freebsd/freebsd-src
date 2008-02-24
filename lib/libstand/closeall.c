@@ -61,7 +61,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libstand/closeall.c,v 1.3 2007/01/09 01:02:03 imp Exp $");
 
 #include "stand.h"
 

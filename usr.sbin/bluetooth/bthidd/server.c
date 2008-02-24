@@ -28,7 +28,7 @@
  * SUCH DAMAGE.
  *
  * $Id: server.c,v 1.9 2006/09/07 21:06:53 max Exp $
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/bluetooth/bthidd/server.c,v 1.6 2006/09/21 02:32:27 emax Exp $
  */
 
 #include <sys/queue.h>

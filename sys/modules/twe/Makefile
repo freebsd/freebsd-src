@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/twe/Makefile,v 1.7 2005/08/10 04:01:21 obrien Exp $
 
 KMOD=	twe
 .PATH: ${.CURDIR}/../../dev/${KMOD}

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/pflog/Makefile,v 1.6 2006/03/17 18:54:37 ru Exp $
 
 .include <bsd.own.mk>
 

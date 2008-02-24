@@ -35,7 +35,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libpam/modules/pam_nologin/pam_nologin.c,v 1.13 2007/06/14 13:07:06 yar Exp $");
 
 #include <sys/types.h>
 #include <sys/stat.h>

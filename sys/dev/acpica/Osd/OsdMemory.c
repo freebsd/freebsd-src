@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/acpica/Osd/OsdMemory.c,v 1.15 2007/03/22 18:16:41 jkim Exp $");
 
 #include <contrib/dev/acpica/acpi.h>
 

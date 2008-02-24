@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/secure/lib/libcrypto/opensslconf-powerpc.h,v 1.5 2006/10/01 07:56:43 simon Exp $ */
 /* opensslconf.h */
 /* WARNING: Generated automatically from opensslconf.h.in by Configure. */
 

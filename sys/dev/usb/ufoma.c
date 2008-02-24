@@ -2,7 +2,7 @@
 
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/usb/ufoma.c,v 1.10 2007/07/27 12:00:29 takawata Exp $");
 /*-
  * Copyright (c) 2005, Takanori Watanabe
  * Copyright (c) 2003, M. Warner Losh <imp@freebsd.org>.

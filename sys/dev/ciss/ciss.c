@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/dev/ciss/ciss.c,v 1.81.2.1.2.2 2008/02/15 13:55:23 iwasaki Exp $
  */
 
 /*

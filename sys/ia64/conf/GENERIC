@@ -18,7 +18,7 @@
 #
 # For hardware specific information check HARDWARE.TXT
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/ia64/conf/GENERIC,v 1.92 2007/09/26 20:05:07 brueffer Exp $
 
 cpu		ITANIUM
 ident		GENERIC

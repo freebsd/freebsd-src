@@ -16,7 +16,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/boot/sparc64/boot1/boot1.c,v 1.19 2005/01/05 22:16:58 imp Exp $");
 
 #include <sys/param.h>
 #include <sys/dirent.h>

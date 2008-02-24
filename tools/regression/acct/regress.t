@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/acct/regress.t,v 1.1 2007/05/22 05:52:04 dds Exp $
 #
 
 DIR=`dirname $0`

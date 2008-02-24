@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/uthread/uthread_getsockname.c,v 1.12 2007/01/12 07:25:26 imp Exp $
  */
 #include <sys/types.h>
 #include <sys/socket.h>

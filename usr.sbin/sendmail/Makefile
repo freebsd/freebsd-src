@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.8 (Berkeley) 3/28/97
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/sendmail/Makefile,v 1.55 2007/04/09 01:45:52 gshapiro Exp $
 
 .include <bsd.own.mk>
 

@@ -29,7 +29,7 @@
 
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/ed/if_ed_novell.c,v 1.10 2006/06/12 04:30:42 imp Exp $");
 
 #include "opt_ed.h"
 

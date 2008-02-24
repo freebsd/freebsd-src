@@ -19,7 +19,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/pkg_install/info/show.c,v 1.41 2007/02/07 19:44:44 pav Exp $");
 
 #include "lib.h"
 #include "info.h"

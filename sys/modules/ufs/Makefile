@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/ufs/Makefile,v 1.5 2006/12/21 21:35:49 yar Exp $
 
 .PATH:	${.CURDIR}/../../ufs/ufs ${.CURDIR}/../../ufs/ffs
 

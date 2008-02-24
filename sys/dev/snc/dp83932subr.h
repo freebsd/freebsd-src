@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/dev/snc/dp83932subr.h,v 1.3 2005/01/06 01:43:15 imp Exp $	*/
 /*	$NecBSD: dp83932subr.h,v 1.5 1999/02/02 00:47:25 kmatsuda Exp $	*/
 /*	$NetBSD$	*/
 

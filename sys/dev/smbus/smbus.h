@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/smbus/smbus.h,v 1.4 2006/09/11 20:52:41 jhb Exp $
  *
  */
 #ifndef __SMBUS_H

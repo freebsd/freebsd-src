@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sun4v/include/elf.h,v 1.2 2006/11/03 23:03:46 jb Exp $
  */
 
 #ifndef	_MACHINE_ELF_H_

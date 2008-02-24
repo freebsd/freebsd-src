@@ -25,7 +25,7 @@
 # IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/portsnap/portsnap/portsnap.sh,v 1.27 2007/08/02 02:05:23 cperciva Exp $
 
 #### Usage function -- called from command-line handling code.
 

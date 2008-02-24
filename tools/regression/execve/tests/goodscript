@@ -1,4 +1,4 @@
 #! /bin/csh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/execve/tests/goodscript,v 1.1 2006/05/31 11:13:10 maxim Exp $
 
 echo succeeded

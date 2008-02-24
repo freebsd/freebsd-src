@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/hwpmc/hwpmc_amd.c,v 1.13 2005/12/05 11:58:32 ru Exp $");
 
 /* Support for the AMD K7 and later processors */
 

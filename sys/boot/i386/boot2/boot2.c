@@ -14,7 +14,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/boot/i386/boot2/boot2.c,v 1.83.2.2 2007/11/08 21:31:38 jhb Exp $");
 
 #include <sys/param.h>
 #include <sys/disklabel.h>

@@ -22,7 +22,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/arm/at91/at91_pdcreg.h,v 1.1 2006/05/11 14:30:28 cognet Exp $ */
 
 #ifndef ARM_AT91_AT91_PDCREG_H
 #define ARM_AT91_AT91_PDCREG_H

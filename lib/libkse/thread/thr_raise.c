@@ -26,7 +26,7 @@
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libkse/thread/thr_raise.c,v 1.3 2007/10/09 13:42:29 obrien Exp $
  */
 
 #include <pthread.h>

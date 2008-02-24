@@ -27,7 +27,7 @@
 #include <dev/sound/pcm/sound.h>
 #include <sys/ctype.h>
 
-SND_DECLARE_FILE("$FreeBSD$");
+SND_DECLARE_FILE("$FreeBSD: src/sys/dev/sound/pcm/dsp.c,v 1.107 2007/07/04 12:33:11 ariff Exp $");
 
 static int dsp_mmap_allow_prot_exec = 0;
 SYSCTL_INT(_hw_snd, OID_AUTO, compat_linux_mmap, CTLFLAG_RW,

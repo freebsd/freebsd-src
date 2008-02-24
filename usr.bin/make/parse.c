@@ -39,7 +39,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/make/parse.c,v 1.113 2007/04/12 18:14:00 ru Exp $");
 
 /*-
  * parse.c --

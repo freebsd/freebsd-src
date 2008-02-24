@@ -39,7 +39,7 @@
  *      %W% (Berkeley) %G%
  *
  * $Id: nfs_prot_freebsd3.h,v 1.5.2.7 2004/01/06 03:15:19 ezk Exp $
- * $FreeBSD$
+ * $FreeBSD: src/contrib/amd/conf/nfs_prot/nfs_prot_freebsd3.h,v 1.13 2004/07/06 13:16:45 mbr Exp $
  *
  */
 

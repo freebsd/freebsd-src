@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/ia64/include/resource.h,v 1.2 2005/01/06 22:18:23 imp Exp $ */
 /*-
  * Copyright 1998 Massachusetts Institute of Technology
  *

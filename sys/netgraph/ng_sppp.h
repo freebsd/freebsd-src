@@ -14,7 +14,7 @@
  * as long as this message is kept with the software, all derivative
  * works or modified versions.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netgraph/ng_sppp.h,v 1.3 2005/02/03 13:03:31 ru Exp $
  * Cronyx Id: ng_sppp.h,v 1.1.2.6 2004/03/01 15:17:21 rik Exp $
  */
 

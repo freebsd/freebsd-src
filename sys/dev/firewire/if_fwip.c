@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/firewire/if_fwip.c,v 1.16 2007/06/06 14:31:36 simokawa Exp $
  */
 
 #ifdef HAVE_KERNEL_OPTION_HEADERS

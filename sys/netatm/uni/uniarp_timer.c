@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netatm/uni/uniarp_timer.c,v 1.12 2007/06/23 00:02:20 mjacob Exp $");
 
 #include <sys/param.h>
 #include <sys/types.h>

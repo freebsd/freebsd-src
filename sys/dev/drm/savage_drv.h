@@ -24,7 +24,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/drm/savage_drv.h,v 1.2 2005/11/28 23:13:55 anholt Exp $");
 
 #ifndef __SAVAGE_DRV_H__
 #define __SAVAGE_DRV_H__

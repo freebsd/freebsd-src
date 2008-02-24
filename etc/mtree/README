@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/etc/mtree/README,v 1.8 2007/10/03 05:44:27 ru Exp $
 
 Note: If you modify these files, please keep hier(7) updated!
 

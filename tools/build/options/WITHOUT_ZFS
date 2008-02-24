@@ -1,2 +1,2 @@
-.\" $FreeBSD$
+.\" $FreeBSD: src/tools/build/options/WITHOUT_ZFS,v 1.1 2007/04/06 02:13:30 pjd Exp $
 Set to not build ZFS file system.

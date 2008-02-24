@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/bsnmpd/modules/Makefile,v 1.15 2006/12/29 19:24:51 bz Exp $
 
 .include <bsd.own.mk>
 

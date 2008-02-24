@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/link/01.t,v 1.1 2007/01/17 01:42:09 pjd Exp $
 
 desc="link returns ENOTDIR if a component of either path prefix is not a directory"
 

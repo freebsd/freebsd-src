@@ -1,5 +1,5 @@
 #	$NetBSD: Makefile,v 1.1 2004/05/13 19:17:12 christos Exp $
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/lib/libc/resolv/Makefile,v 1.4 2006/03/15 10:46:34 ru Exp $
 
 PROG=		resolv
 NO_MAN=

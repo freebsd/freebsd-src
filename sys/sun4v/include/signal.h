@@ -28,7 +28,7 @@
  *
  *      @(#)signal.h    8.1 (Berkeley) 6/11/93
  * 	from: FreeBSD: src/sys/i386/include/signal.h,v 1.13 2000/11/09
- * $FreeBSD$
+ * $FreeBSD: src/sys/sun4v/include/signal.h,v 1.1 2006/10/05 06:14:26 kmacy Exp $
  */
 
 #ifndef	_MACHINE_SIGNAL_H_

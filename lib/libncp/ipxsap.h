@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libncp/ipxsap.h,v 1.3 2007/02/26 12:07:08 rwatson Exp $
  */
 #ifndef _IPXSAP_H_
 #define _IPXSAP_H_

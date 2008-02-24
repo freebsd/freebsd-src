@@ -25,7 +25,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/libexec/atrun/atrun.c,v 1.26 2007/06/15 12:02:16 yar Exp $";
 #endif /* not lint */
 
 /* System Headers */

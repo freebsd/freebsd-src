@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/mk/bsd.incs.mk,v 1.7 2006/03/17 18:54:34 ru Exp $
 
 .if !target(__<bsd.init.mk>__)
 .error bsd.incs.mk cannot be included directly.

@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/arm/sa11x0/uart_dev_sa1110.c,v 1.9 2007/09/12 18:28:09 cognet Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

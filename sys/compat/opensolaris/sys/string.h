@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/compat/opensolaris/sys/string.h,v 1.2 2007/04/10 21:42:12 wkoszek Exp $
  */
 
 #ifndef _OPENSOLARIS_SYS_STRING_H_

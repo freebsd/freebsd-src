@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ips/ipsreg.h,v 1.3 2006/10/05 07:28:43 maxim Exp $
  */
 
 #include <sys/param.h>

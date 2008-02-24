@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/sys/dev/em/README,v 1.15 2007/05/30 23:32:21 jfv Exp $
 FreeBSD* Driver for Intel Network Connection
 =============================================
 

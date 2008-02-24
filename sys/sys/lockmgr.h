@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lock.h	8.12 (Berkeley) 5/19/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/lockmgr.h,v 1.53 2007/03/30 18:07:24 jhb Exp $
  */
 
 #ifndef	_SYS_LOCKMGR_H_

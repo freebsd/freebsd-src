@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/mii/ciphyreg.h,v 1.3 2007/06/06 06:55:49 yongari Exp $
  */
 
 #ifndef _DEV_MII_CIPHYREG_H_

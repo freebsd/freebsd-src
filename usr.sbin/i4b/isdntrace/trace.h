@@ -37,7 +37,7 @@
  *
  *	$Id: trace.h,v 1.12 2000/02/14 16:25:22 hm Exp $ 
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/i4b/isdntrace/trace.h,v 1.8 2007/07/06 07:19:46 bz Exp $
  *
  *      last edit-date: [Mon Feb 14 14:43:40 2000]
  *

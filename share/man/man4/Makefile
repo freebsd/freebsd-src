@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/18/93
-# $FreeBSD$
+# $FreeBSD: src/share/man/man4/Makefile,v 1.393.2.2.2.3 2008/02/06 03:38:47 scottl Exp $
 
 MAN=	aac.4 \
 	acpi.4 \

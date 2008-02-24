@@ -67,7 +67,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/mii/exphy.c,v 1.23 2007/01/12 23:17:43 marius Exp $");
 
 /*
  * driver for 3Com internal PHYs

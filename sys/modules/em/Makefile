@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/em/Makefile,v 1.9 2007/05/07 09:55:25 le Exp $
 .PATH:  ${.CURDIR}/../../dev/em
 KMOD    = if_em
 SRCS    = device_if.h bus_if.h pci_if.h opt_bdg.h

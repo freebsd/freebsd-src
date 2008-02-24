@@ -31,7 +31,7 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  * 
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/firewire/fwohcivar.h,v 1.16 2007/06/06 14:31:36 simokawa Exp $
  *
  */
 

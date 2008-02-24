@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/uthread/uthread_info.c,v 1.25 2007/01/12 07:25:26 imp Exp $
  */
 #include <errno.h>
 #include <fcntl.h>

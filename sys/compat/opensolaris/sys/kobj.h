@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/compat/opensolaris/sys/kobj.h,v 1.2 2007/04/08 23:57:08 pjd Exp $
  */
 
 #ifndef _OPENSOLARIS_SYS_KOBJ_H_

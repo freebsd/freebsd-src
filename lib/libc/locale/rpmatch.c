@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/locale/rpmatch.c,v 1.1 2005/01/09 03:55:13 tjr Exp $");
 
 #include <langinfo.h>
 #include <regex.h>

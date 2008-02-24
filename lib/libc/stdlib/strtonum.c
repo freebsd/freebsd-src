@@ -18,7 +18,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/stdlib/strtonum.c,v 1.2 2006/03/14 19:53:03 ache Exp $");
 
 #include <errno.h>
 #include <limits.h>

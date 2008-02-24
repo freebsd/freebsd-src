@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/lib/libutil/test-flopen.t,v 1.1 2007/08/03 11:29:49 des Exp $
 #
 
 base=$(realpath $(dirname $0))

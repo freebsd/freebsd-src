@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/periodic/daily/480.status-ntpd,v 1.1 2007/05/13 09:33:35 maxim Exp $
 #
 
 # If there is a global system configuration file, suck it in.

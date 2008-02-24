@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)gmon.h	8.2 (Berkeley) 1/4/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/gmon.h,v 1.20 2006/03/29 18:17:03 jhb Exp $
  */
 
 #ifndef _SYS_GMON_H_

@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libkse/thread/thr_spec.c,v 1.25.2.1 2007/11/26 02:39:52 davidxu Exp $
  */
 #include <signal.h>
 #include <stdlib.h>

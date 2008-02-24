@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/tools/net80211/w00t/assoc/assoc.c,v 1.1 2006/08/05 05:18:02 sam Exp $
  */
 #include <sys/time.h>
 #include <stdlib.h>

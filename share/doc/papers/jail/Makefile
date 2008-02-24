@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/doc/papers/jail/Makefile,v 1.6 2004/10/24 15:32:39 ru Exp $
 
 VOLUME=		papers
 DOC=		jail

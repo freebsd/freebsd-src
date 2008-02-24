@@ -46,7 +46,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/cam/scsi/scsi_cd.c,v 1.102 2007/07/21 18:07:45 kan Exp $");
 
 #include "opt_cd.h"
 

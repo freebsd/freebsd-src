@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/ufs/ffs/ffs_rawread.c,v 1.29 2007/02/04 23:42:02 tegge Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

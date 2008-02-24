@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)wait.h	8.2 (Berkeley) 7/10/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/wait.h,v 1.22 2005/11/10 05:00:20 davidxu Exp $
  */
 
 #ifndef _SYS_WAIT_H_

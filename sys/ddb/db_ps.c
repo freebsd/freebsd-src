@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/ddb/db_ps.c,v 1.66 2007/09/17 05:27:19 jeff Exp $");
 
 #include <sys/param.h>
 #include <sys/cons.h>

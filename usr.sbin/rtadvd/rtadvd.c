@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/usr.sbin/rtadvd/rtadvd.c,v 1.26 2007/01/20 08:24:02 maxim Exp $	*/
 /*	$KAME: rtadvd.c,v 1.82 2003/08/05 12:34:23 itojun Exp $	*/
 
 /*

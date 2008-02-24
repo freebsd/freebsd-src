@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/cleanvar,v 1.13 2007/05/24 05:58:20 rse Exp $
 #
 
 # PROVIDE: cleanvar

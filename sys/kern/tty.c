@@ -71,7 +71,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/tty.c,v 1.273.4.1 2008/01/12 00:20:06 jhb Exp $");
 
 #include "opt_compat.h"
 #include "opt_tty.h"

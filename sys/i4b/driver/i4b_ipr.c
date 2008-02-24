@@ -55,7 +55,7 @@
  *---------------------------------------------------------------------------*/ 
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i4b/driver/i4b_ipr.c,v 1.40 2007/07/06 07:17:18 bz Exp $");
 
 #include "opt_i4b.h"
 

@@ -27,7 +27,7 @@
  * Author: Hartmut Brandt <harti@freebsd.org>
  */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sbin/atm/atmconfig/diag.c,v 1.8 2007/04/14 16:09:23 maxim Exp $");
 
 #include <sys/types.h>
 #include <sys/sysctl.h>

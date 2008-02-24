@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/stdlib/atoll.c,v 1.5 2007/01/09 00:28:09 imp Exp $");
 
 #include <stdlib.h>
 

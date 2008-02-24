@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sound/pcm/ac97.h,v 1.20 2007/04/19 13:54:22 ariff Exp $
  */
 
 #define AC97_MUTE	0x8080

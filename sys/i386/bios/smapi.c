@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i386/bios/smapi.c,v 1.14 2007/03/20 20:21:44 jhb Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

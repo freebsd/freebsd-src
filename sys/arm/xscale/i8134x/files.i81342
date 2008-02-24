@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/arm/xscale/i8134x/files.i81342,v 1.1 2007/07/27 14:50:57 cognet Exp $
 arm/arm/cpufunc_asm_xscale.S		standard
 arm/arm/cpufunc_asm_xscale_c3.S		standard
 arm/arm/irq_dispatch.S			standard

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sun4v/include/tsb.h,v 1.4 2006/12/04 19:35:40 kmacy Exp $
  */
 
 #ifndef	_MACHINE_TSB_H_

@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/ppbus/ppbconf.c,v 1.26.4.1 2008/01/15 22:28:15 jhb Exp $");
 #include "opt_ppb_1284.h"
 
 #include <sys/param.h>

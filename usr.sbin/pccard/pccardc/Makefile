@@ -1,6 +1,6 @@
 #	pccardc Makefile
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/pccard/pccardc/Makefile,v 1.16 2003/04/04 17:49:16 obrien Exp $
 
 .PATH: ${.CURDIR}/../pccardd
 

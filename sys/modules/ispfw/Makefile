@@ -24,7 +24,7 @@
 # SUCH DAMAGE.
 #
 
-# $FreeBSD$ 
+# $FreeBSD: src/sys/modules/ispfw/Makefile,v 1.4 2006/08/26 18:40:25 mjacob Exp $ 
 
 
 SUBDIR = ispfw

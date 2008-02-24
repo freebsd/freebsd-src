@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/speaker/Makefile,v 1.3 2005/11/11 09:57:31 ru Exp $
 
 .PATH: ${.CURDIR}/../../dev/speaker
 

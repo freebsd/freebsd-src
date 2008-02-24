@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/ntp/ntp-keygen/Makefile,v 1.7 2006/03/17 18:54:41 ru Exp $
 
 NO_MAN=
 

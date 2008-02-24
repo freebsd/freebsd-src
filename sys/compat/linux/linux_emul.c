@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/compat/linux/linux_emul.c,v 1.20 2007/04/02 18:38:13 jkim Exp $");
 
 #include "opt_compat.h"
 

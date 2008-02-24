@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/syslogd/Makefile,v 1.13 2006/07/27 14:52:12 yar Exp $
 
 .include <bsd.own.mk>
 

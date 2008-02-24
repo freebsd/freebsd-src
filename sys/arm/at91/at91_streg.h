@@ -22,7 +22,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/arm/at91/at91_streg.h,v 1.1 2006/02/04 23:32:13 imp Exp $ */
 
 #ifndef ARM_AT91_AT91STREG_H
 #define ARM_AT91_AT91STREG_H

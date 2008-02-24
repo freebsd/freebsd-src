@@ -33,7 +33,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/vm/vm_zeroidle.c,v 1.49 2007/07/14 19:00:44 alc Exp $");
 
 #include <opt_sched.h>
 

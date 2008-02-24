@@ -90,7 +90,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libthr/thread/thr_attr.c,v 1.8 2007/01/12 07:26:20 imp Exp $
  */
 
 #include "namespace.h"

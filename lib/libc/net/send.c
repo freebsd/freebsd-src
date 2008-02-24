@@ -31,7 +31,7 @@
 static char sccsid[] = "@(#)send.c	8.2 (Berkeley) 2/21/94";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/net/send.c,v 1.4 2007/01/09 00:28:02 imp Exp $");
 
 #include "namespace.h"
 #include <sys/types.h>

@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/kern_time.c,v 1.142 2007/06/09 21:48:44 attilio Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

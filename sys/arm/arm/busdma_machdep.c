@@ -29,7 +29,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/arm/arm/busdma_machdep.c,v 1.35 2007/08/18 16:47:28 cognet Exp $");
 
 /*
  * ARM bus dma support routines

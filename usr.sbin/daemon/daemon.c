@@ -29,7 +29,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/daemon/daemon.c,v 1.8 2007/04/19 16:43:30 peter Exp $");
 
 #include <sys/param.h>
 

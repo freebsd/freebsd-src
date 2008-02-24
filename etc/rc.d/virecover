@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/virecover,v 1.9.14.1 2008/01/28 07:58:32 dougb Exp $
 #
 
 # PROVIDE: virecover

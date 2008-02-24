@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/net/netisr.c,v 1.20 2007/08/06 14:26:00 rwatson Exp $
  */
 
 #include "opt_device_polling.h"

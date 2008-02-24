@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ppc/ppcreg.h,v 1.16 2006/04/24 23:31:51 marcel Exp $
  *
  */
 #ifndef __PPCREG_H

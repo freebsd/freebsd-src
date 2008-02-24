@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/geom_eli/detach-l.t,v 1.1 2005/07/27 22:27:30 pjd Exp $
 
 base=`basename $0`
 no=45

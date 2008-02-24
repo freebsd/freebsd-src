@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/priority.h,v 1.4 2007/01/08 21:21:45 imp Exp $
  */
 
 #ifndef _SYS_PRIORITY_H_

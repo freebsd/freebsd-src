@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/sade/disks.c,v 1.161 2006/08/09 08:24:46 delphij Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.

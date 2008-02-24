@@ -40,7 +40,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/sparc64/fpu/fpu_subr.c,v 1.5 2007/01/09 00:28:05 imp Exp $");
 
 /*
  * FPU subroutines.

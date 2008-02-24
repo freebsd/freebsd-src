@@ -31,7 +31,7 @@
  *
  *	from: NetBSD: db_disasm.c,v 1.9 2000/08/16 11:29:42 pk Exp
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sun4v/include/instr.h,v 1.1 2006/10/05 06:14:25 kmacy Exp $
  */
 
 #ifndef _MACHINE_INSTR_H_

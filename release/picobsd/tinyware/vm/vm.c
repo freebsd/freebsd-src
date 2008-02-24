@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/release/picobsd/tinyware/vm/vm.c,v 1.10 2006/11/28 12:46:02 ru Exp $
  */
 
 #include <stdio.h>

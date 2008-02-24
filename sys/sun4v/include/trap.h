@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sun4v/include/trap.h,v 1.4 2007/06/16 22:30:38 marius Exp $
  */
 
 #ifndef	_MACHINE_TRAP_H_

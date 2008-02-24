@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/iicbus/iic.c,v 1.39 2007/03/23 23:08:28 imp Exp $
  *
  */
 #include <sys/param.h>

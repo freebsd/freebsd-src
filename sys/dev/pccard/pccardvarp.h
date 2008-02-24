@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/pccard/pccardvarp.h,v 1.4 2007/05/31 19:29:20 piso Exp $
  */
 
 #ifndef _PCCARD_PCCARDVARP_H

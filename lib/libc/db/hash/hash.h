@@ -30,7 +30,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)hash.h	8.3 (Berkeley) 5/31/94
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/db/hash/hash.h,v 1.7 2007/01/09 00:27:50 imp Exp $
  */
 
 /* Operations */

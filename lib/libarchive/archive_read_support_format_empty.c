@@ -24,7 +24,7 @@
  */
 
 #include "archive_platform.h"
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libarchive/archive_read_support_format_empty.c,v 1.3 2007/05/29 01:00:19 kientzle Exp $");
 
 #include "archive.h"
 #include "archive_entry.h"

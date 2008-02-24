@@ -1,5 +1,5 @@
 #	from @(#)Makefile.inc	8.2 (Berkeley) 2/21/94
-# $FreeBSD$
+# $FreeBSD: src/lib/libc/db/Makefile.inc,v 1.5 2006/03/13 01:14:56 deischen Exp $
 #
 CFLAGS+=-D__DBINTERFACE_PRIVATE
 

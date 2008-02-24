@@ -24,7 +24,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/net/gethostbynis.c,v 1.28 2006/05/12 15:37:23 ume Exp $");
 
 #include <sys/param.h>
 #include <sys/socket.h>

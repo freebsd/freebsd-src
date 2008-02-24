@@ -25,7 +25,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/sparc64/sparc64/swtch.S,v 1.34 2007/01/19 11:15:33 marius Exp $");
 
 #include <machine/asmacros.h>
 #include <machine/asi.h>

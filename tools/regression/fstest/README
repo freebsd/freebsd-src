@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/tools/regression/fstest/README,v 1.1 2007/01/28 00:10:28 pjd Exp $
 
 Few notes on how to use fstest in short steps:
 

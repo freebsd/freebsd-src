@@ -1,6 +1,6 @@
 # ZyDAS Loadable Kernel Module
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/zyd/Makefile,v 1.1 2007/08/29 21:04:26 imp Exp $
 
 .PATH: ${.CURDIR}/../../dev/usb
 

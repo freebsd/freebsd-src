@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/nscd/agents/passwd.c,v 1.2 2007/09/27 12:30:10 bushman Exp $");
 
 #include <sys/types.h>
 #include <assert.h>

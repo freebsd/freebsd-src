@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/ep/if_ep_mca.c,v 1.13 2007/02/23 15:55:37 piso Exp $");
 
 #include <sys/param.h>
 #include <sys/kernel.h>

@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/pci/if_pcn.c,v 1.83 2007/02/23 12:19:03 piso Exp $");
 
 /*
  * AMD Am79c972 fast ethernet PCI NIC driver. Datasheets are available

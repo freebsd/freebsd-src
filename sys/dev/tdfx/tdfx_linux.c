@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/tdfx/tdfx_linux.c,v 1.1 2006/03/03 21:37:36 yar Exp $");
 
 #include <sys/param.h>
 #include <sys/file.h>

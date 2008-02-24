@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/periodic/weekly/340.noid,v 1.5 2001/05/31 09:53:53 dougb Exp $
 #
 
 # If there is a global system configuration file, suck it in.

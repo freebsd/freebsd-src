@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/tdfx/tdfx_pci.c,v 1.39 2006/03/03 21:37:36 yar Exp $");
 
 /* 3dfx driver for FreeBSD 4.x - Finished 11 May 2000, 12:25AM ET
  *

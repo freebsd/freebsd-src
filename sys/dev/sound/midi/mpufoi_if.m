@@ -23,7 +23,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/dev/sound/midi/mpufoi_if.m,v 1.3 2007/02/25 13:51:52 netchild Exp $
 #
 
 #include <sys/bus.h>

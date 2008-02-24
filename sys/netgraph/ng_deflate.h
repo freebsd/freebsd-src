@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netgraph/ng_deflate.h,v 1.1 2006/12/28 15:44:05 glebius Exp $
  */
 
 #ifndef _NETGRAPH_NG_DEFLATE_H_

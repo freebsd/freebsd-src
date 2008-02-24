@@ -25,7 +25,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libkse/arch/amd64/amd64/enter_uts.S,v 1.6 2007/10/09 13:42:22 obrien Exp $");
 
 
 /*

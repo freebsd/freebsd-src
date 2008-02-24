@@ -24,7 +24,7 @@
  */
 #include <sys/cdefs.h>
 #include <sys/types.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/libkern/memset.c,v 1.2 2007/04/06 00:06:26 kan Exp $");
 
 void *memset(void *, int, size_t);
 

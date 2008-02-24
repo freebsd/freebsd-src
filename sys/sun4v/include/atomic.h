@@ -25,7 +25,7 @@
  * SUCH DAMAGE.
  *
  *	from: FreeBSD: src/sys/i386/include/atomic.h,v 1.20 2001/02/11
- * $FreeBSD$
+ * $FreeBSD: src/sys/sun4v/include/atomic.h,v 1.1 2006/10/05 06:14:25 kmacy Exp $
  */
 
 #ifndef	_MACHINE_ATOMIC_H_

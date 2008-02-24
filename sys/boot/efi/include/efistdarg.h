@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/boot/efi/include/efistdarg.h,v 1.2 2006/11/02 02:42:47 marcel Exp $ */
 #ifndef _EFISTDARG_H_
 #define _EFISTDARG_H_
 

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/compat/opensolaris/sys/vfs.h,v 1.2 2007/06/04 11:31:45 pjd Exp $
  */
 
 #ifndef _OPENSOLARIS_SYS_VFS_H_

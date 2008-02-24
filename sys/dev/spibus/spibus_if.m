@@ -23,7 +23,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/dev/spibus/spibus_if.m,v 1.1 2006/07/14 22:47:07 imp Exp $
 #
 
 #include <sys/bus.h>

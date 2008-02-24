@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/csup/parse.y,v 1.1.1.1 2006/03/03 04:11:28 mux Exp $
  */
 
 #include <sys/types.h>

@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/logger/Makefile,v 1.5 2007/05/07 11:28:01 dwmalone Exp $
 
 .include <bsd.own.mk>
 

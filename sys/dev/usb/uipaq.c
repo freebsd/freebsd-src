@@ -49,7 +49,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/usb/uipaq.c,v 1.7 2007/06/21 14:42:33 imp Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

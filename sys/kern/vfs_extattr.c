@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/vfs_extattr.c,v 1.431 2006/12/23 00:30:03 rwatson Exp $");
 
 #include "opt_mac.h"
 

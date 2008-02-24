@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mtree.h	8.1 (Berkeley) 6/6/93
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/mtree/mtree.h,v 1.8 2006/07/03 10:55:21 maxim Exp $
  */
 
 #include <string.h>

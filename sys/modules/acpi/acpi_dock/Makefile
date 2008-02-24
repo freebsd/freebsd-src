@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/acpi/acpi_dock/Makefile,v 1.1 2006/04/15 12:31:34 iwasaki Exp $
 
 .PATH:		${.CURDIR}/../../../dev/acpica
 KMOD=		acpi_dock

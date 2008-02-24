@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sun4v/include/wstate.h,v 1.1 2006/10/05 06:14:26 kmacy Exp $
  */
 
 #ifndef	_MACHINE_WSTATE_H_

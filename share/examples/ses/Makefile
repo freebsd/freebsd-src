@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/examples/ses/Makefile,v 1.3 2005/10/14 15:45:38 ru Exp $
 #
 # Copyright (c) 2000 by Matthew Jacob
 # All rights reserved.

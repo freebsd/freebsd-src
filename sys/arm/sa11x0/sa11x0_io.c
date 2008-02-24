@@ -41,7 +41,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/arm/sa11x0/sa11x0_io.c,v 1.10 2006/11/20 13:21:02 kevlo Exp $");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/queue.h>

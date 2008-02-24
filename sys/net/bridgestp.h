@@ -67,7 +67,7 @@
  *
  * OpenBSD: if_bridge.h,v 1.14 2001/03/22 03:48:29 jason Exp
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/net/bridgestp.h,v 1.14 2007/08/04 21:09:04 thompsa Exp $
  */
 
 /*

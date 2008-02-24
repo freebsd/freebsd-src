@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libypclnt/ypclnt_connect.c,v 1.2 2006/07/28 21:34:37 stefanf Exp $
  */
 
 #include <sys/param.h>

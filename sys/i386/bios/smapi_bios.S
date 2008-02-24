@@ -1,5 +1,5 @@
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i386/bios/smapi_bios.S,v 1.5 2005/07/22 15:01:07 ru Exp $");
 
 /*
  * This is cribbed from the Linux thinkpad-4.1 driver by

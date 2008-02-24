@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/getconf/getconf.c,v 1.10 2006/12/06 12:00:26 maxim Exp $");
 
 #include <sys/types.h>
 

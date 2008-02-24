@@ -24,7 +24,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/sun4v/sun4v/hvcons.c,v 1.6 2007/02/23 12:19:07 piso Exp $");
 
 #include <sys/types.h>
 #include <sys/param.h>

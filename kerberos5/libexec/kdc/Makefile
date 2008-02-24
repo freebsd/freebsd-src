@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/kerberos5/libexec/kdc/Makefile,v 1.17 2004/02/05 18:51:51 ru Exp $
 
 PROG=	kdc
 MAN=	kdc.8

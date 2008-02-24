@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/kbdmap/kbdmap.c,v 1.6 2007/08/27 21:56:42 murray Exp $");
 
 #include <sys/types.h>
 #include <sys/queue.h>

@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/contrib/ngatm/FREEBSD-upgrade,v 1.1 2003/10/22 09:28:49 harti Exp $
 
 This is the user part of the NgATM stuff. Be careful to feed changes
 back to the maintainer <harti@freebsd.org>, because the code here is

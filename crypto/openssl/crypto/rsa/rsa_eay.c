@@ -108,7 +108,7 @@
  * Hudson (tjh@cryptsoft.com).
  *
  */
-/* $FreeBSD$ */
+/* $FreeBSD: src/crypto/openssl/crypto/rsa/rsa_eay.c,v 1.15 2006/10/01 07:46:16 simon Exp $ */
 
 #include <stdio.h>
 #include "cryptlib.h"

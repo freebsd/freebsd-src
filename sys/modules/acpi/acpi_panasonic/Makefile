@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/acpi/acpi_panasonic/Makefile,v 1.4 2006/05/30 09:38:53 ru Exp $
 
 .PATH:	${.CURDIR}/../../../dev/acpi_support
 

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/pc98/loader/Makefile,v 1.41 2006/11/02 00:26:45 marcel Exp $
 
 .include <bsd.own.mk>
 

@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)signalvar.h	8.6 (Berkeley) 2/19/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/signalvar.h,v 1.77.4.1 2008/01/19 18:15:06 kib Exp $
  */
 
 #ifndef _SYS_SIGNALVAR_H_

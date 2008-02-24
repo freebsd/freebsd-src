@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libutil/pidfile.c,v 1.7.2.1 2007/10/15 10:49:05 kib Exp $");
 
 #include <sys/param.h>
 #include <sys/file.h>

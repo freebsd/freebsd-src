@@ -19,7 +19,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 */
 
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/gnu/usr.bin/binutils/gdb/kvm-fbsd-i386.h,v 1.1 2004/06/11 16:09:38 obrien Exp $");
 
 #include <machine/frame.h>
 

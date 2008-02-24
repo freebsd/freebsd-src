@@ -40,7 +40,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/make/var.c,v 1.163 2006/07/17 21:05:27 obrien Exp $");
 
 /**
  * var.c --

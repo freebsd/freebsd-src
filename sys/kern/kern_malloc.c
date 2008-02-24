@@ -43,7 +43,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/kern_malloc.c,v 1.162 2007/06/27 13:39:38 rwatson Exp $");
 
 #include "opt_ddb.h"
 #include "opt_vm.h"

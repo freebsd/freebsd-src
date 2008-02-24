@@ -30,7 +30,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)fvwrite.h	8.1 (Berkeley) 6/4/93
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/stdio/fvwrite.h,v 1.4 2007/01/09 00:28:06 imp Exp $
  */
 
 /*

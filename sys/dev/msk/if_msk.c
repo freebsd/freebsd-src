@@ -99,7 +99,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/msk/if_msk.c,v 1.18.2.1 2007/12/08 12:16:14 remko Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

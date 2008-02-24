@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/tools/netrate/http/Makefile,v 1.1 2005/10/06 08:41:08 rwatson Exp $
 
 PROG=	http
 WARNS=	3

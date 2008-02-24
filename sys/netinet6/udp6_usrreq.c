@@ -60,7 +60,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)udp_usrreq.c	8.6 (Berkeley) 5/23/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet6/udp6_usrreq.c,v 1.81 2007/09/08 08:18:24 rwatson Exp $
  */
 
 #include "opt_inet.h"

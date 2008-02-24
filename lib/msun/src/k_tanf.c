@@ -15,7 +15,7 @@
 
 #ifndef INLINE_KERNEL_TANDF
 #ifndef lint
-static char rcsid[] = "$FreeBSD$";
+static char rcsid[] = "$FreeBSD: src/lib/msun/src/k_tanf.c,v 1.20 2005/11/28 11:46:20 bde Exp $";
 #endif
 #endif
 

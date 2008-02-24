@@ -24,7 +24,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/ofw/ofw_console.c,v 1.36 2006/11/06 17:43:10 rwatson Exp $");
 
 #include "opt_comconsole.h"
 #include "opt_ofw.h"

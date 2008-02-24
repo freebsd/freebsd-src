@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/tools/net80211/wlaninject/wlaninject.c,v 1.2 2006/08/05 18:21:04 sam Exp $
  */
 #include <stdlib.h>
 #include <stdio.h>

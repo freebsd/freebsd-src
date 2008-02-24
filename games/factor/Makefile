@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 5/31/93
-# $FreeBSD$
+# $FreeBSD: src/games/factor/Makefile,v 1.11 2006/03/17 18:54:21 ru Exp $
 
 .include <bsd.own.mk>
 

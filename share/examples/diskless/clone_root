@@ -4,7 +4,7 @@
 #	<Standard BSD copyright>
 # Revised 2001.04.16
 #
-# $FreeBSD$
+# $FreeBSD: src/share/examples/diskless/clone_root,v 1.4 2006/06/02 15:01:11 motoyuki Exp $
 #
 # clone root filesystem for diskless root stuff
 #

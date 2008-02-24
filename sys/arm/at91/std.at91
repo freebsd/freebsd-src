@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/arm/at91/std.at91,v 1.3.2.1 2007/12/02 14:19:37 cognet Exp $
 
 files	"../at91/files.at91"
 cpu	CPU_ARM9
