@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <ieeefp.h>
 
+#ifndef _SOFT_FLOAT
 fp_rnd_t
 fpsetround(fp_rnd_t rnd_dir)
 {
@@ -55,3 +56,4 @@ fpsetround(fp_rnd_t rnd_dir)
 	__asm__ __volatile("mtfsf 0xff,%0" :: "f"(fpscr));
 	return (old);
 }
+#endif

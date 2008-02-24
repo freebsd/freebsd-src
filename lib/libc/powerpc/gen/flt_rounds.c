@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <machine/float.h>
 
+#ifndef _SOFT_FLOAT
 static const int map[] = {
 	1,	/* round to nearest */
 	0,	/* round to zero */
@@ -52,3 +53,4 @@ __flt_rounds()
 	__asm__ __volatile("mffs %0" : "=f"(fpscr));
 	return map[(fpscr & 0x03)];
 }
+#endif

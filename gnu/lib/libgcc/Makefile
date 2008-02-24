@@ -122,7 +122,7 @@ LIB2ADDEH = unwind-ia64.c unwind-sjlj.c unwind-c.c
 
 .if ${TARGET_ARCH} == "powerpc"
 #	from config/rs6000/t-ppccomm
-LIB2FUNCS_EXTRA = tramp.asm darwin-ldouble.c
+LIB2FUNCS_EXTRA = tramp.asm
 LIB2FUNCS_STATIC_EXTRA = eabi.asm
 .endif
 

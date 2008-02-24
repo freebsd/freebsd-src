@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <ieeefp.h>
 
+#ifndef _SOFT_FLOAT
 fp_except_t
 fpgetmask()
 {
@@ -51,3 +52,4 @@ fpgetmask()
 	__asm__("mffs %0" : "=f"(fpscr));
 	return ((fp_except_t)((fpscr >> 3) & 0x1f));
 }
+#endif
