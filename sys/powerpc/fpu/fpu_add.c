@@ -58,7 +58,6 @@ __FBSDID("$FreeBSD$");
 
 #include <powerpc/fpu/fpu_arith.h>
 #include <powerpc/fpu/fpu_emu.h>
-#include <powerpc/fpu/fpu_extern.h>
 
 struct fpn *
 fpu_add(struct fpemu *fe)
