@@ -167,6 +167,8 @@ void	fpu_compare(struct fpemu *, int);
 /* Build a new Quiet NaN (sign=0, frac=all 1's). */
 struct	fpn *fpu_newnan(struct fpemu *);
 
+void	fpu_norm(struct fpn *);
+
 /*
  * Shift a number right some number of bits, taking care of round/sticky.
  * Note that the result is probably not a well-formed number (it will lack
