@@ -2780,7 +2780,7 @@ send_abort_rpl(struct mbuf *m, struct toedev *tdev, int rst_status)
 static void
 cleanup_syn_rcv_conn(struct socket *child, struct socket *parent)
 {
-	UNIMPLEMENTED();
+	CXGB_UNIMPLEMENTED();
 #ifdef notyet	
 	struct request_sock *req = child->sk_user_data;
 
@@ -2826,7 +2826,7 @@ do_abort_syn_rcv(struct socket *child, struct socket *parent)
 static int
 abort_syn_rcv(struct socket *so, struct mbuf *m)
 {
-	UNIMPLEMENTED();
+	CXGB_UNIMPLEMENTED();
 #ifdef notyet	
 	struct socket *parent;
 	struct toedev *tdev = TOE_DEV(so);
@@ -2983,7 +2983,7 @@ pass_open_abort(struct socket *child, struct socket *parent, struct mbuf *m)
 static void
 handle_pass_open_arp_failure(struct socket *so, struct mbuf *m)
 {
-	UNIMPLEMENTED();
+	CXGB_UNIMPLEMENTED();
 	
 #ifdef notyet	
 	struct t3cdev *cdev;
@@ -3507,13 +3507,13 @@ do_pass_establish(struct t3cdev *cdev, struct mbuf *m, void *ctx)
 		/*
 		 * No entry 
 		 */
-		UNIMPLEMENTED();
+		CXGB_UNIMPLEMENTED();
 	}
 	if (so == NULL) {
 		/*
 		 * Couldn't create the socket
 		 */
-		UNIMPLEMENTED();
+		CXGB_UNIMPLEMENTED();
 	}
 
 	/*
