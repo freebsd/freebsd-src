@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <ieeefp.h>
 
+#ifndef _SOFT_FLOAT
 fp_except_t
 fpsetmask(fp_except_t mask)
 {
@@ -55,3 +56,4 @@ fpsetmask(fp_except_t mask)
 	__asm__ __volatile("mtfsf 0xff,%0" :: "f"(fpscr));
 	return (old);
 }
+#endif
