@@ -107,7 +107,7 @@ create_obj_from_file(struct bsdar *bsdar, const char *name, time_t mtime)
 	const char		*bname;
 
 	if (name == NULL)
-		return(NULL);
+		return (NULL);
 
 	obj = malloc(sizeof(struct ar_obj));
 	if (obj == NULL)
@@ -115,7 +115,7 @@ create_obj_from_file(struct bsdar *bsdar, const char *name, time_t mtime)
 	if ((obj->fd = open(name, O_RDONLY, 0)) < 0) {
 		bsdar_warnc(bsdar, errno, "can't open file: %s", name);
 		free(obj);
-		return(NULL);
+		return (NULL);
 	}
 
 	if ((bname = basename(name)) == NULL)
@@ -157,7 +157,7 @@ create_obj_from_file(struct bsdar *bsdar, const char *name, time_t mtime)
 
 	if (obj->size == 0) {
 		obj->maddr = NULL;
-		return(obj);
+		return (obj);
 	}
 
 	if ((obj->maddr = mmap(NULL, obj->size, PROT_READ,
@@ -169,7 +169,7 @@ create_obj_from_file(struct bsdar *bsdar, const char *name, time_t mtime)
 		bsdar_errc(bsdar, EX_SOFTWARE, errno, "close failed: %s",
 		    obj->name);
 
-	return(obj);
+	return (obj);
 
 giveup:
 	if (close(obj->fd) < 0)
@@ -177,7 +177,7 @@ giveup:
 		    obj->name);
 	free(obj->name);
 	free(obj);
-	return(NULL);
+	return (NULL);
 }
 
 /*
