@@ -80,8 +80,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
 
-#define DEBUG
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kdb.h>
