@@ -3486,7 +3486,7 @@ check_body:
 				struct cfg_nat *t;
 				struct mbuf *mcl;
 				/* XXX - libalias duct tape */
-				int ldt; 
+				int ldt, nat_id;
 				char *c;
 				
 				ldt = 0;
@@ -3494,7 +3494,9 @@ check_body:
 				retval = 0;
 				t = ((ipfw_insn_nat *)cmd)->nat;
 				if (t == NULL) {
-					t = lookup_nat(cmd->arg1);
+					nat_id = (cmd->arg1 == IP_FW_TABLEARG) ?
+					    tablearg : cmd->arg1;
+					t = lookup_nat(nat_id);
 					if (t == NULL) {
 						retval = IP_FW_DENY;
 						goto done;
