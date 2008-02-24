@@ -1363,8 +1363,8 @@ ffs_vget(mp, ino, flags, vpp)
 	/*
 	 * FFS supports recursive and shared locking.
 	 */
-	vp->v_vnlock->lk_flags |= LK_CANRECURSE;
-	vp->v_vnlock->lk_flags &= ~LK_NOSHARE;
+	VN_LOCK_AREC(vp);
+	VN_LOCK_ASHARE(vp);
 	vp->v_data = ip;
 	vp->v_bufobj.bo_bsize = fs->fs_bsize;
 	ip->i_vnode = vp;
