@@ -43,22 +43,17 @@ case "$daily_status_security_chksetuid_enable" in
     [Yy][Ee][Ss])
 	echo ""
 	echo 'Checking setuid files and devices:'
-	# XXX Note that there is the possibility of overrunning the args to ls
-	MP=`mount -t ufs,zfs | egrep -v " no(suid|exec)" | awk '{ print $3 }' | sort`
-	if [ -n "${MP}" ]
-	then
-	    set ${MP}
-	    while [ $# -ge 1 ]; do
-	        mount=$1
-	        shift
-	        find $mount -xdev -type f \
-			\( -perm -u+x -or -perm -g+x -or -perm -o+x \) \
-			\( -perm -u+s -or -perm -g+s \) -print0
-	    done | xargs -0 -n 20 ls -liTd | sed 's/^ *//' | sort -k 11 |
-	      check_diff setuid - "${host} setuid diffs:"
-	    rc=$?
-	fi;;
-    *)	rc=0;;
+	MP=`mount -t ufs,zfs | awk '$0 !~ /no(suid|exec)/ { print $3 }'`
+	find -sx $MP /dev/null -type f \
+	    \( -perm -u+x -or -perm -g+x -or -perm -o+x \) \
+	    \( -perm -u+s -or -perm -g+s \) -print0 |
+	xargs -0 ls -liTd |
+	check_diff setuid - "${host} setuid diffs:"
+	rc=$?
+	;;
+    *)
+	rc=0
+	;;
 esac
 
 exit $rc
