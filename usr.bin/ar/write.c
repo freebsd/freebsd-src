@@ -154,6 +154,12 @@ create_obj_from_file(struct bsdar *bsdar, const char *name, time_t mtime)
 	obj->mtime = sb.st_mtime;
 	obj->dev = sb.st_dev;
 	obj->ino = sb.st_ino;
+
+	if (obj->size == 0) {
+		obj->maddr = NULL;
+		return(obj);
+	}
+
 	if ((obj->maddr = mmap(NULL, obj->size, PROT_READ,
 	    MAP_PRIVATE, obj->fd, (off_t)0)) == MAP_FAILED) {
 		bsdar_warnc(bsdar, errno, "can't mmap file: %s", obj->name);
@@ -427,14 +433,14 @@ write_cleanup(struct bsdar *bsdar)
 	struct ar_obj		*obj, *obj_temp;
 
 	TAILQ_FOREACH_SAFE(obj, &bsdar->v_obj, objs, obj_temp) {
-		free(obj->name);
 		if (obj->fd == -1)
 			free(obj->maddr);
 		else
-			if (munmap(obj->maddr, obj->size))
+			if (obj->maddr != NULL && munmap(obj->maddr, obj->size))
 				bsdar_warnc(bsdar, errno,
 				    "can't munmap file: %s", obj->name);
 		TAILQ_REMOVE(&bsdar->v_obj, obj, objs);
+		free(obj->name);
 		free(obj);
 	}
 
@@ -478,7 +484,7 @@ write_objs(struct bsdar *bsdar)
 
 	/* Create archive symbol table and archive string table, if need. */
 	TAILQ_FOREACH(obj, &bsdar->v_obj, objs) {
-		if (!(bsdar->options & AR_SS))
+		if (!(bsdar->options & AR_SS) && obj->maddr != NULL)
 			create_symtab_entry(bsdar, obj->maddr, obj->size);
 		if (strlen(obj->name) > _MAXNAMELEN_SVR4)
 			add_to_ar_str_table(bsdar, obj->name);
