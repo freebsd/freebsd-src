@@ -8,6 +8,9 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20080226:
+	FreeBSD 7.0-RELEASE
+
 20080208:
 	Note the addition of m_collapse for compacting mbuf chains.
 
