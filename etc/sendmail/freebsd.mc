@@ -71,7 +71,7 @@ dnl information available at http://www.mail-abuse.com/
 dnl NOTE: This is a subscription service as of July 31, 2001
 dnl FEATURE(dnsbl)
 dnl Alternatively, you can provide your own server and rejection message:
-dnl FEATURE(dnsbl, `blackholes.mail-abuse.org', `"550 Mail from " $&{client_addr} " rejected, see http://mail-abuse.org/cgi-bin/lookup?" $&{client_addr}')
+dnl FEATURE(dnsbl, `blackholes.mail-abuse.org', ``"550 Mail from " $&{client_addr} " rejected, see http://mail-abuse.org/cgi-bin/lookup?" $&{client_addr}'')
 
 dnl Dialup users should uncomment and define this appropriately
 dnl define(`SMART_HOST', `your.isp.mail.server')
