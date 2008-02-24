@@ -158,8 +158,8 @@ nfs_nget(struct mount *mntp, nfsfh_t *fhp, int fhsize, struct nfsnode **npp, int
 	/*
 	 * NFS supports recursive and shared locking.
 	 */
-	vp->v_vnlock->lk_flags |= LK_CANRECURSE;
-	vp->v_vnlock->lk_flags &= ~LK_NOSHARE;
+	VN_LOCK_AREC(vp);
+	VN_LOCK_ASHARE(vp);
 	if (fhsize > NFS_SMALLFH) {
 		MALLOC(np->n_fhp, nfsfh_t *, fhsize, M_NFSBIGFH, M_WAITOK);
 	} else

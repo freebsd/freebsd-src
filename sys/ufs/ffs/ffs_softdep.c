@@ -564,6 +564,9 @@ MTX_SYSINIT(softdep_lock, &lk, "Softdep Lock", MTX_DEF);
 #define ACQUIRE_LOCK(lk)		mtx_lock(lk)
 #define FREE_LOCK(lk)			mtx_unlock(lk)
 
+#define	BUF_AREC(bp)	((bp)->b_lock.lk_flags |= LK_CANRECURSE)
+#define	BUF_NOREC(bp)	((bp)->b_lock.lk_flags &= ~LK_CANRECURSE)
+
 /*
  * Worklist queue management.
  * These routines require that the lock be held.
@@ -5251,7 +5254,7 @@ top:
 		return (0);
 loop:
 	/* While syncing snapshots, we must allow recursive lookups */
-	bp->b_lock.lk_flags |= LK_CANRECURSE;
+	BUF_AREC(bp);
 	ACQUIRE_LOCK(&lk);
 	/*
 	 * As we hold the buffer locked, none of its dependencies
@@ -5393,7 +5396,7 @@ loop:
 		/* We reach here only in error and unlocked */
 		if (error == 0)
 			panic("softdep_sync_metadata: zero error");
-		bp->b_lock.lk_flags &= ~LK_CANRECURSE;
+		BUF_NOREC(bp);
 		bawrite(bp);
 		return (error);
 	}
@@ -5405,7 +5408,7 @@ loop:
 			break;
 	}
 	VI_UNLOCK(vp);
-	bp->b_lock.lk_flags &= ~LK_CANRECURSE;
+	BUF_NOREC(bp);
 	bawrite(bp);
 	if (nbp != NULL) {
 		bp = nbp;
