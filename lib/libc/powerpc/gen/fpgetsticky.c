@@ -45,6 +45,7 @@
 #include <sys/types.h>
 #include <ieeefp.h>
 
+#ifndef _SOFT_FLOAT
 #ifdef __weak_alias
 __weak_alias(fpgetsticky,_fpgetsticky)
 #endif
@@ -57,3 +58,4 @@ fpgetsticky()
 	__asm__ __volatile("mffs %0" : "=f"(fpscr));
 	return ((fp_except_t)((fpscr >> 25) & 0x1f));
 }
+#endif
