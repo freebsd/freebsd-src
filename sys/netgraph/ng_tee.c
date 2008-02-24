@@ -357,6 +357,7 @@ ng_tee_shutdown(node_p node)
 
 	NG_NODE_SET_PRIVATE(node, NULL);
 	FREE(privdata, M_NETGRAPH);
+	NG_NODE_UNREF(node);
 	return (0);
 }
 
