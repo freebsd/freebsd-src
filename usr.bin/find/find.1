@@ -466,6 +466,7 @@ This option is for GNU find compatibility and is ignored.
 Like
 .Ic -lname ,
 but the match is case insensitive.
+This is a GNU find extension.
 .It Ic -iname Ar pattern
 Like
 .Ic -name ,
@@ -492,7 +493,9 @@ links.
 .It Ic -lname Ar pattern
 Like
 .Ic -name ,
-but the matched file must also be a symbolic link.
+but the contents of the symbolic link are matched instead of the file
+name.
+This is a GNU find extension.
 .It Ic -ls
 This primary always evaluates to true.
 The following information for the current file is written to standard output:
