@@ -108,7 +108,8 @@ main(int argc, char **argv)
 	if ((bsdar->progname = getprogname()) == NULL)
 		bsdar->progname = "ar";
 
-	if (strcmp(bsdar->progname, "ranlib") == 0) {
+	if (strcmp(bsdar->progname, "ranlib") == 0 ||
+	    strcmp(bsdar->progname, "bsdranlib") == 0) {
 		while ((opt = getopt_long(argc, argv, "tV", longopts,
 		    NULL)) != -1) {
 			switch(opt) {
