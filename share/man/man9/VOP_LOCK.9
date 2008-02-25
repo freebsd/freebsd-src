@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 19, 2008
+.Dd February 25, 2008
 .Os
 .Dt VOP_LOCK 9
 .Sh NAME
@@ -46,7 +46,7 @@
 .Ft int
 .Fn VOP_UNLOCK "struct vnode *vp" "int flags"
 .Ft int
-.Fn VOP_ISLOCKED "struct vnode *vp" "struct thread *td"
+.Fn VOP_ISLOCKED "struct vnode *vp"
 .Ft int
 .Fn vn_lock "struct vnode *vp" "int flags"
 .Sh DESCRIPTION
@@ -100,9 +100,6 @@ Specify when the caller already has a simple lock
 will unlock the simple lock after getting the lock).
 .It Dv LK_RETRY
 Retry until locked.
-.El
-.It Fa td
-Thread context to use for the locks.
 .El
 .Pp
 Kernel code should use
