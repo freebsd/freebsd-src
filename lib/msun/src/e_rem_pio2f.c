@@ -45,7 +45,7 @@ int
 __ieee754_rem_pio2f(float x, double *y)
 {
 	double w,r,fn;
-	double tx[1];
+	double tx[1],ty[1];
 	float z;
 	int32_t e0,n,ix,hx;
 
@@ -76,7 +76,7 @@ __ieee754_rem_pio2f(float x, double *y)
 	e0 = (ix>>23)-150;		/* e0 = ilogb(|x|)-23; */
 	SET_FLOAT_WORD(z, ix - ((int32_t)(e0<<23)));
 	tx[0] = z;
-	n  =  __kernel_rem_pio2(tx,y,e0,1,0);
-	if(hx<0) {*y = -*y; return -n;}
-	return n;
+	n  =  __kernel_rem_pio2(tx,ty,e0,1,0);
+	if(hx<0) {*y = -ty[0]; return -n;}
+	*y = ty[0]; return n;
 }
