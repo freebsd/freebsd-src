@@ -4,12 +4,15 @@
 
 .PATH: ${SRCDIR}/binutils ${SRCDIR}/binutils/doc
 
-.if defined(WITH_BSDAR)
-PROG=	gnu-ranlib
-#MAN=	gnu-ranlib.1
-.else
-PROG=	ranlib
+.if !defined(_WITH_GNUAR)
+PROGNAME= gnu-ranlib
+MAN=	gnu-ranlib.1
+gnu-ranlib.1: ranlib.1
+	cat ${.ALLSRC} > ${.TARGET}
+CLEANFILES+= gnu-ranlib.1
 .endif
+
+PROG=	ranlib
 SRCS=	ar.c is-ranlib.c
 CFLAGS+= -D_GNU_SOURCE
 CFLAGS+= -I${.CURDIR}/${RELTOP}/libbinutils
