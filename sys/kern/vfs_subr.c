@@ -995,14 +995,12 @@ delmntque(struct vnode *vp)
 static void
 insmntque_stddtr(struct vnode *vp, void *dtr_arg)
 {
-	struct thread *td;
 
-	td = curthread; /* XXX ? */
 	vp->v_data = NULL;
 	vp->v_op = &dead_vnodeops;
 	/* XXX non mp-safe fs may still call insmntque with vnode
 	   unlocked */
-	if (!VOP_ISLOCKED(vp, td))
+	if (!VOP_ISLOCKED(vp))
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	vgone(vp);
 	vput(vp);
@@ -1638,7 +1636,7 @@ restart:
 		VFS_UNLOCK_GIANT(vfslocked);
 		vfslocked = 0;
 	}
-	if (VOP_ISLOCKED(vp, curthread) != 0) {
+	if (VOP_ISLOCKED(vp) != 0) {
 		VFS_UNLOCK_GIANT(vfslocked);
 		return (1);
 	}
@@ -2208,7 +2206,7 @@ vput(struct vnode *vp)
 	 */
 	v_decr_useonly(vp);
 	vp->v_iflag |= VI_OWEINACT;
-	if (VOP_ISLOCKED(vp, curthread) != LK_EXCLUSIVE) {
+	if (VOP_ISLOCKED(vp) != LK_EXCLUSIVE) {
 		error = VOP_LOCK(vp, LK_UPGRADE|LK_INTERLOCK|LK_NOWAIT);
 		VI_LOCK(vp);
 		if (error) {
@@ -2685,7 +2683,7 @@ DB_SHOW_COMMAND(lockedvnods, lockedvnodes)
 		nmp = TAILQ_NEXT(mp, mnt_list);
 		TAILQ_FOREACH(vp, &mp->mnt_nvnodelist, v_nmntvnodes) {
 			if (vp->v_type != VMARKER &&
-			    VOP_ISLOCKED(vp, curthread))
+			    VOP_ISLOCKED(vp))
 				vprint("", vp);
 		}
 		nmp = TAILQ_NEXT(mp, mnt_list);
@@ -2972,7 +2970,7 @@ vfs_msync(struct mount *mp, int flags)
 	MNT_VNODE_FOREACH(vp, mp, mvp) {
 		VI_LOCK(vp);
 		if ((vp->v_iflag & VI_OBJDIRTY) &&
-		    (flags == MNT_WAIT || VOP_ISLOCKED(vp, curthread) == 0)) {
+		    (flags == MNT_WAIT || VOP_ISLOCKED(vp) == 0)) {
 			MNT_IUNLOCK(mp);
 			if (!vget(vp,
 			    LK_EXCLUSIVE | LK_RETRY | LK_INTERLOCK,
@@ -3479,7 +3477,7 @@ void
 assert_vop_locked(struct vnode *vp, const char *str)
 {
 
-	if (vp && !IGNORE_LOCK(vp) && VOP_ISLOCKED(vp, curthread) == 0)
+	if (vp && !IGNORE_LOCK(vp) && VOP_ISLOCKED(vp) == 0)
 		vfs_badlock("is not locked but should be", str, vp);
 }
 
@@ -3488,7 +3486,7 @@ assert_vop_unlocked(struct vnode *vp, const char *str)
 {
 
 	if (vp && !IGNORE_LOCK(vp) &&
-	    VOP_ISLOCKED(vp, curthread) == LK_EXCLUSIVE)
+	    VOP_ISLOCKED(vp) == LK_EXCLUSIVE)
 		vfs_badlock("is locked but should not be", str, vp);
 }
 
@@ -3497,7 +3495,7 @@ assert_vop_elocked(struct vnode *vp, const char *str)
 {
 
 	if (vp && !IGNORE_LOCK(vp) &&
-	    VOP_ISLOCKED(vp, curthread) != LK_EXCLUSIVE)
+	    VOP_ISLOCKED(vp) != LK_EXCLUSIVE)
 		vfs_badlock("is not exclusive locked but should be", str, vp);
 }
 
@@ -3507,7 +3505,7 @@ assert_vop_elocked_other(struct vnode *vp, const char *str)
 {
 
 	if (vp && !IGNORE_LOCK(vp) &&
-	    VOP_ISLOCKED(vp, curthread) != LK_EXCLOTHER)
+	    VOP_ISLOCKED(vp) != LK_EXCLOTHER)
 		vfs_badlock("is not exclusive locked by another thread",
 		    str, vp);
 }
@@ -3517,7 +3515,7 @@ assert_vop_slocked(struct vnode *vp, const char *str)
 {
 
 	if (vp && !IGNORE_LOCK(vp) &&
-	    VOP_ISLOCKED(vp, curthread) != LK_SHARED)
+	    VOP_ISLOCKED(vp) != LK_SHARED)
 		vfs_badlock("is not locked shared but should be", str, vp);
 }
 #endif /* 0 */
@@ -3885,7 +3883,7 @@ vfs_knllocked(void *arg)
 {
 	struct vnode *vp = arg;
 
-	return (VOP_ISLOCKED(vp, curthread) == LK_EXCLUSIVE);
+	return (VOP_ISLOCKED(vp) == LK_EXCLUSIVE);
 }
 
 int

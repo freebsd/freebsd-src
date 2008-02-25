@@ -66,7 +66,7 @@ static int ffs_rawread_readahead(struct vnode *vp,
 static int ffs_rawread_main(struct vnode *vp,
 			    struct uio *uio);
 
-static int ffs_rawread_sync(struct vnode *vp, struct thread *td);
+static int ffs_rawread_sync(struct vnode *vp);
 
 int ffs_rawread(struct vnode *vp, struct uio *uio, int *workdone);
 
@@ -95,7 +95,7 @@ ffs_rawread_setup(void)
 
 
 static int
-ffs_rawread_sync(struct vnode *vp, struct thread *td)
+ffs_rawread_sync(struct vnode *vp)
 {
 	int spl;
 	int error;
@@ -114,14 +114,14 @@ ffs_rawread_sync(struct vnode *vp, struct thread *td)
 		VI_UNLOCK(vp);
 		
 		if (vn_start_write(vp, &mp, V_NOWAIT) != 0) {
-			if (VOP_ISLOCKED(vp, td) != LK_EXCLUSIVE)
+			if (VOP_ISLOCKED(vp) != LK_EXCLUSIVE)
 				upgraded = 1;
 			else
 				upgraded = 0;
 			VOP_UNLOCK(vp, 0);
 			(void) vn_start_write(vp, &mp, V_WAIT);
 			VOP_LOCK(vp, LK_EXCLUSIVE);
-		} else if (VOP_ISLOCKED(vp, td) != LK_EXCLUSIVE) {
+		} else if (VOP_ISLOCKED(vp) != LK_EXCLUSIVE) {
 			upgraded = 1;
 			/* Upgrade to exclusive lock, this might block */
 			VOP_LOCK(vp, LK_UPGRADE);
@@ -466,9 +466,7 @@ ffs_rawread(struct vnode *vp,
 		    (uio->uio_resid & (secsize - 1)) == 0) {
 			
 			/* Sync dirty pages and buffers if needed */
-			error = ffs_rawread_sync(vp,
-						 (uio->uio_td != NULL) ?
-						 uio->uio_td : curthread);
+			error = ffs_rawread_sync(vp);
 			if (error != 0)
 				return error;
 			

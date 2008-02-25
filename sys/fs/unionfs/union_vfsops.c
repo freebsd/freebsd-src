@@ -425,7 +425,7 @@ unionfs_root(struct mount *mp, int flags, struct vnode **vpp, struct thread *td)
 	vp = ump->um_rootvp;
 
 	UNIONFSDEBUG("unionfs_root: rootvp=%p locked=%x\n",
-	    vp, VOP_ISLOCKED(vp, td));
+	    vp, VOP_ISLOCKED(vp));
 
 	vref(vp);
 	if (flags & LK_TYPE_MASK)

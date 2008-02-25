@@ -107,7 +107,7 @@ nullfs_mount(struct mount *mp, struct thread *td)
 	 * (XXX) VOP_ISLOCKED is needed?
 	 */
 	if ((mp->mnt_vnodecovered->v_op == &null_vnodeops) &&
-		VOP_ISLOCKED(mp->mnt_vnodecovered, curthread)) {
+		VOP_ISLOCKED(mp->mnt_vnodecovered)) {
 		VOP_UNLOCK(mp->mnt_vnodecovered, 0);
 		isvnunlocked = 1;
 	}
@@ -120,7 +120,7 @@ nullfs_mount(struct mount *mp, struct thread *td)
 	/*
 	 * Re-lock vnode.
 	 */
-	if (isvnunlocked && !VOP_ISLOCKED(mp->mnt_vnodecovered, curthread))
+	if (isvnunlocked && !VOP_ISLOCKED(mp->mnt_vnodecovered))
 		vn_lock(mp->mnt_vnodecovered, LK_EXCLUSIVE | LK_RETRY);
 
 	if (error)
@@ -247,7 +247,7 @@ nullfs_root(mp, flags, vpp, td)
 	VREF(vp);
 
 #ifdef NULLFS_DEBUG
-	if (VOP_ISLOCKED(vp, curthread))
+	if (VOP_ISLOCKED(vp))
 		panic("root vnode is locked.\n");
 #endif
 	vn_lock(vp, flags | LK_RETRY);

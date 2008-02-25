@@ -303,7 +303,7 @@ BUF_UNLOCK(struct buf *bp)
  * Check if a buffer lock is currently held.
  */
 #define	BUF_ISLOCKED(bp)						\
-	(lockstatus(&(bp)->b_lock, curthread))
+	(lockstatus(&(bp)->b_lock))
 /*
  * Free a buffer lock.
  */

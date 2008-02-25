@@ -193,7 +193,7 @@ ncp_conn_unlock(struct ncp_conn *conn, struct thread *td)
 int
 ncp_conn_assert_locked(struct ncp_conn *conn, const char *checker, struct thread *td)
 {
-	if (lockstatus(&conn->nc_lock, curthread) == LK_EXCLUSIVE) return 0;
+	if (lockstatus(&conn->nc_lock) == LK_EXCLUSIVE) return 0;
 	printf("%s: connection isn't locked!\n", checker);
 	return EIO;
 }

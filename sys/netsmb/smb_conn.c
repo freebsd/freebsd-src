@@ -336,7 +336,7 @@ smb_co_put(struct smb_connobj *cp, struct smb_cred *scred)
 int
 smb_co_lockstatus(struct smb_connobj *cp, struct thread *td)
 {
-	return lockstatus(&cp->co_lock, td);
+	return lockstatus(&cp->co_lock);
 }
 
 int
