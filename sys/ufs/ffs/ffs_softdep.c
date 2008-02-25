@@ -2599,6 +2599,7 @@ softdep_freefile(pvp, ino, mode)
 	}
 	WORKLIST_INSERT(&inodedep->id_inowait, &freefile->fx_list);
 	FREE_LOCK(&lk);
+	ip->i_flag |= IN_MODIFIED;
 }
 
 /*
