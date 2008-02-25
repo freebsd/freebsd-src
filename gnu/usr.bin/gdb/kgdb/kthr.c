@@ -59,10 +59,8 @@ kgdb_lookup(const char *sym)
 
 	nl[0].n_name = (char *)(uintptr_t)sym;
 	nl[1].n_name = NULL;
-	if (kvm_nlist(kvm, nl) != 0) {
-		warnx("kvm_nlist(%s): %s", sym, kvm_geterr(kvm));
+	if (kvm_nlist(kvm, nl) != 0)
 		return (0);
-	}
 	return (nl[0].n_value);
 }
 
@@ -81,13 +79,17 @@ kgdb_thr_init(void)
 	uintptr_t addr, paddr;
 
 	addr = kgdb_lookup("_allproc");
-	if (addr == 0)
+	if (addr == 0) {
+		warnx("kvm_nlist(_allproc): %s", kvm_geterr(kvm));
 		return (NULL);
+	}
 	kvm_read(kvm, addr, &paddr, sizeof(paddr));
 
 	dumppcb = kgdb_lookup("_dumppcb");
-	if (dumppcb == 0)
+	if (dumppcb == 0) {
+		warnx("kvm_nlist(_dumppcb): %s", kvm_geterr(kvm));
 		return (NULL);
+	}
 
 	addr = kgdb_lookup("_dumptid");
 	if (addr != 0)
