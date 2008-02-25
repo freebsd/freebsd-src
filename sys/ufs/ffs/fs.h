@@ -406,6 +406,7 @@ CTASSERT(sizeof(struct fs) == 1376);
 #define FS_INDEXDIRS  0x08	/* kernel supports indexed directories */
 #define FS_ACLS       0x10	/* file system has ACLs enabled */
 #define FS_MULTILABEL 0x20	/* file system is MAC multi-label */
+#define FS_GJOURNAL   0x40	/* reserved for FreeBSD 7.0 and later */
 #define FS_FLAGS_UPDATED 0x80	/* flags have been moved to new location */
 
 /*
