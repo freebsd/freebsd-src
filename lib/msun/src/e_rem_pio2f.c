@@ -19,8 +19,8 @@ __FBSDID("$FreeBSD$");
 
 /* __ieee754_rem_pio2f(x,y)
  *
- * return the remainder of x rem pi/2 in y[0]+y[1]
- * use double precision internally
+ * return the remainder of x rem pi/2 in *y
+ * use double precision for everything except passing x
  * use __kernel_rem_pio2() for large x
  */
 
@@ -42,10 +42,10 @@ pio2_1  =  1.57079632673412561417e+00, /* 0x3FF921FB, 0x54400000 */
 pio2_1t =  6.07710050650619224932e-11; /* 0x3DD0B461, 0x1A626331 */
 
 int
-__ieee754_rem_pio2f(float x, float *y)
+__ieee754_rem_pio2f(float x, double *y)
 {
 	double w,r,fn;
-	double tx[1],ty[1];
+	double tx[1];
 	float z;
 	int32_t e0,n,ix,hx;
 
@@ -63,23 +63,20 @@ __ieee754_rem_pio2f(float x, float *y)
 #endif
 	    r  = x-fn*pio2_1;
 	    w  = fn*pio2_1t;
-	    y[0] = r-w;
-	    y[1] = (r-y[0])-w;
+	    *y = r-w;
 	    return n;
 	}
     /*
      * all other (large) arguments
      */
 	if(ix>=0x7f800000) {		/* x is inf or NaN */
-	    y[0]=y[1]=x-x; return 0;
+	    *y=x-x; return 0;
 	}
     /* set z = scalbn(|x|,ilogb(|x|)-23) */
 	e0 = (ix>>23)-150;		/* e0 = ilogb(|x|)-23; */
 	SET_FLOAT_WORD(z, ix - ((int32_t)(e0<<23)));
 	tx[0] = z;
-	n  =  __kernel_rem_pio2(tx,ty,e0,1,0);
-	y[0] = ty[0];
-	y[1] = ty[0] - y[0];
-	if(hx<0) {y[0] = -y[0]; y[1] = -y[1]; return -n;}
+	n  =  __kernel_rem_pio2(tx,y,e0,1,0);
+	if(hx<0) {*y = -*y; return -n;}
 	return n;
 }
