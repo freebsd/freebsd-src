@@ -90,7 +90,7 @@ ufs_quotactl(mp, cmds, id, arg, td)
 	struct mount *mp;
 	int cmds;
 	uid_t id;
-	caddr_t arg;
+	void *arg;
 	struct thread *td;
 {
 #ifndef QUOTA
