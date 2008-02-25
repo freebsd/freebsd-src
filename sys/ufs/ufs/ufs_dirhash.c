@@ -62,7 +62,7 @@ __FBSDID("$FreeBSD$");
 #define OFSFMT(vp)		((vp)->v_mount->mnt_maxsymlinklen <= 0)
 #define BLKFREE2IDX(n)		((n) > DH_NFSTATS ? DH_NFSTATS : (n))
 
-static MALLOC_DEFINE(M_DIRHASH, "UFS dirhash", "UFS directory hash tables");
+static MALLOC_DEFINE(M_DIRHASH, "ufs_dirhash", "UFS directory hash tables");
 
 static SYSCTL_NODE(_vfs, OID_AUTO, ufs, CTLFLAG_RD, 0, "UFS filesystem");
 

@@ -162,7 +162,7 @@ softdep_setup_allocext(ip, lbn, newblkno, oldblkno, newsize, oldsize, bp)
 	struct buf *bp;
 {
 	
-	panic("softdep_setup_allocdirect called");
+	panic("softdep_setup_allocext called");
 }
 
 void
@@ -477,7 +477,7 @@ static struct malloc_type *memtype[] = {
 #define TYPENAME(type)  \
 	((unsigned)(type) < D_LAST ? memtype[type]->ks_shortdesc : "???")
 /*
- * End system adaptaion definitions.
+ * End system adaptation definitions.
  */
 
 /*
