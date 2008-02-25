@@ -616,7 +616,7 @@ audit_proc_coredump(struct thread *td, char *path, int errcode)
 	if (path != NULL) {
 		pathp = &ar->k_ar.ar_arg_upath1;
 		*pathp = malloc(MAXPATHLEN, M_AUDITPATH, M_WAITOK);
-		canon_path(td, path, *pathp);
+		audit_canon_path(td, path, *pathp);
 		ARG_SET_VALID(ar, ARG_UPATH1);
 	}
 	ar->k_ar.ar_arg_signum = td->td_proc->p_sig;
