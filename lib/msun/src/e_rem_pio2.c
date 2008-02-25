@@ -182,7 +182,7 @@ medium:
 	tx[2] = z;
 	nx = 3;
 	while(tx[nx-1]==zero) nx--;	/* skip zero term */
-	n  =  __kernel_rem_pio2(tx,y,e0,nx,2);
+	n  =  __kernel_rem_pio2(tx,y,e0,nx,1);
 	if(hx<0) {y[0] = -y[0]; y[1] = -y[1]; return -n;}
 	return n;
 }
