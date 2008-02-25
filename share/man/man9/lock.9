@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 13, 2008
+.Dd February 25, 2008
 .Dt LOCK 9
 .Os
 .Sh NAME
@@ -49,7 +49,7 @@
 .Ft int
 .Fn lockmgr "struct lock *lkp" "u_int flags" "struct mtx *interlkp"
 .Ft int
-.Fn lockstatus "struct lock *lkp" "struct thread *td"
+.Fn lockstatus "struct lock *lkp"
 .Ft void
 .Fn lockmgr_disown "struct lock *lkp"
 .Ft void
@@ -180,20 +180,11 @@ See
 .Pp
 The
 .Fn lockstatus
-function returns the status of the lock in relation to the
-.Vt thread
-passed to it.
-Note that if
-.Fa td
-is
-.Dv NULL
-and an exclusive lock is held,
-.Dv LK_EXCLUSIVE
-will be returned.
+function returns the status of the lock in relation to the current thread.
 .Pp
 The
 .Fn lockmgr_disown
-function switches the owner from curthread to be
+function switches the owner from the current thread to be
 .Dv LK_KERNPROC,
 if the lock is already held.
 .Pp
@@ -283,11 +274,9 @@ The
 function returns:
 .Bl -tag -width ".Dv LK_EXCLUSIVE"
 .It Dv LK_EXCLUSIVE
-An exclusive lock is held by the thread
-.Fa td .
+An exclusive lock is held by the current thread.
 .It Dv LK_EXCLOTHER
-An exclusive lock is held by someone other than the thread
-.Fa td .
+An exclusive lock is held by someone other than the current thread.
 .It Dv LK_SHARED
 A shared lock is held.
 .It Li 0
