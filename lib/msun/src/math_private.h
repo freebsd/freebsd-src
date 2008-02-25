@@ -320,7 +320,7 @@ double	__kernel_cos(double,double);
 double	__kernel_tan(double,double,int);
 
 /* float precision kernel functions */
-int	__ieee754_rem_pio2f(float,float*);
+int	__ieee754_rem_pio2f(float,double*);
 float	__kernel_sindf(double);
 float	__kernel_cosdf(double);
 float	__kernel_tandf(double,int);
