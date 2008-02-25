@@ -702,7 +702,7 @@ audit_arg_upath(struct thread *td, char *upath, u_int64_t flag)
 	if (*pathp == NULL)
 		*pathp = malloc(MAXPATHLEN, M_AUDITPATH, M_WAITOK);
 
-	canon_path(td, upath, *pathp);
+	audit_canon_path(td, upath, *pathp);
 
 	ARG_SET_VALID(ar, flag);
 }
