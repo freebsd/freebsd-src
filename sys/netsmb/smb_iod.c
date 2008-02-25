@@ -652,7 +652,6 @@ smb_iod_thread(void *arg)
 {
 	struct smbiod *iod = arg;
 
-	mtx_lock(&Giant);
 	/*
 	 * Here we assume that the thread structure will be the same
 	 * for an entire kthread (kproc, to be more precise) life.
@@ -662,12 +661,10 @@ smb_iod_thread(void *arg)
 	while ((iod->iod_flags & SMBIOD_SHUTDOWN) == 0) {
 		smb_iod_main(iod);
 		SMBIODEBUG("going to sleep for %d ticks\n", iod->iod_sleeptimo);
-/*		mtx_unlock(&Giant, MTX_DEF);*/
 		if (iod->iod_flags & SMBIOD_SHUTDOWN)
 			break;
 		tsleep(&iod->iod_flags, PWAIT, "90idle", iod->iod_sleeptimo);
 	}
-/*	mtx_lock(&Giant, MTX_DEF);*/
 	kproc_exit(0);
 }
 
