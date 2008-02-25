@@ -585,6 +585,9 @@ printcpuinfo(void)
 			goto via_common;
 		case 0x6a0:
 			strcpy(cpu_model, "VIA C7 Esther");
+			goto via_common;
+		case 0x6d0:
+			strcpy(cpu_model, "VIA C7 Eden");
 via_common:
 			do_cpuid(0xc0000000, regs);
 			i = regs[0];
