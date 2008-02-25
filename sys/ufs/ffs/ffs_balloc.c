@@ -220,7 +220,7 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 	pref = 0;
 	if ((error = ufs_getlbns(vp, lbn, indirs, &num)) != 0)
 		return(error);
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 	if (num < 1)
 		panic ("ffs_balloc_ufs1: ufs_getlbns returned indirect block");
 #endif
@@ -692,7 +692,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 	pref = 0;
 	if ((error = ufs_getlbns(vp, lbn, indirs, &num)) != 0)
 		return(error);
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 	if (num < 1)
 		panic ("ffs_balloc_ufs2: ufs_getlbns returned indirect block");
 #endif

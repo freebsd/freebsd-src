@@ -834,7 +834,7 @@ ufs_link(ap)
 	struct direct newdir;
 	int error;
 
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 	if ((cnp->cn_flags & HASBUF) == 0)
 		panic("ufs_link: no name");
 #endif
@@ -900,7 +900,7 @@ ufs_whiteout(ap)
 
 	case CREATE:
 		/* create a new directory whiteout */
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 		if ((cnp->cn_flags & SAVENAME) == 0)
 			panic("ufs_whiteout: missing name");
 		if (dvp->v_mount->mnt_maxsymlinklen <= 0)
@@ -916,7 +916,7 @@ ufs_whiteout(ap)
 
 	case DELETE:
 		/* remove an existing directory whiteout */
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 		if (dvp->v_mount->mnt_maxsymlinklen <= 0)
 			panic("ufs_whiteout: old format filesystem");
 #endif
@@ -977,7 +977,7 @@ ufs_rename(ap)
 	int doingdirectory = 0, oldparent = 0, newparent = 0;
 	int error = 0, ioflag;
 
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 	if ((tcnp->cn_flags & HASBUF) == 0 ||
 	    (fcnp->cn_flags & HASBUF) == 0)
 		panic("ufs_rename: no name");
@@ -1361,7 +1361,7 @@ ufs_mkdir(ap)
 	int error, dmode;
 	long blkoff;
 
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 	if ((cnp->cn_flags & HASBUF) == 0)
 		panic("ufs_mkdir: no name");
 #endif
@@ -2203,7 +2203,7 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 	int error;
 
 	pdir = VTOI(dvp);
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 	if ((cnp->cn_flags & HASBUF) == 0)
 		panic("ufs_makeinode: no name");
 #endif
