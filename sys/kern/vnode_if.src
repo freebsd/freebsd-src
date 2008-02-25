@@ -61,7 +61,6 @@
 
 vop_islocked {
 	IN struct vnode *vp;
-	IN struct thread *td;
 };
 
 %% lookup	dvp	L ? ?

@@ -1113,7 +1113,7 @@ zfs_lookup(vnode_t *dvp, char *nm, vnode_t **vpp, struct componentname *cnp,
 		int ltype = 0;
 
 		if (cnp->cn_flags & ISDOTDOT) {
-			ltype = VOP_ISLOCKED(dvp, td);
+			ltype = VOP_ISLOCKED(dvp);
 			VOP_UNLOCK(dvp, 0);
 		}
 		error = vn_lock(*vpp, cnp->cn_lkflags);
@@ -1171,7 +1171,7 @@ zfs_lookup(vnode_t *dvp, char *nm, vnode_t **vpp, struct componentname *cnp,
 /* ARGSUSED */
 static int
 zfs_create(vnode_t *dvp, char *name, vattr_t *vap, int excl, int mode,
-    vnode_t **vpp, cred_t *cr, kthread_t *td)
+    vnode_t **vpp, cred_t *cr)
 {
 	znode_t		*zp, *dzp = VTOZ(dvp);
 	zfsvfs_t	*zfsvfs = dzp->z_zfsvfs;
@@ -3245,7 +3245,7 @@ zfs_freebsd_create(ap)
 	mode = vap->va_mode & ALLPERMS;
 
 	return (zfs_create(ap->a_dvp, cnp->cn_nameptr, vap, !EXCL, mode,
-	    ap->a_vpp, cnp->cn_cred, cnp->cn_thread));
+	    ap->a_vpp, cnp->cn_cred));
 }
 
 static int

@@ -617,15 +617,12 @@ _lockmgr_disown(struct lock *lkp, const char *file, int line)
  * Determine the status of a lock.
  */
 int
-lockstatus(lkp, td)
+lockstatus(lkp)
 	struct lock *lkp;
-	struct thread *td;
 {
 	int lock_type = 0;
 	int interlocked;
 
-	KASSERT(td == curthread,
-	    ("%s: thread passed argument (%p) is not valid", __func__, td));
 	KASSERT((lkp->lk_flags & LK_DESTROYED) == 0,
 	    ("%s: %p lockmgr is destroyed", __func__, lkp));
 
@@ -635,7 +632,7 @@ lockstatus(lkp, td)
 	} else
 		interlocked = 0;
 	if (lkp->lk_exclusivecount != 0) {
-		if (lkp->lk_lockholder == td)
+		if (lkp->lk_lockholder == curthread)
 			lock_type = LK_EXCLUSIVE;
 		else
 			lock_type = LK_EXCLOTHER;

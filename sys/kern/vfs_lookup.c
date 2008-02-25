@@ -573,7 +573,7 @@ unionlookup:
 	 * last operation.
 	 */
 	if (dp != vp_crossmp &&
-	    VOP_ISLOCKED(dp, td) == LK_SHARED &&
+	    VOP_ISLOCKED(dp) == LK_SHARED &&
 	    (cnp->cn_flags & ISLASTCN) && (cnp->cn_flags & LOCKPARENT))
 		vn_lock(dp, LK_UPGRADE|LK_RETRY);
 	/*
@@ -782,7 +782,7 @@ success:
 	 * the caller may want it to be exclusively locked.
 	 */
 	if ((cnp->cn_flags & (ISLASTCN | LOCKSHARED | LOCKLEAF)) ==
-	    (ISLASTCN | LOCKLEAF) && VOP_ISLOCKED(dp, td) != LK_EXCLUSIVE) {
+	    (ISLASTCN | LOCKLEAF) && VOP_ISLOCKED(dp) != LK_EXCLUSIVE) {
 		vn_lock(dp, LK_UPGRADE | LK_RETRY);
 	}
 	if (vfslocked && dvfslocked)

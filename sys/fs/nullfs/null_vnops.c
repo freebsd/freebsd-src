@@ -619,9 +619,8 @@ static int
 null_islocked(struct vop_islocked_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
-	struct thread *td = ap->a_td;
 
-	return (lockstatus(vp->v_vnlock, td));
+	return (lockstatus(vp->v_vnlock));
 }
 
 /*
