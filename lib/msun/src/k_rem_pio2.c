@@ -78,8 +78,13 @@ __FBSDID("$FreeBSD$");
  * Here is the description of some local variables:
  *
  * 	jk	jk+1 is the initial number of terms of ipio2[] needed
- *		in the computation. The recommended value is 2,3,4,
- *		6 for single, double, extended,and quad.
+ *		in the computation. The minimum and recommended value
+ *		for jk is 3,4,4,6 for single, double, extended, and quad.
+ *		jk+1 must be 2 larger than you might expect so that our
+ *		recomputation test works. (Up to 24 bits in the integer
+ *		part (the 24 bits of it that we compute) and 23 bits in
+ *		the fraction part may be lost to cancelation before we
+ *		recompute.)
  *
  * 	jz	local integer variable indicating the number of 
  *		terms of ipio2[] used. 
@@ -129,7 +134,7 @@ __FBSDID("$FreeBSD$");
 #include "math.h"
 #include "math_private.h"
 
-static const int init_jk[] = {2,3,4,6}; /* initial value for jk */
+static const int init_jk[] = {3,4,4,6}; /* initial value for jk */
 
 /*
  * Table of constants for 2/pi, 396 Hex digits (476 decimal) of 2/pi
