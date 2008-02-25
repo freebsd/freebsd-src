@@ -17,9 +17,13 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <float.h>
+
 #include "math.h"
 #define	INLINE_KERNEL_TANDF
+#define INLINE_REM_PIO2F
 #include "math_private.h"
+#include "e_rem_pio2f.c"
 #include "k_tanf.c"
 
 /* Small multiples of pi/2 rounded to double precision. */
