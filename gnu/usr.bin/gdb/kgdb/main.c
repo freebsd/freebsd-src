@@ -72,10 +72,11 @@ kvm_t *kvm;
 static char kvm_err[_POSIX2_LINE_MAX];
 
 static int dumpnr;
+static int quiet;
 static int verbose;
 
 static char crashdir[PATH_MAX];
-static char *kernel;
+char *kernel;
 static char *remote;
 static char *vmcore;
 
@@ -178,7 +179,7 @@ out:
 		kgdb_new_objfile_chain(objfile);
 }
 
-static CORE_ADDR
+CORE_ADDR
 kgdb_parse(const char *exp)
 {
 	struct cleanup *old_chain;
@@ -203,7 +204,6 @@ static void
 kgdb_init_target(void)
 {
 	CORE_ADDR bufp;
-	bfd *kern_bfd;
 	int size, rseq, wseq;
 	int kern_desc;
 	char c;
@@ -227,7 +227,6 @@ kgdb_init_target(void)
         }
 
 	set_gdbarch_from_file (kern_bfd);
-	bfd_close(kern_bfd);
 
 	symbol_file_add_main (kernel, 0);
 	if (remote)
@@ -239,6 +238,8 @@ kgdb_init_target(void)
 	 * Display the unread portion of the message buffer. This gives the
 	 * user a some initial data to work from.
 	 */
+	if (quiet)
+		return;
 	bufp = kgdb_parse("msgbufp->msg_ptr");
 	size = (int)kgdb_parse("msgbufp->msg_size");
 	rseq = (int)kgdb_parse("msgbufp->msg_rseq");
@@ -302,7 +303,7 @@ main(int argc, char *argv[])
 	struct stat st;
 	struct captured_main_args args;
 	char *s;
-	int a, ch, quiet, writecore;
+	int a, ch, writecore;
 
 	dumpnr = -1;
 
