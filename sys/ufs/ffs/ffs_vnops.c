@@ -244,7 +244,7 @@ loop:
 			panic("ffs_fsync: not dirty");
 		/*
 		 * If this is a synchronous flush request, or it is not a
-		 * file or device, start the write on this buffer immediatly.
+		 * file or device, start the write on this buffer immediately.
 		 */
 		if (wait || (vp->v_type != VREG && vp->v_type != VBLK)) {
 
