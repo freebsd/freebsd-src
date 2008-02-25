@@ -4,12 +4,15 @@
 
 .PATH: ${SRCDIR}/binutils ${SRCDIR}/binutils/doc
 
-.if defined(WITH_BSDAR)
-PROG=	gnu-ar
-#MAN=	gnu-ar.1
-.else
-PROG=	ar
+.if !defined(_WITH_GNUAR)
+PROGNAME= gnu-ar
+MAN=   gnu-ar.1
+gnu-ar.1: ar.1
+	cat ${.ALLSRC} > ${.TARGET}
+CLEANFILES+= gnu-ar.1
 .endif
+
+PROG=	ar
 SRCS=	ar.c not-ranlib.c
 CFLAGS+= -D_GNU_SOURCE
 CFLAGS+= -I${.CURDIR}/${RELTOP}/libbinutils

@@ -872,6 +872,10 @@ _groff=		gnu/usr.bin/groff/tmac
 .endif
 .endif
 
+.if ${BOOTSTRAPPING} >= 700044 && ${BOOTSTRAPPING} < 800022
+_ar=		usr.bin/ar
+.endif
+
 .if ${BOOTSTRAPPING} < 700018
 _gensnmptree=	usr.sbin/bsnmpd/gensnmptree
 .endif
@@ -891,6 +895,7 @@ bootstrap-tools:
     ${_strfile} \
     ${_gperf} \
     ${_groff} \
+    ${_ar} \
     usr.bin/lorder \
     usr.bin/makewhatis \
     usr.bin/rpcgen \
@@ -965,6 +970,10 @@ _crunchide=	usr.sbin/crunch/crunchide
 .if ${TARGET_ARCH} == "i386" && defined(RELEASEDIR)
 _kgzip=		usr.sbin/kgzip
 .endif
+.endif
+
+.if make(cross-tools) && ${BOOTSTRAPPING} < 700044
+.MAKEFLAGS+=	-D_WITH_GNUAR
 .endif
 
 cross-tools:
