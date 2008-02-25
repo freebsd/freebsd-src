@@ -125,6 +125,8 @@
 #define	  MPC7448		  0x8004
 #define	  MPC7410		  0x800c
 #define	  MPC8245		  0x8081
+#define	  FSL_E500v1		  0x8020
+#define	  FSL_E500v2		  0x8021
 
 #define	SPR_IBAT0U		0x210	/* .68 Instruction BAT Reg 0 Upper */
 #define	SPR_IBAT0U		0x210	/* .6. Instruction BAT Reg 0 Upper */
