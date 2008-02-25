@@ -278,7 +278,7 @@ unionfs_lookup(struct vop_cachedlookup_args *ap)
 
 		if (LK_SHARED == (cnp->cn_lkflags & LK_TYPE_MASK))
 			VOP_UNLOCK(vp, 0);
-		if (LK_EXCLUSIVE != VOP_ISLOCKED(vp, td)) {
+		if (LK_EXCLUSIVE != VOP_ISLOCKED(vp)) {
 			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 			lockflag = 1;
 		}
@@ -528,7 +528,7 @@ unionfs_close(struct vop_close_args *ap)
 	cred = ap->a_cred;
 	td = ap->a_td;
 
-	if (VOP_ISLOCKED(ap->a_vp, td) != LK_EXCLUSIVE) {
+	if (VOP_ISLOCKED(ap->a_vp) != LK_EXCLUSIVE) {
 		vn_lock(ap->a_vp, LK_EXCLUSIVE | LK_RETRY);
 		locked = 1;
 	}
@@ -1416,7 +1416,7 @@ unionfs_readdir(struct vop_readdir_args *ap)
 	}
 
 	/* check the open count. unionfs needs to open before readdir. */
-	if (VOP_ISLOCKED(ap->a_vp, td) != LK_EXCLUSIVE) {
+	if (VOP_ISLOCKED(ap->a_vp) != LK_EXCLUSIVE) {
 		vn_lock(ap->a_vp, LK_UPGRADE | LK_RETRY);
 		locked = 1;
 	}

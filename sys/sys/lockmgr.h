@@ -202,7 +202,7 @@ void	_lockmgr_assert(struct lock *, int what, const char *, int);
 #endif
 void	_lockmgr_disown(struct lock *, const char *, int);
 void	lockmgr_printinfo(struct lock *);
-int	lockstatus(struct lock *, struct thread *);
+int	lockstatus(struct lock *);
 int	lockwaiters(struct lock *);
 
 #define lockmgr(lock, flags, mtx)					\

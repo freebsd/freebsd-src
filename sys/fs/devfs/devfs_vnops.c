@@ -360,7 +360,7 @@ devfs_close(struct vop_close_args *ap)
 	}
 	vholdl(vp);
 	VI_UNLOCK(vp);
-	vp_locked = VOP_ISLOCKED(vp, td);
+	vp_locked = VOP_ISLOCKED(vp);
 	VOP_UNLOCK(vp, 0);
 	KASSERT(dev->si_refcount > 0,
 	    ("devfs_close() on un-referenced struct cdev *(%s)", devtoname(dev)));
