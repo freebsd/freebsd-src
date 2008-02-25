@@ -256,7 +256,6 @@ vop_stdlock(ap)
 	struct vop_lock1_args /* {
 		struct vnode *a_vp;
 		int a_flags;
-		struct thread *a_td;
 		char *file;
 		int line;
 	} */ *ap;
@@ -274,7 +273,6 @@ vop_stdunlock(ap)
 	struct vop_unlock_args /* {
 		struct vnode *a_vp;
 		int a_flags;
-		struct thread *a_td;
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
@@ -287,11 +285,10 @@ int
 vop_stdislocked(ap)
 	struct vop_islocked_args /* {
 		struct vnode *a_vp;
-		struct thread *a_td;
 	} */ *ap;
 {
 
-	return (lockstatus(ap->a_vp->v_vnlock, ap->a_td));
+	return (lockstatus(ap->a_vp->v_vnlock));
 }
 
 /*

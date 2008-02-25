@@ -414,7 +414,7 @@ unlock:
 out:
 	*vpp = vp;
 
-	MPASS(IFF(error == 0, *vpp != NULL && VOP_ISLOCKED(*vpp, td)));
+	MPASS(IFF(error == 0, *vpp != NULL && VOP_ISLOCKED(*vpp)));
 #ifdef INVARIANTS
 	TMPFS_NODE_LOCK(node);
 	MPASS(*vpp == node->tn_vnode);
@@ -466,7 +466,7 @@ tmpfs_alloc_file(struct vnode *dvp, struct vnode **vpp, struct vattr *vap,
 	struct tmpfs_node *node;
 	struct tmpfs_node *parent;
 
-	MPASS(VOP_ISLOCKED(dvp, cnp->cn_thread));
+	MPASS(VOP_ISLOCKED(dvp));
 	MPASS(cnp->cn_flags & HASBUF);
 
 	tmp = VFS_TO_TMPFS(dvp->v_mount);
@@ -933,7 +933,7 @@ tmpfs_chflags(struct vnode *vp, int flags, struct ucred *cred, struct thread *p)
 	int error;
 	struct tmpfs_node *node;
 
-	MPASS(VOP_ISLOCKED(vp, p));
+	MPASS(VOP_ISLOCKED(vp));
 
 	node = VP_TO_TMPFS_NODE(vp);
 
@@ -975,7 +975,7 @@ tmpfs_chflags(struct vnode *vp, int flags, struct ucred *cred, struct thread *p)
 	}
 	node->tn_status |= TMPFS_NODE_CHANGED;
 
-	MPASS(VOP_ISLOCKED(vp, p));
+	MPASS(VOP_ISLOCKED(vp));
 
 	return 0;
 }
@@ -993,7 +993,7 @@ tmpfs_chmod(struct vnode *vp, mode_t mode, struct ucred *cred, struct thread *p)
 	int error;
 	struct tmpfs_node *node;
 
-	MPASS(VOP_ISLOCKED(vp, p));
+	MPASS(VOP_ISLOCKED(vp));
 
 	node = VP_TO_TMPFS_NODE(vp);
 
@@ -1033,7 +1033,7 @@ tmpfs_chmod(struct vnode *vp, mode_t mode, struct ucred *cred, struct thread *p)
 
 	node->tn_status |= TMPFS_NODE_CHANGED;
 
-	MPASS(VOP_ISLOCKED(vp, p));
+	MPASS(VOP_ISLOCKED(vp));
 
 	return 0;
 }
@@ -1056,7 +1056,7 @@ tmpfs_chown(struct vnode *vp, uid_t uid, gid_t gid, struct ucred *cred,
 	uid_t ouid;
 	gid_t ogid;
 
-	MPASS(VOP_ISLOCKED(vp, p));
+	MPASS(VOP_ISLOCKED(vp));
 
 	node = VP_TO_TMPFS_NODE(vp);
 
@@ -1106,7 +1106,7 @@ tmpfs_chown(struct vnode *vp, uid_t uid, gid_t gid, struct ucred *cred,
 			node->tn_mode &= ~(S_ISUID | S_ISGID);
 	}
 
-	MPASS(VOP_ISLOCKED(vp, p));
+	MPASS(VOP_ISLOCKED(vp));
 
 	return 0;
 }
@@ -1125,7 +1125,7 @@ tmpfs_chsize(struct vnode *vp, u_quad_t size, struct ucred *cred,
 	int error;
 	struct tmpfs_node *node;
 
-	MPASS(VOP_ISLOCKED(vp, p));
+	MPASS(VOP_ISLOCKED(vp));
 
 	node = VP_TO_TMPFS_NODE(vp);
 
@@ -1163,7 +1163,7 @@ tmpfs_chsize(struct vnode *vp, u_quad_t size, struct ucred *cred,
 	/* tmpfs_truncate will raise the NOTE_EXTEND and NOTE_ATTRIB kevents
 	 * for us, as will update tn_status; no need to do that here. */
 
-	MPASS(VOP_ISLOCKED(vp, p));
+	MPASS(VOP_ISLOCKED(vp));
 
 	return error;
 }
@@ -1182,7 +1182,7 @@ tmpfs_chtimes(struct vnode *vp, struct timespec *atime, struct timespec *mtime,
 	int error;
 	struct tmpfs_node *node;
 
-	MPASS(VOP_ISLOCKED(vp, l));
+	MPASS(VOP_ISLOCKED(vp));
 
 	node = VP_TO_TMPFS_NODE(vp);
 
@@ -1217,7 +1217,7 @@ tmpfs_chtimes(struct vnode *vp, struct timespec *atime, struct timespec *mtime,
 
 	if (birthtime->tv_nsec != VNOVAL && birthtime->tv_nsec != VNOVAL)
 		node->tn_birthtime = *birthtime;
-	MPASS(VOP_ISLOCKED(vp, l));
+	MPASS(VOP_ISLOCKED(vp));
 
 	return 0;
 }

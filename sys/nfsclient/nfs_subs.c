@@ -493,7 +493,7 @@ nfs_upgrade_vnlock(struct vnode *vp)
 {
 	int old_lock;
 	
- 	if ((old_lock = VOP_ISLOCKED(vp, curthread)) != LK_EXCLUSIVE) {
+ 	if ((old_lock = VOP_ISLOCKED(vp)) != LK_EXCLUSIVE) {
  		if (old_lock == LK_SHARED) {
  			/* Upgrade to exclusive lock, this might block */
  			vn_lock(vp, LK_UPGRADE | LK_RETRY);
