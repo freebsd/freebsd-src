@@ -32,7 +32,7 @@ t4pio2 = 4*M_PI_2;			/* 0x401921FB, 0x54442D18 */
 float
 tanf(float x)
 {
-	float y[2];
+	double y;
 	int32_t n, hx, ix;
 
 	GET_FLOAT_WORD(hx,x);
@@ -61,8 +61,8 @@ tanf(float x)
 
     /* general argument reduction needed */
 	else {
-	    n = __ieee754_rem_pio2f(x,y);
+	    n = __ieee754_rem_pio2f(x,&y);
 	    /* integer parameter: 1 -- n even; -1 -- n odd */
-	    return __kernel_tandf((double)y[0]+y[1],1-((n&1)<<1));
+	    return __kernel_tandf(y,1-((n&1)<<1));
 	}
 }
