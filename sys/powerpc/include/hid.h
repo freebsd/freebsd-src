@@ -65,9 +65,9 @@
 #define HID0_SGE	0x00000080  /* Enable store gathering */
 #define HID0_DCFA	0x00000040  /* Data cache flush assist */
 #define HID0_BTIC	0x00000020  /* Enable BTIC */
-#define HID0_LRSTK      0x00000010  /* Link register stack enable (7450) */
+#define HID0_LRSTK	0x00000010  /* Link register stack enable (7450) */
 #define HID0_ABE	0x00000008  /* Enable address broadcast */
-#define HID0_FOLD       0x00000008  /* Branch folding enable (7450) */
+#define HID0_FOLD	0x00000008  /* Branch folding enable (7450) */
 #define HID0_BHT	0x00000004  /* Enable branch history table */
 #define HID0_NOPTI	0x00000001  /* No-op the dcbt(st) */
 
@@ -84,6 +84,13 @@
     "\030HBATEN\027NAP\026SLEEP\025DPM\024b12\023BHTCLR\022XAEN\021NHR"	\
     "\020ICE\017DCE\016ILOCK\015DLOCK\014ICFI\013DCFI\012SPD\011XBSEN"	\
     "\010SGE\007b25\006BTIC\005LRSTK\004FOLD\003BHT\002NOPDST\001NOPTI"
+
+#define HID0_E500_BITMASK						\
+    "\20"								\
+    "\040EMCP\037b1\036b2\035b3\034b4\033b5\032b6\031b7"		\
+    "\030DOZE\027NAP\026SLEEP\025b11\024b12\023b13\022b14\021b15"	\
+    "\020b16\017TBEN\016SEL_TBCLK\015b19\014b20\013b21\012b22\011b23"	\
+    "\010EN_MAS7_UPDATE\007DCFA\006b26\005b27\004b28\003b29\002b30\001NOPTI"
 
 /*
  *  HID0 bit definitions per cpu model
