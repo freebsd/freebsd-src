@@ -1168,7 +1168,8 @@ write_wr_hdr_sgl(unsigned int ndesc, struct tx_desc *txd, struct txq_state *txqs
 			 * is freed all clusters will be freed
 			 * with it
 			 */
-			KASSERT(txsd->mi.mi_base == NULL, ("overwrting valid entry mi_base==%p", txsd->mi.mi_base));
+			KASSERT(txsd->mi.mi_base == NULL,
+			    ("overwriting valid entry mi_base==%p", txsd->mi.mi_base));
 			wrp = (struct work_request_hdr *)txd;
 			wrp->wr_hi = htonl(V_WR_DATATYPE(1) |
 			    V_WR_SGLSFLT(1)) | wr_hi;
@@ -1251,8 +1252,8 @@ t3_encap(struct sge_qset *qs, struct mbuf **m, int count)
 	if  (m0->m_pkthdr.csum_flags & (CSUM_TSO))
 		tso_info = V_LSO_MSS(m0->m_pkthdr.tso_segsz);
 #endif
-	KASSERT(txsd->mi.mi_base == NULL, ("overwrting valid entry mi_base==%p",
-		txsd->mi.mi_base));
+	KASSERT(txsd->mi.mi_base == NULL,
+	    ("overwriting valid entry mi_base==%p", txsd->mi.mi_base));
 	if (count > 1) {
 		panic("count > 1 not support in CVS\n");
 		if ((err = busdma_map_sg_vec(m, &m0, segs, count)))
