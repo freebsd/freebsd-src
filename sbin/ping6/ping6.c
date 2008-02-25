@@ -457,9 +457,9 @@ main(argc, argv)
 			if (interval.tv_sec < 0)
 				errx(1, "illegal timing interval %s", optarg);
 			/* less than 1/hz does not make sense */
-			if (interval.tv_sec == 0 && interval.tv_usec < 10000) {
-				warnx("too small interval, raised to 0.01");
-				interval.tv_usec = 10000;
+			if (interval.tv_sec == 0 && interval.tv_usec < 1) {
+				warnx("too small interval, raised to .000001");
+				interval.tv_usec = 1;
 			}
 			options |= F_INTERVAL;
 			break;
