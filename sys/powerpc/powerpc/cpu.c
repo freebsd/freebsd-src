@@ -97,6 +97,8 @@ static const struct cputab models[] = {
         { "Motorola PowerPC 7447A",	MPC7447A,	REVFMT_MAJMIN },
         { "Motorola PowerPC 7448",	MPC7448,	REVFMT_MAJMIN },
         { "Motorola PowerPC 8240",	MPC8240,	REVFMT_MAJMIN },
+        { "Freescale e500v1 core",	FSL_E500v1,	REVFMT_MAJMIN },
+        { "Freescale e500v2 core",	FSL_E500v2,	REVFMT_MAJMIN },
         { "Unknown PowerPC CPU",	0,		REVFMT_HEX }
 };
 
@@ -121,13 +123,18 @@ cpu_setup(u_int cpuid)
 	vers = pvr >> 16;
 	rev = pvr;
 	switch (vers) {
-	case MPC7410:
-		min = (pvr >> 0) & 0xff;
-		maj = min <= 4 ? 1 : 2;
-		break;
-	default:
-		maj = (pvr >>  8) & 0xf;
-		min = (pvr >>  0) & 0xf;
+		case MPC7410:
+			min = (pvr >> 0) & 0xff;
+			maj = min <= 4 ? 1 : 2;
+			break;
+		case FSL_E500v1:
+		case FSL_E500v2:
+			maj = (pvr >>  4) & 0xf;
+			min = (pvr >>  0) & 0xf;
+			break;
+		default:
+			maj = (pvr >>  8) & 0xf;
+			min = (pvr >>  0) & 0xf;
 	}
 
 	for (cp = models; cp->version != 0; cp++) {
@@ -146,15 +153,15 @@ cpu_setup(u_int cpuid)
 	printf("cpu%d: %s revision ", cpuid, name);
 
 	switch (revfmt) {
-	case REVFMT_MAJMIN:
-		printf("%u.%u", maj, min);
-		break;
-	case REVFMT_HEX:
-		printf("0x%04x", rev);
-		break;
-	case REVFMT_DEC:
-		printf("%u", rev);
-		break;
+		case REVFMT_MAJMIN:
+			printf("%u.%u", maj, min);
+			break;
+		case REVFMT_HEX:
+			printf("0x%04x", rev);
+			break;
+		case REVFMT_DEC:
+			printf("%u", rev);
+			break;
 	}
 
 	hid0 = mfspr(SPR_HID0);
@@ -163,96 +170,104 @@ cpu_setup(u_int cpuid)
 	 * Configure power-saving mode.
 	 */
 	switch (vers) {
-	case MPC603:
-	case MPC603e:
-	case MPC603ev:
-	case MPC604ev:
-	case MPC750:
-	case IBM750FX:
-	case MPC7400:
-	case MPC7410:
-	case MPC8240:
-	case MPC8245:
-		/* Select DOZE mode. */
-		hid0 &= ~(HID0_DOZE | HID0_NAP | HID0_SLEEP);
-		hid0 |= HID0_DOZE | HID0_DPM;
+		case MPC603:
+		case MPC603e:
+		case MPC603ev:
+		case MPC604ev:
+		case MPC750:
+		case IBM750FX:
+		case MPC7400:
+		case MPC7410:
+		case MPC8240:
+		case MPC8245:
+			/* Select DOZE mode. */
+			hid0 &= ~(HID0_DOZE | HID0_NAP | HID0_SLEEP);
+			hid0 |= HID0_DOZE | HID0_DPM;
 #ifdef notyet
-		powersave = 1;
+			powersave = 1;
 #endif
-		break;
+			break;
 
-	case MPC7448:
-	case MPC7447A:
-	case MPC7457:
-	case MPC7455:
-	case MPC7450:
-		/* Enable the 7450 branch caches */
-		hid0 |= HID0_SGE | HID0_BTIC;
-		hid0 |= HID0_LRSTK | HID0_FOLD | HID0_BHT;
-		/* Disable BTIC on 7450 Rev 2.0 or earlier and on 7457 */
-		if (((pvr >> 16) == MPC7450 && (pvr & 0xFFFF) <= 0x0200)
-		    || (pvr >> 16) == MPC7457)
-			hid0 &= ~HID0_BTIC;
-		/* Select NAP mode. */
-		hid0 &= ~(HID0_DOZE | HID0_NAP | HID0_SLEEP);
-		hid0 |= HID0_NAP | HID0_DPM;
+		case MPC7448:
+		case MPC7447A:
+		case MPC7457:
+		case MPC7455:
+		case MPC7450:
+			/* Enable the 7450 branch caches */
+			hid0 |= HID0_SGE | HID0_BTIC;
+			hid0 |= HID0_LRSTK | HID0_FOLD | HID0_BHT;
+			/* Disable BTIC on 7450 Rev 2.0 or earlier and on 7457 */
+			if (((pvr >> 16) == MPC7450 && (pvr & 0xFFFF) <= 0x0200)
+					|| (pvr >> 16) == MPC7457)
+				hid0 &= ~HID0_BTIC;
+			/* Select NAP mode. */
+			hid0 &= ~(HID0_DOZE | HID0_NAP | HID0_SLEEP);
+			hid0 |= HID0_NAP | HID0_DPM;
 #ifdef notyet
-		powersave = 0;		/* but don't use it */
+			powersave = 0;		/* but don't use it */
 #endif
-		break;
+			break;
 
-	default:
-		/* No power-saving mode is available. */ ;
+		default:
+			/* No power-saving mode is available. */ ;
 	}
 
 	switch (vers) {
-	case IBM750FX:
-	case MPC750:
-		hid0 &= ~HID0_DBP;		/* XXX correct? */
-		hid0 |= HID0_EMCP | HID0_BTIC | HID0_SGE | HID0_BHT;
-		break;
+		case IBM750FX:
+		case MPC750:
+			hid0 &= ~HID0_DBP;		/* XXX correct? */
+			hid0 |= HID0_EMCP | HID0_BTIC | HID0_SGE | HID0_BHT;
+			break;
 
-	case MPC7400:
-	case MPC7410:
-		hid0 &= ~HID0_SPD;
-		hid0 |= HID0_EMCP | HID0_BTIC | HID0_SGE | HID0_BHT;
-		hid0 |= HID0_EIEC;
-		break;
+		case MPC7400:
+		case MPC7410:
+			hid0 &= ~HID0_SPD;
+			hid0 |= HID0_EMCP | HID0_BTIC | HID0_SGE | HID0_BHT;
+			hid0 |= HID0_EIEC;
+			break;
+
+		case FSL_E500v1:
+		case FSL_E500v2:
+			hid0 |= HID0_EMCP;
+			break;
 	}
 
 	mtspr(SPR_HID0, hid0);
 
 	switch (vers) {
-	case MPC7447A:
-	case MPC7448:
-	case MPC7450:
-	case MPC7455:
-	case MPC7457:
-		bitmask = HID0_7450_BITMASK;
-		break;
-	default:
-		bitmask = HID0_BITMASK;
-		break;
+		case MPC7447A:
+		case MPC7448:
+		case MPC7450:
+		case MPC7455:
+		case MPC7457:
+			bitmask = HID0_7450_BITMASK;
+			break;
+		case FSL_E500v1:
+		case FSL_E500v2:
+			bitmask = HID0_E500_BITMASK;
+			break;
+		default:
+			bitmask = HID0_BITMASK;
+			break;
 	}
 
 	switch (vers) {
-	case MPC750:
-	case IBM750FX:
-	case MPC7400:
-	case MPC7410:
-	case MPC7447A:
-	case MPC7448:
-	case MPC7450:
-	case MPC7455:
-	case MPC7457:
-		cpu_print_speed();
-		printf("\n");
-		cpu_config_l2cr(cpuid, vers);
-		break;
-
-	default:
-		printf("\n");
-		break;
+		case MPC750:
+		case IBM750FX:
+		case MPC7400:
+		case MPC7410:
+		case MPC7447A:
+		case MPC7448:
+		case MPC7450:
+		case MPC7455:
+		case MPC7457:
+			cpu_print_speed();
+			printf("\n");
+			cpu_config_l2cr(cpuid, vers);
+			break;
+		default:
+			printf("\n");
+			break;
 	}
 
 	printf("cpu%d: HID0 %b\n", cpuid, hid0, bitmask);
@@ -325,7 +340,7 @@ cpu_config_l2cr(u_int cpuid, uint16_t vers)
 	printf("cpu%d: ", cpuid);
 
 	if (l2cr & L2CR_L2E) {
-		if (vers == MPC7450 || 
+		if (vers == MPC7450 ||
 		    vers == MPC7455 ||
 		    vers == MPC7457) {
 			u_int l3cr;
