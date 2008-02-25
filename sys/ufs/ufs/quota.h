@@ -113,15 +113,18 @@ struct dqblk {
  * filesystem. There is one allocated for each quota that exists on any
  * filesystem for the current user or group. A cache is kept of recently
  * used entries.
+ * (h) protected by dqhlock
  */
 struct dquot {
-	LIST_ENTRY(dquot) dq_hash;	/* hash list */
-	TAILQ_ENTRY(dquot) dq_freelist;	/* free list */
+	LIST_ENTRY(dquot) dq_hash;	/* (h) hash list */
+	TAILQ_ENTRY(dquot) dq_freelist;	/* (h) free list */
+	struct mtx dq_lock;		/* lock for concurrency */
 	u_int16_t dq_flags;		/* flags, see below */
 	u_int16_t dq_type;		/* quota type of this dquot */
-	u_int32_t dq_cnt;		/* count of active references */
+	u_int32_t dq_cnt;		/* (h) count of active references */
 	u_int32_t dq_id;		/* identifier this applies to */
-	struct	ufsmount *dq_ump;	/* filesystem that this is taken from */
+	struct	ufsmount *dq_ump;	/* (h) filesystem that this is
+					   taken from */
 	struct	dqblk dq_dqb;		/* actual usage & quotas */
 };
 /*

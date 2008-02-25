@@ -65,7 +65,7 @@ SYSCTL_INT(_security_bsd, OID_AUTO, unprivileged_get_quota, CTLFLAG_RW,
     &unprivileged_get_quota, 0,
     "Unprivileged processes may retrieve quotas for other uids and gids");
 
-static MALLOC_DEFINE(M_DQUOT, "UFS quota", "UFS quota entries");
+static MALLOC_DEFINE(M_DQUOT, "ufs_quota", "UFS quota entries");
 
 /*
  * Quota name to error message mapping.
@@ -97,8 +97,10 @@ getinoquota(ip)
 	struct inode *ip;
 {
 	struct ufsmount *ump;
-	struct vnode *vp = ITOV(ip);
+	struct vnode *vp;
 	int error;
+
+	vp = ITOV(ip);
 
 	/*
 	 * Disk quotas must be turned off for system files.  Currently
@@ -441,7 +443,7 @@ quotaon(td, mp, type, fname)
 	int type;
 	void *fname;
 {
-	struct ufsmount *ump = VFSTOUFS(mp);
+	struct ufsmount *ump;
 	struct vnode *vp, **vpp;
 	struct vnode *mvp;
 	struct dquot *dq;
@@ -452,6 +454,7 @@ quotaon(td, mp, type, fname)
 	if (error)
 		return (error);
 
+	ump = VFSTOUFS(mp);
 	vpp = &ump->um_quotas[type];
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, fname, td);
 	flags = FREAD | FWRITE;
@@ -537,11 +540,12 @@ quotaoff(td, mp, type)
 {
 	struct vnode *vp;
 	struct vnode *qvp, *mvp;
-	struct ufsmount *ump = VFSTOUFS(mp);
+	struct ufsmount *ump;
 	struct dquot *dq;
 	struct inode *ip;
 	int error;
 
+	ump = VFSTOUFS(mp);
 	error = suser_cred(td->td_ucred, SUSER_ALLOWJAIL);
 	if (error)
 		return (error);
@@ -653,7 +657,7 @@ setquota(td, mp, id, type, addr)
 {
 	struct dquot *dq;
 	struct dquot *ndq;
-	struct ufsmount *ump = VFSTOUFS(mp);
+	struct ufsmount *ump;
 	struct dqblk newlim;
 	int error;
 
@@ -664,6 +668,9 @@ setquota(td, mp, id, type, addr)
 	error = copyin(addr, &newlim, sizeof (struct dqblk));
 	if (error)
 		return (error);
+
+	ump = VFSTOUFS(mp);
+
 	error = dqget(NULLVP, id, ump, type, &ndq);
 	if (error)
 		return (error);
@@ -718,7 +725,7 @@ setuse(td, mp, id, type, addr)
 	void *addr;
 {
 	struct dquot *dq;
-	struct ufsmount *ump = VFSTOUFS(mp);
+	struct ufsmount *ump;
 	struct dquot *ndq;
 	struct dqblk usage;
 	int error;
@@ -730,6 +737,9 @@ setuse(td, mp, id, type, addr)
 	error = copyin(addr, &usage, sizeof (struct dqblk));
 	if (error)
 		return (error);
+
+	ump = VFSTOUFS(mp);
+
 	error = dqget(NULLVP, id, ump, type, &ndq);
 	if (error)
 		return (error);
