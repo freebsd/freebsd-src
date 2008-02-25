@@ -2310,7 +2310,7 @@ ng_snd_item(item_p item, int flags)
 	 * writer semantics. Similarly, the node may say one hook always
 	 * produces writers. These are overrides.
 	 */
-	if (((item->el_flags & NGQF_RW) == NGQRW_W) ||
+	if (((item->el_flags & NGQF_RW) == NGQF_WRITER) ||
 	    (node->nd_flags & NGF_FORCE_WRITER) ||
 	    (hook && (hook->hk_flags & HK_FORCE_WRITER))) {
 		rw = NGQRW_W;
