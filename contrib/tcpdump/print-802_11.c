@@ -1186,9 +1186,9 @@ print_radiotap_field(struct cpack_state *s, u_int32_t bit, int *pad)
 		break;
 	case IEEE80211_RADIOTAP_RATE:
 		if (u.u8 & 0x80)
-			PRINT_RATE("", u.u8, " Mb/s ");
-		else
 			PRINT_HT_RATE("", u.u8, " Mb/s ");
+		else
+			PRINT_RATE("", u.u8, " Mb/s ");
 		break;
 	case IEEE80211_RADIOTAP_DBM_ANTSIGNAL:
 		printf("%ddB signal ", u.i8);
