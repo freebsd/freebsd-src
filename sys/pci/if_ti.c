@@ -2238,6 +2238,7 @@ ti_attach(dev)
 	ifp->if_start = ti_start;
 	ifp->if_watchdog = ti_watchdog;
 	ifp->if_init = ti_init;
+	ifp->if_baudrate = 1000000000;
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_snd.ifq_maxlen = TI_TX_RING_CNT - 1;
 
