@@ -217,6 +217,14 @@ SYSCTL_UINT(_hw_cxgb, OID_AUTO, singleq, CTLFLAG_RDTUN, &singleq, 0,
     "use a single queue-set per port");
 
 
+/*
+ * The driver uses an auto-queue algorithm by default.
+ * To disable it and force a single queue-set per port, use singleq = 1.
+ */
+static int force_fw_update = 0;
+TUNABLE_INT("hw.cxgb.force_fw_update", &force_fw_update);
+SYSCTL_UINT(_hw_cxgb, OID_AUTO, force_fw_update, CTLFLAG_RDTUN, &force_fw_update, 0,
+    "update firmware even if up to date");
 
 int cxgb_use_16k_clusters = 0;
 TUNABLE_INT("hw.cxgb.use_16k_clusters", &cxgb_use_16k_clusters);
@@ -380,14 +388,13 @@ cxgb_controller_probe(device_t dev)
 	return (BUS_PROBE_DEFAULT);
 }
 
-#define FW_FNAME "t3fw%d%d%d"
+#define FW_FNAME "cxgb_t3fw"
 #define TPEEPROM_NAME "t3%ctpe%d%d%d"
 #define TPSRAM_NAME "t3%cps%d%d%d"
 
 static int
 upgrade_fw(adapter_t *sc)
 {
-	char buf[32];
 #ifdef FIRMWARE_LATEST
 	const struct firmware *fw;
 #else
@@ -395,16 +402,11 @@ upgrade_fw(adapter_t *sc)
 #endif	
 	int status;
 	
-	snprintf(&buf[0], sizeof(buf), FW_FNAME,  FW_VERSION_MAJOR,
-	    FW_VERSION_MINOR, FW_VERSION_MICRO);
-	
-	fw = firmware_get(buf);
-	
-	if (fw == NULL) {
-		device_printf(sc->dev, "Could not find firmware image %s\n", buf);
+	if ((fw = firmware_get(FW_FNAME)) == NULL)  {
+		device_printf(sc->dev, "Could not find firmware image %s\n", FW_FNAME);
 		return (ENOENT);
 	} else
-		device_printf(sc->dev, "updating firmware on card with %s\n", buf);
+		device_printf(sc->dev, "updating firmware on card\n");
 	status = t3_load_fw(sc, (const uint8_t *)fw->data, fw->datasize);
 
 	device_printf(sc->dev, "firmware update returned %s %d\n", (status == 0) ? "success" : "fail", status);
@@ -570,7 +572,7 @@ cxgb_controller_attach(device_t dev)
 	/* Create a periodic callout for checking adapter status */
 	callout_init(&sc->cxgb_tick_ch, TRUE);
 	
-	if (t3_check_fw_version(sc, &must_load) != 0 && must_load) {
+	if ((t3_check_fw_version(sc, &must_load) != 0 && must_load) || force_fw_update) {
 		/*
 		 * Warn user that a firmware update will be attempted in init.
 		 */
@@ -2680,3 +2682,6 @@ cxgb_get_regs(adapter_t *sc, struct ifconf_regs *regs, uint8_t *buf)
 	reg_block_dump(sc, buf, XGM_REG(A_XGM_SERDES_STATUS0, 1),
 		       XGM_REG(A_XGM_RX_SPI4_SOP_EOP_CNT, 1));
 }
+
+
+MODULE_DEPEND(if_cxgb, cxgb_t3fw, 1, 1, 1);

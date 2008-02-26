@@ -8,7 +8,7 @@ SRCS=	cxgb_mc5.c cxgb_vsc8211.c cxgb_ael1002.c cxgb_mv88e1xxx.c
 SRCS+=	cxgb_xgmac.c cxgb_vsc7323.c cxgb_t3_hw.c cxgb_main.c 
 SRCS+=  cxgb_sge.c cxgb_lro.c cxgb_offload.c cxgb_l2t.c
 SRCS+=	device_if.h bus_if.h pci_if.h opt_zero.h opt_sched.h opt_global.h 
-SRCS+=	uipc_mvec.c cxgb_support.c
+SRCS+=	uipc_mvec.c cxgb_support.c 
 SRCS+=	cxgb_multiq.c 
 
 CFLAGS+= -DCONFIG_CHELSIO_T3_CORE -g -DCONFIG_DEFINED -DDEFAULT_JUMBO -I${CXGB} -DSMP
@@ -24,13 +24,6 @@ CFLAGS+= -DDISABLE_MBUF_IOVEC
 
 
 .if ${MACHINE_ARCH} != "ia64"
-# ld is broken on ia64
-t3fw-5.0.0.bin: ${CXGB}/t3fw-5.0.0.bin.gz.uu
-	uudecode -p < ${CXGB}/t3fw-5.0.0.bin.gz.uu \
-	| gzip -dc > ${.TARGET}
-
-FIRMWS= t3fw-5.0.0.bin:t3fw500
-CLEANFILES+= t3fw-5.0.0.bin
 
 t3b_protocol_sram-1.1.0.bin: ${CXGB}/t3b_protocol_sram-1.1.0.bin.gz.uu
 	uudecode -p < ${CXGB}/t3b_protocol_sram-1.1.0.bin.gz.uu \
@@ -48,6 +41,4 @@ CLEANFILES+= t3b_tp_eeprom-1.1.0.bin
 
 
 .endif
-
-
 .include <bsd.kmod.mk>
