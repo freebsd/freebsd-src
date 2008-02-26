@@ -683,6 +683,7 @@ upper_spec
 	:	DECSTRING { $$ = $1; }
 	|	ANY { $$ = IPSEC_ULPROTO_ANY; }
 	|	PR_TCP { $$ = IPPROTO_TCP; }
+	|	PR_ESP { $$ = IPPROTO_ESP; }
 	|	STRING
 		{
 			struct protoent *ent;
