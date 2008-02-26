@@ -93,9 +93,11 @@ pass1(void)
 		inumber = c * sblock.fs_ipg;
 		setinodebuf(inumber);
 		getblk(&cgblk, cgtod(&sblock, c), sblock.fs_cgsize);
-		if (sblock.fs_magic == FS_UFS2_MAGIC)
+		if (sblock.fs_magic == FS_UFS2_MAGIC) {
 			inosused = cgrp.cg_initediblk;
-		else
+			if (inosused > sblock.fs_ipg)
+				inosused = sblock.fs_ipg;
+		} else
 			inosused = sblock.fs_ipg;
 		if (got_siginfo) {
 			printf("%s: phase 1: cyl group %d of %d (%d%%)\n",
