@@ -410,7 +410,7 @@ vop_getwritemount {
 };
 
 
-%% print	vp	= = =
+%% print	vp	- - -
 
 vop_print {
 	IN struct vnode *vp;
