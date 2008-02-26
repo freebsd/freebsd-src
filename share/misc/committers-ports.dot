@@ -73,6 +73,7 @@ farrokhi [label="Babak Farrokhi\nfarrokhi@FreeBSD.org\n2006/11/07"]
 fjoe [label="Max Khon\nfjoe@FreeBSD.org\n2001/08/06"]
 flz [label="Florent Thoumie\nflz@FreeBSD.org\n2005/03/01"]
 gabor [label="Gabor Kovesdan\ngabor@FreeBSD.org\n2006/12/05"]
+gahr [label="Pietro Cerutti\ngahr@FreeBSD.org\n2008/02/20"]
 garga [label="Renato Botelho\ngarga@FreeBSD.org\n2005/07/11"]
 gerald [label="Gerald Pfeifer\gerald@FreeBSD.org\n2002/04/03"]
 glewis [label="Greg Lewis\nglewis@FreeBSD.org\n2002/04/08"]
@@ -241,6 +242,7 @@ mat -> thierry
 mezz -> tmclaugh
 
 miwi -> farrokhi
+miwi -> gahr
 miwi -> nox
 miwi -> tabthorpe
 miwi -> trasz
