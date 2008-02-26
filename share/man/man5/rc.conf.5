@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 12, 2008
+.Dd October 27, 2007
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -963,6 +963,10 @@ will cause the kernel to ignore TCP frames that have both
 the SYN and FIN flags set.
 This prevents OS fingerprinting, but may
 break some legitimate applications.
+This option is only available if the
+kernel was built with the
+.Dv TCP_DROP_SYNFIN
+option.
 .It Va icmp_drop_redirect
 .Pq Vt bool
 Set to
