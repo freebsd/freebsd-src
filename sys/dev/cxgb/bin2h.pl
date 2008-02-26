@@ -12,7 +12,7 @@ unless ($success) {
   print "failed to open input\n";
   exit 1;
 }
-$success = open OUTPUT, ">$ARGV[1]";
+$success = open OUTPUT, ">$ARGV[1].h";
 unless ($success) {
   print "failed to open output\n";
   exit 1;
@@ -64,13 +64,13 @@ my ($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size,
 
 print OUTPUT "#define U (unsigned char)\n\n"; 
 
-print OUTPUT "static unsigned int t3fw_length = $size;\n";
-print OUTPUT "static unsigned char t3fw[$size] = {\n";
+print OUTPUT "static unsigned int $ARGV[1]_length = $size;\n";
+print OUTPUT "static unsigned char $ARGV[1]" . "[$size]" . " = {\n";
 
 for (my $i = 0; $i < $size; $i += 4) {
   my $number_read = read(INPUT, $binary, 4);
   my ($a, $b, $c, $d) = unpack("C C C C", $binary);
-  $buf = sprintf("U 0x%02X, U 0x%02X, U 0x%02X, U 0x%02X, \n", $a, $b, $c, $d);
+  $buf = sprintf("\tU 0x%02X, U 0x%02X, U 0x%02X, U 0x%02X, \n", $a, $b, $c, $d);
   print OUTPUT $buf;
 }
 print OUTPUT "};\n";
