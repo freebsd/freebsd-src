@@ -10969,10 +10969,6 @@ sctp_lower_sosend(struct socket *so,
 	int error, len;
 	struct mbuf *top = NULL;
 
-#if defined(__NetBSD__) || defined(__OpenBSD_)
-	int s;
-
-#endif
 	int queue_only = 0, queue_only_for_init = 0;
 	int free_cnt_applied = 0;
 	int un_sent = 0;
