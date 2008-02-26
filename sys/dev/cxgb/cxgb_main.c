@@ -389,8 +389,8 @@ cxgb_controller_probe(device_t dev)
 }
 
 #define FW_FNAME "cxgb_t3fw"
-#define TPEEPROM_NAME "t3%ctpe%d%d%d"
-#define TPSRAM_NAME "t3%cps%d%d%d"
+#define TPEEPROM_NAME "t3b_tp_eeprom"
+#define TPSRAM_NAME "t3b_protocol_sram"
 
 static int
 upgrade_fw(adapter_t *sc)
@@ -1475,7 +1475,6 @@ update_tpeeprom(struct adapter *adap)
 	struct firmware *tpeeprom;
 #endif
 
-	char buf[64];
 	uint32_t version;
 	unsigned int major, minor;
 	int ret, len;
@@ -1490,13 +1489,10 @@ update_tpeeprom(struct adapter *adap)
 
 	rev = t3rev2char(adap);
 
-	snprintf(buf, sizeof(buf), TPEEPROM_NAME, rev,
-		 TP_VERSION_MAJOR, TP_VERSION_MINOR, TP_VERSION_MICRO);
-
-	tpeeprom = firmware_get(buf);
+	tpeeprom = firmware_get(TPEEPROM_NAME);
 	if (tpeeprom == NULL) {
 		device_printf(adap->dev, "could not load TP EEPROM: unable to load %s\n",
-			buf);
+		    TPEEPROM_NAME);
 		return;
 	}
 
@@ -1507,7 +1503,7 @@ update_tpeeprom(struct adapter *adap)
 		goto release_tpeeprom;
 
 	if (len != TP_SRAM_LEN) {
-		device_printf(adap->dev, "%s length is wrong len=%d expected=%d\n", buf, len, TP_SRAM_LEN);
+		device_printf(adap->dev, "%s length is wrong len=%d expected=%d\n", TPEEPROM_NAME, len, TP_SRAM_LEN);
 		return;
 	}
 	
@@ -1535,7 +1531,6 @@ update_tpsram(struct adapter *adap)
 #else
 	struct firmware *tpsram;
 #endif	
-	char buf[64];
 	int ret;
 	char rev;
 
@@ -1545,16 +1540,12 @@ update_tpsram(struct adapter *adap)
 
 	update_tpeeprom(adap);
 
-	snprintf(buf, sizeof(buf), TPSRAM_NAME, rev,
-		 TP_VERSION_MAJOR, TP_VERSION_MINOR, TP_VERSION_MICRO);
-
-	tpsram = firmware_get(buf);
+	tpsram = firmware_get(TPSRAM_NAME);
 	if (tpsram == NULL){
-		device_printf(adap->dev, "could not load TP SRAM: unable to load %s\n",
-			buf);
+		device_printf(adap->dev, "could not load TP SRAM\n");
 		return (EINVAL);
 	} else
-		device_printf(adap->dev, "updating TP SRAM with %s\n", buf);
+		device_printf(adap->dev, "updating TP SRAM\n");
 	
 	ret = t3_check_tpsram(adap, tpsram->data, tpsram->datasize);
 	if (ret)

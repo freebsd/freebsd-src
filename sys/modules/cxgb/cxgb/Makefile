@@ -19,26 +19,6 @@ CFLAGS+= -DDISABLE_MBUF_IOVEC
 #CFLAGS+= -DINVARIANT_SUPPORT -DINVARIANTS 
 #CFLAGS+= -DWITNESS
 #CFLAGS += -DLOCK_PROFILING
-
 #CFLAGS+= -DWITNESS
 
-
-.if ${MACHINE_ARCH} != "ia64"
-
-t3b_protocol_sram-1.1.0.bin: ${CXGB}/t3b_protocol_sram-1.1.0.bin.gz.uu
-	uudecode -p < ${CXGB}/t3b_protocol_sram-1.1.0.bin.gz.uu \
-	| gzip -dc > ${.TARGET}
-
-FIRMWS+= t3b_protocol_sram-1.1.0.bin:t3bps110
-CLEANFILES+= t3b_protocol_sram-1.1.0.bin
-
-t3b_tp_eeprom-1.1.0.bin: ${CXGB}/t3b_tp_eeprom-1.1.0.bin.gz.uu
-	uudecode -p < ${CXGB}/t3b_tp_eeprom-1.1.0.bin.gz.uu \
-	| gzip -dc > ${.TARGET}
-
-FIRMWS+= t3b_tp_eeprom-1.1.0.bin:t3btpe110
-CLEANFILES+= t3b_tp_eeprom-1.1.0.bin
-
-
-.endif
 .include <bsd.kmod.mk>
