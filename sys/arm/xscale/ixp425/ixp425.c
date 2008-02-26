@@ -234,7 +234,7 @@ ixp425_attach(device_t dev)
 	sc->sc_mem_rman.rm_descr = "IXP425 Memory";
 	if (rman_init(&sc->sc_mem_rman) != 0 ||
 	    rman_manage_region(&sc->sc_mem_rman, 0, ~0) != 0)
-		panic("ixp425_attach: failed to set up IRQ rman");
+		panic("ixp425_attach: failed to set up memory rman");
 
 	BUS_ADD_CHILD(dev, 0, "pcib", 0);
 	BUS_ADD_CHILD(dev, 0, "ixpclk", 0);
