@@ -349,7 +349,7 @@ readsb(int listerr)
 			      sblock.fs_sblockloc == sblock_try[i])) &&
 			    sblock.fs_ncg >= 1 &&
 			    sblock.fs_bsize >= MINBSIZE &&
-			    sblock.fs_bsize >= sizeof(struct fs))
+			    sblock.fs_sbsize >= roundup(sizeof(struct fs), dev_bsize))
 				break;
 		}
 		if (sblock_try[i] == -1) {
