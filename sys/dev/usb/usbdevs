@@ -607,6 +607,7 @@ vendor GLOBALSUN	0x16ab	Global Sun Technology
 vendor ANYDATA		0x16d5	AnyDATA Corporation
 vendor JABLOTRON	0x16d6	Jablotron
 vendor CMOTECH		0x16d8	CMOTECH Co., Ltd.
+vendor AXESSTEL		0x1726  Axesstel Co., Ltd.
 vendor LINKSYS4		0x1737	Linksys
 vendor SENAO		0x1740	Senao
 vendor METAGEEK		0x1781	MetaGeek
@@ -899,6 +900,9 @@ product ATMEL AT76C505A		0x7614	AT76c505a Wireless Adapter
 
 /* Avision products */
 product AVISION 1200U		0x0268	1200U scanner
+
+/* Axesstel products */
+product AXESSTEL DATAMODEM	0x1000  Data Modem
 
 /* Baltech products */
 product BALTECH CARDREADER	0x9999	Card reader
