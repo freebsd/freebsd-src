@@ -4008,10 +4008,10 @@ sctp_connect(struct socket *so, struct sockaddr *addr, struct thread *p)
 		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
 		return (EINVAL);
 	}
+	SCTP_INP_INCR_REF(inp);
 	SCTP_ASOC_CREATE_LOCK(inp);
 	create_lock_on = 1;
 
-	SCTP_INP_INCR_REF(inp);
 	if ((inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_ALLGONE) ||
 	    (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE)) {
 		/* Should I really unlock ? */
@@ -4063,7 +4063,7 @@ sctp_connect(struct socket *so, struct sockaddr *addr, struct thread *p)
 		if (stcb == NULL) {
 			SCTP_INP_DECR_REF(inp);
 		} else {
-			SCTP_TCB_LOCK(stcb);
+			SCTP_TCB_UNLOCK(stcb);
 		}
 	}
 	if (stcb != NULL) {
