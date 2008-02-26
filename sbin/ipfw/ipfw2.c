@@ -3996,6 +3996,8 @@ config_nat(int ac, char **av)
 			ac--; av++;
 			break;	    
 		case TOK_IF:
+			if (ac == 0) 
+				errx(EX_DATAERR, "missing option");
 			set_addr_dynamic(av[0], n);
 			ac--; av++;
 			break;
