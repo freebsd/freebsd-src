@@ -141,7 +141,7 @@ loop:
 	 */
 	MALLOC(fd, struct fdescnode *, sizeof(struct fdescnode), M_TEMP, M_WAITOK);
 
-	error = getnewvnode("fdesc", mp, &fdesc_vnodeops, vpp);
+	error = getnewvnode("fdescfs", mp, &fdesc_vnodeops, vpp);
 	if (error) {
 		FREE(fd, M_TEMP);
 		goto out;
