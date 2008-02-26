@@ -349,6 +349,7 @@ MAN=	accept_filter.9 \
 	VOP_VPTOFH.9 \
 	vput.9 \
 	vref.9 \
+	vrefcnt.9 \
 	vrele.9 \
 	vslock.9 \
 	watchdog.9 \
