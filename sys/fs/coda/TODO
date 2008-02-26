@@ -11,5 +11,6 @@ Medium term:
 	Add missing VFS methods.
 	Do performance profile.
 	Tune hash algorithm used in cfs_subr.
+	Make MPSAFE
 
 $FreeBSD$
