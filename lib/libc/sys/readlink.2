@@ -28,7 +28,7 @@
 .\"     @(#)readlink.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd February 12, 2008
+.Dd February 26, 2008
 .Dt READLINK 2
 .Os
 .Sh NAME
@@ -39,7 +39,7 @@
 .Sh SYNOPSIS
 .In unistd.h
 .Ft ssize_t
-.Fn readlink "const char *path" "char *buf" "size_t bufsiz"
+.Fn readlink "const char *restrict path" "char *restrict buf" "size_t bufsiz"
 .Sh DESCRIPTION
 The
 .Fn readlink
