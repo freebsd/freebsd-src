@@ -124,6 +124,7 @@ MAN=	accept_filter.9 \
 	ieee80211_radiotap.9 \
 	ifnet.9 \
 	inittodr.9 \
+	insmntque.9 \
 	intro.9 \
 	ithread.9 \
 	KASSERT.9 \
