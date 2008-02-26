@@ -224,6 +224,10 @@ sctp_free_vrf(struct sctp_vrf *vrf)
 	ret = atomic_fetchadd_int(&vrf->refcount, -1);
 	if (ret == 1) {
 		/* We zero'd the count */
+  	        if (vrf->vrf_addr_hash) {
+                      SCTP_HASH_FREE(vrf->vrf_addr_hash, vrf->vrf_addr_hashmark);
+                      vrf->vrf_addr_hash = NULL
+	        }
 		LIST_REMOVE(vrf, next_vrf);
 		SCTP_FREE(vrf, SCTP_M_VRF);
 		atomic_subtract_int(&sctppcbinfo.ipi_count_vrfs, 1);
