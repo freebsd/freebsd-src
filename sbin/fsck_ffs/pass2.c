@@ -242,6 +242,8 @@ pass2check(struct inodesc *idesc)
 	/*
 	 * check for "."
 	 */
+	if (dirp->d_ino > maxino)
+		goto chk2;
 	if (idesc->id_entryno != 0)
 		goto chk1;
 	if (dirp->d_ino != 0 && strcmp(dirp->d_name, ".") == 0) {
