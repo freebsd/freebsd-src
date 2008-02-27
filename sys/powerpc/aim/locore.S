@@ -72,6 +72,12 @@
         mfsprg0  r
 
 /*
+ * Compiled KERNBASE location and the kernel load address
+ */
+        .globl  kernbase
+        .set    kernbase, KERNBASE
+
+/*
  * Globals
  */
 	.data
