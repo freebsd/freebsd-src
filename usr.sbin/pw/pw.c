@@ -225,7 +225,7 @@ main(int argc, char *argv[])
 			setgrdir(etcpath);
 		}
 	}
-    
+
 	/*
 	 * Now, let's do the common initialisation
 	 */
