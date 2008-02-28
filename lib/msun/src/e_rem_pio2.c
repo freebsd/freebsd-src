@@ -126,7 +126,7 @@ __ieee754_rem_pio2(double x, double *y)
 		}
 	    }
 	}
-	if(ix<=0x413921fb) { /* |x| ~<= 2^19*(pi/2), medium size */
+	if(ix<0x413921fb) {	/* |x| ~< 2^20*(pi/2), medium size */
 medium:
 	    /* Use a specialized rint() to get fn.  Assume round-to-nearest. */
 	    STRICT_ASSIGN(double,fn,x*invpio2+0x1.8p52);
