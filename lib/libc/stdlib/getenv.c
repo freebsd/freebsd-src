@@ -23,23 +23,25 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include <sys/types.h>
-#include <err.h>
-#include <errno.h>
-#include <stdbool.h>
-#include <stddef.h>
-#include <stdlib.h>
-#include <string.h>
-
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
 
-static const char CorruptEnvFindMsg[] =
-    "environment corrupt; unable to find %.*s";
+#include "namespace.h"
+#include <sys/types.h>
+#include <errno.h>
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include "un-namespace.h"
+
+
+static const char CorruptEnvFindMsg[] = "environment corrupt; unable to find ";
 static const char CorruptEnvValueMsg[] =
-    "environment corrupt; missing value for %s";
+    "environment corrupt; missing value for ";
 
 
 /*
@@ -94,6 +96,26 @@ static int envVarsTotal = 0;
 
 /* Deinitialization of new environment. */
 static void __attribute__ ((destructor)) __clean_env_destructor(void);
+
+
+/*
+ * A simple version of warnx() to avoid the bloat of including stdio in static
+ * binaries.
+ */
+static void
+__env_warnx(const char *msg, const char *name, size_t nameLen)
+{
+	static const char nl[] = "\n";
+	static const char progSep[] = ": ";
+
+	_write(STDERR_FILENO, _getprogname(), strlen(_getprogname()));
+	_write(STDERR_FILENO, progSep, sizeof(progSep) - 1);
+	_write(STDERR_FILENO, msg, strlen(msg));
+	_write(STDERR_FILENO, name, nameLen);
+	_write(STDERR_FILENO, nl, sizeof(nl) - 1);
+
+	return;
+}
 
 
 /*
@@ -341,7 +363,8 @@ __build_env(void)
 			envVars[envNdx].valueSize =
 			    strlen(envVars[envNdx].value);
 		} else {
-			warnx(CorruptEnvValueMsg, envVars[envNdx].name);
+			__env_warnx(CorruptEnvValueMsg, envVars[envNdx].name,
+			    strlen(envVars[envNdx].name));
 			errno = EFAULT;
 			goto Failure;
 		}
@@ -356,8 +379,8 @@ __build_env(void)
 		activeNdx = envVarsTotal - 1;
 		if (__findenv(envVars[envNdx].name, nameLen, &activeNdx,
 		    false) == NULL) {
-			warnx(CorruptEnvFindMsg, (int)nameLen,
-			    envVars[envNdx].name);
+			__env_warnx(CorruptEnvFindMsg, envVars[envNdx].name,
+			    nameLen);
 			errno = EFAULT;
 			goto Failure;
 		}
@@ -527,7 +550,8 @@ __merge_environ(void)
 		if (origEnviron != NULL)
 			for (env = origEnviron; *env != NULL; env++) {
 				if ((equals = strchr(*env, '=')) == NULL) {
-					warnx(CorruptEnvValueMsg, *env);
+					__env_warnx(CorruptEnvValueMsg, *env,
+					    strlen(*env));
 					errno = EFAULT;
 					return (-1);
 				}
