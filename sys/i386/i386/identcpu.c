@@ -157,6 +157,7 @@ init_exthigh(void)
 		    strcmp(cpu_vendor, "AuthenticAMD") == 0 ||
 		    strcmp(cpu_vendor, "GenuineTMx86") == 0 ||
 		    strcmp(cpu_vendor, "TransmetaCPU") == 0 ||
+		    strcmp(cpu_vendor, "CentaurHauls") == 0 ||
 		    strcmp(cpu_vendor, "Geode by NSC") == 0)) {
 			do_cpuid(0x80000000, regs);
 			if (regs[0] >= 0x80000000)
@@ -584,10 +585,9 @@ printcpuinfo(void)
 				break;
 			goto via_common;
 		case 0x6a0:
+		case 0x6d0:
 			strcpy(cpu_model, "VIA C7 Esther");
 			goto via_common;
-		case 0x6d0:
-			strcpy(cpu_model, "VIA C7 Eden");
 via_common:
 			do_cpuid(0xc0000000, regs);
 			i = regs[0];
