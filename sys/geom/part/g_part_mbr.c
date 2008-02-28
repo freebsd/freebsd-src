@@ -252,22 +252,42 @@ static int
 g_part_mbr_probe(struct g_part_table *table, struct g_consumer *cp)
 {
 	struct g_provider *pp;
-	u_char *buf;
-	int error, res;
+	u_char *buf, *p;
+	int error, index, res;
+	uint16_t magic;
 
 	pp = cp->provider;
 
 	/* Sanity-check the provider. */
 	if (pp->sectorsize < MBRSIZE || pp->mediasize < pp->sectorsize)
 		return (ENOSPC);
+	if (pp->sectorsize > 4096)
+		return (ENXIO);
 
 	/* Check that there's a MBR. */
 	buf = g_read_data(cp, 0L, pp->sectorsize, &error);
 	if (buf == NULL)
 		return (error);
-	res = le16dec(buf + DOSMAGICOFFSET);
+
+	/* We goto out on mismatch. */
+	res = ENXIO;
+
+	magic = le16dec(buf + DOSMAGICOFFSET);
+	if (magic != DOSMAGIC)
+		goto out;
+
+	for (index = 0; index < NDOSPART; index++) {
+		p = buf + DOSPARTOFF + index * DOSPARTSIZE;
+		if (p[0] != 0 && p[0] != 0x80)
+			goto out;
+	}
+
+	/* Match. */
+	res = G_PART_PROBE_PRI_NORM;
+
+ out:
 	g_free(buf);
-	return ((res == DOSMAGIC) ? G_PART_PROBE_PRI_NORM : ENXIO);
+	return (res);
 }
 
 static int
@@ -304,8 +324,6 @@ g_part_mbr_read(struct g_part_table *basetable, struct g_consumer *cp)
 		ent.dp_start = le32dec(p + 8);
 		ent.dp_size = le32dec(p + 12);
 		if (ent.dp_typ == 0 || ent.dp_typ == DOSPTYP_PMBR)
-			continue;
-		if (ent.dp_flag != 0 && ent.dp_flag != 0x80)
 			continue;
 		if (ent.dp_start == 0 || ent.dp_size == 0)
 			continue;
