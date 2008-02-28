@@ -38,8 +38,8 @@ __FBSDID("$FreeBSD$");
 static const double
 half =  5.00000000000000000000e-01, /* 0x3FE00000, 0x00000000 */
 invpio2 =  6.36619772367581382433e-01, /* 0x3FE45F30, 0x6DC9C883 */
-pio2_1  =  1.57079632673412561417e+00, /* 0x3FF921FB, 0x54400000 */
-pio2_1t =  6.07710050650619224932e-11; /* 0x3DD0B461, 0x1A626331 */
+pio2_1  =  1.57079631090164184570e+00, /* 0x3FF921FB, 0x50000000 */
+pio2_1t =  1.58932547735281966916e-08; /* 0x3E5110b4, 0x611A6263 */
 
 #ifdef INLINE_REM_PIO2F
 extern inline
@@ -55,7 +55,7 @@ __ieee754_rem_pio2f(float x, double *y)
 	GET_FLOAT_WORD(hx,x);
 	ix = hx&0x7fffffff;
     /* 33+53 bit pi is good enough for medium size */
-	if(ix<=0x49490f80) {		/* |x| ~<= 2^19*(pi/2), medium size */
+	if(ix<0x4dc90fdb) {		/* |x| ~< 2^28*(pi/2), medium size */
 	    /* Use a specialized rint() to get fn.  Assume round-to-nearest. */
 	    STRICT_ASSIGN(double,fn,x*invpio2+0x1.8p52);
 	    fn = fn-0x1.8p52;
