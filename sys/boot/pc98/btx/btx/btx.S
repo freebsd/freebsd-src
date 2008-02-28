@@ -25,8 +25,7 @@
 		.set MEM_IDT,0x1e00		# IDT
 		.set MEM_TSS,0x1f98		# TSS
 		.set MEM_MAP,0x2000		# I/O bit map
-		.set MEM_DIR,0x4000		# Page directory
-		.set MEM_TBL,0x5000		# Page tables
+		.set MEM_TSS_END,0x3fff		# Page directory
 		.set MEM_ORG,0x9000		# BTX code
 		.set MEM_USR,0xa000		# Start of user memory
 /*
@@ -86,7 +85,7 @@
 		.set _ESP0H,MEM_ESP0>>0x8	# Byte 1 of ESP0
 		.set _ESP1H,MEM_ESP1>>0x8	# Byte 1 of ESP1
 		.set _TSSIO,MEM_MAP-MEM_TSS	# TSS I/O base
-		.set _TSSLM,MEM_DIR-MEM_TSS-1	# TSS limit
+		.set _TSSLM,MEM_TSS_END-MEM_TSS	# TSS limit
 		.set _IDTLM,MEM_TSS-MEM_IDT-1	# IDT limit
 /*
  * Code segment.
@@ -156,58 +155,15 @@ init.4: 	movb $_ESP0H,TSS_ESP0+1(%di)	# Set ESP0
 		movb $SEL_SDATA,TSS_SS0(%di)	# Set SS0
 		movb $_ESP1H,TSS_ESP1+1(%di)	# Set ESP1
 		movb $_TSSIO,TSS_MAP(%di)	# Set I/O bit map base
-#ifdef PAGING
-/*
- * Create page directory.
- */
-		xor %edx,%edx			# Page
-		mov $PAG_SIZ>>0x8,%dh		#  size
-		xor %eax,%eax			# Zero
-		mov $MEM_DIR,%di		# Page directory
-		mov $PAG_CNT>>0xa,%cl		# Entries
-		mov $MEM_TBL|0x7,%ax	 	# First entry
-init.5: 	stosl				# Write entry
-		add %dx,%ax			# To next
-		loop init.5			# Till done
-/*
- * Create page tables.
- */
-		mov $MEM_TBL,%di		# Page table
-		mov $PAG_CNT>>0x8,%ch		# Entries
-		xor %ax,%ax			# Start address
-init.6: 	mov $0x7,%al			# Set U:W:P flags
-		cmp btx_hdr+0x8,%cx	 	# Standard user page?
-		jb init.7			# Yes
-		cmp $PAG_CNT-MEM_BTX>>0xc,%cx	# BTX memory?
-		jae init.7			# No or first page
-		and $~0x2,%al			# Clear W flag
-		cmp $PAG_CNT-MEM_USR>>0xc,%cx	# User page zero?
-		jne init.7			# No
-		testb $0x80,btx_hdr+0x7		# Unmap it?
-		jz init.7			# No
-		and $~0x1,%al			# Clear P flag
-init.7: 	stosl				# Set entry
-		add %edx,%eax			# Next address
-		loop init.6			# Till done
-#endif
 /*
  * Bring up the system.
  */
 		mov $0x2820,%bx			# Set protected mode
 		callw setpic			#  IRQ offsets
 		lidt idtdesc	 		# Set IDT
-#ifdef PAGING
-		xor %eax,%eax			# Set base
-		mov $MEM_DIR>>0x8,%ah		#  of page
-		mov %eax,%cr3			#  directory
-#endif
 		lgdt gdtdesc	 		# Set GDT
 		mov %cr0,%eax			# Switch to protected
-#ifdef PAGING
-		or $0x80000001,%eax             #  mode and enable paging
-#else
 		inc %ax				#  mode
-#endif
 		mov %eax,%cr0			#
 		ljmp $SEL_SCODE,$init.8		# To 32-bit code
 		.code32
@@ -882,13 +838,6 @@ intx30: 	cmpl $SYS_EXEC,%eax		# Exec system call?
 		movl $MEM_USR,%eax		# User base address
 		addl 0xc(%esp,1),%eax		# Change to user
 		leal 0x4(%eax),%esp		#  stack
-#ifdef PAGING
-		movl %cr0,%eax			# Turn
-		andl $~0x80000000,%eax		#  off
-		movl %eax,%cr0			#  paging
-		xorl %eax,%eax			# Flush
-		movl %eax,%cr3			#  TLB
-#endif
 		popl %eax			# Call
 		call *%eax			#  program
 intx30.1:	orb $0x1,%ss:btx_hdr+0x7	# Flag reboot
