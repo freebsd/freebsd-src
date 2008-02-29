@@ -1,6 +1,6 @@
 /*******************************************************************************
 
-  Copyright (c) 2001-2007, Intel Corporation 
+  Copyright (c) 2001-2008, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -64,7 +64,7 @@
 
 /* PHY Specific Control Register 2 (Page 0, Register 26) */
 #define GG82563_PSCR2_REVERSE_AUTO_NEG          0x2000
-                                                /* 1=Reverse Auto-Negotiation */
+                                               /* 1=Reverse Auto-Negotiation */
 
 /* MAC Specific Control Register (Page 2, Register 21) */
 /* Tx clock speed for Link Down and 1000BASE-T for the following speeds */
@@ -94,7 +94,7 @@
 
 /* Power Management Control Register (Page 193, Register 20) */
 #define GG82563_PMCR_ENABLE_ELECTRICAL_IDLE     0x0001
-                                           /* 1=Enable SERDES Electrical Idle */
+                                          /* 1=Enable SERDES Electrical Idle */
 
 /* In-Band Control Register (Page 194, Register 18) */
 #define GG82563_ICR_DIS_PADDING                 0x0010 /* Disable Padding */

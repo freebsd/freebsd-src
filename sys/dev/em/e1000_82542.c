@@ -1,6 +1,6 @@
 /*******************************************************************************
 
-  Copyright (c) 2001-2007, Intel Corporation 
+  Copyright (c) 2001-2008, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -37,8 +37,6 @@
  */
 
 #include "e1000_api.h"
-
-void e1000_init_function_pointers_82542(struct e1000_hw *hw);
 
 STATIC s32  e1000_init_phy_params_82542(struct e1000_hw *hw);
 STATIC s32  e1000_init_nvm_params_82542(struct e1000_hw *hw);
@@ -185,7 +183,7 @@ void e1000_init_function_pointers_82542(struct e1000_hw *hw)
  *  @hw: pointer to the HW structure
  *
  *  This will obtain information about the HW bus for which the
- *  adaper is attached and stores it in the hw structure.  This is a function
+ *  adapter is attached and stores it in the hw structure.  This is a function
  *  pointer entry point called by the api module.
  **/
 STATIC s32 e1000_get_bus_info_82542(struct e1000_hw *hw)
@@ -427,7 +425,7 @@ STATIC s32 e1000_led_off_82542(struct e1000_hw *hw)
 }
 
 /**
- *  e1000_translate_register_82542 - Translate the proper regiser offset
+ *  e1000_translate_register_82542 - Translate the proper register offset
  *  @reg: e1000 register to be read
  *
  *  Registers in 82542 are located in different offsets than other adapters

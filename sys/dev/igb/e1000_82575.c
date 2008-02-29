@@ -1,6 +1,6 @@
-/*******************************************************************************
+/******************************************************************************
 
-  Copyright (c) 2001-2007, Intel Corporation 
+  Copyright (c) 2001-2008, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -29,9 +29,8 @@
   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE.
 
-*******************************************************************************/
-/* $FreeBSD$ */
-
+******************************************************************************/
+/*$FreeBSD$*/
 
 /* e1000_82575
  * e1000_82576
@@ -40,32 +39,29 @@
 #include "e1000_api.h"
 #include "e1000_82575.h"
 
-void e1000_init_function_pointers_82575(struct e1000_hw *hw);
-
-STATIC s32  e1000_init_phy_params_82575(struct e1000_hw *hw);
-STATIC s32  e1000_init_nvm_params_82575(struct e1000_hw *hw);
-STATIC s32  e1000_init_mac_params_82575(struct e1000_hw *hw);
-STATIC s32  e1000_acquire_phy_82575(struct e1000_hw *hw);
-STATIC void e1000_release_phy_82575(struct e1000_hw *hw);
-STATIC s32  e1000_acquire_nvm_82575(struct e1000_hw *hw);
-STATIC void e1000_release_nvm_82575(struct e1000_hw *hw);
-STATIC s32  e1000_check_for_link_82575(struct e1000_hw *hw);
-STATIC s32  e1000_get_cfg_done_82575(struct e1000_hw *hw);
-STATIC s32  e1000_get_link_up_info_82575(struct e1000_hw *hw, u16 *speed,
+static s32  e1000_init_phy_params_82575(struct e1000_hw *hw);
+static s32  e1000_init_nvm_params_82575(struct e1000_hw *hw);
+static s32  e1000_init_mac_params_82575(struct e1000_hw *hw);
+static s32  e1000_acquire_phy_82575(struct e1000_hw *hw);
+static void e1000_release_phy_82575(struct e1000_hw *hw);
+static s32  e1000_acquire_nvm_82575(struct e1000_hw *hw);
+static void e1000_release_nvm_82575(struct e1000_hw *hw);
+static s32  e1000_check_for_link_82575(struct e1000_hw *hw);
+static s32  e1000_get_cfg_done_82575(struct e1000_hw *hw);
+static s32  e1000_get_link_up_info_82575(struct e1000_hw *hw, u16 *speed,
                                          u16 *duplex);
-STATIC s32  e1000_init_hw_82575(struct e1000_hw *hw);
-STATIC s32  e1000_phy_hw_reset_sgmii_82575(struct e1000_hw *hw);
-STATIC s32  e1000_read_phy_reg_sgmii_82575(struct e1000_hw *hw, u32 offset,
+static s32  e1000_init_hw_82575(struct e1000_hw *hw);
+static s32  e1000_phy_hw_reset_sgmii_82575(struct e1000_hw *hw);
+static s32  e1000_read_phy_reg_sgmii_82575(struct e1000_hw *hw, u32 offset,
                                            u16 *data);
-STATIC void e1000_rar_set_82575(struct e1000_hw *hw, u8 *addr, u32 index);
-STATIC s32  e1000_reset_hw_82575(struct e1000_hw *hw);
-STATIC s32  e1000_set_d0_lplu_state_82575(struct e1000_hw *hw,
+static s32  e1000_reset_hw_82575(struct e1000_hw *hw);
+static s32  e1000_set_d0_lplu_state_82575(struct e1000_hw *hw,
                                           bool active);
-STATIC s32  e1000_setup_copper_link_82575(struct e1000_hw *hw);
-STATIC s32  e1000_setup_fiber_serdes_link_82575(struct e1000_hw *hw);
-STATIC s32  e1000_write_phy_reg_sgmii_82575(struct e1000_hw *hw,
+static s32  e1000_setup_copper_link_82575(struct e1000_hw *hw);
+static s32  e1000_setup_fiber_serdes_link_82575(struct e1000_hw *hw);
+static s32  e1000_write_phy_reg_sgmii_82575(struct e1000_hw *hw,
                                             u32 offset, u16 data);
-STATIC void e1000_clear_hw_cntrs_82575(struct e1000_hw *hw);
+static void e1000_clear_hw_cntrs_82575(struct e1000_hw *hw);
 static s32  e1000_acquire_swfw_sync_82575(struct e1000_hw *hw, u16 mask);
 static s32  e1000_configure_pcs_link_82575(struct e1000_hw *hw);
 static s32  e1000_get_pcs_speed_and_duplex_82575(struct e1000_hw *hw,
@@ -73,9 +69,9 @@ static s32  e1000_get_pcs_speed_and_duplex_82575(struct e1000_hw *hw,
 static s32  e1000_get_phy_id_82575(struct e1000_hw *hw);
 static void e1000_release_swfw_sync_82575(struct e1000_hw *hw, u16 mask);
 static bool e1000_sgmii_active_82575(struct e1000_hw *hw);
-STATIC s32  e1000_reset_init_script_82575(struct e1000_hw *hw);
-STATIC s32  e1000_read_mac_addr_82575(struct e1000_hw *hw);
-STATIC void e1000_power_down_phy_copper_82575(struct e1000_hw *hw);
+static s32  e1000_reset_init_script_82575(struct e1000_hw *hw);
+static s32  e1000_read_mac_addr_82575(struct e1000_hw *hw);
+static void e1000_power_down_phy_copper_82575(struct e1000_hw *hw);
 
 
 struct e1000_dev_spec_82575 {
@@ -88,10 +84,9 @@ struct e1000_dev_spec_82575 {
  *
  *  This is a function pointer entry point called by the api module.
  **/
-STATIC s32 e1000_init_phy_params_82575(struct e1000_hw *hw)
+static s32 e1000_init_phy_params_82575(struct e1000_hw *hw)
 {
 	struct e1000_phy_info *phy = &hw->phy;
-	struct e1000_functions *func = &hw->func;
 	s32 ret_val = E1000_SUCCESS;
 
 	DEBUGFUNC("e1000_init_phy_params_82575");
@@ -100,27 +95,27 @@ STATIC s32 e1000_init_phy_params_82575(struct e1000_hw *hw)
 		phy->type = e1000_phy_none;
 		goto out;
 	} else {
-		func->power_up_phy      = e1000_power_up_phy_copper;
-		func->power_down_phy    = e1000_power_down_phy_copper_82575;
+		phy->ops.power_up   = e1000_power_up_phy_copper;
+		phy->ops.power_down = e1000_power_down_phy_copper_82575;
 	}
 
-	phy->autoneg_mask        = AUTONEG_ADVERTISE_SPEED_DEFAULT;
-	phy->reset_delay_us      = 100;
+	phy->autoneg_mask           = AUTONEG_ADVERTISE_SPEED_DEFAULT;
+	phy->reset_delay_us         = 100;
 
-	func->acquire_phy        = e1000_acquire_phy_82575;
-	func->check_reset_block  = e1000_check_reset_block_generic;
-	func->commit_phy         = e1000_phy_sw_reset_generic;
-	func->get_cfg_done       = e1000_get_cfg_done_82575;
-	func->release_phy        = e1000_release_phy_82575;
+	phy->ops.acquire            = e1000_acquire_phy_82575;
+	phy->ops.check_reset_block  = e1000_check_reset_block_generic;
+	phy->ops.commit             = e1000_phy_sw_reset_generic;
+	phy->ops.get_cfg_done       = e1000_get_cfg_done_82575;
+	phy->ops.release            = e1000_release_phy_82575;
 
 	if (e1000_sgmii_active_82575(hw)) {
-		func->reset_phy          = e1000_phy_hw_reset_sgmii_82575;
-		func->read_phy_reg       = e1000_read_phy_reg_sgmii_82575;
-		func->write_phy_reg      = e1000_write_phy_reg_sgmii_82575;
+		phy->ops.reset      = e1000_phy_hw_reset_sgmii_82575;
+		phy->ops.read_reg   = e1000_read_phy_reg_sgmii_82575;
+		phy->ops.write_reg  = e1000_write_phy_reg_sgmii_82575;
 	} else {
-		func->reset_phy          = e1000_phy_hw_reset_generic;
-		func->read_phy_reg       = e1000_read_phy_reg_igp;
-		func->write_phy_reg      = e1000_write_phy_reg_igp;
+		phy->ops.reset      = e1000_phy_hw_reset_generic;
+		phy->ops.read_reg   = e1000_read_phy_reg_igp;
+		phy->ops.write_reg  = e1000_write_phy_reg_igp;
 	}
 
 	/* Set phy->phy_addr and phy->id. */
@@ -129,20 +124,20 @@ STATIC s32 e1000_init_phy_params_82575(struct e1000_hw *hw)
 	/* Verify phy id and set remaining function pointers */
 	switch (phy->id) {
 	case M88E1111_I_PHY_ID:
-		phy->type                = e1000_phy_m88;
-		func->check_polarity     = e1000_check_polarity_m88;
-		func->get_phy_info       = e1000_get_phy_info_m88;
-		func->get_cable_length   = e1000_get_cable_length_m88;
-		func->force_speed_duplex = e1000_phy_force_speed_duplex_m88;
+		phy->type                   = e1000_phy_m88;
+		phy->ops.check_polarity     = e1000_check_polarity_m88;
+		phy->ops.get_info           = e1000_get_phy_info_m88;
+		phy->ops.get_cable_length   = e1000_get_cable_length_m88;
+		phy->ops.force_speed_duplex = e1000_phy_force_speed_duplex_m88;
 		break;
 	case IGP03E1000_E_PHY_ID:
-		phy->type                = e1000_phy_igp_3;
-		func->check_polarity     = e1000_check_polarity_igp;
-		func->get_phy_info       = e1000_get_phy_info_igp;
-		func->get_cable_length   = e1000_get_cable_length_igp_2;
-		func->force_speed_duplex = e1000_phy_force_speed_duplex_igp;
-		func->set_d0_lplu_state  = e1000_set_d0_lplu_state_82575;
-		func->set_d3_lplu_state  = e1000_set_d3_lplu_state_generic;
+		phy->type                   = e1000_phy_igp_3;
+		phy->ops.check_polarity     = e1000_check_polarity_igp;
+		phy->ops.get_info           = e1000_get_phy_info_igp;
+		phy->ops.get_cable_length   = e1000_get_cable_length_igp_2;
+		phy->ops.force_speed_duplex = e1000_phy_force_speed_duplex_igp;
+		phy->ops.set_d0_lplu_state  = e1000_set_d0_lplu_state_82575;
+		phy->ops.set_d3_lplu_state  = e1000_set_d3_lplu_state_generic;
 		break;
 	default:
 		ret_val = -E1000_ERR_PHY;
@@ -159,10 +154,9 @@ out:
  *
  *  This is a function pointer entry point called by the api module.
  **/
-STATIC s32 e1000_init_nvm_params_82575(struct e1000_hw *hw)
+static s32 e1000_init_nvm_params_82575(struct e1000_hw *hw)
 {
 	struct e1000_nvm_info *nvm = &hw->nvm;
-	struct e1000_functions *func = &hw->func;
 	u32 eecd = E1000_READ_REG(hw, E1000_EECD);
 	u16 size;
 
@@ -185,7 +179,7 @@ STATIC s32 e1000_init_nvm_params_82575(struct e1000_hw *hw)
 		break;
 	}
 
-	nvm->type               = e1000_nvm_eeprom_spi;
+	nvm->type              = e1000_nvm_eeprom_spi;
 
 	size = (u16)((eecd & E1000_EECD_SIZE_EX_MASK) >>
 	                  E1000_EECD_SIZE_EX_SHIFT);
@@ -202,13 +196,13 @@ STATIC s32 e1000_init_nvm_params_82575(struct e1000_hw *hw)
 	nvm->word_size	= 1 << size;
 
 	/* Function Pointers */
-	func->acquire_nvm       = e1000_acquire_nvm_82575;
-	func->read_nvm          = e1000_read_nvm_eerd;
-	func->release_nvm       = e1000_release_nvm_82575;
-	func->update_nvm        = e1000_update_nvm_checksum_generic;
-	func->valid_led_default = e1000_valid_led_default_generic;
-	func->validate_nvm      = e1000_validate_nvm_checksum_generic;
-	func->write_nvm         = e1000_write_nvm_spi;
+	nvm->ops.acquire       = e1000_acquire_nvm_82575;
+	nvm->ops.read          = e1000_read_nvm_eerd;
+	nvm->ops.release       = e1000_release_nvm_82575;
+	nvm->ops.update        = e1000_update_nvm_checksum_generic;
+	nvm->ops.valid_led_default = e1000_valid_led_default_generic;
+	nvm->ops.validate      = e1000_validate_nvm_checksum_generic;
+	nvm->ops.write         = e1000_write_nvm_spi;
 
 	return E1000_SUCCESS;
 }
@@ -219,10 +213,9 @@ STATIC s32 e1000_init_nvm_params_82575(struct e1000_hw *hw)
  *
  *  This is a function pointer entry point called by the api module.
  **/
-STATIC s32 e1000_init_mac_params_82575(struct e1000_hw *hw)
+static s32 e1000_init_mac_params_82575(struct e1000_hw *hw)
 {
 	struct e1000_mac_info *mac = &hw->mac;
-	struct e1000_functions *func = &hw->func;
 	struct e1000_dev_spec_82575 *dev_spec;
 	u32 ctrl_ext = 0;
 	s32 ret_val = E1000_SUCCESS;
@@ -276,47 +269,47 @@ STATIC s32 e1000_init_mac_params_82575(struct e1000_hw *hw)
 	/* Function pointers */
 
 	/* bus type/speed/width */
-	func->get_bus_info = e1000_get_bus_info_pcie_generic;
+	mac->ops.get_bus_info = e1000_get_bus_info_pcie_generic;
 	/* reset */
-	func->reset_hw = e1000_reset_hw_82575;
+	mac->ops.reset_hw = e1000_reset_hw_82575;
 	/* hw initialization */
-	func->init_hw = e1000_init_hw_82575;
+	mac->ops.init_hw = e1000_init_hw_82575;
 	/* link setup */
-	func->setup_link = e1000_setup_link_generic;
+	mac->ops.setup_link = e1000_setup_link_generic;
 	/* physical interface link setup */
-	func->setup_physical_interface =
+	mac->ops.setup_physical_interface =
 	        (hw->phy.media_type == e1000_media_type_copper)
 	                ? e1000_setup_copper_link_82575
 	                : e1000_setup_fiber_serdes_link_82575;
 	/* check for link */
-	func->check_for_link = e1000_check_for_link_82575;
+	mac->ops.check_for_link = e1000_check_for_link_82575;
 	/* receive address register setting */
-	func->rar_set = e1000_rar_set_82575;
+	mac->ops.rar_set = e1000_rar_set_generic;
 	/* read mac address */
-	func->read_mac_addr = e1000_read_mac_addr_82575;
+	mac->ops.read_mac_addr = e1000_read_mac_addr_82575;
 	/* multicast address update */
-	func->update_mc_addr_list = e1000_update_mc_addr_list_generic;
+	mac->ops.update_mc_addr_list = e1000_update_mc_addr_list_generic;
 	/* writing VFTA */
-	func->write_vfta = e1000_write_vfta_generic;
+	mac->ops.write_vfta = e1000_write_vfta_generic;
 	/* clearing VFTA */
-	func->clear_vfta = e1000_clear_vfta_generic;
+	mac->ops.clear_vfta = e1000_clear_vfta_generic;
 	/* setting MTA */
-	func->mta_set = e1000_mta_set_generic;
+	mac->ops.mta_set = e1000_mta_set_generic;
 	/* blink LED */
-	func->blink_led = e1000_blink_led_generic;
+	mac->ops.blink_led = e1000_blink_led_generic;
 	/* setup LED */
-	func->setup_led = e1000_setup_led_generic;
+	mac->ops.setup_led = e1000_setup_led_generic;
 	/* cleanup LED */
-	func->cleanup_led = e1000_cleanup_led_generic;
+	mac->ops.cleanup_led = e1000_cleanup_led_generic;
 	/* turn on/off LED */
-	func->led_on = e1000_led_on_generic;
-	func->led_off = e1000_led_off_generic;
+	mac->ops.led_on = e1000_led_on_generic;
+	mac->ops.led_off = e1000_led_off_generic;
 	/* remove device */
-	func->remove_device = e1000_remove_device_generic;
+	mac->ops.remove_device = e1000_remove_device_generic;
 	/* clear hardware counters */
-	func->clear_hw_cntrs = e1000_clear_hw_cntrs_82575;
+	mac->ops.clear_hw_cntrs = e1000_clear_hw_cntrs_82575;
 	/* link info */
-	func->get_link_up_info = e1000_get_link_up_info_82575;
+	mac->ops.get_link_up_info = e1000_get_link_up_info_82575;
 
 out:
 	return ret_val;
@@ -333,9 +326,9 @@ void e1000_init_function_pointers_82575(struct e1000_hw *hw)
 {
 	DEBUGFUNC("e1000_init_function_pointers_82575");
 
-	hw->func.init_mac_params = e1000_init_mac_params_82575;
-	hw->func.init_nvm_params = e1000_init_nvm_params_82575;
-	hw->func.init_phy_params = e1000_init_phy_params_82575;
+	hw->mac.ops.init_params = e1000_init_mac_params_82575;
+	hw->nvm.ops.init_params = e1000_init_nvm_params_82575;
+	hw->phy.ops.init_params = e1000_init_phy_params_82575;
 }
 
 /**
@@ -345,7 +338,7 @@ void e1000_init_function_pointers_82575(struct e1000_hw *hw)
  *  Acquire access rights to the correct PHY.  This is a
  *  function pointer entry point called by the api module.
  **/
-STATIC s32 e1000_acquire_phy_82575(struct e1000_hw *hw)
+static s32 e1000_acquire_phy_82575(struct e1000_hw *hw)
 {
 	u16 mask;
 
@@ -363,7 +356,7 @@ STATIC s32 e1000_acquire_phy_82575(struct e1000_hw *hw)
  *  A wrapper to release access rights to the correct PHY.  This is a
  *  function pointer entry point called by the api module.
  **/
-STATIC void e1000_release_phy_82575(struct e1000_hw *hw)
+static void e1000_release_phy_82575(struct e1000_hw *hw)
 {
 	u16 mask;
 
@@ -382,7 +375,7 @@ STATIC void e1000_release_phy_82575(struct e1000_hw *hw)
  *  Reads the PHY register at offset using the serial gigabit media independent
  *  interface and stores the retrieved information in data.
  **/
-STATIC s32 e1000_read_phy_reg_sgmii_82575(struct e1000_hw *hw, u32 offset,
+static s32 e1000_read_phy_reg_sgmii_82575(struct e1000_hw *hw, u32 offset,
                                           u16 *data)
 {
 	struct e1000_phy_info *phy = &hw->phy;
@@ -437,7 +430,7 @@ STATIC s32 e1000_read_phy_reg_sgmii_82575(struct e1000_hw *hw, u32 offset,
  *  Writes the data to PHY register at the offset using the serial gigabit
  *  media independent interface.
  **/
-STATIC s32 e1000_write_phy_reg_sgmii_82575(struct e1000_hw *hw, u32 offset,
+static s32 e1000_write_phy_reg_sgmii_82575(struct e1000_hw *hw, u32 offset,
                                            u16 data)
 {
 	struct e1000_phy_info *phy = &hw->phy;
@@ -486,10 +479,10 @@ STATIC s32 e1000_write_phy_reg_sgmii_82575(struct e1000_hw *hw, u32 offset,
 }
 
 /**
- *  e1000_get_phy_id_82575 - Retreive PHY addr and id
+ *  e1000_get_phy_id_82575 - Retrieve PHY addr and id
  *  @hw: pointer to the HW structure
  *
- *  Retreives the PHY address and ID for both PHY's which do and do not use
+ *  Retrieves the PHY address and ID for both PHY's which do and do not use
  *  sgmi interface.
  **/
 static s32 e1000_get_phy_id_82575(struct e1000_hw *hw)
@@ -554,9 +547,9 @@ out:
  *
  *  Resets the PHY using the serial gigabit media independent interface.
  **/
-STATIC s32 e1000_phy_hw_reset_sgmii_82575(struct e1000_hw *hw)
+static s32 e1000_phy_hw_reset_sgmii_82575(struct e1000_hw *hw)
 {
-	s32 ret_val;
+	s32 ret_val = E1000_SUCCESS;
 
 	DEBUGFUNC("e1000_phy_hw_reset_sgmii_82575");
 
@@ -567,15 +560,18 @@ STATIC s32 e1000_phy_hw_reset_sgmii_82575(struct e1000_hw *hw)
 
 	DEBUGOUT("Soft resetting SGMII attached PHY...\n");
 
+	if (!(hw->phy.ops.write_reg))
+		goto out;
+
 	/*
 	 * SFP documentation requires the following to configure the SPF module
 	 * to work on SGMII.  No further documentation is given.
 	 */
-	ret_val = e1000_write_phy_reg(hw, 0x1B, 0x8084);
+	ret_val = hw->phy.ops.write_reg(hw, 0x1B, 0x8084);
 	if (ret_val)
 		goto out;
 
-	ret_val = e1000_phy_commit(hw);
+	ret_val = hw->phy.ops.commit(hw);
 
 out:
 	return ret_val;
@@ -594,41 +590,40 @@ out:
  *  This is a function pointer entry point only called by
  *  PHY setup routines.
  **/
-STATIC s32 e1000_set_d0_lplu_state_82575(struct e1000_hw *hw, bool active)
+static s32 e1000_set_d0_lplu_state_82575(struct e1000_hw *hw, bool active)
 {
 	struct e1000_phy_info *phy = &hw->phy;
-	s32 ret_val;
+	s32 ret_val = E1000_SUCCESS;
 	u16 data;
 
 	DEBUGFUNC("e1000_set_d0_lplu_state_82575");
 
-	ret_val = e1000_read_phy_reg(hw, IGP02E1000_PHY_POWER_MGMT, &data);
+	if (!(hw->phy.ops.read_reg))
+		goto out;
+
+	ret_val = phy->ops.read_reg(hw, IGP02E1000_PHY_POWER_MGMT, &data);
 	if (ret_val)
 		goto out;
 
 	if (active) {
 		data |= IGP02E1000_PM_D0_LPLU;
-		ret_val = e1000_write_phy_reg(hw,
-		                              IGP02E1000_PHY_POWER_MGMT,
-		                              data);
+		ret_val = phy->ops.write_reg(hw, IGP02E1000_PHY_POWER_MGMT,
+		                             data);
 		if (ret_val)
 			goto out;
 
 		/* When LPLU is enabled, we should disable SmartSpeed */
-		ret_val = e1000_read_phy_reg(hw,
-		                             IGP01E1000_PHY_PORT_CONFIG,
-		                             &data);
+		ret_val = phy->ops.read_reg(hw, IGP01E1000_PHY_PORT_CONFIG,
+		                            &data);
 		data &= ~IGP01E1000_PSCFR_SMART_SPEED;
-		ret_val = e1000_write_phy_reg(hw,
-		                              IGP01E1000_PHY_PORT_CONFIG,
-		                              data);
+		ret_val = phy->ops.write_reg(hw, IGP01E1000_PHY_PORT_CONFIG,
+		                             data);
 		if (ret_val)
 			goto out;
 	} else {
 		data &= ~IGP02E1000_PM_D0_LPLU;
-		ret_val = e1000_write_phy_reg(hw,
-		                              IGP02E1000_PHY_POWER_MGMT,
-		                              data);
+		ret_val = phy->ops.write_reg(hw, IGP02E1000_PHY_POWER_MGMT,
+		                             data);
 		/*
 		 * LPLU and SmartSpeed are mutually exclusive.  LPLU is used
 		 * during Dx states where the power conservation is most
@@ -636,27 +631,27 @@ STATIC s32 e1000_set_d0_lplu_state_82575(struct e1000_hw *hw, bool active)
 		 * SmartSpeed, so performance is maintained.
 		 */
 		if (phy->smart_speed == e1000_smart_speed_on) {
-			ret_val = e1000_read_phy_reg(hw,
-			                             IGP01E1000_PHY_PORT_CONFIG,
-			                             &data);
+			ret_val = phy->ops.read_reg(hw,
+			                            IGP01E1000_PHY_PORT_CONFIG,
+			                            &data);
 			if (ret_val)
 				goto out;
 
 			data |= IGP01E1000_PSCFR_SMART_SPEED;
-			ret_val = e1000_write_phy_reg(hw,
+			ret_val = phy->ops.write_reg(hw,
 			                             IGP01E1000_PHY_PORT_CONFIG,
 			                             data);
 			if (ret_val)
 				goto out;
 		} else if (phy->smart_speed == e1000_smart_speed_off) {
-			ret_val = e1000_read_phy_reg(hw,
-			                             IGP01E1000_PHY_PORT_CONFIG,
-			                             &data);
+			ret_val = phy->ops.read_reg(hw,
+			                            IGP01E1000_PHY_PORT_CONFIG,
+			                            &data);
 			if (ret_val)
 				goto out;
 
 			data &= ~IGP01E1000_PSCFR_SMART_SPEED;
-			ret_val = e1000_write_phy_reg(hw,
+			ret_val = phy->ops.write_reg(hw,
 			                             IGP01E1000_PHY_PORT_CONFIG,
 			                             data);
 			if (ret_val)
@@ -672,12 +667,12 @@ out:
  *  e1000_acquire_nvm_82575 - Request for access to EEPROM
  *  @hw: pointer to the HW structure
  *
- *  Acquire the necessary semaphores for exclussive access to the EEPROM.
+ *  Acquire the necessary semaphores for exclusive access to the EEPROM.
  *  Set the EEPROM access request bit and wait for EEPROM access grant bit.
  *  Return successful if access grant bit set, else clear the request for
  *  EEPROM access and return -E1000_ERR_NVM (-1).
  **/
-STATIC s32 e1000_acquire_nvm_82575(struct e1000_hw *hw)
+static s32 e1000_acquire_nvm_82575(struct e1000_hw *hw)
 {
 	s32 ret_val;
 
@@ -703,7 +698,7 @@ out:
  *  Stop any current commands to the EEPROM and clear the EEPROM request bit,
  *  then release the semaphores acquired.
  **/
-STATIC void e1000_release_nvm_82575(struct e1000_hw *hw)
+static void e1000_release_nvm_82575(struct e1000_hw *hw)
 {
 	DEBUGFUNC("e1000_release_nvm_82575");
 
@@ -797,7 +792,7 @@ static void e1000_release_swfw_sync_82575(struct e1000_hw *hw, u16 mask)
  *  E1000_SUCCESS.  If we were to return with error, EEPROM-less silicon
  *  would not be able to be reset or change link.
  **/
-STATIC s32 e1000_get_cfg_done_82575(struct e1000_hw *hw)
+static s32 e1000_get_cfg_done_82575(struct e1000_hw *hw)
 {
 	s32 timeout = PHY_CFG_TIMEOUT;
 	s32 ret_val = E1000_SUCCESS;
@@ -834,10 +829,10 @@ STATIC s32 e1000_get_cfg_done_82575(struct e1000_hw *hw)
  *  @duplex: stores the current duplex
  *
  *  This is a wrapper function, if using the serial gigabit media independent
- *  interface, use pcs to retreive the link speed and duplex information.
+ *  interface, use PCS to retrieve the link speed and duplex information.
  *  Otherwise, use the generic function to get the link speed and duplex info.
  **/
-STATIC s32 e1000_get_link_up_info_82575(struct e1000_hw *hw, u16 *speed,
+static s32 e1000_get_link_up_info_82575(struct e1000_hw *hw, u16 *speed,
                                         u16 *duplex)
 {
 	s32 ret_val;
@@ -863,7 +858,7 @@ STATIC s32 e1000_get_link_up_info_82575(struct e1000_hw *hw, u16 *speed,
  *  If sgmii is enabled, then use the pcs register to determine link, otherwise
  *  use the generic interface for determining link.
  **/
-STATIC s32 e1000_check_for_link_82575(struct e1000_hw *hw)
+static s32 e1000_check_for_link_82575(struct e1000_hw *hw)
 {
 	s32 ret_val;
 	u16 speed, duplex;
@@ -887,11 +882,11 @@ STATIC s32 e1000_check_for_link_82575(struct e1000_hw *hw)
  *  @speed: stores the current speed
  *  @duplex: stores the current duplex
  *
- *  Using the physical coding sub-layer (PCS), retreive the current speed and
+ *  Using the physical coding sub-layer (PCS), retrieve the current speed and
  *  duplex, then store the values in the pointers provided.
  **/
-static s32 e1000_get_pcs_speed_and_duplex_82575(struct e1000_hw *hw, u16 *speed,
-                                                u16 *duplex)
+static s32 e1000_get_pcs_speed_and_duplex_82575(struct e1000_hw *hw,
+                                                u16 *speed, u16 *duplex)
 {
 	struct e1000_mac_info *mac = &hw->mac;
 	u32 pcs;
@@ -939,33 +934,13 @@ static s32 e1000_get_pcs_speed_and_duplex_82575(struct e1000_hw *hw, u16 *speed,
 }
 
 /**
- *  e1000_rar_set_82575 - Set receive address register
- *  @hw: pointer to the HW structure
- *  @addr: pointer to the receive address
- *  @index: receive address array register
- *
- *  Sets the receive address array register at index to the address passed
- *  in by addr.
- **/
-void e1000_rar_set_82575(struct e1000_hw *hw, u8 *addr, u32 index)
-{
-	DEBUGFUNC("e1000_rar_set_82575");
-
-	if (index < E1000_RAR_ENTRIES_82575) {
-		e1000_rar_set_generic(hw, addr, index);
-	}
-
-	return;
-}
-
-/**
  *  e1000_reset_hw_82575 - Reset hardware
  *  @hw: pointer to the HW structure
  *
  *  This resets the hardware into a known state.  This is a
  *  function pointer entry point called by the api module.
  **/
-STATIC s32 e1000_reset_hw_82575(struct e1000_hw *hw)
+static s32 e1000_reset_hw_82575(struct e1000_hw *hw)
 {
 	u32 ctrl, icr;
 	s32 ret_val;
@@ -1024,7 +999,7 @@ STATIC s32 e1000_reset_hw_82575(struct e1000_hw *hw)
  *
  *  This inits the hardware readying it for operation.
  **/
-STATIC s32 e1000_init_hw_82575(struct e1000_hw *hw)
+static s32 e1000_init_hw_82575(struct e1000_hw *hw)
 {
 	struct e1000_mac_info *mac = &hw->mac;
 	s32 ret_val;
@@ -1041,7 +1016,7 @@ STATIC s32 e1000_init_hw_82575(struct e1000_hw *hw)
 
 	/* Disabling VLAN filtering */
 	DEBUGOUT("Initializing the IEEE VLAN\n");
-	e1000_clear_vfta(hw);
+	mac->ops.clear_vfta(hw);
 
 	/* Setup the receive address */
 	e1000_init_rx_addrs_generic(hw, rar_count);
@@ -1051,7 +1026,7 @@ STATIC s32 e1000_init_hw_82575(struct e1000_hw *hw)
 		E1000_WRITE_REG_ARRAY(hw, E1000_MTA, i, 0);
 
 	/* Setup link and flow control */
-	ret_val = e1000_setup_link(hw);
+	ret_val = mac->ops.setup_link(hw);
 
 	/*
 	 * Clear all of the statistics registers (clear on read).  It is
@@ -1072,7 +1047,7 @@ STATIC s32 e1000_init_hw_82575(struct e1000_hw *hw)
  *  for link, once link is established calls to configure collision distance
  *  and flow control are called.
  **/
-STATIC s32 e1000_setup_copper_link_82575(struct e1000_hw *hw)
+static s32 e1000_setup_copper_link_82575(struct e1000_hw *hw)
 {
 	u32 ctrl, led_ctrl;
 	s32  ret_val;
@@ -1119,7 +1094,7 @@ STATIC s32 e1000_setup_copper_link_82575(struct e1000_hw *hw)
 		 * depending on user settings.
 		 */
 		DEBUGOUT("Forcing Speed and Duplex\n");
-		ret_val = e1000_phy_force_speed_duplex(hw);
+		ret_val = hw->phy.ops.force_speed_duplex(hw);
 		if (ret_val) {
 			DEBUGOUT("Error Forcing Speed and Duplex\n");
 			goto out;
@@ -1160,7 +1135,7 @@ out:
  *
  *  Configures speed and duplex for fiber and serdes links.
  **/
-STATIC s32 e1000_setup_fiber_serdes_link_82575(struct e1000_hw *hw)
+static s32 e1000_setup_fiber_serdes_link_82575(struct e1000_hw *hw)
 {
 	u32 reg;
 
@@ -1256,7 +1231,7 @@ static s32 e1000_configure_pcs_link_82575(struct e1000_hw *hw)
 		 */
 		reg |= E1000_PCS_LCTL_AN_RESTART | E1000_PCS_LCTL_AN_ENABLE;
 	} else {
-		/* Set PCS regiseter for forced speed */
+		/* Set PCS register for forced speed */
 
 		/* Turn off bits for full duplex, speed, and autoneg */
 		reg &= ~(E1000_PCS_LCTL_FSV_1000 |
@@ -1321,7 +1296,7 @@ out:
  *  Inits recommended HW defaults after a reset when there is no EEPROM
  *  detected. This is only for the 82575.
  **/
-STATIC s32 e1000_reset_init_script_82575(struct e1000_hw* hw)
+static s32 e1000_reset_init_script_82575(struct e1000_hw* hw)
 {
 	DEBUGFUNC("e1000_reset_init_script_82575");
 
@@ -1356,7 +1331,7 @@ STATIC s32 e1000_reset_init_script_82575(struct e1000_hw* hw)
  *  e1000_read_mac_addr_82575 - Read device MAC address
  *  @hw: pointer to the HW structure
  **/
-STATIC s32 e1000_read_mac_addr_82575(struct e1000_hw *hw)
+static s32 e1000_read_mac_addr_82575(struct e1000_hw *hw)
 {
 	s32 ret_val = E1000_SUCCESS;
 
@@ -1374,10 +1349,16 @@ STATIC s32 e1000_read_mac_addr_82575(struct e1000_hw *hw)
  * In the case of a PHY power down to save power, or to turn off link during a
  * driver unload, or wake on lan is not enabled, remove the link.
  **/
-STATIC void e1000_power_down_phy_copper_82575(struct e1000_hw *hw)
+static void e1000_power_down_phy_copper_82575(struct e1000_hw *hw)
 {
+	struct e1000_phy_info *phy = &hw->phy;
+	struct e1000_mac_info *mac = &hw->mac;
+
+	if (!(phy->ops.check_reset_block))
+		return;
+
 	/* If the management interface is not enabled, then power down */
-	if (!(e1000_check_mng_mode(hw) || e1000_check_reset_block(hw)))
+	if (!(mac->ops.check_mng_mode(hw) || phy->ops.check_reset_block(hw)))
 		e1000_power_down_phy_copper(hw);
 
 	return;
@@ -1389,7 +1370,7 @@ STATIC void e1000_power_down_phy_copper_82575(struct e1000_hw *hw)
  *
  *  Clears the hardware counters by reading the counter registers.
  **/
-STATIC void e1000_clear_hw_cntrs_82575(struct e1000_hw *hw)
+static void e1000_clear_hw_cntrs_82575(struct e1000_hw *hw)
 {
 	volatile u32 temp;
 
