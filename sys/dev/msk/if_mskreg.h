@@ -1818,6 +1818,7 @@
 			GMR_FS_LONG_ERR | \
 			GMR_FS_MII_ERR | \
 			GMR_FS_BAD_FC | \
+			GMR_FS_GOOD_FC | \
 			GMR_FS_UN_SIZE | \
 			GMR_FS_JABBER)
 
