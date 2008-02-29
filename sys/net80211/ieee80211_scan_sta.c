@@ -499,6 +499,59 @@ checktable(const struct scanlist *scan, const struct ieee80211_channel *c)
 	return 0;
 }
 
+static void
+sweepchannels(struct ieee80211_scan_state *ss, struct ieee80211com *ic,
+	const struct scanlist table[])
+{
+	struct ieee80211_channel *c;
+	int i;
+
+	/*
+	 * Add the channels from the ic (from HAL) that are not present
+	 * in the staScanTable.
+	 */
+	for (i = 0; i < ic->ic_nchans; i++) {
+		if (ss->ss_last >= IEEE80211_SCAN_MAX)
+			break;
+
+		c = &ic->ic_channels[i];
+		/*
+		 * Ignore dynamic turbo channels; we scan them
+		 * in normal mode (i.e. not boosted).  Likewise
+		 * for HT channels, they get scanned using
+		 * legacy rates.
+		 */
+		if (IEEE80211_IS_CHAN_DTURBO(c) || IEEE80211_IS_CHAN_HT(c))
+			continue;
+
+		/*
+		 * If a desired mode was specified, scan only 
+		 * channels that satisfy that constraint.
+		 */
+		if (ic->ic_des_mode != IEEE80211_MODE_AUTO &&
+		    ic->ic_des_mode != ieee80211_chan2mode(c))
+			continue;
+
+		/*
+		 * Skip channels excluded by user request.
+		 */
+		if (isexcluded(ic, c))
+			continue;
+
+		/*
+		 * Add the channel unless it is listed in the
+		 * fixed scan order tables.  This insures we
+		 * don't sweep back in channels we filtered out
+		 * above.
+		 */
+		if (checktable(table, c))
+			continue;
+
+		/* Add channel to scanning list. */
+		ss->ss_chans[ss->ss_last++] = c;
+	}
+}
+
 /*
  * Start a station-mode scan by populating the channel list.
  */
@@ -509,8 +562,6 @@ sta_start(struct ieee80211_scan_state *ss, struct ieee80211com *ic)
 	struct sta_table *st = ss->ss_priv;
 	const struct scanlist *scan;
 	enum ieee80211_phymode mode;
-	struct ieee80211_channel *c;
-	int i;
 
 	ss->ss_last = 0;
 	/*
@@ -563,46 +614,7 @@ sta_start(struct ieee80211_scan_state *ss, struct ieee80211com *ic)
 	 * Add the channels from the ic (from HAL) that are not present
 	 * in the staScanTable.
 	 */
-	for (i = 0; i < ic->ic_nchans; i++) {
-		if (ss->ss_last >= IEEE80211_SCAN_MAX)
-			break;
-
-		c = &ic->ic_channels[i];
-		/*
-		 * Ignore dynamic turbo channels; we scan them
-		 * in normal mode (i.e. not boosted).  Likewise
-		 * for HT channels, they get scanned using
-		 * legacy rates.
-		 */
-		if (IEEE80211_IS_CHAN_DTURBO(c) || IEEE80211_IS_CHAN_HT(c))
-			continue;
-
-		/*
-		 * If a desired mode was specified, scan only 
-		 * channels that satisfy that constraint.
-		 */
-		if (ic->ic_des_mode != IEEE80211_MODE_AUTO &&
-		    ic->ic_des_mode != ieee80211_chan2mode(c))
-			continue;
-
-		/*
-		 * Skip channels excluded by user request.
-		 */
-		if (isexcluded(ic, c))
-			continue;
-
-		/*
-		 * Add the channel unless it is listed in the
-		 * fixed scan order tables.  This insures we
-		 * don't sweep back in channels we filtered out
-		 * above.
-		 */
-		if (checktable(staScanTable, c))
-			continue;
-
-		/* Add channel to scanning list. */
-		ss->ss_chans[ss->ss_last++] = c;
-	}
+	sweepchannels(ss, ic, staScanTable);
 
 	ss->ss_next = 0;
 	/* XXX tunables */
@@ -1280,6 +1292,13 @@ adhoc_start(struct ieee80211_scan_state *ss, struct ieee80211com *ic)
 		 */
 		add_channels(ic, ss, mode, scan->list, scan->count);
 	}
+
+	/*
+	 * Add the channels from the ic (from HAL) that are not present
+	 * in the staScanTable.
+	 */
+	sweepchannels(ss, ic, adhocScanTable);
+
 	ss->ss_next = 0;
 	/* XXX tunables */
 	ss->ss_mindwell = msecs_to_ticks(200);		/* 200ms */
@@ -1320,6 +1339,8 @@ adhoc_pick_channel(struct ieee80211_scan_state *ss)
 	mtx_lock(&st->st_lock);
 	for (i = 0; i < ss->ss_last; i++) {
 		c = ss->ss_chans[i];
+		if (!checktable(adhocScanTable, c))
+			continue;
 		maxrssi = 0;
 		TAILQ_FOREACH(se, &st->st_entry, se_list) {
 			if (se->base.se_chan != c)
