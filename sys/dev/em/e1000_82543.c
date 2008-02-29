@@ -1,6 +1,6 @@
 /*******************************************************************************
 
-  Copyright (c) 2001-2007, Intel Corporation 
+  Copyright (c) 2001-2008, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -39,8 +39,6 @@
 
 #include "e1000_api.h"
 #include "e1000_82543.h"
-
-void e1000_init_function_pointers_82543(struct e1000_hw *hw);
 
 STATIC s32  e1000_init_phy_params_82543(struct e1000_hw *hw);
 STATIC s32  e1000_init_nvm_params_82543(struct e1000_hw *hw);
@@ -303,7 +301,7 @@ void e1000_init_function_pointers_82543(struct e1000_hw *hw)
  *  e1000_tbi_compatibility_enabled_82543 - Returns TBI compat status
  *  @hw: pointer to the HW structure
  *
- *  Returns the curent status of 10-bit Interface (TBI) compatibility
+ *  Returns the current status of 10-bit Interface (TBI) compatibility
  *  (enabled/disabled).
  **/
 static bool e1000_tbi_compatibility_enabled_82543(struct e1000_hw *hw)
@@ -370,7 +368,7 @@ out:
  *  e1000_tbi_sbp_enabled_82543 - Returns TBI SBP status
  *  @hw: pointer to the HW structure
  *
- *  Returns the curent status of 10-bit Interface (TBI) store bad packet (SBP)
+ *  Returns the current status of 10-bit Interface (TBI) store bad packet (SBP)
  *  (enabled/disabled).
  **/
 bool e1000_tbi_sbp_enabled_82543(struct e1000_hw *hw)
@@ -660,8 +658,8 @@ static void e1000_raise_mdi_clk_82543(struct e1000_hw *hw, u32 *ctrl)
  *  @hw: pointer to the HW structure
  *  @ctrl: pointer to the control register
  *
- *  Lower the management data input clock by clearing the MDC bit in the control
- *  register.
+ *  Lower the management data input clock by clearing the MDC bit in the
+ *  control register.
  **/
 static void e1000_lower_mdi_clk_82543(struct e1000_hw *hw, u32 *ctrl)
 {
@@ -816,7 +814,7 @@ out:
  *  @hw: pointer to the HW structure
  *
  *  When forcing link to 10 Full or 10 Half, the PHY can reverse the polarity
- *  inadvertantly.  To workaround the issue, we disable the transmitter on
+ *  inadvertently.  To workaround the issue, we disable the transmitter on
  *  the PHY until we have established the link partner's link parameters.
  **/
 static s32 e1000_polarity_reversal_workaround_82543(struct e1000_hw *hw)
@@ -1233,7 +1231,7 @@ STATIC s32 e1000_setup_fiber_link_82543(struct e1000_hw *hw)
 	msec_delay(1);
 
 	/*
-	 * For these adapters, the SW defineable pin 1 is cleared when the
+	 * For these adapters, the SW definable pin 1 is cleared when the
 	 * optics detect a signal.  If we have a signal, then poll for a
 	 * "Link-Up" indication.
 	 */
@@ -1587,7 +1585,7 @@ STATIC s32 e1000_led_on_82543(struct e1000_hw *hw)
 
 	if (hw->mac.type == e1000_82544 &&
 	    hw->phy.media_type == e1000_media_type_copper) {
-		/* Clear SW-defineable Pin 0 to turn on the LED */
+		/* Clear SW-definable Pin 0 to turn on the LED */
 		ctrl &= ~E1000_CTRL_SWDPIN0;
 		ctrl |= E1000_CTRL_SWDPIO0;
 	} else {
@@ -1615,7 +1613,7 @@ STATIC s32 e1000_led_off_82543(struct e1000_hw *hw)
 
 	if (hw->mac.type == e1000_82544 &&
 	    hw->phy.media_type == e1000_media_type_copper) {
-		/* Set SW-defineable Pin 0 to turn off the LED */
+		/* Set SW-definable Pin 0 to turn off the LED */
 		ctrl |= E1000_CTRL_SWDPIN0;
 		ctrl |= E1000_CTRL_SWDPIO0;
 	} else {

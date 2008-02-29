@@ -1,6 +1,6 @@
-/*******************************************************************************
+/******************************************************************************
 
-  Copyright (c) 2001-2007, Intel Corporation 
+  Copyright (c) 2001-2008, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -29,9 +29,8 @@
   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE.
 
-*******************************************************************************/
-/* $FreeBSD$ */
-
+******************************************************************************/
+/*$FreeBSD$*/
 
 #ifndef _E1000_82575_H_
 #define _E1000_82575_H_
@@ -80,6 +79,8 @@ struct e1000_adv_data_desc {
 #define E1000_ADV_DCMD_RS       0x8  /* Report Status */
 #define E1000_ADV_DCMD_VLE      0x40 /* Add VLAN tag */
 #define E1000_ADV_DCMD_TSE      0x80 /* TCP Seg enable */
+/* Extended Device Control */
+#define E1000_CTRL_EXT_NSICR    0x00000001 /* Disable Intr Clear all on read */
 
 struct e1000_adv_context_desc {
 	union {
@@ -161,7 +162,7 @@ struct e1000_adv_context_desc {
 #define E1000_IMIREXT_CTRL_RST    0x00010000  /* Check RST bit in header */
 #define E1000_IMIREXT_CTRL_SYN    0x00020000  /* Check SYN bit in header */
 #define E1000_IMIREXT_CTRL_FIN    0x00040000  /* Check FIN bit in header */
-#define E1000_IMIREXT_CTRL_BP     0x00080000  /* Bypass check of control bits */
+#define E1000_IMIREXT_CTRL_BP     0x00080000  /* Bypass check of ctrl bits */
 
 /* Receive Descriptor - Advanced */
 union e1000_adv_rx_desc {
@@ -171,10 +172,13 @@ union e1000_adv_rx_desc {
 	} read;
 	struct {
 		struct {
-			struct {
-				u16 pkt_info;   /* RSS type, Packet type */
-				u16 hdr_info;   /* Split Header,
-				                 * header buffer length */
+			union {
+				u32 data;
+				struct {
+					u16 pkt_info; /* RSS type, Packet type */
+					u16 hdr_info; /* Split Header,
+				        	       * header buffer length */
+				} hs_rss;
 			} lo_dword;
 			union {
 				u32 rss;          /* RSS Hash */
@@ -242,17 +246,14 @@ union e1000_adv_tx_desc {
 #define E1000_ADVTXD_DTYP_DATA    0x00300000 /* Advanced Data Descriptor */
 #define E1000_ADVTXD_DCMD_EOP     0x01000000 /* End of Packet */
 #define E1000_ADVTXD_DCMD_IFCS    0x02000000 /* Insert FCS (Ethernet CRC) */
-#define E1000_ADVTXD_DCMD_RDMA    0x04000000 /* RDMA */
 #define E1000_ADVTXD_DCMD_RS      0x08000000 /* Report Status */
 #define E1000_ADVTXD_DCMD_DDTYP_ISCSI  0x10000000 /* DDP hdr type or iSCSI */
 #define E1000_ADVTXD_DCMD_DEXT    0x20000000 /* Descriptor extension (1=Adv) */
 #define E1000_ADVTXD_DCMD_VLE     0x40000000 /* VLAN pkt enable */
 #define E1000_ADVTXD_DCMD_TSE     0x80000000 /* TCP Seg enable */
-#define E1000_ADVTXD_MAC_LINKSEC  0x00040000 /* Apply LinkSec on packet */
 #define E1000_ADVTXD_MAC_TSTAMP   0x00080000 /* IEEE1588 Timestamp packet */
 #define E1000_ADVTXD_STAT_SN_CRC  0x00000002 /* NXTSEQ/SEED present in WB */
 #define E1000_ADVTXD_IDX_SHIFT    4  /* Adv desc Index shift */
-#define E1000_ADVTXD_POPTS_EOM    0x00000400 /* Enable L bit in RDMA DDP hdr */
 #define E1000_ADVTXD_POPTS_ISCO_1ST  0x00000000 /* 1st TSO of iSCSI PDU */
 #define E1000_ADVTXD_POPTS_ISCO_MDL  0x00000800 /* Middle TSO of iSCSI PDU */
 #define E1000_ADVTXD_POPTS_ISCO_LAST 0x00001000 /* Last TSO of iSCSI PDU */

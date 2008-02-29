@@ -1,6 +1,6 @@
 /**************************************************************************
 
-Copyright (c) 2001-2007, Intel Corporation
+Copyright (c) 2001-2008, Intel Corporation
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -30,17 +30,12 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 
 ***************************************************************************/
-/*$FreeBSD$ */
+/* $FreeBSD$ */
 
 #ifndef _EM_H_DEFINED_
 #define _EM_H_DEFINED_
 
 /* Tunables */
-
-/* Set FAST handling on by default */
-#if __FreeBSD_version > 700000
-#define EM_FAST_IRQ
-#endif
 
 /*
  * EM_TXD: Maximum number of Transmit Descriptors
@@ -241,6 +236,14 @@ POSSIBILITY OF SUCH DAMAGE.
 #define ETH_ADDR_LEN		6
 #define CSUM_OFFLOAD		7	/* Offload bits in mbuf flag */
 
+/* Used in for 82547 10Mb Half workaround */
+#define EM_PBA_BYTES_SHIFT	0xA
+#define EM_TX_HEAD_ADDR_SHIFT	7
+#define EM_PBA_TX_MASK		0xFFFF0000
+#define EM_FIFO_HDR		0x10
+#define EM_82547_PKT_THRESH	0x3e0
+
+
 struct adapter;
 
 struct em_int_delay_info {
@@ -270,17 +273,23 @@ struct adapter {
 	/* FreeBSD operating-system-specific structures. */
 	struct e1000_osdep osdep;
 	struct device	*dev;
-	struct resource *res_memory;
-	struct resource *flash_mem;
-	struct resource *msix_mem;
-	struct resource	*res_ioport;
-	struct resource	*res_interrupt;
-	void		*int_handler_tag;
+
+	struct resource *memory;
+	struct resource *flash;
+	struct resource *msix;
+
+	struct resource	*ioport;
+	int		io_rid;
+
+	/* 82574 uses 3 int vectors */
+	struct resource	*res[3];
+	void		*tag[3];
+	int		rid[3];
+
 	struct ifmedia	media;
 	struct callout	timer;
 	struct callout	tx_fifo_timer;
 	int		watchdog_timer;
-	int		io_rid;
 	int		msi;
 	int		if_flags;
 	int		max_frame_size;
@@ -288,9 +297,14 @@ struct adapter {
 	struct mtx	core_mtx;
 	struct mtx	tx_mtx;
 	int		em_insert_vlan_header;
+
+	/* Task for FAST handling */
 	struct task     link_task;
 	struct task     rxtx_task;
+	struct task     rx_task;
+	struct task     tx_task;
 	struct taskqueue *tq;           /* private task queue */
+
 	/* Management and WOL features */
 	int		wol;
 	int		has_manage;
@@ -324,12 +338,6 @@ struct adapter {
 	struct em_buffer	*tx_buffer_area;
 	bus_dma_tag_t		txtag;		/* dma tag for tx */
 	uint32_t	   	tx_tso;		/* last tx was tso */
-
-	/*
-	 * Transmit function pointer:
-	 *      legacy or advanced (82575 and later)
-	 */
-	int (*em_xmit) (struct adapter *adapter, struct mbuf **m_headp);
 
 	/* 
 	 * Receive definitions
@@ -366,15 +374,10 @@ struct adapter {
         unsigned long	no_tx_dma_setup;
 	unsigned long	watchdog_events;
 	unsigned long	rx_overruns;
+	unsigned long	rx_irq;
+	unsigned long	tx_irq;
 
-	/* Used in for 82547 10Mb Half workaround */
-	#define EM_PBA_BYTES_SHIFT	0xA
-	#define EM_TX_HEAD_ADDR_SHIFT	7
-	#define EM_PBA_TX_MASK		0xFFFF0000
-	#define EM_FIFO_HDR		0x10
-
-	#define EM_82547_PKT_THRESH	0x3e0
-
+	/* 82547 workaround */
 	uint32_t	tx_fifo_size;
 	uint32_t	tx_fifo_head;
 	uint32_t	tx_fifo_head_addr;
@@ -385,6 +388,7 @@ struct adapter {
         /* For 82544 PCIX Workaround */
 	boolean_t       pcix_82544;
 	boolean_t       in_detach;
+
 
 	struct e1000_hw_stats stats;
 };

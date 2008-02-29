@@ -1,4 +1,4 @@
-/*******************************************************************************
+/******************************************************************************
 
   Copyright (c) 2001-2008, Intel Corporation 
   All rights reserved.
@@ -29,9 +29,8 @@
   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE.
 
-*******************************************************************************/
-/* $FreeBSD$ */
-
+******************************************************************************/
+/*$FreeBSD$*/
 
 #ifndef _E1000_PHY_H_
 #define _E1000_PHY_H_
@@ -49,12 +48,16 @@ typedef enum {
 	e1000_smart_speed_off
 } e1000_smart_speed;
 
+void e1000_init_phy_ops_generic(struct e1000_hw *hw);
+s32  e1000_null_read_reg(struct e1000_hw *hw, u32 offset, u16 *data);
+void e1000_null_phy_generic(struct e1000_hw *hw);
+s32  e1000_null_lplu_state(struct e1000_hw *hw, bool active);
+s32  e1000_null_write_reg(struct e1000_hw *hw, u32 offset, u16 data);
 s32  e1000_check_downshift_generic(struct e1000_hw *hw);
 s32  e1000_check_polarity_m88(struct e1000_hw *hw);
 s32  e1000_check_polarity_igp(struct e1000_hw *hw);
 s32  e1000_check_reset_block_generic(struct e1000_hw *hw);
 s32  e1000_copper_link_autoneg(struct e1000_hw *hw);
-s32  e1000_phy_force_speed_duplex(struct e1000_hw *hw);
 s32  e1000_copper_link_setup_igp(struct e1000_hw *hw);
 s32  e1000_copper_link_setup_m88(struct e1000_hw *hw);
 s32  e1000_phy_force_speed_duplex_igp(struct e1000_hw *hw);
@@ -84,13 +87,6 @@ s32  e1000_phy_has_link_generic(struct e1000_hw *hw, u32 iterations,
                                 u32 usec_interval, bool *success);
 s32  e1000_phy_init_script_igp3(struct e1000_hw *hw);
 e1000_phy_type e1000_get_phy_type_from_id(u32 phy_id);
-s32 e1000_determine_phy_address(struct e1000_hw* hw);
-s32 e1000_write_phy_reg_bm(struct e1000_hw *hw, u32 offset, u16 data);
-s32 e1000_read_phy_reg_bm(struct e1000_hw *hw, u32 offset, u16 *data);
-s32 e1000_access_phy_wakeup_reg_bm(struct e1000_hw *hw, u32 offset, u16 *data,
-                                   bool read);
-s32 e1000_read_phy_reg_bm2(struct e1000_hw *hw, u32 offset, u16 *data);
-s32 e1000_write_phy_reg_bm2(struct e1000_hw *hw, u32 offset, u16 data);
 void e1000_power_up_phy_copper(struct e1000_hw *hw);
 void e1000_power_down_phy_copper(struct e1000_hw *hw);
 s32 e1000_read_phy_reg_mdic(struct e1000_hw *hw, u32 offset, u16 *data);
@@ -110,18 +106,6 @@ s32 e1000_write_phy_reg_mdic(struct e1000_hw *hw, u32 offset, u16 data);
 #define BM_PHY_PAGE_SELECT                22   /* Page Select for BM */
 #define IGP_PAGE_SHIFT                    5
 #define PHY_REG_MASK                      0x1F
-
-#define BM_WUC_PAGE                       800
-#define BM_WUC_ADDRESS_OPCODE             0x11
-#define BM_WUC_DATA_OPCODE                0x12
-#define BM_WUC_ENABLE_PAGE                769
-#define BM_WUC_ENABLE_REG                 17
-#define BM_WUC_ENABLE_BIT                 (1 << 2)
-#define BM_WUC_HOST_WU_BIT                (1 << 4)
-
-/* BM PHY Copper Specific Control 1 */
-#define BM_CS_CTRL1                       16
-#define BM_CR_CTRL1_ENERGY_DETECT         0x0300 /* Enable Energy Detect */
 
 #define IGP01E1000_PHY_PCS_INIT_REG       0x00B4
 #define IGP01E1000_PHY_POLARITY_MASK      0x0078

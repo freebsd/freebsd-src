@@ -1,6 +1,6 @@
 /*******************************************************************************
 
-  Copyright (c) 2001-2007, Intel Corporation 
+  Copyright (c) 2001-2008, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -32,6 +32,7 @@
 *******************************************************************************/
 /* $FreeBSD$ */
 
+
 /* e1000_82540
  * e1000_82545
  * e1000_82546
@@ -40,8 +41,6 @@
  */
 
 #include "e1000_api.h"
-
-void e1000_init_function_pointers_82540(struct e1000_hw *hw);
 
 STATIC s32  e1000_init_phy_params_82540(struct e1000_hw *hw);
 STATIC s32  e1000_init_nvm_params_82540(struct e1000_hw *hw);
@@ -499,7 +498,7 @@ out:
  *  e1000_adjust_serdes_amplitude_82540 - Adjust amplitude based on EEPROM
  *  @hw: pointer to the HW structure
  *
- *  Adjust the SERDES ouput amplitude based on the EEPROM settings.
+ *  Adjust the SERDES output amplitude based on the EEPROM settings.
  **/
 static s32 e1000_adjust_serdes_amplitude_82540(struct e1000_hw *hw)
 {
@@ -611,14 +610,14 @@ static s32 e1000_set_phy_mode_82540(struct e1000_hw *hw)
 
 	if ((nvm_data != NVM_RESERVED_WORD) && (nvm_data & NVM_PHY_CLASS_A)) {
 		ret_val = e1000_write_phy_reg(hw, M88E1000_PHY_PAGE_SELECT,
-					      0x000B);
+		                              0x000B);
 		if (ret_val) {
 			ret_val = -E1000_ERR_PHY;
 			goto out;
 		}
 		ret_val = e1000_write_phy_reg(hw,
-					     M88E1000_PHY_GEN_CONTROL,
-					     0x8104);
+		                              M88E1000_PHY_GEN_CONTROL,
+		                              0x8104);
 		if (ret_val) {
 			ret_val = -E1000_ERR_PHY;
 			goto out;

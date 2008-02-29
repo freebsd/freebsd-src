@@ -1,6 +1,6 @@
 /*******************************************************************************
 
-  Copyright (c) 2001-2007, Intel Corporation 
+  Copyright (c) 2001-2008, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -41,8 +41,6 @@
 
 #include "e1000_api.h"
 #include "e1000_82541.h"
-
-void e1000_init_function_pointers_82541(struct e1000_hw *hw);
 
 STATIC s32  e1000_init_phy_params_82541(struct e1000_hw *hw);
 STATIC s32  e1000_init_nvm_params_82541(struct e1000_hw *hw);
@@ -514,7 +512,7 @@ out:
  *  Verify the reset block is not blocking us from resetting.  Acquire
  *  semaphore (if necessary) and read/set/write the device control reset
  *  bit in the PHY.  Wait the appropriate delay time for the device to
- *  reset and relase the semaphore (if necessary).
+ *  reset and release the semaphore (if necessary).
  *  This is a function pointer entry point called by the api module.
  **/
 STATIC s32 e1000_phy_hw_reset_82541(struct e1000_hw *hw)
@@ -902,8 +900,8 @@ out:
  *
  *  The automatic gain control (agc) normalizes the amplitude of the
  *  received signal, adjusting for the attenuation produced by the
- *  cable.  By reading the AGC registers, which reperesent the
- *  cobination of course and fine gain value, the value can be put
+ *  cable.  By reading the AGC registers, which represent the
+ *  combination of coarse and fine gain value, the value can be put
  *  into a lookup table to obtain the approximate cable length
  *  for each channel.  This is a function pointer entry point called by the
  *  api module.
