@@ -125,6 +125,7 @@ SUBDIR=	${_3dfx} \
 	ipdivert \
 	${_ipfilter} \
 	ipfw \
+	ipfw_nat \
 	${_ipmi} \
 	ip_mroute_mod \
 	${_ips} \
