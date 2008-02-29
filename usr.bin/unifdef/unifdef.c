@@ -1,13 +1,5 @@
 /*
- * Copyright (c) 2002 - 2005 Tony Finch <dot@dotat.at>.  All rights reserved.
- *
- * This code is derived from software contributed to Berkeley by Dave Yost.
- * It was rewritten to support ANSI C by Tony Finch. The original version of
- * unifdef carried the following copyright notice. None of its code remains
- * in this version (though some of the names remain).
- *
- * Copyright (c) 1985, 1993
- *	The Regents of the University of California.  All rights reserved.
+ * Copyright (c) 2002 - 2008 Tony Finch <dot@dotat.at>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -31,6 +23,14 @@
  * SUCH DAMAGE.
  */
 
+/*
+ * This code is derived from software contributed to Berkeley by Dave Yost.
+ * It was rewritten to support ANSI C by Tony Finch. The original version
+ * of unifdef carried the 4-clause BSD copyright licence. None of its code
+ * remains in this version (though some of the names remain) so it now
+ * carries a more liberal licence.
+ */
+
 #include <sys/cdefs.h>
 
 #ifndef lint
@@ -42,7 +42,7 @@ static const char copyright[] =
 #ifdef __IDSTRING
 __IDSTRING(Berkeley, "@(#)unifdef.c	8.1 (Berkeley) 6/6/93");
 __IDSTRING(NetBSD, "$NetBSD: unifdef.c,v 1.8 2000/07/03 02:51:36 matt Exp $");
-__IDSTRING(dotat, "$dotat: things/unifdef.c,v 1.171 2005/03/08 12:38:48 fanf2 Exp $");
+__IDSTRING(dotat, "$dotat: things/unifdef.c,v 1.176 2008/02/29 12:44:25 fanf2 Exp $");
 #endif
 #endif /* not lint */
 #ifdef __FBSDID
@@ -586,9 +586,18 @@ getline(void)
 			if (incomment)
 				linestate = LS_DIRTY;
 		}
-		/* skipcomment should have changed the state */
-		if (linestate == LS_HASH)
-			abort(); /* bug */
+		/* skipcomment normally changes the state, except
+		   if the last line of the file lacks a newline */
+		if (linestate == LS_HASH) {
+			size_t len = cp - tline;
+			if (fgets(tline + len, MAXLINE - len, input) != NULL)
+				abort(); /* bug */
+			/* append the missing newline */
+			tline[len+0] = '\n';
+			tline[len+1] = '\0';
+			cp++;
+			linestate = LS_START;
+		}
 	}
 	if (linestate == LS_DIRTY) {
 		while (*cp != '\0')
@@ -664,6 +673,7 @@ eval_unary(const struct ops *ops, int *valp, const char **cpp)
 	const char *cp;
 	char *ep;
 	int sym;
+	bool defparen;
 
 	cp = skipcomment(*cpp);
 	if (*cp == '!') {
@@ -687,16 +697,19 @@ eval_unary(const struct ops *ops, int *valp, const char **cpp)
 	} else if (strncmp(cp, "defined", 7) == 0 && endsym(cp[7])) {
 		cp = skipcomment(cp+7);
 		debug("eval%d defined", ops - eval_ops);
-		if (*cp++ != '(')
-			return (LT_IF);
-		cp = skipcomment(cp);
+		if (*cp == '(') {
+			cp = skipcomment(cp+1);
+			defparen = true;
+		} else {
+			defparen = false;
+		}
 		sym = findsym(cp);
 		if (sym < 0)
 			return (LT_IF);
 		*valp = (value[sym] != NULL);
 		cp = skipsym(cp);
 		cp = skipcomment(cp);
-		if (*cp++ != ')')
+		if (defparen && *cp++ != ')')
 			return (LT_IF);
 		keepthis = false;
 	} else if (!endsym(*cp)) {
@@ -765,7 +778,7 @@ static Linetype
 ifeval(const char **cpp)
 {
 	int ret;
-	int val;
+	int val = 0;
 
 	debug("eval %s", *cpp);
 	keepthis = killconsts ? false : true;
