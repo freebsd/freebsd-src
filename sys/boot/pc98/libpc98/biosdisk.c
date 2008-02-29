@@ -287,6 +287,29 @@ bd_print(int verbose)
     }
 }
 
+/* Given a size in 512 byte sectors, convert it to a human-readable number. */
+static char *
+display_size(uint64_t size)
+{
+    static char buf[80];
+    char unit;
+
+    size /= 2;
+    unit = 'K';
+    if (size >= 10485760000LL) {
+	size /= 1073741824;
+	unit = 'T';
+    } else if (size >= 10240000) {
+	size /= 1048576;
+	unit = 'G';
+    } else if (size >= 10000) {
+	size /= 1024;
+	unit = 'M';
+    }
+    sprintf(buf, "%.6ld%cB", (long)size, unit);
+    return (buf);
+}
+
 /*
  * Print out each valid partition in the disklabel of a FreeBSD slice.
  * For size calculations, we assume a 512 byte sector size.
@@ -326,11 +349,11 @@ bd_printbsdslice(struct open_disk *od, daddr_t offset, char *prefix,
 
 	    /* Only print out statistics in verbose mode */
 	    if (verbose)
-	        sprintf(line, "  %s%c: %s  %.6dMB (%d - %d)\n", prefix, 'a' + i,
-		    (lp->d_partitions[i].p_fstype == FS_SWAP) ? "swap" : 
+		sprintf(line, "  %s%c: %s %s (%d - %d)\n", prefix, 'a' + i,
+		    (lp->d_partitions[i].p_fstype == FS_SWAP) ? "swap " : 
 		    (lp->d_partitions[i].p_fstype == FS_VINUM) ? "vinum" :
-		    "FFS",
-		    lp->d_partitions[i].p_size / 2048,
+		    "FFS  ",
+		    display_size(lp->d_partitions[i].p_size),
 		    lp->d_partitions[i].p_offset,
 		    lp->d_partitions[i].p_offset + lp->d_partitions[i].p_size);
 	    else
