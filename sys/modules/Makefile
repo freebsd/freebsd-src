@@ -120,6 +120,7 @@ SUBDIR=	${_3dfx} \
 	if_tap \
 	if_tun \
 	if_vlan \
+	${_igb} \
 	${_iir} \
 	${_io} \
 	ipdivert \
