@@ -16,7 +16,7 @@
 
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
 %release;
-<!ENTITY release.bugfix "5.2.1-RELEASE">
+<!ENTITY release.bugfix "7.0-RELEASE">
 ]>
 
 <article>
@@ -40,12 +40,7 @@
     <pubdate>$FreeBSD$</pubdate>
 
     <copyright>
-      <year>2000</year>
-      <year>2001</year>
-      <year>2002</year>
-      <year>2003</year>
-      <year>2004</year>
-      <year>2005</year>
+      <year>2008</year>
       <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
     </copyright>
 
@@ -134,10 +129,6 @@
     <para>No advisories.</para>
 ]]>
 
-<![ %release.type.current [
-    <para>No advisories.</para>
-]]>
-
 <![ %release.type.snapshot [
     <para>No advisories.</para>
 ]]>
@@ -147,33 +138,53 @@
   <sect1 id="open-issues">
     <title>Open Issues</title>
 
-<![ %release.type.current [
-    <para>No open issues.</para>
-]]>
-
 <![ %release.type.release [
     <para>No open issues.</para>
 ]]>
 
 <![ %release.type.snapshot [
-    <para>No open issues.</para>
+    <para>[20080229] &man.tcpdump.1; does not correctly print the
+      TX/RX rates for 802.11 frames.  This issue has been fixed on the
+      HEAD and RELENG_7 branches.</para>
+
+    <para>[20080229] A bug in Linux emulation may cause segmentation
+      faults for some Linux programs using &man.mmap.2;.  This issue
+      has been fixed on the HEAD and RELENG_7 branches.</para>
+
+    <para>[20080229] Instances of packet corruption and instability
+      have been observed with the &man.re.4; network driver.  Some
+      users have reported that using a newer version of this driver
+      (on HEAD) has solved their problems, or at least mitigated
+      them.</para>
+
+    <para>[20080229] A change in the way that &os; sends TCP options
+      has been reported to cause odd interactions with some cable
+      modem routers.  While this issue is still under investigation,
+      a change has been committed to HEAD that returns the option
+      processing to that of &os; 6 has shown some promising
+      results.</para>
+
 ]]>
 
   </sect1>
 
   <sect1 id="late-news">
-    <title>Late-Breaking News</title>
-
-<![ %release.type.current [
-    <para>No news.</para>
-]]>
+    <title>Late-Breaking News and Corrections</title>
 
 <![ %release.type.release [
     <para>No news.</para>
 ]]>
 
 <![ %release.type.snapshot [
-    <para>No news.</para>
+    <para>[20080229] The &os; &release.bugfix; release documentation
+      (release notes, hardware notes, and so forth) all contained a
+      note that users of &os; 7-STABLE should be subscribed to
+      the <literal>freebsd-current</literal> mailing list.  This note
+      should not have appeared.</para>
+
+    <para>[20080229] The release notes gave an incorrect version
+      number for KDE.  The correct version number is 3.5.8.</para>
+
 ]]>
   </sect1>
 
