@@ -22,6 +22,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20080229:
+	The latest em driver no longer has support in it for the
+	82575 adapter, this is now moved to the igb driver. The
+	split was done to make new features that are incompatible
+	with older hardware easier to do.
+
 20080220:
 	The new geom_lvm(4) geom class has been renamed to geom_linux_lvm(4),
 	likewise the kernel option is now GEOM_LINUX_LVM.
