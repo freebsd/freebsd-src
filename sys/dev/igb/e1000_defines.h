@@ -1,4 +1,4 @@
-/*******************************************************************************
+/******************************************************************************
 
   Copyright (c) 2001-2008, Intel Corporation 
   All rights reserved.
@@ -29,9 +29,8 @@
   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE.
 
-*******************************************************************************/
-/* $FreeBSD$ */
-
+******************************************************************************/
+/*$FreeBSD$*/
 
 #ifndef _E1000_DEFINES_H_
 #define _E1000_DEFINES_H_
@@ -60,19 +59,11 @@
 #define E1000_WUFC_ARP  0x00000020 /* ARP Request Packet Wakeup Enable */
 #define E1000_WUFC_IPV4 0x00000040 /* Directed IPv4 Packet Wakeup Enable */
 #define E1000_WUFC_IPV6 0x00000080 /* Directed IPv6 Packet Wakeup Enable */
-#define E1000_WUFC_IGNORE_TCO_BM 0x00000800 /* Ignore WakeOn TCO packets */
-#define E1000_WUFC_FLX0_BM      0x00001000 /* Flexible Filter 0 Enable */
-#define E1000_WUFC_FLX1_BM      0x00002000 /* Flexible Filter 1 Enable */
-#define E1000_WUFC_FLX2_BM      0x00004000 /* Flexible Filter 2 Enable */
-#define E1000_WUFC_FLX3_BM      0x00008000 /* Flexible Filter 3 Enable */
 #define E1000_WUFC_IGNORE_TCO   0x00008000 /* Ignore WakeOn TCO packets */
 #define E1000_WUFC_FLX0 0x00010000 /* Flexible Filter 0 Enable */
 #define E1000_WUFC_FLX1 0x00020000 /* Flexible Filter 1 Enable */
 #define E1000_WUFC_FLX2 0x00040000 /* Flexible Filter 2 Enable */
 #define E1000_WUFC_FLX3 0x00080000 /* Flexible Filter 3 Enable */
-#define E1000_WUFC_ALL_FILTERS_BM 0x0000F0FF /* Mask for all wakeup filters */
-#define E1000_WUFC_FLX_OFFSET_BM 12 /* Offset to the Flexible Filters bits */
-#define E1000_WUFC_FLX_FILTERS_BM 0x0000F000 /* Mask for the 4 flexible filters */
 #define E1000_WUFC_ALL_FILTERS  0x000F00FF /* Mask for all wakeup filters */
 #define E1000_WUFC_FLX_OFFSET   16 /* Offset to the Flexible Filters bits */
 #define E1000_WUFC_FLX_FILTERS  0x000F0000 /* Mask for the 4 flexible filters */
@@ -86,11 +77,6 @@
 #define E1000_WUS_ARP          E1000_WUFC_ARP
 #define E1000_WUS_IPV4         E1000_WUFC_IPV4
 #define E1000_WUS_IPV6         E1000_WUFC_IPV6
-#define E1000_WUS_FLX0_BM      E1000_WUFC_FLX0_BM
-#define E1000_WUS_FLX1_BM      E1000_WUFC_FLX1_BM
-#define E1000_WUS_FLX2_BM      E1000_WUFC_FLX2_BM
-#define E1000_WUS_FLX3_BM      E1000_WUFC_FLX3_BM
-#define E1000_WUS_FLX_FILTERS_BM        E1000_WUFC_FLX_FILTERS_BM
 #define E1000_WUS_FLX0         E1000_WUFC_FLX0
 #define E1000_WUS_FLX1         E1000_WUFC_FLX1
 #define E1000_WUS_FLX2         E1000_WUFC_FLX2
@@ -155,7 +141,6 @@
 #define E1000_CTRL_EXT_DF_PAREN       0x02000000 /* descriptor FIFO parity error detection enable */
 #define E1000_CTRL_EXT_GHOST_PAREN    0x40000000
 #define E1000_CTRL_EXT_PBA_CLR        0x80000000 /* PBA Clear */
-#define E1000_CTRL_EXT_LSECCK         0x00001000
 #define E1000_I2CCMD_REG_ADDR_SHIFT   16
 #define E1000_I2CCMD_REG_ADDR         0x00FF0000
 #define E1000_I2CCMD_PHY_ADDR_SHIFT   24
@@ -203,13 +188,6 @@
 #define E1000_RXDEXT_STATERR_TCPE  0x20000000
 #define E1000_RXDEXT_STATERR_IPE   0x40000000
 #define E1000_RXDEXT_STATERR_RXE   0x80000000
-
-#define E1000_RXDEXT_LSECH                0x01000000
-#define E1000_RXDEXT_LSECE_MASK           0x60000000
-#define E1000_RXDEXT_LSECE_NO_ERROR       0x00000000
-#define E1000_RXDEXT_LSECE_NO_SA_MATCH    0x20000000
-#define E1000_RXDEXT_LSECE_REPLAY_DETECT  0x40000000
-#define E1000_RXDEXT_LSECE_BAD_SIG        0x60000000
 
 /* mask to determine if packets should be dropped due to frame errors */
 #define E1000_RXD_ERR_FRAME_ERR_MASK ( \
@@ -565,8 +543,6 @@
 #define E1000_TXD_CMD_TSE    0x04000000 /* TCP Seg enable */
 #define E1000_TXD_STAT_TC    0x00000004 /* Tx Underrun */
 /* Extended desc bits for Linksec and timesync */
-#define E1000_TXD_CMD_LINKSEC     0x10000000 /* Apply LinkSec on packet */
-#define E1000_TXD_EXTCMD_TSTAMP   0x00000010 /* IEEE1588 Timestamp packet */
 
 /* Transmit Control */
 #define E1000_TCTL_RST    0x00000001    /* software reset */
@@ -620,9 +596,6 @@
 #define E1000_COLD_SHIFT                12
 
 /* Default values for the transmit IPG register */
-#ifndef NO_82542_SUPPORT
-#define DEFAULT_82542_TIPG_IPGT        10
-#endif
 #define DEFAULT_82543_TIPG_IPGT_FIBER  9
 #define DEFAULT_82543_TIPG_IPGT_COPPER 8
 
@@ -630,15 +603,9 @@
 #define E1000_TIPG_IPGR1_MASK 0x000FFC00
 #define E1000_TIPG_IPGR2_MASK 0x3FF00000
 
-#ifndef NO_82542_SUPPORT
-#define DEFAULT_82542_TIPG_IPGR1 2
-#endif
 #define DEFAULT_82543_TIPG_IPGR1 8
 #define E1000_TIPG_IPGR1_SHIFT  10
 
-#ifndef NO_82542_SUPPORT
-#define DEFAULT_82542_TIPG_IPGR2 10
-#endif
 #define DEFAULT_82543_TIPG_IPGR2 6
 #define DEFAULT_80003ES2LAN_TIPG_IPGR2 7
 #define E1000_TIPG_IPGR2_SHIFT  20
@@ -726,11 +693,6 @@
 #define E1000_ICR_DSW           0x00000020 /* FW changed the status of DISSW bit in the FWSM */
 #define E1000_ICR_PHYINT        0x00001000 /* LAN connected device generates an interrupt */
 #define E1000_ICR_EPRST         0x00100000 /* ME hardware reset occurs */
-#define E1000_ICR_RXQ0          0x00100000 /* Rx Queue 0 Interrupt */
-#define E1000_ICR_RXQ1          0x00200000 /* Rx Queue 1 Interrupt */
-#define E1000_ICR_TXQ0          0x00400000 /* Tx Queue 0 Interrupt */
-#define E1000_ICR_TXQ1          0x00800000 /* Tx Queue 1 Interrupt */
-#define E1000_ICR_OTHER         0x01000000 /* Other Interrupts */
 
 /* Extended Interrupt Cause Read */
 #define E1000_EICR_RX_QUEUE0    0x00000001 /* Rx Queue 0 Interrupt */
@@ -803,11 +765,6 @@
 #define E1000_IMS_DSW       E1000_ICR_DSW
 #define E1000_IMS_PHYINT    E1000_ICR_PHYINT
 #define E1000_IMS_EPRST     E1000_ICR_EPRST
-#define E1000_IMS_RXQ0          E1000_ICR_RXQ0 /* Rx Queue 0 Interrupt */
-#define E1000_IMS_RXQ1          E1000_ICR_RXQ1 /* Rx Queue 1 Interrupt */
-#define E1000_IMS_TXQ0          E1000_ICR_TXQ0 /* Tx Queue 0 Interrupt */
-#define E1000_IMS_TXQ1          E1000_ICR_TXQ1 /* Tx Queue 1 Interrupt */
-#define E1000_IMS_OTHER         E1000_ICR_OTHER /* Other Interrupts */
 
 /* Extended Interrupt Mask Set */
 #define E1000_EIMS_RX_QUEUE0    E1000_EICR_RX_QUEUE0 /* Rx Queue 0 Interrupt */
@@ -1245,8 +1202,6 @@
 #define IFE_E_PHY_ID         0x02A80330
 #define IFE_PLUS_E_PHY_ID    0x02A80320
 #define IFE_C_E_PHY_ID       0x02A80310
-#define BME1000_E_PHY_ID     0x01410CB0
-#define BME1000_E_PHY_ID_R2  0x01410CB1
 #define M88_VENDOR           0x0141
 
 /* M88E1000 Specific Registers */
@@ -1353,9 +1308,6 @@
 #define M88EC018_EPSCR_DOWNSHIFT_COUNTER_7X    0x0C00
 #define M88EC018_EPSCR_DOWNSHIFT_COUNTER_8X    0x0E00
 
-/* BME1000 PHY Specific Control Register */
-#define BME1000_PSCR_ENABLE_DOWNSHIFT   0x0800 /* 1 = enable downshift */
-
 /*
  * Bits...
  * 15-5: page
@@ -1447,5 +1399,4 @@
 #define E1000_GEN_CTL_ADDRESS_SHIFT     8
 #define E1000_GEN_POLL_TIMEOUT          640
 
-#define UNREFERENCED_PARAMETER(_p)
 #endif

@@ -1,6 +1,6 @@
 /*******************************************************************************
 
-  Copyright (c) 2001-2007, Intel Corporation 
+  Copyright (c) 2001-2008, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -39,8 +39,6 @@
 
 #include "e1000_api.h"
 #include "e1000_ich8lan.h"
-
-void e1000_init_function_pointers_ich8lan(struct e1000_hw *hw);
 
 STATIC s32  e1000_init_phy_params_ich8lan(struct e1000_hw *hw);
 STATIC s32  e1000_init_nvm_params_ich8lan(struct e1000_hw *hw);
@@ -82,6 +80,8 @@ static s32  e1000_flash_cycle_init_ich8lan(struct e1000_hw *hw);
 static s32  e1000_get_phy_info_ife_ich8lan(struct e1000_hw *hw);
 static void e1000_initialize_hw_bits_ich8lan(struct e1000_hw *hw);
 static s32  e1000_kmrn_lock_loss_workaround_ich8lan(struct e1000_hw *hw);
+STATIC s32  e1000_read_flash_byte_ich8lan(struct e1000_hw *hw,
+                                          u32 offset, u8* data);
 static s32  e1000_read_flash_data_ich8lan(struct e1000_hw *hw, u32 offset,
                                           u8 size, u16* data);
 STATIC s32  e1000_read_flash_word_ich8lan(struct e1000_hw *hw,
@@ -180,6 +180,20 @@ STATIC s32 e1000_init_phy_params_ich8lan(struct e1000_hw *hw)
 	func->power_up_phy              = e1000_power_up_phy_copper;
 	func->power_down_phy            = e1000_power_down_phy_copper_ich8lan;
 
+	/*
+	 * We may need to do this twice - once for IGP and if that fails,
+	 * we'll set BM func pointers and try again
+	 */
+	ret_val = e1000_determine_phy_address(hw);
+	if (ret_val) {
+		func->write_phy_reg = e1000_write_phy_reg_bm;
+		func->read_phy_reg  = e1000_read_phy_reg_bm;
+		ret_val = e1000_determine_phy_address(hw);
+		if (ret_val) {
+			DEBUGOUT("Cannot determine PHY address. Erroring out\n");
+			goto out;
+		}
+	}
 
 	phy->id = 0;
 	while ((e1000_phy_unknown == e1000_get_phy_type_from_id(phy->id)) &&
@@ -201,6 +215,13 @@ STATIC s32 e1000_init_phy_params_ich8lan(struct e1000_hw *hw)
 	case IFE_C_E_PHY_ID:
 		phy->type = e1000_phy_ife;
 		phy->autoneg_mask = E1000_ALL_NOT_GIG;
+		break;
+	case BME1000_E_PHY_ID:
+		phy->type = e1000_phy_bm;
+		phy->autoneg_mask = AUTONEG_ADVERTISE_SPEED_DEFAULT;
+		func->read_phy_reg = e1000_read_phy_reg_bm;
+		func->write_phy_reg = e1000_write_phy_reg_bm;
+		func->commit_phy = e1000_phy_sw_reset_generic;
 		break;
 	default:
 		ret_val = -E1000_ERR_PHY;
@@ -702,6 +723,7 @@ STATIC s32 e1000_get_phy_info_ich8lan(struct e1000_hw *hw)
 		ret_val = e1000_get_phy_info_ife_ich8lan(hw);
 		break;
 	case e1000_phy_igp_3:
+	case e1000_phy_bm:
 		ret_val = e1000_get_phy_info_igp(hw);
 		break;
 	default:
@@ -774,7 +796,7 @@ out:
  *  e1000_check_polarity_ife_ich8lan - Check cable polarity for IFE PHY
  *  @hw: pointer to the HW structure
  *
- *  Polarity is determined on the polarity reveral feature being enabled.
+ *  Polarity is determined on the polarity reversal feature being enabled.
  *  This function is only called by other family-specific
  *  routines.
  **/
@@ -1003,10 +1025,46 @@ out:
 STATIC s32 e1000_valid_nvm_bank_detect_ich8lan(struct e1000_hw *hw, u32 *bank)
 {
 	s32 ret_val = E1000_SUCCESS;
-	if (E1000_READ_REG(hw, E1000_EECD) & E1000_EECD_SEC1VAL)
-		*bank = 1;
-	else
-		*bank = 0;
+	struct e1000_nvm_info *nvm = &hw->nvm;
+	/* flash bank size is in words */
+	u32 bank1_offset = nvm->flash_bank_size * sizeof(u16);
+	u32 act_offset = E1000_ICH_NVM_SIG_WORD * 2 + 1;
+	u8 bank_high_byte = 0;
+
+	if (hw->mac.type != e1000_ich10lan) {
+		if (E1000_READ_REG(hw, E1000_EECD) & E1000_EECD_SEC1VAL)
+			*bank = 1;
+		else
+			*bank = 0;
+	} else if (hw->dev_spec != NULL) {
+		/*
+		 * Make sure the signature for bank 0 is valid,
+		 * if not check for bank1
+		 */
+		e1000_read_flash_byte_ich8lan(hw, act_offset, &bank_high_byte);
+		if ((bank_high_byte & 0xC0) == 0x80) {
+			*bank = 0;
+		} else {
+			/*
+			 * find if segment 1 is valid by verifying
+			 * bit 15:14 = 10b in word 0x13
+			 */
+			e1000_read_flash_byte_ich8lan(hw,
+			                              act_offset + bank1_offset,
+			                              &bank_high_byte);
+			
+			/* bank1 has a valid signature equivalent to SEC1V */
+			if ((bank_high_byte & 0xC0) == 0x80) {
+				*bank = 1;
+			} else {
+				DEBUGOUT("ERROR: EEPROM not present\n");
+				ret_val = -E1000_ERR_NVM;
+			}
+		}
+	} else {
+		DEBUGOUT("DEV SPEC is NULL\n");
+		ret_val = -E1000_ERR_NVM;
+	}
 	
 	return ret_val;
 }
@@ -1112,7 +1170,7 @@ static s32 e1000_flash_cycle_init_ich8lan(struct e1000_hw *hw)
 	 * Either we should have a hardware SPI cycle in progress
 	 * bit to check against, in order to start a new cycle or
 	 * FDONE bit should be changed in the hardware so that it
-	 * is 1 after harware reset, which can then be used as an
+	 * is 1 after hardware reset, which can then be used as an
 	 * indication whether a cycle is in progress or has been
 	 * completed.
 	 */
@@ -1218,6 +1276,30 @@ STATIC s32 e1000_read_flash_word_ich8lan(struct e1000_hw *hw, u32 offset,
 	offset <<= 1;
 
 	ret_val = e1000_read_flash_data_ich8lan(hw, offset, 2, data);
+
+out:
+	return ret_val;
+}
+
+/**
+ *  e1000_read_flash_byte_ich8lan - Read byte from flash
+ *  @hw: pointer to the HW structure
+ *  @offset: The offset of the byte to read.
+ *  @data: Pointer to a byte to store the value read.
+ *
+ *  Reads a single byte from the NVM using the flash access registers.
+ **/
+STATIC s32 e1000_read_flash_byte_ich8lan(struct e1000_hw *hw, u32 offset,
+                                         u8* data)
+{
+	s32 ret_val = E1000_SUCCESS;
+	u16 word = 0;
+
+	ret_val = e1000_read_flash_data_ich8lan(hw, offset, 1, &word);
+	if (ret_val)
+		goto out;
+
+	*data = (u8)word;
 
 out:
 	return ret_val;
@@ -1363,7 +1445,7 @@ out:
  *  which writes the checksum to the shadow ram.  The changes in the shadow
  *  ram are then committed to the EEPROM by processing each bank at a time
  *  checking for the modified bit and writing only the pending changes.
- *  After a succesful commit, the shadow ram is cleared and is ready for
+ *  After a successful commit, the shadow ram is cleared and is ready for
  *  future writes.
  **/
 STATIC s32 e1000_update_nvm_checksum_ich8lan(struct e1000_hw *hw)
@@ -1516,8 +1598,9 @@ out:
  *  @hw: pointer to the HW structure
  *
  *  Check to see if checksum needs to be fixed by reading bit 6 in word 0x19.
- *  If the bit is 0, that the EEPROM had been modified, but the checksum was not
- *  calculated, in which case we need to calculate the checksum and set bit 6.
+ *  If the bit is 0, that the EEPROM had been modified, but the checksum was
+ *  not calculated, in which case we need to calculate the checksum and set
+ *  bit 6.
  **/
 STATIC s32 e1000_validate_nvm_checksum_ich8lan(struct e1000_hw *hw)
 {
@@ -1661,8 +1744,8 @@ STATIC s32 e1000_write_flash_byte_ich8lan(struct e1000_hw *hw, u32 offset,
  *  Writes a single byte to the NVM using the flash access registers.
  *  Goes through a retry algorithm before giving up.
  **/
-static s32 e1000_retry_write_flash_byte_ich8lan(struct e1000_hw *hw, u32 offset,
-                                                u8 byte)
+static s32 e1000_retry_write_flash_byte_ich8lan(struct e1000_hw *hw,
+                                                u32 offset, u8 byte)
 {
 	s32 ret_val;
 	u16 program_retries;
@@ -1960,7 +2043,7 @@ STATIC s32 e1000_reset_hw_ich8lan(struct e1000_hw *hw)
  *   - initialize LED identification
  *   - setup receive address registers
  *   - setup flow control
- *   - setup transmit discriptors
+ *   - setup transmit descriptors
  *   - clear statistics
  **/
 STATIC s32 e1000_init_hw_ich8lan(struct e1000_hw *hw)
@@ -2174,6 +2257,10 @@ STATIC s32 e1000_setup_copper_link_ich8lan(struct e1000_hw *hw)
 		ret_val = e1000_copper_link_setup_igp(hw);
 		if (ret_val)
 			goto out;
+	} else if (hw->phy.type == e1000_phy_bm) {
+		ret_val = e1000_copper_link_setup_m88(hw);
+		if (ret_val)
+			goto out;
 	}
 
 	if (hw->phy.type == e1000_phy_ife) {
@@ -2211,7 +2298,7 @@ out:
  *  @speed: pointer to store current link speed
  *  @duplex: pointer to store the current link duplex
  *
- *  Calls the generic get_speed_and_duplex to retreive the current link
+ *  Calls the generic get_speed_and_duplex to retrieve the current link
  *  information and then calls the Kumeran lock loss workaround for links at
  *  gigabit speeds.
  **/
@@ -2310,7 +2397,7 @@ static s32 e1000_kmrn_lock_loss_workaround_ich8lan(struct e1000_hw *hw)
 	E1000_WRITE_REG(hw, E1000_PHY_CTRL, phy_ctrl);
 
 	/*
-	 * Call gig speed drop workaround on Giga disable before accessing
+	 * Call gig speed drop workaround on Gig disable before accessing
 	 * any PHY registers
 	 */
 	e1000_gig_downshift_workaround_ich8lan(hw);
@@ -2323,9 +2410,9 @@ out:
 }
 
 /**
- *  e1000_set_kmrn_lock_loss_workaound_ich8lan - Set Kumeran workaround state
+ *  e1000_set_kmrn_lock_loss_workaround_ich8lan - Set Kumeran workaround state
  *  @hw: pointer to the HW structure
- *  @state: boolean value used to set the current Kumaran workaround state
+ *  @state: boolean value used to set the current Kumeran workaround state
  *
  *  If ICH8, set the current Kumeran workaround state (enabled - TRUE
  *  /disabled - FALSE).
@@ -2385,7 +2472,7 @@ void e1000_igp3_phy_powerdown_workaround_ich8lan(struct e1000_hw *hw)
 		E1000_WRITE_REG(hw, E1000_PHY_CTRL, reg);
 
 		/*
-		 * Call gig speed drop workaround on Giga disable before
+		 * Call gig speed drop workaround on Gig disable before
 		 * accessing any PHY registers
 		 */
 		if (hw->mac.type == e1000_ich8lan)
@@ -2419,7 +2506,7 @@ out:
  *  @hw: pointer to the HW structure
  *
  *  Steps to take when dropping from 1Gb/s (eg. link cable removal (LSC),
- *  LPLU, Giga disable, MDIC PHY reset):
+ *  LPLU, Gig disable, MDIC PHY reset):
  *    1) Set Kumeran Near-end loopback
  *    2) Clear Kumeran Near-end loopback
  *  Should only be called for ICH8[m] devices with IGP_3 Phy.
@@ -2436,7 +2523,7 @@ void e1000_gig_downshift_workaround_ich8lan(struct e1000_hw *hw)
 		goto out;
 
 	ret_val = e1000_read_kmrn_reg(hw, E1000_KMRNCTRLSTA_DIAG_OFFSET,
-				      &reg_data);
+	                              &reg_data);
 	if (ret_val)
 		goto out;
 	reg_data |= E1000_KMRNCTRLSTA_DIAG_NELPBK;
@@ -2446,8 +2533,36 @@ void e1000_gig_downshift_workaround_ich8lan(struct e1000_hw *hw)
 		goto out;
 	reg_data &= ~E1000_KMRNCTRLSTA_DIAG_NELPBK;
 	ret_val = e1000_write_kmrn_reg(hw, E1000_KMRNCTRLSTA_DIAG_OFFSET,
-				       reg_data);
+	                               reg_data);
 out:
+	return;
+}
+
+/**
+ *  e1000_disable_gig_wol_ich8lan - disable gig during WoL
+ *  @hw: pointer to the HW structure
+ *
+ *  During S0 to Sx transition, it is possible the link remains at gig
+ *  instead of negotiating to a lower speed.  Before going to Sx, set
+ *  'LPLU Enabled' and 'Gig Disable' to force link speed negotiation
+ *  to a lower speed.
+ *
+ *  Should only be called for ICH9m and ICH10 devices.
+ **/
+void e1000_disable_gig_wol_ich8lan(struct e1000_hw *hw)
+{
+	u32 phy_ctrl;
+
+	if ((hw->mac.type == e1000_ich10lan) ||
+	    ((hw->mac.type == e1000_ich9lan) &&
+	     ((hw->device_id == E1000_DEV_ID_ICH9_IGP_M) ||
+	      (hw->device_id == E1000_DEV_ID_ICH9_IGP_M_AMT)))) {
+		phy_ctrl = E1000_READ_REG(hw, E1000_PHY_CTRL);
+		phy_ctrl |= E1000_PHY_CTRL_D0A_LPLU |
+		            E1000_PHY_CTRL_GBE_DISABLE;
+		E1000_WRITE_REG(hw, E1000_PHY_CTRL, phy_ctrl);
+	}
+
 	return;
 }
 
@@ -2465,8 +2580,8 @@ STATIC s32 e1000_cleanup_led_ich8lan(struct e1000_hw *hw)
 
 	if (hw->phy.type == e1000_phy_ife)
 		ret_val = e1000_write_phy_reg(hw,
-		                                IFE_PHY_SPECIAL_CONTROL_LED,
-		                                0);
+		                              IFE_PHY_SPECIAL_CONTROL_LED,
+		                              0);
 	else
 		E1000_WRITE_REG(hw, E1000_LEDCTL, hw->mac.ledctl_default);
 
@@ -2474,10 +2589,10 @@ STATIC s32 e1000_cleanup_led_ich8lan(struct e1000_hw *hw)
 }
 
 /**
- *  e1000_led_on_ich8lan - Turn LED's on
+ *  e1000_led_on_ich8lan - Turn LEDs on
  *  @hw: pointer to the HW structure
  *
- *  Turn on the LED's.
+ *  Turn on the LEDs.
  **/
 STATIC s32 e1000_led_on_ich8lan(struct e1000_hw *hw)
 {
@@ -2496,10 +2611,10 @@ STATIC s32 e1000_led_on_ich8lan(struct e1000_hw *hw)
 }
 
 /**
- *  e1000_led_off_ich8lan - Turn LED's off
+ *  e1000_led_off_ich8lan - Turn LEDs off
  *  @hw: pointer to the HW structure
  *
- *  Turn off the LED's.
+ *  Turn off the LEDs.
  **/
 STATIC s32 e1000_led_off_ich8lan(struct e1000_hw *hw)
 {
@@ -2530,13 +2645,22 @@ STATIC s32 e1000_led_off_ich8lan(struct e1000_hw *hw)
 STATIC s32 e1000_get_cfg_done_ich8lan(struct e1000_hw *hw)
 {
 	s32 ret_val = E1000_SUCCESS;
+	u32 bank = 0;
 
 	e1000_get_cfg_done_generic(hw);
 
 	/* If EEPROM is not marked present, init the IGP 3 PHY manually */
-	if (((E1000_READ_REG(hw, E1000_EECD) & E1000_EECD_PRES) == 0) &&
-	    (hw->phy.type == e1000_phy_igp_3)) {
-		e1000_phy_init_script_igp3(hw);
+	if (hw->mac.type != e1000_ich10lan) {
+		if (((E1000_READ_REG(hw, E1000_EECD) & E1000_EECD_PRES) == 0) &&
+    		    (hw->phy.type == e1000_phy_igp_3)) {
+			e1000_phy_init_script_igp3(hw);
+		}
+	} else {
+		if (e1000_valid_nvm_bank_detect_ich8lan(hw, &bank)) {
+			/* Maybe we should do a basic Boazman config */
+			DEBUGOUT("EEPROM not present\n");
+			ret_val = -E1000_ERR_CONFIG;
+		}
 	}
 
 	return ret_val;
