@@ -1,4 +1,4 @@
-/*******************************************************************************
+/******************************************************************************
 
   Copyright (c) 2001-2008, Intel Corporation 
   All rights reserved.
@@ -29,9 +29,8 @@
   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE.
 
-*******************************************************************************/
-/* $FreeBSD$ */
-
+******************************************************************************/
+/*$FreeBSD$*/
 
 #ifndef _E1000_REGS_H_
 #define _E1000_REGS_H_
@@ -57,7 +56,6 @@
 #define E1000_IMS      0x000D0  /* Interrupt Mask Set - RW */
 #define E1000_IMC      0x000D8  /* Interrupt Mask Clear - WO */
 #define E1000_IAM      0x000E0  /* Interrupt Acknowledge Auto Mask */
-#define E1000_IVAR     0x000E4  /* Interrupt Vector Allocation Register - RW */
 #define E1000_RCTL     0x00100  /* Rx Control - RW */
 #define E1000_FCTTV    0x00170  /* Flow Control Transmit Timer Value - RW */
 #define E1000_TXCW     0x00178  /* Tx Configuration Word - RW */
@@ -325,6 +323,4 @@
 #define E1000_SYSTIML    0x0B600 /* System time register Low - RO */
 #define E1000_SYSTIMH    0x0B604 /* System time register High - RO */
 #define E1000_TIMINCA    0x0B608 /* Increment attributes register - RW */
-#define E1000_RXMTRL     0x0B634 /* Time sync Rx EtherType and Message Type - RW */
-#define E1000_RXUDP      0x0B638 /* Time Sync Rx UDP Port - RW */
 #endif
