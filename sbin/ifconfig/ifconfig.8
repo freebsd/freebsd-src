@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd December 8, 2007
+.Dd February 29, 2008
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -779,6 +779,8 @@ To disable 802.11h use
 .It Cm deftxkey Ar index
 Set the default key to use for transmission.
 Typically this is only set when using WEP encryption.
+Note that you must set a default transmit key
+for the system to know which key to use in encrypting outbound traffic.
 The
 .Cm weptxkey
 is an alias for this request; it is provided for backwards compatibility.
@@ -1263,6 +1265,10 @@ Some adaptors support more than four keys.
 If that is the case, then the first four keys
 (1-4) will be the standard temporary keys and any others will be adaptor
 specific keys such as permanent keys stored in NVRAM.
+.Pp
+Note that you must set a default transmit key with
+.Cm deftxkey
+for the system to know which key to use in encrypting outbound traffic.
 .It Cm wme
 Enable Wireless Multimedia Extensions (WME) support, if available,
 for the specified interface.
