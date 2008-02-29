@@ -30,8 +30,8 @@
 <!-- The type of release (usually this will be either "snapshot"
      or "release" -->
 <!ENTITY release.type "snapshot">
-<!ENTITY % release.type.current  "INCLUDE">
-<!ENTITY % release.type.snapshot "IGNORE">
+<!ENTITY % release.type.current  "IGNORE">
+<!ENTITY % release.type.snapshot "INCLUDE">
 <!ENTITY % release.type.release "IGNORE">
 
 <!-- The manpaths for man page references -->
