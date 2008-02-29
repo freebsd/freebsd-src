@@ -42,7 +42,7 @@ static const char copyright[] =
 #ifdef __IDSTRING
 __IDSTRING(Berkeley, "@(#)unifdef.c	8.1 (Berkeley) 6/6/93");
 __IDSTRING(NetBSD, "$NetBSD: unifdef.c,v 1.8 2000/07/03 02:51:36 matt Exp $");
-__IDSTRING(dotat, "$dotat: things/unifdef.c,v 1.176 2008/02/29 12:44:25 fanf2 Exp $");
+__IDSTRING(dotat, "$dotat: things/unifdef.c,v 1.177 2008/02/29 13:17:37 fanf2 Exp $");
 #endif
 #endif /* not lint */
 #ifdef __FBSDID
@@ -587,16 +587,19 @@ getline(void)
 				linestate = LS_DIRTY;
 		}
 		/* skipcomment normally changes the state, except
-		   if the last line of the file lacks a newline */
+		   if the last line of the file lacks a newline, or
+		   if there is too much whitespace in a directive */
 		if (linestate == LS_HASH) {
 			size_t len = cp - tline;
-			if (fgets(tline + len, MAXLINE - len, input) != NULL)
-				abort(); /* bug */
-			/* append the missing newline */
-			tline[len+0] = '\n';
-			tline[len+1] = '\0';
-			cp++;
-			linestate = LS_START;
+			if (fgets(tline + len, MAXLINE - len, input) == NULL) {
+				/* append the missing newline */
+				tline[len+0] = '\n';
+				tline[len+1] = '\0';
+				cp++;
+				linestate = LS_START;
+			} else {
+				linestate = LS_DIRTY;
+			}
 		}
 	}
 	if (linestate == LS_DIRTY) {
