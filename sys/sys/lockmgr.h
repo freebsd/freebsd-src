@@ -41,7 +41,7 @@
 #include <sys/stack.h> /* XXX */
 #endif
 #include <sys/queue.h>
-#include <sys/lock.h>
+#include <sys/_lock.h>
 
 struct	mtx;
 
@@ -111,7 +111,7 @@ struct lock {
  * These may be set in lock_init to set their mode permanently,
  * or passed in as arguments to the lock manager.
  */
-#define	LK_EXTFLG_MASK	0x00000ff0	/* mask of external flags */
+#define	LK_EXTFLG_MASK	0x0000fff0	/* mask of external flags */
 #define	LK_NOWAIT	0x00000010	/* do not sleep to await lock */
 #define	LK_SLEEPFAIL	0x00000020	/* sleep, then return failure */
 #define	LK_CANRECURSE	0x00000040	/* allow recursive exclusive lock */
@@ -119,30 +119,17 @@ struct lock {
 #define	LK_TIMELOCK	0x00000100	/* use lk_timo, else no timeout */
 #define	LK_NOWITNESS	0x00000200	/* disable WITNESS */
 #define	LK_NODUP	0x00000400	/* enable duplication logging */
+#define	LK_NOPROFILE	0x00000800	/* disable lock profiling */
+#define	LK_QUIET	0x00001000	/* disable lock operations tracking */
+#define	LK_FUNC_MASK	(LK_NODUP | LK_NOPROFILE | LK_NOWITNESS | LK_QUIET)
 /*
  * Nonpersistent external flags.
  */
-#define	LK_RETRY	0x00001000 /* vn_lock: retry until locked */
-#define	LK_INTERLOCK	0x00002000 /*
+#define	LK_RETRY	0x00010000 /* vn_lock: retry until locked */
+#define	LK_INTERLOCK	0x00020000 /*
 				    * unlock passed mutex after getting
 				    * lk_interlock
 				    */
-/*
- * Internal lock flags.
- *
- * These flags are used internally to the lock manager.
- */
-#define	LK_WANT_UPGRADE	0x00010000	/* waiting for share-to-excl upgrade */
-#define	LK_WANT_EXCL	0x00020000	/* exclusive lock sought */
-#define	LK_HAVE_EXCL	0x00040000	/* exclusive lock obtained */
-#define	LK_WAITDRAIN	0x00080000	/* process waiting for lock to drain */
-#define	LK_DRAINING	0x00100000	/* lock is being drained */
-#define	LK_DESTROYED	0x00200000	/* lock is destroyed */
-/*
- * Internal state flags corresponding to lk_sharecount, and lk_waitcount
- */
-#define	LK_SHARE_NONZERO 0x01000000
-#define	LK_WAIT_NONZERO  0x02000000
 
 /*
  * Default values for lockmgr_args().
@@ -150,6 +137,27 @@ struct lock {
 #define	LK_WMESG_DEFAULT	(NULL)
 #define	LK_PRIO_DEFAULT		(-1)
 #define	LK_TIMO_DEFAULT		(0)
+
+/*
+ * Internal lock flags.
+ *
+ * These flags are used internally to the lock manager.
+ */
+#define	LK_WANT_UPGRADE	0x00100000	/* waiting for share-to-excl upgrade */
+#define	LK_WANT_EXCL	0x00200000	/* exclusive lock sought */
+#define	LK_HAVE_EXCL	0x00400000	/* exclusive lock obtained */
+#define	LK_WAITDRAIN	0x00800000	/* process waiting for lock to drain */
+#define	LK_DRAINING	0x01000000	/* lock is being drained */
+#define	LK_DESTROYED	0x02000000	/* lock is destroyed */
+/*
+ * Internal state flags corresponding to lk_sharecount, and lk_waitcount
+ */
+#define	LK_SHARE_NONZERO 0x10000000
+#define	LK_WAIT_NONZERO  0x20000000
+
+#ifndef LOCK_FILE
+#error "LOCK_FILE not defined, include <sys/lock.h> before <sys/lockmgr.h>"
+#endif
 
 /*
  * Assertion flags.
@@ -203,7 +211,6 @@ void	_lockmgr_assert(struct lock *, int what, const char *, int);
 void	_lockmgr_disown(struct lock *, const char *, int);
 void	lockmgr_printinfo(struct lock *);
 int	lockstatus(struct lock *);
-int	lockwaiters(struct lock *);
 
 #define lockmgr(lock, flags, mtx)					\
 	_lockmgr_args((lock), (flags), (mtx), LK_WMESG_DEFAULT,		\
