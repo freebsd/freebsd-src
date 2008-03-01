@@ -180,7 +180,7 @@ au_preselect(au_event_t event, au_class_t class, au_mask_t *mask_p, int sorf)
  * Convert sysctl names and present arguments to events.
  */
 au_event_t
-ctlname_to_sysctlevent(int name[], uint64_t valid_arg)
+audit_ctlname_to_sysctlevent(int name[], uint64_t valid_arg)
 {
 
 	/* can't parse it - so return the worst case */
@@ -242,7 +242,7 @@ ctlname_to_sysctlevent(int name[], uint64_t valid_arg)
  * auditing purposes.
  */
 au_event_t
-flags_and_error_to_openevent(int oflags, int error)
+audit_flags_and_error_to_openevent(int oflags, int error)
 {
 	au_event_t aevent;
 
