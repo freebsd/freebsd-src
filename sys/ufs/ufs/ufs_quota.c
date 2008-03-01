@@ -665,7 +665,7 @@ setquota(td, mp, id, type, addr)
 	if (error)
 		return (error);
 
-	error = copyin(addr, (caddr_t)&newlim, sizeof (struct dqblk));
+	error = copyin(addr, &newlim, sizeof (struct dqblk));
 	if (error)
 		return (error);
 
@@ -734,7 +734,7 @@ setuse(td, mp, id, type, addr)
 	if (error)
 		return (error);
 
-	error = copyin(addr, (caddr_t)&usage, sizeof (struct dqblk));
+	error = copyin(addr, &usage, sizeof (struct dqblk));
 	if (error)
 		return (error);
 
@@ -950,7 +950,7 @@ dqget(vp, id, ump, type, dqp)
 	dq->dq_type = type;
 	auio.uio_iov = &aiov;
 	auio.uio_iovcnt = 1;
-	aiov.iov_base = (caddr_t)&dq->dq_dqb;
+	aiov.iov_base = &dq->dq_dqb;
 	aiov.iov_len = sizeof (struct dqblk);
 	auio.uio_resid = sizeof (struct dqblk);
 	auio.uio_offset = (off_t)id * sizeof (struct dqblk);
@@ -959,7 +959,7 @@ dqget(vp, id, ump, type, dqp)
 	auio.uio_td = (struct thread *)0;
 	error = VOP_READ(dqvp, &auio, 0, ump->um_cred[type]);
 	if (auio.uio_resid == sizeof(struct dqblk) && error == 0)
-		bzero((caddr_t)&dq->dq_dqb, sizeof(struct dqblk));
+		bzero(&dq->dq_dqb, sizeof(struct dqblk));
 	if (vp != dqvp)
 		VOP_UNLOCK(dqvp, 0, td);
 	if (dq->dq_flags & DQ_WANT)
@@ -1065,7 +1065,7 @@ dqsync(vp, dq)
 	dq->dq_flags |= DQ_LOCK;
 	auio.uio_iov = &aiov;
 	auio.uio_iovcnt = 1;
-	aiov.iov_base = (caddr_t)&dq->dq_dqb;
+	aiov.iov_base = &dq->dq_dqb;
 	aiov.iov_len = sizeof (struct dqblk);
 	auio.uio_resid = sizeof (struct dqblk);
 	auio.uio_offset = (off_t)dq->dq_id * sizeof (struct dqblk);
