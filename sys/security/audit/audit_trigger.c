@@ -128,7 +128,7 @@ audit_write(struct cdev *dev, struct uio *uio, int ioflag)
 }
 
 int
-send_trigger(unsigned int trigger)
+audit_send_trigger(unsigned int trigger)
 {
 	struct trigger_info *ti;
 
