@@ -1232,15 +1232,20 @@ tcp_fill_info(struct tcpcb *tp, struct tcp_info *ti)
 }
 
 /*
- * The new sockopt interface makes it possible for us to block in the
- * copyin/out step (if we take a page fault).  Taking a page fault at
- * splnet() is probably a Bad Thing.  (Since sockets and pcbs both now
- * use TSM, there probably isn't any need for this function to run at
- * splnet() any more.  This needs more examination.)
- *
- * XXXRW: The locking here is wrong; we may take a page fault while holding
- * the inpcb lock.
+ * tcp_ctloutput() must drop the inpcb lock before performing copyin on
+ * socket option arguments.  When it re-acquires the lock after the copy, it
+ * has to revalidate that the connection is still valid for the socket
+ * option.
  */
+#define INP_LOCK_RECHECK(inp) do {					\
+	INP_LOCK(inp);							\
+	if (inp->inp_vflag & (INP_TIMEWAIT | INP_DROPPED)) {		\
+		INP_UNLOCK(inp);					\
+		return (ECONNRESET);					\
+	}								\
+	tp = intotcpcb(inp);						\
+} while(0)
+
 int
 tcp_ctloutput(struct socket *so, struct sockopt *sopt)
 {
@@ -1254,44 +1259,52 @@ tcp_ctloutput(struct socket *so, struct sockopt *sopt)
 	KASSERT(inp != NULL, ("tcp_ctloutput: inp == NULL"));
 	INP_LOCK(inp);
 	if (sopt->sopt_level != IPPROTO_TCP) {
-		INP_UNLOCK(inp);
 #ifdef INET6
-		if (INP_CHECK_SOCKAF(so, AF_INET6))
+		if (INP_CHECK_SOCKAF(so, AF_INET6)) {
+			INP_UNLOCK(inp);
 			error = ip6_ctloutput(so, sopt);
-		else
+		} else {
 #endif /* INET6 */
-		error = ip_ctloutput(so, sopt);
+			INP_UNLOCK(inp);
+			error = ip_ctloutput(so, sopt);
+#ifdef INET6
+		}
+#endif
 		return (error);
 	}
 	if (inp->inp_vflag & (INP_TIMEWAIT | INP_DROPPED)) {
-		error = ECONNRESET;
-		goto out;
+		INP_UNLOCK(inp);
+		return (ECONNRESET);
 	}
-	tp = intotcpcb(inp);
 
 	switch (sopt->sopt_dir) {
 	case SOPT_SET:
 		switch (sopt->sopt_name) {
 #ifdef TCP_SIGNATURE
 		case TCP_MD5SIG:
+			INP_UNLOCK(inp);
 			error = sooptcopyin(sopt, &optval, sizeof optval,
-					    sizeof optval);
+			    sizeof optval);
 			if (error)
-				break;
+				return (error);
 
+			INP_LOCK_RECHECK(inp);
 			if (optval > 0)
 				tp->t_flags |= TF_SIGNATURE;
 			else
 				tp->t_flags &= ~TF_SIGNATURE;
+			INP_UNLOCK(inp);
 			break;
 #endif /* TCP_SIGNATURE */
 		case TCP_NODELAY:
 		case TCP_NOOPT:
+			INP_UNLOCK(inp);
 			error = sooptcopyin(sopt, &optval, sizeof optval,
-					    sizeof optval);
+			    sizeof optval);
 			if (error)
-				break;
+				return (error);
 
+			INP_LOCK_RECHECK(inp);
 			switch (sopt->sopt_name) {
 			case TCP_NODELAY:
 				opt = TF_NODELAY;
@@ -1308,83 +1321,100 @@ tcp_ctloutput(struct socket *so, struct sockopt *sopt)
 				tp->t_flags |= opt;
 			else
 				tp->t_flags &= ~opt;
+			INP_UNLOCK(inp);
 			break;
 
 		case TCP_NOPUSH:
+			INP_UNLOCK(inp);
 			error = sooptcopyin(sopt, &optval, sizeof optval,
-					    sizeof optval);
+			    sizeof optval);
 			if (error)
-				break;
+				return (error);
 
+			INP_LOCK_RECHECK(inp);
 			if (optval)
 				tp->t_flags |= TF_NOPUSH;
 			else {
 				tp->t_flags &= ~TF_NOPUSH;
 				error = tcp_output(tp);
 			}
+			INP_UNLOCK(inp);
 			break;
 
 		case TCP_MAXSEG:
+			INP_UNLOCK(inp);
 			error = sooptcopyin(sopt, &optval, sizeof optval,
-					    sizeof optval);
+			    sizeof optval);
 			if (error)
-				break;
+				return (error);
 
+			INP_LOCK_RECHECK(inp);
 			if (optval > 0 && optval <= tp->t_maxseg &&
 			    optval + 40 >= tcp_minmss)
 				tp->t_maxseg = optval;
 			else
 				error = EINVAL;
+			INP_UNLOCK(inp);
 			break;
 
 		case TCP_INFO:
+			INP_UNLOCK(inp);
 			error = EINVAL;
 			break;
 
 		default:
+			INP_UNLOCK(inp);
 			error = ENOPROTOOPT;
 			break;
 		}
 		break;
 
 	case SOPT_GET:
+		tp = intotcpcb(inp);
 		switch (sopt->sopt_name) {
 #ifdef TCP_SIGNATURE
 		case TCP_MD5SIG:
 			optval = (tp->t_flags & TF_SIGNATURE) ? 1 : 0;
+			INP_UNLOCK(inp);
 			error = sooptcopyout(sopt, &optval, sizeof optval);
 			break;
 #endif
+
 		case TCP_NODELAY:
 			optval = tp->t_flags & TF_NODELAY;
+			INP_UNLOCK(inp);
 			error = sooptcopyout(sopt, &optval, sizeof optval);
 			break;
 		case TCP_MAXSEG:
 			optval = tp->t_maxseg;
+			INP_UNLOCK(inp);
 			error = sooptcopyout(sopt, &optval, sizeof optval);
 			break;
 		case TCP_NOOPT:
 			optval = tp->t_flags & TF_NOOPT;
+			INP_UNLOCK(inp);
 			error = sooptcopyout(sopt, &optval, sizeof optval);
 			break;
 		case TCP_NOPUSH:
 			optval = tp->t_flags & TF_NOPUSH;
+			INP_UNLOCK(inp);
 			error = sooptcopyout(sopt, &optval, sizeof optval);
 			break;
 		case TCP_INFO:
 			tcp_fill_info(tp, &ti);
+			INP_UNLOCK(inp);
 			error = sooptcopyout(sopt, &ti, sizeof ti);
 			break;
 		default:
+			INP_UNLOCK(inp);
 			error = ENOPROTOOPT;
 			break;
 		}
 		break;
 	}
-out:
-	INP_UNLOCK(inp);
 	return (error);
 }
+#undef INP_LOCK_RECHECK
 
 /*
  * tcp_sendspace and tcp_recvspace are the default send and receive window
