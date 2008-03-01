@@ -1525,11 +1525,12 @@ bgetvp(struct vnode *vp, struct buf *bp)
 /*
  * Disassociate a buffer from a vnode.
  */
-void
+int
 brelvp(struct buf *bp)
 {
 	struct bufobj *bo;
 	struct vnode *vp;
+	int waiters;
 
 	CTR3(KTR_BUF, "brelvp(%p) vp %p flags %X", bp, bp->b_vp, bp->b_flags);
 	KASSERT(bp->b_vp != NULL, ("brelvp: NULL"));
@@ -1554,7 +1555,10 @@ brelvp(struct buf *bp)
 	bp->b_flags &= ~B_NEEDSGIANT;
 	bp->b_vp = NULL;
 	bp->b_bufobj = NULL;
+	waiters = bp->b_waiters;
 	vdropl(vp);
+
+	return (waiters);
 }
 
 /*

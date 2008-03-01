@@ -139,6 +139,7 @@ struct buf {
 	void	*b_fsprivate2;
 	void	*b_fsprivate3;
 	int	b_pin_count;
+	int	b_waiters;		/* (V) waiters counter */
 };
 
 #define b_object	b_bufobj->bo_object
@@ -266,15 +267,41 @@ extern const char *buf_wmesg;		/* Default buffer lock message */
  *
  * Get a lock sleeping non-interruptably until it becomes available.
  */
-#define	BUF_LOCK(bp, locktype, interlock)				\
-	(lockmgr(&(bp)->b_lock, (locktype), (interlock)))
+static __inline int
+BUF_LOCK(struct buf *bp, int locktype, struct mtx *interlock);
+static __inline int
+BUF_LOCK(struct buf *bp, int locktype, struct mtx *interlock)
+{
+	int res;
+
+	if (locktype & LK_INTERLOCK)
+		bp->b_waiters++;
+	res = lockmgr(&bp->b_lock, locktype, interlock);
+	if (locktype & LK_INTERLOCK)
+		bp->b_waiters--;
+	return (res);
+}
 
 /*
  * Get a lock sleeping with specified interruptably and timeout.
  */
-#define	BUF_TIMELOCK(bp, locktype, interlock, wmesg, catch, timo)	\
-	(lockmgr_args(&(bp)->b_lock, (locktype) | LK_TIMELOCK,		\
-	    (interlock), (wmesg), (PRIBIO + 4) | (catch), (timo)))
+static __inline int
+BUF_TIMELOCK(struct buf *bp, int locktype, struct mtx *interlock,
+    const char *wmesg, int catch, int timo);
+static __inline int
+BUF_TIMELOCK(struct buf *bp, int locktype, struct mtx *interlock,
+    const char *wmesg, int catch, int timo)
+{
+	int res;
+
+	if (locktype & LK_INTERLOCK)
+		bp->b_waiters++;
+	res = lockmgr_args(&bp->b_lock, locktype | LK_TIMELOCK, interlock,
+	    wmesg, (PRIBIO + 4) | catch, timo);
+	if (locktype & LK_INTERLOCK)
+		bp->b_waiters--;
+	return (res);
+}
 
 /*
  * Release a lock. Only the acquiring process may free the lock unless
@@ -350,16 +377,6 @@ BUF_KERNPROC(struct buf *bp)
 	lockmgr_disown(&bp->b_lock);
 }
 #endif
-
-/*
- * Find out the number of waiters on a lock.
- */
-static __inline int BUF_LOCKWAITERS(struct buf *);
-static __inline int
-BUF_LOCKWAITERS(struct buf *bp)
-{
-	return (lockwaiters(&bp->b_lock));
-}
 
 #endif /* _KERNEL */
 
@@ -516,7 +533,7 @@ void	vfs_unbusy_pages(struct buf *);
 int	vmapbuf(struct buf *);
 void	vunmapbuf(struct buf *);
 void	relpbuf(struct buf *, int *);
-void	brelvp(struct buf *);
+int	brelvp(struct buf *);
 void	bgetvp(struct vnode *, struct buf *);
 void	pbgetbo(struct bufobj *bo, struct buf *bp);
 void	pbgetvp(struct vnode *, struct buf *);
