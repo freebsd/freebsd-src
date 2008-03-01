@@ -108,6 +108,9 @@
       will be incldued subsequent snapshots of &release.branch; and in
       &release.next;.</para>
 
+    <para>[20080229] The release notes gave an incorrect version
+      number for KDE.  The correct version number is 3.5.8.</para>
+
   </sect1>
 
   <sect1 id="security">
@@ -146,7 +149,15 @@
   <sect1 id="known-problems">
     <title>Known Problems and Solutions</title>
 
-    <para>No issues.</para>
+    <para>[20080229] A bug in Linux emulation may cause segmentation
+      faults for some Linux programs using &man.mmap.2;.  This issue
+      has been fixed on the HEAD and RELENG_6 branches.</para>
+
+    <para>[20080229] Multithreaded programs that perform a
+      &man.fork.2; operation may crash due to a race condition in the
+      threading library.  This problem has been fixed on the HEAD and
+      RELENG_6 branches, and is a candidate for an errata
+      notice.</para>
 
   </sect1>
 
