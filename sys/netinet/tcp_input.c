@@ -2832,11 +2832,11 @@ tcp_mss(struct tcpcb *tp, int offer)
 	tp->t_maxseg = mss;
 
 #if	(MCLBYTES & (MCLBYTES - 1)) == 0
-		if (mss > MCLBYTES)
-			mss &= ~(MCLBYTES-1);
+	if (mss > MCLBYTES)
+		mss &= ~(MCLBYTES-1);
 #else
-		if (mss > MCLBYTES)
-			mss = mss / MCLBYTES * MCLBYTES;
+	if (mss > MCLBYTES)
+		mss = mss / MCLBYTES * MCLBYTES;
 #endif
 	tp->t_maxseg = mss;
 
