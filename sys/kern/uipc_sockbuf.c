@@ -67,7 +67,6 @@ static	u_long sb_efficiency = 8;	/* parameter for sbreserve() */
 
 static void	sbdrop_internal(struct sockbuf *sb, int len);
 static void	sbflush_internal(struct sockbuf *sb);
-static void	sbrelease_internal(struct sockbuf *sb, struct socket *so);
 
 /*
  * Socantsendmore indicates that no more data will be sent on the socket; it
@@ -321,7 +320,7 @@ sbreserve(struct sockbuf *sb, u_long cc, struct socket *so,
 /*
  * Free mbufs held by a socket, and reserved mbuf space.
  */
-static void
+void
 sbrelease_internal(struct sockbuf *sb, struct socket *so)
 {
 
