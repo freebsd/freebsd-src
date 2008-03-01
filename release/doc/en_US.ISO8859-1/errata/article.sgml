@@ -161,7 +161,7 @@
       has been reported to cause odd interactions with some cable
       modem routers.  While this issue is still under investigation,
       a change has been committed to HEAD that returns the option
-      processing to that of &os; 6 has shown some promising
+      processing to that of &os; 6.  So far, this change has shown some promising
       results.</para>
 
 ]]>
