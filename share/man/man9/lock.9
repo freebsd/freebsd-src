@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 25, 2008
+.Dd March 1, 2008
 .Dt LOCK 9
 .Os
 .Sh NAME
@@ -41,6 +41,7 @@
 .Nd "lockmgr family of functions"
 .Sh SYNOPSIS
 .In sys/types.h
+.In sys/lock.h
 .In sys/lockmgr.h
 .Ft void
 .Fn lockinit "struct lock *lkp" "int prio" "const char *wmesg" "int timo" "int flags"
@@ -81,14 +82,12 @@ This is used for both debugging output and
 The timeout value passed to
 .Xr sleep 9 .
 .It Fa flags
-The flags the lock is to be initialized with.
+The flags the lock is to be initialized with:
 .Bl -tag -width ".Dv LK_CANRECURSE"
-.It Dv LK_NOWAIT
-Do not sleep while acquiring the lock.
-.It Dv LK_SLEEPFAIL
-Fail after a sleep.
 .It Dv LK_CANRECURSE
 Allow recursive exclusive locks.
+.It Dv LK_NOPROFILE
+Disable lock profiling for this lock.
 .It Dv LK_NOSHARE
 Allow exclusive locks only.
 .It Dv LK_NOWITNESS
@@ -98,6 +97,10 @@ to ignore this lock.
 .It Dv LK_NODUP
 .Xr witness 4
 should log messages about duplicate locks being acquired.
+.It Dv LK_QUIET
+Disable
+.Xr ktr 4
+logging for this lock.
 .It Dv LK_TIMELOCK
 Use
 .Fa timo
