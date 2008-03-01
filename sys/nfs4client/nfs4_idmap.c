@@ -32,6 +32,7 @@
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/lock.h>
 #include <sys/lockmgr.h>
 #include <sys/fnv_hash.h>
 #include <sys/proc.h>

@@ -164,6 +164,7 @@ struct smb_share_info {
 
 #ifdef _KERNEL
 
+#include <sys/lock.h>
 #include <sys/lockmgr.h>
 #include <netsmb/smb_subr.h>
 

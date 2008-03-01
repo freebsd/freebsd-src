@@ -546,11 +546,14 @@ lockinit(lkp, prio, wmesg, timo, flags)
 {
 	int iflags;
 
+	KASSERT((flags & (LK_NOWAIT | LK_SLEEPFAIL)) == 0,
+	    ("%s: Invalid flags passed with mask 0x%x", __func__,
+	    flags & LK_EXTFLG_MASK));
 	CTR5(KTR_LOCK, "lockinit(): lkp == %p, prio == %d, wmesg == \"%s\", "
 	    "timo == %d, flags = 0x%x\n", lkp, prio, wmesg, timo, flags);
 
 	lkp->lk_interlock = mtx_pool_alloc(mtxpool_lockbuilder);
-	lkp->lk_flags = (flags & LK_EXTFLG_MASK) & ~(LK_NOWITNESS | LK_NODUP);
+	lkp->lk_flags = (flags & LK_EXTFLG_MASK) & ~(LK_FUNC_MASK);
 	lkp->lk_sharecount = 0;
 	lkp->lk_waitcount = 0;
 	lkp->lk_exclusivecount = 0;
@@ -561,8 +564,12 @@ lockinit(lkp, prio, wmesg, timo, flags)
 	iflags = LO_RECURSABLE | LO_SLEEPABLE | LO_UPGRADABLE;
 	if (!(flags & LK_NODUP))
 		iflags |= LO_DUPOK;
+	if (flags & LK_NOPROFILE)
+		iflags |= LO_NOPROFILE;
 	if (!(flags & LK_NOWITNESS))
 		iflags |= LO_WITNESS;
+	if (flags & LK_QUIET)
+		iflags |= LO_QUIET;
 #ifdef DEBUG_LOCKS
 	stack_zero(&lkp->lk_stack);
 #endif
@@ -641,23 +648,6 @@ lockstatus(lkp)
 	if (interlocked)
 		mtx_unlock(lkp->lk_interlock);
 	return (lock_type);
-}
-
-/*
- * Determine the number of waiters on a lock.
- */
-int
-lockwaiters(lkp)
-	struct lock *lkp;
-{
-	int count;
-
-	KASSERT((lkp->lk_flags & LK_DESTROYED) == 0,
-	    ("%s: %p lockmgr is destroyed", __func__, lkp));
-	mtx_lock(lkp->lk_interlock);
-	count = lkp->lk_waitcount;
-	mtx_unlock(lkp->lk_interlock);
-	return (count);
 }
 
 /*
