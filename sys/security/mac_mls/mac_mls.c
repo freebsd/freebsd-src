@@ -1520,9 +1520,7 @@ mac_mls_check_ifnet_relabel(struct ucred *cred, struct ifnet *ifp,
 	/*
 	 * Relabeling network interfaces requires MLS privilege.
 	 */
-	error = mac_mls_subject_privileged(subj);
-
-	return (0);
+	return (mac_mls_subject_privileged(subj));
 }
 
 static int
