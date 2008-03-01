@@ -524,7 +524,7 @@ struct bpf_hdr {
 
 /*
  * Juniper-private data link type, as per request from
- * Hannes Gredler <hannes@juniper.net>. 
+ * Hannes Gredler <hannes@juniper.net>.
  * The DLT_ are used for prepending meta-information
  * like interface index, interface name
  * before standard Ethernet, PPP, Frelay & C-HDLC Frames
@@ -631,7 +631,7 @@ struct bpf_if {
 #define	bpf_tap		bpf_tap_new
 #define	bpf_mtap	bpf_mtap_new
 #define	bpf_mtap2	bpf_mtap2_new
-   
+
 int	 bpf_validate(const struct bpf_insn *, int);
 void	 bpf_tap(struct bpf_if *, u_char *, u_int);
 void	 bpf_mtap(struct bpf_if *, struct mbuf *);
