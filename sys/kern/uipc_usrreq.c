@@ -53,7 +53,6 @@
  *	SEQPACKET, RDM
  *	rethink name space problems
  *	need a proper out-of-band
- *	lock pushdown
  */
 
 #include <sys/cdefs.h>
