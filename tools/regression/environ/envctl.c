@@ -39,18 +39,24 @@ __FBSDID("$FreeBSD$");
 extern char **environ;
 
 
+/*
+ * Print entire environ array.
+ */
 static void
 dump_environ(void)
 {
 	char **environPtr;
 
-	for (environPtr = environ; *environPtr != NULL; *environPtr++)
+	for (environPtr = environ; *environPtr != NULL; environPtr++)
 		printf("%s\n", *environPtr);
 
 	return;
 }
 
 
+/*
+ * Print usage.
+ */
 static void
 usage(const char *program)
 {
@@ -76,6 +82,19 @@ usage(const char *program)
 }
 
 
+/*
+ * Print the return value of a call along with errno upon error else zero.
+ * Also, use the eol string based upon whether running in test mode or not.
+ */
+static void
+print_rtrn_errno(int rtrnVal, const char *eol)
+{
+	printf("%d %d%s", rtrnVal, rtrnVal != 0 ? errno : 0, eol);
+
+	return;
+}
+
+
 int
 main(int argc, char **argv)
 {
@@ -89,6 +108,7 @@ main(int argc, char **argv)
 		exit(EXIT_FAILURE);
 	}
 
+	/* The entire program is basically executed from this loop. */
 	while ((arg = getopt(argc, argv, "CDGS:Ucg:hp:rs:tu:")) != -1) {
 		switch (arg) {
 			case 'C':
@@ -100,23 +120,17 @@ main(int argc, char **argv)
 				break;
 
 			case 'D':
-				errno = 0;
 				dump_environ();
 				break;
 
 			case 'G':
-				value = getenv(NULL);
-				printf("%s%s", value == NULL ? "" : value, eol);
-				break;
-
 			case 'g':
-				value = getenv(optarg);
+				value = getenv(arg == 'g' ? optarg : NULL);
 				printf("%s%s", value == NULL ? "" : value, eol);
 				break;
 
 			case 'p':
-				errno = 0;
-				printf("%d %d%s", putenv(optarg), errno, eol);
+				print_rtrn_errno(putenv(optarg), eol);
 				break;
 
 			case 'r':
@@ -124,16 +138,14 @@ main(int argc, char **argv)
 				break;
 
 			case 'S':
-				errno = 0;
-				printf("%d %d%s", setenv(NULL, optarg,
-				    atoi(argv[optind])), errno, eol);
+				print_rtrn_errno(setenv(NULL, optarg,
+				    atoi(argv[optind])), eol);
 				optind += 1;
 				break;
 
 			case 's':
-				errno = 0;
-				printf("%d %d%s", setenv(optarg, argv[optind],
-				    atoi(argv[optind + 1])), errno, eol);
+				print_rtrn_errno(setenv(optarg, argv[optind],
+				    atoi(argv[optind + 1])), eol);
 				optind += 2;
 				break;
 
@@ -142,11 +154,9 @@ main(int argc, char **argv)
 				break;
 
 			case 'U':
-				printf("%d %d%s", unsetenv(NULL), errno, eol);
-				break;
-
 			case 'u':
-				printf("%d %d%s", unsetenv(optarg), errno, eol);
+				print_rtrn_errno(unsetenv(arg == 'u' ? optarg :
+				    NULL), eol);
 				break;
 
 			case 'h':
@@ -156,7 +166,7 @@ main(int argc, char **argv)
 		}
 	}
 
-	// Output a closing newline in test mode.
+	/* Output a closing newline in test mode. */
 	if (eol[0] == ' ')
 		printf("\n");
 
