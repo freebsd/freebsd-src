@@ -372,6 +372,7 @@ MAN=	aac.4 \
 	ubsec.4 \
 	ubser.4 \
 	ubtbcmfw.4 \
+	uchcom.4 \
 	ucom.4 \
 	ucycom.4 \
 	udav.4 \
