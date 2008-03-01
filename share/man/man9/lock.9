@@ -34,6 +34,7 @@
 .Nm lockdestroy ,
 .Nm lockmgr ,
 .Nm lockstatus ,
+.Nm lockmgr_args ,
 .Nm lockmgr_disown ,
 .Nm lockmgr_printinfo ,
 .Nm lockmgr_recursed ,
@@ -50,13 +51,15 @@
 .Ft int
 .Fn lockmgr "struct lock *lkp" "u_int flags" "struct mtx *interlkp"
 .Ft int
-.Fn lockstatus "struct lock *lkp"
+.Fn lockmgr_args "struct lock *lkp" "u_int flags" "struct mtx *interlkp" "const char *wmesg" "int prio" "int timo"
 .Ft void
 .Fn lockmgr_disown "struct lock *lkp"
 .Ft void
 .Fn lockmgr_printinfo "struct lock *lkp"
 .Ft int
 .Fn lockmgr_recursed "struct lock *lkp"
+.Ft int
+.Fn lockstatus "struct lock *lkp"
 .Pp
 .Cd "options INVARIANTS"
 .Cd "options INVARIANT_SUPPORT"
@@ -182,8 +185,20 @@ See
 .El
 .Pp
 The
-.Fn lockstatus
-function returns the status of the lock in relation to the current thread.
+.Fn lockmgr_args
+function works like
+.Fn lockmgr
+but accepting a
+.Fa wmesg ,
+.Fa timo
+and
+.Fa prio
+on a per-instance basis.  The specified values will override the default
+ones, but this can still be used passing, respectively,
+.Dv LK_WMESG_DEFAULT ,
+.Dv LK_PRIO_DEFAULT
+and
+.Dv LK_TIMO_DEFAULT .
 .Pp
 The
 .Fn lockmgr_disown
@@ -202,6 +217,10 @@ The
 .Fn lockmgr_recursed
 function returns true if the lock is recursed, 0
 otherwise.
+.Pp
+The
+.Fn lockstatus
+function returns the status of the lock in relation to the current thread.
 .Pp
 When compiled with
 .Cd "options INVARIANTS"
