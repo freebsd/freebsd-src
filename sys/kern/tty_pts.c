@@ -45,6 +45,10 @@ __FBSDID("$FreeBSD$");
 /*
  * Pseudo-teletype Driver
  * (Actually two drivers, requiring two entries in 'cdevsw')
+ *
+ * XXX: This driver is currently disabled in FreeBSD 7.x due to reference
+ * count issues that prevent allocated but unused pty/pts devices from being
+ * garbage collected.
  */
 #include "opt_compat.h"
 #include "opt_tty.h"
