@@ -1334,10 +1334,11 @@ igb_msix_link(void *arg)
 
 	++adapter->link_irq;
 	eicr = E1000_READ_REG(&adapter->hw, E1000_EICR);
-	if (eicr & E1000_EIMS_OTHER)
+	if (eicr & E1000_EIMS_OTHER) {
 		icr = E1000_READ_REG(&adapter->hw, E1000_ICR);
 		if (!(icr & E1000_ICR_LSC))
 			goto spurious;
+	}
 	taskqueue_enqueue(taskqueue_fast, &adapter->link_task);
 
 spurious:
