@@ -233,7 +233,6 @@ vm_map_modflags(vm_map_t map, vm_flags_t set, vm_flags_t clear)
  */
 struct vmspace {
 	struct vm_map vm_map;	/* VM address map */
-	struct pmap vm_pmap;	/* private physical map */
 	struct shmmap_state *vm_shm;	/* SYS5 shared memory private data XXX */
 	segsz_t vm_swrss;	/* resident set size before last swap */
 	segsz_t vm_tsize;	/* text size (pages) XXX */
@@ -243,6 +242,12 @@ struct vmspace {
 	caddr_t vm_daddr;	/* (c) user virtual address of data */
 	caddr_t vm_maxsaddr;	/* user VA at max stack growth */
 	int	vm_refcnt;	/* number of references */
+	/*
+	 * Keep the PMAP last, so that CPU-specific variations of that
+	 * structure on a single architecture don't result in offset
+	 * variations of the machine-independent fields in the vmspace.
+	 */
+	struct pmap vm_pmap;	/* private physical map */
 };
 
 #ifdef	_KERNEL
