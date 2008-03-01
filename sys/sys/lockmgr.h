@@ -68,6 +68,9 @@ struct lock {
 };
 
 #define lk_wmesg lk_object.lo_name
+
+#ifdef _KERNEL
+
 /*
  * Lock request types:
  *   LK_SHARED - get one of many possible shared locks. If a process
@@ -231,5 +234,7 @@ int	lockstatus(struct lock *);
 #ifdef DDB
 int	lockmgr_chain(struct thread *td, struct thread **ownerp);
 #endif
+
+#endif /* _KERNEL */
 
 #endif /* !_SYS_LOCKMGR_H_ */
