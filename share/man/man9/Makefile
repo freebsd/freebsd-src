@@ -718,6 +718,7 @@ MLINKS+=ktr.9 CTR0.9 \
 MLINKS+=lock.9 lockdestroy.9 \
 	lock.9 lockinit.9 \
 	lock.9 lockmgr.9 \
+	lock.9 lockmgr_args.9 \
 	lock.9 lockmgr_assert.9 \
 	lock.9 lockmgr_disown.9 \
 	lock.9 lockmgr_printinfo.9 \
