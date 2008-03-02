@@ -203,6 +203,9 @@ CROSSENV=	MAKEOBJDIRPREFIX=${OBJTREE} \
 		GROFF_BIN_PATH=${WORLDTMP}/legacy/usr/bin \
 		GROFF_FONT_PATH=${WORLDTMP}/legacy/usr/share/groff_font \
 		GROFF_TMAC_PATH=${WORLDTMP}/legacy/usr/share/tmac
+.if ${OSRELDATE} < 700044
+CROSSENV+=	AR=gnu-ar RANLIB=gnu-ranlib
+.endif
 
 # bootstrap-tools stage
 BMAKEENV=	INSTALL="sh ${.CURDIR}/tools/install.sh" \
@@ -970,10 +973,6 @@ _crunchide=	usr.sbin/crunch/crunchide
 .if ${TARGET_ARCH} == "i386" && defined(RELEASEDIR)
 _kgzip=		usr.sbin/kgzip
 .endif
-.endif
-
-.if make(cross-tools) && ${BOOTSTRAPPING} < 700044
-.MAKEFLAGS+=	-D_WITH_GNUAR
 .endif
 
 cross-tools:
