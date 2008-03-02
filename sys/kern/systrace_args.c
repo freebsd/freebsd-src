@@ -2887,6 +2887,54 @@ systrace_args(int sysnum, void *params, u_int64_t *uarg, int *n_args)
 		*n_args = 1;
 		break;
 	}
+	/* cpuset */
+	case 484: {
+		struct cpuset_args *p = params;
+		uarg[0] = (intptr_t) p->setid; /* cpusetid_t * */
+		*n_args = 1;
+		break;
+	}
+	/* cpuset_setid */
+	case 485: {
+		struct cpuset_setid_args *p = params;
+		iarg[0] = p->which; /* cpuwhich_t */
+		iarg[1] = p->id; /* id_t */
+		iarg[2] = p->setid; /* cpusetid_t */
+		*n_args = 3;
+		break;
+	}
+	/* cpuset_getid */
+	case 486: {
+		struct cpuset_getid_args *p = params;
+		iarg[0] = p->level; /* cpulevel_t */
+		iarg[1] = p->which; /* cpuwhich_t */
+		iarg[2] = p->id; /* id_t */
+		uarg[3] = (intptr_t) p->setid; /* cpusetid_t * */
+		*n_args = 4;
+		break;
+	}
+	/* cpuset_getaffinity */
+	case 487: {
+		struct cpuset_getaffinity_args *p = params;
+		iarg[0] = p->level; /* cpulevel_t */
+		iarg[1] = p->which; /* cpuwhich_t */
+		iarg[2] = p->id; /* id_t */
+		iarg[3] = p->cpusetsize; /* int */
+		uarg[4] = (intptr_t) p->mask; /* long * */
+		*n_args = 5;
+		break;
+	}
+	/* cpuset_setaffinity */
+	case 488: {
+		struct cpuset_setaffinity_args *p = params;
+		iarg[0] = p->level; /* cpulevel_t */
+		iarg[1] = p->which; /* cpuwhich_t */
+		iarg[2] = p->id; /* id_t */
+		iarg[3] = p->cpusetsize; /* int */
+		uarg[4] = (intptr_t) p->mask; /* long * */
+		*n_args = 5;
+		break;
+	}
 	default:
 		*n_args = 0;
 		break;
