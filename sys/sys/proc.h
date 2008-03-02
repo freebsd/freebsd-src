@@ -163,6 +163,7 @@ struct thread;
 struct trapframe;
 struct turnstile;
 struct mqueue_notifier;
+struct cpuset;
 
 /*
  * Here we define the two structures used for process information.
@@ -208,7 +209,7 @@ struct thread {
 	/* The two queues below should someday be merged. */
 	TAILQ_ENTRY(thread) td_slpq;	/* (t) Sleep queue. */
 	TAILQ_ENTRY(thread) td_lockq;	/* (t) Lock queue. */
-
+	struct cpuset	*td_cpuset;	/* (t) CPU affinity mask. */
 	struct seltd	*td_sel;	/* Select queue/channel. */
 	struct sleepqueue *td_sleepqueue; /* (k) Associated sleep queue. */
 	struct turnstile *td_turnstile;	/* (k) Associated turnstile. */
