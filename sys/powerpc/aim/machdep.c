@@ -107,6 +107,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/elf.h>
 #include <machine/fpu.h>
+#include <machine/kdb.h>
 #include <machine/md_var.h>
 #include <machine/metadata.h>
 #include <machine/mmuvar.h>
@@ -519,13 +520,13 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 		 */
 		sf.sf_si = ksi->ksi_info;
 		sf.sf_si.si_signo = sig;
-		sf.sf_si.si_addr = (void *) ((tf->exc == EXC_DSI) ? 
-		                             tf->dar : tf->srr0);
+		sf.sf_si.si_addr = (void *)((tf->exc == EXC_DSI) ? 
+		    tf->cpu.aim.dar : tf->srr0);
 	} else {
 		/* Old FreeBSD-style arguments. */
 		tf->fixreg[FIRSTARG+1] = code;
 		tf->fixreg[FIRSTARG+3] = (tf->exc == EXC_DSI) ? 
-		                             tf->dar : tf->srr0;
+		    tf->cpu.aim.dar : tf->srr0;
 	}
 	mtx_unlock(&psp->ps_mtx);
 	PROC_UNLOCK(p);
@@ -895,6 +896,20 @@ ptrace_clear_single_step(struct thread *td)
 	tf->srr1 &= ~PSL_SE;
 
 	return (0);
+}
+
+void
+kdb_cpu_clear_singlestep(void)
+{
+
+	kdb_frame->srr1 &= ~PSL_SE;
+}
+
+void
+kdb_cpu_set_singlestep(void)
+{
+
+	kdb_frame->srr1 |= PSL_SE;
 }
 
 /*

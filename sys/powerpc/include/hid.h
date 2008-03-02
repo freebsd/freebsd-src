@@ -38,7 +38,6 @@
 #define HID0_EBD	0x10000000  /* Enable 60x bus data parity checking */
 #define HID0_BCLK	0x08000000  /* CLK_OUT clock type selection */
 #define HID0_EICE	0x04000000  /* Enable ICE output */
-#define HID0_TBEN	0x04000000  /* Time base enable (7450) */
 #define HID0_ECLK	0x02000000  /* CLK_OUT clock type selection */
 #define HID0_PAR	0x01000000  /* Disable precharge of ARTRY */
 #define HID0_STEN	0x01000000  /* Software table search enable (7450) */
@@ -71,6 +70,12 @@
 #define HID0_BHT	0x00000004  /* Enable branch history table */
 #define HID0_NOPTI	0x00000001  /* No-op the dcbt(st) */
 
+#define HID0_AIM_TBEN	0x04000000  /* Time base enable (7450) */
+
+#define HID0_BOOKE_TBEN		0x00004000 /* Time Base and decr. enable */
+#define HID0_BOOKE_SEL_TBCLK	0x00002000 /* Select Time Base clock */
+#define HID0_BOOKE_MAS7UPDEN	0x00000080 /* Enable MAS7 update (e500v2) */
+
 #define HID0_BITMASK							\
     "\20"								\
     "\040EMCP\037DBP\036EBA\035EBD\034BCLK\033EICE\032ECLK\031PAR"	\
@@ -95,39 +100,39 @@
 /*
  *  HID0 bit definitions per cpu model
  *
- * bit	603	604	750	7400	7410   7450    7457
- *   0	EMCP	EMCP	EMCP	EMCP	EMCP   -       -
- *   1	-	ECP	DBP	-	-      -       -
- *   2	EBA	EBA	EBA	EBA	EDA    -       -
- *   3	EBD	EBD	EBD	EBD	EBD    -       -
- *   4	SBCLK	-	BCLK	BCKL	BCLK   -       -
- *   5	EICE	-	-	-	-      TBEN    TBEN
- *   6	ECLK	-	ECLK	ECLK	ECLK   -       -
- *   7	PAR	PAR	PAR	PAR	PAR    STEN    STEN
- *   8	DOZE	-	DOZE	DOZE	DOZE   -       HBATEN
- *   9	NAP	-	NAP	NAP	NAP    NAP     NAP
- *  10	SLEEP	-	SLEEP	SLEEP	SLEEP  SLEEP   SLEEP
- *  11	DPM	-	DPM	DPM	DPM    DPM     DPM
- *  12	RISEG	-	-	RISEG	-      -       -
- *  13	-	-	-	EIEC	EIEC   BHTCLR  BHTCLR
- *  14	-	-	-	-	-      XAEN    XAEN
- *  15	-	NHR	NHR	NHR	NHR    NHR     NHR
- *  16	ICE	ICE	ICE	ICE	ICE    ICE     ICE
- *  17	DCE	DCE	DCE	DCE	DCE    DCE     DCE
- *  18	ILOCK	ILOCK	ILOCK	ILOCK	ILOCK  ILOCK   ILOCK
- *  19	DLOCK	DLOCK	DLOCK	DLOCK	DLOCK  DLOCK   DLOCK
- *  20	ICFI	ICFI	ICFI	ICFI	ICFI   ICFI    ICFI
- *  21	DCFI	DCFI	DCFI	DCFI	DCFI   DCFI    DCFI
- *  22	-	-	SPD	SPD	SPG    SPD     SPD
- *  23	-	-	IFEM	IFTT	IFTT   -       XBSEN
- *  24	-	SIE	SGE	SGE	SGE    SGE     SGE
- *  25	-	-	DCFA	DCFA	DCFA   -       -
- *  26	-	-	BTIC	BTIC	BTIC   BTIC    BTIC
- *  27	FBIOB	-	-	-	-      LRSTK   LRSTK
- *  28	-	-	ABE	-	-      FOLD    FOLD
- *  29	-	BHT	BHT	BHT	BHT    BHT     BHT
- *  30	-	-	-	NOPDST	NOPDST NOPDST  NOPDST
- *  31	NOOPTI	-	NOOPTI	NOPTI	NOPTI  NOPTI   NOPTI
+ * bit	603	604	750	7400	7410	7450	7457	e500
+ *   0	EMCP	EMCP	EMCP	EMCP	EMCP	-	-	EMCP
+ *   1	-	ECP	DBP	-	-	-	-	-
+ *   2	EBA	EBA	EBA	EBA	EDA	-	-	-
+ *   3	EBD	EBD	EBD	EBD	EBD	-	-	-
+ *   4	SBCLK	-	BCLK	BCKL	BCLK	-	-	-
+ *   5	EICE	-	-	-	-	TBEN	TBEN	-
+ *   6	ECLK	-	ECLK	ECLK	ECLK	-	-	-
+ *   7	PAR	PAR	PAR	PAR	PAR	STEN	STEN	-
+ *   8	DOZE	-	DOZE	DOZE	DOZE	-	HBATEN	DOZE
+ *   9	NAP	-	NAP	NAP	NAP	NAP	NAP	NAP
+ *  10	SLEEP	-	SLEEP	SLEEP	SLEEP	SLEEP	SLEEP	SLEEP
+ *  11	DPM	-	DPM	DPM	DPM	DPM	DPM	-
+ *  12	RISEG	-	-	RISEG	-	-	-	-
+ *  13	-	-	-	EIEC	EIEC	BHTCLR	BHTCLR	-
+ *  14	-	-	-	-	-	XAEN	XAEN	-
+ *  15	-	NHR	NHR	NHR	NHR	NHR	NHR	-
+ *  16	ICE	ICE	ICE	ICE	ICE	ICE	ICE	-
+ *  17	DCE	DCE	DCE	DCE	DCE	DCE	DCE	TBEN
+ *  18	ILOCK	ILOCK	ILOCK	ILOCK	ILOCK	ILOCK	ILOCK	SEL_TBCLK
+ *  19	DLOCK	DLOCK	DLOCK	DLOCK	DLOCK	DLOCK	DLOCK	-
+ *  20	ICFI	ICFI	ICFI	ICFI	ICFI	ICFI	ICFI	-
+ *  21	DCFI	DCFI	DCFI	DCFI	DCFI	DCFI	DCFI	-
+ *  22	-	-	SPD	SPD	SPG	SPD	SPD	-
+ *  23	-	-	IFEM	IFTT	IFTT	-	XBSEN	-
+ *  24	-	SIE	SGE	SGE	SGE	SGE	SGE	EN_MAS7_UPDATE
+ *  25	-	-	DCFA	DCFA	DCFA	-	-	DCFA
+ *  26	-	-	BTIC	BTIC	BTIC	BTIC	BTIC	-
+ *  27	FBIOB	-	-	-	-	LRSTK	LRSTK	-
+ *  28	-	-	ABE	-	-	FOLD	FOLD	-
+ *  29	-	BHT	BHT	BHT	BHT	BHT	BHT	-
+ *  30	-	-	-	NOPDST	NOPDST	NOPDST	NOPDST	-
+ *  31	NOOPTI	-	NOOPTI	NOPTI	NOPTI	NOPTI	NOPTI	NOPTI
  *
  *  604: ECP = Enable cache parity checking
  *  604: SIE = Serial instruction execution disable
