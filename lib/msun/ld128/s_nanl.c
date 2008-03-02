@@ -41,6 +41,6 @@ nanl(const char *s)
 
 	_scan_nan(u.bits, 4, s);
 	u.ieee.bits.exp = 0x7fff;
-	u.ieee.bits.manh |= 1 << 47;	/* make it a quiet NaN */
+	u.ieee.bits.manh |= 1ULL << 47;	/* make it a quiet NaN */
 	return (u.ieee.e);
 }
