@@ -61,6 +61,9 @@ typedef	struct __timer	*__timer_t;	/* timer_gettime()... */
 typedef	struct __mq	*__mqd_t;	/* mq_open()... */
 typedef	__uint32_t	__uid_t;
 typedef	unsigned int	__useconds_t;	/* microseconds (unsigned) */
+typedef	int		__cpuwhich_t;	/* which parameter for cpuset. */
+typedef	int		__cpulevel_t;	/* level parameter for cpuset. */
+typedef int		__cpusetid_t;	/* cpuset identifier. */
 
 /*
  * Unusual type definitions.

@@ -66,6 +66,11 @@ FBSD_1.0 {
 	clock_settime;
 	close;
 	connect;
+	cpuset;
+	cpuset_getid;
+	cpuset_setid;
+	cpuset_getaffinity;
+	cpuset_setaffinity;
 	dup;
 	dup2;
 	eaccess;
@@ -450,6 +455,16 @@ FBSDprivate_1.0 {
 	__sys_close;
 	_connect;
 	__sys_connect;
+	__cpuset;
+	__sys_cpuset;
+	__cpuset_getid;
+	__sys_cpuset_getid;
+	__cpuset_setid;
+	__sys_cpuset_setid;
+	__cpuset_getaffinity;
+	__sys_cpuset_getaffinity;
+	__cpuset_setaffinity;
+	__sys_cpuset_setaffinity;
 	_dup;
 	__sys_dup;
 	_dup2;
