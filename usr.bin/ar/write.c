@@ -298,13 +298,19 @@ write_archive(struct bsdar *bsdar, char mode)
 
 		size = archive_entry_size(entry);
 
-		if ((buff = malloc(size)) == NULL)
-			bsdar_errc(bsdar, EX_SOFTWARE, errno, "malloc failed");
-		if (archive_read_data(a, buff, size) != (ssize_t)size) {
-			bsdar_warnc(bsdar, 0, "%s", archive_error_string(a));
-			free(buff);
-			continue;
-		}
+		if (size > 0) {
+			if ((buff = malloc(size)) == NULL)
+				bsdar_errc(bsdar, EX_SOFTWARE, errno,
+				    "malloc failed");
+			if (archive_read_data(a, buff, size) != (ssize_t)size) {
+				bsdar_warnc(bsdar, 0, "%s",
+				    archive_error_string(a));
+				free(buff);
+				continue;
+			}
+		} else
+			buff = NULL;
+
 		obj = malloc(sizeof(struct ar_obj));
 		if (obj == NULL)
 			bsdar_errc(bsdar, EX_SOFTWARE, errno, "malloc failed");
@@ -501,7 +507,7 @@ write_objs(struct bsdar *bsdar)
 
 	/*
 	 * Archive string table is padded by a "\n" as the normal members.
-	 * The differece is that the size of archive string table counts
+	 * The difference is that the size of archive string table counts
 	 * in the pad bit, while normal members' size fileds do not.
 	 */
 	if (bsdar->as != NULL && bsdar->as_sz % 2 != 0)
@@ -509,7 +515,7 @@ write_objs(struct bsdar *bsdar)
 
 	/*
 	 * If there is a symbol table, calculate the size of pseudo members,
-	 * covert previously stored relative offsets to absolute ones, and
+	 * convert previously stored relative offsets to absolute ones, and
 	 * then make them Big Endian.
 	 *
 	 * absolute_offset = htobe32(relative_offset + size_of_pseudo_members)
@@ -731,7 +737,7 @@ add_to_ar_str_table(struct bsdar *bsdar, const char *name)
 	 * The space required for holding one member name in as table includes:
 	 * strlen(name) + (1 for '/') + (1 for '\n') + (possibly 1 for padding).
 	 */
-	if (bsdar->as_sz + strlen(name) + 3 > bsdar->as_cap) {
+	while (bsdar->as_sz + strlen(name) + 3 > bsdar->as_cap) {
 		bsdar->as_cap *= 2;
 		bsdar->as = realloc(bsdar->as, bsdar->as_cap);
 		if (bsdar->as == NULL)
@@ -778,7 +784,7 @@ add_to_ar_sym_table(struct bsdar *bsdar, const char *name)
 	 * The space required for holding one symbol name in sn table includes:
 	 * strlen(name) + (1 for '\n') + (possibly 1 for padding).
 	 */
-	if (bsdar->s_sn_sz + strlen(name) + 2 > bsdar->s_sn_cap) {
+	while (bsdar->s_sn_sz + strlen(name) + 2 > bsdar->s_sn_cap) {
 		bsdar->s_sn_cap *= 2;
 		bsdar->s_sn = realloc(bsdar->s_sn, bsdar->s_sn_cap);
 		if (bsdar->s_sn == NULL)
