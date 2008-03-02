@@ -1,7 +1,8 @@
 /*	$NetBSD: ucom.c,v 1.40 2001/11/13 06:24:54 lukem Exp $	*/
 
 /*-
- * Copyright (c) 2001-2003, 2005 Shunsuke Akiyama <akiyama@jp.FreeBSD.org>.
+ * Copyright (c) 2001-2003, 2005, 2008
+ *	 Shunsuke Akiyama <akiyama@jp.FreeBSD.org>.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -113,6 +114,7 @@ SYSCTL_INT(_hw_usb_ucom, OID_AUTO, debug, CTLFLAG_RW,
 #define DPRINTFN(n, x)
 #endif
 
+Static int ucom_modevent(module_t, int, void *);
 Static void ucom_cleanup(struct ucom_softc *);
 Static int ucomparam(struct tty *, struct termios *);
 Static void ucomstart(struct tty *);
@@ -135,13 +137,28 @@ devclass_t ucom_devclass;
 
 static moduledata_t ucom_mod = {
 	"ucom",
-	NULL,
+	ucom_modevent,
 	NULL
 };
 
 DECLARE_MODULE(ucom, ucom_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE);
 MODULE_DEPEND(ucom, usb, 1, 1, 1);
 MODULE_VERSION(ucom, UCOM_MODVER);
+
+Static int
+ucom_modevent(module_t mod, int type, void *data)
+{
+	switch (type) {
+	case MOD_LOAD:
+		break;
+	case MOD_UNLOAD:
+		break;
+	default:
+		return (EOPNOTSUPP);
+		break;
+	}
+	return (0);
+}
 
 int
 ucom_attach(struct ucom_softc *sc)
