@@ -28,14 +28,15 @@
 .\"     from: @(#)sqrt.3	6.4 (Berkeley) 5/6/91
 .\" $FreeBSD$
 .\"
-.Dd December 14, 2007
+.Dd March 1, 2008
 .Dt SQRT 3
 .Os
 .Sh NAME
 .Nm cbrt ,
 .Nm cbrtf ,
 .Nm sqrt ,
-.Nm sqrtf
+.Nm sqrtf ,
+.Nm sqrtl
 .Nd cube root and square root functions
 .Sh LIBRARY
 .Lb libm
@@ -49,6 +50,8 @@
 .Fn sqrt "double x"
 .Ft float
 .Fn sqrtf "float x"
+.Ft long double
+.Fn sqrtl "long double x"
 .Sh DESCRIPTION
 The
 .Fn cbrt
@@ -59,9 +62,10 @@ the cube root of
 .Ar x .
 .Pp
 The
-.Fn sqrt
-and the
-.Fn sqrtf
+.Fn sqrt ,
+.Fn sqrtf ,
+and
+.Fn sqrtl
 functions compute the
 non-negative square root of x.
 .Sh RETURN VALUES
@@ -71,9 +75,10 @@ and the
 .Fn cbrtf
 functions return the requested cube root.
 The
-.Fn sqrt
-and the
-.Fn sqrtf
+.Fn sqrt ,
+.Fn sqrtf ,
+and
+.Fn sqrtl
 functions return the requested square root
 unless an error occurs.
 An attempt to take the
@@ -90,8 +95,9 @@ The
 .Fn cbrt ,
 .Fn cbrtf ,
 .Fn sqrt ,
+.Fn sqrtf ,
 and
-.Fn sqrtf
+.Fn sqrtl
 functions conform to
 .St -isoC-99 .
 .Sh HISTORY
@@ -99,3 +105,7 @@ The
 .Fn cbrt
 function appeared in
 .Bx 4.3 .
+The
+.Fn sqrtl
+function appeared in
+.Fx 8.0 .
