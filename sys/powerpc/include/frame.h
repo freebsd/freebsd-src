@@ -50,15 +50,25 @@
 struct trapframe {
 	register_t fixreg[32];
 	register_t lr;
-	int cr;
-	int xer;
+	int	cr;
+	int	xer;
 	register_t ctr;
 	register_t srr0;
 	register_t srr1;
-	register_t dar;		/* dar & dsisr are only filled on a DSI trap */
-	int dsisr;
-	int exc;
+	int	exc;
+	union {
+		struct {
+			/* dar & dsisr are only filled on a DSI trap */
+			register_t dar;
+			int	dsisr;
+		} aim;
+		struct {
+			register_t dear;
+			register_t esr;
+		} booke;
+	} cpu;
 };
+
 /*
  * This is to ensure alignment of the stackpointer
  */

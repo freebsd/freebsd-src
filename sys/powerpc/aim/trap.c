@@ -292,7 +292,7 @@ printtrap(u_int vector, struct trapframe *frame, int isfatal, int user)
 	    trapname(vector));
 	switch (vector) {
 	case EXC_DSI:
-		printf("   virtual address = 0x%x\n", frame->dar);
+		printf("   virtual address = 0x%x\n", frame->cpu.aim.dar);
 		break;
 	case EXC_ISI:
 		printf("   virtual address = 0x%x\n", frame->srr0);
@@ -510,8 +510,8 @@ trap_pfault(struct trapframe *frame, int user)
 		eva = frame->srr0;
 		ftype = VM_PROT_READ | VM_PROT_EXECUTE;
 	} else {
-		eva = frame->dar;
-		if (frame->dsisr & DSISR_STORE)
+		eva = frame->cpu.aim.dar;
+		if (frame->cpu.aim.dsisr & DSISR_STORE)
 			ftype = VM_PROT_WRITE;
 		else
 			ftype = VM_PROT_READ;
@@ -643,12 +643,12 @@ fix_unaligned(struct thread *td, struct trapframe *frame)
 	int		indicator, reg;
 	double		*fpr;
 
-	indicator = EXC_ALI_OPCODE_INDICATOR(frame->dsisr);
+	indicator = EXC_ALI_OPCODE_INDICATOR(frame->cpu.aim.dsisr);
 
 	switch (indicator) {
 	case EXC_ALI_LFD:
 	case EXC_ALI_STFD:
-		reg = EXC_ALI_RST(frame->dsisr);
+		reg = EXC_ALI_RST(frame->cpu.aim.dsisr);
 		fpr = &td->td_pcb->pcb_fpu.fpr[reg];
 		fputhread = PCPU_GET(fputhread);
 
@@ -664,12 +664,12 @@ fix_unaligned(struct thread *td, struct trapframe *frame)
 		save_fpu(td);
 
 		if (indicator == EXC_ALI_LFD) {
-			if (copyin((void *)frame->dar, fpr,
+			if (copyin((void *)frame->cpu.aim.dar, fpr,
 			    sizeof(double)) != 0)
 				return -1;
 			enable_fpu(td);
 		} else {
-			if (copyout(fpr, (void *)frame->dar,
+			if (copyout(fpr, (void *)frame->cpu.aim.dar,
 			    sizeof(double)) != 0)
 				return -1;
 		}
