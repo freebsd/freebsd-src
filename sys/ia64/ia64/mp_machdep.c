@@ -84,6 +84,13 @@ volatile int ap_spin;
 
 static void cpu_mp_unleash(void *);
 
+struct cpu_group *
+cpu_topo(void)
+{
+
+	return smp_topo_none();
+}
+
 void
 ia64_ap_startup(void)
 {

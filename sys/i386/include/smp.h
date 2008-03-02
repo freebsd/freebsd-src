@@ -45,6 +45,10 @@ extern u_long *ipi_rendezvous_counts[MAXCPU];
 extern u_long *ipi_lazypmap_counts[MAXCPU];
 #endif
 
+/* global data in identcpu.c */
+extern int			cpu_cores;
+extern int			cpu_logical;
+
 /* IPI handlers */
 inthand_t
 	IDTVEC(invltlb),	/* TLB shootdowns - global */
@@ -67,7 +71,6 @@ void	ipi_self(u_int ipi);
 void 	ipi_bitmap_handler(struct trapframe frame);
 u_int	mp_bootaddress(u_int);
 int	mp_grab_cpu_hlt(void);
-void	mp_topology(void);
 void	smp_cache_flush(void);
 void	smp_invlpg(vm_offset_t addr);
 void	smp_masked_invlpg(u_int mask, vm_offset_t addr);
