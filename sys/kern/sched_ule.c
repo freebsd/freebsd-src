@@ -2492,6 +2492,11 @@ sched_pctcpu(struct thread *td)
 	return (pctcpu);
 }
 
+void
+sched_affinity(struct thread *td)
+{
+}
+
 /*
  * Bind a thread to a target cpu.
  */
