@@ -32,7 +32,7 @@
  */
 
 /*-
- * Copyright (c) 2002, Jeffrey Roberson <jeff@freebsd.org>
+ * Copyright (c) 2002-2008, Jeffrey Roberson <jeff@freebsd.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -129,6 +129,7 @@ static __inline void sched_pin(void);
 void	sched_unbind(struct thread *td);
 static __inline void sched_unpin(void);
 int	sched_is_bound(struct thread *td);
+void	sched_affinity(struct thread *td);
 
 /*
  * These procedures tell the process data structure allocation code how
