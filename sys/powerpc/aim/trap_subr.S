@@ -140,8 +140,8 @@
 	stw	%r29, FRAME_29+8(%r1);					\
 	stw	%r30, FRAME_30+8(%r1);					\
 	stw	%r31, FRAME_31+8(%r1);					\
-	lwz	%r28,(savearea+CPUSAVE_DAR)(%r2);  /* saved DAR */	\
-	lwz	%r29,(savearea+CPUSAVE_DSISR)(%r2);/* saved DSISR */	\
+	lwz	%r28,(savearea+CPUSAVE_AIM_DAR)(%r2);  /* saved DAR */	\
+	lwz	%r29,(savearea+CPUSAVE_AIM_DSISR)(%r2);/* saved DSISR */\
 	lwz	%r30,(savearea+CPUSAVE_SRR0)(%r2); /* saved SRR0 */	\
 	lwz	%r31,(savearea+CPUSAVE_SRR1)(%r2); /* saved SRR1 */	\
 	mfxer	%r3;							\
@@ -151,8 +151,8 @@
 	stw	%r3, FRAME_XER+8(1);	/* save xer/ctr/exc */		\
 	stw	%r4, FRAME_CTR+8(1);					\
 	stw	%r5, FRAME_EXC+8(1);					\
-	stw	%r28,FRAME_DAR+8(1);					\
-	stw	%r29,FRAME_DSISR+8(1);	/* save dsisr/srr0/srr1 */	\
+	stw	%r28,FRAME_AIM_DAR+8(1);				\
+	stw	%r29,FRAME_AIM_DSISR+8(1); /* save dsisr/srr0/srr1 */	\
 	stw	%r30,FRAME_SRR0+8(1);					\
 	stw	%r31,FRAME_SRR1+8(1)
 
@@ -272,8 +272,8 @@ CNAME(alitrap):
 	stw	%r31,(PC_TEMPSAVE+CPUSAVE_R31)(%r1)
 	mfdar	%r30
 	mfdsisr	%r31
-	stw	%r30,(PC_TEMPSAVE+CPUSAVE_DAR)(%r1)
-	stw	%r31,(PC_TEMPSAVE+CPUSAVE_DSISR)(%r1)
+	stw	%r30,(PC_TEMPSAVE+CPUSAVE_AIM_DAR)(%r1)
+	stw	%r31,(PC_TEMPSAVE+CPUSAVE_AIM_DSISR)(%r1)
 	mfsprg1	%r1			/* restore SP, in case of branch */
 	mflr	%r28			/* save LR */
 	mfcr	%r29			/* save CR */
@@ -356,8 +356,8 @@ disitrap:
 	stw	%r31,(PC_TEMPSAVE+CPUSAVE_R31)(%r1)
 	mfdar	%r30
 	mfdsisr	%r31
-	stw	%r30,(PC_TEMPSAVE+CPUSAVE_DAR)(%r1)
-	stw	%r31,(PC_TEMPSAVE+CPUSAVE_DSISR)(%r1)
+	stw	%r30,(PC_TEMPSAVE+CPUSAVE_AIM_DAR)(%r1)
+	stw	%r31,(PC_TEMPSAVE+CPUSAVE_AIM_DSISR)(%r1)
 
 #ifdef KDB
 	/* Try and detect a kernel stack overflow */
@@ -373,10 +373,10 @@ disitrap:
 
 	/* Now convert this DSI into a DDB trap.  */
 	GET_CPUINFO(%r1)
-	lwz	%r30,(PC_TEMPSAVE+CPUSAVE_DAR)(%r1) /* get DAR */
-	stw	%r30,(PC_DBSAVE  +CPUSAVE_DAR)(%r1) /* save DAR */
-	lwz	%r30,(PC_TEMPSAVE+CPUSAVE_DSISR)(%r1) /* get DSISR */
-	lwz	%r30,(PC_DBSAVE  +CPUSAVE_DSISR)(%r1) /* save DSISR */
+	lwz	%r30,(PC_TEMPSAVE+CPUSAVE_AIM_DAR)(%r1) /* get DAR */
+	stw	%r30,(PC_DBSAVE  +CPUSAVE_AIM_DAR)(%r1) /* save DAR */
+	lwz	%r30,(PC_TEMPSAVE+CPUSAVE_AIM_DSISR)(%r1) /* get DSISR */
+	lwz	%r30,(PC_DBSAVE  +CPUSAVE_AIM_DSISR)(%r1) /* save DSISR */
 	lwz	%r30,(PC_DISISAVE+CPUSAVE_R28)(%r1) /* get  r28 */
 	stw	%r30,(PC_DBSAVE  +CPUSAVE_R28)(%r1) /* save r28 */
 	lwz	%r31,(PC_DISISAVE+CPUSAVE_R29)(%r1) /* get  r29 */
