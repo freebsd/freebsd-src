@@ -281,43 +281,6 @@ static	int	pppoe_send_event(sessp sp, enum cmd cmdid);
  * Author:	Michal Ostrowski <mostrows@styx.uwaterloo.ca>		 *
  ************************************************************************/
 
-/*
- * Generate a new session id
- * XXX find out the FreeBSD locking scheme.
- */
-static uint16_t
-get_new_sid(node_p node)
-{
-	static int pppoe_sid = 10;
-	hook_p	hook;
-	uint16_t val;
-
-restart:
-	val = pppoe_sid++;
-	/*
-	 * Spec says 0xFFFF is reserved.
-	 * Also don't use 0x0000
-	 */
-	if (val == 0xffff) {
-		pppoe_sid = 20;
-		goto restart;
-	}
-
-	/* Check it isn't already in use. */
-	LIST_FOREACH(hook, &node->nd_hooks, hk_hooks) {
-		sessp sp = NG_HOOK_PRIVATE(hook);
-
-		/* Skip any nonsession hook. */
-		if (sp == NULL)
-			continue;
-		if (sp->Session_ID == val)
-			goto restart;
-	}
-
-	CTR2(KTR_NET, "%20s: new sid %d", __func__, val);
-
-	return (val);
-}
 
 
 /*
@@ -559,6 +522,42 @@ pppoe_find_svc(node_p node, const char *svc_name, int svc_len)
 /**************************************************************************
  * Routines to find a particular session that matches an incoming packet. *
  **************************************************************************/
+/* Find free session and add to hash. */
+static uint16_t
+pppoe_getnewsession(sessp sp)
+{
+	const priv_p privp = NG_NODE_PRIVATE(NG_HOOK_NODE(sp->hook));
+	static uint16_t pppoe_sid = 1;
+	sessp	tsp;
+	uint16_t val, hash;
+
+restart:
+	/* Atomicity is not needed here as value will be checked. */
+	val = pppoe_sid++;
+	/* Spec says 0xFFFF is reserved, also don't use 0x0000. */
+	if (val == 0xffff || val == 0x0000)
+		val = pppoe_sid = 1;
+
+	/* Check it isn't already in use. */
+	hash = SESSHASH(val);
+	mtx_lock(&privp->sesshash[hash].mtx);
+	TAILQ_FOREACH(tsp, &privp->sesshash[hash].head, sessions) {
+		if (tsp->Session_ID == val)
+			break;
+	}
+	if (!tsp) {
+		sp->Session_ID = val;
+		TAILQ_INSERT_HEAD(&privp->sesshash[hash].head, sp, sessions);
+	}
+	mtx_unlock(&privp->sesshash[hash].mtx);
+	if (tsp)
+		goto restart;
+
+	CTR2(KTR_NET, "%20s: new sid %d", __func__, val);
+
+	return (val);
+}
+
 /* Add specified session to hash. */
 static void
 pppoe_addsession(sessp sp)
@@ -1545,9 +1544,7 @@ ng_pppoe_rcvdata_ether(hook_p hook, item_p item)
 			neg->pkt->pkt_header.ph.code = PADS_CODE;
 			if (sp->Session_ID == 0) {
 				neg->pkt->pkt_header.ph.sid =
-				    htons(sp->Session_ID
-					= get_new_sid(node));
-				pppoe_addsession(sp);
+				    htons(pppoe_getnewsession(sp));
 			}
 			send_sessionid(sp);
 			neg->timeout = 0;
