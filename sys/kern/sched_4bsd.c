@@ -1402,5 +1402,10 @@ sched_fork_exit(struct thread *td)
 	THREAD_LOCK_ASSERT(td, MA_OWNED | MA_NOTRECURSED);
 }
 
+void
+sched_affinity(struct thread *td)
+{
+}
+
 #define KERN_SWITCH_INCLUDE 1
 #include "kern/kern_switch.c"
