@@ -236,7 +236,7 @@ cvslog (argc, argv)
     prl = &log_data.revlist;
 
     optind = 0;
-    while ((c = getopt (argc, argv, "+bd:hlNSRr::s:tw::")) != -1)
+    while ((c = getopt (argc, argv, "+bd:hlNnSRr::s:tw::")) != -1)
     {
 	switch (c)
 	{
@@ -254,6 +254,9 @@ cvslog (argc, argv)
 		break;
 	    case 'N':
 		log_data.notags = 1;
+		break;
+	    case 'n':
+		log_data.notags = 0;
 		break;
 	    case 'S':
 		log_data.sup_header = 1;
@@ -1607,6 +1610,11 @@ log_version (log_data, revlist, rcs, ver, trunk)
 		   &sec);
     if (year < 1900)
 	year += 1900;
+#if 0
+    /* allow one to cut-n-paste dates for use w/-D */
+    sprintf (buf, "%04d-%02d-%02d %02d:%02d:%02d", year, mon, mday,
+	     hour, min, sec);
+#endif
     sprintf (buf, "%04d%c%02d%c%02d %02d:%02d:%02d",
 	     year, datesep, mon, datesep, mday, hour, min, sec);
     cvs_output (buf, 0);
