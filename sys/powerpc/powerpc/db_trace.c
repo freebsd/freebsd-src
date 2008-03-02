@@ -92,8 +92,14 @@ struct db_variable db_regs[] = {
 	{ "ctr", DB_OFFSET(ctr),	db_frame },
 	{ "cr",	 DB_OFFSET(cr),		db_frame },
 	{ "xer", DB_OFFSET(xer),	db_frame },
-	{ "dar", DB_OFFSET(dar),	db_frame },
-	{ "dsisr", DB_OFFSET(dsisr),	db_frame },
+#ifdef AIM
+	{ "dar", DB_OFFSET(cpu.aim.dar),	db_frame },
+	{ "dsisr", DB_OFFSET(cpu.aim.dsisr),	db_frame },
+#endif
+#ifdef E500
+	{ "dear", DB_OFFSET(cpu.booke.dear),	db_frame },
+	{ "esr", DB_OFFSET(cpu.booke.esr),	db_frame },
+#endif
 };
 struct db_variable *db_eregs = db_regs + sizeof (db_regs)/sizeof (db_regs[0]);
 
@@ -194,29 +200,33 @@ db_backtrace(struct thread *td, db_addr_t fp, int count)
 			db_printf("%s ", tf->srr1 & PSL_PR ? "user" : "kernel");
 			switch (tf->exc) {
 			case EXC_DSI:
+				/* XXX take advantage of the union. */
 				db_printf("DSI %s trap @ %#x by ",
-				    tf->dsisr & DSISR_STORE ? "write" : "read",
-				    tf->dar);
+				    (tf->cpu.aim.dsisr & DSISR_STORE) ? "write"
+				    : "read", tf->cpu.aim.dar);
 				goto print_trap;
 			case EXC_ALI:
-				db_printf("ALI trap @ %#x (DSISR %#x) ",
-					  tf->dar, tf->dsisr);
+				/* XXX take advantage of the union. */
+				db_printf("ALI trap @ %#x (xSR %#x) ",
+				    tf->cpu.aim.dar, tf->cpu.aim.dsisr);
 				goto print_trap;
 			case EXC_ISI: trapstr = "ISI"; break;
 			case EXC_PGM: trapstr = "PGM"; break;
 			case EXC_SC: trapstr = "SC"; break;
 			case EXC_EXI: trapstr = "EXI"; break;
 			case EXC_MCHK: trapstr = "MCHK"; break;
+#ifndef E500
 			case EXC_VEC: trapstr = "VEC"; break;
-			case EXC_FPU: trapstr = "FPU"; break;
 			case EXC_FPA: trapstr = "FPA"; break;
-			case EXC_DECR: trapstr = "DECR"; break;
 			case EXC_BPT: trapstr = "BPT"; break;
 			case EXC_TRC: trapstr = "TRC"; break;
 			case EXC_RUNMODETRC: trapstr = "RUNMODETRC"; break;
-			case EXC_PERF: trapstr = "PERF"; break;
 			case EXC_SMI: trapstr = "SMI"; break;
 			case EXC_RST: trapstr = "RST"; break;
+#endif
+			case EXC_FPU: trapstr = "FPU"; break;
+			case EXC_DECR: trapstr = "DECR"; break;
+			case EXC_PERF: trapstr = "PERF"; break;
 			default: trapstr = NULL; break;
 			}
 			if (trapstr != NULL) {
@@ -240,7 +250,7 @@ db_backtrace(struct thread *td, db_addr_t fp, int count)
 			db_printf("%-10s  r1=%#x cr=%#x xer=%#x ctr=%#x",
 			    "", tf->fixreg[1], tf->cr, tf->xer, tf->ctr);
 			if (tf->exc == EXC_DSI)
-				db_printf(" dsisr=%#x", tf->dsisr);
+				db_printf(" sr=%#x", tf->cpu.aim.dsisr);
 			db_printf("\n");
 			stackframe = (db_addr_t) tf->fixreg[1];
 			if (kernel_only && (tf->srr1 & PSL_PR))

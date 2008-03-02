@@ -33,22 +33,15 @@
 #include <machine/frame.h>
 #include <machine/md_var.h>
 #include <machine/psl.h>
+#include <machine/spr.h>
 
-static __inline void
-kdb_cpu_clear_singlestep(void)
-{
-	kdb_frame->srr1 &= ~PSL_SE;
-}
-
-static __inline void
-kdb_cpu_set_singlestep(void)
-{
-	kdb_frame->srr1 |= PSL_SE;
-}
+void kdb_cpu_clear_singlestep(void);
+void kdb_cpu_set_singlestep(void);
 
 static __inline void
 kdb_cpu_sync_icache(unsigned char *addr, size_t size)
 {
+
 	__syncicache(addr, size);
 }
 
