@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/turnstile.h>
 #include <sys/ktr.h>
 #include <sys/umtx.h>
+#include <sys/cpuset.h>
 
 #include <security/audit/audit.h>
 
@@ -342,7 +343,8 @@ thread_alloc(void)
 void
 thread_free(struct thread *td)
 {
-
+	cpuset_rel(td->td_cpuset);
+	td->td_cpuset = NULL;
 	cpu_thread_free(td);
 	if (td->td_altkstack != 0)
 		vm_thread_dispose_altkstack(td);
@@ -527,6 +529,8 @@ thread_wait(struct proc *p)
 	/* Wait for any remaining threads to exit cpu_throw(). */
 	while (p->p_exitthreads)
 		sched_relinquish(curthread);
+	cpuset_rel(td->td_cpuset);
+	td->td_cpuset = NULL;
 	cpu_thread_clean(td);
 	crfree(td->td_ucred);
 	thread_reap();	/* check for zombie threads etc. */
