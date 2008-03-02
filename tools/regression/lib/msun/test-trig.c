@@ -65,15 +65,22 @@ __FBSDID("$FreeBSD$");
 #define	test(func, x, result, exceptmask, excepts)	do {		\
 	volatile long double _d = x;					\
 	assert(feclearexcept(FE_ALL_EXCEPT) == 0);			\
-	assert(fpequal((func)(_d), (result)));				 \
+	assert(fpequal((func)(_d), (result)));				\
 	assert(((func), fetestexcept(exceptmask) == (excepts)));	\
 } while (0)
 
 #define	testall(prefix, x, result, exceptmask, excepts)	do {		\
-		test(prefix, x, (double)result, exceptmask, excepts);	\
+	test(prefix, x, (double)result, exceptmask, excepts);		\
 	test(prefix##f, x, (float)result, exceptmask, excepts);		\
 	test(prefix##l, x, result, exceptmask, excepts);		\
 } while (0)
+
+#define	testdf(prefix, x, result, exceptmask, excepts)	do {		\
+	test(prefix, x, (double)result, exceptmask, excepts);		\
+	test(prefix##f, x, (float)result, exceptmask, excepts);		\
+} while (0)
+
+
 
 /*
  * Determine whether x and y are equal, with two special rules:
@@ -238,17 +245,22 @@ run_accuracy_tests(void)
 	 * These tests should pass for f32, d64, and ld80 as long as
 	 * the error is <= 0.75 ulp (round to nearest)
 	 */
-	testall(sin, 0.17255452780841205174L, 0.17169949801444412683L,
+#if LDBL_MANT_DIG <= 64
+#define	testacc	testall
+#else
+#define	testacc	testdf
+#endif
+	testacc(sin, 0.17255452780841205174L, 0.17169949801444412683L,
 		ALL_STD_EXCEPT, FE_INEXACT);
-	testall(sin, -0.75431944555904520893L, -0.68479288156557286353L,
+	testacc(sin, -0.75431944555904520893L, -0.68479288156557286353L,
 		ALL_STD_EXCEPT, FE_INEXACT);
-	testall(cos, 0.70556358769838947292L, 0.76124620693117771850L,
+	testacc(cos, 0.70556358769838947292L, 0.76124620693117771850L,
 		ALL_STD_EXCEPT, FE_INEXACT);
-	testall(cos, -0.34061437849088045332L, 0.94254960031831729956L,
+	testacc(cos, -0.34061437849088045332L, 0.94254960031831729956L,
 		ALL_STD_EXCEPT, FE_INEXACT);
-	testall(tan, -0.15862817413325692897L, -0.15997221861309522115L,
+	testacc(tan, -0.15862817413325692897L, -0.15997221861309522115L,
 		ALL_STD_EXCEPT, FE_INEXACT);
-	testall(tan, 0.38374784931303813530L, 0.40376500259976759951L,
+	testacc(tan, 0.38374784931303813530L, 0.40376500259976759951L,
 		ALL_STD_EXCEPT, FE_INEXACT);
 
 	/*
