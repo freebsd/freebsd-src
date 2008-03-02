@@ -65,6 +65,8 @@ struct smbfs_args {
 
 #ifdef _KERNEL
 
+#include <sys/_sx.h>
+
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_SMBFSMNT);
 #endif
@@ -90,7 +92,7 @@ struct smbmount {
 /*	struct simplelock	sm_npslock;*/
 	struct smbnode *	sm_npstack[SMBFS_MAXPATHCOMP];
 	int			sm_caseopt;
-	struct lock		sm_hashlock;
+	struct sx		sm_hashlock;
 	LIST_HEAD(smbnode_hashhead, smbnode) *sm_hash;
 	u_long			sm_hashlen;
 	int			sm_didrele;
