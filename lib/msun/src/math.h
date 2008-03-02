@@ -468,8 +468,8 @@ long double	scalbnl(long double, int);
 long double	sinhl(long double);
 #endif
 long double	sinl(long double);
-#if 0
 long double	sqrtl(long double);
+#if 0
 long double	tanhl(long double);
 #endif
 long double	tanl(long double);
