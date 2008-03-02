@@ -2005,6 +2005,7 @@ re_int_task(arg, npending)
 	sc = arg;
 	ifp = sc->rl_ifp;
 
+	NET_LOCK_GIANT();
 	RL_LOCK(sc);
 
 	status = CSR_READ_2(sc, RL_ISR);
@@ -2012,12 +2013,14 @@ re_int_task(arg, npending)
 
 	if (sc->suspended || !(ifp->if_flags & IFF_UP)) {
 		RL_UNLOCK(sc);
+		NET_UNLOCK_GIANT();
 		return;
 	}
 
 #ifdef DEVICE_POLLING
 	if  (ifp->if_capenable & IFCAP_POLLING) {
 		RL_UNLOCK(sc);
+		NET_UNLOCK_GIANT();
 		return;
 	}
 #endif
@@ -2047,6 +2050,7 @@ re_int_task(arg, npending)
 		taskqueue_enqueue_fast(taskqueue_fast, &sc->rl_txtask);
 
 	RL_UNLOCK(sc);
+	NET_UNLOCK_GIANT();
 
         if ((CSR_READ_2(sc, RL_ISR) & RL_INTRS_CPLUS) || rval) {
 		taskqueue_enqueue_fast(taskqueue_fast, &sc->rl_inttask);
@@ -2214,7 +2218,9 @@ re_tx_task(arg, npending)
 	struct ifnet		*ifp;
 
 	ifp = arg;
+	NET_LOCK_GIANT();
 	re_start(ifp);
+	NET_UNLOCK_GIANT();
 
 	return;
 }
