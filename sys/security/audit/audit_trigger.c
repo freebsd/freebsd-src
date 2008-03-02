@@ -113,7 +113,7 @@ audit_read(struct cdev *dev, struct uio *uio, int ioflag)
 	}
 	mtx_unlock(&audit_trigger_mtx);
 	if (!error) {
-		error = uiomove(ti, sizeof *ti, uio);
+		error = uiomove(&ti->trigger, sizeof(ti->trigger), uio);
 		free(ti, M_AUDITTRIGGER);
 	}
 	return (error);
