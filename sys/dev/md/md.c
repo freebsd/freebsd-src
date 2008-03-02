@@ -939,6 +939,7 @@ mdcreate_vnode(struct md_s *sc, struct md_ioctl *mdio, struct thread *td)
 
 	error = mdsetcred(sc, td->td_ucred);
 	if (error != 0) {
+		sc->vnode = NULL;
 		vn_lock(nd.ni_vp, LK_EXCLUSIVE | LK_RETRY, td);
 		nd.ni_vp->v_vflag &= ~VV_MD;
 		VOP_UNLOCK(nd.ni_vp, 0, td);
