@@ -631,8 +631,8 @@ ufs_chmod(vp, mode, cred, td)
 	int error;
 
 	/*
-	 * To modify the permissions on a file, must possess VADMIN
-	 * for that file.
+	 * To modify the ownership of a file, must possess VADMIN for that
+	 * file.
 	 */
 	if ((error = VOP_ACCESS(vp, VADMIN, cred, td)))
 		return (error);
@@ -690,9 +690,9 @@ ufs_chown(vp, uid, gid, cred, td)
 	if ((error = VOP_ACCESS(vp, VADMIN, cred, td)))
 		return (error);
 	/*
-	 * To change the owner of a file, or change the group of a file
-	 * to a group of which we are not a member, the caller must
-	 * have privilege.
+	 * To change the owner of a file, or change the group of a file to a
+	 * group of which we are not a member, the caller must have
+	 * privilege.
 	 */
 	if ((uid != ip->i_uid || 
 	    (gid != ip->i_gid && !groupmember(gid, cred))) &&
@@ -1078,7 +1078,7 @@ abortit:
 	/*
 	 * If ".." must be changed (ie the directory gets a new
 	 * parent) then the source directory must not be in the
-	 * directory heirarchy above the target, as this would
+	 * directory hierarchy above the target, as this would
 	 * orphan everything below the source directory. Also
 	 * the user must have write permission in the source so
 	 * as to be able to change "..". We must repeat the call
@@ -1807,7 +1807,7 @@ ufs_readdir(ap)
 		struct uio *a_uio;
 		struct ucred *a_cred;
 		int *a_eofflag;
-		int *ncookies;
+		int *a_ncookies;
 		u_long **a_cookies;
 	} */ *ap;
 {
