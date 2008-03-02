@@ -32,18 +32,40 @@
  */
 
 struct cpu_group {
-	cpumask_t cg_mask;		/* Mask of cpus in this group. */
-	int	cg_count;		/* Count of cpus in this group. */
-	int	cg_children;		/* Number of children groups. */
-	struct cpu_group *cg_child;	/* Optional child group. */
+	struct cpu_group *cg_parent;	/* Our parent group. */
+	struct cpu_group *cg_child;	/* Optional children groups. */
+	cpumask_t	cg_mask;	/* Mask of cpus in this group. */
+	int8_t		cg_count;	/* Count of cpus in this group. */
+	int8_t		cg_children;	/* Number of children groups. */
+	int8_t		cg_level;	/* Shared cache level. */
+	int8_t		cg_flags;	/* Traversal modifiers. */
 };
 
-struct cpu_top {
-	int	ct_count;		/* Count of groups. */
-	struct cpu_group *ct_group;	/* Array of pointers to cpu groups. */
-};
+/*
+ * Defines common resources for CPUs in the group.  The highest level
+ * resource should be used when multiple are shared.
+ */
+#define	CG_SHARE_NONE	0
+#define	CG_SHARE_L1	1
+#define	CG_SHARE_L2	2
+#define	CG_SHARE_L3	3
 
-extern struct cpu_top *smp_topology;
+/*
+ * Behavior modifiers for load balancing and affinity.
+ */
+#define	CG_FLAG_HTT	0x01		/* Schedule the alternate core last. */
+#define	CG_FLAG_THREAD	0x02		/* New age htt, less crippled. */
+
+/*
+ * Convenience routines for building topologies.
+ */
+struct cpu_group *smp_topo(void);
+struct cpu_group *smp_topo_none(void);
+struct cpu_group *smp_topo_1level(int l1share, int l1count, int l1flags);
+struct cpu_group *smp_topo_2level(int l2share, int l2count, int l1share,
+    int l1count, int l1flags);
+struct cpu_group *smp_topo_find(struct cpu_group *top, int cpu);
+
 extern void (*cpustop_restartfunc)(void);
 extern int smp_active;
 extern int smp_cpus;
@@ -90,6 +112,7 @@ extern cpumask_t all_cpus;
  */
 struct thread;
 
+struct cpu_group *cpu_topo(void);
 void	cpu_mp_announce(void);
 int	cpu_mp_probe(void);
 void	cpu_mp_setmaxid(void);
