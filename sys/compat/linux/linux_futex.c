@@ -327,7 +327,7 @@ linux_sys_futex(struct thread *td, struct linux_sys_futex_args *args)
 	default:
 		printf("linux_sys_futex: unknown op %d\n",
 		    args->op);
-		break;
+		return (ENOSYS);
 	}
 	return (0);
 }
