@@ -52,6 +52,9 @@
 
 #include <netinet/in.h>
 #include <netipsec/ipsec.h>
+#ifdef _KERNEL
+#include <netipsec/keydb.h>
+#endif
 
 #ifndef _KERNEL
 #include <ctype.h>
@@ -296,7 +299,7 @@ kdebug_sadb_lifetime(ext)
 
 	/* sanity check */
 	if (ext == NULL)
-		printf("%s: NULL pointer was passed.\n", __func__);
+		panic("%s: NULL pointer was passed.\n", __func__);
 
 	printf("sadb_lifetime{ alloc=%u, bytes=%u\n",
 		lft->sadb_lifetime_allocations,
@@ -553,6 +556,21 @@ kdebug_secasindex(saidx)
 	return;
 }
 
+static void
+kdebug_sec_lifetime(struct seclifetime *lft)
+{
+	/* sanity check */
+	if (lft == NULL)
+		panic("%s: NULL pointer was passed.\n", __func__);
+
+	printf("sec_lifetime{ alloc=%u, bytes=%u\n",
+		lft->allocations, (u_int32_t)lft->bytes);
+	printf("  addtime=%u, usetime=%u }\n",
+		(u_int32_t)lft->addtime, (u_int32_t)lft->usetime);
+
+	return;
+}
+
 void
 kdebug_secasv(sav)
 	struct secasvar *sav;
@@ -582,11 +600,11 @@ kdebug_secasv(sav)
 	if (sav->replay != NULL)
 		kdebug_secreplay(sav->replay);
 	if (sav->lft_c != NULL)
-		kdebug_sadb_lifetime((struct sadb_ext *)sav->lft_c);
+		kdebug_sec_lifetime(sav->lft_c);
 	if (sav->lft_h != NULL)
-		kdebug_sadb_lifetime((struct sadb_ext *)sav->lft_h);
+		kdebug_sec_lifetime(sav->lft_h);
 	if (sav->lft_s != NULL)
-		kdebug_sadb_lifetime((struct sadb_ext *)sav->lft_s);
+		kdebug_sec_lifetime(sav->lft_s);
 
 #ifdef notyet
 	/* XXX: misc[123] ? */
