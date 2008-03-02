@@ -241,6 +241,13 @@ cpu_mp_probe(void)
 	return (mp_maxid > 0);
 }
 
+struct cpu_group *
+cpu_topo(void)
+{
+
+	return smp_topo_none();
+}
+
 static int
 start_ap_bycpuid(int cpuid, void *func, u_long arg)
 {

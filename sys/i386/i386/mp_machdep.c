@@ -135,12 +135,6 @@ extern	int nkpt;
 
 extern	struct pcpu __pcpu[];
 
-/*
- * CPU topology map datastructures for HTT.
- */
-static struct cpu_group mp_groups[MAXCPU];
-static struct cpu_top mp_top;
-
 /* AP uses this during bootstrap.  Do not staticize.  */
 char *bootSTK;
 static int bootAP;
@@ -238,40 +232,38 @@ mem_range_AP_init(void)
 		mem_range_softc.mr_op->initAP(&mem_range_softc);
 }
 
-void
-mp_topology(void)
+struct cpu_group *
+cpu_topo(void)
 {
-	struct cpu_group *group;
-	int apic_id;
-	int groups;
-	int cpu;
-
-	/* Build the smp_topology map. */
-	/* Nothing to do if there is no HTT support. */
-	if (hyperthreading_cpus <= 1)
-		return;
-	group = &mp_groups[0];
-	groups = 1;
-	for (cpu = 0, apic_id = 0; apic_id <= MAX_APIC_ID; apic_id++) {
-		if (!cpu_info[apic_id].cpu_present)
-			continue;
-		/*
-		 * If the current group has members and we're not a logical
-		 * cpu, create a new group.
-		 */
-		if (group->cg_count != 0 &&
-		    (apic_id % hyperthreading_cpus) == 0) {
-			group++;
-			groups++;
-		}
-		group->cg_count++;
-		group->cg_mask |= 1 << cpu;
-		cpu++;
+	if (cpu_cores == 0)
+		cpu_cores = 1;
+	if (cpu_logical == 0)
+		cpu_logical = 1;
+	if (mp_ncpus % (cpu_cores * cpu_logical) != 0) {
+		printf("WARNING: Non-uniform processors.\n");
+		printf("WARNING: Using suboptimal topology.\n");
+		return (smp_topo_none());
 	}
-
-	mp_top.ct_count = groups;
-	mp_top.ct_group = mp_groups;
-	smp_topology = &mp_top;
+	/*
+	 * No multi-core or hyper-threaded.
+	 */
+	if (cpu_logical * cpu_cores == 1)
+		return (smp_topo_none());
+	/*
+	 * Only HTT no multi-core.
+	 */
+	if (cpu_logical > 1 && cpu_cores == 1)
+		return (smp_topo_1level(CG_SHARE_L1, cpu_logical, CG_FLAG_HTT));
+	/*
+	 * Only multi-core no HTT.
+	 */
+	if (cpu_cores > 1 && cpu_logical == 1)
+		return (smp_topo_1level(CG_SHARE_NONE, cpu_cores, 0));
+	/*
+	 * Both HTT and multi-core.
+	 */
+	return (smp_topo_2level(CG_SHARE_NONE, cpu_cores,
+	    CG_SHARE_L1, cpu_logical, CG_FLAG_HTT));
 }
 
 
@@ -459,9 +451,6 @@ cpu_mp_start(void)
 	}
 
 	set_interrupt_apic_ids();
-
-	/* Last, setup the cpu topology now that we have probed CPUs */
-	mp_topology();
 }
 
 

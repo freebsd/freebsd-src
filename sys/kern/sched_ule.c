@@ -243,7 +243,6 @@ static int tryself = 1;
 static int steal_htt = 1;
 static int steal_idle = 1;
 static int steal_thresh = 2;
-static int topology = 0;
 
 /*
  * One thread queue per processor.
@@ -1212,43 +1211,6 @@ tdg_add(struct tdq_group *tdg, struct tdq *tdq)
 }
 
 static void
-sched_setup_topology(void)
-{
-	struct tdq_group *tdg;
-	struct cpu_group *cg;
-	int balance_groups;
-	struct tdq *tdq;
-	int i;
-	int j;
-
-	topology = 1;
-	balance_groups = 0;
-	for (i = 0; i < smp_topology->ct_count; i++) {
-		cg = &smp_topology->ct_group[i];
-		tdg = &tdq_groups[i];
-		/*
-		 * Initialize the group.
-		 */
-		tdg_setup(tdg);
-		/*
-		 * Find all of the group members and add them.
-		 */
-		for (j = 0; j < MAXCPU; j++) { 
-			if ((cg->cg_mask & (1 << j)) != 0) {
-				tdq = TDQ_CPU(j);
-				tdq_setup(tdq);
-				tdg_add(tdg, tdq);
-			}
-		}
-		if (tdg->tdg_cpus > 1)
-			balance_groups = 1;
-	}
-	tdg_maxid = smp_topology->ct_count - 1;
-	if (balance_groups)
-		sched_balance_groups();
-}
-
-static void
 sched_setup_smp(void)
 {
 	struct tdq_group *tdg;
@@ -1271,25 +1233,6 @@ sched_setup_smp(void)
 	}
 	tdg_maxid = cpus - 1;
 }
-
-/*
- * Fake a topology with one group containing all CPUs.
- */
-static void
-sched_fake_topo(void)
-{
-#ifdef SCHED_FAKE_TOPOLOGY
-	static struct cpu_top top;
-	static struct cpu_group group;
-
-	top.ct_count = 1;
-	top.ct_group = &group;
-	group.cg_mask = all_cpus;
-	group.cg_count = mp_ncpus;
-	group.cg_children = 0;
-	smp_topology = &top;
-#endif
-}
 #endif
 
 /*
@@ -1303,15 +1246,11 @@ sched_setup(void *dummy)
 
 	tdq = TDQ_SELF();
 #ifdef SMP
-	sched_fake_topo();
 	/*
 	 * Setup tdqs based on a topology configuration or vanilla SMP based
 	 * on mp_maxid.
 	 */
-	if (smp_topology == NULL)
-		sched_setup_smp();
-	else 
-		sched_setup_topology();
+	sched_setup_smp();
 	balance_tdq = tdq;
 	sched_balance();
 #else
@@ -2692,8 +2631,6 @@ SYSCTL_INT(_kern_sched, OID_AUTO, steal_idle, CTLFLAG_RW, &steal_idle, 0,
     "Attempts to steal work from other cores before idling");
 SYSCTL_INT(_kern_sched, OID_AUTO, steal_thresh, CTLFLAG_RW, &steal_thresh, 0,
     "Minimum load on remote cpu before we'll steal");
-SYSCTL_INT(_kern_sched, OID_AUTO, topology, CTLFLAG_RD, &topology, 0,
-    "True when a topology has been specified by the MD code.");
 #endif
 
 /* ps compat.  All cpu percentages from ULE are weighted. */

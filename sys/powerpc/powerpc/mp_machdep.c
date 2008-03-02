@@ -45,6 +45,13 @@
 
 int			boot_cpu_id;
 
+struct cpu_group *
+cpu_topo(void)
+{
+
+        return smp_topo_none();
+}
+
 void
 cpu_mp_setmaxid(void)
 {
