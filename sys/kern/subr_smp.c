@@ -68,7 +68,6 @@ int mp_ncpus;
 /* export this for libkvm consumers. */
 int mp_maxcpus = MAXCPU;
 
-struct cpu_top *smp_topology;
 volatile int smp_started;
 u_int mp_maxid;
 
@@ -89,6 +88,11 @@ TUNABLE_INT("kern.smp.disabled", &smp_disabled);
 int smp_cpus = 1;	/* how many cpu's running */
 SYSCTL_INT(_kern_smp, OID_AUTO, cpus, CTLFLAG_RD, &smp_cpus, 0,
     "Number of CPUs online");
+
+int smp_topology = 0;	/* Which topology we're using. */
+SYSCTL_INT(_kern_smp, OID_AUTO, topology, CTLFLAG_RD, &smp_topology, 0,
+    "Topology override setting; 0 is default provided by hardware.");
+TUNABLE_INT("kern.smp.topology", &smp_topology);
 
 #ifdef SMP
 /* Enable forwarding of a signal to a process running on a different CPU */
@@ -385,22 +389,177 @@ smp_rendezvous(void (* setup_func)(void *),
 	/* release lock */
 	mtx_unlock_spin(&smp_ipi_mtx);
 }
-#else /* !SMP */
 
-/*
- * Provide dummy SMP support for UP kernels.  Modules that need to use SMP
- * APIs will still work using this dummy support.
- */
-static void
-mp_setvariables_for_up(void *dummy)
+static struct cpu_group group[MAXCPU];
+
+struct cpu_group *
+smp_topo(void)
 {
-	mp_ncpus = 1;
-	mp_maxid = PCPU_GET(cpuid);
-	all_cpus = PCPU_GET(cpumask);
-	KASSERT(PCPU_GET(cpuid) == 0, ("UP must have a CPU ID of zero"));
+	struct cpu_group *top;
+
+	/*
+	 * Check for a fake topology request for debugging purposes.
+	 */
+	switch (smp_topology) {
+	case 1:
+		/* Dual core with no sharing.  */
+		top = smp_topo_1level(CG_SHARE_NONE, 2, 0);
+		break;
+	case 3:
+		/* Dual core with shared L2.  */
+		top = smp_topo_1level(CG_SHARE_L2, 2, 0);
+		break;
+	case 4:
+		/* quad core, shared l3 among each package, private l2.  */
+		top = smp_topo_1level(CG_SHARE_L3, 4, 0);
+		break;
+	case 5:
+		/* quad core,  2 dualcore parts on each package share l2.  */
+		top = smp_topo_2level(CG_SHARE_NONE, 2, CG_SHARE_L2, 2, 0);
+		break;
+	case 6:
+		/* Single-core 2xHTT */
+		top = smp_topo_1level(CG_SHARE_L1, 2, CG_FLAG_HTT);
+		break;
+	case 7:
+		/* quad core with a shared l3, 8 threads sharing L2.  */
+		top = smp_topo_2level(CG_SHARE_L3, 4, CG_SHARE_L2, 8,
+		    CG_FLAG_THREAD);
+		break;
+	default:
+		/* Default, ask the system what it wants. */
+		top = cpu_topo();
+		break;
+	}
+	/*
+	 * Verify the returned topology.
+	 */
+	if (top->cg_count != mp_ncpus)
+		panic("Built bad topology at %p.  CPU count %d != %d",
+		    top, top->cg_count, mp_ncpus);
+	if (top->cg_mask != all_cpus)
+		panic("Built bad topology at %p.  CPU mask 0x%X != 0x%X",
+		    top, top->cg_mask, all_cpus);
+	return (top);
 }
-SYSINIT(cpu_mp_setvariables, SI_SUB_TUNABLES, SI_ORDER_FIRST,
-    mp_setvariables_for_up, NULL)
+
+struct cpu_group *
+smp_topo_none(void)
+{
+	struct cpu_group *top;
+
+	top = &group[0];
+	top->cg_parent = NULL;
+	top->cg_child = NULL;
+	top->cg_mask = (1 << mp_ncpus) - 1;
+	top->cg_count = mp_ncpus;
+	top->cg_children = 0;
+	top->cg_level = CG_SHARE_NONE;
+	top->cg_flags = 0;
+	
+	return (top);
+}
+
+static int
+smp_topo_addleaf(struct cpu_group *parent, struct cpu_group *child, int share,
+    int count, int flags, int start)
+{
+	cpumask_t mask;
+	int i;
+
+	for (mask = 0, i = 0; i < count; i++, start++)
+		mask |= (1 << start);
+	child->cg_parent = parent;
+	child->cg_child = NULL;
+	child->cg_children = 0;
+	child->cg_level = share;
+	child->cg_count = count;
+	child->cg_flags = flags;
+	child->cg_mask = mask;
+	parent->cg_children++;
+	for (; parent != NULL; parent = parent->cg_parent) {
+		if ((parent->cg_mask & child->cg_mask) != 0)
+			panic("Duplicate children in %p.  mask 0x%X child 0x%X",
+			    parent, parent->cg_mask, child->cg_mask);
+		parent->cg_mask |= child->cg_mask;
+		parent->cg_count += child->cg_count;
+	}
+
+	return (start);
+}
+
+struct cpu_group *
+smp_topo_1level(int share, int count, int flags)
+{
+	struct cpu_group *child;
+	struct cpu_group *top;
+	int packages;
+	int cpu;
+	int i;
+
+	cpu = 0;
+	top = &group[0];
+	packages = mp_ncpus / count;
+	top->cg_child = child = &group[1];
+	top->cg_level = CG_SHARE_NONE;
+	for (i = 0; i < packages; i++, child++)
+		cpu = smp_topo_addleaf(top, child, share, count, flags, cpu);
+	return (top);
+}
+
+struct cpu_group *
+smp_topo_2level(int l2share, int l2count, int l1share, int l1count,
+    int l1flags)
+{
+	struct cpu_group *top;
+	struct cpu_group *l1g;
+	struct cpu_group *l2g;
+	int cpu;
+	int i;
+	int j;
+
+	cpu = 0;
+	top = &group[0];
+	l2g = &group[1];
+	top->cg_child = l2g;
+	top->cg_level = CG_SHARE_NONE;
+	top->cg_children = mp_ncpus / (l2count * l1count);
+	l1g = l2g + top->cg_children;
+	for (i = 0; i < top->cg_children; i++, l2g++) {
+		l2g->cg_parent = top;
+		l2g->cg_child = l1g;
+		l2g->cg_level = l2share;
+		for (j = 0; j < l2count; j++, l1g++)
+			cpu = smp_topo_addleaf(l2g, l1g, l1share, l1count,
+			    l1flags, cpu);
+	}
+	return (top);
+}
+
+
+struct cpu_group *
+smp_topo_find(struct cpu_group *top, int cpu)
+{
+	struct cpu_group *cg;
+	cpumask_t mask;
+	int children;
+	int i;
+
+	mask = (1 << cpu);
+	cg = top;
+	for (;;) {
+		if ((cg->cg_mask & mask) == 0)
+			return (NULL);
+		if (cg->cg_children == 0)
+			return (cg);
+		children = cg->cg_children;
+		for (i = 0, cg = cg->cg_child; i < children; cg++, i++)
+			if ((cg->cg_mask & mask) != 0)
+				break;
+	}
+	return (NULL);
+}
+#else /* !SMP */
 
 void
 smp_rendezvous(void (*setup_func)(void *), 
@@ -416,4 +575,19 @@ smp_rendezvous(void (*setup_func)(void *),
 	if (teardown_func != NULL)
 		teardown_func(arg);
 }
+
+/*
+ * Provide dummy SMP support for UP kernels.  Modules that need to use SMP
+ * APIs will still work using this dummy support.
+ */
+static void
+mp_setvariables_for_up(void *dummy)
+{
+	mp_ncpus = 1;
+	mp_maxid = PCPU_GET(cpuid);
+	all_cpus = PCPU_GET(cpumask);
+	KASSERT(PCPU_GET(cpuid) == 0, ("UP must have a CPU ID of zero"));
+}
+SYSINIT(cpu_mp_setvariables, SI_SUB_TUNABLES, SI_ORDER_FIRST,
+    mp_setvariables_for_up, NULL)
 #endif /* SMP */

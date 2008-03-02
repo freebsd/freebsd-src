@@ -142,6 +142,9 @@ static struct {
 	{ "Pentium 4",		CPUCLASS_686 },		/* CPU_P4 */
 };
 
+int cpu_cores;
+int cpu_logical;
+
 #if defined(I586_CPU) && !defined(NO_F00F_HACK)
 int has_f00f_bug = 0;		/* Initialized so that it can be patched. */
 #endif
@@ -857,11 +860,13 @@ printcpuinfo(void)
 				if ((regs[0] & 0x1f) != 0)
 					cmp = ((regs[0] >> 26) & 0x3f) + 1;
 			}
+			cpu_cores = cmp;
+			cpu_logical = htt / cmp;
 			if (cmp > 1)
 				printf("\n  Cores per package: %d", cmp);
 			if ((htt / cmp) > 1)
 				printf("\n  Logical CPUs per core: %d",
-				    htt / cmp);
+				    cpu_logical);
 		}
 	} else if (strcmp(cpu_vendor, "CyrixInstead") == 0) {
 		printf("  DIR=0x%04x", cyrix_did);

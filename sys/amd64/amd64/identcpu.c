@@ -97,6 +97,10 @@ static struct {
 	{ "Sledgehammer",	CPUCLASS_K8 },		/* CPU_SLEDGEHAMMER */
 };
 
+int cpu_cores;
+int cpu_logical;
+
+
 extern int pq_l2size;
 extern int pq_l2nways;
 
@@ -360,11 +364,13 @@ printcpuinfo(void)
 				if ((regs[0] & 0x1f) != 0)
 					cmp = ((regs[0] >> 26) & 0x3f) + 1;
 			}
+			cpu_cores = cmp;
+			cpu_logical = htt / cmp;
 			if (cmp > 1)
 				printf("\n  Cores per package: %d", cmp);
 			if ((htt / cmp) > 1)
 				printf("\n  Logical CPUs per core: %d",
-				    htt / cmp);
+				    cpu_logical);
 		}
 	}
 	/* Avoid ugly blank lines: only print newline when we have to. */

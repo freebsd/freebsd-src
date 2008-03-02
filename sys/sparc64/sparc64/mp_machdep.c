@@ -189,6 +189,13 @@ cpu_mp_probe(void)
 	return (mp_maxid > 0);
 }
 
+struct cpu_group *
+cpu_topo(void)
+{
+
+	return smp_topo_none();
+}
+
 static void
 sun4u_startcpu(phandle_t cpu, void *func, u_long arg)
 {
