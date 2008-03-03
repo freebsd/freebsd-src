@@ -4,6 +4,7 @@
 .PATH: ${.CURDIR}/thread
 
 SRCS+= \
+	thr_affinity.c \
 	thr_attr.c \
 	thr_barrier.c \
 	thr_barrierattr.c \
