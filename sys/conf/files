@@ -924,6 +924,7 @@ dev/puc/puc_cfg.c		optional puc
 dev/puc/puc_pccard.c		optional puc pccard
 dev/puc/puc_pci.c		optional puc pci
 dev/puc/pucdata.c		optional puc pci
+dev/quicc/quicc_core.c		optional quicc
 dev/ral/rt2560.c		optional ral
 dev/ral/rt2661.c		optional ral
 dev/ral/if_ralrate.c		optional ral
@@ -945,8 +946,10 @@ dev/safe/safe.c			optional safe
 dev/sbsh/if_sbsh.c		optional sbsh
 dev/scc/scc_if.m		optional scc
 dev/scc/scc_bfe_ebus.c		optional scc ebus
+dev/scc/scc_bfe_quicc.c		optional scc quicc
 dev/scc/scc_bfe_sbus.c		optional scc fhc | scc sbus
 dev/scc/scc_core.c		optional scc
+dev/scc/scc_dev_quicc.c		optional scc quicc
 dev/scc/scc_dev_sab82532.c	optional scc
 dev/scc/scc_dev_z8530.c		optional scc
 dev/scd/scd.c			optional scd isa
@@ -1109,6 +1112,7 @@ dev/uart/uart_bus_scc.c		optional uart scc
 dev/uart/uart_core.c		optional uart
 dev/uart/uart_dbg.c		optional uart gdb
 dev/uart/uart_dev_ns8250.c	optional uart uart_ns8250
+dev/uart/uart_dev_quicc.c	optional uart quicc
 dev/uart/uart_dev_sab82532.c	optional uart uart_sab82532
 dev/uart/uart_dev_sab82532.c	optional uart scc
 dev/uart/uart_dev_z8530.c	optional uart uart_z8530
