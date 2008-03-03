@@ -34,7 +34,7 @@
 __FBSDID("$FreeBSD$");
 
 /*
- * Driver for the Cicada CS8201 10/100/1000 copper PHY.
+ * Driver for the Cicada CS8201/CS8204 10/100/1000 copper PHY.
  */
 
 #include <sys/param.h>
@@ -91,6 +91,7 @@ static const struct mii_phydesc ciphys[] = {
 	MII_PHY_DESC(CICADA, CS8201),
 	MII_PHY_DESC(CICADA, CS8201A),
 	MII_PHY_DESC(CICADA, CS8201B),
+	MII_PHY_DESC(CICADA, CS8204),
 	MII_PHY_DESC(VITESSE, VSC8601),
 	MII_PHY_END
 };
@@ -378,6 +379,7 @@ ciphy_fixup(struct mii_softc *sc)
 	}
 
 	switch (model) {
+	case MII_MODEL_CICADA_CS8204:
 	case MII_MODEL_CICADA_CS8201:
 
 		/* Turn off "aux mode" (whatever that means) */
