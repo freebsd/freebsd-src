@@ -110,6 +110,7 @@ struct scc_class {
 	int		cl_range;
 };
 
+extern struct scc_class scc_quicc_class;
 extern struct scc_class scc_sab82532_class;
 extern struct scc_class scc_z8530_class;
 

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004-2006 Marcel Moolenaar
+ * Copyright (c) 2006 Marcel Moolenaar
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,27 +26,14 @@
  * $FreeBSD$
  */
 
-#ifndef _DEV_SCC_BUS_H_
-#define	_DEV_SCC_BUS_H_
+#ifndef _DEV_QUICC_BUS_H_
+#define	_DEV_QUICC_BUS_H_
 
-#include <sys/serial.h>
-#include <serdev_if.h>
+#define	QUICC_IVAR_CLOCK	1	/* The CPM clock. */
+#define	QUICC_IVAR_BRGCLK	2	/* The BRG clock affected by SCCR. */
+#define	QUICC_IVAR_DEVTYPE	3
 
-#define	SCC_IVAR_CHANNEL	0
-#define	SCC_IVAR_CLASS		1
-#define	SCC_IVAR_CLOCK		2
-#define	SCC_IVAR_MODE		3
-#define	SCC_IVAR_REGSHFT	4
-#define	SCC_IVAR_HWMTX		5
+/* Device types. */
+#define	QUICC_DEVTYPE_SCC	1
 
-/* Hardware class -- the SCC type. */
-#define	SCC_CLASS_SAB82532	0
-#define	SCC_CLASS_Z8530		1
-#define	SCC_CLASS_QUICC		2
-
-/* The possible modes supported by the SCC. */
-#define	SCC_MODE_ASYNC		0x01
-#define	SCC_MODE_BISYNC		0x02
-#define	SCC_MODE_HDLC		0x04
-
-#endif /* _DEV_SCC_BUS_H_ */
+#endif /* _DEV_QUICC_BUS_H_ */
