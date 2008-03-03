@@ -58,6 +58,16 @@ __setrunelocale(const char *encoding)
 	char name[PATH_MAX];
 	_RuneLocale *rl;
 	int saverr, ret;
+	size_t (*old__mbrtowc)(wchar_t * __restrict,
+	    const char * __restrict, size_t, mbstate_t * __restrict);
+	size_t (*old__wcrtomb)(char * __restrict, wchar_t,
+	    mbstate_t * __restrict);
+	int (*old__mbsinit)(const mbstate_t *);
+	size_t (*old__mbsnrtowcs)(wchar_t * __restrict,
+	    const char ** __restrict, size_t, size_t, mbstate_t * __restrict);
+	size_t (*old__wcsnrtombs)(char * __restrict,
+	    const wchar_t ** __restrict, size_t, size_t,
+	    mbstate_t * __restrict);
 	static char ctype_encoding[ENCODING_LEN + 1];
 	static _RuneLocale *CachedRuneLocale;
 	static int Cached__mb_cur_max;
@@ -77,7 +87,7 @@ __setrunelocale(const char *encoding)
 	 * The "C" and "POSIX" locale are always here.
 	 */
 	if (strcmp(encoding, "C") == 0 || strcmp(encoding, "POSIX") == 0) {
-		_none_init(&_DefaultRuneLocale);
+		(void) _none_init(&_DefaultRuneLocale);
 		return (0);
 	}
 
@@ -117,11 +127,18 @@ __setrunelocale(const char *encoding)
 	}
 	(void)fclose(fp);
 
+	old__mbrtowc = __mbrtowc;
+	old__mbsinit = __mbsinit;
+	old__mbsnrtowcs = __mbsnrtowcs;
+	old__wcrtomb = __wcrtomb;
+	old__wcsnrtombs = __wcsnrtombs;
+
 	__mbrtowc = NULL;
 	__mbsinit = NULL;
 	__mbsnrtowcs = __mbsnrtowcs_std;
 	__wcrtomb = NULL;
 	__wcsnrtombs = __wcsnrtombs_std;
+
 	rl->__sputrune = NULL;
 	rl->__sgetrune = NULL;
 	if (strcmp(rl->__encoding, "NONE") == 0)
@@ -130,7 +147,7 @@ __setrunelocale(const char *encoding)
 		ret = _UTF8_init(rl);
 	else if (strcmp(rl->__encoding, "EUC") == 0)
 		ret = _EUC_init(rl);
- 	else if (strcmp(rl->__encoding, "GB18030") == 0)
+	else if (strcmp(rl->__encoding, "GB18030") == 0)
  		ret = _GB18030_init(rl);
 	else if (strcmp(rl->__encoding, "GB2312") == 0)
 		ret = _GB2312_init(rl);
@@ -142,6 +159,7 @@ __setrunelocale(const char *encoding)
 		ret = _MSKanji_init(rl);
 	else
 		ret = EFTYPE;
+
 	if (ret == 0) {
 		if (CachedRuneLocale != NULL) {
 			/* See euc.c */
@@ -158,8 +176,14 @@ __setrunelocale(const char *encoding)
 		Cached__wcrtomb = __wcrtomb;
 		Cached__wcsnrtombs = __wcsnrtombs;
 		(void)strcpy(ctype_encoding, encoding);
-	} else
+	} else {
+		__mbrtowc = old__mbrtowc;
+		__mbsinit = old__mbsinit;
+		__mbsnrtowcs = old__mbsnrtowcs;
+		__wcrtomb = old__wcrtomb;
+		__wcsnrtombs = old__wcsnrtombs;
 		free(rl);
+	}
 
 	return (ret);
 }
