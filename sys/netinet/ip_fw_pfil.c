@@ -566,5 +566,5 @@ static moduledata_t ipfwmod = {
 	ipfw_modevent,
 	0
 };
-DECLARE_MODULE(ipfw, ipfwmod, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY);
+DECLARE_MODULE(ipfw, ipfwmod, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY - 256);
 MODULE_VERSION(ipfw, 2);
