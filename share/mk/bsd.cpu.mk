@@ -12,6 +12,8 @@ MACHINE_CPU = i486
 MACHINE_CPU = amd64 sse2 sse
 . elif ${MACHINE_ARCH} == "ia64"
 MACHINE_CPU = itanium
+. elif ${MACHINE_ARCH} == "powerpc"
+MACHINE_CPU = aim
 . elif ${MACHINE_ARCH} == "sparc64"
 . elif ${MACHINE_ARCH} == "arm"
 MACHINE_CPU = arm
@@ -108,6 +110,11 @@ _CPUCFLAGS = -march=${CPUTYPE}
 _CPUCFLAGS = -march=armv5te -D__XSCALE__
 .  else
 _CPUCFLAGS = -mcpu=${CPUTYPE}
+.  endif
+. elif ${MACHINE_ARCH} == "powerpc"
+.  if ${CPUTYPE} == "e500"
+MACHINE_CPU = booke
+_CPUCFLAGS = -Wa,-me500 -msoft-float
 .  endif
 . endif
 
