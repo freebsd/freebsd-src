@@ -75,6 +75,7 @@
 #define	SPR_SDR1		0x019	/* .68 Page table base address register */
 #define	SPR_SRR0		0x01a	/* 468 Save/Restore Register 0 */
 #define	SPR_SRR1		0x01b	/* 468 Save/Restore Register 1 */
+#define	SPR_DECAR		0x036	/* ..8 Decrementer auto reload */
 #define SPR_EIE			0x050	/* ..8 Exception Interrupt ??? */
 #define SPR_EID			0x051	/* ..8 Exception Interrupt ??? */
 #define SPR_NRI			0x052	/* ..8 Exception Interrupt ??? */
@@ -292,7 +293,6 @@
 #define	  SPR_MMCR1_PMC6SEL(x)	  ((x) << 11) /* PMC 6 selector */
 
 #define	SPR_SU0R		0x3bc	/* 4.. Storage User-defined 0 Register */
-#define	SPR_DBCR1		0x3bd	/* 4.. Debug Control Register 1 */
 #define	SPR_PMC3		0x3bd	/* .6. Performance Counter Register 3 */
 #define	SPR_PMC4		0x3be	/* .6. Performance Counter Register 4 */
 #define	SPR_DMISS		0x3d0	/* .68 Data TLB Miss Address Register */
@@ -300,14 +300,6 @@
 #define	SPR_HASH1		0x3d2	/* .68 Primary Hash Address Register */
 #define	SPR_ICDBDR		0x3d3	/* 4.. Instruction Cache Debug Data Register */
 #define	SPR_HASH2		0x3d3	/* .68 Secondary Hash Address Register */
-#define	SPR_ESR			0x3d4	/* 4.. Exception Syndrome Register */
-#define	  ESR_MCI		  0x80000000 /* Machine check - instruction */
-#define	  ESR_PIL		  0x08000000 /* Program interrupt - illegal */
-#define	  ESR_PPR		  0x04000000 /* Program interrupt - privileged */
-#define	  ESR_PTR		  0x02000000 /* Program interrupt - trap */
-#define	  ESR_DST		  0x00800000 /* Data storage interrupt - store fault */
-#define	  ESR_DIZ		  0x00800000 /* Data/instruction storage interrupt - zone fault */
-#define	  ESR_U0F		  0x00008000 /* Data storage interrupt - U0 fault */
 #define	SPR_IMISS		0x3d4	/* .68 Instruction TLB Miss Address Register */
 #define	SPR_TLBMISS		0x3d4	/* .6. TLB Miss Address Register */
 #define	SPR_DEAR		0x3d5	/* 4.. Data Error Address Register */
@@ -316,7 +308,15 @@
 #define	SPR_EVPR		0x3d6	/* 4.. Exception Vector Prefix Register */
 #define	SPR_RPA			0x3d6	/* .68 Required Physical Address Register */
 #define	SPR_PTELO		0x3d6	/* .6. Required Physical Address Register */
+
+#if defined(AIM)
 #define	SPR_TSR			0x3d8	/* 4.. Timer Status Register */
+#define	SPR_TCR			0x3da	/* 4.. Timer Control Register */
+#elif defined(E500)
+#define	SPR_TSR			0x150	/* ..8 Timer Status Register */
+#define	SPR_TCR			0x154	/* ..8 Timer Control Register */
+#endif
+
 #define	  TSR_ENW		  0x80000000 /* Enable Next Watchdog */
 #define	  TSR_WIS		  0x40000000 /* Watchdog Interrupt Status */
 #define	  TSR_WRS_MASK		  0x30000000 /* Watchdog Reset Status */
@@ -325,8 +325,9 @@
 #define	  TSR_WRS_CHIP		  0x20000000 /* Chip reset was forced by the watchdog */
 #define	  TSR_WRS_SYSTEM	  0x30000000 /* System reset was forced by the watchdog */
 #define	  TSR_PIS		  0x08000000 /* PIT Interrupt Status */
+#define	  TSR_DIS		  0x08000000 /* Decrementer Interrupt Status */
 #define	  TSR_FIS		  0x04000000 /* FIT Interrupt Status */
-#define	SPR_TCR			0x3da	/* 4.. Timer Control Register */
+
 #define	  TCR_WP_MASK		  0xc0000000 /* Watchdog Period mask */
 #define	  TCR_WP_2_17		  0x00000000 /* 2**17 clocks */
 #define	  TCR_WP_2_21		  0x40000000 /* 2**21 clocks */
@@ -339,6 +340,7 @@
 #define	  TCR_WRC_SYSTEM	  0x30000000 /* System reset */
 #define	  TCR_WIE		  0x08000000 /* Watchdog Interrupt Enable */
 #define	  TCR_PIE		  0x04000000 /* PIT Interrupt Enable */
+#define	  TCR_DIE		  0x04000000 /* Pecrementer Interrupt Enable */
 #define	  TCR_FP_MASK		  0x03000000 /* FIT Period */
 #define	  TCR_FP_2_9		  0x00000000 /* 2**9 clocks */
 #define	  TCR_FP_2_13		  0x01000000 /* 2**13 clocks */
@@ -346,9 +348,14 @@
 #define	  TCR_FP_2_21		  0x03000000 /* 2**21 clocks */
 #define	  TCR_FIE		  0x00800000 /* FIT Interrupt Enable */
 #define	  TCR_ARE		  0x00400000 /* Auto Reload Enable */
+
 #define	SPR_PIT			0x3db	/* 4.. Programmable Interval Timer */
 #define	SPR_SRR2		0x3de	/* 4.. Save/Restore Register 2 */
 #define	SPR_SRR3		0x3df	/* 4.. Save/Restore Register 3 */
+#define	SPR_HID0		0x3f0	/* ..8 Hardware Implementation Register 0 */
+#define	SPR_HID1		0x3f1	/* ..8 Hardware Implementation Register 1 */
+
+#if defined(AIM)
 #define	SPR_DBSR		0x3f0	/* 4.. Debug Status Register */
 #define	  DBSR_IC		  0x80000000 /* Instruction completion debug event */
 #define	  DBSR_BT		  0x40000000 /* Branch Taken debug event */
@@ -365,9 +372,39 @@
 #define	  DBSR_IA3		  0x00080000 /* IAC3 debug event */
 #define	  DBSR_IA4		  0x00040000 /* IAC4 debug event */
 #define	  DBSR_MRR		  0x00000300 /* Most recent reset */
-#define	SPR_HID0		0x3f0	/* ..8 Hardware Implementation Register 0 */
-#define	SPR_HID1		0x3f1	/* ..8 Hardware Implementation Register 1 */
 #define	SPR_DBCR0		0x3f2	/* 4.. Debug Control Register 0 */
+#define	SPR_DBCR1		0x3bd	/* 4.. Debug Control Register 1 */
+#define	SPR_IAC1		0x3f4	/* 4.. Instruction Address Compare 1 */
+#define	SPR_IAC2		0x3f5	/* 4.. Instruction Address Compare 2 */
+#define	SPR_DAC1		0x3f6	/* 4.. Data Address Compare 1 */
+#define	SPR_DAC2		0x3f7	/* 4.. Data Address Compare 2 */
+#define	SPR_PIR			0x3ff	/* .6. Processor Identification Register */
+#elif defined(E500)
+#define	SPR_DBSR		0x130	/* ..8 Debug Status Register */
+#define	  DBSR_IDE		  0x80000000 /* Imprecise debug event. */
+#define	  DBSR_UDE		  0x40000000 /* Unconditional debug event. */
+#define	  DBSR_MRR		  0x30000000 /* Most recent Reset (mask). */
+#define	  DBSR_ICMP		  0x08000000 /* Instr. complete debug event. */
+#define	  DBSR_BRT		  0x04000000 /* Branch taken debug event. */
+#define	  DBSR_IRPT		  0x02000000 /* Interrupt taken debug event. */
+#define	  DBSR_TRAP		  0x01000000 /* Trap instr. debug event. */
+#define	  DBSR_IAC1		  0x00800000 /* Instr. address compare #1. */
+#define	  DBSR_IAC2		  0x00400000 /* Instr. address compare #2. */
+#define	  DBSR_IAC3		  0x00200000 /* Instr. address compare #3. */
+#define	  DBSR_IAC4		  0x00100000 /* Instr. address compare #4. */
+#define	  DBSR_DAC1R		  0x00080000 /* Data addr. read compare #1. */
+#define	  DBSR_DAC1W		  0x00040000 /* Data addr. write compare #1. */
+#define	  DBSR_DAC2R		  0x00020000 /* Data addr. read compare #2. */
+#define	  DBSR_DAC2W		  0x00010000 /* Data addr. write compare #2. */
+#define	  DBSR_RET		  0x00008000 /* Return debug event. */
+#define	SPR_DBCR0		0x134	/* ..8 Debug Control Register 0 */
+#define	SPR_DBCR1		0x135	/* ..8 Debug Control Register 1 */
+#define	SPR_IAC1		0x138	/* ..8 Instruction Address Compare 1 */
+#define	SPR_IAC2		0x139	/* ..8 Instruction Address Compare 2 */
+#define	SPR_DAC1		0x13c	/* ..8 Data Address Compare 1 */
+#define	SPR_DAC2		0x13d	/* ..8 Data Address Compare 2 */
+#endif
+
 #define	  DBCR0_EDM		  0x80000000 /* External Debug Mode */
 #define	  DBCR0_IDM		  0x40000000 /* Internal Debug Mode */
 #define	  DBCR0_RST_MASK	  0x30000000 /* ReSeT */
@@ -390,12 +427,10 @@
 #define	  DBCR0_IA12T		  0x00008000 /* Instruction Address Range Compare 1-2 range Toggle */
 #define	  DBCR0_IA34T		  0x00004000 /* Instruction Address Range Compare 3-4 range Toggle */
 #define	  DBCR0_FT		  0x00000001 /* Freeze Timers on debug event */
+
 #define	SPR_IABR		0x3f2	/* ..8 Instruction Address Breakpoint Register 0 */
 #define	SPR_HID2		0x3f3	/* ..8 Hardware Implementation Register 2 */
-#define	SPR_IAC1		0x3f4	/* 4.. Instruction Address Compare 1 */
-#define	SPR_IAC2		0x3f5	/* 4.. Instruction Address Compare 2 */
 #define	SPR_DABR		0x3f5	/* .6. Data Address Breakpoint Register */
-#define	SPR_DAC1		0x3f6	/* 4.. Data Address Compare 1 */
 #define	SPR_MSSCR0		0x3f6	/* .6. Memory SubSystem Control Register */
 #define	  MSSCR0_SHDEN		  0x80000000 /* 0: Shared-state enable */
 #define	  MSSCR0_SHDPEN3	  0x40000000 /* 1: ~SHD[01] signal enable in MEI mode */
@@ -406,7 +441,6 @@
 #define	  MSSCR0_EMODE		  0x00200000 /* 10: MPX bus mode (read-only) */
 #define	  MSSCR0_ABD		  0x00100000 /* 11: address bus driven (read-only) */
 #define	  MSSCR0_MBZ		  0x000fffff /* 12-31: must be zero */
-#define	SPR_DAC2		0x3f7	/* 4.. Data Address Compare 2 */
 #define	SPR_L2PM		0x3f8	/* .6. L2 Private Memory Control Register */
 #define	SPR_L2CR		0x3f9	/* .6. L2 Control Register */
 #define	  L2CR_L2E		  0x80000000 /* 0: L2 enable */
@@ -464,11 +498,12 @@
 #define	 SPR_THRM_TIMER(x)	  ((x) << 1) /* Sampling interval timer */
 #define	 SPR_THRM_ENABLE       	  0x00000001 /* TAU Enable */
 #define	SPR_FPECR		0x3fe	/* .6. Floating-Point Exception Cause Register */
-#define	SPR_PIR			0x3ff	/* .6. Processor Identification Register */
 
 /* Time Base Register declarations */
-#define	TBR_TBL			0x10c	/* 468 Time Base Lower */
-#define	TBR_TBU			0x10d	/* 468 Time Base Upper */
+#define	TBR_TBL			0x10c	/* 468 Time Base Lower - read */
+#define	TBR_TBU			0x10d	/* 468 Time Base Upper - read */
+#define	TBR_TBWL		0x11c	/* 468 Time Base Lower - supervisor, write */
+#define	TBR_TBWU		0x11d	/* 468 Time Base Upper - supervisor, write */
 
 /* Performance counter declarations */
 #define	PMC_OVERFLOW	  	0x80000000 /* Counter has overflowed */
@@ -479,5 +514,99 @@
 #define	PMCN_ICOMP		 2 /* Instructions completed */
 #define	PMCN_TBLTRANS		 3 /* TBL bit transitions */
 #define	PCMN_IDISPATCH		 4 /* Instructions dispatched */
+
+#if defined(AIM)
+
+#define SPR_ESR			0x3d4	/* 4.. Exception Syndrome Register */
+#define	  ESR_MCI		  0x80000000 /* Machine check - instruction */
+#define	  ESR_PIL		  0x08000000 /* Program interrupt - illegal */
+#define	  ESR_PPR		  0x04000000 /* Program interrupt - privileged */
+#define	  ESR_PTR		  0x02000000 /* Program interrupt - trap */
+#define	  ESR_ST		  0x01000000 /* Store operation */
+#define	  ESR_DST		  0x00800000 /* Data storage interrupt - store fault */
+#define	  ESR_DIZ		  0x00800000 /* Data/instruction storage interrupt - zone fault */
+#define	  ESR_U0F		  0x00008000 /* Data storage interrupt - U0 fault */
+
+#elif defined(E500)
+
+#define	SPR_ESR			0x003e	/* ..8 Exception Syndrome Register */
+#define	  ESR_PIL		  0x08000000 /* Program interrupt - illegal */
+#define	  ESR_PPR		  0x04000000 /* Program interrupt - privileged */
+#define	  ESR_PTR		  0x02000000 /* Program interrupt - trap */
+#define	  ESR_ST		  0x00800000 /* Store operation */
+#define	  ESR_DLK		  0x00200000 /* Data storage, D cache locking */
+#define	  ESR_ILK		  0x00100000 /* Data storage, I cache locking */
+#define	  ESR_BO		  0x00020000 /* Data/instruction storage, byte ordering */
+#define	  ESR_SPE		  0x00000080 /* SPE exception bit */
+
+#define	SPR_CSRR0		0x03a	/* ..8 58 Critical SRR0 */
+#define	SPR_CSRR1		0x03b	/* ..8 59 Critical SRR1 */
+#define	SPR_MCSRR0		0x23a	/* ..8 570 Machine check SRR0 */
+#define	SPR_MCSRR1		0x23b	/* ..8 571 Machine check SRR1 */
+
+#define	SPR_SVR			0x3ff	/* ..8 1023 System Version Register */
+#define	SPR_PID0		0x030	/* ..8 Process ID Register 0 */
+#define	SPR_PID1		0x279	/* ..8 Process ID Register 1 */
+#define	SPR_PID2		0x27a	/* ..8 Process ID Register 2 */
+
+#define	SPR_TLB0CFG		0x2B0	/* ..8 TLB 0 Config Register */
+#define	SPR_TLB1CFG		0x2B1	/* ..8 TLB 1 Config Register */
+#define	  TLBCFG_ASSOC_MASK	0xff000000 /* Associativity of TLB */
+#define	  TLBCFG_ASSOC_SHIFT	24
+#define	  TLBCFG_NENTRY_MASK	0x00000fff /* Number of entries in TLB */
+
+#define	SPR_IVPR		0x03f	/* ..8 Interrupt Vector Prefix Register */
+#define	SPR_IVOR0		0x190	/* ..8 Critical input */
+#define	SPR_IVOR1		0x191	/* ..8 Machine check */
+#define	SPR_IVOR2		0x192
+#define	SPR_IVOR3		0x193
+#define	SPR_IVOR4		0x194
+#define	SPR_IVOR5		0x195
+#define	SPR_IVOR6		0x196
+#define	SPR_IVOR7		0x197
+#define	SPR_IVOR8		0x198
+#define	SPR_IVOR9		0x199
+#define	SPR_IVOR10		0x19a
+#define	SPR_IVOR11		0x19b
+#define	SPR_IVOR12		0x19c
+#define	SPR_IVOR13		0x19d
+#define	SPR_IVOR14		0x19e
+#define	SPR_IVOR15		0x19f
+#define	SPR_IVOR32		0x210
+#define	SPR_IVOR33		0x211
+#define	SPR_IVOR34		0x212
+#define	SPR_IVOR35		0x213
+
+#define	SPR_MAS0		0x270	/* ..8 MMU Assist Register 0 Book-E/e500 */
+#define	SPR_MAS1		0x271	/* ..8 MMU Assist Register 1 Book-E/e500 */
+#define	SPR_MAS2		0x272	/* ..8 MMU Assist Register 2 Book-E/e500 */
+#define	SPR_MAS3		0x273	/* ..8 MMU Assist Register 3 Book-E/e500 */
+#define	SPR_MAS4		0x274	/* ..8 MMU Assist Register 4 Book-E/e500 */
+#define	SPR_MAS5		0x275	/* ..8 MMU Assist Register 5 Book-E */
+#define	SPR_MAS6		0x276	/* ..8 MMU Assist Register 6 Book-E/e500 */
+#define	SPR_MAS7		0x3B0	/* ..8 MMU Assist Register 7 Book-E/e500 */
+
+#define	SPR_L1CSR0		0x3F2	/* ..8 L1 Cache Control and Status Register 0 */
+#define	  L1CSR0_DCPE		0x00010000	/* Data Cache Parity Enable */
+#define	  L1CSR0_DCLFR		0x00000100	/* Data Cache Lock Bits Flash Reset */
+#define	  L1CSR0_DCFI		0x00000002	/* Data Cache Flash Invalidate */
+#define	  L1CSR0_DCE		0x00000001	/* Data Cache Enable */
+#define	SPR_L1CSR1		0x3F3	/* ..8 L1 Cache Control and Status Register 1 */
+#define	  L1CSR1_ICPE		0x00010000	/* Instruction Cache Parity Enable */
+#define	  L1CSR1_ICLFR		0x00000100	/* Instruction Cache Lock Bits Flash Reset */
+#define	  L1CSR1_ICFI		0x00000002	/* Instruction Cache Flash Invalidate */
+#define	  L1CSR1_ICE		0x00000001	/* Instruction Cache Enable */
+
+#endif /* #elif defined(E500) */
+
+/*
+ * Definitions for system version register.
+ */
+#define	SVR_MPC8533	0x803c0010
+#define	SVR_MPC8533E	0x80340010
+#define	SVR_MPC8541	0x80720011
+#define	SVR_MPC8541E	0x807a0011
+#define	SVR_MPC8555	0x80710011
+#define	SVR_MPC8555E	0x80790011
 
 #endif /* !_POWERPC_SPR_H_ */
