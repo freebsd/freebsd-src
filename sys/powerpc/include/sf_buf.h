@@ -32,7 +32,9 @@
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/vm_page.h>
+#include <sys/queue.h>
 
+#if defined(AIM)
 /*
  * On this machine, the only purpose for which sf_buf is used is to implement
  * an opaque pointer required by the machine-independent parts of the kernel.
@@ -54,5 +56,33 @@ sf_buf_page(struct sf_buf *sf)
 
 	return ((vm_page_t)sf);
 }
+
+#elif defined(E500)
+
+struct vm_page;
+
+struct sf_buf {
+	LIST_ENTRY(sf_buf) list_entry;	/* list of buffers */
+	TAILQ_ENTRY(sf_buf) free_entry;	/* list of buffers */
+	struct		vm_page *m;	/* currently mapped page */
+	vm_offset_t	kva;		/* va of mapping */
+	int		ref_count;	/* usage of this mapping */
+};
+
+static __inline vm_offset_t
+sf_buf_kva(struct sf_buf *sf)
+{
+
+	return (sf->kva);
+}
+
+static __inline struct vm_page *
+sf_buf_page(struct sf_buf *sf)
+{
+
+	return (sf->m);
+}
+
+#endif
 
 #endif /* !_MACHINE_SF_BUF_H_ */
