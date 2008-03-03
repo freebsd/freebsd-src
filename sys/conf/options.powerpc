@@ -2,6 +2,7 @@
 # Options specific to the powerpc platform kernels
 
 AIM			opt_global.h
+E500			opt_global.h
 
 FPU_EMU
 
@@ -10,6 +11,7 @@ GFB_NO_FONT_LOADING	opt_gfb.h
 GFB_NO_MODE_CHANGE	opt_gfb.h
 
 POWERMAC		opt_platform.h
+MPC85XX			opt_platform.h
 PSIM
 
 SC_OFWFB		opt_ofwfb.h

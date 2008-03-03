@@ -54,6 +54,7 @@ void	busdma_swi(void);
 int	is_physical_memory(vm_offset_t addr);
 int	mem_valid(vm_offset_t addr, int len);
 
+void	decr_config(unsigned long);
 void	decr_init(void);
 void	decr_tc_init(void);
 
