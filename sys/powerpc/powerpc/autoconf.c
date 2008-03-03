@@ -75,10 +75,11 @@ configure_final(void *dummy)
 	powerpc_enable_intr();
 
 	/* Enable external interrupts. */
+#if defined(AIM)
 	mtmsr(mfmsr() | PSL_EE | PSL_RI);
-
+#elif defined(E500)
+	mtmsr(mfmsr() | PSL_EE);
+#endif
 	cninit_finish();
 	cold = 0;
 }
-
-
