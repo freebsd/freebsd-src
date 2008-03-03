@@ -722,6 +722,8 @@ struct rl_stats {
 /* see comment in dev/re/if_re.c */
 #define RL_JUMBO_FRAMELEN	7440
 #define RL_JUMBO_MTU		(RL_JUMBO_FRAMELEN-ETHER_HDR_LEN-ETHER_CRC_LEN)
+#define	RL_MAX_FRAMELEN		\
+	(ETHER_MAX_LEN + ETHER_VLAN_ENCAP_LEN - ETHER_HDR_LEN - ETHER_CRC_LEN)
 
 struct rl_txdesc {
 	struct mbuf		*tx_m;
