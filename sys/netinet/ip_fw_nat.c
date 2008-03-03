@@ -598,6 +598,7 @@ ipfw_nat_init(void)
 static void
 ipfw_nat_destroy(void)
 {
+	struct ip_fw *rule;
 	struct cfg_nat *ptr, *ptr_temp;
 	
 	IPFW_WLOCK(&layer3_chain);
@@ -608,6 +609,12 @@ ipfw_nat_destroy(void)
 		free(ptr, M_IPFW);
 	}
 	EVENTHANDLER_DEREGISTER(ifaddr_event, ifaddr_event_tag);
+	/* flush all nat ptrs */
+	for (rule = layer3_chain.rules; rule; rule = rule->next) {
+		ipfw_insn_nat *cmd = (ipfw_insn_nat *)ACTION_PTR(rule);
+		if (cmd->o.opcode == O_NAT)
+			cmd->nat = NULL;
+	}
 	/* deregister ipfw_nat */
 	ipfw_nat_ptr = NULL;
 	IPFW_WUNLOCK(&layer3_chain);
