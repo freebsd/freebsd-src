@@ -35,6 +35,37 @@
 #ifndef	_MACHINE_PSL_H_
 #define	_MACHINE_PSL_H_
 
+#if defined(E500)
+/*
+ * Machine State Register (MSR) - e500 core
+ *
+ * The PowerPC e500 does not implement the following bits:
+ *
+ * FP, FE0, FE1 - reserved, always cleared, setting has no effect.
+ *
+ */
+#define PSL_UCLE	0x04000000	/* User mode cache lock enable */
+#define PSL_SPE		0x02000000	/* SPE enable */
+#define PSL_WE		0x00040000	/* Wait state enable */
+#define PSL_CE		0x00020000	/* Critical interrupt enable */
+#define PSL_EE		0x00008000	/* External interrupt enable */
+#define PSL_PR		0x00004000	/* User mode */
+#define PSL_FP		0x00002000	/* Floating point available */
+#define PSL_ME		0x00001000	/* Machine check interrupt enable */
+#define PSL_FE0		0x00000800	/* Floating point exception mode 0 */
+#define PSL_UBLE	0x00000400	/* BTB lock enable */
+#define PSL_DE		0x00000200	/* Debug interrupt enable */
+#define PSL_FE1		0x00000100	/* Floating point exception mode 1 */
+#define PSL_IS		0x00000020	/* Instruction address space */
+#define PSL_DS		0x00000010	/* Data address space */
+#define PSL_PMM		0x00000004	/* Performance monitor mark */
+
+/* Initial kernel MSR, use IS=1 ad DS=1. */
+#define PSL_KERNSET_INIT	(PSL_IS | PSL_DS)
+#define PSL_KERNSET		(PSL_CE | PSL_ME | PSL_EE)
+#define PSL_USERSET		(PSL_KERNSET | PSL_PR)
+
+#else	/* if defined(E500) */
 /*
  * Machine State Register (MSR)
  *
@@ -83,4 +114,5 @@
 
 #define	PSL_USERSTATIC	(PSL_USERSET | PSL_IP | 0x87c0008c)
 
+#endif	/* if defined(E500) */
 #endif	/* _MACHINE_PSL_H_ */

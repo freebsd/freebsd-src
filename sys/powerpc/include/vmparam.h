@@ -76,31 +76,62 @@
 #define	MAXSLP 		20
 
 /*
+ * Would like to have MAX addresses = 0, but this doesn't (currently) work
+ */
+#if !defined(LOCORE)
+#define	VM_MIN_ADDRESS		((vm_offset_t)0)
+
+#define	VM_MAXUSER_ADDRESS	((vm_offset_t)0x7ffff000)
+
+#else
+#define	VM_MIN_ADDRESS		0
+
+#define	VM_MAXUSER_ADDRESS	0x7ffff000
+
+#endif /* LOCORE */
+
+#define	VM_MAX_ADDRESS		VM_MAXUSER_ADDRESS
+
+
+#if defined(AIM)	/* AIM */
+
+#define	KERNBASE		0x00100000	/* start of kernel virtual */
+
+#define	VM_MIN_KERNEL_ADDRESS	((vm_offset_t)(KERNEL_SR << ADDR_SR_SHFT))
+#define	VM_MAX_KERNEL_ADDRESS	(VM_MIN_KERNEL_ADDRESS + 2*SEGMENT_LENGTH - 1)
+
+/*
  * Use the direct-mapped BAT registers for UMA small allocs. This
  * takes pressure off the small amount of available KVA.
  */
 #define UMA_MD_SMALL_ALLOC
 
-/*
- * Would like to have MAX addresses = 0, but this doesn't (currently) work
- */
-#define	VM_MIN_ADDRESS		((vm_offset_t)0)
-#define	VM_MAXUSER_ADDRESS	((vm_offset_t)0x7ffff000)
-#define	VM_MAX_ADDRESS		VM_MAXUSER_ADDRESS
-#define	VM_MIN_KERNEL_ADDRESS	((vm_offset_t)(KERNEL_SR << ADDR_SR_SHFT))
-#define	VM_MAX_KERNEL_ADDRESS	(VM_MIN_KERNEL_ADDRESS + 2*SEGMENT_LENGTH - 1)
+#else
 
-#define	KERNBASE	0x100000	/* start of kernel virtual */
+/*
+ * Kernel CCSRBAR location. We make this the reset location.
+ */
+#define	CCSRBAR_VA		0xfef00000
+#define	CCSRBAR_SIZE		0x00100000
+
+#define	KERNBASE		0xc0000000	/* start of kernel virtual */
+
+#define	VM_MIN_KERNEL_ADDRESS	KERNBASE
+#define	VM_MAX_KERNEL_ADDRESS	CCSRBAR_VA
+
+#endif /* AIM/E500 */
 
 /* XXX max. amount of KVM to be used by buffers. */
 #ifndef VM_MAX_KERNEL_BUF
 #define	VM_MAX_KERNEL_BUF	(SEGMENT_LENGTH * 7 / 10)
 #endif
 
+#if !defined(LOCORE)
 struct pmap_physseg {
 	struct pv_entry *pvent;
 	char *attrs;
 };
+#endif
 
 #define	VM_PHYSSEG_MAX		16	/* 1? */
 

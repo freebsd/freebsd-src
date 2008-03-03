@@ -35,6 +35,8 @@
 #ifndef	_MACHINE_PTE_H_
 #define	_MACHINE_PTE_H_
 
+#if defined(AIM)
+
 /*
  * Page Table Entries
  */
@@ -156,4 +158,102 @@ typedef	struct lpte lpte_t;
 extern u_int dsisr(void);
 #endif	/* _KERNEL */
 #endif	/* LOCORE */
-#endif	/* _MACHINE_PTE_H_ */
+
+#else
+
+#include <machine/tlb.h>
+
+/*
+ * 1st level - page table directory (pdir)
+ *
+ * pdir consists of 1024 entries, each being a pointer to
+ * second level entity, i.e. the actual page table (ptbl).
+ */
+#define PDIR_SHIFT	22
+#define PDIR_SIZE	(1 << PDIR_SHIFT)	/* va range mapped by pdir */
+#define PDIR_MASK	(~(PDIR_SIZE - 1))
+#define PDIR_NENTRIES	1024			/* number of page tables in pdir */
+
+/* Returns pdir entry number for given va */
+#define PDIR_IDX(va)	((va) >> PDIR_SHIFT)
+
+#define PDIR_ENTRY_SHIFT 2	/* entry size is 2^2 = 4 bytes */
+
+/*
+ * 2nd level - page table (ptbl)
+ *
+ * Page table covers 1024 page table entries. Page
+ * table entry (pte) is 32 bit wide and defines mapping
+ * for a single page.
+ */
+#define PTBL_SHIFT	PAGE_SHIFT
+#define PTBL_SIZE	PAGE_SIZE		/* va range mapped by ptbl entry */
+#define PTBL_MASK	((PDIR_SIZE - 1) & ~PAGE_MASK)
+#define PTBL_NENTRIES	1024			/* number of pages mapped by ptbl */
+
+/* Returns ptbl entry number for given va */
+#define PTBL_IDX(va)	(((va) & PTBL_MASK) >> PTBL_SHIFT)
+
+/* Size of ptbl in pages, 1024 entries, each sizeof(struct pte_entry). */
+#define PTBL_PAGES	2
+#define PTBL_ENTRY_SHIFT 3	/* entry size is 2^3 = 8 bytes */
+
+/*
+ * Flags for pte_remove() routine.
+ */
+#define PTBL_HOLD	0x00000001	/* do not unhold ptbl pages */
+#define PTBL_UNHOLD	0x00000002	/* unhold and attempt to free ptbl pages */
+
+#define PTBL_HOLD_FLAG(pmap)	(((pmap) == kernel_pmap) ? PTBL_HOLD : PTBL_UNHOLD)
+
+/*
+ * Page Table Entry definitions and macros.
+ */
+#ifndef	LOCORE
+struct pte_entry {
+	vm_offset_t rpn;
+	u_int32_t flags;
+};
+typedef struct pte_entry pte_t;
+#endif
+
+/* RPN mask, TLB0 4K pages */
+#define PTE_PA_MASK	PAGE_MASK
+
+/* PTE bits assigned to MAS2, MAS3 flags */
+#define PTE_W		MAS2_W
+#define PTE_I		MAS2_I
+#define PTE_M		MAS2_M
+#define PTE_G		MAS2_G
+#define PTE_MAS2_MASK	(MAS2_G | MAS2_M | MAS2_I | MAS2_W)
+
+#define PTE_MAS3_SHIFT	8
+#define PTE_UX		(MAS3_UX << PTE_MAS3_SHIFT)
+#define PTE_SX		(MAS3_SX << PTE_MAS3_SHIFT)
+#define PTE_UW		(MAS3_UW << PTE_MAS3_SHIFT)
+#define PTE_SW		(MAS3_SW << PTE_MAS3_SHIFT)
+#define PTE_UR		(MAS3_UR << PTE_MAS3_SHIFT)
+#define PTE_SR		(MAS3_SR << PTE_MAS3_SHIFT)
+#define PTE_MAS3_MASK	((MAS3_UX | MAS3_SX | MAS3_UW	\
+			| MAS3_SW | MAS3_UR | MAS3_SR) << PTE_MAS3_SHIFT)
+
+/* Other PTE flags */
+#define PTE_VALID	0x80000000	/* Valid */
+#define PTE_MODIFIED	0x40000000	/* Modified */
+#define PTE_WIRED	0x20000000	/* Wired */
+#define PTE_MANAGED	0x10000000	/* Managed */
+#define PTE_FAKE	0x08000000	/* Ficticious */
+#define PTE_REFERENCED	0x04000000	/* Referenced */
+
+/* Macro argument must of pte_t type. */
+#define PTE_PA(pte)		((pte)->rpn & ~PTE_PA_MASK)
+#define PTE_ISVALID(pte)	((pte)->flags & PTE_VALID)
+#define PTE_ISWIRED(pte)	((pte)->flags & PTE_WIRED)
+#define PTE_ISMANAGED(pte)	((pte)->flags & PTE_MANAGED)
+#define PTE_ISFAKE(pte)		((pte)->flags & PTE_FAKE)
+#define PTE_ISMODIFIED(pte)	((pte)->flags & PTE_MODIFIED)
+#define PTE_ISREFERENCED(pte)	((pte)->flags & PTE_REFERENCED)
+
+#endif /* #elif defined(E500) */
+
+#endif /* _MACHINE_PTE_H_ */
