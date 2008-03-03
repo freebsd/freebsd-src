@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2006 Joseph Koshy
+ * Copyright (c) 2006-2008 Joseph Koshy
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -246,13 +246,19 @@ _libelf_insert_section(Elf *e, Elf_Scn *s)
 		tmin = t->s_offset;
 		tmax = tmin + t->s_size;
 
-		/* check if there is an overlap */
-		if (tmax < smin) {
+		if (tmax <= smin) {
+			/*
+			 * 't' lies entirely before 's': ...| t |...| s |...
+			 */
 			prevt = t;
 			continue;
-		} else if (smax < tmin)
+		} else if (smax <= tmin)
+			/*
+			 * 's' lies entirely before 't', and after 'prevt':
+			 *      ...| prevt |...| s |...| t |...
+			 */
 			break;
-		else {
+		else {	/* 's' and 't' overlap. */
 			LIBELF_SET_ERROR(LAYOUT, 0);
 			return (0);
 		}
