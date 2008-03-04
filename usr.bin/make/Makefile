@@ -12,12 +12,7 @@ NO_WERROR=
 WARNS?=	6
 NO_SHARED?=	YES
 
-CFLAGS+=-DOLD_JOKE=1
 CFLAGS+=-DMAKE_VERSION=\"5200408120\"
-.if defined(_UPGRADING)
-CFLAGS+=-D__FBSDID=__RCSID
-.endif
-
 # There is no obvious performance improvement currently.
 # CFLAGS+=-DUSE_KQUEUE
 

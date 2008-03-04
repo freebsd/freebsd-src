@@ -42,10 +42,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#ifndef OLD_JOKE
-#define	OLD_JOKE 0
-#endif /* OLD_JOKE */
-
 /*-
  * job.c --
  *	handle the creation etc. of our child processes.
@@ -1271,11 +1267,9 @@ Job_CheckCommands(GNode *gn, void (*abortProc)(const char *, ...))
 				fflush(stdout);
 				return (FALSE);
 			} else {
-#if OLD_JOKE
 				if (strcmp(gn->name,"love") == 0)
 					(*abortProc)("Not war.");
 				else
-#endif
 					(*abortProc)("%s %s. Stop",
 					    msg, gn->name);
 				return (FALSE);
