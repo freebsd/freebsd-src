@@ -89,8 +89,8 @@ __FBSDID("$FreeBSD$");
  */
 int	ipport_lowfirstauto  = IPPORT_RESERVED - 1;	/* 1023 */
 int	ipport_lowlastauto = IPPORT_RESERVEDSTART;	/* 600 */
-int	ipport_firstauto = IPPORT_HIFIRSTAUTO;		/* 49152 */
-int	ipport_lastauto  = IPPORT_HILASTAUTO;		/* 65535 */
+int	ipport_firstauto = IPPORT_EPHEMERALFIRST;	/* 10000 */
+int	ipport_lastauto  = IPPORT_EPHEMERALLAST;	/* 65535 */
 int	ipport_hifirstauto = IPPORT_HIFIRSTAUTO;	/* 49152 */
 int	ipport_hilastauto  = IPPORT_HILASTAUTO;		/* 65535 */
 
@@ -393,7 +393,7 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 	if (*lportp != 0)
 		lport = *lportp;
 	if (lport == 0) {
-		u_short first, last;
+		u_short first, last, aux;
 		int count;
 
 		if (laddr.s_addr != INADDR_ANY)
@@ -440,47 +440,28 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 		/*
 		 * Simple check to ensure all ports are not used up causing
 		 * a deadlock here.
-		 *
-		 * We split the two cases (up and down) so that the direction
-		 * is not being tested on each round of the loop.
 		 */
 		if (first > last) {
-			/*
-			 * counting down
-			 */
-			if (dorandom)
-				*lastport = first -
-					    (arc4random() % (first - last));
-			count = first - last;
-
-			do {
-				if (count-- < 0)	/* completely used? */
-					return (EADDRNOTAVAIL);
-				--*lastport;
-				if (*lastport > first || *lastport < last)
-					*lastport = first;
-				lport = htons(*lastport);
-			} while (in_pcblookup_local(pcbinfo, laddr, lport,
-			    wild));
-		} else {
-			/*
-			 * counting up
-			 */
-			if (dorandom)
-				*lastport = first +
-					    (arc4random() % (last - first));
-			count = last - first;
-
-			do {
-				if (count-- < 0)	/* completely used? */
-					return (EADDRNOTAVAIL);
-				++*lastport;
-				if (*lastport < first || *lastport > last)
-					*lastport = first;
-				lport = htons(*lastport);
-			} while (in_pcblookup_local(pcbinfo, laddr, lport,
-			    wild));
+			aux = first;
+			first = last;
+			last = aux;
 		}
+
+		if (dorandom)
+			*lastport = first +
+				    (arc4random() % (last - first));
+
+		count = last - first;
+
+		do {
+			if (count-- < 0)	/* completely used? */
+				return (EADDRNOTAVAIL);
+			++*lastport;
+			if (*lastport < first || *lastport > last)
+				*lastport = first;
+			lport = htons(*lastport);
+		} while (in_pcblookup_local(pcbinfo, laddr, lport,
+		    wild));
 	}
 	if (prison_ip(cred, 0, &laddr.s_addr))
 		return (EINVAL);
