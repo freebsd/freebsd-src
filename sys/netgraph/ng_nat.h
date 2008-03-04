@@ -76,7 +76,7 @@ struct ng_nat_redirect_port {
 	  { "local_port",	&ng_parse_uint16_type	},	\
 	  { "alias_port",	&ng_parse_uint16_type	},	\
 	  { "remote_port",	&ng_parse_uint16_type	},	\
-	  { "udp",		&ng_parse_uint8_type	},	\
+	  { "proto",		&ng_parse_uint8_type	},	\
 	  { "description",	(desctype)		},	\
 	  { NULL }						\
 }
