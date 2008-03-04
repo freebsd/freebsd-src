@@ -1267,9 +1267,11 @@ Job_CheckCommands(GNode *gn, void (*abortProc)(const char *, ...))
 				fflush(stdout);
 				return (FALSE);
 			} else {
+#ifndef WITHOUT_OLD_JOKE
 				if (strcmp(gn->name,"love") == 0)
 					(*abortProc)("Not war.");
 				else
+#endif
 					(*abortProc)("%s %s. Stop",
 					    msg, gn->name);
 				return (FALSE);
