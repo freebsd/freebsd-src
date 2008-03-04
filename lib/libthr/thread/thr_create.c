@@ -36,6 +36,7 @@
 #include <string.h>
 #include <stddef.h>
 #include <pthread.h>
+#include <pthread_np.h>
 #include "un-namespace.h"
 
 #include "thr_private.h"
@@ -73,8 +74,11 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 	if (attr == NULL || *attr == NULL)
 		/* Use the default thread attributes: */
 		new_thread->attr = _pthread_attr_default;
-	else
+	else {
 		new_thread->attr = *(*attr);
+		new_thread->attr.cpuset = NULL;
+		new_thread->attr.cpusetsize = 0;
+	}
 	if (new_thread->attr.sched_inherit == PTHREAD_INHERIT_SCHED) {
 		/* inherit scheduling contention scope */
 		if (curthread->attr.flags & PTHREAD_SCOPE_SYSTEM)

@@ -221,6 +221,8 @@ struct pthread_attr {
 	void	*stackaddr_attr;
 	size_t	stacksize_attr;
 	size_t	guardsize_attr;
+	cpuset_t	*cpuset;
+	size_t	cpusetsize;
 };
 
 /*
