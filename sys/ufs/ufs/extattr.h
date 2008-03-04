@@ -113,6 +113,8 @@ struct extattr {
 
 #ifdef _KERNEL
 
+#include <sys/_sx.h>
+
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_EXTATTR);
 #endif
@@ -127,10 +129,9 @@ struct ufs_extattr_list_entry {
 	struct vnode	*uele_backing_vnode;
 };
 
-struct lock;
 struct ucred;
 struct ufs_extattr_per_mount {
-	struct lock	uepm_lock;
+	struct sx	uepm_lock;
 	struct ufs_extattr_list_head	uepm_list;
 	struct ucred	*uepm_ucred;
 	int	uepm_flags;
