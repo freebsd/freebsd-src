@@ -148,7 +148,9 @@ _pthread_attr_get_np(pthread_t pid, pthread_attr_t *dst)
 		attr.flags |= PTHREAD_DETACHED;
 	_thr_ref_delete(curthread, pid);
 	memcpy(*dst, &attr, sizeof(struct pthread_attr));
-
+	/* XXX */
+	(*dst)->cpuset = NULL;
+	(*dst)->cpusetsize = 0;
 	return (0);
 }
 
@@ -542,4 +544,59 @@ _pthread_attr_setstacksize(pthread_attr_t *attr, size_t stacksize)
 		ret = 0;
 	}
 	return(ret);
+}
+
+int
+pthread_attr_setaffinity_np(pthread_attr_t *pattr, size_t cpusetsize,
+	const cpuset_t *cpuset)
+{
+	pthread_attr_t attr;
+	int ret;
+
+	if (pattr == NULL || (attr = (*pattr)) == NULL)
+		ret = EINVAL;
+	else {
+		if (cpusetsize == 0 || cpuset == NULL) {
+			if (attr->cpuset != NULL) {
+				free(attr->cpuset);
+				attr->cpuset = NULL;
+				attr->cpusetsize = 0;
+			}
+			return (0);
+		}
+			
+		/*
+		 * XXX figure out kernel cpuset size, reject invalid size.
+		 */
+		if (cpusetsize != attr->cpusetsize) {
+			void *newset = realloc(attr->cpuset, cpusetsize);
+       			if (newset == NULL)
+		            return (ENOMEM);
+			attr->cpuset = newset;
+			attr->cpusetsize = cpusetsize;
+		}
+		memcpy(attr->cpuset, cpuset, cpusetsize);
+		ret = 0;
+	}
+	return (ret);
+}
+
+int
+pthread_attr_getaffinity_np(const pthread_attr_t *pattr, size_t cpusetsize,
+	cpuset_t *cpuset)
+{
+	pthread_attr_t attr;
+	int ret = 0;
+
+	if (pattr == NULL || (attr = (*pattr)) == NULL)
+		ret = EINVAL;
+	else if (attr->cpuset != NULL) {
+		memcpy(cpuset, attr->cpuset, MIN(cpusetsize, attr->cpusetsize));
+		if (cpusetsize > attr->cpusetsize)
+			memset(((char *)cpuset) + attr->cpusetsize, 0, 
+				cpusetsize - attr->cpusetsize);
+	} else {
+		memset(cpuset, -1, cpusetsize);
+	}
+	return (ret);
 }
