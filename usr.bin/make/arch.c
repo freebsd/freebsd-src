@@ -94,6 +94,7 @@ __FBSDID("$FreeBSD$");
 #include <ctype.h>
 #include <errno.h>
 #include <inttypes.h>
+#include <limits.h>
 #include <regex.h>
 #include <stdlib.h>
 #include <stdio.h>
