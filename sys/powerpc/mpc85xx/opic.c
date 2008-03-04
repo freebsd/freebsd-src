@@ -45,17 +45,11 @@ __FBSDID("$FreeBSD$");
 
 #include "pic_if.h"
 
-static int  openpic_ocpbus_probe(device_t);
-
-struct openpic_ocpbus_softc {
-	struct openpic_softc	osc;
-	int			sc_rrid;
-	struct resource		*sc_memr;	/* mem resource */
-};
-
 /*
  * OpenPIC attachment to ocpbus
  */
+static int	openpic_ocpbus_probe(device_t);
+
 static device_method_t  openpic_ocpbus_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		openpic_ocpbus_probe),
@@ -65,6 +59,7 @@ static device_method_t  openpic_ocpbus_methods[] = {
 	DEVMETHOD(pic_dispatch,		openpic_dispatch),
 	DEVMETHOD(pic_enable,		openpic_enable),
 	DEVMETHOD(pic_eoi,		openpic_eoi),
+	DEVMETHOD(pic_ipi,		openpic_ipi),
 	DEVMETHOD(pic_mask,		openpic_mask),
 	DEVMETHOD(pic_unmask,		openpic_unmask),
 
@@ -74,7 +69,7 @@ static device_method_t  openpic_ocpbus_methods[] = {
 static driver_t openpic_ocpbus_driver = {
 	"openpic",
 	openpic_ocpbus_methods,
-	sizeof(struct openpic_ocpbus_softc)
+	sizeof(struct openpic_softc)
 };
 
 DRIVER_MODULE(openpic, ocpbus, openpic_ocpbus_driver, openpic_devclass, 0, 0);
