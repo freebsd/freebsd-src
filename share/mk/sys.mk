@@ -36,9 +36,9 @@ CFLAGS		?=	-O
 .else
 CC		?=	cc
 .if ${MACHINE_ARCH} == "arm"
-CFLAGS		?=	-O -fno-strict-aliasing -pipe
+CFLAGS		?=	-Os -pipe
 .else
-CFLAGS		?=	-O2 -fno-strict-aliasing -pipe
+CFLAGS		?=	-O2 -pipe
 .endif
 .if defined(NO_STRICT_ALIASING)
 CFLAGS		+=	-fno-strict-aliasing
