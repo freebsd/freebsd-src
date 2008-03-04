@@ -11,7 +11,7 @@
 #
 # You must specify at least one CPU (the one you intend to run on).
 cpu		AIM
-cpu		E500
+#cpu		E500
 
 options 	FPU_EMU
 
