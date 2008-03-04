@@ -645,7 +645,7 @@ They are added right before
 .Nm
 begins to parse them, so that the name of the current makefile is the
 last word in this variable.
-.It Va .MAKEFLAGS
+.It Ev MAKEFLAGS
 The environment variable
 .Ev MAKEFLAGS
 may contain anything that
@@ -671,7 +671,7 @@ entered into the environment as
 for all programs which
 .Nm
 executes.
-.Pp
+.It Va .MAKEFLAGS
 By modifying the contents of the
 .Va .MAKEFLAGS
 variable, a makefile can alter the contents of the
