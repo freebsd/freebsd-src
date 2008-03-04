@@ -932,14 +932,13 @@ main(int argc, char **argv)
 #endif
 
 	/*
-	 * FreeBSD/pc98 kernel used to set the utsname.machine to
-	 * "i386", and MACHINE was defined as "i386", so it could
-	 * not be distinguished from FreeBSD/i386.  Therefore, we
-	 * had to check machine.ispc98 and adjust the MACHINE
-	 * variable.
-	 * NOTE: The code is still here to be able to compile new
-	 * make binary on old FreeBSD/pc98 systems, and have the
-	 * MACHINE variable set properly.
+	 * Prior to 7.0, FreeBSD/pc98 kernel used to set the
+	 * utsname.machine to "i386", and MACHINE was defined as
+	 * "i386", so it could not be distinguished from FreeBSD/i386.
+	 * Therefore, we had to check machine.ispc98 and adjust the
+	 * MACHINE variable.  NOTE: The code is still here to be able
+	 * to compile new make binary on old FreeBSD/pc98 systems, and
+	 * have the MACHINE variable set properly.
 	 */
 	if ((machine = getenv("MACHINE")) == NULL) {
 		int	ispc98;
