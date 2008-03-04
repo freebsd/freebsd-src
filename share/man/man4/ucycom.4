@@ -47,16 +47,6 @@ module at boot time, place the following line in
 .Bd -literal -offset indent
 ucycom_load="YES"
 .Ed
-.Sh HARDWARE
-The
-.Nm
-driver currently supports the following devices which incorporate
-Cypress USB to RS232 bridge chips:
-.Pp
-.Bl -bullet -compact
-.It
-DeLorme Earthmate USB GPS receiver
-.El
 .Sh DESCRIPTION
 The
 .Nm
@@ -69,6 +59,16 @@ The
 .Nm
 driver behaves like a
 .Xr tty 4 .
+.Sh HARDWARE
+The
+.Nm
+driver currently supports the following devices which incorporate
+Cypress USB to RS232 bridge chips:
+.Pp
+.Bl -bullet -compact
+.It
+DeLorme Earthmate USB GPS receiver
+.El
 .Sh SEE ALSO
 .Xr tty 4 ,
 .Xr usb 4
