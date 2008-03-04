@@ -293,8 +293,7 @@ __END_DECLS
  *
  * The value IP_PORTRANGE_HIGH changes the range of candidate port numbers
  * into the "high" range.  These are reserved for client outbound connections
- * which do not want to be filtered by any firewalls.  Note that by default
- * this is the same as IP_PORTRANGE_DEFAULT.
+ * which do not want to be filtered by any firewalls.
  *
  * The value IP_PORTRANGE_LOW changes the range to the "low" are
  * that is (by convention) restricted to privileged processes.  This
@@ -331,8 +330,13 @@ __END_DECLS
 #define	IPPORT_RESERVED		1024
 
 /*
- * Default local port range, used by both IP_PORTRANGE_DEFAULT
- * and IP_PORTRANGE_HIGH.
+ * Default local port range, used by IP_PORTRANGE_DEFAULT
+ */
+#define IPPORT_EPHEMERALFIRST	10000
+#define IPPORT_EPHEMERALLAST	65535 
+ 
+/*
+ * Dynamic port range, used by IP_PORTRANGE_HIGH.
  */
 #define	IPPORT_HIFIRSTAUTO	49152
 #define	IPPORT_HILASTAUTO	65535
