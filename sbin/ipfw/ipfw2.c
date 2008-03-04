@@ -1611,7 +1611,7 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 			break;
 
 		case O_NAT:
- 			printf("nat %u", cmd->arg1);
+ 			PRINT_UINT_ARG("nat ", cmd->arg1);
  			break;
 			
 		default:
@@ -4847,6 +4847,10 @@ add(int ac, char *av[])
 		action->opcode = O_COUNT;
 		break;
 
+	case TOK_NAT:
+		action->opcode = O_NAT;
+		action->len = F_INSN_SIZE(ipfw_insn_nat);
+		goto chkarg;
 	case TOK_QUEUE:
 		action->opcode = O_QUEUE;
 		goto chkarg;
@@ -4929,14 +4933,6 @@ chkarg:
 		ac++; av--;	/* go back... */
 		break;
 
-	case TOK_NAT:
- 		action->opcode = O_NAT;
- 		action->len = F_INSN_SIZE(ipfw_insn_nat);
- 		NEED1("missing nat number");
- 	        action->arg1 = strtoul(*av, NULL, 10);
- 		ac--; av++;
- 		break;
-		
 	default:
 		errx(EX_DATAERR, "invalid action %s\n", av[-1]);
 	}
@@ -5925,7 +5921,7 @@ show_nat(int ac, char **av) {
 	struct cfg_nat *n;
 	struct cfg_redir *e;
 	int cmd, i, nbytes, do_cfg, do_rule, frule, lrule, nalloc, size;
-	int nat_cnt, r;
+	int nat_cnt, redir_cnt, r;
 	uint8_t *data, *p;
 	char **lav, *endptr;
 
@@ -5933,6 +5929,8 @@ show_nat(int ac, char **av) {
 	nalloc = 1024;
 	size = 0;
 	data = NULL;
+	frule = 0;
+	lrule = 65535; /* max ipfw rule number */
 	ac--; av++;
 
 	/* Parse parameters. */
@@ -5961,22 +5959,18 @@ show_nat(int ac, char **av) {
 			    (cmd == IP_FW_NAT_GET_LOG) ? "LOG" : "CONFIG");
 	}
 	if (nbytes == 0)
-		exit(0); 
+		exit(0);
 	if (do_cfg) {
 		nat_cnt = *((int *)data);
 		for (i = sizeof(nat_cnt); nat_cnt; nat_cnt--) {
 			n = (struct cfg_nat *)&data[i];
-			if (do_rule) {
-				if (!(frule <= n->id && lrule >= n->id))
-					continue;
-			}
-			print_nat_config(&data[i]);
+			if (frule <= n->id && lrule >= n->id)
+				print_nat_config(&data[i]);
 			i += sizeof(struct cfg_nat);
-			e = (struct cfg_redir *)&data[i];
-			if (e->mode == REDIR_ADDR || e->mode == REDIR_PORT ||
-			    e->mode == REDIR_PROTO)
+			for (redir_cnt = 0; redir_cnt < n->redir_cnt; redir_cnt++) {
 				i += sizeof(struct cfg_redir) + e->spool_cnt * 
 				    sizeof(struct cfg_spool);
+			}
 		}
 	} else {
 		for (i = 0; 1; i += LIBALIAS_BUF_SIZE + sizeof(int)) {
