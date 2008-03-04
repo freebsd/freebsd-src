@@ -32,7 +32,7 @@
 .\"	@(#)make.1	8.8 (Berkeley) 6/13/95
 .\" $FreeBSD$
 .\"
-.Dd April 8, 2006
+.Dd March 4, 2008
 .Dt MAKE 1
 .Os
 .Sh NAME
@@ -655,31 +655,32 @@ command line,
 including
 .Fl f
 option(s).
-Its contents are stored in
-.Nm Ns 's
+After processing, its contents are stored in the
 .Va .MAKEFLAGS
-variable.
-All options and variable assignments specified on
+global variable, although any
+.Fl f
+options are omitted.
+Then all options and variable assignments specified on
 .Nm Ns 's
 command line, except for
 .Fl f ,
 are appended to the
 .Va .MAKEFLAGS
-variable which is then
-entered into the environment as
-.Ev MAKEFLAGS
-for all programs which
-.Nm
-executes.
+variable.
 .It Va .MAKEFLAGS
+Initially, this global variable contains
+.Nm Ns 's
+current run-time options from the environment
+and command line as described above, under
+.Ev MAKEFLAGS .
 By modifying the contents of the
 .Va .MAKEFLAGS
-variable, a makefile can alter the contents of the
+global variable, the makefile can alter the contents of the
 .Ev MAKEFLAGS
 environment variable made available for all programs which
 .Nm
 executes.
-(This includes adding or modifying
+(This includes adding
 .Fl f
 option(s).)
 Note that any options entered to
@@ -705,17 +706,15 @@ Compare with the
 special target below.
 .Pp
 To sum up what was said on
-.Fl f ,
-it can appear in
-.Va .MAKEFLAGS
+.Fl f :
+It can appear in
+.Ev MAKEFLAGS
 and affect the current
 .Nm
-at the same time only if inherited from
-.Ev MAKEFLAGS
-in 
+only if inherited from
 .Nm Ns 's
 initial environment.
-On the other hand, a
+At the same time, a
 .Fl f
 option from
 .Nm Ns 's
@@ -724,7 +723,14 @@ does affect
 .Nm ,
 but it is never transferred to
 .Va .MAKEFLAGS
-or further.
+or pushed down to child programs such as sub-makes.
+Finally,
+.Fl f
+can appear in
+.Va .MAKEFLAGS
+only if added by the makefile itself;
+it will affect sub-makes only, via
+.Ev MAKEFLAGS .
 .Pp
 When passing macro definitions and flag arguments in the
 .Ev MAKEFLAGS
