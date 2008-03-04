@@ -39,6 +39,8 @@
 #include <sys/time.h>
 #include <sys/cdefs.h>
 #include <sys/queue.h>
+#include <sys/param.h>
+#include <sys/cpuset.h>
 #include <machine/atomic.h>
 #include <errno.h>
 #include <limits.h>
