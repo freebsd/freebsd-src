@@ -2146,7 +2146,7 @@ nfsrv_remove(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	nfsfh_t nfh;
 	fhandle_t *fhp;
 	struct mount *mp = NULL;
-	int vfslocked;
+	int vfslocked, vfslocked1;
 
 	nfsdbprintf(("%s %d\n", __FILE__, __LINE__));
 	ndclear(&nd);
@@ -2168,7 +2168,11 @@ nfsrv_remove(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	nd.ni_cnd.cn_flags = LOCKPARENT | LOCKLEAF | MPSAFE;
 	error = nfs_namei(&nd, fhp, len, slp, nam, &md, &dpos,
 		&dirp, v3,  &dirfor, &dirfor_ret, td, FALSE);
-	vfslocked = NDHASGIANT(&nd);
+	vfslocked1 = NDHASGIANT(&nd);
+	if (vfslocked && vfslocked1)
+		VFS_UNLOCK_GIANT(vfslocked1);
+	if (vfslocked || vfslocked1)
+		vfslocked = 1;
 	if (dirp && !v3) {
 		vrele(dirp);
 		dirp = NULL;
