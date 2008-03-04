@@ -1,5 +1,5 @@
 .\" $FreeBSD$
-.Dd February 28, 2003
+.Dd February 4, 2008
 .Dt NATD 8
 .Os
 .Sh NAME
@@ -28,6 +28,8 @@
 .Op Fl redirect_proto Ar linkspec
 .Op Fl redirect_address Ar linkspec
 .Op Fl config | f Ar configfile
+.Op Fl instance Ar instancename
+.Op Fl globalport Ar port
 .Op Fl log_denied
 .Op Fl log_facility Ar facility_name
 .Op Fl punch_fw Ar firewall_range
@@ -421,10 +423,60 @@ For example, the line
 is synonymous with
 .Fl log .
 .Pp
+Options can be divided to several sections.
+Each section applies to own
+.Nm
+instance.
+This ability allows to configure one
+.Nm
+process for several NAT instances.
+The first instance that always exists is a "default" instance.
+Each another instance should begin with
+.Pp
+.Dl instance Ar instance_name
+.Pp
+At the next should be placed a configuration option.
+Example:
+.Pp
+.Dl \&# default instance
+.Dl port 8668
+.Dl alias_address 158.152.17.1
+.Pp
+.Dl \&# second instance
+.Dl instance dsl1
+.Dl port 8888
+.Dl alias_address 192.168.0.1
+.Pp
 Trailing spaces and empty lines are ignored.
 A
 .Ql \&#
 sign will mark the rest of the line as a comment.
+.It Fl instance Ar instancename
+This option switches command line options processing to configure instance
+.Ar instancename
+(creating it if necessary) till the next
+.Fl instance
+option or end of command line.
+It is easier to set up multiple instances in the configuration file
+specified with the
+.Fl config
+option rather than on a command line.
+.It Fl globalport Ar port
+Read from and write to
+.Xr divert 4
+port
+.Ar port ,
+treating all packets as
+.Dq outgoing .
+This option is intended to be used with multiple instances:
+packets received on this port are checked against
+internal translation tables of every configured instance.
+If an entry is found, packet is aliased according to that entry.
+In no entry was found in any of the instances, packet is passed
+unchanged, and no new entry will be created.
+See the section
+.Sx MULTIPLE INSTANCES
+for more details.
 .It Fl reverse
 This option makes
 .Nm
@@ -484,6 +536,10 @@ rules starting from the rule number
 .Ar basenumber
 will be used for punching firewall holes.
 The range will be cleared for all rules on startup.
+This option has no effect when the kernel is in security
+level 3, see
+.Xr init 8
+for more information.
 .It Fl skinny_port Ar port
 This option allows you to specify the TCP port used for
 the Skinny Station protocol.
@@ -611,6 +667,135 @@ will stop at this point - blocking all accesses permanently.
 Running the script in the background should be enough to prevent this
 disaster.
 .El
+.Sh MULTIPLE INSTANCES
+It is not so uncommon to have a need of aliasing to several external IP
+addresses.
+While this traditionally was achieved by running several
+.Nm
+processes with independent configurations,
+.Nm
+can have multiple aliasing instances in a single process,
+also allowing them to be not so independent of each other.
+For example, let us see a common task of load balancing two
+channels to different providers on a machine with two external
+interfaces
+.Ql sis0
+(with IP 1.2.3.4) and
+.Ql sis2
+(with IP 2.3.4.5):
+.Bd -literal -offset indent
+          net 1.2.3.0/24
+1.2.3.1 ------------------ sis0
+(router)                (1.2.3.4)
+                                         net 10.0.0.0/24
+                                  sis1 ------------------- 10.0.0.2
+                               (10.0.0.1)
+          net 2.3.4.0/24
+2.3.4.1 ------------------ sis2
+(router)                (2.3.4.5)
+.Ed
+.Pp
+Default route is out via
+.Ql sis0 .
+.Pp
+Interior machine (10.0.0.2) is accessible on TCP port 122 through
+both exterior IPs, and outgoing connections choose a path randomly
+between
+.Ql sis0
+and
+.Ql sis2 .
+.Pp
+The way this works is that
+.Pa natd.conf
+builds two instances of the aliasing engine.
+.Pp
+In addition to these instances' private
+.Xr divert 4
+sockets, a third socket called the
+.Dq globalport
+is created; packets sent to
+.Nm
+via this one will be matched against all instances and translated
+if an existing entry is found, and unchanged if no entry is found.
+The following lines are placed into
+.Pa /etc/natd.conf :
+.Bd -literal -offset indent
+log
+deny_incoming
+verbose
+
+instance default
+interface sis0
+port 1000
+redirect_port tcp 10.0.0.2:122 122
+
+instance sis2
+interface sis2
+port 2000
+redirect_port tcp 10.0.0.2:122 122
+
+globalport 3000
+.Ed
+.Pp
+And the following
+.Xr ipfw 8
+rules are used:
+.Bd -literal -offset indent
+ipfw -f flush
+
+ipfw add      allow ip from any to any via sis1
+
+ipfw add      skipto 1000 ip from any to any in via sis0
+ipfw add      skipto 2000 ip from any to any out via sis0
+ipfw add      skipto 3000 ip from any to any in via sis2
+ipfw add      skipto 4000 ip from any to any out via sis2
+
+ipfw add 1000 count ip from any to any
+
+ipfw add      divert 1000 ip from any to any
+ipfw add      allow ip from any to any
+
+ipfw add 2000 count ip from any to any
+
+ipfw add      divert 3000 ip from any to any
+
+ipfw add      allow ip from 1.2.3.4 to any
+ipfw add      skipto 5000 ip from 2.3.4.5 to any
+
+ipfw add      prob .5 skipto 4000 ip from any to any
+
+ipfw add      divert 1000 ip from any to any
+ipfw add      allow ip from any to any
+
+ipfw add 3000 count ip from any to any
+
+ipfw add      divert 2000 ip from any to any
+ipfw add      allow ip from any to any
+
+ipfw add 4000 count ip from any to any
+
+ipfw add      divert 2000 ip from any to any
+
+ipfw add 5000 fwd 2.3.4.1 ip from 2.3.4.5 to not 2.3.4.0/24
+ipfw add      allow ip from any to any
+.Ed
+.Pp
+Here the packet from internal network to Internet goes out via
+.Ql sis0
+(rule number 2000) and gets catched by the
+.Ic globalport
+socket (3000).
+After that, either a match is found in a translation table
+of one of the two instances, or the packet is passed to one
+of the two other
+.Xr divert 4
+ports (1000 or 2000), with equal probability.
+This ensures that load balancing is done on a per-flow basis
+(i.e., packets from a single TCP connection always flow through the
+same interface).
+Translated packets with source IP of a non-default interface
+.Pq Ql sis2
+are forwarded to the appropriate router on that interface.
 .Sh SEE ALSO
 .Xr libalias 3 ,
 .Xr divert 4 ,
@@ -618,6 +803,7 @@ disaster.
 .Xr rc.conf 5 ,
 .Xr services 5 ,
 .Xr syslog.conf 5 ,
+.Xr init 8 ,
 .Xr ipfw 8 ,
 .Xr ppp 8
 .Sh AUTHORS
@@ -638,3 +824,5 @@ times:
 (glue)
 .An Ruslan Ermilov Aq ru@FreeBSD.org
 (natd, packet aliasing, glue)
+.An Poul-Henning Kamp Aq phk@FreeBSD.org
+(multiple instances)
