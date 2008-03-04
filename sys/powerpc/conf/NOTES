@@ -15,7 +15,7 @@ cpu		AIM
 
 options 	FPU_EMU
 
-options 	MPC85XX
+#options 	MPC85XX
 options 	POWERMAC		#NewWorld Apple PowerMacs
 options 	PSIM			#GDB PSIM ppc simulator
 
