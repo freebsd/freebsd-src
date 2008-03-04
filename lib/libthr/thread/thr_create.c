@@ -123,6 +123,11 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 	if (new_thread->attr.flags & PTHREAD_CREATE_DETACHED)
 		new_thread->tlflags |= TLFLAGS_DETACHED;
 
+	if (curthread->in_sigcancel_handler)
+		new_thread->unblock_sigcancel = 1;
+	else
+		new_thread->unblock_sigcancel = 0;
+
 	/* Add the new thread. */
 	new_thread->refcount = 1;
 	_thr_link(curthread, new_thread);
@@ -172,8 +177,10 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 			ret = EAGAIN;
 	}
 
-	if (create_suspended)
+	if (create_suspended) {
 		__sys_sigprocmask(SIG_SETMASK, &oset, NULL);
+		SIGDELSET(oset, SIGCANCEL);
+	}
 
 	if (ret != 0) {
 		if (!locked)
@@ -217,6 +224,14 @@ create_stack(struct pthread_attr *pattr)
 static void
 thread_start(struct pthread *curthread)
 {
+	if (curthread->unblock_sigcancel) {
+		sigset_t set;
+
+		SIGEMPTYSET(set);
+		SIGADDSET(set, SIGCANCEL);
+		sigprocmask(SIG_UNBLOCK, &set, NULL);
+	}
+
 	if (curthread->attr.suspend == THR_CREATE_SUSPENDED) {
 		sigset_t set = curthread->sigmask;
 
