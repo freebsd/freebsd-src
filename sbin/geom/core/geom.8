@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 21, 2004
+.Dd March 5, 2008
 .Dt GEOM 8
 .Os
 .Sh NAME
@@ -108,15 +108,23 @@ Currently available classes which are aware of
 .Pp
 .Bl -bullet -offset indent -compact
 .It
+CACHE
+.It
 CONCAT
 .It
 ELI
+.It
+JOURNAL
 .It
 LABEL
 .It
 MIRROR
 .It
+MULTIPATH
+.It
 NOP
+.It
+PART
 .It
 RAID3
 .It
@@ -157,11 +165,15 @@ geom md unload
 .Ed
 .Sh SEE ALSO
 .Xr geom 4 ,
+.\" .Xr gcache 8 ,
 .Xr gconcat 8 ,
 .Xr geli 8 ,
+.Xr gjournal 8 ,
 .Xr glabel 8 ,
 .Xr gmirror 8 ,
+.Xr gmultipath 8 ,
 .Xr gnop 8 ,
+.Xr gpart 8 ,
 .Xr graid3 8 ,
 .Xr gshsec 8 ,
 .Xr gstripe 8 ,
