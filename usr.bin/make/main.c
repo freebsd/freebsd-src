@@ -1185,7 +1185,7 @@ main(int argc, char **argv)
 
 	ReadMakefile(".depend");
 
-	/* Install all the flags into the MAKE envariable. */
+	/* Install all the flags into the MAKEFLAGS envariable. */
 	if (((p = Var_Value(".MAKEFLAGS", VAR_GLOBAL)) != NULL) && *p)
 		setenv("MAKEFLAGS", p, 1);
 	else
