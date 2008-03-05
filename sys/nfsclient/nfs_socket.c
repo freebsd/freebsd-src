@@ -77,9 +77,6 @@ __FBSDID("$FreeBSD$");
 #define	TRUE	1
 #define	FALSE	0
 
-extern u_int32_t nfs_xid;
-extern struct mtx nfs_xid_mtx;
-
 static int	nfs_realign_test;
 static int	nfs_realign_count;
 static int	nfs_bufpackets = 4;
@@ -1351,11 +1348,7 @@ wait_for_pinned_req:
 				while (time_second < waituntil) {
 					(void) tsleep(&lbolt, PSOCK, "nqnfstry", 0);
 				}
-				mtx_lock(&nfs_xid_mtx);
-				if (++nfs_xid == 0)
-					nfs_xid++;
-				rep->r_xid = *xidp = txdr_unsigned(nfs_xid);
-				mtx_unlock(&nfs_xid_mtx);
+				rep->r_xid = *xidp = txdr_unsigned(nfs_xid_gen());
 				goto tryagain;
 			}
 
