@@ -396,7 +396,7 @@ rtredirect(struct sockaddr *dst,
 		error = EHOSTUNREACH;
 done:
 	if (rt)
-		rtfree(rt);
+		RTFREE_LOCKED(rt);
 out:
 	if (error)
 		rtstat.rts_badredirect++;
