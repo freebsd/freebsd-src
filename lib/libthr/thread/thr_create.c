@@ -29,7 +29,6 @@
 
 #include "namespace.h"
 #include <sys/types.h>
-#include <sys/rtprio.h>
 #include <sys/signalvar.h>
 #include <errno.h>
 #include <stdlib.h>
@@ -53,9 +52,10 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 	struct pthread *curthread, *new_thread;
 	struct thr_param param;
 	struct sched_param sched_param;
-	struct rtprio rtp;
 	int ret = 0, locked, create_suspended;
 	sigset_t set, oset;
+	cpuset_t *cpuset = NULL;
+	int cpusetsize = 0;
 
 	_thr_check_init();
 
@@ -76,6 +76,8 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 		new_thread->attr = _pthread_attr_default;
 	else {
 		new_thread->attr = *(*attr);
+		cpuset = new_thread->attr.cpuset;
+		cpusetsize = new_thread->attr.cpusetsize;
 		new_thread->attr.cpuset = NULL;
 		new_thread->attr.cpusetsize = 0;
 	}
@@ -133,7 +135,8 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 	_thr_link(curthread, new_thread);
 	/* Return thread pointer eariler so that new thread can use it. */
 	(*thread) = new_thread;
-	if (SHOULD_REPORT_EVENT(curthread, TD_CREATE)) {
+	if (SHOULD_REPORT_EVENT(curthread, TD_CREATE) || cpuset != NULL ||
+	    new_thread->attr.sched_inherit != PTHREAD_INHERIT_SCHED) {
 		THR_THREAD_LOCK(curthread, new_thread);
 		locked = 1;
 	} else
@@ -149,14 +152,7 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 	param.flags = 0;
 	if (new_thread->attr.flags & PTHREAD_SCOPE_SYSTEM)
 		param.flags |= THR_SYSTEM_SCOPE;
-	if (new_thread->attr.sched_inherit == PTHREAD_INHERIT_SCHED)
-		param.rtp = NULL;
-	else {
-		sched_param.sched_priority = new_thread->attr.prio;
-		_schedparam_to_rtp(new_thread->attr.sched_policy,
-			&sched_param, &rtp);
-		param.rtp = &rtp;
-	}
+	param.rtp = NULL;
 
 	/* Schedule the new thread. */
 	if (create_suspended) {
@@ -197,11 +193,43 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 		new_thread->tlflags |= TLFLAGS_DETACHED;
 		_thr_ref_delete_unlocked(curthread, new_thread);
 		THREAD_LIST_UNLOCK(curthread);
-		(*thread) = 0;
 	} else if (locked) {
+		if (cpuset != NULL) {
+			if (cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID,
+				TID(new_thread), cpusetsize, cpuset)) {
+				ret = errno;
+				/* kill the new thread */
+				new_thread->force_exit = 1;
+				THR_THREAD_UNLOCK(curthread, new_thread);
+				goto out;
+			}
+		}
+
+		if (new_thread->attr.sched_inherit != PTHREAD_INHERIT_SCHED) {
+			sched_param.sched_priority = new_thread->attr.prio;
+			if (_thr_setscheduler(TID(new_thread),
+			    new_thread->attr.sched_policy, &sched_param)) {
+				ret = errno;
+				/* kill the new thread */
+				new_thread->force_exit = 1;
+				THR_THREAD_UNLOCK(curthread, new_thread);
+				goto out;
+			}
+		}
+		
 		_thr_report_creation(curthread, new_thread);
 		THR_THREAD_UNLOCK(curthread, new_thread);
+out:
+		if (ret) {
+			THREAD_LIST_LOCK(curthread);
+			new_thread->tlflags |= TLFLAGS_DETACHED;
+			_thr_ref_delete_unlocked(curthread, new_thread);
+			THREAD_LIST_UNLOCK(curthread);
+		}
 	}
+
+	if (ret)
+		(*thread) = 0;
 	return (ret);
 }
 
@@ -224,6 +252,17 @@ create_stack(struct pthread_attr *pattr)
 static void
 thread_start(struct pthread *curthread)
 {
+	/*
+	 * This is used as a serialization point to allow parent
+	 * to report 'new thread' event to debugger or tweak new thread's
+	 * attributes before the new thread does real-world work.
+	 */
+	THR_LOCK(curthread);
+	THR_UNLOCK(curthread);
+
+	if (curthread->force_exit)
+		_pthread_exit(PTHREAD_CANCELED);
+
 	if (curthread->unblock_sigcancel) {
 		sigset_t set;
 
@@ -243,14 +282,6 @@ thread_start(struct pthread *curthread)
 		 */
 		sigprocmask(SIG_SETMASK, &set, NULL);
 	}
-
-	/*
-	 * This is used as a serialization point to allow parent
-	 * to report 'new thread' event to debugger before the thread
-	 * does real work.
-	 */
-	THR_LOCK(curthread);
-	THR_UNLOCK(curthread);
 
 	/* Run the current thread's start routine with argument: */
 	_pthread_exit(curthread->start_routine(curthread->arg));

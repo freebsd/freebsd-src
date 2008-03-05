@@ -75,7 +75,7 @@ struct pthread_prio	_thr_priorities[3] = {
 
 struct pthread_attr _pthread_attr_default = {
 	.sched_policy = SCHED_OTHER,
-	.sched_inherit = 0,
+	.sched_inherit = PTHREAD_INHERIT_SCHED,
 	.prio = 0,
 	.suspend = THR_CREATE_RUNNING,
 	.flags = PTHREAD_SCOPE_SYSTEM,
