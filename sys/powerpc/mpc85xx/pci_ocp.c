@@ -1,5 +1,6 @@
 /*-
- * Copyright 2006 by Juniper Networks. All rights reserved.
+ * Copyright 2006-2007 by Juniper Networks.
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -93,8 +94,6 @@ struct pci_ocp_softc {
 	int		sc_pcie:1;
 };
 
-static int pci_ocp_busnr = 0;
-
 static int pci_ocp_attach(device_t);
 static int pci_ocp_probe(device_t);
 
@@ -154,7 +153,7 @@ pci_ocp_cfgread(struct pci_ocp_softc *sc, u_int bus, u_int slot, u_int func,
 {
 	uint32_t addr, data;
 
-	if (bus == sc->sc_busnr && !sc->sc_pcie)
+	if (bus == sc->sc_busnr)
 		bus = 0;
 
 	addr = CONFIG_ACCESS_ENABLE;
@@ -192,7 +191,7 @@ pci_ocp_cfgwrite(struct pci_ocp_softc *sc, u_int bus, u_int slot, u_int func,
 {
 	uint32_t addr;
 
-	if (bus == sc->sc_busnr && !sc->sc_pcie)
+	if (bus == sc->sc_busnr)
 		bus = 0;
 
 	addr = CONFIG_ACCESS_ENABLE;
@@ -359,8 +358,8 @@ pci_ocp_probe(device_t dev)
 		cfgreg = (cfgreg >> 8) & 0xff;
 	}
 
-	bus_get_resource(dev, SYS_RES_MEMORY, 1, &start, &size);
-	if (start == 0 || size == 0)
+	error = bus_get_resource(dev, SYS_RES_MEMORY, 1, &start, &size);
+	if (error || start == 0 || size == 0)
 		goto out;
 
 	snprintf(buf, sizeof(buf),
@@ -378,19 +377,17 @@ pci_ocp_init_bar(struct pci_ocp_softc *sc, int bus, int slot, int func,
     int barno)
 {
 	bus_addr_t *allocp;
-	uint32_t addr, bar, mask, size;
+	uint32_t addr, mask, size;
 	int reg, width;
 
 	reg = PCIR_BAR(barno);
-	bar = pci_ocp_read_config(sc->sc_dev, bus, slot, func, reg, 4);
-	if (bar == 0)
-		return (1);
-	width = ((bar & 7) == 4) ? 2 : 1;
-
 	pci_ocp_write_config(sc->sc_dev, bus, slot, func, reg, ~0, 4);
 	size = pci_ocp_read_config(sc->sc_dev, bus, slot, func, reg, 4);
+	if (size == 0)
+		return (1);
+	width = ((size & 7) == 4) ? 2 : 1;
 
-	if (bar & 1) {		/* I/O port */
+	if (size & 1) {		/* I/O port */
 		allocp = &sc->sc_ioport_alloc;
 		size &= ~3;
 		if ((size & 0xffff0000) == 0)
@@ -409,8 +406,9 @@ pci_ocp_init_bar(struct pci_ocp_softc *sc, int bus, int slot, int func,
 	*allocp = addr + size;
 
 	if (bootverbose)
-		printf("PCI %u:%u:%u: reg %x: size=%08x: addr=%08x\n",
-		    bus, slot, func, reg, size, addr);
+		printf("PCI %u:%u:%u:%u: reg %x: size=%08x: addr=%08x\n",
+		    device_get_unit(sc->sc_dev), bus, slot, func, reg,
+		    size, addr);
 
 	pci_ocp_write_config(sc->sc_dev, bus, slot, func, reg, addr, 4);
 	if (width == 2)
@@ -419,17 +417,41 @@ pci_ocp_init_bar(struct pci_ocp_softc *sc, int bus, int slot, int func,
 	return (width);
 }
 
-static void
-pci_ocp_init(struct pci_ocp_softc *sc, int bus)
+static u_int
+pci_ocp_route_int(struct pci_ocp_softc *sc, u_int bus, u_int slot, u_int func,
+    u_int intpin)
 {
-	int slot, maxslot;
+	u_int intline;
+
+	/*
+	 * Default interrupt routing.
+	 */
+	if (intpin != 0) {
+		intline = intpin - 1;
+		intline += (bus != sc->sc_busnr) ? slot : 0;
+		intline = PIC_IRQ_EXT(intline & 3);
+	} else
+		intline = 0xff;
+
+	if (bootverbose)
+		printf("PCI %u:%u:%u:%u: intpin %u: intline=%u\n",
+		    device_get_unit(sc->sc_dev), bus, slot, func,
+		    intpin, intline);
+
+	return (intline);
+}
+
+static int
+pci_ocp_init(struct pci_ocp_softc *sc, int bus, int maxslot)
+{
+	int secbus, slot;
 	int func, maxfunc;
 	int bar, maxbar;
 	uint16_t vendor, device;
 	uint8_t cr8, command, hdrtype, class, subclass;
 	uint8_t intline, intpin;
 
-	maxslot = (sc->sc_pcie) ? 1 : 31;
+	secbus = bus;
 	for (slot = 0; slot < maxslot; slot++) {
 		maxfunc = 0;
 		for (func = 0; func <= maxfunc; func++) {
@@ -482,7 +504,7 @@ pci_ocp_init(struct pci_ocp_softc *sc, int bus)
 			}
 
 			/* Program the base address registers. */
-			maxbar = (hdrtype & PCIM_HDRTYPE) ? 0 : 6;
+			maxbar = (hdrtype & PCIM_HDRTYPE) ? 1 : 6;
 			bar = 0;
 			while (bar < maxbar)
 				bar += pci_ocp_init_bar(sc, bus, slot, func,
@@ -491,12 +513,8 @@ pci_ocp_init(struct pci_ocp_softc *sc, int bus)
 			/* Perform interrupt routing. */
 			intpin = pci_ocp_read_config(sc->sc_dev, bus, slot,
 			    func, PCIR_INTPIN, 1);
-			if (intpin != 0) {
-				intline = intpin - 1;
-				intline += (bus != sc->sc_busnr) ? slot : 0;
-				intline = PIC_IRQ_EXT(intline & 3);
-			} else
-				intline = 0xff;
+			intline = pci_ocp_route_int(sc, bus, slot, func,
+			    intpin);
 			pci_ocp_write_config(sc->sc_dev, bus, slot, func,
 			    PCIR_INTLINE, intline, 1);
 
@@ -516,6 +534,8 @@ pci_ocp_init(struct pci_ocp_softc *sc, int bus)
 			    func, PCIR_SUBCLASS, 1);
 			if (subclass != PCIS_BRIDGE_PCI)
 				continue;
+
+			secbus++;
 
 			/* Program I/O decoder. */
 			pci_ocp_write_config(sc->sc_dev, bus, slot, func,
@@ -543,20 +563,22 @@ pci_ocp_init(struct pci_ocp_softc *sc, int bus)
 			pci_ocp_write_config(sc->sc_dev, bus, slot, func,
 			    PCIR_PMLIMITH_1, 0x00000000, 4);
 
-			pci_ocp_busnr++;
 			pci_ocp_write_config(sc->sc_dev, bus, slot, func,
 			    PCIR_PRIBUS_1, bus, 1);
 			pci_ocp_write_config(sc->sc_dev, bus, slot, func,
-			    PCIR_SECBUS_1, pci_ocp_busnr, 1);
+			    PCIR_SECBUS_1, secbus, 1);
 			pci_ocp_write_config(sc->sc_dev, bus, slot, func,
 			    PCIR_SUBBUS_1, 0xff, 1);
 
-			pci_ocp_init(sc, pci_ocp_busnr);
+			secbus = pci_ocp_init(sc, secbus,
+			    (subclass == PCIS_BRIDGE_PCI) ? 31 : 1);
 
 			pci_ocp_write_config(sc->sc_dev, bus, slot, func,
-			    PCIR_SUBBUS_1, pci_ocp_busnr, 1);
+			    PCIR_SUBBUS_1, secbus, 1);
 		}
 	}
+
+	return (secbus);
 }
 
 static void
@@ -619,7 +641,10 @@ pci_ocp_iorange(struct pci_ocp_softc *sc, int type, int wnd)
 	bus_addr_t *vap, *allocp;
 	int error;
 
-	bus_get_resource(sc->sc_dev, type, 1, &start, &size);
+	error = bus_get_resource(sc->sc_dev, type, 1, &start, &size);
+	if (error)
+		return (error);
+
 	end = start + size - 1;
 
 	switch (type) {
@@ -658,7 +683,8 @@ pci_ocp_iorange(struct pci_ocp_softc *sc, int type, int wnd)
 
 	*allocp = pci_start + alloc;
 	*vap = (uintptr_t)pmap_mapdev(start, size);
-	pci_ocp_outbound(sc, wnd, type, start, size, pci_start);
+	if (wnd != -1)
+		pci_ocp_outbound(sc, wnd, type, start, size, pci_start);
 	return (0);
 }
 
@@ -667,7 +693,7 @@ pci_ocp_attach(device_t dev)
 {
 	struct pci_ocp_softc *sc;
 	uint32_t cfgreg;
-	int error;
+	int error, maxslot;
 
 	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
@@ -697,9 +723,8 @@ pci_ocp_attach(device_t dev)
 	pci_ocp_inbound(sc, 2, -1, 0, 0, 0);
 	pci_ocp_inbound(sc, 3, OCP85XX_TGTIF_RAM, 0, 2U*1024U*1024U*1024U, 0);
 
-	sc->sc_busnr = pci_ocp_busnr;
-	pci_ocp_init(sc, sc->sc_busnr);
-	pci_ocp_busnr++;
+	maxslot = (sc->sc_pcie) ? 1 : 31;
+	pci_ocp_init(sc, sc->sc_busnr, maxslot);
 
 	device_add_child(dev, "pci", -1);
 	return (bus_generic_attach(dev));
@@ -762,6 +787,9 @@ pci_ocp_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 	switch (which) {
 	case PCIB_IVAR_BUS:
 		*result = sc->sc_busnr;
+		return (0);
+	case PCIB_IVAR_DOMAIN:
+		*result = device_get_unit(dev);
 		return (0);
 	}
 	return (ENOENT);
