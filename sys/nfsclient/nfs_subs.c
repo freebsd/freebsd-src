@@ -85,7 +85,7 @@ u_int32_t	rpc_call, rpc_vers, rpc_reply, rpc_msgdenied, rpc_autherr,
 u_int32_t	nfs_true, nfs_false;
 
 /* And other global data */
-u_int32_t nfs_xid = 0;
+static u_int32_t nfs_xid = 0;
 static enum vtype nv2tov_type[8]= {
 	VNON, VREG, VDIR, VBLK, VCHR, VLNK, VNON,  VNON
 };
@@ -128,6 +128,21 @@ int nfsv2_procid[NFS_NPROCS] = {
 };
 
 LIST_HEAD(nfsnodehashhead, nfsnode);
+
+u_int32_t
+nfs_xid_gen(void)
+{
+
+	/* Get a pretty random xid to start with */
+	if (!nfs_xid)
+		nfs_xid = random();
+	/*
+	 * Skip zero xid if it should ever happen.
+	 */
+	if (++nfs_xid == 0)
+		nfs_xid++;
+	return (nfs_xid);
+}
 
 /*
  * Create the header for an rpc request packet
@@ -182,17 +197,8 @@ nfsm_rpchead(struct ucred *cr, int nmflag, int procid, int auth_type,
 	 */
 	tl = nfsm_build(u_int32_t *, 8 * NFSX_UNSIGNED);
 
-	/* Get a pretty random xid to start with */
-	if (!nfs_xid)
-		nfs_xid = random();
-	/*
-	 * Skip zero xid if it should ever happen.
-	 */
-	if (++nfs_xid == 0)
-		nfs_xid++;
-
 	*xidpp = tl;
-	*tl++ = txdr_unsigned(nfs_xid);
+	*tl++ = txdr_unsigned(nfs_xid_gen());
 	*tl++ = rpc_call;
 	*tl++ = rpc_vers;
 	*tl++ = txdr_unsigned(NFS_PROG);

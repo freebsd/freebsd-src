@@ -77,8 +77,6 @@ __FBSDID("$FreeBSD$");
 #define	TRUE	1
 #define	FALSE	0
 
-extern u_int32_t nfs_xid;
-
 static int	nfs_realign_test;
 static int	nfs_realign_count;
 static int	nfs_bufpackets = 4;
@@ -1238,9 +1236,7 @@ tryagain:
 				while (time_second < waituntil)
 					(void) tsleep(&lbolt,
 						PSOCK, "nqnfstry", 0);
-				if (++nfs_xid == 0)
-					nfs_xid++;
-				rep->r_xid = *xidp = txdr_unsigned(nfs_xid);
+				rep->r_xid = *xidp = txdr_unsigned(nfs_xid_gen());
 				goto tryagain;
 			}
 
