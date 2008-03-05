@@ -27,12 +27,17 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sysexits.h>
+#include <unistd.h>
 
 #include "ddb.h"
+
+void ddb_readfile(char *file);
+void ddb_main(int argc, char *argv[]);
 
 void
 usage(void)
@@ -46,15 +51,58 @@ usage(void)
 	exit(EX_USAGE);
 }
 
-int
-main(int argc, char *argv[])
+void
+ddb_readfile(char *filename)
+{
+	char    buf[BUFSIZ];
+	FILE*	f;
+
+	if ((f = fopen(filename, "r")) == NULL)
+		err(EX_UNAVAILABLE, "fopen: %s", filename);
+
+#define WHITESP		" \t"
+#define MAXARG	 	2
+	while (fgets(buf, BUFSIZ, f)) {
+		int argc = 0;
+		char *argv[MAXARG];
+		size_t spn;
+
+		spn = strlen(buf);
+		if (buf[spn-1] == '\n')
+			buf[spn-1] = '\0';
+
+		spn = strspn(buf, WHITESP);
+		argv[0] = buf + spn;
+		if (*argv[0] == '#' || *argv[0] == '\0')
+			continue;
+		argc++;
+
+		spn = strcspn(argv[0], WHITESP);
+		argv[1] = argv[0] + spn + strspn(argv[0] + spn, WHITESP);;
+		argv[0][spn] = '\0';
+		if (*argv[1] != '\0')
+			argc++;
+
+#ifdef DEBUG
+		{
+			int i;
+			printf("argc = %d\n", argc);
+			for (i = 0; i < argc; i++) {
+				printf("arg[%d] = %s\n", i, argv[i]);
+			}
+		}
+#endif
+		ddb_main(argc, argv);
+	}
+}
+
+void
+ddb_main(int argc, char *argv[])
 {
 
-	if (argc < 2)
+	if (argc < 1)
 		usage();
 
-	argc -= 1;
-	argv += 1;
 	if (strcmp(argv[0], "script") == 0)
 		ddb_script(argc, argv);
 	else if (strcmp(argv[0], "scripts") == 0)
@@ -63,5 +111,19 @@ main(int argc, char *argv[])
 		ddb_unscript(argc, argv);
 	else
 		usage();
+}
+
+int
+main(int argc, char *argv[])
+{
+
+	/*
+	 * If we've only got one argument and it's an absolute path to a file,
+	 * interpret as a file to be read in.
+	 */
+	if (argc == 2 && argv[1][0] == '/' && access(argv[1], R_OK) == 0)
+		ddb_readfile(argv[1]);
+	else
+		ddb_main(argc-1, argv+1);
 	exit(EX_OK);
 }
