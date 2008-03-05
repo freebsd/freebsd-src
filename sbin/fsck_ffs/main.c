@@ -339,11 +339,6 @@ checkfilesys(char *filesys)
 			snprintf(snapname, sizeof snapname,
 			    "%s/.snap/fsck_snapshot", mntp->f_mntonname);
 			fflags = mntp->f_flags;
-			/*
-			 * XXX: Need to kick out MNT_ROOTFS until we fix
-			 * nmount().
-			 */
-			fflags &= ~MNT_ROOTFS;
 			fflags = fflags | MNT_UPDATE | MNT_SNAPSHOT;
 			build_iovec(&iov, &iovlen, "fstype", "ffs", 4);
 			build_iovec(&iov, &iovlen, "from", snapname,
@@ -537,11 +532,6 @@ chkdoreload(struct statfs *mntp)
 	 * as safely as possible.
 	 */
 	if (mntp->f_flags & MNT_RDONLY) {
-		/*
-		 * XXX: Need to kick out MNT_ROOTFS until we fix
-		 * nmount().
-		 */
-		fflags &= ~MNT_ROOTFS;
 		fflags = fflags | MNT_UPDATE | MNT_RELOAD;
 		build_iovec(&iov, &iovlen, "fstype", "ffs", 4);
 		build_iovec(&iov, &iovlen, "from", mntp->f_mntfromname,
