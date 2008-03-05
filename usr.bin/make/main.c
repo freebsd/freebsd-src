@@ -1188,6 +1188,8 @@ main(int argc, char **argv)
 	/* Install all the flags into the MAKE envariable. */
 	if (((p = Var_Value(".MAKEFLAGS", VAR_GLOBAL)) != NULL) && *p)
 		setenv("MAKEFLAGS", p, 1);
+	else
+		setenv("MAKEFLAGS", "", 1);
 
 	/*
 	 * For compatibility, look at the directories in the VPATH variable
