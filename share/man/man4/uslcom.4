@@ -16,7 +16,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd $Mdocdate: May 31 2007 $
+.Dd May 31, 2007
 .Dt USLCOM 4
 .Os
 .Sh NAME
@@ -41,24 +41,37 @@ uslcom_load="YES"
 The
 .Nm
 driver supports Silicon Laboratories CP2101/CP2102 based serial adapters.
-.Pp
+.Sh HARDWARE
 The following devices should work with the
 .Nm
 driver:
-.Bd -literal -offset indent
+.Pp
+.Bl -bullet -compact
+.It
 Argussoft ISP
+.It
 Baltech card reader
+.It
 Burnside Telecom Desktop Mobile
+.It
 chip45.com Crumb128 module
+.It
 Jablotron PC-60B
+.It
 Lipowsky Baby-JTAG
+.It
 Lipowsky Baby-LIN
+.It
 Lipowsky HARP-1
+.It
 Pololu USB to Serial
+.It
 Silicon Laboratories CP2101
+.It
 Silicon Laboratories CP2102
+.It
 Track Systems Traqmate
-.Ed
+.El
 .Sh SEE ALSO
 .Xr tty 4 ,
 .Xr ucom 4 ,
@@ -73,14 +86,12 @@ The first
 release to include it was
 .Fx 7.1 .
 .Sh AUTHORS
-.An -nosplit
 The
 .Nm
 driver was written by
-.An Jonathan Gray
-.Aq jsg@openbsd.org .
+.An Jonathan Gray Aq jsg@openbsd.org .
 .Sh CAVEATS
 Setting hardware flow control is not currently supported.
 .Pp
-Silicon Laboratories don't release any programming information
+Silicon Laboratories do not release any programming information
 on their products.
