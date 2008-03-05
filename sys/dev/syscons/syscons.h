@@ -537,7 +537,8 @@ typedef struct {
 		(*kbdsw[(kbd)->kb_index]->poll)((kbd), (on))
 
 #define SC_VIDEO_LOCKINIT(sc)						\
-		mtx_init(&(sc)->video_mtx, "syscons video lock", NULL,MTX_SPIN);
+		mtx_init(&(sc)->video_mtx, "syscons video lock", NULL,	\
+		    MTX_SPIN | MTX_RECURSE);
 #define SC_VIDEO_LOCK(sc)						\
 		do {							\
 			if (!cold)					\
