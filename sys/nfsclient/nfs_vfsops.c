@@ -719,8 +719,32 @@ static const char *nfs_opts[] = { "from", "nfs_args",
 static int
 nfs_mount(struct mount *mp, struct thread *td)
 {
+	struct nfs_args args = {
+	    .version = NFS_ARGSVERSION,
+	    .addr = NULL,
+	    .addrlen = sizeof (struct sockaddr_in),
+	    .sotype = SOCK_STREAM,
+	    .proto = 0,
+	    .fh = NULL,
+	    .fhsize = 0,
+	    .flags = NFSMNT_RESVPORT,
+	    .wsize = NFS_WSIZE,
+	    .rsize = NFS_RSIZE,
+	    .readdirsize = NFS_READDIRSIZE,
+	    .timeo = 10,
+	    .retrans = NFS_RETRANS,
+	    .maxgrouplist = NFS_MAXGRPS,
+	    .readahead = NFS_DEFRAHEAD,
+	    .wcommitsize = 0,			/* was: NQ_DEFLEASE */
+	    .deadthresh = NFS_MAXDEADTHRESH,	/* was: NQ_DEADTHRESH */
+	    .hostname = NULL,
+	    /* args version 4 */
+	    .acregmin = NFS_MINATTRTIMO,
+	    .acregmax = NFS_MAXATTRTIMO,
+	    .acdirmin = NFS_MINDIRATTRTIMO,
+	    .acdirmax = NFS_MAXDIRATTRTIMO,
+	};
 	int error;
-	struct nfs_args args;
 	struct sockaddr *nam;
 	struct vnode *vp;
 	char hst[MNAMELEN];
