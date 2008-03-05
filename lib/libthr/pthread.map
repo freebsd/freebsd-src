@@ -228,6 +228,7 @@ FBSDprivate_1.0 {
 	_pthread_barrierattr_setpshared;
 	_pthread_attr_destroy;
 	_pthread_attr_get_np;
+	_pthread_attr_getaffinity_np;
 	_pthread_attr_getdetachstate;
 	_pthread_attr_getguardsize;
 	_pthread_attr_getinheritsched;
@@ -238,6 +239,7 @@ FBSDprivate_1.0 {
 	_pthread_attr_getstackaddr;
 	_pthread_attr_getstacksize;
 	_pthread_attr_init;
+	_pthread_attr_setaffinity_np;
 	_pthread_attr_setcreatesuspend_np;
 	_pthread_attr_setdetachstate;
 	_pthread_attr_setguardsize;
@@ -267,6 +269,7 @@ FBSDprivate_1.0 {
 	_pthread_detach;
 	_pthread_equal;
 	_pthread_exit;
+	_pthread_getaffinity_np;
 	_pthread_getconcurrency;
 	_pthread_getprio;
 	_pthread_getschedparam;
@@ -321,6 +324,7 @@ FBSDprivate_1.0 {
 	_pthread_rwlockattr_setpshared;
 	_pthread_self;
 	_pthread_set_name_np;
+	_pthread_setaffinity_np;
 	_pthread_setcancelstate;
 	_pthread_setcanceltype;
 	_pthread_setconcurrency;
@@ -388,6 +392,8 @@ FBSDprivate_1.0 {
 };
 
 FBSD_1.1 {
+	pthread_attr_getaffinity_np;
+	pthread_attr_setaffinity_np;
 	pthread_getaffinity_np;
 	pthread_setaffinity_np;
 	pthread_mutex_getspinloops_np;
