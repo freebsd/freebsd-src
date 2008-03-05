@@ -57,12 +57,34 @@ typedef	struct _cpuset {
 		(p)->__bits[__i] = 0;			\
 } while (0)
 
+/* Is p empty. */
 #define	CPU_EMPTY(p) __extension__ ({			\
 	__size_t __i;					\
 	for (__i = 0; __i < _NCPUWORDS; __i++)		\
 		if ((p)->__bits[__i])			\
 			break;				\
 	__i == _NCPUWORDS;				\
+})
+
+/* Is c a subset of p. */
+#define	CPU_SUBSET(p, c) __extension__ ({		\
+	__size_t __i;					\
+	for (__i = 0; __i < _NCPUWORDS; __i++)		\
+		if (((c)->__bits[__i] &			\
+		    (p)->__bits[__i]) !=		\
+		    (c)->__bits[__i])			\
+			break;				\
+	__i == _NCPUWORDS;				\
+})
+
+/* Are there any common bits between b & c? */
+#define	CPU_OVERLAP(p, c) __extension__ ({		\
+	__size_t __i;					\
+	for (__i = 0; __i < _NCPUWORDS; __i++)		\
+		if (((c)->__bits[__i] &			\
+		    (p)->__bits[__i]) != 0)		\
+			break;				\
+	__i != _NCPUWORDS;				\
 })
 
 #define	CPU_OR(d, s) do {				\
