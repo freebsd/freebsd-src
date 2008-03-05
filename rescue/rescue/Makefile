@@ -186,6 +186,7 @@ CRUNCH_ALIAS_restore= rrestore
 CRUNCH_ALIAS_dump= rdump
 CRUNCH_ALIAS_fsck_ffs= fsck_4.2bsd fsck_ufs
 CRUNCH_ALIAS_geom= gpart
+CRUNCH_ALIAS_geom= glabel
 
 # dhclient has historically been troublesome...
 CRUNCH_PROGS_sbin+= dhclient
