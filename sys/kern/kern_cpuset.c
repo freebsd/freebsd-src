@@ -188,26 +188,23 @@ static int
 _cpuset_create(struct cpuset *set, struct cpuset *parent, cpuset_t *mask,
     cpusetid_t id)
 {
-	int error;
 
-	error = 0;
+	if (!CPU_OVERLAP(&parent->cs_mask, mask))
+		return (EDEADLK);
 	CPU_COPY(mask, &set->cs_mask);
 	LIST_INIT(&set->cs_children);
 	refcount_init(&set->cs_ref, 1);
 	set->cs_flags = 0;
 	mtx_lock_spin(&cpuset_lock);
 	CPU_AND(mask, &parent->cs_mask);
-	if (!CPU_EMPTY(mask)) {
-		set->cs_id = id;
-		set->cs_parent = cpuset_ref(parent);
-		LIST_INSERT_HEAD(&parent->cs_children, set, cs_siblings);
-		if (set->cs_id != CPUSET_INVALID)
-			LIST_INSERT_HEAD(&cpuset_ids, set, cs_link);
-	} else
-		error = EDEADLK;
+	set->cs_id = id;
+	set->cs_parent = cpuset_ref(parent);
+	LIST_INSERT_HEAD(&parent->cs_children, set, cs_siblings);
+	if (set->cs_id != CPUSET_INVALID)
+		LIST_INSERT_HEAD(&cpuset_ids, set, cs_link);
 	mtx_unlock_spin(&cpuset_lock);
 
-	return (error);
+	return (0);
 }
 
 /*
@@ -250,11 +247,11 @@ cpuset_testupdate(struct cpuset *set, cpuset_t *mask)
 	mtx_assert(&cpuset_lock, MA_OWNED);
 	if (set->cs_flags & CPU_SET_RDONLY)
 		return (EPERM);
-	error = 0;
+	if (!CPU_OVERLAP(&set->cs_mask, mask))
+		return (EDEADLK);
 	CPU_COPY(&set->cs_mask, &newmask);
 	CPU_AND(&newmask, mask);
-	if (CPU_EMPTY(&newmask))
-		return (EDEADLK);
+	error = 0;
 	LIST_FOREACH(nset, &set->cs_children, cs_siblings) 
 		if ((error = cpuset_testupdate(nset, &newmask)) != 0)
 			break;
@@ -285,11 +282,19 @@ cpuset_update(struct cpuset *set, cpuset_t *mask)
 static int
 cpuset_modify(struct cpuset *set, cpuset_t *mask)
 {
+	struct cpuset *root;
 	int error;
 
 	error = suser(curthread);
 	if (error)
 		return (error);
+	/*
+	 * Verify that we have access to this set of
+	 * cpus.
+	 */
+	root = set->cs_parent;
+	if (root && !CPU_SUBSET(&root->cs_mask, mask))
+		return (EINVAL);
 	mtx_lock_spin(&cpuset_lock);
 	error = cpuset_testupdate(set, mask);
 	if (error)
@@ -310,12 +315,10 @@ static struct cpuset *
 cpuset_root(struct cpuset *set)
 {
 
-	mtx_lock_spin(&cpuset_lock);
 	for (; set->cs_parent != NULL; set = set->cs_parent)
 		if (set->cs_flags & CPU_SET_ROOT)
 			break;
 	cpuset_ref(set);
-	mtx_unlock_spin(&cpuset_lock);
 
 	return (set);
 }
@@ -329,11 +332,9 @@ static struct cpuset *
 cpuset_base(struct cpuset *set)
 {
 
-	mtx_lock_spin(&cpuset_lock);
 	if (set->cs_id == CPUSET_INVALID)
 		set = set->cs_parent;
 	cpuset_ref(set);
-	mtx_unlock_spin(&cpuset_lock);
 
 	return (set);
 }
@@ -435,6 +436,8 @@ cpuset_shadow(struct cpuset *set, struct cpuset *fset, cpuset_t *mask)
 		parent = set->cs_parent;
 	else
 		parent = set;
+	if (!CPU_SUBSET(&parent->cs_mask, mask))
+		return (EINVAL);
 	return (_cpuset_create(fset, parent, mask, CPUSET_INVALID));
 }
 
@@ -456,6 +459,7 @@ cpuset_setproc(pid_t pid, struct cpuset *set, cpuset_t *mask)
 {
 	struct setlist freelist;
 	struct setlist droplist;
+	struct cpuset *tdset;
 	struct cpuset *nset;
 	struct thread *td;
 	struct proc *p;
@@ -491,13 +495,41 @@ cpuset_setproc(pid_t pid, struct cpuset *set, cpuset_t *mask)
 	PROC_SLOCK_ASSERT(p, MA_OWNED);
 	/*
 	 * Now that the appropriate locks are held and we have enough cpusets,
-	 * replace each thread's cpuset while using deferred release.  We
-	 * must do this because the PROC_SLOCK has to be held while traversing
-	 * the thread list and this limits the type of operations allowed.
+	 * make sure the operation will succeed before applying changes.  The
+	 * proc lock prevents td_cpuset from changing between calls.
 	 */
 	error = 0;
 	FOREACH_THREAD_IN_PROC(p, td) {
-		struct cpuset *tdset;
+		thread_lock(td);
+		tdset = td->td_cpuset;
+		/*
+		 * Verify that a new mask doesn't specify cpus outside of
+		 * the set the thread is a member of.
+		 */
+		if (mask) {
+			if (tdset->cs_id == CPUSET_INVALID)
+				tdset = tdset->cs_parent;
+			if (!CPU_SUBSET(&tdset->cs_mask, mask))
+				error = EINVAL;
+		/*
+		 * Verify that a new set won't leave an existing thread
+		 * mask without a cpu to run on.  It can, however, restrict
+		 * the set.
+		 */
+		} else if (tdset->cs_id == CPUSET_INVALID) {
+			if (!CPU_OVERLAP(&set->cs_mask, &tdset->cs_mask))
+				error = EINVAL;
+		}
+		thread_unlock(td);
+		if (error)
+			goto unlock_out;
+	}
+	/*
+	 * Replace each thread's cpuset while using deferred release.  We
+	 * must do this because the PROC_SLOCK has to be held while traversing
+	 * the thread list and this limits the type of operations allowed.
+	 */
+	FOREACH_THREAD_IN_PROC(p, td) {
 		thread_lock(td);
 		/*
 		 * If we presently have an anonymous set or are applying a
@@ -528,6 +560,7 @@ cpuset_setproc(pid_t pid, struct cpuset *set, cpuset_t *mask)
 		sched_affinity(td);
 		thread_unlock(td);
 	}
+unlock_out:
 	PROC_SUNLOCK(p);
 	PROC_UNLOCK(p);
 out:
@@ -763,9 +796,10 @@ cpuset_getaffinity(struct thread *td, struct cpuset_getaffinity_args *uap)
 	int error;
 	int size;
 
-	if (uap->cpusetsize < CPU_SETSIZE || uap->cpusetsize > CPU_MAXSIZE)
+	if (uap->cpusetsize < sizeof(cpuset_t) ||
+	    uap->cpusetsize * NBBY > CPU_MAXSIZE)
 		return (ERANGE);
-	size = uap->cpusetsize / NBBY;
+	size = uap->cpusetsize;
 	mask = malloc(size, M_TEMP, M_WAITOK | M_ZERO);
 	error = cpuset_which(uap->which, uap->id, &p, &ttd, &set);
 	if (error)
@@ -846,12 +880,30 @@ cpuset_setaffinity(struct thread *td, struct cpuset_setaffinity_args *uap)
 	cpuset_t *mask;
 	int error;
 
-	if (uap->cpusetsize < CPU_SETSIZE || uap->cpusetsize > CPU_MAXSIZE)
+	if (uap->cpusetsize < sizeof(cpuset_t) ||
+	    uap->cpusetsize * NBBY > CPU_MAXSIZE)
 		return (ERANGE);
-	mask = malloc(uap->cpusetsize / NBBY, M_TEMP, M_WAITOK | M_ZERO);
-	error = copyin(uap->mask, mask, uap->cpusetsize / NBBY);
+	mask = malloc(uap->cpusetsize, M_TEMP, M_WAITOK | M_ZERO);
+	error = copyin(uap->mask, mask, uap->cpusetsize);
 	if (error)
 		goto out;
+	/*
+	 * Verify that no high bits are set.
+	 */
+	if (uap->cpusetsize > sizeof(cpuset_t)) {
+		char *end;
+		char *cp;
+
+		end = cp = (char *)&mask->__bits;
+		end += uap->cpusetsize;
+		cp += sizeof(cpuset_t);
+		while (cp != end)
+			if (*cp++ != 0) {
+				error = EINVAL;
+				goto out;
+			}
+
+	}
 	switch (uap->level) {
 	case CPU_LEVEL_ROOT:
 	case CPU_LEVEL_CPUSET:
