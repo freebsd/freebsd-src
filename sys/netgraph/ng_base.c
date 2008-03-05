@@ -2993,11 +2993,16 @@ out:
 ************************************************************************/
 
 uma_zone_t			ng_qzone;
-static int			maxalloc = 512;	/* limit the damage of a leak */
+static int			maxalloc = 4096;/* limit the damage of a leak */
+static int			maxdata = 512;	/* limit the damage of a DoS */
+static int			useddata = 0;
 
 TUNABLE_INT("net.graph.maxalloc", &maxalloc);
 SYSCTL_INT(_net_graph, OID_AUTO, maxalloc, CTLFLAG_RDTUN, &maxalloc,
     0, "Maximum number of queue items to allocate");
+TUNABLE_INT("net.graph.maxdata", &maxdata);
+SYSCTL_INT(_net_graph, OID_AUTO, maxdata, CTLFLAG_RW | CTLFLAG_TUN, &maxdata,
+    0, "Maximum number of queue data items to allocate");
 
 #ifdef	NETGRAPH_DEBUG
 static TAILQ_HEAD(, ng_item) ng_itemlist = TAILQ_HEAD_INITIALIZER(ng_itemlist);
@@ -3048,6 +3053,7 @@ ng_free_item(item_p item)
 	 */
 	switch (item->el_flags & NGQF_TYPE) {
 	case NGQF_DATA:
+		atomic_subtract_int(&useddata, 1);
 		/* If we have an mbuf still attached.. */
 		NG_FREE_M(_NGI_M(item));
 		break;
@@ -3474,6 +3480,11 @@ ng_package_data(struct mbuf *m, int flags)
 {
 	item_p item;
 
+	if (atomic_fetchadd_int(&useddata, 1) >= maxdata) {
+		atomic_subtract_int(&useddata, 1);
+		NG_FREE_M(m);
+		return (NULL);
+	}
 	if ((item = ng_getqblk(flags)) == NULL) {
 		NG_FREE_M(m);
 		return (NULL);
@@ -3708,8 +3719,11 @@ ng_send_fn2(node_p node, hook_p hook, item_p pitem, ng_item_fn2 *fn, void *arg1,
 	if (pitem == NULL || (flags & NG_REUSE_ITEM) == 0) {
 		if ((item = ng_getqblk(flags)) == NULL)
 			return (ENOMEM);
-	} else
+	} else {
+		if ((pitem->el_flags & NGQF_TYPE) == NGQF_DATA)
+			atomic_subtract_int(&useddata, 1);
 		item = pitem;
+	}
 
 	item->el_flags = NGQF_FN2 | NGQF_WRITER;
 	NG_NODE_REF(node); /* and one for the item */
