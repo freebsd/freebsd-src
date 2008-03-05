@@ -497,7 +497,6 @@ _thread_lock_flags(struct thread *td, int opts, const char *file, int line)
 	int i, contested;
 	uint64_t waittime;
 
-	
 	contested = i = 0;
 	waittime = 0;
 	tid = (uintptr_t)curthread;
@@ -505,6 +504,11 @@ _thread_lock_flags(struct thread *td, int opts, const char *file, int line)
 retry:
 		spinlock_enter();
 		m = td->td_lock;
+		KASSERT(m->mtx_lock != MTX_DESTROYED,
+		    ("thread_lock() of destroyed mutex @ %s:%d", file, line));
+		KASSERT(LOCK_CLASS(&m->lock_object) == &lock_class_mtx_spin,
+		    ("thread_lock() of sleep mutex %s @ %s:%d",
+		    m->lock_object.lo_name, file, line));
 		WITNESS_CHECKORDER(&m->lock_object,
 		    opts | LOP_NEWORDER | LOP_EXCLUSIVE, file, line);
 		while (!_obtain_lock(m, tid)) {
@@ -535,6 +539,8 @@ retry:
 	}
 	lock_profile_obtain_lock_success(&m->lock_object, contested,	
 	    waittime, (file), (line));
+	LOCK_LOG_LOCK("LOCK", &m->lock_object, opts, m->mtx_recurse, file,
+	    line);
 	WITNESS_LOCK(&m->lock_object, opts | LOP_EXCLUSIVE, file, line);
 }
 
