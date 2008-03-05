@@ -384,6 +384,9 @@ struct pthread {
 	/* New thread should unblock SIGCANCEL. */
 	int			unblock_sigcancel;
 
+	/* Force new thread to exit. */
+	int			force_exit;
+
 	/* Thread state: */
 	enum pthread_state 	state;
 
@@ -668,6 +671,8 @@ int	_schedparam_to_rtp(int policy, const struct sched_param *param,
 void	_thread_bp_create(void);
 void	_thread_bp_death(void);
 int	_sched_yield(void);
+int	_pthread_getaffinity_np(pthread_t, size_t, cpuset_t *);
+int	_pthread_setaffinity_np(pthread_t, size_t, const cpuset_t *);
 
 /* #include <fcntl.h> */
 #ifdef  _SYS_FCNTL_H_
