@@ -306,6 +306,7 @@ device		ubser		# BWCT console serial adapters
 device		uftdi		# For FTDI usb serial adapters
 device		uipaq		# Some WinCE based devices
 device		uplcom		# Prolific PL-2303 serial adapters
+device		uslcom		# SI Labs CP2101/CP2102 serial adapters
 device		uvisor		# Visor and Palm devices
 device		uvscom		# USB serial support for DDI pocket's PHS
 # USB Ethernet, requires miibus
