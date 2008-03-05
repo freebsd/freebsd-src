@@ -251,29 +251,24 @@ main(int argc, char *argv[])
 			printaffinity();
 		exit(EXIT_SUCCESS);
 	}
+	if (iflag)
+		usage();
 	/*
 	 * The user wants to run a command with a set and possibly cpumask.
 	 */
 	if (argc) {
 		if (pflag | rflag | tflag || cflag)
 			usage();
-		if (sflag && iflag)
-			usage();
 		if (sflag) {
 			if (cpuset_setid(CPU_WHICH_PID, -1, setid))
 				err(argc, "setid");
-			which = CPU_WHICH_PID;
-			level = CPU_LEVEL_WHICH;
-		}
-		if (iflag) {
+		} else {
 			if (cpuset(&setid))
 				err(argc, "newid");
-			which = CPU_WHICH_CPUSET;
-			level = CPU_LEVEL_WHICH;
 		}
 		if (lflag) {
-			if (cpuset_setaffinity(level, which, -1,
-			    sizeof(mask), &mask) != 0)
+			if (cpuset_setaffinity(CPU_LEVEL_CPUSET, CPU_WHICH_PID,
+			    -1, sizeof(mask), &mask) != 0)
 				err(EXIT_FAILURE, "setaffinity");
 		}
 		errno = 0;
@@ -283,8 +278,6 @@ main(int argc, char *argv[])
 	/*
 	 * We're modifying something that presently exists.
 	 */
-	if (iflag)
-		usage();
 	if (!lflag && (cflag || rflag))
 		usage();
 	if (!lflag && !sflag)
@@ -316,7 +309,7 @@ usage(void)
 {
 
 	fprintf(stderr,
-	    "usage: cpuset [-l cpu-list] [-i | -s setid] cmd ...\n");
+	    "usage: cpuset [-l cpu-list] [-s setid] cmd ...\n");
 	fprintf(stderr,
 	    "       cpuset [-l cpu-list] [-s setid] -p pid\n");
 	fprintf(stderr,
