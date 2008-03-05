@@ -366,6 +366,11 @@ rgephy_status(struct mii_softc *sc)
 	bmsr = PHY_READ(sc, RGEPHY_MII_BMSR);
 
 	bmcr = PHY_READ(sc, RGEPHY_MII_BMCR);
+	if (bmcr & RGEPHY_BMCR_ISO) {
+		mii->mii_media_active |= IFM_NONE;
+		mii->mii_media_status = 0;
+		return;
+	}
 
 	if (bmcr & RGEPHY_BMCR_LOOP)
 		mii->mii_media_active |= IFM_LOOP;
