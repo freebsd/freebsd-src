@@ -1,4 +1,3 @@
-/* $Yahoo$ */
 /*
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -50,7 +49,6 @@
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>	/* for dup_sockaddr */
-#include <sys/signalvar.h>
 
 #include <netinet/in.h>
 #include <nfs/rpcv2.h>
