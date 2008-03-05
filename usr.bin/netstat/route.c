@@ -164,11 +164,13 @@ routepr(u_long rtree)
 			return;
 		}
 
-		kget(rtree, rt_tables);
+		if (kget(rtree, rt_tables) != 0)
+			return;
 		for (i = 0; i <= AF_MAX; i++) {
 			if ((rnh = rt_tables[i]) == 0)
 				continue;
-			kget(rnh, head);
+			if (kget(rnh, head) != 0)
+				continue;
 			if (i == AF_UNSPEC) {
 				if (Aflag && af == 0) {
 					printf("Netmasks:\n");
@@ -269,10 +271,14 @@ static void
 size_cols_tree(struct radix_node *rn)
 {
 again:
-	kget(rn, rnode);
+	if (kget(rn, rnode) != 0)
+		return;
+	if (!(rnode.rn_flags & RNF_ACTIVE))
+		return;
 	if (rnode.rn_bit < 0) {
 		if ((rnode.rn_flags & RNF_ROOT) == 0) {
-			kget(rn, rtentry);
+			if (kget(rn, rtentry) != 0)
+				return;
 			size_cols_rtentry(&rtentry);
 		}
 		if ((rn = rnode.rn_dupedkey))
@@ -299,7 +305,8 @@ size_cols_rtentry(struct rtentry *rt)
 	 * Don't print protocol-cloned routes unless -a.
 	 */
 	if (rt->rt_flags & RTF_WASCLONED && !aflag) {
-		kget(rt->rt_parent, parent);
+		if (kget(rt->rt_parent, parent) != 0)
+			return;
 		if (parent.rt_flags & RTF_PRCLONING)
 			return;
 	}
@@ -335,9 +342,11 @@ size_cols_rtentry(struct rtentry *rt)
 	}
 	if (rt->rt_ifp) {
 		if (rt->rt_ifp != lastif) {
-			kget(rt->rt_ifp, ifnet);
+			if (kget(rt->rt_ifp, ifnet) == 0) 
+				len = strlen(ifnet.if_xname);
+			else
+				len = strlen("---");
 			lastif = rt->rt_ifp;
-			len = strlen(ifnet.if_xname);
 			wid_if = MAX(len, wid_if);
 		}
 		if (rt->rt_rmx.rmx_expire) {
@@ -398,7 +407,8 @@ static struct sockaddr *
 kgetsa(struct sockaddr *dst)
 {
 
-	kget(dst, pt_u.u_sa);
+	if (kget(dst, pt_u.u_sa) != 0)
+		return (NULL);
 	if (pt_u.u_sa.sa_len > sizeof (pt_u.u_sa))
 		kread((u_long)dst, (char *)pt_u.u_data, pt_u.u_sa.sa_len);
 	return (&pt_u.u_sa);
@@ -409,7 +419,10 @@ p_tree(struct radix_node *rn)
 {
 
 again:
-	kget(rn, rnode);
+	if (kget(rn, rnode) != 0)
+		return;
+	if (!(rnode.rn_flags & RNF_ACTIVE))
+		return;
 	if (rnode.rn_bit < 0) {
 		if (Aflag)
 			printf("%-8.8lx ", (u_long)rn);
@@ -418,10 +431,11 @@ again:
 				printf("(root node)%s",
 				    rnode.rn_dupedkey ? " =>\n" : "\n");
 		} else if (do_rtent) {
-			kget(rn, rtentry);
-			p_rtentry(&rtentry);
-			if (Aflag)
-				p_rtnode();
+			if (kget(rn, rtentry) == 0) {
+				p_rtentry(&rtentry);
+				if (Aflag)
+					p_rtnode();
+			}
 		} else {
 			p_sockaddr(kgetsa((struct sockaddr *)rnode.rn_key),
 				   NULL, 0, 44);
@@ -459,16 +473,19 @@ p_rtnode(void)
 		printf("%6.6s %8.8lx : %8.8lx", nbuf, (u_long)rnode.rn_left, (u_long)rnode.rn_right);
 	}
 	while (rm) {
-		kget(rm, rmask);
+		if (kget(rm, rmask) != 0)
+			break;
 		sprintf(nbuf, " %d refs, ", rmask.rm_refs);
 		printf(" mk = %8.8lx {(%d),%s",
 			(u_long)rm, -1 - rmask.rm_bit, rmask.rm_refs ? nbuf : " ");
 		if (rmask.rm_flags & RNF_NORMAL) {
 			struct radix_node rnode_aux;
 			printf(" <normal>, ");
-			kget(rmask.rm_leaf, rnode_aux);
-			p_sockaddr(kgetsa((struct sockaddr *)rnode_aux.rn_mask),
+			if (kget(rmask.rm_leaf, rnode_aux) == 0)
+				p_sockaddr(kgetsa((struct sockaddr *)rnode_aux.rn_mask),
 				    NULL, 0, -1);
+			else
+				p_sockaddr(NULL, NULL, 0, -1);
 		} else
 		    p_sockaddr(kgetsa((struct sockaddr *)rmask.rm_mask),
 				NULL, 0, -1);
@@ -571,6 +588,9 @@ fmt_sockaddr(struct sockaddr *sa, struct sockaddr *mask, int flags)
 {
 	static char workbuf[128];
 	const char *cp;
+
+	if (sa == NULL)
+		return ("null");
 
 	switch(sa->sa_family) {
 	case AF_INET:
@@ -728,7 +748,8 @@ p_rtentry(struct rtentry *rt)
 	 * Don't print protocol-cloned routes unless -a.
 	 */
 	if (rt->rt_flags & RTF_WASCLONED && !aflag) {
-		kget(rt->rt_parent, parent);
+		if (kget(rt->rt_parent, parent) != 0)
+			return;
 		if (parent.rt_flags & RTF_PRCLONING)
 			return;
 	}
@@ -755,9 +776,12 @@ p_rtentry(struct rtentry *rt)
 	}
 	if (rt->rt_ifp) {
 		if (rt->rt_ifp != lastif) {
-			kget(rt->rt_ifp, ifnet);
+			if (kget(rt->rt_ifp, ifnet) == 0)
+				strlcpy(prettyname, ifnet.if_xname,
+				    sizeof(prettyname));
+			else
+				strlcpy(prettyname, "---", sizeof(prettyname));
 			lastif = rt->rt_ifp;
-			strlcpy(prettyname, ifnet.if_xname, sizeof(prettyname));
 		}
 		printf("%*.*s", wid_if, wid_if, prettyname);
 		if (rt->rt_rmx.rmx_expire) {
