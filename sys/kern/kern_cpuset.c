@@ -586,7 +586,7 @@ cpuset_setthread(lwpid_t id, cpuset_t *mask)
 	int error;
 
 	nset = uma_zalloc(cpuset_zone, M_WAITOK);
-	error = cpuset_which(CPU_WHICH_TID, id, &p, &td, &nset);
+	error = cpuset_which(CPU_WHICH_TID, id, &p, &td, &set);
 	if (error)
 		goto out;
 	thread_lock(td);
