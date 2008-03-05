@@ -99,6 +99,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <pthread_np.h>
+#include <sys/sysctl.h>
 #include "un-namespace.h"
 
 #include "thr_private.h"
@@ -546,8 +547,28 @@ _pthread_attr_setstacksize(pthread_attr_t *attr, size_t stacksize)
 	return(ret);
 }
 
+static int
+_get_kern_cpuset_size()
+{
+	static int kern_cpuset_size = 0;
+
+	if (kern_cpuset_size == 0) {
+		int len;
+
+		len = sizeof(kern_cpuset_size);
+		if (sysctlbyname("kern.smp.maxcpus", &kern_cpuset_size,
+		    &len, NULL, 0))
+			PANIC("failed to get sysctl kern.smp.maxcpus");
+
+		kern_cpuset_size = (kern_cpuset_size + 7) / 8;
+	}
+
+	return (kern_cpuset_size);
+}
+
+__weak_reference(_pthread_attr_setaffinity_np, pthread_attr_setaffinity_np);
 int
-pthread_attr_setaffinity_np(pthread_attr_t *pattr, size_t cpusetsize,
+_pthread_attr_setaffinity_np(pthread_attr_t *pattr, size_t cpusetsize,
 	const cpuset_t *cpuset)
 {
 	pthread_attr_t attr;
@@ -565,14 +586,23 @@ pthread_attr_setaffinity_np(pthread_attr_t *pattr, size_t cpusetsize,
 			return (0);
 		}
 			
-		/*
-		 * XXX figure out kernel cpuset size, reject invalid size.
-		 */
-		if (cpusetsize != attr->cpusetsize) {
+		if (cpusetsize > attr->cpusetsize) {
+			int kern_size = _get_kern_cpuset_size();
+			if (cpusetsize > kern_size) {
+				int i;
+				for (i = kern_size; i < cpusetsize; ++i) {
+					if (((char *)cpuset)[i])
+						return (EINVAL);
+				}
+			}
 			void *newset = realloc(attr->cpuset, cpusetsize);
        			if (newset == NULL)
 		            return (ENOMEM);
 			attr->cpuset = newset;
+			attr->cpusetsize = cpusetsize;
+		} else {
+			memset(((char *)attr->cpuset) + cpusetsize, 0,
+				cpusetsize - attr->cpusetsize);
 			attr->cpusetsize = cpusetsize;
 		}
 		memcpy(attr->cpuset, cpuset, cpusetsize);
@@ -581,8 +611,9 @@ pthread_attr_setaffinity_np(pthread_attr_t *pattr, size_t cpusetsize,
 	return (ret);
 }
 
+__weak_reference(_pthread_attr_getaffinity_np, pthread_attr_getaffinity_np);
 int
-pthread_attr_getaffinity_np(const pthread_attr_t *pattr, size_t cpusetsize,
+_pthread_attr_getaffinity_np(const pthread_attr_t *pattr, size_t cpusetsize,
 	cpuset_t *cpuset)
 {
 	pthread_attr_t attr;
@@ -596,7 +627,11 @@ pthread_attr_getaffinity_np(const pthread_attr_t *pattr, size_t cpusetsize,
 			memset(((char *)cpuset) + attr->cpusetsize, 0, 
 				cpusetsize - attr->cpusetsize);
 	} else {
-		memset(cpuset, -1, cpusetsize);
+		int kern_size = _get_kern_cpuset_size();
+		memset(cpuset, -1, MIN(cpusetsize, kern_size));
+		if (cpusetsize > kern_size)
+			memset(((char *)cpuset) + kern_size, 0,
+				cpusetsize - kern_size);
 	}
 	return (ret);
 }
