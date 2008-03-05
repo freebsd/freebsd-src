@@ -39,6 +39,7 @@
 .Op Fl o Ar node
 .Op Fl s Ar node
 .Op Fl l Ar file
+.Op Fl f Ar node
 .Op Fl g Ar gap_count
 .Op Fl b Ar pri_req
 .Op Fl M Ar mode
@@ -77,6 +78,10 @@ Write to the
 register on the node.
 .It Fl l Ar file
 Load hex dump file of the configuration ROM and parse it.
+.It Fl f Ar node
+Force specified
+.Ar node
+to be the root node on the next bus reset.
 .It Fl g Ar gap_count
 Broadcast
 .Ar gap_count
@@ -98,7 +103,7 @@ an error complaining about "format 0x20", try to force the "mpeg" mode.
 .It Fl R Ar filename
 Receive DV or MPEG TS stream and dump it to a file.
 Use Ctrl-C to stop the receiving.
-Some DV cameras seem not to send the stream if a bus manager exits.
+Some DV cameras seem not to send the stream if a bus manager exists.
 If you cannot get the stream, try the following commands:
 .Bd -literal -offset indent
 sysctl hw.firewire.try_bmr=0
