@@ -7,7 +7,7 @@ FILES=	DAEMON FILESYSTEMS LOGIN NETWORKING SERVERS \
 	apm apmd archdep atm1 atm2 atm3 auditd auto_linklocal \
 	bgfsck bluetooth bootparams bridge bsnmpd bthidd \
 	ccd cleanvar cleartmp cron \
-	devd devfs dhclient \
+	ddb devd devfs dhclient \
 	dmesg dumpon \
 	early.sh encswap \
 	fsck ftp-proxy ftpd \
