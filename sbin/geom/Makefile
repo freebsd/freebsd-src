@@ -2,10 +2,13 @@
 
 .if defined(RESCUE)
 
-.PATH:	${.CURDIR}/class/part ${.CURDIR}/core ${.CURDIR}/misc
+.PATH:	${.CURDIR}/class/part \
+	${.CURDIR}/class/label \
+	${.CURDIR}/core \
+	${.CURDIR}/misc
 
 PROG=	geom
-SRCS=	geom.c geom_part.c subr.c
+SRCS=	geom.c geom_label.c geom_part.c subr.c
 
 CFLAGS+=-I${.CURDIR} -I${.CURDIR}/core
 
