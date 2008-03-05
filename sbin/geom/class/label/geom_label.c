@@ -40,16 +40,21 @@ __FBSDID("$FreeBSD$");
 #include "core/geom.h"
 #include "misc/subr.h"
 
+#ifdef RESCUE
+#define PUBSYM(x)	glabel_##x
+#else
+#define PUBSYM(x)	x
+#endif
 
-uint32_t lib_version = G_LIB_VERSION;
-uint32_t version = G_LABEL_VERSION;
+uint32_t PUBSYM(lib_version) = G_LIB_VERSION;
+uint32_t PUBSYM(version) = G_LABEL_VERSION;
 
 static void label_main(struct gctl_req *req, unsigned flags);
 static void label_clear(struct gctl_req *req);
 static void label_dump(struct gctl_req *req);
 static void label_label(struct gctl_req *req);
 
-struct g_command class_commands[] = {
+struct g_command PUBSYM(class_commands)[] = {
 	{ "clear", G_FLAG_VERBOSE, label_main, G_NULL_OPTS, NULL,
 	    "[-v] dev ..."
 	},
