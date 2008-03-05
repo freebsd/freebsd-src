@@ -128,7 +128,7 @@ parselist(char *list, cpuset_t *mask)
 	}
 	return;
 parserr:
-	errx(EXIT_FAILURE, "Malformed cpu list %s", list);
+	errx(EXIT_FAILURE, "Malformed cpu-list %s", list);
 }
 
 static void
@@ -157,8 +157,7 @@ printaffinity(void)
 {
 	cpuset_t mask;
 
-	if (cpuset_getaffinity(level, which, id, CPU_SETSIZE,
-	    &mask) != 0)
+	if (cpuset_getaffinity(level, which, id, sizeof(mask), &mask) != 0)
 		err(EXIT_FAILURE, "getaffinity");
 	printf("%s %jd%s mask: ", whichnames[which], (intmax_t)id,
 	    levelnames[level]);
@@ -274,7 +273,7 @@ main(int argc, char *argv[])
 		}
 		if (lflag) {
 			if (cpuset_setaffinity(level, which, -1,
-			    CPU_SETSIZE, &mask) != 0)
+			    sizeof(mask), &mask) != 0)
 				err(EXIT_FAILURE, "setaffinity");
 		}
 		errno = 0;
@@ -304,7 +303,7 @@ main(int argc, char *argv[])
 		id = pid;
 	}
 	if (lflag) {
-		if (cpuset_setaffinity(level, which, id, CPU_SETSIZE,
+		if (cpuset_setaffinity(level, which, id, sizeof(mask),
 		    &mask) != 0)
 			err(EXIT_FAILURE, "setaffinity");
 	}
@@ -317,11 +316,11 @@ usage(void)
 {
 
 	fprintf(stderr,
-	    "usage: cpuset [-l cpu list] [-i | -s setid] cmd ...\n");
+	    "usage: cpuset [-l cpu-list] [-i | -s setid] cmd ...\n");
 	fprintf(stderr,
-	    "       cpuset [-l cpu list] [-s setid] -p pid\n");
+	    "       cpuset [-l cpu-list] [-s setid] -p pid\n");
 	fprintf(stderr,
-	    "       cpuset [-cr] [-l cpu list] [-p pid | -t tid | -s setid]\n");
+	    "       cpuset [-cr] [-l cpu-list] [-p pid | -t tid | -s setid]\n");
 	fprintf(stderr,
 	    "       cpuset [-cgir] [-p pid | -t tid | -s setid]\n");
 	exit(1);
