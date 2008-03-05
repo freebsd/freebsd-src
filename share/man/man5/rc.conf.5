@@ -164,6 +164,19 @@ daemon.
 Run
 .Xr devd 8
 to handle device added, removed or unknown events from the kernel.
+.It Va ddb_enable
+.Pq Vt bool
+Run
+.Xr ddb 8
+to install 
+.Xr ddb 4
+scripts at boot time.
+.It Va ddb_config
+.Pq Vt str
+Configuration file for
+.Xr ddb 8 .
+Default
+.Pa /etc/ddb.conf .
 .It Va kldxref_enable
 .Pq Vt bool
 Set to
