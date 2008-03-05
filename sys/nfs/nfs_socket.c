@@ -955,7 +955,7 @@ nfs_request(vp, mrest, procnum, procp, cred, mrp, mdp, dposp)
 	int t1, nqlflag, cachable, s, error = 0, mrest_len, auth_len, auth_type;
 	int trylater_delay = NQ_TRYLATERDEL, trylater_cnt = 0, failed_auth = 0;
 	int verf_len, verf_type;
-	u_int32_t xid;
+	u_int32_t *xidp;
 	u_quad_t frev;
 	char *auth_str, *verf_str;
 	NFSKERBKEY_T key;		/* save session key */
@@ -1008,7 +1008,7 @@ kerbauth:
 			5 * NFSX_UNSIGNED;
 	}
 	m = nfsm_rpchead(cred, nmp->nm_flag, procnum, auth_type, auth_len,
-	     auth_str, verf_len, verf_str, mrest, mrest_len, &mheadend, &xid);
+	     auth_str, verf_len, verf_str, mrest, mrest_len, &mheadend, &xidp);
 	if (auth_str)
 		free(auth_str, M_TEMP);
 
@@ -1021,7 +1021,7 @@ kerbauth:
 			 (m->m_pkthdr.len - NFSX_UNSIGNED));
 	}
 	rep->r_mreq = m;
-	rep->r_xid = xid;
+	rep->r_xid = *xidp;
 tryagain:
 	if (nmp->nm_flag & NFSMNT_SOFT)
 		rep->r_retry = nmp->nm_retry;
@@ -1163,6 +1163,14 @@ tryagain:
 				trylater_delay *= nfs_backoff[trylater_cnt];
 				if (trylater_cnt < 7)
 					trylater_cnt++;
+				/*
+				 * Generate a new RPC XID before retrying the request
+				 * on an NFSv3 JUKEBOX error. If we don't do this, the
+				 * duplicate request cache on the server will simply 
+				 * replay the cached reply from the dupreq cache, and
+				 * the client request hangs in this loop forever.
+				 */				
+				rep->r_xid = *xidp = txdr_unsigned(nfs_xid_gen());
 				goto tryagain;
 			}
 

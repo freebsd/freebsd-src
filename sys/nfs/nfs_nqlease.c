@@ -500,7 +500,7 @@ nqsrv_send_eviction(vp, lp, slp, nam, cred)
 	nfsfh_t nfh;
 	fhandle_t *fhp;
 	caddr_t bpos, cp;
-	u_int32_t xid, *tl;
+	u_int32_t *xidp, *tl;
 	int len = 1, ok = 1, i = 0;
 
 	while (ok && (lph->lph_flag & LC_VALID)) {
@@ -548,7 +548,7 @@ nqsrv_send_eviction(vp, lp, slp, nam, cred)
 			m = nfsm_rpchead(cred, (NFSMNT_NFSV3 | NFSMNT_NQNFS),
 				NQNFSPROC_EVICTED,
 				RPCAUTH_UNIX, 5 * NFSX_UNSIGNED, (char *)0,
-				0, (char *)NULL, mreq, siz, &mheadend, &xid);
+				0, (char *)NULL, mreq, siz, &mheadend, &xidp);
 			/*
 			 * For stream protocols, prepend a Sun RPC
 			 * Record Mark.
@@ -913,7 +913,7 @@ nqnfs_vacated(vp, cred)
 	register u_int32_t *tl;
 	register int32_t t2;
 	caddr_t bpos;
-	u_int32_t xid;
+	u_int32_t *xidp;
 	int error = 0;
 	struct mbuf *m, *mreq, *mb, *mb2, *mheadend;
 	struct nfsmount *nmp;
@@ -931,7 +931,7 @@ nqnfs_vacated(vp, cred)
 	}
 	m = nfsm_rpchead(cred, nmp->nm_flag, NQNFSPROC_VACATED,
 		RPCAUTH_UNIX, 5 * NFSX_UNSIGNED, (char *)0,
-		0, (char *)NULL, mreq, i, &mheadend, &xid);
+		0, (char *)NULL, mreq, i, &mheadend, &xidp);
 	if (nmp->nm_sotype == SOCK_STREAM) {
 		M_PREPEND(m, NFSX_UNSIGNED, M_WAIT);
 		*mtod(m, u_int32_t *) = htonl(0x80000000 | (m->m_pkthdr.len -

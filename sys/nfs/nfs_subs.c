@@ -558,6 +558,20 @@ extern int nfssvc(struct proc *, struct nfssvc_args *, int *);
 
 LIST_HEAD(nfsnodehashhead, nfsnode);
 
+u_int32_t
+nfs_xid_gen(void)
+{
+	/* Get a pretty random xid to start with */
+	if (!nfs_xid)
+		nfs_xid = random();
+	/*
+	 * Skip zero xid if it should ever happen.
+	 */
+	if (++nfs_xid == 0)
+		nfs_xid++;
+	return nfs_xid;
+}
+
 int nfs_webnamei __P((struct nameidata *, struct vnode *, struct proc *));
 
 u_quad_t
@@ -624,7 +638,7 @@ nfsm_reqh(vp, procid, hsiz, bposp)
  */
 struct mbuf *
 nfsm_rpchead(cr, nmflag, procid, auth_type, auth_len, auth_str, verf_len,
-	verf_str, mrest, mrest_len, mbp, xidp)
+	verf_str, mrest, mrest_len, mbp, xidpp)
 	register struct ucred *cr;
 	int nmflag;
 	int procid;
@@ -636,7 +650,7 @@ nfsm_rpchead(cr, nmflag, procid, auth_type, auth_len, auth_str, verf_len,
 	struct mbuf *mrest;
 	int mrest_len;
 	struct mbuf **mbp;
-	u_int32_t *xidp;
+	u_int32_t **xidpp;
 {
 	register struct mbuf *mb;
 	register u_int32_t *tl;
@@ -663,16 +677,8 @@ nfsm_rpchead(cr, nmflag, procid, auth_type, auth_len, auth_str, verf_len,
 	 */
 	nfsm_build(tl, u_int32_t *, 8 * NFSX_UNSIGNED);
 
-	/* Get a pretty random xid to start with */
-	if (!nfs_xid) 
-		nfs_xid = random();
-	/*
-	 * Skip zero xid if it should ever happen.
-	 */
-	if (++nfs_xid == 0)
-		nfs_xid++;
-
-	*tl++ = *xidp = txdr_unsigned(nfs_xid);
+	*xidpp = tl;
+	*tl++ = txdr_unsigned(nfs_xid_gen());
 	*tl++ = rpc_call;
 	*tl++ = rpc_vers;
 	if (nmflag & NFSMNT_NQNFS) {
