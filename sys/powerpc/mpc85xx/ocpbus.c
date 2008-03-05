@@ -55,7 +55,6 @@ extern struct bus_space bs_be_tag;
 struct ocpbus_softc {
 	struct rman	sc_mem;
 	struct rman	sc_irq;
-	device_t	sc_pic;
 };
 
 struct ocp_devinfo {
@@ -223,22 +222,20 @@ ocpbus_attach (device_t dev)
 
 	sc = device_get_softc(dev);
 
-	/* Add child device nodes. Start with the PIC. */
-	sc->sc_pic = ocpbus_mk_child(dev, OCPBUS_DEVTYPE_PIC, 0);
-
+	ocpbus_mk_child(dev, OCPBUS_DEVTYPE_I2C, 0);
+	ocpbus_mk_child(dev, OCPBUS_DEVTYPE_I2C, 1);
 	ocpbus_mk_child(dev, OCPBUS_DEVTYPE_UART, 0);
 	ocpbus_mk_child(dev, OCPBUS_DEVTYPE_UART, 1);
+	ocpbus_mk_child(dev, OCPBUS_DEVTYPE_LBC, 0);
+	ocpbus_mk_child(dev, OCPBUS_DEVTYPE_PCIB, 0);
+	ocpbus_mk_child(dev, OCPBUS_DEVTYPE_PCIB, 1);
+	ocpbus_mk_child(dev, OCPBUS_DEVTYPE_PCIB, 2);
 	ocpbus_mk_child(dev, OCPBUS_DEVTYPE_TSEC, 0);
 	ocpbus_mk_child(dev, OCPBUS_DEVTYPE_TSEC, 1);
 	ocpbus_mk_child(dev, OCPBUS_DEVTYPE_TSEC, 2);
 	ocpbus_mk_child(dev, OCPBUS_DEVTYPE_TSEC, 3);
-	ocpbus_mk_child(dev, OCPBUS_DEVTYPE_PCIB, 0);
-	ocpbus_mk_child(dev, OCPBUS_DEVTYPE_PCIB, 1);
-	ocpbus_mk_child(dev, OCPBUS_DEVTYPE_PCIB, 2);
-	ocpbus_mk_child(dev, OCPBUS_DEVTYPE_LBC, 0);
+	ocpbus_mk_child(dev, OCPBUS_DEVTYPE_PIC, 0);
 	ocpbus_mk_child(dev, OCPBUS_DEVTYPE_QUICC, 0);
-	ocpbus_mk_child(dev, OCPBUS_DEVTYPE_I2C, 0);
-	ocpbus_mk_child(dev, OCPBUS_DEVTYPE_I2C, 1);
 
 	/* Set up IRQ rman */
 	start = 0;
@@ -429,7 +426,8 @@ ocpbus_alloc_resource(device_t dev, device_t child, int type, int *rid,
 
 	sc = device_get_softc(dev);
 
-	if (type == SYS_RES_IRQ) {
+	switch (type) {
+	case SYS_RES_IRQ:
 		if (start == 0ul && end == ~0ul) {
 			error = ocpbus_get_resource(dev, child, type, *rid,
 			    &start, &count);
@@ -437,29 +435,42 @@ ocpbus_alloc_resource(device_t dev, device_t child, int type, int *rid,
 				return (NULL);
 		}
 
-		rv = rman_reserve_resource(&sc->sc_irq, start - PIC_IRQ_START, 
-		    start - PIC_IRQ_START, 1, flags, child);
-		return (rv);
+		/*
+		 * ISA interrupts (IRQ 0-15) are remapped by the
+		 * PCI driver. Make sure this happened.
+		 */
+		if (start < PIC_IRQ_START)
+			return (NULL);
+
+		rv = rman_reserve_resource(&sc->sc_irq, start - PIC_IRQ_START,
+		    start - PIC_IRQ_START + count - 1, count, flags, child);
+		if (rv == NULL)
+			return (NULL);
+		break;
+
+	case SYS_RES_MEMORY:
+		if (start != 0ul || end != ~0ul)
+			return (NULL);
+
+		error = ocpbus_get_resource(dev, child, type, *rid, &start,
+		    &count);
+		if (error)
+			return (NULL);
+
+		rv = rman_reserve_resource(&sc->sc_mem, start,
+		    start + count - 1, count, flags, child);
+		if (rv == NULL)
+			return (NULL);
+
+		rman_set_bustag(rv, &bs_be_tag);
+		rman_set_bushandle(rv, rman_get_start(rv));
+		break;
+
+	default:
+		return (NULL);
 	}
 
-	if (type != SYS_RES_MEMORY)
-		return (NULL);
-
-	if (start != 0ul || end != ~0ul)
-		return (NULL);
-
-	error = ocpbus_get_resource(dev, child, type, *rid, &start, &count);
-	if (error)
-		return (NULL);
-
-	end = start + count - 1;
-	rv = rman_reserve_resource(&sc->sc_mem, start, end, count, flags,
-	    child);
-	if (rv == NULL)
-		return (NULL);
-
-	rman_set_bustag(rv, &bs_be_tag);
-	rman_set_bushandle(rv, rman_get_start(rv));
+	rman_set_rid(rv, *rid);
 	return (rv);
 }
 
