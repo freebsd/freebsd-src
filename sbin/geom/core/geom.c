@@ -54,6 +54,8 @@ __FBSDID("$FreeBSD$");
 #ifdef RESCUE
 extern uint32_t gpart_version;
 extern struct g_command gpart_class_commands[];
+extern uint32_t glabel_version;
+extern struct g_command glabel_class_commands[];
 #endif
 
 static char comm[MAXPATHLEN], *class_name = NULL, *gclass_name = NULL;
@@ -604,6 +606,9 @@ get_class(int *argc, char ***argv)
 	if (!strcasecmp(class_name, "part")) {
 		version = &gpart_version;
 		class_commands = gpart_class_commands;
+	} else if (!strcasecmp(class_name, "label")) {
+		version = &glabel_version;
+		class_commands = glabel_class_commands;
 	} else
 		errx(EXIT_FAILURE, "Invalid class name.");
 #endif /* !RESCUE */
