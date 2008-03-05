@@ -131,6 +131,8 @@ static const struct mii_phydesc brgphys[] = {
 	MII_PHY_DESC(xxBROADCOM_ALT1, BCM5755),
 	MII_PHY_DESC(xxBROADCOM_ALT1, BCM5787),
 	MII_PHY_DESC(xxBROADCOM_ALT1, BCM5708S),
+	MII_PHY_DESC(xxBROADCOM_ALT1, BCM5709CAX),
+	MII_PHY_DESC(xxBROADCOM_ALT1, BCM5709C),
 	MII_PHY_END
 };
 
@@ -928,7 +930,7 @@ brgphy_reset(struct mii_softc *sc)
 	} else if (bce_sc) {
 
 		if (BCE_CHIP_NUM(bce_sc) == BCE_CHIP_NUM_5708 &&
-			BCE_CHIP_BOND_ID(bce_sc) & BCE_CHIP_BOND_ID_SERDES_BIT) {
+			(bce_sc->bce_phy_flags & BCE_PHY_SERDES_FLAG)) {
 
 			/* Store autoneg capabilities/results in digital block (Page 0) */
 			PHY_WRITE(sc, BRGPHY_5708S_BLOCK_ADDR, BRGPHY_5708S_DIG3_PG2);
