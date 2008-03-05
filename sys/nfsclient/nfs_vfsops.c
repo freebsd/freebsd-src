@@ -704,7 +704,10 @@ nfs_decode_args(struct mount *mp, struct nfsmount *nmp, struct nfs_args *argp)
 static const char *nfs_opts[] = { "from", "nfs_args",
     "noatime", "noexec", "suiddir", "nosuid", "nosymfollow", "union",
     "noclusterr", "noclusterw", "multilabel", "acls", "force", "update",
-    "async", NULL };
+    "async", "dumbtimer", "noconn", "nolockd", "intr", "rdirplus", "resvport",
+    "readdirsize", "soft", "hard", "mntudp", "tcp", "wsize", "rsize",
+    "retrans", "acregmin", "acregmax", "acdirmin", "acdirmax", 
+    NULL };
 
 /*
  * VFS Operations.
