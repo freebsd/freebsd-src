@@ -497,11 +497,10 @@ mkfs(struct partition *pp, char *fsys)
 		iobufsize = SBLOCKSIZE + 3 * sblock.fs_bsize;
 	else
 		iobufsize = 4 * sblock.fs_bsize;
-	if ((iobuf = malloc(iobufsize)) == 0) {
+	if ((iobuf = calloc(1, iobufsize)) == 0) {
 		printf("Cannot allocate I/O buffer\n");
 		exit(38);
 	}
-	bzero(iobuf, iobufsize);
 	/*
 	 * Make a copy of the superblock into the buffer that we will be
 	 * writing out in each cylinder group.
