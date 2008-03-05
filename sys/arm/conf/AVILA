@@ -75,6 +75,7 @@ options		BOOTP_NFSROOT
 options		BOOTP_NFSV3
 options		BOOTP_WIRED_TO=npe0
 #options		BOOTP_WIRED_TO=ath0
+#options		BOOTP_WIRED_TO=rl0
 options		BOOTP_COMPAT
 #options		PREEMPTION
 #options		VERBOSE_SYSINIT
@@ -107,6 +108,7 @@ device		npe_fw
 device		firmware
 device		qmgr		# Q Manager (required by npe)
 device		miibus		# NB: required by npe
+device		rl		# RealTek 8129/8139
 device		ether
 device		bpf
 
