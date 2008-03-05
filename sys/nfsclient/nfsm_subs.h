@@ -52,6 +52,7 @@ struct vnode;
 /*
  * First define what the actual subs. return
  */
+u_int32_t nfs_xid_gen(void);
 struct mbuf *nfsm_reqhead(struct vnode *vp, u_long procid, int hsiz);
 struct mbuf *nfsm_rpchead(struct ucred *cr, int nmflag, int procid,
 			  int auth_type, int auth_len,
