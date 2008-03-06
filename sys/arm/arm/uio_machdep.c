@@ -100,8 +100,10 @@ uiomove_fromphys(vm_page_t ma[], vm_offset_t offset, int n, struct uio *uio)
 				error = copyout(cp, iov->iov_base, cnt);
 			else
 				error = copyin(iov->iov_base, cp, cnt);
-			if (error)
+			if (error) {
+				sf_buf_free(sf);
 				goto out;
+			}
 			break;
 		case UIO_SYSSPACE:
 			if (uio->uio_rw == UIO_READ)
