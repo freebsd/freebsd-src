@@ -432,8 +432,10 @@ lPACKET_DONE:
 			int delta;
 
 			SetAckModified(lnk);
-			delta = GetDeltaSeqOut(pip, lnk);
-			AddSeq(pip, lnk, delta + copyat + iCopy - dlen);
+			tc = (struct tcphdr *)ip_next(pip);				
+			delta = GetDeltaSeqOut(tc->th_seq, lnk);
+			AddSeq(lnk, delta + copyat + iCopy - dlen, pip->ip_hl,
+			    pip->ip_len, tc->th_seq, tc->th_off);
 		}
 
 		/* Revise IP header */

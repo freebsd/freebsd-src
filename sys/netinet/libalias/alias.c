@@ -170,48 +170,42 @@ a timeout period.
 */
 
 /* Local prototypes */
-static void	TcpMonitorIn(struct ip *, struct alias_link *);
+static void	TcpMonitorIn(u_char, struct alias_link *);
 
-static void	TcpMonitorOut(struct ip *, struct alias_link *);
+static void	TcpMonitorOut(u_char, struct alias_link *);
 
 
 static void
-TcpMonitorIn(struct ip *pip, struct alias_link *lnk)
+TcpMonitorIn(u_char th_flags, struct alias_link *lnk)
 {
-	struct tcphdr *tc;
-
-	tc = (struct tcphdr *)ip_next(pip);
 
 	switch (GetStateIn(lnk)) {
 	case ALIAS_TCP_STATE_NOT_CONNECTED:
-		if (tc->th_flags & TH_RST)
+		if (th_flags & TH_RST)
 			SetStateIn(lnk, ALIAS_TCP_STATE_DISCONNECTED);
-		else if (tc->th_flags & TH_SYN)
+		else if (th_flags & TH_SYN)
 			SetStateIn(lnk, ALIAS_TCP_STATE_CONNECTED);
 		break;
 	case ALIAS_TCP_STATE_CONNECTED:
-		if (tc->th_flags & (TH_FIN | TH_RST))
+		if (th_flags & (TH_FIN | TH_RST))
 			SetStateIn(lnk, ALIAS_TCP_STATE_DISCONNECTED);
 		break;
 	}
 }
 
 static void
-TcpMonitorOut(struct ip *pip, struct alias_link *lnk)
+TcpMonitorOut(u_char th_flags, struct alias_link *lnk)
 {
-	struct tcphdr *tc;
-
-	tc = (struct tcphdr *)ip_next(pip);
 
 	switch (GetStateOut(lnk)) {
 	case ALIAS_TCP_STATE_NOT_CONNECTED:
-		if (tc->th_flags & TH_RST)
+		if (th_flags & TH_RST)
 			SetStateOut(lnk, ALIAS_TCP_STATE_DISCONNECTED);
-		else if (tc->th_flags & TH_SYN)
+		else if (th_flags & TH_SYN)
 			SetStateOut(lnk, ALIAS_TCP_STATE_CONNECTED);
 		break;
 	case ALIAS_TCP_STATE_CONNECTED:
-		if (tc->th_flags & (TH_FIN | TH_RST))
+		if (th_flags & (TH_FIN | TH_RST))
 			SetStateOut(lnk, ALIAS_TCP_STATE_DISCONNECTED);
 		break;
 	}
@@ -646,7 +640,7 @@ IcmpAliasOut(struct libalias *la, struct ip *pip, int create)
 }
 
 
-
+// XXX ip free
 static int
 ProtoAliasIn(struct libalias *la, struct ip *pip)
 {
@@ -679,7 +673,7 @@ ProtoAliasIn(struct libalias *la, struct ip *pip)
 	return (PKT_ALIAS_IGNORED);
 }
 
-
+// XXX ip free
 static int
 ProtoAliasOut(struct libalias *la, struct ip *pip, int create)
 {
@@ -930,7 +924,8 @@ TcpAliasIn(struct libalias *la, struct ip *pip)
 		if (GetAckModified(lnk) == 1) {
 			int delta;
 
-			delta = GetDeltaAckIn(pip, lnk);
+			tc = (struct tcphdr *)ip_next(pip);
+			delta = GetDeltaAckIn(tc->th_ack, lnk);
 			if (delta != 0) {
 				accumulate += twowords(&tc->th_ack);
 				tc->th_ack = htonl(ntohl(tc->th_ack) - delta);
@@ -954,7 +949,8 @@ TcpAliasIn(struct libalias *la, struct ip *pip)
 		ADJUST_CHECKSUM(accumulate, pip->ip_sum);
 
 /* Monitor TCP connection state */
-		TcpMonitorIn(pip, lnk);
+		tc = (struct tcphdr *)ip_next(pip);
+		TcpMonitorIn(tc->th_flags, lnk);
 
 		return (PKT_ALIAS_OK);
 	}
@@ -976,8 +972,9 @@ TcpAliasOut(struct libalias *la, struct ip *pip, int maxpacketsize, int create)
 	tc = (struct tcphdr *)ip_next(pip);
 
 	if (create)
-		proxy_type =
-		    ProxyCheck(la, pip, &proxy_server_address, &proxy_server_port);
+		proxy_type = ProxyCheck(la, &proxy_server_address, 
+		    &proxy_server_port, pip->ip_src, pip->ip_dst, 
+		    tc->th_dport, pip->ip_p);
 	else
 		proxy_type = 0;
 
@@ -1036,7 +1033,8 @@ TcpAliasOut(struct libalias *la, struct ip *pip, int maxpacketsize, int create)
 		alias_address = GetAliasAddress(lnk);
 
 /* Monitor TCP connection state */
-		TcpMonitorOut(pip, lnk);
+		tc = (struct tcphdr *)ip_next(pip);
+		TcpMonitorOut(tc->th_flags, lnk);
 		
 		/* Walk out chain. */		
 		error = find_handler(OUT, TCP, la, pip, &ad);
@@ -1052,8 +1050,9 @@ TcpAliasOut(struct libalias *la, struct ip *pip, int maxpacketsize, int create)
 /* Modify sequence number if necessary */
 		if (GetAckModified(lnk) == 1) {
 			int delta;
-
-			delta = GetDeltaSeqOut(pip, lnk);
+			
+			tc = (struct tcphdr *)ip_next(pip);
+			delta = GetDeltaSeqOut(tc->th_seq, lnk);
 			if (delta != 0) {
 				accumulate += twowords(&tc->th_seq);
 				tc->th_seq = htonl(ntohl(tc->th_seq) + delta);
@@ -1093,7 +1092,7 @@ saved and recalled when a header fragment is seen.
 static int	FragmentIn(struct libalias *, struct ip *);
 static int	FragmentOut(struct libalias *, struct ip *);
 
-
+// XXX ip free
 static int
 FragmentIn(struct libalias *la, struct ip *pip)
 {
@@ -1114,7 +1113,7 @@ FragmentIn(struct libalias *la, struct ip *pip)
 	return (PKT_ALIAS_UNRESOLVED_FRAGMENT);
 }
 
-
+// XXX ip free
 static int
 FragmentOut(struct libalias *la, struct ip *pip)
 {
@@ -1146,7 +1145,7 @@ FragmentOut(struct libalias *la, struct ip *pip)
 (prototypes in alias.h)
 */
 
-
+// XXX ip free
 int
 LibAliasSaveFragment(struct libalias *la, char *ptr)
 {
@@ -1166,7 +1165,7 @@ LibAliasSaveFragment(struct libalias *la, char *ptr)
 	return (iresult);
 }
 
-
+// XXX ip free
 char           *
 LibAliasGetFragment(struct libalias *la, char *ptr)
 {
@@ -1188,7 +1187,7 @@ LibAliasGetFragment(struct libalias *la, char *ptr)
 	return (fptr);
 }
 
-
+// XXX ip free
 void
 LibAliasFragmentIn(struct libalias *la, char *ptr,	/* Points to correctly
 							 * de-aliased header
