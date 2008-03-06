@@ -138,6 +138,14 @@ static int parallel_tunnels = 0;
 SYSCTL_INT(_net_link_gif, OID_AUTO, parallel_tunnels, CTLFLAG_RW,
     &parallel_tunnels, 0, "Allow parallel tunnels?");
 
+/* copy from src/sys/net/if_ethersubr.c */
+static const u_char etherbroadcastaddr[ETHER_ADDR_LEN] =
+			{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
+#ifndef ETHER_IS_BROADCAST
+#define ETHER_IS_BROADCAST(addr) \
+	(bcmp(etherbroadcastaddr, (addr), ETHER_ADDR_LEN) == 0)
+#endif
+
 static int
 gif_clone_create(ifc, unit, params)
 	struct if_clone *ifc;
@@ -469,6 +477,8 @@ gif_input(m, af, ifp)
 {
 	int isr, n;
 	struct etherip_header *eip;
+	struct ether_header *eh;
+	struct ifnet *oldifp;
 
 	if (ifp == NULL) {
 		/* just in case */
@@ -537,9 +547,27 @@ gif_input(m, af, ifp)
 		m->m_flags &= ~(M_BCAST|M_MCAST);
 		m->m_pkthdr.rcvif = ifp;
 
-		if (ifp->if_bridge)
+		if (ifp->if_bridge) {
+			oldifp = ifp;
+			eh = mtod(m, struct ether_header *);
+			if (ETHER_IS_MULTICAST(eh->ether_dhost)) {
+				if (ETHER_IS_BROADCAST(eh->ether_dhost))
+					m->m_flags |= M_BCAST;
+				else
+					m->m_flags |= M_MCAST;
+				ifp->if_imcasts++;
+			}
 			BRIDGE_INPUT(ifp, m);
-		
+
+			if (m != NULL && ifp != oldifp) {
+				/*
+				 * The bridge gave us back itself or one of the
+				 * members for which the frame is addressed.
+				 */
+				ether_demux(ifp, m);
+				return;
+			}
+		}
 		if (m != NULL)
 			m_freem(m);
 		return;
