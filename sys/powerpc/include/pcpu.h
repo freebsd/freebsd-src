@@ -104,6 +104,13 @@ struct pmap;
 	PCPU_MD_AIM_FIELDS	\
 	PCPU_MD_BOOKE_FIELDS
 #endif
+/*
+ * Catch-all for ports (e.g. lsof, used by gtop)
+ */
+#ifndef PCPU_MD_FIELDS
+#define	PCPU_MD_FIELDS							\
+	int		pc_md_placeholder
+#endif
 
 #define PCPUP	((struct pcpu *) powerpc_get_pcpup())
 
