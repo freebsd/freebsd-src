@@ -36,11 +36,6 @@ struct nfe_tx_ring {
 	int			next;
 };
 
-struct nfe_jpool_entry {
-	int				slot;
-	SLIST_ENTRY(nfe_jpool_entry)	jpool_entries;
-};
-
 struct nfe_rx_data {
 	bus_dmamap_t	rx_data_map;
 	bus_addr_t	paddr;
@@ -65,8 +60,6 @@ struct nfe_jrx_ring {
 	bus_dmamap_t		jrx_desc_map;
 	bus_dma_tag_t		jrx_jumbo_tag;
 	bus_dmamap_t		jrx_jumbo_map;
-	void			*jpool;
-	caddr_t			jslots[NFE_JSLOTS];
 	bus_addr_t		jphysaddr;
 	struct nfe_desc32	*jdesc32;
 	struct nfe_desc64	*jdesc64;
@@ -126,9 +119,6 @@ struct nfe_softc {
 	struct nfe_tx_ring	txq;
 	struct nfe_rx_ring	rxq;
 	struct nfe_jrx_ring	jrxq;
-	SLIST_HEAD(__nfe_jfreehead, nfe_jpool_entry)	nfe_jfree_listhead;
-	SLIST_HEAD(__nfe_jinusehead, nfe_jpool_entry)	nfe_jinuse_listhead;
-	struct mtx		nfe_jlist_mtx;
 };
 
 struct nfe_type {

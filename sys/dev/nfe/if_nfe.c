@@ -89,8 +89,6 @@ static int  nfe_ioctl(struct ifnet *, u_long, caddr_t);
 static void nfe_alloc_msix(struct nfe_softc *, int);
 static int nfe_intr(void *);
 static void nfe_int_task(void *, int);
-static void *nfe_jalloc(struct nfe_softc *);
-static void nfe_jfree(void *, void *);
 static __inline void nfe_discard_rxbuf(struct nfe_softc *, int);
 static __inline void nfe_discard_jrxbuf(struct nfe_softc *, int);
 static int nfe_newbuf(struct nfe_softc *, int);
@@ -143,9 +141,6 @@ static int nfedebug = 0;
 #define	NFE_LOCK(_sc)		mtx_lock(&(_sc)->nfe_mtx)
 #define	NFE_UNLOCK(_sc)		mtx_unlock(&(_sc)->nfe_mtx)
 #define	NFE_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->nfe_mtx, MA_OWNED)
-
-#define	NFE_JLIST_LOCK(_sc)	mtx_lock(&(_sc)->nfe_jlist_mtx)
-#define	NFE_JLIST_UNLOCK(_sc)	mtx_unlock(&(_sc)->nfe_jlist_mtx)
 
 /* Tunables. */
 static int msi_disable = 0;
@@ -325,11 +320,8 @@ nfe_attach(device_t dev)
 
 	mtx_init(&sc->nfe_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF);
-	mtx_init(&sc->nfe_jlist_mtx, "nfe_jlist_mtx", NULL, MTX_DEF);
 	callout_init_mtx(&sc->nfe_stat_ch, &sc->nfe_mtx, 0);
 	TASK_INIT(&sc->nfe_link_task, 0, nfe_link_task, sc);
-	SLIST_INIT(&sc->nfe_jfree_listhead);
-	SLIST_INIT(&sc->nfe_jinuse_listhead);
 
 	pci_enable_busmaster(dev);
 
@@ -713,7 +705,6 @@ nfe_detach(device_t dev)
 		sc->nfe_parent_tag = NULL;
 	}
 
-	mtx_destroy(&sc->nfe_jlist_mtx);
 	mtx_destroy(&sc->nfe_mtx);
 
 	return (0);
@@ -981,63 +972,6 @@ nfe_miibus_writereg(device_t dev, int phy, int reg, int val)
 	return (0);
 }
 
-/*
- * Allocate a jumbo buffer.
- */
-static void *
-nfe_jalloc(struct nfe_softc *sc)
-{
-	struct nfe_jpool_entry *entry;
-
-	NFE_JLIST_LOCK(sc);
-
-	entry = SLIST_FIRST(&sc->nfe_jfree_listhead);
-
-	if (entry == NULL) {
-		NFE_JLIST_UNLOCK(sc);
-		return (NULL);
-	}
-
-	SLIST_REMOVE_HEAD(&sc->nfe_jfree_listhead, jpool_entries);
-	SLIST_INSERT_HEAD(&sc->nfe_jinuse_listhead, entry, jpool_entries);
-
-	NFE_JLIST_UNLOCK(sc);
-
-	return (sc->jrxq.jslots[entry->slot]);
-}
-
-/*
- * Release a jumbo buffer.
- */
-static void
-nfe_jfree(void *buf, void *args)
-{
-	struct nfe_softc *sc;
-	struct nfe_jpool_entry *entry;
-	int i;
-
-	/* Extract the softc struct pointer. */
-	sc = (struct nfe_softc *)args;
-	KASSERT(sc != NULL, ("%s: can't find softc pointer!", __func__));
-
-	NFE_JLIST_LOCK(sc);
-	/* Calculate the slot this buffer belongs to. */
-	i = ((vm_offset_t)buf
-	     - (vm_offset_t)sc->jrxq.jpool) / NFE_JLEN;
-	KASSERT(i >= 0 && i < NFE_JSLOTS,
-	    ("%s: asked to free buffer that we don't manage!", __func__));
-
-	entry = SLIST_FIRST(&sc->nfe_jinuse_listhead);
-	KASSERT(entry != NULL, ("%s: buffer not in use!", __func__));
-	entry->slot = i;
-	SLIST_REMOVE_HEAD(&sc->nfe_jinuse_listhead, jpool_entries);
-	SLIST_INSERT_HEAD(&sc->nfe_jfree_listhead, entry, jpool_entries);
-	if (SLIST_EMPTY(&sc->nfe_jinuse_listhead))
-		wakeup(sc);
-
-	NFE_JLIST_UNLOCK(sc);
-}
-
 struct nfe_dmamap_arg {
 	bus_addr_t nfe_busaddr;
 };
@@ -1146,8 +1080,6 @@ nfe_alloc_jrx_ring(struct nfe_softc *sc, struct nfe_jrx_ring *ring)
 	struct nfe_dmamap_arg ctx;
 	struct nfe_rx_data *data;
 	void *desc;
-	struct nfe_jpool_entry *entry;
-	uint8_t *ptr;
 	int i, error, descsize;
 
 	if ((sc->nfe_flags & NFE_JUMBO_SUP) == 0)
@@ -1186,33 +1118,15 @@ nfe_alloc_jrx_ring(struct nfe_softc *sc, struct nfe_jrx_ring *ring)
 		goto fail;
 	}
 
-	/* Create DMA tag for jumbo buffer blocks. */
-	error = bus_dma_tag_create(sc->nfe_parent_tag,
-	    PAGE_SIZE, 0,			/* alignment, boundary */
-	    BUS_SPACE_MAXADDR,			/* lowaddr */
-	    BUS_SPACE_MAXADDR,			/* highaddr */
-	    NULL, NULL,				/* filter, filterarg */
-	    NFE_JMEM,				/* maxsize */
-	    1, 					/* nsegments */
-	    NFE_JMEM,				/* maxsegsize */
-	    0,					/* flags */
-	    NULL, NULL,				/* lockfunc, lockarg */
-	    &ring->jrx_jumbo_tag);
-	if (error != 0) {
-		device_printf(sc->nfe_dev,
-		    "could not create jumbo Rx buffer block DMA tag\n");
-		goto fail;
-	}
-
 	/* Create DMA tag for jumbo Rx buffers. */
 	error = bus_dma_tag_create(sc->nfe_parent_tag,
 	    PAGE_SIZE, 0,			/* alignment, boundary */
 	    BUS_SPACE_MAXADDR,			/* lowaddr */
 	    BUS_SPACE_MAXADDR,			/* highaddr */
 	    NULL, NULL,				/* filter, filterarg */
-	    NFE_JLEN,				/* maxsize */
+	    MJUM9BYTES,				/* maxsize */
 	    1,					/* nsegments */
-	    NFE_JLEN,				/* maxsegsize */
+	    MJUM9BYTES,				/* maxsegsize */
 	    0,					/* flags */
 	    NULL, NULL,				/* lockfunc, lockarg */
 	    &ring->jrx_data_tag);
@@ -1264,46 +1178,6 @@ nfe_alloc_jrx_ring(struct nfe_softc *sc, struct nfe_jrx_ring *ring)
 			    "could not create jumbo Rx DMA map\n");
 			goto fail;
 		}
-	}
-
-	/* Allocate DMA'able memory and load the DMA map for jumbo buf. */
-	error = bus_dmamem_alloc(ring->jrx_jumbo_tag, (void **)&ring->jpool,
-	    BUS_DMA_WAITOK | BUS_DMA_COHERENT | BUS_DMA_ZERO,
-	    &ring->jrx_jumbo_map);
-	if (error != 0) {
-		device_printf(sc->nfe_dev,
-		    "could not allocate DMA'able memory for jumbo pool\n");
-		goto fail;
-	}
-
-	ctx.nfe_busaddr = 0;
-	error = bus_dmamap_load(ring->jrx_jumbo_tag, ring->jrx_jumbo_map,
-	    ring->jpool, NFE_JMEM, nfe_dma_map_segs, &ctx, 0);
-	if (error != 0) {
-		device_printf(sc->nfe_dev,
-		    "could not load DMA'able memory for jumbo pool\n");
-		goto fail;
-	}
-
-	/*
-	 * Now divide it up into 9K pieces and save the addresses
-	 * in an array.
-	 */
-	ptr = ring->jpool;
-	for (i = 0; i < NFE_JSLOTS; i++) {
-		ring->jslots[i] = ptr;
-		ptr += NFE_JLEN;
-		entry = malloc(sizeof(struct nfe_jpool_entry), M_DEVBUF,
-		    M_WAITOK);
-		if (entry == NULL) {
-			device_printf(sc->nfe_dev,
-			    "no memory for jumbo buffers!\n");
-			error = ENOMEM;
-			goto fail;
-		}
-		entry->slot = i;
-		SLIST_INSERT_HEAD(&sc->nfe_jfree_listhead, entry,
-		    jpool_entries);
 	}
 
 	return;
@@ -1363,7 +1237,7 @@ nfe_init_jrx_ring(struct nfe_softc *sc, struct nfe_jrx_ring *ring)
 		desc = ring->jdesc32;
 		descsize = sizeof (struct nfe_desc32);
 	}
-	bzero(desc, descsize * NFE_RX_RING_COUNT);
+	bzero(desc, descsize * NFE_JUMBO_RX_RING_COUNT);
 	for (i = 0; i < NFE_JUMBO_RX_RING_COUNT; i++) {
 		if (nfe_jnewbuf(sc, i) != 0)
 			return (ENOBUFS);
@@ -1430,29 +1304,12 @@ nfe_free_rx_ring(struct nfe_softc *sc, struct nfe_rx_ring *ring)
 static void
 nfe_free_jrx_ring(struct nfe_softc *sc, struct nfe_jrx_ring *ring)
 {
-	struct nfe_jpool_entry *entry;
 	struct nfe_rx_data *data;
 	void *desc;
 	int i, descsize;
 
 	if ((sc->nfe_flags & NFE_JUMBO_SUP) == 0)
 		return;
-
-	NFE_JLIST_LOCK(sc);
-	while ((entry = SLIST_FIRST(&sc->nfe_jinuse_listhead))) {
-		device_printf(sc->nfe_dev,
-		    "asked to free buffer that is in use!\n");
-		SLIST_REMOVE_HEAD(&sc->nfe_jinuse_listhead, jpool_entries);
-		SLIST_INSERT_HEAD(&sc->nfe_jfree_listhead, entry,
-		    jpool_entries);
-	}
-
-	while (!SLIST_EMPTY(&sc->nfe_jfree_listhead)) {
-		entry = SLIST_FIRST(&sc->nfe_jfree_listhead);
-		SLIST_REMOVE_HEAD(&sc->nfe_jfree_listhead, jpool_entries);
-		free(entry, M_DEVBUF);
-	}
-        NFE_JLIST_UNLOCK(sc);
 
 	if (sc->nfe_flags & NFE_40BIT_ADDR) {
 		desc = ring->jdesc64;
@@ -1491,15 +1348,7 @@ nfe_free_jrx_ring(struct nfe_softc *sc, struct nfe_jrx_ring *ring)
 		ring->jdesc32 = NULL;
 		ring->jrx_desc_map = NULL;
 	}
-	/* Destroy jumbo buffer block. */
-	if (ring->jrx_jumbo_map != NULL)
-		bus_dmamap_unload(ring->jrx_jumbo_tag, ring->jrx_jumbo_map);
-	if (ring->jrx_jumbo_map != NULL) {
-		bus_dmamem_free(ring->jrx_jumbo_tag, ring->jpool,
-		    ring->jrx_jumbo_map);
-		ring->jpool = NULL;
-		ring->jrx_jumbo_map = NULL;
-	}
+
 	if (ring->jrx_desc_tag != NULL) {
 		bus_dma_tag_destroy(ring->jrx_desc_tag);
 		ring->jrx_desc_tag = NULL;
@@ -2083,24 +1932,15 @@ nfe_jnewbuf(struct nfe_softc *sc, int idx)
 	bus_dma_segment_t segs[1];
 	bus_dmamap_t map;
 	int nsegs;
-	void *buf;
 
-	MGETHDR(m, M_DONTWAIT, MT_DATA);
+	m = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR, MJUM9BYTES);
 	if (m == NULL)
 		return (ENOBUFS);
-	buf = nfe_jalloc(sc);
-	if (buf == NULL) {
-		m_freem(m);
-		return (ENOBUFS);
-	}
-	/* Attach the buffer to the mbuf. */
-	MEXTADD(m, buf, NFE_JLEN, nfe_jfree, buf, (struct nfe_softc *)sc, 0,
-	    EXT_NET_DRV);
 	if ((m->m_flags & M_EXT) == 0) {
 		m_freem(m);
 		return (ENOBUFS);
 	}
-	m->m_pkthdr.len = m->m_len = NFE_JLEN;
+	m->m_pkthdr.len = m->m_len = MJUM9BYTES;
 	m_adj(m, ETHER_ALIGN);
 
 	if (bus_dmamap_load_mbuf_sg(sc->jrxq.jrx_data_tag,
