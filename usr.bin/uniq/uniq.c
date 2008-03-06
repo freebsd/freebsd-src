@@ -65,7 +65,7 @@ int cflag, dflag, uflag;
 int numchars, numfields, repeats;
 
 FILE	*file(const char *, const char *);
-wchar_t	*getline(wchar_t *, size_t, FILE *);
+wchar_t	*getline(wchar_t *, size_t *, FILE *);
 void	 show(FILE *, wchar_t *);
 wchar_t	*skip(wchar_t *);
 void	 obsolete(char *[]);
@@ -77,7 +77,8 @@ main (int argc, char *argv[])
 {
 	wchar_t *t1, *t2;
 	FILE *ifp, *ofp;
-	int ch;
+	int ch, b1;
+	size_t prevbuflen, thisbuflen;
 	wchar_t *prevline, *thisline;
 	char *p;
 	const char *ifn;
@@ -136,12 +137,14 @@ main (int argc, char *argv[])
 	if (argc > 1)
 		ofp = file(argv[1], "w");
 
-	prevline = malloc(MAXLINELEN * sizeof(*prevline));
-	thisline = malloc(MAXLINELEN * sizeof(*thisline));
+ 	prevbuflen = MAXLINELEN;
+ 	thisbuflen = MAXLINELEN;
+ 	prevline = malloc(prevbuflen * sizeof(*prevline));
+ 	thisline = malloc(thisbuflen * sizeof(*thisline));
 	if (prevline == NULL || thisline == NULL)
 		err(1, "malloc");
 
-	if (getline(prevline, MAXLINELEN, ifp) == NULL) {
+	if ((prevline = getline(prevline, &prevbuflen, ifp)) == NULL) {
 		if (ferror(ifp))
 			err(1, "%s", ifn);
 		exit(0);
@@ -149,7 +152,7 @@ main (int argc, char *argv[])
 	if (!cflag && uflag && dflag)
 		show(ofp, prevline);
 
-	while (getline(thisline, MAXLINELEN, ifp)) {
+	while ((thisline = getline(thisline, &thisbuflen, ifp)) != NULL) {
 		/* If requested get the chosen fields + character offsets. */
 		if (numfields || numchars) {
 			t1 = skip(thisline);
@@ -169,10 +172,13 @@ main (int argc, char *argv[])
 			if (cflag || !dflag || !uflag)
 				show(ofp, prevline);
 			t1 = prevline;
+			b1 = prevbuflen;
 			prevline = thisline;
+			prevbuflen = thisbuflen;
 			if (!cflag && uflag && dflag)
 				show(ofp, prevline);
 			thisline = t1;
+			thisbuflen = b1;
 			repeats = 0;
 		} else
 			++repeats;
@@ -185,18 +191,23 @@ main (int argc, char *argv[])
 }
 
 wchar_t *
-getline(wchar_t *buf, size_t buflen, FILE *fp)
+getline(wchar_t *buf, size_t *buflen, FILE *fp)
 {
 	size_t bufpos;
 	wint_t ch;
 
 	bufpos = 0;
-	while (bufpos + 2 != buflen && (ch = getwc(fp)) != WEOF && ch != '\n')
+	while ((ch = getwc(fp)) != WEOF && ch != '\n') {
+		if (bufpos + 2 >= *buflen) {
+			*buflen = *buflen * 2;
+			buf = reallocf(buf, *buflen * sizeof(*buf));
+			if (buf == NULL)
+				return (NULL);
+		}
 		buf[bufpos++] = ch;
-	if (bufpos + 1 != buflen)
+	}
+	if (bufpos + 1 != *buflen)
 		buf[bufpos] = '\0';
-	while (ch != WEOF && ch != '\n')
-		ch = getwc(fp);
 
 	return (bufpos != 0 || ch == '\n' ? buf : NULL);
 }
@@ -278,16 +289,51 @@ usage(void)
 	exit(1);
 }
 
+static size_t wcsicoll_l1_buflen = 0, wcsicoll_l2_buflen = 0;
+static wchar_t *wcsicoll_l1_buf = NULL, *wcsicoll_l2_buf = NULL;
+
 int
 wcsicoll(wchar_t *s1, wchar_t *s2)
 {
-	wchar_t *p, line1[MAXLINELEN], line2[MAXLINELEN];
+	wchar_t *p;
+	size_t l1, l2;
+	size_t new_l1_buflen, new_l2_buflen;
 
-	for (p = line1; *s1; s1++)
+	l1 = wcslen(s1) + 1;
+	l2 = wcslen(s2) + 1;
+	new_l1_buflen = wcsicoll_l1_buflen;
+	new_l2_buflen = wcsicoll_l2_buflen;
+	while (new_l1_buflen < l1) {
+		if (new_l1_buflen == 0)
+			new_l1_buflen = MAXLINELEN;
+		else
+			new_l1_buflen *= 2;
+	}
+	while (new_l2_buflen < l2) {
+		if (new_l2_buflen == 0)
+			new_l2_buflen = MAXLINELEN;
+		else
+			new_l2_buflen *= 2;
+	}
+	if (new_l1_buflen > wcsicoll_l1_buflen) {
+		wcsicoll_l1_buf = reallocf(wcsicoll_l1_buf, new_l1_buflen * sizeof(*wcsicoll_l1_buf));
+		if (wcsicoll_l1_buf == NULL)
+                	err(1, "reallocf");
+		wcsicoll_l1_buflen = new_l1_buflen;
+	}
+	if (new_l2_buflen > wcsicoll_l2_buflen) {
+		wcsicoll_l2_buf = reallocf(wcsicoll_l2_buf, new_l2_buflen * sizeof(*wcsicoll_l2_buf));
+		if (wcsicoll_l2_buf == NULL)
+                	err(1, "reallocf");
+		wcsicoll_l2_buflen = new_l2_buflen;
+	}
+
+	for (p = wcsicoll_l1_buf; *s1; s1++)
 		*p++ = towlower(*s1);
 	*p = '\0';
-	for (p = line2; *s2; s2++)
+	for (p = wcsicoll_l2_buf; *s2; s2++)
 		*p++ = towlower(*s2);
 	*p = '\0';
-	return (wcscoll(line1, line2));
+
+	return (wcscoll(wcsicoll_l1_buf, wcsicoll_l2_buf));
 }
