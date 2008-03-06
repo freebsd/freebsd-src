@@ -52,6 +52,7 @@ SUBDIR=	${_3dfx} \
 	${_ce} \
 	${_ciss} \
 	${_cm} \
+	${_cmx} \
 	coda \
 	coda5 \
 	${_coff} \
@@ -446,6 +447,7 @@ _asr=		asr
 _bios=		bios
 _ciss=		ciss
 _cm=		cm
+_cmx=		cmx
 _coretemp=	coretemp
 _ctau=		ctau
 _cx=		cx
@@ -503,6 +505,7 @@ _ath_rate_onoe=	ath_rate_onoe
 _ath_rate_sample=ath_rate_sample
 _cardbus=	cardbus
 _cbb=		cbb
+_cmx=		cmx
 _ciss=		ciss
 _coretemp=	coretemp
 _cpufreq=	cpufreq
@@ -568,6 +571,7 @@ _cardbus=	cardbus
 _cbb=		cbb
 _ciss=		ciss
 _cm=		cm
+_cmx=		cmx
 _coff=		coff
 _cpufreq=	cpufreq
 _em=		em
