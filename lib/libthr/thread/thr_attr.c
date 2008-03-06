@@ -602,7 +602,7 @@ _pthread_attr_setaffinity_np(pthread_attr_t *pattr, size_t cpusetsize,
 			attr->cpusetsize = cpusetsize;
 		} else {
 			memset(((char *)attr->cpuset) + cpusetsize, 0,
-				cpusetsize - attr->cpusetsize);
+				attr->cpusetsize - cpusetsize);
 			attr->cpusetsize = cpusetsize;
 		}
 		memcpy(attr->cpuset, cpuset, cpusetsize);
