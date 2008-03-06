@@ -2172,7 +2172,9 @@ retry_space:
 		}
 
 		/* Quit outer loop on error or when we're done. */
-		if (error || done)
+		if (done) 
+			break;
+		if (error)
 			goto done;
 	}
 
