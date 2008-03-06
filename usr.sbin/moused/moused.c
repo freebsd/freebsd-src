@@ -2547,7 +2547,7 @@ r_timestamp(mousestatus_t *act)
     ts2.tv_sec = rodent.clickthreshold / 1000;
     ts2.tv_nsec = (rodent.clickthreshold % 1000) * 1000000;
     tssub(&ts1, &ts2, &ts);
-    debug("ts:  %ld %ld", ts.tv_sec, ts.tv_nsec);
+    debug("ts:  %ld %ld", (long)ts.tv_sec, ts.tv_nsec);
 
     /* 3 button emulation timeout */
     ts2.tv_sec = rodent.button2timeout / 1000;
@@ -2560,7 +2560,7 @@ r_timestamp(mousestatus_t *act)
 	    if (act->button & button) {
 		/* the button is down */
 		debug("  :  %ld %ld",
-		    bstate[i].ts.tv_sec, bstate[i].ts.tv_nsec);
+		    (long)bstate[i].ts.tv_sec, bstate[i].ts.tv_nsec);
 		if (tscmp(&ts, &bstate[i].ts, >)) {
 		    bstate[i].count = 1;
 		} else {
