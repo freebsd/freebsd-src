@@ -734,8 +734,10 @@ NewFtpMessage(struct libalias *la, struct ip *pip,
 			int delta;
 
 			SetAckModified(lnk);
-			delta = GetDeltaSeqOut(pip, lnk);
-			AddSeq(pip, lnk, delta + slen - dlen);
+			tc = (struct tcphdr *)ip_next(pip);				
+			delta = GetDeltaSeqOut(tc->th_seq, lnk);
+			AddSeq(lnk, delta + slen - dlen, pip->ip_hl, 
+			    pip->ip_len, tc->th_seq, tc->th_off);
 		}
 
 /* Revise IP header */
