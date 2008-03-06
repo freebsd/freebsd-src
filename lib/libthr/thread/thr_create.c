@@ -29,6 +29,7 @@
 
 #include "namespace.h"
 #include <sys/types.h>
+#include <sys/rtprio.h>
 #include <sys/signalvar.h>
 #include <errno.h>
 #include <stdlib.h>
@@ -52,6 +53,7 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 	struct pthread *curthread, *new_thread;
 	struct thr_param param;
 	struct sched_param sched_param;
+	struct rtprio rtp;
 	int ret = 0, locked, create_suspended;
 	sigset_t set, oset;
 	cpuset_t *cpuset = NULL;
@@ -135,8 +137,7 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 	_thr_link(curthread, new_thread);
 	/* Return thread pointer eariler so that new thread can use it. */
 	(*thread) = new_thread;
-	if (SHOULD_REPORT_EVENT(curthread, TD_CREATE) || cpuset != NULL ||
-	    new_thread->attr.sched_inherit != PTHREAD_INHERIT_SCHED) {
+	if (SHOULD_REPORT_EVENT(curthread, TD_CREATE) || cpuset != NULL) {
 		THR_THREAD_LOCK(curthread, new_thread);
 		locked = 1;
 	} else
@@ -152,7 +153,14 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 	param.flags = 0;
 	if (new_thread->attr.flags & PTHREAD_SCOPE_SYSTEM)
 		param.flags |= THR_SYSTEM_SCOPE;
-	param.rtp = NULL;
+	if (new_thread->attr.sched_inherit == PTHREAD_INHERIT_SCHED)
+		param.rtp = NULL;
+	else { 	 
+		sched_param.sched_priority = new_thread->attr.prio; 	 
+		_schedparam_to_rtp(new_thread->attr.sched_policy, 	 
+			&sched_param, &rtp); 	 
+		param.rtp = &rtp; 	 
+	}
 
 	/* Schedule the new thread. */
 	if (create_suspended) {
@@ -205,18 +213,6 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 			}
 		}
 
-		if (new_thread->attr.sched_inherit != PTHREAD_INHERIT_SCHED) {
-			sched_param.sched_priority = new_thread->attr.prio;
-			if (_thr_setscheduler(TID(new_thread),
-			    new_thread->attr.sched_policy, &sched_param)) {
-				ret = errno;
-				/* kill the new thread */
-				new_thread->force_exit = 1;
-				THR_THREAD_UNLOCK(curthread, new_thread);
-				goto out;
-			}
-		}
-		
 		_thr_report_creation(curthread, new_thread);
 		THR_THREAD_UNLOCK(curthread, new_thread);
 out:
