@@ -2005,9 +2005,9 @@ GetAckModified(struct alias_link *lnk)
 	return (lnk->data.tcp->state.ack_modified);
 }
 
-
+// XXX ip free
 int
-GetDeltaAckIn(struct ip *pip, struct alias_link *lnk)
+GetDeltaAckIn(u_long ack, struct alias_link *lnk)
 {
 /*
 Find out how much the ACK number has been altered for an incoming
@@ -2016,12 +2016,7 @@ packet size was altered is searched.
 */
 
 	int i;
-	struct tcphdr *tc;
 	int delta, ack_diff_min;
-	u_long ack;
-
-	tc = ip_next(pip);
-	ack = tc->th_ack;
 
 	delta = 0;
 	ack_diff_min = -1;
@@ -2049,9 +2044,9 @@ packet size was altered is searched.
 	return (delta);
 }
 
-
+// XXX ip free
 int
-GetDeltaSeqOut(struct ip *pip, struct alias_link *lnk)
+GetDeltaSeqOut(u_long seq, struct alias_link *lnk)
 {
 /*
 Find out how much the sequence number has been altered for an outgoing
@@ -2060,12 +2055,7 @@ packet size was altered is searched.
 */
 
 	int i;
-	struct tcphdr *tc;
 	int delta, seq_diff_min;
-	u_long seq;
-
-	tc = ip_next(pip);
-	seq = tc->th_seq;
 
 	delta = 0;
 	seq_diff_min = -1;
@@ -2093,9 +2083,10 @@ packet size was altered is searched.
 	return (delta);
 }
 
-
+// XXX ip free
 void
-AddSeq(struct ip *pip, struct alias_link *lnk, int delta)
+AddSeq(struct alias_link *lnk, int delta, u_int ip_hl, u_short ip_len, 
+    u_long th_seq, u_int th_off)
 {
 /*
 When a TCP packet has been altered in length, save this
@@ -2103,19 +2094,16 @@ information in a circular list.  If enough packets have
 been altered, then this list will begin to overwrite itself.
 */
 
-	struct tcphdr *tc;
 	struct ack_data_record x;
 	int hlen, tlen, dlen;
 	int i;
 
-	tc = ip_next(pip);
-
-	hlen = (pip->ip_hl + tc->th_off) << 2;
-	tlen = ntohs(pip->ip_len);
+	hlen = (ip_hl + th_off) << 2;
+	tlen = ntohs(ip_len);
 	dlen = tlen - hlen;
 
-	x.ack_old = htonl(ntohl(tc->th_seq) + dlen);
-	x.ack_new = htonl(ntohl(tc->th_seq) + dlen + delta);
+	x.ack_old = htonl(ntohl(th_seq) + dlen);
+	x.ack_new = htonl(ntohl(th_seq) + dlen + delta);
 	x.delta = delta;
 	x.active = 1;
 

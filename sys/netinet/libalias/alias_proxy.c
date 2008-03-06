@@ -453,8 +453,10 @@ ProxyEncodeTcpStream(struct alias_link *lnk,
 		int delta;
 
 		SetAckModified(lnk);
-		delta = GetDeltaSeqOut(pip, lnk);
-		AddSeq(pip, lnk, delta + slen);
+		tc = (struct tcphdr *)ip_next(pip);			
+		delta = GetDeltaSeqOut(tc->th_seq, lnk);
+		AddSeq(lnk, delta + slen, pip->ip_hl, pip->ip_len, tc->th_seq,
+		    tc->th_off);
 	}
 
 /* Update IP header packet length and checksum */
@@ -561,20 +563,13 @@ ProxyEncodeIpHeader(struct ip *pip,
 */
 
 int
-ProxyCheck(struct libalias *la, struct ip *pip,
-    struct in_addr *proxy_server_addr,
-    u_short * proxy_server_port)
+ProxyCheck(struct libalias *la, struct in_addr *proxy_server_addr,
+    u_short * proxy_server_port, struct in_addr src_addr, 
+    struct in_addr dst_addr, u_short dst_port, u_char ip_p)
 {
-	u_short dst_port;
-	struct in_addr src_addr;
-	struct in_addr dst_addr;
 	struct proxy_entry *ptr;
 
 	LIBALIAS_LOCK_ASSERT(la);
-	src_addr = pip->ip_src;
-	dst_addr = pip->ip_dst;
-	dst_port = ((struct tcphdr *)ip_next(pip))
-	    ->th_dport;
 
 	ptr = la->proxyList;
 	while (ptr != NULL) {
@@ -582,7 +577,7 @@ ProxyCheck(struct libalias *la, struct ip *pip,
 
 		proxy_port = ptr->proxy_port;
 		if ((dst_port == proxy_port || proxy_port == 0)
-		    && pip->ip_p == ptr->proto
+		    && ip_p == ptr->proto
 		    && src_addr.s_addr != ptr->server_addr.s_addr) {
 			struct in_addr src_addr_masked;
 			struct in_addr dst_addr_masked;
