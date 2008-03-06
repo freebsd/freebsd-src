@@ -916,6 +916,7 @@ cpuset_setaffinity(struct thread *td, struct cpuset_setaffinity_args *uap)
 			thread_lock(ttd);
 			set = cpuset_ref(ttd->td_cpuset);
 			thread_unlock(ttd);
+			PROC_UNLOCK(p);
 			break;
 		case CPU_WHICH_CPUSET:
 			break;
