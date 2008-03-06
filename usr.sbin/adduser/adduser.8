@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 7, 2006
+.Dd March 8, 2008
 .Dt ADDUSER 8
 .Os
 .Sh NAME
@@ -37,6 +37,7 @@
 .Op Fl CDENShq
 .Op Fl G Ar groups
 .Op Fl L Ar login_class
+.Op Fl M Ar mode
 .Op Fl d Ar partition
 .Op Fl f Ar file
 .Op Fl g Ar login_group
@@ -239,6 +240,9 @@ Please note that the message
 file can reference the internal variables of the
 .Nm
 script.
+.It Fl M Ar mode
+Create the home directory with permissions set to
+.Ar modde .
 .It Fl N
 Do not read the default configuration file.
 .It Fl q
