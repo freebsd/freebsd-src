@@ -109,6 +109,22 @@ __FBSDID("$FreeBSD$");
 #define ID_MODEL	8
 #define ID_ALL		(ID_PORT | ID_IF | ID_TYPE | ID_MODEL)
 
+/* Operations on timespecs */
+#define	tsclr(tvp)	((tvp)->tv_sec = (tvp)->tv_nsec = 0)
+#define	tscmp(tvp, uvp, cmp)						\
+	(((tvp)->tv_sec == (uvp)->tv_sec) ?				\
+	    ((tvp)->tv_nsec cmp (uvp)->tv_nsec) :			\
+	    ((tvp)->tv_sec cmp (uvp)->tv_sec))
+#define	tssub(tvp, uvp, vvp)						\
+	do {								\
+		(vvp)->tv_sec = (tvp)->tv_sec - (uvp)->tv_sec;		\
+		(vvp)->tv_nsec = (tvp)->tv_nsec - (uvp)->tv_nsec;	\
+		if ((vvp)->tv_nsec < 0) {				\
+			(vvp)->tv_sec--;				\
+			(vvp)->tv_nsec += 1000000000;			\
+		}							\
+	} while (0)
+
 #define debug(...) do {						\
 	if (debug && nodaemon)					\
 		warnx(__VA_ARGS__);				\
@@ -429,7 +445,7 @@ static struct rodentparam {
 /* button status */
 struct button_state {
     int count;		/* 0: up, 1: single click, 2: double click,... */
-    struct timeval tv;	/* timestamp on the last button event */
+    struct timespec ts;	/* timestamp on the last button event */
 };
 static struct button_state	bstate[MOUSE_MAXBUTTON]; /* button state */
 static struct button_state	*mstate[MOUSE_MAXBUTTON];/* mapped button st.*/
@@ -480,25 +496,28 @@ static struct {
     { { S0, S9, S9, S3, S9 }, 0, ~(MOUSE_BUTTON1DOWN | MOUSE_BUTTON3DOWN), FALSE },
 };
 static int		mouse_button_state;
-static struct timeval	mouse_button_state_tv;
+static struct timespec	mouse_button_state_ts;
 static int		mouse_move_delayed;
 
 static jmp_buf env;
 
-static int		drift_distance = 4;   /* max steps X+Y */
-static int		drift_time = 500;   /* in 0.5 sec */
-static struct timeval	drift_time_tv;
-static struct timeval	drift_2time_tv;   /* 2*drift_time */
-static int		drift_after = 4000;   /* 4 sec */
-static struct timeval	drift_after_tv;
+struct drift_xy {
+    int x;
+    int y;
+};
+static int		drift_distance = 4;	/* max steps X+Y */
+static int		drift_time = 500;	/* in 0.5 sec */
+static struct timespec	drift_time_ts;
+static struct timespec	drift_2time_ts;		/* 2*drift_time */
+static int		drift_after = 4000;	/* 4 sec */
+static struct timespec	drift_after_ts;
 static int		drift_terminate = FALSE;
-static struct timeval	drift_current_tv;
-static struct timeval	drift_tmp;
-static struct timeval	drift_last_activity = {0,0};
-static struct drift_xy {
-	int x; int y; }	drift_last = {0,0};   /* steps in last drift_time */
-static struct timeval	drift_since = {0,0};
-static struct drift_xy  drift_previous={0,0}; /* steps in previous drift_time */
+static struct timespec	drift_current_ts;
+static struct timespec	drift_tmp;
+static struct timespec	drift_last_activity = {0, 0};
+static struct timespec	drift_since = {0, 0};
+static struct drift_xy	drift_last = {0, 0}; /* steps in last drift_time */
+static struct drift_xy  drift_previous = {0, 0}; /* steps in prev. drift_time */
 
 /* function prototypes */
 
@@ -767,12 +786,12 @@ main(int argc, char *argv[])
 	    }
 	    debug("terminate drift: distance %d, time %d, after %d",
 		drift_distance, drift_time, drift_after);
-	    drift_time_tv.tv_sec = drift_time/1000;
-	    drift_time_tv.tv_usec = (drift_time%1000)*1000;
- 	    drift_2time_tv.tv_sec = (drift_time*=2)/1000;
-	    drift_2time_tv.tv_usec = (drift_time%1000)*1000;
-	    drift_after_tv.tv_sec = drift_after/1000;
-	    drift_after_tv.tv_usec = (drift_after%1000)*1000;
+	    drift_time_ts.tv_sec = drift_time / 1000;
+	    drift_time_ts.tv_nsec = (drift_time % 1000) * 1000000;
+ 	    drift_2time_ts.tv_sec = (drift_time *= 2) / 1000;
+	    drift_2time_ts.tv_nsec = (drift_time % 1000) * 1000000;
+	    drift_after_ts.tv_sec = drift_after / 1000;
+	    drift_after_ts.tv_nsec = (drift_after % 1000) * 1000000;
 	    break;
 
 	case 't':
@@ -1030,15 +1049,15 @@ moused(void)
     bzero(&action2, sizeof(action2));
     bzero(&mouse, sizeof(mouse));
     mouse_button_state = S0;
-    gettimeofday(&mouse_button_state_tv, NULL);
+    clock_gettime(CLOCK_MONOTONIC_FAST, &mouse_button_state_ts);
     mouse_move_delayed = 0;
     for (i = 0; i < MOUSE_MAXBUTTON; ++i) {
 	bstate[i].count = 0;
-	bstate[i].tv = mouse_button_state_tv;
+	bstate[i].ts = mouse_button_state_ts;
     }
     for (i = 0; i < sizeof(zstate)/sizeof(zstate[0]); ++i) {
 	zstate[i].count = 0;
-	zstate[i].tv = mouse_button_state_tv;
+	zstate[i].ts = mouse_button_state_ts;
     }
 
     /* choose which ioctl command to use */
@@ -1202,24 +1221,24 @@ moused(void)
 
 	    if (drift_terminate) {
 		if (flags != MOUSE_POSCHANGED || action.dz || action2.dz)
-		    drift_last_activity = drift_current_tv;
+		    drift_last_activity = drift_current_ts;
 		else {
 		    /* X or/and Y movement only - possibly drift */
-		    timersub(&drift_current_tv,&drift_last_activity,&drift_tmp);
-		    if (timercmp(&drift_tmp, &drift_after_tv, >)) {
-			timersub(&drift_current_tv, &drift_since, &drift_tmp);
-			if (timercmp(&drift_tmp, &drift_time_tv, <)) {
+		    tssub(&drift_current_ts, &drift_last_activity, &drift_tmp);
+		    if (tscmp(&drift_tmp, &drift_after_ts, >)) {
+			tssub(&drift_current_ts, &drift_since, &drift_tmp);
+			if (tscmp(&drift_tmp, &drift_time_ts, <)) {
 			    drift_last.x += action2.dx;
 			    drift_last.y += action2.dy;
 			} else {
 			    /* discard old accumulated steps (drift) */
-			    if (timercmp(&drift_tmp, &drift_2time_tv, >))
+			    if (tscmp(&drift_tmp, &drift_2time_ts, >))
 				drift_previous.x = drift_previous.y = 0;
 			    else
 				drift_previous = drift_last;
 			    drift_last.x = action2.dx;
 			    drift_last.y = action2.dy;
-			    drift_since = drift_current_tv;
+			    drift_since = drift_current_ts;
 			}
 			if (abs(drift_last.x) + abs(drift_last.y)
 			  > drift_distance) {
@@ -1227,10 +1246,10 @@ moused(void)
 			    action2.dx = drift_previous.x + drift_last.x;
 			    action2.dy = drift_previous.y + drift_last.y;
 			    /* and reset accumulators */
-			    timerclear(&drift_since);
+			    tsclr(&drift_since);
 			    drift_last.x = drift_last.y = 0;
 			    /* drift_previous will be cleared at next movement*/
-			    drift_last_activity = drift_current_tv;
+			    drift_last_activity = drift_current_ts;
 			} else {
 			    continue;   /* don't pass current movement to
 					 * console driver */
@@ -2366,7 +2385,7 @@ r_statetrans(mousestatus_t *a1, mousestatus_t *a2, int trans)
 	if (mouse_button_state != states[mouse_button_state].s[trans])
 		changed = TRUE;
 	if (changed)
-		gettimeofday(&mouse_button_state_tv, NULL);
+		clock_gettime(CLOCK_MONOTONIC_FAST, &mouse_button_state_ts);
 	mouse_button_state = states[mouse_button_state].s[trans];
 	a2->button &=
 	    ~(MOUSE_BUTTON1DOWN | MOUSE_BUTTON2DOWN | MOUSE_BUTTON3DOWN);
@@ -2508,10 +2527,10 @@ r_map(mousestatus_t *act1, mousestatus_t *act2)
 static void
 r_timestamp(mousestatus_t *act)
 {
-    struct timeval tv;
-    struct timeval tv1;
-    struct timeval tv2;
-    struct timeval tv3;
+    struct timespec ts;
+    struct timespec ts1;
+    struct timespec ts2;
+    struct timespec ts3;
     int button;
     int mask;
     int i;
@@ -2522,19 +2541,19 @@ r_timestamp(mousestatus_t *act)
 	return;
 #endif
 
-    gettimeofday(&tv1, NULL);
-    drift_current_tv = tv1;
+    clock_gettime(CLOCK_MONOTONIC_FAST, &ts1);
+    drift_current_ts = ts1;
 
     /* double click threshold */
-    tv2.tv_sec = rodent.clickthreshold/1000;
-    tv2.tv_usec = (rodent.clickthreshold%1000)*1000;
-    timersub(&tv1, &tv2, &tv);
-    debug("tv:  %ld %ld", tv.tv_sec, tv.tv_usec);
+    ts2.tv_sec = rodent.clickthreshold / 1000;
+    ts2.tv_nsec = (rodent.clickthreshold % 1000) * 1000000;
+    tssub(&ts1, &ts2, &ts);
+    debug("ts:  %ld %ld", ts.tv_sec, ts.tv_nsec);
 
     /* 3 button emulation timeout */
-    tv2.tv_sec = rodent.button2timeout/1000;
-    tv2.tv_usec = (rodent.button2timeout%1000)*1000;
-    timersub(&tv1, &tv2, &tv3);
+    ts2.tv_sec = rodent.button2timeout / 1000;
+    ts2.tv_nsec = (rodent.button2timeout % 1000) * 1000000;
+    tssub(&ts1, &ts2, &ts3);
 
     button = MOUSE_BUTTON1DOWN;
     for (i = 0; (i < MOUSE_MAXBUTTON) && (mask != 0); ++i) {
@@ -2542,23 +2561,23 @@ r_timestamp(mousestatus_t *act)
 	    if (act->button & button) {
 		/* the button is down */
 		debug("  :  %ld %ld",
-		    bstate[i].tv.tv_sec, bstate[i].tv.tv_usec);
-		if (timercmp(&tv, &bstate[i].tv, >)) {
+		    bstate[i].ts.tv_sec, bstate[i].ts.tv_nsec);
+		if (tscmp(&ts, &bstate[i].ts, >)) {
 		    bstate[i].count = 1;
 		} else {
 		    ++bstate[i].count;
 		}
-		bstate[i].tv = tv1;
+		bstate[i].ts = ts1;
 	    } else {
 		/* the button is up */
-		bstate[i].tv = tv1;
+		bstate[i].ts = ts1;
 	    }
 	} else {
 	    if (act->button & button) {
 		/* the button has been down */
-		if (timercmp(&tv3, &bstate[i].tv, >)) {
+		if (tscmp(&ts3, &bstate[i].ts, >)) {
 		    bstate[i].count = 1;
-		    bstate[i].tv = tv1;
+		    bstate[i].ts = ts1;
 		    act->flags |= button;
 		    debug("button %d timeout", i + 1);
 		}
@@ -2574,17 +2593,17 @@ r_timestamp(mousestatus_t *act)
 static int
 r_timeout(void)
 {
-    struct timeval tv;
-    struct timeval tv1;
-    struct timeval tv2;
+    struct timespec ts;
+    struct timespec ts1;
+    struct timespec ts2;
 
     if (states[mouse_button_state].timeout)
 	return TRUE;
-    gettimeofday(&tv1, NULL);
-    tv2.tv_sec = rodent.button2timeout/1000;
-    tv2.tv_usec = (rodent.button2timeout%1000)*1000;
-    timersub(&tv1, &tv2, &tv);
-    return timercmp(&tv, &mouse_button_state_tv, >);
+    clock_gettime(CLOCK_MONOTONIC_FAST, &ts1);
+    ts2.tv_sec = rodent.button2timeout / 1000;
+    ts2.tv_nsec = (rodent.button2timeout % 1000) * 1000000;
+    tssub(&ts1, &ts2, &ts);
+    return tscmp(&ts, &mouse_button_state_ts, >);
 }
 
 static void
@@ -3194,7 +3213,7 @@ kidspad(u_char rxc, mousestatus_t *act)
     static int buf[5];
     static int buflen = 0, b_prev = 0 , x_prev = -1, y_prev = -1 ;
     static k_status status = S_IDLE ;
-    static struct timeval old, now ;
+    static struct timespec old, now ;
 
     int x, y ;
 
@@ -3223,7 +3242,7 @@ kidspad(u_char rxc, mousestatus_t *act)
     act->flags = 0 ;
     act->obutton = act->button ;
     act->dx = act->dy = act->dz = 0 ;
-    gettimeofday(&now, NULL);
+    clock_gettime(CLOCK_MONOTONIC_FAST, &now);
     if (buf[0] & 0x40) /* pen went out of reach */
 	status = S_IDLE ;
     else if (status == S_IDLE) { /* pen is newly near the tablet */
