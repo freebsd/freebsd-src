@@ -144,6 +144,7 @@ dn_skipname(const u_char *ptr, const u_char *eom) {
 #define PERIOD 0x2e
 #define	hyphenchar(c) ((c) == 0x2d)
 #define bslashchar(c) ((c) == 0x5c)
+#define underscorechar(c) ((c) == 0x5f)
 #define periodchar(c) ((c) == PERIOD)
 #define asterchar(c) ((c) == 0x2a)
 #define alphachar(c) (((c) >= 0x41 && (c) <= 0x5a) \
@@ -151,7 +152,7 @@ dn_skipname(const u_char *ptr, const u_char *eom) {
 #define digitchar(c) ((c) >= 0x30 && (c) <= 0x39)
 
 #define borderchar(c) (alphachar(c) || digitchar(c))
-#define middlechar(c) (borderchar(c) || hyphenchar(c))
+#define middlechar(c) (borderchar(c) || hyphenchar(c) || underscorechar(c))
 #define	domainchar(c) ((c) > 0x20 && (c) < 0x7f)
 
 int
