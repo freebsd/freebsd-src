@@ -1597,7 +1597,6 @@ pmap_enter_pv(struct vm_page *pg, struct pv_entry *pve, pmap_t pm,
 	TAILQ_INSERT_HEAD(&pg->md.pv_list, pve, pv_list);
 	TAILQ_INSERT_HEAD(&pm->pm_pvlist, pve, pv_plist);
 	pg->md.pvh_attrs |= flags & (PVF_REF | PVF_MOD);
-	pg->md.pv_list_count++;
 	if (pve->pv_flags & PVF_WIRED)
 		++pm->pm_stats.wired_count;
 	vm_page_flag_set(pg, PG_REFERENCED);
@@ -1663,7 +1662,6 @@ pmap_nuke_pv(struct vm_page *pg, pmap_t pm, struct pv_entry *pve)
 	TAILQ_REMOVE(&pm->pm_pvlist, pve, pv_plist);
 	if (pve->pv_flags & PVF_WIRED)
 		--pm->pm_stats.wired_count;
-	pg->md.pv_list_count--;
 	if (pg->md.pvh_attrs & PVF_MOD)
 		vm_page_dirty(pg);
 	if (TAILQ_FIRST(&pg->md.pv_list) == NULL)
@@ -1777,7 +1775,6 @@ pmap_page_init(vm_page_t m)
 {
 
 	TAILQ_INIT(&m->md.pv_list);
-	m->md.pv_list_count = 0;
 }
 
 /*
@@ -3652,7 +3649,6 @@ pmap_pinit(pmap_t pmap)
 	pmap_alloc_l1(pmap);
 	bzero(pmap->pm_l2, sizeof(pmap->pm_l2));
 
-	pmap->pm_count = 1;
 	pmap->pm_active = 0;
 		
 	TAILQ_INIT(&pmap->pm_pvlist);
