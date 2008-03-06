@@ -130,7 +130,7 @@ _pthread_exit(void *status)
 	if (curthread->tlflags & TLFLAGS_DETACHED)
 		THR_GCLIST_ADD(curthread);
 	THREAD_LIST_UNLOCK(curthread);
-	if (SHOULD_REPORT_EVENT(curthread, TD_DEATH))
+	if (!curthread->force_exit && SHOULD_REPORT_EVENT(curthread, TD_DEATH))
 		_thr_report_death(curthread);
 
 	/*
