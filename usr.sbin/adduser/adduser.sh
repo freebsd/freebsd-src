@@ -81,6 +81,7 @@ show_usage() {
 	echo "  -E		disable this account after creation"
 	echo "  -G		additional groups to add accounts to"
 	echo "  -L		login class of the user"
+	echo "  -M		file permission for home directory"
 	echo "  -N		do not read configuration file"
 	echo "  -S		a nonexistent shell is not an error"
 	echo "  -d		home directory"
@@ -190,6 +191,7 @@ save_config() {
 	echo "# NOTE: only *some* variables are saved." >> ${ADDUSERCONF}
 	echo "# Last Modified on `${DATECMD}`."		>> ${ADDUSERCONF}
 	echo ''				>> ${ADDUSERCONF}
+	echo "defaultHomePerm=$uhomeperm" >> ${ADDUSERCONF}
 	echo "defaultLgroup=$ulogingroup" >> ${ADDUSERCONF}
 	echo "defaultclass=$uclass"	>> ${ADDUSERCONF}
 	echo "defaultgroups=$ugroups"	>> ${ADDUSERCONF}
@@ -247,7 +249,12 @@ add_user() {
 		if [ "$uhome" = "$NOHOME" ]; then
 			_home='-d "$uhome"'
 		else
-			_home='-m -d "$uhome"'
+			# Use home directory permissions if specified
+			if [ -n "$uhomeperm" ]; then
+				_home='-m -d "$uhome" -M "$uhomeperm"'
+			else
+				_home='-m -d "$uhome"'
+			fi
 		fi
 	elif [ -n "$Dflag" -a -n "$uhome" ]; then
 		_home='-d "$uhome"'
@@ -449,6 +456,29 @@ get_homedir() {
 	fi
 }
 
+# get_homeperm
+#	Reads the account's home directory permissions.
+#
+get_homeperm() {
+	uhomeperm=$defaultHomePerm
+	_input=
+	_prompt=
+
+	if [ -n "$uhomeperm" ]; then
+		_prompt="Home directory permissions [${uhomeperm}]: "
+	else
+		_prompt="Home directory permissions (Leave empty for default): "
+	fi
+	if [ -z "$fflag" ]; then
+		echo -n "$_prompt"
+		read _input
+	fi
+
+	if [ -n "$_input" ]; then
+		uhomeperm="$_input"
+	fi
+}
+
 # get_uid
 #	Reads a numeric userid in an interactive or batch session. Automatically
 #	allocates one if it is not specified.
@@ -601,6 +631,7 @@ input_from_file() {
 			get_class
 			get_shell
 			get_homedir
+			get_homeperm
 			get_password
 			get_expire_dates
 			ugroups="$defaultgroups"
@@ -670,6 +701,7 @@ input_interactive() {
 	get_class
 	get_shell
 	get_homedir
+	get_homeperm
 
 	while : ; do
 		echo -n "Use password-based authentication? [$_usepass]: "
@@ -780,6 +812,7 @@ input_interactive() {
 	printf "%-10s : %s\n" "Class" "$uclass"
 	printf "%-10s : %s %s\n" "Groups" "${ulogingroup:-$username}" "$ugroups"
 	printf "%-10s : %s\n" "Home" "$uhome"
+	printf "%-10s : %s\n" "Home Mode" "$uhomeperm"
 	printf "%-10s : %s\n" "Shell" "$ushell"
 	printf "%-10s : %s\n" "Locked" "$_disable"
 	while : ; do
@@ -824,6 +857,7 @@ ugecos=
 ulogingroup=
 uclass=
 uhome=
+uhomeperm=
 upass=
 ushell=
 udotdir=/usr/share/skel
@@ -850,6 +884,7 @@ defaultclass=
 defaultLgroup=
 defaultgroups=
 defaultshell="${DEFAULTSHELL}"
+defaultHomePerm=
 
 # Make sure the user running this program is root. This isn't a security
 # measure as much as it is a usefull method of reminding the user to
@@ -936,6 +971,10 @@ for _switch ; do
 			msgfile="$2"
 			;;
 		esac
+		shift; shift
+		;;
+	-M)
+		defaultHomePerm=$2
 		shift; shift
 		;;
 	-N)
