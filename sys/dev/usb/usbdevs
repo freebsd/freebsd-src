@@ -1686,6 +1686,9 @@ product UMAX ASTRA3400		0x0060	Astra 3400 Scanner
 /* Universal Access products */
 product UNIACCESS PANACHE	0x0101	Panache Surf USB ISDN Adapter
 
+/* VIA Technologies products */
+product VIA USB2IDEBRIDGE	0x6204	USB 2.0 IDE Bridge
+
 /* VidzMedia products */
 product VIDZMEDIA MONSTERTV	0x4fb1	MonsterTV P2H
 
