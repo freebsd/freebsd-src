@@ -276,7 +276,7 @@ axe_miibus_readreg(device_t dev, int phy, int reg)
 	if (val)
 		sc->axe_phyaddrs[0] = phy;
 
-	return (val);
+	return (le16toh(val));
 }
 
 static int
@@ -291,6 +291,7 @@ axe_miibus_writereg(device_t dev, int phy, int reg, int val)
 	AXE_SLEEPLOCKASSERT(sc);
 	AXE_LOCK(sc);
 	axe_cmd(sc, AXE_CMD_MII_OPMODE_SW, 0, 0, NULL);
+	val = htole32(val);
 	err = axe_cmd(sc, AXE_CMD_MII_WRITE_REG, reg, phy, (void *)&val);
 	axe_cmd(sc, AXE_CMD_MII_OPMODE_HW, 0, 0, NULL);
 	AXE_UNLOCK(sc);
@@ -381,6 +382,7 @@ axe_setmulti(struct axe_softc *sc)
 
 	AXE_LOCK(sc);
 	axe_cmd(sc, AXE_CMD_RXCTL_READ, 0, 0, (void *)&rxmode);
+	rxmode = le16toh(rxmode);
 
 	if (ifp->if_flags & IFF_ALLMULTI || ifp->if_flags & IFF_PROMISC) {
 		rxmode |= AXE_RXCMD_ALLMULTI;
@@ -417,6 +419,7 @@ axe_ax88178_init(struct axe_softc *sc)
 	axe_cmd(sc, AXE_CMD_SROM_WR_ENABLE, 0, 0, NULL);
 	/* XXX magic */
 	axe_cmd(sc, AXE_CMD_SROM_READ, 0, 0x0017, &eeprom);
+	eeprom = le16toh(eeprom);
 	axe_cmd(sc, AXE_CMD_SROM_WR_DISABLE, 0, 0, NULL);
 
 	/* if EEPROM is invalid we have to use to GPIO0 */
@@ -1249,6 +1252,7 @@ axe_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 				AXE_LOCK(sc);
 				axe_cmd(sc, AXE_CMD_RXCTL_READ,
 					0, 0, (void *)&rxmode);
+				rxmode = le16toh(rxmode);
 				rxmode |= AXE_RXCMD_PROMISC;
 				axe_cmd(sc, AXE_CMD_RXCTL_WRITE,
 					0, rxmode, NULL);
@@ -1262,6 +1266,7 @@ axe_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 				AXE_LOCK(sc);
 				axe_cmd(sc, AXE_CMD_RXCTL_READ,
 					0, 0, (void *)&rxmode);
+				rxmode = le16toh(rxmode);
 				rxmode &= ~AXE_RXCMD_PROMISC;
 				axe_cmd(sc, AXE_CMD_RXCTL_WRITE,
 					0, rxmode, NULL);
