@@ -45,7 +45,8 @@
  * Allocation requests are rounded up to the nearest size class, and no record
  * of the original request size is maintained.  Allocations are broken into
  * categories according to size class.  Assuming runtime defaults, 4 kB pages
- * and a 16 byte quantum, the size classes in each category are as follows:
+ * and a 16 byte quantum on a 32-bit system, the size classes in each category
+ * are as follows:
  *
  *   |=====================================|
  *   | Category | Subcategory    |    Size |
@@ -69,9 +70,9 @@
  *   |                           |    8 kB |
  *   |                           |   12 kB |
  *   |                           |     ... |
+ *   |                           | 1004 kB |
+ *   |                           | 1008 kB |
  *   |                           | 1012 kB |
- *   |                           | 1016 kB |
- *   |                           | 1020 kB |
  *   |=====================================|
  *   | Huge                      |    1 MB |
  *   |                           |    2 MB |
@@ -145,7 +146,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 #include <sys/ktrace.h> /* Must come after several other sys/ includes. */
 
-#include <machine/atomic.h>
 #include <machine/cpufunc.h>
 #include <machine/vmparam.h>
 
