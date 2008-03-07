@@ -746,8 +746,8 @@ ftp_transfer(conn_t *conn, const char *oper, const char *file,
 			if (e == FTP_EPASSIVE_MODE)
 				sin6->sin6_port = htons(port);
 			else {
-				bcopy(addr + 2, (char *)&sin6->sin6_addr, 16);
-				bcopy(addr + 19, (char *)&sin6->sin6_port, 2);
+				memcpy(&sin6->sin6_addr, addr + 2, 16);
+				memcpy(&sin6->sin6_port, addr + 19, 2);
 			}
 			break;
 		case AF_INET:
@@ -755,8 +755,8 @@ ftp_transfer(conn_t *conn, const char *oper, const char *file,
 			if (e == FTP_EPASSIVE_MODE)
 				sin4->sin_port = htons(port);
 			else {
-				bcopy(addr, (char *)&sin4->sin_addr, 4);
-				bcopy(addr + 4, (char *)&sin4->sin_port, 2);
+				memcpy(&sin4->sin_addr, addr, 4);
+				memcpy(&sin4->sin_port, addr + 4, 2);
 			}
 			break;
 		default:

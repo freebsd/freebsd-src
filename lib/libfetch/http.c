@@ -150,7 +150,7 @@ http_new_chunk(struct httpio *io)
 			    *p - '0';
 		} else {
 			io->chunksize = io->chunksize * 16 +
-			    10 + tolower(*p) - 'a';
+			    10 + tolower((unsigned char)*p) - 'a';
 		}
 	}
 
@@ -265,7 +265,7 @@ http_readfn(void *v, char *buf, int len)
 		l = io->buflen - io->bufpos;
 		if (len < l)
 			l = len;
-		bcopy(io->buf + io->bufpos, buf + pos, l);
+		memcpy(buf + pos, io->buf + io->bufpos, l);
 		io->bufpos += l;
 	}
 
@@ -434,7 +434,8 @@ http_get_reply(conn_t *conn)
 static const char *
 http_match(const char *str, const char *hdr)
 {
-	while (*str && *hdr && tolower(*str++) == tolower(*hdr++))
+	while (*str && *hdr &&
+	    tolower((unsigned char)*str++) == tolower((unsigned char)*hdr++))
 		/* nothing */;
 	if (*str || *hdr != ':')
 		return (NULL);
