@@ -107,6 +107,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/elf.h>
 #include <machine/fpu.h>
+#include <machine/hid.h>
 #include <machine/kdb.h>
 #include <machine/md_var.h>
 #include <machine/metadata.h>
@@ -737,15 +738,22 @@ cpu_halt(void)
 void
 cpu_idle(void)
 {
-	/* TODO: Insert code to halt (until next interrupt) */
+	uint32_t msr;
+
+	msr = mfmsr();
 
 #ifdef INVARIANTS
-	if ((mfmsr() & PSL_EE) != PSL_EE) {
+	if ((msr & PSL_EE) != PSL_EE) {
 		struct thread *td = curthread;
 		printf("td msr %x\n", td->td_md.md_saved_msr);
 		panic("ints disabled in idleproc!");
 	}
 #endif
+	if (powerpc_pow_enabled) {
+		__asm __volatile("sync");
+		mtmsr(msr | PSL_POW);
+		isync();
+	}
 }
 
 /*

@@ -70,6 +70,8 @@
 #include <machine/md_var.h>
 #include <machine/spr.h>
 
+int powerpc_pow_enabled;
+
 struct cputab {
 	const char	*name;
 	uint16_t	version;
@@ -183,9 +185,7 @@ cpu_setup(u_int cpuid)
 			/* Select DOZE mode. */
 			hid0 &= ~(HID0_DOZE | HID0_NAP | HID0_SLEEP);
 			hid0 |= HID0_DOZE | HID0_DPM;
-#ifdef notyet
-			powersave = 1;
-#endif
+			powerpc_pow_enabled = 1;
 			break;
 
 		case MPC7448:
@@ -203,9 +203,7 @@ cpu_setup(u_int cpuid)
 			/* Select NAP mode. */
 			hid0 &= ~(HID0_DOZE | HID0_NAP | HID0_SLEEP);
 			hid0 |= HID0_NAP | HID0_DPM;
-#ifdef notyet
-			powersave = 0;		/* but don't use it */
-#endif
+			powerpc_pow_enabled = 1;
 			break;
 
 		default:
