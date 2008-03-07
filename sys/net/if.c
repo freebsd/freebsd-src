@@ -546,7 +546,11 @@ if_attach(struct ifnet *ifp)
 	rt_ifannouncemsg(ifp, IFAN_ARRIVAL);
 
 	if (ifp->if_watchdog != NULL)
-		if_printf(ifp, "using obsoleted if_watchdog interface\n");
+		if_printf(ifp,
+		    "WARNING: using obsoleted if_watchdog interface\n");
+	if (ifp->if_flags & IFF_NEEDSGIANT)
+		if_printf(ifp,
+		    "WARNING: using obsoleted IFF_NEEDSGIANT flag\n");
 }
 
 static void
