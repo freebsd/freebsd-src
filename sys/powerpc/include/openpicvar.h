@@ -54,6 +54,7 @@ int	openpic_attach(device_t);
 /*
  * PIC interface.
  */
+void	openpic_config(device_t, u_int, enum intr_trigger, enum intr_polarity);
 void	openpic_dispatch(device_t, struct trapframe *);
 void	openpic_enable(device_t, u_int, u_int);
 void	openpic_eoi(device_t, u_int);

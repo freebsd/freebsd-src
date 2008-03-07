@@ -76,6 +76,8 @@ static int ocpbus_read_ivar(device_t, device_t, int, uintptr_t *);
 static int ocpbus_setup_intr(device_t, device_t, struct resource *, int,
     driver_filter_t *, driver_intr_t *, void *, void **);
 static int ocpbus_teardown_intr(device_t, device_t, struct resource *, void *);
+static int ocpbus_config_intr(device_t, int, enum intr_trigger,
+    enum intr_polarity);
 
 /*
  * Bus interface definition
@@ -91,6 +93,7 @@ static device_method_t ocpbus_methods[] = {
 	DEVMETHOD(bus_read_ivar,	ocpbus_read_ivar),
 	DEVMETHOD(bus_setup_intr,	ocpbus_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	ocpbus_teardown_intr),
+	DEVMETHOD(bus_config_intr,	ocpbus_config_intr),
 
 	DEVMETHOD(bus_get_resource,	ocpbus_get_resource),
 	DEVMETHOD(bus_alloc_resource,	ocpbus_alloc_resource),
@@ -278,6 +281,9 @@ ocpbus_attach (device_t dev)
 	if (bootverbose)
 		device_printf(dev, "PORDEVSR=%08x, PORDEVSR2=%08x\n",
 		    in32(OCP85XX_PORDEVSR), in32(OCP85XX_PORDEVSR2));
+
+	for (i = 0; i < 4; i++)
+		powerpc_config_intr(i, INTR_TRIGGER_LEVEL, INTR_POLARITY_LOW);
 
 	return (bus_generic_attach(dev));
 }
@@ -593,4 +599,14 @@ ocpbus_teardown_intr(device_t dev, device_t child, struct resource *res,
 {
 
 	return (powerpc_teardown_intr(cookie));
+}
+
+static int
+ocpbus_config_intr(device_t dev, int irq, enum intr_trigger trig, 
+    enum intr_polarity pol)
+{
+
+	if (irq < PIC_IRQ_START)
+		return (EINVAL);
+	return (powerpc_config_intr(irq - PIC_IRQ_START, trig, pol));
 }
