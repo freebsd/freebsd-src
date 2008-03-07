@@ -159,6 +159,16 @@
       RELENG_6 branches, and is a candidate for an errata
       notice.</para>
 
+    <para>[20080307] When using &man.sysinstall.8; to install the
+      X.org packages, selecting only specific components to be
+      installed may result in
+      the <filename role="package">x11/xorg-drivers</filename> package
+      not being installed, and a corresponding failure of X.org server
+      to configure itself correctly.  The recommended way to a
+      functioning X.org installation is simply to
+      select <guimenuitem>All</guimenuitem> from the Distributions
+      menu.</para>
+
   </sect1>
 
 </article>
