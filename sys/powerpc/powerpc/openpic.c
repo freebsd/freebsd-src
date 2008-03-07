@@ -181,6 +181,26 @@ openpic_attach(device_t dev)
  */
 
 void
+openpic_config(device_t dev, u_int irq, enum intr_trigger trig,
+    enum intr_polarity pol)
+{
+	struct openpic_softc *sc;
+	uint32_t x;
+
+	sc = device_get_softc(dev);
+	x = openpic_read(sc, OPENPIC_SRC_VECTOR(irq));
+	if (pol == INTR_POLARITY_LOW)
+		x &= ~OPENPIC_POLARITY_POSITIVE;
+	else
+		x |= OPENPIC_POLARITY_POSITIVE;
+	if (trig == INTR_TRIGGER_EDGE)
+		x &= ~OPENPIC_SENSE_LEVEL;
+	else
+		x |= OPENPIC_SENSE_LEVEL;
+	openpic_write(sc, OPENPIC_SRC_VECTOR(irq), x);
+}
+
+void
 openpic_dispatch(device_t dev, struct trapframe *tf)
 {
 	struct openpic_softc *sc;
