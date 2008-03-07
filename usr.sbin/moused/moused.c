@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <setjmp.h>
 #include <signal.h>
 #include <stdarg.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -2547,7 +2548,7 @@ r_timestamp(mousestatus_t *act)
     ts2.tv_sec = rodent.clickthreshold / 1000;
     ts2.tv_nsec = (rodent.clickthreshold % 1000) * 1000000;
     tssub(&ts1, &ts2, &ts);
-    debug("ts:  %ld %ld", (long)ts.tv_sec, ts.tv_nsec);
+    debug("ts:  %jd %ld", (intmax_t)ts.tv_sec, ts.tv_nsec);
 
     /* 3 button emulation timeout */
     ts2.tv_sec = rodent.button2timeout / 1000;
@@ -2559,8 +2560,8 @@ r_timestamp(mousestatus_t *act)
 	if (mask & 1) {
 	    if (act->button & button) {
 		/* the button is down */
-		debug("  :  %ld %ld",
-		    (long)bstate[i].ts.tv_sec, bstate[i].ts.tv_nsec);
+		debug("  :  %jd %ld",
+		    (intmax_t)bstate[i].ts.tv_sec, bstate[i].ts.tv_nsec);
 		if (tscmp(&ts, &bstate[i].ts, >)) {
 		    bstate[i].count = 1;
 		} else {
