@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 17, 2006
+.Dd December 27, 2007
 .Dt TREE 3
 .Os
 .Sh NAME
@@ -61,6 +61,7 @@
 .Nm RB_ROOT ,
 .Nm RB_EMPTY ,
 .Nm RB_NEXT ,
+.Nm RB_PREV ,
 .Nm RB_MIN ,
 .Nm RB_MAX ,
 .Nm RB_FIND ,
@@ -69,6 +70,7 @@
 .Nm RB_RIGHT ,
 .Nm RB_PARENT ,
 .Nm RB_FOREACH ,
+.Nm RB_FOREACH_REVERSE ,
 .Nm RB_INIT ,
 .Nm RB_INSERT ,
 .Nm RB_REMOVE
@@ -117,6 +119,8 @@
 .Ft "struct TYPE *"
 .Fn RB_NEXT NAME "RB_HEAD *head" "struct TYPE *elm"
 .Ft "struct TYPE *"
+.Fn RB_PREV NAME "RB_HEAD *head" "struct TYPE *elm"
+.Ft "struct TYPE *"
 .Fn RB_MIN NAME "RB_HEAD *head"
 .Ft "struct TYPE *"
 .Fn RB_MAX NAME "RB_HEAD *head"
@@ -131,6 +135,7 @@
 .Ft "struct TYPE *"
 .Fn RB_PARENT "struct TYPE *elm" "RB_ENTRY NAME"
 .Fn RB_FOREACH VARNAME NAME "RB_HEAD *head"
+.Fn RB_FOREACH_REVERSE VARNAME NAME "RB_HEAD *head"
 .Ft void
 .Fn RB_INIT "RB_HEAD *head"
 .Ft "struct TYPE *"
@@ -433,14 +438,17 @@ The
 .Fn RB_ROOT ,
 .Fn RB_MIN ,
 .Fn RB_MAX ,
+.Fn RB_NEXT ,
 and
-.Fn RB_NEXT
+.Fn RB_PREV
 macros can be used to traverse the tree:
 .Pp
 .Dl "for (np = RB_MIN(NAME, &head); np != NULL; np = RB_NEXT(NAME, &head, np))"
 .Pp
 Or, for simplicity, one can use the
 .Fn RB_FOREACH
+or
+.Fn RB_FOREACH_REVERSE
 macro:
 .Bd -ragged -offset indent
 .Fn RB_FOREACH np NAME head
