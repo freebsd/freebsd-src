@@ -32,6 +32,13 @@
 
 INTERFACE pic;
 
+METHOD void config {
+	device_t	dev;
+	u_int		irq;
+	enum intr_trigger trig;
+	enum intr_polarity pol;
+};
+
 METHOD void dispatch {
 	device_t	dev;
 	struct trapframe *tf;
