@@ -82,6 +82,7 @@ struct ng_ksocket_private {
 	node_p		node;
 	hook_p		hook;
 	struct socket	*so;
+	int		fn_sent;	/* FN call on incoming event was sent */
 	LIST_HEAD(, ng_ksocket_private)	embryos;
 	LIST_ENTRY(ng_ksocket_private)	siblings;
 	u_int32_t	flags;
@@ -161,7 +162,7 @@ static void	ng_ksocket_incoming(struct socket *so, void *arg, int waitflag);
 static int	ng_ksocket_parse(const struct ng_ksocket_alias *aliases,
 			const char *s, int family);
 static void	ng_ksocket_incoming2(node_p node, hook_p hook,
-			void *arg1, int waitflag);
+			void *arg1, int arg2);
 
 /************************************************************************
 			STRUCT SOCKADDR PARSE TYPE
@@ -939,13 +940,13 @@ ng_ksocket_shutdown(node_p node)
 
 	/* Close our socket (if any) */
 	if (priv->so != NULL) {
-		priv->so->so_upcall = NULL;
 		SOCKBUF_LOCK(&priv->so->so_rcv);
 		priv->so->so_rcv.sb_flags &= ~SB_UPCALL;
 		SOCKBUF_UNLOCK(&priv->so->so_rcv);
 		SOCKBUF_LOCK(&priv->so->so_snd);
 		priv->so->so_snd.sb_flags &= ~SB_UPCALL;
 		SOCKBUF_UNLOCK(&priv->so->so_snd);
+		priv->so->so_upcall = NULL;
 		soclose(priv->so);
 		priv->so = NULL;
 	}
@@ -988,22 +989,13 @@ ng_ksocket_disconnect(hook_p hook)
 			HELPER STUFF
  ************************************************************************/
 /* 
- * You should no-longer "just call" a netgraph node function
- * from an external asynchronous event.
- * This is because in doing so you are ignoring the locking on the netgraph
- * nodes. Instead call your function via 
- * "int ng_send_fn(node_p node, hook_p hook, ng_item_fn *fn,
- *	 void *arg1, int arg2);"
- * this will call the function you chose, but will first do all the 
+ * You should not "just call" a netgraph node function from an external
+ * asynchronous event. This is because in doing so you are ignoring the
+ * locking on the netgraph nodes. Instead call your function via ng_send_fn().
+ * This will call the function you chose, but will first do all the 
  * locking rigmarole. Your function MAY only be called at some distant future
  * time (several millisecs away) so don't give it any arguments
  * that may be revoked soon (e.g. on your stack).
- * In this case even the 'so' argument is doubtful. 
- * While the function request is being processed the node
- * has an extra reference and as such will not disappear until
- * the request has at least been done, but the 'so' may not be so lucky.
- * handle this by checking the validity of the node in the target function
- * before dereferencing the socket pointer.
  *
  * To decouple stack, we use queue version of ng_send_fn().
  */
@@ -1012,27 +1004,31 @@ static void
 ng_ksocket_incoming(struct socket *so, void *arg, int waitflag)
 {
 	const node_p node = arg;
-	int wait;
+	const priv_p priv = NG_NODE_PRIVATE(node);
+	int wait = ((waitflag & M_WAITOK) ? NG_WAITOK : 0) | NG_QUEUE;
 
-	wait = (waitflag & M_WAITOK) ? NG_WAITOK : 0;
-	ng_send_fn1(node, NULL, &ng_ksocket_incoming2, so, waitflag,
-	    wait | NG_QUEUE);
+	/*
+	 * Even if node is not locked, as soon as we are called, we assume
+	 * it exist and it's private area is valid. With some care we can
+	 * access it. Mark node that incoming event for it was sent to
+	 * avoid unneded queue trashing.
+	 */
+	if (atomic_cmpset_int(&priv->fn_sent, 0, 1) &&
+	    ng_send_fn1(node, NULL, &ng_ksocket_incoming2, so, 0, wait)) {
+		atomic_store_rel_int(&priv->fn_sent, 0);
+	}
 }
 
 
 /*
  * When incoming data is appended to the socket, we get notified here.
  * This is also called whenever a significant event occurs for the socket.
- * We know that HOOK is NULL. Because of how we were called we know we have a 
- * lock on this node an are participating inthe netgraph locking.
  * Our original caller may have queued this even some time ago and 
  * we cannot trust that he even still exists. The node however is being
- * held with a reference by the queueing code, at least until we finish,
- * even if it has been zapped, so first check it's validiy 
- * before we trust the socket (which was derived from it).
+ * held with a reference by the queueing code and guarantied to be valid.
  */
 static void
-ng_ksocket_incoming2(node_p node, hook_p hook, void *arg1, int waitflag)
+ng_ksocket_incoming2(node_p node, hook_p hook, void *arg1, int arg2)
 {
 	struct socket *so = arg1;
 	const priv_p priv = NG_NODE_PRIVATE(node);
@@ -1043,13 +1039,11 @@ ng_ksocket_incoming2(node_p node, hook_p hook, void *arg1, int waitflag)
 
 	s = splnet();
 
-	/* Sanity check */
-	if (NG_NODE_NOT_VALID(node)) {
-		splx(s);
-		return;
-	}
 	/* so = priv->so; *//* XXX could have derived this like so */
 	KASSERT(so == priv->so, ("%s: wrong socket", __func__));
+	
+	/* Allow next incoming event to be queued. */
+	atomic_store_rel_int(&priv->fn_sent, 0);
 
 	/* Check whether a pending connect operation has completed */
 	if (priv->flags & KSF_CONNECTING) {
@@ -1059,7 +1053,7 @@ ng_ksocket_incoming2(node_p node, hook_p hook, void *arg1, int waitflag)
 		}
 		if (!(so->so_state & SS_ISCONNECTING)) {
 			NG_MKMESSAGE(response, NGM_KSOCKET_COOKIE,
-			    NGM_KSOCKET_CONNECT, sizeof(int32_t), waitflag);
+			    NGM_KSOCKET_CONNECT, sizeof(int32_t), M_NOWAIT);
 			if (response != NULL) {
 				response->header.flags |= NGF_RESP;
 				response->header.token = priv->response_token;
@@ -1154,7 +1148,7 @@ sendit:		/* Forward data with optional peer sockaddr as packet tag */
 	 * to indicate end-of-file.
 	 */
 	if (so->so_rcv.sb_state & SBS_CANTRCVMORE && !(priv->flags & KSF_EOFSEEN)) {
-		MGETHDR(m, waitflag, MT_DATA);
+		MGETHDR(m, M_NOWAIT, MT_DATA);
 		if (m != NULL) {
 			m->m_len = m->m_pkthdr.len = 0;
 			NG_SEND_DATA_ONLY(error, priv->hook, m);
