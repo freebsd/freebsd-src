@@ -77,6 +77,7 @@ static void identifycyrix(void);
 static void print_AMD_info(void);
 static void print_AMD_assoc(int i);
 static void print_transmeta_info(void);
+static void print_via_padlock_info(void);
 
 int	cpu_class;
 u_int	cpu_exthigh;		/* Highest arg to extended CPUID */
@@ -157,6 +158,7 @@ printcpuinfo(void)
 	    strcmp(cpu_vendor, "AuthenticAMD") == 0 ||
 	    strcmp(cpu_vendor, "GenuineTMx86") == 0 ||
 	    strcmp(cpu_vendor, "TransmetaCPU") == 0 ||
+	    strcmp(cpu_vendor, "CentaurHauls") == 0 ||
 	    strcmp(cpu_vendor, "Geode by NSC") == 0)) {
 		do_cpuid(0x80000000, regs);
 		if (regs[0] >= 0x80000000) {
@@ -559,33 +561,10 @@ printcpuinfo(void)
 			break;
 		case 0x690:
 			strcpy(cpu_model, "VIA C3 Nehemiah");
-			if ((cpu_id & 0xf) < 3)
-				break;
-			goto via_common;
+			break;
 		case 0x6a0:
+		case 0x6d0:
 			strcpy(cpu_model, "VIA C7 Esther");
-via_common:
-			do_cpuid(0xc0000000, regs);
-			i = regs[0];
-			if (i >= 0xC0000001) {
-				do_cpuid(0xc0000001, regs);
-				i = regs[3];
-			} else
-				i = 0;
-			if (i & VIA_CPUID_HAS_RNG)
-				strcat(cpu_model, "+RNG");
-
-			if (i & VIA_CPUID_HAS_ACE)
-				strcat(cpu_model, "+AES");
-
-			if (i & VIA_CPUID_HAS_ACE2)
-				strcat(cpu_model, "+AES-CTR");
-
-			if (i & VIA_CPUID_HAS_PHE)
-				strcat(cpu_model, "+SHA1+SHA256");
-
-			if (i & VIA_CPUID_HAS_PMM)
-				strcat(cpu_model, "+RSA");
 			break;
 		default:
 			strcpy(cpu_model, "VIA/IDT Unknown");
@@ -874,6 +853,9 @@ via_common:
 			printf("\n  CPU cache: write-through mode");
 #endif
 	}
+	if (strcmp(cpu_vendor, "CentaurHauls") == 0)
+		print_via_padlock_info();
+
 	/* Avoid ugly blank lines: only print newline when we have to. */
 	if (*cpu_vendor || cpu_id)
 		printf("\n");
@@ -1230,7 +1212,7 @@ print_AMD_info(void)
 }
 
 static void
-print_transmeta_info()
+print_transmeta_info(void)
 {
 	u_int regs[4], nreg = 0;
 
@@ -1262,4 +1244,37 @@ print_transmeta_info()
 		info[64] = 0;
 		printf("  %s\n", info);
 	}
+}
+
+static void
+print_via_padlock_info(void)
+{
+	u_int regs[4];
+
+	/* Check for supported models. */
+	switch (cpu_id & 0xff0) {
+	case 0x690:
+		if ((cpu_id & 0xf) < 3)
+			return;
+	case 0x6a0:
+	case 0x6d0:
+		break;
+	default:
+		return;
+	}
+	
+	do_cpuid(0xc0000000, regs);
+	if (regs[0] >= 0xc0000001)
+		do_cpuid(0xc0000001, regs);
+	else
+		return;
+
+	printf("\n  VIA Padlock Features=0x%b", regs[3],
+	"\020"
+	"\003RNG"		/* RNG */
+	"\007AES"		/* ACE */
+	"\011AES-CTR"		/* ACE2 */
+	"\013SHA1,SHA256"	/* PHE */
+	"\015RSA"		/* PMM */
+	);
 }
