@@ -162,7 +162,7 @@ _thr_rtld_lock_create(void)
 
 	if ((l = malloc(sizeof(struct rtld_kse_lock))) != NULL) {
 		_lock_init(&l->lck, LCK_ADAPTIVE, _kse_lock_wait,
-		    _kse_lock_wakeup);
+		    _kse_lock_wakeup, calloc);
 		l->owner = NULL;
 		l->count = 0;
 		l->write = 0;
