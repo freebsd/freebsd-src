@@ -164,6 +164,22 @@
       processing to that of &os; 6.  So far, this change has shown some promising
       results.</para>
 
+    <para>[20080307] The &os; implementation of SCTP currently depends
+      on having <literal>INET6</literal> support compiled into the
+      kernel.  This requirement is planned to be removed in future
+      releases.</para>
+
+    <para>[20080307] Source upgrades from &os;
+      6.<replaceable>X</replaceable> to &os; &release.bugfix; will
+      generate warnings from &man.kldxref.8; during
+      the <literal>installkernel</literal> step.  These warnings are
+      harmless and can be ignored.</para>
+
+    <para>[20080307] The &man.crypto.4; driver, which is required for
+      IPsec functionality, has severe problems on &os;/&arch.powerpc;
+      (a kernel with <literal>device crypto</literal> included in its
+      configuration will be non-functional).</para>
+
 ]]>
 
   </sect1>
