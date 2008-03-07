@@ -53,8 +53,135 @@ struct ng_nat_mode {
 #define NG_NAT_PROXY_ONLY		0x40
 #define NG_NAT_REVERSE			0x80
 
+#define NG_NAT_DESC_LENGTH	64
+#define NG_NAT_REDIRPROTO_ADDR	(IPPROTO_MAX + 3) 	/* LibAlias' LINK_ADDR, also unused in in.h */
+
+/* Arguments for NGM_NAT_REDIRECT_PORT message */
+struct ng_nat_redirect_port {
+	struct in_addr	local_addr;
+	struct in_addr	alias_addr;
+	struct in_addr	remote_addr;
+	uint16_t	local_port;
+	uint16_t	alias_port;
+	uint16_t	remote_port;
+	uint8_t		proto;
+	char		description[NG_NAT_DESC_LENGTH];
+};
+
+/* Keep this in sync with the above structure definition */
+#define NG_NAT_REDIRECT_PORT_TYPE_INFO(desctype) {		\
+	  { "local_addr",	&ng_parse_ipaddr_type	},	\
+	  { "alias_addr",	&ng_parse_ipaddr_type	},	\
+	  { "remote_addr",	&ng_parse_ipaddr_type	},	\
+	  { "local_port",	&ng_parse_uint16_type	},	\
+	  { "alias_port",	&ng_parse_uint16_type	},	\
+	  { "remote_port",	&ng_parse_uint16_type	},	\
+	  { "proto",		&ng_parse_uint8_type	},	\
+	  { "description",	(desctype)		},	\
+	  { NULL }						\
+}
+
+/* Arguments for NGM_NAT_REDIRECT_ADDR message */
+struct ng_nat_redirect_addr {
+	struct in_addr	local_addr;
+	struct in_addr	alias_addr;
+	char		description[NG_NAT_DESC_LENGTH];
+};
+
+/* Keep this in sync with the above structure definition */
+#define NG_NAT_REDIRECT_ADDR_TYPE_INFO(desctype) {		\
+	  { "local_addr",	&ng_parse_ipaddr_type	},	\
+	  { "alias_addr",	&ng_parse_ipaddr_type	},	\
+	  { "description",	(desctype)		},	\
+	  { NULL }						\
+}
+
+/* Arguments for NGM_NAT_REDIRECT_PROTO message */
+struct ng_nat_redirect_proto {
+	struct in_addr	local_addr;
+	struct in_addr	alias_addr;
+	struct in_addr	remote_addr;
+	uint8_t		proto;
+	char		description[NG_NAT_DESC_LENGTH];
+};
+
+/* Keep this in sync with the above structure definition */
+#define NG_NAT_REDIRECT_PROTO_TYPE_INFO(desctype) {		\
+	  { "local_addr",	&ng_parse_ipaddr_type	},	\
+	  { "alias_addr",	&ng_parse_ipaddr_type	},	\
+	  { "remote_addr",	&ng_parse_ipaddr_type	},	\
+	  { "proto",		&ng_parse_uint8_type	},	\
+	  { "description",	(desctype)		},	\
+	  { NULL }						\
+}
+
+/* Arguments for NGM_NAT_ADD_SERVER message */
+struct ng_nat_add_server {
+	uint32_t	id;
+	struct in_addr	addr;
+	uint16_t	port;
+};
+
+/* Keep this in sync with the above structure definition */
+#define NG_NAT_ADD_SERVER_TYPE_INFO {				\
+	  { "id",		&ng_parse_uint32_type	},	\
+	  { "addr",		&ng_parse_ipaddr_type	},	\
+	  { "port",		&ng_parse_uint16_type	},	\
+	  { NULL }						\
+}
+
+/* List entry of array returned in NGM_NAT_LIST_REDIRECTS message */
+struct ng_nat_listrdrs_entry {
+	uint32_t	id;		/* Anything except zero */
+	struct in_addr	local_addr;
+	struct in_addr	alias_addr;
+	struct in_addr	remote_addr;
+	uint16_t	local_port;
+	uint16_t	alias_port;
+	uint16_t	remote_port;
+	uint16_t	proto;		/* Valid proto or NG_NAT_REDIRPROTO_ADDR */
+	uint16_t	lsnat;		/* LSNAT servers count */
+	char		description[NG_NAT_DESC_LENGTH];
+};
+
+/* Keep this in sync with the above structure definition */
+#define NG_NAT_LISTRDRS_ENTRY_TYPE_INFO(desctype) {			\
+	  { "id",		&ng_parse_uint32_type	},	\
+	  { "local_addr",	&ng_parse_ipaddr_type	},	\
+	  { "alias_addr",	&ng_parse_ipaddr_type	},	\
+	  { "remote_addr",	&ng_parse_ipaddr_type	},	\
+	  { "local_port",	&ng_parse_uint16_type	},	\
+	  { "alias_port",	&ng_parse_uint16_type	},	\
+	  { "remote_port",	&ng_parse_uint16_type	},	\
+	  { "proto",		&ng_parse_uint16_type	},	\
+	  { "lsnat",		&ng_parse_uint16_type	},	\
+	  { "description",	(desctype)		},	\
+	  { NULL }						\
+}
+
+/* Structure returned by NGM_NAT_LIST_REDIRECTS */
+struct ng_nat_list_redirects {
+	uint32_t		total_count;
+	struct ng_nat_listrdrs_entry redirects[];
+};
+
+/* Keep this in sync with the above structure definition */
+#define NG_NAT_LIST_REDIRECTS_TYPE_INFO(redirtype) {		\
+	  { "total_count",	&ng_parse_uint32_type	},	\
+	  { "redirects",	(redirtype)		},	\
+	  { NULL }						\
+}
+
 enum {
 	NGM_NAT_SET_IPADDR = 1,
 	NGM_NAT_SET_MODE,
 	NGM_NAT_SET_TARGET,
+	NGM_NAT_REDIRECT_PORT,
+	NGM_NAT_REDIRECT_ADDR,
+	NGM_NAT_REDIRECT_PROTO,
+	NGM_NAT_REDIRECT_DYNAMIC,
+	NGM_NAT_REDIRECT_DELETE,
+	NGM_NAT_ADD_SERVER,
+	NGM_NAT_LIST_REDIRECTS,
+	NGM_NAT_PROXY_RULE,
 };
