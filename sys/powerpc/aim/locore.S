@@ -89,9 +89,6 @@ GLOBAL(esym)
 GLOBAL(ofmsr)
 	.long	0, 0, 0, 0, 0		/* msr/sprg0-3 used in Open Firmware */
 
-GLOBAL(powersave)
-	.long	0
-
 #define	INTSTK		16384		/* 16K interrupt stack */
 #define	INTRCNT_COUNT	256		/* max(HROWPIC_IRQMAX,OPENPIC_IRQMAX) */
 GLOBAL(intrnames)
