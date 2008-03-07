@@ -115,11 +115,9 @@ __weak_reference(__pthread_mutex_trylock, pthread_mutex_trylock);
 __weak_reference(_pthread_mutex_destroy, pthread_mutex_destroy);
 __weak_reference(_pthread_mutex_unlock, pthread_mutex_unlock);
 
-
-
-int
-__pthread_mutex_init(pthread_mutex_t *mutex,
-    const pthread_mutexattr_t *mutex_attr)
+static int
+thr_mutex_init(pthread_mutex_t *mutex,
+    const pthread_mutexattr_t *mutex_attr, void *(calloc_cb)(size_t, size_t))
 {
 	struct pthread_mutex *pmutex;
 	enum pthread_mutextype type;
@@ -163,10 +161,10 @@ __pthread_mutex_init(pthread_mutex_t *mutex,
 	/* Check no errors so far: */
 	if (ret == 0) {
 		if ((pmutex = (pthread_mutex_t)
-		    malloc(sizeof(struct pthread_mutex))) == NULL)
+		    calloc_cb(1, sizeof(struct pthread_mutex))) == NULL)
 			ret = ENOMEM;
 		else if (_lock_init(&pmutex->m_lock, LCK_ADAPTIVE,
-		    _thr_lock_wait, _thr_lock_wakeup) != 0) {
+		    _thr_lock_wait, _thr_lock_wakeup, calloc_cb) != 0) {
 			free(pmutex);
 			*mutex = NULL;
 			ret = ENOMEM;
@@ -222,6 +220,14 @@ __pthread_mutex_init(pthread_mutex_t *mutex,
 }
 
 int
+__pthread_mutex_init(pthread_mutex_t *mutex,
+    const pthread_mutexattr_t *mutex_attr)
+{
+
+	return (thr_mutex_init(mutex, mutex_attr, calloc));
+}
+
+int
 _pthread_mutex_init(pthread_mutex_t *mutex,
     const pthread_mutexattr_t *mutex_attr)
 {
@@ -235,6 +241,23 @@ _pthread_mutex_init(pthread_mutex_t *mutex,
 		mattrp = &mattr;
 		return (__pthread_mutex_init(mutex, &mattrp));
 	}
+}
+
+/* This function is used internally by malloc. */
+int
+_pthread_mutex_init_calloc_cb(pthread_mutex_t *mutex,
+    void *(calloc_cb)(size_t, size_t))
+{
+	static const struct pthread_mutex_attr attr = {
+		.m_type = PTHREAD_MUTEX_NORMAL,
+		.m_protocol = PTHREAD_PRIO_NONE,
+		.m_ceiling = 0,
+		.m_flags = 0
+	};
+	static const struct pthread_mutex_attr *pattr = &attr;
+
+	return (thr_mutex_init(mutex, (pthread_mutexattr_t *)&pattr,
+	    calloc_cb));
 }
 
 void

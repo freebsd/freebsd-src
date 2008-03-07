@@ -83,7 +83,7 @@ void	_lock_acquire(struct lock *, struct lockuser *, int);
 void	_lock_destroy(struct lock *);
 void	_lock_grant(struct lock *, struct lockuser *);
 int	_lock_init(struct lock *, enum lock_type,
-	    lock_handler_t *, lock_handler_t *);
+	    lock_handler_t *, lock_handler_t *, void *(size_t, size_t));
 int	_lock_reinit(struct lock *, enum lock_type,
 	    lock_handler_t *, lock_handler_t *);
 void	_lock_release(struct lock *, struct lockuser *);
