@@ -323,6 +323,12 @@ struct umass_devdescr_t {
 	 * sector number.
 	 */
 #	define READ_CAPACITY_OFFBY1	0x2000
+	/* Device cannot handle a SCSI synchronize cache command.  Normally
+	 * this quirk would be handled in the cam layer, but for IDE bridges
+	 * we need to associate the quirk with the bridge and not the
+	 * underlying disk device.  This is handled by faking a success result.
+	 */
+#	define NO_SYNCHRONIZE_CACHE	0x4000
 };
 
 static struct umass_devdescr_t umass_devdescrs[] = {
@@ -803,6 +809,10 @@ static struct umass_devdescr_t umass_devdescrs[] = {
 	{ USB_VENDOR_TWINMOS, USB_PRODUCT_TWINMOS_MDIV, RID_WILDCARD,
 	  UMASS_PROTO_SCSI | UMASS_PROTO_BBB,
 	  NO_QUIRKS
+	},
+	{ USB_VENDOR_VIA, USB_PRODUCT_VIA_USB2IDEBRIDGE, RID_WILDCARD,
+	  UMASS_PROTO_SCSI | UMASS_PROTO_BBB,
+	  NO_SYNCHRONIZE_CACHE
 	},
 	{ USB_VENDOR_VIVITAR, USB_PRODUCT_VIVITAR_35XX, RID_WILDCARD,
 	  UMASS_PROTO_SCSI | UMASS_PROTO_BBB,
@@ -2873,6 +2883,15 @@ umass_cam_action(struct cam_sim *sim, union ccb *ccb)
 
 				memcpy(csio->data_ptr, &fake_inq_data,
 				    sizeof(fake_inq_data));
+				csio->scsi_status = SCSI_STATUS_OK;
+				ccb->ccb_h.status = CAM_REQ_CMP;
+				xpt_done(ccb);
+				return;
+			}
+			if ((sc->quirks & NO_SYNCHRONIZE_CACHE) &&
+			    rcmd[0] == SYNCHRONIZE_CACHE) {
+				struct ccb_scsiio *csio = &ccb->csio;
+
 				csio->scsi_status = SCSI_STATUS_OK;
 				ccb->ccb_h.status = CAM_REQ_CMP;
 				xpt_done(ccb);
