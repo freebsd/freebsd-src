@@ -236,7 +236,7 @@ structure is defined as follows in
 .In fetch.h :
 .Bd -literal
 struct url_ent {
-    char         name[MAXPATHLEN];
+    char         name[PATH_MAX];
     struct url_stat stat;
 };
 .Ed
