@@ -52,6 +52,7 @@
 #include <sys/sysctl.h>
 
 #include <net/if.h>
+#include <net/pfil.h>
 #include <net/route.h>
 #include <net/netisr.h>
 
@@ -348,7 +349,7 @@ _ipip_input(struct mbuf *m, int iphlen, struct ifnet *gifp)
 
 #ifdef DEV_ENC
 	/* pass the mbuf to enc0 for packet filtering */
-	if (ipsec_filter(&m, 1) != 0)
+	if (ipsec_filter(&m, PFIL_IN) != 0)
 		return;
 #endif
 
