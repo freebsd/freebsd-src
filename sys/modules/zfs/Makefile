@@ -4,11 +4,13 @@ KMOD=	zfs
 
 SRCS=	vnode_if.h
 
-.PATH:	${.CURDIR}/../../contrib/opensolaris/common/acl
+SUNW=	${.CURDIR}/../../contrib/opensolaris
+
+.PATH:	${SUNW}/common/acl
 SRCS+=	acl_common.c
-.PATH:	${.CURDIR}/../../contrib/opensolaris/common/avl
+.PATH:	${SUNW}/common/avl
 SRCS+=	avl.c
-.PATH:	${.CURDIR}/../../contrib/opensolaris/common/nvpair
+.PATH:	${SUNW}/common/nvpair
 SRCS+=	nvpair.c
 
 .PATH:	${.CURDIR}/../../compat/opensolaris/kern
@@ -22,28 +24,28 @@ SRCS+=	opensolaris_vfs.c
 SRCS+=	opensolaris_zone.c
 
 .if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "ia64"
-.PATH:	${.CURDIR}/../../contrib/opensolaris/common/atomic/${MACHINE_ARCH}
+.PATH:	${SUNW}/common/atomic/${MACHINE_ARCH}
 SRCS+=	atomic.S
 .else
 .PATH:	${.CURDIR}/../../compat/opensolaris/kern
 SRCS+=	opensolaris_atomic.c
 .endif
 
-.PATH:	${.CURDIR}/../../contrib/opensolaris/uts/common/fs
+.PATH:	${SUNW}/uts/common/fs
 SRCS+=	gfs.c
 
-.PATH:	${.CURDIR}/../../contrib/opensolaris/uts/common/os
+.PATH:	${SUNW}/uts/common/os
 SRCS+=	callb.c
 SRCS+=	list.c
 SRCS+=	nvpair_alloc_system.c
 SRCS+=	taskq.c
 
-.PATH:	${.CURDIR}/../../contrib/opensolaris/uts/common/rpc
+.PATH:	${SUNW}/uts/common/rpc
 SRCS+=	xdr.c
 SRCS+=	xdr_array.c
 SRCS+=	xdr_mem.c
 
-.PATH:	${.CURDIR}/../../contrib/opensolaris/uts/common/zmod
+.PATH:	${SUNW}/uts/common/zmod
 SRCS+=	adler32.c
 SRCS+=	crc32.c
 SRCS+=	deflate.c
@@ -55,9 +57,9 @@ SRCS+=	zmod.c
 SRCS+=	zmod_subr.c
 SRCS+=	zutil.c
 
-.PATH:	${.CURDIR}/../../contrib/opensolaris/common/zfs
-.include "${.CURDIR}/../../contrib/opensolaris/uts/common/Makefile.files"
-.PATH:	${.CURDIR}/../../contrib/opensolaris/uts/common/fs/zfs
+.PATH:	${SUNW}/common/zfs
+.include "${SUNW}/uts/common/Makefile.files"
+.PATH:	${SUNW}/uts/common/fs/zfs
 ZFS_SRCS=	${ZFS_OBJS:C/.o$/.c/}
 SRCS+=	${ZFS_SRCS}
 SRCS+=	vdev_geom.c
@@ -69,12 +71,12 @@ SRCS+=	vdev_geom.c
 CFLAGS+=-DFREEBSD_NAMECACHE
 
 CFLAGS+=-I${.CURDIR}/../../compat/opensolaris
-CFLAGS+=-I${.CURDIR}/../../contrib/opensolaris/uts/common/fs/zfs
-CFLAGS+=-I${.CURDIR}/../../contrib/opensolaris/uts/common/zmod
-CFLAGS+=-I${.CURDIR}/../../contrib/opensolaris/uts/common
+CFLAGS+=-I${SUNW}/uts/common/fs/zfs
+CFLAGS+=-I${SUNW}/uts/common/zmod
+CFLAGS+=-I${SUNW}/uts/common
 CFLAGS+=-I${.CURDIR}/../..
-CFLAGS+=-I${.CURDIR}/../../contrib/opensolaris/common/zfs
-CFLAGS+=-I${.CURDIR}/../../contrib/opensolaris/common
+CFLAGS+=-I${SUNW}/common/zfs
+CFLAGS+=-I${SUNW}/common
 CFLAGS+=-I${.CURDIR}/../../../include
 
 #CFLAGS+=-DDEBUG=1
