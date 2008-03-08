@@ -205,7 +205,7 @@ static void hpt_free_mem(PVBUS_EXT vbus_ext)
 	BUS_ADDRESS bus;
 
 	for (f=vbus_ext->freelist_head; f; f=f->next) {
-#ifdef DBG
+#if DBG
 		if (f->count!=f->reserved_count) {
 			KdPrint(("memory leak for freelist %s (%d/%d)", f->tag, f->count, f->reserved_count));
 		}
@@ -222,7 +222,7 @@ static void hpt_free_mem(PVBUS_EXT vbus_ext)
 
 	for (f=vbus_ext->freelist_dma_head; f; f=f->next) {
 		int order, size;
-#ifdef DBG
+#if DBG
 		if (f->count!=f->reserved_count) {
 			KdPrint(("memory leak for dma freelist %s (%d/%d)", f->tag, f->count, f->reserved_count));
 		}
