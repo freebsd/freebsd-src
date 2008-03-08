@@ -2740,7 +2740,6 @@ tcp_mss(struct tcpcb *tp, int offer)
 		maxmtu = tcp_maxmtu(&inp->inp_inc, &mtuflags);
 		tp->t_maxopd = tp->t_maxseg = tcp_mssdflt;
 	}
-	so = inp->inp_socket;
 
 	/*
 	 * No route to sender, stay with default mss and return.
@@ -2753,13 +2752,10 @@ tcp_mss(struct tcpcb *tp, int offer)
 		case 0:
 			/*
 			 * Offer == 0 means that there was no MSS on the SYN
-			 * segment, in this case we use tcp_mssdflt.
+			 * segment, in this case we use tcp_mssdflt as
+			 * already assigned to t_maxopd above.
 			 */
-			offer =
-#ifdef INET6
-				isipv6 ? tcp_v6mssdflt :
-#endif
-				tcp_mssdflt;
+			offer = tp->t_maxopd;
 			break;
 
 		case -1:
@@ -2829,14 +2825,13 @@ tcp_mss(struct tcpcb *tp, int offer)
 	    (origoffer == -1 ||
 	     (tp->t_flags & TF_RCVD_TSTMP) == TF_RCVD_TSTMP))
 		mss -= TCPOLEN_TSTAMP_APPA;
-	tp->t_maxseg = mss;
 
 #if	(MCLBYTES & (MCLBYTES - 1)) == 0
-		if (mss > MCLBYTES)
-			mss &= ~(MCLBYTES-1);
+	if (mss > MCLBYTES)
+		mss &= ~(MCLBYTES-1);
 #else
-		if (mss > MCLBYTES)
-			mss = mss / MCLBYTES * MCLBYTES;
+	if (mss > MCLBYTES)
+		mss = mss / MCLBYTES * MCLBYTES;
 #endif
 	tp->t_maxseg = mss;
 
@@ -2847,6 +2842,7 @@ tcp_mss(struct tcpcb *tp, int offer)
 	 * Make the socket buffers an integral number of mss units;
 	 * if the mss is larger than the socket buffer, decrease the mss.
 	 */
+	so = inp->inp_socket;
 	SOCKBUF_LOCK(&so->so_snd);
 	if ((so->so_snd.sb_hiwat == tcp_sendspace) && metrics.rmx_sendpipe)
 		bufsize = metrics.rmx_sendpipe;
