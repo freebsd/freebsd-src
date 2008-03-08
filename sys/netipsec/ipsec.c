@@ -1825,12 +1825,12 @@ char *
 ipsec_address(union sockaddr_union* sa)
 {
 	switch (sa->sa.sa_family) {
-#if INET
+#ifdef INET
 	case AF_INET:
 		return inet_ntoa4(sa->sin.sin_addr);
 #endif /* INET */
 
-#if INET6
+#ifdef INET6
 	case AF_INET6:
 		return ip6_sprintf(&sa->sin6.sin6_addr);
 #endif /* INET6 */
