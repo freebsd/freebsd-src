@@ -187,7 +187,7 @@ HPT_U8 os_get_vbus_seq(void *osext);
 /* debug support */
 int  os_printk(char *fmt, ...);
 
-#ifdef DBG
+#if DBG
 extern int hptrr_dbg_level;
 #define KdPrint(x)  do { if (hptrr_dbg_level) os_printk x; } while (0)
 void __os_dbgbreak(const char *file, int line);
