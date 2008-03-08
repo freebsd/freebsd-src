@@ -3137,7 +3137,7 @@ key_setsaval(sav, m, mhp)
 	sav->created = time_second;
 
 	/* make lifetime for CURRENT */
-	sav->lft_c = malloc(sizeof(struct sadb_lifetime), M_IPSEC_MISC, M_NOWAIT);
+	sav->lft_c = malloc(sizeof(struct seclifetime), M_IPSEC_MISC, M_NOWAIT);
 	if (sav->lft_c == NULL) {
 		ipseclog((LOG_DEBUG, "%s: No more memory.\n", __func__));
 		error = ENOBUFS;
@@ -6323,7 +6323,12 @@ key_expire(struct secasvar *sav)
 	lt->sadb_lifetime_addtime = sav->lft_c->addtime;
 	lt->sadb_lifetime_usetime = sav->lft_c->usetime;
 	lt = (struct sadb_lifetime *)(mtod(m, caddr_t) + len / 2);
-	bcopy(sav->lft_s, lt, sizeof(*lt));
+	lt->sadb_lifetime_len = PFKEY_UNIT64(sizeof(struct sadb_lifetime));
+	lt->sadb_lifetime_exttype = SADB_EXT_LIFETIME_SOFT;
+	lt->sadb_lifetime_allocations = sav->lft_s->allocations;
+	lt->sadb_lifetime_bytes = sav->lft_s->bytes;
+	lt->sadb_lifetime_addtime = sav->lft_s->addtime;
+	lt->sadb_lifetime_usetime = sav->lft_s->usetime;
 	m_cat(result, m);
 
 	/* set sadb_address for source */
