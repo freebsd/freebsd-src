@@ -732,6 +732,7 @@ ipsec6_get_ulp(m, spidx, needport)
 	int off, nxt;
 	struct tcphdr th;
 	struct udphdr uh;
+	struct icmp6_hdr ih;
 
 	/* sanity check */
 	if (m == NULL)
@@ -772,6 +773,15 @@ ipsec6_get_ulp(m, spidx, needport)
 		((struct sockaddr_in6 *)&spidx->dst)->sin6_port = uh.uh_dport;
 		break;
 	case IPPROTO_ICMPV6:
+		spidx->ul_proto = nxt;
+		if (off + sizeof(struct icmp6_hdr) > m->m_pkthdr.len)
+			break;
+		m_copydata(m, off, sizeof(ih), (caddr_t)&ih);
+		((struct sockaddr_in6 *)&spidx->src)->sin6_port =
+		    htons((uint16_t)ih.icmp6_type);
+		((struct sockaddr_in6 *)&spidx->dst)->sin6_port =
+		    htons((uint16_t)ih.icmp6_code);
+		break;
 	default:
 		/* XXX intermediate headers??? */
 		spidx->ul_proto = nxt;
