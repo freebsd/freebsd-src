@@ -116,6 +116,10 @@ ipsec_common_input(struct mbuf *m, int skip, int protoff, int af, int sproto)
 
 	IPSEC_ASSERT(m != NULL, ("null packet"));
 
+	IPSEC_ASSERT(sproto == IPPROTO_ESP || sproto == IPPROTO_AH ||
+		sproto == IPPROTO_IPCOMP,
+		("unexpected security protocol %u", sproto));
+
 	if ((sproto == IPPROTO_ESP && !esp_enable) ||
 	    (sproto == IPPROTO_AH && !ah_enable) ||
 	    (sproto == IPPROTO_IPCOMP && !ipcomp_enable)) {
