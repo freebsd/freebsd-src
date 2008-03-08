@@ -3063,6 +3063,7 @@ coredump(struct thread *td)
 
 	name = expand_name(p->p_comm, td->td_ucred->cr_uid, p->p_pid);
 	if (name == NULL) {
+		PROC_UNLOCK(p);
 #ifdef AUDIT
 		audit_proc_coredump(td, NULL, EINVAL);
 #endif
