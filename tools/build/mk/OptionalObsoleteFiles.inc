@@ -584,10 +584,12 @@ OLD_LIBS+=lib/libipx.so.4
 OLD_FILES+=usr/lib/libipx.a
 OLD_FILES+=usr/lib/libipx.so
 OLD_FILES+=usr/lib/libipx_p.a
+.if ${TARGET_ARCH} == "amd64"
 OLD_FILES+=usr/lib32/libipx.a
 OLD_FILES+=usr/lib32/libipx.so
 OLD_LIBS+=usr/lib32/libipx.so.4
 OLD_FILES+=usr/lib32/libipx_p.a
+.endif
 OLD_FILES+=usr/sbin/IPXrouted
 OLD_FILES+=usr/share/man/man3/ipx.3.gz
 OLD_FILES+=usr/share/man/man3/ipx_addr.3.gz
@@ -981,10 +983,12 @@ OLD_FILES+=usr/lib/libncp.a
 OLD_FILES+=usr/lib/libncp.so
 OLD_LIBS+=usr/lib/libncp.so.3
 OLD_FILES+=usr/lib/libncp_p.a
+.if ${TARGET_ARCH} == "amd64"
 OLD_FILES+=usr/lib32/libncp.a
 OLD_FILES+=usr/lib32/libncp.so
 OLD_LIBS+=usr/lib32/libncp.so.3
 OLD_FILES+=usr/lib32/libncp_p.a
+.endif
 OLD_FILES+=usr/sbin/mount_nwfs
 OLD_FILES+=usr/share/man/man1/ncplist.1.gz
 OLD_FILES+=usr/share/man/man1/ncplogin.1.gz
