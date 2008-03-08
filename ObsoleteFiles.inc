@@ -32,6 +32,11 @@ OLD_FILES+=usr/share/games/fortune/fortunes2-o.dat
 OLD_FILES+=usr/lib/libkse.a
 OLD_FILES+=usr/lib/libkse_p.a
 OLD_FILES+=usr/lib/libkse_pic.a
+.if ${TARGET_ARCH} == "amd64"
+OLD_FILES+=usr/lib32/libkse.a
+OLD_FILES+=usr/lib32/libkse_p.a
+OLD_FILES+=usr/lib32/libkse_pic.a
+.endif
 .endif
 # 20071129: Removed a Solaris compatibility header
 OLD_FILES+=usr/include/sys/_elf_solaris.h
@@ -134,6 +139,12 @@ OLD_DIRS+=usr/include/netatm/ipatm
 OLD_DIRS+=usr/include/netatm/uni
 OLD_DIRS+=usr/include/netatm
 OLD_DIRS+=usr/share/examples/atm
+.if ${TARGET_ARCH} == "amd64"
+OLD_FILES+=usr/lib32/libatm.a
+OLD_FILES+=usr/lib32/libatm.so
+OLD_LIBS+=usr/lib32/libatm.so.5
+OLD_FILES+=usr/lib32/libatm_p.a
+.endif
 # 20070705: I4B headers repo-copied to include/i4b/
 .if ${TARGET_ARCH} == "i386"
 OLD_FILES+=usr/include/machine/i4b_cause.h
@@ -224,6 +235,42 @@ OLD_LIBS+=usr/lib/snmp_hostres.so.4
 OLD_LIBS+=usr/lib/snmp_mibII.so.4
 OLD_LIBS+=usr/lib/snmp_netgraph.so.4
 OLD_LIBS+=usr/lib/snmp_pf.so.4
+.if ${TARGET_ARCH} == "amd64"
+OLD_LIBS+=usr/lib32/libalias.so.5
+OLD_LIBS+=usr/lib32/libbsnmp.so.3
+OLD_LIBS+=usr/lib32/libdialog.so.5
+OLD_LIBS+=usr/lib32/libgnuregex.so.3
+OLD_LIBS+=usr/lib32/libhistory.so.6
+OLD_LIBS+=usr/lib32/libncurses.so.6
+OLD_LIBS+=usr/lib32/libncursesw.so.6
+OLD_LIBS+=usr/lib32/libpam.so.3
+OLD_LIBS+=usr/lib32/libreadline.so.6
+OLD_LIBS+=usr/lib32/libssh.so.3
+OLD_LIBS+=usr/lib32/pam_chroot.so.3
+OLD_LIBS+=usr/lib32/pam_deny.so.3
+OLD_LIBS+=usr/lib32/pam_echo.so.3
+OLD_LIBS+=usr/lib32/pam_exec.so.3
+OLD_LIBS+=usr/lib32/pam_ftpusers.so.3
+OLD_LIBS+=usr/lib32/pam_group.so.3
+OLD_LIBS+=usr/lib32/pam_guest.so.3
+OLD_LIBS+=usr/lib32/pam_krb5.so.3
+OLD_LIBS+=usr/lib32/pam_ksu.so.3
+OLD_LIBS+=usr/lib32/pam_lastlog.so.3
+OLD_LIBS+=usr/lib32/pam_login_access.so.3
+OLD_LIBS+=usr/lib32/pam_nologin.so.3
+OLD_LIBS+=usr/lib32/pam_opie.so.3
+OLD_LIBS+=usr/lib32/pam_opieaccess.so.3
+OLD_LIBS+=usr/lib32/pam_passwdqc.so.3
+OLD_LIBS+=usr/lib32/pam_permit.so.3
+OLD_LIBS+=usr/lib32/pam_radius.so.3
+OLD_LIBS+=usr/lib32/pam_rhosts.so.3
+OLD_LIBS+=usr/lib32/pam_rootok.so.3
+OLD_LIBS+=usr/lib32/pam_securetty.so.3
+OLD_LIBS+=usr/lib32/pam_self.so.3
+OLD_LIBS+=usr/lib32/pam_ssh.so.3
+OLD_LIBS+=usr/lib32/pam_tacplus.so.3
+OLD_LIBS+=usr/lib32/pam_unix.so.3
+.endif
 # 20070613: IPX over IP tunnel removal
 OLD_FILES+=usr/include/netipx/ipx_ip.h
 # 20070605: sched_core removal
@@ -603,6 +650,9 @@ OLD_FILES+=usr/bin/uuidgen
 OLD_FILES+=usr/share/info/bzip2.info.gz
 # 20070303: libarchive 2.0
 OLD_LIBS+=usr/lib/libarchive.so.3
+.if ${TARGET_ARCH} == "amd64"
+OLD_LIBS+=usr/lib32/libarchive.so.3
+.endif
 # 20070301: remove addr2ascii and ascii2addr
 OLD_FILES+=usr/share/man/man3/addr2ascii.3.gz
 OLD_FILES+=usr/share/man/man3/ascii2addr.3.gz
