@@ -27,13 +27,13 @@
  */
 #include <dev/hptrr/hptrr_config.h>
 /*
- * $Id: him.h,v 1.41 2007/01/12 09:12:49 gmm Exp $
+ * $Id: him.h,v 1.47 2007/12/17 08:55:49 gmm Exp $
  * Copyright (C) 2004-2005 HighPoint Technologies, Inc. All rights reserved.
  */
 #ifndef _HPT_HIM_H_
 #define _HPT_HIM_H_
 
-#define VERMAGIC_HIM 41
+#define VERMAGIC_HIM 46
 
 #if defined(__cplusplus)
 extern "C" {
@@ -42,8 +42,8 @@ extern "C" {
 #include <dev/hptrr/list.h>
 
 #define SECTOR_TO_BYTE_SHIFT 9
-#define SECTOR_TO_BYTE(x)	((HPT_U32)(x) << SECTOR_TO_BYTE_SHIFT)
-#define BYTE_TO_SECTOR(x)	((x)>>SECTOR_TO_BYTE_SHIFT)
+#define SECTOR_TO_BYTE(x)       ((HPT_U32)(x) << SECTOR_TO_BYTE_SHIFT)
+#define BYTE_TO_SECTOR(x)       ((x)>>SECTOR_TO_BYTE_SHIFT)
 
 typedef struct _PCI_ID
 {
@@ -73,16 +73,16 @@ typedef struct _HIM_ADAPTER_CONFIG
 	HPT_U8  max_devices;
 	HPT_U8  reserve1;
 
-	HPT_U8	bDevsPerBus;
-	HPT_U8	first_on_slot;
+	HPT_U8  bDevsPerBus;
+	HPT_U8  first_on_slot;
 
-	HPT_U8	bChipType;
-	HPT_U8	bChipIntrNum;
-	HPT_U8	bChipFlags;
-	HPT_U8	bNumBuses;
+	HPT_U8  bChipType;
+	HPT_U8  bChipIntrNum;
+	HPT_U8  bChipFlags;
+	HPT_U8  bNumBuses;
 
-	HPT_U8	szVendorID[36];
-	HPT_U8	szProductID[36];
+	HPT_U8  szVendorID[36];
+	HPT_U8  szProductID[36];
 }
 HIM_ADAPTER_CONFIG, *PHIM_ADAPTER_CONFIG;
 
@@ -94,71 +94,72 @@ typedef struct _HIM_CHANNEL_CONFIG
 
 typedef struct _HIM_DEVICE_FLAGS
 {
-	HPT_U32 df_atapi                :1;   
-	HPT_U32 df_removable_drive		:1;
-	HPT_U32 df_on_line              :1;   
-	HPT_U32 df_reduce_mode          :1;   
-	HPT_U32 df_sata                 :1;   
-	HPT_U32 df_on_pm_port           :1;   
-	HPT_U32 df_support_read_ahead	:1;
-	HPT_U32 df_read_ahead_enabled	:1;
-	HPT_U32 df_support_write_cache	:1;
-	HPT_U32 df_write_cache_enabled	:1;
-	HPT_U32	df_cdrom_device			:1;
-	HPT_U32 df_tape_device			:1;
-	HPT_U32 df_support_tcq			:1;
-	HPT_U32 df_tcq_enabled			:1;
-	HPT_U32 df_support_ncq			:1;
-	HPT_U32 df_ncq_enabled			:1;
+	HPT_UINT df_atapi               :1;   
+	HPT_UINT df_removable_drive     :1;
+	HPT_UINT df_on_line             :1;   
+	HPT_UINT df_reduce_mode         :1;   
+	HPT_UINT df_sata                :1;   
+	HPT_UINT df_on_pm_port          :1;   
+	HPT_UINT df_support_read_ahead  :1;
+	HPT_UINT df_read_ahead_enabled  :1;
+	HPT_UINT df_support_write_cache :1;
+	HPT_UINT df_write_cache_enabled :1;
+	HPT_UINT df_cdrom_device        :1;
+	HPT_UINT df_tape_device         :1;
+	HPT_UINT df_support_tcq         :1;
+	HPT_UINT df_tcq_enabled         :1;
+	HPT_UINT df_support_ncq         :1;
+	HPT_UINT df_ncq_enabled         :1;
+	HPT_UINT df_sas                 :1;
 } DEVICE_FLAGS, *PDEVICE_FLAGS;
 
 #pragma pack(1)
 typedef struct _IDENTIFY_DATA2 {
-    HPT_U16 GeneralConfiguration;
-    HPT_U16 NumberOfCylinders;
-    HPT_U16 Reserved1;
-    HPT_U16 NumberOfHeads;
-    HPT_U16 UnformattedBytesPerTrack;
-    HPT_U16 UnformattedBytesPerSector;
-    HPT_U16 SectorsPerTrack;
-    HPT_U16 VendorUnique1[3];
-    HPT_U16 SerialNumber[10];
-    HPT_U16 BufferType;
-    HPT_U16 BufferSectorSize;
-    HPT_U16 NumberOfEccBytes;
-    HPT_U16 FirmwareRevision[4];
-    HPT_U16 ModelNumber[20];
-    HPT_U8  MaximumBlockTransfer;
-    HPT_U8  VendorUnique2;
-    HPT_U16 DoubleWordIo;
-    HPT_U16 Capabilities;
-    HPT_U16 Reserved2;
-    HPT_U8  VendorUnique3;
-    HPT_U8  PioCycleTimingMode;
-    HPT_U8  VendorUnique4;
-    HPT_U8  DmaCycleTimingMode;
-    HPT_U16 TranslationFieldsValid;
-    HPT_U16 NumberOfCurrentCylinders;
-    HPT_U16 NumberOfCurrentHeads;
-    HPT_U16 CurrentSectorsPerTrack;
-    HPT_U32 CurrentSectorCapacity;
-    HPT_U16 CurrentMultiSectorSetting;
-    HPT_U32 UserAddressableSectors;
-    HPT_U8  SingleWordDMASupport;
-    HPT_U8  SingleWordDMAActive;
-    HPT_U8  MultiWordDMASupport;
-    HPT_U8  MultiWordDMAActive;
-    HPT_U8  AdvancedPIOModes;
-    HPT_U8  Reserved4;
-    HPT_U16 MinimumMWXferCycleTime;
-    HPT_U16 RecommendedMWXferCycleTime;
-    HPT_U16 MinimumPIOCycleTime;
-    HPT_U16 MinimumPIOCycleTimeIORDY;
-    HPT_U16 Reserved5[2];
-    HPT_U16 ReleaseTimeOverlapped;
-    HPT_U16 ReleaseTimeServiceCommand;
-    HPT_U16 MajorRevision;
-    HPT_U16 MinorRevision;
+	HPT_U16 GeneralConfiguration;
+	HPT_U16 NumberOfCylinders;
+	HPT_U16 Reserved1;
+	HPT_U16 NumberOfHeads;
+	HPT_U16 UnformattedBytesPerTrack;
+	HPT_U16 UnformattedBytesPerSector;
+	HPT_U16 SectorsPerTrack;
+	HPT_U16 VendorUnique1[3];
+	HPT_U16 SerialNumber[10];
+	HPT_U16 BufferType;
+	HPT_U16 BufferSectorSize;
+	HPT_U16 NumberOfEccBytes;
+	HPT_U16 FirmwareRevision[4];
+	HPT_U16 ModelNumber[20];
+	HPT_U8  MaximumBlockTransfer;
+	HPT_U8  VendorUnique2;
+	HPT_U16 DoubleWordIo;
+	HPT_U16 Capabilities;
+	HPT_U16 Reserved2;
+	HPT_U8  VendorUnique3;
+	HPT_U8  PioCycleTimingMode;
+	HPT_U8  VendorUnique4;
+	HPT_U8  DmaCycleTimingMode;
+	HPT_U16 TranslationFieldsValid;
+	HPT_U16 NumberOfCurrentCylinders;
+	HPT_U16 NumberOfCurrentHeads;
+	HPT_U16 CurrentSectorsPerTrack;
+	HPT_U32 CurrentSectorCapacity;
+	HPT_U16 CurrentMultiSectorSetting;
+	HPT_U32 UserAddressableSectors;
+	HPT_U8  SingleWordDMASupport;
+	HPT_U8  SingleWordDMAActive;
+	HPT_U8  MultiWordDMASupport;
+	HPT_U8  MultiWordDMAActive;
+	HPT_U8  AdvancedPIOModes;
+	HPT_U8  Reserved4;
+	HPT_U16 MinimumMWXferCycleTime;
+	HPT_U16 RecommendedMWXferCycleTime;
+	HPT_U16 MinimumPIOCycleTime;
+	HPT_U16 MinimumPIOCycleTimeIORDY;
+	HPT_U16 Reserved5[2];
+	HPT_U16 ReleaseTimeOverlapped;
+	HPT_U16 ReleaseTimeServiceCommand;
+	HPT_U16 MajorRevision;
+	HPT_U16 MinorRevision;
 }
 #ifdef __GNUC__
 __attribute__((packed))
@@ -179,10 +180,10 @@ typedef struct _HIM_DEVICE_CONFIG
 
 	HPT_U8  reserved;
 	HPT_U8  transfer_mode;        
-	HPT_U8	bMaxShowMode;         
-	HPT_U8	bDeUsable_Mode;       
+	HPT_U8  bMaxShowMode;         
+	HPT_U8  bDeUsable_Mode;       
 
-	HPT_U16	max_sectors_per_cmd;
+	HPT_U16 max_sectors_per_cmd;
 
 	PIDENTIFY_DATA2 pIdentifyData;
 
@@ -190,14 +191,16 @@ typedef struct _HIM_DEVICE_CONFIG
 HIM_DEVICE_CONFIG, *PHIM_DEVICE_CONFIG;
 
 
-#define _DIT_MODE			0
-#define _DIT_601			1
-#define _DIT_READ_AHEAD		2
-#define _DIT_WRITE_CACHE	3
-#define _DIT_TCQ			4
-#define _DIT_NCQ			5
-#define _DIT_BEEP_OFF		6
-#define _DIT_SPIN_UP_MODE   7
+#define _DIT_MODE               0
+#define _DIT_601                1
+#define _DIT_READ_AHEAD         2
+#define _DIT_WRITE_CACHE        3
+#define _DIT_TCQ                4
+#define _DIT_NCQ                5
+#define _DIT_BEEP_OFF           6
+#define _DIT_SPIN_UP_MODE       7
+#define _DIT_IDLE_STANDBY       8
+#define _DIT_IDENTIFY           9
 
 #define SPIN_UP_MODE_NOSUPPORT 0
 #define SPIN_UP_MODE_FULL      1
@@ -224,6 +227,8 @@ typedef struct _HIM_ALTERABLE_DEV_INFO{
 		struct ncq_control ncq;
 		void * adapter;
 		HPT_U8 spin_up_mode;
+		HPT_U8 idle_standby_timeout;
+		HPT_U8 identify_indicator;
 	}u;
 } HIM_ALTERABLE_DEV_INFO, *PHIM_ALTERABLE_DEV_INFO;
 
@@ -261,20 +266,20 @@ SG, *PSG;
 
 typedef struct _AtaCommand
 {
-    HPT_U64	Lba;          
-    HPT_U16	nSectors;     
-    HPT_U16	pad;
+    HPT_U64     Lba;          
+    HPT_U16     nSectors;     
+    HPT_U16     pad;
 } AtaComm, *PAtaComm;
 
-#define ATA_CMD_SET_FEATURES 0xef
-#define ATA_CMD_FLUSH	0xE7
-#define ATA_CMD_VERIFY 0x40
-#define ATA_CMD_STANDBY 0xe2
-#define ATA_CMD_READ_MULTI	0xC4
-#define ATA_CMD_READ_MULTI_EXT	0x29
-#define ATA_CMD_WRITE_MULTI	0xC5
-#define ATA_CMD_WRITE_MULTI_EXT	0x39
-#define ATA_CMD_WRITE_MULTI_FUA_EXT	0xCE
+#define ATA_CMD_SET_FEATURES    0xef
+#define ATA_CMD_FLUSH           0xE7
+#define ATA_CMD_VERIFY          0x40
+#define ATA_CMD_STANDBY         0xe2
+#define ATA_CMD_READ_MULTI      0xC4
+#define ATA_CMD_READ_MULTI_EXT  0x29
+#define ATA_CMD_WRITE_MULTI     0xC5
+#define ATA_CMD_WRITE_MULTI_EXT 0x39
+#define ATA_CMD_WRITE_MULTI_FUA_EXT     0xCE
 
 #define ATA_SET_FEATURES_XFER 0x3
 #define ATA_SECTOR_SIZE 512
@@ -291,6 +296,17 @@ typedef struct _PassthroughCmd {
 	HPT_U8    *pDataBuffer;      
 }
 PassthroughCmd;
+
+typedef struct _ScsiComm {
+	HPT_U8  cdbLength;
+	HPT_U8  senseLength; 
+	HPT_U8  scsiStatus; 
+	HPT_U8  reserve1;
+	HPT_U32 dataLength; 
+	HPT_U8 *cdb;
+	HPT_U8 *senseBuffer;
+}
+ScsiComm;
 
 
 #define CTRL_CMD_REBUILD 1
@@ -316,8 +332,8 @@ HPT_ADDRESS;
 
 typedef struct ctl_pages {
 	HPT_ADDRESS *pages;
-	HPT_UINT	page_size; 
-	HPT_UINT	npages;
+	HPT_UINT        page_size; 
+	HPT_UINT        npages;
 	HPT_UINT min_sg_descriptors; 
 } CONTROL_PAGES, *PCONTROL_PAGES;
 
@@ -354,7 +370,7 @@ typedef struct _COMMAND
 	struct tq_item done_dpc;
 
 	HPT_UINT extsize;   
-    void *ext;
+	void *ext;
 
 	
 
@@ -365,39 +381,39 @@ typedef struct _COMMAND
 	int priority;
 	struct lock_request *owned_lock; 
 	struct lock_request *lock_req;   
+	void (*dtor)(struct _COMMAND *, void *);
+	void *dtor_arg;
 
-    union{
-        /* Ide Command */
-        AtaComm Ide;
-        PassthroughCmd Passthrough;
-        /* Atapi Command */
-        HPT_U8 Atapi[12];
-		/* Control command */
+	union{
+		AtaComm Ide;
+		PassthroughCmd Passthrough;
+		ScsiComm Scsi;
 		R5ControlCmd R5Control;
 		R1ControlCmd R1Control;
 	} uCmd;
 
 	HPT_U8 type; /* CMD_TYPE_* */
 
-   	struct {
-		HPT_U8	physical_sg: 1;
-		HPT_U8	data_in: 1;
-		HPT_U8	data_out: 1;
+	struct {
+		HPT_U8  physical_sg: 1;
+		HPT_U8  data_in: 1;
+		HPT_U8  data_out: 1;
 		HPT_U8  transform : 1;
 		HPT_U8  hard_flush: 2; 
 		HPT_U8  from_cc: 1;
+		HPT_U8  force_cc: 1;
 	} flags;
 
-    /* return status */
-    HPT_U8	Result;
+	/* return status */
+	HPT_U8  Result;
 	/* retry count */
 	HPT_U8  RetryCount;
 
 	
-   	PSG psg;
+	PSG psg;
 
-   	
-   	int  (*buildsgl)(struct _COMMAND *cmd, PSG psg, int logical);
+	
+	int  (*buildsgl)(struct _COMMAND *cmd, PSG psg, int logical);
 	void (*done)(struct _COMMAND *cmd);
 }
 COMMAND, *PCOMMAND;
@@ -406,8 +422,9 @@ COMMAND, *PCOMMAND;
 #define   CMD_TYPE_IO           0
 #define   CMD_TYPE_CONTROL      1
 #define   CMD_TYPE_ATAPI        2
+#define   CMD_TYPE_SCSI         CMD_TYPE_ATAPI
 #define   CMD_TYPE_PASSTHROUGH  3
-#define   CMD_TYPE_FLUSH		4
+#define   CMD_TYPE_FLUSH                4
 
 /* flush command flags */
 #define   CF_HARD_FLUSH_CACHE   1
@@ -429,7 +446,7 @@ COMMAND, *PCOMMAND;
 #define   RETURN_DATA_ERROR          12
 #define   RETURN_BUS_RESET           13
 #define   RETURN_BAD_TRANSFER_LENGTH 14
-#define	  RETURN_INSUFFICIENT_MEMORY 15	
+#define   RETURN_INSUFFICIENT_MEMORY 15 
 #define   RETURN_SECTOR_ERROR        16
 
 #if defined(__cplusplus)
