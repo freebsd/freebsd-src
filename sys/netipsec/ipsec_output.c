@@ -559,7 +559,7 @@ ipsec6_output_trans(
 	IPSEC_ASSERT(tun != NULL, ("null tun"));
 
 	KEYDEBUG(KEYDEBUG_IPSEC_DATA,
-		printf("%s: applyed SP\n", __func__);
+		printf("%s: applied SP\n", __func__);
 		kdebug_secpolicy(sp));
 
 	isr = sp->req;
@@ -685,7 +685,7 @@ ipsec6_output_tunnel(struct ipsec_output_state *state, struct secpolicy *sp, int
 	IPSEC_ASSERT(sp != NULL, ("null sp"));
 
 	KEYDEBUG(KEYDEBUG_IPSEC_DATA,
-		printf("%s: applyed SP\n", __func__);
+		printf("%s: applied SP\n", __func__);
 		kdebug_secpolicy(sp));
 
 	m = state->m;
