@@ -132,7 +132,7 @@ void freelist_reserve(struct freelist *list, void *osext, HPT_UINT size, HPT_UIN
     list->dma = 0;
     list->size = size;
     list->head = 0;
-#ifdef DBG
+#if DBG
     list->reserved_count =
 #endif
     list->count = count;
@@ -172,7 +172,7 @@ void freelist_reserve_dma(struct freelist *list, void *osext, HPT_UINT size, HPT
     list->alignment = alignment;
     list->size = size;
     list->head = 0;
-#ifdef DBG
+#if DBG
     list->reserved_count =
 #endif
     list->count = count;
@@ -289,7 +289,7 @@ int  os_printk(char *fmt, ...)
     return printf("%s: %s\n", driver_name, buf);
 }
 
-#ifdef DBG
+#if DBG
 void os_check_stack(const char *location, int size){}
 
 void __os_dbgbreak(const char *file, int line)

@@ -76,7 +76,7 @@ struct freelist {
 	HPT_UINT size;
 	void * head;
 	struct freelist *next;
-#ifdef DBG
+#if DBG
 	char *tag;
 	HPT_UINT reserved_count; 
 	#define freelist_debug_tag(list, _tag) (list)->tag = _tag
