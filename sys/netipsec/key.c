@@ -2252,7 +2252,6 @@ key_spdacquire(sp)
 {
 	struct mbuf *result = NULL, *m;
 	struct secspacq *newspacq;
-	int error;
 
 	IPSEC_ASSERT(sp != NULL, ("null secpolicy"));
 	IPSEC_ASSERT(sp->req == NULL, ("policy exists"));
@@ -2280,10 +2279,9 @@ key_spdacquire(sp)
 
 	/* create new sadb_msg to reply. */
 	m = key_setsadbmsg(SADB_X_SPDACQUIRE, 0, 0, 0, 0, 0);
-	if (!m) {
-		error = ENOBUFS;
-		goto fail;
-	}
+	if (!m)
+		return ENOBUFS;
+
 	result = m;
 
 	result->m_pkthdr.len = 0;
@@ -2294,11 +2292,6 @@ key_spdacquire(sp)
 	    PFKEY_UNIT64(result->m_pkthdr.len);
 
 	return key_sendup_mbuf(NULL, m, KEY_SENDUP_REGISTERED);
-
-fail:
-	if (result)
-		m_freem(result);
-	return error;
 }
 
 /*
