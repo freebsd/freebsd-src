@@ -56,6 +56,7 @@
 #include <sys/syslog.h>
 
 #include <net/if.h>
+#include <net/pfil.h>
 #include <net/route.h>
 #include <net/netisr.h>
 
@@ -455,7 +456,7 @@ ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav,
 	ipsec_bpf(m, sav, AF_INET);
 
 	if (prot != IPPROTO_IPIP)
-		if ((error = ipsec_filter(&m, 1)) != 0)
+		if ((error = ipsec_filter(&m, PFIL_IN)) != 0)
 			return (error);
 #endif
 
