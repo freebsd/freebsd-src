@@ -3197,7 +3197,12 @@ key_mature(struct secasvar *sav)
 	switch (sav->sah->saidx.proto) {
 	case IPPROTO_ESP:
 	case IPPROTO_AH:
-		if (ntohl(sav->spi) >= 0 && ntohl(sav->spi) <= 255) {
+		/*
+		 * RFC 4302, 2.4. Security Parameters Index (SPI), SPI values
+		 * 1-255 reserved by IANA for future use,
+		 * 0 for implementation specific, local use.
+		 */
+		if (ntohl(sav->spi) <= 255) {
 			ipseclog((LOG_DEBUG, "%s: illegal range of SPI %u.\n",
 			    __func__, (u_int32_t)ntohl(sav->spi)));
 			return EINVAL;
