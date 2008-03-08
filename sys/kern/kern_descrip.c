@@ -397,6 +397,11 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		error = do_dup(td, DUP_VARIABLE, fd, newmin, td->td_retval);
 		break;
 
+	case F_DUP2FD:
+		tmp = arg;
+		error = do_dup(td, DUP_FIXED, fd, tmp, td->td_retval);
+		break;
+
 	case F_GETFD:
 		FILEDESC_SLOCK(fdp);
 		if ((fp = fdtofp(fd, fdp)) == NULL) {
@@ -633,7 +638,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 }
 
 /*
- * Common code for dup, dup2, and fcntl(F_DUPFD).
+ * Common code for dup, dup2, fcntl(F_DUPFD) and fcntl(F_DUP2FD).
  */
 static int
 do_dup(struct thread *td, enum dup_type type, int old, int new,

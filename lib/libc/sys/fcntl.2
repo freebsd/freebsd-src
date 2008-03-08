@@ -28,7 +28,7 @@
 .\"     @(#)fcntl.2	8.2 (Berkeley) 1/12/94
 .\" $FreeBSD$
 .\"
-.Dd January 12, 1994
+.Dd March 8, 2008
 .Dt FCNTL 2
 .Os
 .Sh NAME
@@ -78,6 +78,18 @@ is set to remain open across
 .Xr execve 2
 system calls.
 .El
+.It Dv F_DUP2FD
+It is functionally equivalent to
+.Bd -literal -offset indent
+dup2(fd, arg)
+.Ed
+.Pp
+The
+.Dv F_DUP2FD
+constant is not portable, so it should not be used if portability is needed.
+Use
+.Fn dup2
+instead.
 .It Dv F_GETFD
 Get the close-on-exec flag associated with the file descriptor
 .Fa fd
@@ -389,6 +401,9 @@ as follows:
 .Bl -tag -width F_GETOWNX -offset indent
 .It Dv F_DUPFD
 A new file descriptor.
+.It Dv F_DUP2FD
+A file descriptor equal to
+.Fa arg .
 .It Dv F_GETFD
 Value of flag (only the low-order bit is defined).
 .It Dv F_GETFL
@@ -428,6 +443,14 @@ The
 .Fa fd
 argument
 is not a valid open file descriptor.
+.Pp
+The argument
+.Fa cmd
+is
+.Dv F_DUP2FD ,
+and
+.Fa arg
+is not a valid file descriptor.
 .Pp
 The argument
 .Fa cmd
@@ -495,6 +518,8 @@ The argument
 .Fa cmd
 is
 .Dv F_DUPFD
+or
+.Dv F_DUP2FD
 and the maximum number of file descriptors permitted for the
 process are already in use,
 or no file descriptors greater than or equal to
@@ -567,6 +592,7 @@ for the reasons as stated in
 .Xr tcgetpgrp 3 .
 .Sh SEE ALSO
 .Xr close 2 ,
+.Xr dup2 2 ,
 .Xr execve 2 ,
 .Xr flock 2 ,
 .Xr getdtablesize 2 ,
@@ -575,8 +601,18 @@ for the reasons as stated in
 .Xr lockf 3 ,
 .Xr tcgetpgrp 3 ,
 .Xr tcsetpgrp 3
+.Sh STANDARDS
+The
+.Dv F_DUP2FD
+constant is non portable.
+It is provided for compatibility with AIX and Solaris.
 .Sh HISTORY
 The
 .Fn fcntl
 system call appeared in
 .Bx 4.2 .
+.Pp
+The
+.Dv F_DUP2FD
+constant first appeared in
+.Fx 7.1 .
