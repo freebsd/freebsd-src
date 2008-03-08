@@ -2805,8 +2805,8 @@ xterm-xfree86|XFree86 xterm:\
 	:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:\
 	:k5=\E[15~:k6=\E[17~:k7=\E[18~:k8=\E[19~:\
 	:k9=\E[20~:k;=\E[21~:F1=\E[23~:F2=\E[24~:\
-	:kH=\EOF:@7=\EOF:kI=\E[2~:\
-	:kh=\EOH:*6=\EOF:kP=\E[5~:kN=\E[6~:\
+	:@7=\EOF:@8=\EOM:kI=\E[2~:\
+	:kh=\EOH:kP=\E[5~:kN=\E[6~:\
 	:ku=\EOA:kd=\EOB:kr=\EOC:kl=\EOD:Km=\E[M:tc=xterm-basic:
 #
 # This chunk is used for building the VT220/Sun/PC keyboard variants.
