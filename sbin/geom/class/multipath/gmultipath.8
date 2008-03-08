@@ -59,7 +59,7 @@ command.
 This operation writes a label on the last sector of the underlying
 disk device with a contained name and UUID.
 The UUID guarantees uniqueness
-in in a shared storage environment but is in general too cumbersome to use.
+in a shared storage environment but is in general too cumbersome to use.
 The name is what is exported via the device interface.
 .Pp
 The first argument to
@@ -221,7 +221,7 @@ GEOM class named
 gmultipath label -v Fred /dev/da0 /dev/da2
 disklabel -Brw /dev/multipath/Fred auto
 newfs /dev/multipath/Freda
-mount /dev/mutlpath/Freda /mnt....
+mount /dev/multipath/Freda /mnt....
 .Ed
 .Pp
 The resultant console output looks something like:
