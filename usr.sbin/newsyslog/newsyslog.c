@@ -91,8 +91,8 @@ __FBSDID("$FreeBSD$");
 /*
  * Bit-values for the 'flags' parsed from a config-file entry.
  */
-#define	CE_COMPACT	0x0001	/* Compact the achived log files with gzip. */
-#define	CE_BZCOMPACT	0x0002	/* Compact the achived log files with bzip2. */
+#define	CE_COMPACT	0x0001	/* Compact the archived log files with gzip. */
+#define	CE_BZCOMPACT	0x0002	/* Compact the archived log files with bzip2. */
 #define	CE_BINARY	0x0008	/* Logfile is in binary, do not add status */
 				/*    messages to logfile(s) when rotating. */
 #define	CE_NOSIGNAL	0x0010	/* There is no process to signal when */
