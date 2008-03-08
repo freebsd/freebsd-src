@@ -12,13 +12,12 @@ then
 else
   cd $CURRENTDIR
 fi
+
 WORKDIR=/usr/obj/tinybsdbuild
 KERNCONF=TINYBSD
 BASEFILE="tinybsd.basefiles"
 PORTSFILE="tinybsd.ports"
 PORTSDIR=/usr/ports
-PKGDIRS=/tmp/pkg.dirs
-PKGFILES=/tmp/pkg.files
 DEFINSTARGS="-o 0 -g 0 -m 555"
 TS="=====>"
 
@@ -276,7 +275,7 @@ create_tree() {
 copy_binaries() {
 	cd ${CURRENTDIR}/conf/${CONF}
 
-	for file in `cat ${BASEFILE} | grep -v "#" | \
+	for file in `cat ${CURRENTDIR}/conf/${CONF}/${BASEFILE} | grep -v "#" | \
 		cut -f1 -d":" | sort | uniq` ; do
 		echo "${TS} Copying "/${file}" to "${WORKDIR}/${file} 
 		cp -fp /${file} ${WORKDIR}/${file} ;
@@ -284,39 +283,42 @@ copy_binaries() {
 }
 
 install_ports() {
-	for portname in `cat ${PORTSFILE} | grep -v '#'` ; do
-	    cd ${PORTSDIR}/${portname}
-	    pkgname=`make -V PKGNAME`
-	    pkg_info -VQ ${pkgname}
-	    install=`echo $?`
-            if [ ${install} -eq 0 ] ; then
-	       echo "$portname is already installed..."
-	       create_missingdir
-	       copy_ports
-	      else
-	        make install clean
-		create_missingdir
-	        copy_ports
-	    fi
-	done
-}
+	for portname in `cat ${CURRENTDIR}/conf/${CONF}/${PORTSFILE} | grep -v '#'` ; do
+		if [ ! -d "${WORKDIR}/usr/ports" ]; then
+			mkdir -p "${WORKDIR}/usr/ports"
+		fi
 
-create_missingdir() {
-pkg_info -L ${pkgname} | egrep -v '(Information|Files|www|share|doc|man|include)' | sort | uniq >> ${PKGDIRS}
-	for dir in `cat ${PKGDIRS}`; do
-   	  if [ ! -d `dirname ${WORKDIR}/${dir}` ] ; then
-    	    mkdir -p `dirname ${WORKDIR}/${dir}`
-   	  fi
-	done
-	rm ${PKGDIRS}
-}
+		PNAME=`/usr/bin/basename "${portname}"`
+		PORT_OPTION_FILE="/var/db/ports/${PNAME}/options"
 
-copy_ports() {
-pkg_info -L ${pkgname} | egrep -v '(Information|Files|www|share|doc|man|include)' >> ${PKGFILES}
-        for port in `cat ${PKGFILES}` ; do
-                echo "${TS} Copying "${port}" to "${WORKDIR}${port}
-                cp -fp ${port} ${WORKDIR}${port} ;
-        done
+		if [ -f "${PORT_OPTION_FILE}" ]; then
+			mkdir -p "${WORKDIR}/var/db/ports/${PNAME}"
+			cp "${PORT_OPTION_FILE}" "${WORKDIR}/var/db/ports/${PNAME}/"
+		fi
+
+		mount_nullfs /lib "${WORKDIR}/lib"
+		mount_nullfs /usr/bin "${WORKDIR}/usr/bin"
+		mount_nullfs /usr/sbin "${WORKDIR}/usr/sbin"
+		mount_nullfs /usr/ports "${WORKDIR}/usr/ports"
+		mount_nullfs /usr/share "${WORKDIR}/usr/share"
+		mount_nullfs /usr/libexec "${WORKDIR}/usr/libexec"
+		mount_nullfs /usr/lib "${WORKDIR}/usr/lib"
+		mount_nullfs /usr/include "${WORKDIR}/usr/include"
+
+		cd ${PORTSDIR}/${portname}
+		make fetch-recursive
+		make DESTDIR_ENV_LIST=PATH DESTDIR="${WORKDIR}" install
+		make clean
+
+		umount "${WORKDIR}/lib"
+		umount "${WORKDIR}/usr/ports"
+		umount "${WORKDIR}/usr/bin"
+		umount "${WORKDIR}/usr/sbin"
+		umount "${WORKDIR}/usr/share"
+		umount "${WORKDIR}/usr/libexec"
+		umount "${WORKDIR}/usr/lib"
+		umount "${WORKDIR}/usr/include"
+	done
 }
 
 make_kernel() {
@@ -336,12 +338,9 @@ copy_libraries() {
 	TDEPFILE="`mktemp -t deps`"
 	TDEPFILES="`mktemp -t depsymlnk`"
 
-	cd ${CURRENTDIR}/conf/${CONF}
-	for file in `cat ${BASEFILE} ${PKGFILES} | grep -v "#" | cut -f1 -d":"`; do
-		ldd -f "%p\n" /${file} >> ${TDEPFILE} ; # don't worry on progs been "not dynamic"
+	find "${WORKDIR}" -type f |while read file; do
+		ldd -f "%p\n" ${file} >> ${TDEPFILE} ; # don't worry on progs been "not dynamic"
 	done
-
-	rm ${PKGFILES}
 
 	for libdeplib in `cat ${TDEPFILE} | sort | uniq`; do
 		ldd -f "%p\n" /${libdeplib} >> ${TDEPFILE} ;
@@ -378,15 +377,6 @@ copy_libraries() {
 	rm -fv ${TDEPFILE} ${TDEPFILES}
 }
 
-deinstall_ports() {
-	for portname in `cat ${PORTSFILE} | grep -v '#'` ; do
-            cd ${PORTSDIR}/${portname}    
-             if [ $? -ne ${install} ] ; then
-               make deinstall
-             fi
-	done
-}
-
 create_etc() {
 	cd /usr/src/etc/sendmail/
 	make freebsd.cf freebsd.submit.cf
@@ -416,7 +406,7 @@ personal_conf() {
 
 symlinks() {
 #set -xv
-	for i in `cat ${BASEFILE} ${PORTSFILE} | grep -v "#" | grep ":"`; do
+	for i in `cat ${CURRENTDIR}/conf/${CONF}/${BASEFILE}| grep -v "#" | grep ":"`; do
 		SOURCE_FILE=`echo $i | awk -F ":" {'print $1'}`
 		TARGET_FILE=`echo $i | awk -F ":" {'print $2'}`
 		chroot ${WORKDIR} /bin/ln -vs /${SOURCE_FILE} ${TARGET_FILE}
@@ -489,7 +479,6 @@ create_image() {
 	echo "${TS} You can see your build log in ${HOME}/tinybsd.log"
 	echo "${TS} Your final image is in ${CURRENTDIR}/${IMG}"
 	echo "${TS} Now use dd(1) to write it."
-
 }
 
 ##########################
@@ -514,12 +503,11 @@ rotate_buidlog
   check_alt_imgname
   create_tree
   copy_binaries
+  create_etc
   install_ports
   make_kernel
   copy_libraries
   symlinks
-  deinstall_ports
-  create_etc
   create_ssh_keys
   personal_conf
   create_image
