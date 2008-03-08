@@ -3961,6 +3961,7 @@ key_sockaddrcmp(
 		    satosin6(sa1)->sin6_port != satosin6(sa2)->sin6_port) {
 			return 1;
 		}
+		break;
 	default:
 		if (bcmp(sa1, sa2, sa1->sa_len) != 0)
 			return 1;
