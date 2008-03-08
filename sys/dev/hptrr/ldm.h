@@ -27,13 +27,13 @@
  */
 #include <dev/hptrr/hptrr_config.h>
 /*
- * $Id: ldm.h,v 1.59 2007/04/17 07:00:06 mah Exp $
+ * $Id: ldm.h,v 1.69 2007/11/22 07:31:55 gmm Exp $
  * Copyright (C) 2004-2005 HighPoint Technologies, Inc. All rights reserved.
  */
 #ifndef _HPT_LDM_H_
 #define _HPT_LDM_H_
 
-#define VERMAGIC_LDM 57
+#define VERMAGIC_LDM 69
 
 #if defined(__cplusplus)
 extern "C" {
@@ -62,6 +62,13 @@ extern "C" {
 #define MIN(a,b) (((a)<(b))?(a):(b))
 
 
+typedef char check_HPT_TIME_is_unsigned[ (HPT_TIME)(-1) > 0 ? 1 : -1 ];
+
+#define hpt_time_after_eq(a, b) ((long)(a) - (long)(b) >= 0)
+#define hpt_time_after(a, b) ((long)(a) - (long)(b) > 0)
+
+
+
 struct freelist {
 	int dma;
 	HPT_UINT alignment;
@@ -69,7 +76,7 @@ struct freelist {
 	HPT_UINT size;
 	void * head;
 	struct freelist *next;
-#ifdef DBG
+#if DBG
 	char *tag;
 	HPT_UINT reserved_count; 
 	#define freelist_debug_tag(list, _tag) (list)->tag = _tag
@@ -106,15 +113,17 @@ struct lock_request {
 	struct lock_request *next;
 	struct list_head waiters; /* blocked commands */
 	struct tq_item callback;
+	int lock_cc;
 };
 
-#define INIT_LOCK_REQUEST(req, _start, _end, _cb, _arg) \
+#define INIT_LOCK_REQUEST(req, _start, _end, _cb, _arg, _cc) \
 	do {\
 		(req)->next = 0;\
 		(req)->start = _start;\
 		(req)->end = _end;\
 		INIT_TQ_ITEM(&(req)->callback, _cb, _arg);\
 		INIT_LIST_HEAD(&(req)->waiters);\
+		(req)->lock_cc = _cc;\
 	} while (0)
 
 struct task_queue {
@@ -132,7 +141,7 @@ struct dmapool_order {
 struct dmapool_client {
 	void * handle;
 	HPT_UINT (*shrink)(void *handle, HPT_UINT npages);
-	void (*resume)(void *handle);
+	int (*resume)(void *handle);
 	struct dmapool_client *next;
 };
 
@@ -218,6 +227,11 @@ void ldm_ioctl(	PVBUS vbus,	IOCTL_ARG *IAPnt);
 HPT_U32 ldm_get_device_id(PVDEV vd); /* for ioctl */
 void ldm_set_rebuild_priority(PVBUS vbus, int priority);
 void ldm_set_autorebuild(PVBUS vbus, int enable);
+void ldm_set_spindown_disks_timeout(PVBUS vbus, HPT_U8 timeout);
+
+#ifndef __HPT_RAW_LBA
+#define __HPT_RAW_LBA HPT_RAW_LBA
+#endif
 
 #include <dev/hptrr/array.h>
 
@@ -225,32 +239,33 @@ typedef struct hpt_raw_disk
 {
 #ifdef SUPPORT_ARRAY
 	PRAW_PARTITION raw_part_list;
-	HPT_RAW_LBA max_available_capacity; 
-	HPT_RAW_LBA total_available_capacity;
+	__HPT_RAW_LBA max_available_capacity; 
+	__HPT_RAW_LBA total_available_capacity;
 #endif
-	HPT_RAW_LBA real_capacity;
-	HPT_RAW_LBA head_position;
+	__HPT_RAW_LBA real_capacity;
+	__HPT_RAW_LBA head_position;
 
 	HPT_U16 max_sectors_per_cmd;
+	HPT_U8  max_queue_depth;
 	HPT_U8  user_select_mode;
 
-	HPT_U8  uninitialized : 1;
-	HPT_U8  legacy_disk : 1;
-	HPT_U8  is_spare : 1;
-	HPT_U8  v3_format : 1;
-	HPT_U8  need_sync : 1;
-	HPT_U8  temp_spare : 1;
-	HPT_U8  need_check_array : 1;
-	HPT_U8  df_user_mode_set: 1;
+	HPT_UINT  uninitialized : 1;
+	HPT_UINT  legacy_disk : 1;
+	HPT_UINT  is_spare : 1;
+	HPT_UINT  v3_format : 1;
+	HPT_UINT  need_sync : 1;
+	HPT_UINT  temp_spare : 1;
+	HPT_UINT  need_check_array : 1;
+	HPT_UINT  df_user_mode_set: 1;
 
-	HPT_U8  df_read_ahead_set: 1;
-	HPT_U8  enable_read_ahead : 1;
-	HPT_U8  df_write_cache_set: 1;
-	HPT_U8  enable_write_cache : 1;
-	HPT_U8  df_tcq_set: 1;
-	HPT_U8  enable_tcq : 1;
-	HPT_U8  df_ncq_set: 1;
-	HPT_U8  enable_ncq : 1;
+	HPT_UINT  df_read_ahead_set: 1;
+	HPT_UINT  enable_read_ahead : 1;
+	HPT_UINT  df_write_cache_set: 1;
+	HPT_UINT  enable_write_cache : 1;
+	HPT_UINT  df_tcq_set: 1;
+	HPT_UINT  enable_tcq : 1;
+	HPT_UINT  df_ncq_set: 1;
+	HPT_UINT  enable_ncq : 1;
 
 	HIM  *				him;
 	int 				index;
@@ -271,10 +286,11 @@ struct vdev_class
 {
 	struct vdev_class *next;
 
-	HPT_U8   type;
+	HPT_U8   __type;
 	HPT_U8   stripped;        /* RAID0,3,5,6 */
 	HPT_U8   redundancy;      /* RAID1-1, RAID3/5-1, RAID6-2 */
 	HPT_U8   must_init;       /* RAID3,5,6 */
+	HPT_U8   docache;
 
 	HPT_UINT vbus_ext_size;
 	HPT_UINT vbus_ext_offset; /* used by LDM */
@@ -293,6 +309,7 @@ struct vdev_class
 	void (*remove)(PVDEV vd); 
 	void (*reset)(PVDEV vd); 
 	void (*sync_stamp)(PVDEV vd);
+	int  (*support_type)(int type);
 };
 
 
@@ -302,6 +319,7 @@ struct vdev_class
 	prefix ## _stripped, \
 	prefix ## _redundancy, \
 	prefix ## _must_init, \
+	0, \
 	prefix ## _vbus_ext_size, \
 	0, \
 	prefix ## _dev_ext_size, \
@@ -315,6 +333,7 @@ struct vdev_class
 	prefix ## _remove, \
 	prefix ## _reset, \
 	prefix ## _sync_stamp, \
+	0 \
 }
 
 #define VD_RAW       1
@@ -327,13 +346,18 @@ struct vdev_class
 #define VD_JBOD      7
 #define VD_RAID5     8
 #define VD_RAID6     9
+#define VD_RAID3     10
+#define VD_RAID4     11
+#define VD_RAID1E    12
 
-#define MAX_VD_TYPE_ID  9
+#define MAX_VD_TYPE_ID  12
 
 struct vdev_class *ldm_find_vdev_class(HPT_U8 type);
 
 typedef struct _VDEV {
 	PVBUS vbus;
+	struct vdev_class *Class;
+	HPT_U8 type;
 	PVDEV parent;
 	void * ext;
 	HPT_U64 capacity;
@@ -353,16 +377,14 @@ typedef struct _VDEV {
 	HPT_U8 vf_bootable : 1;
 	HPT_U8 vf_resetting: 1;
 	HPT_U8 vf_quiesced: 1;
+	HPT_U8 vf_clslock: 1;
 
 	HPT_U8 cache_policy; /* see CACHE_POLICY_* */
 
 	HPT_UINT cq_len;
 	HPT_UINT cmds_sent;
-	HPT_UINT max_queue_depth;
 
 	struct list_head link;
-	struct vdev_class *Class;
-
 	struct list_head cq_wait_send;
 	struct list_head cq_sent;
 
@@ -444,6 +466,7 @@ PCOMMAND __ldm_alloc_cmd(struct freelist *list);
 #define CMD_SET_PRIORITY(cmd, pri)
 #endif
 
+
 #define CMD_GROUP_GET(grp, cmd) \
 	do {\
 		grp->grplist->count++;\
@@ -458,6 +481,8 @@ PCOMMAND __ldm_alloc_cmd(struct freelist *list);
 		freelist_put(grp->grplist, cmd);\
 		grp->grplist->count--;\
 	} while (0)
+
+
 
 
 void ldm_queue_cmd(PCOMMAND cmd);
@@ -500,7 +525,7 @@ void ldm_register_device(PVDEV vd);
 void ldm_unregister_device(PVDEV vd);
 
 PVBUS him_handle_to_vbus(void * him_handle);
-
+void ldm_ide_fixstring (HPT_U8 *s, const int bytecount);
 #if defined(__cplusplus)
 }
 #endif
