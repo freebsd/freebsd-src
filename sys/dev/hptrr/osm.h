@@ -27,20 +27,22 @@
  */
 #include <dev/hptrr/hptrr_config.h>
 /*
- * $Id: osm.h,v 1.5 2005/08/18 05:17:43 gmm Exp $
+ * $Id: osm.h,v 1.7 2007/12/10 02:13:52 xxj Exp $
  * Copyright (C) 2005 HighPoint Technologies, Inc. All rights reserved.
  */
 #ifndef _HPT_OSM_H_
 #define _HPT_OSM_H_
 
-#define VERMAGIC_OSM 5
+#define VERMAGIC_OSM 6
 
 #define os_max_queue_comm 32
 #define os_max_sg_descriptors 18
 
 
+extern int os_max_cache_size;
+
+
 #define DMAPOOL_PAGE_SIZE 0x1000 /* PAGE_SIZE (i386/x86_64) */
-#define os_max_cache_size 0x800000 /* 8MB */
 #define os_max_cache_pages (os_max_cache_size/DMAPOOL_PAGE_SIZE)
 
 /* data types */
@@ -64,10 +66,10 @@ typedef unsigned long long HPT_U64;
 typedef void * HPT_PTR;
 
 typedef HPT_U64 HPT_LBA;
-typedef HPT_U32 HPT_RAW_LBA;
+typedef HPT_U64 HPT_RAW_LBA;
 #define MAX_LBA_VALUE 0xffffffffffffffffull
-#define MAX_RAW_LBA_VALUE 0xfffffffful
-#define RAW_LBA(x) ((HPT_U32)(x))
+#define MAX_RAW_LBA_VALUE MAX_LBA_VALUE
+#define RAW_LBA(x) (x)
 #define LO_LBA(x) ((HPT_U32)(x))
 #define HI_LBA(x) (sizeof(HPT_LBA)>4? (HPT_U32)((x)>>32) : 0)
 #define LBA_FORMAT_STR "0x%llX"
@@ -185,9 +187,9 @@ HPT_U8 os_get_vbus_seq(void *osext);
 /* debug support */
 int  os_printk(char *fmt, ...);
 
-#ifdef DBG
-extern int hpt_dbg_level;
-#define KdPrint(x)  do { if (hpt_dbg_level) os_printk x; } while (0)
+#if DBG
+extern int hptrr_dbg_level;
+#define KdPrint(x)  do { if (hptrr_dbg_level) os_printk x; } while (0)
 void __os_dbgbreak(const char *file, int line);
 #define os_dbgbreak() __os_dbgbreak(__FILE__, __LINE__)
 #define HPT_ASSERT(x) do { if (!(x)) os_dbgbreak(); } while (0)

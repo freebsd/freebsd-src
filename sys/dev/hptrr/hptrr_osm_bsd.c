@@ -26,7 +26,7 @@
  * $FreeBSD$
  */
 #include <dev/hptrr/hptrr_config.h>
-/* $Id: osm_bsd.c,v 1.26 2007/02/28 03:53:47 gmm Exp $
+/* $Id: osm_bsd.c,v 1.27 2007/11/22 07:35:49 gmm Exp $
  *
  * HighPoint RAID Driver for FreeBSD
  * Copyright (C) 2005 HighPoint Technologies, Inc. All Rights Reserved.
@@ -205,7 +205,7 @@ static void hpt_free_mem(PVBUS_EXT vbus_ext)
 	BUS_ADDRESS bus;
 
 	for (f=vbus_ext->freelist_head; f; f=f->next) {
-#ifdef DBG
+#if DBG
 		if (f->count!=f->reserved_count) {
 			KdPrint(("memory leak for freelist %s (%d/%d)", f->tag, f->count, f->reserved_count));
 		}
@@ -222,7 +222,7 @@ static void hpt_free_mem(PVBUS_EXT vbus_ext)
 
 	for (f=vbus_ext->freelist_dma_head; f; f=f->next) {
 		int order, size;
-#ifdef DBG
+#if DBG
 		if (f->count!=f->reserved_count) {
 			KdPrint(("memory leak for dma freelist %s (%d/%d)", f->tag, f->count, f->reserved_count));
 		}
@@ -262,7 +262,7 @@ static void hpt_flush_done(PCOMMAND pCmd)
 {
 	PVDEV vd = pCmd->target;
 
-	if (mIsArray(vd->Class->type) && vd->u.array.transform && vd!=vd->u.array.transform->target) {
+	if (mIsArray(vd->type) && vd->u.array.transform && vd!=vd->u.array.transform->target) {
 		vd = vd->u.array.transform->target;
 		HPT_ASSERT(vd);
 		pCmd->target = vd;
@@ -288,7 +288,7 @@ static int hpt_flush_vdev(PVBUS_EXT vbus_ext, PVDEV vd)
 
 	hpt_lock_vbus(vbus_ext);
 
-	if (mIsArray(vd->Class->type) && vd->u.array.transform)
+	if (mIsArray(vd->type) && vd->u.array.transform)
 		count = MAX(vd->u.array.transform->source->cmds_per_request,
 					vd->u.array.transform->target->cmds_per_request);
 	else
@@ -1014,9 +1014,6 @@ static void hpt_final_init(void *dummy)
 	PVBUS vbus;
 	PHBA hba;
 
-#ifdef SUPPORT_ALL
-/*	ldm_fix_him() */
-#endif
 	/* Clear the config hook */
 	config_intrhook_disestablish(&hpt_ich);
 
@@ -1031,7 +1028,8 @@ static void hpt_final_init(void *dummy)
 	}
 
 	if (!i) {
-		os_printk("no controller detected.");
+		if (bootverbose)
+			os_printk("no controller detected.");
 		return;
 	}
 
@@ -1218,7 +1216,8 @@ static void override_kernel_driver(void)
 
 static void hpt_init(void *dummy)
 {
-	os_printk("%s %s", driver_name_long, driver_ver);
+	if (bootverbose)
+		os_printk("%s %s", driver_name_long, driver_ver);
 
 	override_kernel_driver();
 	init_config();
