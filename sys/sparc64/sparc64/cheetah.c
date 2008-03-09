@@ -22,9 +22,10 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_pmap.h"
 
@@ -51,6 +52,7 @@
 void
 cheetah_cache_enable(void)
 {
+
 }
 
 /*
@@ -59,6 +61,7 @@ cheetah_cache_enable(void)
 void
 cheetah_cache_flush(void)
 {
+
 }
 
 /*
@@ -85,10 +88,25 @@ cheetah_dcache_page_inval(vm_paddr_t spa)
 void
 cheetah_icache_page_inval(vm_paddr_t pa)
 {
+
 }
 
+/*
+ * Flush all non-locked mappings from the TLB.
+ */
+void
+cheetah_tlb_flush_nonlocked(void)
+{
+
+	panic("cheetah_tlb_flush_nonlocked");
+}
+
+/*
+ * Flush all user mappings from the TLB.
+ */
 void
 cheetah_tlb_flush_user(void)
 {
+
 	panic("cheetah_tlb_flush_user");
 }
