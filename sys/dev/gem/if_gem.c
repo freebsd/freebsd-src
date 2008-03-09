@@ -327,11 +327,11 @@ gem_attach(struct gem_softc *sc)
 	 * allocated.
 	 */
 
-	/* Get RX FIFO size */
+	/* Get RX FIFO size. */
 	sc->sc_rxfifosize = 64 *
 	    bus_read_4(sc->sc_res[0], GEM_RX_FIFO_SIZE);
 
-	/* Get TX FIFO size */
+	/* Get TX FIFO size. */
 	v = bus_read_4(sc->sc_res[0], GEM_TX_FIFO_SIZE);
 	device_printf(sc->sc_dev, "%ukB RX FIFO, %ukB TX FIFO\n",
 	    sc->sc_rxfifosize / 1024, v / 16);
@@ -598,7 +598,7 @@ gem_tick(void *arg)
 	    bus_read_4(sc->sc_res[0], GEM_MAC_LATE_COLL_CNT);
 
 	/*
-	 * then clear the hardware counters.
+	 * Then clear the hardware counters.
 	 */
 	bus_write_4(sc->sc_res[0], GEM_MAC_NORM_COLL_CNT, 0);
 	bus_write_4(sc->sc_res[0], GEM_MAC_FIRST_COLL_CNT, 0);
@@ -724,7 +724,7 @@ gem_reset_rx(struct gem_softc *sc)
 	if (!gem_bitwait(sc, GEM_RX_CONFIG, GEM_RX_CONFIG_RXDMA_EN, 0))
 		device_printf(sc->sc_dev, "cannot disable RX DMA\n");
 
-	/* Finally, reset the ERX */
+	/* Finally, reset the ERX. */
 	bus_write_4(sc->sc_res[0], GEM_RESET, GEM_RESET_RX);
 	bus_barrier(sc->sc_res[0], GEM_RESET, 4, BUS_SPACE_BARRIER_WRITE);
 	if (!gem_bitwait(sc, GEM_RESET, GEM_RESET_RX | GEM_RESET_TX, 0)) {
@@ -794,7 +794,7 @@ gem_reset_tx(struct gem_softc *sc)
 	if (!gem_bitwait(sc, GEM_TX_CONFIG, GEM_TX_CONFIG_TXDMA_EN, 0))
 		device_printf(sc->sc_dev, "cannot disable TX DMA\n");
 
-	/* Finally, reset the ETX */
+	/* Finally, reset the ETX. */
 	bus_write_4(sc->sc_res[0], GEM_RESET, GEM_RESET_TX);
 	bus_barrier(sc->sc_res[0], GEM_RESET, 4, BUS_SPACE_BARRIER_WRITE);
 	if (!gem_bitwait(sc, GEM_RESET, GEM_RESET_RX | GEM_RESET_TX, 0)) {
@@ -817,9 +817,6 @@ gem_disable_rx(struct gem_softc *sc)
 	return (gem_bitwait(sc, GEM_MAC_RX_CONFIG, GEM_MAC_RX_ENABLE, 0));
 }
 
-/*
- * disable transmitter.
- */
 static int
 gem_disable_tx(struct gem_softc *sc)
 {
@@ -1090,6 +1087,9 @@ gem_load_txmbuf(struct gem_softc *sc, struct mbuf **m_head)
 		}
 	} else if (error != 0)
 		return (error);
+	/* If nsegs is wrong then the stack is corrupt. */
+	KASSERT(nsegs <= GEM_NTXSEGS,
+	    ("%s: too many DMA segments (%d)", __func__, nsegs));
 	if (nsegs == 0) {
 		m_freem(*m_head);
 		*m_head = NULL;
@@ -1602,7 +1602,6 @@ gem_add_rxbuf(struct gem_softc *sc, int idx)
 
 	error = bus_dmamap_load_mbuf_sg(sc->sc_rdmatag, rxs->rxs_dmamap,
 	    m, segs, &nsegs, BUS_DMA_NOWAIT);
-	KASSERT(nsegs == 1, ("Too many segments returned!"));
 	if (error != 0) {
 		device_printf(sc->sc_dev,
 		    "cannot load RS DMA map %d, error = %d\n", idx, error);
@@ -1610,6 +1609,8 @@ gem_add_rxbuf(struct gem_softc *sc, int idx)
 		return (error);
 	}
 	/* If nsegs is wrong then the stack is corrupt. */
+	KASSERT(nsegs == 1,
+	    ("%s: too many DMA segments (%d)", __func__, nsegs));
 	rxs->rxs_mbuf = m;
 	rxs->rxs_paddr = segs[0].ds_addr;
 
@@ -1752,7 +1753,7 @@ static void
 gem_mifinit(struct gem_softc *sc)
 {
 
-	/* Configure the MIF in frame mode */
+	/* Configure the MIF in frame mode. */
 	bus_write_4(sc->sc_res[0], GEM_MIF_CONFIG, bus_read_4(sc->sc_res[0],
 	    GEM_MIF_CONFIG) & ~GEM_MIF_CONFIG_BB_ENA);
 }
