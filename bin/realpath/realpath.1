@@ -41,7 +41,9 @@
 .Nd return resolved physical path
 .Sh SYNOPSIS
 .Nm
+.Op Fl q
 .Ar path
+.Op Ar ...
 .Sh DESCRIPTION
 The
 .Nm
@@ -55,6 +57,12 @@ and
 .Pa /../
 in
 .Ar path .
+.Pp
+If
+.Fl q
+is specified, warnings will not be printed when
+.Xr realpath 3
+fails.
 .Sh EXIT STATUS
 .Ex -std
 .Sh SEE ALSO
