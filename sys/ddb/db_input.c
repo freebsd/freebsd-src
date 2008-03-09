@@ -250,7 +250,7 @@ db_inputchar(c)
 		}
 
 	    hist_redraw:
-		db_putnchars(BACKUP, db_le - db_lbuf_start);
+		db_putnchars(BACKUP, db_lc - db_lbuf_start);
 		db_putnchars(BLANK, db_le - db_lbuf_start);
 		db_putnchars(BACKUP, db_le - db_lbuf_start);
 		db_le = index(db_lbuf_start, '\0');
