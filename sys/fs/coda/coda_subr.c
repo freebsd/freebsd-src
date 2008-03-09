@@ -99,7 +99,7 @@ coda_alloc(void)
     }
     else {
 	CODA_ALLOC(cp, struct cnode *, sizeof(struct cnode));
-	/* NetBSD vnodes don't have any Pager info in them ('cause there are
+	/* FreeBSD vnodes don't have any Pager info in them ('cause there are
 	   no external pagers, duh!) */
 #define VNODE_VM_INFO_INIT(vp)         /* MT */
 	VNODE_VM_INFO_INIT(CTOV(cp));
@@ -278,7 +278,7 @@ coda_testflush(void)
 
 /*
  *     First, step through all cnodes and mark them unmounting.
- *         NetBSD kernels may try to fsync them now that venus
+ *         FreeBSD kernels may try to fsync them now that venus
  *         is dead, which would be a bad thing.
  *
  */
