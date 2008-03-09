@@ -66,15 +66,16 @@
 #include "opt_ipsec.h"
 
 #include <sys/param.h>
+#include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
-#include <sys/proc.h>
 #include <sys/errno.h>
 #include <sys/priv.h>
+#include <sys/proc.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
-#include <sys/kernel.h>
+#include <sys/ucred.h>
 
 #include <net/if.h>
 #include <net/netisr.h>
@@ -1765,39 +1766,21 @@ do { \
 
 #ifdef IPSEC
 			case IPV6_IPSEC_POLICY:
-			    {
-				caddr_t req = NULL;
-				size_t len = 0;
+			{
+				caddr_t req;
 				struct mbuf *m;
-				int priv = 0;
 
 				if ((error = soopt_getm(sopt, &m)) != 0) /* XXX */
 					break;
 				if ((error = soopt_mcopyin(sopt, m)) != 0) /* XXX */
 					break;
-				if (m) {
-					req = mtod(m, caddr_t);
-					len = m->m_len;
-				}
-				if (sopt->sopt_td != NULL) {
-				/*
-				 * XXXRW/XXX-BZ: Would be more desirable to do
-				 * this one layer down so that we only exercise
-				 * privilege if it is needed.
-				 */
-					error = priv_check(sopt->sopt_td,
-					    PRIV_NETINET_IPSEC);
-					if (error)
-						priv = 0;
-					else
-						priv = 1;
-				} else
-					priv = 1;
+				req = mtod(m, caddr_t);
 				error = ipsec6_set_policy(in6p, optname, req,
-							  len, priv);
+				    m->m_len, (sopt->sopt_td != NULL) ?
+				    sopt->sopt_td->td_ucred : NULL);
 				m_freem(m);
-			    }
 				break;
+			}
 #endif /* IPSEC */
 
 			default:
