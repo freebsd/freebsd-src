@@ -22,9 +22,10 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_pmap.h"
 
@@ -139,7 +140,27 @@ spitfire_icache_page_inval(vm_paddr_t pa)
 }
 
 /*
- * Flush all user mappings from the tlb.
+ * Flush all non-locked mappings from the TLB.
+ */
+void
+spitfire_tlb_flush_nonlocked(void)
+{
+	int i;
+
+	for (i = 0; i < SPITFIRE_TLB_ENTRIES; i++) {
+		if ((ldxa(TLB_DAR_SLOT(i), ASI_DTLB_DATA_ACCESS_REG) &
+		    TD_L) == 0)
+			stxa_sync(TLB_DAR_SLOT(i),
+			    ASI_DTLB_DATA_ACCESS_REG, 0);
+		if ((ldxa(TLB_DAR_SLOT(i), ASI_ITLB_DATA_ACCESS_REG) &
+		    TD_L) == 0)
+			stxa_sync(TLB_DAR_SLOT(i),
+			    ASI_ITLB_DATA_ACCESS_REG, 0);
+	}
+}
+
+/*
+ * Flush all user mappings from the TLB.
  */
 void
 spitfire_tlb_flush_user(void)
@@ -153,11 +174,13 @@ spitfire_tlb_flush_user(void)
 		tag = ldxa(TLB_DAR_SLOT(i), ASI_DTLB_TAG_READ_REG);
 		if ((data & TD_V) != 0 && (data & TD_L) == 0 &&
 		    TLB_TAR_CTX(tag) != TLB_CTX_KERNEL)
-			stxa_sync(TLB_DAR_SLOT(i), ASI_DTLB_DATA_ACCESS_REG, 0);
+			stxa_sync(TLB_DAR_SLOT(i),
+			    ASI_DTLB_DATA_ACCESS_REG, 0);
 		data = ldxa(TLB_DAR_SLOT(i), ASI_ITLB_DATA_ACCESS_REG);
 		tag = ldxa(TLB_DAR_SLOT(i), ASI_ITLB_TAG_READ_REG);
 		if ((data & TD_V) != 0 && (data & TD_L) == 0 &&
 		    TLB_TAR_CTX(tag) != TLB_CTX_KERNEL)
-			stxa_sync(TLB_DAR_SLOT(i), ASI_ITLB_DATA_ACCESS_REG, 0);
+			stxa_sync(TLB_DAR_SLOT(i),
+			    ASI_ITLB_DATA_ACCESS_REG, 0);
 	}
 }
