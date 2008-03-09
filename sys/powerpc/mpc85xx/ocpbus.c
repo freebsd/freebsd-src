@@ -39,7 +39,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 
 #include <machine/spr.h>
-#include <machine/pio.h>
 #include <machine/ocpbus.h>
 #include <machine/intr_machdep.h>
 #include <machine/md_var.h>
@@ -113,6 +112,23 @@ static driver_t ocpbus_driver = {
 devclass_t ocpbus_devclass;
 
 DRIVER_MODULE(ocpbus, nexus, ocpbus_driver, ocpbus_devclass, 0, 0);
+
+static __inline uint32_t
+ccsr_read4(uintptr_t addr)
+{
+	volatile uint32_t *ptr = (void *)addr;
+
+	return (*ptr);
+}
+
+static __inline void
+ccsr_write4(uintptr_t addr, uint32_t val)
+{
+	volatile uint32_t *ptr = (void *)addr;
+
+	*ptr = val;
+	__asm __volatile("eieio; sync");
+}
 
 static device_t
 ocpbus_mk_child(device_t dev, int type, int unit)
@@ -189,21 +205,21 @@ ocpbus_write_law(int trgt, int type, u_long *startp, u_long *countp)
 
 	/* Check if already programmed. */
 	for (i = 0; i < 8; i++) {
-		if (sr == in32(OCP85XX_LAWSR(i)) &&
-		    bar == in32(OCP85XX_LAWBAR(i)))
+		if (sr == ccsr_read4(OCP85XX_LAWSR(i)) &&
+		    bar == ccsr_read4(OCP85XX_LAWBAR(i)))
 			return (0);
 	}
 
 	/* Find an unused access window .*/
 	for (i = 0; i < 8; i++) {
-		if ((in32(OCP85XX_LAWSR(i)) & 0x80000000) == 0)
+		if ((ccsr_read4(OCP85XX_LAWSR(i)) & 0x80000000) == 0)
 			break;
 	}
 	if (i == 8)
 		return (ENOSPC);
 
-	out32(OCP85XX_LAWBAR(i), bar);
-	out32(OCP85XX_LAWSR(i), sr);
+	ccsr_write4(OCP85XX_LAWBAR(i), bar);
+	ccsr_write4(OCP85XX_LAWSR(i), sr);
 	return (0);
 }
 
@@ -270,17 +286,18 @@ ocpbus_attach (device_t dev)
 
 	/* Clear local access windows. */
 	for (i = 0; i < 8; i++) {
-		sr = in32(OCP85XX_LAWSR(i));
+		sr = ccsr_read4(OCP85XX_LAWSR(i));
 		if ((sr & 0x80000000) == 0)
 			continue;
 		if ((sr & 0x00f00000) == 0x00f00000)
 			continue;
-		out32(OCP85XX_LAWSR(i), sr & 0x7fffffff);
+		ccsr_write4(OCP85XX_LAWSR(i), sr & 0x7fffffff);
 	}
 
 	if (bootverbose)
 		device_printf(dev, "PORDEVSR=%08x, PORDEVSR2=%08x\n",
-		    in32(OCP85XX_PORDEVSR), in32(OCP85XX_PORDEVSR2));
+		    ccsr_read4(OCP85XX_PORDEVSR),
+		    ccsr_read4(OCP85XX_PORDEVSR2));
 
 	for (i = 0; i < 4; i++)
 		powerpc_config_intr(i, INTR_TRIGGER_LEVEL, INTR_POLARITY_LOW);
