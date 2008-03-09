@@ -95,10 +95,9 @@ int coda_vnop_print_entry = 0;
 static int coda_lockdebug = 0;
 
 /*
- * Some NetBSD details:
+ * Some FreeBSD details:
  * 
- *   coda_start is called at the end of the mount syscall.
- *   coda_init is called at boot time.
+ *   codadev_modevent is called at boot time or module load time.
  */
 
 #define ENTRY  if(coda_vnop_print_entry) myprintf(("Entered %s\n",__func__))
@@ -184,7 +183,7 @@ int
 coda_open(struct vop_open_args *ap)
 {
     /* 
-     * NetBSD can pass the O_EXCL flag in mode, even though the check
+     * FreeBSD can pass the O_EXCL flag in mode, even though the check
      * has already happened.  Venus defensively assumes that if open
      * is passed the EXCL, it must be a bug.  We strip the flag here.
      */
@@ -682,7 +681,11 @@ coda_fsync(struct vop_fsync_args *ap)
     MARK_ENTRY(CODA_FSYNC_STATS);
 
     /* Check for fsync on an unmounting object */
-    /* The NetBSD kernel, in it's infinite wisdom, can try to fsync
+    /*
+     * XXX: Is this comment true on FreeBSD?  It seems likely, since
+     * unmounting is fairly non-atomic.
+     *
+     * The NetBSD kernel, in it's infinite wisdom, can try to fsync
      * after an unmount has been initiated.  This is a Bad Thing,
      * which we have to avoid.  Not a legitimate failure for stats.
      */
@@ -797,7 +800,7 @@ coda_inactive(struct vop_inactive_args *ap)
  */
 
 /* 
- * It appears that in NetBSD, lookup is supposed to return the vnode locked
+ * In FreeBSD, lookup returns the vnode locked.
  */
 int
 coda_lookup(struct vop_lookup_args *ap)
@@ -884,7 +887,7 @@ coda_lookup(struct vop_lookup_args *ap)
      * If we are creating, and this was the last name to be looked up,
      * and the error was ENOENT, then there really shouldn't be an
      * error and we can make the leaf NULL and return success.  Since
-     * this is supposed to work under Mach as well as NetBSD, we're
+     * this is supposed to work under Mach as well as FreeBSD, we're
      * leaving this fn wrapped.  We also must tell lookup/namei that
      * we need to save the last component of the name.  (Create will
      * have to free the name buffer later...lucky us...)
