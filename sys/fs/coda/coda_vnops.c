@@ -234,13 +234,16 @@ coda_open(struct vop_open_args *ap)
     }
 
     /* Open the cache file. */
+    vn_lock(vp, LK_EXCLUSIVE, td);
     error = VOP_OPEN(vp, flag, cred, td, NULL); 
     if (error) {
+	VOP_UNLOCK(vp, 0, td);
     	printf("coda_open: VOP_OPEN on container failed %d\n", error);
 	return (error);
     } else {
 	(*vpp)->v_object = vp->v_object;
     }
+    VOP_UNLOCK(vp, 0, td);
 /* grab (above) does this when it calls newvnode unless it's in the cache*/
 
     return(error);
@@ -270,8 +273,9 @@ coda_close(struct vop_close_args *ap)
     }
 
     if (cp->c_ovp) {
+	vn_lock(cp->c_ovp, LK_EXCLUSIVE, td);
 	VOP_CLOSE(cp->c_ovp, flag, cred, td); /* Do errors matter here? */
-	vrele(cp->c_ovp);
+	vput(cp->c_ovp);
     }
 #ifdef CODA_VERBOSE
     else printf("coda_close: NO container vp %p/cp %p\n", vp, cp);
@@ -354,6 +358,7 @@ coda_rdwr(struct vnode *vp, struct uio *uiop, enum uio_rw rw, int ioflag,
     /* Have UFS handle the call. */
     CODADEBUG(CODA_RDWR, myprintf(("indirect rdwr: fid = %s, refcnt = %d\n",
 			     coda_f2s(&cp->c_fid), CTOV(cp)->v_usecount)); )
+    vn_lock(cfvp, LK_EXCLUSIVE, td);
     if (rw == UIO_READ) {
 	error = VOP_READ(cfvp, uiop, ioflag, cred);
     } else {
@@ -367,6 +372,7 @@ coda_rdwr(struct vnode *vp, struct uio *uiop, enum uio_rw rw, int ioflag,
 	    }
 	}
     }
+    VOP_UNLOCK(cfvp, 0, td);
 
     if (error)
 	MARK_INT_FAIL(CODA_RDWR_STATS);
@@ -1457,8 +1463,10 @@ coda_readdir(struct vop_readdir_args *ap)
 	
 	/* Have UFS handle the call. */
 	CODADEBUG(CODA_READDIR, myprintf(("indirect readdir: fid = %s, refcnt = %d\n", coda_f2s(&cp->c_fid), vp->v_usecount)); )
+	vn_lock(cp->c_ovp, LK_EXCLUSIVE, td);
 	error = VOP_READDIR(cp->c_ovp, uiop, cred, eofflag, ncookies,
 			       cookies);
+	VOP_UNLOCK(cp->c_ovp, 0, td);
 	
 	if (error)
 	    MARK_INT_FAIL(CODA_READDIR_STATS);
