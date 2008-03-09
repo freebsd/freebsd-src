@@ -651,6 +651,7 @@ ip_pcbopts(struct inpcb *inp, int optname, struct mbuf *m)
 			 * in actual IP option, but is stored before the
 			 * options.
 			 */
+			/* XXX-BZ PRIV_NETINET_SETHDROPTS? */
 			if (optlen < IPOPT_MINOFF - 1 + sizeof(struct in_addr))
 				goto bad;
 			m->m_len -= sizeof(struct in_addr);
