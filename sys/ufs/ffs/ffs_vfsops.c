@@ -877,6 +877,7 @@ ffs_mountfs(devvp, mp, td)
 	 * This would all happen while the filesystem was busy/not
 	 * available, so would effectively be "atomic".
 	 */
+	mp->mnt_stat.f_iosize = fs->fs_bsize;
 	(void) ufs_extattr_autostart(mp, td);
 #endif /* !UFS_EXTATTR_AUTOSTART */
 #endif /* !UFS_EXTATTR */
