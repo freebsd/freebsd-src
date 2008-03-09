@@ -486,16 +486,11 @@ udp6_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr6,
 	u_short fport;
 	int error = 0;
 	struct ip6_pktopts *optp, opt;
-	int priv;
 	int af = AF_INET6, hlen = sizeof(struct ip6_hdr);
 	int flags;
 	struct sockaddr_in6 tmp;
 
 	INP_LOCK_ASSERT(inp);
-
-	priv = 0;
-	if (td && !suser(td))
-		priv = 1;
 
 	if (addr6) {
 		/* addr6 has been validated in udp6_send(). */
@@ -521,7 +516,7 @@ udp6_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr6,
 
 	if (control) {
 		if ((error = ip6_setpktopts(control, &opt,
-		    inp->in6p_outputopts, priv, IPPROTO_UDP)) != 0)
+		    inp->in6p_outputopts, td->td_ucred, IPPROTO_UDP)) != 0)
 			goto release;
 		optp = &opt;
 	} else

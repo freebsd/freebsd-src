@@ -719,6 +719,12 @@ prison_priv_check(struct ucred *cred, int priv)
 		return (0);
 
 		/*
+		 * Allow jailed root to set certian IPv4/6 (option) headers.
+		 */
+	case PRIV_NETINET_SETHDROPTS:
+		return (0);
+
+		/*
 		 * Conditionally allow creating raw sockets in jail.
 		 */
 	case PRIV_NETINET_RAW:

@@ -399,13 +399,16 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 
 	switch (cmd) {
 	case SIOCALIFADDR:
-	case SIOCDLIFADDR:
-		/*
-		 * XXXRW: Is this checked at another layer?  What priv to use
-		 * here?
-		 */
 		if (td != NULL) {
-			error = suser(td);
+			error = priv_check(td, PRIV_NET_ADDIFADDR);
+			if (error)
+				return (error);
+		}
+		return in6_lifaddr_ioctl(so, cmd, data, ifp, td);
+
+	case SIOCDLIFADDR:
+		if (td != NULL) {
+			error = priv_check(td, PRIV_NET_DELIFADDR);
 			if (error)
 				return (error);
 		}
@@ -498,12 +501,9 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 		    ifra->ifra_addr.sin6_len != sizeof(struct sockaddr_in6))
 			return (EAFNOSUPPORT);
 
-		/*
-		 * XXXRW: Is this checked at another layer?  What priv to use
-		 * here?
-		 */
 		if (td != NULL) {
-			error = suser(td);
+			error = priv_check(td, (cmd == SIOCDIFADDR_IN6) ? 
+			    PRIV_NET_DELIFADDR : PRIV_NET_ADDIFADDR);
 			if (error)
 				return (error);
 		}

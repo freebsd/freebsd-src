@@ -323,7 +323,6 @@ rip6_output(m, va_alist)
 	struct ip6_pktopts opt, *optp;
 	struct ifnet *oifp = NULL;
 	int type = 0, code = 0;		/* for ICMPv6 output statistics only */
-	int priv = 0;
 	int scope_ambiguous = 0;
 	struct in6_addr *in6a;
 	va_list ap;
@@ -337,14 +336,11 @@ rip6_output(m, va_alist)
 	in6p = sotoin6pcb(so);
 	INP_LOCK(in6p);
 
-	priv = 0;
-	if (suser_cred(so->so_cred, 0) == 0)
-		priv = 1;
 	dst = &dstsock->sin6_addr;
 	if (control) {
 		if ((error = ip6_setpktopts(control, &opt,
-		    in6p->in6p_outputopts, priv, so->so_proto->pr_protocol))
-		    != 0) {
+		    in6p->in6p_outputopts, so->so_cred,
+		    so->so_proto->pr_protocol)) != 0) {
 			goto bad;
 		}
 		optp = &opt;
@@ -547,7 +543,8 @@ rip6_attach(struct socket *so, int proto, struct thread *td)
 
 	inp = sotoinpcb(so);
 	KASSERT(inp == NULL, ("rip6_attach: inp != NULL"));
-	if (td && (error = suser(td)) != 0)
+	error = priv_check(td, PRIV_NETINET_RAW);
+	if (error)
 		return error;
 	error = soreserve(so, rip_sendspace, rip_recvspace);
 	if (error)
