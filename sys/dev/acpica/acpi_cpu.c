@@ -113,6 +113,12 @@ struct acpi_cpu_device {
 #define PCI_REVISION_B_STEP	1
 #define PCI_REVISION_4E		2
 #define PCI_REVISION_4M		3
+#define PIIX4_DEVACTB_REG	0x58
+#define PIIX4_BRLD_EN_IRQ0	(1<<0)
+#define PIIX4_BRLD_EN_IRQ	(1<<1)
+#define PIIX4_BRLD_EN_IRQ8	(1<<5)
+#define PIIX4_STOP_BREAK_MASK	(PIIX4_BRLD_EN_IRQ0 | PIIX4_BRLD_EN_IRQ | PIIX4_BRLD_EN_IRQ8)
+#define PIIX4_PCNTRL_BST_EN	(1<<10)
 
 /* Platform hardware resource information. */
 static uint32_t		 cpu_smi_cmd;	/* Value to write to SMI_CMD. */
@@ -1004,6 +1010,7 @@ static int
 acpi_cpu_quirks(void)
 {
     device_t acpi_dev;
+    uint32_t val;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
@@ -1052,12 +1059,25 @@ acpi_cpu_quirks(void)
 	 * See erratum #18 ("C3 Power State/BMIDE and Type-F DMA
 	 * Livelock") from the January 2002 PIIX4 specification update.
 	 * Applies to all PIIX4 models.
+	 *
+	 * Also, make sure that all interrupts cause a "Stop Break"
+	 * event to exit from C2 state.
 	 */
+	case PCI_REVISION_A_STEP:
+	case PCI_REVISION_B_STEP:
 	case PCI_REVISION_4E:
 	case PCI_REVISION_4M:
 	    cpu_quirks |= CPU_QUIRK_NO_C3;
 	    ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 		"acpi_cpu: working around PIIX4 bug, disabling C3\n"));
+
+	    val = pci_read_config(acpi_dev, PIIX4_DEVACTB_REG, 4);
+	    if ((val & PIIX4_STOP_BREAK_MASK) != PIIX4_STOP_BREAK_MASK) {
+		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+		    "PIIX4: enabling IRQs to generate Stop Break\n"));
+	    	val |= PIIX4_STOP_BREAK_MASK;
+		pci_write_config(acpi_dev, PIIX4_DEVACTB_REG, val, 4);
+	    }
 	    break;
 	default:
 	    break;
