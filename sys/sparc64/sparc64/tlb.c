@@ -22,9 +22,10 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_pmap.h"
 
@@ -49,6 +50,7 @@ PMAP_STATS_VAR(tlb_ncontext_demap);
 PMAP_STATS_VAR(tlb_npage_demap);
 PMAP_STATS_VAR(tlb_nrange_demap);
 
+tlb_flush_nonlocked_t *tlb_flush_nonlocked;
 tlb_flush_user_t *tlb_flush_user;
 
 /*
@@ -105,7 +107,7 @@ tlb_page_demap(struct pmap *pm, vm_offset_t va)
 			flags = TLB_DEMAP_NUCLEUS | TLB_DEMAP_PAGE;
 		else
 			flags = TLB_DEMAP_PRIMARY | TLB_DEMAP_PAGE;
-	
+
 		s = intr_disable();
 		stxa(TLB_DEMAP_VA(va) | flags, ASI_DMMU_DEMAP, 0);
 		stxa(TLB_DEMAP_VA(va) | flags, ASI_IMMU_DEMAP, 0);
@@ -132,7 +134,7 @@ tlb_range_demap(struct pmap *pm, vm_offset_t start, vm_offset_t end)
 			flags = TLB_DEMAP_NUCLEUS | TLB_DEMAP_PAGE;
 		else
 			flags = TLB_DEMAP_PRIMARY | TLB_DEMAP_PAGE;
-	
+
 		s = intr_disable();
 		for (va = start; va < end; va += PAGE_SIZE) {
 			stxa(TLB_DEMAP_VA(va) | flags, ASI_DMMU_DEMAP, 0);
