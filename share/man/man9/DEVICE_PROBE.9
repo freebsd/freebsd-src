@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 6, 2005
+.Dd March 3, 2008
 .Dt DEVICE_PROBE 9
 .Os
 .Sh NAME
@@ -83,6 +83,50 @@ For values equal to or less than
 zero: zero indicates highest priority, no further probing is done;
 for a value less than zero, the lower the value the lower the
 priority, e.g.\& -100 indicates a lower priority than -50.
+.Pp
+The following values are used by convention to indicate different
+strengths of matching in a probe routine.
+Except as noted, these are just suggested values, and there's nothing
+magical about them.
+.Bl -tag -width BUS_PROBE_NOWILDCARD
+.It BUS_PROBE_SPECIFIC
+The device that cannot be reprobed, and that no
+possible other driver may exist (typically legacy drivers who don't fallow
+all the rules, or special needs drivers).
+.It BUS_PROBE_VENDOR
+The device is supported by a vendor driver.
+This is for source or binary drivers that are not yet integrated into the
+.Fx 
+tree.
+Its use in the base OS is prohibited.
+.It BUS_PROBE_DEFAULT
+The device is a normal device matching some plug and play ID.  This is
+the normal return value for drivers to use.
+It is intended that nearly all of the drivers in the tree should return
+this value.
+.It BUS_PROBE_LOW_PRIORITY
+The driver is a legacy driver, or an otherwise less desirable driver
+for a given plug and play ID.
+The driver has special requirements like when there are two drivers
+that support overlapping series of hardware devices.
+In this case the one that supports the older part of the line would
+return this value, while the one that supports the newer ones would
+return BUS_PROBE_DEFAULT.
+.It BUS_PROBE_GENERIC
+The driver matches the type of device generally.
+This allows drivers to match all serial ports generally, with sepcialized
+drivers matching particular types of serial ports that need special
+treatment for some reason.
+.It BUS_PROBE_HOOVER
+The driver matches all unclaimed devices on a bus.
+The 
+.Xr ugen 5 
+device is one example.
+.It BUS_PROBE_NOWILDCARD
+The driver expects its parent to tell it which children to manage
+and no probing is really done.
+The device only matches if its parent bus specifically said to use
+this driver.
 .Sh SEE ALSO
 .Xr device 9 ,
 .Xr DEVICE_ATTACH 9 ,
