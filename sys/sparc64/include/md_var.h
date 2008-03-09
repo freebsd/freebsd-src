@@ -60,4 +60,17 @@ cpu_block_zero_t spitfire_block_zero;
 extern	cpu_block_copy_t *cpu_block_copy;
 extern	cpu_block_zero_t *cpu_block_zero;
 
+/*
+ * Given that the Sun disk label only uses 16-bit fields for cylinders,
+ * heads and sectors we might need to adjust the geometry of large IDE
+ * disks.
+ * We have to have a knowledge that a device_t is a struct device * here
+ * to avoid including too many things from this file.
+ */
+struct disk;
+struct device;
+void sparc64_ad_firmware_geom_adjust(struct device *dev, struct disk *disk);
+#define	ad_firmware_geom_adjust(dev, dsk)				\
+	sparc64_ad_firmware_geom_adjust(dev, dsk)
+
 #endif /* !_MACHINE_MD_VAR_H_ */
