@@ -99,6 +99,7 @@ leeym [label="Yen-Ming Lee\nleeym@FreeBSD.org\n2002/08/14"]
 lev [label="Lev Serebryakov\nlev@FreeBSD.org\n2003/06/17"]
 linimon [label="Mark Linimon\nlinimon@FreeBSD.org\n2003/10/23"]
 lioux [label="Mario Sergio Fujikawa Ferriera\nlioux@FreeBSD.org\n2000/10/14"]
+lippe [label="Felippe de Meirelles Motta\nlippe@FreeBSD.org\n2008/03/08"]
 lth [label="Lars Thegler\nlth@FreeBSD.org\n2004/05/04"]
 lwhsu [label="Li-Wen Hsu\nlwhsu@FreeBSD.org\n2007/04/03"]
 lx [label="David Thiel\nlx@FreeBSD.org\n2006/11/29"]
@@ -154,6 +155,8 @@ adamw -> pav
 ahze -> shaun
 ahze -> tmclaugh
 
+araujo -> lippe
+
 arved -> markus
 arved -> stefan
 
@@ -197,6 +200,8 @@ fjoe -> osa
 flz -> garga
 flz -> johans
 flz -> laszlof
+
+gabor -> lippe
 
 garga -> acm
 garga -> alepulver
