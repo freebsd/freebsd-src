@@ -508,7 +508,7 @@ readrest:
 						break;
 					if (mt->busy ||
 					    (mt->oflags & VPO_BUSY) ||
-					    (mt->flags & (PG_FICTITIOUS | PG_UNMANAGED)) ||
+					    (mt->flags & PG_UNMANAGED) ||
 						mt->hold_count ||
 						mt->wire_count) 
 						continue;
