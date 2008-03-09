@@ -950,6 +950,7 @@ ng_l2tp_rcvdata_lower(hook_p h, item_p item)
 		/* Prepend session ID to packet. */
 		M_PREPEND(m, 2, M_DONTWAIT);
 		if (m == NULL) {
+			seq->inproc = 0;
 			priv->stats.memoryFailures++;
 			NG_FREE_ITEM(item);
 			ERROUT(ENOBUFS);
