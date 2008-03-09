@@ -133,6 +133,8 @@ static suffixes_t suffixes[] = {
 	SUFFIX(".tgz",		".tar"),
 #ifndef NO_BZIP2_SUPPORT
 	SUFFIX(BZ2_SUFFIX,	""),
+	SUFFIX(".tbz",		".tar"),
+	SUFFIX(".tbz2",		".tar"),
 #endif
 #ifndef NO_COMPRESS_SUPPORT
 	SUFFIX(Z_SUFFIX,	""),
