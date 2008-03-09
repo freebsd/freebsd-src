@@ -62,6 +62,14 @@ static disk_strategy_t ad_strategy;
 static disk_ioctl_t ad_ioctl;
 static dumper_t ad_dump;
 
+/*
+ * Most platforms map firmware geom to actual, but some don't.  If
+ * not overridden, default to nothing.
+ */
+#ifndef ad_firmware_geom_adjust
+#define ad_firmware_geom_adjust(dev, disk)
+#endif
+
 /* local vars */
 static MALLOC_DEFINE(M_AD, "ad_driver", "ATA disk driver");
 
@@ -154,6 +162,7 @@ ad_attach(device_t dev)
     adp->disk->d_unit = device_get_unit(dev);
     disk_create(adp->disk, DISK_VERSION);
     device_add_child(dev, "subdisk", device_get_unit(dev));
+    ad_firmware_geom_adjust(dev, adp->disk);
     bus_generic_attach(dev);
     return 0;
 }
