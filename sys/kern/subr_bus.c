@@ -1777,6 +1777,14 @@ device_probe_child(device_t dev, device_t child)
 			 * of pri for the first match.
 			 */
 			if (best == NULL || result > pri) {
+				/*
+				 * Probes that return BUS_PROBE_NOWILDCARD
+				 * or lower only match when they are set
+				 * in stone by the parent bus.
+				 */
+				if (result <= BUS_PROBE_NOWILDCARD &&
+				    child->flags & DF_WILDCARD)
+					continue;
 				best = dl;
 				pri = result;
 				continue;
