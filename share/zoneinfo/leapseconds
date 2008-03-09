@@ -1,4 +1,4 @@
-# @(#)leapseconds	8.4
+# @(#)leapseconds	8.5
 
 # Allowance for leapseconds added to each timezone file.
 
@@ -46,10 +46,11 @@ Leap	1998	Dec	31	23:59:60	+	S
 Leap	2005	Dec	31	23:59:60	+	S
 
 # INTERNATIONAL EARTH ROTATION AND REFERENCE SYSTEMS SERVICE (IERS)
+#
 # SERVICE INTERNATIONAL DE LA ROTATION TERRESTRE ET DES SYSTEMES DE REFERENCE
 #
 # SERVICE DE LA ROTATION TERRESTRE
-# OBSERVATOIRE DE PARIS
+# OBSERVATOIRE DE PARIS				
 # 61, Av. de l'Observatoire 75014 PARIS (France)
 # Tel.      : 33 (0) 1 40 51 22 26
 # FAX       : 33 (0) 1 40 51 22 91
@@ -59,9 +60,9 @@ Leap	2005	Dec	31	23:59:60	+	S
 #
 # Bulletin C 34
 #
-# To authorities responsible
+# To authorities responsible		
 # for the measurement and
-# distribution of time
+# distribution of time	
 #
 # INFORMATION ON UTC - TAI
 #
@@ -77,6 +78,6 @@ Leap	2005	Dec	31	23:59:60	+	S
 # will be no time step at the next possible date.
 #
 # Daniel GAMBIS
-# Director			
-# Earth Orientation Center of IERS
+# Head			
+# Earth Orientation Center of the IERS
 # Observatoire de Paris, France
