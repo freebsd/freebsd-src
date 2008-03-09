@@ -291,12 +291,8 @@ coda_root(vfsp, flags, vpp, td)
 		mi->mi_started = 1;
 
 		/* On Mach, this is vref.  On NetBSD, VOP_LOCK */
-#if	1
 		vref(*vpp);
 		vn_lock(*vpp, LK_EXCLUSIVE, td);
-#else
-		vget(*vpp, LK_EXCLUSIVE, td);
-#endif
 		MARK_INT_SAT(CODA_ROOT_STATS);
 		return(0);
 	    }
@@ -314,12 +310,8 @@ coda_root(vfsp, flags, vpp, td)
 	coda_save(VTOC(mi->mi_rootvp));
 
 	*vpp = mi->mi_rootvp;
-#if	1
 	vref(*vpp);
 	vn_lock(*vpp, LK_EXCLUSIVE, td);
-#else
-	vget(*vpp, LK_EXCLUSIVE, td);
-#endif
 
 	MARK_INT_SAT(CODA_ROOT_STATS);
 	goto exit;
@@ -334,12 +326,8 @@ coda_root(vfsp, flags, vpp, td)
 	 * will fail.
 	 */
 	*vpp = mi->mi_rootvp;
-#if	1
 	vref(*vpp);
 	vn_lock(*vpp, LK_EXCLUSIVE, td);
-#else
-	vget(*vpp, LK_EXCLUSIVE, td);
-#endif
 
 	MARK_INT_FAIL(CODA_ROOT_STATS);
 	error = 0;
