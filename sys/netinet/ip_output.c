@@ -43,10 +43,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/priv.h>
+#include <sys/proc.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
+#include <sys/ucred.h>
 
 #include <net/if.h>
 #include <net/netisr.h>
@@ -972,33 +974,16 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 		case IP_IPSEC_POLICY:
 		{
 			caddr_t req;
-			size_t len = 0;
-			int priv;
 			struct mbuf *m;
-			int optname;
 
 			if ((error = soopt_getm(sopt, &m)) != 0) /* XXX */
 				break;
 			if ((error = soopt_mcopyin(sopt, m)) != 0) /* XXX */
 				break;
-			if (sopt->sopt_td != NULL) {
-				/*
-				 * XXXRW: Would be more desirable to do this
-				 * one layer down so that we only exercise
-				 * privilege if it is needed.
-				 */
-				error = priv_check(sopt->sopt_td,
-				    PRIV_NETINET_IPSEC);
-				if (error)
-					priv = 0;
-				else
-					priv = 1;
-			} else
-				priv = 1;
 			req = mtod(m, caddr_t);
-			len = m->m_len;
-			optname = sopt->sopt_name;
-			error = ipsec4_set_policy(inp, optname, req, len, priv);
+			error = ipsec4_set_policy(inp, sopt->sopt_name, req,
+			    m->m_len, (sopt->sopt_td != NULL) ?
+			    sopt->sopt_td->td_ucred : NULL);
 			m_freem(m);
 			break;
 		}
