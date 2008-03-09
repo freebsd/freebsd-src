@@ -44,20 +44,39 @@ main(int argc, char *argv[])
 {
 	char buf[PATH_MAX];
 	char *p;
+	int ch, i, qflag, rval;
 
-	if (argc == 2) {
-		if ((p = realpath(argv[1], buf)) == NULL)
-			err(1, "%s", buf);
-	} else
+	qflag = 0;
+	while ((ch = getopt(argc, argv, "q")) != -1) {
+		switch (ch) {
+		case 'q':
+			qflag = 1;
+			break;
+		case '?':
+		default:
+			usage();
+		}
+	}
+	argc -= optind;
+	argv += optind;
+	if (argc < 1)
 		usage();
-	(void)printf("%s\n", p);
-	exit(0);
+	rval  = 0;
+	for (i = 0; i < argc; i++) {
+		if ((p = realpath(argv[i], buf)) == NULL) {
+			if (!qflag)
+				warn("%s", argv[i]);
+			rval = 1;
+		} else
+			(void)printf("%s\n", p);
+	}
+	exit(rval);
 }
 
 static void
 usage(void)
 {
 
-	(void)fprintf(stderr, "usage: realpath path\n");
+	(void)fprintf(stderr, "usage: realpath [-q] path [...]\n");
   	exit(1);
 }
