@@ -65,7 +65,85 @@ static const struct ng_parse_struct_field ng_nat_mode_fields[]
 	= NG_NAT_MODE_INFO;
 static const struct ng_parse_type ng_nat_mode_type = {
 	&ng_parse_struct_type,
-	ng_nat_mode_fields
+	&ng_nat_mode_fields
+};
+
+/* Parse type for 'description' field in structs. */
+static const struct ng_parse_fixedstring_info ng_nat_description_info
+	= { NG_NAT_DESC_LENGTH };
+static const struct ng_parse_type ng_nat_description_type = {
+	&ng_parse_fixedstring_type,
+	&ng_nat_description_info
+};
+
+/* Parse type for struct ng_nat_redirect_port. */
+static const struct ng_parse_struct_field ng_nat_redirect_port_fields[]
+	= NG_NAT_REDIRECT_PORT_TYPE_INFO(&ng_nat_description_type);
+static const struct ng_parse_type ng_nat_redirect_port_type = {
+	&ng_parse_struct_type,
+	&ng_nat_redirect_port_fields
+};
+
+/* Parse type for struct ng_nat_redirect_addr. */
+static const struct ng_parse_struct_field ng_nat_redirect_addr_fields[]
+	= NG_NAT_REDIRECT_ADDR_TYPE_INFO(&ng_nat_description_type);
+static const struct ng_parse_type ng_nat_redirect_addr_type = {
+	&ng_parse_struct_type,
+	&ng_nat_redirect_addr_fields
+};
+
+/* Parse type for struct ng_nat_redirect_proto. */
+static const struct ng_parse_struct_field ng_nat_redirect_proto_fields[]
+	= NG_NAT_REDIRECT_PROTO_TYPE_INFO(&ng_nat_description_type);
+static const struct ng_parse_type ng_nat_redirect_proto_type = {
+	&ng_parse_struct_type,
+	&ng_nat_redirect_proto_fields
+};
+
+/* Parse type for struct ng_nat_add_server. */
+static const struct ng_parse_struct_field ng_nat_add_server_fields[]
+	= NG_NAT_ADD_SERVER_TYPE_INFO;
+static const struct ng_parse_type ng_nat_add_server_type = {
+	&ng_parse_struct_type,
+	&ng_nat_add_server_fields
+};
+
+/* Parse type for one struct ng_nat_listrdrs_entry. */
+static const struct ng_parse_struct_field ng_nat_listrdrs_entry_fields[]
+	= NG_NAT_LISTRDRS_ENTRY_TYPE_INFO(&ng_nat_description_type);
+static const struct ng_parse_type ng_nat_listrdrs_entry_type = {
+	&ng_parse_struct_type,
+	&ng_nat_listrdrs_entry_fields
+};
+
+/* Parse type for 'redirects' array in struct ng_nat_list_redirects. */
+static int
+ng_nat_listrdrs_ary_getLength(const struct ng_parse_type *type,
+	const u_char *start, const u_char *buf)
+{
+	const struct ng_nat_list_redirects *lr;
+
+	lr = (const struct ng_nat_list_redirects *)
+	    (buf - offsetof(struct ng_nat_list_redirects, redirects));
+	return lr->total_count;
+}
+
+static const struct ng_parse_array_info ng_nat_listrdrs_ary_info = {
+	&ng_nat_listrdrs_entry_type,
+	&ng_nat_listrdrs_ary_getLength,
+	NULL
+};
+static const struct ng_parse_type ng_nat_listrdrs_ary_type = {
+	&ng_parse_array_type,
+	&ng_nat_listrdrs_ary_info
+};
+
+/* Parse type for struct ng_nat_list_redirects. */
+static const struct ng_parse_struct_field ng_nat_list_redirects_fields[]
+	= NG_NAT_LIST_REDIRECTS_TYPE_INFO(&ng_nat_listrdrs_ary_type);
+static const struct ng_parse_type ng_nat_list_redirects_type = {
+	&ng_parse_struct_type,
+	&ng_nat_list_redirects_fields
 };
 
 /* List of commands and how to convert arguments to/from ASCII. */
@@ -91,6 +169,62 @@ static const struct ng_cmdlist ng_nat_cmdlist[] = {
 	  &ng_parse_ipaddr_type,
 	  NULL
 	},
+	{
+	  NGM_NAT_COOKIE,
+	  NGM_NAT_REDIRECT_PORT,
+	  "redirectport",
+	  &ng_nat_redirect_port_type,
+	  &ng_parse_uint32_type
+	},
+	{
+	  NGM_NAT_COOKIE,
+	  NGM_NAT_REDIRECT_ADDR,
+	  "redirectaddr",
+	  &ng_nat_redirect_addr_type,
+	  &ng_parse_uint32_type
+	},
+	{
+	  NGM_NAT_COOKIE,
+	  NGM_NAT_REDIRECT_PROTO,
+	  "redirectproto",
+	  &ng_nat_redirect_proto_type,
+	  &ng_parse_uint32_type
+	},
+	{
+	  NGM_NAT_COOKIE,
+	  NGM_NAT_REDIRECT_DYNAMIC,
+	  "redirectdynamic",
+	  &ng_parse_uint32_type,
+	  NULL
+	},
+	{
+	  NGM_NAT_COOKIE,
+	  NGM_NAT_REDIRECT_DELETE,
+	  "redirectdelete",
+	  &ng_parse_uint32_type,
+	  NULL
+	},
+	{
+	  NGM_NAT_COOKIE,
+	  NGM_NAT_ADD_SERVER,
+	  "addserver",
+	  &ng_nat_add_server_type,
+	  NULL
+	},
+	{
+	  NGM_NAT_COOKIE,
+	  NGM_NAT_LIST_REDIRECTS,
+	  "listredirects",
+	  NULL,
+	  &ng_nat_list_redirects_type
+	},
+	{
+	  NGM_NAT_COOKIE,
+	  NGM_NAT_PROXY_RULE,
+	  "proxyrule",
+	  &ng_parse_string_type,
+	  NULL
+	},
 	{ 0 }
 };
 
@@ -109,6 +243,14 @@ static struct ng_type typestruct = {
 NETGRAPH_INIT(nat, &typestruct);
 MODULE_DEPEND(ng_nat, libalias, 1, 1, 1);
 
+/* Element for list of redirects. */
+struct ng_nat_rdr_lst {
+	STAILQ_ENTRY(ng_nat_rdr_lst) entries;
+	struct alias_link	*lnk;
+	struct ng_nat_listrdrs_entry rdr;
+};
+STAILQ_HEAD(rdrhead, ng_nat_rdr_lst);
+
 /* Information we store for each node. */
 struct ng_nat_priv {
 	node_p		node;		/* back pointer to node */
@@ -116,6 +258,9 @@ struct ng_nat_priv {
 	hook_p		out;		/* hook for masquerading */
 	struct libalias	*lib;		/* libalias handler */
 	uint32_t	flags;		/* status flags */
+	uint32_t	rdrcount;	/* number or redirects in list */
+	uint32_t	nextid;		/* for next in turn in list */
+	struct rdrhead	redirhead;	/* redirect list header */
 };
 typedef struct ng_nat_priv *priv_p;
 
@@ -144,6 +289,11 @@ ng_nat_constructor(node_p node)
 	/* Set same ports on. */
 	(void )LibAliasSetMode(priv->lib, PKT_ALIAS_SAME_PORTS,
 	    PKT_ALIAS_SAME_PORTS);
+
+	/* Init redirects housekeeping. */
+	priv->rdrcount = 0;
+	priv->nextid = 1;
+	STAILQ_INIT(&priv->redirhead);
 
 	/* Link structs together. */
 	NG_NODE_SET_PRIVATE(node, priv);
@@ -232,6 +382,277 @@ ng_nat_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			}
 
 			LibAliasSetTarget(priv->lib, *ia);
+		    }
+			break;
+		case NGM_NAT_REDIRECT_PORT:
+		    {
+			struct ng_nat_rdr_lst *entry;
+			struct ng_nat_redirect_port *const rp =
+			    (struct ng_nat_redirect_port *)msg->data;
+
+			if (msg->header.arglen < sizeof(*rp)) {
+				error = EINVAL;
+				break;
+			}
+
+			if ((entry = malloc(sizeof(struct ng_nat_rdr_lst),
+			    M_NETGRAPH, M_NOWAIT | M_ZERO)) == NULL) {
+				error = ENOMEM;
+				break;
+			}
+
+			/* Try actual redirect. */
+			entry->lnk = LibAliasRedirectPort(priv->lib,
+				rp->local_addr, htons(rp->local_port),
+				rp->remote_addr, htons(rp->remote_port),
+				rp->alias_addr, htons(rp->alias_port),
+				rp->proto);
+
+			if (entry->lnk == NULL) {
+				error = ENOMEM;
+				FREE(entry, M_NETGRAPH);
+				break;
+			}
+
+			/* Successful, save info in our internal list. */
+			entry->rdr.local_addr = rp->local_addr;
+			entry->rdr.alias_addr = rp->alias_addr;
+			entry->rdr.remote_addr = rp->remote_addr;
+			entry->rdr.local_port = rp->local_port;
+			entry->rdr.alias_port = rp->alias_port;
+			entry->rdr.remote_port = rp->remote_port;
+			entry->rdr.proto = rp->proto;
+			bcopy(rp->description, entry->rdr.description,
+			    NG_NAT_DESC_LENGTH);
+
+			/* Safety precaution. */
+			entry->rdr.description[NG_NAT_DESC_LENGTH-1] = '\0';
+
+			entry->rdr.id = priv->nextid++;
+			priv->rdrcount++;
+
+			/* Link to list of redirects. */
+			STAILQ_INSERT_TAIL(&priv->redirhead, entry, entries);
+
+			/* Response with id of newly added entry. */
+			NG_MKRESPONSE(resp, msg, sizeof(entry->rdr.id), M_NOWAIT);
+			if (resp == NULL) {
+				error = ENOMEM;
+				break;
+			}
+			bcopy(&entry->rdr.id, resp->data, sizeof(entry->rdr.id));
+		    }
+			break;
+		case NGM_NAT_REDIRECT_ADDR:
+		    {
+			struct ng_nat_rdr_lst *entry;
+			struct ng_nat_redirect_addr *const ra =
+			    (struct ng_nat_redirect_addr *)msg->data;
+
+			if (msg->header.arglen < sizeof(*ra)) {
+				error = EINVAL;
+				break;
+			}
+
+			if ((entry = malloc(sizeof(struct ng_nat_rdr_lst),
+			    M_NETGRAPH, M_NOWAIT | M_ZERO)) == NULL) {
+				error = ENOMEM;
+				break;
+			}
+
+			/* Try actual redirect. */
+			entry->lnk = LibAliasRedirectAddr(priv->lib,
+				ra->local_addr, ra->alias_addr);
+
+			if (entry->lnk == NULL) {
+				error = ENOMEM;
+				FREE(entry, M_NETGRAPH);
+				break;
+			}
+
+			/* Successful, save info in our internal list. */
+			entry->rdr.local_addr = ra->local_addr;
+			entry->rdr.alias_addr = ra->alias_addr;
+			entry->rdr.proto = NG_NAT_REDIRPROTO_ADDR;
+			bcopy(ra->description, entry->rdr.description,
+			    NG_NAT_DESC_LENGTH);
+
+			/* Safety precaution. */
+			entry->rdr.description[NG_NAT_DESC_LENGTH-1] = '\0';
+
+			entry->rdr.id = priv->nextid++;
+			priv->rdrcount++;
+
+			/* Link to list of redirects. */
+			STAILQ_INSERT_TAIL(&priv->redirhead, entry, entries);
+
+			/* Response with id of newly added entry. */
+			NG_MKRESPONSE(resp, msg, sizeof(entry->rdr.id), M_NOWAIT);
+			if (resp == NULL) {
+				error = ENOMEM;
+				break;
+			}
+			bcopy(&entry->rdr.id, resp->data, sizeof(entry->rdr.id));
+		    }
+			break;
+		case NGM_NAT_REDIRECT_PROTO:
+		    {
+			struct ng_nat_rdr_lst *entry;
+			struct ng_nat_redirect_proto *const rp =
+			    (struct ng_nat_redirect_proto *)msg->data;
+
+			if (msg->header.arglen < sizeof(*rp)) {
+				error = EINVAL;
+				break;
+			}
+
+			if ((entry = malloc(sizeof(struct ng_nat_rdr_lst),
+			    M_NETGRAPH, M_NOWAIT | M_ZERO)) == NULL) {
+				error = ENOMEM;
+				break;
+			}
+
+			/* Try actual redirect. */
+			entry->lnk = LibAliasRedirectProto(priv->lib,
+				rp->local_addr, rp->remote_addr,
+				rp->alias_addr, rp->proto);
+
+			if (entry->lnk == NULL) {
+				error = ENOMEM;
+				FREE(entry, M_NETGRAPH);
+				break;
+			}
+
+			/* Successful, save info in our internal list. */
+			entry->rdr.local_addr = rp->local_addr;
+			entry->rdr.alias_addr = rp->alias_addr;
+			entry->rdr.remote_addr = rp->remote_addr;
+			entry->rdr.proto = rp->proto;
+			bcopy(rp->description, entry->rdr.description,
+			    NG_NAT_DESC_LENGTH);
+
+			/* Safety precaution. */
+			entry->rdr.description[NG_NAT_DESC_LENGTH-1] = '\0';
+
+			entry->rdr.id = priv->nextid++;
+			priv->rdrcount++;
+
+			/* Link to list of redirects. */
+			STAILQ_INSERT_TAIL(&priv->redirhead, entry, entries);
+
+			/* Response with id of newly added entry. */
+			NG_MKRESPONSE(resp, msg, sizeof(entry->rdr.id), M_NOWAIT);
+			if (resp == NULL) {
+				error = ENOMEM;
+				break;
+			}
+			bcopy(&entry->rdr.id, resp->data, sizeof(entry->rdr.id));
+		    }
+			break;
+		case NGM_NAT_REDIRECT_DYNAMIC:
+		case NGM_NAT_REDIRECT_DELETE:
+		    {
+			struct ng_nat_rdr_lst *entry;
+			uint32_t *const id = (uint32_t *)msg->data;
+
+			if (msg->header.arglen < sizeof(*id)) {
+				error = EINVAL;
+				break;
+			}
+
+			/* Find entry with supplied id. */
+			STAILQ_FOREACH(entry, &priv->redirhead, entries) {
+				if (entry->rdr.id == *id)
+					break;
+			}
+
+			/* Not found. */
+			if (entry == NULL) {
+				error = ENOENT;
+				break;
+			}
+
+			if (msg->header.cmd == NGM_NAT_REDIRECT_DYNAMIC) {
+				if (LibAliasRedirectDynamic(priv->lib,
+				    entry->lnk) == -1) {
+					error = ENOTTY;	/* XXX Something better? */
+					break;
+				}
+			} else {	/* NGM_NAT_REDIRECT_DELETE */
+				LibAliasRedirectDelete(priv->lib, entry->lnk);
+			}
+
+			/* Delete entry from our internal list. */
+			priv->rdrcount--;
+			STAILQ_REMOVE(&priv->redirhead, entry, ng_nat_rdr_lst, entries);
+			FREE(entry, M_NETGRAPH);
+		    }
+			break;
+		case NGM_NAT_ADD_SERVER:
+		    {
+			struct ng_nat_rdr_lst *entry;
+			struct ng_nat_add_server *const as =
+			    (struct ng_nat_add_server *)msg->data;
+
+			if (msg->header.arglen < sizeof(*as)) {
+				error = EINVAL;
+				break;
+			}
+
+			/* Find entry with supplied id. */
+			STAILQ_FOREACH(entry, &priv->redirhead, entries) {
+				if (entry->rdr.id == as->id)
+					break;
+			}
+
+			/* Not found. */
+			if (entry == NULL) {
+				error = ENOENT;
+				break;
+			}
+
+			if (LibAliasAddServer(priv->lib, entry->lnk,
+			    as->addr, htons(as->port)) == -1) {
+				error = ENOMEM;
+				break;
+			}
+
+			entry->rdr.lsnat++;
+		    }
+			break;
+		case NGM_NAT_LIST_REDIRECTS:
+		    {
+			struct ng_nat_rdr_lst *entry;
+			struct ng_nat_list_redirects *ary; 
+			int i = 0;
+
+			NG_MKRESPONSE(resp, msg, sizeof(*ary) +
+			    (priv->rdrcount) * sizeof(*entry), M_NOWAIT);
+			if (resp == NULL) {
+				error = ENOMEM;
+				break;
+			}
+
+			ary = (struct ng_nat_list_redirects *)resp->data;
+			ary->total_count = priv->rdrcount;
+
+			STAILQ_FOREACH(entry, &priv->redirhead, entries) {
+				bcopy(&entry->rdr, &ary->redirects[i++],
+				    sizeof(struct ng_nat_listrdrs_entry));
+			}
+		    }
+			break;
+		case NGM_NAT_PROXY_RULE:
+		    {
+			char *cmd = (char *)msg->data;
+
+			if (msg->header.arglen < 6) {
+				error = EINVAL;
+				break;
+			}
+
+			if (LibAliasProxyRule(priv->lib, cmd) != 0)
+				error = ENOMEM;
 		    }
 			break;
 		default:
@@ -361,6 +782,15 @@ ng_nat_shutdown(node_p node)
 
 	NG_NODE_SET_PRIVATE(node, NULL);
 	NG_NODE_UNREF(node);
+
+	/* Free redirects list. */
+	while (!STAILQ_EMPTY(&priv->redirhead)) {
+		struct ng_nat_rdr_lst *entry = STAILQ_FIRST(&priv->redirhead);
+		STAILQ_REMOVE_HEAD(&priv->redirhead, entries);
+		FREE(entry, M_NETGRAPH);
+	};
+
+	/* Final free. */
 	LibAliasUninit(priv->lib);
 	FREE(priv, M_NETGRAPH);
 
