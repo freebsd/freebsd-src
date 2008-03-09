@@ -28,6 +28,9 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/bio.h>
+#include <sys/bus.h>
+#include <sys/conf.h>
 #include <geom/geom_disk.h>
 #include <machine/md_var.h>
 
