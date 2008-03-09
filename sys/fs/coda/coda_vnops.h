@@ -46,7 +46,7 @@
  */
 
 
-/* NetBSD interfaces to the vnodeops */
+/* FreeBSD interfaces to the vnodeops */
 vop_open_t coda_open;
 vop_close_t coda_close;
 vop_read_t coda_read;

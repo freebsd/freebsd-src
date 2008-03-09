@@ -290,7 +290,7 @@ coda_root(vfsp, flags, vpp, td)
 		*vpp = mi->mi_rootvp;
 		mi->mi_started = 1;
 
-		/* On Mach, this is vref.  On NetBSD, VOP_LOCK */
+		/* On Mach, this is vref.  On FreeBSD, vref + vn_lock. */
 		vref(*vpp);
 		vn_lock(*vpp, LK_EXCLUSIVE, td);
 		MARK_INT_SAT(CODA_ROOT_STATS);

@@ -355,7 +355,7 @@ venus_access(void *mdp, CodaFid *fid, int mode,
     INIT_IN(&inp->ih, CODA_ACCESS, cred, p);
     inp->Fid = *fid;
     /* NOTE:
-     * NetBSD and Venus internals use the "data" in the low 3 bits.
+     * FreeBSD and Venus internals use the "data" in the low 3 bits.
      * Hence, the conversion.
      */
     inp->flags = mode>>6;
