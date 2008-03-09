@@ -25,17 +25,19 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
   { "fbsd_dynamic_linker", FBSD_DYNAMIC_LINKER }
 
 /* FreeBSD needs the platform name (sparc64) defined.
-   Emacs needs to know if the arch is 64 or 32-bits.  */
-
-#undef  CPP_CPU64_DEFAULT_SPEC
-#define CPP_CPU64_DEFAULT_SPEC \
-  "-D__sparc64__ -D__sparc_v9__ -D__sparcv9 -D__sparc__ -D__arch64__"
+   Emacs needs to know if the arch is 64 or 32-bits.
+   This also selects which targets are available via -mcpu.  */
 
 #undef  FBSD_TARGET_CPU_CPP_BUILTINS
 #define FBSD_TARGET_CPU_CPP_BUILTINS()		\
   do						\
     {						\
       builtin_define ("__LP64__");		\
+      builtin_define ("__sparc64__");		\
+      builtin_define ("__sparc_v9__");		\
+      builtin_define ("__sparcv9");		\
+      builtin_define ("__sparc__");		\
+      builtin_define ("__arch64__");		\
     }						\
   while (0)
 
