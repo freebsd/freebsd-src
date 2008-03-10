@@ -69,7 +69,6 @@ vop_mkdir_t coda_mkdir;
 vop_rmdir_t coda_rmdir;
 vop_symlink_t coda_symlink;
 vop_readdir_t coda_readdir;
-vop_bmap_t coda_bmap;
 vop_strategy_t coda_strategy;
 vop_reclaim_t coda_reclaim;
 vop_lock1_t coda_lock;
