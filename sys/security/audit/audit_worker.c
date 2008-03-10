@@ -170,9 +170,6 @@ audit_record_write(struct vnode *vp, struct ucred *cred, void *data,
 	 * are limited to 1/sec.
 	 */
 	if (audit_qctrl.aq_minfree != 0) {
-		/*
-		 * XXXAUDIT: Check math and block size calculations here.
-		 */
 		temp = mnt_stat->f_blocks / (100 / audit_qctrl.aq_minfree);
 		if (mnt_stat->f_bfree < temp) {
 			if (ppsratecheck(&last_lowspace_trigger,
