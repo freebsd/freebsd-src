@@ -292,7 +292,7 @@ coda_root(vfsp, flags, vpp, td)
 
 		/* On Mach, this is vref.  On FreeBSD, vref + vn_lock. */
 		vref(*vpp);
-		vn_lock(*vpp, LK_EXCLUSIVE, td);
+		vn_lock(*vpp, LK_EXCLUSIVE | LK_RETRY, td);
 		MARK_INT_SAT(CODA_ROOT_STATS);
 		return(0);
 	    }
@@ -311,7 +311,7 @@ coda_root(vfsp, flags, vpp, td)
 
 	*vpp = mi->mi_rootvp;
 	vref(*vpp);
-	vn_lock(*vpp, LK_EXCLUSIVE, td);
+	vn_lock(*vpp, LK_EXCLUSIVE | LK_RETRY, td);
 
 	MARK_INT_SAT(CODA_ROOT_STATS);
 	goto exit;
@@ -327,7 +327,7 @@ coda_root(vfsp, flags, vpp, td)
 	 */
 	*vpp = mi->mi_rootvp;
 	vref(*vpp);
-	vn_lock(*vpp, LK_EXCLUSIVE, td);
+	vn_lock(*vpp, LK_EXCLUSIVE | LK_RETRY, td);
 
 	MARK_INT_FAIL(CODA_ROOT_STATS);
 	error = 0;
