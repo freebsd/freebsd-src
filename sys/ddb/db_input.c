@@ -302,6 +302,9 @@ db_readline(lstart, lsize)
 	char *	lstart;
 	int	lsize;
 {
+
+	if (lsize < 2)
+		return (0);
 	if (lsize != db_lhistlsize) {
 		/*
 		 * (Re)initialize input line history.  Throw away any
@@ -316,7 +319,7 @@ db_readline(lstart, lsize)
 	db_force_whitespace();	/* synch output position */
 
 	db_lbuf_start = lstart;
-	db_lbuf_end   = lstart + lsize;
+	db_lbuf_end   = lstart + lsize - 2;	/* Will append NL and NUL. */
 	db_lc = lstart;
 	db_le = lstart;
 
