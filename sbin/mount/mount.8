@@ -28,7 +28,7 @@
 .\"     @(#)mount.8	8.8 (Berkeley) 6/16/94
 .\" $FreeBSD$
 .\"
-.Dd July 12, 2006
+.Dd March 10, 2008
 .Dt MOUNT 8
 .Os
 .Sh NAME
@@ -335,7 +335,7 @@ For example, the
 .Nm
 command:
 .Bd -literal -offset indent
-mount -t unionfs -o -b /sys $HOME/sys
+mount -t unionfs -o below /sys $HOME/sys
 .Ed
 .Pp
 causes
