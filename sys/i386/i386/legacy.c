@@ -137,20 +137,10 @@ static int
 legacy_attach(device_t dev)
 {
 	device_t child;
-	int i;
-
-	/* First, attach the CPU pseudo-driver. */
-	for (i = 0; i <= mp_maxid; i++)
-		if (!CPU_ABSENT(i)) {
-			child = BUS_ADD_CHILD(dev, 0, "cpu", i);
-			if (child == NULL)
-				panic("legacy_attach cpu");
-			device_probe_and_attach(child);
-		}
 
 	/*
-	 * Second, let our child driver's identify any child devices that
-	 * they can find.  Once that is done attach any devices that we
+	 * Let our child drivers identify any child devices that they
+	 * can find.  Once that is done attach any devices that we
 	 * found.
 	 */
 	bus_generic_probe(dev);
@@ -262,6 +252,7 @@ legacy_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
  * Legacy CPU attachment when ACPI is not available.  Drivers like
  * cpufreq(4) hang off this.
  */
+static void	cpu_identify(driver_t *driver, device_t parent);
 static int	cpu_read_ivar(device_t dev, device_t child, int index,
 		    uintptr_t *result);
 static device_t cpu_add_child(device_t bus, int order, const char *name,
@@ -275,6 +266,7 @@ struct cpu_device {
 
 static device_method_t cpu_methods[] = {
 	/* Device interface */
+	DEVMETHOD(device_identify,	cpu_identify),
 	DEVMETHOD(device_probe,		bus_generic_probe),
 	DEVMETHOD(device_attach,	bus_generic_attach),
 	DEVMETHOD(device_detach,	bus_generic_detach),
@@ -307,6 +299,25 @@ static driver_t cpu_driver = {
 };
 static devclass_t cpu_devclass;
 DRIVER_MODULE(cpu, legacy, cpu_driver, cpu_devclass, 0, 0);
+
+static void
+cpu_identify(driver_t *driver, device_t parent)
+{
+	device_t child;
+	int i;
+
+	/*
+	 * Attach a cpuX device for each CPU.  We use an order of 150
+	 * so that these devices are attached after the Host-PCI
+	 * bridges (which are added at order 100).
+	 */
+	for (i = 0; i <= mp_maxid; i++)
+		if (!CPU_ABSENT(i)) {
+			child = BUS_ADD_CHILD(parent, 150, "cpu", i);
+			if (child == NULL)
+				panic("legacy_attach cpu");
+		}
+}
 
 static device_t
 cpu_add_child(device_t bus, int order, const char *name, int unit)
