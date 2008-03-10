@@ -950,15 +950,8 @@ ipi_bitmap_handler(struct trapframe frame)
 
 	ipi_bitmap = atomic_readandclear_int(&cpu_ipi_pending[cpu]);
 
-	if (ipi_bitmap & (1 << IPI_PREEMPT)) {
-		struct thread *running_thread = curthread;
-		thread_lock(running_thread);
-		if (running_thread->td_critnest > 1) 
-			running_thread->td_owepreempt = 1;
-		else 		
-			mi_switch(SW_INVOL | SW_PREEMPT, NULL);
-		thread_unlock(running_thread);
-	}
+	if (ipi_bitmap & (1 << IPI_PREEMPT))
+		sched_preempt(curthread);
 
 	/* Nothing to do for AST */
 }
