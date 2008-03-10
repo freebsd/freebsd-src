@@ -102,7 +102,7 @@ main(int argc, char *argv[])
 	char *target;
 
 	Hflag = Lflag = Pflag = 0;
-	while ((ch = getopt(argc, argv, "HLPRfilnprv")) != -1)
+	while ((ch = getopt(argc, argv, "HLPRafilnprv")) != -1)
 		switch (ch) {
 		case 'H':
 			Hflag = 1;
@@ -118,6 +118,12 @@ main(int argc, char *argv[])
 			break;
 		case 'R':
 			Rflag = 1;
+			break;
+		case 'a':
+			Pflag = 1;
+			pflag = 1;
+			Rflag = 1;
+			Hflag = Lflag = 0;
 			break;
 		case 'f':
 			fflag = 1;
