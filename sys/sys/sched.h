@@ -108,6 +108,7 @@ void	sched_unlend_user_prio(struct thread *td, u_char pri);
 void	sched_user_prio(struct thread *td, u_char prio);
 void	sched_userret(struct thread *td);
 void	sched_wakeup(struct thread *td);
+void	sched_preempt(struct thread *td);
 
 /*
  * Threads are moved on and off of run queues
