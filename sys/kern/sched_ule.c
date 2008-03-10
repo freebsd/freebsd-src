@@ -186,7 +186,6 @@ static int preempt_thresh = PRI_MIN_KERN;
 #else 
 static int preempt_thresh = 0;
 #endif
-static int lowpri_userret = 1;
 
 /*
  * tdq - per processor runqs and statistics.  All fields are protected by the
@@ -204,6 +203,7 @@ struct tdq {
 	u_char		tdq_idx;		/* Current insert index. */
 	u_char		tdq_ridx;		/* Current removal index. */
 	u_char		tdq_lowpri;		/* Lowest priority thread. */
+	u_char		tdq_ipipending;		/* IPI pending. */
 	int		tdq_transferable;	/* Transferable thread count. */
 	char		tdq_name[sizeof("sched lock") + 6];
 } __aligned(64);
@@ -220,10 +220,7 @@ struct cpu_group *cpu_top;
  */
 static int rebalance = 1;
 static int balance_interval = 128;	/* Default set in sched_initticks(). */
-static int pick_pri = 1;
 static int affinity;
-static int tryself = 1;
-static int oldtryself = 0;
 static int steal_htt = 1;
 static int steal_idle = 1;
 static int steal_thresh = 2;
@@ -266,13 +263,14 @@ static void tdq_load_add(struct tdq *, struct td_sched *);
 static void tdq_load_rem(struct tdq *, struct td_sched *);
 static __inline void tdq_runq_add(struct tdq *, struct td_sched *, int);
 static __inline void tdq_runq_rem(struct tdq *, struct td_sched *);
+static inline int sched_shouldpreempt(int, int, int);
 void tdq_print(int cpu);
 static void runq_print(struct runq *rq);
 static void tdq_add(struct tdq *, struct thread *, int);
 #ifdef SMP
 static int tdq_move(struct tdq *, struct tdq *);
 static int tdq_idled(struct tdq *);
-static void tdq_notify(struct td_sched *);
+static void tdq_notify(struct tdq *, struct td_sched *);
 static struct td_sched *tdq_steal(struct tdq *, int);
 static struct td_sched *runq_steal(struct runq *, int);
 static int sched_pickcpu(struct td_sched *, int);
@@ -341,6 +339,39 @@ tdq_print(int cpu)
 	runq_print(&tdq->tdq_idle);
 	printf("\tload transferable: %d\n", tdq->tdq_transferable);
 	printf("\tlowest priority:   %d\n", tdq->tdq_lowpri);
+}
+
+static inline int
+sched_shouldpreempt(int pri, int cpri, int remote)
+{
+	/*
+	 * If the new priority is not better than the current priority there is
+	 * nothing to do.
+	 */
+	if (pri >= cpri)
+		return (0);
+	/*
+	 * Always preempt idle.
+	 */
+	if (cpri >= PRI_MIN_IDLE)
+		return (1);
+	/*
+	 * If preemption is disabled don't preempt others.
+	 */
+	if (preempt_thresh == 0)
+		return (0);
+	/*
+	 * Preempt if we exceed the threshold.
+	 */
+	if (pri <= preempt_thresh)
+		return (1);
+	/*
+	 * If we're realtime or better and there is timeshare or worse running
+	 * preempt only remote processors.
+	 */
+	if (remote && pri <= PRI_MAX_REALTIME && cpri > PRI_MAX_REALTIME)
+		return (1);
+	return (0);
 }
 
 #define	TS_RQ_PPQ	(((PRI_MAX_TIMESHARE - PRI_MIN_TIMESHARE) + 1) / RQ_NQS)
@@ -894,44 +925,20 @@ tdq_idled(struct tdq *tdq)
  * Notify a remote cpu of new work.  Sends an IPI if criteria are met.
  */
 static void
-tdq_notify(struct td_sched *ts)
+tdq_notify(struct tdq *tdq, struct td_sched *ts)
 {
-	struct thread *ctd;
-	struct pcpu *pcpu;
 	int cpri;
 	int pri;
 	int cpu;
 
+	if (tdq->tdq_ipipending)
+		return;
 	cpu = ts->ts_cpu;
 	pri = ts->ts_thread->td_priority;
-	pcpu = pcpu_find(cpu);
-	ctd = pcpu->pc_curthread;
-	cpri = ctd->td_priority;
-
-	/*
-	 * If our priority is not better than the current priority there is
-	 * nothing to do.
-	 */
-	if (pri > cpri)
+	cpri = pcpu_find(cpu)->pc_curthread->td_priority;
+	if (!sched_shouldpreempt(pri, cpri, 1))
 		return;
-	/*
-	 * Always IPI idle.
-	 */
-	if (cpri > PRI_MIN_IDLE)
-		goto sendipi;
-	/*
-	 * If we're realtime or better and there is timeshare or worse running
-	 * send an IPI.
-	 */
-	if (pri < PRI_MAX_REALTIME && cpri > PRI_MAX_REALTIME)
-		goto sendipi;
-	/*
-	 * Otherwise only IPI if we exceed the threshold.
-	 */
-	if (pri > preempt_thresh)
-		return;
-sendipi:
-	ctd->td_flags |= TDF_NEEDRESCHED;
+	tdq->tdq_ipipending = 1;
 	ipi_selected(1 << cpu, IPI_PREEMPT);
 }
 
@@ -1125,16 +1132,10 @@ sched_pickcpu(struct td_sched *ts, int flags)
 	/*
 	 * Compare the lowest loaded cpu to current cpu.
 	 */
-	if (THREAD_CAN_SCHED(td, self) &&
-	    TDQ_CPU(cpu)->tdq_lowpri < PRI_MIN_IDLE) {
-		if (tryself && TDQ_CPU(self)->tdq_lowpri > pri)
-			cpu = self;
-		else if (oldtryself && curthread->td_priority > pri)
-			cpu = self;
-	}
-	if (cpu == -1) {
-		panic("cpu == -1, mask 0x%X cpu top %p", mask, cpu_top);
-	}
+	if (THREAD_CAN_SCHED(td, self) && TDQ_CPU(self)->tdq_lowpri > pri &&
+	    TDQ_CPU(cpu)->tdq_lowpri < PRI_MIN_IDLE)
+		cpu = self;
+	KASSERT(cpu != -1, ("sched_pickcpu: Failed to find a cpu."));
 	return (cpu);
 }
 #endif
@@ -1704,7 +1705,7 @@ sched_switch_migrate(struct tdq *tdq, struct thread *td, int flags)
 	thread_block_switch(td);	/* This releases the lock on tdq. */
 	TDQ_LOCK(tdn);
 	tdq_add(tdn, td, flags);
-	tdq_notify(td->td_sched);
+	tdq_notify(tdn, td->td_sched);
 	/*
 	 * After we unlock tdn the new cpu still can't switch into this
 	 * thread until we've unblocked it in cpu_switch().  The lock
@@ -2027,6 +2028,24 @@ sched_exit_thread(struct thread *td, struct thread *child)
 	thread_unlock(td);
 }
 
+void
+sched_preempt(struct thread *td)
+{
+	struct tdq *tdq;
+
+	thread_lock(td);
+	tdq = TDQ_SELF();
+	TDQ_LOCK_ASSERT(tdq, MA_OWNED);
+	tdq->tdq_ipipending = 0;
+	if (td->td_priority > tdq->tdq_lowpri) {
+		if (td->td_critnest > 1)
+			td->td_owepreempt = 1;
+		else
+			mi_switch(SW_INVOL | SW_PREEMPT, NULL);
+	}
+	thread_unlock(td);
+}
+
 /*
  * Fix priorities on return to user-space.  Priorities may be elevated due
  * to static priorities in msleep() or similar.
@@ -2049,8 +2068,7 @@ sched_userret(struct thread *td)
 		thread_lock(td);
 		td->td_priority = td->td_user_pri;
 		td->td_base_pri = td->td_user_pri;
-		if (lowpri_userret)
-			tdq_setlowpri(TDQ_SELF(), td);
+		tdq_setlowpri(TDQ_SELF(), td);
 		thread_unlock(td);
         }
 }
@@ -2185,21 +2203,18 @@ sched_setpreempt(struct thread *td)
 	int cpri;
 	int pri;
 
+	THREAD_LOCK_ASSERT(curthread, MA_OWNED);
+
 	ctd = curthread;
 	pri = td->td_priority;
 	cpri = ctd->td_priority;
-	if (td->td_priority < cpri)
-		curthread->td_flags |= TDF_NEEDRESCHED;
+	if (pri < cpri)
+		ctd->td_flags |= TDF_NEEDRESCHED;
 	if (panicstr != NULL || pri >= cpri || cold || TD_IS_INHIBITED(ctd))
 		return;
-	/*
-	 * Always preempt IDLE threads.  Otherwise only if the preempting
-	 * thread is an ithread.
-	 */
-	if (pri > preempt_thresh && cpri < PRI_MIN_IDLE)
+	if (!sched_shouldpreempt(pri, cpri, 0))
 		return;
 	ctd->td_owepreempt = 1;
-	return;
 }
 
 /*
@@ -2275,7 +2290,7 @@ sched_add(struct thread *td, int flags)
 	tdq = sched_setcpu(ts, cpu, flags);
 	tdq_add(tdq, td, flags);
 	if (cpu != cpuid) {
-		tdq_notify(ts);
+		tdq_notify(tdq, ts);
 		return;
 	}
 #else
@@ -2555,13 +2570,8 @@ SYSCTL_INT(_kern_sched, OID_AUTO, interact, CTLFLAG_RW, &sched_interact, 0,
 SYSCTL_INT(_kern_sched, OID_AUTO, preempt_thresh, CTLFLAG_RW, &preempt_thresh,
      0,"Min priority for preemption, lower priorities have greater precedence");
 #ifdef SMP
-SYSCTL_INT(_kern_sched, OID_AUTO, pick_pri, CTLFLAG_RW, &pick_pri, 0,
-    "Pick the target cpu based on priority rather than load.");
 SYSCTL_INT(_kern_sched, OID_AUTO, affinity, CTLFLAG_RW, &affinity, 0,
     "Number of hz ticks to keep thread affinity for");
-SYSCTL_INT(_kern_sched, OID_AUTO, tryself, CTLFLAG_RW, &tryself, 0, "");
-SYSCTL_INT(_kern_sched, OID_AUTO, userret, CTLFLAG_RW, &lowpri_userret, 0, "");
-SYSCTL_INT(_kern_sched, OID_AUTO, oldtryself, CTLFLAG_RW, &oldtryself, 0, "");
 SYSCTL_INT(_kern_sched, OID_AUTO, balance, CTLFLAG_RW, &rebalance, 0,
     "Enables the long-term load balancer");
 SYSCTL_INT(_kern_sched, OID_AUTO, balance_interval, CTLFLAG_RW,
