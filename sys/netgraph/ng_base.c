@@ -70,14 +70,11 @@
 
 MODULE_VERSION(netgraph, NG_ABI_VERSION);
 
-/* List of all active nodes */
-static LIST_HEAD(, ng_node) ng_nodelist;
-static struct mtx	ng_nodelist_mtx;
-
 /* Mutex to protect topology events. */
 static struct mtx	ng_topo_mtx;
 
 #ifdef	NETGRAPH_DEBUG
+static struct mtx	ng_nodelist_mtx; /* protects global node/hook lists */
 static struct mtx	ngq_mtx;	/* protects the queue item list */
 
 static SLIST_HEAD(, ng_node) ng_allnodes;
@@ -169,7 +166,7 @@ static struct mtx	ng_typelist_mtx;
 
 /* Hash related definitions */
 /* XXX Don't need to initialise them because it's a LIST */
-#define NG_ID_HASH_SIZE 32 /* most systems wont need even this many */
+#define NG_ID_HASH_SIZE 128 /* most systems wont need even this many */
 static LIST_HEAD(, ng_node) ng_ID_hash[NG_ID_HASH_SIZE];
 static struct mtx	ng_idhash_mtx;
 /* Method to find a node.. used twice so do it here */
@@ -184,6 +181,18 @@ static struct mtx	ng_idhash_mtx;
 				break;					\
 			}						\
 		}							\
+	} while (0)
+
+#define NG_NAME_HASH_SIZE 128 /* most systems wont need even this many */
+static LIST_HEAD(, ng_node) ng_name_hash[NG_NAME_HASH_SIZE];
+static struct mtx	ng_namehash_mtx;
+#define NG_NAMEHASH(NAME, HASH)				\
+	do {						\
+		u_char	h = 0;				\
+		const u_char	*c;			\
+		for (c = (const u_char*)(NAME); *c; c++)\
+			h += *c;			\
+		(HASH) = h % (NG_NAME_HASH_SIZE);	\
 	} while (0)
 
 
@@ -630,11 +639,10 @@ ng_make_node_common(struct ng_type *type, node_p *nodepp)
 	/* Initialize hook list for new node */
 	LIST_INIT(&node->nd_hooks);
 
-	/* Link us into the node linked list */
-	mtx_lock(&ng_nodelist_mtx);
-	LIST_INSERT_HEAD(&ng_nodelist, node, nd_nodes);
-	mtx_unlock(&ng_nodelist_mtx);
-
+	/* Link us into the name hash. */
+	mtx_lock(&ng_namehash_mtx);
+	LIST_INSERT_HEAD(&ng_name_hash[0], node, nd_nodes);
+	mtx_unlock(&ng_namehash_mtx);
 
 	/* get an ID and put us in the hash chain */
 	mtx_lock(&ng_idhash_mtx);
@@ -768,10 +776,10 @@ ng_unref_node(node_p node)
 
 	if (v == 0) { /* we were the last */
 
-		mtx_lock(&ng_nodelist_mtx);
+		mtx_lock(&ng_namehash_mtx);
 		node->nd_type->refs--; /* XXX maybe should get types lock? */
 		LIST_REMOVE(node, nd_nodes);
-		mtx_unlock(&ng_nodelist_mtx);
+		mtx_unlock(&ng_namehash_mtx);
 
 		mtx_lock(&ng_idhash_mtx);
 		LIST_REMOVE(node, nd_idnodes);
@@ -814,7 +822,7 @@ ng_node2ID(node_p node)
 int
 ng_name_node(node_p node, const char *name)
 {
-	int i;
+	int i, hash;
 	node_p node2;
 
 	/* Check the name is valid */
@@ -841,6 +849,13 @@ ng_name_node(node_p node, const char *name)
 	/* copy it */
 	strlcpy(NG_NODE_NAME(node), name, NG_NODESIZ);
 
+	/* Update name hash. */
+	NG_NAMEHASH(name, hash);
+	mtx_lock(&ng_namehash_mtx);
+	LIST_REMOVE(node, nd_nodes);
+	LIST_INSERT_HEAD(&ng_name_hash[hash], node, nd_nodes);
+	mtx_unlock(&ng_namehash_mtx);
+
 	return (0);
 }
 
@@ -859,6 +874,7 @@ ng_name2noderef(node_p here, const char *name)
 {
 	node_p node;
 	ng_ID_t temp;
+	int	hash;
 
 	/* "." means "this node" */
 	if (strcmp(name, ".") == 0) {
@@ -872,17 +888,17 @@ ng_name2noderef(node_p here, const char *name)
 	}
 
 	/* Find node by name */
-	mtx_lock(&ng_nodelist_mtx);
-	LIST_FOREACH(node, &ng_nodelist, nd_nodes) {
-		if (NG_NODE_IS_VALID(node)
-		&& NG_NODE_HAS_NAME(node)
-		&& (strcmp(NG_NODE_NAME(node), name) == 0)) {
+	NG_NAMEHASH(name, hash);
+	mtx_lock(&ng_namehash_mtx);
+	LIST_FOREACH(node, &ng_name_hash[hash], nd_nodes) {
+		if (NG_NODE_IS_VALID(node) &&
+		    (strcmp(NG_NODE_NAME(node), name) == 0)) {
 			break;
 		}
 	}
 	if (node)
 		NG_NODE_REF(node);
-	mtx_unlock(&ng_nodelist_mtx);
+	mtx_unlock(&ng_namehash_mtx);
 	return (node);
 }
 
@@ -2628,17 +2644,19 @@ ng_generic_msg(node_p here, item_p item, hook_p lasthook)
 		const int unnamed = (msg->header.cmd == NGM_LISTNODES);
 		struct namelist *nl;
 		node_p node;
-		int num = 0;
+		int num = 0, i;
 
-		mtx_lock(&ng_nodelist_mtx);
+		mtx_lock(&ng_namehash_mtx);
 		/* Count number of nodes */
-		LIST_FOREACH(node, &ng_nodelist, nd_nodes) {
-			if (NG_NODE_IS_VALID(node)
-			&& (unnamed || NG_NODE_HAS_NAME(node))) {
-				num++;
+		for (i = 0; i < NG_NAME_HASH_SIZE; i++) {
+			LIST_FOREACH(node, &ng_name_hash[i], nd_nodes) {
+				if (NG_NODE_IS_VALID(node) &&
+				    (unnamed || NG_NODE_HAS_NAME(node))) {
+					num++;
+				}
 			}
 		}
-		mtx_unlock(&ng_nodelist_mtx);
+		mtx_unlock(&ng_namehash_mtx);
 
 		/* Get response struct */
 		NG_MKRESPONSE(resp, msg, sizeof(*nl)
@@ -2651,27 +2669,30 @@ ng_generic_msg(node_p here, item_p item, hook_p lasthook)
 
 		/* Cycle through the linked list of nodes */
 		nl->numnames = 0;
-		mtx_lock(&ng_nodelist_mtx);
-		LIST_FOREACH(node, &ng_nodelist, nd_nodes) {
-			struct nodeinfo *const np = &nl->nodeinfo[nl->numnames];
+		mtx_lock(&ng_namehash_mtx);
+		for (i = 0; i < NG_NAME_HASH_SIZE; i++) {
+			LIST_FOREACH(node, &ng_name_hash[i], nd_nodes) {
+				struct nodeinfo *const np =
+				    &nl->nodeinfo[nl->numnames];
 
-			if (NG_NODE_NOT_VALID(node))
-				continue;
-			if (!unnamed && (! NG_NODE_HAS_NAME(node)))
-				continue;
-			if (nl->numnames >= num) {
-				log(LOG_ERR, "%s: number of %s changed\n",
-				    __func__, "nodes");
-				break;
+				if (NG_NODE_NOT_VALID(node))
+					continue;
+				if (!unnamed && (! NG_NODE_HAS_NAME(node)))
+					continue;
+				if (nl->numnames >= num) {
+					log(LOG_ERR, "%s: number of nodes changed\n",
+					    __func__);
+					break;
+				}
+				if (NG_NODE_HAS_NAME(node))
+					strcpy(np->name, NG_NODE_NAME(node));
+				strcpy(np->type, node->nd_type->name);
+				np->id = ng_node2ID(node);
+				np->hooks = node->nd_numhooks;
+				nl->numnames++;
 			}
-			if (NG_NODE_HAS_NAME(node))
-				strcpy(np->name, NG_NODE_NAME(node));
-			strcpy(np->type, node->nd_type->name);
-			np->id = ng_node2ID(node);
-			np->hooks = node->nd_numhooks;
-			nl->numnames++;
 		}
-		mtx_unlock(&ng_nodelist_mtx);
+		mtx_unlock(&ng_namehash_mtx);
 		break;
 	    }
 
@@ -2898,11 +2919,16 @@ out:
 ************************************************************************/
 
 uma_zone_t			ng_qzone;
-static int			maxalloc = 512;	/* limit the damage of a leak */
+static int			maxalloc = 4096;/* limit the damage of a leak */
+static int			maxdata = 512;	/* limit the damage of a DoS */
+static int			useddata = 0;
 
 TUNABLE_INT("net.graph.maxalloc", &maxalloc);
 SYSCTL_INT(_net_graph, OID_AUTO, maxalloc, CTLFLAG_RDTUN, &maxalloc,
     0, "Maximum number of queue items to allocate");
+TUNABLE_INT("net.graph.maxdata", &maxdata);
+SYSCTL_INT(_net_graph, OID_AUTO, maxdata, CTLFLAG_RW | CTLFLAG_TUN, &maxdata,
+    0, "Maximum number of queue data items to allocate");
 
 #ifdef	NETGRAPH_DEBUG
 static TAILQ_HEAD(, ng_item) ng_itemlist = TAILQ_HEAD_INITIALIZER(ng_itemlist);
@@ -2953,6 +2979,7 @@ ng_free_item(item_p item)
 	 */
 	switch (item->el_flags & NGQF_TYPE) {
 	case NGQF_DATA:
+		atomic_subtract_int(&useddata, 1);
 		/* If we have an mbuf still attached.. */
 		NG_FREE_M(_NGI_M(item));
 		break;
@@ -3064,13 +3091,15 @@ ngb_mod_event(module_t mod, int event, void *data)
 		NG_WORKLIST_LOCK_INIT();
 		mtx_init(&ng_typelist_mtx, "netgraph types mutex", NULL,
 		    MTX_DEF);
-		mtx_init(&ng_nodelist_mtx, "netgraph nodelist mutex", NULL,
-		    MTX_DEF);
 		mtx_init(&ng_idhash_mtx, "netgraph idhash mutex", NULL,
+		    MTX_DEF);
+		mtx_init(&ng_namehash_mtx, "netgraph namehash mutex", NULL,
 		    MTX_DEF);
 		mtx_init(&ng_topo_mtx, "netgraph topology mutex", NULL,
 		    MTX_DEF);
 #ifdef	NETGRAPH_DEBUG
+		mtx_init(&ng_nodelist_mtx, "netgraph nodelist mutex", NULL,
+		    MTX_DEF);
 		mtx_init(&ngq_mtx, "netgraph item list mutex", NULL,
 		    MTX_DEF);
 #endif
@@ -3377,6 +3406,11 @@ ng_package_data(struct mbuf *m, int flags)
 {
 	item_p item;
 
+	if (atomic_fetchadd_int(&useddata, 1) >= maxdata) {
+		atomic_subtract_int(&useddata, 1);
+		NG_FREE_M(m);
+		return (NULL);
+	}
 	if ((item = ng_getqblk(flags)) == NULL) {
 		NG_FREE_M(m);
 		return (NULL);
@@ -3611,8 +3645,11 @@ ng_send_fn2(node_p node, hook_p hook, item_p pitem, ng_item_fn2 *fn, void *arg1,
 	if (pitem == NULL || (flags & NG_REUSE_ITEM) == 0) {
 		if ((item = ng_getqblk(flags)) == NULL)
 			return (ENOMEM);
-	} else
+	} else {
+		if ((pitem->el_flags & NGQF_TYPE) == NGQF_DATA)
+			atomic_subtract_int(&useddata, 1);
 		item = pitem;
+	}
 
 	item->el_flags = NGQF_FN2 | NGQF_WRITER;
 	NG_NODE_REF(node); /* and one for the item */
