@@ -75,11 +75,9 @@ vop_lock1_t coda_lock;
 vop_unlock_t coda_unlock;
 vop_islocked_t coda_islocked;
 int coda_vop_error(void *);
-int coda_vop_nop(void *);
 vop_pathconf_t coda_pathconf;
 
 int coda_rdwr(struct vnode *vp, struct uio *uiop, enum uio_rw rw,
     int ioflag, struct ucred *cred, struct thread *td);
 int coda_grab_vnode(struct cdev *dev, ino_t ino, struct vnode **vpp);
-void print_vattr(struct vattr *attr);
-void print_cred(struct ucred *cred);
+void coda_print_cred(struct ucred *cred);

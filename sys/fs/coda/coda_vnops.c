@@ -146,17 +146,7 @@ struct vop_vector coda_vnodeops = {
 
 };
 
-/* A generic do-nothing.  For lease_check, advlock */
-int
-coda_vop_nop(void *anon) {
-    struct vnodeop_desc **desc = (struct vnodeop_desc **)anon;
-
-    if (codadebug) {
-	myprintf(("Vnode operation %s called, but unsupported\n",
-		  (*desc)->vdesc_name));
-    } 
-   return (0);
-}
+static void	coda_print_vattr(struct vattr *attr);
 
 int
 coda_vnodeopstats_init(void)
@@ -390,8 +380,6 @@ coda_rdwr(struct vnode *vp, struct uio *uiop, enum uio_rw rw, int ioflag,
     return(error);
 }
 
-
-
 int
 coda_ioctl(struct vop_ioctl_args *ap)
 {
@@ -504,7 +492,7 @@ coda_getattr(struct vop_getattr_args *ap)
 	CODADEBUG(CODA_GETATTR, { myprintf(("attr cache hit: %s\n",
 					coda_f2s(&cp->c_fid)));});
 	CODADEBUG(CODA_GETATTR, if (!(codadebug & ~CODA_GETATTR))
-		 print_vattr(&cp->c_vattr); );
+		 coda_print_vattr(&cp->c_vattr); );
 	
 	*vap = cp->c_vattr;
 	MARK_INT_SAT(CODA_GETATTR_STATS);
@@ -518,7 +506,7 @@ coda_getattr(struct vop_getattr_args *ap)
 				     coda_f2s(&cp->c_fid), error)); )	       
 	    
 	CODADEBUG(CODA_GETATTR, if (!(codadebug & ~CODA_GETATTR))
-		 print_vattr(vap);	);
+		 coda_print_vattr(vap);	);
 	
     {	int size = vap->va_size;
     	struct vnode *convp = cp->c_ovp;
@@ -557,7 +545,7 @@ coda_setattr(struct vop_setattr_args *ap)
     }
 
     if (codadebug & CODADBGMSK(CODA_SETATTR)) {
-	print_vattr(vap);
+	coda_print_vattr(vap);
     }
     error = venus_setattr(vtomi(vp), &cp->c_fid, vap, cred, td->td_proc);
 
@@ -1422,6 +1410,9 @@ coda_symlink(struct vop_symlink_args *ap)
 
 /*
  * Read directory entries.
+ *
+ * XXXRW: This forwards the operator straight to the cache vnode using
+ * VOP_READDIR(), rather than calling venus_readdir().  Why?
  */
 int
 coda_readdir(struct vop_readdir_args *ap)
@@ -1577,8 +1568,8 @@ coda_islocked(struct vop_islocked_args *ap)
     return (vop_stdislocked(ap));
 }
 
-void
-print_vattr(struct vattr *attr)
+static void
+coda_print_vattr(struct vattr *attr)
 {
     char *typestr;
 
@@ -1636,7 +1627,7 @@ print_vattr(struct vattr *attr)
 
 /* How to print a ucred */
 void
-print_cred(struct ucred *cred)
+coda_print_cred(struct ucred *cred)
 {
 
 	int i;
