@@ -461,14 +461,7 @@ cpu_ipi_stop(struct trapframe *tf)
 void
 cpu_ipi_preempt(struct trapframe *tf)
 {
-	struct thread *running_thread = curthread;
-
-	thread_lock(running_thread);
-	if (running_thread->td_critnest > 1)
-		running_thread->td_owepreempt = 1;
-	else
-		mi_switch(SW_INVOL | SW_PREEMPT, NULL);
-	thread_unlock(running_thread);
+	sched_preempt(curthread);
 }
 
 void
