@@ -44,6 +44,7 @@
 #define WPI_GPIO_CTL		0x024
 #define WPI_EEPROM_CTL		0x02c
 #define WPI_EEPROM_STATUS	0x030
+#define WPI_UCODE_SET		0x058
 #define WPI_UCODE_CLR		0x05c
 #define WPI_TEMPERATURE		0x060
 #define WPI_CHICKEN		0x100
@@ -201,6 +202,7 @@ struct wpi_rx_desc {
 #define WPI_RX_DONE		 27
 #define WPI_TX_DONE		 28
 #define WPI_START_SCAN		130
+#define WPI_SCAN_RESULTS	131
 #define WPI_STOP_SCAN		132
 #define WPI_STATE_CHANGED	161
 #define WPI_MISSED_BEACON	162
