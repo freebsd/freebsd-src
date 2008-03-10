@@ -78,7 +78,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 
 #include "opt_ffs.h"
-#include "opt_quota.h"
 
 #ifndef SOFTUPDATES
 
