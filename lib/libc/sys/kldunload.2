@@ -25,11 +25,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 3, 1999
+.Dd March 10, 2008
 .Dt KLDUNLOAD 2
 .Os
 .Sh NAME
 .Nm kldunload
+.Nm kldunloadf
 .Nd unload kld files
 .Sh LIBRARY
 .Lb libc
@@ -38,12 +39,24 @@
 .In sys/linker.h
 .Ft int
 .Fn kldunload "int fileid"
+.Ft int
+.Fn kldunload "int fileid" "int flags"
 .Sh DESCRIPTION
 The
 .Fn kldunload
 system call
 unloads a kld file from the kernel that was previously linked via
 .Xr kldload 2 .
+.Pp
+The
+.Fn kldunloadf
+system call accepts an additional flags argument, which may be one of
+.Dv LINKER_UNLOAD_NORMAL ,
+giving the same behavior as
+.Fn kldunload ,
+or
+.Dv LINKER_UNLOAD_FORCE ,
+which causes the unload to ignore a failure to quiesce the module.
 .Sh RETURN VALUES
 .Rv -std
 .Sh ERRORS
