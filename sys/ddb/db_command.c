@@ -577,7 +577,7 @@ db_kill(dummy1, dummy2, dummy3, dummy4)
 	if (!db_expression(&pid))
 		DB_ERROR(("Missing process ID\n"));
 	db_skip_to_eol();
-	if (sig < 0 || sig > _SIG_MAXSIG)
+	if (sig < 1 || sig > _SIG_MAXSIG)
 		DB_ERROR(("Signal number out of range\n"));
 
 	/*
