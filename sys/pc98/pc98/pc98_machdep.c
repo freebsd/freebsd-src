@@ -38,6 +38,11 @@
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
+#include <sys/bio.h>
+#include <sys/bus.h>
+#include <sys/conf.h>
+#include <geom/geom_disk.h>
+#include <machine/md_var.h>
 #include <pc98/pc98/pc98_machdep.h>
 
 /*
@@ -190,4 +195,37 @@ scsi_da_bios_params(struct ccb_calc_geometry *ccg)
 	}
 
 	return (0);
+}
+
+/*
+ * Get the geometry of the ATA HDD from the BIOS work area.
+ *
+ * XXX for now, we hack it
+ */
+void
+pc98_ad_firmware_geom_adjust(device_t dev, struct disk *disk)
+{
+	off_t totsec = disk->d_mediasize / disk->d_sectorsize;
+	off_t cyl = totsec / disk->d_fwsectors / disk->d_fwheads;
+    
+	/*
+	 * It is impossible to have more than 65535 cylendars, so if
+	 * we have more then try to adjust.  This is lame, but it is
+	 * only POC.
+	 */
+	if (cyl > 65355) {
+		if (totsec < 17*8*65535) {
+			disk->d_fwsectors = 17;
+			disk->d_fwheads = 8;
+		} else if (totsec < 63*16*65535) {
+			disk->d_fwsectors = 63;
+			disk->d_fwheads = 16;
+		} else if (totsec < 255*16*65535) {
+			disk->d_fwsectors = 255;
+			disk->d_fwheads = 16;
+		} else {
+			disk->d_fwsectors = 255;
+			disk->d_fwheads = 255;
+		}
+	}
 }
