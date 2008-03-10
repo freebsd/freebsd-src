@@ -699,8 +699,11 @@ coda_fsync(struct vop_fsync_args *ap)
 	return(0);
     }
 
-    if (convp)
+    if (convp) {
+	vn_lock(convp, LK_EXCLUSIVE | LK_RETRY, td);
     	VOP_FSYNC(convp, MNT_WAIT, td);
+	VOP_UNLOCK(convp, 0, td);
+    }
 
     /*
      * We see fsyncs with usecount == 1 then usecount == 0.
@@ -716,7 +719,7 @@ coda_fsync(struct vop_fsync_args *ap)
     */
 
     /*
-     * We can expect fsync on any vnode at all if venus is pruging it.
+     * We can expect fsync on any vnode at all if venus is purging it.
      * Venus can't very well answer the fsync request, now can it?
      * Hopefully, it won't have to, because hopefully, venus preserves
      * the (possibly untrue) invariant that it never purges an open
