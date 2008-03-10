@@ -405,6 +405,10 @@ smp_topo(void)
 		/* Dual core with no sharing.  */
 		top = smp_topo_1level(CG_SHARE_NONE, 2, 0);
 		break;
+	case 2:
+		/* No topology, all cpus are equal. */
+		top = smp_topo_none();
+		break;
 	case 3:
 		/* Dual core with shared L2.  */
 		top = smp_topo_1level(CG_SHARE_L2, 2, 0);
