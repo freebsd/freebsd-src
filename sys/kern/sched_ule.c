@@ -1250,6 +1250,7 @@ sched_setup(void *dummy)
 	/* Add thread0's load since it's running. */
 	TDQ_LOCK(tdq);
 	thread0.td_lock = TDQ_LOCKPTR(TDQ_SELF());
+	tdq_runq_pick(tdq, &td_sched0);
 	tdq_load_add(tdq, &td_sched0);
 	tdq->tdq_lowpri = thread0.td_priority;
 	TDQ_UNLOCK(tdq);
