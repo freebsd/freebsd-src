@@ -45,7 +45,7 @@
 .Op Fl H | Fl L | Fl P
 .Oc
 .Op Fl f | i | n
-.Op Fl lpv
+.Op Fl alpv
 .Ar source_file target_file
 .Nm
 .Oo
@@ -53,7 +53,7 @@
 .Op Fl H | Fl L | Fl P
 .Oc
 .Op Fl f | i | n
-.Op Fl lpv
+.Op Fl alpv
 .Ar source_file ... target_directory
 .Sh DESCRIPTION
 In the first synopsis form, the
@@ -116,6 +116,10 @@ If you need to preserve hard links, consider using
 or
 .Xr pax 1
 instead.
+.It Fl a
+Archive mode.
+Same as
+.Fl RpP .
 .It Fl f
 For each existing destination pathname, remove it and
 create a new file, without prompting for confirmation
