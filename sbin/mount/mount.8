@@ -342,7 +342,7 @@ causes
 .Nm
 to execute the equivalent of:
 .Bd -literal -offset indent
-/sbin/mount_unionfs -b /sys $HOME/sys
+/sbin/mount_unionfs -o below /sys $HOME/sys
 .Ed
 .Pp
 Additional options specific to file system types
