@@ -383,6 +383,8 @@ sched_shouldpreempt(int pri, int cpri, int remote)
 static __inline void
 tdq_runq_add(struct tdq *tdq, struct td_sched *ts, int flags)
 {
+	u_char pri;
+
 	TDQ_LOCK_ASSERT(tdq, MA_OWNED);
 	THREAD_LOCK_ASSERT(ts->ts_thread, MA_OWNED);
 
@@ -391,10 +393,11 @@ tdq_runq_add(struct tdq *tdq, struct td_sched *ts, int flags)
 		tdq->tdq_transferable++;
 		ts->ts_flags |= TSF_XFERABLE;
 	}
-	if (ts->ts_runq == &tdq->tdq_timeshare) {
-		u_char pri;
-
-		pri = ts->ts_thread->td_priority;
+	pri = ts->ts_thread->td_priority;
+	if (pri <= PRI_MAX_REALTIME) {
+		ts->ts_runq = &tdq->tdq_realtime;
+	} else if (pri <= PRI_MAX_TIMESHARE) {
+		ts->ts_runq = &tdq->tdq_timeshare;
 		KASSERT(pri <= PRI_MAX_TIMESHARE && pri >= PRI_MIN_TIMESHARE,
 			("Invalid priority %d on timeshare runq", pri));
 		/*
@@ -415,25 +418,10 @@ tdq_runq_add(struct tdq *tdq, struct td_sched *ts, int flags)
 		} else
 			pri = tdq->tdq_ridx;
 		runq_add_pri(ts->ts_runq, ts, pri, flags);
+		return;
 	} else
-		runq_add(ts->ts_runq, ts, flags);
-}
-
-/*
- * Pick the run queue based on priority.
- */
-static __inline void
-tdq_runq_pick(struct tdq *tdq, struct td_sched *ts)
-{
-	int pri;
-
-	pri = ts->ts_thread->td_priority;
-	if (pri <= PRI_MAX_REALTIME)
-		ts->ts_runq = &tdq->tdq_realtime;
-	else if (pri <= PRI_MAX_TIMESHARE)
-		ts->ts_runq = &tdq->tdq_timeshare;
-	else
 		ts->ts_runq = &tdq->tdq_idle;
+	runq_add(ts->ts_runq, ts, flags);
 }
 
 /* 
@@ -456,7 +444,6 @@ tdq_runq_rem(struct tdq *tdq, struct td_sched *ts)
 			runq_remove_idx(ts->ts_runq, ts, &tdq->tdq_ridx);
 		else
 			runq_remove_idx(ts->ts_runq, ts, NULL);
-		ts->ts_ltick = ticks;
 	} else
 		runq_remove(ts->ts_runq, ts);
 }
@@ -1250,7 +1237,6 @@ sched_setup(void *dummy)
 	/* Add thread0's load since it's running. */
 	TDQ_LOCK(tdq);
 	thread0.td_lock = TDQ_LOCKPTR(TDQ_SELF());
-	tdq_runq_pick(tdq, &td_sched0);
 	tdq_load_add(tdq, &td_sched0);
 	tdq->tdq_lowpri = thread0.td_priority;
 	TDQ_UNLOCK(tdq);
@@ -1547,7 +1533,6 @@ sched_thread_priority(struct thread *td, u_char prio)
 	tdq = TDQ_CPU(ts->ts_cpu);
 	oldpri = td->td_priority;
 	td->td_priority = prio;
-	tdq_runq_pick(tdq, ts);
 	if (TD_IS_RUNNING(td)) {
 		if (prio < tdq->tdq_lowpri)
 			tdq->tdq_lowpri = prio;
@@ -2202,6 +2187,7 @@ sched_choose(void)
 	TDQ_LOCK_ASSERT(tdq, MA_OWNED);
 	ts = tdq_choose(tdq);
 	if (ts) {
+		ts->ts_ltick = ticks;
 		tdq_runq_rem(tdq, ts);
 		return (ts->ts_thread);
 	}
@@ -2254,7 +2240,6 @@ tdq_add(struct tdq *tdq, struct thread *td, int flags)
 	ts = td->td_sched;
 	if (td->td_priority < tdq->tdq_lowpri)
 		tdq->tdq_lowpri = td->td_priority;
-	tdq_runq_pick(tdq, ts);
 	tdq_runq_add(tdq, ts, flags);
 	tdq_load_add(tdq, ts);
 }
