@@ -365,6 +365,15 @@ wakeup_one(ident)
 	sleepq_release(ident);
 }
 
+static void
+kdb_switch(void)
+{
+	thread_unlock(curthread);
+	kdb_backtrace();
+	kdb_reenter();
+	panic("%s: did not reenter debugger", __func__);
+}
+
 /*
  * The machine independent parts of context switching.
  */
@@ -394,12 +403,8 @@ mi_switch(int flags, struct thread *newtd)
 	/*
 	 * Don't perform context switches from the debugger.
 	 */
-	if (kdb_active) {
-		thread_unlock(td);
-		kdb_backtrace();
-		kdb_reenter();
-		panic("%s: did not reenter debugger", __func__);
-	}
+	if (kdb_active)
+		kdb_switch();
 	if (flags & SW_VOL)
 		td->td_ru.ru_nvcsw++;
 	else
