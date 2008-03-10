@@ -3494,25 +3494,24 @@ bus_setup_intr(device_t dev, struct resource *r, int flags,
 {
 	int error;
 
-	if (dev->parent != NULL) {
-		error = BUS_SETUP_INTR(dev->parent, dev, r, flags,
-		    filter, handler, arg, cookiep);
-		if (error == 0) {
-			if (handler != NULL && !(flags & INTR_MPSAFE))
-				device_printf(dev, "[GIANT-LOCKED]\n");
-			if (bootverbose && (flags & INTR_MPSAFE))
-				device_printf(dev, "[MPSAFE]\n");
-			if (filter != NULL) {
-				if (handler == NULL)
-					device_printf(dev, "[FILTER]\n");
-				else 
-					device_printf(dev, "[FILTER+ITHREAD]\n");
-			} else 
-				device_printf(dev, "[ITHREAD]\n");
-		}
-	} else
-		error = EINVAL;
-	return (error);
+	if (dev->parent == NULL)
+		return (EINVAL);
+	error = BUS_SETUP_INTR(dev->parent, dev, r, flags, filter, handler,
+	    arg, cookiep);
+	if (error != 0)
+		return (error);
+	if (handler != NULL && !(flags & INTR_MPSAFE))
+		device_printf(dev, "[GIANT-LOCKED]\n");
+	if (bootverbose && (flags & INTR_MPSAFE))
+		device_printf(dev, "[MPSAFE]\n");
+	if (filter != NULL) {
+		if (handler == NULL)
+			device_printf(dev, "[FILTER]\n");
+		else 
+			device_printf(dev, "[FILTER+ITHREAD]\n");
+	} else 
+		device_printf(dev, "[ITHREAD]\n");
+	return (0);
 }
 
 /**
