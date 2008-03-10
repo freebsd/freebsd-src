@@ -1244,6 +1244,17 @@ sched_choose(void)
 }
 
 void
+sched_preempt(struct thread *td)
+{
+	thread_lock(td);
+	if (td->td_critnest > 1)
+		td->td_owepreempt = 1;
+	else
+		mi_switch(SW_INVOL | SW_PREEMPT, NULL);
+	thread_unlock(td);
+}
+
+void
 sched_userret(struct thread *td)
 {
 	/*
