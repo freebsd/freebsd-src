@@ -49,11 +49,21 @@
 .Ft int
 .Fn archive_write_disk_set_skip_file "struct archive *" "dev_t" "ino_t"
 .Ft int
-.Fn archive_write_disk_set_group_lookup "struct archive *" "void *" "gid_t (*)(void *, const char *gname, gid_t gid)" "void (*cleanup)(void *)"
+.Fo archive_write_disk_set_group_lookup
+.Fa "struct archive *"
+.Fa "void *"
+.Fa "gid_t (*)(void *, const char *gname, gid_t gid)"
+.Fa "void (*cleanup)(void *)"
+.Fc
 .Ft int
 .Fn archive_write_disk_set_standard_lookup "struct archive *"
 .Ft int
-.Fn archive_write_disk_set_user_lookup "struct archive *" "void *" "uid_t (*)(void *, const char *uname, uid_t uid)" "void (*cleanup)(void *)"
+.Fo archive_write_disk_set_user_lookup
+.Fa "struct archive *"
+.Fa "void *"
+.Fa "uid_t (*)(void *, const char *uname, uid_t uid)"
+.Fa "void (*cleanup)(void *)"
+.Fc
 .Ft int
 .Fn archive_write_header "struct archive *" "struct archive_entry *"
 .Ft ssize_t
@@ -160,7 +170,10 @@ Note that paths ending in
 .Pa ..
 always cause an error, regardless of this flag.
 .El
-.It Fn archive_write_disk_set_group_lookup , Fn archive_write_disk_set_user_lookup
+.It Xo
+.Fn archive_write_disk_set_group_lookup ,
+.Fn archive_write_disk_set_user_lookup
+.Xc
 The
 .Tn struct archive_entry
 objects contain both names and ids that can be used to identify users
