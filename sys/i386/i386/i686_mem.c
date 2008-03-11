@@ -208,14 +208,15 @@ i686_mrfetch(struct mem_range_softc *sc)
     for (; (mrd - sc->mr_desc) < sc->mr_ndesc; msr += 2, mrd++) {
 	msrv = rdmsr(msr);
 	mrd->mr_flags = (mrd->mr_flags & ~MDF_ATTRMASK) |
-	    i686_mtrr2mrt(msrv & 0xff);
-	mrd->mr_base = msrv & 0x0000000ffffff000LL;
+	    i686_mtrr2mrt(msrv & MTRR_PHYSBASE_TYPE);
+	mrd->mr_base = msrv & MTRR_PHYSBASE_PHYSBASE;
 	msrv = rdmsr(msr + 1);
-	mrd->mr_flags = (msrv & 0x800) ? 
+	mrd->mr_flags = (msrv & MTRR_PHYSMASK_VALID) ? 
 	    (mrd->mr_flags | MDF_ACTIVE) :
 	    (mrd->mr_flags & ~MDF_ACTIVE);
 	/* Compute the range from the mask. Ick. */
-	mrd->mr_len = (~(msrv & 0x0000000ffffff000LL) & 0x0000000fffffffffLL) + 1;
+	mrd->mr_len = (~(msrv & MTRR_PHYSMASK_PHYSMASK) &
+	    (MTRR_PHYSMASK_PHYSMASK | 0xfffLL)) + 1;
 	if (!mrvalid(mrd->mr_base, mrd->mr_len))
 	    mrd->mr_flags |= MDF_BOGUS;
 	/* If unclaimed and active, must be the BIOS */
@@ -298,7 +299,7 @@ i686_mrstoreone(void *arg)
 	load_cr4(cr4save & ~CR4_PGE);
     load_cr0((rcr0() & ~CR0_NW) | CR0_CD);	/* disable caches (CD = 1, NW = 0) */
     wbinvd();					/* flush caches, TLBs */
-    wrmsr(MSR_MTRRdefType, rdmsr(MSR_MTRRdefType) & ~0x800);	/* disable MTRRs (E = 0) */
+    wrmsr(MSR_MTRRdefType, rdmsr(MSR_MTRRdefType) & ~MTRR_DEF_ENABLE);	/* disable MTRRs (E = 0) */
 
     /* Set fixed-range MTRRs */
     if (sc->mr_cap & MR686_FIXMTRR) {
@@ -343,7 +344,7 @@ i686_mrstoreone(void *arg)
 	/* base/type register */
 	omsrv = rdmsr(msr);
 	if (mrd->mr_flags & MDF_ACTIVE) {
-	    msrv = mrd->mr_base & 0x0000000ffffff000LL;
+	    msrv = mrd->mr_base & MTRR_PHYSBASE_PHYSBASE;
 	    msrv |= i686_mrt2mtrr(mrd->mr_flags, omsrv);
 	} else {
 	    msrv = 0;
@@ -352,14 +353,14 @@ i686_mrstoreone(void *arg)
 	    
 	/* mask/active register */
 	if (mrd->mr_flags & MDF_ACTIVE) {
-	    msrv = 0x800 | (~(mrd->mr_len - 1) & 0x0000000ffffff000LL);
+	    msrv = MTRR_PHYSMASK_VALID | (~(mrd->mr_len - 1) & MTRR_PHYSMASK_PHYSMASK);
 	} else {
 	    msrv = 0;
 	}
 	wrmsr(msr + 1, msrv);
     }
     wbinvd();							/* flush caches, TLBs */
-    wrmsr(MSR_MTRRdefType, rdmsr(MSR_MTRRdefType) | 0x800);	/* restore MTRR state */
+    wrmsr(MSR_MTRRdefType, rdmsr(MSR_MTRRdefType) | MTRR_DEF_ENABLE);	/* restore MTRR state */
     load_cr0(rcr0() & ~(CR0_CD | CR0_NW));  			/* enable caches CD = 0 and NW = 0 */
     load_cr4(cr4save);						/* restore cr4 */
 }
@@ -542,17 +543,17 @@ i686_mrinit(struct mem_range_softc *sc)
     mtrrdef = rdmsr(MSR_MTRRdefType);
 
     /* For now, bail out if MTRRs are not enabled */
-    if (!(mtrrdef & 0x800)) {
+    if (!(mtrrdef & MTRR_DEF_ENABLE)) {
 	if (bootverbose)
 	    printf("CPU supports MTRRs but not enabled\n");
 	return;
     }
-    nmdesc = mtrrcap & 0xff;
+    nmdesc = mtrrcap & MTRR_CAP_VCNT;
     if (bootverbose)
 	printf("Pentium Pro MTRR support enabled\n");
 
     /* If fixed MTRRs supported and enabled */
-    if ((mtrrcap & 0x100) && (mtrrdef & 0x400)) {
+    if ((mtrrcap & MTRR_CAP_FIXED) && (mtrrdef & MTRR_DEF_FIXED_ENABLE)) {
 	sc->mr_cap = MR686_FIXMTRR;
 	nmdesc += MTRR_N64K + MTRR_N16K + MTRR_N4K;
     }
