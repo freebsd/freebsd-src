@@ -2313,9 +2313,10 @@ bge_attach(device_t dev)
 	if (BGE_IS_5705_PLUS(sc) &&
 	    !(sc->bge_flags & BGE_FLAG_ADJUST_TRIM)) {
 		if (sc->bge_asicrev == BGE_ASICREV_BCM5755 ||
-		    sc->bge_asicrev == BGE_ASICREV_BCM5787)
-			sc->bge_flags |= BGE_FLAG_JITTER_BUG;
-		else
+		    sc->bge_asicrev == BGE_ASICREV_BCM5787) {
+			if (sc->bge_chipid != BGE_CHIPID_BCM5722_A0)
+				sc->bge_flags |= BGE_FLAG_JITTER_BUG;
+		} else
 			sc->bge_flags |= BGE_FLAG_BER_BUG;
 	}
 
