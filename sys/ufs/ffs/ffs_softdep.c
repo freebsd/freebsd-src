@@ -42,7 +42,7 @@
 __FBSDID("$FreeBSD$");
 
 /*
- * For now we want the safety net that DEBUG flags provide.
+ * For now we want the safety net that the DEBUG flag provides.
  */
 #ifndef DEBUG
 #define DEBUG
@@ -1062,7 +1062,7 @@ softdep_waitidle(struct mount *mp)
 	error = 0;
 	if (i == 10) {
 		error = EBUSY;
-		printf("softdep_waitidle: Failed to flush worklist for %p",
+		printf("softdep_waitidle: Failed to flush worklist for %p\n",
 		    mp);
 	}
 
