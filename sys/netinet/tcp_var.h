@@ -235,14 +235,17 @@ struct tcpcb {
  * to tcp_dooptions and tcp_addoptions.
  * The binary order of the to_flags is relevant for packing of the
  * options in tcp_addoptions.
+ * SACK should be kept after TS; some broken cable modem / router
+ * devices were found in the field that ignore SYN-ACKs with
+ * SACK before TS.
  */
 struct tcpopt {
 	u_long		to_flags;	/* which options are present */
 #define	TOF_MSS		0x0001		/* maximum segment size */
 #define	TOF_SCALE	0x0002		/* window scaling */
-#define	TOF_SACKPERM	0x0004		/* SACK permitted */
 #define	TOF_TS		0x0010		/* timestamp */
-#define	TOF_SIGNATURE	0x0040		/* TCP-MD5 signature option (RFC2385) */
+#define	TOF_SIGNATURE	0x0020		/* TCP-MD5 signature option (RFC2385) */
+#define	TOF_SACKPERM	0x0040		/* SACK permitted */
 #define	TOF_SACK	0x0080		/* Peer sent SACK option */
 #define	TOF_MAXOPT	0x0100
 	u_int32_t	to_tsval;	/* new timestamp */
