@@ -919,7 +919,7 @@ ngs_rcvmsg(node_p node, item_p item, hook_p lasthook)
 	if (sbappendaddr(&so->so_rcv, (struct sockaddr *)&addr, m, NULL) == 0) {
 		TRAP_ERROR;
 		m_freem(m);
-		error = so->so_error = ENOBUFS;
+		return (ENOBUFS);
 	}
 	sorwakeup(so);
 	
