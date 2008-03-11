@@ -10,7 +10,7 @@
 
 	The FreeBSD Simplified Chinese Project
 
-	Original Revision: 1.73
+	Original Revision: 1.73.4.3
 -->
 
 <!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
@@ -19,7 +19,7 @@
 
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
 %release;
-<!ENTITY release.bugfix "5.2.1-RELEASE">
+<!ENTITY release.bugfix "7.0-RELEASE">
 ]>
 
 <article>
@@ -43,12 +43,7 @@
     <pubdate>$FreeBSD$</pubdate>
 
     <copyright>
-      <year>2000</year>
-      <year>2001</year>
-      <year>2002</year>
-      <year>2003</year>
-      <year>2004</year>
-      <year>2005</year>
+      <year>2008</year>
       <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
     </copyright>
 
@@ -63,13 +58,13 @@
   <abstract>
     <para>这份文档列出了 &os;
 <![ %release.type.current [
-      &release.current;,
+      &release.current;
 ]]>
 <![ %release.type.snapshot [
-      &release.prev;,
+      &release.prev;
 ]]>
 <![ %release.type.release [
-      &release.current;,
+      &release.current;
 ]]>
       的勘误内容，
       其中包括在发行版发布之后发现的重大问题，
@@ -96,13 +91,13 @@
     <title>介绍</title>
 
     <para>这份勘误文档包含了关于 &os; <![ %release.type.current [
-      &release.current;.
+      &release.current;
 ]]>
 <![ %release.type.snapshot [
-      &release.prev;.
+      &release.prev;
 ]]>
 <![ %release.type.release [
-      &release.current;.
+      &release.current;
 ]]>
       的 <quote>最新重大新闻</quote>。 在安装这一版本之前，
       通过参考这份文档来了解在发布之后，
@@ -131,10 +126,6 @@
     <para>暂无安全公告。</para>
 ]]>
 
-<![ %release.type.current [
-    <para>暂无安全公告。</para>
-]]>
-
 <![ %release.type.snapshot [
     <para>暂无安全公告。</para>
 ]]>
@@ -144,33 +135,63 @@
   <sect1 id="open-issues">
     <title>未解决的问题</title>
 
-<![ %release.type.current [
-    <para>暂无未解决的问题。</para>
-]]>
-
 <![ %release.type.release [
     <para>暂无未解决的问题。</para>
 ]]>
 
 <![ %release.type.snapshot [
-    <para>暂无未解决的问题。</para>
+    <para>[20080229] &man.tcpdump.1; 不能正确地显示 802.11 帧的
+      TX/RX 速率。 此问题已经在
+      HEAD 和 RELENG_7 分支中修复。</para>
+
+    <para>[20080229] 在 Linux 模拟系统中发现了一个可能导致某些使用
+      &man.mmap.2; 的 Linux 程序发生访问越界 (segmentation fault)
+      的 bug。 此问题已经在
+      HEAD 和 RELENG_7 分支中修复。</para>
+
+    <para>[20080229] 使用 &man.re.4; 网卡驱动时，
+      有用户观察到了包数据损坏和不稳定等现象。 一些用户报告使用这一驱动的较新版本
+      (在 HEAD 上) 能够解决他们的问题， 或至少有所改善。</para>
+
+    <para>[20080229] 有用户反映， &os; 对发出 TCP 选项方式所进行的变动，
+      会导致与某些 cable modem 路由器之间的交互出现问题。
+      尽管对这一现象的原因仍在进行调查， 但目前的试验发现， 已汇入 HEAD
+      的将选项处理方式改回与 &os; 6 相同的方式改善了这一状况。</para>
+
+    <para>[20080307] &os; 中的 SCTP 实现目前依赖于将 <literal>INET6</literal>
+      支持联编进内核中。 我们计划在未来的版本中将这一需求去掉。</para>
+
+    <para>[20080307] 从 &os;
+      6.<replaceable>X</replaceable> 到 &os; &release.bugfix; 的升级，
+      会在 <literal>installkernel</literal> 这一步时，
+      产生一些来自 &man.kldxref.8; 的警告信息。 这些警告是无害的，
+      可以安全地忽略它们。<literal>installkernel</literal> step.  These warnings are
+      harmless and can be ignored.</para>
+
+    <para>[20080307] IPsec 功能所需要的 &man.crypto.4; 驱动程序在
+      &os;/&arch.powerpc; 平台上存在严重问题
+      (编译配置中使用 <literal>device crypto</literal> 会导致内核不可用)。</para>
+
 ]]>
 
   </sect1>
 
   <sect1 id="late-news">
-    <title>最新消息</title>
-
-<![ %release.type.current [
-    <para>无新闻。</para>
-]]>
+    <title>新闻及修正</title>
 
 <![ %release.type.release [
     <para>无新闻。</para>
 ]]>
 
 <![ %release.type.snapshot [
-    <para>无新闻。</para>
+    <para>[20080229] &os; &release.bugfix; 发行说明文档
+      (发行版本说明、 硬件兼容说明等) 中提到使用 &os; 7-STABLE
+      的用户应订阅 <literal>freebsd-current</literal> 邮件列表，
+      这些文字不应出现。</para>
+
+    <para>[20080229] 在发行版说明中的 KDE 版本号是不正确的，
+      正确的版本号是 3.5.8。</para>
+
 ]]>
   </sect1>
 
