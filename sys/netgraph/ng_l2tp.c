@@ -118,6 +118,7 @@ MALLOC_DEFINE(M_NETGRAPH_L2TP, "netgraph_l2tp", "netgraph l2tp node");
 struct l2tp_seq {
 	u_int16_t		ns;		/* next xmit seq we send */
 	u_int16_t		nr;		/* next recv seq we expect */
+	u_int16_t		inproc;		/* packet is in processing */
 	u_int16_t		rack;		/* last 'nr' we rec'd */
 	u_int16_t		xack;		/* last 'nr' we sent */
 	u_int16_t		wmax;		/* peer's max recv window */
@@ -173,7 +174,6 @@ static int	ng_l2tp_seq_adjust(priv_p priv,
 static void	ng_l2tp_seq_reset(priv_p priv);
 static void	ng_l2tp_seq_failure(priv_p priv);
 static void	ng_l2tp_seq_recv_nr(priv_p priv, u_int16_t nr);
-static int	ng_l2tp_seq_recv_ns(priv_p priv, u_int16_t ns);
 static void	ng_l2tp_seq_xack_timeout(node_p node, hook_p hook,
 		    void *arg1, int arg2);
 static void	ng_l2tp_seq_rack_timeout(node_p node, hook_p hook,
@@ -911,6 +911,7 @@ ng_l2tp_rcvdata_lower(hook_p h, item_p item)
 
 	/* Handle control packets */
 	if ((hdr & L2TP_HDR_CTRL) != 0) {
+		struct l2tp_seq *const seq = &priv->seq;
 
 		/* Handle receive ack sequence number Nr */
 		ng_l2tp_seq_recv_nr(priv, nr);
@@ -923,29 +924,59 @@ ng_l2tp_rcvdata_lower(hook_p h, item_p item)
 			ERROUT(0);
 		}
 
+		mtx_lock(&seq->mtx);
 		/*
-		 * Prepend session ID to packet here: we don't want to accept
-		 * the send sequence number Ns if we have to drop the packet
-		 * later because of a memory error, because then the upper
-		 * layer would never get the packet.
+		 * If not what we expect or we are busy, drop packet and
+		 * send an immediate ZLB ack.
 		 */
+		if (ns != seq->nr || seq->inproc) {
+			if (L2TP_SEQ_DIFF(ns, seq->nr) <= 0)
+				priv->stats.recvDuplicates++;
+			else
+				priv->stats.recvOutOfOrder++;
+			mtx_unlock(&seq->mtx);
+			ng_l2tp_xmit_ctrl(priv, NULL, seq->ns);
+			NG_FREE_ITEM(item);
+			NG_FREE_M(m);
+			ERROUT(0);
+		}
+		/*
+		 * Until we deliver this packet we can't receive next one as
+		 * we have no information for sending ack.
+		 */
+		seq->inproc = 1;
+		mtx_unlock(&seq->mtx);
+
+		/* Prepend session ID to packet. */
 		M_PREPEND(m, 2, M_DONTWAIT);
 		if (m == NULL) {
+			seq->inproc = 0;
 			priv->stats.memoryFailures++;
 			NG_FREE_ITEM(item);
 			ERROUT(ENOBUFS);
 		}
 		memcpy(mtod(m, u_int16_t *), &ids[1], 2);
 
-		/* Now handle send sequence number */
-		if (ng_l2tp_seq_recv_ns(priv, ns) == -1) {
-			NG_FREE_ITEM(item);
-			NG_FREE_M(m);
-			ERROUT(0);
-		}
-
 		/* Deliver packet to upper layers */
 		NG_FWD_NEW_DATA(error, item, priv->ctrl, m);
+		
+		mtx_lock(&seq->mtx);
+		/* Ready to process next packet. */
+		seq->inproc = 0;
+
+		/* If packet was successfully delivered send ack. */
+		if (error == 0) {
+			/* Update recv sequence number */
+			seq->nr++;
+			/* Start receive ack timer, if not already running */
+			if (!callout_active(&seq->xack_timer)) {
+				ng_callout(&seq->xack_timer, priv->node, NULL,
+				    L2TP_DELAYED_ACK, ng_l2tp_seq_xack_timeout,
+				    NULL, 0);
+			}
+		}
+		mtx_unlock(&seq->mtx);
+
 		ERROUT(error);
 	}
 
@@ -1389,47 +1420,6 @@ ng_l2tp_seq_recv_nr(priv_p priv, u_int16_t nr)
 }
 
 /*
- * Handle receipt of a sequence number value (Ns) from peer.
- * We make no attempt to re-order out of order packets.
- *
- * This function should only be called for non-ZLB packets.
- *
- * Returns:
- *	 0	Accept packet
- *	-1	Drop packet
- */
-static int
-ng_l2tp_seq_recv_ns(priv_p priv, u_int16_t ns)
-{
-	struct l2tp_seq *const seq = &priv->seq;
-
-	/* If not what we expect, drop packet and send an immediate ZLB ack */
-	if (ns != seq->nr) {
-		if (L2TP_SEQ_DIFF(ns, seq->nr) < 0)
-			priv->stats.recvDuplicates++;
-		else
-			priv->stats.recvOutOfOrder++;
-		ng_l2tp_xmit_ctrl(priv, NULL, seq->ns);
-		return (-1);
-	}
-
-	mtx_lock(&seq->mtx);
-
-	/* Update recv sequence number */
-	seq->nr++;
-
-	/* Start receive ack timer, if not already running */
-	if (!callout_active(&seq->xack_timer))
-		ng_callout(&seq->xack_timer, priv->node, NULL,
-		    L2TP_DELAYED_ACK, ng_l2tp_seq_xack_timeout, NULL, 0);
-
-	mtx_unlock(&seq->mtx);
-
-	/* Accept packet */
-	return (0);
-}
-
-/*
  * Handle an ack timeout. We have an outstanding ack that we
  * were hoping to piggy-back, but haven't, so send a ZLB.
  */
@@ -1491,6 +1481,7 @@ ng_l2tp_seq_rack_timeout(node_p node, hook_p hook, void *arg1, int arg2)
 	    hz * delay, ng_l2tp_seq_rack_timeout, NULL, 0);
 
 	/* Do slow-start/congestion algorithm windowing algorithm */
+	seq->ns = seq->rack;
 	seq->ssth = (seq->cwnd + 1) / 2;
 	seq->cwnd = 1;
 	seq->acks = 0;
@@ -1499,7 +1490,7 @@ ng_l2tp_seq_rack_timeout(node_p node, hook_p hook, void *arg1, int arg2)
 	if ((m = L2TP_COPY_MBUF(seq->xwin[0], M_DONTWAIT)) == NULL)
 		priv->stats.memoryFailures++;
 	else
-		ng_l2tp_xmit_ctrl(priv, m, seq->rack);
+		ng_l2tp_xmit_ctrl(priv, m, seq->ns++);
 
 	/* callout_deactivate() is not needed here 
 	    as ng_callout() is getting called each time */
