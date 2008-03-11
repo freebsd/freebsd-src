@@ -178,6 +178,8 @@ sem_cancel_handler(void *arg)
 	sem_t *sem = arg;
 
 	atomic_add_int(&(*sem)->nwaiters, -1);
+	if ((*sem)->nwaiters && (*sem)->count)
+		_thr_umtx_wake(&(*sem)->count, 1);
 }
 
 int
