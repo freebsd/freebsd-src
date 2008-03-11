@@ -1,4 +1,4 @@
-$ $Id: set9,v 1.1 2000/01/14 22:57:34 christos Exp $
+$ $tcsh: set9,v 1.2 2006/03/02 18:46:46 christos Exp $
 $ ed.xmap.c
 $set 9
 1 AddXkey: Null extended-key not allowed.\n

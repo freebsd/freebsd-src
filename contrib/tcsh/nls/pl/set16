@@ -1,4 +1,4 @@
-$ $Id: set16,v 1.3 1996/04/26 20:31:55 christos Exp $
+$ $tcsh: set16,v 1.3 1996/04/26 20:31:55 christos Exp $
 $ sh.lex.c
 $set 16 
 1 Reset tty pgrp from %d to %d\n

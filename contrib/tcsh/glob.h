@@ -44,18 +44,18 @@ typedef struct {
 	int gl_flags;		/* Copy of flags parameter to glob. */
 	char **gl_pathv;	/* List of paths matching pattern. */
 				/* Copy of errfunc parameter to glob. */
-	int (*gl_errfunc) __P((const char *, int));
+	int (*gl_errfunc) (const char *, int);
 
 	/*
 	 * Alternate filesystem access methods for glob; replacement
 	 * versions of closedir(3), readdir(3), opendir(3), stat(2)
 	 * and lstat(2).
 	 */
-	void (*gl_closedir) __P((void *));
-	struct dirent *(*gl_readdir) __P((void *));	
-	void *(*gl_opendir) __P((const char *));
-	int (*gl_lstat) __P((const char *, struct stat *));
-	int (*gl_stat) __P((const char *, struct stat *));
+	void (*gl_closedir) (void *);
+	struct dirent *(*gl_readdir) (void *);
+	void *(*gl_opendir) (const char *);
+	int (*gl_lstat) (const char *, struct stat *);
+	int (*gl_stat) (const char *, struct stat *);
 } glob_t;
 
 #define	GLOB_APPEND	0x0001	/* Append to output from previous call. */
@@ -84,10 +84,8 @@ typedef struct {
 #define	GLOB_ABEND	GLOB_ABORTED	/* source compatibility */
 /* #endif */
 
-#include "tc.nls.h"
-
-int	glob __P((const char *, int, int (*)(const char *, int), glob_t *));
-void	globfree __P((glob_t *));
-int	globcharcoll __P((NLSChar, NLSChar, int));
+int	glob (const char *, int, int (*)(const char *, int), glob_t *);
+void	globfree (glob_t *);
+int	globcharcoll (Char, Char, int);
 
 #endif /* !_GLOB_H_ */

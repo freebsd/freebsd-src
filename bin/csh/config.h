@@ -12,9 +12,27 @@
 /* Define to 1 if you have the <auth.h> header file. */
 /* #undef HAVE_AUTH_H */
 
+/* Define to 1 if you have the `catgets' function. */
+#define HAVE_CATGETS 1
+
+/* Define to 1 if you have the <crypt.h> header file. */
+/* #undef HAVE_CRYPT_H */
+
+/* Define to 1 if you have the declaration of `crypt', and to 0 if you don't.
+   */
+#define HAVE_DECL_CRYPT 1
+
+/* Define to 1 if you have the declaration of `environ', and to 0 if you
+   don't. */
+#define HAVE_DECL_ENVIRON 0
+
 /* Define to 1 if you have the declaration of `gethostname', and to 0 if you
    don't. */
 #define HAVE_DECL_GETHOSTNAME 1
+
+/* Define to 1 if you have the declaration of `getpgrp', and to 0 if you
+   don't. */
+#define HAVE_DECL_GETPGRP 1
 
 /* Define to 1 if you have the <dirent.h> header file, and it defines `DIR'.
    */
@@ -22,6 +40,9 @@
 
 /* Define to 1 if you have the `dup2' function. */
 #define HAVE_DUP2 1
+
+/* Define to 1 if you have the `getauthid' function. */
+/* #undef HAVE_GETAUTHID */
 
 /* Define to 1 if you have the `getcwd' function. */
 #define HAVE_GETCWD 1
@@ -35,7 +56,7 @@
 /* Define to 1 if you have the `getutent' function. */
 /* #undef HAVE_GETUTENT */
 
-/* Define to 1 if you have the iconv () interface */
+/* Define if you have the iconv() function. */
 /* #undef HAVE_ICONV */
 
 /* Define to 1 if you have the <inttypes.h> header file. */
@@ -43,6 +64,9 @@
 
 /* Define to 1 if the system has the type `long long'. */
 #define HAVE_LONG_LONG 1
+
+/* Define to 1 if mbrtowc and mbstate_t are properly declared. */
+#define HAVE_MBRTOWC 1
 
 /* Define to 1 if you have the `memmove' function. */
 #define HAVE_MEMMOVE 1
@@ -79,6 +103,10 @@
 
 /* Define to 1 if you have the <stdlib.h> header file. */
 #define HAVE_STDLIB_H 1
+
+/* Define to 1 if you have the `strcoll' function and it is properly defined.
+   */
+#define HAVE_STRCOLL 1
 
 /* Define to 1 if you have the `strerror' function. */
 #define HAVE_STRERROR 1
@@ -145,6 +173,12 @@
 /* Define to 1 if you have the `wcwidth' function. */
 #define HAVE_WCWIDTH 1
 
+/* Define as const if the declaration of iconv() needs const. */
+#define ICONV_CONST const
+
+/* Support NLS. */
+#define NLS 1
+
 /* Define to the address where bug reports for this package should be sent. */
 #define PACKAGE_BUGREPORT ""
 
@@ -160,12 +194,6 @@
 /* Define to the version of this package. */
 #define PACKAGE_VERSION ""
 
-/* Define to 1 if the C compiler supports function prototypes. */
-#define PROTOTYPES 1
-
-/* Define as the return type of signal handlers (`int' or `void'). */
-#define RETSIGTYPE void
-
 /* Define to 1 if the `setpgrp' function takes no argument. */
 /* #undef SETPGRP_VOID */
 
@@ -177,9 +205,6 @@
 
 /* Define to 1 if you have the ANSI C header files. */
 #define STDC_HEADERS 1
-
-/* Define like PROTOTYPES; this can be used by system headers. */
-#define __PROTOTYPES 1
 
 /* Define to empty if `const' does not conform to ANSI C. */
 /* #undef const */
@@ -196,6 +221,9 @@
 /* Define to `int' if neither <sys/types.h> nor <sys/socket.h> define. */
 /* #undef socklen_t */
 
+/* Define to `int' not defined in <sys/types.h>. */
+/* #undef ssize_t */
+
 /* Define to `int' if <sys/types.h> doesn't define. */
 /* #undef uid_t */
 
@@ -209,3 +237,6 @@
 #ifndef NO_NLS_CATALOGS
 #define NLS_CATALOGS
 #endif
+
+/* Work around a vendor issue where config_f.h is #undef'ing this setting */
+#define SYSMALLOC

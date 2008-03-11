@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/sh.exec.c,v 3.63 2004/11/23 02:10:48 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/sh.exec.c,v 3.73 2006/08/24 20:56:31 christos Exp $ */
 /*
  * sh.exec.c: Search, find, and execute a command!
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: sh.exec.c,v 3.63 2004/11/23 02:10:48 christos Exp $")
+RCSID("$tcsh: sh.exec.c,v 3.73 2006/08/24 20:56:31 christos Exp $")
 
 #include "tc.h"
 #include "tw.h"
@@ -141,19 +141,17 @@ static int hits, misses;
 /* Dummy search path for just absolute search when no path */
 static Char *justabs[] = {STRNULL, 0};
 
-static	void	pexerr		__P((void));
-static	void	texec		__P((Char *, Char **));
-int	hashname	__P((Char *));
-static	int 	iscommand	__P((Char *));
+static	void	pexerr		(void);
+static	void	texec		(Char *, Char **);
+int	hashname	(Char *);
+static	int 	iscommand	(Char *);
 
 void
-doexec(t, do_glob)
-    struct command *t;
-    int do_glob;
+doexec(struct command *t, int do_glob)
 {
     Char *dp, **pv, **av, *sav;
     struct varent *v;
-    int slash;
+    int slash, gflag;
     int hashval, i;
     Char   *blk[2];
 
@@ -166,17 +164,17 @@ doexec(t, do_glob)
     blk[1] = 0;
     gflag = 0;
     if (do_glob)
-	tglob(blk);
+	gflag = tglob(blk);
     if (gflag) {
-	pv = globall(blk);
+	pv = globall(blk, gflag);
 	if (pv == 0) {
 	    setname(short2str(blk[0]));
 	    stderror(ERR_NAME | ERR_NOMATCH);
 	}
-	gargv = 0;
     }
     else
 	pv = saveblk(blk);
+    cleanup_push(pv, blk_cleanup);
 
     trim(pv);
 
@@ -187,10 +185,8 @@ doexec(t, do_glob)
 #endif /* VFORK */
 
     v = adrof(STRpath);
-    if (v == 0 && expath[0] != '/' && expath[0] != '.') {
-	blkfree(pv);
+    if (v == 0 && expath[0] != '/' && expath[0] != '.')
 	pexerr();
-    }
     slash = any(short2str(expath), '/');
 
     /*
@@ -199,23 +195,23 @@ doexec(t, do_glob)
     gflag = 0;
     av = &t->t_dcom[1];
     if (do_glob)
-	tglob(av);
+	gflag = tglob(av);
     if (gflag) {
-	av = globall(av);
+	av = globall(av, gflag);
 	if (av == 0) {
-	    blkfree(pv);
 	    setname(short2str(expath));
 	    stderror(ERR_NAME | ERR_NOMATCH);
 	}
-	gargv = 0;
     }
     else
 	av = saveblk(av);
 
     blkfree(t->t_dcom);
+    cleanup_ignore(pv);
+    cleanup_until(pv);
     t->t_dcom = blkspl(pv, av);
-    xfree((ptr_t) pv);
-    xfree((ptr_t) av);
+    xfree(pv);
+    xfree(av);
     av = t->t_dcom;
     trim(av);
 
@@ -242,12 +238,15 @@ doexec(t, do_glob)
      * We must do this AFTER any possible forking (like `foo` in glob) so that
      * this shell can still do subprocesses.
      */
-#ifdef BSDSIGS
-    (void) sigsetmask((sigmask_t) 0);
-#else /* BSDSIGS */
-    (void) sigrelse(SIGINT);
-    (void) sigrelse(SIGCHLD);
-#endif /* BSDSIGS */
+    {
+	sigset_t set;
+	sigemptyset(&set);
+	sigaddset(&set, SIGINT);
+	sigaddset(&set, SIGCHLD);
+	sigprocmask(SIG_UNBLOCK, &set, NULL);
+    }
+    pintr_disabled = 0;
+    pchild_disabled = 0;
 
     /*
      * If no path, no words in path, or a / in the filename then restrict the
@@ -258,7 +257,9 @@ doexec(t, do_glob)
     else
 	pv = v->vec;
     sav = Strspl(STRslash, *av);/* / command name for postpending */
-#ifdef VFORK
+#ifndef VFORK
+    cleanup_push(sav, xfree);
+#else /* VFORK */
     Vsav = sav;
 #endif /* VFORK */
     hashval = havhash ? hashname(*av) : 0;
@@ -285,63 +286,22 @@ doexec(t, do_glob)
 #endif /* FASTHASH */
 	}
 	if (pv[0][0] == 0 || eq(pv[0], STRdot))	/* don't make ./xxx */
-	{
-
-#ifdef COHERENT
-	    if (t->t_dflg & F_AMPERSAND) {
-# ifdef JOBDEBUG
-    	        xprintf("set SIGINT to SIG_IGN\n");
-    	        xprintf("set SIGQUIT to SIG_DFL\n");
-# endif /* JOBDEBUG */
-    	        (void) signal(SIGINT,SIG_IGN); /* may not be necessary */
-	        (void) signal(SIGQUIT,SIG_DFL);
-	    }
-
-	    if (gointr && eq(gointr, STRminus)) {
-# ifdef JOBDEBUG
-    	        xprintf("set SIGINT to SIG_IGN\n");
-    	        xprintf("set SIGQUIT to SIG_IGN\n");
-# endif /* JOBDEBUG */
-    	        (void) signal(SIGINT,SIG_IGN); /* may not be necessary */
-	        (void) signal(SIGQUIT,SIG_IGN);
-	    }
-#endif /* COHERENT */
-
 	    texec(*av, av);
-}
 	else {
 	    dp = Strspl(*pv, sav);
-#ifdef VFORK
+#ifndef VFORK
+	    cleanup_push(dp, xfree);
+#else /* VFORK */
 	    Vdp = dp;
 #endif /* VFORK */
 
-#ifdef COHERENT
-	    if ((t->t_dflg & F_AMPERSAND)) {
-# ifdef JOBDEBUG
-    	        xprintf("set SIGINT to SIG_IGN\n");
-# endif /* JOBDEBUG */
-		/* 
-		 * this is necessary on Coherent or all background 
-		 * jobs are killed by CTRL-C 
-		 * (there must be a better fix for this) 
-		 */
-    	        (void) signal(SIGINT,SIG_IGN); 
-	    }
-	    if (gointr && eq(gointr,STRminus)) {
-# ifdef JOBDEBUG
-    	        xprintf("set SIGINT to SIG_IGN\n");
-    	        xprintf("set SIGQUIT to SIG_IGN\n");
-# endif /* JOBDEBUG */
-    	        (void) signal(SIGINT,SIG_IGN); /* may not be necessary */
-	        (void) signal(SIGQUIT,SIG_IGN);
-	    }
-#endif /* COHERENT */
-
 	    texec(dp, av);
-#ifdef VFORK
+#ifndef VFORK
+	    cleanup_until(dp);
+#else /* VFORK */
 	    Vdp = 0;
+	    xfree(dp);
 #endif /* VFORK */
-	    xfree((ptr_t) dp);
 	}
 #ifdef VFORK
 	misses++;
@@ -352,14 +312,18 @@ cont:
     } while (*pv);
 #ifdef VFORK
     hits--;
-    Vsav = 0;
 #endif /* VFORK */
-    xfree((ptr_t) sav);
+#ifndef VFORK
+    cleanup_until(sav);
+#else /* VFORK */
+    Vsav = 0;
+    xfree(sav);
+#endif /* VFORK */
     pexerr();
 }
 
 static void
-pexerr()
+pexerr(void)
 {
     /* Couldn't find the damn thing */
     if (expath) {
@@ -367,7 +331,7 @@ pexerr()
 #ifdef VFORK
 	Vexpath = 0;
 #endif /* VFORK */
-	xfree((ptr_t) expath);
+	xfree(expath);
 	expath = 0;
     }
     else
@@ -383,9 +347,7 @@ pexerr()
  * Also do shell scripts here.
  */
 static void
-texec(sf, st)
-    Char   *sf;
-    Char **st;
+texec(Char *sf, Char **st)
 {
     char **t;
     char *f;
@@ -438,25 +400,32 @@ texec(sf, st)
 	 * From: casper@fwi.uva.nl (Casper H.S. Dik) If we could not execute
 	 * it, don't feed it to the shell if it looks like a binary!
 	 */
-	if ((fd = open(f, O_RDONLY|O_LARGEFILE)) != -1) {
+	if ((fd = xopen(f, O_RDONLY|O_LARGEFILE)) != -1) {
 	    int nread;
 #ifdef O_TEXT
 	    setmode(fd, O_TEXT);
 #endif
-	    if ((nread = read(fd, (char *) pref, 2)) == 2) {
+	    if ((nread = xread(fd, pref, 2)) == 2) {
 		if (!isprint((unsigned char)pref[0]) &&
 		    (pref[0] != '\n' && pref[0] != '\t')) {
-		    (void) close(fd);
+		    int err;
+
+		    err = errno;
+		    xclose(fd);
 		    /*
 		     * We *know* what ENOEXEC means.
 		     */
-		    stderror(ERR_ARCH, f, strerror(errno));
+		    stderror(ERR_ARCH, f, strerror(err));
 		}
 	    }
-	    else if (nread < 0 && errno != EINTR) {
+	    else if (nread < 0) {
 #ifdef convex
+		int err;
+
+		err = errno;
+		xclose(fd);
 		/* need to print error incase the file is migrated */
-		stderror(ERR_SYSTEM, f, strerror(errno));
+		stderror(ERR_SYSTEM, f, strerror(err));
 #endif
 	    }
 #ifdef _PATH_BSHELL
@@ -496,7 +465,7 @@ texec(sf, st)
 	}
 #endif /* HASHBANG */
 	if (fd != -1)
-	    (void) close(fd);
+	    xclose(fd);
 
 	st0 = st[0];
 	st[0] = sf;
@@ -507,7 +476,7 @@ texec(sf, st)
 	/* The order for the conversions is significant */
 	t = short2blk(st);
 	f = short2str(sf);
-	xfree((ptr_t) st);
+	xfree(st);
 	blkfree((Char **) vp);
 #ifdef VFORK
 	Vt = t;
@@ -540,8 +509,7 @@ texec(sf, st)
     default:
 	if (exerr == 0) {
 	    exerr = strerror(errno);
-	    if (expath)
-		xfree((ptr_t) expath);
+	    xfree(expath);
 	    expath = Strsave(sf);
 #ifdef VFORK
 	    Vexpath = expath;
@@ -551,24 +519,47 @@ texec(sf, st)
     }
 }
 
+struct execash_state
+{
+    int saveIN, saveOUT, saveDIAG, saveSTD;
+    int SHIN, SHOUT, SHDIAG, OLDSTD;
+    int didfds;
+#ifndef CLOSE_ON_EXEC
+    int didcch;
+#endif
+    struct sigaction sigint, sigquit, sigterm;
+};
+
+static void
+execash_cleanup(void *xstate)
+{
+    struct execash_state *state;
+
+    state = xstate;
+    sigaction(SIGINT, &state->sigint, NULL);
+    sigaction(SIGQUIT, &state->sigquit, NULL);
+    sigaction(SIGTERM, &state->sigterm, NULL);
+
+    doneinp = 0;
+#ifndef CLOSE_ON_EXEC
+    didcch = state->didcch;
+#endif /* CLOSE_ON_EXEC */
+    didfds = state->didfds;
+    xclose(SHIN);
+    xclose(SHOUT);
+    xclose(SHDIAG);
+    xclose(OLDSTD);
+    close_on_exec(SHIN = dmove(state->saveIN, state->SHIN), 1);
+    close_on_exec(SHOUT = dmove(state->saveOUT, state->SHOUT), 1);
+    close_on_exec(SHDIAG = dmove(state->saveDIAG, state->SHDIAG), 1);
+    close_on_exec(OLDSTD = dmove(state->saveSTD, state->OLDSTD), 1);
+}
+
 /*ARGSUSED*/
 void
-execash(t, kp)
-    Char  **t;
-    struct command *kp;
+execash(Char **t, struct command *kp)
 {
-    int     saveIN, saveOUT, saveDIAG, saveSTD;
-    int     oSHIN;
-    int     oSHOUT;
-    int     oSHDIAG;
-    int     oOLDSTD;
-    jmp_buf_t osetexit;
-    int	    my_reenter;
-    int     odidfds;
-#ifndef CLOSE_ON_EXEC
-    int	    odidcch;
-#endif /* CLOSE_ON_EXEC */
-    signalfun_t osigint, osigquit, osigterm;
+    struct execash_state state;
 
     USE(t);
     if (chkstop == 0 && setintr)
@@ -580,79 +571,49 @@ execash(t, kp)
     rechist(NULL, adrof(STRsavehist) != NULL);
 
 
-    osigint  = signal(SIGINT, parintr);
-    osigquit = signal(SIGQUIT, parintr);
-    osigterm = signal(SIGTERM, parterm);
+    sigaction(SIGINT, &parintr, &state.sigint);
+    sigaction(SIGQUIT, &parintr, &state.sigquit);
+    sigaction(SIGTERM, &parterm, &state.sigterm);
 
-    odidfds = didfds;
+    state.didfds = didfds;
 #ifndef CLOSE_ON_EXEC
-    odidcch = didcch;
+    state.didcch = didcch;
 #endif /* CLOSE_ON_EXEC */
-    oSHIN = SHIN;
-    oSHOUT = SHOUT;
-    oSHDIAG = SHDIAG;
-    oOLDSTD = OLDSTD;
+    state.SHIN = SHIN;
+    state.SHOUT = SHOUT;
+    state.SHDIAG = SHDIAG;
+    state.OLDSTD = OLDSTD;
 
-    (void)close_on_exec (saveIN = dcopy(SHIN, -1), 1);
-    (void)close_on_exec (saveOUT = dcopy(SHOUT, -1), 1);
-    (void)close_on_exec (saveDIAG = dcopy(SHDIAG, -1), 1);
-    (void)close_on_exec (saveSTD = dcopy(OLDSTD, -1), 1);
-	
+    (void)close_on_exec (state.saveIN = dcopy(SHIN, -1), 1);
+    (void)close_on_exec (state.saveOUT = dcopy(SHOUT, -1), 1);
+    (void)close_on_exec (state.saveDIAG = dcopy(SHDIAG, -1), 1);
+    (void)close_on_exec (state.saveSTD = dcopy(OLDSTD, -1), 1);
+
     lshift(kp->t_dcom, 1);
 
-    getexit(osetexit);
-
-    /* PWP: setjmp/longjmp bugfix for optimizing compilers */
-#ifdef cray
-    my_reenter = 1;             /* assume non-zero return val */
-    if (setexit() == 0) {
-        my_reenter = 0;         /* Oh well, we were wrong */
-#else /* !cray */
-    if ((my_reenter = setexit()) == 0) {
-#endif /* cray */
-	(void)close_on_exec (SHIN = dcopy(0, -1), 1);
-	(void)close_on_exec (SHOUT = dcopy(1, -1), 1);
-	(void)close_on_exec (SHDIAG = dcopy(2, -1), 1);
+    (void)close_on_exec (SHIN = dcopy(0, -1), 1);
+    (void)close_on_exec (SHOUT = dcopy(1, -1), 1);
+    (void)close_on_exec (SHDIAG = dcopy(2, -1), 1);
 #ifndef CLOSE_ON_EXEC
-	didcch = 0;
+    didcch = 0;
 #endif /* CLOSE_ON_EXEC */
-	didfds = 0;
-	/*
-	 * Decrement the shell level
-	 */
-	shlvl(-1);
+    didfds = 0;
+    cleanup_push(&state, execash_cleanup);
+
+    /*
+     * Decrement the shell level
+     */
+    shlvl(-1);
 #ifdef WINNT_NATIVE
-	__nt_really_exec=1;
+    __nt_really_exec=1;
 #endif /* WINNT_NATIVE */
-	doexec(kp, 1);
-    }
+    doexec(kp, 1);
 
-    (void) sigset(SIGINT, osigint);
-    (void) sigset(SIGQUIT, osigquit);
-    (void) sigset(SIGTERM, osigterm);
-
-    doneinp = 0;
-#ifndef CLOSE_ON_EXEC
-    didcch = odidcch;
-#endif /* CLOSE_ON_EXEC */
-    didfds = odidfds;
-    (void) close(SHIN);
-    (void) close(SHOUT);
-    (void) close(SHDIAG);
-    (void) close(OLDSTD);
-    (void)close_on_exec(SHIN = dmove(saveIN, oSHIN), 1);
-    (void)close_on_exec(SHOUT = dmove(saveOUT, oSHOUT), 1);
-    (void)close_on_exec(SHDIAG = dmove(saveDIAG, oSHDIAG), 1);
-    (void)close_on_exec(OLDSTD = dmove(saveSTD, oOLDSTD), 1);
-
-    resexit(osetexit);
-    if (my_reenter)
-	stderror(ERR_SILENT);
+    cleanup_until(&state);
 }
 
 void
-xechoit(t)
-    Char  **t;
+xechoit(Char **t)
 {
     if (adrof(STRecho)) {
 	int odidfds = didfds;
@@ -668,9 +629,7 @@ xechoit(t)
 
 /*ARGSUSED*/
 void
-dohash(vv, c)
-    Char **vv;
-    struct command *c;
+dohash(Char **vv, struct command *c)
 {
 #ifdef COMMENT
     struct stat stb;
@@ -723,11 +682,9 @@ dohash(vv, c)
 	hashlength = uhashlength;
     else
         hashlength = hashwidth * (8*64);/* "average" files per dir in path */
-    
-    if (xhash)
-        xfree((ptr_t) xhash);
-    xhash = (unsigned long *) xcalloc((size_t) (hashlength * hashwidth), 
-				      (size_t) 1);
+
+    xfree(xhash);
+    xhash = xcalloc(hashlength * hashwidth, 1);
 #endif /* FASTHASH */
 
     (void) getusername(NULL);	/* flush the tilde cashe */
@@ -741,10 +698,11 @@ dohash(vv, c)
 	dirp = opendir(short2str(*pv));
 	if (dirp == NULL)
 	    continue;
+	cleanup_push(dirp, opendir_cleanup);
 #ifdef COMMENT			/* this isn't needed.  opendir won't open
 				 * non-dirs */
 	if (fstat(dirp->dd_fd, &stb) < 0 || !S_ISDIR(stb.st_mode)) {
-	    (void) closedir(dirp);
+	    cleanup_until(dirp);
 	    continue;
 	}
 #endif
@@ -766,16 +724,17 @@ dohash(vv, c)
 	     * the file with the .exe, .com, .bat extension
 	     */
 	    {
-		size_t	ext = strlen(dp->d_name) - 4;
+		ssize_t	ext = strlen(dp->d_name) - 4;
 		if ((ext > 0) && (strcasecmp(&dp->d_name[ext], ".exe") == 0 ||
 				  strcasecmp(&dp->d_name[ext], ".bat") == 0 ||
-				  strcasecmp(&dp->d_name[ext], ".com") == 0))
-		    {
-			dp->d_name[ext] = '\0';
-#if defined(__CYGWIN__)
-			strlwr(dp->d_name);
+				  strcasecmp(&dp->d_name[ext], ".com") == 0)) {
+#ifdef __CYGWIN__
+		    /* Also store the variation with extension. */
+		    hashval = hashname(str2short(dp->d_name));
+		    bis(hashval, i);
 #endif /* __CYGWIN__ */
-		    }
+		    dp->d_name[ext] = '\0';
+		}
 	    }
 #endif /* _UWIN || __CYGWIN__ */
 # ifdef FASTHASH
@@ -791,32 +750,26 @@ dohash(vv, c)
 	    /* tw_add_comm_name (dp->d_name); */
 #endif /* WINNT_NATIVE */
 	}
-	(void) closedir(dirp);
+	cleanup_until(dirp);
     }
 }
 
 /*ARGSUSED*/
 void
-dounhash(v, c)
-    Char **v;
-    struct command *c;
+dounhash(Char **v, struct command *c)
 {
     USE(c);
     USE(v);
     havhash = 0;
 #ifdef FASTHASH
-    if (xhash) {
-       xfree((ptr_t) xhash);
-       xhash = NULL;
-    }
+    xfree(xhash);
+    xhash = NULL;
 #endif /* FASTHASH */
 }
 
 /*ARGSUSED*/
 void
-hashstat(v, c)
-    Char **v;
-    struct command *c;
+hashstat(Char **v, struct command *c)
 {
     USE(c);
     USE(v);
@@ -839,8 +792,7 @@ hashstat(v, c)
  * Hash a command name.
  */
 int
-hashname(cp)
-    Char *cp;
+hashname(Char *cp)
 {
     unsigned long h;
 
@@ -850,8 +802,7 @@ hashname(cp)
 }
 
 static int
-iscommand(name)
-    Char   *name;
+iscommand(Char *name)
 {
     Char **pv;
     Char *sav;
@@ -880,13 +831,13 @@ iscommand(name)
 	}
 	if (pv[0][0] == 0 || eq(pv[0], STRdot)) {	/* don't make ./xxx */
 	    if (executable(NULL, name, 0)) {
-		xfree((ptr_t) sav);
+		xfree(sav);
 		return i + 1;
 	    }
 	}
 	else {
 	    if (executable(*pv, sav, 0)) {
-		xfree((ptr_t) sav);
+		xfree(sav);
 		return i + 1;
 	    }
 	}
@@ -894,7 +845,7 @@ cont:
 	pv++;
 	i++;
     } while (*pv);
-    xfree((ptr_t) sav);
+    xfree(sav);
     return 0;
 }
 
@@ -916,23 +867,21 @@ cont:
  * This is a bit kludgy, but in the name of optimization...
  */
 int
-executable(dir, name, dir_ok)
-    Char   *dir, *name;
-    int    dir_ok;
+executable(const Char *dir, const Char *name, int dir_ok)
 {
     struct stat stbuf;
-    Char    path[MAXPATHLEN + 1];
     char   *strname;
-    (void) memset(path, 0, sizeof(path));
 
     if (dir && *dir) {
-	copyn(path, dir, MAXPATHLEN);
-	catn(path, name, MAXPATHLEN);
+	Char *path;
+
+	path = Strspl(dir, name);
 	strname = short2str(path);
+	xfree(path);
     }
     else
 	strname = short2str(name);
-    
+
     return (stat(strname, &stbuf) != -1 &&
 	    ((dir_ok && S_ISDIR(stbuf.st_mode)) ||
 	     (S_ISREG(stbuf.st_mode) &&
@@ -943,16 +892,29 @@ executable(dir, name, dir_ok)
 }
 #endif /*!WINNT_NATIVE*/
 
-int
-tellmewhat(lexp, str)
-    struct wordent *lexp;
-    Char *str;
+struct tellmewhat_s0_cleanup
 {
+    Char **dest, *val;
+};
+
+static void
+tellmewhat_s0_cleanup(void *xstate)
+{
+    struct tellmewhat_s0_cleanup *state;
+
+    state = xstate;
+    *state->dest = state->val;
+}
+
+int
+tellmewhat(struct wordent *lexp, Char **str)
+{
+    struct tellmewhat_s0_cleanup s0;
     int i;
-    struct biltins *bptr;
+    const struct biltins *bptr;
     struct wordent *sp = lexp->next;
     int    aliased = 0, found;
-    Char   *s0, *s1, *s2, *cmd;
+    Char   *s1, *s2, *cmd;
     Char    qc;
 
     if (adrof1(sp->word, &aliases)) {
@@ -961,7 +923,9 @@ tellmewhat(lexp, str)
 	aliased = 1;
     }
 
-    s0 = sp->word;		/* to get the memory freeing right... */
+    s0.dest = &sp->word;	/* to get the memory freeing right... */
+    s0.val = sp->word;
+    cleanup_push(&s0, tellmewhat_s0_cleanup);
 
     /* handle quoted alias hack */
     if ((*(sp->word) & (QUOTE | TRIM)) == QUOTE)
@@ -997,9 +961,9 @@ tellmewhat(lexp, str)
 			      sp->word);
 		flush();
 	    }
-	    else 
-		(void) Strcpy(str, sp->word);
-	    sp->word = s0;	/* we save and then restore this */
+	    else
+		*str = Strsave(sp->word);
+	    cleanup_until(&s0);
 	    return TRUE;
 	}
     }
@@ -1013,15 +977,16 @@ tellmewhat(lexp, str)
 			      sp->word);
 		flush();
 	    }
-	    else 
-		(void) Strcpy(str, sp->word);
-	    sp->word = s0;	/* we save and then restore this */
+	    else
+		*str = Strsave(sp->word);
+	    cleanup_until(&s0);
 	    return TRUE;
 	}
     }
 #endif /* WINNT_NATIVE*/
 
     sp->word = cmd = globone(sp->word, G_IGNORE);
+    cleanup_push(cmd, xfree);
 
     if ((i = iscommand(sp->word)) != 0) {
 	Char **pv;
@@ -1034,13 +999,13 @@ tellmewhat(lexp, str)
 	else
 	    pv = v->vec;
 
-	while (--i)
-	    pv++;
+	pv += i - 1;
 	if (pv[0][0] == 0 || eq(pv[0], STRdot)) {
 	    if (!slash) {
 		sp->word = Strspl(STRdotsl, sp->word);
+		cleanup_push(sp->word, xfree);
 		prlex(lexp);
-		xfree((ptr_t) sp->word);
+		cleanup_until(sp->word);
 	    }
 	    else
 		prlex(lexp);
@@ -1048,12 +1013,13 @@ tellmewhat(lexp, str)
 	else {
 	    s1 = Strspl(*pv, STRslash);
 	    sp->word = Strspl(s1, sp->word);
-	    xfree((ptr_t) s1);
+	    xfree(s1);
+	    cleanup_push(sp->word, xfree);
 	    if (str == NULL)
 		prlex(lexp);
 	    else
-		(void) Strcpy(str, sp->word);
-	    xfree((ptr_t) sp->word);
+		*str = Strsave(sp->word);
+	    cleanup_until(sp->word);
 	}
 	found = 1;
     }
@@ -1065,11 +1031,10 @@ tellmewhat(lexp, str)
 	    flush();
 	}
 	else
-	    (void) Strcpy(str, sp->word);
+	    *str = Strsave(sp->word);
 	found = 0;
     }
-    sp->word = s0;		/* we save and then restore this */
-    xfree((ptr_t) cmd);
+    cleanup_until(&s0);
     return found;
 }
 
@@ -1083,9 +1048,7 @@ tellmewhat(lexp, str)
 
 /*ARGSUSED*/
 void
-dowhere(v, c)
-    Char **v;
-    struct command *c;
+dowhere(Char **v, struct command *c)
 {
     int found = 1;
     USE(c);
@@ -1093,16 +1056,14 @@ dowhere(v, c)
 	found &= find_cmd(*v, 1);
     /* Make status nonzero if any command is not found. */
     if (!found)
-      set(STRstatus, Strsave(STR1), VAR_READWRITE);
+	setcopy(STRstatus, STR1, VAR_READWRITE);
 }
 
 int
-find_cmd(cmd, prt)
-    Char *cmd;
-    int prt;
+find_cmd(Char *cmd, int prt)
 {
     struct varent *var;
-    struct biltins *bptr;
+    const struct biltins *bptr;
     Char **pv;
     Char *sv;
     int hashval, i, ex, rval = 0;
@@ -1155,6 +1116,7 @@ find_cmd(cmd, prt)
     hashval = havhash ? hashname(cmd) : 0;
 
     sv = Strspl(STRslash, cmd);
+    cleanup_push(sv, xfree);
 
     for (pv = var->vec, i = 0; pv && *pv; pv++, i++) {
 	if (havhash && !eq(*pv, STRdot)) {
@@ -1184,7 +1146,7 @@ find_cmd(cmd, prt)
 		return rval;
 	}
     }
-    xfree((ptr_t) sv);
+    cleanup_until(sv);
     return rval;
 }
 #ifdef WINNT_NATIVE

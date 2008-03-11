@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/tw.spell.c,v 3.17 2004/11/23 02:10:50 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/tw.spell.c,v 3.21 2006/03/02 18:46:45 christos Exp $ */
 /*
  * tw.spell.c: Spell check words
  */
@@ -32,62 +32,59 @@
  */
 #include "sh.h"
 
-RCSID("$Id: tw.spell.c,v 3.17 2004/11/23 02:10:50 christos Exp $")
+RCSID("$tcsh: tw.spell.c,v 3.21 2006/03/02 18:46:45 christos Exp $")
 
 #include "tw.h"
 
 /* spell_me : return corrrectly spelled filename.  From K&P spname */
 int
-spell_me(oldname, oldsize, looking, pat, suf)
-    Char   *oldname;
-    int     oldsize, looking;
-    Char   *pat;
-    int     suf;
+spell_me(struct Strbuf *oldname, int looking, Char *pat, eChar suf)
 {
-    /* The +1 is to fool hp's optimizer */
-    Char    guess[FILSIZ + 1], newname[FILSIZ + 1];
-    Char *new = newname, *old = oldname;
-    Char *p, *cp, *ws;
+    struct Strbuf guess = Strbuf_INIT, newname = Strbuf_INIT;
+    const Char *old = oldname->s;
+    size_t ws;
     int    foundslash = 0;
     int     retval;
 
+    cleanup_push(&guess, Strbuf_cleanup);
+    cleanup_push(&newname, Strbuf_cleanup);
     for (;;) {
 	while (*old == '/') {	/* skip '/' */
-	    *new++ = *old++;
+	    Strbuf_append1(&newname, *old++);
 	    foundslash = 1;
 	}
 	/* do not try to correct spelling of single letter words */
 	if (*old != '\0' && old[1] == '\0')
-	    *new++ = *old++;
-	*new = '\0';
+	    Strbuf_append1(&newname, *old++);
+	Strbuf_terminate(&newname);
 	if (*old == '\0') {
-	    retval = (StrQcmp(oldname, newname) != 0);
-	    copyn(oldname, newname, oldsize);	/* shove it back. */
+	    retval = (StrQcmp(oldname->s, newname.s) != 0);
+	    cleanup_ignore(&newname);
+	    xfree(oldname->s);
+	    *oldname = newname; /* shove it back. */
+	    cleanup_until(&guess);
 	    return retval;
 	}
-	p = guess;		/* start at beginning of buf */
-	if (newname[0])		/* add current dir if any */
-	    for (cp = newname; *cp; cp++)
-		if (p < guess + FILSIZ)
-		    *p++ = *cp;
-	ws = p;
+	guess.len = 0;		/* start at beginning of buf */
+	Strbuf_append(&guess, newname.s); /* add current dir if any */
+	ws = guess.len;
 	for (; *old != '/' && *old != '\0'; old++)/* add current file name */
-	    if (p < guess + FILSIZ)
-		*p++ = *old;
-	*p = '\0';		/* terminate it */
+	    Strbuf_append1(&guess, *old);
+	Strbuf_terminate(&guess);
 
 	/*
 	 * Don't tell t_search we're looking for cmd if no '/' in the name so
 	 * far but there are later - or it will look for *all* commands
 	 */
 	/* (*should* say "looking for directory" whenever '/' is next...) */
-	retval = t_search(guess, p, SPELL, FILSIZ,
+	retval = t_search(&guess, SPELL,
 			  looking == TW_COMMAND && (foundslash || *old != '/') ?
 			  TW_COMMAND : looking, 1, pat, suf);
-	if (retval >= 4 || retval < 0)
+	if (retval >= 4 || retval < 0) {
+	    cleanup_until(&guess);
 	    return -1;		/* hopeless */
-	for (p = ws; (*new = *p++) != '\0'; new++)
-	    continue;
+	}
+	Strbuf_append(&newname, guess.s + ws);
     }
 /*NOTREACHED*/
 #ifdef notdef
@@ -110,8 +107,7 @@ spell_me(oldname, oldsize, looking, pat, suf)
  */
 
 int
-spdist(s, t)
-    Char *s, *t;
+spdist(const Char *s, const Char *t)
 {
     for (; (*s & TRIM) == (*t & TRIM); t++, s++)
 	if (*t == '\0')
@@ -133,15 +129,11 @@ spdist(s, t)
 }
 
 int
-spdir(extended_name, tilded_dir, item, name)
-    Char   *extended_name;
-    Char   *tilded_dir;
-    Char   *item;
-    Char   *name;
+spdir(struct Strbuf *extended_name, const Char *tilded_dir, const Char *item,
+      Char *name)
 {
-    Char    path[MAXPATHLEN + 1];
-    Char   *s;
-    Char    oldch;
+    Char *path, *s, oldch;
+    char *p;
 
     if (ISDOT(item) || ISDOTDOT(item))
 	return 0;
@@ -151,12 +143,18 @@ spdir(extended_name, tilded_dir, item, name)
     if (*s == 0 || s[1] == 0 || *item != 0)
 	return 0;
 
+    path = xmalloc((Strlen(tilded_dir) + Strlen(name) + 1) * sizeof (*path));
     (void) Strcpy(path, tilded_dir);
     oldch = *s;
     *s = '/';
-    catn(path, name, (int) (sizeof(path) / sizeof(Char)));
-    if (access(short2str(path), F_OK) == 0) {
-	(void) Strcpy(extended_name, name);
+    Strcat(path, name);
+    p = short2str(path);
+    xfree(path);
+    if (access(p, F_OK) == 0) {
+	extended_name->len = 0;
+	Strbuf_append(extended_name, name);
+	Strbuf_terminate(extended_name);
+	/* FIXME: *s = oldch? */
 	return 1;
     }
     *s = oldch;

@@ -1,4 +1,4 @@
-$ $Id: set10,v 1.2 1995/03/19 18:07:15 christos Exp $
+$ $tcsh: set10,v 1.2 1995/03/19 18:07:15 christos Exp $
 $ ma.setp.c
 $set 10 
 1 setpath: nieprawid³owe polecenie '%s'.\n

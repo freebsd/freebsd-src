@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/tc.os.h,v 3.97 2005/03/03 22:32:01 kim Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/tc.os.h,v 3.101 2006/02/14 00:52:52 christos Exp $ */
 /*
  * tc.os.h: Shell os dependent defines
  */
@@ -87,22 +87,6 @@
 #  include <termios.h>
 # endif /* POSIX */
 #endif /* OREO */
-
-#ifndef NCARGS
-# ifdef _SC_ARG_MAX
-#  define NCARGS sysconf(_SC_ARG_MAX)
-# else /* !_SC_ARG_MAX */
-#  ifdef ARG_MAX
-#   define NCARGS ARG_MAX
-#  else /* !ARG_MAX */
-#   ifdef _MINIX
-#    define NCARGS 80
-#   else /* !_MINIX */
-#    define NCARGS 1024
-#   endif /* _MINIX */
-#  endif /* ARG_MAX */
-# endif /* _SC_ARG_MAX */
-#endif /* NCARGS */
 
 #ifdef convex
 # include <sys/dmon.h>
@@ -454,7 +438,7 @@ typedef struct timeval timeval_t;
 #endif /* NeXT */
 
 #if defined(HAVE_GETHOSTNAME) && !HAVE_DECL_GETHOSTNAME
-extern int gethostname __P((char *, int));
+extern int gethostname (char *, int);
 #endif
 
 #ifndef GETPGRP_VOID
@@ -474,12 +458,12 @@ extern char *ttyname();
 
 # if defined(SUNOS4)
 #  ifndef toupper
-extern int toupper __P((int));
+extern int toupper (int);
 #  endif /* toupper */
 #  ifndef tolower
-extern int tolower __P((int));
+extern int tolower (int);
 #  endif /* tolower */
-extern caddr_t sbrk __P((int));
+extern caddr_t sbrk (int);
 # else /* !SUNOS4 */
 #  ifndef WINNT_NATIVE
 #   ifdef hpux
@@ -491,19 +475,6 @@ extern void qsort();
 #ifndef _CX_UX
 extern void perror();
 #endif
-
-# ifdef BSDSIGS
-#  if !defined(_AIX370) && !defined(MACH) && !defined(NeXT) && !defined(_AIXPS2) && !defined(ardent) && !defined(SUNOS4) && !defined(HPBSD) && !defined(__MACHTEN__)
-#   if (!defined(apollo) || !defined(__STDC__)) && !defined(__DGUX__) && !defined(fps500)
-extern RETSIGTYPE sigvec();
-#ifndef _CX_UX
-extern void sigpause();
-#endif /* _CX_UX */
-#   endif /* (!apollo || !__STDC__) && !__DGUX__ && !fps500 */
-#  endif /* _AIX370 || MACH || NeXT || _AIXPS2 || ardent || SUNOS4 || HPBSD */
-extern sigmask_t sigblock();
-extern sigmask_t sigsetmask();
-# endif	/* BSDSIGS */
 
 # ifdef BSD
 extern uid_t getuid(), geteuid();
@@ -535,9 +506,9 @@ extern struct passwd *getpwuid(), *getpwnam(), *getpwent();
 #  ifdef HAVE_SHADOW_H
 extern struct spwd *getspnam(), *getspent();
 #  endif /* HAVE_SHADOW_H */
-#  ifdef HAVE_AUTH_H
+#  if defined(HAVE_AUTH_H) && defined(HAVE_GETAUTHUID)
 extern struct authorization *getauthuid();
-#  endif /* HAVE_AUTH_H */
+#  endif /* HAVE_AUTH_H && HAVE_GETAUTHUID */
 # endif /* __STDC__ */
 
 # ifndef getcwd
@@ -564,21 +535,21 @@ extern char *ttyname();
 /*
  * Somehow these are missing
  */
-extern int ioctl __P((int, int, ...));
-extern int readlink __P((const char *, char *, size_t));
-extern void setgrent __P((void));
-extern void endgrent __P((void));
+extern int ioctl (int, int, ...);
+extern int readlink (const char *, char *, size_t);
+extern void setgrent (void);
+extern void endgrent (void);
 # ifdef REMOTEHOST
 #  ifndef _SOCKLEN_T	/* Avoid Solaris 2.7 bogosity. */
 struct sockaddr;
-extern int getpeername __P((int, struct sockaddr *, int *));
+extern int getpeername (int, struct sockaddr *, int *);
 #  endif /* _SOCKLEN_T */
 # endif /* REMOTEHOST */
 #endif /* SUNOS4 && __GNUC__ == 2 */
 
 #if (defined(BSD) && !defined(BSD4_4)) || defined(SUNOS4) 
 # if defined(__alpha) && defined(__osf__) && DECOSF1 < 200
-extern void bcopy	__P((const void *, void *, size_t));
+extern void bcopy	(const void *, void *, size_t);
 #  define memmove(a, b, c) (bcopy((char *) (b), (char *) (a), (int) (c)), a)
 # endif /* __alpha && __osf__ && DECOSF1 < 200 */
 #endif /* (BSD && !BSD4_4) || SUNOS4 */
@@ -594,25 +565,33 @@ extern void bcopy	__P((const void *, void *, size_t));
 #  if !defined(__sgi) && !defined(_OSD_POSIX) && !defined(__MVS__)
 #   ifndef _SOCKLEN_T	/* Avoid Solaris 2.7 bogosity. */
 struct sockaddr;
-extern int getpeername __P((int, struct sockaddr *, int *));
+extern int getpeername (int, struct sockaddr *, int *);
 #   endif /* _SOCKLEN_T */
 #  endif /* !__sgi && !_OSD_POSIX && !__MVS__ */
 # endif /* REMOTEHOST */
 # ifndef BSDTIMES
-extern int getrlimit __P((int, struct rlimit *));
-extern int setrlimit __P((int, const struct rlimit *));
+extern int getrlimit (int, struct rlimit *);
+extern int setrlimit (int, const struct rlimit *);
 # endif /* !BSDTIMES */
 # if defined(SOLARIS2)
-extern char *strerror __P((int));
+extern char *strerror (int);
 # endif /* SOLARIS2 */
 #endif /* SYSVREL == 4 */
 
 #if defined(__alpha) && defined(__osf__) && DECOSF1 < 200
 /* These are ok for 1.3, but conflict with the header files for 2.0 */
-extern char *sbrk __P((ssize_t));
-extern int ioctl __P((int, unsigned long, char *));
-extern pid_t vfork __P((void));
-extern int killpg __P((pid_t, int));
+extern char *sbrk (ssize_t);
+extern int ioctl (int, unsigned long, char *);
+extern pid_t vfork (void);
+extern int killpg (pid_t, int);
 #endif /* __osf__ && __alpha && DECOSF1 < 200 */
+
+#ifndef va_copy
+# ifdef __va_copy
+#  define va_copy(DEST, SRC) __va_copy(DEST, SRC)
+# else
+#  define va_copy(DEST, SRC) memcpy(&(DEST), &(SRC), sizeof(va_list))
+# endif
+#endif
 
 #endif /* _h_tc_os */

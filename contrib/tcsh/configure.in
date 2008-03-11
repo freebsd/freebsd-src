@@ -9,9 +9,10 @@ dnl Written by Kaveh Ghazi (ghazi@caip.rutgers.edu) 5/11/96.
 dnl
 
 AC_PREREQ([2.59])dnl Minimum Autoconf version required.
-AC_INIT
+AC_INIT([tcsh], [6.15.00], [http://bugs.gw.com/])
 AC_CONFIG_SRCDIR([tc.vers.c])
 AC_CONFIG_HEADERS([config.h])
+AC_CONFIG_TESTDIR([.], [.])
 
 AC_CANONICAL_HOST
 
@@ -120,6 +121,11 @@ case "${host}" in
     tcsh_config_file=bsd4.4
   ;;
 
+  ## DragonFly systems
+  *-*-dragonfly*)
+    tcsh_config_file=bsd4.4
+  ;;
+
   ## Silicon Graphics machines
   *-sgi-iri* )
     tcsh_config_file=irix
@@ -150,16 +156,16 @@ case "${host}" in
   *-sun-sunos4.1.[3456]* )
     tcsh_config_file=sunos413
   ;;
-  *-*-solaris2.[01]* ) # Should handle sparc or x86
+  *-*-solaris2.[01] ) # Should handle sparc or x86
     tcsh_config_file=sol2
   ;;
-  *-sun-solaris2.2* ) # Sparc only release
+  *-sun-solaris2.2 ) # Sparc only release
     tcsh_config_file=sol22
   ;;
-  *-sun-solaris2.3* ) # Sparc only release
+  *-sun-solaris2.3 ) # Sparc only release
     tcsh_config_file=sol23
   ;;
-  *-*-solaris2.[45]* ) # Should handle sparc, x86 and powerpc
+  *-*-solaris2.[45] ) # Should handle sparc, x86 and powerpc
     tcsh_config_file=sol24
   ;;
   *-*-solaris2.* ) # Should handle sparc, x86 and powerpc
@@ -260,12 +266,10 @@ AC_SEARCH_LIBS(getspnam, sec)
 AC_SEARCH_LIBS(tgetent, termlib termcap curses ncurses)
 AC_SEARCH_LIBS(gethostbyname, nsl)
 AC_SEARCH_LIBS(connect, socket)
-AC_SEARCH_LIBS([iconv], [iconv], [AC_DEFINE([HAVE_ICONV], [1],
-	[Define to 1 if you have the iconv () interface])])
+AM_ICONV
 
 dnl Checks for header files
-AC_CHECK_HEADERS([auth.h inttypes.h shadow.h stdint.h])
-AC_CHECK_HEADERS([utmpx.h utmp.h])
+AC_CHECK_HEADERS([auth.h crypt.h inttypes.h shadow.h stdint.h utmp.h utmpx.h])
 AC_CHECK_HEADERS([wchar.h],
 	[AC_CHECK_SIZEOF([wchar_t], [], [dnl
 #include <stdio.h>
@@ -279,9 +283,17 @@ dnl Checks for types
 AC_CHECK_TYPES([long long])
 AC_TYPE_GETGROUPS
 AC_TYPE_MODE_T
-AC_TYPE_SIGNAL
 AC_TYPE_SIZE_T
 AC_TYPE_UID_T
+
+AC_DEFUN([AC_TYPE_SSIZE_T], [
+AC_CHECK_TYPE(ssize_t,,
+AC_DEFINE(ssize_t, int, [Define to `int' not defined in <sys/types.h>.]),
+[
+#include <sys/types.h>
+])
+])
+AC_TYPE_SSIZE_T
 
 AC_DEFUN([AC_TYPE_SOCKLEN_T], [
 AC_CHECK_TYPE(socklen_t,,
@@ -308,7 +320,8 @@ AC_CHECK_MEMBERS([struct dirent.d_ino], , ,
 #endif])
 AC_CHECK_MEMBERS([struct utmp.ut_host, struct utmp.ut_user, struct utmp.ut_tv,
 		  struct utmp.ut_xtime], , ,
-[#ifdef HAVE_UTMPX_H
+[#include <sys/types.h>
+#ifdef HAVE_UTMPX_H
 #include <utmpx.h>
 #define utmp utmpx
 #elif defined HAVE_UTMP_H
@@ -320,16 +333,24 @@ AC_CHECK_MEMBERS([struct sockaddr_storage.ss_family], , ,
 
 dnl Checks for compiler characteristics
 AC_C_CONST
-AC_C_PROTOTYPES
 AC_C_VOLATILE
 
 dnl checks for library functions
-AC_CHECK_DECLS([gethostname])
-AC_CHECK_FUNCS([dup2 getcwd gethostname getpwent getutent memmove memset] dnl
-	[nice nl_langinfo sbrk setpgid setpriority strerror strstr sysconf] dnl
-	[wcwidth])
+AC_CHECK_DECLS([crypt, environ, gethostname, getpgrp], , ,
+[#include "config_p.h"
+AC_INCLUDES_DEFAULT([])
+#ifdef HAVE_CRYPT_H
+#include <crypt.h>
+#endif
+])
+AC_CHECK_FUNC([setlocale], [have_setlocale=yes], [have_setlocale=no])
+AC_CHECK_FUNCS([catgets dup2 getauthid getcwd gethostname getpwent] dnl
+	[getutent memmove memset nice nl_langinfo sbrk setpgid setpriority] dnl
+	[strerror strstr sysconf wcwidth])
 AC_FUNC_GETPGRP
+AC_FUNC_MBRTOWC
 AC_FUNC_SETPGRP
+AC_FUNC_STRCOLL
 
 dnl This is not good enough; we need sockaddr_storage too.
 dnl See whether we can use IPv6 related functions
@@ -378,6 +399,15 @@ dnl fi])
 dnl IPv6_CHECK_FUNC(getnameinfo, DFLAGS="$DFLAGS -DINET6")
 
 AC_SUBST(DFLAGS)
+
+dnl Checks for system services
+if test "$have_setlocale" != no; then
+  AC_ARG_ENABLE([nls], AS_HELP_STRING([--disable-nls], [Disable NLS support]),
+	        [], [enable_nls=yes])
+  if test "x$enable_nls" != xno; then
+    AC_DEFINE([NLS], [1], [Support NLS.])
+  fi
+fi
 
 AC_ARG_WITH(hesiod,
   [  --with-hesiod=PREFIX    Use Hesiod lookup for ~ expansion],

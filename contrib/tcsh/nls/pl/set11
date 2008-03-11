@@ -1,4 +1,4 @@
-$ $Id: set11,v 1.2 1995/03/19 18:07:15 christos Exp $
+$ $tcsh: set11,v 1.2 1995/03/19 18:07:15 christos Exp $
 $ sh.c
 $set 11 
 1 Uwaga: brak dostêpu do tty (%s).\n

@@ -1,4 +1,4 @@
-$ $Id: set16,v 1.1 1998/04/08 17:59:56 christos Exp $
+$ $tcsh: set16,v 1.2 2006/03/02 18:46:48 christos Exp $
 $ sh.lex.c
 $set 16 
 1 Se ha reinicializado el grupo de procesos de las terminales de %d a %d\n

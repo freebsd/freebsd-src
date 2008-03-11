@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/tw.h,v 3.24 2004/11/23 02:10:50 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/tw.h,v 3.25 2006/01/12 18:15:25 christos Exp $ */
 /*
  * tw.h: TwENEX functions headers
  */
@@ -73,9 +73,7 @@
 #endif
 #define ON		1
 #define OFF		0
-#define FILSIZ		BUFSIZE	/* Max reasonable file name length */
 #define ESC             CTL_ESC('\033')
-#define equal(a, b)	(strcmp(a, b) == 0)
 
 #define is_set(var)	adrof(var)
 #define ismetahash(a)	(ismeta(a) && (a) != '#')

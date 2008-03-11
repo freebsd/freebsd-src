@@ -73,7 +73,7 @@ CFLAGS+= -DNO_NLS_CATALOGS
 .else
 CFLAGS+= -DHAVE_ICONV
 SRCS+=	iconv_stub.c
-# Folloing links can be installed from ports/shells/tcsh_nls:
+# Following links can be installed from ports/shells/tcsh_nls:
 # NLSLINKS_de_DE.ISO8859-1 += de_AT.UTF-8 de_CH.UTF-8 de_DE.UTF-8
 # NLSLINKS_el_GR.ISO8859-7 = el_GR.UTF-8
 # NLSLINKS_es_ES.ISO8859-1 += es_ES.UTF-8
