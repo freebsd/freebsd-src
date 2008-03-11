@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/ed.decls.h,v 3.39 2005/01/18 20:24:50 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/ed.decls.h,v 3.44 2006/08/23 15:03:13 christos Exp $ */
 /*
  * ed.decls.h: Editor external definitions
  */
@@ -36,240 +36,245 @@
 /*
  * ed.chared.c
  */
-extern	int	InsertStr		__P((Char *));
-extern	void	DeleteBack		__P((int));
-extern	void	SetKillRing		__P((int));
+extern	int	InsertStr		(Char *);
+extern	void	DeleteBack		(int);
+extern	void	SetKillRing		(int);
+extern	CCRETVAL GetHistLine		(void);
 
 /*
  * ed.init.c
  */
 #ifdef SIG_WINDOW
-extern	void	check_window_size	__P((int));
-extern	RETSIGTYPE window_change	__P((int));
+extern	void	check_window_size	(int);
+extern	void	window_change		(int);
 #endif /* SIG_WINDOW */
-extern	int	ed_Setup		__P((int));
-extern	void	ed_Init			__P((void));
-extern	int	Cookedmode		__P((void));
-extern	int	Rawmode			__P((void));
-extern	void	ed_set_tty_eight_bit	__P((void));
+extern	int	ed_Setup		(int);
+extern	void	ed_Init			(void);
+extern	int	Cookedmode		(void);
+extern	int	Rawmode			(void);
+extern	void	ed_set_tty_eight_bit	(void);
 
-extern	void	QuoteModeOn		__P((void));
-extern	void	QuoteModeOff		__P((void));
-extern	void	ResetInLine		__P((int));
-extern	int	Load_input_line		__P((void));
+extern	void	QuoteModeOn		(void);
+extern	void	QuoteModeOff		(void);
+extern	void	ResetInLine		(int);
+extern	int	Load_input_line		(void);
 
 /*
  * ed.term.c:
  */
-extern	void	dosetty			__P((Char **, struct command *));
-extern	int	tty_getty 		__P((int, ttydata_t *));
-extern	int	tty_setty 		__P((int, ttydata_t *));
-extern	void	tty_getchar 		__P((ttydata_t *, unsigned char *));
-extern	void	tty_setchar 		__P((ttydata_t *, unsigned char *));
-extern	speed_t	tty_getspeed 		__P((ttydata_t *));
-extern	int	tty_gettabs 		__P((ttydata_t *));
-extern	int	tty_geteightbit		__P((ttydata_t *));
-extern	int	tty_cooked_mode		__P((ttydata_t *));
+extern	void	dosetty			(Char **, struct command *);
+extern	int	tty_getty 		(int, ttydata_t *);
+extern	int	tty_setty 		(int, ttydata_t *);
+extern	void	tty_getchar 		(ttydata_t *, unsigned char *);
+extern	void	tty_setchar 		(ttydata_t *, unsigned char *);
+extern	speed_t	tty_getspeed 		(ttydata_t *);
+extern	int	tty_gettabs 		(ttydata_t *);
+extern	int	tty_geteightbit		(ttydata_t *);
+extern	int	tty_cooked_mode		(ttydata_t *);
 #ifdef _IBMR2
-extern	void	tty_setdisc		__P((int, int));
+extern	void	tty_setdisc		(int, int);
 #endif /* _IBMR2 */
 
 /*
  * ed.screen.c
  */
-extern	void	terminit		__P((void));
-extern	void	SetAttributes		__P((Char));
-extern	void	so_write		__P((Char *, int));
-extern	void	ClearScreen		__P((void));
-extern	void	MoveToLine		__P((int));
-extern	void	MoveToChar		__P((int));
-extern	void	ClearEOL		__P((int));
-extern	void	Insert_write		__P((Char *, int));
-extern	void	DeleteChars		__P((int));
-extern	void	TellTC			__P((void));
-extern	void	SetTC			__P((char *, char *));
-extern	void	EchoTC			__P((Char **));
-extern	int 	SetArrowKeys		__P((CStr *, XmapVal *, int));
-extern	int 	IsArrowKey		__P((Char *));
-extern	void	ResetArrowKeys		__P((void));
-extern	void	DefaultArrowKeys	__P((void));
-extern	int 	ClearArrowKeys		__P((CStr *));
-extern	void 	PrintArrowKeys		__P((CStr *));
-extern	void	BindArrowKeys		__P((void));
-extern	void	SoundBeep		__P((void));
-extern	int	CanWeTab		__P((void));
-extern	void	ChangeSize		__P((int, int));
+extern	void	terminit		(void);
+extern	void	SetAttributes		(Char);
+extern	void	so_write		(Char *, int);
+extern	void	ClearScreen		(void);
+extern	void	MoveToLine		(int);
+extern	void	MoveToChar		(int);
+extern	void	ClearEOL		(int);
+extern	void	Insert_write		(Char *, int);
+extern	void	DeleteChars		(int);
+extern	void	TellTC			(void);
+extern	void	SetTC			(char *, char *);
+extern	void	EchoTC			(Char **);
+extern	int 	SetArrowKeys		(const CStr *, XmapVal *, int);
+extern	int 	IsArrowKey		(Char *);
+extern	void	ResetArrowKeys		(void);
+extern	void	DefaultArrowKeys	(void);
+extern	int 	ClearArrowKeys		(const CStr *);
+extern	void 	PrintArrowKeys		(const CStr *);
+extern	void	BindArrowKeys		(void);
+extern	void	SoundBeep		(void);
+extern	int	CanWeTab		(void);
+extern	void	ChangeSize		(int, int);
 #ifdef SIG_WINDOW
-extern	int	GetSize			__P((int *, int *));
+extern	int	GetSize			(int *, int *);
 #endif /* SIG_WINDOW */
-extern	void	ClearToBottom		__P((void));
-extern	void	GetTermCaps		__P((void));
+extern	void	ClearToBottom		(void);
+extern	void	GetTermCaps		(void);
+extern	void	StartHighlight		(void);
+extern	void	StopHighlight		(void);
 
 /*
  * ed.defns.c
  */
-extern	void	editinit		__P((void));
-extern	void	ed_InitNLSMaps		__P((void));
+extern	void	editinit		(void);
+extern	void	ed_InitNLSMaps		(void);
 #ifdef DEBUG_EDIT
-extern	void	CheckMaps		__P((void));
+extern	void	CheckMaps		(void);
 #endif
-extern	void	ed_InitMaps		__P((void));
-extern	void	ed_InitEmacsMaps	__P((void));
-extern	void	ed_InitVIMaps		__P((void));
+extern	void	ed_InitMaps		(void);
+extern	void	ed_InitEmacsMaps	(void);
+extern	void	ed_InitVIMaps		(void);
 
-extern  CCRETVAL	e_unassigned		__P((Char));
-extern	CCRETVAL	e_insert		__P((Char));
-extern	CCRETVAL	e_newline		__P((Char));
-extern	CCRETVAL	e_delprev		__P((Char));
-extern	CCRETVAL	e_delnext		__P((Char));
+extern  CCRETVAL	e_unassigned		(Char);
+extern	CCRETVAL	e_insert		(Char);
+extern	CCRETVAL	e_newline		(Char);
+extern	CCRETVAL	e_delprev		(Char);
+extern	CCRETVAL	e_delnext		(Char);
 /* added by mtk@ari.ncl.omron.co.jp (920818) */
-extern	CCRETVAL	e_delnext_eof		__P((Char));	
-extern	CCRETVAL	e_delnext_list		__P((Char));
-extern	CCRETVAL	e_delnext_list_eof	__P((Char));	/* for ^D */
-extern	CCRETVAL	e_toend			__P((Char));
-extern	CCRETVAL	e_tobeg			__P((Char));
-extern	CCRETVAL	e_charback		__P((Char));
-extern	CCRETVAL	e_charfwd		__P((Char));
-extern	CCRETVAL	e_quote			__P((Char));
-extern	CCRETVAL	e_startover		__P((Char));
-extern	CCRETVAL	e_redisp		__P((Char));
-extern	CCRETVAL	e_wordback		__P((Char));
-extern	CCRETVAL	e_wordfwd		__P((Char));
-extern	CCRETVAL	v_wordbegnext		__P((Char));
-extern	CCRETVAL	e_uppercase		__P((Char));
-extern	CCRETVAL	e_lowercase		__P((Char));
-extern	CCRETVAL	e_capitolcase		__P((Char));
-extern	CCRETVAL	e_cleardisp		__P((Char));
-extern	CCRETVAL	e_complete		__P((Char));
-extern	CCRETVAL	e_correct		__P((Char));
-extern	CCRETVAL	e_correctl		__P((Char));
-extern	CCRETVAL	e_up_hist		__P((Char));
-extern	CCRETVAL	e_down_hist		__P((Char));
-extern	CCRETVAL	e_up_search_hist	__P((Char));
-extern	CCRETVAL	e_down_search_hist	__P((Char));
-extern	CCRETVAL	e_helpme		__P((Char));
-extern	CCRETVAL	e_list_choices		__P((Char));
-extern	CCRETVAL	e_delwordprev		__P((Char));
-extern	CCRETVAL	e_delwordnext		__P((Char));
-extern	CCRETVAL	e_digit			__P((Char));
-extern	CCRETVAL	e_argdigit		__P((Char));
-extern	CCRETVAL	v_zero			__P((Char));
-extern	CCRETVAL	e_killend		__P((Char));
-extern	CCRETVAL	e_killbeg		__P((Char));
-extern	CCRETVAL	e_metanext		__P((Char));
+extern	CCRETVAL	e_delnext_eof		(Char);
+extern	CCRETVAL	e_delnext_list		(Char);
+extern	CCRETVAL	e_delnext_list_eof	(Char);	/* for ^D */
+extern	CCRETVAL	e_toend			(Char);
+extern	CCRETVAL	e_tobeg			(Char);
+extern	CCRETVAL	e_charback		(Char);
+extern	CCRETVAL	e_charfwd		(Char);
+extern	CCRETVAL	e_quote			(Char);
+extern	CCRETVAL	e_startover		(Char);
+extern	CCRETVAL	e_redisp		(Char);
+extern	CCRETVAL	e_wordback		(Char);
+extern	CCRETVAL	e_wordfwd		(Char);
+extern	CCRETVAL	v_wordbegnext		(Char);
+extern	CCRETVAL	e_uppercase		(Char);
+extern	CCRETVAL	e_lowercase		(Char);
+extern	CCRETVAL	e_capitolcase		(Char);
+extern	CCRETVAL	e_cleardisp		(Char);
+extern	CCRETVAL	e_complete		(Char);
+extern	CCRETVAL	e_correct		(Char);
+extern	CCRETVAL	e_correctl		(Char);
+extern	CCRETVAL	e_up_hist		(Char);
+extern	CCRETVAL	e_down_hist		(Char);
+extern	CCRETVAL	e_up_search_hist	(Char);
+extern	CCRETVAL	e_down_search_hist	(Char);
+extern	CCRETVAL	e_helpme		(Char);
+extern	CCRETVAL	e_list_choices		(Char);
+extern	CCRETVAL	e_delwordprev		(Char);
+extern	CCRETVAL	e_delwordnext		(Char);
+extern	CCRETVAL	e_digit			(Char);
+extern	CCRETVAL	e_argdigit		(Char);
+extern	CCRETVAL	v_zero			(Char);
+extern	CCRETVAL	e_killend		(Char);
+extern	CCRETVAL	e_killbeg		(Char);
+extern	CCRETVAL	e_metanext		(Char);
 #ifdef notdef
-extern	CCRETVAL	e_extendnext		__P((Char));
+extern	CCRETVAL	e_extendnext		(Char);
 #endif
-extern	CCRETVAL	e_send_eof		__P((Char));
-extern	CCRETVAL	e_charswitch		__P((Char));
-extern	CCRETVAL	e_gcharswitch		__P((Char));
-extern	CCRETVAL	e_which			__P((Char));
-extern	CCRETVAL	e_yank_kill		__P((Char));
-extern	CCRETVAL	e_tty_dsusp		__P((Char));
-extern	CCRETVAL	e_tty_flusho		__P((Char));
-extern	CCRETVAL	e_tty_quit		__P((Char));
-extern	CCRETVAL	e_tty_tsusp		__P((Char));
-extern	CCRETVAL	e_tty_stopo		__P((Char));
-extern	CCRETVAL	e_tty_starto		__P((Char));
-extern	CCRETVAL	e_argfour		__P((Char));
-extern	CCRETVAL	e_set_mark		__P((Char));
-extern	CCRETVAL	e_exchange_mark		__P((Char));
-extern	CCRETVAL	e_last_item		__P((Char));
-extern	CCRETVAL	v_cmd_mode		__P((Char));
-extern	CCRETVAL	v_insert		__P((Char));
-extern	CCRETVAL	v_replmode		__P((Char));
-extern	CCRETVAL	v_replone		__P((Char));
-extern	CCRETVAL	v_substline		__P((Char));
-extern	CCRETVAL	v_substchar		__P((Char));
-extern	CCRETVAL	v_add			__P((Char));
-extern	CCRETVAL	v_addend		__P((Char));
-extern	CCRETVAL	v_insbeg		__P((Char));
-extern	CCRETVAL	v_chgtoend		__P((Char));
-extern	CCRETVAL	e_killregion		__P((Char));
-extern	CCRETVAL	e_killall		__P((Char));
-extern	CCRETVAL	e_copyregion		__P((Char));
-extern	CCRETVAL	e_tty_int		__P((Char));
-extern	CCRETVAL	e_run_fg_editor		__P((Char));
-extern	CCRETVAL	e_list_eof		__P((Char));
-extern	CCRETVAL	e_expand_history	__P((Char));
-extern	CCRETVAL	e_magic_space		__P((Char));
-extern	CCRETVAL	e_list_glob		__P((Char));
-extern	CCRETVAL	e_expand_glob		__P((Char));
-extern	CCRETVAL	e_insovr		__P((Char));
-extern	CCRETVAL	v_cm_complete		__P((Char));
-extern	CCRETVAL	e_copyprev		__P((Char));
-extern	CCRETVAL	v_change_case		__P((Char));
-extern	CCRETVAL	e_expand		__P((Char));
-extern	CCRETVAL	e_expand_vars		__P((Char));
-extern	CCRETVAL	e_toggle_hist		__P((Char));
-extern  CCRETVAL        e_load_average		__P((Char));
-extern  CCRETVAL        v_delprev		__P((Char));
-extern  CCRETVAL        v_delmeta		__P((Char));
-extern  CCRETVAL        v_wordfwd		__P((Char));
-extern  CCRETVAL        v_wordback		__P((Char));
-extern  CCRETVAL        v_endword		__P((Char));
-extern  CCRETVAL        v_eword			__P((Char));
-extern  CCRETVAL        v_undo			__P((Char));
-extern  CCRETVAL        v_ush_meta		__P((Char));
-extern  CCRETVAL        v_dsh_meta		__P((Char));
-extern  CCRETVAL        v_rsrch_fwd		__P((Char));
-extern  CCRETVAL        v_rsrch_back		__P((Char));
-extern  CCRETVAL        v_char_fwd		__P((Char));
-extern  CCRETVAL        v_char_back		__P((Char));
-extern  CCRETVAL        v_chgmeta		__P((Char));
-extern	CCRETVAL	e_inc_fwd		__P((Char));
-extern	CCRETVAL	e_inc_back		__P((Char));
-extern	CCRETVAL	v_rchar_fwd		__P((Char));
-extern	CCRETVAL	v_rchar_back		__P((Char));
-extern  CCRETVAL        v_charto_fwd		__P((Char));
-extern  CCRETVAL        v_charto_back		__P((Char));
-extern  CCRETVAL        e_normalize_path	__P((Char));
-extern  CCRETVAL        e_normalize_command	__P((Char));
-extern  CCRETVAL        e_stuff_char		__P((Char));
-extern  CCRETVAL        e_list_all		__P((Char));
-extern  CCRETVAL        e_complete_all		__P((Char));
-extern  CCRETVAL        e_complete_fwd		__P((Char));
-extern  CCRETVAL        e_complete_back		__P((Char));
-extern  CCRETVAL        e_dabbrev_expand	__P((Char));
-extern  CCRETVAL	e_copy_to_clipboard	__P((Char));
-extern  CCRETVAL	e_paste_from_clipboard	__P((Char));
-extern  CCRETVAL	e_dosify_next		__P((Char));
-extern  CCRETVAL	e_dosify_prev		__P((Char));
-extern  CCRETVAL	e_page_up			__P((Char));
-extern  CCRETVAL	e_page_down			__P((Char));
-extern  CCRETVAL	e_yank_pop		__P((Char));
+extern	CCRETVAL	e_send_eof		(Char);
+extern	CCRETVAL	e_charswitch		(Char);
+extern	CCRETVAL	e_gcharswitch		(Char);
+extern	CCRETVAL	e_which			(Char);
+extern	CCRETVAL	e_yank_kill		(Char);
+extern	CCRETVAL	e_tty_dsusp		(Char);
+extern	CCRETVAL	e_tty_flusho		(Char);
+extern	CCRETVAL	e_tty_quit		(Char);
+extern	CCRETVAL	e_tty_tsusp		(Char);
+extern	CCRETVAL	e_tty_stopo		(Char);
+extern	CCRETVAL	e_tty_starto		(Char);
+extern	CCRETVAL	e_argfour		(Char);
+extern	CCRETVAL	e_set_mark		(Char);
+extern	CCRETVAL	e_exchange_mark		(Char);
+extern	CCRETVAL	e_last_item		(Char);
+extern	CCRETVAL	v_cmd_mode		(Char);
+extern	CCRETVAL	v_insert		(Char);
+extern	CCRETVAL	v_replmode		(Char);
+extern	CCRETVAL	v_replone		(Char);
+extern	CCRETVAL	v_substline		(Char);
+extern	CCRETVAL	v_substchar		(Char);
+extern	CCRETVAL	v_add			(Char);
+extern	CCRETVAL	v_addend		(Char);
+extern	CCRETVAL	v_insbeg		(Char);
+extern	CCRETVAL	v_chgtoend		(Char);
+extern	CCRETVAL	e_killregion		(Char);
+extern	CCRETVAL	e_killall		(Char);
+extern	CCRETVAL	e_copyregion		(Char);
+extern	CCRETVAL	e_tty_int		(Char);
+extern	CCRETVAL	e_run_fg_editor		(Char);
+extern	CCRETVAL	e_list_eof		(Char);
+extern	CCRETVAL	e_expand_history	(Char);
+extern	CCRETVAL	e_magic_space		(Char);
+extern	CCRETVAL	e_list_glob		(Char);
+extern	CCRETVAL	e_expand_glob		(Char);
+extern	CCRETVAL	e_insovr		(Char);
+extern	CCRETVAL	v_cm_complete		(Char);
+extern	CCRETVAL	e_copyprev		(Char);
+extern	CCRETVAL	v_change_case		(Char);
+extern	CCRETVAL	e_expand		(Char);
+extern	CCRETVAL	e_expand_vars		(Char);
+extern	CCRETVAL	e_toggle_hist		(Char);
+extern  CCRETVAL        e_load_average		(Char);
+extern  CCRETVAL        v_delprev		(Char);
+extern  CCRETVAL        v_delmeta		(Char);
+extern  CCRETVAL        v_wordfwd		(Char);
+extern  CCRETVAL        v_wordback		(Char);
+extern  CCRETVAL        v_endword		(Char);
+extern  CCRETVAL        v_eword			(Char);
+extern  CCRETVAL        v_undo			(Char);
+extern  CCRETVAL        v_ush_meta		(Char);
+extern  CCRETVAL        v_dsh_meta		(Char);
+extern  CCRETVAL        v_rsrch_fwd		(Char);
+extern  CCRETVAL        v_rsrch_back		(Char);
+extern  CCRETVAL        v_char_fwd		(Char);
+extern  CCRETVAL        v_char_back		(Char);
+extern  CCRETVAL        v_chgmeta		(Char);
+extern	CCRETVAL	e_inc_fwd		(Char);
+extern	CCRETVAL	e_inc_back		(Char);
+extern	CCRETVAL	v_rchar_fwd		(Char);
+extern	CCRETVAL	v_rchar_back		(Char);
+extern  CCRETVAL        v_charto_fwd		(Char);
+extern  CCRETVAL        v_charto_back		(Char);
+extern  CCRETVAL        e_normalize_path	(Char);
+extern  CCRETVAL        e_normalize_command	(Char);
+extern  CCRETVAL        e_stuff_char		(Char);
+extern  CCRETVAL        e_list_all		(Char);
+extern  CCRETVAL        e_complete_all		(Char);
+extern  CCRETVAL        e_complete_fwd		(Char);
+extern  CCRETVAL        e_complete_back		(Char);
+extern  CCRETVAL        e_dabbrev_expand	(Char);
+extern  CCRETVAL	e_copy_to_clipboard	(Char);
+extern  CCRETVAL	e_paste_from_clipboard	(Char);
+extern  CCRETVAL	e_dosify_next		(Char);
+extern  CCRETVAL	e_dosify_prev		(Char);
+extern  CCRETVAL	e_page_up		(Char);
+extern  CCRETVAL	e_page_down		(Char);
+extern  CCRETVAL	e_yank_pop		(Char);
+extern  CCRETVAL	e_newline_hold		(Char);
+extern  CCRETVAL	e_newline_down_hist	(Char);
 
 /*
  * ed.inputl.c
  */
-extern	int	Inputl			__P((void));
-extern	int	GetNextChar		__P((Char *));
-extern	void    UngetNextChar		__P((Char));
-extern	void	PushMacro		__P((Char *));
+extern	int	Inputl			(void);
+extern	int	GetNextChar		(Char *);
+extern	void    UngetNextChar		(Char);
+extern	void	PushMacro		(Char *);
 
 /*
  * ed.refresh.c
  */
-extern	void	ClearLines		__P((void));
-extern	void	ClearDisp		__P((void));
-extern	void	Refresh			__P((void));
-extern	void	RefCursor		__P((void));
-extern	void	RefPlusOne		__P((int));
-extern	void	PastBottom		__P((void));
+extern	void	ClearLines		(void);
+extern	void	ClearDisp		(void);
+extern	void	Refresh			(void);
+extern	void	RefCursor		(void);
+extern	void	RefPlusOne		(int);
+extern	void	PastBottom		(void);
 
 /*
  * ed.xmap.c
  */
-extern  XmapVal *XmapStr		__P((CStr *));
-extern  XmapVal *XmapCmd		__P((int));
-extern	void	 AddXkey		__P((CStr *, XmapVal *, int));
-extern	void	 ClearXkey		__P((KEYCMD *, CStr *));
-extern	int	 GetXkey		__P((CStr *, XmapVal *));
-extern	void	 ResetXmap		__P((void));
-extern	int	 DeleteXkey		__P((CStr *));
-extern	void	 PrintXkey		__P((CStr *));
-extern	int	 printOne		__P((CStr *, XmapVal *, int));
-extern	eChar		  parseescape	__P((const Char **));
-extern	unsigned char    *unparsestring	__P((CStr *, unsigned char *, Char *));
+extern  XmapVal *XmapStr		(CStr *);
+extern  XmapVal *XmapCmd		(int);
+extern	void	 AddXkey		(const CStr *, XmapVal *, int);
+extern	void	 ClearXkey		(KEYCMD *, const CStr *);
+extern	int	 GetXkey		(CStr *, XmapVal *);
+extern	void	 ResetXmap		(void);
+extern	int	 DeleteXkey		(const CStr *);
+extern	void	 PrintXkey		(const CStr *);
+extern	void	 printOne		(const Char *, const XmapVal *, int);
+extern	eChar		  parseescape	(const Char **);
+extern	unsigned char    *unparsestring	(const CStr *, const Char *);
 
 #endif /* _h_ed_decls */

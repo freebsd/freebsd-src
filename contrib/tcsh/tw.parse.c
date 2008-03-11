@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/tw.parse.c,v 3.105 2005/03/03 16:40:53 kim Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/tw.parse.c,v 3.123 2007/03/01 21:21:42 corinna Exp $ */
 /*
  * tw.parse.c: Everyone has taken a shot in this futile effort to
  *	       lexically analyze a csh line... Well we cannot good
@@ -35,11 +35,13 @@
  */
 #include "sh.h"
 
-RCSID("$Id: tw.parse.c,v 3.105 2005/03/03 16:40:53 kim Exp $")
+RCSID("$tcsh: tw.parse.c,v 3.123 2007/03/01 21:21:42 corinna Exp $")
 
 #include "tw.h"
 #include "ed.h"
 #include "tc.h"
+
+#include <assert.h>
 
 #ifdef WINNT_NATIVE
 #include "nt.const.h"
@@ -55,7 +57,7 @@ RCSID("$Id: tw.parse.c,v 3.105 2005/03/03 16:40:53 kim Exp $")
 /*  TW_COMPLETION,     TW_ALIAS,       TW_SHELLVAR,    TW_ENVVAR,	*/
 /*  TW_BINDING,        TW_WORDLIST,    TW_LIMIT,       TW_SIGNAL	*/
 /*  TW_JOB,	       TW_EXPLAIN,     TW_TEXT,	       TW_GRPNAME	*/
-static void (*tw_start_entry[]) __P((DIR *, Char *)) = {
+static void (*const tw_start_entry[]) (DIR *, const Char *) = {
     tw_file_start,     tw_cmd_start,   tw_var_start,   tw_logname_start, 
     tw_file_start,     tw_file_start,  tw_vl_start,    tw_logname_start, 
     tw_complete_start, tw_alias_start, tw_var_start,   tw_var_start,     
@@ -63,7 +65,8 @@ static void (*tw_start_entry[]) __P((DIR *, Char *)) = {
     tw_job_start,      tw_file_start,  tw_file_start,  tw_grpname_start
 };
 
-static Char * (*tw_next_entry[]) __P((Char *, int *)) = {
+static int (*const tw_next_entry[]) (struct Strbuf *, struct Strbuf *,
+				     int *) = {
     tw_file_next,      tw_cmd_next,    tw_var_next,    tw_logname_next,  
     tw_file_next,      tw_file_next,   tw_var_next,    tw_logname_next,  
     tw_var_next,       tw_var_next,    tw_shvar_next,  tw_envvar_next,   
@@ -71,7 +74,7 @@ static Char * (*tw_next_entry[]) __P((Char *, int *)) = {
     tw_job_next,       tw_file_next,   tw_file_next,   tw_grpname_next
 };
 
-static void (*tw_end_entry[]) __P((void)) = {
+static void (*const tw_end_entry[]) (void) = {
     tw_dir_end,        tw_dir_end,     tw_dir_end,    tw_logname_end,
     tw_dir_end,        tw_dir_end,     tw_dir_end,    tw_logname_end, 
     tw_dir_end,        tw_dir_end,     tw_dir_end,    tw_dir_end,
@@ -97,37 +100,37 @@ int InsideCompletion = 0;
 
 /* do the expand or list on the command line -- SHOULD BE REPLACED */
 
-static	void	 extract_dir_and_name	__P((Char *, Char *, Char *));
-static	int	 insert_meta		__P((Char *, Char *, Char *, int));
-static	Char	*tilde			__P((Char *, Char *));
-#ifndef __MVS__
-static  int      expand_dir		__P((Char *, Char *, DIR  **, COMMAND));
-#endif
-static	int	 nostat			__P((Char *));
-static	Char	 filetype		__P((Char *, Char *));
-static	int	 t_glob			__P((Char ***, int));
-static	int	 c_glob			__P((Char ***));
-static	int	 is_prefix		__P((Char *, Char *));
-static	int	 is_prefixmatch		__P((Char *, Char *, int));
-static	int	 is_suffix		__P((Char *, Char *));
-static	int	 recognize		__P((Char *, Char *, int, int, int,
-					     int));
-static	int	 ignored		__P((Char *));
-static	int	 isadirectory		__P((Char *, Char *));
-#ifndef __MVS__
-static  int      tw_collect_items	__P((COMMAND, int, Char *, Char *, 
-					     Char *, Char *, int));
-static  int      tw_collect		__P((COMMAND, int, Char *, Char *, 
-					     Char **, Char *, int, DIR *));
-#endif
-static	Char 	 tw_suffix		__P((int, Char *, Char *, Char *, 
-					     Char *));
-static	void 	 tw_fixword		__P((int, Char *, Char *, Char *, int));
-static	void	 tw_list_items		__P((int, int, int));
-static 	void	 add_scroll_tab		__P((Char *));
-static 	void 	 choose_scroll_tab	__P((Char **, int));
-static	void	 free_scroll_tab	__P((void));
-static	int	 find_rows		__P((Char *[], int, int));
+static	void	 extract_dir_and_name	(const Char *, struct Strbuf *,
+					 Char **);
+static	int	 insert_meta		(const Char *, const Char *,
+					 const Char *, int);
+static	int	 tilde			(struct Strbuf *, Char *);
+static  int      expand_dir		(const Char *, struct Strbuf *, DIR **,
+					 COMMAND);
+static	int	 nostat			(Char *);
+static	Char	 filetype		(Char *, Char *);
+static	int	 t_glob			(Char ***, int);
+static	int	 c_glob			(Char ***);
+static	int	 is_prefix		(Char *, Char *);
+static	int	 is_prefixmatch		(Char *, Char *, int);
+static	int	 is_suffix		(Char *, Char *);
+static	int	 recognize		(struct Strbuf *, const Char *, size_t,
+					 int, int, int);
+static	int	 ignored		(Char *);
+static	int	 isadirectory		(const Char *, const Char *);
+static  int      tw_collect_items	(COMMAND, int, struct Strbuf *,
+					 struct Strbuf *, Char *, const Char *,
+					 int);
+static  int      tw_collect		(COMMAND, int, struct Strbuf *,
+					 struct Strbuf *, Char *, Char *, int,
+					 DIR *);
+static	Char 	 tw_suffix		(int, const Char *, Char *);
+static	void 	 tw_fixword		(int, struct Strbuf *, Char *, Char *);
+static	void	 tw_list_items		(int, int, int);
+static 	void	 add_scroll_tab		(Char *);
+static 	void 	 choose_scroll_tab	(struct Strbuf *, int);
+static	void	 free_scroll_tab	(void);
+static	int	 find_rows		(Char *[], int, int);
 
 #ifdef notdef
 /*
@@ -139,8 +142,6 @@ static	int	 find_rows		__P((Char *[], int, int));
 		      ((c)[0] == 's' && (c)[1] == 'e' && (c)[2] == 't' && \
 		       ((c[3] == ' ' || (c)[3] == '\t'))))
 #endif
-
-#define QLINESIZE (INBUFSIZE + 1)
 
 /* TRUE if character must be quoted */
 #define tricky(w) (cmap(w, _META | _DOL | _QF | _QB | _ESC | _GLOB) && w != '#')
@@ -155,29 +156,24 @@ static	int	 find_rows		__P((Char *[], int, int));
  *		< 0:    Error (incl spelling correction impossible)
  */
 int
-tenematch(inputline, num_read, command)
-    Char   *inputline;		/* match string prefix */
-    int     num_read;		/* # actually in inputline */
-    COMMAND command;		/* LIST or RECOGNIZE or PRINT_HELP */
-
+tenematch(Char *inputline, int num_read, COMMAND command)
 {
-    Char    qline[QLINESIZE];
+    struct Strbuf qline = Strbuf_INIT;
     Char    qu = 0, *pat = STRNULL;
-    Char   *str_end, *cp, *wp, *wordp;
-    Char   *cmd_start, *word_start, *word;
-    Char   *ocmd_start = NULL, *oword_start = NULL, *oword = NULL;
-    int	    suf = 0;
-    int     space_left;
+    size_t wp, word, wordp, cmd_start, oword = 0, ocmd_start = 0;
+    Char   *str_end, *cp;
+    Char   *word_start;
+    Char   *oword_start = NULL;
+    eChar suf = 0;
     int     looking;		/* what we are looking for		*/
     int     search_ret;		/* what search returned for debugging 	*/
     int     backq = 0;
 
-    if (num_read > QLINESIZE - 1)
-	return -1;
     str_end = &inputline[num_read];
+    cleanup_push(&qline, Strbuf_cleanup);
 
     word_start = inputline;
-    word = cmd_start = wp = qline;
+    word = cmd_start = 0;
     for (cp = inputline; cp < str_end; cp++) {
         if (!cmap(qu, _ESC)) {
 	    if (cmap(*cp, _QF|_ESC)) {
@@ -192,49 +188,37 @@ tenematch(inputline, num_read, command)
 		    oword_start = word_start;
 		    oword = word;
 		    word_start = cp + 1;
-		    word = cmd_start = wp + 1;
+		    word = cmd_start = qline.len + 1;
 		}
 		else {
 		    cmd_start = ocmd_start;
 		    word_start = oword_start;
 		    word = oword;
 		}
-		*wp++ = *cp;
+		Strbuf_append1(&qline, *cp);
 		continue;
 	    }
 	}
 	if (iscmdmeta(*cp))
-	    cmd_start = wp + 1;
+	    cmd_start = qline.len + 1;
 
 	/* Don't quote '/' to make the recognize stuff work easily */
 	/* Don't quote '$' in double quotes */
 
 	if (cmap(*cp, _ESC) && cp < str_end - 1 && cp[1] == HIST)
-	  *wp = *++cp | QUOTE;
+	    Strbuf_append1(&qline, *++cp | QUOTE);
 	else if (qu && (tricky(*cp) || *cp == '~') && !(qu == '\"' && tricky_dq(*cp)))
-	  *wp = *cp | QUOTE;
+	    Strbuf_append1(&qline, *cp | QUOTE);
 	else
-	  *wp = *cp;
-	if (ismetahash(*wp) /* || isaset(cmd_start, wp + 1) */)
-	    word = wp + 1, word_start = cp + 1;
-	wp++;
+	    Strbuf_append1(&qline, *cp);
+	if (ismetahash(qline.s[qline.len - 1])
+	    /* || isaset(qline.s + cmd_start, qline.s + qline.len) */)
+	    word = qline.len, word_start = cp + 1;
 	if (cmap(qu, _ESC))
 	    qu = 0;
       }
-    *wp = 0;
-
-#ifdef masscomp
-    /*
-     * Avoid a nasty message from the RTU 4.1A & RTU 5.0 compiler concerning
-     * the "overuse of registers". According to the compiler release notes,
-     * incorrect code may be produced unless the offending expression is
-     * rewritten. Therefore, we can't just ignore it, DAS DEC-90.
-     */
-    space_left = QLINESIZE - 1;
-    space_left -= word - qline;
-#else
-    space_left = QLINESIZE - 1 - (int) (word - qline);
-#endif
+    Strbuf_terminate(&qline);
+    wp = qline.len;
 
     /*
      *  SPECIAL HARDCODED COMPLETIONS:
@@ -242,52 +226,62 @@ tenematch(inputline, num_read, command)
      *    everything else             -> TW_ZERO
      *
      */
-    looking = starting_a_command(word - 1, qline) ? 
+    looking = starting_a_command(qline.s + word - 1, qline.s) ?
 	TW_COMMAND : TW_ZERO;
 
     wordp = word;
 
 #ifdef TDEBUG
-    xprintf(CGETS(30, 1, "starting_a_command %d\n"), looking);
-    xprintf("\ncmd_start:%S:\n", cmd_start);
-    xprintf("qline:%S:\n", qline);
-    xprintf("qline:");
-    for (wp = qline; *wp; wp++)
-	xprintf("%c", *wp & QUOTE ? '-' : ' ');
-    xprintf(":\n");
-    xprintf("word:%S:\n", word);
-    xprintf("word:");
-    /* Must be last, so wp is still pointing to the end of word */
-    for (wp = word; *wp; wp++)
-	xprintf("%c", *wp & QUOTE ? '-' : ' ');
-    xprintf(":\n");
+    {
+	const Char *p;
+
+	xprintf(CGETS(30, 1, "starting_a_command %d\n"), looking);
+	xprintf("\ncmd_start:%S:\n", qline.s + cmd_start);
+	xprintf("qline:%S:\n", qline.s);
+	xprintf("qline:");
+	for (p = qline.s; *p; p++)
+	    xprintf("%c", *p & QUOTE ? '-' : ' ');
+	xprintf(":\n");
+	xprintf("word:%S:\n", qline.s + word);
+	xprintf("word:");
+	for (p = qline.s + word; *p; p++)
+	    xprintf("%c", *p & QUOTE ? '-' : ' ');
+	xprintf(":\n");
+    }
 #endif
 
     if ((looking == TW_COMMAND || looking == TW_ZERO) &&
         (command == RECOGNIZE || command == LIST || command == SPELL ||
 	 command == RECOGNIZE_SCROLL)) {
+	Char *p;
+
 #ifdef TDEBUG
 	xprintf(CGETS(30, 2, "complete %d "), looking);
 #endif
-	looking = tw_complete(cmd_start, &wordp, &pat, looking, &suf);
+	p = qline.s + wordp;
+	looking = tw_complete(qline.s + cmd_start, &p, &pat, looking, &suf);
+	wordp = p - qline.s;
 #ifdef TDEBUG
 	xprintf(CGETS(30, 3, "complete %d %S\n"), looking, pat);
 #endif
     }
 
     switch (command) {
-	Char    buffer[FILSIZ + 1], *bptr;
-	Char   *slshp;
+	Char   *bptr;
 	Char   *items[2], **ptr;
 	int     i, count;
 
     case RECOGNIZE:
     case RECOGNIZE_SCROLL:
-    case RECOGNIZE_ALL:
+    case RECOGNIZE_ALL: {
+	struct Strbuf wordbuf = Strbuf_INIT;
+	Char   *slshp;
+
 	if (adrof(STRautocorrect)) {
-	    if ((slshp = Strrchr(wordp, '/')) != NULL && slshp[1] != '\0') {
+	    if ((slshp = Strrchr(qline.s + wordp, '/')) != NULL &&
+		slshp[1] != '\0') {
 		SearchNoDirErr = 1;
-		for (bptr = wordp; bptr < slshp; bptr++) {
+		for (bptr = qline.s + wordp; bptr < slshp; bptr++) {
 		    /*
 		     * do not try to correct spelling of words containing
 		     * globbing characters
@@ -301,59 +295,90 @@ tenematch(inputline, num_read, command)
 	}
 	else
 	    slshp = STRNULL;
-	search_ret = t_search(wordp, wp, command, space_left, looking, 1, 
-			      pat, suf);
+	Strbuf_append(&wordbuf, qline.s + wordp);
+	Strbuf_terminate(&wordbuf);
+	cleanup_push(&wordbuf, Strbuf_cleanup);
+	search_ret = t_search(&wordbuf, command, looking, 1, pat, suf);
+	qline.len = wordp;
+	Strbuf_append(&qline, wordbuf.s);
+	Strbuf_terminate(&qline);
+	cleanup_until(&wordbuf);
 	SearchNoDirErr = 0;
 
 	if (search_ret == -2) {
-	    Char    rword[FILSIZ + 1];
+	    Char *rword;
 
-	    (void) Strcpy(rword, slshp);
+	    rword = Strsave(slshp);
+	    cleanup_push(rword, xfree);
 	    if (slshp != STRNULL)
 		*slshp = '\0';
-	    search_ret = spell_me(wordp, QLINESIZE - (wordp - qline), looking,
-				  pat, suf);
+	    wordbuf = Strbuf_init;
+	    Strbuf_append(&wordbuf, qline.s + wordp);
+	    Strbuf_terminate(&wordbuf);
+	    cleanup_push(&wordbuf, Strbuf_cleanup);
+	    search_ret = spell_me(&wordbuf, looking, pat, suf);
 	    if (search_ret == 1) {
-		(void) Strcat(wordp, rword);
-		wp = wordp + (int) Strlen(wordp);
-		search_ret = t_search(wordp, wp, command, space_left,
-				      looking, 1, pat, suf);
+		Strbuf_append(&wordbuf, rword);
+		Strbuf_terminate(&wordbuf);
+		wp = wordp + wordbuf.len;
+		search_ret = t_search(&wordbuf, command, looking, 1, pat, suf);
 	    }
+	    qline.len = wordp;
+	    Strbuf_append(&qline, wordbuf.s);
+	    Strbuf_terminate(&qline);
+	    cleanup_until(rword);
 	}
-	if (*wp && insert_meta(word_start, str_end, word, !qu) < 0)
-	    return -1;		/* error inserting */
-	return search_ret;
+	if (qline.s[wp] != '\0' &&
+	    insert_meta(word_start, str_end, qline.s + word, !qu) < 0)
+	    goto err;		/* error inserting */
+	break;
+    }
 
-    case SPELL:
+    case SPELL: {
+	struct Strbuf wordbuf = Strbuf_INIT;
+
 	for (bptr = word_start; bptr < str_end; bptr++) {
 	    /*
 	     * do not try to correct spelling of words containing globbing
 	     * characters
 	     */
-	    if (isglob(*bptr))
-		return 0;
+	    if (isglob(*bptr)) {
+		search_ret = 0;
+		goto end;
+	    }
 	}
-	search_ret = spell_me(wordp, QLINESIZE - (wordp - qline), looking,
-			      pat, suf);
+	Strbuf_append(&wordbuf, qline.s + wordp);
+	Strbuf_terminate(&wordbuf);
+	cleanup_push(&wordbuf, Strbuf_cleanup);
+	search_ret = spell_me(&wordbuf, looking, pat, suf);
+	qline.len = wordp;
+	Strbuf_append(&qline, wordbuf.s);
+	Strbuf_terminate(&qline);
+	cleanup_until(&wordbuf);
 	if (search_ret == 1) {
-	    if (insert_meta(word_start, str_end, word, !qu) < 0)
-		return -1;		/* error inserting */
+	    if (insert_meta(word_start, str_end, qline.s + word, !qu) < 0)
+		goto err;		/* error inserting */
 	}
-	return search_ret;
+	break;
+    }
 
     case PRINT_HELP:
-	do_help(cmd_start);
-	return 1;
+	do_help(qline.s + cmd_start);
+	search_ret = 1;
+	break;
 
     case GLOB:
     case GLOB_EXPAND:
-	(void) Strncpy(buffer, wordp, FILSIZ + 1);
-	items[0] = buffer;
+	items[0] = Strsave(qline.s + wordp);
 	items[1] = NULL;
+	cleanup_push(items[0], xfree);
 	ptr = items;
-	count = (looking == TW_COMMAND && Strchr(wordp, '/') == 0) ? 
-		c_glob(&ptr) : 
+	count = (looking == TW_COMMAND && Strchr(qline.s + wordp, '/') == 0) ?
+		c_glob(&ptr) :
 		t_glob(&ptr, looking == TW_COMMAND);
+	cleanup_until(items[0]);
+	if (ptr != items)
+	    cleanup_push(ptr, blk_cleanup);
 	if (count > 0) {
 	    if (command == GLOB)
 		print_by_column(STRNULL, ptr, count, 0);
@@ -364,52 +389,92 @@ tenematch(inputline, num_read, command)
 			(void) quote(ptr[i]);
 			if (insert_meta(0, 0, ptr[i], 0) < 0 ||
 			    InsertStr(STRspace) < 0) {
-			    blkfree(ptr);
-			    return -1;		/* error inserting */
+			    if (ptr != items)
+				cleanup_until(ptr);
+			    goto err;		/* error inserting */
 			}
 		    }
 	    }
-	    blkfree(ptr);
 	}
-	return count;
+	if (ptr != items)
+	    cleanup_until(ptr);
+	search_ret = count;
+	break;
 
     case VARS_EXPAND:
-	if (dollar(buffer, word)) {
-	    if (insert_meta(word_start, str_end, buffer, !qu) < 0)
-		return -1;		/* error inserting */
-	    return 1;
+	bptr = dollar(qline.s + word);
+	if (bptr != NULL) {
+	    if (insert_meta(word_start, str_end, bptr, !qu) < 0) {
+		xfree(bptr);
+		goto err;		/* error inserting */
+	    }
+	    xfree(bptr);
+	    search_ret = 1;
+	    break;
 	}
-	return 0;
+	search_ret = 0;
+	break;
 
     case PATH_NORMALIZE:
-	if ((bptr = dnormalize(wordp, symlinks == SYM_IGNORE ||
-				      symlinks == SYM_EXPAND)) != NULL) {
-	    (void) Strcpy(buffer, bptr);
-	    xfree((ptr_t) bptr);
-	    if (insert_meta(word_start, str_end, buffer, !qu) < 0)
-		return -1;		/* error inserting */
-	    return 1;
+	if ((bptr = dnormalize(qline.s + wordp, symlinks == SYM_IGNORE ||
+			       symlinks == SYM_EXPAND)) != NULL) {
+	    if (insert_meta(word_start, str_end, bptr, !qu) < 0) {
+		xfree(bptr);
+		goto err;		/* error inserting */
+	    }
+	    xfree(bptr);
+	    search_ret = 1;
+	    break;
 	}
-	return 0;
+	search_ret = 0;
+	break;
 
-    case COMMAND_NORMALIZE:
-	if (!cmd_expand(wordp, buffer))
-	    return 0;
-	if (insert_meta(word_start, str_end, buffer, !qu) < 0)
-	    return -1;		/* error inserting */
-	return 1;
+    case COMMAND_NORMALIZE: {
+	Char *p;
+	int found;
+
+	found = !cmd_expand(qline.s + wordp, &p);
+	
+	if (!found) {
+	    xfree(p);
+	    search_ret = 0;
+	    break;
+	}
+	if (insert_meta(word_start, str_end, p, !qu) < 0) {
+	    xfree(p);
+	    goto err;		/* error inserting */
+	}
+	xfree(p);
+	search_ret = 1;
+	break;
+    }
 
     case LIST:
-    case LIST_ALL:
-	search_ret = t_search(wordp, wp, LIST, space_left, looking, 1, 
-			      pat, suf);
-	return search_ret;
+    case LIST_ALL: {
+	struct Strbuf wordbuf = Strbuf_INIT;
+
+	Strbuf_append(&wordbuf, qline.s + wordp);
+	Strbuf_terminate(&wordbuf);
+	cleanup_push(&wordbuf, Strbuf_cleanup);
+	search_ret = t_search(&wordbuf, LIST, looking, 1, pat, suf);
+	qline.len = wordp;
+	Strbuf_append(&qline, wordbuf.s);
+	Strbuf_terminate(&qline);
+	cleanup_until(&wordbuf);
+	break;
+    }
 
     default:
 	xprintf(CGETS(30, 4, "%s: Internal match error.\n"), progname);
-	return 1;
-
+	search_ret = 1;
     }
+ end:
+    cleanup_until(&qline);
+    return search_ret;
+
+ err:
+    cleanup_until(&qline);
+    return -1;
 } /* end tenematch */
 
 
@@ -417,21 +482,23 @@ tenematch(inputline, num_read, command)
  * 	Return a list of files that match the pattern
  */
 static int
-t_glob(v, cmd)
-    Char ***v;
-    int cmd;
+t_glob(Char ***v, int cmd)
 {
     jmp_buf_t osetexit;
+    int gflag;
 
     if (**v == 0)
 	return (0);
-    gflag = 0, tglob(*v);
+    gflag = tglob(*v);
     if (gflag) {
+	size_t omark;
+
 	getexit(osetexit);	/* make sure to come back here */
+	omark = cleanup_push_mark();
 	if (setexit() == 0)
-	    *v = globall(*v);
+	    *v = globall(*v, gflag);
+	cleanup_pop_mark(omark);
 	resexit(osetexit);
-	gargv = 0;
 	if (haderr) {
 	    haderr = 0;
 	    NeedsRedraw = 1;
@@ -445,25 +512,23 @@ t_glob(v, cmd)
 
     if (cmd) {
 	Char **av = *v, *p;
-	int fwd, i, ac = gargc;
+	int fwd, i;
 
-	for (i = 0, fwd = 0; i < ac; i++) 
+	for (i = 0, fwd = 0; av[i] != NULL; i++) 
 	    if (!executable(NULL, av[i], 0)) {
 		fwd++;		
 		p = av[i];
 		av[i] = NULL;
-		xfree((ptr_t) p);
+		xfree(p);
 	    }
 	    else if (fwd) 
 		av[i - fwd] = av[i];
 
 	if (fwd)
 	    av[i - fwd] = av[i];
-	gargc -= fwd;
-	av[gargc] = NULL;
     }
 
-    return (gargc);
+    return blklen(*v);
 } /* end t_glob */
 
 
@@ -471,36 +536,32 @@ t_glob(v, cmd)
  * 	Return a list of commands that match the pattern
  */
 static int
-c_glob(v)
-    Char ***v;
+c_glob(Char ***v)
 {
-    Char *pat = **v, *cmd, **av;
-    Char dir[MAXPATHLEN+1];
-    int flag, at, ac;
+    struct blk_buf av = BLK_BUF_INIT;
+    struct Strbuf cmd = Strbuf_INIT, dir = Strbuf_INIT;
+    Char *pat = **v;
+    int flag;
 
     if (pat == NULL)
 	return (0);
 
-    ac = 0;
-    at = 10;
-    av = (Char **) xmalloc((size_t) (at * sizeof(Char *)));
-    av[ac] = NULL;
+    cleanup_push(&av, bb_cleanup);
+    cleanup_push(&cmd, Strbuf_cleanup);
+    cleanup_push(&dir, Strbuf_cleanup);
 
     tw_cmd_start(NULL, NULL);
-    while ((cmd = tw_cmd_next(dir, &flag)) != NULL) 
-	if (Gmatch(cmd, pat)) {
-	    if (ac + 1 >= at) {
-		at += 10;
-		av = (Char **) xrealloc((ptr_t) av, 
-					(size_t) (at * sizeof(Char *)));
-	    }
-	    av[ac++] = Strsave(cmd);
-	    av[ac] = NULL;
-	}
+    while (cmd.len = 0, tw_cmd_next(&cmd, &dir, &flag) != 0) {
+	Strbuf_terminate(&cmd);
+	if (Gmatch(cmd.s, pat))
+	    bb_append(&av, Strsave(cmd.s));
+    }
     tw_dir_end();
-    *v = av;
+    *v = bb_finish(&av);
+    cleanup_ignore(&av);
+    cleanup_until(&av);
 
-    return (ac);
+    return av.len;
 } /* end c_glob */
 
 
@@ -514,29 +575,25 @@ c_glob(v)
  *        change quote type only if necessary.
  */
 static int
-insert_meta(cp, cpend, word, closequotes)
-    Char   *cp;
-    Char   *cpend;
-    Char   *word;
-    int    closequotes;
+insert_meta(const Char *cp, const Char *cpend, const Char *word,
+	    int closequotes)
 {
-    Char buffer[2 * FILSIZ + 1], *bptr, *wptr;
+    struct Strbuf buffer = Strbuf_INIT;
+    Char *bptr;
+    const Char *wptr;
     int in_sync = (cp != NULL);
     Char qu = 0;
     int ndel = (int) (cp ? cpend - cp : 0);
     Char w, wq;
-    int l;
+    int res;
 
-    for (bptr = buffer, wptr = word;;) {
-	if (bptr > buffer + 2 * FILSIZ - 5)
-	    break;
-	  
+    for (wptr = word;;) {
 	if (cp >= cpend)
 	    in_sync = 0;
 	if (in_sync && !cmap(qu, _ESC) && cmap(*cp, _QF|_ESC))
 	    if (qu == 0 || qu == *cp) {
 		qu ^= *cp;
-		*bptr++ = *cp++;
+		Strbuf_append1(&buffer, *cp++);
 		continue;
 	    }
 	w = *wptr;
@@ -553,62 +610,58 @@ insert_meta(cp, cpend, word, closequotes)
 	    /* We have to unquote the character */
 	    in_sync = 0;
 	    if (cmap(qu, _ESC))
-		bptr[-1] = w;
+		buffer.s[buffer.len - 1] = w;
 	    else {
-		*bptr++ = (Char) qu;
-		*bptr++ = w;
+		Strbuf_append1(&buffer, qu);
+		Strbuf_append1(&buffer, w);
 		if (wptr[1] == 0)
 		    qu = 0;
 		else
-		    *bptr++ = (Char) qu;
+		    Strbuf_append1(&buffer, qu);
 	    }
 	} else if (qu && w == qu) {
 	    in_sync = 0;
-	    if (bptr > buffer && bptr[-1] == qu) {
+	    if (buffer.len != 0 && buffer.s[buffer.len - 1] == qu) {
 		/* User misunderstanding :) */
-		bptr[-1] = '\\';
-		*bptr++ = w;
+		buffer.s[buffer.len - 1] = '\\';
+		Strbuf_append1(&buffer, w);
 		qu = 0;
 	    } else {
-		*bptr++ = (Char) qu;
-		*bptr++ = '\\';
-		*bptr++ = w;
-		*bptr++ = (Char) qu;
+		Strbuf_append1(&buffer, qu);
+		Strbuf_append1(&buffer, '\\');
+		Strbuf_append1(&buffer, w);
+		Strbuf_append1(&buffer, qu);
 	    }
 	}
 	else if (wq && qu == '\"' && tricky_dq(w)) {
 	    in_sync = 0;
-	    *bptr++ = (Char) qu;
-	    *bptr++ = '\\';
-	    *bptr++ = w;
-	    *bptr++ = (Char) qu;
-	} else if (wq && ((!qu && (tricky(w) || (w == HISTSUB && bptr == buffer))) || (!cmap(qu, _ESC) && w == HIST))) {
+	    Strbuf_append1(&buffer, qu);
+	    Strbuf_append1(&buffer, '\\');
+	    Strbuf_append1(&buffer, w);
+	    Strbuf_append1(&buffer, qu);
+	} else if (wq &&
+		   ((!qu && (tricky(w) || (w == HISTSUB && buffer.len == 0))) ||
+		    (!cmap(qu, _ESC) && w == HIST))) {
 	    in_sync = 0;
-	    *bptr++ = '\\';
-	    *bptr++ = w;
+	    Strbuf_append1(&buffer, '\\');
+	    Strbuf_append1(&buffer, w);
 	} else {
 	    if (in_sync && *cp++ != w)
 		in_sync = 0;
-	    *bptr++ = w;
-	    l = NLSSize(wptr, -1);
-	    while (--l > 0) {
-		wptr++;
-		w = *wptr & ~QUOTE;
-		if (in_sync && *cp++ != w)
-		    in_sync = 0;
-		*bptr++ = w;
-	    }
+	    Strbuf_append1(&buffer, w);
 	}
 	wptr++;
 	if (cmap(qu, _ESC))
 	    qu = 0;
     }
     if (closequotes && qu && !cmap(qu, _ESC))
-	*bptr++ = (Char) qu;
-    *bptr = '\0';
+	Strbuf_append1(&buffer, w);
+    bptr = Strbuf_finish(&buffer);
     if (ndel)
 	DeleteBack(ndel);
-    return InsertStr(buffer);
+    res = InsertStr(bptr);
+    xfree(bptr);
+    return res;
 } /* end insert_meta */
 
 
@@ -619,8 +672,7 @@ insert_meta(cp, cpend, word, closequotes)
  *	it matches anything
  */
 static int
-is_prefix(check, template)
-    Char *check, *template;
+is_prefix(Char *check, Char *template)
 {
     for (; *check; check++, template++)
 	if ((*check & TRIM) != (*template & TRIM))
@@ -636,9 +688,7 @@ is_prefix(check, template)
  * and matches on shortening of commands
  */
 static int
-is_prefixmatch(check, template, igncase)
-    Char *check, *template;
-    int igncase;
+is_prefixmatch(Char *check, Char *template, int igncase)
 {
     Char MCH1, MCH2;
 
@@ -679,15 +729,12 @@ is_prefixmatch(check, template, igncase)
  *	end of check, I.e., are it's suffix.
  */
 static int
-is_suffix(check, template)
-    Char *check, *template;
+is_suffix(Char *check, Char *template)
 {
     Char *t, *c;
 
-    for (t = template; *t++;)
-	continue;
-    for (c = check; *c++;)
-	continue;
+    t = Strend(template);
+    c = Strend(check);
     for (;;) {
 	if (t == template)
 	    return 1;
@@ -701,8 +748,7 @@ is_suffix(check, template)
  *	Return true if this is an ignored item
  */
 static int
-ignored(item)
-    Char *item;
+ignored(Char *item)
 {
     struct varent *vp;
     Char **cp;
@@ -721,8 +767,7 @@ ignored(item)
  *	return true if the command starting at wordstart is a command
  */
 int
-starting_a_command(wordstart, inputline)
-    Char *wordstart, *inputline;
+starting_a_command(Char *wordstart, Char *inputline)
 {
     Char *ptr, *ncmdstart;
     int     count, bsl;
@@ -805,23 +850,26 @@ starting_a_command(wordstart, inputline)
  *	If we shorten it back to the prefix length, stop searching.
  */
 static int
-recognize(exp_name, item, name_length, numitems, enhanced, igncase)
-    Char   *exp_name, *item;
-    int     name_length, numitems, enhanced, igncase;
+recognize(struct Strbuf *exp_name, const Char *item, size_t name_length,
+	  int numitems, int enhanced, int igncase)
 {
     Char MCH1, MCH2;
-    Char *x, *ent;
-    int len = 0;
+    Char *x;
+    const Char *ent;
+    size_t len = 0;
 
     if (numitems == 1) {	/* 1st match */
-	copyn(exp_name, item, MAXNAMLEN);
+	exp_name->len = 0;
+	Strbuf_append(exp_name, item);
+	Strbuf_terminate(exp_name);
 	return (0);
     }
     if (!enhanced && !igncase) {
-	for (x = exp_name, ent = item; *x && (*x & TRIM) == (*ent & TRIM); x++, ent++)
+	for (x = exp_name->s, ent = item; *x && (*x & TRIM) == (*ent & TRIM);
+	     x++, ent++)
 	    len++;
     } else {
-	for (x = exp_name, ent = item; *x; x++, ent++) {
+	for (x = exp_name->s, ent = item; *x; x++, ent++) {
 	    MCH1 = *x & TRIM;
 	    MCH2 = *ent & TRIM;
             MCH1 = Isupper(MCH1) ? Tolower(MCH1) : MCH1;
@@ -831,9 +879,10 @@ recognize(exp_name, item, name_length, numitems, enhanced, igncase)
 	    len++;
 	}
 	if (*x || !*ent)	/* Shorter or exact match */
-	    copyn(exp_name, item, MAXNAMLEN);
+	    memcpy(exp_name->s, item, len * sizeof(*exp_name->s));
     }
     *x = '\0';		/* Shorten at 1st char diff */
+    exp_name->len = x - exp_name->s;
     if (!(match_unique_match || is_set(STRrecexact) || (enhanced && *ent)) && len == name_length)	/* Ambiguous to prefix? */
 	return (-1);	/* So stop now and save time */
     return (0);
@@ -850,18 +899,15 @@ recognize(exp_name, item, name_length, numitems, enhanced, igncase)
  *		It returns the -number of ignored items.
  */
 static int
-tw_collect_items(command, looking, exp_dir, exp_name, target, pat, flags)
-    COMMAND command;
-    int looking;
-    Char *exp_dir, *exp_name, *target, *pat;
-    int flags;
-
+tw_collect_items(COMMAND command, int looking, struct Strbuf *exp_dir,
+		 struct Strbuf *exp_name, Char *target, const Char *pat,
+		 int flags)
 {
     int done = FALSE;			 /* Search is done */
     int showdots;			 /* Style to show dot files */
     int nignored = 0;			 /* Number of fignored items */
     int numitems = 0;			 /* Number of matched items */
-    int name_length = (int) Strlen(target); /* Length of prefix (file name) */
+    size_t name_length = Strlen(target); /* Length of prefix (file name) */
     int exec_check = flags & TW_EXEC_CHK;/* need to check executability	*/
     int dir_check  = flags & TW_DIR_CHK; /* Need to check for directories */
     int text_check = flags & TW_TEXT_CHK;/* Need to check for non-directories */
@@ -869,10 +915,10 @@ tw_collect_items(command, looking, exp_dir, exp_name, target, pat, flags)
     int gpat       = flags & TW_PAT_OK;	 /* Match against a pattern */
     int ignoring   = flags & TW_IGN_OK;	 /* Use fignore? */
     int d = 4, nd;			 /* Spelling distance */
-    Char *item, *ptr;
-    Char buf[MAXPATHLEN+1];
+    Char *ptr;
     struct varent *vp;
-    int len, enhanced = 0;
+    struct Strbuf buf = Strbuf_INIT, item = Strbuf_INIT;
+    int enhanced = 0;
     int cnt = 0;
     int igncase = 0;
 
@@ -893,9 +939,14 @@ tw_collect_items(command, looking, exp_dir, exp_name, target, pat, flags)
 		break;
 	    }
 
-    while (!done && (item = (*tw_next_entry[looking])(exp_dir, &flags))) {
+    cleanup_push(&item, Strbuf_cleanup);
+    cleanup_push(&buf, Strbuf_cleanup);
+    while (!done &&
+	   (item.len = 0,
+	    tw_next_entry[looking](&item, exp_dir, &flags) != 0)) {
+	Strbuf_terminate(&item);
 #ifdef TDEBUG
-	xprintf("item = %S\n", item);
+	xprintf("item = %S\n", item.s);
 #endif
 	switch (looking) {
 	case TW_FILE:
@@ -904,28 +955,33 @@ tw_collect_items(command, looking, exp_dir, exp_name, target, pat, flags)
 	    /*
 	     * Don't match . files on null prefix match
 	     */
-	    if (showdots == DOT_NOT && (ISDOT(item) || ISDOTDOT(item)))
+	    if (showdots == DOT_NOT && (ISDOT(item.s) || ISDOTDOT(item.s)))
 		done = TRUE;
-	    if (name_length == 0 && item[0] == '.' && showdots == DOT_NONE)
+	    if (name_length == 0 && item.s[0] == '.' && showdots == DOT_NONE)
 		done = TRUE;
 	    break;
 
 	case TW_COMMAND:
 #if defined(_UWIN) || defined(__CYGWIN__)
-	    /* Turn foo.{exe,com,bat} into foo since UWIN's readdir returns
-	     * the file with the .exe, .com, .bat extension
+	    /*
+	     * Turn foo.{exe,com,bat,cmd} into foo since UWIN's readdir returns
+	     * the file with the .exe, .com, .bat, .cmd extension
 	     */
 	    {
-		size_t ext = strlen((char *)item) - 4;
-		if ((ext > 0) && (strcasecmp((char *)&item[ext], ".exe") == 0 ||
-				  strcasecmp((char *)&item[ext], ".bat") == 0 ||
-				  strcasecmp((char *)&item[ext], ".com") == 0))
-		    {
-			item[ext] = '\0';
-#if defined(__CYGWIN__)
-			strlwr((char *)item);
-#endif /* __CYGWIN__ */
-		    }
+		static const char *rext[] = { ".exe", ".bat", ".com", ".cmd" };
+		size_t exti = Strlen(item.s);
+
+		if (exti > 4) {
+		    char *ext = short2str(&item.s[exti -= 4]);
+		    size_t i;
+
+		    for (i = 0; i < sizeof(rext) / sizeof(rext[0]); i++)
+			if (strcasecmp(ext, rext[i]) == 0) {
+			    item.len = exti;
+			    Strbuf_terminate(&item);
+			    break;
+			}
+		}
 	    }
 #endif /* _UWIN || __CYGWIN__ */
 	    exec_check = flags & TW_EXEC_CHK;
@@ -945,29 +1001,33 @@ tw_collect_items(command, looking, exp_dir, exp_name, target, pat, flags)
 
 	case SPELL:		/* correct the spelling of the last bit */
 	    if (name_length == 0) {/* zero-length word can't be misspelled */
-		exp_name[0] = '\0';/* (not trying is important for ~) */
+		exp_name->len = 0; /* (not trying is important for ~) */
+		Strbuf_terminate(exp_name);
 		d = 0;
 		done = TRUE;
 		break;
 	    }
-	    if (gpat && !Gmatch(item, pat))
+	    if (gpat && !Gmatch(item.s, pat))
 		break;
 	    /*
 	     * Swapped the order of the spdist() arguments as suggested
 	     * by eeide@asylum.cs.utah.edu (Eric Eide)
 	     */
-	    nd = spdist(target, item);	/* test the item against original */
+	    nd = spdist(target, item.s); /* test the item against original */
 	    if (nd <= d && nd != 4) {
-		if (!(exec_check && !executable(exp_dir, item, dir_ok))) {
-		    (void) Strcpy(exp_name, item);
+		if (!(exec_check && !executable(exp_dir->s, item.s, dir_ok))) {
+		    exp_name->len = 0;
+		    Strbuf_append(exp_name, item.s);
+		    Strbuf_terminate(exp_name);
 		    d = nd;
 		    if (d == 0)	/* if found it exactly */
 			done = TRUE;
 		}
 	    }
 	    else if (nd == 4) {
-		if (spdir(exp_name, exp_dir, item, target)) {
-		    if (exec_check && !executable(exp_dir, exp_name, dir_ok)) 
+	        if (spdir(exp_name, exp_dir->s, item.s, target)) {
+		    if (exec_check &&
+			!executable(exp_dir->s, exp_name->s, dir_ok))
 			break;
 #ifdef notdef
 		    /*
@@ -998,28 +1058,28 @@ tw_collect_items(command, looking, exp_dir, exp_name, target, pat, flags)
 	    }
 
 	    if (enhanced || igncase) {
-	        if (!is_prefixmatch(target, item, igncase)) 
+	        if (!is_prefixmatch(target, item.s, igncase))
 		    break;
      	    } else {
-	        if (!is_prefix(target, item)) 
+	        if (!is_prefix(target, item.s))
 		    break;
 	    }
 
-	    if (exec_check && !executable(exp_dir, item, dir_ok))
+	    if (exec_check && !executable(exp_dir->s, item.s, dir_ok))
 		break;
 
-	    if (dir_check && !isadirectory(exp_dir, item))
+	    if (dir_check && !isadirectory(exp_dir->s, item.s))
 		break;
 
-	    if (text_check && isadirectory(exp_dir, item))
+	    if (text_check && isadirectory(exp_dir->s, item.s))
 		break;
 
 	    /*
 	     * Only pattern match directories if we're checking
 	     * for directories.
 	     */
-	    if (gpat && !Gmatch(item, pat) &&
-		(dir_check || !isadirectory(exp_dir, item)))
+	    if (gpat && !Gmatch(item.s, pat) &&
+		(dir_check || !isadirectory(exp_dir->s, item.s)))
 		    break;
 
 	    /*
@@ -1028,34 +1088,31 @@ tw_collect_items(command, looking, exp_dir, exp_name, target, pat, flags)
 	     */
 	    if (looking == TW_COMMAND || looking == TW_LOGNAME
 		|| looking == TW_USER || command == LIST) {
-		copyn(buf, item, MAXPATHLEN);
-		len = (int) Strlen(buf);
+		buf.len = 0;
+		Strbuf_append(&buf, item.s);
 		switch (looking) {
 		case TW_COMMAND:
 		    if (!(dir_ok && exec_check))
 			break;
-		    if (filetype(exp_dir, item) == '/') {
-			buf[len++] = '/';
-			buf[len] = '\0';
-		    }
+		    if (filetype(exp_dir->s, item.s) == '/')
+			Strbuf_append1(&buf, '/');
 		    break;
 
 		case TW_FILE:
 		case TW_DIRECTORY:
-		    buf[len++] = filetype(exp_dir, item);
-		    buf[len] = '\0';
+		    Strbuf_append1(&buf, filetype(exp_dir->s, item.s));
 		    break;
 
 		default:
 		    break;
 		}
+		Strbuf_terminate(&buf);
 		if ((looking == TW_COMMAND || looking == TW_USER
-                     || looking == TW_LOGNAME) && tw_item_find(buf))
+                     || looking == TW_LOGNAME) && tw_item_find(buf.s))
 		    break;
 		else {
 		    /* maximum length 1 (NULL) + 1 (~ or $) + 1 (filetype) */
-		    ptr = tw_item_add(len + 3);
-		    copyn(ptr, buf, MAXPATHLEN);
+		    tw_item_add(&buf);
 		    if (command == LIST)
 			numitems++;
 		}
@@ -1063,30 +1120,35 @@ tw_collect_items(command, looking, exp_dir, exp_name, target, pat, flags)
 		    
 	    if (command == RECOGNIZE || command == RECOGNIZE_ALL ||
 		command == RECOGNIZE_SCROLL) {
-		if (ignoring && ignored(item)) {
+		if (ignoring && ignored(item.s)) {
 		    nignored++;
 		    break;
-		} 
+		}
 		else if (command == RECOGNIZE_SCROLL) {
-		    add_scroll_tab(item);
+		    add_scroll_tab(item.s);
 		    cnt++;
 		}
-		
+
 		if (match_unique_match || is_set(STRrecexact)) {
-		    if (StrQcmp(target, item) == 0) {	/* EXACT match */
-			copyn(exp_name, item, MAXNAMLEN);
+		    if (StrQcmp(target, item.s) == 0) {	/* EXACT match */
+			exp_name->len = 0;
+			Strbuf_append(exp_name, item.s);
+			Strbuf_terminate(exp_name);
 			numitems = 1;	/* fake into expanding */
 			non_unique_match = TRUE;
 			done = TRUE;
 			break;
 		    }
 		}
-		if (recognize(exp_name, item, name_length, ++numitems,
-		    enhanced, igncase)) 
+		if (recognize(exp_name, item.s, name_length, ++numitems,
+		    enhanced, igncase))
 		    if (command != RECOGNIZE_SCROLL)
 			done = TRUE;
-		if (enhanced && (int)Strlen(exp_name) < name_length)
-		    copyn(exp_name, target, MAXNAMLEN);
+		if (enhanced && exp_name->len < name_length) {
+		    exp_name->len = 0;
+		    Strbuf_append(exp_name, target);
+		    Strbuf_terminate(exp_name);
+		}
 	    }
 	    break;
 
@@ -1094,10 +1156,10 @@ tw_collect_items(command, looking, exp_dir, exp_name, target, pat, flags)
 	    break;
 	}
 #ifdef TDEBUG
-	xprintf("done item = %S\n", item);
+	xprintf("done item = %S\n", item.s);
 #endif
     }
-
+    cleanup_until(&item);
 
     if (command == RECOGNIZE_SCROLL) {
 	if ((cnt <= curchoice) || (curchoice == -1)) {
@@ -1107,7 +1169,7 @@ tw_collect_items(command, looking, exp_dir, exp_name, target, pat, flags)
 	} else if (numitems > 1) {
 	    if (curchoice < -1)
 		curchoice = cnt - 1;
-	    choose_scroll_tab(&exp_name, cnt);
+	    choose_scroll_tab(exp_name, cnt);
 	    numitems = 1;
 	}
     }
@@ -1128,15 +1190,12 @@ tw_collect_items(command, looking, exp_dir, exp_name, target, pat, flags)
  *	Find and return the appropriate suffix character
  */
 /*ARGSUSED*/
-static Char 
-tw_suffix(looking, exp_dir, exp_name, target, name)
-    int looking;
-    Char *exp_dir, *exp_name, *target, *name;
-{    
+static Char
+tw_suffix(int looking, const Char *exp_dir, Char *exp_name)
+{
     Char *ptr;
     struct varent *vp;
 
-    USE(name);
     (void) strip(exp_name);
 
     switch (looking) {
@@ -1155,8 +1214,6 @@ tw_suffix(looking, exp_dir, exp_name, target, name)
 	}
 	else if ((ptr = tgetenv(exp_name)) == NULL || *ptr == '\0')
 	    return ' ';
-
-	*--target = '\0';
 
 	return isadirectory(exp_dir, ptr) ? '/' : ' ';
 
@@ -1193,38 +1250,38 @@ tw_suffix(looking, exp_dir, exp_name, target, name)
  *	Repair a word after a spalling or a recognizwe
  */
 static void
-tw_fixword(looking, word, dir, exp_name, max_word_length)
-    int looking;
-    Char *word, *dir, *exp_name;
-    int max_word_length;
+tw_fixword(int looking, struct Strbuf *word, Char *dir, Char *exp_name)
 {
     Char *ptr;
 
     switch (looking) {
     case TW_LOGNAME:
-	copyn(word, STRtilde, 1);
+	word->len = 0;
+	Strbuf_append1(word, '~');
 	break;
-    
+
     case TW_VARIABLE:
-	if ((ptr = Strrchr(word, '$')) != NULL)
-	    *++ptr = '\0';	/* Delete after the dollar */
-	else
-	    word[0] = '\0';
+	if ((ptr = Strrchr(word->s, '$')) != NULL) {
+	    word->len = ptr + 1 - word->s; /* Delete after the dollar */
+	} else
+	    word->len = 0;
 	break;
 
     case TW_DIRECTORY:
     case TW_FILE:
     case TW_TEXT:
-	copyn(word, dir, max_word_length);	/* put back dir part */
+	word->len = 0;
+	Strbuf_append(word, dir);		/* put back dir part */
 	break;
 
     default:
-	word[0] = '\0';
+	word->len = 0;
 	break;
     }
 
     (void) quote(exp_name);
-    catn(word, exp_name, max_word_length);	/* add extended name */
+    Strbuf_append(word, exp_name);		/* add extended name */
+    Strbuf_terminate(word);
 } /* end tw_fixword */
 
 
@@ -1237,69 +1294,52 @@ tw_fixword(looking, word, dir, exp_name, max_word_length)
  *		2. Retries if we had no matches, but there were ignored matches
  */
 static int
-tw_collect(command, looking, exp_dir, exp_name, target, pat, flags, dir_fd)
-    COMMAND command;
-    int looking;
-    Char *exp_dir, *exp_name, **target, *pat;
-    int flags;
-    DIR *dir_fd;
+tw_collect(COMMAND command, int looking, struct Strbuf *exp_dir,
+	   struct Strbuf *exp_name, Char *target, Char *pat, int flags,
+	   DIR *dir_fd)
 {
-    static int ni;	/* static so we don't get clobbered */
+    volatile int ni;
     jmp_buf_t osetexit;
 
 #ifdef TDEBUG
-    xprintf("target = %S\n", *target);
+    xprintf("target = %S\n", target);
 #endif
     ni = 0;
     getexit(osetexit);
     for (;;) {
+	volatile size_t omark;
+
 	(*tw_start_entry[looking])(dir_fd, pat);
 	InsideCompletion = 1;
 	if (setexit()) {
+	    cleanup_pop_mark(omark);
+	    resexit(osetexit);
 	    /* interrupted, clean up */
-	    resexit(osetexit);
-	    InsideCompletion = 0;
 	    haderr = 0;
-
-#if defined(SOLARIS2) && defined(i386) && !defined(__GNUC__)
-	    /* Compiler bug? (from PWP) */
-	    if ((looking == TW_LOGNAME) || (looking == TW_USER))
-		tw_logname_end();
-	    else
-		if (looking == TW_GRPNAME)
-		   tw_grpname_end();
-		else
-		    tw_dir_end();
-#else /* !(SOLARIS2 && i386 && !__GNUC__) */
-	    (*tw_end_entry[looking])();
-#endif /* !(SOLARIS2 && i386 && !__GNUC__) */
-
-	    /* flag error */
-	    return(-1);
+	    ni = -1; /* flag error */
+	    break;
 	}
-        if ((ni = tw_collect_items(command, looking, exp_dir, exp_name,
-			           *target, pat, 
-				   ni >= 0 ? flags : 
-					flags & ~TW_IGN_OK)) >= 0) {
-	    resexit(osetexit);
-	    InsideCompletion = 0;
-
-#if defined(SOLARIS2) && defined(i386) && !defined(__GNUC__)
-	    /* Compiler bug? (from PWP) */
-	    if ((looking == TW_LOGNAME) || (looking == TW_USER))
-		tw_logname_end();
-	    else
-		if (looking == TW_GRPNAME)
-		   tw_grpname_end();
-		else
-		    tw_dir_end();
-#else /* !(SOLARIS2 && i386 && !__GNUC__) */
-	    (*tw_end_entry[looking])();
-#endif /* !(SOLARIS2 && i386 && !__GNUC__) */
-
-	    return(ni);
-	}
+	omark = cleanup_push_mark();
+	ni = tw_collect_items(command, looking, exp_dir, exp_name, target, pat,
+			      ni >= 0 ? flags : flags & ~TW_IGN_OK);
+	cleanup_pop_mark(omark);
+	resexit(osetexit);
+        if (ni >= 0)
+	    break;
     }
+    InsideCompletion = 0;
+#if defined(SOLARIS2) && defined(i386) && !defined(__GNUC__)
+    /* Compiler bug? (from PWP) */
+    if ((looking == TW_LOGNAME) || (looking == TW_USER))
+	tw_logname_end();
+    else if (looking == TW_GRPNAME)
+	tw_grpname_end();
+    else
+	tw_dir_end();
+#else /* !(SOLARIS2 && i386 && !__GNUC__) */
+    (*tw_end_entry[looking])();
+#endif /* !(SOLARIS2 && i386 && !__GNUC__) */
+    return(ni);
 } /* end tw_collect */
 
 
@@ -1312,8 +1352,7 @@ tw_collect(command, looking, exp_dir, exp_name, target, pat, flags, dir_fd)
  *	(by default interpreted as 'items', for backwards compatibility)
  */
 static void
-tw_list_items(looking, numitems, list_max)
-    int looking, numitems, list_max;
+tw_list_items(int looking, int numitems, int list_max)
 {
     Char *ptr;
     int max_items = 0;
@@ -1372,14 +1411,15 @@ tw_list_items(looking, numitems, list_max)
 	}
 
 	sname = strsave(name);
+	cleanup_push(sname, xfree);
 	xprintf(CGETS(30, 7, "There are %d %s, list them anyway? [n/y] "),
 		maxs, sname);
-	xfree(sname);
+	cleanup_until(sname);
 	flush();
 	/* We should be in Rawmode here, so no \n to catch */
-	(void) read(SHIN, &tc, 1);
+	(void) xread(SHIN, &tc, 1);
 	xprintf("%c\r\n", tc);	/* echo the char, do a newline */
-	/* 
+	/*
 	 * Perhaps we should use the yesexpr from the
 	 * actual locale
 	 */
@@ -1388,8 +1428,7 @@ tw_list_items(looking, numitems, list_max)
     }
 
     if (looking != TW_SIGNAL)
-	qsort((ptr_t) tw_item_get(), (size_t) numitems, sizeof(Char *), 
-	      (int (*) __P((const void *, const void *))) fcompare);
+	qsort(tw_item_get(), numitems, sizeof(Char *), fcompare);
     if (looking != TW_JOB)
 	print_by_column(STRNULL, tw_item_get(), numitems, TRUE);
     else {
@@ -1420,25 +1459,19 @@ tw_list_items(looking, numitems, list_max)
  */
 /*ARGSUSED*/
 int
-t_search(word, wp, command, max_word_length, looking, list_max, pat, suf)
-    Char   *word, *wp;		/* original end-of-word */
-    COMMAND command;
-    int     max_word_length, looking, list_max;
-    Char   *pat;
-    int     suf;
+t_search(struct Strbuf *word, COMMAND command, int looking, int list_max,
+	 Char *pat, eChar suf)
 {
     int     numitems,			/* Number of items matched */
 	    flags = 0,			/* search flags */
 	    gpat = pat[0] != '\0',	/* Glob pattern search */
-	    nd;				/* Normalized directory return */
-    Char    exp_dir[FILSIZ + 1],	/* dir after ~ expansion */
-            dir[FILSIZ + 1],		/* /x/y/z/ part in /x/y/z/f */
-            exp_name[MAXNAMLEN + 1],	/* the recognized (extended) */
-            name[MAXNAMLEN + 1],	/* f part in /d/d/d/f name */
+	    res;			/* Return value */
+    struct Strbuf exp_dir = Strbuf_INIT;/* dir after ~ expansion */
+    struct Strbuf dir = Strbuf_INIT;	/* /x/y/z/ part in /x/y/z/f */
+    struct Strbuf exp_name = Strbuf_INIT;/* the recognized (extended) */
+    Char   *name,			/* f part in /d/d/d/f name */
            *target;			/* Target to expand/correct/list */
-    DIR    *dir_fd = NULL;	
-
-    USE(wp);
+    DIR    *dir_fd = NULL;
 
     /*
      * bugfix by Marty Grossman (grossman@CC5.BBN.COM): directory listing can
@@ -1448,7 +1481,9 @@ t_search(word, wp, command, max_word_length, looking, list_max, pat, suf)
 
     non_unique_match = FALSE;	/* See the recexact code below */
 
-    extract_dir_and_name(word, dir, name);
+    extract_dir_and_name(word->s, &dir, &name);
+    cleanup_push(&dir, Strbuf_cleanup);
+    cleanup_push(&name, xfree_indirect);
 
     /*
      *  SPECIAL HARDCODED COMPLETIONS:
@@ -1456,7 +1491,7 @@ t_search(word, wp, command, max_word_length, looking, list_max, pat, suf)
      *    ~user                       -> TW_LOGNAME
      *
      */
-    if ((*word == '~') && (Strchr(word, '/') == NULL)) {
+    if ((*word->s == '~') && (Strchr(word->s, '/') == NULL)) {
 	looking = TW_LOGNAME;
 	target = name;
 	gpat = 0;	/* Override pattern mechanism */
@@ -1475,32 +1510,35 @@ t_search(word, wp, command, max_word_length, looking, list_max, pat, suf)
      */
     if (looking & TW_PATH) {
 	gpat = 0;	/* pattern holds the pathname to be used */
-	copyn(exp_dir, pat, MAXNAMLEN);
-	if (exp_dir[Strlen(exp_dir) - 1] != '/')
-	    catn(exp_dir, STRslash, MAXNAMLEN);
-	catn(exp_dir, dir, MAXNAMLEN);
+	Strbuf_append(&exp_dir, pat);
+	if (exp_dir.len != 0 && exp_dir.s[exp_dir.len - 1] != '/')
+	    Strbuf_append1(&exp_dir, '/');
+	Strbuf_append(&exp_dir, dir.s);
     }
-    else
-	exp_dir[0] = '\0';
+    Strbuf_terminate(&exp_dir);
+    cleanup_push(&exp_dir, Strbuf_cleanup);
 
     switch (looking & ~TW_PATH) {
     case TW_NONE:
-	return -1;
+	res = -1;
+	goto err_dir;
 
     case TW_ZERO:
 	looking = TW_FILE;
 	break;
 
     case TW_COMMAND:
-	if (Strchr(word, '/') || (looking & TW_PATH)) {
+	if (Strchr(word->s, '/') || (looking & TW_PATH)) {
 	    looking = TW_FILE;
 	    flags |= TW_EXEC_CHK;
 	    flags |= TW_DIR_OK;
 	}
 #ifdef notdef
 	/* PWP: don't even bother when doing ALL of the commands */
-	if (looking == TW_COMMAND && (*word == '\0')) 
-	    return (-1);
+	if (looking == TW_COMMAND && word->len == 0) {
+	    res = -1;
+	    goto err_dir;
+	}
 #endif
 	break;
 
@@ -1517,7 +1555,8 @@ t_search(word, wp, command, max_word_length, looking, list_max, pat, suf)
 		xputchar('\r');
 	    xputchar('\n');
 	}
-	return 2;
+	res = 2;
+	goto err_dir;
 
     default:
 	break;
@@ -1533,6 +1572,8 @@ t_search(word, wp, command, max_word_length, looking, list_max, pat, suf)
 #endif
 
     switch (looking) {
+	Char *user_name;
+
     case TW_ALIAS:
     case TW_SHELLVAR:
     case TW_ENVVAR:
@@ -1546,8 +1587,8 @@ t_search(word, wp, command, max_word_length, looking, list_max, pat, suf)
 
 
     case TW_VARIABLE:
-	if ((nd = expand_dir(dir, exp_dir, &dir_fd, command)) != 0)
-	    return nd;
+	if ((res = expand_dir(dir.s, &exp_dir, &dir_fd, command)) != 0)
+	    goto err_dir;
 	break;
 
     case TW_DIRECTORY:
@@ -1568,48 +1609,54 @@ t_search(word, wp, command, max_word_length, looking, list_max, pat, suf)
 	 * from a user-interface point of view, since it does not
 	 * immediately obey addsuffix
 	 */
-	if ((nd = expand_dir(dir, exp_dir, &dir_fd, command)) != 0)
-	    return nd;
-	if (isadirectory(exp_dir, name)) {
-	    if (exp_dir[0] != '\0' || name[0] != '\0') {
-		catn(dir, name, MAXNAMLEN);
-		if (dir[Strlen(dir) - 1] != '/')
-		    catn(dir, STRslash, MAXNAMLEN);
-		if ((nd = expand_dir(dir, exp_dir, &dir_fd, command)) != 0)
-		    return nd;
-		if (word[Strlen(word) - 1] != '/')
-		    catn(word, STRslash, MAXNAMLEN);
+	if ((res = expand_dir(dir.s, &exp_dir, &dir_fd, command)) != 0)
+	    goto err_dir;
+	if (isadirectory(exp_dir.s, name)) {
+	    if (exp_dir.len != 0 || name[0] != '\0') {
+		Strbuf_append(&dir, name);
+		if (dir.s[dir.len - 1] != '/')
+		    Strbuf_append1(&dir, '/');
+		Strbuf_terminate(&dir);
+		if ((res = expand_dir(dir.s, &exp_dir, &dir_fd, command)) != 0)
+		    goto err_dir;
+		if (word->len != 0 && word->s[word->len - 1] != '/') {
+		    Strbuf_append1(word, '/');
+		    Strbuf_terminate(word);
+		}
 		name[0] = '\0';
 	    }
 	}
 #endif
-	if ((nd = expand_dir(dir, exp_dir, &dir_fd, command)) != 0)
-	    return nd;
+	if ((res = expand_dir(dir.s, &exp_dir, &dir_fd, command)) != 0)
+	    goto err_dir;
 	break;
 
     case TW_TEXT:
 	flags |= TW_TEXT_CHK;
 	/*FALLTHROUGH*/
     case TW_FILE:
-	if ((nd = expand_dir(dir, exp_dir, &dir_fd, command)) != 0)
-	    return nd;
+	if ((res = expand_dir(dir.s, &exp_dir, &dir_fd, command)) != 0)
+	    goto err_dir;
 	break;
 
     case TW_PATH | TW_TEXT:
     case TW_PATH | TW_FILE:
     case TW_PATH | TW_DIRECTORY:
     case TW_PATH | TW_COMMAND:
-	if ((dir_fd = opendir(short2str(exp_dir))) == NULL) {
+	if ((dir_fd = opendir(short2str(exp_dir.s))) == NULL) {
  	    if (command == RECOGNIZE)
  		xprintf("\n");
- 	    xprintf("%S: %s", exp_dir, strerror(errno));
+ 	    xprintf("%S: %s", exp_dir.s, strerror(errno));
  	    if (command != RECOGNIZE)
  		xprintf("\n");
  	    NeedsRedraw = 1;
-	    return -1;
+	    res = -1;
+	    goto err_dir;
 	}
-	if (exp_dir[Strlen(exp_dir) - 1] != '/')
-	    catn(exp_dir, STRslash, MAXNAMLEN);
+	if (exp_dir.len != 0 && exp_dir.s[exp_dir.len - 1] != '/') {
+	    Strbuf_append1(&exp_dir, '/');
+	    Strbuf_terminate(&exp_dir);
+	}
 
 	looking &= ~TW_PATH;
 
@@ -1626,7 +1673,8 @@ t_search(word, wp, command, max_word_length, looking, list_max, pat, suf)
 	    break;
 
 	case TW_COMMAND:
-	    copyn(target, word, MAXNAMLEN);	/* so it can match things */
+	    xfree(name);
+	    target = name = Strsave(word->s);	/* so it can match things */
 	    break;
 
 	default:
@@ -1636,28 +1684,32 @@ t_search(word, wp, command, max_word_length, looking, list_max, pat, suf)
 	break;
 
     case TW_LOGNAME:
-	word++;
+	user_name = word->s + 1;
+	goto do_user;
+
 	/*FALLTHROUGH*/
     case TW_USER:
+	user_name = word->s;
+    do_user:
 	/*
 	 * Check if the spelling was already correct
 	 * From: Rob McMahon <cudcv@cu.warwick.ac.uk>
 	 */
-	if (command == SPELL && getpwnam(short2str(word)) != NULL) {
+	if (command == SPELL && xgetpwnam(short2str(user_name)) != NULL) {
 #ifdef YPBUGS
 	    fix_yp_bugs();
 #endif /* YPBUGS */
-	    return (0);
+	    res = 0;
+	    goto err_dir;
 	}
-	copyn(name, word, MAXNAMLEN);	/* name sans ~ */
-	if (looking == TW_LOGNAME)
-	    word--;
+	xfree(name);
+	target = name = Strsave(user_name);
 	break;
 
     case TW_COMMAND:
     case TW_VARLIST:
     case TW_WORDLIST:
-	copyn(target, word, MAXNAMLEN);	/* so it can match things */
+	target = name = Strsave(word->s);	/* so it can match things */
 	break;
 
     default:
@@ -1665,56 +1717,63 @@ t_search(word, wp, command, max_word_length, looking, list_max, pat, suf)
 		"\n%s internal error: I don't know what I'm looking for!\n"),
 		progname);
 	NeedsRedraw = 1;
-	return (-1);
+	res = -1;
+	goto err_dir;
     }
 
-    numitems = tw_collect(command, looking, exp_dir, exp_name, 
-			  &target, pat, flags, dir_fd);
+    cleanup_push(&exp_name, Strbuf_cleanup);
+    numitems = tw_collect(command, looking, &exp_dir, &exp_name, target, pat,
+			  flags, dir_fd);
     if (numitems == -1)
-	return -1;
+	goto end;
 
     switch (command) {
     case RECOGNIZE:
     case RECOGNIZE_ALL:
     case RECOGNIZE_SCROLL:
 	if (numitems <= 0) 
-	    return (numitems);
+	    break;
 
-	tw_fixword(looking, word, dir, exp_name, max_word_length);
+	Strbuf_terminate(&exp_name);
+	tw_fixword(looking, word, dir.s, exp_name.s);
 
 	if (!match_unique_match && is_set(STRaddsuffix) && numitems == 1) {
-	    Char suffix[2];
-
-	    suffix[1] = '\0';
 	    switch (suf) {
 	    case 0: 	/* Automatic suffix */
-		suffix[0] = tw_suffix(looking, exp_dir, exp_name, target, name);
+		Strbuf_append1(word,
+			       tw_suffix(looking, exp_dir.s, exp_name.s));
 		break;
 
-	    case -1:	/* No suffix */
-		return numitems;
+	    case CHAR_ERR:	/* No suffix */
+		break;
 
 	    default:	/* completion specified suffix */
-		suffix[0] = (Char) suf;
+		Strbuf_append1(word, suf);
 		break;
 	    }
-	    catn(word, suffix, max_word_length);
+	    Strbuf_terminate(word);
 	}
-	return numitems;
+	break;
 
     case LIST:
 	tw_list_items(looking, numitems, list_max);
 	tw_item_free();
-	return (numitems);
+	break;
 
     case SPELL:
-	tw_fixword(looking, word, dir, exp_name, max_word_length);
-	return (numitems);
+	Strbuf_terminate(&exp_name);
+	tw_fixword(looking, word, dir.s, exp_name.s);
+	break;
 
     default:
 	xprintf("Bad tw_command\n");
-	return (0);
+	numitems = 0;
     }
+ end:
+    res = numitems;
+ err_dir:
+    cleanup_until(&dir);
+    return res;
 } /* end t_search */
 
 
@@ -1723,8 +1782,7 @@ t_search(word, wp, command, max_word_length, looking, list_max, pat, suf)
  * 	Should leave final slash (/) at end of dir.
  */
 static void
-extract_dir_and_name(path, dir, name)
-    Char   *path, *dir, *name;
+extract_dir_and_name(const Char *path, struct Strbuf *dir, Char **name)
 {
     Char *p;
 
@@ -1733,15 +1791,14 @@ extract_dir_and_name(path, dir, name)
     if (p == NULL)
 	p = Strrchr(path, ':');
 #endif /* WINNT_NATIVE */
-    if (p == NULL) {
-	copyn(name, path, MAXNAMLEN);
-	dir[0] = '\0';
-    }
+    if (p == NULL)
+	*name = Strsave(path);
     else {
 	p++;
-	copyn(name, p, MAXNAMLEN);
-	copyn(dir, path, p - path);
+	*name = Strsave(p);
+	Strbuf_appendn(dir, path, p - path);
     }
+    Strbuf_terminate(dir);
 } /* end extract_dir_and_name */
 
 
@@ -1750,24 +1807,21 @@ extract_dir_and_name(path, dir, name)
  * 	to "/value_of_old1/value_of_old2/old3/"
  */
 Char *
-dollar(new, old)
-    Char   *new;
-    const Char *old;
+dollar(const Char *old)
 {
-    Char    *p;
-    size_t   space;
+    struct Strbuf buf = Strbuf_INIT;
 
-    for (space = FILSIZ, p = new; *old && space > 0;)
-	if (*old != '$') {
-	    *p++ = *old++;
-	    space--;
-	}
+    while (*old) {
+	if (*old != '$')
+	    Strbuf_append1(&buf, *old++);
 	else {
-	    if (expdollar(&p, &old, &space, QUOTE) == NULL)
+	    if (expdollar(&buf, &old, QUOTE) == 0) {
+		xfree(buf.s);
 		return NULL;
+	    }
 	}
-    *p = '\0';
-    return (new);
+    }
+    return Strbuf_finish(&buf);
 } /* end dollar */
 
 
@@ -1775,44 +1829,55 @@ dollar(new, old)
  * 	expand ~person/foo to home_directory_of_person/foo
  *	or =<stack-entry> to <dir in stack entry>
  */
-static Char *
-tilde(new, old)
-    Char   *new, *old;
+static int
+tilde(struct Strbuf *new, Char *old)
 {
     Char *o, *p;
 
+    new->len = 0;
     switch (old[0]) {
-    case '~':
-	for (p = new, o = &old[1]; *o && *o != '/'; *p++ = *o++) 
+    case '~': {
+	Char *name, *home;
+
+	old++;
+	for (o = old; *o && *o != '/'; o++)
 	    continue;
-	*p = '\0';
-	if (gethdir(new)) {
-	    new[0] = '\0';
-	    return NULL;
-	}
-#ifdef apollo
-	/* Special case: if the home directory expands to "/", we do
+	name = Strnsave(old, o - old);
+	home = gethdir(name);
+	xfree(name);
+	if (home == NULL)
+	    goto err;
+	Strbuf_append(new, home);
+	xfree(home);
+	/* If the home directory expands to "/", we do
 	 * not want to create "//" by appending a slash from o.
 	 */
-	if (new[0] == '/' && new[1] == '\0' && *o == '/')
+	if (new->s[0] == '/' && new->len == 1 && *o == '/')
 	    ++o;
-#endif /* apollo */
-	(void) Strcat(new, o);
-	return new;
+	Strbuf_append(new, o);
+	break;
+    }
 
     case '=':
-	if ((p = globequal(new, old)) == NULL) {
-	    *new = '\0';
-	    return NULL;
+	if ((p = globequal(old)) == NULL)
+	    goto err;
+	if (p != old) {
+	    Strbuf_append(new, p);
+	    xfree(p);
+	    break;
 	}
-	if (p == new)
-	    return new;
 	/*FALLTHROUGH*/
 
     default:
-	(void) Strcpy(new, old);
-	return new;
+	Strbuf_append(new, old);
+	break;
     }
+    Strbuf_terminate(new);
+    return 0;
+
+ err:
+    Strbuf_terminate(new);
+    return -1;
 } /* end tilde */
 
 
@@ -1821,58 +1886,51 @@ tilde(new, old)
  *	Optionally normalize the path given
  */
 static int
-expand_dir(dir, edir, dfd, cmd)
-    Char   *dir, *edir;
-    DIR   **dfd;
-    COMMAND cmd;
+expand_dir(const Char *dir, struct Strbuf *edir, DIR **dfd, COMMAND cmd)
 {
     Char   *nd = NULL;
-    Char    tdir[MAXPATHLEN + 1];
+    Char *tdir;
 
-    if ((dollar(tdir, dir) == 0) ||
-	(tilde(edir, tdir) == 0) ||
-	!(nd = dnormalize(*edir ? edir : STRdot, symlinks == SYM_IGNORE ||
-						 symlinks == SYM_EXPAND)) ||
+    tdir = dollar(dir);
+    cleanup_push(tdir, xfree);
+    if (tdir == NULL ||
+	(tilde(edir, tdir) != 0) ||
+	!(nd = dnormalize(edir->len ? edir->s : STRdot,
+			  symlinks == SYM_IGNORE || symlinks == SYM_EXPAND)) ||
 	((*dfd = opendir(short2str(nd))) == NULL)) {
-	xfree((ptr_t) nd);
-	if (cmd == SPELL || SearchNoDirErr)
+	xfree(nd);
+	if (cmd == SPELL || SearchNoDirErr) {
+	    cleanup_until(tdir);
 	    return (-2);
+	}
 	/*
 	 * From: Amos Shapira <amoss@cs.huji.ac.il>
 	 * Print a better message when completion fails
 	 */
-	xprintf("\n%S %s\n",
-		*edir ? edir :
-		(*tdir ? tdir : dir),
+	xprintf("\n%S %s\n", edir->len ? edir->s : (tdir ? tdir : dir),
 		(errno == ENOTDIR ? CGETS(30, 10, "not a directory") :
 		(errno == ENOENT ? CGETS(30, 11, "not found") :
 		 CGETS(30, 12, "unreadable"))));
 	NeedsRedraw = 1;
+	cleanup_until(tdir);
 	return (-1);
     }
+    cleanup_until(tdir);
     if (nd) {
 	if (*dir != '\0') {
-	    Char   *s, *d, *p;
+	    int slash;
 
 	    /*
 	     * Copy and append a / if there was one
 	     */
-	    for (p = edir; *p; p++)
-		continue;
-	    if (*--p == '/') {
-		for (p = nd; *p; p++)
-		    continue;
-		if (*--p != '/')
-		    p = NULL;
-	    }
-	    for (d = edir, s = nd; (*d++ = *s++) != '\0';)
-		continue;
-	    if (!p) {
-		*d-- = '\0';
-		*d = '/';
-	    }
+	    slash = edir->len != 0 && edir->s[edir->len - 1] == '/';
+	    edir->len = 0;
+	    Strbuf_append(edir, nd);
+	    if (slash != 0 && edir->s[edir->len - 1] != '/')
+		Strbuf_append1(edir, '/');
+	    Strbuf_terminate(edir);
 	}
-	xfree((ptr_t) nd);
+	xfree(nd);
     }
     return 0;
 } /* end expand_dir */
@@ -1885,8 +1943,7 @@ expand_dir(dir, edir, dfd, cmd)
  *	or very large directories.
  */
 static int
-nostat(dir)
-     Char *dir;
+nostat(Char *dir)
 {
     struct varent *vp;
     Char **cp;
@@ -1908,29 +1965,20 @@ nostat(dir)
  *	symbology from 4.3 ls command.
  */
 static  Char
-filetype(dir, file)
-    Char   *dir, *file;
+filetype(Char *dir, Char *file)
 {
     if (dir) {
-	Char    path[512];
+	Char *path;
 	char   *ptr;
 	struct stat statb;
-#ifdef S_ISCDF
-	/* 
-	 * From: veals@crchh84d.bnr.ca (Percy Veals)
-	 * An extra stat is required for HPUX CDF files.
-	 */
-	struct stat hpstatb;
-#endif /* S_ISCDF */
 
 	if (nostat(dir)) return(' ');
 
-	(void) Strcpy(path, dir);
-	catn(path, file, (int) (sizeof(path) / sizeof(Char)));
+	path = Strspl(dir, file);
+	ptr = short2str(path);
+	xfree(path);
 
-	if (lstat(ptr = short2str(path), &statb) != -1)
-	    /* see above #define of lstat */
-	{
+	if (lstat(ptr, &statb) != -1) {
 #ifdef S_ISLNK
 	    if (S_ISLNK(statb.st_mode)) {	/* Symbolic link */
 		if (adrof(STRlistlinks)) {
@@ -1957,11 +2005,19 @@ filetype(dir, file)
 	    if (S_ISHIDDEN(statb.st_mode)) /* Hidden Directory [aix] */
 		return ('+');
 #endif
-#ifdef S_ISCDF	
-	    (void) strcat(ptr, "+");	/* Must append a '+' and re-stat(). */
-	    if ((stat(ptr, &hpstatb) != -1) && S_ISCDF(hpstatb.st_mode))
-	    	return ('+');		/* Context Dependent Files [hpux] */
-#endif 
+#ifdef S_ISCDF
+	    {
+		struct stat hpstatb;
+		char *p2;
+
+		p2 = strspl(ptr, "+");	/* Must append a '+' and re-stat(). */
+		if ((stat(p2, &hpstatb) != -1) && S_ISCDF(hpstatb.st_mode)) {
+		    xfree(p2);
+		    return ('+');	/* Context Dependent Files [hpux] */
+		}
+		xfree(p2);
+	    }
+#endif
 #ifdef S_ISNWK
 	    if (S_ISNWK(statb.st_mode)) /* Network Special [hpux] */
 		return (':');
@@ -1990,17 +2046,19 @@ filetype(dir, file)
  *	Return trus if the file is a directory
  */
 static int
-isadirectory(dir, file)		/* return 1 if dir/file is a directory */
-    Char   *dir, *file;		/* uses stat rather than lstat to get dest. */
+isadirectory(const Char *dir, const Char *file)
+     /* return 1 if dir/file is a directory */
+     /* uses stat rather than lstat to get dest. */
 {
     if (dir) {
-	Char    path[MAXPATHLEN];
+	Char *path;
+	char *cpath;
 	struct stat statb;
 
-	(void) Strcpy(path, dir);
-	catn(path, file, (int) (sizeof(path) / sizeof(Char)));
-	if (stat(short2str(path), &statb) >= 0) {	/* resolve through
-							 * symlink */
+	path = Strspl(dir, file);
+	cpath = short2str(path);
+	xfree(path);
+	if (stat(cpath, &statb) >= 0) {	/* resolve through symlink */
 #ifdef S_ISSOCK
 	    if (S_ISSOCK(statb.st_mode))	/* Socket */
 		return 0;
@@ -2022,9 +2080,7 @@ isadirectory(dir, file)		/* return 1 if dir/file is a directory */
  * 	Return how many rows needed to print sorted down columns
  */
 static int
-find_rows(items, count, no_file_suffix)
-    Char *items[];
-    int     count, no_file_suffix;
+find_rows(Char *items[], int count, int no_file_suffix)
 {
     int i, columns, rows;
     unsigned int maxwidth = 0;
@@ -2048,12 +2104,11 @@ find_rows(items, count, no_file_suffix)
  *
  */
 void
-print_by_column(dir, items, count, no_file_suffix)
-    Char *dir, *items[];
-    int     count, no_file_suffix;
+print_by_column(Char *dir, Char *items[], int count, int no_file_suffix)
 {
     int i, r, c, columns, rows;
-    unsigned int w, wx, maxwidth = 0;
+    size_t w;
+    unsigned int wx, maxwidth = 0;
     Char *val;
     int across;
 
@@ -2080,7 +2135,7 @@ print_by_column(dir, items, count, no_file_suffix)
 
 	    if (i < count) {
 		wx = 0;
-		w = (unsigned int) Strlen(items[i]);
+		w = Strlen(items[i]);
 
 #ifdef COLOR_LS_F
 		if (no_file_suffix) {
@@ -2088,6 +2143,7 @@ print_by_column(dir, items, count, no_file_suffix)
 		    Char f = items[i][w - 1];
 		    items[i][w - 1] = 0;
 		    print_with_color(items[i], w - 1, f);
+		    items[i][w - 1] = f;
 		}
 		else {
 		    /* Print filename followed by '/' or '*' or ' ' */
@@ -2101,14 +2157,13 @@ print_by_column(dir, items, count, no_file_suffix)
 		}
 		else {
 		    /* Print filename followed by '/' or '*' or ' ' */
-		    xprintf("%-S%c", items[i],
-			    filetype(dir, items[i]));
+		    xprintf("%-S%c", items[i], filetype(dir, items[i]));
 		    wx++;
 		}
 #endif /* COLOR_LS_F */
 
 		if (c < (columns - 1)) {	/* Not last column? */
-		    w = (unsigned int) NLSStringWidth(items[i]) + wx;
+		    w = NLSStringWidth(items[i]) + wx;
 		    for (; w < maxwidth; w++)
 			xputchar(' ');
 		}
@@ -2130,8 +2185,7 @@ print_by_column(dir, items, count, no_file_suffix)
  *	Compare strings ignoring the quoting chars
  */
 int
-StrQcmp(str1, str2)
-    const Char *str1, *str2;
+StrQcmp(const Char *str1, const Char *str2)
 {
     for (; *str1 && samecase(*str1 & TRIM) == samecase(*str2 & TRIM); 
 	 str1++, str2++)
@@ -2153,13 +2207,14 @@ StrQcmp(str1, str2)
 
 
 /* fcompare():
- * 	Comparison routine for qsort
+ * 	Comparison routine for qsort, (Char **, Char **)
  */
 int
-fcompare(file1, file2)
-    Char  **file1, **file2;
+fcompare(const void *xfile1, const void *xfile2)
 {
-    return (int) collate(*file1, *file2);
+    const Char *const *file1 = xfile1, *const *file2 = xfile2;
+
+    return collate(*file1, *file2);
 } /* end fcompare */
 
 
@@ -2169,14 +2224,11 @@ fcompare(file1, file2)
  *	Always null terminate.
  */
 void
-catn(des, src, count)
-    Char *des;
-    const Char *src;
-    int count;
+catn(Char *des, const Char *src, int count)
 {
-    while (--count >= 0 && *des)
+    while (*des && --count > 0)
 	des++;
-    while (--count >= 0)
+    while (--count > 0)
 	if ((*des++ = *src++) == 0)
 	    return;
     *des = '\0';
@@ -2188,11 +2240,9 @@ catn(des, src, count)
  *	 and always null terminate.
  */
 void
-copyn(des, src, count)
-    Char *des, *src;
-    int count;
+copyn(Char *des, const Char *src, size_t count)
 {
-    while (--count >= 0)
+    while (--count != 0)
 	if ((*des++ = *src++) == 0)
 	    return;
     *des = '\0';
@@ -2201,11 +2251,9 @@ copyn(des, src, count)
 
 /* tgetenv():
  *	like it's normal string counter-part
- *	[apollo uses that in tc.os.c, so it cannot be static]
  */
 Char *
-tgetenv(str)
-    Char   *str;
+tgetenv(Char *str)
 {
     Char  **var;
     size_t  len;
@@ -2232,48 +2280,46 @@ tgetenv(str)
 struct scroll_tab_list *scroll_tab = 0;
 
 static void
-add_scroll_tab(item)
-    Char *item;
+add_scroll_tab(Char *item)
 {
     struct scroll_tab_list *new_scroll;
 
-    new_scroll = (struct scroll_tab_list *) xmalloc((size_t)
-	    sizeof(struct scroll_tab_list));
+    new_scroll = xmalloc(sizeof(struct scroll_tab_list));
     new_scroll->element = Strsave(item);
     new_scroll->next = scroll_tab;
     scroll_tab = new_scroll;
 }
 
 static void
-choose_scroll_tab(exp_name, cnt)
-    Char **exp_name;
-    int cnt;
+choose_scroll_tab(struct Strbuf *exp_name, int cnt)
 {
     struct scroll_tab_list *loop;
     int tmp = cnt;
     Char **ptr;
 
-    ptr = (Char **) xmalloc((size_t) sizeof(Char *) * cnt);
+    ptr = xmalloc(sizeof(Char *) * cnt);
+    cleanup_push(ptr, xfree);
 
     for(loop = scroll_tab; loop && (tmp >= 0); loop = loop->next)
 	ptr[--tmp] = loop->element;
 
-    qsort((ptr_t) ptr, (size_t) cnt, sizeof(Char *), 
-	  (int (*) __P((const void *, const void *))) fcompare);
-	    
-    copyn(*exp_name, ptr[curchoice], (int) Strlen(ptr[curchoice]));	
-    xfree((ptr_t) ptr);
+    qsort(ptr, cnt, sizeof(Char *), fcompare);
+
+    exp_name->len = 0;
+    Strbuf_append(exp_name, ptr[curchoice]);
+    Strbuf_terminate(exp_name);
+    cleanup_until(ptr);
 }
 
 static void
-free_scroll_tab()
+free_scroll_tab(void)
 {
     struct scroll_tab_list *loop;
 
     while(scroll_tab) {
 	loop = scroll_tab;
 	scroll_tab = scroll_tab->next;
-	xfree((ptr_t) loop->element);
-	xfree((ptr_t) loop);
+	xfree(loop->element);
+	xfree(loop);
     }
 }

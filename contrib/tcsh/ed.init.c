@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/ed.init.c,v 3.52 2005/01/18 20:24:50 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/ed.init.c,v 3.60 2006/08/24 20:56:31 christos Exp $ */
 /*
  * ed.init.c: Editor initializations
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: ed.init.c,v 3.52 2005/01/18 20:24:50 christos Exp $")
+RCSID("$tcsh: ed.init.c,v 3.60 2006/08/24 20:56:31 christos Exp $")
 
 #include "ed.h"
 #include "tc.h"
@@ -90,20 +90,13 @@ static unsigned char ttychars[NN_IO][C_NCC] = {
 
 #ifdef SIG_WINDOW
 void
-check_window_size(force)
-    int     force;
+check_window_size(int force)
 {
-#ifdef BSDSIGS
-    sigmask_t omask;
-#endif /* BSDSIGS */
     int     lins, cols;
 
     /* don't want to confuse things here */
-#ifdef BSDSIGS
-    omask = sigblock(sigmask(SIG_WINDOW)) & ~sigmask(SIG_WINDOW);
-#else /* BSDSIGS */
-    (void) sighold(SIG_WINDOW);
-#endif /* BSDSIGS */
+    pintr_disabled++;
+    cleanup_push(&pintr_disabled, disabled_cleanup);
     /*
      * From: bret@shark.agps.lanl.gov (Bret Thaeler) Avoid sunview bug, where a
      * partially hidden window gets a SIG_WINDOW every time the text is
@@ -121,32 +114,22 @@ check_window_size(force)
 	else
 	    ChangeSize(lins, cols);
     }
-#ifdef BSDSIGS
-    (void) sigsetmask(omask);	/* can change it again */
-#else				/* BSDSIGS */
-    (void) sigrelse(SIG_WINDOW);
-#endif /* BSDSIGS */
     windowchg = 0;
+    cleanup_until(&pintr_disabled);	/* can change it again */
 }
 
-RETSIGTYPE
+void
 /*ARGSUSED*/
-window_change(snum)
-int snum;
+window_change(int snum)
 {
     USE(snum);
-#ifdef UNRELSIGS 
-    /* If we were called as a signal handler, restore it. */
-    if (snum > 0)
-      sigset(snum, window_change);
-#endif /* UNRELSIGS */
     windowchg = 1;
 }
 
 #endif /* SIG_WINDOW */
 
 void
-ed_set_tty_eight_bit()
+ed_set_tty_eight_bit(void)
 {
     if (tty_getty(SHTTY, &extty) == -1) {
 #ifdef DEBUG_TTY
@@ -159,8 +142,7 @@ ed_set_tty_eight_bit()
 
 			
 int
-ed_Setup(rst)
-    int rst;
+ed_Setup(int rst)
 {
     static int havesetup = 0;
     struct varent *imode;
@@ -279,8 +261,14 @@ ed_Setup(rst)
 	tty_setchar(&extty, ttychars[EX_IO]);
 
 # ifdef SIG_WINDOW
-    (void) sigset(SIG_WINDOW, window_change);	/* for window systems */
-# endif 
+    {
+	sigset_t set;
+	(void)signal(SIG_WINDOW, window_change);	/* for window systems */
+	sigemptyset(&set);
+	sigaddset(&set, SIG_WINDOW);
+	(void)sigprocmask(SIG_UNBLOCK, &set, NULL);
+    }
+# endif
 #else /* WINNT_NATIVE */
 # ifdef DEBUG
     if (rst)
@@ -292,7 +280,7 @@ ed_Setup(rst)
 }
 
 void
-ed_Init()
+ed_Init(void)
 {
     ResetInLine(1);		/* reset the input pointers */
     GettingInput = 0;		/* just in case */
@@ -308,8 +296,7 @@ ed_Init()
     {				/* no kill ring - why? */
 	int i;
 	for (i = 0; i < KillRingMax; i++) {
-	    if (KillRing[i].buf != NULL)
-		xfree((ptr_t) KillRing[i].buf);
+	    xfree(KillRing[i].buf);
 	    KillRing[i].buf = NULL;
 	    KillRing[i].len = 0;
 	}
@@ -376,7 +363,7 @@ ed_Init()
  * Check and re-init the line. set the terminal into 1 char at a time mode.
  */
 int
-Rawmode()
+Rawmode(void)
 {
     if (Tty_raw_mode)
 	return (0);
@@ -561,12 +548,13 @@ Rawmode()
 }
 
 int
-Cookedmode()
+Cookedmode(void)
 {				/* set tty in normal setup */
 #ifdef WINNT_NATIVE
     do_nt_cooked_mode();
 #else
-    signalfun_t orig_intr;
+    sigset_t set, oset;
+    int res;
 
 # ifdef _IBMR2
     tty_setdisc(SHTTY, EX_IO);
@@ -576,45 +564,18 @@ Cookedmode()
 	return (0);
 
     /* hold this for reseting tty */
-# ifdef BSDSIGS
-    orig_intr = (signalfun_t) signal(SIGINT, SIG_IGN);
-# else
-#  ifdef SIG_HOLD
-    /*
-     * sigset doesn't return the previous handler if the signal is held,
-     * it will return SIG_HOLD instead. So instead of restoring the
-     * the signal we would end up installing a blocked SIGINT with a
-     * SIG_IGN signal handler. This is what happened when Cookedmode
-     * was called from sched_run, disabling interrupt for the rest
-     * of your session.
-     *
-     * This is what we do:
-     * - if the signal is blocked, keep it that way
-     * - else set it to SIG_IGN
-     *
-     * Casper Dik (casper@fwi.uva.nl)
-     */
-    orig_intr = (signalfun_t) sigset(SIGINT, SIG_HOLD);
-    if (orig_intr != SIG_HOLD)
-	(void) sigset(SIGINT, SIG_IGN); /* returns SIG_HOLD */
-#  else /* !SIG_HOLD */
-    /*
-     * No SIG_HOLD; probably no reliable signals as well.
-     */
-    orig_intr = (signalfun_t) sigset(SIGINT, SIG_IGN);
-#  endif /* SIG_HOLD */
-# endif /* BSDSIGS */
-    if (tty_setty(SHTTY, &extty) == -1) {
+    sigemptyset(&set);
+    sigaddset(&set, SIGINT);
+    (void)sigprocmask(SIG_BLOCK, &set, &oset);
+    cleanup_push(&oset, sigprocmask_cleanup);
+    res = tty_setty(SHTTY, &extty);
+    cleanup_until(&oset);
+    if (res == -1) {
 # ifdef DEBUG_TTY
 	xprintf("Cookedmode: tty_setty: %s\n", strerror(errno));
 # endif /* DEBUG_TTY */
 	return -1;
     }
-# ifdef BSDSIGS
-    (void) signal(SIGINT, orig_intr);	/* take these again */
-# else
-    (void) sigset(SIGINT, orig_intr);	/* take these again */
-# endif /* BSDSIGS */
 #endif /* WINNT_NATIVE */
 
     Tty_raw_mode = 0;
@@ -622,13 +583,13 @@ Cookedmode()
 }
 
 void
-ResetInLine(macro)
-    int macro;
+ResetInLine(int macro)
 {
     Cursor = InputBuf;		/* reset cursor */
     LastChar = InputBuf;
-    InputLim = &InputBuf[INBUFSIZE - 2];
+    InputLim = &InputBuf[INBUFSIZE - 2];/*FIXBUF*/
     Mark = InputBuf;
+    MarkIsSet = 0;
     MetaNext = 0;
     CurrentKeyMap = CcKeyMap;
     AltKeyMap = 0;
@@ -636,14 +597,15 @@ ResetInLine(macro)
     DoingArg = 0;
     Argument = 1;
     LastCmd = F_UNASSIGNED;	/* previous command executed */
+    IncMatchLen = 0;
     if (macro)
 	MacroLvl = -1;		/* no currently active macros */
 }
 
-static Char *Input_Line = NULL;
 int
-Load_input_line()
+Load_input_line(void)
 {
+    static Char *Input_Line = NULL;
 #ifdef SUNOS4
     long chrs = 0;
 #else /* !SUNOS4 */
@@ -655,7 +617,7 @@ Load_input_line()
 #endif /* SUNOS4 */
 
     if (Input_Line)
-	xfree((ptr_t) Input_Line);
+	xfree(Input_Line);
     Input_Line = NULL;
 
     if (Tty_raw_mode)
@@ -664,9 +626,9 @@ Load_input_line()
 #if defined(FIONREAD) && !defined(OREO)
     (void) ioctl(SHIN, FIONREAD, (ioctl_t) &chrs);
     if (chrs > 0) {
-	char    buf[BUFSIZE];
+        char    buf[BUFSIZE];
 
-	chrs = read(SHIN, buf, (size_t) min(chrs, BUFSIZE - 1));
+	chrs = xread(SHIN, buf, min(chrs, BUFSIZE - 1));
 	if (chrs > 0) {
 	    buf[chrs] = '\0';
 	    Input_Line = Strsave(str2short(buf));
@@ -692,7 +654,7 @@ Load_input_line()
  * (via Hans J Albertsson (thanks))
  */
 void
-QuoteModeOn()
+QuoteModeOn(void)
 {
     if (MacroLvl >= 0)
 	return;
@@ -731,7 +693,7 @@ QuoteModeOn()
 }
 
 void
-QuoteModeOff()
+QuoteModeOff(void)
 {
     if (!Tty_quote_mode)
 	return;

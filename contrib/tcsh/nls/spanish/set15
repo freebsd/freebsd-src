@@ -1,4 +1,4 @@
-$ $Id: set15,v 1.1 1998/04/08 17:59:56 christos Exp $
+$ $tcsh: set15,v 1.2 2006/03/02 18:46:48 christos Exp $
 $ sh.func.c
 $set 15 
 1 %s: %s: No se puede %s el límite %s\n

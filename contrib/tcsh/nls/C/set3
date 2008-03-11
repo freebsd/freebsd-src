@@ -1,4 +1,4 @@
-$ $Id: set3,v 1.4 2001/04/26 19:07:48 kim Exp $
+$ $tcsh: set3,v 1.6 2006/03/02 18:46:45 christos Exp $
 $ Editor function descriptions
 $set 3 
 1 Move back a character
@@ -122,3 +122,5 @@ $set 3
 119 (WIN32 only) Convert each '/' in previous word to '\\\\'
 120 (WIN32 only) Page visible console window up
 121 (WIN32 only) Page visible console window down
+122 Execute command and keep current line
+123 Execute command and move to next history line

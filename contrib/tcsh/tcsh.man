@@ -72,7 +72,7 @@
 .\"   used here if you can. In particular, please don't use nroff commands
 .\"   which aren't already used herein.
 .\" 
-.TH TCSH 1 "25 March 2005" "Astron 6.14.00"
+.TH TCSH 1 "3 March 2007" "Astron 6.15.00"
 .SH NAME
 tcsh \- C shell with file name completion and command line editing
 .SH SYNOPSIS
@@ -129,10 +129,11 @@ The shell exits if any invoked command terminates abnormally or
 yields a non-zero exit status.
 .TP 4
 .B \-f
-The shell ignores \fI~/.tcshrc\fR, and thus starts faster.
+The shell does not load any resource or startup files, or perform any 
+command hashing, and thus starts faster.
 .TP 4
 .B \-F
-The shell uses \fIfork\fR(2) instead of \fIvfork\fR(2) to spawn processes. (Convex/OS only) (+)
+The shell uses \fIfork\fR(2) instead of \fIvfork\fR(2) to spawn processes. (+)
 .TP 4
 .B \-i
 The shell is interactive and prompts for its top-level input, even if
@@ -940,7 +941,7 @@ Even in braces, history substitutions do not nest.
 letter `d' appended to it, \fItcsh\fR expands it to the last event beginning
 with `3d'; only completely numeric arguments are treated as event numbers.
 This makes it possible to recall events beginning with numbers.
-To expand `!3d' as in \fIcsh\fR(1) say `!\\3d'.
+To expand `!3d' as in \fIcsh\fR(1) say `!{3}d'.
 .PP
 To select words from an event we can follow the event specification by a `:'
 and a designator for the desired words.  The words of an input line are
@@ -1037,7 +1038,7 @@ Any character may be used as the delimiter in place of `/';
 a `\\' can be used to quote the delimiter inside \fIl\fR and \fIr\fR.
 The character `&' in the \fIr\fR is replaced by \fIl\fR; `\\' also quotes `&'.
 If \fIl\fR is empty (``''), the \fIl\fR from a previous substitution or the
-\fIs\fR from a previous `?\fIs\fR?' event specification is used.
+\fIs\fR from a previous search or event number in event specification is used.
 The trailing delimiter may be omitted if it is immediately followed by a newline.
 .TP 8
 &
@@ -1049,9 +1050,8 @@ Apply the following modifier once to each word.
 a (+)
 Apply the following modifier as many times as possible to a single word.
 `a' and `g' can be used together to apply a modifier globally.
-In the current implementation, using the `a' and `s' modifiers together can
-lead to an infinite loop.  For example, `:as/f/ff/' will never terminate.
-This behavior might change in the future.
+With the `s' modifier, only the patterns contained in the original word are
+substituted, not patterns that contain any substitution result.
 .TP 8
 p
 Print the new command line but do not execute it.
@@ -1205,10 +1205,10 @@ $\fIname\fR
 ${\fIname\fR}
 Substitutes the words of the value of variable \fIname\fR, each separated
 by a blank.  Braces insulate \fIname\fR from following characters which would
-otherwise be part of it.  Shell variables have names consisting of up to 20
+otherwise be part of it.  Shell variables have names consisting of
 letters and digits starting with a letter.  The underscore character is
 considered a letter.  If \fIname\fR is not a shell variable, but is set in the
-environment, then that value is returned (but `:' modifiers and the other forms
+environment, then that value is returned (but some of the other forms
 given below are not available in this case).
 .PP
 $\fIname\fR[\fIselector\fR]
@@ -1470,16 +1470,28 @@ used to prevent \fIcd\fR from affecting the current shell.
 When a command to be executed is found not to be a builtin command the shell
 attempts to execute the command via \fIexecve\fR(2).  Each word in the variable
 \fBpath\fR names a directory in which the shell will look for the
-command.  If it is given neither a \fB\-c\fR nor a \fB\-t\fR option, the shell
+command.  If the shell is not given a \fB\-f\fR option, the shell
 hashes the names in these directories into an internal table so that it will
 try an \fIexecve\fR(2) in only a directory where there is a possibility that the
 command resides there.  This greatly speeds command location when a large
-number of directories are present in the search path.  If this mechanism has
-been turned off (via \fIunhash\fR), if the shell was given a \fB\-c\fR or
-\fB\-t\fR argument or in any case for each directory component of \fBpath\fR
-which does not begin with a `/', the shell concatenates the current working
-directory with the given command name to form a path name of a file which it
-then attempts to execute.
+number of directories are present in the search path. This hashing mechanism is
+not used:
+.TP 4
+.B 1.
+If hashing is turned explicitly off via \fIunhash\fR.
+.TP 4
+.B 2.
+If the shell was given a \fB\-f\fR argument.
+.TP 4
+.B 3.
+For each directory component of \fBpath\fR which does not begin with a `/'.
+.TP 4
+.B 4.
+If the command contains a `/'.
+.PP
+In the above four cases the shell concatenates each component of the path
+vector with the given command name to form a path name of a file which it
+then attempts to execute it. If execution is successful, the search stops.
 .PP
 If the file has execute permissions but is not an executable to the system
 (i.e., it is neither an executable binary nor a script that specifies its
@@ -1610,7 +1622,7 @@ operand is matched.  This reduces the need for use of the \fIswitch\fR
 builtin command in shell scripts when all that is really needed is
 pattern matching.
 .PP
-Strings which begin with `0' are considered octal numbers.  Null or
+Null or
 missing arguments are considered `0'.  The results of all expressions are
 strings, which represent decimal numbers.  It is important to note that
 no two components of an expression can appear in the same word; except
@@ -2678,7 +2690,7 @@ Executes the specified command in place of the current shell.
 .B exit \fR[\fIexpr\fR]
 The shell exits either with the value of the specified \fIexpr\fR
 (an expression, as described under \fBExpressions\fR)
-or, without \fIexpr\fR, with the value of the \fBstatus\fR variable.
+or, without \fIexpr\fR, with the value 0.
 .TP 8
 .B fg \fR[\fB%\fIjob\fR ...]
 Brings the specified jobs (or, without arguments, the current job)
@@ -2717,7 +2729,7 @@ Prints the system execution path.  (TCF only)
 Prints the experimental version prefix.  (TCF only)
 .TP 8
 .B glob \fIwordlist
-Like \fIecho\fR, but no `\\' escapes are recognized and words are
+Like \fIecho\fR, but the `-n' parameter is not recognized and words are
 delimited by null characters in the output.  Useful for
 programs which wish to use the shell to filename expand a list of words.
 .TP 8
@@ -3523,7 +3535,7 @@ startup; they do not change thereafter unless changed by the user.  The shell
 updates \fBcwd\fR, \fBdirstack\fR, \fBowd\fR and \fBstatus\fR when necessary,
 and sets \fBlogout\fR on logout.
 .PP
-The shell synchronizes \fBafsuser\fR, \fBgroup\fR, \fBhome\fR, \fBpath\fR, \fBshlvl\fR,
+The shell synchronizes \fBgroup\fR, \fBhome\fR, \fBpath\fR, \fBshlvl\fR,
 \fBterm\fR and \fBuser\fR with the environment variables of the same names:
 whenever the environment variable changes the shell changes the corresponding
 shell variable to match (unless the shell variable is read-only) and vice
@@ -3769,6 +3781,15 @@ The user's real group ID.
 .B group \fR(+)
 The user's group name.
 .TP 8
+.B highlight
+If set, the incremental search match (in \fIi-search-back\fR and
+\fIi-search-fwd\fR) and the region between the mark and the cursor are
+highlighted in reverse video.
+
+Highlighting requires more frequent terminal writes, which introduces extra
+overhead. If you care about terminal performance, you may want to leave this
+unset.
+.TP 8
 .B histchars
 A string value determining the characters used in \fBHistory
 substitution\fR (q.v.).  The first character of its value is used as
@@ -3970,6 +3991,10 @@ The user's real organization ID.  (Domain/OS only)
 .B owd \fR(+)
 The old working directory, equivalent to the `\-' used by \fIcd\fR and \fIpushd\fR.
 See also the \fBcwd\fR and \fBdirstack\fR shell variables.
+.TP 8
+.B padhour
+If set, enable the printing of padding '0' for hours, in 24 and 12 hour
+formats.  E.G.: 07:45:42 vs. 7:45:42
 .TP 8
 .B path
 A list of directories in which to look for executable commands.
@@ -5051,7 +5076,7 @@ pipe(2), setrlimit(2), sigvec(2), stat(2), umask(2), vfork(2), wait(2),
 malloc(3), setlocale(3), tty(4), a.out(5), termcap(5), environ(7),
 termio(7), Introduction to the C Shell
 .SH VERSION
-This manual documents tcsh 6.14.00 (Astron) 2005-03-25.
+This manual documents tcsh 6.15.00 (Astron) 2007-03-03.
 .SH AUTHORS
 .PD 0
 .TP 2
