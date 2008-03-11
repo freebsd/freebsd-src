@@ -1,4 +1,4 @@
-$ $Id: set31,v 1.1 1996/04/26 19:25:15 christos Exp $
+$ $tcsh: set31,v 1.2 2006/03/02 18:46:47 christos Exp $
 $ vms.termcap.c
 $set 31 
 1 Δε μπορώ να ανοίξω το TERMCAP: [%s]\n

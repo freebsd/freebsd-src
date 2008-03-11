@@ -22,11 +22,6 @@
 #define POSIXJOBS
 
 /*
- * POSIXSIGS	Use the POSIX signal facilities to emulate BSD signals.
- */
-#undef POSIXSIGS
-
-/*
  * VFORK	This machine has a vfork().  
  *		It used to be that for job control to work, this define
  *		was mandatory. This is not the case any more.
@@ -48,16 +43,9 @@
 #define BSDJOBS
 
 /*
- * BSDSIGS	You have 4.2-style signals, rather than USG style.
- *		Note: POSIX systems should not define this unless they
- *		have sigvec() and friends (ie: 4.3BSD-RENO, HP-UX).
- */
-#define BSDSIGS
-
-/*
  * BSDTIMES	You have BSD-style process time stuff (like rusage)
  *		This may or may not be true.  For example, Apple Unix
- *		(OREO) has BSDJOBS and BSDSIGS but not BSDTIMES.
+ *		(OREO) has BSDJOBS but not BSDTIMES.
  */
 #define BSDTIMES
 
@@ -94,8 +82,6 @@
 #if defined(__FreeBSD__)
 #define NLS_BUGS
 #define BSD_STYLE_COLORLS
-/* we want to use the system malloc when we install as /bin/csh */
-#define SYSMALLOC
 /* Use LC_MESSAGES locale category to open the message catalog */
 #define MCLoadBySet NL_CAT_LOCALE
 #define BUFSIZE 8192

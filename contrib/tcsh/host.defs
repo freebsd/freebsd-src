@@ -1,5 +1,5 @@
 newcode	:
-/* $Header: /src/pub/tcsh/host.defs,v 1.40 2005/03/03 16:49:15 kim Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/host.defs,v 1.43 2006/03/02 18:46:44 christos Exp $ */
 /*
  * host.defs: Hosttype/Machtype etc.
  */
@@ -33,7 +33,7 @@ newcode	:
  */
 #include "sh.h"
 
-RCSID("$Id: host.defs,v 1.40 2005/03/03 16:49:15 kim Exp $")
+RCSID("$tcsh: host.defs,v 1.43 2006/03/02 18:46:44 christos Exp $")
 
 endcode	:
 
@@ -49,8 +49,7 @@ macro	: M_intel : (defined(M_i386) || defined(M_i486) || defined(M_i586))
 newdef	: defined(ns32000)
 newcode	:
 static char *
-isamultimax(flag)
-    int flag;
+isamultimax(int flag)
 {
     if (access("/Umax.image", F_OK) == 0)
 	return "multimax";
@@ -73,7 +72,7 @@ newcode	:
 
 /* From: hpa@hook.eecs.nwu.edu (H. Peter Anvin) */
 static char *
-getcray()
+getcray(void)
 {
 # ifdef MC_GET_SYSTEM /* If we have target() */
     struct target data;
@@ -115,7 +114,7 @@ newcode	:
 
 /* From: fox@convex.com (David DeSimone) */
 static char *
-getconvex()
+getconvex(void)
 {
     struct system_information  sysinfo;
     static char  result[8];
@@ -172,7 +171,7 @@ enddef	:
 
 newcode	:
 void
-getmachine()
+getmachine(void)
 {
      const char *hosttype;
      const char *ostype;
@@ -446,8 +445,7 @@ hosttype: defined(__x86_64__)				: "x86_64-linux"
 hosttype: defined(M_i586) 				: "i586-linux"
 hosttype: defined(M_i486) 				: "i486-linux"
 hosttype: defined(M_i386)				: "i386-linux"
-ostype	: !defined(PPC) 				: "linux"
-ostype	: defined(PPC)					: "mklinux"
+ostype	: 						: "linux"
 machtype: defined(__ia64__)				: "ia64"
 machtype: defined(__powerpc64__)			: "powerpc64"
 machtype: defined(__s390x__)				: "s390x"

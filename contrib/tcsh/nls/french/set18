@@ -1,4 +1,4 @@
-$ $Id: set18,v 1.1 1995/04/25 14:04:35 christos Exp $
+$ $tcsh: set18,v 1.2 2006/03/02 18:46:46 christos Exp $
 $ sh.set.c
 $set 18 
 1 Attention: le PATH exagérément long est tronqué\n

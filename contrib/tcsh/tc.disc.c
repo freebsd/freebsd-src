@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/tc.disc.c,v 3.15 2004/11/23 02:10:49 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/tc.disc.c,v 3.17 2006/03/02 18:46:45 christos Exp $ */
 /*
  * tc.disc.c: Functions to set/clear line disciplines
  *
@@ -33,7 +33,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: tc.disc.c,v 3.15 2004/11/23 02:10:49 christos Exp $")
+RCSID("$tcsh: tc.disc.c,v 3.17 2006/03/02 18:46:45 christos Exp $")
 
 #ifdef OREO
 #include <compat.h>
@@ -63,8 +63,7 @@ static int oldisc;
 
 int
 /*ARGSUSED*/
-setdisc(f)
-int     f;
+setdisc(int f)
 {
 #ifdef IRIS4D
 # ifndef POSIX
@@ -174,8 +173,7 @@ int     f;
 
 int
 /*ARGSUSED*/
-resetdisc(f)
-int f;
+resetdisc(int f)
 {
     if (add_discipline) {
 	add_discipline = 0;

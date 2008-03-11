@@ -82,7 +82,7 @@
  **********************************************************************
  */
 #include "sh.h"
-RCSID("$Id: ma.setp.c,v 1.14 2004/08/04 17:12:28 christos Exp $")
+RCSID("$tcsh: ma.setp.c,v 1.18 2006/03/02 18:46:44 christos Exp $")
 
 #ifdef MACH
 
@@ -132,29 +132,28 @@ static int eflag;
 	return(-1); \
 }
 
-static int initpaths	__P((char **));
-static void savepaths	__P((char **));
-static void freepaths	__P((void));
-static void rcmd	__P((char *));
-static void icmd	__P((char *, char *));
-static void iacmd	__P((char *, char *));
-static void ibcmd	__P((char *, char *));
-static void incmd	__P((char *, int));
-static void insert	__P((struct pelem *, int, char *));
-static void dcmd	__P((char *));
-static void dncmd	__P((int));
-static void delete	__P((struct pelem *, int));
-static void ccmd	__P((char *, char *));
-static void cncmd	__P((char *, int));
-static void change	__P((struct pelem *, int, char *));
-static int locate	__P((struct pelem *, char *));
+static int initpaths	(char **);
+static void savepaths	(char **);
+static void freepaths	(void);
+static void rcmd	(char *);
+static void icmd	(char *, char *);
+static void iacmd	(char *, char *);
+static void ibcmd	(char *, char *);
+static void incmd	(char *, int);
+static void insert	(struct pelem *, int, char *);
+static void dcmd	(char *);
+static void dncmd	(int);
+static void delete	(struct pelem *, int);
+static void ccmd	(char *, char *);
+static void cncmd	(char *, int);
+static void change	(struct pelem *, int, char *);
+static int locate	(struct pelem *, char *);
 
 
 
 int
-setpath(paths, cmds, localsyspath, dosuffix, printerrors)
-char **paths, **cmds, *localsyspath;
-int dosuffix, printerrors;
+setpath(char **paths, char **cmds, char *localsyspath, int dosuffix,
+	int printerrors)
 {
     char *cmd, *cmd1, *cmd2;
     int ncmd;
@@ -230,8 +229,7 @@ int dosuffix, printerrors;
 }
 
 static int
-initpaths(paths)
-char **paths;
+initpaths(char **paths)
 {
     char *path, *val, *p, *q;
     int i, done;
@@ -248,8 +246,8 @@ char **paths;
 	    return(-1);
 	}
 	*val++ = '\0';
-	pe = (struct pelem *)xmalloc((unsigned)(sizeof(struct pelem)));
-	setzero((char *) pe, sizeof(struct pelem));
+	pe = xmalloc(sizeof(struct pelem));
+	setzero(pe, sizeof(struct pelem));
 	if (pathhead == NULL)
 	    pathhead = pathend = pe;
 	else {
@@ -283,8 +281,7 @@ char **paths;
 }
 
 static void
-savepaths(paths)
-char **paths;
+savepaths(char **paths)
 {
     char *p, *q;
     int npath, i, len;
@@ -312,7 +309,7 @@ char **paths;
 }
 
 static void
-freepaths()
+freepaths(void)
 {
     char *p;
     int i;
@@ -345,13 +342,12 @@ freepaths()
  ***********************************************/
 
 static void
-rcmd(localsyspath)		/* reset path with localsyspath */
-char *localsyspath;
+rcmd(char *localsyspath)	/* reset path with localsyspath */
 {
     int n, done;
     char *new, *p;
     struct pelem *pe;
-    char newbuf[MAXPATHLEN+1];
+    char newbuf[MAXPATHLEN+1];/*FIXBUF*/
 
     for (pe = pathhead; pe; pe = pe->pnext) {
 	new = newbuf;
@@ -389,13 +385,12 @@ char *localsyspath;
  ***********************************************/
 
 static void
-icmd(path, localsyspath)	/* insert path before localsyspath */
-char *path, *localsyspath;
+icmd(char *path, char *localsyspath)	/* insert path before localsyspath */
 {
     int n;
     char *new;
     struct pelem *pe;
-    char newbuf[MAXPATHLEN+1];
+    char newbuf[MAXPATHLEN+1];/*FIXBUF*/
 
     for (pe = pathhead; pe; pe = pe->pnext) {
 	if (sflag)
@@ -414,8 +409,7 @@ char *path, *localsyspath;
 }
 
 static void
-iacmd(inpath, path)		/* insert path after inpath */
-char *inpath, *path;
+iacmd(char *inpath, char *path)	/* insert path after inpath */
 {
     int n;
     struct pelem *pe;
@@ -431,8 +425,7 @@ char *inpath, *path;
 }
 
 static void
-ibcmd(inpath, path)		/* insert path before inpath */
-char *inpath, *path;
+ibcmd(char *inpath, char *path)	/* insert path before inpath */
 {
     int n;
     struct pelem *pe;
@@ -448,9 +441,7 @@ char *inpath, *path;
 }
 
 static void
-incmd(path, n)			/* insert path at position n */
-char *path;
-int n;
+incmd(char *path, int n)	/* insert path at position n */
 {
     struct pelem *pe;
 
@@ -459,14 +450,11 @@ int n;
 }
 
 static void
-insert(pe, loc, key)
-struct pelem *pe;
-int loc;
-char *key;
+insert(struct pelem *pe, int loc, char *key)
 {
     int i;
     char *new;
-    char newbuf[2000];
+    char newbuf[2000];/*FIXBUF*/
 
     if (sflag) {		/* add suffix */
 	new = newbuf;
@@ -488,8 +476,7 @@ char *key;
  ***********************************************/
 
 static void
-dcmd(path)			/* delete path */
-char *path;
+dcmd(char *path)		/* delete path */
 {
     int n;
     struct pelem *pe;
@@ -505,8 +492,7 @@ char *path;
 }
 
 static void
-dncmd(n)			/* delete at position n */
-int n;
+dncmd(int n)			/* delete at position n */
 {
     struct pelem *pe;
 
@@ -521,9 +507,7 @@ int n;
 }
 
 static void
-delete(pe, n)
-struct pelem *pe;
-int n;
+delete(struct pelem *pe, int n)
 {
     int d;
 
@@ -538,8 +522,7 @@ int n;
  ***********************************************/
 
 static void
-ccmd(inpath, path)		/* change inpath to path */
-char *inpath, *path;
+ccmd(char *inpath, char *path)	/* change inpath to path */
 {
     int n;
     struct pelem *pe;
@@ -555,9 +538,7 @@ char *inpath, *path;
 }
 
 static void
-cncmd(path, n)		/* change at position n to path */
-char *path;
-int n;
+cncmd(char *path, int n)	/* change at position n to path */
 {
     struct pelem *pe;
 
@@ -572,13 +553,10 @@ int n;
 }
 
 static void
-change(pe, loc, key)
-struct pelem *pe;
-int loc;
-char *key;
+change(struct pelem *pe, int loc, char *key)
 {
     char *new;
-    char newbuf[MAXPATHLEN+1];
+    char newbuf[MAXPATHLEN+1];/*FIXBUF*/
 
     if (sflag) {		/* append suffix */
 	new = newbuf;
@@ -596,13 +574,11 @@ char *key;
  ***************************************/
 
 static int
-locate(pe, key)
-struct pelem *pe;
-char *key;
+locate(struct pelem *pe, char *key)
 {
     int i;
     char *realkey;
-    char keybuf[MAXPATHLEN+1];
+    char keybuf[MAXPATHLEN+1];/*FIXBUF*/
 
     if (sflag) {
 	realkey = keybuf;

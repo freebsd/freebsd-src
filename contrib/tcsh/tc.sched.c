@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/tc.sched.c,v 3.21 2004/11/23 02:10:50 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/tc.sched.c,v 3.25 2006/03/02 18:46:45 christos Exp $ */
 /*
  * tc.sched.c: Scheduled command execution
  *
@@ -34,7 +34,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: tc.sched.c,v 3.21 2004/11/23 02:10:50 christos Exp $")
+RCSID("$tcsh: tc.sched.c,v 3.25 2006/03/02 18:46:45 christos Exp $")
 
 #include "ed.h"
 #include "tw.h"
@@ -51,7 +51,7 @@ static struct sched_event *sched_ptr = NULL;
 
 
 time_t
-sched_next()
+sched_next(void)
 {
     if (sched_ptr)
 	return (sched_ptr->t_when);
@@ -60,11 +60,9 @@ sched_next()
 
 /*ARGSUSED*/
 void
-dosched(v, c)
-    Char **v;
-    struct command *c;
+dosched(Char **v, struct command *c)
 {
-    struct sched_event *tp, *tp1, *tp2;
+    struct sched_event *tp, **pp;
     time_t  cur_time;
     int     count, hours, minutes, dif_hour, dif_min;
     Char   *cp;
@@ -83,17 +81,21 @@ dosched(v, c)
     v++;
     cp = *v++;
     if (cp == NULL) {
-	Char   *fmt;
+	const Char *fmt;
 	if ((fmt = varval(STRsched)) == STRNULL)
 	    fmt = str2short("%h\t%T\t%R\n");
 	/* print list of scheduled events */
 	for (count = 1, tp = sched_ptr; tp; count++, tp = tp->t_next) {
-	    Char buf[BUFSIZE], sbuf[BUFSIZE];
-	    blkexpand(tp->t_lex, buf);
-	    tprintf(FMT_SCHED, sbuf, fmt, sizeof(sbuf), 
-		    short2str(buf), tp->t_when, (ptr_t) &count);
-	    for (cp = sbuf; *cp;)
+	    Char *buf, *str;
+
+	    buf = blkexpand(tp->t_lex);
+	    cleanup_push(buf, xfree);
+	    str = tprintf(FMT_SCHED, fmt, short2str(buf), tp->t_when, &count);
+	    cleanup_until(buf);
+	    cleanup_push(str, xfree);
+	    for (cp = str; *cp;)
 		xputwchar(*cp++);
+	    cleanup_until(str);
 	}
 	return;
     }
@@ -107,24 +109,21 @@ dosched(v, c)
 	count = atoi(short2str(++cp));
 	if (count <= 0)
 	    stderror(ERR_SCHEDUSAGE);
+	pp = &sched_ptr;
 	tp = sched_ptr;
-	tp1 = 0;
 	while (--count) {
 	    if (tp->t_next == 0)
 		break;
 	    else {
-		tp1 = tp;
+		pp = &tp->t_next;
 		tp = tp->t_next;
 	    }
 	}
 	if (count)
 	    stderror(ERR_SCHEDEV);
-	if (tp1 == 0)
-	    sched_ptr = tp->t_next;
-	else
-	    tp1->t_next = tp->t_next;
+	*pp = tp->t_next;
 	blkfree(tp->t_lex);
-	xfree((ptr_t) tp);
+	xfree(tp);
 	return;
     }
 
@@ -167,55 +166,37 @@ dosched(v, c)
 		dif_hour = 23;
 	}
     }
-    tp = (struct sched_event *) xcalloc(1, sizeof *tp);
+    tp = xcalloc(1, sizeof *tp);
 #ifdef _SX
     tp->t_when = cur_time - ltp->tm_sec + dif_hour * 3600 + dif_min * 60;
-#else	/* _SX */	
+#else	/* _SX */
     tp->t_when = cur_time - ltp->tm_sec + dif_hour * 3600L + dif_min * 60L;
 #endif /* _SX */
     /* use of tm_sec: get to beginning of minute. */
-    if (!sched_ptr || tp->t_when < sched_ptr->t_when) {
-	tp->t_next = sched_ptr;
-	sched_ptr = tp;
-    }
-    else {
-	tp1 = sched_ptr->t_next;
-	tp2 = sched_ptr;
-	while (tp1 && tp->t_when >= tp1->t_when) {
-	    tp2 = tp1;
-	    tp1 = tp1->t_next;
-	}
-	tp->t_next = tp1;
-	tp2->t_next = tp;
-    }
+    for (pp = &sched_ptr; *pp != NULL && tp->t_when >= (*pp)->t_when;
+	 pp = &(*pp)->t_next)
+	;
+    tp->t_next = *pp;
+    *pp = tp;
     tp->t_lex = saveblk(v);
 }
 
 /*
  * Execute scheduled events
  */
-/*ARGSUSED*/
 void
-sched_run(n)
-    int n;
+sched_run(void)
 {
     time_t   cur_time;
-    struct sched_event *tp, *tp1;
+    struct sched_event *tp;
     struct wordent cmd, *nextword, *lastword;
     struct command *t;
     Char  **v, *cp;
-#ifdef BSDSIGS
-    sigmask_t omask;
 
-    omask = sigblock(sigmask(SIGINT)) & ~sigmask(SIGINT);
-#else
-    (void) sighold(SIGINT);
-#endif
-
-    USE(n);
+    pintr_disabled++;
+    cleanup_push(&pintr_disabled, disabled_cleanup);
 
     (void) time(&cur_time);
-    tp = sched_ptr;
 
     /* bugfix by: Justin Bur at Universite de Montreal */
     /*
@@ -223,28 +204,24 @@ sched_run(n)
      * each prompt (in sh.c).  But it is, to catch missed alarms.  Someone
      * ought to fix it all up.  -jbb
      */
-    if (!(tp && tp->t_when < cur_time)) {
-#ifdef BSDSIGS
-	(void) sigsetmask(omask);
-#else
-	(void) sigrelse(SIGINT);
-#endif
+    if (!(sched_ptr && sched_ptr->t_when < cur_time)) {
+	cleanup_until(&pintr_disabled);
 	return;
     }
 
     if (GettingInput)
 	(void) Cookedmode();
 
-    while (tp && tp->t_when < cur_time) {
+    while ((tp = sched_ptr) != NULL && tp->t_when < cur_time) {
 	if (seterr) {
-	    xfree((ptr_t) seterr);
+	    xfree(seterr);
 	    seterr = NULL;
 	}
 	cmd.word = STRNULL;
 	lastword = &cmd;
 	v = tp->t_lex;
 	for (cp = *v; cp; cp = *++v) {
-	    nextword = (struct wordent *) xcalloc(1, sizeof cmd);
+	    nextword = xcalloc(1, sizeof cmd);
 	    nextword->word = Strsave(cp);
 	    lastword->next = nextword;
 	    nextword->prev = lastword;
@@ -252,21 +229,22 @@ sched_run(n)
 	}
 	lastword->next = &cmd;
 	cmd.prev = lastword;
-	tp1 = tp;
-	sched_ptr = tp = tp1->t_next;	/* looping termination cond: */
-	blkfree(tp1->t_lex);	/* straighten out in case of */
-	xfree((ptr_t) tp1);	/* command blow-up. */
+	sched_ptr = tp->t_next;	/* looping termination cond: */
+	blkfree(tp->t_lex);	/* straighten out in case of */
+	xfree(tp);		/* command blow-up. */
 
+	cleanup_push(&cmd, lex_cleanup);
 	/* expand aliases like process() does. */
 	alias(&cmd);
 	/* build a syntax tree for the command. */
 	t = syntax(cmd.next, &cmd, 0);
+	cleanup_push(t, syntax_cleanup);
 	if (seterr)
 	    stderror(ERR_OLD);
 	/* execute the parse tree. */
 	execute(t, -1, NULL, NULL, TRUE);
 	/* done. free the lex list and parse tree. */
-	freelex(&cmd), freesyn(t);
+	cleanup_until(&cmd);
     }
     if (GettingInput && !just_signaled) {	/* PWP */
 	(void) Rawmode();
@@ -276,9 +254,5 @@ sched_run(n)
     }
     just_signaled = 0;
 
-#ifdef BSDSIGS
-    (void) sigsetmask(omask);
-#else
-    (void) sigrelse(SIGINT);
-#endif
+    cleanup_until(&pintr_disabled);
 }

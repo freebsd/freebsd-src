@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/vms.termcap.c,v 1.8 2005/03/03 16:49:16 kim Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/vms.termcap.c,v 1.11 2006/03/02 18:46:45 christos Exp $ */
 /*
  *	termcap.c	1.1	20/7/87		agc	Joypace Ltd
  *
@@ -9,7 +9,7 @@
  *	A public domain implementation of the termcap(3) routines.
  */
 #include "sh.h"
-RCSID("$Id: vms.termcap.c,v 1.8 2005/03/03 16:49:16 kim Exp $")
+RCSID("$tcsh: vms.termcap.c,v 1.11 2006/03/02 18:46:45 christos Exp $")
 #if defined(_VMS_POSIX) || defined(_OSD_POSIX)
 /*    efth      1988-Apr-29
 
@@ -45,16 +45,14 @@ extern FILE	*fopen();	/* old fopen */
  */
 
 int
-tgetent(bp, name)
-char	*bp;
-char	*name;
+tgetent(char *bp, char *name)
 {
 	FILE	*fp;
 	char	*termfile;
 	char	*cp,
 		*ptr,		/* temporary pointer */
-		tmp[1024];	/* buffer for terminal name */
-	short	len = strlen(name);
+		tmp[1024];	/* buffer for terminal name *//*FIXBUF*/
+	size_t	len = strlen(name);
 
 	capab = bp;
 
@@ -79,7 +77,7 @@ char	*name;
 		and then append the next line. */
 		while (*(cp = &bp[strlen(bp) - 2]) == '\\')
 			fgets(cp, 1024, fp);
-		
+
 		/* Skip over any spaces or tabs */
 		for (++cp ; ISSPACE(*cp) ; cp++);
 
@@ -120,7 +118,6 @@ sscanf to look at aliases.  These are delimited by '|'. */
 	sleep(1);
 #endif /* DEBUG */
 	return(0);
-	
 }
 
 /*
@@ -128,8 +125,7 @@ sscanf to look at aliases.  These are delimited by '|'. */
  *	to id. Returns the value, -1 if invalid.
  */
 int
-tgetnum(id)
-char	*id;
+tgetnum(char *id)
 {
 	char	*cp;
 	int	ret;
@@ -162,8 +158,7 @@ char	*id;
  *	present.
  */
 int
-tgetflag(id)
-char	*id;
+tgetflag(char *id)
 {
 	char	*cp;
 
@@ -188,9 +183,7 @@ char	*id;
  *	etc. Returns the string, or NULL if it can't do it.
  */
 char *
-tgetstr(id, area)
-char	*id;
-char	**area;
+tgetstr(char *id, char **area)
 {
 	char	*cp;
 	char	*ret;
@@ -268,10 +261,7 @@ char	**area;
  *	Returns "OOPS" if something's gone wrong, or the string otherwise.
  */
 char *
-tgoto(cm, destcol, destline)
-char	*cm;
-int	destcol;
-int	destline;
+tgoto(char *cm, int destcol, int destline)
 {
 	char	*rp;
 	static char	ret[24];
@@ -324,10 +314,7 @@ int	destline;
  *	terminal that needs padding at the moment...
  */
 int
-tputs(cp, affcnt, outc)
-char	*cp;
-int		affcnt;
-int		(*outc)();
+tputs(char *cp, int affcnt, int (*outc)())
 {
 	unsigned long delay = 0;
 

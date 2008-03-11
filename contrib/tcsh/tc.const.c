@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/tc.const.c,v 3.81 2004/12/25 21:15:08 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/tc.const.c,v 3.84 2006/10/29 19:02:17 christos Exp $ */
 /*
  * sh.const.c: String constants for tcsh.
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: tc.const.c,v 3.81 2004/12/25 21:15:08 christos Exp $")
+RCSID("$tcsh: tc.const.c,v 3.84 2006/10/29 19:02:17 christos Exp $")
 
 Char STRlogout[]	= { 'l', 'o', 'g', 'o', 'u', 't', '\0' };
 Char STRautologout[]	= { 'a', 'u', 't', 'o', 'l', 'o', 'g', 'o', 'u', 't', 
@@ -46,7 +46,7 @@ Char STRautomatic[]	= { 'a', 'u', 't', 'o', 'm', 'a', 't', 'i', 'c',
 Char STRhangup[]	= { 'h', 'a', 'n', 'g', 'u', 'p', '\0' };
 Char STRaout[]		= { 'a', '.', 'o', 'u', 't', '\0' };
 Char STRtty[]		= { 't', 't', 'y', '\0' };
-Char STRpts[]		= { 'p', 't', 's', '\0' };
+Char STRslptssl[]	= { '/', 'p', 't', 's', '/', '\0' };
 Char STRany[]		= { 'a', 'n', 'y', '\0' };
 Char STRstatus[]	= { 's', 't', 'a', 't', 'u', 's', '\0' };
 Char STR0[]		= { '0', '\0' };
@@ -395,6 +395,7 @@ Char STRnotunique[]	= { 'n', 'o', 't', 'u', 'n', 'i', 'q', 'u', 'e', '\0' };
 Char STRret[]		= { '\n', '\0' };
 Char STRnobeep[]	= { 'n', 'o', 'b', 'e', 'e', 'p', '\0' };
 Char STRnoding[]	= { 'n', 'o', 'd', 'i', 'n', 'g', '\0' };
+Char STRpadhour[]	= { 'p', 'a', 'd', 'h', 'o', 'u', 'r', '\0' };
 Char STRnoambiguous[]	= { 'n', 'o', 'a', 'm', 'b', 'i', 'g', 'u', 'o', 'u', 
 			    's', '\0' };
 Char STRvisiblebell[]	= { 'v', 'i', 's', 'i', 'b', 'l', 'e', 'b', 'e', 'l', 
@@ -419,6 +420,7 @@ Char STRwho[]		= { 'w', 'h', 'o', '\0' };
 Char STRsched[]		= { 's', 'c', 'h', 'e', 'd', '\0' };
 Char STRrmstar[]	= { 'r', 'm', 's', 't', 'a', 'r', '\0' };
 Char STRrm[]		= { 'r', 'm', '\0' };
+Char STRhighlight[]	= { 'h', 'i', 'g', 'h', 'l', 'i', 'g', 'h', 't', '\0' };
 
 Char STRimplicitcd[] = { 'i', 'm', 'p', 'l', 'i', 'c', 'i', 't',
                          'c', 'd', '\0' };
@@ -446,6 +448,10 @@ Char STRLINES[]		= { 'L', 'I', 'N', 'E', 'S', '\0'};
 Char STRCOLUMNS[]	= { 'C', 'O', 'L', 'U', 'M', 'N', 'S', '\0'};
 Char STRTERMCAP[]	= { 'T', 'E', 'R', 'M', 'C', 'A', 'P', '\0'};
 #endif /* SIG_WINDOW  || _VMS_POSIX */
+
+#if defined (_OSD_POSIX)  /* BS2000 needs this variable set to "SHELL" */
+Char STRPROGRAM_ENVIRONMENT[]		= { 'P', 'R', 'O', 'G', 'R', 'A', 'M', '_', 'E', 'N', 'V', 'I', 'R', 'O', 'N', 'M', 'E', 'N', 'T', '\0'};
+#endif /* _OSD_POSIX */
 
 #ifdef WARP
 Char STRwarp[]		= { 'w', 'a', 'r', 'p', '\0' };

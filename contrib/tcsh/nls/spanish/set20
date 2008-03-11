@@ -1,4 +1,4 @@
-$ $Id: set20,v 1.2 2001/04/26 19:09:19 kim Exp $
+$ $tcsh: set20,v 1.3 2006/03/02 18:46:48 christos Exp $
 $ tc.bind.c
 $set 20 
 1 Nombre de tecla no válido `%S'\n

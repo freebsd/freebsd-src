@@ -1,4 +1,4 @@
-This is tcsh version 6.14.  Tcsh is a version of the Berkeley
+This is tcsh version 6.15.  Tcsh is a version of the Berkeley
 C-Shell, with the addition of: a command line editor, command and file
 name completion, listing, etc. and a bunch of small additions to the
 shell itself.
@@ -19,12 +19,12 @@ names of the authors from the source code or documentation).
 
 To install tcsh:
 
-0)  Try running "configure".  If that works, goto step 6.
-    If you are using imake, try xmkmf and goto step 3.
-    If imake does not work, copy Makefile.std to Makefile.
+0)  Try running "./configure".  If that doesn't work, goto step 1.
+    Run "./configure --help" to see possible options.  After running
+    configure, goto step 3.
 
-1)  Look at the Makefile and make sure that you are using the right
-    compilation flags.
+1)  Otherwise copy Makefile.std to Makefile. Look at the Makefile and
+    make sure that you are using the right compilation flags.
 
 2)  Copy the appropriate for your machine and OS config file from the
     config subdirectory into config.h.  Consult the file "Ported" for
@@ -34,7 +34,7 @@ To install tcsh:
     the supplied ones.  If you get tcsh working on a new machine, I'd
     appreciate a copy of the config file plus additional information
     about the architecture/OS.  If you are creating a new config file,
-    look very hard at BSDJOBS, BSDSIGS, and BSDTIMES if you are running
+    look very hard at BSDJOBS and BSDTIMES if you are running
     a non-BSD machine.  For vanila SysV, these would all be #undef-ed,
     but others may vary (such as A/UX or HPUX).  On a pyramid, compile
     in the UCB universe even if you are running under the ATT universe
@@ -42,33 +42,27 @@ To install tcsh:
 
 3)  Look at config_f.h, and enable or disable any features you want.
     It is configured the way I like it, but you may disagree.
-    If you do not have NLS, then locale.h will not be found. Undefine it
-    and things should work ok. On the other hand, if you have NLS you
-    might as well use it...
 
 4)  Look at host.defs to make sure that you have the right defines to set
     the environment variables "HOSTTYPE", "MACHTYPE", "OSTYPE" and 
     "VENDOR" correctly.  If you need to make changes, PLEASE SEND THEM 
     BACK TO ME.
 
-5)  You may want to adjust the TCSH_BINDIR and TCSH_MANDIR entries in
+5)  You may want to adjust the DESTBIN and DESTMAN entries in
     the Makefile.  These are the directories that tcsh, and the tcsh.1
     man entry will be placed in when you do a "make install" and "make
     install.man" respectively.  If you decide to install tcsh somewhere
     other than in /usr/local/bin/tcsh, you should #define _PATH_TCSHELL
     "/your/installation/directory/tcsh" in pathnames.h.
 
-6)  If you've changed any of the configuration variables you may need
-    to re-run configure.
+6)  make
 
-7)  make
-
-8)  Read the documentation while you are waiting.  The file tcsh.man
+7)  Read the documentation while you are waiting.  The file tcsh.man
     is in standard [nt]roff -man format. If you like, you can run the
     tcsh.man2html script (requires Perl) to generate an HTML version of
     the manpage which you can read with Mosaic, lynx or other HTML browser.
 
-9)  Test tcsh by typing ./tcsh to see that it has compiled correctly.
+8)  Test tcsh by typing ./tcsh to see that it has compiled correctly.
     The history command should give a time stamp on every entry.
     Typing normal characters should echo each exactly once.  Control-A
     should put the cursor at the beginning of the input line, but after
@@ -86,12 +80,12 @@ To install tcsh:
     passwd appears on the screen, you have lost /dev/tty. Otherwise
     everything is fine.
 
-10) Once satisfied that tcsh is working correctly, complete the installation
+9)  Once satisfied that tcsh is working correctly, complete the installation
     by typing "make install" to install the binary, and "make install.man" to
     install the documentation. Don't forget to look at complete.tcsh for
     useful completions...
 
-11) Enjoy.
+10) Enjoy.
 
 12) PLEASE file any bug reports (and fixes), code for new features at:
 

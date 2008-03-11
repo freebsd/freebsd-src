@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/sh.time.c,v 3.28 2005/03/03 16:49:16 kim Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/sh.time.c,v 3.33 2006/03/02 18:46:44 christos Exp $ */
 /*
  * sh.time.c: Shell time keeping and printing.
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: sh.time.c,v 3.28 2005/03/03 16:49:16 kim Exp $")
+RCSID("$tcsh: sh.time.c,v 3.33 2006/03/02 18:46:44 christos Exp $")
 
 #ifdef SUNOS4
 # include <machine/param.h>
@@ -52,17 +52,17 @@ struct tms times0;
 
 #if !defined(BSDTIMES) && !defined(_SEQUENT_)
 # ifdef	POSIX
-static	void	pdtimet	__P((clock_t, clock_t));
+static	void	pdtimet	(clock_t, clock_t);
 # else /* ! POSIX */
-static	void	pdtimet	__P((time_t, time_t));
+static	void	pdtimet	(time_t, time_t);
 # endif	/* ! POSIX */
 #else /* BSDTIMES || _SEQUENT_ */
-static	void	tvadd	__P((timeval_t *, timeval_t *));
-static	void	pdeltat	__P((timeval_t *, timeval_t *));
+static	void	tvadd	(timeval_t *, timeval_t *);
+static	void	pdeltat	(timeval_t *, timeval_t *);
 #endif /* BSDTIMES || _SEQUENT_	*/
 
 void
-settimes()
+settimes(void)
 {
 #ifdef BSDTIMES
     struct sysrusage ruch;
@@ -83,12 +83,7 @@ settimes()
     ruadd(&ru0,	&ruch);
 # else	/* _SEQUENT_ */
     seconds0 = time(NULL);
-#  ifndef COHERENT
     time0 = times(&times0);
-#  else	/* !COHERENT */
-    time0 = HZ * seconds0;
-    times(&times0);
-#  endif /* !COHERENT */
     times0.tms_stime +=	times0.tms_cstime;
     times0.tms_utime +=	times0.tms_cutime;
     times0.tms_cstime =	0;
@@ -103,9 +98,7 @@ settimes()
  */
 /*ARGSUSED*/
 void
-dotime(v, c)
-    Char **v;
-    struct command *c;
+dotime(Char **v, struct command *c)
 {
 #ifdef BSDTIMES
     timeval_t timedol;
@@ -137,12 +130,7 @@ dotime(v, c)
 
     struct tms times_dol;
 
-#ifndef	COHERENT
     timedol = times(&times_dol);
-#else
-    timedol = HZ * time(NULL);
-    times(&times_dol);
-#endif
     times_dol.tms_stime	+= times_dol.tms_cstime;
     times_dol.tms_utime	+= times_dol.tms_cutime;
     times_dol.tms_cstime = 0;
@@ -159,9 +147,7 @@ dotime(v, c)
  */
 /*ARGSUSED*/
 void
-donice(v, c)
-    Char **v;
-    struct command *c;
+donice(Char **v, struct command *c)
 {
     Char *cp;
     int	    nval = 0;
@@ -182,8 +168,7 @@ donice(v, c)
 
 #ifdef BSDTIMES
 void
-ruadd(ru, ru2)
-    struct sysrusage *ru,	*ru2;
+ruadd(struct sysrusage *ru, struct sysrusage *ru2)
 {
     tvadd(&ru->ru_utime, &ru2->ru_utime);
     tvadd(&ru->ru_stime, &ru2->ru_stime);
@@ -218,8 +203,7 @@ ruadd(ru, ru2)
 #else /* BSDTIMES */
 # ifdef	_SEQUENT_
 void
-ruadd(ru, ru2)
-    struct process_stats *ru, *ru2;
+ruadd(struct process_stats *ru, struct process_stats *ru2)
 {
     tvadd(&ru->ps_utime, &ru2->ps_utime);
     tvadd(&ru->ps_stime, &ru2->ps_stime);
@@ -290,28 +274,21 @@ ruadd(ru, ru2)
 #endif /* SUNOS4 */
 
 void
-prusage(r0, r1,	e, b)
-    struct sysrusage *r0,	*r1;
-    timeval_t *e, *b;
+prusage(struct sysrusage *r0, struct sysrusage *r1, timeval_t *e, timeval_t *b)
 
 #else /* BSDTIMES */
 # ifdef	_SEQUENT_
 void
-prusage(r0, r1,	e, b)
-    struct process_stats *r0, *r1;
-    timeval_t *e, *b;
+prusage(struct process_stats *r0, struct process_stats *r1, timeval_t e,
+	timeval_t b)
 
 # else /* _SEQUENT_ */
-void
-prusage(bs, es,	e, b)
-    struct tms *bs, *es;
-
 #  ifndef POSIX
-    time_t  e, b;
-
+void
+prusage(struct tms *bs, struct tms *es, time_t e, time_t b)
 #  else	/* POSIX */
-    clock_t e, b;
-
+void
+prusage(struct tms *bs, struct tms *es, clock_t e, clock_t b)
 #  endif /* POSIX */
 # endif	/* _SEQUENT_ */
 #endif /* BSDTIMES */
@@ -477,7 +454,6 @@ prusage(bs, es,	e, b)
 				 (long long)r0->ru_ixrss) /
 			 (long long)t);
 		xprintf("%lu", (unsigned long)memtmp);
-			
 		break;
 
 	    case 'D':		/* (average) unshared data size	*/
@@ -706,8 +682,7 @@ prusage(bs, es,	e, b)
 
 #if defined(BSDTIMES) || defined(_SEQUENT_)
 static void
-pdeltat(t1, t0)
-    timeval_t *t1, *t0;
+pdeltat(timeval_t *t1, timeval_t *t0)
 {
     timeval_t td;
 
@@ -716,8 +691,7 @@ pdeltat(t1, t0)
 }
 
 static void
-tvadd(tsum, t0)
-    timeval_t *tsum, *t0;
+tvadd(timeval_t *tsum, timeval_t *t0)
 {
 
     tsum->tv_sec += t0->tv_sec;
@@ -727,8 +701,7 @@ tvadd(tsum, t0)
 }
 
 void
-tvsub(tdiff, t1, t0)
-    timeval_t *tdiff, *t1, *t0;
+tvsub(timeval_t *tdiff, timeval_t *t1, timeval_t *t0)
 {
 
     tdiff->tv_sec = t1->tv_sec - t0->tv_sec;
@@ -739,12 +712,11 @@ tvsub(tdiff, t1, t0)
 
 #else /* !BSDTIMES && !_SEQUENT_ */
 static void
-pdtimet(eval, bval)
 #ifndef	POSIX
-    time_t  eval, bval;
+pdtimet(time_t eval, time_t bval)
 
 #else /* POSIX */
-    clock_t eval, bval;
+pdtimet(clock_t eval, clock_t bval)
 
 #endif /* POSIX	*/
 {

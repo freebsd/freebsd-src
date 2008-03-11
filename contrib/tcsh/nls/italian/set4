@@ -1,4 +1,4 @@
-$ $Id: set4,v 1.1 1998/09/03 22:03:32 christos Exp $
+$ $tcsh: set4,v 1.2 2006/03/02 18:46:47 christos Exp $
 $ Termcap strings
 $set 4
 1 aggiunge una linea vuota

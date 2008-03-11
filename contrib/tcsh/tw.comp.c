@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/tw.comp.c,v 1.37 2004/11/23 02:10:50 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/tw.comp.c,v 1.41 2006/03/02 18:46:45 christos Exp $ */
 /*
  * tw.comp.c: File completion builtin
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: tw.comp.c,v 1.37 2004/11/23 02:10:50 christos Exp $")
+RCSID("$tcsh: tw.comp.c,v 1.41 2006/03/02 18:46:45 christos Exp $")
 
 #include "tw.h"
 #include "ed.h"
@@ -41,24 +41,22 @@ RCSID("$Id: tw.comp.c,v 1.37 2004/11/23 02:10:50 christos Exp $")
 /* #define TDEBUG */
 struct varent completions;
 
-static int 	 	  tw_result	__P((Char *, Char **));
-static Char		**tw_find	__P((Char *, struct varent *, int));
-static Char 		 *tw_tok	__P((Char *));
-static int	 	  tw_pos	__P((Char *, int));
-static void	  	  tw_pr		__P((Char **));
-static int	  	  tw_match	__P((Char *, Char *));
-static void	 	  tw_prlist	__P((struct varent *));
-static Char  		 *tw_dollar	__P((Char *,Char **, int, Char *, 
-					     Char, const char *));
+static int 	 	  tw_result	(const Char *, Char **);
+static Char		**tw_find	(Char *, struct varent *, int);
+static Char 		 *tw_tok	(Char *);
+static int	 	  tw_pos	(Char *, int);
+static void	  	  tw_pr		(Char **);
+static int	  	  tw_match	(const Char *, const Char *);
+static void	 	  tw_prlist	(struct varent *);
+static const Char	 *tw_dollar	(const Char *,Char **, size_t, Char **,
+					 Char, const char *);
 
 /* docomplete():
  *	Add or list completions in the completion list
  */
 /*ARGSUSED*/
 void
-docomplete(v, t)
-    Char **v;
-    struct command *t;
+docomplete(Char **v, struct command *t)
 {
     struct varent *vp;
     Char *p;
@@ -93,9 +91,7 @@ docomplete(v, t)
  */
 /*ARGSUSED*/
 void
-douncomplete(v, t)
-    Char **v;
-    struct command *t;
+douncomplete(Char **v, struct command *t)
 {
     USE(t);
     unset1(v, &completions);
@@ -106,24 +102,22 @@ douncomplete(v, t)
  *	Pretty print a list of variables
  */
 static void
-tw_prlist(p)
-    struct varent *p;
+tw_prlist(struct varent *p)
 {
     struct varent *c;
-
-    if (setintr)
-#ifdef BSDSIGS
-	(void) sigsetmask(sigblock((sigmask_t) 0) & ~sigmask(SIGINT));
-#else				/* BSDSIGS */
-	(void) sigrelse(SIGINT);
-#endif				/* BSDSIGS */
 
     for (;;) {
 	while (p->v_left)
 	    p = p->v_left;
 x:
 	if (p->v_parent == 0)	/* is it the header? */
-	    return;
+	    break;
+	if (setintr) {
+	    int old_pintr_disabled;
+
+	    pintr_push_enable(&old_pintr_disabled);
+	    cleanup_until(&old_pintr_disabled);
+	}
 	xprintf("%s\t", short2str(p->v_name));
 	if (p->vec)
 	    tw_pr(p->vec);
@@ -146,8 +140,7 @@ x:
  *	a completion argument and collapsing multiple spaces to one.
  */
 static void
-tw_pr(cmp)
-    Char **cmp;
+tw_pr(Char **cmp)
 {
     int sp, osp;
     Char *ptr;
@@ -173,10 +166,7 @@ tw_pr(cmp)
  *	For commands we only look at names that start with -
  */
 static Char **
-tw_find(nam, vp, cmd)
-    Char   *nam;
-    struct varent *vp;
-    int cmd;
+tw_find(Char *nam, struct varent *vp, int cmd)
 {
     Char **rv;
 
@@ -201,9 +191,7 @@ tw_find(nam, vp, cmd)
  *	Return true if the position is within the specified range
  */
 static int
-tw_pos(ran, wno)
-    Char *ran;
-    int	  wno;
+tw_pos(Char *ran, int wno)
 {
     Char *p;
 
@@ -224,7 +212,6 @@ tw_pos(ran, wno)
 	return getn(ran) <= wno;
     else				/* range = <number> - <number> */
 	return (getn(ran) <= wno) && (wno <= getn(p));
-	   
 } /* end tw_pos */
 
 
@@ -232,8 +219,7 @@ tw_pos(ran, wno)
  *	Return the next word from string, unquoteing it.
  */
 static Char *
-tw_tok(str)
-    Char *str;
+tw_tok(Char *str)
 {
     static Char *bf = NULL;
 
@@ -262,10 +248,9 @@ tw_tok(str)
  *	in a prefix of the string.
  */
 static int
-tw_match(str, pat)
-    Char *str, *pat;
+tw_match(const Char *str, const Char *pat)
 {
-    Char *estr;
+    const Char *estr;
     int rv = Gnmatch(str, pat, &estr);
 #ifdef TDEBUG
     xprintf("Gnmatch(%s, ", short2str(str));
@@ -281,14 +266,14 @@ tw_match(str, pat)
  *	string
  */
 static int
-tw_result(act, pat)
-    Char *act, **pat;
+tw_result(const Char *act, Char **pat)
 {
     int looking;
     static Char* res = NULL;
+    Char *p;
 
     if (res != NULL)
-	xfree((ptr_t) res), res = NULL;
+	xfree(res), res = NULL;
 
     switch (act[0] & ~QUOTE) {
     case 'X':
@@ -365,15 +350,15 @@ tw_result(act, pat)
 
     case '(':
 	*pat = res = Strsave(&act[1]);
-	if ((act = Strchr(res, ')')) != NULL)
-	    *act = '\0';
+	if ((p = Strchr(res, ')')) != NULL)
+	    *p = '\0';
 	(void) strip(res);
 	return TW_WORDLIST;
 
     case '`':
 	res = Strsave(act);
-	if ((act = Strchr(&res[1], '`')) != NULL)
-	    *++act = '\0';
+	if ((p = Strchr(&res[1], '`')) != NULL)
+	    *++p = '\0';
 	
 	if (didfds == 0) {
 	    /*
@@ -385,10 +370,10 @@ tw_result(act, pat)
 	    (void) dcopy(SHOUT, 1);
 	    (void) dcopy(SHDIAG, 2);
 	}
-	if ((act = globone(res, G_APPEND)) != NULL) {
-	    xfree((ptr_t) res), res = NULL;
-	    *pat = res = Strsave(act);
-	    xfree((ptr_t) act);
+	if ((p = globone(res, G_APPEND)) != NULL) {
+	    xfree(res), res = NULL;
+	    *pat = res = Strsave(p);
+	    xfree(p);
 	    return TW_WORDLIST;
 	}
 	return TW_ZERO;
@@ -412,22 +397,20 @@ tw_result(act, pat)
 	return TW_ZERO;
     }
 } /* end tw_result */
-		
+
 
 /* tw_dollar():
  *	Expand $<n> args in buffer
  */
-static Char *
-tw_dollar(str, wl, nwl, buffer, sep, msg)
-    Char *str, **wl;
-    int nwl;
-    Char *buffer;
-    Char sep;
-    const char *msg;
+static const Char *
+tw_dollar(const Char *str, Char **wl, size_t nwl, Char **result, Char sep,
+	  const char *msg)
 {
-    Char *sp, *bp = buffer, *ebp = &buffer[MAXPATHLEN];
+    struct Strbuf buf = Strbuf_INIT;
+    Char *res;
+    const Char *sp;
 
-    for (sp = str; *sp && *sp != sep && bp < ebp;)
+    for (sp = str; *sp && *sp != sep;)
 	if (sp[0] == '$' && sp[1] == ':' && Isdigit(sp[sp[2] == '-' ? 3 : 2])) {
 	    int num, neg = 0;
 	    sp += 2;
@@ -439,26 +422,25 @@ tw_dollar(str, wl, nwl, buffer, sep, msg)
 		continue;
 	    if (neg)
 		num = nwl - num - 1;
-	    if (num >= 0 && num < nwl) {
-		Char *ptr;
-		for (ptr = wl[num]; *ptr && bp < ebp - 1; *bp++ = *ptr++)
-		    continue;
-		
-	    }
+	    if (num >= 0 && (size_t)num < nwl)
+		Strbuf_append(&buf, wl[num]);
 	}
 	else
-	    *bp++ = *sp++;
+	    Strbuf_append1(&buf, *sp++);
 
-    *bp = '\0';
+    res = Strbuf_finish(&buf);
 
-    if (*sp++ == sep)
+    if (*sp++ == sep) {
+	*result = res;
 	return sp;
+    }
 
+    xfree(res);
     /* Truncates data if WIDE_STRINGS */
     stderror(ERR_COMPMIS, (int)sep, msg, short2str(str));
     return --sp;
 } /* end tw_dollar */
-		
+
 
 /* tw_complete():
  *	Return the appropriate completion for the command
@@ -471,38 +453,48 @@ tw_dollar(str, wl, nwl, buffer, sep, msg)
  *	N/<pattern>/<completion>/[<suffix>/]	next-next word
  */
 int
-tw_complete(line, word, pat, looking, suf)
-    Char *line, **word, **pat;
-    int looking, *suf;
+tw_complete(const Char *line, Char **word, Char **pat, int looking, eChar *suf)
 {
-    Char buf[MAXPATHLEN + 1], **vec, *ptr; 
-    Char *wl[MAXPATHLEN/6];
+    Char *buf, **vec, **wl;
     static Char nomatch[2] = { (Char) ~0, 0x00 };
-    int wordno, n;
+    const Char *ptr;
+    size_t wordno;
+    int n;
 
-    copyn(buf, line, MAXPATHLEN);
+    buf = Strsave(line);
+    cleanup_push(buf, xfree);
+    /* Single-character words, empty current word, terminating NULL */
+    wl = xmalloc(((Strlen(line) + 1) / 2 + 2) * sizeof (*wl));
+    cleanup_push(wl, xfree);
 
     /* find the command */
-    if ((wl[0] = tw_tok(buf)) == NULL || wl[0] == INVPTR)
+    if ((wl[0] = tw_tok(buf)) == NULL || wl[0] == INVPTR) {
+	cleanup_until(buf);
 	return TW_ZERO;
+    }
 
     /*
      * look for hardwired command completions using a globbing
      * search and for arguments using a normal search.
      */
-    if ((vec = tw_find(wl[0], &completions, (looking == TW_COMMAND))) == NULL)
+    if ((vec = tw_find(wl[0], &completions, (looking == TW_COMMAND)))
+	== NULL) {
+	cleanup_until(buf);
 	return looking;
+    }
 
     /* tokenize the line one more time :-( */
     for (wordno = 1; (wl[wordno] = tw_tok(NULL)) != NULL &&
 		      wl[wordno] != INVPTR; wordno++)
 	continue;
 
-    if (wl[wordno] == INVPTR)		/* Found a meta character */
+    if (wl[wordno] == INVPTR) {		/* Found a meta character */
+	cleanup_until(buf);
 	return TW_ZERO;			/* de-activate completions */
+    }
 #ifdef TDEBUG
     {
-	int i;
+	size_t i;
 	for (i = 0; i < wordno; i++)
 	    xprintf("'%s' ", short2str(wl[i]));
 	xprintf("\n");
@@ -519,19 +511,19 @@ tw_complete(line, word, pat, looking, suf)
 
 #ifdef TDEBUG
     xprintf("\r\n");
-    xprintf("  w#: %d\n", wordno);
+    xprintf("  w#: %lu\n", (unsigned long)wordno);
     xprintf("line: %s\n", short2str(line));
     xprintf(" cmd: %s\n", short2str(wl[0]));
     xprintf("word: %s\n", short2str(*word));
-    xprintf("last: %s\n", wordno - 2 >= 0 ? short2str(wl[wordno-2]) : "n/a");
-    xprintf("this: %s\n", wordno - 1 >= 0 ? short2str(wl[wordno-1]) : "n/a");
+    xprintf("last: %s\n", wordno >= 2 ? short2str(wl[wordno-2]) : "n/a");
+    xprintf("this: %s\n", wordno >= 1 ? short2str(wl[wordno-1]) : "n/a");
 #endif /* TDEBUG */
     
     for (;vec != NULL && (ptr = vec[0]) != NULL; vec++) {
-	Char  ran[MAXPATHLEN+1],/* The pattern or range X/<range>/XXXX/ */
-	      com[MAXPATHLEN+1],/* The completion X/XXXXX/<completion>/ */
+	Char  *ran,	        /* The pattern or range X/<range>/XXXX/ */
+	      *com,	        /* The completion X/XXXXX/<completion>/ */
 	     *pos = NULL;	/* scratch pointer 			*/
-	int   cmd;
+	int   cmd, res;
         Char  sep;		/* the command and separator characters */
 
 	if (ptr[0] == '\0')
@@ -543,14 +535,14 @@ tw_complete(line, word, pat, looking, suf)
 
 	switch (cmd = ptr[0]) {
 	case 'N':
-	    pos = (wordno - 3 < 0) ? nomatch : wl[wordno - 3];
+	    pos = (wordno < 3) ? nomatch : wl[wordno - 3];
 	    break;
 	case 'n':
-	    pos = (wordno - 2 < 0) ? nomatch : wl[wordno - 2];
+	    pos = (wordno < 2) ? nomatch : wl[wordno - 2];
 	    break;
 	case 'c':
 	case 'C':
-	    pos = (wordno - 1 < 0) ? nomatch : wl[wordno - 1];
+	    pos = (wordno < 1) ? nomatch : wl[wordno - 1];
 	    break;
 	case 'p':
 	    break;
@@ -566,8 +558,9 @@ tw_complete(line, word, pat, looking, suf)
 	    return TW_ZERO;
 	}
 
-	ptr = tw_dollar(&ptr[2], wl, wordno, ran, sep,
+	ptr = tw_dollar(&ptr[2], wl, wordno, &ran, sep,
 			CGETS(27, 3, "pattern"));
+	cleanup_push(ran, xfree);
 	if (ran[0] == '\0')	/* check for empty pattern (disallowed) */
 	{
 	    stderror(ERR_COMPINC, cmd == 'p' ?  CGETS(27, 4, "range") :
@@ -575,11 +568,13 @@ tw_complete(line, word, pat, looking, suf)
 	    return TW_ZERO;
 	}
 
-	ptr = tw_dollar(ptr, wl, wordno, com, sep, CGETS(27, 5, "completion")); 
+	ptr = tw_dollar(ptr, wl, wordno, &com, sep,
+			CGETS(27, 5, "completion"));
+	cleanup_push(com, xfree);
 
 	if (*ptr != '\0') {
 	    if (*ptr == sep)
-		*suf = ~0;
+		*suf = CHAR_ERR;
 	    else
 		*suf = *ptr;
 	}
@@ -595,11 +590,11 @@ tw_complete(line, word, pat, looking, suf)
 	case 0:
 	    xprintf("*auto suffix*\n");
 	    break;
-	case ~0:
+	case CHAR_ERR:
 	    xprintf("*no suffix*\n");
 	    break;
 	default:
-	    xprintf("%c\n", *suf);
+	    xprintf("%c\n", (int)*suf);
 	    break;
 	}
 #endif /* TDEBUG */
@@ -607,12 +602,15 @@ tw_complete(line, word, pat, looking, suf)
 	switch (cmd) {
 	case 'p':			/* positional completion */
 #ifdef TDEBUG
-	    xprintf("p: tw_pos(%s, %d) = ", short2str(ran), wordno - 1);
+	    xprintf("p: tw_pos(%s, %lu) = ", short2str(ran),
+		    (unsigned long)wordno - 1);
 	    xprintf("%d\n", tw_pos(ran, wordno - 1));
 #endif /* TDEBUG */
-	    if (!tw_pos(ran, wordno - 1))
+	    if (!tw_pos(ran, wordno - 1)) {
+		cleanup_until(ran);
 		continue;
-	    return tw_result(com, pat);
+	    }
+	    break;
 
 	case 'N':			/* match with the next-next word */
 	case 'n':			/* match with the next word */
@@ -621,16 +619,22 @@ tw_complete(line, word, pat, looking, suf)
 #ifdef TDEBUG
 	    xprintf("%c: ", cmd);
 #endif /* TDEBUG */
-	    if ((n = tw_match(pos, ran)) < 0)
+	    if ((n = tw_match(pos, ran)) < 0) {
+		cleanup_until(ran);
 		continue;
+	    }
 	    if (cmd == 'c')
 		*word += n;
-	    return tw_result(com, pat);
+	    break;
 
 	default:
-	    return TW_ZERO;	/* Cannot happen */
+	    abort();		       /* Cannot happen */
 	}
+	res = tw_result(com, pat);
+	cleanup_until(buf);
+	return res;
     }
+    cleanup_until(buf);
     *suf = '\0';
     return TW_ZERO;
 } /* end tw_complete */
