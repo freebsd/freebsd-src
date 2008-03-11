@@ -95,7 +95,7 @@ __FBSDID("$FreeBSD$");
 
 #define VR_USEIOSPACE
 
-#include <pci/if_vrreg.h>
+#include <dev/vr/if_vrreg.h>
 
 MODULE_DEPEND(vr, pci, 1, 1, 1);
 MODULE_DEPEND(vr, ether, 1, 1, 1);
