@@ -81,6 +81,13 @@ ar_mode_m(struct bsdar *bsdar)
 }
 
 void
+ar_mode_q(struct bsdar *bsdar)
+{
+
+	write_archive(bsdar, 'q');
+}
+
+void
 ar_mode_r(struct bsdar *bsdar)
 {
 
@@ -247,7 +254,7 @@ write_archive(struct bsdar *bsdar, char mode)
 		}
 
 		/* We do not create archive in mode 'd', 'm' and 's'.  */
-		if (mode != 'r') {
+		if (mode != 'r' && mode != 'q') {
 			bsdar_warnc(bsdar, 0, "%s: no such file",
 			    bsdar->filename);
 			return;
@@ -342,6 +349,14 @@ write_archive(struct bsdar *bsdar, char mode)
 		goto write_objs;
 
 	/*
+	 * For mode 'q', we don't need to adjust existing members either.
+	 * Also, -a, -b and -i are ignored in this mode. New members are
+	 * always inserted at tail.
+	 */
+	if (mode == 'q')
+		goto new_archive;
+
+	/*
 	 * Try to find the position member specified by user.
 	 */
 	if (bsdar->options & AR_A || bsdar->options & AR_B) {
@@ -411,11 +426,13 @@ write_archive(struct bsdar *bsdar, char mode)
 new_archive:
 	/*
 	 * When operating in mode 'r', directly add those user specified
-	 * objects which do not exist in current archive.
+	 * objects which do not exist in current archive. When operating
+	 * in mode 'q', all objects specified in command line args are
+	 * appended to the archive, without comparing with existing ones.
 	 */
 	for (i = 0; i < bsdar->argc; i++) {
 		av = &bsdar->argv[i];
-		if (*av != NULL && mode == 'r') {
+		if (*av != NULL && (mode == 'r' || mode == 'q')) {
 			nobj = create_obj_from_file(bsdar, *av, 0);
 			if (nobj != NULL)
 				insert_obj(bsdar, nobj, pos);
