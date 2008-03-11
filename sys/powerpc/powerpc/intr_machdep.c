@@ -101,9 +101,17 @@ static u_int stray_count;
 
 device_t pic;
 
+static void
+intrcnt_setname(const char *name, int index)
+{
+	snprintf(intrnames + (MAXCOMLEN + 1) * index, MAXCOMLEN + 1, "%-*s",
+	    MAXCOMLEN, name);
+}
+
 static struct powerpc_intr *
 intr_lookup(u_int irq)
 {
+	char intrname[8];
 	struct powerpc_intr *i, *iscan;
 	int vector;
 
@@ -138,6 +146,8 @@ intr_lookup(u_int irq)
 
 	if (iscan == NULL && i->vector != -1) {
 		powerpc_intrs[i->vector] = i;
+		sprintf(intrname, "irq%u:", i->irq);
+		intrcnt_setname(intrname, i->vector);
 		nvectors++;
 	}
 
@@ -149,13 +159,6 @@ intr_lookup(u_int irq)
 	}
 
 	return (i);
-}
-
-static void
-intrcnt_setname(const char *name, int index)
-{
-	snprintf(intrnames + (MAXCOMLEN + 1) * index, MAXCOMLEN + 1, "%-*s",
-	    MAXCOMLEN, name);
 }
 
 #ifdef INTR_FILTER
