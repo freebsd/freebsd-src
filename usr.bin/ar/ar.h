@@ -115,6 +115,7 @@ void	bsdar_warnc(struct bsdar *, int _code, const char *fmt, ...);
 void	ar_mode_d(struct bsdar *bsdar);
 void	ar_mode_m(struct bsdar *bsdar);
 void	ar_mode_p(struct bsdar *bsdar);
+void	ar_mode_q(struct bsdar *bsdar);
 void	ar_mode_r(struct bsdar *bsdar);
 void	ar_mode_s(struct bsdar *bsdar);
 void	ar_mode_t(struct bsdar *bsdar);
