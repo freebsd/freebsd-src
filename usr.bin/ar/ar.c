@@ -294,7 +294,7 @@ main(int argc, char **argv)
 		ar_mode_p(bsdar);
 		break;
 	case 'q':
-		ar_mode_r(bsdar);
+		ar_mode_q(bsdar);
 		break;
 	case 'r':
 		ar_mode_r(bsdar);
@@ -345,6 +345,7 @@ bsdar_usage()
 	(void)fprintf(stderr, "\tar -m [-Tjsvz] archive file ...\n");
 	(void)fprintf(stderr, "\tar -m [-Tabijsvz] position archive file ...\n");
 	(void)fprintf(stderr, "\tar -p [-Tv] archive [file ...]\n");
+	(void)fprintf(stderr, "\tar -q [-Tcjsvz] archive file ...\n");
 	(void)fprintf(stderr, "\tar -r [-Tcjsuvz] archive file ...\n");
 	(void)fprintf(stderr, "\tar -r [-Tabcijsuvz] position archive file ...\n");
 	(void)fprintf(stderr, "\tar -s [-jz] archive\n");
