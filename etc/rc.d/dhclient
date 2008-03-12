@@ -21,22 +21,22 @@ dhclient_start()
 	if [ -x /bin/pgrep ]; then
 		pids=`/bin/pgrep -f "dhclient: $ifn(\$| .*)"`
 		if [ -n "$pids" ]; then
-			exit 0
+			sleep 1
+			pids=`/bin/pgrep -f "dhclient: $ifn(\$| .*)"`
+			if [ -n "$pids" ]; then
+				exit 0
+			fi
 		fi
 	fi
 
 	# Override for $ifn specific flags (see rc.subr for $flags setting)
-	eval specific=\$dhclient_flags_$ifn
+	specific=`get_if_var $ifn dhclient_flags_IF`
 	if [ -z "$flags" -a -n "$specific" ]; then
 		rc_flags=$specific
 	fi
 
-	eval specific=\$background_dhclient_$ifn
-	if [ -n "$specific" ]; then
-		if checkyesno background_dhclient_$ifn; then
-			rc_flags="${rc_flags} -b"
-		fi
-	elif checkyesno background_dhclient; then
+	background_dhclient=`get_if_var $ifn background_dhclient_IF $background_dhclient`
+	if checkyesno background_dhclient; then
 		rc_flags="${rc_flags} -b"
 	fi
 
