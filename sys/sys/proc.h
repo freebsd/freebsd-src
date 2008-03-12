@@ -335,7 +335,7 @@ do {									\
 #define	TDF_SINTR	0x00000008 /* Sleep is interruptible. */
 #define	TDF_TIMEOUT	0x00000010 /* Timing out during sleep. */
 #define	TDF_IDLETD	0x00000020 /* This is a per-CPU idle thread. */
-#define	TDF_UNUSEDx40	0x00000040 /* --available-- */
+#define	TDF_CANSWAP	0x00000040 /* Thread can be swapped. */
 #define	TDF_SLEEPABORT	0x00000080 /* sleepq_abort was called. */
 #define	TDF_KTH_SUSP	0x00000100 /* kthread is suspended */
 #define	TDF_UBORROWING	0x00000200 /* Thread is borrowing user pri. */
@@ -782,7 +782,7 @@ MALLOC_DECLARE(M_ZOMBIE);
 } while (0)
 
 /* Check whether a thread is safe to be swapped out. */
-#define	thread_safetoswapout(td) (TD_IS_SLEEPING(td) || TD_IS_SUSPENDED(td))
+#define	thread_safetoswapout(td)	((td)->td_flags & TDF_CANSWAP)
 
 /* Control whether or not it is safe for curthread to sleep. */
 #define	THREAD_NO_SLEEPING() do {					\

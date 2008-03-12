@@ -149,7 +149,7 @@ static uma_zone_t sleepq_zone;
 /*
  * Prototypes for non-exported routines.
  */
-static int	sleepq_catch_signals(void *wchan);
+static int	sleepq_catch_signals(void *wchan, int pri);
 static int	sleepq_check_signals(void);
 static int	sleepq_check_timeout(void);
 #ifdef INVARIANTS
@@ -158,7 +158,7 @@ static void	sleepq_dtor(void *mem, int size, void *arg);
 static int	sleepq_init(void *mem, int size, int flags);
 static void	sleepq_resume_thread(struct sleepqueue *sq, struct thread *td,
 		    int pri);
-static void	sleepq_switch(void *wchan);
+static void	sleepq_switch(void *wchan, int pri);
 static void	sleepq_timeout(void *arg);
 
 /*
@@ -367,7 +367,7 @@ sleepq_set_timeout(void *wchan, int timo)
  * may have transitioned from the sleepq lock to a run lock.
  */
 static int
-sleepq_catch_signals(void *wchan)
+sleepq_catch_signals(void *wchan, int pri)
 {
 	struct sleepqueue_chain *sc;
 	struct sleepqueue *sq;
@@ -411,7 +411,7 @@ sleepq_catch_signals(void *wchan)
 	thread_lock(td);
 	if (ret == 0) {
 		if (!(td->td_flags & TDF_INTERRUPT)) {
-			sleepq_switch(wchan);
+			sleepq_switch(wchan, pri);
 			return (0);
 		}
 		/* KSE threads tried unblocking us. */
@@ -424,7 +424,7 @@ sleepq_catch_signals(void *wchan)
 	 */
 	if (TD_ON_SLEEPQ(td)) {
 		sq = sleepq_lookup(wchan);
-		sleepq_resume_thread(sq, td, -1);
+		sleepq_resume_thread(sq, td, 0);
 	}
 	mtx_unlock_spin(&sc->sc_lock);
 	MPASS(td->td_lock != &sc->sc_lock);
@@ -436,7 +436,7 @@ sleepq_catch_signals(void *wchan)
  * Returns with thread lock.
  */
 static void
-sleepq_switch(void *wchan)
+sleepq_switch(void *wchan, int pri)
 {
 	struct sleepqueue_chain *sc;
 	struct sleepqueue *sq;
@@ -464,15 +464,14 @@ sleepq_switch(void *wchan)
 	if (td->td_flags & TDF_TIMEOUT) {
 		MPASS(TD_ON_SLEEPQ(td));
 		sq = sleepq_lookup(wchan);
-		sleepq_resume_thread(sq, td, -1);
+		sleepq_resume_thread(sq, td, 0);
 		mtx_unlock_spin(&sc->sc_lock);
 		return;		
 	}
 
-	thread_lock_set(td, &sc->sc_lock);
-
 	MPASS(td->td_sleepqueue == NULL);
-	sched_sleep(td);
+	sched_sleep(td, pri);
+	thread_lock_set(td, &sc->sc_lock);
 	TD_SET_SLEEPING(td);
 	SCHED_STAT_INC(switch_sleepq);
 	mi_switch(SW_VOL, NULL);
@@ -551,14 +550,14 @@ sleepq_check_signals(void)
  * Block the current thread until it is awakened from its sleep queue.
  */
 void
-sleepq_wait(void *wchan)
+sleepq_wait(void *wchan, int pri)
 {
 	struct thread *td;
 
 	td = curthread;
 	MPASS(!(td->td_flags & TDF_SINTR));
 	thread_lock(td);
-	sleepq_switch(wchan);
+	sleepq_switch(wchan, pri);
 	thread_unlock(td);
 }
 
@@ -567,12 +566,12 @@ sleepq_wait(void *wchan)
  * or it is interrupted by a signal.
  */
 int
-sleepq_wait_sig(void *wchan)
+sleepq_wait_sig(void *wchan, int pri)
 {
 	int rcatch;
 	int rval;
 
-	rcatch = sleepq_catch_signals(wchan);
+	rcatch = sleepq_catch_signals(wchan, pri);
 	rval = sleepq_check_signals();
 	thread_unlock(curthread);
 	if (rcatch)
@@ -585,7 +584,7 @@ sleepq_wait_sig(void *wchan)
  * or it times out while waiting.
  */
 int
-sleepq_timedwait(void *wchan)
+sleepq_timedwait(void *wchan, int pri)
 {
 	struct thread *td;
 	int rval;
@@ -593,7 +592,7 @@ sleepq_timedwait(void *wchan)
 	td = curthread;
 	MPASS(!(td->td_flags & TDF_SINTR));
 	thread_lock(td);
-	sleepq_switch(wchan);
+	sleepq_switch(wchan, pri);
 	rval = sleepq_check_timeout();
 	thread_unlock(td);
 
@@ -605,11 +604,11 @@ sleepq_timedwait(void *wchan)
  * it is interrupted by a signal, or it times out waiting to be awakened.
  */
 int
-sleepq_timedwait_sig(void *wchan)
+sleepq_timedwait_sig(void *wchan, int pri)
 {
 	int rcatch, rvalt, rvals;
 
-	rcatch = sleepq_catch_signals(wchan);
+	rcatch = sleepq_catch_signals(wchan, pri);
 	rvalt = sleepq_check_timeout();
 	rvals = sleepq_check_signals();
 	thread_unlock(curthread);
@@ -673,8 +672,8 @@ sleepq_resume_thread(struct sleepqueue *sq, struct thread *td, int pri)
 	TD_CLR_SLEEPING(td);
 
 	/* Adjust priority if requested. */
-	MPASS(pri == -1 || (pri >= PRI_MIN && pri <= PRI_MAX));
-	if (pri != -1 && td->td_priority > pri)
+	MPASS(pri == 0 || (pri >= PRI_MIN && pri <= PRI_MAX));
+	if (pri != 0 && td->td_priority > pri)
 		sched_prio(td, pri);
 	setrunnable(td);
 }
@@ -760,10 +759,8 @@ sleepq_broadcast(void *wchan, int flags, int pri, int queue)
 	KASSERT(wchan != NULL, ("%s: invalid NULL wait channel", __func__));
 	MPASS((queue >= 0) && (queue < NR_SLEEPQS));
 	sq = sleepq_lookup(wchan);
-	if (sq == NULL) {
-		sleepq_release(wchan);
+	if (sq == NULL)
 		return;
-	}
 	KASSERT(sq->sq_type == (flags & SLEEPQ_TYPE),
 	    ("%s: mismatch between sleep/wakeup and cv_*", __func__));
 
@@ -774,7 +771,6 @@ sleepq_broadcast(void *wchan, int flags, int pri, int queue)
 		sleepq_resume_thread(sq, td, pri);
 		thread_unlock(td);
 	}
-	sleepq_release(wchan);
 }
 
 /*
@@ -805,7 +801,7 @@ sleepq_timeout(void *arg)
 		sq = sleepq_lookup(wchan);
 		MPASS(sq != NULL);
 		td->td_flags |= TDF_TIMEOUT;
-		sleepq_resume_thread(sq, td, -1);
+		sleepq_resume_thread(sq, td, 0);
 		thread_unlock(td);
 		return;
 	}
@@ -872,7 +868,7 @@ sleepq_remove(struct thread *td, void *wchan)
 	thread_lock(td);
 	MPASS(sq != NULL);
 	MPASS(td->td_wchan == wchan);
-	sleepq_resume_thread(sq, td, -1);
+	sleepq_resume_thread(sq, td, 0);
 	thread_unlock(td);
 	sleepq_release(wchan);
 }
@@ -916,7 +912,7 @@ sleepq_abort(struct thread *td, int intrval)
 	MPASS(sq != NULL);
 
 	/* Thread is asleep on sleep queue sq, so wake it up. */
-	sleepq_resume_thread(sq, td, -1);
+	sleepq_resume_thread(sq, td, 0);
 }
 
 #ifdef DDB
