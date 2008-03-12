@@ -563,7 +563,7 @@ again:
 				sleepq_add(&callout_wait,
 				    &callout_lock.lock_object, "codrain",
 				    SLEEPQ_SLEEP, 0);
-				sleepq_wait(&callout_wait);
+				sleepq_wait(&callout_wait, 0);
 				sq_locked = 0;
 
 				/* Reacquire locks previously released. */

@@ -917,8 +917,7 @@ retry:
 				 * This could be refined to support
 				 * swapping out a thread.
 				 */
-				if ((td->td_priority) < PSOCK ||
-				    !thread_safetoswapout(td)) {
+				if (!thread_safetoswapout(td)) {
 					thread_unlock(td);
 					goto nextproc;
 				}

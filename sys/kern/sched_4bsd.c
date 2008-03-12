@@ -799,12 +799,16 @@ sched_unlend_user_prio(struct thread *td, u_char prio)
 }
 
 void
-sched_sleep(struct thread *td)
+sched_sleep(struct thread *td, int pri)
 {
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	td->td_slptick = ticks;
 	td->td_sched->ts_slptime = 0;
+	if (pri)
+		sched_prio(td, pri);
+	if (TD_IS_SUSPENDED(td) || pri <= PSOCK)
+		td->td_flags |= TDF_CANSWAP;
 }
 
 void
@@ -922,6 +926,7 @@ sched_wakeup(struct thread *td)
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	ts = td->td_sched;
+	td->td_flags &= ~TDF_CANSWAP;
 	if (ts->ts_slptime > 1) {
 		updatepri(td);
 		resetpriority(td);
