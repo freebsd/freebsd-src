@@ -382,11 +382,24 @@ ns8250_bus_attach(struct uart_softc *sc)
 {
 	struct ns8250_softc *ns8250 = (struct ns8250_softc*)sc;
 	struct uart_bas *bas;
+	unsigned int ivar;
 
 	bas = &sc->sc_bas;
 
 	ns8250->mcr = uart_getreg(bas, REG_MCR);
-	ns8250->fcr = FCR_ENABLE | FCR_RX_MEDH;
+	ns8250->fcr = FCR_ENABLE;
+	if (!resource_int_value("uart", device_get_unit(sc->sc_dev), "flags",
+	    &ivar)) {
+		if (UART_FLAGS_FCR_RX_LOW(ivar)) 
+			ns8250->fcr |= FCR_RX_LOW;
+		else if (UART_FLAGS_FCR_RX_MEDL(ivar)) 
+			ns8250->fcr |= FCR_RX_MEDL;
+		else if (UART_FLAGS_FCR_RX_HIGH(ivar)) 
+			ns8250->fcr |= FCR_RX_HIGH;
+		else
+			ns8250->fcr |= FCR_RX_MEDH;
+	} else 
+		ns8250->fcr |= FCR_RX_MEDH;
 	uart_setreg(bas, REG_FCR, ns8250->fcr);
 	uart_barrier(bas);
 	ns8250_bus_flush(sc, UART_FLUSH_RECEIVER|UART_FLUSH_TRANSMITTER);
