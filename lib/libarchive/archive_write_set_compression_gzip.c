@@ -106,6 +106,21 @@ archive_compressor_gzip_init(struct archive_write *a)
 			return (ret);
 	}
 
+	/*
+	 * The next check is a temporary workaround until the gzip
+	 * code can be overhauled some.  The code should not require
+	 * that compressed_buffer_size == bytes_per_block.  Removing
+	 * this assumption will allow us to compress larger chunks at
+	 * a time, which should improve overall performance
+	 * marginally.  As a minor side-effect, such a cleanup would
+	 * allow us to support truly arbitrary block sizes.
+	 */
+	if (a->bytes_per_block < 10) {
+		archive_set_error(&a->archive, EINVAL,
+		    "GZip compressor requires a minimum 10 byte block size");
+		return (ARCHIVE_FATAL);
+	}
+
 	state = (struct private_data *)malloc(sizeof(*state));
 	if (state == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
@@ -114,6 +129,10 @@ archive_compressor_gzip_init(struct archive_write *a)
 	}
 	memset(state, 0, sizeof(*state));
 
+	/*
+	 * See comment above.  We should set compressed_buffer_size to
+	 * max(bytes_per_block, 65536), but the code can't handle that yet.
+	 */
 	state->compressed_buffer_size = a->bytes_per_block;
 	state->compressed = (unsigned char *)malloc(state->compressed_buffer_size);
 	state->crc = crc32(0L, NULL, 0);

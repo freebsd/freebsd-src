@@ -45,6 +45,9 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
+#ifdef HAVE_SYS_UTIME_H
+#include <sys/utime.h>
+#endif
 
 #ifdef HAVE_EXT2FS_EXT2_FS_H
 #include <ext2fs/ext2_fs.h>	/* for Linux file flags */
@@ -88,6 +91,10 @@ __FBSDID("$FreeBSD$");
 #include "archive_string.h"
 #include "archive_entry.h"
 #include "archive_private.h"
+
+#ifndef O_BINARY
+#define O_BINARY 0
+#endif
 
 struct fixup_entry {
 	struct fixup_entry	*next;
@@ -636,7 +643,9 @@ archive_write_disk_new(void)
 	a->archive.vtable = archive_write_disk_vtable();
 	a->lookup_uid = trivial_lookup_uid;
 	a->lookup_gid = trivial_lookup_gid;
+#ifdef HAVE_GETEUID
 	a->user_uid = geteuid();
+#endif /* HAVE_GETEUID */
 	if (archive_string_ensure(&a->path_safe, 512) == NULL) {
 		free(a);
 		return (NULL);
@@ -667,7 +676,7 @@ edit_deep_directories(struct archive_write_disk *a)
 		return;
 
 	/* Try to record our starting dir. */
-	a->restore_pwd = open(".", O_RDONLY);
+	a->restore_pwd = open(".", O_RDONLY | O_BINARY);
 	if (a->restore_pwd < 0)
 		return;
 
@@ -705,6 +714,14 @@ restore_entry(struct archive_write_disk *a)
 	int ret = ARCHIVE_OK, en;
 
 	if (a->flags & ARCHIVE_EXTRACT_UNLINK && !S_ISDIR(a->mode)) {
+		/*
+		 * TODO: Fix this.  Apparently, there are platforms
+		 * that still allow root to hose the entire filesystem
+		 * by unlinking a dir.  The S_ISDIR() test above
+		 * prevents us from using unlink() here if the new
+		 * object is a dir, but that doesn't mean the old
+		 * object isn't a dir.
+		 */
 		if (unlink(a->name) == 0) {
 			/* We removed it, we're done. */
 		} else if (errno == ENOENT) {
@@ -851,7 +868,7 @@ create_filesystem_object(struct archive_write_disk *a)
 		 * for hardlink entries.
 		 */
 		if (r == 0 && a->filesize > 0) {
-			a->fd = open(a->name, O_WRONLY | O_TRUNC);
+			a->fd = open(a->name, O_WRONLY | O_TRUNC | O_BINARY);
 			if (a->fd < 0)
 				r = errno;
 		}
@@ -876,24 +893,38 @@ create_filesystem_object(struct archive_write_disk *a)
 	 */
 	mode = final_mode & 0777;
 
-	switch (a->mode & S_IFMT) {
+	switch (a->mode & AE_IFMT) {
 	default:
 		/* POSIX requires that we fall through here. */
 		/* FALLTHROUGH */
-	case S_IFREG:
+	case AE_IFREG:
 		a->fd = open(a->name,
-		    O_WRONLY | O_CREAT | O_EXCL, mode);
+		    O_WRONLY | O_CREAT | O_EXCL | O_BINARY, mode);
 		r = (a->fd < 0);
 		break;
-	case S_IFCHR:
+	case AE_IFCHR:
+#ifdef HAVE_MKNOD
+		/* Note: we use AE_IFCHR for the case label, and
+		 * S_IFCHR for the mknod() call.  This is correct.  */
 		r = mknod(a->name, mode | S_IFCHR,
 		    archive_entry_rdev(a->entry));
+#else
+		/* TODO: Find a better way to warn about our inability
+		 * to restore a char device node. */
+		return (EINVAL);
+#endif /* HAVE_MKNOD */
 		break;
-	case S_IFBLK:
+	case AE_IFBLK:
+#ifdef HAVE_MKNOD
 		r = mknod(a->name, mode | S_IFBLK,
 		    archive_entry_rdev(a->entry));
+#else
+		/* TODO: Find a better way to warn about our inability
+		 * to restore a block device node. */
+		return (EINVAL);
+#endif /* HAVE_MKNOD */
 		break;
-	case S_IFDIR:
+	case AE_IFDIR:
 		mode = (mode | MINIMUM_DIR_MODE) & MAXIMUM_DIR_MODE;
 		r = mkdir(a->name, mode);
 		if (r == 0) {
@@ -906,8 +937,14 @@ create_filesystem_object(struct archive_write_disk *a)
 			a->todo &= ~TODO_MODE;
 		}
 		break;
-	case S_IFIFO:
+	case AE_IFIFO:
+#ifdef HAVE_MKFIFO
 		r = mkfifo(a->name, mode);
+#else
+		/* TODO: Find a better way to warn about our inability
+		 * to restore a fifo. */
+		return (EINVAL);
+#endif /* HAVE_MKFIFO */
 		break;
 	}
 
@@ -1130,7 +1167,7 @@ check_symlinks(struct archive_write_disk *a)
 	struct stat st;
 
 	/*
-	 * Gaurd against symlink tricks.  Reject any archive entry whose
+	 * Guard against symlink tricks.  Reject any archive entry whose
 	 * destination would be altered by a symlink.
 	 */
 	/* Whatever we checked last time doesn't need to be re-checked. */
@@ -1453,28 +1490,34 @@ set_ownership(struct archive_write_disk *a)
 	}
 
 #ifdef HAVE_FCHOWN
-	if (a->fd >= 0 && fchown(a->fd, a->uid, a->gid) == 0)
-		goto success;
+	/* If we have an fd, we can avoid a race. */
+	if (a->fd >= 0 && fchown(a->fd, a->uid, a->gid) == 0) {
+		/* We've set owner and know uid/gid are correct. */
+		a->todo &= ~(TODO_OWNER | TODO_SGID_CHECK | TODO_SUID_CHECK);
+		return (ARCHIVE_OK);
+	}
 #endif
 
+	/* We prefer lchown() but will use chown() if that's all we have. */
+	/* Of course, if we have neither, this will always fail. */
 #ifdef HAVE_LCHOWN
-	if (lchown(a->name, a->uid, a->gid) == 0)
-		goto success;
-#else
-	if (!S_ISLNK(a->mode) && chown(a->name, a->uid, a->gid) == 0)
-		goto success;
+	if (lchown(a->name, a->uid, a->gid) == 0) {
+		/* We've set owner and know uid/gid are correct. */
+		a->todo &= ~(TODO_OWNER | TODO_SGID_CHECK | TODO_SUID_CHECK);
+		return (ARCHIVE_OK);
+	}
+#elif HAVE_CHOWN
+	if (!S_ISLNK(a->mode) && chown(a->name, a->uid, a->gid) == 0) {
+		/* We've set owner and know uid/gid are correct. */
+		a->todo &= ~(TODO_OWNER | TODO_SGID_CHECK | TODO_SUID_CHECK);
+		return (ARCHIVE_OK);
+	}
 #endif
 
 	archive_set_error(&a->archive, errno,
 	    "Can't set user=%d/group=%d for %s", a->uid, a->gid,
 	    a->name);
 	return (ARCHIVE_WARN);
-success:
-	a->todo &= ~TODO_OWNER;
-	/* We know the user/group are correct now. */
-	a->todo &= ~TODO_SGID_CHECK;
-	a->todo &= ~TODO_SUID_CHECK;
-	return (ARCHIVE_OK);
 }
 
 #ifdef HAVE_UTIMES
@@ -1812,7 +1855,7 @@ set_fflags_platform(struct archive_write_disk *a, int fd, const char *name,
 
 	/* If we weren't given an fd, open it ourselves. */
 	if (myfd < 0)
-		myfd = open(name, O_RDONLY|O_NONBLOCK);
+		myfd = open(name, O_RDONLY | O_NONBLOCK | O_BINARY);
 	if (myfd < 0)
 		return (ARCHIVE_OK);
 
