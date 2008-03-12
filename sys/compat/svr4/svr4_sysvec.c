@@ -213,8 +213,7 @@ svr4_fixup(register_t **stack_base, struct image_params *imgp)
 	Elf32_Auxargs *args;
 	register_t *pos;
              
-	KASSERT(curthread->td_proc == imgp->proc &&
-	    (curthread->td_proc->p_flag & P_SA) == 0,
+	KASSERT(curthread->td_proc == imgp->proc,
 	    ("unsafe svr4_fixup(), should be curproc"));
 	args = (Elf32_Auxargs *)imgp->auxargs;
 	pos = *stack_base + (imgp->args->argc + imgp->args->envc + 2);  
