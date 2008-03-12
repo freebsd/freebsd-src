@@ -1312,6 +1312,11 @@ explicitly, or implicitly when
 .Nm
 selects the default target, to give the user a way to refer to the default
 target on the command line.
+.It Ic .MAKEFILEDEPS
+Enable the
+.Dq Li Remaking Makefiles
+functionality.
+See below.
 .It Ic .MAKEFLAGS
 This target provides a way to specify flags for
 .Nm
@@ -1381,6 +1386,10 @@ Apply the
 attribute to any specified sources.
 Targets with this attribute are always
 considered to be out of date.
+.It Ic .POSIX
+Adjust
+.Mn 's
+behavior to match the applicable POSIX specifications.
 .It Ic .PRECIOUS
 Apply the
 .Ic .PRECIOUS
@@ -1544,6 +1553,13 @@ Several flags can be specified on a single
 target by seperating them with blanks.
 .El
 .Sh REMAKING MAKEFILES
+If the special target
+.Ic .MAKEFILEDEPS
+exists in the Makefile,
+.Nm
+enables the
+.Dq Li Remaking Makefiles
+feature.
 After reading Makefile and all the files that are included using
 .Ic .include
 or
