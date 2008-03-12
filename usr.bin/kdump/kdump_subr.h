@@ -36,7 +36,6 @@ void madvisebehavname (int);
 void msyncflagsname (int);
 void schedpolicyname (int);
 void kldunloadfflagsname (int);
-void ksethrcmdname (int);
 void extattrctlname (int);
 void kldsymcmdname (int);
 void sendfileflagsname (int);
