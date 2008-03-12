@@ -257,7 +257,7 @@ main(int argc, char *argv[])
 	 * The user wants to run a command with a set and possibly cpumask.
 	 */
 	if (argc) {
-		if (pflag | rflag | tflag || cflag)
+		if (pflag | rflag | tflag)
 			usage();
 		if (sflag) {
 			if (cpuset_setid(CPU_WHICH_PID, -1, setid))
@@ -267,7 +267,7 @@ main(int argc, char *argv[])
 				err(argc, "newid");
 		}
 		if (lflag) {
-			if (cpuset_setaffinity(CPU_LEVEL_CPUSET, CPU_WHICH_PID,
+			if (cpuset_setaffinity(level, CPU_WHICH_PID,
 			    -1, sizeof(mask), &mask) != 0)
 				err(EXIT_FAILURE, "setaffinity");
 		}
