@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003-2006 Joseph Koshy
+ * Copyright (c) 2003-2008 Joseph Koshy
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -1731,7 +1731,8 @@ pmc_capabilities(pmc_id_t pmcid, uint32_t *caps)
 			*caps = cpu_info.pm_classes[i].pm_caps;
 			return (0);
 		}
-	return (EINVAL);
+	errno = EINVAL;
+	return (-1);
 }
 
 int
@@ -2194,7 +2195,8 @@ pmc_width(pmc_id_t pmcid, uint32_t *width)
 			*width = cpu_info.pm_classes[i].pm_width;
 			return (0);
 		}
-	return (EINVAL);
+	errno = EINVAL;
+	return (-1);
 }
 
 int
