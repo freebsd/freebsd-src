@@ -755,7 +755,9 @@ bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dma_segment_t *segs,
 		 * XXX in user address space.
 		 */
 		if (__predict_true(pmap == pmap_kernel())) {
-			(void) pmap_get_pde_pte(pmap, vaddr, &pde, &ptep);
+			if (pmap_get_pde_pte(pmap, vaddr, &pde, &ptep) == FALSE)
+				return (EFAULT);
+
 			if (__predict_false(pmap_pde_section(pde))) {
 				if (*pde & L1_S_SUPERSEC)
 					curaddr = (*pde & L1_SUP_FRAME) |
@@ -903,7 +905,7 @@ bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 	CTR5(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d nsegs %d",
 	    __func__, dmat, dmat->flags, nsegs + 1, error);
 
-	return (0);
+	return (error);
 }
 
 /*
