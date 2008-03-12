@@ -1857,7 +1857,7 @@ wpi_tx_data(struct wpi_softc *sc, struct mbuf *m0, struct ieee80211_node *ni,
 	tx->id = ismcast ? WPI_ID_BROADCAST : WPI_ID_BSS;
 	tx->len = htole16(m0->m_pkthdr.len);
 
-	if (ismcast) {
+	if (!ismcast) {
 		if ((ni->ni_flags & IEEE80211_NODE_QOS) == 0 ||
 		    !cap->cap_wmeParams[ac].wmep_noackPolicy)
 			tx->flags |= htole32(WPI_TX_NEED_ACK);
