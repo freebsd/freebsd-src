@@ -803,11 +803,6 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 			 * you should use PT_SUSPEND to suspend it before
 			 * continuing process.
 			 */
-#ifdef KSE
-			PROC_SUNLOCK(p);
-			thread_continued(p);
-			PROC_SLOCK(p);
-#endif
 			p->p_flag &= ~(P_STOPPED_TRACE|P_STOPPED_SIG|P_WAITED);
 			thread_unsuspend(p);
 			PROC_SUNLOCK(p);
@@ -943,17 +938,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 			pl->pl_event = PL_EVENT_SIGNAL;
 		else
 			pl->pl_event = 0;
-#ifdef KSE
-		if (td2->td_pflags & TDP_SA) {
-			pl->pl_flags = PL_FLAG_SA;
-			if (td2->td_upcall && !TD_CAN_UNBIND(td2))
-				pl->pl_flags |= PL_FLAG_BOUND;
-		} else {
-			pl->pl_flags = 0;
-		}
-#else
 		pl->pl_flags = 0;
-#endif
 		pl->pl_sigmask = td2->td_sigmask;
 		pl->pl_siglist = td2->td_siglist;
 		break;

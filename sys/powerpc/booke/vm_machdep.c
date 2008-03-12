@@ -408,7 +408,7 @@ is_physical_memory(vm_offset_t addr)
 }
 
 /*
- * KSE functions
+ * Thread functions
  */
 void
 cpu_thread_exit(struct thread *td)

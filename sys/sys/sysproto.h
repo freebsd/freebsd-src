@@ -1094,24 +1094,6 @@ struct nmount_args {
 	char iovcnt_l_[PADL_(unsigned int)]; unsigned int iovcnt; char iovcnt_r_[PADR_(unsigned int)];
 	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
 };
-struct kse_exit_args {
-	register_t dummy;
-};
-struct kse_wakeup_args {
-	char mbx_l_[PADL_(struct kse_mailbox *)]; struct kse_mailbox * mbx; char mbx_r_[PADR_(struct kse_mailbox *)];
-};
-struct kse_create_args {
-	char mbx_l_[PADL_(struct kse_mailbox *)]; struct kse_mailbox * mbx; char mbx_r_[PADR_(struct kse_mailbox *)];
-	char newgroup_l_[PADL_(int)]; int newgroup; char newgroup_r_[PADR_(int)];
-};
-struct kse_thr_interrupt_args {
-	char tmbx_l_[PADL_(struct kse_thr_mailbox *)]; struct kse_thr_mailbox * tmbx; char tmbx_r_[PADR_(struct kse_thr_mailbox *)];
-	char cmd_l_[PADL_(int)]; int cmd; char cmd_r_[PADR_(int)];
-	char data_l_[PADL_(long)]; long data; char data_r_[PADR_(long)];
-};
-struct kse_release_args {
-	char timeout_l_[PADL_(struct timespec *)]; struct timespec * timeout; char timeout_r_[PADR_(struct timespec *)];
-};
 struct __mac_get_proc_args {
 	char mac_p_l_[PADL_(struct mac *)]; struct mac * mac_p; char mac_p_r_[PADR_(struct mac *)];
 };
@@ -1334,10 +1316,6 @@ struct extattr_list_link_args {
 	char attrnamespace_l_[PADL_(int)]; int attrnamespace; char attrnamespace_r_[PADR_(int)];
 	char data_l_[PADL_(void *)]; void * data; char data_r_[PADR_(void *)];
 	char nbytes_l_[PADL_(size_t)]; size_t nbytes; char nbytes_r_[PADR_(size_t)];
-};
-struct kse_switchin_args {
-	char tmbx_l_[PADL_(struct kse_thr_mailbox *)]; struct kse_thr_mailbox * tmbx; char tmbx_r_[PADR_(struct kse_thr_mailbox *)];
-	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
 };
 struct ksem_timedwait_args {
 	char id_l_[PADL_(semid_t)]; semid_t id; char id_r_[PADR_(semid_t)];
@@ -1800,11 +1778,6 @@ int	__setugid(struct thread *, struct __setugid_args *);
 int	nfsclnt(struct thread *, struct nfsclnt_args *);
 int	eaccess(struct thread *, struct eaccess_args *);
 int	nmount(struct thread *, struct nmount_args *);
-int	kse_exit(struct thread *, struct kse_exit_args *);
-int	kse_wakeup(struct thread *, struct kse_wakeup_args *);
-int	kse_create(struct thread *, struct kse_create_args *);
-int	kse_thr_interrupt(struct thread *, struct kse_thr_interrupt_args *);
-int	kse_release(struct thread *, struct kse_release_args *);
 int	__mac_get_proc(struct thread *, struct __mac_get_proc_args *);
 int	__mac_set_proc(struct thread *, struct __mac_set_proc_args *);
 int	__mac_get_fd(struct thread *, struct __mac_get_fd_args *);
@@ -1857,7 +1830,6 @@ int	jail_attach(struct thread *, struct jail_attach_args *);
 int	extattr_list_fd(struct thread *, struct extattr_list_fd_args *);
 int	extattr_list_file(struct thread *, struct extattr_list_file_args *);
 int	extattr_list_link(struct thread *, struct extattr_list_link_args *);
-int	kse_switchin(struct thread *, struct kse_switchin_args *);
 int	ksem_timedwait(struct thread *, struct ksem_timedwait_args *);
 int	thr_suspend(struct thread *, struct thr_suspend_args *);
 int	thr_wake(struct thread *, struct thr_wake_args *);
@@ -2371,11 +2343,6 @@ int	freebsd4_sigreturn(struct thread *, struct freebsd4_sigreturn_args *);
 #define	SYS_AUE_nfsclnt	AUE_NULL
 #define	SYS_AUE_eaccess	AUE_EACCESS
 #define	SYS_AUE_nmount	AUE_NMOUNT
-#define	SYS_AUE_kse_exit	AUE_NULL
-#define	SYS_AUE_kse_wakeup	AUE_NULL
-#define	SYS_AUE_kse_create	AUE_NULL
-#define	SYS_AUE_kse_thr_interrupt	AUE_NULL
-#define	SYS_AUE_kse_release	AUE_NULL
 #define	SYS_AUE___mac_get_proc	AUE_NULL
 #define	SYS_AUE___mac_set_proc	AUE_NULL
 #define	SYS_AUE___mac_get_fd	AUE_NULL
@@ -2428,7 +2395,6 @@ int	freebsd4_sigreturn(struct thread *, struct freebsd4_sigreturn_args *);
 #define	SYS_AUE_extattr_list_fd	AUE_EXTATTR_LIST_FD
 #define	SYS_AUE_extattr_list_file	AUE_EXTATTR_LIST_FILE
 #define	SYS_AUE_extattr_list_link	AUE_EXTATTR_LIST_LINK
-#define	SYS_AUE_kse_switchin	AUE_NULL
 #define	SYS_AUE_ksem_timedwait	AUE_NULL
 #define	SYS_AUE_thr_suspend	AUE_NULL
 #define	SYS_AUE_thr_wake	AUE_NULL

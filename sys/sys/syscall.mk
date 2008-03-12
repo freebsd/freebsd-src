@@ -255,11 +255,6 @@ MIASM =  \
 	nfsclnt.o \
 	eaccess.o \
 	nmount.o \
-	kse_exit.o \
-	kse_wakeup.o \
-	kse_create.o \
-	kse_thr_interrupt.o \
-	kse_release.o \
 	__mac_get_proc.o \
 	__mac_set_proc.o \
 	__mac_get_fd.o \
@@ -312,7 +307,6 @@ MIASM =  \
 	extattr_list_fd.o \
 	extattr_list_file.o \
 	extattr_list_link.o \
-	kse_switchin.o \
 	ksem_timedwait.o \
 	thr_suspend.o \
 	thr_wake.o \

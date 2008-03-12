@@ -2013,15 +2013,6 @@ sched_exit_thread(struct thread *td, struct thread *child)
 	CTR3(KTR_SCHED, "sched_exit_thread: %p(%s) prio %d",
 	    child, child->td_name, child->td_priority);
 
-#ifdef KSE
-	/*
-	 * KSE forks and exits so often that this penalty causes short-lived
-	 * threads to always be non-interactive.  This causes mozilla to
-	 * crawl under load.
-	 */
-	if ((td->td_pflags & TDP_SA) && td->td_proc == child->td_proc)
-		return;
-#endif
 	/*
 	 * Give the child's runtime to the parent without returning the
 	 * sleep time as a penalty to the parent.  This causes shells that

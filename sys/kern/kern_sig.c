@@ -49,7 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/event.h>
 #include <sys/fcntl.h>
 #include <sys/kernel.h>
-#include <sys/kse.h>
 #include <sys/ktr.h>
 #include <sys/ktrace.h>
 #include <sys/lock.h>
@@ -94,9 +93,6 @@ static int	filt_sigattach(struct knote *kn);
 static void	filt_sigdetach(struct knote *kn);
 static int	filt_signal(struct knote *kn, long hint);
 static struct thread *sigtd(struct proc *p, int sig, int prop);
-#ifdef KSE
-static int	do_tdsignal(struct proc *, struct thread *, int, ksiginfo_t *);
-#endif
 static void	sigqueue_start(void);
 
 static uma_zone_t	ksiginfo_zone = NULL;
@@ -566,11 +562,7 @@ void
 signotify(struct thread *td)
 {
 	struct proc *p;
-#ifdef KSE
-	sigset_t set, saved;
-#else
 	sigset_t set;
-#endif
 
 	p = td->td_proc;
 
@@ -581,10 +573,6 @@ signotify(struct thread *td)
 	 * previously masked by all threads to our sigqueue.
 	 */
 	set = p->p_sigqueue.sq_signals;
-#ifdef KSE
-	if (p->p_flag & P_SA)
-		saved = p->p_sigqueue.sq_signals;
-#endif
 	SIGSETNAND(set, td->td_sigmask);
 	if (! SIGISEMPTY(set))
 		sigqueue_move_set(&p->p_sigqueue, &td->td_sigqueue, &set);
@@ -593,15 +581,6 @@ signotify(struct thread *td)
 		td->td_flags |= TDF_NEEDSIGCHK | TDF_ASTPENDING;
 		thread_unlock(td);
 	}
-#ifdef KSE
-	if ((p->p_flag & P_SA) && !(p->p_flag & P_SIGEVENT)) {
-		if (!SIGSETEQ(saved, p->p_sigqueue.sq_signals)) {
-			/* pending set changed */
-			p->p_flag |= P_SIGEVENT;
-			wakeup(&p->p_siglist);
-		}
-	}
-#endif
 }
 
 int
@@ -754,13 +733,6 @@ kern_sigaction(td, sig, act, oact, flags)
 		if (ps->ps_sigact[_SIG_IDX(sig)] == SIG_IGN ||
 		    (sigprop(sig) & SA_IGNORE &&
 		     ps->ps_sigact[_SIG_IDX(sig)] == SIG_DFL)) {
-#ifdef KSE
-			if ((p->p_flag & P_SA) &&
-			     SIGISMEMBER(p->p_sigqueue.sq_signals, sig)) {
-				p->p_flag |= P_SIGEVENT;
-				wakeup(&p->p_siglist);
-			}
-#endif
 			/* never to be seen again */
 			PROC_SLOCK(p);
 			sigqueue_delete_proc(p, sig);
@@ -1200,12 +1172,6 @@ restart:
 			continue;
 		if (!SIGISMEMBER(td->td_sigqueue.sq_signals, i)) {
 			if (SIGISMEMBER(p->p_sigqueue.sq_signals, i)) {
-#ifdef KSE
-				if (p->p_flag & P_SA) {
-					p->p_flag |= P_SIGEVENT;
-					wakeup(&p->p_siglist);
-				}
-#endif
 				sigqueue_move(&p->p_sigqueue,
 					&td->td_sigqueue, i);
 			} else
@@ -1842,9 +1808,6 @@ trapsignal(struct thread *td, ksiginfo_t *ksi)
 {
 	struct sigacts *ps;
 	struct proc *p;
-#ifdef KSE
-	int error;
-#endif
 	int sig;
 	int code;
 
@@ -1853,27 +1816,7 @@ trapsignal(struct thread *td, ksiginfo_t *ksi)
 	code = ksi->ksi_code;
 	KASSERT(_SIG_VALID(sig), ("invalid signal"));
 
-#ifdef KSE
-	if (td->td_pflags & TDP_SA) {
-		if (td->td_mailbox == NULL)
-			thread_user_enter(td);
-		PROC_LOCK(p);
-		SIGDELSET(td->td_sigmask, sig);
-		thread_lock(td);
-		/*
-		 * Force scheduling an upcall, so UTS has chance to
-		 * process the signal before thread runs again in
-		 * userland.
-		 */
-		if (td->td_upcall)
-			td->td_upcall->ku_flags |= KUF_DOUPCALL;
-		thread_unlock(td);
-	} else {
-		PROC_LOCK(p);
-	}
-#else
 	PROC_LOCK(p);
-#endif
 	ps = p->p_sigacts;
 	mtx_lock(&ps->ps_mtx);
 	if ((p->p_flag & P_TRACED) == 0 && SIGISMEMBER(ps->ps_sigcatch, sig) &&
@@ -1884,34 +1827,8 @@ trapsignal(struct thread *td, ksiginfo_t *ksi)
 			ktrpsig(sig, ps->ps_sigact[_SIG_IDX(sig)],
 			    &td->td_sigmask, code);
 #endif
-#ifdef KSE
-		if (!(td->td_pflags & TDP_SA))
-			(*p->p_sysent->sv_sendsig)(ps->ps_sigact[_SIG_IDX(sig)], 
-				ksi, &td->td_sigmask);
-#else
 		(*p->p_sysent->sv_sendsig)(ps->ps_sigact[_SIG_IDX(sig)], 
 				ksi, &td->td_sigmask);
-#endif
-#ifdef KSE
-		else if (td->td_mailbox == NULL) {
-			mtx_unlock(&ps->ps_mtx);
-			/* UTS caused a sync signal */
-			p->p_code = code;	/* XXX for core dump/debugger */
-			p->p_sig = sig;		/* XXX to verify code */
-			sigexit(td, sig);
-		} else {
-			mtx_unlock(&ps->ps_mtx);
-			SIGADDSET(td->td_sigmask, sig);
-			PROC_UNLOCK(p);
-			error = copyout(&ksi->ksi_info, &td->td_mailbox->tm_syncsig,
-			    sizeof(siginfo_t));
-			PROC_LOCK(p);
-			/* UTS memory corrupted */
-			if (error)
-				sigexit(td, SIGSEGV);
-			mtx_lock(&ps->ps_mtx);
-		}
-#endif
 		SIGSETOR(td->td_sigmask, ps->ps_catchmask[_SIG_IDX(sig)]);
 		if (!SIGISMEMBER(ps->ps_signodefer, sig))
 			SIGADDSET(td->td_sigmask, sig);
@@ -2024,27 +1941,6 @@ psignal_event(struct proc *p, struct sigevent *sigev, ksiginfo_t *ksi)
 int
 tdsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 {
-#ifdef KSE
-	sigset_t saved;
-	int ret;
-
-	if (p->p_flag & P_SA)
-		saved = p->p_sigqueue.sq_signals;
-	ret = do_tdsignal(p, td, sig, ksi);
-	if ((p->p_flag & P_SA) && !(p->p_flag & P_SIGEVENT)) {
-		if (!SIGSETEQ(saved, p->p_sigqueue.sq_signals)) {
-			/* pending set changed */
-			p->p_flag |= P_SIGEVENT;
-			wakeup(&p->p_siglist);
-		}
-	}
-	return (ret);
-}
-
-static int
-do_tdsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
-{
-#endif
 	sig_t action;
 	sigqueue_t *sigqueue;
 	int prop;
@@ -2055,17 +1951,9 @@ do_tdsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 
 	if (!_SIG_VALID(sig))
-#ifdef KSE
-		panic("do_tdsignal(): invalid signal %d", sig);
-#else
 		panic("tdsignal(): invalid signal %d", sig);
-#endif
 
-#ifdef KSE
-	KASSERT(ksi == NULL || !KSI_ONQ(ksi), ("do_tdsignal: ksi on queue"));
-#else
 	KASSERT(ksi == NULL || !KSI_ONQ(ksi), ("tdsignal: ksi on queue"));
-#endif
 
 	/*
 	 * IEEE Std 1003.1-2001: return success when killing a zombie.
@@ -2232,18 +2120,6 @@ do_tdsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 				goto out;
 			}
 			if (action == SIG_CATCH) {
-#ifdef KSE
-				/*
-				 * The process wants to catch it so it needs
-				 * to run at least one thread, but which one?
-				 * It would seem that the answer would be to
-				 * run an upcall in the next KSE to run, and
-				 * deliver the signal that way. In a NON KSE
-				 * process, we need to make sure that the
-				 * single thread is runnable asap.
-				 * XXXKSE for now however, make them all run.
-				 */
-#endif
 				/*
 				 * The process wants to catch it so it needs
 				 * to run at least one thread, but which one?
@@ -2540,10 +2416,6 @@ issignal(td)
 		 */
 		if (SIGISMEMBER(ps->ps_sigignore, sig) && (traced == 0)) {
 			sigqueue_delete(&td->td_sigqueue, sig);
-#ifdef KSE
-			if (td->td_pflags & TDP_SA)
-				SIGADDSET(td->td_sigmask, sig);
-#endif
 			continue;
 		}
 		if (p->p_flag & P_TRACED && (p->p_flag & P_PPWAIT) == 0) {
@@ -2554,11 +2426,6 @@ issignal(td)
 			newsig = ptracestop(td, sig);
 			mtx_lock(&ps->ps_mtx);
 
-#ifdef KSE
-			if (td->td_pflags & TDP_SA)
-				SIGADDSET(td->td_sigmask, sig);
-
-#endif
 			if (sig != newsig) {
 				ksiginfo_t ksi;
 				/*
@@ -2582,10 +2449,6 @@ issignal(td)
 				 * signal is being masked, look for other signals.
 				 */
 				SIGADDSET(td->td_sigqueue.sq_signals, sig);
-#ifdef KSE
-				if (td->td_pflags & TDP_SA)
-					SIGDELSET(td->td_sigmask, sig);
-#endif
 				if (SIGISMEMBER(td->td_sigmask, sig))
 					continue;
 				signotify(td);
@@ -2739,11 +2602,7 @@ postsig(sig)
 		mtx_lock(&ps->ps_mtx);
 	}
 
-#ifdef KSE
-	if (!(td->td_pflags & TDP_SA) && action == SIG_DFL) {
-#else
 	if (action == SIG_DFL) {
-#endif
 		/*
 		 * Default action, where the default is to kill
 		 * the process.  (Other cases were ignored above.)
@@ -2752,15 +2611,6 @@ postsig(sig)
 		sigexit(td, sig);
 		/* NOTREACHED */
 	} else {
-#ifdef KSE
-		if (td->td_pflags & TDP_SA) {
-			if (sig == SIGKILL) {
-				mtx_unlock(&ps->ps_mtx);
-				sigexit(td, sig);
-			}
-		}
-
-#endif
 		/*
 		 * If we get here, the signal must be caught.
 		 */
@@ -2803,14 +2653,7 @@ postsig(sig)
 			p->p_code = 0;
 			p->p_sig = 0;
 		}
-#ifdef KSE
-		if (td->td_pflags & TDP_SA)
-			thread_signal_add(curthread, &ksi);
-		else
-			(*p->p_sysent->sv_sendsig)(action, &ksi, &returnmask);
-#else
 		(*p->p_sysent->sv_sendsig)(action, &ksi, &returnmask);
-#endif
 	}
 }
 

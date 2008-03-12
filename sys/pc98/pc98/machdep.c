@@ -2148,7 +2148,7 @@ init386(first)
 	_udatasel = GSEL(GUDATA_SEL, SEL_UPL);
 
 	/* setup proc 0's pcb */
-	thread0.td_pcb->pcb_flags = 0; /* XXXKSE */
+	thread0.td_pcb->pcb_flags = 0;
 	thread0.td_pcb->pcb_cr3 = (int)IdlePTD;
 	thread0.td_pcb->pcb_ext = 0;
 	thread0.td_frame = &proc0_tf;

@@ -2067,42 +2067,6 @@ systrace_args(int sysnum, void *params, u_int64_t *uarg, int *n_args)
 		*n_args = 3;
 		break;
 	}
-	/* kse_exit */
-	case 379: {
-		*n_args = 0;
-		break;
-	}
-	/* kse_wakeup */
-	case 380: {
-		struct kse_wakeup_args *p = params;
-		uarg[0] = (intptr_t) p->mbx; /* struct kse_mailbox * */
-		*n_args = 1;
-		break;
-	}
-	/* kse_create */
-	case 381: {
-		struct kse_create_args *p = params;
-		uarg[0] = (intptr_t) p->mbx; /* struct kse_mailbox * */
-		iarg[1] = p->newgroup; /* int */
-		*n_args = 2;
-		break;
-	}
-	/* kse_thr_interrupt */
-	case 382: {
-		struct kse_thr_interrupt_args *p = params;
-		uarg[0] = (intptr_t) p->tmbx; /* struct kse_thr_mailbox * */
-		iarg[1] = p->cmd; /* int */
-		iarg[2] = p->data; /* long */
-		*n_args = 3;
-		break;
-	}
-	/* kse_release */
-	case 383: {
-		struct kse_release_args *p = params;
-		uarg[0] = (intptr_t) p->timeout; /* struct timespec * */
-		*n_args = 1;
-		break;
-	}
 	/* __mac_get_proc */
 	case 384: {
 		struct __mac_get_proc_args *p = params;
@@ -2532,14 +2496,6 @@ systrace_args(int sysnum, void *params, u_int64_t *uarg, int *n_args)
 		uarg[2] = (intptr_t) p->data; /* void * */
 		uarg[3] = p->nbytes; /* size_t */
 		*n_args = 4;
-		break;
-	}
-	/* kse_switchin */
-	case 440: {
-		struct kse_switchin_args *p = params;
-		uarg[0] = (intptr_t) p->tmbx; /* struct kse_thr_mailbox * */
-		iarg[1] = p->flags; /* int */
-		*n_args = 2;
 		break;
 	}
 	/* ksem_timedwait */

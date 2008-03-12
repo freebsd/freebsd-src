@@ -348,10 +348,6 @@ trap(struct trapframe *frame)
 			break;
 
 		case T_PAGEFLT:		/* page fault */
-#ifdef KSE
-			if (td->td_pflags & TDP_SA)
-				thread_user_enter(td);
-#endif
 
 			i = trap_pfault(frame, TRUE, eva);
 #if defined(I586_CPU) && !defined(NO_F00F_HACK)
@@ -959,10 +955,6 @@ syscall(struct trapframe *frame)
 	td->td_frame = frame;
 	if (td->td_ucred != p->p_ucred) 
 		cred_update_thread(td);
-#ifdef KSE
-	if (p->p_flag & P_SA)
-		thread_user_enter(td);
-#endif
 	params = (caddr_t)frame->tf_esp + sizeof(int);
 	code = frame->tf_eax;
 	orig_tf_eflags = frame->tf_eflags;

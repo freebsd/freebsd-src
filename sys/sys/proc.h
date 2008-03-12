@@ -166,37 +166,6 @@ struct mqueue_notifier;
 struct cpuset;
 
 /*
- * Here we define the two structures used for process information.
- *
- * The first is the thread. It might be thought of as a "Kernel
- * Schedulable Entity Context".
- * This structure contains all the information as to where a thread of
- * execution is now, or was when it was suspended, why it was suspended,
- * and anything else that will be needed to restart it when it is
- * rescheduled. It includes a scheduler specific substructure that is different
- * for each scheduler.
- *
- * M:N notes.
- * It is important to remember that when using M:N threading, 
- * a particular thread structure may only exist as long as
- * the system call or kernel entrance (e.g. by pagefault)
- * which it is currently executing. It should therefore NEVER be referenced
- * by pointers in long lived structures that live longer than a single
- * request. If several threads complete their work at the same time,
- * they will all rewind their stacks to the user boundary, report their
- * completion state, and all but one will be freed. That last one will
- * be kept to provide a kernel stack and pcb for the NEXT syscall or kernel
- * entrance (basically to save freeing and then re-allocating it).  The existing
- * thread keeps a cached spare thread available to allow it to quickly
- * get one when it needs a new one. There is also a system
- * cache of free threads. Threads have priority and partake in priority
- * inheritance schemes.
- *
- * The second is the proc (process) which owns all the resources of a process
- * other than CPU cycles, which are parceled out to the threads.
- */
-
-/*
  * Kernel runnable context (thread).
  * This is what is put to sleep and reactivated.
  * Thread context.  Processes may have multiple threads.
@@ -218,7 +187,7 @@ struct thread {
 	sigqueue_t	td_sigqueue;	/* (c) Sigs arrived, not delivered. */
 #define	td_siglist	td_sigqueue.sq_signals
 
-/* Cleared during fork1() or thread_schedule_upcall(). */
+/* Cleared during fork1() */
 #define	td_startzero td_flags
 	int		td_flags;	/* (t) TDF_* flags. */
 	int		td_inhibitors;	/* (t) Why can not run. */
@@ -239,10 +208,7 @@ struct thread {
 	struct lock_list_entry *td_sleeplocks; /* (k) Held sleep locks. */
 	int		td_intr_nesting_level; /* (k) Interrupt recursion. */
 	int		td_pinned;	/* (k) Temporary cpu pin count. */
-	struct kse_thr_mailbox *td_mailbox; /* (*) Userland mailbox address. */
 	struct ucred	*td_ucred;	/* (k) Reference to credentials. */
-	struct thread	*td_standin;	/* (k + a) Use this for an upcall. */
-	struct kse_upcall *td_upcall;	/* (k + t) Upcall structure. */
 	u_int		td_estcpu;	/* (t) estimated cpu utilization */
 	u_int		td_slptick;	/* (t) Time at sleep. */
 	struct rusage	td_ru;		/* (t) rusage information */
@@ -254,12 +220,11 @@ struct thread {
 	u_int		td_uticks;	/* (t) Statclock hits in user mode. */
 	u_int		td_uuticks;	/* (k) Statclock hits (usr), for UTS. */
 	u_int		td_usticks;	/* (k) Statclock hits (sys), for UTS. */
-	int		td_intrval;	/* (t) Return value of TDF_INTERRUPT. */
+	int		td_intrval;	/* (t) Return value for sleepq. */
 	sigset_t	td_oldsigmask;	/* (k) Saved mask from pre sigpause. */
 	sigset_t	td_sigmask;	/* (c) Current signal mask. */
 	volatile u_int	td_generation;	/* (k) For detection of preemption */
 	stack_t		td_sigstk;	/* (k) Stack ptr and on-stack flag. */
-	int		td_kflags;	/* (c) Flags for KSE threading. */
 	int		td_xsig;	/* (c) Signal for ptrace */
 	u_long		td_profil_addr;	/* (k) Temporary addr until AST. */
 	u_int		td_profil_ticks; /* (k) Temporary ticks until AST. */
@@ -342,7 +307,7 @@ do {									\
 #define	TDF_BOUNDARY	0x00000400 /* Thread suspended at user boundary */
 #define	TDF_ASTPENDING	0x00000800 /* Thread has some asynchronous events. */
 #define	TDF_TIMOFAIL	0x00001000 /* Timeout from sleep after we were awake. */
-#define	TDF_INTERRUPT	0x00002000 /* Thread is marked as interrupted. */
+#define	TDF_UNUSED2000	0x00002000 /* --available-- */
 #define	TDF_UPIBLOCKED	0x00004000 /* Thread blocked on user PI mutex. */
 #define	TDF_UNUSED15	0x00008000 /* --available-- */
 #define	TDF_NEEDRESCHED	0x00010000 /* Thread needs to yield. */
@@ -368,15 +333,15 @@ do {									\
 #define	TDP_OLDMASK	0x00000001 /* Need to restore mask after suspend. */
 #define	TDP_INKTR	0x00000002 /* Thread is currently in KTR code. */
 #define	TDP_INKTRACE	0x00000004 /* Thread is currently in KTRACE code. */
-#define	TDP_UPCALLING	0x00000008 /* This thread is doing an upcall. */
+#define	TDP_UNUSED8	0x00000008 /* available */
 #define	TDP_COWINPROGRESS 0x00000010 /* Snapshot copy-on-write in progress. */
 #define	TDP_ALTSTACK	0x00000020 /* Have alternate signal stack. */
 #define	TDP_DEADLKTREAT	0x00000040 /* Lock aquisition - deadlock treatment. */
-#define	TDP_SA		0x00000080 /* A scheduler activation based thread. */
+#define	TDP_UNUSED80	0x00000080 /* available. */
 #define	TDP_NOSLEEPING	0x00000100 /* Thread is not allowed to sleep on a sq. */
 #define	TDP_OWEUPC	0x00000200 /* Call addupc() at next AST. */
 #define	TDP_ITHREAD	0x00000400 /* Thread is an interrupt thread. */
-#define	TDP_CAN_UNBIND	0x00000800 /* Only temporarily bound. */
+#define	TDP_UNUSED800	0x00000800 /* available. */
 #define	TDP_SCHED1	0x00001000 /* Reserved for scheduler private use */
 #define	TDP_SCHED2	0x00002000 /* Reserved for scheduler private use */
 #define	TDP_SCHED3	0x00004000 /* Reserved for scheduler private use */
@@ -399,17 +364,6 @@ do {									\
 #define	TDI_LOCK	0x0008	/* Stopped on a lock. */
 #define	TDI_IWAIT	0x0010	/* Awaiting interrupt. */
 
-/*
- * flags (in kflags) related to M:N threading.
- */
-#define	TDK_KSEREL	0x0001	/* Blocked in msleep on p->p_completed. */
-#define	TDK_KSERELSIG	0x0002	/* Blocked in msleep on p->p_siglist. */
-#define	TDK_WAKEUP	0x0004	/* Thread has been woken by kse_wakeup. */
-
-#define	TD_CAN_UNBIND(td)			\
-    (((td)->td_pflags & TDP_CAN_UNBIND) &&	\
-     ((td)->td_upcall != NULL))
-
 #define	TD_IS_SLEEPING(td)	((td)->td_inhibitors & TDI_SLEEPING)
 #define	TD_ON_SLEEPQ(td)	((td)->td_wchan != NULL)
 #define	TD_IS_SUSPENDED(td)	((td)->td_inhibitors & TDI_SUSPENDED)
@@ -421,11 +375,7 @@ do {									\
 #define	TD_CAN_RUN(td)		((td)->td_state == TDS_CAN_RUN)
 #define	TD_IS_INHIBITED(td)	((td)->td_state == TDS_INHIBITED)
 #define	TD_ON_UPILOCK(td)	((td)->td_flags & TDF_UPIBLOCKED)
-#if 0
-#define TD_IS_IDLETHREAD(td)	((td) == pcpu(idlethread))
-#else
 #define TD_IS_IDLETHREAD(td)	((td)->td_flags & TDF_IDLETD)
-#endif
 
 
 #define	TD_SET_INHIB(td, inhib) do {			\
@@ -457,24 +407,6 @@ do {									\
 #define	TD_SET_CAN_RUN(td)	(td)->td_state = TDS_CAN_RUN
 
 /*
- * An upcall is used when returning to userland.  If a thread does not have
- * an upcall on return to userland the thread exports its context and exits.
- */
-struct kse_upcall {
-	TAILQ_ENTRY(kse_upcall) ku_link;	/* List of upcalls in proc. */
-	struct proc		*ku_proc;	/* Associated proc. */
-	struct thread		*ku_owner;	/* Owning thread. */
-	int			ku_flags;	/* KUF_* flags. */
-	struct kse_mailbox	*ku_mailbox;	/* Userland mailbox address. */
-	stack_t			ku_stack;	/* Userland upcall stack. */
-	void			*ku_func;	/* Userland upcall function. */
-	unsigned int		ku_mflags;	/* Cached upcall mbox flags. */
-};
-
-#define	KUF_DOUPCALL	0x00001		/* Do upcall now; don't wait. */
-#define	KUF_EXITING	0x00002		/* Upcall structure is exiting. */
-
-/*
  * XXX: Does this belong in resource.h or resourcevar.h instead?
  * Resource usage extension.  The times in rusage structs in the kernel are
  * never up to date.  The actual times are kept as runtimes and tick counts
@@ -495,18 +427,15 @@ struct rusage_ext {
 };
 
 /*
- * The old fashionned process. May have multiple threads.
- *  Starts off with a single embedded THREAD.
+ * Process structure.
  */
 struct proc {
 	LIST_ENTRY(proc) p_list;	/* (d) List of all processes. */
 	TAILQ_HEAD(, thread) p_threads;	/* (j) all threads. */
-	TAILQ_HEAD(, kse_upcall) p_upcalls; /* (j) All upcalls in the proc. */
 	struct mtx	p_slock;	/* process spin lock */
 	struct ucred	*p_ucred;	/* (c) Process owner's identity. */
 	struct filedesc	*p_fd;		/* (b) Open files. */
 	struct filedesc_to_leader *p_fdtol; /* (b) Tracking node */
-					/* Accumulated stats for all threads? */
 	struct pstats	*p_stats;	/* (b) Accounting/statistics (CPU). */
 	struct plimit	*p_limit;	/* (c) Process limits. */
 	struct callout	p_limco;	/* (c) Limit callout handle */
@@ -565,11 +494,6 @@ struct proc {
 	int		p_boundary_count;/* (c) Num threads at user boundary */
 	int		p_pendingcnt;	/* how many signals are pending */
 	struct itimers	*p_itimers;	/* (c) POSIX interval timers. */
-	int		p_numupcalls;	/* (j) Num upcalls. */
-	int		p_upsleeps;	/* (c) Num threads in kse_release(). */
-	struct kse_thr_mailbox *p_completed; /* (c) Completed thread mboxes. */
-	int		p_nextupcall;	/* (n) Next upcall time. */
-	int		p_upquantum;	/* (n) Quantum to schedule an upcall. */
 /* End area that is zeroed on creation. */
 #define	p_endzero	p_magic
 
@@ -627,7 +551,7 @@ struct proc {
 #define	P_WAITED	0x01000	/* Someone is waiting for us. */
 #define	P_WEXIT		0x02000	/* Working on exiting. */
 #define	P_EXEC		0x04000	/* Process called exec. */
-#define	P_SA		0x08000	/* Using scheduler activations. */
+#define	P_UNUSED8000	0x08000	/* available. */
 #define	P_CONTINUED	0x10000	/* Proc has continued from a stopped state. */
 #define	P_STOPPED_SIG	0x20000	/* Stopped due to SIGSTOP/SIGTSTP. */
 #define	P_STOPPED_TRACE	0x40000	/* Stopped because of tracing. */
@@ -673,8 +597,6 @@ struct proc {
 #define	SINGLE_EXIT	1
 #define	SINGLE_BOUNDARY	2
 
-/* XXXKSE: Missing values for thread_suspend_check(). */
-
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_PARGS);
 MALLOC_DECLARE(M_PGRP);
@@ -687,10 +609,7 @@ MALLOC_DECLARE(M_ZOMBIE);
 	LIST_FOREACH((p), &allproc, p_list)
 #define	FOREACH_THREAD_IN_PROC(p, td)					\
 	TAILQ_FOREACH((td), &(p)->p_threads, td_plist)
-#define	FOREACH_UPCALL_IN_PROC(p, ku)					\
-	TAILQ_FOREACH((ku), &(p)->p_upcalls, ku_link)
 
-/* XXXKSE the following lines should probably only be used in 1:1 code: */
 #define	FIRST_THREAD_IN_PROC(p)	TAILQ_FIRST(&(p)->p_threads)
 
 /*
@@ -884,15 +803,9 @@ void	exit1(struct thread *, int) __dead2;
 void	cpu_fork(struct thread *, struct proc *, struct thread *, int);
 void	cpu_set_fork_handler(struct thread *, void (*)(void *), void *);
 
-/* New in KSE. */
-#ifdef KSE
-void	kse_unlink(struct thread *);
-void	kseinit(void);
-void	upcall_reap(void);
-void	upcall_remove(struct thread *td);
-#endif
 void	cpu_set_upcall(struct thread *td, struct thread *td0);
-void	cpu_set_upcall_kse(struct thread *, void (*)(void *), void *, stack_t *);
+void	cpu_set_upcall_kse(struct thread *, void (*)(void *), void *,
+	    stack_t *);
 int	cpu_set_user_tls(struct thread *, void *tls_base);
 void	cpu_thread_alloc(struct thread *);
 void	cpu_thread_clean(struct thread *);
@@ -901,17 +814,13 @@ void	cpu_thread_free(struct thread *);
 void	cpu_thread_swapin(struct thread *);
 void	cpu_thread_swapout(struct thread *);
 struct	thread *thread_alloc(void);
-void	thread_continued(struct proc *p);
 void	thread_exit(void) __dead2;
-int	thread_export_context(struct thread *td, int willexit);
 void	thread_free(struct thread *td);
 void	thread_link(struct thread *td, struct proc *p);
 void	thread_reap(void);
-void	thread_signal_add(struct thread *td, ksiginfo_t *);
 int	thread_single(int how);
 void	thread_single_end(void);
 void	thread_stash(struct thread *td);
-int	thread_statclock(int user);
 void	thread_stopped(struct proc *p);
 void	childproc_stopped(struct proc *child, int reason);
 void	childproc_continued(struct proc *child);
@@ -919,14 +828,10 @@ void	childproc_exited(struct proc *child);
 int	thread_suspend_check(int how);
 void	thread_suspend_switch(struct thread *);
 void	thread_suspend_one(struct thread *td);
-struct thread *thread_switchout(struct thread *td, int flags,
-	    struct thread *newtd);
 void	thread_unlink(struct thread *td);
 void	thread_unsuspend(struct proc *p);
 void	thread_unsuspend_one(struct thread *td);
 void	thread_unthread(struct thread *td);
-int	thread_userret(struct thread *td, struct trapframe *frame);
-void	thread_user_enter(struct thread *td);
 void	thread_wait(struct proc *p);
 struct thread	*thread_find(struct proc *p, lwpid_t tid);
 void	thr_exit1(void);

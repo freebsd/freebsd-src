@@ -53,7 +53,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
-#include <sys/kse.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
@@ -338,7 +337,6 @@ cpu_thread_clean(struct thread *td)
 
 	pcb = td->td_pcb; 
 	if (pcb->pcb_ext != NULL) {
-		/* XXXKSE  XXXSMP  not SMP SAFE.. what locks do we have? */
 		/* if (pcb->pcb_ext->ext_refcount-- == 1) ?? */
 		/*
 		 * XXX do we need to move the TSS off the allocated pages
@@ -396,23 +394,12 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 	 * Copy the upcall pcb.  This loads kernel regs.
 	 * Those not loaded individually below get their default
 	 * values here.
-	 *
-	 * XXXKSE It might be a good idea to simply skip this as
-	 * the values of the other registers may be unimportant.
-	 * This would remove any requirement for knowing the KSE
-	 * at this time (see the matching comment below for
-	 * more analysis) (need a good safe default).
 	 */
 	bcopy(td0->td_pcb, pcb2, sizeof(*pcb2));
 	pcb2->pcb_flags &= ~(PCB_NPXTRAP|PCB_NPXINITDONE);
 
 	/*
 	 * Create a new fresh stack for the new thread.
-	 * The -16 is so we can expand the trapframe if we go to vm86.
-	 * Don't forget to set this stack value into whatever supplies
-	 * the address for the fault handlers.
-	 * The contexts are filled in at the time we actually DO the
-	 * upcall as only then do we know which KSE we got.
 	 */
 	bcopy(td0->td_frame, td->td_frame, sizeof(struct trapframe));
 
@@ -439,7 +426,7 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 	 * pcb2->pcb_savefpu:	cloned above.
 	 * pcb2->pcb_flags:	cloned above.
 	 * pcb2->pcb_onfault:	cloned above (always NULL here?).
-	 * pcb2->pcb_gs:	cloned above.  XXXKSE ???
+	 * pcb2->pcb_gs:	cloned above.
 	 * pcb2->pcb_ext:	cleared below.
 	 */
 	pcb2->pcb_ext = NULL;

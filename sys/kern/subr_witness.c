@@ -450,7 +450,6 @@ static struct witness_order_list_entry order_lists[] = {
 #endif
 	{ "clk", &lock_class_mtx_spin },
 	{ "mprof lock", &lock_class_mtx_spin },
-	{ "kse lock", &lock_class_mtx_spin },
 	{ "zombie lock", &lock_class_mtx_spin },
 	{ "ALD Queue", &lock_class_mtx_spin },
 #ifdef __ia64__

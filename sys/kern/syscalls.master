@@ -664,14 +664,11 @@
 377	AUE_NULL	UNIMPL	afs_syscall
 378	AUE_NMOUNT	STD	{ int nmount(struct iovec *iovp, \
 				    unsigned int iovcnt, int flags); }
-379	AUE_NULL	STD	{ int kse_exit(void); }
-380	AUE_NULL	STD	{ int kse_wakeup(struct kse_mailbox *mbx); }
-381	AUE_NULL	STD	{ int kse_create(struct kse_mailbox *mbx, \
-				    int newgroup); }
-382	AUE_NULL	STD	{ int kse_thr_interrupt( \
-				    struct kse_thr_mailbox *tmbx, int cmd, \
-				    long data); }
-383	AUE_NULL	STD	{ int kse_release(struct timespec *timeout); }
+379	AUE_NULL	UNIMPL	kse_exit
+380	AUE_NULL	UNIMPL	kse_wakeup
+381	AUE_NULL	UNIMPL	kse_create
+382	AUE_NULL	UNIMPL	kse_thr_interrupt
+383	AUE_NULL	UNIMPL	kse_release
 384	AUE_NULL	STD	{ int __mac_get_proc(struct mac *mac_p); }
 385	AUE_NULL	STD	{ int __mac_set_proc(struct mac *mac_p); }
 386	AUE_NULL	STD	{ int __mac_get_fd(int fd, \
@@ -772,9 +769,7 @@
 439	AUE_EXTATTR_LIST_LINK	STD	{ ssize_t extattr_list_link( \
 				    const char *path, int attrnamespace, \
 				    void *data, size_t nbytes); }
-440	AUE_NULL	STD	{ int kse_switchin( \
-				    struct kse_thr_mailbox *tmbx, \
-				    int flags); }
+440	AUE_NULL	UNIMPL	kse_switchin
 441	AUE_NULL	NOSTD	{ int ksem_timedwait(semid_t id, \
 				    const struct timespec *abstime); }
 442	AUE_NULL	STD	{ int thr_suspend( \

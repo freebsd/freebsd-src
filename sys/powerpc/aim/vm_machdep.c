@@ -264,7 +264,7 @@ is_physical_memory(addr)
 }
 
 /*
- * KSE functions
+ * Threading functions
  */
 void
 cpu_thread_exit(struct thread *td)

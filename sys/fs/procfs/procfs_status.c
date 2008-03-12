@@ -112,20 +112,13 @@ procfs_doprocstatus(PFS_FILL_ARGS)
 		sbuf_printf(sb, "noflags");
 	}
 
-#ifdef KSE
-	if (p->p_flag & P_SA)
-		wmesg = "-kse- ";
-	else
-#endif
-	{
-		tdfirst = FIRST_THREAD_IN_PROC(p);
-		if (tdfirst->td_wchan != NULL) {
-			KASSERT(tdfirst->td_wmesg != NULL,
-			    ("wchan %p has no wmesg", tdfirst->td_wchan));
-			wmesg = tdfirst->td_wmesg;
-		} else
-			wmesg = "nochan";
-	}
+	tdfirst = FIRST_THREAD_IN_PROC(p);
+	if (tdfirst->td_wchan != NULL) {
+		KASSERT(tdfirst->td_wmesg != NULL,
+		    ("wchan %p has no wmesg", tdfirst->td_wchan));
+		wmesg = tdfirst->td_wmesg;
+	} else
+		wmesg = "nochan";
 
 	if (p->p_flag & P_INMEM) {
 		struct timeval start, ut, st;

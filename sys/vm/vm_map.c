@@ -3036,7 +3036,7 @@ vmspace_exec(struct proc *p, vm_offset_t minuser, vm_offset_t maxuser)
 	PROC_VMSPACE_LOCK(p);
 	p->p_vmspace = newvmspace;
 	PROC_VMSPACE_UNLOCK(p);
-	if (p == curthread->td_proc)		/* XXXKSE ? */
+	if (p == curthread->td_proc)
 		pmap_activate(curthread);
 	vmspace_free(oldvmspace);
 	return (0);
@@ -3060,7 +3060,7 @@ vmspace_unshare(struct proc *p)
 	PROC_VMSPACE_LOCK(p);
 	p->p_vmspace = newvmspace;
 	PROC_VMSPACE_UNLOCK(p);
-	if (p == curthread->td_proc)		/* XXXKSE ? */
+	if (p == curthread->td_proc)
 		pmap_activate(curthread);
 	vmspace_free(oldvmspace);
 	return (0);
