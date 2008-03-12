@@ -88,6 +88,8 @@ static int StrToPortRange(const char *, u_short *, u_short *, const char *);
 static int StrToAddrAndPort(const char *, struct in_addr *, u_short *,
                             u_short *, const char *);
 
+extern struct libalias *la;
+
 static void
 lowhigh(u_short *a, u_short *b)
 {
@@ -174,7 +176,7 @@ nat_RedirectPort(struct cmdargs const *arg)
     }
 
     while (laliasport <= haliasport) {
-      link = PacketAliasRedirectPort(localaddr, htons(llocalport),
+      link = LibAliasRedirectPort(la, localaddr, htons(llocalport),
 				     remoteaddr, htons(lremoteport),
                                      aliasaddr, htons(laliasport),
 				     proto_constant);
@@ -220,7 +222,7 @@ nat_RedirectAddr(struct cmdargs const *arg)
                     arg->cmd->syntax);
       return 1;
     }
-    link = PacketAliasRedirectAddr(localaddr, aliasaddr);
+    link = LibAliasRedirectAddr(la, localaddr, aliasaddr);
     if (link == NULL) {
       prompt_Printf(arg->prompt, "address redirect: packet aliasing"
                     " engine error\n");
@@ -289,7 +291,7 @@ nat_RedirectProto(struct cmdargs const *arg)
     } else
       remoteIP.s_addr = INADDR_ANY;
 
-    link = PacketAliasRedirectProto(localIP, remoteIP, publicIP, pe->p_proto);
+    link = LibAliasRedirectProto(la, localIP, remoteIP, publicIP, pe->p_proto);
     if (link == NULL) {
       prompt_Printf(arg->prompt, "proto redirect: packet aliasing"
                     " engine error\n");
@@ -408,7 +410,7 @@ nat_ProxyRule(struct cmdargs const *arg)
     pos += len;
   }
 
-  return PacketAliasProxyRule(cmd);
+  return LibAliasProxyRule(la, cmd);
 }
 
 int
@@ -418,7 +420,7 @@ nat_SetTarget(struct cmdargs const *arg)
 
   if (arg->argc == arg->argn) {
     addr.s_addr = INADDR_ANY;
-    PacketAliasSetTarget(addr);
+    LibAliasSetTarget(la, addr);
     return 0;
   }
 
@@ -427,7 +429,7 @@ nat_SetTarget(struct cmdargs const *arg)
 
   if (!strcasecmp(arg->argv[arg->argn], "MYADDR")) {
     addr.s_addr = INADDR_ANY;
-    PacketAliasSetTarget(addr);
+    LibAliasSetTarget(la, addr);
     return 0;
   }
 
@@ -437,7 +439,7 @@ nat_SetTarget(struct cmdargs const *arg)
     return 1;
   }
 
-  PacketAliasSetTarget(addr);
+  LibAliasSetTarget(la, addr);
   return 0;
 }
 
@@ -449,7 +451,7 @@ nat_PunchFW(struct cmdargs const *arg)
   long base, count;
 
   if (arg->argc == arg->argn) {
-    PacketAliasSetMode(0, PKT_ALIAS_PUNCH_FW);
+    LibAliasSetMode(la, 0, PKT_ALIAS_PUNCH_FW);
     return 0;
   }
 
@@ -464,8 +466,8 @@ nat_PunchFW(struct cmdargs const *arg)
   if (*end != '\0' || count < 0)
     return -1;
 
-  PacketAliasSetFWBase(base, count);
-  PacketAliasSetMode(PKT_ALIAS_PUNCH_FW, PKT_ALIAS_PUNCH_FW);
+  LibAliasSetFWBase(la, base, count);
+  LibAliasSetMode(la, PKT_ALIAS_PUNCH_FW, PKT_ALIAS_PUNCH_FW);
 
   return 0;
 }
@@ -478,7 +480,7 @@ nat_SkinnyPort(struct cmdargs const *arg)
   long port;
 
   if (arg->argc == arg->argn) {
-    PacketAliasSetSkinnyPort(0);
+    LibAliasSetSkinnyPort(la, 0);
     return 0;
   }
 
@@ -489,7 +491,7 @@ nat_SkinnyPort(struct cmdargs const *arg)
   if (*end != '\0' || port < 0)
     return -1;
 
-  PacketAliasSetSkinnyPort(port);
+  LibAliasSetSkinnyPort(la, port);
 
   return 0;
 }
@@ -505,7 +507,7 @@ nat_LayerPush(struct bundle *bundle, struct link *l __unused, struct mbuf *bp,
   m_settype(bp, MB_NATOUT);
   /* Ensure there's a bit of extra buffer for the NAT code... */
   bp = m_pullup(m_append(bp, NULL, NAT_EXTRABUF));
-  PacketAliasOut(MBUF_CTOP(bp), bp->m_len);
+  LibAliasOut(la, MBUF_CTOP(bp), bp->m_len);
   bp->m_len = ntohs(((struct ip *)MBUF_CTOP(bp))->ip_len);
 
   return bp;
@@ -527,7 +529,7 @@ nat_LayerPull(struct bundle *bundle, struct link *l __unused, struct mbuf *bp,
   m_settype(bp, MB_NATIN);
   /* Ensure there's a bit of extra buffer for the NAT code... */
   bp = m_pullup(m_append(bp, NULL, NAT_EXTRABUF));
-  ret = PacketAliasIn(MBUF_CTOP(bp), bp->m_len);
+  ret = LibAliasIn(la, MBUF_CTOP(bp), bp->m_len);
 
   bp->m_len = ntohs(((struct ip *)MBUF_CTOP(bp))->ip_len);
   if (bp->m_len > MAX_MRU) {
@@ -550,7 +552,7 @@ nat_LayerPull(struct bundle *bundle, struct link *l __unused, struct mbuf *bp,
 	bp = NULL;
       } else {
 	bp = mbuf_Read(bp, fptr, bp->m_len);
-	PacketAliasSaveFragment(fptr);
+	LibAliasSaveFragment(la, fptr);
 	log_Printf(LogDEBUG, "Store another frag (%lu) - now %d\n",
 		   (unsigned long)((struct ip *)fptr)->ip_id, ++gfrags);
       }
@@ -560,9 +562,9 @@ nat_LayerPull(struct bundle *bundle, struct link *l __unused, struct mbuf *bp,
       /* Fetch all the saved fragments and chain them on the end of `bp' */
       last = &bp->m_nextpkt;
       nfrags = 0;
-      while ((fptr = PacketAliasGetFragment(MBUF_CTOP(bp))) != NULL) {
+      while ((fptr = LibAliasGetFragment(la, MBUF_CTOP(bp))) != NULL) {
         nfrags++;
-        PacketAliasFragmentIn(MBUF_CTOP(bp), fptr);
+        LibAliasFragmentIn(la, MBUF_CTOP(bp), fptr);
         len = ntohs(((struct ip *)fptr)->ip_len);
         *last = m_get(len, MB_NATIN);
         memcpy(MBUF_CTOP(*last), fptr, len);
@@ -576,7 +578,7 @@ nat_LayerPull(struct bundle *bundle, struct link *l __unused, struct mbuf *bp,
       break;
 
     case PKT_ALIAS_IGNORED:
-      if (PacketAliasSetMode(0, 0) & PKT_ALIAS_DENY_INCOMING) {
+      if (LibAliasSetMode(la, 0, 0) & PKT_ALIAS_DENY_INCOMING) {
         log_Printf(LogTCPIP, "NAT engine denied data:\n");
         m_freem(bp);
         bp = NULL;
