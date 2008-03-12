@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 29, 2006
+.Dd March 12, 2008
 .Dt UART 4
 .Os
 .\"
@@ -41,6 +41,33 @@
 .Pp
 .Cd "device scc"
 .Cd "device uart"
+.Pp
+.Bd -ragged offset -compact
+In
+.Pa /boot/device.hints :
+.Cd hint.uart.0.disabled="1"
+.Cd hint.uart.0.baud="38400"
+.Cd hint.uart.0.port="0x3f8"
+.Cd hint.uart.0.flags="0x10"
+.Ed
+.Pp
+With
+.Ar flags
+encoded as:
+.Bl -tag -compact -width 0x000000
+.It 0x00010
+device is potential system console
+.It 0x00080
+use this port for remote kernel debugging
+.It 0x00100
+set RX FIFO trigger level to ``low'' (NS8250 only)
+.It 0x00200
+set RX FIFO trigger level to ``medium low'' (NS8250 only)
+.It 0x00400
+set RX FIFO trigger level to ``medium high'' (default, NS8250 only)
+.It 0x00800
+set RX FIFO trigger level to ``high'' (NS8250 only)
+.El
 .\"
 .Sh DESCRIPTION
 The
