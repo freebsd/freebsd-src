@@ -96,7 +96,7 @@ static void	tsec_dma_ctl(struct tsec_softc *sc, int state);
 static void	tsec_intrs_ctl(struct tsec_softc *sc, int state);
 static void	tsec_reset_mac(struct tsec_softc *sc);
 
-static void	tsec_watchdog(struct ifnet *ifp);
+static void	tsec_watchdog(struct tsec_softc *sc);
 static void	tsec_start(struct ifnet *ifp);
 static void	tsec_start_locked(struct ifnet *ifp);
 static int	tsec_encap(struct tsec_softc *sc,
@@ -374,8 +374,10 @@ tsec_init_locked(struct tsec_softc *sc)
 	/* Step 25: Activate network interface */
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-	ifp->if_timer = 0;
 	sc->tsec_if_flags = ifp->if_flags;
+
+	/* Schedule watchdog timeout */
+	callout_reset(&sc->wd_callout, hz, tsec_tick, sc);
 }
 
 static void
@@ -509,19 +511,21 @@ tsec_reset_mac(struct tsec_softc *sc)
 }
 
 static void
-tsec_watchdog(struct ifnet *ifp)
+tsec_watchdog(struct tsec_softc *sc)
 {
-	struct tsec_softc *sc = ifp->if_softc;
+	struct ifnet *ifp;
 
-	TSEC_GLOBAL_LOCK(sc);
+	TSEC_GLOBAL_LOCK_ASSERT(sc);
 
+	if (sc->wd_timer == 0 || --sc->wd_timer > 0)
+		return;
+
+	ifp = sc->tsec_ifp;
 	ifp->if_oerrors++;
 	if_printf(ifp, "watchdog timeout\n");
 
 	tsec_stop(sc);
 	tsec_init_locked(sc);
-
-	TSEC_GLOBAL_UNLOCK(sc);
 }
 
 static void
@@ -533,7 +537,6 @@ tsec_start(struct ifnet *ifp)
 	tsec_start_locked(ifp);
 	TSEC_TRANSMIT_UNLOCK(sc);
 }
-
 
 static void
 tsec_start_locked(struct ifnet *ifp)
@@ -581,7 +584,7 @@ tsec_start_locked(struct ifnet *ifp)
 	if (queued) {
 		/* Enable transmitter and watchdog timer */
 		TSEC_WRITE(sc, TSEC_REG_TSTAT, TSEC_TSTAT_THLT);
-		ifp->if_timer = 5;
+		sc->wd_timer = 5;
 	}
 }
 
@@ -1049,7 +1052,6 @@ tsec_attach(device_t dev)
 	ifp->if_flags = IFF_SIMPLEX | IFF_BROADCAST;
 	ifp->if_init = tsec_init;
 	ifp->if_start = tsec_start;
-	ifp->if_watchdog = tsec_watchdog;
 	ifp->if_ioctl = tsec_ioctl;
 
 	IFQ_SET_MAXLEN(&ifp->if_snd, TSEC_TX_NUM_DESC - 1);
@@ -1074,6 +1076,7 @@ tsec_attach(device_t dev)
 
 	tsec_get_hwaddr(sc, hwaddr);
 	ether_ifattach(ifp, hwaddr);
+	callout_init(&sc->wd_callout, 0);
 
 	/* Interrupts configuration (TX/RX/ERR) */
 	sc->sc_transmit_irid = OCP_TSEC_RID_TXIRQ;
@@ -1284,7 +1287,7 @@ tsec_stop(struct tsec_softc *sc)
 
 	/* Disable interface and watchdog timer */
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
-	ifp->if_timer = 0;
+	sc->wd_timer = 0;
 
 	/* Disable all interrupts and stop DMA */
 	tsec_intrs_ctl(sc, 0);
@@ -1467,9 +1470,9 @@ tsec_transmit_intr(void *arg)
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 		tsec_start_locked(ifp);
 
-		/* Stop wathdog if all sent */
+		/* Stop watchdog if all sent */
 		if (TSEC_EMPTYQ_TX_MBUF(sc))
-			ifp->if_timer = 0;
+			sc->wd_timer = 0;
 	}
 	TSEC_TRANSMIT_UNLOCK(sc);
 }
@@ -1526,13 +1529,15 @@ tsec_error_intr(void *arg)
 }
 
 static void
-tsec_tick(void *arg)
+tsec_tick(void *xsc)
 {
-	struct tsec_softc *sc = arg;
+	struct tsec_softc *sc = xsc;
 	struct ifnet *ifp;
 	int link;
 
-	TSEC_TRANSMIT_LOCK(sc);
+	TSEC_GLOBAL_LOCK(sc);
+
+	tsec_watchdog(sc);
 
 	ifp = sc->tsec_ifp;
 	link = sc->tsec_link;
@@ -1542,8 +1547,10 @@ tsec_tick(void *arg)
 	if (link == 0 && sc->tsec_link == 1 && (!IFQ_DRV_IS_EMPTY(&ifp->if_snd)))
 		tsec_start_locked(ifp);
 
-	callout_reset(&sc->tsec_tick_ch, hz, tsec_tick, sc);
-	TSEC_TRANSMIT_UNLOCK(sc);
+	/* Schedule another timeout one second from now. */
+	callout_reset(&sc->wd_callout, hz, tsec_tick, sc);
+
+	TSEC_GLOBAL_UNLOCK(sc);
 }
 
 static int

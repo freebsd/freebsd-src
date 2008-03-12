@@ -91,6 +91,10 @@ struct tsec_softc {
 
 	int		tsec_if_flags;
 
+	/* Watchdog related */
+	struct callout	wd_callout;
+	int		wd_timer;
+
 	/* TX maps */
 	bus_dmamap_t	tx_map_data[TSEC_TX_NUM_DESC];
 
