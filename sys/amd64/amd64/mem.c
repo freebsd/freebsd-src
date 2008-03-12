@@ -67,6 +67,11 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/memdev.h>
 
+/*
+ * Used in /dev/mem drivers and elsewhere
+ */
+MALLOC_DEFINE(M_MEMDESC, "memdesc", "memory range descriptors");
+
 /* ARGSUSED */
 int
 memrw(struct cdev *dev, struct uio *uio, int flags)
