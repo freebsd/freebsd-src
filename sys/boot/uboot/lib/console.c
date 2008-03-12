@@ -52,18 +52,21 @@ struct console uboot_console = {
 static void
 uboot_cons_probe(struct console *cp)
 {
+
 	cp->c_flags |= (C_PRESENTIN | C_PRESENTOUT);
 }
 
 static int
 uboot_cons_init(int arg)
 {
+
 	return 0;
 }
 
 static void
 uboot_cons_putchar(int c)
 {
+
 	if (c == '\n')
 		ub_putc('\r');
 
@@ -73,11 +76,13 @@ uboot_cons_putchar(int c)
 static int
 uboot_cons_getchar()
 {
+
 	return (ub_getc());
 }
 
 static int
 uboot_cons_poll()
 {
+
 	return (ub_tstc());
 }

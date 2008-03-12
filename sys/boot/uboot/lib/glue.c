@@ -112,7 +112,7 @@ static int valid_sig(struct api_signature *sig)
 	struct api_signature s;
 
 	if (sig == NULL)
-		return 0;
+		return (0);
 	/*
 	 * Clear the checksum field (in the local copy) so as to calculate the
 	 * CRC with the same initial contents as at the time when the sig was
@@ -124,9 +124,9 @@ static int valid_sig(struct api_signature *sig)
 	checksum = crc32((void *)&s, sizeof(struct api_signature));
 
 	if (checksum != sig->checksum)
-		return 0;
+		return (0);
 
-	return 1;
+	return (1);
 }
 
 /*
@@ -139,7 +139,7 @@ int api_search_sig(struct api_signature **sig) {
 	unsigned char *sp, *spend;
 
 	if (sig == NULL)
-		return 0;
+		return (0);
 
 	if (uboot_address == 0)
 		uboot_address = 255 * 1024 * 1024;
@@ -150,13 +150,13 @@ int api_search_sig(struct api_signature **sig) {
 		if (!bcmp(sp, API_SIG_MAGIC, API_SIG_MAGLEN)) {
 			*sig = (struct api_signature *)sp;
 			if (valid_sig(*sig))
-				return 1;
+				return (1);
 		}
 		sp += API_SIG_MAGLEN;
 	}
 
 	*sig = NULL;
-	return 0;
+	return (0);
 }
 
 /****************************************
@@ -170,8 +170,8 @@ int ub_getc(void)
 	int c;
 
 	if (!syscall(API_GETC, NULL, (uint32_t)&c))
-		return -1;
-	
+		return (-1);
+
 	return c;
 }
 
@@ -180,7 +180,7 @@ int ub_tstc(void)
 	int t;
 
 	if (!syscall(API_TSTC, NULL, (uint32_t)&t))
-		return -1;
+		return (-1);
 
 	return t;
 }
@@ -221,7 +221,7 @@ struct sys_info * ub_get_sys_info(void)
 	memset(&mr, 0, sizeof(mr));
 	
 	if (!syscall(API_GET_SYS_INFO, &err, (u_int32_t)&si))
-		return NULL;
+		return (NULL);
 
 	return ((err) ? NULL : &si);
 }
@@ -232,9 +232,10 @@ struct sys_info * ub_get_sys_info(void)
  * timing
  *
  ****************************************/
- 
+
 void ub_udelay(unsigned long usec)
 {
+
 	syscall(API_UDELAY, NULL, &usec);
 }
 
@@ -243,9 +244,9 @@ unsigned long ub_get_timer(unsigned long base)
 	unsigned long cur;
 	
 	if (!syscall(API_GET_TIMER, NULL, &cur, &base))
-		return 0;
+		return (0);
 
-	return cur;
+	return (cur);
 }
 
 
@@ -281,7 +282,7 @@ int ub_dev_enum(void)
 	di = &devices[0];
 
 	if (!syscall(API_DEV_ENUM, NULL, di))
-		return 0;
+		return (0);
 
 	while (di->cookie != NULL) {
 
@@ -296,9 +297,9 @@ int ub_dev_enum(void)
 
 		if (!syscall(API_DEV_ENUM, NULL, di))
 			return 0;
-	} 
+	}
 
-	return n;
+	return (n);
 }
 
 
@@ -313,13 +314,13 @@ int ub_dev_open(int handle)
 	int err = 0;
 
 	if (handle < 0 || handle >= MAX_DEVS)
-		return API_EINVAL;
+		return (API_EINVAL);
 
 	di = &devices[handle];
 	if (!syscall(API_DEV_OPEN, &err, di))
-		return -1;
+		return (-1);
 
-	return err;
+	return (err);
 }
 
 int ub_dev_close(int handle)
@@ -327,13 +328,13 @@ int ub_dev_close(int handle)
 	struct device_info *di;
 
 	if (handle < 0 || handle >= MAX_DEVS)
-		return API_EINVAL;
+		return (API_EINVAL);
 
 	di = &devices[handle];
 	if (!syscall(API_DEV_CLOSE, NULL, di))
-		return -1;
+		return (-1);
 
-	return 0;
+	return (0);
 }
 
 /*
@@ -346,24 +347,26 @@ int ub_dev_close(int handle)
  */
 static int dev_valid(int handle)
 {
+
 	if (handle < 0 || handle >= MAX_DEVS)
-		return 0;
+		return (0);
 
 	if (devices[handle].state != DEV_STA_OPEN)
-		return 0;
+		return (0);
 
-	return 1;
+	return (1);
 }
 
 static int dev_stor_valid(int handle)
 {
+
 	if (!dev_valid(handle))
-		return 0;
+		return (0);
 
 	if (!(devices[handle].type & DEV_TYP_STOR))
-		return 0;
+		return (0);
 
-	return 1;
+	return (1);
 }
 
 int ub_dev_read(int handle, void *buf, lbasize_t len, lbastart_t start)
@@ -373,30 +376,31 @@ int ub_dev_read(int handle, void *buf, lbasize_t len, lbastart_t start)
 	int err = 0;
 
 	if (!dev_stor_valid(handle))
-		return API_ENODEV;
+		return (API_ENODEV);
 
 	di = &devices[handle];
 	if (!syscall(API_DEV_READ, &err, di, buf, &len, &start, &act_len))
-		return -1;
+		return (-1);
 
-	if (err) 
-		return err;
+	if (err)
+		return (err);
 
 	if (act_len != len)
-		return API_EIO;
+		return (API_EIO);
 
-	return 0;
+	return (0);
 }
 
 static int dev_net_valid(int handle)
 {
+
 	if (!dev_valid(handle))
-		return 0;
+		return (0);
 
 	if (devices[handle].type != DEV_TYP_NET)
-		return 0;
+		return (0);
 
-	return 1;
+	return (1);
 }
 
 int ub_dev_recv(int handle, void *buf, int len)
@@ -405,16 +409,16 @@ int ub_dev_recv(int handle, void *buf, int len)
 	int err = 0, act_len;
 
 	if (!dev_net_valid(handle))
-		return API_ENODEV;
+		return (API_ENODEV);
 
 	di = &devices[handle];
 	if (!syscall(API_DEV_READ, &err, di, buf, &len, &act_len))
-		return -1;
+		return (-1);
 
 	if (err)
-		return -1;
+		return (-1);
 
-	return act_len;
+	return (act_len);
 }
 
 int ub_dev_send(int handle, void *buf, int len)
@@ -423,13 +427,13 @@ int ub_dev_send(int handle, void *buf, int len)
 	int err = 0;
 
 	if (!dev_net_valid(handle))
-		return API_ENODEV;
+		return (API_ENODEV);
 
 	di = &devices[handle];
 	if (!syscall(API_DEV_WRITE, &err, di, buf, &len))
-		return -1;
+		return (-1);
 
-	return err;
+	return (err);
 }
 
 /****************************************
@@ -443,13 +447,14 @@ char * ub_env_get(const char *name)
 	char *value;
 
 	if (!syscall(API_ENV_GET, NULL, (uint32_t)name, (uint32_t)&value))
-		return NULL;
+		return (NULL);
 
-	return value;
+	return (value);
 }
 
 void ub_env_set(const char *name, char *value)
 {
+
 	syscall(API_ENV_SET, NULL, (uint32_t)name, (uint32_t)value);
 }
 
@@ -469,11 +474,11 @@ const char * ub_env_enum(const char *last)
 	 * internally, which handles such case
 	 */
 	if (!syscall(API_ENV_ENUM, NULL, (uint32_t)last, (uint32_t)&env))
-		return NULL;
+		return (NULL);
 
 	if (!env)
 		/* no more env. variables to enumerate */
-		return NULL;
+		return (NULL);
 #if 0
 	if (last && strncmp(env, last, strlen(last)) == 0);
 		/* error, trying to enumerate non existing env. variable */
@@ -487,5 +492,5 @@ const char * ub_env_enum(const char *last)
 
 	env_name[i] = '\0';
 
-	return env_name;
+	return (env_name);
 }
