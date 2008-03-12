@@ -343,7 +343,12 @@ thread_alloc(void)
 void
 thread_free(struct thread *td)
 {
+#ifdef KSE
+	if (td->td_cpuset != NULL)
+		cpuset_rel(td->td_cpuset);
+#else
 	cpuset_rel(td->td_cpuset);
+#endif
 	td->td_cpuset = NULL;
 	cpu_thread_free(td);
 	if (td->td_altkstack != 0)
