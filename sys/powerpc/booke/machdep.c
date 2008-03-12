@@ -313,6 +313,29 @@ print_kernel_section_addr(void)
 	debugf(" _end           = 0x%08x\n", (u_int32_t)_end);
 }
 
+struct bi_mem_region *
+bootinfo_mr(void)
+{
+
+	return((struct bi_mem_region *)bootinfo->bi_data);
+}
+
+struct bi_eth_addr *
+bootinfo_eth(void)
+{
+	struct bi_mem_region *mr;
+	struct bi_eth_addr *eth;
+	int i;
+
+	/* Advance to the eth section */
+	mr = bootinfo_mr();
+	for (i = 0; i < bootinfo->bi_mem_reg_no; i++, mr++)
+		;
+
+	eth = (struct bi_eth_addr *)mr;
+	return (eth);
+}
+
 void
 e500_init(u_int32_t startkernel, u_int32_t endkernel, void *mdp)
 {
@@ -358,7 +381,7 @@ e500_init(u_int32_t startkernel, u_int32_t endkernel, void *mdp)
 	}
 
 	/* Initialize memory regions table */
-	mr = (struct bi_mem_region *)bootinfo->bi_data;
+	mr = bootinfo_mr();
 	for (i = 0; i < bootinfo->bi_mem_reg_no; i++, mr++) {
 		if (i == MEM_REGIONS)
 			break;
