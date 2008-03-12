@@ -34,7 +34,7 @@ SUBDIR=	${_csu} libc libbsm libcom_err libcrypt libelf libkvm msun libmd \
 	${_libgssapi} libipsec \
 	${_libipx} libkiconv libmagic libmemstat ${_libmilter} ${_libmp} \
 	${_libncp} ${_libngatm} libopie libpam libpcap \
-	libpmc ${_libkse} librt ${_libsdp} ${_libsm} ${_libsmb} \
+	libpmc librt ${_libsdp} ${_libsm} ${_libsmb} \
 	${_libsmdb} \
 	${_libsmutil} libstand libtelnet ${_libthr} libthread_db libufs \
 	libugidfw ${_libusbhid} ${_libvgl} libwrap liby libz ${_bind}
@@ -102,10 +102,6 @@ _libsmb=	libsmb
 
 .if ${MACHINE_ARCH} == "powerpc"
 _libsmb=	libsmb
-.endif
-
-.if ${MK_LIBKSE} != "no"
-_libkse=	libkse
 .endif
 
 .if ${MK_LIBTHR} != "no"
