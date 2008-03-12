@@ -98,10 +98,10 @@ net_match(struct netif *nif, void *machdep_hint)
 	char **a = (char **)machdep_hint;
 
 	if (memcmp("net", *a, 3) == 0)
-		return 1;
-	
+		return (1);
+
 	printf("net_match: could not match network device\n");
-	return 0;
+	return (0);
 }
 
 static int
@@ -116,16 +116,16 @@ net_probe(struct netif *nif, void *machdep_hint)
 				break;
 	if (i == devs_no) {
 		printf("net_probe: no network devices found, maybe not\
-			enumerated yet..?\n");
-		return -1;
+		    enumerated yet..?\n");
+		return (-1);
 	}
 
 #if defined(NETIF_DEBUG)
 	printf("net_probe: network device found: %d\n", i);
 #endif
 	uboot_softc.sc_handle = i;
-	
-	return 0;
+
+	return (0);
 }
 
 static int
@@ -164,7 +164,7 @@ net_put(struct iodesc *desc, void *pkt, size_t len)
 	else
 		rv = -1;
 
-	return rv;
+	return (rv);
 }
 
 static int
@@ -177,8 +177,7 @@ net_get(struct iodesc *desc, void *pkt, size_t len, time_t timeout)
 	int	length;
 
 #if defined(NETIF_DEBUG)
-	printf("net_get: pkt %x, len %d, timeout %d\n", pkt, len,
-		timeout);
+	printf("net_get: pkt %x, len %d, timeout %d\n", pkt, len, timeout);
 #endif
 
 	t = getsecs();
@@ -198,10 +197,10 @@ net_get(struct iodesc *desc, void *pkt, size_t len, time_t timeout)
 			printf("net_get: len %x, length %x\n", len, length);
 #endif
 		}
-		return length;
+		return (length);
 	}
 
-	return -1;
+	return (-1);
 }
 
 
@@ -217,26 +216,25 @@ net_init(struct iodesc *desc, void *machdep_hint)
 
 	if (err = ub_dev_open(sc->sc_handle))
 		panic("%s%d: initialisation failed with error %d\n",
-			nif->nif_driver->netif_bname, nif->nif_unit, err);
+		    nif->nif_driver->netif_bname, nif->nif_unit, err);
 
 	/* Get MAC address */
 	di = ub_dev_get(sc->sc_handle);
 	memcpy(desc->myea, di->di_net.hwaddr, 6);
 	if (memcmp (desc->myea, "\0\0\0\0\0\0", 6) == 0) {
 		panic("%s%d: empty ethernet address!",
-			nif->nif_driver->netif_bname, nif->nif_unit);
+		    nif->nif_driver->netif_bname, nif->nif_unit);
 	}
 
 #if defined(NETIF_DEBUG)
 	printf("network: %s%d attached to %s\n", nif->nif_driver->netif_bname,
-		nif->nif_unit, ether_sprintf(desc->myea));
+	    nif->nif_unit, ether_sprintf(desc->myea));
 #endif
 
 	/* Set correct alignment for TX packets */
 	sc->sc_txbufp = sc->sc_txbuf;
 	if ((unsigned long)sc->sc_txbufp % PKTALIGN)
-		sc->sc_txbufp += PKTALIGN - 
-			(unsigned long)sc->sc_txbufp % PKTALIGN;
+		sc->sc_txbufp += PKTALIGN - (unsigned long)sc->sc_txbufp % PKTALIGN;
 }
 
 
@@ -248,5 +246,5 @@ net_end(struct netif *nif)
 
 	if (err = ub_dev_close(sc->sc_handle))
 		panic("%s%d: net_end failed with error %d\n",
-			nif->nif_driver->netif_bname, nif->nif_unit, err);
+		    nif->nif_driver->netif_bname, nif->nif_unit, err);
 }
