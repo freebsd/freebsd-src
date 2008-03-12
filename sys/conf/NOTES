@@ -805,8 +805,8 @@ options 	TCP_DROP_SYNFIN		#drop TCP packets with SYN+FIN
 
 # DUMMYNET enables the "dummynet" bandwidth limiter.  You need IPFIREWALL
 # as well.  See dummynet(4) and ipfw(8) for more info.  When you run
-# DUMMYNET it is advisable to also have "options HZ=1000" to achieve a
-# smoother scheduling of the traffic.
+# DUMMYNET it is advisable to also have at least "options HZ=1000" to achieve
+# a smooth scheduling of the traffic.
 #
 options 	DUMMYNET
 
@@ -1031,13 +1031,13 @@ options 	MAC_TEST
 # CLOCK OPTIONS
 
 # The granularity of operation is controlled by the kernel option HZ whose
-# default value (100) means a granularity of 10ms (1s/HZ).
-# Some subsystems, such as DUMMYNET, might benefit from a smaller
-# granularity such as 1ms or less, for a smoother scheduling of packets.
-# Consider, however, that reducing the granularity too much might
-# cause excessive overhead in clock interrupt processing,
-# potentially causing ticks to be missed and thus actually reducing
-# the accuracy of operation.
+# default value (1000 on most architectures) means a granularity of 1ms
+# (1s/HZ).  Historically, the default was 100, but finer granularity is
+# required for DUMMYNET and other systems on modern hardware.  There are
+# reasonable arguments that HZ should, in fact, be 100 still; consider,
+# that reducing the granularity too much might cause excessive overhead in
+# clock interrupt processing, potentially causing ticks to be missed and thus
+# actually reducing the accuracy of operation.
 
 options 	HZ=100
 
