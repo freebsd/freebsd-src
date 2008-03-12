@@ -193,6 +193,8 @@ static int NatEnable(struct cmdargs const *);
 static int NatOption(struct cmdargs const *);
 #endif
 
+extern struct libalias *la;
+
 static const char *
 showcx(struct cmdtab const *cmd)
 {
@@ -2632,7 +2634,7 @@ NatEnable(struct cmdargs const *arg)
     if (strcasecmp(arg->argv[arg->argn], "yes") == 0) {
       if (!arg->bundle->NatEnabled) {
         if (arg->bundle->ncp.ipcp.fsm.state == ST_OPENED)
-          PacketAliasSetAddress(arg->bundle->ncp.ipcp.my_ip);
+          LibAliasSetAddress(la, arg->bundle->ncp.ipcp.my_ip);
         arg->bundle->NatEnabled = 1;
       }
       return 0;
@@ -2656,13 +2658,13 @@ NatOption(struct cmdargs const *arg)
   if (arg->argc == arg->argn+1) {
     if (strcasecmp(arg->argv[arg->argn], "yes") == 0) {
       if (arg->bundle->NatEnabled) {
-	PacketAliasSetMode(param, param);
+	LibAliasSetMode(la, param, param);
 	return 0;
       }
       log_Printf(LogWARN, "nat not enabled\n");
     } else if (strcmp(arg->argv[arg->argn], "no") == 0) {
       if (arg->bundle->NatEnabled) {
-	PacketAliasSetMode(0, param);
+	LibAliasSetMode(la, 0, param);
 	return 0;
       }
       log_Printf(LogWARN, "nat not enabled\n");

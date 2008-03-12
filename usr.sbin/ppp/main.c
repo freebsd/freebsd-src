@@ -107,6 +107,7 @@ static void TerminalStop(int);
 
 static struct bundle *SignalBundle;
 static struct prompt *SignalPrompt;
+struct libalias *la;
 
 void
 Cleanup()
@@ -327,7 +328,7 @@ main(int argc, char **argv)
   log_Open(name ? name + 1 : argv[0]);
 
 #ifndef NONAT
-  PacketAliasInit();
+  la = LibAliasInit(NULL);
 #endif
   label = ProcessArgs(argc, argv, &sw);
 
