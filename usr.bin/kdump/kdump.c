@@ -771,12 +771,6 @@ ktrsyscall(struct ktr_syscall *ktr)
 				mountflagsname ((int)*ip);
 				ip++;
 				narg--;
-			} else if (ktr->ktr_code == SYS_kse_thr_interrupt) {
-				print_number(ip,narg,c);
-				(void)putchar(',');
-				ksethrcmdname ((int)*ip);
-				ip++;
-				narg--;
 			} else if (ktr->ktr_code == SYS_thr_create) {
 				print_number(ip,narg,c);
 				print_number(ip,narg,c);
