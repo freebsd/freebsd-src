@@ -267,7 +267,7 @@ md_bootinfo(struct bootinfo **addr)
 	const char		*env;
 	void			*ptr;
 	u_int8_t		tmp_addr[6];
-	int			i, mr_no, eth_no, size;
+	int			i, n, mr_no, eth_no, size;
 
 	if ((si = ub_get_sys_info()) == NULL)
 		panic("can't retrieve U-Boot sysinfo");
@@ -301,15 +301,32 @@ md_bootinfo(struct bootinfo **addr)
 		if (strncmp(env, "eth", 3) == 0 &&
 		    strncmp(env + (strlen(env) - 4), "addr", 4) == 0) {
 
+			/* Extract interface number */
+			i = strtol(env + 3, &end, 10);
+			if (end == (env + 3))
+				/* 'ethaddr' means interface 0 address */
+				n = 0;
+			else
+				n = i;
+
+			if (n >= TMP_MAX_MR) {
+				printf("Ethernet interface number too high: %d. "
+				    "Skipping...\n");
+				continue;
+			}
+
 			str = ub_env_get(env);
 			for (i = 0; i < 6; i++) {
 				tmp_addr[i] = str ? strtol(str, &end, 16) : 0;
 				if (str)
 					str = (*end) ? end + 1 : end;
 
-				tmp_eth[eth_no].mac_addr[i] = tmp_addr[i];
+				tmp_eth[n].mac_addr[i] = tmp_addr[i];
 			}
-			eth_no++;
+
+			/* eth_no is 1-based number of all interfaces defined */
+			if (n + 1 > eth_no)
+				eth_no = n + 1;
 		}
 	}
 
