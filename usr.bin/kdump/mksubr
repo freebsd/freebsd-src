@@ -151,7 +151,6 @@ cat <<_EOF_
 #define _KERNEL
 #include <sys/thr.h>
 #undef _KERNEL
-#include <sys/kse.h>
 #include <sys/extattr.h>
 #include <sys/acl.h>
 #include <aio.h>
@@ -329,7 +328,6 @@ auto_switch_type "madvisebehavname" "_?MADV_[A-Z]+[[:space:]]+[0-9]+" "sys/mman.
 auto_switch_type "msyncflagsname" "MS_[A-Z]+[[:space:]]+0x[0-9]+" "sys/mman.h"
 auto_switch_type "schedpolicyname" "SCHED_[A-Z]+[[:space:]]+[0-9]+" "sched.h"
 auto_switch_type "kldunloadfflagsname" "LINKER_UNLOAD_[A-Z]+[[:space:]]+[0-9]+" "sys/linker.h"
-auto_switch_type "ksethrcmdname" "KSE_INTR_[A-Z]+[[:space:]]+[0-9]+" "sys/kse.h"
 auto_switch_type "extattrctlname" "EXTATTR_NAMESPACE_[A-Z]+[[:space:]]+0x[0-9]+" "sys/extattr.h"
 auto_switch_type "kldsymcmdname" "KLDSYM_[A-Z]+[[:space:]]+[0-9]+" "sys/linker.h"
 auto_switch_type "sendfileflagsname" "SF_[A-Z]+[[:space:]]+[0-9]+" "sys/socket.h"
