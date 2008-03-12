@@ -1505,7 +1505,7 @@ archive_entry_xattr_next(struct archive_entry * entry,
 		return (ARCHIVE_OK);
 	} else {
 		*name = NULL;
-		*name = NULL;
+		*value = NULL;
 		*size = (size_t)0;
 		return (ARCHIVE_WARN);
 	}
