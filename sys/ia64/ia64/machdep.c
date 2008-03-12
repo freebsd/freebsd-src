@@ -1231,9 +1231,6 @@ set_mcontext(struct thread *td, const mcontext_t *mc)
 	restore_callee_saved(&mc->mc_preserved);
 	restore_callee_saved_fp(&mc->mc_preserved_fp);
 
-	if (mc->mc_flags & _MC_FLAGS_KSE_SET_MBOX)
-		suword((caddr_t)mc->mc_special.ifa, mc->mc_special.isr);
-
 	return (0);
 }
 

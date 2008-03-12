@@ -663,8 +663,6 @@ faultin(p)
  * is enough space for them.  Of course, if a process waits for a long
  * time, it will be swapped in anyway.
  *
- *  XXXKSE - process with the thread with highest priority counts..
- *
  * Giant is held on entry.
  */
 /* ARGSUSED*/

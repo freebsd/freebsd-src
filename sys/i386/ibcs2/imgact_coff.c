@@ -405,7 +405,7 @@ exec_coff_imgact(imgp)
 				DPRINTF(("%s(%d):  shared library %s\n",
 					 __FILE__, __LINE__, libname));
 				strlcpy(&libbuf[emul_path_len], libname, MAXPATHLEN);
-/* XXXKSE only 1:1 in coff */  	error = coff_load_file(
+			  	error = coff_load_file(
 				    FIRST_THREAD_IN_PROC(imgp->proc), libbuf);
 		      		if (error)
 	      				error = coff_load_file(

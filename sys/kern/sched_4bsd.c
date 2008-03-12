@@ -383,8 +383,6 @@ schedcpu(void)
 
 			/*
 			 * ts_pctcpu is only for ps and ttyinfo().
-			 * Do it per td_sched, and add them up at the end?
-			 * XXXKSE
 			 */
 			ts->ts_pctcpu = (ts->ts_pctcpu * ccpu) >> FSHIFT;
 			/*

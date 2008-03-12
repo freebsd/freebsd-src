@@ -105,7 +105,6 @@ procfs_doprocdbregs(PFS_FILL_ARGS)
 		return (EPERM);
 	}
 
-	/* XXXKSE: */
 	td2 = FIRST_THREAD_IN_PROC(p);
 #ifdef COMPAT_IA32
 	if (td->td_proc->p_sysent == &ia32_freebsd_sysvec) {

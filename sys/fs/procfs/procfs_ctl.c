@@ -189,7 +189,7 @@ out:
 	/*
 	 * do single-step fixup if needed
 	 */
-	FIX_SSTEP(FIRST_THREAD_IN_PROC(p));	/* XXXKSE */
+	FIX_SSTEP(FIRST_THREAD_IN_PROC(p));
 #endif
 
 	/*
@@ -245,7 +245,7 @@ out:
 	 * What does it mean to single step a threaded program?
 	 */
 	case PROCFS_CTL_STEP:
-		error = proc_sstep(FIRST_THREAD_IN_PROC(p)); /* XXXKSE */
+		error = proc_sstep(FIRST_THREAD_IN_PROC(p));
 		PROC_UNLOCK(p);
 		if (error)
 			return (error);
@@ -335,14 +335,11 @@ procfs_doprocctl(PFS_FILL_ARGS)
 			printf("procfs: got a sig%s\n", sbuf_data(sb));
 			PROC_LOCK(p);
 
-			/* This is very broken XXXKSE: */
 			if (TRACE_WAIT_P(td->td_proc, p)) {
 				p->p_xstat = nm->nm_val;
 #ifdef FIX_SSTEP
-				/* XXXKSE: */
 				FIX_SSTEP(FIRST_THREAD_IN_PROC(p));
 #endif
-				/* XXXKSE: */
 				p->p_flag &= ~P_STOPPED_SIG;
 				PROC_SLOCK(p);
 				thread_unsuspend(p);

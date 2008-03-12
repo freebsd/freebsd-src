@@ -480,9 +480,6 @@ __elfN(load_file)(struct proc *p, const char *file, u_long *addr,
 	u_long base_addr = 0;
 	int vfslocked, error, i, numsegs;
 
-	if (curthread->td_proc != p)
-		panic("elf_load_file - thread");	/* XXXKSE DIAGNOSTIC */
-
 	tempdata = malloc(sizeof(*tempdata), M_TEMP, M_WAITOK);
 	nd = &tempdata->nd;
 	attr = &tempdata->attr;
@@ -498,7 +495,6 @@ __elfN(load_file)(struct proc *p, const char *file, u_long *addr,
 	imgp->object = NULL;
 	imgp->execlabel = NULL;
 
-	/* XXXKSE */
 	NDINIT(nd, LOOKUP, MPSAFE|LOCKLEAF|FOLLOW, UIO_SYSSPACE, file,
 	    curthread);
 	vfslocked = 0;
@@ -999,7 +995,7 @@ __elfN(coredump)(td, vp, limit)
 			    (caddr_t)(uintptr_t)php->p_vaddr,
 			    php->p_filesz, offset, UIO_USERSPACE,
 			    IO_UNIT | IO_DIRECT, cred, NOCRED, NULL,
-			    curthread); /* XXXKSE */
+			    curthread);
 			if (error != 0)
 				break;
 			offset += php->p_filesz;
@@ -1147,7 +1143,7 @@ __elfN(corehdr)(td, vp, cred, numsegs, hdr, hdrsize)
 	/* Write it to the core file. */
 	return (vn_rdwr_inchunks(UIO_WRITE, vp, hdr, hdrsize, (off_t)0,
 	    UIO_SYSSPACE, IO_UNIT | IO_DIRECT, cred, NOCRED, NULL,
-	    td)); /* XXXKSE */
+	    td));
 }
 
 #if defined(COMPAT_IA32) && __ELF_WORD_SIZE == 32
