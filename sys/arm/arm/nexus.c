@@ -129,6 +129,9 @@ nexus_setup_intr(device_t dev, device_t child, struct resource *res, int flags,
 {
 	int i;
 
+	if ((rman_get_flags(res) & RF_SHAREABLE) == 0)
+		flags |= INTR_EXCL;
+
 	for (i = rman_get_start(res); i <= rman_get_end(res); i++)
 		arm_setup_irqhandler(device_get_nameunit(child), 
 		    filt, intr, arg, i, flags, cookiep);
