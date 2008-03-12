@@ -42,7 +42,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/module.h>
-#include <sys/memrange.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/sx.h>
@@ -155,32 +154,17 @@ static void
 mxge_enable_wc(mxge_softc_t *sc)
 {
 #if defined(__i386) || defined(__amd64)
-	struct mem_range_desc mrdesc;
-	vm_paddr_t pa;
 	vm_offset_t len;
-	int err, action;
+	int err;
 
 	sc->wc = 1;
 	len = rman_get_size(sc->mem_res);
 	err = pmap_change_attr((vm_offset_t) sc->sram,
 			       len, PAT_WRITE_COMBINING);
-	if (err == 0)
-		return;
-	else
+	if (err != 0) {
 		device_printf(sc->dev, "pmap_change_attr failed, %d\n",
 			      err);
-	pa = rman_get_start(sc->mem_res);
-	mrdesc.mr_base = pa;
-	mrdesc.mr_len = len;
-	mrdesc.mr_flags = MDF_WRITECOMBINE;
-	action = MEMRANGE_SET_UPDATE;
-	strcpy((char *)&mrdesc.mr_owner, "mxge");
-	err = mem_range_attr_set(&mrdesc, &action);
-	if (err != 0) {
 		sc->wc = 0;
-		device_printf(sc->dev, 
-			      "w/c failed for pa 0x%lx, len 0x%lx, err = %d\n",
-			      (unsigned long)pa, (unsigned long)len, err);
 	}
 #endif		
 }
