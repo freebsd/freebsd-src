@@ -32,6 +32,7 @@
 #define	OCPBUS_IVAR_DEVTYPE	1
 #define	OCPBUS_IVAR_CLOCK	2
 #define	OCPBUS_IVAR_HWUNIT	3
+#define	OCPBUS_IVAR_MACADDR	4
 
 /* Device types. */
 #define	OCPBUS_DEVTYPE_PIC	1

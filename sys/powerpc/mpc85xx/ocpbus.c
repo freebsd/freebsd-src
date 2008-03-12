@@ -555,6 +555,8 @@ static int
 ocpbus_read_ivar(device_t dev, device_t child, int index, uintptr_t *result)
 {
 	struct ocp_devinfo *dinfo;
+	struct bi_eth_addr *eth;
+	int unit;
 
 	if (device_get_parent(child) != dev)
 		return (EINVAL);
@@ -570,6 +572,13 @@ ocpbus_read_ivar(device_t dev, device_t child, int index, uintptr_t *result)
 		return (0);
 	case OCPBUS_IVAR_HWUNIT:
 		*result = dinfo->ocp_unit;
+		return (0);
+	case OCPBUS_IVAR_MACADDR:
+		unit = device_get_unit(child);
+		if (unit > bootinfo->bi_eth_addr_no - 1)
+			return (EINVAL);
+		eth = bootinfo_eth() + unit;
+		*result = (uintptr_t)eth;
 		return (0);
 	}
 

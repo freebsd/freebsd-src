@@ -64,6 +64,9 @@ struct bootinfo {
 };
 
 extern struct bootinfo *bootinfo;
+
+struct bi_mem_region *bootinfo_mr(void);
+struct bi_eth_addr *bootinfo_eth(void);
 #endif
 
 #endif /* _MACHINE_BOOTINFO_H_ */
