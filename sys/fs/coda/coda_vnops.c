@@ -1770,21 +1770,17 @@ make_coda_node(CodaFid *fid, struct mount *vfsp, short type)
 int
 coda_pathconf(struct vop_pathconf_args *ap)
 {
-	int error;
-	register_t *retval;
 
-	retval = ap->a_retval;
-	error = 0;
 	switch (ap->a_name) {
 	case _PC_NAME_MAX:
-		*retval = CODA_MAXNAMLEN;
-		break;
+		*ap->a_retval = CODA_MAXNAMLEN;
+		return (0);
+
 	case _PC_PATH_MAX:
-		*retval = CODA_MAXPATHLEN;
-		break;
+		*ap->a_retval = CODA_MAXPATHLEN;
+		return (0);
+
 	default:
-		error = vop_stdpathconf(ap);
-		break;
+		return (vop_stdpathconf(ap));
 	}
-	return (error);
 }
