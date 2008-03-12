@@ -160,6 +160,7 @@ _sleep(ident, lock, priority, wmesg, timo)
 		return (0);
 	}
 	catch = priority & PCATCH;
+	pri = priority & PRIMASK;
 	rval = 0;
 
 	/*
@@ -207,25 +208,14 @@ _sleep(ident, lock, priority, wmesg, timo)
 		lock_state = class->lc_unlock(lock);
 		sleepq_lock(ident);
 	}
-
-	/*
-	 * Adjust this thread's priority, if necessary.
-	 */
-	pri = priority & PRIMASK;
-	if (pri != 0 && pri != td->td_priority) {
-		thread_lock(td);
-		sched_prio(td, pri);
-		thread_unlock(td);
-	}
-
 	if (timo && catch)
-		rval = sleepq_timedwait_sig(ident);
+		rval = sleepq_timedwait_sig(ident, pri);
 	else if (timo)
-		rval = sleepq_timedwait(ident);
+		rval = sleepq_timedwait(ident, pri);
 	else if (catch)
-		rval = sleepq_wait_sig(ident);
+		rval = sleepq_wait_sig(ident, pri);
 	else {
-		sleepq_wait(ident);
+		sleepq_wait(ident, pri);
 		rval = 0;
 	}
 #ifdef KTRACE
@@ -307,9 +297,9 @@ msleep_spin(ident, mtx, wmesg, timo)
 	sleepq_lock(ident);
 #endif
 	if (timo)
-		rval = sleepq_timedwait(ident);
+		rval = sleepq_timedwait(ident, 0);
 	else {
-		sleepq_wait(ident);
+		sleepq_wait(ident, 0);
 		rval = 0;
 	}
 #ifdef KTRACE
@@ -347,7 +337,8 @@ wakeup(ident)
 {
 
 	sleepq_lock(ident);
-	sleepq_broadcast(ident, SLEEPQ_SLEEP, -1, 0);
+	sleepq_broadcast(ident, SLEEPQ_SLEEP, 0, 0);
+	sleepq_release(ident);
 }
 
 /*
@@ -361,7 +352,7 @@ wakeup_one(ident)
 {
 
 	sleepq_lock(ident);
-	sleepq_signal(ident, SLEEPQ_SLEEP, -1, 0);
+	sleepq_signal(ident, SLEEPQ_SLEEP, 0, 0);
 	sleepq_release(ident);
 }
 

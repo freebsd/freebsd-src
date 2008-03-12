@@ -72,7 +72,7 @@ void	cv_broadcastpri(struct cv *cvp, int pri);
 #define	cv_timedwait_sig(cvp, lock, timo)				\
 	_cv_timedwait_sig((cvp), &(lock)->lock_object, (timo))
 
-#define cv_broadcast(cvp)	cv_broadcastpri(cvp, -1)
+#define cv_broadcast(cvp)	cv_broadcastpri(cvp, 0)
 
 #define	cv_wmesg(cvp)		((cvp)->cv_description)
 

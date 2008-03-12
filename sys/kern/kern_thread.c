@@ -881,8 +881,8 @@ thread_suspend_switch(struct thread *td)
 	p->p_suspcount++;
 	PROC_UNLOCK(p);
 	thread_lock(td);
-	sched_sleep(td);
 	TD_SET_SUSPENDED(td);
+	sched_sleep(td, 0);
 	PROC_SUNLOCK(p);
 	DROP_GIANT();
 	mi_switch(SW_VOL, NULL);
@@ -901,8 +901,8 @@ thread_suspend_one(struct thread *td)
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	KASSERT(!TD_IS_SUSPENDED(td), ("already suspended"));
 	p->p_suspcount++;
-	sched_sleep(td);
 	TD_SET_SUSPENDED(td);
+	sched_sleep(td, 0);
 }
 
 void

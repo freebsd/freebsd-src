@@ -102,10 +102,10 @@ void	sleepq_release(void *wchan);
 void	sleepq_remove(struct thread *td, void *wchan);
 void	sleepq_signal(void *wchan, int flags, int pri, int queue);
 void	sleepq_set_timeout(void *wchan, int timo);
-int	sleepq_timedwait(void *wchan);
-int	sleepq_timedwait_sig(void *wchan);
-void	sleepq_wait(void *wchan);
-int	sleepq_wait_sig(void *wchan);
+int	sleepq_timedwait(void *wchan, int pri);
+int	sleepq_timedwait_sig(void *wchan, int pri);
+void	sleepq_wait(void *wchan, int pri);
+int	sleepq_wait_sig(void *wchan, int pri);
 
 #endif	/* _KERNEL */
 #endif	/* !_SYS_SLEEPQUEUE_H_ */
