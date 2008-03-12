@@ -410,13 +410,8 @@ sleepq_catch_signals(void *wchan, int pri)
 	PROC_UNLOCK(p);
 	thread_lock(td);
 	if (ret == 0) {
-		if (!(td->td_flags & TDF_INTERRUPT)) {
-			sleepq_switch(wchan, pri);
-			return (0);
-		}
-		/* KSE threads tried unblocking us. */
-		ret = td->td_intrval;
-		MPASS(ret == EINTR || ret == ERESTART || ret == EWOULDBLOCK);
+		sleepq_switch(wchan, pri);
+		return (0);
 	}
 	/*
 	 * There were pending signals and this thread is still
@@ -539,9 +534,6 @@ sleepq_check_signals(void)
 		td->td_flags &= ~TDF_SLEEPABORT;
 		return (td->td_intrval);
 	}
-
-	if (td->td_flags & TDF_INTERRUPT)
-		return (td->td_intrval);
 
 	return (0);
 }

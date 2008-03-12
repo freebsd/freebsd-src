@@ -521,7 +521,7 @@ runq_choose_from(struct runq *rq, u_char idx)
 		ts = TAILQ_FIRST(rqh);
 		KASSERT(ts != NULL, ("runq_choose: no proc on busy queue"));
 		CTR4(KTR_RUNQ,
-		    "runq_choose_from: pri=%d kse=%p idx=%d rqh=%p",
+		    "runq_choose_from: pri=%d td_sched=%p idx=%d rqh=%p",
 		    pri, ts, ts->ts_rqindex, rqh);
 		return (ts);
 	}

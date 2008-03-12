@@ -49,7 +49,6 @@ options 	DDB			#Enable the kernel debugger
 #options		DIAGNOSTIC
 
 options 	SCHED_4BSD		#4BSD scheduler
-options		KSE
 options 	INET			#InterNETworking
 options 	INET6			#IPv6 communications protocols
 options 	FFS			#Berkeley Fast Filesystem

@@ -477,10 +477,6 @@ statclock(int usermode)
 		/*
 		 * Charge the time as appropriate.
 		 */
-#ifdef KSE
-		if (p->p_flag & P_SA)
-			thread_statclock(1);
-#endif
 		td->td_uticks++;
 		if (p->p_nice > NZERO)
 			cp_time[CP_NICE]++;
@@ -504,10 +500,6 @@ statclock(int usermode)
 			td->td_iticks++;
 			cp_time[CP_INTR]++;
 		} else {
-#ifdef KSE
-			if (p->p_flag & P_SA)
-				thread_statclock(0);
-#endif
 			td->td_pticks++;
 			td->td_sticks++;
 			if (!TD_IS_IDLETHREAD(td))

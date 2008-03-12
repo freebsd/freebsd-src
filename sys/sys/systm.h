@@ -116,7 +116,6 @@ struct lock_object;
 struct malloc_type;
 struct mtx;
 struct proc;
-struct kse;
 struct socket;
 struct thread;
 struct tty;
