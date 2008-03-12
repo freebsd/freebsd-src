@@ -22,6 +22,16 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20080312:
+	Support for KSE threading has been removed from the kernel.  To
+	run legacy applications linked against KSE libmap.conf may
+	be used.  The following libmap.conf may be used to ensure
+	compatibility with any prior release:
+
+	libpthread.so.1 libthr.so.1
+	libpthread.so.2 libthr.so.2
+	libkse.so.3 libthr.so.3
+
 20080301:
 	The layout of struct vmspace has changed. This affects libkvm
 	and any executables that link against libkvm and use the
