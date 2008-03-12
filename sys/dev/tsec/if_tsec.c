@@ -170,21 +170,25 @@ tsec_get_hwaddr(struct tsec_softc *sc, uint8_t *addr)
 		uint8_t addr[6];
 	} curmac;
 	uint32_t a[6];
-	int count, i;
-	char *cp;
+	device_t parent;
+	uintptr_t macaddr;
+	int i;
 
-	/* Use the currently programmed MAC address by default. */
+	parent = device_get_parent(sc->dev);
+	if (BUS_READ_IVAR(parent, sc->dev, OCPBUS_IVAR_MACADDR,
+	    &macaddr) == 0) {
+		bcopy((uint8_t *)macaddr, addr, 6);
+		return;
+	}
+
+	/*
+	 * Fall back -- use the currently programmed address in the hope that
+	 * it was set be firmware...
+	 */
 	curmac.reg[0] = TSEC_READ(sc, TSEC_REG_MACSTNADDR1);
 	curmac.reg[1] = TSEC_READ(sc, TSEC_REG_MACSTNADDR2);
 	for (i = 0; i < 6; i++)
 		a[5-i] = curmac.addr[i];
-
-	cp = getenv("ethaddr");
-	if (cp != NULL) {
-		count = sscanf(cp, "%x:%x:%x:%x:%x:%x", &a[0], &a[1], &a[2],
-		    &a[3], &a[4], &a[5]);
-		freeenv(cp);
-	}
 
 	addr[0] = a[0];
 	addr[1] = a[1];
