@@ -89,8 +89,12 @@ queried using
 When running a command it may join a set specified with
 .Fl s
 otherwise a new set is created.
-In addition, a mask for the set may be specified using
+In addition, a mask for the command may be specified using
 .Fl l .
+When used in conjunction with
+.Fl c
+the mask modifies the supplied or created set rather than the private mask
+for the thread.
 .Pp
 The options are as follows:
 .Bl -tag -width ".Fl l Ar cpu-list"
@@ -127,7 +131,7 @@ Specifies a thread id as the target of the operation.
 Create a new group with CPUs 0-4 inclusive and run
 .Pa /bin/sh
 on it:
-.Dl cpuset -l 0-4 /bin/sh
+.Dl cpuset -c -l 0-4 /bin/sh
 .Pp
 Query the mask of CPUs the
 .Aq sh pid
