@@ -157,7 +157,10 @@ Functions
 .Fn pmc_ncpu
 and
 .Fn pmc_npmc
-returns a positive integer if successful or -1 in case of an error.
+returns a positive integer if successful; otherwise the value -1 is
+returned and the global variable
+.Va errno
+is set to indicate the error.
 .Pp
 Functions
 .Fn pmc_capabilities ,
