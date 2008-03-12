@@ -81,60 +81,6 @@ struct libalias;
  */
 struct alias_link;
 
-
-/* OLD API */
-
-/* Initialization and control functions. */
-void		PacketAliasInit(void);
-void		PacketAliasSetAddress(struct in_addr _addr);
-void		PacketAliasSetFWBase(unsigned int _base, unsigned int _num);
-void		PacketAliasSetSkinnyPort(unsigned int _port);
-unsigned int
-		PacketAliasSetMode(unsigned int _flags, unsigned int _mask);
-void		PacketAliasUninit(void);
-
-/* Packet Handling functions. */
-int		PacketAliasIn(char *_ptr, int _maxpacketsize);
-int		PacketAliasOut(char *_ptr, int _maxpacketsize);
-int		PacketUnaliasOut(char *_ptr, int _maxpacketsize);
-
-/* Port and address redirection functions. */
-
-
-int
-PacketAliasAddServer(struct alias_link *_lnk,
-    struct in_addr _addr, unsigned short _port);
-struct alias_link *
-PacketAliasRedirectAddr(struct in_addr _src_addr,
-    struct in_addr _alias_addr);
-int		PacketAliasRedirectDynamic(struct alias_link *_lnk);
-void		PacketAliasRedirectDelete(struct alias_link *_lnk);
-struct alias_link *
-PacketAliasRedirectPort(struct in_addr _src_addr,
-    unsigned short _src_port, struct in_addr _dst_addr,
-    unsigned short _dst_port, struct in_addr _alias_addr,
-    unsigned short _alias_port, unsigned char _proto);
-struct alias_link *
-PacketAliasRedirectProto(struct in_addr _src_addr,
-    struct in_addr _dst_addr, struct in_addr _alias_addr,
-    unsigned char _proto);
-
-/* Fragment Handling functions. */
-void		PacketAliasFragmentIn(char *_ptr, char *_ptr_fragment);
-char           *PacketAliasGetFragment(char *_ptr);
-int		PacketAliasSaveFragment(char *_ptr);
-
-/* Miscellaneous functions. */
-int		PacketAliasCheckNewLink(void);
-unsigned short
-		PacketAliasInternetChecksum(unsigned short *_ptr, int _nbytes);
-void		PacketAliasSetTarget(struct in_addr _target_addr);
-
-/* Transparent proxying routines. */
-int		PacketAliasProxyRule(const char *_cmd);
-
-/* NEW API */
-
 /* Initialization and control functions. */
 struct libalias *LibAliasInit(struct libalias *);
 void		LibAliasSetAddress(struct libalias *, struct in_addr _addr);
