@@ -1124,6 +1124,11 @@ archive_entry_acl_next(struct archive_entry *entry, int want_type, int *type,
 		entry->acl_p = entry->acl_p->next;
 	if (entry->acl_p == NULL) {
 		entry->acl_state = 0;
+		*type = 0;
+		*permset = 0;
+		*tag = 0;
+		*id = -1;
+		*name = NULL;
 		return (ARCHIVE_EOF); /* End of ACL entries. */
 	}
 	*type = entry->acl_p->type;
