@@ -123,6 +123,7 @@ Lst create = Lst_Initializer(create);
 
 Boolean		allPrecious;	/* .PRECIOUS given on line by itself */
 Boolean		is_posix;	/* .POSIX target seen */
+Boolean		mfAutoDeps;	/* .MAKEFILEDEPS target seen */
 Boolean		beSilent;	/* -s flag */
 Boolean		beVerbose;	/* -v flag */
 Boolean		compatMake;	/* -B argument */
@@ -1252,7 +1253,7 @@ main(int argc, char **argv)
 		 */
 		Lst targs = Lst_Initializer(targs);
 
-		if (!is_posix) {
+		if (!is_posix && mfAutoDeps) {
 			/*
 			 * Check if any of the makefiles are out-of-date.
 			 */
