@@ -48,6 +48,7 @@ time(time_t *tloc)
 int
 getsecs()
 {
+
 	return (time(NULL));
 }
 
@@ -57,5 +58,6 @@ getsecs()
 void
 delay(int usecs)
 {
+
 	ub_udelay(usecs);
 }

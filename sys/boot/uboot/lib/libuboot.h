@@ -34,18 +34,16 @@
  */
 struct uboot_devdesc
 {
-    struct devsw	*d_dev;
-    int			d_type;
-    int			d_unit;
-    union 
-    {
-	struct 
-	{
-	    void	*data;
-	    int		slice;
-	    int		partition;
-	} disk;
-    } d_kind;
+	struct devsw	*d_dev;
+	int		d_type;
+	int		d_unit;
+	union {
+		struct {
+			void	*data;
+			int	slice;
+			int	partition;
+		} disk;
+	} d_kind;
 };
 
 /*

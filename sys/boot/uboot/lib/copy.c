@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 ssize_t
 uboot_copyin(const void *src, vm_offset_t dest, const size_t len)
 {
+
         bcopy(src, (void *)dest, len);
         return (len);
 }
@@ -46,6 +47,7 @@ uboot_copyin(const void *src, vm_offset_t dest, const size_t len)
 ssize_t
 uboot_copyout(const vm_offset_t src, void *dest, const size_t len)
 {
+
 	bcopy((void *)src, dest, len);
 	return (len);
 }
@@ -53,5 +55,6 @@ uboot_copyout(const vm_offset_t src, void *dest, const size_t len)
 ssize_t
 uboot_readin(const int fd, vm_offset_t dest, const size_t len)
 {
+
 	return (read(fd, (void *) dest, len));
 }
