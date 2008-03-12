@@ -95,7 +95,6 @@ SYSCTL_PROC(_vm, VM_LOADAVG, loadavg, CTLTYPE_STRUCT|CTLFLAG_RD,
 static int
 vmtotal(SYSCTL_HANDLER_ARGS)
 {
-/* XXXKSE almost completely broken */
 	struct proc *p;
 	struct vmtotal total;
 	vm_map_entry_t entry;
@@ -139,25 +138,16 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 			break;
 		default:
 			FOREACH_THREAD_IN_PROC(p, td) {
-				/* Need new statistics  XXX */
 				thread_lock(td);
 				switch (td->td_state) {
 				case TDS_INHIBITED:
-					/*
-					 * XXX stats no longer synchronized.
-					 */
-					if (TD_ON_LOCK(td) ||
-					    (td->td_inhibitors ==
-					    TDI_SWAPPED)) {
+					if (TD_IS_SWAPPED(td))
 						total.t_sw++;
-					} else if (TD_IS_SLEEPING(td) ||
-					   TD_AWAITING_INTR(td) ||
-					   TD_IS_SUSPENDED(td)) {
-						if (td->td_priority <= PZERO)
-							total.t_dw++;
-						else
-							total.t_sl++;
-					}
+					else if (TD_IS_SLEEPING(td) &&
+					    td->td_priority <= PZERO)
+						total.t_dw++;
+					else
+						total.t_sl++;
 					break;
 
 				case TDS_CAN_RUN:

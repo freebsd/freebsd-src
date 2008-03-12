@@ -404,10 +404,9 @@ _sx_downgrade(struct sx *sx, const char *file, int line)
 	atomic_store_rel_ptr(&sx->sx_lock, SX_SHARERS_LOCK(1) |
 	    (x & SX_LOCK_EXCLUSIVE_WAITERS));
 	if (x & SX_LOCK_SHARED_WAITERS)
-		sleepq_broadcast(&sx->lock_object, SLEEPQ_SX, -1,
+		sleepq_broadcast(&sx->lock_object, SLEEPQ_SX, 0,
 		    SQ_SHARED_QUEUE);
-	else
-		sleepq_release(&sx->lock_object);
+	sleepq_release(&sx->lock_object);
 
 	LOCK_LOG_LOCK("XDOWNGRADE", &sx->lock_object, 0, 0, file, line);
 }
@@ -556,9 +555,9 @@ _sx_xlock_hard(struct sx *sx, uintptr_t tid, int opts, const char *file,
 		    SLEEPQ_SX | ((opts & SX_INTERRUPTIBLE) ?
 		    SLEEPQ_INTERRUPTIBLE : 0), SQ_EXCLUSIVE_QUEUE);
 		if (!(opts & SX_INTERRUPTIBLE))
-			sleepq_wait(&sx->lock_object);
+			sleepq_wait(&sx->lock_object, 0);
 		else
-			error = sleepq_wait_sig(&sx->lock_object);
+			error = sleepq_wait_sig(&sx->lock_object, 0);
 
 		if (error) {
 			if (LOCK_LOG_TEST(&sx->lock_object, 0))
@@ -627,7 +626,8 @@ _sx_xunlock_hard(struct sx *sx, uintptr_t tid, const char *file, int line)
 		    __func__, sx, queue == SQ_SHARED_QUEUE ? "shared" :
 		    "exclusive");
 	atomic_store_rel_ptr(&sx->sx_lock, x);
-	sleepq_broadcast(&sx->lock_object, SLEEPQ_SX, -1, queue);
+	sleepq_broadcast(&sx->lock_object, SLEEPQ_SX, 0, queue);
+	sleepq_release(&sx->lock_object);
 }
 
 /*
@@ -761,9 +761,9 @@ _sx_slock_hard(struct sx *sx, int opts, const char *file, int line)
 		    SLEEPQ_SX | ((opts & SX_INTERRUPTIBLE) ?
 		    SLEEPQ_INTERRUPTIBLE : 0), SQ_SHARED_QUEUE);
 		if (!(opts & SX_INTERRUPTIBLE))
-			sleepq_wait(&sx->lock_object);
+			sleepq_wait(&sx->lock_object, 0);
 		else
-			error = sleepq_wait_sig(&sx->lock_object);
+			error = sleepq_wait_sig(&sx->lock_object, 0);
 
 		if (error) {
 			if (LOCK_LOG_TEST(&sx->lock_object, 0))
@@ -861,8 +861,9 @@ _sx_sunlock_hard(struct sx *sx, const char *file, int line)
 		if (LOCK_LOG_TEST(&sx->lock_object, 0))
 			CTR2(KTR_LOCK, "%s: %p waking up all thread on"
 			    "exclusive queue", __func__, sx);
-		sleepq_broadcast(&sx->lock_object, SLEEPQ_SX, -1,
+		sleepq_broadcast(&sx->lock_object, SLEEPQ_SX, 0,
 		    SQ_EXCLUSIVE_QUEUE);
+		sleepq_release(&sx->lock_object);
 		break;
 	}
 }
