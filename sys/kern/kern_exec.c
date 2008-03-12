@@ -1194,7 +1194,7 @@ exec_check_permissions(imgp)
 	struct thread *td;
 	int error;
 
-	td = curthread;			/* XXXKSE */
+	td = curthread;
 
 	/* Get file attributes */
 	error = VOP_GETATTR(vp, attr, td->td_ucred, td);

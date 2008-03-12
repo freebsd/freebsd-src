@@ -905,7 +905,6 @@ swi_add(struct intr_event **eventp, const char *name, driver_intr_t handler,
 	}
 	return (intr_event_add_handler(ie, name, NULL, handler, arg,
 		    (pri * RQ_PPQ) + PI_SOFT, flags, cookiep));
-		    /* XXKSE.. think of a better way to get separate queues */
 }
 
 /*

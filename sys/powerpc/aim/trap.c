@@ -349,11 +349,6 @@ syscall(struct trapframe *frame)
 
 	PCPU_INC(cnt.v_syscall);
 
-#ifdef KSE
-	if (p->p_flag & P_SA)
-		thread_user_enter(td);
-#endif
-
 	code = frame->fixreg[0];
 	params = (caddr_t)(frame->fixreg + FIRSTARG);
 	n = NARGREG;

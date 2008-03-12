@@ -645,13 +645,11 @@
 377	AUE_NULL	UNIMPL	afs_syscall
 378	AUE_NMOUNT	NOPROTO	{ int nmount(struct iovec *iovp, \
 				    unsigned int iovcnt, int flags); }
-379	AUE_NULL	NOPROTO	{ int kse_exit(void); }
-380	AUE_NULL	NOPROTO	{ int kse_wakeup(struct kse_mailbox *mbx); }
-381	AUE_NULL	NOPROTO	{ int kse_create(struct kse_mailbox *mbx, \
-				    int newgroup); }
-382	AUE_NULL	NOPROTO	{ int kse_thr_interrupt( \
-				    struct kse_thr_mailbox *tmbx); }
-383	AUE_NULL	NOPROTO	{ int kse_release(void); }
+379	AUE_NULL	UNIMPL	kse_exit
+380	AUE_NULL	UNIMPL	kse_wakeup
+381	AUE_NULL	UNIMPL	kse_create
+382	AUE_NULL	UNIMPL	kse_thr_interrupt
+383	AUE_NULL	UNIMPL	kse_release
 384	AUE_NULL	UNIMPL	__mac_get_proc
 385	AUE_NULL	UNIMPL	__mac_set_proc
 386	AUE_NULL	UNIMPL	__mac_get_fd

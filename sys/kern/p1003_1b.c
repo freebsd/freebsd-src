@@ -156,7 +156,7 @@ sched_getparam(struct thread *td, struct sched_getparam_args *uap)
 		if (targetp == NULL) {
 			return (ESRCH);
 		}
-		targettd = FIRST_THREAD_IN_PROC(targetp); /* XXXKSE */
+		targettd = FIRST_THREAD_IN_PROC(targetp);
 	}
 
 	e = p_cansee(td, targetp);
@@ -223,7 +223,7 @@ sched_getscheduler(struct thread *td, struct sched_getscheduler_args *uap)
 			e = ESRCH;
 			goto done2;
 		}
-		targettd = FIRST_THREAD_IN_PROC(targetp); /* XXXKSE */
+		targettd = FIRST_THREAD_IN_PROC(targetp);
 	}
 
 	e = p_cansee(td, targetp);

@@ -262,10 +262,6 @@ data_abort_handler(trapframe_t *tf)
 		td->td_frame = tf;		
 		if (td->td_ucred != td->td_proc->p_ucred)
 			cred_update_thread(td);
-#ifdef KSE
-		if (td->td_pflags & TDP_SA)
-			thread_user_enter(td);
-#endif
 		
 	}
 	/* Grab the current pcb */
@@ -731,10 +727,6 @@ prefetch_abort_handler(trapframe_t *tf)
 		td->td_frame = tf;
 		if (td->td_ucred != td->td_proc->p_ucred)
 			cred_update_thread(td);
-#ifdef KSE
-		if (td->td_proc->p_flag & P_SA)
-			thread_user_enter(td);
-#endif
 	}
 	fault_pc = tf->tf_pc;
 	if (td->td_md.md_spinlock_count == 0) {
@@ -1008,10 +1000,6 @@ swi_handler(trapframe_t *frame)
 	td->td_frame = frame;
 	
 	td->td_pticks = 0;
-#ifdef KSE
-	if (td->td_proc->p_flag & P_SA)
-		thread_user_enter(td);
-#endif
 	/*
       	 * Make sure the program counter is correctly aligned so we
 	 * don't take an alignment fault trying to read the opcode.

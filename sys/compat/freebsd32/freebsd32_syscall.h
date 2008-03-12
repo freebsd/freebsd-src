@@ -284,11 +284,6 @@
 #define	FREEBSD32_SYS___setugid	374
 #define	FREEBSD32_SYS_eaccess	376
 #define	FREEBSD32_SYS_nmount	378
-#define	FREEBSD32_SYS_kse_exit	379
-#define	FREEBSD32_SYS_kse_wakeup	380
-#define	FREEBSD32_SYS_kse_create	381
-#define	FREEBSD32_SYS_kse_thr_interrupt	382
-#define	FREEBSD32_SYS_kse_release	383
 #define	FREEBSD32_SYS_kenv	390
 #define	FREEBSD32_SYS_lchflags	391
 #define	FREEBSD32_SYS_uuidgen	392

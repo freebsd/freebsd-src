@@ -82,11 +82,6 @@ int	sched_runnable(void);
 void	sched_exit(struct proc *p, struct thread *childtd);
 void	sched_fork(struct thread *td, struct thread *childtd);
 void	sched_fork_exit(struct thread *td);
-
-/*
- * KSE Groups contain scheduling priority information.  They record the
- * behavior of groups of KSEs and threads.
- */
 void	sched_class(struct thread *td, int class);
 void	sched_nice(struct proc *p, int nice);
 

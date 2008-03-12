@@ -14,6 +14,3 @@ device		uart_z8530
 
 options 	GEOM_PART_APM
 options 	GEOM_PART_MBR
-
-# KSE support went from being default to a kernel option
-options 	KSE

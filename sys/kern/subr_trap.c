@@ -119,15 +119,6 @@ userret(struct thread *td, struct trapframe *frame)
 		thread_suspend_check(0);	/* Can suspend or kill */
 		PROC_UNLOCK(p);
 	}
-
-#ifdef KSE
-	/*
-	 * Do special thread processing, e.g. upcall tweaking and such.
-	 */
-	if (p->p_flag & P_SA)
-		thread_userret(td, frame);
-#endif
-
 	/*
 	 * Charge system time if profiling.
 	 */
@@ -135,7 +126,6 @@ userret(struct thread *td, struct trapframe *frame)
 
 		addupc_task(td, TRAPF_PC(frame), td->td_pticks * psratio);
 	}
-
 	/*
 	 * Let the scheduler adjust our priority etc.
 	 */
@@ -173,11 +163,6 @@ ast(struct trapframe *framep)
 	td->td_frame = framep;
 	td->td_pticks = 0;
 
-#ifdef KSE
-	if ((p->p_flag & P_SA) && (td->td_mailbox == NULL))
-		thread_user_enter(td);
-#endif
-
 	/*
 	 * This updates the td_flag's for the checks below in one
 	 * "atomic" operation with turning off the astpending flag.
@@ -188,18 +173,11 @@ ast(struct trapframe *framep)
 	thread_lock(td);
 	flags = td->td_flags;
 	td->td_flags &= ~(TDF_ASTPENDING | TDF_NEEDSIGCHK |
-	    TDF_NEEDRESCHED | TDF_INTERRUPT | TDF_ALRMPEND | TDF_PROFPEND |
+	    TDF_NEEDRESCHED | TDF_ALRMPEND | TDF_PROFPEND |
 	    TDF_MACPEND);
 	thread_unlock(td);
 	PCPU_INC(cnt.v_trap);
 
-	/*
-	 * XXXKSE While the fact that we owe a user profiling
-	 * tick is stored per thread in this code, the statistics
-	 * themselves are still stored per process.
-	 * This should probably change, by which I mean that
-	 * possibly the location of both might change.
-	 */
 	if (td->td_ucred != p->p_ucred) 
 		cred_update_thread(td);
 	if (td->td_pflags & TDP_OWEUPC && p->p_flag & P_PROFIL) {

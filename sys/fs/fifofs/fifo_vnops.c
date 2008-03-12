@@ -43,7 +43,7 @@
 #include <sys/mutex.h>
 #include <sys/malloc.h>
 #include <sys/poll.h>
-#include <sys/proc.h> /* XXXKSE */
+#include <sys/proc.h>
 #include <sys/signalvar.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>

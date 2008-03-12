@@ -645,7 +645,7 @@ fill_kinfo_proc_only(struct proc *p, struct kinfo_proc *kp)
 	kp->ki_structsize = sizeof(*kp);
 	kp->ki_paddr = p;
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	kp->ki_addr =/* p->p_addr; */0; /* XXXKSE */
+	kp->ki_addr =/* p->p_addr; */0; /* XXX */
 	kp->ki_args = p->p_args;
 	kp->ki_textvp = p->p_textvp;
 #ifdef KTRACE
@@ -794,7 +794,7 @@ fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp, int preferthread)
 		bzero(kp->ki_lockname, sizeof(kp->ki_lockname));
 	}
 
-	if (p->p_state == PRS_NORMAL) { /*  XXXKSE very approximate */
+	if (p->p_state == PRS_NORMAL) { /* approximate. */
 		if (TD_ON_RUNQ(td) ||
 		    TD_CAN_RUN(td) ||
 		    TD_IS_RUNNING(td)) {

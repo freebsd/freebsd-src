@@ -412,7 +412,7 @@ mi_switch(int flags, struct thread *newtd)
 	td->td_generation++;	/* bump preempt-detect counter */
 	PCPU_INC(cnt.v_swtch);
 	PCPU_SET(switchticks, ticks);
-	CTR4(KTR_PROC, "mi_switch: old thread %ld (kse %p, pid %ld, %s)",
+	CTR4(KTR_PROC, "mi_switch: old thread %ld (td_sched %p, pid %ld, %s)",
 	    td->td_tid, td->td_sched, p->p_pid, td->td_name);
 #if (KTR_COMPILE & KTR_SCHED) != 0
 	if (TD_IS_IDLETHREAD(td))
@@ -429,19 +429,11 @@ mi_switch(int flags, struct thread *newtd)
 		    td, td->td_name, td->td_priority,
 		    td->td_inhibitors, td->td_wmesg, td->td_lockname);
 #endif
-	/*
-	 * We call thread_switchout after the KTR_SCHED prints above so kse
-	 * selecting a new thread to run does not show up as a preemption.
-	 */
-#ifdef KSE
-	if ((flags & SW_VOL) && (td->td_proc->p_flag & P_SA))
-		newtd = thread_switchout(td, flags, newtd);
-#endif
 	sched_switch(td, newtd, flags);
 	CTR3(KTR_SCHED, "mi_switch: running %p(%s) prio %d",
 	    td, td->td_name, td->td_priority);
 
-	CTR4(KTR_PROC, "mi_switch: new thread %ld (kse %p, pid %ld, %s)",
+	CTR4(KTR_PROC, "mi_switch: new thread %ld (td_sched %p, pid %ld, %s)",
 	    td->td_tid, td->td_sched, p->p_pid, td->td_name);
 
 	/* 
@@ -500,8 +492,6 @@ setrunnable(struct thread *td)
 /*
  * Compute a tenex style load average of a quantity on
  * 1, 5 and 15 minute intervals.
- * XXXKSE   Needs complete rewrite when correct info is available.
- * Completely Bogus.. only works with 1:1 (but compiles ok now :-)
  */
 static void
 loadav(void *arg)
