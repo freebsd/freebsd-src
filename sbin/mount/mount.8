@@ -28,7 +28,7 @@
 .\"     @(#)mount.8	8.8 (Berkeley) 6/16/94
 .\" $FreeBSD$
 .\"
-.Dd March 10, 2008
+.Dd March 11, 2008
 .Dt MOUNT 8
 .Os
 .Sh NAME
@@ -335,14 +335,14 @@ For example, the
 .Nm
 command:
 .Bd -literal -offset indent
-mount -t unionfs -o below /sys $HOME/sys
+mount -t cd9660 -o -e /dev/cd0 /cdrom
 .Ed
 .Pp
 causes
 .Nm
 to execute the equivalent of:
 .Bd -literal -offset indent
-/sbin/mount_unionfs -o below /sys $HOME/sys
+/sbin/mount_cd9660 -e /dev/cd0 /cdrom
 .Ed
 .Pp
 Additional options specific to file system types
