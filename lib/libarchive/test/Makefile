@@ -7,17 +7,6 @@ LA_SRCDIR=${.CURDIR}/..
 # Get a list of all libarchive source files
 LA_SRCS!=make -f ${LA_SRCDIR}/Makefile -V SRCS
 
-TESTFILES= \
-	test_compat_gtar_1.tgz					\
-	test_compat_tar_hardlink_1.tar				\
-	test_compat_zip_1.zip					\
-	test_read_format_gtar_sparse_1_13.tgz			\
-	test_read_format_gtar_sparse_1_17.tgz			\
-	test_read_format_gtar_sparse_1_17_posix00.tgz		\
-	test_read_format_gtar_sparse_1_17_posix01.tgz		\
-	test_read_format_gtar_sparse_1_17_posix10.tgz		\
-	test_read_format_gtar_sparse_1_17_posix10_modified.tar
-
 TESTS= \
 	test_acl_basic.c			\
 	test_acl_pax.c				\
@@ -104,13 +93,8 @@ CFLAGS+= -I/usr/local/include -DUSE_DMALLOC
 WARNS=6
 
 # Build libarchive_test and run it.
-check test: libarchive_test ${TESTFILES}
-	./libarchive_test
-
-.for f in ${TESTFILES}
-${f}: ${f}.uu
-	uudecode -p ${.CURDIR}/${f}.uu >${f}
-.endfor
+check test: libarchive_test
+	./libarchive_test -k -r ${.CURDIR}
 
 INCS=archive.h list.h
 
