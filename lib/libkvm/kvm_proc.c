@@ -411,13 +411,8 @@ nopgrp:
 			kp->ki_oncpu = mtd.td_oncpu;
 			if (mtd.td_name[0] != '\0')
 				strlcpy(kp->ki_ocomm, mtd.td_name, sizeof(kp->ki_ocomm));
-			if (!(proc.p_flag & P_SA)) {
-				kp->ki_pctcpu = 0;
-				kp->ki_rqindex = 0;
-			} else {
-				kp->ki_tdflags = -1;
-				/* All the rest are 0 for now */
-			}
+			kp->ki_pctcpu = 0;
+			kp->ki_rqindex = 0;
 		} else {
 			kp->ki_stat = SZOMB;
 		}
