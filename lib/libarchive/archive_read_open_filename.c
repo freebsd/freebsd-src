@@ -47,6 +47,10 @@ __FBSDID("$FreeBSD$");
 
 #include "archive.h"
 
+#ifndef O_BINARY
+#define O_BINARY 0
+#endif
+
 struct read_file_data {
 	int	 fd;
 	size_t	 block_size;
@@ -113,7 +117,7 @@ file_open(struct archive *a, void *client_data)
 		return (ARCHIVE_FATAL);
 	}
 	if (mine->filename[0] != '\0')
-		mine->fd = open(mine->filename, O_RDONLY);
+		mine->fd = open(mine->filename, O_RDONLY | O_BINARY);
 	else
 		mine->fd = 0; /* Fake "open" for stdin. */
 	if (mine->fd < 0) {

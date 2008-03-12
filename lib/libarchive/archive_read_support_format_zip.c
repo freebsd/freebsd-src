@@ -278,8 +278,8 @@ zip_read_file_header(struct archive_read *a, struct archive_entry *entry,
 
 	zip->version = p->version[0];
 	zip->system = p->version[1];
-	zip->flags = le16dec(p->flags);
-	zip->compression = le16dec(p->compression);
+	zip->flags = archive_le16dec(p->flags);
+	zip->compression = archive_le16dec(p->compression);
 	if (zip->compression <
 	    sizeof(compression_names)/sizeof(compression_names[0]))
 		zip->compression_name = compression_names[zip->compression];
@@ -291,11 +291,11 @@ zip_read_file_header(struct archive_read *a, struct archive_entry *entry,
 	zip->mode = 0;
 	zip->uid = 0;
 	zip->gid = 0;
-	zip->crc32 = le32dec(p->crc32);
-	zip->filename_length = le16dec(p->filename_length);
-	zip->extra_length = le16dec(p->extra_length);
-	zip->uncompressed_size = le32dec(p->uncompressed_size);
-	zip->compressed_size = le32dec(p->compressed_size);
+	zip->crc32 = archive_le32dec(p->crc32);
+	zip->filename_length = archive_le16dec(p->filename_length);
+	zip->extra_length = archive_le16dec(p->extra_length);
+	zip->uncompressed_size = archive_le32dec(p->uncompressed_size);
+	zip->compressed_size = archive_le32dec(p->compressed_size);
 
 	(a->decompressor->consume)(a, sizeof(struct zip_file_header));
 
@@ -397,9 +397,9 @@ archive_read_format_zip_read_data(struct archive_read *a,
 					    "Truncated ZIP end-of-file record");
 					return (ARCHIVE_FATAL);
 				}
-				zip->crc32 = le32dec(p + 4);
-				zip->compressed_size = le32dec(p + 8);
-				zip->uncompressed_size = le32dec(p + 12);
+				zip->crc32 = archive_le32dec(p + 4);
+				zip->compressed_size = archive_le32dec(p + 8);
+				zip->uncompressed_size = archive_le32dec(p + 12);
 				(a->decompressor->consume)(a, 16);
 			}
 
@@ -636,7 +636,7 @@ archive_read_format_zip_read_data_skip(struct archive_read *a)
 {
 	struct zip *zip;
 	const void *buff = NULL;
-	ssize_t bytes_avail;
+	off_t bytes_skipped;
 
 	zip = (struct zip *)(a->format->data);
 
@@ -659,19 +659,10 @@ archive_read_format_zip_read_data_skip(struct archive_read *a)
 	 * If the length is at the beginning, we can skip the
 	 * compressed data much more quickly.
 	 */
-	while (zip->entry_bytes_remaining > 0) {
-		bytes_avail = (a->decompressor->read_ahead)(a, &buff, 1);
-		if (bytes_avail <= 0) {
-			archive_set_error(&a->archive,
-			    ARCHIVE_ERRNO_FILE_FORMAT,
-			    "Truncated ZIP file body");
-			return (ARCHIVE_FATAL);
-		}
-		if (bytes_avail > zip->entry_bytes_remaining)
-			bytes_avail = zip->entry_bytes_remaining;
-		(a->decompressor->consume)(a, bytes_avail);
-		zip->entry_bytes_remaining -= bytes_avail;
-	}
+	bytes_skipped = (a->decompressor->skip)(a, zip->entry_bytes_remaining);
+	if (bytes_skipped < 0)
+		return (ARCHIVE_FATAL);
+
 	/* This entry is finished and done. */
 	zip->end_of_entry_cleanup = zip->end_of_entry = 1;
 	return (ARCHIVE_OK);
@@ -707,8 +698,8 @@ process_extra(const void* extra, struct zip* zip)
 	const char *p = (const char *)extra;
 	while (offset < zip->extra_length - 4)
 	{
-		unsigned short headerid = le16dec(p + offset);
-		unsigned short datasize = le16dec(p + offset + 2);
+		unsigned short headerid = archive_le16dec(p + offset);
+		unsigned short datasize = archive_le16dec(p + offset + 2);
 		offset += 4;
 		if (offset + datasize > zip->extra_length)
 			break;
@@ -720,9 +711,9 @@ process_extra(const void* extra, struct zip* zip)
 		case 0x0001:
 			/* Zip64 extended information extra field. */
 			if (datasize >= 8)
-				zip->uncompressed_size = le64dec(p + offset);
+				zip->uncompressed_size = archive_le64dec(p + offset);
 			if (datasize >= 16)
-				zip->compressed_size = le64dec(p + offset + 8);
+				zip->compressed_size = archive_le64dec(p + offset + 8);
 			break;
 		case 0x5455:
 		{
@@ -735,11 +726,12 @@ process_extra(const void* extra, struct zip* zip)
 			{
 #ifdef DEBUG
 				fprintf(stderr, "mtime: %lld -> %d\n",
-				    (long long)zip->mtime, le32dec(p + offset));
+				    (long long)zip->mtime,
+				    archive_le32dec(p + offset));
 #endif
 				if (datasize < 4)
 					break;
-				zip->mtime = le32dec(p + offset);
+				zip->mtime = archive_le32dec(p + offset);
 				offset += 4;
 				datasize -= 4;
 			}
@@ -747,7 +739,7 @@ process_extra(const void* extra, struct zip* zip)
 			{
 				if (datasize < 4)
 					break;
-				zip->atime = le32dec(p + offset);
+				zip->atime = archive_le32dec(p + offset);
 				offset += 4;
 				datasize -= 4;
 			}
@@ -755,7 +747,7 @@ process_extra(const void* extra, struct zip* zip)
 			{
 				if (datasize < 4)
 					break;
-				zip->ctime = le32dec(p + offset);
+				zip->ctime = archive_le32dec(p + offset);
 				offset += 4;
 				datasize -= 4;
 			}
@@ -765,12 +757,13 @@ process_extra(const void* extra, struct zip* zip)
 			/* Info-ZIP Unix Extra Field (type 2) "Ux". */
 #ifdef DEBUG
 			fprintf(stderr, "uid %d gid %d\n",
-			    le16dec(p + offset), le16dec(p + offset + 2));
+			    archive_le16dec(p + offset),
+			    archive_le16dec(p + offset + 2));
 #endif
 			if (datasize >= 2)
-				zip->uid = le16dec(p + offset);
+				zip->uid = archive_le16dec(p + offset);
 			if (datasize >= 4)
-				zip->gid = le16dec(p + offset + 2);
+				zip->gid = archive_le16dec(p + offset + 2);
 			break;
 		default:
 			break;

@@ -146,7 +146,7 @@ init(struct archive_read *a, const void *buff, size_t n)
 	(void)buff;	/* UNUSED */
 	(void)n;	/* UNUSED */
 
-	archive_set_error(a, -1,
+	archive_set_error(&a->archive, -1,
 	    "This version of libarchive was compiled without gzip support");
 	return (ARCHIVE_FATAL);
 }
