@@ -118,6 +118,8 @@ static void IpcpSendTerminateAck(struct fsm *, u_char);
 static void IpcpDecodeConfig(struct fsm *, u_char *, u_char *, int,
                              struct fsm_decode *);
 
+extern struct libalias *la;
+
 static struct fsm_callbacks ipcp_Callbacks = {
   IpcpLayerUp,
   IpcpLayerDown,
@@ -915,7 +917,7 @@ ipcp_InterfaceUp(struct ipcp *ipcp)
 
 #ifndef NONAT
   if (ipcp->fsm.bundle->NatEnabled)
-    PacketAliasSetAddress(ipcp->my_ip);
+    LibAliasSetAddress(la, ipcp->my_ip);
 #endif
 
   return 1;
