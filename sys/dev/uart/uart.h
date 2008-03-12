@@ -74,6 +74,10 @@ extern struct uart_class uart_z8530_class __attribute__((weak));
  */
 #define	UART_FLAGS_CONSOLE(f)		((f) & 0x10)
 #define	UART_FLAGS_DBGPORT(f)		((f) & 0x80)
+#define	UART_FLAGS_FCR_RX_LOW(f)	((f) & 0x100)
+#define	UART_FLAGS_FCR_RX_MEDL(f)	((f) & 0x200)
+#define	UART_FLAGS_FCR_RX_MEDH(f)	((f) & 0x400)
+#define	UART_FLAGS_FCR_RX_HIGH(f)	((f) & 0x800)
 
 /*
  * Data parity values (magical numbers related to ns8250).
