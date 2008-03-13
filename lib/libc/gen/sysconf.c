@@ -105,7 +105,6 @@ sysconf(name)
 		mib[1] = KERN_NGROUPS;
 		break;
 	case _SC_OPEN_MAX:
-	case _SC_STREAM_MAX:	/* assume fds run out before memory does */
 		if (getrlimit(RLIMIT_NOFILE, &rl) != 0)
 			return (-1);
 		if (rl.rlim_cur == RLIM_INFINITY)
@@ -114,6 +113,25 @@ sysconf(name)
 			errno = EOVERFLOW;
 			return (-1);
 		}
+		return ((long)rl.rlim_cur);
+	case _SC_STREAM_MAX:
+		if (getrlimit(RLIMIT_NOFILE, &rl) != 0)
+			return (-1);
+		if (rl.rlim_cur == RLIM_INFINITY)
+			return (-1);
+		if (rl.rlim_cur > LONG_MAX) {
+			errno = EOVERFLOW;
+			return (-1);
+		}
+		/*
+		 * struct __sFILE currently has a limitation that
+		 * file descriptors must fit in a signed short.
+		 * This doesn't precisely capture the letter of POSIX
+		 * but approximates the spirit.
+		 */
+		if (rl.rlim_cur > SHRT_MAX)
+			return (SHRT_MAX);
+
 		return ((long)rl.rlim_cur);
 	case _SC_JOB_CONTROL:
 		return (_POSIX_JOB_CONTROL);
