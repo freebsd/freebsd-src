@@ -208,7 +208,6 @@ SUBDIR=	alias \
 	users \
 	uudecode \
 	uuencode \
-	uuidgen \
 	${_vacation} \
 	vgrind \
 	vi \
