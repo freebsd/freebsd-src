@@ -130,7 +130,7 @@ static struct stge_product {
 static int	stge_probe(device_t);
 static int	stge_attach(device_t);
 static int	stge_detach(device_t);
-static void	stge_shutdown(device_t);
+static int	stge_shutdown(device_t);
 static int	stge_suspend(device_t);
 static int	stge_resume(device_t);
 
@@ -1118,7 +1118,7 @@ stge_dma_free(struct stge_softc *sc)
  *
  *	Make sure the interface is stopped at reboot time.
  */
-static void
+static int
 stge_shutdown(device_t dev)
 {
 	struct stge_softc *sc;
@@ -1128,6 +1128,8 @@ stge_shutdown(device_t dev)
 	STGE_LOCK(sc);
 	stge_stop(sc);
 	STGE_UNLOCK(sc);
+
+	return (0);
 }
 
 static int

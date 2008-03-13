@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/vx/if_vxreg.h>
 #include <dev/vx/if_vxvar.h>
 
-static void vx_pci_shutdown(device_t);
+static int vx_pci_shutdown(device_t);
 static int vx_pci_probe(device_t);
 static int vx_pci_attach(device_t);
 
@@ -76,7 +76,7 @@ DRIVER_MODULE(vx, pci, vx_driver, vx_devclass, 0, 0);
 MODULE_DEPEND(vx, pci, 1, 1, 1);
 MODULE_DEPEND(vx, ether, 1, 1, 1);
 
-static void
+static int
 vx_pci_shutdown(device_t dev)
 {
 	struct vx_softc *sc;
@@ -85,6 +85,8 @@ vx_pci_shutdown(device_t dev)
 	VX_LOCK(sc);
 	vx_stop(sc);
 	VX_UNLOCK(sc);
+
+	return (0);
 }
 
 static int
