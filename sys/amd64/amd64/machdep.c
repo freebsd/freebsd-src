@@ -357,7 +357,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 
 	regs->tf_rsp = (long)sfp;
 	regs->tf_rip = PS_STRINGS - *(p->p_sysent->sv_szsigcode);
-	regs->tf_rflags &= ~PSL_T;
+	regs->tf_rflags &= ~(PSL_T | PSL_D);
 	regs->tf_cs = _ucodesel;
 	PROC_LOCK(p);
 	mtx_lock(&psp->ps_mtx);
