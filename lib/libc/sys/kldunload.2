@@ -29,8 +29,7 @@
 .Dt KLDUNLOAD 2
 .Os
 .Sh NAME
-.Nm kldunload
-.Nm kldunloadf
+.Nm kldunload , kldunloadf
 .Nd unload kld files
 .Sh LIBRARY
 .Lb libc
@@ -40,7 +39,7 @@
 .Ft int
 .Fn kldunload "int fileid"
 .Ft int
-.Fn kldunload "int fileid" "int flags"
+.Fn kldunloadf "int fileid" "int flags"
 .Sh DESCRIPTION
 The
 .Fn kldunload
