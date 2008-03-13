@@ -210,7 +210,7 @@ static void rl_reset(struct rl_softc *);
 static int rl_resume(device_t);
 static void rl_rxeof(struct rl_softc *);
 static void rl_setmulti(struct rl_softc *);
-static void rl_shutdown(device_t);
+static int rl_shutdown(device_t);
 static void rl_start(struct ifnet *);
 static void rl_start_locked(struct ifnet *);
 static void rl_stop(struct rl_softc *);
@@ -1801,7 +1801,7 @@ rl_resume(device_t dev)
  * Stop all chip I/O so that the kernel's probe routines don't
  * get confused by errant DMAs when rebooting.
  */
-static void
+static int
 rl_shutdown(device_t dev)
 {
 	struct rl_softc		*sc;
@@ -1811,4 +1811,6 @@ rl_shutdown(device_t dev)
 	RL_LOCK(sc);
 	rl_stop(sc);
 	RL_UNLOCK(sc);
+
+	return (0);
 }

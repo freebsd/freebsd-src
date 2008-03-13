@@ -264,7 +264,7 @@ static void re_stop		(struct rl_softc *);
 static void re_watchdog		(struct rl_softc *);
 static int re_suspend		(device_t);
 static int re_resume		(device_t);
-static void re_shutdown		(device_t);
+static int re_shutdown		(device_t);
 static int re_ifmedia_upd	(struct ifnet *);
 static void re_ifmedia_sts	(struct ifnet *, struct ifmediareq *);
 
@@ -2824,7 +2824,7 @@ re_resume(dev)
  * Stop all chip I/O so that the kernel's probe routines don't
  * get confused by errant DMAs when rebooting.
  */
-static void
+static int
 re_shutdown(dev)
 	device_t		dev;
 {
@@ -2841,4 +2841,6 @@ re_shutdown(dev)
 	 */
 	sc->rl_ifp->if_flags &= ~IFF_UP;
 	RL_UNLOCK(sc);
+
+	return (0);
 }
