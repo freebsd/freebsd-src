@@ -27,6 +27,8 @@ OLD_FILES+=usr/share/man/man3/shm_unlink.3.gz
 # 20071207: Merged with fortunes-o.real
 OLD_FILES+=usr/share/games/fortune/fortunes2-o
 OLD_FILES+=usr/share/games/fortune/fortunes2-o.dat
+# 20071201: Removal of XRPU driver
+OLD_FILES+=usr/include/sys/xrpuio.h
 # 20071129: Disabled static versions of libkse by default
 .if ${DEFAULT_THREAD_LIB} != "libkse" && ${MK_LIBTHR} != "no"
 OLD_FILES+=usr/lib/libkse.a
