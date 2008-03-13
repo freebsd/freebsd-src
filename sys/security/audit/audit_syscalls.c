@@ -382,6 +382,9 @@ auditon(struct thread *td, struct auditon_args *uap)
 		    (udata.au_trigger > AUDIT_TRIGGER_MAX))
 			return (EINVAL);
 		return (send_trigger(udata.au_trigger));
+
+	default:
+		return (EINVAL);
 	}
 
 	/*
