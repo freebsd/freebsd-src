@@ -180,7 +180,7 @@ k6_mem_drvinit(void *unused)
 	if ((cpu_id & 0xf00) != 0x500)
 		return;
 	if ((cpu_id & 0xf0) < 0x80 ||
-	    (cpu_id & 0xf0) == 0x80 && (cpu_id & 0xf) <= 0x7)
+	    ((cpu_id & 0xf0) == 0x80 && (cpu_id & 0xf) <= 0x7))
 		return;
 	mem_range_softc.mr_op = &k6_mrops;
 }
