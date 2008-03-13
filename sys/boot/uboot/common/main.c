@@ -110,11 +110,9 @@ memsize(int flags)
 int
 main(void)
 {
-	int		i;
-	char		*ch;
-	int		bargc;
-	char		**bargv;
-
+	char **bargv;
+	char *ch;
+	int bargc, i;
 	struct api_signature *sig = NULL;
 
 	if (!api_search_sig(&sig))
@@ -172,7 +170,8 @@ main(void)
 
 	/* XXX only support netbooting for now */
 	for (i = 0; devsw[i] != NULL; i++)
-		if (strncmp(devsw[i]->dv_name, "net", strlen(devsw[i]->dv_name)) == 0)
+		if (strncmp(devsw[i]->dv_name, "net",
+		    strlen(devsw[i]->dv_name)) == 0)
 			break;
 
 	if (devsw[i] == NULL)
@@ -183,9 +182,9 @@ main(void)
 	currdev.d_unit = 0;
 
 	env_setenv("currdev", EV_VOLATILE, uboot_fmtdev(&currdev),
-			uboot_setcurrdev, env_nounset);
+	    uboot_setcurrdev, env_nounset);
 	env_setenv("loaddev", EV_VOLATILE, uboot_fmtdev(&currdev),
-			env_noset, env_nounset);
+	    env_noset, env_nounset);
 
 	setenv("LINES", "24", 1);		/* optional */
 	setenv("prompt", "loader>", 1);
@@ -207,7 +206,7 @@ static int
 command_heap(int argc, char *argv[])
 {
 	printf("heap base at %p, top at %p, used %ld\n", end, sbrk(0),
-		sbrk(0) - end);
+	    sbrk(0) - end);
 
 	return(CMD_OK);
 }

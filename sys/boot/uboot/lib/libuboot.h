@@ -49,24 +49,24 @@ struct uboot_devdesc
 /*
  * Default network packet alignment in memory
  */
-#define PKTALIGN	32
+#define	PKTALIGN	32
 
-extern int uboot_getdev(void **vdev, const char *devspec, const char **path);
-extern char *uboot_fmtdev(void *vdev);
-extern int uboot_setcurrdev(struct env_var *ev, int flags, const void *value);
+int	 uboot_getdev(void **vdev, const char *devspec, const char **path);
+char	*uboot_fmtdev(void *vdev);
+int	 uboot_setcurrdev(struct env_var *ev, int flags, const void *value);
 
-extern struct netif_driver	uboot_net;
-extern struct devsw		uboot_disk;
+extern struct netif_driver uboot_net;
+extern struct devsw uboot_disk;
 
 ssize_t	uboot_copyin(const void *src, vm_offset_t dest, const size_t len);
-ssize_t uboot_copyout(const vm_offset_t src, void *dest, const size_t len);
-ssize_t uboot_readin(const int fd, vm_offset_t dest, const size_t len);
+ssize_t	uboot_copyout(const vm_offset_t src, void *dest, const size_t len);
+ssize_t	uboot_readin(const int fd, vm_offset_t dest, const size_t len);
 
 extern int uboot_autoload(void);
 
 struct preloaded_file;
 struct file_format;
 
-extern struct file_format	uboot_elf;
+extern struct file_format uboot_elf;
 
-extern void	reboot(void);
+void	reboot(void);

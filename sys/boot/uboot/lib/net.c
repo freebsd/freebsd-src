@@ -64,7 +64,7 @@ extern int			devs_no;
 extern struct netif_stats	net_stats[];
 
 struct netif_dif net_ifs[] = {
-	/*	dif_unit	dif_nsel	dif_stats	dif_private	*/
+	/*	dif_unit	dif_nsel	dif_stats	dif_private */
 	{	0,		1,		&net_stats[0],	0,	},
 };
 
@@ -107,16 +107,16 @@ net_match(struct netif *nif, void *machdep_hint)
 static int
 net_probe(struct netif *nif, void *machdep_hint)
 {
-	int			i;
 	struct device_info	*di;
+	int			i;
 
 	for (i = 0; i < devs_no; i++)
 		if (di = ub_dev_get(i))
 			if (di->type == DEV_TYP_NET)
 				break;
 	if (i == devs_no) {
-		printf("net_probe: no network devices found, maybe not\
-		    enumerated yet..?\n");
+		printf("net_probe: no network devices found, maybe not"
+		    " enumerated yet..?\n");
 		return (-1);
 	}
 
@@ -172,14 +172,12 @@ net_get(struct iodesc *desc, void *pkt, size_t len, time_t timeout)
 {
 	struct netif		*nif = desc->io_netif;
 	struct uboot_softc	*sc = nif->nif_devdata;
-
 	time_t	t;
 	int	length;
 
 #if defined(NETIF_DEBUG)
 	printf("net_get: pkt %x, len %d, timeout %d\n", pkt, len, timeout);
 #endif
-
 	t = getsecs();
 	do {
 		length = ub_dev_recv(sc->sc_handle, sc->sc_rxbuf, len);
@@ -207,11 +205,11 @@ net_get(struct iodesc *desc, void *pkt, size_t len, time_t timeout)
 static void
 net_init(struct iodesc *desc, void *machdep_hint)
 {
-	int			i, err;
 	struct netif		*nif = desc->io_netif;
 	struct uboot_softc	*sc;
 	struct device_info	*di;
-	
+	int			 err, i;
+
 	sc = nif->nif_devdata = &uboot_softc;
 
 	if (err = ub_dev_open(sc->sc_handle))
@@ -234,15 +232,16 @@ net_init(struct iodesc *desc, void *machdep_hint)
 	/* Set correct alignment for TX packets */
 	sc->sc_txbufp = sc->sc_txbuf;
 	if ((unsigned long)sc->sc_txbufp % PKTALIGN)
-		sc->sc_txbufp += PKTALIGN - (unsigned long)sc->sc_txbufp % PKTALIGN;
+		sc->sc_txbufp += PKTALIGN -
+		    (unsigned long)sc->sc_txbufp % PKTALIGN;
 }
 
 
 static void
 net_end(struct netif *nif)
 {
-	int			err;
 	struct uboot_softc	*sc = nif->nif_devdata;
+	int			 err;
 
 	if (err = ub_dev_close(sc->sc_handle))
 		panic("%s%d: net_end failed with error %d\n",
