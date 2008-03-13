@@ -1,5 +1,5 @@
 # $FreeBSD$
 
-SUBDIR=		lib
- 
+SUBDIR=	lib
+
 .include <bsd.subdir.mk>

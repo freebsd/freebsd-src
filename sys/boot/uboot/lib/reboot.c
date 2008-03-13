@@ -30,5 +30,6 @@ __FBSDID("$FreeBSD$");
 void
 exit(int code)
 {
+
 	ub_reset();
 }
