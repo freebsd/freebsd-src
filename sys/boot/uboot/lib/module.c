@@ -42,5 +42,6 @@ __FBSDID("$FreeBSD$");
 int
 uboot_autoload(void)
 {
+
 	return(0);
 }

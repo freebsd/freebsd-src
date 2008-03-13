@@ -35,9 +35,9 @@ __FBSDID("$FreeBSD$");
 #undef DEBUG
 
 #ifdef DEBUG
-#define debugf(fmt, args...) do { printf("%s(): ", __func__); printf(fmt,##args); } while (0)
+#define	debugf(fmt, args...) do { printf("%s(): ", __func__); printf(fmt,##args); } while (0)
 #else
-#define debugf(fmt, args...)
+#define	debugf(fmt, args...)
 #endif
 
 /* Some random address used by U-Boot. */
@@ -106,7 +106,8 @@ crc32(const void *buf, size_t size)
 }
 
 
-static int valid_sig(struct api_signature *sig)
+static int
+valid_sig(struct api_signature *sig)
 {
 	uint32_t checksum;
 	struct api_signature s;
@@ -134,7 +135,9 @@ static int valid_sig(struct api_signature *sig)
  *
  * returns 1/0 depending on found/not found result
  */
-int api_search_sig(struct api_signature **sig) {
+int
+api_search_sig(struct api_signature **sig)
+{
 
 	unsigned char *sp, *spend;
 
@@ -165,7 +168,8 @@ int api_search_sig(struct api_signature **sig) {
  *
  ****************************************/
 
-int ub_getc(void)
+int
+ub_getc(void)
 {
 	int c;
 
@@ -175,7 +179,8 @@ int ub_getc(void)
 	return c;
 }
 
-int ub_tstc(void)
+int
+ub_tstc(void)
 {
 	int t;
 
@@ -185,13 +190,17 @@ int ub_tstc(void)
 	return t;
 }
 
-void ub_putc(char c)
+void
+ub_putc(char c)
 {
+
 	syscall(API_PUTC, NULL, (uint32_t)&c);
 }
 
-void ub_puts(const char *s)
+void
+ub_puts(const char *s)
 {
+
 	syscall(API_PUTS, NULL, (uint32_t)s);
 }
 
@@ -201,25 +210,28 @@ void ub_puts(const char *s)
  *
  ****************************************/
 
-void ub_reset(void)
+void
+ub_reset(void)
 {
+
 	syscall(API_RESET, NULL);
 }
 
 
-#define MR_MAX 5
+#define	MR_MAX 5
 static struct mem_region mr[MR_MAX];
 static struct sys_info si;
 
-struct sys_info * ub_get_sys_info(void)
+struct sys_info *
+ub_get_sys_info(void)
 {
 	int err = 0;
-	
+
 	memset(&si, 0, sizeof(struct sys_info));
 	si.mr = mr;
 	si.mr_no = MR_MAX;
 	memset(&mr, 0, sizeof(mr));
-	
+
 	if (!syscall(API_GET_SYS_INFO, &err, (u_int32_t)&si))
 		return (NULL);
 
@@ -233,16 +245,18 @@ struct sys_info * ub_get_sys_info(void)
  *
  ****************************************/
 
-void ub_udelay(unsigned long usec)
+void
+ub_udelay(unsigned long usec)
 {
 
 	syscall(API_UDELAY, NULL, &usec);
 }
 
-unsigned long ub_get_timer(unsigned long base)
+unsigned long
+ub_get_timer(unsigned long base)
 {
 	unsigned long cur;
-	
+
 	if (!syscall(API_GET_TIMER, NULL, &cur, &base))
 		return (0);
 
@@ -258,12 +272,14 @@ unsigned long ub_get_timer(unsigned long base)
  *
  ***************************************************************************/
 
-#define MAX_DEVS 6
+#define	MAX_DEVS 6
 
 static struct device_info devices[MAX_DEVS];
 
-struct device_info * ub_dev_get(int i)
+struct device_info *
+ub_dev_get(int i)
 {
+
 	return ((i < 0 || i >= MAX_DEVS) ? NULL : &devices[i]);
 }
 
@@ -273,7 +289,8 @@ struct device_info * ub_dev_get(int i)
  *
  * returns:		number of devices found
  */
-int ub_dev_enum(void)
+int
+ub_dev_enum(void)
 {
 	struct device_info *di;
 	int n = 0;
@@ -308,7 +325,8 @@ int ub_dev_enum(void)
  *
  * returns:	0 when OK, err otherwise
  */
-int ub_dev_open(int handle)
+int
+ub_dev_open(int handle)
 {
 	struct device_info *di;
 	int err = 0;
@@ -323,7 +341,8 @@ int ub_dev_open(int handle)
 	return (err);
 }
 
-int ub_dev_close(int handle)
+int
+ub_dev_close(int handle)
 {
 	struct device_info *di;
 
@@ -345,7 +364,8 @@ int ub_dev_close(int handle)
  *
  * returns:	0/1 accordingly
  */
-static int dev_valid(int handle)
+static int
+dev_valid(int handle)
 {
 
 	if (handle < 0 || handle >= MAX_DEVS)
@@ -357,7 +377,8 @@ static int dev_valid(int handle)
 	return (1);
 }
 
-static int dev_stor_valid(int handle)
+static int
+dev_stor_valid(int handle)
 {
 
 	if (!dev_valid(handle))
@@ -369,7 +390,8 @@ static int dev_stor_valid(int handle)
 	return (1);
 }
 
-int ub_dev_read(int handle, void *buf, lbasize_t len, lbastart_t start)
+int
+ub_dev_read(int handle, void *buf, lbasize_t len, lbastart_t start)
 {
 	struct device_info *di;
 	lbasize_t act_len;
@@ -391,7 +413,8 @@ int ub_dev_read(int handle, void *buf, lbasize_t len, lbastart_t start)
 	return (0);
 }
 
-static int dev_net_valid(int handle)
+static int
+dev_net_valid(int handle)
 {
 
 	if (!dev_valid(handle))
@@ -403,7 +426,8 @@ static int dev_net_valid(int handle)
 	return (1);
 }
 
-int ub_dev_recv(int handle, void *buf, int len)
+int
+ub_dev_recv(int handle, void *buf, int len)
 {
 	struct device_info *di;
 	int err = 0, act_len;
@@ -421,7 +445,8 @@ int ub_dev_recv(int handle, void *buf, int len)
 	return (act_len);
 }
 
-int ub_dev_send(int handle, void *buf, int len)
+int
+ub_dev_send(int handle, void *buf, int len)
 {
 	struct device_info *di;
 	int err = 0;
@@ -442,7 +467,8 @@ int ub_dev_send(int handle, void *buf, int len)
  *
  ****************************************/
 
-char * ub_env_get(const char *name)
+char *
+ub_env_get(const char *name)
 {
 	char *value;
 
@@ -452,7 +478,8 @@ char * ub_env_get(const char *name)
 	return (value);
 }
 
-void ub_env_set(const char *name, char *value)
+void
+ub_env_set(const char *name, char *value)
 {
 
 	syscall(API_ENV_SET, NULL, (uint32_t)name, (uint32_t)value);
@@ -461,7 +488,8 @@ void ub_env_set(const char *name, char *value)
 
 static char env_name[256];
 
-const char * ub_env_enum(const char *last)
+const char *
+ub_env_enum(const char *last)
 {
 	const char *env, *str;
 	int i;

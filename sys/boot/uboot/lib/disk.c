@@ -40,8 +40,8 @@ __FBSDID("$FreeBSD$");
 #include "bootstrap.h"
 
 static int	d_init(void);
-static int	d_strategy(void *devdata, int flag, daddr_t dblk, 
-				size_t size, char *buf, size_t *rsize);
+static int	d_strategy(void *devdata, int flag, daddr_t dblk,
+		    size_t size, char *buf, size_t *rsize);
 static int	d_open(struct open_file *f, ...);
 static int	d_close(struct open_file *f);
 static int	d_ioctl(struct open_file *f, u_long cmd, void *data);
@@ -68,6 +68,7 @@ SLIST_HEAD(, opened_dev) opened_devs = SLIST_HEAD_INITIALIZER(opened_dev);
 static int
 d_init(void)
 {
+
 	return 0;
 }
 
@@ -75,24 +76,28 @@ static int
 d_strategy(void *devdata, int flag, daddr_t dblk, size_t size, char *buf,
     size_t *rsize)
 {
+
 	return (EINVAL);
 }
 
 static int
 d_open(struct open_file *f, ...)
 {
+
 	return (EINVAL);
 }
 
 static int
 d_close(struct open_file *f)
 {
+
 	return (EINVAL);
 }
 
 static int
 d_ioctl(struct open_file *f, u_long cmd, void *data)
 {
+
 	return (EINVAL);
 }
 
@@ -100,4 +105,5 @@ static void
 d_print(int verbose)
 {
 
+	return;
 }

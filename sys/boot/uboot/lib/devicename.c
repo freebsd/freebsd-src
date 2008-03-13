@@ -27,16 +27,17 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/disklabel.h>
+
 #include <stand.h>
 #include <string.h>
-#include <sys/disklabel.h>
 
 #include "bootstrap.h"
 #include "libuboot.h"
 
 static int uboot_parsedev(struct uboot_devdesc **dev, const char *devspec, const char **path);
 
-/* 
+/*
  * Point (dev) at an allocated device specifier for the device matching the
  * path in (devspec). If it contains an explicit device specification,
  * use that.  If not, use the default device.
@@ -44,27 +45,26 @@ static int uboot_parsedev(struct uboot_devdesc **dev, const char *devspec, const
 int
 uboot_getdev(void **vdev, const char *devspec, const char **path)
 {
-    struct uboot_devdesc **dev = (struct uboot_devdesc **)vdev;
-    int				rv;
-    
-    /*
-     * If it looks like this is just a path and no
-     * device, go with the current device.
-     */
-    if ((devspec == NULL) || 
-	(devspec[0] == '/') || 
-	(strchr(devspec, ':') == NULL)) {
+	struct uboot_devdesc **dev = (struct uboot_devdesc **)vdev;
+	int rv;
 
-	if (((rv = uboot_parsedev(dev, getenv("currdev"), NULL)) == 0) &&
-	    (path != NULL))
+	/*
+	 * If it looks like this is just a path and no
+	 * device, go with the current device.
+	 */
+	if ((devspec == NULL) || (devspec[0] == '/') ||
+	    (strchr(devspec, ':') == NULL)) {
+
+		if (((rv = uboot_parsedev(dev, getenv("currdev"), NULL)) == 0)
+		    && (path != NULL))
 		*path = devspec;
-	return(rv);
-    }
-    
-    /*
-     * Try to parse the device name off the beginning of the devspec
-     */
-    return(uboot_parsedev(dev, devspec, path));
+		return(rv);
+	}
+
+	/*
+	 * Try to parse the device name off the beginning of the devspec.
+	 */
+	return(uboot_parsedev(dev, devspec, path));
 }
 
 /*
@@ -79,159 +79,166 @@ uboot_getdev(void **vdev, const char *devspec, const char **path)
  * For disk-type devices, the syntax is:
  *
  * disk<unit>[s<slice>][<partition>]:
- * 
+ *
  */
 static int
-uboot_parsedev(struct uboot_devdesc **dev, const char *devspec, const char **path)
+uboot_parsedev(struct uboot_devdesc **dev, const char *devspec,
+    const char **path)
 {
-    struct uboot_devdesc *idev;
-    struct devsw	*dv;
-    int			i, unit, slice, partition, err;
-    char		*cp;
-    const char		*np;
+	struct uboot_devdesc *idev;
+	struct devsw	*dv;
+	char		*cp;
+	const char		*np;
+	int			 i, unit, slice, partition, err;
 
-    /* minimum length check */
-    if (strlen(devspec) < 2)
-	return(EINVAL);
+	/* minimum length check */
+	if (strlen(devspec) < 2)
+		return(EINVAL);
 
-    /* look for a device that matches */
-    for (i = 0, dv = NULL; devsw[i] != NULL; i++) {
-	if (!strncmp(devspec, devsw[i]->dv_name, strlen(devsw[i]->dv_name))) {
-	    dv = devsw[i];
-	    break;
-	}
-    }
-    if (dv == NULL)
-	return(ENOENT);
-    idev = malloc(sizeof(struct uboot_devdesc));
-    err = 0;
-    np = (devspec + strlen(dv->dv_name));
-        
-    switch(dv->dv_type) {
-    case DEVT_NONE:			/* XXX what to do here?  Do we care? */
-	break;
-
-    case DEVT_DISK:
-	unit = -1;
-	slice = -1;
-	partition = -1;
-	if (*np && (*np != ':')) {
-	    unit = strtol(np, &cp, 10);	/* next comes the unit number */
-	    if (cp == np) {
-		err = EUNIT;
-		goto fail;
-	    }
-	    if (*cp == 's') {		/* got a slice number */
-		np = cp + 1;
-		slice = strtol(np, &cp, 10);
-		if (cp == np) {
-		    err = ESLICE;
-		    goto fail;
+	/* look for a device that matches */
+	for (i = 0, dv = NULL; devsw[i] != NULL; i++) {
+		if (!strncmp(devspec, devsw[i]->dv_name,
+		    strlen(devsw[i]->dv_name))) {
+			dv = devsw[i];
+			break;
 		}
-	    }
-	    if (*cp && (*cp != ':')) {
-		partition = *cp - 'a';		/* get a partition number */
-		if ((partition < 0) || (partition >= MAXPARTITIONS)) {
-		    err = EPART;
-		    goto fail;
+	}
+	if (dv == NULL)
+		return(ENOENT);
+	idev = malloc(sizeof(struct uboot_devdesc));
+	err = 0;
+	np = (devspec + strlen(dv->dv_name));
+
+	switch(dv->dv_type) {
+	case DEVT_NONE:			/* XXX what to do here?  Do we care? */
+		break;
+
+	case DEVT_DISK:
+		unit = -1;
+		slice = -1;
+		partition = -1;
+		if (*np && (*np != ':')) {
+			/* next comes the unit number */
+			unit = strtol(np, &cp, 10);
+			if (cp == np) {
+				err = EUNIT;
+				goto fail;
+			}
+			if (*cp == 's') {		/* got a slice number */
+				np = cp + 1;
+				slice = strtol(np, &cp, 10);
+				if (cp == np) {
+					err = ESLICE;
+					goto fail;
+				}
+			}
+			if (*cp && (*cp != ':')) {
+				/* get a partition number */
+				partition = *cp - 'a';
+				if ((partition < 0) ||
+				    (partition >= MAXPARTITIONS)) {
+					err = EPART;
+					goto fail;
+				}
+				cp++;
+			}
 		}
-		cp++;
-	    }
-	}
-	if (*cp && (*cp != ':')) {
-	    err = EINVAL;
-	    goto fail;
-	}
-
-	idev->d_unit = unit;
-	idev->d_kind.disk.slice = slice;
-	idev->d_kind.disk.partition = partition;
-	if (path != NULL)
-	    *path = (*cp == 0) ? cp : cp + 1;
-	break;
-
-    case DEVT_NET:
-	unit = 0;
-
-	if (*np && (*np != ':')) {
-	    unit = strtol(np, &cp, 0);	/* get unit number if present */
-	    if (cp == np) {
-		err = EUNIT;
+		if (*cp && (*cp != ':')) {
+			err = EINVAL;
 		goto fail;
-	    }
+		}
+
+		idev->d_unit = unit;
+		idev->d_kind.disk.slice = slice;
+		idev->d_kind.disk.partition = partition;
+		if (path != NULL)
+			*path = (*cp == 0) ? cp : cp + 1;
+		break;
+
+	case DEVT_NET:
+		unit = 0;
+
+		if (*np && (*np != ':')) {
+			/* get unit number if present */
+			unit = strtol(np, &cp, 0);
+			if (cp == np) {
+				err = EUNIT;
+				goto fail;
+			}
+		}
+		if (*cp && (*cp != ':')) {
+			err = EINVAL;
+			goto fail;
+		}
+
+		if (dv->dv_type == DEVT_NET)
+			idev->d_unit = unit;
+
+		if (path != NULL)
+			*path = (*cp == 0) ? cp : cp + 1;
+		break;
+
+	default:
+		err = EINVAL;
+		goto fail;
 	}
-	if (*cp && (*cp != ':')) {
-	    err = EINVAL;
-	    goto fail;
+	idev->d_dev = dv;
+	idev->d_type = dv->dv_type;
+	if (dev == NULL) {
+		free(idev);
+	} else {
+		*dev = idev;
 	}
+	return(0);
 
-	if (dv->dv_type == DEVT_NET)
-	    idev->d_unit = unit;
-
-	if (path != NULL)
-	    *path = (*cp == 0) ? cp : cp + 1;
-	break;
-
-    default:
-	err = EINVAL;
-	goto fail;
-    }
-    idev->d_dev = dv;
-    idev->d_type = dv->dv_type;
-    if (dev == NULL) {
+fail:
 	free(idev);
-    } else {
-	*dev = idev;
-    }
-    return(0);
-
- fail:
-    free(idev);
-    return(err);
+	return(err);
 }
 
 
 char *
 uboot_fmtdev(void *vdev)
 {
-    struct uboot_devdesc *dev = (struct uboot_devdesc *)vdev;
-    static char	buf[128];	/* XXX device length constant? */
-    char *cp;
-    
-    switch(dev->d_type) {
-    case DEVT_NONE:
-	strcpy(buf, "(no device)");
-	break;
+	struct uboot_devdesc *dev = (struct uboot_devdesc *)vdev;
+	char *cp;
+	static char buf[128];	/* XXX device length constant? */
 
-    case DEVT_DISK:
-	cp = buf;
-	cp += sprintf(cp, "%s%d", dev->d_dev->dv_name, dev->d_unit);
-	if (dev->d_kind.disk.slice > 0)
-	    cp += sprintf(cp, "s%d", dev->d_kind.disk.slice);
-	if (dev->d_kind.disk.partition >= 0)
-	    cp += sprintf(cp, "%c", dev->d_kind.disk.partition + 'a');
-	strcat(cp, ":");
-	break;
+	switch(dev->d_type) {
+	case DEVT_NONE:
+		strcpy(buf, "(no device)");
+		break;
 
-    case DEVT_NET:
-	sprintf(buf, "%s%d:", dev->d_dev->dv_name, dev->d_unit);
-	break;
-    }
-    return(buf);
+	case DEVT_DISK:
+		cp = buf;
+		cp += sprintf(cp, "%s%d", dev->d_dev->dv_name, dev->d_unit);
+		if (dev->d_kind.disk.slice > 0)
+			cp += sprintf(cp, "s%d", dev->d_kind.disk.slice);
+		if (dev->d_kind.disk.partition >= 0)
+			cp += sprintf(cp, "%c", dev->d_kind.disk.partition +
+			    'a');
+		strcat(cp, ":");
+		break;
+
+	case DEVT_NET:
+		sprintf(buf, "%s%d:", dev->d_dev->dv_name, dev->d_unit);
+		break;
+	}
+	return(buf);
 }
 
 /*
- * Set currdev to suit the value being supplied in (value)
+ * Set currdev to suit the value being supplied in (value).
  */
 int
 uboot_setcurrdev(struct env_var *ev, int flags, const void *value)
 {
-    struct uboot_devdesc	*ncurr;
-    int			rv;
+	struct uboot_devdesc	*ncurr;
+	int			 rv;
 
-    if ((rv = uboot_parsedev(&ncurr, value, NULL)) != 0)
-	return(rv);
-    free(ncurr);
-    env_setenv(ev->ev_name, flags | EV_NOHOOK, value, NULL, NULL);
-    return(0);
+	if ((rv = uboot_parsedev(&ncurr, value, NULL)) != 0)
+		return(rv);
+	free(ncurr);
+	env_setenv(ev->ev_name, flags | EV_NOHOOK, value, NULL, NULL);
+	return(0);
 }

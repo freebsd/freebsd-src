@@ -63,9 +63,9 @@ int
 __elfN(uboot_exec)(struct preloaded_file *fp)
 {
 	struct file_metadata	*fmp;
-	vm_offset_t		mdp;
+	vm_offset_t		 mdp;
 	Elf_Ehdr		*e;
-	int			error;
+	int			 error;
 
 	if ((fmp = file_findmetadata(fp, MODINFOMD_ELFHDR)) == NULL) {
 		return (EFTYPE);
@@ -83,8 +83,7 @@ __elfN(uboot_exec)(struct preloaded_file *fp)
 	panic("exec returned");
 }
 
-struct file_format uboot_elf =
-{
+struct file_format uboot_elf = {
 	__elfN(uboot_load),
 	__elfN(uboot_exec)
 };

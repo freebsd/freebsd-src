@@ -40,8 +40,8 @@ ssize_t
 uboot_copyin(const void *src, vm_offset_t dest, const size_t len)
 {
 
-        bcopy(src, (void *)dest, len);
-        return (len);
+	bcopy(src, (void *)dest, len);
+	return (len);
 }
 
 ssize_t
