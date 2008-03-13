@@ -663,7 +663,7 @@ static int maxindirdeps = 50;	/* max number of indirdeps before slowdown */
 static int tickdelay = 2;	/* number of ticks to pause during slowdown */
 static int proc_waiting;	/* tracks whether we have a timeout posted */
 static int *stat_countp;	/* statistic to count in proc_waiting timeout */
-static struct callout_handle handle; /* handle on posted proc_waiting timeout */
+static struct callout softdep_callout;
 static int req_pending;
 static int req_clear_inodedeps;	/* syncer process flush some inodedeps */
 #define FLUSH_INODES		1
@@ -1393,6 +1393,9 @@ softdep_initialize()
 	bioops.io_complete = softdep_disk_write_complete;
 	bioops.io_deallocate = softdep_deallocate_dependencies;
 	bioops.io_countdeps = softdep_count_dependencies;
+
+	/* Initialize the callout with an mtx. */
+	callout_init_mtx(&softdep_callout, &lk, 0);
 }
 
 /*
@@ -1403,6 +1406,7 @@ void
 softdep_uninitialize()
 {
 
+	callout_drain(&softdep_callout);
 	hashdestroy(pagedep_hashtbl, M_PAGEDEP, pagedep_hash);
 	hashdestroy(inodedep_hashtbl, M_INODEDEP, inodedep_hash);
 	hashdestroy(newblk_hashtbl, M_NEWBLK, newblk_hash);
@@ -5857,8 +5861,10 @@ request_cleanup(mp, resource)
 	 * We wait at most tickdelay before proceeding in any case.
 	 */
 	proc_waiting += 1;
-	if (handle.callout == NULL)
-		handle = timeout(pause_timer, 0, tickdelay > 2 ? tickdelay : 2);
+	if (callout_pending(&softdep_callout) == FALSE)
+		callout_reset(&softdep_callout, tickdelay > 2 ? tickdelay : 2,
+		    pause_timer, 0);
+
 	msleep((caddr_t)&proc_waiting, &lk, PPAUSE, "softupdate", 0);
 	proc_waiting -= 1;
 	return (1);
@@ -5873,14 +5879,15 @@ pause_timer(arg)
 	void *arg;
 {
 
-	ACQUIRE_LOCK(&lk);
+	/*
+	 * The callout_ API has acquired mtx and will hold it around this
+	 * function call.
+	 */
 	*stat_countp += 1;
 	wakeup_one(&proc_waiting);
 	if (proc_waiting > 0)
-		handle = timeout(pause_timer, 0, tickdelay > 2 ? tickdelay : 2);
-	else
-		handle.callout = NULL;
-	FREE_LOCK(&lk);
+		callout_reset(&softdep_callout, tickdelay > 2 ? tickdelay : 2,
+		    pause_timer, 0);
 }
 
 /*
