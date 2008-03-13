@@ -60,6 +60,9 @@
 #include <machine/sapicvar.h>
 #include <machine/vmparam.h>
 
+#include <contrib/dev/acpica/acpi.h>
+#include <dev/acpica/acpivar.h>
+
 #include <isa/isareg.h>
 #include <sys/rtprio.h>
 
@@ -217,12 +220,15 @@ nexus_probe(device_t dev)
 static int
 nexus_attach(device_t dev)
 {
+
 	/*
 	 * Mask the legacy PICs - we will use the I/O SAPIC for interrupt.
 	 */
 	outb(IO_ICU1+1, 0xff);
 	outb(IO_ICU2+1, 0xff);
 
+	if (acpi_identify() == 0)
+		BUS_ADD_CHILD(dev, 10, "acpi", 0);
 	bus_generic_attach(dev);
 	return 0;
 }
