@@ -246,7 +246,7 @@ static void xl_init(void *);
 static void xl_init_locked(struct xl_softc *);
 static void xl_stop(struct xl_softc *);
 static int xl_watchdog(struct xl_softc *);
-static void xl_shutdown(device_t);
+static int xl_shutdown(device_t);
 static int xl_suspend(device_t);
 static int xl_resume(device_t);
 
@@ -3344,7 +3344,7 @@ xl_stop(struct xl_softc *sc)
  * Stop all chip I/O so that the kernel's probe routines don't
  * get confused by errant DMAs when rebooting.
  */
-static void
+static int
 xl_shutdown(device_t dev)
 {
 	struct xl_softc		*sc;
@@ -3355,6 +3355,8 @@ xl_shutdown(device_t dev)
 	xl_reset(sc);
 	xl_stop(sc);
 	XL_UNLOCK(sc);
+
+	return (0);
 }
 
 static int

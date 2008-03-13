@@ -224,7 +224,7 @@ static const char *model_name[] = {
 static int mskc_probe(device_t);
 static int mskc_attach(device_t);
 static int mskc_detach(device_t);
-static void mskc_shutdown(device_t);
+static int mskc_shutdown(device_t);
 static int mskc_setup_rambuffer(struct msk_softc *);
 static int mskc_suspend(device_t);
 static int mskc_resume(device_t);
@@ -2918,7 +2918,7 @@ msk_watchdog(struct msk_if_softc *sc_if)
 		taskqueue_enqueue(taskqueue_fast, &sc_if->msk_tx_task);
 }
 
-static void
+static int
 mskc_shutdown(device_t dev)
 {
 	struct msk_softc *sc;
@@ -2941,6 +2941,7 @@ mskc_shutdown(device_t dev)
 	CSR_WRITE_2(sc, B0_CTST, CS_RST_SET);
 
 	MSK_UNLOCK(sc);
+	return (0);
 }
 
 static int

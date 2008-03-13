@@ -98,7 +98,7 @@ static void bfe_init				(void *);
 static void bfe_init_locked			(void *);
 static void bfe_stop				(struct bfe_softc *);
 static void bfe_watchdog			(struct ifnet *);
-static void bfe_shutdown			(device_t);
+static int  bfe_shutdown			(device_t);
 static void bfe_tick				(void *);
 static void bfe_txeof				(struct bfe_softc *);
 static void bfe_rxeof				(struct bfe_softc *);
@@ -470,7 +470,7 @@ bfe_detach(device_t dev)
  * Stop all chip I/O so that the kernel's probe routines don't
  * get confused by errant DMAs when rebooting.
  */
-static void
+static int
 bfe_shutdown(device_t dev)
 {
 	struct bfe_softc *sc;
@@ -480,7 +480,8 @@ bfe_shutdown(device_t dev)
 	bfe_stop(sc);
 
 	BFE_UNLOCK(sc);
-	return;
+
+	return (0);
 }
 
 static int

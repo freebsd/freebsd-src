@@ -195,7 +195,7 @@ static void ti_init_locked(void *);
 static void ti_init2(struct ti_softc *);
 static void ti_stop(struct ti_softc *);
 static void ti_watchdog(struct ifnet *);
-static void ti_shutdown(device_t);
+static int ti_shutdown(device_t);
 static int ti_ifmedia_upd(struct ifnet *);
 static void ti_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 
@@ -3875,7 +3875,7 @@ ti_stop(sc)
  * Stop all chip I/O so that the kernel's probe routines don't
  * get confused by errant DMAs when rebooting.
  */
-static void
+static int
 ti_shutdown(dev)
 	device_t		dev;
 {
@@ -3885,4 +3885,6 @@ ti_shutdown(dev)
 	TI_LOCK(sc);
 	ti_chipinit(sc);
 	TI_UNLOCK(sc);
+
+	return (0);
 }
