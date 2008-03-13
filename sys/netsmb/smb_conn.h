@@ -252,7 +252,6 @@ struct smb_vc {
 	uid_t		vc_uid;		/* user id of connection */
 	gid_t		vc_grp;		/* group of connection */
 	mode_t		vc_mode;	/* access mode */
-	struct tnode *	vc_tnode;	/* backing object */
 	u_short		vc_smbuid;	/* unique vc id assigned by server */
 
 	u_char		vc_hflags;	/* or'ed with flags in the smb header */
