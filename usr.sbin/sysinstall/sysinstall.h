@@ -471,16 +471,9 @@ extern DMenu		MenuDiskDevices;	/* Disk type devices				*/
 extern DMenu		MenuSubDistributions;	/* Custom distribution menu			*/
 extern DMenu		MenuSrcDistributions;	/* Source distribution menu			*/
 extern DMenu		MenuKernelDistributions;/* Kernel distribution menu			*/
-extern DMenu		MenuXOrg;		/* X.Org main menu				*/
-extern DMenu		MenuXOrgSelect;		/* X.Org distribution selection menu		*/
-extern DMenu		MenuXOrgSelectCore;	/* X.Org core distribution menu			*/
-extern DMenu		MenuXOrgSelectServer;	/* X.Org server distribution menu		*/
-extern DMenu		MenuXOrgSelectFonts;	/* X.Org font selection menu			*/
-extern DMenu		MenuXDesktops;		/* X Desktops menu				*/
 extern DMenu		MenuHTMLDoc;		/* HTML Documentation menu			*/
 extern DMenu		MenuUsermgmt;		/* User management menu				*/
 extern DMenu		MenuFixit;		/* Fixit floppy/CDROM/shell menu		*/
-extern DMenu		MenuXOrgConfig;		/* Select X.Org configuration tool		*/
 extern int              FixItMode;              /* FixItMode starts shell onc urrent device (ie Serial port) */
 extern const char *	StartName;		/* Which name we were started as */
 extern int		NCpus;			/* # cpus on machine */
@@ -610,7 +603,6 @@ extern int	distSetXUser(dialogMenuItem *self);
 extern int	distSetMinimum(dialogMenuItem *self);
 extern int	distSetEverything(dialogMenuItem *self);
 extern int	distSetSrc(dialogMenuItem *self);
-extern int	distSetXOrg(dialogMenuItem *self);
 extern int	distSetKernel(dialogMenuItem *self);
 extern int	distExtractAll(dialogMenuItem *self);
 extern int	selectKernel(void);
