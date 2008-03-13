@@ -29,9 +29,13 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/bus.h>
+#include <sys/kernel.h>
+#include <sys/module.h>
 
 #include <contrib/dev/acpica/acpi.h>
 #include <dev/acpica/acpivar.h>
+
+#include <machine/nexusvar.h>
 
 static int intr_model = ACPI_INTR_PIC;
 
@@ -67,3 +71,43 @@ acpi_cpu_c1()
 {
 	__asm __volatile("sti; hlt");
 }
+
+/*
+ * ACPI nexus(4) driver.
+ */
+static int
+nexus_acpi_probe(device_t dev)
+{
+	int error;
+
+	error = acpi_identify();
+	if (error)
+		return (error);
+
+	return (BUS_PROBE_DEFAULT);
+}
+
+static int
+nexus_acpi_attach(device_t dev)
+{
+
+	nexus_init_resources();
+	bus_generic_probe(dev);
+	if (BUS_ADD_CHILD(dev, 10, "acpi", 0) == NULL)
+		panic("failed to add acpi0 device");
+
+	return (bus_generic_attach(dev));
+}
+
+static device_method_t nexus_acpi_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		nexus_acpi_probe),
+	DEVMETHOD(device_attach,	nexus_acpi_attach),
+
+	{ 0, 0 }
+};
+
+DEFINE_CLASS_1(nexus, nexus_acpi_driver, nexus_acpi_methods, 1, nexus_driver);
+static devclass_t nexus_devclass;
+
+DRIVER_MODULE(nexus_acpi, root, nexus_acpi_driver, nexus_devclass, 0, 0);

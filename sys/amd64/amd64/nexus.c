@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/pmap.h>
 
 #include <machine/metadata.h>
+#include <machine/nexusvar.h>
 #include <machine/resource.h>
 #include <machine/pc/bios.h>
 
@@ -73,13 +74,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/rtprio.h>
 
 static MALLOC_DEFINE(M_NEXUSDEV, "nexusdev", "Nexus device");
-struct nexus_device {
-	struct resource_list	nx_resources;
-};
 
 #define DEVTONX(dev)	((struct nexus_device *)device_get_ivars(dev))
 
-static struct rman irq_rman, drq_rman, port_rman, mem_rman;
+struct rman irq_rman, drq_rman, port_rman, mem_rman;
 
 static	int nexus_probe(device_t);
 static	int nexus_attach(device_t);
@@ -146,11 +144,7 @@ static device_method_t nexus_methods[] = {
 	{ 0, 0 }
 };
 
-static driver_t nexus_driver = {
-	"nexus",
-	nexus_methods,
-	1,			/* no softc */
-};
+DEFINE_CLASS_0(nexus, nexus_driver, nexus_methods, 1);
 static devclass_t nexus_devclass;
 
 DRIVER_MODULE(nexus, root, nexus_driver, nexus_devclass, 0, 0);
@@ -158,9 +152,15 @@ DRIVER_MODULE(nexus, root, nexus_driver, nexus_devclass, 0, 0);
 static int
 nexus_probe(device_t dev)
 {
-	int irq;
 
 	device_quiet(dev);	/* suppress attach message for neatness */
+	return (BUS_PROBE_GENERIC);
+}
+  
+void
+nexus_init_resources(void)
+{
+	int irq;
 
 	/* 
 	 * XXX working notes:
@@ -185,7 +185,7 @@ nexus_probe(device_t dev)
 	irq_rman.rm_descr = "Interrupt request lines";
 	irq_rman.rm_end = NUM_IO_INTS - 1;
 	if (rman_init(&irq_rman))
-		panic("nexus_probe irq_rman");
+		panic("nexus_init_resources irq_rman");
 
 	/*
 	 * We search for regions of existing IRQs and add those to the IRQ
@@ -194,7 +194,7 @@ nexus_probe(device_t dev)
 	for (irq = 0; irq < NUM_IO_INTS; irq++)
 		if (intr_lookup_source(irq) != NULL)
 			if (rman_manage_region(&irq_rman, irq, irq) != 0)
-				panic("nexus_probe irq_rman add");
+				panic("nexus_init_resources irq_rman add");
 
 	/*
 	 * ISA DMA on PCI systems is implemented in the ISA part of each
@@ -209,7 +209,7 @@ nexus_probe(device_t dev)
 	if (rman_init(&drq_rman)
 	    || rman_manage_region(&drq_rman,
 				  drq_rman.rm_start, drq_rman.rm_end))
-		panic("nexus_probe drq_rman");
+		panic("nexus_init_resources drq_rman");
 
 	/*
 	 * However, IO ports and Memory truely are global at this level,
@@ -222,7 +222,7 @@ nexus_probe(device_t dev)
 	port_rman.rm_descr = "I/O ports";
 	if (rman_init(&port_rman)
 	    || rman_manage_region(&port_rman, 0, 0xffff))
-		panic("nexus_probe port_rman");
+		panic("nexus_init_resources port_rman");
 
 	mem_rman.rm_start = 0;
 	mem_rman.rm_end = ~0u;
@@ -230,16 +230,23 @@ nexus_probe(device_t dev)
 	mem_rman.rm_descr = "I/O memory addresses";
 	if (rman_init(&mem_rman)
 	    || rman_manage_region(&mem_rman, 0, ~0))
-		panic("nexus_probe mem_rman");
-
-	return 0;
+		panic("nexus_init_resources mem_rman");
 }
 
 static int
 nexus_attach(device_t dev)
 {
 
+	nexus_init_resources();
 	bus_generic_probe(dev);
+
+	/*
+	 * Explicitly add the legacy0 device here.  Other platform
+	 * types (such as ACPI), use their own nexus(4) subclass
+	 * driver to override this routine and add their own root bus.
+	 */
+	if (BUS_ADD_CHILD(dev, 10, "legacy", 0) == NULL)
+		panic("legacy: could not attach");
 	bus_generic_attach(dev);
 	return 0;
 }

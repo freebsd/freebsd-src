@@ -91,7 +91,6 @@ struct mtx	acpi_mutex;
 int		acpi_quirks;
 
 static int	acpi_modevent(struct module *mod, int event, void *junk);
-static void	acpi_identify(driver_t *driver, device_t parent);
 static int	acpi_probe(device_t dev);
 static int	acpi_attach(device_t dev);
 static int	acpi_suspend(device_t dev);
@@ -156,7 +155,6 @@ static int	acpi_child_pnpinfo_str_method(device_t acdev, device_t child,
 
 static device_method_t acpi_methods[] = {
     /* Device interface */
-    DEVMETHOD(device_identify,		acpi_identify),
     DEVMETHOD(device_probe,		acpi_probe),
     DEVMETHOD(device_attach,		acpi_attach),
     DEVMETHOD(device_shutdown,		acpi_shutdown),
@@ -218,6 +216,9 @@ static struct rman acpi_rman_io, acpi_rman_mem;
 
 static const char* sleep_state_names[] = {
     "S0", "S1", "S2", "S3", "S4", "S5", "NONE"};
+
+/* Holds the description of the acpi0 device. */
+static char acpi_desc[ACPI_OEM_ID_SIZE + ACPI_OEM_TABLE_ID_SIZE + 2];
 
 SYSCTL_NODE(_debug, OID_AUTO, acpi, CTLFLAG_RD, NULL, "ACPI debugging");
 static char acpi_ca_version[12];
@@ -316,39 +317,62 @@ acpi_Startup(void)
 }
 
 /*
- * Detect ACPI, perform early initialisation
+ * Detect ACPI and perform early initialisation.
  */
-static void
-acpi_identify(driver_t *driver, device_t parent)
+int
+acpi_identify(void)
 {
-    device_t	child;
+    ACPI_TABLE_RSDP	*rsdp;
+    ACPI_TABLE_HEADER	*rsdt;
+    ACPI_PHYSICAL_ADDRESS paddr;
+    struct sbuf		sb;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
     if (!cold)
-	return_VOID;
+	return (ENXIO);
 
     /* Check that we haven't been disabled with a hint. */
     if (resource_disabled("acpi", 0))
-	return_VOID;
+	return (ENXIO);
 
-    /* Make sure we're not being doubly invoked. */
-    if (device_find_child(parent, "acpi", 0) != NULL)
-	return_VOID;
-
-    snprintf(acpi_ca_version, sizeof(acpi_ca_version), "%x", ACPI_CA_VERSION);
+    /* Check for other PM systems. */
+    if (power_pm_get_type() != POWER_PM_TYPE_NONE &&
+	power_pm_get_type() != POWER_PM_TYPE_ACPI) {
+	printf("ACPI identify failed, other PM system enabled.\n");
+	return (ENXIO);
+    }
 
     /* Initialize root tables. */
     if (ACPI_FAILURE(acpi_Startup())) {
 	printf("ACPI: Try disabling either ACPI or apic support.\n");
-	return_VOID;
+	return (ENXIO);
     }
 
-    /* Attach the actual ACPI device. */
-    if ((child = BUS_ADD_CHILD(parent, 10, "acpi", 0)) == NULL) {
-	device_printf(parent, "device_identify failed\n");
-	return_VOID;
-    }
+    if ((paddr = AcpiOsGetRootPointer()) == 0 ||
+	(rsdp = AcpiOsMapMemory(paddr, sizeof(ACPI_TABLE_RSDP))) == NULL)
+	return (ENXIO);
+    if (rsdp->Revision > 1 && rsdp->XsdtPhysicalAddress != 0)
+	paddr = (ACPI_PHYSICAL_ADDRESS)rsdp->XsdtPhysicalAddress;
+    else
+	paddr = (ACPI_PHYSICAL_ADDRESS)rsdp->RsdtPhysicalAddress;
+    AcpiOsUnmapMemory(rsdp, sizeof(ACPI_TABLE_RSDP));
+
+    if ((rsdt = AcpiOsMapMemory(paddr, sizeof(ACPI_TABLE_HEADER))) == NULL)
+	return (ENXIO);
+    sbuf_new(&sb, acpi_desc, sizeof(acpi_desc), SBUF_FIXEDLEN);
+    sbuf_bcat(&sb, rsdt->OemId, ACPI_OEM_ID_SIZE);
+    sbuf_trim(&sb);
+    sbuf_putc(&sb, ' ');
+    sbuf_bcat(&sb, rsdt->OemTableId, ACPI_OEM_TABLE_ID_SIZE);
+    sbuf_trim(&sb);
+    sbuf_finish(&sb);
+    sbuf_delete(&sb);
+    AcpiOsUnmapMemory(rsdt, sizeof(ACPI_TABLE_HEADER));
+
+    snprintf(acpi_ca_version, sizeof(acpi_ca_version), "%x", ACPI_CA_VERSION);
+
+    return (0);
 }
 
 /*
@@ -357,41 +381,10 @@ acpi_identify(driver_t *driver, device_t parent)
 static int
 acpi_probe(device_t dev)
 {
-    ACPI_TABLE_RSDP	*rsdp;
-    ACPI_TABLE_HEADER	*rsdt;
-    ACPI_PHYSICAL_ADDRESS paddr;
-    char		buf[ACPI_OEM_ID_SIZE + ACPI_OEM_TABLE_ID_SIZE + 2];
-    struct sbuf		sb;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
-    if (power_pm_get_type() != POWER_PM_TYPE_NONE &&
-	power_pm_get_type() != POWER_PM_TYPE_ACPI) {
-	device_printf(dev, "probe failed, other PM system enabled.\n");
-	return_VALUE (ENXIO);
-    }
-
-    if ((paddr = AcpiOsGetRootPointer()) == 0 ||
-	(rsdp = AcpiOsMapMemory(paddr, sizeof(ACPI_TABLE_RSDP))) == NULL)
-	return_VALUE (ENXIO);
-    if (rsdp->Revision > 1 && rsdp->XsdtPhysicalAddress != 0)
-	paddr = (ACPI_PHYSICAL_ADDRESS)rsdp->XsdtPhysicalAddress;
-    else
-	paddr = (ACPI_PHYSICAL_ADDRESS)rsdp->RsdtPhysicalAddress;
-    AcpiOsUnmapMemory(rsdp, sizeof(ACPI_TABLE_RSDP));
-
-    if ((rsdt = AcpiOsMapMemory(paddr, sizeof(ACPI_TABLE_HEADER))) == NULL)
-	return_VALUE (ENXIO);
-    sbuf_new(&sb, buf, sizeof(buf), SBUF_FIXEDLEN);
-    sbuf_bcat(&sb, rsdt->OemId, ACPI_OEM_ID_SIZE);
-    sbuf_trim(&sb);
-    sbuf_putc(&sb, ' ');
-    sbuf_bcat(&sb, rsdt->OemTableId, ACPI_OEM_TABLE_ID_SIZE);
-    sbuf_trim(&sb);
-    sbuf_finish(&sb);
-    device_set_desc_copy(dev, sbuf_data(&sb));
-    sbuf_delete(&sb);
-    AcpiOsUnmapMemory(rsdt, sizeof(ACPI_TABLE_HEADER));
+    device_set_desc(dev, acpi_desc);
 
     return_VALUE (0);
 }
