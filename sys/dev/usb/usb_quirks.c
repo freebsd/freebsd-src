@@ -94,6 +94,8 @@ static const struct usbd_quirk_entry {
  /* Devices which should be ignored by uhid */
  { USB_VENDOR_APC, USB_PRODUCT_APC_UPS,
 	ANY, { UQ_HID_IGNORE }},
+ { USB_VENDOR_ASUS, USB_PRODUCT_ASUS_LCM,
+	ANY, { UQ_HID_IGNORE }},
  { USB_VENDOR_BELKIN, USB_PRODUCT_BELKIN_F6C550AVR,
 	ANY, { UQ_HID_IGNORE }},
  { USB_VENDOR_DELORME, USB_PRODUCT_DELORME_EARTHMATE,

@@ -872,6 +872,7 @@ product ASUS WL159G		0x170c	WL-159g
 product ASUS A9T_WIFI		0x171b	A9T wireless
 product ASUS RT2573_1		0x1723	RT2573
 product ASUS RT2573_2		0x1724	RT2573
+product ASUS LCM		0x1726	LCM display
 
 /* ATen products */
 product ATEN UC1284		0x2001	Parallel printer
