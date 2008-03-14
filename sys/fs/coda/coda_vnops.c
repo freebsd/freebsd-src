@@ -77,9 +77,7 @@ __FBSDID("$FreeBSD$");
  */
 static int coda_attr_cache = 1;		/* Set to cache attributes. */
 static int coda_symlink_cache = 1;	/* Set to cache symbolic links. */
-#if 0
 static int coda_access_cache = 1;	/* Set to cache some access checks. */
-#endif
 
 /*
  * Structure to keep track of vfs calls.
@@ -588,7 +586,7 @@ coda_setattr(struct vop_setattr_args *ap)
 		coda_print_vattr(vap);
 	error = venus_setattr(vtomi(vp), &cp->c_fid, vap, cred, td->td_proc);
 	if (!error)
-		cp->c_flags &= ~C_VATTR;
+		cp->c_flags &= ~(C_VATTR | C_ACCCACHE);
 
 	/*
 	 * XXX: Since we now share vm objects between layers, this is
@@ -615,6 +613,7 @@ coda_access(struct vop_access_args *ap)
 	struct ucred *cred = ap->a_cred;
 	struct thread *td = ap->a_td;
 	/* locals */
+	int error;
 
 	MARK_ENTRY(CODA_ACCESS_STATS);
 
@@ -632,16 +631,41 @@ coda_access(struct vop_access_args *ap)
 	}
 
 	/*
-	 * XXXRW: We should add an actual access cache here, similar to the
-	 * one found in NFS, the Linux Coda module, etc.
-	 *
-	 * In principle it could be as simple as caching the uid and granted
-	 * access mode (as in NFS), but we also need invalidation.  The Coda
-	 * module on Linux does this using a global generation number which
-	 * is bumped on an access control cache flush, whereas NFS does it
-	 * with a timeout.
+	 * We maintain a one-entry LRU positive access cache with each cnode.
+	 * In principle we could also track negative results, and for more
+	 * than one uid, but we don't yet.  Venus is responsible for
+	 * invalidating this cache as required.
 	 */
-	return (venus_access(vtomi(vp), &cp->c_fid, mode, cred, td->td_proc));
+	if (coda_access_cache && VALID_ACCCACHE(cp) &&
+	    (cred->cr_uid == cp->c_cached_uid) &&
+	    (mode & cp->c_cached_mode) == mode) {
+		MARK_INT_SAT(CODA_ACCESS_STATS);
+		return (0);
+	}
+	error = venus_access(vtomi(vp), &cp->c_fid, mode, cred, td->td_proc);
+	if (error == 0 && coda_access_cache) {
+		/*-
+		 * When we have a new successful request, we consider three
+		 * cases:
+		 *
+		 * - No initialized access cache, in which case cache the
+		 *   result.
+		 * - Cached result for a different user, in which case we
+		 *   replace the entry.
+		 * - Cached result for the same user, in which case we add
+		 *   any newly granted rights to the cached mode.
+		 *
+		 * XXXRW: If we ever move to something more interesting than
+		 * uid-based token lookup, we'll need to change this.
+		 */
+		cp->c_flags |= C_ACCCACHE;
+		if (cp->c_cached_uid != cred->cr_uid) {
+			cp->c_cached_mode = mode;
+			cp->c_cached_uid = cred->cr_uid;
+		} else
+			cp->c_cached_mode |= mode;
+	}
+	return (error);
 }
 
 int
@@ -1112,7 +1136,7 @@ coda_remove(struct vop_remove_args *ap)
 	 * changed, so invalidate its attr cache also.
 	 */
 	VTOC(dvp)->c_flags &= ~C_VATTR;
-	VTOC(vp)->c_flags &= ~C_VATTR;
+	VTOC(vp)->c_flags &= ~(C_VATTR | C_ACCCACHE);
 	error = venus_remove(vtomi(dvp), &cp->c_fid, nm, len, cred,
 	    td->td_proc);
 	cache_purge(vp);
@@ -1172,6 +1196,8 @@ int
 coda_rename(struct vop_rename_args *ap)
 {
 	/* true args */
+	struct vnode *fvp = ap->a_fvp;
+	struct vnode *tvp = ap->a_tvp;
 	struct vnode *odvp = ap->a_fdvp;
 	struct cnode *odcp = VTOC(odvp);
 	struct componentname  *fcnp = ap->a_fcnp;
@@ -1216,11 +1242,13 @@ coda_rename(struct vop_rename_args *ap)
 	cache_purge(ndvp);
 
 	/*
-	 * Invalidate the parent's attr cache, the modification time has
+	 * Invalidate parent directories as modification times have changed.
+	 * Invalidate access cache on renamed file as rights may have
 	 * changed.
 	 */
 	VTOC(odvp)->c_flags &= ~C_VATTR;
 	VTOC(ndvp)->c_flags &= ~C_VATTR;
+	VTOC(fvp)->c_flags &= ~C_ACCCACHE;
 	if (flen+1 > CODA_MAXNAMLEN) {
 		MARK_INT_FAIL(CODA_RENAME_STATS);
 		error = EINVAL;
@@ -1237,23 +1265,25 @@ exit:
 	CODADEBUG(CODA_RENAME, myprintf(("in rename result %d\n",error)););
 
 	/*
-	 * XXX - do we need to call cache pureg on the moved vnode?
+	 * Update namecache to reflect that the names of various objects may
+	 * have changed (or gone away entirely).
 	 */
-	cache_purge(ap->a_fvp);
+	cache_purge(fvp);
+	cache_purge(tvp);
 
 	/*
 	 * Release parents first, then children.
 	 */
 	vrele(odvp);
-	if (ap->a_tvp) {
-		if (ap->a_tvp == ndvp)
+	if (tvp) {
+		if (tvp == ndvp)
 			vrele(ndvp);
 		else
 			vput(ndvp);
-		vput(ap->a_tvp);
+		vput(tvp);
 	} else
 		vput(ndvp);
-	vrele(ap->a_fvp);
+	vrele(fvp);
 	return (error);
 }
 
