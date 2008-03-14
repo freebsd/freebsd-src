@@ -528,7 +528,7 @@ struct cpu_search {
 	for ((cpu) = 0; (cpu) < sizeof((mask)) * 8; (cpu)++)	\
 		if ((mask) & 1 << (cpu))
 
-__inline int cpu_search(struct cpu_group *cg, struct cpu_search *low,
+static __inline int cpu_search(struct cpu_group *cg, struct cpu_search *low,
     struct cpu_search *high, const int match);
 int cpu_search_lowest(struct cpu_group *cg, struct cpu_search *low);
 int cpu_search_highest(struct cpu_group *cg, struct cpu_search *high);
@@ -576,7 +576,7 @@ cpu_compare(int cpu, struct cpu_search *low, struct cpu_search *high,
  * match argument.  It is reduced to the minimum set for each case.  It is
  * also recursive to the depth of the tree.
  */
-static inline int
+static __inline int
 cpu_search(struct cpu_group *cg, struct cpu_search *low,
     struct cpu_search *high, const int match)
 {
