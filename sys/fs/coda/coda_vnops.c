@@ -70,7 +70,6 @@ __FBSDID("$FreeBSD$");
 #include <fs/coda/coda_venus.h>
 #include <fs/coda/coda_opstats.h>
 #include <fs/coda/coda_subr.h>
-#include <fs/coda/coda_namecache.h>
 #include <fs/coda/coda_pioctl.h>
 
 /*
@@ -78,7 +77,9 @@ __FBSDID("$FreeBSD$");
  */
 static int coda_attr_cache = 1;		/* Set to cache attributes. */
 static int coda_symlink_cache = 1;	/* Set to cache symbolic links. */
+#if 0
 static int coda_access_cache = 1;	/* Set to cache some access checks. */
+#endif
 
 /*
  * Structure to keep track of vfs calls.
@@ -112,7 +113,8 @@ static int coda_lockdebug = 0;
  */
 struct vop_vector coda_vnodeops = {
 	.vop_default = &default_vnodeops,
-	.vop_lookup = coda_lookup,		/* lookup */
+	.vop_cachedlookup = coda_lookup,	/* uncached lookup */
+	.vop_lookup = vfs_cache_lookup,		/* namecache lookup */
 	.vop_create = coda_create,		/* create */
 	.vop_open = coda_open,			/* open */
 	.vop_close = coda_close,		/* close */
@@ -613,7 +615,6 @@ coda_access(struct vop_access_args *ap)
 	struct ucred *cred = ap->a_cred;
 	struct thread *td = ap->a_td;
 	/* locals */
-	int error;
 
 	MARK_ENTRY(CODA_ACCESS_STATS);
 
@@ -631,20 +632,16 @@ coda_access(struct vop_access_args *ap)
 	}
 
 	/*
-	 * if the file is a directory, and we are checking exec (eg lookup)
-	 * access, and the file is in the namecache, then the user must have
-	 * lookup access to it.
+	 * XXXRW: We should add an actual access cache here, similar to the
+	 * one found in NFS, the Linux Coda module, etc.
+	 *
+	 * In principle it could be as simple as caching the uid and granted
+	 * access mode (as in NFS), but we also need invalidation.  The Coda
+	 * module on Linux does this using a global generation number which
+	 * is bumped on an access control cache flush, whereas NFS does it
+	 * with a timeout.
 	 */
-	if (coda_access_cache) {
-		if ((vp->v_type == VDIR) && (mode & VEXEC)) {
-			if (coda_nc_lookup(cp, ".", 1, cred)) {
-				MARK_INT_SAT(CODA_ACCESS_STATS);
-				return (0);
-			}
-		}
-	}
-	error = venus_access(vtomi(vp), &cp->c_fid, mode, cred, td->td_proc);
-	return (error);
+	return (venus_access(vtomi(vp), &cp->c_fid, mode, cred, td->td_proc));
 }
 
 int
@@ -841,7 +838,7 @@ coda_inactive(struct vop_inactive_args *ap)
  * In FreeBSD, lookup returns the vnode locked.
  */
 int
-coda_lookup(struct vop_lookup_args *ap)
+coda_lookup(struct vop_cachedlookup_args *ap)
 {
 	/* true args */
 	struct vnode *dvp = ap->a_dvp;
@@ -886,46 +883,28 @@ coda_lookup(struct vop_lookup_args *ap)
 		goto exit;
 	}
 
-	/*
-	 * First try to look the file up in the cfs name cache.
-	 *
-	 * XXX: lock the parent vnode?
-	 */
-	cp = coda_nc_lookup(dcp, nm, len, cred);
-	if (cp) {
-		*vpp = CTOV(cp);
-		vref(*vpp);
-		CODADEBUG(CODA_LOOKUP, myprintf(("lookup result %d vpp %p\n",
-		    error,*vpp)););
+	error = venus_lookup(vtomi(dvp), &dcp->c_fid, nm, len, cred,
+	    td->td_proc, &VFid, &vtype);
+	if (error) {
+		MARK_INT_FAIL(CODA_LOOKUP_STATS);
+		CODADEBUG(CODA_LOOKUP, myprintf(("lookup error on %s "
+		    "(%s)%d\n", coda_f2s(&dcp->c_fid), nm, error)););
+		*vpp = NULL;
 	} else {
-		/*
-		 * The name wasn't cached, so we need to contact Venus.
-		 */
-		error = venus_lookup(vtomi(dvp), &dcp->c_fid, nm, len, cred,
-		    td->td_proc, &VFid, &vtype);
-		if (error) {
-			MARK_INT_FAIL(CODA_LOOKUP_STATS);
-			CODADEBUG(CODA_LOOKUP, myprintf(("lookup error on "
-			    "%s (%s)%d\n", coda_f2s(&dcp->c_fid), nm,
-			    error)););
-			*vpp = NULL;
-		} else {
-			MARK_INT_SAT(CODA_LOOKUP_STATS);
-			CODADEBUG(CODA_LOOKUP, myprintf(("lookup: %s type %o "
-			    "result %d\n", coda_f2s(&VFid), vtype, error)););
-	    		cp = make_coda_node(&VFid, dvp->v_mount, vtype);
-	    		*vpp = CTOV(cp);
+		MARK_INT_SAT(CODA_LOOKUP_STATS);
+		CODADEBUG(CODA_LOOKUP, myprintf(("lookup: %s type %o "
+		    "result %d\n", coda_f2s(&VFid), vtype, error)););
+		cp = make_coda_node(&VFid, dvp->v_mount, vtype);
+    		*vpp = CTOV(cp);
 
-	    		/*
-			 * Enter the new vnode in the Name Cache only if the
-			 * top bit isn't set.
-			 *
-			 * And don't enter a new vnode for an invalid one!
-			 */
-			if (!(vtype & CODA_NOCACHE))
-				coda_nc_enter(VTOC(dvp), nm, len, cred,
-				    VTOC(*vpp));
-		}
+    		/*
+		 * Enter the new vnode in the namecache only if the top bit
+		 * isn't set.
+		 *
+		 * And don't enter a new vnode for an invalid one!
+		 */
+		if (!(vtype & CODA_NOCACHE) && (cnp->cn_flags & MAKEENTRY))
+			cache_enter(dvp, *vpp, cnp);
 	}
 exit:
 	/*
@@ -1066,11 +1045,7 @@ coda_create(struct vop_create_args *ap)
 		 * has changed.
 		 */
 		VTOC(dvp)->c_flags &= ~C_VATTR;
-
-		/*
-		 * Enter the new vnode in the Name Cache.
-		 */
-		coda_nc_enter(VTOC(dvp), nm, len, cred, VTOC(*vpp));
+		cache_enter(dvp, *vpp, cnp);
 		CODADEBUG(CODA_CREATE, myprintf(("create: %s, result %d\n",
 		    coda_f2s(&VFid), error)););
 	} else {
@@ -1079,12 +1054,23 @@ coda_create(struct vop_create_args *ap)
 		    error)););
 	}
 	if (!error) {
+		if (cnp->cn_flags & MAKEENTRY)
+			cache_enter(dvp, *vpp, cnp);
 		if (cnp->cn_flags & LOCKLEAF)
 			vn_lock(*ap->a_vpp, LK_EXCLUSIVE | LK_RETRY, td);
 #ifdef OLD_DIAGNOSTIC
 		else
 			printf("coda_create: LOCKLEAF not set!\n");
 #endif
+	} else if (error == ENOENT) {
+		/*
+		 * XXXRW: We only enter a negative entry if ENOENT is
+		 * returned, not other errors.  But will Venus invalidate dvp
+		 * properly in all cases when new files appear via the
+		 * network rather than a local operation?
+		 */
+		if (cnp->cn_flags & MAKEENTRY)
+			cache_enter(dvp, NULL, cnp);
 	}
 	return (error);
 }
@@ -1093,6 +1079,7 @@ int
 coda_remove(struct vop_remove_args *ap)
 {
 	/* true args */
+	struct vnode *vp = ap->a_vp;
 	struct vnode *dvp = ap->a_dvp;
 	struct cnode *cp = VTOC(dvp);
 	struct componentname  *cnp = ap->a_cnp;
@@ -1102,38 +1089,13 @@ coda_remove(struct vop_remove_args *ap)
 	int error;
 	const char *nm = cnp->cn_nameptr;
 	int len = cnp->cn_namelen;
+#if 0
 	struct cnode *tp;
+#endif
 
 	MARK_ENTRY(CODA_REMOVE_STATS);
 	CODADEBUG(CODA_REMOVE, myprintf(("remove: %s in %s\n", nm,
 	    coda_f2s(&cp->c_fid))););
-
-	/*
-	 * Remove the file's entry from the CODA Name Cache.
-	 *
-	 * We're being conservative here, it might be that this person
-	 * doesn't really have sufficient access to delete the file but we
-	 * feel zapping the entry won't really hurt anyone -- dcs.
-	 *
-	 * I'm gonna go out on a limb here.  If a file and a hardlink to it
-	 * exist, and one is removed, the link count on the other will be off
-	 * by 1. We could either invalidate the attrs if cached, orfix them.
-	 * I'll try to fix them. DCS 11/8/94
-	 */
-	tp = coda_nc_lookup(VTOC(dvp), nm, len, cred);
-	if (tp!= NULL) {
-		if (VALID_VATTR(tp)) {
-			if (tp->c_vattr.va_nlink > 1)
-				tp->c_vattr.va_nlink--;
-		}
-		coda_nc_zapfile(VTOC(dvp), nm, len);
-	}
-
-	/*
-	 * Invalidate the parent's attr cache, the modification time has
-	 * changed.
-	 */
-	VTOC(dvp)->c_flags &= ~C_VATTR;
 
 	/*
 	 * Check for remove of control object.
@@ -1142,8 +1104,18 @@ coda_remove(struct vop_remove_args *ap)
 		MARK_INT_FAIL(CODA_REMOVE_STATS);
 		return (ENOENT);
 	}
+
+	/*
+	 * Invalidate the parent's attr cache, the modification time has
+	 * changed.  We don't yet know if the last reference to the file is
+	 * being removed, but we do know the reference count on the child has
+	 * changed, so invalidate its attr cache also.
+	 */
+	VTOC(dvp)->c_flags &= ~C_VATTR;
+	VTOC(vp)->c_flags &= ~C_VATTR;
 	error = venus_remove(vtomi(dvp), &cp->c_fid, nm, len, cred,
 	    td->td_proc);
+	cache_purge(vp);
 	CODADEBUG(CODA_REMOVE, myprintf(("in remove result %d\n",error)););
 	return (error);
 }
@@ -1236,25 +1208,12 @@ coda_rename(struct vop_rename_args *ap)
 	}
 
 	/*
-	 * Problem with moving directories -- need to flush entry for ..
+	 * Remove the entries for both source and target directories, which
+	 * should catch references to the children.  Perhaps we could purge
+	 * less?
 	 */
-	if (odvp != ndvp) {
-		struct cnode *ovcp = coda_nc_lookup(VTOC(odvp), fnm, flen,
-		    cred);
-
-		if (ovcp) {
-			struct vnode *ovp = CTOV(ovcp);
-
-			if ((ovp) && (ovp->v_type == VDIR))
-				coda_nc_zapfile(VTOC(ovp),"..", 2);
-		}
-	}
-
-	/*
-	 * Remove the entries for both source and target files.
-	 */
-	coda_nc_zapfile(VTOC(odvp), fnm, flen);
-	coda_nc_zapfile(VTOC(ndvp), tnm, tlen);
+	cache_purge(odvp);
+	cache_purge(ndvp);
 
 	/*
 	 * Invalidate the parent's attr cache, the modification time has
@@ -1343,17 +1302,13 @@ coda_mkdir(struct vop_mkdir_args *ap)
 		/*
 		 * Enter the new vnode in the Name Cache.
 		 */
-		coda_nc_enter(VTOC(dvp), nm, len, cred, VTOC(*vpp));
+		if (cnp->cn_flags & MAKEENTRY)
+			cache_enter(dvp, *vpp, cnp);
 
 		/*
-		 * As a side effect, enter "." and ".." for the directory.
+		 * Update the attr cache and mark as valid.
 		 */
-		coda_nc_enter(VTOC(*vpp), ".", 1, cred, VTOC(*vpp));
-		coda_nc_enter(VTOC(*vpp), "..", 2, cred, VTOC(dvp));
 		if (coda_attr_cache) {
-			/*
-			 * Update the attr cache and mark as valid.
-			 */
 			VTOC(*vpp)->c_vattr = ova;
 			VTOC(*vpp)->c_flags |= C_VATTR;
 		}
@@ -1377,6 +1332,7 @@ int
 coda_rmdir(struct vop_rmdir_args *ap)
 {
 	/* true args */
+	struct vnode *vp = ap->a_vp;
 	struct vnode *dvp = ap->a_dvp;
 	struct cnode *dcp = VTOC(dvp);
 	struct componentname  *cnp = ap->a_cnp;
@@ -1386,7 +1342,9 @@ coda_rmdir(struct vop_rmdir_args *ap)
 	int error;
 	const char *nm = cnp->cn_nameptr;
 	int len = cnp->cn_namelen;
+#if 0
 	struct cnode *cp;
+#endif
 
 	MARK_ENTRY(CODA_RMDIR_STATS);
 
@@ -1399,21 +1357,11 @@ coda_rmdir(struct vop_rmdir_args *ap)
 	}
 
 	/*
-	 * We're being conservative here, it might be that this person
-	 * doesn't really have sufficient access to delete the file but we
-	 * feel zapping the entry won't really hurt anyone -- dcs
-	 *
-	 * As a side effect of the rmdir, remove any entries for children of
-	 * the directory, especially "." and "..".
+	 * Possibly somewhat conservative purging, perhaps we just need to
+	 * purge vp?
 	 */
-	cp = coda_nc_lookup(dcp, nm, len, cred);
-	if (cp)
-		coda_nc_zapParentfid(&(cp->c_fid), NOT_DOWNCALL);
-
-	/*
-	 * Remove the file's entry from the CODA Name Cache.
-	 */
-	coda_nc_zapfile(dcp, nm, len);
+	cache_purge(dvp);
+	cache_purge(vp);
 
 	/*
 	 * Invalidate the parent's attr cache, the modification time has
