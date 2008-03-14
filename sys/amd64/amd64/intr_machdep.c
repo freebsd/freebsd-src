@@ -48,6 +48,7 @@
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/smp.h>
 #include <sys/syslog.h>
 #include <sys/systm.h>
 #include <sys/sx.h>
@@ -536,7 +537,7 @@ DB_SHOW_COMMAND(irqs, db_show_irqs)
 
 /* The BSP is always a valid target. */
 static cpumask_t intr_cpus = (1 << 0);
-static int current_cpu, num_cpus = 1;
+static int current_cpu;
 
 static void
 intr_assign_next_cpu(struct intsrc *isrc)
@@ -552,7 +553,7 @@ intr_assign_next_cpu(struct intsrc *isrc)
 	pic->pic_assign_cpu(isrc, apic_id);
 	do {
 		current_cpu++;
-		if (current_cpu >= num_cpus)
+		if (current_cpu > mp_maxid)
 			current_cpu = 0;
 	} while (!(intr_cpus & (1 << current_cpu)));
 }
@@ -572,7 +573,6 @@ intr_add_cpu(u_int cpu)
 		    cpu_apic_ids[cpu]);
 
 	intr_cpus |= (1 << cpu);
-	num_cpus++;
 }
 
 /*
@@ -586,7 +586,7 @@ intr_shuffle_irqs(void *arg __unused)
 	int i;
 
 	/* Don't bother on UP. */
-	if (num_cpus <= 1)
+	if (mp_ncpus == 1)
 		return;
 
 	/* Round-robin assign a CPU to each enabled source. */
