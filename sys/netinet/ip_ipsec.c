@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/errno.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
@@ -329,6 +330,17 @@ ip_ipsec_output(struct mbuf **m, struct inpcb *inp, int *flags, int *error,
 
 		/* NB: callee frees mbuf */
 		*error = ipsec4_process_packet(*m, sp->req, *flags, 0);
+		if (*error == EJUSTRETURN) {
+			/*
+			 * We had a SP with a level of 'use' and no SA. We
+			 * will just continue to process the packet without
+			 * IPsec processing and return without error.
+			 */
+			*error = 0;
+			ip->ip_len = ntohs(ip->ip_len);
+			ip->ip_off = ntohs(ip->ip_off);
+			goto done;
+		}
 		/*
 		 * Preserve KAME behaviour: ENOENT can be returned
 		 * when an SA acquire is in progress.  Don't propagate
