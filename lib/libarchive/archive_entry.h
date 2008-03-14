@@ -57,7 +57,25 @@ extern "C" {
 struct archive_entry;
 
 /*
- * File-type constants.  These are returned from archive_entry_filetype().
+ * File-type constants.  These are returned from archive_entry_filetype()
+ * and passed to archive_entry_set_filetype().
+ *
+ * These values match S_XXX defines on every platform I've checked,
+ * including Windows, AIX, Linux, Solaris, and BSD.  They're
+ * (re)defined here because platforms generally don't define the ones
+ * they don't support.  For example, Windows doesn't define S_IFLNK or
+ * S_IFBLK.  Instead of having a mass of conditional logic and system
+ * checks to define any S_XXX values that aren't supported locally,
+ * I've just defined a new set of such constants so that
+ * libarchive-based applications can manipulate and identify archive
+ * entries properly even if the hosting platform can't store them on
+ * disk.
+ *
+ * These values are also used directly within some portable formats,
+ * such as cpio.  If you find a platform that varies from these, the
+ * correct solution is to leave these alone and translate from these
+ * portable values to platform-native values when entries are read from
+ * or written to disk.
  */
 #define	AE_IFMT		0170000
 #define	AE_IFREG	0100000
@@ -91,7 +109,8 @@ dev_t			 archive_entry_devmajor(struct archive_entry *);
 dev_t			 archive_entry_devminor(struct archive_entry *);
 mode_t			 archive_entry_filetype(struct archive_entry *);
 void			 archive_entry_fflags(struct archive_entry *,
-			     unsigned long *set, unsigned long *clear);
+			    unsigned long * /* set */,
+			    unsigned long * /* clear */);
 const char		*archive_entry_fflags_text(struct archive_entry *);
 gid_t			 archive_entry_gid(struct archive_entry *);
 const char		*archive_entry_gname(struct archive_entry *);
@@ -130,7 +149,7 @@ void	archive_entry_set_devmajor(struct archive_entry *, dev_t);
 void	archive_entry_set_devminor(struct archive_entry *, dev_t);
 void	archive_entry_set_filetype(struct archive_entry *, unsigned int);
 void	archive_entry_set_fflags(struct archive_entry *,
-	    unsigned long set, unsigned long clear);
+	    unsigned long /* set */, unsigned long /* clear */);
 /* Returns pointer to start of first invalid token, or NULL if none. */
 /* Note that all recognized tokens are processed, regardless. */
 const wchar_t *archive_entry_copy_fflags_text_w(struct archive_entry *,
@@ -182,6 +201,13 @@ void	archive_entry_copy_stat(struct archive_entry *, const struct stat *);
  *   = there are many different ACL text formats
  *   = would like to be able to read/convert archives containing ACLs
  *     on platforms that lack ACL libraries
+ *
+ *  This last point, in particular, forces me to implement a reasonably
+ *  complete set of ACL support routines.
+ *
+ *  TODO: Extend this to support NFSv4/NTFS permissions.  That should
+ *  allow full ACL support on Mac OS, in particular, which uses
+ *  POSIX.1e-style interfaces to manipulate NFSv4/NTFS permissions.
  */
 
 /*
@@ -216,21 +242,24 @@ void	archive_entry_copy_stat(struct archive_entry *, const struct stat *);
  */
 void	 archive_entry_acl_clear(struct archive_entry *);
 void	 archive_entry_acl_add_entry(struct archive_entry *,
-	     int type, int permset, int tag, int qual, const char *name);
+	    int /* type */, int /* permset */, int /* tag */,
+	    int /* qual */, const char * /* name */);
 void	 archive_entry_acl_add_entry_w(struct archive_entry *,
-	     int type, int permset, int tag, int qual, const wchar_t *name);
+	    int /* type */, int /* permset */, int /* tag */,
+	    int /* qual */, const wchar_t * /* name */);
 
 /*
  * To retrieve the ACL, first "reset", then repeatedly ask for the
  * "next" entry.  The want_type parameter allows you to request only
  * access entries or only default entries.
  */
-int	 archive_entry_acl_reset(struct archive_entry *, int want_type);
-int	 archive_entry_acl_next(struct archive_entry *, int want_type,
-	     int *type, int *permset, int *tag, int *qual, const char **name);
-int	 archive_entry_acl_next_w(struct archive_entry *, int want_type,
-	     int *type, int *permset, int *tag, int *qual,
-	     const wchar_t **name);
+int	 archive_entry_acl_reset(struct archive_entry *, int /* want_type */);
+int	 archive_entry_acl_next(struct archive_entry *, int /* want_type */,
+	    int * /* type */, int * /* permset */, int * /* tag */,
+	    int * /* qual */, const char ** /* name */);
+int	 archive_entry_acl_next_w(struct archive_entry *, int /* want_type */,
+	    int * /* type */, int * /* permset */, int * /* tag */,
+	    int * /* qual */, const wchar_t ** /* name */);
 
 /*
  * Construct a text-format ACL.  The flags argument is a bitmask that
@@ -245,10 +274,11 @@ int	 archive_entry_acl_next_w(struct archive_entry *, int want_type,
  */
 #define	ARCHIVE_ENTRY_ACL_STYLE_EXTRA_ID	1024
 #define	ARCHIVE_ENTRY_ACL_STYLE_MARK_DEFAULT	2048
-const wchar_t	*archive_entry_acl_text_w(struct archive_entry *, int flags);
+const wchar_t	*archive_entry_acl_text_w(struct archive_entry *,
+		    int /* flags */);
 
 /* Return a count of entries matching 'want_type' */
-int	 archive_entry_acl_count(struct archive_entry *, int want_type);
+int	 archive_entry_acl_count(struct archive_entry *, int /* want_type */);
 
 /*
  * Private ACL parser.  This is private because it handles some
@@ -259,9 +289,12 @@ int	 archive_entry_acl_count(struct archive_entry *, int want_type);
  * this interface are likely to be surprised when it changes.
  *
  * You were warned!
+ *
+ * TODO: Move this declaration out of the public header and into
+ * a private header.  Warnings above are silly.
  */
 int		 __archive_entry_acl_parse_w(struct archive_entry *,
-		     const wchar_t *, int type);
+		    const wchar_t *, int /* type */);
 
 /*
  * extended attributes
@@ -269,7 +302,8 @@ int		 __archive_entry_acl_parse_w(struct archive_entry *,
 
 void	 archive_entry_xattr_clear(struct archive_entry *);
 void	 archive_entry_xattr_add_entry(struct archive_entry *,
-	     const char *name, const void *value, size_t size);
+	    const char * /* name */, const void * /* value */,
+	    size_t /* size */);
 
 /*
  * To retrieve the xattr list, first "reset", then repeatedly ask for the
@@ -279,7 +313,7 @@ void	 archive_entry_xattr_add_entry(struct archive_entry *,
 int	archive_entry_xattr_count(struct archive_entry *);
 int	archive_entry_xattr_reset(struct archive_entry *);
 int	archive_entry_xattr_next(struct archive_entry *,
-	     const char **name, const void **value, size_t *);
+	    const char ** /* name */, const void ** /* value */, size_t *);
 
 /*
  * Utility to detect hardlinks.
