@@ -754,6 +754,28 @@ archive_entry_set_link(struct archive_entry *entry, const char *target)
 		aes_set_mbs(&entry->ae_hardlink, target);
 }
 
+/* Set symlink if symlink is already set, else set hardlink. */
+void
+archive_entry_copy_link(struct archive_entry *entry, const char *target)
+{
+	if (entry->ae_symlink.aes_mbs != NULL ||
+	    entry->ae_symlink.aes_wcs != NULL)
+		aes_copy_mbs(&entry->ae_symlink, target);
+	else
+		aes_copy_mbs(&entry->ae_hardlink, target);
+}
+
+/* Set symlink if symlink is already set, else set hardlink. */
+void
+archive_entry_copy_link_w(struct archive_entry *entry, const wchar_t *target)
+{
+	if (entry->ae_symlink.aes_mbs != NULL ||
+	    entry->ae_symlink.aes_wcs != NULL)
+		aes_copy_wcs(&entry->ae_symlink, target);
+	else
+		aes_copy_wcs(&entry->ae_hardlink, target);
+}
+
 void
 archive_entry_set_mode(struct archive_entry *entry, mode_t m)
 {
