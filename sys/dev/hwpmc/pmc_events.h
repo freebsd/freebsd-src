@@ -386,7 +386,11 @@ __PMC_EV(K8, NB_HT_BUS2_BANDWIDTH,	k8-nb-ht-bus2-bandwidth)
 #define	PMC_EV_K8_LAST		PMC_EV_K8_NB_HT_BUS2_BANDWIDTH
 
 
-/* Intel Pentium Events */
+/*
+ * Intel Pentium and Pentium MMX Events, from the "Intel 64 and IA-32
+ * Intel(R) Architectures Software Developer's Manual, Volume 3B:
+ * System Programming Guide, Part 2, August 2007".
+ */
 #define	__PMC_EV_P5()							\
 __PMC_EV(P5, DATA_READ, p5-data-read)					\
 __PMC_EV(P5, DATA_WRITE, p5-data-write)					\
@@ -396,7 +400,7 @@ __PMC_EV(P5, DATA_WRITE_MISS, p5-data-write-miss)			\
 __PMC_EV(P5, WRITE_HIT_TO_M_OR_E_STATE_LINES,				\
     p5-write-hit-to-m-or-e-state-lines)					\
 __PMC_EV(P5, DATA_CACHE_LINES_WRITTEN_BACK,				\
-    p4-data-cache-lines-written-back)					\
+    p5-data-cache-lines-written-back)					\
 __PMC_EV(P5, EXTERNAL_SNOOPS, p5-external-snoops)			\
 __PMC_EV(P5, EXTERNAL_DATA_CACHE_SNOOP_HITS,				\
     p5-external-data-cache-snoop-hits)					\
