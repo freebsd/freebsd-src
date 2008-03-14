@@ -1165,7 +1165,6 @@ dev/wl/if_wl.c			optional wl isa
 dev/xe/if_xe.c			optional xe
 dev/xe/if_xe_pccard.c		optional xe pccard
 fs/coda/coda_fbsd.c		optional vcoda
-fs/coda/coda_namecache.c		optional vcoda
 fs/coda/coda_psdev.c		optional vcoda
 fs/coda/coda_subr.c		optional vcoda
 fs/coda/coda_venus.c		optional vcoda
