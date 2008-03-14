@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/random.h>
 #include <sys/resourcevar.h>
 #include <sys/sched.h>
+#include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/unistd.h>
 #include <sys/vmmeter.h>
@@ -240,7 +241,8 @@ intr_event_update(struct intr_event *ie)
 #ifndef INTR_FILTER
 int
 intr_event_create(struct intr_event **event, void *source, int flags,
-    void (*enable)(void *), const char *fmt, ...)
+    void (*enable)(void *), int (*assign_cpu)(void *, u_char), const char *fmt,
+    ...)
 {
 	struct intr_event *ie;
 	va_list ap;
@@ -251,7 +253,9 @@ intr_event_create(struct intr_event **event, void *source, int flags,
 	ie = malloc(sizeof(struct intr_event), M_ITHREAD, M_WAITOK | M_ZERO);
 	ie->ie_source = source;
 	ie->ie_enable = enable;
+	ie->ie_assign_cpu = assign_cpu;
 	ie->ie_flags = flags;
+	ie->ie_cpu = NOCPU;
 	TAILQ_INIT(&ie->ie_handlers);
 	mtx_init(&ie->ie_lock, "intr event", NULL, MTX_DEF);
 
@@ -271,7 +275,7 @@ intr_event_create(struct intr_event **event, void *source, int flags,
 int
 intr_event_create(struct intr_event **event, void *source, int flags,
     void (*enable)(void *), void (*eoi)(void *), void (*disab)(void *), 
-    const char *fmt, ...)
+    int (*assign_cpu)(void *, u_char), const char *fmt, ...)
 {
 	struct intr_event *ie;
 	va_list ap;
@@ -282,9 +286,11 @@ intr_event_create(struct intr_event **event, void *source, int flags,
 	ie = malloc(sizeof(struct intr_event), M_ITHREAD, M_WAITOK | M_ZERO);
 	ie->ie_source = source;
 	ie->ie_enable = enable;
+	ie->ie_assign_cpu = assign_cpu;
 	ie->ie_eoi = eoi;
 	ie->ie_disab = disab;
 	ie->ie_flags = flags;
+	ie->ie_cpu = NOCPU;
 	TAILQ_INIT(&ie->ie_handlers);
 	mtx_init(&ie->ie_lock, "intr event", NULL, MTX_DEF);
 
@@ -301,6 +307,52 @@ intr_event_create(struct intr_event **event, void *source, int flags,
 	return (0);
 }
 #endif
+
+/*
+ * Bind an interrupt event to the specified CPU.  Note that not all
+ * platforms support binding an interrupt to a CPU.  For those
+ * platforms this request will fail.  For supported platforms, any
+ * associated ithreads as well as the primary interrupt context will
+ * be bound to the specificed CPU.  Using a cpu id of NOCPU unbinds
+ * the interrupt event.
+ */
+int
+intr_event_bind(struct intr_event *ie, u_char cpu)
+{
+	struct thread *td;
+	int error;
+
+	/* Need a CPU to bind to. */
+	if (cpu != NOCPU && CPU_ABSENT(cpu))
+		return (EINVAL);
+
+	if (ie->ie_assign_cpu == NULL)
+		return (EOPNOTSUPP);
+
+	/* Don't allow a bind request if the interrupt is already bound. */
+	mtx_lock(&ie->ie_lock);
+	if (ie->ie_cpu != NOCPU && cpu != NOCPU) {
+		mtx_unlock(&ie->ie_lock);
+		return (EBUSY);
+	}
+	mtx_unlock(&ie->ie_lock);
+
+	error = ie->ie_assign_cpu(ie->ie_source, cpu);
+	if (error)
+		return (error);
+	mtx_lock(&ie->ie_lock);
+	if (ie->ie_thread != NULL)
+		td = ie->ie_thread->it_thread;
+	else
+		td = NULL;
+	if (td != NULL)
+		thread_lock(td);
+	ie->ie_cpu = cpu;
+	if (td != NULL)
+		thread_unlock(td);
+	mtx_unlock(&ie->ie_lock);
+	return (0);
+}
 
 int
 intr_event_destroy(struct intr_event *ie)
@@ -893,10 +945,10 @@ swi_add(struct intr_event **eventp, const char *name, driver_intr_t handler,
 	} else {
 #ifdef INTR_FILTER
 		error = intr_event_create(&ie, NULL, IE_SOFT,
-		    NULL, NULL, NULL, "swi%d:", pri);
+		    NULL, NULL, NULL, NULL, "swi%d:", pri);
 #else
 		error = intr_event_create(&ie, NULL, IE_SOFT,
-		    NULL, "swi%d:", pri);
+		    NULL, NULL, "swi%d:", pri);
 #endif
 		if (error)
 			return (error);
@@ -1078,6 +1130,7 @@ ithread_loop(void *arg)
 	struct intr_event *ie;
 	struct thread *td;
 	struct proc *p;
+	u_char cpu;
 
 	td = curthread;
 	p = td->td_proc;
@@ -1086,6 +1139,7 @@ ithread_loop(void *arg)
 	    ("%s: ithread and proc linkage out of sync", __func__));
 	ie = ithd->it_event;
 	ie->ie_count = 0;
+	cpu = NOCPU;
 
 	/*
 	 * As long as we have interrupts outstanding, go through the
@@ -1131,6 +1185,21 @@ ithread_loop(void *arg)
 			ie->ie_count = 0;
 			mi_switch(SW_VOL, NULL);
 		}
+
+#ifdef SMP
+		/*
+		 * Ensure we are bound to the correct CPU.  We can't
+		 * move ithreads until SMP is running however, so just
+		 * leave interrupts on the boor CPU during boot.
+		 */
+		if (ie->ie_cpu != cpu && smp_started) {
+			cpu = ie->ie_cpu;
+			if (cpu == NOCPU)
+				sched_unbind(td);
+			else
+				sched_bind(td, cpu);
+		}
+#endif
 		thread_unlock(td);
 	}
 }
@@ -1147,6 +1216,7 @@ ithread_loop(void *arg)
 	struct thread *td;
 	struct proc *p;
 	int priv;
+	u_char cpu;
 
 	td = curthread;
 	p = td->td_proc;
@@ -1157,6 +1227,7 @@ ithread_loop(void *arg)
 	    ("%s: ithread and proc linkage out of sync", __func__));
 	ie = ithd->it_event;
 	ie->ie_count = 0;
+	cpu = NOCPU;
 
 	/*
 	 * As long as we have interrupts outstanding, go through the
@@ -1205,6 +1276,21 @@ ithread_loop(void *arg)
 			ie->ie_count = 0;
 			mi_switch(SW_VOL, NULL);
 		}
+
+#ifdef SMP
+		/*
+		 * Ensure we are bound to the correct CPU.  We can't
+		 * move ithreads until SMP is running however, so just
+		 * leave interrupts on the boor CPU during boot.
+		 */
+		if (!priv && ie->ie_cpu != cpu && smp_started) {
+			cpu = ie->ie_cpu;
+			if (cpu == NOCPU)
+				sched_unbind(td);
+			else
+				sched_bind(td, cpu);
+		}
+#endif
 		thread_unlock(td);
 	}
 }
@@ -1440,6 +1526,8 @@ db_dump_intr_event(struct intr_event *ie, int handlers)
 		db_printf("(pid %d)", it->it_thread->td_proc->p_pid);
 	else
 		db_printf("(no thread)");
+	if (ie->ie_cpu != NOCPU)
+		db_printf(" (CPU %d)", ie->ie_cpu);
 	if ((ie->ie_flags & (IE_SOFT | IE_ENTROPY | IE_ADDING_THREAD)) != 0 ||
 	    (it != NULL && it->it_need)) {
 		db_printf(" {");

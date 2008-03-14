@@ -331,9 +331,9 @@ intr_controller_register(int vec, const struct intr_controller *ic,
 	 */
 	error = intr_event_create(&ie, iv, 0, intr_enable_eoi,
 #ifdef INTR_FILTER
-	    ic->ic_eoi, ic->ic_disable, "vec%d:", vec);
+	    ic->ic_eoi, ic->ic_disable, NULL, "vec%d:", vec);
 #else
-	    "vec%d:", vec);
+	    NULL, "vec%d:", vec);
 #endif
 	if (error != 0)
 		return (error);

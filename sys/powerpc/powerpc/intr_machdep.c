@@ -233,7 +233,7 @@ powerpc_setup_intr(const char *name, u_int irq, driver_filter_t filter,
 #ifdef INTR_FILTER
 		    powerpc_intr_eoi, powerpc_intr_mask,
 #endif
-		    "irq%u:", irq);
+		    NULL, "irq%u:", irq);
 		if (error)
 			return (error);
 
