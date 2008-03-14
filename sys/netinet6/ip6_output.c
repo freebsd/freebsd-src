@@ -1082,6 +1082,10 @@ done:
 	} else if (ro_pmtu == &ip6route && ro_pmtu->ro_rt) {
 		RTFREE(ro_pmtu->ro_rt);
 	}
+#ifdef IPSEC
+	if (sp != NULL)
+		KEY_FREESP(&sp);
+#endif
 
 	return (error);
 
