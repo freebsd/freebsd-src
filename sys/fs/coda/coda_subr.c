@@ -66,7 +66,6 @@ __FBSDID("$FreeBSD$");
 #include <fs/coda/coda.h>
 #include <fs/coda/cnode.h>
 #include <fs/coda/coda_subr.h>
-#include <fs/coda/coda_namecache.h>
 
 static int coda_active = 0;
 static int coda_reuse = 0;
@@ -187,6 +186,10 @@ coda_find(CodaFid *fid)
  * operations on these cnodes should fail (excepting coda_inactive of
  * course!).  Since multiple venii/wardens can be running, only kill the
  * cnodes for a particular entry in the coda_mnttbl. -- DCS 12/1/94
+ *
+ * XXX: I don't believe any special behavior is required with respect to the
+ * global namecache here, as /coda will have unmounted and hence cache_flush
+ * will have run...?
  */
 int
 coda_kill(struct mount *whoIam, enum dc_status dcstat)
@@ -204,8 +207,11 @@ coda_kill(struct mount *whoIam, enum dc_status dcstat)
 	 * This is slightly overkill, but should work.  Eventually it'd be
 	 * nice to only flush those entries from the namecache that reference
 	 * a vnode in this vfs.
+	 *
+	 * XXXRW: Perhaps we no longer need to purge the name cache when
+	 * using the VFS name cache, as unmount will do that.
 	 */
-	coda_nc_flush(dcstat);
+	cache_purgevfs(whoIam);
 	for (hash = 0; hash < CODA_CACHESIZE; hash++) {
 		for (cp = coda_cache[hash];cp != NULL;
 		    cp = CNODE_NEXT(cp)) {
@@ -230,7 +236,7 @@ coda_kill(struct mount *whoIam, enum dc_status dcstat)
  * cache or it may be executing.
  */
 void
-coda_flush(enum dc_status dcstat)
+coda_flush(struct coda_mntinfo *mnt, enum dc_status dcstat)
 {
 	int hash;
 	struct cnode *cp;
@@ -238,10 +244,7 @@ coda_flush(enum dc_status dcstat)
 	coda_clstat.ncalls++;
 	coda_clstat.reqs[CODA_FLUSH]++;
 
-	/*
-	 * Flush files from the name cache.
-	 */
-	coda_nc_flush(dcstat);
+	cache_purgevfs(mnt->mi_vfsp);
 	for (hash = 0; hash < CODA_CACHESIZE; hash++) {
 		for (cp = coda_cache[hash]; cp != NULL;
 		    cp = CNODE_NEXT(cp)) {
@@ -338,7 +341,10 @@ coda_cacheprint(struct mount *whoIam)
 
 	printf("coda_cacheprint: coda_ctlvp %p, cp %p", coda_ctlvp,
 	    VTOC(coda_ctlvp));
+
+#if 0
 	coda_nc_name(VTOC(coda_ctlvp));
+#endif
 	printf("\n");
 	for (hash = 0; hash < CODA_CACHESIZE; hash++) {
 		for (cp = coda_cache[hash]; cp != NULL;
@@ -346,7 +352,9 @@ coda_cacheprint(struct mount *whoIam)
 			if (CTOV(cp)->v_mount == whoIam) {
 				printf("coda_cacheprint: vp %p, cp %p",
 				    CTOV(cp), cp);
+#if 0
 				coda_nc_name(cp);
+#endif
 				printf("\n");
 				count++;
 			}
@@ -385,7 +393,8 @@ coda_cacheprint(struct mount *whoIam)
  * CODA_REPLACE   -- Replace one CodaFid with another throughout the name
  *                   cache.
  */
-int handleDownCall(int opcode, union outputArgs *out)
+int
+handleDownCall(struct coda_mntinfo *mnt, int opcode, union outputArgs *out)
 {
 	int error;
 
@@ -394,7 +403,7 @@ int handleDownCall(int opcode, union outputArgs *out)
 	 */
 	switch (opcode) {
 	case CODA_FLUSH: {
-		coda_flush(IS_DOWNCALL);
+		coda_flush(mnt, IS_DOWNCALL);
 
 		/* Print any remaining cnodes. */
 		CODADEBUG(CODA_FLUSH, coda_testflush(););
@@ -406,12 +415,20 @@ int handleDownCall(int opcode, union outputArgs *out)
 		coda_clstat.reqs[CODA_PURGEUSER]++;
 
 		/* XXX - need to prevent fsync's. */
+#if 0
 #ifdef CODA_COMPAT_5
 	  	coda_nc_purge_user(out->coda_purgeuser.cred.cr_uid,
 		    IS_DOWNCALL);
 #else
 		coda_nc_purge_user(out->coda_purgeuser.uid, IS_DOWNCALL);
 #endif
+#endif
+		/*
+		 * For now, we flush the entire namecache, but this is
+		 * undesirable.  Once we have an access control cache, we
+		 * should just flush that instead.
+		 */
+		cache_purgevfs(mnt->mi_vfsp);
 		return (0);
 	}
 
@@ -424,6 +441,7 @@ int handleDownCall(int opcode, union outputArgs *out)
 		cp = coda_find(&out->coda_zapfile.Fid);
 		if (cp != NULL) {
 			vref(CTOV(cp));
+			cache_purge(CTOV(cp));
 			cp->c_flags &= ~C_VATTR;
 			ASSERT_VOP_LOCKED(CTOV(cp), "coda HandleDownCall");
 			if (CTOV(cp)->v_vflag & VV_TEXT)
@@ -447,9 +465,8 @@ int handleDownCall(int opcode, union outputArgs *out)
 		cp = coda_find(&out->coda_zapdir.Fid);
 		if (cp != NULL) {
 			vref(CTOV(cp));
+			cache_purge(CTOV(cp));
 			cp->c_flags &= ~C_VATTR;
-			coda_nc_zapParentfid(&out->coda_zapdir.Fid,
-			    IS_DOWNCALL);
 			CODADEBUG(CODA_ZAPDIR, myprintf(("zapdir: fid = %s, "
 			    "refcnt = %d\n", coda_f2s(&cp->c_fid),
 			    CTOV(cp)->v_usecount - 1)););
@@ -469,11 +486,8 @@ int handleDownCall(int opcode, union outputArgs *out)
 		cp = coda_find(&out->coda_purgefid.Fid);
 		if (cp != NULL) {
 			vref(CTOV(cp));
-			if (IS_DIR(out->coda_purgefid.Fid))
-				coda_nc_zapParentfid(&out->coda_purgefid.Fid,
-				    IS_DOWNCALL);
+			cache_purge(CTOV(cp));
 			cp->c_flags &= ~C_VATTR;
-			coda_nc_zapfid(&out->coda_purgefid.Fid, IS_DOWNCALL);
 			ASSERT_VOP_LOCKED(CTOV(cp), "coda HandleDownCall");
 			if (!(IS_DIR(out->coda_purgefid.Fid))
 			    && (CTOV(cp)->v_vflag & VV_TEXT))
@@ -501,6 +515,7 @@ int handleDownCall(int opcode, union outputArgs *out)
 			 * fid, and reinsert.
 			 */
 			vref(CTOV(cp));
+			cache_purge(CTOV(cp));
 			coda_unsave(cp);
 			cp->c_fid = out->coda_replace.NewFid;
 			coda_save(cp);
@@ -533,7 +548,6 @@ coda_debugon(void)
 {
 
 	codadebug = -1;
-	coda_nc_debug = -1;
 	coda_vnop_print_entry = 1;
 	coda_psdev_print_entry = 1;
 	coda_vfsop_print_entry = 1;
@@ -544,7 +558,6 @@ coda_debugoff(void)
 {
 
 	codadebug = 0;
-	coda_nc_debug = 0;
 	coda_vnop_print_entry = 0;
 	coda_psdev_print_entry = 0;
 	coda_vfsop_print_entry = 0;
