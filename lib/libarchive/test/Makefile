@@ -48,6 +48,7 @@ TESTS= \
 	test_tar_filenames.c			\
 	test_tar_large.c			\
 	test_write_compress_program.c		\
+	test_write_compress.c			\
 	test_write_disk.c			\
 	test_write_disk_hardlink.c		\
 	test_write_disk_perms.c			\
