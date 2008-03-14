@@ -62,7 +62,8 @@ main(int argc, char *argv[])
 	struct sockaddr_rfcomm   sock_addr;
 	char			*label = NULL, *unit = NULL, *ep = NULL;
 	bdaddr_t		 addr;
-	int			 s, channel, detach, server, service, regsp;
+	int			 s, channel, detach, server, service,
+				 regdun, regsp;
 	pid_t			 pid;
 
 	memcpy(&addr, NG_HCI_BDADDR_ANY, sizeof(addr));
@@ -70,10 +71,11 @@ main(int argc, char *argv[])
 	detach = 1;
 	server = 0;
 	service = 0;
+	regdun = 0;
 	regsp = 0;
 
 	/* Parse command line arguments */
-	while ((s = getopt(argc, argv, "a:cC:dhl:sSu:")) != -1) {
+	while ((s = getopt(argc, argv, "a:cC:dDhl:sSu:")) != -1) {
 		switch (s) {
 		case 'a': /* BDADDR */
 			if (!bt_aton(optarg, &addr)) {
@@ -108,6 +110,10 @@ main(int argc, char *argv[])
 
 		case 'd': /* do not detach */
 			detach = 0;
+			break;
+
+		case 'D': /* Register DUN service as well as LAN service */
+			regdun = 1;
 			break;
 
 		case 'l': /* PPP label */
@@ -262,6 +268,31 @@ main(int argc, char *argv[])
 				"local SDP daemon. %s (%d)",
 				strerror(sdp_error(ss)), sdp_error(ss));
 			exit(1);
+		}
+
+		/*
+		 * Register DUN (Dial-Up Networking) service on the same
+		 * RFCOMM channel if requested. There is really no good reason
+		 * to not to support this. AT-command exchange can be faked
+		 * with chat script in ppp.conf
+		 */
+
+		if (regdun) {
+			sdp_dun_profile_t	dun;
+
+			memset(&dun, 0, sizeof(dun));
+			dun.server_channel = channel;
+
+			if (sdp_register_service(ss,
+					SDP_SERVICE_CLASS_DIALUP_NETWORKING,
+					&addr, (void *) &dun, sizeof(dun),
+					NULL) != 0) {
+				syslog(LOG_ERR, "Unable to register DUN " \
+					"service with local SDP daemon. " \
+					"%s (%d)", strerror(sdp_error(ss)),
+					sdp_error(ss));
+				exit(1);
+			}
 		}
 
 		/*
