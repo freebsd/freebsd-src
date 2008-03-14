@@ -41,7 +41,7 @@
 .Fl u Ar N
 .Nm
 .Fl s
-.Op Fl dhS
+.Op Fl dDhS
 .Op Fl a Ar address
 .Fl C Ar channel
 .Fl l Ar label
@@ -125,6 +125,15 @@ Act as an RFCOMM client.
 This is the default mode.
 .It Fl d
 Do not detach from the controlling terminal, i.e., run in foreground.
+.It Fl D
+In server mode, register the
+.Cm DUN
+(Dial-Up Networking) service in addition to the
+.Cm LAN
+(LAN Access Using PPP) service.
+AT-command exchange can be faked with
+.Xr ppp 8
+chat script.
 .It Fl h
 Display usage message and exit.
 .It Fl l Ar label
