@@ -5968,6 +5968,7 @@ show_nat(int ac, char **av) {
 				print_nat_config(&data[i]);
 			i += sizeof(struct cfg_nat);
 			for (redir_cnt = 0; redir_cnt < n->redir_cnt; redir_cnt++) {
+				e = (struct cfg_redir *)&data[i];
 				i += sizeof(struct cfg_redir) + e->spool_cnt * 
 				    sizeof(struct cfg_spool);
 			}
