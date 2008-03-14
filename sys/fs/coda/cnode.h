@@ -106,6 +106,8 @@ struct cnode {
 	struct vattr	 c_vattr; 	/* attributes */
 	char		*c_symlink;	/* pointer to symbolic link */
 	u_short		 c_symlen;	/* length of symbolic link */
+	uid_t		 c_cached_uid;	/* cached uid */
+	mode_t		 c_cached_mode;	/* cached access mode */
 	struct cnode	*c_next;	/* links if on FreeBSD machine */
 };
 #define	VTOC(vp)	((struct cnode *)(vp)->v_data)
@@ -114,6 +116,7 @@ struct cnode {
 /* flags */
 #define	C_VATTR		0x01	/* Validity of vattr in the cnode */
 #define	C_SYMLINK	0x02	/* Validity of symlink pointer in the Code */
+#define	C_ACCCACHE	0x04	/* Validity of access cache */
 #define	C_WANTED	0x08	/* Set if lock wanted */
 #define	C_LOCKED	0x10	/* Set if lock held */
 #define	C_UNMOUNTING	0X20	/* Set if unmounting */
@@ -121,6 +124,7 @@ struct cnode {
 
 #define	VALID_VATTR(cp)		((cp->c_flags) & C_VATTR)
 #define	VALID_SYMLINK(cp)	((cp->c_flags) & C_SYMLINK)
+#define	VALID_ACCCACHE(cp)	((cp->c_flags) & C_ACCCACHE)
 #define	IS_UNMOUNTING(cp)	((cp)->c_flags & C_UNMOUNTING)
 
 struct vcomm {
