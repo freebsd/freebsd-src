@@ -92,10 +92,10 @@ arm_setup_irqhandler(const char *name, driver_filter_t *filt,
 #ifdef INTR_FILTER
 		error = intr_event_create(&event, (void *)irq, 0,
 		    (void (*)(void *))arm_unmask_irq, intr_eoi_src,
-		    intr_disab_eoi_src, "intr%d:", irq);
+		    intr_disab_eoi_src, NULL, "intr%d:", irq);
 #else
 		error = intr_event_create(&event, (void *)irq, 0,
-		    (void (*)(void *))arm_unmask_irq, "intr%d:", irq);
+		    (void (*)(void *))arm_unmask_irq, NULL, "intr%d:", irq);
 #endif
 		if (error)
 			return;
