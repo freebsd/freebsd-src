@@ -61,7 +61,7 @@ vop_access_t	coda_access;
 vop_readlink_t	coda_readlink;
 vop_fsync_t	coda_fsync;
 vop_inactive_t	coda_inactive;
-vop_lookup_t	coda_lookup;
+vop_cachedlookup_t	coda_lookup;
 vop_create_t	coda_create;
 vop_remove_t	coda_remove;
 vop_link_t	coda_link;
