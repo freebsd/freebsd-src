@@ -7122,7 +7122,7 @@ key_init()
 	/* initialize key statistics */
 	keystat.getspi_count = 1;
 
-	printf("Fast IPsec: Initialized Security Association Processing.\n");
+	printf("IPsec: Initialized Security Association Processing.\n");
 
 	return;
 }
