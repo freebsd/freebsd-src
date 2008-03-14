@@ -714,7 +714,7 @@ archive_block_is_null(const unsigned char *p)
 {
 	unsigned i;
 
-	for (i = 0; i < ARCHIVE_BYTES_PER_RECORD / sizeof(*p); i++)
+	for (i = 0; i < 512; i++)
 		if (*p++)
 			return (0);
 	return (1);
