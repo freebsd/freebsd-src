@@ -1060,23 +1060,26 @@ build_ustar_entry_name(char *dest, const char *src, size_t src_length,
 
 /*
  * The ustar header for the pax extended attributes must have a
- * reasonable name:  SUSv3 suggests 'dirname'/PaxHeader/'filename'
+ * reasonable name:  SUSv3 requires 'dirname'/PaxHeader.'pid'/'filename'
+ * where 'pid' is the PID of the archiving process.
  *
- * Joerg Schiling has argued that this is unnecessary because, in practice,
- * if the pax extended attributes get extracted as regular files, noone is
- * going to bother reading those attributes to manually restore them.
- * Based on this, 'star' uses /tmp/PaxHeader/'basename' as the ustar header
- * name.  This is a tempting argument, but I'm not entirely convinced.
- * I'm also uncomfortable with the fact that "/tmp" is a Unix-ism.
+ * Joerg Schilling has argued that this is unnecessary because, in
+ * practice, if the pax extended attributes get extracted as regular
+ * files, noone is going to bother reading those attributes to
+ * manually restore them.  Based on this, 'star' uses
+ * /tmp/PaxHeader/'basename' as the ustar header name.  This is a
+ * tempting argument, in part because it's simpler than the SUSv3
+ * recommendation, but I'm not entirely convinced.  I'm also
+ * uncomfortable with the fact that "/tmp" is a Unix-ism.
  *
- * The following routine implements the SUSv3 recommendation, and is
- * much simpler because build_ustar_entry_name() above already does
- * most of the work (we just need to give it an extra path element to
- * insert and handle a few pathological cases).
+ * The following routine leverages build_ustar_entry_name() above and
+ * so is simpler than you might think.  It just needs to provide the
+ * additional path element and handle a few pathological cases).
  */
 static char *
 build_pax_attribute_name(char *dest, const char *src)
 {
+	char buff[64];
 	const char *p;
 
 	/* Handle the null filename case. */
@@ -1115,8 +1118,19 @@ build_pax_attribute_name(char *dest, const char *src)
 		return (dest);
 	}
 
+	/*
+	 * TODO: Push this string into the 'pax' structure to avoid
+	 * recomputing it every time.  That will also open the door
+	 * to having clients override it.
+	 */
+#if HAVE_GETPID
+	sprintf(buff, "PaxHeader.%d", getpid());
+#else
+	/* If the platform can't fetch the pid, don't include it. */
+	strpcy(buff, "PaxHeader");
+#endif
 	/* General case: build a ustar-compatible name adding "/PaxHeader/". */
-	build_ustar_entry_name(dest, src, p - src, "PaxHeader");
+	build_ustar_entry_name(dest, src, p - src, buff);
 
 	return (dest);
 }
