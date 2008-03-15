@@ -346,6 +346,10 @@ again:
 			VM_OBJECT_LOCK(obj);
 			vm_page_wakeup(m);
 		} else {
+			if (__predict_false(obj->cache != NULL)) {
+				vm_page_cache_free(obj, OFF_TO_IDX(start),
+				    OFF_TO_IDX(start) + 1);
+			}
 			dirbytes += bytes;
 		}
 		len -= bytes;
