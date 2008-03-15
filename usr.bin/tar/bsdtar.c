@@ -213,6 +213,7 @@ static const struct option tar_longopts[] = {
 	{ "strip-components",	required_argument, NULL, OPTION_STRIP_COMPONENTS },
 	{ "to-stdout",          no_argument,       NULL, 'O' },
 	{ "totals",		no_argument,       NULL, OPTION_TOTALS },
+	{ "uncompress",         no_argument,       NULL, 'Z' },
 	{ "unlink",		no_argument,       NULL, 'U' },
 	{ "unlink-first",	no_argument,       NULL, 'U' },
 	{ "update",             no_argument,       NULL, 'u' },
