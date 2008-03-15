@@ -6,6 +6,7 @@ SENDMAIL_DIR=${.CURDIR}/../../contrib/sendmail
 CFLAGS+=-I${SENDMAIL_DIR}/src -I${SENDMAIL_DIR}/include -I.
 CFLAGS+=-DNOT_SENDMAIL -Dsm_snprintf=snprintf
 CFLAGS+=-D_THREAD_SAFE
+CFLAGS+=-DSM_CONF_POLL
 
 .if !defined(NO_INET6)
 CFLAGS+=-DNETINET6
