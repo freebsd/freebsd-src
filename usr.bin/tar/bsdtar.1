@@ -147,6 +147,12 @@ but before extracting entries from the archive.
 .It Fl -check-links ( Fl W Cm check-links )
 (c and r modes only)
 Issue a warning message unless all links to each file are archived.
+.It Fl -chroot ( Fl W Cm chroot )
+(x mode only)
+.Fn chroot
+to the current directory after processing any
+.Fl C
+options and before extracting any files.
 .It Fl -exclude Ar pattern ( Fl W Cm exclude Ns = Ns Ar pattern )
 Do not process files or directories that match the
 specified pattern.
