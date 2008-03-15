@@ -179,7 +179,7 @@ main(int argc, char *argv[])
 		}
 		if (n && recmask)
 			printf(" ");
-		print_recsrc(recsrc, recmask, Sflag | sflag);
+		print_recsrc(recsrc, recmask, Sflag || sflag);
 		return (0);
 	}
 
