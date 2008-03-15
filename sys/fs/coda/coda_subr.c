@@ -561,11 +561,14 @@ handleDownCall(struct coda_mntinfo *mnt, int opcode, union outputArgs *out)
 		if (cp != NULL) {
 			/*
 			 * Remove the cnode from the hash table, replace the
-			 * fid, and reinsert.
+			 * fid, and reinsert.  Clear the attribute cache as
+			 * the "inode number" may have changed (it's just a
+			 * hash of the fid, and the fid is changing).
 			 */
 			vref(CTOV(cp));
 			coda_unsave(cp);
 			cp->c_fid = out->coda_replace.NewFid;
+			cp->c_flags &= ~C_VATTR;
 			coda_save(cp);
 			CODADEBUG(CODA_REPLACE, myprintf(("replace: oldfid "
 			    "= %s, newfid = %s, cp = %p\n",
