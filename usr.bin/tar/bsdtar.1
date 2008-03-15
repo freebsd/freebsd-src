@@ -405,6 +405,15 @@ Note that, unlike other
 .Nm tar
 implementations, this implementation recognizes gzip compression
 automatically when reading archives.
+.It Fl Z
+(c mode only)
+Compress the resulting archive with
+.Xr compress 1 .
+In extract or list modes, this option is ignored.
+Note that, unlike other
+.Nm tar
+implementations, this implementation recognizes compress compression
+automatically when reading archives.
 .El
 .Sh ENVIRONMENT
 The following environment variables affect the execution of
@@ -628,6 +637,7 @@ an archive while preserving any absolute pathnames,
 components, or symlinks to other directories.
 .Sh SEE ALSO
 .Xr bzip2 1 ,
+.Xr compress 1 ,
 .Xr cpio 1 ,
 .Xr gzip 1 ,
 .Xr mt 1 ,
