@@ -841,15 +841,8 @@ coda_inactive(struct vop_inactive_args *ap)
 			printf("coda_inactive: cp->ovp != NULL use %d: vp "
 			    "%p, cp %p\n", vrefcnt(vp), vp, cp);
 #endif
-	} else {
-#ifdef OLD_DIAGNOSTIC
-		if (vrefcnt(CTOV(cp)))
-			panic("coda_inactive: nonzero reference count");
-		if (cp->c_ovp != NULL)
-			panic("coda_inactive:  cp->ovp != NULL");
-#endif
+	} else
 		vgone(vp);
-	}
 	MARK_INT_SAT(CODA_INACTIVE_STATS);
 	return (0);
 }
@@ -1082,10 +1075,6 @@ coda_create(struct vop_create_args *ap)
 			cache_enter(dvp, *vpp, cnp);
 		if (cnp->cn_flags & LOCKLEAF)
 			vn_lock(*ap->a_vpp, LK_EXCLUSIVE | LK_RETRY, td);
-#ifdef OLD_DIAGNOSTIC
-		else
-			printf("coda_create: LOCKLEAF not set!\n");
-#endif
 	} else if (error == ENOENT) {
 		/*
 		 * XXXRW: We only enter a negative entry if ENOENT is
@@ -1214,16 +1203,6 @@ coda_rename(struct vop_rename_args *ap)
 	int tlen = tcnp->cn_namelen;
 
 	MARK_ENTRY(CODA_RENAME_STATS);
-
-	/*
-	 * Hmmm.  The vnodes are already looked up.  Perhaps they are locked?
-	 * This could be Bad. XXX
-	 */
-#ifdef OLD_DIAGNOSTIC
-	if ((fcnp->cn_cred != tcnp->cn_cred) ||
-	    (fcnp->cn_thread != tcnp->cn_thread))
-		panic("coda_rename: component names don't agree");
-#endif
 
 	/*
 	 * Check for rename involving control object.
@@ -1574,12 +1553,8 @@ coda_reclaim(struct vop_reclaim_args *ap)
 		}
 #endif
 	} else {
-#ifdef OLD_DIAGNOSTIC
-		if (vrefcnt(vp) != 0)
-			print("coda_reclaim: pushing active %p\n", vp);
-		if (VTOC(vp)->c_ovp)
-			panic("coda_reclaim: c_ovp not void");
-#endif
+		if (prtactive && vp->v_usecount != 0)
+			vprint("coda_reclaim: pushing active", vp);
 	}
 	cache_purge(vp);
 	coda_free(VTOC(vp));
