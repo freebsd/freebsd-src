@@ -113,8 +113,8 @@ archive_write_set_format_shar(struct archive *_a)
 	a->format_destroy = archive_write_shar_destroy;
 	a->format_write_data = archive_write_shar_data_sed;
 	a->format_finish_entry = archive_write_shar_finish_entry;
-	a->archive_format = ARCHIVE_FORMAT_SHAR_BASE;
-	a->archive_format_name = "shar";
+	a->archive.archive_format = ARCHIVE_FORMAT_SHAR_BASE;
+	a->archive.archive_format_name = "shar";
 	return (ARCHIVE_OK);
 }
 
@@ -134,8 +134,8 @@ archive_write_set_format_shar_dump(struct archive *_a)
 	shar = (struct shar *)a->format_data;
 	shar->dump = 1;
 	a->format_write_data = archive_write_shar_data_uuencode;
-	a->archive_format = ARCHIVE_FORMAT_SHAR_DUMP;
-	a->archive_format_name = "shar dump";
+	a->archive.archive_format = ARCHIVE_FORMAT_SHAR_DUMP;
+	a->archive.archive_format_name = "shar dump";
 	return (ARCHIVE_OK);
 }
 
