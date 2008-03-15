@@ -174,15 +174,6 @@ If not specified, the default tape device will be used.
 .Fx ,
 the default tape device is
 .Pa /dev/sa0 . )
-.It Fl -fast-read ( Fl W Cm fast-read )
-(x and t mode only)
-Extract or list only the first archive entry that matches each pattern
-or filename operand.
-Exit as soon as each specified pattern or filename has been matched.
-By default, the archive is always read to the very end, since
-there can be multiple entries with the same name and, by convention,
-later entries overwrite earlier entries.
-This option is provided as a performance optimization.
 .It Fl H
 (c and r mode only)
 Symbolic links named on the command line will be followed; the
@@ -319,6 +310,15 @@ If
 is being run by root, the default is to restore the owner unless the
 .Fl o
 option is also specified.
+.It Fl q ( Fl -fast-read )
+(x and t mode only)
+Extract or list only the first archive entry that matches each pattern
+or filename operand.
+Exit as soon as each specified pattern or filename has been matched.
+By default, the archive is always read to the very end, since
+there can be multiple entries with the same name and, by convention,
+later entries overwrite earlier entries.
+This option is provided as a performance optimization.
 .It Fl -strip-components Ar count ( Fl W Cm strip-components Ns = Ns Ar count )
 (x and t mode only)
 Remove the specified number of leading path elements.
