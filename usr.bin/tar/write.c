@@ -220,6 +220,9 @@ tar_mode_c(struct bsdtar *bsdtar)
 			archive_write_set_compression_gzip(a);
 			break;
 #endif
+		case 'Z':
+			archive_write_set_compression_compress(a);
+			break;
 		default:
 			bsdtar_errc(bsdtar, 1, 0,
 			    "Unrecognized compression option -%c",
