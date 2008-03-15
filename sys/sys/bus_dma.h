@@ -101,7 +101,6 @@
  */
 #define	BUS_DMA_NOWRITE		0x100
 #define	BUS_DMA_NOCACHE		0x200
-#define	BUS_DMA_ISA		0x400	/* map memory for AXP ISA dma */
 
 /* Forwards needed by prototypes below. */
 struct mbuf;

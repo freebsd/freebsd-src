@@ -106,7 +106,7 @@ isa_dma_init(int chan, u_int bouncebufsize, int flag __unused)
 			       /*filter*/NULL, /*filterarg*/NULL,
 			       /*maxsize*/bouncebufsize,
 			       /*nsegments*/1, /*maxsegz*/0x3ffff,
-			       /*flags*/BUS_DMA_ISA,
+			       /*flags*/0,
 			       /*lockfunc*/busdma_lock_mutex,
 			       /*lockarg*/&Giant,
 			       &dma_tag[chan]) != 0) {
