@@ -722,7 +722,8 @@ calcru(p, up, sp)
 			 * greater than the precision of binuptime().
 			 */
 			KASSERT(td->td_oncpu != NOCPU,
-			    ("%s: running thread has no CPU", __func__));
+			    ("%s: running thread has no CPU pid: %d, tid %d",
+			     __func__, p->p_pid, td->td_tid));
 			if (!bt_valid) {
 				binuptime(&bt);
 				bt_valid = 1;
