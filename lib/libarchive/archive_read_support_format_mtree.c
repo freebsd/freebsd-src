@@ -600,7 +600,7 @@ read_data(struct archive_read *a, const void **buff, size_t *size, off_t *offset
 
 	*buff = mtree->buff;
 	*offset = mtree->offset;
-	if (mtree->buffsize > mtree->cur_size - mtree->offset)
+	if ((off_t)mtree->buffsize > mtree->cur_size - mtree->offset)
 		bytes_to_read = mtree->cur_size - mtree->offset;
 	else
 		bytes_to_read = mtree->buffsize;
@@ -614,7 +614,7 @@ read_data(struct archive_read *a, const void **buff, size_t *size, off_t *offset
 		return (ARCHIVE_EOF);
 	}
 	mtree->offset += bytes_read;
-	*size = (size_t)bytes_read;
+	*size = bytes_read;
 	return (ARCHIVE_OK);
 }
 
