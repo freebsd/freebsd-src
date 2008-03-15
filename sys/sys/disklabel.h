@@ -260,7 +260,7 @@ static const char *fstypenames[] = {
 	"?",
 	"?",
 	"UDF",
-	"?"
+	"?",
 	"EFS",
 	"ZFS",
 	NULL
