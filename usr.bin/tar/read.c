@@ -118,6 +118,17 @@ read_archive(struct bsdtar *bsdtar, char mode)
 		    archive_error_string(a));
 
 	do_chdir(bsdtar);
+
+	if (mode == 'x' && bsdtar->option_chroot) {
+#if HAVE_CHROOT
+		if (chroot(".") != 0)
+			bsdtar_errc(bsdtar, 1, errno, "Can't chroot to \".\"");
+#else
+		bsdtar_errc(bsdtar, 1, 0,
+		    "chroot isn't supported on this platform");
+#endif
+	}
+
 	for (;;) {
 		/* Support --fast-read option */
 		if (bsdtar->option_fast_read &&
