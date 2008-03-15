@@ -97,8 +97,8 @@ archive_write_set_format_cpio(struct archive *_a)
 	a->format_finish_entry = archive_write_cpio_finish_entry;
 	a->format_finish = archive_write_cpio_finish;
 	a->format_destroy = archive_write_cpio_destroy;
-	a->archive_format = ARCHIVE_FORMAT_CPIO_POSIX;
-	a->archive_format_name = "POSIX cpio";
+	a->archive.archive_format = ARCHIVE_FORMAT_CPIO_POSIX;
+	a->archive.archive_format_name = "POSIX cpio";
 	return (ARCHIVE_OK);
 }
 
