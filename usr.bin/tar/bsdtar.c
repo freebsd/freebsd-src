@@ -171,6 +171,7 @@ static const struct option tar_longopts[] = {
 	{ "bzip2",              no_argument,       NULL, 'j' },
 	{ "cd",                 required_argument, NULL, 'C' },
 	{ "check-links",        no_argument,       NULL, OPTION_CHECK_LINKS },
+	{ "compress",           no_argument,       NULL, 'Z' },
 	{ "confirmation",       no_argument,       NULL, 'w' },
 	{ "create",             no_argument,       NULL, 'c' },
 	{ "dereference",	no_argument,	   NULL, 'L' },
