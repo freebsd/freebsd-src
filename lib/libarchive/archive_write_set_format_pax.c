@@ -1061,7 +1061,12 @@ build_ustar_entry_name(char *dest, const char *src, size_t src_length,
 /*
  * The ustar header for the pax extended attributes must have a
  * reasonable name:  SUSv3 requires 'dirname'/PaxHeader.'pid'/'filename'
- * where 'pid' is the PID of the archiving process.
+ * where 'pid' is the PID of the archiving process.  Unfortunately,
+ * that makes testing a pain since the output varies for each run,
+ * so I'm sticking with the simpler 'dirname'/PaxHeader/'filename'
+ * for now.  (Someday, I'll make this settable.  Then I can use the
+ * SUS recommendation as default and test harnesses can override it
+ * to get predictable results.)
  *
  * Joerg Schilling has argued that this is unnecessary because, in
  * practice, if the pax extended attributes get extracted as regular
@@ -1123,11 +1128,11 @@ build_pax_attribute_name(char *dest, const char *src)
 	 * recomputing it every time.  That will also open the door
 	 * to having clients override it.
 	 */
-#if HAVE_GETPID
+#if HAVE_GETPID && 0  /* Disable this for now; see above comment. */
 	sprintf(buff, "PaxHeader.%d", getpid());
 #else
 	/* If the platform can't fetch the pid, don't include it. */
-	strpcy(buff, "PaxHeader");
+	strcpy(buff, "PaxHeader");
 #endif
 	/* General case: build a ustar-compatible name adding "/PaxHeader/". */
 	build_ustar_entry_name(dest, src, p - src, buff);
