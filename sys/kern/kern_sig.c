@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/posix4.h>
 #include <sys/pioctl.h>
 #include <sys/resourcevar.h>
+#include <sys/sbuf.h>
 #include <sys/sleepqueue.h>
 #include <sys/smp.h>
 #include <sys/stat.h>
@@ -2970,65 +2971,59 @@ SYSCTL_STRING(_kern, OID_AUTO, corefile, CTLFLAG_RW, corefilename,
  * by using "/dev/null", or all core files can be stored in "/cores/%U/%N-%P".
  * This is controlled by the sysctl variable kern.corefile (see above).
  */
-
 static char *
 expand_name(name, uid, pid)
 	const char *name;
 	uid_t uid;
 	pid_t pid;
 {
-	const char *format, *appendstr;
+	struct sbuf sb;
+	const char *format;
 	char *temp;
-	char buf[11];		/* Buffer for pid/uid -- max 4B */
-	size_t i, l, n;
+	size_t i;
 
 	format = corefilename;
 	temp = malloc(MAXPATHLEN, M_TEMP, M_NOWAIT | M_ZERO);
 	if (temp == NULL)
 		return (NULL);
-	for (i = 0, n = 0; n < MAXPATHLEN && format[i]; i++) {
+	(void)sbuf_new(&sb, temp, MAXPATHLEN, SBUF_FIXEDLEN);
+	for (i = 0; format[i]; i++) {
 		switch (format[i]) {
 		case '%':	/* Format character */
 			i++;
 			switch (format[i]) {
 			case '%':
-				appendstr = "%";
+				sbuf_putc(&sb, '%');
 				break;
 			case 'N':	/* process name */
-				appendstr = name;
+				sbuf_printf(&sb, "%s", name);
 				break;
 			case 'P':	/* process id */
-				sprintf(buf, "%u", pid);
-				appendstr = buf;
+				sbuf_printf(&sb, "%u", pid);
 				break;
 			case 'U':	/* user id */
-				sprintf(buf, "%u", uid);
-				appendstr = buf;
+				sbuf_printf(&sb, "%u", uid);
 				break;
 			default:
-				appendstr = "";
 			  	log(LOG_ERR,
-				    "Unknown format character %c in `%s'\n",
-				    format[i], format);
+				    "Unknown format character %c in "
+				    "corename `%s'\n", format[i], format);
 			}
-			l = strlen(appendstr);
-			if ((n + l) >= MAXPATHLEN)
-				goto toolong;
-			memcpy(temp + n, appendstr, l);
-			n += l;
 			break;
 		default:
-			temp[n++] = format[i];
+			sbuf_putc(&sb, format[i]);
 		}
 	}
-	if (format[i] != '\0')
-		goto toolong;
+	if (sbuf_overflowed(&sb)) {
+		sbuf_delete(&sb);
+		log(LOG_ERR, "pid %ld (%s), uid (%lu): corename is too "
+		    "long\n", (long)pid, name, (u_long)uid);
+		free(temp, M_TEMP);
+		return (NULL);
+	}
+	sbuf_finish(&sb);
+	sbuf_delete(&sb);
 	return (temp);
-toolong:
-	log(LOG_ERR, "pid %ld (%s), uid (%lu): corename is too long\n",
-	    (long)pid, name, (u_long)uid);
-	free(temp, M_TEMP);
-	return (NULL);
 }
 
 /*
