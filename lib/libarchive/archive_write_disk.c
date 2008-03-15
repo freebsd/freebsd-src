@@ -1611,7 +1611,7 @@ set_mode(struct archive_write_disk *a, int mode)
 		if (a->pst != NULL) {
 			/* Already have stat() data available. */
 #ifdef HAVE_FSTAT
-		} else if (fd >= 0 && fstat(fd, &a->st) == 0) {
+		} else if (a->fd >= 0 && fstat(a->fd, &a->st) == 0) {
 			a->pst = &a->st;
 #endif
 		} else if (stat(a->name, &a->st) == 0) {
