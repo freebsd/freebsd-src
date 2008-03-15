@@ -85,8 +85,8 @@ archive_write_set_format_pax_restricted(struct archive *_a)
 	struct archive_write *a = (struct archive_write *)_a;
 	int r;
 	r = archive_write_set_format_pax(&a->archive);
-	a->archive_format = ARCHIVE_FORMAT_TAR_PAX_RESTRICTED;
-	a->archive_format_name = "restricted POSIX pax interchange";
+	a->archive.archive_format = ARCHIVE_FORMAT_TAR_PAX_RESTRICTED;
+	a->archive.archive_format_name = "restricted POSIX pax interchange";
 	return (r);
 }
 
@@ -116,8 +116,8 @@ archive_write_set_format_pax(struct archive *_a)
 	a->format_finish = archive_write_pax_finish;
 	a->format_destroy = archive_write_pax_destroy;
 	a->format_finish_entry = archive_write_pax_finish_entry;
-	a->archive_format = ARCHIVE_FORMAT_TAR_PAX_INTERCHANGE;
-	a->archive_format_name = "POSIX pax interchange";
+	a->archive.archive_format = ARCHIVE_FORMAT_TAR_PAX_INTERCHANGE;
+	a->archive.archive_format_name = "POSIX pax interchange";
 	return (ARCHIVE_OK);
 }
 
@@ -701,7 +701,7 @@ archive_write_pax_header(struct archive_write *a,
 	 * already set (we're already generating an extended header, so
 	 * may as well include these).
 	 */
-	if (a->archive_format != ARCHIVE_FORMAT_TAR_PAX_RESTRICTED ||
+	if (a->archive.archive_format != ARCHIVE_FORMAT_TAR_PAX_RESTRICTED ||
 	    need_extension) {
 
 		if (archive_entry_mtime(entry_main) < 0  ||
@@ -764,7 +764,7 @@ archive_write_pax_header(struct archive_write *a,
 	 * Pax-restricted does not store data for hardlinks, in order
 	 * to improve compatibility with ustar.
 	 */
-	if (a->archive_format != ARCHIVE_FORMAT_TAR_PAX_INTERCHANGE &&
+	if (a->archive.archive_format != ARCHIVE_FORMAT_TAR_PAX_INTERCHANGE &&
 	    hardlink != NULL)
 		archive_entry_set_size(entry_main, 0);
 
