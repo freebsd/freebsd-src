@@ -144,8 +144,8 @@ struct sparse_block {
 
 struct tar {
 	struct archive_string	 acl_text;
-	struct archive_string	 entry_name;
-	struct archive_string	 entry_linkname;
+	struct archive_string	 entry_pathname;
+	struct archive_string	 entry_linkpath;
 	struct archive_string	 entry_uname;
 	struct archive_string	 entry_gname;
 	struct archive_string	 longlink;
@@ -153,6 +153,7 @@ struct tar {
 	struct archive_string	 pax_header;
 	struct archive_string	 pax_global;
 	struct archive_string	 line;
+	int			 pax_hdrcharset_binary;
 	wchar_t 		*pax_entry;
 	size_t			 pax_entry_length;
 	int			 header_recursion_depth;
@@ -169,9 +170,9 @@ struct tar {
 	char			 sparse_gnu_pending;
 };
 
-static size_t	UTF8_mbrtowc(wchar_t *pwc, const char *s, size_t n);
+static ssize_t	UTF8_mbrtowc(wchar_t *pwc, const char *s, size_t n);
 static int	archive_block_is_null(const unsigned char *p);
-static char	*base64_decode(const wchar_t *, size_t, size_t *);
+static char	*base64_decode(const char *, size_t, size_t *);
 static void	 gnu_add_sparse_entry(struct tar *,
 		    off_t offset, off_t remaining);
 static void	gnu_clear_sparse_list(struct tar *);
@@ -179,7 +180,7 @@ static int	gnu_sparse_old_read(struct archive_read *, struct tar *,
 		    const struct archive_entry_header_gnutar *header);
 static void	gnu_sparse_old_parse(struct tar *,
 		    const struct gnu_sparse *sparse, int length);
-static int	gnu_sparse_01_parse(struct tar *, const wchar_t *);
+static int	gnu_sparse_01_parse(struct tar *, const char *);
 static ssize_t	gnu_sparse_10_read(struct archive_read *, struct tar *);
 static int	header_Solaris_ACL(struct archive_read *,  struct tar *,
 		    struct archive_entry *, const void *);
@@ -210,24 +211,23 @@ static int	archive_read_format_tar_read_header(struct archive_read *,
 		    struct archive_entry *);
 static int	checksum(struct archive_read *, const void *);
 static int 	pax_attribute(struct tar *, struct archive_entry *,
-		    wchar_t *key, wchar_t *value);
+		    char *key, char *value);
 static int 	pax_header(struct archive_read *, struct tar *,
 		    struct archive_entry *, char *attr);
-static void	pax_time(const wchar_t *, int64_t *sec, long *nanos);
+static void	pax_time(const char *, int64_t *sec, long *nanos);
 static ssize_t	readline(struct archive_read *, struct tar *, const char **,
 		    ssize_t limit);
 static int	read_body_to_string(struct archive_read *, struct tar *,
 		    struct archive_string *, const void *h);
 static int64_t	tar_atol(const char *, unsigned);
-static int64_t	tar_atol10(const wchar_t *, unsigned);
+static int64_t	tar_atol10(const char *, unsigned);
 static int64_t	tar_atol256(const char *, unsigned);
 static int64_t	tar_atol8(const char *, unsigned);
 static int	tar_read_header(struct archive_read *, struct tar *,
 		    struct archive_entry *);
 static int	tohex(int c);
 static char	*url_decode(const char *);
-static int	utf8_decode(wchar_t *, const char *, size_t length);
-static char	*wide_to_narrow(const wchar_t *wval);
+static wchar_t	*utf8_decode(struct tar *, const char *, size_t length);
 
 int
 archive_read_support_format_gnutar(struct archive *a)
@@ -271,8 +271,8 @@ archive_read_format_tar_cleanup(struct archive_read *a)
 	tar = (struct tar *)(a->format->data);
 	gnu_clear_sparse_list(tar);
 	archive_string_free(&tar->acl_text);
-	archive_string_free(&tar->entry_name);
-	archive_string_free(&tar->entry_linkname);
+	archive_string_free(&tar->entry_pathname);
+	archive_string_free(&tar->entry_linkpath);
 	archive_string_free(&tar->entry_uname);
 	archive_string_free(&tar->entry_gname);
 	archive_string_free(&tar->line);
@@ -766,16 +766,9 @@ header_Solaris_ACL(struct archive_read *a, struct tar *tar,
 	while (*p != '\0' && p < acl + size)
 		p++;
 
-	wp = (wchar_t *)malloc((p - acl + 1) * sizeof(wchar_t));
-	if (wp == NULL) {
-		archive_set_error(&a->archive, ENOMEM,
-		    "Can't allocate work buffer for ACL parsing");
-		return (ARCHIVE_FATAL);
-	}
-	utf8_decode(wp, acl, p - acl);
+	wp = utf8_decode(tar, acl, p - acl);
 	err = __archive_entry_acl_parse_w(entry, wp,
 	    ARCHIVE_ENTRY_ACL_TYPE_ACCESS);
-	free(wp);
 	return (err);
 }
 
@@ -795,7 +788,7 @@ header_longlink(struct archive_read *a, struct tar *tar,
 	if ((err != ARCHIVE_OK) && (err != ARCHIVE_WARN))
 		return (err);
 	/* Set symlink if symlink already set, else hardlink. */
-	archive_entry_set_link(entry, tar->longlink.s);
+	archive_entry_copy_link(entry, tar->longlink.s);
 	return (ARCHIVE_OK);
 }
 
@@ -815,7 +808,7 @@ header_longname(struct archive_read *a, struct tar *tar,
 	err = tar_read_header(a, tar, entry);
 	if ((err != ARCHIVE_OK) && (err != ARCHIVE_WARN))
 		return (err);
-	archive_entry_set_pathname(entry, tar->longname.s);
+	archive_entry_copy_pathname(entry, tar->longname.s);
 	return (ARCHIVE_OK);
 }
 
@@ -907,10 +900,10 @@ header_common(struct archive_read *a, struct tar *tar,
 
 	header = (const struct archive_entry_header_ustar *)h;
 	if (header->linkname[0])
-		archive_strncpy(&(tar->entry_linkname), header->linkname,
+		archive_strncpy(&(tar->entry_linkpath), header->linkname,
 		    sizeof(header->linkname));
 	else
-		archive_string_empty(&(tar->entry_linkname));
+		archive_string_empty(&(tar->entry_linkpath));
 
 	/* Parse out the numeric fields (all are octal) */
 	archive_entry_set_mode(entry, tar_atol(header->mode, sizeof(header->mode)));
@@ -926,7 +919,7 @@ header_common(struct archive_read *a, struct tar *tar,
 
 	switch (tartype) {
 	case '1': /* Hard link */
-		archive_entry_set_hardlink(entry, tar->entry_linkname.s);
+		archive_entry_copy_hardlink(entry, tar->entry_linkpath.s);
 		/*
 		 * The following may seem odd, but: Technically, tar
 		 * does not store the file type for a "hard link"
@@ -988,7 +981,7 @@ header_common(struct archive_read *a, struct tar *tar,
 		archive_entry_set_filetype(entry, AE_IFLNK);
 		archive_entry_set_size(entry, 0);
 		tar->entry_bytes_remaining = 0;
-		archive_entry_set_symlink(entry, tar->entry_linkname.s);
+		archive_entry_copy_symlink(entry, tar->entry_linkpath.s);
 		break;
 	case '3': /* Character device */
 		archive_entry_set_filetype(entry, AE_IFCHR);
@@ -1060,8 +1053,8 @@ header_old_tar(struct archive_read *a, struct tar *tar,
 
 	/* Copy filename over (to ensure null termination). */
 	header = (const struct archive_entry_header_ustar *)h;
-	archive_strncpy(&(tar->entry_name), header->name, sizeof(header->name));
-	archive_entry_set_pathname(entry, tar->entry_name.s);
+	archive_strncpy(&(tar->entry_pathname), header->name, sizeof(header->name));
+	archive_entry_copy_pathname(entry, tar->entry_pathname.s);
 
 	/* Grab rest of common fields */
 	header_common(a, tar, entry, h);
@@ -1132,7 +1125,7 @@ header_ustar(struct archive_read *a, struct tar *tar,
 	header = (const struct archive_entry_header_ustar *)h;
 
 	/* Copy name into an internal buffer to ensure null-termination. */
-	as = &(tar->entry_name);
+	as = &(tar->entry_pathname);
 	if (header->prefix[0]) {
 		archive_strncpy(as, header->prefix, sizeof(header->prefix));
 		if (as->s[archive_strlen(as) - 1] != '/')
@@ -1141,7 +1134,7 @@ header_ustar(struct archive_read *a, struct tar *tar,
 	} else
 		archive_strncpy(as, header->name, sizeof(header->name));
 
-	archive_entry_set_pathname(entry, as->s);
+	archive_entry_copy_pathname(entry, as->s);
 
 	/* Handle rest of common fields. */
 	header_common(a, tar, entry, h);
@@ -1149,11 +1142,11 @@ header_ustar(struct archive_read *a, struct tar *tar,
 	/* Handle POSIX ustar fields. */
 	archive_strncpy(&(tar->entry_uname), header->uname,
 	    sizeof(header->uname));
-	archive_entry_set_uname(entry, tar->entry_uname.s);
+	archive_entry_copy_uname(entry, tar->entry_uname.s);
 
 	archive_strncpy(&(tar->entry_gname), header->gname,
 	    sizeof(header->gname));
-	archive_entry_set_gname(entry, tar->entry_gname.s);
+	archive_entry_copy_gname(entry, tar->entry_gname.s);
 
 	/* Parse out device numbers only for char and block specials. */
 	if (header->typeflag[0] == '3' || header->typeflag[0] == '4') {
@@ -1180,10 +1173,16 @@ pax_header(struct archive_read *a, struct tar *tar,
 {
 	size_t attr_length, l, line_length;
 	char *line, *p;
-	wchar_t *key, *wp, *value;
+	char *key, *value;
+	wchar_t *wp;
 	int err, err2;
 
 	attr_length = strlen(attr);
+	tar->pax_hdrcharset_binary = 0;
+	archive_string_empty(&(tar->entry_gname));
+	archive_string_empty(&(tar->entry_linkpath));
+	archive_string_empty(&(tar->entry_pathname));
+	archive_string_empty(&(tar->entry_uname));
 	err = ARCHIVE_OK;
 	while (attr_length > 0) {
 		/* Parse decimal length field at start of line. */
@@ -1226,49 +1225,24 @@ pax_header(struct archive_read *a, struct tar *tar,
 			return (ARCHIVE_WARN);
 		}
 
-		/* Ensure pax_entry buffer is big enough. */
-		if (tar->pax_entry_length <= line_length) {
-			wchar_t *old_entry = tar->pax_entry;
+		/* Null-terminate the line. */
+		attr[line_length - 1] = '\0';
 
-			if (tar->pax_entry_length <= 0)
-				tar->pax_entry_length = 1024;
-			while (tar->pax_entry_length <= line_length + 1)
-				tar->pax_entry_length *= 2;
-
-			old_entry = tar->pax_entry;
-			tar->pax_entry = (wchar_t *)realloc(tar->pax_entry,
-			    tar->pax_entry_length * sizeof(wchar_t));
-			if (tar->pax_entry == NULL) {
-				free(old_entry);
-				archive_set_error(&a->archive, ENOMEM,
-					"No memory");
-				return (ARCHIVE_FATAL);
-			}
-		}
-
-		/* Decode UTF-8 to wchar_t, null-terminate result. */
-		if (utf8_decode(tar->pax_entry, p,
-			line_length - (p - attr) - 1)) {
-			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-			   "Invalid UTF8 character in pax extended attribute");
-			err = err_combine(err, ARCHIVE_WARN);
-		}
-
-		/* Null-terminate 'key' value. */
-		wp = key = tar->pax_entry;
-		if (key[0] == L'=')
+		/* Find end of key and null terminate it. */
+		key = p;
+		if (key[0] == '=')
 			return (-1);
-		while (*wp && *wp != L'=')
-			++wp;
-		if (*wp == L'\0') {
+		while (*p && *p != '=')
+			++p;
+		if (*p == '\0') {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "Invalid pax extended attributes");
 			return (ARCHIVE_WARN);
 		}
-		*wp = 0;
+		*p = '\0';
 
 		/* Identify null-terminated 'value' portion. */
-		value = wp + 1;
+		value = p + 1;
 
 		/* Identify this attribute and set it in the entry. */
 		err2 = pax_attribute(tar, entry, key, value);
@@ -1278,33 +1252,85 @@ pax_header(struct archive_read *a, struct tar *tar,
 		attr += line_length;
 		attr_length -= line_length;
 	}
+	if (archive_strlen(&(tar->entry_gname)) > 0) {
+		value = tar->entry_gname.s;
+		if (tar->pax_hdrcharset_binary)
+			archive_entry_copy_gname(entry, value);
+		else {
+			wp = utf8_decode(tar, value, strlen(value));
+			if (wp == NULL) {
+				archive_entry_copy_gname(entry, value);
+				if (err > ARCHIVE_WARN)
+					err = ARCHIVE_WARN;
+			} else
+				archive_entry_copy_gname_w(entry, wp);
+		}
+	}
+	if (archive_strlen(&(tar->entry_linkpath)) > 0) {
+		value = tar->entry_linkpath.s;
+		if (tar->pax_hdrcharset_binary)
+			archive_entry_copy_link(entry, value);
+		else {
+			wp = utf8_decode(tar, value, strlen(value));
+			if (wp == NULL) {
+				archive_entry_copy_link(entry, value);
+				if (err > ARCHIVE_WARN)
+					err = ARCHIVE_WARN;
+			} else
+				archive_entry_copy_link_w(entry, wp);
+		}
+	}
+	if (archive_strlen(&(tar->entry_pathname)) > 0) {
+		value = tar->entry_pathname.s;
+		if (tar->pax_hdrcharset_binary)
+			archive_entry_copy_pathname(entry, value);
+		else {
+			wp = utf8_decode(tar, value, strlen(value));
+			if (wp == NULL) {
+				archive_entry_copy_pathname(entry, value);
+				if (err > ARCHIVE_WARN)
+					err = ARCHIVE_WARN;
+			} else
+				archive_entry_copy_pathname_w(entry, wp);
+		}
+	}
+	if (archive_strlen(&(tar->entry_uname)) > 0) {
+		value = tar->entry_uname.s;
+		if (tar->pax_hdrcharset_binary)
+			archive_entry_copy_uname(entry, value);
+		else {
+			wp = utf8_decode(tar, value, strlen(value));
+			if (wp == NULL) {
+				archive_entry_copy_uname(entry, value);
+				if (err > ARCHIVE_WARN)
+					err = ARCHIVE_WARN;
+			} else
+				archive_entry_copy_uname_w(entry, wp);
+		}
+	}
 	return (err);
 }
 
 static int
 pax_attribute_xattr(struct archive_entry *entry,
-	wchar_t *name, wchar_t *value)
+	char *name, char *value)
 {
-	char *name_decoded, *name_narrow;
+	char *name_decoded;
 	void *value_decoded;
 	size_t value_len;
 
-	if (wcslen(name) < 18 || (wcsncmp(name, L"LIBARCHIVE.xattr.", 17)) != 0)
+	if (strlen(name) < 18 || (strncmp(name, "LIBARCHIVE.xattr.", 17)) != 0)
 		return 3;
 
 	name += 17;
 
 	/* URL-decode name */
-	name_narrow = wide_to_narrow(name);
-	if (name_narrow == NULL)
-		return 2;
-	name_decoded = url_decode(name_narrow);
-	free(name_narrow);
+	name_decoded = url_decode(name);
 	if (name_decoded == NULL)
 		return 2;
 
 	/* Base-64 decode value */
-	value_decoded = base64_decode(value, wcslen(value), &value_len);
+	value_decoded = base64_decode(value, strlen(value), &value_len);
 	if (value_decoded == NULL) {
 		free(name_decoded);
 		return 1;
@@ -1333,22 +1359,23 @@ pax_attribute_xattr(struct archive_entry *entry,
  */
 static int
 pax_attribute(struct tar *tar, struct archive_entry *entry,
-    wchar_t *key, wchar_t *value)
+    char *key, char *value)
 {
 	int64_t s;
 	long n;
+	wchar_t *wp;
 
 	switch (key[0]) {
 	case 'G':
 		/* GNU "0.0" sparse pax format. */
-		if (wcscmp(key, L"GNU.sparse.numblocks") == 0) {
+		if (strcmp(key, "GNU.sparse.numblocks") == 0) {
 			tar->sparse_offset = -1;
 			tar->sparse_numbytes = -1;
 			tar->sparse_gnu_major = 0;
 			tar->sparse_gnu_minor = 0;
 		}
-		if (wcscmp(key, L"GNU.sparse.offset") == 0) {
-			tar->sparse_offset = tar_atol10(value, wcslen(value));
+		if (strcmp(key, "GNU.sparse.offset") == 0) {
+			tar->sparse_offset = tar_atol10(value, strlen(value));
 			if (tar->sparse_numbytes != -1) {
 				gnu_add_sparse_entry(tar,
 				    tar->sparse_offset, tar->sparse_numbytes);
@@ -1356,8 +1383,8 @@ pax_attribute(struct tar *tar, struct archive_entry *entry,
 				tar->sparse_numbytes = -1;
 			}
 		}
-		if (wcscmp(key, L"GNU.sparse.numbytes") == 0) {
-			tar->sparse_numbytes = tar_atol10(value, wcslen(value));
+		if (strcmp(key, "GNU.sparse.numbytes") == 0) {
+			tar->sparse_numbytes = tar_atol10(value, strlen(value));
 			if (tar->sparse_numbytes != -1) {
 				gnu_add_sparse_entry(tar,
 				    tar->sparse_offset, tar->sparse_numbytes);
@@ -1365,13 +1392,13 @@ pax_attribute(struct tar *tar, struct archive_entry *entry,
 				tar->sparse_numbytes = -1;
 			}
 		}
-		if (wcscmp(key, L"GNU.sparse.size") == 0) {
-			tar->realsize = tar_atol10(value, wcslen(value));
+		if (strcmp(key, "GNU.sparse.size") == 0) {
+			tar->realsize = tar_atol10(value, strlen(value));
 			archive_entry_set_size(entry, tar->realsize);
 		}
 
 		/* GNU "0.1" sparse pax format. */
-		if (wcscmp(key, L"GNU.sparse.map") == 0) {
+		if (strcmp(key, "GNU.sparse.map") == 0) {
 			tar->sparse_gnu_major = 0;
 			tar->sparse_gnu_minor = 1;
 			if (gnu_sparse_01_parse(tar, value) != ARCHIVE_OK)
@@ -1379,18 +1406,23 @@ pax_attribute(struct tar *tar, struct archive_entry *entry,
 		}
 
 		/* GNU "1.0" sparse pax format */
-		if (wcscmp(key, L"GNU.sparse.major") == 0) {
-			tar->sparse_gnu_major = tar_atol10(value, wcslen(value));
+		if (strcmp(key, "GNU.sparse.major") == 0) {
+			tar->sparse_gnu_major = tar_atol10(value, strlen(value));
 			tar->sparse_gnu_pending = 1;
 		}
-		if (wcscmp(key, L"GNU.sparse.minor") == 0) {
-			tar->sparse_gnu_minor = tar_atol10(value, wcslen(value));
+		if (strcmp(key, "GNU.sparse.minor") == 0) {
+			tar->sparse_gnu_minor = tar_atol10(value, strlen(value));
 			tar->sparse_gnu_pending = 1;
 		}
-		if (wcscmp(key, L"GNU.sparse.name") == 0)
-			archive_entry_copy_pathname_w(entry, value);
-		if (wcscmp(key, L"GNU.sparse.realsize") == 0) {
-			tar->realsize = tar_atol10(value, wcslen(value));
+		if (strcmp(key, "GNU.sparse.name") == 0) {
+			wp = utf8_decode(tar, value, strlen(value));
+			if (wp != NULL)
+				archive_entry_copy_pathname_w(entry, wp);
+			else
+				archive_entry_copy_pathname(entry, value);
+		}
+		if (strcmp(key, "GNU.sparse.realsize") == 0) {
+			tar->realsize = tar_atol10(value, strlen(value));
 			archive_entry_set_size(entry, tar->realsize);
 		}
 		break;
@@ -1401,85 +1433,107 @@ pax_attribute(struct tar *tar, struct archive_entry *entry,
 		if (strcmp(key, "LIBARCHIVE.xxxxxxx")==0)
 			archive_entry_set_xxxxxx(entry, value);
 */
-		if (wcsncmp(key, L"LIBARCHIVE.xattr.", 17)==0)
+		if (strncmp(key, "LIBARCHIVE.xattr.", 17)==0)
 			pax_attribute_xattr(entry, key, value);
 		break;
 	case 'S':
 		/* We support some keys used by the "star" archiver */
-		if (wcscmp(key, L"SCHILY.acl.access")==0)
-			__archive_entry_acl_parse_w(entry, value,
+		if (strcmp(key, "SCHILY.acl.access")==0) {
+			wp = utf8_decode(tar, value, strlen(value));
+			/* TODO: if (wp == NULL) */
+			__archive_entry_acl_parse_w(entry, wp,
 			    ARCHIVE_ENTRY_ACL_TYPE_ACCESS);
-		else if (wcscmp(key, L"SCHILY.acl.default")==0)
-			__archive_entry_acl_parse_w(entry, value,
+		} else if (strcmp(key, "SCHILY.acl.default")==0) {
+			wp = utf8_decode(tar, value, strlen(value));
+			/* TODO: if (wp == NULL) */
+			__archive_entry_acl_parse_w(entry, wp,
 			    ARCHIVE_ENTRY_ACL_TYPE_DEFAULT);
-		else if (wcscmp(key, L"SCHILY.devmajor")==0)
-			archive_entry_set_rdevmajor(entry, tar_atol10(value, wcslen(value)));
-		else if (wcscmp(key, L"SCHILY.devminor")==0)
-			archive_entry_set_rdevminor(entry, tar_atol10(value, wcslen(value)));
-		else if (wcscmp(key, L"SCHILY.fflags")==0)
-			archive_entry_copy_fflags_text_w(entry, value);
-		else if (wcscmp(key, L"SCHILY.dev")==0)
-			archive_entry_set_dev(entry, tar_atol10(value, wcslen(value)));
-		else if (wcscmp(key, L"SCHILY.ino")==0)
-			archive_entry_set_ino(entry, tar_atol10(value, wcslen(value)));
-		else if (wcscmp(key, L"SCHILY.nlink")==0)
-			archive_entry_set_nlink(entry, tar_atol10(value, wcslen(value)));
-		else if (wcscmp(key, L"SCHILY.realsize")==0) {
-			tar->realsize = tar_atol10(value, wcslen(value));
+		} else if (strcmp(key, "SCHILY.devmajor")==0) {
+			archive_entry_set_rdevmajor(entry,
+			    tar_atol10(value, strlen(value)));
+		} else if (strcmp(key, "SCHILY.devminor")==0) {
+			archive_entry_set_rdevminor(entry,
+			    tar_atol10(value, strlen(value)));
+		} else if (strcmp(key, "SCHILY.fflags")==0) {
+			wp = utf8_decode(tar, value, strlen(value));
+			/* TODO: if (wp == NULL) */
+			archive_entry_copy_fflags_text_w(entry, wp);
+		} else if (strcmp(key, "SCHILY.dev")==0) {
+			archive_entry_set_dev(entry,
+			    tar_atol10(value, strlen(value)));
+		} else if (strcmp(key, "SCHILY.ino")==0) {
+			archive_entry_set_ino(entry,
+			    tar_atol10(value, strlen(value)));
+		} else if (strcmp(key, "SCHILY.nlink")==0) {
+			archive_entry_set_nlink(entry,
+			    tar_atol10(value, strlen(value)));
+		} else if (strcmp(key, "SCHILY.realsize")==0) {
+			tar->realsize = tar_atol10(value, strlen(value));
 			archive_entry_set_size(entry, tar->realsize);
 		}
 		break;
 	case 'a':
-		if (wcscmp(key, L"atime")==0) {
+		if (strcmp(key, "atime")==0) {
 			pax_time(value, &s, &n);
 			archive_entry_set_atime(entry, s, n);
 		}
 		break;
 	case 'c':
-		if (wcscmp(key, L"ctime")==0) {
+		if (strcmp(key, "ctime")==0) {
 			pax_time(value, &s, &n);
 			archive_entry_set_ctime(entry, s, n);
-		} else if (wcscmp(key, L"charset")==0) {
+		} else if (strcmp(key, "charset")==0) {
 			/* TODO: Publish charset information in entry. */
-		} else if (wcscmp(key, L"comment")==0) {
+		} else if (strcmp(key, "comment")==0) {
 			/* TODO: Publish comment in entry. */
 		}
 		break;
 	case 'g':
-		if (wcscmp(key, L"gid")==0)
-			archive_entry_set_gid(entry, tar_atol10(value, wcslen(value)));
-		else if (wcscmp(key, L"gname")==0)
-			archive_entry_copy_gname_w(entry, value);
+		if (strcmp(key, "gid")==0) {
+			archive_entry_set_gid(entry,
+			    tar_atol10(value, strlen(value)));
+		} else if (strcmp(key, "gname")==0) {
+			archive_strcpy(&(tar->entry_gname), value);
+		}
+		break;
+	case 'h':
+		if (strcmp(key, "hdrcharset") == 0) {
+			if (strcmp(value, "BINARY") == 0)
+				tar->pax_hdrcharset_binary = 1;
+			else if (strcmp(value, "ISO-IR 10646 2000 UTF-8") == 0)
+				tar->pax_hdrcharset_binary = 0;
+			else {
+				/* TODO: Warn about unsupported hdrcharset */
+			}
+		}
 		break;
 	case 'l':
 		/* pax interchange doesn't distinguish hardlink vs. symlink. */
-		if (wcscmp(key, L"linkpath")==0) {
-			if (archive_entry_hardlink(entry))
-				archive_entry_copy_hardlink_w(entry, value);
-			else
-				archive_entry_copy_symlink_w(entry, value);
+		if (strcmp(key, "linkpath")==0) {
+			archive_strcpy(&(tar->entry_linkpath), value);
 		}
 		break;
 	case 'm':
-		if (wcscmp(key, L"mtime")==0) {
+		if (strcmp(key, "mtime")==0) {
 			pax_time(value, &s, &n);
 			archive_entry_set_mtime(entry, s, n);
 		}
 		break;
 	case 'p':
-		if (wcscmp(key, L"path")==0)
-			archive_entry_copy_pathname_w(entry, value);
+		if (strcmp(key, "path")==0) {
+			archive_strcpy(&(tar->entry_pathname), value);
+		}
 		break;
 	case 'r':
 		/* POSIX has reserved 'realtime.*' */
 		break;
 	case 's':
 		/* POSIX has reserved 'security.*' */
-		/* Someday: if (wcscmp(key, L"security.acl")==0) { ... } */
-		if (wcscmp(key, L"size")==0) {
+		/* Someday: if (strcmp(key, "security.acl")==0) { ... } */
+		if (strcmp(key, "size")==0) {
 			/* "size" is the size of the data in the entry. */
 			tar->entry_bytes_remaining
-			    = tar_atol10(value, wcslen(value));
+			    = tar_atol10(value, strlen(value));
 			/*
 			 * But, "size" is not necessarily the size of
 			 * the file on disk; if this is a sparse file,
@@ -1497,10 +1551,12 @@ pax_attribute(struct tar *tar, struct archive_entry *entry,
 		}
 		break;
 	case 'u':
-		if (wcscmp(key, L"uid")==0)
-			archive_entry_set_uid(entry, tar_atol10(value, wcslen(value)));
-		else if (wcscmp(key, L"uname")==0)
-			archive_entry_copy_uname_w(entry, value);
+		if (strcmp(key, "uid")==0) {
+			archive_entry_set_uid(entry,
+			    tar_atol10(value, strlen(value)));
+		} else if (strcmp(key, "uname")==0) {
+			archive_strcpy(&(tar->entry_uname), value);
+		}
 		break;
 	}
 	return (0);
@@ -1512,7 +1568,7 @@ pax_attribute(struct tar *tar, struct archive_entry *entry,
  * parse a decimal time value, which may include a fractional portion
  */
 static void
-pax_time(const wchar_t *p, int64_t *ps, long *pn)
+pax_time(const char *p, int64_t *ps, long *pn)
 {
 	char digit;
 	int64_t	s;
@@ -1580,9 +1636,9 @@ header_gnutar(struct archive_read *a, struct tar *tar,
 
 	/* Copy filename over (to ensure null termination). */
 	header = (const struct archive_entry_header_gnutar *)h;
-	archive_strncpy(&(tar->entry_name), header->name,
+	archive_strncpy(&(tar->entry_pathname), header->name,
 	    sizeof(header->name));
-	archive_entry_set_pathname(entry, tar->entry_name.s);
+	archive_entry_copy_pathname(entry, tar->entry_pathname.s);
 
 	/* Fields common to ustar and GNU */
 	/* XXX Can the following be factored out since it's common
@@ -1590,11 +1646,11 @@ header_gnutar(struct archive_read *a, struct tar *tar,
 	 * header_common, perhaps?  */
 	archive_strncpy(&(tar->entry_uname),
 	    header->uname, sizeof(header->uname));
-	archive_entry_set_uname(entry, tar->entry_uname.s);
+	archive_entry_copy_uname(entry, tar->entry_uname.s);
 
 	archive_strncpy(&(tar->entry_gname),
 	    header->gname, sizeof(header->gname));
-	archive_entry_set_gname(entry, tar->entry_gname.s);
+	archive_entry_copy_gname(entry, tar->entry_gname.s);
 
 	/* Parse out device numbers only for char and block specials */
 	if (header->typeflag[0] == '3' || header->typeflag[0] == '4') {
@@ -1748,9 +1804,9 @@ gnu_sparse_old_parse(struct tar *tar,
  */
 
 static int
-gnu_sparse_01_parse(struct tar *tar, const wchar_t *p)
+gnu_sparse_01_parse(struct tar *tar, const char *p)
 {
-	const wchar_t *e;
+	const char *e;
 	off_t offset = -1, size = -1;
 
 	for (;;) {
@@ -1785,12 +1841,11 @@ gnu_sparse_01_parse(struct tar *tar, const wchar_t *p)
  * don't support this format will extract the block map along with the
  * data and a separate post-process can restore the sparseness.
  *
- * Unfortunately, GNU tar 1.16 adds bogus padding to the end of the
- * entry that depends on the size of the map; this means we have to
- * parse the sparse map when we read the header (otherwise, entry_skip
- * will fail).  This is why sparse_10_read is called from read_header
- * above, instead of at the beginning of read_data, where it "should"
- * go.
+ * Unfortunately, GNU tar 1.16 had a bug that added unnecessary
+ * padding to the body of the file when using this format.  GNU tar
+ * 1.17 corrected this bug without bumping the version number, so
+ * it's not possible to support both variants.  This code supports
+ * the later variant at the expense of not supporting the former.
  *
  * This variant also replaced GNU.sparse.size with GNU.sparse.realsize
  * and introduced the GNU.sparse.major/GNU.sparse.minor attributes.
@@ -1954,7 +2009,7 @@ tar_atol8(const char *p, unsigned char_cnt)
  * it does obey locale.
  */
 static int64_t
-tar_atol10(const wchar_t *p, unsigned char_cnt)
+tar_atol10(const char *p, unsigned char_cnt)
 {
 	int64_t l, limit, last_digit_limit;
 	int base, digit, sign;
@@ -1987,10 +2042,7 @@ tar_atol10(const wchar_t *p, unsigned char_cnt)
 /*
  * Parse a base-256 integer.  This is just a straight signed binary
  * value in big-endian order, except that the high-order bit is
- * ignored.  Remember that "int64_t" may or may not be exactly 64
- * bits; the implementation here tries to avoid making any assumptions
- * about the actual size of an int64_t.  It does assume we're using
- * twos-complement arithmetic, though.
+ * ignored.
  */
 static int64_t
 tar_atol256(const char *_p, unsigned char_cnt)
@@ -2088,15 +2140,38 @@ readline(struct archive_read *a, struct tar *tar, const char **start,
 	}
 }
 
-static int
-utf8_decode(wchar_t *dest, const char *src, size_t length)
+static wchar_t *
+utf8_decode(struct tar *tar, const char *src, size_t length)
 {
-	size_t n;
+	wchar_t *dest;
+	ssize_t n;
 	int err;
 
+	/* Ensure pax_entry buffer is big enough. */
+	if (tar->pax_entry_length <= length) {
+		wchar_t *old_entry = tar->pax_entry;
+
+		if (tar->pax_entry_length <= 0)
+			tar->pax_entry_length = 1024;
+		while (tar->pax_entry_length <= length + 1)
+			tar->pax_entry_length *= 2;
+
+		old_entry = tar->pax_entry;
+		tar->pax_entry = (wchar_t *)realloc(tar->pax_entry,
+		    tar->pax_entry_length * sizeof(wchar_t));
+		if (tar->pax_entry == NULL) {
+			free(old_entry);
+			/* TODO: Handle this error. */
+			return (NULL);
+		}
+	}
+
+	dest = tar->pax_entry;
 	err = 0;
 	while (length > 0) {
 		n = UTF8_mbrtowc(dest, src, length);
+		if (n < 0)
+			return (NULL);
 		if (n == 0)
 			break;
 		dest++;
@@ -2104,13 +2179,13 @@ utf8_decode(wchar_t *dest, const char *src, size_t length)
 		length -= n;
 	}
 	*dest++ = L'\0';
-	return (err);
+	return (tar->pax_entry);
 }
 
 /*
  * Copied and simplified from FreeBSD libc/locale.
  */
-static size_t
+static ssize_t
 UTF8_mbrtowc(wchar_t *pwc, const char *s, size_t n)
 {
         int ch, i, len, mask;
@@ -2137,22 +2212,14 @@ UTF8_mbrtowc(wchar_t *pwc, const char *s, size_t n)
         } else if ((ch & 0xf8) == 0xf0) {
                 mask = 0x07;
                 len = 4;
-        } else if ((ch & 0xfc) == 0xf8) {
-                mask = 0x03;
-                len = 5;
-        } else if ((ch & 0xfe) == 0xfc) {
-                mask = 0x01;
-                len = 6;
         } else {
-		/* Invalid first byte; convert to '?' */
-		*pwc = '?';
-		return (1);
+		/* Invalid first byte. */
+		return (-1);
         }
 
         if (n < (size_t)len) {
-		/* Invalid first byte; convert to '?' */
-		*pwc = '?';
-                return (1);
+		/* Valid first byte but truncated. */
+                return (-2);
 	}
 
         /*
@@ -2198,7 +2265,7 @@ UTF8_mbrtowc(wchar_t *pwc, const char *s, size_t n)
  * omits line breaks; RFC1341 used for MIME requires both.)
  */
 static char *
-base64_decode(const wchar_t *src, size_t len, size_t *out_len)
+base64_decode(const char *s, size_t len, size_t *out_len)
 {
 	static const unsigned char digits[64] = {
 		'A','B','C','D','E','F','G','H','I','J','K','L','M','N',
@@ -2208,6 +2275,7 @@ base64_decode(const wchar_t *src, size_t len, size_t *out_len)
 		'4','5','6','7','8','9','+','/' };
 	static unsigned char decode_table[128];
 	char *out, *d;
+	const unsigned char *src = (const unsigned char *)s;
 
 	/* If the decode table is not yet initialized, prepare it. */
 	if (decode_table[digits[1]] != 1) {
@@ -2266,43 +2334,6 @@ base64_decode(const wchar_t *src, size_t len, size_t *out_len)
 
 	*out_len = d - out;
 	return (out);
-}
-
-/*
- * This is a little tricky because the C99 standard wcstombs()
- * function returns the number of bytes that were converted,
- * not the number that should be converted.  As a result,
- * we can never accurately size the output buffer (without
- * doing a tedious output size calculation in advance).
- * This approach (try a conversion, then try again if it fails)
- * will almost always succeed on the first try, and is thus
- * much faster, at the cost of sometimes requiring multiple
- * passes while we expand the buffer.
- */
-static char *
-wide_to_narrow(const wchar_t *wval)
-{
-	int converted_length;
-	/* Guess an output buffer size and try the conversion. */
-	int alloc_length = wcslen(wval) * 3;
-	char *mbs_val = (char *)malloc(alloc_length + 1);
-	if (mbs_val == NULL)
-		return (NULL);
-	converted_length = wcstombs(mbs_val, wval, alloc_length);
-
-	/* If we exhausted the buffer, resize and try again. */
-	while (converted_length >= alloc_length) {
-		free(mbs_val);
-		alloc_length *= 2;
-		mbs_val = (char *)malloc(alloc_length + 1);
-		if (mbs_val == NULL)
-			return (NULL);
-		converted_length = wcstombs(mbs_val, wval, alloc_length);
-	}
-
-	/* Ensure a trailing null and return the final string. */
-	mbs_val[alloc_length] = '\0';
-	return (mbs_val);
 }
 
 static char *
