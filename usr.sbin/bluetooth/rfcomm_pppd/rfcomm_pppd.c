@@ -1,7 +1,9 @@
 /*
  * rfcomm_pppd.c
- *
- * Copyright (c) 2001-2003 Maksim Yevmenkin <m_evmenkin@yahoo.com>
+ */
+
+/*-
+ * Copyright (c) 2001-2008 Maksim Yevmenkin <m_evmenkin@yahoo.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -469,6 +471,7 @@ usage(void)
 "\t-c           Act as a clinet (default)\n" \
 "\t-C channel   RFCOMM channel to listen on or connect to (required)\n" \
 "\t-d           Run in foreground\n" \
+"\t-D           Register Dial-Up Networking service (server mode only)\n" \
 "\t-l label     Use PPP label (required)\n" \
 "\t-s           Act as a server\n" \
 "\t-S           Register Serial Port service (server mode only)\n" \
