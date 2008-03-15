@@ -140,6 +140,11 @@
   <sect2 id="kernel">
     <title>Kernel Changes</title>
 
+    <para>A new API called <literal>cpuset</literal> has been added
+      for thread to CPU binding and CPU resource grouping and
+      assignment.  The &man.cpuset.1; userland utility has been added
+      to allow manipulation of processor sets.</para>
+
     <para>The &man.ddb.4; kernel debugger now has an output capture
       facility.  Input and output from &man.ddb.4; can now be captured
       to a memory buffer for later inspection using &man.sysctl.8; or
@@ -165,7 +170,17 @@
     <sect3 id="boot">
       <title>Boot Loader Changes</title>
 
-      <para></para>
+      <para>[&arch.amd64;, &arch.i386;] The BTX kernel used by the boot
+	loader has been changed to invoke BIOS routines from real
+	mode.  This change makes it possible to boot &os; from USB
+	devices.</para>
+
+      <para>[&arch.amd64;, &arch.i386;] A new gptboot boot loader has
+        been added to support booting from a GPT labeled disk.  A
+        new <command>boot</command> command has been added to
+        &man.gpt.8;, which makes a GPT disk bootable by writing the
+        required bits of the boot loader, creating a new boot
+        partition if required. &merged;</para>
 
     </sect3>
 
@@ -216,7 +231,18 @@
   <sect2 id="userland">
     <title>Userland Changes</title>
 
-    <para></para>
+    <para>BSD-licensed versions of &man.ar.1; and &man.ranlib.1;,
+      based on <filename>libarchive</filename>, have replaced the GNU
+      Binutils versions of these utilities.</para>
+
+    <para>&man.traceroute.8; now has the ability to print the AS
+      number for each hop with the new <option>-a</option> switch; a
+      new <option>-A</option> option allows selecting a particular
+      WHOIS server.</para>
+
+    <para>&man.traceroute6.8; now supports a <option>-U</option> flag
+      to send probe packets with no upper-layer protocol, rather than
+      the usual UDP probe packets.</para>
 
     <sect3 id="rc-scripts">
       <title><filename>/etc/rc.d</filename> Scripts</title>
@@ -255,7 +281,7 @@
 
     <para>The timezone database has been updated from
       the <application>tzdata2007h</application> release to
-      the <application>tzdata2007k</application> release.</para>
+      the <application>tzdata2008a</application> release. &merged;</para>
 
   </sect2>
 
