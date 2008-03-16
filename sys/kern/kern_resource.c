@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/refcount.h>
 #include <sys/resourcevar.h>
+#include <sys/rwlock.h>
 #include <sys/sched.h>
 #include <sys/sx.h>
 #include <sys/syscallsubr.h>
@@ -67,7 +68,7 @@ __FBSDID("$FreeBSD$");
 static MALLOC_DEFINE(M_PLIMIT, "plimit", "plimit structures");
 static MALLOC_DEFINE(M_UIDINFO, "uidinfo", "uidinfo structures");
 #define	UIHASH(uid)	(&uihashtbl[(uid) & uihash])
-static struct mtx uihashtbl_mtx;
+static struct rwlock uihashtbl_lock;
 static LIST_HEAD(uihashhead, uidinfo) *uihashtbl;
 static u_long uihash;		/* size of hash table - 1 */
 
@@ -1171,12 +1172,12 @@ uihashinit()
 {
 
 	uihashtbl = hashinit(maxproc / 16, M_UIDINFO, &uihash);
-	mtx_init(&uihashtbl_mtx, "uidinfo hash", NULL, MTX_DEF);
+	rw_init(&uihashtbl_lock, "uidinfo hash");
 }
 
 /*
  * Look up a uidinfo struct for the parameter uid.
- * uihashtbl_mtx must be locked.
+ * uihashtbl_lock must be locked.
  */
 static struct uidinfo *
 uilookup(uid)
@@ -1185,7 +1186,7 @@ uilookup(uid)
 	struct uihashhead *uipp;
 	struct uidinfo *uip;
 
-	mtx_assert(&uihashtbl_mtx, MA_OWNED);
+	rw_assert(&uihashtbl_lock, RA_LOCKED);
 	uipp = UIHASH(uid);
 	LIST_FOREACH(uip, uipp, ui_hash)
 		if (uip->ui_uid == uid)
@@ -1205,12 +1206,12 @@ uifind(uid)
 {
 	struct uidinfo *old_uip, *uip;
 
-	mtx_lock(&uihashtbl_mtx);
+	rw_rlock(&uihashtbl_lock);
 	uip = uilookup(uid);
 	if (uip == NULL) {
-		mtx_unlock(&uihashtbl_mtx);
+		rw_runlock(&uihashtbl_lock);
 		uip = malloc(sizeof(*uip), M_UIDINFO, M_WAITOK | M_ZERO);
-		mtx_lock(&uihashtbl_mtx);
+		rw_wlock(&uihashtbl_lock);
 		/*
 		 * There's a chance someone created our uidinfo while we
 		 * were in malloc and not holding the lock, so we have to
@@ -1221,13 +1222,14 @@ uifind(uid)
 			free(uip, M_UIDINFO);
 			uip = old_uip;
 		} else {
-			uip->ui_mtxp = mtx_pool_alloc(mtxpool_sleep);
+			refcount_init(&uip->ui_ref, 0);
 			uip->ui_uid = uid;
 			LIST_INSERT_HEAD(UIHASH(uid), uip, ui_hash);
 		}
+		uihold(uip);
 	}
 	uihold(uip);
-	mtx_unlock(&uihashtbl_mtx);
+	rw_unlock(&uihashtbl_lock);
 	return (uip);
 }
 
@@ -1239,9 +1241,7 @@ uihold(uip)
 	struct uidinfo *uip;
 {
 
-	UIDINFO_LOCK(uip);
-	uip->ui_ref++;
-	UIDINFO_UNLOCK(uip);
+	refcount_acquire(&uip->ui_ref);
 }
 
 /*-
@@ -1263,43 +1263,32 @@ void
 uifree(uip)
 	struct uidinfo *uip;
 {
+	int old;
 
 	/* Prepare for optimal case. */
-	UIDINFO_LOCK(uip);
-
-	if (--uip->ui_ref != 0) {
-		UIDINFO_UNLOCK(uip);
+	old = uip->ui_ref;
+	if (old > 1 && atomic_cmpset_int(&uip->ui_ref, old, old - 1))
 		return;
-	}
 
 	/* Prepare for suboptimal case. */
-	uip->ui_ref++;
-	UIDINFO_UNLOCK(uip);
-	mtx_lock(&uihashtbl_mtx);
-	UIDINFO_LOCK(uip);
-
-	/*
-	 * We must subtract one from the count again because we backed out
-	 * our initial subtraction before dropping the lock.
-	 * Since another thread may have added a reference after we dropped the
-	 * initial lock we have to test for zero again.
-	 */
-	if (--uip->ui_ref == 0) {
+	rw_wlock(&uihashtbl_lock);
+	if (refcount_release(&uip->ui_ref)) {
 		LIST_REMOVE(uip, ui_hash);
-		mtx_unlock(&uihashtbl_mtx);
+		rw_wunlock(&uihashtbl_lock);
 		if (uip->ui_sbsize != 0)
-			printf("freeing uidinfo: uid = %d, sbsize = %jd\n",
-			    uip->ui_uid, (intmax_t)uip->ui_sbsize);
+			printf("freeing uidinfo: uid = %d, sbsize = %ld\n",
+			    uip->ui_uid, uip->ui_sbsize);
 		if (uip->ui_proccnt != 0)
 			printf("freeing uidinfo: uid = %d, proccnt = %ld\n",
 			    uip->ui_uid, uip->ui_proccnt);
-		UIDINFO_UNLOCK(uip);
 		FREE(uip, M_UIDINFO);
 		return;
 	}
-
-	mtx_unlock(&uihashtbl_mtx);
-	UIDINFO_UNLOCK(uip);
+	/*
+	 * Someone added a reference between atomic_cmpset_int() and
+	 * rw_wlock(&uihashtbl_lock).
+	 */
+	rw_wunlock(&uihashtbl_lock);
 }
 
 /*
@@ -1310,19 +1299,20 @@ int
 chgproccnt(uip, diff, max)
 	struct	uidinfo	*uip;
 	int	diff;
-	int	max;
+	rlim_t	max;
 {
 
-	UIDINFO_LOCK(uip);
 	/* Don't allow them to exceed max, but allow subtraction. */
-	if (diff > 0 && uip->ui_proccnt + diff > max && max != 0) {
-		UIDINFO_UNLOCK(uip);
-		return (0);
+	if (diff > 0 && max != 0) {
+		if (atomic_fetchadd_long(&uip->ui_proccnt, (long)diff) + diff > max) {
+			atomic_subtract_long(&uip->ui_proccnt, (long)diff);
+			return (0);
+		}
+	} else {
+		atomic_add_long(&uip->ui_proccnt, (long)diff);
+		if (uip->ui_proccnt < 0)
+			printf("negative proccnt for uid = %d\n", uip->ui_uid);
 	}
-	uip->ui_proccnt += diff;
-	if (uip->ui_proccnt < 0)
-		printf("negative proccnt for uid = %d\n", uip->ui_uid);
-	UIDINFO_UNLOCK(uip);
 	return (1);
 }
 
@@ -1336,19 +1326,19 @@ chgsbsize(uip, hiwat, to, max)
 	u_int	to;
 	rlim_t	max;
 {
-	rlim_t new;
+	int diff;
 
-	UIDINFO_LOCK(uip);
-	new = uip->ui_sbsize + to - *hiwat;
-	/* Don't allow them to exceed max, but allow subtraction. */
-	if (to > *hiwat && new > max) {
-		UIDINFO_UNLOCK(uip);
-		return (0);
+	diff = to - *hiwat;
+	if (diff > 0) {
+		if (atomic_fetchadd_long(&uip->ui_sbsize, (long)diff) + diff > max) {
+			atomic_subtract_long(&uip->ui_sbsize, (long)diff);
+			return (0);
+		}
+	} else {
+		atomic_add_long(&uip->ui_sbsize, (long)diff);
+		if (uip->ui_sbsize < 0)
+			printf("negative sbsize for uid = %d\n", uip->ui_uid);
 	}
-	uip->ui_sbsize = new;
-	UIDINFO_UNLOCK(uip);
-	*hiwat = to;
-	if (new < 0)
-		printf("negative sbsize for uid = %d\n", uip->ui_uid);
-	return (1);
+        *hiwat = to;
+        return (1);
 }

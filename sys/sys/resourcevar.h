@@ -84,20 +84,16 @@ struct plimit {
  *
  * Locking guide:
  * (a) Constant from inception
- * (b) Locked by ui_mtxp
+ * (b) Lockless, updated using atomics
  * (c) Locked by global uihashtbl_mtx
  */
 struct uidinfo {
 	LIST_ENTRY(uidinfo) ui_hash;	/* (c) hash chain of uidinfos */
-	rlim_t	ui_sbsize;		/* (b) socket buffer space consumed */
+	long	ui_sbsize;		/* (b) socket buffer space consumed */
 	long	ui_proccnt;		/* (b) number of processes */
 	uid_t	ui_uid;			/* (a) uid */
 	u_int	ui_ref;			/* (b) reference count */
-	struct mtx *ui_mtxp;		/* protect all counts/limits */
 };
-
-#define	UIDINFO_LOCK(ui)	mtx_lock((ui)->ui_mtxp)
-#define	UIDINFO_UNLOCK(ui)	mtx_unlock((ui)->ui_mtxp)
 
 struct proc;
 struct rusage_ext;
@@ -107,7 +103,7 @@ void	 addupc_intr(struct thread *td, uintfptr_t pc, u_int ticks);
 void	 addupc_task(struct thread *td, uintfptr_t pc, u_int ticks);
 void	 calccru(struct proc *p, struct timeval *up, struct timeval *sp);
 void	 calcru(struct proc *p, struct timeval *up, struct timeval *sp);
-int	 chgproccnt(struct uidinfo *uip, int diff, int maxval);
+int	 chgproccnt(struct uidinfo *uip, int diff, rlim_t maxval);
 int	 chgsbsize(struct uidinfo *uip, u_int *hiwat, u_int to,
 	    rlim_t maxval);
 int	 fuswintr(void *base);
