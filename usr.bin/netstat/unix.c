@@ -65,7 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <kvm.h>
 #include "netstat.h"
 
-static	void unixdomainpr (struct xunpcb *, struct xsocket *);
+static	void unixdomainpr(struct xunpcb *, struct xsocket *);
 
 static	const char *const socktype[] =
     { "#0", "stream", "dgram", "raw", "rdm", "seqpacket" };
@@ -124,7 +124,7 @@ pcblist_kvm(u_long count_off, u_long gencnt_off, u_long head_off, char **bufp)
 	}
 	p = buf;
 
-#define COPYOUT(obj, size) do {						\
+#define	COPYOUT(obj, size) do {						\
 	if (len < (size)) {						\
 		warnx("buffer size exceeded");				\
 		goto fail;						\
@@ -134,7 +134,7 @@ pcblist_kvm(u_long count_off, u_long gencnt_off, u_long head_off, char **bufp)
 	p += (size);							\
 } while (0)
 
-#define KREAD(off, buf, len) do {					\
+#define	KREAD(off, buf, len) do {					\
 	if (kread((uintptr_t)(off), (buf), (len)) != 0)			\
 		goto fail;						\
 } while (0)
