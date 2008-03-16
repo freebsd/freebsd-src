@@ -448,7 +448,15 @@ int
 ufs_extattr_autostart(struct mount *mp, struct thread *td)
 {
 	struct vnode *rvp, *attr_dvp, *attr_system_dvp, *attr_user_dvp;
+	struct ufsmount *ump = VFSTOUFS(mp);
 	int error;
+
+	/*
+	 * UFS_EXTATTR applies only to UFS1, as UFS2 uses native extended
+	 * attributes, so don't autostart.
+	 */
+	if (ump->um_fstype != UFS1)
+		return (0);
 
 	/*
 	 * Does UFS_EXTATTR_FSROOTSUBDIR exist off the filesystem root?
@@ -705,6 +713,16 @@ ufs_extattrctl(struct mount *mp, int cmd, struct vnode *filename_vp,
 		if (filename_vp != NULL)
 			VOP_UNLOCK(filename_vp, 0, td);
 		return (error);
+	}
+
+	/*
+	 * We only allow extattrctl(2) on UFS1 file systems, as UFS2 uses
+	 * native extended attributes.
+	 */
+	if (ump->um_fstype != UFS1) {
+		if (filename_vp != NULL)
+			VOP_UNLOCK(filename_vp, 0, td);
+		return (EOPNOTSUPP);
 	}
 
 	switch(cmd) {
