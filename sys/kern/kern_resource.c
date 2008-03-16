@@ -264,7 +264,7 @@ donice(struct thread *td, struct proc *p, int n)
 		n = PRIO_MAX;
 	if (n < PRIO_MIN)
 		n = PRIO_MIN;
- 	if (n < p->p_nice && priv_check(td, PRIV_SCHED_SETPRIORITY) != 0)
+	if (n < p->p_nice && priv_check(td, PRIV_SCHED_SETPRIORITY) != 0)
 		return (EACCES);
 	PROC_SLOCK(p);
 	sched_nice(p, n);
@@ -332,7 +332,7 @@ rtprio_thread(struct thread *td, struct rtprio_thread_args *uap)
  * due to a CPU-bound normal process).  Fix me!  XXX
  */
 #if 0
- 		if (RTP_PRIO_IS_REALTIME(rtp.type)) {
+		if (RTP_PRIO_IS_REALTIME(rtp.type)) {
 #else
 		if (rtp.type != RTP_PRIO_NORMAL) {
 #endif
@@ -403,7 +403,7 @@ rtprio(td, uap)
 		/*
 		 * Return OUR priority if no pid specified,
 		 * or if one is, report the highest priority
-		 * in the process.  There isn't much more you can do as 
+		 * in the process.  There isn't much more you can do as
 		 * there is only room to return a single priority.
 		 * Note: specifying our own pid is not the same
 		 * as leaving it zero.
@@ -890,13 +890,13 @@ calcru1(struct proc *p, struct rusage_ext *ruxp, struct timeval *up,
 		if (su < ruxp->rux_su)
 			su = ruxp->rux_su;
 	} else if (tu + 3 > ruxp->rux_tu || 101 * tu > 100 * ruxp->rux_tu) {
-		/* 
+		/*
 		 * When we calibrate the cputicker, it is not uncommon to
 		 * see the presumably fixed frequency increase slightly over
 		 * time as a result of thermal stabilization and NTP
 		 * discipline (of the reference clock).  We therefore ignore
 		 * a bit of backwards slop because we  expect to catch up
- 		 * shortly.  We use a 3 microsecond limit to catch low
+		 * shortly.  We use a 3 microsecond limit to catch low
 		 * counts and a 1% limit for high counts.
 		 */
 		uu = ruxp->rux_uu;
@@ -1339,6 +1339,6 @@ chgsbsize(uip, hiwat, to, max)
 		if (uip->ui_sbsize < 0)
 			printf("negative sbsize for uid = %d\n", uip->ui_uid);
 	}
-        *hiwat = to;
-        return (1);
+	*hiwat = to;
+	return (1);
 }
