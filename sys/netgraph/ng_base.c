@@ -3577,7 +3577,6 @@ ng_address_hook(node_p here, item_p item, hook_p hook, ng_ID_t retaddr)
 	 */
 	if ((hook == NULL)
 	|| NG_HOOK_NOT_VALID(hook)
-	|| (NG_HOOK_PEER(hook) == NULL)
 	|| NG_HOOK_NOT_VALID(NG_HOOK_PEER(hook))
 	|| NG_NODE_NOT_VALID(NG_PEER_NODE(hook))) {
 		NG_FREE_ITEM(item);
