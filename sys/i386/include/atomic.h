@@ -278,6 +278,13 @@ atomic_cmpset_long(volatile u_long *dst, u_long exp, u_long src)
 	    (u_int)src));
 }
 
+static __inline u_long
+atomic_fetchadd_long(volatile u_long *p, u_long v)
+{
+
+	return (atomic_fetchadd_int((volatile u_int *)p, (u_int)v));
+}
+
 /* Read the current value and store a zero in the destination. */
 #ifdef __GNUCLIKE_ASM
 

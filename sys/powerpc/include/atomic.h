@@ -502,5 +502,7 @@ atomic_fetchadd_32(volatile uint32_t *p, uint32_t v)
 }
 
 #define	atomic_fetchadd_int	atomic_fetchadd_32
+#define	atomic_fetchadd_long(p, v)	\
+    (u_long)atomic_fetchadd_32((volatile u_int *)(p), (u_int)(v))
 
 #endif /* ! _MACHINE_ATOMIC_H_ */
