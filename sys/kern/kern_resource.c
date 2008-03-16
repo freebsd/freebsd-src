@@ -126,7 +126,7 @@ getpriority(td, uap)
 		sx_sunlock(&proctree_lock);
 		LIST_FOREACH(p, &pg->pg_members, p_pglist) {
 			PROC_LOCK(p);
-			if (!p_cansee(td, p)) {
+			if (p_cansee(td, p) == 0) {
 				if (p->p_nice < low)
 					low = p->p_nice;
 			}
@@ -144,7 +144,7 @@ getpriority(td, uap)
 			if (p->p_state == PRS_NEW)
 				continue;
 			PROC_LOCK(p);
-			if (!p_cansee(td, p) &&
+			if (p_cansee(td, p) == 0 &&
 			    p->p_ucred->cr_uid == uap->who) {
 				if (p->p_nice < low)
 					low = p->p_nice;
@@ -189,7 +189,7 @@ setpriority(td, uap)
 			PROC_UNLOCK(curp);
 		} else {
 			p = pfind(uap->who);
-			if (p == 0)
+			if (p == NULL)
 				break;
 			error = p_cansee(td, p);
 			if (error == 0)
@@ -214,7 +214,7 @@ setpriority(td, uap)
 		sx_sunlock(&proctree_lock);
 		LIST_FOREACH(p, &pg->pg_members, p_pglist) {
 			PROC_LOCK(p);
-			if (!p_cansee(td, p)) {
+			if (p_cansee(td, p) == 0) {
 				error = donice(td, p, uap->prio);
 				found++;
 			}
@@ -230,7 +230,7 @@ setpriority(td, uap)
 		FOREACH_PROC_IN_SYSTEM(p) {
 			PROC_LOCK(p);
 			if (p->p_ucred->cr_uid == uap->who &&
-			    !p_cansee(td, p)) {
+			    p_cansee(td, p) == 0) {
 				error = donice(td, p, uap->prio);
 				found++;
 			}
@@ -284,7 +284,6 @@ struct rtprio_thread_args {
 int
 rtprio_thread(struct thread *td, struct rtprio_thread_args *uap)
 {
-	struct proc *curp;
 	struct proc *p;
 	struct rtprio rtp;
 	struct thread *td1;
@@ -296,12 +295,11 @@ rtprio_thread(struct thread *td, struct rtprio_thread_args *uap)
 	else
 		cierror = 0;
 
-	curp = td->td_proc;
 	/*
 	 * Though lwpid is unique, only current process is supported
 	 * since there is no efficient way to look up a LWP yet.
 	 */
-	p = curp;
+	p = td->td_proc;
 	PROC_LOCK(p);
 
 	switch (uap->function) {
@@ -376,7 +374,6 @@ rtprio(td, uap)
 	struct thread *td;		/* curthread */
 	register struct rtprio_args *uap;
 {
-	struct proc *curp;
 	struct proc *p;
 	struct thread *tdp;
 	struct rtprio rtp;
@@ -388,9 +385,8 @@ rtprio(td, uap)
 	else
 		cierror = 0;
 
-	curp = td->td_proc;
 	if (uap->pid == 0) {
-		p = curp;
+		p = td->td_proc;
 		PROC_LOCK(p);
 	} else {
 		p = pfind(uap->pid);
