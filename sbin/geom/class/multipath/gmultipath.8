@@ -213,15 +213,15 @@ with their storage is qualified to make this judgement.
 .Pp
 You can then use the
 .Nm
-command to label and create the
+command to label and create a
 .Nm MULTIPATH
-GEOM class named 
-.Ar Fred .
+GEOM provider named
+.Ar FRED .
 .Bd -literal -offset indent
-gmultipath label -v Fred /dev/da0 /dev/da2
-disklabel -Brw /dev/multipath/Fred auto
-newfs /dev/multipath/Freda
-mount /dev/multipath/Freda /mnt....
+gmultipath label -v FRED /dev/da0 /dev/da2
+disklabel -Brw /dev/multipath/FRED auto
+newfs /dev/multipath/FREDa
+mount /dev/multipath/FREDa /mnt....
 .Ed
 .Pp
 The resultant console output looks something like:
