@@ -179,21 +179,27 @@ Insertion of a new entry after any element in the list.
 .It
 O(1) removal of an entry from the head of the list.
 .It
-O(n) removal of any entry in the list.
-.It
 Forward traversal through the list.
 .El
 .Pp
+O(n) removal of any entry in the list.
 Singly-linked lists are the simplest of the four data structures
 and support only the above functionality.
 Singly-linked lists are ideal for applications with large datasets
 and few or no removals,
 or for implementing a LIFO queue.
+Singly-linked lists add the following functionality:
+.Bl -enum -compact -offset indent
+.It
+O(n) removal of any entry in the list.
+.El
 .Pp
 Singly-linked tail queues add the following functionality:
 .Bl -enum -compact -offset indent
 .It
 Entries can be added at the end of a list.
+.It
+O(n) removal of any entry in the list.
 .It
 They may be concatenated.
 .El
