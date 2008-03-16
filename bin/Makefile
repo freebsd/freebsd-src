@@ -37,7 +37,8 @@ SUBDIR= cat \
 	sleep \
 	stty \
 	sync \
-	test
+	test \
+	uuidgen
 
 .if ${MK_RCMDS} != "no"
 _rcp=	rcp
