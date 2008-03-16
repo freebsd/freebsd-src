@@ -1694,29 +1694,34 @@ struct cnode *
 make_coda_node(CodaFid *fid, struct mount *vfsp, short type)
 {
 	struct cnode *cp;
+	struct vnode *vp;
 	int err;
 
-	if ((cp = coda_find(fid)) == NULL) {
-		struct vnode *vp;
-
-		cp = coda_alloc();
-		cp->c_fid = *fid;
-		err = getnewvnode("coda", vfsp, &coda_vnodeops, &vp);
-		if (err)
-			panic("coda: getnewvnode returned error %d\n", err);
-
-		/*
-		 * XXX: Too early for mpsafe fs.
-		 */
-		err = insmntque1(vp, vfsp, NULL, NULL);
-		if (err != 0)
-			panic("coda: insmntque failed: error %d", err);
-		vp->v_data = cp;
-		vp->v_type = type;
-		cp->c_vnode = vp;
-		coda_save(cp);
-	} else
+	/*
+	 * XXXRW: This really needs a moderate amount of reworking.  We need
+	 * to properly tolerate failures of getnewvnode() and insmntque(),
+	 * and callers need to be able to accept an error back from
+	 * make_coda_node.  There may also be more general issues in how we
+	 * handle forced unmount.  Finally, if/when Coda loses its dependency
+	 * on Giant, the ordering of this needs rethinking.
+	 */
+	cp = coda_find(fid);
+	if (cp != NULL) {
 		vref(CTOV(cp));
+		return (cp);
+	}
+	cp = coda_alloc();
+	cp->c_fid = *fid;
+	err = getnewvnode("coda", vfsp, &coda_vnodeops, &vp);
+	if (err)
+		panic("coda: getnewvnode returned error %d\n", err);
+	vp->v_data = cp;
+	vp->v_type = type;
+	cp->c_vnode = vp;
+	coda_save(cp);
+	err = insmntque(vp, vfsp);
+	if (err != 0)
+		printf("coda: insmntque failed: error %d", err);
 	return (cp);
 }
 
