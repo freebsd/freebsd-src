@@ -44,9 +44,9 @@
  * %g7 points to the structure.
  */
 struct tcb {
-	struct tcb              *tcb_self;	/* required by rtld */
-	void                    *tcb_dtv;	/* required by rtld */
-	struct pthread          *tcb_thread;	/* our hook */
+	struct tcb		*tcb_self;	/* required by rtld */
+	void			*tcb_dtv;	/* required by rtld */
+	struct pthread		*tcb_thread;	/* our hook */
 	void			*tcb_spare[1];
 };
 
