@@ -1239,7 +1239,7 @@ spans_mod(lkmtp, cmd, ver)
  */
 static void	spans_doload(void *);
 
-SYSINIT(atmspans, SI_SUB_PROTO_END, SI_ORDER_ANY, spans_doload, NULL)
+SYSINIT(atmspans, SI_SUB_PROTO_END, SI_ORDER_ANY, spans_doload, NULL);
 
 /*
  * Kernel initialization

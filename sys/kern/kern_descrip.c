@@ -2850,7 +2850,7 @@ filelistinit(void *dummy)
 	mtx_init(&sigio_lock, "sigio lock", NULL, MTX_DEF);
 	mtx_init(&fdesc_mtx, "fdesc", NULL, MTX_DEF);
 }
-SYSINIT(select, SI_SUB_EVENTHANDLER+1, SI_ORDER_MIDDLE, filelistinit, NULL)
+SYSINIT(select, SI_SUB_EVENTHANDLER+1, SI_ORDER_MIDDLE, filelistinit, NULL);
 
 /*-------------------------------------------------------------------*/
 
@@ -2965,4 +2965,4 @@ fildesc_drvinit(void *unused)
 	make_dev_alias(dev, "stderr");
 }
 
-SYSINIT(fildescdev, SI_SUB_DRIVERS, SI_ORDER_MIDDLE, fildesc_drvinit, NULL)
+SYSINIT(fildescdev, SI_SUB_DRIVERS, SI_ORDER_MIDDLE, fildesc_drvinit, NULL);

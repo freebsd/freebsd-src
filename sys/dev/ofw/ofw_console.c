@@ -105,7 +105,7 @@ cn_drvinit(void *unused)
 	}
 }
 
-SYSINIT(cndev, SI_SUB_CONFIGURE, SI_ORDER_MIDDLE, cn_drvinit, NULL)
+SYSINIT(cndev, SI_SUB_CONFIGURE, SI_ORDER_MIDDLE, cn_drvinit, NULL);
 
 static int	stdin;
 static int	stdout;

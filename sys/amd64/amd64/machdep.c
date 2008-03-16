@@ -149,7 +149,7 @@ extern void panicifcpuunsupported(void);
 static void cpu_startup(void *);
 static void get_fpcontext(struct thread *td, mcontext_t *mcp);
 static int  set_fpcontext(struct thread *td, const mcontext_t *mcp);
-SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL)
+SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL);
 
 #ifdef DDB
 extern vm_offset_t ksym_start, ksym_end;

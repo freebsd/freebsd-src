@@ -196,7 +196,7 @@ ssc_drvinit(void *unused)
 	ssccreate(-1);
 }
 
-SYSINIT(sscdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE, ssc_drvinit,NULL)
+SYSINIT(sscdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE, ssc_drvinit,NULL);
 
 static void
 ssc_takeroot(void *junk)

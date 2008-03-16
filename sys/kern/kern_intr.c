@@ -1600,7 +1600,8 @@ start_softintr(void *dummy)
 	p->p_flag |= P_NOLOAD;
 	PROC_UNLOCK(p);
 }
-SYSINIT(start_softintr, SI_SUB_SOFTINTR, SI_ORDER_FIRST, start_softintr, NULL)
+SYSINIT(start_softintr, SI_SUB_SOFTINTR, SI_ORDER_FIRST, start_softintr,
+    NULL);
 
 /*
  * Sysctls used by systat and others: hw.intrnames and hw.intrcnt.
