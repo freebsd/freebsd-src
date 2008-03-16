@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1992, 1993
  *	Regents of the University of California.  All rights reserved.
  *
@@ -78,13 +78,13 @@ void	ip_stats(u_long, const char *, int, int);
 void	icmp_stats(u_long, const char *, int, int);
 void	igmp_stats(u_long, const char *, int, int);
 void	pim_stats(u_long, const char *, int, int);
-void	carp_stats (u_long, const char *, int, int);
-void	pfsync_stats (u_long, const char *, int, int);
+void	carp_stats(u_long, const char *, int, int);
+void	pfsync_stats(u_long, const char *, int, int);
 #ifdef IPSEC
 void	ipsec_stats(u_long, const char *, int, int);
-void	esp_stats (u_long, const char *, int, int);
-void	ah_stats (u_long, const char *, int, int);
-void	ipcomp_stats (u_long, const char *, int, int);
+void	esp_stats(u_long, const char *, int, int);
+void	ah_stats(u_long, const char *, int, int);
+void	ipcomp_stats(u_long, const char *, int, int);
 #endif
 
 #ifdef INET6

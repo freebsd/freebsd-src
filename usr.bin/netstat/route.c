@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1983, 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -73,7 +73,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include "netstat.h"
 
-#define kget(p, d) (kread((u_long)(p), (char *)&(d), sizeof (d)))
+#define	kget(p, d) (kread((u_long)(p), (char *)&(d), sizeof (d)))
 
 /*
  * Definitions for showing gateway flags.
@@ -121,21 +121,21 @@ int	NewTree = 0;
 
 struct	timespec uptime;
 
-static struct sockaddr *kgetsa (struct sockaddr *);
-static void size_cols (int ef, struct radix_node *rn);
-static void size_cols_tree (struct radix_node *rn);
-static void size_cols_rtentry (struct rtentry *rt);
-static void p_tree (struct radix_node *);
-static void p_rtnode (void);
-static void ntreestuff (void);
-static void np_rtentry (struct rt_msghdr *);
-static void p_sockaddr (struct sockaddr *, struct sockaddr *, int, int);
-static const char *fmt_sockaddr (struct sockaddr *sa, struct sockaddr *mask,
-				 int flags);
-static void p_flags (int, const char *);
+static struct sockaddr *kgetsa(struct sockaddr *);
+static void size_cols(int ef, struct radix_node *rn);
+static void size_cols_tree(struct radix_node *rn);
+static void size_cols_rtentry(struct rtentry *rt);
+static void p_tree(struct radix_node *);
+static void p_rtnode(void);
+static void ntreestuff(void);
+static void np_rtentry(struct rt_msghdr *);
+static void p_sockaddr(struct sockaddr *, struct sockaddr *, int, int);
+static const char *fmt_sockaddr(struct sockaddr *sa, struct sockaddr *mask,
+				int flags);
+static void p_flags(int, const char *);
 static const char *fmt_flags(int f);
-static void p_rtentry (struct rtentry *);
-static void domask (char *, in_addr_t, u_long);
+static void p_rtentry(struct rtentry *);
+static void domask(char *, in_addr_t, u_long);
 
 /*
  * Print routing tables.
@@ -816,7 +816,7 @@ routename(in_addr_t in)
 		strncpy(line, cp, sizeof(line) - 1);
 		line[sizeof(line) - 1] = '\0';
 	} else {
-#define C(x)	((x) & 0xff)
+#define	C(x)	((x) & 0xff)
 		in = ntohl(in);
 		sprintf(line, "%u.%u.%u.%u",
 		    C(in >> 24), C(in >> 16), C(in >> 8), C(in));
@@ -1068,10 +1068,10 @@ ipx_print(struct sockaddr *sa)
 	if (port) {
 		if (strcmp(host, "*") == 0)
 			host = "";
-		if (sp)	
+		if (sp)
 			snprintf(cport, sizeof(cport),
 				"%s%s", *host ? "." : "", sp->s_name);
-		else	
+		else
 			snprintf(cport, sizeof(cport),
 				"%s%x", *host ? "." : "", port);
 	} else
