@@ -40,7 +40,7 @@
 .Nd change file flags
 .Sh SYNOPSIS
 .Nm
-.Op Fl h
+.Op Fl fhv
 .Oo
 .Fl R
 .Op Fl H | Fl L | Fl P
@@ -57,6 +57,12 @@ operand.
 .Pp
 The options are as follows:
 .Bl -tag -width indent
+.It Fl f
+Do not display a diagnostic message if
+.Nm
+could not modify the flags for
+.Va file ,
+nor modify the exit status to reflect such failures.
 .It Fl H
 If the
 .Fl R
@@ -79,6 +85,14 @@ This is the default.
 .It Fl R
 Change the file flags for the file hierarchies rooted
 in the files instead of just the files themselves.
+.It Fl v
+Cause
+.Nm
+to be verbose, showing filenames as the flags are modified.
+If the
+.Fl v
+option is specified more than once, the old and new flags of the file
+will also be printed, in octal notation.
 .El
 .Pp
 The flags are specified as an octal number or a comma separated list
