@@ -27,15 +27,14 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 19, 1995
+.Dd March 16, 2008
 .Dt AR 4 i386
 .Os
 .Sh NAME
 .Nm ar
 .Nd synchronous Digi/Arnet device driver
 .Sh SYNOPSIS
-.Cd "device ar0 at isa? port 0x300 irq 10 iomem 0xd0000"
-.Cd "device ar1 at isa? port 0x310 irq 11 iomem 0xd0000"
+.Cd "device ar"
 .Pp
 .Cd "device sppp"
 .Sh DESCRIPTION
@@ -83,14 +82,6 @@ Connecting to this hook enables the transmission of raw HDLC frames.
 The node will have the same name as the device with ``sync_''
 prepended, e.g.,
 .Dv sync_ar0 .
-.Sh FILES
-.Bl -tag -width /sys/i386/isa/ic/hd64570.h -compact
-.It Pa /sys/i386/isa/ic/hd64570.h
-.It Pa /sys/i386/isa/if_arregs.h
-.It Pa /sys/i386/isa/if_ar.c
-.It Pa /sys/i386/isa/if_ar.h
-.It Pa /sys/pci/if_ar_p.c
-.El
 .Sh DIAGNOSTICS
 .Bl -diag
 .It "ar%d: Warning illegal interrupt %d."
