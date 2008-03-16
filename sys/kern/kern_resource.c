@@ -191,7 +191,8 @@ setpriority(td, uap)
 			p = pfind(uap->who);
 			if (p == 0)
 				break;
-			if (p_cansee(td, p) == 0)
+			error = p_cansee(td, p);
+			if (error == 0)
 				error = donice(td, p, uap->prio);
 			PROC_UNLOCK(p);
 		}
