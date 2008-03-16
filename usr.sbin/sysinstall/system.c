@@ -114,7 +114,7 @@ reap_children(int sig)
 static char *
 expand(char *fname)
 {
-    char *gunzip = RunningAsInit ? "/stand/gunzip" : "/usr/bin/gunzip";
+    char *unzipper = RunningAsInit ? "/stand/" UNZIPPER : "/usr/bin/" UNZIPPER;
 
     if (!directory_exists(DOC_TMP_DIR)) {
 	Mkdir(DOC_TMP_DIR);
@@ -125,7 +125,8 @@ expand(char *fname)
     }
     else
 	unlink(DOC_TMP_FILE);
-    if (!file_readable(fname) || vsystem("%s < %s > %s", gunzip, fname, DOC_TMP_FILE))
+    if (!file_readable(fname) || vsystem("%s < %s > %s", unzipper, fname,
+	DOC_TMP_FILE))
 	return NULL;
     return DOC_TMP_FILE;
 }

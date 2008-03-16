@@ -685,8 +685,7 @@ mediaExtractDistEnd(int zpid, int cpid)
     /* Don't check exit status - gunzip seems to return a bogus one! */
     if (i < 0) {
 	if (isDebug())
-	    msgDebug("wait for %s returned status of %d!\n",
-		USE_GZIP ? "gunzip" : "bunzip2", i);
+	    msgDebug("wait for %s returned status of %d!\n", UNZIPPER, i);
 	return FALSE;
     }
     i = waitpid(cpid, &j, 0);
@@ -802,8 +801,7 @@ mediaExtractDist(char *dir, char *dist, FILE *fp)
     /* Don't check exit status - gunzip seems to return a bogus one! */
     if (i < 0) {
 	if (isDebug())
-	    msgDebug("wait for %s returned status of %d!\n",
-		USE_GZIP ? "gunzip" : "bunzip2", i);
+	    msgDebug("wait for %s returned status of %d!\n", UNZIPPER, i);
 	return FALSE;
     }
     i = waitpid(cpid, &j, 0);
