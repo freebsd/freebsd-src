@@ -69,6 +69,7 @@ struct g_part_entry {
 	int		gpe_created:1;	/* Entry is newly created. */
 	int		gpe_deleted:1;	/* Entry has been deleted. */
 	int		gpe_modified:1;	/* Entry has been modified. */
+	int		gpe_internal:1;	/* Entry is not a used entry. */
 };
 
 /* G_PART table (KOBJ instance). */
@@ -101,6 +102,13 @@ struct g_part_table {
 	 */
 	uint32_t	gpt_sectors;
 	uint32_t	gpt_heads;
+	/*
+	 * gpt_offset holds the absolute block address of the scheme
+	 * on disk. Some partitioning schemes (historically) use
+	 * absolute addressing. Relative addresses are obtained by
+	 * subtracting gpt_offset from the absolute addresses.
+	 */
+	uint64_t	gpt_offset;
 
 	int		gpt_depth;	/* Sub-partitioning level. */
 	int		gpt_isleaf:1;	/* Cannot be sub-partitioned. */
