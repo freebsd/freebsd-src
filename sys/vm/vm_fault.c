@@ -484,7 +484,8 @@ readrest:
 			      fs.pindex < fs.entry->lastr + VM_FAULT_READ)) &&
 			    (fs.first_object == fs.object ||
 			     (is_first_object_locked = VM_OBJECT_TRYLOCK(fs.first_object))) &&
-			    fs.first_object->type != OBJT_DEVICE) {
+			    fs.first_object->type != OBJT_DEVICE &&
+			    fs.first_object->type != OBJT_PHYS) {
 				vm_pindex_t firstpindex, tmppindex;
 
 				if (fs.first_pindex < 2 * VM_FAULT_READ)
@@ -508,7 +509,6 @@ readrest:
 						break;
 					if (mt->busy ||
 					    (mt->oflags & VPO_BUSY) ||
-					    (mt->flags & PG_UNMANAGED) ||
 						mt->hold_count ||
 						mt->wire_count) 
 						continue;
