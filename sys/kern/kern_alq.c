@@ -327,8 +327,8 @@ static struct kproc_desc ald_kp = {
         &ald_proc
 };
 
-SYSINIT(aldthread, SI_SUB_KTHREAD_IDLE, SI_ORDER_ANY, kproc_start, &ald_kp)
-SYSINIT(ald, SI_SUB_LOCK, SI_ORDER_ANY, ald_startup, NULL)
+SYSINIT(aldthread, SI_SUB_KTHREAD_IDLE, SI_ORDER_ANY, kproc_start, &ald_kp);
+SYSINIT(ald, SI_SUB_LOCK, SI_ORDER_ANY, ald_startup, NULL);
 
 
 /* User visible queue functions */

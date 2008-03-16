@@ -77,7 +77,7 @@ __FBSDID("$FreeBSD$");
 
 #ifndef ARM_USE_SMALL_ALLOC
 static void     sf_buf_init(void *arg);
-SYSINIT(sock_sf, SI_SUB_MBUF, SI_ORDER_ANY, sf_buf_init, NULL)
+SYSINIT(sock_sf, SI_SUB_MBUF, SI_ORDER_ANY, sf_buf_init, NULL);
 
 LIST_HEAD(sf_head, sf_buf);
 	

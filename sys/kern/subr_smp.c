@@ -130,7 +130,7 @@ mp_setmaxid(void *dummy)
 {
 	cpu_mp_setmaxid();
 }
-SYSINIT(cpu_mp_setmaxid, SI_SUB_TUNABLES, SI_ORDER_FIRST, mp_setmaxid, NULL)
+SYSINIT(cpu_mp_setmaxid, SI_SUB_TUNABLES, SI_ORDER_FIRST, mp_setmaxid, NULL);
 
 /*
  * Call the MD SMP initialization code.
@@ -152,7 +152,7 @@ mp_start(void *dummy)
 	    mp_ncpus);
 	cpu_mp_announce();
 }
-SYSINIT(cpu_mp, SI_SUB_CPU, SI_ORDER_THIRD, mp_start, NULL)
+SYSINIT(cpu_mp, SI_SUB_CPU, SI_ORDER_THIRD, mp_start, NULL);
 
 void
 forward_signal(struct thread *td)
@@ -593,5 +593,5 @@ mp_setvariables_for_up(void *dummy)
 	KASSERT(PCPU_GET(cpuid) == 0, ("UP must have a CPU ID of zero"));
 }
 SYSINIT(cpu_mp_setvariables, SI_SUB_TUNABLES, SI_ORDER_FIRST,
-    mp_setvariables_for_up, NULL)
+    mp_setvariables_for_up, NULL);
 #endif /* SMP */
