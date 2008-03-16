@@ -118,6 +118,24 @@ mbr_parse_type(const char *type, u_char *dp_typ)
 	return (EINVAL);
 }
 
+static int
+mbr_probe_bpb(u_char *bpb)
+{
+	uint16_t secsz;
+	uint8_t clstsz;
+
+#define PO2(x)	((x & (x - 1)) == 0)
+	secsz = le16dec(bpb);
+	if (secsz < 512 || secsz > 4096 || !PO2(secsz))
+		return (0);
+	clstsz = bpb[2];
+	if (clstsz < 1 || clstsz > 128 || !PO2(clstsz))
+		return (0);
+#undef PO2
+
+	return (1);
+}
+
 static void
 mbr_set_chs(struct g_part_table *table, uint32_t lba, u_char *cylp, u_char *hdp,
     u_char *secp)
@@ -252,22 +270,53 @@ static int
 g_part_mbr_probe(struct g_part_table *table, struct g_consumer *cp)
 {
 	struct g_provider *pp;
-	u_char *buf;
-	int error, res;
+	u_char *buf, *p;
+	int error, index, res, sum;
+	uint16_t magic;
 
 	pp = cp->provider;
 
 	/* Sanity-check the provider. */
 	if (pp->sectorsize < MBRSIZE || pp->mediasize < pp->sectorsize)
 		return (ENOSPC);
+	if (pp->sectorsize > 4096)
+		return (ENXIO);
 
 	/* Check that there's a MBR. */
 	buf = g_read_data(cp, 0L, pp->sectorsize, &error);
 	if (buf == NULL)
 		return (error);
-	res = le16dec(buf + DOSMAGICOFFSET);
+
+	/* We goto out on mismatch. */
+	res = ENXIO;
+
+	magic = le16dec(buf + DOSMAGICOFFSET);
+	if (magic != DOSMAGIC)
+		goto out;
+
+	for (index = 0; index < NDOSPART; index++) {
+		p = buf + DOSPARTOFF + index * DOSPARTSIZE;
+		if (p[0] != 0 && p[0] != 0x80)
+			goto out;
+	}
+
+	/*
+	 * If the partition table does not consist of all zeroes,
+	 * assume we have a MBR. If it's all zeroes, we could have
+	 * a boot sector. For example, a boot sector that doesn't
+	 * have boot code -- common on non-i386 hardware. In that
+	 * case we check if we have a possible BPB. If so, then we
+	 * assume we have a boot sector instead.
+	 */
+	sum = 0;
+	for (index = 0; index < NDOSPART * DOSPARTSIZE; index++)
+		sum += buf[DOSPARTOFF + index];
+	if (sum != 0 || !mbr_probe_bpb(buf + 0x0b))
+		res = G_PART_PROBE_PRI_NORM;
+
+ out:
 	g_free(buf);
-	return ((res == DOSMAGIC) ? G_PART_PROBE_PRI_NORM : ENXIO);
+	return (res);
 }
 
 static int
@@ -304,8 +353,6 @@ g_part_mbr_read(struct g_part_table *basetable, struct g_consumer *cp)
 		ent.dp_start = le32dec(p + 8);
 		ent.dp_size = le32dec(p + 12);
 		if (ent.dp_typ == 0 || ent.dp_typ == DOSPTYP_PMBR)
-			continue;
-		if (ent.dp_flag != 0 && ent.dp_flag != 0x80)
 			continue;
 		if (ent.dp_start == 0 || ent.dp_size == 0)
 			continue;
