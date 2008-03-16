@@ -608,6 +608,7 @@ struct ng_apply_info {
 	ng_apply_t	*apply;
 	void		*context;
 	int		refs;
+	int		error;
 };
 struct ng_item {
 	u_long	el_flags;
@@ -634,7 +635,7 @@ struct ng_item {
 	 * and its context.
 	 */
 	struct ng_apply_info	*apply;
-	void		*PAD1;
+	uintptr_t		depth;
 #ifdef	NETGRAPH_DEBUG /*----------------------------------------------*/
 	char *lastfile;
 	int  lastline;
