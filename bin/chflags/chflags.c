@@ -60,14 +60,15 @@ main(int argc, char *argv[])
 {
 	FTS *ftsp;
 	FTSENT *p;
-	u_long clear, set;
+	u_long clear, newflags, set;
 	long val;
-	int Hflag, Lflag, Rflag, hflag, ch, fts_options, oct, rval;
+	int Hflag, Lflag, Rflag, fflag, hflag, vflag;
+	int ch, fts_options, oct, rval;
 	char *flags, *ep;
 	int (*change_flags)(const char *, unsigned long);
 
-	Hflag = Lflag = Rflag = hflag = 0;
-	while ((ch = getopt(argc, argv, "HLPRh")) != -1)
+	Hflag = Lflag = Rflag = fflag = hflag = vflag = 0;
+	while ((ch = getopt(argc, argv, "HLPRfhv")) != -1)
 		switch (ch) {
 		case 'H':
 			Hflag = 1;
@@ -83,8 +84,14 @@ main(int argc, char *argv[])
 		case 'R':
 			Rflag = 1;
 			break;
+		case 'f':
+			fflag = 1;
+			break;
 		case 'h':
 			hflag = 1;
+			break;
+		case 'v':
+			vflag++;
 			break;
 		case '?':
 		default:
@@ -166,18 +173,23 @@ main(int argc, char *argv[])
 		default:
 			break;
 		}
-		if (oct) {
-			if (!(*change_flags)(p->fts_accpath, set))
-				continue;
-		} else {
-			p->fts_statp->st_flags |= set;
-			p->fts_statp->st_flags &= clear;
-			if (!(*change_flags)(p->fts_accpath,
-				    (u_long)p->fts_statp->st_flags))
-				continue;
+		if (oct)
+			newflags = set;
+		else
+			newflags = (p->fts_statp->st_flags | set) & clear;
+		if (newflags == p->fts_statp->st_flags)
+			continue;
+		if ((*change_flags)(p->fts_accpath, newflags) && !fflag) {
+			warn("%s", p->fts_path);
+			rval = 1;
+		} else if (vflag) {
+			(void)printf("%s", p->fts_path);
+			if (vflag > 1)
+				(void)printf(": 0%lo -> 0%lo",
+				    (u_long)p->fts_statp->st_flags,
+				    newflags);
+			(void)printf("\n");
 		}
-		warn("%s", p->fts_path);
-		rval = 1;
 	}
 	if (errno)
 		err(1, "fts_read");
@@ -188,6 +200,6 @@ void
 usage(void)
 {
 	(void)fprintf(stderr,
-	    "usage: chflags [-h] [-R [-H | -L | -P]] flags file ...\n");
+	    "usage: chflags [-fhv] [-R [-H | -L | -P]] flags file ...\n");
 	exit(1);
 }
