@@ -279,6 +279,8 @@ ATOMIC_GEN(ptr, uintptr_t *, uintptr_t, uintptr_t, 64);
 
 #define	atomic_fetchadd_int	atomic_add_int
 #define	atomic_fetchadd_32	atomic_add_32
+#define	atomic_fetchadd_long(p, v) \
+	(u_long)atomic_add_int((volatile u_int *)(p), (u_int)(v))
 
 #undef ATOMIC_GEN
 #undef atomic_cas

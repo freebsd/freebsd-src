@@ -371,4 +371,15 @@ atomic_fetchadd_32(volatile uint32_t *p, uint32_t v)
 
 #define	atomic_fetchadd_int		atomic_fetchadd_32
 
+static __inline u_long
+atomic_fetchadd_long(volatile u_long *p, u_long v)
+{
+	u_long value;
+
+	do {
+		value = *p;
+	} while (!atomic_cmpset_64(p, value, value + v));
+	return (value);
+}
+
 #endif /* ! _MACHINE_ATOMIC_H_ */
