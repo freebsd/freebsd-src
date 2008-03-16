@@ -131,7 +131,7 @@ struct vcomm {
 	u_long		vc_seq;
 	struct selinfo	vc_selproc;
 	struct queue	vc_requests;
-	struct queue	vc_replys;
+	struct queue	vc_replies;
 };
 
 #define	VC_OPEN(vcp)		((vcp)->vc_requests.forw != NULL)
