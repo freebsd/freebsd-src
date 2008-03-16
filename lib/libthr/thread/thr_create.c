@@ -168,6 +168,7 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 		SIGDELSET(set, SIGTRAP);
 		__sys_sigprocmask(SIG_SETMASK, &set, &oset);
 		new_thread->sigmask = oset;
+		SIGDELSET(new_thread->sigmask, SIGCANCEL);
 	}
 
 	ret = thr_new(&param, sizeof(param));
@@ -181,10 +182,8 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 			ret = EAGAIN;
 	}
 
-	if (create_suspended) {
+	if (create_suspended)
 		__sys_sigprocmask(SIG_SETMASK, &oset, NULL);
-		SIGDELSET(oset, SIGCANCEL);
-	}
 
 	if (ret != 0) {
 		if (!locked)
