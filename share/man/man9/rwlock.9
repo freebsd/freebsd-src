@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 25, 2007
+.Dd March 16, 2008
 .Dt RWLOCK 9
 .Os
 .Sh NAME
@@ -36,6 +36,7 @@
 .Nm rw_wlock ,
 .Nm rw_runlock ,
 .Nm rw_wunlock ,
+.Nm rw_unlock ,
 .Nm rw_try_upgrade ,
 .Nm rw_downgrade ,
 .Nm rw_sleep ,
@@ -62,6 +63,8 @@
 .Fn rw_runlock "struct rwlock *rw"
 .Ft void
 .Fn rw_wunlock "struct rwlock *rw"
+.Ft void
+.Fn rw_unlock "struct rwlock *rw"
 .Ft int
 .Fn rw_try_upgrade "struct rwlock *rw"
 .Ft void
@@ -178,6 +181,11 @@ This function releases a shared lock previously acquired by
 .Fn rw_rlock .
 .It Fn rw_wunlock "struct rwlock *rw"
 This function releases an exclusive lock previously acquired by
+.Fn rw_wlock .
+.It Fn rw_unlock "struct rwlock *rw"
+This function releases a shared lock previously acquired by
+.Fn rw_rlock
+or an exclusive lock previously acquired by
 .Fn rw_wlock .
 .It Fn rw_try_upgrade "struct rwlock *rw"
 Attempt to upgrade a single shared lock to an exclusive lock.
