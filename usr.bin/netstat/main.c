@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1983, 1988, 1993
  *	Regents of the University of California.  All rights reserved.
  *
@@ -76,51 +76,51 @@ static struct nlist nl[] = {
 	{ .n_name = "_ifnet" },
 #define	N_RTSTAT	1
 	{ .n_name = "_rtstat" },
-#define N_RTREE		2
+#define	N_RTREE		2
 	{ .n_name = "_rt_tables"},
-#define N_MRTSTAT	3
+#define	N_MRTSTAT	3
 	{ .n_name = "_mrtstat" },
-#define N_MFCTABLE	4
+#define	N_MFCTABLE	4
 	{ .n_name = "_mfctable" },
-#define N_VIFTABLE	5
+#define	N_VIFTABLE	5
 	{ .n_name = "_viftable" },
-#define N_IPX		6
+#define	N_IPX		6
 	{ .n_name = "_ipxpcb_list"},
-#define N_IPXSTAT	7
+#define	N_IPXSTAT	7
 	{ .n_name = "_ipxstat"},
-#define N_SPXSTAT	8
+#define	N_SPXSTAT	8
 	{ .n_name = "_spx_istat"},
-#define N_DDPSTAT	9
+#define	N_DDPSTAT	9
 	{ .n_name = "_ddpstat"},
-#define N_DDPCB		10
+#define	N_DDPCB		10
 	{ .n_name = "_ddpcb"},
-#define N_NGSOCKS	11
+#define	N_NGSOCKS	11
 	{ .n_name = "_ngsocklist"},
-#define N_IP6STAT	12
+#define	N_IP6STAT	12
 	{ .n_name = "_ip6stat" },
-#define N_ICMP6STAT	13
+#define	N_ICMP6STAT	13
 	{ .n_name = "_icmp6stat" },
-#define N_IPSECSTAT	14
+#define	N_IPSECSTAT	14
 	{ .n_name = "_ipsec4stat" },
-#define N_IPSEC6STAT	15
+#define	N_IPSEC6STAT	15
 	{ .n_name = "_ipsec6stat" },
-#define N_PIM6STAT	16
+#define	N_PIM6STAT	16
 	{ .n_name = "_pim6stat" },
-#define N_MRT6STAT	17
+#define	N_MRT6STAT	17
 	{ .n_name = "_mrt6stat" },
-#define N_MF6CTABLE	18
+#define	N_MF6CTABLE	18
 	{ .n_name = "_mf6ctable" },
-#define N_MIF6TABLE	19
+#define	N_MIF6TABLE	19
 	{ .n_name = "_mif6table" },
-#define N_PFKEYSTAT	20
+#define	N_PFKEYSTAT	20
 	{ .n_name = "_pfkeystat" },
-#define N_MBSTAT	21
+#define	N_MBSTAT	21
 	{ .n_name = "_mbstat" },
-#define N_MBTYPES	22
+#define	N_MBTYPES	22
 	{ .n_name = "_mbtypes" },
-#define N_NMBCLUSTERS	23
+#define	N_NMBCLUSTERS	23
 	{ .n_name = "_nmbclusters" },
-#define N_NMBUFS	24
+#define	N_NMBUFS	24
 	{ .n_name = "_nmbufs" },
 #define	N_MBHI		25
 	{ .n_name = "_mbuf_hiwm" },
@@ -138,9 +138,9 @@ static struct nlist nl[] = {
 	{ .n_name = "_mbuf_lowm" },
 #define	N_CLLO		32
 	{ .n_name = "_clust_lowm" },
-#define N_CARPSTAT	33
+#define	N_CARPSTAT	33
 	{ .n_name = "_carpstats" },
-#define N_PFSYNCSTAT	34
+#define	N_PFSYNCSTAT	34
 	{ .n_name = "_pfsyncstats" },
 #define	N_AHSTAT	35
 	{ .n_name = "_ahstat" },
@@ -427,7 +427,7 @@ main(int argc, char *argv[])
 			break;
 		case 'p':
 			if ((tp = name2protox(optarg)) == NULL) {
-				errx(1, 
+				errx(1,
 				     "%s: unknown or uninstrumented protocol",
 				     optarg);
 			}
@@ -618,7 +618,7 @@ printproto(tp, name)
 					printf("%s: no stats routine\n",
 					    tp->pr_name);
 				return;
-			}			
+			}
 			if (tp->pr_usesysctl && live)
 				off = 0;
 			else if (tp->pr_sindex < 0) {

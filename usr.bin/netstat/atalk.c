@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1983, 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -260,7 +260,7 @@ atalkprotopr(u_long off __unused, const char *name, int af1 __unused,
 	}
 }
 
-#define ANY(x,y,z) if (x || sflag <= 1) \
+#define	ANY(x,y,z) if (x || sflag <= 1) \
 	printf("\t%lu %s%s%s\n",x,y,plural(x),z)
 
 /*
