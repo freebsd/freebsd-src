@@ -1077,14 +1077,14 @@ copymodes(int fd, const struct stat *sbp, const char *file)
 	if (fchmod(fd, sb.st_mode) < 0)
 		maybe_warn("couldn't fchmod: %s", file);
 
-	/* only try flags if they exist already */
-        if (sb.st_flags != 0 && fchflags(fd, sb.st_flags) < 0)
-		maybe_warn("couldn't fchflags: %s", file);
-
 	TIMESPEC_TO_TIMEVAL(&times[0], &sb.st_atimespec);
 	TIMESPEC_TO_TIMEVAL(&times[1], &sb.st_mtimespec);
 	if (futimes(fd, times) < 0)
 		maybe_warn("couldn't utimes: %s", file);
+
+	/* only try flags if they exist already */
+        if (sb.st_flags != 0 && fchflags(fd, sb.st_flags) < 0)
+		maybe_warn("couldn't fchflags: %s", file);
 }
 #endif
 
