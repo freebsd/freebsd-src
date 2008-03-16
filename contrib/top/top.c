@@ -450,7 +450,7 @@ char *argv[];
     }
 
     /* initialize the kernel memory interface */
-    if (machine_init(&statics) == -1)
+    if (machine_init(&statics, do_unames) == -1)
     {
 	exit(1);
     }
