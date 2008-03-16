@@ -207,6 +207,7 @@ EVENTHANDLER_DECLARE(thread_fini, thread_fini_fn);
 typedef void (*uma_zone_chfn)(void *);
 EVENTHANDLER_DECLARE(nmbclusters_change, uma_zone_chfn);
 EVENTHANDLER_DECLARE(maxsockets_change, uma_zone_chfn);
+EVENTHANDLER_DECLARE(maxfiles_change, uma_zone_chfn);
 
 typedef void(*schedtail_fn)(void *, struct proc *);
 EVENTHANDLER_DECLARE(schedtail, schedtail_fn);
