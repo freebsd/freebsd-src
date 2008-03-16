@@ -1499,5 +1499,5 @@ mp_ipi_intrcnt(void *dummy)
 		intrcnt_add(buf, &ipi_lazypmap_counts[i]);
 	}		
 }
-SYSINIT(mp_ipi_intrcnt, SI_SUB_INTR, SI_ORDER_MIDDLE, mp_ipi_intrcnt, NULL)
+SYSINIT(mp_ipi_intrcnt, SI_SUB_INTR, SI_ORDER_MIDDLE, mp_ipi_intrcnt, NULL);
 #endif

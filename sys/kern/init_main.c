@@ -109,7 +109,7 @@ SYSCTL_INT(_debug, OID_AUTO, bootverbose, CTLFLAG_RW, &bootverbose, 0, "");
  * symbol is not undefined.  A sybsystem ID of SI_SUB_DUMMY is never
  * executed.
  */
-SYSINIT(placeholder, SI_SUB_DUMMY, SI_ORDER_ANY, NULL, NULL)
+SYSINIT(placeholder, SI_SUB_DUMMY, SI_ORDER_ANY, NULL, NULL);
 
 /*
  * The sysinit table itself.  Items are checked off as the are run.
@@ -288,26 +288,28 @@ print_caddr_t(void *data __unused)
 {
 	printf("%s", (char *)data);
 }
-SYSINIT(announce, SI_SUB_COPYRIGHT, SI_ORDER_FIRST, print_caddr_t, copyright)
-SYSINIT(trademark, SI_SUB_COPYRIGHT, SI_ORDER_SECOND, print_caddr_t, trademark)
-SYSINIT(version, SI_SUB_COPYRIGHT, SI_ORDER_THIRD, print_caddr_t, version)
+SYSINIT(announce, SI_SUB_COPYRIGHT, SI_ORDER_FIRST, print_caddr_t,
+    copyright);
+SYSINIT(trademark, SI_SUB_COPYRIGHT, SI_ORDER_SECOND, print_caddr_t,
+    trademark);
+SYSINIT(version, SI_SUB_COPYRIGHT, SI_ORDER_THIRD, print_caddr_t, version);
 
 #ifdef WITNESS
 static char wit_warn[] =
      "WARNING: WITNESS option enabled, expect reduced performance.\n";
 SYSINIT(witwarn, SI_SUB_COPYRIGHT, SI_ORDER_THIRD + 1,
-   print_caddr_t, wit_warn)
+   print_caddr_t, wit_warn);
 SYSINIT(witwarn2, SI_SUB_RUN_SCHEDULER, SI_ORDER_THIRD + 1,
-   print_caddr_t, wit_warn)
+   print_caddr_t, wit_warn);
 #endif
 
 #ifdef DIAGNOSTIC
 static char diag_warn[] =
      "WARNING: DIAGNOSTIC option enabled, expect reduced performance.\n";
 SYSINIT(diagwarn, SI_SUB_COPYRIGHT, SI_ORDER_THIRD + 2,
-    print_caddr_t, diag_warn)
+    print_caddr_t, diag_warn);
 SYSINIT(diagwarn2, SI_SUB_RUN_SCHEDULER, SI_ORDER_THIRD + 2,
-    print_caddr_t, diag_warn)
+    print_caddr_t, diag_warn);
 #endif
 
 static void
@@ -317,7 +319,7 @@ set_boot_verbose(void *data __unused)
 	if (boothowto & RB_VERBOSE)
 		bootverbose++;
 }
-SYSINIT(boot_verbose, SI_SUB_TUNABLES, SI_ORDER_ANY, set_boot_verbose, NULL)
+SYSINIT(boot_verbose, SI_SUB_TUNABLES, SI_ORDER_ANY, set_boot_verbose, NULL);
 
 struct sysentvec null_sysvec = {
 	0,
@@ -507,7 +509,7 @@ proc0_init(void *dummy __unused)
 	 */
 	(void)chgproccnt(p->p_ucred->cr_ruidinfo, 1, 0);
 }
-SYSINIT(p0init, SI_SUB_INTRINSIC, SI_ORDER_FIRST, proc0_init, NULL)
+SYSINIT(p0init, SI_SUB_INTRINSIC, SI_ORDER_FIRST, proc0_init, NULL);
 
 /* ARGSUSED*/
 static void
@@ -546,7 +548,7 @@ proc0_post(void *dummy __unused)
 	nanotime(&ts);
 	srandom(ts.tv_sec ^ ts.tv_nsec);
 }
-SYSINIT(p0post, SI_SUB_INTRINSIC_POST, SI_ORDER_FIRST, proc0_post, NULL)
+SYSINIT(p0post, SI_SUB_INTRINSIC_POST, SI_ORDER_FIRST, proc0_post, NULL);
 
 /*
  ***************************************************************************
@@ -744,7 +746,7 @@ create_init(const void *udata __unused)
 	cred_update_thread(FIRST_THREAD_IN_PROC(initproc));
 	cpu_set_fork_handler(FIRST_THREAD_IN_PROC(initproc), start_init, NULL);
 }
-SYSINIT(init, SI_SUB_CREATE_INIT, SI_ORDER_FIRST, create_init, NULL)
+SYSINIT(init, SI_SUB_CREATE_INIT, SI_ORDER_FIRST, create_init, NULL);
 
 /*
  * Make it runnable now.
@@ -760,4 +762,4 @@ kick_init(const void *udata __unused)
 	sched_add(td, SRQ_BORING);
 	thread_unlock(td);
 }
-SYSINIT(kickinit, SI_SUB_KTHREAD_INIT, SI_ORDER_FIRST, kick_init, NULL)
+SYSINIT(kickinit, SI_SUB_KTHREAD_INIT, SI_ORDER_FIRST, kick_init, NULL);

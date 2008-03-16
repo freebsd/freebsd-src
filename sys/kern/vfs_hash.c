@@ -52,7 +52,7 @@ vfs_hashinit(void *dummy __unused)
 }
 
 /* Must be SI_ORDER_SECOND so desiredvnodes is available */
-SYSINIT(vfs_hash, SI_SUB_VFS, SI_ORDER_SECOND, vfs_hashinit, NULL)
+SYSINIT(vfs_hash, SI_SUB_VFS, SI_ORDER_SECOND, vfs_hashinit, NULL);
 
 static struct vfs_hash_head *
 vfs_hash_index(const struct mount *mp, u_int hash)

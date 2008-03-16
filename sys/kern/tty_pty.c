@@ -795,4 +795,4 @@ ptc_drvinit(void *unused)
 	EVENTHANDLER_REGISTER(dev_clone, pty_clone, 0, 1000);
 }
 
-SYSINIT(ptcdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE,ptc_drvinit,NULL)
+SYSINIT(ptcdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE,ptc_drvinit,NULL);

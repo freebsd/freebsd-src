@@ -62,7 +62,7 @@ eventhandler_init(void *dummy __unused)
     atomic_store_rel_int(&eventhandler_lists_initted, 1);
 }
 SYSINIT(eventhandlers, SI_SUB_EVENTHANDLER, SI_ORDER_FIRST, eventhandler_init,
-    NULL)
+    NULL);
 
 /* 
  * Insertion is O(n) due to the priority scan, but optimises to O(1)

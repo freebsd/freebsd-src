@@ -129,7 +129,7 @@ struct mod_metadata {
 	MODULE_DEPEND(name, kernel, __FreeBSD_version,			\
 	    __FreeBSD_version, MODULE_KERNEL_MAXVER);			\
 	MODULE_METADATA(_md_##name, MDT_MODULE, &data, #name);		\
-	SYSINIT(name##module, sub, order, module_register_init, &data)	\
+	SYSINIT(name##module, sub, order, module_register_init, &data);	\
 	struct __hack
 
 #define	MODULE_VERSION(module, version)					\

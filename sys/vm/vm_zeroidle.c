@@ -164,4 +164,4 @@ pagezero_start(void __unused *arg)
 	sched_add(td, SRQ_BORING);
 	thread_unlock(td);
 }
-SYSINIT(pagezero, SI_SUB_KTHREAD_VM, SI_ORDER_ANY, pagezero_start, NULL)
+SYSINIT(pagezero, SI_SUB_KTHREAD_VM, SI_ORDER_ANY, pagezero_start, NULL);

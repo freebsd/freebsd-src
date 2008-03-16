@@ -332,6 +332,6 @@ nfs_rootconf(void)
 		rootdevnames[0] = "nfs:";
 }
 
-SYSINIT(cpu_rootconf, SI_SUB_ROOT_CONF, SI_ORDER_FIRST, nfs_rootconf, NULL)
+SYSINIT(cpu_rootconf, SI_SUB_ROOT_CONF, SI_ORDER_FIRST, nfs_rootconf, NULL);
 #endif
 
