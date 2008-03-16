@@ -162,7 +162,7 @@ linker_init(void *arg)
 	TAILQ_INIT(&linker_files);
 }
 
-SYSINIT(linker, SI_SUB_KLD, SI_ORDER_FIRST, linker_init, 0)
+SYSINIT(linker, SI_SUB_KLD, SI_ORDER_FIRST, linker_init, 0);
 
 static void
 linker_stop_class_add(void *arg)
@@ -171,7 +171,7 @@ linker_stop_class_add(void *arg)
 	linker_no_more_classes = 1;
 }
 
-SYSINIT(linker_class, SI_SUB_KLD, SI_ORDER_ANY, linker_stop_class_add, NULL)
+SYSINIT(linker_class, SI_SUB_KLD, SI_ORDER_ANY, linker_stop_class_add, NULL);
 
 int
 linker_add_class(linker_class_t lc)
@@ -363,7 +363,8 @@ linker_init_kernel_modules(void)
 	linker_file_register_modules(linker_kernel_file);
 }
 
-SYSINIT(linker_kernel, SI_SUB_KLD, SI_ORDER_ANY, linker_init_kernel_modules, 0)
+SYSINIT(linker_kernel, SI_SUB_KLD, SI_ORDER_ANY, linker_init_kernel_modules,
+    0);
 
 static int
 linker_load_file(const char *filename, linker_file_t *result)
@@ -1559,7 +1560,7 @@ restart:
 	/* woohoo! we made it! */
 }
 
-SYSINIT(preload, SI_SUB_KLD, SI_ORDER_MIDDLE, linker_preload, 0)
+SYSINIT(preload, SI_SUB_KLD, SI_ORDER_MIDDLE, linker_preload, 0);
 
 /*
  * Search for a not-loaded module by name.

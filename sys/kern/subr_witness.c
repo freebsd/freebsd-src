@@ -564,7 +564,8 @@ witness_initialize(void *dummy __unused)
 
 	mtx_lock(&Giant);
 }
-SYSINIT(witness_init, SI_SUB_WITNESS, SI_ORDER_FIRST, witness_initialize, NULL)
+SYSINIT(witness_init, SI_SUB_WITNESS, SI_ORDER_FIRST, witness_initialize,
+    NULL);
 
 static int
 sysctl_debug_witness_watch(SYSCTL_HANDLER_ARGS)

@@ -52,7 +52,7 @@ __FBSDID("$FreeBSD$");
 static MALLOC_DEFINE(M_GPROF, "gprof", "kernel profiling buffer");
 
 static void kmstartup(void *);
-SYSINIT(kmem, SI_SUB_KPROF, SI_ORDER_FIRST, kmstartup, NULL)
+SYSINIT(kmem, SI_SUB_KPROF, SI_ORDER_FIRST, kmstartup, NULL);
 
 struct gmonparam _gmonparam = { GMON_PROF_OFF };
 
@@ -574,7 +574,7 @@ tcov_init(void *foo __unused)
 	}
 }
 
-SYSINIT(tcov_init, SI_SUB_KPROF, SI_ORDER_SECOND, tcov_init, NULL)
+SYSINIT(tcov_init, SI_SUB_KPROF, SI_ORDER_SECOND, tcov_init, NULL);
 
 /*
  * GCC contains magic to recognize calls to for instance execve() and

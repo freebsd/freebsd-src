@@ -91,7 +91,7 @@
 #endif
 
 static void	sf_buf_init(void *arg);
-SYSINIT(sock_sf, SI_SUB_MBUF, SI_ORDER_ANY, sf_buf_init, NULL)
+SYSINIT(sock_sf, SI_SUB_MBUF, SI_ORDER_ANY, sf_buf_init, NULL);
 
 /*
  * Expanded sf_freelist head. Really an SLIST_HEAD() in disguise, with the

@@ -41,7 +41,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 static void idle_setup(void *dummy);
-SYSINIT(idle_setup, SI_SUB_SCHED_IDLE, SI_ORDER_FIRST, idle_setup, NULL)
+SYSINIT(idle_setup, SI_SUB_SCHED_IDLE, SI_ORDER_FIRST, idle_setup, NULL);
 
 /*
  * Set up per-cpu idle process contexts.  The AP's shouldn't be running or

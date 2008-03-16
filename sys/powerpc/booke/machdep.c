@@ -180,7 +180,7 @@ SYSCTL_INT(_machdep, CPU_CACHELINE, cacheline_size,
     CTLFLAG_RD, &cacheline_size, 0, "");
 
 static void cpu_e500_startup(void *);
-SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_e500_startup, NULL)
+SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_e500_startup, NULL);
 
 void print_kernel_section_addr(void);
 void dump_bootinfo(void);

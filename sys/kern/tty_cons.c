@@ -731,4 +731,4 @@ cn_drvinit(void *unused)
 	use_cnputs_mtx = 1;
 }
 
-SYSINIT(cndev, SI_SUB_DRIVERS, SI_ORDER_MIDDLE, cn_drvinit, NULL)
+SYSINIT(cndev, SI_SUB_DRIVERS, SI_ORDER_MIDDLE, cn_drvinit, NULL);
