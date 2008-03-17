@@ -579,7 +579,6 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 	bus_addr_t curaddr, lastaddr, baddr, bmask;
 	vm_offset_t vaddr;
 	bus_addr_t paddr;
-	int needbounce = 0;
 	int seg;
 
 	if (map == NULL)
@@ -603,10 +602,8 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 
 		while (vaddr < vendaddr) {
 			paddr = pmap_kextract(vaddr);
-			if (run_filter(dmat, paddr) != 0) {
-				needbounce = 1;
+			if (run_filter(dmat, paddr) != 0)
 				map->pagesneeded++;
-			}
 			vaddr += PAGE_SIZE;
 		}
 		CTR1(KTR_BUSDMA, "pagesneeded= %d\n", map->pagesneeded);
@@ -676,7 +673,7 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 			segs[seg].ds_len = sgsize;
 			first = 0;
 		} else {
-			if (needbounce == 0 && curaddr == lastaddr &&
+			if (curaddr == lastaddr &&
 			    (segs[seg].ds_len + sgsize) <= dmat->maxsegsz &&
 			    (dmat->boundary == 0 ||
 			     (segs[seg].ds_addr & bmask) == (curaddr & bmask)))
@@ -858,6 +855,7 @@ bus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map,
 	nsegs = 0;
 	error = 0;
 	first = 1;
+	lastaddr = (bus_addr_t) 0;
 	for (i = 0; i < uio->uio_iovcnt && resid != 0 && !error; i++) {
 		/*
 		 * Now at the first iovec to load.  Load each iovec
