@@ -151,7 +151,6 @@ p4tcc_attach(device_t dev)
 {
 	struct p4tcc_softc *sc;
 	struct cf_setting set;
-	unsigned cpu_match;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
@@ -165,32 +164,12 @@ p4tcc_attach(device_t dev)
 	 */
 	sc->auto_mode = TRUE;
 
-	cpu_match = cpu_id & 0xfff;
-	cpu_match |= (cpu_procinfo & 0xff) << 12;
-	switch (cpu_match) {
-	case 0x0ef22:	/* Xeon MP O50(A0) */
-	case 0x0ef25:	/* Xeon MP O50(B0) */
-	case 0x0ef26:	/* Xeon MP O50(C0) */
-	case 0x0bf22:	/* Xeon MP O50(A0) */
-	case 0x0bf25:	/* Xeon MP O50(B0) */
-	case 0x0bf26:	/* Xeon MP O50(C0) */
-	case 0x0ef29:	/* P4 Mobile/533 Z19(D1) */
-	case 0x0ff29:	/* P4 Mobile/533 Z19(D1) */
-	case 0x0ef24:	/* Xeon P44(B0) */
-	case 0x0ef25:	/* Xeon P44(M0) */
-	case 0x0ef27:	/* Xeon P44(C1) */
-	case 0x0ef29:	/* Xeon P44(L0+D1) */
-	case 0x12695:	/* Celeron W7(B-1) */
-	case 0x0d
-	case 0xf22:	/* O50(A0) */
-	case 0xf24:	/* P44 */
-	case 0xf25:	/* P44 O50(B0)*/
-	case 0xf26:	/* O50(C0)*/
-	case 0xf27:	/* P44 */
-	case 0xf29:	/* P44 Z19(D1) */
-		sc->set_count -= 1;
-		break;
+	switch (cpu_id & 0xff) {
 	case 0x22:
+	case 0x24:
+	case 0x25:
+	case 0x27:
+	case 0x29:
 		/*
 		 * These CPU models hang when set to 12.5%.
 		 * See Errata O50, P44, and Z21.
