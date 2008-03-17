@@ -164,7 +164,7 @@ p4tcc_attach(device_t dev)
 	 */
 	sc->auto_mode = TRUE;
 
-	switch (cpu_id & 0xf) {
+	switch (cpu_id & 0xff) {
 	case 0x22:
 	case 0x24:
 	case 0x25:
