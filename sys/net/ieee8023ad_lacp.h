@@ -269,8 +269,8 @@ struct lacp_softc {
 #define	LACP_SOFTC(_sc)	((struct lacp_softc *)(_sc)->sc_psc)
 
 #define LACP_LOCK_INIT(_lsc)		mtx_init(&(_lsc)->lsc_mtx, \
-					    "lacp mtx", NULL, MTX_DEF);
-#define LACP_LOCK_DESTROY(_lsc)		mtx_destroy(&(_lsc)->lsc_mtx);
+					    "lacp mtx", NULL, MTX_DEF)
+#define LACP_LOCK_DESTROY(_lsc)		mtx_destroy(&(_lsc)->lsc_mtx)
 #define LACP_LOCK(_lsc)			mtx_lock(&(_lsc)->lsc_mtx)
 #define LACP_UNLOCK(_lsc)		mtx_unlock(&(_lsc)->lsc_mtx)
 #define LACP_LOCK_ASSERT(_lsc)		mtx_assert(&(_lsc)->lsc_mtx, MA_OWNED)
