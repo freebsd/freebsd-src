@@ -433,6 +433,9 @@ struct ata_ioc_request {
 #define IOCATAGMODE             _IOR('a', 102, int)
 #define IOCATASMODE             _IOW('a', 103, int)
 
+#define IOCATAGSPINDOWN		_IOR('a', 104, int)
+#define IOCATASSPINDOWN		_IOW('a', 105, int)
+
 
 struct ata_ioc_raid_config {
 	    int                 lun;
