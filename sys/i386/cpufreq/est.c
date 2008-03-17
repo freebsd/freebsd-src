@@ -101,7 +101,7 @@ const char centaur_id[] = "CentaurHauls";
 CTASSERT(EST_MAX_SETTINGS <= MAX_SETTINGS);
 
 /* Estimate in microseconds of latency for performing a transition. */
-#define EST_TRANS_LAT		10
+#define EST_TRANS_LAT		1000
 
 /*
  * Frequency (MHz) and voltage (mV) settings.  Data from the
@@ -1078,7 +1078,7 @@ est_acpi_info(device_t dev, freq_info **freqs)
 	struct cf_setting *sets;
 	freq_info *table;
 	device_t perf_dev;
-	int count, error, i, j;
+	int count, error, i, j, maxi, maxfreq;
 	uint16_t saved_id16;
 
 	perf_dev = device_find_child(device_get_parent(dev), "acpi_perf", -1);
@@ -1102,6 +1102,7 @@ est_acpi_info(device_t dev, freq_info **freqs)
 		error = ENOMEM;
 		goto out;
 	}
+	maxi = maxfreq = 0;
 	for (i = 0, j = 0; i < count; i++) {
 		/*
 		 * Confirm id16 value is correct.
@@ -1119,10 +1120,23 @@ est_acpi_info(device_t dev, freq_info **freqs)
 				table[j].id16 = sets[i].spec[0];
 				table[j].power = sets[i].power;
 				++j;
+				if (sets[i].freq > maxfreq) {
+					maxi = i;
+					maxfreq = sets[i].freq;
+				}
+
 			}
 			/* restore saved setting */
 			est_set_id16(dev, sets[i].spec[0], 0);
 		}
+	}
+	/*
+	 * Set the frequency to max, so we get through boot fast, and don't
+	 * handicap systems not running powerd.
+	 */
+	if (maxfreq != 0) { 
+		device_printf(dev, "Setting %d MHz\n", sets[maxi].freq);
+		est_set_id16(dev, sets[maxi].spec[0], 0);
 	}
 
 	/* Mark end of table with a terminator. */
