@@ -67,7 +67,6 @@ run_interrupt_driven_config_hooks(dummy)
 	mtx_lock(&intr_config_hook_lock);
 	TAILQ_FOREACH_SAFE(hook_entry, &intr_config_hook_list, ich_links,
 	    next_entry) {
-		next_entry = TAILQ_NEXT(hook_entry, ich_links);
 		mtx_unlock(&intr_config_hook_lock);
 		(*hook_entry->ich_func)(hook_entry->ich_arg);
 		mtx_lock(&intr_config_hook_lock);
