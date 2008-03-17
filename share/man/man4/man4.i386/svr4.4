@@ -23,18 +23,27 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd October 28, 2003
+.\"
+.Dd March 17, 2008
 .Dt SVR4 4 i386
 .Os
 .Sh NAME
 .Nm svr4
 .Nd System V Release 4 ABI support
 .Sh SYNOPSIS
-To link System V Release 4 (SVR4) ABI support into the kernel:
-.Cd options COMPAT_SVR4
+To compile support for this ABI into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "options COMPAT_SVR4"
+.Ed
 .Pp
-To load the SVR4 ABI support kernel module:
-.Dl kldload svr4
+Alternatively, to load the ABI as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+svr4_load="YES"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm
