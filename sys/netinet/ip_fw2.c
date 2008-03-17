@@ -3497,7 +3497,8 @@ check_body:
 					if (t == NULL) {
 						retval = IP_FW_DENY;
 						goto done;
-					} else 
+					}
+					if (cmd->arg1 != IP_FW_TABLEARG)
 						((ipfw_insn_nat *)cmd)->nat = 
 						    t;
 				}
