@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <sys/types.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <limits.h>
 #endif
@@ -79,6 +80,8 @@ __FBSDID("$FreeBSD$");
 
 #define IRC_CONTROL_PORT_NUMBER_1 6667
 #define IRC_CONTROL_PORT_NUMBER_2 6668
+
+char *newpacket;
 
 /* Local defines */
 #define DBprintf(a)
@@ -103,8 +106,12 @@ fingerprint(struct libalias *la, struct ip *pip, struct alias_data *ah)
 static int 
 protohandler(struct libalias *la, struct ip *pip, struct alias_data *ah)
 {
-	
-	AliasHandleIrcOut(la, pip, ah->lnk, ah->maxpktsize);
+
+	newpacket = malloc(IP_MAXPACKET);
+	if (newpacket) {
+		AliasHandleIrcOut(la, pip, ah->lnk, ah->maxpktsize);
+		free(newpacket);
+	}
 	return (0);
 }
 
@@ -196,9 +203,7 @@ AliasHandleIrcOut(struct libalias *la,
 	/* Handle CTCP commands - the buffer may have to be copied */
 lFOUND_CTCP:
 	{
-		char newpacket[65536];	/* Estimate of maximum packet size
-					 * :) */
-		unsigned int copyat = i;	/* Same */
+		unsigned int copyat = i;
 		unsigned int iCopy = 0;	/* How much data have we written to
 					 * copy-back string? */
 		unsigned long org_addr;	/* Original IP address */
