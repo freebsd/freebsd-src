@@ -79,6 +79,8 @@ svr4_to_bsd_cmd(cmd)
 	switch (cmd) {
 	case SVR4_F_DUPFD:
 		return F_DUPFD;
+	case SVR4_F_DUP2FD:
+		return F_DUP2FD;
 	case SVR4_F_GETFD:
 		return F_GETFD;
 	case SVR4_F_SETFD:
@@ -584,6 +586,7 @@ svr4_sys_fcntl(td, uap)
 
 	switch (cmd) {
 	case F_DUPFD:
+	case F_DUP2FD:
 	case F_GETFD:
 	case F_SETFD:
 		return (kern_fcntl(td, uap->fd, cmd, (intptr_t)uap->arg));
@@ -637,19 +640,6 @@ svr4_sys_fcntl(td, uap)
 		}
 	case -1:
 		switch (uap->cmd) {
-		case SVR4_F_DUP2FD:
-			{
-				struct dup2_args du;
-
-				du.from = uap->fd;
-				du.to = (int)uap->arg;
-				error = dup2(td, &du);
-				if (error)
-					return error;
-				*retval = du.to;
-				return 0;
-			}
-
 		case SVR4_F_FREESP:
 			{
 				struct svr4_flock	 ifl;
