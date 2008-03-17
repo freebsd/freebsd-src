@@ -61,6 +61,18 @@ fdopen(fd, mode)
 	if (nofile == 0)
 		nofile = getdtablesize();
 
+	/*
+	 * File descriptors are a full int, but _file is only a short.
+	 * If we get a valid file descriptor that is greater than
+	 * SHRT_MAX, then the fd will get sign-extended into an
+	 * invalid file descriptor.  Handle this case by failing the
+	 * open.
+	 */
+	if (fd > SHRT_MAX) {
+		errno = EMFILE;
+		return (NULL);
+	}
+
 	if ((flags = __sflags(mode, &oflags)) == 0)
 		return (NULL);
 
