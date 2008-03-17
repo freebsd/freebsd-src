@@ -329,12 +329,8 @@ intr_controller_register(int vec, const struct intr_controller *ic,
 	 * CPU as long as the source of a level sensitive interrupt is
 	 * not cleared.
 	 */
-	error = intr_event_create(&ie, iv, 0, intr_enable_eoi,
-#ifdef INTR_FILTER
-	    ic->ic_eoi, ic->ic_disable, NULL, "vec%d:", vec);
-#else
-	    NULL, "vec%d:", vec);
-#endif
+	error = intr_event_create(&ie, iv, 0, ic->ic_disable, intr_enable_eoi,
+	    ic->ic_eoi, NULL, "vec%d:", vec);
 	if (error != 0)
 		return (error);
 	mtx_lock_spin(&intr_table_lock);
