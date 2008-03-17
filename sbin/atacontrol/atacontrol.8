@@ -70,6 +70,10 @@
 .Ic cap
 .Ar device
 .Nm
+.Ic spindown
+.Ar device
+.Op Ar seconds
+.Nm
 .Ic list
 .Sh DESCRIPTION
 The
@@ -190,6 +194,10 @@ The device name and manufacture/version strings are shown.
 .It Ic cap
 Show detailed info about the device on
 .Ar device .
+.It Ic spindown
+Set or report timeout after which the
+.Ar device 
+will be spun down.
 .It Ic info
 Show info about the attached devices on the
 .Ar channel .
