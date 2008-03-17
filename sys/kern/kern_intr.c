@@ -238,43 +238,9 @@ intr_event_update(struct intr_event *ie)
 	CTR2(KTR_INTR, "%s: updated %s", __func__, ie->ie_fullname);
 }
 
-#ifndef INTR_FILTER
 int
-intr_event_create(struct intr_event **event, void *source, int flags,
-    void (*enable)(void *), int (*assign_cpu)(void *, u_char), const char *fmt,
-    ...)
-{
-	struct intr_event *ie;
-	va_list ap;
-
-	/* The only valid flag during creation is IE_SOFT. */
-	if ((flags & ~IE_SOFT) != 0)
-		return (EINVAL);
-	ie = malloc(sizeof(struct intr_event), M_ITHREAD, M_WAITOK | M_ZERO);
-	ie->ie_source = source;
-	ie->ie_enable = enable;
-	ie->ie_assign_cpu = assign_cpu;
-	ie->ie_flags = flags;
-	ie->ie_cpu = NOCPU;
-	TAILQ_INIT(&ie->ie_handlers);
-	mtx_init(&ie->ie_lock, "intr event", NULL, MTX_DEF);
-
-	va_start(ap, fmt);
-	vsnprintf(ie->ie_name, sizeof(ie->ie_name), fmt, ap);
-	va_end(ap);
-	strlcpy(ie->ie_fullname, ie->ie_name, sizeof(ie->ie_fullname));
-	mtx_pool_lock(mtxpool_sleep, &event_list);
-	TAILQ_INSERT_TAIL(&event_list, ie, ie_list);
-	mtx_pool_unlock(mtxpool_sleep, &event_list);
-	if (event != NULL)
-		*event = ie;
-	CTR2(KTR_INTR, "%s: created %s", __func__, ie->ie_name);
-	return (0);
-}
-#else
-int
-intr_event_create(struct intr_event **event, void *source, int flags,
-    void (*enable)(void *), void (*eoi)(void *), void (*disab)(void *), 
+intr_event_create(struct intr_event **event, void *source,int flags,
+    void (*disable)(void *), void (*enable)(void *), void (*eoi)(void *),
     int (*assign_cpu)(void *, u_char), const char *fmt, ...)
 {
 	struct intr_event *ie;
@@ -285,10 +251,10 @@ intr_event_create(struct intr_event **event, void *source, int flags,
 		return (EINVAL);
 	ie = malloc(sizeof(struct intr_event), M_ITHREAD, M_WAITOK | M_ZERO);
 	ie->ie_source = source;
+	ie->ie_disable = disable;
 	ie->ie_enable = enable;
-	ie->ie_assign_cpu = assign_cpu;
 	ie->ie_eoi = eoi;
-	ie->ie_disab = disab;
+	ie->ie_assign_cpu = assign_cpu;
 	ie->ie_flags = flags;
 	ie->ie_cpu = NOCPU;
 	TAILQ_INIT(&ie->ie_handlers);
@@ -306,7 +272,6 @@ intr_event_create(struct intr_event **event, void *source, int flags,
 	CTR2(KTR_INTR, "%s: created %s", __func__, ie->ie_name);
 	return (0);
 }
-#endif
 
 /*
  * Bind an interrupt event to the specified CPU.  Note that not all
@@ -943,13 +908,8 @@ swi_add(struct intr_event **eventp, const char *name, driver_intr_t handler,
 		if (!(ie->ie_flags & IE_SOFT))
 			return (EINVAL);
 	} else {
-#ifdef INTR_FILTER
 		error = intr_event_create(&ie, NULL, IE_SOFT,
 		    NULL, NULL, NULL, NULL, "swi%d:", pri);
-#else
-		error = intr_event_create(&ie, NULL, IE_SOFT,
-		    NULL, NULL, "swi%d:", pri);
-#endif
 		if (error)
 			return (error);
 		if (eventp != NULL)
@@ -1405,8 +1365,8 @@ intr_event_handle(struct intr_event *ie, struct trapframe *frame)
 		if (ie->ie_eoi != NULL)
 			ie->ie_eoi(ie->ie_source);
 	} else {
-		if (ie->ie_disab != NULL)
-			ie->ie_disab(ie->ie_source);
+		if (ie->ie_disable != NULL)
+			ie->ie_disable(ie->ie_source);
 	}
 	critical_exit();
 	

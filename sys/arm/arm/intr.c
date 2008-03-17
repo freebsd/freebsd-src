@@ -50,33 +50,14 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr.h>
 #include <machine/cpu.h>
 
+typedef void (*mask_fn)(void *);
+
 static struct intr_event *intr_events[NIRQ];
 static int intrcnt_tab[NIRQ];
 static int intrcnt_index = 0;
 static int last_printed = 0;
 
 void	arm_handler_execute(struct trapframe *, int);
-
-#ifdef INTR_FILTER
-static void
-intr_disab_eoi_src(void *arg)
-{
-	uintptr_t nb;
-
-	nb = (uintptr_t)arg;
-	arm_mask_irq(nb);
-}
-
-static void
-intr_eoi_src(void *arg)
-{
-	uintptr_t nb;
-
-	nb = (uintptr_t)arg;
-	arm_unmask_irq(nb);
-}
-
-#endif
 
 void
 arm_setup_irqhandler(const char *name, driver_filter_t *filt, 
@@ -89,14 +70,9 @@ arm_setup_irqhandler(const char *name, driver_filter_t *filt,
 		return;
 	event = intr_events[irq];
 	if (event == NULL) {
-#ifdef INTR_FILTER
 		error = intr_event_create(&event, (void *)irq, 0,
-		    (void (*)(void *))arm_unmask_irq, intr_eoi_src,
-		    intr_disab_eoi_src, NULL, "intr%d:", irq);
-#else
-		error = intr_event_create(&event, (void *)irq, 0,
-		    (void (*)(void *))arm_unmask_irq, NULL, "intr%d:", irq);
-#endif
+		    (mask_fn)arm_mask_irq, (mask_fn)arm_unmask_irq,
+		    (mask_fn)arm_unmask_irq, NULL, "intr%d:", irq);
 		if (error)
 			return;
 		intr_events[irq] = event;
