@@ -142,7 +142,7 @@ static bus_addr_t add_bounce_page(bus_dma_tag_t dmat, bus_dmamap_t map,
 static void free_bounce_page(bus_dma_tag_t dmat, struct bounce_page *bpage);
 int run_filter(bus_dma_tag_t dmat, bus_addr_t paddr);
 int _bus_dmamap_count_pages(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
-			    bus_size_t buflen, int flags, int *nb);
+			    bus_size_t buflen, int flags);
 
 /*
  * Return true if a match is made.
@@ -569,12 +569,11 @@ bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
 
 int
 _bus_dmamap_count_pages(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
-			bus_size_t buflen, int flags, int *nb)
+			bus_size_t buflen, int flags)
 {
 	vm_offset_t vaddr;
 	vm_offset_t vendaddr;
 	bus_addr_t paddr;
-	int needbounce = *nb;
 
 	if ((map != &nobounce_dmamap && map->pagesneeded == 0)) {
 		CTR4(KTR_BUSDMA, "lowaddr= %d Maxmem= %d, boundary= %d, "
@@ -593,7 +592,6 @@ _bus_dmamap_count_pages(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 			paddr = pmap_kextract(vaddr);
 			if (((dmat->flags & BUS_DMA_COULD_BOUNCE) != 0) &&
 			    run_filter(dmat, paddr) != 0) {
-				needbounce = 1;
 				map->pagesneeded++;
 			}
 			vaddr += PAGE_SIZE;
@@ -624,7 +622,6 @@ _bus_dmamap_count_pages(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 		mtx_unlock(&bounce_lock);
 	}
 
-	*nb = needbounce;
 	return (0);
 }
 
@@ -648,15 +645,13 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 	bus_size_t sgsize;
 	bus_addr_t curaddr, lastaddr, baddr, bmask;
 	vm_offset_t vaddr;
-	int needbounce = 0;
 	int seg, error;
 
 	if (map == NULL)
 		map = &nobounce_dmamap;
 
 	if ((dmat->flags & BUS_DMA_COULD_BOUNCE) != 0) {
-		error = _bus_dmamap_count_pages(dmat, map, buf, buflen, flags,
-		    &needbounce);
+		error = _bus_dmamap_count_pages(dmat, map, buf, buflen, flags);
 		if (error)
 			return (error);
 	}
@@ -705,7 +700,7 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 			segs[seg].ds_len = sgsize;
 			first = 0;
 		} else {
-			if (needbounce == 0 && curaddr == lastaddr &&
+			if (curaddr == lastaddr &&
 			    (segs[seg].ds_len + sgsize) <= dmat->maxsegsz &&
 			    (dmat->boundary == 0 ||
 			     (segs[seg].ds_addr & bmask) == (curaddr & bmask)))
