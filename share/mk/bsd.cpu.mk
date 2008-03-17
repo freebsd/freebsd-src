@@ -133,6 +133,8 @@ MACHINE_CPU = k5 i586 i486 i386
 MACHINE_CPU = 3dnow mmx i586 i486 i386
 .  elif ${CPUTYPE} == "c3-2"
 MACHINE_CPU = sse mmx i586 i486 i386
+.  elif ${CPUTYPE} == "c7"
+MACHINE_CPU = sse3 sse2 sse i686 mmx i586 i486 i386
 .  elif ${CPUTYPE} == "prescott"
 MACHINE_CPU = sse3 sse2 sse i686 mmx i586 i486 i386
 .  elif ${CPUTYPE} == "pentium4" || ${CPUTYPE} == "pentium4m" || ${CPUTYPE} == "pentium-m"
