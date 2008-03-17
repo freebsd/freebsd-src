@@ -129,7 +129,7 @@ static struct dsk {
     unsigned start;
     int init;
 } dsk;
-static char cmd[512];
+static char cmd[512], cmddup[512];
 static char kname[1024];
 static uint32_t opts;
 static int comspeed = SIOSPD;
@@ -255,10 +255,11 @@ main(void)
 	fsread(ino, cmd, sizeof(cmd));
 
     if (*cmd) {
+	memcpy(cmddup, cmd, sizeof(cmd));
 	if (parse())
 	    autoboot = 0;
 	if (!OPT_CHECK(RBX_QUIET))
-	    printf("%s: %s", PATH_CONFIG, cmd);
+	    printf("%s: %s", PATH_CONFIG, cmddup);
 	/* Do not process this command twice */
 	*cmd = 0;
     }
