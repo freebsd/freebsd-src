@@ -162,6 +162,7 @@ static struct bge_type {
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5715S },
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5720 },
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5721 },
+	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5722 },
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5750 },
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5750M },
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5751 },
@@ -260,6 +261,7 @@ static const struct bge_revision {
 	{ BGE_CHIPID_BCM5755_A0,	"BCM5755 A0" },
 	{ BGE_CHIPID_BCM5755_A1,	"BCM5755 A1" },
 	{ BGE_CHIPID_BCM5755_A2,	"BCM5755 A2" },
+	{ BGE_CHIPID_BCM5722_A0,	"BCM5722 A0" },
 	/* 5754 and 5787 share the same ASIC ID */
 	{ BGE_CHIPID_BCM5787_A0,	"BCM5754/5787 A0" }, 
 	{ BGE_CHIPID_BCM5787_A1,	"BCM5754/5787 A1" },
@@ -2234,9 +2236,10 @@ bge_attach(device_t dev)
 	if (BGE_IS_5705_PLUS(sc) &&
 	    !(sc->bge_flags & BGE_FLAG_ADJUST_TRIM)) {
 		if (sc->bge_asicrev == BGE_ASICREV_BCM5755 ||
-		    sc->bge_asicrev == BGE_ASICREV_BCM5787)
-			sc->bge_flags |= BGE_FLAG_JITTER_BUG;
-		else
+		    sc->bge_asicrev == BGE_ASICREV_BCM5787) {
+			if (sc->bge_chipid != BGE_CHIPID_BCM5722_A0)
+				sc->bge_flags |= BGE_FLAG_JITTER_BUG;
+		} else
 			sc->bge_flags |= BGE_FLAG_BER_BUG;
 	}
 
