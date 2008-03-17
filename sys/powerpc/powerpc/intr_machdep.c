@@ -161,7 +161,6 @@ intr_lookup(u_int irq)
 	return (i);
 }
 
-#ifdef INTR_FILTER
 static void
 powerpc_intr_eoi(void *arg)
 {
@@ -177,7 +176,6 @@ powerpc_intr_mask(void *arg)
 
 	PIC_MASK(pic, irq);
 }
-#endif
 
 static void
 powerpc_intr_unmask(void *arg)
@@ -229,10 +227,7 @@ powerpc_setup_intr(const char *name, u_int irq, driver_filter_t filter,
 
 	if (i->event == NULL) {
 		error = intr_event_create(&i->event, (void *)irq, 0,
-		    powerpc_intr_unmask,
-#ifdef INTR_FILTER
-		    powerpc_intr_eoi, powerpc_intr_mask,
-#endif
+		    powerpc_intr_mask, powerpc_intr_unmask, powerpc_intr_eoi,
 		    NULL, "irq%u:", irq);
 		if (error)
 			return (error);
