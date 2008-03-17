@@ -288,8 +288,7 @@ static struct witness_order_list_entry order_lists[] = {
 	{ "process group", &lock_class_mtx_sleep },
 	{ "process lock", &lock_class_mtx_sleep },
 	{ "session", &lock_class_mtx_sleep },
-	{ "uidinfo hash", &lock_class_mtx_sleep },
-	{ "uidinfo struct", &lock_class_mtx_sleep },
+	{ "uidinfo hash", &lock_class_rw },
 #ifdef	HWPMC_HOOKS
 	{ "pmc-sleep", &lock_class_mtx_sleep },
 #endif
