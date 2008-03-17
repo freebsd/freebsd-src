@@ -1,5 +1,6 @@
 /*-
  * Copyright (C) 2001 Eduardo Horvath.
+ * Copyright (c) 2007 Marius Strobl <marius@FreeBSD.org>
  * All rights reserved.
  *
  *
@@ -63,11 +64,11 @@ __FBSDID("$FreeBSD$");
 
 #include "miibus_if.h"
 
-static int	gem_pci_probe(device_t);
-static int	gem_pci_attach(device_t);
-static int	gem_pci_detach(device_t);
-static int	gem_pci_suspend(device_t);
-static int	gem_pci_resume(device_t);
+static int	gem_pci_attach(device_t dev);
+static int	gem_pci_detach(device_t dev);
+static int	gem_pci_probe(device_t dev);
+static int	gem_pci_resume(device_t dev);
+static int	gem_pci_suspend(device_t dev);
 
 static device_method_t gem_pci_methods[] = {
 	/* Device interface */
@@ -118,8 +119,7 @@ static const struct gem_pci_dev {
 };
 
 static int
-gem_pci_probe(dev)
-	device_t dev;
+gem_pci_probe(device_t dev)
 {
 	int i;
 
@@ -140,8 +140,7 @@ static struct resource_spec gem_pci_res_spec[] = {
 };
 
 static int
-gem_pci_attach(dev)
-	device_t dev;
+gem_pci_attach(device_t dev)
 {
 	struct gem_softc *sc;
 	int i;
@@ -166,13 +165,13 @@ gem_pci_attach(dev)
 
 	/*
 	 * Some Sun GEMs/ERIs do have their intpin register bogusly set to 0,
-	 * although it should be 1. correct that.
+	 * although it should be 1.  Correct that.
 	 */
 	if (pci_get_intpin(dev) == 0)
 		pci_set_intpin(dev, 1);
 
 	sc->sc_dev = dev;
-	sc->sc_flags |= GEM_PCI;	/* XXX */
+	sc->sc_flags |= GEM_PCI;
 
 	if (bus_alloc_resources(dev, gem_pci_res_spec, sc->sc_res)) {
 		device_printf(dev, "failed to allocate resources\n");
@@ -225,7 +224,8 @@ gem_pci_attach(dev)
 
 	/* Read PCI Expansion ROM header. */
 	if (GEM_ROM_READ_2(sc, PCI_ROMHDR_SIG) != PCI_ROMHDR_SIG_MAGIC ||
-	    (i = GEM_ROM_READ_2(sc, PCI_ROMHDR_PTR_DATA)) < PCI_ROMHDR_SIZE) {
+	    (i = GEM_ROM_READ_2(sc, PCI_ROMHDR_PTR_DATA)) <
+	    PCI_ROMHDR_SIZE) {
 		device_printf(dev, "unexpected PCI Expansion ROM header\n");
 		goto fail;
 	}
@@ -234,7 +234,8 @@ gem_pci_attach(dev)
 	if (GEM_ROM_READ_4(sc, i + PCI_ROM_SIG) != PCI_ROM_SIG_MAGIC ||
 	    GEM_ROM_READ_2(sc, i + PCI_ROM_VENDOR) != pci_get_vendor(dev) ||
 	    GEM_ROM_READ_2(sc, i + PCI_ROM_DEVICE) != pci_get_device(dev) ||
-	    (j = GEM_ROM_READ_2(sc, i + PCI_ROM_PTR_VPD)) < i + PCI_ROM_SIZE) {
+	    (j = GEM_ROM_READ_2(sc, i + PCI_ROM_PTR_VPD)) <
+	    i + PCI_ROM_SIZE) {
 		device_printf(dev, "unexpected PCI Expansion ROM data\n");
 		goto fail;
 	}
@@ -242,14 +243,16 @@ gem_pci_attach(dev)
 	/*
 	 * Read PCI VPD.
 	 * SUNW,pci-gem cards have a single large resource VPD-R tag
-	 * containing one NA. The VPD used is not in PCI 2.2 standard
-	 * format however. The length in the resource header is in big
+	 * containing one NA.  The VPD used is not in PCI 2.2 standard
+	 * format however.  The length in the resource header is in big
 	 * endian and the end tag is non-standard (0x79) and followed
-	 * by an all-zero "checksum" byte. Sun calls this a "Fresh
+	 * by an all-zero "checksum" byte.  Sun calls this a "Fresh
 	 * Choice Ethernet" VPD...
 	 */
-	if (PCI_VPDRES_ISLARGE(GEM_ROM_READ_1(sc, j + PCI_VPDRES_BYTE0)) == 0 ||
-	    PCI_VPDRES_LARGE_NAME(GEM_ROM_READ_1(sc, j + PCI_VPDRES_BYTE0)) !=
+	if (PCI_VPDRES_ISLARGE(GEM_ROM_READ_1(sc,
+	    j + PCI_VPDRES_BYTE0)) == 0 ||
+	    PCI_VPDRES_LARGE_NAME(GEM_ROM_READ_1(sc,
+	    j + PCI_VPDRES_BYTE0)) !=
 	    PCI_VPDRES_TYPE_VPD ||
 	    (GEM_ROM_READ_1(sc, j + PCI_VPDRES_LARGE_LEN_LSB) << 8 |
 	    GEM_ROM_READ_1(sc, j + PCI_VPDRES_LARGE_LEN_MSB)) !=
@@ -270,11 +273,8 @@ gem_pci_attach(dev)
 	    ETHER_ADDR_LEN);
 #endif
 
-	/*
-	 * call the main configure
-	 */
 	if (gem_attach(sc) != 0) {
-		device_printf(dev, "could not be configured\n");
+		device_printf(dev, "could not be attached\n");
 		goto fail;
 	}
 
@@ -286,18 +286,18 @@ gem_pci_attach(dev)
 	}
 	return (0);
 
-fail:
+ fail:
 	GEM_LOCK_DESTROY(sc);
 	bus_release_resources(dev, gem_pci_res_spec, sc->sc_res);
 	return (ENXIO);
 }
 
 static int
-gem_pci_detach(dev)
-	device_t dev;
+gem_pci_detach(device_t dev)
 {
-	struct gem_softc *sc = device_get_softc(dev);
+	struct gem_softc *sc;
 
+	sc = device_get_softc(dev);
 	bus_teardown_intr(dev, sc->sc_res[1], sc->sc_ih);
 	gem_detach(sc);
 	GEM_LOCK_DESTROY(sc);
@@ -306,21 +306,21 @@ gem_pci_detach(dev)
 }
 
 static int
-gem_pci_suspend(dev)
-	device_t dev;
+gem_pci_suspend(device_t dev)
 {
-	struct gem_softc *sc = device_get_softc(dev);
+	struct gem_softc *sc;
 
+	sc = device_get_softc(dev);
 	gem_suspend(sc);
 	return (0);
 }
 
 static int
-gem_pci_resume(dev)
-	device_t dev;
+gem_pci_resume(device_t dev)
 {
-	struct gem_softc *sc = device_get_softc(dev);
+	struct gem_softc *sc;
 
+	sc = device_get_softc(dev);
 	gem_resume(sc);
 	return (0);
 }
