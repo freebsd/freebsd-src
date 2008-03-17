@@ -23,18 +23,27 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd June 18, 2006
+.\"
+.Dd March 17, 2008
 .Dt LINUX 4 i386
 .Os
 .Sh NAME
 .Nm linux
 .Nd Linux ABI support
 .Sh SYNOPSIS
-To link Linux ABI support into the kernel:
+To compile support for this ABI into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
 .Cd "options COMPAT_LINUX"
+.Ed
 .Pp
-To load the Linux ABI support kernel module:
-.Dl kldload linux
+Alternatively, to load the ABI as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+linux_load="YES"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm
