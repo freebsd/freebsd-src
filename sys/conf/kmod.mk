@@ -422,6 +422,9 @@ acpi_quirks.h: @/tools/acpi_quirks2h.awk @/dev/acpica/acpi_quirks
 .if !empty(SRCS:Massym.s)
 CLEANFILES+=	assym.s genassym.o
 assym.s: genassym.o
+.if defined(KERNBUILDDIR)
+genassym.o: opt_global.h
+.endif
 .if !exists(@)
 assym.s: @
 .else
@@ -438,6 +441,10 @@ genassym.o: @ machine ${SRCS:Mopt_*.h}
 
 lint: ${SRCS}
 	${LINT} ${LINTKERNFLAGS} ${CFLAGS:M-[DILU]*} ${.ALLSRC:M*.c}
+
+.if defined(KERNBUILDDIR)
+${OBJS}: opt_global.h
+.endif
 
 .include <bsd.dep.mk>
 
