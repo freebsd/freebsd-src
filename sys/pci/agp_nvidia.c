@@ -348,7 +348,7 @@ agp_nvidia_flush_tlb (device_t dev, int offset)
 	struct agp_nvidia_softc *sc;
 	u_int32_t wbc_reg, temp;
 	volatile u_int32_t *ag_virtual;
-	int i;
+	int i, pages;
 
 	sc = (struct agp_nvidia_softc *)device_get_softc(dev);
 
@@ -374,9 +374,10 @@ agp_nvidia_flush_tlb (device_t dev, int offset)
 	ag_virtual = (volatile u_int32_t *)sc->gatt->ag_virtual;
 
 	/* Flush TLB entries. */
-	for(i = 0; i < 32 + 1; i++)
+	pages = sc->gatt->ag_entries * sizeof(u_int32_t) / PAGE_SIZE;
+	for(i = 0; i < pages; i++)
 		temp = ag_virtual[i * PAGE_SIZE / sizeof(u_int32_t)];
-	for(i = 0; i < 32 + 1; i++)
+	for(i = 0; i < pages; i++)
 		temp = ag_virtual[i * PAGE_SIZE / sizeof(u_int32_t)];
 
 	return (0);
