@@ -683,7 +683,7 @@ amd_intr(int cpu, struct trapframe *tf)
 	KASSERT(cpu >= 0 && cpu < mp_ncpus,
 	    ("[amd,%d] out of range CPU %d", __LINE__, cpu));
 
-	PMCDBG(MDP,INT,1, "cpu=%d tf=0x%p um=%d", cpu, (void *) tf,
+	PMCDBG(MDP,INT,1, "cpu=%d tf=%p um=%d", cpu, (void *) tf,
 	    TRAPF_USERMODE(tf));
 
 	retval = 0;
