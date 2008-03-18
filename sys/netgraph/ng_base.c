@@ -2176,9 +2176,13 @@ ng_flush_input_queue(struct ng_queue * ngq)
 		NG_QUEUE_UNLOCK(ngq);
 
 		/* If the item is supplying a callback, call it with an error */
-		if (item->apply != NULL &&
-		    refcount_release(&item->apply->refs)) {
-			(*item->apply->apply)(item->apply->context, ENOENT);
+		if (item->apply != NULL) {
+			if (item->depth == 1)
+				item->apply->error = ENOENT;
+			if (refcount_release(&item->apply->refs)) {
+				(*item->apply->apply)(item->apply->context,
+				    item->apply->error);
+			}
 		}
 		NG_FREE_ITEM(item);
 		NG_QUEUE_LOCK(ngq);
@@ -2293,6 +2297,7 @@ ng_snd_item(item_p item, int flags)
 #ifdef	NETGRAPH_DEBUG
 		_ngi_check(item, __FILE__, __LINE__);
 #endif
+		item->depth = 1;
 		NG_QUEUE_LOCK(ngq);
 		ng_queue_rw(ngq, item, rw);
 		NG_QUEUE_UNLOCK(ngq);
@@ -2320,6 +2325,7 @@ ng_snd_item(item_p item, int flags)
 
 	NGI_GET_NODE(item, node); /* zaps stored node */
 
+	item->depth++;
 	error = ng_apply_item(node, item, rw); /* drops r/w lock when done */
 
 	/*
@@ -2339,8 +2345,14 @@ ng_snd_item(item_p item, int flags)
 
 done:
 	/* If was not sent, apply callback here. */
-	if (item->apply != NULL && refcount_release(&item->apply->refs))
-		(*item->apply->apply)(item->apply->context, error);
+	if (item->apply != NULL) {
+		if (item->depth == 0 && error != 0)
+			item->apply->error = error;
+		if (refcount_release(&item->apply->refs)) {
+			(*item->apply->apply)(item->apply->context,
+			    item->apply->error);
+		}
+	}
 
 	NG_FREE_ITEM(item);
 	return (error);
@@ -2356,10 +2368,10 @@ static int
 ng_apply_item(node_p node, item_p item, int rw)
 {
 	hook_p  hook;
-	int	error = 0;
 	ng_rcvdata_t *rcvdata;
 	ng_rcvmsg_t *rcvmsg;
 	struct ng_apply_info *apply;
+	int	error = 0, depth;
 
 	/* Node and item are never optional. */
 	KASSERT(node != NULL, ("ng_apply_item: node is NULL"));
@@ -2371,6 +2383,7 @@ ng_apply_item(node_p node, item_p item, int rw)
 #endif
 
 	apply = item->apply;
+	depth = item->depth;
 
 	switch (item->el_flags & NGQF_TYPE) {
 	case NGQF_DATA:
@@ -2478,8 +2491,12 @@ ng_apply_item(node_p node, item_p item, int rw)
 		ng_leave_write(&node->nd_input_queue);
 
 	/* Apply callback. */
-	if (apply != NULL && refcount_release(&apply->refs))
-		(*apply->apply)(apply->context, error);
+	if (apply != NULL) {
+		if (depth == 1 && error != 0)
+			apply->error = error;
+		if (refcount_release(&apply->refs))
+			(*apply->apply)(apply->context, apply->error);
+	}
 
 	return (error);
 }
