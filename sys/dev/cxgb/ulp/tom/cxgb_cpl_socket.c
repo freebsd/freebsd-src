@@ -825,7 +825,7 @@ skip_copy:
 		sbdrop_locked(&so->so_rcv, m->m_pkthdr.len);
 #endif		
 		exitnow = got_psh || nomoredata;
-		if  ((so->so_rcv.sb_mb == NULL) && exitnow)
+		if  (copied >= target && (so->so_rcv.sb_mb == NULL) && exitnow)
 			goto done;
 		if (copied_unacked > (so->so_rcv.sb_hiwat >> 2)) {
 			SOCKBUF_UNLOCK(&so->so_rcv);
@@ -917,7 +917,7 @@ cxgb_soreceive(struct socket *so, struct sockaddr **psa, struct uio *uio,
 	 *
 	 */
 	
-	if ((tp->t_flags & TF_TOE) && uio && ((flags & (MSG_WAITALL|MSG_OOB|MSG_PEEK|MSG_DONTWAIT)) == 0)
+	if ((tp->t_flags & TF_TOE) && uio && ((flags & (MSG_OOB|MSG_PEEK|MSG_DONTWAIT)) == 0)
 	    && (uio->uio_iovcnt == 1) && (mp0 == NULL)) {
 		tdev =  TOE_DEV(so);
 		zcopy_thres = TOM_TUNABLE(tdev, ddp_thres);
