@@ -865,6 +865,9 @@ ffs_mountfs(devvp, mp, td)
 	/*
 	 * Initialize filesystem stat information in mount struct.
 	 */
+	MNT_ILOCK(mp);
+	mp->mnt_kern_flag |= MNTK_MPSAFE;
+	MNT_IUNLOCK(mp);
 #ifdef UFS_EXTATTR
 #ifdef UFS_EXTATTR_AUTOSTART
 	/*
@@ -881,9 +884,6 @@ ffs_mountfs(devvp, mp, td)
 	(void) ufs_extattr_autostart(mp, td);
 #endif /* !UFS_EXTATTR_AUTOSTART */
 #endif /* !UFS_EXTATTR */
-	MNT_ILOCK(mp);
-	mp->mnt_kern_flag |= MNTK_MPSAFE;
-	MNT_IUNLOCK(mp);
 	return (0);
 out:
 	if (bp)
