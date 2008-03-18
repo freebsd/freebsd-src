@@ -4485,7 +4485,7 @@ ipfw_init(void)
 #ifdef INET6
 		"(+ipv6) "
 #endif
-		"initialized, divert %s, "
+		"initialized, divert %s, nat %s, "
 		"rule-based forwarding "
 #ifdef IPFIREWALL_FORWARD
 		"enabled, "
