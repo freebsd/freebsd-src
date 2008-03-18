@@ -75,15 +75,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/linker.h>
 #include <sys/firmware.h>
 
-#if (__FreeBSD_version > 700000)
-#define WPI_CURRENT
-#endif
-
 #include <machine/bus.h>
 #include <machine/resource.h>
-#ifndef WPI_CURRENT
-#include <machine/clock.h>
-#endif
 #include <sys/rman.h>
 
 #include <dev/pci/pcireg.h>
@@ -165,10 +158,6 @@ static void	wpi_dma_contig_free(struct wpi_dma_info *);
 static void	wpi_dma_map_addr(void *, bus_dma_segment_t *, int, int);
 static int	wpi_alloc_shared(struct wpi_softc *);
 static void	wpi_free_shared(struct wpi_softc *);
-static struct wpi_rbuf *wpi_alloc_rbuf(struct wpi_softc *);
-static void	wpi_free_rbuf(void *, void *);
-static int	wpi_alloc_rpool(struct wpi_softc *);
-static void	wpi_free_rpool(struct wpi_softc *);
 static int	wpi_alloc_rx_ring(struct wpi_softc *, struct wpi_rx_ring *);
 static void	wpi_reset_rx_ring(struct wpi_softc *, struct wpi_rx_ring *);
 static void	wpi_free_rx_ring(struct wpi_softc *, struct wpi_rx_ring *);
@@ -199,12 +188,8 @@ static void	wpi_notif_intr(struct wpi_softc *);
 static void	wpi_intr(void *);
 static void	wpi_ops(void *, int);
 static uint8_t	wpi_plcp_signal(int);
-static int	wpi_queue_cmd(struct wpi_softc *, int);
-static void	wpi_tick(void *);
-#if 0
-static void	wpi_radio_on(void *, int);
-static void	wpi_radio_off(void *, int);
-#endif
+static int	wpi_queue_cmd(struct wpi_softc *, int, int, int);
+static void	wpi_watchdog(void *);
 static int	wpi_tx_data(struct wpi_softc *, struct mbuf *,
 		    struct ieee80211_node *, int);
 static void	wpi_start(struct ifnet *);
@@ -213,9 +198,7 @@ static void	wpi_scan_end(struct ieee80211com *);
 static void	wpi_set_channel(struct ieee80211com *);
 static void	wpi_scan_curchan(struct ieee80211com *, unsigned long);
 static void	wpi_scan_mindwell(struct ieee80211com *);
-static void	wpi_watchdog(struct ifnet *);
 static int	wpi_ioctl(struct ifnet *, u_long, caddr_t);
-static void	wpi_restart(void *, int);
 static void	wpi_read_eeprom(struct wpi_softc *);
 static void	wpi_read_eeprom_channels(struct wpi_softc *, int);
 static void	wpi_read_eeprom_group(struct wpi_softc *, int);
@@ -228,6 +211,7 @@ static void	wpi_enable_tsf(struct wpi_softc *, struct ieee80211_node *);
 static int	wpi_setup_beacon(struct wpi_softc *, struct ieee80211_node *);
 #endif
 static int	wpi_auth(struct wpi_softc *);
+static int	wpi_run(struct wpi_softc *);
 static int	wpi_scan(struct wpi_softc *);
 static int	wpi_config(struct wpi_softc *);
 static void	wpi_stop_master(struct wpi_softc *);
@@ -235,6 +219,7 @@ static int	wpi_power_up(struct wpi_softc *);
 static int	wpi_reset(struct wpi_softc *);
 static void	wpi_hw_config(struct wpi_softc *);
 static void	wpi_init(void *);
+static void	wpi_init_locked(struct wpi_softc *, int);
 static void	wpi_stop(struct wpi_softc *);
 static void	wpi_stop_locked(struct wpi_softc *);
 static void	wpi_iter_func(void *, struct ieee80211_node *);
@@ -316,17 +301,12 @@ wpi_probe(device_t dev)
 static int
 wpi_load_firmware(struct wpi_softc *sc)
 {
-#ifdef WPI_CURRENT
 	const struct firmware *fp ;
-#else
-	struct firmware *fp;
-#endif
 	struct wpi_dma_info *dma = &sc->fw_dma;
 	const struct wpi_firmware_hdr *hdr;
 	const uint8_t *itext, *idata, *rtext, *rdata, *btext;
 	uint32_t itextsz, idatasz, rtextsz, rdatasz, btextsz;
 	int error;
-	WPI_LOCK_DECL;
 
 	DPRINTFN(WPI_DEBUG_FIRMWARE,
 	    ("Attempting Loading Firmware from wpi_fw module\n"));
@@ -482,7 +462,6 @@ fail:
 static void
 wpi_unload_firmware(struct wpi_softc *sc)
 {
-	WPI_LOCK_DECL;
 
 	if (sc->fw_fp) {
 		WPI_UNLOCK(sc);
@@ -529,22 +508,12 @@ wpi_attach(device_t dev)
 	    taskqueue_thread_enqueue, &sc->sc_tq);
 	taskqueue_start_threads(&sc->sc_tq, 1, PI_NET, "%s taskq",
 	    device_get_nameunit(dev));
-
-	sc->sc_tq2 = taskqueue_create("wpi_taskq2", M_NOWAIT | M_ZERO,
-	    taskqueue_thread_enqueue, &sc->sc_tq2);
-	taskqueue_start_threads(&sc->sc_tq2, 1, PI_NET, "%s taskq2",
-	    device_get_nameunit(dev));
 #else
 #error "Sorry, this driver is not yet ready for FreeBSD < 7.0"
 #endif
 
 	/* Create the tasks that can be queued */
-#if 0
-	TASK_INIT(&sc->sc_radioontask, 0, wpi_radio_on, sc);
-	TASK_INIT(&sc->sc_radioofftask, 0, wpi_radio_off, sc);
-#endif
 	TASK_INIT(&sc->sc_opstask, 0, wpi_ops, sc);
-	TASK_INIT(&sc->sc_restarttask, 0, wpi_restart, sc);
 
 	WPI_LOCK_INIT(sc);
 	WPI_CMD_LOCK_INIT(sc);
@@ -613,17 +582,6 @@ wpi_attach(device_t dev)
 	if ((error = wpi_alloc_shared(sc)) != 0) {
 		device_printf(dev, "could not allocate shared page\n");
 		goto fail;
-	}
-
-	/*
-	 * Allocate the receive buffer pool. The recieve buffers are
-	 * WPI_RBUF_SIZE in length (3k) this is bigger than MCLBYTES
-	 * hence we can't simply use a cluster and used mapped dma memory
-	 * instead.
-	 */
-	if ((error = wpi_alloc_rpool(sc)) != 0) {
-	    device_printf(dev, "could not allocate Rx buffers\n");
-	    goto fail;
 	}
 
 	/* tx data queues  - 4 for QoS purposes */
@@ -744,17 +702,15 @@ wpi_attach(device_t dev)
 	/*
 	 * Hook our interrupt after all initialization is complete.
 	 */
-	error = bus_setup_intr(dev, sc->irq, INTR_TYPE_NET |INTR_MPSAFE ,
-#ifdef WPI_CURRENT
-	    NULL,
-#endif
-	    wpi_intr, sc, &sc->sc_ih);
+	error = bus_setup_intr(dev, sc->irq, INTR_TYPE_NET |INTR_MPSAFE,
+	    NULL, wpi_intr, sc, &sc->sc_ih);
 	if (error != 0) {
 		device_printf(dev, "could not set up interrupt\n");
 		goto fail;
 	}
 
-	ieee80211_announce(ic);
+	if (bootverbose)
+		ieee80211_announce(ic);
 #ifdef XXX_DEBUG
 	ieee80211_announce_channels(ic);
 #endif
@@ -772,7 +728,6 @@ wpi_detach(device_t dev)
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ifnet *ifp = ic->ic_ifp;
 	int ac;
-	WPI_LOCK_DECL;
 
 	if (ifp != NULL) {
 		wpi_stop(sc);
@@ -789,7 +744,6 @@ wpi_detach(device_t dev)
 
 		wpi_free_tx_ring(sc, &sc->cmdq);
 		wpi_free_rx_ring(sc, &sc->rxq);
-		wpi_free_rpool(sc);
 		wpi_free_shared(sc);
 	}
 
@@ -813,7 +767,6 @@ wpi_detach(device_t dev)
 		if_free(ifp);
 
 	taskqueue_free(sc->sc_tq);
-	taskqueue_free(sc->sc_tq2);
 
 	WPI_LOCK_DESTROY(sc);
 	WPI_CMD_LOCK_DESTROY(sc);
@@ -832,31 +785,46 @@ wpi_dma_map_addr(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 	*(bus_addr_t *)arg = segs[0].ds_addr;
 }
 
+/*
+ * Allocates a contiguous block of dma memory of the requested size and
+ * alignment. Due to limitations of the FreeBSD dma subsystem as of 20071217,
+ * allocations greater than 4096 may fail. Hence if the requested alignment is
+ * greater we allocate 'alignment' size extra memory and shift the vaddr and
+ * paddr after the dma load. This bypasses the problem at the cost of a little
+ * more memory.
+ */
 static int
 wpi_dma_contig_alloc(struct wpi_softc *sc, struct wpi_dma_info *dma,
     void **kvap, bus_size_t size, bus_size_t alignment, int flags)
 {
 	int error;
-	int count = 0;
+	bus_size_t align;
+	bus_size_t reqsize;
 
 	DPRINTFN(WPI_DEBUG_DMA,
-	    ("Size: %zd - alignement %zd\n", size, alignment));
+	    ("Size: %zd - alignment %zd\n", size, alignment));
 
 	dma->size = size;
 	dma->tag = NULL;
 
-again:
-	error = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev), alignment,
+	if (alignment > 4096) {
+		align = PAGE_SIZE;
+		reqsize = size + alignment;
+	} else {
+		align = alignment;
+		reqsize = size;
+	}
+	error = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev), align,
 	    0, BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
-	    NULL, NULL, size,
-	    1, size, flags,
+	    NULL, NULL, reqsize,
+	    1, reqsize, flags,
 	    NULL, NULL, &dma->tag);
 	if (error != 0) {
 		device_printf(sc->sc_dev,
 		    "could not create shared page DMA tag\n");
 		goto fail;
 	}
-	error = bus_dmamem_alloc(dma->tag, (void **)&dma->vaddr,
+	error = bus_dmamem_alloc(dma->tag, (void **)&dma->vaddr_start,
 	    flags | BUS_DMA_ZERO, &dma->map);
 	if (error != 0) {
 		device_printf(sc->sc_dev,
@@ -864,30 +832,33 @@ again:
 		goto fail;
 	}
 
-	/**
-	 * Sadly FreeBSD can't always align on a 16k boundary, hence we give it
-	 * 10 attempts increasing the size of the allocation by 4k each time.
-	 * This should eventually align us on a 16k boundary at the cost
-	 * of chewing up dma memory
+	error = bus_dmamap_load(dma->tag, dma->map, dma->vaddr_start,
+	    reqsize,  wpi_dma_map_addr, &dma->paddr_start, flags);
+
+	/* Save the original pointers so we can free all the memory */
+	dma->paddr = dma->paddr_start;
+	dma->vaddr = dma->vaddr_start;
+
+	/*
+	 * Check the alignment and increment by 4096 until we get the
+	 * requested alignment. Fail if can't obtain the alignment
+	 * we requested.
 	 */
-	if ((((uintptr_t)dma->vaddr) & (alignment-1)) && count < 10) {
-		DPRINTFN(WPI_DEBUG_DMA,
-		    ("Memory Unaligned, trying again: %d\n", count++));
-		wpi_dma_contig_free(dma);
-		size += 4096;
-		goto again;
-	}
+	if ((dma->paddr & (alignment -1 )) != 0) {
+		int i;
 
-	DPRINTFN(WPI_DEBUG_DMA,("Memory, allocated & %s Aligned!\n",
-		    count == 10 ? "FAILED" : ""));
-	if (count == 10) {
-		device_printf(sc->sc_dev, "Unable to align memory\n");
-		error = ENOMEM;
-		goto fail;
+		for (i = 0; i < alignment / 4096; i++) {
+			if ((dma->paddr & (alignment - 1 )) == 0)
+				break;
+			dma->paddr += 4096;
+			dma->vaddr += 4096;
+		}
+		if (i == alignment / 4096) {
+			device_printf(sc->sc_dev,
+			    "alignment requirement was not satisfied\n");
+			goto fail;
+		}
 	}
-
-	error = bus_dmamap_load(dma->tag, dma->map, dma->vaddr,
-	    size,  wpi_dma_map_addr, &dma->paddr, flags);
 
 	if (error != 0) {
 		device_printf(sc->sc_dev,
@@ -910,12 +881,12 @@ wpi_dma_contig_free(struct wpi_dma_info *dma)
 {
 	if (dma->tag) {
 		if (dma->map != NULL) {
-			if (dma->paddr == 0) {
+			if (dma->paddr_start != 0) {
 				bus_dmamap_sync(dma->tag, dma->map,
 				    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
 				bus_dmamap_unload(dma->tag, dma->map);
 			}
-			bus_dmamem_free(dma->tag, &dma->vaddr, dma->map);
+			bus_dmamem_free(dma->tag, &dma->vaddr_start, dma->map);
 		}
 		bus_dma_tag_destroy(dma->tag);
 	}
@@ -948,134 +919,79 @@ wpi_free_shared(struct wpi_softc *sc)
 	wpi_dma_contig_free(&sc->shared_dma);
 }
 
-struct wpi_rbuf *
-wpi_alloc_rbuf(struct wpi_softc *sc)
-{
-	struct wpi_rbuf *rbuf;
-
-	rbuf = SLIST_FIRST(&sc->rxq.freelist);
-	if (rbuf == NULL)
-		return NULL;
-	SLIST_REMOVE_HEAD(&sc->rxq.freelist, next);
-	return rbuf;
-}
-
-/*
- * This is called automatically by the network stack when the mbuf to which our
- * Rx buffer is attached is freed.
- */
-static void
-wpi_free_rbuf(void *buf, void *arg)
-{
-	struct wpi_rbuf *rbuf = arg;
-	struct wpi_softc *sc = rbuf->sc;
-	WPI_LOCK_DECL;
-
-	WPI_LOCK(sc);
-
-	/* put the buffer back in the free list */
-	SLIST_INSERT_HEAD(&sc->rxq.freelist, rbuf, next);
-
-	WPI_UNLOCK(sc);
-}
-
-static int
-wpi_alloc_rpool(struct wpi_softc *sc)
-{
-	struct wpi_rx_ring *ring = &sc->rxq;
-	struct wpi_rbuf *rbuf;
-	int i, error;
-
-	/* allocate a big chunk of DMA'able memory.. */
-	error = wpi_dma_contig_alloc(sc, &ring->buf_dma, NULL,
-	    WPI_RBUF_COUNT * WPI_RBUF_SIZE, PAGE_SIZE, BUS_DMA_NOWAIT);
-	if (error != 0) {
-		device_printf(sc->sc_dev,
-		    "could not allocate Rx buffers DMA memory\n");
-		return error;
-	}
-
-	/* ..and split it into 3KB chunks */
-	SLIST_INIT(&ring->freelist);
-	for (i = 0; i < WPI_RBUF_COUNT; i++) {
-		rbuf = &ring->rbuf[i];
-
-		rbuf->sc = sc;	/* backpointer for callbacks */
-		rbuf->vaddr = ring->buf_dma.vaddr + i * WPI_RBUF_SIZE;
-		rbuf->paddr = ring->buf_dma.paddr + i * WPI_RBUF_SIZE;
-
-		SLIST_INSERT_HEAD(&ring->freelist, rbuf, next);
-	}
-	return 0;
-}
-
-static void
-wpi_free_rpool(struct wpi_softc *sc)
-{
-	wpi_dma_contig_free(&sc->rxq.buf_dma);
-}
-
 static int
 wpi_alloc_rx_ring(struct wpi_softc *sc, struct wpi_rx_ring *ring)
 {
 
-	struct wpi_rx_data *data;
-	struct wpi_rbuf *rbuf;
 	int i, error;
 
 	ring->cur = 0;
 
 	error = wpi_dma_contig_alloc(sc, &ring->desc_dma,
-		(void **)&ring->desc, WPI_RX_RING_COUNT * sizeof (uint32_t),
-		WPI_RING_DMA_ALIGN, BUS_DMA_NOWAIT);
+	    (void **)&ring->desc, WPI_RX_RING_COUNT * sizeof (uint32_t),
+	    WPI_RING_DMA_ALIGN, BUS_DMA_NOWAIT);
 
 	if (error != 0) {
-	    device_printf(sc->sc_dev,
-		"could not allocate rx ring DMA memory\n");
-	    goto fail;
+		device_printf(sc->sc_dev,
+		    "%s: could not allocate rx ring DMA memory, error %d\n",
+		    __func__, error);
+		goto fail;
 	}
+
+        error = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev), 1, 0, 
+	    BUS_SPACE_MAXADDR_32BIT,
+            BUS_SPACE_MAXADDR, NULL, NULL, MJUMPAGESIZE, 1,
+            MJUMPAGESIZE, BUS_DMA_NOWAIT, NULL, NULL, &ring->data_dmat);
+        if (error != 0) {
+                device_printf(sc->sc_dev,
+		    "%s: bus_dma_tag_create_failed, error %d\n",
+		    __func__, error);
+                goto fail;
+        }
 
 	/*
-	 * Allocate Rx buffers.
+	 * Setup Rx buffers.
 	 */
 	for (i = 0; i < WPI_RX_RING_COUNT; i++) {
-		data = &ring->data[i];
+		struct wpi_rx_data *data = &ring->data[i];
+		struct mbuf *m;
+		bus_addr_t paddr;
 
-		data->m = m_gethdr(M_DONTWAIT, MT_DATA);
-		if (data->m == NULL) {
+		error = bus_dmamap_create(ring->data_dmat, 0, &data->map);
+		if (error != 0) {
 			device_printf(sc->sc_dev,
-			    "could not allocate rx mbuf\n");
-			error = ENOBUFS;
+			    "%s: bus_dmamap_create failed, error %d\n",
+			    __func__, error);
 			goto fail;
 		}
-
-		if ((rbuf = wpi_alloc_rbuf(sc)) == NULL) {
-			m_freem(data->m);
-			data->m = NULL;
+		m = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR, MJUMPAGESIZE);
+		if (m == NULL) {
 			device_printf(sc->sc_dev,
-			    "could not allocate rx buffer\n");
-			error = ENOBUFS;
+			   "%s: could not allocate rx mbuf\n", __func__);
+			error = ENOMEM;
 			goto fail;
 		}
-
-		/* attach RxBuffer to mbuf */
-		MEXTADD(data->m, rbuf->vaddr, WPI_RBUF_SIZE,wpi_free_rbuf,
-		    rbuf,0,EXT_NET_DRV);
-
-		if ((data->m->m_flags & M_EXT) == 0) {
-			m_freem(data->m);
-			data->m = NULL;
-			error = ENOBUFS;
+		/* map page */
+		error = bus_dmamap_load(ring->data_dmat, data->map,
+		    mtod(m, caddr_t), MJUMPAGESIZE,
+		    wpi_dma_map_addr, &paddr, BUS_DMA_NOWAIT);
+		if (error != 0 && error != EFBIG) {
+			device_printf(sc->sc_dev,
+			    "%s: bus_dmamap_load failed, error %d\n",
+			    __func__, error);
+			m_freem(m);
+			error = ENOMEM;	/* XXX unique code */
 			goto fail;
 		}
-		ring->desc[i] = htole32(rbuf->paddr);
+		bus_dmamap_sync(ring->data_dmat, data->map, 
+		    BUS_DMASYNC_PREWRITE);
+
+		data->m = m;
+		ring->desc[i] = htole32(paddr);
 	}
-
 	bus_dmamap_sync(ring->desc_dma.tag, ring->desc_dma.map,
 	    BUS_DMASYNC_PREWRITE);
-
 	return 0;
-
 fail:
 	wpi_free_rx_ring(sc, ring);
 	return error;
@@ -1099,7 +1015,7 @@ wpi_reset_rx_ring(struct wpi_softc *sc, struct wpi_rx_ring *ring)
 	wpi_mem_unlock(sc);
 
 #ifdef WPI_DEBUG
-	if (ntries == 100 && wpi_debug > 0)
+	if (ntries == 100)
 		device_printf(sc->sc_dev, "timeout resetting Rx ring\n");
 #endif
 
@@ -1113,12 +1029,9 @@ wpi_free_rx_ring(struct wpi_softc *sc, struct wpi_rx_ring *ring)
 
 	wpi_dma_contig_free(&ring->desc_dma);
 
-	for (i = 0; i < WPI_RX_RING_COUNT; i++) {
-		if (ring->data[i].m != NULL) {
+	for (i = 0; i < WPI_RX_RING_COUNT; i++)
+		if (ring->data[i].m != NULL)
 			m_freem(ring->data[i].m);
-			ring->data[i].m = NULL;
-		}
-	}
 }
 
 static int
@@ -1188,7 +1101,8 @@ wpi_alloc_tx_ring(struct wpi_softc *sc, struct wpi_tx_ring *ring, int count,
 
 	return 0;
 
-fail:	wpi_free_tx_ring(sc, ring);
+fail:
+	wpi_free_tx_ring(sc, ring);
 	return error;
 }
 
@@ -1207,10 +1121,9 @@ wpi_reset_tx_ring(struct wpi_softc *sc, struct wpi_tx_ring *ring)
 		DELAY(10);
 	}
 #ifdef WPI_DEBUG
-	if (ntries == 100 && wpi_debug > 0) {
+	if (ntries == 100)
 		device_printf(sc->sc_dev, "timeout resetting Tx ring %d\n",
 		    ring->qid);
-	}
 #endif
 	wpi_mem_unlock(sc);
 
@@ -1260,7 +1173,6 @@ static int
 wpi_shutdown(device_t dev)
 {
 	struct wpi_softc *sc = device_get_softc(dev);
-	WPI_LOCK_DECL;
 
 	WPI_LOCK(sc);
 	wpi_stop_locked(sc);
@@ -1329,18 +1241,15 @@ wpi_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 {
 	struct ifnet *ifp = ic->ic_ifp;
 	struct wpi_softc *sc = ifp->if_softc;
-	struct ieee80211_node *ni;
-	int error;
-	WPI_LOCK_DECL;
 
-	WPI_LOCK(sc);
-	callout_stop(&sc->calib_to);
-	WPI_UNLOCK(sc);
+	DPRINTF(("%s: %s -> %s\n", __func__,
+		 ieee80211_state_name[ic->ic_state],
+		 ieee80211_state_name[nstate]));
 
 	switch (nstate) {
 	case IEEE80211_S_SCAN:
-		DPRINTF(("NEWSTATE:SCAN\n"));
-		/* Scanning is handled in net80211 via the scan_start,
+		/*
+		 * Scanning is handled in net80211 via the scan_start,
 		 * scan_end, scan_curchan functions. Hence all we do when
 		 * changing to the SCAN state is update the leds
 		 */
@@ -1349,93 +1258,27 @@ wpi_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 		wpi_set_led(sc, WPI_LED_LINK, 20, 2);
 		break;
 
-	case IEEE80211_S_ASSOC:
-		DPRINTF(("NEWSTATE:ASSOC\n"));
-		if (ic->ic_state != IEEE80211_S_RUN)
-		  break;
-		/* FALLTHROUGH */
-
 	case IEEE80211_S_AUTH:
-		DPRINTF(("NEWSTATE:AUTH\n"));
-		sc->flags |= WPI_FLAG_AUTH;
-		sc->config.associd = 0;
-		sc->config.filter &= ~htole32(WPI_FILTER_BSS);
-		wpi_queue_cmd(sc,WPI_AUTH);
-		DPRINTF(("END AUTH\n"));
-		break;
+		/* Delay the auth transition until we can update the firmware */
+		return wpi_queue_cmd(sc, WPI_AUTH, arg, WPI_QUEUE_NORMAL);
 
 	case IEEE80211_S_RUN:
-		DPRINTF(("NEWSTATE:RUN\n"));
 		if (ic->ic_opmode == IEEE80211_M_MONITOR) {
 			/* link LED blinks while monitoring */
 			wpi_set_led(sc, WPI_LED_LINK, 5, 5);
 			break;
 		}
-
-#if 0
-		if (ic->ic_opmode != IEEE80211_M_STA) {
-			(void) wpi_auth(sc);    /* XXX */
-			wpi_setup_beacon(sc, ic->ic_bss);
-		}
-#endif
-
-		ni = ic->ic_bss;
-		wpi_enable_tsf(sc, ni);
-
-		/* update adapter's configuration */
-		sc->config.associd = htole16(ni->ni_associd & ~0xc000);
-		/* short preamble/slot time are negotiated when associating */
-		sc->config.flags &= ~htole32(WPI_CONFIG_SHPREAMBLE |
-			WPI_CONFIG_SHSLOT);
-		if (ic->ic_flags & IEEE80211_F_SHSLOT)
-			sc->config.flags |= htole32(WPI_CONFIG_SHSLOT);
-		if (ic->ic_flags & IEEE80211_F_SHPREAMBLE)
-			sc->config.flags |= htole32(WPI_CONFIG_SHPREAMBLE);
-		sc->config.filter |= htole32(WPI_FILTER_BSS);
-#if 0
-		if (ic->ic_opmode != IEEE80211_M_STA)
-			sc->config.filter |= htole32(WPI_FILTER_BEACON);
-#endif
-
-/* XXX put somewhere HC_QOS_SUPPORT_ASSOC + HC_IBSS_START */
-
-		DPRINTF(("config chan %d flags %x\n", sc->config.chan,
-		    sc->config.flags));
-		error = wpi_cmd(sc, WPI_CMD_CONFIGURE, &sc->config,
-			sizeof (struct wpi_config), 1);
-		if (error != 0) {
-			device_printf(sc->sc_dev,
-			    "could not update configuration\n");
-			return error;
-		}
-
-		if ((error = wpi_set_txpower(sc, ic->ic_bss->ni_chan, 1)) != 0) {
-			device_printf(sc->sc_dev,
-			    "could set txpower\n");
-			return error;
-		}
-
-		if (ic->ic_opmode == IEEE80211_M_STA) {
-			/* fake a join to init the tx rate */
-			wpi_newassoc(ic->ic_bss, 1);
-		}
-
-		/* start automatic rate control timer */
-		callout_reset(&sc->calib_to, hz/2, wpi_calib_timeout, sc);
-
-		/* link LED always on while associated */
-		wpi_set_led(sc, WPI_LED_LINK, 0, 1);
-		break;
-
-	case IEEE80211_S_INIT:
-		DPRINTF(("NEWSTATE:INIT\n"));
+		if (ic->ic_state != IEEE80211_S_RUN)
+			/* set the association id first */
+			return wpi_queue_cmd(sc, WPI_RUN, arg,
+			    WPI_QUEUE_NORMAL);
 		break;
 
 	default:
 		break;
 	}
 
-	return (*sc->sc_newstate)(ic, nstate, arg);
+	return sc->sc_newstate(ic, nstate, arg);
 }
 
 /*
@@ -1594,11 +1437,10 @@ wpi_rx_intr(struct wpi_softc *sc, struct wpi_rx_desc *desc,
 	struct wpi_rx_stat *stat;
 	struct wpi_rx_head *head;
 	struct wpi_rx_tail *tail;
-	struct wpi_rbuf *rbuf;
-	struct ieee80211_frame *wh;
 	struct ieee80211_node *ni;
 	struct mbuf *m, *mnew;
-	WPI_LOCK_DECL;
+	bus_addr_t paddr;
+	int error;
 
 	stat = (struct wpi_rx_stat *)(desc + 1);
 
@@ -1616,43 +1458,39 @@ wpi_rx_intr(struct wpi_softc *sc, struct wpi_rx_desc *desc,
 	    le16toh(head->len), (int8_t)stat->rssi, head->rate, head->chan,
 	    (uintmax_t)le64toh(tail->tstamp)));
 
-	m = data->m;
+	/* XXX don't need mbuf, just dma buffer */
+	mnew = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR, MJUMPAGESIZE);
+	if (mnew == NULL) {
+		DPRINTFN(WPI_DEBUG_RX, ("%s: no mbuf to restock ring\n",
+		    __func__));
+		ic->ic_stats.is_rx_nobuf++;
+		ifp->if_ierrors++;
+		return;
+	}
+	error = bus_dmamap_load(ring->data_dmat, data->map,
+	    mtod(mnew, caddr_t), MJUMPAGESIZE,
+	    wpi_dma_map_addr, &paddr, BUS_DMA_NOWAIT);
+	if (error != 0 && error != EFBIG) {
+		device_printf(sc->sc_dev,
+		    "%s: bus_dmamap_load failed, error %d\n", __func__, error);
+		m_freem(mnew);
+		ic->ic_stats.is_rx_nobuf++;	/* XXX need stat */
+		ifp->if_ierrors++;
+		return;
+	}
+	bus_dmamap_sync(ring->data_dmat, data->map, BUS_DMASYNC_PREWRITE);
 
-	/* finalize mbuf */
+	/* finalize mbuf and swap in new one */
+	m = data->m;
 	m->m_pkthdr.rcvif = ifp;
 	m->m_data = (caddr_t)(head + 1);
 	m->m_pkthdr.len = m->m_len = le16toh(head->len);
 
-	if ((rbuf = SLIST_FIRST(&sc->rxq.freelist)) != NULL) {
-		mnew = m_gethdr(M_DONTWAIT,MT_DATA);
-		if (mnew == NULL) {
-			ifp->if_ierrors++;
-			return;
-		}
+	data->m = mnew;
+	/* update Rx descriptor */
+	ring->desc[ring->cur] = htole32(paddr);
 
-		/* attach Rx buffer to mbuf */
-		MEXTADD(mnew,rbuf->vaddr,WPI_RBUF_SIZE, wpi_free_rbuf, rbuf, 0,
-		    EXT_NET_DRV);
-		SLIST_REMOVE_HEAD(&sc->rxq.freelist, next);
-		data->m = mnew;
-
-		/* update Rx descriptor */
-		ring->desc[ring->cur] = htole32(rbuf->paddr);
-	} else {
-		/* no free rbufs, copy frame */
-		m = m_dup(m, M_DONTWAIT);
-		if (m == NULL) {
-			/* no free mbufs either, drop frame */
-			ifp->if_ierrors++;
-			return;
-		}
-	}
-
-#ifndef WPI_CURRENT
-	if (sc->sc_drvbpf != NULL) {
-#else
 	if (bpf_peers_present(sc->sc_drvbpf)) {
-#endif
 		struct wpi_rx_radiotap_header *tap = &sc->sc_rxtap;
 
 		tap->wr_flags = 0;
@@ -1688,12 +1526,11 @@ wpi_rx_intr(struct wpi_softc *sc, struct wpi_rx_desc *desc,
 		bpf_mtap2(sc->sc_drvbpf, tap, sc->sc_rxtap_len, m);
 	}
 
-	wh = mtod(m, struct ieee80211_frame *);
 	WPI_UNLOCK(sc);
 
 	/* XXX frame length > sizeof(struct ieee80211_frame_min)? */
 	/* grab a reference to the source node */
-	ni = ieee80211_find_rxnode(ic, (struct ieee80211_frame_min *)wh);
+	ni = ieee80211_find_rxnode(ic, mtod(m, struct ieee80211_frame_min *));
 
 	/* send the frame to the 802.11 layer */
 	ieee80211_input(ic, m, ni, stat->rssi, 0, 0);
@@ -1746,8 +1583,6 @@ wpi_tx_intr(struct wpi_softc *sc, struct wpi_rx_desc *desc)
 	ring->queued--;
 
 	sc->sc_tx_timer = 0;
-	sc->watchdog_cnt = 0;
-	callout_stop(&sc->watchdog_to);
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	wpi_start(ifp);
 }
@@ -1783,6 +1618,7 @@ static void
 wpi_notif_intr(struct wpi_softc *sc)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
+	struct ifnet *ifp = ic->ic_ifp;
 	struct wpi_rx_desc *desc;
 	struct wpi_rx_data *data;
 	uint32_t hw;
@@ -1842,9 +1678,10 @@ wpi_notif_intr(struct wpi_softc *sc)
 				device_printf(sc->sc_dev,
 				    "Radio transmitter is switched off\n");
 				sc->flags |= WPI_FLAG_HW_RADIO_OFF;
-				break;
+				ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+				/* Disable firmware commands */
+				WPI_WRITE(sc, WPI_UCODE_SET, WPI_DISABLE_CMD);
 			}
-			sc->flags &= ~WPI_FLAG_HW_RADIO_OFF;
 			break;
 		}
 		case WPI_START_SCAN:
@@ -1855,9 +1692,6 @@ wpi_notif_intr(struct wpi_softc *sc)
 			DPRINTFN(WPI_DEBUG_SCANNING,
 				 ("scanning channel %d status %x\n",
 			    scan->chan, le32toh(scan->status)));
-
-			/* fix current channel */
-			ic->ic_bss->ni_chan = &ic->ic_channels[scan->chan];
 			break;
 		}
 		case WPI_STOP_SCAN:
@@ -1869,7 +1703,8 @@ wpi_notif_intr(struct wpi_softc *sc)
 			    ("scan finished nchan=%d status=%d chan=%d\n",
 			     scan->nchan, scan->status, scan->chan));
 
-			wpi_queue_cmd(sc, WPI_SCAN_NEXT);
+			sc->sc_scan_timer = 0;
+			ieee80211_scan_next(ic);
 			break;
 		}
 		case WPI_MISSED_BEACON:
@@ -1877,12 +1712,14 @@ wpi_notif_intr(struct wpi_softc *sc)
 		    struct wpi_missed_beacon *beacon =
 				(struct wpi_missed_beacon *)(desc + 1);
 
-                    if (le32toh(beacon->consecutive) >= ic->ic_bmissthreshold) {
+                    if (le32toh(beacon->consecutive) >=
+			ic->ic_bmissthreshold) {
 			DPRINTF(("Beacon miss: %u >= %u\n",
 				 le32toh(beacon->consecutive),
 				 ic->ic_bmissthreshold));
 			ieee80211_beacon_miss(ic);
 		    }
+		    break;
 		}
 		}
 
@@ -1892,7 +1729,6 @@ wpi_notif_intr(struct wpi_softc *sc)
 	/* tell the firmware what we have processed */
 	hw = (hw == 0) ? WPI_RX_RING_COUNT - 1 : hw - 1;
 	WPI_WRITE(sc, WPI_RX_WIDX, hw & ~7);
-
 }
 
 static void
@@ -1900,7 +1736,6 @@ wpi_intr(void *arg)
 {
 	struct wpi_softc *sc = arg;
 	uint32_t r;
-	WPI_LOCK_DECL;
 
 	WPI_LOCK(sc);
 
@@ -1919,7 +1754,7 @@ wpi_intr(void *arg)
 		device_printf(sc->sc_dev, "fatal firmware error\n");
 		DPRINTFN(6,("(%s)\n", (r & WPI_SW_ERROR) ? "(Software Error)" :
 				"(Hardware Error)"));
-		taskqueue_enqueue(sc->sc_tq2, &sc->sc_restarttask);
+		wpi_queue_cmd(sc, WPI_RESTART, 0, WPI_QUEUE_CLEAR);
 		sc->flags &= ~WPI_FLAG_BUSY;
 		WPI_UNLOCK(sc);
 		return;
@@ -1977,6 +1812,7 @@ wpi_tx_data(struct wpi_softc *sc, struct mbuf *m0, struct ieee80211_node *ni,
 	int ac)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
+	const struct chanAccParams *cap = &ic->ic_wme.wme_chanParams;
 	struct wpi_tx_ring *ring = &sc->txq[ac];
 	struct wpi_tx_desc *desc;
 	struct wpi_tx_data *data;
@@ -1984,9 +1820,8 @@ wpi_tx_data(struct wpi_softc *sc, struct mbuf *m0, struct ieee80211_node *ni,
 	struct wpi_cmd_data *tx;
 	struct ieee80211_frame *wh;
 	struct ieee80211_key *k;
-	const struct chanAccParams *cap;
 	struct mbuf *mnew;
-	int i, error, nsegs, rate, hdrlen, noack = 0;
+	int i, error, nsegs, rate, hdrlen, ismcast;
 	bus_dma_segment_t segs[WPI_MAX_SCATTER];
 
 	desc = &ring->desc[ring->cur];
@@ -1994,58 +1829,17 @@ wpi_tx_data(struct wpi_softc *sc, struct mbuf *m0, struct ieee80211_node *ni,
 
 	wh = mtod(m0, struct ieee80211_frame *);
 
-	if (IEEE80211_QOS_HAS_SEQ(wh)) {
-		hdrlen = sizeof (struct ieee80211_qosframe);
-		cap = &ic->ic_wme.wme_chanParams;
-		noack = cap->cap_wmeParams[ac].wmep_noackPolicy;
-	} else
-		hdrlen = sizeof (struct ieee80211_frame);
+	hdrlen = ieee80211_hdrsize(wh);
+	ismcast = IEEE80211_IS_MULTICAST(wh->i_addr1);
 
 	if (wh->i_fc[1] & IEEE80211_FC1_WEP) {
-		if ((k = ieee80211_crypto_encap(ic, ni, m0)) == NULL) {
+		k = ieee80211_crypto_encap(ic, ni, m0);
+		if (k == NULL) {
 			m_freem(m0);
 			return ENOBUFS;
 		}
-
 		/* packet header may have moved, reset our local pointer */
 		wh = mtod(m0, struct ieee80211_frame *);
-	}
-
-	/* pickup a rate */
-	if (IEEE80211_IS_MULTICAST(wh->i_addr1)||
-	    ((wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK) ==
-		IEEE80211_FC0_TYPE_MGT)) {
-		/*
-		 * mgmt/multicast frames are sent at the lowest available
-		 * bit-rate
-		 */
-		rate = ni->ni_rates.rs_rates[0];
-	} else {
-		if (ic->ic_fixed_rate != -1) {
-			rate = ic->ic_sup_rates[ic->ic_curmode].
-				rs_rates[ic->ic_fixed_rate];
-		} else
-			rate = ni->ni_rates.rs_rates[ni->ni_txrate];
-	}
-	rate &= IEEE80211_RATE_VAL;
-
-#ifndef WPI_CURRENT
-	if (sc->sc_drvbpf != NULL) {
-#else
-	if (bpf_peers_present(sc->sc_drvbpf)) {
-#endif
-
-		struct wpi_tx_radiotap_header *tap = &sc->sc_txtap;
-
-		tap->wt_flags = 0;
-		tap->wt_chan_freq = htole16(ni->ni_chan->ic_freq);
-		tap->wt_chan_flags = htole16(ni->ni_chan->ic_flags);
-		tap->wt_rate = rate;
-		tap->wt_hwqueue = ac;
-		if (wh->i_fc[1] & IEEE80211_FC1_WEP)
-			tap->wt_flags |= IEEE80211_RADIOTAP_F_WEP;
-
-		bpf_mtap2(sc->sc_drvbpf, tap, sc->sc_txtap_len, m0);
 	}
 
 	cmd = &ring->cmd[ring->cur];
@@ -2055,45 +1849,62 @@ wpi_tx_data(struct wpi_softc *sc, struct mbuf *m0, struct ieee80211_node *ni,
 	cmd->idx = ring->cur;
 
 	tx = (struct wpi_cmd_data *)cmd->data;
-	tx->flags = 0;
-
-	if (!noack && !IEEE80211_IS_MULTICAST(wh->i_addr1)) {
-		tx->flags |= htole32(WPI_TX_NEED_ACK);
-	} else if (m0->m_pkthdr.len + IEEE80211_CRC_LEN > ic->ic_rtsthreshold) {
-		tx->flags |= htole32(WPI_TX_NEED_RTS | WPI_TX_FULL_TXOP);
-	}
-
-	tx->flags |= htole32(WPI_TX_AUTO_SEQ);
-
-	tx->id = IEEE80211_IS_MULTICAST(wh->i_addr1) ? WPI_ID_BROADCAST :
-	  WPI_ID_BSS;
-
-	if ((wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK) ==
-		IEEE80211_FC0_TYPE_MGT) {
-		uint8_t subtype = wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK;
-		/* tell h/w to set timestamp in probe responses */
-		if (subtype == IEEE80211_FC0_SUBTYPE_PROBE_RESP)
-			    tx->flags |= htole32(WPI_TX_INSERT_TSTAMP);
-
-		if (subtype == IEEE80211_FC0_SUBTYPE_ASSOC_REQ ||
-			    subtype == IEEE80211_FC0_SUBTYPE_REASSOC_REQ)
-			tx->timeout = htole16(3);
-		else
-			tx->timeout = htole16(2);
-	} else
-		tx->timeout = htole16(0);
-
-	tx->rate = wpi_plcp_signal(rate);
-
-	/* be very persistant at sending frames out */
-	tx->rts_ntries = 7;
-	tx->data_ntries = 15;
-
+	tx->flags = htole32(WPI_TX_AUTO_SEQ);
+	tx->timeout= htole16(0);
 	tx->ofdm_mask = 0xff;
 	tx->cck_mask = 0x0f;
 	tx->lifetime = htole32(WPI_LIFETIME_INFINITE);
-
+	tx->id = ismcast ? WPI_ID_BROADCAST : WPI_ID_BSS;
 	tx->len = htole16(m0->m_pkthdr.len);
+
+	if (!ismcast) {
+		if ((ni->ni_flags & IEEE80211_NODE_QOS) == 0 ||
+		    !cap->cap_wmeParams[ac].wmep_noackPolicy)
+			tx->flags |= htole32(WPI_TX_NEED_ACK);
+		if (m0->m_pkthdr.len + IEEE80211_CRC_LEN > ic->ic_rtsthreshold) {
+			tx->flags |= htole32(WPI_TX_NEED_RTS|WPI_TX_FULL_TXOP);
+			tx->rts_ntries = 7;
+		}
+	}
+
+	/* pick a rate */
+	if ((wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK) == IEEE80211_FC0_TYPE_MASK) {
+		uint8_t subtype = wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK;
+		/* tell h/w to set timestamp in probe responses */
+		if (subtype == IEEE80211_FC0_SUBTYPE_PROBE_RESP)
+			tx->flags |= htole32(WPI_TX_INSERT_TSTAMP);
+
+		if (subtype == IEEE80211_FC0_SUBTYPE_ASSOC_REQ ||
+		    subtype == IEEE80211_FC0_SUBTYPE_REASSOC_REQ)
+			tx->timeout = htole16(3);
+		else
+			tx->timeout = htole16(2);
+
+		rate = ni->ni_rates.rs_rates[0] & IEEE80211_RATE_VAL;
+	} else if (ismcast) {
+		rate = ic->ic_mcast_rate;
+	} else if (ic->ic_fixed_rate != IEEE80211_FIXED_RATE_NONE) {
+		rate = ic->ic_fixed_rate;
+	} else {
+		rate = ni->ni_rates.rs_rates[ni->ni_txrate];
+		rate &= IEEE80211_RATE_VAL;
+	}
+	tx->rate = wpi_plcp_signal(rate);
+
+	/* be very persistant at sending frames out */
+	tx->data_ntries = 15;	/* XXX Way too high */
+
+	if (bpf_peers_present(sc->sc_drvbpf)) {
+		struct wpi_tx_radiotap_header *tap = &sc->sc_txtap;
+		tap->wt_flags = 0;
+		tap->wt_chan_freq = htole16(ni->ni_chan->ic_freq);
+		tap->wt_chan_flags = htole16(ni->ni_chan->ic_flags);
+		tap->wt_rate = rate;
+		tap->wt_hwqueue = ac;
+		if (wh->i_fc[1] & IEEE80211_FC1_WEP)
+			tap->wt_flags |= IEEE80211_RADIOTAP_F_WEP;
+		bpf_mtap2(sc->sc_drvbpf, tap, sc->sc_txtap_len, m0);
+	}
 
 	/* save and trim IEEE802.11 header */
 	m_copydata(m0, 0, hdrlen, (caddr_t)&tx->wh);
@@ -2169,16 +1980,18 @@ wpi_start(struct ifnet *ifp)
 	struct ieee80211_node *ni;
 	struct ether_header *eh;
 	struct mbuf *m0;
-	int ac;
-	WPI_LOCK_DECL;
+	int ac, waslocked;
 
-	WPI_LOCK(sc);
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+		return;
+
+	waslocked = WPI_LOCK_OWNED(sc);
+	if (!waslocked)
+		WPI_LOCK(sc);
 
 	for (;;) {
-		IF_POLL(&ic->ic_mgtq, m0);
+		IF_DEQUEUE(&ic->ic_mgtq, m0);
 		if (m0 != NULL) {
-			IF_DEQUEUE(&ic->ic_mgtq, m0);
-
 			ni = (struct ieee80211_node *)m0->m_pkthdr.rcvif;
 			m0->m_pkthdr.rcvif = NULL;
 
@@ -2196,7 +2009,7 @@ wpi_start(struct ifnet *ifp)
 			if (ic->ic_state != IEEE80211_S_RUN)
 				break;
 
-			IFQ_POLL(&ifp->if_snd, m0);
+			IFQ_DRV_DEQUEUE(&ifp->if_snd, m0);
 			if (m0 == NULL)
 				break;
 
@@ -2227,10 +2040,7 @@ wpi_start(struct ifnet *ifp)
 				continue;
 			}
 
-			/* no QoS encapsulation for EAPOL frames */
-			ac = (eh->ether_type != htons(ETHERTYPE_PAE)) ?
-			    M_WME_GETAC(m0) : WME_AC_BE;
-
+			ac = M_WME_GETAC(m0);
 			if (sc->txq[ac].queued > sc->txq[ac].count - 8) {
 				/* there is no place left in this ring */
 				IFQ_DRV_PREPEND(&ifp->if_snd, m0);
@@ -2238,7 +2048,6 @@ wpi_start(struct ifnet *ifp)
 				break;
 			}
 
-			IFQ_DRV_DEQUEUE(&ifp->if_snd, m0);
 			BPF_MTAP(ifp, m0);
 
 			m0 = ieee80211_encap(ic, m0, ni);
@@ -2248,11 +2057,7 @@ wpi_start(struct ifnet *ifp)
 				continue;
 			}
 
-#ifndef WPI_CURRENT
-			if (ic->ic_rawbpf != NULL)
-#else
 			if (bpf_peers_present(ic->ic_rawbpf))
-#endif
 				bpf_mtap(ic->ic_rawbpf, m0);
 
 			if (wpi_tx_data(sc, m0, ni, ac) != 0) {
@@ -2263,33 +2068,11 @@ wpi_start(struct ifnet *ifp)
 		}
 
 		sc->sc_tx_timer = 5;
-		sc->watchdog_cnt = 5;
 		ic->ic_lastdata = ticks;
 	}
 
-	WPI_UNLOCK(sc);
-}
-
-static void
-wpi_watchdog(struct ifnet *ifp)
-{
-	struct wpi_softc *sc = ifp->if_softc;
-	WPI_LOCK_DECL;
-
-	WPI_LOCK(sc);
-
-	DPRINTFN(WPI_DEBUG_WATCHDOG, ("watchdog_cnt: %d\n", sc->watchdog_cnt));
-
-	if (sc->watchdog_cnt == 0 || --sc->watchdog_cnt)
-		goto done;
-
-	if (--sc->sc_tx_timer != 0) {
-		device_printf(sc->sc_dev,"device timeout\n");
-		ifp->if_oerrors++;
-		taskqueue_enqueue(sc->sc_tq2, &sc->sc_restarttask);
-	}
-done:
-	WPI_UNLOCK(sc);
+	if (!waslocked)
+		WPI_UNLOCK(sc);
 }
 
 static int
@@ -2298,7 +2081,6 @@ wpi_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	struct wpi_softc *sc = ifp->if_softc;
 	struct ieee80211com *ic = &sc->sc_ic;
 	int error = 0;
-	WPI_LOCK_DECL;
 
 	WPI_LOCK(sc);
 
@@ -2306,8 +2088,9 @@ wpi_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	case SIOCSIFFLAGS:
 		if ((ifp->if_flags & IFF_UP)) {
 			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
-				wpi_init(sc);
-		} else if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+				wpi_init_locked(sc, 0);
+		} else if ((ifp->if_drv_flags & IFF_DRV_RUNNING) ||
+			   (sc->flags & WPI_FLAG_HW_RADIO_OFF))
 			wpi_stop_locked(sc);
 		break;
 	default:
@@ -2320,7 +2103,7 @@ wpi_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		if ((ifp->if_flags & IFF_UP) &&
 		    (ifp->if_drv_flags & IFF_DRV_RUNNING) &&
 		    ic->ic_roaming != IEEE80211_ROAMING_MANUAL)
-			wpi_init(sc);
+			wpi_init_locked(sc, 0);
 		error = 0;
 	}
 
@@ -2619,7 +2402,10 @@ wpi_auth(struct wpi_softc *sc)
 	struct wpi_node_info node;
 	int error;
 
+
 	/* update adapter's configuration */
+	sc->config.associd = 0;
+	sc->config.filter &= ~htole32(WPI_FILTER_BSS);
 	IEEE80211_ADDR_COPY(sc->config.bssid, ni->ni_bssid);
 	sc->config.chan = ieee80211_chan2ieee(ic, ni->ni_chan);
 	if (IEEE80211_IS_CHAN_2GHZ(ni->ni_chan)) {
@@ -2664,14 +2450,62 @@ wpi_auth(struct wpi_softc *sc)
 	node.action = htole32(WPI_ACTION_SET_RATE);
 	node.antenna = WPI_ANTENNA_BOTH;
 	error = wpi_cmd(sc, WPI_CMD_ADD_NODE, &node, sizeof node, 1);
-	if (error != 0) {
+	if (error != 0)
 		device_printf(sc->sc_dev, "could not add BSS node\n");
+
+	return (error);
+}
+
+static int
+wpi_run(struct wpi_softc *sc)
+{
+	struct ieee80211com *ic = &sc->sc_ic;
+	struct ieee80211_node *ni = ic->ic_bss;
+	int error;
+
+	ni = ic->ic_bss;
+	wpi_enable_tsf(sc, ni);
+
+	/* update adapter's configuration */
+	sc->config.associd = htole16(ni->ni_associd & ~0xc000);
+	/* short preamble/slot time are negotiated when associating */
+	sc->config.flags &= ~htole32(WPI_CONFIG_SHPREAMBLE |
+	    WPI_CONFIG_SHSLOT);
+	if (ic->ic_flags & IEEE80211_F_SHSLOT)
+		sc->config.flags |= htole32(WPI_CONFIG_SHSLOT);
+	if (ic->ic_flags & IEEE80211_F_SHPREAMBLE)
+		sc->config.flags |= htole32(WPI_CONFIG_SHPREAMBLE);
+	sc->config.filter |= htole32(WPI_FILTER_BSS);
+
+	/* XXX put somewhere HC_QOS_SUPPORT_ASSOC + HC_IBSS_START */
+
+	DPRINTF(("config chan %d flags %x\n", sc->config.chan,
+		    sc->config.flags));
+	error = wpi_cmd(sc, WPI_CMD_CONFIGURE, &sc->config, sizeof (struct
+		    wpi_config), 1);
+	if (error != 0) {
+		device_printf(sc->sc_dev, "could not update configuration\n");
 		return error;
 	}
 
-	sc->flags &= ~WPI_FLAG_AUTH;
+	error = wpi_set_txpower(sc, ic->ic_bsschan, 1);
+	if (error != 0) {
+		device_printf(sc->sc_dev, "could set txpower\n");
+		return error;
+	}
 
-	return 0;
+	if (ic->ic_opmode == IEEE80211_M_STA) {
+		/* fake a join to init the tx rate */
+		wpi_newassoc(ic->ic_bss, 1);
+	}
+
+	/* link LED always on while associated */
+	wpi_set_led(sc, WPI_LED_LINK, 0, 1);
+
+	/* start automatic rate control timer */
+	callout_reset(&sc->calib_to, hz/2, wpi_calib_timeout, sc);
+
+	return (error);
 }
 
 /*
@@ -2686,6 +2520,7 @@ static int
 wpi_scan(struct wpi_softc *sc)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
+	struct ieee80211_scan_state *ss = ic->ic_scan;
 	struct wpi_tx_ring *ring = &sc->cmdq;
 	struct wpi_tx_desc *desc;
 	struct wpi_tx_data *data;
@@ -2697,7 +2532,7 @@ wpi_scan(struct wpi_softc *sc)
 	struct ieee80211_channel *c;
 	enum ieee80211_phymode mode;
 	uint8_t *frm;
-	int nrates, pktlen, error;
+	int nrates, pktlen, error, i, nssid;
 	bus_addr_t physaddr;
 	struct ifnet *ifp = ic->ic_ifp;
 
@@ -2744,17 +2579,21 @@ wpi_scan(struct wpi_softc *sc)
 	hdr->tx.flags = htole32(WPI_TX_AUTO_SEQ);
 
 	/*XXX Need to cater for multiple essids */
-	memset(&hdr->scan_essids[0], 0, 4 * sizeof(hdr->scan_essids[0]));
-	hdr->scan_essids[0].id = IEEE80211_ELEMID_SSID;
-	hdr->scan_essids[0].esslen = ic->ic_des_ssid[0].len;
-	memcpy(hdr->scan_essids[0].essid, ic->ic_des_ssid[0].ssid,
-	    ic->ic_des_ssid[0].len);
-
-	if (wpi_debug & WPI_DEBUG_SCANNING) {
-		printf("Scanning Essid: ");
-		ieee80211_print_essid(ic->ic_des_ssid[0].ssid,
-		    ic->ic_des_ssid[0].len);
-		printf("\n");
+	memset(&hdr->scan_essids, 0, sizeof(hdr->scan_essids));
+	nssid = MIN(ss->ss_nssid, WPI_SCAN_MAX_ESSIDS);
+	for (i = 0; i < nssid; i++ ){
+		hdr->scan_essids[i].id = IEEE80211_ELEMID_SSID;
+		hdr->scan_essids[i].esslen = MIN(ss->ss_ssid[i].len, 32);
+		memcpy(hdr->scan_essids[i].essid, ss->ss_ssid[i].ssid,
+		    hdr->scan_essids[i].esslen);
+#ifdef WPI_DEBUG
+		if (wpi_debug & WPI_DEBUG_SCANNING) {
+			printf("Scanning Essid: ");
+			ieee80211_print_essid(ic->ic_des_ssid[i].ssid,
+			    ic->ic_des_ssid[i].len);
+			printf("\n");
+		}
+#endif
 	}
 
 	/*
@@ -2896,6 +2735,7 @@ wpi_scan(struct wpi_softc *sc)
 	ring->cur = (ring->cur + 1) % WPI_CMD_RING_COUNT;
 	WPI_WRITE(sc, WPI_TX_WIDX, ring->qid << 8 | ring->cur);
 
+	sc->sc_scan_timer = 5;
 	return 0;	/* will be notified async. of failure/success */
 }
 
@@ -2977,7 +2817,7 @@ wpi_config(struct wpi_softc *sc)
 	}
 
 	/* configuration has changed, set Tx power accordingly */
-	if ((error = wpi_set_txpower(sc, ic->ic_curchan,0)) != 0) {
+	if ((error = wpi_set_txpower(sc, ic->ic_curchan, 0)) != 0) {
 	    device_printf(sc->sc_dev, "could not set Tx power\n");
 	    return error;
 	}
@@ -3125,16 +2965,83 @@ wpi_hw_config(struct wpi_softc *sc)
 }
 
 static void
+wpi_rfkill_resume(struct wpi_softc *sc)
+{
+	struct ifnet *ifp = sc->sc_ifp;
+	struct ieee80211com *ic = &sc->sc_ic;
+	int ntries;
+
+	/* enable firmware again */
+	WPI_WRITE(sc, WPI_UCODE_CLR, WPI_RADIO_OFF);
+	WPI_WRITE(sc, WPI_UCODE_CLR, WPI_DISABLE_CMD);
+
+	/* wait for thermal sensors to calibrate */
+	for (ntries = 0; ntries < 1000; ntries++) {
+		if ((sc->temp = (int)WPI_READ(sc, WPI_TEMPERATURE)) != 0)
+			break;
+		DELAY(10);
+	}
+
+	if (ntries == 1000) {
+		device_printf(sc->sc_dev,
+		    "timeout waiting for thermal calibration\n");
+		WPI_UNLOCK(sc);
+		return;
+	}
+	DPRINTFN(WPI_DEBUG_TEMP,("temperature %d\n", sc->temp));
+
+	if (wpi_config(sc) != 0) {
+		device_printf(sc->sc_dev, "device config failed\n");
+		WPI_UNLOCK(sc);
+		return;
+	}
+
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	sc->flags &= ~WPI_FLAG_HW_RADIO_OFF;
+
+	if (ic->ic_flags & IEEE80211_F_SCAN)
+		ieee80211_scan_next(ic);
+
+	ieee80211_beacon_miss(ic);
+
+	/* reset the led sequence */
+	switch (ic->ic_state) {
+		case IEEE80211_S_SCAN:
+			wpi_set_led(sc, WPI_LED_LINK, 20, 2);
+			break;
+
+		case IEEE80211_S_RUN:
+			if (ic->ic_opmode == IEEE80211_M_MONITOR)
+				wpi_set_led(sc, WPI_LED_LINK, 5, 5);
+			else
+				wpi_set_led(sc, WPI_LED_LINK, 0, 1);
+			break;
+
+		default:
+			break;	/* please compiler */
+	}
+
+	callout_reset(&sc->watchdog_to, hz, wpi_watchdog, sc);
+}
+
+static void
 wpi_init(void *arg)
 {
 	struct wpi_softc *sc = arg;
+
+	WPI_LOCK(sc);
+	wpi_init_locked(sc, 0);
+	WPI_UNLOCK(sc);
+}
+
+static void
+wpi_init_locked(struct wpi_softc *sc, int force)
+{
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ifnet *ifp = ic->ic_ifp;
 	uint32_t tmp;
-	int ntries, error, qid;
-	WPI_LOCK_DECL;
-
-	WPI_LOCK(sc);
+	int ntries, qid;
 
 	wpi_stop_locked(sc);
 	(void)wpi_reset(sc);
@@ -3192,7 +3099,7 @@ wpi_init(void *arg)
 	WPI_WRITE(sc, WPI_UCODE_CLR, WPI_RADIO_OFF);
 	WPI_WRITE(sc, WPI_UCODE_CLR, WPI_RADIO_OFF);
 
-	if ((error = wpi_load_firmware(sc)) != 0) {
+	if ((wpi_load_firmware(sc)) != 0) {
 	    device_printf(sc->sc_dev,
 		"A problem occurred loading the firmware to the driver\n");
 	    return;
@@ -3201,7 +3108,7 @@ wpi_init(void *arg)
 	/* At this point the firmware is up and running. If the hardware
 	 * RF switch is turned off thermal calibration will fail, though
 	 * the card is still happy to continue to accept commands, catch
-	 * this case and record the hw is disabled.
+	 * this case and schedule a task to watch for it to be turned on.
 	 */
 	wpi_mem_lock(sc);
 	tmp = wpi_mem_read(sc, WPI_MEM_HW_RADIO_OFF);
@@ -3209,10 +3116,8 @@ wpi_init(void *arg)
 
 	if (!(tmp & 0x1)) {
 		sc->flags |= WPI_FLAG_HW_RADIO_OFF;
-		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-		ifp->if_drv_flags |= IFF_DRV_RUNNING;
 		device_printf(sc->sc_dev,"Radio Transmitter is switched off\n");
-		return;
+		goto out;
 	}
 
 	/* wait for thermal sensors to calibrate */
@@ -3225,26 +3130,30 @@ wpi_init(void *arg)
 	if (ntries == 1000) {
 		device_printf(sc->sc_dev,
 		    "timeout waiting for thermal sensors calibration\n");
-		error = ETIMEDOUT;
 		return;
 	}
 	DPRINTFN(WPI_DEBUG_TEMP,("temperature %d\n", sc->temp));
 
+	if (wpi_config(sc) != 0) {
+		device_printf(sc->sc_dev, "device config failed\n");
+		return;
+	}
+
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
-	callout_reset(&sc->watchdog_to, hz, wpi_tick, sc);
-	WPI_UNLOCK(sc);
+out:
+	callout_reset(&sc->watchdog_to, hz, wpi_watchdog, sc);
 
 	if (ic->ic_opmode == IEEE80211_M_MONITOR)
 		ieee80211_new_state(ic, IEEE80211_S_RUN, -1);
 	else if (ic->ic_roaming != IEEE80211_ROAMING_MANUAL)
 		ieee80211_new_state(ic, IEEE80211_S_SCAN, -1);
+	return;
 }
 
 static void
 wpi_stop(struct wpi_softc *sc)
 {
-	WPI_LOCK_DECL;
 
 	WPI_LOCK(sc);
 	wpi_stop_locked(sc);
@@ -3260,8 +3169,13 @@ wpi_stop_locked(struct wpi_softc *sc)
 	uint32_t tmp;
 	int ac;
 
-	sc->watchdog_cnt = sc->sc_tx_timer = 0;
+	sc->sc_tx_timer = 0;
+	sc->sc_scan_timer = 0;
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
+	sc->flags &= ~WPI_FLAG_HW_RADIO_OFF;
+	callout_stop(&sc->watchdog_to);
+	callout_stop(&sc->calib_to);
+
 
 	/* disable interrupts */
 	WPI_WRITE(sc, WPI_MASK, 0);
@@ -3271,6 +3185,9 @@ wpi_stop_locked(struct wpi_softc *sc)
 
 	/* Clear any commands left in the command buffer */
 	memset(sc->sc_cmd, 0, sizeof(sc->sc_cmd));
+	memset(sc->sc_cmd_arg, 0, sizeof(sc->sc_cmd_arg));
+	sc->sc_cmd_cur = 0;
+	sc->sc_cmd_next = 0;
 
 	wpi_mem_lock(sc);
 	wpi_mem_write(sc, WPI_MEM_MODE, 0);
@@ -3328,16 +3245,16 @@ wpi_calib_timeout(void *arg)
 	struct wpi_softc *sc = arg;
 	struct ieee80211com *ic = &sc->sc_ic;
 	int temp;
-	WPI_LOCK_DECL;
+
+	if (ic->ic_state != IEEE80211_S_RUN)
+		return;
 
 	/* automatic rate control triggered every 500ms */
 	if (ic->ic_fixed_rate == IEEE80211_FIXED_RATE_NONE) {
-		WPI_LOCK(sc);
 		if (ic->ic_opmode == IEEE80211_M_STA)
 			wpi_iter_func(sc, ic->ic_bss);
 		else
 			ieee80211_iterate_nodes(&ic->ic_sta, wpi_iter_func, sc);
-		WPI_UNLOCK(sc);
 	}
 
 	/* update sensor data */
@@ -3616,24 +3533,6 @@ wpi_get_power_index(struct wpi_softc *sc, struct wpi_power_group *group,
 #undef fdivround
 }
 
-#if 0
-static void
-wpi_radio_on(void *arg, int pending)
-{
-	struct wpi_softc *sc = arg;
-
-	device_printf(sc->sc_dev, "radio turned on\n");
-}
-
-static void
-wpi_radio_off(void *arg, int pending)
-{
-	struct wpi_softc *sc = arg;
-
-	device_printf(sc->sc_dev, "radio turned off\n");
-}
-#endif
-
 /**
  * Called by net80211 framework to indicate that a scan
  * is starting. This function doesn't actually do the scan,
@@ -3647,7 +3546,7 @@ wpi_scan_start(struct ieee80211com *ic)
 	struct ifnet *ifp = ic->ic_ifp;
 	struct wpi_softc *sc = ifp->if_softc;
 
-	wpi_queue_cmd(sc, WPI_SCAN_START);
+	wpi_queue_cmd(sc, WPI_SCAN_START, 0, WPI_QUEUE_NORMAL);
 }
 
 /**
@@ -3661,7 +3560,7 @@ wpi_scan_end(struct ieee80211com *ic)
 	struct ifnet *ifp = ic->ic_ifp;
 	struct wpi_softc *sc = ifp->if_softc;
 
-	wpi_queue_cmd(sc, WPI_SCAN_STOP);
+	wpi_queue_cmd(sc, WPI_SCAN_STOP, 0, WPI_QUEUE_NORMAL);
 }
 
 /**
@@ -3674,7 +3573,12 @@ wpi_set_channel(struct ieee80211com *ic)
 	struct ifnet *ifp = ic->ic_ifp;
 	struct wpi_softc *sc = ifp->if_softc;
 
-	wpi_queue_cmd(sc, WPI_SET_CHAN);
+	/*
+	 * Only need to set the channel in Monitor mode. AP scanning and auth
+	 * are already taken care of by their respective firmware commands.
+	 */
+	if (ic->ic_opmode == IEEE80211_M_MONITOR)
+		wpi_queue_cmd(sc, WPI_SET_CHAN, 0, WPI_QUEUE_NORMAL);
 }
 
 /**
@@ -3690,7 +3594,7 @@ wpi_scan_curchan(struct ieee80211com *ic, unsigned long maxdwell)
 
 	sc->maxdwell = maxdwell;
 
-	wpi_queue_cmd(sc, WPI_SCAN_CURCHAN);
+	wpi_queue_cmd(sc, WPI_SCAN_CURCHAN, 0, WPI_QUEUE_NORMAL);
 }
 
 /**
@@ -3712,16 +3616,16 @@ wpi_scan_mindwell(struct ieee80211com *ic)
  * The task that gets cued is a op task, which ends up calling this function.
  */
 static void
-wpi_ops(void *arg, int pending)
+wpi_ops(void *arg0, int pending)
 {
-	struct wpi_softc *sc = arg;
+	struct wpi_softc *sc = arg0;
 	struct ieee80211com *ic = &sc->sc_ic;
-	WPI_LOCK_DECL;
-	int cmd;
+	int cmd, arg, error;
 
 again:
 	WPI_CMD_LOCK(sc);
 	cmd = sc->sc_cmd[sc->sc_cmd_cur];
+	arg = sc->sc_cmd_arg[sc->sc_cmd_cur];
 
 	if (cmd == 0) {
 		/* No more commands to process */
@@ -3729,39 +3633,37 @@ again:
 		return;
 	}
 	sc->sc_cmd[sc->sc_cmd_cur] = 0; /* free the slot */
+	sc->sc_cmd_arg[sc->sc_cmd_cur] = 0; /* free the slot */
 	sc->sc_cmd_cur = (sc->sc_cmd_cur + 1) % WPI_CMD_MAXOPS;
 	WPI_CMD_UNLOCK(sc);
 	WPI_LOCK(sc);
+
+	DPRINTFN(WPI_DEBUG_OPS,("wpi_ops: command: %d\n", cmd));
+
+	switch (cmd) {
+	case WPI_RESTART:
+		wpi_init_locked(sc, 0);
+		WPI_UNLOCK(sc);
+		return;
+
+	case WPI_RF_RESTART:
+		wpi_rfkill_resume(sc);
+		WPI_UNLOCK(sc);
+		return;
+	}
 
 	if (!(sc->sc_ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 		WPI_UNLOCK(sc);
 		return;
 	}
 
-	{
-	const char *name[]={"SCAN_START", "SCAN_CURCHAN",0,"STOP",0,0,0,"CHAN",
-		0,0,0,0,0,0,"AUTH",0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,"NEXT"};
-	DPRINTFN(WPI_DEBUG_OPS,("wpi_ops: command: %d %s\n", cmd, name[cmd-1]));
-	}
-
 	switch (cmd) {
 	case WPI_SCAN_START:
-		if (sc->flags & WPI_FLAG_HW_RADIO_OFF) {
-			DPRINTF(("HERER\n"));
-			ieee80211_cancel_scan(ic);
-		} else
-			sc->flags |= WPI_FLAG_SCANNING;
+		sc->flags |= WPI_FLAG_SCANNING;
 		break;
 
 	case WPI_SCAN_STOP:
 		sc->flags &= ~WPI_FLAG_SCANNING;
-		break;
-
-	case WPI_SCAN_NEXT:
-		DPRINTF(("NEXT\n"));
-		WPI_UNLOCK(sc);
-		ieee80211_scan_next(ic);
-		WPI_LOCK(sc);
 		break;
 
 	case WPI_SCAN_CURCHAN:
@@ -3770,34 +3672,36 @@ again:
 		break;
 
 	case WPI_SET_CHAN:
-		if (sc->flags&WPI_FLAG_AUTH) {
-			DPRINTF(("Authenticating, not changing channel\n"));
-			break;
-		}
-		if (wpi_config(sc)) {
-			DPRINTF(("Scan cancelled\n"));
-			WPI_UNLOCK(sc);
-			ieee80211_cancel_scan(ic);
-			WPI_LOCK(sc);
-			sc->flags &= ~WPI_FLAG_SCANNING;
-			wpi_restart(sc,0);
-			WPI_UNLOCK(sc);
-			return;
-		}
+		error = wpi_config(sc);
+		if (error != 0)
+			device_printf(sc->sc_dev,
+			    "error %d settting channel\n", error);
 		break;
 
 	case WPI_AUTH:
-		if (wpi_auth(sc) != 0) {
+		/* The node must be registered in the firmware before auth */
+		error = wpi_auth(sc);
+		if (error != 0) {
 			device_printf(sc->sc_dev,
-			    "could not send authentication request\n");
-			wpi_stop_locked(sc);
+			    "%s: could not move to auth state, error %d\n",
+			    __func__, error);
 			WPI_UNLOCK(sc);
 			return;
 		}
-		WPI_UNLOCK(sc);
-		ieee80211_node_authorize(ic->ic_bss);
-		ieee80211_new_state(ic, IEEE80211_S_ASSOC, -1);
-		WPI_LOCK(sc);
+		/* Send the auth frame now */
+		sc->sc_newstate(ic, IEEE80211_S_AUTH, arg);
+		break;
+
+	case WPI_RUN:
+		error = wpi_run(sc);
+		if (error != 0) {
+			device_printf(sc->sc_dev,
+			    "%s: could not move to run state, error %d\n",
+			    __func__, error);
+			WPI_UNLOCK(sc);
+			return;
+		}
+		sc->sc_newstate(ic, IEEE80211_S_RUN, arg);
 		break;
 	}
 	WPI_UNLOCK(sc);
@@ -3814,9 +3718,16 @@ again:
  * a sleep enabled thread.
  */
 static int
-wpi_queue_cmd(struct wpi_softc *sc, int cmd)
+wpi_queue_cmd(struct wpi_softc *sc, int cmd, int arg, int flush)
 {
 	WPI_CMD_LOCK(sc);
+
+	if (flush) {
+		memset(sc->sc_cmd, 0, sizeof (sc->sc_cmd));
+		memset(sc->sc_cmd_arg, 0, sizeof (sc->sc_cmd_arg));
+		sc->sc_cmd_cur = 0;
+		sc->sc_cmd_next = 0;
+	}
 
 	if (sc->sc_cmd[sc->sc_cmd_next] != 0) {
 		WPI_CMD_UNLOCK(sc);
@@ -3825,6 +3736,7 @@ wpi_queue_cmd(struct wpi_softc *sc, int cmd)
 	}
 
 	sc->sc_cmd[sc->sc_cmd_next] = cmd;
+	sc->sc_cmd_arg[sc->sc_cmd_next] = arg;
 	sc->sc_cmd_next = (sc->sc_cmd_next + 1) % WPI_CMD_MAXOPS;
 
 	taskqueue_enqueue(sc->sc_tq, &sc->sc_opstask);
@@ -3832,23 +3744,6 @@ wpi_queue_cmd(struct wpi_softc *sc, int cmd)
 	WPI_CMD_UNLOCK(sc);
 
 	return 0;
-}
-
-static void
-wpi_restart(void * arg, int pending)
-{
-#if 0
-	struct wpi_softc *sc = arg;
-	struct ieee80211com *ic = &sc->sc_ic;
-	WPI_LOCK_DECL;
-
-	DPRINTF(("Device failed, restarting device\n"));
-	WPI_LOCK(sc);
-	wpi_stop(sc);
-	wpi_init(sc);
-	WPI_UNLOCK(sc);
-	ieee80211_new_state(ic, IEEE80211_S_SCAN, -1);
-#endif
 }
 
 /*
@@ -3870,18 +3765,50 @@ wpi_free_fwmem(struct wpi_softc *sc)
 }
 
 /**
- * Called every second, wpi_tick used by the watch dog timer
+ * Called every second, wpi_watchdog used by the watch dog timer
  * to check that the card is still alive
  */
 static void
-wpi_tick(void *arg)
+wpi_watchdog(void *arg)
 {
 	struct wpi_softc *sc = arg;
+	struct ifnet *ifp = sc->sc_ifp;
+	uint32_t tmp;
 
 	DPRINTFN(WPI_DEBUG_WATCHDOG,("Watchdog: tick\n"));
 
-	wpi_watchdog(sc->sc_ifp);
-	callout_reset(&sc->watchdog_to, hz, wpi_tick, sc);
+	if (sc->flags & WPI_FLAG_HW_RADIO_OFF) {
+		/* No need to lock firmware memory */
+		tmp = wpi_mem_read(sc, WPI_MEM_HW_RADIO_OFF);
+
+		if ((tmp & 0x1) == 0) {
+			/* Radio kill switch is still off */
+			callout_reset(&sc->watchdog_to, hz, wpi_watchdog, sc);
+			return;
+		}
+
+		device_printf(sc->sc_dev, "Hardware Switch Enabled\n");
+		wpi_queue_cmd(sc, WPI_RF_RESTART, 0, WPI_QUEUE_CLEAR);
+		return;
+	}
+
+	if (sc->sc_tx_timer > 0) {
+		if (--sc->sc_tx_timer == 0) {
+			device_printf(sc->sc_dev,"device timeout\n");
+			ifp->if_oerrors++;
+			wpi_queue_cmd(sc, WPI_RESTART, 0, WPI_QUEUE_CLEAR);
+		}
+	}
+	if (sc->sc_scan_timer > 0) {
+		if (--sc->sc_scan_timer == 0) {
+			device_printf(sc->sc_dev,"scan timeout\n");
+			ieee80211_cancel_scan(&sc->sc_ic);
+			wpi_queue_cmd(sc, WPI_RESTART, 0, WPI_QUEUE_CLEAR);
+		}
+	}
+
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+		callout_reset(&sc->watchdog_to, hz, wpi_watchdog, sc);
 }
 
 #ifdef WPI_DEBUG
