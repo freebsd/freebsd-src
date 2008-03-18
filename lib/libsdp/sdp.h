@@ -647,6 +647,23 @@ struct sdp_sp_profile
 typedef struct sdp_sp_profile	sdp_sp_profile_t;
 typedef struct sdp_sp_profile *	sdp_sp_profile_p;
 
+struct sdp_nap_profile
+{
+	uint16_t	security_description;	/* HBO: NAP/GN */
+	uint16_t	net_access_type;	/* HBO: NAP */
+	uint32_t	max_net_access_rate;	/* HBO: NAP */
+};
+typedef struct sdp_nap_profile		sdp_nap_profile_t;
+typedef struct sdp_nap_profile *	sdp_nap_profile_p;
+
+/* Reuse struct sdp_nap_profile for GN */
+typedef struct sdp_nap_profile		sdp_gn_profile_t;
+typedef struct sdp_nap_profile *	sdp_gn_profile_p;
+
+/* Reuse struct sdp_nap_profile for PANU */
+typedef struct sdp_nap_profile		sdp_panu_profile_t;
+typedef struct sdp_nap_profile *	sdp_panu_profile_p;
+
 int32_t	sdp_register_service	(void *xss, uint16_t uuid,
 				 bdaddr_p const bdaddr, uint8_t const *data,
 				 uint32_t datalen, uint32_t *handle);
