@@ -13,7 +13,4 @@ Medium term:
 	Tune hash algorithm used in cfs_subr.
 	Make MPSAFE
 
-Eventually:
-	Use standard queue macros.
-
 $FreeBSD$
