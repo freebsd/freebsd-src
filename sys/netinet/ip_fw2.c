@@ -90,10 +90,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
 #include <netinet/sctp.h>
-#ifdef IPFIREWALL_NAT
-#include <netinet/libalias/alias.h>
-#include <netinet/libalias/alias_local.h>
-#endif
 #include <netgraph/ng_ipfw.h>
 
 #include <altq/if_altq.h>
@@ -140,31 +136,19 @@ struct ip_fw_ugid {
 	int		fw_prid;
 };
 
-#define	IPFW_TABLES_MAX		128
-struct ip_fw_chain {
-	struct ip_fw	*rules;		/* list of rules */
-	struct ip_fw	*reap;		/* list of rules to reap */
-	LIST_HEAD(, cfg_nat) nat;       /* list of nat entries */
-	struct radix_node_head *tables[IPFW_TABLES_MAX];
-	struct rwlock	rwmtx;
-};
-#define	IPFW_LOCK_INIT(_chain) \
-	rw_init(&(_chain)->rwmtx, "IPFW static rules")
-#define	IPFW_LOCK_DESTROY(_chain)	rw_destroy(&(_chain)->rwmtx)
-#define	IPFW_WLOCK_ASSERT(_chain)	rw_assert(&(_chain)->rwmtx, RA_WLOCKED)
-
-#define IPFW_RLOCK(p) rw_rlock(&(p)->rwmtx)
-#define IPFW_RUNLOCK(p) rw_runlock(&(p)->rwmtx)
-#define IPFW_WLOCK(p) rw_wlock(&(p)->rwmtx)
-#define IPFW_WUNLOCK(p) rw_wunlock(&(p)->rwmtx)
-
 /*
  * list of rules for layer 3
  */
-static struct ip_fw_chain layer3_chain;
+struct ip_fw_chain layer3_chain;
 
 MALLOC_DEFINE(M_IPFW, "IpFw/IpAcct", "IpFw/IpAcct chain's");
 MALLOC_DEFINE(M_IPFW_TBL, "ipfw_tbl", "IpFw tables");
+#define IPFW_NAT_LOADED (ipfw_nat_ptr != NULL)
+ipfw_nat_t *ipfw_nat_ptr = NULL;
+ipfw_nat_cfg_t *ipfw_nat_cfg_ptr;
+ipfw_nat_cfg_t *ipfw_nat_del_ptr;
+ipfw_nat_cfg_t *ipfw_nat_get_cfg_ptr;
+ipfw_nat_cfg_t *ipfw_nat_get_log_ptr;
 
 struct table_entry {
 	struct radix_node	rn[2];
@@ -307,9 +291,6 @@ static struct sysctl_oid *ip6_fw_sysctl_tree;
 #endif /* INET6 */
 #endif /* SYSCTL_NODE */
 
-#ifdef IPFIREWALL_NAT
-MODULE_DEPEND(ipfw, libalias, 1, 1, 1);
-#endif
 static int fw_deny_unknown_exthdrs = 1;
 
 
@@ -2060,185 +2041,6 @@ check_uidgid(ipfw_insn_u32 *insn, int proto, struct ifnet *oif,
 	return match;
 }
 
-#ifdef IPFIREWALL_NAT
-static eventhandler_tag ifaddr_event_tag;
-
-static void 
-ifaddr_change(void *arg __unused, struct ifnet *ifp)
-{
-	struct cfg_nat *ptr;
-	struct ifaddr *ifa;
-
-	IPFW_WLOCK(&layer3_chain);			
-	/* Check every nat entry... */
-	LIST_FOREACH(ptr, &layer3_chain.nat, _next) {
-		/* ...using nic 'ifp->if_xname' as dynamic alias address. */
-		if (strncmp(ptr->if_name, ifp->if_xname, IF_NAMESIZE) == 0) {
-			mtx_lock(&ifp->if_addr_mtx);
-			TAILQ_FOREACH(ifa, &ifp->if_addrlist, ifa_list) {
-				if (ifa->ifa_addr == NULL)
-					continue;
-				if (ifa->ifa_addr->sa_family != AF_INET)
-					continue;
-				ptr->ip = ((struct sockaddr_in *) 
-				    (ifa->ifa_addr))->sin_addr;
-				LibAliasSetAddress(ptr->lib, ptr->ip);
-			}
-			mtx_unlock(&ifp->if_addr_mtx);
-		}
-	}
-	IPFW_WUNLOCK(&layer3_chain);	
-}
-
-static void
-flush_nat_ptrs(const int i)
-{
-	struct ip_fw *rule;
-
-	IPFW_WLOCK_ASSERT(&layer3_chain);
-	for (rule = layer3_chain.rules; rule; rule = rule->next) {
-		ipfw_insn_nat *cmd = (ipfw_insn_nat *)ACTION_PTR(rule);
-		if (cmd->o.opcode != O_NAT)
-			continue;
-		if (cmd->nat != NULL && cmd->nat->id == i)
-			cmd->nat = NULL;
-	}
-}
-
-static struct cfg_nat *
-lookup_nat(const int i)
-{
-	struct cfg_nat *ptr;
-
-	LIST_FOREACH(ptr, &layer3_chain.nat, _next)
-		if (ptr->id == i)
-			return(ptr);
-	return (NULL);
-}
-
-#define HOOK_NAT(b, p) do {                                     \
-	IPFW_WLOCK_ASSERT(&layer3_chain);                       \
-        LIST_INSERT_HEAD(b, p, _next);                          \
-} while (0)
-
-#define UNHOOK_NAT(p) do {                                      \
-	IPFW_WLOCK_ASSERT(&layer3_chain);                       \
-        LIST_REMOVE(p, _next);                                  \
-} while (0)
-
-#define HOOK_REDIR(b, p) do {                                   \
-        LIST_INSERT_HEAD(b, p, _next);                          \
-} while (0)
-
-#define HOOK_SPOOL(b, p) do {                                   \
-        LIST_INSERT_HEAD(b, p, _next);                          \
-} while (0)
-
-static void
-del_redir_spool_cfg(struct cfg_nat *n, struct redir_chain *head)
-{
-	struct cfg_redir *r, *tmp_r;
-	struct cfg_spool *s, *tmp_s;
-	int i, num;
-
-	LIST_FOREACH_SAFE(r, head, _next, tmp_r) {
-		num = 1; /* Number of alias_link to delete. */
-		switch (r->mode) {
-		case REDIR_PORT:
-			num = r->pport_cnt;
-			/* FALLTHROUGH */
-		case REDIR_ADDR:
-		case REDIR_PROTO:
-			/* Delete all libalias redirect entry. */
-			for (i = 0; i < num; i++)
-				LibAliasRedirectDelete(n->lib, r->alink[i]);
-			/* Del spool cfg if any. */
-			LIST_FOREACH_SAFE(s, &r->spool_chain, _next, tmp_s) {
-				LIST_REMOVE(s, _next);
-				free(s, M_IPFW);
-			}
-			free(r->alink, M_IPFW);
-			LIST_REMOVE(r, _next);
-			free(r, M_IPFW);
-			break;
-		default:
-			printf("unknown redirect mode: %u\n", r->mode);				
-			/* XXX - panic?!?!? */
-			break; 
-		}
-	}
-}
-
-static int
-add_redir_spool_cfg(char *buf, struct cfg_nat *ptr)
-{
-	struct cfg_redir *r, *ser_r;
-	struct cfg_spool *s, *ser_s;
-	int cnt, off, i;
-	char *panic_err;
-
-	for (cnt = 0, off = 0; cnt < ptr->redir_cnt; cnt++) {
-		ser_r = (struct cfg_redir *)&buf[off];
-		r = malloc(SOF_REDIR, M_IPFW, M_WAITOK | M_ZERO);
-		memcpy(r, ser_r, SOF_REDIR);
-		LIST_INIT(&r->spool_chain);
-		off += SOF_REDIR;
-		r->alink = malloc(sizeof(struct alias_link *) * r->pport_cnt,
-		    M_IPFW, M_WAITOK | M_ZERO);
-		switch (r->mode) {
-		case REDIR_ADDR:
-			r->alink[0] = LibAliasRedirectAddr(ptr->lib, r->laddr,
-			    r->paddr);
-			break;
-		case REDIR_PORT:
-			for (i = 0 ; i < r->pport_cnt; i++) {
-				/* If remotePort is all ports, set it to 0. */
-				u_short remotePortCopy = r->rport + i;
-				if (r->rport_cnt == 1 && r->rport == 0)
-					remotePortCopy = 0;
-				r->alink[i] = LibAliasRedirectPort(ptr->lib, 
-				    r->laddr, htons(r->lport + i), r->raddr, 
-				    htons(remotePortCopy), r->paddr, 
-				    htons(r->pport + i), r->proto);
-				if (r->alink[i] == NULL) {
-					r->alink[0] = NULL;
-					break;
-				}
-			}
-			break;
-		case REDIR_PROTO:
-			r->alink[0] = LibAliasRedirectProto(ptr->lib ,r->laddr,
-			    r->raddr, r->paddr, r->proto);
-			break;
-		default:
-			printf("unknown redirect mode: %u\n", r->mode);
-			break; 
-		}
-		if (r->alink[0] == NULL) {
-			panic_err = "LibAliasRedirect* returned NULL";
-			goto bad;
-		} else /* LSNAT handling. */
-			for (i = 0; i < r->spool_cnt; i++) {
-				ser_s = (struct cfg_spool *)&buf[off];
-				s = malloc(SOF_REDIR, M_IPFW, 
-				    M_WAITOK | M_ZERO);
-				memcpy(s, ser_s, SOF_SPOOL);
-				LibAliasAddServer(ptr->lib, r->alink[0], 
-				    s->addr, htons(s->port));						  
-				off += SOF_SPOOL;
-				/* Hook spool entry. */
-				HOOK_SPOOL(&r->spool_chain, s);
-			}
-		/* And finally hook this redir entry. */
-		HOOK_REDIR(&ptr->redir_chain, r);
-	}
-	return (1);
-bad:
-	/* something really bad happened: panic! */
-	panic("%s\n", panic_err);
-}
-#endif
-
 /*
  * The main check routine for the firewall.
  *
@@ -3478,181 +3280,29 @@ check_body:
 				    IP_FW_NETGRAPH : IP_FW_NGTEE;
 				goto done;
 
-#ifdef IPFIREWALL_NAT
 			case O_NAT: {
 				struct cfg_nat *t;
-				struct mbuf *mcl;
-				/* XXX - libalias duct tape */
-				int ldt, nat_id; 
-				char *c;
-				
-				ldt = 0;
-				args->rule = f;	/* Report matching rule. */
-				retval = 0;
-				t = ((ipfw_insn_nat *)cmd)->nat;
-				if (t == NULL) {
-					nat_id = (cmd->arg1 == IP_FW_TABLEARG) ? 
-					    tablearg : cmd->arg1;
-					t = lookup_nat(nat_id);
+				int nat_id;
+
+				if (IPFW_NAT_LOADED) {
+					args->rule = f; /* Report matching rule. */
+					t = ((ipfw_insn_nat *)cmd)->nat;
 					if (t == NULL) {
-						retval = IP_FW_DENY;
-						goto done;
+						nat_id = (cmd->arg1 == IP_FW_TABLEARG) ?
+						    tablearg : cmd->arg1;
+						LOOKUP_NAT(layer3_chain, nat_id, t);
+						if (t == NULL) {
+							retval = IP_FW_DENY;
+							goto done;
+						}
+						if (cmd->arg1 != IP_FW_TABLEARG)
+							((ipfw_insn_nat *)cmd)->nat = t;
 					}
-					if (cmd->arg1 != IP_FW_TABLEARG)
-						((ipfw_insn_nat *)cmd)->nat = 
-						    t;
-				}
-				if ((mcl = m_megapullup(m, m->m_pkthdr.len)) ==
-				    NULL)
-					goto badnat;
-				ip = mtod(mcl, struct ip *);
-				if (args->eh == NULL) {
-					ip->ip_len = htons(ip->ip_len);
-					ip->ip_off = htons(ip->ip_off);
-				}
-
-				/* 
-				 * XXX - Libalias checksum offload 'duct tape':
-				 * 
-				 * locally generated packets have only
-				 * pseudo-header checksum calculated
-				 * and libalias will screw it[1], so
-				 * mark them for later fix.  Moreover
-				 * there are cases when libalias
-				 * modify tcp packet data[2], mark it
-				 * for later fix too.
-				 *
-				 * [1] libalias was never meant to run
-				 * in kernel, so it doesn't have any
-				 * knowledge about checksum
-				 * offloading, and it expects a packet
-				 * with a full internet
-				 * checksum. Unfortunately, packets
-				 * generated locally will have just the
-				 * pseudo header calculated, and when
-				 * libalias tries to adjust the
-				 * checksum it will actually screw it.
-				 *
-				 * [2] when libalias modify tcp's data
-				 * content, full TCP checksum has to
-				 * be recomputed: the problem is that
-				 * libalias doesn't have any idea
-				 * about checksum offloading To
-				 * workaround this, we do not do
-				 * checksumming in LibAlias, but only
-				 * mark the packets in th_x2 field. If
-				 * we receive a marked packet, we
-				 * calculate correct checksum for it
-				 * aware of offloading.  Why such a
-				 * terrible hack instead of
-				 * recalculating checksum for each
-				 * packet?  Because the previous
-				 * checksum was not checked!
-				 * Recalculating checksums for EVERY
-				 * packet will hide ALL transmission
-				 * errors. Yes, marked packets still
-				 * suffer from this problem. But,
-				 * sigh, natd(8) has this problem,
-				 * too.
-				 *
-				 * TODO: -make libalias mbuf aware (so
-				 * it can handle delayed checksum and tso)
-				 */
-
-				if (mcl->m_pkthdr.rcvif == NULL && 
-				    mcl->m_pkthdr.csum_flags & 
-				    CSUM_DELAY_DATA)
-					ldt = 1;
-
-				c = mtod(mcl, char *);
-				if (oif == NULL)
-					retval = LibAliasIn(t->lib, c, 
-					    MCLBYTES);
-				else
-					retval = LibAliasOut(t->lib, c, 
-					    MCLBYTES);
-				if (retval != PKT_ALIAS_OK) {
-					/* XXX - should i add some logging? */
-					m_free(mcl);
-				badnat:
-					args->m = NULL;
+					retval = ipfw_nat_ptr(args, t, m);
+				} else
 					retval = IP_FW_DENY;
-					goto done;
-				}
-				mcl->m_pkthdr.len = mcl->m_len = 
-				    ntohs(ip->ip_len);
-
-				/* 
-				 * XXX - libalias checksum offload 
-				 * 'duct tape' (see above) 
-				 */
-
-				if ((ip->ip_off & htons(IP_OFFMASK)) == 0 && 
-				    ip->ip_p == IPPROTO_TCP) {
-					struct tcphdr 	*th; 
-
-					th = (struct tcphdr *)(ip + 1);
-					if (th->th_x2) 
-						ldt = 1;
-				}
-
-				if (ldt) {
-					struct tcphdr 	*th;
-					struct udphdr 	*uh;
-					u_short cksum;
-
-					ip->ip_len = ntohs(ip->ip_len);
-					cksum = in_pseudo(
-						ip->ip_src.s_addr,
-						ip->ip_dst.s_addr, 
-						htons(ip->ip_p + ip->ip_len - 
-					            (ip->ip_hl << 2))
-						);
-					
-					switch (ip->ip_p) {
-					case IPPROTO_TCP:
-						th = (struct tcphdr *)(ip + 1);
-						/* 
-						 * Maybe it was set in 
-						 * libalias... 
-						 */
-						th->th_x2 = 0;
-						th->th_sum = cksum;
-						mcl->m_pkthdr.csum_data = 
-						    offsetof(struct tcphdr,
-						    th_sum);
-						break;
-					case IPPROTO_UDP:
-						uh = (struct udphdr *)(ip + 1);
-						uh->uh_sum = cksum;
-						mcl->m_pkthdr.csum_data = 
-						    offsetof(struct udphdr,
-						    uh_sum);
-						break;						
-					}
-					/* 
-					 * No hw checksum offloading: do it 
-					 * by ourself. 
-					 */
-					if ((mcl->m_pkthdr.csum_flags & 
-					     CSUM_DELAY_DATA) == 0) {
-						in_delayed_cksum(mcl);
-						mcl->m_pkthdr.csum_flags &= 
-						    ~CSUM_DELAY_DATA;
-					}
-					ip->ip_len = htons(ip->ip_len);
-				}
-
-				if (args->eh == NULL) {
-					ip->ip_len = ntohs(ip->ip_len);
-					ip->ip_off = ntohs(ip->ip_off);
-				}
-
-				args->m = mcl;
-				retval = IP_FW_NAT; 
 				goto done;
 			}
-#endif
 
 			default:
 				panic("-- unknown opcode %d\n", cmd->opcode);
@@ -4260,13 +3910,11 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 			else
 				goto check_size;
 		case O_NAT:
-#ifdef IPFIREWALL_NAT
+			if (!IPFW_NAT_LOADED)
+				return EINVAL;
 			if (cmdlen != F_INSN_SIZE(ipfw_insn_nat))
  				goto bad_size;		
  			goto check_action;
-#else
-			return EINVAL;
-#endif
 		case O_FORWARD_MAC: /* XXX not implemented yet */
 		case O_CHECK_STATE:
 		case O_COUNT:
@@ -4659,186 +4307,50 @@ ipfw_ctl(struct sockopt *sopt)
 		}
 		break;
 
-#ifdef IPFIREWALL_NAT
 	case IP_FW_NAT_CFG:
 	{
-		struct cfg_nat *ptr, *ser_n;
-		char *buf;
-
-		buf = malloc(NAT_BUF_LEN, M_IPFW, M_WAITOK | M_ZERO);
-		error = sooptcopyin(sopt, buf, NAT_BUF_LEN, 
-		    sizeof(struct cfg_nat));
-		ser_n = (struct cfg_nat *)buf;
-
-		/* 
-		 * Find/create nat rule.
-		 */
-		IPFW_WLOCK(&layer3_chain);
-		ptr = lookup_nat(ser_n->id);		
-		if (ptr == NULL) {
-			/* New rule: allocate and init new instance. */
-			ptr = malloc(sizeof(struct cfg_nat), 
-		            M_IPFW, M_NOWAIT | M_ZERO);
-			if (ptr == NULL) {
-				IPFW_WUNLOCK(&layer3_chain);				
-				free(buf, M_IPFW);
-				return (ENOSPC);				
-			}
-			ptr->lib = LibAliasInit(NULL);
-			if (ptr->lib == NULL) {
-				IPFW_WUNLOCK(&layer3_chain);
-				free(ptr, M_IPFW);
-				free(buf, M_IPFW);		
-				return (EINVAL);
-			}
-			LIST_INIT(&ptr->redir_chain);
-		} else {
-			/* Entry already present: temporarly unhook it. */
-			UNHOOK_NAT(ptr);
-			flush_nat_ptrs(ser_n->id);
+		if (IPFW_NAT_LOADED)
+			error = ipfw_nat_cfg_ptr(sopt);
+		else {
+			printf("IP_FW_NAT_CFG: ipfw_nat not present, please load it.\n");
+			error = EINVAL;
 		}
-		IPFW_WUNLOCK(&layer3_chain);
-
-		/* 
-		 * Basic nat configuration.
-		 */
-		ptr->id = ser_n->id;
-		/* 
-		 * XXX - what if this rule doesn't nat any ip and just 
-		 * redirect? 
-		 * do we set aliasaddress to 0.0.0.0?
-		 */
-		ptr->ip = ser_n->ip;
-		ptr->redir_cnt = ser_n->redir_cnt;
-		ptr->mode = ser_n->mode;
-		LibAliasSetMode(ptr->lib, ser_n->mode, ser_n->mode);
-		LibAliasSetAddress(ptr->lib, ptr->ip);
-		memcpy(ptr->if_name, ser_n->if_name, IF_NAMESIZE);
-
-		/* 
-		 * Redir and LSNAT configuration.
-		 */
-		/* Delete old cfgs. */
-		del_redir_spool_cfg(ptr, &ptr->redir_chain);
-		/* Add new entries. */
-		add_redir_spool_cfg(&buf[(sizeof(struct cfg_nat))], ptr);
-		free(buf, M_IPFW);
-		IPFW_WLOCK(&layer3_chain);
-		HOOK_NAT(&layer3_chain.nat, ptr);
-		IPFW_WUNLOCK(&layer3_chain);
 	}
 	break;
 
 	case IP_FW_NAT_DEL:
 	{
-		struct cfg_nat *ptr;
-		int i;
-		
-		error = sooptcopyin(sopt, &i, sizeof i, sizeof i);
-		IPFW_WLOCK(&layer3_chain);
-		ptr = lookup_nat(i);
-		if (ptr == NULL) {
+		if (IPFW_NAT_LOADED)
+			error = ipfw_nat_del_ptr(sopt);
+		else {
+			printf("IP_FW_NAT_DEL: ipfw_nat not present, please load it.\n");
+			printf("ipfw_nat not loaded: %d\n", sopt->sopt_name);
 			error = EINVAL;
-			IPFW_WUNLOCK(&layer3_chain);
-			break;
 		}
-		UNHOOK_NAT(ptr);
-		flush_nat_ptrs(i);
-		IPFW_WUNLOCK(&layer3_chain);
-		del_redir_spool_cfg(ptr, &ptr->redir_chain);
-		LibAliasUninit(ptr->lib);
-		free(ptr, M_IPFW);
 	}
 	break;
 
 	case IP_FW_NAT_GET_CONFIG:
 	{
-		uint8_t *data;
-		struct cfg_nat *n;
-		struct cfg_redir *r;
-		struct cfg_spool *s;
-		int nat_cnt, off;
-		
-		nat_cnt = 0;
-		off = sizeof(nat_cnt);
-
-		data = malloc(NAT_BUF_LEN, M_IPFW, M_WAITOK | M_ZERO);
-		IPFW_RLOCK(&layer3_chain);
-		/* Serialize all the data. */
-		LIST_FOREACH(n, &layer3_chain.nat, _next) {
-			nat_cnt++;
-			if (off + SOF_NAT < NAT_BUF_LEN) {
-				bcopy(n, &data[off], SOF_NAT);
-				off += SOF_NAT;
-				LIST_FOREACH(r, &n->redir_chain, _next) {
-					if (off + SOF_REDIR < NAT_BUF_LEN) {
-						bcopy(r, &data[off], 
-						    SOF_REDIR);
-						off += SOF_REDIR;
-						LIST_FOREACH(s, &r->spool_chain, 
-						    _next) {							     
-							if (off + SOF_SPOOL < 
-							    NAT_BUF_LEN) {
-								bcopy(s, 
-								    &data[off],
-								    SOF_SPOOL);
-								off += 
-								    SOF_SPOOL;
-							} else
-								goto nospace;
-						}
-					} else
-						goto nospace;
-				}
-			} else
-				goto nospace;
+		if (IPFW_NAT_LOADED)
+			error = ipfw_nat_get_cfg_ptr(sopt);
+		else {
+			printf("IP_FW_NAT_GET_CFG: ipfw_nat not present, please load it.\n");
+			error = EINVAL;
 		}
-		bcopy(&nat_cnt, data, sizeof(nat_cnt));
-		IPFW_RUNLOCK(&layer3_chain);
-		error = sooptcopyout(sopt, data, NAT_BUF_LEN);
-		free(data, M_IPFW);
-		break;
-	nospace:
-		IPFW_RUNLOCK(&layer3_chain);
-		printf("serialized data buffer not big enough:"
-		    "please increase NAT_BUF_LEN\n");
-		free(data, M_IPFW);
 	}
 	break;
 
 	case IP_FW_NAT_GET_LOG:
 	{
-		uint8_t *data;
-		struct cfg_nat *ptr;
-		int i, size, cnt, sof;
-
-		data = NULL;
-		sof = LIBALIAS_BUF_SIZE;
-		cnt = 0;
-
-		IPFW_RLOCK(&layer3_chain);
-		size = i = 0;
-		LIST_FOREACH(ptr, &layer3_chain.nat, _next) {
-			if (ptr->lib->logDesc == NULL) 
-				continue;
-			cnt++;
-			size = cnt * (sof + sizeof(int));
-			data = realloc(data, size, M_IPFW, M_NOWAIT | M_ZERO);
-			if (data == NULL) {
-				IPFW_RUNLOCK(&layer3_chain);
-				return (ENOSPC);
-			}
-			bcopy(&ptr->id, &data[i], sizeof(int));
-			i += sizeof(int);
-			bcopy(ptr->lib->logDesc, &data[i], sof);
-			i += sof;
+		if (IPFW_NAT_LOADED)
+			error = ipfw_nat_get_log_ptr(sopt);
+		else {
+			printf("IP_FW_NAT_GET_LOG: ipfw_nat not present, please load it.\n");
+			error = EINVAL;
 		}
-		IPFW_RUNLOCK(&layer3_chain);
-		error = sooptcopyout(sopt, data, size);
-		free(data, M_IPFW);
 	}
 	break;
-#endif
 
 	default:
 		printf("ipfw: ipfw_ctl invalid option %d\n", sopt->sopt_name);
@@ -4986,6 +4498,12 @@ ipfw_init(void)
 #else
 		"loadable",
 #endif
+#ifdef IPFIREWALL_NAT
+		"enabled",
+#else
+		"loadable",
+#endif
+
 		default_rule.cmd[0].opcode == O_ACCEPT ? "accept" : "deny");
 
 #ifdef IPFIREWALL_VERBOSE
@@ -5012,11 +4530,7 @@ ipfw_init(void)
 	ip_fw_ctl_ptr = ipfw_ctl;
 	ip_fw_chk_ptr = ipfw_chk;
 	callout_reset(&ipfw_timeout, hz, ipfw_tick, NULL);	
-#ifdef IPFIREWALL_NAT
 	LIST_INIT(&layer3_chain.nat);
-	ifaddr_event_tag = EVENTHANDLER_REGISTER(ifaddr_event, ifaddr_change, 
-	    NULL, EVENTHANDLER_PRI_ANY);
-#endif
 	return (0);
 }
 
@@ -5024,24 +4538,12 @@ void
 ipfw_destroy(void)
 {
 	struct ip_fw *reap;
-#ifdef IPFIREWALL_NAT
-	struct cfg_nat *ptr, *ptr_temp;
-#endif
 
 	ip_fw_chk_ptr = NULL;
 	ip_fw_ctl_ptr = NULL;
 	callout_drain(&ipfw_timeout);
 	IPFW_WLOCK(&layer3_chain);
 	flush_tables(&layer3_chain);
-#ifdef IPFIREWALL_NAT
-	LIST_FOREACH_SAFE(ptr, &layer3_chain.nat, _next, ptr_temp) {
-		LIST_REMOVE(ptr, _next);
-		del_redir_spool_cfg(ptr, &ptr->redir_chain);
-		LibAliasUninit(ptr->lib);
-		free(ptr, M_IPFW);
-	}
-	EVENTHANDLER_DEREGISTER(ifaddr_event, ifaddr_event_tag);
-#endif
 	layer3_chain.reap = NULL;
 	free_chain(&layer3_chain, 1 /* kill default rule */);
 	reap = layer3_chain.reap, layer3_chain.reap = NULL;

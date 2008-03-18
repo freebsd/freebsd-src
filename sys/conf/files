@@ -1862,6 +1862,7 @@ netinet/ip_fastfwd.c		optional inet
 netinet/ip_fw2.c		optional ipfirewall \
 	compile-with "${NORMAL_C} -I$S/contrib/pf"
 netinet/ip_fw_pfil.c		optional ipfirewall
+netinet/ip_fw_nat.c		optional ipfirewall_nat
 netinet/ip_icmp.c		optional inet
 netinet/ip_input.c		optional inet
 netinet/ip_ipsec.c		optional ipsec
