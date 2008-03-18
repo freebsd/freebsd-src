@@ -1486,10 +1486,14 @@ msk_attach(device_t dev)
 	ether_ifattach(ifp, eaddr);
 	MSK_IF_LOCK(sc_if);
 
-	/* VLAN capability setup */
-        ifp->if_capabilities |= IFCAP_VLAN_MTU | IFCAP_VLAN_HWTAGGING;
-	if (ifp->if_capabilities & IFCAP_HWCSUM)
-		ifp->if_capabilities |= IFCAP_VLAN_HWCSUM;
+	/*
+	 * VLAN capability setup 
+	 * Due to Tx checksum offload hardware bugs, msk(4) manually
+	 * computes checksum for short frames. For VLAN tagged frames
+	 * this workaround does not work so disable checksum offload
+	 * for VLAN interface.
+	 */
+	ifp->if_capabilities |= IFCAP_VLAN_MTU | IFCAP_VLAN_HWTAGGING;
 	ifp->if_capenable = ifp->if_capabilities;
 
 	/*
