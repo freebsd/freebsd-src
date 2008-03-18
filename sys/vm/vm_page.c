@@ -1,6 +1,7 @@
 /*-
  * Copyright (c) 1991 Regents of the University of California.
  * All rights reserved.
+ * Copyright (c) 1998 Matthew Dillon.  All Rights Reserved.
  *
  * This code is derived from software contributed to Berkeley by
  * The Mach Operating System project at Carnegie-Mellon University.
@@ -132,6 +133,7 @@ __FBSDID("$FreeBSD$");
  *	page structure.
  */
 
+struct vpgqueues vm_page_queues[PQ_COUNT];
 struct mtx vm_page_queue_mtx;
 struct mtx vm_page_queue_free_mtx;
 
@@ -144,6 +146,8 @@ static int boot_pages = UMA_BOOT_PAGES;
 TUNABLE_INT("vm.boot_pages", &boot_pages);
 SYSCTL_INT(_vm, OID_AUTO, boot_pages, CTLFLAG_RD, &boot_pages, 0,
 	"number of pages allocated for bootstrapping the VM system");
+
+static void vm_page_enqueue(int queue, vm_page_t m);
 
 /*
  *	vm_set_page_size:
@@ -259,7 +263,11 @@ vm_page_startup(vm_offset_t vaddr)
 	 * Initialize the queue headers for the hold queue, the active queue,
 	 * and the inactive queue.
 	 */
-	vm_pageq_init();
+	for (i = 0; i < PQ_COUNT; i++)
+		TAILQ_INIT(&vm_page_queues[i].pl);
+	vm_page_queues[PQ_INACTIVE].cnt = &cnt.v_inactive_count;
+	vm_page_queues[PQ_ACTIVE].cnt = &cnt.v_active_count;
+	vm_page_queues[PQ_HOLD].cnt = &cnt.v_active_count;
 
 	/*
 	 * Allocate memory for use when boot strapping the kernel memory
@@ -1208,6 +1216,67 @@ vm_waitpfault(void)
 }
 
 /*
+ *	vm_pageq_requeue:
+ *
+ *	If the given page is contained within a page queue, move it to the tail
+ *	of that queue.
+ *
+ *	The page queues must be locked.
+ */
+void
+vm_pageq_requeue(vm_page_t m)
+{
+	int queue = VM_PAGE_GETQUEUE(m);
+	struct vpgqueues *vpq;
+
+	if (queue != PQ_NONE) {
+		vpq = &vm_page_queues[queue];
+		TAILQ_REMOVE(&vpq->pl, m, pageq);
+		TAILQ_INSERT_TAIL(&vpq->pl, m, pageq);
+	}
+}
+
+/*
+ *	vm_pageq_remove:
+ *
+ *	Remove a page from its queue.
+ *
+ *	The queue containing the given page must be locked.
+ *	This routine may not block.
+ */
+void
+vm_pageq_remove(vm_page_t m)
+{
+	int queue = VM_PAGE_GETQUEUE(m);
+	struct vpgqueues *pq;
+
+	if (queue != PQ_NONE) {
+		VM_PAGE_SETQUEUE2(m, PQ_NONE);
+		pq = &vm_page_queues[queue];
+		TAILQ_REMOVE(&pq->pl, m, pageq);
+		(*pq->cnt)--;
+	}
+}
+
+/*
+ *	vm_page_enqueue:
+ *
+ *	Add the given page to the specified queue.
+ *
+ *	The page queues must be locked.
+ */
+static void
+vm_page_enqueue(int queue, vm_page_t m)
+{
+	struct vpgqueues *vpq;
+
+	vpq = &vm_page_queues[queue];
+	VM_PAGE_SETQUEUE2(m, queue);
+	TAILQ_INSERT_TAIL(&vpq->pl, m, pageq);
+	++*vpq->cnt;
+}
+
+/*
  *	vm_page_activate:
  *
  *	Put the specified page on the active list (if appropriate).
@@ -1227,7 +1296,7 @@ vm_page_activate(vm_page_t m)
 		if (m->wire_count == 0 && (m->flags & PG_UNMANAGED) == 0) {
 			if (m->act_count < ACT_INIT)
 				m->act_count = ACT_INIT;
-			vm_pageq_enqueue(PQ_ACTIVE, m);
+			vm_page_enqueue(PQ_ACTIVE, m);
 		}
 	} else {
 		if (m->act_count < ACT_INIT)
@@ -1330,7 +1399,7 @@ vm_page_free_toq(vm_page_t m)
 	}
 	if (m->hold_count != 0) {
 		m->flags &= ~PG_ZERO;
-		vm_pageq_enqueue(PQ_HOLD, m);
+		vm_page_enqueue(PQ_HOLD, m);
 	} else {
 		mtx_lock(&vm_page_queue_free_mtx);
 		m->flags |= PG_FREE;
@@ -1423,10 +1492,10 @@ vm_page_unwire(vm_page_t m, int activate)
 			if (m->flags & PG_UNMANAGED) {
 				;
 			} else if (activate)
-				vm_pageq_enqueue(PQ_ACTIVE, m);
+				vm_page_enqueue(PQ_ACTIVE, m);
 			else {
 				vm_page_flag_clear(m, PG_WINATCFLS);
-				vm_pageq_enqueue(PQ_INACTIVE, m);
+				vm_page_enqueue(PQ_INACTIVE, m);
 			}
 		}
 	} else {
