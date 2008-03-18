@@ -53,10 +53,14 @@
 .Nm
 .Fl s Ar hostname ether_addr
 .Op Cm temp
+.Op Cm reject
+.Op Cm backhole
 .Op Cm pub Op Cm only
 .Nm
 .Fl S Ar hostname ether_addr
 .Op Cm temp
+.Op Cm reject
+.Op Cm backhole
 .Op Cm pub Op Cm only
 .Nm
 .Fl f Ar filename
@@ -148,6 +152,18 @@ This type of entry is created automatically if
 detects that a routing table entry for
 .Ar hostname
 already exists.
+.Pp
+If the
+.Cm reject
+keyword is specified the entry will be marked so that traffic to
+the host will be discarded and the sender will be notified the
+host is unreachable.
+The
+.Cm blackhole
+keyword is similar in that traffic discarded but the sender is
+not notified.
+These can be used to block external traffic to a host without
+using a firewall.
 .It Fl S Ar hostname ether_addr
 Is just like
 .Fl s
