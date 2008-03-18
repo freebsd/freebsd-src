@@ -469,9 +469,11 @@ gv_drive_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 			/* Check if this drive already has a geom. */
 			if (d->geom != NULL) {
 				g_topology_unlock();
+				g_free(vhdr);
 				break;
 			}
 			bcopy(vhdr, d->hdr, sizeof(*vhdr));
+			g_free(vhdr);
 
 		/* This is a new drive. */
 		} else {
