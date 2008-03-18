@@ -78,6 +78,7 @@ void toepcb_release(struct toepcb *);
 void toepcb_init(struct toepcb *);
 
 void t3_set_rcv_coalesce_enable(struct socket *so, int on_off);
+void t3_set_dack_mss(struct socket *so, int on);
 void t3_set_keepalive(struct socket *so, int on_off);
 void t3_set_ddp_tag(struct socket *so, int buf_idx, unsigned int tag);
 void t3_set_ddp_buf(struct socket *so, int buf_idx, unsigned int offset,

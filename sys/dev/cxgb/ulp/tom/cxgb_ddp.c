@@ -654,7 +654,8 @@ t3_enter_ddp(struct socket *so, unsigned int kbuf_size, unsigned int waitall, in
 
 	t3_set_rcv_coalesce_enable(so, 
 	    TOM_TUNABLE(TOE_DEV(so), ddp_rcvcoalesce));
-
+	t3_set_dack_mss(so, TOM_TUNABLE(TOE_DEV(so), delack)>>1);
+	
 #ifdef T3_TRACE
 	T3_TRACE4(TIDTB(so),
 		  "t3_enter_ddp: kbuf_size %u waitall %u tag0 %d tag1 %d",

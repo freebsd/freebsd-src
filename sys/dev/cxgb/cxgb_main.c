@@ -990,7 +990,7 @@ cxgb_port_attach(device_t dev)
 		media_flags = IFM_ETHER | IFM_10G_CX4 | IFM_FDX;
 	} else if (!strcmp(p->phy.desc, "10GBASE-SR")) {
 		media_flags = IFM_ETHER | IFM_10G_SR | IFM_FDX;
-	} else if (!strcmp(p->phy.desc, "10GBASE-XR")) {
+	} else if (!strcmp(p->phy.desc, "10GBASE-R")) {
 		media_flags = IFM_ETHER | IFM_10G_LR | IFM_FDX;
 	} else if (!strcmp(p->phy.desc, "10/100/1000BASE-T")) {
 		ifmedia_add(&p->media, IFM_ETHER | IFM_10_T, 0, NULL);
@@ -1025,7 +1025,9 @@ cxgb_port_attach(device_t dev)
 	/* Create a port for handling TX without starvation */
 	p->tq = taskqueue_create_fast(p->taskqbuf, M_NOWAIT,
 	    taskqueue_thread_enqueue, &p->tq);
-#endif	
+#endif
+	/* Get the latest mac address, User can use a LAA */
+	bcopy(IF_LLADDR(p->ifp), p->hw_addr, ETHER_ADDR_LEN);
 	t3_sge_init_port(p);
 	cxgb_link_start(p);
 	t3_link_changed(sc, p->port_id);
@@ -1155,7 +1157,7 @@ t3_os_pci_restore_state(struct adapter *sc)
  *	t3_os_link_changed - handle link status changes
  *	@adapter: the adapter associated with the link change
  *	@port_id: the port index whose limk status has changed
- *	@link_stat: the new status of the link
+ *	@link_status: the new status of the link
  *	@speed: the new speed setting
  *	@duplex: the new duplex setting
  *	@fc: the new flow-control setting
@@ -1172,12 +1174,19 @@ t3_os_link_changed(adapter_t *adapter, int port_id, int link_status, int speed,
 	struct cmac *mac = &adapter->port[port_id].mac;
 
 	if (link_status) {
-		t3_mac_enable(mac, MAC_DIRECTION_RX);
+		DELAY(10);
+		t3_mac_enable(mac, MAC_DIRECTION_RX | MAC_DIRECTION_TX);
+			/* Clear errors created by MAC enable */
+			t3_set_reg_field(adapter,
+					 A_XGM_STAT_CTRL + pi->mac.offset,
+					 F_CLRSTATS, 1);
 		if_link_state_change(pi->ifp, LINK_STATE_UP);
+
 	} else {
 		pi->phy.ops->power_down(&pi->phy, 1);
 		t3_mac_disable(mac, MAC_DIRECTION_RX);
 		t3_link_start(&pi->phy, mac, &pi->link_config);
+		t3_mac_enable(mac, MAC_DIRECTION_RX | MAC_DIRECTION_TX);
 		if_link_state_change(pi->ifp, LINK_STATE_DOWN);
 	}
 }
@@ -1832,26 +1841,46 @@ cxgb_set_rxmode(struct port_info *p)
 }
 
 static void
-cxgb_stop_locked(struct port_info *p)
+cxgb_stop_locked(struct port_info *pi)
 {
 	struct ifnet *ifp;
 
-	PORT_LOCK_ASSERT_OWNED(p);
-	ADAPTER_LOCK_ASSERT_NOTOWNED(p->adapter);
+	PORT_LOCK_ASSERT_OWNED(pi);
+	ADAPTER_LOCK_ASSERT_NOTOWNED(pi->adapter);
 	
-	ifp = p->ifp;
-	t3_port_intr_disable(p->adapter, p->port_id);
+	ifp = pi->ifp;
+	t3_port_intr_disable(pi->adapter, pi->port_id);
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
-	p->phy.ops->power_down(&p->phy, 1);
-	t3_mac_disable(&p->mac, MAC_DIRECTION_TX | MAC_DIRECTION_RX);
 
-	ADAPTER_LOCK(p->adapter);
-	clrbit(&p->adapter->open_device_map, p->port_id);
+	/* disable pause frames */
+	t3_set_reg_field(pi->adapter, A_XGM_TX_CFG + pi->mac.offset,
+			 F_TXPAUSEEN, 0);
 
-	if (p->adapter->open_device_map == 0) {
-		cxgb_down_locked(p->adapter);
+	/* Reset RX FIFO HWM */
+        t3_set_reg_field(pi->adapter, A_XGM_RXFIFO_CFG +  pi->mac.offset,
+			 V_RXFIFOPAUSEHWM(M_RXFIFOPAUSEHWM), 0);
+
+
+	ADAPTER_LOCK(pi->adapter);
+	clrbit(&pi->adapter->open_device_map, pi->port_id);
+
+	if (pi->adapter->open_device_map == 0) {
+		cxgb_down_locked(pi->adapter);
 	} else 
-		ADAPTER_UNLOCK(p->adapter);
+		ADAPTER_UNLOCK(pi->adapter);
+
+	DELAY(100);
+
+
+	/* Wait for TXFIFO empty */
+	t3_wait_op_done(pi->adapter, A_XGM_TXFIFO_CFG + pi->mac.offset,
+			F_TXFIFO_EMPTY, 1, 20, 5);
+
+	DELAY(100);
+	t3_mac_disable(&pi->mac, MAC_DIRECTION_TX | MAC_DIRECTION_RX);
+
+	pi->phy.ops->power_down(&pi->phy, 1);
+		
 
 }
 

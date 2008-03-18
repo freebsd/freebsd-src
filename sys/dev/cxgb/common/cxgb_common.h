@@ -1,6 +1,6 @@
 /**************************************************************************
 
-Copyright (c) 2007, Chelsio Inc.
+Copyright (c) 2007-2008, Chelsio Inc.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -684,6 +684,7 @@ int t3_prep_adapter(adapter_t *adapter, const struct adapter_info *ai, int reset
 void t3_led_ready(adapter_t *adapter);
 void t3_fatal_err(adapter_t *adapter);
 void t3_set_vlan_accel(adapter_t *adapter, unsigned int ports, int on);
+void t3_tp_set_offload_mode(adapter_t *adap, int enable);
 void t3_enable_filters(adapter_t *adap);
 void t3_config_rss(adapter_t *adapter, unsigned int rss_config, const u8 *cpus,
 		   const u16 *rspq);
@@ -718,10 +719,9 @@ void t3_mc5_intr_handler(struct mc5 *mc5);
 int t3_read_mc5_range(const struct mc5 *mc5, unsigned int start, unsigned int n,
 		      u32 *buf);
 
-#ifdef CONFIG_CHELSIO_T3_CORE
+#if defined(CONFIG_CHELSIO_T3_CORE)
 int t3_tp_set_coalescing_size(adapter_t *adap, unsigned int size, int psh);
 void t3_tp_set_max_rxsize(adapter_t *adap, unsigned int size);
-void t3_tp_set_offload_mode(adapter_t *adap, int enable);
 void t3_tp_get_mib_stats(adapter_t *adap, struct tp_mib_stats *tps);
 void t3_load_mtus(adapter_t *adap, unsigned short mtus[NMTUS],
                   unsigned short alpha[NCCTRL_WIN],
