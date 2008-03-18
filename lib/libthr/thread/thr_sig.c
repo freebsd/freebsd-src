@@ -92,6 +92,9 @@ _thr_suspend_check(struct pthread *curthread)
 	long cycle;
 	int err;
 
+	if (curthread->force_exit)
+		return;
+
 	err = errno;
 	/* 
 	 * Blocks SIGCANCEL which other threads must send.
