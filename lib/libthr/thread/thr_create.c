@@ -247,6 +247,11 @@ create_stack(struct pthread_attr *pattr)
 static void
 thread_start(struct pthread *curthread)
 {
+	sigset_t set;
+
+	if (curthread->attr.suspend == THR_CREATE_SUSPENDED)
+		set = curthread->sigmask;
+
 	/*
 	 * This is used as a serialization point to allow parent
 	 * to report 'new thread' event to debugger or tweak new thread's
@@ -263,19 +268,20 @@ thread_start(struct pthread *curthread)
 
 		SIGEMPTYSET(set);
 		SIGADDSET(set, SIGCANCEL);
-		sigprocmask(SIG_UNBLOCK, &set, NULL);
+		__sys_sigprocmask(SIG_UNBLOCK, &set, NULL);
 	}
 
 	if (curthread->attr.suspend == THR_CREATE_SUSPENDED) {
-		sigset_t set = curthread->sigmask;
-
+#if 0
+		/* Done in THR_UNLOCK() */
 		_thr_ast(curthread);
+#endif
 
 		/*
 		 * Parent thread have stored signal mask for us,
 		 * we should restore it now.
 		 */
-		sigprocmask(SIG_SETMASK, &set, NULL);
+		__sys_sigprocmask(SIG_SETMASK, &set, NULL);
 	}
 
 	/* Run the current thread's start routine with argument: */
