@@ -350,6 +350,9 @@ MALLOC_DEFINE(M_ALIAS, "libalias", "packet aliasing");
 
 MODULE_VERSION(libalias, 1);
 
+/* XXX take care of alias_irc big buffer on module load/unload */
+extern char *newpacket;
+
 static int
 alias_mod_handler(module_t mod, int type, void *data)
 {
@@ -358,10 +361,17 @@ alias_mod_handler(module_t mod, int type, void *data)
 	switch (type) {
 	case MOD_LOAD:
 		error = 0;
+		newpacket = malloc(IP_MAXPACKET);
+		if (!newpacket)
+			error = EINVAL;	
 		break;
 	case MOD_QUIESCE:
 	case MOD_UNLOAD:
 		finishoff();
+		if (newpacket) {
+			free(newpacket);
+			newpacket = NULL;
+		}
 		error = 0;
 		break;
 	default:
