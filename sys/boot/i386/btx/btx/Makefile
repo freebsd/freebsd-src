@@ -2,10 +2,6 @@
 
 M4?=	m4
 
-.if defined(PAGING)
-M4FLAGS+=	-DPAGING
-.endif
-
 .if defined(BOOT_BTX_NOHANG)
 BOOT_BTX_FLAGS=0x1
 .else
