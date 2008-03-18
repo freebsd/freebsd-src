@@ -121,6 +121,10 @@ _pthread_exit(void *status)
 	}
 	THR_LOCK(curthread);
 	curthread->state = PS_DEAD;
+	if (curthread->flags & THR_FLAGS_NEED_SUSPEND) {
+		curthread->cycle++;
+		_thr_umtx_wake(&curthread->cycle, INT_MAX);
+	}
 	THR_UNLOCK(curthread);
 	/*
 	 * Thread was created with initial refcount 1, we drop the
