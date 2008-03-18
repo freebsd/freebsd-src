@@ -534,7 +534,6 @@ lge_attach(dev)
 	ifp = sc->lge_ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL) {
 		device_printf(dev, "can not if_alloc()\n");
-		lge_free_jumbo_mem(sc);
 		error = ENOSPC;
 		goto fail;
 	}
@@ -561,7 +560,6 @@ lge_attach(dev)
 	if (mii_phy_probe(dev, &sc->lge_miibus,
 	    lge_ifmedia_upd, lge_ifmedia_sts)) {
 		device_printf(dev, "MII without any PHY!\n");
-		lge_free_jumbo_mem(sc);
 		error = ENXIO;
 		goto fail;
 	}
@@ -582,6 +580,7 @@ lge_attach(dev)
 	return (0);
 
 fail:
+	lge_free_jumbo_mem(sc);
 	if (sc->lge_ldata)
 		contigfree(sc->lge_ldata,
 		    sizeof(struct lge_list_data), M_DEVBUF);
@@ -803,10 +802,17 @@ static void
 lge_free_jumbo_mem(sc)
 	struct lge_softc	*sc;
 {
-	int			i;
 	struct lge_jpool_entry	*entry;
 
-	for (i = 0; i < LGE_JSLOTS; i++) {
+	if (sc->lge_cdata.lge_jumbo_buf == NULL)
+		return;
+
+	while ((entry = SLIST_FIRST(&sc->lge_jinuse_listhead))) {
+		SLIST_REMOVE_HEAD(&sc->lge_jinuse_listhead, jpool_entries);
+		SLIST_INSERT_HEAD(&sc->lge_jfree_listhead, entry,
+		    jpool_entries);
+	}
+	while (!SLIST_EMPTY(&sc->lge_jfree_listhead)) {
 		entry = SLIST_FIRST(&sc->lge_jfree_listhead);
 		SLIST_REMOVE_HEAD(&sc->lge_jfree_listhead, jpool_entries);
 		free(entry, M_DEVBUF);
