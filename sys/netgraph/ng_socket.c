@@ -856,7 +856,7 @@ ship_msg(struct ngpcb *pcbp, struct ng_mesg *msg, struct sockaddr_ng *addr)
 	    (struct sockaddr *) addr, mdata, NULL) == 0) {
 		TRAP_ERROR;
 		m_freem(mdata);
-		error = so->so_error = ENOBUFS;
+		return (ENOBUFS);
 	}
 	sorwakeup(so);
 	return (error);
