@@ -638,6 +638,14 @@ do_rx_urg_notify(struct t3cdev *cdev, struct mbuf *m, void *ctx)
 	return (0);
 }
 
+static __inline int
+is_delack_mode_valid(struct toedev *dev, struct toepcb *toep)
+{
+	return (toep->tp_ulp_mode ||
+		(toep->tp_ulp_mode == ULP_MODE_TCPDDP &&
+		    dev->tod_ttid >= TOE_ID_CHELSIO_T3));
+}
+
 /*
  * Set of states for which we should return RX credits.
  */
@@ -702,9 +710,7 @@ t3_cleanup_rbuf(struct tcpcb *tp, int copied)
 	if (__predict_false(thres == 0))
 		return;
 
-	if (toep->tp_ulp_mode)
-		dack = F_RX_DACK_CHANGE | V_RX_DACK_MODE(1);
-	else {
+	if (is_delack_mode_valid(dev, toep)) {
 		dack_mode = TOM_TUNABLE(dev, delack);
 		if (__predict_false(dack_mode != toep->tp_delack_mode)) {
 			u32 r = tp->rcv_nxt - toep->tp_delack_seq;
@@ -713,8 +719,9 @@ t3_cleanup_rbuf(struct tcpcb *tp, int copied)
 				dack = F_RX_DACK_CHANGE |
 				       V_RX_DACK_MODE(dack_mode);
 		}
-	}
-
+	} else 
+		dack = F_RX_DACK_CHANGE | V_RX_DACK_MODE(1);
+		
 	/*
 	 * For coalescing to work effectively ensure the receive window has
 	 * at least 16KB left.
@@ -885,6 +892,12 @@ void
 t3_set_rcv_coalesce_enable(struct socket *so, int on_off)
 {
 	set_tcb_tflag(so, S_TF_RCV_COALESCE_ENABLE, on_off);
+}
+
+void
+t3_set_dack_mss(struct socket *so, int on_off)
+{
+	set_tcb_tflag(so, S_TF_DACK_MSS, on_off);
 }
 
 /*
@@ -2052,6 +2065,7 @@ new_rx_data_ddp(struct toepcb *toep, struct mbuf *m)
 	unsigned int ddp_len, rcv_nxt, ddp_report, end_offset, buf_idx;
 	struct socket *so = toeptoso(toep);
 	int nomoredata = 0;
+	unsigned int delack_mode;
 
 	tp = sototcpcb(so);
 	
@@ -2091,6 +2105,12 @@ new_rx_data_ddp(struct toepcb *toep, struct mbuf *m)
 	ddp_len = ntohs(hdr->len);
 	rcv_nxt = ntohl(hdr->seq) + ddp_len;
 
+	delack_mode = G_DDP_DACK_MODE(ddp_report);
+	if (__predict_false(G_DDP_DACK_MODE(ddp_report) != toep->tp_delack_mode)) {
+		toep->tp_delack_mode = delack_mode;
+		toep->tp_delack_seq = tp->rcv_nxt;
+	}
+	
 	m->m_seq = tp->rcv_nxt;
 	tp->rcv_nxt = rcv_nxt;
 
@@ -2153,11 +2173,10 @@ new_rx_data_ddp(struct toepcb *toep, struct mbuf *m)
 	if (nomoredata)
 		m->m_ddp_flags |= DDP_BF_NODATA;
 
-	if (__predict_false(G_DDP_DACK_MODE(ddp_report) != toep->tp_delack_mode)) {
-		toep->tp_delack_mode = G_DDP_DACK_MODE(ddp_report);
-		toep->tp_delack_seq = tp->rcv_nxt;
-	}
-
+#ifdef notyet	
+	skb_reset_transport_header(skb);
+	tcp_hdr(skb)->fin = 0;          /* changes original hdr->ddp_report */
+#endif
 	SBAPPEND(&so->so_rcv, m);
 	
 	if ((so->so_state & SS_NOFDREF) == 0)
@@ -2202,7 +2221,7 @@ process_ddp_complete(struct toepcb *toep, struct mbuf *m)
 	struct ddp_state *q;
 	struct ddp_buf_state *bsp;
 	struct cpl_rx_ddp_complete *hdr;
-	unsigned int ddp_report, buf_idx, when;
+	unsigned int ddp_report, buf_idx, when, delack_mode;
 	int nomoredata = 0;
 
 	INP_LOCK(tp->t_inpcb);
@@ -2226,16 +2245,19 @@ process_ddp_complete(struct toepcb *toep, struct mbuf *m)
 	m->m_len = m->m_pkthdr.len = G_DDP_OFFSET(ddp_report) - when;
 	tp->rcv_nxt += m->m_len;
 	tp->t_rcvtime = ticks;
+
+	delack_mode = G_DDP_DACK_MODE(ddp_report);
+	if (__predict_false(G_DDP_DACK_MODE(ddp_report) != toep->tp_delack_mode)) {
+		toep->tp_delack_mode = delack_mode;
+		toep->tp_delack_seq = tp->rcv_nxt;
+	}
+#ifdef notyet
+	skb_reset_transport_header(skb);
+	tcp_hdr(skb)->fin = 0;          /* changes valid memory past CPL */
+#endif
 	INP_UNLOCK(tp->t_inpcb);
 
 	KASSERT(m->m_len > 0, ("%s m_len=%d", __FUNCTION__, m->m_len));
-#ifdef T3_TRACE
-	T3_TRACE5(TIDTB(sk),
-		  "process_ddp_complete: tp->rcv_nxt 0x%x cur_offset %u "
-		  "ddp_report 0x%x offset %u, len %u",
-		  tp->rcv_nxt, bsp->cur_offset, ddp_report,
-		   G_DDP_OFFSET(ddp_report), skb->len);
-#endif
 	CTR5(KTR_TOM,
 		  "process_ddp_complete: tp->rcv_nxt 0x%x cur_offset %u "
 		  "ddp_report 0x%x offset %u, len %u",
@@ -2250,13 +2272,6 @@ process_ddp_complete(struct toepcb *toep, struct mbuf *m)
 			nomoredata=1;
 	}
 		
-#ifdef T3_TRACE
-	T3_TRACE4(TIDTB(sk),
-		  "process_ddp_complete: tp->rcv_nxt 0x%x cur_offset %u "
-		  "ddp_report %u offset %u",
-		  tp->rcv_nxt, bsp->cur_offset, ddp_report,
-		   G_DDP_OFFSET(ddp_report));
-#endif
 	CTR4(KTR_TOM,
 		  "process_ddp_complete: tp->rcv_nxt 0x%x cur_offset %u "
 		  "ddp_report %u offset %u",
@@ -2271,6 +2286,7 @@ process_ddp_complete(struct toepcb *toep, struct mbuf *m)
 	if (nomoredata)
 		m->m_ddp_flags |= DDP_BF_NODATA;
 
+	
 	SBAPPEND(&so->so_rcv, m);
 	
 	if ((so->so_state & SS_NOFDREF) == 0)
@@ -2369,6 +2385,10 @@ handle_peer_close_data(struct socket *so, struct mbuf *m)
 	bsp->cur_offset += m->m_pkthdr.len;
 	if (!(bsp->flags & DDP_BF_NOFLIP))
 		q->cur_buf ^= 1;
+#ifdef notyet	
+	skb_reset_transport_header(skb);
+	tcp_hdr(skb)->fin = 0;          /* changes valid memory past CPL */
+#endif	
 	tp->t_rcvtime = ticks;
 	SBAPPEND(&so->so_rcv, m);
 	if (__predict_true((so->so_state & SS_NOFDREF) == 0))
@@ -4006,7 +4026,8 @@ mk_set_tcb_field_ulp(struct cpl_set_tcb_field *req, unsigned int tid,
  * Build a CPL_RX_DATA_ACK message as payload of a ULP_TX_PKT command.
  */
 static void
-mk_rx_data_ack_ulp(struct cpl_rx_data_ack *ack, unsigned int tid, unsigned int credits)
+mk_rx_data_ack_ulp(struct socket *so,struct cpl_rx_data_ack *ack,
+    unsigned int tid, unsigned int credits)
 {
 	struct ulp_txpkt *txpkt = (struct ulp_txpkt *)ack;
 
@@ -4014,7 +4035,8 @@ mk_rx_data_ack_ulp(struct cpl_rx_data_ack *ack, unsigned int tid, unsigned int c
 	txpkt->len = htonl(V_ULPTX_NFLITS(sizeof(*ack) / 8));
 	OPCODE_TID(ack) = htonl(MK_OPCODE_TID(CPL_RX_DATA_ACK, tid));
 	ack->credit_dack = htonl(F_RX_MODULATE | F_RX_DACK_CHANGE |
-				 V_RX_DACK_MODE(1) | V_RX_CREDITS(credits));
+	    V_RX_DACK_MODE(TOM_TUNABLE(TOE_DEV(so), delack)) |
+				 V_RX_CREDITS(credits));
 }
 
 void
@@ -4216,8 +4238,9 @@ t3_setup_ddpbufs(struct toepcb *toep, unsigned int len0, unsigned int offset0,
 			     ddp_flags);
 
 	if (modulate) {
-		mk_rx_data_ack_ulp((struct cpl_rx_data_ack *)(req + 1), toep->tp_tid,
-				   toep->tp_copied_seq - toep->tp_rcv_wup);
+		mk_rx_data_ack_ulp(toeptoso(toep),
+		    (struct cpl_rx_data_ack *)(req + 1), toep->tp_tid,
+		    toep->tp_copied_seq - toep->tp_rcv_wup);
 		toep->tp_rcv_wup = toep->tp_copied_seq;
 	}
 

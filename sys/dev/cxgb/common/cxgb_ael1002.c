@@ -1,6 +1,6 @@
 /**************************************************************************
 
-Copyright (c) 2007, Chelsio Inc.
+Copyright (c) 2007-2008, Chelsio Inc.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -148,7 +148,7 @@ int t3_ael1002_phy_prep(struct cphy *phy, adapter_t *adapter, int phy_addr,
 {
 	cphy_init(phy, adapter, phy_addr, &ael1002_ops, mdio_ops,
 		  SUPPORTED_10000baseT_Full | SUPPORTED_AUI | SUPPORTED_FIBRE,
-		  "10GBASE-XR");
+		  "10GBASE-R");
 	ael100x_txon(phy);
 	return 0;
 }
