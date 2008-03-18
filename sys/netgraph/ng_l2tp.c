@@ -100,6 +100,20 @@ MALLOC_DEFINE(M_NETGRAPH_L2TP, "netgraph_l2tp", "netgraph l2tp node");
 /* Compare sequence numbers using circular math */
 #define L2TP_SEQ_DIFF(x, y)	((int)((int16_t)(x) - (int16_t)(y)))
 
+#define SESSHASHSIZE		0x0020
+#define SESSHASH(x)		(((x) ^ ((x) >> 8)) & (SESSHASHSIZE - 1))
+
+/* Hook private data (data session hooks only) */
+struct ng_l2tp_hook_private {
+	struct ng_l2tp_sess_config	conf;	/* hook/session config */
+	struct ng_l2tp_session_stats	stats;	/* per sessions statistics */
+	hook_p				hook;	/* hook reference */
+	u_int16_t			ns;	/* data ns sequence number */
+	u_int16_t			nr;	/* data nr sequence number */
+	LIST_ENTRY(ng_l2tp_hook_private) sessions;
+};
+typedef struct ng_l2tp_hook_private *hookpriv_p;
+
 /*
  * Sequence number state
  *
@@ -141,17 +155,9 @@ struct ng_l2tp_private {
 	struct ng_l2tp_stats	stats;		/* node statistics */
 	struct l2tp_seq		seq;		/* ctrl sequence number state */
 	ng_ID_t			ftarget;	/* failure message target */
+	LIST_HEAD(, ng_l2tp_hook_private) sesshash[SESSHASHSIZE];
 };
 typedef struct ng_l2tp_private *priv_p;
-
-/* Hook private data (data session hooks only) */
-struct ng_l2tp_hook_private {
-	struct ng_l2tp_sess_config	conf;	/* hook/session config */
-	struct ng_l2tp_session_stats	stats;	/* per sessions statistics */
-	u_int16_t			ns;	/* data ns sequence number */
-	u_int16_t			nr;	/* data nr sequence number */
-};
-typedef struct ng_l2tp_hook_private *hookpriv_p;
 
 /* Netgraph node methods */
 static ng_constructor_t	ng_l2tp_constructor;
@@ -179,7 +185,7 @@ static void	ng_l2tp_seq_xack_timeout(node_p node, hook_p hook,
 static void	ng_l2tp_seq_rack_timeout(node_p node, hook_p hook,
 		    void *arg1, int arg2);
 
-static ng_fn_eachhook	ng_l2tp_find_session;
+static hookpriv_p	ng_l2tp_find_session(priv_p privp, u_int16_t sid);
 static ng_fn_eachhook	ng_l2tp_reset_session;
 
 #ifdef INVARIANTS
@@ -355,6 +361,7 @@ static int
 ng_l2tp_constructor(node_p node)
 {
 	priv_p priv;
+	int	i;
 
 	/* Allocate private structure */
 	MALLOC(priv, priv_p, sizeof(*priv), M_NETGRAPH_L2TP, M_NOWAIT | M_ZERO);
@@ -370,6 +377,9 @@ ng_l2tp_constructor(node_p node)
 
 	/* Initialize sequence number state */
 	ng_l2tp_seq_init(priv);
+
+	for (i = 0; i < SESSHASHSIZE; i++)
+	    LIST_INIT(&priv->sesshash[i]);
 
 	/* Done */
 	return (0);
@@ -398,6 +408,7 @@ ng_l2tp_newhook(node_p node, hook_p hook, const char *name)
 		static const char hexdig[16] = "0123456789abcdef";
 		u_int16_t session_id;
 		hookpriv_p hpriv;
+		uint16_t hash;
 		const char *hex;
 		int i;
 		int j;
@@ -424,7 +435,10 @@ ng_l2tp_newhook(node_p node, hook_p hook, const char *name)
 		hpriv->conf.session_id = htons(session_id);
 		hpriv->conf.control_dseq = L2TP_CONTROL_DSEQ;
 		hpriv->conf.enable_dseq = L2TP_ENABLE_DSEQ;
+		hpriv->hook = hook;
 		NG_HOOK_SET_PRIVATE(hook, hpriv);
+		hash = SESSHASH(hpriv->conf.session_id);
+		LIST_INSERT_HEAD(&priv->sesshash[hash], hpriv, sessions);
 	}
 
 	/* Done */
@@ -502,7 +516,6 @@ ng_l2tp_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			struct ng_l2tp_sess_config *const conf =
 			    (struct ng_l2tp_sess_config *)msg->data;
 			hookpriv_p hpriv;
-			hook_p hook;
 
 			/* Check for invalid or illegal config. */
 			if (msg->header.arglen != sizeof(*conf)) {
@@ -515,13 +528,11 @@ ng_l2tp_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			conf->peer_id = htons(conf->peer_id);
 
 			/* Find matching hook */
-			NG_NODE_FOREACH_HOOK(node, ng_l2tp_find_session,
-			    (void *)(uintptr_t)conf->session_id, hook);
-			if (hook == NULL) {
+			hpriv = ng_l2tp_find_session(priv, conf->session_id);
+			if (hpriv == NULL) {
 				error = ENOENT;
 				break;
 			}
-			hpriv = NG_HOOK_PRIVATE(hook);
 
 			/* Update hook's config */
 			hpriv->conf = *conf;
@@ -532,7 +543,6 @@ ng_l2tp_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			struct ng_l2tp_sess_config *conf;
 			u_int16_t session_id;
 			hookpriv_p hpriv;
-			hook_p hook;
 
 			/* Get session ID */
 			if (msg->header.arglen != sizeof(session_id)) {
@@ -543,13 +553,11 @@ ng_l2tp_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			session_id = htons(session_id);
 
 			/* Find matching hook */
-			NG_NODE_FOREACH_HOOK(node, ng_l2tp_find_session,
-			    (void *)(uintptr_t)session_id, hook);
-			if (hook == NULL) {
+			hpriv = ng_l2tp_find_session(priv, session_id);
+			if (hpriv == NULL) {
 				error = ENOENT;
 				break;
 			}
-			hpriv = NG_HOOK_PRIVATE(hook);
 
 			/* Send response */
 			NG_MKRESPONSE(resp, msg, sizeof(hpriv->conf), M_NOWAIT);
@@ -589,7 +597,6 @@ ng_l2tp_rcvmsg(node_p node, item_p item, hook_p lasthook)
 		    {
 			uint16_t session_id;
 			hookpriv_p hpriv;
-			hook_p hook;
 
 			/* Get session ID. */
 			if (msg->header.arglen != sizeof(session_id)) {
@@ -600,13 +607,11 @@ ng_l2tp_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			session_id = htons(session_id);
 
 			/* Find matching hook. */
-			NG_NODE_FOREACH_HOOK(node, ng_l2tp_find_session,
-			    (void *)(uintptr_t)session_id, hook);
-			if (hook == NULL) {
+			hpriv = ng_l2tp_find_session(priv, session_id);
+			if (hpriv == NULL) {
 				error = ENOENT;
 				break;
 			}
-			hpriv = NG_HOOK_PRIVATE(hook);
 
 			if (msg->header.cmd != NGM_L2TP_CLR_SESSION_STATS) {
 				NG_MKRESPONSE(resp, msg,
@@ -700,7 +705,9 @@ ng_l2tp_disconnect(hook_p hook)
 	else if (hook == priv->lower)
 		priv->lower = NULL;
 	else {
-		FREE(NG_HOOK_PRIVATE(hook), M_NETGRAPH_L2TP);
+		const hookpriv_p hpriv = NG_HOOK_PRIVATE(hook);
+		LIST_REMOVE(hpriv, sessions);
+		FREE(hpriv, M_NETGRAPH_L2TP);
 		NG_HOOK_SET_PRIVATE(hook, NULL);
 	}
 
@@ -715,17 +722,20 @@ ng_l2tp_disconnect(hook_p hook)
 *************************************************************************/
 
 /*
- * Find the hook with a given session ID.
+ * Find the hook with a given session ID (in network order).
  */
-static int
-ng_l2tp_find_session(hook_p hook, void *arg)
+static hookpriv_p
+ng_l2tp_find_session(priv_p privp, u_int16_t sid)
 {
-	const hookpriv_p hpriv = NG_HOOK_PRIVATE(hook);
-	const u_int16_t sid = (u_int16_t)(uintptr_t)arg;
+	uint16_t	hash = SESSHASH(sid);
+	hookpriv_p	hpriv = NULL;
 
-	if (hpriv == NULL || hpriv->conf.session_id != sid)
-		return (-1);
-	return (0);
+	LIST_FOREACH(hpriv, &privp->sesshash[hash], sessions) {
+		if (hpriv->conf.session_id == sid)
+			break;
+	}
+
+	return (hpriv);
 }
 
 /*
@@ -861,15 +871,14 @@ ng_l2tp_rcvdata_lower(hook_p h, item_p item)
 
 	/* Check session ID (for data packets only) */
 	if ((hdr & L2TP_HDR_CTRL) == 0) {
-		NG_NODE_FOREACH_HOOK(node, ng_l2tp_find_session,
-		    (void *)(uintptr_t)ids[1], hook);
-		if (hook == NULL) {
+		hpriv = ng_l2tp_find_session(priv, ids[1]);
+		if (hpriv == NULL) {
 			priv->stats.recvUnknownSID++;
 			NG_FREE_ITEM(item);
 			NG_FREE_M(m);
 			ERROUT(ENOTCONN);
 		}
-		hpriv = NG_HOOK_PRIVATE(hook);
+		hook = hpriv->hook;
 	}
 
 	/* Get Ns, Nr fields if present */
