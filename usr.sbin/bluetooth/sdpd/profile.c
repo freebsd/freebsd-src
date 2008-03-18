@@ -256,6 +256,24 @@ common_profile_create_string8(
 }
 
 /*
+ * Service Availability
+ */
+
+int32_t
+common_profile_create_service_availability(
+		uint8_t *buf, uint8_t const * const eob,
+		uint8_t const *data, uint32_t datalen)
+{
+	if (datalen != 1 || buf + 2 > eob)
+		return (-1);
+
+	SDP_PUT8(SDP_DATA_UINT8, buf);
+	SDP_PUT8(data[0], buf);
+
+	return (2);
+}
+
+/*
  * seq8 len8			- 2 bytes
  *	seq8 len8		- 2 bytes
  *		uuid16 value16	- 3 bytes
@@ -419,12 +437,15 @@ bnep_profile_create_protocol_descriptor_list(
 #endif
 	};
 
-	uint16_t	 i, psm = 15, version = 0x0100,
+	uint16_t	 i, psm, version = 0x0100,
 			 nptypes = sizeof(ptype)/sizeof(ptype[0]),
 			 nptypes_size = nptypes * 3;
 
-	if (18 + nptypes_size > 255 || buf + 20 + nptypes_size > eob)
+	if (datalen != 2 || 18 + nptypes_size > 255 ||
+	    buf + 20 + nptypes_size > eob)
 		return (-1);
+
+	memcpy(&psm, data, sizeof(psm));
 
 	SDP_PUT8(SDP_DATA_SEQ8, buf);
 	SDP_PUT8(18 + nptypes_size, buf);
