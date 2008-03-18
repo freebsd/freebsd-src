@@ -73,6 +73,13 @@ __FBSDID("$FreeBSD$");
 #include "alias_local.h"
 #endif
 
+#ifdef _KERNEL
+char *newpacket;
+#else
+char newpacket[IP_MAXPACKET];
+#endif
+
+
 /* Local defines */
 #define DBprintf(a)
 
@@ -120,8 +127,6 @@ AliasHandleIrcOut(struct libalias *la,
 	/* Handle CTCP commands - the buffer may have to be copied */
 lFOUND_CTCP:
 	{
-		char newpacket[65536];	/* Estimate of maximum packet size
-					 * :) */
 		unsigned int copyat = i;	/* Same */
 		unsigned int iCopy = 0;	/* How much data have we written to
 					 * copy-back string? */
