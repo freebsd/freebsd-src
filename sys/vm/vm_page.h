@@ -162,7 +162,6 @@ CTASSERT(sizeof(u_long) >= 8);
 #define	PQ_ACTIVE	2
 #define	PQ_HOLD		3
 #define	PQ_COUNT	4
-#define	PQ_MAXCOUNT	4
 
 /* Returns the real queue a page is on. */
 #define VM_PAGE_GETQUEUE(m)	((m)->queue)
@@ -181,7 +180,7 @@ struct vpgqueues {
 	int	*cnt;
 };
 
-extern struct vpgqueues vm_page_queues[PQ_MAXCOUNT];
+extern struct vpgqueues vm_page_queues[PQ_COUNT];
 extern struct mtx vm_page_queue_free_mtx;
 
 /*
@@ -311,8 +310,6 @@ void vm_page_free_zero(vm_page_t m);
 void vm_page_dirty(vm_page_t m);
 void vm_page_wakeup(vm_page_t m);
 
-void vm_pageq_init(void);
-void vm_pageq_enqueue(int queue, vm_page_t m);
 void vm_pageq_remove(vm_page_t m);
 void vm_pageq_requeue(vm_page_t m);
 
