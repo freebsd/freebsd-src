@@ -302,12 +302,15 @@ amd_read_pmc(int cpu, int ri, pmc_value_t *v)
 #endif
 
 	tmp = rdmsr(pd->pm_perfctr); /* RDMSR serializes */
-	if (PMC_IS_SAMPLING_MODE(mode))
-		*v = AMD_PERFCTR_VALUE_TO_RELOAD_COUNT(tmp);
-	else
-		*v = tmp;
+	PMCDBG(MDP,REA,2,"amd-read (pre-munge) id=%d -> %jd", ri, tmp);
+	if (PMC_IS_SAMPLING_MODE(mode)) {
+		/* Sign extend 48 bit value to 64 bits. */
+		tmp = (pmc_value_t) (((int64_t) tmp << 16) >> 16);
+		tmp = AMD_PERFCTR_VALUE_TO_RELOAD_COUNT(tmp);
+	}
+	*v = tmp;
 
-	PMCDBG(MDP,REA,2,"amd-read id=%d -> %jd", ri, *v);
+	PMCDBG(MDP,REA,2,"amd-read (post-munge) id=%d -> %jd", ri, *v);
 
 	return 0;
 }
