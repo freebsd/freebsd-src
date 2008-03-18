@@ -571,6 +571,11 @@ link_elf_load_file(linker_class_t cls, const char* filename,
 	return error;
     vfslocked = NDHASGIANT(&nd);
     NDFREE(&nd, NDF_ONLY_PNBUF);
+    if (nd.ni_vp->v_type != VREG) {
+	error = ENOEXEC;
+	firstpage = NULL;
+	goto out;
+    }
 #ifdef MAC
     error = mac_check_kld_load(curthread->td_ucred, nd.ni_vp);
     if (error) {
