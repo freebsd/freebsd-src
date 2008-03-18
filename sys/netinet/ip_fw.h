@@ -626,5 +626,37 @@ typedef	int ip_fw_chk_t(struct ip_fw_args *args);
 extern	ip_fw_chk_t	*ip_fw_chk_ptr;
 #define	IPFW_LOADED	(ip_fw_chk_ptr != NULL)
 
+#ifdef IPFW_INTERNAL
+
+#define        IPFW_TABLES_MAX         128
+struct ip_fw_chain {
+       struct ip_fw    *rules;         /* list of rules */
+       struct ip_fw    *reap;          /* list of rules to reap */
+       LIST_HEAD(, cfg_nat) nat;       /* list of nat entries */
+       struct radix_node_head *tables[IPFW_TABLES_MAX];
+       struct rwlock   rwmtx;
+};
+#define        IPFW_LOCK_INIT(_chain) \
+       rw_init(&(_chain)->rwmtx, "IPFW static rules")
+#define        IPFW_LOCK_DESTROY(_chain)       rw_destroy(&(_chain)->rwmtx)
+#define        IPFW_WLOCK_ASSERT(_chain)       rw_assert(&(_chain)->rwmtx, RA_WLOCKED)
+
+#define IPFW_RLOCK(p) rw_rlock(&(p)->rwmtx)
+#define IPFW_RUNLOCK(p) rw_runlock(&(p)->rwmtx)
+#define IPFW_WLOCK(p) rw_wlock(&(p)->rwmtx)
+#define IPFW_WUNLOCK(p) rw_wunlock(&(p)->rwmtx)
+
+#define LOOKUP_NAT(l, i, p) do {                                       \
+               LIST_FOREACH((p), &(l.nat), _next) {                    \
+                       if ((p)->id == (i)) {                           \
+                               break;                                  \
+                       }                                               \
+               }                                                       \
+       } while (0)
+
+typedef int ipfw_nat_t(struct ip_fw_args *, struct cfg_nat *, struct mbuf *);
+typedef int ipfw_nat_cfg_t(struct sockopt *);
+#endif
+
 #endif /* _KERNEL */
 #endif /* _IPFW2_H */
