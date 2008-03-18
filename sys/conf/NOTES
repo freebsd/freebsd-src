@@ -832,8 +832,7 @@ device		stf			#6to4 IPv6 over IPv4 encapsulation
 # crafting the ruleset.
 #
 # IPFIREWALL_NAT adds support for in kernel nat in ipfw, and it requires
-# LIBALIAS. To build an ipfw kld with nat support enabled, add 
-# "CFLAGS+= -DIPFIREWALL_NAT" to your make.conf.
+# LIBALIAS.
 #
 # IPSTEALTH enables code to support stealth forwarding (i.e., forwarding
 # packets without touching the TTL).  This can be useful to hide firewalls
