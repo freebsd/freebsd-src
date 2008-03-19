@@ -763,6 +763,19 @@ serve_root (arg)
 	return;
     }
 
+    /* We need to check :ext: server here, :pserver: checks happen below. */
+    if (root_allow_used() && !root_allow_ok (arg)
+# ifdef AUTH_SERVER_SUPPORT
+	&& Pserver_Repos == NULL
+# endif
+	)
+    {
+	if (alloc_pending (80 + strlen (arg)))
+	    sprintf (pending_error_text,
+		     "E Bad root %s", arg);
+	return;
+    }
+
 #ifdef AUTH_SERVER_SUPPORT
     if (Pserver_Repos != NULL)
     {
@@ -2761,7 +2774,7 @@ do_cvs_command (cmd_name, command)
 
     int dev_null_fd = -1;
 
-    int errs;
+    int errs = 0;
 
     command_pid = -1;
     stdout_pipe[0] = -1;
@@ -2960,9 +2973,8 @@ error  \n");
 #ifdef SERVER_FLOWCONTROL
 	{
 	    char junk;
-	    ssize_t status;
 	    set_block_fd (flowcontrol_pipe[0]);
-	    while ((status = read (flowcontrol_pipe[0], &junk, 1)) > 0);
+	    while (read (flowcontrol_pipe[0], &junk, 1) > 0);
 	}
 	/* FIXME: No point in printing an error message with error(),
 	 * as STDERR is already closed, but perhaps this could be syslogged?
@@ -3994,38 +4006,11 @@ static void
 serve_init (arg)
     char *arg;
 {
-    cvsroot_t *saved_parsed_root;
-
-    if (!isabsolute (arg))
-    {
-	if (alloc_pending (80 + strlen (arg)))
-	    sprintf (pending_error_text,
-		     "E init %s must be an absolute pathname", arg);
-    }
-#ifdef AUTH_SERVER_SUPPORT
-    else if (Pserver_Repos != NULL)
-    {
-	if (strcmp (Pserver_Repos, arg) != 0)
-	{
-	    if (alloc_pending (80 + strlen (Pserver_Repos) + strlen (arg)))
-		/* The explicitness is to aid people who are writing clients.
-		   I don't see how this information could help an
-		   attacker.  */
-		sprintf (pending_error_text, "\
-E Protocol error: init says \"%s\" but pserver says \"%s\"",
-			 arg, Pserver_Repos);
-	}
-    }
-#endif
+    if (alloc_pending (80 + strlen (arg)))
+	sprintf (pending_error_text, "E init may not be run remotely");
 
     if (print_pending_error ())
 	return;
-
-    saved_parsed_root = current_parsed_root;
-    current_parsed_root = local_cvsroot (arg);
-    do_cvs_command ("init", init);
-    free_cvsroot_t (current_parsed_root);
-    current_parsed_root = saved_parsed_root;
 }
 
 static void serve_annotate PROTO ((char *));
