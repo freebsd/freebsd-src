@@ -1519,28 +1519,33 @@ sched_thread_priority(struct thread *td, u_char prio)
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	if (td->td_priority == prio)
 		return;
-
+	/*
+	 * If the priority has been elevated due to priority
+	 * propagation, we may have to move ourselves to a new
+	 * queue.  This could be optimized to not re-add in some
+	 * cases.
+	 */
 	if (TD_ON_RUNQ(td) && prio < td->td_priority) {
-		/*
-		 * If the priority has been elevated due to priority
-		 * propagation, we may have to move ourselves to a new
-		 * queue.  This could be optimized to not re-add in some
-		 * cases.
-		 */
 		sched_rem(td);
 		td->td_priority = prio;
 		sched_add(td, SRQ_BORROWING);
 		return;
 	}
-	tdq = TDQ_CPU(ts->ts_cpu);
-	oldpri = td->td_priority;
-	td->td_priority = prio;
+	/*
+	 * If the thread is currently running we may have to adjust the lowpri
+	 * information so other cpus are aware of our current priority.
+	 */
 	if (TD_IS_RUNNING(td)) {
+		tdq = TDQ_CPU(ts->ts_cpu);
+		oldpri = td->td_priority;
+		td->td_priority = prio;
 		if (prio < tdq->tdq_lowpri)
 			tdq->tdq_lowpri = prio;
 		else if (tdq->tdq_lowpri == oldpri)
 			tdq_setlowpri(tdq, td);
+		return;
 	}
+	td->td_priority = prio;
 }
 
 /*
@@ -1652,26 +1657,6 @@ sched_unlend_user_prio(struct thread *td, u_char prio)
 }
 
 /*
- * Add the thread passed as 'newtd' to the run queue before selecting
- * the next thread to run.  This is only used for KSE.
- */
-static void
-sched_switchin(struct tdq *tdq, struct thread *td)
-{
-#ifdef SMP
-	spinlock_enter();
-	TDQ_UNLOCK(tdq);
-	thread_lock(td);
-	spinlock_exit();
-	sched_setcpu(td->td_sched, TDQ_ID(tdq), SRQ_YIELDING);
-#else
-	td->td_lock = TDQ_LOCKPTR(tdq);
-#endif
-	tdq_add(tdq, td, SRQ_YIELDING);
-	MPASS(td->td_lock == TDQ_LOCKPTR(tdq));
-}
-
-/*
  * Block a thread for switching.  Similar to thread_block() but does not
  * bump the spin count.
  */
@@ -1751,6 +1736,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 	int cpuid;
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
+	KASSERT(newtd == NULL, ("sched_switch: Unsupported newtd argument"));
 
 	cpuid = PCPU_GET(cpuid);
 	tdq = TDQ_CPU(cpuid);
@@ -1789,12 +1775,6 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 	 * thread-queue locked.
 	 */
 	TDQ_LOCK_ASSERT(tdq, MA_OWNED | MA_NOTRECURSED);
-	/*
-	 * If KSE assigned a new thread just add it here and let choosethread
-	 * select the best one.
-	 */
-	if (newtd != NULL)
-		sched_switchin(tdq, newtd);
 	newtd = choosethread();
 	/*
 	 * Call the MD code to switch contexts if necessary.
@@ -1822,10 +1802,6 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 #endif
 	} else
 		thread_unblock_switch(td, mtx);
-	/*
-	 * We should always get here with the lowest priority td possible.
-	 */
-	tdq->tdq_lowpri = td->td_priority;
 	/*
 	 * Assert that all went well and return.
 	 */
@@ -1966,21 +1942,6 @@ sched_class(struct thread *td, int class)
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	if (td->td_pri_class == class)
 		return;
-	/*
-	 * On SMP if we're on the RUNQ we must adjust the transferable
-	 * count because could be changing to or from an interrupt
-	 * class.
-	 */
-	if (TD_ON_RUNQ(td)) {
-		struct tdq *tdq;
-
-		tdq = TDQ_CPU(td->td_sched->ts_cpu);
-		if (THREAD_CAN_MIGRATE(td))
-			tdq->tdq_transferable--;
-		td->td_pri_class = class;
-		if (THREAD_CAN_MIGRATE(td))
-			tdq->tdq_transferable++;
-	}
 	td->td_pri_class = class;
 }
 
@@ -2539,7 +2500,6 @@ sched_fork_exit(struct thread *td)
 	TDQ_LOCK_ASSERT(tdq, MA_OWNED | MA_NOTRECURSED);
 	lock_profile_obtain_lock_success(
 	    &TDQ_LOCKPTR(tdq)->lock_object, 0, 0, __FILE__, __LINE__);
-	tdq->tdq_lowpri = td->td_priority;
 }
 
 static SYSCTL_NODE(_kern, OID_AUTO, sched, CTLFLAG_RW, 0,
