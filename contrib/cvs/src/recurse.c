@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1986-2005 The Free Software Foundation, Inc.
+ * Copyright (C) 1986-2008 The Free Software Foundation, Inc.
  *
  * Portions Copyright (C) 1998-2005 Derek Price, Ximbiot <http://ximbiot.com>,
  *                                  and others.
@@ -663,7 +663,6 @@ do_recursion (frame)
     {
 	repository = frame->repository;
 	assert (repository != NULL);
-	assert (strstr (repository, "/./") == NULL);
     }
 
     fileattr_startdir (repository);
@@ -766,7 +765,7 @@ do_recursion (frame)
 	   have writelocks in place, and there is no way to get writelocks
 	   here.  */
 	if (current_parsed_root->isremote)
-	    notify_check (repository, update_dir);
+	    cvs_notify_check (repository, update_dir);
 #endif /* CLIENT_SUPPORT */
 
 	finfo_struct.repository = repository;
