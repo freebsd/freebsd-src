@@ -283,7 +283,7 @@ lf_setlock(lock, vp, clean)
 			wproc = (struct proc *)block->lf_id;
 restart:
 			nproc = NULL;
-			PROC_SLOCK(wproc);
+			PROC_LOCK(wproc);
 			FOREACH_THREAD_IN_PROC(wproc, td) {
 				thread_lock(td);
 				while (td->td_wchan &&
@@ -296,8 +296,8 @@ restart:
 						break;
 					nproc = (struct proc *)waitblock->lf_id;
 					if (nproc == (struct proc *)lock->lf_id) {
-						PROC_SUNLOCK(wproc);
 						thread_unlock(td);
+						PROC_UNLOCK(wproc);
 						lock->lf_next = *clean;
 						*clean = lock;
 						return (EDEADLK);
@@ -305,7 +305,7 @@ restart:
 				}
 				thread_unlock(td);
 			}
-			PROC_SUNLOCK(wproc);
+			PROC_UNLOCK(wproc);
 			wproc = nproc;
 			if (wproc)
 				goto restart;

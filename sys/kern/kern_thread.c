@@ -345,9 +345,7 @@ thread_exit(void)
 #ifdef AUDIT
 	AUDIT_SYSCALL_EXIT(0, td);
 #endif
-
 	umtx_thread_exit(td);
-
 	/*
 	 * drop FPU & debug register state storage, or any other
 	 * architecture specific resources that
@@ -374,9 +372,7 @@ thread_exit(void)
 	 */
 	if (p->p_flag & P_HADTHREADS) {
 		if (p->p_numthreads > 1) {
-			thread_lock(td);
 			thread_unlink(td);
-			thread_unlock(td);
 			td2 = FIRST_THREAD_IN_PROC(p);
 			sched_exit_thread(td2, td);
 
@@ -450,8 +446,8 @@ thread_link(struct thread *td, struct proc *p)
 
 	/*
 	 * XXX This can't be enabled because it's called for proc0 before
-	 * it's spinlock has been created.
-	 * PROC_SLOCK_ASSERT(p, MA_OWNED);
+	 * its lock has been created.
+	 * PROC_LOCK_ASSERT(p, MA_OWNED);
 	 */
 	td->td_state    = TDS_INACTIVE;
 	td->td_proc     = p;
@@ -487,7 +483,7 @@ thread_unlink(struct thread *td)
 {
 	struct proc *p = td->td_proc;
 
-	PROC_SLOCK_ASSERT(p, MA_OWNED);
+	PROC_LOCK_ASSERT(p, MA_OWNED);
 	TAILQ_REMOVE(&p->p_threads, td, td_plist);
 	p->p_numthreads--;
 	/* could clear a few other things here */
@@ -863,11 +859,9 @@ thread_find(struct proc *p, lwpid_t tid)
 	struct thread *td;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	PROC_SLOCK(p);
 	FOREACH_THREAD_IN_PROC(p, td) {
 		if (td->td_tid == tid)
 			break;
 	}
-	PROC_SUNLOCK(p);
 	return (td);
 }

@@ -393,10 +393,8 @@ restart:
 
 		p = td->td_proc;
 		PROC_LOCK(p);
-		PROC_SLOCK(p);
 		saved_nice = p->p_nice;
 		sched_nice(p, 0);
-		PROC_SUNLOCK(p);
 		PROC_UNLOCK(p);
 	}
 	/*
@@ -816,9 +814,7 @@ out:
 
 		p = td->td_proc;
 		PROC_LOCK(p);
-		PROC_SLOCK(p);
 		sched_nice(td->td_proc, saved_nice);
-		PROC_SUNLOCK(p);
 		PROC_UNLOCK(td->td_proc);
 	}
 	UFS_LOCK(ump);
