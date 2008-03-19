@@ -19,8 +19,6 @@
  *	VendorReleTag	Tag for this particular release
  *
  * Additional arguments specify more Vendor Release Tags.
- *
- * $FreeBSD$
  */
 
 #include "cvs.h"
