@@ -1,4 +1,4 @@
-.\" Copyright (c) 2006,2007 Joseph Koshy.  All rights reserved.
+.\" Copyright (c) 2006,2007-2008 Joseph Koshy.  All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 22, 2007
+.Dd March 19, 2008
 .Os
 .Dt ELF_UPDATE 3
 .Sh NAME
@@ -132,8 +132,8 @@ This value must be a power of two.
 .It Va sh_entsize
 Set to the size of each entry, for sections containing fixed size
 elements, or set to zero for sections without fixed size elements.
-For section contents of types known to the library, the application
-may leave this field as zero.
+If the application is not managing file layout, it may leave this
+field as zero for those sections whose types known to the library.
 .It Va sh_flags
 Set to the desired section flags.
 .It Va sh_info
