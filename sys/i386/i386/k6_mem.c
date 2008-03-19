@@ -175,11 +175,13 @@ static void
 k6_mem_drvinit(void *unused)
 {
 
-	if (!strcmp(cpu_vendor, "AuthenticAMD") &&
-	    (cpu_id & 0xf00) == 0x500 &&
-	    ((cpu_id & 0xf0) > 0x80 ||
-	    ((cpu_id & 0xf0) == 0x80 &&
-	    (cpu_id & 0xf) > 0x7)))
-		mem_range_softc.mr_op = &k6_mrops;
+	if (strcmp(cpu_vendor, "AuthenticAMD") != 0)
+		return;
+	if ((cpu_id & 0xf00) != 0x500)
+		return;
+	if ((cpu_id & 0xf0) < 0x80 ||
+	    ((cpu_id & 0xf0) == 0x80 && (cpu_id & 0xf) <= 0x7))
+		return;
+	mem_range_softc.mr_op = &k6_mrops;
 }
 SYSINIT(k6memdev, SI_SUB_DRIVERS, SI_ORDER_FIRST, k6_mem_drvinit, NULL);
