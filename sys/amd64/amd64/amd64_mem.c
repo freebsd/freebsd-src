@@ -82,6 +82,9 @@ static struct mem_range_ops amd64_mrops = {
 /* XXX for AP startup hook */
 static u_int64_t mtrrcap, mtrrdef;
 
+/* The bitmask for the PhysBase and PhysMask fields of the variable MTRRs. */
+static u_int64_t mtrr_physmask;
+
 static struct mem_range_desc *mem_range_match(struct mem_range_softc *sc,
 		    struct mem_range_desc *mrd);
 static void	amd64_mrfetch(struct mem_range_softc *sc);
@@ -214,15 +217,15 @@ amd64_mrfetch(struct mem_range_softc *sc)
 		msrv = rdmsr(msr);
 		mrd->mr_flags = (mrd->mr_flags & ~MDF_ATTRMASK) |
 		    amd64_mtrr2mrt(msrv & MTRR_PHYSBASE_TYPE);
-		mrd->mr_base = msrv & MTRR_PHYSBASE_PHYSBASE;
+		mrd->mr_base = msrv & mtrr_physmask;
 		msrv = rdmsr(msr + 1);
 		mrd->mr_flags = (msrv & MTRR_PHYSMASK_VALID) ?
 		    (mrd->mr_flags | MDF_ACTIVE) :
 		    (mrd->mr_flags & ~MDF_ACTIVE);
 
 		/* Compute the range from the mask. Ick. */
-		mrd->mr_len = (~(msrv & MTRR_PHYSMASK_PHYSMASK)
-		    & (MTRR_PHYSMASK_PHYSMASK | 0xfffL)) + 1;
+		mrd->mr_len = (~(msrv & mtrr_physmask) &
+		    (mtrr_physmask | 0xfffL)) + 1;
 		if (!mrvalid(mrd->mr_base, mrd->mr_len))
 			mrd->mr_flags |= MDF_BOGUS;
 
@@ -361,7 +364,7 @@ amd64_mrstoreone(void *arg)
 		/* base/type register */
 		omsrv = rdmsr(msr);
 		if (mrd->mr_flags & MDF_ACTIVE) {
-			msrv = mrd->mr_base & MTRR_PHYSBASE_PHYSBASE;
+			msrv = mrd->mr_base & mtrr_physmask;
 			msrv |= amd64_mrt2mtrr(mrd->mr_flags, omsrv);
 		} else {
 			msrv = 0;
@@ -371,7 +374,7 @@ amd64_mrstoreone(void *arg)
 		/* mask/active register */
 		if (mrd->mr_flags & MDF_ACTIVE) {
 			msrv = MTRR_PHYSMASK_VALID |
-			    (~(mrd->mr_len - 1) & MTRR_PHYSMASK_PHYSMASK);
+			    (~(mrd->mr_len - 1) & mtrr_physmask);
 		} else {
 			msrv = 0;
 		}
@@ -578,7 +581,8 @@ static void
 amd64_mrinit(struct mem_range_softc *sc)
 {
 	struct mem_range_desc *mrd;
-	int i, nmdesc = 0;
+	u_int regs[4];
+	int i, nmdesc = 0, pabits;
 
 	mtrrcap = rdmsr(MSR_MTRRcap);
 	mtrrdef = rdmsr(MSR_MTRRdefType);
@@ -590,6 +594,20 @@ amd64_mrinit(struct mem_range_softc *sc)
 		return;
 	}
 	nmdesc = mtrrcap & MTRR_CAP_VCNT;
+
+	/*
+	 * Determine the size of the PhysMask and PhysBase fields in
+	 * the variable range MTRRs.  If the extended CPUID 0x80000008
+	 * is present, use that to figure out how many physical
+	 * address bits the CPU supports.  Otherwise, default to 36
+	 * address bits.
+	 */
+	if (cpu_exthigh >= 0x80000008) {
+		do_cpuid(0x80000008, regs);
+		pabits = regs[0] & 0xff;
+	} else
+		pabits = 36;
+	mtrr_physmask = ((1UL << pabits) - 1) & ~0xfffUL;
 
 	/* If fixed MTRRs supported and enabled. */
 	if ((mtrrcap & MTRR_CAP_FIXED) && (mtrrdef & MTRR_DEF_FIXED_ENABLE)) {
