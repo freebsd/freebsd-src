@@ -81,6 +81,7 @@ __FBSDID("$FreeBSD$");
 #define IRC_CONTROL_PORT_NUMBER_1 6667
 #define IRC_CONTROL_PORT_NUMBER_2 6668
 
+#define PKTSIZE (IP_MAXPACKET + 1)
 char *newpacket;
 
 /* Local defines */
@@ -107,7 +108,7 @@ static int
 protohandler(struct libalias *la, struct ip *pip, struct alias_data *ah)
 {
 
-	newpacket = malloc(IP_MAXPACKET);
+	newpacket = malloc(PKTSIZE);
 	if (newpacket) {
 		AliasHandleIrcOut(la, pip, ah->lnk, ah->maxpktsize);
 		free(newpacket);
@@ -211,7 +212,7 @@ lFOUND_CTCP:
 						 * address */
 
 lCTCP_START:
-		if (i >= dlen || iCopy >= sizeof(newpacket))
+		if (i >= dlen || iCopy >= PKTSIZE)
 			goto lPACKET_DONE;
 		newpacket[iCopy++] = sptr[i++];	/* Copy the CTCP start
 						 * character */
@@ -228,7 +229,7 @@ lCTCP_START:
 			goto lBAD_CTCP;
 		/* We have a DCC command - handle it! */
 		i += 4;		/* Skip "DCC " */
-		if (iCopy + 4 > sizeof(newpacket))
+		if (iCopy + 4 > PKTSIZE)
 			goto lPACKET_DONE;
 		newpacket[iCopy++] = 'D';
 		newpacket[iCopy++] = 'C';
@@ -250,13 +251,13 @@ lCTCP_START:
 		DBprintf(("Transferring command...\n"));
 		while (sptr[i] != ' ') {
 			newpacket[iCopy++] = sptr[i];
-			if (++i >= dlen || iCopy >= sizeof(newpacket)) {
+			if (++i >= dlen || iCopy >= PKTSIZE) {
 				DBprintf(("DCC packet terminated during command\n"));
 				goto lPACKET_DONE;
 			}
 		}
 		/* Copy _one_ space */
-		if (i + 1 < dlen && iCopy < sizeof(newpacket))
+		if (i + 1 < dlen && iCopy < PKTSIZE)
 			newpacket[iCopy++] = sptr[i++];
 
 		DBprintf(("Done command - removing spaces\n"));
@@ -274,13 +275,13 @@ lCTCP_START:
 		DBprintf(("Transferring filename...\n"));
 		while (sptr[i] != ' ') {
 			newpacket[iCopy++] = sptr[i];
-			if (++i >= dlen || iCopy >= sizeof(newpacket)) {
+			if (++i >= dlen || iCopy >= PKTSIZE) {
 				DBprintf(("DCC packet terminated during filename\n"));
 				goto lPACKET_DONE;
 			}
 		}
 		/* Copy _one_ space */
-		if (i + 1 < dlen && iCopy < sizeof(newpacket))
+		if (i + 1 < dlen && iCopy < PKTSIZE)
 			newpacket[iCopy++] = sptr[i++];
 
 		DBprintf(("Done filename - removing spaces\n"));
@@ -379,20 +380,20 @@ lCTCP_START:
 
 				alias_address = GetAliasAddress(lnk);
 				n = snprintf(&newpacket[iCopy],
-				    sizeof(newpacket) - iCopy,
+				    PKTSIZE - iCopy,
 				    "%lu ", (u_long) htonl(alias_address.s_addr));
 				if (n < 0) {
 					DBprintf(("DCC packet construct failure.\n"));
 					goto lBAD_CTCP;
 				}
-				if ((iCopy += n) >= sizeof(newpacket)) {	/* Truncated/fit exactly
+				if ((iCopy += n) >= PKTSIZE) {	/* Truncated/fit exactly
 										 * - bad news */
 					DBprintf(("DCC constructed packet overflow.\n"));
 					goto lBAD_CTCP;
 				}
 				alias_port = GetAliasPort(dcc_lnk);
 				n = snprintf(&newpacket[iCopy],
-				    sizeof(newpacket) - iCopy,
+				    PKTSIZE - iCopy,
 				    "%u", htons(alias_port));
 				if (n < 0) {
 					DBprintf(("DCC packet construct failure.\n"));
@@ -412,7 +413,7 @@ lCTCP_START:
 		 * after IP address and port has been handled
 		 */
 lBAD_CTCP:
-		for (; i < dlen && iCopy < sizeof(newpacket); i++, iCopy++) {
+		for (; i < dlen && iCopy < PKTSIZE; i++, iCopy++) {
 			newpacket[iCopy] = sptr[i];	/* Copy CTCP unchanged */
 			if (sptr[i] == '\001') {
 				goto lNORMAL_TEXT;
@@ -421,7 +422,7 @@ lBAD_CTCP:
 		goto lPACKET_DONE;
 		/* Normal text */
 lNORMAL_TEXT:
-		for (; i < dlen && iCopy < sizeof(newpacket); i++, iCopy++) {
+		for (; i < dlen && iCopy < PKTSIZE; i++, iCopy++) {
 			newpacket[iCopy] = sptr[i];	/* Copy CTCP unchanged */
 			if (sptr[i] == '\001') {
 				goto lCTCP_START;
