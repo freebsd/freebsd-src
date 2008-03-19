@@ -1214,7 +1214,6 @@ uifind(uid)
 			uip->ui_uid = uid;
 			LIST_INSERT_HEAD(UIHASH(uid), uip, ui_hash);
 		}
-		uihold(uip);
 	}
 	uihold(uip);
 	rw_unlock(&uihashtbl_lock);
