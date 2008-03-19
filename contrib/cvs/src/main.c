@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1986-2006 The Free Software Foundation, Inc.
+ * Copyright (C) 1986-2008 The Free Software Foundation, Inc.
  *
  * Portions Copyright (C) 1998-2006 Derek Price, Ximbiot <http://ximbiot.com>,
  *                                  and others.
