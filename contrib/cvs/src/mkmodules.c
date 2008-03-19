@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1986-2005 The Free Software Foundation, Inc.
+ * Copyright (C) 1986-2008 The Free Software Foundation, Inc.
  *
  * Portions Copyright (C) 1998-2005 Derek Price, Ximbiot <http://ximbiot.com>,
  *                                  and others.
@@ -13,6 +13,7 @@
  * $FreeBSD$
  */
 
+#include <assert.h>
 #include "cvs.h"
 #include "getline.h"
 #include "history.h"
@@ -264,7 +265,6 @@ static const char *const modules_contents[] = {
     "#	key [options] directory files...\n",
     "#\n",
     "# Where \"options\" are composed of:\n",
-    "#	-i prog		Run \"prog\" on \"cvs commit\" from top-level of module.\n",
     "#	-o prog		Run \"prog\" on \"cvs checkout\" of module.\n",
     "#	-e prog		Run \"prog\" on \"cvs export\" of module.\n",
     "#	-t prog		Run \"prog\" on \"cvs rtag\" of module.\n",
@@ -290,6 +290,13 @@ static const char *const modules_contents[] = {
 static const char *const config_contents[] = {
     "# Set this to \"no\" if pserver shouldn't check system users/passwords\n",
     "#SystemAuth=yes\n",
+    "\n",
+    "# Set `IgnoreUnknownConfigKeys' to `yes' to ignore unknown config\n",
+    "# keys which are supported in a future version of CVS.\n",
+    "# This option is intended to be useful as a transition for read-only\n",
+    "# mirror sites when sites may need to be updated later than the\n",
+    "# primary CVS repository.\n",
+    "#IgnoreUnknownConfigKeys=no\n",
     "\n",
     "# Put CVS lock files in this directory rather than directly in the repository.\n",
     "#LockDir=/var/lock/cvs\n",
@@ -849,6 +856,41 @@ rename_rcsfile (temp, real)
 
     free (bak);
 }
+
+/*
+ * Walk PATH backwards to the root directory looking for the root of a
+ * repository.
+ */
+static char *
+in_repository (const char *path)
+{
+    char *cp = xstrdup (path);
+
+    for (;;)
+    {
+	if (isdir (cp))
+	{
+	    int foundit;
+	    char *adm = xmalloc (strlen(cp) + strlen(CVSROOTADM) + 2);
+	    sprintf (adm, "%s/%s", cp, CVSROOTADM);
+	    foundit = isdir (adm);
+	    free (adm);
+	    if (foundit) return cp;
+	}
+
+	/* If last_component() returns the empty string, then cp either
+	 * points at the system root or is the empty string itself.
+	 */
+	if (!*last_component (cp) || !strcmp (cp, ".")
+	    || last_component(cp) == cp)
+	    break;
+
+	cp[strlen(cp) - strlen(last_component(cp)) - 1] = '\0';
+    }
+
+    return NULL;
+}
+
 
 const char *const init_usage[] = {
     "Usage: %s %s\n",
@@ -870,7 +912,10 @@ init (argc, argv)
     /* Exit status.  */
     int err = 0;
 
+    char *root_dir;
     const struct admin_file *fileptr;
+
+    assert (!server_active);
 
     umask (cvsumask);
 
@@ -887,6 +932,14 @@ init (argc, argv)
 	return get_responses_and_close ();
     }
 #endif /* CLIENT_SUPPORT */
+
+    root_dir = in_repository (current_parsed_root->directory);
+
+    if (root_dir && strcmp (root_dir, current_parsed_root->directory))
+	error (1, 0,
+	       "Cannot initialize repository under existing CVSROOT: `%s'",
+	       root_dir);
+    free (root_dir);
 
     /* Note: we do *not* create parent directories as needed like the
        old cvsinit.sh script did.  Few utilities do that, and a

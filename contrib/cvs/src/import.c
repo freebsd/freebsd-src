@@ -164,14 +164,21 @@ import (argc, argv)
      * Could abstract this to valid_module_path, but I don't think we'll need
      * to call it from anywhere else.
      */
-    if ((cp = strstr(argv[0], "CVS")) &&   /* path contains "CVS" AND ... */
-        ((cp == argv[0]) || ISDIRSEP(*(cp-1))) && /* /^CVS/ OR m#/CVS# AND ... */
-        ((*(cp+3) == '\0') || ISDIRSEP(*(cp+3))) /* /CVS$/ OR m#CVS/# */
-       )
+    /* for each "CVS" in path... */
+    cp = argv[0];
+    while ((cp = strstr(cp, "CVS")) != NULL)
     {
-        error (0, 0,
-               "The word `CVS' is reserved by CVS and may not be used");
-        error (1, 0, "as a directory in a path or as a file name.");
+	if ( /* /^CVS/ OR m#/CVS#... */
+	    (cp == argv[0] || ISDIRSEP(*(cp-1)))
+	    /* ...AND /CVS$/ OR m#CVS/# */
+	    && (*(cp+3) == '\0' || ISDIRSEP(*(cp+3)))
+	   )
+	{
+	    error (0, 0,
+		   "The word `CVS' is reserved by CVS and may not be used");
+	    error (1, 0, "as a directory in a path or as a file name.");
+	}
+	cp += 3;
     }
 
     for (i = 1; i < argc; i++)		/* check the tags for validity */
@@ -1603,8 +1610,8 @@ import_descend_dir (message, dir, vtag, targc, targv)
     if ( CVS_CHDIR (dir) < 0)
     {
 	ierrno = errno;
-	fperrmsg (logfp, 0, ierrno, "ERROR: cannot chdir to %s", repository);
-	error (0, ierrno, "ERROR: cannot chdir to %s", repository);
+	fperrmsg (logfp, 0, ierrno, "ERROR: cannot chdir to %s", dir);
+	error (0, ierrno, "ERROR: cannot chdir to %s", dir);
 	err = 1;
 	goto out;
     }
