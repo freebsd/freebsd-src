@@ -45,29 +45,37 @@ _pthread_setaffinity_np(pthread_t td, size_t cpusetsize, const cpuset_t *cpuset)
 	lwpid_t		tid;
 	int		error;
 
-	THR_THREAD_LOCK(curthread, td);
-	if (td->state == PS_DEAD) {
+	if (td == curthread) {
+		error = cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID,
+			-1, cpusetsize, cpuset);
+		if (error == -1)
+			error = errno;
+	} else {
+		THR_THREAD_LOCK(curthread, td);
+		if (td->state == PS_DEAD) {
+			THR_THREAD_UNLOCK(curthread, td);
+			return (EINVAL);
+		}
+		tid = TID(td);
+		error = cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID, tid,
+			cpusetsize, cpuset);
+		if (error == -1)
+			error = errno;
 		THR_THREAD_UNLOCK(curthread, td);
-		return (EINVAL);
 	}
-	tid = TID(td);
-	error = cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID, tid,
-	    cpusetsize, cpuset);
-	if (error == -1)
-		error = errno;
-	THR_THREAD_UNLOCK(curthread, td);
 	return (error);
 }
 
 int
 _pthread_getaffinity_np(pthread_t td, size_t cpusetsize, cpuset_t *cpuset)
 {
+	struct pthread	*curthread = _get_curthread();
 	lwpid_t tid;
 	int error;
 
 	tid = TID(td);
-	error = cpuset_getaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID, tid,
-	    cpusetsize, cpuset);
+	error = cpuset_getaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID,
+		(td == curthread) ? -1 : tid, cpusetsize, cpuset);
 	if (error == -1)
 		error = errno;
 	return (error);
