@@ -117,20 +117,20 @@ password_entry_parseline (cvsroot_canonical, warn, linenumber, linebuf)
     {
 	/* Yes: slurp '^/\d+\D' and parse the rest of the line according to version number */
 	char *q;
-	unsigned long int entry_version;
+	unsigned long int entry_version = 0;
 
 	if (isspace(*(linebuf + 1)))
+	{
 	    /* special case since strtoul ignores leading white space */
 	    q = linebuf + 1;
+	}
 	else
+	{
 	    entry_version = strtoul (linebuf + 1, &q, 10);
-
-	if (q == linebuf + 1)
-	    /* no valid digits found by strtoul */
-	    entry_version = 0;
-	else
-	    /* assume a delimiting seperator */
-	    q++;
+	    if (q != linebuf + 1)
+		/* assume a delimiting seperator */
+		q++;
+	}
 
 	switch (entry_version)
 	{
@@ -568,21 +568,40 @@ login (argc, argv)
     password_entry_operation (password_entry_add, current_parsed_root,
                               typed_password);
 
-    memset (typed_password, 0, strlen (typed_password));
-    free (typed_password);
-
-    free (cvs_password);
+    free_cvs_password (typed_password);
     free (cvsroot_canonical);
-    cvs_password = NULL;
 
     return 0;
 }
 
 
 
-/* Returns the _scrambled_ password.  The server must descramble
-   before hashing and comparing.  If password file not found, or
-   password not found in the file, just return NULL. */
+/* Free the password returned by get_cvs_password() and also free the
+ * saved cvs_password if they are different pointers. Be paranoid
+ * about the in-memory copy of the password and overwrite it with zero
+ * bytes before doing the free().
+ */
+void
+free_cvs_password (char *password)
+{
+    if (password && password != cvs_password)
+    {
+	memset (password, 0, strlen (password));
+	free (password);
+    }
+
+    if (cvs_password)
+    {
+	memset (cvs_password, 0, strlen (cvs_password));
+	free (cvs_password);
+	cvs_password = NULL;
+    }
+}
+
+/* Returns the _scrambled_ password in freshly allocated memory.  The server
+ * must descramble before hashing and comparing.  If password file not found,
+ * or password not found in the file, just return NULL.
+ */
 char *
 get_cvs_password ()
 {
@@ -593,7 +612,7 @@ get_cvs_password ()
        context, then assume they have supplied the correct, scrambled
        password. */
     if (cvs_password)
-	return cvs_password;
+	return xstrdup (cvs_password);
 
     if (getenv ("CVS_PASSWORD") != NULL)
     {
