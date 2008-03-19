@@ -12,7 +12,6 @@
  * 
  * General recursion handler
  * 
- * $FreeBSD$
  */
 
 #include "cvs.h"

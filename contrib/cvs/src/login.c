@@ -10,8 +10,6 @@
  * specified in the README file that comes with CVS.
  * 
  * Allow user to log in for an authenticating server.
- *
- * $FreeBSD$
  */
 
 #include "cvs.h"

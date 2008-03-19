@@ -8,10 +8,7 @@
  * Portions Copyright (C) 1989-1992, Brian Berliner
  * 
  * You may distribute under the terms of the GNU General Public License as
- * specified in the README file that comes with the CVS kit.
- *
- * $FreeBSD$
- */
+ * specified in the README file that comes with the CVS kit.  */
 
 #include <assert.h>
 #include "cvs.h"
