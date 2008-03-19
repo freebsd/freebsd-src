@@ -192,7 +192,6 @@ fifolog_int_close(struct fifolog_file **ff)
 		free(f->zs);
 	if (f->recbuf != NULL)
 		free(f->recbuf);
-	free(f);
 }
 
 static void
