@@ -1,3 +1,63 @@
+2008-03-10  Mark D. Baushke  <mdb@gnu.org>
+
+	* cvs.texinfo (config): Document the IgnoreUnknownConfigKeys
+	option.
+
+2008-01-27  Mark D. Baushke  <mdb@gnu.org>
+
+	* cvs.texinfo: Document use of --with-ssh flag to configure and
+	how :extssh: uses the CVS_SSH environment variable or "ssh".
+	* stamp-vti, version.texi: Regenerated.
+	
+	* cvs.texinfo: Update copyright for 2008.
+
+2008-01-24  Mark D. Baushke  <mdb@gnu.org>
+
+	* cvs.texinfo (log options): Document the new cvs log -n
+	switch to reverse the -N switch.
+	* cvs.texinfo (annotate & rannotate): Document "blame" as a
+	synonym for the "annotate" command.
+	(Patch suggested by "David O'Brien" <obrien@FreeBSD.org>)
+
+	* cvs.1, stamp-1, stamp-vti, version-client.texi, version.texi:
+	Regenerated.
+
+2007-05-07  Derek Price  <derek@ximbiot.com>
+
+	* cvsclient.text: Remove references to remote `init' command.
+
+2006-08-25  Derek Price  <derek@ximbiot.com>
+
+	* cvsclient.texi (Requests, Responses): Remove reference to the
+	obsolete checkin & update programs.
+
+2006-08-21  Derek Price  <derek@ximbiot.com>
+
+	* cvs.texinfo (man page nodes): Tweak grammar, especially refs.
+	(Original patch from Kevin R. Bulgrien <kbulgrien@att.net>.)
+
+	* mkman.pl (do_keyword): Process ref and p?xref differently.
+	(Original patch from Kevin R. Bulgrien <kbulgrien@att.net>.)
+
+2006-08-11  Mark D. Baushke  <mdb@gnu.org>
+
+	* cvs.texinfo, cvsclient.texi: Fix some typos.
+	(inspired by Ralf Wildenhues <Ralf.Wildenhues@gmx.de>)
+
+2006-07-16  Derek Price  <derek@ximbiot.com>
+
+	* cvs.texinfo (File permissions): Correct punctuation.
+
+2006-07-11  Larry Jones  <lawrence.jones@ugs.com>
+
+	* cvs.texinfo (log options): -b is a revision selection option, not
+	a header field option.
+
+2006-06-22  Larry Jones  <lawrence.jones@ugs.com>
+
+	* cvs.texinfo (user-defined logging, Informing others): Remove
+	references to the obsolete -i module option.
+
 2006-06-08  Derek Price  <derek@ximbiot.com>
 
 	* cvsclient.texi (Requests): Add Empty-conflicts.
