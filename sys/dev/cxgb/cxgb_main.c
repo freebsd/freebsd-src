@@ -1029,8 +1029,10 @@ cxgb_port_attach(device_t dev)
 	/* Get the latest mac address, User can use a LAA */
 	bcopy(IF_LLADDR(p->ifp), p->hw_addr, ETHER_ADDR_LEN);
 	t3_sge_init_port(p);
+#if defined(LINK_ATTACH)	
 	cxgb_link_start(p);
 	t3_link_changed(sc, p->port_id);
+#endif
 	return (0);
 }
 
@@ -1817,6 +1819,10 @@ cxgb_init_locked(struct port_info *p)
 			log(LOG_WARNING,
 			    "Could not initialize offload capabilities\n");
 	}
+#if !defined(LINK_ATTACH)
+	cxgb_link_start(p);
+	t3_link_changed(sc, p->port_id);
+#endif
 	ifp->if_baudrate = p->link_config.speed * 1000000;
 
 	device_printf(sc->dev, "enabling interrupts on port=%d\n", p->port_id);
@@ -1869,8 +1875,8 @@ cxgb_stop_locked(struct port_info *pi)
 	} else 
 		ADAPTER_UNLOCK(pi->adapter);
 
+#if !defined(LINK_ATTACH)
 	DELAY(100);
-
 
 	/* Wait for TXFIFO empty */
 	t3_wait_op_done(pi->adapter, A_XGM_TXFIFO_CFG + pi->mac.offset,
@@ -1880,7 +1886,7 @@ cxgb_stop_locked(struct port_info *pi)
 	t3_mac_disable(&pi->mac, MAC_DIRECTION_TX | MAC_DIRECTION_RX);
 
 	pi->phy.ops->power_down(&pi->phy, 1);
-		
+#endif		
 
 }
 
