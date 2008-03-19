@@ -93,6 +93,7 @@ fifolog_write_close(struct fifolog_writer *f)
 
 	CHECK_OBJ_NOTNULL(f, FIFOLOG_WRITER_MAGIC);
 	fifolog_int_close(&f->ff);
+	free(f->ff);
 	if (f->ibuf != NULL)
 		free(f->ibuf);
 	free(f);
@@ -317,13 +318,12 @@ fifolog_write_bytes(struct fifolog_writer *f, uint32_t id, time_t now, const voi
 	assert(!(id & (FIFOLOG_TIMESTAMP|FIFOLOG_LENGTH)));
 	assert(ptr != NULL);
 
+	p = ptr;
 	if (len == 0) {
-		len = strlen(ptr);
+		len = strlen(ptr) + 1;
 		l = 4 + len;		/* id */
-		p = ptr;
 	} else {
 		assert(len <= 255);
-		p = ptr;
 		id |= FIFOLOG_LENGTH;
 		l = 5 + len;		/* id + len */
 	}
@@ -336,7 +336,7 @@ fifolog_write_bytes(struct fifolog_writer *f, uint32_t id, time_t now, const voi
 
 	assert(l < f->ibufsize);
 
-	/* Wait until there is sufficient space without the lock */
+	/* Return if there is not enough space */
 	if (f->iptr + l > f->ibuf + f->ibufsize)
 		return (0);
 
