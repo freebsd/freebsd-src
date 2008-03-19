@@ -73,6 +73,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ktr.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/sbuf.h>
 #include <sys/sched.h>
 #include <sys/signalvar.h>
 #include <sys/sleepqueue.h>
@@ -142,6 +143,9 @@ SYSCTL_NODE(_debug_sleepq, OID_AUTO, chains, CTLFLAG_RD, 0,
     "sleepq chain stats");
 SYSCTL_UINT(_debug_sleepq, OID_AUTO, max_depth, CTLFLAG_RD, &sleepq_max_depth,
     0, "maxmimum depth achieved of a single chain");
+
+static void	sleepq_profile(const char *wmesg);
+static int	prof_enabled;
 #endif
 static struct sleepqueue_chain sleepq_chains[SC_TABLESIZE];
 static uma_zone_t sleepq_zone;
@@ -466,7 +470,10 @@ sleepq_switch(void *wchan, int pri)
 		mtx_unlock_spin(&sc->sc_lock);
 		return;		
 	}
-
+#ifdef SLEEPQUEUE_PROFILING
+	if (prof_enabled)
+		sleepq_profile(td->td_wmesg);
+#endif
 	MPASS(td->td_sleepqueue == NULL);
 	sched_sleep(td, pri);
 	thread_lock_set(td, &sc->sc_lock);
@@ -909,6 +916,157 @@ sleepq_abort(struct thread *td, int intrval)
 	/* Thread is asleep on sleep queue sq, so wake it up. */
 	sleepq_resume_thread(sq, td, 0);
 }
+
+#ifdef SLEEPQUEUE_PROFILING
+#define	SLEEPQ_PROF_LOCATIONS	1024
+#define	SLEEPQ_SBUFSIZE		(40 * 512)
+struct sleepq_prof {
+	LIST_ENTRY(sleepq_prof) sp_link;
+	const char	*sp_wmesg;
+	long		sp_count;
+};
+
+LIST_HEAD(sqphead, sleepq_prof);
+
+struct sqphead sleepq_prof_free;
+struct sqphead sleepq_hash[SC_TABLESIZE];
+static struct sleepq_prof sleepq_profent[SLEEPQ_PROF_LOCATIONS];
+static struct mtx sleepq_prof_lock;
+MTX_SYSINIT(sleepq_prof_lock, &sleepq_prof_lock, "sleepq_prof", MTX_SPIN);
+
+static void
+sleepq_profile(const char *wmesg)
+{
+	struct sleepq_prof *sp;
+
+	mtx_lock_spin(&sleepq_prof_lock);
+	if (prof_enabled == 0)
+		goto unlock;
+	LIST_FOREACH(sp, &sleepq_hash[SC_HASH(wmesg)], sp_link)
+		if (sp->sp_wmesg == wmesg)
+			goto done;
+	sp = LIST_FIRST(&sleepq_prof_free);
+	if (sp == NULL)
+		goto unlock;
+	sp->sp_wmesg = wmesg;
+	LIST_REMOVE(sp, sp_link);
+	LIST_INSERT_HEAD(&sleepq_hash[SC_HASH(wmesg)], sp, sp_link);
+done:
+	sp->sp_count++;
+unlock:
+	mtx_unlock_spin(&sleepq_prof_lock);
+	return;
+}
+
+static void
+sleepq_prof_reset(void)
+{
+	struct sleepq_prof *sp;
+	int enabled;
+	int i;
+
+	mtx_lock_spin(&sleepq_prof_lock);
+	enabled = prof_enabled;
+	prof_enabled = 0;
+	for (i = 0; i < SC_TABLESIZE; i++)
+		LIST_INIT(&sleepq_hash[i]);
+	LIST_INIT(&sleepq_prof_free);
+	for (i = 0; i < SLEEPQ_PROF_LOCATIONS; i++) {
+		sp = &sleepq_profent[i];
+		sp->sp_wmesg = NULL;
+		sp->sp_count = 0;
+		LIST_INSERT_HEAD(&sleepq_prof_free, sp, sp_link);
+	}
+	prof_enabled = enabled;
+	mtx_unlock_spin(&sleepq_prof_lock);
+}
+
+static int
+enable_sleepq_prof(SYSCTL_HANDLER_ARGS)
+{
+	int error, v;
+
+	v = prof_enabled;
+	error = sysctl_handle_int(oidp, &v, v, req);
+	if (error)
+		return (error);
+	if (req->newptr == NULL)
+		return (error);
+	if (v == prof_enabled)
+		return (0);
+	if (v == 1)
+		sleepq_prof_reset();
+	mtx_lock_spin(&sleepq_prof_lock);
+	prof_enabled = !!v;
+	mtx_unlock_spin(&sleepq_prof_lock);
+
+	return (0);
+}
+
+static int
+reset_sleepq_prof_stats(SYSCTL_HANDLER_ARGS)
+{
+	int error, v;
+
+	v = 0;
+	error = sysctl_handle_int(oidp, &v, 0, req);
+	if (error)
+		return (error);
+	if (req->newptr == NULL)
+		return (error);
+	if (v == 0)
+		return (0);
+	sleepq_prof_reset();
+
+	return (0);
+}
+
+static int
+dump_sleepq_prof_stats(SYSCTL_HANDLER_ARGS)
+{
+	static int multiplier = 1;
+	struct sleepq_prof *sp;
+	struct sbuf *sb;
+	int enabled;
+	int error;
+	int i;
+
+retry_sbufops:
+	sb = sbuf_new(NULL, NULL, SLEEPQ_SBUFSIZE * multiplier, SBUF_FIXEDLEN);
+	sbuf_printf(sb, "\nwmesg\tcount\n");
+	enabled = prof_enabled;
+	mtx_lock_spin(&sleepq_prof_lock);
+	prof_enabled = 0;
+	mtx_unlock_spin(&sleepq_prof_lock);
+	for (i = 0; i < SC_TABLESIZE; i++) {
+		LIST_FOREACH(sp, &sleepq_hash[i], sp_link) {
+			sbuf_printf(sb, "%s\t%ld\n",
+			    sp->sp_wmesg, sp->sp_count);
+			if (sbuf_overflowed(sb)) {
+				sbuf_delete(sb);
+				multiplier++;
+				goto retry_sbufops;
+			}
+		}
+	}
+	mtx_lock_spin(&sleepq_prof_lock);
+	prof_enabled = enabled;
+	mtx_unlock_spin(&sleepq_prof_lock);
+
+	sbuf_finish(sb);
+	error = SYSCTL_OUT(req, sbuf_data(sb), sbuf_len(sb) + 1);
+	sbuf_delete(sb);
+	return (error);
+}
+
+SYSCTL_PROC(_debug_sleepq, OID_AUTO, stats, CTLTYPE_STRING | CTLFLAG_RD,
+    NULL, 0, dump_sleepq_prof_stats, "A", "Sleepqueue profiling statistics");
+SYSCTL_PROC(_debug_sleepq, OID_AUTO, reset, CTLTYPE_INT | CTLFLAG_RW,
+    NULL, 0, reset_sleepq_prof_stats, "I",
+    "Reset sleepqueue profiling statistics");
+SYSCTL_PROC(_debug_sleepq, OID_AUTO, enable, CTLTYPE_INT | CTLFLAG_RW,
+    NULL, 0, enable_sleepq_prof, "I", "Enable sleepqueue profiling");
+#endif
 
 #ifdef DDB
 DB_SHOW_COMMAND(sleepq, db_show_sleepqueue)
