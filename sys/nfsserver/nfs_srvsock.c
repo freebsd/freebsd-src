@@ -655,9 +655,11 @@ nfsrv_getstream(struct nfssvc_sock *slp, int waitflag)
 		    nfs_realign(&slp->ns_frag, 10 * NFSX_UNSIGNED);
 		    rec->nr_address = NULL;
 		    rec->nr_packet = slp->ns_frag;
+		    NFSD_LOCK();
 		    STAILQ_INSERT_TAIL(&slp->ns_rec, rec, nr_link);
+		} else {
+		    NFSD_LOCK();
 		}
-		NFSD_LOCK();
 		if (!rec) {
 		    m_freem(slp->ns_frag);
 		}
