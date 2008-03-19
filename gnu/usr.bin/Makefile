@@ -30,9 +30,9 @@ _groff=		groff
 .endif
 .endif
 
-#.if ${MK_CVS} != "no"
-#_cvs=		cvs
-#.endif
+.if ${MK_CVS} != "no"
+_cvs=		cvs
+.endif
 
 .if ${MK_MAN} != "no"
 _man=		man
