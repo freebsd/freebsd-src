@@ -311,7 +311,6 @@ void vm_page_dirty(vm_page_t m);
 void vm_page_wakeup(vm_page_t m);
 
 void vm_pageq_remove(vm_page_t m);
-void vm_pageq_requeue(vm_page_t m);
 
 void vm_page_activate (vm_page_t);
 vm_page_t vm_page_alloc (vm_object_t, vm_pindex_t, int);
@@ -328,6 +327,7 @@ void vm_page_insert (vm_page_t, vm_object_t, vm_pindex_t);
 vm_page_t vm_page_lookup (vm_object_t, vm_pindex_t);
 void vm_page_remove (vm_page_t);
 void vm_page_rename (vm_page_t, vm_object_t, vm_pindex_t);
+void vm_page_requeue(vm_page_t m);
 void vm_page_sleep(vm_page_t m, const char *msg);
 vm_page_t vm_page_splay(vm_pindex_t, vm_page_t);
 vm_offset_t vm_page_startup(vm_offset_t vaddr);
