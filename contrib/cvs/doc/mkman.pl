@@ -2,7 +2,8 @@
 #
 # Generate a man page from sections of a Texinfo manual.
 #
-# Copyright 2004 The Free Software Foundation,
+# Copyright 2004, 2006
+#                The Free Software Foundation,
 #                Derek R. Price,
 #                & Ximbiot <http://ximbiot.com>
 #
@@ -72,8 +73,10 @@ sub do_keyword
 {
 	my ($file, $parent, $keyword, $content) = @_;
 
-	return "see node \`$content\\(aq in the CVS manual"
-		if $keyword =~ /^(p?x)?ref$/;
+	return "`$content\\(aq in the CVS manual"
+		if $keyword eq "ref";
+	return "see node `$content\\(aq in the CVS manual"
+		if $keyword =~ /^p?xref$/;
 	return "\\fP\\fP$content"
 		if $keyword =~ /^splitrcskeyword$/;
 

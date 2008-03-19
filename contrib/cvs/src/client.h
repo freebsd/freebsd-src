@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1994-2005 The Free Software Foundation, Inc.
+ * Copyright (C) 1994-2008 The Free Software Foundation, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -65,7 +65,7 @@ extern struct buffer *cvs_gssapi_wrap_buffer_initialize ();
 #ifdef CLIENT_SUPPORT
 /*
  * Flag variable for seeing whether the server has been started yet.
- * As of this writing, only edit.c:notify_check() uses it.
+ * As of this writing, only edit.c:cvs_notify_check() uses it.
  */
 extern int server_started;
 
