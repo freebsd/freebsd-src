@@ -156,10 +156,10 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 	if (new_thread->attr.sched_inherit == PTHREAD_INHERIT_SCHED)
 		param.rtp = NULL;
 	else { 	 
-		sched_param.sched_priority = new_thread->attr.prio; 	 
-		_schedparam_to_rtp(new_thread->attr.sched_policy, 	 
-			&sched_param, &rtp); 	 
-		param.rtp = &rtp; 	 
+		sched_param.sched_priority = new_thread->attr.prio;
+		_schedparam_to_rtp(new_thread->attr.sched_policy,
+			&sched_param, &rtp);
+		param.rtp = &rtp;
 	}
 
 	/* Schedule the new thread. */
@@ -264,11 +264,11 @@ thread_start(struct pthread *curthread)
 		_pthread_exit(PTHREAD_CANCELED);
 
 	if (curthread->unblock_sigcancel) {
-		sigset_t set;
+		sigset_t set1;
 
-		SIGEMPTYSET(set);
-		SIGADDSET(set, SIGCANCEL);
-		__sys_sigprocmask(SIG_UNBLOCK, &set, NULL);
+		SIGEMPTYSET(set1);
+		SIGADDSET(set1, SIGCANCEL);
+		__sys_sigprocmask(SIG_UNBLOCK, &set1, NULL);
 	}
 
 	if (curthread->attr.suspend == THR_CREATE_SUSPENDED) {
