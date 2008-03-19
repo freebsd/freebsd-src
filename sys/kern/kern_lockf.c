@@ -286,28 +286,34 @@ restart:
 			PROC_LOCK(wproc);
 			FOREACH_THREAD_IN_PROC(wproc, td) {
 				thread_lock(td);
-				while (td->td_wchan &&
-				    (td->td_wmesg == lockstr) &&
-				    (i++ < maxlockdepth)) {
+				for (;;) {
+					if (!TD_ON_SLEEPQ(td) ||
+					    td->td_wmesg != lockstr)
+						break;
 					waitblock = (struct lockf *)td->td_wchan;
 					/* Get the owner of the blocking lock */
+					if (waitblock->lf_next == NULL)
+						break;
 					waitblock = waitblock->lf_next;
 					if ((waitblock->lf_flags & F_POSIX) == 0)
 						break;
-					nproc = (struct proc *)waitblock->lf_id;
-					if (nproc == (struct proc *)lock->lf_id) {
+					if (waitblock->lf_id == lock->lf_id) {
 						thread_unlock(td);
 						PROC_UNLOCK(wproc);
 						lock->lf_next = *clean;
 						*clean = lock;
 						return (EDEADLK);
 					}
+					nproc = (struct proc *)waitblock->lf_id;
+					break;
 				}
 				thread_unlock(td);
+				if (nproc)
+					break;
 			}
 			PROC_UNLOCK(wproc);
 			wproc = nproc;
-			if (wproc)
+			if (++i < maxlockdepth && wproc)
 				goto restart;
 		}
 		/*
