@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1986-2005 The Free Software Foundation, Inc.
+ * Copyright (C) 1986-2008 The Free Software Foundation, Inc.
  *
  * Portions Copyright (C) 1998-2005 Derek Price, Ximbiot <http://ximbiot.com>,
  *                                  and others.
@@ -89,7 +89,7 @@ struct log_data
     /* Nonzero if the -N option was seen, meaning that tag information
        should not be printed.  */
     int notags;
-    /* Nonzero if the -b option was seen, meaning that only revisions
+    /* Nonzero if the -b option was seen, meaning that revisions
        on the default branch should be printed.  */
     int default_branch;
     /* Nonzero if the -S option was seen, meaning that the header/name
@@ -158,11 +158,12 @@ static const char *const log_usage[] =
     "Usage: %s %s [-lRhtNb] [-r[revisions]] [-d dates] [-s states]\n",
     "    [-w[logins]] [files...]\n",
     "\t-l\tLocal directory only, no recursion.\n",
-    "\t-b\tOnly list revisions on the default branch.\n",
+    "\t-b\tList revisions on the default branch.\n",
     "\t-h\tOnly print header.\n",
     "\t-R\tOnly print name of RCS file.\n",
     "\t-t\tOnly print header and descriptive text.\n",
     "\t-N\tDo not list tags.\n",
+    "\t-n\tList tags (default).\n",
     "\t-S\tDo not print name/header if no revisions selected.  -d, -r,\n",
     "\t\t-s, & -w have little effect in conjunction with -b, -h, -R, and\n",
     "\t\t-t without this option.\n",
