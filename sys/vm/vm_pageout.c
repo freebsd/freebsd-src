@@ -567,14 +567,14 @@ vm_pageout_object_deactivate_pages(pmap, first_object, desired)
 						pmap_remove_all(p);
 						vm_page_deactivate(p);
 					} else {
-						vm_pageq_requeue(p);
+						vm_page_requeue(p);
 					}
 				} else {
 					vm_page_activate(p);
 					vm_page_flag_clear(p, PG_REFERENCED);
 					if (p->act_count < (ACT_MAX - ACT_ADVANCE))
 						p->act_count += ACT_ADVANCE;
-					vm_pageq_requeue(p);
+					vm_page_requeue(p);
 				}
 			} else if (p->queue == PQ_INACTIVE) {
 				pmap_remove_all(p);
@@ -763,7 +763,7 @@ rescan0:
 		 * A held page may be undergoing I/O, so skip it.
 		 */
 		if (m->hold_count) {
-			vm_pageq_requeue(m);
+			vm_page_requeue(m);
 			addl_page_shortage++;
 			continue;
 		}
@@ -878,7 +878,7 @@ rescan0:
 			 * the thrash point for a heavily loaded machine.
 			 */
 			vm_page_flag_set(m, PG_WINATCFLS);
-			vm_pageq_requeue(m);
+			vm_page_requeue(m);
 		} else if (maxlaunder > 0) {
 			/*
 			 * We always want to try to flush some dirty pages if
@@ -906,7 +906,7 @@ rescan0:
 			 */
 			if (!swap_pageouts_ok || (object->flags & OBJ_DEAD)) {
 				VM_OBJECT_UNLOCK(object);
-				vm_pageq_requeue(m);
+				vm_page_requeue(m);
 				continue;
 			}
 
@@ -999,7 +999,7 @@ rescan0:
 				 * be undergoing I/O, so skip it
 				 */
 				if (m->hold_count) {
-					vm_pageq_requeue(m);
+					vm_page_requeue(m);
 					if (object->flags & OBJ_MIGHTBEDIRTY)
 						vnodes_skipped++;
 					goto unlock_and_continue;
@@ -1080,7 +1080,7 @@ unlock_and_continue:
 		    (m->oflags & VPO_BUSY) ||
 		    (m->hold_count != 0)) {
 			VM_OBJECT_UNLOCK(object);
-			vm_pageq_requeue(m);
+			vm_page_requeue(m);
 			m = next;
 			continue;
 		}
@@ -1117,7 +1117,7 @@ unlock_and_continue:
 		 * page activation count stats.
 		 */
 		if (actcount && (object->ref_count != 0)) {
-			vm_pageq_requeue(m);
+			vm_page_requeue(m);
 		} else {
 			m->act_count -= min(m->act_count, ACT_DECLINE);
 			if (vm_pageout_algorithm ||
@@ -1134,7 +1134,7 @@ unlock_and_continue:
 					vm_page_deactivate(m);
 				}
 			} else {
-				vm_pageq_requeue(m);
+				vm_page_requeue(m);
 			}
 		}
 		VM_OBJECT_UNLOCK(object);
@@ -1315,7 +1315,7 @@ vm_pageout_page_stats()
 		    (m->oflags & VPO_BUSY) ||
 		    (m->hold_count != 0)) {
 			VM_OBJECT_UNLOCK(object);
-			vm_pageq_requeue(m);
+			vm_page_requeue(m);
 			m = next;
 			continue;
 		}
@@ -1331,7 +1331,7 @@ vm_pageout_page_stats()
 			m->act_count += ACT_ADVANCE + actcount;
 			if (m->act_count > ACT_MAX)
 				m->act_count = ACT_MAX;
-			vm_pageq_requeue(m);
+			vm_page_requeue(m);
 		} else {
 			if (m->act_count == 0) {
 				/*
@@ -1347,7 +1347,7 @@ vm_pageout_page_stats()
 				vm_page_deactivate(m);
 			} else {
 				m->act_count -= min(m->act_count, ACT_DECLINE);
-				vm_pageq_requeue(m);
+				vm_page_requeue(m);
 			}
 		}
 		VM_OBJECT_UNLOCK(object);

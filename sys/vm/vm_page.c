@@ -1216,7 +1216,7 @@ vm_waitpfault(void)
 }
 
 /*
- *	vm_pageq_requeue:
+ *	vm_page_requeue:
  *
  *	If the given page is contained within a page queue, move it to the tail
  *	of that queue.
@@ -1224,7 +1224,7 @@ vm_waitpfault(void)
  *	The page queues must be locked.
  */
 void
-vm_pageq_requeue(vm_page_t m)
+vm_page_requeue(vm_page_t m)
 {
 	int queue = VM_PAGE_GETQUEUE(m);
 	struct vpgqueues *vpq;
