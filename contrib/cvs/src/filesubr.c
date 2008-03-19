@@ -887,7 +887,7 @@ xreadlink (link)
     const char *link;
 {
     char *file = NULL;
-    size_t buflen = 128;
+    size_t buflen = BUFSIZ;
 
     /* Get the name of the file to which `from' is linked. */
     while (1)

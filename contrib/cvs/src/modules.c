@@ -129,7 +129,7 @@ my_module (db, mname, m_type, msg, callback_proc, where, shorten,
     char *line;
     int modargc;
     int xmodargc;
-    char **modargv;
+    char **modargv = NULL;
     char **xmodargv = NULL;
     /* Found entry from modules file, including options and such.  */
     char *value = NULL;

@@ -147,8 +147,8 @@ dummy_fileproc (callerdat, finfo)
     struct file_info *finfo;
 {
     /* This is a pretty hideous hack, but the gist of it is that recurse.c
-       won't call notify_check unless there is a fileproc, so we can't just
-       pass NULL for fileproc.  */
+       won't call cvs_notify_check unless there is a fileproc, so we
+       can't just pass NULL for fileproc.  */
     return 0;
 }
 
@@ -991,7 +991,7 @@ notify_do (type, filename, who, val, watches, repository)
 #ifdef CLIENT_SUPPORT
 /* Check and send notifications.  This is only for the client.  */
 void
-notify_check (repository, update_dir)
+cvs_notify_check (repository, update_dir)
     const char *repository;
     const char *update_dir;
 {

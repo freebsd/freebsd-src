@@ -205,7 +205,7 @@ this response, which is generic, or a more specific response using
 @samp{E} and/or @samp{error}.
 
 @item E @var{text}
-Provide a message for the user.  After this reponse, the authentication
+Provide a message for the user.  After this response, the authentication
 protocol continues with another response.  Typically the server will
 provide a series of @samp{E} responses followed by @samp{error}.
 Compatibility note: @sc{cvs} 1.9.10 and older clients will print
@@ -245,7 +245,7 @@ version or the other.
 The procedure here is to start with @samp{BEGIN
 GSSAPI REQUEST}.  GSSAPI authentication information is then exchanged
 between the client and the server.  Each packet of information consists
-of a two byte big endian length, followed by that many bytes of data.
+of a two byte big-endian length, followed by that many bytes of data.
 After the GSSAPI authentication is complete, the server continues with
 the responses described above (@samp{I LOVE YOU}, etc.).
 
@@ -537,8 +537,7 @@ Here are the requests:
 Response expected: no.  Tell the server which @code{CVSROOT} to use.
 Note that @var{pathname} is @emph{not} a fully qualified @code{CVSROOT}
 variable, but only the local directory part of it.  @var{pathname} must
-already exist on the server; if creating a new root, use the @code{init}
-request, not @code{Root}.  Again, @var{pathname} @emph{does not} include
+already exist on the server.  Again, @var{pathname} @emph{does not} include
 the hostname of the server, how to access the server, etc.; by the time
 the CVS protocol is in use, connection, authentication, etc., are
 already taken care of.
@@ -546,7 +545,7 @@ already taken care of.
 The @code{Root} request must be sent only once, and it must be sent
 before any requests other than @code{Valid-responses},
 @code{valid-requests}, @code{UseUnchanged}, @code{Set},
-@code{Global_option}, @code{init}, @code{noop}, or @code{version}.
+@code{Global_option}, @code{noop}, or @code{version}.
 
 @item Valid-responses @var{request-list} \n
 Response expected: no.
@@ -569,7 +568,7 @@ also for @code{ci} and the other commands; normal usage is to send
 @code{Entry} or @code{Modified}, and then a final @code{Directory}
 for the original directory, then the command.
 The @var{local-directory} is relative to
-the top level at which the command is occurring (i.e. the last
+the top level at which the command is occurring (i.e., the last
 @code{Directory} which is sent before the command);
 to indicate that top level, @samp{.} should be sent for
 @var{local-directory}.
@@ -758,18 +757,6 @@ each time it sends a @code{Directory} request for a given directory.
 However, the server is not obliged to remember them beyond the context
 of a single command.
 
-@item Checkin-prog @var{program} \n
-Response expected: no.  Tell the server that the directory most recently
-specified with @code{Directory} has a checkin program @var{program}.
-Such a program would have been previously set with the
-@code{Set-checkin-prog} response.
-
-@item Update-prog @var{program} \n
-Response expected: no.  Tell the server that the directory most recently
-specified with @code{Directory} has an update program @var{program}.
-Such a program would have been previously set with the
-@code{Set-update-prog} response.
-
 @item Entry @var{entry-line} \n
 Response expected: no.  Tell the server what version of a file is on the
 local machine.  The name in @var{entry-line} is a name relative to the
@@ -853,7 +840,7 @@ Commands for which @code{Modified} is necessary are @code{co},
 Commands which do not need to inform the server about a working
 directory, and thus should not be sending either @code{Modified} or
 @code{Is-modified}: @code{rdiff}, @code{rtag}, @code{history},
-@code{init}, and @code{release}.
+and @code{release}.
 
 Commands for which further investigation is warranted are:
 @code{remove}, @code{add}, and @code{export}.  Pending such
@@ -953,7 +940,7 @@ there are some situations it cannot handle (ignore patterns, or
 situations where the user specifies a filename and the client does not
 know about that file).
 
-Though this request will be supported into the forseeable future, it has been
+Though this request will be supported into the foreseeable future, it has been
 the source of numerous bug reports in the past due to the complexity of testing
 this functionality via the test suite and client developers are encouraged not
 to use it.  Instead, please consider munging conflicting names and maintaining
@@ -1192,12 +1179,6 @@ should not send @code{Directory}, @code{Entry}, or @code{Modified}
 requests for these commands; they are not used.  Arguments to these
 commands are module names, as described for @code{co}.
 
-@item init @var{root-name} \n
-Response expected: yes.  If it doesn't already exist, create a @sc{cvs}
-repository @var{root-name}.  Note that @var{root-name} is a local
-directory and @emph{not} a fully qualified @code{CVSROOT} variable.
-The @code{Root} request need not have been previously sent.
-
 @item update \n
 Response expected: yes.  Actually do a @code{cvs update} command.  This
 uses any previous @code{Argument}, @code{Directory}, @code{Entry},
@@ -1216,7 +1197,7 @@ of the operation - unlike most commands, the repository field of each
 @code{Directory} request is ignored (it merely must point somewhere
 within the root).  The files to be imported are sent in @code{Modified}
 requests (files which the client knows should be ignored are not sent;
-the server must still process the CVSROOT/cvsignore file unless -I ! is
+the server must still process the CVSROOT/cvsignore file unless -I !@: is
 sent).  A log message must have been specified with a @code{-m}
 argument.
 
@@ -1393,7 +1374,7 @@ indicates that the response is over.
 @c lame terms (mostly because they are so awkward).  Any better ideas?
 The responses @code{Checked-in}, @code{New-entry}, @code{Updated},
 @code{Created}, @code{Update-existing}, @code{Merged}, and
-@code{Patched} are refered to as @dfn{file updating} responses, because
+@code{Patched} are referred to as @dfn{file updating} responses, because
 they change the status of a file in the working directory in some way.
 The responses @code{Mode}, @code{Mod-time}, and @code{Checksum} are
 referred to as @dfn{file update modifying} responses because they modify
@@ -1412,7 +1393,7 @@ Many of the responses contain something called @var{pathname}.
 @c end in "/.".
 The name is somewhat misleading; it actually indicates a pair of
 pathnames.  First, a local directory name
-relative to the directory in which the command was given (i.e. the last
+relative to the directory in which the command was given (i.e., the last
 @code{Directory} before the command).  Then a linefeed and a repository
 name.  Then
 a slash and the filename (without a @samp{,v} ending).
@@ -1463,7 +1444,7 @@ patches, it will include @samp{update-patches} in this list.  The
 
 @item Checked-in @var{pathname} \n
 Additional data: New Entries line, \n.  This means a file @var{pathname}
-has been successfully operated on (checked in, added, etc.).  name in
+has been successfully operated on (checked in, added, etc.).  The name in
 the Entries line is the same as the last component of @var{pathname}.
 
 @item New-entry @var{pathname} \n
@@ -1635,16 +1616,6 @@ are not supported).  @var{pathname} ends in a slash; its purpose is to
 specify a directory, not a file within a directory.  Tell the client to
 store the file transmission as the template log message, and then use
 that template in the future when prompting the user for a log message.
-
-@item Set-checkin-prog @var{dir} \n
-Additional data: @var{prog} \n.  Tell the client to set a checkin
-program, which should be supplied with the @code{Checkin-prog} request
-for future operations.
-
-@item Set-update-prog @var{dir} \n
-Additional data: @var{prog} \n.  Tell the client to set an update
-program, which should be supplied with the @code{Update-prog} request
-for future operations.
 
 @item Notified @var{pathname} \n
 Indicate to the client that the notification for @var{pathname} has been
@@ -1857,7 +1828,7 @@ and requests would be longer.
 @c line breaks.  Any better solutions?
 @c Other than that, this exchange is taken verbatim from the data
 @c exchanged by CVS (as of Nov 1996).  That is why some of the requests and
-@c reponses are not quite what you would pick for pedagogical purposes.
+@c responses are not quite what you would pick for pedagogical purposes.
 
 @example
 C: Root /u/cvsroot
@@ -2029,7 +2000,7 @@ Similarly, the @code{http://cvs.nongnu.org} site, in particular the
 
 @itemize @bullet
 @item
-The @code{Modified} request could be speeded up by sending diffs rather
+The @code{Modified} request could be sped up by sending diffs rather
 than entire files.  The client would need some way to keep the version
 of the file which was originally checked out; probably requiring the use
 of "cvs edit" in this case is the most sensible course (the "cvs edit"
