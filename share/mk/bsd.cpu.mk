@@ -17,6 +17,8 @@ MACHINE_CPU = aim
 . elif ${MACHINE_ARCH} == "sparc64"
 . elif ${MACHINE_ARCH} == "arm"
 MACHINE_CPU = arm
+. elif ${MACHINE_ARCH} == "mips"
+MACHINE_CPU = mips
 . endif
 .else
 
@@ -65,6 +67,7 @@ CPUTYPE = nocona
 #	http://gcc.gnu.org/onlinedocs/gcc/ARM-Options.html
 #	http://gcc.gnu.org/onlinedocs/gcc/IA-64-Options.html
 #	http://gcc.gnu.org/onlinedocs/gcc/RS-6000-and-PowerPC-Options.html
+#	http://gcc.gnu.org/onlinedocs/gcc/MIPS-Options.html
 #	http://gcc.gnu.org/onlinedocs/gcc/SPARC-Options.html
 #	http://gcc.gnu.org/onlinedocs/gcc/i386-and-x86-64-Options.html
 
@@ -115,6 +118,20 @@ _CPUCFLAGS = -mcpu=${CPUTYPE}
 .  if ${CPUTYPE} == "e500"
 MACHINE_CPU = booke
 _CPUCFLAGS = -Wa,-me500 -msoft-float
+.  endif
+. elif ${MACHINE_ARCH} == "mips"
+.  if ${CPUTYPE} == "mips32"
+_CPUCFLAGS = -march=mips32
+.  elif ${CPUTYPE} == "mips32r2"
+_CPUCFLAGS = -march=mips32r2
+.  elif ${CPUTYPE} == "mips64"
+_CPUCFLAGS = -march=mips64
+.  elif ${CPUTYPE} == "mips64r2"
+_CPUCFLAGS = -march=mips64r2
+.  elif ${CPUTYPE} == "mips4kc"
+_CPUCFLAGS = -march=4kc
+.  elif ${CPUTYPE} == "mips24kc"
+_CPUCFLAGS = -march=24kc
 .  endif
 . endif
 
@@ -179,6 +196,19 @@ MACHINE_CPU = itanium
 CFLAGS += -mbig-endian
 LDFLAGS += -mbig-endian
 LD += -EB
+.endif
+
+.if ${MACHINE_ARCH} == "mips" 
+. if defined(TARGET_BIG_ENDIAN)
+CFLAGS += -EB
+LDFLAGS += -Wl,-EB
+LD += -EB
+. else
+CFLAGS += -EL
+LDFLAGS += -Wl,-EL
+LD += -EL
+. endif
+CFLAGS += -msoft-float -G0 -mno-dsp -mabicalls
 .endif
 
 # NB: COPTFLAGS is handled in /usr/src/sys/conf/kern.pre.mk
