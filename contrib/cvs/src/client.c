@@ -164,17 +164,22 @@ is_arg_a_parent_or_listed_dir (n, d)
     void *d;
 {
     char *directory = n->key;	/* name of the dir sent to server */
-    char *this_argv_elem = (char *) d;	/* this argv element */
+    char *this_argv_elem = xstrdup (d);	/* this argv element */
+    int retval;
 
     /* Say we should send this argument if the argument matches the
        beginning of a directory name sent to the server.  This way,
        the server will know to start at the top of that directory
        hierarchy and descend. */
 
+    strip_trailing_slashes (this_argv_elem);
     if (strncmp (directory, this_argv_elem, strlen (this_argv_elem)) == 0)
-	return 1;
+	retval = 1;
+    else
+	retval = 0;
 
-    return 0;
+    free (this_argv_elem);
+    return retval;
 }
 
 static int arg_should_not_be_sent_to_server PROTO((char *));
@@ -2783,7 +2788,8 @@ send_repository (dir, repos, update_dir)
     send_to_server (repos, 0);
     send_to_server ("\012", 1);
 
-    if (supported_request ("Static-directory"))
+    if (strcmp (cvs_cmd_name, "import")
+	&& supported_request ("Static-directory"))
     {
 	adm_name[0] = '\0';
 	if (dir[0] != '\0')
@@ -2797,7 +2803,8 @@ send_repository (dir, repos, update_dir)
 	    send_to_server ("Static-directory\012", 0);
 	}
     }
-    if (supported_request ("Sticky"))
+    if (strcmp (cvs_cmd_name, "import")
+	&& supported_request ("Sticky"))
     {
 	FILE *f;
 	if (dir[0] == '\0')
@@ -3840,7 +3847,7 @@ auth_server (root, lto_server, lfrom_server, verify_only, do_gssapi, hostinfo)
     int do_gssapi;
     struct hostent *hostinfo;
 {
-    char *username;			/* the username we use to connect */
+    char *username = "";		/* the username we use to connect */
     char no_passwd = 0;			/* gets set if no password found */
 
     /* FIXME!!!!!!!!!!!!!!!!!!
@@ -3924,9 +3931,8 @@ auth_server (root, lto_server, lfrom_server, verify_only, do_gssapi, hostinfo)
 	send_to_server(end, 0);
 	send_to_server("\012", 1);
 
-        /* Paranoia. */
-        memset (password, 0, strlen (password));
-	free (password);
+	free_cvs_password (password);
+	password = NULL;
 # else /* ! AUTH_CLIENT_SUPPORT */
 	error (1, 0, "INTERNAL ERROR: This client does not support pserver authentication");
 # endif /* AUTH_CLIENT_SUPPORT */
@@ -4725,15 +4731,20 @@ start_rsh_server (root, to_server, from_server)
     /* If you're working through firewalls, you can set the
        CVS_RSH environment variable to a script which uses rsh to
        invoke another rsh on a proxy machine.  */
-    char *cvs_rsh = getenv ("CVS_RSH");
+    char *env_cvs_rsh = getenv ("CVS_RSH");
+    char *env_cvs_ssh = getenv ("CVS_SSH");
+    char *cvs_rsh;
     char *cvs_server = getenv ("CVS_SERVER");
     int i = 0;
     /* This needs to fit "rsh", "-b", "-l", "USER", "host",
        "cmd (w/ args)", and NULL.  We leave some room to grow. */
     char *rsh_argv[10];
 
-    if (!cvs_rsh)
-	cvs_rsh = RSH_DFLT;
+    if (root->method == extssh_method)
+	cvs_rsh = env_cvs_ssh ? env_cvs_ssh : SSH_DFLT;
+    else
+	cvs_rsh = env_cvs_rsh ? env_cvs_rsh : RSH_DFLT;
+
     if (!cvs_server)
 	cvs_server = "cvs";
 
@@ -4787,14 +4798,19 @@ start_rsh_server (root, to_server, from_server)
     /* If you're working through firewalls, you can set the
        CVS_RSH environment variable to a script which uses rsh to
        invoke another rsh on a proxy machine.  */
-    char *cvs_rsh = getenv ("CVS_RSH");
+    char *env_cvs_rsh = getenv ("CVS_RSH");
+    char *env_cvs_ssh = getenv ("CVS_SSH");
+    char *cvs_rsh;
     char *cvs_server = getenv ("CVS_SERVER");
     char *command;
     int tofd, fromfd;
     int child_pid;
 
-    if (!cvs_rsh)
-	cvs_rsh = RSH_DFLT;
+    if (root->method == extssh_method)
+	cvs_rsh = env_cvs_ssh ? env_cvs_ssh : SSH_DFLT;
+    else
+	cvs_rsh = env_cvs_rsh ? env_cvs_rsh : RSH_DFLT;
+
     if (!cvs_server)
 	cvs_server = "cvs";
 
