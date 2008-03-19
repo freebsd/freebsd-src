@@ -1,5 +1,67 @@
-Changes since 1.11.21:
+Changes since 1.11.22:
 **********************
+
+NEW FEATURES
+
+* A new log option -n reverts the -N option which may be in a .cvsrc
+  file.
+
+* The `cvs blame' command is now a synonym for the `cvs annotate' command.
+
+* The :extssh: method will use $CVS_SSH if set, or fall back on "ssh"
+  by default (but may be explicitly set using the --with-ssh flag to
+  configure).
+
+* There is a new IgnoreUnknownConfigKeys option available for
+  CVSROOT/config to aid in the transition to newer versions of CVS.
+
+BUG FIXES
+
+* Merges of file removals using -j options are a little smarter.
+
+* `cvs add' checks more thoroughly for `CVS' directories in the argument list.
+
+* `cvs server' now accepts `--allow-root=PATH' options.
+
+* `cvs import' no longer attempts to send CVS metadata to the server.
+
+* `cvs import' makes more of an effort not to import paths containing files
+  and directories named `CVS'.
+
+* The CVS server will no longer allow clients to run `cvs init'.
+
+* Applying diffs when checking out very old revisions has been reduced from an
+  O(n^2) operation to an O(n) thanks to a patch from Michael J. Smith
+  <msmith@ideorlando.org> and additional touch-up work from the CVS team.
+
+* Thanks to report from Paul Eggert <eggert@CS.UCLA.EDU>, an assertion failure
+  that could occur when "." was in the path (e.g. `cvs co /cvsroot/./module')
+  has been removed.
+
+* Thanks to a report from Peter Toft <pto@linuxbog.dk>, CVS server now sends
+  correct patch files more often when the RCS `Name' keyword is present in
+  a working file (bug #17302).
+
+* Thanks to a report from Dan Peterson <dbpete@aol.com>, clients now send the
+  right set of commands to the server when asked to update directories with
+  trailing slashes on their name.
+
+* Thanks to a report and patch from <mbarabas@redhat.com>, potential stack
+  corruption during pserver login is avoided (bug #16961).
+
+* The :extssh: method is now properly recognized as an alias for :ext:.
+
+DEVELOPER ISSUES
+
+* We've standardized on Autoconf version 2.61 to get a bug fix that notes
+  that the AIX C compiler's default mode isn't quite C89 and sets the
+  correct mode instead.
+
+* We've standardized on Autoconf version 1.10 because it lets us simplify our
+  sources.
+
+Changes from 1.11.21 to 1.11.22:
+********************************
 
 BUG FIXES
 

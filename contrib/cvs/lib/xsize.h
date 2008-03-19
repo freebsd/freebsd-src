@@ -24,7 +24,9 @@
 
 /* Get SIZE_MAX.  */
 #include <limits.h>
-#if HAVE_STDINT_H
+#if HAVE_INTTYPES_H
+# include <inttypes.h>
+#elif HAVE_STDINT_H
 # include <stdint.h>
 #endif
 
