@@ -117,7 +117,7 @@ add (argc, argv)
 	strip_trailing_slashes (argv[i]);
 	if (strcmp (argv[i], ".") == 0
 	    || strcmp (argv[i], "..") == 0
-	    || fncmp (argv[i], CVSADM) == 0)
+	    || fncmp (last_component(argv[i]), CVSADM) == 0)
 	{
 	    if (!quiet)
 		error (0, 0, "cannot add special file `%s'; skipping", argv[i]);

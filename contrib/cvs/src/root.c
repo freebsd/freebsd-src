@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1986-2005 The Free Software Foundation, Inc.
+ * Copyright (C) 1986-2008 The Free Software Foundation, Inc.
  *
  * Portions Copyright (C) 1998-2005 Derek Price, Ximbiot <http://ximbiot.com>,
  *                                  and others.
@@ -181,6 +181,12 @@ Create_Root (dir, rootdir)
 static int root_allow_count;
 static char **root_allow_vector;
 static int root_allow_size;
+
+int
+root_allow_used ()
+{
+    return root_allow_count;
+}
 
 void
 root_allow_add (arg)
@@ -438,6 +444,8 @@ parse_cvsroot (root_in)
 	    newroot->method = server_method;
 	else if (strcmp (method, "ext") == 0)
 	    newroot->method = ext_method;
+	else if (strcmp (method, "extssh") == 0)
+	    newroot->method = extssh_method;
 	else if (strcmp (method, "fork") == 0)
 	    newroot->method = fork_method;
 	else
@@ -667,6 +675,7 @@ parse_cvsroot (root_in)
 # endif
     case server_method:
     case ext_method:
+    case extssh_method:
 	no_port = 1;
 	/* no_password already set */
 	check_hostname = 1;
