@@ -382,11 +382,9 @@ cpuset_which(cpuwhich_t which, id_t id, struct proc **pp, struct thread **tdp,
 		sx_slock(&allproc_lock);
 		FOREACH_PROC_IN_SYSTEM(p) {
 			PROC_LOCK(p);
-			PROC_SLOCK(p);
 			FOREACH_THREAD_IN_PROC(p, td)
 				if (td->td_tid == id)
 					break;
-			PROC_SUNLOCK(p);
 			if (td != NULL)
 				break;
 			PROC_UNLOCK(p);
@@ -480,11 +478,9 @@ cpuset_setproc(pid_t pid, struct cpuset *set, cpuset_t *mask)
 		error = cpuset_which(CPU_WHICH_PID, pid, &p, &td, &nset);
 		if (error)
 			goto out;
-		PROC_SLOCK(p);
 		if (nfree >= p->p_numthreads)
 			break;
 		threads = p->p_numthreads;
-		PROC_SUNLOCK(p);
 		PROC_UNLOCK(p);
 		for (; nfree < threads; nfree++) {
 			nset = uma_zalloc(cpuset_zone, M_WAITOK);
@@ -492,7 +488,6 @@ cpuset_setproc(pid_t pid, struct cpuset *set, cpuset_t *mask)
 		}
 	}
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	PROC_SLOCK_ASSERT(p, MA_OWNED);
 	/*
 	 * Now that the appropriate locks are held and we have enough cpusets,
 	 * make sure the operation will succeed before applying changes.  The
@@ -526,8 +521,8 @@ cpuset_setproc(pid_t pid, struct cpuset *set, cpuset_t *mask)
 	}
 	/*
 	 * Replace each thread's cpuset while using deferred release.  We
-	 * must do this because the PROC_SLOCK has to be held while traversing
-	 * the thread list and this limits the type of operations allowed.
+	 * must do this because the thread lock must be held while operating
+	 * on the thread and this limits the type of operations allowed.
 	 */
 	FOREACH_THREAD_IN_PROC(p, td) {
 		thread_lock(td);
@@ -561,7 +556,6 @@ cpuset_setproc(pid_t pid, struct cpuset *set, cpuset_t *mask)
 		thread_unlock(td);
 	}
 unlock_out:
-	PROC_SUNLOCK(p);
 	PROC_UNLOCK(p);
 out:
 	while ((nset = LIST_FIRST(&droplist)) != NULL)
@@ -833,13 +827,11 @@ cpuset_getaffinity(struct thread *td, struct cpuset_getaffinity_args *uap)
 			thread_unlock(ttd);
 			break;
 		case CPU_WHICH_PID:
-			PROC_SLOCK(p);
 			FOREACH_THREAD_IN_PROC(p, ttd) {
 				thread_lock(ttd);
 				CPU_OR(mask, &ttd->td_cpuset->cs_mask);
 				thread_unlock(ttd);
 			}
-			PROC_SUNLOCK(p);
 			break;
 		case CPU_WHICH_CPUSET:
 			CPU_COPY(&set->cs_mask, mask);

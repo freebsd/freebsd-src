@@ -1206,7 +1206,6 @@ unlock_and_continue:
 			 * If the process is in a non-running type state,
 			 * don't touch it.  Check all the threads individually.
 			 */
-			PROC_SLOCK(p);
 			breakout = 0;
 			FOREACH_THREAD_IN_PROC(p, td) {
 				thread_lock(td);
@@ -1219,7 +1218,6 @@ unlock_and_continue:
 				}
 				thread_unlock(td);
 			}
-			PROC_SUNLOCK(p);
 			if (breakout) {
 				PROC_UNLOCK(p);
 				continue;
@@ -1249,9 +1247,7 @@ unlock_and_continue:
 		sx_sunlock(&allproc_lock);
 		if (bigproc != NULL) {
 			killproc(bigproc, "out of swap space");
-			PROC_SLOCK(bigproc);
 			sched_nice(bigproc, PRIO_MIN);
-			PROC_SUNLOCK(bigproc);
 			PROC_UNLOCK(bigproc);
 			wakeup(&cnt.v_free_count);
 		}
@@ -1560,7 +1556,6 @@ vm_daemon()
 			 * if the process is in a non-running type state,
 			 * don't touch it.
 			 */
-			PROC_SLOCK(p);
 			breakout = 0;
 			FOREACH_THREAD_IN_PROC(p, td) {
 				thread_lock(td);
@@ -1573,7 +1568,6 @@ vm_daemon()
 				}
 				thread_unlock(td);
 			}
-			PROC_SUNLOCK(p);
 			if (breakout) {
 				PROC_UNLOCK(p);
 				continue;

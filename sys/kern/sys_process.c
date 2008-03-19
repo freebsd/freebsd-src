@@ -528,12 +528,10 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 			sx_slock(&allproc_lock);
 			FOREACH_PROC_IN_SYSTEM(p) {
 				PROC_LOCK(p);
-				PROC_SLOCK(p);
 				FOREACH_THREAD_IN_PROC(p, td2) {
 					if (td2->td_tid == pid)
 						break;
 				}
-				PROC_SUNLOCK(p);
 				if (td2 != NULL)
 					break; /* proc lock held */
 				PROC_UNLOCK(p);
@@ -789,7 +787,6 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 			thread_unlock(td2);
 			td2->td_xsig = data;
 
-			PROC_SLOCK(p);
 			if (req == PT_DETACH) {
 				struct thread *td3;
 				FOREACH_THREAD_IN_PROC(p, td3) {
@@ -803,6 +800,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 			 * you should use PT_SUSPEND to suspend it before
 			 * continuing process.
 			 */
+			PROC_SLOCK(p);
 			p->p_flag &= ~(P_STOPPED_TRACE|P_STOPPED_SIG|P_WAITED);
 			thread_unsuspend(p);
 			PROC_SUNLOCK(p);
@@ -957,13 +955,11 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		buf = malloc(num * sizeof(lwpid_t), M_TEMP, M_WAITOK);
 		tmp = 0;
 		PROC_LOCK(p);
-		PROC_SLOCK(p);
 		FOREACH_THREAD_IN_PROC(p, td2) {
 			if (tmp >= num)
 				break;
 			buf[tmp++] = td2->td_tid;
 		}
-		PROC_SUNLOCK(p);
 		PROC_UNLOCK(p);
 		error = copyout(buf, addr, tmp * sizeof(lwpid_t));
 		free(buf, M_TEMP);

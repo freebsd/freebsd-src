@@ -229,14 +229,12 @@ create_thread(struct thread *td, mcontext_t *ctx,
 	PROC_LOCK(td->td_proc);
 	td->td_proc->p_flag |= P_HADTHREADS;
 	newtd->td_sigmask = td->td_sigmask;
-	PROC_SLOCK(p);
 	thread_link(newtd, p); 
 	bcopy(p->p_comm, newtd->td_name, sizeof(newtd->td_name));
 	thread_lock(td);
 	/* let the scheduler know about these things. */
 	sched_fork_thread(td, newtd);
 	thread_unlock(td);
-	PROC_SUNLOCK(p);
 	PROC_UNLOCK(p);
 	thread_lock(newtd);
 	if (rtp != NULL) {

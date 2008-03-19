@@ -266,9 +266,7 @@ donice(struct thread *td, struct proc *p, int n)
 		n = PRIO_MIN;
 	if (n < p->p_nice && priv_check(td, PRIV_SCHED_SETPRIORITY) != 0)
 		return (EACCES);
-	PROC_SLOCK(p);
 	sched_nice(p, n);
-	PROC_SUNLOCK(p);
 	return (0);
 }
 
@@ -307,7 +305,6 @@ rtprio_thread(struct thread *td, struct rtprio_thread_args *uap)
 	case RTP_LOOKUP:
 		if ((error = p_cansee(td, p)))
 			break;
-		PROC_SLOCK(p);
 		if (uap->lwpid == 0 || uap->lwpid == td->td_tid)
 			td1 = td;
 		else
@@ -316,7 +313,6 @@ rtprio_thread(struct thread *td, struct rtprio_thread_args *uap)
 			pri_to_rtp(td1, &rtp);
 		else
 			error = ESRCH;
-		PROC_SUNLOCK(p);
 		PROC_UNLOCK(p);
 		return (copyout(&rtp, uap->rtp, sizeof(struct rtprio)));
 	case RTP_SET:
@@ -341,7 +337,6 @@ rtprio_thread(struct thread *td, struct rtprio_thread_args *uap)
 				break;
 		}
 
-		PROC_SLOCK(p);
 		if (uap->lwpid == 0 || uap->lwpid == td->td_tid)
 			td1 = td;
 		else
@@ -350,7 +345,6 @@ rtprio_thread(struct thread *td, struct rtprio_thread_args *uap)
 			error = rtp_to_pri(&rtp, td1);
 		else
 			error = ESRCH;
-		PROC_SUNLOCK(p);
 		break;
 	default:
 		error = EINVAL;
@@ -399,7 +393,6 @@ rtprio(td, uap)
 	case RTP_LOOKUP:
 		if ((error = p_cansee(td, p)))
 			break;
-		PROC_SLOCK(p);
 		/*
 		 * Return OUR priority if no pid specified,
 		 * or if one is, report the highest priority
@@ -425,7 +418,6 @@ rtprio(td, uap)
 				}
 			}
 		}
-		PROC_SUNLOCK(p);
 		PROC_UNLOCK(p);
 		return (copyout(&rtp, uap->rtp, sizeof(struct rtprio)));
 	case RTP_SET:
@@ -456,7 +448,6 @@ rtprio(td, uap)
 		 * do all the threads on that process. If we
 		 * specify our own pid we do the latter.
 		 */
-		PROC_SLOCK(p);
 		if (uap->pid == 0) {
 			error = rtp_to_pri(&rtp, td);
 		} else {
@@ -465,7 +456,6 @@ rtprio(td, uap)
 					break;
 			}
 		}
-		PROC_SUNLOCK(p);
 		break;
 	default:
 		error = EINVAL;
@@ -698,9 +688,7 @@ kern_setrlimit(td, which, limp)
 		if (limp->rlim_cur != RLIM_INFINITY &&
 		    p->p_cpulimit == RLIM_INFINITY)
 			callout_reset(&p->p_limco, hz, lim_cb, p);
-		PROC_SLOCK(p);
 		p->p_cpulimit = limp->rlim_cur;
-		PROC_SUNLOCK(p);
 		break;
 	case RLIMIT_DATA:
 		if (limp->rlim_cur > maxdsiz)
@@ -956,11 +944,12 @@ kern_getrusage(td, who, rup)
 	struct rusage *rup;
 {
 	struct proc *p;
+	int error;
 
+	error = 0;
 	p = td->td_proc;
 	PROC_LOCK(p);
 	switch (who) {
-
 	case RUSAGE_SELF:
 		rufetchcalc(p, rup, &rup->ru_utime,
 		    &rup->ru_stime);
@@ -972,11 +961,10 @@ kern_getrusage(td, who, rup)
 		break;
 
 	default:
-		PROC_UNLOCK(p);
-		return (EINVAL);
+		error = EINVAL;
 	}
 	PROC_UNLOCK(p);
-	return (0);
+	return (error);
 }
 
 void

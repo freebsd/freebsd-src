@@ -1013,13 +1013,8 @@ poll(td, uap)
 	 * least enough for the current limits.  We want to be reasonably
 	 * safe, but not overly restrictive.
 	 */
-	PROC_LOCK(td->td_proc);
-	if ((nfds > lim_cur(td->td_proc, RLIMIT_NOFILE)) &&
-	    (nfds > FD_SETSIZE)) {
-		PROC_UNLOCK(td->td_proc);
+	if (nfds > maxfilesperproc && nfds > FD_SETSIZE) 
 		return (EINVAL);
-	}
-	PROC_UNLOCK(td->td_proc);
 	ni = nfds * sizeof(struct pollfd);
 	if (ni > sizeof(smallbits))
 		bits = malloc(ni, M_TEMP, M_WAITOK);
