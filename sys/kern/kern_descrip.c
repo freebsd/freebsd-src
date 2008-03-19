@@ -2801,38 +2801,8 @@ DB_SHOW_COMMAND(files, db_show_files)
 SYSCTL_INT(_kern, KERN_MAXFILESPERPROC, maxfilesperproc, CTLFLAG_RW,
     &maxfilesperproc, 0, "Maximum files allowed open per process");
 
-/*
- * User has changed the maximum number of files.
- * This may require us to change size of the zone.
- */
-static int
-sysctl_kern_maxfiles(SYSCTL_HANDLER_ARGS)
-{
-	int error;
-	int new_maxfiles;
-
-	new_maxfiles = maxfiles;
-	error = sysctl_handle_int(oidp, &new_maxfiles, sizeof(int), req);
-	if (error != 0 || req->newptr == NULL)
-		return (error);
-	if (new_maxfiles <= 0) {
-		return (EINVAL);
-	}
-	maxfiles = new_maxfiles;
-	EVENTHANDLER_INVOKE(maxfiles_change);
-	return (0);
-}
-
-static void
-file_zone_change(void *tag)
-{
-
-	uma_zone_set_max(file_zone, maxfiles);
-}
-
-SYSCTL_PROC(_kern, OID_AUTO, maxfiles, CTLTYPE_INT|CTLFLAG_RW,
-    __DEVOLATILE(int *, &maxfiles), 0, sysctl_kern_maxfiles, "IU",
-    "Maximum number of files");
+SYSCTL_INT(_kern, KERN_MAXFILES, maxfiles, CTLFLAG_RW,
+    &maxfiles, 0, "Maximum number of files");
 
 SYSCTL_INT(_kern, OID_AUTO, openfiles, CTLFLAG_RD,
     __DEVOLATILE(int *, &openfiles), 0, "System-wide number of open files");
@@ -2844,13 +2814,10 @@ filelistinit(void *dummy)
 
 	file_zone = uma_zcreate("Files", sizeof(struct file), NULL, NULL,
 	    NULL, NULL, UMA_ALIGN_PTR, 0);
-	uma_zone_set_max(file_zone, maxfiles);
-	EVENTHANDLER_REGISTER(maxfiles_change, file_zone_change, NULL,
-	    EVENTHANDLER_PRI_FIRST);
 	mtx_init(&sigio_lock, "sigio lock", NULL, MTX_DEF);
 	mtx_init(&fdesc_mtx, "fdesc", NULL, MTX_DEF);
 }
-SYSINIT(select, SI_SUB_EVENTHANDLER+1, SI_ORDER_MIDDLE, filelistinit, NULL);
+SYSINIT(select, SI_SUB_LOCK, SI_ORDER_FIRST, filelistinit, NULL);
 
 /*-------------------------------------------------------------------*/
 
