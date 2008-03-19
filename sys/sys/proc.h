@@ -431,7 +431,7 @@ struct rusage_ext {
  */
 struct proc {
 	LIST_ENTRY(proc) p_list;	/* (d) List of all processes. */
-	TAILQ_HEAD(, thread) p_threads;	/* (j) all threads. */
+	TAILQ_HEAD(, thread) p_threads;	/* (c) all threads. */
 	struct mtx	p_slock;	/* process spin lock */
 	struct ucred	*p_ucred;	/* (c) Process owner's identity. */
 	struct filedesc	*p_fd;		/* (b) Open files. */
@@ -466,7 +466,7 @@ struct proc {
 #define	p_startzero	p_oppid
 	pid_t		p_oppid;	/* (c + e) Save ppid in ptrace. XXX */
 	struct vmspace	*p_vmspace;	/* (b) Address space. */
-	u_int		p_swtick;	/* (j) Tick when swapped in or out. */
+	u_int		p_swtick;	/* (c) Tick when swapped in or out. */
 	struct itimerval p_realtimer;	/* (c) Alarm timer. */
 	struct rusage	p_ru;		/* (a) Exit information. */
 	struct rusage_ext p_rux;	/* (cj) Internal resource usage. */
@@ -507,13 +507,13 @@ struct proc {
 	struct sysentvec *p_sysent;	/* (b) Syscall dispatch info. */
 	struct pargs	*p_args;	/* (c) Process arguments. */
 	rlim_t		p_cpulimit;	/* (c) Current CPU limit in seconds. */
-	signed char	p_nice;		/* (c + j) Process "nice" value. */
+	signed char	p_nice;		/* (c) Process "nice" value. */
 /* End area that is copied on creation. */
 #define	p_endcopy	p_xstat
 
 	u_short		p_xstat;	/* (c) Exit status; also stop sig. */
 	struct knlist	p_klist;	/* (c) Knotes attached to this proc. */
-	int		p_numthreads;	/* (j) Number of threads. */
+	int		p_numthreads;	/* (c) Number of threads. */
 	struct mdproc	p_md;		/* Any machine-dependent fields. */
 	struct callout	p_itcallout;	/* (h + c) Interval timer callout. */
 	u_short		p_acflag;	/* (c) Accounting flags. */

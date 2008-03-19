@@ -508,10 +508,8 @@ sigqueue_delete_set_proc(struct proc *p, sigset_t *set)
 	sigqueue_init(&worklist, NULL);
 	sigqueue_move_set(&p->p_sigqueue, &worklist, set);
 
-	PROC_SLOCK(p);
 	FOREACH_THREAD_IN_PROC(p, td0)
 		sigqueue_move_set(&td0->td_sigqueue, &worklist, set);
-	PROC_SUNLOCK(p);
 
 	sigqueue_flush(&worklist);
 }
@@ -734,9 +732,7 @@ kern_sigaction(td, sig, act, oact, flags)
 		    (sigprop(sig) & SA_IGNORE &&
 		     ps->ps_sigact[_SIG_IDX(sig)] == SIG_DFL)) {
 			/* never to be seen again */
-			PROC_SLOCK(p);
 			sigqueue_delete_proc(p, sig);
-			PROC_SUNLOCK(p);
 			if (sig != SIGCONT)
 				/* easier in psignal */
 				SIGADDSET(ps->ps_sigignore, sig);
@@ -932,9 +928,7 @@ execsigs(struct proc *p)
 		if (sigprop(sig) & SA_IGNORE) {
 			if (sig != SIGCONT)
 				SIGADDSET(ps->ps_sigignore, sig);
-			PROC_SLOCK(p);
 			sigqueue_delete_proc(p, sig);
-			PROC_SUNLOCK(p);
 		}
 		ps->ps_sigact[_SIG_IDX(sig)] = SIG_DFL;
 	}
@@ -1879,7 +1873,6 @@ sigtd(struct proc *p, int sig, int prop)
 	if (curproc == p && !SIGISMEMBER(curthread->td_sigmask, sig))
 		return (curthread);
 	signal_td = NULL;
-	PROC_SLOCK(p);
 	FOREACH_THREAD_IN_PROC(p, td) {
 		if (!SIGISMEMBER(td->td_sigmask, sig)) {
 			signal_td = td;
@@ -1888,7 +1881,6 @@ sigtd(struct proc *p, int sig, int prop)
 	}
 	if (signal_td == NULL)
 		signal_td = FIRST_THREAD_IN_PROC(p);
-	PROC_SUNLOCK(p);
 	return (signal_td);
 }
 
@@ -2026,9 +2018,7 @@ tdsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 				ksiginfo_tryfree(ksi);
 			return (ret);
 		}
-		PROC_SLOCK(p);
 		sigqueue_delete_proc(p, SIGCONT);
-		PROC_SUNLOCK(p);
 		if (p->p_flag & P_CONTINUED) {
 			p->p_flag &= ~P_CONTINUED;
 			PROC_LOCK(p->p_pptr);
@@ -2066,7 +2056,6 @@ tdsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 	 * waking up threads so that they can cross the user boundary.
 	 * We try do the per-process part here.
 	 */
-	PROC_SLOCK(p);
 	if (P_SHOULDSTOP(p)) {
 		/*
 		 * The process is in stopped mode. All the threads should be
@@ -2078,7 +2067,6 @@ tdsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 			 * so no further action is necessary.
 			 * No signal can restart us.
 			 */
-			PROC_SUNLOCK(p);
 			goto out;
 		}
 
@@ -2104,6 +2092,7 @@ tdsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 			 * Otherwise, process goes back to sleep state.
 			 */
 			p->p_flag &= ~P_STOPPED_SIG;
+			PROC_SLOCK(p);
 			if (p->p_numthreads == p->p_suspcount) {
 				PROC_SUNLOCK(p);
 				p->p_flag |= P_CONTINUED;
@@ -2124,6 +2113,7 @@ tdsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 				 * The process wants to catch it so it needs
 				 * to run at least one thread, but which one?
 				 */
+				PROC_SUNLOCK(p);
 				goto runfast;
 			}
 			/*
@@ -2140,7 +2130,6 @@ tdsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 			 * (If we did the shell could get confused).
 			 * Just make sure the signal STOP bit set.
 			 */
-			PROC_SUNLOCK(p);
 			p->p_flag |= P_STOPPED_SIG;
 			sigqueue_delete(sigqueue, sig);
 			goto out;
@@ -2154,6 +2143,7 @@ tdsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 		 * the PROCESS runnable, leave it stopped.
 		 * It may run a bit until it hits a thread_suspend_check().
 		 */
+		PROC_SLOCK(p);
 		thread_lock(td);
 		if (TD_ON_SLEEPQ(td) && (td->td_flags & TDF_SINTR))
 			sleepq_abort(td, intrval);
@@ -2166,22 +2156,18 @@ tdsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 		 */
 	} else if (p->p_state == PRS_NORMAL) {
 		if (p->p_flag & P_TRACED || action == SIG_CATCH) {
-			thread_lock(td);
 			tdsigwakeup(td, sig, action, intrval);
-			thread_unlock(td);
-			PROC_SUNLOCK(p);
 			goto out;
 		}
 
 		MPASS(action == SIG_DFL);
 
 		if (prop & SA_STOP) {
-			if (p->p_flag & P_PPWAIT) {
-				PROC_SUNLOCK(p);
+			if (p->p_flag & P_PPWAIT)
 				goto out;
-			}
 			p->p_flag |= P_STOPPED_SIG;
 			p->p_xstat = sig;
+			PROC_SLOCK(p);
 			sig_suspend_threads(td, p, 1);
 			if (p->p_numthreads == p->p_suspcount) {
 				/*
@@ -2197,13 +2183,9 @@ tdsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 			} else
 				PROC_SUNLOCK(p);
 			goto out;
-		} 
-		else
-			goto runfast;
-		/* NOTREACHED */
+		}
 	} else {
 		/* Not in "NORMAL" state. discard the signal. */
-		PROC_SUNLOCK(p);
 		sigqueue_delete(sigqueue, sig);
 		goto out;
 	}
@@ -2212,11 +2194,9 @@ tdsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 	 * The process is not stopped so we need to apply the signal to all the
 	 * running threads.
 	 */
-
 runfast:
-	thread_lock(td);
 	tdsigwakeup(td, sig, action, intrval);
-	thread_unlock(td);
+	PROC_SLOCK(p);
 	thread_unsuspend(p);
 	PROC_SUNLOCK(p);
 out:
@@ -2237,17 +2217,16 @@ tdsigwakeup(struct thread *td, int sig, sig_t action, int intrval)
 	register int prop;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	PROC_SLOCK_ASSERT(p, MA_OWNED);
-	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	prop = sigprop(sig);
 
+	PROC_SLOCK(p);
+	thread_lock(td);
 	/*
 	 * Bring the priority of a thread up if we want it to get
 	 * killed in this lifetime.
 	 */
 	if (action == SIG_DFL && (prop & SA_KILL) && td->td_priority > PUSER)
 		sched_prio(td, PUSER);
-
 	if (TD_ON_SLEEPQ(td)) {
 		/*
 		 * If thread is sleeping uninterruptibly
@@ -2256,7 +2235,7 @@ tdsigwakeup(struct thread *td, int sig, sig_t action, int intrval)
 		 * trap() or syscall().
 		 */
 		if ((td->td_flags & TDF_SINTR) == 0)
-			return;
+			goto out;
 		/*
 		 * If SIGCONT is default (or ignored) and process is
 		 * asleep, we are finished; the process should not
@@ -2271,8 +2250,6 @@ tdsigwakeup(struct thread *td, int sig, sig_t action, int intrval)
 			 * Remove from both for now.
 			 */
 			sigqueue_delete(&td->td_sigqueue, sig);
-			PROC_SLOCK(p);
-			thread_lock(td);
 			return;
 		}
 
@@ -2294,6 +2271,9 @@ tdsigwakeup(struct thread *td, int sig, sig_t action, int intrval)
 			forward_signal(td);
 #endif
 	}
+out:
+	PROC_SUNLOCK(p);
+	thread_unlock(td);
 }
 
 static void

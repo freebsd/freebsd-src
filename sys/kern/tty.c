@@ -2581,7 +2581,7 @@ ttyinfo(struct tty *tp)
 		if (proc_compare(pick, p))
 			pick = p;
 
-	PROC_SLOCK(pick);
+	PROC_LOCK(pick);
 	picktd = NULL;
 	td = FIRST_THREAD_IN_PROC(pick);
 	FOREACH_THREAD_IN_PROC(pick, td)
@@ -2615,7 +2615,7 @@ ttyinfo(struct tty *tp)
 		rss = 0;
 	else
 		rss = pgtok(vmspace_resident_count(pick->p_vmspace));
-	PROC_SUNLOCK(pick);
+	PROC_UNLOCK(pick);
 	PROC_LOCK(pick);
 	PGRP_UNLOCK(tp->t_pgrp);
 	rufetchcalc(pick, &ru, &utime, &stime);
@@ -2744,12 +2744,12 @@ proc_compare(struct proc *p1, struct proc *p2)
 	 * Fetch various stats about these processes.  After we drop the
 	 * lock the information could be stale but the race is unimportant.
 	 */
-	PROC_SLOCK(p1);
+	PROC_LOCK(p1);
 	runa = proc_sum(p1, &esta);
-	PROC_SUNLOCK(p1);
-	PROC_SLOCK(p2);
+	PROC_UNLOCK(p1);
+	PROC_LOCK(p2);
 	runb = proc_sum(p2, &estb);
-	PROC_SUNLOCK(p2);
+	PROC_UNLOCK(p2);
 	
 	/*
 	 * see if at least one of them is runnable
