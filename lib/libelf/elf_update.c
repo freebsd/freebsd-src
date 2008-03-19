@@ -788,15 +788,14 @@ _libelf_write_elf(Elf *e, off_t newsize)
 				src.d_buf = &scn->s_shdr.s_shdr64;
 
 			dst.d_size = fsz;
-			dst.d_buf = newfile + rc;
+			dst.d_buf = newfile + rc + scn->s_ndx * fsz;
 
 			if (_libelf_xlate(&dst, &src, e->e_byteorder, ec,
 				ELF_TOFILE) != &dst)
 				goto error;
-
-			rc += fsz;
 		}
 
+		rc += e->e_u.e_elf.e_nscn * fsz;
 		if (maxrc > rc)
 			rc = maxrc;
 	}
