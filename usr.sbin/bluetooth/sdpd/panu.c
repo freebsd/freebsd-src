@@ -128,6 +128,19 @@ panu_profile_create_service_availability(
 			&panu->load_factor, 1));
 }
 
+static int32_t
+panu_profile_create_security_description(
+		uint8_t *buf, uint8_t const * const eob,
+		uint8_t const *data, uint32_t datalen)
+{
+	provider_p		provider = (provider_p) data;
+	sdp_panu_profile_p	panu = (sdp_panu_profile_p) provider->data;
+
+	return (bnep_profile_create_security_description(buf, eob,
+			(uint8_t const *) &panu->security_description,
+			sizeof(panu->security_description)));
+}
+
 static attr_t	panu_profile_attrs[] = {
 	{ SDP_ATTR_SERVICE_RECORD_HANDLE,
 	  common_profile_create_service_record_handle },
@@ -145,6 +158,8 @@ static attr_t	panu_profile_attrs[] = {
 	  panu_profile_create_service_name },
 	{ SDP_ATTR_PRIMARY_LANGUAGE_BASE_ID + SDP_ATTR_SERVICE_DESCRIPTION_OFFSET, 
 	  panu_profile_create_service_description },
+	{ SDP_ATTR_SECURITY_DESCRIPTION, 
+	  panu_profile_create_security_description },
 	{ 0, NULL } /* end entry */
 };
 
