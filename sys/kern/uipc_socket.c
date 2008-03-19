@@ -222,7 +222,6 @@ sysctl_maxsockets(SYSCTL_HANDLER_ARGS)
 			if (maxsockets > ((maxfiles / 4) * 3)) {
 				maxfiles = (maxsockets * 5) / 4;
 				maxfilesperproc = (maxfiles * 9) / 10;
-				EVENTHANDLER_INVOKE(maxfiles_change);
 			}
 			EVENTHANDLER_INVOKE(maxsockets_change);
 		} else
