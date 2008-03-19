@@ -538,8 +538,9 @@ ehci_pci_takecontroller(device_t self)
 		if (EHCI_EECP_ID(eec) != EHCI_EC_LEGSUP)
 			continue;
 		legsup = eec;
-		pci_write_config(self, eecp, legsup | EHCI_LEGSUP_OSOWNED, 4);
 		if (legsup & EHCI_LEGSUP_BIOSOWNED) {
+			pci_write_config(self, eecp,
+			    legsup | EHCI_LEGSUP_OSOWNED, 4);
 			printf("%s: waiting for BIOS to give up control\n",
 			    device_get_nameunit(sc->sc_bus.bdev));
 			for (i = 0; i < 5000; i++) {
@@ -558,6 +559,7 @@ ehci_pci_takecontroller(device_t self)
 static void
 ehci_pci_givecontroller(device_t self)
 {
+#if 0
 	ehci_softc_t *sc = device_get_softc(self);
 	u_int32_t cparams, eec, legsup;
 	int eecp;
@@ -571,6 +573,7 @@ ehci_pci_givecontroller(device_t self)
 		legsup = eec;
 		pci_write_config(self, eecp, legsup & ~EHCI_LEGSUP_OSOWNED, 4);
 	}
+#endif
 }
 
 static device_method_t ehci_methods[] = {
