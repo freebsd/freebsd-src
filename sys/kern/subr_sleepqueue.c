@@ -385,12 +385,20 @@ sleepq_catch_signals(void *wchan, int pri)
 	sc = SC_LOOKUP(wchan);
 	mtx_assert(&sc->sc_lock, MA_OWNED);
 	MPASS(wchan != NULL);
+	/*
+	 * See if there are any pending signals for this thread.  If not
+	 * we can switch immediately.  Otherwise do the signal processing
+	 * directly.
+	 */
+	thread_lock(td);
+	if ((td->td_flags & TDF_NEEDSIGCHK) == 0) {
+		sleepq_switch(wchan, pri);
+		return (0);
+	}
+	thread_unlock(td);
+	mtx_unlock_spin(&sc->sc_lock);
 	CTR3(KTR_PROC, "sleepq catching signals: thread %p (pid %ld, %s)",
 		(void *)td, (long)p->p_pid, td->td_name);
-
-	mtx_unlock_spin(&sc->sc_lock);
-
-	/* See if there are any pending signals for this thread. */
 	PROC_LOCK(p);
 	ps = p->p_sigacts;
 	mtx_lock(&ps->ps_mtx);
