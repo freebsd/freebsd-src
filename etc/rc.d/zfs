@@ -5,6 +5,7 @@
 
 # PROVIDE: zfs
 # REQUIRE: mountcritlocal
+# BEFORE:  mountcritremote
 
 . /etc/rc.subr
 
