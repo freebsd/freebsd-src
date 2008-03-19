@@ -57,7 +57,7 @@ static char *mem_owner_bios = "BIOS";
 #define	mrvalid(base, len) 						\
 	((!(base & ((1 << 12) - 1))) &&	/* base is multiple of 4k */	\
 	    ((len) >= (1 << 12)) &&	/* length is >= 4k */		\
-	    powerof2((len)) && 		/* ... and power of two */	\
+	    powerof2((len)) &&		/* ... and power of two */	\
 	    !((base) & ((len) - 1)))	/* range is not discontiuous */
 
 #define	mrcopyflags(curr, new)						\
@@ -109,11 +109,6 @@ static int amd64_mtrrtomrt[] = {
 };
 
 #define	MTRRTOMRTLEN (sizeof(amd64_mtrrtomrt) / sizeof(amd64_mtrrtomrt[0]))
-
-/*
- * Used in /dev/mem drivers and elsewhere
- */
-MALLOC_DEFINE(M_MEMDESC, "memdesc", "memory range descriptors");
 
 static int
 amd64_mtrr2mrt(int val)
@@ -479,14 +474,17 @@ amd64_mrsetvariable(struct mem_range_softc *sc, struct mem_range_desc *mrd,
 			/* Exact match? */
 			if ((curr_md->mr_base == mrd->mr_base) &&
 			    (curr_md->mr_len == mrd->mr_len)) {
+
 				/* Whoops, owned by someone. */
 				if (curr_md->mr_flags & MDF_BUSY)
 					return (EBUSY);
+
 				/* Check that we aren't doing something risky */
 				if (!(mrd->mr_flags & MDF_FORCE) &&
 				    ((curr_md->mr_flags & MDF_ATTRMASK) ==
 				    MDF_UNKNOWN))
 					return (EACCES);
+
 				/* Ok, just hijack this entry. */
 				free_md = curr_md;
 				break;
