@@ -218,7 +218,7 @@ out:
 		if (ret) {
 			THREAD_LIST_LOCK(curthread);
 			new_thread->tlflags |= TLFLAGS_DETACHED;
-			_thr_ref_delete_unlocked(curthread, new_thread);
+			THR_GCLIST_ADD(new_thread);
 			THREAD_LIST_UNLOCK(curthread);
 		}
 	}
