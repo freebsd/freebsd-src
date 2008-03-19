@@ -1,3 +1,8 @@
+2006-06-23  Larry Jones  <lawrence.jones@ugs.com>
+
+	* xsize.h: Avoid SGI problem with <stdint.h> being unusable in C89
+	mode.
+
 2005-11-14  Mark D. Baushke  <mdb@gnu.org>
 
 	* system.h (FOLD_FN_CHAR): Distinguish OSX_ and VMS_ variations

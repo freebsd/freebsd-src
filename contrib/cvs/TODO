@@ -815,9 +815,6 @@ glibc version.
 	  where this makes sense?  Would it be simpler?  It seems to me the
 	  major operational differences lie in the file list construction.
 
-216.  Avoid command-line keyword expansion modes overriding binary mode
-(or make binary mode completely separate from keyword expansion mode).
-
 218.  Fix "checkout -d ." in client/server mode.
 
 221.  Handle spaces in file/directory names.  (Most, if not all, of the
