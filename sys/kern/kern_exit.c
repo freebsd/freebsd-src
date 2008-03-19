@@ -510,9 +510,7 @@ exit1(struct thread *td, int rv)
 	 * proc lock.
 	 */
 	wakeup(p->p_pptr);
-	PROC_SLOCK(p->p_pptr);
 	sched_exit(p->p_pptr, td);
-	PROC_SUNLOCK(p->p_pptr);
 	PROC_SLOCK(p);
 	p->p_state = PRS_ZOMBIE;
 	PROC_UNLOCK(p->p_pptr);

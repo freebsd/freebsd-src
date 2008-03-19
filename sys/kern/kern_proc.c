@@ -640,11 +640,11 @@ fill_kinfo_proc_only(struct proc *p, struct kinfo_proc *kp)
 	struct ucred *cred;
 	struct sigacts *ps;
 
+	PROC_LOCK_ASSERT(p, MA_OWNED);
 	bzero(kp, sizeof(*kp));
 
 	kp->ki_structsize = sizeof(*kp);
 	kp->ki_paddr = p;
-	PROC_LOCK_ASSERT(p, MA_OWNED);
 	kp->ki_addr =/* p->p_addr; */0; /* XXX */
 	kp->ki_args = p->p_args;
 	kp->ki_textvp = p->p_textvp;
@@ -776,7 +776,7 @@ fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp, int preferthread)
 	struct proc *p;
 
 	p = td->td_proc;
-	PROC_SLOCK_ASSERT(p, MA_OWNED);
+	PROC_LOCK_ASSERT(p, MA_OWNED);
 
 	thread_lock(td);
 	if (td->td_wmesg != NULL)
@@ -851,10 +851,8 @@ fill_kinfo_proc(struct proc *p, struct kinfo_proc *kp)
 {
 
 	fill_kinfo_proc_only(p, kp);
-	PROC_SLOCK(p);
 	if (FIRST_THREAD_IN_PROC(p) != NULL)
 		fill_kinfo_thread(FIRST_THREAD_IN_PROC(p), kp, 0);
-	PROC_SUNLOCK(p);
 }
 
 struct pstats *
@@ -921,15 +919,12 @@ sysctl_out_proc(struct proc *p, struct sysctl_req *req, int flags)
 
 	fill_kinfo_proc_only(p, &kinfo_proc);
 	if (flags & KERN_PROC_NOTHREADS) {
-		PROC_SLOCK(p);
 		if (FIRST_THREAD_IN_PROC(p) != NULL)
 			fill_kinfo_thread(FIRST_THREAD_IN_PROC(p),
 			    &kinfo_proc, 0);
-		PROC_SUNLOCK(p);
 		error = SYSCTL_OUT(req, (caddr_t)&kinfo_proc,
 				   sizeof(kinfo_proc));
 	} else {
-		PROC_SLOCK(p);
 		if (FIRST_THREAD_IN_PROC(p) != NULL)
 			FOREACH_THREAD_IN_PROC(p, td) {
 				fill_kinfo_thread(td, &kinfo_proc, 1);
@@ -941,7 +936,6 @@ sysctl_out_proc(struct proc *p, struct sysctl_req *req, int flags)
 		else
 			error = SYSCTL_OUT(req, (caddr_t)&kinfo_proc,
 					   sizeof(kinfo_proc));
-		PROC_SUNLOCK(p);
 	}
 	PROC_UNLOCK(p);
 	if (error)
@@ -1483,7 +1477,7 @@ sysctl_kern_proc_kstack(SYSCTL_HANDLER_ARGS)
 
 	lwpidarray = NULL;
 	numthreads = 0;
-	PROC_SLOCK(p);
+	PROC_LOCK(p);
 repeat:
 	if (numthreads < p->p_numthreads) {
 		if (lwpidarray != NULL) {
@@ -1491,13 +1485,12 @@ repeat:
 			lwpidarray = NULL;
 		}
 		numthreads = p->p_numthreads;
-		PROC_SUNLOCK(p);
+		PROC_UNLOCK(p);
 		lwpidarray = malloc(sizeof(*lwpidarray) * numthreads, M_TEMP,
 		    M_WAITOK | M_ZERO);
-		PROC_SLOCK(p);
+		PROC_LOCK(p);
 		goto repeat;
 	}
-	PROC_SUNLOCK(p);
 	i = 0;
 
 	/*
@@ -1509,7 +1502,6 @@ repeat:
 	 * have changed, in which case the right to extract debug info might
 	 * no longer be assured.
 	 */
-	PROC_LOCK(p);
 	FOREACH_THREAD_IN_PROC(p, td) {
 		KASSERT(i < numthreads,
 		    ("sysctl_kern_proc_kstack: numthreads"));

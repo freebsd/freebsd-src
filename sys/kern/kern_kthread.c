@@ -292,14 +292,12 @@ kthread_add(void (*func)(void *), void *arg, struct proc *p,
 	PROC_LOCK(p);
 	p->p_flag |= P_HADTHREADS;
 	newtd->td_sigmask = oldtd->td_sigmask; /* XXX dubious */
-	PROC_SLOCK(p);
 	thread_link(newtd, p);
 	thread_lock(oldtd);
 	/* let the scheduler know about these things. */
 	sched_fork_thread(oldtd, newtd);
 	TD_SET_CAN_RUN(newtd);
 	thread_unlock(oldtd);
-	PROC_SUNLOCK(p);
 	PROC_UNLOCK(p);
 
 
