@@ -675,6 +675,8 @@ struct sdp_panu_profile
 	uint8_t		reserved;
 	uint8_t		load_factor;
 	uint16_t	psm;			/* HBO */
+	uint16_t	security_description;	/* HBO */
+	uint16_t	reserved2;
 };
 typedef struct sdp_panu_profile		sdp_panu_profile_t;
 typedef struct sdp_panu_profile *	sdp_panu_profile_p;
