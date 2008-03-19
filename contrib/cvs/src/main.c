@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1986-2006 The Free Software Foundation, Inc.
+ * Copyright (C) 1986-2008 The Free Software Foundation, Inc.
  *
  * Portions Copyright (C) 1998-2006 Derek Price, Ximbiot <http://ximbiot.com>,
  *                                  and others.
@@ -108,7 +108,7 @@ static const struct cmd
 {
     { "add",      "ad",       "new",       add,       CVS_CMD_MODIFIES_REPOSITORY | CVS_CMD_USES_WORK_DIR },
     { "admin",    "adm",      "rcs",       admin,     CVS_CMD_MODIFIES_REPOSITORY | CVS_CMD_USES_WORK_DIR },
-    { "annotate", "ann",      NULL,        annotate,  CVS_CMD_USES_WORK_DIR },
+    { "annotate", "ann",      "blame",     annotate,  CVS_CMD_USES_WORK_DIR },
     { "checkout", "co",       "get",       checkout,  0 },
     { "commit",   "ci",       "com",       commit,    CVS_CMD_MODIFIES_REPOSITORY | CVS_CMD_USES_WORK_DIR },
     { "diff",     "di",       "dif",       diff,      CVS_CMD_USES_WORK_DIR },

@@ -1,3 +1,96 @@
+2008-03-10  Mark D. Baushke  <mdb@gnu.org>
+
+	* NEWS: Note new IgnoreUnknownConfigKeys CVSROOT/config option.
+
+2008-01-30  Derek Price  <derek@ximbiot.com>
+
+	* NEWS: Note improved join of removals.
+
+2008-01-27  Mark D. Baushke  <mdb@gnu.org>
+
+	* configure.in: Look for lshc rather than lsh to avoid problems
+	under Debian GNU/Linux.
+	* configure: Regenerated.
+
+	* configure.in: Add support for --with-ssh and CVS_SSH.
+	* NEWS: Note that :extssh: looks to CVS_SSH rather tha CVS_RSH.
+	* Makefile.in, config.h.in, configure: Regenerated.
+
+2008-01-24  Mark D. Baushke  <mdb@gnu.org>
+
+	* NEWS: Note that :extssh: method was fixed. New `cvs blame' as an
+	alias for `cvs annotate' command. New `cvs log -n' switch to undo
+	a `log -N' entry in a .cvsrc file.
+
+2007-12-14  Larry Jones  <lawrence.jones@siemens.com>
+
+	* configure.in: Add --disable-mmap.
+	* configure: Regenerated.
+
+2007-10-19  Derek Price  <derek@ximbiot.com>
+
+	* cvs.texinfo: Update Ximbiot's address and Copyright dates.
+
+2007-08-22  Derek Price  <derek@ximbiot.com>
+
+	* NEWS: Note `cvs server' accepts `--allow-root=PATH'.  Note further
+	`cvs add' stops for `CVS' dirs.
+
+	* HACKING, NEWS: Note new Autotool versions.
+
+2007-08-16  Derek Price  <derek@ximbiot.com>
+
+	* NEWS: Note backport of `cvs --allow-root=PATH server'.
+
+2007-06-18  Derek Price  <derek@ximbiot.com>
+
+	* NEWS: Note import now keeps metadata to itself.
+
+2007-06-15  Derek Price  <derek@ximbiot.com>
+
+	* NEWS: Note `cvs import CVS-/CVS' fix.
+
+2007-05-07  Derek Price  <derek@ximbiot.com>
+
+	* NEWS: Note removal of remote `cvs init'.
+
+2006-09-06  Derek Price  <derek@ximbiot.com>
+
+	* NEWS: Note apply_rcs_diff speedup.
+
+2006-08-28  Derek Price  <derek@ximbiot.com>
+
+	* NEWS: Note strstr ("/./") assertion fix.
+
+2006-08-25  Derek Price  <derek@ximbiot.com>
+
+	* TODO (216): Removed.
+
+2006-08-24  Derek Price  <derek@ximbiot.com>
+
+	[bug #17032]
+	* NEWS: Note patch w/Name keyword fix.
+
+2006-07-17  Derek Price  <derek@ximbiot.com>
+
+	* FAQ, INSTALL, README: Update Copyright notice.
+	* HACKING: Ditto. Update Savannah URLs.
+
+2006-06-29  Derek Price  <derek@ximbiot.com>
+
+	* NEWS: Note trailing slash fix.
+
+2006-06-28  Larry Jones  <lawrence.jones@ugs.com>
+
+	* HACKING, NEWS: Note new Autoconf version.
+	* configure.in (AC_PREREQ): Require Autoconf 2.60.
+	* config.h.in, configure, **/Makefile.in: Regenerated.
+
+2006-06-28  Derek Price  <derek@ximbiot.com>
+
+	[bug #16961]
+	* NEWS: Note double-free fix.
+
 2006-06-09  Derek Price  <derek@ximbiot.com>
 
 	* NEWS: Note client/server conflict fix.

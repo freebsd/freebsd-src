@@ -54,3 +54,4 @@ void Create_Root PROTO((const char *dir, const char *rootdir));
 void root_allow_add PROTO ((char *));
 void root_allow_free PROTO ((void));
 int root_allow_ok PROTO ((char *));
+int root_allow_used PROTO ((void));

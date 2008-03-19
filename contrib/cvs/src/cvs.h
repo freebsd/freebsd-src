@@ -916,6 +916,7 @@ char *descramble PROTO ((char *str));
 
 #ifdef AUTH_CLIENT_SUPPORT
 char *get_cvs_password PROTO((void));
+void free_cvs_password PROTO((char *str));
 int get_cvs_port_number PROTO((const cvsroot_t *root));
 char *normalize_cvsroot PROTO((const cvsroot_t *root));
 #endif /* AUTH_CLIENT_SUPPORT */

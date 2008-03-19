@@ -1,3 +1,270 @@
+2008-03-10  Mark D. Baushke  <mdb@gnu.org>
+
+	* mkmodules.c, parseinfo.c: Update copyright.
+
+	* parseinfo.c (parse_config): Add support for new
+	"IgnoreUnknownConfigKeys" configuration key.
+	* mkmodules.c (config_contents): Add text about the
+	"IgnoreUnknownConfigKeys" option.
+	* sanity.sh (config): Test that IgnoreUnknownConfigKeys=yes works.
+
+2008-01-30  Derek R. Price  <derek@ximbiot.com>
+
+	* update.c (join_file): Use local copy to detect deletion conflicts,
+	as opposed to the base revision.  Restore freeing of rev2 to its
+	original location.  Use simpler conflict message.
+	* sanity.sh: Update to compensate.
+
+2008-01-29  Derek R. Price  <derek@ximbiot.com>
+
+	* update.c (join_file): Remove trace that is no longer needed.
+
+2008-01-29  Derek R. Price  <derek@ximbiot.com>
+	    Paul Edwards  <fight.subjugation@gmail.com>
+
+	* update.c (join_file): Detect deletion conflicts.
+	* sanity.sh (join, join4): Adjusted for this fix.
+	  (join8, join9): Add new tests for conflicts.
+
+2008-01-27  Mark D. Baushke  <mdb@gnu.org>
+
+	* filesubr.c (xreadlink): s/128/BUFSIZ/ avoid magic numbers.
+
+	* client.c (start_rsh_server): Use CVS_SSH for the :extssh:
+	method or fall back to "ssh" as set using the --with-ssh flag to
+	configure.
+
+	* client.h, log.c, main.c, recurse.c, root.c: Update copyright for
+	2008.
+
+2008-01-24  Mark D. Baushke  <mdb@gnu.org>
+
+	* log.c (cvslog): New -n option to revert the -N switch.
+	(log_usage): Add -n to the help string.
+	* main.c (cmds[]): Add "blame" as a synonym for the
+	"annotate" command.
+	* sanity.sh (cvs-log): New tests for 'cvs log -N -n' validation.
+	(ann-10w1blame): Test the 'cvs blame' synonym for annotate.
+	(Patch suggested by "David O'Brien" <obrien@FreeBSD.org>)
+
+	* edit.c (notify_check): Rename to...
+	(cvs_notify_check): ...this to avoid Mac OSX symbol conflicts.
+	* client.h, edit.h, recurse.c: Change all references.
+
+	* client.c (start_rsh_server): Use RSH_DFLT not a hardcoded "rsh"
+	* root.c (parse_cvsroot): Fix parsing for the :extssh: method.
+
+	* sanity.sh (expr_set_DASHDASH): Fix for non-POSIX expr
+	implementations.
+	(CVSROOTDIR): Use 'cvsrootdir' instead of 'cvsroot' to
+	avoid problems on case preserving and/or case insensitive
+	filesystems (e.g., HFS+).
+	(CVSROOT_DIRNAME): Use ${TESTDIR}/${CVSROOTDIR} instead of
+	${TESTDIR}/cvsroot to avoid filesystem case sensitivity problems.
+	(crerepos-extssh): Clone of crerepos tests, but use the :extssh:
+	method.
+
+2007-12-19  Larry Jones  <lawrence.jones@siemens.com>
+
+	* client.c, import.c, lock.c, login.c, mkmodules.c, modules.c,
+	rcs.c, server.c: Fix gcc -Wall warnings.
+
+2007-12-16  Larry Jones  <lawrence.jones@siemens.com>
+
+	* rcs.c (HAVE_MMAP): Fall back to stdio if mmap fails.
+
+2007-12-13  Larry Jones  <lawrence.jones@siemens.com>
+
+	* rcs.c (rcsbuf_ftell): Avoid potential overflow.
+
+2007-12-12  Larry Jones  <lawrence.jones@siemens.com>
+
+	* vers_ts.c (time_stamp): Add warnings for [l]stat failures
+	other than no such file.
+
+2007-08-26  Derek Price  <derek@ximbiot.com>
+
+	* mkmodules.c (in_root): Rename to...
+	(in_repository): ...this.
+
+2007-08-26  Larry Jones  <lawrence.jones@ugs.com>
+
+	* mkmodules.c (in_root, init): Unmix declarations and code.
+
+2007-08-22  Derek Price  <derek@ximbiot.com>
+
+	* add.c (add): Check last component of argument paths instead of the
+	entire argument.
+	* sanity.sh (add-restricted): Test indirect paths to `CVS' dir with
+	add.
+
+	* server.c (serve_init): Remove unnecessary argument to printf style
+	function.
+
+	* mkmodules.c (in_root): New function.
+	(init): Verify that new roots are not created inside others.
+	* sanity.sh (init-3): New test for same.
+
+2007-08-16  Derek Price  <derek@ximbiot.com>
+
+	* root.c (root_allow_used): New function and...
+	* root.h (root_allow_used): ...its prototype.
+	* server.c (serve_root): Backport --allow-root test for `cvs server'.
+	* sanity.sh (server2-5, server2-6): New tests for the above.
+
+2007-06-18  Derek Price  <derek@ximbiot.com>
+
+	* client.c (send_repository): Don't attempt to send metadata from CVS
+	subdirectories when importing.
+
+2007-06-15  Derek Price  <derek@ximbiot.com>
+
+	* import.c (import): Check more carefully for files and directories
+	named "CVS".
+	* sanity.sh (import-1b): New test for same.
+	(import-2): Test files named "CVS", in addition to directories.
+
+2007-05-22  Larry Jones  <lawrence.jones@ugs.com>
+
+	* rcs.c (RCS_fully_parse): Include revision in error message.
+
+2007-05-07  Derek Price  <derek@ximbiot.com>
+
+	* mkmodules.c (init): Assert that the server is not active.
+	* server.c (serve_init): Send error message when the init command is
+	received from a client.
+
+	* sanity.sh (*): Avoid using remote init.
+	(skip_always, localonly, restore_adm): New convenience functions.	
+
+2007-03-08  Larry Jones  <lawrence.jones@ugs.com>
+
+	* rcs.c (findmagictag): Cast node->data before doing arithmetic
+	since it's now (void *).
+
+2007-03-05  Larry Jones  <lawrence.jones@ugs.com>
+
+	* rcs.c (RCS_delete_revs): When checking for tagged revisions,
+	include magic branch tags.
+
+2007-03-01  Larry Jones  <lawrence.jones@ugs.com>
+
+	* import.c (import_descend_dir): Correct error message.
+	* sanity.sh (pserver-3a): New test.
+
+2006-09-14  Derek Price  <derek@ximbiot.com>
+
+	* sanity.sh (server3, client2): New tests.
+
+2006-09-07  Derek Price  <derek@ximbiot.com>
+
+	[bug #17560]
+	* rcs.c (apply_rcs_changes): Improve comments.  Restore repaired error
+	handling.
+
+2006-09-06  Larry Jones  <lawrence.jones@ugs.com>
+
+	* rcs.c (apply_rcs_changes): Improve linked list handling.  Remove
+	unused variables and unreachable error handling code.  Avoid unneeded
+	dynamic allocation of temp linevector.  Minor stylistic code clean up.
+
+2006-09-06  Derek Price  <derek@ximbiot.com>
+
+	[bug #17560]
+	* rcs.c (apply_rcs_changes): Improve header block comment.  Clean up
+	unused linevector on non-fatal error.
+
+2006-09-06  Derek Price  <derek@ximbiot.com>
+
+	[bug #17560]
+	* rcs.c (apply_rcs_changes): Remove an unecessary memcpy.  Avoid some
+	other processing on error.
+	(linevector_delete): Remove - it's no longer used.
+
+2006-09-06  Mark D. Baushke  <mdb@gnu.org>
+
+	[bug #17560]
+	* rcs.c (apply_rcs_changes): Fix the merge algorithm from O(n^2)
+	to O(n).
+	(Based on a patch submitted by "Michael J. Smith"
+	<msmith@ideorlando.org>)
+
+2006-08-28  Derek Price  <derek@ximbiot.com>
+
+	* recurse.c (do_recursion): Remove misguided assertion.
+	* sanity.sh (dottedroot-3): Add test for the above.
+	(Thanks to report from Paul Eggert <eggert@CS.UCLA.EDU>.)
+
+	[bug #17168]
+	* classify.c (Classify_File): Use T_PATCH for changed keywords instead
+	of T_CHECKOUT to conserver bandwidth.  Don't sticky check when marking
+	files for update anyhow.
+	* sanity.sh: Update to compensate (s/^U /[UP] /).
+
+2006-08-25  Derek Price  <derek@ximbiot.com>
+
+	[bug #17168]
+	* classify.c (Classify_file): Mark files with potential keyword
+	substitution changes as needing update.
+	* sanity.sh: Update to compensate.
+	(keyword, keywordname, serverpatch): Update to compensate, removing
+	the last few "checksum failed" tests.
+
+	* classify.c (Classify_File): Remove hacks which worked around checksum
+	failures from bug #17032.
+
+2006-08-24  Derek Price  <derek@ximbiot.com>
+
+	[bug #17032]
+	* update.c (patch_file): Correctly recreate client working files
+	containing the RCS `Name' keyword before generating patches.
+	* sanity.sh (keyword-23r): Merge with local case to compensate.
+
+2006-08-17  Larry Jones  <lawrence.jones@ugs.com>
+
+	* hash.h: Rename structs node and list to hashnode and hashlist
+	to avoid name clashes.
+
+2006-07-25  Mark D. Baushke  <mdb@gnu.org>
+
+	* login.c (free_cvs_password): New function to control freeing of
+	the static get_cvs_passwd() returned storage.
+	(login): Call it.
+	* cvs.h (free_cvs_password): Add prototype for it.
+	* client.c (auth_server): Call it.
+	[Alter the previous NetBSD coverity cid-3404 patch.]
+	
+2006-07-11  Larry Jones  <lawrence.jones@ugs.com>
+
+	* log.c (log_usage): Fix misleading description of -b (it selects
+	revisions on the default branch *in addition to* revisions selected
+	with -r).
+
+2006-06-29  Derek Price  <derek@ximbiot.com>
+
+	* client.c (is_arg_a_parent_or_listed_dir): Strip trailing slashes from
+	dir name defore searching for it.  Partially addresses TODO #205.
+	* sanity.sh (trailingslashes): Update to compensate.
+
+2006-06-28  Derek Price  <derek@ximbiot.com>
+
+	[bug #16961]
+	* login.c (get_cvs_password): Return copy of global variable.
+	(Patch from <mbarabas@redhat.com>.)
+
+2006-06-23  Larry Jones  <lawrence.jones@ugs.com>
+
+	* server.c (do_cvs_command): Remove unused variable.
+
+2006-06-22  Larry Jones  <lawrence.jones@ugs.com>
+
+	* mkmodules.c (modules_contents): Remove defunct -i option.
+
+2006-06-10  Derek Price  <derek@ximbiot.com>
+
+	* sanity.sh (conflicts4): Don't expect specific file permissions.  Use
+	$PLUS.
+
 2006-06-08  Derek Price  <derek@ximbiot.com>
 
 	* sanity.sh (conflicts4): Test that the client honors Empty-conflicts.
@@ -2042,7 +2309,7 @@
 
 	* ignore.c (ignore_files): Use CVS_LSTAT() instead of lstat().
 	* filesubr.c (xcmp): Make sure S_ISLNK exists before calling it.
-	(Reported by Paul Edwards <kerravon@nosppaam.w3.to>.)
+	(Reported by Paul Edwards <fight.subjugation@gmail.com>.)
 
 2003-10-31  Derek Price  <derek@ximbiot.com>
 

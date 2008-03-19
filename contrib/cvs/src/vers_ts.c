@@ -361,6 +361,9 @@ time_stamp (file)
     {
 	mtime = sb.st_mtime;
     }
+    else if (! existence_error (errno))
+	error (0, errno, "cannot lstat %s", file);
+
     /* If it's a symlink, return whichever is the newest mtime of
        the link and its target, for safety.
     */
@@ -369,6 +372,9 @@ time_stamp (file)
         if (mtime < sb.st_mtime)
 	    mtime = sb.st_mtime;
     }
+    else if (! existence_error (errno))
+	error (0, errno, "cannot stat %s", file);
+
     if (mtime)
     {
 	struct tm *tm_p;
