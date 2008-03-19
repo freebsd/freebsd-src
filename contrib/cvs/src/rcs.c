@@ -32,6 +32,15 @@
 # endif
 #endif
 
+#ifdef MMAP_FALLBACK_TEST
+void *my_mmap(void *addr, size_t len, int prot, int flags, int fd, off_t offset)
+{
+   if (rand() & 1) return mmap(addr, len, prot, flags, fd, offset);
+   return NULL;
+}
+#define mmap my_mmap
+#endif
+
 int datesep = '/';
 int preserve_perms = 0;
 
@@ -68,6 +77,8 @@ struct rcsbuffer
        this is non-zero, we must search the string for pairs of '@'
        and convert them to a single '@'.  */
     int embedded_at;
+    /* Whether the buffer has been mmap'ed or not.  */
+    int mmapped;
 };
 
 static RCSNode *RCS_parsercsfile_i PROTO((FILE * fp, const char *rcsfile));
@@ -79,10 +90,8 @@ static void rcsbuf_close PROTO ((struct rcsbuffer *));
 static int rcsbuf_getkey PROTO ((struct rcsbuffer *, char **keyp,
 				 char **valp));
 static int rcsbuf_getrevnum PROTO ((struct rcsbuffer *, char **revp));
-#ifndef HAVE_MMAP
 static char *rcsbuf_fill PROTO ((struct rcsbuffer *, char *ptr, char **keyp,
 				 char **valp));
-#endif
 static int rcsbuf_valcmp PROTO ((struct rcsbuffer *));
 static char *rcsbuf_valcopy PROTO ((struct rcsbuffer *, char *val, int polish,
 				    size_t *lenp));
@@ -834,8 +843,8 @@ warning: duplicate key `%s' in version `%s' of RCS file `%s'",
 			op = *cp++;
 			if (op != 'a' && op  != 'd')
 			    error (1, 0, "\
-unrecognized operation '\\x%x' in %s",
-				   op, rcs->path);
+unrecognized operation '\\x%x' in %s revision %s",
+				   op, rcs->path, vnode->version);
 			(void) strtoul (cp, (char **) &cp, 10);
 			if (*cp++ != ' ')
 			    error (1, 0, "space expected in %s revision %s",
@@ -1034,46 +1043,58 @@ rcsbuf_open (rcsbuf, fp, filename, pos)
     const char *filename;
     unsigned long pos;
 {
+#ifdef HAVE_MMAP
+    void *p;
+    struct stat fs;
+    size_t mmap_off = 0;
+#endif
+
     if (rcsbuf_inuse)
 	error (1, 0, "rcsbuf_open: internal error");
     rcsbuf_inuse = 1;
 
 #ifdef HAVE_MMAP
+    /* When we have mmap, it is much more efficient to let the system do the
+     * buffering and caching for us
+     */
+
+    if ( fstat (fileno(fp), &fs) < 0 )
+	error ( 1, errno, "Could not stat RCS archive %s for mapping", filename );
+
+    if (pos)
     {
-	/* When we have mmap, it is much more efficient to let the system do the
-	 * buffering and caching for us
-	 */
-	struct stat fs;
-	size_t mmap_off = 0;
+	size_t ps = getpagesize ();
+	mmap_off = ( pos / ps ) * ps;
+    }
 
-	if ( fstat (fileno(fp), &fs) < 0 )
-	    error ( 1, errno, "Could not stat RCS archive %s for mapping", filename );
-
-	if (pos)
-	{
-	    size_t ps = getpagesize ();
-	    mmap_off = ( pos / ps ) * ps;
-	}
-
-	/* Map private here since this particular buffer is read only */
-	rcsbuf_buffer = mmap ( NULL, fs.st_size - mmap_off,
-				PROT_READ | PROT_WRITE,
-				MAP_PRIVATE, fileno(fp), mmap_off );
-	if ( rcsbuf_buffer == NULL || rcsbuf_buffer == MAP_FAILED )
-	    error ( 1, errno, "Could not map memory to RCS archive %s", filename );
-
+    /* Map private here since this particular buffer is read only */
+    p = mmap ( NULL, fs.st_size - mmap_off, PROT_READ | PROT_WRITE,
+	       MAP_PRIVATE, fileno(fp), mmap_off );
+    if (p != NULL && p != MAP_FAILED)
+    {
+	if (rcsbuf_buffer) free (rcsbuf_buffer);
+	rcsbuf_buffer = p;
 	rcsbuf_buffer_size = fs.st_size - mmap_off;
+	rcsbuf->mmapped = 1;
 	rcsbuf->ptr = rcsbuf_buffer + pos - mmap_off;
 	rcsbuf->ptrend = rcsbuf_buffer + fs.st_size - mmap_off;
 	rcsbuf->pos = mmap_off;
     }
-#else /* HAVE_MMAP */
-    if (rcsbuf_buffer_size < RCSBUF_BUFSIZE)
+    else
+    {
+#ifndef MMAP_FALLBACK_TEST
+	error (0, errno, "Could not map memory to RCS archive %s", filename);
+#endif
+#endif /* HAVE_MMAP */
+	if (rcsbuf_buffer_size < RCSBUF_BUFSIZE)
 	expand_string (&rcsbuf_buffer, &rcsbuf_buffer_size, RCSBUF_BUFSIZE);
 
-    rcsbuf->ptr = rcsbuf_buffer;
-    rcsbuf->ptrend = rcsbuf_buffer;
-    rcsbuf->pos = pos;
+	rcsbuf->mmapped = 0;
+	rcsbuf->ptr = rcsbuf_buffer;
+	rcsbuf->ptrend = rcsbuf_buffer;
+	rcsbuf->pos = pos;
+#ifdef HAVE_MMAP
+    }
 #endif /* HAVE_MMAP */
     rcsbuf->fp = fp;
     rcsbuf->filename = filename;
@@ -1091,7 +1112,12 @@ rcsbuf_close (rcsbuf)
     if (! rcsbuf_inuse)
 	error (1, 0, "rcsbuf_close: internal error");
 #ifdef HAVE_MMAP
-    munmap ( rcsbuf_buffer, rcsbuf_buffer_size );
+    if (rcsbuf->mmapped)
+    {
+	munmap ( rcsbuf_buffer, rcsbuf_buffer_size );
+	rcsbuf_buffer = NULL;
+	rcsbuf_buffer_size = 0;
+    }
 #endif
     rcsbuf_inuse = 0;
 }
@@ -1136,11 +1162,10 @@ rcsbuf_getkey (rcsbuf, keyp, valp)
     assert (ptr >= rcsbuf_buffer && ptr <= rcsbuf_buffer + rcsbuf_buffer_size);
     assert (ptrend >= rcsbuf_buffer && ptrend <= rcsbuf_buffer + rcsbuf_buffer_size);
 
-#ifndef HAVE_MMAP
     /* If the pointer is more than RCSBUF_BUFSIZE bytes into the
        buffer, move back to the start of the buffer.  This keeps the
        buffer from growing indefinitely.  */
-    if (ptr - rcsbuf_buffer >= RCSBUF_BUFSIZE)
+    if (!rcsbuf->mmapped && ptr - rcsbuf_buffer >= RCSBUF_BUFSIZE)
     {
 	int len;
 
@@ -1159,23 +1184,18 @@ rcsbuf_getkey (rcsbuf, keyp, valp)
 	ptrend = ptr + len;
 	rcsbuf->ptrend = ptrend;
     }
-#endif /* ndef HAVE_MMAP */
 
     /* Skip leading whitespace.  */
 
     while (1)
     {
 	if (ptr >= ptrend)
-#ifndef HAVE_MMAP
 	{
 	    ptr = rcsbuf_fill (rcsbuf, ptr, (char **) NULL, (char **) NULL);
 	    if (ptr == NULL)
-#endif
 		return 0;
-#ifndef HAVE_MMAP
 	    ptrend = rcsbuf->ptrend;
 	}
-#endif
 
 	c = *ptr;
 	if (! my_whitespace (c))
@@ -1194,17 +1214,13 @@ rcsbuf_getkey (rcsbuf, keyp, valp)
 	{
 	    ++ptr;
 	    if (ptr >= ptrend)
-#ifndef HAVE_MMAP
 	    {
 		ptr = rcsbuf_fill (rcsbuf, ptr, keyp, (char **) NULL);
 		if (ptr == NULL)
-#endif
 		    error (1, 0, "EOF in key in RCS file %s",
 			   rcsbuf->filename);
-#ifndef HAVE_MMAP
 		ptrend = rcsbuf->ptrend;
 	    }
-#endif
 	    c = *ptr;
 	    if (c == ';' || my_whitespace (c))
 		break;
@@ -1233,17 +1249,13 @@ rcsbuf_getkey (rcsbuf, keyp, valp)
     while (1)
     {
 	if (ptr >= ptrend)
-#ifndef HAVE_MMAP
 	{
 	    ptr = rcsbuf_fill (rcsbuf, ptr, keyp, (char **) NULL);
 	    if (ptr == NULL)
-#endif
 		error (1, 0, "EOF while looking for value in RCS file %s",
 		       rcsbuf->filename);
-#ifndef HAVE_MMAP
 	    ptrend = rcsbuf->ptrend;
 	}
-#endif
 	c = *ptr;
 	if (c == ';')
 	{
@@ -1278,7 +1290,6 @@ rcsbuf_getkey (rcsbuf, keyp, valp)
 	while (1)
 	{
 	    while ((pat = memchr (ptr, '@', ptrend - ptr)) == NULL)
-#ifndef HAVE_MMAP
 	    {
 		/* Note that we pass PTREND as the PTR value to
                    rcsbuf_fill, so that we will wind up setting PTR to
@@ -1286,31 +1297,25 @@ rcsbuf_getkey (rcsbuf, keyp, valp)
                    that we don't search the same bytes again.  */
 		ptr = rcsbuf_fill (rcsbuf, ptrend, keyp, valp);
 		if (ptr == NULL)
-#endif
 		    error (1, 0,
 			   "EOF while looking for end of string in RCS file %s",
 			   rcsbuf->filename);
-#ifndef HAVE_MMAP
 		ptrend = rcsbuf->ptrend;
 	    }
-#endif
 
 	    /* Handle the special case of an '@' right at the end of
                the known bytes.  */
 	    if (pat + 1 >= ptrend)
-#ifndef HAVE_MMAP
 	    {
 		/* Note that we pass PAT, not PTR, here.  */
 		pat = rcsbuf_fill (rcsbuf, pat, keyp, valp);
 		if (pat == NULL)
 		{
-#endif
 		    /* EOF here is OK; it just means that the last
 		       character of the file was an '@' terminating a
 		       value for a key type which does not require a
 		       trailing ';'.  */
 		    pat = rcsbuf->ptrend - 1;
-#ifndef HAVE_MMAP
 
 		}
 		ptrend = rcsbuf->ptrend;
@@ -1318,7 +1323,6 @@ rcsbuf_getkey (rcsbuf, keyp, valp)
 		/* Note that the value of PTR is bogus here.  This is
 		   OK, because we don't use it.  */
 	    }
-#endif
 
 	    if (pat + 1 >= ptrend || pat[1] != '@')
 		break;
@@ -1368,17 +1372,13 @@ rcsbuf_getkey (rcsbuf, keyp, valp)
 	    char n;
 
 	    if (ptr >= ptrend)
-#ifndef HAVE_MMAP
 	    {
 		ptr = rcsbuf_fill (rcsbuf, ptr, keyp, valp);
 		if (ptr == NULL)
-#endif
 		    error (1, 0, "EOF in value in RCS file %s",
 			   rcsbuf->filename);
-#ifndef HAVE_MMAP
 		ptrend = rcsbuf->ptrend;
 	    }
-#endif
 	    n = *ptr;
 	    if (n == ';')
 	    {
@@ -1413,7 +1413,6 @@ rcsbuf_getkey (rcsbuf, keyp, valp)
 	/* Find the ';' which must end the value.  */
 	start = ptr;
 	while ((psemi = memchr (ptr, ';', ptrend - ptr)) == NULL)
-#ifndef HAVE_MMAP
 	{
 	    int slen;
 
@@ -1424,13 +1423,10 @@ rcsbuf_getkey (rcsbuf, keyp, valp)
 	    slen = start - *valp;
 	    ptr = rcsbuf_fill (rcsbuf, ptrend, keyp, valp);
 	    if (ptr == NULL)
-#endif
 		error (1, 0, "EOF in value in RCS file %s", rcsbuf->filename);
-#ifndef HAVE_MMAP
 	    start = *valp + slen;
 	    ptrend = rcsbuf->ptrend;
 	}
-#endif
 
 	/* See if there are any '@' strings in the value.  */
 	pat = memchr (start, '@', psemi - start);
@@ -1474,7 +1470,6 @@ rcsbuf_getkey (rcsbuf, keyp, valp)
 	while (1)
 	{
 	    while ((pat = memchr (ptr, '@', ptrend - ptr)) == NULL)
-#ifndef HAVE_MMAP
 	    {
 		/* Note that we pass PTREND as the PTR value to
                    rcsbuff_fill, so that we will wind up setting PTR
@@ -1482,29 +1477,22 @@ rcsbuf_getkey (rcsbuf, keyp, valp)
                    that we don't search the same bytes again.  */
 		ptr = rcsbuf_fill (rcsbuf, ptrend, keyp, valp);
 		if (ptr == NULL)
-#endif
 		    error (1, 0,
 			   "EOF while looking for end of string in RCS file %s",
 			   rcsbuf->filename);
-#ifndef HAVE_MMAP
 		ptrend = rcsbuf->ptrend;
 	    }
-#endif
 
 	    /* Handle the special case of an '@' right at the end of
                the known bytes.  */
 	    if (pat + 1 >= ptrend)
-#ifndef HAVE_MMAP
 	    {
 		ptr = rcsbuf_fill (rcsbuf, ptr, keyp, valp);
 		if (ptr == NULL)
-#endif
 		    error (1, 0, "EOF in value in RCS file %s",
 			   rcsbuf->filename);
-#ifndef HAVE_MMAP
 		ptrend = rcsbuf->ptrend;
 	    }
-#endif
 
 	    if (pat[1] != '@')
 		break;
@@ -1547,16 +1535,12 @@ rcsbuf_getrevnum (rcsbuf, revp)
     while (1)
     {
 	if (ptr >= ptrend)
-#ifndef HAVE_MMAP
 	{
 	    ptr = rcsbuf_fill (rcsbuf, ptr, (char **) NULL, (char **) NULL);
 	    if (ptr == NULL)
-#endif
 		return 0;
-#ifndef HAVE_MMAP
 	    ptrend = rcsbuf->ptrend;
 	}
-#endif
 
 	c = *ptr;
 	if (! whitespace (c))
@@ -1577,18 +1561,14 @@ unexpected '\\x%x' reading revision number in RCS file %s",
     {
 	++ptr;
 	if (ptr >= ptrend)
-#ifndef HAVE_MMAP
 	{
 	    ptr = rcsbuf_fill (rcsbuf, ptr, revp, (char **) NULL);
 	    if (ptr == NULL)
-#endif
 		error (1, 0,
 		       "unexpected EOF reading revision number in RCS file %s",
 		       rcsbuf->filename);
-#ifndef HAVE_MMAP
 	    ptrend = rcsbuf->ptrend;
 	}
-#endif
 
 	c = *ptr;
     }
@@ -1606,7 +1586,6 @@ unexpected '\\x%x' reading revision number in RCS file %s",
     return 1;
 }
 
-#ifndef HAVE_MMAP
 /* Fill RCSBUF_BUFFER with bytes from the file associated with RCSBUF,
    updating PTR and the PTREND field.  If KEYP and *KEYP are not NULL,
    then *KEYP points into the buffer, and must be adjusted if the
@@ -1621,6 +1600,9 @@ rcsbuf_fill (rcsbuf, ptr, keyp, valp)
     char **valp;
 {
     int got;
+
+    if (rcsbuf->mmapped)
+	return NULL;
 
     if (rcsbuf->ptrend - rcsbuf_buffer + RCSBUF_BUFSIZE > rcsbuf_buffer_size)
     {
@@ -1654,7 +1636,6 @@ rcsbuf_fill (rcsbuf, ptr, keyp, valp)
 
     return ptr;
 }
-#endif /* HAVE_MMAP */
 
 /* Test whether the last value returned by rcsbuf_getkey is a composite
    value or not. */
@@ -1966,7 +1947,7 @@ static unsigned long
 rcsbuf_ftell (rcsbuf)
     struct rcsbuffer *rcsbuf;
 {
-    return rcsbuf->pos + rcsbuf->ptr - rcsbuf_buffer;
+    return rcsbuf->pos + (rcsbuf->ptr - rcsbuf_buffer);
 }
 
 /* Return a pointer to any data buffered for RCSBUF, along with the
@@ -2032,8 +2013,7 @@ rcsbuf_cache_open (rcs, pos, pfp, prcsbuf)
     FILE **pfp;
     struct rcsbuffer *prcsbuf;
 {
-#ifndef HAVE_MMAP
-    if (cached_rcs == rcs)
+    if (cached_rcs == rcs && !cached_rcsbuf.mmapped)
     {
 	if (rcsbuf_ftell (&cached_rcsbuf) != pos)
 	{
@@ -2063,7 +2043,6 @@ rcsbuf_cache_open (rcs, pos, pfp, prcsbuf)
     }
     else
     {
-#endif /* ifndef HAVE_MMAP */
 	/* FIXME:  If these routines can be rewritten to not write to the
 	 * rcs file buffer, there would be a considerably larger memory savings
 	 * from using mmap since the shared file would never need be copied to
@@ -2078,17 +2057,13 @@ rcsbuf_cache_open (rcs, pos, pfp, prcsbuf)
 	*pfp = CVS_FOPEN (rcs->path, FOPEN_BINARY_READ);
 	if (*pfp == NULL)
 	    error (1, 0, "unable to reopen `%s'", rcs->path);
-#ifndef HAVE_MMAP
 	if (pos != 0)
 	{
 	    if (fseek (*pfp, pos, SEEK_SET) != 0)
 		error (1, 0, "cannot fseek RCS file %s", rcs->path);
 	}
-#endif /* ifndef HAVE_MMAP */
 	rcsbuf_open (prcsbuf, *pfp, rcs->path, pos);
-#ifndef HAVE_MMAP
     }
-#endif /* ifndef HAVE_MMAP */
 }
 
 
@@ -4201,7 +4176,8 @@ RCS_checkout (rcs, workfile, rev, nametag, options, sout, pfn, callerdat)
 {
     int free_rev = 0;
     enum kflag expand;
-    FILE *fp, *ofp;
+    FILE *fp;
+    FILE *ofp = NULL;
     struct stat sb;
     struct rcsbuffer rcsbuf;
     char *key;
@@ -6320,6 +6296,25 @@ findtag (node, arg)
 	return 0;
 }
 
+static int findmagictag PROTO ((Node *, void *));
+
+/* Return a nonzero value if a magic tag rooted at ARG is found.  */
+
+static int
+findmagictag (node, arg)
+    Node *node;
+    void *arg;
+{
+    char *rev = (char *)arg;
+    size_t len = strlen (rev);
+
+    if (strncmp (node->data, rev, len) == 0 &&
+	strncmp ((char *)node->data + len, ".0.", 3) == 0)
+	return 1;
+    else
+	return 0;
+}
+
 /* Delete revisions between REV1 and REV2.  The changes between the two
    revisions must be collapsed, and the result stored in the revision
    immediately preceding the lower one.  Return 0 for successful completion,
@@ -6579,8 +6574,9 @@ RCS_delete_revs (rcs, tag1, tag2, inclusive)
 
 	    /* Doing this only for the :: syntax is for compatibility.
 	       See cvs.texinfo for somewhat more discussion.  */
-	    if (!inclusive
-		&& walklist (RCS_symbols (rcs), findtag, revp->version))
+	    if (!inclusive &&
+		(walklist (RCS_symbols (rcs), findtag, revp->version) ||
+		 walklist (RCS_symbols (rcs), findmagictag, revp->version)))
 	    {
 		/* We don't print which file this happens to on the theory
 		   that the caller will print the name of the file in a
@@ -7037,31 +7033,6 @@ linevector_add (vec, text, len, vers, pos)
     return 1;
 }
 
-static void linevector_delete PROTO ((struct linevector *, unsigned int,
-				      unsigned int));
-
-/* Remove NLINES lines from VEC at position POS (where line 0 is the
-   first line).  */
-static void
-linevector_delete (vec, pos, nlines)
-    struct linevector *vec;
-    unsigned int pos;
-    unsigned int nlines;
-{
-    unsigned int i;
-    unsigned int last;
-
-    last = vec->nlines - nlines;
-    for (i = pos; i < pos + nlines; ++i)
-    {
-	if (--vec->vector[i]->refcount == 0)
-	    free (vec->vector[i]);
-    }
-    for (i = pos; i < last; ++i)
-	vec->vector[i] = vec->vector[i + nlines];
-    vec->nlines -= nlines;
-}
-
 static void linevector_copy PROTO ((struct linevector *, struct linevector *));
 
 /* Copy FROM to TO, copying the vectors but not the lines pointed to.  */
@@ -7105,7 +7076,7 @@ linevector_free (vec)
     if (vec->vector != NULL)
     {
 	for (ln = 0; ln < vec->nlines; ++ln)
-	    if (--vec->vector[ln]->refcount == 0)
+	    if (vec->vector[ln] && --vec->vector[ln]->refcount == 0)
 		free (vec->vector[ln]);
 
 	free (vec->vector);
@@ -7140,20 +7111,27 @@ apply_rcs_changes PROTO ((struct linevector *, const char *, size_t,
 			  const char *, RCSVers *, RCSVers *));
 
 /* Apply changes to the line vector LINES.  DIFFBUF is a buffer of
-   length DIFFLEN holding the change text from an RCS file (the output
-   of diff -n).  NAME is used in error messages.  The VERS field of
-   any line added is set to ADDVERS.  The VERS field of any line
-   deleted is set to DELVERS, unless DELVERS is NULL, in which case
-   the VERS field of deleted lines is unchanged.  The function returns
-   non-zero if the change text is applied successfully.  It returns
-   zero if the change text does not appear to apply to LINES (e.g., a
-   line number is invalid).  If the change text is improperly
-   formatted (e.g., it is not the output of diff -n), the function
-   calls error with a status of 1, causing the program to exit.  */
-
+ * length DIFFLEN holding the change text from an RCS file (the output
+ * of diff -n).  NAME is used in error messages.  The VERS field of
+ * any line added is set to ADDVERS.  The VERS field of any line
+ * deleted is set to DELVERS, unless DELVERS is NULL, in which case
+ * the VERS field of deleted lines is unchanged.
+ *
+ * RETURNS
+ *   Non-zero if the change text is applied successfully to ORIG_LINES.
+ *
+ *   If the change text does not appear to apply to ORIG_LINES (e.g., a
+ *   line number is invalid), this function will return zero and ORIG_LINES
+ *   will remain unmolested.
+ *
+ * ERRORS
+ *   If the change text is improperly formatted (e.g., it is not the output
+ *   of diff -n), the function calls error with a status of 1, causing the
+ *   program to exit.
+ */
 static int
-apply_rcs_changes (lines, diffbuf, difflen, name, addvers, delvers)
-     struct linevector *lines;
+apply_rcs_changes (orig_lines, diffbuf, difflen, name, addvers, delvers)
+     struct linevector *orig_lines;
      const char *diffbuf;
      size_t difflen;
      const char *name;
@@ -7175,10 +7153,15 @@ apply_rcs_changes (lines, diffbuf, difflen, name, addvers, delvers)
 	struct deltafrag *next;
     };
     struct deltafrag *dfhead;
+    struct deltafrag **dftail;
     struct deltafrag *df;
+    unsigned long numlines, lastmodline, offset;
+    struct linevector lines;
     int err;
 
     dfhead = NULL;
+    dftail = &dfhead;
+    numlines = orig_lines->nlines; /* start with init # of lines */
     for (p = diffbuf; p != NULL && p < diffbuf + difflen; )
     {
 	op = *p++;
@@ -7187,9 +7170,9 @@ apply_rcs_changes (lines, diffbuf, difflen, name, addvers, delvers)
 	       of op determines the syntax.  */
 	    error (1, 0, "unrecognized operation '\\x%x' in %s",
 		   op, name);
-	df = (struct deltafrag *) xmalloc (sizeof (struct deltafrag));
-	df->next = dfhead;
-	dfhead = df;
+	*dftail = df = xmalloc (sizeof *df);
+	*(dftail = &df->next) = NULL;
+
 	df->pos = strtoul (p, (char **) &q, 10);
 
 	if (p == q)
@@ -7230,6 +7213,7 @@ apply_rcs_changes (lines, diffbuf, difflen, name, addvers, delvers)
 	    df->len = q - p;
 
 	    p = q;
+	    numlines += df->nlines;
 	}
 	else
 	{
@@ -7239,39 +7223,153 @@ apply_rcs_changes (lines, diffbuf, difflen, name, addvers, delvers)
 
 	    assert (op == 'd');
 	    df->type = FRAG_DELETE;
+	    numlines -= df->nlines;
 	}
     }
 
+    /* New temp data structure to hold new org before
+       copy back into original structure. */
+    lines.nlines = lines.lines_alloced = numlines;
+    lines.vector = xmalloc (numlines * sizeof *lines.vector);
+
+    /* We changed the list order to first to last -- so the
+       list never gets larger than the size numlines. */
+    lastmodline = 0; 
+
+    /* offset created when adding/removing lines
+       between new and original structure */
+    offset = 0; 
     err = 0;
-    for (df = dfhead; df != NULL;)
+    for (df = dfhead; df != NULL; )
     {
 	unsigned int ln;
+	unsigned long deltaend;
 
-	/* Once an error is encountered, just free the rest of the list and
-	 * return.
-	 */
+	if (df->pos > orig_lines->nlines)
+	    err = 1;
+
+	/* On error, just free the rest of the list.  */
 	if (!err)
+	{
+	    /* Here we need to get to the line where the next insert will
+	       begin, which is DF->pos in ORIG_LINES.  We will fill up to
+	       DF->pos - OFFSET in LINES with original items.  */
+	    for (deltaend = df->pos - offset;
+		 lastmodline < deltaend;
+		 lastmodline++)
+	    {
+		/* we need to copy from the orig structure into new one */
+		lines.vector[lastmodline] =
+			orig_lines->vector[lastmodline + offset];
+		lines.vector[lastmodline]->refcount++;
+	    }
+
 	    switch (df->type)
 	    {
-	    case FRAG_ADD:
-		if (! linevector_add (lines, df->new_lines, df->len, addvers,
-				      df->pos))
-		    err = 1;
-		break;
-	    case FRAG_DELETE:
-		if (df->pos > lines->nlines
-		    || df->pos + df->nlines > lines->nlines)
-		    return 0;
-		if (delvers != NULL)
-		    for (ln = df->pos; ln < df->pos + df->nlines; ++ln)
-			lines->vector[ln]->vers = delvers;
-		linevector_delete (lines, df->pos, df->nlines);
-		break;
+		case FRAG_ADD:
+		{
+		    const char *textend, *p;
+		    const char *nextline_text;
+		    struct line *q;
+		    int nextline_newline;
+		    size_t nextline_len;
+		
+		    textend = df->new_lines + df->len;
+		    nextline_newline = 0;
+		    nextline_text = df->new_lines;
+		    for (p = df->new_lines; p < textend; ++p)
+		    {
+			if (*p == '\n')
+			{
+			    nextline_newline = 1;
+			    if (p + 1 == textend)
+			    {
+				/* If there are no characters beyond the
+				   last newline, we don't consider it
+				   another line. */
+				break;
+			    }
+
+			    nextline_len = p - nextline_text;
+			    q = xmalloc (sizeof *q + nextline_len);
+			    q->vers = addvers;
+			    q->text = (char *)(q + 1);
+			    q->len = nextline_len;
+			    q->has_newline = nextline_newline;
+			    q->refcount = 1;
+			    memcpy (q->text, nextline_text, nextline_len);
+			    lines.vector[lastmodline++] = q;
+			    offset--;
+		    
+			    nextline_text = (char *)p + 1;
+			    nextline_newline = 0;
+			}
+		    }
+		    nextline_len = p - nextline_text;
+		    q = xmalloc (sizeof *q + nextline_len);
+		    q->vers = addvers;
+		    q->text = (char *)(q + 1);
+		    q->len = nextline_len;
+		    q->has_newline = nextline_newline;
+		    q->refcount = 1;
+		    memcpy (q->text, nextline_text, nextline_len);
+		    lines.vector[lastmodline++] = q;
+
+		    /* For each line we add the offset between the #'s
+		       decreases. */
+		    offset--;
+		    break;
+		}
+
+		case FRAG_DELETE:
+		    /* we are removing this many lines from the source. */
+		    offset += df->nlines;
+
+		    if (df->pos + df->nlines > orig_lines->nlines)
+			err = 1;
+		    else if (delvers)
+			for (ln = df->pos; ln < df->pos + df->nlines; ++ln)
+			    if (orig_lines->vector[ln]->refcount > 1)
+				/* Annotate needs this but, since the original
+				 * vector is disposed of before returning from
+				 * this function, we only need keep track if
+				 * there are multiple references.
+				 */
+				orig_lines->vector[ln]->vers = delvers;
+		    break;
 	    }
+	}
 
 	df = df->next;
 	free (dfhead);
 	dfhead = df;
+    }
+
+    if (err)
+    {
+	/* No reason to try and move a half-mutated and known invalid
+	 * text into the output buffer.
+	 */
+	linevector_free (&lines);
+    }
+    else
+    {
+	/* add the rest of the remaining lines to the data vector */
+	for (; lastmodline < numlines; lastmodline++)
+	{
+	    /* we need to copy from the orig structure into new one */
+	    lines.vector[lastmodline] = orig_lines->vector[lastmodline
+							   + offset];
+	    lines.vector[lastmodline]->refcount++;
+	}
+
+	/* Move the lines vector to the original structure for output,
+	 * first deleting the old.
+	 */
+	linevector_free (orig_lines);
+	orig_lines->vector = lines.vector;
+	orig_lines->lines_alloced = numlines;
+	orig_lines->nlines = lines.nlines;
     }
 
     return !err;
@@ -8346,10 +8444,8 @@ RCS_copydeltas (rcs, fin, rcsbufin, fout, newdtext, insertpt)
     char *bufrest;
     int nls;
     size_t buflen;
-#ifndef HAVE_MMAP
     char buf[8192];
     int got;
-#endif
 
     /* Count the number of versions for which we have to do some
        special operation.  */
@@ -8463,29 +8559,30 @@ RCS_copydeltas (rcs, fin, rcsbufin, fout, newdtext, insertpt)
 
 	fwrite (bufrest, 1, buflen, fout);
     }
-#ifndef HAVE_MMAP
-    /* This bit isn't necessary when using mmap since the entire file
-     * will already be available via the RCS buffer.  Besides, the
-     * mmap code doesn't always keep the file pointer up to date, so
-     * this adds some data twice.
-     */
-    while ((got = fread (buf, 1, sizeof buf, fin)) != 0)
+    if (!rcsbufin->mmapped)
     {
-	if (nls > 0
-	    && got >= nls
-	    && buf[0] == '\n'
-	    && strncmp (buf, "\n\n\n", nls) == 0)
+	/* This bit isn't necessary when using mmap since the entire file
+	 * will already be available via the RCS buffer.  Besides, the
+	 * mmap code doesn't always keep the file pointer up to date, so
+	 * this adds some data twice.
+	 */
+	while ((got = fread (buf, 1, sizeof buf, fin)) != 0)
 	{
-	    fwrite (buf + 1, 1, got - 1, fout);
-	}
-	else
-	{
-	    fwrite (buf, 1, got, fout);
-	}
+	    if (nls > 0
+		&& got >= nls
+		&& buf[0] == '\n'
+		&& strncmp (buf, "\n\n\n", nls) == 0)
+	    {
+		fwrite (buf + 1, 1, got - 1, fout);
+	    }
+	    else
+	    {
+		fwrite (buf, 1, got, fout);
+	    }
 
 	nls = 0;
+	}
     }
-#endif /* HAVE_MMAP */
 }
 
 /* A helper procedure for RCS_copydeltas.  This is called via walklist
