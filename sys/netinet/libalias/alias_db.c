@@ -361,7 +361,7 @@ alias_mod_handler(module_t mod, int type, void *data)
 	switch (type) {
 	case MOD_LOAD:
 		error = 0;
-		newpacket = malloc(IP_MAXPACKET);
+		newpacket = malloc(IP_MAXPACKET + 1);
 		if (!newpacket)
 			error = EINVAL;	
 		break;
