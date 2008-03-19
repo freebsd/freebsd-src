@@ -304,9 +304,6 @@ extern int errno;
    command line, the client, etc.  */
 #define MAXDATELEN	50
 
-/* FreeBSD.org default is to use ssh.  */
-#define RSH_DFLT	"ssh"
-
 /* The type of an entnode.  */
 enum ent_type
 {
@@ -928,6 +925,7 @@ char *descramble PROTO ((char *str));
 
 #ifdef AUTH_CLIENT_SUPPORT
 char *get_cvs_password PROTO((void));
+void free_cvs_password PROTO((char *str));
 int get_cvs_port_number PROTO((const cvsroot_t *root));
 char *normalize_cvsroot PROTO((const cvsroot_t *root));
 #endif /* AUTH_CLIENT_SUPPORT */
