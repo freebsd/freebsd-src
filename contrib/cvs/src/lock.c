@@ -175,7 +175,7 @@ lock_name (repository, name)
     const char *p;
     char *q;
     const char *short_repos;
-    mode_t save_umask;
+    mode_t save_umask = 0;
     int saved_umask = 0;
 
     if (lock_dir == NULL)
