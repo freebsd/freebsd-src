@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1986-2005 The Free Software Foundation, Inc.
+ * Copyright (C) 1986-2008 The Free Software Foundation, Inc.
  *
  * Portions Copyright (C) 1998-2005 Derek Price, Ximbiot <http://ximbiot.com>,
  *                                  and others.
@@ -247,6 +247,7 @@ parse_config (cvsroot)
     /* FIXME-reentrancy: If we do a multi-threaded server, this would need
        to go to the per-connection data structures.  */
     static int parsed = 0;
+    int ignore_unknown_config_keys = 0;
 
     /* Authentication code and serve_root might both want to call us.
        Let this happen smoothly.  */
@@ -446,6 +447,23 @@ warning: this CVS does not support PreservePermissions");
 	    /* Recognize cvs-1.12-style keyword control rather than erroring out. */
 	    RCS_setincexc(p);
 	}
+	else if (strcmp (line, "IgnoreUnknownConfigKeys") == 0)
+	{
+	    if (strcmp (p, "no") == 0 || strcmp (p, "false") == 0
+		|| strcmp (p, "off") == 0 || strcmp (p, "0") == 0)
+		ignore_unknown_config_keys = 0;
+	    else if (strcmp (p, "yes") == 0 || strcmp (p, "true") == 0
+		     || strcmp (p, "on") == 0 || strcmp (p, "1") == 0)
+		ignore_unknown_config_keys = 1;
+	    else
+	    {
+		error (0, 0, "%s: unrecognized value '%s' for '%s'",
+		       infopath, p, line);
+		goto error_return;
+	    }
+	}
+	else if (ignore_unknown_config_keys)
+	    ;
 	else
 	{
 	    /* We may be dealing with a keyword which was added in a
