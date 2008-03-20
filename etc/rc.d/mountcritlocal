@@ -15,6 +15,8 @@ stop_cmd=":"
 
 mountcritlocal_start()
 {
+	local err
+
 	# Set up the list of network filesystem types for which mounting
 	# should be delayed until after network initialization.
 	case ${extra_netfs_types} in
@@ -34,9 +36,10 @@ mountcritlocal_start()
 	done
 	mount_excludes=${mount_excludes%,}
 	mount -a -t ${mount_excludes}
+	err=$?
 	echo '.'
 
-	case $? in
+	case ${err} in
 	0)
 		;;
 	*)
