@@ -168,10 +168,10 @@ extern long switch_needresched;
 #define SCHED_STAT_INC(var)
 #endif
 
-/* temporarily here */
+/*
+ * Fixup scheduler state for proc0 and thread0
+ */
 void schedinit(void);
-void sched_newproc(struct proc *p, struct thread *td);
-void sched_newthread(struct thread *td);
 #endif /* _KERNEL */
 
 /* POSIX 1003.1b Process Scheduling */
