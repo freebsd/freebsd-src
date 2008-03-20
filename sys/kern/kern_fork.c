@@ -265,7 +265,6 @@ norfproc_fail:
 			goto fail1;
 		}
 		proc_linkup(newproc, td2);
-		sched_newproc(newproc, td2);
 	} else
 		td2 = FIRST_THREAD_IN_PROC(newproc);
 
