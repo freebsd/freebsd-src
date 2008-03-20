@@ -500,7 +500,7 @@ cxgb_controller_attach(device_t dev)
 		error = ENODEV;
 		goto out;
 	}
-	/* Allocate the BAR for doing MSI-X.  If it succeeds, try to allocate
+        /* Allocate the BAR for doing MSI-X.  If it succeeds, try to allocate
 	 * enough messages for the queue sets.  If that fails, try falling
 	 * back to MSI.  If that fails, then try falling back to the legacy
 	 * interrupt pin model.
@@ -549,7 +549,9 @@ cxgb_controller_attach(device_t dev)
 		sc->cxgb_intr = t3b_intr;
 	}
 
-
+	if ((sc->flags & USING_MSIX) && !singleq)
+		port_qsets = min((SGE_QSETS/(sc)->params.nports), mp_ncpus);
+	
 	/* Create a private taskqueue thread for handling driver events */
 #ifdef TASKQUEUE_CURRENT	
 	sc->tq = taskqueue_create("cxgb_taskq", M_NOWAIT,
@@ -594,9 +596,6 @@ cxgb_controller_attach(device_t dev)
 		sc->flags |= TPS_UPTODATE;
 	}
 	
-	if ((sc->flags & USING_MSIX) && !singleq)
-		port_qsets = min((SGE_QSETS/(sc)->params.nports), mp_ncpus);
-
 	/*
 	 * Create a child device for each MAC.  The ethernet attachment
 	 * will be done in these children.
