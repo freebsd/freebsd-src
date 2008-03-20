@@ -141,7 +141,6 @@ thread_dtor(void *mem, int size, void *arg)
 #endif
 	EVENTHANDLER_INVOKE(thread_dtor, td);
 	free_unr(tid_unrhdr, td->td_tid);
-	sched_newthread(td);
 }
 
 /*
@@ -158,7 +157,6 @@ thread_init(void *mem, int size, int flags)
 	td->td_turnstile = turnstile_alloc();
 	EVENTHANDLER_INVOKE(thread_init, td);
 	td->td_sched = (struct td_sched *)&td[1];
-	sched_newthread(td);
 	umtx_thread_init(td);
 	td->td_kstack = 0;
 	return (0);
