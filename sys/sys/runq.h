@@ -67,6 +67,7 @@ void	runq_add_pri(struct runq *, struct td_sched *, u_char, int);
 int	runq_check(struct runq *);
 struct	td_sched *runq_choose(struct runq *);
 struct	td_sched *runq_choose_from(struct runq *, u_char);
+struct	td_sched *runq_choose_fuzz(struct runq *, int);
 void	runq_init(struct runq *);
 void	runq_remove(struct runq *, struct td_sched *);
 void	runq_remove_idx(struct runq *, struct td_sched *, u_char *);

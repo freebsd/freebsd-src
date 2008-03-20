@@ -45,9 +45,6 @@ __FBSDID("$FreeBSD$");
 #if defined(SMP) && (defined(__i386__) || defined(__amd64__))
 #include <sys/smp.h>
 #endif
-#if defined(SMP) && defined(SCHED_4BSD)
-#include <sys/sysctl.h>
-#endif
 
 #include <machine/cpu.h>
 
@@ -191,106 +188,6 @@ critical_exit(void)
 	CTR4(KTR_CRITICAL, "critical_exit by thread %p (%ld, %s) to %d", td,
 	    (long)td->td_proc->p_pid, td->td_name, td->td_critnest);
 }
-
-/*
- * This function is called when a thread is about to be put on run queue
- * because it has been made runnable or its priority has been adjusted.  It
- * determines if the new thread should be immediately preempted to.  If so,
- * it switches to it and eventually returns true.  If not, it returns false
- * so that the caller may place the thread on an appropriate run queue.
- */
-int
-maybe_preempt(struct thread *td)
-{
-#ifdef PREEMPTION
-	struct thread *ctd;
-	int cpri, pri;
-#endif
-
-#ifdef PREEMPTION
-	/*
-	 * The new thread should not preempt the current thread if any of the
-	 * following conditions are true:
-	 *
-	 *  - The kernel is in the throes of crashing (panicstr).
-	 *  - The current thread has a higher (numerically lower) or
-	 *    equivalent priority.  Note that this prevents curthread from
-	 *    trying to preempt to itself.
-	 *  - It is too early in the boot for context switches (cold is set).
-	 *  - The current thread has an inhibitor set or is in the process of
-	 *    exiting.  In this case, the current thread is about to switch
-	 *    out anyways, so there's no point in preempting.  If we did,
-	 *    the current thread would not be properly resumed as well, so
-	 *    just avoid that whole landmine.
-	 *  - If the new thread's priority is not a realtime priority and
-	 *    the current thread's priority is not an idle priority and
-	 *    FULL_PREEMPTION is disabled.
-	 *
-	 * If all of these conditions are false, but the current thread is in
-	 * a nested critical section, then we have to defer the preemption
-	 * until we exit the critical section.  Otherwise, switch immediately
-	 * to the new thread.
-	 */
-	ctd = curthread;
-	THREAD_LOCK_ASSERT(td, MA_OWNED);
-	KASSERT ((ctd->td_sched != NULL && ctd->td_sched->ts_thread == ctd),
-	  ("thread has no (or wrong) sched-private part."));
-	KASSERT((td->td_inhibitors == 0),
-			("maybe_preempt: trying to run inhibited thread"));
-	pri = td->td_priority;
-	cpri = ctd->td_priority;
-	if (panicstr != NULL || pri >= cpri || cold /* || dumping */ ||
-	    TD_IS_INHIBITED(ctd))
-		return (0);
-#ifndef FULL_PREEMPTION
-	if (pri > PRI_MAX_ITHD && cpri < PRI_MIN_IDLE)
-		return (0);
-#endif
-
-	if (ctd->td_critnest > 1) {
-		CTR1(KTR_PROC, "maybe_preempt: in critical section %d",
-		    ctd->td_critnest);
-		ctd->td_owepreempt = 1;
-		return (0);
-	}
-	/*
-	 * Thread is runnable but not yet put on system run queue.
-	 */
-	MPASS(ctd->td_lock == td->td_lock);
-	MPASS(TD_ON_RUNQ(td));
-	TD_SET_RUNNING(td);
-	CTR3(KTR_PROC, "preempting to thread %p (pid %d, %s)\n", td,
-	    td->td_proc->p_pid, td->td_name);
-	SCHED_STAT_INC(switch_preempt);
-	mi_switch(SW_INVOL|SW_PREEMPT, td);
-	/*
-	 * td's lock pointer may have changed.  We have to return with it
-	 * locked.
-	 */
-	spinlock_enter();
-	thread_unlock(ctd);
-	thread_lock(td);
-	spinlock_exit();
-	return (1);
-#else
-	return (0);
-#endif
-}
-
-#if 0
-#ifndef PREEMPTION
-/* XXX: There should be a non-static version of this. */
-static void
-printf_caddr_t(void *data)
-{
-	printf("%s", (char *)data);
-}
-static char preempt_warning[] =
-    "WARNING: Kernel preemption is disabled, expect reduced performance.\n";
-SYSINIT(preempt_warning, SI_SUB_COPYRIGHT, SI_ORDER_ANY, printf_caddr_t,
-    preempt_warning);
-#endif
-#endif
 
 /************************************************************************
  * SYSTEM RUN QUEUE manipulations and tests				*
@@ -460,10 +357,47 @@ runq_check(struct runq *rq)
 	return (0);
 }
 
-#if defined(SMP) && defined(SCHED_4BSD)
-int runq_fuzz = 1;
-SYSCTL_INT(_kern_sched, OID_AUTO, runq_fuzz, CTLFLAG_RW, &runq_fuzz, 0, "");
-#endif
+/*
+ * Find the highest priority process on the run queue.
+ */
+struct td_sched *
+runq_choose_fuzz(struct runq *rq, int fuzz)
+{
+	struct rqhead *rqh;
+	struct td_sched *ts;
+	int pri;
+
+	while ((pri = runq_findbit(rq)) != -1) {
+		rqh = &rq->rq_queues[pri];
+		/* fuzz == 1 is normal.. 0 or less are ignored */
+		if (fuzz > 1) {
+			/*
+			 * In the first couple of entries, check if
+			 * there is one for our CPU as a preference.
+			 */
+			int count = fuzz;
+			int cpu = PCPU_GET(cpuid);
+			struct td_sched *ts2;
+			ts2 = ts = TAILQ_FIRST(rqh);
+
+			while (count-- && ts2) {
+				if (ts->ts_thread->td_lastcpu == cpu) {
+					ts = ts2;
+					break;
+				}
+				ts2 = TAILQ_NEXT(ts2, ts_procq);
+			}
+		} else
+			ts = TAILQ_FIRST(rqh);
+		KASSERT(ts != NULL, ("runq_choose_fuzz: no proc on busy queue"));
+		CTR3(KTR_RUNQ,
+		    "runq_choose_fuzz: pri=%d td_sched=%p rqh=%p", pri, ts, rqh);
+		return (ts);
+	}
+	CTR1(KTR_RUNQ, "runq_choose_fuzz: idleproc pri=%d", pri);
+
+	return (NULL);
+}
 
 /*
  * Find the highest priority process on the run queue.
@@ -477,28 +411,7 @@ runq_choose(struct runq *rq)
 
 	while ((pri = runq_findbit(rq)) != -1) {
 		rqh = &rq->rq_queues[pri];
-#if defined(SMP) && defined(SCHED_4BSD)
-		/* fuzz == 1 is normal.. 0 or less are ignored */
-		if (runq_fuzz > 1) {
-			/*
-			 * In the first couple of entries, check if
-			 * there is one for our CPU as a preference.
-			 */
-			int count = runq_fuzz;
-			int cpu = PCPU_GET(cpuid);
-			struct td_sched *ts2;
-			ts2 = ts = TAILQ_FIRST(rqh);
-
-			while (count-- && ts2) {
-				if (ts->ts_thread->td_lastcpu == cpu) {
-					ts = ts2;
-					break;
-				}
-				ts2 = TAILQ_NEXT(ts2, ts_procq);
-			}
-		} else
-#endif
-			ts = TAILQ_FIRST(rqh);
+		ts = TAILQ_FIRST(rqh);
 		KASSERT(ts != NULL, ("runq_choose: no proc on busy queue"));
 		CTR3(KTR_RUNQ,
 		    "runq_choose: pri=%d td_sched=%p rqh=%p", pri, ts, rqh);
