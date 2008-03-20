@@ -81,10 +81,7 @@ __FBSDID("$FreeBSD$");
  * the requirements of this scheduler
  */
 struct td_sched {
-	TAILQ_ENTRY(td_sched) ts_procq;	/* (j/z) Run queue. */
-	struct thread	*ts_thread;	/* (*) Active associated thread. */
 	fixpt_t		ts_pctcpu;	/* (j) %cpu during p_swtime. */
-	u_char		ts_rqindex;	/* (j) Run queue index. */
 	int		ts_cpticks;	/* (j) Ticks of cpu time. */
 	int		ts_slptime;	/* (j) Seconds !RUNNING. */
 	struct runq	*ts_runq;	/* runq the thread is currently on */
@@ -92,13 +89,7 @@ struct td_sched {
 
 /* flags kept in td_flags */
 #define TDF_DIDRUN	TDF_SCHED0	/* thread actually ran. */
-#define TDF_EXIT	TDF_SCHED1	/* thread is being killed. */
-#define TDF_BOUND	TDF_SCHED2
-
-#define ts_flags	ts_thread->td_flags
-#define TSF_DIDRUN	TDF_DIDRUN /* thread actually ran. */
-#define TSF_EXIT	TDF_EXIT /* thread is being killed. */
-#define TSF_BOUND	TDF_BOUND /* stuck to one CPU */
+#define TDF_BOUND	TDF_SCHED1	/* Bound to one CPU. */
 
 #define SKE_RUNQ_PCPU(ts)						\
     ((ts)->ts_runq != 0 && (ts)->ts_runq != &runq)
@@ -299,8 +290,6 @@ maybe_preempt(struct thread *td)
 	 */
 	ctd = curthread;
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
-	KASSERT ((ctd->td_sched != NULL && ctd->td_sched->ts_thread == ctd),
-	  ("thread has no (or wrong) sched-private part."));
 	KASSERT((td->td_inhibitors == 0),
 			("maybe_preempt: trying to run inhibited thread"));
 	pri = td->td_priority;
@@ -462,13 +451,13 @@ schedcpu(void)
 			 */
 			if (TD_ON_RUNQ(td)) {
 				awake = 1;
-				ts->ts_flags &= ~TSF_DIDRUN;
+				td->td_flags &= ~TDF_DIDRUN;
 			} else if (TD_IS_RUNNING(td)) {
 				awake = 1;
-				/* Do not clear TSF_DIDRUN */
-			} else if (ts->ts_flags & TSF_DIDRUN) {
+				/* Do not clear TDF_DIDRUN */
+			} else if (td->td_flags & TDF_DIDRUN) {
 				awake = 1;
-				ts->ts_flags &= ~TSF_DIDRUN;
+				td->td_flags &= ~TDF_DIDRUN;
 			}
 
 			/*
@@ -636,7 +625,6 @@ schedinit(void)
 	proc0.p_sched = NULL; /* XXX */
 	thread0.td_sched = &td_sched0;
 	thread0.td_lock = &sched_lock;
-	td_sched0.ts_thread = &thread0;
 	mtx_init(&sched_lock, "sched lock", NULL, MTX_SPIN | MTX_RECURSE);
 }
 
@@ -740,7 +728,6 @@ sched_fork_thread(struct thread *td, struct thread *childtd)
 	childtd->td_cpuset = cpuset_ref(td->td_cpuset);
 	ts = childtd->td_sched;
 	bzero(ts, sizeof(*ts));
-	ts->ts_thread = childtd;
 }
 
 void
@@ -779,8 +766,7 @@ sched_priority(struct thread *td, u_char prio)
 	if (td->td_priority == prio)
 		return;
 	td->td_priority = prio;
-	if (TD_ON_RUNQ(td) && 
-	    td->td_sched->ts_rqindex != (prio / RQ_PPQ)) {
+	if (TD_ON_RUNQ(td) && td->td_rqindex != (prio / RQ_PPQ)) {
 		sched_rem(td);
 		sched_add(td, SRQ_BORING);
 	}
@@ -961,7 +947,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 		 */
 		KASSERT((newtd->td_inhibitors == 0),
 			("trying to run inhibited thread"));
-		newtd->td_sched->ts_flags |= TSF_DIDRUN;
+		newtd->td_flags |= TDF_DIDRUN;
         	TD_SET_RUNNING(newtd);
 		if ((newtd->td_proc->p_flag & P_NOLOAD) == 0)
 			sched_load_add();
@@ -1186,7 +1172,7 @@ sched_add(struct thread *td, int flags)
 		single_cpu = 1;
 		CTR3(KTR_RUNQ,
 		    "sched_add: Put td_sched:%p(td:%p) on cpu%d runq", ts, td, cpu);
-	} else if ((ts)->ts_flags & TSF_BOUND) {
+	} else if ((td)->td_flags & TDF_BOUND) {
 		/* Find CPU from bound runq */
 		KASSERT(SKE_RUNQ_PCPU(ts),("sched_add: bound td_sched not on cpu runq"));
 		cpu = ts->ts_runq - &runq_pcpu[0];
@@ -1223,7 +1209,7 @@ sched_add(struct thread *td, int flags)
 	
 	if ((td->td_proc->p_flag & P_NOLOAD) == 0)
 		sched_load_add();
-	runq_add(ts->ts_runq, ts, flags);
+	runq_add(ts->ts_runq, td, flags);
 }
 #else /* SMP */
 {
@@ -1268,7 +1254,7 @@ sched_add(struct thread *td, int flags)
 	}	
 	if ((td->td_proc->p_flag & P_NOLOAD) == 0)
 		sched_load_add();
-	runq_add(ts->ts_runq, ts, flags);
+	runq_add(ts->ts_runq, td, flags);
 	maybe_resched(td);
 }
 #endif /* SMP */
@@ -1290,7 +1276,7 @@ sched_rem(struct thread *td)
 
 	if ((td->td_proc->p_flag & P_NOLOAD) == 0)
 		sched_load_rem();
-	runq_remove(ts->ts_runq, ts);
+	runq_remove(ts->ts_runq, td);
 	TD_SET_CAN_RUN(td);
 }
 
@@ -1301,40 +1287,40 @@ sched_rem(struct thread *td)
 struct thread *
 sched_choose(void)
 {
-	struct td_sched *ts;
+	struct thread *td;
 	struct runq *rq;
 
 	mtx_assert(&sched_lock,  MA_OWNED);
 #ifdef SMP
-	struct td_sched *kecpu;
+	struct thread *tdcpu;
 
 	rq = &runq;
-	ts = runq_choose_fuzz(&runq, runq_fuzz);
-	kecpu = runq_choose(&runq_pcpu[PCPU_GET(cpuid)]);
+	td = runq_choose_fuzz(&runq, runq_fuzz);
+	tdcpu = runq_choose(&runq_pcpu[PCPU_GET(cpuid)]);
 
-	if (ts == NULL || 
-	    (kecpu != NULL && 
-	     kecpu->ts_thread->td_priority < ts->ts_thread->td_priority)) {
-		CTR2(KTR_RUNQ, "choosing td_sched %p from pcpu runq %d", kecpu,
+	if (td == NULL || 
+	    (tdcpu != NULL && 
+	     tdcpu->td_priority < td->td_priority)) {
+		CTR2(KTR_RUNQ, "choosing td %p from pcpu runq %d", tdcpu,
 		     PCPU_GET(cpuid));
-		ts = kecpu;
+		td = tdcpu;
 		rq = &runq_pcpu[PCPU_GET(cpuid)];
 	} else { 
-		CTR1(KTR_RUNQ, "choosing td_sched %p from main runq", ts);
+		CTR1(KTR_RUNQ, "choosing td_sched %p from main runq", td);
 	}
 
 #else
 	rq = &runq;
-	ts = runq_choose(&runq);
+	td = runq_choose(&runq);
 #endif
 
-	if (ts) {
-		runq_remove(rq, ts);
-		ts->ts_flags |= TSF_DIDRUN;
+	if (td) {
+		runq_remove(rq, td);
+		td->td_flags |= TDF_DIDRUN;
 
-		KASSERT(ts->ts_thread->td_flags & TDF_INMEM,
+		KASSERT(td->td_flags & TDF_INMEM,
 		    ("sched_choose: thread swapped out"));
-		return (ts->ts_thread);
+		return (td);
 	} 
 	return (PCPU_GET(idlethread));
 }
@@ -1383,7 +1369,7 @@ sched_bind(struct thread *td, int cpu)
 
 	ts = td->td_sched;
 
-	ts->ts_flags |= TSF_BOUND;
+	td->td_flags |= TDF_BOUND;
 #ifdef SMP
 	ts->ts_runq = &runq_pcpu[cpu];
 	if (PCPU_GET(cpuid) == cpu)
@@ -1397,14 +1383,14 @@ void
 sched_unbind(struct thread* td)
 {
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
-	td->td_sched->ts_flags &= ~TSF_BOUND;
+	td->td_flags &= ~TDF_BOUND;
 }
 
 int
 sched_is_bound(struct thread *td)
 {
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
-	return (td->td_sched->ts_flags & TSF_BOUND);
+	return (td->td_flags & TDF_BOUND);
 }
 
 void
@@ -1515,6 +1501,3 @@ void
 sched_affinity(struct thread *td)
 {
 }
-
-#define KERN_SWITCH_INCLUDE 1
-#include "kern/kern_switch.c"
