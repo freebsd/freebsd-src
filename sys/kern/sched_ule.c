@@ -488,7 +488,6 @@ tdq_load_rem(struct tdq *tdq, struct td_sched *ts)
 	    ("tdq_load_rem: Removing with 0 load on queue %d", TDQ_ID(tdq)));
 	tdq->tdq_load--;
 	CTR1(KTR_SCHED, "load: %d", tdq->tdq_load);
-	ts->ts_runq = NULL;
 }
 
 /*
@@ -1905,17 +1904,17 @@ sched_fork_thread(struct thread *td, struct thread *child)
 	struct td_sched *ts;
 	struct td_sched *ts2;
 
+	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	/*
 	 * Initialize child.
 	 */
-	THREAD_LOCK_ASSERT(td, MA_OWNED);
-	sched_newthread(child);
-	child->td_lock = TDQ_LOCKPTR(TDQ_SELF());
-	child->td_cpuset = cpuset_ref(td->td_cpuset);
 	ts = td->td_sched;
 	ts2 = child->td_sched;
+	child->td_lock = TDQ_LOCKPTR(TDQ_SELF());
+	child->td_cpuset = cpuset_ref(td->td_cpuset);
+	ts2->ts_thread = child;
 	ts2->ts_cpu = ts->ts_cpu;
-	ts2->ts_runq = NULL;
+	ts2->ts_flags = 0;
 	/*
 	 * Grab our parents cpu estimation information and priority.
 	 */
