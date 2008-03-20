@@ -166,6 +166,7 @@ _pthread_mutexattr_destroy(pthread_mutexattr_t *attr)
 		*attr = NULL;
 		ret = 0;
 	}
+	return(ret);
 }
 
 int
