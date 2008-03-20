@@ -88,6 +88,8 @@ typedef void (*usbd_callback)(usbd_xfer_handle, usbd_private_handle,
 /* in usb.h #define USBD_SHORT_XFER_OK	0x04*/	/* allow short reads */
 #define USBD_FORCE_SHORT_XFER	0x08	/* force last short packet on write */
 
+#define	USBD_BITS	"\20\1NO_COPY\2SYNCHRONOUS\4FORCE_SHORT_XFER"
+
 #define USBD_NO_TIMEOUT 0
 #define USBD_DEFAULT_TIMEOUT 5000 /* ms = 5 s */
 
