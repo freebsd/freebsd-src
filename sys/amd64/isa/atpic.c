@@ -44,7 +44,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/module.h>
-#include <sys/mutex.h>
 
 #include <machine/cpufunc.h>
 #include <machine/frame.h>
@@ -208,12 +207,12 @@ atpic_enable_source(struct intsrc *isrc)
 	struct atpic_intsrc *ai = (struct atpic_intsrc *)isrc;
 	struct atpic *ap = (struct atpic *)isrc->is_pic;
 
-	mtx_lock_spin(&icu_lock);
+	spinlock_enter();
 	if (*ap->at_imen & IMEN_MASK(ai)) {
 		*ap->at_imen &= ~IMEN_MASK(ai);
 		outb(ap->at_ioaddr + ICU_IMR_OFFSET, *ap->at_imen);
 	}
-	mtx_unlock_spin(&icu_lock);
+	spinlock_exit();
 }
 
 static void
@@ -222,7 +221,7 @@ atpic_disable_source(struct intsrc *isrc, int eoi)
 	struct atpic_intsrc *ai = (struct atpic_intsrc *)isrc;
 	struct atpic *ap = (struct atpic *)isrc->is_pic;
 
-	mtx_lock_spin(&icu_lock);
+	spinlock_enter();
 	if (ai->at_trigger != INTR_TRIGGER_EDGE) {
 		*ap->at_imen |= IMEN_MASK(ai);
 		outb(ap->at_ioaddr + ICU_IMR_OFFSET, *ap->at_imen);
@@ -240,16 +239,16 @@ atpic_disable_source(struct intsrc *isrc, int eoi)
 			_atpic_eoi_slave(isrc);
 	}
 
-	mtx_unlock_spin(&icu_lock);
+	spinlock_exit();
 }
 
 static void
 atpic_eoi_master(struct intsrc *isrc)
 {
 #ifndef AUTO_EOI_1
-	mtx_lock_spin(&icu_lock);
+	spinlock_enter();
 	_atpic_eoi_master(isrc);
-	mtx_unlock_spin(&icu_lock);
+	spinlock_exit();
 #endif
 }
 
@@ -257,9 +256,9 @@ static void
 atpic_eoi_slave(struct intsrc *isrc)
 {
 #ifndef AUTO_EOI_2
-	mtx_lock_spin(&icu_lock);
+	spinlock_enter();
 	_atpic_eoi_slave(isrc);
-	mtx_unlock_spin(&icu_lock);
+	spinlock_exit();
 #endif
 }
 
@@ -351,10 +350,10 @@ atpic_config_intr(struct intsrc *isrc, enum intr_trigger trig,
 	if (bootverbose)
 		printf("atpic: Programming IRQ%u as %s\n", vector,
 		    trig == INTR_TRIGGER_EDGE ? "edge/high" : "level/low");
-	mtx_lock_spin(&icu_lock);
+	spinlock_enter();
 	elcr_write_trigger(atpic_vector(isrc), trig);
 	ai->at_trigger = trig;
-	mtx_unlock_spin(&icu_lock);
+	spinlock_exit();
 	return (0);
 }
 
@@ -375,7 +374,7 @@ i8259_init(struct atpic *pic, int slave)
 	int imr_addr;
 
 	/* Reset the PIC and program with next four bytes. */
-	mtx_lock_spin(&icu_lock);
+	spinlock_enter();
 	outb(pic->at_ioaddr, ICW1_RESET | ICW1_IC4);
 	imr_addr = pic->at_ioaddr + ICU_IMR_OFFSET;
 
@@ -407,7 +406,7 @@ i8259_init(struct atpic *pic, int slave)
 	/* OCW2_L1 sets priority order to 3-7, 0-2 (com2 first). */
 	if (!slave)
 		outb(pic->at_ioaddr, OCW2_R | OCW2_SL | OCW2_L1);
-	mtx_unlock_spin(&icu_lock);
+	spinlock_exit();
 }
 
 void
@@ -521,11 +520,11 @@ atpic_handle_intr(u_int vector, struct trapframe *frame)
 		 * pending.  Reset read register back to IRR when done.
 		 */
 		port = ((struct atpic *)isrc->is_pic)->at_ioaddr;
-		mtx_lock_spin(&icu_lock);
+		spinlock_enter();
 		outb(port, OCW3_SEL | OCW3_RR | OCW3_RIS);
 		isr = inb(port);
 		outb(port, OCW3_SEL | OCW3_RR);
-		mtx_unlock_spin(&icu_lock);
+		spinlock_exit();
 		if ((isr & IRQ_MASK(7)) == 0)
 			return;
 	}
