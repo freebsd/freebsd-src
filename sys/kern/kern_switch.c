@@ -30,7 +30,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_sched.h"
 
-#ifndef KERN_SWITCH_INCLUDE
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kdb.h>
@@ -41,10 +40,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/queue.h>
 #include <sys/sched.h>
-#else  /* KERN_SWITCH_INCLUDE */
-#if defined(SMP) && (defined(__i386__) || defined(__amd64__))
 #include <sys/smp.h>
-#endif
+#include <sys/sysctl.h>
 
 #include <machine/cpu.h>
 
@@ -299,39 +296,39 @@ runq_setbit(struct runq *rq, int pri)
  * corresponding status bit.
  */
 void
-runq_add(struct runq *rq, struct td_sched *ts, int flags)
+runq_add(struct runq *rq, struct thread *td, int flags)
 {
 	struct rqhead *rqh;
 	int pri;
 
-	pri = ts->ts_thread->td_priority / RQ_PPQ;
-	ts->ts_rqindex = pri;
+	pri = td->td_priority / RQ_PPQ;
+	td->td_rqindex = pri;
 	runq_setbit(rq, pri);
 	rqh = &rq->rq_queues[pri];
-	CTR5(KTR_RUNQ, "runq_add: td=%p ts=%p pri=%d %d rqh=%p",
-	    ts->ts_thread, ts, ts->ts_thread->td_priority, pri, rqh);
+	CTR4(KTR_RUNQ, "runq_add: td=%p pri=%d %d rqh=%p",
+	    td, td->td_priority, pri, rqh);
 	if (flags & SRQ_PREEMPTED) {
-		TAILQ_INSERT_HEAD(rqh, ts, ts_procq);
+		TAILQ_INSERT_HEAD(rqh, td, td_runq);
 	} else {
-		TAILQ_INSERT_TAIL(rqh, ts, ts_procq);
+		TAILQ_INSERT_TAIL(rqh, td, td_runq);
 	}
 }
 
 void
-runq_add_pri(struct runq *rq, struct td_sched *ts, u_char pri, int flags)
+runq_add_pri(struct runq *rq, struct thread *td, u_char pri, int flags)
 {
 	struct rqhead *rqh;
 
 	KASSERT(pri < RQ_NQS, ("runq_add_pri: %d out of range", pri));
-	ts->ts_rqindex = pri;
+	td->td_rqindex = pri;
 	runq_setbit(rq, pri);
 	rqh = &rq->rq_queues[pri];
-	CTR5(KTR_RUNQ, "runq_add_pri: td=%p ke=%p pri=%d idx=%d rqh=%p",
-	    ts->ts_thread, ts, ts->ts_thread->td_priority, pri, rqh);
+	CTR4(KTR_RUNQ, "runq_add_pri: td=%p pri=%d idx=%d rqh=%p",
+	    td, td->td_priority, pri, rqh);
 	if (flags & SRQ_PREEMPTED) {
-		TAILQ_INSERT_HEAD(rqh, ts, ts_procq);
+		TAILQ_INSERT_HEAD(rqh, td, td_runq);
 	} else {
-		TAILQ_INSERT_TAIL(rqh, ts, ts_procq);
+		TAILQ_INSERT_TAIL(rqh, td, td_runq);
 	}
 }
 /*
@@ -360,11 +357,11 @@ runq_check(struct runq *rq)
 /*
  * Find the highest priority process on the run queue.
  */
-struct td_sched *
+struct thread *
 runq_choose_fuzz(struct runq *rq, int fuzz)
 {
 	struct rqhead *rqh;
-	struct td_sched *ts;
+	struct thread *td;
 	int pri;
 
 	while ((pri = runq_findbit(rq)) != -1) {
@@ -377,22 +374,22 @@ runq_choose_fuzz(struct runq *rq, int fuzz)
 			 */
 			int count = fuzz;
 			int cpu = PCPU_GET(cpuid);
-			struct td_sched *ts2;
-			ts2 = ts = TAILQ_FIRST(rqh);
+			struct thread *td2;
+			td2 = td = TAILQ_FIRST(rqh);
 
-			while (count-- && ts2) {
-				if (ts->ts_thread->td_lastcpu == cpu) {
-					ts = ts2;
+			while (count-- && td2) {
+				if (td->td_lastcpu == cpu) {
+					td = td2;
 					break;
 				}
-				ts2 = TAILQ_NEXT(ts2, ts_procq);
+				td2 = TAILQ_NEXT(td2, td_runq);
 			}
 		} else
-			ts = TAILQ_FIRST(rqh);
-		KASSERT(ts != NULL, ("runq_choose_fuzz: no proc on busy queue"));
+			td = TAILQ_FIRST(rqh);
+		KASSERT(td != NULL, ("runq_choose_fuzz: no proc on busy queue"));
 		CTR3(KTR_RUNQ,
-		    "runq_choose_fuzz: pri=%d td_sched=%p rqh=%p", pri, ts, rqh);
-		return (ts);
+		    "runq_choose_fuzz: pri=%d thread=%p rqh=%p", pri, td, rqh);
+		return (td);
 	}
 	CTR1(KTR_RUNQ, "runq_choose_fuzz: idleproc pri=%d", pri);
 
@@ -402,43 +399,43 @@ runq_choose_fuzz(struct runq *rq, int fuzz)
 /*
  * Find the highest priority process on the run queue.
  */
-struct td_sched *
+struct thread *
 runq_choose(struct runq *rq)
 {
 	struct rqhead *rqh;
-	struct td_sched *ts;
+	struct thread *td;
 	int pri;
 
 	while ((pri = runq_findbit(rq)) != -1) {
 		rqh = &rq->rq_queues[pri];
-		ts = TAILQ_FIRST(rqh);
-		KASSERT(ts != NULL, ("runq_choose: no proc on busy queue"));
+		td = TAILQ_FIRST(rqh);
+		KASSERT(td != NULL, ("runq_choose: no thread on busy queue"));
 		CTR3(KTR_RUNQ,
-		    "runq_choose: pri=%d td_sched=%p rqh=%p", pri, ts, rqh);
-		return (ts);
+		    "runq_choose: pri=%d thread=%p rqh=%p", pri, td, rqh);
+		return (td);
 	}
-	CTR1(KTR_RUNQ, "runq_choose: idleproc pri=%d", pri);
+	CTR1(KTR_RUNQ, "runq_choose: idlethread pri=%d", pri);
 
 	return (NULL);
 }
 
-struct td_sched *
+struct thread *
 runq_choose_from(struct runq *rq, u_char idx)
 {
 	struct rqhead *rqh;
-	struct td_sched *ts;
+	struct thread *td;
 	int pri;
 
 	if ((pri = runq_findbit_from(rq, idx)) != -1) {
 		rqh = &rq->rq_queues[pri];
-		ts = TAILQ_FIRST(rqh);
-		KASSERT(ts != NULL, ("runq_choose: no proc on busy queue"));
+		td = TAILQ_FIRST(rqh);
+		KASSERT(td != NULL, ("runq_choose: no thread on busy queue"));
 		CTR4(KTR_RUNQ,
-		    "runq_choose_from: pri=%d td_sched=%p idx=%d rqh=%p",
-		    pri, ts, ts->ts_rqindex, rqh);
-		return (ts);
+		    "runq_choose_from: pri=%d thread=%p idx=%d rqh=%p",
+		    pri, td, td->td_rqindex, rqh);
+		return (td);
 	}
-	CTR1(KTR_RUNQ, "runq_choose_from: idleproc pri=%d", pri);
+	CTR1(KTR_RUNQ, "runq_choose_from: idlethread pri=%d", pri);
 
 	return (NULL);
 }
@@ -448,36 +445,26 @@ runq_choose_from(struct runq *rq, u_char idx)
  * Caller must set state afterwards.
  */
 void
-runq_remove(struct runq *rq, struct td_sched *ts)
+runq_remove(struct runq *rq, struct thread *td)
 {
 
-	runq_remove_idx(rq, ts, NULL);
+	runq_remove_idx(rq, td, NULL);
 }
 
 void
-runq_remove_idx(struct runq *rq, struct td_sched *ts, u_char *idx)
+runq_remove_idx(struct runq *rq, struct thread *td, u_char *idx)
 {
 	struct rqhead *rqh;
 	u_char pri;
 
-	KASSERT(ts->ts_thread->td_flags & TDF_INMEM,
+	KASSERT(td->td_flags & TDF_INMEM,
 		("runq_remove_idx: thread swapped out"));
-	pri = ts->ts_rqindex;
+	pri = td->td_rqindex;
 	KASSERT(pri < RQ_NQS, ("runq_remove_idx: Invalid index %d\n", pri));
 	rqh = &rq->rq_queues[pri];
-	CTR5(KTR_RUNQ, "runq_remove_idx: td=%p, ts=%p pri=%d %d rqh=%p",
-	    ts->ts_thread, ts, ts->ts_thread->td_priority, pri, rqh);
-	{
-		struct td_sched *nts;
-
-		TAILQ_FOREACH(nts, rqh, ts_procq)
-			if (nts == ts)
-				break;
-		if (ts != nts)
-			panic("runq_remove_idx: ts %p not on rqindex %d",
-			    ts, pri);
-	}
-	TAILQ_REMOVE(rqh, ts, ts_procq);
+	CTR4(KTR_RUNQ, "runq_remove_idx: td=%p, pri=%d %d rqh=%p",
+	    td, td->td_priority, pri, rqh);
+	TAILQ_REMOVE(rqh, td, td_runq);
 	if (TAILQ_EMPTY(rqh)) {
 		CTR0(KTR_RUNQ, "runq_remove_idx: empty");
 		runq_clrbit(rq, pri);
@@ -485,5 +472,3 @@ runq_remove_idx(struct runq *rq, struct td_sched *ts, u_char *idx)
 			*idx = (pri + 1) % RQ_NQS;
 	}
 }
-
-#endif /* KERN_SWITCH_INCLUDE */
