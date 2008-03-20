@@ -188,6 +188,12 @@ doc-all
 # repository
 www
 
+## Projects
+#
+# This collection retrieves the projects tree of the FreeBSD
+# repository
+projects-all
+
 ## CVSROOT control files
 #
 # This is to get the control files that cvs(1) needs and the commit logs.
