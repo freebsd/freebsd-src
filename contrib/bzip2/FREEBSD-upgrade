@@ -5,8 +5,8 @@ Julian Seward's bzip2
 
 Imported by:
 
-	cvs import -m "Virgin import (trimmed) of Bzip2 version 1.0.4." \
-		src/contrib/bzip2 BZIP2 v1_0_4
+	cvs import -m "Virgin import (trimmed) of Bzip2 version 1.0.5." \
+		src/contrib/bzip2 BZIP2 v1_0_5
 
 Notes:
 	The following log shows details of trimming:
