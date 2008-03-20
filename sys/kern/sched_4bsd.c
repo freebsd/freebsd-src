@@ -186,6 +186,9 @@ SYSCTL_PROC(_kern_sched, OID_AUTO, quantum, CTLTYPE_INT | CTLFLAG_RW,
 /* Enable forwarding of wakeups to all other cpus */
 SYSCTL_NODE(_kern_sched, OID_AUTO, ipiwakeup, CTLFLAG_RD, NULL, "Kernel SMP");
 
+static int runq_fuzz = 1;
+SYSCTL_INT(_kern_sched, OID_AUTO, runq_fuzz, CTLFLAG_RW, &runq_fuzz, 0, "");
+
 static int forward_wakeup_enabled = 1;
 SYSCTL_INT(_kern_sched_ipiwakeup, OID_AUTO, enabled, CTLFLAG_RW,
 	   &forward_wakeup_enabled, 0,
@@ -253,6 +256,91 @@ maybe_resched(struct thread *td)
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	if (td->td_priority < curthread->td_priority)
 		curthread->td_flags |= TDF_NEEDRESCHED;
+}
+
+/*
+ * This function is called when a thread is about to be put on run queue
+ * because it has been made runnable or its priority has been adjusted.  It
+ * determines if the new thread should be immediately preempted to.  If so,
+ * it switches to it and eventually returns true.  If not, it returns false
+ * so that the caller may place the thread on an appropriate run queue.
+ */
+int
+maybe_preempt(struct thread *td)
+{
+#ifdef PREEMPTION
+	struct thread *ctd;
+	int cpri, pri;
+#endif
+
+#ifdef PREEMPTION
+	/*
+	 * The new thread should not preempt the current thread if any of the
+	 * following conditions are true:
+	 *
+	 *  - The kernel is in the throes of crashing (panicstr).
+	 *  - The current thread has a higher (numerically lower) or
+	 *    equivalent priority.  Note that this prevents curthread from
+	 *    trying to preempt to itself.
+	 *  - It is too early in the boot for context switches (cold is set).
+	 *  - The current thread has an inhibitor set or is in the process of
+	 *    exiting.  In this case, the current thread is about to switch
+	 *    out anyways, so there's no point in preempting.  If we did,
+	 *    the current thread would not be properly resumed as well, so
+	 *    just avoid that whole landmine.
+	 *  - If the new thread's priority is not a realtime priority and
+	 *    the current thread's priority is not an idle priority and
+	 *    FULL_PREEMPTION is disabled.
+	 *
+	 * If all of these conditions are false, but the current thread is in
+	 * a nested critical section, then we have to defer the preemption
+	 * until we exit the critical section.  Otherwise, switch immediately
+	 * to the new thread.
+	 */
+	ctd = curthread;
+	THREAD_LOCK_ASSERT(td, MA_OWNED);
+	KASSERT ((ctd->td_sched != NULL && ctd->td_sched->ts_thread == ctd),
+	  ("thread has no (or wrong) sched-private part."));
+	KASSERT((td->td_inhibitors == 0),
+			("maybe_preempt: trying to run inhibited thread"));
+	pri = td->td_priority;
+	cpri = ctd->td_priority;
+	if (panicstr != NULL || pri >= cpri || cold /* || dumping */ ||
+	    TD_IS_INHIBITED(ctd))
+		return (0);
+#ifndef FULL_PREEMPTION
+	if (pri > PRI_MAX_ITHD && cpri < PRI_MIN_IDLE)
+		return (0);
+#endif
+
+	if (ctd->td_critnest > 1) {
+		CTR1(KTR_PROC, "maybe_preempt: in critical section %d",
+		    ctd->td_critnest);
+		ctd->td_owepreempt = 1;
+		return (0);
+	}
+	/*
+	 * Thread is runnable but not yet put on system run queue.
+	 */
+	MPASS(ctd->td_lock == td->td_lock);
+	MPASS(TD_ON_RUNQ(td));
+	TD_SET_RUNNING(td);
+	CTR3(KTR_PROC, "preempting to thread %p (pid %d, %s)\n", td,
+	    td->td_proc->p_pid, td->td_name);
+	SCHED_STAT_INC(switch_preempt);
+	mi_switch(SW_INVOL|SW_PREEMPT, td);
+	/*
+	 * td's lock pointer may have changed.  We have to return with it
+	 * locked.
+	 */
+	spinlock_enter();
+	thread_unlock(ctd);
+	thread_lock(td);
+	spinlock_exit();
+	return (1);
+#else
+	return (0);
+#endif
 }
 
 /*
@@ -1217,7 +1305,7 @@ sched_choose(void)
 	struct td_sched *kecpu;
 
 	rq = &runq;
-	ts = runq_choose(&runq);
+	ts = runq_choose_fuzz(&runq, runq_fuzz);
 	kecpu = runq_choose(&runq_pcpu[PCPU_GET(cpuid)]);
 
 	if (ts == NULL || 
