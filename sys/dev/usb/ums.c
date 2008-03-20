@@ -197,7 +197,10 @@ ums_match(device_t self)
 	if (err)
 		return (UMATCH_NONE);
 
-	if (id->bInterfaceClass == UICLASS_HID &&
+	if (hid_is_collection(desc, size,
+			      HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_MOUSE)))
+		ret = UMATCH_IFACECLASS;
+	else if (id->bInterfaceClass == UICLASS_HID &&
 	    id->bInterfaceSubClass == UISUBCLASS_BOOT &&
 	    id->bInterfaceProtocol == UIPROTO_MOUSE)
 		ret = UMATCH_IFACECLASS;
