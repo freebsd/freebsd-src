@@ -1,0 +1,7 @@
+# $FreeBSD$
+Project:	bzip2
+ProjectURL:	http://www.bzip.org/
+Version:	1.0.5
+VendorTag:	BZIP2
+VersionTag:	v1_0_5
+License:	BSD
