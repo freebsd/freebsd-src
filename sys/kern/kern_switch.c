@@ -486,38 +486,4 @@ runq_remove_idx(struct runq *rq, struct td_sched *ts, u_char *idx)
 	}
 }
 
-/****** functions that are temporarily here ***********/
-#include <vm/uma.h>
-
-/*
- *  Allocate scheduler specific per-process resources.
- * The thread and proc have already been linked in.
- *
- * Called from:
- *  proc_init() (UMA init method)
- */
-void
-sched_newproc(struct proc *p, struct thread *td)
-{
-}
-
-/*
- * thread is being either created or recycled.
- * Fix up the per-scheduler resources associated with it.
- * Called from:
- *  sched_fork_thread()
- *  thread_dtor()  (*may go away)
- *  thread_init()  (*may go away)
- */
-void
-sched_newthread(struct thread *td)
-{
-	struct td_sched *ts;
-
-	ts = (struct td_sched *) (td + 1);
-	bzero(ts, sizeof(*ts));
-	td->td_sched     = ts;
-	ts->ts_thread	= td;
-}
-
 #endif /* KERN_SWITCH_INCLUDE */
