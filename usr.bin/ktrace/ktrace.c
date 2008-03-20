@@ -194,8 +194,8 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr, "%s\n%s\n",
-"usage: ktrace [-aCcdi] [-f trfile] [-g pgrp | -p pid] [-t cnisuw]",
-"       ktrace [-adi] [-f trfile] [-t cnisuw] command");
+"usage: ktrace [-aCcdi] [-f trfile] [-g pgrp | -p pid] [-t cnistuw]",
+"       ktrace [-adi] [-f trfile] [-t cnistuw] command");
 	exit(1);
 }
 
