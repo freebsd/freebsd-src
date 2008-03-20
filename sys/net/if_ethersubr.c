@@ -1020,7 +1020,8 @@ ether_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		switch (ifa->ifa_addr->sa_family) {
 #ifdef INET
 		case AF_INET:
-			ifp->if_init(ifp->if_softc);	/* before arpwhohas */
+			if (!(ifp->if_flags & IFF_DRV_RUNNING))
+				ifp->if_init(ifp->if_softc);	/* before arpwhohas */
 			arp_ifinit(ifp, ifa);
 			break;
 #endif
