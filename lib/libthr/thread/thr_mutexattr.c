@@ -132,8 +132,7 @@ _pthread_mutexattr_settype(pthread_mutexattr_t *attr, int type)
 {
 	int	ret;
 	if (attr == NULL || *attr == NULL || type >= PTHREAD_MUTEX_TYPE_MAX) {
-		errno = EINVAL;
-		ret = -1;
+		ret = EINVAL;
 	} else {
 		(*attr)->m_type = type;
 		ret = 0;
@@ -167,7 +166,6 @@ _pthread_mutexattr_destroy(pthread_mutexattr_t *attr)
 		*attr = NULL;
 		ret = 0;
 	}
-	return(ret);
 }
 
 int
