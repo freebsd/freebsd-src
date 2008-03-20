@@ -28,7 +28,7 @@
 .\" $FreeBSD$
 .\" $Id: ieee80211_radiotap.9,v 1.3 2004/03/04 11:38:52 bruce Exp $
 .\"
-.Dd March 2, 2004
+.Dd March 17, 2008
 .Dt IEEE80211_RADIOTAP 9
 .Os
 .Sh NAME
@@ -72,7 +72,7 @@ This information may be used by a variety of user agents, including
 It is requested by using the
 .Xr bpf 4
 data-link type
-.Dv DLT_IEEE_80211_RADIO .
+.Dv DLT_IEEE802_11_RADIO .
 .Pp
 .\"
 Each frame using this attachment has the following header prepended to it:
@@ -103,7 +103,7 @@ It is necessary for the driver to create this attachment after calling
 by calling
 .Fn bpfattach2
 with the data-link type set to
-.Dv DLT_IEEE_80211_RADIO .
+.Dv DLT_IEEE802_11_RADIO .
 .Pp
 .\"
 When the the information is available,
