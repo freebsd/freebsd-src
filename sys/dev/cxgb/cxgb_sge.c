@@ -83,8 +83,16 @@ int cxgb_cached_allocations;
 int cxgb_cached;
 int cxgb_ext_freed = 0;
 int cxgb_ext_inited = 0;
+int fl_q_size = 0;
+int jumbo_q_size = 0;
+
 extern int cxgb_use_16k_clusters;
 extern int cxgb_pcpu_cache_enable;
+extern int nmbjumbo4;
+extern int nmbjumbo9;
+extern int nmbjumbo16;
+
+
 
 
 #define USE_GTS 0
@@ -360,8 +368,25 @@ t3_sge_err_intr_handler(adapter_t *adapter)
 void
 t3_sge_prep(adapter_t *adap, struct sge_params *p)
 {
-	int i;
+	int i, nqsets;
 
+	nqsets = min(SGE_QSETS, mp_ncpus*4);
+
+	fl_q_size = min(nmbclusters/(3*nqsets), FL_Q_SIZE);
+
+	while (!powerof2(fl_q_size))
+		fl_q_size--;
+#if __FreeBSD_version > 800000
+	if (cxgb_use_16k_clusters) 
+		jumbo_q_size = min(nmbjumbo16/(3*nqsets), JUMBO_Q_SIZE);
+	else
+		jumbo_q_size = min(nmbjumbo9/(3*nqsets), JUMBO_Q_SIZE);
+#else
+	jumbo_q_size = min(nmbjumbo4/(3*nqsets), JUMBO_Q_SIZE);
+#endif
+	while (!powerof2(jumbo_q_size))
+		jumbo_q_size--;		
+	
 	/* XXX Does ETHER_ALIGN need to be accounted for here? */
 	p->max_pkt_size = adap->sge.qs[0].fl[1].buf_size - sizeof(struct cpl_rx_data);
 
@@ -379,8 +404,8 @@ t3_sge_prep(adapter_t *adap, struct sge_params *p)
 		}
 		q->polling = adap->params.rev > 0;
 		q->rspq_size = RSPQ_Q_SIZE;
-		q->fl_size = FL_Q_SIZE;
-		q->jumbo_size = JUMBO_Q_SIZE;
+		q->fl_size = fl_q_size;
+		q->jumbo_size = jumbo_q_size;
 		q->txq_size[TXQ_ETH] = TX_ETH_Q_SIZE;
 		q->txq_size[TXQ_OFLD] = 1024;
 		q->txq_size[TXQ_CTRL] = 256;
