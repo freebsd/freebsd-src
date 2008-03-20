@@ -42,6 +42,11 @@
 #define LINUX_FUTEX_REQUEUE	3
 #define LINUX_FUTEX_CMP_REQUEUE	4
 #define LINUX_FUTEX_WAKE_OP	5
+#define LINUX_FUTEX_LOCK_PI	6
+#define LINUX_FUTEX_UNLOCK_PI	7
+#define LINUX_FUTEX_TRYLOCK_PI	8
+
+#define LINUX_FUTEX_PRIVATE_FLAG	128
 
 #define FUTEX_OP_SET            0	/* *(int *)UADDR2 = OPARG; */
 #define FUTEX_OP_ADD            1	/* *(int *)UADDR2 += OPARG; */
