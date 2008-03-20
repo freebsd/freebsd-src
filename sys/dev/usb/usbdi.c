@@ -284,8 +284,10 @@ usbd_transfer(usbd_xfer_handle xfer)
 	u_int size;
 	int s;
 
-	DPRINTFN(5,("usbd_transfer: xfer=%p, flags=%d, pipe=%p, running=%d\n",
-		    xfer, xfer->flags, pipe, pipe->running));
+	DPRINTFN(5,("%s: xfer=%p, flags=0x%b, rqflags=0x%b, "
+	    "length=%d, buffer=%p, allocbuf=%p, pipe=%p, running=%d\n",
+	    __func__, xfer, xfer->flags, USBD_BITS, xfer->rqflags, URQ_BITS,
+	    xfer->length, xfer->buffer, xfer->allocbuf, pipe, pipe->running));
 #ifdef USB_DEBUG
 	if (usbdebug > 5)
 		usbd_dump_queue(pipe);
@@ -900,8 +902,11 @@ usb_transfer_complete(usbd_xfer_handle xfer)
 
 	SPLUSBCHECK;
 
-	DPRINTFN(5, ("usb_transfer_complete: pipe=%p xfer=%p status=%d "
-		     "actlen=%d\n", pipe, xfer, xfer->status, xfer->actlen));
+	DPRINTFN(5, ("%s: pipe=%p xfer=%p status=%d actlen=%d\n",
+	    __func__, pipe, xfer, xfer->status, xfer->actlen));
+	DPRINTFN(5,("%s: flags=0x%b, rqflags=0x%b, length=%d, buffer=%p\n",
+	    __func__, xfer->flags, USBD_BITS, xfer->rqflags, URQ_BITS,
+	    xfer->length, xfer->buffer));
 #ifdef DIAGNOSTIC
 	if (xfer->busy_free != XFER_ONQU) {
 		printf("usb_transfer_complete: xfer=%p not busy 0x%08x\n",
