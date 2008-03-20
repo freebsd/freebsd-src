@@ -240,6 +240,8 @@ struct usbd_xfer {
 	struct callout		timeout_handle;
 };
 
+#define	URQ_BITS "\20\1REQUEST\5AUTO_DMABUF\6DEV_DMABUF"
+
 void usbd_init(void);
 void usbd_finish(void);
 
