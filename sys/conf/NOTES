@@ -185,7 +185,11 @@ options 	ROOTDEVNAME=\"ufs:da0s2e\"
 # which leads to better responsiveness even on uniprocessor machines.  This
 # will eventually become the default scheduler.
 #
+# SCHED_STATS is a debugging option which keeps some stats in the sysctl
+# tree at 'kern.sched.stats' and is useful for debugging scheduling decisions.
+#
 options 	SCHED_4BSD
+options		SCHED_STATS
 #options 	SCHED_ULE
 
 #####################################################################
@@ -249,7 +253,8 @@ options 	SX_NOINLINE
 #	  Relies on the PREEMPTION option.  DON'T TURN THIS ON.
 # MUTEX_DEBUG enables various extra assertions in the mutex code.
 # SLEEPQUEUE_PROFILING enables rudimentary profiling of the hash table
-#	  used to hold active sleep queues.
+#	  used to hold active sleep queues as well as sleep wait message
+#	  frequency.
 # TURNSTILE_PROFILING enables rudimentary profiling of the hash table
 #	  used to hold active lock queues.
 # WITNESS enables the witness code which detects deadlocks and cycles
