@@ -256,6 +256,7 @@ norfproc_fail:
 	 * however it proved un-needed and caused problems
 	 */
 
+	vm2 = NULL;
 	/* Allocate new proc. */
 	newproc = uma_zalloc(proc_zone, M_WAITOK);
 	if (TAILQ_EMPTY(&newproc->p_threads)) {
@@ -281,8 +282,7 @@ norfproc_fail:
 			error = ENOMEM;
 			goto fail1;
 		}
-	} else
-		vm2 = NULL;
+	}
 #ifdef MAC
 	mac_proc_init(newproc);
 #endif
@@ -740,6 +740,8 @@ fail:
 	mac_proc_destroy(newproc);
 #endif
 fail1:
+	if (vm2 != NULL)
+		vmspace_free(vm2);
 	uma_zfree(proc_zone, newproc);
 	pause("fork", hz / 2);
 	return (error);
