@@ -87,6 +87,9 @@ static device_t nexus_add_child(device_t bus, int order, const char *name,
 				int unit);
 static	struct resource *nexus_alloc_resource(device_t, device_t, int, int *,
 					      u_long, u_long, u_long, u_int);
+#ifdef SMP
+static	int nexus_bind_intr(device_t, device_t, struct resource *, int);
+#endif
 static	int nexus_config_intr(device_t, int, enum intr_trigger,
 			      enum intr_polarity);
 static	int nexus_activate_resource(device_t, device_t, int, int,
@@ -128,6 +131,9 @@ static device_method_t nexus_methods[] = {
 	DEVMETHOD(bus_deactivate_resource, nexus_deactivate_resource),
 	DEVMETHOD(bus_setup_intr,	nexus_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	nexus_teardown_intr),
+#ifdef SMP
+	DEVMETHOD(bus_bind_intr,	nexus_bind_intr),
+#endif
 	DEVMETHOD(bus_config_intr,	nexus_config_intr),
 	DEVMETHOD(bus_get_resource_list, nexus_get_reslist),
 	DEVMETHOD(bus_set_resource,	nexus_set_resource),
@@ -457,6 +463,14 @@ nexus_teardown_intr(device_t dev, device_t child, struct resource *r, void *ih)
 {
 	return (intr_remove_handler(ih));
 }
+
+#ifdef SMP
+static int
+nexus_bind_intr(device_t dev, device_t child, struct resource *irq, int cpu)
+{
+	return (intr_bind(rman_get_start(irq), cpu));
+}
+#endif
 
 static int
 nexus_config_intr(device_t dev, int irq, enum intr_trigger trig,

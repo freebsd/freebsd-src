@@ -3222,6 +3222,23 @@ bus_generic_deactivate_resource(device_t dev, device_t child, int type,
 }
 
 /**
+ * @brief Helper function for implementing BUS_BIND_INTR().
+ *
+ * This simple implementation of BUS_BIND_INTR() simply calls the
+ * BUS_BIND_INTR() method of the parent of @p dev.
+ */
+int
+bus_generic_bind_intr(device_t dev, device_t child, struct resource *irq,
+    int cpu)
+{
+
+	/* Propagate up the bus hierarchy until someone handles it. */
+	if (dev->parent)
+		return (BUS_BIND_INTR(dev->parent, child, irq, cpu));
+	return (EINVAL);
+}
+
+/**
  * @brief Helper function for implementing BUS_CONFIG_INTR().
  *
  * This simple implementation of BUS_CONFIG_INTR() simply calls the
@@ -3526,6 +3543,20 @@ bus_teardown_intr(device_t dev, struct resource *r, void *cookie)
 	if (dev->parent == NULL)
 		return (EINVAL);
 	return (BUS_TEARDOWN_INTR(dev->parent, dev, r, cookie));
+}
+
+/**
+ * @brief Wrapper function for BUS_BIND_INTR().
+ *
+ * This function simply calls the BUS_BIND_INTR() method of the
+ * parent of @p dev.
+ */
+int
+bus_bind_intr(device_t dev, struct resource *r, int cpu)
+{
+	if (dev->parent == NULL)
+		return (EINVAL);
+	return (BUS_BIND_INTR(dev->parent, dev, r, cpu));
 }
 
 /**
