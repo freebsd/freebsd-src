@@ -174,8 +174,7 @@ struct thread {
 	struct mtx	*volatile td_lock; /* replaces sched lock */
 	struct proc	*td_proc;	/* (*) Associated process. */
 	TAILQ_ENTRY(thread) td_plist;	/* (*) All threads in this proc. */
-
-	/* The two queues below should someday be merged. */
+	TAILQ_ENTRY(thread) td_runq;	/* (t) Run queue. */
 	TAILQ_ENTRY(thread) td_slpq;	/* (t) Sleep queue. */
 	TAILQ_ENTRY(thread) td_lockq;	/* (t) Lock queue. */
 	struct cpuset	*td_cpuset;	/* (t) CPU affinity mask. */
@@ -233,6 +232,7 @@ struct thread {
 
 /* Copied during fork1() or thread_sched_upcall(). */
 #define	td_startcopy td_endzero
+	u_char		td_rqindex;	/* (t) Run queue index. */
 	u_char		td_base_pri;	/* (t) Thread base kernel priority. */
 	u_char		td_priority;	/* (t) Thread active priority. */
 	u_char		td_pri_class;	/* (t) Scheduling class. */

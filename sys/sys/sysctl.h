@@ -631,6 +631,7 @@ SYSCTL_DECL(_kern);
 SYSCTL_DECL(_kern_features);
 SYSCTL_DECL(_kern_ipc);
 SYSCTL_DECL(_kern_proc);
+SYSCTL_DECL(_kern_sched);
 SYSCTL_DECL(_sysctl);
 SYSCTL_DECL(_vm);
 SYSCTL_DECL(_vm_stats);
