@@ -384,7 +384,8 @@ usbd_start_transfer(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 			 * sync the dmamap for the request data in the SETUP
 			 * packet.
 			 */
-			bus_dmamap_sync(tag, dmap->map, BUS_DMASYNC_PREWRITE);
+			bus_dmamap_sync(tag, dmap->map,
+			    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 		} else
 			bus_dmamap_sync(tag, dmap->map, BUS_DMASYNC_PREREAD);
 	}
