@@ -733,10 +733,14 @@ sched_fork(struct thread *td, struct thread *childtd)
 void
 sched_fork_thread(struct thread *td, struct thread *childtd)
 {
+	struct td_sched *ts;
+
 	childtd->td_estcpu = td->td_estcpu;
 	childtd->td_lock = &sched_lock;
 	childtd->td_cpuset = cpuset_ref(td->td_cpuset);
-	sched_newthread(childtd);
+	ts = childtd->td_sched;
+	bzero(ts, sizeof(*ts));
+	ts->ts_thread = childtd;
 }
 
 void
