@@ -612,6 +612,21 @@ agp_i810_detach(device_t dev)
 	return 0;
 }
 
+static int
+agp_i810_resume(device_t dev)
+{
+	struct agp_i810_softc *sc;
+	sc = device_get_softc(dev);
+
+	AGP_SET_APERTURE(dev, sc->initial_aperture);
+
+	/* Install the GATT. */
+	bus_write_4(sc->sc_res[0], AGP_I810_PGTBL_CTL,
+	sc->gatt->ag_physical | 1);
+
+	return (bus_generic_resume(dev));
+}
+
 /**
  * Sets the PCI resource size of the aperture on i830-class and below chipsets,
  * while returning failure on later chipsets when an actual change is
@@ -976,6 +991,8 @@ static device_method_t agp_i810_methods[] = {
 	DEVMETHOD(device_probe,		agp_i810_probe),
 	DEVMETHOD(device_attach,	agp_i810_attach),
 	DEVMETHOD(device_detach,	agp_i810_detach),
+	DEVMETHOD(device_suspend,	bus_generic_suspend),
+	DEVMETHOD(device_resume,	agp_i810_resume),
 
 	/* AGP interface */
 	DEVMETHOD(agp_get_aperture,	agp_generic_get_aperture),
