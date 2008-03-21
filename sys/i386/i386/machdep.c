@@ -115,6 +115,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/cputypes.h>
 #include <machine/intr_machdep.h>
 #include <machine/md_var.h>
+#include <machine/metadata.h>
 #include <machine/pc/bios.h>
 #include <machine/pcb.h>
 #include <machine/pcb_ext.h>
@@ -1647,6 +1648,57 @@ sdtossd(sd, ssd)
 	ssd->ssd_gran  = sd->sd_gran;
 }
 
+static int
+add_smap_entry(struct bios_smap *smap, vm_paddr_t *physmap, int *physmap_idxp)
+{
+	int i, physmap_idx;
+
+	physmap_idx = *physmap_idxp;
+	
+	if (boothowto & RB_VERBOSE)
+		printf("SMAP type=%02x base=%016llx len=%016llx\n",
+		    smap->type, smap->base, smap->length);
+
+	if (smap->type != SMAP_TYPE_MEMORY)
+		return (1);
+
+	if (smap->length == 0)
+		return (1);
+
+#ifndef PAE
+	if (smap->base >= 0xffffffff) {
+		printf("%uK of memory above 4GB ignored\n",
+		    (u_int)(smap->length / 1024));
+		return (1);
+	}
+#endif
+
+	for (i = 0; i <= physmap_idx; i += 2) {
+		if (smap->base < physmap[i + 1]) {
+			if (boothowto & RB_VERBOSE)
+				printf(
+	"Overlapping or non-monotonic memory region, ignoring second region\n");
+			return (1);
+		}
+	}
+
+	if (smap->base == physmap[physmap_idx + 1]) {
+		physmap[physmap_idx + 1] += smap->length;
+		return (1);
+	}
+
+	physmap_idx += 2;
+	*physmap_idxp = physmap_idx;
+	if (physmap_idx == PHYSMAP_SIZE) {
+		printf(
+		"Too many segments in the physical address map, giving up\n");
+		return (0);
+	}
+	physmap[physmap_idx] = smap->base;
+	physmap[physmap_idx + 1] = smap->base + smap->length;
+	return (1);
+}
+
 /*
  * Populate the (physmap) array with base/bound pairs describing the
  * available physical memory in the system, then test this memory and
@@ -1671,8 +1723,10 @@ getmemsize(int first)
 	struct vm86context vmc;
 	vm_paddr_t pa, physmap[PHYSMAP_SIZE];
 	pt_entry_t *pte;
-	struct bios_smap *smap;
+	struct bios_smap *smap, *smapbase, *smapend;
+	u_int32_t smapsize;
 	quad_t dcons_addr, dcons_size;
+	caddr_t kmdp;
 
 	has_smap = 0;
 #ifdef XBOX
@@ -1750,69 +1804,54 @@ getmemsize(int first)
 
 int15e820:
 	/*
-	 * map page 1 R/W into the kernel page table so we can use it
-	 * as a buffer.  The kernel will unmap this page later.
+	 * Fetch the memory map with INT 15:E820.  First, check to see
+	 * if the loader supplied it and use that if so.  Otherwise,
+	 * use vm86 to invoke the BIOS call directly.
 	 */
-	pmap_kenter(KERNBASE + (1 << PAGE_SHIFT), 1 << PAGE_SHIFT);
-
-	/*
-	 * get memory map with INT 15:E820
-	 */
-	vmc.npages = 0;
-	smap = (void *)vm86_addpage(&vmc, 1, KERNBASE + (1 << PAGE_SHIFT));
-	vm86_getptr(&vmc, (vm_offset_t)smap, &vmf.vmf_es, &vmf.vmf_di);
-
 	physmap_idx = 0;
-	vmf.vmf_ebx = 0;
-	do {
-		vmf.vmf_eax = 0xE820;
-		vmf.vmf_edx = SMAP_SIG;
-		vmf.vmf_ecx = sizeof(struct bios_smap);
-		i = vm86_datacall(0x15, &vmf, &vmc);
-		if (i || vmf.vmf_eax != SMAP_SIG)
-			break;
-		if (boothowto & RB_VERBOSE)
-			printf("SMAP type=%02x base=%016llx len=%016llx\n",
-			    smap->type, smap->base, smap->length);
+	smapbase = NULL;
+	kmdp = preload_search_by_type("elf kernel");
+	if (kmdp == NULL)
+		kmdp = preload_search_by_type("elf32 kernel");
+	if (kmdp != NULL)
+		smapbase = (struct bios_smap *)preload_search_info(kmdp,
+		    MODINFO_METADATA | MODINFOMD_SMAP);
+	if (smapbase != NULL) {
+		/* subr_module.c says:
+		 * "Consumer may safely assume that size value precedes data."
+		 * ie: an int32_t immediately precedes smap.
+		 */
+		smapsize = *((u_int32_t *)smapbase - 1);
+		smapend = (struct bios_smap *)((uintptr_t)smapbase + smapsize);
 		has_smap = 1;
 
-		if (smap->type != SMAP_TYPE_MEMORY)
-			continue;
+		for (smap = smapbase; smap < smapend; smap++)
+			if (!add_smap_entry(smap, physmap, &physmap_idx))
+				break;
+	} else {
+		/*
+		 * map page 1 R/W into the kernel page table so we can use it
+		 * as a buffer.  The kernel will unmap this page later.
+		 */
+		pmap_kenter(KERNBASE + (1 << PAGE_SHIFT), 1 << PAGE_SHIFT);
+		vmc.npages = 0;
+		smap = (void *)vm86_addpage(&vmc, 1, KERNBASE +
+		    (1 << PAGE_SHIFT));
+		vm86_getptr(&vmc, (vm_offset_t)smap, &vmf.vmf_es, &vmf.vmf_di);
 
-		if (smap->length == 0)
-			continue;
-
-#ifndef PAE
-		if (smap->base >= 0xffffffff) {
-			printf("%uK of memory above 4GB ignored\n",
-			    (u_int)(smap->length / 1024));
-			continue;
-		}
-#endif
-
-		for (i = 0; i <= physmap_idx; i += 2) {
-			if (smap->base < physmap[i + 1]) {
-				if (boothowto & RB_VERBOSE)
-					printf(
-	"Overlapping or non-monotonic memory region, ignoring second region\n");
-				continue;
-			}
-		}
-
-		if (smap->base == physmap[physmap_idx + 1]) {
-			physmap[physmap_idx + 1] += smap->length;
-			continue;
-		}
-
-		physmap_idx += 2;
-		if (physmap_idx == PHYSMAP_SIZE) {
-			printf(
-		"Too many segments in the physical address map, giving up\n");
-			break;
-		}
-		physmap[physmap_idx] = smap->base;
-		physmap[physmap_idx + 1] = smap->base + smap->length;
-	} while (vmf.vmf_ebx != 0);
+		vmf.vmf_ebx = 0;
+		do {
+			vmf.vmf_eax = 0xE820;
+			vmf.vmf_edx = SMAP_SIG;
+			vmf.vmf_ecx = sizeof(struct bios_smap);
+			i = vm86_datacall(0x15, &vmf, &vmc);
+			if (i || vmf.vmf_eax != SMAP_SIG)
+				break;
+			has_smap = 1;
+			if (!add_smap_entry(smap, physmap, &physmap_idx))
+				break;
+		} while (vmf.vmf_ebx != 0);
+	}
 
 	/*
 	 * Perform "base memory" related probes & setup based on SMAP
