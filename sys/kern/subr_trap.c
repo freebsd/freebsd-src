@@ -96,11 +96,9 @@ userret(struct thread *td, struct trapframe *frame)
 	thread_unlock(td);
 	PROC_UNLOCK(p);
 #endif
-
 #ifdef KTRACE
 	KTRUSERRET(td);
 #endif
-
 	/*
 	 * If this thread tickled GEOM, we need to wait for the giggling to
 	 * stop before we return to userland
@@ -109,21 +107,9 @@ userret(struct thread *td, struct trapframe *frame)
 		g_waitidle();
 
 	/*
-	 * We need to check to see if we have to exit or wait due to a
-	 * single threading requirement or some other STOP condition.
-	 * Don't bother doing all the work if the stop bits are not set
-	 * at this time.. If we miss it, we miss it.. no big deal.
-	 */
-	if (P_SHOULDSTOP(p)) {
-		PROC_LOCK(p);
-		thread_suspend_check(0);	/* Can suspend or kill */
-		PROC_UNLOCK(p);
-	}
-	/*
 	 * Charge system time if profiling.
 	 */
 	if (p->p_flag & P_PROFIL) {
-
 		addupc_task(td, TRAPF_PC(frame), td->td_pticks * psratio);
 	}
 	/*
@@ -172,9 +158,8 @@ ast(struct trapframe *framep)
 	 */
 	thread_lock(td);
 	flags = td->td_flags;
-	td->td_flags &= ~(TDF_ASTPENDING | TDF_NEEDSIGCHK |
-	    TDF_NEEDRESCHED | TDF_ALRMPEND | TDF_PROFPEND |
-	    TDF_MACPEND);
+	td->td_flags &= ~(TDF_ASTPENDING | TDF_NEEDSIGCHK | TDF_NEEDSUSPCHK |
+	    TDF_NEEDRESCHED | TDF_ALRMPEND | TDF_PROFPEND | TDF_MACPEND);
 	thread_unlock(td);
 	PCPU_INC(cnt.v_trap);
 
@@ -240,6 +225,15 @@ ast(struct trapframe *framep)
 		while ((sig = cursig(td)) != 0)
 			postsig(sig);
 		mtx_unlock(&p->p_sigacts->ps_mtx);
+		PROC_UNLOCK(p);
+	}
+	/*
+	 * We need to check to see if we have to exit or wait due to a
+	 * single threading requirement or some other STOP condition.
+	 */
+	if (flags & TDF_NEEDSUSPCHK) {
+		PROC_LOCK(p);
+		thread_suspend_check(0);
 		PROC_UNLOCK(p);
 	}
 
