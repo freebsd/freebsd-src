@@ -391,7 +391,7 @@ sleepq_catch_signals(void *wchan, int pri)
 	 * directly.
 	 */
 	thread_lock(td);
-	if ((td->td_flags & TDF_NEEDSIGCHK) == 0) {
+	if ((td->td_flags & (TDF_NEEDSIGCHK | TDF_NEEDSUSPCHK)) == 0) {
 		sleepq_switch(wchan, pri);
 		return (0);
 	}
