@@ -382,7 +382,14 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 	error = ipsec6_output_trans(&state, nexthdrp, mprev, sp, flags,
 				    &needipsectun);
 	m = state.m;
-	if (error) {
+	if (error == EJUSTRETURN) {
+		/*
+		 * We had a SP with a level of 'use' and no SA. We
+		 * will just continue to process the packet without
+		 * IPsec processing.
+		 */
+		;
+	} else if (error) {
 		/* mbuf is already reclaimed in ipsec6_output_trans. */
 		m = NULL;
 		switch (error) {
@@ -549,7 +556,14 @@ again:
 		m = state.m;
 		ro = (struct route_in6 *)state.ro;
 		dst = (struct sockaddr_in6 *)state.dst;
-		if (error) {
+		if (error == EJUSTRETURN) {
+			/*
+			 * We had a SP with a level of 'use' and no SA. We
+			 * will just continue to process the packet without
+			 * IPsec processing.
+			 */
+			;
+		} else if (error) {
 			/* mbuf is already reclaimed in ipsec6_output_tunnel. */
 			m0 = m = NULL;
 			m = NULL;
