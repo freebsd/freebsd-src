@@ -312,6 +312,7 @@ bad:
 	return 0;
 }
 
+#if 0
 /*
  * Compute the MTU for a forwarded packet that gets IPSEC encapsulated.
  * Called from ip_forward().
@@ -327,16 +328,15 @@ ip6_ipsec_mtu(struct mbuf *m)
 	 *	tunnel MTU = if MTU - sizeof(IP) - ESP/AH hdrsiz
 	 * XXX quickhack!!!
 	 */
+#ifdef IPSEC
 	struct secpolicy *sp = NULL;
 	int ipsecerror;
 	int ipsechdr;
 	struct route *ro;
-#ifdef IPSEC
 	sp = ipsec_getpolicybyaddr(m,
 				   IPSEC_DIR_OUTBOUND,
 				   IP_FORWARDING,
 				   &ipsecerror);
-#endif /* IPSEC */
 	if (sp != NULL) {
 		/* count IPsec header size */
 		ipsechdr = ipsec4_hdrsiz(m,
@@ -359,10 +359,10 @@ ip6_ipsec_mtu(struct mbuf *m)
 				mtu -= ipsechdr;
 			}
 		}
-#ifdef IPSEC
 		KEY_FREESP(&sp);
-#endif /* IPSEC */
 	}
+#endif /* IPSEC */
+	/* XXX else case missing. */
 	return mtu;
 }
-
+#endif
