@@ -31,21 +31,14 @@ __FBSDID("$FreeBSD$");
  * Obtain memory configuration information from the BIOS
  */
 #include <stand.h>
+#include <machine/pc/bios.h>
 #include "libi386.h"
 #include "btxv86.h"
 
 vm_offset_t	memtop, memtop_copyin;
 u_int32_t	bios_basemem, bios_extmem;
 
-#define SMAPSIG	0x534D4150
-
-struct smap {
-    u_int64_t	base;
-    u_int64_t	length;
-    u_int32_t	type;
-} __packed;
-
-static struct smap smap;
+static struct bios_smap smap;
 
 void
 bios_getmem(void)
@@ -57,18 +50,19 @@ bios_getmem(void)
 	v86.ctl = V86_FLAGS;
 	v86.addr = 0x15;		/* int 0x15 function 0xe820*/
 	v86.eax = 0xe820;
-	v86.ecx = sizeof(struct smap);
-	v86.edx = SMAPSIG;
+	v86.ecx = sizeof(struct bios_smap);
+	v86.edx = SMAP_SIG;
 	v86.es = VTOPSEG(&smap);
 	v86.edi = VTOPOFF(&smap);
 	v86int();
-	if ((v86.efl & 1) || (v86.eax != SMAPSIG))
+	if ((v86.efl & 1) || (v86.eax != SMAP_SIG))
 	    break;
 	/* look for a low-memory segment that's large enough */
-	if ((smap.type == 1) && (smap.base == 0) && (smap.length >= (512 * 1024)))
+	if ((smap.type == SMAP_TYPE_MEMORY) && (smap.base == 0) &&
+	    (smap.length >= (512 * 1024)))
 	    bios_basemem = smap.length;
 	/* look for the first segment in 'extended' memory */
-	if ((smap.type == 1) && (smap.base == 0x100000)) {
+	if ((smap.type == SMAP_TYPE_MEMORY) && (smap.base == 0x100000)) {
 	    bios_extmem = smap.length;
 	}
     } while (v86.ebx != 0);
