@@ -1776,7 +1776,7 @@ int15e820:
 			    smap->type, smap->base, smap->length);
 		has_smap = 1;
 
-		if (smap->type != 0x01)
+		if (smap->type != SMAP_TYPE_MEMORY)
 			continue;
 
 		if (smap->length == 0)
