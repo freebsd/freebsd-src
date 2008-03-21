@@ -166,4 +166,4 @@ tcpsignature_attach(void)
 }
 
 SYSINIT(tcpsignature_xform_init, SI_SUB_DRIVERS, SI_ORDER_FIRST,
-    tcpsignature_attach, NULL)
+    tcpsignature_attach, NULL);
