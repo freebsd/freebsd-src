@@ -605,7 +605,8 @@ ffs_read(ap)
 	}
 
 	if ((error == 0 || uio->uio_resid != orig_resid) &&
-	    (vp->v_mount->mnt_flag & MNT_NOATIME) == 0) {
+	    (vp->v_mount->mnt_flag & MNT_NOATIME) == 0 &&
+	    (ip->i_flag & IN_ACCESS) == 0) {
 		VI_LOCK(vp);
 		ip->i_flag |= IN_ACCESS;
 		VI_UNLOCK(vp);
@@ -1006,7 +1007,8 @@ ffs_extread(struct vnode *vp, struct uio *uio, int ioflag)
 	}
 
 	if ((error == 0 || uio->uio_resid != orig_resid) &&
-	    (vp->v_mount->mnt_flag & MNT_NOATIME) == 0) {
+	    (vp->v_mount->mnt_flag & MNT_NOATIME) == 0 &&
+	    (ip->i_flag & IN_ACCESS) == 0) {
 		VI_LOCK(vp);
 		ip->i_flag |= IN_ACCESS;
 		VI_UNLOCK(vp);
