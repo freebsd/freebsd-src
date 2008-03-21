@@ -393,7 +393,8 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 		case ENOMEM:
 			break;
 		default:
-			printf("ip6_output (ipsec): error code %d\n", error);
+			printf("[%s:%d] (ipsec): error code %d\n",
+			    __func__, __LINE__, error);
 			/* FALLTHROUGH */
 		case ENOENT:
 			/* don't show these error codes to the user */
@@ -560,7 +561,8 @@ again:
 			case ENOMEM:
 				break;
 			default:
-				printf("ip6_output (ipsec): error code %d\n", error);
+				printf("[%s:%d] (ipsec): error code %d\n",
+				    __func__, __LINE__, error);
 				/* FALLTHROUGH */
 			case ENOENT:
 				/* don't show these error codes to the user */
