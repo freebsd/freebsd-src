@@ -220,6 +220,9 @@ _thr_rtld_init(void)
 
 	/* force to resolve _umtx_op PLT */
 	_umtx_op((struct umtx *)&dummy, UMTX_OP_WAKE, 1, 0, 0);
+	
+	/* force to resolve errno() PLT */
+	__error();
 
 	li.lock_create  = _thr_rtld_lock_create;
 	li.lock_destroy = _thr_rtld_lock_destroy;
