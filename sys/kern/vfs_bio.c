@@ -237,17 +237,6 @@ static int needsbuffer;
 static struct mtx nblock;
 
 /*
- * Lock that protects against bwait()/bdone()/B_DONE races.
- */
-
-static struct mtx bdonelock;
-
-/*
- * Lock that protects against bwait()/bdone()/B_DONE races.
- */
-static struct mtx bpinlock;
-
-/*
  * Definitions for the buffer free lists.
  */
 #define BUFFER_QUEUES	6	/* number of free buffer queues */
@@ -540,8 +529,6 @@ bufinit(void)
 	mtx_init(&rbreqlock, "runningbufspace lock", NULL, MTX_DEF);
 	mtx_init(&nblock, "needsbuffer lock", NULL, MTX_DEF);
 	mtx_init(&bdlock, "buffer daemon lock", NULL, MTX_DEF);
-	mtx_init(&bdonelock, "bdone lock", NULL, MTX_DEF);
-	mtx_init(&bpinlock, "bpin lock", NULL, MTX_DEF);
 
 	/* next, make a null set of free lists */
 	for (i = 0; i < BUFFER_QUEUES; i++)
@@ -2994,14 +2981,16 @@ allocbuf(struct buf *bp, int size)
 void
 biodone(struct bio *bp)
 {
+	struct mtx *mtxp;
 	void (*done)(struct bio *);
 
-	mtx_lock(&bdonelock);
+	mtxp = mtx_pool_find(mtxpool_sleep, bp);
+	mtx_lock(mtxp);
 	bp->bio_flags |= BIO_DONE;
 	done = bp->bio_done;
 	if (done == NULL)
 		wakeup(bp);
-	mtx_unlock(&bdonelock);
+	mtx_unlock(mtxp);
 	if (done != NULL)
 		done(bp);
 }
@@ -3015,11 +3004,13 @@ biodone(struct bio *bp)
 int
 biowait(struct bio *bp, const char *wchan)
 {
+	struct mtx *mtxp;
 
-	mtx_lock(&bdonelock);
+	mtxp = mtx_pool_find(mtxpool_sleep, bp);
+	mtx_lock(mtxp);
 	while ((bp->bio_flags & BIO_DONE) == 0)
-		msleep(bp, &bdonelock, PRIBIO, wchan, hz / 10);
-	mtx_unlock(&bdonelock);
+		msleep(bp, mtxp, PRIBIO, wchan, hz / 10);
+	mtx_unlock(mtxp);
 	if (bp->bio_error != 0)
 		return (bp->bio_error);
 	if (!(bp->bio_flags & BIO_ERROR))
@@ -3781,21 +3772,25 @@ vunmapbuf(struct buf *bp)
 void
 bdone(struct buf *bp)
 {
+	struct mtx *mtxp;
 
-	mtx_lock(&bdonelock);
+	mtxp = mtx_pool_find(mtxpool_sleep, bp);
+	mtx_lock(mtxp);
 	bp->b_flags |= B_DONE;
 	wakeup(bp);
-	mtx_unlock(&bdonelock);
+	mtx_unlock(mtxp);
 }
 
 void
 bwait(struct buf *bp, u_char pri, const char *wchan)
 {
+	struct mtx *mtxp;
 
-	mtx_lock(&bdonelock);
+	mtxp = mtx_pool_find(mtxpool_sleep, bp);
+	mtx_lock(mtxp);
 	while ((bp->b_flags & B_DONE) == 0)
-		msleep(bp, &bdonelock, pri, wchan, 0);
-	mtx_unlock(&bdonelock);
+		msleep(bp, mtxp, pri, wchan, 0);
+	mtx_unlock(mtxp);
 }
 
 int
@@ -3873,27 +3868,36 @@ bufobj_wwait(struct bufobj *bo, int slpflag, int timeo)
 void
 bpin(struct buf *bp)
 {
-	mtx_lock(&bpinlock);
+	struct mtx *mtxp;
+
+	mtxp = mtx_pool_find(mtxpool_sleep, bp);
+	mtx_lock(mtxp);
 	bp->b_pin_count++;
-	mtx_unlock(&bpinlock);
+	mtx_unlock(mtxp);
 }
 
 void
 bunpin(struct buf *bp)
 {
-	mtx_lock(&bpinlock);
+	struct mtx *mtxp;
+
+	mtxp = mtx_pool_find(mtxpool_sleep, bp);
+	mtx_lock(mtxp);
 	if (--bp->b_pin_count == 0)
 		wakeup(bp);
-	mtx_unlock(&bpinlock);
+	mtx_unlock(mtxp);
 }
 
 void
 bunpin_wait(struct buf *bp)
 {
-	mtx_lock(&bpinlock);
+	struct mtx *mtxp;
+
+	mtxp = mtx_pool_find(mtxpool_sleep, bp);
+	mtx_lock(mtxp);
 	while (bp->b_pin_count > 0)
-		msleep(bp, &bpinlock, PRIBIO, "bwunpin", 0);
-	mtx_unlock(&bpinlock);
+		msleep(bp, mtxp, PRIBIO, "bwunpin", 0);
+	mtx_unlock(mtxp);
 }
 
 #include "opt_ddb.h"
