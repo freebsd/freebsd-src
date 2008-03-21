@@ -286,17 +286,19 @@ again:
 		goto bad;
 	}
 	sav = isr->sav;
-	if (sav == NULL) {		/* XXX valid return */
+	if (sav == NULL) {
 		IPSEC_ASSERT(ipsec_get_reqlevel(isr) == IPSEC_LEVEL_USE,
 			("no SA found, but required; level %u",
 			ipsec_get_reqlevel(isr)));
 		IPSECREQUEST_UNLOCK(isr);
 		isr = isr->next;
-		if (isr == NULL) {
-			/*XXXstatistic??*/
-			*error = EINVAL;		/*XXX*/
+		/*
+		 * If isr is NULL, we found a 'use' policy w/o SA.
+		 * Return w/o error and w/o isr so we can drop out
+		 * and continue w/o IPsec processing.
+		 */
+		if (isr == NULL)
 			return isr;
-		}
 		IPSECREQUEST_LOCK(isr);
 		goto again;
 	}
@@ -356,8 +358,11 @@ ipsec4_process_packet(
 	IPSECREQUEST_LOCK(isr);		/* insure SA contents don't change */
 
 	isr = ipsec_nextisr(m, isr, AF_INET, &saidx, &error);
-	if (isr == NULL)
-		goto bad;
+	if (isr == NULL) {
+		if (error != 0)
+			goto bad;
+		return EJUSTRETURN;
+	}
 
 	sav = isr->sav;
 
@@ -576,21 +581,24 @@ ipsec6_output_trans(
 	IPSECREQUEST_LOCK(isr);		/* insure SA contents don't change */
 	isr = ipsec_nextisr(m, isr, AF_INET6, &saidx, &error);
 	if (isr == NULL) {
+		if (error != 0) {
 #ifdef notdef
-		/* XXX should notification be done for all errors ? */
-		/*
-		 * Notify the fact that the packet is discarded
-		 * to ourselves. I believe this is better than
-		 * just silently discarding. (jinmei@kame.net)
-		 * XXX: should we restrict the error to TCP packets?
-		 * XXX: should we directly notify sockets via
-		 *      pfctlinputs?
-		 */
-		icmp6_error(m, ICMP6_DST_UNREACH,
-			    ICMP6_DST_UNREACH_ADMIN, 0);
-		m = NULL;	/* NB: icmp6_error frees mbuf */
+			/* XXX should notification be done for all errors ? */
+			/*
+			 * Notify the fact that the packet is discarded
+			 * to ourselves. I believe this is better than
+			 * just silently discarding. (jinmei@kame.net)
+			 * XXX: should we restrict the error to TCP packets?
+			 * XXX: should we directly notify sockets via
+			 *      pfctlinputs?
+			 */
+			icmp6_error(m, ICMP6_DST_UNREACH,
+				    ICMP6_DST_UNREACH_ADMIN, 0);
+			m = NULL;	/* NB: icmp6_error frees mbuf */
 #endif
-		goto bad;
+			goto bad;
+		}
+		return EJUSTRETURN;
 	}
 
 	error = (*isr->sav->tdb_xform->xf_output)(m, isr, NULL,
@@ -707,8 +715,11 @@ ipsec6_output_tunnel(struct ipsec_output_state *state, struct secpolicy *sp, int
 
 	IPSECREQUEST_LOCK(isr);		/* insure SA contents don't change */
 	isr = ipsec_nextisr(m, isr, AF_INET6, &saidx, &error);
-	if (isr == NULL)
-		goto bad;
+	if (isr == NULL) {
+		if (error != 0)
+			goto bad;
+		return EJUSTRETURN; 
+	}
 
 	/*
 	 * There may be the case that SA status will be changed when
