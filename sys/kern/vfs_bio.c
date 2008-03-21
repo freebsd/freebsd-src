@@ -1203,15 +1203,14 @@ brelse(struct buf *bp)
 		bp->b_flags &= ~B_RELBUF;
 	else if (vm_page_count_severe()) {
 		/*
-		 * XXX This lock may not be necessary since BKGRDINPROG
-		 * cannot be set while we hold the buf lock, it can only be
-		 * cleared if it is already pending.
+		 * The locking of the BO_LOCK is not necessary since
+		 * BKGRDINPROG cannot be set while we hold the buf
+		 * lock, it can only be cleared if it is already
+		 * pending.
 		 */
 		if (bp->b_vp) {
-			BO_LOCK(bp->b_bufobj);
 			if (!(bp->b_vflags & BV_BKGRDINPROG))
 				bp->b_flags |= B_RELBUF;
-			BO_UNLOCK(bp->b_bufobj);
 		} else
 			bp->b_flags |= B_RELBUF;
 	}
@@ -1465,13 +1464,13 @@ bqrelse(struct buf *bp)
 		TAILQ_INSERT_TAIL(&bufqueues[bp->b_qindex], bp, b_freelist);
 	} else {
 		/*
-		 * XXX This lock may not be necessary since BKGRDINPROG
-		 * cannot be set while we hold the buf lock, it can only be
-		 * cleared if it is already pending.
+		 * The locking of the BO_LOCK for checking of the
+		 * BV_BKGRDINPROG is not necessary since the
+		 * BV_BKGRDINPROG cannot be set while we hold the buf
+		 * lock, it can only be cleared if it is already
+		 * pending.
 		 */
-		BO_LOCK(bp->b_bufobj);
-		if (!vm_page_count_severe() || bp->b_vflags & BV_BKGRDINPROG) {
-			BO_UNLOCK(bp->b_bufobj);
+		if (!vm_page_count_severe() || (bp->b_vflags & BV_BKGRDINPROG)) {
 			bp->b_qindex = QUEUE_CLEAN;
 			TAILQ_INSERT_TAIL(&bufqueues[QUEUE_CLEAN], bp,
 			    b_freelist);
@@ -1481,7 +1480,6 @@ bqrelse(struct buf *bp)
 			 * the buffer (most importantly: the wired pages
 			 * making up its backing store) *now*.
 			 */
-			BO_UNLOCK(bp->b_bufobj);
 			mtx_unlock(&bqlock);
 			brelse(bp);
 			return;
