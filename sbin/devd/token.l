@@ -61,10 +61,10 @@ update_lineno(const char *cp)
 \}			{ return ENDBLOCK; }
 [0-9]+			{ yylval.i = atoi(yytext); return NUMBER; }
 \"[^"]+\"		{
-				update_lineno(yytext);
 				int len = strlen(yytext) - 2;
 				char *walker;
 				int i;
+				update_lineno(yytext);
 				if ((yylval.str = (char *) malloc(len + 1)) == NULL)
 					goto out;
 				walker = yylval.str;
