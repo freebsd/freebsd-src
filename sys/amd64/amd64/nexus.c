@@ -587,7 +587,7 @@ ram_attach(device_t dev)
 
 	rid = 0;
 	for (smap = smapbase; smap < smapend; smap++) {
-		if (smap->type != 0x01 || smap->length == 0)
+		if (smap->type != SMAP_TYPE_MEMORY || smap->length == 0)
 			continue;
 		error = bus_set_resource(dev, SYS_RES_MEMORY, rid, smap->base,
 		    smap->length);
