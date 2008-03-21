@@ -256,7 +256,7 @@ ip6_ipsec_output(struct mbuf **m, struct inpcb *inp, int *flags, int *error,
 				 * NB: null pointer to avoid free at
 				 *     done: below.
 				 */
-				KEY_FREESP(sp), sp = NULL;
+				KEY_FREESP(sp), *sp = NULL;
 				/* XXX splx(s); */
 				goto done;
 			}
@@ -297,16 +297,10 @@ ip6_ipsec_output(struct mbuf **m, struct inpcb *inp, int *flags, int *error,
 		}
 	}
 done:
-	if (sp != NULL)
-		if (*sp != NULL)
-			KEY_FREESP(sp);
 	return 0;
 do_ipsec:
 	return -1;
 bad:
-	if (sp != NULL)
-		if (*sp != NULL)
-			KEY_FREESP(sp);
 	return 1;
 #endif /* IPSEC */
 	return 0;
