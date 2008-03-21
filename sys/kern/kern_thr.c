@@ -235,6 +235,8 @@ create_thread(struct thread *td, mcontext_t *ctx,
 	/* let the scheduler know about these things. */
 	sched_fork_thread(td, newtd);
 	thread_unlock(td);
+	if (P_SHOULDSTOP(p))
+		newtd->td_flags |= TDF_ASTPENDING | TDF_NEEDSUSPCHK;
 	PROC_UNLOCK(p);
 	thread_lock(newtd);
 	if (rtp != NULL) {

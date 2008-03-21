@@ -549,7 +549,7 @@ thread_single(int mode)
 			if (td2 == td)
 				continue;
 			thread_lock(td2);
-			td2->td_flags |= TDF_ASTPENDING;
+			td2->td_flags |= TDF_ASTPENDING | TDF_NEEDSUSPCHK;
 			if (TD_IS_INHIBITED(td2)) {
 				switch (mode) {
 				case SINGLE_EXIT:
@@ -751,6 +751,7 @@ thread_suspend_switch(struct thread *td)
 	p->p_suspcount++;
 	PROC_UNLOCK(p);
 	thread_lock(td);
+	td->td_flags &= ~TDF_NEEDSUSPCHK;
 	TD_SET_SUSPENDED(td);
 	sched_sleep(td, 0);
 	PROC_SUNLOCK(p);
@@ -771,6 +772,7 @@ thread_suspend_one(struct thread *td)
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	KASSERT(!TD_IS_SUSPENDED(td), ("already suspended"));
 	p->p_suspcount++;
+	td->td_flags &= ~TDF_NEEDSUSPCHK;
 	TD_SET_SUSPENDED(td);
 	sched_sleep(td, 0);
 }

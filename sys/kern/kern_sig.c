@@ -2286,6 +2286,7 @@ sig_suspend_threads(struct thread *td, struct proc *p, int sending)
 
 	FOREACH_THREAD_IN_PROC(p, td2) {
 		thread_lock(td2);
+		td2->td_flags |= TDF_ASTPENDING | TDF_NEEDSUSPCHK;
 		if ((TD_IS_SLEEPING(td2) || TD_IS_SWAPPED(td2)) &&
 		    (td2->td_flags & TDF_SINTR) &&
 		    !TD_IS_SUSPENDED(td2)) {
