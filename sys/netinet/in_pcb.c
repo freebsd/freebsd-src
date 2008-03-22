@@ -202,7 +202,7 @@ in_pcballoc(struct socket *so, struct inpcbinfo *pcbinfo)
 		mac_destroy_inpcb(inp);
 #endif
 		goto out;
-}
+	}
 #endif /*IPSEC*/
 #ifdef INET6
 	if (INP_SOCKAF(so) == AF_INET6) {
