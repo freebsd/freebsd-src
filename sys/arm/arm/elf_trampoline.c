@@ -47,6 +47,7 @@ extern char kernel_end[];
 
 extern void *_end;
 
+void _start(void);
 void __start(void);
 void __startC(void);
 
