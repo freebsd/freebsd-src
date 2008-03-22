@@ -88,7 +88,7 @@ typedef unsigned char b_xflags_t;
  *	completes, b_resid is usually 0 indicating 100% success.
  *
  *	All fields are protected by the buffer lock except those marked:
- *		V - Protected by owning vnode lock
+ *		V - Protected by owning bufobj lock
  *		Q - Protected by the buf queue lock
  *		D - Protected by an dependency implementation specific lock
  */

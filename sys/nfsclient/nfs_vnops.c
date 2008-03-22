@@ -2736,11 +2736,12 @@ nfs_flush(struct vnode *vp, int waitfor, struct thread *td,
 	int i;
 	struct buf *nbp;
 	struct nfsmount *nmp = VFSTONFS(vp->v_mount);
-	int s, error = 0, slptimeo = 0, slpflag = 0, retv, bvecpos;
+	int error = 0, slptimeo = 0, slpflag = 0, retv, bvecpos;
 	int passone = 1;
 	u_quad_t off, endoff, toff;
 	struct ucred* wcred = NULL;
 	struct buf **bvec = NULL;
+	struct bufobj *bo;
 #ifndef NFS_COMMITBVECSIZ
 #define NFS_COMMITBVECSIZ	20
 #endif
@@ -2751,6 +2752,7 @@ nfs_flush(struct vnode *vp, int waitfor, struct thread *td,
 		slpflag = PCATCH;
 	if (!commit)
 		passone = 0;
+	bo = &vp->v_bufobj;
 	/*
 	 * A b_flags == (B_DELWRI | B_NEEDCOMMIT) block has been written to the
 	 * server, but has not been committed to stable storage on the server
@@ -2763,15 +2765,14 @@ again:
 	endoff = 0;
 	bvecpos = 0;
 	if (NFS_ISV3(vp) && commit) {
-		s = splbio();
 		if (bvec != NULL && bvec != bvec_on_stack)
 			free(bvec, M_TEMP);
 		/*
 		 * Count up how many buffers waiting for a commit.
 		 */
 		bveccount = 0;
-		VI_LOCK(vp);
-		TAILQ_FOREACH_SAFE(bp, &vp->v_bufobj.bo_dirty.bv_hd, b_bobufs, nbp) {
+		BO_LOCK(bo);
+		TAILQ_FOREACH_SAFE(bp, &bo->bo_dirty.bv_hd, b_bobufs, nbp) {
 			if (!BUF_ISLOCKED(bp) &&
 			    (bp->b_flags & (B_DELWRI | B_NEEDCOMMIT))
 				== (B_DELWRI | B_NEEDCOMMIT))
@@ -2788,11 +2789,11 @@ again:
 			 * Release the vnode interlock to avoid a lock
 			 * order reversal.
 			 */
-			VI_UNLOCK(vp);
+			BO_UNLOCK(bo);
 			bvec = (struct buf **)
 				malloc(bveccount * sizeof(struct buf *),
 				       M_TEMP, M_NOWAIT);
-			VI_LOCK(vp);
+			BO_LOCK(bo);
 			if (bvec == NULL) {
 				bvec = bvec_on_stack;
 				bvecsize = NFS_COMMITBVECSIZ;
@@ -2802,7 +2803,7 @@ again:
 			bvec = bvec_on_stack;
 			bvecsize = NFS_COMMITBVECSIZ;
 		}
-		TAILQ_FOREACH_SAFE(bp, &vp->v_bufobj.bo_dirty.bv_hd, b_bobufs, nbp) {
+		TAILQ_FOREACH_SAFE(bp, &bo->bo_dirty.bv_hd, b_bobufs, nbp) {
 			if (bvecpos >= bvecsize)
 				break;
 			if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT, NULL)) {
@@ -2815,7 +2816,7 @@ again:
 				nbp = TAILQ_NEXT(bp, b_bobufs);
 				continue;
 			}
-			VI_UNLOCK(vp);
+			BO_UNLOCK(bo);
 			bremfree(bp);
 			/*
 			 * Work out if all buffers are using the same cred
@@ -2834,7 +2835,7 @@ again:
 				wcred = NOCRED;
 			vfs_busy_pages(bp, 1);
 
-			VI_LOCK(vp);
+			BO_LOCK(bo);
 			/*
 			 * bp is protected by being locked, but nbp is not
 			 * and vfs_busy_pages() may sleep.  We have to
@@ -2858,8 +2859,7 @@ again:
 			if (toff > endoff)
 				endoff = toff;
 		}
-		splx(s);
-		VI_UNLOCK(vp);
+		BO_UNLOCK(bo);
 	}
 	if (bvecpos > 0) {
 		/*
@@ -2911,14 +2911,12 @@ again:
 				 * specific.  We should probably move that
 				 * into bundirty(). XXX
 				 */
-				s = splbio();
-				bufobj_wref(&vp->v_bufobj);
+				bufobj_wref(bo);
 				bp->b_flags |= B_ASYNC;
 				bundirty(bp);
 				bp->b_flags &= ~B_DONE;
 				bp->b_ioflags &= ~BIO_ERROR;
 				bp->b_dirtyoff = bp->b_dirtyend = 0;
-				splx(s);
 				bufdone(bp);
 			}
 		}
@@ -2928,17 +2926,15 @@ again:
 	 * Start/do any write(s) that are required.
 	 */
 loop:
-	s = splbio();
-	VI_LOCK(vp);
-	TAILQ_FOREACH_SAFE(bp, &vp->v_bufobj.bo_dirty.bv_hd, b_bobufs, nbp) {
+	BO_LOCK(bo);
+	TAILQ_FOREACH_SAFE(bp, &bo->bo_dirty.bv_hd, b_bobufs, nbp) {
 		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT, NULL)) {
 			if (waitfor != MNT_WAIT || passone)
 				continue;
 
 			error = BUF_TIMELOCK(bp,
 			    LK_EXCLUSIVE | LK_SLEEPFAIL | LK_INTERLOCK,
-			    VI_MTX(vp), "nfsfsync", slpflag, slptimeo);
-			splx(s);
+			    BO_MTX(bo), "nfsfsync", slpflag, slptimeo);
 			if (error == 0) {
 				BUF_UNLOCK(bp);
 				goto loop;
@@ -2961,13 +2957,12 @@ loop:
 			BUF_UNLOCK(bp);
 			continue;
 		}
-		VI_UNLOCK(vp);
+		BO_UNLOCK(bo);
 		bremfree(bp);
 		if (passone || !commit)
 		    bp->b_flags |= B_ASYNC;
 		else
 		    bp->b_flags |= B_ASYNC;
-		splx(s);
 		bwrite(bp);
 		if (nfs_sigintr(nmp, NULL, td)) {
 			error = EINTR;
@@ -2975,17 +2970,16 @@ loop:
 		}
 		goto loop;
 	}
-	splx(s);
 	if (passone) {
 		passone = 0;
-		VI_UNLOCK(vp);
+		BO_UNLOCK(bo);
 		goto again;
 	}
 	if (waitfor == MNT_WAIT) {
-		while (vp->v_bufobj.bo_numoutput) {
-			error = bufobj_wwait(&vp->v_bufobj, slpflag, slptimeo);
+		while (bo->bo_numoutput) {
+			error = bufobj_wwait(bo, slpflag, slptimeo);
 			if (error) {
-			    VI_UNLOCK(vp);
+			    BO_UNLOCK(bo);
 			    error = nfs_sigintr(nmp, NULL, td);
 			    if (error)
 				goto done;
@@ -2993,17 +2987,17 @@ loop:
 				slpflag = 0;
 				slptimeo = 2 * hz;
 			    }
-			    VI_LOCK(vp);
+			    BO_LOCK(bo);
 			}
 		}
-		if (vp->v_bufobj.bo_dirty.bv_cnt != 0 && commit) {
-			VI_UNLOCK(vp);
+		if (bo->bo_dirty.bv_cnt != 0 && commit) {
+			BO_UNLOCK(bo);
 			goto loop;
 		}
 		/*
 		 * Wait for all the async IO requests to drain
 		 */
-		VI_UNLOCK(vp);
+		BO_UNLOCK(bo);
 		mtx_lock(&np->n_mtx);
 		while (np->n_directio_asyncwr > 0) {
 			np->n_flag |= NFSYNCWAIT;
@@ -3020,14 +3014,14 @@ loop:
 		}
 		mtx_unlock(&np->n_mtx);
 	} else
-		VI_UNLOCK(vp);
+		BO_UNLOCK(bo);
 	mtx_lock(&np->n_mtx);
 	if (np->n_flag & NWRITEERR) {
 		error = np->n_error;
 		np->n_flag &= ~NWRITEERR;
 	}
-  	if (commit && vp->v_bufobj.bo_dirty.bv_cnt == 0 &&
-	    vp->v_bufobj.bo_numoutput == 0 && np->n_directio_asyncwr == 0)
+  	if (commit && bo->bo_dirty.bv_cnt == 0 &&
+	    bo->bo_numoutput == 0 && np->n_directio_asyncwr == 0)
   		np->n_flag &= ~NMODIFIED;
 	mtx_unlock(&np->n_mtx);
 done:

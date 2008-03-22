@@ -357,26 +357,16 @@ softdep_check_suspend(struct mount *mp,
 	(void) softdep_deps,
 	(void) softdep_accdeps;
 
-	ASSERT_VI_LOCKED(devvp, "softdep_check_suspend");
 	bo = &devvp->v_bufobj;
+	ASSERT_BO_LOCKED(bo);
 
-	for (;;) {
-		if (!MNT_ITRYLOCK(mp)) {
-			VI_UNLOCK(devvp);
-			MNT_ILOCK(mp);
-			MNT_IUNLOCK(mp);
-			VI_LOCK(devvp);
-			continue;
-		}
-		if (mp->mnt_secondary_writes != 0) {
-			VI_UNLOCK(devvp);
-			msleep(&mp->mnt_secondary_writes,
-			       MNT_MTX(mp),
-			       (PUSER - 1) | PDROP, "secwr", 0);
-			VI_LOCK(devvp);
-			continue;
-		}
-		break;
+	MNT_ILOCK(mp);
+	while (mp->mnt_secondary_writes != 0) {
+		BO_UNLOCK(bo);
+		msleep(&mp->mnt_secondary_writes, MNT_MTX(mp),
+		    (PUSER - 1) | PDROP, "secwr", 0);
+		BO_LOCK(bo);
+		MNT_ILOCK(mp);
 	}
 
 	/*
@@ -391,7 +381,7 @@ softdep_check_suspend(struct mount *mp,
 	    mp->mnt_secondary_writes != 0 ||
 	    secondary_accwrites != mp->mnt_secondary_accwrites)
 		error = EAGAIN;
-	VI_UNLOCK(devvp);
+	BO_UNLOCK(bo);
 	return (error);
 }
 
@@ -2189,6 +2179,7 @@ softdep_setup_freeblocks(ip, length, flags)
 	struct freeblks *freeblks;
 	struct inodedep *inodedep;
 	struct allocdirect *adp;
+	struct bufobj *bo;
 	struct vnode *vp;
 	struct buf *bp;
 	struct fs *fs;
@@ -2314,27 +2305,28 @@ softdep_setup_freeblocks(ip, length, flags)
 	 * any dependencies.
 	 */
 	vp = ITOV(ip);
-	VI_LOCK(vp);
+	bo = &vp->v_bufobj;
+	BO_LOCK(bo);
 	drain_output(vp);
 restart:
-	TAILQ_FOREACH(bp, &vp->v_bufobj.bo_dirty.bv_hd, b_bobufs) {
+	TAILQ_FOREACH(bp, &bo->bo_dirty.bv_hd, b_bobufs) {
 		if (((flags & IO_EXT) == 0 && (bp->b_xflags & BX_ALTDATA)) ||
 		    ((flags & IO_NORMAL) == 0 &&
 		      (bp->b_xflags & BX_ALTDATA) == 0))
 			continue;
-		if ((bp = getdirtybuf(bp, VI_MTX(vp), MNT_WAIT)) == NULL)
+		if ((bp = getdirtybuf(bp, BO_MTX(bo), MNT_WAIT)) == NULL)
 			goto restart;
-		VI_UNLOCK(vp);
+		BO_UNLOCK(bo);
 		ACQUIRE_LOCK(&lk);
 		(void) inodedep_lookup(mp, ip->i_number, 0, &inodedep);
 		deallocate_dependencies(bp, inodedep);
 		FREE_LOCK(&lk);
 		bp->b_flags |= B_INVAL | B_NOCACHE;
 		brelse(bp);
-		VI_LOCK(vp);
+		BO_LOCK(bo);
 		goto restart;
 	}
-	VI_UNLOCK(vp);
+	BO_UNLOCK(bo);
 	ACQUIRE_LOCK(&lk);
 	if (inodedep_lookup(mp, ip->i_number, 0, &inodedep) != 0)
 		(void) free_inodedep(inodedep);
@@ -5159,13 +5151,15 @@ softdep_fsync_mountdev(vp)
 {
 	struct buf *bp, *nbp;
 	struct worklist *wk;
+	struct bufobj *bo;
 
 	if (!vn_isdisk(vp, NULL))
 		panic("softdep_fsync_mountdev: vnode not a disk");
+	bo = &vp->v_bufobj;
 restart:
+	BO_LOCK(bo);
 	ACQUIRE_LOCK(&lk);
-	VI_LOCK(vp);
-	TAILQ_FOREACH_SAFE(bp, &vp->v_bufobj.bo_dirty.bv_hd, b_bobufs, nbp) {
+	TAILQ_FOREACH_SAFE(bp, &bo->bo_dirty.bv_hd, b_bobufs, nbp) {
 		/* 
 		 * If it is already scheduled, skip to the next buffer.
 		 */
@@ -5184,15 +5178,15 @@ restart:
 			BUF_UNLOCK(bp);
 			continue;
 		}
-		VI_UNLOCK(vp);
 		FREE_LOCK(&lk);
+		BO_UNLOCK(bo);
 		bremfree(bp);
 		(void) bawrite(bp);
 		goto restart;
 	}
 	FREE_LOCK(&lk);
 	drain_output(vp);
-	VI_UNLOCK(vp);
+	BO_UNLOCK(bo);
 }
 
 /*
@@ -5209,6 +5203,7 @@ softdep_sync_metadata(struct vnode *vp)
 	struct allocindir *aip;
 	struct buf *bp, *nbp;
 	struct worklist *wk;
+	struct bufobj *bo;
 	int i, error, waitfor;
 
 	if (!DOINGSOFTDEP(vp))
@@ -5240,20 +5235,21 @@ softdep_sync_metadata(struct vnode *vp)
 	 * resolved. Thus the second pass is expected to end quickly.
 	 */
 	waitfor = MNT_NOWAIT;
+	bo = &vp->v_bufobj;
 
 top:
 	/*
 	 * We must wait for any I/O in progress to finish so that
 	 * all potential buffers on the dirty list will be visible.
 	 */
-	VI_LOCK(vp);
+	BO_LOCK(bo);
 	drain_output(vp);
-	while ((bp = TAILQ_FIRST(&vp->v_bufobj.bo_dirty.bv_hd)) != NULL) {
-		bp = getdirtybuf(bp, VI_MTX(vp), MNT_WAIT);
+	while ((bp = TAILQ_FIRST(&bo->bo_dirty.bv_hd)) != NULL) {
+		bp = getdirtybuf(bp, BO_MTX(bo), MNT_WAIT);
 		if (bp)
 			break;
 	}
-	VI_UNLOCK(vp);
+	BO_UNLOCK(bo);
 	if (bp == NULL)
 		return (0);
 loop:
@@ -5405,13 +5401,13 @@ loop:
 		return (error);
 	}
 	FREE_LOCK(&lk);
-	VI_LOCK(vp);
+	BO_LOCK(bo);
 	while ((nbp = TAILQ_NEXT(bp, b_bobufs)) != NULL) {
-		nbp = getdirtybuf(nbp, VI_MTX(vp), MNT_WAIT);
+		nbp = getdirtybuf(nbp, BO_MTX(bo), MNT_WAIT);
 		if (nbp)
 			break;
 	}
-	VI_UNLOCK(vp);
+	BO_UNLOCK(bo);
 	BUF_NOREC(bp);
 	bawrite(bp);
 	if (nbp != NULL) {
@@ -5435,9 +5431,9 @@ loop:
 	 * We must wait for any I/O in progress to finish so that
 	 * all potential buffers on the dirty list will be visible.
 	 */
-	VI_LOCK(vp);
+	BO_LOCK(bo);
 	drain_output(vp);
-	VI_UNLOCK(vp);
+	BO_UNLOCK(bo);
 	return (0);
 }
 
@@ -5544,6 +5540,7 @@ flush_pagedep_deps(pvp, mp, diraddhdp)
 	struct ufsmount *ump;
 	struct diradd *dap;
 	struct vnode *vp;
+	struct bufobj *bo;
 	int error = 0;
 	struct buf *bp;
 	ino_t inum;
@@ -5590,7 +5587,8 @@ flush_pagedep_deps(pvp, mp, diraddhdp)
 				vput(vp);
 				break;
 			}
-			VI_LOCK(vp);
+			bo = &vp->v_bufobj;
+			BO_LOCK(bo);
 			drain_output(vp);
 			/*
 			 * If first block is still dirty with a D_MKDIR
@@ -5598,15 +5596,15 @@ flush_pagedep_deps(pvp, mp, diraddhdp)
 			 */
 			for (;;) {
 				error = 0;
-				bp = gbincore(&vp->v_bufobj, 0);
+				bp = gbincore(bo, 0);
 				if (bp == NULL)
 					break;	/* First block not present */
 				error = BUF_LOCK(bp,
 						 LK_EXCLUSIVE |
 						 LK_SLEEPFAIL |
 						 LK_INTERLOCK,
-						 VI_MTX(vp));
-				VI_LOCK(vp);
+						 BO_MTX(bo));
+				BO_LOCK(bo);
 				if (error == ENOLCK)
 					continue;	/* Slept, retry */
 				if (error != 0)
@@ -5628,14 +5626,14 @@ flush_pagedep_deps(pvp, mp, diraddhdp)
 					 * must write buffer to stable
 					 * storage.
 					 */
-					VI_UNLOCK(vp);
+					BO_UNLOCK(bo);
 					bremfree(bp);
 					error = bwrite(bp);
-					VI_LOCK(vp);
+					BO_LOCK(bo);
 				}
 				break;
 			}
-			VI_UNLOCK(vp);
+			BO_UNLOCK(bo);
 			vput(vp);
 			if (error != 0)
 				break;	/* Flushing of first block failed */
@@ -5904,6 +5902,7 @@ clear_remove(td)
 	static int next = 0;
 	struct mount *mp;
 	struct vnode *vp;
+	struct bufobj *bo;
 	int error, cnt;
 	ino_t ino;
 
@@ -5929,9 +5928,10 @@ clear_remove(td)
 			}
 			if ((error = ffs_syncvnode(vp, MNT_NOWAIT)))
 				softdep_error("clear_remove: fsync", error);
-			VI_LOCK(vp);
+			bo = &vp->v_bufobj;
+			BO_LOCK(bo);
 			drain_output(vp);
-			VI_UNLOCK(vp);
+			BO_UNLOCK(bo);
 			vput(vp);
 			vn_finished_write(mp);
 			ACQUIRE_LOCK(&lk);
@@ -6004,9 +6004,9 @@ clear_inodedeps(td)
 		} else {
 			if ((error = ffs_syncvnode(vp, MNT_NOWAIT)))
 				softdep_error("clear_inodedeps: fsync2", error);
-			VI_LOCK(vp);
+			BO_LOCK(&vp->v_bufobj);
 			drain_output(vp);
-			VI_UNLOCK(vp);
+			BO_UNLOCK(&vp->v_bufobj);
 		}
 		vput(vp);
 		vn_finished_write(mp);
@@ -6154,7 +6154,7 @@ getdirtybuf(bp, mtx, waitfor)
 		 */
 #ifdef	DEBUG_VFS_LOCKS
 		if (bp->b_vp->v_type != VCHR)
-			ASSERT_VI_LOCKED(bp->b_vp, "getdirtybuf");
+			ASSERT_BO_LOCKED(bp->b_bufobj);
 #endif
 		bp->b_vflags |= BV_BKGRDWAIT;
 		msleep(&bp->b_xflags, mtx, PRIBIO, "getbuf", 0);
@@ -6187,33 +6187,26 @@ softdep_check_suspend(struct mount *mp,
 	struct ufsmount *ump;
 	int error;
 
-	ASSERT_VI_LOCKED(devvp, "softdep_check_suspend");
 	ump = VFSTOUFS(mp);
 	bo = &devvp->v_bufobj;
+	ASSERT_BO_LOCKED(bo);
 
 	for (;;) {
 		if (!TRY_ACQUIRE_LOCK(&lk)) {
-			VI_UNLOCK(devvp);
+			BO_UNLOCK(bo);
 			ACQUIRE_LOCK(&lk);
 			FREE_LOCK(&lk);
-			VI_LOCK(devvp);
+			BO_LOCK(bo);
 			continue;
 		}
-		if (!MNT_ITRYLOCK(mp)) {
-			FREE_LOCK(&lk);
-			VI_UNLOCK(devvp);
-			MNT_ILOCK(mp);
-			MNT_IUNLOCK(mp);
-			VI_LOCK(devvp);
-			continue;
-		}
+		MNT_ILOCK(mp);
 		if (mp->mnt_secondary_writes != 0) {
 			FREE_LOCK(&lk);
-			VI_UNLOCK(devvp);
+			BO_UNLOCK(bo);
 			msleep(&mp->mnt_secondary_writes,
 			       MNT_MTX(mp),
 			       (PUSER - 1) | PDROP, "secwr", 0);
-			VI_LOCK(devvp);
+			BO_LOCK(bo);
 			continue;
 		}
 		break;
@@ -6236,7 +6229,7 @@ softdep_check_suspend(struct mount *mp,
 	    secondary_accwrites != mp->mnt_secondary_accwrites)
 		error = EAGAIN;
 	FREE_LOCK(&lk);
-	VI_UNLOCK(devvp);
+	BO_UNLOCK(bo);
 	return (error);
 }
 
@@ -6270,13 +6263,16 @@ static void
 drain_output(vp)
 	struct vnode *vp;
 {
-	ASSERT_VOP_LOCKED(vp, "drain_output");
-	ASSERT_VI_LOCKED(vp, "drain_output");
+	struct bufobj *bo;
 
-	while (vp->v_bufobj.bo_numoutput) {
-		vp->v_bufobj.bo_flag |= BO_WWAIT;
-		msleep((caddr_t)&vp->v_bufobj.bo_numoutput,
-		    VI_MTX(vp), PRIBIO + 1, "drainvp", 0);
+	bo = &vp->v_bufobj;
+	ASSERT_VOP_LOCKED(vp, "drain_output");
+	ASSERT_BO_LOCKED(bo);
+
+	while (bo->bo_numoutput) {
+		bo->bo_flag |= BO_WWAIT;
+		msleep((caddr_t)&bo->bo_numoutput,
+		    BO_MTX(bo), PRIBIO + 1, "drainvp", 0);
 	}
 }
 
