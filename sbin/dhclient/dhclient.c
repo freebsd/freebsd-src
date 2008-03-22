@@ -300,7 +300,7 @@ main(int argc, char *argv[])
 
 	/* Initially, log errors to stderr as well as to syslogd. */
 	openlog(__progname, LOG_PID | LOG_NDELAY, DHCPD_LOG_FACILITY);
-	setlogmask(LOG_UPTO(LOG_INFO));
+	setlogmask(LOG_UPTO(LOG_DEBUG));
 
 	while ((ch = getopt(argc, argv, "bc:dl:qu")) != -1)
 		switch (ch) {
