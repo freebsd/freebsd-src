@@ -20,6 +20,7 @@ SRCS+= \
 	thr_exit.c \
 	thr_fork.c \
 	thr_getprio.c \
+	thr_getcpuclockid.c \
 	thr_getschedparam.c \
 	thr_info.c \
 	thr_init.c \

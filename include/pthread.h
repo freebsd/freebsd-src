@@ -185,6 +185,7 @@ int		pthread_detach(pthread_t);
 int		pthread_equal(pthread_t, pthread_t);
 void		pthread_exit(void *) __dead2;
 void		*pthread_getspecific(pthread_key_t);
+int		pthread_getcpuclockid(pthread_t, clockid_t *);
 int		pthread_join(pthread_t, void **);
 int		pthread_key_create(pthread_key_t *,
 			void (*) (void *));
