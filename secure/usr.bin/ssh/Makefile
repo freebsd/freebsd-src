@@ -22,7 +22,16 @@ DPADD+=	 ${LIBGSSAPI}
 LDADD+=	 -lgssapi
 .endif
 
-.if defined(X11BASE)
+.if defined(X11BASE) || defined(LOCALBASE)
+# Recommended /etc/make.conf setting is X11BASE=${LOCALBASE} for x.org
+# 7.x upgrade on <= 6.2, but LOCALBASE has moved out of scope of src/
+# so we need to provide the default for users with old make.conf
+# settings.
+LOCALBASE?=	/usr/local
+
+# Users may override either LOCALBASE or X11BASE to move the location
+# of xauth
+X11BASE?=	${LOCALBASE}
 CFLAGS+= -DXAUTH_PATH=\"${X11BASE}/bin/xauth\"
 .endif
 
