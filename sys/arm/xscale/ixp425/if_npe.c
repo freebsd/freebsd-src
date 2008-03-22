@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2006 Sam Leffler.  All rights reserved.
+ * Copyright (c) 2006-2008 Sam Leffler.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -134,6 +134,7 @@ struct npe_softc {
 	int		rx_freeqid;	/* rx free buffers qid */
 	int		tx_qid;		/* tx qid */
 	int		tx_doneqid;	/* tx completed qid */
+	int		sc_phy;		/* PHY id */
 	struct ifmib_iso_8802_3 mibdata;
 	bus_dma_tag_t	sc_stats_tag;	/* bus dma tag for stats block */
 	struct npestats	*sc_stats;
@@ -160,6 +161,7 @@ static const struct {
 	int		regsize;
 	uint32_t	miibase;
 	int		miisize;
+	int		phy;		/* phy id */
 	uint8_t		rx_qid;
 	uint8_t		rx_freeqid;
 	uint8_t		tx_qid;
@@ -172,6 +174,7 @@ static const struct {
 	  .regsize	= IXP425_MAC_A_SIZE,
 	  .miibase	= IXP425_MAC_A_HWBASE,
 	  .miisize	= IXP425_MAC_A_SIZE,
+	  .phy		= 0,
 	  .rx_qid	= 4,
 	  .rx_freeqid	= 27,
 	  .tx_qid	= 24,
@@ -184,6 +187,7 @@ static const struct {
 	  .regsize	= IXP425_MAC_B_SIZE,
 	  .miibase	= IXP425_MAC_A_HWBASE,
 	  .miisize	= IXP425_MAC_A_SIZE,
+	  .phy		= 1,
 	  .rx_qid	= 12,
 	  .rx_freeqid	= 28,
 	  .tx_qid	= 25,
@@ -544,11 +548,61 @@ npe_dma_destroy(struct npe_softc *sc, struct npedma *dma)
 }
 
 static int
+override_addr(device_t dev, const char *resname, int *base, int *size)
+{
+	int unit = device_get_unit(dev);
+	const char *resval;
+
+	/* XXX warn for wrong hint type */
+	if (resource_string_value("npe", unit, resname, &resval) != 0)
+		return 0;
+	switch (resval[0]) {
+	case 'A':
+		*base = IXP425_MAC_A_HWBASE;
+		*size = IXP425_MAC_A_SIZE;
+		break;
+	case 'B':
+		*base = IXP425_MAC_B_HWBASE;
+		*size = IXP425_MAC_B_SIZE;
+		break;
+	default:
+		device_printf(dev, "Warning, bad value %s for "
+		    "npe.%d.%s ignored\n", resval, unit, resname);
+		return 0;
+	}
+	if (bootverbose)
+		device_printf(dev, "using npe.%d.%s=%s override\n",
+		    unit, resname, resval);
+	return 1;
+}
+
+static int
+override_unit(device_t dev, const char *resname, int *val, int min, int max)
+{
+	int unit = device_get_unit(dev);
+	int resval;
+
+	if (resource_int_value("npe", unit, resname, &resval) != 0)
+		return 0;
+	if (!(min <= resval && resval <= max)) {
+		device_printf(dev, "Warning, bad value %d for npe.%d.%s "
+		    "ignored (value must be [%d-%d])\n", resval, unit,
+		    resname, min, max);
+		return 0;
+	}
+	if (bootverbose)
+		device_printf(dev, "using npe.%d.%s=%d override\n",
+		    unit, resname, resval);
+	*val = resval;
+	return 1;
+}
+
+static int
 npe_activate(device_t dev)
 {
 	struct npe_softc * sc = device_get_softc(dev);
 	int unit = device_get_unit(dev);
-	int error, i;
+	int error, i, regbase, regsize, miibase, miisize;
 	uint32_t imageid;
 
 	/*
@@ -571,24 +625,29 @@ npe_activate(device_t dev)
 		imageid++;
 	}
 
-	if (bus_space_map(sc->sc_iot, npeconfig[unit].regbase,
-	    npeconfig[unit].regsize, 0, &sc->sc_ioh)) {
+	if (!override_addr(dev, "mac", &regbase, &regsize)) {
+		regbase = npeconfig[unit].regbase;
+		regbase = npeconfig[unit].regsize;
+	}
+	if (bus_space_map(sc->sc_iot, regbase, regsize, 0, &sc->sc_ioh)) {
 		device_printf(dev, "Cannot map registers 0x%x:0x%x\n",
-		    npeconfig[unit].regbase, npeconfig[unit].regsize);
+		    regbase, regsize);
 		return ENOMEM;
 	}
 
-	if (npeconfig[unit].miibase != npeconfig[unit].regbase) {
+	if (!override_addr(dev, "mii", &miibase, &miisize)) {
+		miibase = npeconfig[unit].miibase;
+		miisize = npeconfig[unit].miisize;
+	}
+	if (miibase != regbase) {
 		/*
-		 * The PHY's are only accessible from one MAC (it appears)
-		 * so for other MAC's setup an additional mapping for
-		 * frobbing the PHY registers.
+		 * PHY is mapped through a different MAC, setup an
+		 * additional mapping for frobbing the PHY registers.
 		 */
-		if (bus_space_map(sc->sc_iot, npeconfig[unit].miibase,
-		    npeconfig[unit].miisize, 0, &sc->sc_miih)) {
+		if (bus_space_map(sc->sc_iot, miibase, miisize, 0, &sc->sc_miih)) {
 			device_printf(dev,
 			    "Cannot map MII registers 0x%x:0x%x\n",
-			    npeconfig[unit].miibase, npeconfig[unit].miisize);
+			    miibase, miisize);
 			return ENOMEM;
 		}
 	} else
@@ -666,6 +725,13 @@ device_printf(sc->sc_dev, "remember to fix rx q setup\n");
 			IX_QMGR_Q_SOURCE_ID_NOT_E, npe_txdone, sc);
 		tx_doneqid = sc->tx_doneqid;
 	}
+
+	/*
+	 * Setup phy port number.  We allow override via hints
+	 * to handle different board configs.
+	 */
+	if (!override_unit(dev, "phy", &sc->sc_phy, 0, MII_NPHY-1))
+		sc->sc_phy = npeconfig[unit].phy;
 
 	KASSERT(npes[npeconfig[unit].npeid] == NULL,
 	    ("npe %u already setup", npeconfig[unit].npeid));
@@ -1478,8 +1544,6 @@ npe_child_detached(device_t dev, device_t child)
 
 /*
  * MII bus support routines.
- *
- * NB: ixp425 has one PHY per NPE
  */
 static uint32_t
 npe_mii_mdio_read(struct npe_softc *sc, int reg)
@@ -1532,7 +1596,7 @@ npe_miibus_readreg(device_t dev, int phy, int reg)
 	struct npe_softc *sc = device_get_softc(dev);
 	uint32_t v;
 
-	if (phy != device_get_unit(dev))	/* XXX */
+	if (phy != sc->sc_phy)		/* XXX no auto-detect */
 		return 0xffff;
 	v = (phy << NPE_MII_ADDR_SHL) | (reg << NPE_MII_REG_SHL)
 	  | NPE_MII_GO;
@@ -1551,7 +1615,7 @@ npe_miibus_writereg(device_t dev, int phy, int reg, int data)
 	struct npe_softc *sc = device_get_softc(dev);
 	uint32_t v;
 
-	if (phy != device_get_unit(dev))	/* XXX */
+	if (phy != sc->sc_phy)		/* XXX */
 		return;
 	v = (phy << NPE_MII_ADDR_SHL) | (reg << NPE_MII_REG_SHL)
 	  | data | NPE_MII_WRITE
