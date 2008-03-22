@@ -2075,8 +2075,16 @@ mfi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
 		break;
 	}
 	case MFI_CMD:
+		{
+		devclass_t devclass;
 		ioc = (struct mfi_ioc_packet *)arg;
+		int adapter;
 
+		adapter = ioc->mfi_adapter_no;
+		if (device_get_unit(sc->mfi_dev) == 0 && adapter != 0) {
+			devclass = devclass_find("mfi");
+			sc = devclass_get_softc(devclass, adapter);
+		}
 		mtx_lock(&sc->mfi_io_lock);
 		if ((cm = mfi_dequeue_free(sc)) == NULL) {
 			mtx_unlock(&sc->mfi_io_lock);
@@ -2196,6 +2204,7 @@ out:
 		}
 
 		break;
+		}
 	case MFI_SET_AEN:
 		aen = (struct mfi_ioc_aen *)arg;
 		error = mfi_aen_register(sc, aen->aen_seq_num,
