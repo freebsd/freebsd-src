@@ -271,6 +271,7 @@ FBSDprivate_1.0 {
 	_pthread_exit;
 	_pthread_getaffinity_np;
 	_pthread_getconcurrency;
+	_pthread_getcpuclockid;
 	_pthread_getprio;
 	_pthread_getschedparam;
 	_pthread_getspecific;
@@ -395,6 +396,7 @@ FBSD_1.1 {
 	pthread_attr_getaffinity_np;
 	pthread_attr_setaffinity_np;
 	pthread_getaffinity_np;
+	pthread_getcpuclockid;
 	pthread_setaffinity_np;
 	pthread_mutex_getspinloops_np;
 	pthread_mutex_getyieldloops_np;
