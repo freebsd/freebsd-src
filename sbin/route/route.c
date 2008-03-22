@@ -748,7 +748,7 @@ newroute(argc, argv)
 			break;
 	}
 	if (*cmd == 'g')
-		exit(0);
+		exit(ret != 0);
 	if (!qflag) {
 		oerrno = errno;
 		(void) printf("%s %s %s", cmd, ishost? "host" : "net", dest);
