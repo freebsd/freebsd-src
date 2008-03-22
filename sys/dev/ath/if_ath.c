@@ -4968,9 +4968,10 @@ ath_chan_set(struct ath_softc *sc, struct ieee80211_channel *chan)
 		ath_stoprecv(sc);		/* turn off frame recv */
 		if (!ath_hal_reset(ah, sc->sc_opmode, &hchan, AH_TRUE, &status)) {
 			if_printf(ic->ic_ifp, "%s: unable to reset "
-			    "channel %u (%u Mhz, flags 0x%x hal flags 0x%x)\n",
-			    __func__, ieee80211_chan2ieee(ic, chan),
-			    chan->ic_freq, chan->ic_flags, hchan.channelFlags);
+			    "channel %u (%u Mhz, flags 0x%x hal flags 0x%x), "
+			    "hal status %u\n", __func__,
+			    ieee80211_chan2ieee(ic, chan), chan->ic_freq,
+			    chan->ic_flags, hchan.channelFlags, status);
 			return EIO;
 		}
 		sc->sc_curchan = hchan;
