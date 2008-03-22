@@ -147,6 +147,7 @@ ffs_truncate(vp, length, flags, cred, td)
 	ufs2_daddr_t bn, lbn, lastblock, lastiblock[NIADDR], indir_lbn[NIADDR];
 	ufs2_daddr_t oldblks[NDADDR + NIADDR], newblks[NDADDR + NIADDR];
 	ufs2_daddr_t count, blocksreleased = 0, datablocks;
+	struct bufobj *bo;
 	struct fs *fs;
 	struct buf *bp;
 	struct ufsmount *ump;
@@ -158,6 +159,7 @@ ffs_truncate(vp, length, flags, cred, td)
 	ip = VTOI(vp);
 	fs = ip->i_fs;
 	ump = ip->i_ump;
+	bo = &vp->v_bufobj;
 
 	ASSERT_VOP_LOCKED(vp, "ffs_truncate");
 
@@ -486,13 +488,12 @@ done:
 	for (i = 0; i < NDADDR; i++)
 		if (newblks[i] != DIP(ip, i_db[i]))
 			panic("ffs_truncate2");
-	VI_LOCK(vp);
+	BO_LOCK(bo);
 	if (length == 0 &&
 	    (fs->fs_magic != FS_UFS2_MAGIC || ip->i_din2->di_extsize == 0) &&
-	    (vp->v_bufobj.bo_dirty.bv_cnt > 0 ||
-	     vp->v_bufobj.bo_clean.bv_cnt > 0))
+	    (bo->bo_dirty.bv_cnt > 0 || bo->bo_clean.bv_cnt > 0))
 		panic("ffs_truncate3");
-	VI_UNLOCK(vp);
+	BO_UNLOCK(bo);
 #endif /* INVARIANTS */
 	/*
 	 * Put back the real size.

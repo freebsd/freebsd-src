@@ -803,7 +803,10 @@ msdosfs_unmount(struct mount *mp, int mntflags, struct thread *td)
 #ifdef MSDOSFS_DEBUG
 	{
 		struct vnode *vp = pmp->pm_devvp;
+		struct bufobj *bo;
 
+		bo = &vp->v_bufobj;
+		BO_LOCK(bo);
 		VI_LOCK(vp);
 		vn_printf(vp,
 		    "msdosfs_umount(): just before calling VOP_CLOSE()\n");
@@ -815,6 +818,7 @@ msdosfs_unmount(struct mount *mp, int mntflags, struct thread *td)
 		    TAILQ_FIRST(&vp->v_bufobj.bo_dirty.bv_hd),
 		    vp->v_bufobj.bo_numoutput, vp->v_type);
 		VI_UNLOCK(vp);
+		BO_UNLOCK(bo);
 	}
 #endif
 	DROP_GIANT();

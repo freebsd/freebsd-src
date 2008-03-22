@@ -195,6 +195,7 @@ int
 ffs_syncvnode(struct vnode *vp, int waitfor)
 {
 	struct inode *ip = VTOI(vp);
+	struct bufobj *bo;
 	struct buf *bp;
 	struct buf *nbp;
 	int s, error, wait, passes, skipmeta;
@@ -202,6 +203,7 @@ ffs_syncvnode(struct vnode *vp, int waitfor)
 
 	wait = (waitfor == MNT_WAIT);
 	lbn = lblkno(ip->i_fs, (ip->i_size + ip->i_fs->fs_bsize - 1));
+	bo = &vp->v_bufobj;
 
 	/*
 	 * Flush all dirty buffers associated with a vnode.
@@ -211,11 +213,11 @@ ffs_syncvnode(struct vnode *vp, int waitfor)
 	if (wait)
 		skipmeta = 1;
 	s = splbio();
-	VI_LOCK(vp);
+	BO_LOCK(bo);
 loop:
-	TAILQ_FOREACH(bp, &vp->v_bufobj.bo_dirty.bv_hd, b_bobufs)
+	TAILQ_FOREACH(bp, &bo->bo_dirty.bv_hd, b_bobufs)
 		bp->b_vflags &= ~BV_SCANNED;
-	TAILQ_FOREACH_SAFE(bp, &vp->v_bufobj.bo_dirty.bv_hd, b_bobufs, nbp) {
+	TAILQ_FOREACH_SAFE(bp, &bo->bo_dirty.bv_hd, b_bobufs, nbp) {
 		/*
 		 * Reasons to skip this buffer: it has already been considered
 		 * on this pass, this pass is the first time through on a
@@ -231,13 +233,13 @@ loop:
 			continue;
 		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT, NULL))
 			continue;
-		VI_UNLOCK(vp);
+		BO_UNLOCK(bo);
 		if (!wait && !LIST_EMPTY(&bp->b_dep) &&
 		    (bp->b_flags & B_DEFERRED) == 0 &&
 		    buf_countdeps(bp, 0)) {
 			bp->b_flags |= B_DEFERRED;
 			BUF_UNLOCK(bp);
-			VI_LOCK(vp);
+			BO_LOCK(bo);
 			continue;
 		}
 		if ((bp->b_flags & B_DELWRI) == 0)
@@ -286,8 +288,8 @@ loop:
 		 * Since we may have slept during the I/O, we need
 		 * to start from a known point.
 		 */
-		VI_LOCK(vp);
-		nbp = TAILQ_FIRST(&vp->v_bufobj.bo_dirty.bv_hd);
+		BO_LOCK(bo);
+		nbp = TAILQ_FIRST(&bo->bo_dirty.bv_hd);
 	}
 	/*
 	 * If we were asked to do this synchronously, then go back for
@@ -299,8 +301,8 @@ loop:
 	}
 
 	if (wait) {
-		bufobj_wwait(&vp->v_bufobj, 3, 0);
-		VI_UNLOCK(vp);
+		bufobj_wwait(bo, 3, 0);
+		BO_UNLOCK(bo);
 
 		/*
 		 * Ensure that any filesystem metatdata associated
@@ -311,8 +313,8 @@ loop:
 			return (error);
 		s = splbio();
 
-		VI_LOCK(vp);
-		if (vp->v_bufobj.bo_dirty.bv_cnt > 0) {
+		BO_LOCK(bo);
+		if (bo->bo_dirty.bv_cnt > 0) {
 			/*
 			 * Block devices associated with filesystems may
 			 * have new I/O requests posted for them even if
@@ -331,7 +333,7 @@ loop:
 #endif
 		}
 	}
-	VI_UNLOCK(vp);
+	BO_UNLOCK(bo);
 	splx(s);
 	return (ffs_update(vp, wait));
 }

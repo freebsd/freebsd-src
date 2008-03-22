@@ -405,12 +405,13 @@ vop_stdfsync(ap)
 	int error = 0;
 	int maxretry = 1000;     /* large, arbitrarily chosen */
 
-	VI_LOCK(vp);
+	bo = &vp->v_bufobj;
+	BO_LOCK(bo);
 loop1:
 	/*
 	 * MARK/SCAN initialization to avoid infinite loops.
 	 */
-        TAILQ_FOREACH(bp, &vp->v_bufobj.bo_dirty.bv_hd, b_bobufs) {
+        TAILQ_FOREACH(bp, &bo->bo_dirty.bv_hd, b_bobufs) {
                 bp->b_vflags &= ~BV_SCANNED;
 		bp->b_error = 0;
 	}
@@ -419,16 +420,16 @@ loop1:
 	 * Flush all dirty buffers associated with a vnode.
 	 */
 loop2:
-	TAILQ_FOREACH_SAFE(bp, &vp->v_bufobj.bo_dirty.bv_hd, b_bobufs, nbp) {
+	TAILQ_FOREACH_SAFE(bp, &bo->bo_dirty.bv_hd, b_bobufs, nbp) {
 		if ((bp->b_vflags & BV_SCANNED) != 0)
 			continue;
 		bp->b_vflags |= BV_SCANNED;
 		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT, NULL))
 			continue;
-		VI_UNLOCK(vp);
-		KASSERT(bp->b_bufobj == &vp->v_bufobj,
+		BO_UNLOCK(bo);
+		KASSERT(bp->b_bufobj == bo,
 		    ("bp %p wrong b_bufobj %p should be %p",
-		    bp, bp->b_bufobj, &vp->v_bufobj));
+		    bp, bp->b_bufobj, bo));
 		if ((bp->b_flags & B_DELWRI) == 0)
 			panic("fsync: not dirty");
 		if ((vp->v_object != NULL) && (bp->b_flags & B_CLUSTEROK)) {
@@ -437,7 +438,7 @@ loop2:
 			bremfree(bp);
 			bawrite(bp);
 		}
-		VI_LOCK(vp);
+		BO_LOCK(bo);
 		goto loop2;
 	}
 
@@ -448,7 +449,6 @@ loop2:
 	 * retry if dirty blocks still exist.
 	 */
 	if (ap->a_waitfor == MNT_WAIT) {
-		bo = &vp->v_bufobj;
 		bufobj_wwait(bo, 0, 0);
 		if (bo->bo_dirty.bv_cnt > 0) {
 			/*
@@ -464,7 +464,7 @@ loop2:
 			error = EAGAIN;
 		}
 	}
-	VI_UNLOCK(vp);
+	BO_UNLOCK(bo);
 	if (error == EAGAIN)
 		vprint("fsync: giving up on dirty", vp);
 
@@ -571,14 +571,11 @@ vfs_stdsync(mp, waitfor, td)
 	MNT_ILOCK(mp);
 loop:
 	MNT_VNODE_FOREACH(vp, mp, mvp) {
-
-		VI_LOCK(vp);
-		if (vp->v_bufobj.bo_dirty.bv_cnt == 0) {
-			VI_UNLOCK(vp);
+		/* bv_cnt is an acceptable race here. */
+		if (vp->v_bufobj.bo_dirty.bv_cnt == 0)
 			continue;
-		}
+		VI_LOCK(vp);
 		MNT_IUNLOCK(mp);
-
 		if ((error = vget(vp, lockreq, td)) != 0) {
 			MNT_ILOCK(mp);
 			if (error == ENOENT) {
