@@ -88,10 +88,7 @@ main(int argc, char *argv[])
 }
 
 static void
-bprintf(fp, b, s)
-	FILE *fp;
-	int b;
-	u_char *s;
+bprintf(FILE *fp, int b, char *s)
 {
 	int i;
 	int gotsome = 0;
@@ -131,9 +128,8 @@ char ifnetflags[] =
 char addrnames[] =
 "\1DST\2GATEWAY\3NETMASK\4GENMASK\5IFP\6IFA\7AUTHOR\010BRD";
 
-const char *
-routename(sa)
-	struct sockaddr *sa;
+static const char *
+routename(struct sockaddr *sa)
 {
 	char *cp;
 	static char line[MAXHOSTNAMELEN + 1];
@@ -286,7 +282,6 @@ print_rtmsg(struct rt_msghdr *rtm, int msglen)
 {
 	struct if_msghdr *ifm;
 	struct if_announcemsghdr *ifan;
-	char *state;
 	time_t now = time(NULL);
 	char *cnow = ctime(&now);
 
@@ -302,16 +297,16 @@ print_rtmsg(struct rt_msghdr *rtm, int msglen)
 			cnow, ifm->ifm_index);
 		switch (ifm->ifm_data.ifi_link_state) {
 		case LINK_STATE_DOWN:
-			state = "down";
+			printf("link: down, flags:");
 			break;
 		case LINK_STATE_UP:
-			state = "up";
+			printf("link: up, flags:");
 			break;
 		default:
-			state = "unknown";
+			printf("link: unknown<%d>, flags:",
+			    ifm->ifm_data.ifi_link_state);
 			break;
 		}
-		printf("link: %s, flags:", state);
 		bprintf(stdout, ifm->ifm_flags, ifnetflags);
 		pmsg_addrs((char *)(ifm + 1), ifm->ifm_addrs);
 		break;
@@ -335,7 +330,7 @@ print_rtmsg(struct rt_msghdr *rtm, int msglen)
 	case RTM_IEEE80211:
 #define	V(type)	((struct type *)(&ifan[1]))
 		ifan = (struct if_announcemsghdr *)rtm;
-		printf("%.19s RTM_IEEE80211: ", cnow);
+		printf("%.19s RTM_IEEE80211: if# %d, ", cnow, ifan->ifan_index);
 		switch (ifan->ifan_what) {
 		case RTM_IEEE80211_ASSOC:
 			printf("associate with %s",
@@ -385,8 +380,7 @@ print_rtmsg(struct rt_msghdr *rtm, int msglen)
 			);
 			break;
 		default:
-			printf("if# %d, what: #%d",
-				ifan->ifan_index, ifan->ifan_what);
+			printf("what: #%d", ifan->ifan_what);
 			break;
 		}
 		printf("\n");
