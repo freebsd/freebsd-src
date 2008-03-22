@@ -1267,11 +1267,12 @@ loop:
 	qsync(mp);
 #endif
 	devvp = ump->um_devvp;
-	VI_LOCK(devvp);
 	bo = &devvp->v_bufobj;
+	BO_LOCK(bo);
 	if (waitfor != MNT_LAZY &&
 	    (bo->bo_numoutput > 0 || bo->bo_dirty.bv_cnt > 0)) {
-		vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY | LK_INTERLOCK);
+		BO_UNLOCK(bo);
+		vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY);
 		if ((error = VOP_FSYNC(devvp, waitfor, td)) != 0)
 			allerror = error;
 		VOP_UNLOCK(devvp, 0);
@@ -1292,7 +1293,7 @@ loop:
 		MNT_IUNLOCK(mp);
 		suspended = 1;
 	} else
-		VI_UNLOCK(devvp);
+		BO_UNLOCK(bo);
 	/*
 	 * Write back modified superblock.
 	 */

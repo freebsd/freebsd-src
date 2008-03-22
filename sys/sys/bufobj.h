@@ -52,6 +52,8 @@
 #if defined(_KERNEL) || defined(_KVM_VNODE)
 
 #include <sys/queue.h>
+#include <sys/_lock.h>
+#include <sys/_mutex.h>
 
 struct bufobj;
 struct buf_ops;
@@ -87,7 +89,7 @@ struct buf_ops {
 #define BO_BDFLUSH(bo, bp)	((bo)->bo_ops->bop_bdflush((bo), (bp)))
 
 struct bufobj {
-	struct mtx	*bo_mtx;	/* Mutex which protects "i" things */
+	struct mtx	bo_mtx;		/* Mutex which protects "i" things */
 	struct bufv	bo_clean;	/* i Clean buffers */
 	struct bufv	bo_dirty;	/* i Dirty buffers */
 	long		bo_numoutput;	/* i Writes in progress */
@@ -112,21 +114,11 @@ struct bufobj {
 #define	BO_WWAIT	(1 << 1)	/* Wait for output to complete */
 #define	BO_NEEDSGIANT	(1 << 2)	/* Require giant for child buffers. */
 
-#define	BO_LOCK(bo) \
-	do { \
-		KASSERT((bo)->bo_mtx != NULL, ("No lock in bufobj")); \
-		mtx_lock((bo)->bo_mtx); \
-	} while (0)
-
-#define BO_UNLOCK(bo) \
-	do { \
-		KASSERT((bo)->bo_mtx != NULL, ("No lock in bufobj")); \
-		mtx_unlock((bo)->bo_mtx); \
-	} while (0)
-
-#define	BO_MTX(bo)		((bo)->bo_mtx)
-#define	ASSERT_BO_LOCKED(bo)	mtx_assert(bo->bo_mtx, MA_OWNED)
-#define	ASSERT_BO_UNLOCKED(bo)	mtx_assert(bo->bo_mtx, MA_NOTOWNED)
+#define	BO_MTX(bo)		(&(bo)->bo_mtx)
+#define	BO_LOCK(bo)		mtx_lock(BO_MTX((bo)))
+#define	BO_UNLOCK(bo)		mtx_unlock(BO_MTX((bo)))
+#define	ASSERT_BO_LOCKED(bo)	mtx_assert(BO_MTX((bo)), MA_OWNED)
+#define	ASSERT_BO_UNLOCKED(bo)	mtx_assert(BO_MTX((bo)), MA_NOTOWNED)
 
 void bufobj_wdrop(struct bufobj *bo);
 void bufobj_wref(struct bufobj *bo);

@@ -936,7 +936,7 @@ alloc:
 	 */
 	bo = &vp->v_bufobj;
 	bo->__bo_vnode = vp;
-	bo->bo_mtx = &vp->v_interlock;
+	mtx_init(BO_MTX(bo), "bufobj interlock", NULL, MTX_DEF);
 	bo->bo_ops = &buf_ops_bio;
 	bo->bo_private = vp;
 	TAILQ_INIT(&bo->bo_clean.bv_hd);
@@ -1236,8 +1236,8 @@ vtruncbuf(struct vnode *vp, struct ucred *cred, struct thread *td,
 
 	ASSERT_VOP_LOCKED(vp, "vtruncbuf");
 restart:
-	VI_LOCK(vp);
 	bo = &vp->v_bufobj;
+	BO_LOCK(bo);
 	anyfreed = 1;
 	for (;anyfreed;) {
 		anyfreed = 0;
@@ -1246,7 +1246,7 @@ restart:
 				continue;
 			if (BUF_LOCK(bp,
 			    LK_EXCLUSIVE | LK_SLEEPFAIL | LK_INTERLOCK,
-			    VI_MTX(vp)) == ENOLCK)
+			    BO_MTX(bo)) == ENOLCK)
 				goto restart;
 
 			bremfree(bp);
@@ -1261,7 +1261,7 @@ restart:
 			    (nbp->b_flags & B_DELWRI))) {
 				goto restart;
 			}
-			VI_LOCK(vp);
+			BO_LOCK(bo);
 		}
 
 		TAILQ_FOREACH_SAFE(bp, &bo->bo_dirty.bv_hd, b_bobufs, nbp) {
@@ -1269,7 +1269,7 @@ restart:
 				continue;
 			if (BUF_LOCK(bp,
 			    LK_EXCLUSIVE | LK_SLEEPFAIL | LK_INTERLOCK,
-			    VI_MTX(vp)) == ENOLCK)
+			    BO_MTX(bo)) == ENOLCK)
 				goto restart;
 			bremfree(bp);
 			bp->b_flags |= (B_INVAL | B_RELBUF);
@@ -1282,7 +1282,7 @@ restart:
 			    (nbp->b_flags & B_DELWRI) == 0)) {
 				goto restart;
 			}
-			VI_LOCK(vp);
+			BO_LOCK(bo);
 		}
 	}
 
@@ -1305,13 +1305,13 @@ restartsync:
 
 			bremfree(bp);
 			bawrite(bp);
-			VI_LOCK(vp);
+			BO_LOCK(bo);
 			goto restartsync;
 		}
 	}
 
 	bufobj_wwait(bo, 0, 0);
-	VI_UNLOCK(vp);
+	BO_UNLOCK(bo);
 	vnode_pager_setsize(vp, length);
 
 	return (0);
@@ -1503,24 +1503,25 @@ gbincore(struct bufobj *bo, daddr_t lblkno)
 void
 bgetvp(struct vnode *vp, struct buf *bp)
 {
+	struct bufobj *bo;
 
+	bo = &vp->v_bufobj;
+	ASSERT_BO_LOCKED(bo);
 	VNASSERT(bp->b_vp == NULL, bp->b_vp, ("bgetvp: not free"));
 
 	CTR3(KTR_BUF, "bgetvp(%p) vp %p flags %X", bp, vp, bp->b_flags);
 	VNASSERT((bp->b_xflags & (BX_VNDIRTY|BX_VNCLEAN)) == 0, vp,
 	    ("bgetvp: bp already attached! %p", bp));
 
-	ASSERT_VI_LOCKED(vp, "bgetvp");
-	vholdl(vp);
-	if (VFS_NEEDSGIANT(vp->v_mount) ||
-	    vp->v_bufobj.bo_flag & BO_NEEDSGIANT)
+	vhold(vp);
+	if (VFS_NEEDSGIANT(vp->v_mount) || bo->bo_flag & BO_NEEDSGIANT)
 		bp->b_flags |= B_NEEDSGIANT;
 	bp->b_vp = vp;
-	bp->b_bufobj = &vp->v_bufobj;
+	bp->b_bufobj = bo;
 	/*
 	 * Insert onto list for new vnode.
 	 */
-	buf_vlist_add(bp, &vp->v_bufobj, BX_VNCLEAN);
+	buf_vlist_add(bp, bo, BX_VNCLEAN);
 }
 
 /*
@@ -1557,7 +1558,8 @@ brelvp(struct buf *bp)
 	bp->b_vp = NULL;
 	bp->b_bufobj = NULL;
 	waiters = bp->b_waiters;
-	vdropl(vp);
+	BO_UNLOCK(bo);
+	vdrop(vp);
 
 	return (waiters);
 }
@@ -1668,7 +1670,7 @@ restart:
 	(void) VOP_FSYNC(vp, MNT_LAZY, td);
 	VOP_UNLOCK(vp, 0);
 	vn_finished_write(mp);
-	VI_LOCK(vp);
+	BO_LOCK(*bo);
 	if (((*bo)->bo_flag & BO_ONWORKLST) != 0) {
 		/*
 		 * Put us back on the worklist.  The worklist
@@ -1678,7 +1680,8 @@ restart:
 		 */
 		vn_syncer_add_to_worklist(*bo, syncdelay);
 	}
-	vdropl(vp);
+	BO_UNLOCK(*bo);
+	vdrop(vp);
 	VFS_UNLOCK_GIANT(vfslocked);
 	mtx_lock(&sync_mtx);
 	return (0);
@@ -1886,7 +1889,7 @@ reassignbuf(struct buf *bp)
 	/*
 	 * Delete from old vnode list, if on one.
 	 */
-	VI_LOCK(vp);
+	BO_LOCK(bo);
 	if (bp->b_xflags & (BX_VNDIRTY | BX_VNCLEAN))
 		buf_vlist_remove(bp);
 	else
@@ -1937,7 +1940,7 @@ reassignbuf(struct buf *bp)
 	KASSERT(bp == NULL || bp->b_bufobj == bo,
 	    ("bp %p wrong b_bufobj %p should be %p", bp, bp->b_bufobj, bo));
 #endif
-	VI_UNLOCK(vp);
+	BO_UNLOCK(bo);
 }
 
 /*
@@ -3127,6 +3130,7 @@ int
 vfs_allocate_syncvnode(struct mount *mp)
 {
 	struct vnode *vp;
+	struct bufobj *bo;
 	static long start, incr, next;
 	int error;
 
@@ -3155,14 +3159,14 @@ vfs_allocate_syncvnode(struct mount *mp)
 		}
 		next = start;
 	}
-	VI_LOCK(vp);
-	vn_syncer_add_to_worklist(&vp->v_bufobj,
-	    syncdelay > 0 ? next % syncdelay : 0);
+	bo = &vp->v_bufobj;
+	BO_LOCK(bo);
+	vn_syncer_add_to_worklist(bo, syncdelay > 0 ? next % syncdelay : 0);
 	/* XXX - vn_syncer_add_to_worklist() also grabs and drops sync_mtx. */
 	mtx_lock(&sync_mtx);
 	sync_vnode_count++;
 	mtx_unlock(&sync_mtx);
-	VI_UNLOCK(vp);
+	BO_UNLOCK(bo);
 	mp->mnt_syncer = vp;
 	return (0);
 }
@@ -3244,8 +3248,8 @@ sync_reclaim(struct vop_reclaim_args *ap)
 	struct vnode *vp = ap->a_vp;
 	struct bufobj *bo;
 
-	VI_LOCK(vp);
 	bo = &vp->v_bufobj;
+	BO_LOCK(bo);
 	vp->v_mount->mnt_syncer = NULL;
 	if (bo->bo_flag & BO_ONWORKLST) {
 		mtx_lock(&sync_mtx);
@@ -3255,7 +3259,7 @@ sync_reclaim(struct vop_reclaim_args *ap)
 		mtx_unlock(&sync_mtx);
 		bo->bo_flag &= ~BO_ONWORKLST;
 	}
-	VI_UNLOCK(vp);
+	BO_UNLOCK(bo);
 
 	return (0);
 }
