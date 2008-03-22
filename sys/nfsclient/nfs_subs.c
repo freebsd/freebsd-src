@@ -915,28 +915,31 @@ nfs_clearcommit(struct mount *mp)
 {
 	struct vnode *vp, *nvp;
 	struct buf *bp, *nbp;
-	int s;
+	struct bufobj *bo;
 
-	s = splbio();
 	MNT_ILOCK(mp);
 	MNT_VNODE_FOREACH(vp, mp, nvp) {
+		bo = &vp->v_bufobj;
 		VI_LOCK(vp);
 		if (vp->v_iflag & VI_DOOMED) {
 			VI_UNLOCK(vp);
 			continue;
 		}
+		vholdl(vp);
+		VI_UNLOCK(vp);
 		MNT_IUNLOCK(mp);
-		TAILQ_FOREACH_SAFE(bp, &vp->v_bufobj.bo_dirty.bv_hd, b_bobufs, nbp) {
+		BO_LOCK(bo);
+		TAILQ_FOREACH_SAFE(bp, &bo->bo_dirty.bv_hd, b_bobufs, nbp) {
 			if (!BUF_ISLOCKED(bp) &&
 			    (bp->b_flags & (B_DELWRI | B_NEEDCOMMIT))
 				== (B_DELWRI | B_NEEDCOMMIT))
 				bp->b_flags &= ~(B_NEEDCOMMIT | B_CLUSTEROK);
 		}
-		VI_UNLOCK(vp);
+		BO_UNLOCK(bo);
+		vdrop(vp);
 		MNT_ILOCK(mp);
 	}
 	MNT_IUNLOCK(mp);
-	splx(s);
 }
 
 /*

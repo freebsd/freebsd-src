@@ -94,12 +94,14 @@ cluster_read(vp, filesize, lblkno, size, cred, totread, seqcount, bpp)
 	struct buf **bpp;
 {
 	struct buf *bp, *rbp, *reqbp;
+	struct bufobj *bo;
 	daddr_t blkno, origblkno;
 	int maxra, racluster;
 	int error, ncontig;
 	int i;
 
 	error = 0;
+	bo = &vp->v_bufobj;
 
 	/*
 	 * Try to limit the amount of read-ahead by a few
@@ -130,7 +132,7 @@ cluster_read(vp, filesize, lblkno, size, cred, totread, seqcount, bpp)
 			return 0;
 		} else {
 			bp->b_flags &= ~B_RAM;
-			VI_LOCK(vp);
+			BO_LOCK(bo);
 			for (i = 1; i < maxra; i++) {
 				/*
 				 * Stop if the buffer does not exist or it
@@ -153,7 +155,7 @@ cluster_read(vp, filesize, lblkno, size, cred, totread, seqcount, bpp)
 					BUF_UNLOCK(rbp);
 				}			
 			}
-			VI_UNLOCK(vp);
+			BO_UNLOCK(bo);
 			if (i >= maxra) {
 				return 0;
 			}
@@ -305,6 +307,7 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run, fbp)
 	int run;
 	struct buf *fbp;
 {
+	struct bufobj *bo;
 	struct buf *bp, *tbp;
 	daddr_t bn;
 	int i, inc, j;
@@ -330,7 +333,6 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run, fbp)
 		tbp->b_flags |= B_ASYNC | B_RAM;
 		tbp->b_iocmd = BIO_READ;
 	}
-
 	tbp->b_blkno = blkno;
 	if( (tbp->b_flags & B_MALLOC) ||
 		((tbp->b_flags & B_VMIO) == 0) || (run <= 1) )
@@ -364,6 +366,7 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run, fbp)
 	bp->b_npages = 0;
 
 	inc = btodb(size);
+	bo = &vp->v_bufobj;
 	for (bn = blkno, i = 0; i < run; ++i, bn += inc) {
 		if (i != 0) {
 			if ((bp->b_npages * PAGE_SIZE) +
@@ -384,15 +387,15 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run, fbp)
 			 * VMIO backed.  The clustering code can only deal
 			 * with VMIO-backed buffers.
 			 */
-			VI_LOCK(vp);
+			BO_LOCK(bo);
 			if ((tbp->b_vflags & BV_BKGRDINPROG) ||
 			    (tbp->b_flags & B_CACHE) ||
 			    (tbp->b_flags & B_VMIO) == 0) {
-				VI_UNLOCK(vp);
+				BO_UNLOCK(bo);
 				bqrelse(tbp);
 				break;
 			}
-			VI_UNLOCK(vp);
+			BO_UNLOCK(bo);
 
 			/*
 			 * The buffer must be completely invalid in order to
@@ -740,26 +743,28 @@ cluster_wbuild(vp, size, start_lbn, len)
 	int len;
 {
 	struct buf *bp, *tbp;
+	struct bufobj *bo;
 	int i, j;
 	int totalwritten = 0;
 	int dbsize = btodb(size);
 
+	bo = &vp->v_bufobj;
 	while (len > 0) {
 		/*
 		 * If the buffer is not delayed-write (i.e. dirty), or it
 		 * is delayed-write but either locked or inval, it cannot
 		 * partake in the clustered write.
 		 */
-		VI_LOCK(vp);
+		BO_LOCK(bo);
 		if ((tbp = gbincore(&vp->v_bufobj, start_lbn)) == NULL ||
 		    (tbp->b_vflags & BV_BKGRDINPROG)) {
-			VI_UNLOCK(vp);
+			BO_UNLOCK(bo);
 			++start_lbn;
 			--len;
 			continue;
 		}
 		if (BUF_LOCK(tbp,
-		    LK_EXCLUSIVE | LK_NOWAIT | LK_INTERLOCK, VI_MTX(vp))) {
+		    LK_EXCLUSIVE | LK_NOWAIT | LK_INTERLOCK, BO_MTX(bo))) {
 			++start_lbn;
 			--len;
 			continue;
@@ -838,10 +843,10 @@ cluster_wbuild(vp, size, start_lbn, len)
 				 * If the adjacent data is not even in core it
 				 * can't need to be written.
 				 */
-				VI_LOCK(vp);
-				if ((tbp = gbincore(&vp->v_bufobj, start_lbn)) == NULL ||
+				BO_LOCK(bo);
+				if ((tbp = gbincore(bo, start_lbn)) == NULL ||
 				    (tbp->b_vflags & BV_BKGRDINPROG)) {
-					VI_UNLOCK(vp);
+					BO_UNLOCK(bo);
 					break;
 				}
 
@@ -854,7 +859,7 @@ cluster_wbuild(vp, size, start_lbn, len)
 				 */
 				if (BUF_LOCK(tbp,
 				    LK_EXCLUSIVE | LK_NOWAIT | LK_INTERLOCK,
-				    VI_MTX(vp)))
+				    BO_MTX(bo)))
 					break;
 
 				if ((tbp->b_flags & (B_VMIO | B_CLUSTEROK |

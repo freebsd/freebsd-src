@@ -97,21 +97,20 @@ ffs_rawread_setup(void)
 static int
 ffs_rawread_sync(struct vnode *vp)
 {
-	int spl;
 	int error;
 	int upgraded;
 	struct bufobj *bo;
 	struct mount *mp;
 
 	/* Check for dirty mmap, pending writes and dirty buffers */
-	spl = splbio();
-	VI_LOCK(vp);
 	bo = &vp->v_bufobj;
+	BO_LOCK(bo);
+	VI_LOCK(vp);
 	if (bo->bo_numoutput > 0 ||
 	    bo->bo_dirty.bv_cnt > 0 ||
 	    (vp->v_iflag & VI_OBJDIRTY) != 0) {
-		splx(spl);
 		VI_UNLOCK(vp);
+		BO_UNLOCK(bo);
 		
 		if (vn_start_write(vp, &mp, V_NOWAIT) != 0) {
 			if (VOP_ISLOCKED(vp) != LK_EXCLUSIVE)
@@ -146,16 +145,15 @@ ffs_rawread_sync(struct vnode *vp)
 				vm_object_page_clean(vp->v_object, 0, 0, OBJPC_SYNC);
 				VM_OBJECT_UNLOCK(vp->v_object);
 			}
-			VI_LOCK(vp);
-		}
+		} else
+			VI_UNLOCK(vp);
 
 		/* Wait for pending writes to complete */
-		spl = splbio();
+		BO_LOCK(bo);
 		error = bufobj_wwait(&vp->v_bufobj, 0, 0);
 		if (error != 0) {
 			/* XXX: can't happen with a zero timeout ??? */
-			splx(spl);
-			VI_UNLOCK(vp);
+			BO_UNLOCK(bo);
 			if (upgraded != 0)
 				VOP_LOCK(vp, LK_DOWNGRADE);
 			vn_finished_write(mp);
@@ -163,27 +161,24 @@ ffs_rawread_sync(struct vnode *vp)
 		}
 		/* Flush dirty buffers */
 		if (bo->bo_dirty.bv_cnt > 0) {
-			splx(spl);
-			VI_UNLOCK(vp);
+			BO_UNLOCK(bo);
 			if ((error = ffs_syncvnode(vp, MNT_WAIT)) != 0) {
 				if (upgraded != 0)
 					VOP_LOCK(vp, LK_DOWNGRADE);
 				vn_finished_write(mp);
 				return (error);
 			}
-			VI_LOCK(vp);
-			spl = splbio();
+			BO_LOCK(bo);
 			if (bo->bo_numoutput > 0 || bo->bo_dirty.bv_cnt > 0)
 				panic("ffs_rawread_sync: dirty bufs");
 		}
-		splx(spl);
-		VI_UNLOCK(vp);
+		BO_UNLOCK(bo);
 		if (upgraded != 0)
 			VOP_LOCK(vp, LK_DOWNGRADE);
 		vn_finished_write(mp);
 	} else {
-		splx(spl);
 		VI_UNLOCK(vp);
+		BO_UNLOCK(bo);
 	}
 	return 0;
 }

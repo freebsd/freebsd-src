@@ -3847,7 +3847,7 @@ nfsrv_commit(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		 */
 		int iosize = vp->v_mount->mnt_stat.f_iosize;
 		int iomask = iosize - 1;
-		int s;
+		struct bufobj *bo;
 		daddr_t lblkno;
 
 		/*
@@ -3870,8 +3870,8 @@ nfsrv_commit(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 			VM_OBJECT_UNLOCK(vp->v_object);
 		}
 
-		s = splbio();
-		VI_LOCK(vp);
+		bo = &vp->v_bufobj;
+		BO_LOCK(bo);
 		while (cnt > 0) {
 			struct buf *bp;
 
@@ -3887,8 +3887,8 @@ nfsrv_commit(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 			 */
 			if ((bp = gbincore(&vp->v_bufobj, lblkno)) != NULL) {
 				if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_SLEEPFAIL |
-				    LK_INTERLOCK, VI_MTX(vp)) == ENOLCK) {
-					VI_LOCK(vp);
+				    LK_INTERLOCK, BO_MTX(bo)) == ENOLCK) {
+					BO_LOCK(bo);
 					continue; /* retry */
 				}
 			    	if ((bp->b_flags & (B_DELWRI|B_INVAL)) ==
@@ -3899,7 +3899,7 @@ nfsrv_commit(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 					++nfs_commit_miss;
 				} else
 					BUF_UNLOCK(bp);
-				VI_LOCK(vp);
+				BO_LOCK(bo);
 			}
 			++nfs_commit_blks;
 			if (cnt < iosize)
@@ -3907,8 +3907,7 @@ nfsrv_commit(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 			cnt -= iosize;
 			++lblkno;
 		}
-		VI_UNLOCK(vp);
-		splx(s);
+		BO_UNLOCK(bo);
 	}
 
 	aft_ret = VOP_GETATTR(vp, &aft, cred, td);

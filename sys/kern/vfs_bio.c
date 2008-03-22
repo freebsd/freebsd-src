@@ -1608,6 +1608,7 @@ done:
 int
 vfs_bio_awrite(struct buf *bp)
 {
+	struct bufobj *bo;
 	int i;
 	int j;
 	daddr_t lblkno = bp->b_lblkno;
@@ -1617,6 +1618,7 @@ vfs_bio_awrite(struct buf *bp)
 	int size;
 	int maxcl;
 
+	bo = &vp->v_bufobj;
 	/*
 	 * right now we support clustered writing only to regular files.  If
 	 * we find a clusterable block we could be in the middle of a cluster
@@ -1629,7 +1631,7 @@ vfs_bio_awrite(struct buf *bp)
 		size = vp->v_mount->mnt_stat.f_iosize;
 		maxcl = MAXPHYS / size;
 
-		VI_LOCK(vp);
+		BO_LOCK(bo);
 		for (i = 1; i < maxcl; i++)
 			if (vfs_bio_clcheck(vp, size, lblkno + i,
 			    bp->b_blkno + ((i * size) >> DEV_BSHIFT)) == 0)
@@ -1639,8 +1641,7 @@ vfs_bio_awrite(struct buf *bp)
 			if (vfs_bio_clcheck(vp, size, lblkno - j,
 			    bp->b_blkno - ((j * size) >> DEV_BSHIFT)) == 0)
 				break;
-
-		VI_UNLOCK(vp);
+		BO_UNLOCK(bo);
 		--j;
 		ncl = i + j;
 		/*
@@ -2454,7 +2455,7 @@ loop:
 			lockflags |= LK_NOWAIT;
 
 		error = BUF_TIMELOCK(bp, lockflags,
-		    VI_MTX(vp), "getblk", slpflag, slptimeo);
+		    BO_MTX(bo), "getblk", slpflag, slptimeo);
 
 		/*
 		 * If we slept and got the lock we have to restart in case
