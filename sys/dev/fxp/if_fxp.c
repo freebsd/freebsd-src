@@ -231,7 +231,7 @@ static int		fxp_ioctl(struct ifnet *ifp, u_long command,
 			    caddr_t data);
 static void 		fxp_watchdog(struct fxp_softc *sc);
 static int		fxp_add_rfabuf(struct fxp_softc *sc,
-    			    struct fxp_rx *rxp);
+    			    struct fxp_rx *rxp, struct mbuf *oldm);
 static int		fxp_mc_addrs(struct fxp_softc *sc);
 static void		fxp_mc_setup(struct fxp_softc *sc);
 static uint16_t		fxp_eeprom_getword(struct fxp_softc *sc, int offset,
@@ -715,7 +715,7 @@ fxp_attach(device_t dev)
 			device_printf(dev, "can't create DMA map for RX\n");
 			goto fail;
 		}
-		if (fxp_add_rfabuf(sc, rxp) != 0) {
+		if (fxp_add_rfabuf(sc, rxp, NULL) != 0) {
 			error = ENOMEM;
 			goto fail;
 		}
@@ -1652,7 +1652,7 @@ fxp_intr_body(struct fxp_softc *sc, struct ifnet *ifp, uint8_t statack,
 		 * If this fails, the old buffer is recycled
 		 * instead.
 		 */
-		fxp_rc = fxp_add_rfabuf(sc, rxp);
+		fxp_rc = fxp_add_rfabuf(sc, rxp, m);
 		if (fxp_rc == 0) {
 			int total_len;
 
@@ -2245,17 +2245,26 @@ fxp_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
  * data pointer is fixed up to point just past it.
  */
 static int
-fxp_add_rfabuf(struct fxp_softc *sc, struct fxp_rx *rxp)
+fxp_add_rfabuf(struct fxp_softc *sc, struct fxp_rx *rxp, struct mbuf *oldm)
 {
 	struct mbuf *m;
 	struct fxp_rfa *rfa, *p_rfa;
 	struct fxp_rx *p_rx;
 	bus_dmamap_t tmp_map;
-	int error;
+	int error, reused_mbuf=0;
 
 	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
-	if (m == NULL)
-		return (ENOBUFS);
+	if (m == NULL) {
+		if (oldm == NULL)
+			return ENOBUFS;
+		m = oldm;
+		m->m_data = m->m_ext.ext_buf;
+		/*
+		 * return error so the receive loop will 
+		 * not pass the packet to upper layer
+		 */
+		reused_mbuf = EAGAIN;
+	}
 
 	/*
 	 * Move the data pointer up so that the incoming data packet
@@ -2320,7 +2329,7 @@ fxp_add_rfabuf(struct fxp_softc *sc, struct fxp_rx *rxp)
 		sc->fxp_desc.rx_head = rxp;
 	}
 	sc->fxp_desc.rx_tail = rxp;
-	return (0);
+	return (reused_mbuf);
 }
 
 static int
