@@ -230,11 +230,8 @@ softclock(void *dummy)
 				c_arg = c->c_arg;
 				c_flags = c->c_flags;
 				if (c->c_flags & CALLOUT_LOCAL_ALLOC) {
-					c->c_func = NULL;
 					c->c_flags = CALLOUT_LOCAL_ALLOC;
-					SLIST_INSERT_HEAD(&callfree, c,
-							  c_links.sle);
-					curr_callout = NULL;
+					curr_callout = c;
 				} else {
 					c->c_flags =
 					    (c->c_flags & ~CALLOUT_PENDING);
@@ -299,6 +296,24 @@ softclock(void *dummy)
 					class->lc_unlock(c_lock);
 			skip:
 				mtx_lock_spin(&callout_lock);
+				/*
+				 * If the current callout is locally
+				 * allocated (from timeout(9))
+				 * then put it on the freelist.
+				 *
+				 * Note: we need to check the cached
+				 * copy of c_flags because if it was not
+				 * local, then it's not safe to deref the
+				 * callout pointer.
+				 */
+				if (c_flags & CALLOUT_LOCAL_ALLOC) {
+					KASSERT(c->c_flags ==
+					    CALLOUT_LOCAL_ALLOC,
+					    ("corrupted callout"));
+					c->c_func = NULL;
+					SLIST_INSERT_HEAD(&callfree, c,
+					    c_links.sle);
+				}
 				curr_callout = NULL;
 				if (callout_wait) {
 					/*
