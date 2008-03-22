@@ -33,7 +33,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 3, 2007
+.Dd November 2, 2007
 .Dt RPC.LOCKD 8
 .Os
 .Sh NAME
@@ -43,6 +43,7 @@
 .Nm
 .Op Fl d Ar debug_level
 .Op Fl g Ar grace period
+.Op Fl h Ar bindip
 .Op Fl p Ar port
 .Sh DESCRIPTION
 The
@@ -84,6 +85,23 @@ During the grace period
 only accepts requests from hosts which are reinitialising locks which
 existed before the server restart.
 Default is 30 seconds.
+.It Fl h Ar bindip
+Specify specific IP addresses to bind to.
+This option may be specified multiple times.
+If no
+.Fl h
+option is specified,
+.Nm
+will bind to
+.Dv INADDR_ANY .
+Note that when specifying IP addresses with
+.Fl h ,
+.Nm
+will automatically add
+.Li 127.0.0.1
+and if IPv6 is enabled,
+.Li ::1
+to the list.
 .It Fl p
 The
 .Fl p
