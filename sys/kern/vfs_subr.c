@@ -1664,7 +1664,7 @@ restart:
 		vdrop(vp);
 		VFS_UNLOCK_GIANT(vfslocked);
 		mtx_lock(&sync_mtx);
-		return (1);
+		return (*bo == LIST_FIRST(slp));
 	}
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	(void) VOP_FSYNC(vp, MNT_LAZY, td);
