@@ -2137,7 +2137,7 @@ re_encap(sc, m_head)
 	int			nsegs, prod;
 	int			i, error, ei, si;
 	int			padlen;
-	uint32_t		cmdstat, csum_flags;
+	uint32_t		cmdstat, csum_flags, vlanctl;
 
 	RL_LOCK_ASSERT(sc);
 	M_ASSERTPKTHDR((*m_head));
@@ -2247,10 +2247,21 @@ re_encap(sc, m_head)
 			csum_flags |= RL_TDESC_CMD_UDPCSUM;
 	}
 
+	/*
+	 * Set up hardware VLAN tagging. Note: vlan tag info must
+	 * appear in all descriptors of a multi-descriptor
+	 * transmission attempt.
+	 */
+	vlanctl = 0;
+	if ((*m_head)->m_flags & M_VLANTAG)
+		vlanctl =
+		    htole32(htons((*m_head)->m_pkthdr.ether_vtag) |
+		    RL_TDESC_VLANCTL_TAG);
+
 	si = prod;
 	for (i = 0; i < nsegs; i++, prod = RL_TX_DESC_NXT(sc, prod)) {
 		desc = &sc->rl_ldata.rl_tx_list[prod];
-		desc->rl_vlanctl = 0;
+		desc->rl_vlanctl = vlanctl;
 		desc->rl_bufaddr_lo = htole32(RL_ADDR_LO(segs[i].ds_addr));
 		desc->rl_bufaddr_hi = htole32(RL_ADDR_HI(segs[i].ds_addr));
 		cmdstat = segs[i].ds_len;
@@ -2270,15 +2281,6 @@ re_encap(sc, m_head)
 	desc->rl_cmdstat |= htole32(RL_TDESC_CMD_EOF);
 
 	desc = &sc->rl_ldata.rl_tx_list[si];
-	/*
-	 * Set up hardware VLAN tagging. Note: vlan tag info must
-	 * appear in the first descriptor of a multi-descriptor
-	 * transmission attempt.
-	 */
-	if ((*m_head)->m_flags & M_VLANTAG)
-		desc->rl_vlanctl =
-		    htole32(htons((*m_head)->m_pkthdr.ether_vtag) |
-		    RL_TDESC_VLANCTL_TAG);
 	/* Set SOF and transfer ownership of packet to the chip. */
 	desc->rl_cmdstat |= htole32(RL_TDESC_CMD_OWN | RL_TDESC_CMD_SOF);
 
