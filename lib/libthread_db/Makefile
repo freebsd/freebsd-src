@@ -6,6 +6,7 @@ LIB=	thread_db
 SHLIB_MAJOR= 3
 SRCS=	thread_db.c
 SRCS+=	libpthread_md.c
+SRCS+=	libpthread_db.c
 SRCS+=	libthr_db.c
 INCS=	thread_db.h
 WARNS?= 1
