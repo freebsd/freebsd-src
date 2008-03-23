@@ -281,6 +281,31 @@ struct inpcbinfo {
 #define INP_LOCK_ASSERT(inp)	mtx_assert(&(inp)->inp_mtx, MA_OWNED)
 #define	INP_UNLOCK_ASSERT(inp)	mtx_assert(&(inp)->inp_mtx, MA_NOTOWNED)
 
+/*
+ * These locking functions are for inpcb consumers outside of sys/netinet, 
+ * more specifically, they were added for the benefit of TOE drivers. The
+ * macros are reserved for use by the stack.
+ */
+void inp_wlock(struct inpcb *);
+void inp_wunlock(struct inpcb *);
+void inp_rlock(struct inpcb *);
+void inp_runlock(struct inpcb *);
+
+#ifdef INVARIANTS
+void inp_wlock_assert(struct inpcb *);
+void inp_wunlock_assert(struct inpcb *);
+#else
+static __inline void
+inp_wlock_assert(struct inpcb *inp)
+{
+}
+
+static __inline void
+inp_wunlock_assert(struct inpcb *inp)
+{
+}
+#endif
+
 #define INP_INFO_LOCK_INIT(ipi, d) \
 	mtx_init(&(ipi)->ipi_mtx, (d), NULL, MTX_DEF | MTX_RECURSE)
 #define INP_INFO_LOCK_DESTROY(ipi)  mtx_destroy(&(ipi)->ipi_mtx)

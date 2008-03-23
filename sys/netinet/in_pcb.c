@@ -1204,6 +1204,50 @@ ipport_tick(void *xtp)
 	callout_reset(&ipport_tick_callout, hz, ipport_tick, NULL);
 }
 
+void
+inp_wlock(struct inpcb *inp)
+{
+
+	INP_LOCK(inp);
+}
+
+void
+inp_wunlock(struct inpcb *inp)
+{
+
+	INP_UNLOCK(inp);
+}
+
+void
+inp_rlock(struct inpcb *inp)
+{
+
+	INP_LOCK(inp);
+}
+
+void
+inp_runlock(struct inpcb *inp)
+{
+
+	INP_UNLOCK(inp);
+}
+
+#ifdef INVARIANTS
+void
+inp_wlock_assert(struct inpcb *inp)
+{
+
+	INP_LOCK_ASSERT(inp);
+}
+
+void
+inp_wunlock_assert(struct inpcb *inp)
+{
+
+	INP_UNLOCK_ASSERT(inp);
+}
+#endif
+
 #ifdef DDB
 static void
 db_print_indent(int indent)
