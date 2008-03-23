@@ -1297,7 +1297,7 @@ restartsync:
 			 */
 			if (BUF_LOCK(bp,
 			    LK_EXCLUSIVE | LK_SLEEPFAIL | LK_INTERLOCK,
-			    VI_MTX(vp)) == ENOLCK) {
+			    BO_MTX(bo)) == ENOLCK) {
 				goto restart;
 			}
 			VNASSERT((bp->b_flags & B_DELWRI), vp,
