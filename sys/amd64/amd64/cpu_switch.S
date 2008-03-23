@@ -69,16 +69,20 @@
  * %rsi = newtd
  */
 ENTRY(cpu_throw)
+	testq	%rdi,%rdi
+	jnz	1f
+	movq	PCPU(IDLETHREAD),%rdi
+1:
+	movq	TD_PCB(%rdi),%r8		/* Old pcb */
 	movl	PCPU(CPUID), %eax
-	testq	%rdi,%rdi			/* no thread? */
-	jz	1f
+	movq	PCB_FSBASE(%r8),%r9
+	movq	PCB_GSBASE(%r8),%r10
 	/* release bit from old pm_active */
 	movq	TD_PROC(%rdi), %rdx		/* oldtd->td_proc */
 	movq	P_VMSPACE(%rdx), %rdx		/* proc->p_vmspace */
 	LK btrl	%eax, VM_PMAP+PM_ACTIVE(%rdx)	/* clear old */
-1:
-	movq	TD_PCB(%rsi),%rdx		/* newtd->td_proc */
-	movq	PCB_CR3(%rdx),%rdx
+	movq	TD_PCB(%rsi),%r8		/* newtd->td_proc */
+	movq	PCB_CR3(%r8),%rdx
 	movq	%rdx,%cr3			/* new address space */
 	jmp	swact
 END(cpu_throw)
@@ -97,43 +101,24 @@ ENTRY(cpu_switch)
 	movq	TD_PCB(%rdi),%r8
 
 	movq	(%rsp),%rax			/* Hardware registers */
-	movq	%rax,PCB_RIP(%r8)
-	movq	%rbx,PCB_RBX(%r8)
-	movq	%rsp,PCB_RSP(%r8)
-	movq	%rbp,PCB_RBP(%r8)
-	movq	%r12,PCB_R12(%r8)
-	movq	%r13,PCB_R13(%r8)
-	movq	%r14,PCB_R14(%r8)
 	movq	%r15,PCB_R15(%r8)
+	movq	%r14,PCB_R14(%r8)
+	movq	%r13,PCB_R13(%r8)
+	movq	%r12,PCB_R12(%r8)
+	movq	%rbp,PCB_RBP(%r8)
+	movq	%rsp,PCB_RSP(%r8)
+	movq	%rbx,PCB_RBX(%r8)
+	movq	%rax,PCB_RIP(%r8)
+	movq	PCB_FSBASE(%r8),%r9
+	movq	PCB_GSBASE(%r8),%r10
 
 	testl	$PCB_32BIT,PCB_FLAGS(%r8)
-	jz	1f				/* no, skip over */
+	jnz	store_gs			/* static predict not taken */
+done_store_gs:
 
-	/* Save userland %gs */
-	movl	%gs,PCB_GS(%r8)
-	movq	PCB_GS32P(%r8),%rax
-	movq	(%rax),%rax
-	movq	%rax,PCB_GS32SD(%r8)
-
-1:
-	/* Test if debug registers should be saved. */
 	testl	$PCB_DBREGS,PCB_FLAGS(%r8)
-	jz	1f				/* no, skip over */
-	movq	%dr7,%rax			/* yes, do the save */
-	movq	%rax,PCB_DR7(%r8)
-	andq	$0x0000fc00, %rax		/* disable all watchpoints */
-	movq	%rax,%dr7
-	movq	%dr6,%rax
-	movq	%rax,PCB_DR6(%r8)
-	movq	%dr3,%rax
-	movq	%rax,PCB_DR3(%r8)
-	movq	%dr2,%rax
-	movq	%rax,PCB_DR2(%r8)
-	movq	%dr1,%rax
-	movq	%rax,PCB_DR1(%r8)
-	movq	%dr0,%rax
-	movq	%rax,PCB_DR0(%r8)
-1:
+	jnz	store_dr			/* static predict not taken */
+done_store_dr:
 
 	/* have we used fp, and need a save? */
 	cmpq	%rdi,PCPU(FPCURTHREAD)
@@ -181,82 +166,138 @@ sw1:
 	cmpq	%rcx, %rdx
 	pause
 	je	1b
-	lfence
 #endif
 	/*
 	 * At this point, we've switched address spaces and are ready
 	 * to load up the rest of the next context.
 	 */
-	movq	TD_PCB(%rsi),%r8
 
+	/* Skip loading user fsbase/gsbase for kthreads */
+	testl	$TDP_KTHREAD,TD_PFLAGS(%rsi)
+	jnz	do_kthread
+
+	cmpq	PCB_FSBASE(%r8),%r9
+	jz	1f
 	/* Restore userland %fs */
 	movl	$MSR_FSBASE,%ecx
 	movl	PCB_FSBASE(%r8),%eax
 	movl	PCB_FSBASE+4(%r8),%edx
 	wrmsr
+1:
 
+	cmpq	PCB_GSBASE(%r8),%r10
+	jz	2f
 	/* Restore userland %gs */
 	movl	$MSR_KGSBASE,%ecx
 	movl	PCB_GSBASE(%r8),%eax
 	movl	PCB_GSBASE+4(%r8),%edx
 	wrmsr
+2:
+do_tss:
 
 	/* Update the TSS_RSP0 pointer for the next interrupt */
 	movq	PCPU(TSSP), %rax
-	addq	$COMMON_TSS_RSP0, %rax
-	leaq	-16(%r8), %rbx
-	movq	%rbx, (%rax)
-	movq	%rbx, PCPU(RSP0)
-
+	movq	%r8, PCPU(RSP0)
 	movq	%r8, PCPU(CURPCB)
+	addq	$COMMON_TSS_RSP0, %rax
 	movq	%rsi, PCPU(CURTHREAD)		/* into next thread */
+	movq	%r8, (%rax)
+
+	/* Test if debug registers should be restored. */
+	testl	$PCB_DBREGS,PCB_FLAGS(%r8)
+	jnz	load_dr				/* static predict not taken */
+done_load_dr:
 
 	testl	$PCB_32BIT,PCB_FLAGS(%r8)
-	jz	1f				/* no, skip over */
+	jnz	load_gs				/* static predict not taken */
+done_load_gs:
 
+	/* Restore context. */
+	movq	PCB_R15(%r8),%r15
+	movq	PCB_R14(%r8),%r14
+	movq	PCB_R13(%r8),%r13
+	movq	PCB_R12(%r8),%r12
+	movq	PCB_RBP(%r8),%rbp
+	movq	PCB_RSP(%r8),%rsp
+	movq	PCB_RBX(%r8),%rbx
+	movq	PCB_RIP(%r8),%rax
+	movq	%rax,(%rsp)
+	ret
+
+	/*
+	 * We order these strangely for several reasons.
+	 * 1: I wanted to use static branch prediction hints
+	 * 2: Most athlon64/opteron cpus don't have them.  They define
+	 *    a forward branch as 'predict not taken'.  Intel cores have
+	 *    the 'rep' prefix to invert this.
+	 * So, to make it work on both forms of cpu we do the detour.
+	 * We use jumps rather than call in order to avoid the stack.
+	 */
+
+do_kthread:
+	/*
+	 * Copy old fs/gsbase to new kthread pcb for future switches
+	 * This maintains curpcb->pcb_[fg]sbase as caches of the MSR
+	 */
+	movq	%r9,PCB_FSBASE(%r8)
+	movq	%r10,PCB_GSBASE(%r8)
+	jmp	do_tss
+
+store_gs:
+	movl	%gs,PCB_GS(%r8)
+	movq	PCB_GS32P(%r8),%rax
+	movq	(%rax),%rax
+	movq	%rax,PCB_GS32SD(%r8)
+	jmp	done_store_gs
+
+load_gs:
 	/* Restore userland %gs while preserving kernel gsbase */
 	movq	PCB_GS32P(%r8),%rax
-	movq	PCB_GS32SD(%r8),%rbx
-	movq	%rbx,(%rax)
+	movq	PCB_GS32SD(%r8),%rcx
+	movq	%rcx,(%rax)
 	movl	$MSR_GSBASE,%ecx
 	rdmsr
 	movl	PCB_GS(%r8),%gs
 	wrmsr
+	jmp	done_load_gs
 
-1:
-	/* Restore context. */
-	movq	PCB_RBX(%r8),%rbx
-	movq	PCB_RSP(%r8),%rsp
-	movq	PCB_RBP(%r8),%rbp
-	movq	PCB_R12(%r8),%r12
-	movq	PCB_R13(%r8),%r13
-	movq	PCB_R14(%r8),%r14
-	movq	PCB_R15(%r8),%r15
-	movq	PCB_RIP(%r8),%rax
-	movq	%rax,(%rsp)
-
-	/* Test if debug registers should be restored. */
-	testl	$PCB_DBREGS,PCB_FLAGS(%r8)
-	jz	1f
-	movq	PCB_DR6(%r8),%rax
-	movq	%rax,%dr6
-	movq	PCB_DR3(%r8),%rax
-	movq	%rax,%dr3
-	movq	PCB_DR2(%r8),%rax
-	movq	%rax,%dr2
-	movq	PCB_DR1(%r8),%rax
-	movq	%rax,%dr1
-	movq	PCB_DR0(%r8),%rax
-	movq	%rax,%dr0
-	/* But preserve reserved bits in %dr7 */
-	movq	%dr7,%rax
-	andq	$0x0000fc00,%rax
-	movq	PCB_DR7(%r8),%rcx
-	andq	$~0x0000fc00,%rcx
-	orq	%rcx,%rax
+store_dr:
+	movq	%dr7,%rax			/* yes, do the save */
+	movq	%dr0,%r15
+	movq	%dr1,%r14
+	movq	%dr2,%r13
+	movq	%dr3,%r12
+	movq	%dr6,%r11
+	andq	$0x0000fc00, %rax		/* disable all watchpoints */
+	movq	%r15,PCB_DR0(%r8)
+	movq	%r14,PCB_DR1(%r8)
+	movq	%r13,PCB_DR2(%r8)
+	movq	%r12,PCB_DR3(%r8)
+	movq	%r11,PCB_DR6(%r8)
+	movq	%rax,PCB_DR7(%r8)
 	movq	%rax,%dr7
-1:
-	ret
+	jmp	done_store_dr
+
+load_dr:
+	movq	%dr7,%rax
+	movq	PCB_DR0(%r8),%r15
+	movq	PCB_DR1(%r8),%r14
+	movq	PCB_DR2(%r8),%r13
+	movq	PCB_DR3(%r8),%r12
+	movq	PCB_DR6(%r8),%r11
+	movq	PCB_DR7(%r8),%rcx
+	movq	%r15,%dr0
+	movq	%r14,%dr1
+	/* Preserve reserved bits in %dr7 */
+	andq	$0x0000fc00,%rax
+	andq	$~0x0000fc00,%rcx
+	movq	%r13,%dr2
+	movq	%r12,%dr3
+	orq	%rcx,%rax
+	movq	%r11,%dr6
+	movq	%rax,%dr7
+	jmp	done_load_dr
+
 END(cpu_switch)
 	
 /*
