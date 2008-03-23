@@ -247,8 +247,7 @@ create_thread(struct thread *td, mcontext_t *ctx,
 		} /* ignore timesharing class */
 	}
 	TD_SET_CAN_RUN(newtd);
-	/* if ((flags & THR_SUSPENDED) == 0) */
-		sched_add(newtd, SRQ_BORING);
+	sched_add(newtd, SRQ_BORING);
 	thread_unlock(newtd);
 
 	return (error);
