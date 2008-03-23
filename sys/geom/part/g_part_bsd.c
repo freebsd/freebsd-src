@@ -93,7 +93,7 @@ static struct g_part_scheme g_part_bsd_scheme = {
 	.gps_minent = 8,
 	.gps_maxent = 20,
 };
-G_PART_SCHEME_DECLARE(g_part_bsd_scheme);
+G_PART_SCHEME_DECLARE(g_part_bsd);
 
 static int
 bsd_parse_type(const char *type, uint8_t *fstype)

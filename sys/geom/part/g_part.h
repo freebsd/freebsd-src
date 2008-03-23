@@ -56,8 +56,8 @@ struct g_part_scheme {
 	size_t		gps_entrysz;
 	int		gps_minent;
 	int		gps_maxent;
+	TAILQ_ENTRY(g_part_scheme) scheme_list;
 };
-#define	G_PART_SCHEME_DECLARE(s)	DATA_SET(g_part_scheme_set, s)
 
 struct g_part_entry {
 	LIST_ENTRY(g_part_entry) gpe_entry;
@@ -151,5 +151,19 @@ struct g_part_parms {
 };
 
 void g_part_geometry_heads(off_t, u_int, off_t *, u_int *);
+
+int g_part_modevent(module_t, int, struct g_part_scheme *);
+
+#define	G_PART_SCHEME_DECLARE(name)				\
+    static int name##_modevent(module_t mod, int tp, void *d)	\
+    {								\
+	return (g_part_modevent(mod, tp, d));			\
+    }								\
+    static moduledata_t name##_mod = {				\
+	#name,							\
+	name##_modevent,					\
+	&name##_scheme						\
+    };								\
+    DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS, SI_ORDER_FIRST)
 
 #endif /* !_GEOM_PART_H_ */

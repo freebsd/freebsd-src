@@ -94,7 +94,7 @@ static struct g_part_scheme g_part_mbr_scheme = {
 	.gps_minent = NDOSPART,
 	.gps_maxent = NDOSPART,
 };
-G_PART_SCHEME_DECLARE(g_part_mbr_scheme);
+G_PART_SCHEME_DECLARE(g_part_mbr);
 
 static int
 mbr_parse_type(const char *type, u_char *dp_typ)

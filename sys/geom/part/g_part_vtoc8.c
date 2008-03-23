@@ -88,7 +88,7 @@ static struct g_part_scheme g_part_vtoc8_scheme = {
 	.gps_minent = VTOC8_NPARTS,
 	.gps_maxent = VTOC8_NPARTS,
 };
-G_PART_SCHEME_DECLARE(g_part_vtoc8_scheme);
+G_PART_SCHEME_DECLARE(g_part_vtoc8);
 
 static int
 vtoc8_parse_type(const char *type, uint16_t *tag)
