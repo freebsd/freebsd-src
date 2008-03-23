@@ -4370,10 +4370,10 @@ pmap_mincore(pmap_t pmap, vm_offset_t addr)
 	pdep = pmap_pde(pmap, addr);
 	if (pdep != NULL && (*pdep & PG_V)) {
 		if (*pdep & PG_PS) {
-			KASSERT((*pdep & PG_FRAME & PDRMASK) == 0,
-			    ("pmap_mincore: bad pde"));
 			pte = *pdep;
-			pa = (*pdep & PG_FRAME) | (addr & PDRMASK);
+			/* Compute the physical address of the 4KB page. */
+			pa = ((*pdep & PG_PS_FRAME) | (addr & PDRMASK)) &
+			    PG_FRAME;
 		} else {
 			pte = *pmap_pde_to_pte(pdep, addr);
 			pa = pte & PG_FRAME;
