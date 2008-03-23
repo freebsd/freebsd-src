@@ -1146,6 +1146,7 @@ re_attach(dev)
 	u_int16_t		re_did = 0;
 	int			error = 0, rid, i;
 	int			msic, reg;
+	uint8_t			cfg;
 
 	sc = device_get_softc(dev);
 	sc->rl_dev = dev;
@@ -1187,6 +1188,18 @@ re_attach(dev)
 			} else
 				pci_release_msi(dev);
 		}
+	}
+
+	/* For MSI capable hardwares, explicitily set/clear MSI enable bit. */
+	if (msic != 0) {
+		CSR_WRITE_1(sc, RL_EECMD, RL_EE_MODE);
+		cfg = CSR_READ_1(sc, RL_CFG2);
+		if (sc->rl_msi != 0)
+			cfg |= RL_CFG2_MSI;
+		else
+			cfg &= ~RL_CFG2_MSI;
+		CSR_WRITE_1(sc, RL_CFG2, cfg);
+		CSR_WRITE_1(sc, RL_EECMD, 0);
 	}
 
 	/* Allocate interrupt */

@@ -382,6 +382,7 @@
 #define	RL_CFG2_PCI66MHZ	0x01
 #define	RL_CFG2_PCI64BIT	0x08
 #define	RL_CFG2_AUXPWR		0x10
+#define	RL_CFG2_MSI		0x20
 
 /*
  * Config 3 register
