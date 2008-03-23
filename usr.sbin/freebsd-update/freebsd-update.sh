@@ -2196,9 +2196,9 @@ EOF
 
 		# Store merged files.
 		while read F; do
-			V=`${SHA256} -q merge/new/${F}`
-
 			if [ -f merge/new/${F} ]; then
+				V=`${SHA256} -q merge/new/${F}`
+
 				gzip -c < merge/new/${F} > files/${V}.gz
 				echo "${F}|${V}"
 			fi
