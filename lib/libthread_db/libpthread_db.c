@@ -34,12 +34,12 @@ __FBSDID("$FreeBSD$");
 #include <pthread.h>
 #include <sys/types.h>
 #include <sys/linker_set.h>
-#include <sys/kse.h>
 #include <sys/ptrace.h>
 #include <proc_service.h>
 #include <thread_db.h>
 
 #include "libpthread_db.h"
+#include "kse.h"
 
 #define P2T(c) ps2td(c)
 
