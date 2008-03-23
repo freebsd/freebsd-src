@@ -463,7 +463,6 @@ get_file_parms(int f)
 
 /*
  * Fetch disklabel for disk.
- * Use ioctl to get label unless -r flag is given.
  */
 static int
 readlabel(int flag)
