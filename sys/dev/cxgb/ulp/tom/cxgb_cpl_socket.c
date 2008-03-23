@@ -339,7 +339,7 @@ cxgb_wait_dma_completion(struct toepcb *toep)
 	struct mtx *lock;
 	
 	lock = &toep->tp_tp->t_inpcb->inp_mtx;
-	INP_LOCK(toep->tp_tp->t_inpcb);
+	inp_wlock(toep->tp_tp->t_inpcb);
 	cv_wait_unlock(&toep->tp_cv, lock);
 }
 
@@ -626,9 +626,9 @@ restart:
 	}
 	if (so->so_rcv.sb_mb && !p->user_ddp_pending) {
 		SOCKBUF_UNLOCK(&so->so_rcv);
-		INP_LOCK(inp);
+		inp_wlock(inp);
 		t3_cleanup_rbuf(tp, copied_unacked);
-		INP_UNLOCK(inp);
+		inp_wunlock(inp);
 		SOCKBUF_LOCK(&so->so_rcv);
 		copied_unacked = 0;
 		goto restart;
@@ -663,9 +663,9 @@ restart:
 			int i = 0;
 
 			SOCKBUF_UNLOCK(&so->so_rcv);
-			INP_LOCK(inp);
+			inp_wlock(inp);
 			t3_cleanup_rbuf(tp, copied_unacked);
-			INP_UNLOCK(inp);
+			inp_wunlock(inp);
 			copied_unacked = 0;
 			if (mp_ncpus > 1)
 				while (i++ < 200 && so->so_rcv.sb_mb == NULL)
@@ -829,9 +829,9 @@ skip_copy:
 			goto done;
 		if (copied_unacked > (so->so_rcv.sb_hiwat >> 2)) {
 			SOCKBUF_UNLOCK(&so->so_rcv);
-			INP_LOCK(inp);
+			inp_wlock(inp);
 			t3_cleanup_rbuf(tp, copied_unacked);
-			INP_UNLOCK(inp);
+			inp_wunlock(inp);
 			copied_unacked = 0;
 			SOCKBUF_LOCK(&so->so_rcv);
 		}
@@ -884,9 +884,9 @@ skip_copy:
 	SOCKBUF_UNLOCK(&so->so_rcv);
 done_unlocked:	
 	if (copied_unacked) {
-		INP_LOCK(inp);
+		inp_wlock(inp);
 		t3_cleanup_rbuf(tp, copied_unacked);
-		INP_UNLOCK(inp);
+		inp_wunlock(inp);
 	}
 	sbunlock(&so->so_rcv);
 
