@@ -167,6 +167,14 @@
       synchronized source code.  More information can be found in the
       &man.textdump.4; manual page.</para>
 
+    <para>Kernel support for M:N threading has been removed.  While
+      the KSE (Kernel Scheduled Entities) project was quite successful
+      in bringing threading to FreeBSD, the M:N approach taken by the
+      kse library was never developed to its full potential.
+      Backwards compatibility for applications using KSE threading
+      will be provided via &man.libmap.conf.5; for dynamically linked
+      binaries.</para>
+
     <sect3 id="boot">
       <title>Boot Loader Changes</title>
 
@@ -187,7 +195,12 @@
     <sect3 id="proc">
       <title>Hardware Support</title>
 
-      <para></para>
+      <para>The &man.cmx.4; driver, a driver for Omnikey CardMan 4040
+        PCMCIA smartcard readers, has been added.</para>
+
+      <para>The &man.uslcom.4; driver, a driver for Silicon
+        Laboratories CP2101/CP2102-based USB serial adapters, has been
+        imported from OpenBSD.</para>
 
       <sect4 id="mm">
 	<title>Multimedia Support</title>
@@ -199,6 +212,18 @@
       <sect4 id="net-if">
 	<title>Network Interface Support</title>
 
+	<para>The &man.sf.4; driver has been overhauled to improve its
+	  performance and to add support for checksum offloading.  It
+	  should also work on all architectures.</para>
+
+	<para>The &man.re.4; driver has been overhauled to fix a
+	  number of issues.  This driver now has Wake On LAN (WOL)
+	  support.</para>
+
+	<para>The &man.vr.4; driver has been overhauled to fix a
+	  number of outstanding issues.  It also now works on all
+	  architectures.</para>
+
 	<para>[&arch.amd64;, &arch.i386;] The &man.wpi.4; driver has
 	  been added to support the Intel 3945 Wireless LAN
 	  Controller.</para>
@@ -209,21 +234,31 @@
     <sect3 id="net-proto">
       <title>Network Protocols</title>
 
-      <para></para>
+      <para>A bug in TCP options padding, where the wrong padding
+        bytes were used, has been fixed.</para>
 
     </sect3>
 
     <sect3 id="disks">
       <title>Disks and Storage</title>
 
-      <para></para>
+      <para>The &man.ata.4; driver now supports a spindown command for
+        disks; after a configurable amount of time, if no requests
+        have been received for a disk, the disk will be spun down
+        until the next request.  The &man.atacontrol.8; utility now
+        supports a <command>spindown</command> command to configure
+        this feature.</para>
+
+      <para>The &man.hptrr.4; driver has been updated to version 1.2
+        from Highpoint.</para>
 
     </sect3>
 
     <sect3 id="fs">
       <title>File Systems</title>
 
-      <para></para>
+      <para>A problem with using &man.mmap.2; on ZFS filesystems has
+        been fixed.</para>
 
     </sect3>
   </sect2>
@@ -234,6 +269,26 @@
     <para>BSD-licensed versions of &man.ar.1; and &man.ranlib.1;,
       based on <filename>libarchive</filename>, have replaced the GNU
       Binutils versions of these utilities.</para>
+
+    <para>&man.chflags.1; now supports a <option>-v</option> flag for
+      verbose output and a <option>-f</option> flag to ignore errors
+      with the same semantics as (for example)
+      &man.chmod.1;. &merged;</para>
+
+    <para>For compatiblity with other implementations, &man.cp.1; now
+      supports a <option>-a</option> flag, which is equivalent to
+      specifying the <option>-RrP</option> flags.</para>
+
+    <para>&man.find.1; has been enhanced by the addition of a number
+      of primaries that were present in GNU find but not &os;
+      &man.find.1;.</para>
+
+    <para>The &man.split.1; utility now supports a <option>-n</option>
+      flag to split a file into a certain number of chunks.</para>
+
+    <para>The &man.tar.1; utility now supports a <option>-Z</option>
+      flag to enable &man.compress.1;-style
+      compression/decompression.</para>
 
     <para>&man.traceroute.8; now has the ability to print the AS
       number for each hop with the new <option>-a</option> switch; a
@@ -261,8 +316,11 @@
     <para><application>awk</application> has been updated from 1 May
       2007 release to the 23 October 2007 release.  &merged;</para>
 
+    <para><application>bzip2</application> has been updated from 1.0.4
+      to 1.0.5.</para>
+
     <para><application>CVS</application> has been updated from 1.11.17
-      to 1.11.22.</para>
+      to a post-1.11.22 snapshot from 10 March 2008.</para>
 
     <para><application>IPFilter</application> has been updated from
       4.1.23 to 4.1.28.</para>
