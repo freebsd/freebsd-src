@@ -1861,12 +1861,8 @@ pmap_collect(pmap_t locked_pmap, struct vpgqueues *vpq)
 			    ("pmap_collect: wired pte %#lx", tpte));
 			if (tpte & PG_A)
 				vm_page_flag_set(m, PG_REFERENCED);
-			if (tpte & PG_M) {
-				KASSERT((tpte & PG_RW),
-	("pmap_collect: modified page not writable: va: %#lx, pte: %#lx",
-				    va, tpte));
+			if ((tpte & (PG_M | PG_RW)) == (PG_M | PG_RW))
 				vm_page_dirty(m);
-			}
 			free = NULL;
 			pmap_unuse_pt(pmap, va, *pde, &free);
 			pmap_invalidate_page(pmap, va);
@@ -2311,12 +2307,8 @@ pmap_remove_pde(pmap_t pmap, pd_entry_t *pdq, vm_offset_t sva,
 		eva = sva + NBPDR;
 		for (va = sva, m = PHYS_TO_VM_PAGE(oldpde & PG_FRAME);
 		    va < eva; va += PAGE_SIZE, m++) {
-			if (oldpde & PG_M) {
-				KASSERT((oldpde & PG_RW) != 0,
-	("pmap_remove_pde: modified 2mpage not writable: va: %#lx, pde: %#lx",
-				    va, oldpde));
+			if ((oldpde & (PG_M | PG_RW)) == (PG_M | PG_RW))
 				vm_page_dirty(m);
-			}
 			if (oldpde & PG_A)
 				vm_page_flag_set(m, PG_REFERENCED);
 			if (TAILQ_EMPTY(&m->md.pv_list) &&
@@ -2364,12 +2356,8 @@ pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq, vm_offset_t va,
 	pmap->pm_stats.resident_count -= 1;
 	if (oldpte & PG_MANAGED) {
 		m = PHYS_TO_VM_PAGE(oldpte & PG_FRAME);
-		if (oldpte & PG_M) {
-			KASSERT((oldpte & PG_RW),
-	("pmap_remove_pte: modified page not writable: va: %#lx, pte: %#lx",
-			    va, oldpte));
+		if ((oldpte & (PG_M | PG_RW)) == (PG_M | PG_RW))
 			vm_page_dirty(m);
-		}
 		if (oldpte & PG_A)
 			vm_page_flag_set(m, PG_REFERENCED);
 		pmap_remove_entry(pmap, m, va);
@@ -2581,12 +2569,8 @@ pmap_remove_all(vm_page_t m)
 		/*
 		 * Update the vm_page_t clean and reference bits.
 		 */
-		if (tpte & PG_M) {
-			KASSERT((tpte & PG_RW),
-	("pmap_remove_all: modified page not writable: va: %#lx, pte: %#lx",
-			    pv->pv_va, tpte));
+		if ((tpte & (PG_M | PG_RW)) == (PG_M | PG_RW))
 			vm_page_dirty(m);
-		}
 		free = NULL;
 		pmap_unuse_pt(pmap, pv->pv_va, *pde, &free);
 		pmap_invalidate_page(pmap, pv->pv_va);
@@ -2627,7 +2611,7 @@ retry:
 			 * page mapping with a stored page table page has PG_A
 			 * set.
 			 */
-			if ((oldpde & PG_M) != 0)
+			if ((oldpde & (PG_M | PG_RW)) == (PG_M | PG_RW))
 				vm_page_dirty(m);
 		}
 	}
@@ -2745,7 +2729,7 @@ retry:
 					vm_page_flag_set(m, PG_REFERENCED);
 					pbits &= ~PG_A;
 				}
-				if ((pbits & PG_M) != 0) {
+				if ((pbits & (PG_M | PG_RW)) == (PG_M | PG_RW)) {
 					if (m == NULL)
 						m = PHYS_TO_VM_PAGE(pbits &
 						    PG_FRAME);
@@ -2818,12 +2802,15 @@ retry:
 			return;
 		}
 		if ((oldpte & (PG_M | PG_RW)) == PG_RW) {
+			/*
+			 * When PG_M is already clear, PG_RW can be cleared
+			 * without a TLB invalidation.
+			 */
 			if (!atomic_cmpset_long(pte, oldpte, oldpte & ~PG_RW))
 				goto retry;
 			oldpte &= ~PG_RW;
 			oldpteva = (oldpte & PG_FRAME & PDRMASK) |
 			    (va & ~PDRMASK);
-			pmap_invalidate_page(pmap, oldpteva);
 			CTR2(KTR_PMAP, "pmap_promote_pde: protect for va %#lx"
 			    " in pmap %p", oldpteva, pmap);
 		}
@@ -3035,10 +3022,7 @@ validate:
 				    PG_NX) == 0 && (newpte & PG_NX)))
 					invlva = TRUE;
 			}
-			if (origpte & PG_M) {
-				KASSERT((origpte & PG_RW),
-	("pmap_enter: modified page not writable: va: %#lx, pte: %#lx",
-				    va, origpte));
+			if ((origpte & (PG_M | PG_RW)) == (PG_M | PG_RW)) {
 				if ((origpte & PG_MANAGED) != 0)
 					vm_page_dirty(om);
 				if ((newpte & PG_RW) == 0)
@@ -3096,7 +3080,7 @@ pmap_enter_pde(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot)
 		newpde |= PG_MANAGED;
 
 		/*
-		 * Create a PV entry for each of the managed pages.
+		 * Abort this mapping if its PV entry could not be created.
 		 */
 		if (!pmap_pv_insert_pde(pmap, va, m)) {
 			free = NULL;
@@ -3815,10 +3799,7 @@ pmap_remove_pages(pmap_t pmap)
 				/*
 				 * Update the vm_page_t clean/reference bits.
 				 */
-				if (tpte & PG_M) {
-					KASSERT((tpte & PG_RW) != 0,
-	("pmap_remove_pages: modified page not writable: va: %#lx, pte: %#lx",
-					    pv->pv_va, tpte));
+				if ((tpte & (PG_M | PG_RW)) == (PG_M | PG_RW)) {
 					if ((tpte & PG_PS) != 0) {
 						for (mt = m; mt < &m[NBPDR / PAGE_SIZE]; mt++)
 							vm_page_dirty(mt);
@@ -3916,7 +3897,7 @@ pmap_is_modified_pvh(struct md_page *pvh)
 		pmap = PV_PMAP(pv);
 		PMAP_LOCK(pmap);
 		pte = pmap_pte(pmap, pv->pv_va);
-		rv = (*pte & PG_M) != 0;
+		rv = (*pte & (PG_M | PG_RW)) == (PG_M | PG_RW);
 		PMAP_UNLOCK(pmap);
 		if (rv)
 			break;
@@ -4124,9 +4105,7 @@ pmap_clear_modify(vm_page_t m)
 					}
 				}
 			}
-		} else
-			KASSERT((oldpde & PG_M) == 0,
-			    ("pmap_clear_modify: modified page not writable"));
+		}
 		PMAP_UNLOCK(pmap);
 	}
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
@@ -4136,7 +4115,7 @@ pmap_clear_modify(vm_page_t m)
 		KASSERT((*pde & PG_PS) == 0, ("pmap_clear_modify: found"
 		    " a 2mpage in page %p's pv list", m));
 		pte = pmap_pde_to_pte(pde, pv->pv_va);
-		if (*pte & PG_M) {
+		if ((*pte & (PG_M | PG_RW)) == (PG_M | PG_RW)) {
 			atomic_clear_long(pte, PG_M);
 			pmap_invalidate_page(pmap, pv->pv_va);
 		}
@@ -4415,7 +4394,7 @@ pmap_mincore(pmap_t pmap, vm_offset_t addr)
 		/*
 		 * Modified by us
 		 */
-		if (pte & PG_M)
+		if ((pte & (PG_M | PG_RW)) == (PG_M | PG_RW))
 			val |= MINCORE_MODIFIED|MINCORE_MODIFIED_OTHER;
 		else {
 			/*
