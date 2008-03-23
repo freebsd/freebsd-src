@@ -94,7 +94,7 @@ static struct g_part_scheme g_part_apm_scheme = {
 	.gps_minent = 16,
 	.gps_maxent = INT_MAX,
 };
-G_PART_SCHEME_DECLARE(g_part_apm_scheme);
+G_PART_SCHEME_DECLARE(g_part_apm);
 
 static int
 apm_parse_type(const char *type, char *buf, size_t bufsz)

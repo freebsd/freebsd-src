@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/uuid.h>
 #include <geom/geom.h>
 #include <geom/geom_ctl.h>
+#include <geom/geom_int.h>
 #include <geom/part/g_part.h>
 
 #include "g_part_if.h"
@@ -52,13 +53,13 @@ static kobj_method_t g_part_null_methods[] = {
 };
 
 static struct g_part_scheme g_part_null_scheme = {
-	"n/a",
+	"(none)",
 	g_part_null_methods,
 	sizeof(struct g_part_table),
 };
-G_PART_SCHEME_DECLARE(g_part_null_scheme);
 
-SET_DECLARE(g_part_scheme_set, struct g_part_scheme);
+TAILQ_HEAD(, g_part_scheme) g_part_schemes =
+    TAILQ_HEAD_INITIALIZER(g_part_schemes);
 
 struct g_part_alias_list {
 	const char *lexeme;
@@ -79,6 +80,8 @@ struct g_part_alias_list {
  */
 static g_ctl_req_t g_part_ctlreq;
 static g_ctl_destroy_geom_t g_part_destroy_geom;
+static g_fini_t g_part_fini;
+static g_init_t g_part_init;
 static g_taste_t g_part_taste;
 
 static g_access_t g_part_access;
@@ -93,6 +96,8 @@ static struct g_class g_part_class = {
 	/* Class methods. */
 	.ctlreq = g_part_ctlreq,
 	.destroy_geom = g_part_destroy_geom,
+	.fini = g_part_fini,
+	.init = g_part_init,
 	.taste = g_part_taste,
 	/* Geom methods. */
 	.access = g_part_access,
@@ -317,16 +322,13 @@ g_part_parm_quad(const char *p, quad_t *v)
 static int
 g_part_parm_scheme(const char *p, struct g_part_scheme **v)
 {
-	struct g_part_scheme **iter, *s;
+	struct g_part_scheme *s;
 
-	s = NULL;
-	SET_FOREACH(iter, g_part_scheme_set) {
-		if ((*iter)->name == NULL)
+	TAILQ_FOREACH(s, &g_part_schemes, scheme_list) {
+		if (s == &g_part_null_scheme)
 			continue;
-		if (!strcasecmp((*iter)->name, p)) {
-			s = *iter;
+		if (!strcasecmp(s->name, p))
 			break;
-		}
 	}
 	if (s == NULL)
 		return (EINVAL);
@@ -360,33 +362,32 @@ g_part_parm_uint(const char *p, u_int *v)
 static int
 g_part_probe(struct g_geom *gp, struct g_consumer *cp, int depth)
 {
-	struct g_part_scheme **iter, *scheme;
+	struct g_part_scheme *iter, *scheme;
 	struct g_part_table *table;
 	int pri, probe;
 
 	table = gp->softc;
-	scheme = (table != NULL) ? table->gpt_scheme : &g_part_null_scheme;
-	pri = (scheme != &g_part_null_scheme) ? G_PART_PROBE(table, cp) :
-	    INT_MIN;
+	scheme = (table != NULL) ? table->gpt_scheme : NULL;
+	pri = (scheme != NULL) ? G_PART_PROBE(table, cp) : INT_MIN;
 	if (pri == 0)
 		goto done;
 	if (pri > 0) {	/* error */
-		scheme = &g_part_null_scheme;
+		scheme = NULL;
 		pri = INT_MIN;
 	}
 
-	SET_FOREACH(iter, g_part_scheme_set) {
-		if ((*iter) == &g_part_null_scheme)
+	TAILQ_FOREACH(iter, &g_part_schemes, scheme_list) {
+		if (iter == &g_part_null_scheme)
 			continue;
-		table = (void *)kobj_create((kobj_class_t)(*iter), M_GEOM,
+		table = (void *)kobj_create((kobj_class_t)iter, M_GEOM,
 		    M_WAITOK);
 		table->gpt_gp = gp;
-		table->gpt_scheme = *iter;
+		table->gpt_scheme = iter;
 		table->gpt_depth = depth;
 		probe = G_PART_PROBE(table, cp);
 		if (probe <= 0 && probe > pri) {
 			pri = probe;
-			scheme = *iter;
+			scheme = iter;
 			if (gp->softc != NULL)
 				kobj_delete((kobj_t)gp->softc, M_GEOM);
 			gp->softc = table;
@@ -397,7 +398,7 @@ g_part_probe(struct g_geom *gp, struct g_consumer *cp, int depth)
 	}
 
 done:
-	return ((scheme == &g_part_null_scheme) ? ENXIO : 0);
+	return ((scheme == NULL) ? ENXIO : 0);
 }
 
 /*
@@ -1571,4 +1572,90 @@ g_part_start(struct bio *bp)
 	}
 	bp2->bio_done = g_std_done;
 	g_io_request(bp2, cp);
+}
+
+static void
+g_part_init(struct g_class *mp)
+{
+
+	TAILQ_INSERT_TAIL(&g_part_schemes, &g_part_null_scheme, scheme_list);
+}
+
+static void
+g_part_fini(struct g_class *mp)
+{
+
+	TAILQ_REMOVE(&g_part_schemes, &g_part_null_scheme, scheme_list);
+}
+
+static void
+g_part_unload_event(void *arg, int flag)
+{
+	struct g_consumer *cp;
+	struct g_geom *gp;
+	struct g_provider *pp;
+	struct g_part_scheme *scheme;
+	struct g_part_table *table;
+	uintptr_t *xchg;
+	int acc, error;
+
+	if (flag == EV_CANCEL)
+		return;
+
+	xchg = arg;
+	error = 0;
+	scheme = (void *)(*xchg);
+
+	g_topology_assert();
+
+	LIST_FOREACH(gp, &g_part_class.geom, geom) {
+		table = gp->softc;
+		if (table->gpt_scheme != scheme)
+			continue;
+
+		acc = 0;
+		LIST_FOREACH(pp, &gp->provider, provider)
+			acc += pp->acr + pp->acw + pp->ace;
+		LIST_FOREACH(cp, &gp->consumer, consumer)
+			acc += cp->acr + cp->acw + cp->ace;
+
+		if (!acc)
+			g_part_wither(gp, ENOSYS);
+		else
+			error = EBUSY;
+	}
+
+	if (!error)
+		TAILQ_REMOVE(&g_part_schemes, scheme, scheme_list);
+
+	*xchg = error;
+}
+
+int
+g_part_modevent(module_t mod, int type, struct g_part_scheme *scheme)
+{
+	uintptr_t arg;
+	int error;
+
+	switch (type) {
+	case MOD_LOAD:
+		TAILQ_INSERT_TAIL(&g_part_schemes, scheme, scheme_list);
+
+		error = g_retaste(&g_part_class);
+		if (error)
+			TAILQ_REMOVE(&g_part_schemes, scheme, scheme_list);
+		break;
+	case MOD_UNLOAD:
+		arg = (uintptr_t)scheme;
+		error = g_waitfor_event(g_part_unload_event, &arg, M_WAITOK,
+		    NULL);
+		if (!error)
+			error = (arg == (uintptr_t)scheme) ? EDOOFUS : arg;
+		break;
+	default:
+		error = EOPNOTSUPP;
+		break;
+	}
+
+	return (error);
 }

@@ -117,7 +117,7 @@ static struct g_part_scheme g_part_gpt_scheme = {
 	.gps_minent = 128,
 	.gps_maxent = INT_MAX,
 };
-G_PART_SCHEME_DECLARE(g_part_gpt_scheme);
+G_PART_SCHEME_DECLARE(g_part_gpt);
 
 static struct uuid gpt_uuid_efi = GPT_ENT_TYPE_EFI;
 static struct uuid gpt_uuid_freebsd = GPT_ENT_TYPE_FREEBSD;
