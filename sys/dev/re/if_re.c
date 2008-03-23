@@ -161,7 +161,7 @@ MODULE_DEPEND(re, miibus, 1, 1, 1);
 #define RE_USEIOSPACE
 
 /* Tunables. */
-static int msi_disable = 0;
+static int msi_disable = 1;
 TUNABLE_INT("hw.re.msi_disable", &msi_disable);
 
 #define RE_CSUM_FEATURES    (CSUM_IP | CSUM_TCP | CSUM_UDP)
