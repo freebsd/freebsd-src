@@ -2410,6 +2410,7 @@ re_init_locked(sc)
 	struct ifnet		*ifp = sc->rl_ifp;
 	struct mii_data		*mii;
 	u_int32_t		rxcfg = 0;
+	uint16_t		cfg;
 	union {
 		uint32_t align_dummy;
 		u_char eaddr[ETHER_ADDR_LEN];
@@ -2429,9 +2430,13 @@ re_init_locked(sc)
 	 * RX checksum offload. We must configure the C+ register
 	 * before all others.
 	 */
-	CSR_WRITE_2(sc, RL_CPLUS_CMD, RL_CPLUSCMD_RXENB|
-	    RL_CPLUSCMD_TXENB|RL_CPLUSCMD_PCI_MRW|
-	    RL_CPLUSCMD_VLANSTRIP|RL_CPLUSCMD_RXCSUM_ENB);
+	cfg = RL_CPLUSCMD_PCI_MRW;
+	if ((ifp->if_capenable & IFCAP_RXCSUM) != 0)
+		cfg |= RL_CPLUSCMD_RXCSUM_ENB;
+	if ((ifp->if_capenable & IFCAP_VLAN_HWTAGGING) != 0)
+		cfg |= RL_CPLUSCMD_VLANSTRIP;
+	CSR_WRITE_2(sc, RL_CPLUS_CMD,
+	    cfg | RL_CPLUSCMD_RXENB | RL_CPLUSCMD_TXENB);
 
 	/*
 	 * Init our MAC address.  Even though the chipset
