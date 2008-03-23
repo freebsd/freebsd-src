@@ -58,7 +58,7 @@ MAN+=	alarm.3 arc4random.3 \
 	nice.3 nlist.3 pause.3 popen.3 pselect.3 psignal.3 pwcache.3 \
 	raise.3 rand48.3 readpassphrase.3 rfork_thread.3 \
 	scandir.3 sem_destroy.3 sem_getvalue.3 sem_init.3 \
-	sem_open.3 sem_post.3 sem_wait.3 \
+	sem_open.3 sem_post.3 sem_timedwait.3 sem_wait.3 \
 	setjmp.3 setmode.3 setproctitle.3 shm_open.3 \
 	siginterrupt.3 signal.3 sigsetops.3 sleep.3 \
 	statvfs.3 stringlist.3 \
