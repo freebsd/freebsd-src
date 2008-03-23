@@ -989,9 +989,14 @@ re_allocmem(dev, sc)
 
 	/*
 	 * Allocate the parent bus DMA tag appropriate for PCI.
+	 * In order to use DAC, RL_CPLUSCMD_PCI_DAC bit of RL_CPLUS_CMD
+	 * register should be set. However some RealTek chips are known
+	 * to be buggy on DAC handling, therefore disable DAC by limiting
+	 * DMA address space to 32bit. PCIe variants of RealTek chips
+	 * may not have the limitation but I took safer path.
 	 */
 	error = bus_dma_tag_create(bus_get_dma_tag(dev), 1, 0,
-	    BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL, NULL,
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
 	    BUS_SPACE_MAXSIZE_32BIT, 0, BUS_SPACE_MAXSIZE_32BIT, 0,
 	    NULL, NULL, &sc->rl_parent_tag);
 	if (error) {
