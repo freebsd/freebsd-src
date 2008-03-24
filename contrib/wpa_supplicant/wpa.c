@@ -4161,10 +4161,6 @@ int wpa_sm_get_status(struct wpa_sm *sm, char *buf, size_t buflen,
  * @wpa_ie: Pointer to buffer for WPA/RSN IE
  * @wpa_ie_len: Pointer to the length of the wpa_ie buffer
  * Returns: 0 on success, -1 on failure
- *
- * Inform WPA state machine about the WPA/RSN IE used in (Re)Association
- * Request frame. The IE will be used to override the default value generated
- * with wpa_sm_set_assoc_wpa_ie_default().
  */
 int wpa_sm_set_assoc_wpa_ie_default(struct wpa_sm *sm, u8 *wpa_ie,
 				    size_t *wpa_ie_len)
