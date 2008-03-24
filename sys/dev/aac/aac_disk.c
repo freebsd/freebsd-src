@@ -106,7 +106,7 @@ aac_disk_open(struct disk *dp)
 {
 	struct aac_disk	*sc;
 
-	debug_called(4);
+	fwprintf(NULL, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 
 	sc = (struct aac_disk *)dp->d_drv1;
 	
@@ -134,7 +134,7 @@ aac_disk_close(struct disk *dp)
 {
 	struct aac_disk	*sc;
 
-	debug_called(4);
+	fwprintf(NULL, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 
 	sc = (struct aac_disk *)dp->d_drv1;
 	
@@ -153,9 +153,8 @@ aac_disk_strategy(struct bio *bp)
 {
 	struct aac_disk	*sc;
 
-	debug_called(4);
-
 	sc = (struct aac_disk *)bp->bio_disk->d_drv1;
+	fwprintf(NULL, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 
 	/* bogus disk? */
 	if (sc == NULL) {
@@ -301,9 +300,8 @@ aac_biodone(struct bio *bp)
 {
 	struct aac_disk	*sc;
 
-	debug_called(4);
-
 	sc = (struct aac_disk *)bp->bio_disk->d_drv1;
+	fwprintf(NULL, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 
 	if (bp->bio_flags & BIO_ERROR)
 		disk_err(bp, "hard error", -1, 1);
@@ -318,7 +316,7 @@ static int
 aac_disk_probe(device_t dev)
 {
 
-	debug_called(2);
+	fwprintf(NULL, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 
 	return (0);
 }
@@ -331,9 +329,8 @@ aac_disk_attach(device_t dev)
 {
 	struct aac_disk	*sc;
 	
-	debug_called(1);
-
 	sc = (struct aac_disk *)device_get_softc(dev);
+	fwprintf(NULL, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 
 	/* initialise our softc */
 	sc->ad_controller =
@@ -390,9 +387,8 @@ aac_disk_detach(device_t dev)
 {
 	struct aac_disk *sc;
 
-	debug_called(2);
-
 	sc = (struct aac_disk *)device_get_softc(dev);
+	fwprintf(NULL, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 
 	if (sc->ad_flags & AAC_DISK_OPEN)
 		return(EBUSY);
