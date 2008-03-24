@@ -92,9 +92,6 @@ struct vpollinfo {
  *	4) vget with LK_INTERLOCK and check for ENOENT, or
  *	5) Check for DOOMED if the vnode lock is not required.
  *	6) Perform your operation, then vput().
- *
- * XXX Not all fields are locked yet and some fields that are marked are not
- * locked consistently.  This is a work in progress.  Requires Giant!
  */
 
 #if defined(_KERNEL) || defined(_KVM_VNODE)
@@ -230,6 +227,9 @@ struct xvnode {
  * Vnode flags.
  *	VI flags are protected by interlock and live in v_iflag
  *	VV flags are protected by the vnode lock and live in v_vflag
+ *
+ *	VI_DOOMED is doubly protected by the interlock and vnode lock.  Both
+ *	are required for writing but the status may be checked with either.
  */
 #define	VI_MOUNT	0x0020	/* Mount in progress */
 #define	VI_AGE		0x0040	/* Insert vnode at head of free list */
