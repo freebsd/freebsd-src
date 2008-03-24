@@ -1214,7 +1214,7 @@ int eapol_sm_rx_eapol(struct eapol_sm *sm, const u8 *src, const u8 *buf,
  * eapol_sm_notify_tx_eapol_key - Notification about transmitted EAPOL packet
  * @sm: Pointer to EAPOL state machine allocated with eapol_sm_init()
  *
- * Notify EAPOL station machine about transmitted EAPOL packet from an external
+ * Notify EAPOL state machine about transmitted EAPOL packet from an external
  * component, e.g., WPA. This will update the statistics.
  */
 void eapol_sm_notify_tx_eapol_key(struct eapol_sm *sm)
@@ -1229,7 +1229,7 @@ void eapol_sm_notify_tx_eapol_key(struct eapol_sm *sm)
  * @sm: Pointer to EAPOL state machine allocated with eapol_sm_init()
  * @enabled: New portEnabled value
  *
- * Notify EAPOL station machine about new portEnabled value.
+ * Notify EAPOL state machine about new portEnabled value.
  */
 void eapol_sm_notify_portEnabled(struct eapol_sm *sm, Boolean enabled)
 {
@@ -1247,7 +1247,7 @@ void eapol_sm_notify_portEnabled(struct eapol_sm *sm, Boolean enabled)
  * @sm: Pointer to EAPOL state machine allocated with eapol_sm_init()
  * @valid: New portValid value
  *
- * Notify EAPOL station machine about new portValid value.
+ * Notify EAPOL state machine about new portValid value.
  */
 void eapol_sm_notify_portValid(struct eapol_sm *sm, Boolean valid)
 {
@@ -1265,7 +1265,7 @@ void eapol_sm_notify_portValid(struct eapol_sm *sm, Boolean valid)
  * @sm: Pointer to EAPOL state machine allocated with eapol_sm_init()
  * @success: %TRUE = set success, %FALSE = clear success
  *
- * Notify EAPOL station machine that external event has forced EAP state to
+ * Notify the EAPOL state machine that external event has forced EAP state to
  * success (success = %TRUE). This can be cleared by setting success = %FALSE.
  *
  * This function is called to update EAP state when WPA-PSK key handshake has
@@ -1290,7 +1290,7 @@ void eapol_sm_notify_eap_success(struct eapol_sm *sm, Boolean success)
  * @sm: Pointer to EAPOL state machine allocated with eapol_sm_init()
  * @fail: %TRUE = set failure, %FALSE = clear failure
  *
- * Notify EAPOL station machine that external event has forced EAP state to
+ * Notify EAPOL state machine that external event has forced EAP state to
  * failure (fail = %TRUE). This can be cleared by setting fail = %FALSE.
  */
 void eapol_sm_notify_eap_fail(struct eapol_sm *sm, Boolean fail)
@@ -1311,7 +1311,7 @@ void eapol_sm_notify_eap_fail(struct eapol_sm *sm, Boolean fail)
  * @config: Pointer to current network configuration
  * @conf: Pointer to EAPOL configuration data
  *
- * Notify EAPOL station machine that configuration has changed. config will be
+ * Notify EAPOL state machine that configuration has changed. config will be
  * stored as a backpointer to network configuration. This can be %NULL to clear
  * the stored pointed. conf will be copied to local EAPOL/EAP configuration
  * data. If conf is %NULL, this part of the configuration change will be

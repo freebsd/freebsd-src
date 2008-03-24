@@ -71,6 +71,12 @@ DBusMessage * wpas_dbus_iface_set_ap_scan(DBusMessage *message,
 DBusMessage * wpas_dbus_iface_get_state(DBusMessage *message,
 					struct wpa_supplicant *wpa_s);
 
+DBusMessage * wpas_dbus_iface_set_blobs(DBusMessage *message,
+				        struct wpa_supplicant *wpa_s);
+
+DBusMessage * wpas_dbus_iface_remove_blobs(DBusMessage *message,
+					   struct wpa_supplicant *wpa_s);
+
 #endif /* CONFIG_CTRL_IFACE_DBUS */
 
 #endif /* CTRL_IFACE_DBUS_HANDLERS_H */

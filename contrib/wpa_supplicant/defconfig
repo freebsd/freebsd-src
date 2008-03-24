@@ -209,7 +209,9 @@ CONFIG_CTRL_IFACE=y
 #CONFIG_NO_AES_EXTRAS=y
 
 # Select configuration backend:
-# file = text file (e.g., wpa_supplicant.conf)
+# file = text file (e.g., wpa_supplicant.conf; note: the configuration file
+#	path is given on command line, not here; this option is just used to
+#	select the backend that allows configuration files to be used)
 # winreg = Windows registry (see win_example.reg for an example)
 CONFIG_BACKEND=file
 
@@ -316,3 +318,6 @@ CONFIG_PEERKEY=y
 # wireless-dev.git tree).
 #WIRELESS_DEV=/usr/src/wireless-dev
 #CFLAGS += -I$(WIRELESS_DEV)/net/mac80211
+
+# Add support for writing debug log to a file (/tmp/wpa_supplicant-log-#.txt)
+#CONFIG_DEBUG_FILE=y
