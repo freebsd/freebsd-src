@@ -1,5 +1,46 @@
 ChangeLog for wpa_supplicant
 
+2008-02-19 - v0.5.10
+	* added support for Makefile builds to include debug-log-to-a-file
+	  functionality (CONFIG_DEBUG_FILE=y and -f<path> on command line)
+	* added network configuration parameter 'frequency' for setting
+	  initial channel for IBSS (adhoc) networks
+	* fixed EAP-SIM and EAP-AKA message parser to validate attribute
+	  lengths properly to avoid potential crash caused by invalid messages
+	* added driver_wext workaround for race condition between scanning and
+	  association with drivers that take very long time to scan all
+	  channels (e.g., madwifi with dual-band cards); wpa_supplicant is now
+	  using a longer hardcoded timeout for the scan if the driver supports
+	  notifications for scan completion (SIOCGIWSCAN event); this helps,
+	  e.g., in cases where wpa_supplicant and madwifi driver ended up in
+	  loop where the driver did not even try to associate
+	* fixed EAP-SIM not to include AT_NONCE_MT and AT_SELECTED_VERSION
+	  attributes in EAP-SIM Start/Response when using fast reauthentication
+	* fixed problems in getting NDIS events from WMI on Windows 2000
+
+2007-12-02 - v0.5.9
+	* fixed an integer overflow issue in the ASN.1 parser used by the
+	  (experimental) internal TLS implementation to avoid a potential
+	  buffer read overflow
+	* fixed a race condition with -W option (wait for a control interface
+	  monitor before starting) that could have caused the first messages to
+	  be lost
+	* updated EAP Generalized Pre-Shared Key (EAP-GPSK) to use the latest
+	  draft (draft-ietf-emu-eap-gpsk-07.txt)
+	* added ctrl_iface RECONNECT (wpa_cli reconnect) command
+	  (like reassociate, but only takes effect if already associated)
+	* fixed a possible race condition between wpa_cli reassociate and
+	  wpa_cli disconnect
+	* return a non-zero exit code from non-interactive wpa_cli if the
+	  command is not recognized or fails
+	* fixed 0.5.8 regressions in BSS selection that prevented wildcard SSID
+	  from being used with non-WPA networks and disabled workaround for
+	  ignoring bogus WPA/RSN IE in non-WPA configuration
+	* fixed OpenSSL TLS wrapper to clear trusted CA list to allow
+	  network blocks to use different trusted CA configurations
+	* fixed a potential EAP state machine loop when mloving from PSK to EAP
+	  configuration without restarting wpa_supplicant
+
 2007-05-28 - v0.5.8
 	* updated driver_wext.c to build with the current wireless-dev.git tree
 	  and net/d80211 changes

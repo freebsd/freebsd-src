@@ -3,13 +3,13 @@
 .\" <http://shell.ipoline.com/~elmert/comp/docbook2X/> 
 .\" Please send any bug reports, improvements, comments, patches, 
 .\" etc. to Steve Cheng <steve@ggi-project.org>.
-.TH "WPA_SUPPLICANT" "8" "28 May 2007" "" ""
+.TH "WPA_SUPPLICANT" "8" "19 February 2008" "" ""
 
 .SH NAME
 wpa_supplicant \- Wi-Fi Protected Access client and IEEE 802.1X supplicant
 .SH SYNOPSIS
 
-\fBwpa_supplicant\fR [ \fB-BddehLqqvw\fR ] [ \fB-i\fIifname\fB\fR ] [ \fB-c\fIconfig file\fB\fR ] [ \fB-D\fIdriver\fB\fR ] [ \fB-P\fIPID_file\fB\fR ]
+\fBwpa_supplicant\fR [ \fB-BddfhKLqqtuvwW\fR ] [ \fB-i\fIifname\fB\fR ] [ \fB-c\fIconfig file\fB\fR ] [ \fB-D\fIdriver\fB\fR ] [ \fB-P\fIPID_file\fB\fR ] [ \fB-f\fIoutput file\fB\fR ]
 
 .SH "OVERVIEW"
 .PP
@@ -271,6 +271,9 @@ Path to global ctrl_interface socket.
 .TP
 \fB-D driver\fR
 Driver to use.  See the available options below.
+.TP
+\fB-f output file\fR
+Log output to specified file instead of stdout.
 .TP
 \fB-d\fR
 Increase debugging verbosity (-dd even more).
