@@ -28,7 +28,7 @@
 .\"     @(#)arp.8	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd August 17, 2006
+.Dd March 18, 2008
 .Dt ARP 8
 .Os
 .Sh NAME
@@ -54,13 +54,13 @@
 .Fl s Ar hostname ether_addr
 .Op Cm temp
 .Op Cm reject
-.Op Cm backhole
+.Op Cm blackhole
 .Op Cm pub Op Cm only
 .Nm
 .Fl S Ar hostname ether_addr
 .Op Cm temp
 .Op Cm reject
-.Op Cm backhole
+.Op Cm blackhole
 .Op Cm pub Op Cm only
 .Nm
 .Fl f Ar filename
@@ -160,7 +160,7 @@ the host will be discarded and the sender will be notified the
 host is unreachable.
 The
 .Cm blackhole
-keyword is similar in that traffic discarded but the sender is
+keyword is similar in that traffic is discarded but the sender is
 not notified.
 These can be used to block external traffic to a host without
 using a firewall.
