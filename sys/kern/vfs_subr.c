@@ -2030,57 +2030,43 @@ v_decr_useonly(struct vnode *vp)
 
 /*
  * Grab a particular vnode from the free list, increment its
- * reference count and lock it. The vnode lock bit is set if the
- * vnode is being eliminated in vgone. The process is awakened
- * when the transition is completed, and an error returned to
- * indicate that the vnode is no longer usable (possibly having
- * been changed to a new filesystem type).
+ * reference count and lock it.  VI_DOOMED is set if the vnode
+ * is being destroyed.  Only callers who specify LK_RETRY will
+ * see doomed vnodes.  If inactive processing was delayed in
+ * vput try to do it here.
  */
 int
 vget(struct vnode *vp, int flags, struct thread *td)
 {
-	int oweinact;
-	int oldflags;
 	int error;
 
 	error = 0;
-	oldflags = flags;
-	oweinact = 0;
 	VFS_ASSERT_GIANT(vp->v_mount);
 	if ((flags & LK_INTERLOCK) == 0)
 		VI_LOCK(vp);
-	/*
-	 * If the inactive call was deferred because vput() was called
-	 * with a shared lock, we have to do it here before another thread
-	 * gets a reference to data that should be dead.
-	 */
-	if (vp->v_iflag & VI_OWEINACT) {
-		if (flags & LK_NOWAIT) {
-			VI_UNLOCK(vp);
-			return (EBUSY);
-		}
-		flags &= ~LK_TYPE_MASK;
-		flags |= LK_EXCLUSIVE;
-		oweinact = 1;
-	}
 	vholdl(vp);
 	if ((error = vn_lock(vp, flags | LK_INTERLOCK)) != 0) {
 		vdrop(vp);
 		return (error);
 	}
+	if (vp->v_iflag & VI_DOOMED && (flags & LK_RETRY) == 0)
+		panic("vget: vn_lock failed to return ENOENT\n");
 	VI_LOCK(vp);
 	/* Upgrade our holdcnt to a usecount. */
 	v_upgrade_usecount(vp);
-	if (vp->v_iflag & VI_DOOMED && (flags & LK_RETRY) == 0)
-		panic("vget: vn_lock failed to return ENOENT\n");
-	if (oweinact) {
-		if (vp->v_iflag & VI_OWEINACT)
+	/*
+ 	 * We don't guarantee that any particular close will
+	 * trigger inactive processing so just make a best effort
+	 * here at preventing a reference to a removed file.  If
+	 * we don't succeed no harm is done.
+	 */
+	if (vp->v_iflag & VI_OWEINACT) {
+		if (VOP_ISLOCKED(vp) == LK_EXCLUSIVE && 
+		    (flags & LK_NOWAIT) == 0)
 			vinactive(vp, td);
-		VI_UNLOCK(vp);
-		if ((oldflags & LK_TYPE_MASK) == 0)
-			VOP_UNLOCK(vp, 0);
-	} else
-		VI_UNLOCK(vp);
+		vp->v_iflag &= ~VI_OWEINACT;
+	}
+	VI_UNLOCK(vp);
 	return (0);
 }
 
