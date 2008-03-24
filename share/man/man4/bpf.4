@@ -1,3 +1,30 @@
+.\" Copyright (c) 2007 Seccuris Inc.
+.\" All rights reserved.
+.\"
+.\" This sofware was developed by Robert N. M. Watson under contract to
+.\" Seccuris Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\" 
 .\" Copyright (c) 1990 The Regents of the University of California.
 .\" All rights reserved.
 .\"
@@ -61,19 +88,6 @@ Whenever a packet is received by an interface,
 all file descriptors listening on that interface apply their filter.
 Each descriptor that accepts the packet receives its own copy.
 .Pp
-Reads from these files return the next group of packets
-that have matched the filter.
-To improve performance, the buffer passed to read must be
-the same size as the buffers used internally by
-.Nm .
-This size is returned by the
-.Dv BIOCGBLEN
-ioctl (see below), and
-can be set with
-.Dv BIOCSBLEN .
-Note that an individual packet larger than this size is necessarily
-truncated.
-.Pp
 The packet filter will support any link level protocol that has fixed length
 headers.
 Currently, only Ethernet,
@@ -94,6 +108,165 @@ The writes are unbuffered, meaning only one packet can be processed per write.
 Currently, only writes to Ethernets and
 .Tn SLIP
 links are supported.
+.Sh BUFFER MODES
+.Nm
+devices deliver packet data to the application via memory buffers provided by
+the application.
+The buffer mode is set using the
+.Dv BIOCSETBUFMODE
+ioctl, and read using the
+.Dv BIOCGETBUFMODE
+ioctl.
+.Ss Buffered read mode
+By default,
+.Nm
+devices operate in the
+.Dv BPF_BUFMODE_BUFFER
+mode, in which packet data is copied explicitly from kernel to user memory
+using the
+.Xr read 2
+system call.
+The user process will declare a fixed buffer size that will be used both for
+sizing internal buffers and for all
+.Xr read 2
+operations on the file.
+This size is queried using the
+.Dv BIOCGBLEN
+ioctl, and is set using the
+.Dv BIOCSBLEN
+ioctl.
+Note that an individual packet larger than the buffer size is necessarily
+truncated.
+.Ss Zero-copy buffer mode
+.Nm
+devices may also operate in the
+.Dv BPF_BUFMODE_ZEROCOPY
+mode, in which packet data is written directly into two user memory buffers
+by the kernel, avoiding both system call and copying overhead.
+Buffers are of fixed (and equal) size, page-aligned, and an even multiple of
+the page size.
+The maximum zero-copy buffer size is returned by the
+.Dv BIOCGETZMAX
+ioctl.
+Note that an individual packet larger than the buffer size is necessarily
+truncated.
+.Pp
+The user process registers two memory buffers using the
+.Dv BIOCSETZBUF
+ioctl, which accepts a
+.Vt struct bpf_zbuf
+pointer as an argument:
+.Bd -literal
+struct bpf_zbuf {
+	void *bz_bufa;
+	void *bz_bufb;
+	size_t bz_buflen;
+};
+.Ed
+.Pp
+.Vt bz_bufa
+is a pointer to the userspace address of the first buffer that will be
+filled, and
+.Vt bz_bufb
+is a pointer to the second buffer.
+.Nm
+will then cycle between the two buffers as they fill and are acknowledged.
+.Pp
+Each buffer begins with a fixed-length header to hold synchronization and
+data length information for the buffer:
+.Bd -literal
+struct bpf_zbuf_header {
+	volatile u_int  bzh_kernel_gen;	/* Kernel generation number. */
+	volatile u_int  bzh_kernel_len;	/* Length of data in the buffer. */
+	volatile u_int  bzh_user_gen;	/* User generation number. */
+	/* ...padding for future use... */
+};
+.Ed
+.Pp
+The header structure of each buffer, including all padding, should be zeroed
+before it is configured using
+.Dv BIOCSETZBUF .
+Remaining space in the buffer will be used by the kernel to store packet
+data, laid out in the same format as with buffered read mode.
+.Pp
+The kernel and the user process follow a simple acknowledgement protocol via
+the buffer header to synchronize access to the buffer: when the header
+generation numbers,
+.Vt bzh_kernel_gen
+and
+.Vt bzh_user_gen ,
+hold the same value, the kernel owns the buffer, and when they differ,
+userspace owns the buffer.
+.Pp
+While the kernel owns the buffer, the contents are unstable and may change
+asynchronously; while the user process owns the buffer, its contents are
+stable and will not be changed until the buffer has been acknowledged.
+.Pp
+Initializing the buffer headers to all 0's before registering the buffer has
+the effect of assigning initial ownership of both buffers to the kernel.
+The kernel signals that a buffer has been assigned to userspace by modifying
+.Vt bzh_kernel_gen ,
+and userspace acknowledges the buffer and returns it to the kernel by setting
+the value of
+.Vt bzh_user_gen
+to the value of
+.Vt bzh_kernel_gen .
+.Pp
+In order to avoid caching and memory re-ordering effects, the user process
+must use atomic operations and memory barriers when checking for and
+acknowledging buffers:
+.Bd -literal
+#include <machine/atomic.h>
+
+/*
+ * Return ownership of a buffer to the kernel for reuse.
+ */
+static void
+buffer_acknowledge(struct bpf_zbuf_header *bzh)
+{
+
+	atomic_store_rel_int(&bzh->bzh_user_gen, bzh->bzh_kernel_gen);
+}
+
+/*
+ * Check whether a buffer has been assigned to userspace by the kernel.
+ * Return true if userspace owns the buffer, and false otherwise.
+ */
+static int
+buffer_check(struct bpf_zbuf_header *bzh)
+{
+
+	return (bzh->bzh_user_gen !=
+	    atomic_load_acq_int(&bzh->bzh_kernel_gen));
+}
+.Ed
+.Pp
+The user process may force the assignment of the next buffer, if any data
+is pending, to userspace using the
+.Dv BIOCROTZBUF
+ioctl.
+This allows the user process to retrieve data in a partially filled buffer
+before the buffer is full, such as following a timeout; the process must
+recheck for buffer ownership using the header generation numbers, as the
+buffer will not be assigned to userspace if no data was present.
+.Pp
+As in the buffered read mode,
+.Xr kqueue 2 ,
+.Xr poll 2 ,
+and
+.Xr select 2
+may be used to sleep awaiting the availbility of a completed buffer.
+They will return a readable file descriptor when ownership of the next buffer
+is assigned to user space.
+.Pp
+In the current implementation, the kernel will assign ownership of at most
+one buffer at a time to the user process.
+The user processes must acknowledge the current buffer in order to be
+notified that the next buffer is ready for processing.
+Programs should not rely on this as an invariant, as it may change in future
+versions; in particular, they must maintain their own notion of which buffer
+is "next" so that if both buffers are owned by userspace, it can process them
+in the correct order.
 .Sh IOCTLS
 The
 .Xr ioctl 2
@@ -127,7 +300,7 @@ file.
 The (third) argument to
 .Xr ioctl 2
 should be a pointer to the type indicated.
-.Bl -tag -width BIOCGRTIMEOUT
+.Bl -tag -width BIOCGETBUFMODE
 .It Dv BIOCGBLEN
 .Pq Li u_int
 Returns the required buffer length for reads on
@@ -349,10 +522,55 @@ descriptor.
 This prevents the execution of
 ioctl commands which could change the underlying operating parameters of
 the device.
+.It Dv BIOCGETBUFMODE
+.It Dv BIOCSETBUFMODE
+.Pq Li u_int
+Get or set the current
+.Nm
+buffering mode; possible values are
+.Dv BPF_BUFMODE_BUFFER ,
+buffered read mode, and
+.Dv BPF_BUFMODE_ZBUF ,
+zero-copy buffer mode.
+.It Dv BIOCSETZBUF
+.Pq Li struct bpf_zbuf
+Set the current zero-copy buffer locations; buffer locations may be
+set only once zero-copy buffer mode has been selected, and prior to attaching
+to an interface.
+Buffers must be of identical size, page-aligned, and an integer multiple of
+pages in size.
+The three fields
+.Vt bz_bufa ,
+.Vt bz_bufb ,
+and
+.Vt bz_buflen
+must be filled out.
+If buffers have already been set for this device, the ioctl will fail.
+.It Dv BIOCGETZMAX
+.Pq Li size_t
+Get the largest individual zero-copy buffer size allowed.
+As two buffers are used in zero-copy buffer mode, the limit (in practice) is
+twice the returned size.
+As zero-copy buffers consume kernel address space, conservative selection of
+buffer size is suggested, especially when there are multiple
+.Nm
+descriptors in use on 32-bit systems.
+.It Dv BIOCROTZBUF
+Force ownership of the next buffer to be assigned to userspace, if any data
+present in the buffer.
+If no data is present, the buffer will remain owned by the kernel.
+This allows consumers of zero-copy buffering to implement timeouts and
+retrieve partially filled buffers.
+In order to handle the case where no data is present in the buffer and
+therefore ownership is not assigned, the user process must check
+.Vt bzh_kernel_gen
+against
+.Vt bzh_user_gen .
 .El
 .Sh BPF HEADER
 The following structure is prepended to each packet returned by
-.Xr read 2 :
+.Xr read 2
+or via a zero-copy buffer:
 .Bd -literal
 struct bpf_hdr {
         struct timeval bh_tstamp;     /* time stamp */
@@ -718,6 +936,9 @@ struct bpf_insn insns[] = {
 .Sh SEE ALSO
 .Xr tcpdump 1 ,
 .Xr ioctl 2 ,
+.Xr kqueue 2 ,
+.Xr poll 2 ,
+.Xr select 2 ,
 .Xr byteorder 3 ,
 .Xr ng_bpf 4 ,
 .Xr bpf 9
@@ -750,6 +971,10 @@ of Lawrence Berkeley Laboratory, implemented BPF in
 Summer 1990.
 Much of the design is due to
 .An Van Jacobson .
+.Pp
+Support for zero-copy buffers was added by
+.An Robert N. M. Watson
+under contract to Seccuris Inc.
 .Sh BUGS
 The read buffer must be of a fixed size (returned by the
 .Dv BIOCGBLEN
