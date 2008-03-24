@@ -92,6 +92,27 @@ struct bpf_version {
 #define BPF_MAJOR_VERSION 1
 #define BPF_MINOR_VERSION 1
 
+/*
+ * Historically, BPF has supported a single buffering model, first using mbuf
+ * clusters in kernel, and later using malloc(9) buffers in kernel.  We now
+ * support multiple buffering modes, which may be queried and set using
+ * BIOCGETBUFMODE and BIOCSETBUFMODE.  So as to avoid handling the complexity
+ * of changing modes while sniffing packets, the mode becomes fixed once an
+ * interface has been attached to the BPF descriptor.
+ */
+#define	BPF_BUFMODE_BUFFER	1	/* Kernel buffers with read(). */
+#define	BPF_BUFMODE_ZBUF	2	/* Zero-copy buffers. */
+
+/*-
+ * Struct used by BIOCSETZBUF, BIOCROTZBUF: describes up to two zero-copy
+ * buffer as used by BPF.
+ */
+struct bpf_zbuf {
+	void	*bz_bufa;	/* Location of 'a' zero-copy buffer. */
+	void	*bz_bufb;	/* Location of 'b' zero-copy buffer. */
+	size_t	 bz_buflen;	/* Size of zero-copy buffers. */
+};
+
 #define	BIOCGBLEN	_IOR('B',102, u_int)
 #define	BIOCSBLEN	_IOWR('B',102, u_int)
 #define	BIOCSETF	_IOW('B',103, struct bpf_program)
@@ -116,6 +137,11 @@ struct bpf_version {
 #define	BIOCLOCK	_IO('B', 122)
 #define	BIOCSETWF	_IOW('B',123, struct bpf_program)
 #define	BIOCFEEDBACK	_IOW('B',124, u_int)
+#define	BIOCGETBUFMODE	_IOR('B',125, u_int)
+#define	BIOCSETBUFMODE	_IOW('B',126, u_int)
+#define	BIOCGETZMAX	_IOR('B',127, size_t)
+#define	BIOCROTZBUF	_IOR('B',128, struct bpf_zbuf)
+#define	BIOCSETZBUF	_IOW('B',129, struct bpf_zbuf)
 
 /* Obsolete */
 #define	BIOCGSEESENT	BIOCGDIRECTION
@@ -147,6 +173,24 @@ struct bpf_hdr {
 #define	SIZEOF_BPF_HDR	(sizeof(struct bpf_hdr) <= 20 ? 18 : \
     sizeof(struct bpf_hdr))
 #endif
+
+/*
+ * When using zero-copy BPF buffers, a shared memory header is present
+ * allowing the kernel BPF implementation and user process to synchronize
+ * without using system calls.  This structure defines that header.  When
+ * accessing these fields, appropriate atomic operation and memory barriers
+ * are required in order not to see stale or out-of-order data; see bpf(4)
+ * for reference code to access these fields from userspace.
+ *
+ * The layout of this structure is critical, and must not be changed; if must
+ * fit in a single page on all architectures.
+ */
+struct bpf_zbuf_header {
+	volatile u_int	bzh_kernel_gen;	/* Kernel generation number. */
+	volatile u_int	bzh_kernel_len;	/* Length of data in the buffer. */
+	volatile u_int	bzh_user_gen;	/* User generation number. */
+	u_int _bzh_pad[5];
+};
 
 /*
  * Data-link level type codes.
@@ -761,6 +805,27 @@ struct bpf_dltlist {
 };
 
 #ifdef _KERNEL
+#ifdef MALLOC_DECLARE
+MALLOC_DECLARE(M_BPF);
+#endif
+#ifdef SYSCTL_DECL
+SYSCTL_DECL(_net_bpf);
+#endif
+
+/*
+ * Rotate the packet buffers in descriptor d.  Move the store buffer into the
+ * hold slot, and the free buffer ino the store slot.  Zero the length of the
+ * new store buffer.  Descriptor lock should be held.
+ */
+#define	ROTATE_BUFFERS(d)	do {					\
+	(d)->bd_hbuf = (d)->bd_sbuf;					\
+	(d)->bd_hlen = (d)->bd_slen;					\
+	(d)->bd_sbuf = (d)->bd_fbuf;					\
+	(d)->bd_slen = 0;						\
+	(d)->bd_fbuf = NULL;						\
+	bpf_bufheld(d);							\
+} while (0)
+
 /*
  * Descriptor associated with each attached hardware interface.
  */
@@ -773,6 +838,7 @@ struct bpf_if {
 	struct mtx	bif_mtx;	/* mutex for interface */
 };
 
+void	 bpf_bufheld(struct bpf_d *d);
 int	 bpf_validate(const struct bpf_insn *, int);
 void	 bpf_tap(struct bpf_if *, u_char *, u_int);
 void	 bpf_mtap(struct bpf_if *, struct mbuf *);
