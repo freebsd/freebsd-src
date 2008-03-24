@@ -313,6 +313,10 @@ ifdef CONFIG_IPV6
 CFLAGS += -DCONFIG_IPV6
 endif
 
+ifdef CONFIG_DRIVER_RADIUS_ACL
+CFLAGS += -DCONFIG_DRIVER_RADIUS_ACL
+endif
+
 ifdef CONFIG_FULL_DYNAMIC_VLAN
 # define CONFIG_FULL_DYNAMIC_VLAN to have hostapd manipulate bridges
 # and vlan interfaces for the vlan feature.
