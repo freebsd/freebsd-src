@@ -1,6 +1,6 @@
 /*
  * WPA Supplicant
- * Copyright (c) 2003-2007, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2003-2008, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -40,7 +40,7 @@
 
 const char *wpa_supplicant_version =
 "wpa_supplicant v" VERSION_STR "\n"
-"Copyright (c) 2003-2007, Jouni Malinen <j@w1.fi> and contributors";
+"Copyright (c) 2003-2008, Jouni Malinen <j@w1.fi> and contributors";
 
 const char *wpa_supplicant_license =
 "This program is free software. You can distribute it and/or modify it\n"
@@ -108,7 +108,6 @@ const char *wpa_supplicant_full_license5 =
 
 extern struct wpa_driver_ops *wpa_supplicant_drivers[];
 
-extern int wpa_debug_use_file;
 extern int wpa_debug_level;
 extern int wpa_debug_show_keys;
 extern int wpa_debug_timestamp;
@@ -521,7 +520,7 @@ static void wpa_supplicant_timeout(void *eloop_ctx, void *timeout_ctx)
 	if (os_memcmp(bssid, "\x00\x00\x00\x00\x00\x00", ETH_ALEN) == 0)
 		bssid = wpa_s->pending_bssid;
 	wpa_msg(wpa_s, MSG_INFO, "Authentication with " MACSTR " timed out.",
-		MAC2STR(wpa_s->bssid));
+		MAC2STR(bssid));
 	wpa_blacklist_add(wpa_s, bssid);
 	wpa_sm_notify_disassoc(wpa_s->wpa);
 	wpa_supplicant_disassociate(wpa_s, REASON_DEAUTH_LEAVING);
@@ -902,6 +901,13 @@ int wpa_supplicant_reload_configuration(struct wpa_supplicant *wpa_s)
 	 * TODO: should notify EAPOL SM about changes in opensc_engine_path,
 	 * pkcs11_engine_path, pkcs11_module_path.
 	 */
+	if (wpa_s->key_mgmt == WPA_KEY_MGMT_PSK) {
+		/*
+		 * Clear forced success to clear EAP state for next
+		 * authentication.
+		 */
+		eapol_sm_notify_eap_success(wpa_s->eapol, FALSE);
+	}
 	eapol_sm_notify_config(wpa_s->eapol, NULL, NULL);
 	wpa_sm_set_config(wpa_s->wpa, NULL);
 	wpa_sm_set_fast_reauth(wpa_s->wpa, wpa_s->conf->fast_reauth);
@@ -958,7 +964,7 @@ static void wpa_supplicant_scan(void *eloop_ctx, void *timeout_ctx)
 	struct wpa_ssid *ssid;
 	int enabled, scan_req = 0, ret;
 
-	if (wpa_s->disconnected)
+	if (wpa_s->disconnected && !wpa_s->scan_req)
 		return;
 
 	enabled = 0;
@@ -1463,6 +1469,8 @@ void wpa_supplicant_associate(struct wpa_supplicant *wpa_s,
 		params.ssid = ssid->ssid;
 		params.ssid_len = ssid->ssid_len;
 	}
+	if (ssid->mode == 1 && ssid->frequency > 0 && params.freq == 0)
+		params.freq = ssid->frequency; /* Initial channel for IBSS */
 	params.wpa_ie = wpa_ie;
 	params.wpa_ie_len = wpa_ie_len;
 	params.pairwise_suite = cipher_pairwise;
@@ -2416,7 +2424,7 @@ struct wpa_supplicant * wpa_supplicant_add_iface(struct wpa_global *global,
  *
  * This function can be used to dynamically remove network interfaces from
  * %wpa_supplicant, e.g., when a hotplug network adapter is ejected. In
- * addition, this function is used to remove all remaining interdaces when
+ * addition, this function is used to remove all remaining interfaces when
  * %wpa_supplicant is terminated.
  */
 int wpa_supplicant_remove_iface(struct wpa_global *global,
@@ -2481,8 +2489,7 @@ struct wpa_global * wpa_supplicant_init(struct wpa_params *params)
 	if (params == NULL)
 		return NULL;
 
-	wpa_debug_use_file = params->wpa_debug_use_file;
-	wpa_debug_open_file();
+	wpa_debug_open_file(params->wpa_debug_file_path);
 
 	ret = eap_peer_register_methods();
 	if (ret) {
@@ -2511,8 +2518,6 @@ struct wpa_global * wpa_supplicant_init(struct wpa_params *params)
 		params->wpa_debug_show_keys;
 	wpa_debug_timestamp = global->params.wpa_debug_timestamp =
 		params->wpa_debug_timestamp;
-	wpa_debug_use_file = global->params.wpa_debug_use_file =
-		params->wpa_debug_use_file;
 
 	if (eloop_init(global)) {
 		wpa_printf(MSG_ERROR, "Failed to initialize event loop");
