@@ -251,6 +251,10 @@ device		xboxfb
 
 options 	DEVICE_POLLING
 
+# BPF_JITTER adds support for BPF just-in-time compiler.
+
+options		BPF_JITTER
+
 
 #####################################################################
 # CLOCK OPTIONS
