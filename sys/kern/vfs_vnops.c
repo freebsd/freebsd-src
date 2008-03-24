@@ -862,27 +862,21 @@ _vn_lock(struct vnode *vp, int flags, char *file, int line)
 {
 	int error;
 
-	do {
+	/*
+	 * With no lock type requested we're just polling for validity.
+	 */
+	if ((flags & LK_TYPE_MASK) == 0) {
+		error = 0;
 		if ((flags & LK_INTERLOCK) == 0)
 			VI_LOCK(vp);
-		if ((flags & LK_NOWAIT || (flags & LK_TYPE_MASK) == 0) &&
-		    vp->v_iflag & VI_DOOMED) {
-			VI_UNLOCK(vp);
-			return (ENOENT);
-		}
-		/*
-		 * Just polling to check validity.
-		 */
-		if ((flags & LK_TYPE_MASK) == 0) {
-			VI_UNLOCK(vp);
-			return (0);
-		}
-		/*
-		 * lockmgr drops interlock before it will return for
-		 * any reason.  So force the code above to relock it.
-		 */
-		error = VOP_LOCK1(vp, flags | LK_INTERLOCK, file, line);
-		flags &= ~LK_INTERLOCK;
+		if (vp->v_iflag & VI_DOOMED)
+			error = ENOENT;
+		VI_UNLOCK(vp);
+		return (error);
+	}
+	do {
+		error = VOP_LOCK1(vp, flags, file, line);
+		flags &= ~LK_INTERLOCK;	/* Interlock is always dropped. */
 		KASSERT((flags & LK_RETRY) == 0 || error == 0,
 		    ("LK_RETRY set with incompatible flags %d\n", flags));
 		/*
