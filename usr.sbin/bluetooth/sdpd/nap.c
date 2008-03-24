@@ -99,8 +99,12 @@ nap_profile_create_protocol_descriptor_list(
 		uint8_t *buf, uint8_t const * const eob,
 		uint8_t const *data, uint32_t datalen)
 {
+	provider_p		provider = (provider_p) data; 
+	sdp_nap_profile_p	nap = (sdp_nap_profile_p) provider->data; 
+
 	return (bnep_profile_create_protocol_descriptor_list(
-			buf, eob, NULL, 0)); 
+			buf, eob, (uint8_t const *) &nap->psm,
+			sizeof(nap->psm))); 
 }
 
 static int32_t
@@ -150,6 +154,26 @@ nap_profile_create_max_net_access_rate(
 	return (3);
 }
 
+static int32_t
+nap_profile_create_service_availability(
+		uint8_t *buf, uint8_t const * const eob,
+		uint8_t const *data, uint32_t datalen)
+{
+	provider_p		provider = (provider_p) data; 
+	sdp_nap_profile_p	nap = (sdp_nap_profile_p) provider->data; 
+
+	return (common_profile_create_service_availability(buf, eob,
+			&nap->load_factor, 1));
+}
+
+static int32_t
+nap_profile_data_valid(uint8_t const *data, uint32_t datalen)
+{
+	sdp_nap_profile_p	nap = (sdp_nap_profile_p) data;
+
+	return ((nap->psm == 0)? 0 : 1);
+}
+
 static attr_t	nap_profile_attrs[] = {
 	{ SDP_ATTR_SERVICE_RECORD_HANDLE,
 	  common_profile_create_service_record_handle },
@@ -159,6 +183,8 @@ static attr_t	nap_profile_attrs[] = {
 	  nap_profile_create_protocol_descriptor_list },
 	{ SDP_ATTR_LANGUAGE_BASE_ATTRIBUTE_ID_LIST,
 	  common_profile_create_language_base_attribute_id_list },
+	{ SDP_ATTR_SERVICE_AVAILABILITY,
+	  nap_profile_create_service_availability },
 	{ SDP_ATTR_BLUETOOTH_PROFILE_DESCRIPTOR_LIST,
 	  nap_profile_create_bluetooth_profile_descriptor_list },
 	{ SDP_ATTR_PRIMARY_LANGUAGE_BASE_ID + SDP_ATTR_SERVICE_NAME_OFFSET, 
@@ -177,7 +203,7 @@ static attr_t	nap_profile_attrs[] = {
 profile_t	nap_profile_descriptor = {
 	SDP_SERVICE_CLASS_NAP,
 	sizeof(sdp_nap_profile_t),
-	common_profile_always_valid,
+	nap_profile_data_valid,
 	(attr_t const * const) &nap_profile_attrs
 };
 
