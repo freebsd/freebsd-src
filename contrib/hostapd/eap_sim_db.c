@@ -554,8 +554,7 @@ int eap_sim_db_get_gsm_triplets(void *priv, const u8 *identity,
 	size_t i;
 	char msg[40];
 
-	if (identity_len < 2 || identity[0] != EAP_SIM_PERMANENT_PREFIX ||
-	    identity_len + 1 > sizeof(entry->imsi)) {
+	if (identity_len < 2 || identity[0] != EAP_SIM_PERMANENT_PREFIX) {
 		wpa_hexdump_ascii(MSG_DEBUG, "EAP-SIM DB: unexpected identity",
 				  identity, identity_len);
 		return EAP_SIM_DB_FAILURE;
@@ -567,6 +566,11 @@ int eap_sim_db_get_gsm_triplets(void *priv, const u8 *identity,
 			identity_len = i;
 			break;
 		}
+	}
+	if (identity_len + 1 > sizeof(entry->imsi)) {
+		wpa_hexdump_ascii(MSG_DEBUG, "EAP-SIM DB: unexpected identity",
+				  identity, identity_len);
+		return EAP_SIM_DB_FAILURE;
 	}
 	wpa_hexdump_ascii(MSG_DEBUG, "EAP-SIM DB: Get GSM triplets for IMSI",
 			  identity, identity_len);
@@ -1117,8 +1121,7 @@ int eap_sim_db_get_aka_auth(void *priv, const u8 *identity,
 	char msg[40];
 
 	if (identity_len < 2 || identity == NULL ||
-	    identity[0] != EAP_AKA_PERMANENT_PREFIX ||
-	    identity_len + 1 > sizeof(entry->imsi)) {
+	    identity[0] != EAP_AKA_PERMANENT_PREFIX) {
 		wpa_hexdump_ascii(MSG_DEBUG, "EAP-SIM DB: unexpected identity",
 				  identity, identity_len);
 		return EAP_SIM_DB_FAILURE;
@@ -1130,6 +1133,11 @@ int eap_sim_db_get_aka_auth(void *priv, const u8 *identity,
 			identity_len = i;
 			break;
 		}
+	}
+	if (identity_len + 1 > sizeof(entry->imsi)) {
+		wpa_hexdump_ascii(MSG_DEBUG, "EAP-SIM DB: unexpected identity",
+				  identity, identity_len);
+		return EAP_SIM_DB_FAILURE;
 	}
 	wpa_hexdump_ascii(MSG_DEBUG, "EAP-SIM DB: Get AKA auth for IMSI",
 			  identity, identity_len);
@@ -1213,9 +1221,23 @@ int eap_sim_db_resynchronize(void *priv, const u8 *identity,
 			     const u8 *_rand)
 {
 	struct eap_sim_db_data *data = priv;
+	size_t i;
 
-	if (identity_len < 2 || identity[0] != EAP_AKA_PERMANENT_PREFIX ||
-	    identity_len > 20) {
+	if (identity_len < 2 || identity == NULL ||
+	    identity[0] != EAP_AKA_PERMANENT_PREFIX) {
+		wpa_hexdump_ascii(MSG_DEBUG, "EAP-SIM DB: unexpected identity",
+				  identity, identity_len);
+		return -1;
+	}
+	identity++;
+	identity_len--;
+	for (i = 0; i < identity_len; i++) {
+		if (identity[i] == '@') {
+			identity_len = i;
+			break;
+		}
+	}
+	if (identity_len > 20) {
 		wpa_hexdump_ascii(MSG_DEBUG, "EAP-SIM DB: unexpected identity",
 				  identity, identity_len);
 		return -1;
@@ -1226,10 +1248,10 @@ int eap_sim_db_resynchronize(void *priv, const u8 *identity,
 		int len, ret;
 
 		len = snprintf(msg, sizeof(msg), "AKA-AUTS ");
-		if (len < 0 || len + identity_len - 1 >= sizeof(msg))
+		if (len < 0 || len + identity_len >= sizeof(msg))
 			return -1;
-		memcpy(msg + len, identity + 1, identity_len - 1);
-		len += identity_len - 1;
+		memcpy(msg + len, identity, identity_len);
+		len += identity_len;
 
 		ret = snprintf(msg + len, sizeof(msg) - len, " ");
 		if (ret < 0 || (size_t) ret >= sizeof(msg) - len)
@@ -1244,7 +1266,7 @@ int eap_sim_db_resynchronize(void *priv, const u8 *identity,
 		len += wpa_snprintf_hex(msg + len, sizeof(msg) - len,
 					_rand, EAP_AKA_RAND_LEN);
 		wpa_hexdump(MSG_DEBUG, "EAP-SIM DB: reporting AKA AUTS for "
-			    "IMSI", identity + 1, identity_len - 1);
+			    "IMSI", identity, identity_len);
 		if (eap_sim_db_send(data, msg, len) < 0)
 			return -1;
 	}

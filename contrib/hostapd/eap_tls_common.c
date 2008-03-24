@@ -113,6 +113,11 @@ int eap_tls_data_reassemble(struct eap_sm *sm, struct eap_ssl_data *data,
 	u8 *buf;
 
 	if (data->tls_in_left > *in_len || data->tls_in) {
+		if (*in_len == 0) {
+			wpa_printf(MSG_INFO, "SSL: Empty fragment when trying "
+				   "to reassemble");
+			return -1;
+		}
 		if (data->tls_in_len + *in_len > 65536) {
 			/* Limit length to avoid rogue peers from causing large
 			 * memory allocations. */

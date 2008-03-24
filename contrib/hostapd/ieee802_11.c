@@ -1436,8 +1436,8 @@ static void handle_assoc_cb(struct hostapd_data *hapd,
 		return;
 	}
 
-	if (len < IEEE80211_HDRLEN + (reassoc ? sizeof(mgmt->u.reassoc_req) :
-				      sizeof(mgmt->u.assoc_req))) {
+	if (len < IEEE80211_HDRLEN + (reassoc ? sizeof(mgmt->u.reassoc_resp) :
+				      sizeof(mgmt->u.assoc_resp))) {
 		printf("handle_assoc_cb(reassoc=%d) - too short payload "
 		       "(len=%lu)\n", reassoc, (unsigned long) len);
 		return;
