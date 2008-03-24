@@ -140,7 +140,7 @@ CTRL-REQ-OTP-2:Challenge 1235663 needed for SSID foobar
 	<listitem><para>Run in daemon mode executing the action file
         based on events from wpa_supplicant.  The specified file will
 	be executed with the first argument set to interface name and
-	second to "CONNECT" or "DISCONNECT" depending on the event.
+	second to "CONNECTED" or "DISCONNECTED" depending on the event.
 	This can be used to execute networking tools required to configure
 	the interface.</para>
 
