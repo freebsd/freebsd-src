@@ -153,14 +153,18 @@ SYSCTL_INT(_hw, HW_PAGESIZE, pagesize, CTLFLAG_RD,
 static int
 sysctl_kern_arnd(SYSCTL_HANDLER_ARGS)
 {
-	u_long val;
+	char buf[256];
+	size_t len;
 
-	arc4rand(&val, sizeof(val), 0);
-	return (sysctl_handle_long(oidp, &val, 0, req));
+	len = req->oldlen;
+	if (len > sizeof(buf))
+		len = sizeof(buf);
+	arc4rand(buf, len, 0);
+	return (SYSCTL_OUT(req, buf, len));
 }
 
-SYSCTL_PROC(_kern, KERN_ARND, arandom, CTLFLAG_RD,
-	0, 0, sysctl_kern_arnd, "L", "arc4rand");
+SYSCTL_PROC(_kern, KERN_ARND, arandom, CTLTYPE_OPAQUE | CTLFLAG_RD,
+    NULL, 0, sysctl_kern_arnd, "", "arc4rand");
 
 static int
 sysctl_hw_physmem(SYSCTL_HANDLER_ARGS)
