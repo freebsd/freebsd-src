@@ -248,12 +248,20 @@ rotate_buidlog() {
 }
 
 remove_workdir() {
-	chflags -R noschg ${WORKDIR}
-	echo "${TS} Removing "${WORKDIR}
-	rm -rf ${WORKDIR}
-	echo "${TS} Removing Build Kernel Directory"
-	rm -rf /usr/obj/usr/src/sys/${KERNCONF}
-	echo "${TS}  done."
+	# Before removing check if there is not a mount under $WORKDIR anymore
+	MOUNT_CHECK=`mount|egrep "on ${WORKDIR}"`
+
+	if [ ! -z "${MOUNT_CHECK}" ]; then
+		echo "There are mounts under the workdir (${WORKDIR}). Please umount them before running this script"
+		exit 1
+	else
+		chflags -R noschg ${WORKDIR}
+		echo "${TS} Removing "${WORKDIR}
+		rm -rf ${WORKDIR}
+		echo "${TS} Removing Build Kernel Directory"
+		rm -rf /usr/obj/usr/src/sys/${KERNCONF}
+		echo "${TS}  done."
+	fi
 }
 
 
