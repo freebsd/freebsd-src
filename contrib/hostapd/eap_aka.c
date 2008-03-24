@@ -1,6 +1,6 @@
 /*
  * hostapd / EAP-AKA (RFC 4187)
- * Copyright (c) 2005-2007, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2005-2008, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -124,6 +124,14 @@ static u8 * eap_aka_build_identity(struct eap_sm *sm,
 				      sm->identity_len)) {
 		wpa_printf(MSG_DEBUG, "   AT_PERMANENT_ID_REQ");
 		eap_sim_msg_add(msg, EAP_SIM_AT_PERMANENT_ID_REQ, 0, NULL, 0);
+	} else {
+		/*
+		 * RFC 4187, Chap. 4.1.4 recommends that identity from EAP is
+		 * ignored and the AKA/Identity is used to request the
+		 * identity.
+		 */
+		wpa_printf(MSG_DEBUG, "   AT_ANY_ID_REQ");
+		eap_sim_msg_add(msg, EAP_SIM_AT_ANY_ID_REQ, 0, NULL, 0);
 	}
 	return eap_sim_msg_finish(msg, reqDataLen, NULL, NULL, 0);
 }
@@ -445,10 +453,16 @@ static void eap_aka_determine_identity(struct eap_sm *sm,
 		sm->method_pending = METHOD_PENDING_NONE;
 	}
 
+	identity_len = sm->identity_len;
+	while (identity_len > 0 && sm->identity[identity_len - 1] == '\0') {
+		wpa_printf(MSG_DEBUG, "EAP-AKA: Workaround - drop last null "
+			   "character from identity");
+		identity_len--;
+	}
 	wpa_hexdump_ascii(MSG_DEBUG, "EAP-AKA: Identity for MK derivation",
-			  sm->identity, sm->identity_len);
+			  sm->identity, identity_len);
 
-	eap_aka_derive_mk(sm->identity, sm->identity_len, data->ik, data->ck,
+	eap_aka_derive_mk(sm->identity, identity_len, data->ik, data->ck,
 			  data->mk);
 	eap_sim_derive_keys(data->mk, data->k_encr, data->k_aut, data->msk,
 			    data->emsk);
