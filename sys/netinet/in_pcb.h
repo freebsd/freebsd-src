@@ -296,12 +296,12 @@ void inp_wlock_assert(struct inpcb *);
 void inp_wunlock_assert(struct inpcb *);
 #else
 static __inline void
-inp_wlock_assert(struct inpcb *inp)
+inp_wlock_assert(struct inpcb *inp __unused)
 {
 }
 
 static __inline void
-inp_wunlock_assert(struct inpcb *inp)
+inp_wunlock_assert(struct inpcb *inp __unused)
 {
 }
 #endif
