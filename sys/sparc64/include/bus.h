@@ -96,8 +96,8 @@
 #define	PCI_MEMORY_BUS_SPACE	4
 #define	LAST_BUS_SPACE		5
 
-extern int bus_type_asi[];
-extern int bus_stream_asi[];
+extern const int bus_type_asi[];
+extern const int bus_stream_asi[];
 
 #define __BUS_SPACE_HAS_STREAM_METHODS	1
 
