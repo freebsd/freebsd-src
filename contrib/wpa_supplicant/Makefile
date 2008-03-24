@@ -745,6 +745,10 @@ ifdef CONFIG_DEBUG_FILE
 CFLAGS += -DCONFIG_DEBUG_FILE
 endif
 
+ifdef CONFIG_DEBUG_SYSLOG
+CFLAGS += -DCONFIG_DEBUG_SYSLOG
+endif
+
 OBJS += wpa_supplicant.o events.o
 OBJS_t := $(OBJS) eapol_test.o radius.o radius_client.o
 OBJS_t2 := $(OBJS) preauth_test.o
