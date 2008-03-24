@@ -1234,14 +1234,14 @@ inp_runlock(struct inpcb *inp)
 
 #ifdef INVARIANTS
 void
-inp_wlock_assert(struct inpcb *inp)
+inp_lock_assert(struct inpcb *inp)
 {
 
 	INP_LOCK_ASSERT(inp);
 }
 
 void
-inp_wunlock_assert(struct inpcb *inp)
+inp_unlock_assert(struct inpcb *inp)
 {
 
 	INP_UNLOCK_ASSERT(inp);
