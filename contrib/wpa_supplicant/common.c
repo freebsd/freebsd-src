@@ -16,6 +16,10 @@
 
 #include "common.h"
 
+#ifdef CONFIG_DEBUG_SYSLOG
+#include <syslog.h>
+#endif /* CONFIG_DEBUG_SYSLOG */
+
 
 #ifdef CONFIG_DEBUG_FILE
 static FILE *out_file = NULL;
@@ -23,6 +27,7 @@ static FILE *out_file = NULL;
 int wpa_debug_level = MSG_INFO;
 int wpa_debug_show_keys = 0;
 int wpa_debug_timestamp = 0;
+int wpa_debug_syslog = 0;
 
 
 static int hex2num(char c)
@@ -161,6 +166,40 @@ void wpa_debug_print_timestamp(void)
 	printf("%ld.%06u: ", (long) tv.sec, (unsigned int) tv.usec);
 }
 
+void wpa_debug_open_syslog(void)
+{
+#ifdef CONFIG_DEBUG_SYSLOG
+	openlog("wpa_supplicant", LOG_PID | LOG_NDELAY, LOG_DAEMON);
+	wpa_debug_syslog++;
+#endif
+}
+
+void wpa_debug_close_syslog(void)
+{
+#ifdef CONFIG_DEBUG_SYSLOG
+	if (wpa_debug_syslog)
+		closelog();
+#endif
+}
+
+#ifdef CONFIG_DEBUG_SYSLOG
+static int syslog_priority(int level)
+{
+	switch (level) {
+	case MSG_MSGDUMP:
+	case MSG_DEBUG:
+		return LOG_DEBUG;
+	case MSG_INFO:
+		return LOG_NOTICE;
+	case MSG_WARNING:
+		return LOG_WARNING;
+	case MSG_ERROR:
+		return LOG_ERR;
+	}
+	return LOG_INFO;
+}
+#endif /* CONFIG_DEBUG_SYSLOG */
+
 
 /**
  * wpa_printf - conditional printf
@@ -179,6 +218,11 @@ void wpa_printf(int level, char *fmt, ...)
 
 	va_start(ap, fmt);
 	if (level >= wpa_debug_level) {
+#ifdef CONFIG_DEBUG_SYSLOG
+		if (wpa_debug_syslog) {
+			vsyslog(syslog_priority(level), fmt, ap);
+		} else {
+#endif /* CONFIG_DEBUG_SYSLOG */
 		wpa_debug_print_timestamp();
 #ifdef CONFIG_DEBUG_FILE
 		if (out_file) {
@@ -191,6 +235,9 @@ void wpa_printf(int level, char *fmt, ...)
 #ifdef CONFIG_DEBUG_FILE
 		}
 #endif /* CONFIG_DEBUG_FILE */
+#ifdef CONFIG_DEBUG_SYSLOG
+		}
+#endif /* CONFIG_DEBUG_SYSLOG */
 	}
 	va_end(ap);
 }
