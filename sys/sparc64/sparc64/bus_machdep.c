@@ -95,7 +95,7 @@
  *	from: @(#)machdep.c	8.6 (Berkeley) 1/14/94
  *	from: NetBSD: machdep.c,v 1.111 2001/09/15 07:13:40 eeh Exp
  *	and
- * 	from: FreeBSD: src/sys/i386/i386/busdma_machdep.c,v 1.24 2001/08/15
+ *	from: FreeBSD: src/sys/i386/i386/busdma_machdep.c,v 1.24 2001/08/15
  */
 
 #include <sys/cdefs.h>
@@ -130,8 +130,8 @@ __FBSDID("$FreeBSD$");
 static void nexus_bus_barrier(bus_space_tag_t, bus_space_handle_t,
     bus_size_t, bus_size_t, int);
 
-/* ASI's for bus access. */
-int bus_type_asi[] = {
+/* ASIs for bus access */
+const int bus_type_asi[] = {
 	ASI_PHYS_BYPASS_EC_WITH_EBIT,		/* nexus */
 	ASI_PHYS_BYPASS_EC_WITH_EBIT,		/* SBus */
 	ASI_PHYS_BYPASS_EC_WITH_EBIT_L,		/* PCI configuration space */
@@ -140,7 +140,7 @@ int bus_type_asi[] = {
 	0
 };
 
-int bus_stream_asi[] = {
+const int bus_stream_asi[] = {
 	ASI_PHYS_BYPASS_EC_WITH_EBIT,		/* nexus */
 	ASI_PHYS_BYPASS_EC_WITH_EBIT,		/* SBus */
 	ASI_PHYS_BYPASS_EC_WITH_EBIT,		/* PCI configuration space */
@@ -244,7 +244,7 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 
 	newtag->dt_segments = NULL;
 
-	/* Take into account any restrictions imposed by our parent tag */
+	/* Take into account any restrictions imposed by our parent tag. */
 	newtag->dt_lowaddr = ulmin(parent->dt_lowaddr, newtag->dt_lowaddr);
 	newtag->dt_highaddr = ulmax(parent->dt_highaddr, newtag->dt_highaddr);
 	if (newtag->dt_boundary == 0)
@@ -542,8 +542,7 @@ nexus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map, struct uio *uio,
 
 	if (uio->uio_segflg == UIO_USERSPACE) {
 		td = uio->uio_td;
-		KASSERT(td != NULL,
-			("nexus_dmamap_load_uio: USERSPACE but no proc"));
+		KASSERT(td != NULL, ("%s: USERSPACE but no proc", __func__));
 	}
 
 	nsegs = 0;
@@ -643,9 +642,9 @@ nexus_dmamem_alloc(bus_dma_tag_t dmat, void **vaddr, int flags,
 		*vaddr = malloc(dmat->dt_maxsize, M_DEVBUF, mflags);
 	} else {
 		/*
-		 * XXX: Use contigmalloc until it is merged into this facility
-		 * and handles multi-seg allocations.  Nobody is doing multi-seg
-		 * allocations yet though.
+		 * XXX use contigmalloc until it is merged into this
+		 * facility and handles multi-seg allocations.  Nobody
+		 * is doing multi-seg allocations yet though.
 		 */
 		*vaddr = contigmalloc(dmat->dt_maxsize, M_DEVBUF, mflags,
 		    0ul, dmat->dt_lowaddr,
@@ -782,8 +781,8 @@ sparc64_bus_mem_unmap(void *bh, bus_size_t size)
 }
 
 /*
- * Fake up a bus tag, for use by console drivers in early boot when the regular
- * means to allocate resources are not yet available.
+ * Fake up a bus tag, for use by console drivers in early boot when the
+ * regular means to allocate resources are not yet available.
  * Addr is the physical address of the desired start of the handle.
  */
 bus_space_handle_t
