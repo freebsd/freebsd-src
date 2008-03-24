@@ -22,6 +22,7 @@
 #include "radius.h"
 #include "radius_client.h"
 #include "eloop.h"
+#include "driver.h"
 
 #define RADIUS_ACL_TIMEOUT 30
 
@@ -74,8 +75,10 @@ static int hostapd_acl_cache_get(struct hostapd_data *hapd, const u8 *addr,
 			if (now - entry->timestamp > RADIUS_ACL_TIMEOUT)
 				return -1; /* entry has expired */
 			if (entry->accepted == HOSTAPD_ACL_ACCEPT_TIMEOUT)
-				*session_timeout = entry->session_timeout;
-			*acct_interim_interval = entry->acct_interim_interval;
+				if (session_timeout)
+					*session_timeout = entry->session_timeout;
+			if (acct_interim_interval)
+				*acct_interim_interval = entry->acct_interim_interval;
 			if (vlan_id)
 				*vlan_id = entry->vlan_id;
 			return entry->accepted;
@@ -192,8 +195,10 @@ int hostapd_allowed_address(struct hostapd_data *hapd, const u8 *addr,
 			    const u8 *msg, size_t len, u32 *session_timeout,
 			    u32 *acct_interim_interval, int *vlan_id)
 {
-	*session_timeout = 0;
-	*acct_interim_interval = 0;
+	if (session_timeout)
+		*session_timeout = 0;
+	if (acct_interim_interval)
+		*acct_interim_interval = 0;
 	if (vlan_id)
 		*vlan_id = 0;
 
@@ -287,7 +292,9 @@ static void hostapd_acl_expire_cache(struct hostapd_data *hapd, time_t now)
 				prev->next = entry->next;
 			else
 				hapd->acl_cache = entry->next;
-
+#ifdef CONFIG_DRIVER_RADIUS_ACL
+			hostapd_set_radius_acl_expire(hapd, entry->addr);
+#endif
 			tmp = entry;
 			entry = entry->next;
 			free(tmp);
@@ -413,11 +420,16 @@ hostapd_acl_recv_radius(struct radius_msg *msg, struct radius_msg *req,
 	cache->next = hapd->acl_cache;
 	hapd->acl_cache = cache;
 
+#ifdef CONFIG_DRIVER_RADIUS_ACL
+	hostapd_set_radius_acl_auth(hapd, query->addr, cache->accepted, 
+		cache->session_timeout);
+#else
 	/* Re-send original authentication frame for 802.11 processing */
 	HOSTAPD_DEBUG(HOSTAPD_DEBUG_MINIMAL, "Re-sending authentication frame "
 		      "after successful RADIUS ACL query\n");
 	ieee802_11_mgmt(hapd, query->auth_msg, query->auth_msg_len,
 			WLAN_FC_STYPE_AUTH, NULL);
+#endif
 
  done:
 	if (prev == NULL)
