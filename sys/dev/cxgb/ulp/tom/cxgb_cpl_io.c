@@ -792,7 +792,6 @@ cxgb_toe_detach(struct tcpcb *tp)
 	 * XXX how do we handle teardown in the SYN_SENT state?
 	 *
 	 */
-	INP_INFO_WLOCK(&tcbinfo);
 	inp_wlock_assert(tp->t_inpcb);
 	toep = tp->t_toe;
 	toep->tp_tp = NULL;
@@ -802,7 +801,6 @@ cxgb_toe_detach(struct tcpcb *tp)
 	 */
 	tp->t_flags &= ~TF_TOE;
 	tp->t_toe = NULL;
-	INP_INFO_WUNLOCK(&tcbinfo);
 }
 	
 
@@ -1368,7 +1366,6 @@ active_open_failed(struct toepcb *toep, struct mbuf *m)
 	struct cpl_act_open_rpl *rpl = cplhdr(m);
 	struct inpcb *inp;
 
-	INP_INFO_WLOCK(&tcbinfo);
 	if (toep->tp_tp == NULL)
 		goto done;
 
@@ -1391,7 +1388,6 @@ active_open_failed(struct toepcb *toep, struct mbuf *m)
 		fail_act_open(toep, act_open_rpl_status_to_errno(rpl->status));
 	inp_wunlock(inp);
 done:
-	INP_INFO_WUNLOCK(&tcbinfo);
 	m_free(m);
 }
 
@@ -2470,6 +2466,7 @@ do_peer_fin(struct socket *so, struct mbuf *m)
 			tp = tcp_close(tp);
 		} else {
 			enter_timewait(so);
+			tp = NULL;
 		}
 		break;
 	default:
@@ -2536,6 +2533,7 @@ process_close_con_rpl(struct socket *so, struct mbuf *m)
 
 		} else {
 			enter_timewait(so);
+			tp = NULL;
 			soisdisconnected(so);
 		}
 		break;
