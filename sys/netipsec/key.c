@@ -3376,7 +3376,7 @@ key_setdumpsa(sav, type, satype, seq, pid)
 		case SADB_EXT_LIFETIME_SOFT:
 			if (!sav->lft_s)
 				continue;
-			m = key_setlifetime(sav->lft_h, 
+			m = key_setlifetime(sav->lft_s, 
 					    SADB_EXT_LIFETIME_SOFT);
 
 			if (!m)
