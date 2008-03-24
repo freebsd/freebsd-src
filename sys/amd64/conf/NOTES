@@ -80,6 +80,10 @@ cpu		HAMMER			# aka K8, aka Opteron & Athlon64
 
 options 	DEVICE_POLLING
 
+# BPF_JITTER adds support for BPF just-in-time compiler.
+
+options		BPF_JITTER
+
 
 #####################################################################
 # CLOCK OPTIONS
