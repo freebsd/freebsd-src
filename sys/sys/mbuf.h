@@ -170,30 +170,43 @@ struct mbuf {
 /*
  * mbuf flags.
  */
-#define	M_EXT		0x0001	/* has associated external storage */
-#define	M_PKTHDR	0x0002	/* start of record */
-#define	M_EOR		0x0004	/* end of record */
-#define	M_RDONLY	0x0008	/* associated data is marked read-only */
-#define	M_PROTO1	0x0010	/* protocol-specific */
-#define	M_PROTO2	0x0020	/* protocol-specific */
-#define	M_PROTO3	0x0040	/* protocol-specific */
-#define	M_PROTO4	0x0080	/* protocol-specific */
-#define	M_PROTO5	0x0100	/* protocol-specific */
-#define	M_NOTIFICATION	M_PROTO5/* SCTP notification */
-#define	M_SKIP_FIREWALL	0x4000	/* skip firewall processing */
-#define	M_FREELIST	0x8000	/* mbuf is on the free list */
+#define	M_EXT		0x00000001 /* has associated external storage */
+#define	M_PKTHDR	0x00000002 /* start of record */
+#define	M_EOR		0x00000004 /* end of record */
+#define	M_RDONLY	0x00000008 /* associated data is marked read-only */
+#define	M_PROTO1	0x00000010 /* protocol-specific */
+#define	M_PROTO2	0x00000020 /* protocol-specific */
+#define	M_PROTO3	0x00000040 /* protocol-specific */
+#define	M_PROTO4	0x00000080 /* protocol-specific */
+#define	M_PROTO5	0x00000100 /* protocol-specific */
+#define	M_BCAST		0x00000200 /* send/received as link-level broadcast */
+#define	M_MCAST		0x00000400 /* send/received as link-level multicast */
+#define	M_FRAG		0x00000800 /* packet is a fragment of a larger packet */
+#define	M_FIRSTFRAG	0x00001000 /* packet is first fragment */
+#define	M_LASTFRAG	0x00002000 /* packet is last fragment */
+#define	M_SKIP_FIREWALL	0x00004000 /* skip firewall processing */
+#define	M_FREELIST	0x00008000 /* mbuf is on the free list */
+#define	M_VLANTAG	0x00010000 /* ether_vtag is valid */
+#define	M_PROMISC	0x00020000 /* packet was not for us */
+#define	M_NOFREE	0x00040000 /* do not free mbuf, embedded in cluster */
+#define	M_PROTO6	0x00080000 /* protocol-specific */
+#define	M_PROTO7	0x00100000 /* protocol-specific */
+#define	M_PROTO8	0x00200000 /* protocol-specific */
+
+#define	M_NOTIFICATION	M_PROTO5    /* SCTP notification */
 
 /*
- * mbuf pkthdr flags (also stored in m_flags).
+ * Flags to purge when crossing layers.
  */
-#define	M_BCAST		0x0200	/* send/received as link-level broadcast */
-#define	M_MCAST		0x0400	/* send/received as link-level multicast */
-#define	M_FRAG		0x0800	/* packet is a fragment of a larger packet */
-#define	M_FIRSTFRAG	0x1000	/* packet is first fragment */
-#define	M_LASTFRAG	0x2000	/* packet is last fragment */
-#define	M_VLANTAG	0x10000	/* ether_vtag is valid */
-#define	M_PROMISC	0x20000	/* packet was not for us */
-#define	M_NOFREE	0x40000	/* do not free mbuf - it is embedded in the cluster */
+#define	M_PROTOFLAGS \
+    (M_PROTO1|M_PROTO2|M_PROTO3|M_PROTO4|M_PROTO5|M_PROTO6|M_PROTO7|M_PROTO8)
+
+/*
+ * Flags preserved when copying m_pkthdr.
+ */
+#define	M_COPYFLAGS \
+    (M_PKTHDR|M_EOR|M_RDONLY|M_PROTOFLAGS|M_SKIP_FIREWALL|M_BCAST|M_MCAST|\
+     M_FRAG|M_FIRSTFRAG|M_LASTFRAG|M_VLANTAG|M_PROMISC)
 
 /*
  * External buffer types: identify ext_buf type.
@@ -209,19 +222,6 @@ struct mbuf {
 #define	EXT_MOD_TYPE	200	/* custom module's ext_buf type */
 #define	EXT_DISPOSABLE	300	/* can throw this buffer away w/page flipping */
 #define	EXT_EXTREF	400	/* has externally maintained ref_cnt ptr */
-
-/*
- * Flags copied when copying m_pkthdr.
- */
-#define	M_COPYFLAGS	(M_PKTHDR|M_EOR|M_RDONLY|M_PROTO1|M_PROTO1|M_PROTO2|\
-			    M_PROTO3|M_PROTO4|M_PROTO5|M_SKIP_FIREWALL|\
-			    M_BCAST|M_MCAST|M_FRAG|M_FIRSTFRAG|M_LASTFRAG|\
-			    M_VLANTAG|M_PROMISC)
-
-/*
- * Flags to purge when crossing layers.
- */
-#define	M_PROTOFLAGS	(M_PROTO1|M_PROTO2|M_PROTO3|M_PROTO4|M_PROTO5)
 
 /*
  * Flags indicating hw checksum support and sw checksum requirements.  This
