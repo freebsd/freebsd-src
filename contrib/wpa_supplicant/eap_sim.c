@@ -280,14 +280,16 @@ static u8 * eap_sim_response_start(struct eap_sm *sm,
 		   req->identifier);
 	msg = eap_sim_msg_init(EAP_CODE_RESPONSE, req->identifier,
 			       EAP_TYPE_SIM, EAP_SIM_SUBTYPE_START);
-	wpa_hexdump(MSG_DEBUG, "   AT_NONCE_MT",
-		    data->nonce_mt, EAP_SIM_NONCE_MT_LEN);
-	eap_sim_msg_add(msg, EAP_SIM_AT_NONCE_MT, 0,
-			data->nonce_mt, EAP_SIM_NONCE_MT_LEN);
-	wpa_printf(MSG_DEBUG, "   AT_SELECTED_VERSION %d",
-		   data->selected_version);
-	eap_sim_msg_add(msg, EAP_SIM_AT_SELECTED_VERSION,
-			data->selected_version, NULL, 0);
+	if (!data->reauth) {
+		wpa_hexdump(MSG_DEBUG, "   AT_NONCE_MT",
+			    data->nonce_mt, EAP_SIM_NONCE_MT_LEN);
+		eap_sim_msg_add(msg, EAP_SIM_AT_NONCE_MT, 0,
+				data->nonce_mt, EAP_SIM_NONCE_MT_LEN);
+		wpa_printf(MSG_DEBUG, "   AT_SELECTED_VERSION %d",
+			   data->selected_version);
+		eap_sim_msg_add(msg, EAP_SIM_AT_SELECTED_VERSION,
+				data->selected_version, NULL, 0);
+	}
 
 	if (identity) {
 		wpa_hexdump_ascii(MSG_DEBUG, "   AT_IDENTITY",
