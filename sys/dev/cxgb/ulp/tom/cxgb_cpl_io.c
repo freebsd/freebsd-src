@@ -259,7 +259,7 @@ make_tx_data_wr(struct socket *so, struct mbuf *m, int len, struct mbuf *tail)
 	struct toepcb *toep = tp->t_toe;
 	struct tx_data_wr *req;
 
-	inp_wlock_assert(tp->t_inpcb);
+	inp_lock_assert(tp->t_inpcb);
 
 	req = mtod(m, struct tx_data_wr *);
 	m->m_len = sizeof(*req);
@@ -314,7 +314,7 @@ t3_push_frames(struct socket *so, int req_completion)
 	}
 
 	
-	inp_wlock_assert(tp->t_inpcb);
+	inp_lock_assert(tp->t_inpcb);
 	SOCKBUF_LOCK(&so->so_snd);
 	d = TOM_DATA(TOE_DEV(so));
 	cdev = d->cdev;
@@ -676,7 +676,7 @@ t3_cleanup_rbuf(struct tcpcb *tp, int copied)
 		return;
 	}
 	
-	inp_wlock_assert(tp->t_inpcb);	
+	inp_lock_assert(tp->t_inpcb);	
 	SOCKBUF_LOCK(&so->so_rcv);
 	if (copied)
 		toep->tp_copied_seq += copied;
@@ -777,7 +777,7 @@ static int
 cxgb_toe_rcvd(struct tcpcb *tp)
 {
 
-	inp_wlock_assert(tp->t_inpcb);
+	inp_lock_assert(tp->t_inpcb);
 	t3_cleanup_rbuf(tp, 0);
 	
 	return (0);
@@ -792,7 +792,7 @@ cxgb_toe_detach(struct tcpcb *tp)
 	 * XXX how do we handle teardown in the SYN_SENT state?
 	 *
 	 */
-	inp_wlock_assert(tp->t_inpcb);
+	inp_lock_assert(tp->t_inpcb);
 	toep = tp->t_toe;
 	toep->tp_tp = NULL;
 
@@ -996,7 +996,7 @@ t3_get_tcb(struct socket *so)
 	if (!m)
 		return (ENOMEM);
 	
-	inp_wlock_assert(tp->t_inpcb);	
+	inp_lock_assert(tp->t_inpcb);	
 	m_set_priority(m, mkprio(CPL_PRIORITY_CONTROL, toep));
 	req = mtod(m, struct cpl_get_tcb *);
 	m->m_pkthdr.len = m->m_len = sizeof(*req);
@@ -1106,7 +1106,7 @@ t3_release_offload_resources(struct toepcb *toep)
 	}
 	toep->tp_tp = NULL;
 	if (tp) {
-		inp_wlock_assert(tp->t_inpcb);
+		inp_lock_assert(tp->t_inpcb);
 		tp->t_toe = NULL;
 		tp->t_flags &= ~TF_TOE;
 	}
@@ -1348,7 +1348,7 @@ fail_act_open(struct toepcb *toep, int errno)
 
 	t3_release_offload_resources(toep);
 	if (tp) {
-		inp_wlock_assert(tp->t_inpcb);
+		inp_lock_assert(tp->t_inpcb);
 		tcp_drop(tp, errno);
 	}
 	
@@ -1471,7 +1471,7 @@ t3_connect(struct toedev *tdev, struct socket *so,
 	if (!e)
 		goto free_tid;
 
-	inp_wlock_assert(inp);
+	inp_lock_assert(inp);
 	m = m_gethdr(MT_DATA, M_WAITOK);
 	
 #if 0	
@@ -1526,7 +1526,7 @@ t3_send_reset(struct toepcb *toep)
 	struct mbuf *m;
 	
 	if (tp) {
-		inp_wlock_assert(tp->t_inpcb);
+		inp_lock_assert(tp->t_inpcb);
 		so = toeptoso(toep);
 	}
 	
@@ -1711,7 +1711,7 @@ tcb_rpl_as_ddp_complete(struct toepcb *toep, struct mbuf *m)
 	so = toeptoso(toep);
 	tp = toep->tp_tp;
 
-	inp_wlock_assert(tp->t_inpcb);
+	inp_lock_assert(tp->t_inpcb);
 	SOCKBUF_LOCK(&so->so_rcv);
 	
 	/* Note that we only accout for CPL_GET_TCB issued by the DDP code. We
@@ -1904,7 +1904,7 @@ handle_ddp_data(struct toepcb *toep, struct mbuf *m)
 	if (tp->rcv_nxt == rcv_nxt)
 		return;
 
-	inp_wlock_assert(tp->t_inpcb);
+	inp_lock_assert(tp->t_inpcb);
 	SOCKBUF_LOCK(&so->so_rcv);
 	q = &toep->tp_ddp_state;
 	bsp = &q->buf_state[q->cur_buf];
@@ -2317,7 +2317,7 @@ enter_timewait(struct socket *so)
 {
 	struct tcpcb *tp = sototcpcb(so);
 
-	inp_wlock_assert(tp->t_inpcb);
+	inp_lock_assert(tp->t_inpcb);
 	/*
 	 * Bump rcv_nxt for the peer FIN.  We don't do this at the time we
 	 * process peer_close because we don't want to carry the peer FIN in
@@ -2366,7 +2366,7 @@ handle_peer_close_data(struct socket *so, struct mbuf *m)
 		return (1);
 	}
 
-	inp_wlock_assert(tp->t_inpcb);
+	inp_lock_assert(tp->t_inpcb);
 	q = &toep->tp_ddp_state;
 	SOCKBUF_LOCK(&so->so_rcv);
 	bsp = &q->buf_state[q->cur_buf];
@@ -3395,7 +3395,7 @@ assign_rxopt(struct socket *so, unsigned int opt)
 	struct tcpcb *tp = sototcpcb(so);
 	struct toepcb *toep = tp->t_toe;
 
-	inp_wlock_assert(tp->t_inpcb);
+	inp_lock_assert(tp->t_inpcb);
 	
 	toep->tp_mss_clamp = td->mtus[G_TCPOPT_MSS(opt)] - 40;
 	tp->t_flags         |= G_TCPOPT_TSTAMP(opt) ? TF_RCVD_TSTMP : 0;
@@ -3615,7 +3615,7 @@ fixup_and_send_ofo(struct socket *so)
 
 	printf("fixup_and_send_ofo\n");
 	
-	inp_wlock_assert(tp->t_inpcb);
+	inp_lock_assert(tp->t_inpcb);
 	while ((m = mbufq_dequeue(&toep->out_of_order_queue)) != NULL) {
 		/*
 		 * A variety of messages can be waiting but the fields we'll
