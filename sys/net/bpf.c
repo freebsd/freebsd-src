@@ -66,9 +66,11 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/bpf.h>
+#include <net/bpf_buffer.h>
 #ifdef BPF_JITTER
 #include <net/bpf_jitter.h>
 #endif
+#include <net/bpf_zerocopy.h>
 #include <net/bpfdesc.h>
 
 #include <netinet/in.h>
@@ -80,7 +82,7 @@ __FBSDID("$FreeBSD$");
 
 #include <security/mac/mac_framework.h>
 
-static MALLOC_DEFINE(M_BPF, "BPF", "BPF data");
+MALLOC_DEFINE(M_BPF, "BPF", "BPF data");
 
 #if defined(DEV_BPF) || defined(NETGRAPH_BPF)
 
@@ -98,19 +100,17 @@ static LIST_HEAD(, bpf_if)	bpf_iflist;
 static struct mtx	bpf_mtx;		/* bpf global lock */
 static int		bpf_bpfd_cnt;
 
-static void	bpf_allocbufs(struct bpf_d *);
 static void	bpf_attachd(struct bpf_d *, struct bpf_if *);
 static void	bpf_detachd(struct bpf_d *);
 static void	bpf_freed(struct bpf_d *);
-static void	bpf_mcopy(const void *, void *, size_t);
 static int	bpf_movein(struct uio *, int, struct ifnet *, struct mbuf **,
 		    struct sockaddr *, int *, struct bpf_insn *);
 static int	bpf_setif(struct bpf_d *, struct ifreq *);
 static void	bpf_timed_out(void *);
 static __inline void
 		bpf_wakeup(struct bpf_d *);
-static void	catchpacket(struct bpf_d *, u_char *, u_int,
-		    u_int, void (*)(const void *, void *, size_t),
+static void	catchpacket(struct bpf_d *, u_char *, u_int, u_int,
+		    void (*)(struct bpf_d *, caddr_t, u_int, void *, u_int),
 		    struct timeval *);
 static void	reset_d(struct bpf_d *);
 static int	 bpf_setf(struct bpf_d *, struct bpf_program *, u_long cmd);
@@ -123,15 +123,12 @@ static void	bpf_clone(void *, struct ucred *, char *, int, struct cdev **);
 static int	bpf_stats_sysctl(SYSCTL_HANDLER_ARGS);
 
 SYSCTL_NODE(_net, OID_AUTO, bpf, CTLFLAG_RW, 0, "bpf sysctl");
-static int bpf_bufsize = 4096;
-SYSCTL_INT(_net_bpf, OID_AUTO, bufsize, CTLFLAG_RW,
-    &bpf_bufsize, 0, "Default bpf buffer size");
-static int bpf_maxbufsize = BPF_MAXBUFSIZE;
-SYSCTL_INT(_net_bpf, OID_AUTO, maxbufsize, CTLFLAG_RW,
-    &bpf_maxbufsize, 0, "Maximum bpf buffer size");
 static int bpf_maxinsns = BPF_MAXINSNS;
 SYSCTL_INT(_net_bpf, OID_AUTO, maxinsns, CTLFLAG_RW,
     &bpf_maxinsns, 0, "Maximum bpf program instructions");
+static int bpf_zerocopy_enable = 0;
+SYSCTL_INT(_net_bpf, OID_AUTO, zerocopy_enable, CTLFLAG_RW,
+    &bpf_zerocopy_enable, 0, "Enable new zero-copy BPF buffer sessions");
 SYSCTL_NODE(_net_bpf, OID_AUTO, stats, CTLFLAG_RW,
     bpf_stats_sysctl, "bpf statistics portal");
 
@@ -158,6 +155,146 @@ static struct cdevsw bpf_cdevsw = {
 static struct filterops bpfread_filtops =
 	{ 1, NULL, filt_bpfdetach, filt_bpfread };
 
+/*
+ * Wrapper functions for various buffering methods.  If the set of buffer
+ * modes expands, we will probably want to introduce a switch data structure
+ * similar to protosw, et.
+ */
+static void
+bpf_append_bytes(struct bpf_d *d, caddr_t buf, u_int offset, void *src,
+    u_int len)
+{
+
+	BPFD_LOCK_ASSERT(d);
+
+	switch (d->bd_bufmode) {
+	case BPF_BUFMODE_BUFFER:
+		return (bpf_buffer_append_bytes(d, buf, offset, src, len));
+
+	case BPF_BUFMODE_ZBUF:
+		d->bd_zcopy++;
+		return (bpf_zerocopy_append_bytes(d, buf, offset, src, len));
+
+	default:
+		panic("bpf_buf_append_bytes");
+	}
+}
+
+static void
+bpf_append_mbuf(struct bpf_d *d, caddr_t buf, u_int offset, void *src,
+    u_int len)
+{
+
+	BPFD_LOCK_ASSERT(d);
+
+	switch (d->bd_bufmode) {
+	case BPF_BUFMODE_BUFFER:
+		return (bpf_buffer_append_mbuf(d, buf, offset, src, len));
+
+	case BPF_BUFMODE_ZBUF:
+		d->bd_zcopy++;
+		return (bpf_zerocopy_append_mbuf(d, buf, offset, src, len));
+
+	default:
+		panic("bpf_buf_append_mbuf");
+	}
+}
+
+/*
+ * If the buffer mechanism has a way to decide that a held buffer can be made
+ * free, then it is exposed via the bpf_canfreebuf() interface.  (1) is
+ * returned if the buffer can be discarded, (0) is returned if it cannot.
+ */
+static int
+bpf_canfreebuf(struct bpf_d *d)
+{
+
+	BPFD_LOCK_ASSERT(d);
+
+	switch (d->bd_bufmode) {
+	case BPF_BUFMODE_ZBUF:
+		return (bpf_zerocopy_canfreebuf(d));
+	}
+	return (0);
+}
+
+void
+bpf_bufheld(struct bpf_d *d)
+{
+
+	BPFD_LOCK_ASSERT(d);
+
+	switch (d->bd_bufmode) {
+	case BPF_BUFMODE_ZBUF:
+		bpf_zerocopy_bufheld(d);
+		break;
+	}
+}
+
+static void
+bpf_free(struct bpf_d *d)
+{
+
+	switch (d->bd_bufmode) {
+	case BPF_BUFMODE_BUFFER:
+		return (bpf_buffer_free(d));
+
+	case BPF_BUFMODE_ZBUF:
+		return (bpf_zerocopy_free(d));
+
+	default:
+		panic("bpf_buf_free");
+	}
+}
+
+static int
+bpf_uiomove(struct bpf_d *d, caddr_t buf, u_int len, struct uio *uio)
+{
+
+	if (d->bd_bufmode != BPF_BUFMODE_BUFFER)
+		return (EOPNOTSUPP);
+	return (bpf_buffer_uiomove(d, buf, len, uio));
+}
+
+static int
+bpf_ioctl_sblen(struct bpf_d *d, u_int *i)
+{
+
+	if (d->bd_bufmode != BPF_BUFMODE_BUFFER)
+		return (EOPNOTSUPP);
+	return (bpf_buffer_ioctl_sblen(d, i));
+}
+
+static int
+bpf_ioctl_getzmax(struct thread *td, struct bpf_d *d, size_t *i)
+{
+
+	if (d->bd_bufmode != BPF_BUFMODE_ZBUF)
+		return (EOPNOTSUPP);
+	return (bpf_zerocopy_ioctl_getzmax(td, d, i));
+}
+
+static int
+bpf_ioctl_rotzbuf(struct thread *td, struct bpf_d *d, struct bpf_zbuf *bz)
+{
+
+	if (d->bd_bufmode != BPF_BUFMODE_ZBUF)
+		return (EOPNOTSUPP);
+	return (bpf_zerocopy_ioctl_rotzbuf(td, d, bz));
+}
+
+static int
+bpf_ioctl_setzbuf(struct thread *td, struct bpf_d *d, struct bpf_zbuf *bz)
+{
+
+	if (d->bd_bufmode != BPF_BUFMODE_ZBUF)
+		return (EOPNOTSUPP);
+	return (bpf_zerocopy_ioctl_setzbuf(td, d, bz));
+}
+
+/*
+ * General BPF functions.
+ */
 static int
 bpf_movein(struct uio *uio, int linktype, struct ifnet *ifp, struct mbuf **mp,
     struct sockaddr *sockp, int *hdrlen, struct bpf_insn *wfilter)
@@ -412,7 +549,14 @@ bpfopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 		    "bpf%d", dev2unit(dev));
 	MALLOC(d, struct bpf_d *, sizeof(*d), M_BPF, M_WAITOK | M_ZERO);
 	dev->si_drv1 = d;
-	d->bd_bufsize = bpf_bufsize;
+
+	/*
+	 * For historical reasons, perform a one-time initialization call to
+	 * the buffer routines, even though we're not yet committed to a
+	 * particular buffer method.
+	 */
+	bpf_buffer_init(d);
+	d->bd_bufmode = BPF_BUFMODE_BUFFER;
 	d->bd_sig = SIGIO;
 	d->bd_direction = BPF_D_INOUT;
 	d->bd_pid = td->td_proc->p_pid;
@@ -459,18 +603,6 @@ bpfclose(struct cdev *dev, int flags, int fmt, struct thread *td)
 	return (0);
 }
 
-
-/*
- * Rotate the packet buffers in descriptor d.  Move the store buffer
- * into the hold slot, and the free buffer into the store slot.
- * Zero the length of the new store buffer.
- */
-#define ROTATE_BUFFERS(d) \
-	(d)->bd_hbuf = (d)->bd_sbuf; \
-	(d)->bd_hlen = (d)->bd_slen; \
-	(d)->bd_sbuf = (d)->bd_fbuf; \
-	(d)->bd_slen = 0; \
-	(d)->bd_fbuf = NULL;
 /*
  *  bpfread - read next chunk of packets from buffers
  */
@@ -490,6 +622,10 @@ bpfread(struct cdev *dev, struct uio *uio, int ioflag)
 
 	BPFD_LOCK(d);
 	d->bd_pid = curthread->td_proc->p_pid;
+	if (d->bd_bufmode != BPF_BUFMODE_BUFFER) {
+		BPFD_UNLOCK(d);
+		return (EOPNOTSUPP);
+	}
 	if (d->bd_state == BPF_WAITING)
 		callout_stop(&d->bd_callout);
 	timed_out = (d->bd_state == BPF_TIMED_OUT);
@@ -567,7 +703,7 @@ bpfread(struct cdev *dev, struct uio *uio, int ioflag)
 	 * issues a read on the same fd at the same time?  Don't want this
 	 * getting invalidated.
 	 */
-	error = uiomove(d->bd_hbuf, d->bd_hlen, uio);
+	error = bpf_uiomove(d, d->bd_hbuf, d->bd_hlen, uio);
 
 	BPFD_LOCK(d);
 	d->bd_fbuf = d->bd_hbuf;
@@ -613,6 +749,20 @@ bpf_timed_out(void *arg)
 }
 
 static int
+bpf_ready(struct bpf_d *d)
+{
+
+	BPFD_LOCK_ASSERT(d);
+
+	if (!bpf_canfreebuf(d) && d->bd_hlen != 0)
+		return (1);
+	if ((d->bd_immediate || d->bd_state == BPF_TIMED_OUT) &&
+	    d->bd_slen != 0)
+		return (1);
+	return (0);
+}
+
+static int
 bpfwrite(struct cdev *dev, struct uio *uio, int ioflag)
 {
 	struct bpf_d *d = dev->si_drv1;
@@ -622,25 +772,34 @@ bpfwrite(struct cdev *dev, struct uio *uio, int ioflag)
 	int error, hlen;
 
 	d->bd_pid = curthread->td_proc->p_pid;
-	if (d->bd_bif == NULL)
+	d->bd_wcount++;
+	if (d->bd_bif == NULL) {
+		d->bd_wdcount++;
 		return (ENXIO);
+	}
 
 	ifp = d->bd_bif->bif_ifp;
 
-	if ((ifp->if_flags & IFF_UP) == 0)
+	if ((ifp->if_flags & IFF_UP) == 0) {
+		d->bd_wdcount++;
 		return (ENETDOWN);
+	}
 
-	if (uio->uio_resid == 0)
+	if (uio->uio_resid == 0) {
+		d->bd_wdcount++;
 		return (0);
+	}
 
 	bzero(&dst, sizeof(dst));
 	m = NULL;
 	hlen = 0;
 	error = bpf_movein(uio, (int)d->bd_bif->bif_dlt, ifp,
 	    &m, &dst, &hlen, d->bd_wfilter);
-	if (error)
+	if (error) {
+		d->bd_wdcount++;
 		return (error);
-
+	}
+	d->bd_wfcount++;
 	if (d->bd_hdrcmplt)
 		dst.sa_family = pseudo_AF_HDRCMPLT;
 
@@ -667,6 +826,8 @@ bpfwrite(struct cdev *dev, struct uio *uio, int ioflag)
 #endif
 
 	error = (*ifp->if_output)(ifp, m, &dst, NULL);
+	if (error)
+		d->bd_wdcount++;
 
 	if (mc != NULL) {
 		if (error == 0)
@@ -697,6 +858,10 @@ reset_d(struct bpf_d *d)
 	d->bd_rcount = 0;
 	d->bd_dcount = 0;
 	d->bd_fcount = 0;
+	d->bd_wcount = 0;
+	d->bd_wfcount = 0;
+	d->bd_wdcount = 0;
+	d->bd_zcopy = 0;
 }
 
 /*
@@ -721,6 +886,11 @@ reset_d(struct bpf_d *d)
  *  BIOCSDIRECTION	Set packet direction flag
  *  BIOCLOCK		Set "locked" flag
  *  BIOCFEEDBACK	Set packet feedback mode.
+ *  BIOCSETZBUF		Set current zero-copy buffer locations.
+ *  BIOCGETZMAX		Get maximum zero-copy buffer size.
+ *  BIOCROTZBUF		Force rotation of zero-copy buffer
+ *  BIOCSETBUFMODE	Set buffer mode.
+ *  BIOCGETBUFMODE	Get current buffer mode.
  */
 /* ARGSUSED */
 static	int
@@ -758,6 +928,7 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 		case BIOCSRTIMEOUT:
 		case BIOCIMMEDIATE:
 		case TIOCGPGRP:
+		case BIOCROTZBUF:
 			break;
 		default:
 			return (EPERM);
@@ -810,17 +981,7 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 	 * Set buffer length.
 	 */
 	case BIOCSBLEN:
-		if (d->bd_bif != NULL)
-			error = EINVAL;
-		else {
-			u_int size = *(u_int *)addr;
-
-			if (size > bpf_maxbufsize)
-				*(u_int *)addr = size = bpf_maxbufsize;
-			else if (size < BPF_MINBUFSIZE)
-				*(u_int *)addr = size = BPF_MINBUFSIZE;
-			d->bd_bufsize = size;
-		}
+		error = bpf_ioctl_sblen(d, (u_int *)addr);
 		break;
 
 	/*
@@ -945,6 +1106,7 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 		{
 			struct bpf_stat *bs = (struct bpf_stat *)addr;
 
+			/* XXXCSJP overflow */
 			bs->bs_recv = d->bd_rcount;
 			bs->bs_drop = d->bd_dcount;
 			break;
@@ -1055,6 +1217,50 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 	case BIOCGRSIG:
 		*(u_int *)addr = d->bd_sig;
 		break;
+
+	case BIOCGETBUFMODE:
+		*(u_int *)addr = d->bd_bufmode;
+		break;
+
+	case BIOCSETBUFMODE:
+		/*
+		 * Allow the buffering mode to be changed as long as we
+		 * haven't yet committed to a particular mode.  Our
+		 * definition of commitment, for now, is whether or not a
+		 * buffer has been allocated or an interface attached, since
+		 * that's the point where things get tricky.
+		 */
+		switch (*(u_int *)addr) {
+		case BPF_BUFMODE_BUFFER:
+			break;
+
+		case BPF_BUFMODE_ZBUF:
+			if (bpf_zerocopy_enable)
+				break;
+			/* FALLSTHROUGH */
+
+		default:
+			return (EINVAL);
+		}
+
+		BPFD_LOCK(d);
+		if (d->bd_sbuf != NULL || d->bd_hbuf != NULL ||
+		    d->bd_fbuf != NULL || d->bd_bif != NULL) {
+			BPFD_UNLOCK(d);
+			return (EBUSY);
+		}
+		d->bd_bufmode = *(u_int *)addr;
+		BPFD_UNLOCK(d);
+		break;
+
+	case BIOCGETZMAX:
+		return (bpf_ioctl_getzmax(td, d, (size_t *)addr));
+
+	case BIOCSETZBUF:
+		return (bpf_ioctl_setzbuf(td, d, (struct bpf_zbuf *)addr));
+
+	case BIOCROTZBUF:
+		return (bpf_ioctl_rotzbuf(td, d, (struct bpf_zbuf *)addr));
 	}
 	return (error);
 }
@@ -1155,13 +1361,31 @@ bpf_setif(struct bpf_d *d, struct ifreq *ifr)
 		return (ENXIO);
 
 	bp = theywant->if_bpf;
+
 	/*
-	 * Allocate the packet buffers if we need to.
-	 * If we're already attached to requested interface,
-	 * just flush the buffer.
+	 * Behavior here depends on the buffering model.  If we're using
+	 * kernel memory buffers, then we can allocate them here.  If we're
+	 * using zero-copy, then the user process must have registered
+	 * buffers by the time we get here.  If not, return an error.
+	 *
+	 * XXXRW: There are locking issues here with multi-threaded use: what
+	 * if two threads try to set the interface at once?
 	 */
-	if (d->bd_sbuf == NULL)
-		bpf_allocbufs(d);
+	switch (d->bd_bufmode) {
+	case BPF_BUFMODE_BUFFER:
+		if (d->bd_sbuf == NULL)
+			bpf_buffer_alloc(d);
+		KASSERT(d->bd_sbuf != NULL, ("bpf_setif: bd_sbuf NULL"));
+		break;
+
+	case BPF_BUFMODE_ZBUF:
+		if (d->bd_sbuf == NULL)
+			return (EINVAL);
+		break;
+
+	default:
+		panic("bpf_setif: bufmode %d", d->bd_bufmode);
+	}
 	if (bp != d->bd_bif) {
 		if (d->bd_bif)
 			/*
@@ -1305,35 +1529,12 @@ bpf_tap(struct bpf_if *bp, u_char *pkt, u_int pktlen)
 #ifdef MAC
 			if (mac_bpfdesc_check_receive(d, bp->bif_ifp) == 0)
 #endif
-				catchpacket(d, pkt, pktlen, slen, bcopy, &tv);
+				catchpacket(d, pkt, pktlen, slen,
+				    bpf_append_bytes, &tv);
 		}
 		BPFD_UNLOCK(d);
 	}
 	BPFIF_UNLOCK(bp);
-}
-
-/*
- * Copy data from an mbuf chain into a buffer.  This code is derived
- * from m_copydata in sys/uipc_mbuf.c.
- */
-static void
-bpf_mcopy(const void *src_arg, void *dst_arg, size_t len)
-{
-	const struct mbuf *m;
-	u_int count;
-	u_char *dst;
-
-	m = src_arg;
-	dst = dst_arg;
-	while (len > 0) {
-		if (m == NULL)
-			panic("bpf_mcopy");
-		count = min(m->m_len, len);
-		bcopy(mtod(m, void *), dst, count);
-		m = m->m_next;
-		dst += count;
-		len -= count;
-	}
 }
 
 #define	BPF_CHECK_DIRECTION(d, m) \
@@ -1385,7 +1586,7 @@ bpf_mtap(struct bpf_if *bp, struct mbuf *m)
 			if (mac_bpfdesc_check_receive(d, bp->bif_ifp) == 0)
 #endif
 				catchpacket(d, (u_char *)m, pktlen, slen,
-				    bpf_mcopy, &tv);
+				    bpf_append_mbuf, &tv);
 		}
 		BPFD_UNLOCK(d);
 	}
@@ -1440,7 +1641,7 @@ bpf_mtap2(struct bpf_if *bp, void *data, u_int dlen, struct mbuf *m)
 			if (mac_bpfdesc_check_receive(d, bp->bif_ifp) == 0)
 #endif
 				catchpacket(d, (u_char *)&mb, pktlen, slen,
-				    bpf_mcopy, &tv);
+				    bpf_append_mbuf, &tv);
 		}
 		BPFD_UNLOCK(d);
 	}
@@ -1453,19 +1654,34 @@ bpf_mtap2(struct bpf_if *bp, void *data, u_int dlen, struct mbuf *m)
  * Move the packet data from interface memory (pkt) into the
  * store buffer.  "cpfn" is the routine called to do the actual data
  * transfer.  bcopy is passed in to copy contiguous chunks, while
- * bpf_mcopy is passed in to copy mbuf chains.  In the latter case,
+ * bpf_append_mbuf is passed in to copy mbuf chains.  In the latter case,
  * pkt is really an mbuf.
  */
 static void
 catchpacket(struct bpf_d *d, u_char *pkt, u_int pktlen, u_int snaplen,
-    void (*cpfn)(const void *, void *, size_t), struct timeval *tv)
+    void (*cpfn)(struct bpf_d *, caddr_t, u_int, void *, u_int),
+    struct timeval *tv)
 {
-	struct bpf_hdr *hp;
+	struct bpf_hdr hdr;
 	int totlen, curlen;
 	int hdrlen = d->bd_bif->bif_hdrlen;
 	int do_wakeup = 0;
 
 	BPFD_LOCK_ASSERT(d);
+
+	/*
+	 * Detect whether user space has released a buffer back to us, and if
+	 * so, move it from being a hold buffer to a free buffer.  This may
+	 * not be the best place to do it (for example, we might only want to
+	 * run this check if we need the space), but for now it's a reliable
+	 * spot to do it.
+	 */
+	if (bpf_canfreebuf(d)) {
+		d->bd_fbuf = d->bd_hbuf;
+		d->bd_hbuf = NULL;
+		d->bd_hlen = 0;
+	}
+
 	/*
 	 * Figure out how many bytes to move.  If the packet is
 	 * greater or equal to the snapshot length, transfer that
@@ -1500,44 +1716,31 @@ catchpacket(struct bpf_d *d, u_char *pkt, u_int pktlen, u_int snaplen,
 	}
 	else if (d->bd_immediate || d->bd_state == BPF_TIMED_OUT)
 		/*
-		 * Immediate mode is set, or the read timeout has
-		 * already expired during a select call.  A packet
-		 * arrived, so the reader should be woken up.
+		 * Immediate mode is set, or the read timeout has already
+		 * expired during a select call.  A packet arrived, so the
+		 * reader should be woken up.
 		 */
 		do_wakeup = 1;
 
 	/*
-	 * Append the bpf header.
+	 * Append the bpf header.  Note we append the actual header size, but
+	 * move forward the length of the header plus padding.
 	 */
-	hp = (struct bpf_hdr *)(d->bd_sbuf + curlen);
-	hp->bh_tstamp = *tv;
-	hp->bh_datalen = pktlen;
-	hp->bh_hdrlen = hdrlen;
+	bzero(&hdr, sizeof(hdr));
+	hdr.bh_tstamp = *tv;
+	hdr.bh_datalen = pktlen;
+	hdr.bh_hdrlen = hdrlen;
+	hdr.bh_caplen = totlen - hdrlen;
+	bpf_append_bytes(d, d->bd_sbuf, curlen, &hdr, sizeof(hdr));
+
 	/*
 	 * Copy the packet data into the store buffer and update its length.
 	 */
-	(*cpfn)(pkt, (u_char *)hp + hdrlen, (hp->bh_caplen = totlen - hdrlen));
+	(*cpfn)(d, d->bd_sbuf, curlen + hdrlen, pkt, hdr.bh_caplen);
 	d->bd_slen = curlen + totlen;
 
 	if (do_wakeup)
 		bpf_wakeup(d);
-}
-
-/*
- * Initialize all nonzero fields of a descriptor.
- */
-static void
-bpf_allocbufs(struct bpf_d *d)
-{
-
-	KASSERT(d->bd_fbuf == NULL, ("bpf_allocbufs: bd_fbuf != NULL"));
-	KASSERT(d->bd_sbuf == NULL, ("bpf_allocbufs: bd_sbuf != NULL"));
-	KASSERT(d->bd_hbuf == NULL, ("bpf_allocbufs: bd_hbuf != NULL"));
-
-	d->bd_fbuf = (caddr_t)malloc(d->bd_bufsize, M_BPF, M_WAITOK);
-	d->bd_sbuf = (caddr_t)malloc(d->bd_bufsize, M_BPF, M_WAITOK);
-	d->bd_slen = 0;
-	d->bd_hlen = 0;
 }
 
 /*
@@ -1547,18 +1750,13 @@ bpf_allocbufs(struct bpf_d *d)
 static void
 bpf_freed(struct bpf_d *d)
 {
+
 	/*
 	 * We don't need to lock out interrupts since this descriptor has
 	 * been detached from its interface and it yet hasn't been marked
 	 * free.
 	 */
-	if (d->bd_sbuf != NULL) {
-		free(d->bd_sbuf, M_BPF);
-		if (d->bd_hbuf != NULL)
-			free(d->bd_hbuf, M_BPF);
-		if (d->bd_fbuf != NULL)
-			free(d->bd_fbuf, M_BPF);
-	}
+	bpf_free(d);
 	if (d->bd_rfilter) {
 		free((caddr_t)d->bd_rfilter, M_BPF);
 #ifdef BPF_JITTER
@@ -1762,6 +1960,7 @@ bpfstats_fill_xbpf(struct xbpf_d *d, struct bpf_d *bd)
 
 	bzero(d, sizeof(*d));
 	BPFD_LOCK_ASSERT(bd);
+	d->bd_structsize = sizeof(*d);
 	d->bd_immediate = bd->bd_immediate;
 	d->bd_promisc = bd->bd_promisc;
 	d->bd_hdrcmplt = bd->bd_hdrcmplt;
@@ -1779,6 +1978,11 @@ bpfstats_fill_xbpf(struct xbpf_d *d, struct bpf_d *bd)
 	strlcpy(d->bd_ifname,
 	    bd->bd_bif->bif_ifp->if_xname, IFNAMSIZ);
 	d->bd_locked = bd->bd_locked;
+	d->bd_wcount = bd->bd_wcount;
+	d->bd_wdcount = bd->bd_wdcount;
+	d->bd_wfcount = bd->bd_wfcount;
+	d->bd_zcopy = bd->bd_zcopy;
+	d->bd_bufmode = bd->bd_bufmode;
 }
 
 static int

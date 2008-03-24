@@ -1633,8 +1633,10 @@ libkern/strtoul.c		standard
 libkern/strtouq.c		standard
 libkern/strvalid.c		standard
 net/bpf.c			standard
+net/bpf_buffer.c		optional bpf
 net/bpf_jitter.c		optional bpf_jitter
 net/bpf_filter.c		optional bpf | netgraph_bpf
+net/bpf_zerocopy.c		optional bpf
 net/bridgestp.c			optional bridge | if_bridge
 net/bsd_comp.c			optional ppp_bsdcomp
 net/ieee8023ad_lacp.c		optional lagg
