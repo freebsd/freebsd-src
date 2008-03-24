@@ -59,7 +59,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 6, 2007
+.Dd December 25, 2007
 .Dt DDB 4
 .Os
 .Sh NAME
@@ -593,6 +593,39 @@ Hard reset the system.
 .It Ic help
 Print a short summary of the available commands and command
 abbreviations.
+.Pp
+.It Ic capture on
+.It Ic capture off
+.It Ic capture reset
+.It Ic capture status
+.Nm
+supports a basic output capture facility, which can be used to retrieve the
+results of debugging commands from userpsace using
+.Xr sysctl 2 .
+.Ic capture on
+enables output capture;
+.Ic capture off
+disables capture.
+.Ic capture reset
+will clear the capture buffer and disable capture.
+.Ic capture status
+will report current buffer use, buffer size, and disposition of output
+capture.
+.Pp
+Userspace processes may inspect and manage
+.Nm
+capture state using
+.Xr sysctl 8 :
+.Pp
+.Dv debug.ddb.capture.bufsize
+may be used to query or set the current capture buffer size.
+.Pp
+.Dv debug.ddb.capture.maxbufsize
+may be used to query the compile-time limit on the capture buffer size.
+.Pp
+.Dv debug.ddb.capture.bytes
+may be used to query the number of bytes of output currently in the capture
+buffer.
 .El
 .Sh VARIABLES
 The debugger accesses registers and variables as
