@@ -350,6 +350,7 @@ crypto/sha2/sha2.c		optional crypto | geom_bde | ipsec | random | \
 					 sctp
 ddb/db_access.c			optional	ddb
 ddb/db_break.c			optional	ddb
+ddb/db_capture.c		optional	ddb
 ddb/db_command.c		optional	ddb
 ddb/db_examine.c		optional	ddb
 ddb/db_expr.c			optional	ddb
