@@ -77,6 +77,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/bpf.h>
 #include <net/bpf_buffer.h>
+#include <net/bpf_jitter.h>
 #include <net/bpfdesc.h>
 
 /*
