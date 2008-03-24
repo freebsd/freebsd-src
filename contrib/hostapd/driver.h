@@ -141,6 +141,10 @@ struct driver_ops {
 	 * this handler will be called after initial setup has been completed.
 	 */
 	int (*commit)(void *priv);
+
+	int (*set_radius_acl_auth)(void *priv, const u8 *mac, int accepted, 
+			u32 session_timeout);
+	int (*set_radius_acl_expire)(void *priv, const u8 *mac);
 };
 
 static inline int
@@ -651,6 +655,24 @@ hostapd_driver_commit(struct hostapd_data *hapd)
 	if (hapd->driver == NULL || hapd->driver->commit == NULL)
 		return 0;
 	return hapd->driver->commit(hapd->driver);
+}
+
+static inline int 
+hostapd_set_radius_acl_auth(struct hostapd_data *hapd, const u8 *mac, int accepted, 
+	u32 session_timeout)
+{
+	if (hapd->driver == NULL || hapd->driver->set_radius_acl_auth == NULL)
+		return 0;
+	return hapd->driver->set_radius_acl_auth(hapd->driver, mac, accepted,
+						 session_timeout);
+}
+
+static inline int 
+hostapd_set_radius_acl_expire(struct hostapd_data *hapd, const u8 *mac)
+{
+	if (hapd->driver == NULL || hapd->driver->set_radius_acl_expire == NULL)
+		return 0;
+	return hapd->driver->set_radius_acl_expire(hapd->driver, mac);
 }
 
 #endif /* DRIVER_H */
