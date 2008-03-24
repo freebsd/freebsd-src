@@ -326,6 +326,7 @@ db_readline(lstart, lsize)
 	while (!db_inputchar(cngetc()))
 	    continue;
 
+	db_capture_write(lstart, db_le - db_lbuf_start);
 	db_printf("\n");	/* synch output position */
 	*db_le = 0;
 

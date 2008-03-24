@@ -37,6 +37,10 @@
 #ifndef _DDB_DDB_H_
 #define	_DDB_DDB_H_
 
+#ifdef SYSCTL_DECL
+SYSCTL_DECL(_debug_ddb);
+#endif
+
 #include <machine/db_machdep.h>		/* type definitions */
 
 #ifndef DB_MAXARGS
@@ -126,6 +130,7 @@ int		db_value_of_name(const char *name, db_expr_t *valuep);
 int		db_write_bytes(vm_offset_t addr, size_t size, char *data);
 
 db_cmdfcn_t	db_breakpoint_cmd;
+db_cmdfcn_t	db_capture_cmd;
 db_cmdfcn_t	db_continue_cmd;
 db_cmdfcn_t	db_delete_cmd;
 db_cmdfcn_t	db_deletehwatch_cmd;
@@ -167,5 +172,15 @@ struct command {
 #define	CS_SET_DOT	0x100	/* set dot after command */
 	struct command_table *more; /* another level of command */
 };
+
+/*
+ * Interface between DDB and the DDB output capture facility.
+ */
+struct dumperinfo;
+void	db_capture_dump(struct dumperinfo *di);
+void	db_capture_enterpager(void);
+void	db_capture_exitpager(void);
+void	db_capture_write(char *buffer, u_int buflen);
+void	db_capture_writech(char ch);
 
 #endif /* !_DDB_DDB_H_ */
