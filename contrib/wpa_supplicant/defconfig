@@ -321,3 +321,6 @@ CONFIG_PEERKEY=y
 
 # Add support for writing debug log to a file (/tmp/wpa_supplicant-log-#.txt)
 #CONFIG_DEBUG_FILE=y
+
+# Add support for logging via syslog
+#CONFIG_DEBUG_SYSLOG=y
