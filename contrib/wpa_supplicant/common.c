@@ -20,7 +20,6 @@
 #ifdef CONFIG_DEBUG_FILE
 static FILE *out_file = NULL;
 #endif /* CONFIG_DEBUG_FILE */
-int wpa_debug_use_file = 0;
 int wpa_debug_level = MSG_INFO;
 int wpa_debug_show_keys = 0;
 int wpa_debug_timestamp = 0;
@@ -344,32 +343,29 @@ void wpa_hexdump_ascii_key(int level, const char *title, const u8 *buf,
 }
 
 
-int wpa_debug_open_file(void)
+int wpa_debug_open_file(const char *path)
 {
 #ifdef CONFIG_DEBUG_FILE
-	static int count = 0;
-	char fname[64];
-	if (!wpa_debug_use_file)
+	if (!path)
 		return 0;
-#ifdef _WIN32
-	os_snprintf(fname, sizeof(fname), "\\Temp\\wpa_supplicant-log-%d.txt",
-		    count++);
-#else /* _WIN32 */
-	os_snprintf(fname, sizeof(fname), "/tmp/wpa_supplicant-log-%d.txt",
-		    count++);
+	out_file = fopen(path, "a");
+	if (out_file == NULL) {
+		wpa_printf(MSG_ERROR, "wpa_debug_open_file: Failed to open "
+			   "output file, using standard output");
+		return -1;
+	}
+#ifndef _WIN32
+	setvbuf(out_file, NULL, _IOLBF, 0);
 #endif /* _WIN32 */
-	out_file = fopen(fname, "w");
-	return out_file == NULL ? -1 : 0;
-#else /* CONFIG_DEBUG_FILE */
-	return 0;
 #endif /* CONFIG_DEBUG_FILE */
+	return 0;
 }
 
 
 void wpa_debug_close_file(void)
 {
 #ifdef CONFIG_DEBUG_FILE
-	if (!wpa_debug_use_file)
+	if (!out_file)
 		return;
 	fclose(out_file);
 	out_file = NULL;

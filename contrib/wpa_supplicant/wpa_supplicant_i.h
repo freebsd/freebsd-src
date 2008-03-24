@@ -158,9 +158,9 @@ struct wpa_params {
 	int dbus_ctrl_interface;
 
 	/**
-	 * wpa_debug_use_file - Write debug to a file (instead of stdout)
+	 * wpa_debug_file_path - Path of debug file or %NULL to use stdout
 	 */
-	int wpa_debug_use_file;
+	const char *wpa_debug_file_path;
 };
 
 /**

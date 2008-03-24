@@ -1,7 +1,7 @@
 WPA Supplicant
 ==============
 
-Copyright (c) 2003-2007, Jouni Malinen <j@w1.fi> and contributors
+Copyright (c) 2003-2008, Jouni Malinen <j@w1.fi> and contributors
 All Rights Reserved.
 
 This program is dual-licensed under both the GPL version 2 and BSD
@@ -481,7 +481,7 @@ Command line options
 --------------------
 
 usage:
-  wpa_supplicant [-BddehLqqvwW] [-P<pid file>] [-g<global ctrl>] \
+  wpa_supplicant [-BddfhKLqqtuvwW] [-P<pid file>] [-g<global ctrl>] \
         -i<ifname> -c<config file> [-C<ctrl>] [-D<driver>] [-p<driver_param>] \
         [-b<br_ifname> [-N -i<ifname> -c<conf> [-C<ctrl>] [-D<driver>] \
         [-p<driver_param>] [-b<br_ifname>] ...]
@@ -494,6 +494,7 @@ options:
   -i = interface name
   -d = increase debugging verbosity (-dd even more)
   -D = driver name
+  -f = Log output to default log location (normally /tmp)
   -g = global ctrl_interface
   -K = include keys (passwords, etc.) in debug output
   -t = include timestamp in debug messages
