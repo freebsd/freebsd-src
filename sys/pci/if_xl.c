@@ -163,7 +163,7 @@ MODULE_DEPEND(xl, miibus, 1, 1, 1);
 /*
  * Various supported device vendors/types and their names.
  */
-static struct xl_type xl_devs[] = {
+static const struct xl_type xl_devs[] = {
 	{ TC_VENDORID, TC_DEVICEID_BOOMERANG_10BT,
 		"3Com 3c900-TPO Etherlink XL" },
 	{ TC_VENDORID, TC_DEVICEID_BOOMERANG_10BT_COMBO,
@@ -230,7 +230,7 @@ static int xl_detach(device_t);
 static int xl_newbuf(struct xl_softc *, struct xl_chain_onefrag *);
 static void xl_stats_update(void *);
 static void xl_stats_update_locked(struct xl_softc *);
-static int xl_encap(struct xl_softc *, struct xl_chain *, struct mbuf *);
+static int xl_encap(struct xl_softc *, struct xl_chain *, struct mbuf **);
 static void xl_rxeof(struct xl_softc *);
 static void xl_rxeof_task(void *, int);
 static int xl_rx_resync(struct xl_softc *);
@@ -278,8 +278,6 @@ static void xl_mediacheck(struct xl_softc *);
 static void xl_choose_media(struct xl_softc *sc, int *media);
 static void xl_choose_xcvr(struct xl_softc *, int);
 static void xl_dma_map_addr(void *, bus_dma_segment_t *, int, int);
-static void xl_dma_map_rxbuf(void *, bus_dma_segment_t *, int, bus_size_t, int);
-static void xl_dma_map_txbuf(void *, bus_dma_segment_t *, int, bus_size_t, int);
 #ifdef notdef
 static void xl_testpacket(struct xl_softc *);
 #endif
@@ -330,46 +328,6 @@ xl_dma_map_addr(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 
 	paddr = arg;
 	*paddr = segs->ds_addr;
-}
-
-static void
-xl_dma_map_rxbuf(void *arg, bus_dma_segment_t *segs, int nseg,
-    bus_size_t mapsize, int error)
-{
-	u_int32_t *paddr;
-
-	if (error)
-		return;
-
-	KASSERT(nseg == 1, ("xl_dma_map_rxbuf: too many DMA segments"));
-	paddr = arg;
-	*paddr = segs->ds_addr;
-}
-
-static void
-xl_dma_map_txbuf(void *arg, bus_dma_segment_t *segs, int nseg,
-    bus_size_t mapsize, int error)
-{
-	struct xl_list *l;
-	int i, total_len;
-
-	if (error)
-		return;
-
-	KASSERT(nseg <= XL_MAXFRAGS, ("too many DMA segments"));
-
-	total_len = 0;
-	l = arg;
-	for (i = 0; i < nseg; i++) {
-		KASSERT(segs[i].ds_len <= MCLBYTES, ("segment size too large"));
-		l->xl_frag[i].xl_addr = htole32(segs[i].ds_addr);
-		l->xl_frag[i].xl_len = htole32(segs[i].ds_len);
-		total_len += segs[i].ds_len;
-	}
-	l->xl_frag[nseg - 1].xl_len = htole32(segs[nseg - 1].ds_len |
-	    XL_LAST_FRAG);
-	l->xl_status = htole32(total_len);
-	l->xl_next = 0;
 }
 
 /*
@@ -1052,7 +1010,7 @@ xl_reset(struct xl_softc *sc)
 static int
 xl_probe(device_t dev)
 {
-	struct xl_type		*t;
+	const struct xl_type	*t;
 
 	t = xl_devs;
 
@@ -1226,7 +1184,7 @@ xl_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 	sc->xl_dev = dev;
-	
+
 	unit = device_get_unit(dev);
 
 	mtx_init(&sc->xl_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
@@ -1890,8 +1848,8 @@ xl_newbuf(struct xl_softc *sc, struct xl_chain_onefrag *c)
 {
 	struct mbuf		*m_new = NULL;
 	bus_dmamap_t		map;
-	int			error;
-	u_int32_t		baddr;
+	bus_dma_segment_t	segs[1];
+	int			error, nseg;
 
 	XL_LOCK_ASSERT(sc);
 
@@ -1904,14 +1862,16 @@ xl_newbuf(struct xl_softc *sc, struct xl_chain_onefrag *c)
 	/* Force longword alignment for packet payload. */
 	m_adj(m_new, ETHER_ALIGN);
 
-	error = bus_dmamap_load_mbuf(sc->xl_mtag, sc->xl_tmpmap, m_new,
-	    xl_dma_map_rxbuf, &baddr, BUS_DMA_NOWAIT);
+	error = bus_dmamap_load_mbuf_sg(sc->xl_mtag, sc->xl_tmpmap, m_new,
+	    segs, &nseg, BUS_DMA_NOWAIT);
 	if (error) {
 		m_freem(m_new);
 		device_printf(sc->xl_dev, "can't map mbuf (error %d)\n",
 		    error);
 		return (error);
 	}
+	KASSERT(nseg == 1,
+	    ("%s: too many DMA segments (%d)", __func__, nseg));
 
 	bus_dmamap_unload(sc->xl_mtag, c->xl_map);
 	map = c->xl_map;
@@ -1920,7 +1880,7 @@ xl_newbuf(struct xl_softc *sc, struct xl_chain_onefrag *c)
 	c->xl_mbuf = m_new;
 	c->xl_ptr->xl_frag.xl_len = htole32(m_new->m_len | XL_LAST_FRAG);
 	c->xl_ptr->xl_status = 0;
-	c->xl_ptr->xl_frag.xl_addr = htole32(baddr);
+	c->xl_ptr->xl_frag.xl_addr = htole32(segs->ds_addr);
 	bus_dmamap_sync(sc->xl_mtag, c->xl_map, BUS_DMASYNC_PREREAD);
 	return (0);
 }
@@ -2174,7 +2134,6 @@ xl_txeof_90xB(struct xl_softc *sc)
 	    BUS_DMASYNC_POSTREAD);
 	idx = sc->xl_cdata.xl_tx_cons;
 	while (idx != sc->xl_cdata.xl_tx_prod) {
-
 		cur_tx = &sc->xl_cdata.xl_tx_chain[idx];
 
 		if (!(le32toh(cur_tx->xl_ptr->xl_status) &
@@ -2465,26 +2424,21 @@ xl_stats_update_locked(struct xl_softc *sc)
  * pointers to the fragment pointers.
  */
 static int
-xl_encap(struct xl_softc *sc, struct xl_chain *c, struct mbuf *m_head)
+xl_encap(struct xl_softc *sc, struct xl_chain *c, struct mbuf **m_head)
 {
-	int			error;
-	u_int32_t		status;
+	struct mbuf		*m_new;
 	struct ifnet		*ifp = sc->xl_ifp;
+	int			error, i, nseg, total_len;
+	u_int32_t		status;
 
 	XL_LOCK_ASSERT(sc);
 
-	/*
-	 * Start packing the mbufs in this chain into
-	 * the fragment pointers. Stop when we run out
-	 * of fragments or hit the end of the mbuf chain.
-	 */
-	error = bus_dmamap_load_mbuf(sc->xl_mtag, c->xl_map, m_head,
-	    xl_dma_map_txbuf, c->xl_ptr, BUS_DMA_NOWAIT);
+	error = bus_dmamap_load_mbuf_sg(sc->xl_mtag, c->xl_map, *m_head,
+	    sc->xl_cdata.xl_tx_segs, &nseg, BUS_DMA_NOWAIT);
 
 	if (error && error != EFBIG) {
-		m_freem(m_head);
 		if_printf(ifp, "can't map mbuf (error %d)\n", error);
-		return (1);
+		return (error);
 	}
 
 	/*
@@ -2496,24 +2450,46 @@ xl_encap(struct xl_softc *sc, struct xl_chain *c, struct mbuf *m_head)
 	 * and would waste cycles.
 	 */
 	if (error) {
-		struct mbuf		*m_new;
-
-		m_new = m_defrag(m_head, M_DONTWAIT);
+		m_new = m_collapse(*m_head, M_DONTWAIT, XL_MAXFRAGS);
 		if (m_new == NULL) {
-			m_freem(m_head);
-			return (1);
-		} else {
-			m_head = m_new;
+			m_freem(*m_head);
+			*m_head = NULL;
+			return (ENOBUFS);
 		}
+		*m_head = m_new;
 
-		error = bus_dmamap_load_mbuf(sc->xl_mtag, c->xl_map,
-			m_head, xl_dma_map_txbuf, c->xl_ptr, BUS_DMA_NOWAIT);
+		error = bus_dmamap_load_mbuf_sg(sc->xl_mtag, c->xl_map,
+		    *m_head, sc->xl_cdata.xl_tx_segs, &nseg, BUS_DMA_NOWAIT);
 		if (error) {
-			m_freem(m_head);
+			m_freem(*m_head);
+			*m_head = NULL;
 			if_printf(ifp, "can't map mbuf (error %d)\n", error);
-			return (1);
+			return (error);
 		}
 	}
+
+	KASSERT(nseg <= XL_MAXFRAGS,
+	    ("%s: too many DMA segments (%d)", __func__, nseg));
+	if (nseg == 0) {
+		m_freem(*m_head);
+		*m_head = NULL;
+		return (EIO);
+	}
+
+	total_len = 0;
+	for (i = 0; i < nseg; i++) {
+		KASSERT(sc->xl_cdata.xl_tx_segs[i].ds_len <= MCLBYTES,
+		    ("segment size too large"));
+		c->xl_ptr->xl_frag[i].xl_addr =
+		    htole32(sc->xl_cdata.xl_tx_segs[i].ds_addr);
+		c->xl_ptr->xl_frag[i].xl_len =
+		    htole32(sc->xl_cdata.xl_tx_segs[i].ds_len);
+		total_len += sc->xl_cdata.xl_tx_segs[i].ds_len;
+	}
+	c->xl_ptr->xl_frag[nseg - 1].xl_len =
+	    htole32(sc->xl_cdata.xl_tx_segs[nseg - 1].ds_len | XL_LAST_FRAG);
+	c->xl_ptr->xl_status = htole32(total_len);
+	c->xl_ptr->xl_next = 0;
 
 	if (sc->xl_type == XL_TYPE_905B) {
 		status = XL_TXSTAT_RND_DEFEAT;
@@ -2531,7 +2507,7 @@ xl_encap(struct xl_softc *sc, struct xl_chain *c, struct mbuf *m_head)
 		c->xl_ptr->xl_status = htole32(status);
 	}
 
-	c->xl_mbuf = m_head;
+	c->xl_mbuf = *m_head;
 	bus_dmamap_sync(sc->xl_mtag, c->xl_map, BUS_DMASYNC_PREWRITE);
 	return (0);
 }
@@ -2564,7 +2540,6 @@ xl_start_locked(struct ifnet *ifp)
 	struct xl_softc		*sc = ifp->if_softc;
 	struct mbuf		*m_head = NULL;
 	struct xl_chain		*prev = NULL, *cur_tx = NULL, *start_tx;
-	struct xl_chain		*prev_tx;
 	u_int32_t		status;
 	int			error;
 
@@ -2585,20 +2560,23 @@ xl_start_locked(struct ifnet *ifp)
 
 	start_tx = sc->xl_cdata.xl_tx_free;
 
-	while (sc->xl_cdata.xl_tx_free != NULL) {
+	for (; !IFQ_DRV_IS_EMPTY(&ifp->if_snd) &&
+	    sc->xl_cdata.xl_tx_free != NULL;) {
 		IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
 		if (m_head == NULL)
 			break;
 
 		/* Pick a descriptor off the free list. */
-		prev_tx = cur_tx;
 		cur_tx = sc->xl_cdata.xl_tx_free;
 
 		/* Pack the data into the descriptor. */
-		error = xl_encap(sc, cur_tx, m_head);
+		error = xl_encap(sc, cur_tx, &m_head);
 		if (error) {
-			cur_tx = prev_tx;
-			continue;
+			if (m_head == NULL)
+				break;
+			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+			IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
+			break;
 		}
 
 		sc->xl_cdata.xl_tx_free = cur_tx->xl_next;
@@ -2691,7 +2669,6 @@ xl_start_90xB_locked(struct ifnet *ifp)
 	struct xl_softc		*sc = ifp->if_softc;
 	struct mbuf		*m_head = NULL;
 	struct xl_chain		*prev = NULL, *cur_tx = NULL, *start_tx;
-	struct xl_chain		*prev_tx;
 	int			error, idx;
 
 	XL_LOCK_ASSERT(sc);
@@ -2702,8 +2679,8 @@ xl_start_90xB_locked(struct ifnet *ifp)
 	idx = sc->xl_cdata.xl_tx_prod;
 	start_tx = &sc->xl_cdata.xl_tx_chain[idx];
 
-	while (sc->xl_cdata.xl_tx_chain[idx].xl_mbuf == NULL) {
-
+	for (; !IFQ_DRV_IS_EMPTY(&ifp->if_snd) &&
+	    sc->xl_cdata.xl_tx_chain[idx].xl_mbuf == NULL;) {
 		if ((XL_TX_LIST_CNT - sc->xl_cdata.xl_tx_cnt) < 3) {
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			break;
@@ -2713,14 +2690,16 @@ xl_start_90xB_locked(struct ifnet *ifp)
 		if (m_head == NULL)
 			break;
 
-		prev_tx = cur_tx;
 		cur_tx = &sc->xl_cdata.xl_tx_chain[idx];
 
 		/* Pack the data into the descriptor. */
-		error = xl_encap(sc, cur_tx, m_head);
+		error = xl_encap(sc, cur_tx, &m_head);
 		if (error) {
-			cur_tx = prev_tx;
-			continue;
+			if (m_head == NULL)
+				break;
+			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+			IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
+			break;
 		}
 
 		/* Chain it together. */
@@ -3027,10 +3006,8 @@ xl_ifmedia_upd(struct ifnet *ifp)
 	case IFM_10_2:
 	case IFM_10_5:
 		xl_setmode(sc, ifm->ifm_media);
+		XL_UNLOCK(sc);
 		return (0);
-		break;
-	default:
-		break;
 	}
 
 	if (sc->xl_media & XL_MEDIAOPT_MII ||
@@ -3198,7 +3175,6 @@ xl_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			ifp->if_capenable |= IFCAP_POLLING;
 			XL_UNLOCK(sc);
 			return (error);
-			
 		}
 		if (!(ifr->ifr_reqcap & IFCAP_POLLING) &&
 		    ifp->if_capenable & IFCAP_POLLING) {
