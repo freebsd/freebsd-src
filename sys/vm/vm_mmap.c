@@ -1142,6 +1142,7 @@ vm_mmap_vnode(struct thread *td, vm_size_t objsize,
 	void *handle;
 	vm_object_t obj;
 	struct mount *mp;
+	struct cdevsw *dsw;
 	int error, flags, type;
 	int vfslocked;
 
@@ -1172,13 +1173,19 @@ vm_mmap_vnode(struct thread *td, vm_size_t objsize,
 		type = OBJT_DEVICE;
 		handle = vp->v_rdev;
 
-		/* XXX: lack thredref on device */
-		if(vp->v_rdev->si_devsw->d_flags & D_MMAP_ANON) {
+		dsw = dev_refthread(handle);
+		if (dsw == NULL) {
+			error = ENXIO;
+			goto done;
+		}
+		if (dsw->d_flags & D_MMAP_ANON) {
+			dev_relthread(handle);
 			*maxprotp = VM_PROT_ALL;
 			*flagsp |= MAP_ANON;
 			error = 0;
 			goto done;
 		}
+		dev_relthread(handle);
 		/*
 		 * cdevs does not provide private mappings of any kind.
 		 */
@@ -1255,16 +1262,21 @@ vm_mmap_cdev(struct thread *td, vm_size_t objsize,
     struct cdev *cdev, vm_ooffset_t foff, vm_object_t *objp)
 {
 	vm_object_t obj;
+	struct cdevsw *dsw;
 	int flags;
 
 	flags = *flagsp;
 
-	/* XXX: lack thredref on device */
-	if (cdev->si_devsw->d_flags & D_MMAP_ANON) {
+	dsw = dev_refthread(cdev);
+	if (dsw == NULL)
+		return (ENXIO);
+	if (dsw->d_flags & D_MMAP_ANON) {
+		dev_relthread(cdev);
 		*maxprotp = VM_PROT_ALL;
 		*flagsp |= MAP_ANON;
 		return (0);
 	}
+	dev_relthread(cdev);
 	/*
 	 * cdevs does not provide private mappings of any kind.
 	 */
