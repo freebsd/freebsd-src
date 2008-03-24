@@ -100,8 +100,45 @@ panu_profile_create_protocol_descriptor_list(
 		uint8_t *buf, uint8_t const * const eob,
 		uint8_t const *data, uint32_t datalen)
 {
+	provider_p		provider = (provider_p) data;
+	sdp_panu_profile_p	panu = (sdp_panu_profile_p) provider->data;
+
 	return (bnep_profile_create_protocol_descriptor_list(
-			buf, eob, NULL, 0)); 
+			buf, eob, (uint8_t const *) &panu->psm,
+			sizeof(panu->psm))); 
+}
+
+static int32_t
+panu_profile_data_valid(uint8_t const *data, uint32_t datalen)
+{
+	sdp_panu_profile_p	panu = (sdp_panu_profile_p) data;
+
+	return ((panu->psm == 0)? 0 : 1);
+}
+
+static int32_t
+panu_profile_create_service_availability(
+		uint8_t *buf, uint8_t const * const eob,
+		uint8_t const *data, uint32_t datalen)
+{
+	provider_p		provider = (provider_p) data;
+	sdp_panu_profile_p	panu = (sdp_panu_profile_p) provider->data;
+
+	return (common_profile_create_service_availability( buf, eob,
+			&panu->load_factor, 1));
+}
+
+static int32_t
+panu_profile_create_security_description(
+		uint8_t *buf, uint8_t const * const eob,
+		uint8_t const *data, uint32_t datalen)
+{
+	provider_p		provider = (provider_p) data;
+	sdp_panu_profile_p	panu = (sdp_panu_profile_p) provider->data;
+
+	return (bnep_profile_create_security_description(buf, eob,
+			(uint8_t const *) &panu->security_description,
+			sizeof(panu->security_description)));
 }
 
 static attr_t	panu_profile_attrs[] = {
@@ -113,19 +150,23 @@ static attr_t	panu_profile_attrs[] = {
 	  panu_profile_create_protocol_descriptor_list },
 	{ SDP_ATTR_LANGUAGE_BASE_ATTRIBUTE_ID_LIST,
 	  common_profile_create_language_base_attribute_id_list },
+	{ SDP_ATTR_SERVICE_AVAILABILITY,
+	  panu_profile_create_service_availability },
 	{ SDP_ATTR_BLUETOOTH_PROFILE_DESCRIPTOR_LIST,
 	  panu_profile_create_bluetooth_profile_descriptor_list },
 	{ SDP_ATTR_PRIMARY_LANGUAGE_BASE_ID + SDP_ATTR_SERVICE_NAME_OFFSET, 
 	  panu_profile_create_service_name },
 	{ SDP_ATTR_PRIMARY_LANGUAGE_BASE_ID + SDP_ATTR_SERVICE_DESCRIPTION_OFFSET, 
 	  panu_profile_create_service_description },
+	{ SDP_ATTR_SECURITY_DESCRIPTION, 
+	  panu_profile_create_security_description },
 	{ 0, NULL } /* end entry */
 };
 
 profile_t	panu_profile_descriptor = {
 	SDP_SERVICE_CLASS_PANU,
 	sizeof(sdp_panu_profile_t),
-	common_profile_always_valid,
+	panu_profile_data_valid,
 	(attr_t const * const) &panu_profile_attrs
 };
 
