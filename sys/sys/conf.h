@@ -213,8 +213,13 @@ struct cdevsw {
 	LIST_ENTRY(cdevsw)	d_list;
 	LIST_HEAD(, cdev)	d_devs;
 	int			d_spare3;
-	struct cdevsw		*d_gianttrick;
+	union {
+		struct cdevsw		*gianttrick;
+		SLIST_ENTRY(cdevsw)	postfree_list;
+	} __d_giant;
 };
+#define	d_gianttrick		__d_giant.gianttrick
+#define	d_postfree_list		__d_giant.postfree_list
 
 #define NUMCDEVSW 256
 
