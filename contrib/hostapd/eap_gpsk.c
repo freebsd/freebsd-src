@@ -1,5 +1,5 @@
 /*
- * hostapd / EAP-GPSK (draft-ietf-emu-eap-gpsk-03.txt) server
+ * hostapd / EAP-GPSK (draft-ietf-emu-eap-gpsk-08.txt) server
  * Copyright (c) 2006-2007, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -23,15 +23,15 @@
 struct eap_gpsk_data {
 	enum { GPSK_1, GPSK_3, SUCCESS, FAILURE } state;
 	u8 rand_server[EAP_GPSK_RAND_LEN];
-	u8 rand_client[EAP_GPSK_RAND_LEN];
+	u8 rand_peer[EAP_GPSK_RAND_LEN];
 	u8 msk[EAP_MSK_LEN];
 	u8 emsk[EAP_EMSK_LEN];
 	u8 sk[EAP_GPSK_MAX_SK_LEN];
 	size_t sk_len;
 	u8 pk[EAP_GPSK_MAX_PK_LEN];
 	size_t pk_len;
-	u8 *id_client;
-	size_t id_client_len;
+	u8 *id_peer;
+	size_t id_peer_len;
 	u8 *id_server;
 	size_t id_server_len;
 #define MAX_NUM_CSUITES 2
@@ -85,17 +85,17 @@ static void * eap_gpsk_init(struct eap_sm *sm)
 	data->csuite_count = 0;
 	if (eap_gpsk_supported_ciphersuite(EAP_GPSK_VENDOR_IETF,
 					   EAP_GPSK_CIPHER_AES)) {
-		WPA_PUT_BE24(data->csuite_list[data->csuite_count].vendor,
+		WPA_PUT_BE32(data->csuite_list[data->csuite_count].vendor,
 			     EAP_GPSK_VENDOR_IETF);
-		WPA_PUT_BE24(data->csuite_list[data->csuite_count].specifier,
+		WPA_PUT_BE16(data->csuite_list[data->csuite_count].specifier,
 			     EAP_GPSK_CIPHER_AES);
 		data->csuite_count++;
 	}
 	if (eap_gpsk_supported_ciphersuite(EAP_GPSK_VENDOR_IETF,
 					   EAP_GPSK_CIPHER_SHA256)) {
-		WPA_PUT_BE24(data->csuite_list[data->csuite_count].vendor,
+		WPA_PUT_BE32(data->csuite_list[data->csuite_count].vendor,
 			     EAP_GPSK_VENDOR_IETF);
-		WPA_PUT_BE24(data->csuite_list[data->csuite_count].specifier,
+		WPA_PUT_BE16(data->csuite_list[data->csuite_count].specifier,
 			     EAP_GPSK_CIPHER_SHA256);
 		data->csuite_count++;
 	}
@@ -108,7 +108,7 @@ static void eap_gpsk_reset(struct eap_sm *sm, void *priv)
 {
 	struct eap_gpsk_data *data = priv;
 	free(data->id_server);
-	free(data->id_client);
+	free(data->id_peer);
 	free(data);
 }
 
@@ -174,8 +174,8 @@ static u8 * eap_gpsk_build_gpsk_3(struct eap_sm *sm,
 	wpa_printf(MSG_DEBUG, "EAP-GPSK: Request/GPSK-3");
 
 	miclen = eap_gpsk_mic_len(data->vendor, data->specifier);
-	len = 1 + 2 * EAP_GPSK_RAND_LEN + sizeof(struct eap_gpsk_csuite) + 2 +
-		miclen;
+	len = 1 + 2 * EAP_GPSK_RAND_LEN + 2 + data->id_server_len +
+		sizeof(struct eap_gpsk_csuite) + 2 + miclen;
 	req = eap_msg_alloc(EAP_VENDOR_IETF, EAP_TYPE_GPSK, reqDataLen,
 			    len, EAP_CODE_REQUEST, id, &pos);
 	if (req == NULL) {
@@ -188,13 +188,18 @@ static u8 * eap_gpsk_build_gpsk_3(struct eap_sm *sm,
 	*pos++ = EAP_GPSK_OPCODE_GPSK_3;
 	start = pos;
 
-	memcpy(pos, data->rand_client, EAP_GPSK_RAND_LEN);
+	memcpy(pos, data->rand_peer, EAP_GPSK_RAND_LEN);
 	pos += EAP_GPSK_RAND_LEN;
 	memcpy(pos, data->rand_server, EAP_GPSK_RAND_LEN);
 	pos += EAP_GPSK_RAND_LEN;
+	WPA_PUT_BE16(pos, data->id_server_len);
+	pos += 2;
+	if (data->id_server)
+		memcpy(pos, data->id_server, data->id_server_len);
+	pos += data->id_server_len;
 	csuite = (struct eap_gpsk_csuite *) pos;
-	WPA_PUT_BE24(csuite->vendor, data->vendor);
-	WPA_PUT_BE24(csuite->specifier, data->specifier);
+	WPA_PUT_BE32(csuite->vendor, data->vendor);
+	WPA_PUT_BE16(csuite->specifier, data->specifier);
 	pos += sizeof(*csuite);
 
 	/* no PD_Payload_2 */
@@ -282,7 +287,7 @@ static void eap_gpsk_process_gpsk_2(struct eap_sm *sm,
 
 	if (end - pos < 2) {
 		wpa_printf(MSG_DEBUG, "EAP-GPSK: Too short message for "
-			   "ID_Client length");
+			   "ID_Peer length");
 		eap_gpsk_state(data, FAILURE);
 		return;
 	}
@@ -290,21 +295,21 @@ static void eap_gpsk_process_gpsk_2(struct eap_sm *sm,
 	pos += 2;
 	if (end - pos < alen) {
 		wpa_printf(MSG_DEBUG, "EAP-GPSK: Too short message for "
-			   "ID_Client");
+			   "ID_Peer");
 		eap_gpsk_state(data, FAILURE);
 		return;
 	}
-	free(data->id_client);
-	data->id_client = malloc(alen);
-	if (data->id_client == NULL) {
+	free(data->id_peer);
+	data->id_peer = malloc(alen);
+	if (data->id_peer == NULL) {
 		wpa_printf(MSG_DEBUG, "EAP-GPSK: Not enough memory to store "
-			   "%d-octet ID_Client", alen);
+			   "%d-octet ID_Peer", alen);
 		return;
 	}
-	memcpy(data->id_client, pos, alen);
-	data->id_client_len = alen;
-	wpa_hexdump_ascii(MSG_DEBUG, "EAP-GPSK: ID_Client",
-			  data->id_client, data->id_client_len);
+	memcpy(data->id_peer, pos, alen);
+	data->id_peer_len = alen;
+	wpa_hexdump_ascii(MSG_DEBUG, "EAP-GPSK: ID_Peer",
+			  data->id_peer, data->id_peer_len);
 	pos += alen;
 
 	if (end - pos < 2) {
@@ -332,13 +337,13 @@ static void eap_gpsk_process_gpsk_2(struct eap_sm *sm,
 
 	if (end - pos < EAP_GPSK_RAND_LEN) {
 		wpa_printf(MSG_DEBUG, "EAP-GPSK: Too short message for "
-			   "RAND_Client");
+			   "RAND_Peer");
 		eap_gpsk_state(data, FAILURE);
 		return;
 	}
-	memcpy(data->rand_client, pos, EAP_GPSK_RAND_LEN);
-	wpa_hexdump(MSG_DEBUG, "EAP-GPSK: RAND_Client",
-		    data->rand_client, EAP_GPSK_RAND_LEN);
+	memcpy(data->rand_peer, pos, EAP_GPSK_RAND_LEN);
+	wpa_hexdump(MSG_DEBUG, "EAP-GPSK: RAND_Peer",
+		    data->rand_peer, EAP_GPSK_RAND_LEN);
 	pos += EAP_GPSK_RAND_LEN;
 
 	if (end - pos < EAP_GPSK_RAND_LEN) {
@@ -397,13 +402,13 @@ static void eap_gpsk_process_gpsk_2(struct eap_sm *sm,
 	if (i == data->csuite_count) {
 		wpa_printf(MSG_DEBUG, "EAP-GPSK: Peer selected unsupported "
 			   "ciphersuite %d:%d",
-			   WPA_GET_BE24(csuite->vendor),
-			   WPA_GET_BE24(csuite->specifier));
+			   WPA_GET_BE32(csuite->vendor),
+			   WPA_GET_BE16(csuite->specifier));
 		eap_gpsk_state(data, FAILURE);
 		return;
 	}
-	data->vendor = WPA_GET_BE24(csuite->vendor);
-	data->specifier = WPA_GET_BE24(csuite->specifier);
+	data->vendor = WPA_GET_BE32(csuite->vendor);
+	data->specifier = WPA_GET_BE16(csuite->specifier);
 	wpa_printf(MSG_DEBUG, "EAP-GPSK: CSuite_Sel %d:%d",
 		   data->vendor, data->specifier);
 	pos += sizeof(*csuite);	
@@ -434,8 +439,8 @@ static void eap_gpsk_process_gpsk_2(struct eap_sm *sm,
 
 	if (eap_gpsk_derive_keys(sm->user->password, sm->user->password_len,
 				 data->vendor, data->specifier,
-				 data->rand_client, data->rand_server,
-				 data->id_client, data->id_client_len,
+				 data->rand_peer, data->rand_server,
+				 data->id_peer, data->id_peer_len,
 				 data->id_server, data->id_server_len,
 				 data->msk, data->emsk,
 				 data->sk, &data->sk_len,

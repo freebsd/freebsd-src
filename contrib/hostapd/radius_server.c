@@ -1,6 +1,6 @@
 /*
  * hostapd / RADIUS authentication server
- * Copyright (c) 2005-2006, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2005-2008, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -376,6 +376,13 @@ radius_server_encapsulate_eap(struct radius_server_data *data,
 		}
 	}
 
+	if (radius_msg_copy_attr(msg, request, RADIUS_ATTR_PROXY_STATE) < 0) {
+		RADIUS_DEBUG("Failed to copy Proxy-State attribute(s)");
+		radius_msg_free(msg);
+		os_free(msg);
+		return NULL;
+	}
+
 	if (radius_msg_finish_srv(msg, (u8 *) client->shared_secret,
 				  client->shared_secret_len,
 				  request->hdr->authenticator) < 0) {
@@ -414,6 +421,12 @@ static int radius_server_reject(struct radius_server_data *data,
 		RADIUS_DEBUG("Failed to add EAP-Message attribute");
 	}
 
+	if (radius_msg_copy_attr(msg, request, RADIUS_ATTR_PROXY_STATE) < 0) {
+		RADIUS_DEBUG("Failed to copy Proxy-State attribute(s)");
+		radius_msg_free(msg);
+		os_free(msg);
+		return -1;
+	}
 
 	if (radius_msg_finish_srv(msg, (u8 *) client->shared_secret,
 				  client->shared_secret_len,

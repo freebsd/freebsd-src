@@ -1,6 +1,6 @@
 /*
  * hostapd / EAP-SIM (RFC 4186)
- * Copyright (c) 2005-2007, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2005-2008, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -110,6 +110,13 @@ static u8 * eap_sim_build_start(struct eap_sm *sm, struct eap_sim_data *data,
 				      sm->identity_len)) {
 		wpa_printf(MSG_DEBUG, "   AT_PERMANENT_ID_REQ");
 		eap_sim_msg_add(msg, EAP_SIM_AT_PERMANENT_ID_REQ, 0, NULL, 0);
+	} else {
+		/*
+		 * RFC 4186, Chap. 4.2.4 recommends that identity from EAP is
+		 * ignored and the SIM/Start is used to request the identity.
+		 */
+		wpa_printf(MSG_DEBUG, "   AT_ANY_ID_REQ");
+		eap_sim_msg_add(msg, EAP_SIM_AT_ANY_ID_REQ, 0, NULL, 0);
 	}
 	wpa_printf(MSG_DEBUG, "   AT_VERSION_LIST");
 	ver[0] = 0;
@@ -331,20 +338,6 @@ static void eap_sim_process_start(struct eap_sm *sm,
 
 	wpa_printf(MSG_DEBUG, "EAP-SIM: Receive start response");
 
-	if (attr->nonce_mt == NULL || attr->selected_version < 0) {
-		wpa_printf(MSG_DEBUG, "EAP-SIM: Start/Response missing "
-			   "required attributes");
-		eap_sim_state(data, FAILURE);
-		return;
-	}
-
-	if (!eap_sim_supported_ver(data, attr->selected_version)) {
-		wpa_printf(MSG_DEBUG, "EAP-SIM: Peer selected unsupported "
-			   "version %d", attr->selected_version);
-		eap_sim_state(data, FAILURE);
-		return;
-	}
-
 	if (attr->identity) {
 		free(sm->identity);
 		sm->identity = malloc(attr->identity_len);
@@ -398,6 +391,20 @@ static void eap_sim_process_start(struct eap_sm *sm,
 		return;
 	}
 
+	if (attr->nonce_mt == NULL || attr->selected_version < 0) {
+		wpa_printf(MSG_DEBUG, "EAP-SIM: Start/Response missing "
+			   "required attributes");
+		eap_sim_state(data, FAILURE);
+		return;
+	}
+
+	if (!eap_sim_supported_ver(data, attr->selected_version)) {
+		wpa_printf(MSG_DEBUG, "EAP-SIM: Peer selected unsupported "
+			   "version %d", attr->selected_version);
+		eap_sim_state(data, FAILURE);
+		return;
+	}
+
 	data->counter = 0; /* reset re-auth counter since this is full auth */
 	data->reauth = NULL;
 
@@ -418,12 +425,18 @@ static void eap_sim_process_start(struct eap_sm *sm,
 		return;
 	}
 
+	identity_len = sm->identity_len;
+	while (identity_len > 0 && sm->identity[identity_len - 1] == '\0') {
+		wpa_printf(MSG_DEBUG, "EAP-SIM: Workaround - drop last null "
+			   "character from identity");
+		identity_len--;
+	}
 	wpa_hexdump_ascii(MSG_DEBUG, "EAP-SIM: Identity for MK derivation",
-			  sm->identity, sm->identity_len);
+			  sm->identity, identity_len);
 
 	memcpy(data->nonce_mt, attr->nonce_mt, EAP_SIM_NONCE_MT_LEN);
 	WPA_PUT_BE16(ver_list, EAP_SIM_VERSION);
-	eap_sim_derive_mk(sm->identity, sm->identity_len, attr->nonce_mt,
+	eap_sim_derive_mk(sm->identity, identity_len, attr->nonce_mt,
 			  attr->selected_version, ver_list, sizeof(ver_list),
 			  data->num_chal, (const u8 *) data->kc, data->mk);
 	eap_sim_derive_keys(data->mk, data->k_encr, data->k_aut, data->msk,
