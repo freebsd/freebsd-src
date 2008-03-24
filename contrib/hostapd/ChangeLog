@@ -1,5 +1,25 @@
 ChangeLog for hostapd
 
+2008-02-19 - v0.5.10
+	* fixed EAP-SIM and EAP-AKA message parser to validate attribute
+	  lengths properly to avoid potential crash caused by invalid messages
+	* fixed Reassociation Response callback processing when using internal
+	  MLME (driver_{hostap,devicescape,test}.c)
+	* fixed EAP-SIM/AKA realm processing to allow decorated usernames to
+	  be used
+	* added a workaround for EAP-SIM/AKA peers that include incorrect null
+	  termination in the username
+	* fixed EAP-SIM Start response processing for fast reauthentication
+	  case
+	* copy optional Proxy-State attributes into RADIUS response when acting
+	  as a RADIUS authentication server
+
+2007-12-02 - v0.5.9
+	* updated EAP Generalized Pre-Shared Key (EAP-GPSK) to use the latest
+	  draft (draft-ietf-emu-eap-gpsk-07.txt)
+	* fixed debugging code not to use potentially unaligned read to fetch
+	  IPv4 addresses
+
 2007-05-28 - v0.5.8
 	* updated driver_devicescape.c to build with the current
 	  wireless-dev.git tree and net/d80211 changes
