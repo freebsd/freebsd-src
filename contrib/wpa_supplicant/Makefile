@@ -654,8 +654,25 @@ endif
 ifdef CONFIG_CTRL_IFACE_DBUS
 CFLAGS += -DCONFIG_CTRL_IFACE_DBUS -DDBUS_API_SUBJECT_TO_CHANGE
 OBJS += ctrl_iface_dbus.o ctrl_iface_dbus_handlers.o dbus_dict_helpers.o
-LIBS += `pkg-config --libs dbus-1`
-CFLAGS += `pkg-config --cflags dbus-1`
+ifndef DBUS_LIBS
+DBUS_LIBS := $(shell pkg-config --libs dbus-1)
+endif
+LIBS += $(DBUS_LIBS)
+ifndef DBUS_INCLUDE
+DBUS_INCLUDE := $(shell pkg-config --cflags dbus-1)
+endif
+dbus_version=$(subst ., ,$(shell pkg-config --modversion dbus-1))
+DBUS_VERSION_MAJOR=$(word 1,$(dbus_version))
+DBUS_VERSION_MINOR=$(word 2,$(dbus_version))
+ifeq ($(DBUS_VERSION_MAJOR),)
+DBUS_VERSION_MAJOR=0
+endif
+ifeq ($(DBUS_VERSION_MINOR),)
+DBUS_VERSION_MINOR=0
+endif
+DBUS_INCLUDE += -DDBUS_VERSION_MAJOR=$(DBUS_VERSION_MAJOR)
+DBUS_INCLUDE += -DDBUS_VERSION_MINOR=$(DBUS_VERSION_MINOR)
+CFLAGS += $(DBUS_INCLUDE)
 endif
 
 ifdef CONFIG_READLINE
@@ -722,6 +739,10 @@ endif
 
 ifndef CONFIG_MAIN
 CONFIG_MAIN=main
+endif
+
+ifdef CONFIG_DEBUG_FILE
+CFLAGS += -DCONFIG_DEBUG_FILE
 endif
 
 OBJS += wpa_supplicant.o events.o

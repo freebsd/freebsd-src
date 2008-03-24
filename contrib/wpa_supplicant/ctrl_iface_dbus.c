@@ -30,6 +30,14 @@
 #include "wpa_ctrl.h"
 #include "eap.h"
 
+#define DBUS_VERSION (DBUS_VERSION_MAJOR << 8 | DBUS_VERSION_MINOR)
+#define DBUS_VER(major, minor) ((major) << 8 | (minor))
+
+#if DBUS_VERSION < DBUS_VER(1,1)
+#define dbus_watch_get_unix_fd dbus_watch_get_fd
+#endif
+
+
 struct ctrl_iface_dbus_priv {
 	DBusConnection *con;
 	int should_dispatch;
@@ -92,7 +100,7 @@ static void connection_setup_add_watch(struct ctrl_iface_dbus_priv *iface,
 		return;
 
 	flags = dbus_watch_get_flags(watch);
-	fd = dbus_watch_get_fd(watch);
+	fd = dbus_watch_get_unix_fd(watch);
 
 	eloop_register_sock(fd, EVENT_TYPE_EXCEPTION, process_watch_exception,
 			    iface, watch);
@@ -117,7 +125,7 @@ static void connection_setup_remove_watch(struct ctrl_iface_dbus_priv *iface,
 	int fd;
 
 	flags = dbus_watch_get_flags(watch);
-	fd = dbus_watch_get_fd(watch);
+	fd = dbus_watch_get_unix_fd(watch);
 
 	eloop_unregister_sock(fd, EVENT_TYPE_EXCEPTION);
 
@@ -536,6 +544,10 @@ static DBusHandlerResult wpas_iface_message_handler(DBusConnection *connection,
 			reply = wpas_dbus_iface_set_ap_scan(message, wpa_s);
 		else if (!strcmp(method, "state"))
 			reply = wpas_dbus_iface_get_state(message, wpa_s);
+		else if (!strcmp(method, "setBlobs"))
+			reply = wpas_dbus_iface_set_blobs(message, wpa_s);
+		else if (!strcmp(method, "removeBlobs"))
+			reply = wpas_dbus_iface_remove_blobs(message, wpa_s);
 	}
 
 	/* If the message was handled, send back the reply */
@@ -645,6 +657,7 @@ void wpa_supplicant_dbus_notify_scan_results(struct wpa_supplicant *wpa_s)
 		return;
 	}
 	dbus_connection_send(iface->con, signal, NULL);
+	dbus_message_unref(signal);
 }
 
 
@@ -662,7 +675,7 @@ void wpa_supplicant_dbus_notify_state_change(struct wpa_supplicant *wpa_s,
 					     wpa_states old_state)
 {
 	struct ctrl_iface_dbus_priv *iface;
-	DBusMessage *signal;
+	DBusMessage *signal = NULL;
 	const char *path;
 	const char *new_state_str, *old_state_str;
 
@@ -707,7 +720,7 @@ void wpa_supplicant_dbus_notify_state_change(struct wpa_supplicant *wpa_s,
 		wpa_printf(MSG_ERROR,
 		           "wpa_supplicant_dbus_notify_state_change[dbus]: "
 		           "couldn't convert state strings.");
-		return;
+		goto out;
 	}
 
 	if (!dbus_message_append_args(signal,
@@ -720,8 +733,12 @@ void wpa_supplicant_dbus_notify_state_change(struct wpa_supplicant *wpa_s,
 		           "wpa_supplicant_dbus_notify_state_change[dbus]: "
 		           "not enough memory to construct state change "
 		           "signal.");
+		goto out;
 	}
 	dbus_connection_send(iface->con, signal, NULL);
+
+out:
+	dbus_message_unref(signal);
 }
 
 

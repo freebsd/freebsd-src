@@ -1203,3 +1203,129 @@ DBusMessage * wpas_dbus_iface_get_state(DBusMessage *message,
 
 	return reply;
 }
+
+
+/**
+ * wpas_dbus_iface_set_blobs - Store named binary blobs (ie, for certificates)
+ * @message: Pointer to incoming dbus message
+ * @global: %wpa_supplicant global data structure
+ * Returns: A dbus message containing a UINT32 indicating success (1) or
+ *          failure (0)
+ *
+ * Asks wpa_supplicant to internally store a one or more binary blobs.
+ */
+DBusMessage * wpas_dbus_iface_set_blobs(DBusMessage *message,
+					struct wpa_supplicant *wpa_s)
+{
+	DBusMessage *reply = NULL;
+	struct wpa_dbus_dict_entry entry = { .type = DBUS_TYPE_STRING };
+	DBusMessageIter	iter, iter_dict;
+
+	dbus_message_iter_init(message, &iter);
+
+	if (!wpa_dbus_dict_open_read(&iter, &iter_dict))
+		return wpas_dbus_new_invalid_opts_error(message, NULL);
+
+	while (wpa_dbus_dict_has_dict_entry(&iter_dict)) {
+		struct wpa_config_blob *blob;
+
+		if (!wpa_dbus_dict_get_entry(&iter_dict, &entry)) {
+			reply = wpas_dbus_new_invalid_opts_error(message,
+								 NULL);
+			break;
+		}
+
+		if (entry.type != DBUS_TYPE_ARRAY ||
+		    entry.array_type != DBUS_TYPE_BYTE) {
+			reply = wpas_dbus_new_invalid_opts_error(
+				message, "Byte array expected.");
+			break;
+		}
+
+		if ((entry.array_len <= 0) || (entry.array_len > 65536) ||
+		    !strlen(entry.key)) {
+			reply = wpas_dbus_new_invalid_opts_error(
+				message, "Invalid array size.");
+			break;
+		}
+
+		blob = os_zalloc(sizeof(*blob));
+		if (blob == NULL) {
+			reply = dbus_message_new_error(
+				message, WPAS_ERROR_ADD_ERROR,
+				"Not enough memory to add blob.");
+			break;
+		}
+		blob->data = os_zalloc(entry.array_len);
+		if (blob->data == NULL) {
+			reply = dbus_message_new_error(
+				message, WPAS_ERROR_ADD_ERROR,
+				"Not enough memory to add blob data.");
+			os_free(blob);
+			break;
+		}
+
+		blob->name = os_strdup(entry.key);
+		blob->len = entry.array_len;
+		os_memcpy(blob->data, (u8 *) entry.bytearray_value,
+				entry.array_len);
+		if (blob->name == NULL || blob->data == NULL) {
+			wpa_config_free_blob(blob);
+			reply = dbus_message_new_error(
+				message, WPAS_ERROR_ADD_ERROR,
+				"Error adding blob.");
+			break;
+		}
+
+		/* Success */
+		wpa_config_remove_blob(wpa_s->conf, blob->name);
+		wpa_config_set_blob(wpa_s->conf, blob);
+		wpa_dbus_dict_entry_clear(&entry);
+	}
+	wpa_dbus_dict_entry_clear(&entry);
+
+	return reply ? reply : wpas_dbus_new_success_reply(message);
+}
+
+
+/**
+ * wpas_dbus_iface_remove_blob - Remove named binary blobs
+ * @message: Pointer to incoming dbus message
+ * @global: %wpa_supplicant global data structure
+ * Returns: A dbus message containing a UINT32 indicating success (1) or
+ *          failure (0)
+ *
+ * Asks wpa_supplicant to remove one or more previously stored binary blobs.
+ */
+DBusMessage * wpas_dbus_iface_remove_blobs(DBusMessage *message,
+					  struct wpa_supplicant *wpa_s)
+{
+	DBusMessageIter iter, array;
+	char *err_msg = NULL;
+
+	dbus_message_iter_init(message, &iter);
+
+	if ((dbus_message_iter_get_arg_type (&iter) != DBUS_TYPE_ARRAY) ||
+	    (dbus_message_iter_get_element_type (&iter) != DBUS_TYPE_STRING))
+		return wpas_dbus_new_invalid_opts_error(message, NULL);
+
+	dbus_message_iter_recurse(&iter, &array);
+	while (dbus_message_iter_get_arg_type(&array) == DBUS_TYPE_STRING) {
+		const char *name;
+
+		dbus_message_iter_get_basic(&array, &name);
+		if (!strlen(name))
+			err_msg = "Invalid blob name.";
+
+		if (wpa_config_remove_blob(wpa_s->conf, name) != 0)
+			err_msg = "Error removing blob.";
+		dbus_message_iter_next(&array);
+	}
+
+	if (err_msg) {
+		return dbus_message_new_error(message, WPAS_ERROR_REMOVE_ERROR,
+					      err_msg);
+	}
+
+	return wpas_dbus_new_success_reply(message);
+}
