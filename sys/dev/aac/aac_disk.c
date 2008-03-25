@@ -343,6 +343,9 @@ aac_disk_attach(device_t dev)
 	 * disk!
 	 */
 	sc->ad_size = sc->ad_container->co_mntobj.Capacity;
+	if (sc->ad_controller->flags & AAC_FLAGS_LBA_64BIT)
+		sc->ad_size += (u_int64_t)
+			sc->ad_container->co_mntobj.CapacityHigh << 32;
 	if (sc->ad_size >= (2 * 1024 * 1024)) {		/* 2GB */
 		sc->ad_heads = 255;
 		sc->ad_sectors = 63;
@@ -355,9 +358,9 @@ aac_disk_attach(device_t dev)
 	}
 	sc->ad_cylinders = (sc->ad_size / (sc->ad_heads * sc->ad_sectors));
 
-	device_printf(dev, "%uMB (%u sectors)\n",
-		      sc->ad_size / ((1024 * 1024) / AAC_BLOCK_SIZE),
-		      sc->ad_size);
+	device_printf(dev, "%juMB (%ju sectors)\n",
+		      (intmax_t)sc->ad_size / ((1024 * 1024) / AAC_BLOCK_SIZE),
+		      (intmax_t)sc->ad_size);
 
 	/* attach a generic disk device to ourselves */
 	sc->unit = device_get_unit(dev);
