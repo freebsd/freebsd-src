@@ -772,11 +772,11 @@ cpuset_getid(struct thread *td, struct cpuset_getid_args *uap)
 
 #ifndef _SYS_SYSPROTO_H_
 struct cpuset_getaffinity_args {
-        cpulevel_t	level;
-        cpuwhich_t	which;
-        int		id;
-        int		cpusetsize;
-        long 		*mask;
+	cpulevel_t	level;
+	cpuwhich_t	which;
+	id_t		id;
+	size_t		cpusetsize;
+	cpuset_t	*mask;
 };
 #endif
 int
@@ -788,7 +788,7 @@ cpuset_getaffinity(struct thread *td, struct cpuset_getaffinity_args *uap)
 	struct proc *p;
 	cpuset_t *mask;
 	int error;
-	int size;
+	size_t size;
 
 	if (uap->cpusetsize < sizeof(cpuset_t) ||
 	    uap->cpusetsize * NBBY > CPU_MAXSIZE)
@@ -798,7 +798,6 @@ cpuset_getaffinity(struct thread *td, struct cpuset_getaffinity_args *uap)
 	error = cpuset_which(uap->which, uap->id, &p, &ttd, &set);
 	if (error)
 		goto out;
-	error = 0;
 	switch (uap->level) {
 	case CPU_LEVEL_ROOT:
 	case CPU_LEVEL_CPUSET:
@@ -856,10 +855,10 @@ out:
 #ifndef _SYS_SYSPROTO_H_
 struct cpuset_setaffinity_args {
 	cpulevel_t	level;
-        cpuwhich_t	which;
-        int		id;
-        int		cpusetsize;
-        long 	*	mask;
+	cpuwhich_t	which;
+	id_t		id;
+	size_t		cpusetsize;
+	const cpuset_t	*mask;
 };
 #endif
 int
