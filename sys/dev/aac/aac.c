@@ -377,7 +377,9 @@ aac_get_container_info(struct aac_softc *sc, struct aac_fib *fib, int cid)
 	struct aac_mntinfo *mi;
 
 	mi = (struct aac_mntinfo *)&fib->data[0];
-	mi->Command = VM_NameServe;
+	/* use 64-bit LBA if enabled */
+	mi->Command = (sc->flags & AAC_FLAGS_LBA_64BIT) ?
+	    VM_NameServe64 : VM_NameServe;
 	mi->MntType = FT_FILESYS;
 	mi->MntCount = cid;
 
@@ -1801,6 +1803,11 @@ aac_check_firmware(struct aac_softc *sc)
 	if (sc->aac_max_fib_size > sizeof(struct aac_fib)) {
 		sc->flags |= AAC_FLAGS_RAW_IO;
 		device_printf(sc->aac_dev, "Enable Raw I/O\n");
+	}
+	if ((sc->flags & AAC_FLAGS_RAW_IO) &&
+	    (sc->flags & AAC_FLAGS_ARRAY_64BIT)) {
+		sc->flags |= AAC_FLAGS_LBA_64BIT;
+		device_printf(sc->aac_dev, "Enable 64-bit array\n");
 	}
 
 	return (0);
