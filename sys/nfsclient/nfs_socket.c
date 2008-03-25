@@ -1169,7 +1169,7 @@ nfs_request(struct vnode *vp, struct mbuf *mrest, int procnum,
 	 * For stream protocols, insert a Sun RPC Record Mark.
 	 */
 	if (nmp->nm_sotype == SOCK_STREAM) {
-		M_PREPEND(m, NFSX_UNSIGNED, M_TRYWAIT);
+		M_PREPEND(m, NFSX_UNSIGNED, M_WAIT);
 		*mtod(m, u_int32_t *) = htonl(0x80000000 |
 			 (m->m_pkthdr.len - NFSX_UNSIGNED));
 	}
@@ -1213,7 +1213,7 @@ tryagain:
 		if (nmp->nm_sotype == SOCK_STREAM)
 			nmp->nm_nfstcpstate.sock_send_inprog++;
 		mtx_unlock(&nmp->nm_mtx);
-		m2 = m_copym(m, 0, M_COPYALL, M_TRYWAIT);
+		m2 = m_copym(m, 0, M_COPYALL, M_WAIT);
 		error = nfs_send(nmp->nm_so, nmp->nm_nam, m2, rep);
 		mtx_lock(&nmp->nm_mtx);
 		mtx_lock(&rep->r_mtx);

@@ -860,16 +860,16 @@ sosend_copyin(struct uio *uio, struct mbuf **retmp, int atomic, long *space,
 			}
 #else /* ZERO_COPY_SOCKETS */
 			if (top == NULL) {
-				m = m_getcl(M_TRYWAIT, MT_DATA, M_PKTHDR);
+				m = m_getcl(M_WAIT, MT_DATA, M_PKTHDR);
 				m->m_pkthdr.len = 0;
 				m->m_pkthdr.rcvif = NULL;
 			} else
-				m = m_getcl(M_TRYWAIT, MT_DATA, 0);
+				m = m_getcl(M_WAIT, MT_DATA, 0);
 			len = min(min(MCLBYTES, resid), *space);
 #endif /* ZERO_COPY_SOCKETS */
 		} else {
 			if (top == NULL) {
-				m = m_gethdr(M_TRYWAIT, MT_DATA);
+				m = m_gethdr(M_WAIT, MT_DATA);
 				m->m_pkthdr.len = 0;
 				m->m_pkthdr.rcvif = NULL;
 
@@ -881,7 +881,7 @@ sosend_copyin(struct uio *uio, struct mbuf **retmp, int atomic, long *space,
 				if (atomic && m && len < MHLEN)
 					MH_ALIGN(m, len);
 			} else {
-				m = m_get(M_TRYWAIT, MT_DATA);
+				m = m_get(M_WAIT, MT_DATA);
 				len = min(min(MLEN, resid), *space);
 			}
 		}
@@ -1304,9 +1304,7 @@ soreceive_rcvoob(struct socket *so, struct uio *uio, int flags)
 
 	KASSERT(flags & MSG_OOB, ("soreceive_rcvoob: (flags & MSG_OOB) == 0"));
 
-	m = m_get(M_TRYWAIT, MT_DATA);
-	if (m == NULL)
-		return (ENOBUFS);
+	m = m_get(M_WAIT, MT_DATA);
 	error = (*pr->pr_usrreqs->pru_rcvoob)(so, m, flags & MSG_PEEK);
 	if (error)
 		goto bad;
@@ -1718,11 +1716,11 @@ dontblock:
 					if (flags & MSG_DONTWAIT)
 						copy_flag = M_DONTWAIT;
 					else
-						copy_flag = M_TRYWAIT;
-					if (copy_flag == M_TRYWAIT)
+						copy_flag = M_WAIT;
+					if (copy_flag == M_WAIT)
 						SOCKBUF_UNLOCK(&so->so_rcv);
 					*mp = m_copym(m, 0, len, copy_flag);
-					if (copy_flag == M_TRYWAIT)
+					if (copy_flag == M_WAIT)
 						SOCKBUF_LOCK(&so->so_rcv);
  					if (*mp == NULL) {
  						/*
@@ -2333,11 +2331,11 @@ soopt_getm(struct sockopt *sopt, struct mbuf **mp)
 	struct mbuf *m, *m_prev;
 	int sopt_size = sopt->sopt_valsize;
 
-	MGET(m, sopt->sopt_td ? M_TRYWAIT : M_DONTWAIT, MT_DATA);
+	MGET(m, sopt->sopt_td ? M_WAIT : M_DONTWAIT, MT_DATA);
 	if (m == NULL)
 		return ENOBUFS;
 	if (sopt_size > MLEN) {
-		MCLGET(m, sopt->sopt_td ? M_TRYWAIT : M_DONTWAIT);
+		MCLGET(m, sopt->sopt_td ? M_WAIT : M_DONTWAIT);
 		if ((m->m_flags & M_EXT) == 0) {
 			m_free(m);
 			return ENOBUFS;
@@ -2351,13 +2349,13 @@ soopt_getm(struct sockopt *sopt, struct mbuf **mp)
 	m_prev = m;
 
 	while (sopt_size) {
-		MGET(m, sopt->sopt_td ? M_TRYWAIT : M_DONTWAIT, MT_DATA);
+		MGET(m, sopt->sopt_td ? M_WAIT : M_DONTWAIT, MT_DATA);
 		if (m == NULL) {
 			m_freem(*mp);
 			return ENOBUFS;
 		}
 		if (sopt_size > MLEN) {
-			MCLGET(m, sopt->sopt_td != NULL ? M_TRYWAIT :
+			MCLGET(m, sopt->sopt_td != NULL ? M_WAIT :
 			    M_DONTWAIT);
 			if ((m->m_flags & M_EXT) == 0) {
 				m_freem(m);

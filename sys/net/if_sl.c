@@ -298,20 +298,8 @@ slcreate(void)
 		return (NULL);
 	}
 
-	m = m_gethdr(M_TRYWAIT, MT_DATA);
-	if (m != NULL) {
-		MCLGET(m, M_TRYWAIT);
-		if ((m->m_flags & M_EXT) == 0) {
-			m_free(m);
-			m = NULL;
-		}
-	}
-
-	if (m == NULL) {
-		printf("sl: can't allocate buffer\n");
-		free(sc, M_SL);
-		return (NULL);
-	}
+	m = m_gethdr(M_WAIT, MT_DATA);
+	MCLGET(m, M_WAIT);
 
 	sc->sc_ep = mtod(m, u_char *) + SLBUFSIZE;
 	sc->sc_mbuf = m;

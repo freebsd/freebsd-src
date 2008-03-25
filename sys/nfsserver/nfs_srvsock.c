@@ -148,7 +148,7 @@ nfs_rephead(int siz, struct nfsrv_descript *nd, int err,
 	nd->nd_repstat = err;
 	if (err && (nd->nd_flag & ND_NFSV3) == 0)	/* XXX recheck */
 		siz = 0;
-	MGETHDR(mreq, M_TRYWAIT, MT_DATA);
+	MGETHDR(mreq, M_WAIT, MT_DATA);
 	mb = mreq;
 	/*
 	 * If this is a big reply, use a cluster else
@@ -157,7 +157,7 @@ nfs_rephead(int siz, struct nfsrv_descript *nd, int err,
 	mreq->m_len = 6 * NFSX_UNSIGNED;
 	siz += RPC_REPLYSIZ;
 	if ((max_hdr + siz) >= MINCLSIZE) {
-		MCLGET(mreq, M_TRYWAIT);
+		MCLGET(mreq, M_WAIT);
 	} else
 		mreq->m_data += min(max_hdr, M_TRAILINGSPACE(mreq));
 	tl = mtod(mreq, u_int32_t *);
@@ -244,9 +244,9 @@ nfs_realign(struct mbuf **pm, int hsiz)	/* XXX COMMON */
 	++nfs_realign_test;
 	while ((m = *pm) != NULL) {
 		if ((m->m_len & 0x3) || (mtod(m, intptr_t) & 0x3)) {
-			MGET(n, M_TRYWAIT, MT_DATA);
+			MGET(n, M_WAIT, MT_DATA);
 			if (m->m_len >= MINCLSIZE) {
-				MCLGET(n, M_TRYWAIT);
+				MCLGET(n, M_WAIT);
 			}
 			n->m_len = 0;
 			break;
@@ -401,7 +401,7 @@ nfsmout:
  * Socket upcall routine for the nfsd sockets.
  * The caddr_t arg is a pointer to the "struct nfssvc_sock".
  * Essentially do as much as possible non-blocking, else punt and it will
- * be called with M_TRYWAIT from an nfsd.
+ * be called with M_WAIT from an nfsd.
  */
 void
 nfsrv_rcv(struct socket *so, void *arg, int waitflag)

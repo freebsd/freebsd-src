@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 26, 2007
+.Dd March 25, 2008
 .Dt MBUF 9
 .Os
 .\"
@@ -356,20 +356,10 @@ on failure.
 The
 .Fa how
 argument is to be set to
-.Dv M_TRYWAIT
+.Dv M_WAIT
 or
 .Dv M_DONTWAIT .
 It specifies whether the caller is willing to block if necessary.
-If
-.Fa how
-is set to
-.Dv M_TRYWAIT ,
-a failed allocation will result in the caller being put
-to sleep for a designated
-kern.ipc.mbuf_wait
-.Xr ( sysctl 8
-tunable)
-number of ticks.
 A number of other functions and macros related to
 .Vt mbufs
 have the same argument because they may
@@ -922,7 +912,7 @@ Upon success, the original chain will be freed and the new
 chain will be returned.
 .Fa how
 should be either
-.Dv M_TRYWAIT
+.Dv M_WAIT
 or
 .Dv M_DONTWAIT ,
 depending on the caller's preference.
@@ -940,7 +930,7 @@ The original mbuf chain is always reclaimed and the reference
 count of any shared mbuf clusters is decremented.
 .Fa how
 should be either
-.Dv M_TRYWAIT
+.Dv M_WAIT
 or
 .Dv M_DONTWAIT ,
 depending on the caller's preference.
