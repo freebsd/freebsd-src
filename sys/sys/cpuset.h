@@ -161,8 +161,8 @@ __BEGIN_DECLS
 int	cpuset(cpusetid_t *);
 int	cpuset_setid(cpuwhich_t, id_t, cpusetid_t);
 int	cpuset_getid(cpulevel_t, cpuwhich_t, id_t, cpusetid_t *);
-int	cpuset_getaffinity(cpulevel_t, cpuwhich_t, id_t, int, cpuset_t *);
-int	cpuset_setaffinity(cpulevel_t, cpuwhich_t, id_t, int, const cpuset_t *);
+int	cpuset_getaffinity(cpulevel_t, cpuwhich_t, id_t, size_t, cpuset_t *);
+int	cpuset_setaffinity(cpulevel_t, cpuwhich_t, id_t, size_t, const cpuset_t *);
 __END_DECLS
 #endif
 #endif /* !_SYS_CPUSET_H_ */
