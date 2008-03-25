@@ -2875,8 +2875,8 @@ systrace_args(int sysnum, void *params, u_int64_t *uarg, int *n_args)
 		iarg[0] = p->level; /* cpulevel_t */
 		iarg[1] = p->which; /* cpuwhich_t */
 		iarg[2] = p->id; /* id_t */
-		iarg[3] = p->cpusetsize; /* int */
-		uarg[4] = (intptr_t) p->mask; /* long * */
+		uarg[3] = p->cpusetsize; /* size_t */
+		uarg[4] = (intptr_t) p->mask; /* cpuset_t * */
 		*n_args = 5;
 		break;
 	}
@@ -2886,8 +2886,8 @@ systrace_args(int sysnum, void *params, u_int64_t *uarg, int *n_args)
 		iarg[0] = p->level; /* cpulevel_t */
 		iarg[1] = p->which; /* cpuwhich_t */
 		iarg[2] = p->id; /* id_t */
-		iarg[3] = p->cpusetsize; /* int */
-		uarg[4] = (intptr_t) p->mask; /* long * */
+		uarg[3] = p->cpusetsize; /* size_t */
+		uarg[4] = (intptr_t) p->mask; /* const cpuset_t * */
 		*n_args = 5;
 		break;
 	}
