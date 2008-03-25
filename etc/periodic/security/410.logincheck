@@ -39,7 +39,7 @@ case "$daily_status_security_logincheck_enable" in
     [Yy][Ee][Ss])
 	echo ""
 	echo 'Checking login.conf permissions:'
-	if [ -G /etc/login.conf -a -O /etc/login.conf ] then
+	if [ -G /etc/login.conf -a -O /etc/login.conf ]; then
 	    n=0
 	else
 	    echo "Bad ownership of /etc/login.conf"
