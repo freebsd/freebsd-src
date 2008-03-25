@@ -80,6 +80,8 @@ typedef void db_cmdfcn_t(db_expr_t addr, boolean_t have_addr, db_expr_t count,
 	DB_FUNC(cmd_name, func_name, db_cmd_set, 0, NULL)
 #define DB_SHOW_COMMAND(cmd_name, func_name) \
 	DB_FUNC(cmd_name, func_name, db_show_cmd_set, 0, NULL)
+#define DB_SHOW_ALL_COMMAND(cmd_name, func_name) \
+	DB_FUNC(cmd_name, func_name, db_show_all_cmd_set, 0, NULL)
 
 #define	DB_SET(cmd_name, func_name, set, flag, more)		\
 static const struct command __CONCAT(cmd_name,_cmd) = {		\
