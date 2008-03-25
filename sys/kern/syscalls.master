@@ -852,11 +852,11 @@
 				    cpuwhich_t which, id_t id, \
 				    cpusetid_t *setid); }
 487	AUE_NULL	STD	{ int cpuset_getaffinity(cpulevel_t level, \
-				    cpuwhich_t which, id_t id, int cpusetsize, \
-				    long *mask); }
+				    cpuwhich_t which, id_t id, size_t cpusetsize, \
+				    cpuset_t *mask); }
 488	AUE_NULL	STD	{ int cpuset_setaffinity(cpulevel_t level, \
-				    cpuwhich_t which, id_t id, int cpusetsize, \
-				    long *mask); }
+				    cpuwhich_t which, id_t id, size_t cpusetsize, \
+				    const cpuset_t *mask); }
 
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/compat/freebsd32/syscalls.master
