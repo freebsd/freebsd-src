@@ -579,6 +579,7 @@ vendor BALTECH		0x13ad	Baltech
 vendor CISCOLINKSYS	0x13b1	Cisco-Linksys
 vendor SHARK		0x13d2	Shark
 vendor NOVATEL		0x1410	Novatel Wireless
+vendor MERLIN		0x1416	Merlin
 vendor WISTRONNEWEB	0x1435	Wistron NeWeb
 vendor RADIOSHACK	0x1453	Radio Shack
 vendor HUAWEI3COM	0x1472	Huawei-3Com
@@ -1783,8 +1784,15 @@ product NOVATECH RT2573		0x9021	RT2573
 
 /* Novatel Wireless products */
 product NOVATEL CDMA_MODEM	0x1110	Novatel Wireless Merlin CDMA
+product NOVATEL V620		0x1110	Merlin V620
+product NOVATEL V720		0x1130	Merlin V720
 product NOVATEL U740		0x1400	Merlin U740
+product NOVATEL U720		0x2110	Merlin U720
+product NOVATEL U727		0x4100	Merlin U727 CDMA
 product NOVATEL2 FLEXPACKGPS	0x0100	NovAtel FlexPack GPS receiver
+
+/* Merlin products */
+product	MERLIN V620		0x1110	Merlin V620
 
 /* Olympus products */
 product OLYMPUS C1		0x0102	C-1 Digital Camera
@@ -2043,6 +2051,7 @@ product SIEMENS3 X75		0x0004	X75
 /* Sierra Wireless products */
 product SIERRA AIRCARD580	0x0112	Sierra Wireless AirCard 580
 product SIERRA MC5720		0x0218	MC5720 Wireless Modem
+product SIERRA AC875U		0x6812	AC875U HSDPA USB Modem
 
 /* Sigmatel products */
 product SIGMATEL I_BEAD100	0x8008	i-Bead 100 MP3 Player
