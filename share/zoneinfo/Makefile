@@ -42,23 +42,13 @@ POSIXRULES=	America/New_York
 TZFILES+=	backward systemv
 .endif
 
-.if exists(${.OBJDIR}/yearistype)
-YEARISTYPE=	${.OBJDIR}/yearistype
-.else
-YEARISTYPE=	${.CURDIR}/yearistype
-.endif
-
 all: yearistype
-
-yearistype: yearistype.sh
-	cp ${.ALLSRC} ${.TARGET}
-	chmod +x ${.TARGET}
 
 beforeinstall:
 	umask 022; cd ${.CURDIR}; \
 	zic -D -d ${DESTDIR}/usr/share/zoneinfo -p ${POSIXRULES} \
-	    -u ${BINOWN} -g ${BINGRP} \
-	    ${LEAPFILE} -y ${YEARISTYPE} ${TZFILES}
+	    -u ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
+	    ${LEAPFILE} -y ${.OBJDIR}/yearistype ${TZFILES}
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
 	    ${.CURDIR}/zone.tab ${DESTDIR}/usr/share/zoneinfo/
 
