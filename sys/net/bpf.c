@@ -1676,7 +1676,7 @@ catchpacket(struct bpf_d *d, u_char *pkt, u_int pktlen, u_int snaplen,
 	 * run this check if we need the space), but for now it's a reliable
 	 * spot to do it.
 	 */
-	if (bpf_canfreebuf(d)) {
+	if (d->bd_fbuf == NULL && bpf_canfreebuf(d)) {
 		d->bd_fbuf = d->bd_hbuf;
 		d->bd_hbuf = NULL;
 		d->bd_hlen = 0;
