@@ -56,9 +56,7 @@ mb_init(struct mbchain *mbp)
 {
 	struct mbuf *m;
 
-	m = m_gethdr(M_TRYWAIT, MT_DATA);
-	if (m == NULL) 
-		return ENOBUFS;
+	m = m_gethdr(M_WAIT, MT_DATA);
 	m->m_len = 0;
 	mb_initm(mbp, m);
 	return 0;
@@ -113,9 +111,7 @@ mb_reserve(struct mbchain *mbp, int size)
 		panic("mb_reserve: size = %d\n", size);
 	m = mbp->mb_cur;
 	if (mbp->mb_mleft < size) {
-		mn = m_get(M_TRYWAIT, MT_DATA);
-		if (mn == NULL)
-			return NULL;
+		mn = m_get(M_WAIT, MT_DATA);
 		mbp->mb_cur = m->m_next = mn;
 		m = mn;
 		m->m_len = 0;
@@ -190,11 +186,9 @@ mb_put_mem(struct mbchain *mbp, c_caddr_t source, int size, int type)
 
 	while (size > 0) {
 		if (mleft == 0) {
-			if (m->m_next == NULL) {
-				m = m_getm(m, size, M_TRYWAIT, MT_DATA);
-				if (m == NULL)
-					return ENOBUFS;
-			} else
+			if (m->m_next == NULL)
+				m = m_getm(m, size, M_WAIT, MT_DATA);
+			else
 				m = m->m_next;
 			mleft = M_TRAILINGSPACE(m);
 			continue;
@@ -295,9 +289,7 @@ md_init(struct mdchain *mdp)
 {
 	struct mbuf *m;
 
-	m = m_gethdr(M_TRYWAIT, MT_DATA);
-	if (m == NULL) 
-		return ENOBUFS;
+	m = m_gethdr(M_WAIT, MT_DATA);
 	m->m_len = 0;
 	md_initm(mdp, m);
 	return 0;
@@ -503,9 +495,7 @@ md_get_mbuf(struct mdchain *mdp, int size, struct mbuf **ret)
 {
 	struct mbuf *m = mdp->md_cur, *rm;
 
-	rm = m_copym(m, mdp->md_pos - mtod(m, u_char*), size, M_TRYWAIT);
-	if (rm == NULL)
-		return EBADRPC;
+	rm = m_copym(m, mdp->md_pos - mtod(m, u_char*), size, M_WAIT);
 	md_get_mem(mdp, NULL, size, MB_MZERO);
 	*ret = rm;
 	return 0;

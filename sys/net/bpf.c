@@ -386,13 +386,10 @@ bpf_movein(struct uio *uio, int linktype, struct ifnet *ifp, struct mbuf **mp,
 	if ((unsigned)len > MCLBYTES)
 		return (EIO);
 
-	if (len > MHLEN) {
-		m = m_getcl(M_TRYWAIT, MT_DATA, M_PKTHDR);
-	} else {
-		MGETHDR(m, M_TRYWAIT, MT_DATA);
-	}
-	if (m == NULL)
-		return (ENOBUFS);
+	if (len > MHLEN)
+		m = m_getcl(M_WAIT, MT_DATA, M_PKTHDR);
+	else
+		MGETHDR(m, M_WAIT, MT_DATA);
 	m->m_pkthdr.len = m->m_len = len;
 	m->m_pkthdr.rcvif = NULL;
 	*mp = m;

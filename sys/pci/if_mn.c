@@ -693,9 +693,7 @@ ngmn_connect(hook_p hook)
 	/* Setup a transmit chain with one descriptor */
 	/* XXX: we actually send a 1 byte packet */
 	dp = mn_alloc_desc();
-	MGETHDR(m, M_TRYWAIT, MT_DATA);
-	if (m == NULL)
-		return ENOBUFS;
+	MGETHDR(m, M_WAIT, MT_DATA);
 	m->m_pkthdr.len = 0;
 	dp->m = m;
 	dp->flags = 0xc0000000 + (1 << 16);
@@ -710,17 +708,8 @@ ngmn_connect(hook_p hook)
 
 	dp = mn_alloc_desc();
 	m = NULL;
-	MGETHDR(m, M_TRYWAIT, MT_DATA);
-	if (m == NULL) {
-		mn_free_desc(dp);
-		return (ENOBUFS);
-	}
-	MCLGET(m, M_TRYWAIT);
-	if ((m->m_flags & M_EXT) == 0) {
-		mn_free_desc(dp);
-		m_freem(m);
-		return (ENOBUFS);
-	}
+	MGETHDR(m, M_WAIT, MT_DATA);
+	MCLGET(m, M_WAIT);
 	dp->m = m;
 	dp->data = vtophys(m->m_data);
 	dp->flags = 0x40000000;
@@ -733,18 +722,8 @@ ngmn_connect(hook_p hook)
 		dp2 = dp;
 		dp = mn_alloc_desc();
 		m = NULL;
-		MGETHDR(m, M_TRYWAIT, MT_DATA);
-		if (m == NULL) {
-			mn_free_desc(dp);
-			m_freem(m);
-			return (ENOBUFS);
-		}
-		MCLGET(m, M_TRYWAIT);
-		if ((m->m_flags & M_EXT) == 0) {
-			mn_free_desc(dp);
-			m_freem(m);
-			return (ENOBUFS);
-		}
+		MGETHDR(m, M_WAIT, MT_DATA);
+		MCLGET(m, M_WAIT);
 		dp->m = m;
 		dp->data = vtophys(m->m_data);
 		dp->flags = 0x00000000;

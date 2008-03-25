@@ -2729,7 +2729,7 @@ ip6_getmoptions(int optname, struct ip6_moptions *im6o, struct mbuf **mp)
 {
 	u_int *hlim, *loop, *ifindex;
 
-	*mp = m_get(M_TRYWAIT, MT_HEADER);		/* XXX */
+	*mp = m_get(M_WAIT, MT_HEADER);		/* XXX */
 
 	switch (optname) {
 

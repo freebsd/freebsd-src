@@ -801,7 +801,7 @@ tryagain:
 			goto tryagain;
 		}
 		while (rep->r_flags & R_MUSTRESEND) {
-			m = m_copym(rep->r_mreq, 0, M_COPYALL, M_TRYWAIT);
+			m = m_copym(rep->r_mreq, 0, M_COPYALL, M_WAIT);
 			rpcstats.rpcretries++;
 			error = rpcclnt_send(so, rep->r_rpcclnt->rc_name, m, rep);
 			if (error) {
@@ -1181,7 +1181,7 @@ rpcclnt_request(rpc, mrest, procnum, td, cred, reply)
 	 * For stream protocols, insert a Sun RPC Record Mark.
 	 */
 	if (rpc->rc_sotype == SOCK_STREAM) {
-		M_PREPEND(m, RPCX_UNSIGNED, M_TRYWAIT);
+		M_PREPEND(m, RPCX_UNSIGNED, M_WAIT);
 		*mtod(m, u_int32_t *) = htonl(0x80000000 |
 					 (m->m_pkthdr.len - RPCX_UNSIGNED));
 	}
@@ -1229,7 +1229,7 @@ rpcclnt_request(rpc, mrest, procnum, td, cred, reply)
 			error = rpcclnt_sndlock(&rpc->rc_flag, task);
 		if (!error) {
 			error = rpcclnt_send(rpc->rc_so, rpc->rc_name,
-					     m_copym(m, 0, M_COPYALL, M_TRYWAIT),
+					     m_copym(m, 0, M_COPYALL, M_WAIT),
 					     task);
 			if (rpc->rc_soflags & PR_CONNREQUIRED)
 				rpcclnt_sndunlock(&rpc->rc_flag);
@@ -1750,9 +1750,9 @@ rpcclnt_realign(struct mbuf **pm, int hsiz)
 
 	while ((m = *pm) != NULL) {
 	    if ((m->m_len & 0x3) || (mtod(m, intptr_t) & 0x3)) {
-	        MGET(n, M_TRYWAIT, MT_DATA);
+	        MGET(n, M_WAIT, MT_DATA);
 	        if (m->m_len >= MINCLSIZE) {
-	            MCLGET(n, M_TRYWAIT);
+	            MCLGET(n, M_WAIT);
 	        }
 	        n->m_len = 0;
 	        break;
@@ -1826,9 +1826,9 @@ rpcclnt_buildheader(rc, procid, mrest, mrest_len, xidp, mheadend, cred)
 	struct mbuf *mreq, *mb2;
 	int error;
 
-	MGETHDR(mb, M_TRYWAIT, MT_DATA);
+	MGETHDR(mb, M_WAIT, MT_DATA);
 	if (6 * RPCX_UNSIGNED >= MINCLSIZE) {
-		MCLGET(mb, M_TRYWAIT);
+		MCLGET(mb, M_WAIT);
 	} else if (6 * RPCX_UNSIGNED < MHLEN) {
 		MH_ALIGN(mb, 6 * RPCX_UNSIGNED);
 	} else {
@@ -1908,7 +1908,7 @@ rpcm_disct(mdp, dposp, siz, left, cp2)
 	} else if (siz > MHLEN) {
 		panic("rpc S too big");
 	} else {
-		MGET(mp2, M_TRYWAIT, MT_DATA);
+		MGET(mp2, M_WAIT, MT_DATA);
 		mp2->m_next = mp->m_next;
 		mp->m_next = mp2;
 		mp->m_len -= left;

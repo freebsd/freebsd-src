@@ -336,9 +336,7 @@ iso88025_output(ifp, m, dst, rt0)
 		bcopy((caddr_t)&(satoipx_addr(dst).x_host), (caddr_t)edst,
 		      ISO88025_ADDR_LEN);
 
-		M_PREPEND(m, 3, M_TRYWAIT);
-		if (m == 0)
-			senderr(ENOBUFS);
+		M_PREPEND(m, 3, M_WAIT);
 		m = m_pullup(m, 3);
 		if (m == 0)
 			senderr(ENOBUFS);

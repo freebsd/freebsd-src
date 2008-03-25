@@ -351,7 +351,7 @@ nfssvc_nfsd(struct thread *td)
 					(void) nfs_slplock(slp, 1);
 					NFSD_UNLOCK();
 					nfsrv_rcv(slp->ns_so, (caddr_t)slp,
-						M_TRYWAIT);
+						M_WAIT);
 					NFSD_LOCK();
 					nfs_slpunlock(slp);
 				}
@@ -489,7 +489,7 @@ nfssvc_nfsd(struct thread *td)
 			 * Record Mark.
 			 */
 			if (sotype == SOCK_STREAM) {
-				M_PREPEND(m, NFSX_UNSIGNED, M_TRYWAIT);
+				M_PREPEND(m, NFSX_UNSIGNED, M_WAIT);
 				*mtod(m, u_int32_t *) = htonl(0x80000000 | siz);
 			}
 			NFSD_LOCK();

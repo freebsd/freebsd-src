@@ -705,16 +705,11 @@ sendit(td, s, mp, flags)
 		if (mp->msg_flags == MSG_COMPAT) {
 			struct cmsghdr *cm;
 
-			M_PREPEND(control, sizeof(*cm), M_TRYWAIT);
-			if (control == 0) {
-				error = ENOBUFS;
-				goto bad;
-			} else {
-				cm = mtod(control, struct cmsghdr *);
-				cm->cmsg_len = control->m_len;
-				cm->cmsg_level = SOL_SOCKET;
-				cm->cmsg_type = SCM_RIGHTS;
-			}
+			M_PREPEND(control, sizeof(*cm), M_WAIT);
+			cm = mtod(control, struct cmsghdr *);
+			cm->cmsg_len = control->m_len;
+			cm->cmsg_level = SOL_SOCKET;
+			cm->cmsg_type = SCM_RIGHTS;
 		}
 #endif
 	} else {
@@ -1627,16 +1622,9 @@ sockargs(mp, buf, buflen, type)
 			if ((u_int)buflen > MCLBYTES)
 				return (EINVAL);
 	}
-	m = m_get(M_TRYWAIT, type);
-	if (m == NULL)
-		return (ENOBUFS);
-	if ((u_int)buflen > MLEN) {
-		MCLGET(m, M_TRYWAIT);
-		if ((m->m_flags & M_EXT) == 0) {
-			m_free(m);
-			return (ENOBUFS);
-		}
-	}
+	m = m_get(M_WAIT, type);
+	if ((u_int)buflen > MLEN)
+		MCLGET(m, M_WAIT);
 	m->m_len = buflen;
 	error = copyin(buf, mtod(m, caddr_t), (u_int)buflen);
 	if (error)
