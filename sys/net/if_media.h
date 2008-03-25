@@ -208,7 +208,7 @@ uint64_t	ifmedia_baudrate(int);
 #define	IFM_IEEE80211_ADHOC	0x00000100	/* Operate in Adhoc mode */
 #define	IFM_IEEE80211_HOSTAP	0x00000200	/* Operate in Host AP mode */
 #define	IFM_IEEE80211_IBSS	0x00000400	/* Operate in IBSS mode */
-#define	IFM_IEEE80211_IBSSMASTER 0x00000800	/* Operate as an IBSS master */
+#define	IFM_IEEE80211_WDS	0x00000800	/* Operate in WDS mode */
 #define	IFM_IEEE80211_TURBO	0x00001000	/* Operate in turbo mode */
 #define	IFM_IEEE80211_MONITOR	0x00002000	/* Operate in monitor mode */
 
@@ -495,7 +495,7 @@ struct ifmedia_description {
 	{ IFM_IEEE80211_ADHOC, "adhoc" },				\
 	{ IFM_IEEE80211_HOSTAP, "hostap" },				\
 	{ IFM_IEEE80211_IBSS, "ibss" },					\
-	{ IFM_IEEE80211_IBSSMASTER, "ibss-master" },			\
+	{ IFM_IEEE80211_WDS, "wds" },					\
 	{ IFM_IEEE80211_TURBO, "turbo" },				\
 	{ IFM_IEEE80211_MONITOR, "monitor" },				\
 	{ 0, NULL },							\
