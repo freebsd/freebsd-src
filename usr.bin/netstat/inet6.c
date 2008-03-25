@@ -1089,7 +1089,7 @@ inet6print(struct in6_addr *in6, int port, const char *proto, int numeric)
 	if (!numeric && port)
 		GETSERVBYPORT6(port, proto, sp);
 	if (sp || port == 0)
-		sprintf(cp, "%.8s", sp ? sp->s_name : "*");
+		sprintf(cp, "%.15s", sp ? sp->s_name : "*");
 	else
 		sprintf(cp, "%d", ntohs((u_short)port));
 	width = Wflag ? 45 : Aflag ? 18 : 22;
