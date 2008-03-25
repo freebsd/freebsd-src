@@ -107,7 +107,6 @@ struct mbuf *(*tbr_dequeue_ptr)(struct ifaltq *, int) = NULL;
  */
 static void	if_attachdomain(void *);
 static void	if_attachdomain1(struct ifnet *);
-static void	if_purgemaddrs(struct ifnet *);
 static int	ifconf(u_long, caddr_t);
 static void	if_freemulti(struct ifmultiaddr *);
 static void	if_grow(void);
@@ -644,7 +643,7 @@ if_purgeaddrs(struct ifnet *ifp)
 /*
  * Remove any multicast network addresses from an interface.
  */
-static void
+void
 if_purgemaddrs(struct ifnet *ifp)
 {
 	struct ifmultiaddr *ifma;
