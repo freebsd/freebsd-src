@@ -210,7 +210,7 @@ struct mbuf *m;
 mb_init(mbp);
 mb_put_uint8(mbp, 33);
 mb_put_uint16le(mbp, length);
-m = m_copym(mbp->mb_top, 0, M_COPYALL, M_TRYWAIT);
+m = m_copym(mbp->mb_top, 0, M_COPYALL, M_WAIT);
 send(m);
 mb_done(mbp);
 .Ed
