@@ -172,6 +172,10 @@ ${TGTS}:
 .MAIN:	all
 
 STARTTIME!= LC_ALL=C date
+CHECK_TIME!= find ${.CURDIR}/sys/sys/param.h -mtime -0
+.if !empty(CHECK_TIME)
+.error check your date/time: ${STARTTIME}
+.endif
 
 .if defined(HISTORICAL_MAKE_WORLD) || defined(DESTDIR)
 #
