@@ -100,7 +100,7 @@ isc_sendPDU(isc_session_t *sp, pduq_t *pq)
      iv++;
 #else /* USE_MBUF */
      /*  mbuf for the iSCSI header */
-     MGETHDR(mh, M_TRYWAIT, MT_DATA);
+     MGETHDR(mh, M_WAIT, MT_DATA);
      mh->m_len = mh->m_pkthdr.len = sizeof(union ipdu_u);
      mh->m_pkthdr.rcvif = NULL;
      MH_ALIGN(mh, sizeof(union ipdu_u));
@@ -160,7 +160,7 @@ isc_sendPDU(isc_session_t *sp, pduq_t *pq)
           while (len > 0) {
                 int       l;
           
-                MGET(md, M_TRYWAIT, MT_DATA);
+                MGET(md, M_WAIT, MT_DATA);
 		md->m_ext.ref_cnt = &nil_refcnt;
                 l = min(MCLBYTES, len);
                 MEXTADD(md, pp->ds + off, l, nil_fn,
@@ -187,7 +187,7 @@ isc_sendPDU(isc_session_t *sp, pduq_t *pq)
 	  iv->iov_len	= sizeof(int);
 	  iv++;
 #else /* USE_MBUF */
-          MGET(me, M_TRYWAIT, MT_DATA);
+          MGET(me, M_WAIT, MT_DATA);
           me->m_len = sizeof(int);
           MH_ALIGN(mh, sizeof(int));
           bcopy(&pp->ds_dig, me->m_data, sizeof(int));

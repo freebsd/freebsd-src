@@ -519,7 +519,7 @@ m_prepend(struct mbuf *m, int len, int how)
 /*
  * Make a copy of an mbuf chain starting "off0" bytes from the beginning,
  * continuing for "len" bytes.  If len is M_COPYALL, copy to end of mbuf.
- * The wait parameter is a choice of M_TRYWAIT/M_DONTWAIT from caller.
+ * The wait parameter is a choice of M_WAIT/M_DONTWAIT from caller.
  * Note that the copy is read-only, because clusters are not copied,
  * only their reference counts are incremented.
  */

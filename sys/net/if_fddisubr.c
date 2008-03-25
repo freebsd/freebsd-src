@@ -204,9 +204,7 @@ fddi_output(ifp, m, dst, rt0)
 	    if (aa->aa_flags & AFA_PHASE2) {
 		struct llc llc;
 
-		M_PREPEND(m, LLC_SNAPFRAMELEN, M_TRYWAIT);
-		if (m == 0)
-			senderr(ENOBUFS);
+		M_PREPEND(m, LLC_SNAPFRAMELEN, M_WAIT);
 		llc.llc_dsap = llc.llc_ssap = LLC_SNAP_LSAP;
 		llc.llc_control = LLC_UI;
 		bcopy(at_org_code, llc.llc_snap.org_code, sizeof(at_org_code));

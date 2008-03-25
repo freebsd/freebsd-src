@@ -835,27 +835,15 @@ copy_mbuf(struct mbuf *m)
 {
 	struct mbuf *new;
 
-	MGET(new, M_TRYWAIT, MT_DATA);
-	if (new == NULL)
-		return (NULL);
+	MGET(new, M_WAIT, MT_DATA);
 
 	if (m->m_flags & M_PKTHDR) {
 		M_MOVE_PKTHDR(new, m);
-		if (m->m_len > MHLEN) {
-			MCLGET(new, M_TRYWAIT);
-			if ((m->m_flags & M_EXT) == 0) {
-				m_free(new);
-				return (NULL);
-			}
-		}
+		if (m->m_len > MHLEN)
+			MCLGET(new, M_WAIT);
 	} else {
-		if (m->m_len > MLEN) {
-			MCLGET(new, M_TRYWAIT);
-			if ((m->m_flags & M_EXT) == 0) {
-				m_free(new);
-				return (NULL);
-			}
-		}
+		if (m->m_len > MLEN)
+			MCLGET(new, M_WAIT);
 	}
 
 	bcopy(m->m_data, new->m_data, m->m_len);
@@ -2932,9 +2920,7 @@ en_attach(struct en_softc *sc)
 	    &en_utopia_methods);
 	utopia_init_media(&sc->utopia);
 
-	MGET(sc->padbuf, M_TRYWAIT, MT_DATA);
-	if (sc->padbuf == NULL)
-		goto fail;
+	MGET(sc->padbuf, M_WAIT, MT_DATA);
 	bzero(sc->padbuf->m_data, MLEN);
 
 	if (bus_dma_tag_create(NULL, 1, 0,

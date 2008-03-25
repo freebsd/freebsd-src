@@ -227,7 +227,7 @@ loop:
 				nfsrvstats.srvcache_nonidemdonehits++;
 				NFSD_UNLOCK();
 				*repp = m_copym(rp->rc_reply, 0, M_COPYALL,
-						M_TRYWAIT);
+						M_WAIT);
 				NFSD_LOCK();
 				ret = RC_REPLY;
 			} else {
@@ -348,7 +348,7 @@ loop:
 				} else {
 					NFSD_UNLOCK();
 					rp->rc_reply = m_copym(repmbuf,
-						0, M_COPYALL, M_TRYWAIT);
+						0, M_COPYALL, M_WAIT);
 					NFSD_LOCK();
 					rp->rc_flag |= RC_REPMBUF;
 				}
