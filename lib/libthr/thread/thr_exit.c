@@ -29,10 +29,12 @@
  * $FreeBSD$
  */
 
+#include "namespace.h"
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
+#include "un-namespace.h"
 
 #include "thr_private.h"
 
