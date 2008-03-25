@@ -40,6 +40,7 @@
 #include <sys/param.h>
 #include <sys/queue.h>
 #include <pthread.h>
+#include <pthread_np.h>
 #include "un-namespace.h"
 
 #include "thr_private.h"
@@ -793,8 +794,9 @@ int
 _pthread_mutex_getspinloops_np(pthread_mutex_t *mutex, int *count)
 {
 	if (*mutex == NULL)
-		return (0);
-	return (*mutex)->m_spinloops;
+		return (EINVAL);
+	*count = (*mutex)->m_spinloops;
+	return (0);
 }
 
 int
@@ -831,8 +833,9 @@ int
 _pthread_mutex_getyieldloops_np(pthread_mutex_t *mutex, int *count)
 {
 	if (*mutex == NULL)
-		return (0);
-	return (*mutex)->m_yieldloops;
+		return (EINVAL);
+	*count = (*mutex)->m_yieldloops;
+	return (0);
 }
 
 int
