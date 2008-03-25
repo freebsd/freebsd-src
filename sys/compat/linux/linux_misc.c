@@ -1750,7 +1750,7 @@ linux_sched_getaffinity(struct thread *td,
 	cga.which = CPU_WHICH_PID;
 	cga.id = args->pid;
 	cga.cpusetsize = sizeof(cpumask_t);
-	cga.mask = (long *) args->user_mask_ptr;
+	cga.mask = (cpuset_t *) args->user_mask_ptr;
 	
 	if ((error = cpuset_getaffinity(td, &cga)) == 0)
 		td->td_retval[0] = sizeof(cpumask_t);
@@ -1776,7 +1776,7 @@ linux_sched_setaffinity(struct thread *td,
 	csa.which = CPU_WHICH_PID;
 	csa.id = args->pid;
 	csa.cpusetsize = args->len;
-	csa.mask = (long *) args->user_mask_ptr;
+	csa.mask = (cpuset_t *) args->user_mask_ptr;
 
 	return (cpuset_setaffinity(td, &csa));
 }
