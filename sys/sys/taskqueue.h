@@ -58,6 +58,8 @@ void	taskqueue_drain(struct taskqueue *queue, struct task *task);
 struct taskqueue *taskqueue_find(const char *name);
 void	taskqueue_free(struct taskqueue *queue);
 void	taskqueue_run(struct taskqueue *queue);
+void	taskqueue_block(struct taskqueue *queue);
+void	taskqueue_unblock(struct taskqueue *queue);
 
 /*
  * Functions for dedicated thread taskqueues
