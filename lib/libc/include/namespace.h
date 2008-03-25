@@ -84,6 +84,7 @@
 #define		pthread_atfork			_pthread_atfork
 #define		pthread_attr_destroy		_pthread_attr_destroy
 #define		pthread_attr_get_np		_pthread_attr_get_np
+#define		pthread_attr_getaffinity_np	_pthread_attr_getaffinity_np
 #define		pthread_attr_getdetachstate	_pthread_attr_getdetachstate
 #define		pthread_attr_getguardsize	_pthread_attr_getguardsize
 #define		pthread_attr_getinheritsched	_pthread_attr_getinheritsched
@@ -94,6 +95,7 @@
 #define		pthread_attr_getstackaddr	_pthread_attr_getstackaddr
 #define		pthread_attr_getstacksize	_pthread_attr_getstacksize
 #define		pthread_attr_init		_pthread_attr_init
+#define		pthread_attr_setaffinity_np	_pthread_attr_setaffinity_np
 #define		pthread_attr_setcreatesuspend_np _pthread_attr_setcreatesuspend_np
 #define		pthread_attr_setdetachstate	_pthread_attr_setdetachstate
 #define		pthread_attr_setguardsize	_pthread_attr_setguardsize
@@ -131,6 +133,7 @@
 #define		pthread_equal			_pthread_equal
 #define		pthread_exit			_pthread_exit
 #define		pthread_getconcurrency		_pthread_getconcurrency
+#define		pthread_getcpuclockid		_pthread_getcpuclockid
 #define		pthread_getprio			_pthread_getprio
 #define		pthread_getschedparam		_pthread_getschedparam
 #define		pthread_getspecific		_pthread_getspecific
