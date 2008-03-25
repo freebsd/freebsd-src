@@ -357,19 +357,11 @@ fwe_init(void *arg)
 		STAILQ_INIT(&xferq->stdma);
 		xferq->stproc = NULL;
 		for (i = 0; i < xferq->bnchunk; i ++) {
-			m =
-#if defined(__DragonFly__) || __FreeBSD_version < 500000
-				m_getcl(M_WAIT, MT_DATA, M_PKTHDR);
-#else
-				m_getcl(M_TRYWAIT, MT_DATA, M_PKTHDR);
-#endif
+			m = m_getcl(M_WAIT, MT_DATA, M_PKTHDR);
 			xferq->bulkxfer[i].mbuf = m;
-			if (m != NULL) {
-				m->m_len = m->m_pkthdr.len = m->m_ext.ext_size;
-				STAILQ_INSERT_TAIL(&xferq->stfree,
-						&xferq->bulkxfer[i], link);
-			} else
-				printf("%s: m_getcl failed\n", __FUNCTION__);
+			m->m_len = m->m_pkthdr.len = m->m_ext.ext_size;
+			STAILQ_INSERT_TAIL(&xferq->stfree,
+					&xferq->bulkxfer[i], link);
 		}
 		STAILQ_INIT(&fwe->xferlist);
 		for (i = 0; i < TX_MAX_QUEUE; i++) {

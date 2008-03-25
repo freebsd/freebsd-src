@@ -263,7 +263,7 @@ nfsm_build_xx(int s, struct mbuf **mb, caddr_t *bpos)
 	void *ret;
 
 	if (s > M_TRAILINGSPACE(*mb)) {
-		MGET(mb2, M_TRYWAIT, MT_DATA);
+		MGET(mb2, M_WAIT, MT_DATA);
 		if (s > MLEN)
 			panic("build > MLEN");
 		(*mb)->m_next = mb2;
@@ -280,7 +280,7 @@ nfsm_build_xx(int s, struct mbuf **mb, caddr_t *bpos)
 void *
 nfsm_dissect_xx(int s, struct mbuf **md, caddr_t *dpos)
 {
-	return nfsm_dissect_xx_sub(s, md, dpos, M_TRYWAIT);
+	return nfsm_dissect_xx_sub(s, md, dpos, M_WAIT);
 }
 
 void *

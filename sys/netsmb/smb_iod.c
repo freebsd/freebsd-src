@@ -261,8 +261,8 @@ smb_iod_sendrq(struct smbiod *iod, struct smb_rq *rqp)
 	}
 	SMBSDEBUG("M:%04x, P:%04x, U:%04x, T:%04x\n", rqp->sr_mid, 0, 0, 0);
 	m_dumpm(rqp->sr_rq.mb_top);
-	m = m_copym(rqp->sr_rq.mb_top, 0, M_COPYALL, M_TRYWAIT);
-	error = rqp->sr_lerror = m ? SMB_TRAN_SEND(vcp, m, td) : ENOBUFS;
+	m = m_copym(rqp->sr_rq.mb_top, 0, M_COPYALL, M_WAIT);
+	error = rqp->sr_lerror = SMB_TRAN_SEND(vcp, m, td);
 	if (error == 0) {
 		getnanotime(&rqp->sr_timesent);
 		iod->iod_lastrqsent = rqp->sr_timesent;

@@ -1776,21 +1776,11 @@ copy_mbuf(struct mbuf *m)
 
 	if (m->m_flags & M_PKTHDR) {
 		M_MOVE_PKTHDR(new, m);
-		if (m->m_len > MHLEN) {
-			MCLGET(new, M_TRYWAIT);
-			if ((m->m_flags & M_EXT) == 0) {
-				m_free(new);
-				return (NULL);
-			}
-		}
+		if (m->m_len > MHLEN)
+			MCLGET(new, M_WAIT);
 	} else {
-		if (m->m_len > MLEN) {
-			MCLGET(new, M_TRYWAIT);
-			if ((m->m_flags & M_EXT) == 0) {
-				m_free(new);
-				return (NULL);
-			}
-		}
+		if (m->m_len > MLEN)
+			MCLGET(new, M_WAIT);
 	}
 
 	bcopy(m->m_data, new->m_data, m->m_len);

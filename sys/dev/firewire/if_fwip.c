@@ -332,19 +332,11 @@ fwip_init(void *arg)
 		STAILQ_INIT(&xferq->stdma);
 		xferq->stproc = NULL;
 		for (i = 0; i < xferq->bnchunk; i ++) {
-			m =
-#if defined(__DragonFly__) || __FreeBSD_version < 500000
-				m_getcl(M_WAIT, MT_DATA, M_PKTHDR);
-#else
-				m_getcl(M_TRYWAIT, MT_DATA, M_PKTHDR);
-#endif
+			m = m_getcl(M_WAIT, MT_DATA, M_PKTHDR);
 			xferq->bulkxfer[i].mbuf = m;
-			if (m != NULL) {
-				m->m_len = m->m_pkthdr.len = m->m_ext.ext_size;
-				STAILQ_INSERT_TAIL(&xferq->stfree,
-						&xferq->bulkxfer[i], link);
-			} else
-				printf("fwip_as_input: m_getcl failed\n");
+			m->m_len = m->m_pkthdr.len = m->m_ext.ext_size;
+			STAILQ_INSERT_TAIL(&xferq->stfree,
+					&xferq->bulkxfer[i], link);
 		}
 
 		fwip->fwb.start = INET_FIFO;
@@ -356,7 +348,7 @@ fwip_init(void *arg)
 			xfer = fw_xfer_alloc(M_FWIP);
 			if (xfer == NULL)
 				break;
-			m = m_getcl(M_TRYWAIT, MT_DATA, M_PKTHDR);
+			m = m_getcl(M_WAIT, MT_DATA, M_PKTHDR);
 			xfer->recv.payload = mtod(m, uint32_t *);
 			xfer->recv.pay_len = MCLBYTES;
 			xfer->hand = fwip_unicast_input;
@@ -876,7 +868,7 @@ fwip_unicast_input_recycle(struct fwip_softc *fwip, struct fw_xfer *xfer)
 	 * We have finished with a unicast xfer. Allocate a new
 	 * cluster and stick it on the back of the input queue.
 	 */
-	m = m_getcl(M_TRYWAIT, MT_DATA, M_PKTHDR);
+	m = m_getcl(M_WAIT, MT_DATA, M_PKTHDR);
 	xfer->mbuf = m;
 	xfer->recv.payload = mtod(m, uint32_t *);
 	xfer->recv.pay_len = MCLBYTES;

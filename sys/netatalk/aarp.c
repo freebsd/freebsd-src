@@ -633,9 +633,7 @@ aarpprobe(void *arg)
 		    sizeof(eh->ether_dhost));
 		eh->ether_type = htons(sizeof(struct llc) +
 		    sizeof(struct ether_aarp));
-		M_PREPEND(m, sizeof(struct llc), M_TRYWAIT);
-		if (m == NULL)
-			return;
+		M_PREPEND(m, sizeof(struct llc), M_WAIT);
 		llc = mtod(m, struct llc *);
 		llc->llc_dsap = llc->llc_ssap = LLC_SNAP_LSAP;
 		llc->llc_control = LLC_UI;
