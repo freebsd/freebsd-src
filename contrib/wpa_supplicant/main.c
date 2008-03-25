@@ -41,7 +41,7 @@ static void usage(void)
 	int i;
 	printf("%s\n\n%s\n"
 	       "usage:\n"
-	       "  wpa_supplicant [-BddhKLqqtuvwW] [-P<pid file>] "
+	       "  wpa_supplicant [-BddhKLqqstuvwW] [-P<pid file>] "
 	       "[-g<global ctrl>] \\\n"
 	       "        -i<ifname> -c<config file> [-C<ctrl>] [-D<driver>] "
 	       "[-p<driver_param>] \\\n"
@@ -79,6 +79,9 @@ static void usage(void)
 	printf("  -p = driver parameters\n"
 	       "  -P = PID file\n"
 	       "  -q = decrease debugging verbosity (-qq even less)\n"
+#ifdef CONFIG_DEBUG_SYSLOG
+	       "  -s = log output to syslog instead of stdout\n"
+#endif /* CONFIG_DEBUG_SYSLOG */
 #ifdef CONFIG_CTRL_IFACE_DBUS
 	       "  -u = enable DBus control interface\n"
 #endif /* CONFIG_CTRL_IFACE_DBUS */
@@ -149,7 +152,7 @@ int main(int argc, char *argv[])
 	wpa_supplicant_fd_workaround();
 
 	for (;;) {
-		c = getopt(argc, argv, "b:Bc:C:D:df:g:hi:KLNp:P:qtuvwW");
+		c = getopt(argc, argv, "b:Bc:C:D:df:g:hi:KLNp:P:qstuvwW");
 		if (c < 0)
 			break;
 		switch (c) {
@@ -210,6 +213,11 @@ int main(int argc, char *argv[])
 		case 'q':
 			params.wpa_debug_level++;
 			break;
+#ifdef CONFIG_DEBUG_SYSLOG
+		case 's':
+			params.wpa_debug_syslog++;
+			break;
+#endif /* CONFIG_DEBUG_SYSLOG */
 		case 't':
 			params.wpa_debug_timestamp++;
 			break;
