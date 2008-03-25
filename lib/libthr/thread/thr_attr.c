@@ -547,13 +547,13 @@ _pthread_attr_setstacksize(pthread_attr_t *attr, size_t stacksize)
 	return(ret);
 }
 
-static int
-_get_kern_cpuset_size()
+static size_t
+_get_kern_cpuset_size(void)
 {
 	static int kern_cpuset_size = 0;
 
 	if (kern_cpuset_size == 0) {
-		int len;
+		size_t len;
 
 		len = sizeof(kern_cpuset_size);
 		if (sysctlbyname("kern.smp.maxcpus", &kern_cpuset_size,
@@ -587,9 +587,9 @@ _pthread_attr_setaffinity_np(pthread_attr_t *pattr, size_t cpusetsize,
 		}
 			
 		if (cpusetsize > attr->cpusetsize) {
-			int kern_size = _get_kern_cpuset_size();
+			size_t kern_size = _get_kern_cpuset_size();
 			if (cpusetsize > kern_size) {
-				int i;
+				size_t i;
 				for (i = kern_size; i < cpusetsize; ++i) {
 					if (((char *)cpuset)[i])
 						return (EINVAL);
@@ -627,7 +627,7 @@ _pthread_attr_getaffinity_np(const pthread_attr_t *pattr, size_t cpusetsize,
 			memset(((char *)cpuset) + attr->cpusetsize, 0, 
 				cpusetsize - attr->cpusetsize);
 	} else {
-		int kern_size = _get_kern_cpuset_size();
+		size_t kern_size = _get_kern_cpuset_size();
 		memset(cpuset, -1, MIN(cpusetsize, kern_size));
 		if (cpusetsize > kern_size)
 			memset(((char *)cpuset) + kern_size, 0,
