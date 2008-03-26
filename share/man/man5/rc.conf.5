@@ -1315,11 +1315,30 @@ If set to
 run the
 .Xr ppp 8
 daemon.
+.It Va ppp_profile
+.Pq Vt str
+The name of the profile to use from
+.Pa /etc/ppp/ppp.conf .
+Also used for per-profile overrides of
+.Va ppp_mode
+and
+.Va ppp_nat .
+When the profile name contains any of the characters
+.Dq Li .-/+
+they are translated to
+.Dq Li _
+for the proposes of the override variable names.
 .It Va ppp_mode
 .Pq Vt str
 Mode in which to run the
 .Xr ppp 8
 daemon.
+.It Va ppp_ Ns Ao Ar profile Ac Ns _mode
+.Pq Vt str
+Overrides the global
+.Va ppp_mode
+for
+.Ar profile .
 Accepted modes are
 .Dq Li auto ,
 .Dq Li ddial ,
@@ -1336,10 +1355,12 @@ Used in conjunction with
 .Va gateway_enable
 allows hosts on private network addresses access to the Internet using
 this host as a network address translating router.
-.It Va ppp_profile
+.It Va ppp_ Ns Ao Ar profile Ac Ns _nat
 .Pq Vt str
-The name of the profile to use from
-.Pa /etc/ppp/ppp.conf .
+Overrides the global
+.Va ppp_nat
+for
+.Ar profile .
 .It Va ppp_user
 .Pq Vt str
 The name of the user under which
