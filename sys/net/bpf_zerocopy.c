@@ -496,6 +496,11 @@ bpf_zerocopy_ioctl_setzbuf(struct thread *td, struct bpf_d *d,
 		zbuf_free(zbb);
 		return (EINVAL);
 	}
+
+	/*
+	 * Point BPF descriptor at buffers; initialize sbuf as zba so that
+	 * it is always filled first in the sequence, per bpf(4).
+	 */
 	d->bd_fbuf = (caddr_t)zbb;
 	d->bd_sbuf = (caddr_t)zba;
 	d->bd_slen = 0;
