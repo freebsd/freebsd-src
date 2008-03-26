@@ -91,7 +91,7 @@ announce(CTL_MSG *request, const char *remote_machine)
  * Build a block of characters containing the message.
  * It is sent blank filled and in a single block to
  * try to keep the message in one piece if the recipient
- * in in vi at the time
+ * in vi at the time
  */
 int
 print_mesg(const char *tty, CTL_MSG *request,
