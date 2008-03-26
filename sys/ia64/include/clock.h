@@ -16,8 +16,6 @@
 extern uint64_t	ia64_clock_reload;
 extern uint64_t	itc_frequency;
 
-int sysbeep(int pitch, int period);
-
 #endif
 
 #endif /* !_MACHINE_CLOCK_H_ */

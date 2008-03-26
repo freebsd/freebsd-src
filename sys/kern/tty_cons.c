@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <ddb/ddb.h>
 
 #include <machine/cpu.h>
+#include <machine/clock.h>
 
 static	d_open_t	cnopen;
 static	d_close_t	cnclose;
@@ -732,3 +733,53 @@ cn_drvinit(void *unused)
 }
 
 SYSINIT(cndev, SI_SUB_DRIVERS, SI_ORDER_MIDDLE, cn_drvinit, NULL);
+
+/*
+ * Sysbeep(), if we have hardware for it
+ */
+
+#ifdef HAS_TIMER_SPKR
+
+static int beeping;
+
+static void
+sysbeepstop(void *chan)
+{
+
+	timer_spkr_release();
+	beeping = 0;
+}
+
+int
+sysbeep(int pitch, int period)
+{
+
+	if (timer_spkr_acquire()) {
+		if (!beeping) {
+			/* Something else owns it. */
+			return (EBUSY);
+		}
+	}
+	timer_spkr_setfreq(pitch);
+	if (!beeping) {
+		beeping = period;
+		timeout(sysbeepstop, (void *)NULL, period);
+	}
+	return (0);
+}
+
+#else
+
+/*
+ * No hardware, no sound
+ */
+
+int
+sysbeep(int pitch __unused, int period __unused)
+{
+
+	return (ENODEV);
+}
+
+#endif
+
