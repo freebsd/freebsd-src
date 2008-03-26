@@ -212,6 +212,8 @@ u_long	 casuword(volatile u_long *p, u_long oldval, u_long newval);
 
 void	realitexpire(void *);
 
+int	sysbeep(int hertz, int period);
+
 /*
  * Cyclic clock function type definition used to hook the cyclic 
  * subsystem into the appropriate timer interrupt.

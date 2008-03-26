@@ -264,13 +264,3 @@ cpu_stopprofclock(void)
 {
 
 }
-
-/*
- * XXX Needed by syscons
- */
-int
-sysbeep(int pitch, int period)
-{
-
-	return (0);
-}

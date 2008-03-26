@@ -74,13 +74,10 @@ static void
 tone(thz, centisecs)
 	unsigned int thz, centisecs;
 {
-    unsigned int divisor;
     int sps, timo;
 
     if (thz <= 0)
 	return;
-
-    divisor = i8254_freq / thz;
 
 #ifdef DEBUG
     (void) printf("tone: thz=%d centisecs=%d\n", thz, centisecs);
@@ -96,7 +93,7 @@ tone(thz, centisecs)
     }
     splx(sps);
     disable_intr();
-    spkr_set_pitch(divisor);
+    timer_spkr_setfreq(thz);
     enable_intr();
 
     /* turn the speaker on */

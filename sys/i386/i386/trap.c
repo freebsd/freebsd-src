@@ -417,7 +417,7 @@ trap(struct trapframe *frame)
 			mtx_lock(&Giant);
 			if (time_second - lastalert > 10) {
 				log(LOG_WARNING, "NMI: power fail\n");
-				sysbeep(TIMER_FREQ/880, hz);
+				sysbeep(880, hz);
 				lastalert = time_second;
 			}
 			mtx_unlock(&Giant);
@@ -651,7 +651,7 @@ trap(struct trapframe *frame)
 			mtx_lock(&Giant);
 			if (time_second - lastalert > 10) {
 				log(LOG_WARNING, "NMI: power fail\n");
-				sysbeep(TIMER_FREQ/880, hz);
+				sysbeep(880, hz);
 				lastalert = time_second;
 			}
 			mtx_unlock(&Giant);
