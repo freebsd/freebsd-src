@@ -115,12 +115,11 @@ struct greheader {
 #define PPTP_MAX_PAYLOAD	(0xffff - sizeof(struct greheader) - 8)
 
 /* All times are scaled by this (PPTP_TIME_SCALE time units = 1 sec.) */
-#define PPTP_TIME_SCALE		1000			/* milliseconds */
+#define PPTP_TIME_SCALE		1024			/* milliseconds */
 typedef u_int64_t		pptptime_t;
 
 /* Acknowledgment timeout parameters and functions */
 #define PPTP_XMIT_WIN		16			/* max xmit window */
-#define PPTP_MIN_RTT		(PPTP_TIME_SCALE / 10)	/* 100 milliseconds */
 #define PPTP_MIN_TIMEOUT	(PPTP_TIME_SCALE / 83)	/* 12 milliseconds */
 #define PPTP_MAX_TIMEOUT	(3 * PPTP_TIME_SCALE)	/* 3 seconds */
 
@@ -185,10 +184,8 @@ static ng_disconnect_t	ng_pptpgre_disconnect;
 
 /* Helper functions */
 static int	ng_pptpgre_xmit(hpriv_p hpriv, item_p item);
-static void	ng_pptpgre_start_send_ack_timer(hpriv_p hpriv, int ackTimeout);
-static void	ng_pptpgre_stop_send_ack_timer(hpriv_p hpriv);
+static void	ng_pptpgre_start_send_ack_timer(hpriv_p hpriv);
 static void	ng_pptpgre_start_recv_ack_timer(hpriv_p hpriv);
-static void	ng_pptpgre_stop_recv_ack_timer(hpriv_p hpriv);
 static void	ng_pptpgre_recv_ack_timeout(node_p node, hook_p hook,
 		    void *arg1, int arg2);
 static void	ng_pptpgre_send_ack_timeout(node_p node, hook_p hook,
@@ -595,7 +592,8 @@ ng_pptpgre_xmit(hpriv_p hpriv, item_p item)
 		gre->hasAck = 1;
 		gre->data[gre->hasSeq] = htonl(hpriv->recvSeq);
 		hpriv->xmitAck = hpriv->recvSeq;
-		ng_pptpgre_stop_send_ack_timer(hpriv);
+		if (hpriv->conf.enableDelayedAck)
+			ng_uncallout(&hpriv->sackTimer, hpriv->node);
 	}
 
 	/* Prepend GRE header to outgoing frame */
@@ -769,7 +767,7 @@ ng_pptpgre_rcvdata_lower(hook_p hook, item_p item)
 			}
 
 			/* Stop/(re)start receive ACK timer as necessary */
-			ng_pptpgre_stop_recv_ack_timer(hpriv);
+			ng_uncallout(&hpriv->rackTimer, hpriv->node);
 			if (hpriv->recvAck != hpriv->xmitSeq)
 				ng_pptpgre_start_recv_ack_timer(hpriv);
 		}
@@ -798,13 +796,7 @@ badAck:
 				ng_pptpgre_xmit(hpriv, NULL);
 				/* ng_pptpgre_xmit() drops the mutex */
 			} else {				/* ack later */
-				/* Take 1/4 of the estimated round trip time */
-	    			int maxWait = (hpriv->rtt >> 2);
-				if (maxWait < PPTP_MIN_ACK_DELAY)
-					maxWait = PPTP_MIN_ACK_DELAY;
-				else if (maxWait > PPTP_MAX_ACK_DELAY)
-					maxWait = PPTP_MAX_ACK_DELAY;
-				ng_pptpgre_start_send_ack_timer(hpriv, maxWait);
+				ng_pptpgre_start_send_ack_timer(hpriv);
 				mtx_unlock(&hpriv->mtx);
 			}
 		} else
@@ -862,15 +854,6 @@ ng_pptpgre_start_recv_ack_timer(hpriv_p hpriv)
 }
 
 /*
- * Stop receive ack timer.
- */
-static void
-ng_pptpgre_stop_recv_ack_timer(hpriv_p hpriv)
-{
-	ng_uncallout(&hpriv->rackTimer, hpriv->node);
-}
-
-/*
  * The peer has failed to acknowledge the oldest unacknowledged sequence
  * number within the time allotted.  Update our adaptive timeout parameters
  * and reset/restart the recv ack timer.
@@ -901,23 +884,21 @@ ng_pptpgre_recv_ack_timeout(node_p node, hook_p hook, void *arg1, int arg2)
  * already running.
  */
 static void
-ng_pptpgre_start_send_ack_timer(hpriv_p hpriv, int ackTimeout)
+ng_pptpgre_start_send_ack_timer(hpriv_p hpriv)
 {
-	int ticks;
+	int ackTimeout, ticks;
+
+	/* Take 1/4 of the estimated round trip time */
+	ackTimeout = (hpriv->rtt >> 2);
+	if (ackTimeout < PPTP_MIN_ACK_DELAY)
+		ackTimeout = PPTP_MIN_ACK_DELAY;
+	else if (ackTimeout > PPTP_MAX_ACK_DELAY)
+		ackTimeout = PPTP_MAX_ACK_DELAY;
 
 	/* Be conservative: timeout can happen up to 1 tick early */
 	ticks = (((ackTimeout * hz) + PPTP_TIME_SCALE - 1) / PPTP_TIME_SCALE);
 	ng_callout(&hpriv->sackTimer, hpriv->node, hpriv->hook,
 	    ticks, ng_pptpgre_send_ack_timeout, hpriv, 0);
-}
-
-/*
- * Stop send ack timer.
- */
-static void
-ng_pptpgre_stop_send_ack_timer(hpriv_p hpriv)
-{
-	ng_uncallout(&hpriv->sackTimer, hpriv->node);
 }
 
 /*
@@ -966,9 +947,9 @@ ng_pptpgre_reset(hpriv_p hpriv)
 {
 	/* Reset adaptive timeout state */
 	hpriv->ato = PPTP_MAX_TIMEOUT;
-	hpriv->rtt = hpriv->conf.peerPpd * PPTP_TIME_SCALE / 10;  /* ppd in 10ths */
-	if (hpriv->rtt < PPTP_MIN_RTT)
-		hpriv->rtt = PPTP_MIN_RTT;
+	hpriv->rtt = PPTP_TIME_SCALE / 10;
+	if (hpriv->conf.peerPpd > 1)	/* ppd = 0 treat as = 1 */
+		hpriv->rtt *= hpriv->conf.peerPpd;
 	hpriv->dev = 0;
 	hpriv->xmitWin = (hpriv->conf.recvWin + 1) / 2;
 	if (hpriv->xmitWin < 2)		/* often the first packet is lost */
@@ -984,8 +965,8 @@ ng_pptpgre_reset(hpriv_p hpriv)
 	hpriv->xmitAck = ~0;
 
 	/* Stop timers */
-	ng_pptpgre_stop_send_ack_timer(hpriv);
-	ng_pptpgre_stop_recv_ack_timer(hpriv);
+	ng_uncallout(&hpriv->sackTimer, hpriv->node);
+	ng_uncallout(&hpriv->rackTimer, hpriv->node);
 }
 
 /*
@@ -999,6 +980,6 @@ ng_pptpgre_time(void)
 
 	microuptime(&tv);
 	t = (pptptime_t)tv.tv_sec * PPTP_TIME_SCALE;
-	t += (pptptime_t)tv.tv_usec / (1000000 / PPTP_TIME_SCALE);
+	t += tv.tv_usec / (1000000 / PPTP_TIME_SCALE);
 	return(t);
 }
