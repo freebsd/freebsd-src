@@ -181,7 +181,9 @@ __END_DECLS
  * (which could fail).  Do not use this for anything.
  */
 				/* must be == _POSIX_STREAM_MAX <limits.h> */
+#ifndef FOPEN_MAX
 #define	FOPEN_MAX	20	/* must be <= OPEN_MAX <sys/syslimits.h> */
+#endif
 #define	FILENAME_MAX	1024	/* must be <= PATH_MAX <sys/syslimits.h> */
 
 /* System V/ANSI C; this is the wrong way to do this, do *not* use these. */
