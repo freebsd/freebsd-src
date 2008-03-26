@@ -233,7 +233,7 @@ sc_tone(int herz)
 		if (timer_spkr_acquire())
 			return EBUSY;
 		/* set pitch */
-		spkr_set_pitch(i8254_freq / herz);
+		timer_spkr_setfreq(herz);
 	} else {
 		/* disable counter 1 */
 		ppi_spkr_off();

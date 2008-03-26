@@ -105,7 +105,6 @@ TUNABLE_INT("hw.i8254.freq", &i8254_freq);
 int	i8254_max_count;
 static int i8254_real_max_count;
 
-static	int	beeping = 0;
 static	struct mtx clock_lock;
 static	struct intsrc *i8254_intsrc;
 static	u_int32_t i8254_lastcount;
@@ -121,7 +120,6 @@ static	int	using_lapic_timer;
 #define	ACQUIRE_PENDING	3
 
 static	u_char	timer1_state;
-static	u_char	timer2_state;
 static void rtc_serialcombit(int);
 static void rtc_serialcom(int);
 static int rtc_inb(void);
@@ -161,8 +159,11 @@ clkintr(struct trapframe *frame)
 }
 
 int
-acquire_timer1(int mode)
+timer_spkr_acquire(void)
 {
+	int mode;
+
+	mode = TIMER_SEL1 | TIMER_SQWAVE | TIMER_16BIT;
 
 	if (timer1_state != RELEASED)
 		return (-1);
@@ -176,50 +177,32 @@ acquire_timer1(int mode)
 	 * careful with it as with timer0.
 	 */
 	outb(TIMER_MODE, TIMER_SEL1 | (mode & 0x3f));
+	ppi_spkr_on();		/* enable counter1 output to speaker */
 
 	return (0);
 }
 
 int
-acquire_timer2(int mode)
-{
-
-	if (timer2_state != RELEASED)
-		return (-1);
-	timer2_state = ACQUIRED;
-
-	/*
-	 * This access to the timer registers is as atomic as possible
-	 * because it is a single instruction.  We could do better if we
-	 * knew the rate.  Use of splclock() limits glitches to 10-100us,
-	 * and this is probably good enough for timer2, so we aren't as
-	 * careful with it as with timer0.
-	 */
-	outb(TIMER_MODE, TIMER_SEL2 | (mode & 0x3f));
-
-	return (0);
-}
-
-int
-release_timer1()
+timer_spkr_release(void)
 {
 
 	if (timer1_state != ACQUIRED)
 		return (-1);
 	timer1_state = RELEASED;
 	outb(TIMER_MODE, TIMER_SEL1 | TIMER_SQWAVE | TIMER_16BIT);
+	ppi_spkr_off();		/* disable counter1 output to speaker */
 	return (0);
 }
 
-int
-release_timer2()
+void
+timer_spkr_setfreq(int freq)
 {
 
-	if (timer2_state != ACQUIRED)
-		return (-1);
-	timer2_state = RELEASED;
-	outb(TIMER_MODE, TIMER_SEL2 | TIMER_SQWAVE | TIMER_16BIT);
-	return (0);
+	freq = i8254_freq / freq;
+	mtx_lock_spin(&clock_lock);
+	outb(TIMER_CNTR1, (freq) & 0xff);
+	outb(TIMER_CNTR1, (freq) >> 8);
+	mtx_unlock_spin(&clock_lock);
 }
 
 
@@ -340,38 +323,6 @@ DELAY(int n)
 		printf(" %d calls to getit() at %d usec each\n",
 		       getit_calls, (n + 5) / getit_calls);
 #endif
-}
-
-static void
-sysbeepstop(void *chan)
-{
-	ppi_spkr_off();		/* disable counter1 output to speaker */
-	timer_spkr_release();
-	beeping = 0;
-}
-
-int
-sysbeep(int pitch, int period)
-{
-	int x = splclock();
-
-	if (timer_spkr_acquire())
-		if (!beeping) {
-			/* Something else owns it. */
-			splx(x);
-			return (-1); /* XXX Should be EBUSY, but nobody cares anyway. */
-		}
-	mtx_lock_spin(&clock_lock);
-	spkr_set_pitch(pitch);
-	mtx_unlock_spin(&clock_lock);
-	if (!beeping) {
-		/* enable counter1 output to speaker */
-		ppi_spkr_on();
-		beeping = period;
-		timeout(sysbeepstop, (void *)NULL, period);
-	}
-	splx(x);
-	return (0);
 }
 
 static u_int

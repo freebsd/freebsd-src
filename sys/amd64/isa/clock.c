@@ -110,7 +110,6 @@ static int i8254_real_max_count;
 #define	RTC_LOCK	mtx_lock_spin(&clock_lock)
 #define	RTC_UNLOCK	mtx_unlock_spin(&clock_lock)
 
-static	int	beeping = 0;
 static	struct mtx clock_lock;
 static	const u_char daysinmonth[] = {31,28,31,30,31,30,31,31,30,31,30,31};
 static	struct intsrc *i8254_intsrc;
@@ -165,8 +164,11 @@ clkintr(struct trapframe *frame)
 }
 
 int
-acquire_timer2(int mode)
+timer_spkr_acquire(void)
 {
+	int mode;
+
+	mode = TIMER_SEL2 | TIMER_SQWAVE | TIMER_16BIT;
 
 	if (timer2_state != RELEASED)
 		return (-1);
@@ -180,19 +182,31 @@ acquire_timer2(int mode)
 	 * careful with it as with timer0.
 	 */
 	outb(TIMER_MODE, TIMER_SEL2 | (mode & 0x3f));
-
+	ppi_spkr_on();		/* enable counter2 output to speaker */
 	return (0);
 }
 
 int
-release_timer2()
+timer_spkr_release(void)
 {
 
 	if (timer2_state != ACQUIRED)
 		return (-1);
 	timer2_state = RELEASED;
 	outb(TIMER_MODE, TIMER_SEL2 | TIMER_SQWAVE | TIMER_16BIT);
+	ppi_spkr_off();		/* disable counter2 output to speaker */
 	return (0);
+}
+
+void
+timer_spkr_setfreq(int freq)
+{
+
+	freq = i8254_freq / freq;
+	mtx_lock_spin(&clock_lock);
+	outb(TIMER_CNTR2, freq & 0xff);
+	outb(TIMER_CNTR2, freq >> 8);
+	mtx_unlock_spin(&clock_lock);
 }
 
 /*
@@ -379,38 +393,6 @@ DELAY(int n)
 		printf(" %d calls to getit() at %d usec each\n",
 		       getit_calls, (n + 5) / getit_calls);
 #endif
-}
-
-static void
-sysbeepstop(void *chan)
-{
-	ppi_spkr_off();		/* disable counter2 output to speaker */
-	timer_spkr_release();
-	beeping = 0;
-}
-
-int
-sysbeep(int pitch, int period)
-{
-	int x = splclock();
-
-	if (timer_spkr_acquire())
-		if (!beeping) {
-			/* Something else owns it. */
-			splx(x);
-			return (-1); /* XXX Should be EBUSY, but nobody cares anyway. */
-		}
-	mtx_lock_spin(&clock_lock);
-	spkr_set_pitch(pitch);
-	mtx_unlock_spin(&clock_lock);
-	if (!beeping) {
-		/* enable counter2 output to speaker */
-		ppi_spkr_on();
-		beeping = period;
-		timeout(sysbeepstop, (void *)NULL, period);
-	}
-	splx(x);
-	return (0);
 }
 
 /*

@@ -1513,9 +1513,3 @@ ia64_highfp_save(struct thread *td)
 	KASSERT(thr == td, ("Inconsistent high FP state"));
 	return (1);
 }
-
-int
-sysbeep(int pitch, int period)
-{
-	return (ENODEV);
-}
