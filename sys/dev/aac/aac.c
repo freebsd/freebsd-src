@@ -1308,9 +1308,12 @@ aac_release_command(struct aac_command *cm)
 
 	aac_enqueue_free(cm);
 
+	/*
+	 * Dequeue all events so that there's no risk of events getting
+	 * stranded.
+	 */
 	sc = cm->cm_sc;
-	event = TAILQ_FIRST(&sc->aac_ev_cmfree);
-	if (event != NULL) {
+	while ((event = TAILQ_FIRST(&sc->aac_ev_cmfree)) != NULL) {
 		TAILQ_REMOVE(&sc->aac_ev_cmfree, event, ev_links);
 		event->ev_callback(sc, event, event->ev_arg);
 	}
