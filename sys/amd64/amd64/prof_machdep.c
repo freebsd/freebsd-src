@@ -258,7 +258,7 @@ cputime()
 	delta = prev_count - count;
 	prev_count = count;
 	if ((int) delta <= 0)
-		return (delta + (timer0_max_count << CPUTIME_CLOCK_I8254_SHIFT));
+		return (delta + (i8254_max_count << CPUTIME_CLOCK_I8254_SHIFT));
 	return (delta);
 }
 
@@ -323,7 +323,7 @@ startguprof(gp)
 			cputime_clock = CPUTIME_CLOCK_TSC;
 #endif
 	}
-	gp->profrate = timer_freq << CPUTIME_CLOCK_I8254_SHIFT;
+	gp->profrate = i8254_freq << CPUTIME_CLOCK_I8254_SHIFT;
 #if defined(I586_CPU) || defined(I686_CPU)
 	if (cputime_clock == CPUTIME_CLOCK_TSC) {
 		gp->profrate = tsc_freq >> 1;
