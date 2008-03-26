@@ -43,8 +43,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/clock.h>
 #include <machine/md_var.h>
-#include <machine/ppireg.h>
-#include <machine/timerreg.h>
 #include <machine/pc/bios.h>
 
 #include <vm/vm.h>
@@ -272,18 +270,12 @@ sc_get_bios_values(bios_values_t *values)
 int
 sc_tone(int herz)
 {
-#if defined(__i386__) || defined(__amd64__)
+#if defined(HAS_TIMER_SPKR)
 	if (herz) {
-		/* set command for counter 2, 2 byte write */
 		if (timer_spkr_acquire())
 			return EBUSY;
-		/* set pitch */
 		timer_spkr_setfreq(herz);
-		/* enable counter 2 output to speaker */
-		ppi_spkr_on();
 	} else {
-		/* disable counter 2 output to speaker */
-		ppi_spkr_off();
 		timer_spkr_release();
 	}
 #endif
