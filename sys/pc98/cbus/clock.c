@@ -69,7 +69,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/limits.h>
 #include <sys/module.h>
 #include <sys/sysctl.h>
-#include <sys/cons.h>
 #include <sys/power.h>
 
 #include <machine/clock.h>
@@ -325,71 +324,6 @@ DELAY(int n)
 #endif
 }
 
-static u_int
-calibrate_clocks(void)
-{
-	int timeout;
-	u_int count, prev_count, tot_count;
-	u_short	sec, start_sec;
-
-	if (bootverbose)
-	        printf("Calibrating clock(s) ... ");
-	/* Check ARTIC. */
-	if (!(PC98_SYSTEM_PARAMETER(0x458) & 0x80) &&
-	    !(PC98_SYSTEM_PARAMETER(0x45b) & 0x04))
-		goto fail;
-	timeout = 100000000;
-
-	/* Read the ARTIC. */
-	sec = inw(0x5e);
-
-	/* Wait for the ARTIC to changes. */
-	start_sec = sec;
-	for (;;) {
-		sec = inw(0x5e);
-		if (sec != start_sec)
-			break;
-		if (--timeout == 0)
-			goto fail;
-	}
-
-	/* Start keeping track of the i8254 counter. */
-	prev_count = getit();
-	if (prev_count == 0 || prev_count > i8254_max_count)
-		goto fail;
-	tot_count = 0;
-
-	start_sec = sec;
-	for (;;) {
-		sec = inw(0x5e);
-		count = getit();
-		if (count == 0 || count > i8254_max_count)
-			goto fail;
-		if (count > prev_count)
-			tot_count += prev_count - (count - i8254_max_count);
-		else
-			tot_count += prev_count - count;
-		prev_count = count;
-		if ((sec == start_sec + 1200) || /* 1200 = 307.2KHz >> 8 */
-		    (sec < start_sec &&
-		        (u_int)sec + 0x10000 == (u_int)start_sec + 1200))
-			break;
-		if (--timeout == 0)
-			goto fail;
-	}
-
-	if (bootverbose) {
-	        printf("i8254 clock: %u Hz\n", tot_count);
-	}
-	return (tot_count);
-
-fail:
-	if (bootverbose)
-	        printf("failed, using default i8254 clock of %u Hz\n",
-		       i8254_freq);
-	return (i8254_freq);
-}
-
 static void
 set_i8254_freq(u_int freq, int intr_freq)
 {
@@ -459,38 +393,6 @@ i8254_init(void)
 void
 startrtclock()
 {
-	u_int delta, freq;
-
-	freq = calibrate_clocks();
-#ifdef CLK_CALIBRATION_LOOP
-	if (bootverbose) {
-		printf(
-		"Press a key on the console to abort clock calibration\n");
-		while (cncheckc() == -1)
-			calibrate_clocks();
-	}
-#endif
-
-	/*
-	 * Use the calibrated i8254 frequency if it seems reasonable.
-	 * Otherwise use the default, and don't use the calibrated i586
-	 * frequency.
-	 */
-	delta = freq > i8254_freq ? freq - i8254_freq : i8254_freq - freq;
-	if (delta < i8254_freq / 100) {
-#ifndef CLK_USE_I8254_CALIBRATION
-		if (bootverbose)
-			printf(
-"CLK_USE_I8254_CALIBRATION not specified - using default frequency\n");
-		freq = i8254_freq;
-#endif
-		i8254_freq = freq;
-	} else {
-		if (bootverbose)
-			printf(
-		    "%d Hz differs from default of %d Hz by more than 1%%\n",
-			       freq, i8254_freq);
-	}
 
 	set_i8254_freq(i8254_freq, hz);
 	tc_init(&i8254_timecounter);
