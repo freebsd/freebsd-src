@@ -49,17 +49,6 @@
 #define	TIMER_CNTR2	(IO_TIMER1 + TIMER_REG_CNTR2)
 #define	TIMER_MODE	(IO_TIMER1 + TIMER_REG_MODE)
 
-#define	timer_spkr_acquire() \
-	acquire_timer2(TIMER_SEL2 | TIMER_SQWAVE | TIMER_16BIT)
-#define	timer_spkr_release() \
-	release_timer2()
-
-#define	spkr_set_pitch(pitch) \
-	do { \
-		outb(TIMER_CNTR2, (pitch) & 0xff); \
-		outb(TIMER_CNTR2, (pitch) >> 8); \
-	} while(0)
-
 #endif /* _KERNEL */
 
 #endif /* _MACHINE_TIMERREG_H_ */

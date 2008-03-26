@@ -3613,7 +3613,7 @@ sc_bell(scr_stat *scp, int pitch, int duration)
     } else if (duration != 0 && pitch != 0) {
 	if (scp != scp->sc->cur_scp)
 	    pitch *= 2;
-	sysbeep(pitch, duration);
+	sysbeep(1193182 / pitch, duration);
     }
 }
 

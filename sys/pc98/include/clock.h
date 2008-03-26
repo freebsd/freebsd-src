@@ -30,9 +30,4 @@
 
 #include <i386/clock.h>
 
-#ifdef _KERNEL
-int acquire_timer1(int);
-int release_timer1(void);
-#endif
-
 #endif /* _PC98_INCLUDE_CLOCK_H_ */

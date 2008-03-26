@@ -27,13 +27,15 @@ void	i8254_init(void);
  * Driver to clock driver interface.
  */
 
-int	acquire_timer2(int mode);
-int	release_timer2(void);
 int	rtcin(int reg);
 void	writertc(int reg, unsigned char val);
-int	sysbeep(int pitch, int period);
 void	init_TSC(void);
 void	init_TSC_tc(void);
+
+#define	HAS_TIMER_SPKR 1
+int	timer_spkr_acquire(void);
+int	timer_spkr_release(void);
+void	timer_spkr_setfreq(int freq);
 
 #endif /* _KERNEL */
 
