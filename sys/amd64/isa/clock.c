@@ -97,8 +97,8 @@ __FBSDID("$FreeBSD$");
 #define	TIMER_DIV(x) ((timer_freq + (x) / 2) / (x))
 
 int	clkintr_pending;
-int	pscnt = 1;
-int	psdiv = 1;
+static int	pscnt = 1;
+static int	psdiv = 1;
 int	statclock_disable;
 #ifndef TIMER_FREQ
 #define TIMER_FREQ   1193182
