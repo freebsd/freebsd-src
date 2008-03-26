@@ -28,7 +28,7 @@
 .\"	@(#)sysctl.3	8.4 (Berkeley) 5/9/95
 .\" $FreeBSD$
 .\"
-.Dd October 16, 2007
+.Dd March 27, 2008
 .Dt SYSCTL 3
 .Os
 .Sh NAME
@@ -533,17 +533,6 @@ Each element of the array contains the kernel address of a vnode
 .Va struct vnode *
 followed by the vnode itself
 .Va struct vnode .
-.El
-.Ss CTL_MACHDEP
-The set of variables defined is architecture dependent.
-The following variables are defined for the i386 architecture.
-.Bl -column "CONSOLE_DEVICEXXX" "struct bootinfoXXX" -offset indent
-.It Sy "Second level name	Type	Changeable"
-.It Li "CPU_CONSDEV	dev_t	no"
-.It Li "CPU_ADJKERNTZ	int	yes"
-.It Li "CPU_DISRTCSET	int	yes"
-.It Li "CPU_BOOTINFO	struct bootinfo	no"
-.It Li "CPU_WALLCLOCK	int	yes"
 .El
 .Ss CTL_NET
 The string and integer information available for the CTL_NET level
