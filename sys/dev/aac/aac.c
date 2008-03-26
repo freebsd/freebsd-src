@@ -334,7 +334,7 @@ aac_attach(struct aac_softc *sc)
 	/* Create the AIF thread */
 	if (kproc_create((void(*)(void *))aac_command_thread, sc,
 		   &sc->aifthread, 0, 0, "aac%daif", unit))
-		panic("Could not create AIF thread\n");
+		panic("Could not create AIF thread");
 
 	/* Register the shutdown method to only be called post-dump */
 	if ((sc->eh = EVENTHANDLER_REGISTER(shutdown_final, aac_shutdown,
@@ -385,7 +385,7 @@ aac_get_container_info(struct aac_softc *sc, struct aac_fib *fib, int cid)
 
 	if (aac_sync_fib(sc, ContainerCommand, 0, fib,
 			 sizeof(struct aac_mntinfo))) {
-		printf("error probing container %d", cid);
+		printf("Error probing container %d\n", cid);
 		return (NULL);
 	}
 
@@ -453,7 +453,7 @@ aac_add_container(struct aac_softc *sc, struct aac_mntinforesp *mir, int f)
 		co = (struct aac_container *)malloc(sizeof *co, M_AACBUF,
 		       M_NOWAIT | M_ZERO);
 		if (co == NULL)
-			panic("Out of memory?!\n");
+			panic("Out of memory?!");
 		fwprintf(sc, HBA_FLAGS_DBG_INIT_B, "id %x  name '%.16s'  size %u  type %d",
 		      mir->MntTable[0].ObjectId,
 		      mir->MntTable[0].FileSystemName,
@@ -678,7 +678,7 @@ aac_detach(device_t dev)
 	}
 
 	if (sc->aifflags & AAC_AIFFLAGS_RUNNING)
-		panic("Cannot shutdown AIF thread\n");
+		panic("Cannot shutdown AIF thread");
 
 	if ((error = aac_shutdown(dev)))
 		return(error);
@@ -978,7 +978,7 @@ aac_startio(struct aac_softc *sc)
 				error = 0;
 			} else if (error != 0)
 				panic("aac_startio: unexpected error %d from "
-				      "busdma\n", error);
+				      "busdma", error);
 		} else
 			aac_map_command_sg(cm, NULL, 0, 0);
 	}
@@ -1680,7 +1680,7 @@ aac_check_firmware(struct aac_softc *sc)
 		}
 		if (code & AAC_KERNEL_PANIC) {
 			device_printf(sc->aac_dev,
-				      "FATAL: controller kernel panic\n");
+				      "FATAL: controller kernel panic");
 			return(ENXIO);
 		}
 		if (time_uptime > (then + AAC_BOOT_TIMEOUT)) {
