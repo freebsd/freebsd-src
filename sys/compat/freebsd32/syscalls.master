@@ -274,7 +274,8 @@
 151	AUE_NULL	UNIMPL	sem_lock (BSD/OS 2.x)
 152	AUE_NULL	UNIMPL	sem_wakeup (BSD/OS 2.x)
 153	AUE_NULL	UNIMPL	asyncdaemon (BSD/OS 2.x)
-154	AUE_NULL	UNIMPL	nosys
+; 154 is initialised by the NLM code, if present.
+154	AUE_NULL	UNIMPL	nlm_syscall
 ; 155 is initialized by the NFS code, if present.
 ; XXX this is a problem!!!
 155	AUE_NFS_SVC	UNIMPL	nfssvc

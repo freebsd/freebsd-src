@@ -74,7 +74,7 @@ lockf(filedes, function, size)
 		fl.l_type = F_WRLCK;
 		if (_fcntl(filedes, F_GETLK, &fl) == -1)
 			return (-1);
-		if (fl.l_type == F_UNLCK || fl.l_pid == getpid())
+		if (fl.l_type == F_UNLCK || (fl.l_sysid == 0 && fl.l_pid == getpid()))
 			return (0);
 		errno = EAGAIN;
 		return (-1);

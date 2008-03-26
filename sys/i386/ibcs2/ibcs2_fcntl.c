@@ -93,7 +93,7 @@ cvt_flock2iflock(flp, iflp)
 	iflp->l_whence = (short)flp->l_whence;
 	iflp->l_start = (ibcs2_off_t)flp->l_start;
 	iflp->l_len = (ibcs2_off_t)flp->l_len;
-	iflp->l_sysid = 0;
+	iflp->l_sysid = flp->l_sysid;
 	iflp->l_pid = (ibcs2_pid_t)flp->l_pid;
 }
 
@@ -127,6 +127,7 @@ cvt_iflock2flock(iflp, flp)
 		break;
 	}
 	flp->l_whence = iflp->l_whence;
+	flp->l_sysid = iflp->l_sysid;
 }
 
 /* convert iBCS2 mode into NetBSD mode */

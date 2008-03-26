@@ -45,12 +45,12 @@
 typedef int32_t bool_t;
 typedef int32_t enum_t;
 
-typedef u_int32_t rpcprog_t;
-typedef u_int32_t rpcvers_t;
-typedef u_int32_t rpcproc_t;
-typedef u_int32_t rpcprot_t;
-typedef u_int32_t rpcport_t;
-typedef   int32_t rpc_inline_t;
+typedef uint32_t rpcprog_t;
+typedef uint32_t rpcvers_t;
+typedef uint32_t rpcproc_t;
+typedef uint32_t rpcprot_t;
+typedef uint32_t rpcport_t;
+typedef  int32_t rpc_inline_t;
 
 #define __dontcare__	-1
 
@@ -61,11 +61,21 @@ typedef   int32_t rpc_inline_t;
 #	define TRUE	(1)
 #endif
 
+#ifdef _KERNEL
+#ifdef _SYS_MALLOC_H_
+MALLOC_DECLARE(M_RPC);
+#endif
+#define mem_alloc(bsize)	malloc(bsize, M_RPC,  M_WAITOK|M_ZERO)
+#define mem_free(ptr, bsize)	free(ptr, M_RPC)
+#else
 #define mem_alloc(bsize)	calloc(1, bsize)
 #define mem_free(ptr, bsize)	free(ptr)
+#endif
 
 #include <sys/time.h>
-#ifndef _KERNEL
+#ifdef _KERNEL
+#include <rpc/netconfig.h>
+#else
 #include <netconfig.h>
 #endif
 
