@@ -325,7 +325,7 @@ typedef	struct dinfo {
 	u_int	d_mscl : 1;	/* multiple storage classes */
 	u_int	d_terr : 1;	/* invalid type combination */
 	u_int	d_nedecl : 1;	/* 1 if at least a tag is declared */
-	u_int	d_vararg : 1;	/* ... in in current function decl. */
+	u_int	d_vararg : 1;	/* ... in current function decl. */
 	u_int	d_proto : 1;	/* current funct. decl. is prototype */
 	u_int	d_notyp : 1;	/* set if no type specifier was present */
 	u_int	d_asm : 1;	/* set if d_ctx == AUTO and asm() present */

@@ -1384,7 +1384,7 @@ get_palette(video_adapter_t *adp, int base, int count,
 	}
 	free(r, M_DEVBUF);
 
-	/* if error && bits != 6 at this point, we are in in trouble... XXX */
+	/* if error && bits != 6 at this point, we are in trouble... XXX */
 	return error;
 }
 
