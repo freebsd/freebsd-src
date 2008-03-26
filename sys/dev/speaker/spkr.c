@@ -11,17 +11,13 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/uio.h>
 #include <sys/conf.h>
 #include <sys/ctype.h>
 #include <sys/malloc.h>
-#include <isa/isavar.h>
 #include <machine/clock.h>
-#include <machine/ppireg.h>
-#include <machine/timerreg.h>
 #include <dev/speaker/speaker.h>
 
 static	d_open_t	spkropen;
@@ -53,12 +49,6 @@ static MALLOC_DEFINE(M_SPKR, "spkr", "Speaker buffer");
  * PPI controls whether sound is passed through at all; the PIT's channel 2 is
  * used to generate clicks (a square wave) of whatever frequency is desired.
  */
-
-#ifdef PC98
-#define	SPKR_DESC	"PC98 speaker"
-#else
-#define	SPKR_DESC	"PC speaker"
-#endif
 
 #define SPKRPRI PSOCK
 static char endtone, endrest;
@@ -96,9 +86,6 @@ tone(thz, centisecs)
     timer_spkr_setfreq(thz);
     enable_intr();
 
-    /* turn the speaker on */
-    ppi_spkr_on();
-
     /*
      * Set timeout to endtone function, then give up the timeslice.
      * This is so other processes can execute while the tone is being
@@ -107,7 +94,6 @@ tone(thz, centisecs)
     timo = centisecs * hz / 100;
     if (timo > 0)
 	tsleep(&endtone, SPKRPRI | PCATCH, "spkrtn", timo);
-    ppi_spkr_off();
     sps = splclock();
     timer_spkr_release();
     splx(sps);
@@ -572,86 +558,29 @@ spkrioctl(dev, cmd, cmdarg, flags, td)
     return(EINVAL);
 }
 
-/*
- * Install placeholder to claim the resources owned by the
- * AT tone generator.
- */
-static struct isa_pnp_id speaker_ids[] = {
-#ifndef PC98
-	{ 0x0008d041 /* PNP0800 */, SPKR_DESC },
-#endif
-	{ 0 }
-};
-
 static struct cdev *speaker_dev;
 
+/*
+ * Module handling
+ */
 static int
-speaker_probe(device_t dev)
+speaker_modevent(module_t mod, int type, void *data)
 {
-	int	error;
+	int error = 0;
 
-	error = ISA_PNP_PROBE(device_get_parent(dev), dev, speaker_ids);
-	
-	/* PnP match */
-	if (error == 0)
-		return (0);
-
-	/* No match */
-	if (error == ENXIO)
-		return (ENXIO);
-
-	/* Not configured by hints. */
-	if (strncmp(device_get_name(dev), "speaker", 9))
-		return (ENXIO);
-
-	device_set_desc(dev, SPKR_DESC);
-
-	return (0);
-}
-
-static int
-speaker_attach(device_t dev)
-{
-
-	if (speaker_dev) {
-		device_printf(dev, "Already attached!\n");
-		return (ENXIO);
+	switch(type) {
+	case MOD_LOAD: 
+		speaker_dev = make_dev(&spkr_cdevsw, 0,
+		    UID_ROOT, GID_WHEEL, 0600, "speaker");
+		break;
+	case MOD_SHUTDOWN:
+	case MOD_UNLOAD:
+		destroy_dev(speaker_dev);
+		break;
+	default:
+		error = EOPNOTSUPP;
 	}
-
-	speaker_dev = make_dev(&spkr_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600,
-	    "speaker");
-	return (0);
+	return (error);
 }
 
-static int
-speaker_detach(device_t dev)
-{
-	destroy_dev(speaker_dev);
-	return (0);
-}
-
-static device_method_t speaker_methods[] = {
-	/* Device interface */
-	DEVMETHOD(device_probe,		speaker_probe),
-	DEVMETHOD(device_attach,	speaker_attach),
-	DEVMETHOD(device_detach,	speaker_detach),
-	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
-	DEVMETHOD(device_suspend,	bus_generic_suspend),
-	DEVMETHOD(device_resume,	bus_generic_resume),
-	{ 0, 0 }
-};
-
-static driver_t speaker_driver = {
-	"speaker",
-	speaker_methods,
-	1,		/* no softc */
-};
-
-static devclass_t speaker_devclass;
-
-DRIVER_MODULE(speaker, isa, speaker_driver, speaker_devclass, 0, 0);
-#ifndef PC98
-DRIVER_MODULE(speaker, acpi, speaker_driver, speaker_devclass, 0, 0);
-#endif
-
-/* spkr.c ends here */
+DEV_MODULE(speaker, speaker_modevent, NULL);
