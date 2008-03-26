@@ -15,8 +15,6 @@
  * XXX large parts of the driver and its interface are misplaced.
  */
 extern int	clkintr_pending;
-extern int	pscnt;
-extern int	psdiv;
 extern int	statclock_disable;
 extern u_int	timer_freq;
 extern int	timer0_max_count;
