@@ -342,7 +342,7 @@ thread_sig_find(int sig)
 		 * Enter a loop to look for threads that have the signal
 		 * unmasked.  POSIX specifies that a thread in a sigwait
 		 * will get the signal over any other threads.  Second
-		 * preference will be threads in in a sigsuspend.  Third
+		 * preference will be threads in a sigsuspend.  Third
 		 * preference will be the current thread.  If none of the
 		 * above, then the signal is delivered to the first thread
 		 * that is found.  Note that if a custom handler is not
