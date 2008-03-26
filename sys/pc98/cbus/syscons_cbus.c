@@ -38,8 +38,6 @@
 #include <sys/sysctl.h>
 
 #include <machine/clock.h>
-#include <machine/ppireg.h>
-#include <machine/timerreg.h>
 
 #include <pc98/pc98/pc98_machdep.h>
 
@@ -227,16 +225,10 @@ sc_tone(int herz)
 {
 
 	if (herz) {
-		/* enable counter 1 */
-		ppi_spkr_on();
-		/* set command for counter 1, 2 byte write */
 		if (timer_spkr_acquire())
 			return EBUSY;
-		/* set pitch */
 		timer_spkr_setfreq(herz);
 	} else {
-		/* disable counter 1 */
-		ppi_spkr_off();
 		timer_spkr_release();
 	}
 	return 0;
