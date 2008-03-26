@@ -2980,15 +2980,13 @@ aac_ioctl_event(struct aac_softc *sc, struct aac_event *event, void *arg)
 
 	switch (event->ev_type) {
 	case AAC_EVENT_CMFREE:
-		mtx_lock(&sc->aac_io_lock);
+		mtx_assert(&sc->aac_io_lock, MA_OWNED);
 		if (aac_alloc_command(sc, (struct aac_command **)arg)) {
 			aac_add_event(sc, event);
-			mtx_unlock(&sc->aac_io_lock);
 			return;
 		}
 		free(event, M_AACBUF);
 		wakeup(arg);
-		mtx_unlock(&sc->aac_io_lock);
 		break;
 	default:
 		break;
