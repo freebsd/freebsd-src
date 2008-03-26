@@ -48,6 +48,7 @@ __RCSID("$NetBSD: lockd.c,v 1.7 2000/08/12 18:08:44 thorpej Exp $");
 
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -76,13 +77,17 @@ int		_rpcsvcdirty = 0;
 
 int grace_expired;
 int nsm_state;
+int kernel_lockd;
 pid_t client_pid;
 struct mon mon_host;
 char **hosts, *svcport_str = NULL;
 int nhosts = 0;
 int xcreated = 0;
+char **addrs;			/* actually (netid, uaddr) pairs */
+int naddrs;			/* count of how many (netid, uaddr) pairs */
 
 void 	create_service(struct netconfig *nconf);
+void 	lookup_addresses(struct netconfig *nconf);
 void	init_nsm(void);
 void	nlm_prog_0(struct svc_req *, SVCXPRT *);
 void	nlm_prog_1(struct svc_req *, SVCXPRT *);
@@ -92,6 +97,11 @@ void	out_of_mem(void);
 void	usage(void);
 
 void sigalarm_handler(void);
+
+/*
+ * XXX move to some header file.
+ */
+#define _PATH_RPCLOCKDSOCK	"/var/run/rpclockd.sock"
 
 int
 main(int argc, char **argv)
@@ -106,7 +116,7 @@ main(int argc, char **argv)
 	int maxrec = RPC_MAXDATASIZE;
 	in_port_t svcport = 0;
 
-	while ((ch = getopt(argc, argv, "d:g:h:p:")) != (-1)) {
+	while ((ch = getopt(argc, argv, "d:g:h:kp:")) != (-1)) {
 		switch (ch) {
 		case 'd':
 			debug_level = atoi(optarg);
@@ -142,6 +152,9 @@ main(int argc, char **argv)
 				free(hosts);
 				out_of_mem();
 			}
+			break;
+		case 'k':
+			kernel_lockd = TRUE;
 			break;
 		case 'p':
 			endptr = NULL;
@@ -221,19 +234,77 @@ main(int argc, char **argv)
 		hosts[nhosts - 1] = "127.0.0.1";
 	}
 
-	nc_handle = setnetconfig();
-	while ((nconf = getnetconfig(nc_handle))) {
-		/* We want to listen only on udp6, tcp6, udp, tcp transports */
-		if (nconf->nc_flag & NC_VISIBLE) {
-			/* Skip if there's no IPv6 support */
-			if (have_v6 == 0 && strcmp(nconf->nc_protofmly, "inet6") == 0) {
-				/* DO NOTHING */
-			} else {
-				create_service(nconf);
+	if (kernel_lockd) {
+		/*
+		 * For the kernel lockd case, we run a cut-down RPC
+		 * service on a local-domain socket. The kernel's RPC
+		 * server will pass what it can't handle (mainly
+		 * client replies) down to us. This can go away
+		 * entirely if/when we move the client side of NFS
+		 * locking into the kernel.
+		 */
+		struct sockaddr_un sun;
+		int fd, oldmask;
+		SVCXPRT *xprt;
+
+		memset(&sun, 0, sizeof sun);
+		sun.sun_family = AF_LOCAL;
+		unlink(_PATH_RPCLOCKDSOCK);
+		strcpy(sun.sun_path, _PATH_RPCLOCKDSOCK);
+		sun.sun_len = SUN_LEN(&sun);
+		fd = socket(AF_LOCAL, SOCK_STREAM, 0);
+		if (!fd) {
+			err(1, "Can't create local lockd socket");
+		}
+		oldmask = umask(S_IXUSR|S_IRWXG|S_IRWXO);
+		if (bind(fd, (struct sockaddr *) &sun, sun.sun_len) < 0) {
+			err(1, "Can't bind local lockd socket");
+		}
+		umask(oldmask);
+		if (listen(fd, SOMAXCONN) < 0) {
+			err(1, "Can't listen on local lockd socket");
+		}
+		xprt = svc_vc_create(fd, RPC_MAXDATASIZE, RPC_MAXDATASIZE);
+		if (!xprt) {
+			err(1, "Can't create transport for local lockd socket");
+		}
+		if (!svc_reg(xprt, NLM_PROG, NLM_VERS4, nlm_prog_4, NULL)) {
+			err(1, "Can't register service for local lockd socket");
+		}
+
+		/*
+		 * We need to look up the addresses so that we can
+		 * hand uaddrs (ascii encoded address+port strings) to
+		 * the kernel.
+		 */
+		nc_handle = setnetconfig();
+		while ((nconf = getnetconfig(nc_handle))) {
+			/* We want to listen only on udp6, tcp6, udp, tcp transports */
+			if (nconf->nc_flag & NC_VISIBLE) {
+				/* Skip if there's no IPv6 support */
+				if (have_v6 == 0 && strcmp(nconf->nc_protofmly, "inet6") == 0) {
+					/* DO NOTHING */
+				} else {
+					lookup_addresses(nconf);
+				}
 			}
 		}
+		endnetconfig(nc_handle);
+	} else {
+		nc_handle = setnetconfig();
+		while ((nconf = getnetconfig(nc_handle))) {
+			/* We want to listen only on udp6, tcp6, udp, tcp transports */
+			if (nconf->nc_flag & NC_VISIBLE) {
+				/* Skip if there's no IPv6 support */
+				if (have_v6 == 0 && strcmp(nconf->nc_protofmly, "inet6") == 0) {
+					/* DO NOTHING */
+				} else {
+					create_service(nconf);
+				}
+			}
+		}
+		endnetconfig(nc_handle);
 	}
-	endnetconfig(nc_handle);
 
 	/*
 	 * Note that it is NOT sensible to run this program from inetd - the
@@ -259,14 +330,28 @@ main(int argc, char **argv)
 		    strerror(errno));
 		exit(1);
 	}
-	grace_expired = 0;
-	alarm(grace_period);
 
-	init_nsm();
+	if (kernel_lockd) {
+		client_pid = client_request();
 
-	client_pid = client_request();
+		/*
+		 * Create a child process to enter the kernel and then
+		 * wait for RPCs on our local domain socket.
+		 */
+		if (!fork())
+			nlm_syscall(debug_level, grace_period, naddrs, addrs);
+		else
+			svc_run();
+	} else {
+		grace_expired = 0;
+		alarm(grace_period);
 
-	svc_run();		/* Should never return */
+		init_nsm();
+
+		client_pid = client_request();
+
+		svc_run();		/* Should never return */
+	}
 	exit(1);
 }
 
@@ -499,6 +584,155 @@ create_service(struct netconfig *nconf)
 	} /* end while */
 }
 
+/*
+ * Look up addresses for the kernel to create transports for.
+ */
+void
+lookup_addresses(struct netconfig *nconf)
+{
+	struct addrinfo hints, *res = NULL;
+	struct sockaddr_in *sin;
+	struct sockaddr_in6 *sin6;
+	struct __rpc_sockinfo si;
+	struct netbuf servaddr;
+	SVCXPRT	*transp = NULL;
+	int aicode;
+	int nhostsbak;
+	int r;
+	int registered = 0;
+	u_int32_t host_addr[4];  /* IPv4 or IPv6 */
+	char *uaddr;
+
+	if ((nconf->nc_semantics != NC_TPI_CLTS) &&
+	    (nconf->nc_semantics != NC_TPI_COTS) &&
+	    (nconf->nc_semantics != NC_TPI_COTS_ORD))
+		return;	/* not my type */
+
+	/*
+	 * XXX - using RPC library internal functions.
+	 */
+	if (!__rpc_nconf2sockinfo(nconf, &si)) {
+		syslog(LOG_ERR, "cannot get information for %s",
+		    nconf->nc_netid);
+		return;
+	}
+
+	/* Get rpc.statd's address on this transport */
+	memset(&hints, 0, sizeof hints);
+	hints.ai_flags = AI_PASSIVE;
+	hints.ai_family = si.si_af;
+	hints.ai_socktype = si.si_socktype;
+	hints.ai_protocol = si.si_proto;
+
+	/*
+	 * Bind to specific IPs if asked to
+	 */
+	nhostsbak = nhosts;
+	while (nhostsbak > 0) {
+		--nhostsbak;
+
+		switch (hints.ai_family) {
+			case AF_INET:
+				if (inet_pton(AF_INET, hosts[nhostsbak],
+				    host_addr) == 1) {
+					hints.ai_flags &= AI_NUMERICHOST;
+				} else {
+					/*
+					 * Skip if we have an AF_INET6 address.
+					 */
+					if (inet_pton(AF_INET6, hosts[nhostsbak],
+					    host_addr) == 1) {
+						continue;
+					}
+				}
+				break;
+			case AF_INET6:
+				if (inet_pton(AF_INET6, hosts[nhostsbak],
+				    host_addr) == 1) {
+					hints.ai_flags &= AI_NUMERICHOST;
+				} else {
+					/*
+					 * Skip if we have an AF_INET address.
+					 */
+					if (inet_pton(AF_INET, hosts[nhostsbak],
+					    host_addr) == 1) {
+						continue;
+					}
+				}
+				break;
+			default:
+				break;
+		}
+
+		/*
+		 * If no hosts were specified, just bind to INADDR_ANY
+		 */
+		if (strcmp("*", hosts[nhostsbak]) == 0) {
+			if (svcport_str == NULL) {
+				res = malloc(sizeof(struct addrinfo));
+				if (res == NULL) 
+					out_of_mem();
+				res->ai_flags = hints.ai_flags;
+				res->ai_family = hints.ai_family;
+				res->ai_protocol = hints.ai_protocol;
+				switch (res->ai_family) {
+					case AF_INET:
+						sin = malloc(sizeof(struct sockaddr_in));
+						if (sin == NULL) 
+							out_of_mem();
+						sin->sin_family = AF_INET;
+						sin->sin_port = htons(0);
+						sin->sin_addr.s_addr = htonl(INADDR_ANY);
+						res->ai_addr = (struct sockaddr*) sin;
+						res->ai_addrlen = (socklen_t)
+						    sizeof(res->ai_addr);
+						break;
+					case AF_INET6:
+						sin6 = malloc(sizeof(struct sockaddr_in6));
+						if (sin6 == NULL)
+							out_of_mem();
+						sin6->sin6_family = AF_INET6;
+						sin6->sin6_port = htons(0);
+						sin6->sin6_addr = in6addr_any;
+						res->ai_addr = (struct sockaddr*) sin6;
+						res->ai_addrlen = (socklen_t) sizeof(res->ai_addr);
+						break;
+					default:
+						break;
+				}
+			} else { 
+				if ((aicode = getaddrinfo(NULL, svcport_str,
+				    &hints, &res)) != 0) {
+					syslog(LOG_ERR,
+					    "cannot get local address for %s: %s",
+					    nconf->nc_netid,
+					    gai_strerror(aicode));
+					continue;
+				}
+			}
+		} else {
+			if ((aicode = getaddrinfo(hosts[nhostsbak], svcport_str,
+			    &hints, &res)) != 0) {
+				syslog(LOG_ERR,
+				    "cannot get local address for %s: %s",
+				    nconf->nc_netid, gai_strerror(aicode));
+				continue;
+			}
+		}
+
+		servaddr.len = servaddr.maxlen = res->ai_addr->sa_len;
+		servaddr.buf = res->ai_addr;
+		uaddr = taddr2uaddr(nconf, &servaddr);
+
+		addrs = realloc(addrs, 2 * (naddrs + 1) * sizeof(char *));
+		if (!addrs)
+			out_of_mem();
+		addrs[2 * naddrs] = strdup(nconf->nc_netid);
+		addrs[2 * naddrs + 1] = uaddr;
+		naddrs++;
+	} /* end while */
+}
+
 void
 sigalarm_handler(void)
 {
@@ -509,7 +743,7 @@ sigalarm_handler(void)
 void
 usage()
 {
-	errx(1, "usage: rpc.lockd [-d <debuglevel>]"
+	errx(1, "usage: rpc.lockd [-k] [-d <debuglevel>]"
 	    " [-g <grace period>] [-h <bindip>] [-p <port>]");
 }
 
