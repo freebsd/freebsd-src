@@ -37,33 +37,85 @@
 #define	_SYS_LOCKF_H_
 
 #include <sys/queue.h>
+#include <sys/_lock.h>
+#include <sys/_sx.h>
 
 struct vop_advlock_args;
+struct vop_advlockasync_args;
 
 /*
- * The lockf structure is a kernel structure which contains the information
- * associated with a byte range lock.  The lockf structures are linked into
- * the inode structure. Locks are sorted by the starting byte of the lock for
- * efficiency.
+ * The lockf_entry structure is a kernel structure which contains the
+ * information associated with a byte range lock.  The lockf_entry
+ * structures are linked into the inode structure. Locks are sorted by
+ * the starting byte of the lock for efficiency.
+ *
+ * Active and pending locks on a vnode are organised into a
+ * graph. Each pending lock has an out-going edge to each active lock
+ * that blocks it.
+ *
+ * Locks:
+ * (i)		locked by the vnode interlock
+ * (s)		locked by state->ls_lock
+ * (S)		locked by lf_lock_states_lock
+ * (c)		const until freeing
  */
-TAILQ_HEAD(locklist, lockf);
-
-struct lockf {
-	short	lf_flags;	    /* Semantics: F_POSIX, F_FLOCK, F_WAIT */
-	short	lf_type;	    /* Lock type: F_RDLCK, F_WRLCK */
-	off_t	lf_start;	    /* Byte # of the start of the lock */
-	off_t	lf_end;		    /* Byte # of the end of the lock (-1=EOF) */
-	caddr_t	lf_id;		    /* Id of the resource holding the lock */
-	struct	lockf **lf_head;    /* Back pointer to the head of the lockf list */
-	struct	inode *lf_inode;    /* Back pointer to the inode */
-	struct	lockf *lf_next;	    /* Pointer to the next lock on this inode */
-	struct	locklist lf_blkhd;  /* List of requests blocked on this lock */
-	TAILQ_ENTRY(lockf) lf_block;/* A request waiting for a lock */
+struct lockf_edge {
+	LIST_ENTRY(lockf_edge) le_outlink; /* (s) link from's out-edge list */
+	LIST_ENTRY(lockf_edge) le_inlink; /* (s) link to's in-edge list */
+	struct lockf_entry *le_from;	/* (c) out-going from here */
+	struct lockf_entry *le_to;	/* (s) in-coming to here */
 };
+LIST_HEAD(lockf_edge_list, lockf_edge);
 
-/* Maximum length of sleep chains to traverse to try and detect deadlock. */
-#define MAXDEPTH 50
+struct lockf_entry {
+	short	lf_flags;	    /* (c) Semantics: F_POSIX, F_FLOCK, F_WAIT */
+	short	lf_type;	    /* (s) Lock type: F_RDLCK, F_WRLCK */
+	off_t	lf_start;	    /* (s) Byte # of the start of the lock */
+	off_t	lf_end;		    /* (s) Byte # of the end of the lock (OFF_MAX=EOF) */
+	struct	lock_owner *lf_owner; /* (c) Owner of the lock */
+	struct	vnode *lf_vnode;    /* (c) File being locked (only valid for active lock) */
+	struct	inode *lf_inode;    /* (c) Back pointer to the inode */
+	struct	task *lf_async_task;/* (c) Async lock callback */
+	LIST_ENTRY(lockf_entry) lf_link;  /* (s) Linkage for lock lists */
+	struct lockf_edge_list lf_outedges; /* (s) list of out-edges */
+	struct lockf_edge_list lf_inedges; /* (s) list of out-edges */
+};
+LIST_HEAD(lockf_entry_list, lockf_entry);
+
+/*
+ * Filesystem private node structures should include space for a
+ * pointer to a struct lockf_state. This pointer is used by the lock
+ * manager to track the locking state for a file.
+ *
+ * The ls_active list contains the set of active locks on the file. It
+ * is strictly ordered by the lock's lf_start value. Each active lock
+ * will have in-coming edges to any pending lock which it blocks.
+ *
+ * Lock requests which are blocked by some other active lock are
+ * listed in ls_pending with newer requests first in the list. Lock
+ * requests in this list will have out-going edges to each active lock
+ * that blocks then. They will also have out-going edges to each
+ * pending lock that is older in the queue - this helps to ensure
+ * fairness when several processes are contenting to lock the same
+ * record.
+
+ * The value of ls_threads is the number of threads currently using
+ * the state structure (typically either setting/clearing locks or
+ * sleeping waiting to do so). This is used to defer freeing the
+ * structure while some thread is still using it.
+ */
+struct lockf {
+	LIST_ENTRY(lockf) ls_link;	/* (S) all active lockf states */
+	struct	sx	ls_lock;
+	struct	lockf_entry_list ls_active; /* (s) Active locks */
+	struct	lockf_entry_list ls_pending; /* (s) Pending locks */
+	int		ls_threads;	/* (i) Thread count */
+};
+LIST_HEAD(lockf_list, lockf);
 
 int	 lf_advlock(struct vop_advlock_args *, struct lockf **, u_quad_t);
+int	 lf_advlockasync(struct vop_advlockasync_args *, struct lockf **, u_quad_t);
+int	 lf_countlocks(int sysid);
+void	 lf_clearremotesys(int sysid);
 
 #endif /* !_SYS_LOCKF_H_ */

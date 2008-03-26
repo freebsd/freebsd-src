@@ -297,7 +297,8 @@
 151	AUE_NULL	UNIMPL	sem_lock (BSD/OS 2.x)
 152	AUE_NULL	UNIMPL	sem_wakeup (BSD/OS 2.x)
 153	AUE_NULL	UNIMPL	asyncdaemon (BSD/OS 2.x)
-154	AUE_NULL	UNIMPL	nosys
+; 154 is initialised by the NLM code, if present.
+154	AUE_NULL	NOSTD	{ int nlm_syscall(int debug_level, int grace_period, int addr_count, char **addrs); }
 ; 155 is initialized by the NFS code, if present.
 155	AUE_NFS_SVC	NOSTD	{ int nfssvc(int flag, caddr_t argp); }
 156	AUE_GETDIRENTRIES	COMPAT	{ int getdirentries(int fd, char *buf, \

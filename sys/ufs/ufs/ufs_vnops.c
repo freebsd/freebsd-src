@@ -92,6 +92,7 @@ __FBSDID("$FreeBSD$");
 
 static vop_access_t	ufs_access;
 static vop_advlock_t	ufs_advlock;
+static vop_advlockasync_t ufs_advlockasync;
 static int ufs_chmod(struct vnode *, int, struct ucred *, struct thread *);
 static int ufs_chown(struct vnode *, uid_t, gid_t, struct ucred *, struct thread *);
 static vop_close_t	ufs_close;
@@ -2182,6 +2183,25 @@ ufs_advlock(ap)
 }
 
 /*
+ * Advisory record locking support
+ */
+static int
+ufs_advlockasync(ap)
+	struct vop_advlockasync_args /* {
+		struct vnode *a_vp;
+		caddr_t  a_id;
+		int  a_op;
+		struct flock *a_fl;
+		int  a_flags;
+		struct task *a_task;
+	} */ *ap;
+{
+	struct inode *ip = VTOI(ap->a_vp);
+
+	return (lf_advlockasync(ap, &(ip->i_lockf), ip->i_size));
+}
+
+/*
  * Initialize the vnode associated with a new inode, handle aliased
  * vnodes.
  */
@@ -2449,6 +2469,7 @@ struct vop_vector ufs_vnodeops = {
 	.vop_write =		VOP_PANIC,
 	.vop_access =		ufs_access,
 	.vop_advlock =		ufs_advlock,
+	.vop_advlockasync =	ufs_advlockasync,
 	.vop_bmap =		ufs_bmap,
 	.vop_cachedlookup =	ufs_lookup,
 	.vop_close =		ufs_close,
