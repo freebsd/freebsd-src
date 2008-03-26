@@ -80,7 +80,7 @@ tone(thz, centisecs)
     if (thz <= 0)
 	return;
 
-    divisor = timer_freq / thz;
+    divisor = i8254_freq / thz;
 
 #ifdef DEBUG
     (void) printf("tone: thz=%d centisecs=%d\n", thz, centisecs);

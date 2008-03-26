@@ -93,16 +93,17 @@ __FBSDID("$FreeBSD$");
 #include <isa/isavar.h>
 #endif
 
-#define	TIMER_DIV(x) ((timer_freq + (x) / 2) / (x))
+#define	TIMER_DIV(x) ((i8254_freq + (x) / 2) / (x))
 
 int	clkintr_pending;
 int	statclock_disable;
 #ifndef TIMER_FREQ
 #define TIMER_FREQ   2457600
 #endif
-u_int	timer_freq = TIMER_FREQ;
-int	timer0_max_count;
-int	timer0_real_max_count;
+u_int	i8254_freq = TIMER_FREQ;
+TUNABLE_INT("hw.i8254.freq", &i8254_freq);
+int	i8254_max_count;
+static int i8254_real_max_count;
 
 static	int	beeping = 0;
 static	struct mtx clock_lock;
@@ -128,7 +129,7 @@ static void rtc_outb(int);
 
 static	unsigned i8254_get_timecount(struct timecounter *tc);
 static	unsigned i8254_simple_get_timecount(struct timecounter *tc);
-static	void	set_timer_freq(u_int freq, int intr_freq);
+static	void	set_i8254_freq(u_int freq, int intr_freq);
 
 static struct timecounter i8254_timecounter = {
 	i8254_get_timecount,	/* get_timecount */
@@ -148,7 +149,7 @@ clkintr(struct trapframe *frame)
 		if (i8254_ticked)
 			i8254_ticked = 0;
 		else {
-			i8254_offset += timer0_max_count;
+			i8254_offset += i8254_max_count;
 			i8254_lastcount = 0;
 		}
 		clkintr_pending = 0;
@@ -241,7 +242,7 @@ getit(void)
 
 /*
  * Wait "n" microseconds.
- * Relies on timer 1 counting down from (timer_freq / hz)
+ * Relies on timer 1 counting down from (i8254_freq / hz)
  * Note: timer had better have been programmed before this is first used!
  */
 void
@@ -283,7 +284,7 @@ DELAY(int n)
 		prev_tick = getit();
 	n -= 0;			/* XXX actually guess no initial overhead */
 	/*
-	 * Calculate (n * (timer_freq / 1e6)) without using floating point
+	 * Calculate (n * (i8254_freq / 1e6)) without using floating point
 	 * and without any avoidable overflows.
 	 */
 	if (n <= 0)
@@ -303,7 +304,7 @@ DELAY(int n)
 		 * division, since even the slow way will complete long
 		 * before the delay is up (unless we're interrupted).
 		 */
-		ticks_left = ((u_int)n * (long long)timer_freq + 999999)
+		ticks_left = ((u_int)n * (long long)i8254_freq + 999999)
 			     / 1000000;
 
 	while (ticks_left > 0) {
@@ -312,7 +313,7 @@ DELAY(int n)
 			outb(0x5f, 0);
 			tick = prev_tick - 1;
 			if (tick <= 0)
-				tick = timer0_max_count;
+				tick = i8254_max_count;
 		} else
 #endif
 			tick = getit();
@@ -322,11 +323,11 @@ DELAY(int n)
 		delta = prev_tick - tick;
 		prev_tick = tick;
 		if (delta < 0) {
-			delta += timer0_max_count;
+			delta += i8254_max_count;
 			/*
-			 * Guard against timer0_max_count being wrong.
+			 * Guard against i8254_max_count being wrong.
 			 * This shouldn't happen in normal operation,
-			 * but it may happen if set_timer_freq() is
+			 * but it may happen if set_i8254_freq() is
 			 * traced.
 			 */
 			if (delta < 0)
@@ -403,7 +404,7 @@ calibrate_clocks(void)
 
 	/* Start keeping track of the i8254 counter. */
 	prev_count = getit();
-	if (prev_count == 0 || prev_count > timer0_max_count)
+	if (prev_count == 0 || prev_count > i8254_max_count)
 		goto fail;
 	tot_count = 0;
 
@@ -411,10 +412,10 @@ calibrate_clocks(void)
 	for (;;) {
 		sec = inw(0x5e);
 		count = getit();
-		if (count == 0 || count > timer0_max_count)
+		if (count == 0 || count > i8254_max_count)
 			goto fail;
 		if (count > prev_count)
-			tot_count += prev_count - (count - timer0_max_count);
+			tot_count += prev_count - (count - i8254_max_count);
 		else
 			tot_count += prev_count - count;
 		prev_count = count;
@@ -434,31 +435,31 @@ calibrate_clocks(void)
 fail:
 	if (bootverbose)
 	        printf("failed, using default i8254 clock of %u Hz\n",
-		       timer_freq);
-	return (timer_freq);
+		       i8254_freq);
+	return (i8254_freq);
 }
 
 static void
-set_timer_freq(u_int freq, int intr_freq)
+set_i8254_freq(u_int freq, int intr_freq)
 {
-	int new_timer0_real_max_count;
+	int new_i8254_real_max_count;
 
 	i8254_timecounter.tc_frequency = freq;
 	mtx_lock_spin(&clock_lock);
-	timer_freq = freq;
+	i8254_freq = freq;
 	if (using_lapic_timer)
-		new_timer0_real_max_count = 0x10000;
+		new_i8254_real_max_count = 0x10000;
 	else
-		new_timer0_real_max_count = TIMER_DIV(intr_freq);
-	if (new_timer0_real_max_count != timer0_real_max_count) {
-		timer0_real_max_count = new_timer0_real_max_count;
-		if (timer0_real_max_count == 0x10000)
-			timer0_max_count = 0xffff;
+		new_i8254_real_max_count = TIMER_DIV(intr_freq);
+	if (new_i8254_real_max_count != i8254_real_max_count) {
+		i8254_real_max_count = new_i8254_real_max_count;
+		if (i8254_real_max_count == 0x10000)
+			i8254_max_count = 0xffff;
 		else
-			timer0_max_count = timer0_real_max_count;
+			i8254_max_count = i8254_real_max_count;
 		outb(TIMER_MODE, TIMER_SEL0 | TIMER_RATEGEN | TIMER_16BIT);
-		outb(TIMER_CNTR0, timer0_real_max_count & 0xff);
-		outb(TIMER_CNTR0, timer0_real_max_count >> 8);
+		outb(TIMER_CNTR0, i8254_real_max_count & 0xff);
+		outb(TIMER_CNTR0, i8254_real_max_count >> 8);
 	}
 	mtx_unlock_spin(&clock_lock);
 }
@@ -469,8 +470,8 @@ i8254_restore(void)
 
 	mtx_lock_spin(&clock_lock);
 	outb(TIMER_MODE, TIMER_SEL0 | TIMER_RATEGEN | TIMER_16BIT);
-	outb(TIMER_CNTR0, timer0_real_max_count & 0xff);
-	outb(TIMER_CNTR0, timer0_real_max_count >> 8);
+	outb(TIMER_CNTR0, i8254_real_max_count & 0xff);
+	outb(TIMER_CNTR0, i8254_real_max_count >> 8);
 	mtx_unlock_spin(&clock_lock);
 }
 
@@ -486,7 +487,7 @@ void
 timer_restore(void)
 {
 
-	i8254_restore();		/* restore timer_freq and hz */
+	i8254_restore();		/* restore i8254_freq and hz */
 }
 
 /* This is separate from startrtclock() so that it can be called early. */
@@ -497,11 +498,11 @@ i8254_init(void)
 	mtx_init(&clock_lock, "clk", NULL, MTX_SPIN | MTX_NOPROFILE);
 
 	if (pc98_machine_type & M_8M)
-		timer_freq = 1996800L; /* 1.9968 MHz */
+		i8254_freq = 1996800L; /* 1.9968 MHz */
 	else
-		timer_freq = 2457600L; /* 2.4576 MHz */
+		i8254_freq = 2457600L; /* 2.4576 MHz */
 
-	set_timer_freq(timer_freq, hz);
+	set_i8254_freq(i8254_freq, hz);
 }
 
 void
@@ -524,23 +525,23 @@ startrtclock()
 	 * Otherwise use the default, and don't use the calibrated i586
 	 * frequency.
 	 */
-	delta = freq > timer_freq ? freq - timer_freq : timer_freq - freq;
-	if (delta < timer_freq / 100) {
+	delta = freq > i8254_freq ? freq - i8254_freq : i8254_freq - freq;
+	if (delta < i8254_freq / 100) {
 #ifndef CLK_USE_I8254_CALIBRATION
 		if (bootverbose)
 			printf(
 "CLK_USE_I8254_CALIBRATION not specified - using default frequency\n");
-		freq = timer_freq;
+		freq = i8254_freq;
 #endif
-		timer_freq = freq;
+		i8254_freq = freq;
 	} else {
 		if (bootverbose)
 			printf(
 		    "%d Hz differs from default of %d Hz by more than 1%%\n",
-			       freq, timer_freq);
+			       freq, i8254_freq);
 	}
 
-	set_timer_freq(timer_freq, hz);
+	set_i8254_freq(i8254_freq, hz);
 	tc_init(&i8254_timecounter);
 
 	init_TSC();
@@ -704,7 +705,7 @@ cpu_initclocks()
 		i8254_timecounter.tc_get_timecount =
 		    i8254_simple_get_timecount;
 		i8254_timecounter.tc_counter_mask = 0xffff;
-		set_timer_freq(timer_freq, hz);
+		set_i8254_freq(i8254_freq, hz);
 	}
 
 	init_TSC_tc();
@@ -730,10 +731,10 @@ sysctl_machdep_i8254_freq(SYSCTL_HANDLER_ARGS)
 	 * Use `i8254' instead of `timer' in external names because `timer'
 	 * is is too generic.  Should use it everywhere.
 	 */
-	freq = timer_freq;
+	freq = i8254_freq;
 	error = sysctl_handle_int(oidp, &freq, 0, req);
 	if (error == 0 && req->newptr != NULL)
-		set_timer_freq(freq, hz);
+		set_i8254_freq(freq, hz);
 	return (error);
 }
 
@@ -744,7 +745,7 @@ static unsigned
 i8254_simple_get_timecount(struct timecounter *tc)
 {
 
-	return (timer0_max_count - getit());
+	return (i8254_max_count - getit());
 }
 
 static unsigned
@@ -762,13 +763,13 @@ i8254_get_timecount(struct timecounter *tc)
 
 	low = inb(TIMER_CNTR0);
 	high = inb(TIMER_CNTR0);
-	count = timer0_max_count - ((high << 8) | low);
+	count = i8254_max_count - ((high << 8) | low);
 	if (count < i8254_lastcount ||
 	    (!i8254_ticked && (clkintr_pending ||
-	    ((count < 20 || (!(eflags & PSL_I) && count < timer0_max_count / 2u)) &&
+	    ((count < 20 || (!(eflags & PSL_I) && count < i8254_max_count / 2u)) &&
 	    i8254_pending != NULL && i8254_pending(i8254_intsrc))))) {
 		i8254_ticked = 1;
-		i8254_offset += timer0_max_count;
+		i8254_offset += i8254_max_count;
 	}
 	i8254_lastcount = count;
 	count += i8254_offset;
