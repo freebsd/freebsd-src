@@ -56,34 +56,24 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/clock.h>
-#include <sys/conf.h>
-#include <sys/fcntl.h>
 #include <sys/lock.h>
 #include <sys/kdb.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
-#include <sys/time.h>
 #include <sys/timetc.h>
-#include <sys/uio.h>
 #include <sys/kernel.h>
-#include <sys/limits.h>
 #include <sys/module.h>
 #include <sys/sched.h>
 #include <sys/sysctl.h>
-#include <sys/cons.h>
-#include <sys/power.h>
 
 #include <machine/clock.h>
 #include <machine/cpu.h>
-#include <machine/cputypes.h>
 #include <machine/frame.h>
 #include <machine/intr_machdep.h>
 #include <machine/md_var.h>
-#include <machine/psl.h>
 #ifdef DEV_APIC
 #include <machine/apicvar.h>
 #endif
-#include <machine/specialreg.h>
 #include <machine/ppireg.h>
 #include <machine/timerreg.h>
 
@@ -445,86 +435,6 @@ readrtc(int port)
 	return(bcd2bin(rtcin(port)));
 }
 
-static u_int
-calibrate_clocks(void)
-{
-	u_int count, prev_count, tot_count;
-	int sec, start_sec, timeout;
-
-	if (bootverbose)
-	        printf("Calibrating clock(s) ... ");
-	if (!(rtcin(RTC_STATUSD) & RTCSD_PWR))
-		goto fail;
-	timeout = 100000000;
-
-	/* Read the mc146818A seconds counter. */
-	for (;;) {
-		if (!(rtcin(RTC_STATUSA) & RTCSA_TUP)) {
-			sec = rtcin(RTC_SEC);
-			break;
-		}
-		if (--timeout == 0)
-			goto fail;
-	}
-
-	/* Wait for the mC146818A seconds counter to change. */
-	start_sec = sec;
-	for (;;) {
-		if (!(rtcin(RTC_STATUSA) & RTCSA_TUP)) {
-			sec = rtcin(RTC_SEC);
-			if (sec != start_sec)
-				break;
-		}
-		if (--timeout == 0)
-			goto fail;
-	}
-
-	/* Start keeping track of the i8254 counter. */
-	prev_count = getit();
-	if (prev_count == 0 || prev_count > i8254_max_count)
-		goto fail;
-	tot_count = 0;
-
-	/*
-	 * Wait for the mc146818A seconds counter to change.  Read the i8254
-	 * counter for each iteration since this is convenient and only
-	 * costs a few usec of inaccuracy. The timing of the final reads
-	 * of the counters almost matches the timing of the initial reads,
-	 * so the main cause of inaccuracy is the varying latency from 
-	 * inside getit() or rtcin(RTC_STATUSA) to the beginning of the
-	 * rtcin(RTC_SEC) that returns a changed seconds count.  The
-	 * maximum inaccuracy from this cause is < 10 usec on 486's.
-	 */
-	start_sec = sec;
-	for (;;) {
-		if (!(rtcin(RTC_STATUSA) & RTCSA_TUP))
-			sec = rtcin(RTC_SEC);
-		count = getit();
-		if (count == 0 || count > i8254_max_count)
-			goto fail;
-		if (count > prev_count)
-			tot_count += prev_count - (count - i8254_max_count);
-		else
-			tot_count += prev_count - count;
-		prev_count = count;
-		if (sec != start_sec)
-			break;
-		if (--timeout == 0)
-			goto fail;
-	}
-
-	if (bootverbose) {
-	        printf("i8254 clock: %u Hz\n", tot_count);
-	}
-	return (tot_count);
-
-fail:
-	if (bootverbose)
-	        printf("failed, using default i8254 clock of %u Hz\n",
-		       i8254_freq);
-	return (i8254_freq);
-}
-
 static void
 set_i8254_freq(u_int freq, int intr_freq)
 {
@@ -601,41 +511,9 @@ i8254_init(void)
 void
 startrtclock()
 {
-	u_int delta, freq;
 
 	writertc(RTC_STATUSA, rtc_statusa);
 	writertc(RTC_STATUSB, RTCSB_24HR);
-
-	freq = calibrate_clocks();
-#ifdef CLK_CALIBRATION_LOOP
-	if (bootverbose) {
-		printf(
-		"Press a key on the console to abort clock calibration\n");
-		while (cncheckc() == -1)
-			calibrate_clocks();
-	}
-#endif
-
-	/*
-	 * Use the calibrated i8254 frequency if it seems reasonable.
-	 * Otherwise use the default, and don't use the calibrated i586
-	 * frequency.
-	 */
-	delta = freq > i8254_freq ? freq - i8254_freq : i8254_freq - freq;
-	if (delta < i8254_freq / 100) {
-#ifndef CLK_USE_I8254_CALIBRATION
-		if (bootverbose)
-			printf(
-"CLK_USE_I8254_CALIBRATION not specified - using default frequency\n");
-		freq = i8254_freq;
-#endif
-		i8254_freq = freq;
-	} else {
-		if (bootverbose)
-			printf(
-		    "%d Hz differs from default of %d Hz by more than 1%%\n",
-			       freq, i8254_freq);
-	}
 
 	set_i8254_freq(i8254_freq, hz);
 	tc_init(&i8254_timecounter);

@@ -21,8 +21,6 @@ LINPROCFS		opt_dontuse.h
 LINSYSFS		opt_dontuse.h
 NDISAPI			opt_dontuse.h
 
-CLK_CALIBRATION_LOOP		opt_clock.h
-CLK_USE_I8254_CALIBRATION	opt_clock.h
 TIMER_FREQ			opt_clock.h
 
 # options for serial support
