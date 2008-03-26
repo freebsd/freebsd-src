@@ -243,7 +243,7 @@ SYSCTL_NODE(_hw, OID_AUTO, aac, CTLFLAG_RD, 0, "AAC driver parameters");
  */
 
 /*
- * Initialise the controller and softc
+ * Initialize the controller and softc
  */
 int
 aac_attach(struct aac_softc *sc)
@@ -253,7 +253,7 @@ aac_attach(struct aac_softc *sc)
 	debug_called(1);
 
 	/*
-	 * Initialise per-controller queues.
+	 * Initialize per-controller queues.
 	 */
 	aac_initq_free(sc);
 	aac_initq_ready(sc);
@@ -261,7 +261,7 @@ aac_attach(struct aac_softc *sc)
 	aac_initq_bio(sc);
 
 	/*
-	 * Initialise command-completion task.
+	 * Initialize command-completion task.
 	 */
 	TASK_INIT(&sc->aac_task_complete, 0, aac_complete, sc);
 
@@ -287,7 +287,7 @@ aac_attach(struct aac_softc *sc)
 	sc->aac_aifq_head = sc->aac_aifq_tail = AAC_AIFQ_LENGTH;
 
 	/*
-	 * Initialise the adapter.
+	 * Initialize the adapter.
 	 */
 	if ((error = aac_init(sc)) != 0)
 		return(error);
@@ -447,7 +447,7 @@ aac_startup(void *arg)
 }
 
 /*
- * Create a device to respresent a new container
+ * Create a device to represent a new container
  */
 static void
 aac_add_container(struct aac_softc *sc, struct aac_mntinforesp *mir, int f)
@@ -1288,7 +1288,7 @@ aac_release_command(struct aac_command *cm)
 
 	debug_called(3);
 
-	/* (re)initialise the command/FIB */
+	/* (re)initialize the command/FIB */
 	cm->cm_sgtable = NULL;
 	cm->cm_flags = 0;
 	cm->cm_complete = NULL;
@@ -1301,7 +1301,7 @@ aac_release_command(struct aac_command *cm)
 	/*
 	 * These are duplicated in aac_start to cover the case where an
 	 * intermediate stage may have destroyed them.  They're left
-	 * initialised here for debugging purposes only.
+	 * initialized here for debugging purposes only.
 	 */
 	cm->cm_fib->Header.ReceiverFibAddress = (u_int32_t)cm->cm_fibphys;
 	cm->cm_fib->Header.SenderData = 0;
@@ -1332,7 +1332,7 @@ aac_map_command_helper(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 }
 
 /*
- * Allocate and initialise commands/FIBs for this adapter.
+ * Allocate and initialize commands/FIBs for this adapter.
  */
 static int
 aac_alloc_commands(struct aac_softc *sc)
@@ -1365,7 +1365,7 @@ aac_alloc_commands(struct aac_softc *sc)
 			      sc->aac_max_fibs_alloc * sc->aac_max_fib_size,
 			      aac_map_command_helper, &fibphys, 0);
 
-	/* initialise constant fields in the command structure */
+	/* initialize constant fields in the command structure */
 	bzero(fm->aac_fibs, sc->aac_max_fibs_alloc * sc->aac_max_fib_size);
 	for (i = 0; i < sc->aac_max_fibs_alloc; i++) {
 		cm = sc->aac_commands + sc->total_fibs;
@@ -1557,7 +1557,7 @@ aac_unmap_command(struct aac_command *cm)
  */
 
 /*
- * Initialise the adapter.
+ * Initialize the adapter.
  */
 static void
 aac_common_map(void *arg, bus_dma_segment_t *segs, int nseg, int error)
@@ -1870,7 +1870,7 @@ aac_init(struct aac_softc *sc)
 	ip->MaxFibSize = sc->aac_max_fib_size;
 
 	/*
-	 * Initialise FIB queues.  Note that it appears that the layout of the
+	 * Initialize FIB queues.  Note that it appears that the layout of the
 	 * indexes and the segmentation of the entries may be mandated by the
 	 * adapter, which is only told about the base of the queue index fields.
 	 *
