@@ -43,7 +43,7 @@
 #include <unistd.h>
 
 #ifdef __FreeBSD__
-#if __FreeBSD_version > 800010	/* XXX change before committing to cvs */
+#if __FreeBSD_version >= 800028
 #define HAVE_SYSID
 #endif
 #include <sys/cdefs.h>
