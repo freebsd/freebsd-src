@@ -2906,3 +2906,4770 @@ systrace_args(int sysnum, void *params, u_int64_t *uarg, int *n_args)
 		break;
 	};
 }
+static void
+systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
+{
+	const char *p = NULL;
+	switch (sysnum) {
+	/* nosys */
+	case 0:
+		break;
+	/* sys_exit */
+	case 1:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* fork */
+	case 2:
+		break;
+	/* read */
+	case 3:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "void *";
+			break;
+		case 2:
+			p = "size_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* write */
+	case 4:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "const void *";
+			break;
+		case 2:
+			p = "size_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* open */
+	case 5:
+		switch(ndx) {
+		case 0:
+			p = "char *";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* close */
+	case 6:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* wait4 */
+	case 7:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "int *";
+			break;
+		case 2:
+			p = "int";
+			break;
+		case 3:
+			p = "struct rusage *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* link */
+	case 9:
+		switch(ndx) {
+		case 0:
+			p = "char *";
+			break;
+		case 1:
+			p = "char *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* unlink */
+	case 10:
+		switch(ndx) {
+		case 0:
+			p = "char *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* chdir */
+	case 12:
+		switch(ndx) {
+		case 0:
+			p = "char *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* fchdir */
+	case 13:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* mknod */
+	case 14:
+		switch(ndx) {
+		case 0:
+			p = "char *";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* chmod */
+	case 15:
+		switch(ndx) {
+		case 0:
+			p = "char *";
+			break;
+		case 1:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* chown */
+	case 16:
+		switch(ndx) {
+		case 0:
+			p = "char *";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* obreak */
+	case 17:
+		switch(ndx) {
+		case 0:
+			p = "char *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* getpid */
+	case 20:
+		break;
+	/* mount */
+	case 21:
+		switch(ndx) {
+		case 0:
+			p = "char *";
+			break;
+		case 1:
+			p = "char *";
+			break;
+		case 2:
+			p = "int";
+			break;
+		case 3:
+			p = "caddr_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* unmount */
+	case 22:
+		switch(ndx) {
+		case 0:
+			p = "char *";
+			break;
+		case 1:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* setuid */
+	case 23:
+		switch(ndx) {
+		case 0:
+			p = "uid_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* getuid */
+	case 24:
+		break;
+	/* geteuid */
+	case 25:
+		break;
+	/* ptrace */
+	case 26:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "pid_t";
+			break;
+		case 2:
+			p = "caddr_t";
+			break;
+		case 3:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* recvmsg */
+	case 27:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "struct msghdr *";
+			break;
+		case 2:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* sendmsg */
+	case 28:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "struct msghdr *";
+			break;
+		case 2:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* recvfrom */
+	case 29:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "caddr_t";
+			break;
+		case 2:
+			p = "size_t";
+			break;
+		case 3:
+			p = "int";
+			break;
+		case 4:
+			p = "struct sockaddr *__restrict";
+			break;
+		case 5:
+			p = "__socklen_t *__restrict";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* accept */
+	case 30:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "struct sockaddr *__restrict";
+			break;
+		case 2:
+			p = "__socklen_t *__restrict";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* getpeername */
+	case 31:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "struct sockaddr *__restrict";
+			break;
+		case 2:
+			p = "__socklen_t *__restrict";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* getsockname */
+	case 32:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "struct sockaddr *__restrict";
+			break;
+		case 2:
+			p = "__socklen_t *__restrict";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* access */
+	case 33:
+		switch(ndx) {
+		case 0:
+			p = "char *";
+			break;
+		case 1:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* chflags */
+	case 34:
+		switch(ndx) {
+		case 0:
+			p = "char *";
+			break;
+		case 1:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* fchflags */
+	case 35:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* sync */
+	case 36:
+		break;
+	/* kill */
+	case 37:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* getppid */
+	case 39:
+		break;
+	/* dup */
+	case 41:
+		switch(ndx) {
+		case 0:
+			p = "u_int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* pipe */
+	case 42:
+		break;
+	/* getegid */
+	case 43:
+		break;
+	/* profil */
+	case 44:
+		switch(ndx) {
+		case 0:
+			p = "caddr_t";
+			break;
+		case 1:
+			p = "size_t";
+			break;
+		case 2:
+			p = "size_t";
+			break;
+		case 3:
+			p = "u_int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* ktrace */
+	case 45:
+		switch(ndx) {
+		case 0:
+			p = "const char *";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "int";
+			break;
+		case 3:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* getgid */
+	case 47:
+		break;
+	/* getlogin */
+	case 49:
+		switch(ndx) {
+		case 0:
+			p = "char *";
+			break;
+		case 1:
+			p = "u_int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* setlogin */
+	case 50:
+		switch(ndx) {
+		case 0:
+			p = "char *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* acct */
+	case 51:
+		switch(ndx) {
+		case 0:
+			p = "char *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* sigaltstack */
+	case 53:
+		switch(ndx) {
+		case 0:
+			p = "stack_t *";
+			break;
+		case 1:
+			p = "stack_t *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* ioctl */
+	case 54:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "u_long";
+			break;
+		case 2:
+			p = "caddr_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* reboot */
+	case 55:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* revoke */
+	case 56:
+		switch(ndx) {
+		case 0:
+			p = "char *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* symlink */
+	case 57:
+		switch(ndx) {
+		case 0:
+			p = "char *";
+			break;
+		case 1:
+			p = "char *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* readlink */
+	case 58:
+		switch(ndx) {
+		case 0:
+			p = "char *";
+			break;
+		case 1:
+			p = "char *";
+			break;
+		case 2:
+			p = "size_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* execve */
+	case 59:
+		switch(ndx) {
+		case 0:
+			p = "char *";
+			break;
+		case 1:
+			p = "char **";
+			break;
+		case 2:
+			p = "char **";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* umask */
+	case 60:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* chroot */
+	case 61:
+		switch(ndx) {
+		case 0:
+			p = "char *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* msync */
+	case 65:
+		switch(ndx) {
+		case 0:
+			p = "void *";
+			break;
+		case 1:
+			p = "size_t";
+			break;
+		case 2:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* vfork */
+	case 66:
+		break;
+	/* sbrk */
+	case 69:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* sstk */
+	case 70:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* ovadvise */
+	case 72:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* munmap */
+	case 73:
+		switch(ndx) {
+		case 0:
+			p = "void *";
+			break;
+		case 1:
+			p = "size_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* mprotect */
+	case 74:
+		switch(ndx) {
+		case 0:
+			p = "const void *";
+			break;
+		case 1:
+			p = "size_t";
+			break;
+		case 2:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* madvise */
+	case 75:
+		switch(ndx) {
+		case 0:
+			p = "void *";
+			break;
+		case 1:
+			p = "size_t";
+			break;
+		case 2:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* mincore */
+	case 78:
+		switch(ndx) {
+		case 0:
+			p = "const void *";
+			break;
+		case 1:
+			p = "size_t";
+			break;
+		case 2:
+			p = "char *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* getgroups */
+	case 79:
+		switch(ndx) {
+		case 0:
+			p = "u_int";
+			break;
+		case 1:
+			p = "gid_t *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* setgroups */
+	case 80:
+		switch(ndx) {
+		case 0:
+			p = "u_int";
+			break;
+		case 1:
+			p = "gid_t *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* getpgrp */
+	case 81:
+		break;
+	/* setpgid */
+	case 82:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* setitimer */
+	case 83:
+		switch(ndx) {
+		case 0:
+			p = "u_int";
+			break;
+		case 1:
+			p = "struct itimerval *";
+			break;
+		case 2:
+			p = "struct itimerval *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* swapon */
+	case 85:
+		switch(ndx) {
+		case 0:
+			p = "char *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* getitimer */
+	case 86:
+		switch(ndx) {
+		case 0:
+			p = "u_int";
+			break;
+		case 1:
+			p = "struct itimerval *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* getdtablesize */
+	case 89:
+		break;
+	/* dup2 */
+	case 90:
+		switch(ndx) {
+		case 0:
+			p = "u_int";
+			break;
+		case 1:
+			p = "u_int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* fcntl */
+	case 92:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "long";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* select */
+	case 93:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "fd_set *";
+			break;
+		case 2:
+			p = "fd_set *";
+			break;
+		case 3:
+			p = "fd_set *";
+			break;
+		case 4:
+			p = "struct timeval *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* fsync */
+	case 95:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* setpriority */
+	case 96:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* socket */
+	case 97:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* connect */
+	case 98:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "caddr_t";
+			break;
+		case 2:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* getpriority */
+	case 100:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* bind */
+	case 104:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "caddr_t";
+			break;
+		case 2:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* setsockopt */
+	case 105:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "int";
+			break;
+		case 3:
+			p = "caddr_t";
+			break;
+		case 4:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* listen */
+	case 106:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* gettimeofday */
+	case 116:
+		switch(ndx) {
+		case 0:
+			p = "struct timeval *";
+			break;
+		case 1:
+			p = "struct timezone *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* getrusage */
+	case 117:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "struct rusage *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* getsockopt */
+	case 118:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "int";
+			break;
+		case 3:
+			p = "caddr_t";
+			break;
+		case 4:
+			p = "int *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* readv */
+	case 120:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "struct iovec *";
+			break;
+		case 2:
+			p = "u_int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* writev */
+	case 121:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "struct iovec *";
+			break;
+		case 2:
+			p = "u_int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* settimeofday */
+	case 122:
+		switch(ndx) {
+		case 0:
+			p = "struct timeval *";
+			break;
+		case 1:
+			p = "struct timezone *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* fchown */
+	case 123:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* fchmod */
+	case 124:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* setreuid */
+	case 126:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* setregid */
+	case 127:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* rename */
+	case 128:
+		switch(ndx) {
+		case 0:
+			p = "char *";
+			break;
+		case 1:
+			p = "char *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* flock */
+	case 131:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* mkfifo */
+	case 132:
+		switch(ndx) {
+		case 0:
+			p = "char *";
+			break;
+		case 1:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* sendto */
+	case 133:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "caddr_t";
+			break;
+		case 2:
+			p = "size_t";
+			break;
+		case 3:
+			p = "int";
+			break;
+		case 4:
+			p = "caddr_t";
+			break;
+		case 5:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* shutdown */
+	case 134:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* socketpair */
+	case 135:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "int";
+			break;
+		case 3:
+			p = "int *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* mkdir */
+	case 136:
+		switch(ndx) {
+		case 0:
+			p = "char *";
+			break;
+		case 1:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* rmdir */
+	case 137:
+		switch(ndx) {
+		case 0:
+			p = "char *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* utimes */
+	case 138:
+		switch(ndx) {
+		case 0:
+			p = "char *";
+			break;
+		case 1:
+			p = "struct timeval *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* adjtime */
+	case 140:
+		switch(ndx) {
+		case 0:
+			p = "struct timeval *";
+			break;
+		case 1:
+			p = "struct timeval *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* setsid */
+	case 147:
+		break;
+	/* quotactl */
+	case 148:
+		switch(ndx) {
+		case 0:
+			p = "char *";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "int";
+			break;
+		case 3:
+			p = "caddr_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* nlm_syscall */
+	case 154:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "int";
+			break;
+		case 3:
+			p = "char **";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* nfssvc */
+	case 155:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "caddr_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* lgetfh */
+	case 160:
+		switch(ndx) {
+		case 0:
+			p = "char *";
+			break;
+		case 1:
+			p = "struct fhandle *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* getfh */
+	case 161:
+		switch(ndx) {
+		case 0:
+			p = "char *";
+			break;
+		case 1:
+			p = "struct fhandle *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* getdomainname */
+	case 162:
+		switch(ndx) {
+		case 0:
+			p = "char *";
+			break;
+		case 1:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* setdomainname */
+	case 163:
+		switch(ndx) {
+		case 0:
+			p = "char *";
+			break;
+		case 1:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* uname */
+	case 164:
+		switch(ndx) {
+		case 0:
+			p = "struct utsname *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* sysarch */
+	case 165:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "char *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* rtprio */
+	case 166:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "pid_t";
+			break;
+		case 2:
+			p = "struct rtprio *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* semsys */
+	case 169:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "int";
+			break;
+		case 3:
+			p = "int";
+			break;
+		case 4:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* msgsys */
+	case 170:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "int";
+			break;
+		case 3:
+			p = "int";
+			break;
+		case 4:
+			p = "int";
+			break;
+		case 5:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* shmsys */
+	case 171:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "int";
+			break;
+		case 3:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* freebsd6_pread */
+	case 173:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "void *";
+			break;
+		case 2:
+			p = "size_t";
+			break;
+		case 3:
+			p = "int";
+			break;
+		case 4:
+			p = "off_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* freebsd6_pwrite */
+	case 174:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "const void *";
+			break;
+		case 2:
+			p = "size_t";
+			break;
+		case 3:
+			p = "int";
+			break;
+		case 4:
+			p = "off_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* ntp_adjtime */
+	case 176:
+		switch(ndx) {
+		case 0:
+			p = "struct timex *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* setgid */
+	case 181:
+		switch(ndx) {
+		case 0:
+			p = "gid_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* setegid */
+	case 182:
+		switch(ndx) {
+		case 0:
+			p = "gid_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* seteuid */
+	case 183:
+		switch(ndx) {
+		case 0:
+			p = "uid_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* stat */
+	case 188:
+		switch(ndx) {
+		case 0:
+			p = "char *";
+			break;
+		case 1:
+			p = "struct stat *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* fstat */
+	case 189:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "struct stat *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* lstat */
+	case 190:
+		switch(ndx) {
+		case 0:
+			p = "char *";
+			break;
+		case 1:
+			p = "struct stat *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* pathconf */
+	case 191:
+		switch(ndx) {
+		case 0:
+			p = "char *";
+			break;
+		case 1:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* fpathconf */
+	case 192:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* getrlimit */
+	case 194:
+		switch(ndx) {
+		case 0:
+			p = "u_int";
+			break;
+		case 1:
+			p = "struct rlimit *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* setrlimit */
+	case 195:
+		switch(ndx) {
+		case 0:
+			p = "u_int";
+			break;
+		case 1:
+			p = "struct rlimit *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* getdirentries */
+	case 196:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "char *";
+			break;
+		case 2:
+			p = "u_int";
+			break;
+		case 3:
+			p = "long *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* freebsd6_mmap */
+	case 197:
+		switch(ndx) {
+		case 0:
+			p = "caddr_t";
+			break;
+		case 1:
+			p = "size_t";
+			break;
+		case 2:
+			p = "int";
+			break;
+		case 3:
+			p = "int";
+			break;
+		case 4:
+			p = "int";
+			break;
+		case 5:
+			p = "int";
+			break;
+		case 6:
+			p = "off_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* nosys */
+	case 198:
+		break;
+	/* freebsd6_lseek */
+	case 199:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "off_t";
+			break;
+		case 3:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* freebsd6_truncate */
+	case 200:
+		switch(ndx) {
+		case 0:
+			p = "char *";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "off_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* freebsd6_ftruncate */
+	case 201:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "off_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* __sysctl */
+	case 202:
+		switch(ndx) {
+		case 0:
+			p = "int *";
+			break;
+		case 1:
+			p = "u_int";
+			break;
+		case 2:
+			p = "void *";
+			break;
+		case 3:
+			p = "size_t *";
+			break;
+		case 4:
+			p = "void *";
+			break;
+		case 5:
+			p = "size_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* mlock */
+	case 203:
+		switch(ndx) {
+		case 0:
+			p = "const void *";
+			break;
+		case 1:
+			p = "size_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* munlock */
+	case 204:
+		switch(ndx) {
+		case 0:
+			p = "const void *";
+			break;
+		case 1:
+			p = "size_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* undelete */
+	case 205:
+		switch(ndx) {
+		case 0:
+			p = "char *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* futimes */
+	case 206:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "struct timeval *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* getpgid */
+	case 207:
+		switch(ndx) {
+		case 0:
+			p = "pid_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* poll */
+	case 209:
+		switch(ndx) {
+		case 0:
+			p = "struct pollfd *";
+			break;
+		case 1:
+			p = "u_int";
+			break;
+		case 2:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* lkmnosys */
+	case 210:
+		break;
+	/* lkmnosys */
+	case 211:
+		break;
+	/* lkmnosys */
+	case 212:
+		break;
+	/* lkmnosys */
+	case 213:
+		break;
+	/* lkmnosys */
+	case 214:
+		break;
+	/* lkmnosys */
+	case 215:
+		break;
+	/* lkmnosys */
+	case 216:
+		break;
+	/* lkmnosys */
+	case 217:
+		break;
+	/* lkmnosys */
+	case 218:
+		break;
+	/* lkmnosys */
+	case 219:
+		break;
+	/* __semctl */
+	case 220:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "int";
+			break;
+		case 3:
+			p = "union semun *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* semget */
+	case 221:
+		switch(ndx) {
+		case 0:
+			p = "key_t";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* semop */
+	case 222:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "struct sembuf *";
+			break;
+		case 2:
+			p = "size_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* msgctl */
+	case 224:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "struct msqid_ds *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* msgget */
+	case 225:
+		switch(ndx) {
+		case 0:
+			p = "key_t";
+			break;
+		case 1:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* msgsnd */
+	case 226:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "const void *";
+			break;
+		case 2:
+			p = "size_t";
+			break;
+		case 3:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* msgrcv */
+	case 227:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "void *";
+			break;
+		case 2:
+			p = "size_t";
+			break;
+		case 3:
+			p = "long";
+			break;
+		case 4:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* shmat */
+	case 228:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "const void *";
+			break;
+		case 2:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* shmctl */
+	case 229:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "struct shmid_ds *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* shmdt */
+	case 230:
+		switch(ndx) {
+		case 0:
+			p = "const void *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* shmget */
+	case 231:
+		switch(ndx) {
+		case 0:
+			p = "key_t";
+			break;
+		case 1:
+			p = "size_t";
+			break;
+		case 2:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* clock_gettime */
+	case 232:
+		switch(ndx) {
+		case 0:
+			p = "clockid_t";
+			break;
+		case 1:
+			p = "struct timespec *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* clock_settime */
+	case 233:
+		switch(ndx) {
+		case 0:
+			p = "clockid_t";
+			break;
+		case 1:
+			p = "const struct timespec *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* clock_getres */
+	case 234:
+		switch(ndx) {
+		case 0:
+			p = "clockid_t";
+			break;
+		case 1:
+			p = "struct timespec *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* ktimer_create */
+	case 235:
+		switch(ndx) {
+		case 0:
+			p = "clockid_t";
+			break;
+		case 1:
+			p = "struct sigevent *";
+			break;
+		case 2:
+			p = "int *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* ktimer_delete */
+	case 236:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* ktimer_settime */
+	case 237:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "const struct itimerspec *";
+			break;
+		case 3:
+			p = "struct itimerspec *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* ktimer_gettime */
+	case 238:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "struct itimerspec *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* ktimer_getoverrun */
+	case 239:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* nanosleep */
+	case 240:
+		switch(ndx) {
+		case 0:
+			p = "const struct timespec *";
+			break;
+		case 1:
+			p = "struct timespec *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* ntp_gettime */
+	case 248:
+		switch(ndx) {
+		case 0:
+			p = "struct ntptimeval *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* minherit */
+	case 250:
+		switch(ndx) {
+		case 0:
+			p = "void *";
+			break;
+		case 1:
+			p = "size_t";
+			break;
+		case 2:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* rfork */
+	case 251:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* openbsd_poll */
+	case 252:
+		switch(ndx) {
+		case 0:
+			p = "struct pollfd *";
+			break;
+		case 1:
+			p = "u_int";
+			break;
+		case 2:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* issetugid */
+	case 253:
+		break;
+	/* lchown */
+	case 254:
+		switch(ndx) {
+		case 0:
+			p = "char *";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* aio_read */
+	case 255:
+		switch(ndx) {
+		case 0:
+			p = "struct aiocb *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* aio_write */
+	case 256:
+		switch(ndx) {
+		case 0:
+			p = "struct aiocb *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* lio_listio */
+	case 257:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "struct aiocb *const *";
+			break;
+		case 2:
+			p = "int";
+			break;
+		case 3:
+			p = "struct sigevent *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* getdents */
+	case 272:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "char *";
+			break;
+		case 2:
+			p = "size_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* lchmod */
+	case 274:
+		switch(ndx) {
+		case 0:
+			p = "char *";
+			break;
+		case 1:
+			p = "mode_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* lchown */
+	case 275:
+		switch(ndx) {
+		case 0:
+			p = "char *";
+			break;
+		case 1:
+			p = "uid_t";
+			break;
+		case 2:
+			p = "gid_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* lutimes */
+	case 276:
+		switch(ndx) {
+		case 0:
+			p = "char *";
+			break;
+		case 1:
+			p = "struct timeval *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* msync */
+	case 277:
+		switch(ndx) {
+		case 0:
+			p = "void *";
+			break;
+		case 1:
+			p = "size_t";
+			break;
+		case 2:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* nstat */
+	case 278:
+		switch(ndx) {
+		case 0:
+			p = "char *";
+			break;
+		case 1:
+			p = "struct nstat *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* nfstat */
+	case 279:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "struct nstat *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* nlstat */
+	case 280:
+		switch(ndx) {
+		case 0:
+			p = "char *";
+			break;
+		case 1:
+			p = "struct nstat *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* preadv */
+	case 289:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "struct iovec *";
+			break;
+		case 2:
+			p = "u_int";
+			break;
+		case 3:
+			p = "off_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* pwritev */
+	case 290:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "struct iovec *";
+			break;
+		case 2:
+			p = "u_int";
+			break;
+		case 3:
+			p = "off_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* fhopen */
+	case 298:
+		switch(ndx) {
+		case 0:
+			p = "const struct fhandle *";
+			break;
+		case 1:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* fhstat */
+	case 299:
+		switch(ndx) {
+		case 0:
+			p = "const struct fhandle *";
+			break;
+		case 1:
+			p = "struct stat *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* modnext */
+	case 300:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* modstat */
+	case 301:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "struct module_stat *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* modfnext */
+	case 302:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* modfind */
+	case 303:
+		switch(ndx) {
+		case 0:
+			p = "const char *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* kldload */
+	case 304:
+		switch(ndx) {
+		case 0:
+			p = "const char *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* kldunload */
+	case 305:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* kldfind */
+	case 306:
+		switch(ndx) {
+		case 0:
+			p = "const char *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* kldnext */
+	case 307:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* kldstat */
+	case 308:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "struct kld_file_stat *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* kldfirstmod */
+	case 309:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* getsid */
+	case 310:
+		switch(ndx) {
+		case 0:
+			p = "pid_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* setresuid */
+	case 311:
+		switch(ndx) {
+		case 0:
+			p = "uid_t";
+			break;
+		case 1:
+			p = "uid_t";
+			break;
+		case 2:
+			p = "uid_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* setresgid */
+	case 312:
+		switch(ndx) {
+		case 0:
+			p = "gid_t";
+			break;
+		case 1:
+			p = "gid_t";
+			break;
+		case 2:
+			p = "gid_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* aio_return */
+	case 314:
+		switch(ndx) {
+		case 0:
+			p = "struct aiocb *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* aio_suspend */
+	case 315:
+		switch(ndx) {
+		case 0:
+			p = "struct aiocb *const *";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "const struct timespec *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* aio_cancel */
+	case 316:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "struct aiocb *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* aio_error */
+	case 317:
+		switch(ndx) {
+		case 0:
+			p = "struct aiocb *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* oaio_read */
+	case 318:
+		switch(ndx) {
+		case 0:
+			p = "struct oaiocb *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* oaio_write */
+	case 319:
+		switch(ndx) {
+		case 0:
+			p = "struct oaiocb *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* olio_listio */
+	case 320:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "struct oaiocb *const *";
+			break;
+		case 2:
+			p = "int";
+			break;
+		case 3:
+			p = "struct osigevent *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* yield */
+	case 321:
+		break;
+	/* mlockall */
+	case 324:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* munlockall */
+	case 325:
+		break;
+	/* __getcwd */
+	case 326:
+		switch(ndx) {
+		case 0:
+			p = "u_char *";
+			break;
+		case 1:
+			p = "u_int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* sched_setparam */
+	case 327:
+		switch(ndx) {
+		case 0:
+			p = "pid_t";
+			break;
+		case 1:
+			p = "const struct sched_param *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* sched_getparam */
+	case 328:
+		switch(ndx) {
+		case 0:
+			p = "pid_t";
+			break;
+		case 1:
+			p = "struct sched_param *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* sched_setscheduler */
+	case 329:
+		switch(ndx) {
+		case 0:
+			p = "pid_t";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "const struct sched_param *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* sched_getscheduler */
+	case 330:
+		switch(ndx) {
+		case 0:
+			p = "pid_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* sched_yield */
+	case 331:
+		break;
+	/* sched_get_priority_max */
+	case 332:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* sched_get_priority_min */
+	case 333:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* sched_rr_get_interval */
+	case 334:
+		switch(ndx) {
+		case 0:
+			p = "pid_t";
+			break;
+		case 1:
+			p = "struct timespec *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* utrace */
+	case 335:
+		switch(ndx) {
+		case 0:
+			p = "const void *";
+			break;
+		case 1:
+			p = "size_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* kldsym */
+	case 337:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "void *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* jail */
+	case 338:
+		switch(ndx) {
+		case 0:
+			p = "struct jail *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* sigprocmask */
+	case 340:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "const sigset_t *";
+			break;
+		case 2:
+			p = "sigset_t *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* sigsuspend */
+	case 341:
+		switch(ndx) {
+		case 0:
+			p = "const sigset_t *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* sigpending */
+	case 343:
+		switch(ndx) {
+		case 0:
+			p = "sigset_t *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* sigtimedwait */
+	case 345:
+		switch(ndx) {
+		case 0:
+			p = "const sigset_t *";
+			break;
+		case 1:
+			p = "siginfo_t *";
+			break;
+		case 2:
+			p = "const struct timespec *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* sigwaitinfo */
+	case 346:
+		switch(ndx) {
+		case 0:
+			p = "const sigset_t *";
+			break;
+		case 1:
+			p = "siginfo_t *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* __acl_get_file */
+	case 347:
+		switch(ndx) {
+		case 0:
+			p = "const char *";
+			break;
+		case 1:
+			p = "acl_type_t";
+			break;
+		case 2:
+			p = "struct acl *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* __acl_set_file */
+	case 348:
+		switch(ndx) {
+		case 0:
+			p = "const char *";
+			break;
+		case 1:
+			p = "acl_type_t";
+			break;
+		case 2:
+			p = "struct acl *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* __acl_get_fd */
+	case 349:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "acl_type_t";
+			break;
+		case 2:
+			p = "struct acl *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* __acl_set_fd */
+	case 350:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "acl_type_t";
+			break;
+		case 2:
+			p = "struct acl *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* __acl_delete_file */
+	case 351:
+		switch(ndx) {
+		case 0:
+			p = "const char *";
+			break;
+		case 1:
+			p = "acl_type_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* __acl_delete_fd */
+	case 352:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "acl_type_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* __acl_aclcheck_file */
+	case 353:
+		switch(ndx) {
+		case 0:
+			p = "const char *";
+			break;
+		case 1:
+			p = "acl_type_t";
+			break;
+		case 2:
+			p = "struct acl *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* __acl_aclcheck_fd */
+	case 354:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "acl_type_t";
+			break;
+		case 2:
+			p = "struct acl *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* extattrctl */
+	case 355:
+		switch(ndx) {
+		case 0:
+			p = "const char *";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "const char *";
+			break;
+		case 3:
+			p = "int";
+			break;
+		case 4:
+			p = "const char *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* extattr_set_file */
+	case 356:
+		switch(ndx) {
+		case 0:
+			p = "const char *";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "const char *";
+			break;
+		case 3:
+			p = "void *";
+			break;
+		case 4:
+			p = "size_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* extattr_get_file */
+	case 357:
+		switch(ndx) {
+		case 0:
+			p = "const char *";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "const char *";
+			break;
+		case 3:
+			p = "void *";
+			break;
+		case 4:
+			p = "size_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* extattr_delete_file */
+	case 358:
+		switch(ndx) {
+		case 0:
+			p = "const char *";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "const char *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* aio_waitcomplete */
+	case 359:
+		switch(ndx) {
+		case 0:
+			p = "struct aiocb **";
+			break;
+		case 1:
+			p = "struct timespec *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* getresuid */
+	case 360:
+		switch(ndx) {
+		case 0:
+			p = "uid_t *";
+			break;
+		case 1:
+			p = "uid_t *";
+			break;
+		case 2:
+			p = "uid_t *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* getresgid */
+	case 361:
+		switch(ndx) {
+		case 0:
+			p = "gid_t *";
+			break;
+		case 1:
+			p = "gid_t *";
+			break;
+		case 2:
+			p = "gid_t *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* kqueue */
+	case 362:
+		break;
+	/* kevent */
+	case 363:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "struct kevent *";
+			break;
+		case 2:
+			p = "int";
+			break;
+		case 3:
+			p = "struct kevent *";
+			break;
+		case 4:
+			p = "int";
+			break;
+		case 5:
+			p = "const struct timespec *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* lkmressys */
+	case 370:
+		break;
+	/* extattr_set_fd */
+	case 371:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "const char *";
+			break;
+		case 3:
+			p = "void *";
+			break;
+		case 4:
+			p = "size_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* extattr_get_fd */
+	case 372:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "const char *";
+			break;
+		case 3:
+			p = "void *";
+			break;
+		case 4:
+			p = "size_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* extattr_delete_fd */
+	case 373:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "const char *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* __setugid */
+	case 374:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* nfsclnt */
+	case 375:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "caddr_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* eaccess */
+	case 376:
+		switch(ndx) {
+		case 0:
+			p = "char *";
+			break;
+		case 1:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* nmount */
+	case 378:
+		switch(ndx) {
+		case 0:
+			p = "struct iovec *";
+			break;
+		case 1:
+			p = "unsigned int";
+			break;
+		case 2:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* __mac_get_proc */
+	case 384:
+		switch(ndx) {
+		case 0:
+			p = "struct mac *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* __mac_set_proc */
+	case 385:
+		switch(ndx) {
+		case 0:
+			p = "struct mac *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* __mac_get_fd */
+	case 386:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "struct mac *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* __mac_get_file */
+	case 387:
+		switch(ndx) {
+		case 0:
+			p = "const char *";
+			break;
+		case 1:
+			p = "struct mac *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* __mac_set_fd */
+	case 388:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "struct mac *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* __mac_set_file */
+	case 389:
+		switch(ndx) {
+		case 0:
+			p = "const char *";
+			break;
+		case 1:
+			p = "struct mac *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* kenv */
+	case 390:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "const char *";
+			break;
+		case 2:
+			p = "char *";
+			break;
+		case 3:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* lchflags */
+	case 391:
+		switch(ndx) {
+		case 0:
+			p = "const char *";
+			break;
+		case 1:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* uuidgen */
+	case 392:
+		switch(ndx) {
+		case 0:
+			p = "struct uuid *";
+			break;
+		case 1:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* sendfile */
+	case 393:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "off_t";
+			break;
+		case 3:
+			p = "size_t";
+			break;
+		case 4:
+			p = "struct sf_hdtr *";
+			break;
+		case 5:
+			p = "off_t *";
+			break;
+		case 6:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* mac_syscall */
+	case 394:
+		switch(ndx) {
+		case 0:
+			p = "const char *";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "void *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* getfsstat */
+	case 395:
+		switch(ndx) {
+		case 0:
+			p = "struct statfs *";
+			break;
+		case 1:
+			p = "long";
+			break;
+		case 2:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* statfs */
+	case 396:
+		switch(ndx) {
+		case 0:
+			p = "char *";
+			break;
+		case 1:
+			p = "struct statfs *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* fstatfs */
+	case 397:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "struct statfs *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* fhstatfs */
+	case 398:
+		switch(ndx) {
+		case 0:
+			p = "const struct fhandle *";
+			break;
+		case 1:
+			p = "struct statfs *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* ksem_close */
+	case 400:
+		switch(ndx) {
+		case 0:
+			p = "semid_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* ksem_post */
+	case 401:
+		switch(ndx) {
+		case 0:
+			p = "semid_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* ksem_wait */
+	case 402:
+		switch(ndx) {
+		case 0:
+			p = "semid_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* ksem_trywait */
+	case 403:
+		switch(ndx) {
+		case 0:
+			p = "semid_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* ksem_init */
+	case 404:
+		switch(ndx) {
+		case 0:
+			p = "semid_t *";
+			break;
+		case 1:
+			p = "unsigned int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* ksem_open */
+	case 405:
+		switch(ndx) {
+		case 0:
+			p = "semid_t *";
+			break;
+		case 1:
+			p = "const char *";
+			break;
+		case 2:
+			p = "int";
+			break;
+		case 3:
+			p = "mode_t";
+			break;
+		case 4:
+			p = "unsigned int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* ksem_unlink */
+	case 406:
+		switch(ndx) {
+		case 0:
+			p = "const char *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* ksem_getvalue */
+	case 407:
+		switch(ndx) {
+		case 0:
+			p = "semid_t";
+			break;
+		case 1:
+			p = "int *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* ksem_destroy */
+	case 408:
+		switch(ndx) {
+		case 0:
+			p = "semid_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* __mac_get_pid */
+	case 409:
+		switch(ndx) {
+		case 0:
+			p = "pid_t";
+			break;
+		case 1:
+			p = "struct mac *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* __mac_get_link */
+	case 410:
+		switch(ndx) {
+		case 0:
+			p = "const char *";
+			break;
+		case 1:
+			p = "struct mac *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* __mac_set_link */
+	case 411:
+		switch(ndx) {
+		case 0:
+			p = "const char *";
+			break;
+		case 1:
+			p = "struct mac *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* extattr_set_link */
+	case 412:
+		switch(ndx) {
+		case 0:
+			p = "const char *";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "const char *";
+			break;
+		case 3:
+			p = "void *";
+			break;
+		case 4:
+			p = "size_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* extattr_get_link */
+	case 413:
+		switch(ndx) {
+		case 0:
+			p = "const char *";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "const char *";
+			break;
+		case 3:
+			p = "void *";
+			break;
+		case 4:
+			p = "size_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* extattr_delete_link */
+	case 414:
+		switch(ndx) {
+		case 0:
+			p = "const char *";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "const char *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* __mac_execve */
+	case 415:
+		switch(ndx) {
+		case 0:
+			p = "char *";
+			break;
+		case 1:
+			p = "char **";
+			break;
+		case 2:
+			p = "char **";
+			break;
+		case 3:
+			p = "struct mac *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* sigaction */
+	case 416:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "const struct sigaction *";
+			break;
+		case 2:
+			p = "struct sigaction *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* sigreturn */
+	case 417:
+		switch(ndx) {
+		case 0:
+			p = "const struct __ucontext *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* getcontext */
+	case 421:
+		switch(ndx) {
+		case 0:
+			p = "struct __ucontext *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* setcontext */
+	case 422:
+		switch(ndx) {
+		case 0:
+			p = "const struct __ucontext *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* swapcontext */
+	case 423:
+		switch(ndx) {
+		case 0:
+			p = "struct __ucontext *";
+			break;
+		case 1:
+			p = "const struct __ucontext *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* swapoff */
+	case 424:
+		switch(ndx) {
+		case 0:
+			p = "const char *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* __acl_get_link */
+	case 425:
+		switch(ndx) {
+		case 0:
+			p = "const char *";
+			break;
+		case 1:
+			p = "acl_type_t";
+			break;
+		case 2:
+			p = "struct acl *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* __acl_set_link */
+	case 426:
+		switch(ndx) {
+		case 0:
+			p = "const char *";
+			break;
+		case 1:
+			p = "acl_type_t";
+			break;
+		case 2:
+			p = "struct acl *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* __acl_delete_link */
+	case 427:
+		switch(ndx) {
+		case 0:
+			p = "const char *";
+			break;
+		case 1:
+			p = "acl_type_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* __acl_aclcheck_link */
+	case 428:
+		switch(ndx) {
+		case 0:
+			p = "const char *";
+			break;
+		case 1:
+			p = "acl_type_t";
+			break;
+		case 2:
+			p = "struct acl *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* sigwait */
+	case 429:
+		switch(ndx) {
+		case 0:
+			p = "const sigset_t *";
+			break;
+		case 1:
+			p = "int *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* thr_create */
+	case 430:
+		switch(ndx) {
+		case 0:
+			p = "ucontext_t *";
+			break;
+		case 1:
+			p = "long *";
+			break;
+		case 2:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* thr_exit */
+	case 431:
+		switch(ndx) {
+		case 0:
+			p = "long *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* thr_self */
+	case 432:
+		switch(ndx) {
+		case 0:
+			p = "long *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* thr_kill */
+	case 433:
+		switch(ndx) {
+		case 0:
+			p = "long";
+			break;
+		case 1:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* _umtx_lock */
+	case 434:
+		switch(ndx) {
+		case 0:
+			p = "struct umtx *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* _umtx_unlock */
+	case 435:
+		switch(ndx) {
+		case 0:
+			p = "struct umtx *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* jail_attach */
+	case 436:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* extattr_list_fd */
+	case 437:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "void *";
+			break;
+		case 3:
+			p = "size_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* extattr_list_file */
+	case 438:
+		switch(ndx) {
+		case 0:
+			p = "const char *";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "void *";
+			break;
+		case 3:
+			p = "size_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* extattr_list_link */
+	case 439:
+		switch(ndx) {
+		case 0:
+			p = "const char *";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "void *";
+			break;
+		case 3:
+			p = "size_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* ksem_timedwait */
+	case 441:
+		switch(ndx) {
+		case 0:
+			p = "semid_t";
+			break;
+		case 1:
+			p = "const struct timespec *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* thr_suspend */
+	case 442:
+		switch(ndx) {
+		case 0:
+			p = "const struct timespec *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* thr_wake */
+	case 443:
+		switch(ndx) {
+		case 0:
+			p = "long";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* kldunloadf */
+	case 444:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* audit */
+	case 445:
+		switch(ndx) {
+		case 0:
+			p = "const void *";
+			break;
+		case 1:
+			p = "u_int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* auditon */
+	case 446:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "void *";
+			break;
+		case 2:
+			p = "u_int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* getauid */
+	case 447:
+		switch(ndx) {
+		case 0:
+			p = "uid_t *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* setauid */
+	case 448:
+		switch(ndx) {
+		case 0:
+			p = "uid_t *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* getaudit */
+	case 449:
+		switch(ndx) {
+		case 0:
+			p = "struct auditinfo *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* setaudit */
+	case 450:
+		switch(ndx) {
+		case 0:
+			p = "struct auditinfo *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* getaudit_addr */
+	case 451:
+		switch(ndx) {
+		case 0:
+			p = "struct auditinfo_addr *";
+			break;
+		case 1:
+			p = "u_int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* setaudit_addr */
+	case 452:
+		switch(ndx) {
+		case 0:
+			p = "struct auditinfo_addr *";
+			break;
+		case 1:
+			p = "u_int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* auditctl */
+	case 453:
+		switch(ndx) {
+		case 0:
+			p = "char *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* _umtx_op */
+	case 454:
+		switch(ndx) {
+		case 0:
+			p = "void *";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "u_long";
+			break;
+		case 3:
+			p = "void *";
+			break;
+		case 4:
+			p = "void *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* thr_new */
+	case 455:
+		switch(ndx) {
+		case 0:
+			p = "struct thr_param *";
+			break;
+		case 1:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* sigqueue */
+	case 456:
+		switch(ndx) {
+		case 0:
+			p = "pid_t";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "void *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* kmq_open */
+	case 457:
+		switch(ndx) {
+		case 0:
+			p = "const char *";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "mode_t";
+			break;
+		case 3:
+			p = "const struct mq_attr *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* kmq_setattr */
+	case 458:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "const struct mq_attr *";
+			break;
+		case 2:
+			p = "struct mq_attr *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* kmq_timedreceive */
+	case 459:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "char *";
+			break;
+		case 2:
+			p = "size_t";
+			break;
+		case 3:
+			p = "unsigned *";
+			break;
+		case 4:
+			p = "const struct timespec *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* kmq_timedsend */
+	case 460:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "const char *";
+			break;
+		case 2:
+			p = "size_t";
+			break;
+		case 3:
+			p = "unsigned";
+			break;
+		case 4:
+			p = "const struct timespec *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* kmq_notify */
+	case 461:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "const struct sigevent *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* kmq_unlink */
+	case 462:
+		switch(ndx) {
+		case 0:
+			p = "const char *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* abort2 */
+	case 463:
+		switch(ndx) {
+		case 0:
+			p = "const char *";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "void **";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* thr_set_name */
+	case 464:
+		switch(ndx) {
+		case 0:
+			p = "long";
+			break;
+		case 1:
+			p = "const char *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* aio_fsync */
+	case 465:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "struct aiocb *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* rtprio_thread */
+	case 466:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "lwpid_t";
+			break;
+		case 2:
+			p = "struct rtprio *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* sctp_peeloff */
+	case 471:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "uint32_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* sctp_generic_sendmsg */
+	case 472:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "caddr_t";
+			break;
+		case 2:
+			p = "int";
+			break;
+		case 3:
+			p = "caddr_t";
+			break;
+		case 4:
+			p = "__socklen_t";
+			break;
+		case 5:
+			p = "struct sctp_sndrcvinfo *";
+			break;
+		case 6:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* sctp_generic_sendmsg_iov */
+	case 473:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "struct iovec *";
+			break;
+		case 2:
+			p = "int";
+			break;
+		case 3:
+			p = "caddr_t";
+			break;
+		case 4:
+			p = "__socklen_t";
+			break;
+		case 5:
+			p = "struct sctp_sndrcvinfo *";
+			break;
+		case 6:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* sctp_generic_recvmsg */
+	case 474:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "struct iovec *";
+			break;
+		case 2:
+			p = "int";
+			break;
+		case 3:
+			p = "struct sockaddr *";
+			break;
+		case 4:
+			p = "__socklen_t *";
+			break;
+		case 5:
+			p = "struct sctp_sndrcvinfo *";
+			break;
+		case 6:
+			p = "int *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* pread */
+	case 475:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "void *";
+			break;
+		case 2:
+			p = "size_t";
+			break;
+		case 3:
+			p = "off_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* pwrite */
+	case 476:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "const void *";
+			break;
+		case 2:
+			p = "size_t";
+			break;
+		case 3:
+			p = "off_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* mmap */
+	case 477:
+		switch(ndx) {
+		case 0:
+			p = "caddr_t";
+			break;
+		case 1:
+			p = "size_t";
+			break;
+		case 2:
+			p = "int";
+			break;
+		case 3:
+			p = "int";
+			break;
+		case 4:
+			p = "int";
+			break;
+		case 5:
+			p = "off_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* lseek */
+	case 478:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "off_t";
+			break;
+		case 2:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* truncate */
+	case 479:
+		switch(ndx) {
+		case 0:
+			p = "char *";
+			break;
+		case 1:
+			p = "off_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* ftruncate */
+	case 480:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "off_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* thr_kill2 */
+	case 481:
+		switch(ndx) {
+		case 0:
+			p = "pid_t";
+			break;
+		case 1:
+			p = "long";
+			break;
+		case 2:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* shm_open */
+	case 482:
+		switch(ndx) {
+		case 0:
+			p = "const char *";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "mode_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* shm_unlink */
+	case 483:
+		switch(ndx) {
+		case 0:
+			p = "const char *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* cpuset */
+	case 484:
+		switch(ndx) {
+		case 0:
+			p = "cpusetid_t *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* cpuset_setid */
+	case 485:
+		switch(ndx) {
+		case 0:
+			p = "cpuwhich_t";
+			break;
+		case 1:
+			p = "id_t";
+			break;
+		case 2:
+			p = "cpusetid_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* cpuset_getid */
+	case 486:
+		switch(ndx) {
+		case 0:
+			p = "cpulevel_t";
+			break;
+		case 1:
+			p = "cpuwhich_t";
+			break;
+		case 2:
+			p = "id_t";
+			break;
+		case 3:
+			p = "cpusetid_t *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* cpuset_getaffinity */
+	case 487:
+		switch(ndx) {
+		case 0:
+			p = "cpulevel_t";
+			break;
+		case 1:
+			p = "cpuwhich_t";
+			break;
+		case 2:
+			p = "id_t";
+			break;
+		case 3:
+			p = "size_t";
+			break;
+		case 4:
+			p = "cpuset_t *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* cpuset_setaffinity */
+	case 488:
+		switch(ndx) {
+		case 0:
+			p = "cpulevel_t";
+			break;
+		case 1:
+			p = "cpuwhich_t";
+			break;
+		case 2:
+			p = "id_t";
+			break;
+		case 3:
+			p = "size_t";
+			break;
+		case 4:
+			p = "const cpuset_t *";
+			break;
+		default:
+			break;
+		};
+		break;
+	default:
+		break;
+	};
+	if (p != NULL)
+		strlcpy(desc, p, descsz);
+}
