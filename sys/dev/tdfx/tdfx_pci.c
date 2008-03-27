@@ -823,4 +823,5 @@ static driver_t tdfx_driver = {
 
 /* Tell Mr. Kernel about us! */
 DRIVER_MODULE(tdfx, pci, tdfx_driver, tdfx_devclass, 0, 0);
+MODULE_DEPEND(tdfx, mem, 1, 1, 1);
 MODULE_VERSION(tdfx, 1);
