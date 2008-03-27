@@ -752,7 +752,7 @@ sigalarm_handler(void)
 void
 usage()
 {
-	errx(1, "usage: rpc.lockd [-k] [-d <debuglevel>]"
+	errx(1, "usage: rpc.lockd [-d <debuglevel>]"
 	    " [-g <grace period>] [-h <bindip>] [-p <port>]");
 }
 
