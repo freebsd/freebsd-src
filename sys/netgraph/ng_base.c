@@ -1996,13 +1996,6 @@ ng_dequeue(struct ng_queue *ngq, int *rw)
 		 * we don't need to change the PENDING flag.
 		 */
 		atomic_add_long(&ngq->q_flags, add_arg);
-		/*
-		 * If we see more doable work, make sure we are
-		 * on the work queue.
-		 */
-		if (NEXT_QUEUED_ITEM_CAN_PROCEED(ngq)) {
-			ng_setisr(ngq->q_node);
-		}
 	}
 	CTR6(KTR_NET, "%20s: node [%x] (%p) returning item %p as %s; "
 	    "queue flags 0x%lx", __func__,
@@ -3385,10 +3378,6 @@ ngintr(void)
 		 * All this time, keep the reference
 		 * that lets us be sure that the node still exists.
 		 * Let the reference go at the last minute.
-		 * ng_dequeue will put us back on the worklist
-		 * if there is more too do. This may be of use if there
-		 * are Multiple Processors and multiple Net threads in the
-		 * future.
 		 */
 		for (;;) {
 			int rw;
