@@ -42,6 +42,7 @@ options 	FFS			#Berkeley Fast Filesystem
 options 	ROOTDEVNAME=\"ufs:/dev/mmcsd0s1a\"
 options 	NFSCLIENT		#Network Filesystem Client
 #options 	NFSSERVER		#Network Filesystem Server
+#options 	NFSLOCKD		#Network Lock Manager
 #options 	NFS_ROOT		#NFS usable as /, requires NFSCLIENT
 #options	BOOTP_NFSROOT
 #options	BOOTP

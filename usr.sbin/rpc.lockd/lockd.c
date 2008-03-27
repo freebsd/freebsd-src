@@ -46,7 +46,9 @@ __RCSID("$NetBSD: lockd.c,v 1.7 2000/08/12 18:08:44 thorpej Exp $");
  * The actual program logic is in the file lock_proc.c
  */
 
-#include <sys/types.h>
+#include <sys/param.h>
+#include <sys/linker.h>
+#include <sys/module.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 
@@ -116,7 +118,7 @@ main(int argc, char **argv)
 	int maxrec = RPC_MAXDATASIZE;
 	in_port_t svcport = 0;
 
-	while ((ch = getopt(argc, argv, "d:g:h:kp:")) != (-1)) {
+	while ((ch = getopt(argc, argv, "d:g:h:p:")) != (-1)) {
 		switch (ch) {
 		case 'd':
 			debug_level = atoi(optarg);
@@ -153,9 +155,6 @@ main(int argc, char **argv)
 				out_of_mem();
 			}
 			break;
-		case 'k':
-			kernel_lockd = TRUE;
-			break;
 		case 'p':
 			endptr = NULL;
 			svcport = (in_port_t)strtoul(optarg, &endptr, 10);
@@ -174,6 +173,16 @@ main(int argc, char **argv)
 		fprintf(stderr, "Sorry. You are not superuser\n");
 		exit(1);
         }
+
+	kernel_lockd = FALSE;
+	if (modfind("nfslockd") < 0) {
+		if (kldload("nfslockd") < 0) {
+			fprintf(stderr, "Can't find or load kernel support for rpc.lockd - using non-kernel implementation\n");
+		}
+		kernel_lockd = TRUE;
+	} else {
+		kernel_lockd = TRUE;
+	}
 
 	(void)rpcb_unset(NLM_PROG, NLM_SM, NULL);
 	(void)rpcb_unset(NLM_PROG, NLM_VERS, NULL);
