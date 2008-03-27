@@ -105,7 +105,7 @@
       is <emphasis>not</emphasis> a feature included in &os;
       &release.bugfix;.  It was merged to the &release.branch;
       codeline after the release branch was created.  This utility
-      will be incldued subsequent snapshots of &release.branch; and in
+      will be included in subsequent snapshots of &release.branch; and in
       &release.next;.</para>
 
     <para>[20080229] The release notes gave an incorrect version
