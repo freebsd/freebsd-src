@@ -82,6 +82,13 @@
 #define PG_N		(PG_NC_PWT|PG_NC_PCD)	/* Non-cacheable */
 
 /*
+ * Promotion to a 2 or 4MB (PDE) page mapping requires that the corresponding
+ * 4KB (PTE) page mappings have identical settings for the following fields:
+ */
+#define PG_PTE_PROMOTE	(PG_MANAGED | PG_W | PG_G | PG_PTE_PAT | \
+	    PG_M | PG_A | PG_NC_PCD | PG_NC_PWT | PG_U | PG_RW | PG_V)
+
+/*
  * Page Protection Exception bits
  */
 
@@ -213,6 +220,9 @@ pmap_kextract(vm_offset_t va)
 
 #ifdef PAE
 
+#define	pde_cmpset(pdep, old, new) \
+				atomic_cmpset_64((pdep), (old), (new))
+
 static __inline pt_entry_t
 pte_load(pt_entry_t *ptep)
 {
@@ -268,6 +278,9 @@ atomic_cmpset_64(volatile uint64_t *dst, uint64_t exp, uint64_t src)
 extern pt_entry_t pg_nx;
 
 #else /* PAE */
+
+#define	pde_cmpset(pdep, old, new) \
+				atomic_cmpset_int((pdep), (old), (new))
 
 static __inline pt_entry_t
 pte_load(pt_entry_t *ptep)
@@ -330,6 +343,7 @@ struct pmap {
 	pdpt_entry_t		*pm_pdpt;	/* KVA of page director pointer
 						   table */
 #endif
+	vm_page_t		pm_root;	/* spare page table pages */
 };
 
 typedef struct pmap	*pmap_t;
@@ -393,7 +407,6 @@ extern char *ptvmmap;		/* poor name! */
 extern vm_offset_t virtual_avail;
 extern vm_offset_t virtual_end;
 
-#define	pmap_page_is_mapped(m)	(!TAILQ_EMPTY(&(m)->md.pv_list))
 #define	pmap_unmapbios(va, sz)	pmap_unmapdev((va), (sz))
 
 void	pmap_bootstrap(vm_paddr_t);
@@ -406,6 +419,7 @@ void	pmap_kremove(vm_offset_t);
 void	*pmap_mapbios(vm_paddr_t, vm_size_t);
 void	*pmap_mapdev(vm_paddr_t, vm_size_t);
 void	*pmap_mapdev_attr(vm_paddr_t, vm_size_t, int);
+boolean_t pmap_page_is_mapped(vm_page_t m);
 void	pmap_unmapdev(vm_offset_t, vm_size_t);
 pt_entry_t *pmap_pte(pmap_t, vm_offset_t) __pure2;
 void	pmap_set_pg(void);
