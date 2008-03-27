@@ -58,7 +58,7 @@ struct hookinfo {
 
 	int64_t 	tc;		/* commited token bucket counter */
 	int64_t 	te;		/* exceeded/peak token bucket counter */
-	struct timeval	lastRefill;	/* last token refill time */
+	struct bintime	lastRefill;	/* last token refill time */
 
 	struct ng_car_hookconf conf;	/* hook configuration */
 	struct ng_car_hookstats stats;	/* hook stats */
@@ -206,7 +206,7 @@ ng_car_constructor(node_p node)
 	priv->upper.conf.yellow_action = NG_CAR_ACTION_FORWARD;
 	priv->upper.conf.red_action = NG_CAR_ACTION_DROP;
 	priv->upper.conf.mode = 0;
-	getmicrotime(&priv->upper.lastRefill);
+	getbinuptime(&priv->upper.lastRefill);
 	priv->upper.q_first = 0;
 	priv->upper.q_last = 0;
 	ng_callout_init(&priv->upper.q_callout);
@@ -592,57 +592,58 @@ ng_car_disconnect(hook_p hook)
 static void
 ng_car_refillhook(struct hookinfo *h)
 {
-	struct timeval newt, deltat;
-	int64_t deltat_us;
-	int64_t	delta;
+	struct bintime newt, deltat;
+	unsigned int deltat_us;
 
 	/* Get current time. */
-	getmicrotime(&newt);
+	getbinuptime(&newt);
+
+	/* Get time delta since last refill. */
+	deltat = newt;
+	bintime_sub(&deltat, &h->lastRefill);
 
 	/* Time must go forward. */
-	if (timevalcmp(&newt, &h->lastRefill, <= )) {
+	if (deltat.sec < 0) {
 	    h->lastRefill = newt;
 	    return;
 	}
 
-	/* Get time delta since last refill. */
-	deltat = newt;
-	timevalsub(&deltat, &h->lastRefill);
-
-	/* Sanity check */
-	if (deltat.tv_sec > 1000) {
-	    deltat_us = 1000000000;
+	/* But not too far forward. */
+	if (deltat.sec >= 1000) {
+	    deltat_us = (1000 << 20);
 	} else {
-	    deltat_us = ((int64_t)deltat.tv_sec) * 1000000 + deltat.tv_usec;
+	    /* convert bintime to the 1/(2^20) of sec */
+	    deltat_us = (deltat.sec << 20) + (deltat.frac >> 44);
 	}
 
 	if (h->conf.mode == NG_CAR_SINGLE_RATE) {
+		int64_t	delta;
 		/* Refill commited token bucket. */
-		h->tc += h->conf.cir * deltat_us / 8000000;
+		h->tc += (h->conf.cir * deltat_us) >> 23;
 		delta = h->tc - h->conf.cbs;
 		if (delta > 0) {
 			h->tc = h->conf.cbs;
 
 			/* Refill exceeded token bucket. */
 			h->te += delta;
-			if (h->te > h->conf.ebs)
+			if (h->te > ((int64_t)h->conf.ebs))
 				h->te = h->conf.ebs;
 		}
 
 	} else if (h->conf.mode == NG_CAR_DOUBLE_RATE) {
 		/* Refill commited token bucket. */
-		h->tc += h->conf.cir * deltat_us / 8000000;
-		if (h->tc > h->conf.cbs)
+		h->tc += (h->conf.cir * deltat_us) >> 23;
+		if (h->tc > ((int64_t)h->conf.cbs))
 			h->tc = h->conf.cbs;
 
 		/* Refill peak token bucket. */
-		h->te += h->conf.pir * deltat_us / 8000000;
-		if (h->te > h->conf.ebs)
+		h->te += (h->conf.pir * deltat_us) >> 23;
+		if (h->te > ((int64_t)h->conf.ebs))
 			h->te = h->conf.ebs;
 
 	} else { /* RED or SHAPE mode. */
 		/* Refill commited token bucket. */
-		h->tc += h->conf.cir * deltat_us / 8000000;
+		h->tc += (h->conf.cir * deltat_us) >> 23;
 		if (h->tc > ((int64_t)h->conf.cbs))
 			h->tc = h->conf.cbs;
 	}
