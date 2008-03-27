@@ -3023,6 +3023,7 @@ aac_ioctl_sendfib(struct aac_softc *sc, caddr_t ufib)
 		    M_NOWAIT | M_ZERO);
 		if (event == NULL) {
 			error = EBUSY;
+			mtx_unlock(&sc->aac_io_lock);
 			goto out;
 		}
 		event->ev_type = AAC_EVENT_CMFREE;
@@ -3054,12 +3055,13 @@ aac_ioctl_sendfib(struct aac_softc *sc, caddr_t ufib)
 	 * Pass the FIB to the controller, wait for it to complete.
 	 */
 	mtx_lock(&sc->aac_io_lock);
-	if ((error = aac_wait_command(cm)) != 0) {
+	error = aac_wait_command(cm);
+	mtx_unlock(&sc->aac_io_lock);
+	if (error != 0) {
 		device_printf(sc->aac_dev,
 			      "aac_wait_command return %d\n", error);
 		goto out;
 	}
-	mtx_unlock(&sc->aac_io_lock);
 
 	/*
 	 * Copy the FIB and data back out to the caller.
@@ -3071,14 +3073,13 @@ aac_ioctl_sendfib(struct aac_softc *sc, caddr_t ufib)
 		size = sizeof(struct aac_fib);
 	}
 	error = copyout(cm->cm_fib, ufib, size);
-	mtx_lock(&sc->aac_io_lock);
 
 out:
 	if (cm != NULL) {
+		mtx_lock(&sc->aac_io_lock);
 		aac_release_command(cm);
+		mtx_unlock(&sc->aac_io_lock);
 	}
-
-	mtx_unlock(&sc->aac_io_lock);
 	return(error);
 }
 
