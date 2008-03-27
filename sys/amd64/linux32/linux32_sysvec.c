@@ -390,7 +390,7 @@ linux_rt_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	regs->tf_rsp = PTROUT(fp);
 	regs->tf_rip = LINUX32_PS_STRINGS - *(p->p_sysent->sv_szsigcode) +
 	    linux_sznonrtsigcode;
-	regs->tf_rflags &= ~PSL_T;
+	regs->tf_rflags &= ~(PSL_T | PSL_D);
 	regs->tf_cs = _ucode32sel;
 	regs->tf_ss = _udatasel;
 	load_ds(_udatasel);
@@ -508,7 +508,7 @@ linux_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	 */
 	regs->tf_rsp = PTROUT(fp);
 	regs->tf_rip = LINUX32_PS_STRINGS - *(p->p_sysent->sv_szsigcode);
-	regs->tf_rflags &= ~PSL_T;
+	regs->tf_rflags &= ~(PSL_T | PSL_D);
 	regs->tf_cs = _ucode32sel;
 	regs->tf_ss = _udatasel;
 	load_ds(_udatasel);

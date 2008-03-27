@@ -384,7 +384,7 @@ osendsig(catcher, sig, mask, code)
 
 	regs->tf_esp = (int)fp;
 	regs->tf_eip = PS_STRINGS - szosigcode;
-	regs->tf_eflags &= ~PSL_T;
+	regs->tf_eflags &= ~(PSL_T | PSL_D);
 	regs->tf_cs = _ucodesel;
 	regs->tf_ds = _udatasel;
 	regs->tf_es = _udatasel;
@@ -507,7 +507,7 @@ freebsd4_sendsig(catcher, sig, mask, code)
 
 	regs->tf_esp = (int)sfp;
 	regs->tf_eip = PS_STRINGS - szfreebsd4_sigcode;
-	regs->tf_eflags &= ~PSL_T;
+	regs->tf_eflags &= ~(PSL_T | PSL_D);
 	regs->tf_cs = _ucodesel;
 	regs->tf_ds = _udatasel;
 	regs->tf_es = _udatasel;
@@ -646,7 +646,7 @@ sendsig(catcher, sig, mask, code)
 
 	regs->tf_esp = (int)sfp;
 	regs->tf_eip = PS_STRINGS - *(p->p_sysent->sv_szsigcode);
-	regs->tf_eflags &= ~PSL_T;
+	regs->tf_eflags &= ~(PSL_T | PSL_D);
 	regs->tf_cs = _ucodesel;
 	regs->tf_ds = _udatasel;
 	regs->tf_es = _udatasel;
