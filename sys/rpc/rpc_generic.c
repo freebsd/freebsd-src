@@ -44,7 +44,9 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet6.h"
 
 #include <sys/param.h>
+#include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/proc.h>
 #include <sys/protosw.h>
 #include <sys/sbuf.h>
@@ -714,3 +716,22 @@ __rpc_sockisbound(struct socket *so)
 
 	return bound;
 }
+
+/*
+ * Kernel module glue
+ */
+static int
+krpc_modevent(module_t mod, int type, void *data)
+{
+
+	return (0);
+}
+static moduledata_t krpc_mod = {
+	"krpc",
+	krpc_modevent,
+	NULL,
+};
+DECLARE_MODULE(krpc, krpc_mod, SI_SUB_VFS, SI_ORDER_ANY);
+
+/* So that loader and kldload(2) can find us, wherever we are.. */
+MODULE_VERSION(krpc, 1);

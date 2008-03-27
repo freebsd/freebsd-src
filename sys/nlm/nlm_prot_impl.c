@@ -1781,3 +1781,23 @@ nlm_user_lockd(void)
 
 	return (nlm_lockd);
 }
+
+/*
+ * Kernel module glue
+ */
+static int
+nfslockd_modevent(module_t mod, int type, void *data)
+{
+
+	return (0);
+}
+static moduledata_t nfslockd_mod = {
+	"nfslockd",
+	nfslockd_modevent,
+	NULL,
+};
+DECLARE_MODULE(nfslockd, nfslockd_mod, SI_SUB_VFS, SI_ORDER_ANY);
+
+/* So that loader and kldload(2) can find us, wherever we are.. */
+MODULE_DEPEND(nfslockd, krpc, 1, 1, 1);
+MODULE_VERSION(nfslockd, 1);
