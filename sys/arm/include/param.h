@@ -72,11 +72,11 @@
 #endif
 #define	MID_MACHINE	MID_ARM6 
 
-#ifdef SMP
+#if defined(SMP) || defined(KLD_MODULE)
 #define	MAXCPU		2
 #else
 #define	MAXCPU		1
-#endif /* SMP */
+#endif /* SMP || KLD_MODULE */
 
 #define	ALIGNBYTES	_ALIGNBYTES
 #define	ALIGN(p)	_ALIGN(p)
