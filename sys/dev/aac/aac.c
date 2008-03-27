@@ -213,6 +213,7 @@ static d_close_t	aac_close;
 static d_ioctl_t	aac_ioctl;
 static d_poll_t		aac_poll;
 static int		aac_ioctl_sendfib(struct aac_softc *sc, caddr_t ufib);
+static int		aac_ioctl_send_raw_srb(struct aac_softc *sc, caddr_t arg);
 static void		aac_handle_aif(struct aac_softc *sc,
 					   struct aac_fib *fib);
 static int		aac_rev_check(struct aac_softc *sc, caddr_t udata);
@@ -1693,6 +1694,11 @@ aac_check_firmware(struct aac_softc *sc)
 		sc->aac_max_fib_size = PAGE_SIZE;
 	sc->aac_max_fibs_alloc = PAGE_SIZE / sc->aac_max_fib_size;
 
+	if (sc->aac_max_fib_size > sizeof(struct aac_fib)) {
+		sc->flags |= AAC_FLAGS_RAW_IO;
+		device_printf(sc->aac_dev, "Enable Raw I/O\n");
+	}
+
 	return (0);
 }
 
@@ -2039,7 +2045,7 @@ aac_sync_fib(struct aac_softc *sc, u_int32_t command, u_int32_t xferstate,
 	fib->Header.XferState |= xferstate;
 	fib->Header.Command = command;
 	fib->Header.StructType = AAC_FIBTYPE_TFIB;
-	fib->Header.Size = sizeof(struct aac_fib) + datasize;
+	fib->Header.Size = sizeof(struct aac_fib_header) + datasize;
 	fib->Header.SenderSize = sizeof(struct aac_fib);
 	fib->Header.SenderFibAddress = 0;	/* Not needed */
 	fib->Header.ReceiverFibAddress = sc->aac_common_busaddr +
@@ -2887,10 +2893,18 @@ aac_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
 	break;
 
 	case FSACTL_SENDFIB:
+	case FSACTL_SEND_LARGE_FIB:
 		arg = *(caddr_t*)arg;
 	case FSACTL_LNX_SENDFIB:
+	case FSACTL_LNX_SEND_LARGE_FIB:
 		debug(1, "FSACTL_SENDFIB");
 		error = aac_ioctl_sendfib(sc, arg);
+		break;
+	case FSACTL_SEND_RAW_SRB:
+		arg = *(caddr_t*)arg;
+	case FSACTL_LNX_SEND_RAW_SRB:
+		debug(1, "FSACTL_SEND_RAW_SRB");
+		error = aac_ioctl_send_raw_srb(sc, arg);
 		break;
 	case FSACTL_AIF_THREAD:
 	case FSACTL_LNX_AIF_THREAD:
@@ -3035,10 +3049,10 @@ aac_ioctl_sendfib(struct aac_softc *sc, caddr_t ufib)
 			    sizeof(struct aac_fib_header))) != 0)
 		goto out;
 	size = cm->cm_fib->Header.Size + sizeof(struct aac_fib_header);
-	if (size > sizeof(struct aac_fib)) {
-		device_printf(sc->aac_dev, "incoming FIB oversized (%d > %zd)\n",
-			      size, sizeof(struct aac_fib));
-		size = sizeof(struct aac_fib);
+	if (size > sc->aac_max_fib_size) {
+		device_printf(sc->aac_dev, "incoming FIB oversized (%d > %d)\n",
+			      size, sc->aac_max_fib_size);
+		size = sc->aac_max_fib_size;
 	}
 	if ((error = copyin(ufib, cm->cm_fib, size)) != 0)
 		goto out;
@@ -3061,10 +3075,10 @@ aac_ioctl_sendfib(struct aac_softc *sc, caddr_t ufib)
 	 * Copy the FIB and data back out to the caller.
 	 */
 	size = cm->cm_fib->Header.Size;
-	if (size > sizeof(struct aac_fib)) {
-		device_printf(sc->aac_dev, "outbound FIB oversized (%d > %zd)\n",
-			      size, sizeof(struct aac_fib));
-		size = sizeof(struct aac_fib);
+	if (size > sc->aac_max_fib_size) {
+		device_printf(sc->aac_dev, "outbound FIB oversized (%d > %d)\n",
+			      size, sc->aac_max_fib_size);
+		size = sc->aac_max_fib_size;
 	}
 	error = copyout(cm->cm_fib, ufib, size);
 
@@ -3075,6 +3089,15 @@ out:
 		mtx_unlock(&sc->aac_io_lock);
 	}
 	return(error);
+}
+
+/*
+ * Send a passthrough FIB supplied from userspace
+ */
+static int
+aac_ioctl_send_raw_srb(struct aac_softc *sc, caddr_t arg)
+{
+	return (EINVAL);
 }
 
 /*
@@ -3556,7 +3579,7 @@ aac_get_bus_info(struct aac_softc *sc)
 	vmi->IoctlCmd = GetBusInfo;
 
 	error = aac_sync_fib(sc, ContainerCommand, 0, fib,
-	    sizeof(struct aac_vmioctl));
+	    sizeof(struct aac_vmi_businf_resp));
 	if (error) {
 		device_printf(sc->aac_dev, "Error %d sending VMIoctl command\n",
 		    error);
