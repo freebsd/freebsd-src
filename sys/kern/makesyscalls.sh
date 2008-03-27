@@ -34,10 +34,11 @@ sysent="sysent.switch.$$"
 sysinc="sysinc.switch.$$"
 sysarg="sysarg.switch.$$"
 sysprotoend="sysprotoend.$$"
+systracetmp="systrace.$$"
 
-trap "rm $sysaue $sysdcl $syscompat $syscompatdcl $syscompat4 $syscompat4dcl $syscompat6 $syscompat6dcl $sysent $sysinc $sysarg $sysprotoend" 0
+trap "rm $sysaue $sysdcl $syscompat $syscompatdcl $syscompat4 $syscompat4dcl $syscompat6 $syscompat6dcl $sysent $sysinc $sysarg $sysprotoend $systracetmp" 0
 
-touch $sysaue $sysdcl $syscompat $syscompatdcl $syscompat4 $syscompat4dcl $syscompat6 $syscompat6dcl $sysent $sysinc $sysarg $sysprotoend
+touch $sysaue $sysdcl $syscompat $syscompatdcl $syscompat4 $syscompat4dcl $syscompat6 $syscompat6dcl $sysent $sysinc $sysarg $sysprotoend $systracetmp
 
 case $# in
     0)	echo "usage: $0 input-file <config-file>" 1>&2
@@ -82,6 +83,7 @@ s/\$//g
 		syshdr = \"$syshdr\"
 		sysmk = \"$sysmk\"
 		systrace = \"$systrace\"
+		systracetmp = \"$systracetmp\"
 		compat = \"$compat\"
 		compat4 = \"$compat4\"
 		compat6 = \"$compat6\"
@@ -159,6 +161,9 @@ s/\$//g
 		printf "static void\nsystrace_args(int sysnum, void *params, u_int64_t *uarg, int *n_args)\n{\n" > systrace
 		printf "\tint64_t *iarg  = (int64_t *) uarg;\n" > systrace
 		printf "\tswitch (sysnum) {\n" > systrace
+
+		printf "static void\nsystrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)\n{\n\tconst char *p = NULL;\n" > systracetmp
+		printf "\tswitch (sysnum) {\n" > systracetmp
 
 		next
 	}
@@ -317,9 +322,12 @@ s/\$//g
 	    || $3 == "NOIMPL" || $3 == "NOSTD" {
 		parseline()
 		printf("\t/* %s */\n\tcase %d: {\n", funcname, syscall) > systrace
+		printf("\t/* %s */\n\tcase %d:\n", funcname, syscall) > systracetmp
 		if (argc > 0) {
+			printf("\t\tswitch(ndx) {\n") > systracetmp
 			printf("\t\tstruct %s *p = params;\n", argalias) > systrace
 			for (i = 1; i <= argc; i++) {
+				printf("\t\tcase %d:\n\t\t\tp = \"%s\";\n\t\t\tbreak;\n", i - 1, argtype[i]) > systracetmp
 				if (index(argtype[i], "*") > 0 || argtype[i] == "caddr_t")
 					printf("\t\tuarg[%d] = (intptr_t) p->%s; /* %s */\n", \
 					     i - 1, \
@@ -333,8 +341,10 @@ s/\$//g
 					     i - 1, \
 					     argname[i], argtype[i]) > systrace
 			}
+			printf("\t\tdefault:\n\t\t\tbreak;\n\t\t};\n") > systracetmp
 		}
 		printf("\t\t*n_args = %d;\n\t\tbreak;\n\t}\n", argc) > systrace
+		printf("\t\tbreak;\n") > systracetmp
 		if ((!nosys || funcname != "nosys") && \
 		    (funcname != "lkmnosys") && (funcname != "lkmressys")) {
 			if (argc != 0 && $3 != "NOARGS" && $3 != "NOPROTO") {
@@ -529,6 +539,7 @@ s/\$//g
 		printf("#define\t%sMAXSYSCALL\t%d\n", syscallprefix, syscall) \
 		    > syshdr
 		printf "\tdefault:\n\t\t*n_args = 0;\n\t\tbreak;\n\t};\n}\n" > systrace
+		printf "\tdefault:\n\t\tbreak;\n\t};\n\tif (p != NULL)\n\t\tstrlcpy(desc, p, descsz);\n}\n" > systracetmp
 	} '
 
 cat $sysinc $sysent >> $syssw
@@ -537,4 +548,5 @@ cat $sysarg $sysdcl \
 	$syscompat4 $syscompat4dcl \
 	$syscompat6 $syscompat6dcl \
 	$sysaue $sysprotoend > $sysproto
+cat $systracetmp >> $systrace
 
