@@ -4,7 +4,7 @@ KMOD=	zfs
 
 SRCS=	vnode_if.h
 
-SUNW=	${.CURDIR}/../../contrib/opensolaris
+SUNW=	${.CURDIR}/../../cddl/contrib/opensolaris
 
 .PATH:	${SUNW}/common/acl
 SRCS+=	acl_common.c
@@ -13,7 +13,7 @@ SRCS+=	avl.c
 .PATH:	${SUNW}/common/nvpair
 SRCS+=	nvpair.c
 
-.PATH:	${.CURDIR}/../../compat/opensolaris/kern
+.PATH:	${.CURDIR}/../../cddl/compat/opensolaris/kern
 SRCS+=	opensolaris_kmem.c
 SRCS+=	opensolaris_kobj.c
 SRCS+=	opensolaris_kstat.c
@@ -27,7 +27,7 @@ SRCS+=	opensolaris_zone.c
 .PATH:	${SUNW}/common/atomic/${MACHINE_ARCH}
 SRCS+=	atomic.S
 .else
-.PATH:	${.CURDIR}/../../compat/opensolaris/kern
+.PATH:	${.CURDIR}/../../cddl/compat/opensolaris/kern
 SRCS+=	opensolaris_atomic.c
 .endif
 
@@ -70,7 +70,7 @@ SRCS+=	vdev_geom.c
 # Use FreeBSD's namecache.
 CFLAGS+=-DFREEBSD_NAMECACHE
 
-CFLAGS+=-I${.CURDIR}/../../compat/opensolaris
+CFLAGS+=-I${.CURDIR}/../../cddl/compat/opensolaris
 CFLAGS+=-I${SUNW}/uts/common/fs/zfs
 CFLAGS+=-I${SUNW}/uts/common/zmod
 CFLAGS+=-I${SUNW}/uts/common
