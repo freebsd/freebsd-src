@@ -59,11 +59,11 @@
 #endif
 #define MID_MACHINE	MID_SPARC64
 
-#ifdef SMP
+#if defined(SMP) || defined(KLD_MODULE)
 #define MAXCPU		16
 #else
 #define MAXCPU		1
-#endif /* SMP */
+#endif /* SMP || KLD_MODULE */
 
 #define	INT_SHIFT	2
 #define	PTR_SHIFT	3
