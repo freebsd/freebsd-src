@@ -58,7 +58,11 @@ __FBSDID("$FreeBSD$");
 #include <rpc/rpc.h>
 #include <rpc/nettype.h>
 
-#include "rpc_com.h"
+#include <rpc/rpc_com.h>
+
+#if __FreeBSD_version < 700000
+#define strrchr rindex
+#endif
 
 struct handle {
 	NCONF_HANDLE *nhandle;

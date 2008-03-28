@@ -3,7 +3,7 @@
  * It was generated using rpcgen.
  */
 
-#include "sm_inter.h"
+#include <nlm/sm_inter.h>
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 

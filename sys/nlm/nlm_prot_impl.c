@@ -36,7 +36,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/lockf.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
+#if __FreeBSD_version >= 700000
 #include <sys/priv.h>
+#endif
 #include <sys/proc.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -49,9 +51,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/unistd.h>
 #include <sys/vnode.h>
 
-#include "nlm_prot.h"
-#include "sm_inter.h"
-#include "nlm.h"
+#include <nlm/nlm_prot.h>
+#include <nlm/sm_inter.h>
+#include <nlm/nlm.h>
 #include <rpc/rpc_com.h>
 #include <rpc/rpcb_prot.h>
 
@@ -79,7 +81,14 @@ SYSCTL_NODE(_vfs_nlm, OID_AUTO, sysid, CTLFLAG_RW, NULL, "");
  */
 static int nlm_syscall_offset = SYS_nlm_syscall;
 static struct sysent nlm_syscall_prev_sysent;
+#if __FreeBSD_version < 700000
+static struct sysent nlm_syscall_sysent = {
+	(sizeof(struct nlm_syscall_args) / sizeof(register_t)) | SYF_MPSAFE,
+	(sy_call_t *) nlm_syscall
+};
+#else
 MAKE_SYSENT(nlm_syscall);
+#endif
 static bool_t nlm_syscall_registered = FALSE;
 
 /*
@@ -1209,7 +1218,11 @@ nlm_syscall(struct thread *td, struct nlm_syscall_args *uap)
 {
 	int error;
 
+#if __FreeBSD_version >= 700000
 	error = priv_check(td, PRIV_NFS_LOCKD);
+#else
+	error = suser(td);
+#endif
 	if (error)
 		return (error);
 
