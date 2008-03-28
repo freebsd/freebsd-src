@@ -4481,6 +4481,7 @@ pmap_mincore(pmap_t pmap, vm_offset_t addr)
 	if (*pdep != 0) {
 		if (*pdep & PG_PS) {
 			pte = *pdep;
+			val = MINCORE_SUPER:
 			/* Compute the physical address of the 4KB page. */
 			pa = ((*pdep & PG_PS_FRAME) | (addr & PDRMASK)) &
 			    PG_FRAME;
@@ -4497,7 +4498,7 @@ pmap_mincore(pmap_t pmap, vm_offset_t addr)
 	PMAP_UNLOCK(pmap);
 
 	if (pte != 0) {
-		val = MINCORE_INCORE;
+		val |= MINCORE_INCORE;
 		if ((pte & PG_MANAGED) == 0)
 			return val;
 
