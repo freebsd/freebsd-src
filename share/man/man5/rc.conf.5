@@ -1322,7 +1322,9 @@ The name of the profile to use from
 Also used for per-profile overrides of
 .Va ppp_mode
 and
-.Va ppp_nat .
+.Va ppp_nat ,
+and
+.Va ppp_ Ns Ao Ar profile Ac Ns _unit .
 When the profile name contains any of the characters
 .Dq Li .-/+
 they are translated to
@@ -1361,6 +1363,12 @@ Overrides the global
 .Va ppp_nat
 for
 .Ar profile .
+.It Va ppp_ Ns Ao Ar profile Ac Ns _unit
+.Pq Vt int
+Set the unit number to be used for this profile.
+See the manual description of
+.Fl unit Ns Ar N
+for details.
 .It Va ppp_user
 .Pq Vt str
 The name of the user under which
