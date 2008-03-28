@@ -97,6 +97,8 @@ union aac_statrequest {
 					METHOD_NEITHER, FILE_ANY_ACCESS)
 #define FSACTL_LNX_SEND_LARGE_FIB	CTL_CODE(FILE_DEVICE_CONTROLLER, 2138, \
 					METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define	FSACTL_LNX_GET_FEATURES		CTL_CODE(FILE_DEVICE_CONTROLLER, 2139, \
+					METHOD_BUFFERED, FILE_ANY_ACCESS)
 
 /* Why these don't follow the previous convention, I don't know */
 #define FSACTL_LNX_NULL_IO_TEST		0x43
@@ -134,6 +136,7 @@ union aac_statrequest {
 #define FSACTL_FORCE_DELETE_DISK	_IO('8', 72)
 #define FSACTL_AIF_THREAD		_IO('8', 79)
 #define FSACTL_SEND_LARGE_FIB		_IO('8', 90)
+#define	FSACTL_GET_FEATURES		_IO('8', 91)
 
 #define FSACTL_NULL_IO_TEST		_IO('8', 67)
 #define FSACTL_SIM_IO_TEST		_IO('8', 83)
@@ -182,4 +185,21 @@ struct aac_query_disk {
 	char		diskDeviceName[10];
 	u_int32_t	UnMapped;
 };
+
+/* Features, asked from the tools to know if the driver
+ * supports drives >2TB
+ */
+typedef union {
+	struct {
+		u_int32_t largeLBA  : 1;	/* disk support greater 2TB */
+		u_int32_t fReserved : 31;
+	} fBits;
+	u_int32_t fValue;
+} featuresState;
+
+struct aac_features {
+	featuresState feat;
+	u_int32_t data[31];
+	u_int32_t reserved[32];
+} __packed;
 #endif
