@@ -723,6 +723,7 @@ MLINKS+=lock.9 lockdestroy.9 \
 	lock.9 lockmgr_disown.9 \
 	lock.9 lockmgr_printinfo.9 \
 	lock.9 lockmgr_recursed.9 \
+	lock.9 lockmgr_waiters.9 \
 	lock.9 lockstatus.9
 MLINKS+=LOCK_PROFILING.9 MUTEX_PROFILING.9
 MLINKS+=make_dev.9 destroy_dev.9 \
