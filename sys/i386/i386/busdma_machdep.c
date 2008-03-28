@@ -539,7 +539,7 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 		pmap_change_attr((vm_offset_t)*vaddr, dmat->maxsize,
 		    PAT_UNCACHEABLE);
 	CTR4(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d",
-	    __func__, dmat, dmat->flags, ENOMEM);
+	    __func__, dmat, dmat->flags, 0);
 	return (0);
 }
 
