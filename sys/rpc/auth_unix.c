@@ -59,7 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <rpc/xdr.h>
 #include <rpc/auth.h>
 
-#include "rpc_com.h"
+#include <rpc/rpc_com.h>
 
 /* auth_unix.c */
 static void authunix_nextverf (AUTH *);

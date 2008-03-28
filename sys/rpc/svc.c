@@ -58,7 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <rpc/rpc.h>
 #include <rpc/rpcb_clnt.h>
 
-#include "rpc_com.h"
+#include <rpc/rpc_com.h>
 
 #define SVC_VERSQUIET 0x0001		/* keep quiet about vers mismatch */
 #define version_keepquiet(xp) ((u_long)(xp)->xp_p3 & SVC_VERSQUIET)

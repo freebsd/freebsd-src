@@ -28,8 +28,8 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 
-#include "nlm_prot.h"
-#include "nlm.h"
+#include <nlm/nlm_prot.h>
+#include <nlm/nlm.h>
 
 #include <sys/cdefs.h>
 #ifndef lint

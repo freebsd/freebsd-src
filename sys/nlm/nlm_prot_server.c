@@ -37,8 +37,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/systm.h>
 
-#include "nlm_prot.h"
-#include "nlm.h"
+#include <nlm/nlm_prot.h>
+#include <nlm/nlm.h>
 
 /**********************************************************************/
 

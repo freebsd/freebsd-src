@@ -8,7 +8,7 @@
 #include <sys/mutex.h>
 #include <sys/systm.h>
 
-#include "nlm_prot.h"
+#include <nlm/nlm_prot.h>
 #include <sys/cdefs.h>
 #ifndef lint
 /*static char sccsid[] = "from: @(#)nlm_prot.x 1.8 87/09/21 Copyr 1987 Sun Micro";*/

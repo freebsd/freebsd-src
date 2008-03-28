@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD$");
 
 #include <rpc/rpc.h>
 
-#include "rpc_com.h"
+#include <rpc/rpc_com.h>
 
 #define MAX_MACHINE_NAME	255
 #define NGRPS			16

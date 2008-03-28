@@ -52,7 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <rpc/xdr.h>
 #include <rpc/auth.h>
 
-#include "rpc_com.h"
+#include <rpc/rpc_com.h>
 
 /* gids compose part of a credential; there may not be more than 16 of them */
 #define NGRPS 16
