@@ -42,7 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 
 #include <rpc/rpc.h>
-#include "rpc_com.h"
+#include <rpc/rpc_com.h>
 
 static enum clnt_stat clnt_reconnect_call(CLIENT *, rpcproc_t,
     xdrproc_t, void *, xdrproc_t, void *, struct timeval);

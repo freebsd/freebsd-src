@@ -79,7 +79,7 @@ __FBSDID("$FreeBSD$");
 #include <rpc/rpcb_clnt.h>
 #include <rpc/rpcb_prot.h>
 
-#include "rpc_com.h"
+#include <rpc/rpc_com.h>
 
 static struct timeval tottimeout = { 60, 0 };
 static const struct timeval rmttimeout = { 3, 0 };

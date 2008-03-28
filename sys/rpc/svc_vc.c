@@ -60,7 +60,7 @@ __FBSDID("$FreeBSD$");
 
 #include <rpc/rpc.h>
 
-#include "rpc_com.h"
+#include <rpc/rpc_com.h>
 
 static bool_t svc_vc_rendezvous_recv(SVCXPRT *, struct rpc_msg *);
 static enum xprt_stat svc_vc_rendezvous_stat(SVCXPRT *);

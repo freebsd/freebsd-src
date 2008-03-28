@@ -27,7 +27,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 
 #include <rpc/types.h>
-#include "rpc_com.h"
+#include <rpc/rpc_com.h>
 
 /*%
  * WARNING: Don't even consider trying to compile this on a system where

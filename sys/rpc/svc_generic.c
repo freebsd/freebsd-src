@@ -64,7 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <rpc/rpcb_clnt.h>
 #include <rpc/nettype.h>
 
-#include "rpc_com.h"
+#include <rpc/rpc_com.h>
 
 extern int __svc_vc_setflag(SVCXPRT *, int);
 
