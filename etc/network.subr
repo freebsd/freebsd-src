@@ -472,14 +472,6 @@ ng_create_one() {
 }
 
 gif_up() {
-	# The following must be removed once RELENG_7 is branched.
-	case ${gif_interfaces} in
-	[Nn][Oo])
-		warn "gif_interfaces=\"NO\" is deprecated, use gif_interfaces=\"\" instead."
-		gif_interfaces=""
-		;;
-	esac
-
 	for i in ${gif_interfaces}; do
 		peers=`get_if_var $i gifconfig_IF`
 		case ${peers} in
@@ -487,7 +479,12 @@ gif_up() {
 			continue
 			;;
 		*)
-			ifconfig $i create >/dev/null 2>&1
+			if expr $i : 'gif[0-9][0-9]*$' >/dev/null 2>&1; then
+				ifconfig $i create >/dev/null 2>&1
+			else
+				gif=`ifconfig gif create`
+				ifconfig $gif name $i
+			fi
 			ifconfig $i tunnel ${peers}
 			ifconfig $i up
 			;;
