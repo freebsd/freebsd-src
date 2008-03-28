@@ -71,7 +71,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 
 #include <rpc/rpc.h>
-#include "rpc_com.h"
+#include <rpc/rpc_com.h>
 
 #define MCALL_MSG_SIZE 24
 

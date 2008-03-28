@@ -27,7 +27,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 
 #include <rpc/types.h>
-#include "rpc_com.h"
+#include <rpc/rpc_com.h>
+
+#if __FreeBSD_version < 700000
+#define strchr index
+#endif
 
 /*%
  * WARNING: Don't even consider trying to compile this on a system where

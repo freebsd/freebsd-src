@@ -57,7 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 
 #include <rpc/rpc.h>
-#include "rpc_com.h"
+#include <rpc/rpc_com.h>
 
 
 #ifdef _FREEFALL_CONFIG
