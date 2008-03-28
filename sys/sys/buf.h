@@ -268,7 +268,7 @@ extern const char *buf_wmesg;		/* Default buffer lock message */
  * Get a lock sleeping non-interruptably until it becomes available.
  */
 static __inline int
-_BUF_LOCK(struct buf *bp, int locktype, struct mtx *interlock, const char *file,
+_BUF_LOCK(struct buf *bp, int locktype, struct mtx *interlock, char *file,
     int line)
 {
 	int res;
@@ -287,7 +287,7 @@ _BUF_LOCK(struct buf *bp, int locktype, struct mtx *interlock, const char *file,
  */
 static __inline int
 _BUF_TIMELOCK(struct buf *bp, int locktype, struct mtx *interlock,
-    const char *wmesg, int catch, int timo, const char *file, int line)
+    const char *wmesg, int catch, int timo, char *file, int line)
 {
 	int res;
 
