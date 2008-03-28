@@ -544,7 +544,6 @@ bufinit(void)
 		bp->b_qindex = QUEUE_EMPTY;
 		bp->b_vflags = 0;
 		bp->b_xflags = 0;
-		bp->b_waiters = 0;
 		LIST_INIT(&bp->b_dep);
 		BUF_LOCKINIT(bp);
 		TAILQ_INSERT_TAIL(&bufqueues[QUEUE_EMPTY], bp, b_freelist);
@@ -1183,7 +1182,7 @@ brelse(struct buf *bp)
 			if (bp->b_bufsize)
 				allocbuf(bp, 0);
 			if (bp->b_vp)
-				(void) brelvp(bp);
+				brelvp(bp);
 		}
 	}
 
@@ -1324,7 +1323,7 @@ brelse(struct buf *bp)
 		if (bp->b_bufsize != 0)
 			allocbuf(bp, 0);
 		if (bp->b_vp != NULL)
-			(void) brelvp(bp);
+			brelvp(bp);
 	}
 			
 	if (BUF_LOCKRECURSED(bp)) {
@@ -1388,7 +1387,7 @@ brelse(struct buf *bp)
 		if (bp->b_flags & B_DELWRI)
 			bundirty(bp);
 		if (bp->b_vp)
-			(void) brelvp(bp);
+			brelvp(bp);
 	}
 
 	/*
@@ -1555,7 +1554,7 @@ vfs_vmio_release(struct buf *bp)
 	bp->b_npages = 0;
 	bp->b_flags &= ~B_VMIO;
 	if (bp->b_vp)
-		(void) brelvp(bp);
+		brelvp(bp);
 }
 
 /*
@@ -1693,7 +1692,6 @@ getnewbuf(int slpflag, int slptimeo, int size, int maxsize)
 	struct buf *nbp;
 	int defrag = 0;
 	int nqindex;
-	int waiters = 0;
 	static int flushingbufs;
 
 	/*
@@ -1832,7 +1830,7 @@ restart:
 				vfs_vmio_release(bp);
 			}
 			if (bp->b_vp)
-				waiters = brelvp(bp);
+				brelvp(bp);
 		}
 
 		/*
@@ -1901,7 +1899,7 @@ restart:
 		 * Notify any waiters for the buffer lock about
 		 * identity change by freeing the buffer.
 		 */
-		if (qindex == QUEUE_CLEAN && waiters > 0) {
+		if (qindex == QUEUE_CLEAN && BUF_LOCKWAITERS(bp)) {
 			bp->b_flags |= B_INVAL;
 			bfreekva(bp);
 			brelse(bp);
