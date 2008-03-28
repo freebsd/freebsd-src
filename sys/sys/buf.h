@@ -261,22 +261,22 @@ extern const char *buf_wmesg;		/* Default buffer lock message */
 /*
  * Initialize a lock.
  */
-#define BUF_LOCKINIT(bp) \
+#define BUF_LOCKINIT(bp)						\
 	lockinit(&(bp)->b_lock, PRIBIO + 4, buf_wmesg, 0, 0)
 /*
  *
  * Get a lock sleeping non-interruptably until it becomes available.
  */
 static __inline int
-BUF_LOCK(struct buf *bp, int locktype, struct mtx *interlock);
-static __inline int
-BUF_LOCK(struct buf *bp, int locktype, struct mtx *interlock)
+_BUF_LOCK(struct buf *bp, int locktype, struct mtx *interlock, const char *file,
+    int line)
 {
 	int res;
 
 	if (locktype & LK_INTERLOCK)
 		bp->b_waiters++;
-	res = lockmgr(&bp->b_lock, locktype, interlock);
+	res = _lockmgr_args(&bp->b_lock, locktype, interlock, LK_WMESG_DEFAULT,
+	    LK_PRIO_DEFAULT, LK_TIMO_DEFAULT, file, line);
 	if (locktype & LK_INTERLOCK)
 		bp->b_waiters--;
 	return (res);
@@ -286,18 +286,15 @@ BUF_LOCK(struct buf *bp, int locktype, struct mtx *interlock)
  * Get a lock sleeping with specified interruptably and timeout.
  */
 static __inline int
-BUF_TIMELOCK(struct buf *bp, int locktype, struct mtx *interlock,
-    const char *wmesg, int catch, int timo);
-static __inline int
-BUF_TIMELOCK(struct buf *bp, int locktype, struct mtx *interlock,
-    const char *wmesg, int catch, int timo)
+_BUF_TIMELOCK(struct buf *bp, int locktype, struct mtx *interlock,
+    const char *wmesg, int catch, int timo, const char *file, int line)
 {
 	int res;
 
 	if (locktype & LK_INTERLOCK)
 		bp->b_waiters++;
-	res = lockmgr_args(&bp->b_lock, locktype | LK_TIMELOCK, interlock,
-	    wmesg, (PRIBIO + 4) | catch, timo);
+	res = _lockmgr_args(&bp->b_lock, locktype | LK_TIMELOCK, interlock,
+	    wmesg, (PRIBIO + 4) | catch, timo, file, line);
 	if (locktype & LK_INTERLOCK)
 		bp->b_waiters--;
 	return (res);
@@ -307,35 +304,40 @@ BUF_TIMELOCK(struct buf *bp, int locktype, struct mtx *interlock,
  * Release a lock. Only the acquiring process may free the lock unless
  * it has been handed off to biodone.
  */
-static __inline void BUF_UNLOCK(struct buf *);
-static __inline void
-BUF_UNLOCK(struct buf *bp)
-{
-	int s;
-
-	s = splbio();
-	KASSERT((bp->b_flags & B_REMFREE) == 0,
-	    ("BUF_UNLOCK %p while B_REMFREE is still set.", bp));
-	lockmgr(&(bp)->b_lock, LK_RELEASE, NULL);
-	splx(s);
-}
+#define	BUF_UNLOCK(bp) do {						\
+	KASSERT(((bp)->b_flags & B_REMFREE) == 0,			\
+	    ("BUF_UNLOCK %p while B_REMFREE is still set.", (bp)));	\
+									\
+	(void)_lockmgr_args(&(bp)->b_lock, LK_RELEASE, NULL,		\
+	    LK_WMESG_DEFAULT, LK_PRIO_DEFAULT, LK_TIMO_DEFAULT,		\
+	    LOCK_FILE, LOCK_LINE);					\
+} while (0)
 
 /*
  * Check if a buffer lock is recursed.
  */
 #define	BUF_LOCKRECURSED(bp)						\
-	(lockmgr_recursed(&(bp)->b_lock))
+	lockmgr_recursed(&(bp)->b_lock)
 
 /*
  * Check if a buffer lock is currently held.
  */
 #define	BUF_ISLOCKED(bp)						\
-	(lockstatus(&(bp)->b_lock))
+	lockstatus(&(bp)->b_lock)
 /*
  * Free a buffer lock.
  */
 #define BUF_LOCKFREE(bp) 						\
-	(lockdestroy(&(bp)->b_lock))
+	lockdestroy(&(bp)->b_lock)
+
+/*
+ * Use macro wrappers in order to exploit consumers tracking.
+ */
+#define	BUF_LOCK(bp, locktype, interlock)				\
+	_BUF_LOCK((bp), (locktype), (interlock), LOCK_FILE, LOCK_LINE)
+#define	BUF_TIMELOCK(bp, locktype, interlock, wmesg, catch, timo)	\
+	_BUF_TIMELOCK((bp), (locktype), (interlock), (wmesg), (catch),	\
+	    (timo), LOCK_FILE, LOCK_LINE)
 
 /*
  * Buffer lock assertions.
@@ -349,10 +351,8 @@ BUF_UNLOCK(struct buf *bp)
 	_lockmgr_assert(&(bp)->b_lock, KA_XLOCKED, LOCK_FILE, LOCK_LINE)
 #define	BUF_ASSERT_UNLOCKED(bp)						\
 	_lockmgr_assert(&(bp)->b_lock, KA_UNLOCKED, LOCK_FILE, LOCK_LINE)
-#define	BUF_ASSERT_HELD(bp)						\
-	_lockmgr_assert(&(bp)->b_lock, KA_HELD, LOCK_FILE, LOCK_LINE)
-#define	BUF_ASSERT_UNHELD(bp)						\
-	_lockmgr_assert(&(bp)->b_lock, KA_UNHELD, LOCK_FILE, LOCK_LINE)
+#define	BUF_ASSERT_HELD(bp)
+#define	BUF_ASSERT_UNHELD(bp)
 #else
 #define	BUF_ASSERT_LOCKED(bp)
 #define	BUF_ASSERT_SLOCKED(bp)
@@ -369,13 +369,8 @@ BUF_UNLOCK(struct buf *bp)
  * original owning process can no longer acquire it recursively, but must
  * wait until the I/O is completed and the lock has been freed by biodone.
  */
-static __inline void BUF_KERNPROC(struct buf *);
-static __inline void
-BUF_KERNPROC(struct buf *bp)
-{
-
-	lockmgr_disown(&bp->b_lock);
-}
+#define	BUF_KERNPROC(bp)						\
+	_lockmgr_disown(&(bp)->b_lock, LOCK_FILE, LOCK_LINE)
 #endif
 
 #endif /* _KERNEL */
