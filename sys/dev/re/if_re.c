@@ -2167,16 +2167,12 @@ re_encap(sc, m_head)
 	 * need to send a really small IP fragment that's less than 60
 	 * bytes in size, and IP header checksumming is enabled, the
 	 * resulting ethernet frame that appears on the wire will
-	 * have garbled payload. To work around this, if TX checksum
+	 * have garbled payload. To work around this, if TX IP checksum
 	 * offload is enabled, we always manually pad short frames out
 	 * to the minimum ethernet frame size.
-	 *
-	 * Note: this appears unnecessary for TCP, and doing it for TCP
-	 * with PCIe adapters seems to result in bad checksums.
 	 */
-	if ((*m_head)->m_pkthdr.csum_flags & (CSUM_IP | CSUM_UDP) &&
-	    ((*m_head)->m_pkthdr.csum_flags & CSUM_TCP) == 0 &&
-            (*m_head)->m_pkthdr.len < RL_MIN_FRAMELEN) {
+	if ((*m_head)->m_pkthdr.len < RL_MIN_FRAMELEN &&
+	    ((*m_head)->m_pkthdr.csum_flags & CSUM_IP) != 0) {
 		padlen = RL_MIN_FRAMELEN - (*m_head)->m_pkthdr.len;
 		if (M_WRITABLE(*m_head) == 0) {
 			/* Get a writable copy. */
@@ -2257,12 +2253,18 @@ re_encap(sc, m_head)
 		    ((uint32_t)(*m_head)->m_pkthdr.tso_segsz <<
 		    RL_TDESC_CMD_MSSVAL_SHIFT);
 	else {
-		if ((*m_head)->m_pkthdr.csum_flags & CSUM_IP)
+		/*
+		 * Unconditionally enable IP checksum if TCP or UDP
+		 * checksum is required. Otherwise, TCP/UDP checksum
+		 * does't make effects.
+		 */
+		if (((*m_head)->m_pkthdr.csum_flags & RE_CSUM_FEATURES) != 0) {
 			csum_flags |= RL_TDESC_CMD_IPCSUM;
-		if ((*m_head)->m_pkthdr.csum_flags & CSUM_TCP)
-			csum_flags |= RL_TDESC_CMD_TCPCSUM;
-		if ((*m_head)->m_pkthdr.csum_flags & CSUM_UDP)
-			csum_flags |= RL_TDESC_CMD_UDPCSUM;
+			if (((*m_head)->m_pkthdr.csum_flags & CSUM_TCP) != 0)
+				csum_flags |= RL_TDESC_CMD_TCPCSUM;
+			if (((*m_head)->m_pkthdr.csum_flags & CSUM_UDP) != 0)
+				csum_flags |= RL_TDESC_CMD_UDPCSUM;
+		}
 	}
 
 	/*
