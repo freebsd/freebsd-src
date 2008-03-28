@@ -139,7 +139,6 @@ struct buf {
 	void	*b_fsprivate2;
 	void	*b_fsprivate3;
 	int	b_pin_count;
-	int	b_waiters;		/* (V) waiters counter */
 };
 
 #define b_object	b_bufobj->bo_object
@@ -267,38 +266,18 @@ extern const char *buf_wmesg;		/* Default buffer lock message */
  *
  * Get a lock sleeping non-interruptably until it becomes available.
  */
-static __inline int
-_BUF_LOCK(struct buf *bp, int locktype, struct mtx *interlock, char *file,
-    int line)
-{
-	int res;
-
-	if (locktype & LK_INTERLOCK)
-		bp->b_waiters++;
-	res = _lockmgr_args(&bp->b_lock, locktype, interlock, LK_WMESG_DEFAULT,
-	    LK_PRIO_DEFAULT, LK_TIMO_DEFAULT, file, line);
-	if (locktype & LK_INTERLOCK)
-		bp->b_waiters--;
-	return (res);
-}
+#define	BUF_LOCK(bp, locktype, interlock)				\
+	_lockmgr_args(&(bp)->b_lock, (locktype), (interlock),		\
+	    LK_WMESG_DEFAULT, LK_PRIO_DEFAULT, LK_TIMO_DEFAULT,		\
+	    LOCK_FILE, LOCK_LINE)
 
 /*
  * Get a lock sleeping with specified interruptably and timeout.
  */
-static __inline int
-_BUF_TIMELOCK(struct buf *bp, int locktype, struct mtx *interlock,
-    const char *wmesg, int catch, int timo, char *file, int line)
-{
-	int res;
-
-	if (locktype & LK_INTERLOCK)
-		bp->b_waiters++;
-	res = _lockmgr_args(&bp->b_lock, locktype | LK_TIMELOCK, interlock,
-	    wmesg, (PRIBIO + 4) | catch, timo, file, line);
-	if (locktype & LK_INTERLOCK)
-		bp->b_waiters--;
-	return (res);
-}
+#define	BUF_TIMELOCK(bp, locktype, interlock, wmesg, catch, timo)	\
+	_lockmgr_args(&(bp)->b_lock, (locktype) | LK_TIMELOCK,		\
+	    (interlock), (wmesg), (PRIBIO + 4) | (catch), (timo),	\
+	    LOCK_FILE, LOCK_LINE)
 
 /*
  * Release a lock. Only the acquiring process may free the lock unless
@@ -329,15 +308,6 @@ _BUF_TIMELOCK(struct buf *bp, int locktype, struct mtx *interlock,
  */
 #define BUF_LOCKFREE(bp) 						\
 	lockdestroy(&(bp)->b_lock)
-
-/*
- * Use macro wrappers in order to exploit consumers tracking.
- */
-#define	BUF_LOCK(bp, locktype, interlock)				\
-	_BUF_LOCK((bp), (locktype), (interlock), LOCK_FILE, LOCK_LINE)
-#define	BUF_TIMELOCK(bp, locktype, interlock, wmesg, catch, timo)	\
-	_BUF_TIMELOCK((bp), (locktype), (interlock), (wmesg), (catch),	\
-	    (timo), LOCK_FILE, LOCK_LINE)
 
 /*
  * Buffer lock assertions.
@@ -372,6 +342,12 @@ _BUF_TIMELOCK(struct buf *bp, int locktype, struct mtx *interlock,
 #define	BUF_KERNPROC(bp)						\
 	_lockmgr_disown(&(bp)->b_lock, LOCK_FILE, LOCK_LINE)
 #endif
+
+/*
+ * Find out if the lock has waiters or not.
+ */
+#define	BUF_LOCKWAITERS(bp)						\
+	lockmgr_waiters(&(bp)->b_lock)
 
 #endif /* _KERNEL */
 
@@ -528,7 +504,7 @@ void	vfs_unbusy_pages(struct buf *);
 int	vmapbuf(struct buf *);
 void	vunmapbuf(struct buf *);
 void	relpbuf(struct buf *, int *);
-int	brelvp(struct buf *);
+void	brelvp(struct buf *);
 void	bgetvp(struct vnode *, struct buf *);
 void	pbgetbo(struct bufobj *bo, struct buf *bp);
 void	pbgetvp(struct vnode *, struct buf *);

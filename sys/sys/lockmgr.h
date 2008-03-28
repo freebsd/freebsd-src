@@ -225,6 +225,8 @@ int	lockstatus(struct lock *);
 	    LOCK_FILE, LOCK_LINE)
 #define	lockmgr_recursed(lkp)						\
 	((lkp)->lk_exclusivecount > 1)
+#define	lockmgr_waiters(lkp)						\
+	((lkp)->lk_waitcount != 0)
 #ifdef INVARIANTS
 #define	lockmgr_assert(lkp, what)					\
 	_lockmgr_assert((lkp), (what), LOCK_FILE, LOCK_LINE)
