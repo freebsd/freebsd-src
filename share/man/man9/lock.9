@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 1, 2008
+.Dd March 28, 2008
 .Dt LOCK 9
 .Os
 .Sh NAME
@@ -37,6 +37,7 @@
 .Nm lockmgr_disown ,
 .Nm lockmgr_printinfo ,
 .Nm lockmgr_recursed ,
+.Nm lockmgr_waiters ,
 .Nm lockstatus ,
 .Nm lockmgr_assert
 .Nd "lockmgr family of functions"
@@ -58,6 +59,8 @@
 .Fn lockmgr_printinfo "struct lock *lkp"
 .Ft int
 .Fn lockmgr_recursed "struct lock *lkp"
+.Ft int
+.Fn lockmgr_waiters "struct lock *lkp"
 .Ft int
 .Fn lockstatus "struct lock *lkp"
 .Pp
@@ -218,6 +221,10 @@ The
 .Fn lockmgr_recursed
 function returns true if the lock is recursed, 0
 otherwise.
+.Pp
+The
+.Fn lockmgr_waiters
+function returns true if the lock has waiters, 0 otherwise.
 .Pp
 The
 .Fn lockstatus
