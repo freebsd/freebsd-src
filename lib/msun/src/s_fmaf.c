@@ -27,6 +27,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "math.h"
+
 /*
  * Fused multiply-add: Compute x * y + z with a single rounding error.
  *
