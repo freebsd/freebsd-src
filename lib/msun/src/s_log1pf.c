@@ -94,8 +94,14 @@ log1pf(float x)
 	}
 	hfsq=(float)0.5*f*f;
 	if(hu==0) {	/* |f| < 2**-20 */
-	    if(f==zero) if(k==0) return zero;
-			else {c += k*ln2_lo; return k*ln2_hi+c;}
+	    if(f==zero) {
+		if(k==0) {
+		    return zero;
+		} else {
+		    c += k*ln2_lo;
+		    return k*ln2_hi+c;
+		}
+	    }
 	    R = hfsq*((float)1.0-(float)0.66666666666666666*f);
 	    if(k==0) return f-R; else
 	    	     return k*ln2_hi-((R-(k*ln2_lo+c))-f);
