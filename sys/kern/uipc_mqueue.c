@@ -704,12 +704,9 @@ mqfs_allocv(struct mount *mp, struct vnode **vpp, struct mqfs_node *pn)
 	}
 
 	if (vd != NULL) {
-		if (vget(vd->mv_vnode, 0, curthread) == 0) {
-			*vpp = vd->mv_vnode;
-			vn_lock(*vpp, LK_RETRY | LK_EXCLUSIVE);
-			return (0);
-		}
-		/* XXX if this can happen, we're in trouble */
+		*vpp = vd->mv_vnode;
+		vget(*vpp, LK_RETRY | LK_EXCLUSIVE, curthread);
+		return (0);
 	}
 
 	error = getnewvnode("mqueue", mp, &mqfs_vnodeops, vpp);
