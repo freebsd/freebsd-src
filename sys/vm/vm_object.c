@@ -364,22 +364,11 @@ vm_object_allocate(objtype_t type, vm_pindex_t size)
 void
 vm_object_reference(vm_object_t object)
 {
-	struct vnode *vp;
-
 	if (object == NULL)
 		return;
 	VM_OBJECT_LOCK(object);
-	object->ref_count++;
-	if (object->type == OBJT_VNODE) {
-		int vfslocked;
-
-		vp = object->handle;
-		VM_OBJECT_UNLOCK(object);
-		vfslocked = VFS_LOCK_GIANT(vp->v_mount);
-		vget(vp, LK_RETRY, curthread);
-		VFS_UNLOCK_GIANT(vfslocked);
-	} else
-		VM_OBJECT_UNLOCK(object);
+	vm_object_reference_locked(object);
+	VM_OBJECT_UNLOCK(object);
 }
 
 /*
@@ -395,8 +384,6 @@ vm_object_reference_locked(vm_object_t object)
 	struct vnode *vp;
 
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
-	KASSERT((object->flags & OBJ_DEAD) == 0,
-	    ("vm_object_reference_locked: dead object referenced"));
 	object->ref_count++;
 	if (object->type == OBJT_VNODE) {
 		vp = object->handle;
