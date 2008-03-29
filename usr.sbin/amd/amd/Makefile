@@ -28,7 +28,7 @@ CFLAGS+= -I${.CURDIR}/../../../contrib/amd/amd \
 	 -I${DESTDIR}/usr/include/rpcsvc
 
 DPADD=	${LIBAMU} ${LIBWRAP}
-LDADD=	${LIBAMU} ${LIBWRAP}
+LDADD=	${LIBAMU} -lwrap
 
 CLEANFILES+=	conf_parse.c conf_parse.h conf_tok.c
 
