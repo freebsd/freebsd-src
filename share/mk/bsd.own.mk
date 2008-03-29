@@ -162,8 +162,6 @@ NLSOWN?=	${SHAREOWN}
 NLSGRP?=	${SHAREGRP}
 NLSMODE?=	${NOBINMODE}
 
-DEFAULT_THREAD_LIB?=	libthr
-
 INCLUDEDIR?=	/usr/include
 
 # Common variables
@@ -328,7 +326,6 @@ WITH_IDEA=
     KVM \
     LIB32 \
     LIBPTHREAD \
-    LIBKSE \
     LIBTHR \
     LOCALES \
     LPR \
@@ -399,11 +396,10 @@ MK_${var}:=	no
 # Order is somewhat important.
 #
 .if ${MK_LIBPTHREAD} == "no"
-MK_LIBKSE:=	no
 MK_LIBTHR:=	no
 .endif
 
-.if ${MK_LIBKSE} == "no" && ${MK_LIBTHR} == "no"
+.if ${MK_LIBTHR} == "no"
 MK_BIND:=	no
 .endif
 
