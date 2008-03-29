@@ -63,8 +63,8 @@ MAN+=	_exit.2 abort2.2 accept.2 access.2 acct.2  adjtime.2 \
 	aio_suspend.2 aio_waitcomplete.2 aio_write.2 \
 	bind.2 brk.2 chdir.2 chflags.2 \
 	chmod.2 chown.2 chroot.2 clock_gettime.2 close.2 \
-	connect.2 cpuset.2 dup.2 execve.2 extattr_get_file.2 \
-	fcntl.2 fhopen.2 flock.2 fork.2 fsync.2 \
+	connect.2 cpuset.2 cpuset_getaffinity.2 dup.2 execve.2 \
+	extattr_get_file.2 fcntl.2 fhopen.2 flock.2 fork.2 fsync.2 \
 	getdirentries.2 getdtablesize.2 \
 	getfh.2 getfsstat.2 getgid.2 getgroups.2 getitimer.2 getlogin.2 \
 	getpeername.2 getpgrp.2 getpid.2 getpriority.2 getrlimit.2 \
@@ -105,6 +105,7 @@ MLINKS+=chmod.2 fchmod.2 chmod.2 lchmod.2
 MLINKS+=chown.2 fchown.2 chown.2 lchown.2
 MLINKS+=clock_gettime.2 clock_getres.2 clock_gettime.2 clock_settime.2
 MLINKS+=cpuset.2 cpuset_setid.2 cpuset.2 cpuset_getid.2
+MLINKS+=cpuset_getaffinity.2 cpuset_setaffinity.2
 MLINKS+=dup.2 dup2.2
 MLINKS+=extattr_get_file.2 extattr.2 \
 	extattr_get_file.2 extattr_delete_fd.2 \
