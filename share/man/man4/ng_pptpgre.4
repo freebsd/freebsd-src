@@ -35,7 +35,7 @@
 .\" $FreeBSD$
 .\" $Whistle: ng_pptpgre.8,v 1.2 1999/12/08 00:20:53 archie Exp $
 .\"
-.Dd December 7, 2001
+.Dd March 29, 2008
 .Dt NG_PPTPGRE 4
 .Os
 .Sh NAME
@@ -73,9 +73,11 @@ node.
 .Sh HOOKS
 This node type supports the following hooks:
 .Pp
-.Bl -tag -compact -width ".Li upper"
+.Bl -tag -compact -width ".Li session_hhhh"
+.It Li session_hhhh
+Session 0xhhhh data packets to the upper protocol layers
 .It Li upper
-Connection to the upper protocol layers
+Same as session_hhhh, but for single session with configurable cid (legacy)
 .It Li lower
 Connection to the lower protocol layers
 .El
@@ -83,7 +85,8 @@ Connection to the lower protocol layers
 This node type supports the generic control messages, plus the following:
 .Bl -tag -width indent
 .It Dv NGM_PPTPGRE_SET_CONFIG
-This command resets and configures the node for a session.
+This command resets and configures hook for a session. If corresponding
+session_hhhh hook is not connected, upper hook will be configured.
 This command takes a
 .Vt "struct ng_pptpgre_conf"
 as an argument:
@@ -122,7 +125,7 @@ L2TP, the successor to PPTP, removes it.
 .Pp
 The remaining fields are as supplied by the PPTP virtual call setup process.
 .It Dv NGM_PPTPGRE_GET_CONFIG
-Returns the current configuration as a
+Takes two byte argument as cid and returns the current configuration as a
 .Vt "struct ng_pptpgre_conf" .
 .It Dv NGM_PPTPGRE_GET_STATS
 This command returns a
