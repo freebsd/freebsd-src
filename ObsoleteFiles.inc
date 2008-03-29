@@ -1028,6 +1028,9 @@ OLD_FILES+=usr/sbin/ntp-genkeys
 OLD_FILES+=usr/sbin/ntptimeset
 OLD_FILES+=usr/share/man/man8/kernbb.8.gz
 OLD_FILES+=usr/share/man/man8/ntp-genkeys.8.gz
+# 20040627: usbdevs.h and usbdevs_data.h removal
+OLD_FILES+=usr/include/dev/usb/usbdevs.h
+OLD_FILES+=usr/include/dev/usb/usbdevs_data.h
 # 200406XX
 OLD_FILES+=usr/bin/gasp
 OLD_FILES+=usr/bin/gdbreplay
@@ -3476,8 +3479,6 @@ OLD_FILES+=sbin/mount_reiserfs
 OLD_FILES+=usr/bin/hesinfo
 OLD_FILES+=usr/include/c++/3.4/ext/demangle.h
 OLD_FILES+=usr/include/cam/cam_extend.h
-OLD_FILES+=usr/include/dev/usb/usbdevs.h
-OLD_FILES+=usr/include/dev/usb/usbdevs_data.h
 OLD_FILES+=usr/include/dev/wi/wi_hostap.h
 OLD_FILES+=usr/include/disktab.h
 OLD_FILES+=usr/include/g++/FlexLexer.h
