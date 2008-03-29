@@ -2627,10 +2627,8 @@ pmap_remove_all(vm_page_t m)
 	vm_offset_t va;
 	vm_page_t free;
 
-#if 0
 	KASSERT((m->flags & PG_FICTITIOUS) == 0,
 	    ("pmap_remove_all: page %p is fictitious", m));
-#endif
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	sched_pin();
 	pvh = pa_to_pvh(VM_PAGE_TO_PHYS(m));
