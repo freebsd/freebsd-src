@@ -103,11 +103,9 @@ null_hashget(mp, lowervp)
 	struct mount *mp;
 	struct vnode *lowervp;
 {
-	struct thread *td = curthread;	/* XXX */
 	struct null_node_hashhead *hd;
 	struct null_node *a;
 	struct vnode *vp;
-	int error;
 
 	ASSERT_VOP_LOCKED(lowervp, "null_hashget");
 
@@ -121,24 +119,15 @@ null_hashget(mp, lowervp)
 	mtx_lock(&null_hashmtx);
 	LIST_FOREACH(a, hd, null_hash) {
 		if (a->null_lowervp == lowervp && NULLTOV(a)->v_mount == mp) {
-			vp = NULLTOV(a);
-			VI_LOCK(vp);
-			mtx_unlock(&null_hashmtx);
-			/*
-			 * We need to clear the OWEINACT flag here as this
-			 * may lead vget() to try to lock our vnode which
-			 * is already locked via lowervp.
-			 */
-			vp->v_iflag &= ~VI_OWEINACT;
-			error = vget(vp, LK_INTERLOCK, td);
 			/*
 			 * Since we have the lower node locked the nullfs
 			 * node can not be in the process of recycling.  If
 			 * it had been recycled before we grabed the lower
 			 * lock it would not have been found on the hash.
 			 */
-			if (error)
-				panic("null_hashget: vget error %d", error);
+			vp = NULLTOV(a);
+			vref(vp);
+			mtx_unlock(&null_hashmtx);
 			return (vp);
 		}
 	}
@@ -155,11 +144,9 @@ null_hashins(mp, xp)
 	struct mount *mp;
 	struct null_node *xp;
 {
-	struct thread *td = curthread;	/* XXX */
 	struct null_node_hashhead *hd;
 	struct null_node *oxp;
 	struct vnode *ovp;
-	int error;
 
 	hd = NULL_NHASH(xp->null_lowervp);
 	mtx_lock(&null_hashmtx);
@@ -171,12 +158,8 @@ null_hashins(mp, xp)
 			 * operation.
 			 */
 			ovp = NULLTOV(oxp);
-			VI_LOCK(ovp);
+			vref(ovp);
 			mtx_unlock(&null_hashmtx);
-			ovp->v_iflag &= ~VI_OWEINACT;
-			error = vget(ovp, LK_INTERLOCK, td);
-			if (error)
-				panic("null_hashins: vget error %d", error);
 			return (ovp);
 		}
 	}
