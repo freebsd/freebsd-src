@@ -263,7 +263,7 @@ _calendar=	calendar
 .if ${MK_OPENSSL} != "no"
 _chkey=		chkey
 _newkey=	newkey
-.if ${MK_LIBTHR} != "no" || ${MK_LIBKSE} != "no"
+.if ${MK_LIBTHR} != "no"
 _csup=		csup
 .endif
 .endif
