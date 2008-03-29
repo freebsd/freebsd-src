@@ -854,26 +854,16 @@ vn_poll(fp, events, active_cred, td)
 }
 
 /*
- * Check that the vnode is still valid, and if so
- * acquire requested lock.
+ * Acquire the requested lock and then check for validity.  LK_RETRY
+ * permits vn_lock to return doomed vnodes.
  */
 int
 _vn_lock(struct vnode *vp, int flags, char *file, int line)
 {
 	int error;
 
-	/*
-	 * With no lock type requested we're just polling for validity.
-	 */
-	if ((flags & LK_TYPE_MASK) == 0) {
-		error = 0;
-		if ((flags & LK_INTERLOCK) == 0)
-			VI_LOCK(vp);
-		if (vp->v_iflag & VI_DOOMED)
-			error = ENOENT;
-		VI_UNLOCK(vp);
-		return (error);
-	}
+	VNASSERT((flags & LK_TYPE_MASK) != 0, vp,
+	    ("vn_lock called with no locktype."));
 	do {
 		error = VOP_LOCK1(vp, flags, file, line);
 		flags &= ~LK_INTERLOCK;	/* Interlock is always dropped. */
