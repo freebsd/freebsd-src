@@ -30,7 +30,6 @@ OLD_FILES+=usr/share/games/fortune/fortunes2-o.dat
 # 20071201: Removal of XRPU driver
 OLD_FILES+=usr/include/sys/xrpuio.h
 # 20071129: Disabled static versions of libkse by default
-.if ${DEFAULT_THREAD_LIB} != "libkse" && ${MK_LIBTHR} != "no"
 OLD_FILES+=usr/lib/libkse.a
 OLD_FILES+=usr/lib/libkse_p.a
 OLD_FILES+=usr/lib/libkse_pic.a
@@ -38,7 +37,6 @@ OLD_FILES+=usr/lib/libkse_pic.a
 OLD_FILES+=usr/lib32/libkse.a
 OLD_FILES+=usr/lib32/libkse_p.a
 OLD_FILES+=usr/lib32/libkse_pic.a
-.endif
 .endif
 # 20071129: Removed a Solaris compatibility header
 OLD_FILES+=usr/include/sys/_elf_solaris.h
