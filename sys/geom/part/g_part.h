@@ -164,6 +164,6 @@ int g_part_modevent(module_t, int, struct g_part_scheme *);
 	name##_modevent,					\
 	&name##_scheme						\
     };								\
-    DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS, SI_ORDER_FIRST)
+    DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS, SI_ORDER_ANY)
 
 #endif /* !_GEOM_PART_H_ */
