@@ -10,8 +10,7 @@
 
 .include <bsd.own.mk>
 
-.if (${DEFAULT_THREAD_LIB} == "libthr" || ${MK_LIBKSE} == "no") && \
-    ${SHLIBDIR} == "/usr/lib"
+.if ${SHLIBDIR} == "/usr/lib"
 SHLIBDIR= /lib
 .endif
 
@@ -43,14 +42,12 @@ PRECIOUSLIB=
 .include "${.CURDIR}/sys/Makefile.inc"
 .include "${.CURDIR}/thread/Makefile.inc"
 
-.if ${DEFAULT_THREAD_LIB} == "libthr" || ${MK_LIBKSE} == "no"
 SYMLINKS+=lib${LIB}.a ${LIBDIR}/libpthread.a
 .if !defined(NO_PIC)
 SYMLINKS+=lib${LIB}.so ${LIBDIR}/libpthread.so
 .endif
 .if ${MK_PROFILE} != "no"
 SYMLINKS+=lib${LIB}_p.a ${LIBDIR}/libpthread_p.a
-.endif
 .endif
 
 .include <bsd.lib.mk>
