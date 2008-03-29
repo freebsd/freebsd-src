@@ -331,6 +331,7 @@ kld_current_sos (void)
 	char *path;
 	int error;
 
+	head = NULL;
 	prev = &head;
 
 	/*
