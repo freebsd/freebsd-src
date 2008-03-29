@@ -55,8 +55,14 @@ __ieee754_logf(float x)
 	k += (i>>23);
 	f = x-(float)1.0;
 	if((0x007fffff&(0x8000+ix))<0xc000) {	/* -2**-9 <= f < 2**-9 */
-	    if(f==zero) if(k==0) return zero;  else {dk=(float)k;
-				 return dk*ln2_hi+dk*ln2_lo;}
+	    if(f==zero) {
+		if(k==0) {
+		    return zero;
+		} else {
+		    dk=(float)k;
+		    return dk*ln2_hi+dk*ln2_lo;
+		}
+	    }
 	    R = f*f*((float)0.5-(float)0.33333333333333333*f);
 	    if(k==0) return f-R; else {dk=(float)k;
 	    	     return dk*ln2_hi-((R-dk*ln2_lo)-f);}
