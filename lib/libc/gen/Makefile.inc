@@ -120,6 +120,7 @@ MLINKS+=isgreater.3 isgreaterequal.3 isgreater.3 isless.3 \
 	isgreater.3 isunordered.3
 MLINKS+=ldexp.3 ldexpf.3 ldexp.3 ldexpl.3
 MLINKS+=makecontext.3 swapcontext.3
+MLINKS+=modf.3 modff.3 modf.3 modfl.3
 MLINKS+=popen.3 pclose.3
 MLINKS+=psignal.3 strsignal.3 psignal.3 sys_siglist.3 psignal.3 sys_signame.3
 MLINKS+=pwcache.3 group_from_gid.3 pwcache.3 user_from_uid.3
