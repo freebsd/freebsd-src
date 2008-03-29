@@ -96,9 +96,10 @@ expm1f(float x)
 	    e  = (x*(e-c)-c);
 	    e -= hxs;
 	    if(k== -1) return (float)0.5*(x-e)-(float)0.5;
-	    if(k==1)
+	    if(k==1) {
 	       	if(x < (float)-0.25) return -(float)2.0*(e-(x+(float)0.5));
 	       	else 	      return  one+(float)2.0*(x-e);
+	    }
 	    if (k <= -2 || k>56) {   /* suffice to return exp(x)-1 */
 	        y = one-(e-x);
 		if (k == 128) y = y*2.0F*0x1p127F;
