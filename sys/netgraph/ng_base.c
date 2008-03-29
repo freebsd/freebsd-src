@@ -964,10 +964,8 @@ ng_unref_hook(hook_p hook)
 	} while (! atomic_cmpset_int(&hook->hk_refs, v, v - 1));
 
 	if (v == 1) { /* we were the last */
-		if (_NG_HOOK_NODE(hook)) { /* it'll probably be ng_deadnode */
+		if (_NG_HOOK_NODE(hook)) /* it'll probably be ng_deadnode */
 			_NG_NODE_UNREF((_NG_HOOK_NODE(hook)));
-			hook->hk_node = NULL;
-		}
 		NG_FREE_HOOK(hook);
 	}
 }
