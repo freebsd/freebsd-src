@@ -9,11 +9,15 @@
 __FBSDID("$FreeBSD$");
 
 #include <complex.h>
+#include <float.h>
 #include <math.h>
 
 double
-cabs(z)
-	double complex z;
+cabs(double complex z)
 {
 	return hypot(creal(z), cimag(z));
 }
+
+#if LDBL_MANT_DIG == 53
+__weak_reference(cabs, cabsl);
+#endif

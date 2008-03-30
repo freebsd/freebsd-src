@@ -46,6 +46,8 @@ __FBSDID("$FreeBSD$");
  * 	than 1 ulps (units in the last place) 
  */
 
+#include <float.h>
+
 #include "math.h"
 #include "math_private.h"
 
@@ -123,3 +125,7 @@ __ieee754_hypot(double x, double y)
 	    return t1*w;
 	} else return w;
 }
+
+#if LDBL_MANT_DIG == 53
+__weak_reference(hypot, hypotl);
+#endif
