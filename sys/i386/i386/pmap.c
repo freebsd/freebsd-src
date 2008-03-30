@@ -2071,6 +2071,8 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 		 * Calculate index for next page table.
 		 */
 		pdnxt = (sva + NBPDR) & ~PDRMASK;
+		if (pdnxt < sva)
+			pdnxt = eva;
 		if (pmap->pm_stats.resident_count == 0)
 			break;
 
@@ -2227,6 +2229,8 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 		unsigned pdirindex;
 
 		pdnxt = (sva + NBPDR) & ~PDRMASK;
+		if (pdnxt < sva)
+			pdnxt = eva;
 
 		pdirindex = sva >> PDRSHIFT;
 		ptpaddr = pmap->pm_pdir[pdirindex];
@@ -2828,6 +2832,8 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 			panic("pmap_copy: invalid to pmap_copy page tables");
 
 		pdnxt = (addr + NBPDR) & ~PDRMASK;
+		if (pdnxt < addr)
+			pdnxt = end_addr;
 		ptepindex = addr >> PDRSHIFT;
 
 		srcptepaddr = src_pmap->pm_pdir[ptepindex];

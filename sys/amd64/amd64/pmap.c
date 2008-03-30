@@ -1981,12 +1981,16 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 		pml4e = pmap_pml4e(pmap, sva);
 		if ((*pml4e & PG_V) == 0) {
 			va_next = (sva + NBPML4) & ~PML4MASK;
+			if (va_next < sva)
+				va_next = eva;
 			continue;
 		}
 
 		pdpe = pmap_pml4e_to_pdpe(pml4e, sva);
 		if ((*pdpe & PG_V) == 0) {
 			va_next = (sva + NBPDP) & ~PDPMASK;
+			if (va_next < sva)
+				va_next = eva;
 			continue;
 		}
 
@@ -1994,6 +1998,8 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 		 * Calculate index for next page table.
 		 */
 		va_next = (sva + NBPDR) & ~PDRMASK;
+		if (va_next < sva)
+			va_next = eva;
 
 		pde = pmap_pdpe_to_pde(pdpe, sva);
 		ptpaddr = *pde;
@@ -2145,16 +2151,22 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 		pml4e = pmap_pml4e(pmap, sva);
 		if ((*pml4e & PG_V) == 0) {
 			va_next = (sva + NBPML4) & ~PML4MASK;
+			if (va_next < sva)
+				va_next = eva;
 			continue;
 		}
 
 		pdpe = pmap_pml4e_to_pdpe(pml4e, sva);
 		if ((*pdpe & PG_V) == 0) {
 			va_next = (sva + NBPDP) & ~PDPMASK;
+			if (va_next < sva)
+				va_next = eva;
 			continue;
 		}
 
 		va_next = (sva + NBPDR) & ~PDRMASK;
+		if (va_next < sva)
+			va_next = eva;
 
 		pde = pmap_pdpe_to_pde(pdpe, sva);
 		ptpaddr = *pde;
@@ -2752,16 +2764,22 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 		pml4e = pmap_pml4e(src_pmap, addr);
 		if ((*pml4e & PG_V) == 0) {
 			va_next = (addr + NBPML4) & ~PML4MASK;
+			if (va_next < addr)
+				va_next = end_addr;
 			continue;
 		}
 
 		pdpe = pmap_pml4e_to_pdpe(pml4e, addr);
 		if ((*pdpe & PG_V) == 0) {
 			va_next = (addr + NBPDP) & ~PDPMASK;
+			if (va_next < addr)
+				va_next = end_addr;
 			continue;
 		}
 
 		va_next = (addr + NBPDR) & ~PDRMASK;
+		if (va_next < addr)
+			va_next = end_addr;
 
 		pde = pmap_pdpe_to_pde(pdpe, addr);
 		srcptepaddr = *pde;
