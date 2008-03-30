@@ -81,7 +81,7 @@ int	mountfs(const char *, const char *, const char *,
 			int, const char *, const char *);
 void	remopt(char *, const char *);
 void	prmount(struct statfs *);
-void	putfsent(const struct statfs *);
+void	putfsent(struct statfs *);
 void	usage(void);
 char   *flags2opts(int);
 
@@ -805,13 +805,19 @@ usage(void)
 }
 
 void
-putfsent(const struct statfs *ent)
+putfsent(struct statfs *ent)
 {
 	struct fstab *fst;
 	char *opts;
 	int l;
 
 	opts = flags2opts(ent->f_flags);
+
+	if (strncmp(ent->f_mntfromname, "<below>", 7) == 0 ||
+	    strncmp(ent->f_mntfromname, "<above>", 7) == 0) {
+		strcpy(ent->f_mntfromname, (strnstr(ent->f_mntfromname, ":", 8)
+		    +1));
+	}
 
 	/*
 	 * "rw" is not a real mount option; this is why we print NULL as "rw"
@@ -871,7 +877,6 @@ flags2opts(int flags)
 	if (flags & MNT_SUIDDIR)	res = catopt(res, "suiddir");
 	if (flags & MNT_MULTILABEL)	res = catopt(res, "multilabel");
 	if (flags & MNT_ACLS)		res = catopt(res, "acls");
-	if (flags & MNT_GJOURNAL)	res = catopt(res, "gjournal");
 
 	return (res);
 }
