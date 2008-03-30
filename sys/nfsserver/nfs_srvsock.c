@@ -651,14 +651,17 @@ nfsrv_getstream(struct nfssvc_sock *slp, int waitflag)
 		NFSD_UNLOCK();
 		rec = malloc(sizeof(struct nfsrv_rec), M_NFSRVDESC,
 	            waitflag == M_DONTWAIT ? M_NOWAIT : M_WAITOK);
-		NFSD_LOCK();
-		if (!rec) {
-		    m_freem(slp->ns_frag);
-		} else {
+		if (rec) {
 		    nfs_realign(&slp->ns_frag, 10 * NFSX_UNSIGNED);
 		    rec->nr_address = NULL;
 		    rec->nr_packet = slp->ns_frag;
+		    NFSD_LOCK();
 		    STAILQ_INSERT_TAIL(&slp->ns_rec, rec, nr_link);
+		} else {
+		    NFSD_LOCK();
+		}
+		if (!rec) {
+		    m_freem(slp->ns_frag);
 		}
 		slp->ns_frag = NULL;
 	    }
