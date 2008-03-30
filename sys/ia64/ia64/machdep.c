@@ -100,9 +100,6 @@ __FBSDID("$FreeBSD$");
 
 #include <i386/include/specialreg.h>
 
-/* XXX fc.i kluge (quick fix) */
-extern int ia64_icache_sync_kluge;
-
 u_int64_t processor_frequency;
 u_int64_t bus_frequency;
 u_int64_t itc_frequency;
@@ -123,6 +120,8 @@ struct fpswa_iface *fpswa_iface;
 
 u_int64_t ia64_pal_base;
 u_int64_t ia64_port_base;
+
+static int ia64_inval_icache_needed;
 
 char machine[] = MACHINE;
 SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD, machine, 0, "");
@@ -221,8 +220,7 @@ identifycpu(void)
 		}
 		break;
 	case 0x20:
-		/* XXX fc.i kluge (quick fix) */
-		ia64_icache_sync_kluge = 1;
+		ia64_inval_icache_needed = 1;
 
 		family_name = "Itanium 2";
 		switch (model) {
@@ -1512,4 +1510,19 @@ ia64_highfp_save(struct thread *td)
 	/* Post-mortem sanity cxhecking. */
 	KASSERT(thr == td, ("Inconsistent high FP state"));
 	return (1);
+}
+
+void
+ia64_invalidate_icache(vm_offset_t va, vm_offset_t sz)
+{
+	vm_offset_t lim;
+
+	if (!ia64_inval_icache_needed)
+		return;
+
+	lim = va + sz;
+	while (va < lim) {
+		__asm __volatile("fc.i %0" :: "r"(va));
+		va += 32;	/* XXX */
+	}
 }

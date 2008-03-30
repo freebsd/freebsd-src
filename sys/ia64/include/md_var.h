@@ -88,6 +88,7 @@ uint64_t ia64_get_hcdp(void);
 int	ia64_highfp_drop(struct thread *);
 int	ia64_highfp_save(struct thread *);
 struct ia64_init_return ia64_init(void);
+void	ia64_invalidate_icache(vm_offset_t, vm_size_t);
 void	ia64_probe_sapics(void);
 void	interrupt(struct trapframe *);
 void	map_gateway_page(void);
