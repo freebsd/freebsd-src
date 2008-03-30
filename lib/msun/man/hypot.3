@@ -28,14 +28,16 @@
 .\"     from: @(#)hypot.3	6.7 (Berkeley) 5/6/91
 .\" $FreeBSD$
 .\"
-.Dd December 12, 2007
+.Dd March 30, 2008
 .Dt HYPOT 3
 .Os
 .Sh NAME
 .Nm hypot ,
 .Nm hypotf ,
+.Nm hypotl ,
 .Nm cabs ,
-.Nm cabsf
+.Nm cabsf ,
+.Nm cabsl
 .Nd Euclidean distance and complex absolute value functions
 .Sh LIBRARY
 .Lb libm
@@ -45,25 +47,31 @@
 .Fn hypot "double x" "double y"
 .Ft float
 .Fn hypotf "float x" "float y"
+.Ft "long double"
+.Fn hypotl "long double x" "long double y"
 .In complex.h
 .Ft double
 .Fn cabs "double complex z"
 .Ft float
 .Fn cabsf "float complex z"
+.Ft "long double"
+.Fn cabsl "long double complex z"
 .Sh DESCRIPTION
 The
-.Fn hypot
-and
+.Fn hypot ,
 .Fn hypotf
+and
+.Fn hypotl
 functions
 compute the
 sqrt(x*x+y*y)
 in such a way that underflow will not happen, and overflow
 occurs only if the final result deserves it.
 The
-.Fn cabs
-and
+.Fn cabs ,
 .Fn cabsf
+and
+.Fn cabsl
 functions compute the complex absolute value of
 .Fa z .
 .Pp
@@ -82,11 +90,6 @@ Consequently
 exactly;
 in general, hypot and cabs return an integer whenever an
 integer might be expected.
-.Pp
-The same cannot be said for the shorter and faster version of hypot
-and cabs that is provided in the comments in cabs.c; its error can
-exceed 1.2
-.Em ulps .
 .Sh NOTES
 As might be expected,
 .Fn hypot "v" "\*(Na"
@@ -133,8 +136,10 @@ appeared in
 The
 .Fn hypot ,
 .Fn hypotf ,
+.Fn hypotl ,
 .Fn cabs ,
+.Fn cabsf ,
 and
-.Fn cabsf
+.Fn cabsl
 functions conform to
 .St -isoC-99 .
