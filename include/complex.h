@@ -60,6 +60,8 @@ float		crealf(float complex);
 long double	creall(long double complex);
 double complex	csqrt(double complex);
 float complex	csqrtf(float complex);
+long double complex
+		csqrtl(long double complex);
 
 __END_DECLS
 
