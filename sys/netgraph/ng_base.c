@@ -770,11 +770,9 @@ ng_unref_node(node_p node)
 		return (0);
 	}
 
-	do {
-		v = node->nd_refs - 1;
-	} while (! atomic_cmpset_int(&node->nd_refs, v + 1, v));
+	v = atomic_fetchadd_int(&node->nd_refs, -1);
 
-	if (v == 0) { /* we were the last */
+	if (v == 1) { /* we were the last */
 
 		mtx_lock(&ng_namehash_mtx);
 		node->nd_type->refs--; /* XXX maybe should get types lock? */
@@ -788,7 +786,7 @@ ng_unref_node(node_p node)
 		mtx_destroy(&node->nd_input_queue.q_mtx);
 		NG_FREE_NODE(node);
 	}
-	return (v);
+	return (v - 1);
 }
 
 /************************************************************************
@@ -959,9 +957,8 @@ ng_unref_hook(hook_p hook)
 	if (hook == &ng_deadhook) {
 		return;
 	}
-	do {
-		v = hook->hk_refs;
-	} while (! atomic_cmpset_int(&hook->hk_refs, v, v - 1));
+
+	v = atomic_fetchadd_int(&hook->hk_refs, -1);
 
 	if (v == 1) { /* we were the last */
 		if (_NG_HOOK_NODE(hook)) /* it'll probably be ng_deadnode */
