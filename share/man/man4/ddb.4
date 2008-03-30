@@ -1,6 +1,7 @@
 .\"
 .\" Mach Operating System
 .\" Copyright (c) 1991,1990 Carnegie Mellon University
+.\" Copyright (c) 2007 Robert N. M. Watson
 .\" All Rights Reserved.
 .\"
 .\" Permission to use, copy, modify and distribute this software and its
@@ -59,7 +60,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 25, 2007
+.Dd December 26, 2007
 .Dt DDB 4
 .Os
 .Sh NAME
@@ -630,6 +631,15 @@ buffer.
 .Dv debug.ddb.capture.data
 returns the contents of the buffer as a string to an appropriately privileged
 process.
+.Pp
+.It Ic run
+.It Ic script
+.It Ic scripts
+.It Ic unscript
+Run, define, list, and delete scripts.
+See the
+.Sx SCRIPTING
+section for more information on the scripting facility.
 .El
 .Sh VARIABLES
 The debugger accesses registers and variables as
@@ -732,6 +742,131 @@ It may be followed by a
 .Ql \&:
 and modifiers as described above.
 .El
+.Sh SCRIPTING
+.Nm
+supports a basic scripting facility to allow automating tasks or responses to
+specific events.
+Each script consists of a list of DDB commands to be executed sequentially,
+and is assigned a unique name.
+Certain script names have special meaning, and will be automatically run on
+various
+.Nm
+events if scripts by those names have been defined.
+.Pp
+The
+.Ic script
+command may be used to define a script by name.
+Scripts consist of a series of
+.Nm
+commands separated with the
+.Ic ;
+character.
+For example:
+.Bd -literal -offset indent
+script kdb.enter.panic=bt;show pcpu
+script lockinfo=show alllocks;show lockedvnods
+.Ed
+.Pp
+The
+.Ic scripts
+command lists currently defined scripts.
+.Pp
+The
+.Ic run
+command execute a script by name.
+For example:
+.Bd -literal -offset indent
+run lockinfo
+.Ed
+.Pp
+The
+.Ic unscript
+command may be used to delete a script by name.
+For example:
+.Bd -literal -offset indent
+unscript kdb.enter.panic
+.Ed
+.Pp
+These functions may also be performed from userspace using the
+.Xr ddb 8
+command.
+.Pp
+Certain scripts are run automatically, if defined, for specific
+.Nm
+events.
+The follow scripts are run when various events occur:
+.Bl -tag -width kdb.enter.powerfail
+.It Dv kdb.enter.acpi
+The kernel debugger was entered as a result of an
+.Xr acpi 4
+event.
+.It Dv kdb.enter.bootflags
+The kernel debugger was entered at boot as a result of the debugger boot
+flag being set.
+.It Dv kdb.enter.break
+The kernel debugger was entered as a result of a serial or console break.
+.It Dv kdb.enter.cam
+The kernel debugger was entered as a result of a
+.Xr CAM 4
+event.
+.It Dv kdb.enter.mac
+The kernel debugger was entered as a result of an assertion failure in the
+.Xr mac_test 4
+module of the
+TrustedBSD MAC Framework.
+.It Dv kdb.enter.ndis
+The kernel debugger was entered as a result of an
+.Xr ndis 4
+breakpoint event.
+.It Dv kdb.enter.netgraph
+The kernel debugger was entered as a result of a
+.Xr netgraph 4
+event.
+.It Dv kdb.enter.panic
+.Xr panic 9
+was called.
+.It Dv kdb.enter.powerfail
+The kernel debugger was entered as a result of a powerfail NMI on the sparc64
+platform.
+.It Dv kdb.enter.powerpc
+The kernel debugger was entered as a result of an unimplemented interrupt
+type on the powerpc platform.
+.It Dv kdb.enter.sysctl
+The kernel debugger was entered as a result of the
+.Dv debug.kdb.enter
+sysctl being set.
+.It Dv kdb.enter.trapsig
+The kernel debugger was entered as a result of a trapsig event on the sparc64
+or sun4v platform.
+.It Dv kdb.enter.unionfs
+The kernel debugger was entered as a result of an assertion failure in the
+union file system.
+.It Dv kdb.enter.unknown
+The kernel debugger was entered, but no reason has been set.
+.It Dv kdb.enter.vfslock
+The kernel debugger was entered as a result of a VFS lock violation.
+.It Dv kdb.enter.watchdog
+The kernel debugger was entered as a result of a watchdog firing.
+.It Dv kdb.enter.witness
+The kernel debugger was entered as a result of a
+.Xr witness 4
+violation.
+.El
+.Pp
+In the event that none of these scripts is found,
+.Nm
+will attempt to execute a default script:
+.Bl -tag -width kdb.enter.powerfail
+.It Dv kdb.enter.default
+The kernel debugger was entered, but a script exactly matching the reason for
+entering was not defined.
+This can be used as a catch-all to handle cases not specifically of interest;
+for example,
+.Dv kdb.enter.witness
+might be defined to have special handling, and
+.Dv kdb.enter.default
+might be defined to simply panic and reboot.
+.El
 .Sh HINTS
 On machines with an ISA expansion bus, a simple NMI generation card can be
 constructed by connecting a push button between the A01 and B01 (CHCHK# and
@@ -745,7 +880,17 @@ diagnose problems.
 Other bus' bridge chipsets may be able to generate NMI using bus specific
 methods.
 .Sh SEE ALSO
-.Xr gdb 1
+.Xr gdb 1 ,
+.Xr acpi 4 ,
+.Xr CAM 4 ,
+.Xr mac_text 4 ,
+.Xr ndis 4 ,
+.Xr netgraph 4 ,
+.Xr textdump 4 ,
+.Xr witness 4 ,
+.Xr ddb 8 ,
+.Xr sysctl 8 ,
+.Xr panic 9
 .Sh HISTORY
 The
 .Nm
