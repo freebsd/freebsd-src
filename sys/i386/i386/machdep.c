@@ -2321,7 +2321,8 @@ init386(first)
 
 #ifdef KDB
 	if (boothowto & RB_KDB)
-		kdb_enter("Boot flags requested debugger");
+		kdb_enter_why(KDB_WHY_BOOTFLAGS,
+		    "Boot flags requested debugger");
 #endif
 
 	finishidentcpu();	/* Final stage of CPU initialization */

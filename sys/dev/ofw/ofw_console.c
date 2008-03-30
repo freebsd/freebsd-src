@@ -282,7 +282,8 @@ ofw_cngetc(struct consdev *cp)
 	if (OF_read(stdin, &ch, 1) > 0) {
 #if defined(KDB) && defined(ALT_BREAK_TO_DEBUGGER)
 		if (kdb_alt_break(ch, &alt_break_state))
-			kdb_enter("Break sequence on console");
+			kdb_enter_why(KDB_WHY_BREAK,
+			    "Break sequence on console");
 #endif
 		return (ch);
 	}

@@ -573,7 +573,7 @@ watchdog_fire(void)
 
 #if defined(KDB) && !defined(KDB_UNATTENDED)
 	kdb_backtrace();
-	kdb_enter("watchdog timeout");
+	kdb_enter_why(KDB_WHY_WATCHDOG, "watchdog timeout");
 #else
 	panic("watchdog timeout");
 #endif
