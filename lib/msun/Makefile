@@ -79,10 +79,12 @@ SYMBOL_MAPS=	${SYM_MAPS}
 COMMON_SRCS+=	s_copysignl.c s_fabsl.c s_llrintl.c s_lrintl.c s_modfl.c
 .if ${LDBL_PREC} != 53
 # If long double != double use these; otherwise, we alias the double versions.
-COMMON_SRCS+=	e_hypotl.c e_sqrtl.c k_cosl.c k_sinl.c k_tanl.c \
+COMMON_SRCS+=	e_hypotl.c e_remainderl.c e_sqrtl.c \
+	k_cosl.c k_sinl.c k_tanl.c \
 	s_ceill.c s_cosl.c s_csqrtl.c s_exp2l.c s_floorl.c s_fmal.c \
 	s_frexpl.c s_logbl.c s_nanl.c s_nextafterl.c s_nexttoward.c \
-	s_rintl.c s_scalbnl.c s_sinl.c s_tanl.c s_truncl.c w_cabsl.c
+	s_remquol.c s_rintl.c s_scalbnl.c \
+	s_sinl.c s_tanl.c s_truncl.c w_cabsl.c
 .endif
 
 # C99 complex functions
@@ -163,8 +165,8 @@ MLINKS+=nan.3 nanf.3 nan.3 nanl.3
 MLINKS+=nextafter.3 nextafterf.3 nextafter.3 nextafterl.3
 MLINKS+=nextafter.3 nexttoward.3 nextafter.3 nexttowardf.3
 MLINKS+=nextafter.3 nexttowardl.3
-MLINKS+=remainder.3 remainderf.3
-MLINKS+=remainder.3 remquo.3 remainder.3 remquof.3
+MLINKS+=remainder.3 remainderf.3 remainder.3 remainderl.3 \
+	remainder.3 remquo.3 remainder.3 remquof.3 remainder.3 remquol.3
 MLINKS+=rint.3 rintf.3 rint.3 rintl.3 \
 	rint.3 nearbyint.3 rint.3 nearbyintf.3 rint.3 nearbyintl.3
 MLINKS+=round.3 roundf.3 round.3 roundl.3

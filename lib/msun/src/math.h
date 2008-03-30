@@ -455,9 +455,9 @@ float		nexttowardf(float, long double);
 long double	nexttowardl(long double, long double);
 #if 0
 long double	powl(long double, long double);
+#endif
 long double	remainderl(long double, long double);
 long double	remquol(long double, long double, int *);
-#endif
 long double	rintl(long double);
 long double	roundl(long double);
 long double	scalblnl(long double, long);
