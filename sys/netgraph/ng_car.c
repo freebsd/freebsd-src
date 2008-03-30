@@ -64,8 +64,8 @@ struct hookinfo {
 	struct ng_car_hookstats stats;	/* hook stats */
 
 	struct mbuf	*q[NG_CAR_QUEUE_SIZE];	/* circular packet queue */
-	int		q_first;	/* first queue element */
-	int		q_last;		/* last queue element */
+	u_int		q_first;	/* first queue element */
+	u_int		q_last;		/* last queue element */
 	struct callout	q_callout;	/* periodic queue processing routine */
 	struct mtx	q_mtx;		/* queue mutex */
 };
@@ -260,17 +260,9 @@ static int
 ng_car_rcvdata(hook_p hook, item_p item )
 {
 	struct hookinfo *const hinfo = NG_HOOK_PRIVATE(hook);
-	hook_p dest = hinfo->dest;
-	struct mbuf *m = NULL;
+	struct mbuf *m;
 	int error = 0;
-	int len;
-
-	/* Node is useless without destination hook. */
-	if (dest == NULL) {
-		NG_FREE_ITEM(item);
-		++hinfo->stats.errors;
-		return(EINVAL);
-	}
+	u_int len;
 
 	/* If queue is not empty now then enqueue packet. */
 	if (hinfo->q_first != hinfo->q_last) {
@@ -372,7 +364,7 @@ ng_car_rcvdata(hook_p hook, item_p item )
 
 #undef NG_CAR_PERFORM_MATCH_ACTION
 
-	NG_FWD_ITEM_HOOK(error, item, dest);
+	NG_FWD_ITEM_HOOK(error, item, hinfo->dest);
 	if (error != 0)
 		++hinfo->stats.errors;
 	++hinfo->stats.passed_pkts;
@@ -673,38 +665,37 @@ void
 ng_car_q_event(node_p node, hook_p hook, void *arg, int arg2)
 {
 	struct hookinfo	*hinfo = NG_HOOK_PRIVATE(hook);
-	item_p 		item;
 	struct mbuf 	*m;
 	int		error;
 
 	/* Refill tokens for time we have slept. */
 	ng_car_refillhook(hinfo);
 
-	if (hinfo->dest != NULL) {
-		/* If we have some tokens */
-		while (hinfo->tc >= 0) {
+	/* If we have some tokens */
+	while (hinfo->tc >= 0) {
 
-			/* Send packet. */
-			m = hinfo->q[hinfo->q_first];
-			if ((item = ng_package_data(m, NG_NOFLAGS)) != NULL)
-		    		NG_FWD_ITEM_HOOK(error, item, hinfo->dest);
+		/* Send packet. */
+		m = hinfo->q[hinfo->q_first];
+		NG_SEND_DATA_ONLY(error, hinfo->dest, m);
+		if (error != 0)
+			++hinfo->stats.errors;
+		++hinfo->stats.passed_pkts;
 
-			/* Get next one. */
-			hinfo->q_first++;
-			if (hinfo->q_first >= NG_CAR_QUEUE_SIZE)
-				hinfo->q_first = 0;
+		/* Get next one. */
+		hinfo->q_first++;
+		if (hinfo->q_first >= NG_CAR_QUEUE_SIZE)
+			hinfo->q_first = 0;
 
-			/* Stop if none left. */
-			if (hinfo->q_first == hinfo->q_last)
-				break;
+		/* Stop if none left. */
+		if (hinfo->q_first == hinfo->q_last)
+			break;
 
-			/* If we have more packet, try it. */
-			m = hinfo->q[hinfo->q_first];
-			if (hinfo->conf.opt & NG_CAR_COUNT_PACKETS) {
-				hinfo->tc -= 128;
-			} else {
-				hinfo->tc -= m->m_pkthdr.len;
-			}
+		/* If we have more packet, try it. */
+		m = hinfo->q[hinfo->q_first];
+		if (hinfo->conf.opt & NG_CAR_COUNT_PACKETS) {
+			hinfo->tc -= 128;
+		} else {
+			hinfo->tc -= m->m_pkthdr.len;
 		}
 	}
 
@@ -739,6 +730,7 @@ ng_car_enqueue(struct hookinfo *hinfo, item_p item)
 	    (hinfo->te + len >= NG_CAR_QUEUE_SIZE)) {
 		/* Drop packet. */
 		++hinfo->stats.red_pkts;
+		++hinfo->stats.droped_pkts;
 		NG_FREE_M(m);
 
 		hinfo->te = 0;
