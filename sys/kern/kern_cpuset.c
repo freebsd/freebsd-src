@@ -46,6 +46,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/refcount.h>
 #include <sys/queue.h>
 #include <sys/limits.h>
+#include <sys/bus.h>
+#include <sys/interrupt.h>
 
 #include <vm/uma.h>
 
@@ -93,8 +95,10 @@ __FBSDID("$FreeBSD$");
 static uma_zone_t cpuset_zone;
 static struct mtx cpuset_lock;
 static struct setlist cpuset_ids;
-struct cpuset *cpuset_zero;
 static struct unrhdr *cpuset_unr;
+static struct cpuset *cpuset_zero;
+
+cpuset_t *cpuset_root;
 
 /*
  * Acquire a reference to a cpuset, all pointers must be tracked with refs.
@@ -312,7 +316,7 @@ out:
  * referenced.
  */
 static struct cpuset *
-cpuset_root(struct cpuset *set)
+cpuset_refroot(struct cpuset *set)
 {
 
 	for (; set->cs_parent != NULL; set = set->cs_parent)
@@ -329,7 +333,7 @@ cpuset_root(struct cpuset *set)
  * not anonymous. 
  */
 static struct cpuset *
-cpuset_base(struct cpuset *set)
+cpuset_refbase(struct cpuset *set)
 {
 
 	if (set->cs_id == CPUSET_INVALID)
@@ -396,7 +400,7 @@ cpuset_which(cpuwhich_t which, id_t id, struct proc **pp, struct thread **tdp,
 	case CPU_WHICH_CPUSET:
 		if (id == -1) {
 			thread_lock(curthread);
-			set = cpuset_base(curthread->td_cpuset);
+			set = cpuset_refbase(curthread->td_cpuset);
 			thread_unlock(curthread);
 		} else
 			set = cpuset_lookup(id);
@@ -435,7 +439,7 @@ cpuset_shadow(struct cpuset *set, struct cpuset *fset, cpuset_t *mask)
 	else
 		parent = set;
 	if (!CPU_SUBSET(&parent->cs_mask, mask))
-		return (EINVAL);
+		return (EDEADLK);
 	return (_cpuset_create(fset, parent, mask, CPUSET_INVALID));
 }
 
@@ -505,7 +509,7 @@ cpuset_setproc(pid_t pid, struct cpuset *set, cpuset_t *mask)
 			if (tdset->cs_id == CPUSET_INVALID)
 				tdset = tdset->cs_parent;
 			if (!CPU_SUBSET(&tdset->cs_mask, mask))
-				error = EINVAL;
+				error = EDEADLK;
 		/*
 		 * Verify that a new set won't leave an existing thread
 		 * mask without a cpu to run on.  It can, however, restrict
@@ -513,7 +517,7 @@ cpuset_setproc(pid_t pid, struct cpuset *set, cpuset_t *mask)
 		 */
 		} else if (tdset->cs_id == CPUSET_INVALID) {
 			if (!CPU_OVERLAP(&set->cs_mask, &tdset->cs_mask))
-				error = EINVAL;
+				error = EDEADLK;
 		}
 		thread_unlock(td);
 		if (error)
@@ -570,7 +574,7 @@ out:
 /*
  * Apply an anonymous mask to a single thread.
  */
-static int
+int
 cpuset_setthread(lwpid_t id, cpuset_t *mask)
 {
 	struct cpuset *nset;
@@ -583,17 +587,19 @@ cpuset_setthread(lwpid_t id, cpuset_t *mask)
 	error = cpuset_which(CPU_WHICH_TID, id, &p, &td, &set);
 	if (error)
 		goto out;
+	set = NULL;
 	thread_lock(td);
-	set = td->td_cpuset;
-	error = cpuset_shadow(set, nset, mask);
+	error = cpuset_shadow(td->td_cpuset, nset, mask);
 	if (error == 0) {
-		cpuset_rel(td->td_cpuset);
+		set = td->td_cpuset;
 		td->td_cpuset = nset;
 		sched_affinity(td);
 		nset = NULL;
 	}
 	thread_unlock(td);
 	PROC_UNLOCK(p);
+	if (set)
+		cpuset_rel(set);
 out:
 	if (nset)
 		uma_zfree(cpuset_zone, nset);
@@ -631,6 +637,7 @@ cpuset_thread0(void)
 	set->cs_ref = 1;
 	set->cs_flags = CPU_SET_ROOT;
 	cpuset_zero = set;
+	cpuset_root = &set->cs_mask;
 	/*
 	 * Now derive a default, modifiable set from that to give out.
 	 */
@@ -679,15 +686,15 @@ cpuset(struct thread *td, struct cpuset_args *uap)
 	int error;
 
 	thread_lock(td);
-	root = cpuset_root(td->td_cpuset);
+	root = cpuset_refroot(td->td_cpuset);
 	thread_unlock(td);
 	error = cpuset_create(&set, root, &root->cs_mask);
 	cpuset_rel(root);
 	if (error)
 		return (error);
-	error = cpuset_setproc(-1, set, NULL);
+	error = copyout(&set->cs_id, uap->setid, sizeof(set->cs_id));
 	if (error == 0)
-		error = copyout(&set->cs_id, uap->setid, sizeof(set->cs_id));
+		error = cpuset_setproc(-1, set, NULL);
 	cpuset_rel(set);
 	return (error);
 }
@@ -744,7 +751,7 @@ cpuset_getid(struct thread *td, struct cpuset_getid_args *uap)
 	case CPU_WHICH_TID:
 	case CPU_WHICH_PID:
 		thread_lock(ttd);
-		set = cpuset_base(ttd->td_cpuset);
+		set = cpuset_refbase(ttd->td_cpuset);
 		thread_unlock(ttd);
 		PROC_UNLOCK(p);
 		break;
@@ -753,7 +760,7 @@ cpuset_getid(struct thread *td, struct cpuset_getid_args *uap)
 	}
 	switch (uap->level) {
 	case CPU_LEVEL_ROOT:
-		nset = cpuset_root(set);
+		nset = cpuset_refroot(set);
 		cpuset_rel(set);
 		set = nset;
 		break;
@@ -812,9 +819,9 @@ cpuset_getaffinity(struct thread *td, struct cpuset_getaffinity_args *uap)
 			break;
 		}
 		if (uap->level == CPU_LEVEL_ROOT)
-			nset = cpuset_root(set);
+			nset = cpuset_refroot(set);
 		else
-			nset = cpuset_base(set);
+			nset = cpuset_refbase(set);
 		CPU_COPY(&nset->cs_mask, mask);
 		cpuset_rel(nset);
 		break;
@@ -913,9 +920,9 @@ cpuset_setaffinity(struct thread *td, struct cpuset_setaffinity_args *uap)
 			break;
 		}
 		if (uap->level == CPU_LEVEL_ROOT)
-			nset = cpuset_root(set);
+			nset = cpuset_refroot(set);
 		else
-			nset = cpuset_base(set);
+			nset = cpuset_refbase(set);
 		error = cpuset_modify(nset, mask);
 		cpuset_rel(nset);
 		cpuset_rel(set);
