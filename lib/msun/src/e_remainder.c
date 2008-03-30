@@ -23,6 +23,8 @@ __FBSDID("$FreeBSD$");
  *	Based on fmod() return x-[x/p]chopped*p exactlp.
  */
 
+#include <float.h>
+
 #include "math.h"
 #include "math_private.h"
 
@@ -71,3 +73,7 @@ __ieee754_remainder(double x, double p)
 	SET_HIGH_WORD(x,hx^sx);
 	return x;
 }
+
+#if LDBL_MANT_DIG == 53
+__weak_reference(remainder, remainderl);
+#endif
