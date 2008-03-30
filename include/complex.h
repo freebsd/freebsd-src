@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2001-2007 The FreeBSD Project.
+ * Copyright (c) 2001-2008 The FreeBSD Project.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -45,6 +45,7 @@ __BEGIN_DECLS
 
 double		cabs(double complex);
 float		cabsf(float complex);
+long double	cabsl(long double complex);
 double		carg(double complex);
 float		cargf(float complex);
 double		cimag(double complex);

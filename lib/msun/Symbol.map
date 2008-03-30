@@ -203,4 +203,6 @@ FBSD_1.1 {
 	tanl;
 	tgammaf;
 	sqrtl;
+	hypotl;
+	cabsl;
 };
