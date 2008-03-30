@@ -224,10 +224,11 @@ hvcn_cngetc(struct consdev *cp)
 	while ((l = hv_cons_getchar(&ch)) != H_EOK) {
 #if defined(KDB)
 		if (l == H_BREAK || l ==  H_HUP)
-			kdb_enter("Break sequence on console");
+			kdb_enter_why(KDB_WHY_BREAK,
+			    "Break sequence on console");
 
 	if (kdb_alt_break(ch, &alt_break_state))
-		kdb_enter("Break sequence on console");
+		kdb_enter_why(KDB_WHY_BREAK, "Break sequence on console");
 #endif
 		if (l != -2 && l != 0) {
 			return (-1);
@@ -248,9 +249,11 @@ hvcn_cncheckc(struct consdev *cp)
 	if ((l = hv_cons_getchar(&ch)) == H_EOK) {
 #if defined(KDB)
 		if (l == H_BREAK || l ==  H_HUP)
-			kdb_enter("Break sequence on console");
+			kdb_enter_why(KDB_WHY_BREAK,
+			    "Break sequence on console");
 		if (kdb_alt_break(ch, &alt_break_state))
-			kdb_enter("Break sequence on console");
+			kdb_enter_why(KDB_WHY_BREAK,
+			    "Break sequence on console");
 #endif
 		return (ch);
 	}

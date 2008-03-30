@@ -87,7 +87,7 @@
 
 #ifdef	__FreeBSD__
 #undef	MSG_IDENTIFY
-#define	SCSI_LOW_DEBUGGER(dev)	kdb_enter(dev)
+#define	SCSI_LOW_DEBUGGER(dev)	kdb_enter_why(KDB_WHY_CAM, dev)
 #define	SCSI_LOW_DELAY(mu)	DELAY((mu))
 #define	SCSI_LOW_SPLSCSI	splcam
 #define	SCSI_LOW_BZERO(pt, size)	bzero((pt), (size))

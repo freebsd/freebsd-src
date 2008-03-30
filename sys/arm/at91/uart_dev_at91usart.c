@@ -508,7 +508,8 @@ at91_rx_put(struct uart_softc *sc, int key)
 #if defined(KDB) && defined(ALT_BREAK_TO_DEBUGGER)
 	if (sc->sc_sysdev != NULL && sc->sc_sysdev->type == UART_DEV_CONSOLE) {
 		if (kdb_alt_break(key, &sc->sc_altbrk))
-			kdb_enter("Break sequence to console");
+			kdb_enter_why(KDB_WHY_BREAK,
+			    "Break sequence to console");
 	}
 #endif
 	uart_rx_put(sc, key);	

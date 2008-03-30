@@ -398,7 +398,8 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
 
 #ifdef KDB
 	if (boothowto & RB_KDB)
-		kdb_enter("Boot flags requested debugger");
+		kdb_enter_why(KDB_WHY_BOOTFLAGS,
+		    "Boot flags requested debugger");
 #endif
 }
 

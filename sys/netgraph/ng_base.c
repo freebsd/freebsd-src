@@ -3466,12 +3466,12 @@ ng_setisr(node_p node)
 	do {								\
 		if (NGI_NODE(item) ) {					\
 			printf("item already has node");		\
-			kdb_enter("has node");				\
+			kdb_enter_why(KDB_WHY_NETGRAPH, "has node");	\
 			NGI_CLR_NODE(item);				\
 		}							\
 		if (NGI_HOOK(item) ) {					\
 			printf("item already has hook");		\
-			kdb_enter("has hook");				\
+			kdb_enter_why(KDB_WHY_NETGRAPH, "has hook");	\
 			NGI_CLR_HOOK(item);				\
 		}							\
 	} while (0)
