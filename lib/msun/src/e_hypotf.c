@@ -72,7 +72,7 @@ __ieee754_hypotf(float x, float y)
 	    a  = a+a;
 	    SET_FLOAT_WORD(y1,hb&0xfffff000);
 	    y2 = b - y1;
-	    SET_FLOAT_WORD(t1,ha+0x00800000);
+	    SET_FLOAT_WORD(t1,(ha+0x00800000)&0xfffff000);
 	    t2 = a - t1;
 	    w  = __ieee754_sqrtf(t1*y1-(w*(-w)-(t1*y2+t2*b)));
 	}
