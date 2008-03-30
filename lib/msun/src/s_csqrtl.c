@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2007 David Schultz <das@FreeBSD.ORG>
+ * Copyright (c) 2007-2008 David Schultz <das@FreeBSD.ORG>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,28 +42,28 @@ __FBSDID("$FreeBSD$");
  */
 #pragma	STDC CX_LIMITED_RANGE	on
 
-/* We risk spurious overflow for components >= DBL_MAX / (1 + sqrt(2)). */
-#define	THRESH	0x1.a827999fcef32p+1022
+/* We risk spurious overflow for components >= LDBL_MAX / (1 + sqrt(2)). */
+#define	THRESH	(LDBL_MAX / 2.414213562373095048801688724209698L)
 
-double complex
-csqrt(double complex z)
+long double complex
+csqrtl(long double complex z)
 {
-	double complex result;
-	double a, b;
-	double t;
+	long double complex result;
+	long double a, b;
+	long double t;
 	int scale;
 
-	a = creal(z);
-	b = cimag(z);
+	a = creall(z);
+	b = cimagl(z);
 
 	/* Handle special cases. */
 	if (z == 0)
-		return (cpack(0, b));
+		return (cpackl(0, b));
 	if (isinf(b))
-		return (cpack(INFINITY, b));
+		return (cpackl(INFINITY, b));
 	if (isnan(a)) {
 		t = (b - b) / (b - b);	/* raise invalid if b is not a NaN */
-		return (cpack(a, t));	/* return NaN + NaN i */
+		return (cpackl(a, t));	/* return NaN + NaN i */
 	}
 	if (isinf(a)) {
 		/*
@@ -73,9 +73,9 @@ csqrt(double complex z)
 		 * csqrt(-inf + y i)   = 0   +  inf i
 		 */
 		if (signbit(a))
-			return (cpack(fabs(b - b), copysign(a, b)));
+			return (cpackl(fabsl(b - b), copysignl(a, b)));
 		else
-			return (cpack(a, copysign(b - b, b)));
+			return (cpackl(a, copysignl(b - b, b)));
 	}
 	/*
 	 * The remaining special case (b is NaN) is handled just fine by
@@ -83,7 +83,7 @@ csqrt(double complex z)
 	 */
 
 	/* Scale to avoid overflow. */
-	if (fabs(a) >= THRESH || fabs(b) >= THRESH) {
+	if (fabsl(a) >= THRESH || fabsl(b) >= THRESH) {
 		a *= 0.25;
 		b *= 0.25;
 		scale = 1;
@@ -93,11 +93,11 @@ csqrt(double complex z)
 
 	/* Algorithm 312, CACM vol 10, Oct 1967. */
 	if (a >= 0) {
-		t = sqrt((a + hypot(a, b)) * 0.5);
-		result = cpack(t, b / (2 * t));
+		t = sqrtl((a + hypotl(a, b)) * 0.5);
+		result = cpackl(t, b / (2 * t));
 	} else {
-		t = sqrt((-a + hypot(a, b)) * 0.5);
-		result = cpack(fabs(b) / (2 * t), copysign(t, b));
+		t = sqrtl((-a + hypotl(a, b)) * 0.5);
+		result = cpackl(fabsl(b) / (2 * t), copysignl(t, b));
 	}
 
 	/* Rescale. */
@@ -106,7 +106,3 @@ csqrt(double complex z)
 	else
 		return (result);
 }
-
-#if LDBL_MANT_DIG == 53
-__weak_reference(csqrt, csqrtl);
-#endif
