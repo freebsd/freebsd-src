@@ -236,10 +236,8 @@ kmem_suballoc(parent, min, max, size)
 	*min = (vm_offset_t) vm_map_min(parent);
 	ret = vm_map_find(parent, NULL, (vm_offset_t) 0,
 	    min, size, TRUE, VM_PROT_ALL, VM_PROT_ALL, 0);
-	if (ret != KERN_SUCCESS) {
-		printf("kmem_suballoc: bad status return of %d.\n", ret);
-		panic("kmem_suballoc");
-	}
+	if (ret != KERN_SUCCESS)
+		panic("kmem_suballoc: bad status return of %d", ret);
 	*max = *min + size;
 	result = vm_map_create(vm_map_pmap(parent), *min, *max);
 	if (result == NULL)
