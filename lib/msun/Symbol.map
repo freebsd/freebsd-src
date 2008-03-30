@@ -206,4 +206,6 @@ FBSD_1.1 {
 	hypotl;
 	cabsl;
 	csqrtl;
+	remquol;
+	remainderl;
 };
