@@ -3375,7 +3375,8 @@ next_code:
 	    case DBG:
 #ifndef SC_DISABLE_KDBKEY
 		if (enable_kdbkey)
-			kdb_enter("manual escape to debugger");
+			kdb_enter_why(KDB_WHY_BREAK,
+			    "manual escape to debugger");
 #endif
 		break;
 
