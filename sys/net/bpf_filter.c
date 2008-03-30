@@ -83,14 +83,11 @@ static u_int16_t	m_xhalf(struct mbuf *m, bpf_u_int32 k, int *err);
 static u_int32_t	m_xword(struct mbuf *m, bpf_u_int32 k, int *err);
 
 static u_int32_t
-m_xword(m, k, err)
-	register struct mbuf *m;
-	register bpf_u_int32 k;
-	register int *err;
+m_xword(struct mbuf *m, bpf_u_int32 k, int *err)
 {
-	register size_t len;
-	register u_char *cp, *np;
-	register struct mbuf *m0;
+	size_t len;
+	u_char *cp, *np;
+	struct mbuf *m0;
 
 	len = m->m_len;
 	while (k >= len) {
@@ -111,7 +108,6 @@ m_xword(m, k, err)
 	*err = 0;
 	np = mtod(m0, u_char *);
 	switch (len - k) {
-
 	case 1:
 		return
 		    ((u_int32_t)cp[0] << 24) |
@@ -135,18 +131,15 @@ m_xword(m, k, err)
 	}
     bad:
 	*err = 1;
-	return 0;
+	return (0);
 }
 
 static u_int16_t
-m_xhalf(m, k, err)
-	register struct mbuf *m;
-	register bpf_u_int32 k;
-	register int *err;
+m_xhalf(struct mbuf *m, bpf_u_int32 k, int *err)
 {
-	register size_t len;
-	register u_char *cp;
-	register struct mbuf *m0;
+	size_t len;
+	u_char *cp;
+	struct mbuf *m0;
 
 	len = m->m_len;
 	while (k >= len) {
@@ -159,16 +152,16 @@ m_xhalf(m, k, err)
 	cp = mtod(m, u_char *) + k;
 	if (len - k >= 2) {
 		*err = 0;
-		return EXTRACT_SHORT(cp);
+		return (EXTRACT_SHORT(cp));
 	}
 	m0 = m->m_next;
 	if (m0 == 0)
 		goto bad;
 	*err = 0;
-	return (cp[0] << 8) | mtod(m0, u_char *)[0];
+	return ((cp[0] << 8) | mtod(m0, u_char *)[0]);
  bad:
 	*err = 1;
-	return 0;
+	return (0);
 }
 #endif
 
@@ -178,38 +171,34 @@ m_xhalf(m, k, err)
  * buflen is the amount of data present
  */
 u_int
-bpf_filter(pc, p, wirelen, buflen)
-	register const struct bpf_insn *pc;
-	register u_char *p;
-	u_int wirelen;
-	register u_int buflen;
+bpf_filter(const struct bpf_insn *pc, u_char *p, u_int wirelen, u_int buflen)
 {
-	register u_int32_t A = 0, X = 0;
-	register bpf_u_int32 k;
+	u_int32_t A = 0, X = 0;
+	bpf_u_int32 k;
 	u_int32_t mem[BPF_MEMWORDS];
 
-	if (pc == 0)
+	if (pc == NULL)
 		/*
 		 * No filter means accept all.
 		 */
-		return (u_int)-1;
+		return ((u_int)-1);
 
 	--pc;
 	while (1) {
 		++pc;
 		switch (pc->code) {
-
 		default:
 #ifdef _KERNEL
 			return 0;
 #else
 			abort();
 #endif
+
 		case BPF_RET|BPF_K:
-			return (u_int)pc->k;
+			return ((u_int)pc->k);
 
 		case BPF_RET|BPF_A:
-			return (u_int)A;
+			return ((u_int)A);
 
 		case BPF_LD|BPF_W|BPF_ABS:
 			k = pc->k;
@@ -224,7 +213,7 @@ bpf_filter(pc, p, wirelen, buflen)
 					return 0;
 				continue;
 #else
-				return 0;
+				return (0);
 #endif
 			}
 #ifdef BPF_ALIGN
@@ -256,7 +245,7 @@ bpf_filter(pc, p, wirelen, buflen)
 			k = pc->k;
 			if (k >= buflen) {
 #ifdef _KERNEL
-				register struct mbuf *m;
+				struct mbuf *m;
 
 				if (buflen != 0)
 					return 0;
@@ -287,13 +276,13 @@ bpf_filter(pc, p, wirelen, buflen)
 				int merr;
 
 				if (buflen != 0)
-					return 0;
+					return (0);
 				A = m_xword((struct mbuf *)p, k, &merr);
 				if (merr != 0)
-					return 0;
+					return (0);
 				continue;
 #else
-				return 0;
+				return (0);
 #endif
 			}
 #ifdef BPF_ALIGN
@@ -315,10 +304,10 @@ bpf_filter(pc, p, wirelen, buflen)
 					return 0;
 				A = m_xhalf((struct mbuf *)p, k, &merr);
 				if (merr != 0)
-					return 0;
+					return (0);
 				continue;
 #else
-				return 0;
+				return (0);
 #endif
 			}
 			A = EXTRACT_SHORT(&p[k]);
@@ -328,7 +317,7 @@ bpf_filter(pc, p, wirelen, buflen)
 			k = X + pc->k;
 			if (pc->k >= buflen || X >= buflen - pc->k) {
 #ifdef _KERNEL
-				register struct mbuf *m;
+				struct mbuf *m;
 
 				if (buflen != 0)
 					return 0;
@@ -337,7 +326,7 @@ bpf_filter(pc, p, wirelen, buflen)
 				A = mtod(m, u_char *)[k];
 				continue;
 #else
-				return 0;
+				return (0);
 #endif
 			}
 			A = p[k];
