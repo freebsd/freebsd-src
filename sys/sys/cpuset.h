@@ -87,6 +87,16 @@ typedef	struct _cpuset {
 	__i != _NCPUWORDS;				\
 })
 
+/* Compare two sets, returns 0 if equal 1 otherwise. */
+#define	CPU_CMP(p, c) __extension__ ({			\
+	__size_t __i;					\
+	for (__i = 0; __i < _NCPUWORDS; __i++)		\
+		if (((c)->__bits[__i] !=		\
+		    (p)->__bits[__i]))			\
+			break;				\
+	__i != _NCPUWORDS;				\
+})
+
 #define	CPU_OR(d, s) do {				\
 	__size_t __i;					\
 	for (__i = 0; __i < _NCPUWORDS; __i++)		\
@@ -153,9 +163,13 @@ struct cpuset {
 #define CPU_SET_ROOT    0x0001  /* Set is a root set. */
 #define CPU_SET_RDONLY  0x0002  /* No modification allowed. */
 
+extern cpuset_t *cpuset_root;
+
 struct cpuset *cpuset_thread0(void);
 struct cpuset *cpuset_ref(struct cpuset *);
-void cpuset_rel(struct cpuset *);
+void	cpuset_rel(struct cpuset *);
+int	cpuset_setthread(lwpid_t id, cpuset_t *);
+
 #else
 __BEGIN_DECLS
 int	cpuset(cpusetid_t *);
