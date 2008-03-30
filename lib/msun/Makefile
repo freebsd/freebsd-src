@@ -80,7 +80,7 @@ COMMON_SRCS+=	s_copysignl.c s_fabsl.c s_llrintl.c s_lrintl.c s_modfl.c
 .if ${LDBL_PREC} != 53
 # If long double != double use these; otherwise, we alias the double versions.
 COMMON_SRCS+=	e_hypotl.c e_sqrtl.c k_cosl.c k_sinl.c k_tanl.c \
-	s_ceill.c s_cosl.c s_exp2l.c s_floorl.c s_fmal.c \
+	s_ceill.c s_cosl.c s_csqrtl.c s_exp2l.c s_floorl.c s_fmal.c \
 	s_frexpl.c s_logbl.c s_nanl.c s_nextafterl.c s_nexttoward.c \
 	s_rintl.c s_scalbnl.c s_sinl.c s_tanl.c s_truncl.c w_cabsl.c
 .endif
@@ -127,7 +127,7 @@ MLINKS+=cimag.3 cimagf.3 cimag.3 cimagl.3 \
 MLINKS+=copysign.3 copysignf.3 copysign.3 copysignl.3
 MLINKS+=cos.3 cosf.3 cos.3 cosl.3
 MLINKS+=cosh.3 coshf.3
-MLINKS+=csqrt.3 csqrtf.3
+MLINKS+=csqrt.3 csqrtf.3 csqrt.3 csqrtl.3
 MLINKS+=erf.3 erfc.3 erf.3 erff.3 erf.3 erfcf.3
 MLINKS+=exp.3 expm1.3 exp.3 expm1f.3 exp.3 pow.3 exp.3 powf.3 \
 	exp.3 exp2.3 exp.3 exp2f.3 exp.3 exp2l.3 exp.3 expf.3
