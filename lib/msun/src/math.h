@@ -427,9 +427,7 @@ long double	fminl(long double, long double) __pure2;
 long double	fmodl(long double, long double);
 #endif
 long double	frexpl(long double value, int *); /* fundamentally !__pure2 */
-#if 0
 long double	hypotl(long double, long double);
-#endif
 int		ilogbl(long double) __pure2;
 long double	ldexpl(long double, int);
 #if 0
