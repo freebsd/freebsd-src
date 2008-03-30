@@ -385,9 +385,10 @@ OLD_FILES+=usr/share/man/man8/zpool.8.gz
 # to be filled in
 #.endif
 
-#.if ${MK_GCOV} == no
-# to be filled in
-#.endif
+.if ${MK_GCOV} == no
+OLD_FILES+=usr/bin/gcov
+OLD_FILES+=usr/share/man/man1/gcov.1.gz
+.endif
 
 #.if ${MK_GDB} == no
 # to be filled in
@@ -578,9 +579,23 @@ OLD_FILES+=usr/share/man/man8/ipnat.8.gz
 OLD_FILES+=usr/share/man/man8/ippool.8.gz
 .endif
 
-#.if ${MK_IPX} == no
-# to be filled in
-#.endif
+.if ${MK_IPX} == no
+OLD_LIBS+=lib/libipx.so.4
+OLD_FILES+=usr/lib/libipx.a
+OLD_FILES+=usr/lib/libipx.so
+OLD_FILES+=usr/lib/libipx_p.a
+.if ${TARGET_ARCH} == "amd64"
+OLD_FILES+=usr/lib32/libipx.a
+OLD_FILES+=usr/lib32/libipx.so
+OLD_LIBS+=usr/lib32/libipx.so.4
+OLD_FILES+=usr/lib32/libipx_p.a
+.endif
+OLD_FILES+=usr/sbin/IPXrouted
+OLD_FILES+=usr/share/man/man3/ipx.3.gz
+OLD_FILES+=usr/share/man/man3/ipx_addr.3.gz
+OLD_FILES+=usr/share/man/man3/ipx_ntoa.3.gz
+OLD_FILES+=usr/share/man/man8/IPXrouted.8.gz
+.endif
 
 .if ${MK_KERBEROS} == no
 OLD_FILES+=usr/bin/ksu
@@ -940,9 +955,46 @@ OLD_FILES+=usr/share/man/man8/pac.8.gz
 # Listing all of them here is overkill.
 #.endif
 
-#.if ${MK_NCP} == no
-# to be filled in
-#.endif
+.if ${MK_NCP} == no
+OLD_FILES+=usr/bin/ncplist
+OLD_FILES+=usr/bin/ncplogin
+OLD_FILES+=usr/bin/ncplogout
+OLD_FILES+=usr/include/fs/nwfs/nwfs.h
+OLD_FILES+=usr/include/fs/nwfs/nwfs_mount.h
+OLD_FILES+=usr/include/fs/nwfs/nwfs_node.h
+OLD_FILES+=usr/include/fs/nwfs/nwfs_subr.h
+#OLD_DIRS+=usr/include/fs/nwfs
+OLD_FILES+=usr/include/netncp/ncp.h
+OLD_FILES+=usr/include/netncp/ncp_cfg.h
+OLD_FILES+=usr/include/netncp/ncp_conn.h
+OLD_FILES+=usr/include/netncp/ncp_file.h
+OLD_FILES+=usr/include/netncp/ncp_lib.h
+OLD_FILES+=usr/include/netncp/ncp_ncp.h
+OLD_FILES+=usr/include/netncp/ncp_nls.h
+OLD_FILES+=usr/include/netncp/ncp_rcfile.h
+OLD_FILES+=usr/include/netncp/ncp_rq.h
+OLD_FILES+=usr/include/netncp/ncp_sock.h
+OLD_FILES+=usr/include/netncp/ncp_subr.h
+OLD_FILES+=usr/include/netncp/ncp_user.h
+OLD_FILES+=usr/include/netncp/ncpio.h
+OLD_FILES+=usr/include/netncp/nwerror.h
+#OLD_DIRS+=usr/include/netncp
+OLD_FILES+=usr/lib/libncp.a
+OLD_FILES+=usr/lib/libncp.so
+OLD_LIBS+=usr/lib/libncp.so.3
+OLD_FILES+=usr/lib/libncp_p.a
+.if ${TARGET_ARCH} == "amd64"
+OLD_FILES+=usr/lib32/libncp.a
+OLD_FILES+=usr/lib32/libncp.so
+OLD_LIBS+=usr/lib32/libncp.so.3
+OLD_FILES+=usr/lib32/libncp_p.a
+.endif
+OLD_FILES+=usr/sbin/mount_nwfs
+OLD_FILES+=usr/share/man/man1/ncplist.1.gz
+OLD_FILES+=usr/share/man/man1/ncplogin.1.gz
+OLD_FILES+=usr/share/man/man1/ncplogout.1.gz
+OLD_FILES+=usr/share/man/man8/mount_nwfs.8.gz
+.endif
 
 .if ${MK_NETCAT} == no
 OLD_FILES+=usr/bin/nc
