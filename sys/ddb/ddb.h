@@ -47,6 +47,26 @@ SYSCTL_DECL(_debug_ddb);
 #define	DB_MAXARGS	10
 #endif
 
+#ifndef DB_MAXLINE
+#define	DB_MAXLINE	120
+#endif
+
+#ifndef DB_MAXSCRIPTS
+#define	DB_MAXSCRIPTS	8
+#endif
+
+#ifndef DB_MAXSCRIPTNAME
+#define	DB_MAXSCRIPTNAME	32
+#endif
+
+#ifndef DB_MAXSCRIPTLEN
+#define	DB_MAXSCRIPTLEN	128
+#endif
+
+#ifndef DB_MAXSCRIPTRECURSION
+#define	DB_MAXSCRIPTRECURSION	3
+#endif
+
 #ifndef DB_CALL
 #define	DB_CALL	db_fncall_generic
 #else
@@ -138,8 +158,11 @@ db_cmdfcn_t	db_deletewatch_cmd;
 db_cmdfcn_t	db_examine_cmd;
 db_cmdfcn_t	db_hwatchpoint_cmd;
 db_cmdfcn_t	db_listbreak_cmd;
+db_cmdfcn_t	db_scripts_cmd;
 db_cmdfcn_t	db_print_cmd;
 db_cmdfcn_t	db_ps;
+db_cmdfcn_t	db_run_cmd;
+db_cmdfcn_t	db_script_cmd;
 db_cmdfcn_t	db_search_cmd;
 db_cmdfcn_t	db_set_cmd;
 db_cmdfcn_t	db_set_thread;
@@ -148,6 +171,7 @@ db_cmdfcn_t	db_show_threads;
 db_cmdfcn_t	db_single_step_cmd;
 db_cmdfcn_t	db_trace_until_call_cmd;
 db_cmdfcn_t	db_trace_until_matching_cmd;
+db_cmdfcn_t	db_unscript_cmd;
 db_cmdfcn_t	db_watchpoint_cmd;
 db_cmdfcn_t	db_write_cmd;
 
@@ -182,5 +206,10 @@ void	db_capture_enterpager(void);
 void	db_capture_exitpager(void);
 void	db_capture_write(char *buffer, u_int buflen);
 void	db_capture_writech(char ch);
+
+/*
+ * Interface between DDB  and the script facility.
+ */
+void	db_script_kdbenter(const char *eventname);	/* KDB enter event. */
 
 #endif /* !_DDB_DDB_H_ */

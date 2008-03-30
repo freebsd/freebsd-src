@@ -141,6 +141,10 @@ static struct command db_commands[] = {
 	{ "kill",	db_kill,		CS_OWN,	0 },
 	{ "watchdog",	db_watchdog,		0,	0 },
 	{ "thread",	db_set_thread,		CS_OWN,	0 },
+	{ "run",	db_run_cmd,		CS_OWN,	0 },
+	{ "script",	db_script_cmd,		CS_OWN,	0 },
+	{ "scripts",	db_scripts_cmd,		0,	0 },
+	{ "unscript",	db_unscript_cmd,	CS_OWN,	0 },
 	{ "capture",	db_capture_cmd,		CS_OWN,	0 },
 	{ (char *)0, }
 };
@@ -187,7 +191,7 @@ static void	db_cmd_list(struct command_table *table);
 static int	db_cmd_search(char *name, struct command_table *table,
 		    struct command **cmdp);
 static void	db_command(struct command **last_cmdp,
-		    struct command_table *cmd_table);
+		    struct command_table *cmd_table, int dopager);
 
 /*
  * Helper function to match a single command.
@@ -284,9 +288,10 @@ db_cmd_list(table)
 }
 
 static void
-db_command(last_cmdp, cmd_table)
+db_command(last_cmdp, cmd_table, dopager)
 	struct command	**last_cmdp;	/* IN_OUT */
 	struct command_table *cmd_table;
+	int dopager;
 {
 	struct command	*cmd;
 	int		t;
@@ -398,9 +403,13 @@ db_command(last_cmdp, cmd_table)
 	    /*
 	     * Execute the command.
 	     */
-	    db_enable_pager();
+	    if (dopager)
+		db_enable_pager();
+	    else
+		db_disable_pager();
 	    (*cmd->fcn)(addr, have_addr, count, modif);
-	    db_disable_pager();
+	    if (dopager)
+		db_disable_pager();
 
 	    if (cmd->flag & CS_SET_DOT) {
 		/*
@@ -451,8 +460,25 @@ db_command_loop()
 	    db_printf("db> ");
 	    (void) db_read_line();
 
-	    db_command(&db_last_command, &db_command_table);
+	    db_command(&db_last_command, &db_command_table, /* dopager */ 1);
 	}
+}
+
+/*
+ * Execute a command on behalf of a script.  The caller is responsible for
+ * making sure that the command string is < DB_MAXLINE or it will be
+ * truncated.
+ *
+ * XXXRW: Runs by injecting faked input into DDB input stream; it would be
+ * nicer to use an alternative approach that didn't mess with the previous
+ * command buffer.
+ */
+void
+db_command_script(const char *command)
+{
+	db_prev = db_next = db_dot;
+	db_inject_line(command);
+	db_command(&db_last_command, &db_command_table, /* dopager */ 0);
 }
 
 void

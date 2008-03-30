@@ -38,6 +38,7 @@
  */
 
 void	db_command_loop(void);
+void	db_command_script(const char *command);
 
 extern db_addr_t	db_dot;		/* current location */
 extern db_addr_t	db_last_addr;	/* last explicit address typed */
