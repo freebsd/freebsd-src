@@ -115,12 +115,11 @@ struct greheader {
 #define PPTP_MAX_PAYLOAD	(0xffff - sizeof(struct greheader) - 8)
 
 /* All times are scaled by this (PPTP_TIME_SCALE time units = 1 sec.) */
-#define PPTP_TIME_SCALE		1000			/* milliseconds */
+#define PPTP_TIME_SCALE		1024			/* milliseconds */
 typedef u_int64_t		pptptime_t;
 
 /* Acknowledgment timeout parameters and functions */
 #define PPTP_XMIT_WIN		16			/* max xmit window */
-#define PPTP_MIN_RTT		(PPTP_TIME_SCALE / 10)	/* 100 milliseconds */
 #define PPTP_MIN_TIMEOUT	(PPTP_TIME_SCALE / 83)	/* 12 milliseconds */
 #define PPTP_MAX_TIMEOUT	(3 * PPTP_TIME_SCALE)	/* 3 seconds */
 
@@ -139,8 +138,19 @@ typedef u_int64_t		pptptime_t;
 
 #define PPTP_SEQ_DIFF(x,y)	((int32_t)(x) - (int32_t)(y))
 
+#define SESSHASHSIZE		0x0020
+#define SESSHASH(x)		(((x) ^ ((x) >> 8)) & (SESSHASHSIZE - 1))
+
 /* We keep packet retransmit and acknowlegement state in this struct */
-struct ng_pptpgre_ackp {
+struct ng_pptpgre_sess {
+	node_p			node;		/* this node pointer */
+	hook_p			hook;		/* hook to upper layers */
+	struct ng_pptpgre_conf	conf;		/* configuration info */
+	struct mtx		mtx;		/* session mutex */
+	u_int32_t		recvSeq;	/* last seq # we rcv'd */
+	u_int32_t		xmitSeq;	/* last seq # we sent */
+	u_int32_t		recvAck;	/* last seq # peer ack'd */
+	u_int32_t		xmitAck;	/* last seq # we ack'd */
 	int32_t			ato;		/* adaptive time-out value */
 	int32_t			rtt;		/* round trip time estimate */
 	int32_t			dev;		/* deviation estimate */
@@ -149,25 +159,17 @@ struct ng_pptpgre_ackp {
 	struct callout		rackTimer;	/* recv ack timer */
 	u_int32_t		winAck;		/* seq when xmitWin will grow */
 	pptptime_t		timeSent[PPTP_XMIT_WIN];
-#ifdef DEBUG_RAT
-	pptptime_t		timerStart;	/* when rackTimer started */
-	pptptime_t		timerLength;	/* rackTimer duration */
-#endif
+	LIST_ENTRY(ng_pptpgre_sess) sessions;
 };
+typedef struct ng_pptpgre_sess *hpriv_p;
 
 /* Node private data */
 struct ng_pptpgre_private {
 	hook_p			upper;		/* hook to upper layers */
 	hook_p			lower;		/* hook to lower layers */
-	struct ng_pptpgre_conf	conf;		/* configuration info */
-	struct ng_pptpgre_ackp	ackp;		/* packet transmit ack state */
-	u_int32_t		recvSeq;	/* last seq # we rcv'd */
-	u_int32_t		xmitSeq;	/* last seq # we sent */
-	u_int32_t		recvAck;	/* last seq # peer ack'd */
-	u_int32_t		xmitAck;	/* last seq # we ack'd */
-	struct timeval		startTime;	/* time node was created */
+	struct ng_pptpgre_sess	uppersess;	/* default session for compat */
+	LIST_HEAD(, ng_pptpgre_sess) sesshash[SESSHASHSIZE];
 	struct ng_pptpgre_stats	stats;		/* node statistics */
-	struct mtx		mtx;		/* node mutex */
 };
 typedef struct ng_pptpgre_private *priv_p;
 
@@ -177,21 +179,20 @@ static ng_rcvmsg_t	ng_pptpgre_rcvmsg;
 static ng_shutdown_t	ng_pptpgre_shutdown;
 static ng_newhook_t	ng_pptpgre_newhook;
 static ng_rcvdata_t	ng_pptpgre_rcvdata;
+static ng_rcvdata_t	ng_pptpgre_rcvdata_lower;
 static ng_disconnect_t	ng_pptpgre_disconnect;
 
 /* Helper functions */
-static int	ng_pptpgre_xmit(node_p node, item_p item);
-static int	ng_pptpgre_recv(node_p node, item_p item);
-static void	ng_pptpgre_start_send_ack_timer(node_p node, int ackTimeout);
-static void	ng_pptpgre_stop_send_ack_timer(node_p node);
-static void	ng_pptpgre_start_recv_ack_timer(node_p node);
-static void	ng_pptpgre_stop_recv_ack_timer(node_p node);
+static int	ng_pptpgre_xmit(hpriv_p hpriv, item_p item);
+static void	ng_pptpgre_start_send_ack_timer(hpriv_p hpriv);
+static void	ng_pptpgre_start_recv_ack_timer(hpriv_p hpriv);
 static void	ng_pptpgre_recv_ack_timeout(node_p node, hook_p hook,
 		    void *arg1, int arg2);
 static void	ng_pptpgre_send_ack_timeout(node_p node, hook_p hook,
 		    void *arg1, int arg2);
-static void	ng_pptpgre_reset(node_p node);
-static pptptime_t ng_pptpgre_time(node_p node);
+static hpriv_p	ng_pptpgre_find_session(priv_p privp, u_int16_t cid);
+static void	ng_pptpgre_reset(hpriv_p hpriv);
+static pptptime_t ng_pptpgre_time(void);
 
 /* Parse type for struct ng_pptpgre_conf */
 static const struct ng_parse_struct_field ng_pptpgre_conf_type_fields[]
@@ -222,7 +223,7 @@ static const struct ng_cmdlist ng_pptpgre_cmdlist[] = {
 	  NGM_PPTPGRE_COOKIE,
 	  NGM_PPTPGRE_GET_CONFIG,
 	  "getconfig",
-	  NULL,
+	  &ng_parse_hint16_type,
 	  &ng_pptpgre_conf_type
 	},
 	{
@@ -276,6 +277,7 @@ static int
 ng_pptpgre_constructor(node_p node)
 {
 	priv_p priv;
+	int i;
 
 	/* Allocate private structure */
 	MALLOC(priv, priv_p, sizeof(*priv), M_NETGRAPH, M_NOWAIT | M_ZERO);
@@ -285,9 +287,15 @@ ng_pptpgre_constructor(node_p node)
 	NG_NODE_SET_PRIVATE(node, priv);
 
 	/* Initialize state */
-	mtx_init(&priv->mtx, "ng_pptp", NULL, MTX_DEF);
-	ng_callout_init(&priv->ackp.sackTimer);
-	ng_callout_init(&priv->ackp.rackTimer);
+	mtx_init(&priv->uppersess.mtx, "ng_pptp", NULL, MTX_DEF);
+	ng_callout_init(&priv->uppersess.sackTimer);
+	ng_callout_init(&priv->uppersess.rackTimer);
+	priv->uppersess.node = node;
+
+	for (i = 0; i < SESSHASHSIZE; i++)
+	    LIST_INIT(&priv->sesshash[i]);
+
+	LIST_INSERT_HEAD(&priv->sesshash[0], &priv->uppersess, sessions);
 
 	/* Done */
 	return (0);
@@ -300,22 +308,53 @@ static int
 ng_pptpgre_newhook(node_p node, hook_p hook, const char *name)
 {
 	const priv_p priv = NG_NODE_PRIVATE(node);
-	hook_p *hookPtr;
 
 	/* Check hook name */
-	if (strcmp(name, NG_PPTPGRE_HOOK_UPPER) == 0)
-		hookPtr = &priv->upper;
-	else if (strcmp(name, NG_PPTPGRE_HOOK_LOWER) == 0)
-		hookPtr = &priv->lower;
-	else
-		return (EINVAL);
+	if (strcmp(name, NG_PPTPGRE_HOOK_UPPER) == 0) {
+		priv->upper = hook;
+		priv->uppersess.hook = hook;
+		NG_HOOK_SET_PRIVATE(hook, &priv->uppersess);
+	} else if (strcmp(name, NG_PPTPGRE_HOOK_LOWER) == 0) {
+		priv->lower = hook;
+		NG_HOOK_SET_RCVDATA(hook, ng_pptpgre_rcvdata_lower);
+	} else {
+		static const char hexdig[16] = "0123456789abcdef";
+		const char *hex;
+		hpriv_p hpriv;
+		int i, j;
+		uint16_t cid, hash;
 
-	/* See if already connected */
-	if (*hookPtr != NULL)
-		return (EISCONN);
+		/* Parse hook name to get session ID */
+		if (strncmp(name, NG_PPTPGRE_HOOK_SESSION_P,
+		    sizeof(NG_PPTPGRE_HOOK_SESSION_P) - 1) != 0)
+			return (EINVAL);
+		hex = name + sizeof(NG_PPTPGRE_HOOK_SESSION_P) - 1;
+		for (cid = i = 0; i < 4; i++) {
+			for (j = 0; j < 16 && hex[i] != hexdig[j]; j++);
+			if (j == 16)
+				return (EINVAL);
+			cid = (cid << 4) | j;
+		}
+		if (hex[i] != '\0')
+			return (EINVAL);
 
-	/* OK */
-	*hookPtr = hook;
+		hpriv = malloc(sizeof(*hpriv), M_NETGRAPH, M_NOWAIT | M_ZERO);
+		if (hpriv == NULL)
+			return (ENOMEM);
+	
+		/* Initialize state */
+		mtx_init(&hpriv->mtx, "ng_pptp", NULL, MTX_DEF);
+		ng_callout_init(&hpriv->sackTimer);
+		ng_callout_init(&hpriv->rackTimer);
+		hpriv->conf.cid = cid;
+		hpriv->node = node;
+		hpriv->hook = hook;
+		NG_HOOK_SET_PRIVATE(hook, hpriv);
+
+		hash = SESSHASH(cid);
+		LIST_INSERT_HEAD(&priv->sesshash[hash], hpriv, sessions);
+	}
+
 	return (0);
 }
 
@@ -338,20 +377,47 @@ ng_pptpgre_rcvmsg(node_p node, item_p item, hook_p lasthook)
 		    {
 			struct ng_pptpgre_conf *const newConf =
 				(struct ng_pptpgre_conf *) msg->data;
+			hpriv_p hpriv;
+			uint16_t hash;
 
 			/* Check for invalid or illegal config */
 			if (msg->header.arglen != sizeof(*newConf))
 				ERROUT(EINVAL);
-			ng_pptpgre_reset(node);		/* reset on configure */
-			priv->conf = *newConf;
+			/* Try to find session by cid. */
+			hpriv = ng_pptpgre_find_session(priv, newConf->cid);
+			/* If not present - use upper. */
+			if (hpriv == NULL) {
+				hpriv = &priv->uppersess;
+				LIST_REMOVE(hpriv, sessions);
+				hash = SESSHASH(newConf->cid);
+				LIST_INSERT_HEAD(&priv->sesshash[hash], hpriv,
+				    sessions);
+			}
+			ng_pptpgre_reset(hpriv);	/* reset on configure */
+			hpriv->conf = *newConf;
 			break;
 		    }
 		case NGM_PPTPGRE_GET_CONFIG:
-			NG_MKRESPONSE(resp, msg, sizeof(priv->conf), M_NOWAIT);
+		    {
+			hpriv_p hpriv;
+
+			if (msg->header.arglen == 2) {
+				/* Try to find session by cid. */
+	    			hpriv = ng_pptpgre_find_session(priv,
+				    *((uint16_t *)msg->data));
+				if (hpriv == NULL)
+					ERROUT(EINVAL);
+			} else if (msg->header.arglen == 0) {
+				/* Use upper. */
+				hpriv = &priv->uppersess;
+			} else
+				ERROUT(EINVAL);
+			NG_MKRESPONSE(resp, msg, sizeof(hpriv->conf), M_NOWAIT);
 			if (resp == NULL)
 				ERROUT(ENOMEM);
-			bcopy(&priv->conf, resp->data, sizeof(priv->conf));
+			bcopy(&hpriv->conf, resp->data, sizeof(hpriv->conf));
 			break;
+		    }
 		case NGM_PPTPGRE_GET_STATS:
 		case NGM_PPTPGRE_CLR_STATS:
 		case NGM_PPTPGRE_GETCLR_STATS:
@@ -389,29 +455,54 @@ done:
 static int
 ng_pptpgre_rcvdata(hook_p hook, item_p item)
 {
-	const node_p node = NG_HOOK_NODE(hook);
-	const priv_p priv = NG_NODE_PRIVATE(node);
+	const hpriv_p hpriv = NG_HOOK_PRIVATE(hook);
 	int rval;
 
 	/* If not configured, reject */
-	if (!priv->conf.enabled) {
+	if (!hpriv->conf.enabled) {
 		NG_FREE_ITEM(item);
 		return (ENXIO);
 	}
 
-	mtx_lock(&priv->mtx);
+	mtx_lock(&hpriv->mtx);
 
-	/* Treat as xmit or recv data */
-	if (hook == priv->upper)
-		rval = ng_pptpgre_xmit(node, item);
-	else if (hook == priv->lower)
-		rval = ng_pptpgre_recv(node, item);
-	else
-		panic("%s: weird hook", __func__);
+	rval = ng_pptpgre_xmit(hpriv, item);
 
-	mtx_assert(&priv->mtx, MA_NOTOWNED);
+	mtx_assert(&hpriv->mtx, MA_NOTOWNED);
 
 	return (rval);
+}
+
+/*
+ * Hook disconnection
+ */
+static int
+ng_pptpgre_disconnect(hook_p hook)
+{
+	const node_p node = NG_HOOK_NODE(hook);
+	const priv_p priv = NG_NODE_PRIVATE(node);
+	const hpriv_p hpriv = NG_HOOK_PRIVATE(hook);
+
+	/* Zero out hook pointer */
+	if (hook == priv->upper) {
+		priv->upper = NULL;
+		priv->uppersess.hook = NULL;
+	} else if (hook == priv->lower) {
+		priv->lower = NULL;
+	} else {
+		/* Reset node (stops timers) */
+		ng_pptpgre_reset(hpriv);
+
+		LIST_REMOVE(hpriv, sessions);
+		mtx_destroy(&hpriv->mtx);
+		free(hpriv, M_NETGRAPH);
+	}
+
+	/* Go away if no longer connected to anything */
+	if ((NG_NODE_NUMHOOKS(node) == 0)
+	&& (NG_NODE_IS_VALID(node)))
+		ng_rmnode_self(node);
+	return (0);
 }
 
 /*
@@ -423,38 +514,15 @@ ng_pptpgre_shutdown(node_p node)
 	const priv_p priv = NG_NODE_PRIVATE(node);
 
 	/* Reset node (stops timers) */
-	ng_pptpgre_reset(node);
+	ng_pptpgre_reset(&priv->uppersess);
 
-	mtx_destroy(&priv->mtx);
+	LIST_REMOVE(&priv->uppersess, sessions);
+	mtx_destroy(&priv->uppersess.mtx);
 
 	FREE(priv, M_NETGRAPH);
 
 	/* Decrement ref count */
 	NG_NODE_UNREF(node);
-	return (0);
-}
-
-/*
- * Hook disconnection
- */
-static int
-ng_pptpgre_disconnect(hook_p hook)
-{
-	const node_p node = NG_HOOK_NODE(hook);
-	const priv_p priv = NG_NODE_PRIVATE(node);
-
-	/* Zero out hook pointer */
-	if (hook == priv->upper)
-		priv->upper = NULL;
-	else if (hook == priv->lower)
-		priv->lower = NULL;
-	else
-		panic("%s: unknown hook", __func__);
-
-	/* Go away if no longer connected to anything */
-	if ((NG_NODE_NUMHOOKS(node) == 0)
-	&& (NG_NODE_IS_VALID(node)))
-		ng_rmnode_self(node);
 	return (0);
 }
 
@@ -466,16 +534,15 @@ ng_pptpgre_disconnect(hook_p hook)
  * Transmit an outgoing frame, or just an ack if m is NULL.
  */
 static int
-ng_pptpgre_xmit(node_p node, item_p item)
+ng_pptpgre_xmit(hpriv_p hpriv, item_p item)
 {
-	const priv_p priv = NG_NODE_PRIVATE(node);
-	struct ng_pptpgre_ackp *const a = &priv->ackp;
+	const priv_p priv = NG_NODE_PRIVATE(hpriv->node);
 	u_char buf[sizeof(struct greheader) + 2 * sizeof(u_int32_t)];
 	struct greheader *const gre = (struct greheader *)buf;
 	int grelen, error;
 	struct mbuf *m;
 
-	mtx_assert(&priv->mtx, MA_OWNED);
+	mtx_assert(&hpriv->mtx, MA_OWNED);
 
 	if (item) {
 		NGI_GET_M(item, m);
@@ -486,10 +553,10 @@ ng_pptpgre_xmit(node_p node, item_p item)
 	if (m != NULL) {
 
 		/* Check if windowing is enabled */
-		if (priv->conf.enableWindowing) {
+		if (hpriv->conf.enableWindowing) {
 			/* Is our transmit window full? */
-			if ((u_int32_t)PPTP_SEQ_DIFF(priv->xmitSeq,
-			    priv->recvAck) >= a->xmitWin) {
+			if ((u_int32_t)PPTP_SEQ_DIFF(hpriv->xmitSeq,
+			    hpriv->recvAck) >= hpriv->xmitWin) {
 				priv->stats.xmitDrops++;
 				ERROUT(ENOBUFS);
 			}
@@ -507,25 +574,26 @@ ng_pptpgre_xmit(node_p node, item_p item)
 	/* Build GRE header */
 	((u_int32_t *)gre)[0] = htonl(PPTP_INIT_VALUE);
 	gre->length = (m != NULL) ? htons((u_short)m->m_pkthdr.len) : 0;
-	gre->cid = htons(priv->conf.peerCid);
+	gre->cid = htons(hpriv->conf.peerCid);
 
 	/* Include sequence number if packet contains any data */
 	if (m != NULL) {
 		gre->hasSeq = 1;
-		if (priv->conf.enableWindowing) {
-			a->timeSent[priv->xmitSeq - priv->recvAck]
-			    = ng_pptpgre_time(node);
+		if (hpriv->conf.enableWindowing) {
+			hpriv->timeSent[hpriv->xmitSeq - hpriv->recvAck]
+			    = ng_pptpgre_time();
 		}
-		priv->xmitSeq++;
-		gre->data[0] = htonl(priv->xmitSeq);
+		hpriv->xmitSeq++;
+		gre->data[0] = htonl(hpriv->xmitSeq);
 	}
 
 	/* Include acknowledgement (and stop send ack timer) if needed */
-	if (priv->conf.enableAlwaysAck || priv->xmitAck != priv->recvSeq) {
+	if (hpriv->conf.enableAlwaysAck || hpriv->xmitAck != hpriv->recvSeq) {
 		gre->hasAck = 1;
-		gre->data[gre->hasSeq] = htonl(priv->recvSeq);
-		priv->xmitAck = priv->recvSeq;
-		ng_pptpgre_stop_send_ack_timer(node);
+		gre->data[gre->hasSeq] = htonl(hpriv->recvSeq);
+		hpriv->xmitAck = hpriv->recvSeq;
+		if (hpriv->conf.enableDelayedAck)
+			ng_uncallout(&hpriv->sackTimer, hpriv->node);
 	}
 
 	/* Prepend GRE header to outgoing frame */
@@ -556,10 +624,11 @@ ng_pptpgre_xmit(node_p node, item_p item)
 	 * XXX: we should reset timer only after an item has been sent
 	 * successfully.
 	 */
-	if (gre->hasSeq && priv->xmitSeq == priv->recvAck + 1)
-		ng_pptpgre_start_recv_ack_timer(node);
+	if (hpriv->conf.enableWindowing &&
+	    gre->hasSeq && hpriv->xmitSeq == hpriv->recvAck + 1)
+		ng_pptpgre_start_recv_ack_timer(hpriv);
 
-	mtx_unlock(&priv->mtx);
+	mtx_unlock(&hpriv->mtx);
 
 	/* Deliver packet */
 	if (item) {
@@ -571,7 +640,7 @@ ng_pptpgre_xmit(node_p node, item_p item)
 	return (error);
 
 done:
-	mtx_unlock(&priv->mtx);
+	mtx_unlock(&hpriv->mtx);
 	NG_FREE_M(m);
 	if (item)
 		NG_FREE_ITEM(item);
@@ -582,16 +651,16 @@ done:
  * Handle an incoming packet.  The packet includes the IP header.
  */
 static int
-ng_pptpgre_recv(node_p node, item_p item)
+ng_pptpgre_rcvdata_lower(hook_p hook, item_p item)
 {
+	hpriv_p hpriv;
+	node_p node = NG_HOOK_NODE(hook);
 	const priv_p priv = NG_NODE_PRIVATE(node);
 	int iphlen, grelen, extralen;
 	const struct greheader *gre;
 	const struct ip *ip;
 	int error = 0;
 	struct mbuf *m;
-
-	mtx_assert(&priv->mtx, MA_OWNED);
 
 	NGI_GET_M(item, m);
 	/* Update stats */
@@ -646,109 +715,105 @@ ng_pptpgre_recv(node_p node, item_p item)
 		priv->stats.recvBadGRE++;
 		ERROUT(EINVAL);
 	}
-	if (ntohs(gre->cid) != priv->conf.cid) {
+
+	hpriv = ng_pptpgre_find_session(priv, ntohs(gre->cid));
+	if (hpriv == NULL || hpriv->hook == NULL || !hpriv->conf.enabled) {
 		priv->stats.recvBadCID++;
 		ERROUT(EINVAL);
 	}
+	mtx_lock(&hpriv->mtx);
 
 	/* Look for peer ack */
 	if (gre->hasAck) {
-		struct ng_pptpgre_ackp *const a = &priv->ackp;
 		const u_int32_t	ack = ntohl(gre->data[gre->hasSeq]);
-		const int index = ack - priv->recvAck - 1;
+		const int index = ack - hpriv->recvAck - 1;
 		long sample;
 		long diff;
 
 		/* Sanity check ack value */
-		if (PPTP_SEQ_DIFF(ack, priv->xmitSeq) > 0) {
+		if (PPTP_SEQ_DIFF(ack, hpriv->xmitSeq) > 0) {
 			priv->stats.recvBadAcks++;
 			goto badAck;		/* we never sent it! */
 		}
-		if (PPTP_SEQ_DIFF(ack, priv->recvAck) <= 0)
+		if (PPTP_SEQ_DIFF(ack, hpriv->recvAck) <= 0)
 			goto badAck;		/* ack already timed out */
-		priv->recvAck = ack;
+		hpriv->recvAck = ack;
 
 		/* Update adaptive timeout stuff */
-		if (priv->conf.enableWindowing) {
-			sample = ng_pptpgre_time(node) - a->timeSent[index];
-			diff = sample - a->rtt;
-			a->rtt += PPTP_ACK_ALPHA(diff);
+		if (hpriv->conf.enableWindowing) {
+			sample = ng_pptpgre_time() - hpriv->timeSent[index];
+			diff = sample - hpriv->rtt;
+			hpriv->rtt += PPTP_ACK_ALPHA(diff);
 			if (diff < 0)
 				diff = -diff;
-			a->dev += PPTP_ACK_BETA(diff - a->dev);
+			hpriv->dev += PPTP_ACK_BETA(diff - hpriv->dev);
 			    /* +2 to compensate low precision of int math */
-			a->ato = a->rtt + PPTP_ACK_CHI(a->dev + 2);
-			if (a->ato > PPTP_MAX_TIMEOUT)
-				a->ato = PPTP_MAX_TIMEOUT;
-			if (a->ato < PPTP_MIN_TIMEOUT)
-				a->ato = PPTP_MIN_TIMEOUT;
+			hpriv->ato = hpriv->rtt + PPTP_ACK_CHI(hpriv->dev + 2);
+			if (hpriv->ato > PPTP_MAX_TIMEOUT)
+				hpriv->ato = PPTP_MAX_TIMEOUT;
+			else if (hpriv->ato < PPTP_MIN_TIMEOUT)
+				hpriv->ato = PPTP_MIN_TIMEOUT;
 
 			/* Shift packet transmit times in our transmit window */
-			bcopy(a->timeSent + index + 1, a->timeSent,
-			    sizeof(*a->timeSent)
+			bcopy(hpriv->timeSent + index + 1, hpriv->timeSent,
+			    sizeof(*hpriv->timeSent)
 			      * (PPTP_XMIT_WIN - (index + 1)));
 
 			/* If we sent an entire window, increase window size */
-			if (PPTP_SEQ_DIFF(ack, a->winAck) >= 0
-			    && a->xmitWin < PPTP_XMIT_WIN) {
-				a->xmitWin++;
-				a->winAck = ack + a->xmitWin;
+			if (PPTP_SEQ_DIFF(ack, hpriv->winAck) >= 0
+			    && hpriv->xmitWin < PPTP_XMIT_WIN) {
+				hpriv->xmitWin++;
+				hpriv->winAck = ack + hpriv->xmitWin;
 			}
 
 			/* Stop/(re)start receive ACK timer as necessary */
-			ng_pptpgre_stop_recv_ack_timer(node);
-			if (priv->recvAck != priv->xmitSeq)
-				ng_pptpgre_start_recv_ack_timer(node);
+			ng_uncallout(&hpriv->rackTimer, hpriv->node);
+			if (hpriv->recvAck != hpriv->xmitSeq)
+				ng_pptpgre_start_recv_ack_timer(hpriv);
 		}
 	}
 badAck:
 
 	/* See if frame contains any data */
 	if (gre->hasSeq) {
-		struct ng_pptpgre_ackp *const a = &priv->ackp;
 		const u_int32_t seq = ntohl(gre->data[0]);
 
 		/* Sanity check sequence number */
-		if (PPTP_SEQ_DIFF(seq, priv->recvSeq) <= 0) {
-			if (seq == priv->recvSeq)
+		if (PPTP_SEQ_DIFF(seq, hpriv->recvSeq) <= 0) {
+			if (seq == hpriv->recvSeq)
 				priv->stats.recvDuplicates++;
 			else
 				priv->stats.recvOutOfOrder++;
+			mtx_unlock(&hpriv->mtx);
 			ERROUT(EINVAL);
 		}
-		priv->recvSeq = seq;
+		hpriv->recvSeq = seq;
 
 		/* We need to acknowledge this packet; do it soon... */
-		if (!(callout_pending(&a->sackTimer))) {
-			int maxWait;
-
-			/* Take 1/4 of the estimated round trip time */
-			maxWait = (a->rtt >> 2);
-
+		if (!(callout_pending(&hpriv->sackTimer))) {
 			/* If delayed ACK is disabled, send it now */
-			if (!priv->conf.enableDelayedAck) {	/* ack now */
-				ng_pptpgre_xmit(node, NULL);
-				mtx_lock(&priv->mtx);
+			if (!hpriv->conf.enableDelayedAck) {	/* ack now */
+				ng_pptpgre_xmit(hpriv, NULL);
+				/* ng_pptpgre_xmit() drops the mutex */
 			} else {				/* ack later */
-				if (maxWait < PPTP_MIN_ACK_DELAY)
-					maxWait = PPTP_MIN_ACK_DELAY;
-				if (maxWait > PPTP_MAX_ACK_DELAY)
-					maxWait = PPTP_MAX_ACK_DELAY;
-				ng_pptpgre_start_send_ack_timer(node, maxWait);
+				ng_pptpgre_start_send_ack_timer(hpriv);
+				mtx_unlock(&hpriv->mtx);
 			}
-		}
+		} else
+			mtx_unlock(&hpriv->mtx);
 
 		/* Trim mbuf down to internal payload */
 		m_adj(m, iphlen + grelen);
 		if (extralen > 0)
 			m_adj(m, -extralen);
 
-		mtx_unlock(&priv->mtx);
+		mtx_assert(&hpriv->mtx, MA_NOTOWNED);
+
 		/* Deliver frame to upper layers */
-		NG_FWD_NEW_DATA(error, item, priv->upper, m);
+		NG_FWD_NEW_DATA(error, item, hpriv->hook, m);
 	} else {
 		priv->stats.recvLoneAcks++;
-		mtx_unlock(&priv->mtx);
+		mtx_unlock(&hpriv->mtx);
 		NG_FREE_ITEM(item);
 		NG_FREE_M(m);		/* no data to deliver */
 	}
@@ -756,7 +821,6 @@ badAck:
 	return (error);
 
 done:
-	mtx_unlock(&priv->mtx);
 	NG_FREE_ITEM(item);
 	NG_FREE_M(m);
 	return (error);
@@ -773,44 +837,20 @@ done:
  * recv ack timer, if any.
  */
 static void
-ng_pptpgre_start_recv_ack_timer(node_p node)
+ng_pptpgre_start_recv_ack_timer(hpriv_p hpriv)
 {
-	const priv_p priv = NG_NODE_PRIVATE(node);
-	struct ng_pptpgre_ackp *const a = &priv->ackp;
 	int remain, ticks;
-
-	if (!priv->conf.enableWindowing)
-		return;
 
 	/* Compute how long until oldest unack'd packet times out,
 	   and reset the timer to that time. */
-	remain = (a->timeSent[0] + a->ato) - ng_pptpgre_time(node);
+	remain = (hpriv->timeSent[0] + hpriv->ato) - ng_pptpgre_time();
 	if (remain < 0)
 		remain = 0;
-#ifdef DEBUG_RAT
-	a->timerLength = remain;
-	a->timerStart = ng_pptpgre_time(node);
-#endif
 
 	/* Be conservative: timeout can happen up to 1 tick early */
 	ticks = (((remain * hz) + PPTP_TIME_SCALE - 1) / PPTP_TIME_SCALE) + 1;
-	ng_callout(&a->rackTimer, node, NULL, ticks,
-	    ng_pptpgre_recv_ack_timeout, NULL, 0);
-}
-
-/*
- * Stop receive ack timer.
- */
-static void
-ng_pptpgre_stop_recv_ack_timer(node_p node)
-{
-	const priv_p priv = NG_NODE_PRIVATE(node);
-	struct ng_pptpgre_ackp *const a = &priv->ackp;
-
-	if (!priv->conf.enableWindowing)
-		return;
-
-	ng_uncallout(&a->rackTimer, node);
+	ng_callout(&hpriv->rackTimer, hpriv->node, hpriv->hook,
+	    ticks, ng_pptpgre_recv_ack_timeout, hpriv, 0);
 }
 
 /*
@@ -822,32 +862,21 @@ static void
 ng_pptpgre_recv_ack_timeout(node_p node, hook_p hook, void *arg1, int arg2)
 {
 	const priv_p priv = NG_NODE_PRIVATE(node);
-	struct ng_pptpgre_ackp *const a = &priv->ackp;
-
-	mtx_lock(&priv->mtx);
+	const hpriv_p hpriv = arg1;
 
 	/* Update adaptive timeout stuff */
 	priv->stats.recvAckTimeouts++;
-	a->rtt = PPTP_ACK_DELTA(a->rtt) + 1; /* +1 to avoid delta*0 case */
-	a->ato = a->rtt + PPTP_ACK_CHI(a->dev);
-	if (a->ato > PPTP_MAX_TIMEOUT)
-		a->ato = PPTP_MAX_TIMEOUT;
-	if (a->ato < PPTP_MIN_TIMEOUT)
-		a->ato = PPTP_MIN_TIMEOUT;
-
-#ifdef DEBUG_RAT
-    log(LOG_DEBUG,
-	"RAT now=%d seq=0x%x sent=%d tstart=%d tlen=%d ato=%d\n",
-	(int)ng_pptpgre_time(node), priv->recvAck + 1,
-	(int)a->timeSent[0], (int)a->timerStart, (int)a->timerLength, a->ato);
-#endif
+	hpriv->rtt = PPTP_ACK_DELTA(hpriv->rtt) + 1; /* +1 to avoid delta*0 case */
+	hpriv->ato = hpriv->rtt + PPTP_ACK_CHI(hpriv->dev);
+	if (hpriv->ato > PPTP_MAX_TIMEOUT)
+		hpriv->ato = PPTP_MAX_TIMEOUT;
+	else if (hpriv->ato < PPTP_MIN_TIMEOUT)
+		hpriv->ato = PPTP_MIN_TIMEOUT;
 
 	/* Reset ack and sliding window */
-	priv->recvAck = priv->xmitSeq;		/* pretend we got the ack */
-	a->xmitWin = (a->xmitWin + 1) / 2;	/* shrink transmit window */
-	a->winAck = priv->recvAck + a->xmitWin;	/* reset win expand time */
-
-	mtx_unlock(&priv->mtx);
+	hpriv->recvAck = hpriv->xmitSeq;		/* pretend we got the ack */
+	hpriv->xmitWin = (hpriv->xmitWin + 1) / 2;	/* shrink transmit window */
+	hpriv->winAck = hpriv->recvAck + hpriv->xmitWin;	/* reset win expand time */
 }
 
 /*
@@ -855,28 +884,21 @@ ng_pptpgre_recv_ack_timeout(node_p node, hook_p hook, void *arg1, int arg2)
  * already running.
  */
 static void
-ng_pptpgre_start_send_ack_timer(node_p node, int ackTimeout)
+ng_pptpgre_start_send_ack_timer(hpriv_p hpriv)
 {
-	const priv_p priv = NG_NODE_PRIVATE(node);
-	struct ng_pptpgre_ackp *const a = &priv->ackp;
-	int ticks;
+	int ackTimeout, ticks;
+
+	/* Take 1/4 of the estimated round trip time */
+	ackTimeout = (hpriv->rtt >> 2);
+	if (ackTimeout < PPTP_MIN_ACK_DELAY)
+		ackTimeout = PPTP_MIN_ACK_DELAY;
+	else if (ackTimeout > PPTP_MAX_ACK_DELAY)
+		ackTimeout = PPTP_MAX_ACK_DELAY;
 
 	/* Be conservative: timeout can happen up to 1 tick early */
 	ticks = (((ackTimeout * hz) + PPTP_TIME_SCALE - 1) / PPTP_TIME_SCALE);
-	ng_callout(&a->sackTimer, node, NULL, ticks,
-	    ng_pptpgre_send_ack_timeout, NULL, 0);
-}
-
-/*
- * Stop send ack timer.
- */
-static void
-ng_pptpgre_stop_send_ack_timer(node_p node)
-{
-	const priv_p priv = NG_NODE_PRIVATE(node);
-	struct ng_pptpgre_ackp *const a = &priv->ackp;
-
-	ng_uncallout(&a->sackTimer, node);
+	ng_callout(&hpriv->sackTimer, hpriv->node, hpriv->hook,
+	    ticks, ng_pptpgre_send_ack_timeout, hpriv, 0);
 }
 
 /*
@@ -888,12 +910,12 @@ ng_pptpgre_stop_send_ack_timer(node_p node)
 static void
 ng_pptpgre_send_ack_timeout(node_p node, hook_p hook, void *arg1, int arg2)
 {
-	const priv_p priv = NG_NODE_PRIVATE(node);
+	const hpriv_p hpriv = arg1;
 
-	mtx_lock(&priv->mtx);
+	mtx_lock(&hpriv->mtx);
 	/* Send a frame with an ack but no payload */
-  	ng_pptpgre_xmit(node, NULL);
-	mtx_assert(&priv->mtx, MA_NOTOWNED);
+  	ng_pptpgre_xmit(hpriv, NULL);
+	mtx_assert(&hpriv->mtx, MA_NOTOWNED);
 }
 
 /*************************************************************************
@@ -901,65 +923,63 @@ ng_pptpgre_send_ack_timeout(node_p node, hook_p hook, void *arg1, int arg2)
 *************************************************************************/
 
 /*
- * Reset state
+ * Find the hook with a given session ID.
+ */
+static hpriv_p
+ng_pptpgre_find_session(priv_p privp, u_int16_t cid)
+{
+	uint16_t	hash = SESSHASH(cid);
+	hpriv_p	hpriv = NULL;
+
+	LIST_FOREACH(hpriv, &privp->sesshash[hash], sessions) {
+		if (hpriv->conf.cid == cid)
+			break;
+	}
+
+	return (hpriv);
+}
+
+/*
+ * Reset state (must be called with lock held or from writer)
  */
 static void
-ng_pptpgre_reset(node_p node)
+ng_pptpgre_reset(hpriv_p hpriv)
 {
-	const priv_p priv = NG_NODE_PRIVATE(node);
-	struct ng_pptpgre_ackp *const a = &priv->ackp;
-
-	mtx_lock(&priv->mtx);
-
 	/* Reset adaptive timeout state */
-	a->ato = PPTP_MAX_TIMEOUT;
-	a->rtt = priv->conf.peerPpd * PPTP_TIME_SCALE / 10;  /* ppd in 10ths */
-	if (a->rtt < PPTP_MIN_RTT)
-		a->rtt = PPTP_MIN_RTT;
-	a->dev = 0;
-	a->xmitWin = (priv->conf.recvWin + 1) / 2;
-	if (a->xmitWin < 2)		/* often the first packet is lost */
-		a->xmitWin = 2;		/*   because the peer isn't ready */
-	if (a->xmitWin > PPTP_XMIT_WIN)
-		a->xmitWin = PPTP_XMIT_WIN;
-	a->winAck = a->xmitWin;
+	hpriv->ato = PPTP_MAX_TIMEOUT;
+	hpriv->rtt = PPTP_TIME_SCALE / 10;
+	if (hpriv->conf.peerPpd > 1)	/* ppd = 0 treat as = 1 */
+		hpriv->rtt *= hpriv->conf.peerPpd;
+	hpriv->dev = 0;
+	hpriv->xmitWin = (hpriv->conf.recvWin + 1) / 2;
+	if (hpriv->xmitWin < 2)		/* often the first packet is lost */
+		hpriv->xmitWin = 2;		/*   because the peer isn't ready */
+	else if (hpriv->xmitWin > PPTP_XMIT_WIN)
+		hpriv->xmitWin = PPTP_XMIT_WIN;
+	hpriv->winAck = hpriv->xmitWin;
 
 	/* Reset sequence numbers */
-	priv->recvSeq = ~0;
-	priv->recvAck = ~0;
-	priv->xmitSeq = ~0;
-	priv->xmitAck = ~0;
-
-	/* Reset start time */
-	getmicrouptime(&priv->startTime);
-
-	/* Reset stats */
-	bzero(&priv->stats, sizeof(priv->stats));
+	hpriv->recvSeq = ~0;
+	hpriv->recvAck = ~0;
+	hpriv->xmitSeq = ~0;
+	hpriv->xmitAck = ~0;
 
 	/* Stop timers */
-	ng_pptpgre_stop_send_ack_timer(node);
-	ng_pptpgre_stop_recv_ack_timer(node);
-
-	mtx_unlock(&priv->mtx);
+	ng_uncallout(&hpriv->sackTimer, hpriv->node);
+	ng_uncallout(&hpriv->rackTimer, hpriv->node);
 }
 
 /*
  * Return the current time scaled & translated to our internally used format.
  */
 static pptptime_t
-ng_pptpgre_time(node_p node)
+ng_pptpgre_time(void)
 {
-	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct timeval tv;
 	pptptime_t t;
 
 	microuptime(&tv);
-	if (tv.tv_sec < priv->startTime.tv_sec
-	    || (tv.tv_sec == priv->startTime.tv_sec
-	      && tv.tv_usec < priv->startTime.tv_usec))
-		return (0);
-	timevalsub(&tv, &priv->startTime);
 	t = (pptptime_t)tv.tv_sec * PPTP_TIME_SCALE;
-	t += (pptptime_t)tv.tv_usec / (1000000 / PPTP_TIME_SCALE);
+	t += tv.tv_usec / (1000000 / PPTP_TIME_SCALE);
 	return(t);
 }
