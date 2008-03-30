@@ -28,14 +28,16 @@
 .\"     from: @(#)ieee.3	6.4 (Berkeley) 5/6/91
 .\" $FreeBSD$
 .\"
-.Dd March 24, 2005
+.Dd March 30, 2008
 .Dt REMAINDER 3
 .Os
 .Sh NAME
 .Nm remainder ,
 .Nm remainderf ,
+.Nm remainderl ,
 .Nm remquo ,
-.Nm remquof
+.Nm remquof ,
+.Nm remquol
 .Nd minimal residue functions
 .Sh LIBRARY
 .Lb libm
@@ -45,16 +47,22 @@
 .Fn remainder "double x" "double y"
 .Ft float
 .Fn remainderf "float x" "float y"
+.Ft long double
+.Fn remainderl "long double x" "long double y"
 .Ft double
 .Fn remquo "double x" "double y" "int *quo"
 .Ft float
 .Fn remquof "float x" "float y" "int *quo"
+.Ft long double
+.Fn remquol "long double x" "long double y" "int *quo"
 .Sh DESCRIPTION
 .Fn remainder ,
 .Fn remainderf ,
+.Fn remainderl ,
 .Fn remquo ,
+.Fn remquof ,
 and
-.Fn remquof
+.Fn remquol
 return the remainder
 .Fa r
 :=
@@ -94,9 +102,10 @@ is 0 or
 is \*(Pm\*(If is an invalid operation that produces a \*(Na.
 .Pp
 The
-.Fn remquo
+.Fn remquo ,
+.Fn remquof ,
 and
-.Fn remquof
+.Fn remquol
 functions also store the last
 .Va k
 bits of
@@ -117,9 +126,11 @@ is platform-specific, but is guaranteed to be at least 3.
 The
 .Fn remainder ,
 .Fn remainderf ,
+.Fn remainderl ,
 .Fn remquo ,
+.Fn remquof ,
 and
-.Fn remquof
+.Fn remquol
 routines conform to
 .St -isoC-99 .
 The remainder is as defined in
@@ -139,4 +150,10 @@ The
 and
 .Fn remquof
 functions were added in
-.Fx 6.0 .
+.Fx 6.0 ,
+and
+.Fn remainderl
+and
+.Fn remquol
+were added in
+.Fx 8.0 .
