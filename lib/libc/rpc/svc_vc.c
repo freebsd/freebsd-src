@@ -604,10 +604,11 @@ svc_vc_recv(xprt, msg)
 	if (cd->nonblock) {
 		if (!__xdrrec_getrec(xdrs, &cd->strm_stat, TRUE))
 			return FALSE;
+	} else {
+		(void)xdrrec_skiprecord(xdrs);
 	}
 
 	xdrs->x_op = XDR_DECODE;
-	(void)xdrrec_skiprecord(xdrs);
 	if (xdr_callmsg(xdrs, msg)) {
 		cd->x_id = msg->rm_xid;
 		return (TRUE);
