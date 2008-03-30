@@ -15,6 +15,7 @@ SUBDIR=	adjkerntz \
 	clri \
 	comcontrol \
 	conscontrol \
+	ddb \
 	${_devd} \
 	devfs \
 	dhclient \
