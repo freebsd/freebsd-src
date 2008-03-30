@@ -302,6 +302,7 @@ ncp_conn_free(struct ncp_conn *ncp)
 	 * if signal is raised - how I do react ?
 	 */
 	lockmgr(&ncp->nc_lock, LK_DRAIN, 0);
+	lockmgr(&ncp->nc_lock, LK_RELEASE, 0);
 	lockdestroy(&ncp->nc_lock);
 	while (ncp->nc_lwant) {
 		printf("lwant = %d\n", ncp->nc_lwant);
