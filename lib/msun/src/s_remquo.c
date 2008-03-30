@@ -13,6 +13,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <float.h>
+
 #include "math.h"
 #include "math_private.h"
 
@@ -150,3 +152,7 @@ fixup:
 	*quo = (sxy ? -q : q);
 	return x;
 }
+
+#if LDBL_MANT_DIG == 53
+__weak_reference(remquo, remquol);
+#endif
