@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005 David Schultz <das@FreeBSD.org>
+ * Copyright (c) 2005-2008 David Schultz <das@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,7 +25,8 @@
  */
 
 /*
- * Test for remainder functions: remainder, remainderf, remquo, remquof.
+ * Test for remainder functions: remainder, remainderf, remainderl,
+ * remquo, remquof, and remquol.
  * Missing tests: fmod, fmodf.
  */
 
@@ -33,16 +34,19 @@
 __FBSDID("$FreeBSD$");
 
 #include <assert.h>
+#include <float.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <strings.h>
 
-static void test_invalid(double, double);
+static void test_invalid(long double, long double);
+static void testl(long double, long double, long double, int);
 static void testd(double, double, double, int);
 static void testf(float, float, float, int);
 
 #define	test(x, y, e_r, e_q) do {	\
+	testl(x, y, e_r, e_q);		\
 	testd(x, y, e_r, e_q);		\
 	testf(x, y, e_r, e_q);		\
 } while (0)
@@ -70,6 +74,10 @@ main(int argc, char *argv[])
 	testd(275 * 1193040, 275, 0, 1193040);
 	test(4.5 * 7.5, 4.5, -2.25, 8);	/* we should get the even one */
 	testf(0x1.9044f6p-1, 0x1.ce662ep-1, -0x1.f109cp-4, 1);
+#if LDBL_MANT_DIG > 53
+	testl(-0x1.23456789abcdefp-2000L, 0x1.fedcba987654321p-2000L,
+	      0x1.b72ea61d950c862p-2001L, -1);
+#endif
 
 	printf("ok 1 - rem\n");
 
@@ -92,7 +100,7 @@ main(int argc, char *argv[])
 }
 
 static void
-test_invalid(double x, double y)
+test_invalid(long double x, long double y)
 {
 	int q;
 
@@ -109,6 +117,12 @@ test_invalid(double x, double y)
 #ifdef STRICT
 	assert(q == 0xdeadbeef);
 #endif
+
+	assert(isnan(remainderl(x, y)));
+	assert(isnan(remquol(x, y, &q)));
+#ifdef STRICT
+	assert(q == 0xdeadbeef);
+#endif
 }
 
 /* 0x012345 ==> 0x01ffff */
@@ -116,6 +130,22 @@ static inline int
 mask(int x)
 {
 	return ((unsigned)~0 >> (32 - fls(x)));
+}
+
+static void
+testl(long double x, long double y, long double expected_rem, int expected_quo)
+{
+	int q;
+
+	q = random();
+	assert(remainderl(x, y) == expected_rem);
+	assert(remquol(x, y, &q) == expected_rem);
+	assert((q & 0x7) == (expected_quo & 0x7));
+	if (q != 0) {
+		assert((q > 0) ^ !(expected_quo > 0));
+		q = abs(q);
+		assert(q == (abs(expected_quo) & mask(q)));
+	}
 }
 
 static void
