@@ -205,4 +205,5 @@ FBSD_1.1 {
 	sqrtl;
 	hypotl;
 	cabsl;
+	csqrtl;
 };
