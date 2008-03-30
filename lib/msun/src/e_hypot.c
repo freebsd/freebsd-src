@@ -60,8 +60,8 @@ __ieee754_hypot(double x, double y)
 	GET_HIGH_WORD(hb,y);
 	hb &= 0x7fffffff;
 	if(hb > ha) {a=y;b=x;j=ha; ha=hb;hb=j;} else {a=x;b=y;}
-	SET_HIGH_WORD(a,ha);	/* a <- |a| */
-	SET_HIGH_WORD(b,hb);	/* b <- |b| */
+	a = fabs(a);
+	b = fabs(b);
 	if((ha-hb)>0x3c00000) {return a+b;} /* x/y > 2**60 */
 	k=0;
 	if(ha > 0x5f300000) {	/* a>2**500 */

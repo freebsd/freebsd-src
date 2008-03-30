@@ -30,8 +30,8 @@ __ieee754_hypotf(float x, float y)
 	GET_FLOAT_WORD(hb,y);
 	hb &= 0x7fffffff;
 	if(hb > ha) {a=y;b=x;j=ha; ha=hb;hb=j;} else {a=x;b=y;}
-	SET_FLOAT_WORD(a,ha);	/* a <- |a| */
-	SET_FLOAT_WORD(b,hb);	/* b <- |b| */
+	a = fabsf(a);
+	b = fabsf(b);
 	if((ha-hb)>0xf000000) {return a+b;} /* x/y > 2**30 */
 	k=0;
 	if(ha > 0x58800000) {	/* a>2**50 */
