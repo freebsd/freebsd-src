@@ -465,7 +465,7 @@ ntfs_ntput(ip)
 		LIST_REMOVE(vap,va_list);
 		ntfs_freentvattr(vap);
 	}
-	lockmgr(&ip->i_lock, LK_RELEASE | LK_INTERLOCK, &ip->i_interlock);
+	lockmgr(&ip->i_lock, LK_RELEASE | LK_INTERLOCK, &ip->i_interlock, NULL);
 	mtx_destroy(&ip->i_interlock);
 	lockdestroy(&ip->i_lock);
 	vrele(ip->i_devvp);
