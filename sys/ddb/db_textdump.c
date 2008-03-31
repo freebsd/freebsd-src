@@ -25,12 +25,12 @@
  */
 
 /*-
- * Kernel text-dump support: allow a series of text files to be written to
- * the dump partition for later recovery, including captured DDB output, the
- * kernel configuration, message buffer, panic message, etc.  This allows for
- * a more compact representation of critical debugging information than
- * traditional binary dumps, as well as allowing dump information to be used
- * without access to kernel symbols, source code, etc.
+ * Kernel text-dump support: write a series of text files to the dump
+ * partition for later recovery, including captured DDB output, kernel
+ * configuration, message buffer, and panic message.  This allows for a more
+ * compact representation of critical debugging information than traditional
+ * binary dumps, as well as allowing dump information to be used without
+ * access to kernel symbols, source code, etc.
  *
  * Storage Layout
  * --------------
@@ -46,9 +46,8 @@
  * know to reverse the order of the blocks in order to produce a readable
  * file.
  *
- * Data is written out in the 'tar' file format, as it provides the facility
- * to write data incrementally as a stream without reference to previous
- * files.
+ * Data is written out in the ustar file format so that we can write data
+ * incrementally as a stream without reference to previous files.
  *
  * TODO
  * ----
@@ -201,7 +200,7 @@ mkdumpheader(struct kerneldumpheader *kdh, uint32_t archver,
 }
 
 /*
- * Calculate and fill in the checksum for a tar header.
+ * Calculate and fill in the checksum for a ustar header.
  */
 static void
 ustar_checksum(struct ustar_header *uhp)
@@ -269,6 +268,9 @@ textdump_writeblock(struct dumperinfo *di, off_t offset, char *buffer)
  * Interfaces to save and restore the dump offset, so that printers can go
  * back to rewrite a header if required, while avoiding their knowing about
  * the global layout of the blocks.
+ *
+ * If we ever want to support writing textdumps to tape or other
+ * stream-oriented target, we'll need to remove this.
  */
 void
 textdump_saveoff(off_t *offsetp)
