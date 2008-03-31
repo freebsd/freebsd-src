@@ -330,6 +330,12 @@ int	mknod(const char *, mode_t, dev_t);
 #endif
 int	stat(const char * __restrict, struct stat * __restrict);
 mode_t	umask(mode_t);
+#if __BSD_VISIBLE
+int	fstatat(int, const char *, struct stat *, int);
+int	mkdirat(int, const char *, mode_t);
+int	mkfifoat(int, const char *, mode_t);
+int	mknodat(int, const char *, mode_t, dev_t);
+#endif
 __END_DECLS
 #endif /* !_KERNEL */
 

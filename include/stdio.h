@@ -449,5 +449,8 @@ extern int __isthreaded;
 #define	putchar_unlocked(x)	putc_unlocked(x, stdout)
 #endif
 
+#if __BSD_VISIBLE
+int	 renameat(int, const char *, int, const char *);
+#endif
 __END_DECLS
 #endif /* !_STDIO_H_ */
