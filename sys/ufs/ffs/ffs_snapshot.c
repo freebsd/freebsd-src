@@ -127,11 +127,16 @@ ffs_copyonwrite(devvp, bp)
 TAILQ_HEAD(snaphead, inode);
 
 struct snapdata {
+	LIST_ENTRY(snapdata) sn_link;
 	struct snaphead sn_head;
 	daddr_t sn_listsize;
 	daddr_t *sn_blklist;
 	struct lock sn_lock;
 };
+
+LIST_HEAD(, snapdata) snapfree;
+static struct mtx snapfree_lock;
+MTX_SYSINIT(ffs_snapfree, &snapfree_lock, "snapdata free list", MTX_DEF);
 
 static int cgaccount(int, struct vnode *, struct buf *, int);
 static int expunge_ufs1(struct vnode *, struct inode *, struct fs *,
@@ -162,7 +167,8 @@ static int mapacct_ufs2(struct vnode *, ufs2_daddr_t *, ufs2_daddr_t *,
     struct fs *, ufs_lbn_t, int);
 static int readblock(struct vnode *vp, struct buf *, ufs2_daddr_t);
 static void process_deferred_inactive(struct mount *);
-static void try_free_snapdata(struct vnode *devvp, struct thread *td);
+static void try_free_snapdata(struct vnode *devvp);
+static struct snapdata *ffs_snapdata_acquire(struct vnode *devvp);
 static int ffs_bp_snapblk(struct vnode *, struct buf *);
 
 /*
@@ -603,34 +609,16 @@ loop:
 	}
 	MNT_IUNLOCK(mp);
 	/*
-	 * If there already exist snapshots on this filesystem, grab a
-	 * reference to their shared lock. If this is the first snapshot
-	 * on this filesystem, we need to allocate a lock for the snapshots
-	 * to share. In either case, acquire the snapshot lock and give
-	 * up our original private lock.
+	 * Acquire a lock on the snapdata structure, creating it if necessary.
 	 */
-	VI_LOCK(devvp);
-	sn = devvp->v_rdev->si_snapdata;
-	if (sn != NULL) {
-		xp = TAILQ_FIRST(&sn->sn_head);
-		VI_UNLOCK(devvp);
-		VI_LOCK(vp);
-		vp->v_vnlock = &sn->sn_lock;
-	} else {
-		VI_UNLOCK(devvp);
-		sn = malloc(sizeof *sn, M_UFSMNT, M_WAITOK | M_ZERO);
-		TAILQ_INIT(&sn->sn_head);
-		lockinit(&sn->sn_lock, PVFS, "snaplk", VLKTIMEOUT,
-		    LK_CANRECURSE | LK_NOSHARE);
-		VI_LOCK(vp);
-		vp->v_vnlock = &sn->sn_lock;
-		mp_fixme("si_snapdata setting is racey.");
-		devvp->v_rdev->si_snapdata = sn;
-		xp = NULL;
-	}
-	lockmgr(vp->v_vnlock, LK_INTERLOCK | LK_EXCLUSIVE | LK_RETRY,
-	    VI_MTX(vp));
+	sn = ffs_snapdata_acquire(devvp);
+	/* 
+	 * Change vnode to use shared snapshot lock instead of the original
+	 * private lock.
+	 */
+	vp->v_vnlock = &sn->sn_lock;
 	lockmgr(&vp->v_lock, LK_RELEASE, NULL);
+	xp = TAILQ_FIRST(&sn->sn_head);
 	/*
 	 * If this is the first snapshot on this filesystem, then we need
 	 * to allocate the space for the list of preallocated snapshot blocks.
@@ -1566,7 +1554,6 @@ ffs_snapremove(vp)
 	struct vnode *devvp;
 	struct buf *ibp;
 	struct fs *fs;
-	struct thread *td = curthread;
 	ufs2_daddr_t numblks, blkno, dblk;
 	int error, loc, last;
 	struct snapdata *sn;
@@ -1588,14 +1575,12 @@ ffs_snapremove(vp)
 		ip->i_nextsnap.tqe_prev = 0;
 		VI_UNLOCK(devvp);
 		lockmgr(&vp->v_lock, LK_EXCLUSIVE, NULL);
-		VI_LOCK(vp);
 		KASSERT(vp->v_vnlock == &sn->sn_lock,
 			("ffs_snapremove: lost lock mutation")); 
 		vp->v_vnlock = &vp->v_lock;
-		VI_UNLOCK(vp);
 		VI_LOCK(devvp);
 		lockmgr(&sn->sn_lock, LK_RELEASE, NULL);
-		try_free_snapdata(devvp, td);
+		try_free_snapdata(devvp);
 	} else
 		VI_UNLOCK(devvp);
 	/*
@@ -1904,7 +1889,7 @@ ffs_snapshot_mount(mp)
 	 */
 	vp = NULL;
 	lastvp = NULL;
-	sn = devvp->v_rdev->si_snapdata;
+	sn = NULL;
 	for (snaploc = 0; snaploc < FSMAXSNAP; snaploc++) {
 		if (fs->fs_snapinum[snaploc] == 0)
 			break;
@@ -1937,30 +1922,15 @@ ffs_snapshot_mount(mp)
 			continue;
 		}
 		/*
-		 * If there already exist snapshots on this filesystem, grab a
-		 * reference to their shared lock. If this is the first snapshot
-		 * on this filesystem, we need to allocate a lock for the
-		 * snapshots to share. In either case, acquire the snapshot
-		 * lock and give up our original private lock.
+		 * Acquire a lock on the snapdata structure, creating it if
+		 * necessary.
 		 */
-		VI_LOCK(devvp);
-		if (sn != NULL) {
-
-			VI_UNLOCK(devvp);
-			VI_LOCK(vp);
-			vp->v_vnlock = &sn->sn_lock;
-		} else {
-			VI_UNLOCK(devvp);
-			sn = malloc(sizeof *sn, M_UFSMNT, M_WAITOK | M_ZERO);
-			TAILQ_INIT(&sn->sn_head);
-			lockinit(&sn->sn_lock, PVFS, "snaplk", VLKTIMEOUT,
-			    LK_CANRECURSE | LK_NOSHARE);
-			VI_LOCK(vp);
-			vp->v_vnlock = &sn->sn_lock;
-			devvp->v_rdev->si_snapdata = sn;
-		}
-		lockmgr(vp->v_vnlock, LK_INTERLOCK | LK_EXCLUSIVE | LK_RETRY,
-		    VI_MTX(vp));
+		sn = ffs_snapdata_acquire(devvp);
+		/* 
+		 * Change vnode to use shared snapshot lock instead of the
+		 * original private lock.
+		 */
+		vp->v_vnlock = &sn->sn_lock;
 		lockmgr(&vp->v_lock, LK_RELEASE, NULL);
 		/*
 		 * Link it onto the active snapshot list.
@@ -1980,7 +1950,7 @@ ffs_snapshot_mount(mp)
 	/*
 	 * No usable snapshots found.
 	 */
-	if (vp == NULL)
+	if (sn == NULL || vp == NULL)
 		return;
 	/*
 	 * Allocate the space for the block hints list. We always want to
@@ -2035,7 +2005,6 @@ ffs_snapshot_unmount(mp)
 	struct snapdata *sn;
 	struct inode *xp;
 	struct vnode *vp;
-	struct thread *td = curthread;
 
 	VI_LOCK(devvp);
 	sn = devvp->v_rdev->si_snapdata;
@@ -2045,13 +2014,10 @@ ffs_snapshot_unmount(mp)
 		xp->i_nextsnap.tqe_prev = 0;
 		lockmgr(&sn->sn_lock, LK_INTERLOCK | LK_EXCLUSIVE,
 		    VI_MTX(devvp));
-		VI_LOCK(vp);
-		lockmgr(&vp->v_lock, LK_INTERLOCK | LK_EXCLUSIVE, VI_MTX(vp));
-		VI_LOCK(vp);
+		lockmgr(&vp->v_lock, LK_EXCLUSIVE, NULL);
 		KASSERT(vp->v_vnlock == &sn->sn_lock,
 		("ffs_snapshot_unmount: lost lock mutation")); 
 		vp->v_vnlock = &vp->v_lock;
-		VI_UNLOCK(vp);
 		lockmgr(&vp->v_lock, LK_RELEASE, NULL);
 		lockmgr(&sn->sn_lock, LK_RELEASE, NULL);
 		if (xp->i_effnlink > 0)
@@ -2059,7 +2025,7 @@ ffs_snapshot_unmount(mp)
 		VI_LOCK(devvp);
 		sn = devvp->v_rdev->si_snapdata;
 	}
-	try_free_snapdata(devvp, td);
+	try_free_snapdata(devvp);
 	ASSERT_VOP_LOCKED(devvp, "ffs_snapshot_unmount");
 }
 
@@ -2486,14 +2452,52 @@ process_deferred_inactive(struct mount *mp)
 	vn_finished_secondary_write(mp);
 }
 
+static struct snapdata *
+ffs_snapdata_alloc(void)
+{
+	struct snapdata *sn;
+
+	/*
+	 * Fetch a snapdata from the free list if there is one available.
+	 */
+	mtx_lock(&snapfree_lock);
+	sn = LIST_FIRST(&snapfree);
+	if (sn != NULL)
+		LIST_REMOVE(sn, sn_link);
+	mtx_unlock(&snapfree_lock);
+	if (sn != NULL)
+		return (sn);
+	/*
+ 	 * If there were no free snapdatas allocate one.
+	 */
+	sn = malloc(sizeof *sn, M_UFSMNT, M_WAITOK | M_ZERO);
+	TAILQ_INIT(&sn->sn_head);
+	lockinit(&sn->sn_lock, PVFS, "snaplk", VLKTIMEOUT,
+	    LK_CANRECURSE | LK_NOSHARE);
+	return (sn);
+}
+
+/*
+ * The snapdata is never freed because we can not be certain that
+ * there are no threads sleeping on the snap lock.  Persisting
+ * them permanently avoids costly synchronization in ffs_lock().
+ */
+static void
+ffs_snapdata_free(struct snapdata *sn)
+{
+	mtx_lock(&snapfree_lock);
+	LIST_INSERT_HEAD(&snapfree, sn, sn_link);
+	mtx_unlock(&snapfree_lock);
+}
+
 /* Try to free snapdata associated with devvp */
 static void
-try_free_snapdata(struct vnode *devvp,
-		  struct thread *td)
+try_free_snapdata(struct vnode *devvp)
 {
 	struct snapdata *sn;
 	ufs2_daddr_t *snapblklist;
 
+	ASSERT_VI_LOCKED(devvp, "try_free_snapdata");
 	sn = devvp->v_rdev->si_snapdata;
 
 	if (sn == NULL || TAILQ_FIRST(&sn->sn_head) != NULL ||
@@ -2504,14 +2508,52 @@ try_free_snapdata(struct vnode *devvp,
 
 	devvp->v_rdev->si_snapdata = NULL;
 	devvp->v_vflag &= ~VV_COPYONWRITE;
+	lockmgr(&sn->sn_lock, LK_DRAIN|LK_INTERLOCK, VI_MTX(devvp));
 	snapblklist = sn->sn_blklist;
 	sn->sn_blklist = NULL;
 	sn->sn_listsize = 0;
-	lockmgr(&sn->sn_lock, LK_DRAIN|LK_INTERLOCK, VI_MTX(devvp));
 	lockmgr(&sn->sn_lock, LK_RELEASE, NULL);
-	lockdestroy(&sn->sn_lock);
-	free(sn, M_UFSMNT);
 	if (snapblklist != NULL)
 		FREE(snapblklist, M_UFSMNT);
+	ffs_snapdata_free(sn);
 }
+
+static struct snapdata *
+ffs_snapdata_acquire(struct vnode *devvp)
+{
+	struct snapdata *nsn;
+	struct snapdata *sn;
+
+	/*
+ 	 * Allocate a free snapdata.  This is done before acquiring the
+	 * devvp lock to avoid allocation while the devvp interlock is
+	 * held.
+	 */
+	nsn = ffs_snapdata_alloc();
+	/*
+	 * If there snapshots already exist on this filesystem grab a
+	 * reference to the shared lock.  Otherwise this is the first
+	 * snapshot on this filesystem and we need to use our
+	 * pre-allocated snapdata.
+	 */
+	VI_LOCK(devvp);
+	if (devvp->v_rdev->si_snapdata == NULL) {
+		devvp->v_rdev->si_snapdata = nsn;
+		nsn = NULL;
+	}
+	sn = devvp->v_rdev->si_snapdata;
+	/*
+	 * Acquire the snapshot lock.
+	 */
+	lockmgr(&sn->sn_lock,
+	    LK_INTERLOCK | LK_EXCLUSIVE | LK_RETRY, VI_MTX(devvp));
+	/*
+	 * Free any unused snapdata.
+	 */
+	if (nsn != NULL)
+		ffs_snapdata_free(nsn);
+
+	return (sn);
+}
+
 #endif
