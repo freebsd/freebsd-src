@@ -134,14 +134,35 @@
   <sect2 id="kernel">
     <title>Kernel Changes</title>
 
-    <para></para>
+    <para>The &man.ddb.4; kernel debugger now has an output capture
+      facility.  Input and output from &man.ddb.4; can now be captured
+      to a memory buffer for later inspection using &man.sysctl.8; or
+      a textdump.  The new <command>capture</command> command controls
+      this feature.</para>
+
+    <para>The &man.ddb.4; debugger now supports a simple scripting
+      facility, which supports a set of named scripts consisting of a
+      set of &man.ddb.4; commands.  These commands can be managed from
+      within &man.ddb.4; or with the use of the new &man.ddb.8;
+      utility.  More details can be found in the &man.ddb.4; manual
+      page.</para>
 
     <sect3 id="boot">
       <title>Boot Loader Changes</title>
 
       <para></para>
 
-      <!-- Above this line, order boot loader changes by keyword-->
+      <para>[&arch.amd64;, &arch.i386;] The BTX kernel used by the boot
+	loader has been changed to invoke BIOS routines from real
+	mode.  This change makes it possible to boot &os; from USB
+	devices.</para>
+
+      <para>[&arch.amd64;, &arch.i386;] A new gptboot boot loader has
+        been added to support booting from a GPT labeled disk.  A
+        new <command>boot</command> command has been added to
+        &man.gpt.8;, which makes a GPT disk bootable by writing the
+        required bits of the boot loader, creating a new boot
+        partition if required.</para>
 
     </sect3>
 
@@ -159,7 +180,9 @@
       <sect4 id="net-if">
 	<title>Network Interface Support</title>
 
-	<para></para>
+	<para>[&arch.amd64;, &arch.i386;] The &man.wpi.4; driver has
+	  been updated to include a number of stability fixes.</para>
+
       </sect4>
     </sect3>
 
@@ -173,7 +196,9 @@
     <sect3 id="disks">
       <title>Disks and Storage</title>
 
-      <para></para>
+      <para>The &man.hptrr.4; driver has been updated to version 1.2
+        from Highpoint.</para>
+
     </sect3>
 
     <sect3 id="fs">
@@ -186,7 +211,14 @@
   <sect2 id="userland">
     <title>Userland Changes</title>
 
-    <para></para>
+    <para>&man.chflags.1; now supports a <option>-v</option> flag for
+      verbose output and a <option>-f</option> flag to ignore errors
+      with the same semantics as (for example)
+      &man.chmod.1;.</para>
+
+    <para>The &man.realpath.1; utility now supports
+      a <option>-q</option> flag to suppress warnings; it now also
+      accepts multiple paths on its command line.</para>
 
     <sect3 id="rc-scripts">
       <title><filename>/etc/rc.d</filename> Scripts</title>
@@ -207,6 +239,10 @@
     <para><application>OpenPAM</application> has been updated from the
       Figwort release to the Hydrangea release.</para>
 
+    <para>The timezone database has been updated from
+      the <application>tzdata2007h</application> release to
+      the <application>tzdata2008b</application> release.</para>
+
   </sect2>
 
   <sect2 id="ports">
@@ -219,7 +255,11 @@
   <sect2 id="releng">
     <title>Release Engineering and Integration</title>
 
-    <para></para>
+    <para>The supported version of
+      the <application>GNOME</application> desktop environment
+      (<filename role="package">x11/gnome2</filename>) has been
+      updated from 2.20.1 to 2.22.</para>
+
   </sect2>
 
   <sect2 id="doc">
