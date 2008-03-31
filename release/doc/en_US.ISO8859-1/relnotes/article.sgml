@@ -140,7 +140,7 @@
   <sect2 id="kernel">
     <title>Kernel Changes</title>
 
-    <para>A new API called <literal>cpuset</literal> has been added
+    <para>A new &man.cpuset.2; API has been added
       for thread to CPU binding and CPU resource grouping and
       assignment.  The &man.cpuset.1; userland utility has been added
       to allow manipulation of processor sets.</para>
@@ -149,14 +149,14 @@
       facility.  Input and output from &man.ddb.4; can now be captured
       to a memory buffer for later inspection using &man.sysctl.8; or
       a textdump.  The new <command>capture</command> command controls
-      this feature.</para>
+      this feature. &merged;</para>
 
     <para>The &man.ddb.4; debugger now supports a simple scripting
       facility, which supports a set of named scripts consisting of a
       set of &man.ddb.4; commands.  These commands can be managed from
       within &man.ddb.4; or with the use of the new &man.ddb.8;
       utility.  More details can be found in the &man.ddb.4; manual
-      page.</para>
+      page. &merged;</para>
 
     <para>The kernel now supports a new textdump format of kernel
       dumps.  A textdump provides higher-level information via
@@ -174,6 +174,15 @@
       Backwards compatibility for applications using KSE threading
       will be provided via &man.libmap.conf.5; for dynamically linked
       binaries.</para>
+
+    <para>The &os; kernel now exports information about certain kernel
+      features via the <varname>kern.features</varname> sysctl tree.
+      The &man.feature.present.3; library call provides a convenient
+      interface for user applications to test the presence of
+      features.</para>
+
+    <para>[&arch.amd64;] The &os; kernel now has support for large
+      memory page mappings (<quote>superpages</quote>).</para>
 
     <sect3 id="boot">
       <title>Boot Loader Changes</title>
@@ -212,6 +221,19 @@
       <sect4 id="net-if">
 	<title>Network Interface Support</title>
 
+	<para>The &man.em.4; driver has been split into two drivers
+	  with some common parts.  The &man.em.4; driver will continue
+	  to support adapters up to the 82575, as well as new
+	  client/desktop adapters.  A new igb driver
+	  will support new server adapters.</para>
+
+	<para>The &man.malo.4; driver has been added to provide
+	  support for Marvell Libertas 88W8335 based PCI network
+	  adapters.</para>
+
+	<para>The firmware for the &man.mxge.4; driver has been
+	  updated from 1.4.25 to 1.4.29.</para>
+
 	<para>The &man.sf.4; driver has been overhauled to improve its
 	  performance and to add support for checksum offloading.  It
 	  should also work on all architectures.</para>
@@ -225,14 +247,21 @@
 	  architectures.</para>
 
 	<para>[&arch.amd64;, &arch.i386;] The &man.wpi.4; driver has
-	  been added to support the Intel 3945 Wireless LAN
-	  Controller.</para>
+	  been updated to include a number of stability fixes.
+	  &merged;</para>
 
       </sect4>
     </sect3>
 
     <sect3 id="net-proto">
       <title>Network Protocols</title>
+
+      <para>The &man.bpf.4; packet filter and capture facility now
+        supports a zero-copy mode of operation, in which buffers are
+        loaned from a user process to the kernel.  This feature can
+        be enabled by setting
+        the <varname>net.bpf.zerocopy_enable</varname> sysctl
+        variable to <literal>1</literal>.</para>
 
       <para>A bug in TCP options padding, where the wrong padding
         bytes were used, has been fixed.</para>
@@ -283,12 +312,26 @@
       of primaries that were present in GNU find but not &os;
       &man.find.1;.</para>
 
+    <para>&man.kgdb.1; now supports a new <command>add-kld</command>
+      command to make it easier to debug crash dumps with kernel
+      modules.</para>
+
+    <para>The &man.procstat.1; utility has been added to display
+      detailed information about processes.</para>
+
+    <para>The &man.realpath.1; utility now supports
+      a <option>-q</option> flag to suppress warnings; it now also
+      accepts multiple paths on its command line. &merged; </para>
+
     <para>The &man.split.1; utility now supports a <option>-n</option>
       flag to split a file into a certain number of chunks.</para>
 
     <para>The &man.tar.1; utility now supports a <option>-Z</option>
       flag to enable &man.compress.1;-style
       compression/decompression.</para>
+
+    <para>&man.top.1; now supports a <option>-P</option> flag to
+      provide per-CPU usage statistics.</para>
 
     <para>&man.traceroute.8; now has the ability to print the AS
       number for each hop with the new <option>-a</option> switch; a
@@ -322,6 +365,9 @@
     <para><application>CVS</application> has been updated from 1.11.17
       to a post-1.11.22 snapshot from 10 March 2008.</para>
 
+    <para><application>hostapd</application> has been
+      updated from 0.5.8 to 0.5.10.</para>
+
     <para><application>IPFilter</application> has been updated from
       4.1.23 to 4.1.28.</para>
 
@@ -339,7 +385,10 @@
 
     <para>The timezone database has been updated from
       the <application>tzdata2007h</application> release to
-      the <application>tzdata2008a</application> release. &merged;</para>
+      the <application>tzdata2008b</application> release. &merged;</para>
+
+    <para><application>WPA Supplicant</application> has been
+      updated from 0.5.8 to 0.5.10.</para>
 
   </sect2>
 
@@ -353,7 +402,10 @@
   <sect2 id="releng">
     <title>Release Engineering and Integration</title>
 
-    <para></para>
+    <para>The supported version of
+      the <application>GNOME</application> desktop environment
+      (<filename role="package">x11/gnome2</filename>) has been
+      updated from 2.20.1 to 2.22. &merged;</para>
 
   </sect2>
 
