@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 26, 2007
+.Dd 16 December, 2007
 .Dt textdump 4
 .Os
 .Sh NAME
@@ -93,7 +93,7 @@ sysctl.
 .It Pa version.txt
 Kernel version string.
 My be disabled by clearing the
-.Dv debug.ddb.textdump.do_version
+.Dv dbeug.ddb.textdump.do_panic
 sysctl.
 .El
 .Pp
@@ -114,7 +114,7 @@ command in
 or by setting the
 .Dv debug.ddb.textdump.pending
 sysctl to 1 using
-.Xr sysctl 8 ,
+.Xr sysctl 8,
 it is possible to request that the next dump be a textdump.
 .Pp
 If at the
@@ -137,8 +137,8 @@ output capture, dump several useful pieces of debugging information, and then
 invoke panic in order to force a kernel dump to be written out followed by a
 reboot:
 .Bd -literal -offset indent
-script kdb.enter.panic=textdump set; capture on; show allpcpu; bt;
-  ps; alltrace; show alllock; call doadump; reset
+script kdb.enter.panic=capture on;textdump set;bt;show allpcpu;
+  ps;alltrace;show alllock;panic
 .Ed
 .Pp
 In the following example, the script
