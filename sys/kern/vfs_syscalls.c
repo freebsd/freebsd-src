@@ -1018,9 +1018,19 @@ kern_open(struct thread *td, char *path, enum uio_seg pathseg, int flags,
 
 	AUDIT_ARG(fflags, flags);
 	AUDIT_ARG(mode, mode);
-	if ((flags & O_ACCMODE) == O_ACCMODE)
+	/* XXX: audit dirfd */
+	/*
+	 * Only one of the O_EXEC, O_RDONLY, O_WRONLY and O_RDWR may
+	 * be specified.
+	 */
+	if (flags & O_EXEC) {
+		if (flags & O_ACCMODE)
+			return (EINVAL);
+	} else if ((flags & O_ACCMODE) == O_ACCMODE)
 		return (EINVAL);
-	flags = FFLAGS(flags);
+	else
+		flags = FFLAGS(flags);
+
 	error = falloc(td, &nfp, &indx);
 	if (error)
 		return (error);
