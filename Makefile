@@ -36,7 +36,7 @@
 # The user-driven targets (as listed above) are implemented in Makefile.inc1.
 #
 # If you want to build your system from source be sure that /usr/obj has
-# at least 400MB of diskspace available.
+# at least 800MB of diskspace available.
 #
 # For individuals wanting to build from the sources currently on their
 # system, the simple instructions are:
