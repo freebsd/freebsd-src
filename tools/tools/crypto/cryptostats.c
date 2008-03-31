@@ -31,6 +31,8 @@
  * zero all the stats or just the timing stuff.
  */
 #include <stdio.h>
+#include <stdlib.h>
+#include <strings.h>
 
 #include <sys/types.h>
 #include <sys/sysctl.h>
@@ -58,7 +60,7 @@ main(int argc, char *argv[])
 	size_t slen;
 
 	slen = sizeof (stats);
-	if (sysctlbyname("kern.crypto_stats", &stats, &slen, NULL, NULL) < 0)
+	if (sysctlbyname("kern.crypto_stats", &stats, &slen, NULL, 0) < 0)
 		err(1, "kern.cryptostats");
 
 	if (argc > 1 && strcmp(argv[1], "-z") == 0) {
