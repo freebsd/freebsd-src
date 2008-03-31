@@ -559,6 +559,17 @@ void	*valloc(size_t);			/* obsoleted by malloc() */
 extern int optreset;			/* getopt(3) external variable */
 #endif
 #endif /* __BSD_VISIBLE */
+
+#if __BSD_VISIBLE
+int	faccessat(int, const char *, int);
+int	fchmodat(int, const char *, mode_t, int);
+int	fchownat(int, const char *, uid_t, gid_t, int);
+int	fexecve(int, char *const [], char *const []);
+int	linkat(int, const char *, int, const char *, int);
+ssize_t	readlinkat(int, const char *, char *, size_t);
+int	symlinkat(const char *, int, const char *);
+int	unlinkat(int, const char *, int);
+#endif /* __BSD_VISIBLE */
 __END_DECLS
 
 #endif /* !_UNISTD_H_ */

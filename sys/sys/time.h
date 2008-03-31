@@ -321,6 +321,7 @@ int	lutimes(const char *, const struct timeval *);
 int	setitimer(int, const struct itimerval *, struct itimerval *);
 int	settimeofday(const struct timeval *, const struct timezone *);
 int	utimes(const char *, const struct timeval *);
+int	futimesat(int, const char *, const struct timeval [2]);
 __END_DECLS
 
 #endif /* !_KERNEL */
