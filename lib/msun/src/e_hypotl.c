@@ -115,7 +115,7 @@ hypotl(long double x, long double y)
 	if (w>b) {
 	    t1 = a;
 	    union IEEEl2bits uv;
-	    uv.e = t1; uv.bits.manl &= ~0xffffffffULL; t1 = uv.e;
+	    uv.e = t1; uv.bits.manl = 0; t1 = uv.e;
 	    t2 = a-t1;
 	    w  = sqrtl(t1*t1-(b*(-b)-t2*(a+t1)));
 	} else {
