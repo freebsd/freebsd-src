@@ -133,7 +133,7 @@ struct aac_disk
 	int				ad_cylinders;
 	int				ad_heads;
 	int				ad_sectors;
-	u_int32_t			ad_size;
+	u_int64_t			ad_size;
 	int				unit;
 };
 
@@ -392,6 +392,7 @@ struct aac_softc
 #define AAC_FLAGS_NEW_COMM	(1 << 11)	/* New comm. interface supported */
 #define AAC_FLAGS_RAW_IO	(1 << 12)	/* Raw I/O interface */
 #define AAC_FLAGS_ARRAY_64BIT	(1 << 13)	/* 64-bit array size */
+#define	AAC_FLAGS_LBA_64BIT	(1 << 14)	/* 64-bit LBA support */
 
 	u_int32_t		supported_options;
 	u_int32_t		scsi_method_id;

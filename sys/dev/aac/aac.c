@@ -226,6 +226,7 @@ static int		aac_return_aif(struct aac_softc *sc,
 					struct aac_fib_context *ctx, caddr_t uptr);
 static int		aac_query_disk(struct aac_softc *sc, caddr_t uptr);
 static int		aac_get_pci_info(struct aac_softc *sc, caddr_t uptr);
+static int		aac_supported_features(struct aac_softc *sc, caddr_t uptr);
 static void		aac_ioctl_event(struct aac_softc *sc,
 				        struct aac_event *event, void *arg);
 static struct aac_mntinforesp *
@@ -377,7 +378,9 @@ aac_get_container_info(struct aac_softc *sc, struct aac_fib *fib, int cid)
 	struct aac_mntinfo *mi;
 
 	mi = (struct aac_mntinfo *)&fib->data[0];
-	mi->Command = VM_NameServe;
+	/* use 64-bit LBA if enabled */
+	mi->Command = (sc->flags & AAC_FLAGS_LBA_64BIT) ?
+	    VM_NameServe64 : VM_NameServe;
 	mi->MntType = FT_FILESYS;
 	mi->MntCount = cid;
 
@@ -1802,6 +1805,11 @@ aac_check_firmware(struct aac_softc *sc)
 		sc->flags |= AAC_FLAGS_RAW_IO;
 		device_printf(sc->aac_dev, "Enable Raw I/O\n");
 	}
+	if ((sc->flags & AAC_FLAGS_RAW_IO) &&
+	    (sc->flags & AAC_FLAGS_ARRAY_64BIT)) {
+		sc->flags |= AAC_FLAGS_LBA_64BIT;
+		device_printf(sc->aac_dev, "Enable 64-bit array\n");
+	}
 
 	return (0);
 }
@@ -2972,6 +2980,12 @@ aac_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
 		fwprintf(sc, HBA_FLAGS_DBG_IOCTL_COMMANDS_B, "FSACTL_GET_PCI_INFO");
 		error = aac_get_pci_info(sc, arg);
 		break;
+	case FSACTL_GET_FEATURES:
+		arg = *(caddr_t*)arg;
+	case FSACTL_LNX_GET_FEATURES:
+		fwprintf(sc, HBA_FLAGS_DBG_IOCTL_COMMANDS_B, "FSACTL_GET_FEATURES");
+		error = aac_supported_features(sc, arg);
+		break;
 	default:
 		fwprintf(sc, HBA_FLAGS_DBG_IOCTL_COMMANDS_B, "unsupported cmd 0x%lx\n", cmd);
 		error = EINVAL;
@@ -3469,6 +3483,43 @@ aac_get_pci_info(struct aac_softc *sc, caddr_t uptr)
 	error = copyout((caddr_t)&pciinf, uptr,
 			sizeof(struct aac_pci_info));
 
+	return (error);
+}
+
+static int
+aac_supported_features(struct aac_softc *sc, caddr_t uptr)
+{
+	struct aac_features f;
+	int error;
+
+	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
+
+	if ((error = copyin(uptr, &f, sizeof (f))) != 0)
+		return (error);
+
+	/*
+	 * When the management driver receives FSACTL_GET_FEATURES ioctl with
+	 * ALL zero in the featuresState, the driver will return the current
+	 * state of all the supported features, the data field will not be
+	 * valid.
+	 * When the management driver receives FSACTL_GET_FEATURES ioctl with
+	 * a specific bit set in the featuresState, the driver will return the
+	 * current state of this specific feature and whatever data that are
+	 * associated with the feature in the data field or perform whatever
+	 * action needed indicates in the data field.
+	 */
+	 if (f.feat.fValue == 0) {
+		f.feat.fBits.largeLBA =
+		    (sc->flags & AAC_FLAGS_LBA_64BIT) ? 1 : 0;
+		/* TODO: In the future, add other features state here as well */
+	} else {
+		if (f.feat.fBits.largeLBA)
+			f.feat.fBits.largeLBA =
+			    (sc->flags & AAC_FLAGS_LBA_64BIT) ? 1 : 0;
+		/* TODO: Add other features state and data in the future */
+	}
+
+	error = copyout(&f, uptr, sizeof (f));
 	return (error);
 }
 
