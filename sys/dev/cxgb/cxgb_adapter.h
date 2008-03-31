@@ -152,7 +152,12 @@ enum {				/* adapter flags */
 };
 
 #define FL_Q_SIZE	4096
+
+#ifdef __i386__
+#define JUMBO_Q_SIZE	256
+#else
 #define JUMBO_Q_SIZE	1024
+#endif
 #define RSPQ_Q_SIZE	1024
 #define TX_ETH_Q_SIZE	1024
 
