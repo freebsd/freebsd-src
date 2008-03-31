@@ -172,8 +172,8 @@ DECL_CMD_FUNC(unsetvlandev, val, d)
 }
 
 static struct cmd vlan_cmds[] = {
-	DEF_CMD_ARG("vlan",				setvlantag),
-	DEF_CMD_ARG("vlandev",				setvlandev),
+	DEF_CLONE_CMD_ARG("vlan",			setvlantag),
+	DEF_CLONE_CMD_ARG("vlandev",			setvlandev),
 	/* XXX For compatibility.  Should become DEF_CMD() some day. */
 	DEF_CMD_OPTARG("-vlandev",			unsetvlandev),
 	DEF_CMD("vlanmtu",	IFCAP_VLAN_MTU,		setifcap),

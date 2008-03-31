@@ -143,9 +143,9 @@ DECL_CMD_FUNC(clone_destroy, arg, d)
 }
 
 static struct cmd clone_cmds[] = {
-	DEF_CMD("create",	0,	clone_create),
+	DEF_CLONE_CMD("create",	0,	clone_create),
 	DEF_CMD("destroy",	0,	clone_destroy),
-	DEF_CMD("plumb",	0,	clone_create),
+	DEF_CLONE_CMD("plumb",	0,	clone_create),
 	DEF_CMD("unplumb",	0,	clone_destroy),
 };
 
