@@ -838,3 +838,22 @@ vn_fullpath1(struct thread *td, struct vnode *vp, struct vnode *rdir,
 	*retbuf = bp;
 	return (0);
 }
+
+int
+vn_commname(struct vnode *vp, char *buf, u_int buflen)
+{
+	struct namecache *ncp;
+	int l;
+
+	CACHE_LOCK();
+	ncp = TAILQ_FIRST(&vp->v_cache_dst);
+	if (!ncp) {
+		CACHE_UNLOCK();
+		return (ENOENT);
+	}
+	l = min(ncp->nc_nlen, buflen - 1);
+	memcpy(buf, ncp->nc_name, l);
+	CACHE_UNLOCK();
+	buf[l] = '\0';
+	return (0);
+}
