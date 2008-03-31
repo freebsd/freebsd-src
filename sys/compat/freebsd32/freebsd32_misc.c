@@ -260,16 +260,18 @@ freebsd32_exec_copyin_args(struct image_args *args, char *fname,
 	args->endp = args->begin_argv;
 	args->stringspace = ARG_MAX;
 
-	args->fname = args->buf + ARG_MAX;
-
 	/*
 	 * Copy the file name.
 	 */
-	error = (segflg == UIO_SYSSPACE) ?
-	    copystr(fname, args->fname, PATH_MAX, &length) :
-	    copyinstr(fname, args->fname, PATH_MAX, &length);
-	if (error != 0)
-		goto err_exit;
+	if (fname != NULL) {
+		args->fname = args->buf + ARG_MAX;
+		error = (segflg == UIO_SYSSPACE) ?
+		    copystr(fname, args->fname, PATH_MAX, &length) :
+		    copyinstr(fname, args->fname, PATH_MAX, &length);
+		if (error != 0)
+			goto err_exit;
+	} else
+		args->fname = NULL;
 
 	/*
 	 * extract arguments first
@@ -339,6 +341,21 @@ freebsd32_execve(struct thread *td, struct freebsd32_execve_args *uap)
 	    uap->argv, uap->envv);
 	if (error == 0)
 		error = kern_execve(td, &eargs, NULL);
+	return (error);
+}
+
+int
+freebsd32_fexecve(struct thread *td, struct freebsd32_fexecve_args *uap)
+{
+	struct image_args eargs;
+	int error;
+
+	error = freebsd32_exec_copyin_args(&eargs, NULL, UIO_SYSSPACE,
+	    uap->argv, uap->envv);
+	if (error == 0) {
+		eargs.fd = uap->fd;
+		error = kern_execve(td, &eargs, NULL);
+	}
 	return (error);
 }
 
@@ -1229,6 +1246,27 @@ freebsd32_futimes(struct thread *td, struct freebsd32_futimes_args *uap)
 	return (kern_futimes(td, uap->fd, sp, UIO_SYSSPACE));
 }
 
+int
+freebsd32_futimesat(struct thread *td, struct freebsd32_futimesat_args *uap)
+{
+	struct timeval32 s32[2];
+	struct timeval s[2], *sp;
+	int error;
+
+	if (uap->times != NULL) {
+		error = copyin(uap->times, s32, sizeof(s32));
+		if (error)
+			return (error);
+		CP(s32[0], s[0], tv_sec);
+		CP(s32[0], s[0], tv_usec);
+		CP(s32[1], s[1], tv_sec);
+		CP(s32[1], s[1], tv_usec);
+		sp = s;
+	} else
+		sp = NULL;
+	return (kern_utimesat(td, uap->fd, uap->path, UIO_USERSPACE,
+		sp, UIO_SYSSPACE));
+}
 
 int
 freebsd32_adjtime(struct thread *td, struct freebsd32_adjtime_args *uap)
@@ -1913,6 +1951,21 @@ freebsd32_fstat(struct thread *td, struct freebsd32_fstat_args *uap)
 		return (error);
 	copy_stat(&ub, &ub32);
 	error = copyout(&ub32, uap->ub, sizeof(ub32));
+	return (error);
+}
+
+int
+freebsd32_fstatat(struct thread *td, struct freebsd32_fstatat_args *uap)
+{
+	struct stat ub;
+	struct stat32 ub32;
+	int error;
+
+	error = kern_statat(td, uap->flag, uap->fd, uap->path, UIO_USERSPACE, &ub);
+	if (error)
+		return (error);
+	copy_stat(&ub, &ub32);
+	error = copyout(&ub32, uap->buf, sizeof(ub32));
 	return (error);
 }
 
