@@ -2901,6 +2901,152 @@ systrace_args(int sysnum, void *params, u_int64_t *uarg, int *n_args)
 		*n_args = 5;
 		break;
 	}
+	/* faccessat */
+	case 489: {
+		struct faccessat_args *p = params;
+		iarg[0] = p->fd; /* int */
+		uarg[1] = (intptr_t) p->path; /* char * */
+		iarg[2] = p->mode; /* int */
+		iarg[3] = p->flag; /* int */
+		*n_args = 4;
+		break;
+	}
+	/* fchmodat */
+	case 490: {
+		struct fchmodat_args *p = params;
+		iarg[0] = p->fd; /* int */
+		uarg[1] = (intptr_t) p->path; /* char * */
+		iarg[2] = p->mode; /* mode_t */
+		iarg[3] = p->flag; /* int */
+		*n_args = 4;
+		break;
+	}
+	/* fchownat */
+	case 491: {
+		struct fchownat_args *p = params;
+		iarg[0] = p->fd; /* int */
+		uarg[1] = (intptr_t) p->path; /* char * */
+		uarg[2] = p->uid; /* uid_t */
+		iarg[3] = p->gid; /* gid_t */
+		iarg[4] = p->flag; /* int */
+		*n_args = 5;
+		break;
+	}
+	/* fexecve */
+	case 492: {
+		struct fexecve_args *p = params;
+		iarg[0] = p->fd; /* int */
+		uarg[1] = (intptr_t) p->argv; /* char ** */
+		uarg[2] = (intptr_t) p->envv; /* char ** */
+		*n_args = 3;
+		break;
+	}
+	/* fstatat */
+	case 493: {
+		struct fstatat_args *p = params;
+		iarg[0] = p->fd; /* int */
+		uarg[1] = (intptr_t) p->path; /* char * */
+		uarg[2] = (intptr_t) p->buf; /* struct stat * */
+		iarg[3] = p->flag; /* int */
+		*n_args = 4;
+		break;
+	}
+	/* futimesat */
+	case 494: {
+		struct futimesat_args *p = params;
+		iarg[0] = p->fd; /* int */
+		uarg[1] = (intptr_t) p->path; /* char * */
+		uarg[2] = (intptr_t) p->times; /* struct timeval * */
+		*n_args = 3;
+		break;
+	}
+	/* linkat */
+	case 495: {
+		struct linkat_args *p = params;
+		iarg[0] = p->fd1; /* int */
+		uarg[1] = (intptr_t) p->path1; /* char * */
+		iarg[2] = p->fd2; /* int */
+		uarg[3] = (intptr_t) p->path2; /* char * */
+		iarg[4] = p->flag; /* int */
+		*n_args = 5;
+		break;
+	}
+	/* mkdirat */
+	case 496: {
+		struct mkdirat_args *p = params;
+		iarg[0] = p->fd; /* int */
+		uarg[1] = (intptr_t) p->path; /* char * */
+		iarg[2] = p->mode; /* mode_t */
+		*n_args = 3;
+		break;
+	}
+	/* mkfifoat */
+	case 497: {
+		struct mkfifoat_args *p = params;
+		iarg[0] = p->fd; /* int */
+		uarg[1] = (intptr_t) p->path; /* char * */
+		iarg[2] = p->mode; /* mode_t */
+		*n_args = 3;
+		break;
+	}
+	/* mknodat */
+	case 498: {
+		struct mknodat_args *p = params;
+		iarg[0] = p->fd; /* int */
+		uarg[1] = (intptr_t) p->path; /* char * */
+		iarg[2] = p->mode; /* mode_t */
+		iarg[3] = p->dev; /* dev_t */
+		*n_args = 4;
+		break;
+	}
+	/* openat */
+	case 499: {
+		struct openat_args *p = params;
+		iarg[0] = p->fd; /* int */
+		uarg[1] = (intptr_t) p->path; /* char * */
+		iarg[2] = p->flag; /* int */
+		iarg[3] = p->mode; /* mode_t */
+		*n_args = 4;
+		break;
+	}
+	/* readlinkat */
+	case 500: {
+		struct readlinkat_args *p = params;
+		iarg[0] = p->fd; /* int */
+		uarg[1] = (intptr_t) p->path; /* char * */
+		uarg[2] = (intptr_t) p->buf; /* char * */
+		uarg[3] = p->bufsize; /* size_t */
+		*n_args = 4;
+		break;
+	}
+	/* renameat */
+	case 501: {
+		struct renameat_args *p = params;
+		iarg[0] = p->oldfd; /* int */
+		uarg[1] = (intptr_t) p->old; /* char * */
+		iarg[2] = p->newfd; /* int */
+		uarg[3] = (intptr_t) p->new; /* char * */
+		*n_args = 4;
+		break;
+	}
+	/* symlinkat */
+	case 502: {
+		struct symlinkat_args *p = params;
+		uarg[0] = (intptr_t) p->path1; /* char * */
+		iarg[1] = p->fd; /* int */
+		uarg[2] = (intptr_t) p->path2; /* char * */
+		*n_args = 3;
+		break;
+	}
+	/* unlinkat */
+	case 503: {
+		struct unlinkat_args *p = params;
+		iarg[0] = p->fd; /* int */
+		uarg[1] = (intptr_t) p->path; /* char * */
+		iarg[2] = p->flag; /* int */
+		*n_args = 3;
+		break;
+	}
 	default:
 		*n_args = 0;
 		break;
@@ -7662,6 +7808,279 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		case 4:
 			p = "const cpuset_t *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* faccessat */
+	case 489:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "char *";
+			break;
+		case 2:
+			p = "int";
+			break;
+		case 3:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* fchmodat */
+	case 490:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "char *";
+			break;
+		case 2:
+			p = "mode_t";
+			break;
+		case 3:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* fchownat */
+	case 491:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "char *";
+			break;
+		case 2:
+			p = "uid_t";
+			break;
+		case 3:
+			p = "gid_t";
+			break;
+		case 4:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* fexecve */
+	case 492:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "char **";
+			break;
+		case 2:
+			p = "char **";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* fstatat */
+	case 493:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "char *";
+			break;
+		case 2:
+			p = "struct stat *";
+			break;
+		case 3:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* futimesat */
+	case 494:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "char *";
+			break;
+		case 2:
+			p = "struct timeval *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* linkat */
+	case 495:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "char *";
+			break;
+		case 2:
+			p = "int";
+			break;
+		case 3:
+			p = "char *";
+			break;
+		case 4:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* mkdirat */
+	case 496:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "char *";
+			break;
+		case 2:
+			p = "mode_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* mkfifoat */
+	case 497:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "char *";
+			break;
+		case 2:
+			p = "mode_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* mknodat */
+	case 498:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "char *";
+			break;
+		case 2:
+			p = "mode_t";
+			break;
+		case 3:
+			p = "dev_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* openat */
+	case 499:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "char *";
+			break;
+		case 2:
+			p = "int";
+			break;
+		case 3:
+			p = "mode_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* readlinkat */
+	case 500:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "char *";
+			break;
+		case 2:
+			p = "char *";
+			break;
+		case 3:
+			p = "size_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* renameat */
+	case 501:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "char *";
+			break;
+		case 2:
+			p = "int";
+			break;
+		case 3:
+			p = "char *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* symlinkat */
+	case 502:
+		switch(ndx) {
+		case 0:
+			p = "char *";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "char *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* unlinkat */
+	case 503:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "char *";
+			break;
+		case 2:
+			p = "int";
 			break;
 		default:
 			break;
