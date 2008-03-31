@@ -2171,7 +2171,7 @@ re_encap(sc, m_head)
 	 * offload is enabled, we always manually pad short frames out
 	 * to the minimum ethernet frame size.
 	 */
-	if ((*m_head)->m_pkthdr.len < RL_MIN_FRAMELEN &&
+	if ((*m_head)->m_pkthdr.len < RL_IP4CSUMTX_PADLEN &&
 	    ((*m_head)->m_pkthdr.csum_flags & CSUM_IP) != 0) {
 		padlen = RL_MIN_FRAMELEN - (*m_head)->m_pkthdr.len;
 		if (M_WRITABLE(*m_head) == 0) {
