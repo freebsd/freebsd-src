@@ -35,8 +35,11 @@
 #include "un-namespace.h"
 #include "thr_private.h"
 
-/* maximum number of times a read lock may be obtained */
-#define	MAX_READ_LOCKS		(INT_MAX - 1)
+#define RWLOCK_WRITE_OWNER	0x80000000U
+#define RWLOCK_WRITE_WAITERS	0x40000000U
+#define RWLOCK_READ_WAITERS	0x20000000U
+#define RWLOCK_MAX_READERS	0x1fffffffU
+#define RWLOCK_READER_COUNT(c)	((c) & RWLOCK_MAX_READERS)
 
 __weak_reference(_pthread_rwlock_destroy, pthread_rwlock_destroy);
 __weak_reference(_pthread_rwlock_init, pthread_rwlock_init);
@@ -85,7 +88,9 @@ rwlock_init(pthread_rwlock_t *rwlock, const pthread_rwlockattr_t *attr __unused)
 			} else {
 				/* success */
 				prwlock->state = 0;
+				prwlock->blocked_readers = 0;
 				prwlock->blocked_writers = 0;
+				prwlock->owner = NULL;
 				*rwlock = prwlock;
 			}
 		}
@@ -105,13 +110,12 @@ _pthread_rwlock_destroy (pthread_rwlock_t *rwlock)
 		pthread_rwlock_t prwlock;
 
 		prwlock = *rwlock;
+		*rwlock = NULL;
 
 		_pthread_mutex_destroy(&prwlock->lock);
 		_pthread_cond_destroy(&prwlock->read_signal);
 		_pthread_cond_destroy(&prwlock->write_signal);
 		free(prwlock);
-
-		*rwlock = NULL;
 
 		ret = 0;
 	}
@@ -142,37 +146,66 @@ _pthread_rwlock_init (pthread_rwlock_t *rwlock, const pthread_rwlockattr_t *attr
 	return (rwlock_init(rwlock, attr));
 }
 
+static inline int
+rwlock_tryrdlock(struct pthread_rwlock *prwlock, int prefer_reader)
+{
+	int32_t state;
+	int32_t wrflags;
+ 
+	if (prefer_reader)
+		wrflags = RWLOCK_WRITE_OWNER;
+	else
+		wrflags = RWLOCK_WRITE_OWNER | RWLOCK_WRITE_WAITERS;
+	state = prwlock->state;
+        while (!(state & wrflags)) {
+		if (RWLOCK_READER_COUNT(state) == RWLOCK_MAX_READERS)
+			return (EAGAIN);
+		if (atomic_cmpset_acq_32(&prwlock->state, state, state + 1))
+			return (0);
+		CPU_SPINWAIT;
+		state = prwlock->state;
+	}
+
+	return (EBUSY);
+}
+
 static int
-rwlock_rdlock_common (pthread_rwlock_t *rwlock, const struct timespec *abstime)
+rwlock_rdlock_common(pthread_rwlock_t *rwlock, const struct timespec *abstime)
 {
 	struct pthread *curthread = _get_curthread();
+	const int prefer_read = curthread->rdlock_count > 0;
 	pthread_rwlock_t prwlock;
-	int ret;
+	int ret, wrflags, old;
+	int32_t state;
 
-	if (rwlock == NULL)
+	if (__predict_false(rwlock == NULL))
 		return (EINVAL);
 
 	prwlock = *rwlock;
 
 	/* check for static initialization */
-	if (prwlock == NULL) {
+	if (__predict_false(prwlock == NULL)) {
 		if ((ret = init_static(curthread, rwlock)) != 0)
 			return (ret);
 
 		prwlock = *rwlock;
 	}
 
-	/* grab the monitor lock */
-	if ((ret = _pthread_mutex_lock(&prwlock->lock)) != 0)
+	/*
+	 * POSIX said the validity of the abstimeout parameter need
+	 * not be checked if the lock can be immediately acquired.
+	 */
+	ret = rwlock_tryrdlock(prwlock, prefer_read);
+	if (ret == 0) {
+		curthread->rdlock_count++;
 		return (ret);
-
-	/* check lock count */
-	if (prwlock->state == MAX_READ_LOCKS) {
-		_pthread_mutex_unlock(&prwlock->lock);
-		return (EAGAIN);
 	}
 
-	if ((curthread->rdlock_count > 0) && (prwlock->state > 0)) {
+	if (__predict_false(abstime && 
+		(abstime->tv_nsec >= 1000000000 || abstime->tv_nsec < 0)))
+		return (EINVAL);
+
+	if (prefer_read) {
 		/*
 		 * To avoid having to track all the rdlocks held by
 		 * a thread or all of the threads that hold a rdlock,
@@ -185,36 +218,51 @@ rwlock_rdlock_common (pthread_rwlock_t *rwlock, const struct timespec *abstime)
 		 * when it already has one or more rdlocks avoids the
 		 * deadlock.  I hope the reader can follow that logic ;-)
 		 */
-		;	/* nothing needed */
-	} else {
-		/* give writers priority over readers */
-		while (prwlock->blocked_writers || prwlock->state < 0) {
-			if (abstime)
-				ret = _pthread_cond_timedwait
-				    (&prwlock->read_signal,
-				    &prwlock->lock, abstime);
-			else
-				ret = _pthread_cond_wait(&prwlock->read_signal,
-			    &prwlock->lock);
-			if (ret != 0) {
-				/* can't do a whole lot if this fails */
-				_pthread_mutex_unlock(&prwlock->lock);
-				return (ret);
-			}
+
+		wrflags = RWLOCK_WRITE_OWNER;
+	} else
+		wrflags = RWLOCK_WRITE_OWNER | RWLOCK_WRITE_WAITERS;
+
+	/* reset to zero */
+	ret = 0;
+	for (;;) {
+		_pthread_mutex_lock(&prwlock->lock);
+		state = prwlock->state;
+		/* set read contention bit */
+		while ((state & wrflags) && !(state & RWLOCK_READ_WAITERS)) {
+			if (atomic_cmpset_acq_32(&prwlock->state, state, state | RWLOCK_READ_WAITERS))
+				break;
+			CPU_SPINWAIT;
+			state = prwlock->state;
 		}
+ 
+		atomic_add_32(&prwlock->blocked_readers, 1);
+		if (state & wrflags) {
+			ret = _pthread_cond_wait_unlocked(&prwlock->read_signal, &prwlock->lock, abstime);
+			old = atomic_fetchadd_32(&prwlock->blocked_readers, -1);
+			if (old == 1)
+				_pthread_mutex_lock(&prwlock->lock);
+			else
+				goto try_it;
+		} else {
+			atomic_subtract_32(&prwlock->blocked_readers, 1);
+		}
+
+		if (prwlock->blocked_readers == 0)
+			atomic_clear_32(&prwlock->state, RWLOCK_READ_WAITERS);
+		_pthread_mutex_unlock(&prwlock->lock);
+
+try_it:
+		/* try to lock it again. */
+		if (rwlock_tryrdlock(prwlock, prefer_read) == 0) {
+			curthread->rdlock_count++;
+			ret = 0;
+			break;
+		}
+
+		if (ret)
+			break;
 	}
-
-	curthread->rdlock_count++;
-	prwlock->state++; /* indicate we are locked for reading */
-
-	/*
-	 * Something is really wrong if this call fails.  Returning
-	 * error won't do because we've already obtained the read
-	 * lock.  Decrementing 'state' is no good because we probably
-	 * don't have the monitor lock.
-	 */
-	_pthread_mutex_unlock(&prwlock->lock);
-
 	return (ret);
 }
 
@@ -238,42 +286,38 @@ _pthread_rwlock_tryrdlock (pthread_rwlock_t *rwlock)
 	pthread_rwlock_t prwlock;
 	int ret;
 
-	if (rwlock == NULL)
+	if (__predict_false(rwlock == NULL))
 		return (EINVAL);
 
 	prwlock = *rwlock;
 
 	/* check for static initialization */
-	if (prwlock == NULL) {
+	if (__predict_false(prwlock == NULL)) {
 		if ((ret = init_static(curthread, rwlock)) != 0)
 			return (ret);
 
 		prwlock = *rwlock;
 	}
 
-	/* grab the monitor lock */
-	if ((ret = _pthread_mutex_lock(&prwlock->lock)) != 0)
-		return (ret);
-
-	if (prwlock->state == MAX_READ_LOCKS)
-		ret = EAGAIN;
-	else if ((curthread->rdlock_count > 0) && (prwlock->state > 0)) {
-		/* see comment for pthread_rwlock_rdlock() */
+	ret = rwlock_tryrdlock(prwlock, curthread->rdlock_count > 0);
+	if (ret == 0)
 		curthread->rdlock_count++;
-		prwlock->state++;
-	}
-	/* give writers priority over readers */
-	else if (prwlock->blocked_writers || prwlock->state < 0)
-		ret = EBUSY;
-	else {
-		curthread->rdlock_count++;
-		prwlock->state++; /* indicate we are locked for reading */
-	}
-
-	/* see the comment on this in pthread_rwlock_rdlock */
-	_pthread_mutex_unlock(&prwlock->lock);
-
 	return (ret);
+}
+
+static inline int
+rwlock_trywrlock(struct pthread_rwlock *prwlock)
+{
+	int32_t state;
+
+	state = prwlock->state;
+	while (!(state & RWLOCK_WRITE_OWNER) && RWLOCK_READER_COUNT(state) == 0) {
+		if (atomic_cmpset_acq_32(&prwlock->state, state, state | RWLOCK_WRITE_OWNER))
+			return (0);
+		CPU_SPINWAIT;
+		state = prwlock->state;
+	}
+	return (EBUSY);
 }
 
 int
@@ -283,72 +327,22 @@ _pthread_rwlock_trywrlock (pthread_rwlock_t *rwlock)
 	pthread_rwlock_t prwlock;
 	int ret;
 
-	if (rwlock == NULL)
+	if (__predict_false(rwlock == NULL))
 		return (EINVAL);
 
 	prwlock = *rwlock;
 
 	/* check for static initialization */
-	if (prwlock == NULL) {
+	if (__predict_false(prwlock == NULL)) {
 		if ((ret = init_static(curthread, rwlock)) != 0)
 			return (ret);
 
 		prwlock = *rwlock;
 	}
 
-	/* grab the monitor lock */
-	if ((ret = _pthread_mutex_lock(&prwlock->lock)) != 0)
-		return (ret);
-
-	if (prwlock->state != 0)
-		ret = EBUSY;
-	else
-		/* indicate we are locked for writing */
-		prwlock->state = -1;
-
-	/* see the comment on this in pthread_rwlock_rdlock */
-	_pthread_mutex_unlock(&prwlock->lock);
-
-	return (ret);
-}
-
-int
-_pthread_rwlock_unlock (pthread_rwlock_t *rwlock)
-{
-	struct pthread *curthread = _get_curthread();
-	pthread_rwlock_t prwlock;
-	int ret;
-
-	if (rwlock == NULL)
-		return (EINVAL);
-
-	prwlock = *rwlock;
-
-	if (prwlock == NULL)
-		return (EINVAL);
-
-	/* grab the monitor lock */
-	if ((ret = _pthread_mutex_lock(&prwlock->lock)) != 0)
-		return (ret);
-
-	if (prwlock->state > 0) {
-		curthread->rdlock_count--;
-		prwlock->state--;
-		if (prwlock->state == 0 && prwlock->blocked_writers)
-			ret = _pthread_cond_signal(&prwlock->write_signal);
-	} else if (prwlock->state < 0) {
-		prwlock->state = 0;
-
-		if (prwlock->blocked_writers)
-			ret = _pthread_cond_signal(&prwlock->write_signal);
-		else
-			ret = _pthread_cond_broadcast(&prwlock->read_signal);
-	} else
-		ret = EINVAL;
-
-	/* see the comment on this in pthread_rwlock_rdlock */
-	_pthread_mutex_unlock(&prwlock->lock);
-
+	ret = rwlock_trywrlock(prwlock);
+	if (ret == 0)
+		prwlock->owner = curthread;
 	return (ret);
 }
 
@@ -358,48 +352,78 @@ rwlock_wrlock_common (pthread_rwlock_t *rwlock, const struct timespec *abstime)
 	struct pthread *curthread = _get_curthread();
 	pthread_rwlock_t prwlock;
 	int ret;
+	int32_t state;
 
-	if (rwlock == NULL)
+	if (__predict_false(rwlock == NULL))
 		return (EINVAL);
 
 	prwlock = *rwlock;
 
 	/* check for static initialization */
-	if (prwlock == NULL) {
+	if (__predict_false(prwlock == NULL)) {
 		if ((ret = init_static(curthread, rwlock)) != 0)
 			return (ret);
 
 		prwlock = *rwlock;
 	}
 
-	/* grab the monitor lock */
-	if ((ret = _pthread_mutex_lock(&prwlock->lock)) != 0)
-		return (ret);
+	/*
+	 * POSIX said the validity of the abstimeout parameter need
+	 * not be checked if the lock can be immediately acquired.
+	 */
 
-	while (prwlock->state != 0) {
+	/* try to lock it in userland */
+	ret = rwlock_trywrlock(prwlock);
+	if (ret == 0) {
+		prwlock->owner = curthread;
+		return (ret);
+	}
+
+	if (__predict_false(abstime && 
+		(abstime->tv_nsec >= 1000000000 || abstime->tv_nsec < 0)))
+		return (EINVAL);
+
+	/* reset to zero */
+	ret = 0;
+
+	for (;;) {
+		_pthread_mutex_lock(&prwlock->lock);
+		state = prwlock->state;
+		while (((state & RWLOCK_WRITE_OWNER) || RWLOCK_READER_COUNT(state) != 0) &&
+			(state & RWLOCK_WRITE_WAITERS) == 0) {
+			if (atomic_cmpset_acq_32(&prwlock->state, state, state | RWLOCK_WRITE_WAITERS))
+				break;
+			CPU_SPINWAIT;
+			state = prwlock->state;
+		}
+
 		prwlock->blocked_writers++;
 
-		if (abstime != NULL)
-			ret = _pthread_cond_timedwait(&prwlock->write_signal,
-			    &prwlock->lock, abstime);
-		else
-			ret = _pthread_cond_wait(&prwlock->write_signal,
-			    &prwlock->lock);
-		if (ret != 0) {
-			prwlock->blocked_writers--;
-			_pthread_mutex_unlock(&prwlock->lock);
-			return (ret);
+		while ((state & RWLOCK_WRITE_OWNER) || RWLOCK_READER_COUNT(state) != 0) {
+			if (abstime == NULL)
+				ret = _pthread_cond_wait(&prwlock->write_signal, &prwlock->lock);
+			else
+				ret = _pthread_cond_timedwait(&prwlock->write_signal, &prwlock->lock, abstime);
+
+			if (ret)
+				break;
+			state = prwlock->state;
 		}
 
 		prwlock->blocked_writers--;
+		if (prwlock->blocked_writers == 0)
+			atomic_clear_32(&prwlock->state, RWLOCK_WRITE_WAITERS);
+		_pthread_mutex_unlock(&prwlock->lock);
+
+		if (rwlock_trywrlock(prwlock) == 0) {
+			prwlock->owner = curthread;
+			ret = 0;
+			break;
+		}
+
+		if (ret)
+			break;
 	}
-
-	/* indicate we are locked for writing */
-	prwlock->state = -1;
-
-	/* see the comment on this in pthread_rwlock_rdlock */
-	_pthread_mutex_unlock(&prwlock->lock);
-
 	return (ret);
 }
 
@@ -414,4 +438,63 @@ _pthread_rwlock_timedwrlock (pthread_rwlock_t *rwlock,
     const struct timespec *abstime)
 {
 	return (rwlock_wrlock_common (rwlock, abstime));
+}
+
+int
+_pthread_rwlock_unlock (pthread_rwlock_t *rwlock)
+{
+	struct pthread *curthread = _get_curthread();
+	pthread_rwlock_t prwlock;
+	int32_t state;
+
+	if (__predict_false(rwlock == NULL))
+		return (EINVAL);
+
+	prwlock = *rwlock;
+
+	if (__predict_false(prwlock == NULL))
+		return (EINVAL);
+
+	state = prwlock->state;
+
+	if (state & RWLOCK_WRITE_OWNER) {
+		if (__predict_false(prwlock->owner != curthread))
+			return (EPERM);
+		prwlock->owner = NULL;
+		while (!atomic_cmpset_rel_32(&prwlock->state, state, state & ~RWLOCK_WRITE_OWNER)) {
+			CPU_SPINWAIT;
+			state = prwlock->state;
+		}
+	} else if (RWLOCK_READER_COUNT(state) != 0) {
+		while (!atomic_cmpset_rel_32(&prwlock->state, state, state - 1)) {
+			CPU_SPINWAIT;
+			state = prwlock->state;
+			if (RWLOCK_READER_COUNT(state) == 0)
+				return (EPERM);
+		}
+		curthread->rdlock_count--;
+        } else {
+		return (EPERM);
+	}
+
+#if 0
+	if (state & RWLOCK_WRITE_WAITERS) {
+		_pthread_mutex_lock(&prwlock->lock);
+		_pthread_cond_signal(&prwlock->write_signal);
+		_pthread_mutex_unlock(&prwlock->lock);
+	} else if (state & RWLOCK_READ_WAITERS) {
+		_pthread_mutex_lock(&prwlock->lock);
+		_pthread_cond_broadcast(&prwlock->read_signal);
+		_pthread_mutex_unlock(&prwlock->lock);
+	}
+#endif
+
+	if (state & RWLOCK_WRITE_WAITERS) {
+		_pthread_mutex_lock(&prwlock->lock);
+		_pthread_cond_broadcast_unlock(&prwlock->write_signal, &prwlock->lock, 0);
+	} else if (state & RWLOCK_READ_WAITERS) {
+		_pthread_mutex_lock(&prwlock->lock);
+		_pthread_cond_broadcast_unlock(&prwlock->write_signal, &prwlock->lock, 1);
+	}
+	return (0);
 }
