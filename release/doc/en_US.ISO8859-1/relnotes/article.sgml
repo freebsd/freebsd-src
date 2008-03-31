@@ -190,7 +190,7 @@
       <para>[&arch.amd64;, &arch.i386;] The BTX kernel used by the boot
 	loader has been changed to invoke BIOS routines from real
 	mode.  This change makes it possible to boot &os; from USB
-	devices.</para>
+	devices. &merged;</para>
 
       <para>[&arch.amd64;, &arch.i386;] A new gptboot boot loader has
         been added to support booting from a GPT labeled disk.  A
@@ -264,7 +264,7 @@
         variable to <literal>1</literal>.</para>
 
       <para>A bug in TCP options padding, where the wrong padding
-        bytes were used, has been fixed.</para>
+        bytes were used, has been fixed. &merged;</para>
 
     </sect3>
 
@@ -279,7 +279,7 @@
         this feature.</para>
 
       <para>The &man.hptrr.4; driver has been updated to version 1.2
-        from Highpoint.</para>
+        from Highpoint. &merged;</para>
 
     </sect3>
 
