@@ -189,6 +189,28 @@ execve(td, uap)
 }
 
 #ifndef _SYS_SYSPROTO_H_
+struct fexecve_args {
+	int	fd;
+	char	**argv;
+	char	**envv;
+}
+#endif
+int
+fexecve(struct thread *td, struct fexecve_args *uap)
+{
+	int error;
+	struct image_args args;
+
+	error = exec_copyin_args(&args, NULL, UIO_SYSSPACE,
+	    uap->argv, uap->envv);
+	if (error == 0) {
+		args.fd = uap->fd;
+		error = kern_execve(td, &args, NULL);
+	}
+	return (error);
+}
+
+#ifndef _SYS_SYSPROTO_H_
 struct __mac_execve_args {
 	char	*fname;
 	char	**argv;
@@ -284,7 +306,7 @@ do_execve(td, args, mac_p)
 	struct ucred *newcred = NULL, *oldcred;
 	struct uidinfo *euip;
 	register_t *stack_base;
-	int error, len, i;
+	int error, len = 0, i;
 	struct image_params image_params, *imgp;
 	struct vattr attr;
 	int (*img_first)(struct image_params *);
@@ -294,7 +316,7 @@ do_execve(td, args, mac_p)
 	struct vnode *tracevp = NULL;
 	struct ucred *tracecred = NULL;
 #endif
-	struct vnode *textvp = NULL;
+	struct vnode *textvp = NULL, *binvp = NULL;
 	int credential_changing;
 	int vfslocked;
 	int textset;
@@ -305,6 +327,7 @@ do_execve(td, args, mac_p)
 #ifdef HWPMC_HOOKS
 	struct pmckern_procexec pe;
 #endif
+	static const char fexecv_proc_title[] = "(fexecv)";
 
 	vfslocked = 0;
 	imgp = &image_params;
@@ -355,17 +378,29 @@ do_execve(td, args, mac_p)
 	 * XXXAUDIT: It would be desirable to also audit the name of the
 	 * interpreter if this is an interpreted binary.
 	 */
-	ndp = &nd;
-	NDINIT(ndp, LOOKUP, ISOPEN | LOCKLEAF | FOLLOW | SAVENAME | MPSAFE |
-	    AUDITVNODE1, UIO_SYSSPACE, args->fname, td);
+	if (args->fname != NULL) {
+		ndp = &nd;
+		NDINIT(ndp, LOOKUP, ISOPEN | LOCKLEAF | FOLLOW | SAVENAME
+		    | MPSAFE | AUDITVNODE1, UIO_SYSSPACE, args->fname, td);
+	}
 
 interpret:
-	error = namei(ndp);
-	if (error)
-		goto exec_fail;
+	if (args->fname != NULL) {
+		error = namei(ndp);
+		if (error)
+			goto exec_fail;
 
-	vfslocked = NDHASGIANT(ndp);
-	imgp->vp = ndp->ni_vp;
+		vfslocked = NDHASGIANT(ndp);
+		binvp  = ndp->ni_vp;
+		imgp->vp = binvp;
+	} else {
+		error = fgetvp(td, args->fd, &binvp);
+		if (error)
+			goto exec_fail;
+		vfslocked = VFS_LOCK_GIANT(binvp->v_mount);
+		vn_lock(binvp, LK_EXCLUSIVE | LK_RETRY);
+		imgp->vp = binvp;
+	}
 
 	/*
 	 * Check file permissions (also 'opens' file)
@@ -438,12 +473,13 @@ interpret:
 		 */
 		imgp->vp->v_vflag &= ~VV_TEXT;
 		/* free name buffer and old vnode */
-		NDFREE(ndp, NDF_ONLY_PNBUF);
+		if (args->fname != NULL)
+			NDFREE(ndp, NDF_ONLY_PNBUF);
 #ifdef MAC
 		interplabel = mac_vnode_label_alloc();
-		mac_vnode_copy_label(ndp->ni_vp->v_label, interplabel);
+		mac_vnode_copy_label(binvp->v_label, interplabel);
 #endif
-		vput(ndp->ni_vp);
+		vput(binvp);
 		vm_object_deallocate(imgp->object);
 		imgp->object = NULL;
 		VFS_UNLOCK_GIANT(vfslocked);
@@ -451,6 +487,7 @@ interpret:
 		/* set new name to that of the interpreter */
 		NDINIT(ndp, LOOKUP, LOCKLEAF | FOLLOW | SAVENAME | MPSAFE,
 		    UIO_SYSSPACE, imgp->interpreter_name, td);
+		args->fname = imgp->interpreter_name;
 		goto interpret;
 	}
 
@@ -496,7 +533,7 @@ interpret:
 	vn_lock(imgp->vp, LK_EXCLUSIVE | LK_RETRY);
 
 	/* Get a reference to the vnode prior to locking the proc */
-	VREF(ndp->ni_vp);
+	VREF(binvp);
 
 	/*
 	 * For security and other reasons, signal handlers cannot
@@ -522,8 +559,18 @@ interpret:
 	execsigs(p);
 
 	/* name this process - nameiexec(p, ndp) */
-	len = min(ndp->ni_cnd.cn_namelen,MAXCOMLEN);
-	bcopy(ndp->ni_cnd.cn_nameptr, p->p_comm, len);
+	if (args->fname) {
+		len = min(ndp->ni_cnd.cn_namelen,MAXCOMLEN);
+		bcopy(ndp->ni_cnd.cn_nameptr, p->p_comm, len);
+	} else {
+		len = MAXCOMLEN;
+		if (vn_commname(binvp, p->p_comm, MAXCOMLEN + 1) == 0)
+			len = MAXCOMLEN;
+		else {
+			len = sizeof(fexecv_proc_title);
+			bcopy(fexecv_proc_title, p->p_comm, len);
+		}
+	}
 	p->p_comm[len] = 0;
 	bcopy(p->p_comm, td->td_name, sizeof(td->td_name));
 
@@ -653,7 +700,7 @@ interpret:
 	 * to locking the proc lock.
 	 */
 	textvp = p->p_textvp;
-	p->p_textvp = ndp->ni_vp;
+	p->p_textvp = binvp;
 
 	/*
 	 * Notify others that we exec'd, and clear the P_INEXEC flag
@@ -736,8 +783,8 @@ done1:
 		vrele(textvp);
 		VFS_UNLOCK_GIANT(tvfslocked);
 	}
-	if (ndp->ni_vp && error != 0)
-		vrele(ndp->ni_vp);
+	if (binvp && error != 0)
+		vrele(binvp);
 #ifdef KTRACE
 	if (tracevp != NULL) {
 		int tvfslocked;
@@ -766,7 +813,8 @@ exec_fail_dealloc:
 		exec_unmap_first_page(imgp);
 
 	if (imgp->vp != NULL) {
-		NDFREE(ndp, NDF_ONLY_PNBUF);
+		if (args->fname)
+			NDFREE(ndp, NDF_ONLY_PNBUF);
 		vput(imgp->vp);
 	}
 
@@ -991,17 +1039,18 @@ exec_copyin_args(struct image_args *args, char *fname,
 	args->begin_argv = args->buf;
 	args->endp = args->begin_argv;
 	args->stringspace = ARG_MAX;
-
-	args->fname = args->buf + ARG_MAX;
-
 	/*
 	 * Copy the file name.
 	 */
-	error = (segflg == UIO_SYSSPACE) ?
-	    copystr(fname, args->fname, PATH_MAX, &length) :
-	    copyinstr(fname, args->fname, PATH_MAX, &length);
-	if (error != 0)
-		goto err_exit;
+	if (fname != NULL) {
+		args->fname = args->buf + ARG_MAX;
+		error = (segflg == UIO_SYSSPACE) ?
+		    copystr(fname, args->fname, PATH_MAX, &length) :
+		    copyinstr(fname, args->fname, PATH_MAX, &length);
+		if (error != 0)
+			goto err_exit;
+	} else
+		args->fname = NULL;
 
 	/*
 	 * extract arguments first
