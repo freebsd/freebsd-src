@@ -63,6 +63,11 @@ SRCS+=		getopt_long.c
 INCS+=		regex.h
 .endif
 
+# mklocale(1) requires rune.h
+.if ${BOOTSTRAPPING} >= 600016
+INCS+=		rune.h
+.endif
+
 .if empty(SRCS)
 SRCS=		dummy.c
 .endif

@@ -813,6 +813,14 @@ _groff=		gnu/usr.bin/groff/tmac
 _lex=		usr.bin/lex
 .endif
 
+.if ${BOOTSTRAPPING} >= 600016
+_mklocale=	usr.bin/mklocale
+.endif
+
+.if ${BOOTSTRAPPING} >= 600017
+_gencat=	usr.bin/gencat
+.endif
+
 .if ${BOOTSTRAPPING} < 450005 || \
     ${BOOTSTRAPPING} >= 500000 && ${BOOTSTRAPPING} < 500034
 _uudecode=	usr.bin/uudecode
@@ -848,8 +856,10 @@ bootstrap-tools:
     ${_groff} \
     gnu/usr.bin/texinfo \
     usr.bin/colldef \
+    ${_gencat} \
     ${_lex} \
     usr.bin/makewhatis \
+    ${_mklocale} \
     usr.bin/rpcgen \
     ${_uudecode} \
     ${_xargs} \
