@@ -272,6 +272,7 @@ __BEGIN_DECLS
 int	open(const char *, int, ...);
 int	creat(const char *, mode_t);
 int	fcntl(int, int, ...);
+int	openat(int, const char *, int, ...);
 #if __BSD_VISIBLE
 int	flock(int, int);
 #endif
