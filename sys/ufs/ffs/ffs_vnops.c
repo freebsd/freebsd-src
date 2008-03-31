@@ -361,16 +361,6 @@ ffs_lock(ap)
 		vp = ap->a_vp;
 		flags = ap->a_flags;
 		for (;;) {
-			/*
-			 * vnode interlock must be held to ensure that
-			 * the possibly external lock isn't freed,
-			 * e.g. when mutating from snapshot file vnode
-			 * to regular file vnode.
-			 */
-			if ((flags & LK_INTERLOCK) == 0) {
-				VI_LOCK(vp);
-				flags |= LK_INTERLOCK;
-			}
 			lkp = vp->v_vnlock;
 			result = _lockmgr_args(lkp, flags, VI_MTX(vp),
 			    LK_WMESG_DEFAULT, LK_PRIO_DEFAULT, LK_TIMO_DEFAULT,
@@ -385,9 +375,12 @@ ffs_lock(ap)
 			 * right lock.  Release it, and try to get the
 			 * new lock.
 			 */
-			(void) _lockmgr_args(lkp, LK_RELEASE, VI_MTX(vp),
+			(void) _lockmgr_args(lkp, LK_RELEASE, NULL,
 			    LK_WMESG_DEFAULT, LK_PRIO_DEFAULT, LK_TIMO_DEFAULT,
 			    ap->a_file, ap->a_line);
+			if ((flags & (LK_INTERLOCK | LK_NOWAIT)) ==
+			    (LK_INTERLOCK | LK_NOWAIT))
+				return (EBUSY);
 			if ((flags & LK_TYPE_MASK) == LK_UPGRADE)
 				flags = (flags & ~LK_TYPE_MASK) | LK_EXCLUSIVE;
 			flags &= ~LK_INTERLOCK;
