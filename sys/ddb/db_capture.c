@@ -53,15 +53,15 @@ __FBSDID("$FreeBSD$");
  * in the midst of debugging.  Instead, we maintain a large static global
  * buffer that we fill from DDB's output routines.
  */
-static MALLOC_DEFINE(M_DB_CAPTURE, "db_capture", "DDB capture buffer");
+static MALLOC_DEFINE(M_DDB_CAPTURE, "ddb_capture", "DDB capture buffer");
 
-#define	DB_CAPTURE_DEFAULTBUFSIZE	48*1024
-#define	DB_CAPTURE_MAXBUFSIZE	512*1024
-#define	DB_CAPTURE_FILENAME	"ddb.txt"	/* Captured DDB output. */
+#define	DDB_CAPTURE_DEFAULTBUFSIZE	48*1024
+#define	DDB_CAPTURE_MAXBUFSIZE	512*1024
+#define	DDB_CAPTURE_FILENAME	"ddb.txt"	/* Captured DDB output. */
 
 static char *db_capture_buf;
-static u_int db_capture_bufsize = DB_CAPTURE_DEFAULTBUFSIZE;
-static u_int db_capture_maxbufsize = DB_CAPTURE_MAXBUFSIZE; /* Read-only. */
+static u_int db_capture_bufsize = DDB_CAPTURE_DEFAULTBUFSIZE;
+static u_int db_capture_maxbufsize = DDB_CAPTURE_MAXBUFSIZE; /* Read-only. */
 static u_int db_capture_bufoff;		/* Next location to write in buffer. */
 static u_int db_capture_bufpadding;	/* Amount of zero padding. */
 static int db_capture_inpager;		/* Suspend capture in pager. */
@@ -85,8 +85,8 @@ SYSCTL_UINT(_debug_ddb_capture, OID_AUTO, maxbufsize, CTLFLAG_RD,
  * textdump block size.  We also perform run-time checking of
  * user-configurable values.
  */
-CTASSERT(DB_CAPTURE_DEFAULTBUFSIZE % TEXTDUMP_BLOCKSIZE == 0);
-CTASSERT(DB_CAPTURE_MAXBUFSIZE % TEXTDUMP_BLOCKSIZE == 0);
+CTASSERT(DDB_CAPTURE_DEFAULTBUFSIZE % TEXTDUMP_BLOCKSIZE == 0);
+CTASSERT(DDB_CAPTURE_MAXBUFSIZE % TEXTDUMP_BLOCKSIZE == 0);
 
 /*
  * Boot-time allocation of the DDB capture buffer, if any.
@@ -97,10 +97,10 @@ db_capture_sysinit(__unused void *dummy)
 
 	TUNABLE_INT_FETCH("debug.ddb.capture.bufsize", &db_capture_bufsize);
 	db_capture_bufsize = roundup(db_capture_bufsize, TEXTDUMP_BLOCKSIZE);
-	if (db_capture_bufsize > DB_CAPTURE_MAXBUFSIZE)
-		db_capture_bufsize = DB_CAPTURE_MAXBUFSIZE;
+	if (db_capture_bufsize > DDB_CAPTURE_MAXBUFSIZE)
+		db_capture_bufsize = DDB_CAPTURE_MAXBUFSIZE;
 	if (db_capture_bufsize != 0)
-		db_capture_buf = malloc(db_capture_bufsize, M_DB_CAPTURE,
+		db_capture_buf = malloc(db_capture_bufsize, M_DDB_CAPTURE,
 		    M_WAITOK);
 }
 SYSINIT(db_capture, SI_SUB_DDB_SERVICES, SI_ORDER_ANY, db_capture_sysinit,
@@ -121,7 +121,7 @@ sysctl_debug_ddb_capture_bufsize(SYSCTL_HANDLER_ARGS)
 	if (error || req->newptr == NULL)
 		return (error);
 	size = roundup(size, TEXTDUMP_BLOCKSIZE);
-	if (size > DB_CAPTURE_MAXBUFSIZE)
+	if (size > DDB_CAPTURE_MAXBUFSIZE)
 		return (EINVAL);
 	sx_xlock(&db_capture_sx);
 	if (size != 0) {
@@ -129,7 +129,7 @@ sysctl_debug_ddb_capture_bufsize(SYSCTL_HANDLER_ARGS)
 		 * Potentially the buffer is quite large, so if we can't
 		 * allocate it, fail rather than waiting.
 		 */
-		buf = malloc(size, M_DB_CAPTURE, M_NOWAIT);
+		buf = malloc(size, M_DDB_CAPTURE, M_NOWAIT);
 		if (buf == NULL) {
 			sx_xunlock(&db_capture_sx);
 			return (ENOMEM);
@@ -142,7 +142,7 @@ sysctl_debug_ddb_capture_bufsize(SYSCTL_HANDLER_ARGS)
 	if (db_capture_buf != NULL && buf != NULL)
 		bcopy(db_capture_buf, buf, len);
 	if (db_capture_buf != NULL)
-		free(db_capture_buf, M_DB_CAPTURE);
+		free(db_capture_buf, M_DDB_CAPTURE);
 	db_capture_bufoff = len;
 	db_capture_buf = buf;
 	db_capture_bufsize = size;
@@ -150,7 +150,7 @@ sysctl_debug_ddb_capture_bufsize(SYSCTL_HANDLER_ARGS)
 
 	KASSERT(db_capture_bufoff <= db_capture_bufsize,
 	    ("sysctl_debug_ddb_capture_bufsize: bufoff > bufsize"));
-	KASSERT(db_capture_bufsize <= DB_CAPTURE_MAXBUFSIZE,
+	KASSERT(db_capture_bufsize <= DDB_CAPTURE_MAXBUFSIZE,
 	    ("sysctl_debug_ddb_capture_maxbufsize: bufsize > maxbufsize"));
 
 	return (0);
@@ -297,7 +297,7 @@ db_capture_dump(struct dumperinfo *di)
 		return;
 
 	db_capture_zeropad();
-	textdump_mkustar(textdump_block_buffer, DB_CAPTURE_FILENAME,
+	textdump_mkustar(textdump_block_buffer, DDB_CAPTURE_FILENAME,
 	    db_capture_bufoff);
 	(void)textdump_writenextblock(di, textdump_block_buffer);
 	for (offset = 0; offset < db_capture_bufoff + db_capture_bufpadding;
