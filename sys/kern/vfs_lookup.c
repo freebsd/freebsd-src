@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/fcntl.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/namei.h>
@@ -192,10 +193,29 @@ namei(struct nameidata *ndp)
 	ndp->ni_rootdir = fdp->fd_rdir;
 	ndp->ni_topdir = fdp->fd_jdir;
 
-	dp = fdp->fd_cdir;
+	if (cnp->cn_pnbuf[0] != '/' && ndp->ni_dirfd != AT_FDCWD) {
+		error = fgetvp(td, ndp->ni_dirfd, &dp);
+		FILEDESC_SUNLOCK(fdp);
+		if (error == 0 && dp->v_type != VDIR) {
+			vfslocked = VFS_LOCK_GIANT(dp->v_mount);
+			vrele(dp);
+			VFS_UNLOCK_GIANT(vfslocked);
+			error = ENOTDIR;
+		}
+		if (error) {
+			uma_zfree(namei_zone, cnp->cn_pnbuf);
+#ifdef DIAGNOSTIC
+			cnp->cn_pnbuf = NULL;
+			cnp->cn_nameptr = NULL;
+#endif
+			return (error);
+		}
+	} else {
+		dp = fdp->fd_cdir;
+		VREF(dp);
+		FILEDESC_SUNLOCK(fdp);
+	}
 	vfslocked = VFS_LOCK_GIANT(dp->v_mount);
-	VREF(dp);
-	FILEDESC_SUNLOCK(fdp);
 	for (;;) {
 		/*
 		 * Check if root directory should replace current directory.
