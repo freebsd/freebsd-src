@@ -105,6 +105,23 @@ typedef	__pid_t		pid_t;
 #ifdef _KERNEL
 #define	FHASLOCK	0x4000		/* descriptor holds advisory lock */
 #endif
+/* Defined by POSIX Extended API Set Part 2 */
+#if __BSD_VISIBLE
+/*
+ * Magic value that specify the use of the current working directory
+ * to determine the target of relative file paths in the openat() and
+ * similar syscalls.
+ */
+#define	AT_FDCWD		-100
+
+/*
+ * Miscellaneous flags for the *at() syscalls.
+ */
+#define	AT_EACCESS		0x100	/* Check access using effective user and group ID */
+#define	AT_SYMLINK_NOFOLLOW	0x200   /* Do not follow symbolic links */
+#define	AT_SYMLINK_FOLLOW	0x400	/* Follow symbolic link */
+#define	AT_REMOVEDIR		0x800	/* Remove directory instead of file */
+#endif
 
 /* Defined by POSIX 1003.1; BSD default, but must be distinct from O_RDONLY. */
 #define	O_NOCTTY	0x8000		/* don't assign controlling terminal */
@@ -112,6 +129,15 @@ typedef	__pid_t		pid_t;
 #if __BSD_VISIBLE
 /* Attempt to bypass buffer cache */
 #define O_DIRECT	0x00010000
+#endif
+
+/* Defined by POSIX Extended API Set Part 2 */
+#if __BSD_VISIBLE
+#define	O_DIRECTORY	0x00020000	/* Fail if not directory */
+#define	O_EXEC		0x00040000	/* Open for execute only */
+#endif
+#ifdef	_KERNEL
+#define	FEXEC		O_EXEC
 #endif
 
 /*
@@ -124,7 +150,7 @@ typedef	__pid_t		pid_t;
 #define	OFLAGS(fflags)	((fflags) - 1)
 
 /* bits to save after open */
-#define	FMASK		(FREAD|FWRITE|FAPPEND|FASYNC|FFSYNC|FNONBLOCK|O_DIRECT)
+#define	FMASK	(FREAD|FWRITE|FAPPEND|FASYNC|FFSYNC|FNONBLOCK|O_DIRECT|FEXEC)
 /* bits settable by fcntl(F_SETFL, ...) */
 #define	FCNTLFLAGS	(FAPPEND|FASYNC|FFSYNC|FNONBLOCK|O_DIRECT)
 
