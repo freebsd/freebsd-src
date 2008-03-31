@@ -212,6 +212,8 @@ restart:
 	}
 	if (fmode & FREAD)
 		mode |= VREAD;
+	if (fmode & FEXEC)
+		mode |= VEXEC;
 	if (fmode & O_APPEND)
 		mode |= VAPPEND;
 #ifdef MAC
