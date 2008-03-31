@@ -444,21 +444,18 @@ extern int		aac_sync_fib(struct aac_softc *sc, u_int32_t command,
 extern void		aac_add_event(struct aac_softc *sc, struct aac_event
 				      *event);
 
-/*
- * Debugging levels:
- *  0 - quiet, only emit warnings
- *  1 - noisy, emit major function points and things done
- *  2 - extremely noisy, emit trace items in loops, etc.
- */
 #ifdef AAC_DEBUG
-# define debug(level, fmt, args...)					\
-	do {								\
-	if (level <=AAC_DEBUG) printf("%s: " fmt "\n", __func__ , ##args); \
-	} while (0)
-# define debug_called(level)						\
-	do {								\
-	if (level <= AAC_DEBUG) printf("%s: called\n", __func__);	\
-	} while (0)
+extern int	aac_debug_enable;
+# define fwprintf(sc, flags, fmt, args...)				\
+do {									\
+	if (!aac_debug_enable)						\
+		break;							\
+	if (sc != NULL)							\
+		device_printf(((struct aac_softc *)sc)->aac_dev,	\
+		    "%s: " fmt "\n", __func__, ##args);			\
+	else								\
+		printf("%s: " fmt "\n", __func__, ##args);		\
+} while(0)
 
 extern void	aac_print_queues(struct aac_softc *sc);
 extern void	aac_panic(struct aac_softc *sc, char *reason);
@@ -470,8 +467,7 @@ extern void	aac_print_aif(struct aac_softc *sc,
 #define AAC_PRINT_FIB(sc, fib)	aac_print_fib(sc, fib, __func__)
 
 #else
-# define debug(level, fmt, args...)
-# define debug_called(level)
+# define fwprintf(sc, flags, fmt, args...)
 
 # define aac_print_queues(sc)
 # define aac_panic(sc, reason)
