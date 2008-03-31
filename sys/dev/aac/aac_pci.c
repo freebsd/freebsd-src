@@ -315,7 +315,7 @@ aac_pci_probe(device_t dev)
 {
 	struct aac_ident *id;
 
-	debug_called(1);
+	fwprintf(NULL, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 
 	if ((id = aac_find_ident(dev)) != NULL) {
 		device_set_desc(dev, id->desc);
@@ -335,7 +335,7 @@ aac_pci_attach(device_t dev)
 	int error;
 	u_int32_t command;
 
-	debug_called(1);
+	fwprintf(NULL, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 
 	/*
 	 * Initialise softc.
@@ -410,19 +410,19 @@ aac_pci_attach(device_t dev)
 	sc->aac_hwif = id->hwif;
 	switch(sc->aac_hwif) {
 	case AAC_HWIF_I960RX:
-		debug(2, "set hardware up for i960Rx");
+		fwprintf(sc, HBA_FLAGS_DBG_INIT_B, "set hardware up for i960Rx");
 		sc->aac_if = aac_rx_interface;
 		break;
 	case AAC_HWIF_STRONGARM:
-		debug(2, "set hardware up for StrongARM");
+		fwprintf(sc, HBA_FLAGS_DBG_INIT_B, "set hardware up for StrongARM");
 		sc->aac_if = aac_sa_interface;
 		break;
 	case AAC_HWIF_FALCON:
-		debug(2, "set hardware up for Falcon/PPC");
+		fwprintf(sc, HBA_FLAGS_DBG_INIT_B, "set hardware up for Falcon/PPC");
 		sc->aac_if = aac_fa_interface;
 		break;
 	case AAC_HWIF_RKT:
-		debug(2, "set hardware up for Rocket/MIPS");
+		fwprintf(sc, HBA_FLAGS_DBG_INIT_B, "set hardware up for Rocket/MIPS");
 		sc->aac_if = aac_rkt_interface;
 		break;
 	default:
