@@ -45,6 +45,7 @@ struct image_args {
 	int stringspace;	/* space left in arg & env buffer */
 	int argc;		/* count of argument strings */
 	int envc;		/* count of environment strings */
+	int fd;			/* file descriptor of the executable */
 };
 
 struct image_params {
