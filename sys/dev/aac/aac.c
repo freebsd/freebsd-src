@@ -90,6 +90,7 @@ static void	aac_free_commands(struct aac_softc *sc);
 static void	aac_unmap_command(struct aac_command *cm);
 
 /* Hardware Interface */
+static int	aac_alloc(struct aac_softc *sc);
 static void	aac_common_map(void *arg, bus_dma_segment_t *segs, int nseg,
 			       int error);
 static int	aac_check_firmware(struct aac_softc *sc);
@@ -97,6 +98,7 @@ static int	aac_init(struct aac_softc *sc);
 static int	aac_sync_command(struct aac_softc *sc, u_int32_t command,
 				 u_int32_t arg0, u_int32_t arg1, u_int32_t arg2,
 				 u_int32_t arg3, u_int32_t *sp);
+static int	aac_setup_intr(struct aac_softc *sc);
 static int	aac_enqueue_fib(struct aac_softc *sc, int queue,
 				struct aac_command *cm);
 static int	aac_dequeue_fib(struct aac_softc *sc, int queue,
@@ -222,6 +224,8 @@ static int		aac_query_disk(struct aac_softc *sc, caddr_t uptr);
 static int		aac_get_pci_info(struct aac_softc *sc, caddr_t uptr);
 static void		aac_ioctl_event(struct aac_softc *sc,
 				        struct aac_event *event, void *arg);
+static struct aac_mntinforesp *
+	aac_get_container_info(struct aac_softc *sc, struct aac_fib *fib, int cid);
 
 static struct cdevsw aac_cdevsw = {
 	.d_version =	D_VERSION,
@@ -289,42 +293,16 @@ aac_attach(struct aac_softc *sc)
 	/*
 	 * Initialize the adapter.
 	 */
+	if ((error = aac_alloc(sc)) != 0)
+		return(error);
 	if ((error = aac_init(sc)) != 0)
 		return(error);
 
 	/*
 	 * Allocate and connect our interrupt.
 	 */
-	sc->aac_irq_rid = 0;
-	if ((sc->aac_irq = bus_alloc_resource_any(sc->aac_dev, SYS_RES_IRQ,
-			   			  &sc->aac_irq_rid,
-			   			  RF_SHAREABLE |
-						  RF_ACTIVE)) == NULL) {
-		device_printf(sc->aac_dev, "can't allocate interrupt\n");
-		return (EINVAL);
-	}
-	if (sc->flags & AAC_FLAGS_NEW_COMM) {
-		if (bus_setup_intr(sc->aac_dev, sc->aac_irq,
-				   INTR_MPSAFE|INTR_TYPE_BIO, aac_new_intr,
-				   sc, &sc->aac_intr)) {
-			device_printf(sc->aac_dev, "can't set up interrupt\n");
-			return (EINVAL);
-		}
-	} else {
-		if (bus_setup_intr(sc->aac_dev, sc->aac_irq,
-				   INTR_FAST|INTR_TYPE_BIO, aac_fast_intr,
-				   sc, &sc->aac_intr)) {
-			device_printf(sc->aac_dev,
-				      "can't set up FAST interrupt\n");
-			if (bus_setup_intr(sc->aac_dev, sc->aac_irq,
-					   INTR_MPSAFE|INTR_TYPE_BIO,
-					   aac_fast_intr, sc, &sc->aac_intr)) {
-				device_printf(sc->aac_dev,
-					     "can't set up MPSAFE interrupt\n");
-				return (EINVAL);
-			}
-		}
-	}
+	if ((error = aac_setup_intr(sc)) != 0)
+		return(error);
 
 	/*
 	 * Print a little information about the controller.
@@ -390,6 +368,28 @@ aac_add_event(struct aac_softc *sc, struct aac_event *event)
 }
 
 /*
+ * Request information of container #cid
+ */
+static struct aac_mntinforesp *
+aac_get_container_info(struct aac_softc *sc, struct aac_fib *fib, int cid)
+{
+	struct aac_mntinfo *mi;
+
+	mi = (struct aac_mntinfo *)&fib->data[0];
+	mi->Command = VM_NameServe;
+	mi->MntType = FT_FILESYS;
+	mi->MntCount = cid;
+
+	if (aac_sync_fib(sc, ContainerCommand, 0, fib,
+			 sizeof(struct aac_mntinfo))) {
+		printf("error probing container %d", cid);
+		return (NULL);
+	}
+
+	return ((struct aac_mntinforesp *)&fib->data[0]);
+}
+
+/*
  * Probe for containers, create disks.
  */
 static void
@@ -397,8 +397,7 @@ aac_startup(void *arg)
 {
 	struct aac_softc *sc;
 	struct aac_fib *fib;
-	struct aac_mntinfo *mi;
-	struct aac_mntinforesp *mir = NULL;
+	struct aac_mntinforesp *mir;
 	int count = 0, i = 0;
 
 	debug_called(1);
@@ -410,24 +409,13 @@ aac_startup(void *arg)
 
 	mtx_lock(&sc->aac_io_lock);
 	aac_alloc_sync_fib(sc, &fib);
-	mi = (struct aac_mntinfo *)&fib->data[0];
 
 	/* loop over possible containers */
 	do {
-		/* request information on this container */
-		bzero(mi, sizeof(struct aac_mntinfo));
-		mi->Command = VM_NameServe;
-		mi->MntType = FT_FILESYS;
-		mi->MntCount = i;
-		if (aac_sync_fib(sc, ContainerCommand, 0, fib,
-				 sizeof(struct aac_mntinfo))) {
-			printf("error probing container %d", i);
+		if ((mir = aac_get_container_info(sc, fib, i)) == NULL)
 			continue;
-		}
-
-		mir = (struct aac_mntinforesp *)&fib->data[0];
-		/* XXX Need to check if count changed */
-		count = mir->MntRespCount;
+		if (i == 0)
+			count = mir->MntRespCount;
 		aac_add_container(sc, mir, 0);
 		i++;
 	} while ((i < count) && (i < AAC_MAX_CONTAINERS));
@@ -483,6 +471,112 @@ aac_add_container(struct aac_softc *sc, struct aac_mntinforesp *mir, int f)
 		TAILQ_INSERT_TAIL(&sc->aac_container_tqh, co, co_link);
 		mtx_unlock(&sc->aac_container_lock);
 	}
+}
+
+/*
+ * Allocate resources associated with (sc)
+ */
+static int
+aac_alloc(struct aac_softc *sc)
+{
+	/*
+	 * Create DMA tag for mapping buffers into controller-addressable space.
+	 */
+	if (bus_dma_tag_create(sc->aac_parent_dmat, 	/* parent */
+			       1, 0, 			/* algnmnt, boundary */
+			       (sc->flags & AAC_FLAGS_SG_64BIT) ?
+			       BUS_SPACE_MAXADDR :
+			       BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
+			       BUS_SPACE_MAXADDR, 	/* highaddr */
+			       NULL, NULL, 		/* filter, filterarg */
+			       MAXBSIZE,		/* maxsize */
+			       sc->aac_sg_tablesize,	/* nsegments */
+			       MAXBSIZE,		/* maxsegsize */
+			       BUS_DMA_ALLOCNOW,	/* flags */
+			       busdma_lock_mutex,	/* lockfunc */
+			       &sc->aac_io_lock,	/* lockfuncarg */
+			       &sc->aac_buffer_dmat)) {
+		device_printf(sc->aac_dev, "can't allocate buffer DMA tag\n");
+		return (ENOMEM);
+	}
+
+	/*
+	 * Create DMA tag for mapping FIBs into controller-addressable space..
+	 */
+	if (bus_dma_tag_create(sc->aac_parent_dmat,	/* parent */
+			       1, 0, 			/* algnmnt, boundary */
+			       (sc->flags & AAC_FLAGS_4GB_WINDOW) ?
+			       BUS_SPACE_MAXADDR_32BIT :
+			       0x7fffffff,		/* lowaddr */
+			       BUS_SPACE_MAXADDR, 	/* highaddr */
+			       NULL, NULL, 		/* filter, filterarg */
+			       sc->aac_max_fibs_alloc *
+			       sc->aac_max_fib_size,  /* maxsize */
+			       1,			/* nsegments */
+			       sc->aac_max_fibs_alloc *
+			       sc->aac_max_fib_size,	/* maxsize */
+			       0,			/* flags */
+			       NULL, NULL,		/* No locking needed */
+			       &sc->aac_fib_dmat)) {
+		device_printf(sc->aac_dev, "can't allocate FIB DMA tag\n");;
+		return (ENOMEM);
+	}
+
+	/*
+	 * Create DMA tag for the common structure and allocate it.
+	 */
+	if (bus_dma_tag_create(sc->aac_parent_dmat, 	/* parent */
+			       1, 0,			/* algnmnt, boundary */
+			       (sc->flags & AAC_FLAGS_4GB_WINDOW) ?
+			       BUS_SPACE_MAXADDR_32BIT :
+			       0x7fffffff,		/* lowaddr */
+			       BUS_SPACE_MAXADDR, 	/* highaddr */
+			       NULL, NULL, 		/* filter, filterarg */
+			       8192 + sizeof(struct aac_common), /* maxsize */
+			       1,			/* nsegments */
+			       BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
+			       0,			/* flags */
+			       NULL, NULL,		/* No locking needed */
+			       &sc->aac_common_dmat)) {
+		device_printf(sc->aac_dev,
+			      "can't allocate common structure DMA tag\n");
+		return (ENOMEM);
+	}
+	if (bus_dmamem_alloc(sc->aac_common_dmat, (void **)&sc->aac_common,
+			     BUS_DMA_NOWAIT, &sc->aac_common_dmamap)) {
+		device_printf(sc->aac_dev, "can't allocate common structure\n");
+		return (ENOMEM);
+	}
+
+	/*
+	 * Work around a bug in the 2120 and 2200 that cannot DMA commands
+	 * below address 8192 in physical memory.
+	 * XXX If the padding is not needed, can it be put to use instead
+	 * of ignored?
+	 */
+	(void)bus_dmamap_load(sc->aac_common_dmat, sc->aac_common_dmamap,
+			sc->aac_common, 8192 + sizeof(*sc->aac_common),
+			aac_common_map, sc, 0);
+
+	if (sc->aac_common_busaddr < 8192) {
+		sc->aac_common = (struct aac_common *)
+		    ((uint8_t *)sc->aac_common + 8192);
+		sc->aac_common_busaddr += 8192;
+	}
+	bzero(sc->aac_common, sizeof(*sc->aac_common));
+
+	/* Allocate some FIBs and associated command structs */
+	TAILQ_INIT(&sc->aac_fibmap_tqh);
+	sc->aac_commands = malloc(sc->aac_max_fibs * sizeof(struct aac_command),
+				  M_AACBUF, M_WAITOK|M_ZERO);
+	while (sc->total_fibs < AAC_PREALLOCATE_FIBS) {
+		if (aac_alloc_commands(sc) != 0)
+			break;
+	}
+	if (sc->total_fibs == 0)
+		return (ENOMEM);
+
+	return (0);
 }
 
 /*
@@ -1577,10 +1671,33 @@ aac_common_map(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 static int
 aac_check_firmware(struct aac_softc *sc)
 {
-	u_int32_t major, minor, options = 0, atu_size = 0;
+	u_int32_t code, major, minor, options = 0, atu_size = 0;
 	int status;
+	time_t then;
 
 	debug_called(1);
+	/*
+	 * Wait for the adapter to come ready.
+	 */
+	then = time_uptime;
+	do {
+		code = AAC_GET_FWSTATUS(sc);
+		if (code & AAC_SELF_TEST_FAILED) {
+			device_printf(sc->aac_dev, "FATAL: selftest failed\n");
+			return(ENXIO);
+		}
+		if (code & AAC_KERNEL_PANIC) {
+			device_printf(sc->aac_dev,
+				      "FATAL: controller kernel panic\n");
+			return(ENXIO);
+		}
+		if (time_uptime > (then + AAC_BOOT_TIMEOUT)) {
+			device_printf(sc->aac_dev,
+				      "FATAL: controller not coming ready, "
+					   "status %x\n", code);
+			return(ENXIO);
+		}
+	} while (!(code & AAC_UP_AND_RUNNING));
 
 	/*
 	 * Retrieve the firmware version numbers.  Dell PERC2/QC cards with
@@ -1698,132 +1815,11 @@ static int
 aac_init(struct aac_softc *sc)
 {
 	struct aac_adapter_init	*ip;
-	time_t then;
-	u_int32_t code, qoffset;
+	u_int32_t qoffset;
 	int error;
 
 	debug_called(1);
 
-	/*
-	 * First wait for the adapter to come ready.
-	 */
-	then = time_uptime;
-	do {
-		code = AAC_GET_FWSTATUS(sc);
-		if (code & AAC_SELF_TEST_FAILED) {
-			device_printf(sc->aac_dev, "FATAL: selftest failed\n");
-			return(ENXIO);
-		}
-		if (code & AAC_KERNEL_PANIC) {
-			device_printf(sc->aac_dev,
-				      "FATAL: controller kernel panic\n");
-			return(ENXIO);
-		}
-		if (time_uptime > (then + AAC_BOOT_TIMEOUT)) {
-			device_printf(sc->aac_dev,
-				      "FATAL: controller not coming ready, "
-					   "status %x\n", code);
-			return(ENXIO);
-		}
-	} while (!(code & AAC_UP_AND_RUNNING));
-
-	error = ENOMEM;
-	/*
-	 * Create DMA tag for mapping buffers into controller-addressable space.
-	 */
-	if (bus_dma_tag_create(sc->aac_parent_dmat, 	/* parent */
-			       1, 0, 			/* algnmnt, boundary */
-			       (sc->flags & AAC_FLAGS_SG_64BIT) ?
-			       BUS_SPACE_MAXADDR :
-			       BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
-			       BUS_SPACE_MAXADDR, 	/* highaddr */
-			       NULL, NULL, 		/* filter, filterarg */
-			       MAXBSIZE,		/* maxsize */
-			       sc->aac_sg_tablesize,	/* nsegments */
-			       MAXBSIZE,		/* maxsegsize */
-			       BUS_DMA_ALLOCNOW,	/* flags */
-			       busdma_lock_mutex,	/* lockfunc */
-			       &sc->aac_io_lock,	/* lockfuncarg */
-			       &sc->aac_buffer_dmat)) {
-		device_printf(sc->aac_dev, "can't allocate buffer DMA tag\n");
-		goto out;
-	}
-
-	/*
-	 * Create DMA tag for mapping FIBs into controller-addressable space..
-	 */
-	if (bus_dma_tag_create(sc->aac_parent_dmat,	/* parent */
-			       1, 0, 			/* algnmnt, boundary */
-			       (sc->flags & AAC_FLAGS_4GB_WINDOW) ?
-			       BUS_SPACE_MAXADDR_32BIT :
-			       0x7fffffff,		/* lowaddr */
-			       BUS_SPACE_MAXADDR, 	/* highaddr */
-			       NULL, NULL, 		/* filter, filterarg */
-			       sc->aac_max_fibs_alloc *
-			       sc->aac_max_fib_size,  /* maxsize */
-			       1,			/* nsegments */
-			       sc->aac_max_fibs_alloc *
-			       sc->aac_max_fib_size,	/* maxsegsize */
-			       0,			/* flags */
-			       NULL, NULL,		/* No locking needed */
-			       &sc->aac_fib_dmat)) {
-		device_printf(sc->aac_dev, "can't allocate FIB DMA tag\n");;
-		goto out;
-	}
-
-	/*
-	 * Create DMA tag for the common structure and allocate it.
-	 */
-	if (bus_dma_tag_create(sc->aac_parent_dmat, 	/* parent */
-			       1, 0,			/* algnmnt, boundary */
-			       (sc->flags & AAC_FLAGS_4GB_WINDOW) ?
-			       BUS_SPACE_MAXADDR_32BIT :
-			       0x7fffffff,		/* lowaddr */
-			       BUS_SPACE_MAXADDR, 	/* highaddr */
-			       NULL, NULL, 		/* filter, filterarg */
-			       8192 + sizeof(struct aac_common), /* maxsize */
-			       1,			/* nsegments */
-			       BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
-			       0,			/* flags */
-			       NULL, NULL,		/* No locking needed */
-			       &sc->aac_common_dmat)) {
-		device_printf(sc->aac_dev,
-			      "can't allocate common structure DMA tag\n");
-		goto out;
-	}
-	if (bus_dmamem_alloc(sc->aac_common_dmat, (void **)&sc->aac_common,
-			     BUS_DMA_NOWAIT, &sc->aac_common_dmamap)) {
-		device_printf(sc->aac_dev, "can't allocate common structure\n");
-		goto out;
-	}
-
-	/*
-	 * Work around a bug in the 2120 and 2200 that cannot DMA commands
-	 * below address 8192 in physical memory.
-	 * XXX If the padding is not needed, can it be put to use instead
-	 * of ignored?
-	 */
-	(void)bus_dmamap_load(sc->aac_common_dmat, sc->aac_common_dmamap,
-			sc->aac_common, 8192 + sizeof(*sc->aac_common),
-			aac_common_map, sc, 0);
-
-	if (sc->aac_common_busaddr < 8192) {
-		sc->aac_common = (struct aac_common *)
-		    ((uint8_t *)sc->aac_common + 8192);
-		sc->aac_common_busaddr += 8192;
-	}
-	bzero(sc->aac_common, sizeof(*sc->aac_common));
-
-	/* Allocate some FIBs and associated command structs */
-	TAILQ_INIT(&sc->aac_fibmap_tqh);
-	sc->aac_commands = malloc(sc->aac_max_fibs * sizeof(struct aac_command),
-				  M_AACBUF, M_WAITOK|M_ZERO);
-	while (sc->total_fibs < AAC_PREALLOCATE_FIBS) {
-		if (aac_alloc_commands(sc) != 0)
-			break;
-	}
-	if (sc->total_fibs == 0)
-		goto out;
 
 	/*
 	 * Fill in the init structure.  This tells the adapter about the
@@ -1971,6 +1967,42 @@ aac_init(struct aac_softc *sc)
 	error = 0;
 out:
 	return(error);
+}
+
+static int
+aac_setup_intr(struct aac_softc *sc)
+{
+	sc->aac_irq_rid = 0;
+	if ((sc->aac_irq = bus_alloc_resource_any(sc->aac_dev, SYS_RES_IRQ,
+			   			  &sc->aac_irq_rid,
+			   			  RF_SHAREABLE |
+						  RF_ACTIVE)) == NULL) {
+		device_printf(sc->aac_dev, "can't allocate interrupt\n");
+		return (EINVAL);
+	}
+	if (sc->flags & AAC_FLAGS_NEW_COMM) {
+		if (bus_setup_intr(sc->aac_dev, sc->aac_irq,
+				   INTR_MPSAFE|INTR_TYPE_BIO, aac_new_intr,
+				   sc, &sc->aac_intr)) {
+			device_printf(sc->aac_dev, "can't set up interrupt\n");
+			return (EINVAL);
+		}
+	} else {
+		if (bus_setup_intr(sc->aac_dev, sc->aac_irq,
+				   INTR_FAST|INTR_TYPE_BIO, aac_fast_intr,
+				   sc, &sc->aac_intr)) {
+			device_printf(sc->aac_dev,
+				      "can't set up FAST interrupt\n");
+			if (bus_setup_intr(sc->aac_dev, sc->aac_irq,
+					   INTR_MPSAFE|INTR_TYPE_BIO,
+					   aac_fast_intr, sc, &sc->aac_intr)) {
+				device_printf(sc->aac_dev,
+					     "can't set up MPSAFE interrupt\n");
+				return (EINVAL);
+			}
+		}
+	}
+	return (0);
 }
 
 /*
@@ -3090,9 +3122,7 @@ aac_handle_aif(struct aac_softc *sc, struct aac_fib *fib)
 {
 	struct aac_aif_command *aif;
 	struct aac_container *co, *co_next;
-	struct aac_mntinfo *mi;
-	struct aac_mntinforesp *mir = NULL;
-	u_int16_t rsize;
+	struct aac_mntinforesp *mir;
 	int next, found;
 	int count = 0, added = 0, i = 0;
 
@@ -3113,7 +3143,6 @@ aac_handle_aif(struct aac_softc *sc, struct aac_fib *fib)
 			 * containers and sort things out.
 			 */
 			aac_alloc_sync_fib(sc, &fib);
-			mi = (struct aac_mntinfo *)&fib->data[0];
 			do {
 				/*
 				 * Ask the controller for its containers one at
@@ -3122,20 +3151,10 @@ aac_handle_aif(struct aac_softc *sc, struct aac_fib *fib)
 				 * midway through this enumaration?
 				 * XXX This should be done async.
 				 */
-				bzero(mi, sizeof(struct aac_mntinfo));
-				mi->Command = VM_NameServe;
-				mi->MntType = FT_FILESYS;
-				mi->MntCount = i;
-				rsize = sizeof(mir);
-				if (aac_sync_fib(sc, ContainerCommand, 0, fib,
-						 sizeof(struct aac_mntinfo))) {
-					printf("Error probing container %d\n",
-					      i);
+				if ((mir = aac_get_container_info(sc, fib, i)) == NULL)
 					continue;
-				}
-				mir = (struct aac_mntinforesp *)&fib->data[0];
-				/* XXX Need to check if count changed */
-				count = mir->MntRespCount;
+				if (i == 0)
+					count = mir->MntRespCount;
 				/*
 				 * Check the container against our list.
 				 * co->co_found was already set to 0 in a
