@@ -2069,7 +2069,7 @@ aac_sync_fib(struct aac_softc *sc, u_int32_t command, u_int32_t xferstate,
 	fib->Header.XferState |= xferstate;
 	fib->Header.Command = command;
 	fib->Header.StructType = AAC_FIBTYPE_TFIB;
-	fib->Header.Size = sizeof(struct aac_fib) + datasize;
+	fib->Header.Size = sizeof(struct aac_fib_header) + datasize;
 	fib->Header.SenderSize = sizeof(struct aac_fib);
 	fib->Header.SenderFibAddress = 0;	/* Not needed */
 	fib->Header.ReceiverFibAddress = sc->aac_common_busaddr +
@@ -3493,7 +3493,7 @@ aac_get_bus_info(struct aac_softc *sc)
 	vmi->IoctlCmd = GetBusInfo;
 
 	error = aac_sync_fib(sc, ContainerCommand, 0, fib,
-	    sizeof(struct aac_vmioctl));
+	    sizeof(struct aac_vmi_businf_resp));
 	if (error) {
 		device_printf(sc->aac_dev, "Error %d sending VMIoctl command\n",
 		    error);
