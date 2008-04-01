@@ -104,7 +104,9 @@ struct ata_connect_task {
 #define ATA_ATI_IXP400_S1       0x43791002
 #define ATA_ATI_IXP400_S2       0x437a1002
 #define ATA_ATI_IXP600          0x438c1002
+#define ATA_ATI_IXP600_S1       0x43801002
 #define ATA_ATI_IXP700          0x439c1002
+#define ATA_ATI_IXP700_S1       0x43901002
 
 #define ATA_CENATEK_ID          0x16ca
 #define ATA_CENATEK_ROCKET      0x000116ca
@@ -382,6 +384,10 @@ struct ata_connect_task {
 #define ALIOLD          0x01
 #define ALINEW          0x02
 #define ALISATA         0x04
+
+#define ATIPATA		0x01
+#define ATISATA		0x02
+#define ATIAHCI		0x04
 
 #define HPT366          0
 #define HPT370          1
