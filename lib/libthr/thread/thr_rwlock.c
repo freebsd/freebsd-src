@@ -479,7 +479,7 @@ _pthread_rwlock_unlock (pthread_rwlock_t *rwlock)
 		return (EPERM);
 	}
 
-#if 0
+#if 1
 	if (state & RWLOCK_WRITE_WAITERS) {
 		_pthread_mutex_lock(&prwlock->lock);
 		_pthread_cond_signal(&prwlock->write_signal);
@@ -489,7 +489,7 @@ _pthread_rwlock_unlock (pthread_rwlock_t *rwlock)
 		_pthread_cond_broadcast(&prwlock->read_signal);
 		_pthread_mutex_unlock(&prwlock->lock);
 	}
-#endif
+#else
 
 	if (state & RWLOCK_WRITE_WAITERS) {
 		_pthread_mutex_lock(&prwlock->lock);
@@ -498,5 +498,6 @@ _pthread_rwlock_unlock (pthread_rwlock_t *rwlock)
 		_pthread_mutex_lock(&prwlock->lock);
 		_pthread_cond_broadcast_unlock(&prwlock->write_signal, &prwlock->lock, 1);
 	}
+#endif
 	return (0);
 }
