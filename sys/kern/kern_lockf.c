@@ -584,6 +584,7 @@ lf_advlockasync(struct vop_advlockasync_args *ap, struct lockf **statep,
 		sx_init(&ls->ls_lock, "ls_lock");
 		LIST_INIT(&ls->ls_active);
 		LIST_INIT(&ls->ls_pending);
+		ls->ls_threads = 1;
 
 		sx_xlock(&lf_lock_states_lock);
 		LIST_INSERT_HEAD(&lf_lock_states, ls, ls_link);
@@ -595,19 +596,23 @@ lf_advlockasync(struct vop_advlockasync_args *ap, struct lockf **statep,
 		 */
 		VI_LOCK(vp);
 		if ((*statep) == NULL) {
-			(*statep) = ls;
+			state = *statep = ls;
+			VI_UNLOCK(vp);
 		} else {
+			state = *statep;
+			state->ls_threads++;
+			VI_UNLOCK(vp);
+
 			sx_xlock(&lf_lock_states_lock);
 			LIST_REMOVE(ls, ls_link);
 			sx_xunlock(&lf_lock_states_lock);
 			sx_destroy(&ls->ls_lock);
 			free(ls, M_LOCKF);
 		}
+	} else {
+		state->ls_threads++;
+		VI_UNLOCK(vp);
 	}
-	state = *statep;
-	state->ls_threads++;
-
-	VI_UNLOCK(vp);
 
 	sx_xlock(&state->ls_lock);
 	switch(ap->a_op) {
