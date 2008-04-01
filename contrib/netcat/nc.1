@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 21, 2006
+.Dd April 2, 2008
 .Dt NC 1
 .Os
 .Sh NAME
@@ -36,7 +36,7 @@
 .Sh SYNOPSIS
 .Nm nc
 .Bk -words
-.Op Fl 46DEdhklnorStUuvz
+.Op Fl 46DEdhklnoOrStUuvz
 .Op Fl e Ar IPsec_policy
 .Op Fl i Ar interval
 .Op Fl P Ar proxy_username
@@ -146,6 +146,7 @@ option are ignored.
 .It Fl n
 Do not do any DNS or service lookups on any specified addresses,
 hostnames or ports.
+.\"
 .It Fl o
 .Dq Once-only mode .
 By default,
@@ -155,6 +156,10 @@ but continues until the network side has been closed down.
 Specifying
 .Fl o
 will make it terminate on EOF as well.
+.It Fl o
+Disables the use of TCP options on the socket, by setting the boolean
+TCP_NOOPT
+socket option.
 .It Fl P Ar proxy_username
 Specifies a username to present to a proxy server that requires authentication.
 If no username is specified then authentication will not be attempted.
@@ -435,7 +440,8 @@ if the proxy requires it:
 .Dl $ nc -x10.2.3.4:8080 -Xconnect -Pruser host.example.com 42
 .Sh SEE ALSO
 .Xr cat 1 ,
-.Xr ssh 1
+.Xr ssh 1 ,
+.Xr tcp 4
 .Sh AUTHORS
 Original implementation by *Hobbit*
 .Aq hobbit@avian.org .
