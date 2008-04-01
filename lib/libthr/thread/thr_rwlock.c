@@ -158,7 +158,7 @@ rwlock_tryrdlock(struct pthread_rwlock *prwlock, int prefer_reader)
 		wrflags = RWLOCK_WRITE_OWNER | RWLOCK_WRITE_WAITERS;
 	state = prwlock->state;
         while (!(state & wrflags)) {
-		if (RWLOCK_READER_COUNT(state) == RWLOCK_MAX_READERS)
+		if (__predict_false(RWLOCK_READER_COUNT(state) == RWLOCK_MAX_READERS))
 			return (EAGAIN);
 		if (atomic_cmpset_acq_32(&prwlock->state, state, state + 1))
 			return (0);
@@ -200,6 +200,8 @@ rwlock_rdlock_common(pthread_rwlock_t *rwlock, const struct timespec *abstime)
 		curthread->rdlock_count++;
 		return (ret);
 	}
+	if (__predict_false(ret == EAGAIN))
+		return (ret);
 
 	if (__predict_false(abstime && 
 		(abstime->tv_nsec >= 1000000000 || abstime->tv_nsec < 0)))
