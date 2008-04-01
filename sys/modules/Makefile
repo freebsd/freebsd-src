@@ -165,6 +165,7 @@ SUBDIR=	${_3dfx} \
 	mac_seeotheruids \
 	mac_stub \
 	mac_test \
+	malo \
 	mcd \
 	md \
 	mem \
