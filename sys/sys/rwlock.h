@@ -132,8 +132,10 @@ void	rw_destroy(struct rwlock *rw);
 void	rw_sysinit(void *arg);
 int	rw_wowned(struct rwlock *rw);
 void	_rw_wlock(struct rwlock *rw, const char *file, int line);
+int	_rw_try_wlock(struct rwlock *rw, const char *file, int line);
 void	_rw_wunlock(struct rwlock *rw, const char *file, int line);
 void	_rw_rlock(struct rwlock *rw, const char *file, int line);
+int	_rw_try_rlock(struct rwlock *rw, const char *file, int line);
 void	_rw_runlock(struct rwlock *rw, const char *file, int line);
 void	_rw_wlock_hard(struct rwlock *rw, uintptr_t tid, const char *file,
 	    int line);
@@ -165,7 +167,9 @@ void	_rw_assert(struct rwlock *rw, int what, const char *file, int line);
 #endif
 #define	rw_rlock(rw)		_rw_rlock((rw), LOCK_FILE, LOCK_LINE)
 #define	rw_runlock(rw)		_rw_runlock((rw), LOCK_FILE, LOCK_LINE)
+#define	rw_try_rlock(rw)	_rw_try_rlock((rw), LOCK_FILE, LOCK_LINE)
 #define	rw_try_upgrade(rw)	_rw_try_upgrade((rw), LOCK_FILE, LOCK_LINE)
+#define	rw_try_wlock(rw)	_rw_try_wlock((rw), LOCK_FILE, LOCK_LINE)
 #define	rw_downgrade(rw)	_rw_downgrade((rw), LOCK_FILE, LOCK_LINE)
 #define	rw_unlock(rw)	do {						\
 	if (rw_wowned(rw))						\

@@ -203,6 +203,30 @@ _rw_wlock(struct rwlock *rw, const char *file, int line)
 	curthread->td_locks++;
 }
 
+int
+_rw_try_wlock(struct rwlock *rw, const char *file, int line)
+{
+	int rval;
+
+	KASSERT(rw->rw_lock != RW_DESTROYED,
+	    ("rw_try_wlock() of destroyed rwlock @ %s:%d", file, line));
+
+	if (rw_wlocked(rw) && (rw->lock_object.lo_flags & RW_RECURSE) != 0) {
+		rw->rw_recurse++;
+		rval = 1;
+	} else
+		rval = atomic_cmpset_acq_ptr(&rw->rw_lock, RW_UNLOCKED,
+		    (uintptr_t)curthread);
+
+	LOCK_LOG_TRY("WLOCK", &rw->lock_object, 0, rval, file, line);
+	if (rval) {
+		WITNESS_LOCK(&rw->lock_object, LOP_EXCLUSIVE | LOP_TRYLOCK,
+		    file, line);
+		curthread->td_locks++;
+	}
+	return (rval);
+}
+
 void
 _rw_wunlock(struct rwlock *rw, const char *file, int line)
 {
@@ -384,6 +408,31 @@ _rw_rlock(struct rwlock *rw, const char *file, int line)
 	WITNESS_LOCK(&rw->lock_object, 0, file, line);
 	curthread->td_locks++;
 	curthread->td_rw_rlocks++;
+}
+
+int
+_rw_try_rlock(struct rwlock *rw, const char *file, int line)
+{
+	uintptr_t x;
+
+	for (;;) {
+		x = rw->rw_lock;
+		KASSERT(rw->rw_lock != RW_DESTROYED,
+		    ("rw_try_rlock() of destroyed rwlock @ %s:%d", file, line));
+		if (!(x & RW_LOCK_READ))
+			break;
+		if (atomic_cmpset_acq_ptr(&rw->rw_lock, x, x + RW_ONE_READER)) {
+			LOCK_LOG_TRY("RLOCK", &rw->lock_object, 0, 1, file,
+			    line);
+			WITNESS_LOCK(&rw->lock_object, LOP_TRYLOCK, file, line);
+			curthread->td_locks++;
+			curthread->td_rw_rlocks++;
+			return (1);
+		}
+	}
+
+	LOCK_LOG_TRY("RLOCK", &rw->lock_object, 0, 0, file, line);
+	return (0);
 }
 
 void
