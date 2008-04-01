@@ -58,14 +58,14 @@ struct hookinfo {
 
 	int64_t 	tc;		/* commited token bucket counter */
 	int64_t 	te;		/* exceeded/peak token bucket counter */
-	struct timeval	lastRefill;	/* last token refill time */
+	struct bintime	lastRefill;	/* last token refill time */
 
 	struct ng_car_hookconf conf;	/* hook configuration */
 	struct ng_car_hookstats stats;	/* hook stats */
 
 	struct mbuf	*q[NG_CAR_QUEUE_SIZE];	/* circular packet queue */
-	int		q_first;	/* first queue element */
-	int		q_last;		/* last queue element */
+	u_int		q_first;	/* first queue element */
+	u_int		q_last;		/* last queue element */
 	struct callout	q_callout;	/* periodic queue processing routine */
 	struct mtx	q_mtx;		/* queue mutex */
 };
@@ -206,7 +206,7 @@ ng_car_constructor(node_p node)
 	priv->upper.conf.yellow_action = NG_CAR_ACTION_FORWARD;
 	priv->upper.conf.red_action = NG_CAR_ACTION_DROP;
 	priv->upper.conf.mode = 0;
-	getmicrotime(&priv->upper.lastRefill);
+	getbinuptime(&priv->upper.lastRefill);
 	priv->upper.q_first = 0;
 	priv->upper.q_last = 0;
 	ng_callout_init(&priv->upper.q_callout);
@@ -260,17 +260,9 @@ static int
 ng_car_rcvdata(hook_p hook, item_p item )
 {
 	struct hookinfo *const hinfo = NG_HOOK_PRIVATE(hook);
-	hook_p dest = hinfo->dest;
-	struct mbuf *m = NULL;
+	struct mbuf *m;
 	int error = 0;
-	int len;
-
-	/* Node is useless without destination hook. */
-	if (dest == NULL) {
-		NG_FREE_ITEM(item);
-		++hinfo->stats.errors;
-		return(EINVAL);
-	}
+	u_int len;
 
 	/* If queue is not empty now then enqueue packet. */
 	if (hinfo->q_first != hinfo->q_last) {
@@ -372,7 +364,7 @@ ng_car_rcvdata(hook_p hook, item_p item )
 
 #undef NG_CAR_PERFORM_MATCH_ACTION
 
-	NG_FWD_ITEM_HOOK(error, item, dest);
+	NG_FWD_ITEM_HOOK(error, item, hinfo->dest);
 	if (error != 0)
 		++hinfo->stats.errors;
 	++hinfo->stats.passed_pkts;
@@ -592,57 +584,58 @@ ng_car_disconnect(hook_p hook)
 static void
 ng_car_refillhook(struct hookinfo *h)
 {
-	struct timeval newt, deltat;
-	int64_t deltat_us;
-	int64_t	delta;
+	struct bintime newt, deltat;
+	unsigned int deltat_us;
 
 	/* Get current time. */
-	getmicrotime(&newt);
+	getbinuptime(&newt);
+
+	/* Get time delta since last refill. */
+	deltat = newt;
+	bintime_sub(&deltat, &h->lastRefill);
 
 	/* Time must go forward. */
-	if (timevalcmp(&newt, &h->lastRefill, <= )) {
+	if (deltat.sec < 0) {
 	    h->lastRefill = newt;
 	    return;
 	}
 
-	/* Get time delta since last refill. */
-	deltat = newt;
-	timevalsub(&deltat, &h->lastRefill);
-
-	/* Sanity check */
-	if (deltat.tv_sec > 1000) {
-	    deltat_us = 1000000000;
+	/* But not too far forward. */
+	if (deltat.sec >= 1000) {
+	    deltat_us = (1000 << 20);
 	} else {
-	    deltat_us = ((int64_t)deltat.tv_sec) * 1000000 + deltat.tv_usec;
+	    /* convert bintime to the 1/(2^20) of sec */
+	    deltat_us = (deltat.sec << 20) + (deltat.frac >> 44);
 	}
 
 	if (h->conf.mode == NG_CAR_SINGLE_RATE) {
+		int64_t	delta;
 		/* Refill commited token bucket. */
-		h->tc += h->conf.cir * deltat_us / 8000000;
+		h->tc += (h->conf.cir * deltat_us) >> 23;
 		delta = h->tc - h->conf.cbs;
 		if (delta > 0) {
 			h->tc = h->conf.cbs;
 
 			/* Refill exceeded token bucket. */
 			h->te += delta;
-			if (h->te > h->conf.ebs)
+			if (h->te > ((int64_t)h->conf.ebs))
 				h->te = h->conf.ebs;
 		}
 
 	} else if (h->conf.mode == NG_CAR_DOUBLE_RATE) {
 		/* Refill commited token bucket. */
-		h->tc += h->conf.cir * deltat_us / 8000000;
-		if (h->tc > h->conf.cbs)
+		h->tc += (h->conf.cir * deltat_us) >> 23;
+		if (h->tc > ((int64_t)h->conf.cbs))
 			h->tc = h->conf.cbs;
 
 		/* Refill peak token bucket. */
-		h->te += h->conf.pir * deltat_us / 8000000;
-		if (h->te > h->conf.ebs)
+		h->te += (h->conf.pir * deltat_us) >> 23;
+		if (h->te > ((int64_t)h->conf.ebs))
 			h->te = h->conf.ebs;
 
 	} else { /* RED or SHAPE mode. */
 		/* Refill commited token bucket. */
-		h->tc += h->conf.cir * deltat_us / 8000000;
+		h->tc += (h->conf.cir * deltat_us) >> 23;
 		if (h->tc > ((int64_t)h->conf.cbs))
 			h->tc = h->conf.cbs;
 	}
@@ -672,38 +665,37 @@ void
 ng_car_q_event(node_p node, hook_p hook, void *arg, int arg2)
 {
 	struct hookinfo	*hinfo = NG_HOOK_PRIVATE(hook);
-	item_p 		item;
 	struct mbuf 	*m;
 	int		error;
 
 	/* Refill tokens for time we have slept. */
 	ng_car_refillhook(hinfo);
 
-	if (hinfo->dest != NULL) {
-		/* If we have some tokens */
-		while (hinfo->tc >= 0) {
+	/* If we have some tokens */
+	while (hinfo->tc >= 0) {
 
-			/* Send packet. */
-			m = hinfo->q[hinfo->q_first];
-			if ((item = ng_package_data(m, NG_NOFLAGS)) != NULL)
-		    		NG_FWD_ITEM_HOOK(error, item, hinfo->dest);
+		/* Send packet. */
+		m = hinfo->q[hinfo->q_first];
+		NG_SEND_DATA_ONLY(error, hinfo->dest, m);
+		if (error != 0)
+			++hinfo->stats.errors;
+		++hinfo->stats.passed_pkts;
 
-			/* Get next one. */
-			hinfo->q_first++;
-			if (hinfo->q_first >= NG_CAR_QUEUE_SIZE)
-				hinfo->q_first = 0;
+		/* Get next one. */
+		hinfo->q_first++;
+		if (hinfo->q_first >= NG_CAR_QUEUE_SIZE)
+			hinfo->q_first = 0;
 
-			/* Stop if none left. */
-			if (hinfo->q_first == hinfo->q_last)
-				break;
+		/* Stop if none left. */
+		if (hinfo->q_first == hinfo->q_last)
+			break;
 
-			/* If we have more packet, try it. */
-			m = hinfo->q[hinfo->q_first];
-			if (hinfo->conf.opt & NG_CAR_COUNT_PACKETS) {
-				hinfo->tc -= 128;
-			} else {
-				hinfo->tc -= m->m_pkthdr.len;
-			}
+		/* If we have more packet, try it. */
+		m = hinfo->q[hinfo->q_first];
+		if (hinfo->conf.opt & NG_CAR_COUNT_PACKETS) {
+			hinfo->tc -= 128;
+		} else {
+			hinfo->tc -= m->m_pkthdr.len;
 		}
 	}
 
@@ -738,6 +730,7 @@ ng_car_enqueue(struct hookinfo *hinfo, item_p item)
 	    (hinfo->te + len >= NG_CAR_QUEUE_SIZE)) {
 		/* Drop packet. */
 		++hinfo->stats.red_pkts;
+		++hinfo->stats.droped_pkts;
 		NG_FREE_M(m);
 
 		hinfo->te = 0;
