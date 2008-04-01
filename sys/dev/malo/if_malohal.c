@@ -389,7 +389,7 @@ malo_hal_fwload_helper(struct malo_hal *mh, char *helper)
 		return (EIO);
 	}
 
-	device_printf(mh->mh_dev, "load %s firmware image (%u bytes)\n",
+	device_printf(mh->mh_dev, "load %s firmware image (%zu bytes)\n",
 	    helper, fw->datasize);
 
 	error = malo_hal_send_helper(mh, fw->datasize, fw->data, fw->datasize,
@@ -457,7 +457,7 @@ malo_hal_fwload_main(struct malo_hal *mh, char *firmware)
 		return (EIO);
 	}
 
-	device_printf(mh->mh_dev, "load %s firmware image (%u bytes)\n",
+	device_printf(mh->mh_dev, "load %s firmware image (%zu bytes)\n",
 	    firmware, fw->datasize);
 
 	seqnum = 1;
