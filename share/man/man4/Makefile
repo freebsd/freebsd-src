@@ -165,6 +165,7 @@ MAN=	aac.4 \
 	mac_seeotheruids.4 \
 	mac_stub.4 \
 	mac_test.4 \
+	malo.4 \
 	md.4 \
 	mem.4 \
 	meteor.4 \
