@@ -561,7 +561,7 @@ extern int optreset;			/* getopt(3) external variable */
 #endif /* __BSD_VISIBLE */
 
 #if __BSD_VISIBLE
-int	faccessat(int, const char *, int);
+int	faccessat(int, const char *, int, int);
 int	fchmodat(int, const char *, mode_t, int);
 int	fchownat(int, const char *, uid_t, gid_t, int);
 int	fexecve(int, char *const [], char *const []);
