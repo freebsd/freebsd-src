@@ -3121,6 +3121,13 @@ enable_msexplorer(struct psm_softc *sc)
     int id;
     int i;
 
+    /*
+     * This is needed for at least A4Tech X-7xx mice - they do not go
+     * straight to Explorer mode, but need to be set to Intelli mode
+     * first.
+     */
+    enable_msintelli(sc);
+
     /* the special sequence to enable the extra buttons and the roller. */
     for (i = 0; i < sizeof(rate1)/sizeof(rate1[0]); ++i) {
         if (set_mouse_sampling_rate(kbdc, rate1[i]) != rate1[i])
