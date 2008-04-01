@@ -2106,6 +2106,7 @@ device	tnt4882
 # rc: RISCom/8 multiport card
 # rp: Comtrol Rocketport(ISA/PCI) - single card
 # si: Specialix SI/XIO 4-32 port terminal multiplexor
+# cmx: OmniKey CardMan 4040 pccard smartcard reader
 
 # Notes on the Comtrol Rocketport driver:
 #
@@ -2161,6 +2162,7 @@ options 	SI_DEBUG
 hint.si.0.at="isa"
 hint.si.0.maddr="0xd0000"
 hint.si.0.irq="12"
+device		cmx
 
 #
 # The 'bktr' device is a PCI video capture device using the Brooktree

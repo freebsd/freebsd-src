@@ -48,6 +48,7 @@ MAN=	aac.4 \
 	ch.4 \
 	ciss.4 \
 	cm.4 \
+	cmx.4 \
 	cnw.4 \
 	coda.4 \
 	${_coretemp.4} \
