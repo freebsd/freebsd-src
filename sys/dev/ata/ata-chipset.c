@@ -1341,14 +1341,16 @@ ata_ati_ident(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
     static struct ata_chip_id ids[] =
-    {{ ATA_ATI_IXP200,    0x00, 0,        0, ATA_UDMA5, "IXP200" },
-     { ATA_ATI_IXP300,    0x00, 0,        0, ATA_UDMA6, "IXP300" },
-     { ATA_ATI_IXP300_S1, 0x00, SIIMEMIO, 0, ATA_SA150, "IXP300" },
-     { ATA_ATI_IXP400,    0x00, 0,        0, ATA_UDMA6, "IXP400" },
-     { ATA_ATI_IXP400_S1, 0x00, SIIMEMIO, 0, ATA_SA150, "IXP400" },
-     { ATA_ATI_IXP400_S2, 0x00, SIIMEMIO, 0, ATA_SA150, "IXP400" },
-     { ATA_ATI_IXP600,    0x00, 0,        0, ATA_UDMA6, "IXP600" },
-     { ATA_ATI_IXP700,    0x00, 0,        0, ATA_UDMA6, "IXP700" },
+    {{ ATA_ATI_IXP200,    0x00, 0, ATIPATA, ATA_UDMA5, "IXP200" },
+     { ATA_ATI_IXP300,    0x00, 0, ATIPATA, ATA_UDMA6, "IXP300" },
+     { ATA_ATI_IXP300_S1, 0x00, 0, ATISATA, ATA_SA150, "IXP300" },
+     { ATA_ATI_IXP400,    0x00, 0, ATIPATA, ATA_UDMA6, "IXP400" },
+     { ATA_ATI_IXP400_S1, 0x00, 0, ATISATA, ATA_SA150, "IXP400" },
+     { ATA_ATI_IXP400_S2, 0x00, 0, ATISATA, ATA_SA150, "IXP400" },
+     { ATA_ATI_IXP600,    0x00, 0, ATIPATA, ATA_UDMA6, "IXP600" },
+     { ATA_ATI_IXP600_S1, 0x00, 0, ATIAHCI, ATA_SA300, "IXP600" },
+     { ATA_ATI_IXP700,    0x00, 0, ATIPATA, ATA_UDMA6, "IXP700" },
+     { ATA_ATI_IXP700_S1, 0x00, 0, ATIAHCI, ATA_SA300, "IXP700" },
      { 0, 0, 0, 0, 0, 0}};
 
     if (!(ctlr->chip = ata_match_chip(dev, ids)))
@@ -1356,11 +1358,19 @@ ata_ati_ident(device_t dev)
 
     ata_set_desc(dev);
 
-    /* the ATI SATA controller is actually a SiI 3112 controller*/
-    if (ctlr->chip->cfg1 & SIIMEMIO)
-	ctlr->chipinit = ata_sii_chipinit;
-    else
+    switch (ctlr->chip->cfg2) {
+    case ATIPATA:
 	ctlr->chipinit = ata_ati_chipinit;
+	break;
+    case ATISATA:
+	/* the ATI SATA controller is actually a SiI 3112 controller */
+	ctlr->chip->cfg1 = SIIMEMIO;
+	ctlr->chipinit = ata_sii_chipinit;
+	break;
+    case ATIAHCI:
+	ctlr->chipinit = ata_ahci_chipinit;
+	break;
+    }
     return 0;
 }
 
