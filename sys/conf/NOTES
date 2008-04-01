@@ -2441,6 +2441,8 @@ device		uftdi
 device		uipaq
 # USB support for Prolific PL-2303 serial adapters
 device		uplcom
+# USB support for Silicon Laboratories CP2101/CP2102 based USB serial adapters
+device		uslcom
 # USB Visor and Palm devices
 device		uvisor
 # USB serial support for DDI pocket's PHS

@@ -393,6 +393,7 @@ MAN=	aac.4 \
 	urio.4 \
 	usb.4 \
 	uscanner.4 \
+	uslcom.4 \
 	utopia.4 \
 	uvisor.4 \
 	uvscom.4 \
