@@ -1130,6 +1130,9 @@ product DMI CFSM_RW		0xa109	CF/SM Reader/Writer
 /* DrayTek products */
 product DRAYTEK VIGOR550	0x0550	Vigor550
 
+/* Dynastream Innovations */
+product DYNASTREAM ANTDEVBOARD	0x1003	ANT dev board
+
 /* EIZO products */
 product EIZO HUB		0x0000	hub
 product EIZO MONITOR		0x0001	monitor
@@ -1435,6 +1438,9 @@ product IOMEGA ZIP250		0x0030	Zip 250
 
 /* Ituner networks products */
 product ITUNERNET USBLCD2X20	0x0002	USB-LCD 2x20
+
+/* Jablotron products */
+product JABLOTRON PC60B		0x0001	PC-60B
 
 /* Jaton products */
 product JATON EDA		0x5704	Ethernet
@@ -2038,6 +2044,23 @@ product SIIG2 US2308		0x0421	Serial
 product SILICOM U2E		0x0001	U2E
 product SILICOM GPE		0x0002	Psion Gold Port Ethernet
 
+/* SI Labs */
+product SILABS	POLOLU		0x803b	Pololu Serial
+product SILABS	ARGUSISP	0x8066	Argussoft ISP
+product SILABS	CRUMB128	0x807a	Crumb128 board
+product SILABS	DEGREE		0x80ca	Degree Controls Inc
+product SILABS	TRAQMATE	0x80ed	Track Systems Traqmate
+product SILABS	SUUNTO		0x80f6	Suunto Sports Instrument
+product SILABS	BURNSIDE	0x813d	Burnside Telecon Deskmobile
+product SILABS	HELICOM		0x815e	Helicomm IP-Link 1220-DVM
+product SILABS	CP2102		0xea60	SILABS USB UART
+product SILABS	LIPOWSKY_JTAG	0x81c8	Lipowsky Baby-JTAG
+product SILABS	LIPOWSKY_LIN	0x81e2	Lipowsky Baby-LIN
+product SILABS	LIPOWSKY_HARP	0x8218	Lipowsky HARP-1
+product SILABS	CP2102		0xea60	SILABS USB UARTa
+product SILABS	CP210X_2	0xea61	CP210x Serial
+product SILABS2 DCU11CLONE	0xaa26	DCU-11 clone
+
 /* Silicon Portals Inc. */
 product SILICONPORTALS YAPPH_NF	0x0200	YAP Phone (no firmware)
 product SILICONPORTALS YAPPHONE	0x0201	YAP Phone
@@ -2237,6 +2260,9 @@ product USR USR5423		0x0121	USR5423 WLAN
 
 /* VIA Technologies products */
 product VIA USB2IDEBRIDGE	0x6204	USB 2.0 IDE Bridge
+
+/* USI products */
+product USI MC60		0x10c5	MC60 Serial
 
 /* VidzMedia products */
 product VIDZMEDIA MONSTERTV	0x4fb1	MonsterTV P2H
