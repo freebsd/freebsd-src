@@ -143,6 +143,7 @@ vendor BAY			0x01eb	Bay Networks
 vendor FARALLON			0x0200	Farallon Communications
 vendor RELIA			0x0215	RELIA Technologies Corporation
 vendor TELECOMDEVICE		0x021b	Telecom Device
+vendor OMNIKEY			0x0223	OMNIKEY GmbH
 vendor NOKIA			0x023d	Nokia Communications
 vendor SAMSUNG			0x0250	Samsung
 vendor HWN			0x0261	Home Wireless Networks
@@ -470,6 +471,9 @@ product OLICOM OC2231		0x3122 GoCard Combo Eth/Modem 288
 product OLICOM OC3231		0x3132 GoCard Token Ring 16/4/Modem 288
 product OLICOM OC2232		0x3222 GoCard Combo Eth/Modem 336
 product OLICOM OC3232		0x3232 GoCard Token Ring 16/4/Modem 336
+
+/* OMNIKEY Products */
+product OMNIKEY CM4040		0x0200 OMNIKEY CardMan 4040
 
 /* Ositech Products */
 product OSITECH JACK_144	0x0001 Jack of Diamonds Ethernet/Modem 14.4
