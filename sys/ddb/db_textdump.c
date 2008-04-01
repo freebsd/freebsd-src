@@ -259,8 +259,8 @@ textdump_writeblock(struct dumperinfo *di, off_t offset, char *buffer)
 		return (EIO);
 	if (offset < SIZEOF_METADATA)
 		return (ENOSPC);
-	textdump_error = di->dumper(di->priv, buffer, 0, offset +
-	    di->mediaoffset, TEXTDUMP_BLOCKSIZE);
+	textdump_error = dump_write(di, buffer, 0, offset + di->mediaoffset,
+	    TEXTDUMP_BLOCKSIZE);
 	return (textdump_error);
 }
 
@@ -502,7 +502,7 @@ textdump_dumpsys(struct dumperinfo *di)
 	 * Terminate the dump, report any errors, and clear the pending flag.
 	 */
 	if (textdump_error == 0)
-		(void)di->dumper(di->priv, NULL, 0, 0, 0);
+		(void)dump_write(di, NULL, 0, 0, 0);
 	if (textdump_error == ENOSPC)
 		printf("Insufficient space on dump partition\n");
 	else if (textdump_error != 0)
