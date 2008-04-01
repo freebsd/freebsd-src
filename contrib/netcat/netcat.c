@@ -78,6 +78,7 @@ int	kflag;					/* More than one connect */
 int	lflag;					/* Bind to local port */
 int	nflag;					/* Don't do name look up */
 int	oflag;					/* Once only: stop on EOF */
+int	Oflag;					/* Do not use TCP options */
 char   *Pflag;					/* Proxy username */
 char   *pflag;					/* Localport flag */
 int	rflag;					/* Random ports flag */
@@ -138,7 +139,7 @@ main(int argc, char *argv[])
 	sv = NULL;
 
 	while ((ch = getopt(argc, argv,
-	    "46e:DEdhi:jklnoP:p:rSs:tT:Uuvw:X:x:z")) != -1) {
+	    "46e:DEdhi:jklnoOP:p:rSs:tT:Uuvw:X:x:z")) != -1) {
 		switch (ch) {
 		case '4':
 			family = AF_INET;
@@ -201,6 +202,9 @@ main(int argc, char *argv[])
 			break;
 		case 'o':
 			oflag = 1;
+			break;
+		case 'O':
+			Oflag = 1;
 			break;
 		case 'P':
 			Pflag = optarg;
@@ -600,6 +604,11 @@ local_listen(char *host, char *port, struct addrinfo hints)
 		if (ipsec_policy[1] != NULL)
 			add_ipsec_policy(s, ipsec_policy[1]);
 #endif
+		if (Oflag) {
+			if (setsockopt(s, IPPROTO_TCP, TCP_NOOPT,
+			    &Oflag, sizeof(Oflag)) == -1)
+				err(1, "disable TCP options");
+		}
 
 		if (bind(s, (struct sockaddr *)res0->ai_addr,
 		    res0->ai_addrlen) == 0)
@@ -829,6 +838,11 @@ set_common_sockopts(int s)
 		    &Tflag, sizeof(Tflag)) == -1)
 			err(1, "set IP ToS");
 	}
+	if (Oflag) {
+		if (setsockopt(s, IPPROTO_TCP, TCP_NOOPT,
+		    &Oflag, sizeof(Oflag)) == -1)
+			err(1, "disable TCP options");
+	}
 }
 
 int
@@ -868,6 +882,7 @@ help(void)
 	\t-k		Keep inbound sockets open for multiple connects\n\
 	\t-l		Listen mode, for inbound connects\n\
 	\t-n		Suppress name/port resolutions\n\
+	\t-O		Disable TCP options\n\
 	\t-P proxyuser\tUsername for proxy authentication\n\
 	\t-p port\t	Specify local port for remote connects\n\
 	\t-r		Randomize remote ports\n\
@@ -915,9 +930,9 @@ void
 usage(int ret)
 {
 #ifdef IPSEC
-	fprintf(stderr, "usage: nc [-46DEdhklnrStUuvz] [-e policy] [-i interval] [-P proxy_username] [-p source_port]\n");
+	fprintf(stderr, "usage: nc [-46DEdhklnorStUuvz] [-e policy] [-i interval] [-P proxy_username] [-p source_port]\n");
 #else
-	fprintf(stderr, "usage: nc [-46DdhklnrStUuvz] [-i interval] [-P proxy_username] [-p source_port]\n");
+	fprintf(stderr, "usage: nc [-46DdhklnorStUuvz] [-i interval] [-P proxy_username] [-p source_port]\n");
 #endif
 	fprintf(stderr, "\t  [-s source_ip_address] [-T ToS] [-w timeout] [-X proxy_protocol]\n");
 	fprintf(stderr, "\t  [-x proxy_address[:port]] [hostname] [port[s]]\n");
