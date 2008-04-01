@@ -65,7 +65,7 @@ static MALLOC_DEFINE(M_DDB_CAPTURE, "ddb_capture", "DDB capture buffer");
 #define	DDB_CAPTURE_DEFAULTBUFSIZE	48*1024
 #endif
 #ifndef DDB_CAPTURE_MAXBUFSIZE
-#define	DDB_CAPTURE_MAXBUFSIZE	512*1024
+#define	DDB_CAPTURE_MAXBUFSIZE	5*1024*1024
 #endif
 #define	DDB_CAPTURE_FILENAME	"ddb.txt"	/* Captured DDB output. */
 
