@@ -109,7 +109,11 @@ aac_cam_event(struct aac_softc *sc, struct aac_event *event, void *arg)
 	case AAC_EVENT_CMFREE:
 		camsc = arg;
 		free(event, M_AACCAM);
+		mtx_unlock(&sc->aac_io_lock);
+		mtx_lock(&Giant);
 		xpt_release_simq(camsc->sim, 1);
+		mtx_unlock(&Giant);
+		mtx_lock(&sc->aac_io_lock);
 		break;
 	default:
 		device_printf(sc->aac_dev, "unknown event %d in aac_cam\n",
