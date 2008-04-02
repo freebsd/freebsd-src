@@ -132,6 +132,7 @@
 #define		pthread_detach			_pthread_detach
 #define		pthread_equal			_pthread_equal
 #define		pthread_exit			_pthread_exit
+#define		pthread_getaffinity_np		_pthread_getaffinity_np
 #define		pthread_getconcurrency		_pthread_getconcurrency
 #define		pthread_getcpuclockid		_pthread_getcpuclockid
 #define		pthread_getprio			_pthread_getprio
@@ -182,6 +183,7 @@
 #define		pthread_rwlockattr_setpshared	_pthread_rwlockattr_setpshared
 #define		pthread_self			_pthread_self
 #define		pthread_set_name_np		_pthread_set_name_np
+#define		pthread_setaffinity_np		_pthread_setaffinity_np
 #define		pthread_setcancelstate		_pthread_setcancelstate
 #define		pthread_setcanceltype		_pthread_setcanceltype
 #define		pthread_setconcurrency		_pthread_setconcurrency
