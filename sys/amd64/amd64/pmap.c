@@ -318,8 +318,6 @@ static __inline pml4_entry_t *
 pmap_pml4e(pmap_t pmap, vm_offset_t va)
 {
 
-	if (!pmap)
-		return NULL;
 	return (&pmap->pm_pml4[pmap_pml4e_index(va)]);
 }
 
@@ -340,7 +338,7 @@ pmap_pdpe(pmap_t pmap, vm_offset_t va)
 	pml4_entry_t *pml4e;
 
 	pml4e = pmap_pml4e(pmap, va);
-	if (pml4e == NULL || (*pml4e & PG_V) == 0)
+	if ((*pml4e & PG_V) == 0)
 		return NULL;
 	return (pmap_pml4e_to_pdpe(pml4e, va));
 }
