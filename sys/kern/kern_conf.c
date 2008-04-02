@@ -402,8 +402,7 @@ giant_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread
 	if (dsw == NULL)
 		return (ENXIO);
 	mtx_lock(&Giant);
-	retval = dev->si_devsw->d_gianttrick->
-	    d_ioctl(dev, cmd, data, fflag, td);
+	retval = dsw->d_gianttrick->d_ioctl(dev, cmd, data, fflag, td);
 	mtx_unlock(&Giant);
 	dev_relthread(dev);
 	return (retval);
@@ -419,8 +418,7 @@ giant_read(struct cdev *dev, struct uio *uio, int ioflag)
 	if (dsw == NULL)
 		return (ENXIO);
 	mtx_lock(&Giant);
-	retval = dev->si_devsw->d_gianttrick->
-	    d_read(dev, uio, ioflag);
+	retval = dsw->d_gianttrick->d_read(dev, uio, ioflag);
 	mtx_unlock(&Giant);
 	dev_relthread(dev);
 	return (retval);
