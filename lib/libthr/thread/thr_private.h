@@ -670,8 +670,6 @@ void	_thread_bp_death(void);
 int	_sched_yield(void);
 int	_pthread_getaffinity_np(pthread_t, size_t, cpuset_t *);
 int	_pthread_setaffinity_np(pthread_t, size_t, const cpuset_t *);
-int	_pthread_cond_wait_unlocked(pthread_cond_t *, pthread_mutex_t *, const struct timespec *) __hidden;
-int	_pthread_cond_broadcast_unlock(pthread_cond_t *, pthread_mutex_t *, int broadcast);
 
 /* #include <fcntl.h> */
 #ifdef  _SYS_FCNTL_H_
