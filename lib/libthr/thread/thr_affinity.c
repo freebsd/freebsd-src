@@ -28,7 +28,7 @@
  */
 
 #include "namespace.h"
-#include <pthread.h>
+#include <pthread_np.h>
 #include <sys/param.h>
 #include <sys/cpuset.h>
 #include "un-namespace.h"
