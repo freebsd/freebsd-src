@@ -1,4 +1,4 @@
-/*******************************************************************************
+/******************************************************************************
 
   Copyright (c) 2001-2008, Intel Corporation 
   All rights reserved.
@@ -29,25 +29,25 @@
   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE.
 
-*******************************************************************************/
-/* $FreeBSD$ */
-
+******************************************************************************/
+/*$FreeBSD$*/
 
 /* e1000_82542 (rev 1 & 2)
  */
 
 #include "e1000_api.h"
 
-STATIC s32  e1000_init_phy_params_82542(struct e1000_hw *hw);
-STATIC s32  e1000_init_nvm_params_82542(struct e1000_hw *hw);
-STATIC s32  e1000_init_mac_params_82542(struct e1000_hw *hw);
-STATIC s32  e1000_get_bus_info_82542(struct e1000_hw *hw);
-STATIC s32  e1000_reset_hw_82542(struct e1000_hw *hw);
-STATIC s32  e1000_init_hw_82542(struct e1000_hw *hw);
-STATIC s32  e1000_setup_link_82542(struct e1000_hw *hw);
-STATIC s32  e1000_led_on_82542(struct e1000_hw *hw);
-STATIC s32  e1000_led_off_82542(struct e1000_hw *hw);
-STATIC void e1000_clear_hw_cntrs_82542(struct e1000_hw *hw);
+static s32  e1000_init_phy_params_82542(struct e1000_hw *hw);
+static s32  e1000_init_nvm_params_82542(struct e1000_hw *hw);
+static s32  e1000_init_mac_params_82542(struct e1000_hw *hw);
+static s32  e1000_get_bus_info_82542(struct e1000_hw *hw);
+static s32  e1000_reset_hw_82542(struct e1000_hw *hw);
+static s32  e1000_init_hw_82542(struct e1000_hw *hw);
+static s32  e1000_setup_link_82542(struct e1000_hw *hw);
+static s32  e1000_led_on_82542(struct e1000_hw *hw);
+static s32  e1000_led_off_82542(struct e1000_hw *hw);
+static void e1000_rar_set_82542(struct e1000_hw *hw, u8 *addr, u32 index);
+static void e1000_clear_hw_cntrs_82542(struct e1000_hw *hw);
 
 struct e1000_dev_spec_82542 {
 	bool dma_fairness;
@@ -59,7 +59,7 @@ struct e1000_dev_spec_82542 {
  *
  *  This is a function pointer entry point called by the api module.
  **/
-STATIC s32 e1000_init_phy_params_82542(struct e1000_hw *hw)
+static s32 e1000_init_phy_params_82542(struct e1000_hw *hw)
 {
 	struct e1000_phy_info *phy = &hw->phy;
 	s32 ret_val = E1000_SUCCESS;
@@ -77,10 +77,9 @@ STATIC s32 e1000_init_phy_params_82542(struct e1000_hw *hw)
  *
  *  This is a function pointer entry point called by the api module.
  **/
-STATIC s32 e1000_init_nvm_params_82542(struct e1000_hw *hw)
+static s32 e1000_init_nvm_params_82542(struct e1000_hw *hw)
 {
 	struct e1000_nvm_info *nvm = &hw->nvm;
-	struct e1000_functions *func = &hw->func;
 
 	DEBUGFUNC("e1000_init_nvm_params_82542");
 
@@ -91,11 +90,11 @@ STATIC s32 e1000_init_nvm_params_82542(struct e1000_hw *hw)
 	nvm->word_size          = 64;
 
 	/* Function Pointers */
-	func->read_nvm          = e1000_read_nvm_microwire;
-	func->release_nvm       = e1000_stop_nvm;
-	func->write_nvm         = e1000_write_nvm_microwire;
-	func->update_nvm        = e1000_update_nvm_checksum_generic;
-	func->validate_nvm      = e1000_validate_nvm_checksum_generic;
+	nvm->ops.read           = e1000_read_nvm_microwire;
+	nvm->ops.release        = e1000_stop_nvm;
+	nvm->ops.write          = e1000_write_nvm_microwire;
+	nvm->ops.update         = e1000_update_nvm_checksum_generic;
+	nvm->ops.validate       = e1000_validate_nvm_checksum_generic;
 
 	return E1000_SUCCESS;
 }
@@ -106,10 +105,9 @@ STATIC s32 e1000_init_nvm_params_82542(struct e1000_hw *hw)
  *
  *  This is a function pointer entry point called by the api module.
  **/
-STATIC s32 e1000_init_mac_params_82542(struct e1000_hw *hw)
+static s32 e1000_init_mac_params_82542(struct e1000_hw *hw)
 {
 	struct e1000_mac_info *mac = &hw->mac;
-	struct e1000_functions *func = &hw->func;
 	s32 ret_val = E1000_SUCCESS;
 
 	DEBUGFUNC("e1000_init_mac_params_82542");
@@ -125,34 +123,36 @@ STATIC s32 e1000_init_mac_params_82542(struct e1000_hw *hw)
 	/* Function pointers */
 
 	/* bus type/speed/width */
-	func->get_bus_info = e1000_get_bus_info_82542;
+	mac->ops.get_bus_info = e1000_get_bus_info_82542;
 	/* reset */
-	func->reset_hw = e1000_reset_hw_82542;
+	mac->ops.reset_hw = e1000_reset_hw_82542;
 	/* hw initialization */
-	func->init_hw = e1000_init_hw_82542;
+	mac->ops.init_hw = e1000_init_hw_82542;
 	/* link setup */
-	func->setup_link = e1000_setup_link_82542;
+	mac->ops.setup_link = e1000_setup_link_82542;
 	/* phy/fiber/serdes setup */
-	func->setup_physical_interface = e1000_setup_fiber_serdes_link_generic;
+	mac->ops.setup_physical_interface = e1000_setup_fiber_serdes_link_generic;
 	/* check for link */
-	func->check_for_link = e1000_check_for_fiber_link_generic;
+	mac->ops.check_for_link = e1000_check_for_fiber_link_generic;
 	/* multicast address update */
-	func->update_mc_addr_list = e1000_update_mc_addr_list_generic;
+	mac->ops.update_mc_addr_list = e1000_update_mc_addr_list_generic;
 	/* writing VFTA */
-	func->write_vfta = e1000_write_vfta_generic;
+	mac->ops.write_vfta = e1000_write_vfta_generic;
 	/* clearing VFTA */
-	func->clear_vfta = e1000_clear_vfta_generic;
+	mac->ops.clear_vfta = e1000_clear_vfta_generic;
 	/* setting MTA */
-	func->mta_set = e1000_mta_set_generic;
+	mac->ops.mta_set = e1000_mta_set_generic;
+	/* set RAR */
+	mac->ops.rar_set = e1000_rar_set_82542;
 	/* turn on/off LED */
-	func->led_on = e1000_led_on_82542;
-	func->led_off = e1000_led_off_82542;
+	mac->ops.led_on = e1000_led_on_82542;
+	mac->ops.led_off = e1000_led_off_82542;
 	/* remove device */
-	func->remove_device = e1000_remove_device_generic;
+	mac->ops.remove_device = e1000_remove_device_generic;
 	/* clear hardware counters */
-	func->clear_hw_cntrs = e1000_clear_hw_cntrs_82542;
+	mac->ops.clear_hw_cntrs = e1000_clear_hw_cntrs_82542;
 	/* link info */
-	func->get_link_up_info = e1000_get_speed_and_duplex_fiber_serdes_generic;
+	mac->ops.get_link_up_info = e1000_get_speed_and_duplex_fiber_serdes_generic;
 
 	hw->dev_spec_size = sizeof(struct e1000_dev_spec_82542);
 
@@ -173,9 +173,9 @@ void e1000_init_function_pointers_82542(struct e1000_hw *hw)
 {
 	DEBUGFUNC("e1000_init_function_pointers_82542");
 
-	hw->func.init_mac_params = e1000_init_mac_params_82542;
-	hw->func.init_nvm_params = e1000_init_nvm_params_82542;
-	hw->func.init_phy_params = e1000_init_phy_params_82542;
+	hw->mac.ops.init_params = e1000_init_mac_params_82542;
+	hw->nvm.ops.init_params = e1000_init_nvm_params_82542;
+	hw->phy.ops.init_params = e1000_init_phy_params_82542;
 }
 
 /**
@@ -186,7 +186,7 @@ void e1000_init_function_pointers_82542(struct e1000_hw *hw)
  *  adapter is attached and stores it in the hw structure.  This is a function
  *  pointer entry point called by the api module.
  **/
-STATIC s32 e1000_get_bus_info_82542(struct e1000_hw *hw)
+static s32 e1000_get_bus_info_82542(struct e1000_hw *hw)
 {
 	DEBUGFUNC("e1000_get_bus_info_82542");
 
@@ -204,7 +204,7 @@ STATIC s32 e1000_get_bus_info_82542(struct e1000_hw *hw)
  *  This resets the hardware into a known state.  This is a
  *  function pointer entry point called by the api module.
  **/
-STATIC s32 e1000_reset_hw_82542(struct e1000_hw *hw)
+static s32 e1000_reset_hw_82542(struct e1000_hw *hw)
 {
 	struct e1000_bus_info *bus = &hw->bus;
 	s32 ret_val = E1000_SUCCESS;
@@ -235,7 +235,7 @@ STATIC s32 e1000_reset_hw_82542(struct e1000_hw *hw)
 	DEBUGOUT("Issuing a global reset to 82542/82543 MAC\n");
 	E1000_WRITE_REG(hw, E1000_CTRL, ctrl | E1000_CTRL_RST);
 
-	e1000_reload_nvm(hw);
+	hw->nvm.ops.reload(hw);
 	msec_delay(2);
 
 	E1000_WRITE_REG(hw, E1000_IMC, 0xffffffff);
@@ -256,7 +256,7 @@ STATIC s32 e1000_reset_hw_82542(struct e1000_hw *hw)
  *  This inits the hardware readying it for operation.  This is a
  *  function pointer entry point called by the api module.
  **/
-STATIC s32 e1000_init_hw_82542(struct e1000_hw *hw)
+static s32 e1000_init_hw_82542(struct e1000_hw *hw)
 {
 	struct e1000_mac_info *mac = &hw->mac;
 	struct e1000_dev_spec_82542 *dev_spec;
@@ -270,7 +270,7 @@ STATIC s32 e1000_init_hw_82542(struct e1000_hw *hw)
 
 	/* Disabling VLAN filtering */
 	E1000_WRITE_REG(hw, E1000_VET, 0);
-	e1000_clear_vfta(hw);
+	mac->ops.clear_vfta(hw);
 
 	/* For 82542 (rev 2.0), disable MWI and put the receiver into reset */
 	if (hw->revision_id == E1000_REVISION_2) {
@@ -333,10 +333,9 @@ STATIC s32 e1000_init_hw_82542(struct e1000_hw *hw)
  *  and the transmitter and receiver are not enabled.  This is a function
  *  pointer entry point called by the api module.
  **/
-STATIC s32 e1000_setup_link_82542(struct e1000_hw *hw)
+static s32 e1000_setup_link_82542(struct e1000_hw *hw)
 {
 	struct e1000_mac_info *mac = &hw->mac;
-	struct e1000_functions *func = &hw->func;
 	s32 ret_val = E1000_SUCCESS;
 
 	DEBUGFUNC("e1000_setup_link_82542");
@@ -360,7 +359,7 @@ STATIC s32 e1000_setup_link_82542(struct e1000_hw *hw)
 	DEBUGOUT1("After fix-ups FlowControl is now = %x\n", hw->fc.type);
 
 	/* Call the necessary subroutine to configure the link. */
-	ret_val = func->setup_physical_interface(hw);
+	ret_val = mac->ops.setup_physical_interface(hw);
 	if (ret_val)
 		goto out;
 
@@ -391,7 +390,7 @@ out:
  *  Turns the SW defined LED on.  This is a function pointer entry point
  *  called by the api module.
  **/
-STATIC s32 e1000_led_on_82542(struct e1000_hw *hw)
+static s32 e1000_led_on_82542(struct e1000_hw *hw)
 {
 	u32 ctrl = E1000_READ_REG(hw, E1000_CTRL);
 
@@ -411,7 +410,7 @@ STATIC s32 e1000_led_on_82542(struct e1000_hw *hw)
  *  Turns the SW defined LED off.  This is a function pointer entry point
  *  called by the api module.
  **/
-STATIC s32 e1000_led_off_82542(struct e1000_hw *hw)
+static s32 e1000_led_off_82542(struct e1000_hw *hw)
 {
 	u32 ctrl = E1000_READ_REG(hw, E1000_CTRL);
 
@@ -422,6 +421,41 @@ STATIC s32 e1000_led_off_82542(struct e1000_hw *hw)
 	E1000_WRITE_REG(hw, E1000_CTRL, ctrl);
 
 	return E1000_SUCCESS;
+}
+
+/**
+ *  e1000_rar_set_82542 - Set receive address register
+ *  @hw: pointer to the HW structure
+ *  @addr: pointer to the receive address
+ *  @index: receive address array register
+ *
+ *  Sets the receive address array register at index to the address passed
+ *  in by addr.
+ **/
+static void e1000_rar_set_82542(struct e1000_hw *hw, u8 *addr, u32 index)
+{
+	u32 rar_low, rar_high;
+
+	DEBUGFUNC("e1000_rar_set_82542");
+
+	/*
+	 * HW expects these in little endian so we reverse the byte order
+	 * from network order (big endian) to little endian
+	 */
+	rar_low = ((u32) addr[0] |
+	           ((u32) addr[1] << 8) |
+	           ((u32) addr[2] << 16) | ((u32) addr[3] << 24));
+
+	rar_high = ((u32) addr[4] | ((u32) addr[5] << 8));
+
+	/* If MAC address zero, no need to set the AV bit */
+	if (rar_low || rar_high) {
+		if (!hw->mac.disable_av)
+			rar_high |= E1000_RAH_AV;
+	}
+
+	E1000_WRITE_REG_ARRAY(hw, E1000_RA, (index << 1), rar_low);
+	E1000_WRITE_REG_ARRAY(hw, E1000_RA, ((index << 1) + 1), rar_high);
 }
 
 /**
@@ -527,7 +561,7 @@ u32 e1000_translate_register_82542(u32 reg)
  *
  *  Clears the hardware counters by reading the counter registers.
  **/
-STATIC void e1000_clear_hw_cntrs_82542(struct e1000_hw *hw)
+static void e1000_clear_hw_cntrs_82542(struct e1000_hw *hw)
 {
 	volatile u32 temp;
 

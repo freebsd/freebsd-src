@@ -1,4 +1,4 @@
-/*******************************************************************************
+/******************************************************************************
 
   Copyright (c) 2001-2008, Intel Corporation 
   All rights reserved.
@@ -29,9 +29,8 @@
   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE.
 
-*******************************************************************************/
-/* $FreeBSD$ */
-
+******************************************************************************/
+/*$FreeBSD$*/
 
 #ifndef _E1000_ICH8LAN_H_
 #define _E1000_ICH8LAN_H_
@@ -112,10 +111,5 @@
     E1000_IMS_DSW   | \
     E1000_IMS_PHYINT | \
     E1000_IMS_EPRST)
-
-/* Additional interrupt register bit definitions */
-#define E1000_ICR_LSECPNC       0x00004000          /* PN threshold - client */
-#define E1000_IMS_LSECPNC       E1000_ICR_LSECPNC   /* PN threshold - client */
-#define E1000_ICS_LSECPNC       E1000_ICR_LSECPNC   /* PN threshold - client */
 
 #endif
