@@ -52,9 +52,10 @@ struct callout {
 	} c_links;
 	int	c_time;				/* ticks to the event */
 	void	*c_arg;				/* function argument */
-	void	(*c_func)(void *);	/* function to call */
+	void	(*c_func)(void *);		/* function to call */
 	struct lock_object *c_lock;		/* lock to handle */
 	int	c_flags;			/* state of this entry */
+	volatile int c_cpu;			/* CPU we're scheduled on */
 };
 
 #define	CALLOUT_LOCAL_ALLOC	0x0001 /* was allocated from callfree */
@@ -69,12 +70,7 @@ struct callout_handle {
 };
 
 #ifdef _KERNEL
-extern struct callout_list callfree;
-extern struct callout *callout;
 extern int ncallout;
-extern struct callout_tailq *callwheel;
-extern int callwheelsize, callwheelbits, callwheelmask, softticks;
-extern struct mtx callout_lock;
 
 #define	callout_active(c)	((c)->c_flags & CALLOUT_ACTIVE)
 #define	callout_deactivate(c)	((c)->c_flags &= ~CALLOUT_ACTIVE)
@@ -88,9 +84,15 @@ void	_callout_init_lock(struct callout *, struct lock_object *, int);
 	_callout_init_lock((c), ((rw) != NULL) ? &(rw)->lock_object :	\
 	   NULL, (flags))
 #define	callout_pending(c)	((c)->c_flags & CALLOUT_PENDING)
-int	callout_reset(struct callout *, int, void (*)(void *), void *);
+int	callout_reset_on(struct callout *, int, void (*)(void *), void *, int);
+#define	callout_reset(c, on_tick, fn, arg)				\
+    callout_reset_on((c), (on_tick), (fn), (arg), (c)->c_cpu)
+#define	callout_reset_curcpu(c, on_tick, fn, arg)			\
+    callout_reset_on((c), (on_tick), (fn), (arg), PCPU_GET(cpuid))
 #define	callout_stop(c)		_callout_stop_safe(c, 0)
 int	_callout_stop_safe(struct callout *, int);
+void	callout_tick(void);
+
 
 #endif
 
