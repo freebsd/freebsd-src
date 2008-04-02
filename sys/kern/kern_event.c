@@ -454,7 +454,7 @@ filt_timerexpire(void *knx)
 
 	if ((kn->kn_flags & EV_ONESHOT) != EV_ONESHOT) {
 		calloutp = (struct callout *)kn->kn_hook;
-		callout_reset(calloutp, timertoticks(kn->kn_sdata),
+		callout_reset_curcpu(calloutp, timertoticks(kn->kn_sdata),
 		    filt_timerexpire, kn);
 	}
 }
@@ -481,8 +481,8 @@ filt_timerattach(struct knote *kn)
 	    M_KQUEUE, M_WAITOK);
 	callout_init(calloutp, CALLOUT_MPSAFE);
 	kn->kn_hook = calloutp;
-	callout_reset(calloutp, timertoticks(kn->kn_sdata), filt_timerexpire,
-	    kn);
+	callout_reset_curcpu(calloutp, timertoticks(kn->kn_sdata),
+	    filt_timerexpire, kn);
 
 	return (0);
 }
