@@ -39,15 +39,19 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
 #include <sys/callout.h>
 #include <sys/condvar.h>
+#include <sys/interrupt.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/sleepqueue.h>
 #include <sys/sysctl.h>
+#include <sys/smp.h>
 
 static int avg_depth;
 SYSCTL_INT(_debug, OID_AUTO, to_avg_depth, CTLFLAG_RD, &avg_depth, 0,
@@ -65,36 +69,53 @@ SYSCTL_INT(_debug, OID_AUTO, to_avg_mpcalls, CTLFLAG_RD, &avg_mpcalls, 0,
  * TODO:
  *	allocate more timeout table slots when table overflows.
  */
-
-/* Exported to machdep.c and/or kern_clock.c.  */
-struct callout *callout;
-struct callout_list callfree;
 int callwheelsize, callwheelbits, callwheelmask;
-struct callout_tailq *callwheel;
-int softticks;			/* Like ticks, but for softclock(). */
-struct mtx callout_lock;
 
-static struct callout *nextsoftcheck;	/* Next callout to be checked. */
+struct callout_cpu {
+	struct mtx		cc_lock;
+	struct callout		*cc_callout;
+	struct callout_tailq	*cc_callwheel;
+	struct callout_list	cc_callfree;
+	struct callout		*cc_next;
+	struct callout		*cc_curr;
+	void			*cc_cookie;
+	int 			cc_softticks;
+	int			cc_cancel;
+	int			cc_waiting;
+};
+
+#ifdef SMP
+struct callout_cpu cc_cpu[MAXCPU];
+#define	CC_CPU(cpu)	(&cc_cpu[(cpu)])
+#define	CC_SELF()	CC_CPU(PCPU_GET(cpuid))
+#else
+struct callout_cpu cc_cpu;
+#define	CC_CPU(cpu)	&cc_cpu
+#define	CC_SELF()	&cc_cpu
+#endif
+#define	CC_LOCK(cc)	mtx_lock_spin(&(cc)->cc_lock)
+#define	CC_UNLOCK(cc)	mtx_unlock_spin(&(cc)->cc_lock)
+
+static int timeout_cpu;
+
+MALLOC_DEFINE(M_CALLOUT, "callout", "Callout datastructures");
 
 /**
- * Locked by callout_lock:
- *   curr_callout    - If a callout is in progress, it is curr_callout.
+ * Locked by cc_lock:
+ *   cc_curr         - If a callout is in progress, it is curr_callout.
  *                     If curr_callout is non-NULL, threads waiting in
- *                     callout_drain() will be woken up as soon as the 
+ *                     callout_drain() will be woken up as soon as the
  *                     relevant callout completes.
- *   curr_cancelled  - Changing to 1 with both callout_lock and c_lock held
+ *   cc_cancel       - Changing to 1 with both callout_lock and c_lock held
  *                     guarantees that the current callout will not run.
  *                     The softclock() function sets this to 0 before it
  *                     drops callout_lock to acquire c_lock, and it calls
  *                     the handler only if curr_cancelled is still 0 after
  *                     c_lock is successfully acquired.
- *   callout_wait    - If a thread is waiting in callout_drain(), then
+ *   cc_waiting      - If a thread is waiting in callout_drain(), then
  *                     callout_wait is nonzero.  Set only when
  *                     curr_callout is non-NULL.
  */
-static struct callout *curr_callout;
-static int curr_cancelled;
-static int callout_wait;
 
 /*
  * kern_timeout_callwheel_alloc() - kernel low level callwheel initialization 
@@ -105,6 +126,10 @@ static int callout_wait;
 caddr_t
 kern_timeout_callwheel_alloc(caddr_t v)
 {
+	struct callout_cpu *cc;
+
+	timeout_cpu = PCPU_GET(cpuid);
+	cc = CC_CPU(timeout_cpu);
 	/*
 	 * Calculate callout wheel size
 	 */
@@ -114,11 +139,32 @@ kern_timeout_callwheel_alloc(caddr_t v)
 		;
 	callwheelmask = callwheelsize - 1;
 
-	callout = (struct callout *)v;
-	v = (caddr_t)(callout + ncallout);
-	callwheel = (struct callout_tailq *)v;
-	v = (caddr_t)(callwheel + callwheelsize);
+	cc->cc_callout = (struct callout *)v;
+	v = (caddr_t)(cc->cc_callout + ncallout);
+	cc->cc_callwheel = (struct callout_tailq *)v;
+	v = (caddr_t)(cc->cc_callwheel + callwheelsize);
 	return(v);
+}
+
+static void
+callout_cpu_init(struct callout_cpu *cc)
+{
+	struct callout *c;
+	int i;
+
+	mtx_init(&cc->cc_lock, "callout", NULL, MTX_SPIN | MTX_RECURSE);
+	SLIST_INIT(&cc->cc_callfree);
+	for (i = 0; i < callwheelsize; i++) {
+		TAILQ_INIT(&cc->cc_callwheel[i]);
+	}
+	if (cc->cc_callout == NULL)
+		return;
+	for (i = 0; i < ncallout; i++) {
+		c = &cc->cc_callout[i];
+		callout_init(c, 0);
+		c->c_flags = CALLOUT_LOCAL_ALLOC;
+		SLIST_INSERT_HEAD(&cc->cc_callfree, c, c_links.sle);
+	}
 }
 
 /*
@@ -131,18 +177,88 @@ kern_timeout_callwheel_alloc(caddr_t v)
 void
 kern_timeout_callwheel_init(void)
 {
-	int i;
+	callout_cpu_init(CC_CPU(timeout_cpu));
+}
 
-	SLIST_INIT(&callfree);
-	for (i = 0; i < ncallout; i++) {
-		callout_init(&callout[i], 0);
-		callout[i].c_flags = CALLOUT_LOCAL_ALLOC;
-		SLIST_INSERT_HEAD(&callfree, &callout[i], c_links.sle);
+/*
+ * Start standard softclock thread.
+ */
+void    *softclock_ih;
+
+static void
+start_softclock(void *dummy)
+{
+	struct callout_cpu *cc;
+#ifdef SMP
+	int cpu;
+#endif
+
+	cc = CC_CPU(timeout_cpu);
+	if (swi_add(&clk_intr_event, "clock", softclock, cc, SWI_CLOCK,
+	    INTR_MPSAFE, &softclock_ih))
+		panic("died while creating standard software ithreads");
+	cc->cc_cookie = softclock_ih;
+#ifdef SMP
+	for (cpu = 0; cpu <= mp_maxid; cpu++) {
+		if (cpu == timeout_cpu)
+			continue;
+		if (CPU_ABSENT(cpu))
+			continue;
+		cc = CC_CPU(cpu);
+		if (swi_add(NULL, "clock", softclock, cc, SWI_CLOCK,
+		    INTR_MPSAFE, &cc->cc_cookie))
+			panic("died while creating standard software ithreads");
+		cc->cc_callout = NULL;	/* Only cpu0 handles timeout(). */
+		cc->cc_callwheel = malloc(
+		    sizeof(struct callout_tailq) * callwheelsize, M_CALLOUT,
+		    M_WAITOK);
+		callout_cpu_init(cc);
 	}
-	for (i = 0; i < callwheelsize; i++) {
-		TAILQ_INIT(&callwheel[i]);
+#endif
+}
+
+SYSINIT(start_softclock, SI_SUB_SOFTINTR, SI_ORDER_FIRST, start_softclock, NULL);
+
+void
+callout_tick(void)
+{
+	int need_softclock = 0;
+	struct callout_cpu *cc;
+
+	/*
+	 * Process callouts at a very low cpu priority, so we don't keep the
+	 * relatively high clock interrupt priority any longer than necessary.
+	 */
+	cc = CC_SELF();
+	mtx_lock_spin_flags(&cc->cc_lock, MTX_QUIET);
+	if (!TAILQ_EMPTY(&cc->cc_callwheel[ticks & callwheelmask])) {
+		need_softclock = 1;
+	} else if (cc->cc_softticks + 1 == ticks)
+		++cc->cc_softticks;
+	mtx_unlock_spin_flags(&cc->cc_lock, MTX_QUIET);
+	/*
+	 * swi_sched acquires the thread lock, so we don't want to call it
+	 * with cc_lock held; incorrect locking order.
+	 */
+	if (need_softclock)
+		swi_sched(cc->cc_cookie, 0);
+}
+
+static struct callout_cpu *
+callout_lock(struct callout *c)
+{
+	struct callout_cpu *cc;
+	int cpu;
+
+	for (;;) {
+		cpu = c->c_cpu;
+		cc = CC_CPU(cpu);
+		CC_LOCK(cc);
+		if (cpu == c->c_cpu)
+			break;
+		CC_UNLOCK(cc);
 	}
-	mtx_init(&callout_lock, "callout", NULL, MTX_SPIN | MTX_RECURSE);
+	return (cc);
 }
 
 /*
@@ -162,8 +278,9 @@ kern_timeout_callwheel_init(void)
  * Run periodic events from timeout queue.
  */
 void
-softclock(void *dummy)
+softclock(void *arg)
 {
+	struct callout_cpu *cc;
 	struct callout *c;
 	struct callout_tailq *bucket;
 	int curticks;
@@ -188,15 +305,16 @@ softclock(void *dummy)
 	gcalls = 0;
 	depth = 0;
 	steps = 0;
-	mtx_lock_spin(&callout_lock);
-	while (softticks != ticks) {
-		softticks++;
+	cc = (struct callout_cpu *)arg;
+	CC_LOCK(cc);
+	while (cc->cc_softticks != ticks) {
+		cc->cc_softticks++;
 		/*
-		 * softticks may be modified by hard clock, so cache
+		 * cc_softticks may be modified by hard clock, so cache
 		 * it while we work on a given bucket.
 		 */
-		curticks = softticks;
-		bucket = &callwheel[curticks & callwheelmask];
+		curticks = cc->cc_softticks;
+		bucket = &cc->cc_callwheel[curticks & callwheelmask];
 		c = TAILQ_FIRST(bucket);
 		while (c) {
 			depth++;
@@ -204,12 +322,12 @@ softclock(void *dummy)
 				c = TAILQ_NEXT(c, c_links.tqe);
 				++steps;
 				if (steps >= MAX_SOFTCLOCK_STEPS) {
-					nextsoftcheck = c;
+					cc->cc_next = c;
 					/* Give interrupts a chance. */
-					mtx_unlock_spin(&callout_lock);
+					CC_UNLOCK(cc);
 					;	/* nothing */
-					mtx_lock_spin(&callout_lock);
-					c = nextsoftcheck;
+					CC_LOCK(cc);
+					c = cc->cc_next;
 					steps = 0;
 				}
 			} else {
@@ -219,7 +337,7 @@ softclock(void *dummy)
 				struct lock_object *c_lock;
 				int c_flags, sharedlock;
 
-				nextsoftcheck = TAILQ_NEXT(c, c_links.tqe);
+				cc->cc_next = TAILQ_NEXT(c, c_links.tqe);
 				TAILQ_REMOVE(bucket, c, c_links.tqe);
 				class = (c->c_lock != NULL) ?
 				    LOCK_CLASS(c->c_lock) : NULL;
@@ -231,26 +349,25 @@ softclock(void *dummy)
 				c_flags = c->c_flags;
 				if (c->c_flags & CALLOUT_LOCAL_ALLOC) {
 					c->c_flags = CALLOUT_LOCAL_ALLOC;
-					curr_callout = c;
 				} else {
 					c->c_flags =
 					    (c->c_flags & ~CALLOUT_PENDING);
-					curr_callout = c;
 				}
-				curr_cancelled = 0;
-				mtx_unlock_spin(&callout_lock);
+				cc->cc_curr = c;
+				cc->cc_cancel = 0;
+				CC_UNLOCK(cc);
 				if (c_lock != NULL) {
 					class->lc_lock(c_lock, sharedlock);
 					/*
 					 * The callout may have been cancelled
 					 * while we switched locks.
 					 */
-					if (curr_cancelled) {
+					if (cc->cc_cancel) {
 						class->lc_unlock(c_lock);
 						goto skip;
 					}
 					/* The callout cannot be stopped now. */
-					curr_cancelled = 1;
+					cc->cc_cancel = 1;
 
 					if (c_lock == &Giant.lock_object) {
 						gcalls++;
@@ -295,7 +412,7 @@ softclock(void *dummy)
 				if ((c_flags & CALLOUT_RETURNUNLOCKED) == 0)
 					class->lc_unlock(c_lock);
 			skip:
-				mtx_lock_spin(&callout_lock);
+				CC_LOCK(cc);
 				/*
 				 * If the current callout is locally
 				 * allocated (from timeout(9))
@@ -311,22 +428,22 @@ softclock(void *dummy)
 					    CALLOUT_LOCAL_ALLOC,
 					    ("corrupted callout"));
 					c->c_func = NULL;
-					SLIST_INSERT_HEAD(&callfree, c,
+					SLIST_INSERT_HEAD(&cc->cc_callfree, c,
 					    c_links.sle);
 				}
-				curr_callout = NULL;
-				if (callout_wait) {
+				cc->cc_curr = NULL;
+				if (cc->cc_waiting) {
 					/*
 					 * There is someone waiting
 					 * for the callout to complete.
 					 */
-					callout_wait = 0;
-					mtx_unlock_spin(&callout_lock);
-					wakeup(&callout_wait);
-					mtx_lock_spin(&callout_lock);
+					cc->cc_waiting = 0;
+					CC_UNLOCK(cc);
+					wakeup(&cc->cc_waiting);
+					CC_LOCK(cc);
 				}
 				steps = 0;
-				c = nextsoftcheck;
+				c = cc->cc_next;
 			}
 		}
 	}
@@ -334,8 +451,8 @@ softclock(void *dummy)
 	avg_mpcalls += (mpcalls * 1000 - avg_mpcalls) >> 8;
 	avg_lockcalls += (lockcalls * 1000 - avg_lockcalls) >> 8;
 	avg_gcalls += (gcalls * 1000 - avg_gcalls) >> 8;
-	nextsoftcheck = NULL;
-	mtx_unlock_spin(&callout_lock);
+	cc->cc_next = NULL;
+	CC_UNLOCK(cc);
 }
 
 /*
@@ -360,22 +477,22 @@ timeout(ftn, arg, to_ticks)
 	void *arg;
 	int to_ticks;
 {
+	struct callout_cpu *cc;
 	struct callout *new;
 	struct callout_handle handle;
 
-	mtx_lock_spin(&callout_lock);
-
+	cc = CC_CPU(timeout_cpu);
+	CC_LOCK(cc);
 	/* Fill in the next free callout structure. */
-	new = SLIST_FIRST(&callfree);
+	new = SLIST_FIRST(&cc->cc_callfree);
 	if (new == NULL)
 		/* XXX Attempt to malloc first */
 		panic("timeout table full");
-	SLIST_REMOVE_HEAD(&callfree, c_links.sle);
-	
+	SLIST_REMOVE_HEAD(&cc->cc_callfree, c_links.sle);
 	callout_reset(new, to_ticks, ftn, arg);
-
 	handle.callout = new;
-	mtx_unlock_spin(&callout_lock);
+	CC_UNLOCK(cc);
+
 	return (handle);
 }
 
@@ -385,6 +502,7 @@ untimeout(ftn, arg, handle)
 	void *arg;
 	struct callout_handle handle;
 {
+	struct callout_cpu *cc;
 
 	/*
 	 * Check for a handle that was initialized
@@ -394,10 +512,10 @@ untimeout(ftn, arg, handle)
 	if (handle.callout == NULL)
 		return;
 
-	mtx_lock_spin(&callout_lock);
+	cc = callout_lock(handle.callout);
 	if (handle.callout->c_func == ftn && handle.callout->c_arg == arg)
 		callout_stop(handle.callout);
-	mtx_unlock_spin(&callout_lock);
+	CC_UNLOCK(cc);
 }
 
 void
@@ -423,24 +541,29 @@ callout_handle_init(struct callout_handle *handle)
  * callout_deactivate() - marks the callout as having been serviced
  */
 int
-callout_reset(c, to_ticks, ftn, arg)
-	struct	callout *c;
-	int	to_ticks;
-	void	(*ftn)(void *);
-	void	*arg;
+callout_reset_on(struct callout *c, int to_ticks, void (*ftn)(void *),
+    void *arg, int cpu)
 {
+	struct callout_cpu *cc;
 	int cancelled = 0;
 
-	mtx_lock_spin(&callout_lock);
-	if (c == curr_callout) {
+	/*
+	 * Don't allow migration of pre-allocated callouts lest they
+	 * become unbalanced.
+	 */
+	if (c->c_flags & CALLOUT_LOCAL_ALLOC)
+		cpu = c->c_cpu;
+retry:
+	cc = callout_lock(c);
+	if (cc->cc_curr == c) {
 		/*
 		 * We're being asked to reschedule a callout which is
 		 * currently in progress.  If there is a lock then we
 		 * can cancel the callout if it has not really started.
 		 */
-		if (c->c_lock != NULL && !curr_cancelled)
-			cancelled = curr_cancelled = 1;
-		if (callout_wait) {
+		if (c->c_lock != NULL && !cc->cc_cancel)
+			cancelled = cc->cc_cancel = 1;
+		if (cc->cc_waiting) {
 			/*
 			 * Someone has called callout_drain to kill this
 			 * callout.  Don't reschedule.
@@ -448,34 +571,30 @@ callout_reset(c, to_ticks, ftn, arg)
 			CTR4(KTR_CALLOUT, "%s %p func %p arg %p",
 			    cancelled ? "cancelled" : "failed to cancel",
 			    c, c->c_func, c->c_arg);
-			mtx_unlock_spin(&callout_lock);
+			CC_UNLOCK(cc);
 			return (cancelled);
 		}
 	}
 	if (c->c_flags & CALLOUT_PENDING) {
-		if (nextsoftcheck == c) {
-			nextsoftcheck = TAILQ_NEXT(c, c_links.tqe);
+		if (cc->cc_next == c) {
+			cc->cc_next = TAILQ_NEXT(c, c_links.tqe);
 		}
-		TAILQ_REMOVE(&callwheel[c->c_time & callwheelmask], c,
+		TAILQ_REMOVE(&cc->cc_callwheel[c->c_time & callwheelmask], c,
 		    c_links.tqe);
 
 		cancelled = 1;
-
-		/*
-		 * Part of the normal "stop a pending callout" process
-		 * is to clear the CALLOUT_ACTIVE and CALLOUT_PENDING
-		 * flags.  We're not going to bother doing that here,
-		 * because we're going to be setting those flags ten lines
-		 * after this point, and we're holding callout_lock
-		 * between now and then.
-		 */
+		c->c_flags &= ~(CALLOUT_ACTIVE | CALLOUT_PENDING);
+	}
+	/*
+	 * If the lock must migrate we have to check the state again as
+	 * we can't hold both the new and old locks simultaneously.
+	 */
+	if (c->c_cpu != cpu) {
+		c->c_cpu = cpu;
+		CC_UNLOCK(cc);
+		goto retry;
 	}
 
-	/*
-	 * We could unlock callout_lock here and lock it again before the
-	 * TAILQ_INSERT_TAIL, but there's no point since doing this setup
-	 * doesn't take much time.
-	 */
 	if (to_ticks <= 0)
 		to_ticks = 1;
 
@@ -483,11 +602,11 @@ callout_reset(c, to_ticks, ftn, arg)
 	c->c_flags |= (CALLOUT_ACTIVE | CALLOUT_PENDING);
 	c->c_func = ftn;
 	c->c_time = ticks + to_ticks;
-	TAILQ_INSERT_TAIL(&callwheel[c->c_time & callwheelmask], 
+	TAILQ_INSERT_TAIL(&cc->cc_callwheel[c->c_time & callwheelmask], 
 			  c, c_links.tqe);
 	CTR5(KTR_CALLOUT, "%sscheduled %p func %p arg %p in %d",
 	    cancelled ? "re" : "", c, c->c_func, c->c_arg, to_ticks);
-	mtx_unlock_spin(&callout_lock);
+	CC_UNLOCK(cc);
 
 	return (cancelled);
 }
@@ -497,6 +616,7 @@ _callout_stop_safe(c, safe)
 	struct	callout *c;
 	int	safe;
 {
+	struct callout_cpu *cc;
 	struct lock_class *class;
 	int use_lock, sq_locked;
 
@@ -517,7 +637,7 @@ _callout_stop_safe(c, safe)
 
 	sq_locked = 0;
 again:
-	mtx_lock_spin(&callout_lock);
+	cc = callout_lock(c);
 	/*
 	 * If the callout isn't pending, it's not on the queue, so
 	 * don't attempt to remove it from the queue.  We can try to
@@ -530,12 +650,12 @@ again:
 		 * If it wasn't on the queue and it isn't the current
 		 * callout, then we can't stop it, so just bail.
 		 */
-		if (c != curr_callout) {
+		if (cc->cc_curr != c) {
 			CTR3(KTR_CALLOUT, "failed to stop %p func %p arg %p",
 			    c, c->c_func, c->c_arg);
-			mtx_unlock_spin(&callout_lock);
+			CC_UNLOCK(cc);
 			if (sq_locked)
-				sleepq_release(&callout_wait);
+				sleepq_release(&cc->cc_curr);
 			return (0);
 		}
 
@@ -546,19 +666,19 @@ again:
 			 * just wait for the current invocation to
 			 * finish.
 			 */
-			while (c == curr_callout) {
+			while (cc->cc_curr == c) {
 
 				/*
 				 * Use direct calls to sleepqueue interface
 				 * instead of cv/msleep in order to avoid
-				 * a LOR between callout_lock and sleepqueue
+				 * a LOR between cc_lock and sleepqueue
 				 * chain spinlocks.  This piece of code
 				 * emulates a msleep_spin() call actually.
 				 *
 				 * If we already have the sleepqueue chain
 				 * locked, then we can safely block.  If we
 				 * don't already have it locked, however,
-				 * we have to drop the callout_lock to lock
+				 * we have to drop the cc_lock to lock
 				 * it.  This opens several races, so we
 				 * restart at the beginning once we have
 				 * both locks.  If nothing has changed, then
@@ -566,26 +686,25 @@ again:
 				 * set.
 				 */
 				if (!sq_locked) {
-					mtx_unlock_spin(&callout_lock);
-					sleepq_lock(&callout_wait);
+					CC_UNLOCK(cc);
+					sleepq_lock(&cc->cc_curr);
 					sq_locked = 1;
 					goto again;
 				}
-
-				callout_wait = 1;
+				cc->cc_waiting = 1;
 				DROP_GIANT();
-				mtx_unlock_spin(&callout_lock);
-				sleepq_add(&callout_wait,
-				    &callout_lock.lock_object, "codrain",
+				CC_UNLOCK(cc);
+				sleepq_add(&cc->cc_curr,
+				    &cc->cc_lock.lock_object, "codrain",
 				    SLEEPQ_SLEEP, 0);
-				sleepq_wait(&callout_wait, 0);
+				sleepq_wait(&cc->cc_curr, 0);
 				sq_locked = 0;
 
 				/* Reacquire locks previously released. */
 				PICKUP_GIANT();
-				mtx_lock_spin(&callout_lock);
+				CC_LOCK(cc);
 			}
-		} else if (use_lock && !curr_cancelled) {
+		} else if (use_lock && !cc->cc_cancel) {
 			/*
 			 * The current callout is waiting for its
 			 * lock which we hold.  Cancel the callout
@@ -593,37 +712,38 @@ again:
 			 * lock, the callout will be skipped in
 			 * softclock().
 			 */
-			curr_cancelled = 1;
+			cc->cc_cancel = 1;
 			CTR3(KTR_CALLOUT, "cancelled %p func %p arg %p",
 			    c, c->c_func, c->c_arg);
-			mtx_unlock_spin(&callout_lock);
+			CC_UNLOCK(cc);
 			KASSERT(!sq_locked, ("sleepqueue chain locked"));
 			return (1);
 		}
 		CTR3(KTR_CALLOUT, "failed to stop %p func %p arg %p",
 		    c, c->c_func, c->c_arg);
-		mtx_unlock_spin(&callout_lock);
+		CC_UNLOCK(cc);
 		KASSERT(!sq_locked, ("sleepqueue chain still locked"));
 		return (0);
 	}
 	if (sq_locked)
-		sleepq_release(&callout_wait);
+		sleepq_release(&cc->cc_curr);
 
 	c->c_flags &= ~(CALLOUT_ACTIVE | CALLOUT_PENDING);
 
-	if (nextsoftcheck == c) {
-		nextsoftcheck = TAILQ_NEXT(c, c_links.tqe);
+	if (cc->cc_next == c) {
+		cc->cc_next = TAILQ_NEXT(c, c_links.tqe);
 	}
-	TAILQ_REMOVE(&callwheel[c->c_time & callwheelmask], c, c_links.tqe);
+	TAILQ_REMOVE(&cc->cc_callwheel[c->c_time & callwheelmask], c,
+	    c_links.tqe);
 
 	CTR3(KTR_CALLOUT, "cancelled %p func %p arg %p",
 	    c, c->c_func, c->c_arg);
 
 	if (c->c_flags & CALLOUT_LOCAL_ALLOC) {
 		c->c_func = NULL;
-		SLIST_INSERT_HEAD(&callfree, c, c_links.sle);
+		SLIST_INSERT_HEAD(&cc->cc_callfree, c, c_links.sle);
 	}
-	mtx_unlock_spin(&callout_lock);
+	CC_UNLOCK(cc);
 	return (1);
 }
 
@@ -640,6 +760,7 @@ callout_init(c, mpsafe)
 		c->c_lock = &Giant.lock_object;
 		c->c_flags = 0;
 	}
+	c->c_cpu = timeout_cpu;
 }
 
 void
@@ -658,6 +779,7 @@ _callout_init_lock(c, lock, flags)
 	    (LC_SPINLOCK | LC_SLEEPABLE)), ("%s: invalid lock class",
 	    __func__));
 	c->c_flags = flags & (CALLOUT_RETURNUNLOCKED | CALLOUT_SHAREDLOCK);
+	c->c_cpu = timeout_cpu;
 }
 
 #ifdef APM_FIXUP_CALLTODO
@@ -709,7 +831,7 @@ adjust_timeout_calltodo(time_change)
 	 */
 
 	/* don't collide with softclock() */
-	mtx_lock_spin(&callout_lock);
+	CC_LOCK(cc);
 	for (p = calltodo.c_next; p != NULL; p = p->c_next) {
 		p->c_time -= delta_ticks;
 
@@ -720,7 +842,7 @@ adjust_timeout_calltodo(time_change)
 		/* take back the ticks the timer didn't use (p->c_time <= 0) */
 		delta_ticks = -p->c_time;
 	}
-	mtx_unlock_spin(&callout_lock);
+	CC_UNLOCK(cc);
 
 	return;
 }
