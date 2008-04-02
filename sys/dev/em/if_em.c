@@ -1,36 +1,36 @@
-/**************************************************************************
+/******************************************************************************
 
-Copyright (c) 2001-2008, Intel Corporation
-All rights reserved.
+  Copyright (c) 2001-2008, Intel Corporation 
+  All rights reserved.
+  
+  Redistribution and use in source and binary forms, with or without 
+  modification, are permitted provided that the following conditions are met:
+  
+   1. Redistributions of source code must retain the above copyright notice, 
+      this list of conditions and the following disclaimer.
+  
+   2. Redistributions in binary form must reproduce the above copyright 
+      notice, this list of conditions and the following disclaimer in the 
+      documentation and/or other materials provided with the distribution.
+  
+   3. Neither the name of the Intel Corporation nor the names of its 
+      contributors may be used to endorse or promote products derived from 
+      this software without specific prior written permission.
+  
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
+  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE 
+  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
+  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
+  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
+  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
+  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
+  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+  POSSIBILITY OF SUCH DAMAGE.
 
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
- 1. Redistributions of source code must retain the above copyright notice,
-    this list of conditions and the following disclaimer.
-
- 2. Redistributions in binary form must reproduce the above copyright
-    notice, this list of conditions and the following disclaimer in the
-    documentation and/or other materials provided with the distribution.
-
- 3. Neither the name of the Intel Corporation nor the names of its
-    contributors may be used to endorse or promote products derived from
-    this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
-LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-POSSIBILITY OF SUCH DAMAGE.
-
-***************************************************************************/
-/* $FreeBSD$ */
+******************************************************************************/
+/*$FreeBSD$*/
 
 #ifdef HAVE_KERNEL_OPTION_HEADERS
 #include "opt_device_polling.h"
@@ -86,7 +86,7 @@ int	em_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version:
  *********************************************************************/
-char em_driver_version[] = "6.8.4";
+char em_driver_version[] = "6.8.8";
 
 
 /*********************************************************************
@@ -187,7 +187,6 @@ static em_vendor_info_t em_vendor_info_array[] =
 	{ 0x8086, E1000_DEV_ID_ICH9_IFE,	PCI_ANY_ID, PCI_ANY_ID, 0},
 	{ 0x8086, E1000_DEV_ID_ICH9_IFE_GT,	PCI_ANY_ID, PCI_ANY_ID, 0},
 	{ 0x8086, E1000_DEV_ID_ICH9_IFE_G,	PCI_ANY_ID, PCI_ANY_ID, 0},
-
 	/* required last entry */
 	{ 0, 0, 0, 0, 0}
 };
@@ -285,7 +284,8 @@ static void     em_get_hw_control(struct adapter *);
 static void     em_release_hw_control(struct adapter *);
 static void     em_enable_wakeup(device_t);
 
-#ifndef EM_FAST_IRQ
+
+#ifdef EM_LEGACY_IRQ
 static void	em_intr(void *);
 #else /* FAST IRQ */
 #if __FreeBSD_version < 700000
@@ -302,7 +302,7 @@ static void	em_handle_rxtx(void *context, int pending);
 static void	em_handle_rx(void *context, int pending);
 static void	em_handle_tx(void *context, int pending);
 static void	em_handle_link(void *context, int pending);
-#endif /* EM_FAST_IRQ */
+#endif /* EM_LEGACY_IRQ */
 
 #ifdef DEVICE_POLLING
 static poll_handler_t em_poll;
@@ -361,7 +361,7 @@ TUNABLE_INT("hw.em.rxd", &em_rxd);
 TUNABLE_INT("hw.em.txd", &em_txd);
 TUNABLE_INT("hw.em.smart_pwr_down", &em_smart_pwr_down);
 
-#ifdef EM_FAST_IRQ
+#ifndef EM_LEGACY_IRQ
 /* How many packets rxeof tries to clean at a time */
 static int em_rx_process_limit = 100;
 TUNABLE_INT("hw.em.rx_process_limit", &em_rx_process_limit);
@@ -523,7 +523,7 @@ em_attach(device_t dev)
 		    em_tx_abs_int_delay_dflt);
 	}
 
-#ifdef EM_FAST_IRQ
+#ifndef EM_LEGACY_IRQ
 	/* Sysctls for limiting the amount of work done in the taskqueue */
 	em_add_rx_process_limit(adapter, "rx_processing_limit",
 	    "max number of rx packets to process", &adapter->rx_process_limit,
@@ -1180,6 +1180,7 @@ em_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		break;
 	    }
 
+
 	default:
 		error = ether_ioctl(ifp, command, data);
 		break;
@@ -1211,8 +1212,11 @@ em_watchdog(struct adapter *adapter)
 	** Finally, anytime all descriptors are clean the timer is
 	** set to 0.
 	*/
-	if ((adapter->watchdog_timer == 0) || (--adapter->watchdog_timer))
+	EM_TX_LOCK(adapter);
+	if ((adapter->watchdog_timer == 0) || (--adapter->watchdog_timer)) {
+		EM_TX_UNLOCK(adapter);
 		return;
+	}
 
 	/* If we are in this routine because of pause frames, then
 	 * don't reset the hardware.
@@ -1220,6 +1224,7 @@ em_watchdog(struct adapter *adapter)
 	if (E1000_READ_REG(&adapter->hw, E1000_STATUS) &
 	    E1000_STATUS_TXOFF) {
 		adapter->watchdog_timer = EM_TX_TIMEOUT;
+		EM_TX_UNLOCK(adapter);
 		return;
 	}
 
@@ -1378,6 +1383,7 @@ em_init_locked(struct adapter *adapter)
 	callout_reset(&adapter->timer, hz, em_local_timer, adapter);
 	e1000_clear_hw_cntrs_base_generic(&adapter->hw);
 
+
 #ifdef DEVICE_POLLING
 	/*
 	 * Only enable interrupts if we are not polling, make sure
@@ -1388,6 +1394,7 @@ em_init_locked(struct adapter *adapter)
 	else
 #endif /* DEVICE_POLLING */
 		em_enable_intr(adapter);
+
 
 	/* Don't reset the phy next time init gets called */
 	adapter->hw.phy.reset_disable = TRUE;
@@ -1427,7 +1434,6 @@ em_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 		if (reg_icr & (E1000_ICR_RXSEQ | E1000_ICR_LSC)) {
 			callout_stop(&adapter->timer);
 			adapter->hw.mac.get_link_status = 1;
-			e1000_check_for_link(&adapter->hw);
 			em_update_link_status(adapter);
 			callout_reset(&adapter->timer, hz,
 			    em_local_timer, adapter);
@@ -1445,7 +1451,7 @@ em_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 }
 #endif /* DEVICE_POLLING */
 
-#ifndef EM_FAST_IRQ 
+#ifdef EM_LEGACY_IRQ 
 /*********************************************************************
  *
  *  Legacy Interrupt Service routine  
@@ -1496,7 +1502,6 @@ em_intr(void *arg)
 		if (reg_icr & (E1000_ICR_RXSEQ | E1000_ICR_LSC)) {
 			callout_stop(&adapter->timer);
 			adapter->hw.mac.get_link_status = 1;
-			e1000_check_for_link(&adapter->hw);
 			em_update_link_status(adapter);
 			/* Deal with TX cruft when link lost */
 			em_tx_purge(adapter);
@@ -1524,15 +1529,11 @@ em_handle_link(void *context, int pending)
 
 	ifp = adapter->ifp;
 
-	EM_CORE_LOCK(adapter);
-	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
-		EM_CORE_UNLOCK(adapter);
+	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
 		return;
-	}
 
+	EM_CORE_LOCK(adapter);
 	callout_stop(&adapter->timer);
-	adapter->hw.mac.get_link_status = 1;
-	e1000_check_for_link(&adapter->hw);
 	em_update_link_status(adapter);
 	/* Deal with TX cruft when link lost */
 	em_tx_purge(adapter);
@@ -1540,12 +1541,6 @@ em_handle_link(void *context, int pending)
 	EM_CORE_UNLOCK(adapter);
 }
 
-#if __FreeBSD_version >= 700000
-#if !defined(NET_LOCK_GIANT)
-#define NET_LOCK_GIANT()
-#define NET_UNLOCK_GIANT()
-#endif
-#endif
 
 /* Combined RX/TX handler, used by Legacy and MSI */
 static void
@@ -1554,7 +1549,6 @@ em_handle_rxtx(void *context, int pending)
 	struct adapter	*adapter = context;
 	struct ifnet	*ifp = adapter->ifp;
 
-	NET_LOCK_GIANT();
 
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 		if (em_rxeof(adapter, adapter->rx_process_limit) != 0)
@@ -1651,8 +1645,10 @@ em_irq_fast(void *arg)
 	taskqueue_enqueue(adapter->tq, &adapter->rxtx_task);
 
 	/* Link status change */
-	if (reg_icr & (E1000_ICR_RXSEQ | E1000_ICR_LSC))
+	if (reg_icr & (E1000_ICR_RXSEQ | E1000_ICR_LSC)) {
+		adapter->hw.mac.get_link_status = 1;
 		taskqueue_enqueue(taskqueue_fast, &adapter->link_task);
+	}
 
 	if (reg_icr & E1000_ICR_RXO)
 		adapter->rx_overruns++;
@@ -1748,7 +1744,6 @@ em_media_status(struct ifnet *ifp, struct ifmediareq *ifmr)
 	INIT_DEBUGOUT("em_media_status: begin");
 
 	EM_CORE_LOCK(adapter);
-	e1000_check_for_link(&adapter->hw);
 	em_update_link_status(adapter);
 
 	ifmr->ifm_status = IFM_AVALID;
@@ -1993,7 +1988,12 @@ em_xmit(struct adapter *adapter, struct mbuf **m_headp)
 		tso_desc = TRUE;
 	} else
 #endif
-	 if (m_head->m_pkthdr.csum_flags & CSUM_OFFLOAD)
+	/*
+	** Timesync needs to check the packet header 
+	** so call checksum code to do so, but don't
+	** penalize the code if not defined.
+	*/
+	if (m_head->m_pkthdr.csum_flags & CSUM_OFFLOAD)
 		em_transmit_checksum_setup(adapter,  m_head,
 		    &txd_upper, &txd_lower);
 
@@ -2378,7 +2378,6 @@ em_local_timer(void *arg)
 
 	EM_CORE_LOCK_ASSERT(adapter);
 
-	e1000_check_for_link(&adapter->hw);
 	em_update_link_status(adapter);
 	em_update_stats_counters(adapter);
 
@@ -2404,45 +2403,66 @@ em_local_timer(void *arg)
 static void
 em_update_link_status(struct adapter *adapter)
 {
+	struct e1000_hw *hw = &adapter->hw;
 	struct ifnet *ifp = adapter->ifp;
 	device_t dev = adapter->dev;
+	u32 link_check = 0;
 
-	if (E1000_READ_REG(&adapter->hw, E1000_STATUS) &
-	    E1000_STATUS_LU) {
-		if (adapter->link_active == 0) {
-			e1000_get_speed_and_duplex(&adapter->hw, 
-			    &adapter->link_speed, &adapter->link_duplex);
-			/* Check if we must disable SPEED_MODE bit on PCI-E */
-			if ((adapter->link_speed != SPEED_1000) &&
-			    ((adapter->hw.mac.type == e1000_82571) ||
-			    (adapter->hw.mac.type == e1000_82572))) {
-				int tarc0;
+	/* Get the cached link value or read phy for real */
+	switch (hw->phy.media_type) {
+	case e1000_media_type_copper:
+		if (hw->mac.get_link_status) {
+			/* Do the work to read phy */
+			e1000_check_for_link(hw);
+			link_check = !hw->mac.get_link_status;
+		} else
+			link_check = TRUE;
+		break;
+	case e1000_media_type_fiber:
+		e1000_check_for_link(hw);
+		link_check = (E1000_READ_REG(hw, E1000_STATUS) &
+                                 E1000_STATUS_LU);
+		break;
+	case e1000_media_type_internal_serdes:
+		e1000_check_for_link(hw);
+		link_check = adapter->hw.mac.serdes_has_link;
+		break;
+	default:
+	case e1000_media_type_unknown:
+		break;
+	}
 
-				tarc0 = E1000_READ_REG(&adapter->hw,
-				    E1000_TARC(0));
-				tarc0 &= ~SPEED_MODE_BIT;
-				E1000_WRITE_REG(&adapter->hw,
-				    E1000_TARC(0), tarc0);
-			}
-			if (bootverbose)
-				device_printf(dev, "Link is up %d Mbps %s\n",
-				    adapter->link_speed,
-				    ((adapter->link_duplex == FULL_DUPLEX) ?
-				    "Full Duplex" : "Half Duplex"));
-			adapter->link_active = 1;
-			adapter->smartspeed = 0;
-			ifp->if_baudrate = adapter->link_speed * 1000000;
-			if_link_state_change(ifp, LINK_STATE_UP);
+	/* Now check for a transition */
+	if (link_check && (adapter->link_active == 0)) {
+		e1000_get_speed_and_duplex(hw, &adapter->link_speed,
+		    &adapter->link_duplex);
+		/* Check if we must disable SPEED_MODE bit on PCI-E */
+		if ((adapter->link_speed != SPEED_1000) &&
+		    ((hw->mac.type == e1000_82571) ||
+		    (hw->mac.type == e1000_82572))) {
+			int tarc0;
+			tarc0 = E1000_READ_REG(hw, E1000_TARC(0));
+			tarc0 &= ~SPEED_MODE_BIT;
+			E1000_WRITE_REG(hw, E1000_TARC(0), tarc0);
 		}
-	} else {
-		if (adapter->link_active == 1) {
-			ifp->if_baudrate = adapter->link_speed = 0;
-			adapter->link_duplex = 0;
-			if (bootverbose)
-				device_printf(dev, "Link is Down\n");
-			adapter->link_active = 0;
-			if_link_state_change(ifp, LINK_STATE_DOWN);
-		}
+		if (bootverbose)
+			device_printf(dev, "Link is up %d Mbps %s\n",
+			    adapter->link_speed,
+			    ((adapter->link_duplex == FULL_DUPLEX) ?
+			    "Full Duplex" : "Half Duplex"));
+		adapter->link_active = 1;
+		adapter->smartspeed = 0;
+		ifp->if_baudrate = adapter->link_speed * 1000000;
+		if_link_state_change(ifp, LINK_STATE_UP);
+	} else if (!link_check && (adapter->link_active == 1)) {
+		ifp->if_baudrate = adapter->link_speed = 0;
+		adapter->link_duplex = 0;
+		if (bootverbose)
+			device_printf(dev, "Link is Down\n");
+		adapter->link_active = 0;
+		/* Link down, disable watchdog */
+		adapter->watchdog_timer = FALSE;
+		if_link_state_change(ifp, LINK_STATE_DOWN);
 	}
 }
 
@@ -2472,6 +2492,7 @@ em_stop(void *arg)
 
 	/* Tell the stack that the interface is no longer active */
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
+
 
 	e1000_reset_hw(&adapter->hw);
 	if (adapter->hw.mac.type >= e1000_82544)
@@ -2616,7 +2637,7 @@ em_allocate_legacy(struct adapter *adapter)
 		return (ENXIO);
 	}
 
-#ifndef EM_FAST_IRQ
+#ifdef EM_LEGACY_IRQ
 	/* We do Legacy setup */
 	if ((error = bus_setup_intr(dev, adapter->res[0],
 #if __FreeBSD_version > 700000
@@ -2654,7 +2675,7 @@ em_allocate_legacy(struct adapter *adapter)
 		adapter->tq = NULL;
 		return (error);
 	}
-#endif  /* EM_FAST_IRQ */
+#endif  /* EM_LEGACY_IRQ */
 	
 	return (0);
 }
@@ -3383,9 +3404,6 @@ em_transmit_checksum_setup(struct adapter *adapter, struct mbuf *mp,
 	tx_buffer = &adapter->tx_buffer_area[curr_txd];
 	TXD = (struct e1000_context_desc *) &adapter->tx_desc_base[curr_txd];
 
-	*txd_lower = E1000_TXD_CMD_DEXT |	/* Extended descr type */
-		     E1000_TXD_DTYP_D;		/* Data descr */
-
 	/*
 	 * Determine where frame payload starts.
 	 * Jump over vlan headers if already present,
@@ -3488,6 +3506,8 @@ em_transmit_checksum_setup(struct adapter *adapter, struct mbuf *mp,
 		break;
 	}
 
+	*txd_lower = E1000_TXD_CMD_DEXT |	/* Extended descr type */
+		     E1000_TXD_DTYP_D;		/* Data descr */
 	TXD->tcp_seg_setup.data = htole32(0);
 	TXD->cmd_and_length =
 	    htole32(adapter->txd_cmd | E1000_TXD_CMD_DEXT | cmd);
@@ -3651,6 +3671,7 @@ em_tso_setup(struct adapter *adapter, struct mbuf *mp, u32 *txd_upper,
 
 	return TRUE;
 }
+
 #endif /* __FreeBSD_version >= 700000 */
 
 /**********************************************************************
@@ -4274,7 +4295,7 @@ discard:
 			i = 0;
 		if (m != NULL) {
 			adapter->next_rx_desc_to_check = i;
-#ifndef EM_FAST_IRQ
+#ifdef EM_LEGACY_IRQ
 			EM_CORE_UNLOCK(adapter);
 			(*ifp->if_input)(ifp, m);
 			EM_CORE_LOCK(adapter);
@@ -4554,84 +4575,6 @@ em_is_valid_ether_addr(u8 *addr)
 	}
 
 	return (TRUE);
-}
-
-/*
- * NOTE: the following routines using the e1000 
- * 	naming style are provided to the shared
- *	code which expects that rather than 'em'
- */
-
-void
-e1000_write_pci_cfg(struct e1000_hw *hw, u32 reg, u16 *value)
-{
-	pci_write_config(((struct e1000_osdep *)hw->back)->dev, reg, *value, 2);
-}
-
-void
-e1000_read_pci_cfg(struct e1000_hw *hw, u32 reg, u16 *value)
-{
-	*value = pci_read_config(((struct e1000_osdep *)hw->back)->dev, reg, 2);
-}
-
-void
-e1000_pci_set_mwi(struct e1000_hw *hw)
-{
-	pci_write_config(((struct e1000_osdep *)hw->back)->dev, PCIR_COMMAND,
-	    (hw->bus.pci_cmd_word | CMD_MEM_WRT_INVALIDATE), 2);
-}
-
-void
-e1000_pci_clear_mwi(struct e1000_hw *hw)
-{
-	pci_write_config(((struct e1000_osdep *)hw->back)->dev, PCIR_COMMAND,
-	    (hw->bus.pci_cmd_word & ~CMD_MEM_WRT_INVALIDATE), 2);
-}
-
-/*
- * Read the PCI Express capabilities
- */
-int
-e1000_read_pcie_cap_reg(struct e1000_hw *hw, u32 reg, u16 *value)
-{
-	int	error = E1000_SUCCESS;
-	u16	cap_off;
-
-	switch (hw->mac.type) {
-
-		case e1000_82571:
-		case e1000_82572:
-		case e1000_82573:
-		case e1000_80003es2lan:
-			cap_off = 0xE0;
-			e1000_read_pci_cfg(hw, cap_off + reg, value);
-			break;
-		default:
-			error = ~E1000_NOT_IMPLEMENTED;
-			break;
-	}
-
-	return (error);	
-}
-
-int
-e1000_alloc_zeroed_dev_spec_struct(struct e1000_hw *hw, u32 size)
-{
-	int32_t error = 0;
-
-	hw->dev_spec = malloc(size, M_DEVBUF, M_NOWAIT | M_ZERO);
-	if (hw->dev_spec == NULL)
-		error = ENOMEM;
-
-	return (error);
-}
-
-void
-e1000_free_dev_spec_struct(struct e1000_hw *hw)
-{
-	if (hw->dev_spec != NULL)
-		free(hw->dev_spec, M_DEVBUF);
-	return;
 }
 
 /*
@@ -5054,7 +4997,7 @@ em_add_int_delay_sysctl(struct adapter *adapter, const char *name,
 	    info, 0, em_sysctl_int_delay, "I", description);
 }
 
-#ifdef EM_FAST_IRQ
+#ifndef EM_LEGACY_IRQ
 static void
 em_add_rx_process_limit(struct adapter *adapter, const char *name,
 	const char *description, int *limit, int value)
@@ -5065,3 +5008,4 @@ em_add_rx_process_limit(struct adapter *adapter, const char *name,
 	    OID_AUTO, name, CTLTYPE_INT|CTLFLAG_RW, limit, value, description);
 }
 #endif
+

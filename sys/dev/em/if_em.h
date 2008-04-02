@@ -37,9 +37,6 @@ POSSIBILITY OF SUCH DAMAGE.
 
 /* Tunables */
 
-/* Set FAST Interrupt handling as default */
-#define EM_FAST_IRQ
-
 /*
  * EM_TXD: Maximum number of Transmit Descriptors
  * Valid Range: 80-256 for 82542 and 82543-based adapters
