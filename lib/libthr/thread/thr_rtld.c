@@ -219,7 +219,7 @@ _thr_rtld_init(void)
 	curthread = _get_curthread();
 
 	/* force to resolve _umtx_op PLT */
-	_umtx_op((struct umtx *)&dummy, UMTX_OP_WAKE, 1, 0, 0);
+	_umtx_op_err((struct umtx *)&dummy, UMTX_OP_WAKE, 1, 0, 0);
 	
 	/* force to resolve errno() PLT */
 	__error();
