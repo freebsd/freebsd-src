@@ -361,7 +361,7 @@ sleepq_set_timeout(void *wchan, int timo)
 	MPASS(TD_ON_SLEEPQ(td));
 	MPASS(td->td_sleepqueue == NULL);
 	MPASS(wchan != NULL);
-	callout_reset(&td->td_slpcallout, timo, sleepq_timeout, td);
+	callout_reset_curcpu(&td->td_slpcallout, timo, sleepq_timeout, td);
 }
 
 /*
