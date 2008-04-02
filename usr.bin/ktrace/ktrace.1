@@ -43,11 +43,11 @@
 .Op Fl aCcdi
 .Op Fl f Ar trfile
 .Op Fl g Ar pgrp | Fl p Ar pid
-.Op Fl t Ar cnistuw
+.Op Fl t Ar trstr
 .Nm
 .Op Fl adi
 .Op Fl f Ar trfile
-.Op Fl t Ar cnistuw
+.Op Fl t Ar trstr
 .Ar command
 .Sh DESCRIPTION
 The
@@ -105,7 +105,7 @@ processes.
 Enable (disable) tracing on the indicated process id (only one
 .Fl p
 flag is permitted).
-.It Fl t Ar cnistuw
+.It Fl t Ar trstr
 The string argument represents the kernel trace points, one per letter.
 The following table equates the letters with the tracepoints:
 .Pp
