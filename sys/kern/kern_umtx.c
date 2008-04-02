@@ -3082,7 +3082,7 @@ __umtx_op_rw_wrlock_compat32(struct thread *td, struct _umtx_op_args *uap)
 
 	/* Allow a null timespec (wait forever). */
 	if (uap->uaddr2 == NULL) {
-		error = do_rwlock_wrlock(td, uap->obj, 0);
+		error = do_rw_wrlock(td, uap->obj, 0);
 	} else {
 		error = copyin_timeout32(uap->uaddr2, &timeout);
 		if (error != 0)
@@ -3092,7 +3092,7 @@ __umtx_op_rw_wrlock_compat32(struct thread *td, struct _umtx_op_args *uap)
 			return (EINVAL);
 		}
 
-		error = do_rw_wrlock2(td, uap->obj, uap->val, &timeout);
+		error = do_rw_wrlock2(td, uap->obj, &timeout);
 	}
 	return (error);
 }
