@@ -2499,7 +2499,17 @@ device		rue
 # Davicom DM9601E USB to fast ethernet. Supports the Corega FEther USB-TXC.
 device		udav
 
+#
+# ZyDas ZD1211/ZD1211B wireless ethernet driver
+device		zyd
+#
+# Ralink Technology RT2500USB chispet driver
+device		ural
+#
+# Ralink Technology RT2501USB/RT2601USB chispet driver
+device		rum
 
+# 
 # debugging options for the USB subsystem
 #
 options 	USB_DEBUG
