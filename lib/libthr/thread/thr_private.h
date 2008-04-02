@@ -272,12 +272,7 @@ struct pthread_rwlockattr {
 };
 
 struct pthread_rwlock {
-	pthread_mutex_t	lock;	/* monitor lock */
-	pthread_cond_t	read_signal;
-	pthread_cond_t	write_signal;
-	volatile int32_t	state;
-	int		blocked_writers;
-	int		blocked_readers;
+	struct urwlock 	lock;
 	struct pthread	*owner;
 };
 

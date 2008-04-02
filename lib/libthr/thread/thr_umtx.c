@@ -159,3 +159,27 @@ _thr_ucond_broadcast(struct ucond *cv)
 		return (0);
 	return (errno);
 }
+
+int
+__thr_rwlock_rdlock(struct urwlock *rwlock, int flags, struct timespec *tsp)
+{
+	if (_umtx_op(rwlock, UMTX_OP_RW_RDLOCK, flags, NULL, tsp) != -1)
+		return (0);
+	return (errno);
+}
+
+int
+__thr_rwlock_wrlock(struct urwlock *rwlock, struct timespec *tsp)
+{
+	if (_umtx_op(rwlock, UMTX_OP_RW_WRLOCK, 0, NULL, tsp) != -1)
+		return (0);
+	return (errno);
+}
+
+int
+__thr_rwlock_unlock(struct urwlock *rwlock)
+{
+	if (_umtx_op(rwlock, UMTX_OP_RW_UNLOCK, 0, NULL, NULL) != -1)
+		return (0);
+	return (errno);
+}
