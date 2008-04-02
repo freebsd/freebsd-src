@@ -112,7 +112,7 @@ s32 e1000_null_link_info(struct e1000_hw *hw, u16 *s, u16 *d)
 }
 
 /**
- *  e1000_null_mng_mode - No-op function, return false
+ *  e1000_null_mng_mode - No-op function, return FALSE
  *  @hw: pointer to the HW structure
  **/
 bool e1000_null_mng_mode(struct e1000_hw *hw)
@@ -332,7 +332,7 @@ void e1000_init_rx_addrs_generic(struct e1000_hw *hw, u16 rar_count)
 	/* Setup the receive address */
 	DEBUGOUT("Programming MAC Address into RAR[0]\n");
 
-	e1000_rar_set_generic(hw, hw->mac.addr, 0);
+	hw->mac.ops.rar_set(hw, hw->mac.addr, 0);
 
 	/* Zero out the other (rar_entry_count - 1) receive addresses */
 	DEBUGOUT1("Clearing RAR[1-%u]\n", rar_count-1);
@@ -1094,7 +1094,7 @@ s32 e1000_poll_fiber_serdes_link_generic(struct e1000_hw *hw)
 	DEBUGFUNC("e1000_poll_fiber_serdes_link_generic");
 
 	/*
-	 * If we have a signal (the cable is plugged in, or assumed true for
+	 * If we have a signal (the cable is plugged in, or assumed TRUE for
 	 * serdes media) then poll for a "Link-Up" indication in the Device
 	 * Status Register.  Time-out if a link isn't seen in 500 milliseconds
 	 * seconds (Auto-negotiation should complete in less than 500

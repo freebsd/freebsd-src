@@ -32,37 +32,70 @@
 ******************************************************************************/
 /*$FreeBSD$*/
 
-#ifndef _E1000_NVM_H_
-#define _E1000_NVM_H_
+#include "e1000_api.h"
 
-void e1000_init_nvm_ops_generic(struct e1000_hw *hw);
-s32  e1000_null_read_nvm(struct e1000_hw *hw, u16 a, u16 b, u16 *c);
-void e1000_null_nvm_generic(struct e1000_hw *hw);
-s32  e1000_null_led_default(struct e1000_hw *hw, u16 *data);
-s32  e1000_null_write_nvm(struct e1000_hw *hw, u16 a, u16 b, u16 *c);
-s32  e1000_acquire_nvm_generic(struct e1000_hw *hw);
+/*
+ * NOTE: the following routines using the e1000 
+ * 	naming style are provided to the shared
+ *	code but are OS specific
+ */
 
-s32  e1000_poll_eerd_eewr_done(struct e1000_hw *hw, int ee_reg);
-s32  e1000_read_mac_addr_generic(struct e1000_hw *hw);
-s32  e1000_read_pba_num_generic(struct e1000_hw *hw, u32 *pba_num);
-s32  e1000_read_nvm_spi(struct e1000_hw *hw, u16 offset, u16 words, u16 *data);
-s32  e1000_read_nvm_microwire(struct e1000_hw *hw, u16 offset,
-                              u16 words, u16 *data);
-s32  e1000_read_nvm_eerd(struct e1000_hw *hw, u16 offset, u16 words,
-                         u16 *data);
-s32  e1000_valid_led_default_generic(struct e1000_hw *hw, u16 *data);
-s32  e1000_validate_nvm_checksum_generic(struct e1000_hw *hw);
-s32  e1000_write_nvm_eewr(struct e1000_hw *hw, u16 offset,
-                          u16 words, u16 *data);
-s32  e1000_write_nvm_microwire(struct e1000_hw *hw, u16 offset,
-                               u16 words, u16 *data);
-s32  e1000_write_nvm_spi(struct e1000_hw *hw, u16 offset, u16 words,
-                         u16 *data);
-s32  e1000_update_nvm_checksum_generic(struct e1000_hw *hw);
-void e1000_stop_nvm(struct e1000_hw *hw);
-void e1000_release_nvm_generic(struct e1000_hw *hw);
-void e1000_reload_nvm_generic(struct e1000_hw *hw);
+void
+e1000_write_pci_cfg(struct e1000_hw *hw, uint32_t reg, uint16_t *value)
+{
+	pci_write_config(((struct e1000_osdep *)hw->back)->dev, reg, *value, 2);
+}
 
-#define E1000_STM_OPCODE  0xDB00
+void
+e1000_read_pci_cfg(struct e1000_hw *hw, uint32_t reg, uint16_t *value)
+{
+	*value = pci_read_config(((struct e1000_osdep *)hw->back)->dev, reg, 2);
+}
 
-#endif
+void
+e1000_pci_set_mwi(struct e1000_hw *hw)
+{
+	pci_write_config(((struct e1000_osdep *)hw->back)->dev, PCIR_COMMAND,
+	    (hw->bus.pci_cmd_word | CMD_MEM_WRT_INVALIDATE), 2);
+}
+
+void
+e1000_pci_clear_mwi(struct e1000_hw *hw)
+{
+	pci_write_config(((struct e1000_osdep *)hw->back)->dev, PCIR_COMMAND,
+	    (hw->bus.pci_cmd_word & ~CMD_MEM_WRT_INVALIDATE), 2);
+}
+
+/*
+ * Read the PCI Express capabilities
+ */
+int32_t
+e1000_read_pcie_cap_reg(struct e1000_hw *hw, uint32_t reg, uint16_t *value)
+{
+	u32	result;
+
+	pci_find_extcap(((struct e1000_osdep *)hw->back)->dev,
+	    reg, &result);
+	*value = (u16)result;
+	return (E1000_SUCCESS);
+}
+
+int32_t
+e1000_alloc_zeroed_dev_spec_struct(struct e1000_hw *hw, uint32_t size)
+{
+	int32_t error = 0;
+
+	hw->dev_spec = malloc(size, M_DEVBUF, M_NOWAIT | M_ZERO);
+	if (hw->dev_spec == NULL)
+		error = ENOMEM;
+
+	return (error);
+}
+
+void
+e1000_free_dev_spec_struct(struct e1000_hw *hw)
+{
+	if (hw->dev_spec != NULL)
+		free(hw->dev_spec, M_DEVBUF);
+	return;
+}

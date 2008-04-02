@@ -625,17 +625,19 @@ dev/em/e1000_82543.c		optional em \
 	compile-with "${NORMAL_C} -I$S/dev/em"
 dev/em/e1000_82571.c		optional em \
 	compile-with "${NORMAL_C} -I$S/dev/em"
-dev/em/e1000_api.c		optional em \
+dev/em/e1000_api.c		optional em igb \
 	compile-with "${NORMAL_C} -I$S/dev/em"
-dev/em/e1000_ich8lan.c		optional em \
+dev/em/e1000_ich8lan.c		optional em igb \
 	compile-with "${NORMAL_C} -I$S/dev/em"
-dev/em/e1000_mac.c		optional em \
+dev/em/e1000_mac.c		optional em igb \
 	compile-with "${NORMAL_C} -I$S/dev/em"
-dev/em/e1000_manage.c		optional em \
+dev/em/e1000_manage.c		optional em igb \
 	compile-with "${NORMAL_C} -I$S/dev/em"
-dev/em/e1000_nvm.c		optional em \
+dev/em/e1000_nvm.c		optional em igb \
 	compile-with "${NORMAL_C} -I$S/dev/em"
-dev/em/e1000_phy.c		optional em \
+dev/em/e1000_phy.c		optional em igb \
+	compile-with "${NORMAL_C} -I$S/dev/em"
+dev/em/e1000_osdep.c		optional em igb \
 	compile-with "${NORMAL_C} -I$S/dev/em"
 dev/en/if_en_pci.c		optional en pci
 dev/en/midway.c			optional en
@@ -712,16 +714,6 @@ dev/ieee488/upd7210.c		optional pcii | tnt4882
 dev/igb/if_igb.c		optional igb \
 	compile-with "${NORMAL_C} -I$S/dev/igb"
 dev/igb/e1000_82575.c		optional igb \
-	compile-with "${NORMAL_C} -I$S/dev/igb"
-dev/igb/e1000_api.c		optional igb \
-	compile-with "${NORMAL_C} -I$S/dev/igb"
-dev/igb/e1000_mac.c		optional igb \
-	compile-with "${NORMAL_C} -I$S/dev/igb"
-dev/igb/e1000_manage.c		optional igb \
-	compile-with "${NORMAL_C} -I$S/dev/igb"
-dev/igb/e1000_nvm.c		optional igb \
-	compile-with "${NORMAL_C} -I$S/dev/igb"
-dev/igb/e1000_phy.c		optional igb \
 	compile-with "${NORMAL_C} -I$S/dev/igb"
 dev/iicbus/ad7418.c		optional ad7418
 dev/iicbus/ds1672.c		optional ds1672
