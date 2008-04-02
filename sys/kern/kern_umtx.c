@@ -2481,7 +2481,8 @@ do_rw_rdlock2(struct thread *td, void *obj, long val, struct timespec *timeout)
 		timespecsub(&ts3, &ts2);
 		TIMESPEC_TO_TIMEVAL(&tv, &ts3);
 	}
-
+	if (error == ERESTART)
+		error = EINTR;
 	return (error);
 }
 
@@ -2597,7 +2598,8 @@ do_rw_wrlock2(struct thread *td, void *obj, struct timespec *timeout)
 		timespecsub(&ts3, &ts2);
 		TIMESPEC_TO_TIMEVAL(&tv, &ts3);
 	}
-
+	if (error == ERESTART)
+		error = EINTR;
 	return (error);
 }
 
