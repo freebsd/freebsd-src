@@ -54,6 +54,10 @@ void _thr_ucond_init(struct ucond *cv) __hidden;
 int _thr_ucond_signal(struct ucond *cv) __hidden;
 int _thr_ucond_broadcast(struct ucond *cv) __hidden;
 
+int __thr_rwlock_rdlock(struct urwlock *rwlock, int flags, struct timespec *tsp) __hidden;
+int __thr_rwlock_wrlock(struct urwlock *rwlock, struct timespec *tsp) __hidden;
+int __thr_rwlock_unlock(struct urwlock *rwlock) __hidden;
+
 static inline int
 _thr_umutex_trylock(struct umutex *mtx, uint32_t id)
 {
@@ -97,4 +101,81 @@ _thr_umutex_unlock(struct umutex *mtx, uint32_t id)
     return (__thr_umutex_unlock(mtx));
 }
 
+static inline int
+_thr_rwlock_tryrdlock(struct urwlock *rwlock, int flags)
+{
+	int32_t state;
+	int32_t wrflags;
+
+	if (flags & URWLOCK_PREFER_READER || rwlock->rw_flags & URWLOCK_PREFER_READER)
+		wrflags = URWLOCK_WRITE_OWNER;
+	else
+		wrflags = URWLOCK_WRITE_OWNER | URWLOCK_WRITE_WAITERS;
+	state = rwlock->rw_state;
+	while (!(state & wrflags)) {
+		if (__predict_false(URWLOCK_READER_COUNT(state) == URWLOCK_MAX_READERS))
+			return (EAGAIN);
+		if (atomic_cmpset_acq_32(&rwlock->rw_state, state, state + 1))
+			return (0);
+		state = rwlock->rw_state;
+	}
+
+	return (EBUSY);
+}
+
+static inline int
+_thr_rwlock_trywrlock(struct urwlock *rwlock)
+{
+	int32_t state;
+
+	state = rwlock->rw_state;
+	while (!(state & URWLOCK_WRITE_OWNER) && URWLOCK_READER_COUNT(state) == 0) {
+		if (atomic_cmpset_acq_32(&rwlock->rw_state, state, state | URWLOCK_WRITE_OWNER))
+			return (0);
+		state = rwlock->rw_state;
+	}
+
+	return (EBUSY);
+}
+
+static inline int
+_thr_rwlock_rdlock(struct urwlock *rwlock, int flags, struct timespec *tsp)
+{
+	if (_thr_rwlock_tryrdlock(rwlock, flags) == 0)
+		return (0);
+	return (__thr_rwlock_rdlock(rwlock, flags, tsp));
+}
+
+static inline int
+_thr_rwlock_wrlock(struct urwlock *rwlock, struct timespec *tsp)
+{
+	if (_thr_rwlock_trywrlock(rwlock) == 0)
+		return (0);
+	return (__thr_rwlock_wrlock(rwlock, tsp));
+}
+
+static inline int
+_thr_rwlock_unlock(struct urwlock *rwlock)
+{
+	int32_t state;
+
+	state = rwlock->rw_state;
+	if (state & URWLOCK_WRITE_OWNER) {
+		if (atomic_cmpset_rel_32(&rwlock->rw_state, URWLOCK_WRITE_OWNER, 0))
+			return (0);
+	} else {
+		for (;;) {
+			if (__predict_false(URWLOCK_READER_COUNT(state) == 0))
+				return (EPERM);
+			if (!((state & URWLOCK_WRITE_WAITERS) && URWLOCK_READER_COUNT(state) == 1)) {
+				if (atomic_cmpset_rel_32(&rwlock->rw_state, state, state-1))
+					return (0);
+				state = rwlock->rw_state;
+			} else {
+				break;
+			}
+		}
+    	}
+    	return (__thr_rwlock_unlock(rwlock));
+}
 #endif
