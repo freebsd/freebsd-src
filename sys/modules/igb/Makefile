@@ -4,7 +4,7 @@ KMOD    = if_igb
 SRCS    = device_if.h bus_if.h pci_if.h
 SRCS    += if_igb.c $(SHARED_SRCS)
 SHARED_SRCS = e1000_api.c e1000_phy.c e1000_nvm.c e1000_mac.c e1000_manage.c
-SHARED_SRCS += e1000_82575.c
+SHARED_SRCS += e1000_osdep.c e1000_82575.c
 
 CFLAGS += -I${.CURDIR}/../../dev/igb
 

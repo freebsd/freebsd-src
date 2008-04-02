@@ -88,7 +88,7 @@ int	igb_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version:
  *********************************************************************/
-char igb_driver_version[] = "1.1.4";
+char igb_driver_version[] = "version - 1.1.6";
 
 
 /*********************************************************************
@@ -173,7 +173,7 @@ static bool	igb_rxeof(struct rx_ring *, int);
 static int	igb_fixup_rx(struct rx_ring *);
 #endif
 static void	igb_rx_checksum(u32, struct mbuf *);
-static bool	igb_tx_ctx_setup(struct tx_ring *, struct mbuf *);
+static int	igb_tx_ctx_setup(struct tx_ring *, struct mbuf *);
 static bool	igb_tso_setup(struct tx_ring *, struct mbuf *, u32 *);
 static void	igb_set_promisc(struct adapter *);
 static void	igb_disable_promisc(struct adapter *);
@@ -943,11 +943,14 @@ igb_watchdog(struct adapter *adapter)
 	** if any time out we do the reset.
 	*/
 	for (int i = 0; i < adapter->num_tx_queues; i++, txr++) {
+		IGB_TX_LOCK(txr);
 		if (txr->watchdog_timer == 0 ||
-		    (--txr->watchdog_timer))
+		    (--txr->watchdog_timer)) {
+			IGB_TX_UNLOCK(txr);
 			continue;
-		else {
+		} else {
 			tx_hang = TRUE;
+			IGB_TX_UNLOCK(txr);
 			break;
 		}
 	}
@@ -960,8 +963,11 @@ igb_watchdog(struct adapter *adapter)
 	if (E1000_READ_REG(&adapter->hw, E1000_STATUS) &
 	    E1000_STATUS_TXOFF) {
 		txr = adapter->tx_rings; /* reset pointer */
-		for (int i = 0; i < adapter->num_tx_queues; i++, txr++)
+		for (int i = 0; i < adapter->num_tx_queues; i++, txr++) {
+			IGB_TX_LOCK(txr);
 			txr->watchdog_timer = IGB_TX_TIMEOUT;
+			IGB_TX_UNLOCK(txr);
+		}
 		return;
 	}
 
@@ -1129,7 +1135,6 @@ igb_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 		if (reg_icr & (E1000_ICR_RXSEQ | E1000_ICR_LSC)) {
 			callout_stop(&adapter->timer);
 			adapter->hw.mac.get_link_status = 1;
-			e1000_check_for_link(&adapter->hw);
 			igb_update_link_status(adapter);
 			callout_reset(&adapter->timer, hz,
 			    igb_local_timer, adapter);
@@ -1143,7 +1148,7 @@ igb_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	igb_txeof(txr);
 
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		igb_start_locked(txr, ifp);
+		igb_start_locked(txr);
 	IGB_TX_UNLOCK(txr);
 }
 #endif /* DEVICE_POLLING */
@@ -1162,14 +1167,9 @@ igb_handle_link(void *context, int pending)
 
 	IGB_CORE_LOCK(adapter);
 	callout_stop(&adapter->timer);
-	adapter->hw.mac.get_link_status = 1;
-	e1000_check_for_link(&adapter->hw);
 	igb_update_link_status(adapter);
 	callout_reset(&adapter->timer, hz, igb_local_timer, adapter);
 	IGB_CORE_UNLOCK(adapter);
-	/* Rearm this interrupt */
-	E1000_WRITE_REG(&adapter->hw, E1000_IMS, E1000_IMS_LSC);
-	E1000_WRITE_REG(&adapter->hw, E1000_EIMS, E1000_EIMS_OTHER);
 }
 
 static void
@@ -1237,10 +1237,12 @@ static int
 igb_irq_fast(void *arg)
 {
 	struct adapter	*adapter = arg;
-	struct ifnet	*ifp;
+	struct ifnet	*ifp = adapter->ifp;
 	uint32_t	reg_icr;
 
-	ifp = adapter->ifp;
+	/* Should not happen, but... */
+	if (ifp->if_capenable & IFCAP_POLLING)
+                return FILTER_STRAY;
 
 	reg_icr = E1000_READ_REG(&adapter->hw, E1000_ICR);
 
@@ -1264,8 +1266,10 @@ igb_irq_fast(void *arg)
 	taskqueue_enqueue(adapter->tq, &adapter->rxtx_task);
 
 	/* Link status change */
-	if (reg_icr & (E1000_ICR_RXSEQ | E1000_ICR_LSC))
+	if (reg_icr & (E1000_ICR_RXSEQ | E1000_ICR_LSC)) {
+		adapter->hw.mac.get_link_status = 1;
 		taskqueue_enqueue(taskqueue_fast, &adapter->link_task);
+	}
 
 	if (reg_icr & E1000_ICR_RXO)
 		adapter->rx_overruns++;
@@ -1330,15 +1334,13 @@ static void
 igb_msix_link(void *arg)
 {
 	struct adapter	*adapter = arg;
-	u32       	eicr, icr;
+	u32       	icr;
 
 	++adapter->link_irq;
-	eicr = E1000_READ_REG(&adapter->hw, E1000_EICR);
-	if (eicr & E1000_EIMS_OTHER) {
-		icr = E1000_READ_REG(&adapter->hw, E1000_ICR);
-		if (!(icr & E1000_ICR_LSC))
-			goto spurious;
-	}
+	icr = E1000_READ_REG(&adapter->hw, E1000_ICR);
+	if (!(icr & E1000_ICR_LSC))
+		goto spurious;
+	adapter->hw.mac.get_link_status = 1;
 	taskqueue_enqueue(taskqueue_fast, &adapter->link_task);
 
 spurious:
@@ -1365,7 +1367,6 @@ igb_media_status(struct ifnet *ifp, struct ifmediareq *ifmr)
 	INIT_DEBUGOUT("igb_media_status: begin");
 
 	IGB_CORE_LOCK(adapter);
-	e1000_check_for_link(&adapter->hw);
 	igb_update_link_status(adapter);
 
 	ifmr->ifm_status = IFM_AVALID;
@@ -1482,7 +1483,7 @@ igb_xmit(struct tx_ring *txr, struct mbuf **m_headp)
 	struct mbuf		*m_head;
 	u32			olinfo_status = 0, cmd_type_len = 0;
 	int			nsegs, i, j, error, first, last = 0;
-	u32			hdrlen = 0;
+	u32			hdrlen = 0, offload = 0;
 
 	m_head = *m_headp;
 
@@ -1580,9 +1581,9 @@ igb_xmit(struct tx_ring *txr, struct mbuf **m_headp)
 			return (ENXIO); 
 	} else
 		/* Do all other context descriptor setup */
-	if (igb_tx_ctx_setup(txr, m_head))
+	offload = igb_tx_ctx_setup(txr, m_head);
+	if (offload == TRUE)
 		olinfo_status |= E1000_TXD_POPTS_TXSM << 8;
-
 	/* Calculate payload length */
 	olinfo_status |= ((m_head->m_pkthdr.len - hdrlen)
 	    << E1000_ADVTXD_PAYLEN_SHIFT);
@@ -1732,7 +1733,6 @@ igb_local_timer(void *arg)
 
 	IGB_CORE_LOCK_ASSERT(adapter);
 
-	e1000_check_for_link(&adapter->hw);
 	igb_update_link_status(adapter);
 	igb_update_stats_counters(adapter);
 
@@ -1752,37 +1752,58 @@ igb_local_timer(void *arg)
 static void
 igb_update_link_status(struct adapter *adapter)
 {
+	struct e1000_hw *hw = &adapter->hw;
 	struct ifnet *ifp = adapter->ifp;
 	device_t dev = adapter->dev;
 	struct tx_ring *txr = adapter->tx_rings;
+	u32 link_check = 0;
 
-	if (E1000_READ_REG(&adapter->hw, E1000_STATUS) &
-	    E1000_STATUS_LU) {
-		if (adapter->link_active == 0) {
-			e1000_get_speed_and_duplex(&adapter->hw, 
-			    &adapter->link_speed, &adapter->link_duplex);
-			if (bootverbose)
-				device_printf(dev, "Link is up %d Mbps %s\n",
-				    adapter->link_speed,
-				    ((adapter->link_duplex == FULL_DUPLEX) ?
-				    "Full Duplex" : "Half Duplex"));
-			adapter->link_active = 1;
-			ifp->if_baudrate = adapter->link_speed * 1000000;
-			if_link_state_change(ifp, LINK_STATE_UP);
-		}
-	} else {
-		if (adapter->link_active == 1) {
-			ifp->if_baudrate = adapter->link_speed = 0;
-			adapter->link_duplex = 0;
-			if (bootverbose)
-				device_printf(dev, "Link is Down\n");
-			adapter->link_active = 0;
-			if_link_state_change(ifp, LINK_STATE_DOWN);
-			/* Turn off watchdogs */
-			for (int i = 0; i < adapter->num_tx_queues;
-			    i++, txr++)
-				txr->watchdog_timer = FALSE;
-		}
+	/* Get the cached link value or read for real */
+        switch (hw->phy.media_type) {
+        case e1000_media_type_copper:
+                if (hw->mac.get_link_status) {
+			/* Do the work to read phy */
+                        e1000_check_for_link(hw);
+                        link_check = !hw->mac.get_link_status;
+                } else
+                        link_check = TRUE;
+                break;
+        case e1000_media_type_fiber:
+                e1000_check_for_link(hw);
+                link_check = (E1000_READ_REG(hw, E1000_STATUS) &
+                                 E1000_STATUS_LU);
+                break;
+        case e1000_media_type_internal_serdes:
+                e1000_check_for_link(hw);
+                link_check = adapter->hw.mac.serdes_has_link;
+                break;
+        default:
+        case e1000_media_type_unknown:
+                break;
+        }
+
+	/* Now we check if a transition has happened */
+	if (link_check && (adapter->link_active == 0)) {
+		e1000_get_speed_and_duplex(&adapter->hw, 
+		    &adapter->link_speed, &adapter->link_duplex);
+		if (bootverbose)
+			device_printf(dev, "Link is up %d Mbps %s\n",
+			    adapter->link_speed,
+			    ((adapter->link_duplex == FULL_DUPLEX) ?
+			    "Full Duplex" : "Half Duplex"));
+		adapter->link_active = 1;
+		ifp->if_baudrate = adapter->link_speed * 1000000;
+		if_link_state_change(ifp, LINK_STATE_UP);
+	} else if (!link_check && (adapter->link_active == 1)) {
+		ifp->if_baudrate = adapter->link_speed = 0;
+		adapter->link_duplex = 0;
+		if (bootverbose)
+			device_printf(dev, "Link is Down\n");
+		adapter->link_active = 0;
+		if_link_state_change(ifp, LINK_STATE_DOWN);
+		/* Turn off watchdogs */
+		for (int i = 0; i < adapter->num_tx_queues; i++, txr++)
+			txr->watchdog_timer = FALSE;
 	}
 }
 
@@ -1988,7 +2009,7 @@ igb_allocate_msix(struct adapter *adapter)
 			txr->msix = adapter->rid[vector] - 1;
 		} else {
 			txr->eims = 1 << vector;
-			txr->msix = adapter->rid[vector];
+			txr->msix = vector;
 		}
 	}
 
@@ -2017,7 +2038,7 @@ igb_allocate_msix(struct adapter *adapter)
 			rxr->msix = adapter->rid[vector] - 1;
 		} else {	
 			rxr->eims = 1 << vector;
-			rxr->msix = adapter->rid[vector];
+			rxr->msix = vector;
 		}
 	}
 
@@ -2040,7 +2061,7 @@ igb_allocate_msix(struct adapter *adapter)
 	if (adapter->hw.mac.type == e1000_82575)
 		adapter->linkvec = adapter->rid[vector] - 1;
 	else
-		adapter->linkvec = adapter->rid[vector];
+		adapter->linkvec = vector;
 
 	/* Make tasklet for deferred link interrupt handling */
 	TASK_INIT(&adapter->link_task, 0, igb_handle_link, adapter);
@@ -2298,7 +2319,10 @@ igb_setup_interface(device_t dev, struct adapter *adapter)
 	ifp->if_capenable |= IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU;
 
 #ifdef DEVICE_POLLING
-	ifp->if_capabilities |= IFCAP_POLLING;
+	if (adapter->msix > 1)
+		device_printf(adapter->dev, "POLLING not supported with MSIX\n");
+	else
+		ifp->if_capabilities |= IFCAP_POLLING;
 #endif
 
 	/*
@@ -2889,7 +2913,7 @@ igb_tso_setup(struct tx_ring *txr, struct mbuf *mp, u32 *hdrlen)
  *
  **********************************************************************/
 
-static boolean_t
+static int
 igb_tx_ctx_setup(struct tx_ring *txr, struct mbuf *mp)
 {
 	struct adapter *adapter = txr->adapter;
@@ -3740,9 +3764,6 @@ discard:
 	}
 	rxr->next_to_check = i;
 
-	if (--i < 0)
-		i = adapter->num_rx_desc - 1;
-
 	/* Advance the E1000's Receive Queue #0  "Tail Pointer". */
 	E1000_WRITE_REG(&adapter->hw, E1000_RDT(rxr->me), rxr->last_cleaned);
 	IGB_RX_UNLOCK(rxr);
@@ -3792,7 +3813,7 @@ igb_fixup_rx(struct rx_ring *rxr)
 			rxr->fmp = n;
 		} else {
 			adapter->dropped_pkts++;
-			m_freem(rxr->fmp);
+			m_freem(adapter->fmp);
 			rxr->fmp = NULL;
 			error = ENOMEM;
 		}
@@ -3982,71 +4003,6 @@ igb_is_valid_ether_addr(uint8_t *addr)
 	return (TRUE);
 }
 
-/*
- * NOTE: the following routines using the e1000 
- * 	naming style are provided to the shared
- *	code which expects that rather than 'em'
- */
-
-void
-e1000_write_pci_cfg(struct e1000_hw *hw, uint32_t reg, uint16_t *value)
-{
-	pci_write_config(((struct e1000_osdep *)hw->back)->dev, reg, *value, 2);
-}
-
-void
-e1000_read_pci_cfg(struct e1000_hw *hw, uint32_t reg, uint16_t *value)
-{
-	*value = pci_read_config(((struct e1000_osdep *)hw->back)->dev, reg, 2);
-}
-
-void
-e1000_pci_set_mwi(struct e1000_hw *hw)
-{
-	pci_write_config(((struct e1000_osdep *)hw->back)->dev, PCIR_COMMAND,
-	    (hw->bus.pci_cmd_word | CMD_MEM_WRT_INVALIDATE), 2);
-}
-
-void
-e1000_pci_clear_mwi(struct e1000_hw *hw)
-{
-	pci_write_config(((struct e1000_osdep *)hw->back)->dev, PCIR_COMMAND,
-	    (hw->bus.pci_cmd_word & ~CMD_MEM_WRT_INVALIDATE), 2);
-}
-
-/*
- * Read the PCI Express capabilities
- */
-int32_t
-e1000_read_pcie_cap_reg(struct e1000_hw *hw, uint32_t reg, uint16_t *value)
-{
-	u32	result;
-
-	pci_find_extcap(((struct e1000_osdep *)hw->back)->dev,
-	    reg, &result);
-	*value = (u16)result;
-	return (E1000_SUCCESS);
-}
-
-int32_t
-e1000_alloc_zeroed_dev_spec_struct(struct e1000_hw *hw, uint32_t size)
-{
-	int32_t error = 0;
-
-	hw->dev_spec = malloc(size, M_DEVBUF, M_NOWAIT | M_ZERO);
-	if (hw->dev_spec == NULL)
-		error = ENOMEM;
-
-	return (error);
-}
-
-void
-e1000_free_dev_spec_struct(struct e1000_hw *hw)
-{
-	if (hw->dev_spec != NULL)
-		free(hw->dev_spec, M_DEVBUF);
-	return;
-}
 
 /*
  * Enable PCI Wake On Lan capability
@@ -4207,26 +4163,26 @@ igb_print_debug_info(struct adapter *adapter)
 		device_printf(dev, "Queue(%d) tdh = %d, tdt = %d\n", i,
 		    E1000_READ_REG(&adapter->hw, E1000_TDH(i)),
 		    E1000_READ_REG(&adapter->hw, E1000_TDT(i)));
-		device_printf(dev, "no descriptors avail event = %lld\n",
-		    (long long)txr->no_desc_avail);
-		device_printf(dev, "TX(%d) IRQ Handled = %lld\n", txr->me,
-		    (long long)txr->tx_irq);
-		device_printf(dev, "TX(%d) Packets sent = %lld\n", txr->me,
-		    (long long)txr->tx_packets);
+		device_printf(dev, "no descriptors avail event = %lu\n",
+		    txr->no_desc_avail);
+		device_printf(dev, "TX(%d) MSIX IRQ Handled = %lu\n", txr->me,
+		    txr->tx_irq);
+		device_printf(dev, "TX(%d) Packets sent = %lu\n", txr->me,
+		    txr->tx_packets);
 	}
 
 	for (int i = 0; i < adapter->num_rx_queues; i++, rxr++) {
 		device_printf(dev, "Queue(%d) rdh = %d, rdt = %d\n", i,
 		    E1000_READ_REG(&adapter->hw, E1000_RDH(i)),
 		    E1000_READ_REG(&adapter->hw, E1000_RDT(i)));
-		device_printf(dev, "RX(%d) Packets received = %lld\n", rxr->me,
-		    (long long)rxr->rx_packets);
-		device_printf(dev, "RX(%d) Byte count = %lld\n", rxr->me,
-		    (long long)rxr->rx_bytes);
-		device_printf(dev, "RX(%d) IRQ Handled = %lld\n", rxr->me,
-		    (long long)rxr->rx_irq);
+		device_printf(dev, "RX(%d) Packets received = %lu\n", rxr->me,
+		    rxr->rx_packets);
+		device_printf(dev, "RX(%d) Byte count = %lu\n", rxr->me,
+		    rxr->rx_bytes);
+		device_printf(dev, "RX(%d) MSIX IRQ Handled = %lu\n", rxr->me,
+		    rxr->rx_irq);
 	}
-	device_printf(dev, "LINK IRQ Handled = %u\n", adapter->link_irq);
+	device_printf(dev, "LINK MSIX IRQ Handled = %u\n", adapter->link_irq);
 
 	device_printf(dev, "Std mbuf failed = %ld\n",
 	    adapter->mbuf_alloc_failed);
