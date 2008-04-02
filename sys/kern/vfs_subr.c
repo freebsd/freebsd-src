@@ -825,6 +825,7 @@ vdestroy(struct vnode *vp)
 #endif
 	lockdestroy(vp->v_vnlock);
 	mtx_destroy(&vp->v_interlock);
+	mtx_destroy(BO_MTX(bo));
 	uma_zfree(vnode_zone, vp);
 }
 
