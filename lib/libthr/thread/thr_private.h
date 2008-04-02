@@ -709,6 +709,8 @@ ssize_t __sys_write(int, const void *, size_t);
 void	__sys_exit(int);
 #endif
 
+int	_umtx_op_err(void *, int op, u_long, void *, void *);
+
 static inline int
 _thr_isthreaded(void)
 {
