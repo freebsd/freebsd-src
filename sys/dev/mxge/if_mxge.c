@@ -4240,7 +4240,7 @@ mxge_attach(device_t dev)
 		goto abort_with_rings;
 	}
 
-	ifp->if_baudrate = 100000000;
+	ifp->if_baudrate = IF_Gbps(10UL);
 	ifp->if_capabilities = IFCAP_RXCSUM | IFCAP_TXCSUM | IFCAP_TSO4 |
 		IFCAP_VLAN_MTU | IFCAP_LRO;
 
