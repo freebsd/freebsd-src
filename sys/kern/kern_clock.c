@@ -292,6 +292,7 @@ hardclock_cpu(int usermode)
 	if (PMC_CPU_HAS_SAMPLES(PCPU_GET(cpuid)))
 		PMC_CALL_HOOK_UNLOCKED(curthread, PMC_FN_DO_SAMPLES, NULL);
 #endif
+	callout_tick();
 }
 
 /*
@@ -300,10 +301,9 @@ hardclock_cpu(int usermode)
 void
 hardclock(int usermode, uintfptr_t pc)
 {
-	int need_softclock = 0;
 
+	atomic_add_int((volatile int *)&ticks, 1);
 	hardclock_cpu(usermode);
-
 	tc_ticktock();
 	/*
 	 * If no separate statistics clock is available, run it from here.
@@ -314,30 +314,9 @@ hardclock(int usermode, uintfptr_t pc)
 		profclock(usermode, pc);
 		statclock(usermode);
 	}
-
 #ifdef DEVICE_POLLING
 	hardclock_device_poll();	/* this is very short and quick */
 #endif /* DEVICE_POLLING */
-
-	/*
-	 * Process callouts at a very low cpu priority, so we don't keep the
-	 * relatively high clock interrupt priority any longer than necessary.
-	 */
-	mtx_lock_spin_flags(&callout_lock, MTX_QUIET);
-	ticks++;
-	if (!TAILQ_EMPTY(&callwheel[ticks & callwheelmask])) {
-		need_softclock = 1;
-	} else if (softticks + 1 == ticks)
-		++softticks;
-	mtx_unlock_spin_flags(&callout_lock, MTX_QUIET);
-
-	/*
-	 * swi_sched acquires the thread lock, so we don't want to call it
-	 * with callout_lock held; incorrect locking order.
-	 */
-	if (need_softclock)
-		swi_sched(softclock_ih, 0);
-
 #ifdef SW_WATCHDOG
 	if (watchdog_enabled > 0 && --watchdog_ticks <= 0)
 		watchdog_fire();
