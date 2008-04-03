@@ -92,7 +92,7 @@ void usage(string message)
 int sink(char *interface, struct in_addr *group, int pkt_size, int number) {
 
     
-    int sock;
+    int sock, backchan;
     socklen_t recvd_len;
     struct sockaddr_in local, recvd;
     struct ip_mreq mreq;
@@ -108,6 +108,11 @@ int sink(char *interface, struct in_addr *group, int pkt_size, int number) {
     
     if ((sock = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
 	perror("failed to open datagram socket");
+	return (-1);
+    }
+
+    if ((backchan = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+	perror("failed to open back channel socket");
 	return (-1);
     }
 
@@ -159,11 +164,18 @@ int sink(char *interface, struct in_addr *group, int pkt_size, int number) {
 	perror("setsockopt failed");
     
     while (n < number) { 
+	recvd_len = sizeof(recvd);
 	if (recvfrom(sock, packet, pkt_size, 0, (struct sockaddr *)&recvd, 
 		     &recvd_len) < 0) {
 	    if (errno == EWOULDBLOCK)
 		break;
 	    perror("recvfrom failed");
+	    return -1;
+	}
+	recvd.sin_port = htons(SERVER_PORT);
+	if (sendto(backchan, packet, pkt_size, 0, 
+		   (struct sockaddr *)&recvd, sizeof(recvd)) < 0) {
+	    perror("sendto failed");
 	    return -1;
 	}
 	gettimeofday(&packets[ntohl(*(int *)packet)], 0);
@@ -191,6 +203,72 @@ int sink(char *interface, struct in_addr *group, int pkt_size, int number) {
     cout << "minimum gap (usecs): " << mingap << endl;
     return 0;
     
+}
+
+//
+// Structure to hold thread arguments
+//
+typedef struct server_args {
+    struct timeval *packets; 	///< The timestamps of returning packets
+    int number;			///< Number of packets to expect.
+    int pkt_size;		///< Size of the packets
+};
+
+//
+// server receives packets sent back from the sink
+//
+// @param passed		///< Arguments passed from the caller
+//
+// 0return  always NULL
+void* server(void *passed) {
+
+    int sock, n =0;
+    struct timeval timeout;
+    struct sockaddr_in addr;
+    server_args *args = (server_args *)passed;
+
+    timerclear(&timeout);
+    timeout.tv_sec = TIMEOUT;
+    
+    if ((sock = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+	perror("could not open server socket");
+	return NULL;
+    }
+
+    bzero(&addr, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = INADDR_ANY;
+    addr.sin_port = htons(SERVER_PORT);
+    addr.sin_len = sizeof(addr);
+
+    if (bind(sock, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
+	perror("could not bind server socket");
+	return NULL;
+    }
+
+    if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &timeout, 
+		   sizeof(timeout)) < 0) 
+	perror("setsockopt failed");
+
+    char packet[args->pkt_size];
+    while (n < args->number) { 
+	if (recvfrom(sock, &packet, args->pkt_size, 0, NULL, 0) < 0) {
+	    if (errno == EWOULDBLOCK)
+		break;
+	    perror("recvfrom failed");
+	    return NULL;
+	}
+	gettimeofday(&args->packets[ntohl(*(int *)packet)], 0);
+	n++;
+    }
+
+    cout << "Packet Reflection Complete" << endl;
+
+    if (n < args->number)
+	cout << "Missed " << args->number - n << " packets." << endl;
+
+    return NULL;
+
 }
 
 //
@@ -268,6 +346,19 @@ int source(char *interface, struct in_addr *group, int pkt_size,
 	*(int *)packets[i] = htonl(i);
     }
     
+    struct timeval received[number];
+    struct timeval sent[number];
+    server_args args;
+    pthread_t thread;
+    args.packets = received;
+    args.number = number;
+    args.pkt_size = pkt_size;
+
+     if (pthread_create(&thread, NULL, server, &args) < 0) {
+ 	perror("failed to create server thread");
+ 	return -1;
+     }
+
     struct timespec sleeptime;
     sleeptime.tv_sec = 0;
     sleeptime.tv_nsec = gap;
@@ -278,12 +369,26 @@ int source(char *interface, struct in_addr *group, int pkt_size,
 	    perror("sendto failed");
 	    return -1;
 	}
+	gettimeofday(&sent[i], 0);
 	if (gap > 0) 
 	    if (nanosleep(&sleeptime, NULL) < 0) {
 		perror("nanosleep failed");
 		return -1;
 	    }
     }
+
+     if (pthread_join(thread, NULL) < 0) {
+ 	perror("failed to join thread");
+ 	return -1;
+     }
+    
+    timeval result;
+    for (int i = 0; i < number; i++) {
+	timersub(&args.packets[i], &sent[i], &result);
+	cout << "sec: " << result.tv_sec;
+	cout << " usecs: " << result.tv_usec << endl;
+    }
+
     return 0;
 }
 
@@ -305,11 +410,11 @@ int main(int argc, char**argv)
 	char ch;		///< character from getopt()
 	extern char* optarg;	///< option argument
 	
-	char* interface;        ///< Name of the interface
+	char* interface = 0;    ///< Name of the interface
 	struct in_addr *group = NULL;	///< the multicast group address
-	int pkt_size;		///< packet size
-	int gap;		///< inter packet gap (in nanoseconds)
-	int number;             ///< number of packets to transmit
+	int pkt_size = 0;       ///< packet size
+	int gap = 0;		///< inter packet gap (in nanoseconds)
+	int number = 0;         ///< number of packets to transmit
 	bool server = false;
 	
 	if (argc < 2 || argc > 11)
