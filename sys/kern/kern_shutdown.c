@@ -249,6 +249,7 @@ doadump(void)
 	else
 #endif
 		dumpsys(&dumper);
+	dumping--;
 }
 
 static int
