@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <top.h>
 #include <bfd.h>
 #include <gdbcore.h>
+#include <wrapper.h>
 
 extern void (*init_ui_hook)(char *);
 
@@ -188,13 +189,15 @@ kgdb_parse(const char *exp)
 	char *s;
 	CORE_ADDR n;
 
-	s = strdup(exp);
-	old_chain = make_cleanup(free_current_contents, &expr);
-	expr = parse_expression(s);
-	val = (expr != NULL) ? evaluate_expression(expr) : NULL;
-	n = (val != NULL) ? value_as_address(val) : 0;
+	n = 0;
+	s = xstrdup(exp);
+	old_chain = make_cleanup(xfree, s);
+	if (gdb_parse_exp_1(&s, NULL, 0, &expr) && *s == '\0') {
+		make_cleanup(free_current_contents, &expr);
+		if (gdb_evaluate_expression(expr, &val))
+		    n = value_as_address(val);
+	}
 	do_cleanups(old_chain);
-	free(s);
 	return (n);
 }
 
