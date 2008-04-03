@@ -174,6 +174,32 @@ kgdb_set_proc_cmd (char *arg, int from_tty)
 	kgdb_switch_to_thread(thr);
 }
 
+static void
+kgdb_set_tid_cmd (char *arg, int from_tty)
+{
+	CORE_ADDR addr;
+	struct kthr *thr;
+
+	if (!arg)
+		error_no_arg ("TID or thread address for the new context");
+
+	if (kvm == NULL)
+		error ("no kernel core file");
+
+	addr = (CORE_ADDR) parse_and_eval_address (arg);
+
+	if (!INKERNEL (addr)) {
+		thr = kgdb_thr_lookup_tid((int)addr);
+		if (thr == NULL)
+			error ("invalid TID");
+	} else {
+		thr = kgdb_thr_lookup_taddr(addr);
+		if (thr == NULL)
+			error("invalid thread address");
+	}
+	kgdb_switch_to_thread(thr);
+}
+
 void
 kgdb_target(void)
 {
@@ -215,5 +241,7 @@ kgdb_target(void)
 		inferior_ptid = ptid_build(curkthr->pid, 0, curkthr->tid);
 	add_com ("proc", class_obscure, kgdb_set_proc_cmd,
 	   "Set current process context");
+	add_com ("tid", class_obscure, kgdb_set_tid_cmd,
+	   "Set current thread context");
 	kgdb_kld_init();
 }
