@@ -216,7 +216,7 @@ treescan(char *pname, ino_t ino, long (*todo)(char *, ino_t, int))
 	struct direct *dp;
 	int namelen;
 	long bpt;
-	char locname[MAXPATHLEN + 1];
+	char locname[MAXPATHLEN];
 
 	itp = inotablookup(ino);
 	if (itp == NULL) {
@@ -235,9 +235,8 @@ treescan(char *pname, ino_t ino, long (*todo)(char *, ino_t, int))
 	 * begin search through the directory
 	 * skipping over "." and ".."
 	 */
-	(void) strncpy(locname, pname, sizeof(locname) - 1);
-	locname[sizeof(locname) - 1] = '\0';
-	(void) strncat(locname, "/", sizeof(locname) - strlen(locname));
+	(void) strlcpy(locname, pname, sizeof(locname));
+	(void) strlcat(locname, "/", sizeof(locname));
 	namelen = strlen(locname);
 	rst_seekdir(dirp, itp->t_seekpt, itp->t_seekpt);
 	dp = rst_readdir(dirp); /* "." */
@@ -261,7 +260,7 @@ treescan(char *pname, ino_t ino, long (*todo)(char *, ino_t, int))
 			fprintf(stderr, "%s%s: name exceeds %d char\n",
 				locname, dp->d_name, sizeof(locname) - 1);
 		} else {
-			(void) strncat(locname, dp->d_name, (int)dp->d_namlen);
+			(void)strlcat(locname, dp->d_name, sizeof(locname));
 			treescan(locname, dp->d_ino, todo);
 			rst_seekdir(dirp, bpt, itp->t_seekpt);
 		}
