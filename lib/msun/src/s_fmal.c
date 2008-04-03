@@ -55,14 +55,19 @@ fmal(long double x, long double y, long double z)
 	int ex, ey, ez;
 	int spread;
 
-	if (z == 0.0)
-		return (x * y);
+	/*
+	 * Handle special cases. The order of operations and the particular
+	 * return values here are crucial in handling special cases involving
+	 * infinities, NaNs, overflows, and signed zeroes correctly.
+	 */
 	if (x == 0.0 || y == 0.0)
 		return (x * y + z);
-
-	/* Results of frexp() are undefined for these cases. */
-	if (!isfinite(x) || !isfinite(y) || !isfinite(z))
+	if (z == 0.0)
+		return (x * y);
+	if (!isfinite(x) || !isfinite(y))
 		return (x * y + z);
+	if (!isfinite(z))
+		return (z);
 
 	xs = frexpl(x, &ex);
 	ys = frexpl(y, &ey);
