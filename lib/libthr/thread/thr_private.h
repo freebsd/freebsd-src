@@ -460,8 +460,10 @@ struct pthread {
 	(thrd)->critical_count++
 
 #define	THR_CRITICAL_LEAVE(thrd)			\
-	(thrd)->critical_count--;			\
-	_thr_ast(thrd);
+	do {						\
+		(thrd)->critical_count--;		\
+		_thr_ast(thrd);				\
+	} while (0)
 
 #define THR_UMUTEX_TRYLOCK(thrd, lck)			\
 	_thr_umutex_trylock((lck), TID(thrd))
