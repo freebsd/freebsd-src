@@ -93,6 +93,7 @@ DRIVER_MODULE(openpic, iobus, openpic_iobus_driver, openpic_devclass, 0, 0);
 static int
 openpic_iobus_probe(device_t dev)
 {
+	struct openpic_softc *sc;
 	char *name;
 
 	name = iobus_get_name(dev);
@@ -104,5 +105,9 @@ openpic_iobus_probe(device_t dev)
 	 * probe, so don't do it again here
 	 */
 	device_set_desc(dev, OPENPIC_DEVSTR);
+
+	sc = device_get_softc(dev);
+	sc->sc_psim = 1;
+
 	return (0);
 }
