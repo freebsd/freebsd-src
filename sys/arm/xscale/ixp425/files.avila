@@ -1,4 +1,5 @@
 #$FreeBSD$
+arm/arm/bus_space_generic.c		standard
 arm/xscale/ixp425/avila_machdep.c	standard
 arm/xscale/ixp425/avila_ata.c		optional avila_ata
 arm/xscale/ixp425/avila_led.c		optional avila_led

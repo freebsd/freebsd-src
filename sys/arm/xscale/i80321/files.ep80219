@@ -3,6 +3,7 @@
 #
 # EP80219 Board Specific
 #
+arm/arm/bus_space_generic.c		standard
 arm/xscale/i80321/iq80321.c		standard
 arm/xscale/i80321/ep80219_machdep.c	standard
 arm/xscale/i80321/obio.c		standard

@@ -46,17 +46,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 
-#include <machine/pcb.h>
-
-#include <vm/vm.h>
-#include <vm/pmap.h>
-#include <vm/vm_kern.h>
-#include <vm/vm_extern.h>
-
 #include <machine/bus.h>
 
 /* Prototypes for all the bus_space structure functions */
-bs_protos(obio);
 bs_protos(generic);
 bs_protos(generic_armv4);
 
@@ -69,16 +61,16 @@ struct bus_space obio_bs_tag = {
 	(void *) 0,
 
 	/* mapping/unmapping */
-	obio_bs_map,
-	obio_bs_unmap,
-	obio_bs_subregion,
+	generic_bs_map,
+	generic_bs_unmap,
+	generic_bs_subregion,
 
 	/* allocation/deallocation */
-	obio_bs_alloc,
-	obio_bs_free,
+	generic_bs_alloc,
+	generic_bs_free,
 
 	/* barrier */
-	obio_bs_barrier,
+	generic_bs_barrier,
 
 	/* read (single) */
 	generic_bs_r_1,
@@ -134,92 +126,3 @@ struct bus_space obio_bs_tag = {
 	NULL,
 	NULL,
 };
-
-int
-obio_bs_map(void *t, bus_addr_t bpa, bus_size_t size, int flags,
-    bus_space_handle_t *bshp)
-{
-	const struct pmap_devmap *pd;
-	vm_paddr_t startpa, endpa, pa, offset;
-	vm_offset_t va;
-	pt_entry_t *pte;
-
-	if ((pd = pmap_devmap_find_pa(bpa, size)) != NULL) {
-		/* Device was statically mapped. */
-		*bshp = pd->pd_va + (bpa - pd->pd_pa);
-		return (0);
-	}
-
-	endpa = round_page(bpa + size);
-	offset = bpa & PAGE_MASK;
-	startpa = trunc_page(bpa);
-		
-	va = kmem_alloc(kernel_map, endpa - startpa);
-	if (va == 0)
-		return (ENOMEM);
-
-	*bshp = va + offset;
-
-	for (pa = startpa; pa < endpa; pa += PAGE_SIZE, va += PAGE_SIZE) {
-		pmap_kenter(va, pa);
-		pte = vtopte(va);
-		*pte &= ~L2_S_CACHE_MASK;
-		PTE_SYNC(pte);
-	}
-
-	return (0);
-}
-
-int
-obio_bs_alloc(void *t, bus_addr_t rstart, bus_addr_t rend, bus_size_t size,
-    bus_size_t alignment, bus_size_t boundary, int flags, bus_addr_t *bpap,
-    bus_space_handle_t *bshp)
-{
-
-	panic("obio_bs_alloc(): not implemented");
-}
-
-
-void
-obio_bs_unmap(void *t, bus_space_handle_t h, bus_size_t size)
-{
-	vm_offset_t va, endva;
-
-	if (pmap_devmap_find_va((vm_offset_t)t, size) != NULL) {
-		/* Device was statically mapped; nothing to do. */
-		return;
-	}
-
-	endva = round_page((vm_offset_t)t + size);
-	va = trunc_page((vm_offset_t)t);
-
-	while (va < endva) {
-		pmap_kremove(va);
-		va += PAGE_SIZE;
-	}
-	kmem_free(kernel_map, va, endva - va);
-}
-
-void    
-obio_bs_free(void *t, bus_space_handle_t bsh, bus_size_t size)
-{
-
-	panic("obio_bs_free(): not implemented");
-}
-
-int
-obio_bs_subregion(void *t, bus_space_handle_t bsh, bus_size_t offset,
-    bus_size_t size, bus_space_handle_t *nbshp)
-{
-
-	*nbshp = bsh + offset;
-	return (0);
-}
-
-void
-obio_bs_barrier(void *t, bus_space_handle_t bsh, bus_size_t offset,
-    bus_size_t len, int flags)
-{
-
-	/* Nothing to do. */
-}
