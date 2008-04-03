@@ -241,6 +241,7 @@ doadump(void)
 	dumptid = curthread->td_tid;
 	dumping++;
 	dumpsys(&dumper);
+	dumping--;
 }
 
 static int
