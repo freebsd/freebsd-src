@@ -1148,7 +1148,7 @@ igb_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	igb_txeof(txr);
 
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		igb_start_locked(txr);
+		igb_start_locked(txr, ifp);
 	IGB_TX_UNLOCK(txr);
 }
 #endif /* DEVICE_POLLING */
