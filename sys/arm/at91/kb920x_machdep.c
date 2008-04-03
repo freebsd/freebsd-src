@@ -312,7 +312,6 @@ initarm(void *arg, void *arg2)
 	pcpu_init(pcpup, 0, sizeof(struct pcpu));
 	PCPU_SET(curthread, &thread0);
 
-#define KERNEL_TEXT_BASE (KERNBASE)
 	freemempos = (lastaddr + PAGE_MASK) & ~PAGE_MASK;
 	/* Define a macro to simplify memory allocation */
 #define valloc_pages(var, np)                   \
