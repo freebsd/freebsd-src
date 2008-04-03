@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 
 /* Proto types for all the bus_space structure functions */
 
+bs_protos(generic);
 bs_protos(sa11x0);
 
 /* Declare the sa11x0 bus space tag */
@@ -67,16 +68,16 @@ struct bus_space sa11x0_bs_tag = {
 	NULL,
 
 	/* mapping/unmapping */
-	sa11x0_bs_map,
-	sa11x0_bs_unmap,
-	sa11x0_bs_subregion,
+	generic_bs_map,
+	generic_bs_unmap,
+	generic_bs_subregion,
 
 	/* allocation/deallocation */
-	sa11x0_bs_alloc,
-	sa11x0_bs_free,
+	generic_bs_alloc,
+	generic_bs_free,
 
 	/* barrier */
-	sa11x0_bs_barrier,
+	generic_bs_barrier,
 
 	/* read (single) */
 	sa11x0_bs_r_1,
@@ -131,119 +132,5 @@ struct bus_space sa11x0_bs_tag = {
 	NULL,
 	NULL,
 };
-
-/* bus space functions */
-
-int
-sa11x0_bs_map(t, bpa, size, cacheable, bshp)
-	void *t;
-	bus_addr_t bpa;
-	bus_size_t size;
-	int cacheable;
-	bus_space_handle_t *bshp;
-{
-	u_long startpa, endpa, pa;
-	vm_offset_t va;
-	pt_entry_t *pte;
-	const struct pmap_devmap *pd;
-
-	if ((pd = pmap_devmap_find_pa(bpa, size)) != NULL) {
-		/* Device was statically mapped. */
-		*bshp = pd->pd_va + (bpa - pd->pd_pa);
-		return 0;
-	}
-
-	startpa = trunc_page(bpa);
-	endpa = round_page(bpa + size);
-
-	/* XXX use extent manager to check duplicate mapping */
-
-	va = kmem_alloc(kernel_map, endpa - startpa);
-	if (! va)
-		return(ENOMEM);
-
-	*bshp = (bus_space_handle_t)(va + (bpa - startpa));
-
-	for(pa = startpa; pa < endpa; pa += PAGE_SIZE, va += PAGE_SIZE) {
-		pmap_kenter(va, pa);
-		pte = vtopte(va);
-		if (cacheable == 0) {
-			*pte &= ~L2_S_CACHE_MASK;
-			PTE_SYNC(pte);
-		}
-	}
-	return(0);
-}
-
-int
-sa11x0_bs_alloc(t, rstart, rend, size, alignment, boundary, cacheable,
-    bpap, bshp)
-	void *t;
-	bus_addr_t rstart, rend;
-	bus_size_t size, alignment, boundary;
-	int cacheable;
-	bus_addr_t *bpap;
-	bus_space_handle_t *bshp;
-{
-	panic("sa11x0_alloc(): Help!");
-}
-
-
-void
-sa11x0_bs_unmap(t, h, size)
-	void *t;
-	bus_space_handle_t h;
-	bus_size_t size;
-{
-	vm_offset_t va, endva;
-
-	if (pmap_devmap_find_va((vm_offset_t)t, size) != NULL) {
-		/* Device was statically mapped; nothing to do. */
-		return;
-	}
-
-	va = trunc_page((vm_offset_t)t);
-	endva = round_page((vm_offset_t)t + size);
-
-	while (va < endva) {
-		pmap_kremove(va);
-		va += PAGE_SIZE;
-	}
-	kmem_free(kernel_map, va, endva - va);
-}
-
-void    
-sa11x0_bs_free(t, bsh, size)
-	void *t;
-	bus_space_handle_t bsh;
-	bus_size_t size;
-{
-
-	panic("sa11x0_free(): Help!");
-	/* sa11x0_unmap() does all that we need to do. */
-/*	sa11x0_unmap(t, bsh, size);*/
-}
-
-int
-sa11x0_bs_subregion(t, bsh, offset, size, nbshp)
-	void *t;
-	bus_space_handle_t bsh;
-	bus_size_t offset, size;
-	bus_space_handle_t *nbshp;
-{
-
-	*nbshp = bsh + offset;
-	return (0);
-}
-
-void
-sa11x0_bs_barrier(t, bsh, offset, len, flags)
-	void *t;
-	bus_space_handle_t bsh;
-	bus_size_t offset, len;
-	int flags;
-{
-/* NULL */
-}	
 
 /* End of sa11x0_io.c */
