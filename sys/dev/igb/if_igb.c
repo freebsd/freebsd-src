@@ -3813,7 +3813,7 @@ igb_fixup_rx(struct rx_ring *rxr)
 			rxr->fmp = n;
 		} else {
 			adapter->dropped_pkts++;
-			m_freem(adapter->fmp);
+			m_freem(rxr->fmp);
 			rxr->fmp = NULL;
 			error = ENOMEM;
 		}
