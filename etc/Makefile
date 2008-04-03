@@ -9,7 +9,7 @@ SUBDIR=	sendmail
 
 BIN1=	amd.map apmd.conf auth.conf \
 	crontab csh.cshrc csh.login csh.logout devd.conf devfs.conf \
-	dhclient.conf disktab fbtab freebsd-update.conf \
+	ddb.conf dhclient.conf disktab fbtab freebsd-update.conf \
 	ftpusers gettytab group \
 	hosts hosts.allow hosts.equiv hosts.lpd \
 	inetd.conf libalias.conf login.access login.conf mac.conf motd \
