@@ -324,14 +324,18 @@ umtxq_busy(struct umtx_key *key)
 	uc = umtxq_getchain(key);
 	mtx_assert(&uc->uc_lock, MA_OWNED);
 	if (uc->uc_busy) {
-		int count = BUSY_SPINS;
-		if (count > 0) {
-			umtxq_unlock(key);
-			while (uc->uc_busy && --count > 0)
-				cpu_spinwait();
-			umtxq_lock(key);
+#ifdef SMP
+		if (smp_cpus > 1) {
+			int count = BUSY_SPINS;
+			if (count > 0) {
+				umtxq_unlock(key);
+				while (uc->uc_busy && --count > 0)
+					cpu_spinwait();
+				umtxq_lock(key);
+			}
 		}
-		while (uc->uc_busy != 0) {
+#endif
+		while (uc->uc_busy) {
 			uc->uc_waiters++;
 			msleep(uc, &uc->uc_lock, 0, "umtxqb", 0);
 			uc->uc_waiters--;
@@ -2604,7 +2608,7 @@ do_rw_wrlock2(struct thread *td, void *obj, struct timespec *timeout)
 }
 
 static int
-do_rwlock_unlock(struct thread *td, struct urwlock *rwlock)
+do_rw_unlock(struct thread *td, struct urwlock *rwlock)
 {
 	struct umtx_q *uq;
 	uint32_t flags;
@@ -2896,7 +2900,7 @@ __umtx_op_rw_wrlock(struct thread *td, struct _umtx_op_args *uap)
 static int
 __umtx_op_rw_unlock(struct thread *td, struct _umtx_op_args *uap)
 {
-	return do_rwlock_unlock(td, uap->obj);
+	return do_rw_unlock(td, uap->obj);
 }
 
 typedef int (*_umtx_op_func)(struct thread *td, struct _umtx_op_args *uap);
