@@ -46,7 +46,6 @@
  */
 
 #include "opt_msgbuf.h"
-#include "opt_ddb.h"
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -187,73 +186,26 @@ static const struct pmap_devmap iq80321_devmap[] = {
 
 #define SDRAM_START 0xa0000000
 
-#ifdef DDB
-extern vm_offset_t ksym_start, ksym_end;
-#endif
-
 extern vm_offset_t xscale_cache_clean_addr;
 
 void *
 initarm(void *arg, void *arg2)
 {
 	struct pv_addr  kernel_l1pt;
-	int loop;
+	int loop, i;
 	u_int l1pagetable;
 	vm_offset_t freemempos;
 	vm_offset_t freemem_pt;
 	vm_offset_t afterkern;
 	vm_offset_t freemem_after;
 	vm_offset_t lastaddr;
-#ifdef DDB
-	vm_offset_t zstart = 0, zend = 0;
-#endif
-	int i;
-	uint32_t fake_preload[35];
 	uint32_t memsize, memstart;
 
-	i = 0;
-
 	set_cpufuncs();
-	fake_preload[i++] = MODINFO_NAME;
-	fake_preload[i++] = strlen("elf kernel") + 1;
-	strcpy((char*)&fake_preload[i++], "elf kernel");
-	i += 2;
-	fake_preload[i++] = MODINFO_TYPE;
-	fake_preload[i++] = strlen("elf kernel") + 1;
-	strcpy((char*)&fake_preload[i++], "elf kernel");
-	i += 2;
-	fake_preload[i++] = MODINFO_ADDR;
-	fake_preload[i++] = sizeof(vm_offset_t);
-	fake_preload[i++] = KERNBASE + 0x00200000;
-	fake_preload[i++] = MODINFO_SIZE;
-	fake_preload[i++] = sizeof(uint32_t);
-	fake_preload[i++] = (uint32_t)&end - KERNBASE - 0x00200000;
-#ifdef DDB
-	if (*(uint32_t *)KERNVIRTADDR == MAGIC_TRAMP_NUMBER) {
-		fake_preload[i++] = MODINFO_METADATA|MODINFOMD_SSYM;
-		fake_preload[i++] = sizeof(vm_offset_t);
-		fake_preload[i++] = *(uint32_t *)(KERNVIRTADDR + 4);
-		fake_preload[i++] = MODINFO_METADATA|MODINFOMD_ESYM;
-		fake_preload[i++] = sizeof(vm_offset_t);
-		fake_preload[i++] = *(uint32_t *)(KERNVIRTADDR + 8);
-		lastaddr = *(uint32_t *)(KERNVIRTADDR + 8);
-		zend = lastaddr;
-		zstart = *(uint32_t *)(KERNVIRTADDR + 4);
-		ksym_start = zstart;
-		ksym_end = zend;
-	} else
-#endif
-		lastaddr = (vm_offset_t)&end;
-
-	fake_preload[i++] = 0;
-	fake_preload[i] = 0;
-	preload_metadata = (void *)fake_preload;
-
-
+	lastaddr = fake_preload_metadata();
 	pcpu_init(pcpup, 0, sizeof(struct pcpu));
 	PCPU_SET(curthread, &thread0);
 
-#define KERNEL_TEXT_BASE (KERNBASE + 0x00200000)
 	freemempos = 0xa0200000;
 	/* Define a macro to simplify memory allocation */
 #define	valloc_pages(var, np)			\
