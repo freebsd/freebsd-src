@@ -502,7 +502,7 @@ printlist(char *name, char *basename)
 	struct afile single;
 	RST_DIR *dirp;
 	int entries, len, namelen;
-	char locname[MAXPATHLEN + 1];
+	char locname[MAXPATHLEN];
 
 	dp = pathsearch(name);
 	if (dp == NULL || (!dflag && TSTINO(dp->d_ino, dumpmap) == 0) ||
@@ -533,8 +533,8 @@ printlist(char *name, char *basename)
 		fprintf(stderr, "%s:\n", name);
 		entries = 0;
 		listp = list;
-		(void) strncpy(locname, name, MAXPATHLEN);
-		(void) strncat(locname, "/", MAXPATHLEN);
+		(void)strlcpy(locname, name, MAXPATHLEN);
+		(void)strlcat(locname, "/", MAXPATHLEN);
 		namelen = strlen(locname);
 		while ((dp = rst_readdir(dirp))) {
 			if (dp == NULL)
@@ -545,13 +545,11 @@ printlist(char *name, char *basename)
 			     strcmp(dp->d_name, ".") == 0 ||
 			     strcmp(dp->d_name, "..") == 0))
 				continue;
-			locname[namelen] = '\0';
 			if (namelen + dp->d_namlen >= MAXPATHLEN) {
 				fprintf(stderr, "%s%s: name exceeds %d char\n",
 					locname, dp->d_name, MAXPATHLEN);
 			} else {
-				(void) strncat(locname, dp->d_name,
-				    (int)dp->d_namlen);
+				(void)strlcat(locname, dp->d_name, MAXPATHLEN);
 				mkentry(locname, dp, listp++);
 				entries++;
 			}
