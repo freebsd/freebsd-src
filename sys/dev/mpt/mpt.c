@@ -2268,7 +2268,7 @@ mpt_core_attach(struct mpt_softc *mpt)
 	    mpt_ioc_diag(mpt_read(mpt, MPT_OFFSET_DOORBELL)));
 
 	MPT_LOCK(mpt);
-	error = mpt_configure_ioc(mpt, 0, 1);
+	error = mpt_configure_ioc(mpt, 0, 0);
 	MPT_UNLOCK(mpt);
 
 	return (error);
