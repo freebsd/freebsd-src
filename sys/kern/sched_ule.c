@@ -460,17 +460,14 @@ tdq_runq_rem(struct tdq *tdq, struct thread *td)
 static void
 tdq_load_add(struct tdq *tdq, struct thread *td)
 {
-	struct td_sched *ts;
-	int class;
 
-	ts = td->td_sched;
 	TDQ_LOCK_ASSERT(tdq, MA_OWNED);
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
-	class = PRI_BASE(td->td_pri_class);
+
 	tdq->tdq_load++;
-	CTR2(KTR_SCHED, "cpu %d load: %d", TDQ_ID(tdq), tdq->tdq_load);
-	if (class != PRI_ITHD && (td->td_proc->p_flag & P_NOLOAD) == 0)
+	if ((td->td_proc->p_flag & P_NOLOAD) == 0)
 		tdq->tdq_sysload++;
+	CTR2(KTR_SCHED, "cpu %d load: %d", TDQ_ID(tdq), tdq->tdq_load);
 }
 
 /*
@@ -480,18 +477,15 @@ tdq_load_add(struct tdq *tdq, struct thread *td)
 static void
 tdq_load_rem(struct tdq *tdq, struct thread *td)
 {
-	struct td_sched *ts;
-	int class;
 
-	ts = td->td_sched;
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	TDQ_LOCK_ASSERT(tdq, MA_OWNED);
-	class = PRI_BASE(td->td_pri_class);
-	if (class != PRI_ITHD && (td->td_proc->p_flag & P_NOLOAD) == 0)
-		tdq->tdq_sysload--;
 	KASSERT(tdq->tdq_load != 0,
 	    ("tdq_load_rem: Removing with 0 load on queue %d", TDQ_ID(tdq)));
+
 	tdq->tdq_load--;
+	if ((td->td_proc->p_flag & P_NOLOAD) == 0)
+		tdq->tdq_sysload--;
 	CTR1(KTR_SCHED, "load: %d", tdq->tdq_load);
 }
 
