@@ -2904,12 +2904,6 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 			panic("pmap_enter: attempted pmap_enter on 2MB page");
 		pte = pmap_pde_to_pte(pde, va);
 	} else
-		pte = NULL;
-
-	/*
-	 * Page Directory table entry not valid, we need a new PT page
-	 */
-	if (pte == NULL)
 		panic("pmap_enter: invalid page directory va=%#lx", va);
 
 	pa = VM_PAGE_TO_PHYS(m);
