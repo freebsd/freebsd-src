@@ -39,10 +39,12 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/ktr.h>
+#include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/rwlock.h>
+#include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/turnstile.h>
 
@@ -52,6 +54,14 @@ CTASSERT((RW_RECURSE & LO_CLASSFLAGS) == RW_RECURSE);
 
 #if defined(SMP) && !defined(NO_ADAPTIVE_RWLOCKS)
 #define	ADAPTIVE_RWLOCKS
+#endif
+
+#ifdef ADAPTIVE_RWLOCKS
+static int rowner_retries = 10;
+static int rowner_loops = 10000;
+SYSCTL_NODE(_debug, OID_AUTO, rwlock, CTLFLAG_RD, NULL, "rwlock debugging");
+SYSCTL_INT(_debug_rwlock, OID_AUTO, retry, CTLFLAG_RW, &rowner_retries, 0, "");
+SYSCTL_INT(_debug_rwlock, OID_AUTO, loops, CTLFLAG_RW, &rowner_loops, 0, "");
 #endif
 
 #ifdef DDB
@@ -261,6 +271,8 @@ _rw_rlock(struct rwlock *rw, const char *file, int line)
 	struct turnstile *ts;
 #ifdef ADAPTIVE_RWLOCKS
 	volatile struct thread *owner;
+	int spintries = 0;
+	int i;
 #endif
 	uint64_t waittime = 0;
 	int contested = 0;
@@ -324,6 +336,16 @@ _rw_rlock(struct rwlock *rw, const char *file, int line)
 					cpu_spinwait();
 				continue;
 			}
+		} else if (spintries < rowner_retries) {
+			spintries++;
+			for (i = 0; i < rowner_loops; i++) {
+				v = rw->rw_lock;
+				if ((v & RW_LOCK_READ) == 0 || RW_CAN_READ(v))
+					break;
+				cpu_spinwait();
+			}
+			if (i != rowner_loops)
+				continue;
 		}
 #endif
 
@@ -592,7 +614,8 @@ _rw_wlock_hard(struct rwlock *rw, uintptr_t tid, const char *file, int line)
 				cpu_spinwait();
 			continue;
 		}
-		if ((v & RW_LOCK_READ) && RW_READERS(v) && spintries < 100) {
+		if ((v & RW_LOCK_READ) && RW_READERS(v) &&
+		    spintries < rowner_retries) {
 			if (!(v & RW_LOCK_WRITE_SPINNER)) {
 				if (!atomic_cmpset_ptr(&rw->rw_lock, v,
 				    v | RW_LOCK_WRITE_SPINNER)) {
@@ -601,12 +624,12 @@ _rw_wlock_hard(struct rwlock *rw, uintptr_t tid, const char *file, int line)
 				}
 			}
 			spintries++;
-			for (i = 100000; i > 0; i--) {
+			for (i = 0; i < rowner_loops; i++) {
 				if ((rw->rw_lock & RW_LOCK_WRITE_SPINNER) == 0)
 					break;
 				cpu_spinwait();
 			}
-			if (i)
+			if (i != rowner_loops)
 				continue;
 		}
 #endif
