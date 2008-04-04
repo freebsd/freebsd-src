@@ -168,7 +168,7 @@ printlong(const DISPLAY *dp)
 			prevdev = sp->st_dev;
 		}
 		np = p->fts_pointer;
-		(void)printf("%s %*u %-*s  %-*s  ", buf, dp->s_nlink,
+		(void)printf("%s %*u %-*s  %-*s	 ", buf, dp->s_nlink,
 		    sp->st_nlink, dp->s_user, np->user, dp->s_group,
 		    np->group);
 		if (f_flags)
@@ -237,7 +237,7 @@ printstream(const DISPLAY *dp)
 	if (chcnt)
 		putchar('\n');
 }
-		
+
 void
 printcol(const DISPLAY *dp)
 {
@@ -378,17 +378,20 @@ printtime(time_t ftime)
 		now = time(NULL);
 
 #define	SIXMONTHS	((365 / 2) * 86400)
-	if (f_sectime)
+	if (f_timeformat)  /* user specified format */
+		format = f_timeformat;
+	else if (f_sectime)
 		/* mmm dd hh:mm:ss yyyy || dd mmm hh:mm:ss yyyy */
-		format = d_first ? "%e %b %T %Y " : "%b %e %T %Y ";
+		format = d_first ? "%e %b %T %Y" : "%b %e %T %Y";
 	else if (ftime + SIXMONTHS > now && ftime < now + SIXMONTHS)
 		/* mmm dd hh:mm || dd mmm hh:mm */
-		format = d_first ? "%e %b %R " : "%b %e %R ";
+		format = d_first ? "%e %b %R" : "%b %e %R";
 	else
 		/* mmm dd  yyyy || dd mmm  yyyy */
-		format = d_first ? "%e %b  %Y " : "%b %e  %Y ";
+		format = d_first ? "%e %b  %Y" : "%b %e	 %Y";
 	strftime(longstring, sizeof(longstring), format, localtime(&ftime));
 	fputs(longstring, stdout);
+	fputc(' ', stdout);
 }
 
 static int
@@ -625,7 +628,7 @@ aclmode(char *buf, const FTSENT *p, int *haveacls)
 		snprintf(name, sizeof(name), "%s", p->fts_name);
 	else
 		snprintf(name, sizeof(name), "%s/%s",
-		    p->fts_parent->fts_accpath, p->fts_name);   
+		    p->fts_parent->fts_accpath, p->fts_name);
 	/*
 	 * We have no way to tell whether a symbolic link has an ACL since
 	 * pathconf() and acl_get_file() both follow them.  They also don't

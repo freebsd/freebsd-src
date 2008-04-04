@@ -41,6 +41,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl ABCFGHILPRSTUWZabcdfghiklmnopqrstuwx1
+.Op Fl D Ar format
 .Op Ar
 .Sh DESCRIPTION
 For each operand that names a
@@ -88,6 +89,20 @@ where
 is the numeric value of the character in octal.
 .It Fl C
 Force multi-column output; this is the default when output is to a terminal.
+.It Fl D Ar format
+When printing in the long
+.Pq Fl l
+format, use
+.Ar format
+to format the date and time output.
+.Ar format
+is a format string used by
+.Xr strftime 3 .
+Depending on the choice of format string, this may result in a
+different number of columns in the output.
+This option overrides the
+.Fl T
+option.
 .It Fl F
 Display a slash
 .Pq Ql /
@@ -146,12 +161,13 @@ Recursively list subdirectories encountered.
 Sort by size (largest file first) before sorting the operands in
 lexicographical order.
 .It Fl T
-When used with the
-.Fl l
-(lowercase letter
-.Dq ell )
-option, display complete time information for the file, including
+When printing in the long
+.Pq Fl l
+format, display complete time information for the file, including
 month, day, hour, minute, second, and year.
+The
+.Fl D
+option gives even more control over the output format.
 .It Fl U
 Use time when file was created for sorting or printing.
 .It Fl W
@@ -325,7 +341,12 @@ hour file last modified, minute file last
 modified, and the pathname.
 .Pp
 If the modification time of the file is more than 6 months
-in the past or future, then the year of the last modification
+in the past or future, and the
+.Fl D
+or
+.Fl T
+are not specified,
+then the year of the last modification
 is displayed in place of the hour and minute fields.
 .Pp
 If the owner or group names are not a known user or group name,
@@ -657,6 +678,7 @@ specification.
 .Xr getfacl 1 ,
 .Xr sort 1 ,
 .Xr xterm 1 ,
+.Xr strftime 3 ,
 .Xr termcap 5 ,
 .Xr maclabel 7 ,
 .Xr symlink 7 ,
