@@ -751,6 +751,8 @@ finished:
 
 			if (flags & UMA_SLAB_KMEM)
 				obj = kmem_object;
+			else if (flags & UMA_SLAB_KERNEL)
+				obj = kernel_object;
 			else
 				obj = NULL;
 			for (i = 0; i < keg->uk_ppera; i++)
@@ -871,6 +873,8 @@ slab_zalloc(uma_zone_t zone, int wait)
 
 				if (flags & UMA_SLAB_KMEM)
 					obj = kmem_object;
+				else if (flags & UMA_SLAB_KERNEL)
+					obj = kernel_object;
 				else
 					obj = NULL;
 				for (i = 0; i < keg->uk_ppera; i++)
