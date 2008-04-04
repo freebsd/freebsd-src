@@ -40,6 +40,10 @@ SYSTEM_DEP:= ${SYSTEM_DEP:$S/conf/ldscript.$M=ldscript.$M}
 CC += -mbig-endian
 SYSTEM_LD += -EB
 LD += -EB
+.else
+CC += -mlittle-endian
+SYSTEM_LD += -EL
+LD += -EL
 .endif
 
 
