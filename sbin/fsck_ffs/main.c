@@ -542,7 +542,7 @@ chkdoreload(struct statfs *mntp)
 		 * nmount().
 		 */
 		fflags &= ~MNT_ROOTFS;
-		fflags = fflags | MNT_UPDATE | MNT_RELOAD;
+		fflags = fflags | MNT_RELOAD;
 		build_iovec(&iov, &iovlen, "fstype", "ffs", 4);
 		build_iovec(&iov, &iovlen, "from", mntp->f_mntfromname,
 		    (size_t)-1);
@@ -550,6 +550,12 @@ chkdoreload(struct statfs *mntp)
 		    (size_t)-1);
 		build_iovec(&iov, &iovlen, "errmsg", errmsg,
 		    sizeof(errmsg));
+		build_iovec(&iov, &iovlen, "update", NULL, 0);
+		/*
+		 * XX: We need the following line until we clean up
+		 * nmount parsing of root mounts and NFS root mounts.
+		 */ 
+		build_iovec(&iov, &iovlen, "ro", NULL, 0);
 		if (nmount(iov, iovlen, fflags) == 0) {
 			return (0);
 		}
