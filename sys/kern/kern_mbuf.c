@@ -352,7 +352,8 @@ static void *
 mbuf_jumbo_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 {
 
-	*flags = UMA_SLAB_PRIV;
+	/* Inform UMA that this allocator uses kernel_map/object. */
+	*flags = UMA_SLAB_KERNEL;
 	return (contigmalloc(bytes, M_JUMBOFRAME, wait, (vm_paddr_t)0,
 	    ~(vm_paddr_t)0, 1, 0));
 }
