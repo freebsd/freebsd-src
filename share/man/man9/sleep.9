@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 27, 2007
+.Dd April 4, 2008
 .Os
 .Dt SLEEP 9
 .Sh NAME
@@ -93,6 +93,10 @@ then the thread will be made
 runnable with the specified
 .Fa priority
 when it resumes.
+.Dv PZERO 
+should never be used, as it is for compatibility only.
+A new priority of 0 means to use the thread's current priority when
+it is made runnable again.
 If
 .Fa priority
 includes the
