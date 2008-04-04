@@ -914,8 +914,6 @@ swi_add(struct intr_event **eventp, const char *name, driver_intr_t handler,
 		if (eventp != NULL)
 			*eventp = ie;
 	}
-	return (intr_event_add_handler(ie, name, NULL, handler, arg,
-		    (pri * RQ_PPQ) + PI_SOFT, flags, cookiep));
 	error = intr_event_add_handler(ie, name, NULL, handler, arg,
 	    (pri * RQ_PPQ) + PI_SOFT, flags, cookiep);
 	if (error)
