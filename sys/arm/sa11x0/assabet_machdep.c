@@ -225,7 +225,7 @@ initarm(void *arg, void *arg2)
 	boothowto = RB_VERBOSE | RB_SINGLE;
 	cninit();
 	set_cpufuncs();
-	lastaddr = fake_reload_metadata();
+	lastaddr = fake_preload_metadata();
 	physmem = memsize / PAGE_SIZE;
 	pc = &__pcpu;
 	pcpu_init(pc, 0, sizeof(struct pcpu));
