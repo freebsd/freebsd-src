@@ -125,10 +125,11 @@ static int f_reversesort;	/* reverse whatever sort is used */
 static int f_singlecol;		/* use single column output */
        int f_size;		/* list size in short listing */
        int f_slash;		/* similar to f_type, but only for dirs */
-       int f_sortacross;	/* sort across rows, not down columns */ 
+       int f_sortacross;	/* sort across rows, not down columns */
        int f_statustime;	/* use time of last mode change */
 static int f_stream;		/* stream the output, separate with commas */
 static int f_timesort;		/* sort by time vice name */
+       char *f_timeformat;      /* user-specified time format */
 static int f_sizesort;
        int f_type;		/* add type character for non-regular files */
 static int f_whiteout;		/* show whiteout entries */
@@ -179,7 +180,7 @@ main(int argc, char *argv[])
 
 	fts_options = FTS_PHYSICAL;
  	while ((ch = getopt(argc, argv,
-	    "1ABCFGHILPRSTUWZabcdfghiklmnopqrstuwx")) != -1) {
+	    "1ABCD:FGHILPRSTUWZabcdfghiklmnopqrstuwx")) != -1) {
 		switch (ch) {
 		/*
 		 * The -1, -C, -x and -l options all override each other so
@@ -198,6 +199,9 @@ main(int argc, char *argv[])
 		case 'C':
 			f_sortacross = f_longform = f_singlecol = 0;
 			break;
+                case 'D':
+                        f_timeformat = optarg;
+                        break;
 		case 'l':
 			f_longform = 1;
 			f_singlecol = 0;
