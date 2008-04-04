@@ -182,7 +182,7 @@ static int preempt_thresh = PRI_MIN_KERN;
 #else 
 static int preempt_thresh = 0;
 #endif
-static int static_boost = 1;
+static int static_boost = PRI_MIN_TIMESHARE;
 
 /*
  * tdq - per processor runqs and statistics.  All fields are protected by the
@@ -1833,8 +1833,10 @@ sched_sleep(struct thread *td, int prio)
 	td->td_slptick = ticks;
 	if (TD_IS_SUSPENDED(td) || prio <= PSOCK)
 		td->td_flags |= TDF_CANSWAP;
-	if (static_boost && prio)
+	if (static_boost == 1 && prio)
 		sched_prio(td, prio);
+	else if (static_boost && td->td_priority > static_boost)
+		sched_prio(td, static_boost);
 }
 
 /*
@@ -2138,8 +2140,10 @@ sched_choose(void)
 	if (td) {
 		td->td_sched->ts_ltick = ticks;
 		tdq_runq_rem(tdq, td);
+		tdq->tdq_lowpri = td->td_priority;
 		return (td);
 	}
+	tdq->tdq_lowpri = PRI_MAX_IDLE;
 	return (PCPU_GET(idlethread));
 }
 
