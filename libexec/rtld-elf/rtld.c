@@ -773,12 +773,19 @@ digest_dynamic(Obj_Entry *obj, int early)
 	    obj->fini = (Elf_Addr) (obj->relocbase + dynp->d_un.d_ptr);
 	    break;
 
+	/*
+	 * Don't process DT_DEBUG on MIPS as the dynamic section
+	 * is mapped read-only. DT_MIPS_RLD_MAP is used instead.
+	 */
+
+#ifndef __mips__
 	case DT_DEBUG:
 	    /* XXX - not implemented yet */
 	    if (!early)
 		dbg("Filling in DT_DEBUG entry");
 	    ((Elf_Dyn*)dynp)->d_un.d_ptr = (Elf_Addr) &r_debug;
 	    break;
+#endif
 
 	case DT_FLAGS:
 		if (dynp->d_un.d_val & DF_ORIGIN) {
@@ -795,6 +802,27 @@ digest_dynamic(Obj_Entry *obj, int early)
 		if (dynp->d_un.d_val & DF_STATIC_TLS)
 		    ;
 	    break;
+#ifdef __mips__
+	case DT_MIPS_LOCAL_GOTNO:
+		obj->local_gotno = dynp->d_un.d_val;
+	    break;
+
+	case DT_MIPS_SYMTABNO:
+		obj->symtabno = dynp->d_un.d_val;
+		break;
+
+	case DT_MIPS_GOTSYM:
+		obj->gotsym = dynp->d_un.d_val;
+		break;
+
+	case DT_MIPS_RLD_MAP:
+#ifdef notyet
+		if (!early)
+			dbg("Filling in DT_DEBUG entry");
+		((Elf_Dyn*)dynp)->d_un.d_ptr = (Elf_Addr) &r_debug;
+#endif
+		break;
+#endif
 
 	default:
 	    if (!early) {
@@ -1165,7 +1193,10 @@ init_rtld(caddr_t mapbase)
 	objtmp.dynamic = rtld_dynamic(&objtmp);
 	digest_dynamic(&objtmp, 1);
 	assert(objtmp.needed == NULL);
+#if !defined(__mips__)
+	/* MIPS and SH{3,5} have a bogus DT_TEXTREL. */
 	assert(!objtmp.textrel);
+#endif
 
 	/*
 	 * Temporarily put the dynamic linker entry into the object list, so
@@ -2569,11 +2600,14 @@ symlook_obj(const char *name, unsigned long hash, const Obj_Entry *obj,
 		continue;
 		/* fallthrough */
 	case STT_TLS:
-	    if (symp->st_shndx != SHN_UNDEF ||
-		((flags & SYMLOOK_IN_PLT) == 0 &&
-		 ELF_ST_TYPE(symp->st_info) == STT_FUNC))
+	    if (symp->st_shndx != SHN_UNDEF)
+		break;
+#ifndef __mips__
+	    else if (((flags & SYMLOOK_IN_PLT) == 0) &&
+		 (ELF_ST_TYPE(symp->st_info) == STT_FUNC))
 		break;
 		/* fallthrough */
+#endif
 	default:
 	    continue;
 	}
@@ -2937,7 +2971,7 @@ free_tls(void *tcb, size_t tcbsize, size_t tcbalign)
 #endif
 
 #if defined(__i386__) || defined(__amd64__) || defined(__sparc64__) || \
-    defined(__arm__)
+    defined(__arm__) || defined(__mips__)
 
 /*
  * Allocate Static TLS using the Variant II method.
@@ -3103,7 +3137,7 @@ void
 free_tls_offset(Obj_Entry *obj)
 {
 #if defined(__i386__) || defined(__amd64__) || defined(__sparc64__) || \
-    defined(__arm__)
+    defined(__arm__) || defined(__mips__)
     /*
      * If we were the last thing to allocate out of the static TLS
      * block, we give our space back to the 'allocator'. This is a
