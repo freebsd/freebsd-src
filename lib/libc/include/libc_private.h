@@ -192,4 +192,7 @@ extern __ssize_t __sys_freebsd6_pread(int, void *, __size_t, int, __off_t);
 extern __ssize_t __sys_freebsd6_pwrite(int, const void *, __size_t, int, __off_t);
 extern void *	__sys_freebsd6_mmap(void *, __size_t, int, int, int, int, __off_t);
 
+/* Without back-compat translation */
+extern int	__sys_fcntl(int, int, ...);
+
 #endif /* _LIBC_PRIVATE_H_ */
