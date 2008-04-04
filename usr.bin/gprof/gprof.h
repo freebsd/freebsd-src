@@ -53,6 +53,9 @@
 #if __ia64__
 #   include "ia64.h"
 #endif
+#if __mips__
+#   include "mips.h"
+#endif
 #if __powerpc__
 #   include "powerpc.h"
 #endif
