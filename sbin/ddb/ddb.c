@@ -43,11 +43,11 @@ void
 usage(void)
 {
 
-	fprintf(stderr, "usage:\n");
-	fprintf(stderr, "ddb script scriptname\n");
-	fprintf(stderr, "ddb script scriptname=script\n");
-	fprintf(stderr, "ddb scripts\n");
-	fprintf(stderr, "ddb unscript scriptname\n");
+	fprintf(stderr, "usage: ddb script scriptname\n");
+	fprintf(stderr, "       ddb script scriptname=script\n");
+	fprintf(stderr, "       ddb scripts\n");
+	fprintf(stderr, "       ddb unscript scriptname\n");
+	fprintf(stderr, "       ddb pathname\n");
 	exit(EX_USAGE);
 }
 
