@@ -541,6 +541,10 @@ chkdoreload(struct statfs *mntp)
 		build_iovec(&iov, &iovlen, "errmsg", errmsg,
 		    sizeof(errmsg));
 		build_iovec(&iov, &iovlen, "update", NULL, 0);
+		/*
+		 * XX: We need the following line until we clean up
+		 * nmount parsing of root mounts and NFS root mounts.
+		 */ 
 		build_iovec(&iov, &iovlen, "ro", NULL, 0);
 		if (nmount(iov, iovlen, fflags) == 0) {
 			return (0);
