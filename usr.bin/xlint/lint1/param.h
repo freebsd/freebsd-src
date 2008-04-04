@@ -95,6 +95,9 @@
 #elif __arm__
 #define PTRDIFF_IS_LONG		0
 #define SIZEOF_IS_ULONG		0
+#elif __mips__
+#define PTRDIFF_IS_LONG		0
+#define SIZEOF_IS_ULONG		0
 #else
 #error unknown machine type
 #endif
