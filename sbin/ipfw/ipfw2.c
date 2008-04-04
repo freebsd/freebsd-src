@@ -66,6 +66,7 @@
 #include <alias.h>
 
 int
+		do_value_as_ip,		/* show table value as IP */
 		do_resolv,		/* Would try to resolve all */
 		do_time,		/* Show time stamps */
 		do_quiet,		/* Be quiet in add and flush */
@@ -5894,22 +5895,20 @@ table_handler(int ac, char *av[])
 		if (do_cmd(IP_FW_TABLE_LIST, tbl, (uintptr_t)&l) < 0)
 			err(EX_OSERR, "getsockopt(IP_FW_TABLE_LIST)");
 		for (a = 0; a < tbl->cnt; a++) {
-			/* Heuristic to print it the right way */
-			/* values < 64k are printed as numbers */
 			unsigned int tval;
 			tval = tbl->ent[a].value;
-			if (tval > 0xffff) {
+			if (do_value_as_ip) {
 			    char tbuf[128];
 			    strncpy(tbuf, inet_ntoa(*(struct in_addr *)
 				&tbl->ent[a].addr), 127);
-			    /* inet_ntoa expects host order */
+			    /* inet_ntoa expects network order */
 			    tval = htonl(tval);
 			    printf("%s/%u %s\n", tbuf, tbl->ent[a].masklen,
 			        inet_ntoa(*(struct in_addr *)&tval));
 			} else {
 			    printf("%s/%u %u\n",
 			        inet_ntoa(*(struct in_addr *)&tbl->ent[a].addr),
-			        tbl->ent[a].masklen, tbl->ent[a].value);
+			        tbl->ent[a].masklen, tval);
 			}
 		}
 	} else
@@ -6091,7 +6090,7 @@ ipfw_main(int oldac, char **oldav)
 	save_av = av;
 
 	optind = optreset = 0;
-	while ((ch = getopt(ac, av, "abcdefhnNqs:STtv")) != -1)
+	while ((ch = getopt(ac, av, "abcdefhinNqs:STtv")) != -1)
 		switch (ch) {
 		case 'a':
 			do_acct = 1;
@@ -6122,6 +6121,10 @@ ipfw_main(int oldac, char **oldav)
 			free_args(save_ac, save_av);
 			help();
 			break;	/* NOTREACHED */
+
+		case 'i':
+			do_value_as_ip = 1;
+			break;
 
 		case 'n':
 			test_only = 1;
