@@ -116,9 +116,11 @@ fdesc_allocvp(ftype, ix, mp, vpp, td)
 loop:
 	LIST_FOREACH(fd, fc, fd_hash) {
 		if (fd->fd_ix == ix && fd->fd_vnode->v_mount == mp) {
-			if (vget(fd->fd_vnode, 0, td))
+			if (vget(fd->fd_vnode, LK_EXCLUSIVE | LK_CANRECURSE,
+			    td))
 				goto loop;
 			*vpp = fd->fd_vnode;
+			VOP_UNLOCK(*vpp, 0);
 			return (error);
 		}
 	}
