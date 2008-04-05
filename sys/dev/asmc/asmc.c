@@ -35,6 +35,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_intr_filter.h"
+
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
