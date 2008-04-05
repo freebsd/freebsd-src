@@ -336,6 +336,8 @@ gethdr(int fd, struct hdr *hdr)
     if (sb.st_size > MAXU32)
 	errx(1, "%s: Too big", fname);
     hdr->size = sb.st_size;
+    if (!hdr->size)
+	return;
     if ((p = mmap(NULL, hdr->size, PROT_READ, MAP_SHARED, fd,
 		  0)) == MAP_FAILED)
 	err(2, "%s", fname);
