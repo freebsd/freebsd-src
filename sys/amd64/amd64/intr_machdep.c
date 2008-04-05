@@ -85,9 +85,6 @@ static void	intr_assign_next_cpu(struct intsrc *isrc);
 
 static int	intr_assign_cpu(void *arg, u_char cpu);
 static void	intr_disable_src(void *arg);
-#ifdef INTR_FILTER
-static void	intr_event_stray(void *cookie);
-#endif
 static void	intr_init(void *__dummy);
 static int	intr_pic_registered(struct pic *pic);
 static void	intrcnt_setname(const char *name, int index);
@@ -238,12 +235,11 @@ intr_disable_src(void *arg)
 	isrc->is_pic->pic_disable_source(isrc, PIC_EOI);
 }
 
-#ifdef INTR_FILTER
 void
 intr_execute_handlers(struct intsrc *isrc, struct trapframe *frame)
 {
-	struct thread *td;
 	struct intr_event *ie;
+	struct thread *td;
 	int vector;
 
 	td = curthread;
@@ -267,64 +263,11 @@ intr_execute_handlers(struct intsrc *isrc, struct trapframe *frame)
 	if (vector == 0)
 		clkintr_pending = 1;
 
-	if (intr_event_handle(ie, frame) != 0)
-		intr_event_stray(isrc);
-}
-
-static void
-intr_event_stray(void *cookie)
-{
-	struct intsrc *isrc;
-
-	isrc = cookie;
 	/*
 	 * For stray interrupts, mask and EOI the source, bump the
 	 * stray count, and log the condition.
 	 */
-	isrc->is_pic->pic_disable_source(isrc, PIC_EOI);
-	(*isrc->is_straycount)++;
-	if (*isrc->is_straycount < MAX_STRAY_LOG)
-		log(LOG_ERR, "stray irq%d\n", isrc->is_pic->pic_vector(isrc));
-	else if (*isrc->is_straycount == MAX_STRAY_LOG)
-		log(LOG_CRIT,
-		    "too many stray irq %d's: not logging anymore\n",
-		    isrc->is_pic->pic_vector(isrc));
-}
-#else
-void
-intr_execute_handlers(struct intsrc *isrc, struct trapframe *frame)
-{
-	struct thread *td;
-	struct intr_event *ie;
-	struct intr_handler *ih;
-	int error, vector, thread, ret;
-
-	td = curthread;
-
-	/*
-	 * We count software interrupts when we process them.  The
-	 * code here follows previous practice, but there's an
-	 * argument for counting hardware interrupts when they're
-	 * processed too.
-	 */
-	(*isrc->is_count)++;
-	PCPU_INC(cnt.v_intr);
-
-	ie = isrc->is_event;
-
-	/*
-	 * XXX: We assume that IRQ 0 is only used for the ISA timer
-	 * device (clk).
-	 */
-	vector = isrc->is_pic->pic_vector(isrc);
-	if (vector == 0)
-		clkintr_pending = 1;
-
-	/*
-	 * For stray interrupts, mask and EOI the source, bump the
-	 * stray count, and log the condition.
-	 */
-	if (ie == NULL || TAILQ_EMPTY(&ie->ie_handlers)) {
+	if (intr_event_handle(ie, frame) != 0) {
 		isrc->is_pic->pic_disable_source(isrc, PIC_EOI);
 		(*isrc->is_straycount)++;
 		if (*isrc->is_straycount < MAX_STRAY_LOG)
@@ -333,60 +276,8 @@ intr_execute_handlers(struct intsrc *isrc, struct trapframe *frame)
 			log(LOG_CRIT,
 			    "too many stray irq %d's: not logging anymore\n",
 			    vector);
-		return;
 	}
-
-	/*
-	 * Execute fast interrupt handlers directly.
-	 * To support clock handlers, if a handler registers
-	 * with a NULL argument, then we pass it a pointer to
-	 * a trapframe as its argument.
-	 */
-	td->td_intr_nesting_level++;
-	ret = 0;
-	thread = 0;
-	critical_enter();
-	TAILQ_FOREACH(ih, &ie->ie_handlers, ih_next) {
-		if (ih->ih_filter == NULL) {
-			thread = 1;
-			continue;
-		}
-		CTR4(KTR_INTR, "%s: exec %p(%p) for %s", __func__,
-		    ih->ih_filter, ih->ih_argument == NULL ? frame :
-		    ih->ih_argument, ih->ih_name);
-		if (ih->ih_argument == NULL)
-			ret = ih->ih_filter(frame);
-		else
-			ret = ih->ih_filter(ih->ih_argument);
-		/*
-		 * Wrapper handler special case: see
-		 * i386/intr_machdep.c::intr_execute_handlers()
-		 */
-		if (!thread) {
-			if (ret == FILTER_SCHEDULE_THREAD)
-				thread = 1;
-		}
-	}
-
-	/*
-	 * If there are any threaded handlers that need to run,
-	 * mask the source as well as sending it an EOI.  Otherwise,
-	 * just send it an EOI but leave it unmasked.
-	 */
-	if (thread)
-		isrc->is_pic->pic_disable_source(isrc, PIC_EOI);
-	else
-		isrc->is_pic->pic_eoi_source(isrc);
-
-	/* Schedule the ithread if needed. */
-	if (thread) {
-		error = intr_event_schedule_thread(ie);
-		KASSERT(error == 0, ("bad stray interrupt"));
-	}
-	critical_exit();
-	td->td_intr_nesting_level--;
 }
-#endif
 
 void
 intr_resume(void)
