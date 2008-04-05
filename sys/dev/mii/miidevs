@@ -159,6 +159,7 @@ model xxICS 1893		0x0004 ICS1893 10/100 media interface
 /* IC Plus Corp. PHYs */
 model ICPLUS IP101		0x0005 IC Plus 10/100 PHY
 model ICPLUS IP1000A		0x0008 IC Plus 10/100/1000 media interface
+model ICPLUS IP1001		0x0019 IC Plus IP1001 10/100/1000 media interface
 
 /* Intel PHYs */
 model xxINTEL I82553AB		0x0000 i83553 10/100 media interface
