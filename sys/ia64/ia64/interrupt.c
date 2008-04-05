@@ -385,10 +385,6 @@ ia64_dispatch_intr(void *frame, u_int vector)
 {
 	struct ia64_intr *i;
 	struct intr_event *ie;			/* our interrupt event */
-#ifndef INTR_FILTER
-	struct intr_handler *ih;
-	int error, thread, ret;
-#endif
 
 	/*
 	 * Find the interrupt thread for this vector.
@@ -401,52 +397,14 @@ ia64_dispatch_intr(void *frame, u_int vector)
 	ie = i->event;
 	KASSERT(ie != NULL, ("%s: interrupt without event", __func__));
 
-#ifdef INTR_FILTER
 	if (intr_event_handle(ie, frame) != 0) {
+		/*
+		 * XXX: The pre-INTR_FILTER code didn't mask stray
+		 * interrupts.
+		 */
 		ia64_intr_mask((void *)(uintptr_t)vector);
 		log(LOG_ERR, "stray irq%u\n", i->irq);
 	}
-#else
-	/*
-	 * As an optimization, if an event has no handlers, don't
-	 * schedule it to run.
-	 */
-	if (TAILQ_EMPTY(&ie->ie_handlers))
-		return;
-
-	/*
-	 * Execute all fast interrupt handlers directly without Giant.  Note
-	 * that this means that any fast interrupt handler must be MP safe.
-	 */
-	ret = 0;
-	thread = 0;
-	critical_enter();
-	TAILQ_FOREACH(ih, &ie->ie_handlers, ih_next) {
-		if (ih->ih_filter == NULL) {
-			thread = 1;
-			continue;
-		}
-		CTR4(KTR_INTR, "%s: exec %p(%p) for %s", __func__,
-		    ih->ih_filter, ih->ih_argument, ih->ih_name);
-		ret = ih->ih_filter(ih->ih_argument);
-		/*
-		 * Wrapper handler special case: see
-		 * i386/intr_machdep.c::intr_execute_handlers()
-		 */
-		if (!thread) {
-			if (ret == FILTER_SCHEDULE_THREAD)
-				thread = 1;
-		}
-	}
-
-	if (thread) {
-		ia64_intr_mask((void *)(uintptr_t)vector);
-		error = intr_event_schedule_thread(ie);
-		KASSERT(error == 0, ("%s: impossible stray", __func__));
-	} else
-		ia64_intr_eoi((void *)(uintptr_t)vector);
-	critical_exit();
-#endif
 }
 
 #ifdef DDB

@@ -277,10 +277,6 @@ powerpc_dispatch_intr(u_int vector, struct trapframe *tf)
 {
 	struct powerpc_intr *i;
 	struct intr_event *ie;
-#ifndef INTR_FILTER
-	struct intr_handler *ih;
-	int error, sched, ret;
-#endif
 
 	i = powerpc_intrs[vector];
 	if (i == NULL)
@@ -291,55 +287,15 @@ powerpc_dispatch_intr(u_int vector, struct trapframe *tf)
 	ie = i->event;
 	KASSERT(ie != NULL, ("%s: interrupt without an event", __func__));
 
-#ifdef INTR_FILTER
 	if (intr_event_handle(ie, tf) != 0) {
-		PIC_MASK(pic, i->irq);
-		log(LOG_ERR, "stray irq%u\n", i->irq);
-	}
-#else
-	if (TAILQ_EMPTY(&ie->ie_handlers))
 		goto stray;
-
-	/*
-	 * Execute all fast interrupt handlers directly without Giant.  Note
-	 * that this means that any fast interrupt handler must be MP safe.
-	 */
-	ret = 0;
-	sched = 0;
-	critical_enter();
-	TAILQ_FOREACH(ih, &ie->ie_handlers, ih_next) {
-		if (ih->ih_filter == NULL) {
-			sched = 1;
-			continue;
-		}
-		CTR4(KTR_INTR, "%s: exec %p(%p) for %s", __func__,
-		    ih->ih_filter, ih->ih_argument, ih->ih_name);
-		ret = ih->ih_filter(ih->ih_argument);
-		/*
-		 * Wrapper handler special case: see
-		 * i386/intr_machdep.c::intr_execute_handlers()
-		 */
-		if (!sched) {
-			if (ret == FILTER_SCHEDULE_THREAD)
-				sched = 1;
-		}
 	}
-
-	if (sched) {
-		PIC_MASK(pic, i->irq);
-		error = intr_event_schedule_thread(ie);
-		KASSERT(error == 0, ("%s: impossible stray interrupt",
-		    __func__));
-	} else
-		PIC_EOI(pic, i->irq);
-	critical_exit();
-#endif
 	return;
 
 stray:
 	stray_count++;
 	if (stray_count <= MAX_STRAY_LOG) {
-		printf("stray irq %d\n", i->irq);
+		printf("stray irq %d\n", i ? i->irq : -1);
 		if (stray_count >= MAX_STRAY_LOG) {
 			printf("got %d stray interrupts, not logging anymore\n",
 			    MAX_STRAY_LOG);
