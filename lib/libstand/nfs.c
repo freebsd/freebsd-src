@@ -412,8 +412,15 @@ nfs_open(upath, f)
 		return (ENXIO);
 	}
 
+	/*
+	 * This is silly - we should look at dv_type but that value is
+	 * arch dependant and we can't use it here.
+	 */
 #ifndef __i386__
 	if (strcmp(f->f_dev->dv_name, "net") != 0)
+		return(EINVAL);
+#else
+	if (strcmp(f->f_dev->dv_name, "pxe") != 0)
 		return(EINVAL);
 #endif
 
