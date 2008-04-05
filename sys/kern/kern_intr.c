@@ -94,9 +94,14 @@ static TAILQ_HEAD(, intr_event) event_list =
 
 static void	intr_event_update(struct intr_event *ie);
 #ifdef INTR_FILTER
+static int	intr_event_schedule_thread(struct intr_event *ie,
+		    struct intr_thread *ithd);
+static int	intr_filter_loop(struct intr_event *ie,
+		    struct trapframe *frame, struct intr_thread **ithd);
 static struct intr_thread *ithread_create(const char *name,
 			      struct intr_handler *ih);
 #else
+static int	intr_event_schedule_thread(struct intr_event *ie);
 static struct intr_thread *ithread_create(const char *name);
 #endif
 static void	ithread_destroy(struct intr_thread *ithread);
@@ -239,8 +244,9 @@ intr_event_update(struct intr_event *ie)
 
 int
 intr_event_create(struct intr_event **event, void *source,int flags,
-    void (*disable)(void *), void (*enable)(void *), void (*eoi)(void *),
-    int (*assign_cpu)(void *, u_char), const char *fmt, ...)
+    void (*pre_ithread)(void *), void (*post_ithread)(void *),
+    void (*post_filter)(void *), int (*assign_cpu)(void *, u_char),
+    const char *fmt, ...)
 {
 	struct intr_event *ie;
 	va_list ap;
@@ -250,9 +256,9 @@ intr_event_create(struct intr_event **event, void *source,int flags,
 		return (EINVAL);
 	ie = malloc(sizeof(struct intr_event), M_ITHREAD, M_WAITOK | M_ZERO);
 	ie->ie_source = source;
-	ie->ie_disable = disable;
-	ie->ie_enable = enable;
-	ie->ie_eoi = eoi;
+	ie->ie_pre_ithread = pre_ithread;
+	ie->ie_post_ithread = post_ithread;
+	ie->ie_post_filter = post_filter;
 	ie->ie_assign_cpu = assign_cpu;
 	ie->ie_flags = flags;
 	ie->ie_cpu = NOCPU;
@@ -675,7 +681,7 @@ ok:
 	return (0);
 }
 
-int
+static int
 intr_event_schedule_thread(struct intr_event *ie)
 {
 	struct intr_entropy entropy;
@@ -832,7 +838,7 @@ ok:
 	return (0);
 }
 
-int
+static int
 intr_event_schedule_thread(struct intr_event *ie, struct intr_thread *it)
 {
 	struct intr_entropy entropy;
@@ -1084,8 +1090,8 @@ ithread_execute_handlers(struct proc *p, struct intr_event *ie)
 	 * Now that all the handlers have had a chance to run, reenable
 	 * the interrupt source.
 	 */
-	if (ie->ie_enable != NULL)
-		ie->ie_enable(ie->ie_source);
+	if (ie->ie_post_ithread != NULL)
+		ie->ie_post_ithread(ie->ie_source);
 }
 
 #ifndef INTR_FILTER
@@ -1171,6 +1177,90 @@ ithread_loop(void *arg)
 #endif
 		thread_unlock(td);
 	}
+}
+
+/*
+ * Main interrupt handling body.
+ *
+ * Input:
+ * o ie:                        the event connected to this interrupt.
+ * o frame:                     some archs (i.e. i386) pass a frame to some.
+ *                              handlers as their main argument.
+ * Return value:
+ * o 0:                         everything ok.
+ * o EINVAL:                    stray interrupt.
+ */
+int
+intr_event_handle(struct intr_event *ie, struct trapframe *frame)
+{
+	struct intr_handler *ih;
+	struct thread *td;
+	int error, ret, thread;
+
+	td = curthread;
+
+	/* An interrupt with no event or handlers is a stray interrupt. */
+	if (ie == NULL || TAILQ_EMPTY(&ie->ie_handlers))
+		return (EINVAL);
+
+	/*
+	 * Execute fast interrupt handlers directly.
+	 * To support clock handlers, if a handler registers
+	 * with a NULL argument, then we pass it a pointer to
+	 * a trapframe as its argument.
+	 */
+	td->td_intr_nesting_level++;
+	thread = 0;
+	ret = 0;
+	critical_enter();
+	TAILQ_FOREACH(ih, &ie->ie_handlers, ih_next) {
+		if (ih->ih_filter == NULL) {
+			thread = 1;
+			continue;
+		}
+		CTR4(KTR_INTR, "%s: exec %p(%p) for %s", __func__,
+		    ih->ih_filter, ih->ih_argument == NULL ? frame :
+		    ih->ih_argument, ih->ih_name);
+		if (ih->ih_argument == NULL)
+			ret = ih->ih_filter(frame);
+		else
+			ret = ih->ih_filter(ih->ih_argument);
+		/* 
+		 * Wrapper handler special handling:
+		 *
+		 * in some particular cases (like pccard and pccbb), 
+		 * the _real_ device handler is wrapped in a couple of
+		 * functions - a filter wrapper and an ithread wrapper.
+		 * In this case (and just in this case), the filter wrapper 
+		 * could ask the system to schedule the ithread and mask
+		 * the interrupt source if the wrapped handler is composed
+		 * of just an ithread handler.
+		 *
+		 * TODO: write a generic wrapper to avoid people rolling 
+		 * their own
+		 */
+		if (!thread) {
+			if (ret == FILTER_SCHEDULE_THREAD)
+				thread = 1;
+		}
+	}
+
+	if (thread) {
+		if (ie->ie_pre_ithread != NULL)
+			ie->ie_pre_ithread(ie->ie_source);
+	} else {
+		if (ie->ie_post_filter != NULL)
+			ie->ie_post_filter(ie->ie_source);
+	}
+	
+	/* Schedule the ithread if needed. */
+	if (thread) {
+		error = intr_event_schedule_thread(ie);
+		KASSERT(error == 0, ("bad stray interrupt"));
+	}
+	critical_exit();
+	td->td_intr_nesting_level--;
+	return (0);
 }
 #else
 /*
@@ -1287,7 +1377,7 @@ ithread_loop(void *arg)
  * scheduled.
  */
 
-int
+static int
 intr_filter_loop(struct intr_event *ie, struct trapframe *frame, 
 		 struct intr_thread **ithd) 
 {
@@ -1363,19 +1453,13 @@ intr_event_handle(struct intr_event *ie, struct trapframe *frame)
 	td->td_intr_nesting_level++;
 	thread = 0;
 	critical_enter();
-	thread = intr_filter_loop(ie, frame, &ithd);
-	
-	/*
-	 * If the interrupt was fully served, send it an EOI but leave
-	 * it unmasked. Otherwise, mask the source as well as sending
-	 * it an EOI.
-	 */
+	thread = intr_filter_loop(ie, frame, &ithd);	
 	if (thread & FILTER_HANDLED) {
-		if (ie->ie_eoi != NULL)
-			ie->ie_eoi(ie->ie_source);
+		if (ie->ie_post_filter != NULL)
+			ie->ie_post_filter(ie->ie_source);
 	} else {
-		if (ie->ie_disable != NULL)
-			ie->ie_disable(ie->ie_source);
+		if (ie->ie_pre_ithread != NULL)
+			ie->ie_pre_ithread(ie->ie_source);
 	}
 	critical_exit();
 	
