@@ -1,5 +1,4 @@
 #$FreeBSD$
-arm/arm/bus_space_generic.c		standard
 arm/xscale/i80321/iq80321.c		standard
 arm/xscale/i80321/iq31244_machdep.c	standard
 arm/xscale/i80321/iq31244_7seg.c	optional	iq31244_7seg
