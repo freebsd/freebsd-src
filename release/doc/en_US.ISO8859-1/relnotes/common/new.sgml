@@ -253,6 +253,11 @@
     <sect3 id="boot">
       <title>Boot Loader Changes</title>
 
+      <para arch="i386"> The BTX kernel used by the boot
+	loader has been changed to invoke BIOS routines from real
+	mode.  This change makes it possible to boot &os; from USB
+	devices.</para>
+
       <para></para>
 
 <!-- Above this line, order boot loader changes by manpage/variable name-->
@@ -352,7 +357,7 @@
 
     <para>The timezone database has been updated from the
       <application>tzdata2004g</application> release to the
-      <application>tzdata2007h</application> release.</para>
+      <application>tzdata2008b</application> release.</para>
 
   </sect2>
 
