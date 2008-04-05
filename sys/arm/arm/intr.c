@@ -72,7 +72,7 @@ arm_setup_irqhandler(const char *name, driver_filter_t *filt,
 	if (event == NULL) {
 		error = intr_event_create(&event, (void *)irq, 0,
 		    (mask_fn)arm_mask_irq, (mask_fn)arm_unmask_irq,
-		    (mask_fn)arm_unmask_irq, NULL, "intr%d:", irq);
+		    NULL, NULL, "intr%d:", irq);
 		if (error)
 			return;
 		intr_events[irq] = event;
@@ -106,57 +106,17 @@ arm_handler_execute(struct trapframe *frame, int irqnb)
 {
 	struct intr_event *event;
 	struct thread *td = curthread;
-#ifdef INTR_FILTER
 	int i;
-#else
-	int i, thread, ret;
-	struct intr_handler *ih;
-#endif
 
 	PCPU_INC(cnt.v_intr);
 	td->td_intr_nesting_level++;
 	while ((i = arm_get_next_irq()) != -1) {
-#ifndef INTR_FILTER
-		arm_mask_irq(i);
-#endif
 		intrcnt[intrcnt_tab[i]]++;
 		event = intr_events[i];
-		if (!event || TAILQ_EMPTY(&event->ie_handlers)) {
-#ifdef INTR_FILTER
+		if (intr_event_handle(event, frame) != 0) {
+			/* XXX: Log stray IRQs */
 			arm_mask_irq(i);
-#endif
-			continue;
 		}
-
-#ifdef INTR_FILTER
-		intr_event_handle(event, frame);
-		/* XXX: Log stray IRQs */
-#else
-		/* Execute fast handlers. */
-		ret = 0;
-		thread = 0;
-		TAILQ_FOREACH(ih, &event->ie_handlers, ih_next) {
-			if (ih->ih_filter == NULL)
-				thread = 1;
-			else
-				ret = ih->ih_filter(ih->ih_argument ?
-				    ih->ih_argument : frame);
-			/*
-			 * Wrapper handler special case: see
-			 * i386/intr_machdep.c::intr_execute_handlers()
-			 */
-			if (!thread) {
-				if (ret == FILTER_SCHEDULE_THREAD)
-					thread = 1;
-			}
-		}
-
-		/* Schedule thread if needed. */
-		if (thread)
-			intr_event_schedule_thread(event);
-		else
-			arm_unmask_irq(i);
-#endif
 	}
 	td->td_intr_nesting_level--;
 }
