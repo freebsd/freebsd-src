@@ -165,7 +165,7 @@
       kernel bug reports that are rich in debugging information, but
       are not dependent on kernel symbol tables or precisely
       synchronized source code.  More information can be found in the
-      &man.textdump.4; manual page.</para>
+      &man.textdump.4; manual page. &merged;</para>
 
     <para>Kernel support for M:N threading has been removed.  While
       the KSE (Kernel Scheduled Entities) project was quite successful
@@ -183,6 +183,10 @@
 
     <para>[&arch.amd64;] The &os; kernel now has support for large
       memory page mappings (<quote>superpages</quote>).</para>
+
+    <para>[&arch.amd64;, &arch.i386;, &arch.powerpc;] The ULE
+      scheduler is now the default process scheduler
+      in <filename>GENERIC</filename> kernels. &merged;</para>
 
     <sect3 id="boot">
       <title>Boot Loader Changes</title>
@@ -205,11 +209,11 @@
       <title>Hardware Support</title>
 
       <para>The &man.cmx.4; driver, a driver for Omnikey CardMan 4040
-        PCMCIA smartcard readers, has been added.</para>
+        PCMCIA smartcard readers, has been added. &merged;</para>
 
       <para>The &man.uslcom.4; driver, a driver for Silicon
         Laboratories CP2101/CP2102-based USB serial adapters, has been
-        imported from OpenBSD.</para>
+        imported from OpenBSD. &merged;</para>
 
       <sect4 id="mm">
 	<title>Multimedia Support</title>
@@ -271,6 +275,9 @@
     <sect3 id="disks">
       <title>Disks and Storage</title>
 
+      <para>The &man.aac.4; driver now supports volumes larger than
+        2TB in size. &merged;</para>
+
       <para>The &man.ata.4; driver now supports a spindown command for
         disks; after a configurable amount of time, if no requests
         have been received for a disk, the disk will be spun down
@@ -289,11 +296,20 @@
       <para>A problem with using &man.mmap.2; on ZFS filesystems has
         been fixed.</para>
 
+      <para>A new kernel-mode NFS lock manager has been added,
+        improving performance and behavior of NFS locking.  A new
+        &man.clear.locks.8; command has been added to clear locks held
+        on behalf of an NFS client.</para>
+
     </sect3>
   </sect2>
 
   <sect2 id="userland">
     <title>Userland Changes</title>
+
+    <para>The &man.adduser.8; utility now supports
+      a <option>-M</option> option to set the mode of a new user's
+      home directory. &merged;</para>
 
     <para>BSD-licensed versions of &man.ar.1; and &man.ranlib.1;,
       based on <filename>libarchive</filename>, have replaced the GNU
@@ -315,6 +331,13 @@
     <para>&man.kgdb.1; now supports a new <command>add-kld</command>
       command to make it easier to debug crash dumps with kernel
       modules.</para>
+
+    <para>The &man.ls.1; program now supports a <option>-D</option>
+      option to specify a date format string to be used with the long
+      format (<option>-l</option>) output.</para>
+
+    <para>&man.nc.1; now supports a <option>-O</option> switch to
+      disable the use of TCP options.</para>
 
     <para>The &man.procstat.1; utility has been added to display
       detailed information about processes.</para>
@@ -395,7 +418,11 @@
   <sect2 id="ports">
     <title>Ports/Packages Collection Infrastructure</title>
 
-    <para></para>
+    <para>The pkg_sign and pkg_check utilities for cryptographically
+      signing &os; packages have been removed.  They were only useful
+      for packages compressed using &man.gzip.1;; however
+      &man.bzip2.1; compression has been the norm for some time
+      now.</para>
 
   </sect2>
 
