@@ -346,7 +346,7 @@ AcpiOsCreateLock (ACPI_SPINLOCK *OutHandle)
 	snprintf(h->name, sizeof(h->name), "acpi subsystem HW lock");
     else
 	snprintf(h->name, sizeof(h->name), "acpi subsys %p", OutHandle);
-    mtx_init(&h->lock, h->name, NULL, MTX_DEF);
+    mtx_init(&h->lock, h->name, NULL, MTX_DEF|MTX_RECURSE);
     *OutHandle = (ACPI_SPINLOCK)h;
     return (AE_OK);
 }
