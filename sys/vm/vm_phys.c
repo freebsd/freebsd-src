@@ -491,7 +491,7 @@ vm_phys_unfree_page(vm_page_t m)
 	    order < VM_NFREEORDER - 1; ) {
 		order++;
 		pa = m->phys_addr & (~(vm_paddr_t)0 << (PAGE_SHIFT + order));
-		if (pa >= seg->start && pa < seg->end)
+		if (pa >= seg->start)
 			m_set = &seg->first_page[atop(pa - seg->start)];
 		else
 			return (FALSE);
