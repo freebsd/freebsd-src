@@ -200,7 +200,8 @@ struct thread {
 	volatile u_char td_owepreempt;  /* (k*) Preempt on last critical_exit */
 	u_char		td_tsqueue;	/* (t) Turnstile queue blocked on. */
 	short		td_locks;	/* (k) Count of non-spin locks. */
-	short		td_rw_rlocks;	/* (k) count of rwlock read locks. */
+	short		td_rw_rlocks;	/* (k) Count of rwlock read locks. */
+	short		td_lk_slocks;	/* (k) Count of lockmgr shared locks. */
 	struct turnstile *td_blocked;	/* (t) Lock thread is blocked on. */
 	const char	*td_lockname;	/* (t) Name of lock blocked on. */
 	LIST_HEAD(, turnstile) td_contested;	/* (q) Contested locks. */
