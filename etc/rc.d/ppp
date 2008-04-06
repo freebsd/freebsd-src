@@ -61,7 +61,7 @@ ppp_start_profile()
 
 	# Check for hard wired unit
 	eval _ppp_unit=\$ppp_${_ppp_profile_cleaned}_unit
-	if [ -n "_ppp_unit" ]; then
+	if [ -n "${_ppp_unit}" ]; then
 		_ppp_unit="-unit${_ppp_unit}"
 	fi
 	rc_flags="$rc_flags $_ppp_unit"
