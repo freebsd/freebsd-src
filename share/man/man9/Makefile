@@ -719,10 +719,12 @@ MLINKS+=lock.9 lockdestroy.9 \
 	lock.9 lockinit.9 \
 	lock.9 lockmgr.9 \
 	lock.9 lockmgr_args.9 \
+	lock.9 lockmgr_args_rw.9 \
 	lock.9 lockmgr_assert.9 \
 	lock.9 lockmgr_disown.9 \
 	lock.9 lockmgr_printinfo.9 \
 	lock.9 lockmgr_recursed.9 \
+	lock.9 lockmgr_rw.9 \
 	lock.9 lockmgr_waiters.9 \
 	lock.9 lockstatus.9
 MLINKS+=LOCK_PROFILING.9 MUTEX_PROFILING.9
