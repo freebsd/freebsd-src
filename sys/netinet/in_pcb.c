@@ -803,14 +803,11 @@ void
 in_pcbnotifyall(struct inpcbinfo *pcbinfo, struct in_addr faddr, int errno,
     struct inpcb *(*notify)(struct inpcb *, int))
 {
-	struct inpcb *inp, *ninp;
-	struct inpcbhead *head;
+	struct inpcb *inp, *inp_temp;
 
 	INP_INFO_WLOCK(pcbinfo);
-	head = pcbinfo->ipi_listhead;
-	for (inp = LIST_FIRST(head); inp != NULL; inp = ninp) {
+	LIST_FOREACH_SAFE(inp, pcbinfo->ipi_listhead, inp_list, inp_temp) {
 		INP_LOCK(inp);
-		ninp = LIST_NEXT(inp, inp_list);
 #ifdef INET6
 		if ((inp->inp_vflag & INP_IPV4) == 0) {
 			INP_UNLOCK(inp);

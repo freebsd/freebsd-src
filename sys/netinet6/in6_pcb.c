@@ -573,8 +573,7 @@ in6_pcbnotify(struct inpcbinfo *pcbinfo, struct sockaddr *dst,
     int cmd, void *cmdarg,
     struct inpcb *(*notify)(struct inpcb *, int))
 {
-	struct inpcbhead *head;
-	struct inpcb *inp, *ninp;
+	struct inpcb *inp, *inp_temp;
 	struct sockaddr_in6 sa6_src, *sa6_dst;
 	u_short	fport = fport_arg, lport = lport_arg;
 	u_int32_t flowinfo;
@@ -610,12 +609,9 @@ in6_pcbnotify(struct inpcbinfo *pcbinfo, struct sockaddr *dst,
 			notify = in6_rtchange;
 	}
 	errno = inet6ctlerrmap[cmd];
-	head = pcbinfo->ipi_listhead;
 	INP_INFO_WLOCK(pcbinfo);
-	for (inp = LIST_FIRST(head); inp != NULL; inp = ninp) {
+	LIST_FOREACH_SAFE(inp, pcbinfo->ipi_listhead, inp_list, inp_temp) {
 		INP_LOCK(inp);
-		ninp = LIST_NEXT(inp, inp_list);
-
 		if ((inp->inp_vflag & INP_IPV6) == 0) {
 			INP_UNLOCK(inp);
 			continue;
