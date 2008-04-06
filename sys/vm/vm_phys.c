@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_phys.h>
+#include <vm/vm_reserv.h>
 
 struct vm_freelist {
 	struct pglist pl;
@@ -607,6 +608,9 @@ vm_phys_alloc_contig(unsigned long npages, vm_paddr_t low, vm_paddr_t high,
 	/* Compute the queue that is the best fit for npages. */
 	for (order = 0; (1 << order) < npages; order++);
 	mtx_lock(&vm_page_queue_free_mtx);
+#if VM_NRESERVLEVEL > 0
+retry:
+#endif
 	for (flind = 0; flind < vm_nfreelists; flind++) {
 		for (oind = min(order, VM_NFREEORDER - 1); oind < VM_NFREEORDER; oind++) {
 			for (pind = 0; pind < VM_NFREEPOOL; pind++) {
@@ -664,6 +668,10 @@ vm_phys_alloc_contig(unsigned long npages, vm_paddr_t low, vm_paddr_t high,
 			}
 		}
 	}
+#if VM_NRESERVLEVEL > 0
+	if (vm_reserv_reclaim_contig(size, low, high, alignment, boundary))
+		goto retry;
+#endif
 	mtx_unlock(&vm_page_queue_free_mtx);
 	return (NULL);
 done:

@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2002-2006 Rice University
- * Copyright (c) 2007 Alan L. Cox <alc@cs.rice.edu>
+ * Copyright (c) 2007-2008 Alan L. Cox <alc@cs.rice.edu>
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by Alan L. Cox,
@@ -170,6 +170,7 @@ static vm_reserv_t	vm_reserv_from_page(vm_page_t m);
 static boolean_t	vm_reserv_has_pindex(vm_reserv_t rv,
 			    vm_pindex_t pindex);
 static void		vm_reserv_populate(vm_reserv_t rv);
+static void		vm_reserv_reclaim(vm_reserv_t rv);
 
 /*
  * Describes the current state of the partially-populated reservation queue.
@@ -568,6 +569,37 @@ vm_reserv_reactivate_page(vm_page_t m)
 }
 
 /*
+ * Breaks the given partially-populated reservation, releasing its cached and
+ * free pages to the physical memory allocator.
+ *
+ * The free page queue lock must be held.
+ */
+static void
+vm_reserv_reclaim(vm_reserv_t rv)
+{
+	int i;
+
+	mtx_assert(&vm_page_queue_free_mtx, MA_OWNED);
+	KASSERT(rv->inpartpopq,
+	    ("vm_reserv_reclaim: reserv %p's inpartpopq is corrupted", rv));
+	TAILQ_REMOVE(&vm_rvq_partpop, rv, partpopq);
+	rv->inpartpopq = FALSE;
+	KASSERT(rv->object != NULL,
+	    ("vm_reserv_reclaim: reserv %p is free", rv));
+	LIST_REMOVE(rv, objq);
+	rv->object = NULL;
+	for (i = 0; i < VM_LEVEL_0_NPAGES; i++) {
+		if ((rv->pages[i].flags & (PG_CACHED | PG_FREE)) != 0)
+			vm_phys_free_pages(&rv->pages[i], 0);
+		else
+			rv->popcnt--;
+	}
+	KASSERT(rv->popcnt == 0,
+	    ("vm_reserv_reclaim: reserv %p's popcnt is corrupted", rv));
+	vm_reserv_reclaimed++;
+}
+
+/*
  * Breaks the reservation at the head of the partially-populated reservation
  * queue, releasing its cached and free pages to the physical memory
  * allocator.  Returns TRUE if a reservation is broken and FALSE otherwise.
@@ -575,33 +607,64 @@ vm_reserv_reactivate_page(vm_page_t m)
  * The free page queue lock must be held.
  */
 boolean_t
-vm_reserv_reclaim(void)
+vm_reserv_reclaim_inactive(void)
 {
+	vm_reserv_t rv;
+
+	mtx_assert(&vm_page_queue_free_mtx, MA_OWNED);
+	if ((rv = TAILQ_FIRST(&vm_rvq_partpop)) != NULL) {
+		vm_reserv_reclaim(rv);
+		return (TRUE);
+	}
+	return (FALSE);
+}
+
+/*
+ * Searches the partially-populated reservation queue for the least recently
+ * active reservation with unused pages, i.e., cached or free, that satisfy the
+ * given request for contiguous physical memory.  If a satisfactory reservation
+ * is found, it is broken.  Returns TRUE if a reservation is broken and FALSE
+ * otherwise.
+ *
+ * The free page queue lock must be held.
+ */
+boolean_t
+vm_reserv_reclaim_contig(vm_paddr_t size, vm_paddr_t low, vm_paddr_t high,
+    unsigned long alignment, unsigned long boundary)
+{
+	vm_paddr_t pa, pa_length;
 	vm_reserv_t rv;
 	int i;
 
 	mtx_assert(&vm_page_queue_free_mtx, MA_OWNED);
-	if ((rv = TAILQ_FIRST(&vm_rvq_partpop)) != NULL) {
-		KASSERT(rv->inpartpopq,
-		    ("vm_reserv_reclaim: reserv %p's inpartpopq is corrupted",
-		    rv));
-		TAILQ_REMOVE(&vm_rvq_partpop, rv, partpopq);
-		rv->inpartpopq = FALSE;
-		KASSERT(rv->object != NULL,
-		    ("vm_reserv_reclaim: reserv %p is free", rv));
-		LIST_REMOVE(rv, objq);
-		rv->object = NULL;
-		for (i = 0; i < VM_LEVEL_0_NPAGES; i++) {
-			if ((rv->pages[i].flags & (PG_CACHED | PG_FREE)) != 0)
-				vm_phys_free_pages(&rv->pages[i], 0);
-			else
-				rv->popcnt--;
+	if (size > VM_LEVEL_0_SIZE - PAGE_SIZE)
+		return (FALSE);
+	TAILQ_FOREACH(rv, &vm_rvq_partpop, partpopq) {
+		pa = VM_PAGE_TO_PHYS(&rv->pages[VM_LEVEL_0_NPAGES - 1]);
+		if (pa + PAGE_SIZE - size < low) {
+			/* this entire reservation is too low; go to next */
+			continue;
 		}
-		KASSERT(rv->popcnt == 0,
-		    ("vm_reserv_reclaim: reserv %p's popcnt is corrupted",
-		    rv));
-		vm_reserv_reclaimed++;
-		return (TRUE);
+		pa_length = 0;
+		for (i = 0; i < VM_LEVEL_0_NPAGES; i++)
+			if ((rv->pages[i].flags & (PG_CACHED | PG_FREE)) != 0) {
+				pa_length += PAGE_SIZE;
+				if (pa_length == PAGE_SIZE) {
+					pa = VM_PAGE_TO_PHYS(&rv->pages[i]);
+					if (pa + size > high) {
+						/* skip to next reservation */
+						break;
+					} else if (pa < low ||
+					    (pa & (alignment - 1)) != 0 ||
+					    ((pa ^ (pa + size - 1)) &
+					    ~(boundary - 1)) != 0)
+						pa_length = 0;
+				} else if (pa_length >= size) {
+					vm_reserv_reclaim(rv);
+					return (TRUE);
+				}
+			} else
+				pa_length = 0;
 	}
 	return (FALSE);
 }
