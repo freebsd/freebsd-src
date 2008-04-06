@@ -174,7 +174,8 @@ audit_record_write(struct vnode *vp, struct ucred *cred, void *data,
 		if (mnt_stat->f_bfree < temp) {
 			if (ppsratecheck(&last_lowspace_trigger,
 			    &cur_lowspace_trigger, 1)) {
-				(void)send_trigger(AUDIT_TRIGGER_LOW_SPACE);
+				(void)audit_send_trigger(
+				    AUDIT_TRIGGER_LOW_SPACE);
 				printf("Warning: audit space low\n");
 			}
 		}
@@ -190,7 +191,7 @@ audit_record_write(struct vnode *vp, struct ucred *cred, void *data,
 		sx_assert(&audit_worker_sx, SA_XLOCKED);
 
 		audit_file_rotate_wait = 1;
-		(void)send_trigger(AUDIT_TRIGGER_ROTATE_KERNEL);
+		(void)audit_send_trigger(AUDIT_TRIGGER_ROTATE_KERNEL);
 	}
 
 	/*
@@ -262,7 +263,7 @@ fail_enospc:
 		VOP_UNLOCK(vp, 0, curthread);
 		panic("Audit log space exhausted and fail-stop set.");
 	}
-	(void)send_trigger(AUDIT_TRIGGER_NO_SPACE);
+	(void)audit_send_trigger(AUDIT_TRIGGER_NO_SPACE);
 	audit_suspended = 1;
 
 	/* FALLTHROUGH */

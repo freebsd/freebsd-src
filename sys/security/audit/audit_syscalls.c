@@ -405,7 +405,7 @@ auditon(struct thread *td, struct auditon_args *uap)
 		if ((udata.au_trigger < AUDIT_TRIGGER_MIN) ||
 		    (udata.au_trigger > AUDIT_TRIGGER_MAX))
 			return (EINVAL);
-		return (send_trigger(udata.au_trigger));
+		return (audit_send_trigger(udata.au_trigger));
 
 	default:
 		return (EINVAL);
