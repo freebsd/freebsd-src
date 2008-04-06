@@ -864,6 +864,7 @@ softdep_process_worklist(mp, full)
 		 */
 		if (loopcount++ % 128 == 0) {
 			FREE_LOCK(&lk);
+			uio_yield();
 			bwillwrite();
 			ACQUIRE_LOCK(&lk);
 		}

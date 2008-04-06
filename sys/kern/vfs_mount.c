@@ -1996,6 +1996,12 @@ __mnt_vnode_next(struct vnode **mvp, struct mount *mp)
 	mtx_assert(MNT_MTX(mp), MA_OWNED);
 
 	KASSERT((*mvp)->v_mount == mp, ("marker vnode mount list mismatch"));
+	if ((*mvp)->v_yield++ == 500) {
+		MNT_IUNLOCK(mp);
+		(*mvp)->v_yield = 0;
+		uio_yield();
+		MNT_ILOCK(mp);
+	}
 	vp = TAILQ_NEXT(*mvp, v_nmntvnodes);
 	while (vp != NULL && vp->v_type == VMARKER)
 		vp = TAILQ_NEXT(vp, v_nmntvnodes);
