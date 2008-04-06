@@ -519,6 +519,9 @@ create_service(struct netconfig *nconf)
 			exit(1);
 		}
 
+		if (nconf->nc_semantics != NC_TPI_CLTS)
+		    listen(fd, SOMAXCONN);
+
 		transp = svc_tli_create(fd, nconf, NULL,
 		    RPC_MAXDATASIZE, RPC_MAXDATASIZE);
 
