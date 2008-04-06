@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 28, 2008
+.Dd April 6, 2008
 .Dt LOCK 9
 .Os
 .Sh NAME
@@ -34,9 +34,11 @@
 .Nm lockdestroy ,
 .Nm lockmgr ,
 .Nm lockmgr_args ,
+.Nm lockmgr_args_rw ,
 .Nm lockmgr_disown ,
 .Nm lockmgr_printinfo ,
 .Nm lockmgr_recursed ,
+.Nm lockmgr_rw ,
 .Nm lockmgr_waiters ,
 .Nm lockstatus ,
 .Nm lockmgr_assert
@@ -50,15 +52,19 @@
 .Ft void
 .Fn lockdestroy "struct lock *lkp"
 .Ft int
-.Fn lockmgr "struct lock *lkp" "u_int flags" "struct mtx *interlkp"
+.Fn lockmgr "struct lock *lkp" "u_int flags" "struct mtx *ilk"
 .Ft int
-.Fn lockmgr_args "struct lock *lkp" "u_int flags" "struct mtx *interlkp" "const char *wmesg" "int prio" "int timo"
+.Fn lockmgr_args "struct lock *lkp" "u_int flags" "struct mtx *ilk" "const char *wmesg" "int prio" "int timo"
+.Ft int
+.Fn lockmgr_args_rw "struct lock *lkp" "u_int flags" "struct rwlock *ilk" "const char *wmesg" "int prio" "int timo"
 .Ft void
 .Fn lockmgr_disown "struct lock *lkp"
 .Ft void
 .Fn lockmgr_printinfo "struct lock *lkp"
 .Ft int
 .Fn lockmgr_recursed "struct lock *lkp"
+.Ft int
+.Fn lockmgr_rw "struct lock *lkp" "u_int flags" "struct rwlock *ilk"
 .Ft int
 .Fn lockmgr_waiters "struct lock *lkp"
 .Ft int
@@ -121,13 +127,17 @@ places in the kernel, it currently does nothing.
 .Pp
 The
 .Fn lockmgr
-function handles general locking functionality within the kernel, including
+and
+.Fn lockmgr_rw
+functions handle general locking functionality within the kernel, including
 support for shared and exclusive locks, and recursion.
 .Fn lockmgr
-is also able to upgrade and downgrade locks.
+and
+.Fn lockmgr_rw
+are also able to upgrade and downgrade locks.
 .Pp
-Its arguments are:
-.Bl -tag -width ".Fa interlkp"
+Their arguments are:
+.Bl -tag -width ".Fa flags"
 .It Fa lkp
 A pointer to the lock to manipulate.
 .It Fa flags
@@ -174,14 +184,16 @@ For every lock there must be a release.
 .It Dv LK_INTERLOCK
 Unlock the interlock (which should be locked already).
 .El
-.It Fa interlkp
+.It Fa ilk
 An interlock mutex for controlling group access to the lock.
 If
 .Dv LK_INTERLOCK
 is specified,
 .Fn lockmgr
-assumes
-.Fa interlkp
+and
+.Fn lockmgr_rw
+assume
+.Fa ilk
 is currently owned and not recursed, and will return it unlocked.
 See
 .Xr mtx_assert 9 .
@@ -189,8 +201,12 @@ See
 .Pp
 The
 .Fn lockmgr_args
-function works like
+and
+.Fn lockmgr_args_rw
+function work like
 .Fn lockmgr
+and
+.Fn lockmgr_rw
 but accepting a
 .Fa wmesg ,
 .Fa timo
@@ -297,7 +313,9 @@ made useless by revisiting such locks.
 .Sh RETURN VALUES
 The
 .Fn lockmgr
-function returns 0 on success and non-zero on failure.
+and
+.Fn lockmgr_rw
+functions return 0 on success and non-zero on failure.
 .Pp
 The
 .Fn lockstatus
@@ -314,7 +332,9 @@ The lock is not held by anyone.
 .El
 .Sh ERRORS
 .Fn lockmgr
-fails if:
+and
+.Fn lockmgr_rw
+fail if:
 .Bl -tag -width Er
 .It Bq Er EBUSY
 .Dv LK_FORCEUPGRADE
@@ -326,6 +346,8 @@ was set, and a sleep would have been required.
 .Dv LK_SLEEPFAIL
 was set and
 .Fn lockmgr
+or
+.Fn lockmgr_rw
 did sleep.
 .It Bq Er EINTR
 .Dv PCATCH
@@ -346,11 +368,15 @@ If
 is passed in the
 .Fa flags
 argument to
-.Fn lockmgr ,
+.Fn lockmgr
+or
+.Fn lockmgr_rw ,
 the
-.Fa interlkp
+.Fa ilk
 must be held prior to calling
-.Fn lockmgr ,
+.Fn lockmgr 
+or
+.Fn lockmgr_rw ,
 and will be returned unlocked.
 .Pp
 Upgrade attempts that fail result in the loss of the lock that
