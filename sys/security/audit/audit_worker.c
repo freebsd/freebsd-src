@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 1999-2005 Apple Computer, Inc.
- * Copyright (c) 2006 Robert N. M. Watson
+ * Copyright (c) 2006-2008 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -48,6 +48,7 @@
 #include <sys/socketvar.h>
 #include <sys/protosw.h>
 #include <sys/domain.h>
+#include <sys/sx.h>
 #include <sys/sysproto.h>
 #include <sys/sysent.h>
 #include <sys/systm.h>
@@ -75,31 +76,18 @@
 static struct proc		*audit_thread;
 
 /*
- * When an audit log is rotated, the actual rotation must be performed by the
- * audit worker thread, as it may have outstanding writes on the current
- * audit log.  audit_replacement_vp holds the vnode replacing the current
- * vnode.  We can't let more than one replacement occur at a time, so if more
- * than one thread requests a replacement, only one can have the replacement
- * "in progress" at any given moment.  If a thread tries to replace the audit
- * vnode and discovers a replacement is already in progress (i.e.,
- * audit_replacement_flag != 0), then it will sleep on audit_replacement_cv
- * waiting its turn to perform a replacement.  When a replacement is
- * completed, this cv is signalled by the worker thread so a waiting thread
- * can start another replacement.  We also store a credential to perform
- * audit log write operations with.
- *
- * The current credential and vnode are thread-local to audit_worker.
+ * audit_cred and audit_vp are the stored credential and vnode to use for
+ * active audit trail.  They are protected by audit_worker_sx, which will be
+ * held across all I/O and all rotation to prevent them from being replaced
+ * (rotated) while in use.  The audit_file_rotate_wait flag is set when the
+ * kernel has delivered a trigger to auditd to rotate the trail, and is
+ * cleared when the next rotation takes place.  It is also protected by
+ * audit_worker_sx.
  */
-static struct cv		audit_replacement_cv;
-
-static int			audit_replacement_flag;
-static struct vnode		*audit_replacement_vp;
-static struct ucred		*audit_replacement_cred;
-
-/*
- * Flags related to Kernel->user-space communication.
- */
-static int			audit_file_rotate_wait;
+static int		 audit_file_rotate_wait;
+static struct sx	 audit_worker_sx;
+static struct ucred	*audit_cred;
+static struct vnode	*audit_vp;
 
 /*
  * Write an audit record to a file, performed as the last stage after both
@@ -110,8 +98,8 @@ static int			audit_file_rotate_wait;
  * the audit daemon, since the message is asynchronous anyway.
  */
 static void
-audit_record_write(struct vnode *vp, struct ucred *cred, struct thread *td,
-    void *data, size_t len)
+audit_record_write(struct vnode *vp, struct ucred *cred, void *data,
+    size_t len)
 {
 	static struct timeval last_lowspace_trigger;
 	static struct timeval last_fail;
@@ -121,6 +109,8 @@ audit_record_write(struct vnode *vp, struct ucred *cred, struct thread *td,
 	static int cur_fail;
 	struct vattr vattr;
 	long temp;
+
+	sx_assert(&audit_worker_sx, SA_LOCKED);	/* audit_file_rotate_wait. */
 
 	if (vp == NULL)
 		return;
@@ -133,12 +123,12 @@ audit_record_write(struct vnode *vp, struct ucred *cred, struct thread *td,
 	 * that we know how we're doing on space.  Consider failure of these
 	 * operations to indicate a future inability to write to the file.
 	 */
-	error = VFS_STATFS(vp->v_mount, mnt_stat, td);
+	error = VFS_STATFS(vp->v_mount, mnt_stat, curthread);
 	if (error)
 		goto fail;
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
-	error = VOP_GETATTR(vp, &vattr, cred, td);
-	VOP_UNLOCK(vp, 0, td);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, curthread);
+	error = VOP_GETATTR(vp, &vattr, cred, curthread);
+	VOP_UNLOCK(vp, 0, curthread);
 	if (error)
 		goto fail;
 	audit_fstat.af_currsz = vattr.va_size;
@@ -197,6 +187,8 @@ audit_record_write(struct vnode *vp, struct ucred *cred, struct thread *td,
 	 */
 	if ((audit_fstat.af_filesz != 0) && (audit_file_rotate_wait == 0) &&
 	    (vattr.va_size >= audit_fstat.af_filesz)) {
+		sx_assert(&audit_worker_sx, SA_XLOCKED);
+
 		audit_file_rotate_wait = 1;
 		(void)send_trigger(AUDIT_TRIGGER_ROTATE_KERNEL);
 	}
@@ -231,7 +223,7 @@ audit_record_write(struct vnode *vp, struct ucred *cred, struct thread *td,
 	}
 
 	error = vn_rdwr(UIO_WRITE, vp, data, len, (off_t)0, UIO_SYSSPACE,
-	    IO_APPEND|IO_UNIT, cred, NULL, NULL, td);
+	    IO_APPEND|IO_UNIT, cred, NULL, NULL, curthread);
 	if (error == ENOSPC)
 		goto fail_enospc;
 	else if (error)
@@ -248,9 +240,9 @@ audit_record_write(struct vnode *vp, struct ucred *cred, struct thread *td,
 	 */
 	if (audit_in_failure) {
 		if (audit_q_len == 0 && audit_pre_q_len == 0) {
-			VOP_LOCK(vp, LK_DRAIN | LK_INTERLOCK, td);
-			(void)VOP_FSYNC(vp, MNT_WAIT, td);
-			VOP_UNLOCK(vp, 0, td);
+			VOP_LOCK(vp, LK_DRAIN | LK_INTERLOCK, curthread);
+			(void)VOP_FSYNC(vp, MNT_WAIT, curthread);
+			VOP_UNLOCK(vp, 0, curthread);
 			panic("Audit store overflow; record queue drained.");
 		}
 	}
@@ -265,9 +257,9 @@ fail_enospc:
 	 * space, or ENOSPC returned by the vnode write call.
 	 */
 	if (audit_fail_stop) {
-		VOP_LOCK(vp, LK_DRAIN | LK_INTERLOCK, td);
-		(void)VOP_FSYNC(vp, MNT_WAIT, td);
-		VOP_UNLOCK(vp, 0, td);
+		VOP_LOCK(vp, LK_DRAIN | LK_INTERLOCK, curthread);
+		(void)VOP_FSYNC(vp, MNT_WAIT, curthread);
+		VOP_UNLOCK(vp, 0, curthread);
 		panic("Audit log space exhausted and fail-stop set.");
 	}
 	(void)send_trigger(AUDIT_TRIGGER_NO_SPACE);
@@ -280,69 +272,13 @@ fail:
 	 * lost, which may require an immediate system halt.
 	 */
 	if (audit_panic_on_write_fail) {
-		VOP_LOCK(vp, LK_DRAIN | LK_INTERLOCK, td);
-		(void)VOP_FSYNC(vp, MNT_WAIT, td);
-		VOP_UNLOCK(vp, 0, td);
+		VOP_LOCK(vp, LK_DRAIN | LK_INTERLOCK, curthread);
+		(void)VOP_FSYNC(vp, MNT_WAIT, curthread);
+		VOP_UNLOCK(vp, 0, curthread);
 		panic("audit_worker: write error %d\n", error);
 	} else if (ppsratecheck(&last_fail, &cur_fail, 1))
 		printf("audit_worker: write error %d\n", error);
 	VFS_UNLOCK_GIANT(vfslocked);
-}
-
-/*
- * If an appropriate signal has been received rotate the audit log based on
- * the global replacement variables.  Signal consumers as needed that the
- * rotation has taken place.
- *
- * The global variables and CVs used to signal the audit_worker to perform a
- * rotation are essentially a message queue of depth 1.  It would be much
- * nicer to actually use a message queue.
- */
-static void
-audit_worker_rotate(struct ucred **audit_credp, struct vnode **audit_vpp,
-    struct thread *audit_td)
-{
-	int do_replacement_signal, vfslocked;
-	struct ucred *old_cred;
-	struct vnode *old_vp;
-
-	mtx_assert(&audit_mtx, MA_OWNED);
-
-	do_replacement_signal = 0;
-	while (audit_replacement_flag != 0) {
-		old_cred = *audit_credp;
-		old_vp = *audit_vpp;
-		*audit_credp = audit_replacement_cred;
-		*audit_vpp = audit_replacement_vp;
-		audit_replacement_cred = NULL;
-		audit_replacement_vp = NULL;
-		audit_replacement_flag = 0;
-
-		audit_enabled = (*audit_vpp != NULL);
-
-		if (old_vp != NULL) {
-			mtx_unlock(&audit_mtx);
-			vfslocked = VFS_LOCK_GIANT(old_vp->v_mount);
-			vn_close(old_vp, AUDIT_CLOSE_FLAGS, old_cred,
-			    audit_td);
-			VFS_UNLOCK_GIANT(vfslocked);
-			crfree(old_cred);
-			mtx_lock(&audit_mtx);
-			old_cred = NULL;
-			old_vp = NULL;
-		}
-		do_replacement_signal = 1;
-	}
-
-	/*
-	 * Signal that replacement have occurred to wake up and start any
-	 * other replacements started in parallel.  We can continue about our
-	 * business in the mean time.  We broadcast so that both new
-	 * replacements can be inserted, but also so that the source(s) of
-	 * replacement can return successfully.
-	 */
-	if (do_replacement_signal)
-		cv_broadcast(&audit_replacement_cv);
 }
 
 /*
@@ -353,23 +289,38 @@ audit_worker_rotate(struct ucred **audit_credp, struct vnode **audit_vpp,
  * written to disk, and audit pipes.
  */
 static void
-audit_worker_process_record(struct vnode *audit_vp, struct ucred *audit_cred,
-    struct thread *audit_td, struct kaudit_record *ar)
+audit_worker_process_record(struct kaudit_record *ar)
 {
 	struct au_record *bsm;
 	au_class_t class;
 	au_event_t event;
 	au_id_t auid;
 	int error, sorf;
+	int trail_locked;
+
+	/*
+	 * We hold the audit_worker_sx lock over both writes, if there are
+	 * two, so that the two records won't be split across a rotation and
+	 * end up in two different trail files.
+	 */
+	if (((ar->k_ar_commit & AR_COMMIT_USER) &&
+	    (ar->k_ar_commit & AR_PRESELECT_USER_TRAIL)) ||
+	    (ar->k_ar_commit & AR_PRESELECT_TRAIL)) {
+		sx_xlock(&audit_worker_sx);
+		trail_locked = 1;
+	} else
+		trail_locked = 0;
 
 	/*
 	 * First, handle the user record, if any: commit to the system trail
 	 * and audit pipes as selected.
 	 */
 	if ((ar->k_ar_commit & AR_COMMIT_USER) &&
-	    (ar->k_ar_commit & AR_PRESELECT_USER_TRAIL))
-		audit_record_write(audit_vp, audit_cred, audit_td,
-		    ar->k_udata, ar->k_ulen);
+	    (ar->k_ar_commit & AR_PRESELECT_USER_TRAIL)) {
+		sx_assert(&audit_worker_sx, SA_XLOCKED);
+		audit_record_write(audit_vp, audit_cred, ar->k_udata,
+		    ar->k_ulen);
+	}
 
 	if ((ar->k_ar_commit & AR_COMMIT_USER) &&
 	    (ar->k_ar_commit & AR_PRESELECT_USER_PIPE))
@@ -378,7 +329,7 @@ audit_worker_process_record(struct vnode *audit_vp, struct ucred *audit_cred,
 	if (!(ar->k_ar_commit & AR_COMMIT_KERNEL) ||
 	    ((ar->k_ar_commit & AR_PRESELECT_PIPE) == 0 &&
 	    (ar->k_ar_commit & AR_PRESELECT_TRAIL) == 0))
-		return;
+		goto out;
 
 	auid = ar->k_ar.ar_subj_auid;
 	event = ar->k_ar.ar_event;
@@ -391,11 +342,11 @@ audit_worker_process_record(struct vnode *audit_vp, struct ucred *audit_cred,
 	error = kaudit_to_bsm(ar, &bsm);
 	switch (error) {
 	case BSM_NOAUDIT:
-		return;
+		goto out;
 
 	case BSM_FAILURE:
 		printf("audit_worker_process_record: BSM_FAILURE\n");
-		return;
+		goto out;
 
 	case BSM_SUCCESS:
 		break;
@@ -404,9 +355,10 @@ audit_worker_process_record(struct vnode *audit_vp, struct ucred *audit_cred,
 		panic("kaudit_to_bsm returned %d", error);
 	}
 
-	if (ar->k_ar_commit & AR_PRESELECT_TRAIL)
-		audit_record_write(audit_vp, audit_cred, audit_td, bsm->data,
-		    bsm->len);
+	if (ar->k_ar_commit & AR_PRESELECT_TRAIL) {
+		sx_assert(&audit_worker_sx, SA_XLOCKED);
+		audit_record_write(audit_vp, audit_cred, bsm->data, bsm->len);
+	}
 
 	if (ar->k_ar_commit & AR_PRESELECT_PIPE)
 		audit_pipe_submit(auid, event, class, sorf,
@@ -414,48 +366,37 @@ audit_worker_process_record(struct vnode *audit_vp, struct ucred *audit_cred,
 		    bsm->len);
 
 	kau_free(bsm);
+out:
+	if (trail_locked)
+		sx_xunlock(&audit_worker_sx);
 }
 
 /*
  * The audit_worker thread is responsible for watching the event queue,
  * dequeueing records, converting them to BSM format, and committing them to
  * disk.  In order to minimize lock thrashing, records are dequeued in sets
- * to a thread-local work queue.  In addition, the audit_work performs the
- * actual exchange of audit log vnode pointer, as audit_vp is a thread-local
- * variable.
+ * to a thread-local work queue.
+ *
+ * Note: this means that the effect bound on the size of the pending record
+ * queue is 2x the length of the global queue.
  */
 static void
 audit_worker(void *arg)
 {
 	struct kaudit_queue ar_worklist;
 	struct kaudit_record *ar;
-	struct ucred *audit_cred;
-	struct thread *audit_td;
-	struct vnode *audit_vp;
 	int lowater_signal;
 
-	/*
-	 * These are thread-local variables requiring no synchronization.
-	 */
 	TAILQ_INIT(&ar_worklist);
-	audit_cred = NULL;
-	audit_td = curthread;
-	audit_vp = NULL;
-
 	mtx_lock(&audit_mtx);
 	while (1) {
 		mtx_assert(&audit_mtx, MA_OWNED);
 
 		/*
-		 * Wait for record or rotation events.
+		 * Wait for a record.
 		 */
-		while (!audit_replacement_flag && TAILQ_EMPTY(&audit_q))
+		while (TAILQ_EMPTY(&audit_q))
 			cv_wait(&audit_worker_cv, &audit_mtx);
-
-		/*
-		 * First priority: replace the audit log target if requested.
-		 */
-		audit_worker_rotate(&audit_cred, &audit_vp, audit_td);
 
 		/*
 		 * If there are records in the global audit record queue,
@@ -478,8 +419,7 @@ audit_worker(void *arg)
 		mtx_unlock(&audit_mtx);
 		while ((ar = TAILQ_FIRST(&ar_worklist))) {
 			TAILQ_REMOVE(&ar_worklist, ar, k_q);
-			audit_worker_process_record(audit_vp, audit_cred,
-			    audit_td, ar);
+			audit_worker_process_record(ar);
 			audit_free(ar);
 		}
 		mtx_lock(&audit_mtx);
@@ -489,50 +429,45 @@ audit_worker(void *arg)
 /*
  * audit_rotate_vnode() is called by a user or kernel thread to configure or
  * de-configure auditing on a vnode.  The arguments are the replacement
- * credential and vnode to substitute for the current credential and vnode,
- * if any.  If either is set to NULL, both should be NULL, and this is used
- * to indicate that audit is being disabled.  The real work is done in the
- * audit_worker thread, but audit_rotate_vnode() waits synchronously for that
- * to complete.
- *
- * The vnode should be referenced and opened by the caller.  The credential
- * should be referenced.  audit_rotate_vnode() will own both references as of
- * this call, so the caller should not release either.
- *
- * XXXAUDIT: Review synchronize communication logic.  Really, this is a
- * message queue of depth 1.  We are essentially acquiring ownership of the
- * communications queue, inserting our message, and waiting for an
- * acknowledgement.
+ * credential (referenced) and vnode (referenced and opened) to substitute
+ * for the current credential and vnode, if any.  If either is set to NULL,
+ * both should be NULL, and this is used to indicate that audit is being
+ * disabled.  Any previous cred/vnode will be closed and freed.  We re-enable
+ * generating rotation requests to auditd.
  */
 void
 audit_rotate_vnode(struct ucred *cred, struct vnode *vp)
 {
+	struct ucred *old_audit_cred;
+	struct vnode *old_audit_vp;
+	int vfslocked;
+
+	KASSERT((cred != NULL && vp != NULL) || (cred == NULL && vp == NULL),
+	    ("audit_rotate_vnode: cred %p vp %p", cred, vp));
 
 	/*
-	 * If other parallel log replacements have been requested, we wait
-	 * until they've finished before continuing.
+	 * Rotate the vnode/cred, and clear the rotate flag so that we will
+	 * send a rotate trigger if the new file fills.
 	 */
-	mtx_lock(&audit_mtx);
-	while (audit_replacement_flag != 0)
-		cv_wait(&audit_replacement_cv, &audit_mtx);
-	audit_replacement_cred = cred;
-	audit_replacement_flag = 1;
-	audit_replacement_vp = vp;
+	sx_xlock(&audit_worker_sx);
+	old_audit_cred = audit_cred;
+	old_audit_vp = audit_vp;
+	audit_cred = cred;
+	audit_vp = vp;
+	audit_file_rotate_wait = 0;
+	audit_enabled = (audit_vp != NULL);
+	sx_xunlock(&audit_worker_sx);
 
 	/*
-	 * Wake up the audit worker to perform the exchange once we release
-	 * the mutex.
+	 * If there was an old vnode/credential, close and free.
 	 */
-	cv_signal(&audit_worker_cv);
-
-	/*
-	 * Wait for the audit_worker to broadcast that a replacement has
-	 * taken place; we know that once this has happened, our vnode has
-	 * been replaced in, so we can return successfully.
-	 */
-	cv_wait(&audit_replacement_cv, &audit_mtx);
-	audit_file_rotate_wait = 0; /* We can now request another rotation */
-	mtx_unlock(&audit_mtx);
+	if (old_audit_vp != NULL) {
+		vfslocked = VFS_LOCK_GIANT(old_audit_vp->v_mount);
+		vn_close(old_audit_vp, AUDIT_CLOSE_FLAGS, old_audit_cred,
+		    curthread);
+		VFS_UNLOCK_GIANT(vfslocked);
+		crfree(old_audit_cred);
+	}
 }
 
 void
@@ -540,7 +475,7 @@ audit_worker_init(void)
 {
 	int error;
 
-	cv_init(&audit_replacement_cv, "audit_replacement_cv");
+	sx_init(&audit_worker_sx, "audit_worker_sx");
 	error = kthread_create(audit_worker, NULL, &audit_thread, RFHIGHPID,
 	    0, "audit");
 	if (error)
