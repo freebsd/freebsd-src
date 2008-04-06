@@ -147,6 +147,19 @@
       utility.  More details can be found in the &man.ddb.4; manual
       page.</para>
 
+    <para>The kernel now supports a new textdump format of kernel
+      dumps.  A textdump provides higher-level information via
+      mechanically generated/extracted debugging output, rather than a
+      simple memory dump.  This facility can be used to generate brief
+      kernel bug reports that are rich in debugging information, but
+      are not dependent on kernel symbol tables or precisely
+      synchronized source code.  More information can be found in the
+      &man.textdump.4; manual page.</para>
+
+    <para>[&arch.amd64;, &arch.i386;] The ULE
+      scheduler is now the default process scheduler
+      in <filename>GENERIC</filename> kernels.</para>
+
     <sect3 id="boot">
       <title>Boot Loader Changes</title>
 
@@ -169,7 +182,12 @@
     <sect3 id="proc">
       <title>Hardware Support</title>
 
-      <para></para>
+      <para>The &man.cmx.4; driver, a driver for Omnikey CardMan 4040
+        PCMCIA smartcard readers, has been added.</para>
+
+      <para>The &man.uslcom.4; driver, a driver for Silicon
+        Laboratories CP2101/CP2102-based USB serial adapters, has been
+        imported from OpenBSD.</para>
 
       <sect4 id="mm">
 	<title>Multimedia Support</title>
@@ -196,6 +214,9 @@
     <sect3 id="disks">
       <title>Disks and Storage</title>
 
+      <para>The &man.aac.4; driver now supports volumes larger than
+        2TB in size.</para>
+
       <para>The &man.hptrr.4; driver has been updated to version 1.2
         from Highpoint.</para>
 
@@ -211,6 +232,10 @@
   <sect2 id="userland">
     <title>Userland Changes</title>
 
+    <para>The &man.adduser.8; utility now supports
+      a <option>-M</option> option to set the mode of a new user's
+      home directory.</para>
+
     <para>&man.chflags.1; now supports a <option>-v</option> flag for
       verbose output and a <option>-f</option> flag to ignore errors
       with the same semantics as (for example)
@@ -219,6 +244,9 @@
     <para>The &man.realpath.1; utility now supports
       a <option>-q</option> flag to suppress warnings; it now also
       accepts multiple paths on its command line.</para>
+
+    <para>&man.ypserv.8; now supports a <option>-P</option> option to
+      specify the port number on which it should listen.</para>
 
     <sect3 id="rc-scripts">
       <title><filename>/etc/rc.d</filename> Scripts</title>
