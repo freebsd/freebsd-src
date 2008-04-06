@@ -131,9 +131,12 @@
     <sect3 id="boot">
       <title>Boot Loader Changes</title>
 
-      <para></para>
-
       <!-- Above this line, order boot loader changes by keyword-->
+
+      <para arch="i386,amd64">The BTX kernel used by the boot
+	loader has been changed to invoke BIOS routines from real
+	mode.  This change makes it possible to boot &os; from USB
+	devices.</para>
 
     </sect3>
 
@@ -196,7 +199,9 @@
   <sect2 id="contrib">
     <title>Contributed Software</title>
 
-    <para></para>
+    <para>The timezone database has been updated from
+      the <application>tzdata2007k</application> release to
+      the <application>tzdata2008b</application> release.</para>
 
   </sect2>
 
@@ -210,7 +215,11 @@
   <sect2 id="releng">
     <title>Release Engineering and Integration</title>
 
-    <para></para>
+    <para>The supported version of
+      the <application>GNOME</application> desktop environment
+      (<filename role="package">x11/gnome2</filename>) has been
+      updated from 2.20.1 to 2.22.</para>
+
   </sect2>
 
   <sect2 id="doc">
