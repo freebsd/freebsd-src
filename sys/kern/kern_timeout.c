@@ -655,7 +655,7 @@ again:
 			    c, c->c_func, c->c_arg);
 			CC_UNLOCK(cc);
 			if (sq_locked)
-				sleepq_release(&cc->cc_curr);
+				sleepq_release(&cc->cc_waiting);
 			return (0);
 		}
 
@@ -687,17 +687,17 @@ again:
 				 */
 				if (!sq_locked) {
 					CC_UNLOCK(cc);
-					sleepq_lock(&cc->cc_curr);
+					sleepq_lock(&cc->cc_waiting);
 					sq_locked = 1;
 					goto again;
 				}
 				cc->cc_waiting = 1;
 				DROP_GIANT();
 				CC_UNLOCK(cc);
-				sleepq_add(&cc->cc_curr,
+				sleepq_add(&cc->cc_waiting,
 				    &cc->cc_lock.lock_object, "codrain",
 				    SLEEPQ_SLEEP, 0);
-				sleepq_wait(&cc->cc_curr, 0);
+				sleepq_wait(&cc->cc_waiting, 0);
 				sq_locked = 0;
 
 				/* Reacquire locks previously released. */
@@ -726,7 +726,7 @@ again:
 		return (0);
 	}
 	if (sq_locked)
-		sleepq_release(&cc->cc_curr);
+		sleepq_release(&cc->cc_waiting);
 
 	c->c_flags &= ~(CALLOUT_ACTIVE | CALLOUT_PENDING);
 
