@@ -2246,6 +2246,8 @@ lm_load(const char *path, const char *section)
 	return (m);
 
   err:
+	if ((m->flags & LM_ONSTARTLIST) != 0)
+		TAILQ_REMOVE(&modules_start, m, start);
 	if (m->handle)
 		dlclose(m->handle);
 	free(m->path);
