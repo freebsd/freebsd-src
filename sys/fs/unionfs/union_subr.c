@@ -538,12 +538,13 @@ static void
 unionfs_node_update(struct unionfs_node *unp, struct vnode *uvp,
 		    struct thread *td)
 {
-	int		count, lockcnt;
+	unsigned	count, lockrec;
 	struct vnode   *vp;
 	struct vnode   *lvp;
 
 	vp = UNIONFSTOV(unp);
 	lvp = unp->un_lowervp;
+	ASSERT_VOP_ELOCKED(lvp, "unionfs_node_update");
 
 	/*
 	 * lock update
@@ -551,11 +552,9 @@ unionfs_node_update(struct unionfs_node *unp, struct vnode *uvp,
 	VI_LOCK(vp);
 	unp->un_uppervp = uvp;
 	vp->v_vnlock = uvp->v_vnlock;
-	lockcnt = lvp->v_vnlock->lk_exclusivecount;
-	if (lockcnt <= 0)
-		panic("unionfs: no exclusive lock");
 	VI_UNLOCK(vp);
-	for (count = 1; count < lockcnt; count++)
+	lockrec = lvp->v_vnlock->lk_recurse;
+	for (count = 0; count < lockrec; count++)
 		vn_lock(uvp, LK_EXCLUSIVE | LK_CANRECURSE | LK_RETRY);
 }
 

@@ -395,8 +395,10 @@ extern void	(*lease_updatetime)(int deltat);
 #define	VI_UNLOCK(vp)	mtx_unlock(&(vp)->v_interlock)
 #define	VI_MTX(vp)	(&(vp)->v_interlock)
 
-#define	VN_LOCK_AREC(vp)	((vp)->v_vnlock->lk_flags |= LK_CANRECURSE)
-#define	VN_LOCK_ASHARE(vp)	((vp)->v_vnlock->lk_flags &= ~LK_NOSHARE)
+#define	VN_LOCK_AREC(vp)						\
+	((vp)->v_vnlock->lock_object.lo_flags |= LK_CANRECURSE)
+#define	VN_LOCK_ASHARE(vp)						\
+	((vp)->v_vnlock->lock_object.lo_flags &= ~LK_NOSHARE)
 
 #endif /* _KERNEL */
 
