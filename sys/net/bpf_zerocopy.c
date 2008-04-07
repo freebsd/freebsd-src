@@ -85,7 +85,7 @@ __FBSDID("$FreeBSD$");
  * scatter-gather copying.  One significant mitigating factor is that on
  * systems with a direct memory map, we can avoid TLB misses.
  *
- * At the front of the shared memor region is a bpf_zbuf_header, which
+ * At the front of the shared memory region is a bpf_zbuf_header, which
  * contains shared control data to allow user space and the kernel to
  * synchronize; this is included in zb_size, but not bpf_bufsize, so that BPF
  * knows that the space is not available.
@@ -94,9 +94,17 @@ struct zbuf {
 	vm_offset_t	 zb_uaddr;	/* User address, may be stale. */
 	size_t		 zb_size;	/* Size of buffer, incl. header. */
 	u_int		 zb_numpages;	/* Number of pages. */
+	int		 zb_flags;	/* Flags on zbuf. */
 	struct sf_buf	**zb_pages;	/* Pages themselves. */
 	struct bpf_zbuf_header	*zb_header;	/* Shared header. */
 };
+
+/*
+ * When a buffer has been assigned to userspace, flag it as such, as the
+ * buffer may remain in the store position as a result of the user process
+ * not yet having acknowledged the buffer in the hold position yet.
+ */
+#define	ZBUF_FLAG_IMMUTABLE	0x00000001	/* Set when owned by user. */
 
 /*
  * Release a page we've previously wired.
@@ -254,6 +262,9 @@ bpf_zerocopy_append_bytes(struct bpf_d *d, caddr_t buf, u_int offset,
 	src_bytes = (u_char *)src;
 	zb = (struct zbuf *)buf;
 
+	KASSERT((zb->zb_flags & ZBUF_FLAG_IMMUTABLE) == 0,
+	    ("bpf_zerocopy_append_bytes: ZBUF_FLAG_IMMUTABLE"));
+
 	/*
 	 * Scatter-gather copy to user pages mapped into kernel address space
 	 * using sf_bufs: copy up to a page at a time.
@@ -303,6 +314,9 @@ bpf_zerocopy_append_mbuf(struct bpf_d *d, caddr_t buf, u_int offset,
 	m = (struct mbuf *)src;
 	zb = (struct zbuf *)buf;
 
+	KASSERT((zb->zb_flags & ZBUF_FLAG_IMMUTABLE) == 0,
+	    ("bpf_zerocopy_append_mbuf: ZBUF_FLAG_IMMUTABLE"));
+
 	/*
 	 * Scatter gather both from an mbuf chain and to a user page set
 	 * mapped into kernel address space using sf_bufs.  If we're lucky,
@@ -344,9 +358,38 @@ bpf_zerocopy_append_mbuf(struct bpf_d *d, caddr_t buf, u_int offset,
 }
 
 /*
+ * Notification from the BPF framework that a buffer in the store position is
+ * rejecting packets and may be considered full.  We mark the buffer as
+ * immutable and assign to userspace so that it is immediately available for
+ * the user process to access.
+ */
+void
+bpf_zerocopy_buffull(struct bpf_d *d)
+{
+	struct zbuf *zb;
+
+	KASSERT(d->bd_bufmode == BPF_BUFMODE_ZBUF,
+	    ("bpf_zerocopy_buffull: not in zbuf mode"));
+
+	zb = (struct zbuf *)d->bd_sbuf;
+	KASSERT(zb != NULL, ("bpf_zerocopy_buffull: zb == NULL"));
+
+	if ((zb->zb_flags & ZBUF_FLAG_IMMUTABLE) == 0) {
+		zb->zb_flags |= ZBUF_FLAG_IMMUTABLE;
+		zb->zb_header->bzh_kernel_len = d->bd_slen;
+		atomic_add_rel_int(&zb->zb_header->bzh_kernel_gen, 1);
+	}
+}
+
+/*
  * Notification from the BPF framework that a buffer has moved into the held
  * slot on a descriptor.  Zero-copy BPF will update the shared page to let
- * the user process know.
+ * the user process know and flag the buffer as immutable if it hasn't
+ * already been marked immutable due to filling while it was in the store
+ * position.
+ *
+ * Note: identical logic as in bpf_zerocopy_buffull(), except that we operate
+ * on bd_hbuf and bd_hlen.
  */
 void
 bpf_zerocopy_bufheld(struct bpf_d *d)
@@ -358,8 +401,12 @@ bpf_zerocopy_bufheld(struct bpf_d *d)
 
 	zb = (struct zbuf *)d->bd_hbuf;
 	KASSERT(zb != NULL, ("bpf_zerocopy_bufheld: zb == NULL"));
-	zb->zb_header->bzh_kernel_len = d->bd_hlen;
-	atomic_add_rel_int(&zb->zb_header->bzh_kernel_gen, 1);
+
+	if ((zb->zb_flags & ZBUF_FLAG_IMMUTABLE) == 0) {
+		zb->zb_flags |= ZBUF_FLAG_IMMUTABLE;
+		zb->zb_header->bzh_kernel_len = d->bd_hlen;
+		atomic_add_rel_int(&zb->zb_header->bzh_kernel_gen, 1);
+	}
 }
 
 /*
@@ -383,6 +430,28 @@ bpf_zerocopy_canfreebuf(struct bpf_d *d)
 	    atomic_load_acq_int(&zb->zb_header->bzh_user_gen))
 		return (1);
 	return (0);
+}
+
+/*
+ * Query from the BPF framework as to whether or not the buffer current in
+ * the store position can actually be written to.  This may return false if
+ * the store buffer is assigned to userspace before the hold buffer is
+ * acknowledged.
+ */
+int
+bpf_zerocopy_canwritebuf(struct bpf_d *d)
+{
+	struct zbuf *zb;
+
+	KASSERT(d->bd_bufmode == BPF_BUFMODE_ZBUF,
+	    ("bpf_zerocopy_canwritebuf: not in zbuf mode"));
+
+	zb = (struct zbuf *)d->bd_sbuf;
+	KASSERT(zb != NULL, ("bpf_zerocopy_canwritebuf: bd_sbuf NULL"));
+
+	if (zb->zb_flags & ZBUF_FLAG_IMMUTABLE)
+		return (0);
+	return (1);
 }
 
 /*

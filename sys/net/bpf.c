@@ -218,6 +218,45 @@ bpf_canfreebuf(struct bpf_d *d)
 	return (0);
 }
 
+/*
+ * Allow the buffer model to indicate that the current store buffer is
+ * immutable, regardless of the appearance of space.  Return (1) if the
+ * buffer is writable, and (0) if not.
+ */
+static int
+bpf_canwritebuf(struct bpf_d *d)
+{
+
+	BPFD_LOCK_ASSERT(d);
+
+	switch (d->bd_bufmode) {
+	case BPF_BUFMODE_ZBUF:
+		return (bpf_zerocopy_canwritebuf(d));
+	}
+	return (1);
+}
+
+/*
+ * Notify buffer model that an attempt to write to the store buffer has
+ * resulted in a dropped packet, in which case the buffer may be considered
+ * full.
+ */
+static void
+bpf_buffull(struct bpf_d *d)
+{
+
+	BPFD_LOCK_ASSERT(d);
+
+	switch (d->bd_bufmode) {
+	case BPF_BUFMODE_ZBUF:
+		bpf_zerocopy_buffull(d);
+		break;
+	}
+}
+
+/*
+ * Notify the buffer model that a buffer has moved into the hold position.
+ */
 void
 bpf_bufheld(struct bpf_d *d)
 {
@@ -1691,27 +1730,28 @@ catchpacket(struct bpf_d *d, u_char *pkt, u_int pktlen, u_int snaplen,
 
 	/*
 	 * Round up the end of the previous packet to the next longword.
+	 *
+	 * Drop the packet if there's no room and no hope of room
+	 * If the packet would overflow the storage buffer or the storage
+	 * buffer is considered immutable by the buffer model, try to rotate
+	 * the buffer and wakeup pending processes.
 	 */
 	curlen = BPF_WORDALIGN(d->bd_slen);
-	if (curlen + totlen > d->bd_bufsize) {
-		/*
-		 * This packet will overflow the storage buffer.
-		 * Rotate the buffers if we can, then wakeup any
-		 * pending reads.
-		 */
+	if (curlen + totlen > d->bd_bufsize || !bpf_canwritebuf(d)) {
 		if (d->bd_fbuf == NULL) {
 			/*
-			 * We haven't completed the previous read yet,
-			 * so drop the packet.
+			 * There's no room in the store buffer, and no
+			 * prospect of room, so drop the packet.  Notify the
+			 * buffer model.
 			 */
+			bpf_buffull(d);
 			++d->bd_dcount;
 			return;
 		}
 		ROTATE_BUFFERS(d);
 		do_wakeup = 1;
 		curlen = 0;
-	}
-	else if (d->bd_immediate || d->bd_state == BPF_TIMED_OUT)
+	} else if (d->bd_immediate || d->bd_state == BPF_TIMED_OUT)
 		/*
 		 * Immediate mode is set, or the read timeout has already
 		 * expired during a select call.  A packet arrived, so the
