@@ -23,7 +23,7 @@
 .Nd a utility for installing software package distributions
 .Sh SYNOPSIS
 .Nm
-.Op Fl vInfFrRMSK
+.Op Fl viInfFrRMSK
 .Op Fl t Ar template
 .Op Fl p Ar prefix
 .Op Fl P Ar prefix
@@ -87,6 +87,9 @@ Turn on verbose output.
 Keep any downloaded package in
 .Ev PKGDIR
 if it is defined or in current directory by default.
+.It Fl i
+Install the package without fetching and installing
+dependencies.
 .It Fl I
 If any installation scripts (pre-install or post-install) exist for a given
 package, do not execute them.
