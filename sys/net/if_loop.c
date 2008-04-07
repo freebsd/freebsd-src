@@ -109,8 +109,7 @@ static MALLOC_DEFINE(M_LO, LONAME, "Loopback Interface");
 IFC_SIMPLE_DECLARE(lo, 1);
 
 static void
-lo_clone_destroy(ifp)
-	struct ifnet *ifp;
+lo_clone_destroy(struct ifnet *ifp)
 {
 	struct lo_softc *sc;
 	
@@ -126,10 +125,7 @@ lo_clone_destroy(ifp)
 }
 
 static int
-lo_clone_create(ifc, unit, params)
-	struct if_clone *ifc;
-	int unit;
-	caddr_t params;
+lo_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 {
 	struct ifnet *ifp;
 	struct lo_softc *sc;
@@ -159,17 +155,20 @@ lo_clone_create(ifc, unit, params)
 static int
 loop_modevent(module_t mod, int type, void *data) 
 { 
+
 	switch (type) { 
 	case MOD_LOAD: 
 		if_clone_attach(&lo_cloner);
 		break; 
+
 	case MOD_UNLOAD: 
 		printf("loop module unload - not possible for this module type\n"); 
-		return EINVAL; 
+		return (EINVAL);
+
 	default:
-		return EOPNOTSUPP;
+		return (EOPNOTSUPP);
 	} 
-	return 0; 
+	return (0);
 } 
 
 static moduledata_t loop_mod = { 
@@ -181,11 +180,8 @@ static moduledata_t loop_mod = {
 DECLARE_MODULE(loop, loop_mod, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY);
 
 int
-looutput(ifp, m, dst, rt)
-	struct ifnet *ifp;
-	register struct mbuf *m;
-	struct sockaddr *dst;
-	register struct rtentry *rt;
+looutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
+    struct rtentry *rt)
 {
 	u_int32_t af;
 
@@ -219,7 +215,7 @@ looutput(ifp, m, dst, rt)
 		return (EAFNOSUPPORT);
 	}
 #endif
-	return(if_simloop(ifp, m, dst->sa_family, 0));
+	return (if_simloop(ifp, m, dst->sa_family, 0));
 }
 
 /*
@@ -232,13 +228,8 @@ looutput(ifp, m, dst, rt)
  *
  * This function expects the packet to include the media header of length hlen.
  */
-
 int
-if_simloop(ifp, m, af, hlen)
-	struct ifnet *ifp;
-	struct mbuf *m;
-	int af;
-	int hlen;
+if_simloop(struct ifnet *ifp, struct mbuf *m, int af, int hlen)
 {
 	int isr;
 
@@ -329,11 +320,9 @@ if_simloop(ifp, m, af, hlen)
 
 /* ARGSUSED */
 static void
-lortrequest(cmd, rt, info)
-	int cmd;
-	struct rtentry *rt;
-	struct rt_addrinfo *info;
+lortrequest(int cmd, struct rtentry *rt, struct rt_addrinfo *info)
 {
+
 	RT_LOCK_ASSERT(rt);
 	rt->rt_rmx.rmx_mtu = rt->rt_ifp->if_mtu;
 }
@@ -343,17 +332,13 @@ lortrequest(cmd, rt, info)
  */
 /* ARGSUSED */
 int
-loioctl(ifp, cmd, data)
-	register struct ifnet *ifp;
-	u_long cmd;
-	caddr_t data;
+loioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
-	register struct ifaddr *ifa;
-	register struct ifreq *ifr = (struct ifreq *)data;
-	register int error = 0;
+	struct ifaddr *ifa;
+	struct ifreq *ifr = (struct ifreq *)data;
+	int error = 0;
 
 	switch (cmd) {
-
 	case SIOCSIFADDR:
 		ifp->if_flags |= IFF_UP;
 		ifp->if_drv_flags |= IFF_DRV_RUNNING;
