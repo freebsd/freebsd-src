@@ -541,7 +541,7 @@ asmc_init(device_t dev)
 	buf[0] = 0x01;
 	ASMC_DPRINTF(("sms flag key\n"));
 	asmc_key_write(dev, ASMC_KEY_SMS_FLAG, buf, 1);
-	DELAY(200);
+	DELAY(100);
 
 	/*
 	 * Wait up to 5 seconds for SMS initialization.
