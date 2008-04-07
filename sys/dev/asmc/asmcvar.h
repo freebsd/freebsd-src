@@ -56,7 +56,7 @@ struct asmc_softc {
  */
 #define ASMC_DATAPORT_READ(sc)	bus_read_1(sc->sc_ioport, 0x00)
 #define ASMC_DATAPORT_WRITE(sc, val) \
-	bus_write_1(sc->sc_ioport, 0, val)
+	bus_write_1(sc->sc_ioport, 0x00, val)
 #define ASMC_STATUS_MASK 	0x0f
 
 /*
@@ -64,7 +64,7 @@ struct asmc_softc {
  */
 #define ASMC_CMDPORT_READ(sc)	bus_read_1(sc->sc_ioport, 0x04)
 #define ASMC_CMDPORT_WRITE(sc, val) \
-	bus_write_1(sc->sc_ioport, 4, val)
+	bus_write_1(sc->sc_ioport, 0x04, val)
 #define ASMC_CMDREAD		0x10
 #define ASMC_CMDWRITE		0x11
 
