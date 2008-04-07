@@ -259,14 +259,14 @@ may be used to sleep awaiting the availbility of a completed buffer.
 They will return a readable file descriptor when ownership of the next buffer
 is assigned to user space.
 .Pp
-In the current implementation, the kernel will assign ownership of at most
-one buffer at a time to the user process.
-The user processes must acknowledge the current buffer in order to be
-notified that the next buffer is ready for processing.
-Programs should not rely on this as an invariant, as it may change in future
-versions; in particular, they must maintain their own notion of which buffer
-is "next" so that if both buffers are owned by userspace, it can process them
-in the correct order.
+In the current implementation, the kernel may assign zero, one, or both
+buffers to the user process; however, an earlier implementation maintained
+the invariant that at most one buffer could be assigned to the user process
+at a time.
+In order to both ensure progress and high performance, user processes should
+acknowledge a completely processed buffer as quickly as possible, returning
+it for reuse, and not block waiting on a second buffer while holding another
+buffer.
 .Sh IOCTLS
 The
 .Xr ioctl 2
