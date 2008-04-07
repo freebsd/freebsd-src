@@ -2993,7 +2993,7 @@ kern_fchownat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 	int error, vfslocked, follow;
 
 	AUDIT_ARG(owner, uid, gid);
-	follow = (flag & AT_SYMLINK_NOFOLLOW) == 0 ? NOFOLLOW : FOLLOW;
+	follow = (flag & AT_SYMLINK_NOFOLLOW) ? NOFOLLOW : FOLLOW;
 	NDINIT_AT(&nd, LOOKUP, follow | MPSAFE | AUDITVNODE1, pathseg, path,
 	    fd, td);
 
