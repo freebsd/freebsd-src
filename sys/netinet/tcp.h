@@ -78,6 +78,8 @@ struct tcphdr {
 
 #define	TCPOPT_EOL		0
 #define	   TCPOLEN_EOL			1
+#define	TCPOPT_PAD		0		/* padding after EOL */
+#define	   TCPOLEN_PAD			1
 #define	TCPOPT_NOP		1
 #define	   TCPOLEN_NOP			1
 #define	TCPOPT_MAXSEG		2
