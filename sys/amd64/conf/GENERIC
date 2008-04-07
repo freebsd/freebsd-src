@@ -272,6 +272,17 @@ device		ums		# Mouse
 device		ural		# Ralink Technology RT2500USB wireless NICs
 device		urio		# Diamond Rio 500 MP3 player
 device		uscanner	# Scanners
+# USB Serial devices
+device		ucom		# Generic com ttys
+device		uark		# Technologies ARK3116 based serial adapters
+device		ubsa		# Belkin F5U103 and compatible serial adapters
+device		ubser		# BWCT console serial adapters
+device		uftdi		# For FTDI usb serial adapters
+device		uipaq		# Some WinCE based devices
+device		uplcom		# Prolific PL-2303 serial adapters
+device		uslcom		# SI Labs CP2101/CP2102 serial adapters
+device		uvisor		# Visor and Palm devices
+device		uvscom		# USB serial support for DDI pocket's PHS
 # USB Ethernet, requires miibus
 device		aue		# ADMtek USB Ethernet
 device		axe		# ASIX Electronics USB Ethernet
