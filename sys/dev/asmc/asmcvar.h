@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2007 Rui Paulo <rpaulo@FreeBSD.org>
+ * Copyright (c) 2007, 2008 Rui Paulo <rpaulo@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,8 +41,10 @@ struct asmc_softc {
 	struct sysctl_oid 	*sc_sms_tree;
 	struct sysctl_oid 	*sc_light_tree;
 	struct asmc_model 	*sc_model;
-	int 			sc_rid;
-	struct resource 	*sc_res;
+	int 			sc_rid_port;
+	int 			sc_rid_irq;
+	struct resource 	*sc_ioport;
+	struct resource 	*sc_irq;
 	void 			*sc_cookie;
 	int 			sc_sms_intrtype;
 	struct taskqueue 	*sc_sms_tq;
@@ -50,30 +52,26 @@ struct asmc_softc {
 };
 
 /*
- * The Sudden Motion Sensor is able to generate an interrupt when
- * there are certain critical conditions (free fall, high acceleration and
- * shocks).
- * The following IRQ is used.
- */
-#define ASMC_IRQ		6
-
-/*
  * Data port.
  */
-#define ASMC_DATAPORT		0x300
+#define ASMC_DATAPORT_READ(sc)	bus_read_1(sc->sc_ioport, 0x00)
+#define ASMC_DATAPORT_WRITE(sc, val) \
+	bus_write_1(sc->sc_ioport, 0, val)
 #define ASMC_STATUS_MASK 	0x0f
 
 /*
  * Command port.
  */
-#define ASMC_CMDPORT		0x304
+#define ASMC_CMDPORT_READ(sc)	bus_read_1(sc->sc_ioport, 0x04)
+#define ASMC_CMDPORT_WRITE(sc, val) \
+	bus_write_1(sc->sc_ioport, 4, val)
 #define ASMC_CMDREAD		0x10
 #define ASMC_CMDWRITE		0x11
 
 /*
  * Interrupt port.
  */
-#define ASMC_INTPORT		0x31f
+#define ASMC_INTPORT_READ(sc)	bus_read_1(sc->sc_ioport, 0x1f)
 
 
 /* Number of keys */
