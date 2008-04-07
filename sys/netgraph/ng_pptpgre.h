@@ -52,6 +52,10 @@
 #define NG_PPTPGRE_HOOK_UPPER	"upper"		/* to upper layers */
 #define NG_PPTPGRE_HOOK_LOWER	"lower"		/* to lower layers */
 
+/* Session hooks: prefix plus hex session ID, e.g., "session_3e14" */
+#define NG_PPTPGRE_HOOK_SESSION_P	"session_"
+#define NG_PPTPGRE_HOOK_SESSION_F	"session_%04x"
+
 /* Configuration for a session */
 struct ng_pptpgre_conf {
 	u_char		enabled;	/* enables traffic flow */
