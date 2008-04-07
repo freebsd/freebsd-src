@@ -1395,8 +1395,8 @@ tcp_addoptions(struct tcpopt *to, u_char *optp)
 	 * people with padding of EOLs.
 	 */
 	while (optlen % 4) {
-		optlen += 1;
-		*optp++ = 0x00;
+		optlen += TCPOLEN_PAD;
+		*optp++ = TCPOPT_PAD;
 	}
 
 	KASSERT(optlen <= TCP_MAXOLEN, ("%s: TCP options too long", __func__));
