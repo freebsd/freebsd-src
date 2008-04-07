@@ -66,11 +66,6 @@ FBSD_1.0 {
 	clock_settime;
 	close;
 	connect;
-	cpuset;
-	cpuset_getid;
-	cpuset_setid;
-	cpuset_getaffinity;
-	cpuset_setaffinity;
 	dup;
 	dup2;
 	eaccess;
@@ -335,6 +330,11 @@ FBSD_1.0 {
 };
 
 FBSD_1.1 {
+	cpuset;
+	cpuset_getid;
+	cpuset_setid;
+	cpuset_getaffinity;
+	cpuset_setaffinity;
 	faccessat;
 	fchmodat;
 	fchownat;
