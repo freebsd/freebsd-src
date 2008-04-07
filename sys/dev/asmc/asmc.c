@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2007 Rui Paulo <rpaulo@FreeBSD.org>
+ * Copyright (c) 2007, 2008 Rui Paulo <rpaulo@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -48,17 +48,15 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/taskqueue.h>
-#include <isa/isavar.h>
-#include <machine/bus.h>
 #include <sys/rman.h>
 #include <machine/resource.h>
-
+#include <contrib/dev/acpica/acpi.h>
+#include <dev/acpica/acpivar.h>
 #include <dev/asmc/asmcvar.h>
 
 /*
  * Device interface.
  */
-static void 	asmc_identify(driver_t *driver, device_t parent);
 static int 	asmc_probe(device_t dev);
 static int 	asmc_attach(device_t dev);
 static int 	asmc_detach(device_t dev);
@@ -201,7 +199,6 @@ struct asmc_model asmc_models[] = {
  * Driver methods.
  */
 static device_method_t	asmc_methods[] = {
-	DEVMETHOD(device_identify,	asmc_identify),
 	DEVMETHOD(device_probe,		asmc_probe),
 	DEVMETHOD(device_attach,	asmc_attach),
 	DEVMETHOD(device_detach,	asmc_detach),
@@ -215,17 +212,21 @@ static driver_t	asmc_driver = {
 	sizeof(struct asmc_softc)
 };
 
+/*
+ * Debugging
+ */
+#define	_COMPONENT	ACPI_OEM
+ACPI_MODULE_NAME("ASMC")
+#ifdef DEBUG
+#define ASMC_DPRINTF(str)	device_printf(dev, str)
+#endif
+
+static char *asmc_ids[] = { "APP0001", NULL };
+
 static devclass_t asmc_devclass;
 
-DRIVER_MODULE(asmc, isa, asmc_driver, asmc_devclass, NULL, NULL);
-
-static void
-asmc_identify(driver_t *driver, device_t parent)
-{
-	if (device_find_child(parent, "asmc", -1) == NULL &&
-	    asmc_match(parent))
-		BUS_ADD_CHILD(parent, 0, "asmc", -1);
-}
+DRIVER_MODULE(asmc, acpi, asmc_driver, asmc_devclass, NULL, NULL);
+MODULE_DEPEND(asmc, acpi, 1, 1, 1);
 
 static struct asmc_model *
 asmc_match(device_t dev)
@@ -250,13 +251,16 @@ asmc_probe(device_t dev)
 {
 	struct asmc_model *model;
 
-	if (resource_disabled("asmc", 0))
+	if (acpi_disabled("asmc"))
 		return (ENXIO);
+	if (ACPI_ID_PROBE(device_get_parent(dev), dev, asmc_ids) == NULL)
+		return (ENXIO);
+	
 	model = asmc_match(dev);
-	if (!model)
+	if (!model) {
+		device_printf(dev, "model not recognized\n");
 		return (ENXIO);
-	if (isa_get_irq(dev) == -1)
-		bus_set_resource(dev, SYS_RES_IRQ, 0, ASMC_IRQ, 1);
+	}
 	device_set_desc(dev, model->smc_desc);
 
 	return (BUS_PROBE_DEFAULT);
@@ -273,6 +277,13 @@ asmc_attach(device_t dev)
 	struct sysctl_oid *sysctlnode;
 	struct asmc_model *model;
 
+	sc->sc_ioport = bus_alloc_resource_any(dev, SYS_RES_IOPORT,
+	    &sc->sc_rid_port, RF_ACTIVE);
+	if (sc->sc_ioport == NULL) {
+		device_printf(dev, "unable to allocate IO port\n");
+		return (ENOMEM);
+	}
+	
 	sysctlctx  = device_get_sysctl_ctx(dev);
 	sysctlnode = device_get_sysctl_tree(dev);
 	
@@ -420,16 +431,16 @@ asmc_attach(device_t dev)
 	/*
 	 * Allocate an IRQ for the SMS.
 	 */
-	sc->sc_rid = 0;
-	sc->sc_res = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->sc_rid,
-	    ASMC_IRQ, ASMC_IRQ, 1, RF_ACTIVE);
-	if (sc->sc_res == NULL) {
+	sc->sc_rid_irq = 0;
+	sc->sc_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ,
+	    &sc->sc_rid_irq, RF_ACTIVE);
+	if (sc->sc_irq == NULL) {
 		device_printf(dev, "unable to allocate IRQ resource\n");
 		ret = ENXIO;
 		goto err2;
 	}
 
-	ret = bus_setup_intr(dev, sc->sc_res, 
+	ret = bus_setup_intr(dev, sc->sc_irq, 
 	          INTR_TYPE_MISC | INTR_MPSAFE,
 #ifdef INTR_FILTER
 	    asmc_sms_intrfast, asmc_sms_handler,
@@ -445,8 +456,10 @@ asmc_attach(device_t dev)
 nosms:
 	return (0);
 err1:
-	bus_release_resource(dev, SYS_RES_IRQ, sc->sc_rid, sc->sc_res);
+	bus_release_resource(dev, SYS_RES_IRQ, sc->sc_rid_irq, sc->sc_irq);
 err2:
+	bus_release_resource(dev, SYS_RES_IOPORT, sc->sc_rid_port,
+	    sc->sc_ioport);
 	mtx_destroy(&sc->sc_mtx);
 	if (sc->sc_sms_tq)
 		taskqueue_free(sc->sc_sms_tq);
@@ -464,9 +477,13 @@ asmc_detach(device_t dev)
 		taskqueue_free(sc->sc_sms_tq);
 	}
 	if (sc->sc_cookie)
-		bus_teardown_intr(dev, sc->sc_res, sc->sc_cookie);
-	if (sc->sc_res)
-		bus_release_resource(dev, SYS_RES_IRQ, sc->sc_rid, sc->sc_res);
+		bus_teardown_intr(dev, sc->sc_irq, sc->sc_cookie);
+	if (sc->sc_irq)
+		bus_release_resource(dev, SYS_RES_IRQ, sc->sc_rid_irq,
+		    sc->sc_irq);
+	if (sc->sc_ioport)
+		bus_release_resource(dev, SYS_RES_IOPORT, sc->sc_rid_port,
+		    sc->sc_ioport);
 	mtx_destroy(&sc->sc_mtx);
 
 	return (0);
@@ -486,6 +503,7 @@ asmc_init(device_t dev)
 	 * We are ready to recieve interrupts from the SMS.
 	 */
 	buf[0] = 0x01;
+	ASMC_DPRINTF(("intok key\n"));
 	asmc_key_write(dev, ASMC_KEY_INTOK, buf, 1);
 	DELAY(50);
 
@@ -493,20 +511,24 @@ asmc_init(device_t dev)
 	 * Initiate the polling intervals.
 	 */
 	buf[0] = 20; /* msecs */
+	ASMC_DPRINTF(("low int key\n"));
 	asmc_key_write(dev, ASMC_KEY_SMS_LOW_INT, buf, 1);
 	DELAY(200);
 
 	buf[0] = 20; /* msecs */
+	ASMC_DPRINTF(("high int key\n"));
 	asmc_key_write(dev, ASMC_KEY_SMS_HIGH_INT, buf, 1);
 	DELAY(200);
 
 	buf[0] = 0x00;
 	buf[1] = 0x60;
+	ASMC_DPRINTF(("sms low key\n"));
 	asmc_key_write(dev, ASMC_KEY_SMS_LOW, buf, 2);
 	DELAY(200);
 
 	buf[0] = 0x01;
 	buf[1] = 0xc0;
+	ASMC_DPRINTF(("sms high key\n"));
 	asmc_key_write(dev, ASMC_KEY_SMS_HIGH, buf, 2);
 	DELAY(200);
 
@@ -515,8 +537,9 @@ asmc_init(device_t dev)
 	 * required.
 	 */
 	buf[0] = 0x01;
+	ASMC_DPRINTF(("sms flag key\n"));
 	asmc_key_write(dev, ASMC_KEY_SMS_FLAG, buf, 1);
-	DELAY(50);
+	DELAY(200);
 
 	/*
 	 * Wait up to 5 seconds for SMS initialization.
@@ -525,11 +548,14 @@ asmc_init(device_t dev)
 		if (asmc_key_read(dev, ASMC_KEY_SMS, buf, 2) == 0 && 
 		    (buf[0] != 0x00 || buf[1] != 0x00)) {
 			error = 0;
+			device_printf(dev, "WARNING: Sudden Motion Sensor "
+			    "not initialized!\n");
 			goto nosms;
 		}
 	
 		buf[0] = ASMC_SMS_INIT1;
 		buf[1] = ASMC_SMS_INIT2;
+		ASMC_DPRINTF(("sms key\n"));
 		asmc_key_write(dev, ASMC_KEY_SMS, buf, 2);
 		DELAY(50);
 	}
@@ -562,18 +588,19 @@ nosms:
 static int
 asmc_wait(device_t dev, uint8_t val)
 {
+	struct asmc_softc *sc = device_get_softc(dev);
 	u_int i;
 
 	val = val & ASMC_STATUS_MASK;
 
 	for (i = 0; i < 1000; i++) {
-		if ((inb(ASMC_CMDPORT) & ASMC_STATUS_MASK) == val)
+		if ((ASMC_CMDPORT_READ(sc) & ASMC_STATUS_MASK) == val)
 			return (0);
 		DELAY(10);
 	}
 
 	device_printf(dev, "%s failed: 0x%x, 0x%x\n", __func__, val,
-		      inb(ASMC_CMDPORT));
+	    ASMC_CMDPORT_READ(sc));
 	
 	return (1);
 }
@@ -586,22 +613,22 @@ asmc_key_read(device_t dev, const char *key, uint8_t *buf, uint8_t len)
 
 	mtx_lock_spin(&sc->sc_mtx);
 
-	outb(ASMC_CMDPORT, ASMC_CMDREAD);
+	ASMC_CMDPORT_WRITE(sc, ASMC_CMDREAD);
 	if (asmc_wait(dev, 0x0c))
 		goto out;
 
 	for (i = 0; i < 4; i++) {
-		outb(ASMC_DATAPORT, key[i]);
+		ASMC_DATAPORT_WRITE(sc, key[i]);
 		if (asmc_wait(dev, 0x04))
 			goto out;
 	}
 
-	outb(ASMC_DATAPORT, len);
+	ASMC_DATAPORT_WRITE(sc, len);
 
 	for (i = 0; i < len; i++) {
 		if (asmc_wait(dev, 0x05))
 			goto out;
-		buf[i] = inb(ASMC_DATAPORT);
+		buf[i] = ASMC_DATAPORT_READ(sc);
 	}
 
 	error = 0;
@@ -619,22 +646,25 @@ asmc_key_write(device_t dev, const char *key, uint8_t *buf, uint8_t len)
 
 	mtx_lock_spin(&sc->sc_mtx);
 
-	outb(ASMC_CMDPORT, ASMC_CMDWRITE);
+	ASMC_DPRINTF(("cmd port: cmd write\n"));
+	ASMC_CMDPORT_WRITE(sc, ASMC_CMDWRITE);
 	if (asmc_wait(dev, 0x0c))
 		goto out;
 
+	ASMC_DPRINTF(("data port: key\n"));
 	for (i = 0; i < 4; i++) {
-		outb(ASMC_DATAPORT, key[i]);
+		ASMC_DATAPORT_WRITE(sc, key[i]);
 		if (asmc_wait(dev, 0x04))
 			goto out;
 	}
+	ASMC_DPRINTF(("data port: length\n"));
+	ASMC_DATAPORT_WRITE(sc, len);
 
-	outb(ASMC_DATAPORT, len);
-
+	ASMC_DPRINTF(("data port: buffer\n"));
 	for (i = 0; i < len; i++) {
 		if (asmc_wait(dev, 0x04))
 			goto out;
-		outb(ASMC_DATAPORT, buf[i]);
+		ASMC_DATAPORT_WRITE(sc, buf[i]);
 	}
 
 	error = 0;
@@ -820,7 +850,7 @@ asmc_sms_intrfast(void *arg)
 	struct asmc_softc *sc = device_get_softc(dev);
 
 	mtx_lock_spin(&sc->sc_mtx);
-	type = inb(ASMC_INTPORT);
+	type = ASMC_INTPORT_READ(sc);
 	mtx_unlock_spin(&sc->sc_mtx);
 
 	sc->sc_sms_intrtype = type;
@@ -886,7 +916,7 @@ asmc_sms_task(void *arg, int pending)
 	}
 
 	snprintf(notify, sizeof(notify), " notify=0x%x", type);
-	devctl_notify("ISA", "asmc", "SMS", notify); 
+	devctl_notify("ACPI", "asmc", "SMS", notify); 
 }
 
 static int
