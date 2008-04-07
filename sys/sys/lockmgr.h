@@ -133,35 +133,35 @@ _lockmgr_args_rw(struct lock *lk, u_int flags, struct rwlock *ilk,
 /*
  * Flags for lockinit().
  */
-#define	LK_INIT_MASK	0x000FF
-#define	LK_CANRECURSE	0x00001
-#define	LK_NODUP	0x00002
-#define	LK_NOPROFILE	0x00004
-#define	LK_NOSHARE	0x00008
-#define	LK_NOWITNESS	0x00010
-#define	LK_QUIET	0x00020
+#define	LK_INIT_MASK	0x0000FF
+#define	LK_CANRECURSE	0x000001
+#define	LK_NODUP	0x000002
+#define	LK_NOPROFILE	0x000004
+#define	LK_NOSHARE	0x000008
+#define	LK_NOWITNESS	0x000010
+#define	LK_QUIET	0x000020
 
 /*
  * Additional attributes to be used in lockmgr().
  */
-#define	LK_EATTR_MASK	0x0FF00
-#define	LK_INTERLOCK	0x00100
-#define	LK_NOWAIT	0x00200
-#define	LK_RETRY	0x00400
-#define	LK_SLEEPFAIL	0x00800
-#define	LK_TIMELOCK	0x01000
+#define	LK_EATTR_MASK	0x00FF00
+#define	LK_INTERLOCK	0x000100
+#define	LK_NOWAIT	0x000200
+#define	LK_RETRY	0x000400
+#define	LK_SLEEPFAIL	0x000800
+#define	LK_TIMELOCK	0x001000
 
 /*
  * Operations for lockmgr().
  */
-#define	LK_TYPE_MASK	0xF0000
-#define	LK_DOWNGRADE	0x10000
-#define	LK_DRAIN	0x20000
-#define	LK_EXCLOTHER	0x30000
-#define	LK_EXCLUSIVE	0x40000
-#define	LK_RELEASE	0x50000
-#define	LK_SHARED	0x60000
-#define	LK_UPGRADE	0x70000
+#define	LK_TYPE_MASK	0xFF0000
+#define	LK_DOWNGRADE	0x010000
+#define	LK_DRAIN	0x020000
+#define	LK_EXCLOTHER	0x040000
+#define	LK_EXCLUSIVE	0x080000
+#define	LK_RELEASE	0x100000
+#define	LK_SHARED	0x200000
+#define	LK_UPGRADE	0x400000
 
 #define	LK_TOTAL_MASK	(LK_INIT_MASK | LK_EATTR_MASK | LK_TYPE_MASK)
 

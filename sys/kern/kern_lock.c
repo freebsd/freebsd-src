@@ -88,7 +88,7 @@ CTASSERT(((LK_CANRECURSE | LK_NOSHARE) & LO_CLASSFLAGS) ==
 	((x) & LK_NOWAIT)
 #define	LK_CAN_SHARE(x)							\
 	(((x) & LK_SHARE) && (((x) & LK_EXCLUSIVE_WAITERS) == 0 ||	\
-	curthread->td_lk_slocks))
+	curthread->td_lk_slocks || (curthread->td_pflags & TDP_DEADLKTREAT)))
 
 #define	lockmgr_disowned(lk)						\
 	(((lk)->lk_lock & ~(LK_FLAGMASK & ~LK_SHARE)) == LK_KERNPROC)
