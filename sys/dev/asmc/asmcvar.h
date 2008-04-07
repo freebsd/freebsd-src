@@ -92,7 +92,7 @@ struct asmc_softc {
  * Sudden Motion Sensor (SMS).
  */
 #define ASMC_SMS_INIT1		0xe0
-#define ASMC_SMS_INIT2		0x00
+#define ASMC_SMS_INIT2		0xf8
 #define ASMC_KEY_SMS		"MOCN"	/* RW; 2 bytes */
 #define ASMC_KEY_SMS_X		"MO_X"	/* RO; 2 bytes */
 #define ASMC_KEY_SMS_Y		"MO_Y"	/* RO; 2 bytes */
