@@ -38,8 +38,8 @@ fileGetURL(const char *base, const char *spec, int keep_package)
     char *cp, *rp, *tmp;
     char fname[FILENAME_MAX];
     char pen[FILENAME_MAX];
-    char buf[8192];
     char pkg[FILENAME_MAX];
+    char buf[8192];
     FILE *ftp;
     pid_t tpid;
     int pfd[2], pstat, r, w = 0;
@@ -98,18 +98,18 @@ fileGetURL(const char *base, const char *spec, int keep_package)
     else
 	strcpy(fname, spec);
 
-   if (keep_package) {
-    	tmp = getenv("PKGDIR");
+    if (keep_package) {
+	tmp = getenv("PKGDIR");
 	strlcpy(pkg, tmp ? tmp : ".", sizeof(pkg));
 	tmp = basename(fname);
 	strlcat(pkg, "/", sizeof(pkg));
 	strlcat(pkg, tmp, sizeof(pkg));
-    	if ((pkgfd = open(pkg, O_WRONLY|O_CREAT|O_TRUNC, 0644)) == -1) {
-    	    printf("Error: Unable to open %s\n", pkg);
+	if ((pkgfd = open(pkg, O_WRONLY|O_CREAT|O_TRUNC, 0644)) == -1) {
+	    printf("Error: Unable to open %s\n", pkg);
 	    perror("open");
 	    return NULL;
 	}
-   } 
+    }
 
     fetchDebug = (Verbose > 0);
     if ((ftp = fetchGetURL(fname, Verbose ? "v" : NULL)) == NULL) {
@@ -142,9 +142,9 @@ fileGetURL(const char *base, const char *spec, int keep_package)
 	    close(fd);
 	execl("/usr/bin/tar", "tar",
 #if defined(__FreeBSD_version) && __FreeBSD_version >= 500039
-	    Verbose ? "-xjvf" : "-xjf",
+	    Verbose ? "-xpjvf" : "-xpjf",
 #else
-	    Verbose ? "-xzvf" : "-xzf",
+	    Verbose ? "-xpzvf" : "-xpzf",
 #endif
 	    "-", (char *)0);
 	_exit(2);

@@ -37,7 +37,7 @@ Boolean	NoDeInstall	= FALSE;
 Boolean	Recursive	= FALSE;
 match_t	MatchType	= MATCH_GLOB;
 
-static void usage __P((void));
+static void usage(void);
 
 int
 main(int argc, char **argv)
@@ -52,7 +52,7 @@ main(int argc, char **argv)
     while ((ch = getopt(argc, argv, Options)) != -1)
 	switch(ch) {
 	case 'v':
-	    Verbose = TRUE;
+	    Verbose++;
 	    break;
 
 	case 'f':

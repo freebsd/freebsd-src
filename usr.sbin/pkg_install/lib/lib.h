@@ -57,6 +57,13 @@
 /* Usually "rm", but often "echo" during debugging! */
 #define RMDIR_CMD	"/bin/rmdir"
 
+/* Where the ports lives by default */
+#define DEF_PORTS_DIR   "/usr/ports"
+/* just in case we change the environment variable name */
+#define PORTSDIR    "PORTSDIR"
+/* macro to get name of directory where the ports lives */
+#define PORTS_DIR       (getenv(PORTSDIR) ? getenv(PORTSDIR) : DEF_PORTS_DIR)
+
 /* Where we put logging information by default, else ${PKG_DBDIR} if set */
 #define DEF_LOG_DIR	"/var/db/pkg"
 /* just in case we change the environment variable name */
@@ -77,7 +84,9 @@
 #define DISPLAY_FNAME		"+DISPLAY"
 #define MTREE_FNAME		"+MTREE_DIRS"
 
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 700000
+#if defined(__FreeBSD_version) && __FreeBSD_version >= 800000
+#define INDEX_FNAME		"INDEX-8"
+#elif defined(__FreeBSD_version) && __FreeBSD_version >= 700000
 #define INDEX_FNAME		"INDEX-7"
 #elif defined(__FreeBSD_version) && __FreeBSD_version >= 600000
 #define INDEX_FNAME		"INDEX-6"
@@ -170,7 +179,7 @@ Boolean		fexists(const char *);
 Boolean		isdir(const char *);
 Boolean		isemptydir(const char *fname);
 Boolean		isemptyfile(const char *fname);
-Boolean         isfile(const char *);
+Boolean		isfile(const char *);
 Boolean		isempty(const char *);
 Boolean		issymlink(const char *);
 Boolean		isURL(const char *);
@@ -230,9 +239,9 @@ int		version_cmp(const char *, const char *);
 
 /* Externs */
 extern Boolean	Quiet;
-extern Boolean	Verbose;
 extern Boolean	Fake;
 extern Boolean  Force;
 extern int	AutoAnswer;
+extern int	Verbose;
 
 #endif /* _INST_LIB_LIB_H_ */

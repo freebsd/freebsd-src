@@ -35,7 +35,7 @@ Boolean RegexExtended = FALSE;
 Boolean UseINDEXOnly = FALSE;
 Boolean ShowOrigin = FALSE;
 
-static void usage __P((void));
+static void usage(void);
 
 int
 main(int argc, char **argv)
@@ -54,7 +54,7 @@ main(int argc, char **argv)
     else while ((ch = getopt(argc, argv, Options)) != -1) {
 	switch(ch) {
 	case 'v':
-	    Verbose = TRUE;
+	    Verbose++;
 	    break;
 
 	case 'I':
@@ -77,9 +77,9 @@ main(int argc, char **argv)
 	    MatchName = optarg;
 	    break;
 
-        case 'O':
-            LookUpOrigin = optarg;
-            break;
+	case 'O':
+	    LookUpOrigin = optarg;
+	    break;
 
 	case 'o':
 	    ShowOrigin = TRUE;
