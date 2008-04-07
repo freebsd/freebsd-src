@@ -235,8 +235,8 @@ pkg_do(char *pkg)
 	    show_version(plist, NULL, NULL);
 	else
 	    show_version(plist, latest, "index");
-		}
 	}
+    }
     if (latest != NULL)
 	free(latest);
     free_plist(&plist);
@@ -275,7 +275,7 @@ show_version(Package plist, const char *latest, const char *source)
 	    if (Verbose)
 		printf("   Comparison failed");
 	    printf("\n");
-	} else if (source == NULL && OUTPUT('?')) {
+	} else if (OUTPUT('?')) {
 	    printf("%-34s  ?", tmp);
 	    if (Verbose)
 		printf("   orphaned: %s", plist.origin);

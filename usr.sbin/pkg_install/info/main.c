@@ -39,7 +39,7 @@ char *LookUpOrigin	= NULL;
 Boolean KeepPackage	= FALSE;
 struct which_head *whead;
 
-static void usage __P((void));
+static void usage(void);
 
 int
 main(int argc, char **argv)
@@ -69,7 +69,7 @@ main(int argc, char **argv)
 	    break;
 
 	case 'v':
-	    Verbose = TRUE;
+	    Verbose++;
 	    /* Reasonable definition of 'everything' */
 	    Flags = SHOW_COMMENT | SHOW_DESC | SHOW_PLIST | SHOW_INSTALL |
 		SHOW_DEINSTALL | SHOW_REQUIRE | SHOW_DISPLAY | SHOW_MTREE;

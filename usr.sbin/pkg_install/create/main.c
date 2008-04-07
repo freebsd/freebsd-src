@@ -42,13 +42,13 @@ int	Dereference	= FALSE;
 int	PlistOnly	= FALSE;
 int	Recursive	= FALSE;
 #if defined(__FreeBSD_version) && __FreeBSD_version >= 500039
-enum zipper  Zipper  = BZIP2;
+enum zipper	Zipper  = BZIP2;
 #else
-enum zipper  Zipper  = GZIP;
+enum zipper	Zipper  = GZIP;
 #endif
 
 
-static void usage __P((void));
+static void usage(void);
 
 int
 main(int argc, char **argv)
@@ -60,7 +60,7 @@ main(int argc, char **argv)
     while ((ch = getopt(argc, argv, Options)) != -1)
 	switch(ch) {
 	case 'v':
-	    Verbose = TRUE;
+	    Verbose++;
 	    break;
 
 	case 'x':
@@ -228,12 +228,12 @@ static void
 usage()
 {
     fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
-"usage: pkg_create [-YNOhvyz] [-P pkgs] [-C conflicts] [-p prefix] ",
-"                  [-i iscript] [-I piscript] [-k dscript] [-K pdscript] ",
-"                  [-r rscript] [-t template] [-X excludefile] ",
-"                  [-D displayfile] [-m mtreefile] [-o origin] ",
-"                  [-s srcdir] [-S basedir] ",
+"usage: pkg_create [-YNOhjvyz] [-C conflicts] [-P pkgs] [-p prefix]",
+"                  [-i iscript] [-I piscript] [-k dscript] [-K pdscript]",
+"                  [-r rscript] [-s srcdir] [-S basedir]",
+"                  [-t template] [-X excludefile]",
+"                  [-D displayfile] [-m mtreefile] [-o originpath]",
 "                  -c comment -d description -f packlist pkg-filename",
-"       pkg_create [-EGYNhvxyzR] -b pkg-name [pkg-filename]");
+"       pkg_create [-EGYNRhvxy] -b pkg-name [pkg-filename]");
     exit(1);
 }

@@ -266,7 +266,7 @@ pkg_do(char *pkg)
     for (p = Plist.head; p ; p = p->next) {
 	if (p->type != PLIST_PKGDEP)
 	    continue;
-	deporigin = (p->next->type == PLIST_DEPORIGIN) ? p->next->name :
+	deporigin = (p->next != NULL && p->next->type == PLIST_DEPORIGIN) ? p->next->name :
 							 NULL;
 	if (Verbose) {
 	    printf("Trying to remove dependency on package '%s'", p->name);

@@ -27,7 +27,7 @@ __FBSDID("$FreeBSD$");
 #include "lib.h"
 #include "add.h"
 
-static char Options[] = "hvIRfFnrp:P:SMt:C:K";
+static char Options[] = "hviIRfFnrp:P:SMt:C:K";
 
 char	*Prefix		= NULL;
 Boolean	PrefixRecursive	= FALSE;
@@ -37,6 +37,7 @@ Boolean	NoRecord	= FALSE;
 Boolean Remote		= FALSE;
 Boolean KeepPackage	= FALSE;
 Boolean FailOnAlreadyInstalled	= TRUE;
+Boolean IgnoreDeps	= FALSE;
 
 char	*Mode		= NULL;
 char	*Owner		= NULL;
@@ -77,11 +78,14 @@ struct {
 	{ 601000, 601099, "/packages-6.1-release" },
 	{ 602000, 602099, "/packages-6.2-release" },
 	{ 603000, 603099, "/packages-6.3-release" },
+	{ 700000, 700099, "/packages-7.0-release" },
 	{ 300000, 399000, "/packages-3-stable" },
 	{ 400000, 499000, "/packages-4-stable" },
 	{ 502100, 502128, "/packages-5-current" },
 	{ 503100, 599000, "/packages-5-stable" },
 	{ 600100, 699000, "/packages-6-stable" },
+	{ 700100, 799000, "/packages-7-stable" },
+	{ 800000, 899000, "/packages-8-current" },
 	{ 0, 9999999, "/packages-current" },
 	{ 0, 0, NULL }
 };
@@ -89,7 +93,7 @@ struct {
 static char *getpackagesite(void);
 int getosreldate(void);
 
-static void usage __P((void));
+static void usage(void);
 
 int
 main(int argc, char **argv)
@@ -109,7 +113,7 @@ main(int argc, char **argv)
     while ((ch = getopt(argc, argv, Options)) != -1) {
 	switch(ch) {
 	case 'v':
-	    Verbose = TRUE;
+	    Verbose++;
 	    break;
 
 	case 'p':
@@ -166,6 +170,9 @@ main(int argc, char **argv)
 	case 'C':
 	    Chroot = optarg;
 	    break;
+	case 'i':
+	    IgnoreDeps = TRUE;
+	    break;
 
 	case 'h':
 	case '?':
@@ -178,7 +185,7 @@ main(int argc, char **argv)
     argv += optind;
 
     if (AddMode != SLAVE) {
-	pkgs = (char **)malloc((argc + 1) * sizeof(char *));
+	pkgs = (char **)malloc((argc+1) * sizeof(char *));
 	for (ch = 0; ch <= argc; pkgs[ch++] = NULL) ;
 
 	/* Get all the remaining package names, if any */
@@ -321,7 +328,7 @@ static void
 usage()
 {
     fprintf(stderr, "%s\n%s\n",
-	"usage: pkg_add [-vInrfRMSK] [-t template] [-p prefix] [-P prefix] [-C chrootdir]",
+	"usage: pkg_add [-viInfFrRMSK] [-t template] [-p prefix] [-P prefix] [-C chrootdir]",
 	"               pkg-name [pkg-name ...]");
     exit(1);
 }

@@ -31,6 +31,7 @@ extern Boolean	NoInstall;
 extern Boolean	NoRecord;
 extern Boolean	FailOnAlreadyInstalled;
 extern Boolean	KeepPackage;
+extern Boolean	IgnoreDeps;
 extern char	*Mode;
 extern char	*Owner;
 extern char	*Group;

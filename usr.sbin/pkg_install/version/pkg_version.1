@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Jul 27, 2005
+.Dd July 27, 2005
 .Dt PKG_VERSION 1
 .Os
 .Sh NAME
@@ -72,7 +72,7 @@ cannot be located,
 .Nm
 will search for the package in the ports collection index file
 (typically
-.Pa /usr/ports/INDEX-6 ) .
+.Pa /usr/ports/INDEX-8 ) .
 Any matching version number(s) there will be used to determine whether
 the installed package is up-to-date or requires updating.
 .Pp
@@ -205,12 +205,12 @@ can be used here.
 If no
 .Ar index
 file is specified on the command line,
-.Pa /usr/ports/INDEX-6
+.Pa /usr/ports/INDEX-8
 is used.
 .El
 .Sh FILES
-.Bl -tag -width /usr/ports/INDEX-6 -compact
-.It Pa /usr/ports/INDEX-6
+.Bl -tag -width /usr/ports/INDEX-8 -compact
+.It Pa /usr/ports/INDEX-8
 Default index file.
 .El
 .Sh EXAMPLES
@@ -224,7 +224,7 @@ index file:
 The command below generates a report against
 the version numbers in the on-line ports collection:
 .Pp
-.Dl % pkg_version http://www.FreeBSD.org/ports/INDEX-6
+.Dl % pkg_version http://www.FreeBSD.org/ports/INDEX-8
 .Pp
 The following command compares two package version strings:
 .Pp

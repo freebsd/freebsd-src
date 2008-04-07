@@ -26,7 +26,7 @@ __FBSDID("$FreeBSD$");
 
 /* These are global for all utils */
 Boolean	Quiet		= FALSE;
-Boolean	Verbose		= FALSE;
 Boolean	Fake		= FALSE;
 Boolean	Force		= FALSE;
 int AutoAnswer		= FALSE;
+int	Verbose			= 0;		/* Allow multiple levels of verbose. */

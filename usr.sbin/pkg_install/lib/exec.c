@@ -68,8 +68,8 @@ vpipe(const char *fmt, ...)
 
     rp = malloc(MAXPATHLEN);
     if (!rp) {
-        warnx("vpipe can't alloc buffer space");
-        return NULL;
+	warnx("vpipe can't alloc buffer space");
+	return NULL;
     }
     maxargs = sysconf(_SC_ARG_MAX);
     maxargs -= 32;			    /* some slop for the sh -c */

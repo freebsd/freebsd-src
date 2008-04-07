@@ -15,7 +15,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 16, 2006
+.Dd November 29, 2007
 .Dt PKG_ADD 1
 .Os
 .Sh NAME
@@ -23,7 +23,7 @@
 .Nd a utility for installing software package distributions
 .Sh SYNOPSIS
 .Nm
-.Op Fl vInfFrRMSK
+.Op Fl viInfFrRMSK
 .Op Fl t Ar template
 .Op Fl p Ar prefix
 .Op Fl P Ar prefix
@@ -87,6 +87,9 @@ Turn on verbose output.
 Keep any downloaded package in
 .Ev PKGDIR
 if it is defined or in current directory by default.
+.It Fl i
+Install the package without fetching and installing
+dependencies.
 .It Fl I
 If any installation scripts (pre-install or post-install) exist for a given
 package, do not execute them.
@@ -134,11 +137,12 @@ modes (see the
 .Fl M
 and
 .Fl S
-options). If the
+options).
+If the
 .Fl p
 flag appears after any
 .Fl P
-flag on the command line, it overrides it's effect, causing
+flag on the command line, it overrides its effect, causing
 .Nm
 not to use the given
 .Ar prefix
@@ -148,11 +152,12 @@ Does the same as the
 .Fl p
 option, except that the given
 .Ar prefix
-is also used recursively for the dependency packages, if any. If the
+is also used recursively for the dependency packages, if any.
+If the
 .Fl P
 flag appears after any
 .Fl p
-flag on the command line, it overrides it's effect, causing
+flag on the command line, it overrides its effect, causing
 .Nm
 to use the given
 .Ar prefix
@@ -279,8 +284,11 @@ ftp.
 .Sh TECHNICAL DETAILS
 The
 .Nm
-utility extracts each package's "packing list" into a special staging
-directory in /tmp (or $PKG_TMPDIR if set), parses it, and then runs
+utility extracts each package's
+.Dq "packing list"
+into a special staging directory (see
+.Sx ENVIRONMENT ) ,
+parses it, and then runs
 through the following sequence to fully extract the contents of the package:
 .Bl -enum
 .It
@@ -288,14 +296,14 @@ A check is made to determine if the package is already recorded as installed.
 If it is, installation is terminated.
 .It
 A check is made to determine if the package conflicts (from
-.Cm @conflicts
+.Ic @conflicts
 directives, see
 .Xr pkg_create 1 )
-with an already-installed package.
+with an already installed package.
 If it is, installation is terminated.
 .It
 Scan all the package dependencies (from
-.Cm @pkgdep
+.Ic @pkgdep
 directives, see
 .Xr pkg_create 1 )
 are read from the packing list.
@@ -305,54 +313,51 @@ if the missing package cannot be found or installed,
 the installation is terminated.
 .It
 Search for any
-.Cm @option
+.Ic @option
 directives which control how the package is added to the system.
 At the time of this writing, the only currently implemented option is
-.Cm @option extract-in-place
+.Ic @option Cm extract-in-place
 which will cause the package to be extracted directly into its
-prefix directory without moving through a staging area in
-.Pa /tmp .
+prefix directory without moving through a staging area.
 .It
 If
-.Cm @option extract-in-place
+.Ic @option Cm extract-in-place
 is enabled, the package is now extracted directly into its
 final location, otherwise it is extracted into the staging area.
 .It
-If the package contains a
-.Ar require
-file (see
+If a requirements script
+.Pa +REQUIRE
+exists for the package (see the
+.Fl r
+flag of
 .Xr pkg_create 1 ) ,
 then execute it with the following arguments:
-.Bd -ragged -offset indent -compact
-.Ar pkg-name
-.Ar INSTALL
-.Ed
+.Pp
+.D1 Ar pkg-name Li INSTALL
+.Pp
 where
 .Ar pkg-name
 is the name of the package in question and the
-.Ar INSTALL
+.Dq Li INSTALL
 keyword denotes this as an installation requirements check (useful if
 you want to have one script serving multiple functions).
 .It
-If a
-.Ar pre-install
-script exists for the package, it is then executed with the following
-arguments:
-.Bd -ragged -offset indent -compact
-.Cm script
-.Ar pkg-name
-.Ar PRE-INSTALL
-.Ed
+If a pre-install script
+.Pa +INSTALL
+exists for the package,
+it is then executed with the following arguments:
+.Pp
+.D1 Ar pkg-name Li PRE-INSTALL
 .Pp
 where
 .Ar pkg-name
 is the name of the package in question and
-.Ar PRE-INSTALL
+.Dq Li PRE-INSTALL
 is a keyword denoting this as the preinstallation phase.
 .Pp
 .Sy Note :
 The
-.Ar PRE-INSTALL
+.Dq Li PRE-INSTALL
 keyword will not appear if separate scripts for pre-install and post-install
 are given during package creation time (using the
 .Fl i
@@ -362,55 +367,51 @@ flags to
 .Xr pkg_create 1 ) .
 .It
 If
-.Cm @option extract-in-place
+.Cm @option Cm extract-in-place
 is not used, then the packing list (this is the
 .Pa +CONTENTS
 file) is now used as a guide for moving (or copying, as necessary) files from
 the staging area into their final locations.
 .It
-If the package contains an
-.Ar mtreefile
-file (see
+If an mtree file
+.Pa +MTREE_DIRS
+exists for the package (see the
+.Fl m
+flag of
 .Xr pkg_create 1 ) ,
-then mtree is invoked as:
-.Bd -ragged -offset indent -compact
-.Cm mtree
-.Fl u
-.Fl f
-.Ar mtreefile
-.Fl d
-.Fl e
-.Fl p
-.Pa prefix
-.Ed
+then
+.Xr mtree 8
+is invoked as:
+.Pp
+.D1 Nm mtree Fl U f Pa +MTREE_DIRS Fl d e p Ar prefix
+.Pp
 where
-.Pa prefix
+.Ar prefix
 is either the prefix specified with the
 .Fl p
 or
 .Fl P
 flag or,
 if neither flag was specified, the name of the first directory named by a
-.Cm @cwd
+.Ic @cwd
 directive within this package.
 .It
-If a
-.Ar post-install
-script exists for the package, it is then executed as
-.Bd -ragged -offset indent -compact
-.Cm script
-.Ar pkg-name
-.Ar POST-INSTALL
-.Ed
+If a post-install script
+.Pa +POST-INSTALL
+exists for the package,
+it is then executed with the following arguments:
+.Pp
+.D1 Ar pkg-name Li POST-INSTALL
+.Pp
 where
 .Ar pkg-name
 is the name of the package in question and
-.Ar POST-INSTALL
+.Dq Li POST-INSTALL
 is a keyword denoting this as the post-installation phase.
 .Pp
 .Sy Note :
 The
-.Ar POST-INSTALL
+.Dq Li POST-INSTALL
 keyword will not appear if separate scripts for pre-install and post-install
 are given during package creation time (using the
 .Fl i
@@ -420,27 +421,50 @@ flags to
 .Xr pkg_create 1 ) .
 .Pp
 Reasoning behind passing keywords such as
-.Ar POST-INSTALL
+.Dq Li POST-INSTALL
 and
-.Ar PRE-INSTALL
+.Dq Li PRE-INSTALL
 is that this allows you to write a single
-.Ar install
+install
 script that does both
-.Dq before and after
+.Dq before
+and
+.Dq after
 actions.
 But, separating the
 functionality is more advantageous and easier from a maintenance viewpoint.
 .It
-After installation is complete, a copy of the packing list,
-.Ar deinstall
-script, description, and display files are copied into
-.Pa /var/db/pkg/<pkg-name>
+After installation is complete, a copy of the
+description
+.Pq Pa +DESC ,
+comment
+.Pq Pa +COMMENT ,
+pre-install script
+.Pq Pa +INSTALL ,
+post-install script
+.Pq Pa +POST-INSTALL ,
+deinstall script
+.Pq Pa +DEINSTALL ,
+post-deinstall script
+.Pq Pa +POST-DEINSTALL ,
+requirements script
+.Pq Pa +REQUIRE ,
+display
+.Pq Pa +DISPLAY ,
+mtree
+.Pq Pa +MTREE_DIRS ,
+and packing list
+.Pq Pa +CONTENTS
+files are copied into
+.Pa /var/db/pkg/ Ns Aq Ar pkg-name
 for subsequent possible use by
 .Xr pkg_delete 1 .
 Any package dependencies are recorded in the other packages'
-.Pa /var/db/pkg/<other-pkg>/+REQUIRED_BY
+.Pa /var/db/pkg/ Ns Ao Ar other-pkg Ac Ns Pa /+REQUIRED_BY
 file
-(if the environment variable PKG_DBDIR is set, this overrides the
+(if the environment variable
+.Ev PKG_DBDIR
+is set, this overrides the
 .Pa /var/db/pkg/
 path shown above).
 .It
@@ -461,7 +485,7 @@ is installed, even if the user might change it with the
 or
 .Fl P
 flags to
-.Cm pkg_add .
+.Nm .
 .Sh ENVIRONMENT
 The value of the
 .Ev PKG_PATH
