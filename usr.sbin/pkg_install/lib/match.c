@@ -307,6 +307,17 @@ matchbyorigin(const char *origin, int *retval)
 }
 
 /*
+ * Small linked list to memoize results of isinstalledpkg().  A hash table
+ * would be faster but for n ~= 1000 may be overkill.
+ */
+struct iip_memo {
+	LIST_ENTRY(iip_memo) iip_link;
+	char	*iip_name;
+	int	 iip_result;
+};
+LIST_HEAD(, iip_memo) iip_memo = LIST_HEAD_INITIALIZER(iip_memo);
+
+/*
  * 
  * Return 1 if the specified package is installed,
  * 0 if not, and -1 if an error occured.
@@ -314,18 +325,53 @@ matchbyorigin(const char *origin, int *retval)
 int
 isinstalledpkg(const char *name)
 {
-    char buf[FILENAME_MAX];
-    char buf2[FILENAME_MAX];
+    int result;
+    char *buf, *buf2;
+    struct iip_memo *memo;
 
-    snprintf(buf, sizeof(buf), "%s/%s", LOG_DIR, name);
-    if (!isdir(buf) || access(buf, R_OK) == FAIL)
-	return 0;
+    LIST_FOREACH(memo, &iip_memo, iip_link) {
+	if (strcmp(memo->iip_name, name) == 0)
+	    return memo->iip_result;
+    }
+    
+    buf2 = NULL;
+    asprintf(&buf, "%s/%s", LOG_DIR, name);
+    if (buf == NULL)
+	goto errout;
+    if (!isdir(buf) || access(buf, R_OK) == FAIL) {
+	result = 0;
+    } else {
+	asprintf(&buf2, "%s/%s", buf, CONTENTS_FNAME);
+	if (buf2 == NULL)
+	    goto errout;
 
-    snprintf(buf2, sizeof(buf2), "%s/%s", buf, CONTENTS_FNAME);
-    if (!isfile(buf2) || access(buf2, R_OK) == FAIL)
-	return -1;
+	if (!isfile(buf2) || access(buf2, R_OK) == FAIL)
+	    result = -1;
+	else
+	    result = 1;
+    }
 
-    return 1;
+    free(buf);
+    buf = strdup(name);
+    if (buf == NULL)
+	goto errout;
+    free(buf2);
+    buf2 = NULL;
+
+    memo = malloc(sizeof *memo);
+    if (memo == NULL)
+	goto errout;
+    memo->iip_name = buf;
+    memo->iip_result = result;
+    LIST_INSERT_HEAD(&iip_memo, memo, iip_link);
+    return result;
+
+errout:
+    if (buf != NULL)
+	free(buf);
+    if (buf2 != NULL)
+	free(buf2);
+    return -1;
 }
 
 /*
