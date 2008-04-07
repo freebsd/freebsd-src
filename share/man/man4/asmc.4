@@ -1,5 +1,5 @@
 .\"-
-.\" Copyright (c) 2007 Rui Paulo <rpaulo@FreeBSD.org>
+.\" Copyright (c) 2007, 2008 Rui Paulo <rpaulo@FreeBSD.org>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 10, 2007
+.Dd April 7, 2008
 .Dt ASMC 4
 .Os
 .Sh NAME
@@ -121,7 +121,7 @@ and then configure
 the following way:
 .Bd -literal -offset indent
 notify 0 {
-	match "system"		"ISA";
+	match "system"		"ACPI";
 	match "subsystem"	"asmc";
 	action			"/usr/local/sbin/ataidle -s X Y";
 };
