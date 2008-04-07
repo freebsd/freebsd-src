@@ -277,6 +277,7 @@ static void	pmap_pv_promote_pde(pmap_t pmap, vm_offset_t va, vm_paddr_t pa);
 static void	pmap_pvh_free(struct md_page *pvh, pmap_t pmap, vm_offset_t va);
 static pv_entry_t pmap_pvh_remove(struct md_page *pvh, pmap_t pmap,
 		    vm_offset_t va);
+static int	pmap_pvh_wired_mappings(struct md_page *pvh, int count);
 
 static boolean_t pmap_demote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va);
 static boolean_t pmap_enter_pde(pmap_t pmap, vm_offset_t va, vm_page_t m,
@@ -3811,17 +3812,30 @@ pmap_page_exists_quick(pmap_t pmap, vm_page_t m)
 int
 pmap_page_wired_mappings(vm_page_t m)
 {
-	pv_entry_t pv;
-	pt_entry_t *pte;
-	pmap_t pmap;
 	int count;
 
 	count = 0;
 	if ((m->flags & PG_FICTITIOUS) != 0)
 		return (count);
+	count = pmap_pvh_wired_mappings(&m->md, count);
+	return (pmap_pvh_wired_mappings(pa_to_pvh(VM_PAGE_TO_PHYS(m)), count));
+}
+
+/*
+ *	pmap_pvh_wired_mappings:
+ *
+ *	Return the updated number "count" of managed mappings that are wired.
+ */
+static int
+pmap_pvh_wired_mappings(struct md_page *pvh, int count)
+{
+	pmap_t pmap;
+	pt_entry_t *pte;
+	pv_entry_t pv;
+
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	sched_pin();
-	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
+	TAILQ_FOREACH(pv, &pvh->pv_list, pv_list) {
 		pmap = PV_PMAP(pv);
 		PMAP_LOCK(pmap);
 		pte = pmap_pte_quick(pmap, pv->pv_va);
