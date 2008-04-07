@@ -219,6 +219,8 @@ static driver_t	asmc_driver = {
 ACPI_MODULE_NAME("ASMC")
 #ifdef DEBUG
 #define ASMC_DPRINTF(str)	device_printf(dev, str)
+#else
+#define ASMC_DPRINTF(str)	
 #endif
 
 static char *asmc_ids[] = { "APP0001", NULL };
@@ -548,18 +550,17 @@ asmc_init(device_t dev)
 		if (asmc_key_read(dev, ASMC_KEY_SMS, buf, 2) == 0 && 
 		    (buf[0] != 0x00 || buf[1] != 0x00)) {
 			error = 0;
-			device_printf(dev, "WARNING: Sudden Motion Sensor "
-			    "not initialized!\n");
-			goto nosms;
+			goto out;
 		}
-	
 		buf[0] = ASMC_SMS_INIT1;
 		buf[1] = ASMC_SMS_INIT2;
 		ASMC_DPRINTF(("sms key\n"));
 		asmc_key_write(dev, ASMC_KEY_SMS, buf, 2);
 		DELAY(50);
 	}
+	device_printf(dev, "WARNING: Sudden Motion Sensor not initialized!\n");
 
+out:
 	asmc_sms_calibrate(dev);
 nosms:
 	sc->sc_nfan = asmc_fan_count(dev);
