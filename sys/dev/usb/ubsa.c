@@ -232,6 +232,8 @@ Static const struct ubsa_product {
 	{ USB_VENDOR_OPTION, USB_PRODUCT_OPTION_GT3GQUAD },
 	/* Huawei Mobile */
 	{ USB_VENDOR_HUAWEI, USB_PRODUCT_HUAWEI_MOBILE },
+	/* Qualcomm, Inc. ZTE CDMA */
+	{ USB_VENDOR_QUALCOMMINC, USB_PRODUCT_QUALCOMMINC_CDMA_MSM },
 	{ 0, 0 }
 };
 
