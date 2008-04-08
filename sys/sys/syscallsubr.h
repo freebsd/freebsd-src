@@ -60,8 +60,8 @@ int	kern_accessat(struct thread *td, int fd, char *path,
 	    enum uio_seg pathseg, int flags, int mode);
 int	kern_adjtime(struct thread *td, struct timeval *delta,
 	    struct timeval *olddelta);
-int	kern_alternate_path(struct thread *td, const char *prefix, char *path,
-	    enum uio_seg pathseg, char **pathbuf, int create);
+int	kern_alternate_path(struct thread *td, const char *prefix, const char *path,
+	    enum uio_seg pathseg, char **pathbuf, int create, int dirfd);
 int	kern_bind(struct thread *td, int fd, struct sockaddr *sa);
 int	kern_chdir(struct thread *td, char *path, enum uio_seg pathseg);
 int	kern_chmod(struct thread *td, char *path, enum uio_seg pathseg,
