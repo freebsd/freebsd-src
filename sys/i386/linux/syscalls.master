@@ -475,20 +475,31 @@
 292	AUE_NULL	STD	{ int linux_inotify_add_watch(void); }
 293	AUE_NULL	STD	{ int linux_inotify_rm_watch(void); }
 294	AUE_NULL	STD	{ int linux_migrate_pages(void); }
-295	AUE_OPEN_RWTC	STD	{ int linux_openat(l_int dfd, char *filename, \
+295	AUE_OPEN_RWTC	STD	{ int linux_openat(l_int dfd, const char *filename, \
 					l_int flags, l_int mode); }
-296	AUE_NULL	STD	{ int linux_mkdirat(void); }
-297	AUE_NULL	STD	{ int linux_mknodat(void); }
-298	AUE_NULL	STD	{ int linux_fchownat(void); }
-299	AUE_NULL	STD	{ int linux_futimesat(void); }
-300	AUE_NULL	STD	{ int linux_fstatat64(void); }
-301	AUE_NULL	STD	{ int linux_unlinkat(void); }
-302	AUE_NULL	STD	{ int linux_renameat(void); }
-303	AUE_NULL	STD	{ int linux_linkat(void); }
-304	AUE_NULL	STD	{ int linux_symlinkat(void); }
-305	AUE_NULL	STD	{ int linux_readlinkat(void); }
-306	AUE_NULL	STD	{ int linux_fchmodat(void); }
-307	AUE_NULL	STD	{ int linux_faccessat(void); }
+296	AUE_MKDIRAT	STD	{ int linux_mkdirat(l_int dfd, const char *pathname, \
+					l_int mode); }
+297	AUE_MKNODAT	STD	{ int linux_mknodat(l_int dfd, const char *filename, \
+					l_int mode, l_uint dev); }
+298	AUE_FCHOWNAT	STD	{ int linux_fchownat(l_int dfd, const char *filename, \
+					l_uid16_t uid, l_gid16_t gid, l_int flag); }
+299	AUE_FUTIMESAT	STD	{ int linux_futimesat(l_int dfd, char *filename, \
+					struct l_timeval *utimes); }
+300	AUE_FSTATAT	STD	{ int linux_fstatat64(l_int dfd, char *pathname, \
+					struct l_stat64 *statbuf, l_int flag); }
+301	AUE_UNLINKAT	STD	{ int linux_unlinkat(l_int dfd, const char *pathname, \
+					l_int flag); }
+302	AUE_RENAMEAT	STD	{ int linux_renameat(l_int olddfd, const char *oldname, \
+					l_int newdfd, const char *newname); }
+303	AUE_LINKAT	STD	{ int linux_linkat(l_int olddfd, const char *oldname, \
+					l_int newdfd, const char *newname, l_int flags); }
+304	AUE_SYMLINKAT	STD	{ int linux_symlinkat(const char *oldname, l_int newdfd, \
+					const char *newname); }
+305	AUE_READLINKAT	STD	{ int linux_readlinkat(l_int dfd, const char *path, \
+					char *buf, l_int bufsiz); }
+306	AUE_FCHMODAT	STD	{ int linux_fchmodat(l_int dfd, const char *filename, \
+					l_mode_t mode); }
+307	AUE_FACCESSAT	STD	{ int linux_faccessat(l_int dfd, const char *filename, l_int mode); }
 308	AUE_NULL	STD	{ int linux_pselect6(void); }
 309	AUE_NULL	STD	{ int linux_ppoll(void); }
 310	AUE_NULL	STD	{ int linux_unshare(void); }

@@ -87,6 +87,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/../linux/linux_proto.h>
 #endif
 
+#include <compat/linux/linux_file.h>
 #include <compat/linux/linux_mib.h>
 #include <compat/linux/linux_signal.h>
 #include <compat/linux/linux_util.h>
@@ -836,6 +837,39 @@ linux_utimes(struct thread *td, struct linux_utimes_args *args)
 	LFREEPATH(fname);
 	return (error);
 }
+
+int
+linux_futimesat(struct thread *td, struct linux_futimesat_args *args)
+{
+	l_timeval ltv[2];
+	struct timeval tv[2], *tvp = NULL;
+	char *fname;
+	int error, dfd;
+
+	dfd = (args->dfd == LINUX_AT_FDCWD) ? AT_FDCWD : args->dfd;
+	LCONVPATHEXIST_AT(td, args->filename, &fname, dfd);
+
+#ifdef DEBUG
+	if (ldebug(futimesat))
+		printf(ARGS(futimesat, "%s, *"), fname);
+#endif
+
+	if (args->utimes != NULL) {
+		if ((error = copyin(args->utimes, ltv, sizeof ltv))) {
+			LFREEPATH(fname);
+			return (error);
+		}
+		tv[0].tv_sec = ltv[0].tv_sec;
+		tv[0].tv_usec = ltv[0].tv_usec;
+		tv[1].tv_sec = ltv[1].tv_sec;
+		tv[1].tv_usec = ltv[1].tv_usec;
+		tvp = tv;
+	}
+
+	error = kern_utimesat(td, dfd, fname, UIO_SYSSPACE, tvp, UIO_SYSSPACE);
+	LFREEPATH(fname);
+	return (error);
+}
 #endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */
 
 #define __WCLONE 0x80000000
@@ -963,6 +997,56 @@ linux_mknod(struct thread *td, struct linux_mknod_args *args)
 	case S_IFREG:
 		error = kern_open(td, path, UIO_SYSSPACE,
 		    O_WRONLY | O_CREAT | O_TRUNC, args->mode);
+		if (error == 0)
+			kern_close(td, td->td_retval[0]);
+		break;
+
+	default:
+		error = EINVAL;
+		break;
+	}
+	LFREEPATH(path);
+	return (error);
+}
+
+int
+linux_mknodat(struct thread *td, struct linux_mknodat_args *args)
+{
+	char *path;
+	int error, dfd;
+
+	dfd = (args->dfd == LINUX_AT_FDCWD) ? AT_FDCWD : args->dfd;
+	LCONVPATHCREAT_AT(td, args->filename, &path, dfd);
+
+#ifdef DEBUG
+	if (ldebug(mknodat))
+		printf(ARGS(mknodat, "%s, %d, %d"), path, args->mode, args->dev);
+#endif
+
+	switch (args->mode & S_IFMT) {
+	case S_IFIFO:
+	case S_IFSOCK:
+		error = kern_mkfifoat(td, dfd, path, UIO_SYSSPACE, args->mode);
+		break;
+
+	case S_IFCHR:
+	case S_IFBLK:
+		error = kern_mknodat(td, dfd, path, UIO_SYSSPACE, args->mode,
+		    args->dev);
+		break;
+
+	case S_IFDIR:
+		error = EPERM;
+		break;
+
+	case 0:
+		args->mode |= S_IFREG;
+		/* FALLTHROUGH */
+	case S_IFREG:
+		error = kern_openat(td, dfd, path, UIO_SYSSPACE,
+		    O_WRONLY | O_CREAT | O_TRUNC, args->mode);
+		if (error == 0)
+			kern_close(td, td->td_retval[0]);
 		break;
 
 	default:

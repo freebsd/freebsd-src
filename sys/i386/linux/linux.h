@@ -550,8 +550,6 @@ int	linux_ioctl_unregister_handler(struct linux_ioctl_handler *h);
 #define	LINUX_F_WRLCK		1
 #define	LINUX_F_UNLCK		2
 
-#define	LINUX_AT_FDCWD		-100
-
 /*
  * mount flags
  */

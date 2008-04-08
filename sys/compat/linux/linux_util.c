@@ -66,16 +66,17 @@ const char      linux_emul_path[] = "/compat/linux";
  * named file, i.e. we check if the directory it should be in exists.
  */
 int
-linux_emul_convpath(td, path, pathseg, pbuf, cflag)
+linux_emul_convpath(td, path, pathseg, pbuf, cflag, dfd)
 	struct thread	 *td;
-	char		 *path;
+	const char	 *path;
 	enum uio_seg	  pathseg;
 	char		**pbuf;
 	int		  cflag;
+	int		  dfd;
 {
 
 	return (kern_alternate_path(td, linux_emul_path, path, pathseg, pbuf,
-		cflag));
+		cflag, dfd));
 }
 
 void
