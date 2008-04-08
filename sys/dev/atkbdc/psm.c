@@ -290,6 +290,7 @@ static int psmresume(device_t);
 static d_open_t psmopen;
 static d_close_t psmclose;
 static d_read_t psmread;
+static d_write_t psmwrite;
 static d_ioctl_t psmioctl;
 static d_poll_t psmpoll;
 
@@ -397,6 +398,7 @@ static struct cdevsw psm_cdevsw = {
 	.d_open =	psmopen,
 	.d_close =	psmclose,
 	.d_read =	psmread,
+	.d_write =	psmwrite,
 	.d_ioctl =	psmioctl,
 	.d_poll =	psmpoll,
 	.d_name =	PSM_DRIVER_NAME,
@@ -1711,6 +1713,37 @@ unblock_mouse_data(struct psm_softc *sc, int c)
 }
 
 static int
+psmwrite(struct cdev *dev, struct uio *uio, int flag)
+{
+    register struct psm_softc *sc = PSM_SOFTC(PSM_UNIT(dev));
+    u_char buf[PSM_SMALLBUFSIZE];
+    int error = 0, i, l;
+
+    if ((sc->state & PSM_VALID) == 0)
+	return (EIO);
+
+    if (sc->mode.level < PSM_LEVEL_NATIVE)
+	return (ENODEV);
+
+    /* copy data from the user land */
+    while (uio->uio_resid > 0) {
+	l = imin(PSM_SMALLBUFSIZE, uio->uio_resid);
+	error = uiomove(buf, l, uio);
+	if (error)
+	    break;
+	for (i = 0; i < l; i++) {
+	    VLOG(4, (LOG_DEBUG, "psm: cmd 0x%x\n", buf[i]));
+	    if (!write_aux_command(sc->kbdc, buf[i])) {
+		VLOG(2, (LOG_DEBUG, "psm: cmd 0x%x failed.\n", buf[i]));
+		return (reinitialize(sc, FALSE));
+	    }
+	}
+    }
+
+    return (error);
+}
+
+static int
 psmioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 {
     struct psm_softc *sc = PSM_SOFTC(PSM_UNIT(dev));
@@ -2092,12 +2125,20 @@ psmintr(void *arg)
 	timevaladd(&sc->inputtimeout, &now);
 
         pb->ipacket[pb->inputbytes++] = c;
-        if (pb->inputbytes < sc->mode.packetsize) 
-	    continue;
 
-	VLOG(4, (LOG_DEBUG, "psmintr: %02x %02x %02x %02x %02x %02x\n",
-	     pb->ipacket[0], pb->ipacket[1], pb->ipacket[2],
-	     pb->ipacket[3], pb->ipacket[4], pb->ipacket[5]));
+	if (sc->mode.level == PSM_LEVEL_NATIVE) {
+	    VLOG(4, (LOG_DEBUG, "psmintr: %02x\n", pb->ipacket[0]));
+	    sc->syncerrors = 0;
+	    sc->pkterrors = 0;
+	    goto NEXT;
+	} else {
+	    if (pb->inputbytes < sc->mode.packetsize) 
+		continue;
+
+	    VLOG(4, (LOG_DEBUG, "psmintr: %02x %02x %02x %02x %02x %02x\n",
+		pb->ipacket[0], pb->ipacket[1], pb->ipacket[2],
+		pb->ipacket[3], pb->ipacket[4], pb->ipacket[5]));
+	}
 
 	c = pb->ipacket[0];
 
@@ -2180,6 +2221,7 @@ psmintr(void *arg)
 	sc->pkterrors = 0;
 
 	sc->cmdcount++;
+NEXT:
 	if (++sc->pqueue_end >= PSM_PACKETQUEUE)
 		sc->pqueue_end = 0;
 	/*
@@ -2246,6 +2288,10 @@ psmsoftintr(void *arg)
     do {
 	
 	pb = &sc->pqueue[sc->pqueue_start];
+
+	if (sc->mode.level == PSM_LEVEL_NATIVE)
+	    goto NEXT_NATIVE;
+
 	c = pb->ipacket[0];
 	/* 
 	 * A kludge for Kensington device! 
@@ -2806,8 +2852,7 @@ psmsoftintr(void *arg)
         ms.flags = ((x || y || z) ? MOUSE_POSCHANGED : 0) 
 	    | (ms.obutton ^ ms.button);
 
-	if (sc->mode.level < PSM_LEVEL_NATIVE)
-	    pb->inputbytes = tame_mouse(sc, pb, &ms, pb->ipacket);
+	pb->inputbytes = tame_mouse(sc, pb, &ms, pb->ipacket);
 
         sc->status.flags |= ms.flags;
         sc->status.dx += ms.dx;
@@ -2816,6 +2861,7 @@ psmsoftintr(void *arg)
         sc->status.button = ms.button;
         sc->button = ms.button;
 
+NEXT_NATIVE:
 	sc->watchdog = FALSE;
 
         /* queue data */
