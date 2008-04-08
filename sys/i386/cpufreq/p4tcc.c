@@ -164,7 +164,15 @@ p4tcc_attach(device_t dev)
 	 */
 	sc->auto_mode = TRUE;
 
-	switch (cpu_id & 0xf) {
+	/*
+	 * XXX: After a cursory glance at various Intel specification
+	 * XXX: updates it seems like these tests for errata is bogus.
+	 * XXX: As far as I can tell, the failure mode is benign, in
+	 * XXX: that cpus with no errata will have their bottom two
+	 * XXX: STPCLK# rates disabled, so rather than waste more time
+	 * XXX: hunting down intel docs, just document it and punt. /phk
+	 */
+	switch (cpu_id & 0xff) {
 	case 0x22:
 	case 0x24:
 	case 0x25:
