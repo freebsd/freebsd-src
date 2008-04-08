@@ -514,6 +514,12 @@ ata_device_ioctl(device_t dev, u_long cmd, caddr_t data)
     case IOCATAGMODE:
 	*mode = atadev->mode;
 	return 0;
+    case IOCATASSPINDOWN:
+	atadev->spindown = *mode;
+	return 0;
+    case IOCATAGSPINDOWN:
+	*mode = atadev->spindown;
+	return 0;
     default:
 	return ENOTTY;
     }

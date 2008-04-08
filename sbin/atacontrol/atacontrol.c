@@ -102,6 +102,7 @@ usage(void)
 		"        atacontrol status array\n"
 		"        atacontrol mode device [mode]\n"
 		"        atacontrol cap device\n"
+		"        atacontrol spindown device [seconds]\n"
 	);
 	exit(EX_USAGE);
 }
@@ -285,6 +286,26 @@ info_print(int fd, int channel, int prchan)
 		printf("     no device present\n");
 }
 
+static void
+ata_spindown(int fd, const char *dev, const char *arg)
+{
+	int tmo;
+
+	if (arg != NULL) {
+		tmo = strtoul(arg, NULL, 0);
+		if (ioctl(fd, IOCATASSPINDOWN, &tmo) < 0)
+			err(1, "ioctl(IOCATASSPINDOWN)");
+	} else {
+		if (ioctl(fd, IOCATAGSPINDOWN, &tmo) < 0)
+			err(1, "ioctl(IOCATAGSPINDOWN)");
+		if (tmo == 0)
+			printf("%s: idle spin down disabled\n", dev);
+		else
+			printf("%s: spin down after %d seconds idle\n",
+			    dev, tmo);
+	}
+}
+
 static int
 open_dev(const char *arg, int mode)
 {
@@ -353,6 +374,12 @@ main(int argc, char **argv)
 	if (!strcmp(argv[1], "cap") && argc == 3) {
 		fd = open_dev(argv[2], O_RDONLY);
 		ata_cap_print(fd);
+		exit(EX_OK);
+	}
+
+	if (!strcmp(argv[1], "spindown") && (argc == 3 || argc == 4)) {
+		fd = open_dev(argv[2], O_RDONLY);
+		ata_spindown(fd, argv[2], argv[3]);
 		exit(EX_OK);
 	}
 
