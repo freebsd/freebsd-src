@@ -20,12 +20,28 @@ if [ -z "$ifn" ]; then
 	return 1
 fi
 
+is_wired_interface()
+{
+	media=`ifconfig $1 2>/dev/null | while read line; do
+		case "$line" in
+		*media:?Ethernet*)
+			echo Ethernet
+			;;
+		esac
+	done`
+	test "$media" = "Ethernet"
+}
+
 case ${ifn} in
 ndis*)
 	driver="ndis"
 	;;
 *)
-	driver="bsd"
+	if is_wired_interface ${ifn} ; then
+		driver="wired"
+	else
+		driver="bsd"
+	fi
 	;;
 esac
 
