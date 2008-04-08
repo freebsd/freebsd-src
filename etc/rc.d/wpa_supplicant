@@ -12,8 +12,6 @@
 
 name="wpa_supplicant"
 rcvar=
-command="/usr/sbin/${name}"
-conf_file="/etc/wpa_supplicant.conf"
 
 ifn="$2"
 if [ -z "$ifn" ]; then
@@ -47,8 +45,10 @@ esac
 
 load_rc_config $name
 
+command=${wpa_supplicant_program}
+conf_file=${wpa_supplicant_conf_file}
 pidfile="/var/run/${name}/${ifn}.pid"
-command_args="-B -q -i $ifn -c $conf_file -D $driver -P $pidfile"
+command_args="-B -i $ifn -c $conf_file -D $driver -P $pidfile"
 required_files=$conf_file
 
 run_rc_command "$1"
