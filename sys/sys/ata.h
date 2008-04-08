@@ -38,6 +38,7 @@ struct ata_params {
 #define ATA_PROTO_ATAPI                 0x8000
 #define ATA_PROTO_ATAPI_12              0x8000
 #define ATA_PROTO_ATAPI_16              0x8001
+#define ATA_PROTO_CFA                   0x848a
 #define ATA_ATAPI_TYPE_MASK             0x1f00
 #define ATA_ATAPI_TYPE_DIRECT           0x0000  /* disk/floppy */
 #define ATA_ATAPI_TYPE_TAPE             0x0100  /* streaming tape */
