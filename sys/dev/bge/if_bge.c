@@ -3795,6 +3795,23 @@ bge_ifmedia_upd_locked(struct ifnet *ifp)
 	}
 	mii_mediachg(mii);
 
+	/*
+	 * Force an interrupt so that we will call bge_link_upd
+	 * if needed and clear any pending link state attention.
+	 * Without this we are not getting any further interrupts
+	 * for link state changes and thus will not UP the link and
+	 * not be able to send in bge_start_locked. The only
+	 * way to get things working was to receive a packet and
+	 * get an RX intr.
+	 * bge_tick should help for fiber cards and we might not
+	 * need to do this here if BGE_FLAG_TBI is set but as
+	 * we poll for fiber anyway it should not harm.
+	 */
+	BGE_SETBIT(sc, BGE_MISC_LOCAL_CTL, BGE_MLC_INTR_SET);
+#ifdef	notyet
+	BGE_SETBIT(sc, BGE_HCC_MODE, BGE_HCCMODE_ATTN);
+#endif
+
 	return (0);
 }
 
