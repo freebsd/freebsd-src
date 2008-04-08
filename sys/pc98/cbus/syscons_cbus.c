@@ -214,10 +214,7 @@ sc_get_bios_values(bios_values_t *values)
 	values->cursor_start = 15;
 	values->cursor_end = 16;
 	values->shift_state = 0;
-	if (pc98_machine_type & M_8M)
-		values->bell_pitch = BELL_PITCH_8M;
-	else
-		values->bell_pitch = BELL_PITCH_5M;
+	values->bell_pitch = BELL_PITCH;
 }
 
 int
