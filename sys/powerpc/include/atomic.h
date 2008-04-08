@@ -226,8 +226,10 @@ atomic_readandclear_64(volatile u_int64_t *addr)
 
 #define	atomic_set_long			atomic_set_32
 #define	atomic_clear_long		atomic_clear_32
-#define	atomic_add_long(p, v)		atomic_add_32((uint32_t *)p, (uint32_t)v)
-#define	atomic_subtract_long(p, v)     	atomic_subtract_32((uint32_t *)p, (uint32_t)v)
+#define	atomic_add_long(p, v)		\
+	atomic_add_32((volatile uint32_t *)(volatile void *)p, v)
+#define	atomic_subtract_long(p, v)     	\
+	atomic_subtract_32((volatile uint32_t *)(volatile void *)p, v)
 #define	atomic_readandclear_long	atomic_readandclear_32
 
 #define	atomic_set_ptr			atomic_set_32
