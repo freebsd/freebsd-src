@@ -43,10 +43,6 @@
 
 #define KANJI			1
 
-#define BELL_DURATION		5
-#define BELL_PITCH_8M		1339
-#define BELL_PITCH_5M		1678
-
 #define	UJIS			0
 #define SJIS			1
 
