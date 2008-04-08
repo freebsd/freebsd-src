@@ -22,6 +22,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20080408:
+	psm(4) has gained write(2) support in native operation level.
+	Arbitrary commands can be written to /dev/psm%d and status can
+	be read back from it.  Therefore, an application is responsible
+	for status validation and error recovery.  It is a no-op in
+	other operation levels.
+
 20080312:
 	Support for KSE threading has been removed from the kernel.  To
 	run legacy applications linked against KSE libmap.conf may

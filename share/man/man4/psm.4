@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 29, 2004
+.Dd April 8, 2008
 .Dt PSM 4
 .Os
 .Sh NAME
@@ -110,7 +110,9 @@ The movement of the roller is reported as movement along the Z axis.
 8 byte data packets are sent to the user program at this level.
 .Pp
 At the operation level two, data from the pointing device is passed to the
-user program as is.
+user program as is. Conversely, command from the user program is passed
+to the pointing device as is and the user program is responsible for
+status validation and error recovery.
 Modern PS/2 type pointing devices often use proprietary data format.
 Therefore, the user program is expected to have
 intimate knowledge about the format from a particular device when operating
