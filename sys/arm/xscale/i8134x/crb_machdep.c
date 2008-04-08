@@ -113,11 +113,7 @@ __FBSDID("$FreeBSD$");
 /* Define various stack sizes in pages */
 #define IRQ_STACK_SIZE	1
 #define ABT_STACK_SIZE	1
-#ifdef IPKDB
-#define UND_STACK_SIZE	2
-#else
 #define UND_STACK_SIZE	1
-#endif
 
 extern u_int data_abort_handler_address;
 extern u_int prefetch_abort_handler_address;
