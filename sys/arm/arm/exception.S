@@ -234,11 +234,6 @@ ENTRY_NP(undefinedinstruction_bounce)
 	.data
 	.align	0
 
-#ifdef IPKDB
-Lipkdb_trap_return_data:
-	.word	0
-#endif
-
 /*
  * Indirection data
  * 2 words use for preserving r0 and r1
