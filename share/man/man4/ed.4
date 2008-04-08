@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 5, 2005
+.Dd January 27, 2008
 .Dt ED 4
 .Os
 .Sh NAME
@@ -300,9 +300,6 @@ Winbond W89C940
 C-Bus, ISA, PCI and PC Card devices are supported.
 .Sh DIAGNOSTICS
 .Bl -diag
-.It "ed%d: kernel configured irq %d doesn't match board configured irq %d."
-The IRQ number that was specified in the kernel config file (and then compiled
-into the kernel) differs from the IRQ that has been set on the interface card.
 .It "ed%d: failed to clear shared memory at %x - check configuration."
 When the card was probed at system boot time, the
 .Nm
@@ -312,12 +309,14 @@ caused by a BIOS extension ROM being configured in the same address space as the
 Ethernet card's shared memory.
 Either find the offending card and change its BIOS
 ROM to be at an address that does not conflict, or change the
-.Cd iomem
-option in the kernel config file so that the card's shared memory is mapped at a
+settings in
+.Xr device.hints 5
+that the card's shared memory is mapped at a
 non-conflicting address.
 .It "ed%d: Invalid irq configuration (%d) must be 2-5 for 3c503."
-The IRQ number that was specified in the kernel config file is not valid for
-the 3Com 3c503 card.
+The IRQ number that was specified in the
+.Xr device.hints 5
+file is not valid for the 3Com 3c503 card.
 The 3c503 can only be assigned to IRQs 2 through 5.
 .It "ed%d: Cannot find start of RAM."
 .It "ed%d: Cannot find any RAM, start : %d, x = %d."
@@ -346,6 +345,14 @@ This indicates that a programmed I/O transfer to an NE1000 or NE2000 style card
 has failed to properly complete.
 Usually caused by the ISA bus speed being set
 too fast.
+.It "ed%d: Invalid irq configuration (%ld) must be %s for %s"
+Indicates the device has a different IRQ than supported or expected.
+.It "ed%d: Cannot locate my ports!"
+The device is using a different I/O port than the driver knows about.
+.It "ed%d: Cannot extract MAC address"
+Attempts to get the MAC address failed.
+.It "ed%d: Missing mii!"
+Probing for an MII bus has failed.
 .El
 .Sh CAVEATS
 Early revision DS8390 chips have problems.
@@ -380,6 +387,7 @@ to take advantage of the extra 8K of shared memory that 16bit mode provides.
 .Xr miibus 4 ,
 .Xr netintro 4 ,
 .Xr ng_ether 4 ,
+.Xr device.hints 5 ,
 .Xr ifconfig 8
 .Sh HISTORY
 The
