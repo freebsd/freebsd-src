@@ -162,6 +162,9 @@ ad_attach(device_t dev)
     adp->disk->d_unit = device_get_unit(dev);
     if (atadev->param.support.command2 & ATA_SUPPORT_FLUSHCACHE)
 	adp->disk->d_flags = DISKFLAG_CANFLUSHCACHE;
+    if ((atadev->param.support.command2 & ATA_SUPPORT_CFA) ||
+	atadev->param.config == ATA_PROTO_CFA)
+	adp->disk->d_flags = DISKFLAG_CANDELETE;
     snprintf(adp->disk->d_ident, sizeof(adp->disk->d_ident), "ad:%s",
 	atadev->param.serial);
     disk_create(adp->disk, DISK_VERSION);
@@ -273,6 +276,12 @@ ad_strategy(struct bio *bp)
 	    request->u.ata.command = ATA_WRITE_MUL;
 	else
 	    request->u.ata.command = ATA_WRITE;
+	break;
+    case BIO_DELETE:
+	request->flags = ATA_R_CONTROL;
+	request->u.ata.command = ATA_CFA_ERASE;
+	request->transfersize = 0;
+	request->donecount = bp->bio_bcount;
 	break;
     case BIO_FLUSH:
 	request->u.ata.lba = 0;
