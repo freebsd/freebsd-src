@@ -56,5 +56,5 @@ ibcs2_emul_find(struct thread *td, char *path, enum uio_seg pathseg,
 {
 
 	return (kern_alternate_path(td, ibcs2_emul_path, path, pathseg, pbuf,
-	    cflag));
+	    cflag, AT_FDCWD));
 }

@@ -258,7 +258,7 @@ svr4_emul_find(struct thread *td, char *path, enum uio_seg pathseg,
 {
 
 	return (kern_alternate_path(td, svr4_emul_path, path, pathseg, pbuf,
-	    create));
+	    create, AT_FDCWD));
 }
 
 static int

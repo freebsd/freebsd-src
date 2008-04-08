@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/exec.h>
+#include <sys/fcntl.h>
 #include <sys/imgact.h>
 #include <sys/imgact_elf.h>
 #include <sys/kernel.h>
@@ -788,7 +789,7 @@ exec_linux_imgact_try(struct image_params *imgp)
 	     */
 	    if ((error = exec_shell_imgact(imgp)) == 0) {
 		    linux_emul_convpath(FIRST_THREAD_IN_PROC(imgp->proc),
-			imgp->interpreter_name, UIO_SYSSPACE, &rpath, 0);
+			imgp->interpreter_name, UIO_SYSSPACE, &rpath, 0, AT_FDCWD);
 		    if (rpath != NULL) {
 			    len = strlen(rpath) + 1;
 
