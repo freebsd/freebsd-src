@@ -529,6 +529,7 @@ vendor ACTIONTEC	0x1668	Actiontec
 vendor ANYDATA		0x16d5	AnyData Corporation
 vendor CMOTECH		0x16d8	CMOTECH CO., LTD.
 vendor LINKSYS3		0x1915	Linksys
+vendor QUALCOMMINC	0x19d2	Qualcomm, Incorporated
 vendor DLINK		0x2001	D-Link
 vendor ERICSSON		0x2282	Ericsson
 vendor MOTOROLA2	0x22b8	Motorola
@@ -1459,6 +1460,7 @@ product PUTERCOM UPA100		0x047e	USB-1284 BRIDGE
 product QUALCOMM RWT_FCT	0x3100	RWT FCT-CDMA 2000 1xRTT modem
 product QUALCOMM CDMA_MSM	0x3196	CDMA Technologies MSM modem
 product QUALCOMM2 CDMA_MSM	0x6000	CDMA Technologies MSM phone
+product QUALCOMMINC CDMA_MSM	0x0001	CDMA Technologies MSM modem
 
 /* Qtronix products */
 product QTRONIX 980N		0x2011	Scorpion-980N keyboard
