@@ -1488,6 +1488,8 @@ set_rootvnode(struct thread *td)
 	FILEDESC_SUNLOCK(p->p_fd);
 
 	VOP_UNLOCK(rootvnode, 0);
+
+	EVENTHANDLER_INVOKE(mountroot);
 }
 
 /*
