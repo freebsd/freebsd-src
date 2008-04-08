@@ -578,11 +578,13 @@ abort2(struct thread *td, struct abort2_args *uap)
 	/* Prevent from DoSes from user-space. */
 	if (uap->nargs < 0 || uap->nargs > 16)
 		goto out;
-	if (uap->args == NULL)
-		goto out;
-	error = copyin(uap->args, uargs, uap->nargs * sizeof(void *));
-	if (error != 0)
-		goto out;
+	if (uap->nargs > 0) {
+		if (uap->args == NULL)
+			goto out;
+		error = copyin(uap->args, uargs, uap->nargs * sizeof(void *));
+		if (error != 0)
+			goto out;
+	}
 	/*
 	 * Limit size of 'reason' string to 128. Will fit even when
 	 * maximal number of arguments was chosen to be logged.
@@ -594,7 +596,7 @@ abort2(struct thread *td, struct abort2_args *uap)
 	} else {
 		sbuf_printf(sb, "(null)");
 	}
-	if (uap->nargs) {
+	if (uap->nargs > 0) {
 		sbuf_printf(sb, "(");
 		for (i = 0;i < uap->nargs; i++)
 			sbuf_printf(sb, "%s%p", i == 0 ? "" : ", ", uargs[i]);
