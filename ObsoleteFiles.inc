@@ -14,6 +14,11 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20080407: pkg_sign has been removed
+OLD_FILES+=usr/sbin/pkg_check
+OLD_FILES+=usr/sbin/pkg_sign
+OLD_FILES+=usr/share/man/man1/pkg_check.1.gz
+OLD_FILES+=usr/share/man/man1/pkg_sign.1.gz
 # 20070711: bzip2 1.0.4
 OLD_FILES+=usr/share/info/bzip2.info.gz
 # 20070710: Removal of the PROTO.localhost* files
