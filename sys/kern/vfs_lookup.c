@@ -1032,8 +1032,8 @@ NDFREE(struct nameidata *ndp, const u_int flags)
  * the M_TEMP bucket if one is returned.
  */
 int
-kern_alternate_path(struct thread *td, const char *prefix, char *path,
-    enum uio_seg pathseg, char **pathbuf, int create)
+kern_alternate_path(struct thread *td, const char *prefix, const char *path,
+    enum uio_seg pathseg, char **pathbuf, int create, int dirfd)
 {
 	struct nameidata nd, ndroot;
 	char *ptr, *buf, *cp;
@@ -1069,6 +1069,15 @@ kern_alternate_path(struct thread *td, const char *prefix, char *path,
 	if (*ptr != '/') {
 		error = EINVAL;
 		goto keeporig;
+	}
+
+	if (dirfd != AT_FDCWD) {
+		/*
+		 * We want the original because the "prefix" is
+		 * included in the already opened dirfd.
+		 */
+		bcopy(ptr, buf, len);
+		return (0);
 	}
 
 	/*

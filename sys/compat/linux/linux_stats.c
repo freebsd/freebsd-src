@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include <compat/linux/linux_util.h>
+#include <compat/linux/linux_file.h>
 
 #include <security/mac/mac_framework.h>
 
@@ -114,9 +115,10 @@ translate_fd_major_minor(struct thread *td, int fd, struct stat *buf)
 }
 
 static void
-translate_path_major_minor(struct thread *td, char *path, struct stat *buf)
+translate_path_major_minor_at(struct thread *td, char *path,
+    struct stat *buf, int dfd)
 {
-	struct proc *p = td->td_proc;	
+	struct proc *p = td->td_proc;
 	struct filedesc *fdp = p->p_fd;
 	int fd;
 	int temp;
@@ -124,12 +126,18 @@ translate_path_major_minor(struct thread *td, char *path, struct stat *buf)
 	if (!S_ISCHR(buf->st_mode) && !S_ISBLK(buf->st_mode))
 		return;
 	temp = td->td_retval[0];
-	if (kern_open(td, path, UIO_SYSSPACE, O_RDONLY, 0) != 0)
+	if (kern_openat(td, dfd, path, UIO_SYSSPACE, O_RDONLY, 0) != 0)
 		return;
 	fd = td->td_retval[0];
 	td->td_retval[0] = temp;
 	translate_fd_major_minor(td, fd, buf);
 	fdclose(fdp, fdp->fd_ofiles[fd], fd, td);
+}
+
+static inline void
+translate_path_major_minor(struct thread *td, char *path, struct stat *buf)
+{
+	translate_path_major_minor_at(td, path, buf, AT_FDCWD);
 }
 
 static int
@@ -577,6 +585,35 @@ linux_fstat64(struct thread *td, struct linux_fstat64_args *args)
 	translate_fd_major_minor(td, args->fd, &buf);
 	if (!error)
 		error = stat64_copyout(&buf, args->statbuf);
+
+	return (error);
+}
+
+int
+linux_fstatat64(struct thread *td, struct linux_fstatat64_args *args)
+{
+	char *path;
+	int error, dfd, flag;
+	struct stat buf;
+
+	if (args->flag & ~LINUX_AT_SYMLINK_NOFOLLOW)
+		return (EINVAL);
+	flag = (args->flag & LINUX_AT_SYMLINK_NOFOLLOW) ?
+	    AT_SYMLINK_NOFOLLOW : 0;
+
+	dfd = (args->dfd == LINUX_AT_FDCWD) ? AT_FDCWD : args->dfd;
+	LCONVPATHEXIST_AT(td, args->pathname, &path, dfd);
+
+#ifdef DEBUG
+	if (ldebug(fstatat64))
+		printf(ARGS(fstatat64, "%i, %s, %i"), args->dfd, path, args->flag);
+#endif
+
+	error = kern_statat(td, flag, dfd, path, UIO_SYSSPACE, &buf);
+	translate_path_major_minor_at(td, args->pathname, &buf, dfd);
+	if (!error)
+		error = stat64_copyout(&buf, args->statbuf);
+	LFREEPATH(path);
 
 	return (error);
 }
