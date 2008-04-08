@@ -403,6 +403,9 @@ struct ata_device {
     struct ata_params           param;          /* ata param structure */
     int                         mode;           /* current transfermode */
     u_int32_t                   max_iosize;     /* max IO size */
+    int				spindown;	/* idle spindown timeout */
+    struct callout              spindown_timer;
+    int                         spindown_state;
     int                         flags;
 #define         ATA_D_USE_CHS           0x0001
 #define         ATA_D_MEDIA_CHANGED     0x0002
