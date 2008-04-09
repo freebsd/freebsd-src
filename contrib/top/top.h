@@ -11,7 +11,7 @@
 #define VERSION		3
 
 /* Number of lines of header information on the standard screen */
-#define Header_lines	7
+extern int Header_lines;	/* 7 */
 
 /* Maximum number of columns allowed for display */
 #define MAX_COLS	128
@@ -45,3 +45,5 @@ enum displaymodes { DISP_CPU = 0, DISP_IO, DISP_MAX };
 #define FMT_SHOWARGS 0x00000001
 
 extern enum displaymodes displaymode;
+
+extern int pcpu_stats;
