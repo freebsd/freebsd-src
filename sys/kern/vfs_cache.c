@@ -423,7 +423,7 @@ success:
 		 * When we lookup "." we still can be asked to lock it
 		 * differently...
 		 */
-		ltype = cnp->cn_lkflags & (LK_SHARED | LK_EXCLUSIVE);
+		ltype = cnp->cn_lkflags & LK_TYPE_MASK;
 		if (ltype == VOP_ISLOCKED(*vpp))
 			return (-1);
 		else if (ltype == LK_EXCLUSIVE)
@@ -440,11 +440,13 @@ success:
 	error = vget(*vpp, cnp->cn_lkflags | LK_INTERLOCK, cnp->cn_thread);
 	if (cnp->cn_flags & ISDOTDOT)
 		vn_lock(dvp, ltype | LK_RETRY);
-	if ((cnp->cn_flags & ISLASTCN) && (cnp->cn_lkflags & LK_EXCLUSIVE))
-		ASSERT_VOP_ELOCKED(*vpp, "cache_lookup");
 	if (error) {
 		*vpp = NULL;
 		goto retry;
+	}
+	if ((cnp->cn_flags & ISLASTCN) &&
+	    (cnp->cn_lkflags & LK_TYPE_MASK) == LK_EXCLUSIVE) {
+		ASSERT_VOP_ELOCKED(*vpp, "cache_lookup");
 	}
 	return (-1);
 }
