@@ -106,7 +106,7 @@ all: objwarn
 
 .include <bsd.symver.mk>
 
-# Allow librararies to specify their own version map or have it
+# Allow libraries to specify their own version map or have it
 # automatically generated (see bsd.symver.mk above).
 .if ${MK_SYMVER} == "yes" && !empty(VERSION_MAP)
 ${SHLIB_NAME}:	${VERSION_MAP}
