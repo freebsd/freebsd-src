@@ -1249,6 +1249,7 @@ ip_forward(struct mbuf *m, int srcrt)
 	struct in_ifaddr *ia = NULL;
 	struct mbuf *mcopy;
 	struct in_addr dest;
+	struct route ro;
 	int error, type = 0, code = 0, mtu = 0;
 
 	if (m->m_flags & (M_BCAST|M_MCAST) || in_canforward(ip->ip_dst) == 0) {
@@ -1326,7 +1327,6 @@ ip_forward(struct mbuf *m, int srcrt)
 	dest.s_addr = 0;
 	if (!srcrt && ipsendredirects && ia->ia_ifp == m->m_pkthdr.rcvif) {
 		struct sockaddr_in *sin;
-		struct route ro;
 		struct rtentry *rt;
 
 		bzero(&ro, sizeof(ro));
@@ -1358,7 +1358,20 @@ ip_forward(struct mbuf *m, int srcrt)
 			RTFREE(rt);
 	}
 
-	error = ip_output(m, NULL, NULL, IP_FORWARDING, NULL, NULL);
+	/*
+	 * Try to cache the route MTU from ip_output so we can consider it for
+	 * the ICMP_UNREACH_NEEDFRAG "Next-Hop MTU" field described in RFC1191.
+	 */
+	bzero(&ro, sizeof(ro));
+	rtalloc_ign(&ro, RTF_CLONING);
+
+	error = ip_output(m, NULL, &ro, IP_FORWARDING, NULL, NULL);
+
+	if (error == EMSGSIZE && ro.ro_rt)
+		mtu = ro.ro_rt->rt_rmx.rmx_mtu;
+	if (ro.ro_rt)
+		RTFREE(ro.ro_rt);
+
 	if (error)
 		ipstat.ips_cantforward++;
 	else {
@@ -1394,14 +1407,23 @@ ip_forward(struct mbuf *m, int srcrt)
 		code = ICMP_UNREACH_NEEDFRAG;
 
 #ifdef IPSEC
-		mtu = ip_ipsec_mtu(m);
+		/* 
+		 * If IPsec is configured for this path,
+		 * override any possibly mtu value set by ip_output.
+		 */ 
+		mtu = ip_ipsec_mtu(m, mtu);
 #endif /* IPSEC */
 		/*
+		 * If the MTU was set before make sure we are below the
+		 * interface MTU.
 		 * If the MTU wasn't set before use the interface mtu or
 		 * fall back to the next smaller mtu step compared to the
 		 * current packet size.
 		 */
-		if (mtu == 0) {
+		if (mtu != 0) {
+			if (ia != NULL)
+				mtu = min(mtu, ia->ia_ifp->if_mtu);
+		} else {
 			if (ia != NULL)
 				mtu = ia->ia_ifp->if_mtu;
 			else
