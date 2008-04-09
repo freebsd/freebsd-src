@@ -53,6 +53,7 @@ SUBDIR=	ac \
 	fdformat \
 	fdread \
 	fdwrite \
+	fifolog \
 	flowctl \
 	freebsd-update \
 	${_ftp-proxy} \
