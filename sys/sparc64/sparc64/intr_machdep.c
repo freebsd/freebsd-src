@@ -95,7 +95,8 @@ static const char *pil_names[] = {
 	"rndzvs",	/* PIL_RENDEZVOUS */
 	"ast",		/* PIL_AST */
 	"stop",		/* PIL_STOP */
-	"stray", "stray", "stray", "stray", "stray", "stray", "stray",
+	"preempt",	/* PIL_PREEMPT */
+	"stray", "stray", "stray", "stray", "stray", "stray",
 	"fast",		/* PIL_FAST */
 	"tick",		/* PIL_TICK */
 };
