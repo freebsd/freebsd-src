@@ -1,3 +1,5 @@
+
+
 char *copyright =
     "Copyright (c) 1984 through 1996, William LeFebvre";
 
@@ -64,6 +66,8 @@ extern char *optarg;
 
 /* imported from screen.c */
 extern int overstrike;
+
+int pcpu_stats = No;
 
 /* signal handling routines */
 sigret_t leave();
@@ -279,7 +283,7 @@ char *argv[];
 	    optind = 1;
 	}
 
-	while ((i = getopt(ac, av, "CSIHbijnquvs:d:U:m:o:t")) != EOF)
+	while ((i = getopt(ac, av, "CSIHPbijnpquvs:d:U:m:o:t")) != EOF)
 	{
 	    switch(i)
 	    {
@@ -398,6 +402,14 @@ char *argv[];
 
 	      case 'j':
 		ps.jail = !ps.jail;
+		break;
+
+	      case 'P':
+		pcpu_stats = Yes;
+		break;
+
+	      case 'p':
+		pcpu_stats = No;
 		break;
 
 	      default:

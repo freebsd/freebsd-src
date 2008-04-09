@@ -50,6 +50,7 @@
 #include "machine.h"
 #include "screen.h"
 #include "utils.h"
+#include "layout.h"
 
 static void getsysctl(char *, void *, size_t);
 
@@ -64,6 +65,17 @@ static int smpmode;
 enum displaymodes displaymode;
 static int namelength = 8;
 static int cmdlengthdelta;
+
+/* Per-cpu time states */
+static int maxcpu;
+static int maxid;
+static int ncpus;
+static u_long cpumask;
+static long *times;
+static long *pcpu_cp_time;
+static long *pcpu_cp_old;
+static long *pcpu_cp_diff;
+static int *pcpu_cpu_states;
 
 /* Prototypes for top internals */
 void quit(int);
@@ -279,6 +291,56 @@ machine_init(struct statics *statics)
 	statics->order_names = ordernames;
 #endif
 
+	/* Adjust display based on ncpus */
+	if (pcpu_stats) {
+		int i, j, empty;
+		size_t size;
+
+		cpumask = 0;
+		ncpus = 0;
+		GETSYSCTL("kern.smp.maxcpus", maxcpu);
+		size = sizeof(long) * maxcpu * CPUSTATES;
+		times = malloc(size);
+		if (times == NULL)
+			err(1, "malloc %zd bytes", size);
+		if (sysctlbyname("kern.cp_times", times, &size, NULL, 0) == -1)
+			err(1, "sysctlbyname kern.cp_times");
+		maxid = (size / CPUSTATES / sizeof(long)) - 1;
+		for (i = 0; i <= maxid; i++) {
+			empty = 1;
+			for (j = 0; empty && j < CPUSTATES; j++) {
+				if (times[i * CPUSTATES + j] != 0)
+					empty = 0;
+			}
+			if (!empty) {
+				cpumask |= (1ul << i);
+				ncpus++;
+			}
+		}
+
+		if (ncpus > 1) {
+			y_mem += ncpus - 1;	/* 3 */
+			y_swap += ncpus - 1;	/* 4 */
+			y_idlecursor += ncpus - 1; /* 5 */
+			y_message += ncpus - 1;	/* 5 */
+			y_header += ncpus - 1;	/* 6 */
+			y_procs += ncpus - 1;	/* 7 */
+			Header_lines += ncpus - 1; /* 7 */
+		}
+		size = sizeof(long) * ncpus * CPUSTATES;
+		pcpu_cp_time = malloc(size);
+		pcpu_cp_old = malloc(size);
+		pcpu_cp_diff = malloc(size);
+		pcpu_cpu_states = malloc(size);
+		bzero(pcpu_cp_time, size);
+		bzero(pcpu_cp_old, size);
+		bzero(pcpu_cp_diff, size);
+		bzero(pcpu_cpu_states, size);
+		statics->ncpus = ncpus;
+	} else {
+		statics->ncpus = 1;
+	}
+
 	/* all done! */
 	return (0);
 }
@@ -320,6 +382,7 @@ static int swappgsin = -1;
 static int swappgsout = -1;
 extern struct timeval timeout;
 
+
 void
 get_system_info(struct system_info *si)
 {
@@ -328,10 +391,17 @@ get_system_info(struct system_info *si)
 	int mib[2];
 	struct timeval boottime;
 	size_t bt_size;
-	int i;
+	int i, j;
+	size_t size;
 
 	/* get the cp_time array */
-	GETSYSCTL("kern.cp_time", cp_time);
+	if (pcpu_stats) {
+		size = (maxid + 1) * CPUSTATES * sizeof(long);
+		if (sysctlbyname("kern.cp_times", pcpu_cp_time, &size, NULL, 0) == -1)
+			err(1, "sysctlbyname kern.cp_times");
+	} else {
+		GETSYSCTL("kern.cp_time", cp_time);
+	}
 	GETSYSCTL("vm.loadavg", sysload);
 	GETSYSCTL("kern.lastpid", lastpid);
 
@@ -339,8 +409,20 @@ get_system_info(struct system_info *si)
 	for (i = 0; i < 3; i++)
 		si->load_avg[i] = (double)sysload.ldavg[i] / sysload.fscale;
 
-	/* convert cp_time counts to percentages */
-	total = percentages(CPUSTATES, cpu_states, cp_time, cp_old, cp_diff);
+	if (pcpu_stats) {
+		for (i = j = 0; i <= maxid; i++, j++) {
+			if (cpumask && (1ul << i) == 0)
+				continue;
+			/* convert cp_time counts to percentages */
+			percentages(CPUSTATES, &pcpu_cpu_states[j * CPUSTATES],
+			    &pcpu_cp_time[j * CPUSTATES],
+			    &pcpu_cp_old[j * CPUSTATES],
+			    &pcpu_cp_diff[j * CPUSTATES]);
+		}
+	} else {
+		/* convert cp_time counts to percentages */
+		percentages(CPUSTATES, cpu_states, cp_time, cp_old, cp_diff);
+	}
 
 	/* sum memory & swap statistics */
 	{
@@ -394,7 +476,15 @@ get_system_info(struct system_info *si)
 	}
 
 	/* set arrays and strings */
-	si->cpustates = cpu_states;
+	if (pcpu_stats) {
+		si->cpustates = pcpu_cpu_states;
+		si->cpumask = cpumask;
+		si->ncpus = ncpus;
+	} else {
+		si->cpustates = cpu_states;
+		si->cpumask = 1;
+		si->ncpus = 1;
+	}
 	si->memory = memory_stats;
 	si->swap = swap_stats;
 

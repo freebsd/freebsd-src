@@ -3,7 +3,7 @@
 
 PROG=	vmstat
 MAN=	vmstat.8
-DPADD=	${LIBDEVSTAT} ${LIBKVM} ${LIBMEMSTAT}
-LDADD=	-ldevstat -lkvm -lmemstat
+DPADD=	${LIBDEVSTAT} ${LIBKVM} ${LIBMEMSTAT} ${LIBUTIL}
+LDADD=	-ldevstat -lkvm -lmemstat -lutil
 
 .include <bsd.prog.mk>
