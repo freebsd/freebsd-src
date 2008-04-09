@@ -59,9 +59,7 @@ Render(void *priv __unused, time_t now, unsigned flag __unused, const unsigned c
 	if (opt_R != NULL && regexec(&R, (const char *)p, 0, NULL, 0))
 		return;
 
-	if (opt_T != NULL && *opt_T == '\0') {
-		fprintf(fo, "%s\n", p);
-	} else if (opt_T != NULL) {
+	if (opt_T != NULL) {
 		(void)gmtime_r(&now, &utc);
 		i = strftime(buf, sizeof buf, opt_T, &utc);
 		assert(i > 0);
