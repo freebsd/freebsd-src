@@ -20,6 +20,7 @@ struct statics
 #ifdef ORDER
     char **order_names;
 #endif
+    int ncpus;
 };
 
 /*
@@ -43,6 +44,8 @@ struct system_info
     int    *memory;
     int    *swap;
     struct timeval boottime;
+    unsigned long cpumask;	/* bitfield of cpu states represented */
+    int    ncpus;
 };
 
 /* cpu_states is an array of percentages * 10.  For example, 

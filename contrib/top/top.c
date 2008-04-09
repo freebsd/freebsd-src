@@ -66,6 +66,7 @@ extern char *optarg;
 extern int overstrike;
 
 static int fmt_flags = 0;
+int pcpu_stats = No;
 
 /* signal handling routines */
 sigret_t leave();
@@ -282,7 +283,7 @@ char *argv[];
 	    optind = 1;
 	}
 
-	while ((i = getopt(ac, av, "CSIHabijnquvs:d:U:m:o:t")) != EOF)
+	while ((i = getopt(ac, av, "CSIHPabijnpquvs:d:U:m:o:t")) != EOF)
 	{
 	    switch(i)
 	    {
@@ -405,6 +406,14 @@ char *argv[];
 
 	      case 'j':
 		ps.jail = !ps.jail;
+		break;
+
+	      case 'P':
+		pcpu_stats = Yes;
+		break;
+
+	      case 'p':
+		pcpu_stats = No;
 		break;
 
 	      default:
