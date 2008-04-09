@@ -450,19 +450,28 @@ linprocfs_domtab(PFS_FILL_ARGS)
 static int
 linprocfs_dostat(PFS_FILL_ARGS)
 {
+	struct pcpu *pcpu;
+	long cp_time[CPUSTATES];
+	long *cp;
 	int i;
 
+	read_cpu_time(cp_time);
 	sbuf_printf(sb, "cpu %ld %ld %ld %ld\n",
 	    T2J(cp_time[CP_USER]),
 	    T2J(cp_time[CP_NICE]),
 	    T2J(cp_time[CP_SYS] /*+ cp_time[CP_INTR]*/),
 	    T2J(cp_time[CP_IDLE]));
-	for (i = 0; i < mp_ncpus; ++i)
+	for (i = 0; i <= mp_maxid; ++i) {
+		if (CPU_ABSENT(i))
+			continue;
+		pcpu = pcpu_find(i);
+		cp = pcpu->pc_cp_time;
 		sbuf_printf(sb, "cpu%d %ld %ld %ld %ld\n", i,
-		    T2J(cp_time[CP_USER]) / mp_ncpus,
-		    T2J(cp_time[CP_NICE]) / mp_ncpus,
-		    T2J(cp_time[CP_SYS]) / mp_ncpus,
-		    T2J(cp_time[CP_IDLE]) / mp_ncpus);
+		    T2J(cp[CP_USER]),
+		    T2J(cp[CP_NICE]),
+		    T2J(cp[CP_SYS] /*+ cp[CP_INTR]*/),
+		    T2J(cp[CP_IDLE]));
+	}
 	sbuf_printf(sb,
 	    "disk 0 0 0 0\n"
 	    "page %u %u\n"
@@ -486,9 +495,11 @@ linprocfs_dostat(PFS_FILL_ARGS)
 static int
 linprocfs_douptime(PFS_FILL_ARGS)
 {
+	long cp_time[CPUSTATES];
 	struct timeval tv;
 
 	getmicrouptime(&tv);
+	read_cpu_time(cp_time);
 	sbuf_printf(sb, "%lld.%02ld %ld.%02ld\n",
 	    (long long)tv.tv_sec, tv.tv_usec / 10000,
 	    T2S(cp_time[CP_IDLE]), T2J(cp_time[CP_IDLE]) % 100);
