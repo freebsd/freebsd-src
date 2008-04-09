@@ -1075,7 +1075,7 @@ nlm_server_main(int addr_count, char **addrs)
 {
 	struct thread *td = curthread;
 	int error;
-	SVCPOOL *pool;
+	SVCPOOL *pool = NULL;
 	struct sockopt opt;
 	int portlow;
 #ifdef INET6
@@ -1137,7 +1137,7 @@ nlm_server_main(int addr_count, char **addrs)
 #endif
 		memset(&sin, 0, sizeof(sin));
 		sin.sin_len = sizeof(sin);
-		sin.sin_family = AF_INET6;
+		sin.sin_family = AF_INET;
 		sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 		nlm_nsm = nlm_get_rpc((struct sockaddr *) &sin, SM_PROG,
 		    SM_VERS);
@@ -1147,7 +1147,8 @@ nlm_server_main(int addr_count, char **addrs)
 
 	if (!nlm_nsm) {
 		printf("Can't start NLM - unable to contact NSM\n");
-		return (EINVAL);
+		error = EINVAL;
+		goto out;
 	}
 
 	pool = svcpool_create();
