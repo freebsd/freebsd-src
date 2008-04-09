@@ -74,8 +74,6 @@ ssc(u_int64_t in0, u_int64_t in1, u_int64_t in2, u_int64_t in3, int which)
 
 MALLOC_DEFINE(M_SSC, "ssc_disk", "Simulator Disk");
 
-static int sscrootready;
-
 static d_strategy_t sscstrategy;
 
 static LIST_HEAD(, ssc_s) ssc_softc_list = LIST_HEAD_INITIALIZER(&ssc_softc_list);
@@ -186,7 +184,7 @@ ssccreate(int unit)
 	disk_create(sc->disk, DISK_VERSION);
 	sc->fd = fd;
 	if (sc->unit == 0) 
-		sscrootready = 1;
+		rootdevnames[0] = "ufs:/dev/sscdisk0";
 	return (sc);
 }
 
@@ -197,12 +195,3 @@ ssc_drvinit(void *unused)
 }
 
 SYSINIT(sscdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE, ssc_drvinit,NULL);
-
-static void
-ssc_takeroot(void *junk)
-{
-	if (sscrootready)
-		rootdevnames[0] = "ufs:/dev/sscdisk0";
-}
-
-SYSINIT(ssc_root, SI_SUB_MOUNT_ROOT, SI_ORDER_FIRST, ssc_takeroot, NULL);
