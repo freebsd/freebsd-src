@@ -41,7 +41,7 @@
 .Sh SYNOPSIS
 .Nm
 .\" .Op Fl fimst
-.Op Fl afimsz
+.Op Fl afHhimPsz
 .Op Fl c Ar count
 .Op Fl M Ar core Op Fl N Ar system
 .Op Fl w Ar wait
@@ -94,6 +94,12 @@ and
 .Xr rfork 2
 system calls since system startup, and the number of pages of virtual memory
 involved in each.
+.It Fl h
+Changes memory columns into more easily human readable form.  Default if
+standard output is a terminal device.
+.It Fl H
+Changes memory columns into straight numbers.  Default if standard output
+is not a terminal device (such as a script).
 .It Fl i
 Report on the number of interrupts taken by each device since system
 startup.
@@ -113,6 +119,8 @@ Report on the usage of kernel dynamic memory listed first by size of
 allocation and then by type of usage.
 .It Fl n
 Change the maximum number of disks to display from the default of 2.
+.It Fl P
+Report per-cpu system/user/idle cpu statistics.
 .It Fl p
 Specify which types of devices to display.
 There are three different
