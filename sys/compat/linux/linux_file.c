@@ -131,10 +131,8 @@ linux_common_open(struct thread *td, int dirfd, char *path, int l_flags, int mod
 	bsd_flags |= O_NOFOLLOW;
     /* XXX LINUX_O_NOATIME: unable to be easily implemented. */
 
-    if (dirfd != -1)
-	error = kern_openat(td, dirfd, path, UIO_SYSSPACE, bsd_flags, mode);
-    else
-	error = kern_open(td, path, UIO_SYSSPACE, bsd_flags, mode);
+    error = kern_openat(td, dirfd, path, UIO_SYSSPACE, bsd_flags, mode);
+
     if (!error) {
 	    fd = td->td_retval[0];
 	    /*
@@ -215,7 +213,7 @@ linux_open(struct thread *td, struct linux_open_args *args)
 		    path, args->flags, args->mode);
 #endif
 
-	return (linux_common_open(td, -1, path, args->flags, args->mode));
+	return (linux_common_open(td, AT_FDCWD, path, args->flags, args->mode));
 }
 
 int
