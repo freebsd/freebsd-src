@@ -117,13 +117,11 @@ start:		cld				# string ops inc
 #ifdef PROBE_KEYBOARD
 /*
  * Look at the BIOS data area to see if we have an enhanced keyboard.  If not,
- * set the RBX_SERIAL bit in the howto byte to prefer the serial console to
- * the video console.
+ * set the RBX_DUAL and RBX_SERIAL bits in the howto byte.
  */
-		orl $RB_MULTIPLE, (%bx)		# enable multiple consoles
 		testb $KEYBOARD_BIT, MEM_BIOS_KEYBOARD # keyboard present?
 		jnz keyb			# yes, so skip
-		orl $RB_SERIAL, (%bx)		# prefer serial console
+		orl $(RB_MULTIPLE | RB_SERIAL), (%bx) # enable serial console
 keyb:
 #endif
 /*
