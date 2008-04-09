@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2008 Marcel Moolenaar
  * Copyright (c) 2001 Benno Rice
  * Copyright (c) 2001 David E. O'Brien
  * Copyright (c) 1998 Doug Rabson
@@ -31,94 +32,308 @@
 #ifndef _MACHINE_ATOMIC_H_
 #define	_MACHINE_ATOMIC_H_
 
-#include <machine/cpufunc.h>
-
 #ifndef _SYS_CDEFS_H_
 #error this file needs sys/cdefs.h as a prerequisite
 #endif
 
+#define	__ATOMIC_BARRIER					\
+    __asm __volatile("sync" : : : "memory")
+
 /*
- * Various simple arithmetic on memory which is atomic in the presence
- * of interrupts and SMP safe.
+ * atomic_add(p, v)
+ * { *p += v; }
  */
 
-void	atomic_set_8(volatile uint8_t *, uint8_t);
-void	atomic_clear_8(volatile uint8_t *, uint8_t);
-void	atomic_add_8(volatile uint8_t *, uint8_t);
-void	atomic_subtract_8(volatile uint8_t *, uint8_t);
+#define __ATOMIC_ADD_8(p, v, t)					\
+    8-bit atomic_add not implemented
 
-void	atomic_set_16(volatile uint16_t *, uint16_t);
-void	atomic_clear_16(volatile uint16_t *, uint16_t);
-void	atomic_add_16(volatile uint16_t *, uint16_t);
-void	atomic_subtract_16(volatile uint16_t *, uint16_t);
+#define __ATOMIC_ADD_16(p, v, t)				\
+    16-bit atomic_add not implemented
 
-static __inline void
-atomic_set_32(volatile uint32_t *p, uint32_t v)
-{
-	uint32_t temp;
+#define __ATOMIC_ADD_32(p, v, t)				\
+    __asm __volatile(						\
+	"1:	lwarx	%0, 0, %2\n"				\
+	"	add	%0, %3, %0\n"				\
+	"	stwcx.	%0, 0, %2\n"				\
+	"	bne-	1b\n"					\
+	: "=&r" (t), "=m" (*p)					\
+	: "r" (p), "r" (v), "m" (*p)				\
+	: "cc", "memory")					\
+    /* __ATOMIC_ADD_32 */
 
-#ifdef __GNUCLIKE_ASM
-	__asm __volatile (
-		"1:\tlwarx %0, 0, %2\n\t"	/* load old value */
-		"or %0, %3, %0\n\t"		/* calculate new value */
-		"stwcx. %0, 0, %2\n\t"      	/* attempt to store */
-		"bne- 1b\n\t"			/* spin if failed */
-		: "=&r" (temp), "=m" (*p)
-		: "r" (p), "r" (v), "m" (*p)
-		: "cc", "memory");
+#define	__ATOMIC_ADD_64(p, v, t)				\
+    64-bit atomic_add not implemented
+
+#define	_ATOMIC_ADD(width, suffix, type)			\
+    static __inline void					\
+    atomic_add_##suffix(volatile type *p, type v) {		\
+	type t;							\
+	__ATOMIC_ADD_##width(p, v, t);				\
+    }								\
+								\
+    static __inline void					\
+    atomic_add_acq_##suffix(volatile type *p, type v) {		\
+	type t;							\
+	__ATOMIC_ADD_##width(p, v, t);				\
+	__ATOMIC_BARRIER;					\
+    }								\
+								\
+    static __inline void					\
+    atomic_add_rel_##suffix(volatile type *p, type v) {		\
+	type t;							\
+	__ATOMIC_BARRIER;					\
+	__ATOMIC_ADD_##width(p, v, t);				\
+    }								\
+    /* _ATOMIC_ADD */
+
+#if 0
+_ATOMIC_ADD(8, 8, uint8_t)
+_ATOMIC_ADD(8, char, u_char)
+_ATOMIC_ADD(16, 16, uint16_t)
+_ATOMIC_ADD(16, short, u_short)
 #endif
-}
-
-static __inline void
-atomic_clear_32(volatile uint32_t *p, uint32_t v)
-{
-	uint32_t temp;
-
-#ifdef __GNUCLIKE_ASM
-	__asm __volatile (
-		"1:\tlwarx %0, 0, %2\n\t"	/* load old value */
-		"andc %0, %0, %3\n\t"		/* calculate new value */
-		"stwcx. %0, 0, %2\n\t"      	/* attempt to store */
-		"bne- 1b\n\t"			/* spin if failed */
-		: "=&r" (temp), "=m" (*p)
-		: "r" (p), "r" (v), "m" (*p)
-		: "cc", "memory");
+_ATOMIC_ADD(32, 32, uint32_t)
+_ATOMIC_ADD(32, int, u_int)
+_ATOMIC_ADD(32, long, u_long)
+_ATOMIC_ADD(32, ptr, uintptr_t)
+#if 0
+_ATOMIC_ADD(64, 64, uint64_t)
+_ATOMIC_ADD(64, long_long, u_long_long)
 #endif
-}
 
-static __inline void
-atomic_add_32(volatile uint32_t *p, uint32_t v)
-{
-	uint32_t temp;
+#undef _ATOMIC_ADD
+#undef __ATOMIC_ADD_64
+#undef __ATOMIC_ADD_32
+#undef __ATOMIC_ADD_16
+#undef __ATOMIC_ADD_8
 
-#ifdef __GNUCLIKE_ASM
-	__asm __volatile (
-		"1:\tlwarx %0, 0, %2\n\t"	/* load old value */
-		"add %0, %3, %0\n\t"		/* calculate new value */
-		"stwcx. %0, 0, %2\n\t"      	/* attempt to store */
-		"bne- 1b\n\t"			/* spin if failed */
-		: "=&r" (temp), "=m" (*p)
-		: "r" (p), "r" (v), "m" (*p)
-		: "cc", "memory");
+/*
+ * atomic_clear(p, v)
+ * { *p &= ~v; }
+ */
+
+#define __ATOMIC_CLEAR_8(p, v, t)				\
+    8-bit atomic_add not implemented
+
+#define __ATOMIC_CLEAR_16(p, v, t)				\
+    16-bit atomic_add not implemented
+
+#define __ATOMIC_CLEAR_32(p, v, t)				\
+    __asm __volatile(						\
+	"1:	lwarx	%0, 0, %2\n"				\
+	"	andc	%0, %0, %3\n"				\
+	"	stwcx.	%0, 0, %2\n"				\
+	"	bne-	1b\n"					\
+	: "=&r" (t), "=m" (*p)					\
+	: "r" (p), "r" (v), "m" (*p)				\
+	: "cc", "memory")					\
+    /* __ATOMIC_CLEAR_32 */
+
+#define	__ATOMIC_CLEAR_64(p, v, t)				\
+    64-bit atomic_add not implemented
+
+#define	_ATOMIC_CLEAR(width, suffix, type)			\
+    static __inline void					\
+    atomic_clear_##suffix(volatile type *p, type v) {		\
+	type t;							\
+	__ATOMIC_CLEAR_##width(p, v, t);			\
+    }								\
+								\
+    static __inline void					\
+    atomic_clear_acq_##suffix(volatile type *p, type v) {	\
+	type t;							\
+	__ATOMIC_CLEAR_##width(p, v, t);			\
+	__ATOMIC_BARRIER;					\
+    }								\
+								\
+    static __inline void					\
+    atomic_clear_rel_##suffix(volatile type *p, type v) {	\
+	type t;							\
+	__ATOMIC_BARRIER;					\
+	__ATOMIC_CLEAR_##width(p, v, t);			\
+    }								\
+    /* _ATOMIC_CLEAR */
+
+#if 0
+_ATOMIC_CLEAR(8, 8, uint8_t)
+_ATOMIC_CLEAR(8, char, u_char)
+_ATOMIC_CLEAR(16, 16, uint16_t)
+_ATOMIC_CLEAR(16, short, u_short)
 #endif
-}
-
-static __inline void
-atomic_subtract_32(volatile uint32_t *p, uint32_t v)
-{
-	uint32_t temp;
-
-#ifdef __GNUCLIKE_ASM
-	__asm __volatile (
-		"1:\tlwarx %0, 0, %2\n\t"	/* load old value */
-		"subf %0, %3, %0\n\t"		/* calculate new value */
-		"stwcx. %0, 0, %2\n\t"      	/* attempt to store */
-		"bne- 1b\n\t"			/* spin if failed */
-		: "=&r" (temp), "=m" (*p)
-		: "r" (p), "r" (v), "m" (*p)
-		: "cc", "memory");
+_ATOMIC_CLEAR(32, 32, uint32_t)
+_ATOMIC_CLEAR(32, int, u_int)
+_ATOMIC_CLEAR(32, long, u_long)
+_ATOMIC_CLEAR(32, ptr, uintptr_t)
+#if 0
+_ATOMIC_CLEAR(64, 64, uint64_t)
+_ATOMIC_CLEAR(64, long_long, u_long_long)
 #endif
-}
+
+#undef _ATOMIC_CLEAR
+#undef __ATOMIC_CLEAR_64
+#undef __ATOMIC_CLEAR_32
+#undef __ATOMIC_CLEAR_16
+#undef __ATOMIC_CLEAR_8
+
+/*
+ * atomic_cmpset(p, o, n)
+ */
+/* TODO -- see below */
+
+/*
+ * atomic_load_acq(p)
+ */
+/* TODO -- see below */
+
+/*
+ * atomic_readandclear(p)
+ */
+/* TODO -- see below */
+
+/*
+ * atomic_set(p, v)
+ * { *p |= v; }
+ */
+
+#define __ATOMIC_SET_8(p, v, t)					\
+    8-bit atomic_set not implemented
+
+#define __ATOMIC_SET_16(p, v, t)				\
+    16-bit atomic_set not implemented
+
+#define __ATOMIC_SET_32(p, v, t)				\
+    __asm __volatile(						\
+	"1:	lwarx	%0, 0, %2\n"				\
+	"	or	%0, %3, %0\n"				\
+	"	stwcx.	%0, 0, %2\n"				\
+	"	bne-	1b\n"					\
+	: "=&r" (t), "=m" (*p)					\
+	: "r" (p), "r" (v), "m" (*p)				\
+	: "cc", "memory")					\
+    /* __ATOMIC_SET_32 */
+
+#define	__ATOMIC_SET_64(p, v, t)				\
+    64-bit atomic_set not implemented
+
+#define	_ATOMIC_SET(width, suffix, type)			\
+    static __inline void					\
+    atomic_set_##suffix(volatile type *p, type v) {		\
+	type t;							\
+	__ATOMIC_SET_##width(p, v, t);				\
+    }								\
+								\
+    static __inline void					\
+    atomic_set_acq_##suffix(volatile type *p, type v) {		\
+	type t;							\
+	__ATOMIC_SET_##width(p, v, t);				\
+	__ATOMIC_BARRIER;					\
+    }								\
+								\
+    static __inline void					\
+    atomic_set_rel_##suffix(volatile type *p, type v) {		\
+	type t;							\
+	__ATOMIC_BARRIER;					\
+	__ATOMIC_SET_##width(p, v, t);				\
+    }								\
+    /* _ATOMIC_SET */
+
+#if 0
+_ATOMIC_SET(8, 8, uint8_t)
+_ATOMIC_SET(8, char, u_char)
+_ATOMIC_SET(16, 16, uint16_t)
+_ATOMIC_SET(16, short, u_short)
+#endif
+_ATOMIC_SET(32, 32, uint32_t)
+_ATOMIC_SET(32, int, u_int)
+_ATOMIC_SET(32, long, u_long)
+_ATOMIC_SET(32, ptr, uintptr_t)
+#if 0
+_ATOMIC_SET(64, 64, uint64_t)
+_ATOMIC_SET(64, long_long, u_long_long)
+#endif
+
+#undef _ATOMIC_SET
+#undef __ATOMIC_SET_64
+#undef __ATOMIC_SET_32
+#undef __ATOMIC_SET_16
+#undef __ATOMIC_SET_8
+
+/*
+ * atomic_subtract(p, v)
+ * { *p -= v; }
+ */
+
+#define __ATOMIC_SUBTRACT_8(p, v, t)				\
+    8-bit atomic_subtract not implemented
+
+#define __ATOMIC_SUBTRACT_16(p, v, t)				\
+    16-bit atomic_subtract not implemented
+
+#define __ATOMIC_SUBTRACT_32(p, v, t)				\
+    __asm __volatile(						\
+	"1:	lwarx	%0, 0, %2\n"				\
+	"	subf	%0, %3, %0\n"				\
+	"	stwcx.	%0, 0, %2\n"				\
+	"	bne-	1b\n"					\
+	: "=&r" (t), "=m" (*p)					\
+	: "r" (p), "r" (v), "m" (*p)				\
+	: "cc", "memory")					\
+    /* __ATOMIC_SUBTRACT_32 */
+
+#define	__ATOMIC_SUBTRACT_64(p, v, t)				\
+    64-bit atomic_subtract not implemented
+
+#define	_ATOMIC_SUBTRACT(width, suffix, type)			\
+    static __inline void					\
+    atomic_subtract_##suffix(volatile type *p, type v) {	\
+	type t;							\
+	__ATOMIC_SUBTRACT_##width(p, v, t);			\
+    }								\
+								\
+    static __inline void					\
+    atomic_subtract_acq_##suffix(volatile type *p, type v) {	\
+	type t;							\
+	__ATOMIC_SUBTRACT_##width(p, v, t);			\
+	__ATOMIC_BARRIER;					\
+    }								\
+								\
+    static __inline void					\
+    atomic_subtract_rel_##suffix(volatile type *p, type v) {	\
+	type t;							\
+	__ATOMIC_BARRIER;					\
+	__ATOMIC_SUBTRACT_##width(p, v, t);			\
+    }								\
+    /* _ATOMIC_SUBTRACT */
+
+#if 0
+_ATOMIC_SUBTRACT(8, 8, uint8_t)
+_ATOMIC_SUBTRACT(8, char, u_char)
+_ATOMIC_SUBTRACT(16, 16, uint16_t)
+_ATOMIC_SUBTRACT(16, short, u_short)
+#endif
+_ATOMIC_SUBTRACT(32, 32, uint32_t)
+_ATOMIC_SUBTRACT(32, int, u_int)
+_ATOMIC_SUBTRACT(32, long, u_long)
+_ATOMIC_SUBTRACT(32, ptr, uintptr_t)
+#if 0
+_ATOMIC_SUBTRACT(64, 64, uint64_t)
+_ATOMIC_SUBTRACT(64, long_long, u_long_long)
+#endif
+
+#undef _ATOMIC_SUBTRACT
+#undef __ATOMIC_SUBTRACT_64
+#undef __ATOMIC_SUBTRACT_32
+#undef __ATOMIC_SUBTRACT_16
+#undef __ATOMIC_SUBTRACT_8
+
+/*
+ * atomic_store_rel(p, v)
+ */
+/* TODO -- see below */
+
+/*
+ * Old/original implementations that still need revisiting.
+ */
 
 static __inline uint32_t
 atomic_readandclear_32(volatile uint32_t *addr)
@@ -140,177 +355,9 @@ atomic_readandclear_32(volatile uint32_t *addr)
 	return (result);
 }
 
-#if 0
-
-/*
- * So far I haven't found a way to implement atomic 64-bit ops on the
- * 32-bit PowerPC without involving major headaches.  If anyone has
- * any ideas, please let me know. =)
- * 	- benno@FreeBSD.org
- */
-
-static __inline void
-atomic_set_64(volatile u_int64_t *p, u_int64_t v)
-{
-	u_int64_t temp;
-
-	__asm __volatile (
-		: "=&r" (temp), "=r" (*p)
-		: "r" (*p), "r" (v)
-		: "memory");
-}
-
-static __inline void
-atomic_clear_64(volatile u_int64_t *p, u_int64_t v)
-{
-	u_int64_t temp;
-
-	__asm __volatile (
-		: "=&r" (temp), "=r" (*p)
-		: "r" (*p), "r" (v)
-		: "memory");
-}
-
-static __inline void
-atomic_add_64(volatile u_int64_t *p, u_int64_t v)
-{
-	u_int64_t temp;
-
-	__asm __volatile (
-		: "=&r" (temp), "=r" (*p)
-		: "r" (*p), "r" (v)
-		: "memory");
-}
-
-static __inline void
-atomic_subtract_64(volatile u_int64_t *p, u_int64_t v)
-{
-	u_int64_t temp;
-
-	__asm __volatile (
-		: "=&r" (temp), "=r" (*p)
-		: "r" (*p), "r" (v)
-		: "memory");
-}
-
-static __inline u_int64_t
-atomic_readandclear_64(volatile u_int64_t *addr)
-{
-	u_int64_t result,temp;
-
-	__asm __volatile (
-		: "=&r"(result), "=&r"(temp), "=r" (*addr)
-		: "r"(*addr)
-		: "memory");
-
-	return result;
-}
-
-#endif /* 0 */
-
-#define	atomic_set_char			atomic_set_8
-#define	atomic_clear_char		atomic_clear_8
-#define	atomic_add_char			atomic_add_8
-#define	atomic_subtract_char		atomic_subtract_8
-
-#define	atomic_set_short		atomic_set_16
-#define	atomic_clear_short		atomic_clear_16
-#define	atomic_add_short		atomic_add_16
-#define	atomic_subtract_short		atomic_subtract_16
-
-#define	atomic_set_int			atomic_set_32
-#define	atomic_clear_int		atomic_clear_32
-#define	atomic_add_int			atomic_add_32
-#define	atomic_subtract_int		atomic_subtract_32
 #define	atomic_readandclear_int		atomic_readandclear_32
-
-#define	atomic_set_long			atomic_set_32
-#define	atomic_clear_long		atomic_clear_32
-#define	atomic_add_long(p, v)		\
-	atomic_add_32((volatile uint32_t *)(volatile void *)p, v)
-#define	atomic_subtract_long(p, v)     	\
-	atomic_subtract_32((volatile uint32_t *)(volatile void *)p, v)
 #define	atomic_readandclear_long	atomic_readandclear_32
-
-#define	atomic_set_ptr			atomic_set_32
-#define	atomic_clear_ptr		atomic_clear_32
-#define	atomic_add_ptr			atomic_add_32
-#define	atomic_subtract_ptr     	atomic_subtract_32
 #define	atomic_readandclear_ptr		atomic_readandclear_32
-
-#if 0
-
-/* See above. */
-
-#define	atomic_set_long_long		atomic_set_64
-#define	atomic_clear_long_long		atomic_clear_64
-#define	atomic_add_long_long		atomic_add_64
-#define	atomic_subtract_long_long	atomic_subtract_64
-#define	atomic_readandclear_long_long	atomic_readandclear_64
-
-#endif /* 0 */
-
-#define	ATOMIC_ACQ_REL(NAME, WIDTH, TYPE)				\
-static __inline void							\
-atomic_##NAME##_acq_##WIDTH(volatile u_int##WIDTH##_t *p, u_int##WIDTH##_t v) \
-{									\
-	atomic_##NAME##_##WIDTH(p, v);					\
-	powerpc_mb();							\
-}									\
-									\
-static __inline void							\
-atomic_##NAME##_rel_##WIDTH(volatile u_int##WIDTH##_t *p, u_int##WIDTH##_t v) \
-{									\
-	powerpc_mb();							\
-	atomic_##NAME##_##WIDTH(p, v);					\
-}									\
-									\
-static __inline void							\
-atomic_##NAME##_acq_##TYPE(volatile u_int##WIDTH##_t *p, u_int##WIDTH##_t v) \
-{									\
-	atomic_##NAME##_##WIDTH(p, v);					\
-	powerpc_mb();							\
-}									\
-									\
-static __inline void							\
-atomic_##NAME##_rel_##TYPE(volatile u_int##WIDTH##_t *p, u_int##WIDTH##_t v) \
-{									\
-	powerpc_mb();							\
-	atomic_##NAME##_##WIDTH(p, v);					\
-}
-
-ATOMIC_ACQ_REL(set, 8, char)
-ATOMIC_ACQ_REL(clear, 8, char)
-ATOMIC_ACQ_REL(add, 8, char)
-ATOMIC_ACQ_REL(subtract, 8, char)
-ATOMIC_ACQ_REL(set, 16, short)
-ATOMIC_ACQ_REL(clear, 16, short)
-ATOMIC_ACQ_REL(add, 16, short)
-ATOMIC_ACQ_REL(subtract, 16, short)
-ATOMIC_ACQ_REL(set, 32, int)
-ATOMIC_ACQ_REL(clear, 32, int)
-ATOMIC_ACQ_REL(add, 32, int)
-ATOMIC_ACQ_REL(subtract, 32, int)
-
-#define	atomic_set_acq_long		atomic_set_acq_32
-#define	atomic_set_rel_long		atomic_set_rel_32
-#define	atomic_clear_acq_long		atomic_clear_acq_32
-#define	atomic_clear_rel_long		atomic_clear_rel_32
-#define	atomic_add_acq_long		atomic_add_acq_32
-#define	atomic_add_rel_long		atomic_add_rel_32
-#define	atomic_subtract_acq_long	atomic_subtract_acq_32
-#define	atomic_subtract_rel_long	atomic_subtract_rel_32
-
-#define	atomic_set_acq_ptr		atomic_set_acq_32
-#define	atomic_set_rel_ptr		atomic_set_rel_32
-#define	atomic_clear_acq_ptr		atomic_clear_acq_32
-#define	atomic_clear_rel_ptr		atomic_clear_rel_32
-#define	atomic_add_acq_ptr		atomic_add_acq_32
-#define	atomic_add_rel_ptr		atomic_add_rel_32
-#define	atomic_subtract_acq_ptr		atomic_subtract_acq_32
-#define	atomic_subtract_rel_ptr		atomic_subtract_rel_32
-
-#undef ATOMIC_ACQ_REL
 
 /*
  * We assume that a = b will do atomic loads and stores.
@@ -322,14 +369,14 @@ atomic_load_acq_##WIDTH(volatile u_##TYPE *p)			\
 	u_##TYPE v;						\
 								\
 	v = *p;							\
-	powerpc_mb();						\
+	__ATOMIC_BARRIER;					\
 	return (v);						\
 }								\
 								\
 static __inline void						\
 atomic_store_rel_##WIDTH(volatile u_##TYPE *p, u_##TYPE v)	\
 {								\
-	powerpc_mb();						\
+	__ATOMIC_BARRIER;					\
 	*p = v;							\
 }								\
 								\
@@ -339,14 +386,14 @@ atomic_load_acq_##TYPE(volatile u_##TYPE *p)			\
 	u_##TYPE v;						\
 								\
 	v = *p;							\
-	powerpc_mb();						\
+	__ATOMIC_BARRIER;					\
 	return (v);						\
 }								\
 								\
 static __inline void						\
 atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v)	\
 {								\
-	powerpc_mb();						\
+	__ATOMIC_BARRIER;					\
 	*p = v;							\
 }
 
@@ -356,7 +403,6 @@ ATOMIC_STORE_LOAD(int,		32)
 
 #define	atomic_load_acq_long	atomic_load_acq_32
 #define	atomic_store_rel_long	atomic_store_rel_32
-
 #define	atomic_load_acq_ptr	atomic_load_acq_32
 #define	atomic_store_rel_ptr	atomic_store_rel_32
 
@@ -419,36 +465,10 @@ atomic_cmpset_long(volatile u_long* p, u_long cmpval, u_long newval)
 	return (ret);
 }
 
-#if 0
-
-/*
- * Atomically compare the value stored at *p with cmpval and if the
- * two values are equal, update the value of *p with newval. Returns
- * zero if the compare failed, nonzero otherwise.
- */
-static __inline u_int64_t
-atomic_cmpset_64(volatile u_int64_t* p, u_int64_t cmpval, u_int64_t newval)
-{
-	u_int64_t ret;
-
-	__asm __volatile (
-		: "=&r" (ret), "=r" (*p)
-		: "r" (cmpval), "r" (newval), "r" (*p)
-		: "memory");
-
-	return ret;
-}
-
-#endif /* 0 */
-
 #define	atomic_cmpset_int	atomic_cmpset_32
 
 #define	atomic_cmpset_ptr(dst, old, new)	\
     atomic_cmpset_32((volatile u_int *)(dst), (u_int)(old), (u_int)(new))
-
-#if 0
-#define	atomic_cmpset_long_long	atomic_cmpset_64
-#endif /* 0 */
 
 static __inline uint32_t
 atomic_cmpset_acq_32(volatile uint32_t *p, uint32_t cmpval, uint32_t newval)
@@ -456,14 +476,14 @@ atomic_cmpset_acq_32(volatile uint32_t *p, uint32_t cmpval, uint32_t newval)
 	int retval;
 
 	retval = atomic_cmpset_32(p, cmpval, newval);
-	powerpc_mb();
+	__ATOMIC_BARRIER;
 	return (retval);
 }
 
 static __inline uint32_t
 atomic_cmpset_rel_32(volatile uint32_t *p, uint32_t cmpval, uint32_t newval)
 {
-	powerpc_mb();
+	__ATOMIC_BARRIER;
 	return (atomic_cmpset_32(p, cmpval, newval));
 }
 
@@ -473,14 +493,14 @@ atomic_cmpset_acq_long(volatile u_long *p, u_long cmpval, u_long newval)
 	int retval;
 
 	retval = atomic_cmpset_long(p, cmpval, newval);
-	powerpc_mb();
+	__ATOMIC_BARRIER;
 	return (retval);
 }
 
 static __inline uint32_t
 atomic_cmpset_rel_long(volatile u_long *p, u_long cmpval, u_long newval)
 {
-	powerpc_mb();
+	__ATOMIC_BARRIER;
 	return (atomic_cmpset_long(p, cmpval, newval));
 }
 
@@ -506,5 +526,7 @@ atomic_fetchadd_32(volatile uint32_t *p, uint32_t v)
 #define	atomic_fetchadd_int	atomic_fetchadd_32
 #define	atomic_fetchadd_long(p, v)	\
     (u_long)atomic_fetchadd_32((volatile u_int *)(p), (u_int)(v))
+
+#undef __ATOMIC_BARRIER
 
 #endif /* ! _MACHINE_ATOMIC_H_ */
