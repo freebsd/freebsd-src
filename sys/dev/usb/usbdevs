@@ -1786,6 +1786,7 @@ product NOVATECH RT2573		0x9021	RT2573
 /* Novatel Wireless products */
 product NOVATEL CDMA_MODEM	0x1110	Novatel Wireless Merlin CDMA
 product NOVATEL V620		0x1110	Merlin V620
+product NOVATEL V740		0x1120	Merlin V740
 product NOVATEL V720		0x1130	Merlin V720
 product NOVATEL U740		0x1400	Merlin U740
 product NOVATEL U720		0x2110	Merlin U720
