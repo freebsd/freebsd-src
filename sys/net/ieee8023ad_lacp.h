@@ -192,6 +192,13 @@ enum lacp_mux_state {
 	LACP_MUX_DISTRIBUTING,
 };
 
+#define	LACP_MAX_PORTS		32
+
+struct lacp_portmap {
+	int			pm_count;
+	struct lacp_port	*pm_map[LACP_MAX_PORTS];
+};
+
 struct lacp_port {
 	TAILQ_ENTRY(lacp_port)	lp_dist_q;
 	LIST_ENTRY(lacp_port)	lp_next;
@@ -228,15 +235,16 @@ struct lacp_aggregator {
 
 struct lacp_softc {
 	struct lagg_softc	*lsc_softc;
+	struct mtx		lsc_mtx;
 	struct lacp_aggregator	*lsc_active_aggregator;
 	TAILQ_HEAD(, lacp_aggregator) lsc_aggregators;
 	boolean_t		lsc_suppress_distributing;
 	struct callout		lsc_transit_callout;
 	struct callout		lsc_callout;
 	LIST_HEAD(, lacp_port)	lsc_ports;
+	struct lacp_portmap	lsc_pmap[2];
+	volatile u_int		lsc_activemap;
 	u_int32_t		lsc_hashkey;
-	struct task		lsc_qtask;
-	struct ifqueue		lsc_queue;	/* pdu input queue */
 };
 
 #define	LACP_TYPE_ACTORINFO	1
@@ -260,7 +268,14 @@ struct lacp_softc {
 #define	LACP_PORT(_lp)	((struct lacp_port *)(_lp)->lp_psc)
 #define	LACP_SOFTC(_sc)	((struct lacp_softc *)(_sc)->sc_psc)
 
-void		lacp_input(struct lagg_port *, struct mbuf *);
+#define LACP_LOCK_INIT(_lsc)		mtx_init(&(_lsc)->lsc_mtx, \
+					    "lacp mtx", NULL, MTX_DEF)
+#define LACP_LOCK_DESTROY(_lsc)		mtx_destroy(&(_lsc)->lsc_mtx)
+#define LACP_LOCK(_lsc)			mtx_lock(&(_lsc)->lsc_mtx)
+#define LACP_UNLOCK(_lsc)		mtx_unlock(&(_lsc)->lsc_mtx)
+#define LACP_LOCK_ASSERT(_lsc)		mtx_assert(&(_lsc)->lsc_mtx, MA_OWNED)
+
+struct mbuf	*lacp_input(struct lagg_port *, struct mbuf *);
 struct lagg_port *lacp_select_tx_port(struct lagg_softc *, struct mbuf *);
 int		lacp_attach(struct lagg_softc *);
 int		lacp_detach(struct lagg_softc *);
@@ -269,9 +284,38 @@ void		lacp_stop(struct lagg_softc *);
 int		lacp_port_create(struct lagg_port *);
 void		lacp_port_destroy(struct lagg_port *);
 void		lacp_linkstate(struct lagg_port *);
-int		lacp_port_isactive(struct lagg_port *);
 void		lacp_req(struct lagg_softc *, caddr_t);
 void		lacp_portreq(struct lagg_port *, caddr_t);
+
+static __inline int
+lacp_isactive(struct lagg_port *lgp)
+{
+	struct lacp_port *lp = LACP_PORT(lgp);
+	struct lacp_softc *lsc = lp->lp_lsc;
+	struct lacp_aggregator *la = lp->lp_aggregator;
+
+	/* This port is joined to the active aggregator */
+	if (la != NULL && la == lsc->lsc_active_aggregator)
+		return (1);
+
+	return (0);
+}
+
+static __inline int
+lacp_iscollecting(struct lagg_port *lgp)
+{
+	struct lacp_port *lp = LACP_PORT(lgp);
+
+	return ((lp->lp_state & LACP_STATE_COLLECTING) != 0);
+}
+
+static __inline int
+lacp_isdistributing(struct lagg_port *lgp)
+{
+	struct lacp_port *lp = LACP_PORT(lgp);
+
+	return ((lp->lp_state & LACP_STATE_DISTRIBUTING) != 0);
+}
 
 /* following constants don't include terminating NUL */
 #define	LACP_MACSTR_MAX		(2*6 + 5)

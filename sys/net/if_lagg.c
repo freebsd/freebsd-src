@@ -746,8 +746,12 @@ lagg_port2req(struct lagg_port *lp, struct lagg_reqport *rp)
 
 		case LAGG_PROTO_LACP:
 			/* LACP has a different definition of active */
-			if (lacp_port_isactive(lp))
+			if (lacp_isactive(lp))
 				rp->rp_flags |= LAGG_PORT_ACTIVE;
+			if (lacp_iscollecting(lp))
+				rp->rp_flags |= LAGG_PORT_COLLECTING;
+			if (lacp_isdistributing(lp))
+				rp->rp_flags |= LAGG_PORT_DISTRIBUTING;
 			break;
 	}
 
@@ -1700,16 +1704,16 @@ lagg_lacp_input(struct lagg_softc *sc, struct lagg_port *lp, struct mbuf *m)
 
 	/* Tap off LACP control messages */
 	if (etype == ETHERTYPE_SLOW) {
-		lacp_input(lp, m);
-		return (NULL);
+		m = lacp_input(lp, m);
+		if (m == NULL)
+			return (NULL);
 	}
 
 	/*
 	 * If the port is not collecting or not in the active aggregator then
 	 * free and return.
 	 */
-	if ((lp->lp_flags & LAGG_PORT_COLLECTING) == 0 ||
-	    lacp_port_isactive(lp) == 0) {
+	if (lacp_iscollecting(lp) == 0 || lacp_isactive(lp) == 0) {
 		m_freem(m);
 		return (NULL);
 	}
