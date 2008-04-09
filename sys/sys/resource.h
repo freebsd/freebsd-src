@@ -156,7 +156,7 @@ struct loadavg {
 #ifdef _KERNEL
 
 extern struct loadavg averunnable;
-extern long cp_time[CPUSTATES];
+void	read_cpu_time(long *cp_time);	/* Writes array of CPUSTATES */
 
 #else
 

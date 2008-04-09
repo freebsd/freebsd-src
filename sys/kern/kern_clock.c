@@ -82,17 +82,18 @@ extern void hardclock_device_poll(void);
 static void initclocks(void *dummy);
 SYSINIT(clocks, SI_SUB_CLOCKS, SI_ORDER_FIRST, initclocks, NULL)
 
-/* Some of these don't belong here, but it's easiest to concentrate them. */
-long cp_time[CPUSTATES];
-
 static int
 sysctl_kern_cp_time(SYSCTL_HANDLER_ARGS)
 {
 	int error;
+	long cp_time[CPUSTATES];
 #ifdef SCTL_MASK32
 	int i;
 	unsigned int cp_time32[CPUSTATES];
-	
+#endif
+
+	read_cpu_time(cp_time);
+#ifdef SCTL_MASK32
 	if (req->flags & SCTL_MASK32) {
 		if (!req->oldptr)
 			return SYSCTL_OUT(req, 0, sizeof(cp_time32));
@@ -111,6 +112,66 @@ sysctl_kern_cp_time(SYSCTL_HANDLER_ARGS)
 
 SYSCTL_PROC(_kern, OID_AUTO, cp_time, CTLTYPE_LONG|CTLFLAG_RD, 
     0,0, sysctl_kern_cp_time, "LU", "CPU time statistics");
+
+static long empty[CPUSTATES];
+
+static int
+sysctl_kern_cp_times(SYSCTL_HANDLER_ARGS)
+{
+	struct pcpu *pcpu;
+	int error;
+	int i, c;
+	long *cp_time;
+#ifdef SCTL_MASK32
+	unsigned int cp_time32[CPUSTATES];
+#endif
+
+	if (!req->oldptr) {
+#ifdef SCTL_MASK32
+		if (req->flags & SCTL_MASK32)
+			return SYSCTL_OUT(req, 0, sizeof(cp_time32) * (mp_maxid + 1));
+		else
+#endif
+			return SYSCTL_OUT(req, 0, sizeof(long) * CPUSTATES * (mp_maxid + 1));
+	}
+	for (error = 0, c = 0; error == 0 && c <= mp_maxid; c++) {
+		if (!CPU_ABSENT(c)) {
+			pcpu = pcpu_find(c);
+			cp_time = pcpu->pc_cp_time;
+		} else {
+			cp_time = empty;
+		}
+#ifdef SCTL_MASK32
+		if (req->flags & SCTL_MASK32) {
+			for (i = 0; i < CPUSTATES; i++)
+				cp_time32[i] = (unsigned int)cp_time[i];
+			error = SYSCTL_OUT(req, cp_time32, sizeof(cp_time32));
+		} else
+#endif
+			error = SYSCTL_OUT(req, cp_time, sizeof(long) * CPUSTATES);
+	}
+	return error;
+}
+
+SYSCTL_PROC(_kern, OID_AUTO, cp_times, CTLTYPE_LONG|CTLFLAG_RD,
+    0,0, sysctl_kern_cp_times, "LU", "per-CPU time statistics");
+
+void
+read_cpu_time(long *cp_time)
+{
+	struct pcpu *pc;
+	int i, j;
+
+	/* Sum up global cp_time[]. */
+	bzero(cp_time, sizeof(long) * CPUSTATES);
+	for (i = 0; i <= mp_maxid; i++) {
+		if (CPU_ABSENT(i))
+			continue;
+		pc = pcpu_find(i);
+		for (j = 0; j < CPUSTATES; j++)
+			cp_time[j] += pc->pc_cp_time[j];
+	}
+}
 
 #ifdef SW_WATCHDOG
 #include <sys/watchdog.h>
@@ -410,11 +471,12 @@ statclock(frame)
 	struct thread *td;
 	struct proc *p;
 	long rss;
+	long *cp_time;
 
 	td = curthread;
 	p = td->td_proc;
 
-	mtx_lock_spin_flags(&sched_lock, MTX_QUIET);
+	cp_time = (long *)PCPU_PTR(cp_time);
 	if (CLKF_USERMODE(frame)) {
 		/*
 		 * Charge the time as appropriate.
@@ -457,6 +519,7 @@ statclock(frame)
 	CTR4(KTR_SCHED, "statclock: %p(%s) prio %d stathz %d",
 	    td, td->td_proc->p_comm, td->td_priority, (stathz)?stathz:hz);
 
+	mtx_lock_spin_flags(&sched_lock, MTX_QUIET);
 	sched_clock(td);
 
 	/* Update resource usage integrals and maximums. */
