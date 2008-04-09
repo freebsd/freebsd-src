@@ -48,8 +48,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/systm.h>
 #include <sys/types.h>
+#include <sys/systm.h>
 
 #include <machine/fpu.h>
 #include <machine/ieee.h>
