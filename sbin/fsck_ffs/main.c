@@ -81,7 +81,8 @@ main(int argc, char *argv[])
 
 	sync();
 	skipclean = 1;
-	while ((ch = getopt(argc, argv, "b:Bc:dfFm:npy")) != -1) {
+	catastrophicflag = 0;
+	while ((ch = getopt(argc, argv, "b:Bc:CdfFm:npy")) != -1) {
 		switch (ch) {
 		case 'b':
 			skipclean = 0;
@@ -104,6 +105,10 @@ main(int argc, char *argv[])
 		case 'd':
 			debug++;
 			break;
+
+		case 'C':
+			catastrophicflag = 1;
+			/* FALLTHROUGH */
 
 		case 'f':
 			skipclean = 0;
