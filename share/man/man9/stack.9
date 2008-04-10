@@ -54,6 +54,8 @@ In kernel configuration files:
 .Ft void
 .Fn stack_sbuf_print "struct sbuf sb*" "struct stack *st"
 .Ft void
+.Fn stack_sbuf_print_ddb "struct sbuf sb*" "struct stack *st"
+.Ft void
 .Fn stack_save "struct stack *st"
 .Sh DESCRIPTION
 The
@@ -96,7 +98,17 @@ as described in
 .Xr sbuf 9 .
 This function may sleep if an auto-extending
 .Dv struct sbuf
-is used.
+is used, and because the kernel linker (used to look up symbol names) uses
+.Xr sx 9
+locks.
+.Pp
+In locking-sensitive environments, such as
+.Xr DDB 4 ,
+the unsynchronized
+.Fn stack_sbuf_print_ddb
+variant may be invoked; this makes use of kernel linker data structures to
+look up symbol names without following locking protocols, so is appropriate
+for use in the debugger but not while the system is live.
 .Pp
 The utility functions
 .Nm stack_zero ,
@@ -107,7 +119,8 @@ may be used to manipulate stack data structures directly.
 .Sh SEE ALSO
 .Xr DDB 4 ,
 .Xr printf 9 ,
-.Xr sbuf 9
+.Xr sbuf 9 ,
+.Xr sx 9
 .Sh AUTHORS
 .An -nosplit
 The

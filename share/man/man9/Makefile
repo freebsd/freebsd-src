@@ -1056,6 +1056,7 @@ MLINKS+=stack.9 stack_copy.9 \
 	stack.9 stack_put.9 \
 	stack.9 stack_save.9 \
 	stack.9 stack_sbuf_print.9 \
+	stack.9 stack_sbuf_print_ddb.9 \
 	stack.9 stack_zero.9
 MLINKS+=store.9 subyte.9 \
 	store.9 suswintr.9 \
