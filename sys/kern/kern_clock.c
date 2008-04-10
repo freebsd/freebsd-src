@@ -120,10 +120,11 @@ sysctl_kern_cp_times(SYSCTL_HANDLER_ARGS)
 {
 	struct pcpu *pcpu;
 	int error;
-	int i, c;
+	int c;
 	long *cp_time;
 #ifdef SCTL_MASK32
 	unsigned int cp_time32[CPUSTATES];
+	int i;
 #endif
 
 	if (!req->oldptr) {
