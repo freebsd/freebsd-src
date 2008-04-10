@@ -830,6 +830,16 @@ systrace_args(int sysnum, void *params, u_int64_t *uarg, int *n_args)
 		*n_args = 4;
 		break;
 	}
+	/* nlm_syscall */
+	case 154: {
+		struct nlm_syscall_args *p = params;
+		iarg[0] = p->debug_level; /* int */
+		iarg[1] = p->grace_period; /* int */
+		iarg[2] = p->addr_count; /* int */
+		uarg[3] = (intptr_t) p->addrs; /* char ** */
+		*n_args = 4;
+		break;
+	}
 	/* nfssvc */
 	case 155: {
 		struct nfssvc_args *p = params;
