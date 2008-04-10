@@ -1051,6 +1051,7 @@ linux_to_bsd_flock(struct l_flock *linux_flock, struct flock *bsd_flock)
 	bsd_flock->l_start = (off_t)linux_flock->l_start;
 	bsd_flock->l_len = (off_t)linux_flock->l_len;
 	bsd_flock->l_pid = (pid_t)linux_flock->l_pid;
+	bsd_flock->l_sysid = 0;
 }
 
 static void
@@ -1107,6 +1108,7 @@ linux_to_bsd_flock64(struct l_flock64 *linux_flock, struct flock *bsd_flock)
 	bsd_flock->l_start = (off_t)linux_flock->l_start;
 	bsd_flock->l_len = (off_t)linux_flock->l_len;
 	bsd_flock->l_pid = (pid_t)linux_flock->l_pid;
+	bsd_flock->l_sysid = 0;
 }
 
 static void

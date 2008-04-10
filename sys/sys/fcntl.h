@@ -173,9 +173,14 @@ typedef	__pid_t		pid_t;
 #define	F_GETOWN	5		/* get SIGIO/SIGURG proc/pgrp */
 #define F_SETOWN	6		/* set SIGIO/SIGURG proc/pgrp */
 #endif
-#define	F_GETLK		7		/* get record locking information */
-#define	F_SETLK		8		/* set record locking information */
-#define	F_SETLKW	9		/* F_SETLK; wait if blocked */
+#define	F_OGETLK	7		/* get record locking information */
+#define	F_OSETLK	8		/* set record locking information */
+#define	F_OSETLKW	9		/* F_SETLK; wait if blocked */
+/* 10 reserved for F_DUP2FD */
+#define	F_GETLK		11		/* get record locking information */
+#define	F_SETLK		12		/* set record locking information */
+#define	F_SETLKW	13		/* F_SETLK; wait if blocked */
+#define	F_SETLK_REMOTE	14		/* debugging support for remote locks */
 
 /* file descriptor flags (F_GETFD, F_SETFD) */
 #define	FD_CLOEXEC	1		/* close-on-exec flag */
@@ -184,10 +189,13 @@ typedef	__pid_t		pid_t;
 #define	F_RDLCK		1		/* shared or read lock */
 #define	F_UNLCK		2		/* unlock */
 #define	F_WRLCK		3		/* exclusive or write lock */
+#define	F_UNLCKSYS	4		/* purge locks for a given system ID */ 
+#define	F_CANCEL	5		/* cancel an async lock request */
 #ifdef _KERNEL
 #define	F_WAIT		0x010		/* Wait until lock is granted */
 #define	F_FLOCK		0x020	 	/* Use flock(2) semantics for lock */
 #define	F_POSIX		0x040	 	/* Use POSIX semantics for lock */
+#define	F_REMOTE	0x080		/* Lock owner is remote NFS client */
 #endif
 
 /*
@@ -195,6 +203,19 @@ typedef	__pid_t		pid_t;
  * information passed to system by user
  */
 struct flock {
+	off_t	l_start;	/* starting offset */
+	off_t	l_len;		/* len = 0 means until end of file */
+	pid_t	l_pid;		/* lock owner */
+	short	l_type;		/* lock type: read/write, etc. */
+	short	l_whence;	/* type of l_start */
+	int	l_sysid;	/* remote system id or zero for local */
+};
+
+/*
+ * Old advisory file segment locking data type,
+ * before adding l_sysid.
+ */
+struct oflock {
 	off_t	l_start;	/* starting offset */
 	off_t	l_len;		/* len = 0 means until end of file */
 	pid_t	l_pid;		/* lock owner */

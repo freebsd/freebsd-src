@@ -396,6 +396,8 @@ TCP_SIGNATURE		opt_inet.h
 DEV_VLAN		opt_vlan.h
 VLAN_ARRAY		opt_vlan.h
 XBONEHACK
+KRPC
+NFSLOCKD
 
 #
 # SCTP

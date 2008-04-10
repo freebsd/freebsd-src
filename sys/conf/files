@@ -2000,6 +2000,12 @@ nfsserver/nfs_srvsock.c		optional nfsserver
 nfsserver/nfs_srvcache.c	optional nfsserver
 nfsserver/nfs_srvsubs.c		optional nfsserver
 nfsserver/nfs_syscalls.c	optional nfsserver
+nlm/nlm_prot_clnt.c		optional nfslockd
+nlm/nlm_prot_impl.c		optional nfslockd
+nlm/nlm_prot_server.c		optional nfslockd
+nlm/nlm_prot_svc.c		optional nfslockd
+nlm/nlm_prot_xdr.c		optional nfslockd
+nlm/sm_inter_xdr.c		optional nfslockd
 # crypto support
 opencrypto/cast.c		optional crypto | ipsec
 opencrypto/criov.c		optional crypto
@@ -2031,7 +2037,27 @@ pci/ncr.c			optional ncr pci
 pci/nfsmb.c			optional nfsmb pci
 pci/viapm.c			optional viapm pci
 pci/xrpu.c			optional xrpu pci
+rpc/auth_none.c			optional krpc | nfslockd
+rpc/auth_unix.c			optional krpc | nfslockd
+rpc/authunix_prot.c		optional krpc | nfslockd
+rpc/clnt_dg.c			optional krpc | nfslockd
+rpc/clnt_rc.c			optional krpc | nfslockd
+rpc/clnt_vc.c			optional krpc | nfslockd
+rpc/getnetconfig.c		optional krpc | nfslockd
+rpc/inet_ntop.c			optional krpc | nfslockd
+rpc/inet_pton.c			optional krpc | nfslockd
+rpc/rpc_callmsg.c		optional krpc | nfslockd
+rpc/rpc_generic.c		optional krpc | nfslockd
+rpc/rpc_prot.c			optional krpc | nfslockd
+rpc/rpcb_clnt.c			optional krpc | nfslockd
+rpc/rpcb_prot.c			optional krpc | nfslockd
 rpc/rpcclnt.c			optional nfsclient
+rpc/svc.c			optional krpc | nfslockd
+rpc/svc_auth.c			optional krpc | nfslockd
+rpc/svc_auth_unix.c		optional krpc | nfslockd
+rpc/svc_dg.c			optional krpc | nfslockd
+rpc/svc_generic.c		optional krpc | nfslockd
+rpc/svc_vc.c			optional krpc | nfslockd
 security/audit/audit.c		optional audit
 security/audit/audit_arg.c	optional audit
 security/audit/audit_bsm.c	optional audit
@@ -2113,6 +2139,12 @@ vm/vm_phys.c			standard
 vm/vm_unix.c			standard
 vm/vm_zeroidle.c		standard
 vm/vnode_pager.c		standard
+xdr/xdr.c			optional krpc | nfslockd
+xdr/xdr_array.c			optional krpc | nfslockd
+xdr/xdr_mbuf.c			optional krpc | nfslockd
+xdr/xdr_mem.c			optional krpc | nfslockd
+xdr/xdr_reference.c		optional krpc | nfslockd
+xdr/xdr_sizeof.c		optional krpc | nfslockd
 #
 gnu/fs/xfs/xfs_alloc.c		optional xfs \
 	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs" \
