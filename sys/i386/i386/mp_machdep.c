@@ -718,6 +718,8 @@ assign_cpu_ids(void)
 /*
  * start each AP in our list
  */
+/* Lowest 1MB is already mapped: don't touch*/
+#define TMPMAP_START 1
 static int
 start_all_aps(void)
 {
@@ -742,8 +744,9 @@ start_all_aps(void)
 
 	/* set up temporary P==V mapping for AP boot */
 	/* XXX this is a hack, we should boot the AP on its own stack/PTD */
+
 	kptbase = (uintptr_t)(void *)KPTphys;
-	for (i = 0; i < NKPT; i++)
+	for (i = TMPMAP_START; i < NKPT; i++)
 		PTD[i] = (pd_entry_t)(PG_V | PG_RW |
 		    ((kptbase + i * PAGE_SIZE) & PG_FRAME));
 	invltlb();
@@ -793,7 +796,7 @@ start_all_aps(void)
 #endif
 
 	/* Undo V==P hack from above */
-	for (i = 0; i < NKPT; i++)
+	for (i = TMPMAP_START; i < NKPT; i++)
 		PTD[i] = 0;
 	pmap_invalidate_range(kernel_pmap, 0, NKPT * NBPDR - 1);
 
