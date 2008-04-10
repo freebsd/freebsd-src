@@ -1,17 +1,11 @@
 # $FreeBSD$
 
-LIB =		fifolog
-INTERNALLIB =	API not published or supported.
+LIB=	fifolog
+INTERNALLIB=	# API not published or supported.
 
-SRCS +=		fifolog_int.c
-SRCS +=		fifolog_create.c
-SRCS +=		fifolog_write_poll.c
-SRCS +=		fifolog_reader.c
-SRCS +=		getdate.y
+SRCS=	fifolog_int.c fifolog_create.c fifolog_write_poll.c fifolog_reader.c
+SRCS+=	getdate.y
 
-CFLAGS +=	-I${.CURDIR}
+CFLAGS+= -I${.CURDIR}
 
 .include <bsd.lib.mk>
-
-test:
-	echo ${HAS_EXPAND_NUMBER}
