@@ -113,10 +113,10 @@ _ATOMIC_ADD(64, long_long, u_long_long)
  */
 
 #define __ATOMIC_CLEAR_8(p, v, t)				\
-    8-bit atomic_add not implemented
+    8-bit atomic_clear not implemented
 
 #define __ATOMIC_CLEAR_16(p, v, t)				\
-    16-bit atomic_add not implemented
+    16-bit atomic_clear not implemented
 
 #define __ATOMIC_CLEAR_32(p, v, t)				\
     __asm __volatile(						\
@@ -130,7 +130,7 @@ _ATOMIC_ADD(64, long_long, u_long_long)
     /* __ATOMIC_CLEAR_32 */
 
 #define	__ATOMIC_CLEAR_64(p, v, t)				\
-    64-bit atomic_add not implemented
+    64-bit atomic_clear not implemented
 
 #define	_ATOMIC_CLEAR(width, suffix, type)			\
     static __inline void					\
