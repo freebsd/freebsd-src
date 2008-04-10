@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998 - 2007 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998 - 2008 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -908,10 +908,7 @@ acd_set_ioparm(device_t dev)
     struct ata_channel *ch = device_get_softc(device_get_parent(dev));
     struct acd_softc *cdp = device_get_ivars(dev);
 
-    if (ch->dma)
-	cdp->iomax = min(ch->dma->max_iosize, 65534);
-    else
-	cdp->iomax = min(DFLTPHYS, 65534);
+    cdp->iomax = min(ch->dma.max_iosize, 65534);
 }
 
 static void 
@@ -1706,8 +1703,7 @@ acd_describe(device_t dev)
 			(cdp->cap.media & MST_WRITE_CDRW) ? "CDRW" :
 			 (cdp->cap.media & MST_WRITE_CDR) ? "CDR" : 
 			  (cdp->cap.media & MST_READ_DVDROM) ? "DVDROM":"CDROM",
-		      device_get_unit(ch->dev),
-		      (atadev->unit == ATA_MASTER) ? "master" : "slave");
+		      device_get_unit(ch->dev), ata_unit2str(atadev));
 
 	device_printf(dev, "%s", "");
 	if (cdp->cap.cur_read_speed) {
@@ -1879,8 +1875,7 @@ acd_describe(device_t dev)
 	    printf("with %d CD changer ", cdp->changer_info->slots);
 	printf("<%.40s/%.8s> at ata%d-%s %s\n",
 	       atadev->param.model, atadev->param.revision,
-	       device_get_unit(ch->dev),
-	       (atadev->unit == ATA_MASTER) ? "master" : "slave",
+	       device_get_unit(ch->dev), ata_unit2str(atadev),
 	       ata_mode2str(atadev->mode) );
     }
 }

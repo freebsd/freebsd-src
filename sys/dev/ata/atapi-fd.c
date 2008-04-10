@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998 - 2007 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998 - 2008 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -105,10 +105,7 @@ afd_attach(device_t dev)
     fdp->disk->d_ioctl = afd_ioctl;
     fdp->disk->d_name = "afd";
     fdp->disk->d_drv1 = dev;
-    if (ch->dma)
-	fdp->disk->d_maxsize = ch->dma->max_iosize;
-    else
-	fdp->disk->d_maxsize = DFLTPHYS;
+    fdp->disk->d_maxsize = ch->dma.max_iosize;
     fdp->disk->d_unit = device_get_unit(dev);
     disk_create(fdp->disk, DISK_VERSION);
     return 0;
@@ -406,8 +403,7 @@ afd_describe(device_t dev)
  
     device_printf(dev, "%s <%.40s %.8s> at ata%d-%s %s\n",
 		  sizestring, atadev->param.model, atadev->param.revision,
-		  device_get_unit(ch->dev),
-		  (atadev->unit == ATA_MASTER) ? "master" : "slave",
+		  device_get_unit(ch->dev), ata_unit2str(atadev),
 		  ata_mode2str(atadev->mode));
     if (bootverbose) {
 	device_printf(dev, "%ju sectors [%juC/%dH/%dS]\n",

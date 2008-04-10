@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998 - 2007 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998 - 2008 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -142,19 +142,13 @@ ast_attach(device_t dev)
 		      UID_ROOT, GID_OPERATOR, 0640, "ast%d",
 		      device_get_unit(dev));
     device->si_drv1 = dev;
-    if (ch->dma)
-	device->si_iosize_max = ch->dma->max_iosize;
-    else
-	device->si_iosize_max = DFLTPHYS;
+    device->si_iosize_max = ch->dma.max_iosize;
     stp->dev1 = device;
     device = make_dev(&ast_cdevsw, 2 * device_get_unit(dev) + 1,
 		      UID_ROOT, GID_OPERATOR, 0640, "nast%d",
 		      device_get_unit(dev));
     device->si_drv1 = dev;
-    if (ch->dma)
-	device->si_iosize_max = ch->dma->max_iosize;
-    else
-	device->si_iosize_max = DFLTPHYS;
+    device->si_iosize_max = ch->dma.max_iosize;
     stp->dev2 = device;
 
     /* announce we are here and ready */
@@ -678,8 +672,7 @@ ast_describe(device_t dev)
     if (bootverbose) {
 	device_printf(dev, "<%.40s/%.8s> tape drive at ata%d as %s\n",
 		      atadev->param.model, atadev->param.revision,
-		      device_get_unit(ch->dev),
-		      (atadev->unit == ATA_MASTER) ? "master" : "slave");
+		      device_get_unit(ch->dev), ata_unit2str(atadev));
 	device_printf(dev, "%dKB/s, ", stp->cap.max_speed);
 	printf("transfer limit %d blk%s, ",
 	       stp->cap.ctl, (stp->cap.ctl > 1) ? "s" : "");
@@ -717,8 +710,7 @@ ast_describe(device_t dev)
     else {
 	device_printf(dev, "TAPE <%.40s/%.8s> at ata%d-%s %s\n",
 		      atadev->param.model, atadev->param.revision,
-		      device_get_unit(ch->dev),
-		      (atadev->unit == ATA_MASTER) ? "master" : "slave",
+		      device_get_unit(ch->dev), ata_unit2str(atadev),
 		      ata_mode2str(atadev->mode));
     }
 }
