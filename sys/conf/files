@@ -1510,7 +1510,7 @@ kern/subr_sbuf.c		standard
 kern/subr_scanf.c		standard
 kern/subr_sleepqueue.c		standard
 kern/subr_smp.c			standard
-kern/subr_stack.c		optional ddb
+kern/subr_stack.c		optional ddb | stack
 kern/subr_taskqueue.c		standard
 kern/subr_trap.c		standard
 kern/subr_turnstile.c		standard

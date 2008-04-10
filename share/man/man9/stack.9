@@ -36,9 +36,9 @@
 .Sh SYNOPSIS
 .In sys/param.h>
 .In sys/stack.h
-.Pp
-In kernel configuration files:
+In the kernel configuration file:
 .Cd "options DDB"
+.Cd "options STACK"
 .Ft struct stack *
 .Fn stack_create "void"
 .Ft void
@@ -63,12 +63,11 @@ The
 KPI allows querying of kernel stack trace information and the automated
 generation of kernel stack trace strings for the purposes of debugging and
 tracing.
-.Nm
-relies on the presence of
-.Xr DDB 4 ,
-and all use of these functions must be made conditional on
-.Nm DDB
-being compiled in the kernel.
+To use the KPI, at least one of
+.Cd "options DDB"
+and
+.Cd "options STACK"
+must be compiled into the kernel.
 .Pp
 Each stack trace is described by a
 .Vt "struct stack" .
@@ -76,7 +75,7 @@ Before a trace may be created or otherwise manipulated, storage for the trace
 must be allocated with
 .Fn stack_create ,
 which may sleep.
-Memory associated with a trace may be freed by calling
+Memory associated with a trace is freed by calling
 .Fn stack_destroy .
 .Pp
 A trace of the current kernel thread's call stack may be captured using
@@ -84,7 +83,16 @@ A trace of the current kernel thread's call stack may be captured using
 .Pp
 .Fn stack_print
 may be used to print a stack trace using the kernel
-.Xr printf 9 .
+.Xr printf 9 ,
+and may sleep as a result of acquiring
+.Xr sx 9
+locks in the kernel linker while looking up symbol names.
+In locking-sensitive environments, the unsynchronized
+.Fn stack_print_ddb
+variant may be invoked.
+This function bypasses kernel linker locking, making it usable in
+.Xr ddb 4 ,
+but not in a live system where linker data structures may change.
 .Pp
 .Fn stack_sbuf_print
 may be used to construct a human-readable string, including conversion (where
@@ -98,17 +106,13 @@ as described in
 .Xr sbuf 9 .
 This function may sleep if an auto-extending
 .Dv struct sbuf
-is used, and because the kernel linker (used to look up symbol names) uses
-.Xr sx 9
-locks.
-.Pp
+is used, or due to kernel linker locking.
 In locking-sensitive environments, such as
-.Xr DDB 4 ,
+.Xr ddb 4 ,
 the unsynchronized
 .Fn stack_sbuf_print_ddb
-variant may be invoked; this makes use of kernel linker data structures to
-look up symbol names without following locking protocols, so is appropriate
-for use in the debugger but not while the system is live.
+variant may be invoked to avoid kernel linker locking; it should be used with
+a fixed-length sbuf.
 .Pp
 The utility functions
 .Nm stack_zero ,
@@ -117,7 +121,7 @@ and
 .Nm stack_put
 may be used to manipulate stack data structures directly.
 .Sh SEE ALSO
-.Xr DDB 4 ,
+.Xr ddb 4 ,
 .Xr printf 9 ,
 .Xr sbuf 9 ,
 .Xr sx 9
@@ -127,6 +131,8 @@ The
 .Xr stack 9
 function suite was created by
 .An Antoine Brodin .
-.Pp
-This manual page was written by
-.An Robert Watson .
+.Xr stack 9
+was extended by
+.An Robert Watson
+for general-purpose use outside of
+.Xr ddb 4 .
