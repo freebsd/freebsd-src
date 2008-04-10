@@ -306,9 +306,9 @@ void		 au_evclassmap_insert(au_event_t event, au_class_t class);
 au_class_t	 au_event_class(au_event_t event);
 au_event_t	 ctlname_to_sysctlevent(int name[], uint64_t valid_arg);
 int		 auditon_command_event(int cmd);
-int		 msgctl_to_event(int cmd);
-int		 semctl_to_event(int cmr);
-void		 canon_path(struct thread *td, char *path, char *cpath);
+int		 audit_msgctl_to_event(int cmd);
+int		 audit_semctl_to_event(int cmr);
+void		 audit_canon_path(struct thread *td, char *path, char *cpath);
 
 /*
  * Audit trigger events notify user space of kernel audit conditions

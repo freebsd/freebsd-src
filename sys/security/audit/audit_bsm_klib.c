@@ -338,7 +338,7 @@ flags_and_error_to_openevent(int oflags, int error)
  * Convert a MSGCTL command to a specific event.
  */
 int
-msgctl_to_event(int cmd)
+audit_msgctl_to_event(int cmd)
 {
 
 	switch (cmd) {
@@ -361,7 +361,7 @@ msgctl_to_event(int cmd)
  * Convert a SEMCTL command to a specific event.
  */
 int
-semctl_to_event(int cmd)
+audit_semctl_to_event(int cmd)
 {
 
 	switch (cmd) {
@@ -480,7 +480,7 @@ auditon_command_event(int cmd)
  * MAXPATHLEN * 2 would be passed in.
  */
 void
-canon_path(struct thread *td, char *path, char *cpath)
+audit_canon_path(struct thread *td, char *path, char *cpath)
 {
 	char *bufp;
 	char *retbuf, *freebuf;
@@ -489,7 +489,7 @@ canon_path(struct thread *td, char *path, char *cpath)
 	int cisr, error, vfslocked;
 
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
-	    "canon_path() at %s:%d", __FILE__, __LINE__);
+	    "audit_canon_path() at %s:%d", __FILE__, __LINE__);
 
 	fdp = td->td_proc->p_fd;
 	bufp = path;
