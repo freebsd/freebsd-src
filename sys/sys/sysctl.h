@@ -458,6 +458,7 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 #define	KERN_PROC_PATHNAME	12	/* path to executable */
 #define	KERN_PROC_VMMAP		13	/* VM map entries for process */
 #define	KERN_PROC_FILEDESC	14	/* File descriptors for process */
+#define	KERN_PROC_KSTACK	15	/* Kernel stacks for process */
 #define	KERN_PROC_INC_THREAD	0x10	/*
 					 * modifier for pid, pgrp, tty,
 					 * uid, ruid, gid, rgid and proc
