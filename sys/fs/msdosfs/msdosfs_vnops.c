@@ -83,6 +83,7 @@
  * Prototypes for MSDOSFS vnode operations
  */
 static vop_advlock_t	msdosfs_advlock;
+static vop_advlockasync_t msdosfs_advlockasync;
 static vop_create_t	msdosfs_create;
 static vop_mknod_t	msdosfs_mknod;
 static vop_open_t	msdosfs_open;
@@ -1962,6 +1963,22 @@ msdosfs_advlock(ap)
 }
 
 static int
+msdosfs_advlockasync(ap)
+	struct vop_advlockasync_args /* {
+		struct vnode *a_vp;
+		u_char a_id;
+		int a_op;
+		struct flock *a_fl;
+		int a_flags;
+		struct task *a_task;
+	} */ *ap;
+{
+	struct denode *dep = VTODE(ap->a_vp);
+
+	return (lf_advlockasync(ap, &dep->de_lockf, dep->de_FileSize));
+}
+
+static int
 msdosfs_vptofh(ap)
 	struct vop_vptofh_args /* {
 		struct vnode *a_vp;
@@ -1986,6 +2003,7 @@ struct vop_vector msdosfs_vnodeops = {
 
 	.vop_access =		msdosfs_access,
 	.vop_advlock =		msdosfs_advlock,
+	.vop_advlockasync =	msdosfs_advlockasync,
 	.vop_bmap =		msdosfs_bmap,
 	.vop_cachedlookup =	msdosfs_lookup,
 	.vop_open =		msdosfs_open,

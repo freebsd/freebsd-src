@@ -440,6 +440,19 @@ vop_advlock {
 };
 
 
+%% advlockasync	vp	U U U
+
+vop_advlockasync {
+	IN struct vnode *vp;
+	IN void *id;
+	IN int op;
+	IN struct flock *fl;
+	IN int flags;
+	IN struct task *task;	
+	INOUT void **cookiep;
+};
+
+
 %% reallocblks	vp	E E E
 
 vop_reallocblks {

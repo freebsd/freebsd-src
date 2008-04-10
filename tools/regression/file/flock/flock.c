@@ -29,6 +29,7 @@
 
 #include <sys/time.h>
 #ifdef __FreeBSD__
+#include <sys/param.h>
 #include <sys/mount.h>
 #endif
 #include <sys/wait.h>
@@ -44,6 +45,12 @@
 
 #ifdef __FreeBSD__
 #if __FreeBSD_version >= 800028
+#define HAVE_SYSID
+#endif
+#if __FreeBSD_version < 800000 && __FreeBSD_version >= 700103
+#define HAVE_SYSID
+#endif
+#if __FreeBSD_version < 700000 && __FreeBSD_version >= 603102
 #define HAVE_SYSID
 #endif
 #include <sys/cdefs.h>

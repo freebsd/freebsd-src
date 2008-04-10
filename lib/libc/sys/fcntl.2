@@ -177,6 +177,7 @@ struct flock {
 	pid_t	l_pid;		/* lock owner */
 	short	l_type;		/* lock type: read/write, etc. */
 	short	l_whence;	/* type of l_start */
+	int	l_sysid;	/* remote system id or zero for local */
 };
 .Ed
 The commands available for advisory record locking are as follows:
@@ -264,9 +265,13 @@ is negative,
 means end edge of the region.
 The
 .Fa l_pid
-field is only used with
+and
+.Fa l_sysid
+fields are only used with
 .Dv F_GETLK
-to return the process ID of the process holding a blocking lock.
+to return the process ID of the process holding a blocking lock and
+the system ID of the system that owns that process.
+Locks created by the local system will have a system ID of zero.
 After a successful
 .Dv F_GETLK
 request, the value of

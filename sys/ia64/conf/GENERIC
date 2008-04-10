@@ -41,6 +41,7 @@ options 	MD_ROOT		# MD usable as root device
 options 	MSDOSFS		# MSDOS Filesystem
 options 	NFSCLIENT	# Network Filesystem Client
 options 	NFSSERVER	# Network Filesystem Server
+options 	NFSLOCKD	# Network Lock Manager
 options 	NFS_ROOT	# NFS usable as root device
 options 	PROCFS		# Process filesystem (/proc)
 options 	PSEUDOFS	# Pseudo-filesystem framework

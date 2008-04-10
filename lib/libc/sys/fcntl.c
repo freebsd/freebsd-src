@@ -47,7 +47,7 @@ fcntl(int fd, int cmd, ...)
 	arg = va_arg(args, long);
 	va_end(args);
 
-	if (__getosreldate() >= 800028) {
+	if (__getosreldate() >= 700103) {
 		return (__sys_fcntl(fd, cmd, arg));
 	} else {
 		if (cmd == F_GETLK || cmd == F_SETLK || cmd == F_SETLKW) {
