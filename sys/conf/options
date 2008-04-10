@@ -145,6 +145,7 @@ SHOW_BUSYBUFS
 SLEEPQUEUE_PROFILING
 SLHCI_DEBUG	opt_slhci.h
 SPX_HACK
+STACK		opt_stack.h
 SUIDDIR
 MSGMNB		opt_sysvipc.h
 MSGMNI		opt_sysvipc.h
