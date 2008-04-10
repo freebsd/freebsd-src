@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003 - 2007 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 2003 - 2008 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -460,7 +460,6 @@ int ata_pci_setup_intr(device_t dev, device_t child, struct resource *irq, int f
  int ata_pci_teardown_intr(device_t dev, device_t child, struct resource *irq, void *cookie);
 int ata_pci_allocate(device_t dev);
 void ata_pci_hw(device_t dev);
-int ata_pci_status(device_t dev);
 void ata_pci_dmainit(device_t dev);
 char *ata_pcivendor2str(device_t dev);
 

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998 - 2007 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998 - 2008 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -422,23 +422,14 @@ ata_pci_allocate(device_t dev)
     return 0;
 }
 
-void
-ata_pci_hw(device_t dev)
-{
-    struct ata_channel *ch = device_get_softc(dev);
-
-    ata_generic_hw(dev);
-    ch->hw.status = ata_pci_status;
-}
-
-int
+static int
 ata_pci_status(device_t dev)
 {
     struct ata_channel *ch = device_get_softc(dev);
 
     if ((dumping || !ata_legacy(device_get_parent(dev))) &&
-	ch->dma && ((ch->flags & ATA_ALWAYS_DMASTAT) ||
-		    (ch->dma->flags & ATA_DMA_ACTIVE))) {
+	((ch->flags & ATA_ALWAYS_DMASTAT) ||
+	 (ch->dma.flags & ATA_DMA_ACTIVE))) {
 	int bmstat = ATA_IDX_INB(ch, ATA_BMSTAT_PORT) & ATA_BMSTAT_MASK;
 
 	if ((bmstat & (ATA_BMSTAT_ACTIVE | ATA_BMSTAT_INTERRUPT)) !=
@@ -455,31 +446,44 @@ ata_pci_status(device_t dev)
     return 1;
 }
 
-static int
-ata_pci_dmastart(device_t dev)
+void
+ata_pci_hw(device_t dev)
 {
-    struct ata_channel *ch = device_get_softc(device_get_parent(dev));
+    struct ata_channel *ch = device_get_softc(dev);
+
+    ata_generic_hw(dev);
+    ch->hw.status = ata_pci_status;
+}
+
+static int
+ata_pci_dmastart(struct ata_request *request)
+{
+    struct ata_channel *ch = device_get_softc(request->parent);
+
+    ATA_DEBUG_RQ(request, "dmastart");
 
     ATA_IDX_OUTB(ch, ATA_BMSTAT_PORT, (ATA_IDX_INB(ch, ATA_BMSTAT_PORT) | 
 		 (ATA_BMSTAT_INTERRUPT | ATA_BMSTAT_ERROR)));
-    ATA_IDX_OUTL(ch, ATA_BMDTP_PORT, ch->dma->sg_bus);
-    ch->dma->flags |= ATA_DMA_ACTIVE;
+    ATA_IDX_OUTL(ch, ATA_BMDTP_PORT, request->dma.sg_bus);
+    ch->dma.flags |= ATA_DMA_ACTIVE;
     ATA_IDX_OUTB(ch, ATA_BMCMD_PORT,
 		 (ATA_IDX_INB(ch, ATA_BMCMD_PORT) & ~ATA_BMCMD_WRITE_READ) |
-		 ((ch->dma->flags & ATA_DMA_READ) ? ATA_BMCMD_WRITE_READ : 0) |
+		 ((request->flags & ATA_R_READ) ? ATA_BMCMD_WRITE_READ : 0)|
 		 ATA_BMCMD_START_STOP);
     return 0;
 }
 
 static int
-ata_pci_dmastop(device_t dev)
+ata_pci_dmastop(struct ata_request *request)
 {
-    struct ata_channel *ch = device_get_softc(device_get_parent(dev));
+    struct ata_channel *ch = device_get_softc(request->parent);
     int error;
+
+    ATA_DEBUG_RQ(request, "dmastop");
 
     ATA_IDX_OUTB(ch, ATA_BMCMD_PORT, 
 		 ATA_IDX_INB(ch, ATA_BMCMD_PORT) & ~ATA_BMCMD_START_STOP);
-    ch->dma->flags &= ~ATA_DMA_ACTIVE;
+    ch->dma.flags &= ~ATA_DMA_ACTIVE;
     error = ATA_IDX_INB(ch, ATA_BMSTAT_PORT) & ATA_BMSTAT_MASK;
     ATA_IDX_OUTB(ch, ATA_BMSTAT_PORT, ATA_BMSTAT_INTERRUPT | ATA_BMSTAT_ERROR);
     return error;
@@ -489,12 +493,16 @@ static void
 ata_pci_dmareset(device_t dev)
 {
     struct ata_channel *ch = device_get_softc(dev);
+    struct ata_request *request;
 
     ATA_IDX_OUTB(ch, ATA_BMCMD_PORT, 
 		 ATA_IDX_INB(ch, ATA_BMCMD_PORT) & ~ATA_BMCMD_START_STOP);
-    ch->dma->flags &= ~ATA_DMA_ACTIVE;
+    ch->dma.flags &= ~ATA_DMA_ACTIVE;
     ATA_IDX_OUTB(ch, ATA_BMSTAT_PORT, ATA_BMSTAT_INTERRUPT | ATA_BMSTAT_ERROR);
-    ch->dma->unload(dev);
+    if ((request = ch->running)) {
+	device_printf(request->dev, "DMA reset calling unload\n");
+	ch->dma.unload(request);
+    }
 }
 
 void
@@ -503,11 +511,9 @@ ata_pci_dmainit(device_t dev)
     struct ata_channel *ch = device_get_softc(dev);
 
     ata_dmainit(dev);
-    if (ch->dma) {
-	ch->dma->start = ata_pci_dmastart;
-	ch->dma->stop = ata_pci_dmastop;
-	ch->dma->reset = ata_pci_dmareset;
-    }
+    ch->dma.start = ata_pci_dmastart;
+    ch->dma.stop = ata_pci_dmastop;
+    ch->dma.reset = ata_pci_dmareset;
 }
 
 char *
@@ -603,14 +609,13 @@ ata_pcichannel_attach(device_t dev)
     struct ata_channel *ch = device_get_softc(dev);
     int error;
 
-    if (ctlr->dmainit)
+    if (ctlr->dmainit) {
 	ctlr->dmainit(dev);
-    if (ch->dma)
-	ch->dma->alloc(dev);
+	ch->dma.alloc(dev);
+    }
 
     if ((error = ctlr->allocate(dev))) {
-	if (ch->dma)
-	    ch->dma->free(dev);
+	ch->dma.free(dev);
 	return error;
     }
 
@@ -626,8 +631,7 @@ ata_pcichannel_detach(device_t dev)
     if ((error = ata_detach(dev)))
 	return error;
 
-    if (ch->dma)
-	ch->dma->free(dev);
+    ch->dma.free(dev);
 
     /* XXX SOS free resources for io and ctlio ?? */
 
@@ -653,11 +657,8 @@ ata_pcichannel_reset(device_t dev)
     struct ata_channel *ch = device_get_softc(dev);
 
     /* if DMA engine present reset it  */
-    if (ch->dma) {
-	if (ch->dma->reset)
-	    ch->dma->reset(dev);
-	ch->dma->unload(dev);
-    }
+    if (ch->dma.reset)
+	ch->dma.reset(dev);
 
     /* reset the controller HW */
     if (ctlr->reset)

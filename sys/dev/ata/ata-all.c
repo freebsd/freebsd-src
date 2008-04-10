@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998 - 2007 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998 - 2008 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -62,7 +62,6 @@ static struct cdevsw ata_cdevsw = {
 /* prototypes */
 static void ata_boot_attach(void);
 static device_t ata_add_child(device_t, struct ata_device *, int);
-static int ata_getparam(struct ata_device *, int);
 static void bswap(int8_t *, int);
 static void btrim(int8_t *, int);
 static void bpack(int8_t *, int8_t *, int);
@@ -75,6 +74,7 @@ devclass_t ata_devclass;
 uma_zone_t ata_request_zone;
 uma_zone_t ata_composite_zone;
 int ata_wc = 1;
+int ata_setmax = 0;
 
 /* local vars */
 static int ata_dma = 1;
@@ -91,6 +91,9 @@ SYSCTL_INT(_hw_ata, OID_AUTO, atapi_dma, CTLFLAG_RDTUN, &atapi_dma, 0,
 TUNABLE_INT("hw.ata.wc", &ata_wc);
 SYSCTL_INT(_hw_ata, OID_AUTO, wc, CTLFLAG_RDTUN, &ata_wc, 0,
 	   "ATA disk write caching");
+TUNABLE_INT("hw.ata.setmax", &ata_setmax);
+SYSCTL_INT(_hw_ata, OID_AUTO, setmax, CTLFLAG_RDTUN, &ata_setmax, 0,
+	   "ATA disk set max native address");
 
 /*
  * newbus device interface related functions
@@ -404,13 +407,13 @@ ata_ioctl(struct cdev *dev, u_long cmd, caddr_t data,
 		if (children[i] && device_is_attached(children[i])) {
 		    struct ata_device *atadev = device_get_softc(children[i]);
 
-		    if (atadev->unit == ATA_MASTER) {
+		    if (atadev->unit == ATA_MASTER) { /* XXX SOS PM */
 			strncpy(devices->name[0],
 				device_get_nameunit(children[i]), 32);
 			bcopy(&atadev->param, &devices->params[0],
 			      sizeof(struct ata_params));
 		    }
-		    if (atadev->unit == ATA_SLAVE) {
+		    if (atadev->unit == ATA_SLAVE) { /* XXX SOS PM */
 			strncpy(devices->name[1],
 				device_get_nameunit(children[i]), 32);
 			bcopy(&atadev->param, &devices->params[1],
@@ -569,7 +572,7 @@ ata_add_child(device_t parent, struct ata_device *atadev, int unit)
     return child;
 }
 
-static int
+int
 ata_getparam(struct ata_device *atadev, int init)
 {
     struct ata_channel *ch = device_get_softc(device_get_parent(atadev->dev));
@@ -577,11 +580,9 @@ ata_getparam(struct ata_device *atadev, int init)
     u_int8_t command = 0;
     int error = ENOMEM, retries = 2;
 
-    if (ch->devices &
-	(atadev->unit == ATA_MASTER ? ATA_ATA_MASTER : ATA_ATA_SLAVE))
+    if (ch->devices & (ATA_ATA_MASTER << atadev->unit))
 	command = ATA_ATA_IDENTIFY;
-    if (ch->devices &
-	(atadev->unit == ATA_MASTER ? ATA_ATAPI_MASTER : ATA_ATAPI_SLAVE))
+    if (ch->devices & (ATA_ATAPI_MASTER << atadev->unit))
 	command = ATA_ATAPI_IDENTIFY;
     if (!command)
 	return ENXIO;
@@ -631,7 +632,7 @@ ata_getparam(struct ata_device *atadev, int init)
 	if (bootverbose)
 	    printf("ata%d-%s: pio=%s wdma=%s udma=%s cable=%s wire\n",
 		   device_get_unit(ch->dev),
-		   atadev->unit == ATA_MASTER ? "master" : "slave",
+		   ata_unit2str(atadev),
 		   ata_mode2str(ata_pmode(atacap)),
 		   ata_mode2str(ata_wmode(atacap)),
 		   ata_mode2str(ata_umode(atacap)),
@@ -643,13 +644,13 @@ ata_getparam(struct ata_device *atadev, int init)
 	    if ((atadev->param.config & ATA_PROTO_ATAPI) &&
 		(atadev->param.config != ATA_CFA_MAGIC1) &&
 		(atadev->param.config != ATA_CFA_MAGIC2)) {
-		if (atapi_dma && ch->dma &&
+		if (atapi_dma &&
 		    (atadev->param.config & ATA_DRQ_MASK) != ATA_DRQ_INTR &&
 		    ata_umode(&atadev->param) >= ATA_UDMA2)
 		    atadev->mode = ATA_DMA_MAX;
 	    }
 	    else {
-		if (ata_dma && ch->dma &&
+		if (ata_dma &&
 		    (ata_umode(&atadev->param) > 0 ||
 		     ata_wmode(&atadev->param) > 0))
 		    atadev->mode = ATA_DMA_MAX;
@@ -667,52 +668,39 @@ int
 ata_identify(device_t dev)
 {
     struct ata_channel *ch = device_get_softc(dev);
-    struct ata_device *master = NULL, *slave = NULL;
-    device_t master_child = NULL, slave_child = NULL;
-    int master_unit = -1, slave_unit = -1;
+    struct ata_device *devices[ATA_PM];
+    device_t childdevs[ATA_PM];
+    int i, unit = -1;
 
-    if (ch->devices & (ATA_ATA_MASTER | ATA_ATAPI_MASTER)) {
-	if (!(master = malloc(sizeof(struct ata_device),
-			      M_ATA, M_NOWAIT | M_ZERO))) {
-	    device_printf(dev, "out of memory\n");
-	    return ENOMEM;
-	}
-	master->unit = ATA_MASTER;
-    }
-    if (ch->devices & (ATA_ATA_SLAVE | ATA_ATAPI_SLAVE)) {
-	if (!(slave = malloc(sizeof(struct ata_device),
-			     M_ATA, M_NOWAIT | M_ZERO))) {
-	    free(master, M_ATA);
-	    device_printf(dev, "out of memory\n");
-	    return ENOMEM;
-	}
-	slave->unit = ATA_SLAVE;
-    }
+    if (bootverbose)
+	device_printf(dev, "identify ch->devices=%08x\n", ch->devices);
 
+    for (i = 0; i < ATA_PM; ++i) {
+	if (ch->devices & (((ATA_ATA_MASTER | ATA_ATAPI_MASTER) << i))) {
+	    if (!(devices[i] = malloc(sizeof(struct ata_device),
+				      M_ATA, M_NOWAIT | M_ZERO))) {
+		device_printf(dev, "out of memory\n");
+		return ENOMEM;
+	    }
+	    devices[i]->unit = i;
 #ifdef ATA_STATIC_ID
-    if (ch->devices & ATA_ATA_MASTER)
-	master_unit = (device_get_unit(dev) << 1);
+	    unit = (device_get_unit(dev) << 1) + i;
 #endif
-    if (master && !(master_child = ata_add_child(dev, master, master_unit))) {
-	free(master, M_ATA);
-	master = NULL;
-    }
-#ifdef ATA_STATIC_ID
-    if (ch->devices & ATA_ATA_SLAVE)
-	slave_unit = (device_get_unit(dev) << 1) + 1;
-#endif
-    if (slave && !(slave_child = ata_add_child(dev, slave, slave_unit))) {
-	free(slave, M_ATA);
-	slave = NULL;
-    }
-
-    if (slave && ata_getparam(slave, 1)) {
-	device_delete_child(dev, slave_child);
-	free(slave, M_ATA);
-    }
-    if (master && ata_getparam(master, 1)) {
-	device_delete_child(dev, master_child);
-	free(master, M_ATA);
+	    if (!(childdevs[i] = ata_add_child(dev, devices[i], unit))) {
+		free(devices[i], M_ATA);
+		devices[i]=NULL;
+	    }
+	    else {
+		if (ata_getparam(devices[i], 1)) {
+		    device_delete_child(dev, childdevs[i]);
+		    free(devices[i], M_ATA);
+		    childdevs[i] = NULL;
+		    devices[i] = NULL;
+		}
+	    }
+	}
+	devices[i] = NULL;
+	childdevs[i] = NULL;
     }
 
     bus_generic_probe(dev);
@@ -810,8 +798,23 @@ ata_modify_if_48bit(struct ata_request *request)
 	case ATA_FLUSHCACHE:
 	    request->u.ata.command = ATA_FLUSHCACHE48;
 	    break;
-	case ATA_READ_NATIVE_MAX_ADDDRESS:
-	    request->u.ata.command = ATA_READ_NATIVE_MAX_ADDDRESS48;
+	case ATA_SET_MAX_ADDRESS:
+	    request->u.ata.command = ATA_SET_MAX_ADDRESS48;
+	    break;
+	default:
+	    return;
+	}
+	atadev->flags |= ATA_D_48BIT_ACTIVE;
+    }
+    else if (atadev->param.support.command2 & ATA_SUPPORT_ADDRESS48) {
+
+	/* translate command into 48bit version */
+	switch (request->u.ata.command) {
+	case ATA_FLUSHCACHE:
+	    request->u.ata.command = ATA_FLUSHCACHE48;
+	    break;
+	case ATA_READ_NATIVE_MAX_ADDRESS:
+	    request->u.ata.command = ATA_READ_NATIVE_MAX_ADDRESS48;
 	    break;
 	case ATA_SET_MAX_ADDRESS:
 	    request->u.ata.command = ATA_SET_MAX_ADDRESS48;
@@ -831,6 +834,19 @@ ata_udelay(int interval)
 	DELAY(interval);
     else
 	pause("ataslp", interval/(1000000/hz));
+}
+
+char *
+ata_unit2str(struct ata_device *atadev)
+{
+    struct ata_channel *ch = device_get_softc(device_get_parent(atadev->dev));
+    static char str[8];
+
+    if (ch->devices & ATA_PORTMULTIPLIER)
+	sprintf(str, "port%d", atadev->unit);
+    else
+	sprintf(str, "%s", atadev->unit == ATA_MASTER ? "master" : "slave");
+    return str;
 }
 
 char *
