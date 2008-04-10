@@ -81,12 +81,12 @@ kinfo_proc_compare(const void *a, const void *b)
 {
 	int i;
 
-	i = ((const struct kinfo_proc *)a)->ki_pid -
-	    ((const struct kinfo_proc *)b)->ki_pid;
+	i = ((struct kinfo_proc *)a)->ki_pid -
+	    ((struct kinfo_proc *)b)->ki_pid;
 	if (i != 0)
 		return (i);
-	i = ((const struct kinfo_proc *)a)->ki_tid -
-	    ((const struct kinfo_proc *)b)->ki_tid;
+	i = ((struct kinfo_proc *)a)->ki_tid -
+	    ((struct kinfo_proc *)b)->ki_tid;
 	return (i);
 }
 
@@ -100,8 +100,7 @@ kinfo_proc_sort(struct kinfo_proc *kipp, int count)
 int
 main(int argc, char *argv[])
 {
-	int ch, interval, name[4], tmp;
-	unsigned int i;
+	int ch, i, interval, name[4], tmp;
 	struct kinfo_proc *kipp;
 	size_t len;
 	long l;
@@ -209,7 +208,7 @@ main(int argc, char *argv[])
 			}
 			free(kipp);
 		}
-		for (i = 0; i < (unsigned int)argc; i++) {
+		for (i = 0; i < argc; i++) {
 			l = strtol(argv[i], &dummy, 10);
 			if (*dummy != '\0')
 				usage();

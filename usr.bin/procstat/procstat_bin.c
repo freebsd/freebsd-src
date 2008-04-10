@@ -28,7 +28,6 @@
 
 #include <sys/types.h>
 #include <sys/sysctl.h>
-#include <sys/user.h>
 
 #include <err.h>
 #include <errno.h>
@@ -46,7 +45,7 @@ procstat_bin(pid_t pid, struct kinfo_proc *kipp)
 	size_t len;
 
 	if (!hflag)
-		printf("%5s %-16s %-53s\n", "PID", "COMM", "PATH");
+		printf("%5s %-70s\n", "PID", "PATH");
 
 	name[0] = CTL_KERN;
 	name[1] = KERN_PROC;
@@ -65,6 +64,5 @@ procstat_bin(pid_t pid, struct kinfo_proc *kipp)
 		strcpy(pathname, "-");
 
 	printf("%5d ", pid);
-	printf("%-16s ", kipp->ki_comm);
 	printf("%s\n", pathname);
 }
