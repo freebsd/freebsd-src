@@ -155,6 +155,14 @@ int linker_ddb_lookup(const char *_symstr, c_linker_sym_t *_sym);
 int linker_ddb_search_symbol(caddr_t _value, c_linker_sym_t *_sym,
 			     long *_diffp);
 int linker_ddb_symbol_values(c_linker_sym_t _sym, linker_symval_t *_symval);
+int linker_ddb_search_symbol_name(caddr_t value, char *buf, u_int buflen,
+				  long *offset);
+
+/*
+ * stack(9) helper for situations where kernel locking is required.
+ */
+int linker_search_symbol_name(caddr_t value, char *buf, u_int buflen,
+    long *offset);
 
 
 /* HWPMC helper */
