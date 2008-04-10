@@ -150,6 +150,8 @@ main(int argc, char **argv)
 		usage();
 
 	PREFIX = *argv;
+	if (stat(PREFIX, &buf) != 0 || !S_ISREG(buf.st_mode))
+		err(2, "%s", PREFIX);
 	if (freopen("DEFAULTS", "r", stdin) != NULL) {
 		found_defaults = 1;
 		yyfile = "DEFAULTS";
