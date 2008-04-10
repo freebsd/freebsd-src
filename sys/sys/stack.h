@@ -45,7 +45,9 @@ int		 stack_put(struct stack *, vm_offset_t);
 void		 stack_copy(struct stack *, struct stack *);
 void		 stack_zero(struct stack *);
 void		 stack_print(struct stack *);
+void		 stack_print_ddb(struct stack *);
 void		 stack_sbuf_print(struct sbuf *, struct stack *);
+void		 stack_sbuf_print_ddb(struct sbuf *, struct stack *);
 #ifdef KTR
 void		 stack_ktr(u_int, const char *, int, struct stack *, u_int, int);
 #define	CTRSTACK(m, st, depth, cheap) do {				\
