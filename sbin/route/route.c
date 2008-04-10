@@ -1187,7 +1187,7 @@ rtmsg(cmd, flags)
 #define NEXTADDR(w, u) \
 	if (rtm_addrs & (w)) {\
 	    l = SA_SIZE(&(u.sa)); memmove(cp, &(u), l); cp += l;\
-	    if (verbose) sodump(&(u),"u");\
+	    if (verbose) sodump(&(u),#u);\
 	}
 
 	errno = 0;
