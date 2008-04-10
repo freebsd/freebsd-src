@@ -981,7 +981,7 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		break;
 
 	case AUE_MSGCTL:
-		ar->ar_event = msgctl_to_event(ar->ar_arg_svipc_cmd);
+		ar->ar_event = audit_msgctl_to_event(ar->ar_arg_svipc_cmd);
 		/* Fall through */
 
 	case AUE_MSGRCV:
@@ -1075,7 +1075,7 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		break;
 
 	case AUE_SEMCTL:
-		ar->ar_event = semctl_to_event(ar->ar_arg_svipc_cmd);
+		ar->ar_event = audit_semctl_to_event(ar->ar_arg_svipc_cmd);
 		/* Fall through */
 
 	case AUE_SEMOP:
