@@ -361,12 +361,12 @@ audit_commit(struct kaudit_record *ar, int error, int retval)
 		 * change it to the proper type of event based on the flags
 		 * and the error value.
 		 */
-		ar->k_ar.ar_event = flags_and_error_to_openevent(
+		ar->k_ar.ar_event = audit_flags_and_error_to_openevent(
 		    ar->k_ar.ar_arg_fflags, error);
 		break;
 
 	case AUE_SYSCTL:
-		ar->k_ar.ar_event = ctlname_to_sysctlevent(
+		ar->k_ar.ar_event = audit_ctlname_to_sysctlevent(
 		    ar->k_ar.ar_arg_ctlname, ar->k_ar.ar_valid_arg);
 		break;
 

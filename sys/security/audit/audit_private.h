@@ -300,15 +300,15 @@ token_t		*kau_to_socket(struct socket_au_info *soi);
  */
 int		 au_preselect(au_event_t event, au_class_t class,
 		    au_mask_t *mask_p, int sorf);
-au_event_t	 flags_and_error_to_openevent(int oflags, int error);
 void		 au_evclassmap_init(void);
 void		 au_evclassmap_insert(au_event_t event, au_class_t class);
 au_class_t	 au_event_class(au_event_t event);
-au_event_t	 ctlname_to_sysctlevent(int name[], uint64_t valid_arg);
-int		 auditon_command_event(int cmd);
+au_event_t	 audit_ctlname_to_sysctlevent(int name[], uint64_t valid_arg);
+au_event_t	 audit_flags_and_error_to_openevent(int oflags, int error);
 int		 audit_msgctl_to_event(int cmd);
 int		 audit_semctl_to_event(int cmr);
 void		 audit_canon_path(struct thread *td, char *path, char *cpath);
+int		 auditon_command_event(int cmd);
 
 /*
  * Audit trigger events notify user space of kernel audit conditions
