@@ -948,6 +948,7 @@ options 	FDESCFS			#File descriptor filesystem
 options 	HPFS			#OS/2 File system
 options 	MSDOSFS			#MS DOS File System (FAT, FAT32)
 options 	NFSSERVER		#Network File System server
+options		NFSLOCKD		#Network Lock Manager
 options 	NTFS			#NT File System
 options 	NULLFS			#NULL filesystem
 # Broken (depends on NCP):

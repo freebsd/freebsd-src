@@ -316,28 +316,67 @@ int
 fcntl(struct thread *td, struct fcntl_args *uap)
 {
 	struct flock fl;
+	struct oflock ofl;
 	intptr_t arg;
 	int error;
+	int cmd;
 
 	error = 0;
+	cmd = uap->cmd;
 	switch (uap->cmd) {
-	case F_GETLK:
-	case F_SETLK:
-	case F_SETLKW:
-		error = copyin((void *)(intptr_t)uap->arg, &fl, sizeof(fl));
+	case F_OGETLK:
+	case F_OSETLK:
+	case F_OSETLKW:
+		/*
+		 * Convert old flock structure to new.
+		 */
+		error = copyin((void *)(intptr_t)uap->arg, &ofl, sizeof(ofl));
+		fl.l_start = ofl.l_start;
+		fl.l_len = ofl.l_len;
+		fl.l_pid = ofl.l_pid;
+		fl.l_type = ofl.l_type;
+		fl.l_whence = ofl.l_whence;
+		fl.l_sysid = 0;
+
+		switch (uap->cmd) {
+		case F_OGETLK:
+		    cmd = F_GETLK;
+		    break;
+		case F_OSETLK:
+		    cmd = F_SETLK;
+		    break;
+		case F_OSETLKW:
+		    cmd = F_SETLKW;
+		    break;
+		}
 		arg = (intptr_t)&fl;
 		break;
+        case F_GETLK:
+        case F_SETLK:
+        case F_SETLKW:
+	case F_SETLK_REMOTE:
+                error = copyin((void *)(intptr_t)uap->arg, &fl, sizeof(fl));
+                arg = (intptr_t)&fl;
+                break;
 	default:
 		arg = uap->arg;
 		break;
 	}
 	if (error)
 		return (error);
-	error = kern_fcntl(td, uap->fd, uap->cmd, arg);
+	error = kern_fcntl(td, uap->fd, cmd, arg);
 	if (error)
 		return (error);
-	if (uap->cmd == F_GETLK)
+	if (uap->cmd == F_OGETLK) {
+		ofl.l_start = fl.l_start;
+		ofl.l_len = fl.l_len;
+		ofl.l_pid = fl.l_pid;
+		ofl.l_type = fl.l_type;
+		ofl.l_whence = fl.l_whence;
+		error = copyout(&ofl, (void *)(intptr_t)uap->arg, sizeof(ofl));
+	} else if (uap->cmd == F_GETLK) {
 		error = copyout(&fl, (void *)(intptr_t)uap->arg, sizeof(fl));
+	}
 	return (error);
 }
 
@@ -493,11 +532,19 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		fdrop(fp, td);
 		break;
 
+	case F_SETLK_REMOTE:
+		error = priv_check(td, PRIV_NFS_LOCKD);
+		if (error)
+			return (error);
+		flg = F_REMOTE;
+		goto do_setlk;
+
 	case F_SETLKW:
 		flg |= F_WAIT;
 		/* FALLTHROUGH F_SETLK */
 
 	case F_SETLK:
+	do_setlk:
 		FILEDESC_SLOCK(fdp);
 		if ((fp = fdtofp(fd, fdp)) == NULL) {
 			FILEDESC_SUNLOCK(fdp);
@@ -553,7 +600,19 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 			break;
 		case F_UNLCK:
 			error = VOP_ADVLOCK(vp, (caddr_t)p->p_leader, F_UNLCK,
-			    flp, F_POSIX);
+			    flp, flg);
+			break;
+		case F_UNLCKSYS:
+			/*
+			 * Temporary api for testing remote lock
+			 * infrastructure.
+			 */
+			if (flg != F_REMOTE) {
+				error = EINVAL;
+				break;
+			}
+			error = VOP_ADVLOCK(vp, (caddr_t)p->p_leader,
+			    F_UNLCKSYS, flp, flg);
 			break;
 		default:
 			error = EINVAL;

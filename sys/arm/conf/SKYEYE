@@ -46,6 +46,7 @@ options		MD_ROOT_SIZE=4096
 options		ROOTDEVNAME=\"ufs:md0\"
 options 	NFSCLIENT		#Network Filesystem Client
 options 	NFSSERVER		#Network Filesystem Server
+options 	NFSLOCKD		#Network Lock Manager
 options 	NFS_ROOT		#NFS usable as /, requires NFSCLIENT
 #options 	MSDOSFS			#MSDOS Filesystem
 options 	CD9660			#ISO 9660 Filesystem

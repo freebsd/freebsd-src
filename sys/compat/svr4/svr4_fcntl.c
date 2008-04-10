@@ -191,7 +191,7 @@ svr4_to_bsd_flock(iflp, oflp)
 	oflp->l_start = (off_t) iflp->l_start;
 	oflp->l_len = (off_t) iflp->l_len;
 	oflp->l_pid = (pid_t) iflp->l_pid;
-
+	oflp->l_sysid = iflp->l_sysid;
 }
 
 static void
@@ -217,7 +217,7 @@ bsd_to_svr4_flock64(iflp, oflp)
 	oflp->l_whence = (short) iflp->l_whence;
 	oflp->l_start = (svr4_off64_t) iflp->l_start;
 	oflp->l_len = (svr4_off64_t) iflp->l_len;
-	oflp->l_sysid = 0;
+	oflp->l_sysid = iflp->l_sysid;
 	oflp->l_pid = (svr4_pid_t) iflp->l_pid;
 }
 

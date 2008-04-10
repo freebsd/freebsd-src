@@ -3547,6 +3547,25 @@ zfs_freebsd_advlock(ap)
 	return (lf_advlock(ap, &(zp->z_lockf), zp->z_phys->zp_size));
 }
 
+/*
+ * Advisory record locking support
+ */
+static int
+zfs_freebsd_advlockasync(ap)
+	struct vop_advlockasync_args /* {
+		struct vnode *a_vp;
+		caddr_t  a_id;
+		int  a_op;
+		struct flock *a_fl;
+		int  a_flags;
+		struct task *a_task;
+	} */ *ap;
+{
+	znode_t	*zp = VTOZ(ap->a_vp);
+
+	return (lf_advlockasync(ap, &(zp->z_lockf), zp->z_phys->zp_size));
+}
+
 struct vop_vector zfs_vnodeops;
 struct vop_vector zfs_fifoops;
 
@@ -3580,6 +3599,7 @@ struct vop_vector zfs_vnodeops = {
 	.vop_remove =	zfs_freebsd_remove,
 	.vop_rename =	zfs_freebsd_rename,
 	.vop_advlock =	zfs_freebsd_advlock,
+	.vop_advlockasync = zfs_freebsd_advlockasync,
 	.vop_pathconf =	zfs_freebsd_pathconf,
 	.vop_bmap =	VOP_EOPNOTSUPP,
 	.vop_fid =	zfs_freebsd_fid,

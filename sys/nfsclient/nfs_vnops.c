@@ -129,6 +129,7 @@ static vop_access_t	nfsspec_access;
 static vop_readlink_t	nfs_readlink;
 static vop_print_t	nfs_print;
 static vop_advlock_t	nfs_advlock;
+static vop_advlockasync_t nfs_advlockasync;
 
 /*
  * Global vfs data structures for nfs
@@ -137,6 +138,7 @@ struct vop_vector nfs_vnodeops = {
 	.vop_default =		&default_vnodeops,
 	.vop_access =		nfs_access,
 	.vop_advlock =		nfs_advlock,
+	.vop_advlockasync =	nfs_advlockasync,
 	.vop_close =		nfs_close,
 	.vop_create =		nfs_create,
 	.vop_fsync =		nfs_fsync,
@@ -3051,6 +3053,27 @@ nfs_advlock(struct vop_advlock_args *ap)
 		goto out;
 	}
 	error = nfs_dolock(ap);
+out:	
+	mtx_unlock(&Giant);
+	return (error);
+}
+
+/*
+ * NFS advisory byte-level locks.
+ */
+static int
+nfs_advlockasync(struct vop_advlockasync_args *ap)
+{
+	int error;
+	
+	mtx_lock(&Giant);
+	if ((VFSTONFS(ap->a_vp->v_mount)->nm_flag & NFSMNT_NOLOCKD) != 0) {
+		struct nfsnode *np = VTONFS(ap->a_vp);
+
+		error = lf_advlockasync(ap, &(np->n_lockf), np->n_size);
+		goto out;
+	}
+	error = EOPNOTSUPP;
 out:	
 	mtx_unlock(&Giant);
 	return (error);

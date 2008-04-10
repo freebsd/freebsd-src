@@ -157,6 +157,7 @@ static	int	nfs4_sillyrename(struct vnode *, struct vnode *,
 static vop_readlink_t	nfs4_readlink;
 static vop_print_t	nfs4_print;
 static vop_advlock_t	nfs4_advlock;
+static vop_advlockasync_t nfs4_advlockasync;
 
 /*
  * Global vfs data structures for nfs
@@ -165,6 +166,7 @@ struct vop_vector nfs4_vnodeops = {
 	.vop_default =		&default_vnodeops,
 	.vop_access =		nfs4_access,
 	.vop_advlock =		nfs4_advlock,
+	.vop_advlockasync =	nfs4_advlockasync,
 	.vop_close =		nfs4_close,
 	.vop_create =		nfs4_create,
 	.vop_fsync =		nfs4_fsync,
@@ -2774,6 +2776,22 @@ nfs4_advlock(struct vop_advlock_args *ap)
 		return (lf_advlock(ap, &(np->n_lockf), np->n_size));
 	}
 	return (nfs_dolock(ap));
+}
+
+/*
+ * NFS advisory byte-level locks.
+ */
+static int
+nfs4_advlockasync(struct vop_advlockasync_args *ap)
+{
+	return (EPERM);
+
+	if ((VFSTONFS(ap->a_vp->v_mount)->nm_flag & NFSMNT_NOLOCKD) != 0) {
+		struct nfsnode *np = VTONFS(ap->a_vp);
+
+		return (lf_advlockasync(ap, &(np->n_lockf), np->n_size));
+	}
+	return (EOPNOTSUPP);
 }
 
 /*

@@ -324,6 +324,7 @@ nfs_dolock(struct vop_advlock_args *ap)
 
 		if (msg.lm_getlk && p->p_nlminfo->retcode == 0) {
 			if (p->p_nlminfo->set_getlk_pid) {
+				fl->l_sysid = 0; /* XXX */
 				fl->l_pid = p->p_nlminfo->getlk_pid;
 			} else {
 				fl->l_type = F_UNLCK;

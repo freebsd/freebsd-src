@@ -963,4 +963,5 @@ FBSDprivate_1.0 {
 	_writev;
 	__sys_writev;
 	__error_unthreaded;
+	nlm_syscall;
 };
