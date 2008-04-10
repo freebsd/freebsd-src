@@ -111,8 +111,8 @@ static int
 kinfo_kstack_compare(const void *a, const void *b)
 {
 
-        return ((const struct kinfo_kstack *)a)->kkst_tid -
-            ((const struct kinfo_kstack *)b)->kkst_tid;
+        return ((struct kinfo_kstack *)a)->kkst_tid -
+            ((struct kinfo_kstack *)b)->kkst_tid;
 }
 
 static void
@@ -127,109 +127,62 @@ void
 procstat_kstack(pid_t pid, struct kinfo_proc *kipp, int kflag)
 {
 	struct kinfo_kstack *kkstp, *kkstp_free;
-	struct kinfo_proc *kip, *kip_free;
 	char trace[KKST_MAXLEN];
-	int error, name[4];
-	unsigned int i, j;
-	size_t kip_len, kstk_len;
+	int error, i, name[4];
+	size_t len;
 
 	if (!hflag)
-		printf("%5s %6s %-16s %-16s %-29s\n", "PID", "TID", "COMM",
-		    "TDNAME", "KSTACK");
+		printf("%5s %6s %-20s %-45s\n", "PID", "TID", "COMM",
+		    "KSTACK");
 
 	name[0] = CTL_KERN;
 	name[1] = KERN_PROC;
 	name[2] = KERN_PROC_KSTACK;
 	name[3] = pid;
 
-	kstk_len = 0;
-	error = sysctl(name, 4, NULL, &kstk_len, NULL, 0);
+	len = 0;
+	error = sysctl(name, 4, NULL, &len, NULL, 0);
 	if (error < 0 && errno != ESRCH && errno != EPERM && errno != ENOENT) {
 		warn("sysctl: kern.proc.kstack: %d", pid);
 		return;
 	}
-	if (error < 0 && errno == ENOENT) {
-		warnx("sysctl: kern.proc.kstack unavailable");
-		errx(-1, "options DDB or options STACK required in kernel");
-	}
+	if (error < 0 && errno == ENOENT)
+		errx(-1, "kern.proc.kstack sysctl unavailable; options DDB "
+		    "is required.");
 	if (error < 0)
 		return;
 
-	kkstp = kkstp_free = malloc(kstk_len);
+	kkstp = kkstp_free = malloc(len);
 	if (kkstp == NULL)
 		err(-1, "malloc");
 
-	if (sysctl(name, 4, kkstp, &kstk_len, NULL, 0) < 0) {
+	if (sysctl(name, 4, kkstp, &len, NULL, 0) < 0) {
 		warn("sysctl: kern.proc.pid: %d", pid);
 		free(kkstp);
 		return;
 	}
 
-	/*
-	 * We need to re-query for thread information, so don't use *kipp.
-	 */
-	name[0] = CTL_KERN;
-	name[1] = KERN_PROC;
-	name[2] = KERN_PROC_PID | KERN_PROC_INC_THREAD;
-	name[3] = pid;
-
-	kip_len = 0;
-	error = sysctl(name, 4, NULL, &kip_len, NULL, 0);
-	if (error < 0 && errno != ESRCH) {
-		warn("sysctl: kern.proc.pid: %d", pid);
-		return;
-	}
-	if (error < 0)
-		return;
-
-	kip = kip_free = malloc(kip_len);
-	if (kip == NULL)
-		err(-1, "malloc");
-
-	if (sysctl(name, 4, kip, &kip_len, NULL, 0) < 0) {
-		warn("sysctl: kern.proc.pid: %d", pid);
-		free(kip);
-		return;
-	}
-
-	kinfo_kstack_sort(kkstp, kstk_len / sizeof(*kkstp));
-	for (i = 0; i < kstk_len / sizeof(*kkstp); i++) {
+	kinfo_kstack_sort(kkstp, len / sizeof(*kkstp));
+	for (i = 0; i < len / sizeof(*kkstp); i++) {
 		kkstp = &kkstp_free[i];
-
-		/*
-		 * Look up the specific thread using its tid so we can
-		 * display the per-thread command line.
-		 */
-		kipp = NULL;
-		for (j = 0; j < kip_len / sizeof(*kipp); j++) {
-			kipp = &kip_free[j];
-			if (kkstp->kkst_tid == kipp->ki_tid)
-				break;
-		}
-		if (kipp == NULL)
-			continue;
-
 		printf("%5d ", pid);
 		printf("%6d ", kkstp->kkst_tid);
-		printf("%-16s ", kipp->ki_comm);
-		printf("%-16s ", (strlen(kipp->ki_ocomm) &&
-		    (strcmp(kipp->ki_comm, kipp->ki_ocomm) != 0)) ?
-		    kipp->ki_ocomm : "-");
+		printf("%-20s ", kipp->ki_comm);
 
 		switch (kkstp->kkst_state) {
 		case KKST_STATE_RUNNING:
-			printf("%-29s\n", "<running>");
+			printf("%-45s\n", "<running>");
 			continue;
 
 		case KKST_STATE_SWAPPED:
-			printf("%-29s\n", "<swapped>");
+			printf("%-45s\n", "<swapped>");
 			continue;
 
 		case KKST_STATE_STACKOK:
 			break;
 
 		default:
-			printf("%-29s\n", "<unknown>");
+			printf("%-45s\n", "<unknown>");
 			continue;
 		}
 
@@ -239,8 +192,7 @@ procstat_kstack(pid_t pid, struct kinfo_proc *kipp, int kflag)
 		 * returns to spaces.
 		 */
 		kstack_cleanup(kkstp->kkst_trace, trace, kflag);
-		printf("%-29s\n", trace);
+		printf("%-45s\n", trace);
 	}
-	free(kip_free);
 	free(kkstp_free);
 }

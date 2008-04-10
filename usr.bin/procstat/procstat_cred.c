@@ -41,12 +41,10 @@ procstat_cred(pid_t pid, struct kinfo_proc *kipp)
 	int i;
 
 	if (!hflag)
-		printf("%5s %-16s %5s %5s %5s %5s %5s %5s %-20s\n", "PID",
-		    "COMM", "EUID", "RUID", "SVUID", "EGID", "RGID", "SVGID",
-		    "GROUPS");
+		printf("%5s %5s %5s %5s %5s %5s %5s %-20s\n", "PID", "EUID",
+		    "RUID", "SVUID", "EGID", "RGID", "SVGID", "GROUPS");
 
 	printf("%5d ", pid);
-	printf("%-16s ", kipp->ki_comm);
 	printf("%5d ", kipp->ki_uid);
 	printf("%5d ", kipp->ki_ruid);
 	printf("%5d ", kipp->ki_svuid);
