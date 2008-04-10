@@ -3446,15 +3446,23 @@ ata_nvidia_status(device_t dev)
     struct ata_channel *ch = device_get_softc(dev);
     int offset = ctlr->chip->cfg2 & NV4 ? 0x0440 : 0x0010;
     int shift = ch->unit << (ctlr->chip->cfg2 & NVQ ? 4 : 2);
-    u_int32_t istatus = ATA_INL(ctlr->r_res2, offset);
+    u_int32_t istatus;
+
+    /* get interrupt status */
+    if (ctlr->chip->cfg2 & NVQ)
+	istatus = ATA_INL(ctlr->r_res2, offset);
+    else
+	istatus = ATA_INB(ctlr->r_res2, offset);
 
     /* do we have any PHY events ? */
     if (istatus & (0x0c << shift))
 	ata_sata_phy_check_events(dev);
 
     /* clear interrupt(s) */
-    ATA_OUTB(ctlr->r_res2, offset,
-	     (0x0f << shift) | (ctlr->chip->cfg2 & NVQ ? 0x00f000f0 : 0));
+    if (ctlr->chip->cfg2 & NVQ)
+	ATA_OUTL(ctlr->r_res2, offset, (0x0f << shift) | 0x00f000f0);
+    else
+	ATA_OUTB(ctlr->r_res2, offset, (0x0f << shift));
 
     /* do we have any device action ? */
     return (istatus & (0x01 << shift));
