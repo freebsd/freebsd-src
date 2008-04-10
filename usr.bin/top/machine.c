@@ -413,14 +413,15 @@ get_system_info(struct system_info *si)
 		si->load_avg[i] = (double)sysload.ldavg[i] / sysload.fscale;
 
 	if (pcpu_stats) {
-		for (i = j = 0; i <= maxid; i++, j++) {
-			if (cpumask && (1ul << i) == 0)
+		for (i = j = 0; i <= maxid; i++) {
+			if ((cpumask & (1ul << i)) == 0)
 				continue;
 			/* convert cp_time counts to percentages */
 			percentages(CPUSTATES, &pcpu_cpu_states[j * CPUSTATES],
 			    &pcpu_cp_time[j * CPUSTATES],
 			    &pcpu_cp_old[j * CPUSTATES],
 			    &pcpu_cp_diff[j * CPUSTATES]);
+			j++;
 		}
 	} else {
 		/* convert cp_time counts to percentages */
