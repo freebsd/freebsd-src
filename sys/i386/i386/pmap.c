@@ -272,7 +272,7 @@ static struct mtx PMAP2mutex;
 static void	free_pv_entry(pmap_t pmap, pv_entry_t pv);
 static pv_entry_t get_pv_entry(pmap_t locked_pmap, int try);
 static void	pmap_pv_demote_pde(pmap_t pmap, vm_offset_t va, vm_paddr_t pa);
-static boolean_t pmap_pv_insert_pde(pmap_t pmap, vm_offset_t va, vm_page_t m);
+static boolean_t pmap_pv_insert_pde(pmap_t pmap, vm_offset_t va, vm_paddr_t pa);
 static void	pmap_pv_promote_pde(pmap_t pmap, vm_offset_t va, vm_paddr_t pa);
 static void	pmap_pvh_free(struct md_page *pvh, pmap_t pmap, vm_offset_t va);
 static pv_entry_t pmap_pvh_remove(struct md_page *pvh, pmap_t pmap,
@@ -2228,7 +2228,7 @@ pmap_try_insert_pv_entry(pmap_t pmap, vm_offset_t va, vm_page_t m)
  * Create the pv entries for each of the pages within a superpage.
  */
 static boolean_t
-pmap_pv_insert_pde(pmap_t pmap, vm_offset_t va, vm_page_t m)
+pmap_pv_insert_pde(pmap_t pmap, vm_offset_t va, vm_paddr_t pa)
 {
 	struct md_page *pvh;
 	pv_entry_t pv;
@@ -2237,7 +2237,7 @@ pmap_pv_insert_pde(pmap_t pmap, vm_offset_t va, vm_page_t m)
 	if (pv_entry_count < pv_entry_high_water && 
 	    (pv = get_pv_entry(pmap, TRUE)) != NULL) {
 		pv->pv_va = va;
-		pvh = pa_to_pvh(VM_PAGE_TO_PHYS(m));
+		pvh = pa_to_pvh(pa);
 		TAILQ_INSERT_TAIL(&pvh->pv_list, pv, pv_list);
 		return (TRUE);
 	} else
@@ -3199,7 +3199,7 @@ pmap_enter_pde(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot)
 		/*
 		 * Abort this mapping if its PV entry could not be created.
 		 */
-		if (!pmap_pv_insert_pde(pmap, va, m)) {
+		if (!pmap_pv_insert_pde(pmap, va, VM_PAGE_TO_PHYS(m))) {
 			CTR2(KTR_PMAP, "pmap_enter_pde: failure for va %#lx"
 			    " in pmap %p", va, pmap);
 			return (FALSE);
@@ -3587,8 +3587,8 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 		if (srcptepaddr & PG_PS) {
 			if (dst_pmap->pm_pdir[ptepindex] == 0 &&
 			    ((srcptepaddr & PG_MANAGED) == 0 ||
-			    pmap_pv_insert_pde(dst_pmap, addr,
-			    PHYS_TO_VM_PAGE(srcptepaddr & PG_FRAME)))) {
+			    pmap_pv_insert_pde(dst_pmap, addr, srcptepaddr &
+			    PG_PS_FRAME))) {
 				dst_pmap->pm_pdir[ptepindex] = srcptepaddr &
 				    ~PG_W;
 				dst_pmap->pm_stats.resident_count +=
