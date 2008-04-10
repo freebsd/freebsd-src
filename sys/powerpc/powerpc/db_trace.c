@@ -41,6 +41,7 @@
 #include <machine/db_machdep.h>
 #include <machine/pcb.h>
 #include <machine/spr.h>
+#include <machine/stack.h>
 #include <machine/trap.h>
 
 #include <ddb/ddb.h>
@@ -95,10 +96,6 @@ struct db_variable db_regs[] = {
 	{ "dsisr", DB_OFFSET(dsisr),	db_frame },
 };
 struct db_variable *db_eregs = db_regs + sizeof (db_regs)/sizeof (db_regs[0]);
-
-extern int trapexit[];
-extern int asttrapexit[];
-extern int end[];
 
 /*
  * register variable handling
@@ -287,37 +284,3 @@ db_trace_thread(struct thread *td, int count)
 	ctx = kdb_thr_ctx(td);
 	return (db_backtrace(td, (db_addr_t)ctx->pcb_sp, count));
 }
-
-void
-stack_save(struct stack *st)
-{
-	vm_offset_t callpc;
-	db_addr_t stackframe;
-
-	stack_zero(st);
-	stackframe = (db_addr_t)__builtin_frame_address(1);
-	if (stackframe < PAGE_SIZE)
-		return;
-	while (1) {
-		stackframe = *(db_addr_t *)stackframe;
-		if (stackframe < PAGE_SIZE)
-			break;
-		callpc = *(vm_offset_t *)(stackframe + 4) - 4;
-		if ((callpc & 3) || (callpc < 0x100))
-			break;
-
-		/*
-		 * Don't bother traversing trap-frames - there should
-		 * be enough info down to the frame to work out where
-		 * things are going wrong. Plus, prevents this shortened
-		 * version of code from accessing user-space frames
-		 */
-		if (callpc + 4 == (db_addr_t) &trapexit ||
-		    callpc + 4 == (db_addr_t) &asttrapexit)
-			break;
-
-		if (stack_put(st, callpc) == -1)
-			break;
-	}
-}
-

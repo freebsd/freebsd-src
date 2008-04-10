@@ -38,6 +38,7 @@ arm/arm/nexus_io_asm.S		optional	nexus
 arm/arm/pmap.c			standard
 arm/arm/setcpsr.S		standard
 arm/arm/setstack.s		standard
+arm/arm/stack_machdep.c		optional	ddb | stack
 arm/arm/support.S		standard
 arm/arm/swtch.S			standard
 arm/arm/sys_machdep.c		standard

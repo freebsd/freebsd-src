@@ -59,6 +59,8 @@ void		 stack_ktr(u_int, const char *, int, struct stack *, u_int, int);
 #endif
 
 /* MD Routine. */
+struct thread;
 void		 stack_save(struct stack *);
+void		 stack_save_td(struct stack *, struct thread *);
 
 #endif

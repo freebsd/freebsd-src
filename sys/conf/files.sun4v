@@ -74,6 +74,7 @@ sparc64/sparc64/prof_machdep.c	optional	profiling-routine
 sparc64/sparc64/rwindow.c		standard
 sun4v/sun4v/rtc.c		standard
 sun4v/sun4v/simdisk.c		optional	simulator
+sun4v/sun4v/stack_machdep.c	optional	ddb | stack
 sun4v/sun4v/support.S		standard
 sparc64/sparc64/sys_machdep.c	standard
 sun4v/sun4v/swtch.S		standard
