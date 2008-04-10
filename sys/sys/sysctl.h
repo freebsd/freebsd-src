@@ -456,6 +456,8 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 #define	KERN_PROC_RGID		10	/* by real group id */
 #define	KERN_PROC_GID		11	/* by effective group id */
 #define	KERN_PROC_PATHNAME	12	/* path to executable */
+#define	KERN_PROC_VMMAP		13	/* VM map entries for process */
+#define	KERN_PROC_FILEDESC	14	/* File descriptors for process */
 #define	KERN_PROC_INC_THREAD	0x10	/*
 					 * modifier for pid, pgrp, tty,
 					 * uid, ruid, gid, rgid and proc
@@ -618,6 +620,7 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 extern struct sysctl_oid_list sysctl__children;
 SYSCTL_DECL(_kern);
 SYSCTL_DECL(_kern_ipc);
+SYSCTL_DECL(_kern_proc);
 SYSCTL_DECL(_sysctl);
 SYSCTL_DECL(_vm);
 SYSCTL_DECL(_vm_stats);

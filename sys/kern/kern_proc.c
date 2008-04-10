@@ -32,6 +32,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_ddb.h"
 #include "opt_ktrace.h"
 #include "opt_kstack_pages.h"
 
@@ -40,9 +41,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/refcount.h>
+#include <sys/sbuf.h>
 #include <sys/sysent.h>
 #include <sys/sched.h>
 #include <sys/smp.h>
@@ -60,10 +63,15 @@ __FBSDID("$FreeBSD$");
 #include <sys/ktrace.h>
 #endif
 
+#ifdef DDB
+#include <ddb/ddb.h>
+#endif
+
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
+#include <vm/vm_object.h>
 #include <vm/uma.h>
 
 MALLOC_DEFINE(M_PGRP, "pgrp", "process group header");
@@ -1285,8 +1293,155 @@ sysctl_kern_proc_sv_name(SYSCTL_HANDLER_ARGS)
 	return (sysctl_handle_string(oidp, sv_name, 0, req));
 }
 
+static int
+sysctl_kern_proc_vmmap(SYSCTL_HANDLER_ARGS)
+{
+	vm_map_entry_t entry, tmp_entry;
+	unsigned int last_timestamp;
+	char *fullpath, *freepath;
+	struct kinfo_vmentry *kve;
+	int error, *name;
+	struct vnode *vp;
+	struct proc *p;
+	vm_map_t map;
 
-static SYSCTL_NODE(_kern, KERN_PROC, proc, CTLFLAG_RD,  0, "Process table");
+	name = (int *)arg1;
+	if ((p = pfind((pid_t)name[0])) == NULL)
+		return (ESRCH);
+	if ((error = p_candebug(curthread, p))) {
+		PROC_UNLOCK(p);
+		return (error);
+	}
+	_PHOLD(p);
+	PROC_UNLOCK(p);
+
+	kve = malloc(sizeof(*kve), M_TEMP, M_WAITOK);
+
+	map = &p->p_vmspace->vm_map;	/* XXXRW: More locking required? */
+	vm_map_lock_read(map);
+	for (entry = map->header.next; entry != &map->header;
+	    entry = entry->next) {
+		vm_object_t obj, tobj, lobj;
+		vm_offset_t addr;
+		int vfslocked;
+
+		if (entry->eflags & MAP_ENTRY_IS_SUB_MAP)
+			continue;
+
+		bzero(kve, sizeof(*kve));
+		kve->kve_structsize = sizeof(*kve);
+
+		kve->kve_private_resident = 0;
+		obj = entry->object.vm_object;
+		if (obj != NULL) {
+			VM_OBJECT_LOCK(obj);
+			if (obj->shadow_count == 1)
+				kve->kve_private_resident =
+				    obj->resident_page_count;
+		}
+		kve->kve_resident = 0;
+		addr = entry->start;
+		while (addr < entry->end) {
+			if (pmap_extract(map->pmap, addr))
+				kve->kve_resident++;
+			addr += PAGE_SIZE;
+		}
+
+		for (lobj = tobj = obj; tobj; tobj = tobj->backing_object) {
+			if (tobj != obj)
+				VM_OBJECT_LOCK(tobj);
+			if (lobj != obj)
+				VM_OBJECT_UNLOCK(lobj);
+			lobj = tobj;
+		}
+
+		freepath = NULL;
+		fullpath = "";
+		if (lobj) {
+			vp = NULL;
+			switch(lobj->type) {
+			case OBJT_DEFAULT:
+				kve->kve_type = KVME_TYPE_DEFAULT;
+				break;
+			case OBJT_VNODE:
+				kve->kve_type = KVME_TYPE_VNODE;
+				vp = lobj->handle;
+				vref(vp);
+				break;
+			case OBJT_SWAP:
+				kve->kve_type = KVME_TYPE_SWAP;
+				break;
+			case OBJT_DEVICE:
+				kve->kve_type = KVME_TYPE_DEVICE;
+				break;
+			case OBJT_PHYS:
+				kve->kve_type = KVME_TYPE_PHYS;
+				break;
+			case OBJT_DEAD:
+				kve->kve_type = KVME_TYPE_DEAD;
+				break;
+			default:
+				kve->kve_type = KVME_TYPE_UNKNOWN;
+				break;
+			}
+			if (lobj != obj)
+				VM_OBJECT_UNLOCK(lobj);
+
+			kve->kve_ref_count = obj->ref_count;
+			kve->kve_shadow_count = obj->shadow_count;
+			VM_OBJECT_UNLOCK(obj);
+			if (vp != NULL) {
+				vfslocked = VFS_LOCK_GIANT(vp->v_mount);
+				vn_lock(vp, LK_EXCLUSIVE | LK_RETRY,
+				    curthread);
+				vn_fullpath(curthread, vp, &fullpath,
+				    &freepath);
+				vput(vp);
+				VFS_UNLOCK_GIANT(vfslocked);
+			}
+		} else {
+			kve->kve_type = KVME_TYPE_NONE;
+			kve->kve_ref_count = 0;
+			kve->kve_shadow_count = 0;
+		}
+
+		kve->kve_start = (void*)entry->start;
+		kve->kve_end = (void*)entry->end;
+
+		if (entry->protection & VM_PROT_READ)
+			kve->kve_protection |= KVME_PROT_READ;
+		if (entry->protection & VM_PROT_WRITE)
+			kve->kve_protection |= KVME_PROT_WRITE;
+		if (entry->protection & VM_PROT_EXECUTE)
+			kve->kve_protection |= KVME_PROT_EXEC;
+
+		if (entry->eflags & MAP_ENTRY_COW)
+			kve->kve_flags |= KVME_FLAG_COW;
+		if (entry->eflags & MAP_ENTRY_NEEDS_COPY)
+			kve->kve_flags |= KVME_FLAG_NEEDS_COPY;
+
+		strlcpy(kve->kve_path, fullpath, sizeof(kve->kve_path));
+		if (freepath != NULL)
+			free(freepath, M_TEMP);
+
+		last_timestamp = map->timestamp;
+		vm_map_unlock_read(map);
+		error = SYSCTL_OUT(req, kve, sizeof(*kve));
+		vm_map_lock_read(map);
+		if (error)
+			break;
+		if (last_timestamp + 1 != map->timestamp) {
+			vm_map_lookup_entry(map, addr - 1, &tmp_entry);
+			entry = tmp_entry;
+		}
+	}
+	vm_map_unlock_read(map);
+	PRELE(p);
+	free(kve, M_TEMP);
+	return (error);
+}
+
+SYSCTL_NODE(_kern, KERN_PROC, proc, CTLFLAG_RD,  0, "Process table");
 
 SYSCTL_PROC(_kern_proc, KERN_PROC_ALL, all, CTLFLAG_RD|CTLTYPE_STRUCT,
 	0, 0, sysctl_kern_proc, "S,proc", "Return entire process table");
@@ -1354,3 +1509,6 @@ static SYSCTL_NODE(_kern_proc, (KERN_PROC_PID | KERN_PROC_INC_THREAD), pid_td,
 
 static SYSCTL_NODE(_kern_proc, (KERN_PROC_PROC | KERN_PROC_INC_THREAD), proc_td,
 	CTLFLAG_RD, sysctl_kern_proc, "Return process table, no threads");
+
+static SYSCTL_NODE(_kern_proc, KERN_PROC_VMMAP, vmmap, CTLFLAG_RD,
+	sysctl_kern_proc_vmmap, "Process vm map entries");
