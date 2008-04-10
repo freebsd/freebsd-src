@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000 - 2006 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 2000 - 2008 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -239,7 +239,7 @@ struct ata_params {
 #define ATA_READ48                      0x24    /* read 48bit LBA */
 #define ATA_READ_DMA48                  0x25    /* read DMA 48bit LBA */
 #define ATA_READ_DMA_QUEUED48           0x26    /* read DMA QUEUED 48bit LBA */
-#define ATA_READ_NATIVE_MAX_ADDDRESS48  0x27    /* read native max addr 48bit */
+#define ATA_READ_NATIVE_MAX_ADDRESS48   0x27    /* read native max addr 48bit */
 #define ATA_READ_MUL48                  0x29    /* read multi 48bit LBA */
 #define ATA_WRITE                       0x30    /* write */
 #define ATA_WRITE48                     0x34    /* write 48bit LBA */
@@ -267,8 +267,10 @@ struct ata_params {
 #define ATA_STANDBY_CMD                 0xe2    /* standby */
 #define ATA_IDLE_CMD                    0xe3    /* idle */
 #define ATA_READ_BUFFER                 0xe4    /* read buffer */
+#define ATA_READ_PM                     0xe4    /* read portmultiplier */
 #define ATA_SLEEP                       0xe6    /* sleep */
 #define ATA_FLUSHCACHE                  0xe7    /* flush cache to disk */
+#define ATA_WRITE_PM                    0xe8    /* write portmultiplier */
 #define ATA_FLUSHCACHE48                0xea    /* flush cache to disk */
 #define ATA_ATA_IDENTIFY                0xec    /* get ATA params */
 #define ATA_SETFEATURES                 0xef    /* features command */
@@ -282,7 +284,7 @@ struct ata_params {
 #define         ATA_SF_ENAB_SRVIRQ      0x5e    /* enable service interrupt */
 #define         ATA_SF_DIS_SRVIRQ       0xde    /* disable service interrupt */
 #define ATA_SECURITY_FREEE_LOCK         0xf5    /* freeze security config */
-#define ATA_READ_NATIVE_MAX_ADDDRESS    0xf8    /* read native max address */
+#define ATA_READ_NATIVE_MAX_ADDRESS     0xf8    /* read native max address */
 #define ATA_SET_MAX_ADDRESS             0xf9    /* set max address */
 
 

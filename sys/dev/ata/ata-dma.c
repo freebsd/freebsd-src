@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998 - 2007 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998 - 2008 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -45,11 +45,11 @@ __FBSDID("$FreeBSD$");
 #include <dev/ata/ata-pci.h>
 
 /* prototypes */
-static void ata_dmaalloc(device_t);
-static void ata_dmafree(device_t);
-static void ata_dmasetprd(void *, bus_dma_segment_t *, int, int);
-static int ata_dmaload(device_t, caddr_t, int32_t, int, void *, int *);
-static int ata_dmaunload(device_t);
+static void ata_dmaalloc(device_t dev);
+static void ata_dmafree(device_t dev);
+static void ata_dmasetprd(void *xsc, bus_dma_segment_t *segs, int nsegs, int error);
+static int ata_dmaload(struct ata_request *request, void *addr, int *nsegs);
+static int ata_dmaunload(struct ata_request *request);
 
 /* local vars */
 static MALLOC_DEFINE(M_ATADMA, "ata_dma", "ATA driver DMA");
@@ -68,93 +68,63 @@ ata_dmainit(device_t dev)
 {
     struct ata_channel *ch = device_get_softc(dev);
 
-    if ((ch->dma = malloc(sizeof(struct ata_dma), M_ATADMA, M_NOWAIT|M_ZERO))) {
-	ch->dma->alloc = ata_dmaalloc;
-	ch->dma->free = ata_dmafree;
-	ch->dma->setprd = ata_dmasetprd;
-	ch->dma->load = ata_dmaload;
-	ch->dma->unload = ata_dmaunload;
-	ch->dma->alignment = 2;
-	ch->dma->boundary = 65536;
-	ch->dma->segsize = 128 * DEV_BSIZE;
-	ch->dma->max_iosize = 128 * DEV_BSIZE;
-	ch->dma->max_address = BUS_SPACE_MAXADDR_32BIT;
-    }
+    ch->dma.alloc = ata_dmaalloc;
+    ch->dma.free = ata_dmafree;
+    ch->dma.setprd = ata_dmasetprd;
+    ch->dma.load = ata_dmaload;
+    ch->dma.unload = ata_dmaunload;
+    ch->dma.alignment = 2;
+    ch->dma.boundary = 65536;
+    ch->dma.segsize = 63536;
+    ch->dma.max_iosize = 128 * DEV_BSIZE;
+    ch->dma.max_address = BUS_SPACE_MAXADDR_32BIT;
 }
 
 static void
 ata_dmasetupc_cb(void *xsc, bus_dma_segment_t *segs, int nsegs, int error)
 {
-    struct ata_dc_cb_args *cba = (struct ata_dc_cb_args *)xsc;
+    struct ata_dc_cb_args *dcba = (struct ata_dc_cb_args *)xsc;
 
-    if (!(cba->error = error))
-	cba->maddr = segs[0].ds_addr;
+    if (!(dcba->error = error))
+	dcba->maddr = segs[0].ds_addr;
 }
 
 static void
 ata_dmaalloc(device_t dev)
 {
     struct ata_channel *ch = device_get_softc(dev);
-    struct ata_dc_cb_args ccba;
+    struct ata_dc_cb_args dcba;
 
-    if (bus_dma_tag_create(bus_get_dma_tag(dev), ch->dma->alignment, 0,
-			   ch->dma->max_address, BUS_SPACE_MAXADDR,
-			   NULL, NULL, ch->dma->max_iosize,
-			   ATA_DMA_ENTRIES, ch->dma->segsize,
-			   0, NULL, NULL, &ch->dma->dmatag))
+    if (bus_dma_tag_create(bus_get_dma_tag(dev), ch->dma.alignment, 0,
+			   ch->dma.max_address, BUS_SPACE_MAXADDR,
+			   NULL, NULL, ch->dma.max_iosize,
+			   ATA_DMA_ENTRIES, ch->dma.segsize,
+			   0, NULL, NULL, &ch->dma.dmatag))
 	goto error;
 
-    if (bus_dma_tag_create(ch->dma->dmatag, PAGE_SIZE, PAGE_SIZE,
-			   ch->dma->max_address, BUS_SPACE_MAXADDR,
-			   NULL, NULL, MAXTABSZ, 1, MAXTABSZ,
-			   0, NULL, NULL, &ch->dma->sg_tag))
-	goto error;
-
-    if (bus_dma_tag_create(ch->dma->dmatag,ch->dma->alignment,ch->dma->boundary,
-			   ch->dma->max_address, BUS_SPACE_MAXADDR,
-			   NULL, NULL, ch->dma->max_iosize,
-			   ATA_DMA_ENTRIES, ch->dma->segsize,
-			   0, NULL, NULL, &ch->dma->data_tag))
-	goto error;
-
-    if (bus_dmamem_alloc(ch->dma->sg_tag, (void **)&ch->dma->sg, 0,
-			 &ch->dma->sg_map))
-	goto error;
-
-    if (bus_dmamap_load(ch->dma->sg_tag, ch->dma->sg_map, ch->dma->sg,
-			MAXTABSZ, ata_dmasetupc_cb, &ccba, 0) || ccba.error) {
-	bus_dmamem_free(ch->dma->sg_tag, ch->dma->sg, ch->dma->sg_map);
-	goto error;
-    }
-    ch->dma->sg_bus = ccba.maddr;
-
-    if (bus_dmamap_create(ch->dma->data_tag, 0, &ch->dma->data_map))
-	goto error;
-
-    if (bus_dma_tag_create(ch->dma->dmatag, PAGE_SIZE, 64 * 1024,
-			   ch->dma->max_address, BUS_SPACE_MAXADDR,
+    if (bus_dma_tag_create(ch->dma.dmatag, PAGE_SIZE, 64 * 1024,
+			   ch->dma.max_address, BUS_SPACE_MAXADDR,
 			   NULL, NULL, MAXWSPCSZ, 1, MAXWSPCSZ,
-			   0, NULL, NULL, &ch->dma->work_tag))
+			   0, NULL, NULL, &ch->dma.work_tag))
 	goto error;
 
-    if (bus_dmamem_alloc(ch->dma->work_tag, (void **)&ch->dma->work, 0,
-			 &ch->dma->work_map))
+    if (bus_dmamem_alloc(ch->dma.work_tag, (void **)&ch->dma.work, 0,
+			 &ch->dma.work_map))
 	goto error;
 
-    if (bus_dmamap_load(ch->dma->work_tag, ch->dma->work_map,ch->dma->work,
-			MAXWSPCSZ, ata_dmasetupc_cb, &ccba, 0) || ccba.error) {
-	bus_dmamem_free(ch->dma->work_tag,ch->dma->work, ch->dma->work_map);
+    if (bus_dmamap_load(ch->dma.work_tag, ch->dma.work_map ,ch->dma.work,
+			MAXWSPCSZ, ata_dmasetupc_cb, &dcba, BUS_DMA_NOWAIT) ||
+			dcba.error) {
+	bus_dmamem_free(ch->dma.work_tag, ch->dma.work, ch->dma.work_map);
 	goto error;
     }
-    ch->dma->work_bus = ccba.maddr;
+    ch->dma.work_bus = dcba.maddr;
 
     return;
 
 error:
     device_printf(dev, "WARNING - DMA allocation failed, disabling DMA\n");
     ata_dmafree(dev);
-    free(ch->dma, M_ATADMA);
-    ch->dma = NULL;
 }
 
 static void
@@ -162,39 +132,20 @@ ata_dmafree(device_t dev)
 {
     struct ata_channel *ch = device_get_softc(dev);
 
-    if (ch->dma->work_bus) {
-	bus_dmamap_unload(ch->dma->work_tag, ch->dma->work_map);
-	bus_dmamem_free(ch->dma->work_tag, ch->dma->work, ch->dma->work_map);
-	ch->dma->work_bus = 0;
-	ch->dma->work_map = NULL;
-	ch->dma->work = NULL;
+    if (ch->dma.work_bus) {
+	bus_dmamap_unload(ch->dma.work_tag, ch->dma.work_map);
+	bus_dmamem_free(ch->dma.work_tag, ch->dma.work, ch->dma.work_map);
+	ch->dma.work_bus = 0;
+	ch->dma.work_map = NULL;
+	ch->dma.work = NULL;
     }
-    if (ch->dma->work_tag) {
-	bus_dma_tag_destroy(ch->dma->work_tag);
-	ch->dma->work_tag = NULL;
+    if (ch->dma.work_tag) {
+	bus_dma_tag_destroy(ch->dma.work_tag);
+	ch->dma.work_tag = NULL;
     }
-    if (ch->dma->sg_bus) {
-	bus_dmamap_unload(ch->dma->sg_tag, ch->dma->sg_map);
-	bus_dmamem_free(ch->dma->sg_tag, ch->dma->sg, ch->dma->sg_map);
-	ch->dma->sg_bus = 0;
-	ch->dma->sg_map = NULL;
-	ch->dma->sg = NULL;
-    }
-    if (ch->dma->data_map) {
-	bus_dmamap_destroy(ch->dma->data_tag, ch->dma->data_map);
-	ch->dma->data_map = NULL;
-    }
-    if (ch->dma->sg_tag) {
-	bus_dma_tag_destroy(ch->dma->sg_tag);
-	ch->dma->sg_tag = NULL;
-    }
-    if (ch->dma->data_tag) {
-	bus_dma_tag_destroy(ch->dma->data_tag);
-	ch->dma->data_tag = NULL;
-    }
-    if (ch->dma->dmatag) {
-	bus_dma_tag_destroy(ch->dma->dmatag);
-	ch->dma->dmatag = NULL;
+    if (ch->dma.dmatag) {
+	bus_dma_tag_destroy(ch->dma.dmatag);
+	ch->dma.dmatag = NULL;
     }
 }
 
@@ -218,67 +169,144 @@ ata_dmasetprd(void *xsc, bus_dma_segment_t *segs, int nsegs, int error)
 }
 
 static int
-ata_dmaload(device_t dev, caddr_t data, int32_t count, int dir,
-	    void *addr, int *entries)
+ata_dmaload(struct ata_request *request, void *addr, int *entries)
 {
-    struct ata_channel *ch = device_get_softc(dev);
-    struct ata_dmasetprd_args cba;
+    struct ata_channel *ch = device_get_softc(request->parent);
+    struct ata_dc_cb_args dcba;
+    struct ata_dmasetprd_args dspa;
     int error;
 
-    if (ch->dma->flags & ATA_DMA_LOADED) {
-	device_printf(dev, "FAILURE - already active DMA on this device\n");
+    ATA_DEBUG_RQ(request, "dmaload");
+
+    if (request->dma.cur_iosize) {
+	device_printf(request->dev,
+		      "FAILURE - already active DMA on this device\n");
 	return EIO;
     }
-    if (!count) {
-	device_printf(dev, "FAILURE - zero length DMA transfer attempted\n");
+    if (!request->bytecount) {
+	device_printf(request->dev,
+		      "FAILURE - zero length DMA transfer attempted\n");
 	return EIO;
     }
-    if (((uintptr_t)data & (ch->dma->alignment - 1)) ||
-	(count & (ch->dma->alignment - 1))) {
-	device_printf(dev, "FAILURE - non aligned DMA transfer attempted\n");
+    if (((uintptr_t)(request->data) & (ch->dma.alignment - 1)) ||
+	(request->bytecount & (ch->dma.alignment - 1))) {
+	device_printf(request->dev,
+		      "FAILURE - non aligned DMA transfer attempted\n");
 	return EIO;
     }
-    if (count > ch->dma->max_iosize) {
-	device_printf(dev, "FAILURE - oversized DMA transfer attempt %d > %d\n",
-		      count, ch->dma->max_iosize);
+    if (request->bytecount > ch->dma.max_iosize) {
+	device_printf(request->dev,
+		      "FAILURE - oversized DMA transfer attempt %d > %d\n",
+		      request->bytecount, ch->dma.max_iosize);
 	return EIO;
     }
 
-    cba.dmatab = addr;
+    if (bus_dma_tag_create(ch->dma.dmatag, PAGE_SIZE, PAGE_SIZE,
+			   ch->dma.max_address, BUS_SPACE_MAXADDR,
+			   NULL, NULL, MAXTABSZ, 1, MAXTABSZ,
+			   0, NULL, NULL, &request->dma.sg_tag)) {
+	device_printf(request->dev, "FAILURE - create sg_tag\n");
+	goto error;
+    }
 
-    if ((error = bus_dmamap_load(ch->dma->data_tag, ch->dma->data_map,
-				 data, count, ch->dma->setprd, &cba,
-				 BUS_DMA_NOWAIT)) || (error = cba.error))
-	return error;
+    if (bus_dmamem_alloc(request->dma.sg_tag, (void **)&request->dma.sg, 0,
+			 &request->dma.sg_map)) {
+	device_printf(request->dev, "FAILURE - alloc sg_map\n");
+	goto error;
+    }
 
-    *entries = cba.nsegs;
+    if (bus_dmamap_load(request->dma.sg_tag, request->dma.sg_map,
+			request->dma.sg, MAXTABSZ,
+			ata_dmasetupc_cb, &dcba, BUS_DMA_NOWAIT) || dcba.error){
+	bus_dmamem_free(request->dma.sg_tag,
+			request->dma.sg, request->dma.sg_map);
+	device_printf(request->dev, "FAILURE - load sg\n");
+	goto error;
+    }
+    request->dma.sg_bus = dcba.maddr;
 
-    bus_dmamap_sync(ch->dma->sg_tag, ch->dma->sg_map, BUS_DMASYNC_PREWRITE);
+    if (bus_dma_tag_create(ch->dma.dmatag, ch->dma.alignment, ch->dma.boundary,
+			   ch->dma.max_address, BUS_SPACE_MAXADDR,
+			   NULL, NULL, ch->dma.max_iosize,
+			   ATA_DMA_ENTRIES, ch->dma.segsize,
+			   BUS_DMA_ALLOCNOW, NULL, NULL,
+			   &request->dma.data_tag)) {
+	device_printf(request->dev, "FAILURE - create data_tag\n");
+	goto error;
+    }
 
-    bus_dmamap_sync(ch->dma->data_tag, ch->dma->data_map,
-		    dir ? BUS_DMASYNC_PREREAD : BUS_DMASYNC_PREWRITE);
+    if (bus_dmamap_create(request->dma.data_tag, 0, &request->dma.data_map)) {
+	device_printf(request->dev, "FAILURE - create data_map\n");
+	goto error;
+    }
 
-    ch->dma->cur_iosize = count;
-    ch->dma->flags = dir ? (ATA_DMA_LOADED | ATA_DMA_READ) : ATA_DMA_LOADED;
+    if (addr)
+	dspa.dmatab = addr;
+    else
+	dspa.dmatab = request->dma.sg;
+
+    if ((error = bus_dmamap_load(request->dma.data_tag, request->dma.data_map,
+				 request->data, request->bytecount,
+				 ch->dma.setprd, &dspa, BUS_DMA_NOWAIT)) ||
+				 (error = dspa.error)) {
+	device_printf(request->dev, "FAILURE - load data\n");
+	goto error;
+    }
+
+    if (entries)
+	*entries = dspa.nsegs;
+
+    bus_dmamap_sync(request->dma.sg_tag, request->dma.sg_map,
+		    BUS_DMASYNC_PREWRITE);
+
+    bus_dmamap_sync(request->dma.data_tag, request->dma.data_map,
+		    (request->flags & ATA_R_READ) ?
+		    BUS_DMASYNC_PREREAD : BUS_DMASYNC_PREWRITE);
+
+    request->dma.cur_iosize = request->bytecount;
+
     return 0;
+
+error:
+    ata_dmaunload(request);
+    return EIO;
 }
 
 int
-ata_dmaunload(device_t dev)
+ata_dmaunload(struct ata_request *request)
 {
-    struct ata_channel *ch = device_get_softc(dev);
+    ATA_DEBUG_RQ(request, "dmaunload");
 
-    if (ch->dma->flags & ATA_DMA_LOADED) {
-	bus_dmamap_sync(ch->dma->sg_tag, ch->dma->sg_map,
+    if (request->dma.cur_iosize) {
+	bus_dmamap_sync(request->dma.sg_tag, request->dma.sg_map,
 			BUS_DMASYNC_POSTWRITE);
 
-	bus_dmamap_sync(ch->dma->data_tag, ch->dma->data_map,
-			(ch->dma->flags & ATA_DMA_READ) ?
+	bus_dmamap_sync(request->dma.data_tag, request->dma.data_map,
+			(request->flags & ATA_R_READ) ?
 			BUS_DMASYNC_POSTREAD : BUS_DMASYNC_POSTWRITE);
-	bus_dmamap_unload(ch->dma->data_tag, ch->dma->data_map);
+	bus_dmamap_unload(request->dma.data_tag, request->dma.data_map);
 
-	ch->dma->cur_iosize = 0;
-	ch->dma->flags &= ~ATA_DMA_LOADED;
+	request->dma.cur_iosize = 0;
+    }
+    if (request->dma.data_map) {
+	bus_dmamap_destroy(request->dma.data_tag, request->dma.data_map);
+	request->dma.data_map = NULL;
+    }
+    if (request->dma.data_tag) {
+	bus_dma_tag_destroy(request->dma.data_tag);
+	request->dma.data_tag = NULL;
+    }
+    if (request->dma.sg_bus) {
+	bus_dmamap_unload(request->dma.sg_tag, request->dma.sg_map);
+	bus_dmamem_free(request->dma.sg_tag, request->dma.sg,
+			request->dma.sg_map);
+	request->dma.sg = NULL;
+	request->dma.sg_bus = 0;
+	request->dma.sg_map = NULL;
+    }
+    if (request->dma.sg_tag) {
+	bus_dma_tag_destroy(request->dma.sg_tag);
+	request->dma.sg_tag = NULL;
     }
     return 0;
 }

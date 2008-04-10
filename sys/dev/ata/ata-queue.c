@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998 - 2007 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998 - 2008 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -358,8 +358,8 @@ ata_completed(void *context, int dummy)
 			      "\4MEDIA_CHANGE_REQEST"
 			      "\3ABORTED\2NO_MEDIA\1ILLEGAL_LENGTH");
 		if ((request->flags & ATA_R_DMA) &&
-		    (request->dmastat & ATA_BMSTAT_ERROR))
-		    printf(" dma=0x%02x", request->dmastat);
+		    (request->dma.status & ATA_BMSTAT_ERROR))
+		    printf(" dma=0x%02x", request->dma.status);
 		if (!(request->flags & (ATA_R_ATAPI | ATA_R_CONTROL)))
 		    printf(" LBA=%ju", request->u.ata.lba);
 		printf("\n");
@@ -694,11 +694,13 @@ ata_cmd2str(struct ata_request *request)
 	case 0x24: return ("READ48");
 	case 0x25: return ("READ_DMA48");
 	case 0x26: return ("READ_DMA_QUEUED48");
+	case 0x27: return ("READ_NATIVE_MAX_ADDRESS48");
 	case 0x29: return ("READ_MUL48");
 	case 0x30: return ("WRITE");
 	case 0x34: return ("WRITE48");
 	case 0x35: return ("WRITE_DMA48");
 	case 0x36: return ("WRITE_DMA_QUEUED48");
+	case 0x37: return ("SET_MAX_ADDRESS48");
 	case 0x39: return ("WRITE_MUL48");
 	case 0x70: return ("SEEK");
 	case 0xa0: return ("PACKET_CMD");
@@ -727,6 +729,9 @@ ata_cmd2str(struct ata_request *request)
 	    }
 	    sprintf(buffer, "SETFEATURES 0x%02x", request->u.ata.feature);
 	    return buffer;
+	case 0xf5: return ("SECURITY_FREE_LOCK");
+	case 0xf8: return ("READ_NATIVE_MAX_ADDRESS");
+	case 0xf9: return ("SET_MAX_ADDRESS");
 	}
     }
     sprintf(buffer, "unknown CMD (0x%02x)", request->u.ata.command);
