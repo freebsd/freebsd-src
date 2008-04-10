@@ -77,6 +77,10 @@ FBSD_1.0 {
 	wmemset;
 };
 
+FBSD_1.1 {
+	memrchr;
+};
+
 FBSDprivate_1.0 {
 	__strtok_r;
 };
