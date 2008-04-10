@@ -47,11 +47,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by Jason L. Wright
- * 4. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -1930,23 +1925,22 @@ bridge_forward(struct bridge_softc *sc, struct bridge_iflist *sbif,
 	struct ifnet *src_if, *dst_if, *ifp;
 	struct ether_header *eh;
 	uint16_t vlan;
+	uint8_t *dst;
 	int error;
 
 	src_if = m->m_pkthdr.rcvif;
 	ifp = sc->sc_ifp;
 
-	sc->sc_ifp->if_ipackets++;
-	sc->sc_ifp->if_ibytes += m->m_pkthdr.len;
+	ifp->if_ipackets++;
+	ifp->if_ibytes += m->m_pkthdr.len;
 	vlan = VLANTAGOF(m);
 
 	if ((sbif->bif_flags & IFBIF_STP) &&
-	    sbif->bif_stp.bp_state == BSTP_IFSTATE_DISCARDING) {
-		BRIDGE_UNLOCK(sc);
-		m_freem(m);
-		return;
-	}
+	    sbif->bif_stp.bp_state == BSTP_IFSTATE_DISCARDING)
+		goto drop;
 
 	eh = mtod(m, struct ether_header *);
+	dst = eh->ether_dhost;
 
 	/* If the interface is learning, record the address. */
 	if (sbif->bif_flags & IFBIF_LEARNING) {
@@ -1956,19 +1950,13 @@ bridge_forward(struct bridge_softc *sc, struct bridge_iflist *sbif,
 		 * If the interface has addresses limits then deny any source
 		 * that is not in the cache.
 		 */
-		if (error && sbif->bif_addrmax) {
-			BRIDGE_UNLOCK(sc);
-			m_freem(m);
-			return;
-		}
+		if (error && sbif->bif_addrmax)
+			goto drop;
 	}
 
 	if ((sbif->bif_flags & IFBIF_STP) != 0 &&
-	    sbif->bif_stp.bp_state == BSTP_IFSTATE_LEARNING) {
-		m_freem(m);
-		BRIDGE_UNLOCK(sc);
-		return;
-	}
+	    sbif->bif_stp.bp_state == BSTP_IFSTATE_LEARNING)
+		goto drop;
 
 	/*
 	 * At this point, the port either doesn't participate
@@ -1980,15 +1968,23 @@ bridge_forward(struct bridge_softc *sc, struct bridge_iflist *sbif,
 	 * "this" side of the bridge, drop it.
 	 */
 	if ((m->m_flags & (M_BCAST|M_MCAST)) == 0) {
-		dst_if = bridge_rtlookup(sc, eh->ether_dhost, vlan);
-		if (src_if == dst_if) {
-			BRIDGE_UNLOCK(sc);
-			m_freem(m);
-			return;
-		}
+		dst_if = bridge_rtlookup(sc, dst, vlan);
+		if (src_if == dst_if)
+			goto drop;
 	} else {
+		/*
+		 * Check if its a reserved multicast address, any address
+		 * listed in 802.1D section 7.12.6 may not be forwarded by the
+		 * bridge.
+		 * This is currently 01-80-C2-00-00-00 to 01-80-C2-00-00-0F
+		 */
+		if (dst[0] == 0x01 && dst[1] == 0x80 &&
+		    dst[2] == 0xc2 && dst[3] == 0x00 &&
+		    dst[4] == 0x00 && dst[5] <= 0x0f)
+			goto drop;
+
 		/* ...forward it to all interfaces. */
-		sc->sc_ifp->if_imcasts++;
+		ifp->if_imcasts++;
 		dst_if = NULL;
 	}
 
@@ -2027,32 +2023,21 @@ bridge_forward(struct bridge_softc *sc, struct bridge_iflist *sbif,
 	 * At this point, we're dealing with a unicast frame
 	 * going to a different interface.
 	 */
-	if ((dst_if->if_drv_flags & IFF_DRV_RUNNING) == 0) {
-		BRIDGE_UNLOCK(sc);
-		m_freem(m);
-		return;
-	}
+	if ((dst_if->if_drv_flags & IFF_DRV_RUNNING) == 0)
+		goto drop;
+
 	dbif = bridge_lookup_member_if(sc, dst_if);
-	if (dbif == NULL) {
+	if (dbif == NULL)
 		/* Not a member of the bridge (anymore?) */
-		BRIDGE_UNLOCK(sc);
-		m_freem(m);
-		return;
-	}
+		goto drop;
 
 	/* Private segments can not talk to each other */
-	if (sbif->bif_flags & dbif->bif_flags & IFBIF_PRIVATE) {
-		BRIDGE_UNLOCK(sc);
-		m_freem(m);
-		return;
-	}
+	if (sbif->bif_flags & dbif->bif_flags & IFBIF_PRIVATE)
+		goto drop;
 
 	if ((dbif->bif_flags & IFBIF_STP) &&
-	    dbif->bif_stp.bp_state == BSTP_IFSTATE_DISCARDING) {
-		BRIDGE_UNLOCK(sc);
-		m_freem(m);
-		return;
-	}
+	    dbif->bif_stp.bp_state == BSTP_IFSTATE_DISCARDING)
+		goto drop;
 
 	BRIDGE_UNLOCK(sc);
 
@@ -2061,13 +2046,18 @@ bridge_forward(struct bridge_softc *sc, struct bridge_iflist *sbif,
 	    || PFIL_HOOKED(&inet6_pfil_hook)
 #endif
 	    ) {
-		if (bridge_pfil(&m, sc->sc_ifp, dst_if, PFIL_OUT) != 0)
+		if (bridge_pfil(&m, ifp, dst_if, PFIL_OUT) != 0)
 			return;
 		if (m == NULL)
 			return;
 	}
 
 	bridge_enqueue(sc, dst_if, m);
+	return;
+
+drop:
+	BRIDGE_UNLOCK(sc);
+	m_freem(m);
 }
 
 /*
@@ -2115,60 +2105,6 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 	}
 
 	eh = mtod(m, struct ether_header *);
-
-	if (memcmp(eh->ether_dhost, IF_LLADDR(bifp),
-	    ETHER_ADDR_LEN) == 0) {
-		/* Block redundant paths to us */
-		if ((bif->bif_flags & IFBIF_STP) &&
-		    bif->bif_stp.bp_state == BSTP_IFSTATE_DISCARDING) {
-			BRIDGE_UNLOCK(sc);
-			return (m);
-		}
-
-		/*
-		 * Filter on the physical interface.
-		 */
-		if (pfil_local_phys && (PFIL_HOOKED(&inet_pfil_hook)
-#ifdef INET6
-		    || PFIL_HOOKED(&inet6_pfil_hook)
-#endif
-		    )) {
-			if (bridge_pfil(&m, NULL, ifp, PFIL_IN) != 0 ||
-			    m == NULL) {
-				BRIDGE_UNLOCK(sc);
-				return (NULL);
-			}
-		}
-
-		/*
-		 * If the packet is for us, set the packets source as the
-		 * bridge, and return the packet back to ether_input for
-		 * local processing.
-		 */
-
-		/* Note where to send the reply to */
-		if (bif->bif_flags & IFBIF_LEARNING) {
-			error = bridge_rtupdate(sc,
-			    eh->ether_shost, vlan, bif, 0, IFBAF_DYNAMIC);
-			/*
-			 * If the interface has addresses limits then deny any
-			 * source that is not in the cache.
-			 */
-			if (error && bif->bif_addrmax) {
-				BRIDGE_UNLOCK(sc);
-				m_freem(m);
-				return (NULL);
-			}
-		}
-
-		/* Mark the packet as arriving on the bridge interface */
-		m->m_pkthdr.rcvif = bifp;
-		ETHER_BPF_MTAP(bifp, m);
-		bifp->if_ipackets++;
-
-		BRIDGE_UNLOCK(sc);
-		return (m);
-	}
 
 	bridge_span(sc, m);
 
@@ -2244,6 +2180,13 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 #   define OR_CARP_CHECK_WE_ARE_SRC(iface)
 #endif
 
+#ifdef INET6
+#   define OR_PFIL_HOOKED_INET6 \
+	|| PFIL_HOOKED(&inet6_pfil_hook)
+#else
+#   define OR_PFIL_HOOKED_INET6
+#endif
+
 #define GRAB_OUR_PACKETS(iface) \
 	if ((iface)->if_type == IFT_GIF) \
 		continue; \
@@ -2251,6 +2194,20 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 	if (memcmp(IF_LLADDR((iface)), eh->ether_dhost,  ETHER_ADDR_LEN) == 0 \
 	    OR_CARP_CHECK_WE_ARE_DST((iface))				\
 	    ) {								\
+		if ((iface)->if_type == IFT_BRIDGE) {			\
+			ETHER_BPF_MTAP(iface, m);			\
+			iface->if_ipackets++;				\
+			/* Filter on the physical interface. */		\
+			if (pfil_local_phys &&				\
+			    (PFIL_HOOKED(&inet_pfil_hook)		\
+			     OR_PFIL_HOOKED_INET6)) {			\
+				if (bridge_pfil(&m, NULL, ifp,		\
+				    PFIL_IN) != 0 || m == NULL) {	\
+					BRIDGE_UNLOCK(sc);		\
+					return (NULL);			\
+				}					\
+			}						\
+		}							\
 		if (bif->bif_flags & IFBIF_LEARNING) {			\
 			error = bridge_rtupdate(sc, eh->ether_shost,	\
 			    vlan, bif, 0, IFBAF_DYNAMIC);		\
@@ -2275,8 +2232,11 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 	}
 
 	/*
-	 * Unicast.  Make sure it's not for us.
-	 *
+	 * Unicast.  Make sure it's not for the bridge.
+	 */
+	do { GRAB_OUR_PACKETS(bifp) } while (0);
+
+	/*
 	 * Give a chance for ifp at first priority. This will help when	the
 	 * packet comes through the interface like VLAN's with the same MACs
 	 * on several interfaces from the same bridge. This also will save
@@ -2292,6 +2252,7 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 
 #undef OR_CARP_CHECK_WE_ARE_DST
 #undef OR_CARP_CHECK_WE_ARE_SRC
+#undef OR_PFIL_HOOKED_INET6
 #undef GRAB_OUR_PACKETS
 
 	/* Perform the bridge forwarding function. */
