@@ -57,28 +57,26 @@ protocol_to_string(int domain, int type, int protocol)
 		case IPPROTO_UDP:
 			return ("UDP");
 		case IPPROTO_ICMP:
-			return ("ICM");
+			return ("ICMP");
 		case IPPROTO_RAW:
 			return ("RAW");
 		case IPPROTO_SCTP:
-			return ("SCT");
-		case IPPROTO_DIVERT:
-			return ("IPD");
+			return ("SCTP");
 		default:
-			return ("IP?");
+			return ("??");
 		}
 
 	case AF_LOCAL:
 		switch (type) {
 		case SOCK_STREAM:
-			return ("UDS");
+			return ("UDSS");
 		case SOCK_DGRAM:
-			return ("UDD");
+			return ("UDSD");
 		default:
-			return ("UD?");
+			return ("??");
 		}
 	default:
-		return ("?");
+		return ("??");
 	}
 }
 
@@ -127,22 +125,21 @@ print_address(struct sockaddr_storage *ss)
 	char addr[PATH_MAX];
 
 	addr_to_string(ss, addr, sizeof(addr));
-	printf("%s", addr);
+	printf("%-19s", addr);
 }
 
 void
 procstat_files(pid_t pid, struct kinfo_proc *kipp)
 {
 	struct kinfo_file *freep, *kif;
-	int error, name[4];
-	unsigned int i;
+	int error, i, name[4];
 	const char *str;
 	size_t len;
 
 	if (!hflag)
-		printf("%5s %-16s %4s %1s %1s %-8s %3s %7s %-3s %-12s\n",
-		    "PID", "COMM", "FD", "T", "V", "FLAGS", "REF", "OFFSET",
-		    "PRO", "NAME");
+		printf("%5s %3s %1s %1s %-8s %3s %7s %-4s %-35s\n", "PID",
+		    "FD", "T", "V", "FLAGS", "REF", "OFFSET", "PROT",
+		    "NAME");
 
 	name[0] = CTL_KERN;
 	name[1] = KERN_PROC;
@@ -171,24 +168,7 @@ procstat_files(pid_t pid, struct kinfo_proc *kipp)
 		if (kif->kf_structsize != sizeof(*kif))
 			errx(-1, "kinfo_file mismatch");
 		printf("%5d ", pid);
-		printf("%-16s ", kipp->ki_comm);
-		switch (kif->kf_fd) {
-		case KF_FD_TYPE_CWD:
-			printf(" cwd ");
-			break;
-
-		case KF_FD_TYPE_ROOT:
-			printf("root ");
-			break;
-
-		case KF_FD_TYPE_JAIL:
-			printf("jail ");
-			break;
-
-		default:
-			printf("%4d ", kif->kf_fd);
-			break;
-		}
+		printf("%3d ", kif->kf_fd);
 		switch (kif->kf_type) {
 		case KF_TYPE_VNODE:
 			str = "v";
@@ -216,10 +196,6 @@ procstat_files(pid_t pid, struct kinfo_proc *kipp)
 
 		case KF_TYPE_MQUEUE:
 			str = "m";
-			break;
-
-		case KF_TYPE_SHM:
-			str = "h";
 			break;
 
 		case KF_TYPE_NONE:
@@ -280,24 +256,18 @@ procstat_files(pid_t pid, struct kinfo_proc *kipp)
 		printf("%s", kif->kf_flags & KF_FLAG_NONBLOCK ? "n" : "-");
 		printf("%s", kif->kf_flags & KF_FLAG_DIRECT ? "d" : "-");
 		printf("%s ", kif->kf_flags & KF_FLAG_HASLOCK ? "l" : "-");
-		if (kif->kf_ref_count > -1)
-			printf("%3d ", kif->kf_ref_count);
-		else
-			printf("%3c ", '-');
-		if (kif->kf_offset > -1)
-			printf("%7jd ", (intmax_t)kif->kf_offset);
-		else
-			printf("%7c ", '-');
+		printf("%3d ", kif->kf_ref_count);
+		printf("%7jd ", (intmax_t)kif->kf_offset);
 
 		switch (kif->kf_type) {
 		case KF_TYPE_VNODE:
 		case KF_TYPE_FIFO:
-			printf("%-3s ", "-");
-			printf("%-18s", kif->kf_path);
+			printf("%-4s ", "-");
+			printf("%-35s", kif->kf_path);
 			break;
 
 		case KF_TYPE_SOCKET:
-			printf("%-3s ",
+			printf("%-4s ",
 			    protocol_to_string(kif->kf_sock_domain,
 			    kif->kf_sock_type, kif->kf_sock_protocol));
 			/*
@@ -323,8 +293,8 @@ procstat_files(pid_t pid, struct kinfo_proc *kipp)
 			break;
 
 		default:
-			printf("%-3s ", "-");
-			printf("%-18s", "-");
+			printf("%-4s ", "-");
+			printf("%-35s", "-");
 		}
 
 		printf("\n");
