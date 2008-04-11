@@ -261,6 +261,9 @@ OLD_FILES+=usr/sbin/ntp-genkeys
 OLD_FILES+=usr/sbin/ntptimeset
 OLD_FILES+=usr/share/man/man8/kernbb.8.gz
 OLD_FILES+=usr/share/man/man8/ntp-genkeys.8.gz
+# 20040627: usbdevs.h and usbdevs_data.h removal
+OLD_FILES+=usr/include/dev/usb/usbdevs.h
+OLD_FILES+=usr/include/dev/usb/usbdevs_data.h
 # 200406XX
 OLD_FILES+=usr/bin/gasp
 OLD_FILES+=usr/bin/gdbreplay
