@@ -511,6 +511,7 @@ proc0_post(void *dummy __unused)
 	struct timespec ts;
 	struct proc *p;
 	struct rusage ru;
+	struct thread *td;
 
 	/*
 	 * Now we can look at the time, having had a chance to verify the
@@ -526,6 +527,9 @@ proc0_post(void *dummy __unused)
 		p->p_rux.rux_uticks = 0;
 		p->p_rux.rux_sticks = 0;
 		p->p_rux.rux_iticks = 0;
+		FOREACH_THREAD_IN_PROC(p, td) {
+			td->td_runtime = 0;
+		}
 	}
 	sx_sunlock(&allproc_lock);
 	PCPU_SET(switchtime, cpu_ticks());
