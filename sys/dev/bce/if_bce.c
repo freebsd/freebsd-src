@@ -328,11 +328,6 @@ static void bce_rx_intr				(struct bce_softc *);
 static void bce_tx_intr				(struct bce_softc *);
 static void bce_disable_intr		(struct bce_softc *);
 static void bce_enable_intr			(struct bce_softc *);
-
-#ifdef DEVICE_POLLING
-static void bce_poll_locked			(struct ifnet *, enum poll_cmd, int);
-static void bce_poll				(struct ifnet *, enum poll_cmd, int);
-#endif
 static void bce_intr				(void *);
 static void bce_set_rx_mode			(struct bce_softc *);
 static void bce_stats_update		(struct bce_softc *);
@@ -784,10 +779,6 @@ bce_attach(device_t dev)
 	sc->rx_bd_mbuf_alloc_size = MHLEN;
 	sc->pg_bd_mbuf_alloc_size = MCLBYTES;
 
-#ifdef DEVICE_POLLING
-	ifp->if_capabilities |= IFCAP_POLLING;
-#endif
-
 	ifp->if_snd.ifq_drv_maxlen = USABLE_TX_BD;
 	IFQ_SET_MAXLEN(&ifp->if_snd, ifp->if_snd.ifq_drv_maxlen);
 	IFQ_SET_READY(&ifp->if_snd);
@@ -903,11 +894,6 @@ bce_detach(device_t dev)
 	DBPRINT(sc, BCE_VERBOSE_RESET, "Entering %s()\n", __FUNCTION__);
 
 	ifp = sc->bce_ifp;
-
-#ifdef DEVICE_POLLING
-	if (ifp->if_capenable & IFCAP_POLLING)
-		ether_poll_deregister(ifp);
-#endif
 
 	/* Stop and reset the controller. */
 	BCE_LOCK(sc);
@@ -4392,7 +4378,7 @@ bce_free_pg_chain(struct bce_softc *sc)
 {
 	int i;
 
-	DBPRINT(sc, BCE_VERBOSE_RESET, "Entering %s()\n", __FUNCTION__);
+	DBPRINT(sc, BCE_EXCESSIVE_RESET, "Entering %s()\n", __FUNCTION__);
 
 	/* Free any mbufs still in the mbuf page chain. */
 	for (i = 0; i < TOTAL_PG_BD; i++) {
@@ -4417,7 +4403,7 @@ bce_free_pg_chain(struct bce_softc *sc)
 		BCE_PRINTF("%s(): Memory leak! Lost %d mbufs from page chain!\n",
 			__FUNCTION__, sc->debug_pg_mbuf_alloc));
 
-	DBPRINT(sc, BCE_VERBOSE_RESET, "Exiting %s()\n", __FUNCTION__);
+	DBPRINT(sc, BCE_EXCESSIVE_RESET, "Exiting %s()\n", __FUNCTION__);
 }
 
 
@@ -4561,6 +4547,7 @@ bce_get_hw_rx_cons(struct bce_softc *sc)
 	return hw_cons;
 }
 
+
 /****************************************************************************/
 /* Handles received frame interrupt events.                                 */
 /*                                                                          */
@@ -4576,9 +4563,10 @@ bce_rx_intr(struct bce_softc *sc)
 	u16 sw_rx_cons, sw_rx_cons_idx, sw_pg_cons, sw_pg_cons_idx, hw_rx_cons;
 	u32 status;
 
+
 #ifdef BCE_DEBUG
-	u32 rx_intr_start, rx_intr_end;
-	rx_intr_start = REG_RD(sc, BCE_TIMER_25MHZ_FREE_RUN);
+	u32 timer_start, timer_end;
+	timer_start = REG_RD(sc, BCE_TIMER_25MHZ_FREE_RUN);
 	sc->rx_interrupts++;
 #endif
 
@@ -4599,6 +4587,10 @@ bce_rx_intr(struct bce_softc *sc)
 	sw_rx_cons = sc->rx_cons;
 	sw_pg_cons = sc->pg_cons;
 
+	DBPRINT(sc, BCE_INFO_RECV, "%s(enter): rx_prod = 0x%04X, "
+		"rx_cons = 0x%04X, rx_prod_bseq = 0x%08X\n",
+		__FUNCTION__, sc->rx_prod, sc->rx_cons, sc->rx_prod_bseq);
+
 	/* Update some debug statistics counters */
 	DBRUNIF((sc->free_rx_bd < sc->rx_low_watermark),
 		sc->rx_low_watermark = sc->free_rx_bd);
@@ -4608,17 +4600,9 @@ bce_rx_intr(struct bce_softc *sc)
 	/* ToDo: Consider setting a limit on the number of packets processed. */
 	while (sw_rx_cons != hw_rx_cons) {
 		struct mbuf *m0;
-
+		
 		/* Convert the producer/consumer indices to an actual rx_bd index. */
 		sw_rx_cons_idx = RX_CHAIN_IDX(sw_rx_cons);
-
-#ifdef DEVICE_POLLING
-		if (ifp->if_capenable & IFCAP_POLLING) {
-			if (sc->bce_rxcycles <= 0)
-				break;
-			sc->bce_rxcycles--;
-		}
-#endif
 
 		/* Unmap the mbuf from DMA space. */
 		bus_dmamap_sync(sc->rx_mbuf_tag, 
@@ -4681,6 +4665,10 @@ bce_rx_intr(struct bce_softc *sc)
 			 * is filled and the remaining bytes are placed 
 			 * in the page chain.
 			 */
+
+			DBPRINT(sc, BCE_INFO_RECV, "%s(): Found a large packet.\n",
+				__FUNCTION__);
+
 		 	if (status & L2_FHDR_STATUS_SPLIT)
 				m0->m_len = l2fhdr->l2_fhdr_ip_xsum;
 
@@ -4736,6 +4724,9 @@ bce_rx_intr(struct bce_softc *sc)
 			 * 154 bytes or less in size.
 			 */
 
+			DBPRINT(sc, BCE_INFO_RECV, "%s(): Found a small packet.\n",
+				__FUNCTION__);
+
 			/* Set the total packet length. */
 			m0->m_pkthdr.len = m0->m_len = pkt_len;
 		}
@@ -4745,6 +4736,11 @@ bce_rx_intr(struct bce_softc *sc)
 
 		/* Check that the resulting mbuf chain is valid. */
 		DBRUN(m_sanity(m0, FALSE));
+
+		DBRUNIF((m0->m_len < ETHER_HDR_LEN),
+			BCE_PRINTF("%s(): Unexpected length = %d!.\n", 
+				__FUNCTION__, m0->m_len);
+			bce_breakpoint(sc));
 
 		DBRUNIF(DB_RANDOMTRUE(bce_debug_l2fhdr_status_check),
 			BCE_PRINTF("Simulating l2_fhdr status error.\n");
@@ -4856,8 +4852,30 @@ bce_rx_int_next_rx:
 		"rx_cons = 0x%04X, rx_prod_bseq = 0x%08X\n",
 		__FUNCTION__, sc->rx_prod, sc->rx_cons, sc->rx_prod_bseq);
 
-	DBRUN(rx_intr_end = REG_RD(sc, BCE_TIMER_25MHZ_FREE_RUN);
-		sc->rx_intr_time += (u64) BCE_TIME_DELTA(rx_intr_start, rx_intr_end));
+#ifdef BCE_DEBUG
+	timer_end = REG_RD(sc, BCE_TIMER_25MHZ_FREE_RUN);
+	sc->rx_intr_time += (u64) (timer_start > timer_end ? 
+		(timer_start - timer_end) : (~timer_start + timer_end + 1));
+#endif
+}
+
+
+/****************************************************************************/
+/* Reads the transmit consumer value from the status block (skipping over   */
+/* chain page pointer if necessary).                                        */
+/*                                                                          */
+/* Returns:                                                                 */
+/*   hw_cons                                                                */
+/****************************************************************************/
+static inline u16
+bce_get_hw_tx_cons(struct bce_softc *sc)
+{
+	u16 hw_cons = sc->status_block->status_tx_quick_consumer_index0;
+
+	if ((hw_cons & USABLE_TX_BD_PER_PAGE) == USABLE_TX_BD_PER_PAGE)
+		hw_cons++;
+
+	return hw_cons;
 }
 
 
@@ -4870,25 +4888,19 @@ bce_rx_int_next_rx:
 static void
 bce_tx_intr(struct bce_softc *sc)
 {
-	struct status_block *sblk = sc->status_block;
 	struct ifnet *ifp = sc->bce_ifp;
 	u16 hw_tx_cons, sw_tx_cons, sw_tx_chain_cons;
 
 #ifdef BCE_DEBUG
-	u32 tx_intr_start, tx_intr_end;
-	tx_intr_start = REG_RD(sc, BCE_TIMER_25MHZ_FREE_RUN);
+	u32 timer_start, timer_end;
+	timer_start = REG_RD(sc, BCE_TIMER_25MHZ_FREE_RUN);
 	sc->tx_interrupts++;
 #endif
 
 	BCE_LOCK_ASSERT(sc);
 
 	/* Get the hardware's view of the TX consumer index. */
-	hw_tx_cons = sc->hw_tx_cons = sblk->status_tx_quick_consumer_index0;
-
-	/* Skip to the next entry if this is a chain page pointer. */
-	if ((hw_tx_cons & USABLE_TX_BD_PER_PAGE) == USABLE_TX_BD_PER_PAGE)
-		hw_tx_cons++;
-
+	hw_tx_cons = sc->hw_tx_cons = bce_get_hw_tx_cons(sc);
 	sw_tx_cons = sc->tx_cons;
 
 	/* Prevent speculative reads from getting ahead of the status block. */
@@ -4957,9 +4969,7 @@ bce_tx_intr(struct bce_softc *sc)
 		sw_tx_cons = NEXT_TX_BD(sw_tx_cons);
 
 		/* Refresh hw_cons to see if there's new work. */
-		hw_tx_cons = sc->hw_tx_cons = sblk->status_tx_quick_consumer_index0;
-		if ((hw_tx_cons & USABLE_TX_BD_PER_PAGE) == USABLE_TX_BD_PER_PAGE)
-			hw_tx_cons++;
+		hw_tx_cons = sc->hw_tx_cons = bce_get_hw_tx_cons(sc);
 
 		/* Prevent speculative reads from getting ahead of the status block. */
 		bus_space_barrier(sc->bce_btag, sc->bce_bhandle, 0, 0, 
@@ -4979,8 +4989,11 @@ bce_tx_intr(struct bce_softc *sc)
 	}
 
 	sc->tx_cons = sw_tx_cons;
-	DBRUN(tx_intr_end = REG_RD(sc, BCE_TIMER_25MHZ_FREE_RUN);
-		sc->tx_intr_time += (u64) BCE_TIME_DELTA(tx_intr_start, tx_intr_end));
+#ifdef BCE_DEBUG
+	timer_end = REG_RD(sc, BCE_TIMER_25MHZ_FREE_RUN);
+	sc->tx_intr_time += (u64) (timer_start > timer_end ? 
+		(timer_start - timer_end) : (~timer_start + timer_end + 1));
+#endif
 }
 
 
@@ -5104,17 +5117,6 @@ bce_init_locked(struct bce_softc *sc)
 	/* Init TX buffer descriptor chain. */
 	bce_init_tx_chain(sc);
 
-#ifdef DEVICE_POLLING
-	/* Disable interrupts if we are polling. */
-	if (ifp->if_capenable & IFCAP_POLLING) {
-		bce_disable_intr(sc);
-
-		REG_WR(sc, BCE_HC_RX_QUICK_CONS_TRIP,
-			(1 << 16) | sc->bce_rx_quick_cons_trip);
-		REG_WR(sc, BCE_HC_TX_QUICK_CONS_TRIP,
-			(1 << 16) | sc->bce_tx_quick_cons_trip);
-	} else
-#endif
 	/* Enable host interrupts. */
 	bce_enable_intr(sc);
 
@@ -5366,7 +5368,7 @@ bce_tx_encap_skip_tso:
 #endif
 
 	DBPRINT(sc, BCE_INFO_SEND,
-		"%s(): Start: prod = 0x%04X, chain_prod = %04X, "
+		"%s(start): prod = 0x%04X, chain_prod = 0x%04X, "
 		"prod_bseq = 0x%08X\n",
 		__FUNCTION__, prod, chain_prod, prod_bseq);
 
@@ -5398,7 +5400,7 @@ bce_tx_encap_skip_tso:
 	DBRUNMSG(BCE_EXCESSIVE_SEND, bce_dump_tx_chain(sc, debug_prod, nsegs));
 
 	DBPRINT(sc, BCE_INFO_SEND,
-		"%s(): End: prod = 0x%04X, chain_prod = %04X, "
+		"%s( end ): prod = 0x%04X, chain_prod = 0x%04X, "
 		"prod_bseq = 0x%08X\n",
 		__FUNCTION__, prod, chain_prod, prod_bseq);
 
@@ -5444,21 +5446,27 @@ bce_start_locked(struct ifnet *ifp)
 	int count = 0;
 	u16 tx_prod, tx_chain_prod;
 
-	/* If there's no link or the transmit queue is empty then just exit. */
-	if (!sc->bce_link || IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
-		DBPRINT(sc, BCE_INFO_SEND, "%s(): No link or transmit queue empty.\n", 
-			__FUNCTION__);
-		goto bce_start_locked_exit;
-	}
-
 	/* prod points to the next free tx_bd. */
 	tx_prod = sc->tx_prod;
 	tx_chain_prod = TX_CHAIN_IDX(tx_prod);
 
 	DBPRINT(sc, BCE_INFO_SEND,
-		"%s(): Start: tx_prod = 0x%04X, tx_chain_prod = %04X, "
+		"%s(enter): tx_prod = 0x%04X, tx_chain_prod = 0x%04X, "
 		"tx_prod_bseq = 0x%08X\n",
 		__FUNCTION__, tx_prod, tx_chain_prod, sc->tx_prod_bseq);
+
+	/* If there's no link or the transmit queue is empty then just exit. */
+	if (!sc->bce_link) {
+		DBPRINT(sc, BCE_INFO_SEND, "%s(): No link.\n", 
+			__FUNCTION__);
+		goto bce_start_locked_exit;
+	}
+
+	if (IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
+		DBPRINT(sc, BCE_INFO_SEND, "%s(): Transmit queue empty.\n", 
+			__FUNCTION__);
+		goto bce_start_locked_exit;
+	}
 
 	/*
 	 * Keep adding entries while there is space in the ring.
@@ -5502,11 +5510,6 @@ bce_start_locked(struct ifnet *ifp)
 	/* Update the driver's counters. */
 	tx_chain_prod = TX_CHAIN_IDX(sc->tx_prod);
 
-	DBPRINT(sc, BCE_INFO_SEND,
-		"%s(): End: tx_prod = 0x%04X, tx_chain_prod = 0x%04X, "
-		"tx_prod_bseq = 0x%08X\n",
-		__FUNCTION__, tx_prod, tx_chain_prod, sc->tx_prod_bseq);
-
 	/* Start the transmit. */
 	REG_WR16(sc, MB_TX_CID_ADDR + BCE_L2CTX_TX_HOST_BIDX, sc->tx_prod);
 	REG_WR(sc, MB_TX_CID_ADDR + BCE_L2CTX_TX_HOST_BSEQ, sc->tx_prod_bseq);
@@ -5515,6 +5518,11 @@ bce_start_locked(struct ifnet *ifp)
 	sc->watchdog_timer = BCE_TX_TIMEOUT;
 
 bce_start_locked_exit:
+	DBPRINT(sc, BCE_INFO_SEND,
+		"%s(exit ): tx_prod = 0x%04X, tx_chain_prod = 0x%04X, "
+		"tx_prod_bseq = 0x%08X\n",
+		__FUNCTION__, tx_prod, tx_chain_prod, sc->tx_prod_bseq);
+
 	return;
 }
 
@@ -5635,50 +5643,6 @@ bce_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			mask = ifr->ifr_reqcap ^ ifp->if_capenable;
 			DBPRINT(sc, BCE_INFO_MISC, "Received SIOCSIFCAP = 0x%08X\n", (u32) mask);
 
-#ifdef DEVICE_POLLING
-			if (mask & IFCAP_POLLING) {
-				if (ifr->ifr_reqcap & IFCAP_POLLING) {
-
-					/* Setup the poll routine to call. */
-					error = ether_poll_register(bce_poll, ifp);
-					if (error) {
-						BCE_PRINTF("%s(%d): Error registering poll function!\n",
-							__FILE__, __LINE__);
-						goto bce_ioctl_exit;
-					}
-
-					/* Clear the interrupt. */
-					BCE_LOCK(sc);
-					bce_disable_intr(sc);
-
-					REG_WR(sc, BCE_HC_RX_QUICK_CONS_TRIP,
-						(1 << 16) | sc->bce_rx_quick_cons_trip);
-					REG_WR(sc, BCE_HC_TX_QUICK_CONS_TRIP,
-						(1 << 16) | sc->bce_tx_quick_cons_trip);
-
-					ifp->if_capenable |= IFCAP_POLLING;
-					BCE_UNLOCK(sc);
-				} else {
-					/* Clear the poll routine. */
-					error = ether_poll_deregister(ifp);
-
-					/* Enable interrupt even in error case */
-					BCE_LOCK(sc);
-					bce_enable_intr(sc);
-
-					REG_WR(sc, BCE_HC_TX_QUICK_CONS_TRIP,
-						(sc->bce_tx_quick_cons_trip_int << 16) |
-						sc->bce_tx_quick_cons_trip);
-					REG_WR(sc, BCE_HC_RX_QUICK_CONS_TRIP,
-						(sc->bce_rx_quick_cons_trip_int << 16) |
-						sc->bce_rx_quick_cons_trip);
-
-					ifp->if_capenable &= ~IFCAP_POLLING;
-					BCE_UNLOCK(sc);
-				}
-			}
-#endif /*DEVICE_POLLING */
-
 			/* Toggle the TX checksum capabilites enable flag. */						
 			if (mask & IFCAP_TXCSUM) {
 				ifp->if_capenable ^= IFCAP_TXCSUM;
@@ -5730,9 +5694,6 @@ bce_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			break;
 	}
 
-#ifdef DEVICE_POLLING
-bce_ioctl_exit:
-#endif
 	return(error);
 }
 
@@ -5776,68 +5737,6 @@ bce_watchdog(struct bce_softc *sc)
 }
 
 
-#ifdef DEVICE_POLLING
-static void
-bce_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
-{
-	struct bce_softc *sc = ifp->if_softc;
-
-	BCE_LOCK_ASSERT(sc);
-
-	sc->bce_rxcycles = count;
-
-	bus_dmamap_sync(sc->status_tag, sc->status_map,
-	    BUS_DMASYNC_POSTWRITE);
-
-	/* Check for any completed RX frames. */
-	if (sc->status_block->status_rx_quick_consumer_index0 != 
-		sc->hw_rx_cons)
-		bce_rx_intr(sc);
-
-	/* Check for any completed TX frames. */
-	if (sc->status_block->status_tx_quick_consumer_index0 != 
-		sc->hw_tx_cons)
-		bce_tx_intr(sc);
-
-	/* Check for new frames to transmit. */
-	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		bce_start_locked(ifp);
-
-}
-
-
-static void
-bce_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
-{
-	struct bce_softc *sc = ifp->if_softc;
-
-	BCE_LOCK(sc);
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-		bce_poll_locked(ifp, cmd, count);
-	BCE_UNLOCK(sc);
-}
-#endif /* DEVICE_POLLING */
-
-
-#if 0
-static inline int
-bce_has_work(struct bce_softc *sc)
-{
-	struct status_block *stat = sc->status_block;
-
-	if ((stat->status_rx_quick_consumer_index0 != sc->hw_rx_cons) ||
-	    (stat->status_tx_quick_consumer_index0 != sc->hw_tx_cons))
-		return 1;
-
-	if (((stat->status_attn_bits & STATUS_ATTN_BITS_LINK_STATE) != 0) !=
-	    bp->link_up)
-		return 1;
-
-	return 0;
-}
-#endif
-
-
 /*
  * Interrupt handler.
  */
@@ -5855,6 +5754,7 @@ bce_intr(void *xsc)
 	struct bce_softc *sc;
 	struct ifnet *ifp;
 	u32 status_attn_bits;
+	u16 hw_rx_cons, hw_tx_cons;
 
 	sc = xsc;
 	ifp = sc->bce_ifp;
@@ -5863,13 +5763,6 @@ bce_intr(void *xsc)
 	BCE_LOCK(sc);
 
 	DBRUN(sc->interrupts_generated++);
-
-#ifdef DEVICE_POLLING
-	if (ifp->if_capenable & IFCAP_POLLING) {
-		DBPRINT(sc, BCE_INFO_MISC, "Polling enabled!\n");
-		goto bce_intr_exit;
-	}
-#endif
 
 	bus_dmamap_sync(sc->status_tag, sc->status_map,
 	    BUS_DMASYNC_POSTWRITE);
@@ -5888,6 +5781,10 @@ bce_intr(void *xsc)
 	REG_WR(sc, BCE_PCICFG_INT_ACK_CMD,
 		BCE_PCICFG_INT_ACK_CMD_USE_INT_HC_PARAM |
 		BCE_PCICFG_INT_ACK_CMD_MASK_INT);
+
+	/* Check if the hardware has finished any work. */
+	hw_rx_cons = bce_get_hw_rx_cons(sc);
+	hw_tx_cons = bce_get_hw_tx_cons(sc);
 
 	/* Keep processing data as long as there is work to do. */
 	for (;;) {
@@ -5922,11 +5819,11 @@ bce_intr(void *xsc)
 		}
 
 		/* Check for any completed RX frames. */
-		if (sc->status_block->status_rx_quick_consumer_index0 != sc->hw_rx_cons)
+		if (hw_rx_cons != sc->hw_rx_cons)
 			bce_rx_intr(sc);
 
 		/* Check for any completed TX frames. */
-		if (sc->status_block->status_tx_quick_consumer_index0 != sc->hw_tx_cons)
+		if (hw_tx_cons != sc->hw_tx_cons)
 			bce_tx_intr(sc);
 
 		/* Save the status block index value for use during the next interrupt. */
@@ -5937,8 +5834,10 @@ bce_intr(void *xsc)
 			BUS_SPACE_BARRIER_READ);
 
 		/* If there's no work left then exit the interrupt service routine. */
-		if ((sc->status_block->status_rx_quick_consumer_index0 == sc->hw_rx_cons) &&
-	    	(sc->status_block->status_tx_quick_consumer_index0 == sc->hw_tx_cons))
+		hw_rx_cons = bce_get_hw_rx_cons(sc);
+		hw_tx_cons = bce_get_hw_tx_cons(sc);
+
+		if ((hw_rx_cons == sc->hw_rx_cons) && (hw_tx_cons == sc->hw_tx_cons))
 			break;
 	
 	}
@@ -6347,6 +6246,7 @@ bce_tick(void *xsc)
 		    IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_SX) &&
 		    bootverbose)
 			BCE_PRINTF("Gigabit link up\n");
+
 		/* Now that link is up, handle any outstanding TX traffic. */
 		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 			bce_start_locked(ifp);
@@ -7449,130 +7349,132 @@ bce_dump_ftqs(struct bce_softc *sc)
 		 (BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_COMXQ_VALID_CNT  <<  8) |
 		 (BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_TASQ_VALID_CNT)));
 
-	cmd = REG_RD(sc, 0x23f8); /* RLUP_FTQ_CMD */ 
-	ctl = REG_RD(sc, 0x23fc); /* RLUP_FTQ_CTL */
-	cur_depth = (ctl & 0xFFC00000) >> 22;
-	max_depth = (ctl & 0x003FF000) >> 12;
+
+	cmd = REG_RD(sc, BCE_RLUP_FTQ_CMD);
+	ctl = REG_RD(sc, BCE_RLUP_FTQ_CTL);
+	cur_depth = (ctl & BCE_RLUP_FTQ_CTL_CUR_DEPTH) >> 22;
+	max_depth = (ctl & BCE_RLUP_FTQ_CTL_MAX_DEPTH) >> 12;
 	valid_cnt = REG_RD(sc, BCE_HC_STAT_GEN_STAT0);
 	BCE_PRINTF(" RLUP  0x%08X 0x%08X 0x%08X 0x%08X 0x%08X\n", 
 		cmd, ctl, cur_depth, max_depth, valid_cnt);
 
-	cmd = REG_RD_IND(sc, 0xc53f8); /* RXP_FTQ_CMD */ 
-	ctl = REG_RD_IND(sc, 0xc53fc); /* RXP_FTQ_CTL */
-	cur_depth = (ctl & 0xFFC00000) >> 22;
-	max_depth = (ctl & 0x003FF000) >> 12;
+	cmd = REG_RD_IND(sc, BCE_RXP_FTQ_CMD);
+	ctl = REG_RD_IND(sc, BCE_RXP_FTQ_CTL);
+	cur_depth = (ctl & BCE_RXP_FTQ_CTL_CUR_DEPTH) >> 22;
+	max_depth = (ctl & BCE_RXP_FTQ_CTL_MAX_DEPTH) >> 12;
 	valid_cnt = REG_RD(sc, BCE_HC_STAT_GEN_STAT1);
 	BCE_PRINTF(" RXP   0x%08X 0x%08X 0x%08X 0x%08X 0x%08X\n", 
 		cmd, ctl, cur_depth, max_depth, valid_cnt);
 
-	cmd = REG_RD_IND(sc, 0xc53b8); /* RXP_CFTQ_CMD */ 
-	ctl = REG_RD_IND(sc, 0xc53bc); /* RXP_CFTQ_CTL */
-	cur_depth = (ctl & 0xFFC00000) >> 22;
-	max_depth = (ctl & 0x003FF000) >> 12;
+	cmd = REG_RD_IND(sc, BCE_RXP_CFTQ_CMD);
+	ctl = REG_RD_IND(sc, BCE_RXP_CFTQ_CTL);
+	cur_depth = (ctl & BCE_RXP_CFTQ_CTL_CUR_DEPTH) >> 22;
+	max_depth = (ctl & BCE_RXP_CFTQ_CTL_MAX_DEPTH) >> 12;
 	valid_cnt = REG_RD(sc, BCE_HC_STAT_GEN_STAT2);
 	BCE_PRINTF(" RXPC  0x%08X 0x%08X 0x%08X 0x%08X 0x%08X\n", 
 		cmd, ctl, cur_depth, max_depth, valid_cnt);
 
-	cmd = REG_RD(sc, 0x2b78); /* RV2P_PFTQ_CMD */ 
-	ctl = REG_RD(sc, 0x2b7c); /* RV2P_PFTQ_CTL */
-	cur_depth = (ctl & 0xFFC00000) >> 22;
-	max_depth = (ctl & 0x003FF000) >> 12;
+	cmd = REG_RD(sc, BCE_RV2P_PFTQ_CMD);
+	ctl = REG_RD(sc, BCE_RV2P_PFTQ_CTL);
+	cur_depth = (ctl & BCE_RV2P_PFTQ_CTL_CUR_DEPTH) >> 22;
+	max_depth = (ctl & BCE_RV2P_PFTQ_CTL_MAX_DEPTH) >> 12;
 	valid_cnt = REG_RD(sc, BCE_HC_STAT_GEN_STAT3);
 	BCE_PRINTF(" RV2PP 0x%08X 0x%08X 0x%08X 0x%08X 0x%08X\n", 
 		cmd, ctl, cur_depth, max_depth, valid_cnt);
 
-	cmd = REG_RD(sc, 0x2bf8); /* RV2P_MFTQ_CMD */ 
-	ctl = REG_RD(sc, 0x2bfc); /* RV2P_MFTQ_CTL */
-	cur_depth = (ctl & 0xFFC00000) >> 22;
-	max_depth = (ctl & 0x003FF000) >> 12;
+	cmd = REG_RD(sc, BCE_RV2P_MFTQ_CMD);
+	ctl = REG_RD(sc, BCE_RV2P_MFTQ_CTL);
+	cur_depth = (ctl & BCE_RV2P_MFTQ_CTL_CUR_DEPTH) >> 22;
+	max_depth = (ctl & BCE_RV2P_MFTQ_CTL_MAX_DEPTH) >> 12;
 	valid_cnt = REG_RD(sc, BCE_HC_STAT_GEN_STAT4);
 	BCE_PRINTF(" RV2PM 0x%08X 0x%08X 0x%08X 0x%08X 0x%08X\n", 
 		cmd, ctl, cur_depth, max_depth, valid_cnt);
 
-	cmd = REG_RD(sc, 0x2bb8); /* RV2P_TFTQ_CMD */ 
-	ctl = REG_RD(sc, 0x2bbc); /* RV2P_TFTQ_CTL */
-	cur_depth = (ctl & 0xFFC00000) >> 22;
-	max_depth = (ctl & 0x003FF000) >> 12;
+	cmd = REG_RD(sc, BCE_RV2P_TFTQ_CMD);
+	ctl = REG_RD(sc, BCE_RV2P_TFTQ_CTL);
+	cur_depth = (ctl & BCE_RV2P_TFTQ_CTL_CUR_DEPTH) >> 22;
+	max_depth = (ctl & BCE_RV2P_TFTQ_CTL_MAX_DEPTH) >> 12;
 	valid_cnt = REG_RD(sc, BCE_HC_STAT_GEN_STAT5);
 	BCE_PRINTF(" RV2PT 0x%08X 0x%08X 0x%08X 0x%08X 0x%08X\n", 
 		cmd, ctl, cur_depth, max_depth, valid_cnt);
 
-	cmd = REG_RD(sc, 0x2ff8); /* RDMA_FTQ_CMD */ 
-	ctl = REG_RD(sc, 0x2ffc); /* RDMA_FTQ_CTL */
-	cur_depth = (ctl & 0xFFC00000) >> 22;
-	max_depth = (ctl & 0x003FF000) >> 12;
+	cmd = REG_RD(sc, BCE_RDMA_FTQ_CMD);
+	ctl = REG_RD(sc, BCE_RDMA_FTQ_CTL);
+	cur_depth = (ctl & BCE_RDMA_FTQ_CTL_CUR_DEPTH) >> 22;
+	max_depth = (ctl & BCE_RDMA_FTQ_CTL_MAX_DEPTH) >> 12;
 	valid_cnt = REG_RD(sc, BCE_HC_STAT_GEN_STAT6);
 	BCE_PRINTF(" RDMA  0x%08X 0x%08X 0x%08X 0x%08X 0x%08X\n", 
 		cmd, ctl, cur_depth, max_depth, valid_cnt);
 
-	cmd = REG_RD(sc, 0x4ff8); /* TSCH_FTQ_CMD */ 
-	ctl = REG_RD(sc, 0x4ffc); /* TSCH_FTQ_CTL */
-	cur_depth = (ctl & 0xFFC00000) >> 22;
-	max_depth = (ctl & 0x003FF000) >> 12;
+	cmd = REG_RD(sc, BCE_TSCH_FTQ_CMD);
+	ctl = REG_RD(sc, BCE_TSCH_FTQ_CTL);
+	cur_depth = (ctl & BCE_TSCH_FTQ_CTL_CUR_DEPTH) >> 22;
+	max_depth = (ctl & BCE_TSCH_FTQ_CTL_MAX_DEPTH) >> 12;
 	valid_cnt = REG_RD(sc, BCE_HC_STAT_GEN_STAT7);
 	BCE_PRINTF(" TSCH  0x%08X 0x%08X 0x%08X 0x%08X 0x%08X\n", 
 		cmd, ctl, cur_depth, max_depth, valid_cnt);
 
-	cmd = REG_RD(sc, 0x53f8); /* TBDR_FTQ_CMD */ 
-	ctl = REG_RD(sc, 0x53fc); /* TBDR_FTQ_CTL */
-	cur_depth = (ctl & 0xFFC00000) >> 22;
-	max_depth = (ctl & 0x003FF000) >> 12;
+	cmd = REG_RD(sc, BCE_TBDR_FTQ_CMD);
+	ctl = REG_RD(sc, BCE_TBDR_FTQ_CTL);
+	cur_depth = (ctl & BCE_TBDR_FTQ_CTL_CUR_DEPTH) >> 22;
+	max_depth = (ctl & BCE_TBDR_FTQ_CTL_MAX_DEPTH) >> 12;
 	valid_cnt = REG_RD(sc, BCE_HC_STAT_GEN_STAT8);
 	BCE_PRINTF(" TBDR  0x%08X 0x%08X 0x%08X 0x%08X 0x%08X\n", 
 		cmd, ctl, cur_depth, max_depth, valid_cnt);
 
-	cmd = REG_RD_IND(sc, 0x453f8); /* TXP_FTQ_CMD */ 
-	ctl = REG_RD_IND(sc, 0x453fc); /* TXP_FTQ_CTL */
-	cur_depth = (ctl & 0xFFC00000) >> 22;
-	max_depth = (ctl & 0x003FF000) >> 12;
+	cmd = REG_RD_IND(sc, BCE_TXP_FTQ_CMD);
+	ctl = REG_RD_IND(sc, BCE_TXP_FTQ_CTL);
+	cur_depth = (ctl & BCE_TXP_FTQ_CTL_CUR_DEPTH) >> 22;
+	max_depth = (ctl & BCE_TXP_FTQ_CTL_MAX_DEPTH) >> 12;
 	valid_cnt = REG_RD(sc, BCE_HC_STAT_GEN_STAT9);
 	BCE_PRINTF(" TXP   0x%08X 0x%08X 0x%08X 0x%08X 0x%08X\n", 
 		cmd, ctl, cur_depth, max_depth, valid_cnt);
 
-	cmd = REG_RD(sc, 0x5ff8); /* TDMA_FTQ_CMD */ 
-	ctl = REG_RD(sc, 0x5ffc); /* TDMA_FTQ_CTL */
-	cur_depth = (ctl & 0xFFC00000) >> 22;
-	max_depth = (ctl & 0x003FF000) >> 12;
+	cmd = REG_RD(sc, BCE_TDMA_FTQ_CMD);
+	ctl = REG_RD(sc, BCE_TDMA_FTQ_CTL);
+	cur_depth = (ctl & BCE_TDMA_FTQ_CTL_CUR_DEPTH) >> 22;
+	max_depth = (ctl & BCE_TDMA_FTQ_CTL_MAX_DEPTH) >> 12;
 	valid_cnt = REG_RD(sc, BCE_HC_STAT_GEN_STAT10);
 	BCE_PRINTF(" TDMA  0x%08X 0x%08X 0x%08X 0x%08X 0x%08X\n", 
 		cmd, ctl, cur_depth, max_depth, valid_cnt);
 
-	cmd = REG_RD_IND(sc, 0x853f8); /* TPAT_FTQ_CMD */ 
-	ctl = REG_RD_IND(sc, 0x853fc); /* TPAT_FTQ_CTL */
-	cur_depth = (ctl & 0xFFC00000) >> 22;
-	max_depth = (ctl & 0x003FF000) >> 12;
+
+	cmd = REG_RD_IND(sc, BCE_TPAT_FTQ_CMD);
+	ctl = REG_RD_IND(sc, BCE_TPAT_FTQ_CTL);
+	cur_depth = (ctl & BCE_TPAT_FTQ_CTL_CUR_DEPTH) >> 22;
+	max_depth = (ctl & BCE_TPAT_FTQ_CTL_MAX_DEPTH) >> 12;
 	valid_cnt = REG_RD(sc, BCE_HC_STAT_GEN_STAT11);
 	BCE_PRINTF(" TPAT  0x%08X 0x%08X 0x%08X 0x%08X 0x%08X\n", 
 		cmd, ctl, cur_depth, max_depth, valid_cnt);
 
-	cmd = REG_RD_IND(sc, 0x1c03f8); /* TAS_FTQ_CMD */ 
-	ctl = REG_RD_IND(sc, 0x1c03fc); /* TAS_FTQ_CTL */
-	cur_depth = (ctl & 0xFFC00000) >> 22;
-	max_depth = (ctl & 0x003FF000) >> 12;
+	cmd = REG_RD_IND(sc, BCE_TAS_FTQ_CMD);
+	ctl = REG_RD_IND(sc, BCE_TAS_FTQ_CTL);
+	cur_depth = (ctl & BCE_TAS_FTQ_CTL_CUR_DEPTH) >> 22;
+	max_depth = (ctl & BCE_TAS_FTQ_CTL_MAX_DEPTH) >> 12;
 	valid_cnt = REG_RD(sc, BCE_HC_STAT_GEN_STAT12);
 	BCE_PRINTF(" TAS   0x%08X 0x%08X 0x%08X 0x%08X 0x%08X\n", 
 		cmd, ctl, cur_depth, max_depth, valid_cnt);
 
-	cmd = REG_RD_IND(sc, 0x105378); /* COM_COMXQ_FTQ_CMD */ 
-	ctl = REG_RD_IND(sc, 0x10537c); /* COM_COMXQ_FTQ_CTL */
-	cur_depth = (ctl & 0xFFC00000) >> 22;
-	max_depth = (ctl & 0x003FF000) >> 12;
+	cmd = REG_RD_IND(sc, BCE_COM_COMXQ_FTQ_CMD);
+	ctl = REG_RD_IND(sc, BCE_COM_COMXQ_FTQ_CTL);
+	cur_depth = (ctl & BCE_COM_COMXQ_FTQ_CTL_CUR_DEPTH) >> 22;
+	max_depth = (ctl & BCE_COM_COMXQ_FTQ_CTL_MAX_DEPTH) >> 12;
 	valid_cnt = REG_RD(sc, BCE_HC_STAT_GEN_STAT13);
 	BCE_PRINTF(" COMX  0x%08X 0x%08X 0x%08X 0x%08X 0x%08X\n", 
 		cmd, ctl, cur_depth, max_depth, valid_cnt);
 
-	cmd = REG_RD_IND(sc, 0x1053b8); /* COM_COMTQ_FTQ_CMD */ 
-	ctl = REG_RD_IND(sc, 0x1053bc); /* COM_COMTQ_FTQ_CTL */
-	cur_depth = (ctl & 0xFFC00000) >> 22;
-	max_depth = (ctl & 0x003FF000) >> 12;
+	cmd = REG_RD_IND(sc, BCE_COM_COMTQ_FTQ_CMD);
+	ctl = REG_RD_IND(sc, BCE_COM_COMTQ_FTQ_CTL);
+	cur_depth = (ctl & BCE_COM_COMTQ_FTQ_CTL_CUR_DEPTH) >> 22;
+	max_depth = (ctl & BCE_COM_COMTQ_FTQ_CTL_MAX_DEPTH) >> 12;
 	valid_cnt = REG_RD(sc, BCE_HC_STAT_GEN_STAT14);
 	BCE_PRINTF(" COMT  0x%08X 0x%08X 0x%08X 0x%08X 0x%08X\n", 
 		cmd, ctl, cur_depth, max_depth, valid_cnt);
 
-	cmd = REG_RD_IND(sc, 0x1053f8); /* COM_COMQ_FTQ_CMD */ 
-	ctl = REG_RD_IND(sc, 0x1053fc); /* COM_COMQ_FTQ_CTL */
-	cur_depth = (ctl & 0xFFC00000) >> 22;
-	max_depth = (ctl & 0x003FF000) >> 12;
+	cmd = REG_RD_IND(sc, BCE_COM_COMQ_FTQ_CMD);
+	ctl = REG_RD_IND(sc, BCE_COM_COMQ_FTQ_CTL);
+	cur_depth = (ctl & BCE_COM_COMQ_FTQ_CTL_CUR_DEPTH) >> 22;
+	max_depth = (ctl & BCE_COM_COMQ_FTQ_CTL_MAX_DEPTH) >> 12;
 	valid_cnt = REG_RD(sc, BCE_HC_STAT_GEN_STAT15);
 	BCE_PRINTF(" COMX  0x%08X 0x%08X 0x%08X 0x%08X 0x%08X\n", 
 		cmd, ctl, cur_depth, max_depth, valid_cnt);
@@ -7583,26 +7485,26 @@ bce_dump_ftqs(struct bce_softc *sc)
 		  (BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_CPQ_VALID_CNT  <<  8) |
 		  (BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_MGMQ_VALID_CNT)));
 
-	cmd = REG_RD_IND(sc, 0x1453f8); /* MCP_MCPQ_FTQ_CMD */ 
-	ctl = REG_RD_IND(sc, 0x1453fc); /* MCP_MCPQ_FTQ_CTL */
-	cur_depth = (ctl & 0xFFC00000) >> 22;
-	max_depth = (ctl & 0x003FF000) >> 12;
+	cmd = REG_RD_IND(sc, BCE_MCP_MCPQ_FTQ_CMD);
+	ctl = REG_RD_IND(sc, BCE_MCP_MCPQ_FTQ_CTL);
+	cur_depth = (ctl & BCE_MCP_MCPQ_FTQ_CTL_CUR_DEPTH) >> 22;
+	max_depth = (ctl & BCE_MCP_MCPQ_FTQ_CTL_MAX_DEPTH) >> 12;
 	valid_cnt = REG_RD(sc, BCE_HC_STAT_GEN_STAT0);
 	BCE_PRINTF(" MCP   0x%08X 0x%08X 0x%08X 0x%08X 0x%08X\n", 
 		cmd, ctl, cur_depth, max_depth, valid_cnt);
 
-	cmd = REG_RD_IND(sc, 0x1853f8); /* CP_CPQ_FTQ_CMD */ 
-	ctl = REG_RD_IND(sc, 0x1853fc); /* CP_CPQ_FTQ_CTL */
-	cur_depth = (ctl & 0xFFC00000) >> 22;
-	max_depth = (ctl & 0x003FF000) >> 12;
+	cmd = REG_RD_IND(sc, BCE_CP_CPQ_FTQ_CMD);
+	ctl = REG_RD_IND(sc, BCE_CP_CPQ_FTQ_CTL);
+	cur_depth = (ctl & BCE_CP_CPQ_FTQ_CTL_CUR_DEPTH) >> 22;
+	max_depth = (ctl & BCE_CP_CPQ_FTQ_CTL_MAX_DEPTH) >> 12;
 	valid_cnt = REG_RD(sc, BCE_HC_STAT_GEN_STAT1);
 	BCE_PRINTF(" CP    0x%08X 0x%08X 0x%08X 0x%08X 0x%08X\n", 
 		cmd, ctl, cur_depth, max_depth, valid_cnt);
 
-	cmd = REG_RD(sc, 0x43f8); /* CSCH_CH_FTQ_CMD */ 
-	ctl = REG_RD(sc, 0x43fc); /* CSCH_CH_FTQ_CTL */
-	cur_depth = (ctl & 0xFFC00000) >> 22;
-	max_depth = (ctl & 0x003FF000) >> 12;
+	cmd = REG_RD(sc, BCE_CSCH_CH_FTQ_CMD);
+	ctl = REG_RD(sc, BCE_CSCH_CH_FTQ_CTL);
+	cur_depth = (ctl & BCE_CSCH_CH_FTQ_CTL_CUR_DEPTH) >> 22;
+	max_depth = (ctl & BCE_CSCH_CH_FTQ_CTL_MAX_DEPTH) >> 12;
 	valid_cnt = REG_RD(sc, BCE_HC_STAT_GEN_STAT2);
 	BCE_PRINTF(" CS    0x%08X 0x%08X 0x%08X 0x%08X 0x%08X\n", 
 		cmd, ctl, cur_depth, max_depth, valid_cnt);
