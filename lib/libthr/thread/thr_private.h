@@ -266,11 +266,8 @@ struct pthread_rwlockattr {
 };
 
 struct pthread_rwlock {
-	pthread_mutex_t	lock;	/* monitor lock */
-	pthread_cond_t	read_signal;
-	pthread_cond_t	write_signal;
-	int		state;	/* 0 = idle  >0 = # of readers  -1 = writer */
-	int		blocked_writers;
+	struct urwlock 	lock;
+	struct pthread	*owner;
 };
 
 /*
@@ -698,6 +695,8 @@ ssize_t __sys_read(int, void *, size_t);
 ssize_t __sys_write(int, const void *, size_t);
 void	__sys_exit(int);
 #endif
+
+int	_umtx_op_err(void *, int op, u_long, void *, void *) __hidden;
 
 static inline int
 _thr_isthreaded(void)
