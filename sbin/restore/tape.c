@@ -582,7 +582,9 @@ extractfile(char *name)
 	ctimep[1].tv_sec = curfile.birthtime_sec;
 	ctimep[1].tv_usec = curfile.birthtime_nsec / 1000;
 	extsize = curfile.extsize;
-	uid = curfile.uid;
+	uid = getuid();
+	if (uid == 0)
+		uid = curfile.uid;
 	gid = curfile.gid;
 	mode = curfile.mode;
 	flags = curfile.file_flags;

@@ -558,6 +558,7 @@ setdirmodes(int flags)
 	char *cp, *buf;
 	const char *tmpdir;
 	int bufsize;
+	uid_t myuid;
 
 	vprintf(stdout, "Set directory mode, owner, and times.\n");
 	if ((tmpdir = getenv("TMPDIR")) == NULL || tmpdir[0] == '\0')
@@ -578,6 +579,7 @@ setdirmodes(int flags)
 	}
 	clearerr(mf);
 	bufsize = 0;
+	myuid = getuid();
 	for (;;) {
 		(void) fread((char *)&node, 1, sizeof(struct modeinfo), mf);
 		if (feof(mf))
@@ -624,7 +626,10 @@ setdirmodes(int flags)
 					    "extended attributes for ", cp);
 				}
 			}
-			(void) chown(cp, node.uid, node.gid);
+			if (myuid != 0)
+				(void) chown(cp, myuid, node.gid);
+			else
+				(void) chown(cp, node.uid, node.gid);
 			(void) chmod(cp, node.mode);
 			utimes(cp, node.ctimep);
 			utimes(cp, node.mtimep);
