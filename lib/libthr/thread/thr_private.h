@@ -372,6 +372,12 @@ struct pthread {
 	/* Thread temporary signal mask. */
 	sigset_t		sigmask;
 
+	/* Thread is in SIGCANCEL handler. */
+	int                     in_sigcancel_handler;
+
+	/* New thread should unblock SIGCANCEL. */
+	int                     unblock_sigcancel;
+
 	/* Thread state: */
 	enum pthread_state 	state;
 
