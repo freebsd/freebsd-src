@@ -254,7 +254,7 @@ asmc_probe(device_t dev)
 {
 	struct asmc_model *model;
 
-	if (acpi_disabled("asmc"))
+	if (resource_disabled("asmc", 0))
 		return (ENXIO);
 	if (ACPI_ID_PROBE(device_get_parent(dev), dev, asmc_ids) == NULL)
 		return (ENXIO);
