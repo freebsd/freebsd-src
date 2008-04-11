@@ -56,7 +56,7 @@ ata_queue_request(struct ata_request *request)
     /* treat request as virgin (this might be an ATA_R_REQUEUE) */
     request->result = request->status = request->error = 0;
 
-    /* check that that the device is still valid */
+    /* check that the device is still valid */
     if (!(request->parent = device_get_parent(request->dev))) {
 	request->result = ENXIO;
 	if (request->callback)
@@ -119,11 +119,10 @@ int
 ata_controlcmd(device_t dev, u_int8_t command, u_int16_t feature,
 	       u_int64_t lba, u_int16_t count)
 {
-    struct ata_request *request = ata_alloc_request();
+    struct ata_request *request = ata_alloc_request(dev);
     int error = ENOMEM;
 
     if (request) {
-	request->dev = dev;
 	request->u.ata.command = command;
 	request->u.ata.lba = lba;
 	request->u.ata.count = count;
@@ -142,12 +141,11 @@ int
 ata_atapicmd(device_t dev, u_int8_t *ccb, caddr_t data,
 	     int count, int flags, int timeout)
 {
-    struct ata_request *request = ata_alloc_request();
+    struct ata_request *request = ata_alloc_request(dev);
     struct ata_device *atadev = device_get_softc(dev);
     int error = ENOMEM;
 
     if (request) {
-	request->dev = dev;
 	if ((atadev->param.config & ATA_PROTO_MASK) == ATA_PROTO_ATAPI_12)
 	    bcopy(ccb, request->u.atapi.ccb, 12);
 	else

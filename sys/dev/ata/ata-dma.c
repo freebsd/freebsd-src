@@ -201,20 +201,6 @@ ata_dmaload(struct ata_request *request, void *addr, int *entries)
 	return EIO;
     }
 
-    if (bus_dma_tag_create(ch->dma.dmatag, PAGE_SIZE, PAGE_SIZE,
-			   ch->dma.max_address, BUS_SPACE_MAXADDR,
-			   NULL, NULL, MAXTABSZ, 1, MAXTABSZ,
-			   0, NULL, NULL, &request->dma.sg_tag)) {
-	device_printf(request->dev, "FAILURE - create sg_tag\n");
-	goto error;
-    }
-
-    if (bus_dmamem_alloc(request->dma.sg_tag, (void **)&request->dma.sg, 0,
-			 &request->dma.sg_map)) {
-	device_printf(request->dev, "FAILURE - alloc sg_map\n");
-	goto error;
-    }
-
     if (bus_dmamap_load(request->dma.sg_tag, request->dma.sg_map,
 			request->dma.sg, MAXTABSZ,
 			ata_dmasetupc_cb, &dcba, BUS_DMA_NOWAIT) || dcba.error){
@@ -224,16 +210,6 @@ ata_dmaload(struct ata_request *request, void *addr, int *entries)
 	goto error;
     }
     request->dma.sg_bus = dcba.maddr;
-
-    if (bus_dma_tag_create(ch->dma.dmatag, ch->dma.alignment, ch->dma.boundary,
-			   ch->dma.max_address, BUS_SPACE_MAXADDR,
-			   NULL, NULL, ch->dma.max_iosize,
-			   ATA_DMA_ENTRIES, ch->dma.segsize,
-			   BUS_DMA_ALLOCNOW, NULL, NULL,
-			   &request->dma.data_tag)) {
-	device_printf(request->dev, "FAILURE - create data_tag\n");
-	goto error;
-    }
 
     if (bus_dmamap_create(request->dma.data_tag, 0, &request->dma.data_map)) {
 	device_printf(request->dev, "FAILURE - create data_map\n");
@@ -288,14 +264,12 @@ ata_dmaunload(struct ata_request *request)
 
 	request->dma.cur_iosize = 0;
     }
+
     if (request->dma.data_map) {
 	bus_dmamap_destroy(request->dma.data_tag, request->dma.data_map);
 	request->dma.data_map = NULL;
     }
-    if (request->dma.data_tag) {
-	bus_dma_tag_destroy(request->dma.data_tag);
-	request->dma.data_tag = NULL;
-    }
+
     if (request->dma.sg_bus) {
 	bus_dmamap_unload(request->dma.sg_tag, request->dma.sg_map);
 	bus_dmamem_free(request->dma.sg_tag, request->dma.sg,
@@ -304,9 +278,6 @@ ata_dmaunload(struct ata_request *request)
 	request->dma.sg_bus = 0;
 	request->dma.sg_map = NULL;
     }
-    if (request->dma.sg_tag) {
-	bus_dma_tag_destroy(request->dma.sg_tag);
-	request->dma.sg_tag = NULL;
-    }
+
     return 0;
 }

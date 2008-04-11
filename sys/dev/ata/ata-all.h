@@ -581,12 +581,9 @@ void ata_generic_reset(device_t dev);
 int ata_generic_command(struct ata_request *request);
 
 /* macros for alloc/free of struct ata_request */
-extern uma_zone_t ata_request_zone;
-#define ata_alloc_request() uma_zalloc(ata_request_zone, M_NOWAIT | M_ZERO)
-#define ata_free_request(request) { \
-	if (!(request->flags & ATA_R_DANGER2)) \
-	    uma_zfree(ata_request_zone, request); \
-	}
+struct ata_request *ata_alloc_request(device_t dev);
+void ata_free_request(struct ata_request *request);
+
 /* macros for alloc/free of struct ata_composite */
 extern uma_zone_t ata_composite_zone;
 #define ata_alloc_composite() uma_zalloc(ata_composite_zone, M_NOWAIT | M_ZERO)
