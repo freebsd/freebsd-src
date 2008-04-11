@@ -137,6 +137,8 @@ ufs_lookup(ap)
 	int entryoffsetinblock;		/* offset of ep in bp's buffer */
 	enum {NONE, COMPACT, FOUND} slotstatus;
 	doff_t slotoffset;		/* offset of area with free space */
+	doff_t i_diroff;		/* cached i_diroff value. */
+	doff_t i_offset;		/* cached i_offset value. */
 	int slotsize;			/* size of area at slotoffset */
 	int slotfreespace;		/* amount of space free in slot */
 	int slotneeded;			/* size of the entry we're seeking */
@@ -154,6 +156,7 @@ ufs_lookup(ap)
 	int flags = cnp->cn_flags;
 	int nameiop = cnp->cn_nameiop;
 	ino_t saved_ino;
+	int ltype;
 
 	bp = NULL;
 	slotoffset = -1;
@@ -173,6 +176,7 @@ ufs_lookup(ap)
 	 * we watch for a place to put the new file in
 	 * case it doesn't already exist.
 	 */
+	i_diroff = dp->i_diroff;
 	slotstatus = FOUND;
 	slotfreespace = slotsize = slotneeded = 0;
 	if ((nameiop == CREATE || nameiop == RENAME) &&
@@ -206,13 +210,13 @@ ufs_lookup(ap)
 		numdirpasses = 1;
 		entryoffsetinblock = 0; /* silence compiler warning */
 		switch (ufsdirhash_lookup(dp, cnp->cn_nameptr, cnp->cn_namelen,
-		    &dp->i_offset, &bp, nameiop == DELETE ? &prevoff : NULL)) {
+		    &i_offset, &bp, nameiop == DELETE ? &prevoff : NULL)) {
 		case 0:
 			ep = (struct direct *)((char *)bp->b_data +
-			    (dp->i_offset & bmask));
+			    (i_offset & bmask));
 			goto foundentry;
 		case ENOENT:
-			dp->i_offset = roundup2(dp->i_size, DIRBLKSIZ);
+			i_offset = roundup2(dp->i_size, DIRBLKSIZ);
 			goto notfound;
 		default:
 			/* Something failed; just do a linear search. */
@@ -231,33 +235,32 @@ ufs_lookup(ap)
 	 * profiling time and hence has been removed in the interest
 	 * of simplicity.
 	 */
-	if (nameiop != LOOKUP || dp->i_diroff == 0 ||
-	    dp->i_diroff >= dp->i_size) {
+	if (nameiop != LOOKUP || i_diroff == 0 || i_diroff >= dp->i_size) {
 		entryoffsetinblock = 0;
-		dp->i_offset = 0;
+		i_offset = 0;
 		numdirpasses = 1;
 	} else {
-		dp->i_offset = dp->i_diroff;
-		if ((entryoffsetinblock = dp->i_offset & bmask) &&
-		    (error = UFS_BLKATOFF(vdp, (off_t)dp->i_offset, NULL, &bp)))
+		i_offset = i_diroff;
+		if ((entryoffsetinblock = i_offset & bmask) &&
+		    (error = UFS_BLKATOFF(vdp, (off_t)i_offset, NULL, &bp)))
 			return (error);
 		numdirpasses = 2;
 		nchstats.ncs_2passes++;
 	}
-	prevoff = dp->i_offset;
+	prevoff = i_offset;
 	endsearch = roundup2(dp->i_size, DIRBLKSIZ);
 	enduseful = 0;
 
 searchloop:
-	while (dp->i_offset < endsearch) {
+	while (i_offset < endsearch) {
 		/*
 		 * If necessary, get the next directory block.
 		 */
-		if ((dp->i_offset & bmask) == 0) {
+		if ((i_offset & bmask) == 0) {
 			if (bp != NULL)
 				brelse(bp);
 			error =
-			    UFS_BLKATOFF(vdp, (off_t)dp->i_offset, NULL, &bp);
+			    UFS_BLKATOFF(vdp, (off_t)i_offset, NULL, &bp);
 			if (error)
 				return (error);
 			entryoffsetinblock = 0;
@@ -284,9 +287,9 @@ searchloop:
 		    (dirchk && ufs_dirbadentry(vdp, ep, entryoffsetinblock))) {
 			int i;
 
-			ufs_dirbad(dp, dp->i_offset, "mangled entry");
+			ufs_dirbad(dp, i_offset, "mangled entry");
 			i = DIRBLKSIZ - (entryoffsetinblock & (DIRBLKSIZ - 1));
-			dp->i_offset += i;
+			i_offset += i;
 			entryoffsetinblock += i;
 			continue;
 		}
@@ -305,15 +308,15 @@ searchloop:
 			if (size > 0) {
 				if (size >= slotneeded) {
 					slotstatus = FOUND;
-					slotoffset = dp->i_offset;
+					slotoffset = i_offset;
 					slotsize = ep->d_reclen;
 				} else if (slotstatus == NONE) {
 					slotfreespace += size;
 					if (slotoffset == -1)
-						slotoffset = dp->i_offset;
+						slotoffset = i_offset;
 					if (slotfreespace >= slotneeded) {
 						slotstatus = COMPACT;
-						slotsize = dp->i_offset +
+						slotsize = i_offset +
 						      ep->d_reclen - slotoffset;
 					}
 				}
@@ -347,7 +350,7 @@ foundentry:
 				if (vdp->v_mount->mnt_maxsymlinklen > 0 &&
 				    ep->d_type == DT_WHT) {
 					slotstatus = FOUND;
-					slotoffset = dp->i_offset;
+					slotoffset = i_offset;
 					slotsize = ep->d_reclen;
 					dp->i_reclen = slotsize;
 					enduseful = dp->i_size;
@@ -360,11 +363,11 @@ foundentry:
 				goto found;
 			}
 		}
-		prevoff = dp->i_offset;
-		dp->i_offset += ep->d_reclen;
+		prevoff = i_offset;
+		i_offset += ep->d_reclen;
 		entryoffsetinblock += ep->d_reclen;
 		if (ep->d_ino)
-			enduseful = dp->i_offset;
+			enduseful = i_offset;
 	}
 notfound:
 	/*
@@ -373,10 +376,11 @@ notfound:
 	 */
 	if (numdirpasses == 2) {
 		numdirpasses--;
-		dp->i_offset = 0;
-		endsearch = dp->i_diroff;
+		i_offset = 0;
+		endsearch = i_diroff;
 		goto searchloop;
 	}
+	dp->i_offset = i_offset;
 	if (bp != NULL)
 		brelse(bp);
 	/*
@@ -389,6 +393,7 @@ notfound:
 	      (ap->a_cnp->cn_flags & DOWHITEOUT) &&
 	      (ap->a_cnp->cn_flags & ISWHITEOUT))) &&
 	    (flags & ISLASTCN) && dp->i_effnlink != 0) {
+		ASSERT_VOP_ELOCKED(vdp, __FUNCTION__);
 		/*
 		 * Access for write is interpreted as allowing
 		 * creation of files in the directory.
@@ -452,9 +457,9 @@ found:
 	 * Check that directory length properly reflects presence
 	 * of this entry.
 	 */
-	if (dp->i_offset + DIRSIZ(OFSFMT(vdp), ep) > dp->i_size) {
-		ufs_dirbad(dp, dp->i_offset, "i_size too small");
-		dp->i_size = dp->i_offset + DIRSIZ(OFSFMT(vdp), ep);
+	if (i_offset + DIRSIZ(OFSFMT(vdp), ep) > dp->i_size) {
+		ufs_dirbad(dp, i_offset, "i_size too small");
+		dp->i_size = i_offset + DIRSIZ(OFSFMT(vdp), ep);
 		DIP_SET(dp, i_size, dp->i_size);
 		dp->i_flag |= IN_CHANGE | IN_UPDATE;
 	}
@@ -466,13 +471,15 @@ found:
 	 * in the cache as to where the entry was found.
 	 */
 	if ((flags & ISLASTCN) && nameiop == LOOKUP)
-		dp->i_diroff = dp->i_offset &~ (DIRBLKSIZ - 1);
+		dp->i_diroff = i_offset &~ (DIRBLKSIZ - 1);
 
+	dp->i_offset = i_offset;
 	/*
 	 * If deleting, and at end of pathname, return
 	 * parameters which can be used to remove file.
 	 */
 	if (nameiop == DELETE && (flags & ISLASTCN)) {
+		ASSERT_VOP_ELOCKED(vdp, __FUNCTION__);
 		/*
 		 * Write access to directory required to delete files.
 		 */
@@ -557,16 +564,28 @@ found:
 	 */
 	pdp = vdp;
 	if (flags & ISDOTDOT) {
+		ltype = VOP_ISLOCKED(pdp);
 		saved_ino = dp->i_ino;
 		VOP_UNLOCK(pdp, 0);	/* race to get the inode */
 		error = VFS_VGET(pdp->v_mount, saved_ino,
 		    cnp->cn_lkflags, &tdp);
-		vn_lock(pdp, LK_EXCLUSIVE | LK_RETRY);
+		vn_lock(pdp, ltype | LK_RETRY);
 		if (error)
 			return (error);
 		*vpp = tdp;
 	} else if (dp->i_number == dp->i_ino) {
 		VREF(vdp);	/* we want ourself, ie "." */
+		/*
+		 * When we lookup "." we still can be asked to lock it
+		 * differently.
+		 */
+		ltype = cnp->cn_lkflags & LK_TYPE_MASK;
+		if (ltype != VOP_ISLOCKED(vdp)) {
+			if (ltype == LK_EXCLUSIVE)
+				vn_lock(vdp, LK_UPGRADE | LK_RETRY);
+			else /* if (ltype == LK_SHARED) */
+				vn_lock(vdp, LK_DOWNGRADE | LK_RETRY);
+		}
 		*vpp = vdp;
 	} else {
 		error = VFS_VGET(pdp->v_mount, dp->i_ino,
