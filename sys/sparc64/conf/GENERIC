@@ -177,7 +177,7 @@ device		stge		# Sundance/Tamarack TC9021 gigabit Ethernet
 device		ti		# Alteon Networks Tigon I/II gigabit Ethernet
 #device		tl		# Texas Instruments ThunderLAN
 #device		tx		# SMC EtherPower II (83c170 ``EPIC'')
-#device		vr		# VIA Rhine, Rhine II
+device		vr		# VIA Rhine, Rhine II
 #device		wb		# Winbond W89C840F
 device		xl		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 
