@@ -1477,7 +1477,9 @@ umtxq_sleep_pi(struct umtx_q *uq, struct umtx_pi *pi,
 		TAILQ_INSERT_TAIL(&pi->pi_blocked, uq, uq_lockq);
 
 	uq->uq_pi_blocked = pi;
+	thread_lock(td);
 	td->td_flags |= TDF_UPIBLOCKED;
+	thread_unlock(td);
 	mtx_unlock_spin(&umtx_lock);
 	umtxq_unlock(&uq->uq_key);
 
