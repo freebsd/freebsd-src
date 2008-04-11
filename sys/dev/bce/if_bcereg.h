@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2006-2007 Broadcom Corporation
+ * Copyright (c) 2006-2008 Broadcom Corporation
  *	David Christensen <davidch@broadcom.com>.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,10 +31,6 @@
 
 #ifndef	_BCE_H_DEFINED
 #define _BCE_H_DEFINED
-
-#ifdef HAVE_KERNEL_OPTION_HEADERS
-#include "opt_device_polling.h"
-#endif
 
 #include <sys/param.h>
 #include <sys/endian.h>
@@ -131,6 +127,7 @@
 	"\03b2"					\
 	"\02b1"					\
 	"\01b0"
+
 
 /****************************************************************************/
 /* Debugging macros and definitions.                                        */
@@ -3114,6 +3111,29 @@ struct l2_fhdr {
 #define BCE_RPM_ACPI_DBG_BUF_W32			0x000019f8
 #define BCE_RPM_ACPI_DBG_BUF_W33			0x000019fc
 
+
+/*
+ *  rlup_reg definition
+ *  offset: 0x2000
+ */
+#define BCE_RLUP_FTQ_CMD					0x000023f8
+#define BCE_RLUP_FTQ_CTL					0x000023fc
+#define BCE_RLUP_FTQ_CTL_MAX_DEPTH			(0x3ffL<<12)
+#define BCE_RLUP_FTQ_CTL_CUR_DEPTH			(0x3ffL<<22)
+
+
+
+/*
+ *  rdma_reg definition
+ *  offset: 0x2c00
+ */
+#define BCE_RDMA_FTQ_CMD					0x00002ff8
+#define BCE_RDMA_FTQ_CTL					0x00002ffc
+#define BCE_RDMA_FTQ_CTL_MAX_DEPTH			(0x3ffL<<12)
+#define BCE_RDMA_FTQ_CTL_CUR_DEPTH			(0x3ffL<<22)
+
+
+	
 /*
  *  timer_reg definition
  *  offset: 0x4400
@@ -3132,6 +3152,18 @@ struct l2_fhdr {
 #define BCE_TIMER_STATUS_TMR5_CNT			(1L<<13)
 
 #define BCE_TIMER_25MHZ_FREE_RUN			0x00004448
+
+
+/*
+ *  tsch_reg definition
+ *  offset: 0x4c00
+ */
+
+#define BCE_TSCH_FTQ_CMD					0x00004ff8
+#define BCE_TSCH_FTQ_CTL					0x00004ffc
+#define BCE_TSCH_FTQ_CTL_MAX_DEPTH			(0x3ffL<<12)
+#define BCE_TSCH_FTQ_CTL_CUR_DEPTH			(0x3ffL<<22)
+
 
 
 /*
@@ -3425,6 +3457,16 @@ struct l2_fhdr {
 #define BCE_MQ_MEM_RD_DATA2				0x00003c90
 #define BCE_MQ_MEM_RD_DATA2_VALUE			 (0x3fffffffL<<0)
 
+
+/*
+ *  csch_reg definition
+ *  offset: 0x4000
+ */
+#define BCE_CSCH_COMMAND				0x00004000
+#define BCE_CSCH_CH_FTQ_CMD				0x000043f8
+#define BCE_CSCH_CH_FTQ_CTL				0x000043fc
+#define BCE_CSCH_CH_FTQ_CTL_MAX_DEPTH	(0x3ffL<<12)
+#define BCE_CSCH_CH_FTQ_CTL_CUR_DEPTH	(0x3ffL<<22)
 
 
 /*
@@ -4458,6 +4500,16 @@ struct l2_fhdr {
 
 
 /*
+ *  tas_reg definition
+ *  offset: 0x1c0000
+ */
+#define BCE_TAS_FTQ_CMD						0x001c03f8
+#define BCE_TAS_FTQ_CTL						0x001c03fc
+#define BCE_TAS_FTQ_CTL_MAX_DEPTH			(0x3ffL<<12)
+#define BCE_TAS_FTQ_CTL_CUR_DEPTH			(0x3ffL<<22)
+
+	
+/*
  *  mcp_reg definition
  *  offset: 0x140000
  */
@@ -5134,6 +5186,8 @@ struct bce_softc
 	/* TX DMA mapping failure counter. */
 	u32 tx_dma_map_failures;
 
+	u64 rx_intr_time;
+
 #ifdef BCE_DEBUG
 	/* Track the number of enqueued mbufs. */
 	int	debug_tx_mbuf_alloc;
@@ -5147,7 +5201,6 @@ struct bce_softc
 	u32 tx_interrupts;
 
 	/* Track interrupt time (25MHz clock). */
-	u64 rx_intr_time;
 	u64 tx_intr_time;
 
 	u32	rx_low_watermark;			/* Lowest number of rx_bd's free. */
