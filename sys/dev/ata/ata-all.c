@@ -1014,12 +1014,14 @@ ata_alloc_request(device_t dev)
 			       NULL, NULL, PAGE_SIZE, 1, PAGE_SIZE,
 			       0, NULL, NULL, &request->dma.sg_tag)) {
             device_printf(ch->dev, "FAILURE - create sg_tag\n");
+	    uma_zfree(ata_request_zone, request);
             return NULL;
 	}
 	if (bus_dmamem_alloc(request->dma.sg_tag, (void **)&request->dma.sg, 0,
 			     &request->dma.sg_map)) {
 	    device_printf(ch->dev, "FAILURE - alloc sg_map\n");
 	    bus_dma_tag_destroy(request->dma.sg_tag);
+	    uma_zfree(ata_request_zone, request);
 	    return NULL;
         }
 	if (bus_dma_tag_create(ch->dma.dmatag,
@@ -1033,6 +1035,7 @@ ata_alloc_request(device_t dev)
 	    bus_dmamem_free(request->dma.sg_tag, request->dma.sg,
 			    request->dma.sg_map);
 	    bus_dma_tag_destroy(request->dma.sg_tag);
+	    uma_zfree(ata_request_zone, request);
 	    return NULL;
 	}
 	request->dev = dev;
@@ -1045,10 +1048,10 @@ ata_alloc_request(device_t dev)
 void
 ata_free_request(struct ata_request *request)
 {
-    if (!(request->flags & ATA_R_DANGER2)) 
+    if (!(request->flags & ATA_R_DANGER2)) {
 	if (request->dma.data_tag)
 	    bus_dma_tag_destroy(request->dma.data_tag);
-	if (request->dma.sg_tag) {
+	if (request->dma.sg_tag)
 	    bus_dma_tag_destroy(request->dma.sg_tag);
 	uma_zfree(ata_request_zone, request);
     }
