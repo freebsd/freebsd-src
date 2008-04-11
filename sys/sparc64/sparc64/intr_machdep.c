@@ -282,7 +282,7 @@ intr_controller_register(int vec, const struct intr_controller *ic,
 	 * CPU as long as the source of a level sensitive interrupt is
 	 * not cleared.
 	 */
-	error = intr_event_create(&ie, iv, 0, NULL, intr_enable_eoi,
+	error = intr_event_create(&ie, iv, 0, vec, NULL, intr_enable_eoi,
 	    intr_enable_eoi, NULL, "vec%d:", vec);
 	if (error != 0)
 		return (error);

@@ -412,6 +412,8 @@ cpuset_which(cpuwhich_t which, id_t id, struct proc **pp, struct thread **tdp,
 			return (0);
 		}
 		return (ESRCH);
+	case CPU_WHICH_IRQ:
+		return (0);
 	default:
 		return (EINVAL);
 	}
@@ -760,6 +762,8 @@ cpuset_getid(struct thread *td, struct cpuset_getid_args *uap)
 		break;
 	case CPU_WHICH_CPUSET:
 		break;
+	case CPU_WHICH_IRQ:
+		return (EINVAL);
 	}
 	switch (uap->level) {
 	case CPU_LEVEL_ROOT:
@@ -820,6 +824,9 @@ cpuset_getaffinity(struct thread *td, struct cpuset_getaffinity_args *uap)
 			break;
 		case CPU_WHICH_CPUSET:
 			break;
+		case CPU_WHICH_IRQ:
+			error = EINVAL;
+			goto out;
 		}
 		if (uap->level == CPU_LEVEL_ROOT)
 			nset = cpuset_refroot(set);
@@ -844,6 +851,9 @@ cpuset_getaffinity(struct thread *td, struct cpuset_getaffinity_args *uap)
 			break;
 		case CPU_WHICH_CPUSET:
 			CPU_COPY(&set->cs_mask, mask);
+			break;
+		case CPU_WHICH_IRQ:
+			error = intr_getaffinity(uap->id, mask);
 			break;
 		}
 		break;
@@ -921,6 +931,9 @@ cpuset_setaffinity(struct thread *td, struct cpuset_setaffinity_args *uap)
 			break;
 		case CPU_WHICH_CPUSET:
 			break;
+		case CPU_WHICH_IRQ:
+			error = EINVAL;
+			goto out;
 		}
 		if (uap->level == CPU_LEVEL_ROOT)
 			nset = cpuset_refroot(set);
@@ -945,6 +958,9 @@ cpuset_setaffinity(struct thread *td, struct cpuset_setaffinity_args *uap)
 				error = cpuset_modify(set, mask);
 				cpuset_rel(set);
 			}
+			break;
+		case CPU_WHICH_IRQ:
+			error = intr_setaffinity(uap->id, mask);
 			break;
 		default:
 			error = EINVAL;

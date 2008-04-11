@@ -107,6 +107,7 @@ struct intr_event {
 	int		ie_count;	/* Loop counter. */
 	int		ie_warncnt;	/* Rate-check interrupt storm warns. */
 	struct timeval	ie_warntm;
+	int		ie_irq;		/* Physical irq number if !SOFT. */
 	u_char		ie_cpu;		/* CPU this event is bound to. */
 };
 
@@ -151,14 +152,16 @@ int	intr_event_add_handler(struct intr_event *ie, const char *name,
 	    u_char pri, enum intr_type flags, void **cookiep);	    
 int	intr_event_bind(struct intr_event *ie, u_char cpu);
 int	intr_event_create(struct intr_event **event, void *source,
-	    int flags, void (*pre_ithread)(void *),
+	    int flags, int irq, void (*pre_ithread)(void *),
 	    void (*post_ithread)(void *), void (*post_filter)(void *),
 	    int (*assign_cpu)(void *, u_char), const char *fmt, ...)
-	    __printflike(8, 9);
+	    __printflike(9, 10);
 int	intr_event_destroy(struct intr_event *ie);
 int	intr_event_handle(struct intr_event *ie, struct trapframe *frame);
 int	intr_event_remove_handler(void *cookie);
+int	intr_getaffinity(int irq, void *mask);
 void	*intr_handler_source(void *cookie);
+int	intr_setaffinity(int irq, void *mask);
 int	swi_add(struct intr_event **eventp, const char *name,
 	    driver_intr_t handler, void *arg, int pri, enum intr_type flags,
 	    void **cookiep);

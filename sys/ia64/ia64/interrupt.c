@@ -340,7 +340,7 @@ ia64_setup_intr(const char *name, int irq, driver_filter_t filter,
 			return (ENOMEM);
 
 		error = intr_event_create(&i->event, (void *)(uintptr_t)vector,
-		    0, ia64_intr_mask, ia64_intr_unmask, ia64_intr_eoi,
+		    0, vector, ia64_intr_mask, ia64_intr_unmask, ia64_intr_eoi,
 		    NULL, "irq%u:", irq);
 		if (error) {
 			free(i, M_DEVBUF);
