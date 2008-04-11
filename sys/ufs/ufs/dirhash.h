@@ -80,12 +80,13 @@
     ((dh)->dh_hash[(slot) >> DH_BLKOFFSHIFT][(slot) & DH_BLKOFFMASK])
 
 struct dirhash {
-	struct mtx dh_mtx;	/* protects all fields except dh_list */
+	struct lock dh_lock;	/* protects all fields except list & score */
 
 	doff_t	**dh_hash;	/* the hash array (2-level) */
 	int	dh_narrays;	/* number of entries in dh_hash */
 	int	dh_hlen;	/* total slots in the 2-level hash array */
 	int	dh_hused;	/* entries in use */
+	int	dh_memreq;	/* Memory used. */
 
 	/* Free space statistics. XXX assumes DIRBLKSIZ is 512. */
 	u_int8_t *dh_blkfree;	/* free DIRALIGN words in each dir block */
