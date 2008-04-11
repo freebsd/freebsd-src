@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/lockmgr.h>
 #include <sys/mutex.h>
 #include <sys/malloc.h>
 #include <sys/fnv_hash.h>
@@ -88,15 +89,16 @@ static int ufsdirhash_findslot(struct dirhash *dh, char *name, int namelen,
 	   doff_t offset);
 static doff_t ufsdirhash_getprev(struct direct *dp, doff_t offset);
 static int ufsdirhash_recycle(int wanted);
+static void ufsdirhash_free_locked(struct inode *ip);
 
 static uma_zone_t	ufsdirhash_zone;
 
 #define DIRHASHLIST_LOCK() 		mtx_lock(&ufsdirhash_mtx)
 #define DIRHASHLIST_UNLOCK() 		mtx_unlock(&ufsdirhash_mtx)
-#define DIRHASH_LOCK(dh)		mtx_lock(&(dh)->dh_mtx)
-#define DIRHASH_UNLOCK(dh) 		mtx_unlock(&(dh)->dh_mtx)
 #define DIRHASH_BLKALLOC_WAITOK() 	uma_zalloc(ufsdirhash_zone, M_WAITOK)
 #define DIRHASH_BLKFREE(ptr) 		uma_zfree(ufsdirhash_zone, (ptr))
+#define	DIRHASH_ASSERT_LOCKED(dh)					\
+    lockmgr_assert(&(dh)->dh_lock, KA_LOCKED)
 
 /* Dirhash list; recently-used entries are near the tail. */
 static TAILQ_HEAD(, dirhash) ufsdirhash_list;
@@ -105,14 +107,152 @@ static TAILQ_HEAD(, dirhash) ufsdirhash_list;
 static struct mtx	ufsdirhash_mtx;
 
 /*
- * Locking order:
- *	ufsdirhash_mtx
- *	dh_mtx
+ * Locking:
  *
- * The dh_mtx mutex should be acquired either via the inode lock, or via
- * ufsdirhash_mtx. Only the owner of the inode may free the associated
- * dirhash, but anything can steal its memory and set dh_hash to NULL.
+ * The relationship between inode and dirhash is protected either by an
+ * exclusive vnode lock or the vnode interlock where a shared vnode lock
+ * may be used.  The dirhash_mtx is acquired after the dirhash lock.
+ *
+ * ufsdirhash_build() acquires a shared lock on the dirhash when it is
+ * successful.  This lock is released after a call to ufsdirhash_lookup().
+ *
+ * Functions requiring exclusive access use ufsdirhash_acquire() which may
+ * free a dirhash structure that was recycled by ufsdirhash_recycle().
+ *
+ * The dirhash lock may be held across io operations.
  */
+
+/*
+ * Release the lock on a dirhash.
+ */
+static void
+ufsdirhash_release(struct dirhash *dh)
+{
+
+	lockmgr(&dh->dh_lock, LK_RELEASE, 0);
+}
+
+/*
+ * Either acquire an existing hash locked shared or create a new hash and
+ * return it exclusively locked.  May return NULL if the allocation fails.
+ *
+ * The vnode interlock is used to protect the i_dirhash pointer from
+ * simultaneous access while only a shared vnode lock is held.
+ */
+static struct dirhash *
+ufsdirhash_create(struct inode *ip)
+{
+	struct dirhash *ndh;
+	struct dirhash *dh;
+	struct vnode *vp;
+	int error;
+
+	error = 0;
+	ndh = dh = NULL;
+	vp = ip->i_vnode;
+	for (;;) {
+		/* Racy check for i_dirhash to prefetch an dirhash structure. */
+		if (ip->i_dirhash == NULL && ndh == NULL) {
+			MALLOC(ndh, struct dirhash *, sizeof *dh, M_DIRHASH,
+			    M_NOWAIT | M_ZERO);
+			if (ndh == NULL)
+				return (NULL);
+			lockinit(&ndh->dh_lock, PRIBIO, "dirhash", 0, 0);
+			lockmgr(&ndh->dh_lock, LK_EXCLUSIVE, NULL);
+		}
+		/*
+		 * Check i_dirhash.  If it's NULL just try to use a
+		 * preallocated structure.  If none exists loop and try again.
+		 */
+		VI_LOCK(vp);
+		dh = ip->i_dirhash;
+		if (dh == NULL) {
+			ip->i_dirhash = ndh;
+			VI_UNLOCK(vp);
+			if (ndh == NULL)
+				continue;
+			return (ndh);
+		}
+		/* Try to acquire shared on existing hashes. */
+		if (lockmgr(&dh->dh_lock, LK_SHARED | LK_INTERLOCK,
+		    VI_MTX(vp)))
+			continue;
+		/* The hash could've been recycled while we were waiting. */
+		if (ip->i_dirhash != dh) {
+			ufsdirhash_release(dh);
+			continue;
+		}
+		/* If the hash is still valid we've succeeded. */
+		if (dh->dh_hash != NULL)
+			break;
+		/*
+		 * If the hash is NULL it has been recycled.  Try to upgrade
+		 * so we can recreate it.  If we fail the upgrade another
+		 * thread must've already exclusively locked it.
+		 */
+		if (lockmgr(&dh->dh_lock, LK_UPGRADE | LK_SLEEPFAIL, NULL) == 0)
+			break;
+	}
+	/* Free the preallocated structure if it was not necessary. */
+	if (ndh) {
+		lockmgr(&ndh->dh_lock, LK_RELEASE, NULL);
+		lockdestroy(&ndh->dh_lock);
+		FREE(ndh, M_DIRHASH);
+	}
+	return (dh);
+}
+
+/*
+ * Acquire an exclusive lock on an existing hash.  Requires an exclusive
+ * vnode lock to protect the i_dirhash pointer.  hashes that have been
+ * recycled are reclaimed here and NULL is returned.
+ */
+static struct dirhash *
+ufsdirhash_acquire(struct inode *ip)
+{
+	struct dirhash *dh;
+	struct vnode *vp;
+
+	ASSERT_VOP_ELOCKED(ip->i_vnode, __FUNCTION__);
+
+	vp = ip->i_vnode;
+	dh = ip->i_dirhash;
+	if (dh == NULL)
+		return (NULL);
+	lockmgr(&dh->dh_lock, LK_EXCLUSIVE, 0);
+	if (dh->dh_hash != NULL)
+		return (dh);
+	ufsdirhash_free_locked(ip);
+	return (NULL);
+}
+
+/*
+ * Acquire exclusively and free the hash pointed to by ip.  Works with a
+ * shared or exclusive vnode lock.
+ */
+void
+ufsdirhash_free(struct inode *ip)
+{
+	struct dirhash *dh;
+	struct vnode *vp;
+
+	vp = ip->i_vnode;
+	for (;;) {
+		VI_LOCK(vp);
+		dh = ip->i_dirhash;
+		if (dh == NULL) {
+			VI_UNLOCK(vp);
+			return;
+		}
+		if (lockmgr(&dh->dh_lock, LK_EXCLUSIVE | LK_INTERLOCK,
+		    VI_MTX(vp)))
+			continue;
+		if (ip->i_dirhash == dh)
+			break;
+		ufsdirhash_release(dh);
+	}
+	ufsdirhash_free_locked(ip);
+}
 
 /*
  * Attempt to build up a hash table for the directory contents in
@@ -128,27 +268,23 @@ ufsdirhash_build(struct inode *ip)
 	doff_t bmask, pos;
 	int dirblocks, i, j, memreqd, nblocks, narrays, nslots, slot;
 
-	/* Check if we can/should use dirhash. */
-	if (ip->i_dirhash == NULL) {
-		if (ip->i_size < ufs_mindirhashsize || OFSFMT(ip->i_vnode))
+	/* Take care of a decreased sysctl value. */
+	while (ufs_dirhashmem > ufs_dirhashmaxmem)
+		if (ufsdirhash_recycle(0) != 0)
 			return (-1);
-	} else {
-		/* Hash exists, but sysctls could have changed. */
-		if (ip->i_size < ufs_mindirhashsize ||
-		    ufs_dirhashmem > ufs_dirhashmaxmem) {
-			ufsdirhash_free(ip);
-			return (-1);
-		}
-		/* Check if hash exists and is intact (note: unlocked read). */
-		if (ip->i_dirhash->dh_hash != NULL)
-			return (0);
-		/* Free the old, recycled hash and build a new one. */
-		ufsdirhash_free(ip);
-	}
 
-	/* Don't hash removed directories. */
-	if (ip->i_effnlink == 0)
+	/* Check if we can/should use dirhash. */
+	if (ip->i_size < ufs_mindirhashsize || OFSFMT(ip->i_vnode) ||
+	    ip->i_effnlink == 0) {
+		if (ip->i_dirhash)
+			ufsdirhash_free(ip);
 		return (-1);
+	}
+	dh = ufsdirhash_create(ip);
+	if (dh == NULL)
+		return (-1);
+	if (dh->dh_hash != NULL)
+		return (0);
 
 	vp = ip->i_vnode;
 	/* Allocate 50% more entries than this dir size could ever need. */
@@ -159,7 +295,6 @@ ufsdirhash_build(struct inode *ip)
 	nslots = narrays * DH_NBLKOFF;
 	dirblocks = howmany(ip->i_size, DIRBLKSIZ);
 	nblocks = (dirblocks * 3 + 1) / 2;
-
 	memreqd = sizeof(*dh) + narrays * sizeof(*dh->dh_hash) +
 	    narrays * DH_NBLKOFF * sizeof(**dh->dh_hash) +
 	    nblocks * sizeof(*dh->dh_blkfree);
@@ -167,33 +302,40 @@ ufsdirhash_build(struct inode *ip)
 	if (memreqd + ufs_dirhashmem > ufs_dirhashmaxmem) {
 		DIRHASHLIST_UNLOCK();
 		if (memreqd > ufs_dirhashmaxmem / 2)
-			return (-1);
-
+			goto fail;
 		/* Try to free some space. */
 		if (ufsdirhash_recycle(memreqd) != 0)
-			return (-1);
+			goto fail;
 		/* Enough was freed, and list has been locked. */
 	}
 	ufs_dirhashmem += memreqd;
 	DIRHASHLIST_UNLOCK();
 
+	/* Initialise the hash table and block statistics. */
+	dh->dh_memreq = memreqd;
+	dh->dh_narrays = narrays;
+	dh->dh_hlen = nslots;
+	dh->dh_nblk = nblocks;
+	dh->dh_dirblks = dirblocks;
+	for (i = 0; i < DH_NFSTATS; i++)
+		dh->dh_firstfree[i] = -1;
+	dh->dh_firstfree[DH_NFSTATS] = 0;
+	dh->dh_hused = 0;
+	dh->dh_seqopt = 0;
+	dh->dh_seqoff = 0;
+	dh->dh_score = DH_SCOREINIT;
+
 	/*
 	 * Use non-blocking mallocs so that we will revert to a linear
 	 * lookup on failure rather than potentially blocking forever.
 	 */
-	MALLOC(dh, struct dirhash *, sizeof *dh, M_DIRHASH, M_NOWAIT | M_ZERO);
-	if (dh == NULL) {
-		DIRHASHLIST_LOCK();
-		ufs_dirhashmem -= memreqd;
-		DIRHASHLIST_UNLOCK();
-		return (-1);
-	}
-	mtx_init(&dh->dh_mtx, "dirhash", NULL, MTX_DEF);
 	MALLOC(dh->dh_hash, doff_t **, narrays * sizeof(dh->dh_hash[0]),
 	    M_DIRHASH, M_NOWAIT | M_ZERO);
+	if (dh->dh_hash == NULL)
+		goto fail;
 	MALLOC(dh->dh_blkfree, u_int8_t *, nblocks * sizeof(dh->dh_blkfree[0]),
 	    M_DIRHASH, M_NOWAIT);
-	if (dh->dh_hash == NULL || dh->dh_blkfree == NULL)
+	if (dh->dh_blkfree == NULL)
 		goto fail;
 	for (i = 0; i < narrays; i++) {
 		if ((dh->dh_hash[i] = DIRHASH_BLKALLOC_WAITOK()) == NULL)
@@ -201,22 +343,8 @@ ufsdirhash_build(struct inode *ip)
 		for (j = 0; j < DH_NBLKOFF; j++)
 			dh->dh_hash[i][j] = DIRHASH_EMPTY;
 	}
-
-	/* Initialise the hash table and block statistics. */
-	dh->dh_narrays = narrays;
-	dh->dh_hlen = nslots;
-	dh->dh_nblk = nblocks;
-	dh->dh_dirblks = dirblocks;
 	for (i = 0; i < dirblocks; i++)
 		dh->dh_blkfree[i] = DIRBLKSIZ / DIRALIGN;
-	for (i = 0; i < DH_NFSTATS; i++)
-		dh->dh_firstfree[i] = -1;
-	dh->dh_firstfree[DH_NFSTATS] = 0;
-	dh->dh_seqopt = 0;
-	dh->dh_seqoff = 0;
-	dh->dh_score = DH_SCOREINIT;
-	ip->i_dirhash = dh;
-
 	bmask = VFSTOUFS(vp->v_mount)->um_mountp->mnt_stat.f_iosize - 1;
 	pos = 0;
 	while (pos < ip->i_size) {
@@ -254,63 +382,64 @@ ufsdirhash_build(struct inode *ip)
 	TAILQ_INSERT_TAIL(&ufsdirhash_list, dh, dh_list);
 	dh->dh_onlist = 1;
 	DIRHASHLIST_UNLOCK();
+	lockmgr(&dh->dh_lock, LK_DOWNGRADE, 0);
 	return (0);
 
 fail:
-	if (dh->dh_hash != NULL) {
-		for (i = 0; i < narrays; i++)
-			if (dh->dh_hash[i] != NULL)
-				DIRHASH_BLKFREE(dh->dh_hash[i]);
-		FREE(dh->dh_hash, M_DIRHASH);
-	}
-	if (dh->dh_blkfree != NULL)
-		FREE(dh->dh_blkfree, M_DIRHASH);
-	mtx_destroy(&dh->dh_mtx);
-	FREE(dh, M_DIRHASH);
-	ip->i_dirhash = NULL;
-	DIRHASHLIST_LOCK();
-	ufs_dirhashmem -= memreqd;
-	DIRHASHLIST_UNLOCK();
+	ufsdirhash_free_locked(ip);
 	return (-1);
 }
 
 /*
  * Free any hash table associated with inode 'ip'.
  */
-void
-ufsdirhash_free(struct inode *ip)
+static void
+ufsdirhash_free_locked(struct inode *ip)
 {
 	struct dirhash *dh;
-	int i, mem;
+	struct vnode *vp;
+	int i;
 
-	if ((dh = ip->i_dirhash) == NULL)
-		return;
-	DIRHASHLIST_LOCK();
-	DIRHASH_LOCK(dh);
-	if (dh->dh_onlist)
-		TAILQ_REMOVE(&ufsdirhash_list, dh, dh_list);
-	DIRHASH_UNLOCK(dh);
-	DIRHASHLIST_UNLOCK();
-
-	/* The dirhash pointed to by 'dh' is exclusively ours now. */
-
-	mem = sizeof(*dh);
+	DIRHASH_ASSERT_LOCKED(ip->i_dirhash);
+	/*
+	 * Clear the pointer in the inode to prevent new threads from
+	 * finding the dead structure.
+	 */
+	vp = ip->i_vnode;
+	VI_LOCK(vp);
+	dh = ip->i_dirhash;
+	ip->i_dirhash = NULL;
+	VI_UNLOCK(vp);
+	/*
+	 * Drain waiters.  They will abort when they see that ip->i_dirhash
+	 * is NULL after locking.
+	 */
+	lockmgr(&dh->dh_lock, LK_RELEASE, 0);
+	lockmgr(&dh->dh_lock, LK_DRAIN, 0);
+	/*
+	 * Handle partially recycled as well as fully constructed hashes.
+	 */
 	if (dh->dh_hash != NULL) {
 		for (i = 0; i < dh->dh_narrays; i++)
-			DIRHASH_BLKFREE(dh->dh_hash[i]);
+			if (dh->dh_hash[i] != NULL)
+				DIRHASH_BLKFREE(dh->dh_hash[i]);
 		FREE(dh->dh_hash, M_DIRHASH);
-		FREE(dh->dh_blkfree, M_DIRHASH);
-		mem += dh->dh_narrays * sizeof(*dh->dh_hash) +
-		    dh->dh_narrays * DH_NBLKOFF * sizeof(**dh->dh_hash) +
-		    dh->dh_nblk * sizeof(*dh->dh_blkfree);
+		if (dh->dh_blkfree != NULL)
+			FREE(dh->dh_blkfree, M_DIRHASH);
 	}
-	mtx_destroy(&dh->dh_mtx);
-	FREE(dh, M_DIRHASH);
-	ip->i_dirhash = NULL;
-
 	DIRHASHLIST_LOCK();
-	ufs_dirhashmem -= mem;
+	if (dh->dh_onlist)
+		TAILQ_REMOVE(&ufsdirhash_list, dh, dh_list);
+	ufs_dirhashmem -= dh->dh_memreq;
 	DIRHASHLIST_UNLOCK();
+	/*
+	 * Release the lock and reclaim datastructure memory.
+	 */
+	lockmgr(&dh->dh_lock, LK_RELEASE, 0);
+	lockdestroy(&dh->dh_lock);
+	FREE(dh, M_DIRHASH);
+
+	return;
 }
 
 /*
@@ -323,6 +452,8 @@ ufsdirhash_free(struct inode *ip)
  * prevoffp is non-NULL, the offset of the previous entry within
  * the DIRBLKSIZ-sized block is stored in *prevoffp (if the entry
  * is the first in a block, the start of the block is used).
+ *
+ * Must be called with the hash locked.  Returns with the hash unlocked.
  */
 int
 ufsdirhash_lookup(struct inode *ip, char *name, int namelen, doff_t *offp,
@@ -334,48 +465,36 @@ ufsdirhash_lookup(struct inode *ip, char *name, int namelen, doff_t *offp,
 	struct buf *bp;
 	doff_t blkoff, bmask, offset, prevoff;
 	int i, slot;
+	int error;
 
-	if ((dh = ip->i_dirhash) == NULL)
-		return (EJUSTRETURN);
+	dh = ip->i_dirhash;
+	KASSERT(dh != NULL && dh->dh_hash != NULL,
+	    ("ufsdirhash_lookup: Invalid dirhash %p\n", dh));
+	DIRHASH_ASSERT_LOCKED(dh);
 	/*
 	 * Move this dirhash towards the end of the list if it has a
-	 * score higher than the next entry, and acquire the dh_mtx.
-	 * Optimise the case where it's already the last by performing
-	 * an unlocked read of the TAILQ_NEXT pointer.
-	 *
-	 * In both cases, end up holding just dh_mtx.
+	 * score higher than the next entry, and acquire the dh_lock.
 	 */
+	DIRHASHLIST_LOCK();
 	if (TAILQ_NEXT(dh, dh_list) != NULL) {
-		DIRHASHLIST_LOCK();
-		DIRHASH_LOCK(dh);
 		/*
 		 * If the new score will be greater than that of the next
 		 * entry, then move this entry past it. With both mutexes
 		 * held, dh_next won't go away, but its dh_score could
 		 * change; that's not important since it is just a hint.
 		 */
-		if (dh->dh_hash != NULL &&
-		    (dh_next = TAILQ_NEXT(dh, dh_list)) != NULL &&
+		if ((dh_next = TAILQ_NEXT(dh, dh_list)) != NULL &&
 		    dh->dh_score >= dh_next->dh_score) {
 			KASSERT(dh->dh_onlist, ("dirhash: not on list"));
 			TAILQ_REMOVE(&ufsdirhash_list, dh, dh_list);
 			TAILQ_INSERT_AFTER(&ufsdirhash_list, dh_next, dh,
 			    dh_list);
 		}
-		DIRHASHLIST_UNLOCK();
-	} else {
-		/* Already the last, though that could change as we wait. */
-		DIRHASH_LOCK(dh);
 	}
-	if (dh->dh_hash == NULL) {
-		DIRHASH_UNLOCK(dh);
-		ufsdirhash_free(ip);
-		return (EJUSTRETURN);
-	}
-
 	/* Update the score. */
 	if (dh->dh_score < DH_SCOREMAX)
 		dh->dh_score++;
+	DIRHASHLIST_UNLOCK();
 
 	vp = ip->i_vnode;
 	bmask = VFSTOUFS(vp->v_mount)->um_mountp->mnt_stat.f_iosize - 1;
@@ -410,23 +529,23 @@ restart:
 	    slot = WRAPINCR(slot, dh->dh_hlen)) {
 		if (offset == DIRHASH_DEL)
 			continue;
-		DIRHASH_UNLOCK(dh);
-
 		if (offset < 0 || offset >= ip->i_size)
 			panic("ufsdirhash_lookup: bad offset in hash array");
 		if ((offset & ~bmask) != blkoff) {
 			if (bp != NULL)
 				brelse(bp);
 			blkoff = offset & ~bmask;
-			if (UFS_BLKATOFF(vp, (off_t)blkoff, NULL, &bp) != 0)
-				return (EJUSTRETURN);
+			if (UFS_BLKATOFF(vp, (off_t)blkoff, NULL, &bp) != 0) {
+				error = EJUSTRETURN;
+				goto fail;
+			}
 		}
 		dp = (struct direct *)(bp->b_data + (offset & bmask));
 		if (dp->d_reclen == 0 || dp->d_reclen >
 		    DIRBLKSIZ - (offset & (DIRBLKSIZ - 1))) {
 			/* Corrupted directory. */
-			brelse(bp);
-			return (EJUSTRETURN);
+			error = EJUSTRETURN;
+			goto fail;
 		}
 		if (dp->d_namlen == namelen &&
 		    bcmp(dp->d_name, name, namelen) == 0) {
@@ -436,8 +555,8 @@ restart:
 					prevoff = ufsdirhash_getprev(dp,
 					    offset);
 					if (prevoff == -1) {
-						brelse(bp);
-						return (EJUSTRETURN);
+						error = EJUSTRETURN;
+						goto fail;
 					}
 				} else
 					prevoff = offset;
@@ -448,20 +567,12 @@ restart:
 			if (dh->dh_seqopt == 0 && dh->dh_seqoff == offset)
 				dh->dh_seqopt = 1;
 			dh->dh_seqoff = offset + DIRSIZ(0, dp);
-
 			*bpp = bp;
 			*offp = offset;
+			ufsdirhash_release(dh);
 			return (0);
 		}
 
-		DIRHASH_LOCK(dh);
-		if (dh->dh_hash == NULL) {
-			DIRHASH_UNLOCK(dh);
-			if (bp != NULL)
-				brelse(bp);
-			ufsdirhash_free(ip);
-			return (EJUSTRETURN);
-		}
 		/*
 		 * When the name doesn't match in the seqopt case, go back
 		 * and search normally.
@@ -471,10 +582,12 @@ restart:
 			goto restart;
 		}
 	}
-	DIRHASH_UNLOCK(dh);
+	error = ENOENT;
+fail:
+	ufsdirhash_release(dh);
 	if (bp != NULL)
 		brelse(bp);
-	return (ENOENT);
+	return (error);
 }
 
 /*
@@ -502,29 +615,22 @@ ufsdirhash_findfree(struct inode *ip, int slotneeded, int *slotsize)
 	doff_t pos, slotstart;
 	int dirblock, error, freebytes, i;
 
-	if ((dh = ip->i_dirhash) == NULL)
-		return (-1);
-	DIRHASH_LOCK(dh);
-	if (dh->dh_hash == NULL) {
-		DIRHASH_UNLOCK(dh);
-		ufsdirhash_free(ip);
-		return (-1);
-	}
+	dh = ip->i_dirhash;
+	KASSERT(dh != NULL && dh->dh_hash != NULL,
+	    ("ufsdirhash_findfree: Invalid dirhash %p\n", dh));
+	DIRHASH_ASSERT_LOCKED(dh);
 
 	/* Find a directory block with the desired free space. */
 	dirblock = -1;
 	for (i = howmany(slotneeded, DIRALIGN); i <= DH_NFSTATS; i++)
 		if ((dirblock = dh->dh_firstfree[i]) != -1)
 			break;
-	if (dirblock == -1) {
-		DIRHASH_UNLOCK(dh);
+	if (dirblock == -1)
 		return (-1);
-	}
 
 	KASSERT(dirblock < dh->dh_nblk &&
 	    dh->dh_blkfree[dirblock] >= howmany(slotneeded, DIRALIGN),
 	    ("ufsdirhash_findfree: bad stats"));
-	DIRHASH_UNLOCK(dh);
 	pos = dirblock * DIRBLKSIZ;
 	error = UFS_BLKATOFF(ip->i_vnode, (off_t)pos, (char **)&dp, &bp);
 	if (error)
@@ -582,24 +688,18 @@ ufsdirhash_enduseful(struct inode *ip)
 	struct dirhash *dh;
 	int i;
 
-	if ((dh = ip->i_dirhash) == NULL)
-		return (-1);
-	DIRHASH_LOCK(dh);
-	if (dh->dh_hash == NULL) {
-		DIRHASH_UNLOCK(dh);
-		ufsdirhash_free(ip);
-		return (-1);
-	}
+	dh = ip->i_dirhash;
+	DIRHASH_ASSERT_LOCKED(dh);
+	KASSERT(dh != NULL && dh->dh_hash != NULL,
+	    ("ufsdirhash_enduseful: Invalid dirhash %p\n", dh));
 
-	if (dh->dh_blkfree[dh->dh_dirblks - 1] != DIRBLKSIZ / DIRALIGN) {
-		DIRHASH_UNLOCK(dh);
+	if (dh->dh_blkfree[dh->dh_dirblks - 1] != DIRBLKSIZ / DIRALIGN)
 		return (-1);
-	}
 
 	for (i = dh->dh_dirblks - 1; i >= 0; i--)
 		if (dh->dh_blkfree[i] != DIRBLKSIZ / DIRALIGN)
 			break;
-	DIRHASH_UNLOCK(dh);
+
 	return ((doff_t)(i + 1) * DIRBLKSIZ);
 }
 
@@ -614,15 +714,9 @@ ufsdirhash_add(struct inode *ip, struct direct *dirp, doff_t offset)
 	struct dirhash *dh;
 	int slot;
 
-	if ((dh = ip->i_dirhash) == NULL)
+	if ((dh = ufsdirhash_acquire(ip)) == NULL)
 		return;
-	DIRHASH_LOCK(dh);
-	if (dh->dh_hash == NULL) {
-		DIRHASH_UNLOCK(dh);
-		ufsdirhash_free(ip);
-		return;
-	}
-
+	
 	KASSERT(offset < dh->dh_dirblks * DIRBLKSIZ,
 	    ("ufsdirhash_add: bad offset"));
 	/*
@@ -630,8 +724,7 @@ ufsdirhash_add(struct inode *ip, struct direct *dirp, doff_t offset)
 	 * remove the hash entirely and let it be rebuilt later.
 	 */
 	if (dh->dh_hused >= (dh->dh_hlen * 3) / 4) {
-		DIRHASH_UNLOCK(dh);
-		ufsdirhash_free(ip);
+		ufsdirhash_free_locked(ip);
 		return;
 	}
 
@@ -645,7 +738,7 @@ ufsdirhash_add(struct inode *ip, struct direct *dirp, doff_t offset)
 
 	/* Update the per-block summary info. */
 	ufsdirhash_adjfree(dh, offset, -DIRSIZ(0, dirp));
-	DIRHASH_UNLOCK(dh);
+	ufsdirhash_release(dh);
 }
 
 /*
@@ -659,14 +752,8 @@ ufsdirhash_remove(struct inode *ip, struct direct *dirp, doff_t offset)
 	struct dirhash *dh;
 	int slot;
 
-	if ((dh = ip->i_dirhash) == NULL)
+	if ((dh = ufsdirhash_acquire(ip)) == NULL)
 		return;
-	DIRHASH_LOCK(dh);
-	if (dh->dh_hash == NULL) {
-		DIRHASH_UNLOCK(dh);
-		ufsdirhash_free(ip);
-		return;
-	}
 
 	KASSERT(offset < dh->dh_dirblks * DIRBLKSIZ,
 	    ("ufsdirhash_remove: bad offset"));
@@ -678,7 +765,7 @@ ufsdirhash_remove(struct inode *ip, struct direct *dirp, doff_t offset)
 
 	/* Update the per-block summary info. */
 	ufsdirhash_adjfree(dh, offset, DIRSIZ(0, dirp));
-	DIRHASH_UNLOCK(dh);
+	ufsdirhash_release(dh);
 }
 
 /*
@@ -692,14 +779,8 @@ ufsdirhash_move(struct inode *ip, struct direct *dirp, doff_t oldoff,
 	struct dirhash *dh;
 	int slot;
 
-	if ((dh = ip->i_dirhash) == NULL)
+	if ((dh = ufsdirhash_acquire(ip)) == NULL)
 		return;
-	DIRHASH_LOCK(dh);
-	if (dh->dh_hash == NULL) {
-		DIRHASH_UNLOCK(dh);
-		ufsdirhash_free(ip);
-		return;
-	}
 
 	KASSERT(oldoff < dh->dh_dirblks * DIRBLKSIZ &&
 	    newoff < dh->dh_dirblks * DIRBLKSIZ,
@@ -707,7 +788,7 @@ ufsdirhash_move(struct inode *ip, struct direct *dirp, doff_t oldoff,
 	/* Find the entry, and update the offset. */
 	slot = ufsdirhash_findslot(dh, dirp->d_name, dirp->d_namlen, oldoff);
 	DH_ENTRY(dh, slot) = newoff;
-	DIRHASH_UNLOCK(dh);
+	ufsdirhash_release(dh);
 }
 
 /*
@@ -720,22 +801,15 @@ ufsdirhash_newblk(struct inode *ip, doff_t offset)
 	struct dirhash *dh;
 	int block;
 
-	if ((dh = ip->i_dirhash) == NULL)
+	if ((dh = ufsdirhash_acquire(ip)) == NULL)
 		return;
-	DIRHASH_LOCK(dh);
-	if (dh->dh_hash == NULL) {
-		DIRHASH_UNLOCK(dh);
-		ufsdirhash_free(ip);
-		return;
-	}
 
 	KASSERT(offset == dh->dh_dirblks * DIRBLKSIZ,
 	    ("ufsdirhash_newblk: bad offset"));
 	block = offset / DIRBLKSIZ;
 	if (block >= dh->dh_nblk) {
 		/* Out of space; must rebuild. */
-		DIRHASH_UNLOCK(dh);
-		ufsdirhash_free(ip);
+		ufsdirhash_free_locked(ip);
 		return;
 	}
 	dh->dh_dirblks = block + 1;
@@ -744,7 +818,7 @@ ufsdirhash_newblk(struct inode *ip, doff_t offset)
 	dh->dh_blkfree[block] = DIRBLKSIZ / DIRALIGN;
 	if (dh->dh_firstfree[DH_NFSTATS] == -1)
 		dh->dh_firstfree[DH_NFSTATS] = block;
-	DIRHASH_UNLOCK(dh);
+	ufsdirhash_release(dh);
 }
 
 /*
@@ -756,14 +830,8 @@ ufsdirhash_dirtrunc(struct inode *ip, doff_t offset)
 	struct dirhash *dh;
 	int block, i;
 
-	if ((dh = ip->i_dirhash) == NULL)
+	if ((dh = ufsdirhash_acquire(ip)) == NULL)
 		return;
-	DIRHASH_LOCK(dh);
-	if (dh->dh_hash == NULL) {
-		DIRHASH_UNLOCK(dh);
-		ufsdirhash_free(ip);
-		return;
-	}
 
 	KASSERT(offset <= dh->dh_dirblks * DIRBLKSIZ,
 	    ("ufsdirhash_dirtrunc: bad offset"));
@@ -775,8 +843,7 @@ ufsdirhash_dirtrunc(struct inode *ip, doff_t offset)
 	 * if necessary.
 	 */
 	if (block < dh->dh_nblk / 8 && dh->dh_narrays > 1) {
-		DIRHASH_UNLOCK(dh);
-		ufsdirhash_free(ip);
+		ufsdirhash_free_locked(ip);
 		return;
 	}
 
@@ -794,7 +861,7 @@ ufsdirhash_dirtrunc(struct inode *ip, doff_t offset)
 		if (dh->dh_firstfree[i] >= block)
 			panic("ufsdirhash_dirtrunc: first free corrupt");
 	dh->dh_dirblks = block;
-	DIRHASH_UNLOCK(dh);
+	ufsdirhash_release(dh);
 }
 
 /*
@@ -815,14 +882,8 @@ ufsdirhash_checkblock(struct inode *ip, char *buf, doff_t offset)
 
 	if (!ufs_dirhashcheck)
 		return;
-	if ((dh = ip->i_dirhash) == NULL)
+	if ((dh = ufsdirhash_acquire(ip)) == NULL)
 		return;
-	DIRHASH_LOCK(dh);
-	if (dh->dh_hash == NULL) {
-		DIRHASH_UNLOCK(dh);
-		ufsdirhash_free(ip);
-		return;
-	}
 
 	block = offset / DIRBLKSIZ;
 	if ((offset & (DIRBLKSIZ - 1)) != 0 || block >= dh->dh_dirblks)
@@ -866,7 +927,7 @@ ufsdirhash_checkblock(struct inode *ip, char *buf, doff_t offset)
 			panic("ufsdirhash_checkblock: bad first-free");
 	if (dh->dh_firstfree[ffslot] == -1)
 		panic("ufsdirhash_checkblock: missing first-free entry");
-	DIRHASH_UNLOCK(dh);
+	ufsdirhash_release(dh);
 }
 
 /*
@@ -893,7 +954,7 @@ ufsdirhash_hash(struct dirhash *dh, char *name, int namelen)
  * by the value specified by `diff'.
  *
  * The caller must ensure we have exclusive access to `dh'; normally
- * that means that dh_mtx should be held, but this is also called
+ * that means that dh_lock should be held, but this is also called
  * from ufsdirhash_build() where exclusive access can be assumed.
  */
 static void
@@ -937,7 +998,7 @@ ufsdirhash_findslot(struct dirhash *dh, char *name, int namelen, doff_t offset)
 {
 	int slot;
 
-	mtx_assert(&dh->dh_mtx, MA_OWNED);
+	DIRHASH_ASSERT_LOCKED(dh);
 
 	/* Find the entry. */
 	KASSERT(dh->dh_hused < dh->dh_hlen, ("dirhash find full"));
@@ -961,7 +1022,7 @@ ufsdirhash_delslot(struct dirhash *dh, int slot)
 {
 	int i;
 
-	mtx_assert(&dh->dh_mtx, MA_OWNED);
+	DIRHASH_ASSERT_LOCKED(dh);
 
 	/* Mark the entry as deleted. */
 	DH_ENTRY(dh, slot) = DIRHASH_DEL;
@@ -1026,21 +1087,22 @@ ufsdirhash_recycle(int wanted)
 	int i, mem, narrays;
 
 	DIRHASHLIST_LOCK();
+	dh = TAILQ_FIRST(&ufsdirhash_list);
 	while (wanted + ufs_dirhashmem > ufs_dirhashmaxmem) {
-		/* Find a dirhash, and lock it. */
-		if ((dh = TAILQ_FIRST(&ufsdirhash_list)) == NULL) {
-			DIRHASHLIST_UNLOCK();
-			return (-1);
-		}
-		DIRHASH_LOCK(dh);
-		KASSERT(dh->dh_hash != NULL, ("dirhash: NULL hash on list"));
-
 		/* Decrement the score; only recycle if it becomes zero. */
-		if (--dh->dh_score > 0) {
-			DIRHASH_UNLOCK(dh);
+		if (dh == NULL || --dh->dh_score > 0) {
 			DIRHASHLIST_UNLOCK();
 			return (-1);
 		}
+		/*
+		 * If we can't lock it it's in use and we don't want to
+		 * recycle it anyway.
+		 */
+		if (lockmgr(&dh->dh_lock, LK_EXCLUSIVE | LK_NOWAIT, NULL)) {
+			dh = TAILQ_NEXT(dh, dh_list);
+			continue;
+		}
+		KASSERT(dh->dh_hash != NULL, ("dirhash: NULL hash on list"));
 
 		/* Remove it from the list and detach its memory. */
 		TAILQ_REMOVE(&ufsdirhash_list, dh, dh_list);
@@ -1050,12 +1112,11 @@ ufsdirhash_recycle(int wanted)
 		blkfree = dh->dh_blkfree;
 		dh->dh_blkfree = NULL;
 		narrays = dh->dh_narrays;
-		mem = narrays * sizeof(*dh->dh_hash) +
-		    narrays * DH_NBLKOFF * sizeof(**dh->dh_hash) +
-		    dh->dh_nblk * sizeof(*dh->dh_blkfree);
+		mem = dh->dh_memreq;
+		dh->dh_memreq = 0;
 
 		/* Unlock everything, free the detached memory. */
-		DIRHASH_UNLOCK(dh);
+		ufsdirhash_release(dh);
 		DIRHASHLIST_UNLOCK();
 		for (i = 0; i < narrays; i++)
 			DIRHASH_BLKFREE(hash[i]);
@@ -1065,6 +1126,7 @@ ufsdirhash_recycle(int wanted)
 		/* Account for the returned memory, and repeat if necessary. */
 		DIRHASHLIST_LOCK();
 		ufs_dirhashmem -= mem;
+		dh = TAILQ_FIRST(&ufsdirhash_list);
 	}
 	/* Success; return with list locked. */
 	return (0);
