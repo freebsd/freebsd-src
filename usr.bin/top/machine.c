@@ -312,6 +312,7 @@ machine_init(struct statics *statics, char do_unames)
 			err(1, "malloc %zd bytes", size);
 		if (sysctlbyname("kern.cp_times", times, &size, NULL, 0) == -1)
 			err(1, "sysctlbyname kern.cp_times");
+		pcpu_cp_time = calloc(1, size);
 		maxid = (size / CPUSTATES / sizeof(long)) - 1;
 		for (i = 0; i <= maxid; i++) {
 			empty = 1;
@@ -335,14 +336,9 @@ machine_init(struct statics *statics, char do_unames)
 			Header_lines += ncpus - 1; /* 7 */
 		}
 		size = sizeof(long) * ncpus * CPUSTATES;
-		pcpu_cp_time = malloc(size);
-		pcpu_cp_old = malloc(size);
-		pcpu_cp_diff = malloc(size);
-		pcpu_cpu_states = malloc(size);
-		bzero(pcpu_cp_time, size);
-		bzero(pcpu_cp_old, size);
-		bzero(pcpu_cp_diff, size);
-		bzero(pcpu_cpu_states, size);
+		pcpu_cp_old = calloc(1, size);
+		pcpu_cp_diff = calloc(1, size);
+		pcpu_cpu_states = calloc(1, size);
 		statics->ncpus = ncpus;
 	} else {
 		statics->ncpus = 1;
@@ -417,14 +413,15 @@ get_system_info(struct system_info *si)
 		si->load_avg[i] = (double)sysload.ldavg[i] / sysload.fscale;
 
 	if (pcpu_stats) {
-		for (i = j = 0; i <= maxid; i++, j++) {
-			if (cpumask && (1ul << i) == 0)
+		for (i = j = 0; i <= maxid; i++) {
+			if ((cpumask & (1ul << i)) == 0)
 				continue;
 			/* convert cp_time counts to percentages */
 			percentages(CPUSTATES, &pcpu_cpu_states[j * CPUSTATES],
 			    &pcpu_cp_time[j * CPUSTATES],
 			    &pcpu_cp_old[j * CPUSTATES],
 			    &pcpu_cp_diff[j * CPUSTATES]);
+			j++;
 		}
 	} else {
 		/* convert cp_time counts to percentages */
@@ -485,11 +482,9 @@ get_system_info(struct system_info *si)
 	/* set arrays and strings */
 	if (pcpu_stats) {
 		si->cpustates = pcpu_cpu_states;
-		si->cpumask = cpumask;
 		si->ncpus = ncpus;
 	} else {
 		si->cpustates = cpu_states;
-		si->cpumask = 1;
 		si->ncpus = 1;
 	}
 	si->memory = memory_stats;
