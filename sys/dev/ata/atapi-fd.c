@@ -233,11 +233,10 @@ afd_strategy(struct bio *bp)
     ccb[7] = count>>8;
     ccb[8] = count;
 
-    if (!(request = ata_alloc_request())) {
+    if (!(request = ata_alloc_request(dev))) {
 	biofinish(bp, NULL, ENOMEM);
 	return;
     }
-    request->dev = dev;
     request->bio = bp;
     bcopy(ccb, request->u.atapi.ccb,
 	  (atadev->param.config & ATA_PROTO_MASK) == 
