@@ -1462,7 +1462,8 @@ sysctl_kern_proc_kstack(SYSCTL_HANDLER_ARGS)
 	name = (int *)arg1;
 	if ((p = pfind((pid_t)name[0])) == NULL)
 		return (ESRCH);
-	if (p->p_flag & P_WEXIT) {
+	/* XXXRW: Not clear ESRCH is the right error during proc execve(). */
+	if (p->p_flag & P_WEXIT || p->p_flag & P_INEXEC) {
 		PROC_UNLOCK(p);
 		return (ESRCH);
 	}
