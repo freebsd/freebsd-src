@@ -234,7 +234,7 @@ struct user {
 };
 
 /*
- * The KERN_PROC_FILE sysctl allows a process to dumpt the file descriptor
+ * The KERN_PROC_FILE sysctl allows a process to dump the file descriptor
  * array of another process.
  */
 #define	KF_TYPE_NONE	0
@@ -257,6 +257,10 @@ struct user {
 #define	KF_VTYPE_VFIFO	7
 #define	KF_VTYPE_VBAD	8
 #define	KF_VTYPE_UNKNOWN	255
+
+#define	KF_FD_TYPE_CWD	-1	/* Current working directory */
+#define	KF_FD_TYPE_ROOT	-2	/* Root directory */
+#define	KF_FD_TYPE_JAIL	-3	/* Jail directory */
 
 #define	KF_FLAG_READ		0x00000001
 #define	KF_FLAG_WRITE		0x00000002
