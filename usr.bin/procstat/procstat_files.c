@@ -134,7 +134,8 @@ void
 procstat_files(pid_t pid, struct kinfo_proc *kipp)
 {
 	struct kinfo_file *freep, *kif;
-	int error, i, name[4];
+	int error, name[4];
+	unsigned int i;
 	const char *str;
 	size_t len;
 
