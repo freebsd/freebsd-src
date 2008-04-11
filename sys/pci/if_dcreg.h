@@ -487,12 +487,10 @@ struct dc_list_data {
 struct dc_chain_data {
 	struct mbuf		*dc_rx_chain[DC_RX_LIST_CNT];
 	struct mbuf		*dc_tx_chain[DC_TX_LIST_CNT];
-	struct mbuf		*dc_tx_mapping;
 	bus_dmamap_t		dc_rx_map[DC_RX_LIST_CNT];
 	bus_dmamap_t		dc_tx_map[DC_TX_LIST_CNT];
 	u_int32_t		*dc_sbuf;
 	u_int8_t		dc_pad[DC_MIN_FRAMELEN];
-	int			dc_tx_err;
 	int			dc_tx_first;
 	int			dc_tx_prod;
 	int			dc_tx_cons;
@@ -730,7 +728,7 @@ struct dc_softc {
 	void			*dc_intrhand;
 	struct resource		*dc_irq;
 	struct resource		*dc_res;
-	struct dc_type		*dc_info;	/* adapter info */
+	const struct dc_type	*dc_info;	/* adapter info */
 	device_t		dc_miibus;
 	u_int8_t		dc_type;
 	u_int8_t		dc_pmode;
