@@ -1393,20 +1393,26 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode, struct thread *
     	case SNDCTL_DSP_SETTRIGGER:
 		if (rdch) {
 			CHN_LOCK(rdch);
-			rdch->flags &= ~(CHN_F_TRIGGERED | CHN_F_NOTRIGGER);
+			rdch->flags &= ~CHN_F_NOTRIGGER;
 		    	if (*arg_i & PCM_ENABLE_INPUT)
 				chn_start(rdch, 1);
-			else
+			else {
+				chn_abort(rdch);
+				chn_resetbuf(rdch);
 				rdch->flags |= CHN_F_NOTRIGGER;
+			}
 			CHN_UNLOCK(rdch);
 		}
 		if (wrch) {
 			CHN_LOCK(wrch);
-			wrch->flags &= ~(CHN_F_TRIGGERED | CHN_F_NOTRIGGER);
+			wrch->flags &= ~CHN_F_NOTRIGGER;
 		    	if (*arg_i & PCM_ENABLE_OUTPUT)
 				chn_start(wrch, 1);
-			else
+			else {
+				chn_abort(wrch);
+				chn_resetbuf(wrch);
 				wrch->flags |= CHN_F_NOTRIGGER;
+			}
 			CHN_UNLOCK(wrch);
 		}
 		break;
