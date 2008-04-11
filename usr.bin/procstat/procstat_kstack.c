@@ -111,8 +111,8 @@ static int
 kinfo_kstack_compare(const void *a, const void *b)
 {
 
-        return ((struct kinfo_kstack *)a)->kkst_tid -
-            ((struct kinfo_kstack *)b)->kkst_tid;
+        return ((const struct kinfo_kstack *)a)->kkst_tid -
+            ((const struct kinfo_kstack *)b)->kkst_tid;
 }
 
 static void
@@ -129,7 +129,8 @@ procstat_kstack(pid_t pid, struct kinfo_proc *kipp, int kflag)
 	struct kinfo_kstack *kkstp, *kkstp_free;
 	struct kinfo_proc *kip, *kip_free;
 	char trace[KKST_MAXLEN];
-	int error, i, j, name[4];
+	int error, name[4];
+	unsigned int i, j;
 	size_t kip_len, kstk_len;
 
 	if (!hflag)

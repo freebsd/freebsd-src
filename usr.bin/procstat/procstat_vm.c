@@ -38,10 +38,11 @@
 #include "procstat.h"
 
 void
-procstat_vm(pid_t pid, struct kinfo_proc *kipp)
+procstat_vm(pid_t pid, struct kinfo_proc *kipp __unused)
 {
 	struct kinfo_vmentry *freep, *kve;
-	int error, i, name[4], ptrwidth;
+	int error, name[4], ptrwidth;
+	unsigned int i;
 	const char *str;
 	size_t len;
 
