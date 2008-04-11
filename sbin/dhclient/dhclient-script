@@ -20,10 +20,8 @@
 #
 
 ARP=/usr/sbin/arp
-AWK=/usr/bin/awk
 HOSTNAME=/bin/hostname
 IFCONFIG='/sbin/ifconfig -n'
-NETSTAT=/usr/bin/netstat
 
 LOCALHOST=127.0.0.1
 
@@ -124,11 +122,12 @@ delete_old_routes() {
 		return 0;
 	fi
 
-	for router in $old_routers; do
-		if [ $if_defaultroute = x -o $if_defaultroute = $interface ]; then
-			route delete default $route >/dev/null 2>&1
-		fi
-	done
+	# If we supported multiple default routes, we'd be removing each
+	# one here.  We don't so just delete the default route if it's
+	# through our interface.
+	if is_default_interface; then
+		route delete default >/dev/null 2>&1
+	fi
 
 	if [ -n "$old_static_routes" ]; then
 		set $old_static_routes
@@ -169,10 +168,13 @@ add_new_routes() {
 	fi
 
 	for router in $new_routers; do
-		if [ "$new_ip_address" = "$router" ]; then
-			route add default -iface $router >/dev/null 2>&1
-		else
-			route add default $router >/dev/null 2>&1
+		if is_default_interface; then
+
+			if [ "$new_ip_address" = "$router" ]; then
+				route add default -iface $router >/dev/null 2>&1
+			else
+				route add default $router >/dev/null 2>&1
+			fi
 		fi
 		# 2nd and subsequent default routers error out, so explicitly
 		# stop processing the list after the first one.
@@ -254,6 +256,31 @@ exit_with_hooks() {
 	exit $exit_status
 }
 
+# Get the interface with the current ipv4 default route on it using only
+# commands that are available prior to /usr being mounted.
+is_default_interface()
+{
+	routeget="`route get -inet default`"
+	oldifs="$IFS"
+	IFS="
+"
+	defif=
+	for line in $routeget ; do
+		case $line in
+		*interface:*)
+			defif=${line##*: }
+			;;
+		esac
+	done
+	IFS=${oldifs}
+
+	if [ -z "$defif" -o "$defif" = "$interface" ]; then
+		return 0
+	else
+		return 1
+	fi
+}
+
 #
 # Start of active code.
 #
@@ -267,12 +294,6 @@ if [ -f /etc/dhclient-enter-hooks ]; then
 	if [ $exit_status -ne 0 ]; then
 		exit $exit_status
 	fi
-fi
-
-if [ -x $NETSTAT ]; then
-	if_defaultroute=`$NETSTAT -rnf inet | $AWK '{if ($1=="default") printf $6}'`
-else
-	if_defaultroute="x"
 fi
 
 case $reason in
@@ -311,7 +332,9 @@ BOUND|RENEW|REBIND|REBOOT)
 	if [ "$new_ip_address" != "$alias_ip_address" ]; then
 		add_new_alias
 	fi
-	add_new_resolv_conf
+	if is_default_interface; then
+		add_new_resolv_conf
+	fi
 	;;
 
 EXPIRE|FAIL)
@@ -325,8 +348,10 @@ EXPIRE|FAIL)
 	fi
 	# XXX Why add alias we just deleted above?
 	add_new_alias
-	if [ -f /etc/resolv.conf.save ]; then
-		cat /etc/resolv.conf.save > /etc/resolv.conf
+	if is_default_interface; then
+		if [ -f /etc/resolv.conf.save ]; then
+			cat /etc/resolv.conf.save > /etc/resolv.conf
+		fi
 	fi
 	;;
 
@@ -342,6 +367,9 @@ TIMEOUT)
 				add_new_alias
 			fi
 			add_new_routes
+			if ! is_default_interface; then
+				exit_with_hooks 0
+			fi
 			if add_new_resolv_conf; then
 				exit_with_hooks 0
 			fi
