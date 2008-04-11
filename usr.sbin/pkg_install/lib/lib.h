@@ -225,6 +225,7 @@ int		real_main(int, char **);
 /* Query installed packages */
 char		**matchinstalled(match_t, char **, int *);
 char		**matchbyorigin(const char *, int *);
+char		**matchallbyorigin(const char **, int *);
 int		isinstalledpkg(const char *name);
 int		pattern_match(match_t MatchType, char *pattern, const char *pkgname);
 
