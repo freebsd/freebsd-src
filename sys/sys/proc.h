@@ -298,6 +298,7 @@ struct thread {
 	struct td_sched	*td_sched;	/* (*) Scheduler-specific data. */
 	struct kaudit_record	*td_ar;	/* (k) Active audit record, if any. */
 	int		td_syscalls;	/* per-thread syscall count (used by NFS :)) */
+	uint64_t	td_incruntime;	/* (t) Cpu ticks to transfer to proc. */
 };
 
 struct mtx *thread_lock_block(struct thread *);

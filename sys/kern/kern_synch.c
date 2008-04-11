@@ -371,7 +371,7 @@ wakeup_one(ident)
 void
 mi_switch(int flags, struct thread *newtd)
 {
-	uint64_t new_switchtime;
+	uint64_t runtime, new_switchtime;
 	struct thread *td;
 	struct proc *p;
 
@@ -409,7 +409,9 @@ mi_switch(int flags, struct thread *newtd)
 	 * thread was running, and add that to its total so far.
 	 */
 	new_switchtime = cpu_ticks();
-	td->td_runtime += new_switchtime - PCPU_GET(switchtime);
+	runtime = new_switchtime - PCPU_GET(switchtime);
+	td->td_runtime += runtime;
+	td->td_incruntime += runtime;
 	PCPU_SET(switchtime, new_switchtime);
 	td->td_generation++;	/* bump preempt-detect counter */
 	PCPU_INC(cnt.v_swtch);
