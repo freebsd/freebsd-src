@@ -482,11 +482,9 @@ get_system_info(struct system_info *si)
 	/* set arrays and strings */
 	if (pcpu_stats) {
 		si->cpustates = pcpu_cpu_states;
-		si->cpumask = cpumask;
 		si->ncpus = ncpus;
 	} else {
 		si->cpustates = cpu_states;
-		si->cpumask = 1;
 		si->ncpus = 1;
 	}
 	si->memory = memory_stats;
