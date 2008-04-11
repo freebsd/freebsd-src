@@ -23,7 +23,7 @@ SRCS+=	opensolaris_string.c
 SRCS+=	opensolaris_vfs.c
 SRCS+=	opensolaris_zone.c
 
-.if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "ia64"
+.if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "ia64" || ${MACHINE_ARCH} == "sparc64"
 .PATH:	${SUNW}/common/atomic/${MACHINE_ARCH}
 SRCS+=	atomic.S
 .else
