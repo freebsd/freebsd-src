@@ -187,6 +187,7 @@ static int	stge_init_rx_ring(struct stge_softc *);
 static void	stge_poll(struct ifnet *, enum poll_cmd, int);
 #endif
 
+static void	stge_setwol(struct stge_softc *);
 static int	sysctl_int_range(SYSCTL_HANDLER_ARGS, int, int);
 static int	sysctl_hw_stge_rxint_nframe(SYSCTL_HANDLER_ARGS);
 static int	sysctl_hw_stge_rxint_dmawait(SYSCTL_HANDLER_ARGS);
@@ -736,6 +737,7 @@ stge_attach(device_t dev)
 		ifp->if_hwassist = 0;
 		ifp->if_capabilities = 0;
 	}
+	ifp->if_capabilities |= IFCAP_WOL_MAGIC;
 	ifp->if_capenable = ifp->if_capabilities;
 
 	/*
@@ -1121,15 +1123,33 @@ stge_dma_free(struct stge_softc *sc)
 static int
 stge_shutdown(device_t dev)
 {
-	struct stge_softc *sc;
 
-	sc = device_get_softc(dev);
+	return (stge_suspend(dev));
+}
 
-	STGE_LOCK(sc);
-	stge_stop(sc);
-	STGE_UNLOCK(sc);
+static void
+stge_setwol(struct stge_softc *sc)
+{
+	struct ifnet *ifp;
+	uint8_t v;
 
-	return (0);
+	STGE_LOCK_ASSERT(sc);
+
+	ifp = sc->sc_ifp;
+	v = CSR_READ_1(sc, STGE_WakeEvent);
+	/* Disable all WOL bits. */
+	v &= ~(WE_WakePktEnable | WE_MagicPktEnable | WE_LinkEventEnable |
+	    WE_WakeOnLanEnable);
+	if ((ifp->if_capenable & IFCAP_WOL_MAGIC) != 0)
+		v |= WE_MagicPktEnable | WE_WakeOnLanEnable;
+	CSR_WRITE_1(sc, STGE_WakeEvent, v);
+	/* Reset Tx and prevent transmission. */
+	CSR_WRITE_4(sc, STGE_AsicCtrl,
+	    CSR_READ_4(sc, STGE_AsicCtrl) | AC_TxReset);
+	/*
+	 * TC9021 automatically reset link speed to 100Mbps when it's put
+	 * into sleep so there is no need to try to resetting link speed.
+	 */
 }
 
 static int
@@ -1142,6 +1162,7 @@ stge_suspend(device_t dev)
 	STGE_LOCK(sc);
 	stge_stop(sc);
 	sc->sc_suspended = 1;
+	stge_setwol(sc);
 	STGE_UNLOCK(sc);
 
 	return (0);
@@ -1152,10 +1173,19 @@ stge_resume(device_t dev)
 {
 	struct stge_softc *sc;
 	struct ifnet *ifp;
+	uint8_t v;
 
 	sc = device_get_softc(dev);
 
 	STGE_LOCK(sc);
+	/*
+	 * Clear WOL bits, so special frames wouldn't interfere
+	 * normal Rx operation anymore.
+	 */
+	v = CSR_READ_1(sc, STGE_WakeEvent);
+	v &= ~(WE_WakePktEnable | WE_MagicPktEnable | WE_LinkEventEnable |
+	    WE_WakeOnLanEnable);
+	CSR_WRITE_1(sc, STGE_WakeEvent, v);
 	ifp = sc->sc_ifp;
 	if (ifp->if_flags & IFF_UP)
 		stge_init_locked(sc);
@@ -1449,6 +1479,11 @@ stge_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				ifp->if_hwassist = STGE_CSUM_FEATURES;
 			else
 				ifp->if_hwassist = 0;
+		}
+		if ((mask & IFCAP_WOL) != 0 &&
+		    (ifp->if_capabilities & IFCAP_WOL) != 0) {
+			if ((mask & IFCAP_WOL_MAGIC) != 0)
+				ifp->if_capenable ^= IFCAP_WOL_MAGIC;
 		}
 		if ((mask & IFCAP_VLAN_HWTAGGING) != 0) {
 			ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
@@ -2096,6 +2131,11 @@ stge_init_locked(struct stge_softc *sc)
 	 */
 	stge_stop(sc);
 
+	/*
+	 * Reset the chip to a known state.
+	 */
+	stge_reset(sc, STGE_RESET_FULL);
+
 	/* Init descriptors. */
 	error = stge_init_rx_ring(sc);
         if (error != 0) {
@@ -2307,11 +2347,6 @@ stge_stop(struct stge_softc *sc)
 	 */
 	callout_stop(&sc->sc_tick_ch);
 	sc->sc_watchdog_timer = 0;
-
-	/*
-	 * Reset the chip to a known state.
-	 */
-	stge_reset(sc, STGE_RESET_FULL);
 
 	/*
 	 * Disable interrupts.
