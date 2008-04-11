@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2006-2007 Broadcom Corporation
+ * Copyright (c) 2006-2008 Broadcom Corporation
  *	David Christensen <davidch@broadcom.com>.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 
 /*
  * This file contains firmware data derived from proprietary unpublished
- * source code, Copyright (c) 2004, 2005, 2007 Broadcom Corporation.
+ * source code, Copyright (c) 2004, 2005, 2007, 2008 Broadcom Corporation.
  *
  * Permission is hereby granted for the distribution of this firmware data
  * in hexadecimal or equivalent format, provided this copyright notice is
