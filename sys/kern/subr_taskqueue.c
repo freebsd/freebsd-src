@@ -408,7 +408,7 @@ taskqueue_thread_loop(void *arg)
 	tq->tq_tcount--;
 	wakeup_one(tq->tq_threads);
 	TQ_UNLOCK(tq);
-	kproc_exit(0);
+	kthread_exit();
 }
 
 void
