@@ -83,7 +83,7 @@ static int ata_raid_sis_read_meta(device_t dev, struct ar_softc **raidp);
 static int ata_raid_sis_write_meta(struct ar_softc *rdp);
 static int ata_raid_via_read_meta(device_t dev, struct ar_softc **raidp);
 static int ata_raid_via_write_meta(struct ar_softc *rdp);
-static struct ata_request *ata_raid_init_request(struct ar_softc *rdp, struct bio *bio);
+static struct ata_request *ata_raid_init_request(device_t dev, struct ar_softc *rdp, struct bio *bio);
 static int ata_raid_send_request(struct ata_request *request);
 static int ata_raid_rw(device_t dev, u_int64_t lba, void *data, u_int bcount, int flags);
 static char * ata_raid_format(struct ar_softc *rdp);
@@ -263,7 +263,7 @@ ata_raid_flush(struct bio *bp)
     for (disk = 0; disk < rdp->total_disks; disk++) {
 	if ((dev = rdp->disks[disk].dev) == NULL)
 	    continue;
-	if (!(request = ata_raid_init_request(rdp, bp)))
+	if (!(request = ata_raid_init_request(dev, rdp, bp)))
 	    return ENOMEM;
 	request->dev = dev;
 	request->u.ata.command = ATA_FLUSHCACHE;
@@ -353,7 +353,7 @@ ata_raid_strategy(struct bio *bp)
 	if (!(drv == 0 && rdp->format == AR_F_HPTV2_RAID))
 	    lba += rdp->offset_sectors;
 
-	if (!(request = ata_raid_init_request(rdp, bp))) {
+	if (!(request = ata_raid_init_request(rdp->disks[drv].dev, rdp, bp))) {
 	    biofinish(bp, NULL, EIO);
 	    return;
 	}
@@ -375,7 +375,7 @@ ata_raid_strategy(struct bio *bp)
 		return;
 	    }
 	    request->this = drv;
-	    request->dev = rdp->disks[request->this].dev;
+	    request->dev = rdp->disks[drv].dev;
 	    ata_raid_send_request(request);
 	    break;
 
@@ -457,12 +457,14 @@ ata_raid_strategy(struct bio *bp)
 		    /* do we have a spare to rebuild on ? */
 		    if (rdp->disks[this].flags & AR_DF_SPARE) {
 			if ((composite = ata_alloc_composite())) {
-			    if ((rebuild = ata_alloc_request())) {
+			    if ((rebuild = ata_raid_init_request(
+				    	   rdp->disks[this].dev, rdp, bp))) {
 				rdp->rebuild_lba = blk + chunk;
-				bcopy(request, rebuild,
-				      sizeof(struct ata_request));
+				rebuild->data = request->data;
+				rebuild->bytecount = request->bytecount;
+				rebuild->u.ata.lba = request->u.ata.lba;
+				rebuild->u.ata.count = request->u.ata.count;
 				rebuild->this = this;
-				rebuild->dev = rdp->disks[this].dev;
 				rebuild->flags &= ~ATA_R_READ;
 				rebuild->flags |= ATA_R_WRITE;
 				mtx_init(&composite->lock,
@@ -518,14 +520,16 @@ ata_raid_strategy(struct bio *bp)
 			int this = drv + rdp->width;
 
 			if ((composite = ata_alloc_composite())) {
-			    if ((mirror = ata_alloc_request())) {
+			    if ((mirror = ata_raid_init_request(
+				    	  rdp->disks[this].dev, rdp, bp))) {
 				if ((blk <= rdp->rebuild_lba) &&
 				    ((blk + chunk) > rdp->rebuild_lba))
 				    rdp->rebuild_lba = blk + chunk;
-				bcopy(request, mirror,
-				      sizeof(struct ata_request));
+				mirror->data = request->data;
+				mirror->bytecount = request->bytecount;
+				mirror->u.ata.lba = request->u.ata.lba;
+				mirror->u.ata.count = request->u.ata.count;
 				mirror->this = this;
-				mirror->dev = rdp->disks[this].dev;
 				mtx_init(&composite->lock,
 					 "ATA PseudoRAID mirror lock",
 					 NULL, MTX_DEF);
@@ -4020,11 +4024,11 @@ ata_raid_via_write_meta(struct ar_softc *rdp)
 }
 
 static struct ata_request *
-ata_raid_init_request(struct ar_softc *rdp, struct bio *bio)
+ata_raid_init_request(device_t dev, struct ar_softc *rdp, struct bio *bio)
 {
     struct ata_request *request;
 
-    if (!(request = ata_alloc_request())) {
+    if (!(request = ata_alloc_request(dev))) {
 	printf("FAILURE - out of memory in ata_raid_init_request\n");
 	return NULL;
     }
@@ -4095,13 +4099,12 @@ ata_raid_rw(device_t dev, u_int64_t lba, void *data, u_int bcount, int flags)
 	return ENOMEM;
     }
 	
-    if (!(request = ata_alloc_request())) {
+    if (!(request = ata_alloc_request(dev))) {
 	device_printf(dev, "FAILURE - out of memory in ata_raid_rw\n");
 	return ENOMEM;
     }
 
     /* setup request */
-    request->dev = dev;
     request->timeout = 10;
     request->retries = 0;
     request->data = data;
