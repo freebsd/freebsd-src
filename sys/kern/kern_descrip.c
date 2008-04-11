@@ -2550,6 +2550,47 @@ sysctl_kern_file(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_kern, KERN_FILE, file, CTLTYPE_OPAQUE|CTLFLAG_RD,
     0, 0, sysctl_kern_file, "S,xfile", "Entire file table");
 
+static int
+export_vnode_for_sysctl(struct vnode *vp, int type,
+    struct kinfo_file *kif, struct filedesc *fdp, struct sysctl_req *req)
+{
+	int error;
+	char *fullpath, *freepath;
+	int vfslocked;
+
+	bzero(kif, sizeof(*kif));
+	kif->kf_structsize = sizeof(*kif);
+
+	vref(vp);
+	kif->kf_fd = type;
+	kif->kf_type = KF_TYPE_VNODE;
+	/* This function only handles directories. */
+	KASSERT(vp->v_type == VDIR, ("export_vnode_for_sysctl: vnode not directory"));
+	kif->kf_vnode_type = KF_VTYPE_VDIR;
+
+	/*
+	 * This is not a true file descriptor, so we set a bogus refcount
+	 * and offset to indicate these fields should be ignored.
+	 */
+	kif->kf_ref_count = -1;
+	kif->kf_offset = -1;
+
+	freepath = NULL;
+	fullpath = "-";
+	FILEDESC_SUNLOCK(fdp);
+	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, curthread);
+	vn_fullpath(curthread, vp, &fullpath, &freepath);
+	vput(vp);
+	VFS_UNLOCK_GIANT(vfslocked);
+	strlcpy(kif->kf_path, fullpath, sizeof(kif->kf_path));
+	if (freepath != NULL)
+		free(freepath, M_TEMP);
+	error = SYSCTL_OUT(req, kif, sizeof(*kif));
+	FILEDESC_SLOCK(fdp);
+	return (error);
+}
+
 /*
  * Get per-process file descriptors for use by procstat(1), et al.
  */
@@ -2577,6 +2618,15 @@ sysctl_kern_proc_filedesc(SYSCTL_HANDLER_ARGS)
 	PROC_UNLOCK(p);
 	kif = malloc(sizeof(*kif), M_TEMP, M_WAITOK);
 	FILEDESC_SLOCK(fdp);
+	if (fdp->fd_cdir != NULL)
+		export_vnode_for_sysctl(fdp->fd_cdir, KF_FD_TYPE_CWD, kif,
+				fdp, req);
+	if (fdp->fd_rdir != NULL)
+		export_vnode_for_sysctl(fdp->fd_rdir, KF_FD_TYPE_ROOT, kif,
+				fdp, req);
+	if (fdp->fd_jdir != NULL)
+		export_vnode_for_sysctl(fdp->fd_jdir, KF_FD_TYPE_JAIL, kif,
+				fdp, req);
 	for (i = 0; i < fdp->fd_nfiles; i++) {
 		if ((fp = fdp->fd_ofiles[i]) == NULL)
 			continue;
