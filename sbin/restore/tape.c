@@ -1379,7 +1379,7 @@ gethead(struct s_spcl *buf)
 	}
 	if (checksum((int *)buf) == FAIL)
 		return (FAIL);
-	if (_time64_to_time(buf->c_date) != dumpdate)
+	if (dumpdate != 0 && _time64_to_time(buf->c_date) != dumpdate)
 		fprintf(stderr, "Header with wrong dumpdate.\n");
 	if (Bcvt) {
 		swabst((u_char *)"8l4s1q8l2q17l", (u_char *)buf);
