@@ -531,7 +531,7 @@ atapi_action(struct cam_sim *sim, union ccb *ccb)
 	    printf("cannot allocate ATAPI/CAM hcb\n");
 	    goto action_oom;
 	}
-	if ((request = ata_alloc_request()) == NULL) {
+	if ((request = ata_alloc_request(softc->atadev[tid]->dev)) == NULL) {
 	    printf("cannot allocate ATAPI/CAM request\n");
 	    goto action_oom;
 	}
@@ -618,7 +618,6 @@ atapi_action(struct cam_sim *sim, union ccb *ccb)
 		goto action_oom;
 	    }
 	}
-	request->dev = softc->atadev[tid]->dev;
 	request->driver = hcb;
 	request->data = buf;
 	request->bytecount = len;
