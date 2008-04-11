@@ -70,7 +70,7 @@ arm_setup_irqhandler(const char *name, driver_filter_t *filt,
 		return;
 	event = intr_events[irq];
 	if (event == NULL) {
-		error = intr_event_create(&event, (void *)irq, 0,
+		error = intr_event_create(&event, (void *)irq, 0, irq,
 		    (mask_fn)arm_mask_irq, (mask_fn)arm_unmask_irq,
 		    NULL, NULL, "intr%d:", irq);
 		if (error)

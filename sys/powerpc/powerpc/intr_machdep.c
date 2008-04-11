@@ -226,7 +226,7 @@ powerpc_setup_intr(const char *name, u_int irq, driver_filter_t filter,
 		return (ENOMEM);
 
 	if (i->event == NULL) {
-		error = intr_event_create(&i->event, (void *)irq, 0,
+		error = intr_event_create(&i->event, (void *)irq, 0, irq,
 		    powerpc_intr_mask, powerpc_intr_unmask, powerpc_intr_eoi,
 		    NULL, "irq%u:", irq);
 		if (error)
