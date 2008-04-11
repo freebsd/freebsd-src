@@ -312,6 +312,7 @@ machine_init(struct statics *statics, char do_unames)
 			err(1, "malloc %zd bytes", size);
 		if (sysctlbyname("kern.cp_times", times, &size, NULL, 0) == -1)
 			err(1, "sysctlbyname kern.cp_times");
+		pcpu_cp_time = calloc(1, size);
 		maxid = (size / CPUSTATES / sizeof(long)) - 1;
 		for (i = 0; i <= maxid; i++) {
 			empty = 1;
@@ -335,7 +336,6 @@ machine_init(struct statics *statics, char do_unames)
 			Header_lines += ncpus - 1; /* 7 */
 		}
 		size = sizeof(long) * ncpus * CPUSTATES;
-		pcpu_cp_time = calloc(1, size);
 		pcpu_cp_old = calloc(1, size);
 		pcpu_cp_diff = calloc(1, size);
 		pcpu_cpu_states = calloc(1, size);
