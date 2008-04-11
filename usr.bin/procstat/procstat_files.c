@@ -140,7 +140,7 @@ procstat_files(pid_t pid, struct kinfo_proc *kipp)
 	size_t len;
 
 	if (!hflag)
-		printf("%5s %-16s %3s %1s %1s %-8s %3s %7s %-3s %-12s\n",
+		printf("%5s %-16s %4s %1s %1s %-8s %3s %7s %-3s %-12s\n",
 		    "PID", "COMM", "FD", "T", "V", "FLAGS", "REF", "OFFSET",
 		    "PRO", "NAME");
 
@@ -172,7 +172,23 @@ procstat_files(pid_t pid, struct kinfo_proc *kipp)
 			errx(-1, "kinfo_file mismatch");
 		printf("%5d ", pid);
 		printf("%-16s ", kipp->ki_comm);
-		printf("%3d ", kif->kf_fd);
+		switch (kif->kf_fd) {
+		case KF_FD_TYPE_CWD:
+			printf(" cwd ");
+			break;
+
+		case KF_FD_TYPE_ROOT:
+			printf("root ");
+			break;
+
+		case KF_FD_TYPE_JAIL:
+			printf("jail ");
+			break;
+
+		default:
+			printf("%4d ", kif->kf_fd);
+			break;
+		}
 		switch (kif->kf_type) {
 		case KF_TYPE_VNODE:
 			str = "v";
@@ -260,8 +276,14 @@ procstat_files(pid_t pid, struct kinfo_proc *kipp)
 		printf("%s", kif->kf_flags & KF_FLAG_NONBLOCK ? "n" : "-");
 		printf("%s", kif->kf_flags & KF_FLAG_DIRECT ? "d" : "-");
 		printf("%s ", kif->kf_flags & KF_FLAG_HASLOCK ? "l" : "-");
-		printf("%3d ", kif->kf_ref_count);
-		printf("%7jd ", (intmax_t)kif->kf_offset);
+		if (kif->kf_ref_count > -1)
+			printf("%3d ", kif->kf_ref_count);
+		else
+			printf("%3c ", '-');
+		if (kif->kf_offset > -1)
+			printf("%7jd ", (intmax_t)kif->kf_offset);
+		else
+			printf("%7c ", '-');
 
 		switch (kif->kf_type) {
 		case KF_TYPE_VNODE:
