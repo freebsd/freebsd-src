@@ -139,6 +139,9 @@ clnt_reconnect_connect(CLIENT *cl)
 		    (struct sockaddr *) &rc->rc_addr, rc->rc_prog, rc->rc_vers,
 		    rc->rc_sendsz, rc->rc_recvsz);
 
+	if (!rc->rc_client)
+		return (rpc_createerr.cf_stat);
+
 	CLNT_CONTROL(rc->rc_client, CLSET_FD_CLOSE, 0);
 	CLNT_CONTROL(rc->rc_client, CLSET_CONNECT, &one);
 	CLNT_CONTROL(rc->rc_client, CLSET_TIMEOUT, &rc->rc_timeout);
@@ -163,8 +166,11 @@ clnt_reconnect_call(
 	enum clnt_stat stat;
 
 	do {
-		if (!rc->rc_client)
-			clnt_reconnect_connect(cl);
+		if (!rc->rc_client) {
+			stat = clnt_reconnect_connect(cl);
+			if (stat != RPC_SUCCESS)
+				return (stat);
+		}
 
 		stat = CLNT_CALL(rc->rc_client, proc, xargs, argsp,
 		    xresults, resultsp, utimeout);
