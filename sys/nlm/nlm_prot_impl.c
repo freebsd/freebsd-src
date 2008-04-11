@@ -161,6 +161,11 @@ TAILQ_HEAD(nlm_async_lock_list, nlm_async_lock);
 /*
  * NLM host.
  */
+enum nlm_host_state {
+	NLM_UNMONITORED,
+	NLM_MONITORED,
+	NLM_MONITOR_FAILED
+};
 struct nlm_host {
 	struct mtx	nh_lock;
 	TAILQ_ENTRY(nlm_host) nh_link; /* (s) global list of hosts */
@@ -171,7 +176,7 @@ struct nlm_host {
 	CLIENT		*nh_rpc;	 /* (s) RPC handle to send to host */
 	rpcvers_t	nh_vers;	 /* (s) NLM version of host */
 	int		nh_state;	 /* (s) last seen NSM state of host */
-	bool_t		nh_monitored;	 /* (s) TRUE if local NSM is monitoring */
+	enum nlm_host_state nh_monstate; /* (s) local NSM monitoring state */
 	time_t		nh_idle_timeout; /* (s) Time at which host is idle */
 	struct sysctl_ctx_list nh_sysctl; /* (c) vfs.nlm.sysid nodes */
 	struct nlm_async_lock_list nh_pending; /* (l) pending async locks */
@@ -607,7 +612,7 @@ nlm_create_host(const char* caller_name)
 	host->nh_rpc = NULL;
 	host->nh_vers = 0;
 	host->nh_state = 0;
-	host->nh_monitored = FALSE;
+	host->nh_monstate = NLM_UNMONITORED;
 	TAILQ_INIT(&host->nh_pending);
 	TAILQ_INIT(&host->nh_finished);
 	TAILQ_INSERT_TAIL(&nlm_hosts, host, nh_link);
@@ -621,7 +626,7 @@ nlm_create_host(const char* caller_name)
 	SYSCTL_ADD_INT(&host->nh_sysctl, SYSCTL_CHILDREN(oid), OID_AUTO,
 	    "version", CTLFLAG_RD, &host->nh_vers, 0, "");
 	SYSCTL_ADD_INT(&host->nh_sysctl, SYSCTL_CHILDREN(oid), OID_AUTO,
-	    "monitored", CTLFLAG_RD, &host->nh_monitored, 0, "");
+	    "monitored", CTLFLAG_RD, &host->nh_monstate, 0, "");
 	SYSCTL_ADD_PROC(&host->nh_sysctl, SYSCTL_CHILDREN(oid), OID_AUTO,
 	    "lock_count", CTLTYPE_INT | CTLFLAG_RD, host, 0,
 	    nlm_host_lock_count_sysctl, "I", "");
@@ -679,7 +684,7 @@ nlm_check_idle(void)
 	nlm_next_idle_check = time_uptime + NLM_IDLE_PERIOD;
 
 	TAILQ_FOREACH(host, &nlm_hosts, nh_link) {
-		if (host->nh_monitored
+		if (host->nh_monstate == NLM_MONITORED
 		    && time_uptime > host->nh_idle_timeout) {
 			if (lf_countlocks(host->nh_sysid) > 0) {
 				host->nh_idle_timeout =
@@ -861,7 +866,7 @@ nlm_host_unmonitor(struct nlm_host *host)
 		return;
 	}
 
-	host->nh_monitored = FALSE;
+	host->nh_monstate = NLM_UNMONITORED;
 }
 
 /*
@@ -896,7 +901,7 @@ nlm_host_monitor(struct nlm_host *host, int state)
 			    host->nh_caller_name, host->nh_sysid, state);
 	}
 
-	if (host->nh_monitored)
+	if (host->nh_monstate != NLM_UNMONITORED)
 		return;
 
 	if (nlm_debug_level >= 1)
@@ -928,10 +933,11 @@ nlm_host_monitor(struct nlm_host *host, int state)
 	if (smstat.res_stat == stat_fail) {
 		printf("Local NSM refuses to monitor %s\n",
 		    host->nh_caller_name);
+		host->nh_monstate = NLM_MONITOR_FAILED;
 		return;
 	}
 
-	host->nh_monitored = TRUE;
+	host->nh_monstate = NLM_MONITORED;
 }
 
 /*
@@ -1265,6 +1271,7 @@ struct vfs_state {
 	struct mount	*vs_mp;
 	struct vnode	*vs_vp;
 	int		vs_vfslocked;
+	int		vs_vnlocked;
 };
 
 static int
@@ -1296,6 +1303,7 @@ nlm_get_vfs_state(struct nlm_host *host, struct svc_req *rqstp,
 	error = VFS_FHTOVP(vs->vs_mp, &fhp->fh_fid, &vs->vs_vp);
 	if (error)
 		goto out;
+	vs->vs_vnlocked = TRUE;
 
 	cred = crget();
 	freecred = TRUE;
@@ -1308,11 +1316,6 @@ nlm_get_vfs_state(struct nlm_host *host, struct svc_req *rqstp,
 		cred = credanon;
 		freecred = FALSE;
 	}
-#if __FreeBSD_version < 800011
-	VOP_UNLOCK(vs->vs_vp, 0, curthread);
-#else
-	VOP_UNLOCK(vs->vs_vp, 0);
-#endif
 
 	/*
 	 * Check cred.
@@ -1320,6 +1323,13 @@ nlm_get_vfs_state(struct nlm_host *host, struct svc_req *rqstp,
 	error = VOP_ACCESS(vs->vs_vp, VWRITE, cred, curthread);
 	if (error)
 		goto out;
+
+#if __FreeBSD_version < 800011
+	VOP_UNLOCK(vs->vs_vp, 0, curthread);
+#else
+	VOP_UNLOCK(vs->vs_vp, 0);
+#endif
+	vs->vs_vnlocked = FALSE;
 
 out:
 	if (freecred)
@@ -1332,8 +1342,12 @@ static void
 nlm_release_vfs_state(struct vfs_state *vs)
 {
 
-	if (vs->vs_vp)
-		vrele(vs->vs_vp);
+	if (vs->vs_vp) {
+		if (vs->vs_vnlocked)
+			vput(vs->vs_vp);
+		else
+			vrele(vs->vs_vp);
+	}
 	if (vs->vs_mp)
 		vfs_rel(vs->vs_mp);
 	VFS_UNLOCK_GIANT(vs->vs_vfslocked);
