@@ -131,6 +131,7 @@ typedef	struct _cpuset {
 #define	CPU_WHICH_TID		1	/* Specifies a thread id. */
 #define	CPU_WHICH_PID		2	/* Specifies a process id. */
 #define	CPU_WHICH_CPUSET	3	/* Specifies a set id. */
+#define	CPU_WHICH_IRQ		4	/* Specifies an irq #. */
 
 /*
  * Reserved cpuset identifiers.
