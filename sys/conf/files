@@ -1159,6 +1159,7 @@ dev/utopia/suni.c		optional utopia
 dev/utopia/utopia.c		optional utopia
 dev/vge/if_vge.c		optional vge
 dev/vkbd/vkbd.c			optional vkbd
+dev/vr/if_vr.c			optional vr pci
 dev/vx/if_vx.c			optional vx
 dev/vx/if_vx_eisa.c		optional vx eisa
 dev/vx/if_vx_pci.c		optional vx pci
@@ -2029,7 +2030,6 @@ pci/if_sf.c			optional sf pci
 pci/if_sis.c			optional sis pci
 pci/if_ste.c			optional ste pci
 pci/if_tl.c			optional tl pci
-pci/if_vr.c			optional vr pci
 pci/if_wb.c			optional wb pci
 pci/if_xl.c			optional xl pci
 pci/intpm.c			optional intpm pci
