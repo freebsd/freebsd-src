@@ -52,8 +52,8 @@ struct rtld_lock {
 	volatile int		lock;
 	volatile int		rd_waiters;
 	volatile int		wr_waiters;
-	volatile umtx_t		rd_cv;
-	volatile umtx_t		wr_cv;
+	volatile long		rd_cv;
+	volatile long		wr_cv;
 	void			*base;
 };
 
@@ -93,7 +93,7 @@ _thr_rtld_rlock_acquire(void *lock)
 {
 	struct pthread		*curthread;
 	struct rtld_lock	*l;
-	umtx_t			v;
+	long			v;
 
 	curthread = _get_curthread();
 	l = (struct rtld_lock *)lock;
@@ -116,7 +116,7 @@ _thr_rtld_wlock_acquire(void *lock)
 {
 	struct pthread		*curthread;
 	struct rtld_lock	*l;
-	umtx_t			v;
+	long			v;
 
 	curthread = _get_curthread();
 	l = (struct rtld_lock *)lock;
@@ -185,7 +185,7 @@ _thr_rtld_init(void)
 {
 	struct RtldLockInfo	li;
 	struct pthread		*curthread;
-	umtx_t dummy;
+	long dummy;
 
 	curthread = _get_curthread();
 

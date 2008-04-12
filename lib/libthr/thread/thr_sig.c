@@ -83,7 +83,7 @@ _thr_ast(struct pthread *curthread)
 void
 _thr_suspend_check(struct pthread *curthread)
 {
-	umtx_t cycle;
+	long cycle;
 	int err;
 
 	err = errno;

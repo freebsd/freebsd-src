@@ -34,7 +34,6 @@
 
 #define DEFAULT_UMUTEX	{0}
 
-typedef long umtx_t;
 
 int __thr_umutex_lock(struct umutex *mtx) __hidden;
 int __thr_umutex_timedlock(struct umutex *mtx,
@@ -45,9 +44,9 @@ int __thr_umutex_set_ceiling(struct umutex *mtx, uint32_t ceiling,
 	uint32_t *oldceiling) __hidden;
 
 void _thr_umutex_init(struct umutex *mtx) __hidden;
-int _thr_umtx_wait(volatile umtx_t *mtx, umtx_t exp,
+int _thr_umtx_wait(volatile long *mtx, long exp,
 	const struct timespec *timeout) __hidden;
-int _thr_umtx_wake(volatile umtx_t *mtx, int count) __hidden;
+int _thr_umtx_wake(volatile long *mtx, int count) __hidden;
 int _thr_ucond_wait(struct ucond *cv, struct umutex *m,
         const struct timespec *timeout, int check_unpaking) __hidden;
 void _thr_ucond_init(struct ucond *cv) __hidden;
