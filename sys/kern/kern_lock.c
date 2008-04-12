@@ -84,11 +84,36 @@ CTASSERT(((LK_CANRECURSE | LK_NOSHARE) & LO_CLASSFLAGS) ==
 	if (LOCK_LOG_TEST(&(lk)->lock_object, 0))			\
 		CTR3(KTR_LOCK, (string), (arg1), (arg2), (arg3))
 
-#define	LK_TRYOP(x)							\
-	((x) & LK_NOWAIT)
+#define	GIANT_DECLARE							\
+	int _i = 0;							\
+	WITNESS_SAVE_DECL(Giant)
+#define	GIANT_RESTORE() do {						\
+	if (_i > 0) {							\
+		while (_i--)						\
+			mtx_lock(&Giant);				\
+		WITNESS_RESTORE(&Giant.lock_object, Giant);		\
+	}								\
+} while (0)
+#define	GIANT_SAVE() do {						\
+	if (mtx_owned(&Giant)) {					\
+		WITNESS_SAVE(&Giant.lock_object, Giant);		\
+		while (mtx_owned(&Giant)) {				\
+			_i++;						\
+			mtx_unlock(&Giant);				\
+		}							\
+	}								\
+} while (0)
+
 #define	LK_CAN_SHARE(x)							\
 	(((x) & LK_SHARE) && (((x) & LK_EXCLUSIVE_WAITERS) == 0 ||	\
 	curthread->td_lk_slocks || (curthread->td_pflags & TDP_DEADLKTREAT)))
+#define	LK_TRYOP(x)							\
+	((x) & LK_NOWAIT)
+
+#define	LK_CAN_WITNESS(x)						\
+	(((x) & LK_NOWITNESS) == 0 && !LK_TRYOP(x))
+#define	LK_TRYWIT(x)							\
+	(LK_TRYOP(x) ? LOP_TRYLOCK : 0)
 
 #define	lockmgr_disowned(lk)						\
 	(((lk)->lk_lock & ~(LK_FLAGMASK & ~LK_SHARE)) == LK_KERNPROC)
@@ -133,6 +158,7 @@ static __inline int
 sleeplk(struct lock *lk, u_int flags, struct lock_object *ilk,
     const char *wmesg, int pri, int timo, int queue)
 {
+	GIANT_DECLARE;
 	struct lock_class *class;
 	int catch, error;
 
@@ -146,7 +172,7 @@ sleeplk(struct lock *lk, u_int flags, struct lock_object *ilk,
 
 	if (flags & LK_INTERLOCK)
 		class->lc_unlock(ilk);
-	DROP_GIANT();
+	GIANT_SAVE();
 	sleepq_add(&lk->lock_object, NULL, wmesg, SLEEPQ_LK | (catch ?
 	    SLEEPQ_INTERRUPTIBLE : 0), queue);
 	if ((flags & LK_TIMELOCK) && timo)
@@ -163,7 +189,7 @@ sleeplk(struct lock *lk, u_int flags, struct lock_object *ilk,
 		error = sleepq_wait_sig(&lk->lock_object, pri);
 	else
 		sleepq_wait(&lk->lock_object, pri);
-	PICKUP_GIANT();
+	GIANT_RESTORE();
 	if ((flags & LK_SLEEPFAIL) && error == 0)
 		error = ENOLCK;
 
@@ -178,6 +204,7 @@ wakeupshlk(struct lock *lk, const char *file, int line)
 
 	TD_LOCKS_DEC(curthread);
 	TD_SLOCKS_DEC(curthread);
+	WITNESS_UNLOCK(&lk->lock_object, 0, file, line);
 	LOCK_LOG_LOCK("SUNLOCK", &lk->lock_object, 0, 0, file, line);
 
 	for (;;) {
@@ -302,6 +329,7 @@ int
 __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
     const char *wmesg, int pri, int timo, const char *file, int line)
 {
+	GIANT_DECLARE;
 	uint64_t waittime;
 	struct lock_class *class;
 	const char *iwmesg;
@@ -341,6 +369,9 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 
 	switch (op) {
 	case LK_SHARED:
+		if (LK_CAN_WITNESS(flags))
+			WITNESS_CHECKORDER(&lk->lock_object, LOP_NEWORDER,
+			    file, line);
 		for (;;) {
 			x = lk->lk_lock;
 
@@ -435,6 +466,8 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 			    contested, waittime, file, line);
 			LOCK_LOG_LOCK("SLOCK", &lk->lock_object, 0, 0, file,
 			    line);
+			WITNESS_LOCK(&lk->lock_object, LK_TRYWIT(flags), file,
+			    line);
 			TD_LOCKS_INC(curthread);
 			TD_SLOCKS_INC(curthread);
 			STACK_SAVE(lk);
@@ -452,6 +485,8 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 		    tid | x)) {
 			LOCK_LOG_LOCK("XUPGRADE", &lk->lock_object, 0, 0, file,
 			    line);
+			WITNESS_UPGRADE(&lk->lock_object, LOP_EXCLUSIVE |
+			    LK_TRYWIT(flags), file, line);
 			TD_SLOCKS_DEC(curthread);
 			break;
 		}
@@ -464,6 +499,9 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 
 		/* FALLTHROUGH */
 	case LK_EXCLUSIVE:
+		if (LK_CAN_WITNESS(flags))
+			WITNESS_CHECKORDER(&lk->lock_object, LOP_NEWORDER |
+			    LOP_EXCLUSIVE, file, line);
 
 		/*
 		 * If curthread alredy holds the lock and this one is
@@ -493,6 +531,8 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 			LOCK_LOG2(lk, "%s: %p recursing", __func__, lk);
 			LOCK_LOG_LOCK("XLOCK", &lk->lock_object, 0,
 			    lk->lk_recurse, file, line);
+			WITNESS_LOCK(&lk->lock_object, LOP_EXCLUSIVE |
+			    LK_TRYWIT(flags), file, line);
 			TD_LOCKS_INC(curthread);
 			break;
 		}
@@ -588,12 +628,17 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 			    contested, waittime, file, line);
 			LOCK_LOG_LOCK("XLOCK", &lk->lock_object, 0,
 			    lk->lk_recurse, file, line);
+			WITNESS_LOCK(&lk->lock_object, LOP_EXCLUSIVE |
+			    LK_TRYWIT(flags), file, line);
 			TD_LOCKS_INC(curthread);
 			STACK_SAVE(lk);
 		}
 		break;
 	case LK_DOWNGRADE:
 		_lockmgr_assert(lk, KA_XLOCKED | KA_NOTRECURSED, file, line);
+		LOCK_LOG_LOCK("XDOWNGRADE", &lk->lock_object, 0, 0, file, line);
+		WITNESS_DOWNGRADE(&lk->lock_object, 0, file, line);
+		TD_SLOCKS_INC(curthread);
 
 		/*
 		 * In order to preserve waiters flags, just spin.
@@ -601,12 +646,8 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 		for (;;) {
 			x = lk->lk_lock & LK_ALL_WAITERS;
 			if (atomic_cmpset_rel_ptr(&lk->lk_lock, tid | x,
-			    LK_SHARERS_LOCK(1) | x)) {
-				LOCK_LOG_LOCK("XDOWNGRADE", &lk->lock_object,
-				    0, 0, file, line);
-				TD_SLOCKS_INC(curthread);
+			    LK_SHARERS_LOCK(1) | x))
 				break;
-			}
 			cpu_spinwait();
 		}
 		break;
@@ -623,8 +664,11 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 			 */
 			if (LK_HOLDER(x) == LK_KERNPROC)
 				tid = LK_KERNPROC;
-			else
+			else {
+				WITNESS_UNLOCK(&lk->lock_object, LOP_EXCLUSIVE,
+				    file, line);
 				TD_LOCKS_DEC(curthread);
+			}
 			LOCK_LOG_LOCK("XUNLOCK", &lk->lock_object, 0,
 			    lk->lk_recurse, file, line);
 
@@ -673,6 +717,9 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 			wakeupshlk(lk, file, line);
 		break;
 	case LK_DRAIN:
+		if (LK_CAN_WITNESS(flags))
+			WITNESS_CHECKORDER(&lk->lock_object, LOP_NEWORDER |
+			    LOP_EXCLUSIVE, file, line);
 
 		/*
 		 * Trying to drain a lock we alredy own will result in a
@@ -775,11 +822,11 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 				class->lc_unlock(ilk);
 				flags &= ~LK_INTERLOCK;
 			}
-			DROP_GIANT();
+			GIANT_SAVE();
 			sleepq_add(&lk->lock_object, NULL, iwmesg, SLEEPQ_LK,
 			    SQ_EXCLUSIVE_QUEUE);
 			sleepq_wait(&lk->lock_object, ipri & PRIMASK);
-			PICKUP_GIANT();
+			GIANT_RESTORE();
 			LOCK_LOG2(lk, "%s: %p resuming from the sleep queue",
 			    __func__, lk);
 		}
@@ -789,6 +836,8 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 			    contested, waittime, file, line);
 			LOCK_LOG_LOCK("DRAIN", &lk->lock_object, 0,
 			    lk->lk_recurse, file, line);
+			WITNESS_LOCK(&lk->lock_object, LOP_EXCLUSIVE |
+			    LK_TRYWIT(flags), file, line);
 			TD_LOCKS_INC(curthread);
 			STACK_SAVE(lk);
 		}
@@ -818,6 +867,9 @@ _lockmgr_disown(struct lock *lk, const char *file, int line)
 	 */
 	if (LK_HOLDER(lk->lk_lock) != tid)
 		return;
+	LOCK_LOG_LOCK("XDISOWN", &lk->lock_object, 0, 0, file, line);
+	WITNESS_UNLOCK(&lk->lock_object, LOP_EXCLUSIVE, file, line);
+	TD_LOCKS_DEC(curthread);
 
 	/*
 	 * In order to preserve waiters flags, just spin.
@@ -825,12 +877,8 @@ _lockmgr_disown(struct lock *lk, const char *file, int line)
 	for (;;) {
 		x = lk->lk_lock & LK_ALL_WAITERS;
 		if (atomic_cmpset_ptr(&lk->lk_lock, tid | x,
-		    LK_KERNPROC | x)) {
-			LOCK_LOG_LOCK("XDISOWN", &lk->lock_object, 0, 0, file,
-			    line);
-			TD_LOCKS_DEC(curthread);
+		    LK_KERNPROC | x))
 			return;
-		}
 		cpu_spinwait();
 	}
 }
@@ -903,6 +951,19 @@ _lockmgr_assert(struct lock *lk, int what, const char *file, int line)
 	case KA_LOCKED:
 	case KA_LOCKED | KA_NOTRECURSED:
 	case KA_LOCKED | KA_RECURSED:
+#ifdef WITNESS
+
+		/*
+		 * We cannot trust WITNESS if the lock is held in exclusive
+		 * mode and a call to lockmgr_disown() happened.
+		 * Workaround this skipping the check if the lock is held in
+		 * exclusive mode even for the KA_LOCKED case.
+		 */
+		if (slocked || (lk->lk_lock & LK_SHARE)) {
+			witness_assert(&lk->lock_object, what, file, line);
+			break;
+		}
+#endif
 		if (lk->lk_lock == LK_UNLOCKED ||
 		    ((lk->lk_lock & LK_SHARE) == 0 && (slocked ||
 		    (!lockmgr_xlocked(lk) && !lockmgr_disowned(lk)))))
