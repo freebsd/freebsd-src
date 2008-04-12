@@ -179,7 +179,7 @@ clock_ct_to_ts(struct clocktime *ct, struct timespec *ts)
 	ts->tv_sec = secs;
 	ts->tv_nsec = ct->nsec;
 	if (ct_debug)
-		printf(" = %d.%09ld\n", ts->tv_sec, (long)ts->tv_nsec);
+		printf(" = %ld.%09ld\n", (long)ts->tv_sec, (long)ts->tv_nsec);
 	return (0);
 }
 
@@ -217,7 +217,8 @@ clock_ts_to_ct(struct timespec *ts, struct clocktime *ct)
 	ct->sec  = rsec;
 	ct->nsec = ts->tv_nsec;
 	if (ct_debug) {
-		printf("ts_to_ct(%d.%09ld) = ", ts->tv_sec, (long)ts->tv_nsec);
+		printf("ts_to_ct(%ld.%09ld) = ",
+		    (long)ts->tv_sec, (long)ts->tv_nsec);
 		print_ct(ct);
 		printf("\n");
 	}
