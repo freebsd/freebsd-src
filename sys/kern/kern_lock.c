@@ -319,6 +319,8 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 	itimo = (timo == LK_TIMO_DEFAULT) ? lk->lk_timo : timo;
 
 	MPASS((flags & ~LK_TOTAL_MASK) == 0);
+	KASSERT((op & (op - 1)) == 0,
+	    ("%s: Invalid requested operation @ %s:%d", __func__, file, line));
 	KASSERT((flags & (LK_NOWAIT | LK_SLEEPFAIL)) == 0 ||
 	    (op != LK_DOWNGRADE && op != LK_RELEASE),
 	    ("%s: Invalid flags in regard of the operation desired @ %s:%d",
@@ -797,10 +799,6 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 		panic("%s: unknown lockmgr request 0x%x\n", __func__, op);
 	}
 
-	/*
-	 * We could have exited from the switch without reacquiring the
-	 * interlock, so we need to check for the interlock ownership.
-	 */
 	if (flags & LK_INTERLOCK)
 		class->lc_unlock(ilk);
 
