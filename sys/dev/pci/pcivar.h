@@ -238,7 +238,7 @@ enum pci_device_ivars {
     PCI_IVAR_CACHELNSZ,
     PCI_IVAR_MINGNT,
     PCI_IVAR_MAXLAT,
-    PCI_IVAR_LATTIMER,
+    PCI_IVAR_LATTIMER
 };
 
 /*
