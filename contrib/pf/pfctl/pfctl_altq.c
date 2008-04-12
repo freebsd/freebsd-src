@@ -169,6 +169,10 @@ print_altq(const struct pf_altq *a, unsigned level, struct node_queue_bw *bw,
 		return;
 	}
 
+#ifdef __FreeBSD__
+	if (a->local_flags & PFALTQ_FLAG_IF_REMOVED)
+		printf("INACTIVE ");
+#endif
 	printf("altq on %s ", a->ifname);
 
 	switch (a->scheduler) {
@@ -203,6 +207,10 @@ print_queue(const struct pf_altq *a, unsigned level, struct node_queue_bw *bw,
 {
 	unsigned	i;
 
+#ifdef __FreeBSD__
+	if (a->local_flags & PFALTQ_FLAG_IF_REMOVED)
+		printf("INACTIVE ");
+#endif
 	printf("queue ");
 	for (i = 0; i < level; ++i)
 		printf(" ");
@@ -1164,7 +1172,11 @@ getifmtu(char *ifname)
 	    sizeof(ifr.ifr_name))
 		errx(1, "getifmtu: strlcpy");
 	if (ioctl(s, SIOCGIFMTU, (caddr_t)&ifr) == -1)
+#ifdef __FreeBSD__
+		ifr.ifr_mtu = 1500;
+#else
 		err(1, "SIOCGIFMTU");
+#endif
 	if (shutdown(s, SHUT_RDWR) == -1)
 		err(1, "shutdown");
 	if (close(s))
