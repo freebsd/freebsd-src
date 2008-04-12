@@ -39,8 +39,10 @@
  * SUCH DAMAGE.
  *
  *      from:   @(#)pmap.c      7.7 (Berkeley)  5/12/91
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * Manages physical address maps.
@@ -81,7 +83,7 @@
 
 #include <dev/ofw/openfirm.h>
 
-#include <vm/vm.h> 
+#include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_page.h>
@@ -380,7 +382,7 @@ pmap_bootstrap(vm_offset_t ekva)
 	PATCH(tl1_dmmu_miss_patch_2);
 	PATCH(tl1_dmmu_prot_patch_1);
 	PATCH(tl1_dmmu_prot_patch_2);
-	
+
 	/*
 	 * Enter fake 8k pages for the 4MB kernel pages, so that
 	 * pmap_kextract() will work for them.
@@ -505,7 +507,11 @@ pmap_bootstrap(vm_offset_t ekva)
 		pm->pm_context[i] = TLB_CTX_KERNEL;
 	pm->pm_active = ~0;
 
-	/* XXX flush all non-locked tlb entries */
+	/*
+	 * Flush all non-locked TLB entries possibly left over by the
+	 * firmware.
+	 */
+	tlb_flush_nonlocked();
 }
 
 void
@@ -739,7 +745,7 @@ pmap_cache_enter(vm_page_t m, vm_offset_t va)
 
 	/*
 	 * If the mapping is already non-cacheable, just return.
-	 */	
+	 */
 	if (m->md.color == -1) {
 		PMAP_STATS_INC(pmap_ncache_enter_nc);
 		return (0);
@@ -1931,6 +1937,7 @@ pmap_clear_write(vm_page_t m)
 int
 pmap_mincore(pmap_t pm, vm_offset_t addr)
 {
+
 	/* TODO; */
 	return (0);
 }

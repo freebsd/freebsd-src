@@ -59,6 +59,8 @@
 #define	TLB_DEMAP_TYPE_SHIFT		(6)
 #define	TLB_DEMAP_TYPE_PAGE		(0)
 #define	TLB_DEMAP_TYPE_CONTEXT		(1)
+/* US-III and greater only */
+#define	TLB_DEMAP_TYPE_ALL		(2)
 
 #define	TLB_DEMAP_VA(va)		((va) & ~PAGE_MASK)
 #define	TLB_DEMAP_ID(id)		((id) << TLB_DEMAP_ID_SHIFT)
@@ -66,6 +68,7 @@
 
 #define	TLB_DEMAP_PAGE			(TLB_DEMAP_TYPE(TLB_DEMAP_TYPE_PAGE))
 #define	TLB_DEMAP_CONTEXT		(TLB_DEMAP_TYPE(TLB_DEMAP_TYPE_CONTEXT))
+#define	TLB_DEMAP_ALL			(TLB_DEMAP_TYPE(TLB_DEMAP_TYPE_ALL))
 
 #define	TLB_DEMAP_PRIMARY		(TLB_DEMAP_ID(TLB_DEMAP_ID_PRIMARY))
 #define	TLB_DEMAP_SECONDARY		(TLB_DEMAP_ID(TLB_DEMAP_ID_SECONDARY))
@@ -93,6 +96,7 @@
 #define	MMU_SFSR_W			(1UL << MMU_SFSR_W_SHIFT)
 #define	MMU_SFSR_FV			(1UL << MMU_SFSR_FV_SHIFT)
 
+typedef void tlb_flush_nonlocked_t(void);
 typedef void tlb_flush_user_t(void);
 
 struct pmap;
@@ -105,9 +109,13 @@ void	tlb_context_demap(struct pmap *pm);
 void	tlb_page_demap(struct pmap *pm, vm_offset_t va);
 void	tlb_range_demap(struct pmap *pm, vm_offset_t start, vm_offset_t end);
 
+tlb_flush_nonlocked_t cheetah_tlb_flush_nonlocked;
 tlb_flush_user_t cheetah_tlb_flush_user;
+
+tlb_flush_nonlocked_t spitfire_tlb_flush_nonlocked;
 tlb_flush_user_t spitfire_tlb_flush_user;
 
+extern tlb_flush_nonlocked_t *tlb_flush_nonlocked;
 extern tlb_flush_user_t *tlb_flush_user;
 
 #endif /* !_MACHINE_TLB_H_ */
