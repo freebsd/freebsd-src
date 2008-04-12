@@ -41,6 +41,7 @@ _Qp_ ## op(u_int *c, u_int *a, u_int *b) \
 	struct fpemu fe; \
 	struct fpn *r; \
 	__asm __volatile("stx %%fsr, %0" : "=m" (fe.fe_fsr) :); \
+	fe.fe_cx = 0; \
 	fe.fe_f1.fp_sign = a[0] >> 31; \
 	fe.fe_f1.fp_sticky = 0; \
 	fe.fe_f1.fp_class = __fpu_qtof(&fe.fe_f1, a[0], a[1], a[2], a[3]); \
@@ -49,6 +50,8 @@ _Qp_ ## op(u_int *c, u_int *a, u_int *b) \
 	fe.fe_f2.fp_class = __fpu_qtof(&fe.fe_f2, b[0], b[1], b[2], b[3]); \
 	r = __fpu_ ## op(&fe); \
 	c[0] = __fpu_ftoq(&fe, r, c); \
+	fe.fe_fsr |= fe.fe_cx << FSR_AEXC_SHIFT; \
+	__asm __volatile("ldx %0, %%fsr" : : "m" (fe.fe_fsr)); \
 }
 
 #define	_QP_TTOQ(qname, fname, ntype, signpos, atype, ...) \
@@ -59,10 +62,13 @@ _Qp_ ## qname ## toq(u_int *c, ntype n) \
 	struct fpemu fe; \
 	union { atype a[2]; ntype n; } u = { .n = n }; \
 	__asm __volatile("stx %%fsr, %0" : "=m" (fe.fe_fsr) :); \
+	fe.fe_cx = 0; \
 	fe.fe_f1.fp_sign = (signpos >= 0) ? u.a[0] >> signpos : 0; \
 	fe.fe_f1.fp_sticky = 0; \
 	fe.fe_f1.fp_class = __fpu_ ## fname ## tof(&fe.fe_f1, __VA_ARGS__); \
 	c[0] = __fpu_ftoq(&fe, &fe.fe_f1, c); \
+	fe.fe_fsr |= fe.fe_cx << FSR_AEXC_SHIFT; \
+	__asm __volatile("ldx %0, %%fsr" : : "m" (fe.fe_fsr)); \
 }
 
 #define	_QP_QTOT(qname, fname, type, ...) \
@@ -73,10 +79,13 @@ _Qp_qto ## qname(u_int *c) \
 	struct fpemu fe; \
 	union { u_int a; type n; } u; \
 	__asm __volatile("stx %%fsr, %0" : "=m" (fe.fe_fsr) :); \
+	fe.fe_cx = 0; \
 	fe.fe_f1.fp_sign = c[0] >> 31; \
 	fe.fe_f1.fp_sticky = 0; \
 	fe.fe_f1.fp_class = __fpu_qtof(&fe.fe_f1, c[0], c[1], c[2], c[3]); \
 	u.a = __fpu_fto ## fname(&fe, &fe.fe_f1, ## __VA_ARGS__); \
+	fe.fe_fsr |= fe.fe_cx << FSR_AEXC_SHIFT; \
+	__asm __volatile("ldx %0, %%fsr" : : "m" (fe.fe_fsr)); \
 	return (u.n); \
 }
 
@@ -95,6 +104,7 @@ _Qp_ ## name(u_int *a, u_int *b) \
 { \
 	struct fpemu fe; \
 	__asm __volatile("stx %%fsr, %0" : "=m" (fe.fe_fsr) :); \
+	fe.fe_cx = 0; \
 	fe.fe_f1.fp_sign = a[0] >> 31; \
 	fe.fe_f1.fp_sticky = 0; \
 	fe.fe_f1.fp_class = __fpu_qtof(&fe.fe_f1, a[0], a[1], a[2], a[3]); \
@@ -102,6 +112,8 @@ _Qp_ ## name(u_int *a, u_int *b) \
 	fe.fe_f2.fp_sticky = 0; \
 	fe.fe_f2.fp_class = __fpu_qtof(&fe.fe_f2, b[0], b[1], b[2], b[3]); \
 	__fpu_compare(&fe, cmpe, 0); \
+	fe.fe_fsr |= fe.fe_cx << FSR_AEXC_SHIFT; \
+	__asm __volatile("ldx %0, %%fsr" : : "m" (fe.fe_fsr)); \
 	return (test(FSR_GET_FCC0(fe.fe_fsr))); \
 }
 
@@ -112,11 +124,14 @@ _Qp_sqrt(u_int *c, u_int *a)
 	struct fpemu fe;
 	struct fpn *r;
 	__asm __volatile("stx %%fsr, %0" : "=m" (fe.fe_fsr) :);
+	fe.fe_cx = 0;
 	fe.fe_f1.fp_sign = a[0] >> 31;
 	fe.fe_f1.fp_sticky = 0;
 	fe.fe_f1.fp_class = __fpu_qtof(&fe.fe_f1, a[0], a[1], a[2], a[3]);
 	r = __fpu_sqrt(&fe);
 	c[0] = __fpu_ftoq(&fe, r, c);
+	fe.fe_fsr |= fe.fe_cx << FSR_AEXC_SHIFT;
+	__asm __volatile("ldx %0, %%fsr" : : "m" (fe.fe_fsr));
 }
 
 _QP_OP(add)
