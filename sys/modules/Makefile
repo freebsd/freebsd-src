@@ -140,6 +140,7 @@ SUBDIR=	${_3dfx} \
 	${_iwifw} \
 	${_ixgb} \
 	joy \
+	${_k8temp} \
 	kbdmux \
 	krpc \
 	kue \
@@ -533,6 +534,7 @@ _ips=		ips
 _ipw=		ipw
 _ipwfw=		ipwfw
 _ixgb=		ixgb
+_k8temp=	k8temp
 _linprocfs=	linprocfs
 _linsysfs=	linsysfs
 _linux=		linux

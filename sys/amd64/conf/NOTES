@@ -444,8 +444,10 @@ device		ichwd
 # Temperature sensors:
 #
 # coretemp: on-die sensor on Intel Core and newer CPUs
+# k8temp: on-die sensor on AMD K8 CPUs
 #
 device		coretemp
+device		k8temp
 
 #---------------------------------------------------------------------------
 # ISDN4BSD
