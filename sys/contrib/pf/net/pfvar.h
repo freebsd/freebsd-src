@@ -1212,6 +1212,10 @@ struct pf_altq {
 	u_int32_t		 parent_qid;	/* parent queue id */
 	u_int32_t		 bandwidth;	/* queue bandwidth */
 	u_int8_t		 priority;	/* priority */
+#ifdef __FreeBSD__
+	u_int8_t		 local_flags;	/* dynamic interface */
+#define	PFALTQ_FLAG_IF_REMOVED		0x01
+#endif
 	u_int16_t		 qlimit;	/* queue size limit */
 	u_int16_t		 flags;		/* misc flags */
 	union {
@@ -1519,6 +1523,9 @@ extern void			 pf_tbladdr_remove(struct pf_addr_wrap *);
 extern void			 pf_tbladdr_copyout(struct pf_addr_wrap *);
 extern void			 pf_calc_skip_steps(struct pf_rulequeue *);
 #ifdef __FreeBSD__
+#ifdef ALTQ
+extern void			 pf_altq_ifnet_event(struct ifnet *, int);
+#endif
 extern uma_zone_t		 pf_src_tree_pl, pf_rule_pl;
 extern uma_zone_t		 pf_state_pl, pf_altq_pl, pf_pooladdr_pl;
 extern uma_zone_t		 pfr_ktable_pl, pfr_kentry_pl, pfr_kentry_pl2;
