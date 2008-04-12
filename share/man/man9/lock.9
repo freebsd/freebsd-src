@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 6, 2008
+.Dd April 12, 2008
 .Dt LOCK 9
 .Os
 .Sh NAME
@@ -178,6 +178,10 @@ Fail if operation has slept.
 .It Dv LK_NOWAIT
 Do not allow the call to sleep.
 This can be used to test the lock.
+.It Dv LK_NOWITNESS
+Skip the
+.Xr witness 4
+checks for this instance.
 .It Dv LK_CANRECURSE
 Allow recursion on an exclusive lock.
 For every lock there must be a release.
