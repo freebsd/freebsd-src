@@ -240,6 +240,9 @@ pfi_attach_ifnet_event(void *arg __unused, struct ifnet *ifp)
 {
 	PF_LOCK();
 	pfi_attach_ifnet(ifp);
+#ifdef ALTQ
+	pf_altq_ifnet_event(ifp, 0);
+#endif
 	PF_UNLOCK();
 }
 
@@ -248,6 +251,9 @@ pfi_detach_ifnet_event(void *arg __unused, struct ifnet *ifp)
 {
 	PF_LOCK();
 	pfi_detach_ifnet(ifp);
+#ifdef ALTQ
+	pf_altq_ifnet_event(ifp, 1);
+#endif
 	PF_UNLOCK();
 }
 #endif /* __FreeBSD__ */
