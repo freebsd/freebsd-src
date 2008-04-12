@@ -149,8 +149,6 @@ void	_rw_assert(struct rwlock *rw, int what, const char *file, int line);
 
 /*
  * Public interface for lock operations.
- *
- * XXX: Missing try locks.
  */
 
 #ifndef LOCK_DEBUG
