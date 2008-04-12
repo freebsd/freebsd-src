@@ -157,6 +157,7 @@ static void	acpi_cpu_generic_cx_probe(struct acpi_cpu_softc *sc);
 static int	acpi_cpu_cx_cst(struct acpi_cpu_softc *sc);
 static void	acpi_cpu_startup(void *arg);
 static void	acpi_cpu_startup_cx(struct acpi_cpu_softc *sc);
+static void	acpi_cpu_cx_list(struct acpi_cpu_softc *sc);
 static void	acpi_cpu_idle(void);
 static void	acpi_cpu_notify(ACPI_HANDLE h, UINT32 notify, void *context);
 static int	acpi_cpu_quirks(void);
@@ -801,7 +802,7 @@ acpi_cpu_startup(void *arg)
 }
 
 static void
-acpi_cpu_startup_cx(struct acpi_cpu_softc *sc)
+acpi_cpu_cx_list(struct acpi_cpu_softc *sc)
 {
     struct sbuf sb;
     int i;
@@ -819,7 +820,13 @@ acpi_cpu_startup_cx(struct acpi_cpu_softc *sc)
     }
     sbuf_trim(&sb);
     sbuf_finish(&sb);
+}	
 
+static void
+acpi_cpu_startup_cx(struct acpi_cpu_softc *sc)
+{
+    acpi_cpu_cx_list(sc);
+    
     SYSCTL_ADD_STRING(&sc->cpu_sysctl_ctx,
 		      SYSCTL_CHILDREN(device_get_sysctl_tree(sc->cpu_dev)),
 		      OID_AUTO, "cx_supported", CTLFLAG_RD,
@@ -998,12 +1005,25 @@ static void
 acpi_cpu_notify(ACPI_HANDLE h, UINT32 notify, void *context)
 {
     struct acpi_cpu_softc *sc = (struct acpi_cpu_softc *)context;
-
+    struct acpi_cpu_softc *isc;
+    int i;
+    
     if (notify != ACPI_NOTIFY_CX_STATES)
 	return;
 
-    device_printf(sc->cpu_dev, "Cx states changed\n");
-    /* acpi_cpu_cx_cst(sc); */
+    /* Update the list of Cx states. */
+    acpi_cpu_cx_cst(sc);
+    acpi_cpu_cx_list(sc);
+
+    /* Update the new lowest useable Cx state for all CPUs. */
+    ACPI_SERIAL_BEGIN(cpu);
+    cpu_cx_count = 0;
+    for (i = 0; i < cpu_ndevices; i++) {
+	isc = device_get_softc(cpu_devices[i]);
+	if (isc->cpu_cx_count > cpu_cx_count)
+	    cpu_cx_count = isc->cpu_cx_count;
+    }
+    ACPI_SERIAL_END(cpu);
 }
 
 static int
