@@ -224,6 +224,8 @@ static const struct ubsa_product {
 	{ USB_VENDOR_PERACOM, USB_PRODUCT_PERACOM_SERIAL1 },
 	/* Novatel Wireless Merlin cards */
 	{ USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_U740 },
+	/* Novatel Wireless Merlin v740 */
+	{ USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_V740 },
 	/* Option Vodafone MC3G */
 	{ USB_VENDOR_OPTION, USB_PRODUCT_OPTION_VODAFONEMC3G },
 	/* Option GlobeTrotter 3G */
