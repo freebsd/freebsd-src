@@ -439,6 +439,7 @@ static struct witness_order_list_entry order_lists[] = {
 	/*
 	 * leaf locks
 	 */
+	{ "intrcnt", &lock_class_mtx_spin },
 	{ "icu", &lock_class_mtx_spin },
 #if defined(SMP) && defined(__sparc64__)
 	{ "ipi", &lock_class_mtx_spin },
@@ -448,6 +449,7 @@ static struct witness_order_list_entry order_lists[] = {
 	{ "descriptor tables", &lock_class_mtx_spin },
 #endif
 	{ "clk", &lock_class_mtx_spin },
+	{ "cpuset", &lock_class_mtx_spin },
 	{ "mprof lock", &lock_class_mtx_spin },
 	{ "zombie lock", &lock_class_mtx_spin },
 	{ "ALD Queue", &lock_class_mtx_spin },
