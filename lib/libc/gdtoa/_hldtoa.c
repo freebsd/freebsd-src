@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <ieeefp.h>
 #endif
 
+#include "../stdio/floatio.h"
 #include "fpmath.h"
 #include "gdtoaimp.h"
 
