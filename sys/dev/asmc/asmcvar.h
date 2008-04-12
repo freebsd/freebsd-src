@@ -126,9 +126,12 @@ struct asmc_softc {
 /*
  * Temperatures.
  *
- * First for MacBook, second for MacBook Pro, then for Intel Mac Mini.
- * 
+ * First for MacBook, second for MacBook Pro, third for Intel Mac Mini and
+ * last Mac Pro 8-core.
+ *
  */
+/* maximum array size for temperatures including the last NULL */
+#define ASMC_TEMP_MAX		36
 #define ASMC_MB_TEMPS		{ "TB0T", "TN0P", "TN1P", "Th0H", "Th1H", \
 				  "TM0P", NULL }
 #define ASMC_MB_TEMPNAMES	{ "enclosure", "northbridge1", \
@@ -156,3 +159,30 @@ struct asmc_softc {
 #define ASMC_MM_TEMPNAMES	{ "northbridge1", "northbridge2" }
 #define ASMC_MM_TEMPDESCS	{ "Northbridge Point 1", \
 				  "Northbridge Point 2" }
+
+#define ASMC_MP_TEMPS		{ "TA0P", "TCAG", "TCAH", "TCBG", "TCBH", \
+				  "TC0C", "TC0D", "TC0P", "TC1C", "TC1D", \
+				  "TC2C", "TC2D", "TC3C", "TC3D", "THTG", \
+				  "TH0P", "TH1P", "TH2P", "TH3P", "TMAP", \
+				  "TMAS", "TMBS", "TM0P", "TM0S", "TM1P", \
+				  "TM1S", "TM2P", "TM2S", "TM3S", "TM8P", \
+				  "TM8S", "TM9P", "TM9S", "TN0H", "TS0C", \
+				  NULL }
+
+#define ASMC_MP_TEMPNAMES	{ "TA0P", "TCAG", "TCAH", "TCBG", "TCBH", \
+				  "TC0C", "TC0D", "TC0P", "TC1C", "TC1D", \
+				  "TC2C", "TC2D", "TC3C", "TC3D", "THTG", \
+				  "TH0P", "TH1P", "TH2P", "TH3P", "TMAP", \
+				  "TMAS", "TMBS", "TM0P", "TM0S", "TM1P", \
+				  "TM1S", "TM2P", "TM2S", "TM3S", "TM8P", \
+				  "TM8S", "TM9P", "TM9S", "TN0H", "TS0C", \
+				  NULL }
+
+#define ASMC_MP_TEMPDESCS	{ "TA0P", "TCAG", "TCAH", "TCBG", "TCBH", \
+				  "TC0C", "TC0D", "TC0P", "TC1C", "TC1D", \
+				  "TC2C", "TC2D", "TC3C", "TC3D", "THTG", \
+				  "TH0P", "TH1P", "TH2P", "TH3P", "TMAP", \
+				  "TMAS", "TMBS", "TM0P", "TM0S", "TM1P", \
+				  "TM1S", "TM2P", "TM2S", "TM3S", "TM8P", \
+				  "TM8S", "TM9P", "TM9S", "TN0H", "TS0C", \
+				  NULL }
