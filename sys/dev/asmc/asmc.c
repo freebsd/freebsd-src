@@ -114,9 +114,9 @@ struct asmc_model {
 	int (*smc_light_left)(SYSCTL_HANDLER_ARGS);
 	int (*smc_light_right)(SYSCTL_HANDLER_ARGS);
 
-	const char 	*smc_temps[8];
-	const char 	*smc_tempnames[8];
-	const char 	*smc_tempdescs[8];
+	const char 	*smc_temps[ASMC_TEMP_MAX];
+	const char 	*smc_tempnames[ASMC_TEMP_MAX];
+	const char 	*smc_tempdescs[ASMC_TEMP_MAX];
 };
 
 static struct asmc_model *asmc_match(device_t dev);
@@ -189,6 +189,15 @@ struct asmc_model asmc_models[] = {
 	  ASMC_MM_TEMPS, ASMC_MM_TEMPNAMES, ASMC_MM_TEMPDESCS
 	},
 
+	/* Idem for the MacPro */
+	{
+	  "MacPro2", "Apple SMC Mac Pro (8-core)",
+	  NULL, NULL, NULL,
+	  ASMC_FAN_FUNCS,
+	  NULL, NULL,
+	  ASMC_MP_TEMPS, ASMC_MP_TEMPNAMES, ASMC_MP_TEMPDESCS
+	},
+	
 	{ NULL, NULL }
 };
 
