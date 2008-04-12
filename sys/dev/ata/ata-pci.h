@@ -459,6 +459,7 @@ int ata_pci_release_resource(device_t dev, device_t child, int type, int rid, st
 int ata_pci_setup_intr(device_t dev, device_t child, struct resource *irq, int flags, driver_filter_t *filter, driver_intr_t *function, void *argument, void **cookiep);
  int ata_pci_teardown_intr(device_t dev, device_t child, struct resource *irq, void *cookie);
 int ata_pci_allocate(device_t dev);
+int ata_pci_status(device_t dev);
 void ata_pci_hw(device_t dev);
 void ata_pci_dmainit(device_t dev);
 char *ata_pcivendor2str(device_t dev);
