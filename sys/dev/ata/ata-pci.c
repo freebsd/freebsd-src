@@ -422,7 +422,7 @@ ata_pci_allocate(device_t dev)
     return 0;
 }
 
-static int
+int
 ata_pci_status(device_t dev)
 {
     struct ata_channel *ch = device_get_softc(dev);

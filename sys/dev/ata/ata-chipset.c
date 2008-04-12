@@ -2417,13 +2417,11 @@ ata_intel_31244_allocate(device_t dev)
 static int
 ata_intel_31244_status(device_t dev)
 {
-    struct ata_channel *ch = device_get_softc(dev);
-
     /* do we have any PHY events ? */
     ata_sata_phy_check_events(dev);
 
     /* any drive action to take care of ? */
-    return ch->hw.status(dev);
+    return ata_pci_status(dev);
 }
 
 static void
@@ -3751,7 +3749,7 @@ ata_promise_status(device_t dev)
     struct ata_channel *ch = device_get_softc(dev);
 
     if (ATA_INL(ctlr->r_res1, 0x1c) & (ch->unit ? 0x00004000 : 0x00000400)) {
-	return ch->hw.status(dev);
+	return ata_pci_status(dev);
     }
     return 0;
 }
@@ -3918,7 +3916,7 @@ ata_promise_tx2_status(device_t dev)
 
     ATA_IDX_OUTB(ch, ATA_BMDEVSPEC_0, 0x0b);
     if (ATA_IDX_INB(ch, ATA_BMDEVSPEC_1) & 0x20) {
-	return ch->hw.status(dev);
+	return ata_pci_status(dev);
     }
     return 0;
 }
@@ -5040,7 +5038,7 @@ ata_cmd_status(device_t dev)
 	 (ch->unit ? 0x08 : 0x04))) {
 	pci_write_config(device_get_parent(dev), 0x71,
 			 reg71 & ~(ch->unit ? 0x04 : 0x08), 1);
-	return ch->hw.status(dev);
+	return ata_pci_status(dev);
     }
     return 0;
 }
@@ -5162,7 +5160,7 @@ ata_sii_status(device_t dev)
 	ata_sata_phy_check_events(dev);
 
     if (ATA_INL(ctlr->r_res2, 0xa0 + offset1) & 0x00000800)
-	return ch->hw.status(dev);
+	return ata_pci_status(dev);
     else
 	return 0;
 }
