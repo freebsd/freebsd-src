@@ -34,6 +34,21 @@ __FBSDID("$FreeBSD$");
 #define	_MUTEX_LOCK(x)		if (__isthreaded) _pthread_mutex_lock(x)
 #define	_MUTEX_UNLOCK(x)	if (__isthreaded) _pthread_mutex_unlock(x)
 
+#define _RWLOCK_RDLOCK(x)						\
+		do {							\
+			if (__isthreaded) _pthread_rwlock_rdlock(x);	\
+		} while (0)
+
+#define _RWLOCK_WRLOCK(x)						\
+		do {							\
+			if (__isthreaded) _pthread_rwlock_wrlock(x);	\
+		} while (0)
+
+#define _RWLOCK_UNLOCK(x)						\
+		do {							\
+			if (__isthreaded) _pthread_rwlock_unlock(x);	\
+		} while (0)
+
 /*
 ** SunOS 4.1.1 headers lack O_BINARY.
 */
@@ -196,7 +211,7 @@ static struct state	gmtmem;
 static char		lcl_TZname[TZ_STRLEN_MAX + 1];
 static int		lcl_is_set;
 static int		gmt_is_set;
-static pthread_mutex_t	lcl_mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_rwlock_t	lcl_rwlock = PTHREAD_RWLOCK_INITIALIZER;
 static pthread_mutex_t	gmt_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 char *			tzname[2] = {
@@ -949,10 +964,18 @@ struct state * const	sp;
 }
 
 static void
-tzsetwall_basic(void)
+tzsetwall_basic(int rdlocked)
 {
-	if (lcl_is_set < 0)
+	if (!rdlocked)
+		_RWLOCK_RDLOCK(&lcl_rwlock);
+	if (lcl_is_set < 0) {
+		if (!rdlocked)
+			_RWLOCK_UNLOCK(&lcl_rwlock);
 		return;
+	}
+	_RWLOCK_UNLOCK(&lcl_rwlock);
+
+	_RWLOCK_WRLOCK(&lcl_rwlock);
 	lcl_is_set = -1;
 
 #ifdef ALL_STATE
@@ -960,6 +983,9 @@ tzsetwall_basic(void)
 		lclptr = (struct state *) malloc(sizeof *lclptr);
 		if (lclptr == NULL) {
 			settzname();	/* all we can do */
+			_RWLOCK_UNLOCK(&lcl_rwlock);
+			if (rdlocked)
+				_RWLOCK_RDLOCK(&lcl_rwlock);
 			return;
 		}
 	}
@@ -967,29 +993,39 @@ tzsetwall_basic(void)
 	if (tzload((char *) NULL, lclptr) != 0)
 		gmtload(lclptr);
 	settzname();
+	_RWLOCK_UNLOCK(&lcl_rwlock);
+
+	if (rdlocked)
+		_RWLOCK_RDLOCK(&lcl_rwlock);
 }
 
 void
 tzsetwall(void)
 {
-	_MUTEX_LOCK(&lcl_mutex);
-	tzsetwall_basic();
-	_MUTEX_UNLOCK(&lcl_mutex);
+	tzsetwall_basic(0);
 }
 
 static void
-tzset_basic(void)
+tzset_basic(int rdlocked)
 {
 	const char *	name;
 
 	name = getenv("TZ");
 	if (name == NULL) {
-		tzsetwall_basic();
+		tzsetwall_basic(rdlocked);
 		return;
 	}
 
-	if (lcl_is_set > 0 && strcmp(lcl_TZname, name) == 0)
+	if (!rdlocked)
+		_RWLOCK_RDLOCK(&lcl_rwlock);
+	if (lcl_is_set > 0 && strcmp(lcl_TZname, name) == 0) {
+		if (!rdlocked)
+			_RWLOCK_UNLOCK(&lcl_rwlock);
 		return;
+	}
+	_RWLOCK_UNLOCK(&lcl_rwlock);
+
+	_RWLOCK_WRLOCK(&lcl_rwlock);
 	lcl_is_set = strlen(name) < sizeof lcl_TZname;
 	if (lcl_is_set)
 		(void) strcpy(lcl_TZname, name);
@@ -999,6 +1035,9 @@ tzset_basic(void)
 		lclptr = (struct state *) malloc(sizeof *lclptr);
 		if (lclptr == NULL) {
 			settzname();	/* all we can do */
+			_RWLOCK_UNLOCK(&lcl_rwlock);
+			if (rdlocked)
+				_RWLOCK_RDLOCK(&lcl_rwlock);
 			return;
 		}
 	}
@@ -1018,14 +1057,16 @@ tzset_basic(void)
 		if (name[0] == ':' || tzparse(name, lclptr, FALSE) != 0)
 			(void) gmtload(lclptr);
 	settzname();
+	_RWLOCK_UNLOCK(&lcl_rwlock);
+
+	if (rdlocked)
+		_RWLOCK_RDLOCK(&lcl_rwlock);
 }
 
 void
 tzset(void)
 {
-	_MUTEX_LOCK(&lcl_mutex);
-	tzset_basic();
-	_MUTEX_UNLOCK(&lcl_mutex);
+	tzset_basic(0);
 }
 
 /*
@@ -1108,13 +1149,13 @@ const time_t * const	timep;
 				return(NULL);
 			_pthread_setspecific(localtime_key, p_tm);
 		}
-		_pthread_mutex_lock(&lcl_mutex);
-		tzset_basic();
+		_RWLOCK_RDLOCK(&lcl_rwlock);
+		tzset_basic(1);
 		localsub(timep, 0L, p_tm);
-		_pthread_mutex_unlock(&lcl_mutex);
+		_RWLOCK_UNLOCK(&lcl_rwlock);
 		return(p_tm);
 	} else {
-		tzset_basic();
+		tzset_basic(0);
 		localsub(timep, 0L, &tm);
 		return(&tm);
 	}
@@ -1129,10 +1170,10 @@ localtime_r(timep, tm)
 const time_t * const	timep;
 struct tm *		tm;
 {
-	_MUTEX_LOCK(&lcl_mutex);
-	tzset_basic();
+	_RWLOCK_RDLOCK(&lcl_rwlock);
+	tzset_basic(1);
 	localsub(timep, 0L, tm);
-	_MUTEX_UNLOCK(&lcl_mutex);
+	_RWLOCK_UNLOCK(&lcl_rwlock);
 	return tm;
 }
 
@@ -1680,10 +1721,10 @@ mktime(tmp)
 struct tm * const	tmp;
 {
 	time_t mktime_return_value;
-	_MUTEX_LOCK(&lcl_mutex);
-	tzset_basic();
+	_RWLOCK_RDLOCK(&lcl_rwlock);
+	tzset_basic(1);
 	mktime_return_value = time1(tmp, localsub, 0L);
-	_MUTEX_UNLOCK(&lcl_mutex);
+	_RWLOCK_UNLOCK(&lcl_rwlock);
 	return(mktime_return_value);
 }
 
