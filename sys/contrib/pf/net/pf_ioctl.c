@@ -787,7 +787,12 @@ pf_begin_altq(u_int32_t *ticket)
 	/* Purge the old altq list */
 	while ((altq = TAILQ_FIRST(pf_altqs_inactive)) != NULL) {
 		TAILQ_REMOVE(pf_altqs_inactive, altq, entries);
+#ifdef __FreeBSD__
+		if (altq->qname[0] == 0 &&
+		    (altq->local_flags & PFALTQ_FLAG_IF_REMOVED) == 0) {
+#else
 		if (altq->qname[0] == 0) {
+#endif
 			/* detach and destroy the discipline */
 			error = altq_remove(altq);
 		} else
@@ -812,7 +817,12 @@ pf_rollback_altq(u_int32_t ticket)
 	/* Purge the old altq list */
 	while ((altq = TAILQ_FIRST(pf_altqs_inactive)) != NULL) {
 		TAILQ_REMOVE(pf_altqs_inactive, altq, entries);
+#ifdef __FreeBSD__
+		if (altq->qname[0] == 0 &&
+		    (altq->local_flags & PFALTQ_FLAG_IF_REMOVED) == 0) {
+#else
 		if (altq->qname[0] == 0) {
+#endif
 			/* detach and destroy the discipline */
 			error = altq_remove(altq);
 		} else
@@ -842,7 +852,12 @@ pf_commit_altq(u_int32_t ticket)
 
 	/* Attach new disciplines */
 	TAILQ_FOREACH(altq, pf_altqs_active, entries) {
+#ifdef __FreeBSD__
+		if (altq->qname[0] == 0 &&
+		    (altq->local_flags & PFALTQ_FLAG_IF_REMOVED) == 0) {
+#else
 		if (altq->qname[0] == 0) {
+#endif
 			/* attach the discipline */
 			error = altq_pfattach(altq);
 			if (error == 0 && pf_altq_running)
@@ -857,7 +872,12 @@ pf_commit_altq(u_int32_t ticket)
 	/* Purge the old altq list */
 	while ((altq = TAILQ_FIRST(pf_altqs_inactive)) != NULL) {
 		TAILQ_REMOVE(pf_altqs_inactive, altq, entries);
+#ifdef __FreeBSD__
+		if (altq->qname[0] == 0 &&
+		    (altq->local_flags & PFALTQ_FLAG_IF_REMOVED) == 0) {
+#else
 		if (altq->qname[0] == 0) {
+#endif
 			/* detach and destroy the discipline */
 			if (pf_altq_running)
 				error = pf_disable_altq(altq);
@@ -943,6 +963,76 @@ pf_disable_altq(struct pf_altq *altq)
 
 	return (error);
 }
+
+#ifdef __FreeBSD__
+void
+pf_altq_ifnet_event(struct ifnet *ifp, int remove)
+{
+	struct ifnet		*ifp1;
+	struct pf_altq		*a1, *a2, *a3;
+	u_int32_t		 ticket;
+	int			 error = 0;
+
+	/* Interrupt userland queue modifications */
+	if (altqs_inactive_open)
+		pf_rollback_altq(ticket_altqs_inactive);
+
+	/* Start new altq ruleset */
+	if (pf_begin_altq(&ticket))
+		return;
+
+	/* Copy the current active set */
+	TAILQ_FOREACH(a1, pf_altqs_active, entries) {
+		a2 = pool_get(&pf_altq_pl, PR_NOWAIT);
+		if (a2 == NULL) {
+			error = ENOMEM;
+			break;
+		}
+		bcopy(a1, a2, sizeof(struct pf_altq));
+
+		if (a2->qname[0] != 0) {
+			if ((a2->qid = pf_qname2qid(a2->qname)) == 0) {
+				error = EBUSY;
+				pool_put(&pf_altq_pl, a2);
+				break;
+			}
+			a2->altq_disc = NULL;
+			TAILQ_FOREACH(a3, pf_altqs_inactive, entries) {
+				if (strncmp(a3->ifname, a2->ifname,
+				    IFNAMSIZ) == 0 && a3->qname[0] == 0) {
+					a2->altq_disc = a3->altq_disc;
+					break;
+				}
+			}
+		}
+		/* Deactivate the interface in question */
+		a2->local_flags &= ~PFALTQ_FLAG_IF_REMOVED;
+		if ((ifp1 = ifunit(a2->ifname)) == NULL ||
+		    (remove && ifp1 == ifp)) {
+			a2->local_flags |= PFALTQ_FLAG_IF_REMOVED;
+		} else {
+			PF_UNLOCK();
+			error = altq_add(a2);
+			PF_LOCK();
+
+			if (ticket != ticket_altqs_inactive)
+				error = EBUSY;
+
+			if (error) {
+				pool_put(&pf_altq_pl, a2);
+				break;
+			}
+		}
+
+		TAILQ_INSERT_TAIL(pf_altqs_inactive, a2, entries);
+	}
+
+	if (error != 0)
+		pf_rollback_altq(ticket);
+	else
+		pf_commit_altq(ticket);
+}
+#endif
 #endif /* ALTQ */
 
 int
@@ -2273,7 +2363,12 @@ pfioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 
 		/* enable all altq interfaces on active list */
 		TAILQ_FOREACH(altq, pf_altqs_active, entries) {
+#ifdef __FreeBSD__
+			if (altq->qname[0] == 0 && (altq->local_flags &
+			    PFALTQ_FLAG_IF_REMOVED) == 0) {
+#else
 			if (altq->qname[0] == 0) {
+#endif
 				error = pf_enable_altq(altq);
 				if (error != 0)
 					break;
@@ -2290,7 +2385,12 @@ pfioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 
 		/* disable all altq interfaces on active list */
 		TAILQ_FOREACH(altq, pf_altqs_active, entries) {
+#ifdef __FreeBSD__
+			if (altq->qname[0] == 0 && (altq->local_flags &
+			    PFALTQ_FLAG_IF_REMOVED) == 0) {
+#else
 			if (altq->qname[0] == 0) {
+#endif
 				error = pf_disable_altq(altq);
 				if (error != 0)
 					break;
@@ -2316,6 +2416,9 @@ pfioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 			break;
 		}
 		bcopy(&pa->altq, altq, sizeof(struct pf_altq));
+#ifdef __FreeBSD__
+		altq->local_flags = 0;
+#endif
 
 		/*
 		 * if this is for a queue, find the discipline and
@@ -2327,6 +2430,7 @@ pfioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 				pool_put(&pf_altq_pl, altq);
 				break;
 			}
+			altq->altq_disc = NULL;
 			TAILQ_FOREACH(a, pf_altqs_inactive, entries) {
 				if (strncmp(a->ifname, altq->ifname,
 				    IFNAMSIZ) == 0 && a->qname[0] == 0) {
@@ -2337,11 +2441,17 @@ pfioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 		}
 
 #ifdef __FreeBSD__
-		PF_UNLOCK();
+		struct ifnet *ifp;
+
+		if ((ifp = ifunit(altq->ifname)) == NULL) {
+			altq->local_flags |= PFALTQ_FLAG_IF_REMOVED;
+		} else {
+			PF_UNLOCK();
 #endif		
 		error = altq_add(altq);
 #ifdef __FreeBSD__
-		PF_LOCK();
+			PF_LOCK();
+		}
 #endif
 		if (error) {
 			pool_put(&pf_altq_pl, altq);
@@ -2414,6 +2524,10 @@ pfioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 			break;
 		}
 #ifdef __FreeBSD__
+		if ((altq->local_flags & PFALTQ_FLAG_IF_REMOVED) != 0) {
+			error = ENXIO;
+			break;
+		}
 		PF_UNLOCK();
 #endif
 		error = altq_getqstats(altq, pq->buf, &nbytes);
