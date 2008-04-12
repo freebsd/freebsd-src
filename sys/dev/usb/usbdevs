@@ -1771,6 +1771,7 @@ product NOVATECH RT2573		0x9021	RT2573
 
 /* Novatel Wireless products */
 product NOVATEL CDMA_MODEM	0x1110	Novatel Wireless Merlin CDMA
+product NOVATEL V740		0x1120	Merlin V740
 product NOVATEL U740		0x1400	Merlin U740
 product NOVATEL2 FLEXPACKGPS	0x0100	NovAtel FlexPack GPS receiver
 
