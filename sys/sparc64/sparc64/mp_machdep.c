@@ -346,6 +346,11 @@ cpu_mp_bootstrap(struct pcpu *pc)
 
 	csa = &cpu_start_args;
 	pmap_map_tsb();
+	/*
+	 * Flush all non-locked TLB entries possibly left over by the
+	 * firmware.
+	 */
+	tlb_flush_nonlocked();
 	cpu_setregs(pc);
 	tick_start();
 
