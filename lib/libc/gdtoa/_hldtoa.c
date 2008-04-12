@@ -30,64 +30,79 @@ __FBSDID("$FreeBSD$");
 #include <float.h>
 #include <limits.h>
 #include <math.h>
+#include <stdint.h>
+
+#ifdef __i386__
+#include <ieeefp.h>
+#endif
+
 #include "fpmath.h"
 #include "gdtoaimp.h"
+
+#if (LDBL_MANT_DIG > DBL_MANT_DIG)
 
 /* Strings values used by dtoa() */
 #define	INFSTR	"Infinity"
 #define	NANSTR	"NaN"
 
-#define	DBL_ADJ	(DBL_MAX_EXP - 2)
-#define	SIGFIGS	((DBL_MANT_DIG + 3) / 4 + 1)
+#ifdef LDBL_IMPLICIT_NBIT
+#define	MANH_SIZE	LDBL_MANH_SIZE
+#else
+#define	MANH_SIZE	(LDBL_MANH_SIZE - 1)
+#endif
+
+#if MANH_SIZE > 32
+typedef uint64_t manh_t;
+#else
+typedef uint32_t manh_t;
+#endif
+
+#if LDBL_MANL_SIZE > 32
+typedef uint64_t manl_t;
+#else
+typedef uint32_t manl_t;
+#endif
+
+#define	LDBL_ADJ	(LDBL_MAX_EXP - 2)
+#define	SIGFIGS		((LDBL_MANT_DIG + 3) / 4 + 1)
 
 static const float one[] = { 1.0f, -1.0f };
 
 /*
- * This procedure converts a double-precision number in IEEE format
- * into a string of hexadecimal digits and an exponent of 2.  Its
- * behavior is bug-for-bug compatible with dtoa() in mode 2, with the
- * following exceptions:
- *
- * - An ndigits < 0 causes it to use as many digits as necessary to
- *   represent the number exactly.
- * - The additional xdigs argument should point to either the string
- *   "0123456789ABCDEF" or the string "0123456789abcdef", depending on
- *   which case is desired.
- * - This routine does not repeat dtoa's mistake of setting decpt
- *   to 9999 in the case of an infinity or NaN.  INT_MAX is used
- *   for this purpose instead.
- *
- * Note that the C99 standard does not specify what the leading digit
- * should be for non-zero numbers.  For instance, 0x1.3p3 is the same
- * as 0x2.6p2 is the same as 0x4.cp3.  This implementation always makes
- * the leading digit a 1. This ensures that the exponent printed is the
- * actual base-2 exponent, i.e., ilogb(d).
- *
- * Inputs:	d, xdigs, ndigits
- * Outputs:	decpt, sign, rve
+ * This is the long double version of __hdtoa().
  */
 char *
-__hdtoa(double d, const char *xdigs, int ndigits, int *decpt, int *sign,
+__hldtoa(long double e, const char *xdigs, int ndigits, int *decpt, int *sign,
     char **rve)
 {
-	union IEEEd2bits u;
+	union IEEEl2bits u;
 	char *s, *s0;
+	manh_t manh;
+	manl_t manl;
 	int bufsize;
-	uint32_t manh, manl;
+#ifdef __i386__
+	fp_prec_t oldprec;
+#endif
 
-	u.d = d;
+	u.e = e;
 	*sign = u.bits.sign;
 
-	switch (fpclassify(d)) {
+	switch (fpclassify(e)) {
 	case FP_NORMAL:
-		*decpt = u.bits.exp - DBL_ADJ;
+		*decpt = u.bits.exp - LDBL_ADJ;
 		break;
 	case FP_ZERO:
 		*decpt = 1;
 		return (nrv_alloc("0", rve, 1));
 	case FP_SUBNORMAL:
-		u.d *= 0x1p514;
-		*decpt = u.bits.exp - (514 + DBL_ADJ);
+#ifdef __i386__
+		oldprec = fpsetprec(FP_PE);
+#endif
+		u.e *= 0x1p514L;
+		*decpt = u.bits.exp - (514 + LDBL_ADJ);
+#ifdef __i386__
+		fpsetprec(oldprec);
+#endif
 		break;
 	case FP_INFINITE:
 		*decpt = INT_MAX;
@@ -112,19 +127,26 @@ __hdtoa(double d, const char *xdigs, int ndigits, int *decpt, int *sign,
 	/* Round to the desired number of digits. */
 	if (SIGFIGS > ndigits && ndigits > 0) {
 		float redux = one[u.bits.sign];
-		int offset = 4 * ndigits + DBL_MAX_EXP - 4 - DBL_MANT_DIG;
+		int offset = 4 * ndigits + LDBL_MAX_EXP - 4 - LDBL_MANT_DIG;
+#ifdef __i386__
+		oldprec = fpsetprec(FP_PE);
+#endif
 		u.bits.exp = offset;
-		u.d += redux;
-		u.d -= redux;
+		u.e += redux;
+		u.e -= redux;
 		*decpt += u.bits.exp - offset;
+#ifdef __i386__
+		fpsetprec(oldprec);
+#endif
 	}
 
+	mask_nbit_l(u);
 	manh = u.bits.manh;
-	manl = u.bits.manl;
+	manl = u.bits.manl;	
 	*s0 = '1';
 	for (s = s0 + 1; s < s0 + bufsize; s++) {
-		*s = xdigs[(manh >> (DBL_MANH_SIZE - 4)) & 0xf];
-		manh = (manh << 4) | (manl >> (DBL_MANL_SIZE - 4));
+		*s = xdigs[(manh >> (MANH_SIZE - 4)) & 0xf];
+		manh = (manh << 4) | (manl >> (LDBL_MANL_SIZE - 4));
 		manl <<= 4;
 	}
 
@@ -140,3 +162,15 @@ __hdtoa(double d, const char *xdigs, int ndigits, int *decpt, int *sign,
 		*rve = s;
 	return (s0);
 }
+
+#else	/* (LDBL_MANT_DIG == DBL_MANT_DIG) */
+
+char *
+__hldtoa(long double e, const char *xdigs, int ndigits, int *decpt, int *sign,
+    char **rve)
+{
+
+	return (__hdtoa((double)e, xdigs, ndigits, decpt, sign, rve));
+}
+
+#endif	/* (LDBL_MANT_DIG == DBL_MANT_DIG) */
