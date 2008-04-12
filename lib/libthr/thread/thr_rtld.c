@@ -36,6 +36,9 @@
 #include "rtld_lock.h"
 #include "thr_private.h"
 
+#undef errno
+extern int errno;
+
 #define CACHE_LINE_SIZE		64
 #define WAFLAG			0x1
 #define RC_INCR			0x2
@@ -88,20 +91,38 @@ _thr_rtld_lock_destroy(void *lock)
 	free(l->base);
 }
 
+#define SAVE_ERRNO()	{			\
+	if (curthread != _thr_initial)		\
+		errsave = curthread->error;	\
+	else					\
+		errsave = errno;		\
+}
+
+#define RESTORE_ERRNO()	{ 			\
+	if (curthread != _thr_initial)  	\
+		curthread->error = errsave;	\
+	else					\
+		errno = errsave;		\
+}
+
 static void
 _thr_rtld_rlock_acquire(void *lock)
 {
 	struct pthread		*curthread;
 	struct rtld_lock	*l;
 	long			v;
+	int			errsave;
 
 	curthread = _get_curthread();
+	SAVE_ERRNO();
 	l = (struct rtld_lock *)lock;
 
 	THR_CRITICAL_ENTER(curthread);
 	atomic_add_acq_int(&l->lock, RC_INCR);
-	if (!(l->lock & WAFLAG))
+	if (!(l->lock & WAFLAG)) {
+		RESTORE_ERRNO();
 		return;
+	}
 	v = l->rd_cv;
 	atomic_add_int(&l->rd_waiters, 1);
 	while (l->lock & WAFLAG) {
@@ -109,6 +130,7 @@ _thr_rtld_rlock_acquire(void *lock)
 		v = l->rd_cv;
 	}
 	atomic_add_int(&l->rd_waiters, -1);
+	RESTORE_ERRNO();
 }
 
 static void
@@ -117,14 +139,18 @@ _thr_rtld_wlock_acquire(void *lock)
 	struct pthread		*curthread;
 	struct rtld_lock	*l;
 	long			v;
+	int			errsave;
 
 	curthread = _get_curthread();
+	SAVE_ERRNO();
 	l = (struct rtld_lock *)lock;
 
 	_thr_signal_block(curthread);
 	for (;;) {
-		if (atomic_cmpset_acq_int(&l->lock, 0, WAFLAG))
+		if (atomic_cmpset_acq_int(&l->lock, 0, WAFLAG)) {
+			RESTORE_ERRNO();
 			return;
+		}
 		v = l->wr_cv;
 		atomic_add_int(&l->wr_waiters, 1);
 		while (l->lock != 0) {
@@ -140,8 +166,10 @@ _thr_rtld_lock_release(void *lock)
 {
 	struct pthread		*curthread;
 	struct rtld_lock	*l;
+	int			errsave;
 
 	curthread = _get_curthread();
+	SAVE_ERRNO();
 	l = (struct rtld_lock *)lock;
 	
 	if ((l->lock & WAFLAG) == 0) {
@@ -162,6 +190,7 @@ _thr_rtld_lock_release(void *lock)
 		}
 		_thr_signal_unblock(curthread);
 	}
+	RESTORE_ERRNO();
 }
 
 static int
@@ -190,7 +219,10 @@ _thr_rtld_init(void)
 	curthread = _get_curthread();
 
 	/* force to resolve _umtx_op PLT */
-	_umtx_op((struct umtx *)&dummy, UMTX_OP_WAKE, 1, 0, 0);
+	_umtx_op_err((struct umtx *)&dummy, UMTX_OP_WAKE, 1, 0, 0);
+	
+	/* force to resolve errno() PLT */
+	__error();
 
 	li.lock_create  = _thr_rtld_lock_create;
 	li.lock_destroy = _thr_rtld_lock_destroy;
