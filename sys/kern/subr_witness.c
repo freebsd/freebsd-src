@@ -930,14 +930,6 @@ witness_checkorder(struct lock_object *lock, int flags, const char *file,
 	}
 
 	/*
-	 * Try locks do not block if they fail to acquire the lock, thus
-	 * there is no danger of deadlocks or of switching while holding a
-	 * spin lock if we acquire a lock via a try operation.
-	 */
-	if (flags & LOP_TRYLOCK)
-		return;
-
-	/*
 	 * Check for duplicate locks of the same type.  Note that we only
 	 * have to check for this on the last lock we just acquired.  Any
 	 * other cases will be caught as lock order violations.
@@ -1205,9 +1197,6 @@ witness_upgrade(struct lock_object *lock, int flags, const char *file, int line)
 	if ((lock->lo_flags & LO_UPGRADABLE) == 0)
 		panic("upgrade of non-upgradable lock (%s) %s @ %s:%d",
 		    class->lc_name, lock->lo_name, file, line);
-	if ((flags & LOP_TRYLOCK) == 0)
-		panic("non-try upgrade of lock (%s) %s @ %s:%d", class->lc_name,
-		    lock->lo_name, file, line);
 	if ((class->lc_flags & LC_SLEEPLOCK) == 0)
 		panic("upgrade of non-sleep lock (%s) %s @ %s:%d",
 		    class->lc_name, lock->lo_name, file, line);
