@@ -375,6 +375,20 @@ static struct acpi_asus_model acpi_samsung_models[] = {
 	{ .name = NULL }
 };
 
+/*
+ * EeePC have an Asus ASUS010 gadget interface,
+ * but they can't be probed quite the same way as Asus laptops.
+ */
+static struct acpi_asus_model acpi_eeepc_models[] = {
+	{
+		.name		= "EEE",
+		.brn_get	= "\\_SB.ATKD.PBLG",
+		.brn_set	= "\\_SB.ATKD.PBLS"
+	},
+
+	{ .name = NULL }
+};
+
 static struct {
 	char	*name;
 	char	*description;
@@ -444,13 +458,17 @@ acpi_asus_probe(device_t dev)
 	ACPI_BUFFER		Buf;
 	ACPI_OBJECT		Arg, *Obj;
 	ACPI_OBJECT_LIST	Args;
-	static char		*asus_ids[] = { "ATK0100", NULL };
+	static char		*asus_ids[] = { "ATK0100", "ASUS010", NULL };
+	char *rstr;
 
 	ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
-	if (acpi_disabled("asus") ||
-	    ACPI_ID_PROBE(device_get_parent(dev), dev, asus_ids) == NULL)
+	if (acpi_disabled("asus"))
 		return (ENXIO);
+	rstr = ACPI_ID_PROBE(device_get_parent(dev), dev, asus_ids);
+	if (rstr == NULL) {
+		return (ENXIO);
+	}
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
@@ -486,6 +504,14 @@ acpi_asus_probe(device_t dev)
 		if (strncmp("ODEM", th.OemTableId, 4) == 0) {
 			sc->model = &acpi_samsung_models[0];
 			device_set_desc(dev, "Samsung P30 Laptop Extras");
+			AcpiOsFree(Buf.Pointer);
+			return (0);
+		}
+
+		/* if EeePC */
+		if(strncmp("ASUS010", rstr, 7) == 0) {
+			sc->model = &acpi_eeepc_models[0];
+			device_set_desc(dev, "ASUS EeePC");
 			AcpiOsFree(Buf.Pointer);
 			return (0);
 		}
