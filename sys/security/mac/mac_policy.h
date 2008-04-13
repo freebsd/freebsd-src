@@ -40,8 +40,8 @@
 /*
  * Kernel interface for MAC policy modules.
  */
-#ifndef _SYS_SECURITY_MAC_MAC_POLICY_H_
-#define	_SYS_SECURITY_MAC_MAC_POLICY_H_
+#ifndef _SECURITY_MAC_MAC_POLICY_H_
+#define	_SECURITY_MAC_MAC_POLICY_H_
 
 #ifndef _KERNEL
 #error "no user-serviceable parts inside"
@@ -981,4 +981,4 @@ int	mac_policy_modevent(module_t mod, int type, void *data);
 intptr_t	mac_label_get(struct label *l, int slot);
 void		mac_label_set(struct label *l, int slot, intptr_t v);
 
-#endif /* !_SYS_SECURITY_MAC_MAC_POLICY_H_ */
+#endif /* !_SECURITY_MAC_MAC_POLICY_H_ */
