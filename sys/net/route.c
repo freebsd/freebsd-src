@@ -763,9 +763,9 @@ rtrequest1(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt)
 			rt->rt_flags &= ~RTF_UP;
 			goto deldone;  /* done with the RTM_DELETE command */
 		}
-#endif
 
 normal_rtdel:
+#endif
 		/*
 		 * Remove the item from the tree and return it.
 		 * Complain if it is not there and do no more processing.
@@ -806,7 +806,9 @@ normal_rtdel:
 		if ((ifa = rt->rt_ifa) && ifa->ifa_rtrequest)
 			ifa->ifa_rtrequest(RTM_DELETE, rt, info);
 
+#ifdef RADIX_MPATH
 deldone:
+#endif
 		/*
 		 * One more rtentry floating around that is not
 		 * linked to the routing table. rttrash will be decremented
