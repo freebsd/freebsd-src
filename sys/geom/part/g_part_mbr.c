@@ -59,6 +59,7 @@ struct g_part_mbr_entry {
 
 static int g_part_mbr_add(struct g_part_table *, struct g_part_entry *,
     struct g_part_parms *);
+static int g_part_mbr_bootcode(struct g_part_table *, struct g_part_parms *);
 static int g_part_mbr_create(struct g_part_table *, struct g_part_parms *);
 static int g_part_mbr_destroy(struct g_part_table *, struct g_part_parms *);
 static int g_part_mbr_dumpto(struct g_part_table *, struct g_part_entry *);
@@ -74,6 +75,7 @@ static int g_part_mbr_write(struct g_part_table *, struct g_consumer *);
 
 static kobj_method_t g_part_mbr_methods[] = {
 	KOBJMETHOD(g_part_add,		g_part_mbr_add),
+	KOBJMETHOD(g_part_bootcode,	g_part_mbr_bootcode),
 	KOBJMETHOD(g_part_create,	g_part_mbr_create),
 	KOBJMETHOD(g_part_destroy,	g_part_mbr_destroy),
 	KOBJMETHOD(g_part_dumpto,	g_part_mbr_dumpto),
@@ -93,6 +95,7 @@ static struct g_part_scheme g_part_mbr_scheme = {
 	.gps_entrysz = sizeof(struct g_part_mbr_entry),
 	.gps_minent = NDOSPART,
 	.gps_maxent = NDOSPART,
+	.gps_bootcodesz = MBRSIZE,
 };
 G_PART_SCHEME_DECLARE(g_part_mbr);
 
@@ -198,6 +201,16 @@ g_part_mbr_add(struct g_part_table *basetable, struct g_part_entry *baseentry,
 	mbr_set_chs(basetable, baseentry->gpe_end, &entry->ent.dp_ecyl,
 	    &entry->ent.dp_ehd, &entry->ent.dp_esect);
 	return (mbr_parse_type(gpp->gpp_type, &entry->ent.dp_typ));
+}
+
+static int
+g_part_mbr_bootcode(struct g_part_table *basetable, struct g_part_parms *gpp)
+{
+	struct g_part_mbr_table *table;
+
+	table = (struct g_part_mbr_table *)basetable;
+	bcopy(gpp->gpp_codeptr, table->mbr, DOSPARTOFF);
+	return (0);
 }
 
 static int
