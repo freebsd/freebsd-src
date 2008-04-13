@@ -318,6 +318,7 @@ rn4_mpath_inithead(void **head, int off)
 		return 0;
 }
 
+#ifdef INET6
 int
 rn6_mpath_inithead(void **head, int off)
 {
@@ -332,3 +333,4 @@ rn6_mpath_inithead(void **head, int off)
 		return 0;
 }
 
+#endif
