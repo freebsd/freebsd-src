@@ -1670,6 +1670,7 @@ net/ppp_deflate.c		optional ppp_deflate
 net/ppp_tty.c			optional ppp
 net/pfil.c			optional ether | inet
 net/radix.c			standard
+net/radix_mpath.c		standard
 net/raw_cb.c			standard
 net/raw_usrreq.c		standard
 net/route.c			standard

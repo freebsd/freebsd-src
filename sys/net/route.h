@@ -97,6 +97,9 @@ struct mbuf;
  */
 #ifndef RNF_NORMAL
 #include <net/radix.h>
+#ifdef RADIX_MPATH
+#include <net/radix_mpath.h>
+#endif
 #endif
 struct rtentry {
 	struct	radix_node rt_nodes[2];	/* tree glue, and other values */

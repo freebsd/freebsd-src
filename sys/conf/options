@@ -393,6 +393,7 @@ NETATALK		opt_atalk.h
 PPP_BSDCOMP		opt_ppp.h
 PPP_DEFLATE		opt_ppp.h
 PPP_FILTER		opt_ppp.h
+RADIX_MPATH		opt_mpath.h
 SLIP_IFF_OPTS		opt_slip.h
 TCPDEBUG
 TCP_SIGNATURE		opt_inet.h
