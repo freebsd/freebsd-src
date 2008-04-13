@@ -116,6 +116,9 @@ __FBSDID("$FreeBSD$");
 #define	lo_list		lo_witness_data.lod_list
 #define	lo_witness	lo_witness_data.lod_witness
 
+#define	LI_RECURSEMASK	0x0000ffff	/* Recursion depth of lock instance. */
+#define	LI_EXCLUSIVE	0x00010000	/* Exclusive lock instance. */
+
 /* Define this to check for blessed mutexes */
 #undef BLESSING
 
@@ -130,7 +133,38 @@ __FBSDID("$FreeBSD$");
 
 #define	WITNESS_NCHILDREN 6
 
+#define	LOCK_NCHILDREN	3
+
 struct witness_child_list_entry;
+
+/*
+ * Lock instances.  A lock instance is the data associated with a lock while
+ * it is held by witness.  For example, a lock instance will hold the
+ * recursion count of a lock.  Lock instances are held in lists.  Spin locks
+ * are held in a per-cpu list while sleep locks are held in per-thread list.
+ */
+struct lock_instance {
+	struct lock_object *li_lock;
+	const char	*li_file;
+	int		li_line;
+	u_int		li_flags;	/* Recursion count and LI_* flags. */
+};
+
+/*
+ * A simple list type used to build the list of locks held by a thread
+ * or CPU.  We can't simply embed the list in struct lock_object since a
+ * lock may be held by more than one thread if it is a shared lock.  Locks
+ * are added to the head of the list, so we fill up each list entry from
+ * "the back" logically.  To ease some of the arithmetic, we actually fill
+ * in each list entry the normal way (children[0] then children[1], etc.) but
+ * when we traverse the list we read children[count-1] as the first entry
+ * down to children[0] as the final entry.
+ */
+struct lock_list_entry {
+	struct lock_list_entry	*ll_next;
+	struct lock_instance	ll_children[LOCK_NCHILDREN];
+	u_int			ll_count;
+};
 
 struct witness {
 	const	char *w_name;
