@@ -1,0 +1,29 @@
+# $FreeBSD$
+
+CPU_MIPS4KC	opt_global.h
+CPU_MIPS32	opt_global.h
+CPU_MIPS64	opt_global.h
+CPU_NOFPU	opt_global.h
+CPU_SENTRY5	opt_global.h
+
+ISA_MIPS1	opt_cputype.h
+ISA_MIPS3	opt_cputype.h
+ISA_MIPS32	opt_cputype.h
+ISA_MIPS32v2	opt_cputype.h
+ISA_MIPS64	opt_cputype.h
+ISA_MIPS64v2	opt_cputype.h
+
+YAMON		opt_global.h
+CFE		opt_global.h
+CFE_CONSOLE	opt_global.h
+
+KERNPHYSADDR	opt_global.h
+KERNVIRTADDR	opt_global.h
+PHYSADDR	opt_global.h
+SOFTFLOAT       opt_global.h
+
+TARGET_OCTEON	opt_global.h
+TARGET_EMULATOR	opt_ddb.h
+
+TICK_USE_YAMON_FREQ	opt_global.h
+TICK_USE_MALTA_RTC	opt_global.h
