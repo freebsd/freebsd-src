@@ -1,4 +1,4 @@
-# QEMU -- Generic kernel configuration file for FreeBSD/mips
+# MALTA -- Kernel config for MALTA boards
 #
 # For more information on this file, please read the handbook section on
 # Kernel Configuration Files:

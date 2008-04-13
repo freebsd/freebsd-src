@@ -1,4 +1,4 @@
-# QEMU -- Generic kernel configuration file for FreeBSD/mips
+# ADM5120 -- Kernel configuration file for FreeBSD/mips for adm5120 systems
 #
 # For more information on this file, please read the handbook section on
 # Kernel Configuration Files:
