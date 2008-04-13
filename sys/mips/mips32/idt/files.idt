@@ -1,0 +1,8 @@
+# $FreeBSD$
+
+mips/mips32/idt/idt_machdep.c		standard
+mips/mips32/idt/idtpci.c		optional pci
+mips/mips32/idt/if_kr.c			optional kr
+mips/mips32/idt/obio.c			standard
+mips/mips32/idt/uart_cpu_rc32434.c	optional uart
+mips/mips32/idt/uart_bus_rc32434.c	optional uart
