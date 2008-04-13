@@ -301,7 +301,7 @@ struct ata_ahci_cmd_list {
 #define ATA_PC98_CTLADDR_RID            8
 #define ATA_PC98_BANKADDR_RID           9
 #define ATA_IRQ_RID                     0
-#define ATA_DEV(unit)                   ((unit == ATA_ATA_SLAVE) ? 0x10 : 0)
+#define ATA_DEV(unit)                   ((unit > 0) ? 0x10 : 0)
 #define ATA_CFA_MAGIC1                  0x844A
 #define ATA_CFA_MAGIC2                  0x848A
 #define ATA_CFA_MAGIC3                  0x8400
