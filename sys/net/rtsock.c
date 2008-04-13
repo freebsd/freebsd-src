@@ -30,6 +30,8 @@
  * $FreeBSD$
  */
 #include "opt_sctp.h"
+#include "opt_mpath.h"
+
 #include <sys/param.h>
 #include <sys/domain.h>
 #include <sys/kernel.h>
@@ -420,6 +422,24 @@ route_output(struct mbuf *m, struct socket *so)
 			RADIX_NODE_HEAD_UNLOCK(rnh);
 			senderr(ESRCH);
 		}
+#ifdef RADIX_MPATH
+		/*
+		 * for RTM_CHANGE/LOCK, if we got multipath routes,
+		 * we require users to specify a matching RTAX_GATEWAY.
+		 *
+		 * for RTM_GET, gate is optional even with multipath.
+		 * if gate == NULL the first match is returned.
+		 * (no need to call rt_mpath_matchgate if gate == NULL)
+		 */
+		if (rn_mpath_capable(rnh) &&
+		    (rtm->rtm_type != RTM_GET || info.rti_info[RTAX_GATEWAY])) {
+			rt = rt_mpath_matchgate(rt, info.rti_info[RTAX_GATEWAY]);
+			if (!rt) {
+				RADIX_NODE_HEAD_UNLOCK(rnh);
+				senderr(ESRCH);
+			}
+		}
+#endif
 		RT_LOCK(rt);
 		RT_ADDREF(rt);
 		RADIX_NODE_HEAD_UNLOCK(rnh);

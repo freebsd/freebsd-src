@@ -130,6 +130,7 @@ struct radix_node_head {
 	void	(*rnh_close)	/* do something when the last ref drops */
 		(struct radix_node *rn, struct radix_node_head *head);
 	struct	radix_node rnh_nodes[3];	/* empty tree for common case */
+	int	rnh_multipath;			/* multipath capable ? */
 #ifdef _KERNEL
 	struct	mtx rnh_mtx;			/* locks entire radix tree */
 #endif

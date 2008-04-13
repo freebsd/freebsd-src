@@ -65,6 +65,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
+#include "opt_mpath.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -84,6 +85,9 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/route.h>
+#ifdef RADIX_MPATH
+#include <net/radix_mpath.h>
+#endif
 
 #include <netinet/in.h>
 #include <netinet/in_var.h>
@@ -568,7 +572,12 @@ selectroute(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 			sa6->sin6_scope_id = 0;
 
 			if (clone) {
+#ifdef RADIX_MPATH
+				rtalloc_mpath((struct route *)ro,
+				    ntohl(sa6->sin6_addr.s6_addr32[3]));
+#else
 				rtalloc((struct route *)ro);
+#endif
 			} else {
 				ro->ro_rt = rtalloc1(&((struct route *)ro)
 						     ->ro_dst, 0, 0UL);

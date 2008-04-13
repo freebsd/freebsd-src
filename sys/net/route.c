@@ -32,6 +32,7 @@
 
 #include "opt_inet.h"
 #include "opt_mrouting.h"
+#include "opt_mpath.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -43,6 +44,10 @@
 
 #include <net/if.h>
 #include <net/route.h>
+
+#ifdef RADIX_MPATH
+#include <net/radix_mpath.h>
+#endif
 
 #include <netinet/in.h>
 #include <netinet/ip_mroute.h>
@@ -700,6 +705,67 @@ rtrequest1(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt)
 	}
 	switch (req) {
 	case RTM_DELETE:
+#ifdef RADIX_MPATH
+		/*
+		 * if we got multipath routes, we require users to specify
+		 * a matching RTAX_GATEWAY.
+		 */
+		if (rn_mpath_capable(rnh)) {
+			struct rtentry *rto = NULL;
+
+			rn = rnh->rnh_matchaddr(dst, rnh);
+			if (rn == NULL)
+				senderr(ESRCH);
+ 			rto = rt = RNTORT(rn);
+			rt = rt_mpath_matchgate(rt, gateway);
+			if (!rt)
+				senderr(ESRCH);
+			/*
+			 * this is the first entry in the chain
+			 */
+			if (rto == rt) {
+				rn = rn_mpath_next((struct radix_node *)rt);
+				/*
+				 * there is another entry, now it's active
+				 */
+				if (rn) {
+					rto = RNTORT(rn);
+					RT_LOCK(rto);
+					rto->rt_flags |= RTF_UP;
+					RT_UNLOCK(rto);
+				} else if (rt->rt_flags & RTF_GATEWAY) {
+					/*
+					 * For gateway routes, we need to 
+					 * make sure that we we are deleting
+					 * the correct gateway. 
+					 * rt_mpath_matchgate() does not 
+					 * check the case when there is only
+					 * one route in the chain.  
+					 */
+					if (gateway &&
+					    (rt->rt_gateway->sa_len != gateway->sa_len ||
+					    memcmp(rt->rt_gateway, gateway, gateway->sa_len)))
+						senderr(ESRCH);
+				}
+				/*
+				 * use the normal delete code to remove
+				 * the first entry
+				 */
+				goto normal_rtdel;
+			}
+			/*
+			 * if the entry is 2nd and on up
+			 */
+			if (!rt_mpath_deldup(rto, rt))
+				panic ("rtrequest1: rt_mpath_deldup");
+			RT_LOCK(rt);
+			RT_ADDREF(rt);
+			rt->rt_flags &= ~RTF_UP;
+			goto deldone;  /* done with the RTM_DELETE command */
+		}
+#endif
+
+normal_rtdel:
 		/*
 		 * Remove the item from the tree and return it.
 		 * Complain if it is not there and do no more processing.
@@ -740,6 +806,7 @@ rtrequest1(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt)
 		if ((ifa = rt->rt_ifa) && ifa->ifa_rtrequest)
 			ifa->ifa_rtrequest(RTM_DELETE, rt, info);
 
+deldone:
 		/*
 		 * One more rtentry floating around that is not
 		 * linked to the routing table. rttrash will be decremented
@@ -821,6 +888,22 @@ rtrequest1(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt)
 		IFAREF(ifa);
 		rt->rt_ifa = ifa;
 		rt->rt_ifp = ifa->ifa_ifp;
+
+#ifdef RADIX_MPATH
+		/* do not permit exactly the same dst/mask/gw pair */
+		if (rn_mpath_capable(rnh) &&
+			rt_mpath_conflict(rnh, rt, netmask)) {
+			if (rt->rt_gwroute)
+				RTFREE(rt->rt_gwroute);
+			if (rt->rt_ifa) {
+				IFAFREE(rt->rt_ifa);
+			}
+			Free(rt_key(rt));
+			RT_LOCK_DESTROY(rt);
+			uma_zfree(rtzone, rt);
+			senderr(EEXIST);
+		}
+#endif
 
 		/* XXX mtu manipulation will be done in rnh_addaddr -- itojun */
 		rn = rnh->rnh_addaddr(ndst, netmask, rnh, rt->rt_nodes);
@@ -1166,7 +1249,7 @@ rtinit(struct ifaddr *ifa, int cmd, int flags)
 	struct mbuf *m = NULL;
 	struct rtentry *rt = NULL;
 	struct rt_addrinfo info;
-	int error;
+	int error=0;
 
 	if (flags & RTF_HOST) {
 		dst = ifa->ifa_dstaddr;
@@ -1208,10 +1291,32 @@ rtinit(struct ifaddr *ifa, int cmd, int flags)
 		if ((rnh = rt_tables[dst->sa_family]) == NULL)
 			goto bad;
 		RADIX_NODE_HEAD_LOCK(rnh);
+#ifdef RADIX_MPATH
+		if (rn_mpath_capable(rnh)) {
+
+			rn = rnh->rnh_matchaddr(dst, rnh);
+			if (rn == NULL) 
+				error = ESRCH;
+			else {
+				rt = RNTORT(rn);
+				/*
+				 * for interface route the rt->rt_gateway is
+				 * sockaddr_intf for cloning ARP entries, so
+				 * rt_mpath_matchgate must use the interface
+				 * address
+				 */
+				rt = rt_mpath_matchgate(rt, ifa->ifa_addr);
+				if (!rt) 
+					error = ESRCH;
+			}
+		}
+		else
+#endif
 		error = ((rn = rnh->rnh_lookup(dst, netmask, rnh)) == NULL ||
 		    (rn->rn_flags & RNF_ROOT) ||
 		    RNTORT(rn)->rt_ifa != ifa ||
 		    !sa_equal((struct sockaddr *)rn->rn_key, dst));
+
 		RADIX_NODE_HEAD_UNLOCK(rnh);
 		if (error) {
 bad:
@@ -1235,6 +1340,21 @@ bad:
 		 * notify any listening routing agents of the change
 		 */
 		RT_LOCK(rt);
+#ifdef RADIX_MPATH
+		/*
+		 * in case address alias finds the first address
+		 * e.g. ifconfig bge0 192.103.54.246/24
+		 * e.g. ifconfig bge0 192.103.54.247/24
+		 * the address set in the route is 192.103.54.246
+		 * so we need to replace it with 192.103.54.247
+		 */
+		if (memcmp(rt->rt_ifa->ifa_addr, ifa->ifa_addr, ifa->ifa_addr->sa_len)) {
+			IFAFREE(rt->rt_ifa);
+			IFAREF(ifa);
+			rt->rt_ifp = ifa->ifa_ifp;
+			rt->rt_ifa = ifa;
+		}
+#endif
 		rt_newaddrmsg(cmd, ifa, error, rt);
 		if (cmd == RTM_DELETE) {
 			/*
