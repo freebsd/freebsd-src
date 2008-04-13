@@ -44,8 +44,8 @@
  * $FreeBSD$
  */
 
-#ifndef _SYS_SECURITY_MAC_MAC_INTERNAL_H_
-#define	_SYS_SECURITY_MAC_MAC_INTERNAL_H_
+#ifndef _SECURITY_MAC_MAC_INTERNAL_H_
+#define	_SECURITY_MAC_MAC_INTERNAL_H_
 
 #ifndef _KERNEL
 #error "no user-serviceable parts inside"
@@ -340,4 +340,4 @@ int	vn_setlabel(struct vnode *vp, struct label *intlabel,
 	}								\
 } while (0)
 
-#endif /* !_SYS_SECURITY_MAC_MAC_INTERNAL_H_ */
+#endif /* !_SECURITY_MAC_MAC_INTERNAL_H_ */
