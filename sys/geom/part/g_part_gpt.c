@@ -52,6 +52,8 @@ CTASSERT(sizeof(struct gpt_ent) == 128);
 
 #define	EQUUID(a,b)	(memcmp(a, b, sizeof(struct uuid)) == 0)
 
+#define	MBRSIZE		512
+
 enum gpt_elt {
 	GPT_ELT_PRIHDR,
 	GPT_ELT_PRITBL,
@@ -70,6 +72,7 @@ enum gpt_state {
 
 struct g_part_gpt_table {
 	struct g_part_table	base;
+	u_char			mbr[MBRSIZE];
 	struct gpt_hdr		hdr;
 	quad_t			lba[GPT_ELT_COUNT];
 	enum gpt_state		state[GPT_ELT_COUNT];
@@ -82,6 +85,7 @@ struct g_part_gpt_entry {
 
 static int g_part_gpt_add(struct g_part_table *, struct g_part_entry *,
     struct g_part_parms *);
+static int g_part_gpt_bootcode(struct g_part_table *, struct g_part_parms *);
 static int g_part_gpt_create(struct g_part_table *, struct g_part_parms *);
 static int g_part_gpt_destroy(struct g_part_table *, struct g_part_parms *);
 static int g_part_gpt_dumpto(struct g_part_table *, struct g_part_entry *);
@@ -97,6 +101,7 @@ static int g_part_gpt_write(struct g_part_table *, struct g_consumer *);
 
 static kobj_method_t g_part_gpt_methods[] = {
 	KOBJMETHOD(g_part_add,		g_part_gpt_add),
+	KOBJMETHOD(g_part_bootcode,	g_part_gpt_bootcode),
 	KOBJMETHOD(g_part_create,	g_part_gpt_create),
 	KOBJMETHOD(g_part_destroy,	g_part_gpt_destroy),
 	KOBJMETHOD(g_part_dumpto,	g_part_gpt_dumpto),
@@ -116,6 +121,7 @@ static struct g_part_scheme g_part_gpt_scheme = {
 	.gps_entrysz = sizeof(struct g_part_gpt_entry),
 	.gps_minent = 128,
 	.gps_maxent = INT_MAX,
+	.gps_bootcodesz = MBRSIZE,
 };
 G_PART_SCHEME_DECLARE(g_part_gpt);
 
@@ -352,6 +358,16 @@ g_part_gpt_add(struct g_part_table *basetable, struct g_part_entry *baseentry,
 }
 
 static int
+g_part_gpt_bootcode(struct g_part_table *basetable, struct g_part_parms *gpp)
+{
+	struct g_part_gpt_table *table;
+
+	table = (struct g_part_gpt_table *)basetable;
+	bcopy(gpp->gpp_codeptr, table->mbr, DOSPARTOFF);
+	return (0);
+}
+
+static int
 g_part_gpt_create(struct g_part_table *basetable, struct g_part_parms *gpp)
 {
 	struct g_provider *pp;
@@ -363,12 +379,23 @@ g_part_gpt_create(struct g_part_table *basetable, struct g_part_parms *gpp)
 	pp = gpp->gpp_provider;
 	tblsz = (basetable->gpt_entries * sizeof(struct gpt_ent) +
 	    pp->sectorsize - 1) / pp->sectorsize;
-	if (pp->sectorsize < 512 ||
+	if (pp->sectorsize < MBRSIZE ||
 	    pp->mediasize < (3 + 2 * tblsz + basetable->gpt_entries) *
 	    pp->sectorsize)
 		return (ENOSPC);
 
 	last = (pp->mediasize / pp->sectorsize) - 1;
+
+	le16enc(table->mbr + DOSMAGICOFFSET, DOSMAGIC);
+	table->mbr[DOSPARTOFF + 1] = 0xff;		/* shd */
+	table->mbr[DOSPARTOFF + 2] = 0xff;		/* ssect */
+	table->mbr[DOSPARTOFF + 3] = 0xff;		/* scyl */
+	table->mbr[DOSPARTOFF + 4] = 0xee;		/* typ */
+	table->mbr[DOSPARTOFF + 5] = 0xff;		/* ehd */
+	table->mbr[DOSPARTOFF + 6] = 0xff;		/* esect */
+	table->mbr[DOSPARTOFF + 7] = 0xff;		/* ecyl */
+	le32enc(table->mbr + DOSPARTOFF + 8, 1);	/* start */
+	le32enc(table->mbr + DOSPARTOFF + 12, MIN(last, 0xffffffffLL));
 
 	table->lba[GPT_ELT_PRIHDR] = 1;
 	table->lba[GPT_ELT_PRITBL] = 2;
@@ -469,7 +496,7 @@ g_part_gpt_probe(struct g_part_table *table, struct g_consumer *cp)
 	 * It's better to catch this pathological case early than behaving
 	 * pathologically later on...
 	 */
-	if (pp->sectorsize < 512 || pp->mediasize < 6 * pp->sectorsize)
+	if (pp->sectorsize < MBRSIZE || pp->mediasize < 6 * pp->sectorsize)
 		return (ENOSPC);
 
 	/* Check that there's a MBR. */
@@ -508,10 +535,18 @@ g_part_gpt_read(struct g_part_table *basetable, struct g_consumer *cp)
 	struct g_provider *pp;
 	struct g_part_gpt_table *table;
 	struct g_part_gpt_entry *entry;
-	int index;
+	u_char *buf;
+	int error, index;
 
 	table = (struct g_part_gpt_table *)basetable;
 	pp = cp->provider;
+
+	/* Read the PMBR */
+	buf = g_read_data(cp, 0, pp->sectorsize, &error);
+	if (buf == NULL)
+		return (error);
+	bcopy(buf, table->mbr, MBRSIZE);
+	g_free(buf);
 
 	/* Read the primary header and table. */
 	gpt_read_hdr(table, cp, GPT_ELT_PRIHDR, &prihdr);
@@ -640,24 +675,13 @@ g_part_gpt_write(struct g_part_table *basetable, struct g_consumer *cp)
 	tlbsz = (table->hdr.hdr_entries * table->hdr.hdr_entsz +
 	    pp->sectorsize - 1) / pp->sectorsize;
 
-	if (basetable->gpt_created) {
-		buf = g_malloc(pp->sectorsize, M_WAITOK | M_ZERO);
-		le16enc(buf + DOSMAGICOFFSET, DOSMAGIC);
-		buf[DOSPARTOFF + 1] = 0xff;		/* shd */
-		buf[DOSPARTOFF + 2] = 0xff;		/* ssect */
-		buf[DOSPARTOFF + 3] = 0xff;		/* scyl */
-		buf[DOSPARTOFF + 4] = 0xee;		/* typ */
-		buf[DOSPARTOFF + 5] = 0xff;		/* ehd */
-		buf[DOSPARTOFF + 6] = 0xff;		/* esect */
-		buf[DOSPARTOFF + 7] = 0xff;		/* ecyl */
-		le32enc(buf + DOSPARTOFF + 8, 1);	/* start */
-		le32enc(buf + DOSPARTOFF + 12,
-		    MIN(pp->mediasize / pp->sectorsize - 1, 0xffffffffLL));
-		error = g_write_data(cp, 0, buf, pp->sectorsize);
-		g_free(buf);
-		if (error)
-			return (error);
-	}
+	/* Write the PMBR */
+	buf = g_malloc(pp->sectorsize, M_WAITOK | M_ZERO);
+	bcopy(table->mbr, buf, MBRSIZE);
+	error = g_write_data(cp, 0, buf, pp->sectorsize);
+	g_free(buf);
+	if (error)
+		return (error);
 
 	/* Allocate space for the header and entries. */
 	buf = g_malloc((tlbsz + 1) * pp->sectorsize, M_WAITOK | M_ZERO);
