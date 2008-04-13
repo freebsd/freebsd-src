@@ -84,7 +84,6 @@ static long		ticks_per_intr;
 
 #define	DIFF19041970	2082844800
 
-static int		clockinitted = 0;
 static timecounter_get_t	decr_get_timecount;
 
 static struct timecounter	decr_timecounter = {
@@ -94,49 +93,6 @@ static struct timecounter	decr_timecounter = {
 	0,			/* frequency */
 	"decrementer"		/* name */
 };
-
-void
-inittodr(time_t base)
-{
-	time_t		deltat;
-	u_int		rtc_time;
-	struct timespec	ts;
-
-	/*
-	 * If we have an RTC device use it, otherwise use the fs time.
-	 */
-	{
-		ts.tv_sec = base;
-		ts.tv_nsec = 0;
-		tc_setclock(&ts);
-		return;
-	}
-	clockinitted = 1;
-	ts.tv_sec = rtc_time - DIFF19041970;
-
-	deltat = ts.tv_sec - base;
-	if (deltat < 0) {
-		deltat = -deltat;
-	}
-	if (deltat < 2 * SECDAY) {
-		tc_setclock(&ts);
-		return;
-	}
-
-	printf("WARNING: clock %s %d days",
-	    ts.tv_sec < base ? "lost" : "gained", (int)(deltat / SECDAY));
-
-	printf(" -- CHECK AND RESET THE DATE!\n");
-}
-
-/*
- * Similar to the above
- */
-void
-resettodr()
-{
-
-}
 
 void
 decr_intr(struct trapframe *frame)
