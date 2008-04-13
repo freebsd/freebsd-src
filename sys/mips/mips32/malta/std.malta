@@ -1,0 +1,9 @@
+# $FreeBSD$
+files	"../mips32/malta/files.malta"
+
+cpu		CPU_MIPS4KC
+options 	ISA_MIPS32
+options		SOFTFLOAT
+device		pci
+device		ata
+device		atadisk
