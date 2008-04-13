@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_pf.h"
 #include "opt_carp.h"
 #include "opt_sctp.h"
+#include "opt_mpath.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -51,6 +52,9 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/route.h>
+#ifdef RADIX_MPATH
+#include <net/radix_mpath.h>
+#endif
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -352,7 +356,11 @@ struct domain inetdomain = {
 	.dom_name =		"internet",
 	.dom_protosw =		inetsw,
 	.dom_protoswNPROTOSW =	&inetsw[sizeof(inetsw)/sizeof(inetsw[0])],
+#ifdef RADIX_MPATH
+	.dom_rtattach =		rn4_mpath_inithead,
+#else
 	.dom_rtattach =		in_inithead,
+#endif
 	.dom_rtoffset =		32,
 	.dom_maxrtkey =		sizeof(struct sockaddr_in)
 };

@@ -69,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_ipstealth.h"
 #include "opt_carp.h"
 #include "opt_sctp.h"
+#include "opt_mpath.h"
 
 #include <sys/param.h>
 #include <sys/socket.h>
@@ -83,6 +84,9 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/radix.h>
 #include <net/route.h>
+#ifdef RADIX_MPATH
+#include <net/radix_mpath.h>
+#endif
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -347,7 +351,11 @@ struct domain inet6domain = {
 	.dom_protosw =		(struct protosw *)inet6sw,
 	.dom_protoswNPROTOSW =	(struct protosw *)
 				&inet6sw[sizeof(inet6sw)/sizeof(inet6sw[0])],
+#ifdef RADIX_MPATH
+	.dom_rtattach =		rn6_mpath_inithead,
+#else
 	.dom_rtattach =		in6_inithead,
+#endif
 	.dom_rtoffset =		offsetof(struct sockaddr_in6, sin6_addr) << 3,
 	.dom_maxrtkey =		sizeof(struct sockaddr_in6),
 	.dom_ifattach =		in6_domifattach,

@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
 #include "opt_carp.h"
+#include "opt_mpath.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -55,6 +56,9 @@ __FBSDID("$FreeBSD$");
 #include <net/if_dl.h>
 #include <net/if_var.h>
 #include <net/route.h>
+#ifdef RADIX_MPATH
+#include <net/radix_mpath.h>
+#endif
 
 #include <netinet/in.h>
 #include <netinet/in_var.h>
@@ -208,13 +212,23 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 		struct rtentry *rt;
 		struct sockaddr_in6 tsin6;
 		int need_proxy;
+#ifdef RADIX_MPATH
+		struct route_in6 ro;
+#endif
 
 		bzero(&tsin6, sizeof tsin6);
 		tsin6.sin6_len = sizeof(struct sockaddr_in6);
 		tsin6.sin6_family = AF_INET6;
 		tsin6.sin6_addr = taddr6;
 
+#ifdef RADIX_MPATH
+		bzero(&ro, sizeof(ro));
+		ro.ro_dst = tsin6;
+		rtalloc_mpath((struct route *)&ro, RTF_ANNOUNCE);
+		rt = ro.ro_rt;
+#else
 		rt = rtalloc1((struct sockaddr *)&tsin6, 0, 0);
+#endif
 		need_proxy = (rt && (rt->rt_flags & RTF_ANNOUNCE) != 0 &&
 		    rt->rt_gateway->sa_family == AF_LINK);
 		if (rt)
