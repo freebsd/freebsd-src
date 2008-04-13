@@ -876,7 +876,7 @@ _lockmgr_disown(struct lock *lk, const char *file, int line)
 	 */
 	for (;;) {
 		x = lk->lk_lock & LK_ALL_WAITERS;
-		if (atomic_cmpset_ptr(&lk->lk_lock, tid | x,
+		if (atomic_cmpset_rel_ptr(&lk->lk_lock, tid | x,
 		    LK_KERNPROC | x))
 			return;
 		cpu_spinwait();
