@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_ipsec.h"
 #include "opt_mac.h"
 #include "opt_mbuf_stress_test.h"
+#include "opt_mpath.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -54,6 +55,9 @@ __FBSDID("$FreeBSD$");
 #include <net/netisr.h>
 #include <net/pfil.h>
 #include <net/route.h>
+#ifdef RADIX_MPATH
+#include <net/radix_mpath.h>
+#endif
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -225,7 +229,12 @@ again:
 		 * operation (as it is for ARP).
 		 */
 		if (ro->ro_rt == NULL)
+#ifdef RADIX_MPATH
+			rtalloc_mpath(ro,
+			    ntohl(ip->ip_src.s_addr ^ ip->ip_dst.s_addr));
+#else
 			rtalloc_ign(ro, 0);
+#endif
 		if (ro->ro_rt == NULL) {
 			ipstat.ips_noroute++;
 			error = EHOSTUNREACH;
