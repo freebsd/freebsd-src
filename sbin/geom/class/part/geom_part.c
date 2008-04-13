@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <paths.h>
 #include <errno.h>
 #include <assert.h>
+#include <sys/stat.h>
 
 #include "core/geom.h"
 #include "misc/subr.h"
@@ -55,7 +56,8 @@ uint32_t PUBSYM(version) = 0;
 static char optional[] = "";
 static char flags[] = "C";
 
-static void gpart_show(struct gctl_req *, unsigned);
+static void gpart_bootcode(struct gctl_req *, unsigned int);
+static void gpart_show(struct gctl_req *, unsigned int);
 
 struct g_command PUBSYM(class_commands)[] = {
 	{ "add", 0, NULL, {
@@ -66,7 +68,13 @@ struct g_command PUBSYM(class_commands)[] = {
 		{ 'l', "label", optional, G_TYPE_STRING },
 		{ 'f', "flags", flags, G_TYPE_STRING },
 		G_OPT_SENTINEL },
-	  "geom", NULL,
+	  "geom", NULL
+	},
+	{ "bootcode", 0, gpart_bootcode, {
+		{ 'b', "bootcode", NULL, G_TYPE_STRING },
+		{ 'f', "flags", flags, G_TYPE_STRING },
+		G_OPT_SENTINEL },
+	  "geom", NULL
 	},
 	{ "commit", 0, NULL, G_NULL_OPTS, "geom", NULL },
 	{ "create", 0, NULL, {
@@ -241,7 +249,7 @@ gpart_show_geom(struct ggeom *gp)
 }
 
 static void
-gpart_show(struct gctl_req *req, unsigned fl __unused)
+gpart_show(struct gctl_req *req, unsigned int fl __unused)
 {
 	struct gmesh mesh;
 	struct gclass *classp;
@@ -276,4 +284,40 @@ gpart_show(struct gctl_req *req, unsigned fl __unused)
 		}
 	}
 	geom_deletetree(&mesh);
+}
+
+static void
+gpart_bootcode(struct gctl_req *req, unsigned int fl __unused)
+{
+	struct stat sb;
+	const char *bootfile;
+	void *code;
+	int error, fd, size;
+
+	bootfile = gctl_get_ascii(req, "bootcode");
+	if (bootfile == NULL)
+		errx(EXIT_FAILURE, "Missing bootfile argument");
+
+	error = stat(bootfile, &sb);
+	if (error)
+		errx(EXIT_FAILURE, "%s: not found", bootfile);
+	if (!S_ISREG(sb.st_mode))
+		errx(EXIT_FAILURE, "%s: not a regular file", bootfile);
+	if (sb.st_size >= 1024*1024)
+		errx(EXIT_FAILURE, "%s: file too big", bootfile);
+
+	size = sb.st_size;
+
+	fd = open(bootfile, O_RDONLY);
+	if (fd == -1)
+		errx(EXIT_FAILURE, "%s: unable to open", bootfile);
+	code = malloc(size);
+	if (code == NULL)
+		errx(EXIT_FAILURE, "out of memory");
+	if (read(fd, code, size) != size)
+		errx(EXIT_FAILURE, "%s: unable to read", bootfile);
+	close(fd);
+
+	gctl_change_param(req, "bootcode", size, code);
+	gctl_issue(req);
 }

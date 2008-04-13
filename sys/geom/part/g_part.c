@@ -112,6 +112,7 @@ DECLARE_GEOM_CLASS(g_part_class, g_part);
 enum g_part_ctl {
 	G_PART_CTL_NONE,
 	G_PART_CTL_ADD,
+	G_PART_CTL_BOOTCODE,
 	G_PART_CTL_COMMIT,
 	G_PART_CTL_CREATE,
 	G_PART_CTL_DELETE,
@@ -511,6 +512,48 @@ g_part_ctl_add(struct gctl_req *req, struct g_part_parms *gpp)
 		sbuf_delete(sb);
 	}
 	return (0);
+}
+
+static int
+g_part_ctl_bootcode(struct gctl_req *req, struct g_part_parms *gpp)
+{
+	struct g_geom *gp;
+	struct g_part_table *table;
+	struct sbuf *sb;
+	int error, sz;
+
+	gp = gpp->gpp_geom;
+	G_PART_TRACE((G_T_TOPOLOGY, "%s(%s)", __func__, gp->name));
+	g_topology_assert();
+
+	table = gp->softc;
+	sz = table->gpt_scheme->gps_bootcodesz;
+	if (sz == 0) {
+		error = ENODEV;
+		goto fail;
+	}
+	if (gpp->gpp_codesize != sz) {
+		error = EINVAL;
+		goto fail;
+	}
+
+	error = G_PART_BOOTCODE(table, gpp);
+	if (error)
+		goto fail;
+
+	/* Provide feedback if so requested. */
+	if (gpp->gpp_parms & G_PART_PARM_OUTPUT) {
+		sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
+		sbuf_printf(sb, "%s has bootcode\n", gp->name);
+		sbuf_finish(sb);
+		gctl_set_param(req, "output", sbuf_data(sb), sbuf_len(sb) + 1);
+		sbuf_delete(sb);
+	}
+	return (0);
+
+ fail:
+	gctl_error(req, "%d", error);
+	return (error);
 }
 
 static int
@@ -1023,7 +1066,7 @@ g_part_ctlreq(struct gctl_req *req, struct g_class *mp, const char *verb)
 	enum g_part_ctl ctlreq;
 	unsigned int i, mparms, oparms, parm;
 	int auto_commit, close_on_error;
-	int error, modifies;
+	int error, len, modifies;
 
 	G_PART_TRACE((G_T_TOPOLOGY, "%s(%s,%s)", __func__, mp->name, verb));
 	g_topology_assert();
@@ -1039,6 +1082,12 @@ g_part_ctlreq(struct gctl_req *req, struct g_class *mp, const char *verb)
 			mparms |= G_PART_PARM_GEOM | G_PART_PARM_SIZE |
 			    G_PART_PARM_START | G_PART_PARM_TYPE;
 			oparms |= G_PART_PARM_INDEX | G_PART_PARM_LABEL;
+		}
+		break;
+	case 'b':
+		if (!strcmp(verb, "bootcode")) {
+			ctlreq = G_PART_CTL_BOOTCODE;
+			mparms |= G_PART_PARM_GEOM | G_PART_PARM_BOOTCODE;
 		}
 		break;
 	case 'c':
@@ -1098,6 +1147,10 @@ g_part_ctlreq(struct gctl_req *req, struct g_class *mp, const char *verb)
 		ap = &req->arg[i];
 		parm = 0;
 		switch (ap->name[0]) {
+		case 'b':
+			if (!strcmp(ap->name, "bootcode"))
+				parm = G_PART_PARM_BOOTCODE;
+			break;
 		case 'c':
 			if (!strcmp(ap->name, "class"))
 				continue;
@@ -1153,12 +1206,20 @@ g_part_ctlreq(struct gctl_req *req, struct g_class *mp, const char *verb)
 			gctl_error(req, "%d param '%s'", EINVAL, ap->name);
 			return;
 		}
-		p = gctl_get_asciiparam(req, ap->name);
+		if (parm == G_PART_PARM_BOOTCODE)
+			p = gctl_get_param(req, ap->name, &len);
+		else
+			p = gctl_get_asciiparam(req, ap->name);
 		if (p == NULL) {
 			gctl_error(req, "%d param '%s'", ENOATTR, ap->name);
 			return;
 		}
 		switch (parm) {
+		case G_PART_PARM_BOOTCODE:
+			gpp.gpp_codeptr = p;
+			gpp.gpp_codesize = len;
+			error = 0;
+			break;
 		case G_PART_PARM_ENTRIES:
 			error = g_part_parm_uint(p, &gpp.gpp_entries);
 			break;
@@ -1239,6 +1300,9 @@ g_part_ctlreq(struct gctl_req *req, struct g_class *mp, const char *verb)
 		panic("%s", __func__);
 	case G_PART_CTL_ADD:
 		error = g_part_ctl_add(req, &gpp);
+		break;
+	case G_PART_CTL_BOOTCODE:
+		error = g_part_ctl_bootcode(req, &gpp);
 		break;
 	case G_PART_CTL_COMMIT:
 		error = g_part_ctl_commit(req, &gpp);

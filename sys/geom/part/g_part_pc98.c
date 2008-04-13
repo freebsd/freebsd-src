@@ -60,6 +60,7 @@ struct g_part_pc98_entry {
 
 static int g_part_pc98_add(struct g_part_table *, struct g_part_entry *,
     struct g_part_parms *);
+static int g_part_pc98_bootcode(struct g_part_table *, struct g_part_parms *);
 static int g_part_pc98_create(struct g_part_table *, struct g_part_parms *);
 static int g_part_pc98_destroy(struct g_part_table *, struct g_part_parms *);
 static int g_part_pc98_dumpto(struct g_part_table *, struct g_part_entry *);
@@ -75,6 +76,7 @@ static int g_part_pc98_write(struct g_part_table *, struct g_consumer *);
 
 static kobj_method_t g_part_pc98_methods[] = {
 	KOBJMETHOD(g_part_add,		g_part_pc98_add),
+	KOBJMETHOD(g_part_bootcode,	g_part_pc98_bootcode),
 	KOBJMETHOD(g_part_create,	g_part_pc98_create),
 	KOBJMETHOD(g_part_destroy,	g_part_pc98_destroy),
 	KOBJMETHOD(g_part_dumpto,	g_part_pc98_dumpto),
@@ -94,6 +96,7 @@ static struct g_part_scheme g_part_pc98_scheme = {
 	.gps_entrysz = sizeof(struct g_part_pc98_entry),
 	.gps_minent = NDOSPART,
 	.gps_maxent = NDOSPART,
+	.gps_bootcodesz = SECSIZE,
 };
 G_PART_SCHEME_DECLARE(g_part_pc98);
 
@@ -181,6 +184,16 @@ g_part_pc98_add(struct g_part_table *basetable, struct g_part_entry *baseentry,
 	    &entry->ent.dp_ehd, &entry->ent.dp_esect);
 	return (pc98_parse_type(gpp->gpp_type, &entry->ent.dp_mid,
 	    &entry->ent.dp_sid));
+}
+
+static int
+g_part_pc98_bootcode(struct g_part_table *basetable, struct g_part_parms *gpp)
+{
+	struct g_part_pc98_table *table;
+
+	table = (struct g_part_pc98_table *)basetable;
+	bcopy(gpp->gpp_codeptr, table->boot, DOSMAGICOFFSET);
+	return (0);
 }
 
 static int
