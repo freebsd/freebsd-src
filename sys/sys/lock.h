@@ -35,6 +35,7 @@
 #include <sys/queue.h>
 #include <sys/_lock.h>
 
+struct lock_list_entry;
 struct thread;
 
 /*
@@ -91,9 +92,6 @@ struct lock_class {
 #define	LOCK_CLASS(lock)	(lock_classes[LO_CLASSINDEX((lock))])
 #define	LOCK_CLASS_MAX		(LO_CLASSMASK >> LO_CLASSSHIFT)
 
-#define	LI_RECURSEMASK	0x0000ffff	/* Recursion depth of lock instance. */
-#define	LI_EXCLUSIVE	0x00010000	/* Exclusive lock instance. */
-
 /*
  * Option flags passed to lock operations that witness also needs to know
  * about or that are generic across all locks.
@@ -114,37 +112,6 @@ struct lock_class {
 #define	LA_NOTRECURSED	0x00000010	/* Lock is not recursed. */
 
 #ifdef _KERNEL
-/*
- * Lock instances.  A lock instance is the data associated with a lock while
- * it is held by witness.  For example, a lock instance will hold the
- * recursion count of a lock.  Lock instances are held in lists.  Spin locks
- * are held in a per-cpu list while sleep locks are held in per-thread list.
- */
-struct lock_instance {
-	struct	lock_object *li_lock;
-	const	char *li_file;		/* File and line of last acquire. */
-	int	li_line;
-	u_int	li_flags;		/* Recursion count and LI_* flags. */
-};
-
-/*
- * A simple list type used to build the list of locks held by a thread
- * or CPU.  We can't simply embed the list in struct lock_object since a
- * lock may be held by more than one thread if it is a shared lock.  Locks
- * are added to the head of the list, so we fill up each list entry from
- * "the back" logically.  To ease some of the arithmetic, we actually fill
- * in each list entry the normal way (childer[0] then children[1], etc.) but
- * when we traverse the list we read children[count-1] as the first entry
- * down to children[0] as the final entry.
- */
-#define	LOCK_NCHILDREN	3
-
-struct lock_list_entry {
-	struct	lock_list_entry *ll_next;
-	struct	lock_instance ll_children[LOCK_NCHILDREN];
-	u_int	ll_count;
-};
-
 /*
  * If any of WITNESS, INVARIANTS, or KTR_LOCK KTR tracing has been enabled,
  * then turn on LOCK_DEBUG.  When this option is on, extra debugging
