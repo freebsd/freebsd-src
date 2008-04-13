@@ -535,12 +535,11 @@ __format_grouped_double(double value, int *flags,
 
 	/* make sure that we've enough space for result string */
 	bufsize = strlen(avalue)*2+1;
-	rslt = malloc(bufsize);
+	rslt = calloc(1, bufsize);
 	if (rslt == NULL) {
 		free(avalue);
 		return (NULL);
 	}
-	memset(rslt, 0, bufsize);
 	bufend = rslt + bufsize - 1;	/* reserve space for trailing '\0' */
 
 	/* skip spaces at beggining */
