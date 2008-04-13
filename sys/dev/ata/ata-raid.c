@@ -1669,9 +1669,8 @@ ata_raid_adaptec_read_meta(device_t dev, struct ar_softc **raidp)
 	if (be32toh(meta->generation) >= raid->generation) {
 	    struct ata_device *atadev = device_get_softc(parent);
 	    struct ata_channel *ch = device_get_softc(GRANDPARENT(dev));
-	    int disk_number = (ch->unit << !(ch->flags & ATA_NO_SLAVE)) +
-			      ATA_DEV(atadev->unit);
-
+	    int disk_number =
+		(ch->unit << !(ch->flags & ATA_NO_SLAVE)) + atadev->unit;
 	    raid->disks[disk_number].dev = parent;
 	    raid->disks[disk_number].sectors = 
 		be32toh(meta->configs[disk_number + 1].sectors);
@@ -2303,7 +2302,7 @@ ata_raid_intel_write_meta(struct ar_softc *rdp)
 	    bcopy(atadev->param.serial, meta->disk[disk].serial,
 		  sizeof(rdp->disks[disk].serial));
 	    meta->disk[disk].sectors = rdp->disks[disk].sectors;
-	    meta->disk[disk].id = (ch->unit << 16) | ATA_DEV(atadev->unit);
+	    meta->disk[disk].id = (ch->unit << 16) | atadev->unit;
 	}
 	else
 	    meta->disk[disk].sectors = rdp->total_sectors / rdp->width;
@@ -3328,7 +3327,7 @@ ata_raid_promise_write_meta(struct ar_softc *rdp)
 		device_get_softc(device_get_parent(rdp->disks[disk].dev));
 
 	    meta->raid.channel = ch->unit;
-	    meta->raid.device = ATA_DEV(atadev->unit);
+	    meta->raid.device = atadev->unit;
 	    meta->raid.disk_sectors = rdp->disks[disk].sectors;
 	    meta->raid.disk_offset = rdp->offset_sectors;
 	}
@@ -3416,7 +3415,7 @@ ata_raid_promise_write_meta(struct ar_softc *rdp)
 		    device_get_softc(rdp->disks[drive].dev);
 
 		meta->raid.disk[drive].channel = ch->unit;
-		meta->raid.disk[drive].device = ATA_DEV(atadev->unit);
+		meta->raid.disk[drive].device = atadev->unit;
 	    }
 	    meta->raid.disk[drive].magic_0 =
 		PR_MAGIC0(meta->raid.disk[drive]) | timestamp.tv_sec;
@@ -3742,7 +3741,7 @@ ata_raid_sis_write_meta(struct ar_softc *rdp)
 	    struct ata_channel *ch = 
 		device_get_softc(device_get_parent(rdp->disks[disk].dev));
 	    struct ata_device *atadev = device_get_softc(rdp->disks[disk].dev);
-	    int disk_number = 1 + ATA_DEV(atadev->unit) + (ch->unit << 1);
+	    int disk_number = 1 + atadev->unit + (ch->unit << 1);
 
 	    meta->disks |= disk_number << ((1 - disk) << 2);
 	}
@@ -3780,7 +3779,7 @@ ata_raid_sis_write_meta(struct ar_softc *rdp)
 	    bcopy(atadev->param.model, meta->model, sizeof(meta->model));
 
 	    /* XXX SOS if total_disks > 2 this may not float */
-	    meta->disk_number = 1 + ATA_DEV(atadev->unit) + (ch->unit << 1);
+	    meta->disk_number = 1 + atadev->unit + (ch->unit << 1);
 
 	    if (testing || bootverbose)
 		ata_raid_sis_print_meta(meta);
