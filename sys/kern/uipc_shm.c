@@ -319,6 +319,10 @@ shm_alloc(struct ucred *ucred, mode_t mode)
 	shmfd->shm_object = vm_pager_allocate(OBJT_DEFAULT, NULL,
 	    shmfd->shm_size, VM_PROT_DEFAULT, 0);
 	KASSERT(shmfd->shm_object != NULL, ("shm_create: vm_pager_allocate"));
+	VM_OBJECT_LOCK(shmfd->shm_object);
+	vm_object_clear_flag(shmfd->shm_object, OBJ_ONEMAPPING);
+	vm_object_set_flag(shmfd->shm_object, OBJ_NOSPLIT);
+	VM_OBJECT_UNLOCK(shmfd->shm_object);
 	vfs_timestamp(&shmfd->shm_birthtime);
 	shmfd->shm_atime = shmfd->shm_mtime = shmfd->shm_ctime =
 	    shmfd->shm_birthtime;
