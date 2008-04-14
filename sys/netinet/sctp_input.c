@@ -2182,6 +2182,20 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 		/* out of memory or ?? */
 		return (NULL);
 	}
+#ifdef SCTP_MBUF_LOGGING
+	if (sctp_logging_level & SCTP_MBUF_LOGGING_ENABLE) {
+		struct mbuf *mat;
+
+		mat = m_sig;
+		while (mat) {
+			if (SCTP_BUF_IS_EXTENDED(mat)) {
+				sctp_log_mb(mat, SCTP_MBUF_SPLIT);
+			}
+			mat = SCTP_BUF_NEXT(mat);
+		}
+	}
+#endif
+
 	/*
 	 * compute the signature/digest for the cookie
 	 */
@@ -2795,7 +2809,7 @@ sctp_handle_shutdown_complete(struct sctp_shutdown_complete_chunk *cp,
 		}
 	}
 	/* stop the timer */
-	sctp_timer_stop(SCTP_TIMER_TYPE_SHUTDOWN, stcb->sctp_ep, stcb, net, SCTP_FROM_SCTP_INPUT + SCTP_LOC_22);
+	sctp_timer_stop(SCTP_TIMER_TYPE_SHUTDOWNACK, stcb->sctp_ep, stcb, net, SCTP_FROM_SCTP_INPUT + SCTP_LOC_22);
 	SCTP_STAT_INCR_COUNTER32(sctps_shutdown);
 	/* free the TCB */
 	SCTPDBG(SCTP_DEBUG_INPUT2,
@@ -4807,6 +4821,19 @@ process_control_chunks:
 					SCTP_BUF_NEXT(mm) = SCTP_M_COPYM(m, *offset, SCTP_SIZE32(chk_length),
 					    M_DONTWAIT);
 					if (SCTP_BUF_NEXT(mm)) {
+#ifdef SCTP_MBUF_LOGGING
+						if (sctp_logging_level & SCTP_MBUF_LOGGING_ENABLE) {
+							struct mbuf *mat;
+
+							mat = SCTP_BUF_NEXT(mm);
+							while (mat) {
+								if (SCTP_BUF_IS_EXTENDED(mat)) {
+									sctp_log_mb(mat, SCTP_MBUF_ICOPY);
+								}
+								mat = SCTP_BUF_NEXT(mat);
+							}
+						}
+#endif
 						sctp_queue_op_err(stcb, mm);
 					} else {
 						sctp_m_freem(mm);
