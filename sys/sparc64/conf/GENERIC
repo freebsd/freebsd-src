@@ -169,7 +169,7 @@ device		hme		# Sun HME (Happy Meal Ethernet)
 #device		pcn		# AMD Am79C97x PCI 10/100 (precedence over 'le')
 device		re		# RealTek 8139C+/8169/8169S/8110S
 device		rl		# RealTek 8129/8139
-#device		sf		# Adaptec AIC-6915 (``Starfire'')
+device		sf		# Adaptec AIC-6915 (``Starfire'')
 #device		sis		# Silicon Integrated Systems SiS 900/SiS 7016
 device		sk		# SysKonnect SK-984x & SK-982x gigabit Ethernet
 #device		ste		# Sundance ST201 (D-Link DFE-550TX)
