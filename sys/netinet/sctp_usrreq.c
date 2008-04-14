@@ -919,6 +919,37 @@ sctp_disconnect(struct socket *so)
 }
 
 int
+sctp_flush(struct socket *so, int how)
+{
+	/*
+	 * We will just clear out the values and let subsequent close clear
+	 * out the data, if any. Note if the user did a shutdown(SHUT_RD)
+	 * they will not be able to read the data, the socket will block
+	 * that from happening.
+	 */
+	if ((how == PRU_FLUSH_RD) || (how == PRU_FLUSH_RDWR)) {
+		/*
+		 * First make sure the sb will be happy, we don't use these
+		 * except maybe the count
+		 */
+		so->so_rcv.sb_cc = 0;
+		so->so_rcv.sb_mbcnt = 0;
+		so->so_rcv.sb_mb = NULL;
+	}
+	if ((how == PRU_FLUSH_WR) || (how == PRU_FLUSH_RDWR)) {
+		/*
+		 * First make sure the sb will be happy, we don't use these
+		 * except maybe the count
+		 */
+		so->so_snd.sb_cc = 0;
+		so->so_snd.sb_mbcnt = 0;
+		so->so_snd.sb_mb = NULL;
+
+	}
+	return (0);
+}
+
+int
 sctp_shutdown(struct socket *so)
 {
 	struct sctp_inpcb *inp;
@@ -4008,10 +4039,11 @@ sctp_connect(struct socket *so, struct sockaddr *addr, struct thread *p)
 		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
 		return (EINVAL);
 	}
+	SCTP_INP_INCR_REF(inp);
 	SCTP_ASOC_CREATE_LOCK(inp);
 	create_lock_on = 1;
 
-	SCTP_INP_INCR_REF(inp);
+
 	if ((inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_ALLGONE) ||
 	    (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE)) {
 		/* Should I really unlock ? */
@@ -4063,7 +4095,7 @@ sctp_connect(struct socket *so, struct sockaddr *addr, struct thread *p)
 		if (stcb == NULL) {
 			SCTP_INP_DECR_REF(inp);
 		} else {
-			SCTP_TCB_LOCK(stcb);
+			SCTP_TCB_UNLOCK(stcb);
 		}
 	}
 	if (stcb != NULL) {
@@ -4433,6 +4465,7 @@ struct pr_usrreqs sctp_usrreqs = {
 	.pru_close = sctp_close,
 	.pru_detach = sctp_close,
 	.pru_sopoll = sopoll_generic,
+	.pru_flush = sctp_flush,
 	.pru_disconnect = sctp_disconnect,
 	.pru_listen = sctp_listen,
 	.pru_peeraddr = sctp_peeraddr,
