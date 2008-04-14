@@ -582,6 +582,7 @@ sctp_queue_data_to_stream(struct sctp_tcb *stcb, struct sctp_association *asoc,
 		/* The incoming sseq is behind where we last delivered? */
 		SCTPDBG(SCTP_DEBUG_INDATA1, "Duplicate S-SEQ:%d delivered:%d from peer, Abort  association\n",
 		    control->sinfo_ssn, strm->last_sequence_delivered);
+protocol_error:
 		/*
 		 * throw it in the stream so it gets cleaned up in
 		 * association destruction
@@ -659,6 +660,11 @@ sctp_queue_data_to_stream(struct sctp_tcb *stcb, struct sctp_association *asoc,
 		 * Ok, we did not deliver this guy, find the correct place
 		 * to put it on the queue.
 		 */
+		if ((compare_with_wrap(asoc->cumulative_tsn,
+		    control->sinfo_tsn, MAX_TSN)) ||
+		    (control->sinfo_tsn == asoc->cumulative_tsn)) {
+			goto protocol_error;
+		}
 		if (TAILQ_EMPTY(&strm->inqueue)) {
 			/* Empty queue */
 			if (sctp_logging_level & SCTP_STR_LOGGING_ENABLE) {
@@ -3343,7 +3349,7 @@ sctp_strike_gap_ack_chunks(struct sctp_tcb *stcb, struct sctp_association *asoc,
 					tp1->sent++;
 				}
 			}
-		} else if (tp1->rec.data.doing_fast_retransmit) {
+		} else if ((tp1->rec.data.doing_fast_retransmit) && (sctp_cmt_on_off == 0)) {
 			/*
 			 * For those that have done a FR we must take
 			 * special consideration if we strike. I.e the
