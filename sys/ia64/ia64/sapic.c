@@ -202,7 +202,7 @@ sapic_enable(struct sapic *sa, u_int irq, u_int vector)
 	sapic_read_rte(sa, irq - sa->sa_base, &rte);
 	rte.rte_destination_id = (lid >> 24) & 255;
 	rte.rte_destination_eid = (lid >> 16) & 255;
-	rte.rte_delivery_mode = SAPIC_DELMODE_LOWPRI;
+	rte.rte_delivery_mode = SAPIC_DELMODE_FIXED;
 	rte.rte_vector = vector;
 	rte.rte_mask = 0;
 	sapic_write_rte(sa, irq - sa->sa_base, &rte);
