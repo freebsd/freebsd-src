@@ -63,6 +63,8 @@ struct acpi_asus_model {
 	char	*name;
 
 	char	*bled_set;
+	char	*dled_set;
+	char	*gled_set;
 	char	*mled_set;
 	char	*tled_set;
 	char	*wled_set;
@@ -86,6 +88,8 @@ struct acpi_asus_led {
 	int		state;
 	enum {
 		ACPI_ASUS_LED_BLED,
+		ACPI_ASUS_LED_DLED,
+		ACPI_ASUS_LED_GLED,
 		ACPI_ASUS_LED_MLED,
 		ACPI_ASUS_LED_TLED,
 		ACPI_ASUS_LED_WLED,
@@ -101,6 +105,8 @@ struct acpi_asus_softc {
 	struct sysctl_oid	*sysctl_tree;
 
 	struct acpi_asus_led	s_bled;
+	struct acpi_asus_led	s_dled;
+	struct acpi_asus_led	s_gled;
 	struct acpi_asus_led	s_mled;
 	struct acpi_asus_led	s_tled;
 	struct acpi_asus_led	s_wled;
@@ -190,6 +196,21 @@ static struct acpi_asus_model acpi_asus_models[] = {
 		.brn_dn		= "\\Q0B",
 		.disp_get	= "\\INFB",
 		.disp_set	= "SDSP"
+	},
+	{
+		.name		= "G2K",
+		.bled_set	= "BLED",
+		.dled_set	= "DLED",
+		.gled_set	= "GLED",
+		.mled_set	= "MLED",
+		.tled_set	= "TLED",
+		.wled_set	= "WLED",
+		.brn_get	= "GPLV",
+		.brn_set	= "SPLV",
+		.lcd_get	= "\\_SB.PCI0.SBRG.EC0.RPIN",
+		.lcd_set	= "\\_SB.PCI0.SBRG.EC0._Q10",
+		.disp_get	= "\\_SB.PCI0.PCE2.VGA.GETD",
+		.disp_set	= "SDSP",
 	},
 	{
 		.name		= "L2D",
@@ -611,7 +632,24 @@ acpi_asus_attach(device_t dev)
 		sc->s_bled.sc = sc;
 		sc->s_bled.type = ACPI_ASUS_LED_BLED;
 		sc->s_bled.cdev =
-		    led_create((led_t *)acpi_asus_led, &sc->s_bled, "bled");
+		    led_create_state((led_t *)acpi_asus_led, &sc->s_bled,
+			"bled", 1);
+	}
+
+	if (sc->model->dled_set) {
+		sc->s_dled.busy = 0;
+		sc->s_dled.sc = sc;
+		sc->s_dled.type = ACPI_ASUS_LED_DLED;
+		sc->s_dled.cdev =
+		    led_create((led_t *)acpi_asus_led, &sc->s_dled, "dled");
+	}
+
+	if (sc->model->gled_set) {
+		sc->s_gled.busy = 0;
+		sc->s_gled.sc = sc;
+		sc->s_gled.type = ACPI_ASUS_LED_GLED;
+		sc->s_gled.cdev =
+		    led_create((led_t *)acpi_asus_led, &sc->s_gled, "gled");
 	}
 
 	if (sc->model->mled_set) {
@@ -627,7 +665,8 @@ acpi_asus_attach(device_t dev)
 		sc->s_tled.sc = sc;
 		sc->s_tled.type = ACPI_ASUS_LED_TLED;
 		sc->s_tled.cdev =
-		    led_create((led_t *)acpi_asus_led, &sc->s_tled, "tled");
+		    led_create_state((led_t *)acpi_asus_led, &sc->s_tled,
+			"tled", 1);
 	}
 
 	if (sc->model->wled_set) {
@@ -635,7 +674,8 @@ acpi_asus_attach(device_t dev)
 		sc->s_wled.sc = sc;
 		sc->s_wled.type = ACPI_ASUS_LED_WLED;
 		sc->s_wled.cdev =
-		    led_create((led_t *)acpi_asus_led, &sc->s_wled, "wled");
+		    led_create_state((led_t *)acpi_asus_led, &sc->s_wled,
+			"wled", 1);
 	}
 
 	/* Activate hotkeys */
@@ -660,6 +700,12 @@ acpi_asus_detach(device_t dev)
 	/* Turn the lights off */
 	if (sc->model->bled_set)
 		led_destroy(sc->s_bled.cdev);
+
+	if (sc->model->dled_set)
+		led_destroy(sc->s_dled.cdev);
+
+	if (sc->model->gled_set)
+		led_destroy(sc->s_gled.cdev);
 
 	if (sc->model->mled_set)
 		led_destroy(sc->s_mled.cdev);
@@ -696,11 +742,17 @@ acpi_asus_led_task(struct acpi_asus_led *led, int pending __unused)
 		method = sc->model->bled_set;
 		state = led->state;
 		break;
+	case ACPI_ASUS_LED_DLED:
+		method = sc->model->dled_set;
+		state = led->state;
+		break;
+	case ACPI_ASUS_LED_GLED:
+		method = sc->model->gled_set;
+		state = led->state + 1;	/* 1: off, 2: on */
+		break;
 	case ACPI_ASUS_LED_MLED:
 		method = sc->model->mled_set;
-
-		/* Note: inverted */
-		state = !led->state;
+		state = !led->state;	/* inverted */
 		break;
 	case ACPI_ASUS_LED_TLED:
 		method = sc->model->tled_set;
@@ -886,36 +938,55 @@ acpi_asus_sysctl_init(struct acpi_asus_softc *sc, int method)
 		}
 		return (FALSE);
 	case ACPI_ASUS_METHOD_LCD:
-		if (sc->model->lcd_get &&
-		    strncmp(sc->model->name, "L3H", 3) != 0) {
-			status = acpi_GetInteger(sc->handle,
-			    sc->model->lcd_get, &sc->s_lcd);
-			if (ACPI_SUCCESS(status))
-				return (TRUE);
-		}
-		else if (sc->model->lcd_get) {
-			ACPI_BUFFER		Buf;
-			ACPI_OBJECT		Arg[2], Obj;
-			ACPI_OBJECT_LIST	Args;
+		if (sc->model->lcd_get) {
+			if (strncmp(sc->model->name, "G2K", 3) == 0) {
+				ACPI_BUFFER		Buf;
+				ACPI_OBJECT		Arg, Obj;
+				ACPI_OBJECT_LIST	Args;
 
-			/* L3H is a bit special */
-			Arg[0].Type = ACPI_TYPE_INTEGER;
-			Arg[0].Integer.Value = 0x02;
-			Arg[1].Type = ACPI_TYPE_INTEGER;
-			Arg[1].Integer.Value = 0x03;
+				Arg.Type = ACPI_TYPE_INTEGER;
+				Arg.Integer.Value = 0x11;
+				Args.Count = 1;
+				Args.Pointer = &Arg;
+				Buf.Length = sizeof(Obj);
+				Buf.Pointer = &Obj;
 
-			Args.Count = 2;
-			Args.Pointer = Arg;
+				status = AcpiEvaluateObject(sc->handle,
+				    sc->model->lcd_get, &Args, &Buf);
+				if (ACPI_SUCCESS(status) &&
+				    Obj.Type == ACPI_TYPE_INTEGER) {
+					sc->s_lcd = Obj.Integer.Value;
+					return (TRUE);
+				}
+			} else if (strncmp(sc->model->name, "L3H", 3) == 0) {
+				ACPI_BUFFER		Buf;
+				ACPI_OBJECT		Arg[2], Obj;
+				ACPI_OBJECT_LIST	Args;
 
-			Buf.Length = sizeof(Obj);
-			Buf.Pointer = &Obj;
+				/* L3H is a bit special */
+				Arg[0].Type = ACPI_TYPE_INTEGER;
+				Arg[0].Integer.Value = 0x02;
+				Arg[1].Type = ACPI_TYPE_INTEGER;
+				Arg[1].Integer.Value = 0x03;
 
-			status = AcpiEvaluateObject(sc->handle,
-			    sc->model->lcd_get, &Args, &Buf);
-			if (ACPI_SUCCESS(status) &&
-			    Obj.Type == ACPI_TYPE_INTEGER) {
-				sc->s_lcd = Obj.Integer.Value >> 8;
-				return (TRUE);
+				Args.Count = 2;
+				Args.Pointer = Arg;
+
+				Buf.Length = sizeof(Obj);
+				Buf.Pointer = &Obj;
+
+				status = AcpiEvaluateObject(sc->handle,
+				    sc->model->lcd_get, &Args, &Buf);
+				if (ACPI_SUCCESS(status) &&
+				    Obj.Type == ACPI_TYPE_INTEGER) {
+					sc->s_lcd = Obj.Integer.Value >> 8;
+					return (TRUE);
+				}
+			} else {
+				status = acpi_GetInteger(sc->handle,
+				    sc->model->lcd_get, &sc->s_lcd);
+				if (ACPI_SUCCESS(status))
+					return (TRUE);
 			}
 		}
 		return (FALSE);
