@@ -418,8 +418,8 @@ struct ata_device {
     device_t                    dev;            /* device handle */
     int                         unit;           /* physical unit */
 #define         ATA_MASTER              0x00
+#define         ATA_SLAVE               0x01
 #define         ATA_PM                  0x0f
-#define         ATA_SLAVE               0x10
 
     struct ata_params           param;          /* ata param structure */
     int                         mode;           /* current transfermode */

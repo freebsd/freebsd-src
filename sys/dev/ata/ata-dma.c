@@ -112,8 +112,8 @@ ata_dmaalloc(device_t dev)
 			 &ch->dma.work_map))
 	goto error;
 
-    if (bus_dmamap_load(ch->dma.work_tag, ch->dma.work_map ,ch->dma.work,
-			MAXWSPCSZ, ata_dmasetupc_cb, &dcba, BUS_DMA_NOWAIT) ||
+    if (bus_dmamap_load(ch->dma.work_tag, ch->dma.work_map, ch->dma.work,
+			MAXWSPCSZ, ata_dmasetupc_cb, &dcba, 0) ||
 			dcba.error) {
 	bus_dmamem_free(ch->dma.work_tag, ch->dma.work, ch->dma.work_map);
 	goto error;
@@ -202,8 +202,8 @@ ata_dmaload(struct ata_request *request, void *addr, int *entries)
     }
 
     if (bus_dmamap_load(request->dma.sg_tag, request->dma.sg_map,
-			request->dma.sg, MAXTABSZ,
-			ata_dmasetupc_cb, &dcba, BUS_DMA_NOWAIT) || dcba.error){
+			request->dma.sg, MAXTABSZ, ata_dmasetupc_cb, &dcba, 0)||
+			dcba.error) {
 	bus_dmamem_free(request->dma.sg_tag,
 			request->dma.sg, request->dma.sg_map);
 	device_printf(request->dev, "FAILURE - load sg\n");
