@@ -936,6 +936,7 @@ dev/scc/scc_dev_sab82532.c	optional	scc
 dev/scc/scc_dev_z8530.c		optional	scc
 dev/scd/scd.c			optional scd isa
 dev/scd/scd_isa.c		optional scd isa
+dev/sf/if_sf.c			optional sf pci
 dev/si/si.c			optional si
 dev/si/si2_z280.c		optional si
 dev/si/si3_t225.c		optional si
@@ -2026,7 +2027,6 @@ pci/amdsmb.c			optional amdsmb pci
 pci/if_mn.c			optional mn pci
 pci/if_pcn.c			optional pcn pci
 pci/if_rl.c			optional rl pci
-pci/if_sf.c			optional sf pci
 pci/if_sis.c			optional sis pci
 pci/if_ste.c			optional ste pci
 pci/if_tl.c			optional tl pci
