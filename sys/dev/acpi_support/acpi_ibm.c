@@ -48,7 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/acpica/acpivar.h>
 #include <dev/led/led.h>
 #include <sys/sysctl.h>
-#include <machine/clock.h>
+#include <isa/rtc.h>
 
 #define _COMPONENT	ACPI_OEM
 ACPI_MODULE_NAME("IBM")
