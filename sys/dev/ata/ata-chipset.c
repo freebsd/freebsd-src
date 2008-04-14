@@ -1055,9 +1055,10 @@ ata_ahci_softreset(device_t dev, int port)
 {
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
+    int offset = ch->unit << 7;
+#ifdef AHCI_PM
     struct ata_ahci_cmd_tab *ctp =
 	(struct ata_ahci_cmd_tab *)(ch->dma.work + ATA_AHCI_CT_OFFSET);
-    int offset = ch->unit << 7;
     int timeout = 0;
 
     /* kick controller into sane state if needed */
@@ -1097,7 +1098,7 @@ ata_ahci_softreset(device_t dev, int port)
     } while (ATA_INL(ctlr->r_res2, ATA_AHCI_P_TFD + offset) & ATA_S_BUSY);
     if (bootverbose)
 	device_printf(dev, "BUSY wait time=%dms\n", timeout);
-
+#endif
     return ATA_INL(ctlr->r_res2, ATA_AHCI_P_SIG + offset);
 }
 
@@ -4306,7 +4307,7 @@ ata_promise_mio_softreset(device_t dev, int port)
     ATA_OUTB(ctlr->r_res2, 0x4e8 + (ch->unit << 8), port & 0x0f);
 
     /* softreset device on this channel */
-    ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM | ATA_D_LBA | ATA_MASTER);
+    ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM | ATA_D_LBA | ATA_DEV(ATA_MASTER));
     DELAY(10);
     ATA_IDX_OUTB(ch, ATA_CONTROL, ATA_A_IDS | ATA_A_RESET);
     ata_udelay(10000); 
