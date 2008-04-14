@@ -593,6 +593,12 @@ struct omsghdr {
 #define	SHUT_WR		1		/* shut down the writing side */
 #define	SHUT_RDWR	2		/* shut down both sides */
 
+/* we cheat and use the SHUT_XX defines for these */
+#define PRU_FLUSH_RD     SHUT_RD
+#define PRU_FLUSH_WR     SHUT_WR
+#define PRU_FLUSH_RDWR   SHUT_RDWR
+
+
 #if __BSD_VISIBLE
 /*
  * sendfile(2) header/trailer struct

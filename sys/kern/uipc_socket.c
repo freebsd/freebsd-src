@@ -1859,7 +1859,9 @@ soshutdown(struct socket *so, int how)
 
 	if (!(how == SHUT_RD || how == SHUT_WR || how == SHUT_RDWR))
 		return (EINVAL);
-
+	if (pr->pr_usrreqs->pru_flush != NULL) {
+	        (*pr->pr_usrreqs->pru_flush)(so, how);
+	}
 	if (how != SHUT_WR)
 		sorflush(so);
 	if (how != SHUT_RD)
