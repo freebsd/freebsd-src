@@ -27,8 +27,6 @@ void	i8254_init(void);
  * Driver to clock driver interface.
  */
 
-int	rtcin(int reg);
-void	writertc(int reg, unsigned char val);
 void	init_TSC(void);
 void	init_TSC_tc(void);
 
