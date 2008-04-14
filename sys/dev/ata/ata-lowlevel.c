@@ -463,7 +463,7 @@ ata_generic_reset(device_t dev)
     int mask = 0, timeout;
 
     /* do we have any signs of ATA/ATAPI HW being present ? */
-    ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM | ATA_D_LBA | ATA_MASTER);
+    ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM | ATA_D_LBA | ATA_DEV(ATA_MASTER));
     DELAY(10);
     ostat0 = ATA_IDX_INB(ch, ATA_STATUS);
     if ((ostat0 & 0xf8) != 0xf8 && ostat0 != 0xa5) {
@@ -473,7 +473,7 @@ ata_generic_reset(device_t dev)
 
     /* in some setups we dont want to test for a slave */
     if (!(ch->flags & ATA_NO_SLAVE)) {
-	ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM | ATA_D_LBA | ATA_SLAVE);
+	ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM | ATA_D_LBA | ATA_DEV(ATA_SLAVE));
 	DELAY(10);      
 	ostat1 = ATA_IDX_INB(ch, ATA_STATUS);
 	if ((ostat1 & 0xf8) != 0xf8 && ostat1 != 0xa5) {
@@ -493,7 +493,7 @@ ata_generic_reset(device_t dev)
 	return;
 
     /* reset (both) devices on this channel */
-    ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM | ATA_D_LBA | ATA_MASTER);
+    ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM | ATA_D_LBA | ATA_DEV(ATA_MASTER));
     DELAY(10);
     ATA_IDX_OUTB(ch, ATA_CONTROL, ATA_A_IDS | ATA_A_RESET);
     ata_udelay(10000); 
@@ -504,7 +504,7 @@ ata_generic_reset(device_t dev)
     /* wait for BUSY to go inactive */
     for (timeout = 0; timeout < 310; timeout++) {
 	if ((mask & 0x01) && (stat0 & ATA_S_BUSY)) {
-	    ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM | ATA_MASTER);
+	    ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM | ATA_DEV(ATA_MASTER));
 	    DELAY(10);
 	    err = ATA_IDX_INB(ch, ATA_ERROR);
 	    lsb = ATA_IDX_INB(ch, ATA_CYL_LSB);
@@ -534,7 +534,7 @@ ata_generic_reset(device_t dev)
 
 	if ((mask & 0x02) && (stat1 & ATA_S_BUSY) &&
 	    !((mask & 0x01) && (stat0 & ATA_S_BUSY))) {
-	    ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM | ATA_SLAVE);
+	    ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM | ATA_DEV(ATA_SLAVE));
 	    DELAY(10);
 	    err = ATA_IDX_INB(ch, ATA_ERROR);
 	    lsb = ATA_IDX_INB(ch, ATA_CYL_LSB);
@@ -582,9 +582,8 @@ ata_generic_reset(device_t dev)
     }
 
     if (bootverbose)
-	device_printf(dev, "reset tp2 stat0=%02x stat1=%02x devices=0x%b\n",
-		      stat0, stat1, ch->devices,
-		      "\20\4ATAPI_SLAVE\3ATAPI_MASTER\2ATA_SLAVE\1ATA_MASTER");
+	device_printf(dev, "reset tp2 stat0=%02x stat1=%02x devices=0x%x\n",
+		      stat0, stat1, ch->devices);
 }
 
 /* must be called with ATA channel locked and state_mtx held */
