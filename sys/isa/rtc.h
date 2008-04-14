@@ -110,4 +110,15 @@
 #define RTC_EXTHI	0x18	/* low byte of extended mem size */
 
 #define	RTC_CENTURY	0x32	/* current century */
+
+#ifdef _KERNEL
+extern  struct mtx clock_lock;
+int	rtcin(int reg);
+void	atrtc_start(void);
+void	atrtc_rate(unsigned rate);
+void	atrtc_enable_intr(void);
+void	atrtc_restore(void);
+void	writertc(int reg, u_char val);
+#endif
+
 #endif /* _I386_ISA_RTC_H_ */
