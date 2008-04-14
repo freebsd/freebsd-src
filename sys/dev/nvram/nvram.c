@@ -35,7 +35,6 @@
 #include <sys/uio.h>
 #include <sys/module.h>
 
-#include <machine/clock.h>
 #include <isa/rtc.h>
 
 /*

@@ -154,7 +154,7 @@ vga_mmap(struct cdev *dev, vga_softc_t *sc, vm_offset_t offset, vm_offset_t *pad
 
 /* LOW-LEVEL */
 
-#include <machine/clock.h>
+#include <isa/rtc.h>
 #ifdef __i386__
 #include <machine/pc/vesa.h>
 #endif

@@ -39,13 +39,6 @@ __FBSDID("$FreeBSD$");
  * Routines to handle clock hardware.
  */
 
-/*
- * inittodr, settodr and support routines written
- * by Christoph Robitschko <chmr@edvz.tu-graz.ac.at>
- *
- * reintroduced and updated by Chris Stenton <chris@gnome.co.uk> 8/10/94
- */
-
 #include "opt_clock.h"
 #include "opt_isa.h"
 
@@ -62,7 +55,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/sched.h>
 #include <sys/sysctl.h>
-#include <sys/cons.h>
 
 #include <machine/clock.h>
 #include <machine/cpu.h>
@@ -78,13 +70,6 @@ __FBSDID("$FreeBSD$");
 #include <isa/isavar.h>
 #endif
 
-/*
- * 32-bit time_t's can't reach leap years before 1904 or after 2036, so we
- * can use a simple formula for leap years.
- */
-#define	LEAPYEAR(y) (((u_int)(y) % 4 == 0) ? 1 : 0)
-#define DAYSPERYEAR   (31+28+31+30+31+30+31+31+30+31+30+31)
-
 #define	TIMER_DIV(x) ((i8254_freq + (x) / 2) / (x))
 
 int	clkintr_pending;
@@ -98,20 +83,14 @@ u_int	i8254_freq = TIMER_FREQ;
 TUNABLE_INT("hw.i8254.freq", &i8254_freq);
 int	i8254_max_count;
 static int i8254_real_max_count;
-#define	RTC_LOCK	mtx_lock_spin(&clock_lock)
-#define	RTC_UNLOCK	mtx_unlock_spin(&clock_lock)
 
-static	struct mtx clock_lock;
-static	const u_char daysinmonth[] = {31,28,31,30,31,30,31,31,30,31,30,31};
+struct mtx clock_lock;
 static	struct intsrc *i8254_intsrc;
 static	u_int32_t i8254_lastcount;
 static	u_int32_t i8254_offset;
 static	int	(*i8254_pending)(struct intsrc *);
 static	int	i8254_ticked;
 static	int	using_lapic_timer;
-static	int	rtc_reg = -1;
-static	u_char	rtc_statusa = RTCSA_DIVIDER | RTCSA_NOPROF;
-static	u_char	rtc_statusb = RTCSB_24HR;
 
 /* Values for timerX_state: */
 #define	RELEASED	0
@@ -238,19 +217,6 @@ rtcintr(struct trapframe *frame)
 	}
 	return(flag ? FILTER_HANDLED : FILTER_STRAY);
 }
-
-#include "opt_ddb.h"
-#ifdef DDB
-#include <ddb/ddb.h>
-
-DB_SHOW_COMMAND(rtc, rtc)
-{
-	printf("%02x/%02x/%02x %02x:%02x:%02x, A = %02x, B = %02x, C = %02x\n",
-	       rtcin(RTC_YEAR), rtcin(RTC_MONTH), rtcin(RTC_DAY),
-	       rtcin(RTC_HRS), rtcin(RTC_MIN), rtcin(RTC_SEC),
-	       rtcin(RTC_STATUSA), rtcin(RTC_STATUSB), rtcin(RTC_INTR));
-}
-#endif /* DDB */
 
 static int
 getit(void)
@@ -386,50 +352,6 @@ DELAY(int n)
 #endif
 }
 
-/*
- * RTC support routines
- */
-
-int
-rtcin(reg)
-	int reg;
-{
-	u_char val;
-
-	RTC_LOCK;
-	if (rtc_reg != reg) {
-		inb(0x84);
-		outb(IO_RTC, reg);
-		rtc_reg = reg;
-		inb(0x84);
-	}
-	val = inb(IO_RTC + 1);
-	RTC_UNLOCK;
-	return (val);
-}
-
-void
-writertc(int reg, u_char val)
-{
-
-	RTC_LOCK;
-	if (rtc_reg != reg) {
-		inb(0x84);
-		outb(IO_RTC, reg);
-		rtc_reg = reg;
-		inb(0x84);
-	}
-	outb(IO_RTC + 1, val);
-	inb(0x84);
-	RTC_UNLOCK;
-}
-
-static __inline int
-readrtc(int port)
-{
-	return(bcd2bin(rtcin(port)));
-}
-
 static void
 set_i8254_freq(u_int freq, int intr_freq)
 {
@@ -468,148 +390,13 @@ void
 startrtclock()
 {
 
-	writertc(RTC_STATUSA, rtc_statusa);
-	writertc(RTC_STATUSB, RTCSB_24HR);
+	atrtc_start();
 
 	set_i8254_freq(i8254_freq, hz);
 	tc_init(&i8254_timecounter);
 
 	init_TSC();
 }
-
-/*
- * Initialize the time of day register, based on the time base which is, e.g.
- * from a filesystem.
- */
-void
-inittodr(time_t base)
-{
-	unsigned long	sec, days;
-	int		year, month;
-	int		y, m, s;
-	struct timespec ts;
-
-	if (base) {
-		s = splclock();
-		ts.tv_sec = base;
-		ts.tv_nsec = 0;
-		tc_setclock(&ts);
-		splx(s);
-	}
-
-	/* Look if we have a RTC present and the time is valid */
-	if (!(rtcin(RTC_STATUSD) & RTCSD_PWR))
-		goto wrong_time;
-
-	/* wait for time update to complete */
-	/* If RTCSA_TUP is zero, we have at least 244us before next update */
-	s = splhigh();
-	while (rtcin(RTC_STATUSA) & RTCSA_TUP) {
-		splx(s);
-		s = splhigh();
-	}
-
-	days = 0;
-#ifdef USE_RTC_CENTURY
-	year = readrtc(RTC_YEAR) + readrtc(RTC_CENTURY) * 100;
-#else
-	year = readrtc(RTC_YEAR) + 1900;
-	if (year < 1970)
-		year += 100;
-#endif
-	if (year < 1970) {
-		splx(s);
-		goto wrong_time;
-	}
-	month = readrtc(RTC_MONTH);
-	for (m = 1; m < month; m++)
-		days += daysinmonth[m-1];
-	if ((month > 2) && LEAPYEAR(year))
-		days ++;
-	days += readrtc(RTC_DAY) - 1;
-	for (y = 1970; y < year; y++)
-		days += DAYSPERYEAR + LEAPYEAR(y);
-	sec = ((( days * 24 +
-		  readrtc(RTC_HRS)) * 60 +
-		  readrtc(RTC_MIN)) * 60 +
-		  readrtc(RTC_SEC));
-	/* sec now contains the number of seconds, since Jan 1 1970,
-	   in the local time zone */
-
-	sec += utc_offset();
-
-	y = time_second - sec;
-	if (y <= -2 || y >= 2) {
-		/* badly off, adjust it */
-		ts.tv_sec = sec;
-		ts.tv_nsec = 0;
-		tc_setclock(&ts);
-	}
-	splx(s);
-	return;
-
-wrong_time:
-	printf("Invalid time in clock: check and reset the date!\n");
-}
-
-/*
- * Write system time back to RTC
- */
-void
-resettodr()
-{
-	unsigned long	tm;
-	int		y, m, s;
-
-	if (disable_rtc_set)
-		return;
-
-	s = splclock();
-	tm = time_second;
-	splx(s);
-
-	/* Disable RTC updates and interrupts. */
-	writertc(RTC_STATUSB, RTCSB_HALT | RTCSB_24HR);
-
-	/* Calculate local time to put in RTC */
-
-	tm -= utc_offset();
-
-	writertc(RTC_SEC, bin2bcd(tm%60)); tm /= 60;	/* Write back Seconds */
-	writertc(RTC_MIN, bin2bcd(tm%60)); tm /= 60;	/* Write back Minutes */
-	writertc(RTC_HRS, bin2bcd(tm%24)); tm /= 24;	/* Write back Hours   */
-
-	/* We have now the days since 01-01-1970 in tm */
-	writertc(RTC_WDAY, (tm + 4) % 7 + 1);		/* Write back Weekday */
-	for (y = 1970, m = DAYSPERYEAR + LEAPYEAR(y);
-	     tm >= m;
-	     y++,      m = DAYSPERYEAR + LEAPYEAR(y))
-	     tm -= m;
-
-	/* Now we have the years in y and the day-of-the-year in tm */
-	writertc(RTC_YEAR, bin2bcd(y%100));		/* Write back Year    */
-#ifdef USE_RTC_CENTURY
-	writertc(RTC_CENTURY, bin2bcd(y/100));		/* ... and Century    */
-#endif
-	for (m = 0; ; m++) {
-		int ml;
-
-		ml = daysinmonth[m];
-		if (m == 1 && LEAPYEAR(y))
-			ml++;
-		if (tm < ml)
-			break;
-		tm -= ml;
-	}
-
-	writertc(RTC_MONTH, bin2bcd(m + 1));            /* Write back Month   */
-	writertc(RTC_DAY, bin2bcd(tm + 1));             /* Write back Month Day */
-
-	/* Reenable RTC updates and interrupts. */
-	writertc(RTC_STATUSB, rtc_statusb);
-	rtcin(RTC_INTR);
-}
-
 
 /*
  * Start both clocks running.
@@ -627,8 +414,8 @@ cpu_initclocks()
 	 * timecounter to user a simpler algorithm.
 	 */
 	if (!using_lapic_timer) {
-		intr_add_handler("clk", 0, (driver_filter_t *)clkintr, NULL, NULL,
-		    INTR_TYPE_CLK, NULL);
+		intr_add_handler("clk", 0, (driver_filter_t *)clkintr, NULL,
+		    NULL, INTR_TYPE_CLK, NULL);
 		i8254_intsrc = intr_lookup_source(0);
 		if (i8254_intsrc != NULL)
 			i8254_pending =
@@ -641,8 +428,7 @@ cpu_initclocks()
 	}
 
 	/* Initialize RTC. */
-	writertc(RTC_STATUSA, rtc_statusa);
-	writertc(RTC_STATUSB, RTCSB_24HR);
+	atrtc_start();
 
 	/*
 	 * If the separate statistics clock hasn't been explicility disabled
@@ -653,19 +439,18 @@ cpu_initclocks()
 	if (!statclock_disable && !using_lapic_timer) {
 		diag = rtcin(RTC_DIAG);
 		if (diag != 0)
-			printf("RTC BIOS diagnostic error %b\n", diag, RTCDG_BITS);
+			printf("RTC BIOS diagnostic error %b\n",
+			    diag, RTCDG_BITS);
 
 	        /* Setting stathz to nonzero early helps avoid races. */
 		stathz = RTC_NOPROFRATE;
 		profhz = RTC_PROFRATE;
 
 		/* Enable periodic interrupts from the RTC. */
-		rtc_statusb |= RTCSB_PINTR;
-		intr_add_handler("rtc", 8, (driver_filter_t *)rtcintr, NULL, NULL,
+		intr_add_handler("rtc", 8,
+		    (driver_filter_t *)rtcintr, NULL, NULL,
 		    INTR_TYPE_CLK, NULL);
-
-		writertc(RTC_STATUSB, rtc_statusb);
-		rtcin(RTC_INTR);
+		atrtc_enable_intr();
 	}
 
 	init_TSC_tc();
@@ -677,8 +462,7 @@ cpu_startprofclock(void)
 
 	if (using_lapic_timer)
 		return;
-	rtc_statusa = RTCSA_DIVIDER | RTCSA_PROF;
-	writertc(RTC_STATUSA, rtc_statusa);
+	atrtc_rate(RTCSA_PROF);
 	psdiv = pscnt = psratio;
 }
 
@@ -688,8 +472,7 @@ cpu_stopprofclock(void)
 
 	if (using_lapic_timer)
 		return;
-	rtc_statusa = RTCSA_DIVIDER | RTCSA_NOPROF;
-	writertc(RTC_STATUSA, rtc_statusa);
+	atrtc_rate(RTCSA_NOPROF);
 	psdiv = pscnt = 1;
 }
 
@@ -738,7 +521,8 @@ i8254_get_timecount(struct timecounter *tc)
 	count = i8254_max_count - ((high << 8) | low);
 	if (count < i8254_lastcount ||
 	    (!i8254_ticked && (clkintr_pending ||
-	    ((count < 20 || (!(rflags & PSL_I) && count < i8254_max_count / 2u)) &&
+	    ((count < 20 || (!(rflags & PSL_I) &&
+	    count < i8254_max_count / 2u)) &&
 	    i8254_pending != NULL && i8254_pending(i8254_intsrc))))) {
 		i8254_ticked = 1;
 		i8254_offset += i8254_max_count;
@@ -751,11 +535,10 @@ i8254_get_timecount(struct timecounter *tc)
 
 #ifdef DEV_ISA
 /*
- * Attach to the ISA PnP descriptors for the timer and realtime clock.
+ * Attach to the ISA PnP descriptors for the timer
  */
 static struct isa_pnp_id attimer_ids[] = {
 	{ 0x0001d041 /* PNP0100 */, "AT timer" },
-	{ 0x000bd041 /* PNP0B00 */, "AT realtime clock" },
 	{ 0 }
 };
 
@@ -764,7 +547,8 @@ attimer_probe(device_t dev)
 {
 	int result;
 	
-	if ((result = ISA_PNP_PROBE(device_get_parent(dev), dev, attimer_ids)) <= 0)
+	result = ISA_PNP_PROBE(device_get_parent(dev), dev, attimer_ids);
+	if (result <= 0)
 		device_quiet(dev);
 	return(result);
 }
@@ -781,8 +565,8 @@ static device_method_t attimer_methods[] = {
 	DEVMETHOD(device_attach,	attimer_attach),
 	DEVMETHOD(device_detach,	bus_generic_detach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
-	DEVMETHOD(device_suspend,	bus_generic_suspend),	/* XXX stop statclock? */
-	DEVMETHOD(device_resume,	bus_generic_resume),	/* XXX restart statclock? */
+	DEVMETHOD(device_suspend,	bus_generic_suspend),
+	DEVMETHOD(device_resume,	bus_generic_resume),
 	{ 0, 0 }
 };
 
