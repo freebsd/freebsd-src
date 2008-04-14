@@ -32,7 +32,6 @@
 
 #include "namespace.h"
 #include <pthread.h>
-#include <pthread_np.h>
 #include "un-namespace.h"
 #include "thr_private.h"
 
