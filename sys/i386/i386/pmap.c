@@ -1606,9 +1606,9 @@ get_pv_entry(void)
 {
 	pv_entry_count++;
 	if ((pv_entry_count > pv_entry_high_water) &&
-		(pmap_pagedaemon_waken == 0)) {
+	    (pmap_pagedaemon_waken == 0)) {
 		pmap_pagedaemon_waken = 1;
-		wakeup (&vm_pages_needed);
+		wakeup(&vm_pages_needed);
 	}
 	return uma_zalloc(pvzone, M_NOWAIT);
 }
