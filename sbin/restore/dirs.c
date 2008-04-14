@@ -120,6 +120,7 @@ static void		 putent(struct direct *);
 static void		 rst_seekdir(RST_DIR *, long, long);
 static long		 rst_telldir(RST_DIR *);
 static struct direct	*searchdir(ino_t, char *);
+static void		 fail_dirtmp(char *);
 
 /*
  *	Extract directory contents, building up a directory structure
@@ -147,7 +148,7 @@ extractdirs(int genmode)
 	if (fd == -1 || (df = fdopen(fd, "w")) == NULL) {
 		if (fd != -1)
 			close(fd);
-		warn("%s - cannot create directory temporary\nfopen", dirfile);
+		warn("%s: cannot create directory database", dirfile);
 		done(1);
 	}
 	if (genmode != 0) {
@@ -160,7 +161,7 @@ extractdirs(int genmode)
 		if (fd == -1 || (mf = fdopen(fd, "w")) == NULL) {
 			if (fd != -1)
 				close(fd);
-			warn("%s - cannot create modefile\nfopen", modefile);
+			warn("%s: cannot create modefile", modefile);
 			done(1);
 		}
 	}
@@ -172,25 +173,24 @@ extractdirs(int genmode)
 	for (;;) {
 		curfile.name = "<directory file - name unknown>";
 		curfile.action = USING;
-		if (curfile.mode == 0 || (curfile.mode & IFMT) != IFDIR) {
-			(void) fclose(df);
-			dirp = opendirfile(dirfile);
-			if (dirp == NULL)
-				fprintf(stderr, "opendirfile: %s\n",
-				    strerror(errno));
-			if (mf != NULL)
-				(void) fclose(mf);
-			i = dirlookup(dot);
-			if (i == 0)
-				panic("Root directory is not on tape\n");
-			return;
-		}
+		if (curfile.mode == 0 || (curfile.mode & IFMT) != IFDIR)
+			break;
 		itp = allocinotab(&curfile, seekpt);
 		getfile(putdir, putdirattrs, xtrnull);
 		putent(&nulldir);
 		flushent();
 		itp->t_size = seekpt - itp->t_seekpt;
 	}
+	if (fclose(df) != 0)
+		fail_dirtmp(dirfile);
+	dirp = opendirfile(dirfile);
+	if (dirp == NULL)
+		fprintf(stderr, "opendirfile: %s\n", strerror(errno));
+	if (mf != NULL && fclose(mf) != 0)
+		fail_dirtmp(modefile);
+	i = dirlookup(dot);
+	if (i == 0)
+		panic("Root directory is not on tape\n");
 }
 
 /*
@@ -390,7 +390,8 @@ putent(struct direct *dp)
 	if (dirloc + dp->d_reclen > DIRBLKSIZ) {
 		((struct direct *)(dirbuf + prev))->d_reclen =
 		    DIRBLKSIZ - prev;
-		(void) fwrite(dirbuf, 1, DIRBLKSIZ, df);
+		if (fwrite(dirbuf, DIRBLKSIZ, 1, df) != 1)
+			fail_dirtmp(dirfile);
 		dirloc = 0;
 	}
 	memmove(dirbuf + dirloc, dp, (long)dp->d_reclen);
@@ -405,7 +406,8 @@ static void
 flushent(void)
 {
 	((struct direct *)(dirbuf + prev))->d_reclen = DIRBLKSIZ - prev;
-	(void) fwrite(dirbuf, (int)dirloc, 1, df);
+	if (fwrite(dirbuf, (int)dirloc, 1, df) != 1)
+		fail_dirtmp(dirfile);
 	seekpt = ftell(df);
 	dirloc = 0;
 }
@@ -417,8 +419,8 @@ static void
 putdirattrs(char *buf, long size)
 {
 
-	if (mf != NULL)
-		(void) fwrite(buf, 1, size, mf);
+	if (mf != NULL && fwrite(buf, size, 1, mf) != 1)
+		fail_dirtmp(modefile);
 }
 
 /*
@@ -582,6 +584,11 @@ setdirmodes(int flags)
 	myuid = getuid();
 	for (;;) {
 		(void) fread((char *)&node, 1, sizeof(struct modeinfo), mf);
+		if (ferror(mf)) {
+			warn("%s: cannot read modefile.", modefile);
+			fprintf(stderr, "Mode, owner, and times not set.\n");
+			break;
+		}
 		if (feof(mf))
 			break;
 		if (node.extsize > 0) {
@@ -596,8 +603,22 @@ setdirmodes(int flags)
 			}
 			if (bufsize >= node.extsize) {
 				(void) fread(buf, 1, node.extsize, mf);
+				if (ferror(mf)) {
+					warn("%s: cannot read modefile.",
+					    modefile);
+					fprintf(stderr, "Not all external ");
+					fprintf(stderr, "attributes set.\n");
+					break;
+				}
 			} else {
 				(void) fseek(mf, node.extsize, SEEK_CUR);
+				if (ferror(mf)) {
+					warn("%s: cannot seek in modefile.",
+					    modefile);
+					fprintf(stderr, "Not all directory ");
+					fprintf(stderr, "attributes set.\n");
+					break;
+				}
 			}
 		}
 		ep = lookupino(node.ino);
@@ -639,8 +660,6 @@ setdirmodes(int flags)
 	}
 	if (bufsize > 0)
 		free(buf);
-	if (ferror(mf))
-		panic("error setting directory modes\n");
 	(void) fclose(mf);
 }
 
@@ -734,7 +753,8 @@ allocinotab(struct context *ctxp, long seekpt)
 	node.flags = ctxp->file_flags;
 	node.uid = ctxp->uid;
 	node.gid = ctxp->gid;
-	(void) fwrite((char *)&node, 1, sizeof(struct modeinfo), mf);
+	if (fwrite((char *)&node, sizeof(struct modeinfo), 1, mf) != 1)
+		fail_dirtmp(modefile);
 	return (itp);
 }
 
@@ -760,9 +780,33 @@ done(int exitcode)
 {
 
 	closemt();
-	if (modefile[0] != '#')
+	if (modefile[0] != '#') {
+		(void) truncate(modefile, 0);
 		(void) unlink(modefile);
-	if (dirfile[0] != '#')
+	}
+	if (dirfile[0] != '#') {
+		(void) truncate(dirfile, 0);
 		(void) unlink(dirfile);
+	}
 	exit(exitcode);
+}
+
+/*
+ * Print out information about the failure to save directory,
+ * extended attribute, and mode information.
+ */
+static void
+fail_dirtmp(char *filename)
+{
+	const char *tmpdir;
+
+	warn("%s: cannot write directory database", filename);
+	if (errno == ENOSPC) {
+		if ((tmpdir = getenv("TMPDIR")) == NULL || tmpdir[0] == '\0')
+			tmpdir = _PATH_TMP;
+		fprintf(stderr, "Try making space in %s, %s\n%s\n", tmpdir,
+		    "or set environment variable TMPDIR",
+		    "to an alternate location with more disk space.");
+	}
+	done(1);
 }
