@@ -1014,8 +1014,11 @@ smbfs_advlock(ap)
 		lkop = SMB_LOCK_EXCL;
 		error = smbfs_smb_lock(np, lkop, id, start, end, &scred);
 		if (error) {
+			int oldtype = fl->l_type;
+			fl->l_type = F_UNLCK;
 			ap->a_op = F_UNLCK;
 			lf_advlock(ap, &np->n_lockf, size);
+			fl->l_type = oldtype;
 		}
 		break;
 	    case F_UNLCK:
