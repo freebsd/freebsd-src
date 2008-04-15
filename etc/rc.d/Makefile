@@ -27,7 +27,7 @@ FILES=	DAEMON FILESYSTEMS LOGIN NETWORKING SERVERS \
 	pccard pcvt pf pflog pfsync \
 	powerd power_profile ppp pppoed pwcheck \
 	quota \
-	ramdisk ramdisk-own random rarpd resolv root \
+	ramdisk ramdisk-own random rarpd resolv rfcomm_pppd_server root \
 	route6d routed routing rpcbind rtadvd rwho \
 	savecore sdpd securelevel sendmail \
 	serial sppp statd swap1 \
