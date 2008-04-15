@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 23, 2008
+.Dd April 9, 2008
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -3839,6 +3839,108 @@ autobridge_bridge0="tap* dc0 vlan[345]"
 If set to
 .Dq Li YES ,
 enable support for sound mixer.
+.It Va hcsecd_enable
+.Pq Vt bool
+If set to
+.Dq Li YES ,
+enable Bluetooth security daemon.
+.It Va hcsecd_config
+.Pq Vt str
+Configuration file for
+.Xr hcsecd 8 .
+Default
+.Pa /etc/bluetooth/hcsecd.conf .
+.It Va sdpd_enable
+.Pq Vt bool
+If set to
+.Dq Li YES ,
+enable Bluetooth Service Discovery Protocol daemon.
+.It Va sdpd_control
+.Pq Vt str
+Path to
+.Xr sdpd 8
+control socket.
+Default
+.Pa /var/run/sdp .
+.It Va sdpd_groupname
+.Pq Vt str
+Sets
+.Xr sdpd 8
+group to run as after it initializes.
+Default
+.Dq Li nobody .
+.It Va sdpd_username
+.Pq Vt str
+Sets
+.Xr sdpd 8
+user to run as after it initializes.
+Default
+.Dq Li nobody .
+.It Va bthidd_enable
+.Pq Vt bool
+If set to
+.Dq Li YES ,
+enable Bluetooth Human Interface Device daemon.
+.It Va bthidd_config
+.Pq Vt str
+Configuration file for
+.Xr bthidd 8 .
+Default
+.Pa /etc/bluetooth/bthidd.conf .
+.It Va bthidd_hids
+.Pq Vt str
+Path to a file, where
+.Xr bthidd 8 
+will store information about known HID devices.
+Default
+.Pa /var/db/bthidd.hids .
+.It Va rfcomm_pppd_server_enable
+.Pq Vt bool
+If set to
+.Dq Li YES ,
+enable Bluetooth RFCOMM PPP wrapper daemon.
+.It Va rfcomm_pppd_server_profile
+.Pq Vt str
+The name of the profile to use from
+.Pa /etc/ppp/ppp.conf .
+Multiple profiles can be specified here.
+Also used to specify per-profile overrides.
+When the profile name contains any of the characters
+.Dq Li .-/+
+they are translated to
+.Dq Li _
+for the proposes of the override variable names.
+.It Va rfcomm_pppd_server_ Ns Ao Ar profile Ac Ns _bdaddr
+.Pq Vt str
+Overrides local address to listen on.
+By default
+.Xr rfcomm_pppd 8
+will listen on
+.Dq Li ANY
+address.
+The address can be specified as BD_ADDR or name.
+.It Va rfcomm_pppd_server_ Ns Ao Ar profile Ac Ns _channel
+.Pq Vt str
+Overrides local RFCOMM channel to listen on.
+By default
+.Xr rfcomm_pppd 8
+will listen on RFCOMM channel 1.
+Must set properly if multiple profiles used in the same time.
+.It Va rfcomm_pppd_server_ Ns Ao Ar profile Ac Ns _register_sp
+.Pq Vt bool
+Tells
+.Xr rfcomm_pppd 8
+if it should register Serial Port service on the speficied RFCOMM channel.
+Default
+.Dq Li NO .
+.It Va rfcomm_pppd_server_ Ns Ao Ar profile Ac Ns _register_dun
+.Pq Vt bool
+Tells
+.Xr rfcomm_pppd 8
+if it should register Dial-Up Networking service on the speficied
+RFCOMM channel.
+Default
+.Dq Li NO .
 .El
 .Sh FILES
 .Bl -tag -width ".Pa /etc/defaults/rc.conf" -compact
@@ -3878,12 +3980,14 @@ enable support for sound mixer.
 .Xr amd 8 ,
 .Xr apm 8 ,
 .Xr atm 8 ,
+.Xr bthidd 8 ,
 .Xr chkprintcap 8 ,
 .Xr chown 8 ,
 .Xr cron 8 ,
 .Xr dhclient 8 ,
 .Xr ftpd 8 ,
 .Xr geli 8 ,
+.Xr hcsecd 8 ,
 .Xr ifconfig 8 ,
 .Xr inetd 8 ,
 .Xr ipf 8 ,
@@ -3913,6 +4017,7 @@ enable support for sound mixer.
 .Xr quotaon 8 ,
 .Xr rc 8 ,
 .Xr rc.sendmail 8 ,
+.Xr rfcomm_pppd 8 ,
 .Xr route 8 ,
 .Xr routed 8 ,
 .Xr rpcbind 8 ,
@@ -3920,6 +4025,7 @@ enable support for sound mixer.
 .Xr rpc.statd 8 ,
 .Xr rwhod 8 ,
 .Xr savecore 8 ,
+.Xr sdpd 8 ,
 .Xr sshd 8 ,
 .Xr swapon 8 ,
 .Xr sysctl 8 ,
