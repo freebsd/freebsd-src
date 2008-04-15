@@ -207,9 +207,9 @@ bincvt(char *sysfile, char *outfile, void *img, int fsize)
 	}
 
 	snprintf(sysbuf, sizeof(sysbuf),
-	    "objcopy --redefine-sym _binary_%s_start=%s_drv_data_start "
+	    "objcopy --redefine-sym _binary_%s_start=ndis_%s_drv_data_start "
 	    "--strip-symbol _binary_%s_size "
-	    "--redefine-sym _binary_%s_end=%s_drv_data_end %s.o %s.o\n",
+	    "--redefine-sym _binary_%s_end=ndis_%s_drv_data_end %s.o %s.o\n",
 	    tname, sysfile, tname, tname, sysfile, outfile, outfile);
 	printf("%s", sysbuf);
 	system(sysbuf);
@@ -384,10 +384,10 @@ main(int argc, char *argv[])
 			ptr++;
 		}
 		fprintf(outfp,
-		    "\nextern unsigned char %s_drv_data_start[];\n",
+		    "\nextern unsigned char ndis_%s_drv_data_start[];\n",
 		    sysfile);
 		fprintf(outfp, "static unsigned char *drv_data = "
-		    "%s_drv_data_start;\n\n", sysfile);
+		    "ndis_%s_drv_data_start;\n\n", sysfile);
 		bincvt(sysfile, outfile, img, fsize);
 		goto done;
 	}
