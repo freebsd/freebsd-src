@@ -18,20 +18,26 @@ start_postcmd="ppp_poststart"
 
 ppp_start_profile()
 {
-	local _ppp_profile _ppp_mode _ppp_nat
+	local _ppp_profile _ppp_mode _ppp_nat _ppp_unit
+	local _ppp_profile_cleaned _punct _punct_c
 
 	_ppp_profile=$1
+	_ppp_profile_cleaned=$1
+	_punct=". - / +"
+	for _punct_c in $_punct; do
+		_ppp_profile_cleaned=`ltr ${_ppp_profile_cleaned} ${_punct_c} '_'`
+	done
 
 	# Check for ppp profile mode override.
 	#
-	eval _ppp_mode=\$ppp_${_ppp_profile}_mode
+	eval _ppp_mode=\$ppp_${_ppp_profile_cleaned}_mode
 	if [ -z "$_ppp_mode" ]; then
 		_ppp_mode=$ppp_mode
 	fi
 
 	# Check for ppp profile nat override.
 	#
-	eval _ppp_nat=\$ppp_${_ppp_profile}_nat
+	eval _ppp_nat=\$ppp_${_ppp_profile_cleaned}_nat
 	if [ -z "$_ppp_nat" ]; then
 		_ppp_nat=$ppp_nat
 	fi
@@ -53,6 +59,13 @@ ppp_start_profile()
 		rc_flags="$rc_flags -nat"
 		;;
 	esac
+
+	# Check for hard wired unit
+	eval _ppp_unit=\$ppp_${_ppp_profile_cleaned}_unit
+	if [ -n "${_ppp_unit}" ]; then
+		_ppp_unit="-unit${_ppp_unit}"
+	fi
+	rc_flags="$rc_flags $_ppp_unit"
 
 	# Run!
 	#
