@@ -44,8 +44,6 @@ __FBSDID("$FreeBSD$");
 
 uint64_t ia64_clock_reload;
 
-static int clock_initialized = 0;
-
 #ifndef SMP
 static timecounter_get_t ia64_get_timecount;
 
@@ -109,94 +107,4 @@ cpu_stopprofclock(void)
 {
 
 	/* nothing to do */
-}
-
-void
-inittodr(time_t base)
-{
-	long days;
-	struct efi_tm tm;
-	struct timespec ts;
-	struct clocktime ct;
-
-	efi_get_time(&tm);
-
-	/*
-	 * This code was written in 2005, so logically EFI cannot return
-	 * a year smaller than that. Assume the EFI clock is out of whack
-	 * in that case and reset the EFI clock.
-	 */
-	if (tm.tm_year < 2005) {
-		printf("WARNING: CHECK AND RESET THE DATE!\n");
-		memset(&tm, 0, sizeof(tm));
-		tm.tm_year = 2005;
-		tm.tm_mon = tm.tm_mday = 1;
-		if (efi_set_time(&tm))
-			printf("ERROR: COULD NOT RESET EFI CLOCK!\n");
-	}
-
-	ct.nsec = tm.tm_nsec;
-	ct.sec = tm.tm_sec;
-	ct.min = tm.tm_min;
-	ct.hour = tm.tm_hour;
-	ct.day = tm.tm_mday;
-	ct.mon = tm.tm_mon;
-	ct.year = tm.tm_year;
-	ct.dow = -1;
-	if (clock_ct_to_ts(&ct, &ts))
-		printf("Invalid time in clock: check and reset the date!\n");
-	ts.tv_sec += utc_offset();
-
-	/*
-	 * The EFI clock is supposed to be a real-time clock, whereas the
-	 * base argument is coming from a saved (as on disk) time. It's
-	 * impossible for a saved time to represent a time in the future,
-	 * so we expect the EFI clock to be larger. If not, the EFI clock
-	 * may not be reliable and we trust the base.
-	 * Warn if the EFI clock was off by 2 or more days.
-	 */
-	if (ts.tv_sec < base) {
-		days = (base - ts.tv_sec) / (60L * 60L * 24L);
-		if (days >= 2)
-			printf("WARNING: EFI clock lost %ld days!\n", days);
-		ts.tv_sec = base;
-		ts.tv_nsec = 0;
-	}
-
-	tc_setclock(&ts);
-	clock_initialized = 1;
-}
-
-/*
- * Reset the TODR based on the time value; used when the TODR has a
- * preposterous value and also when the time is reset by the stime
- * system call.  Also called when the TODR goes past
- * TODRZERO + 100*(SECYEAR+2*SECDAY) (e.g. on Jan 2 just after midnight)
- * to wrap the TODR around.
- */
-void
-resettodr()
-{
-	struct timespec ts;
-	struct clocktime ct;
-	struct efi_tm tm;
-
-	if (!clock_initialized || disable_rtc_set)
-		return;
-
-	efi_get_time(&tm);
-	getnanotime(&ts);
-	ts.tv_sec -= utc_offset();
-	clock_ts_to_ct(&ts, &ct);
-
-	tm.tm_nsec = ts.tv_nsec;
-	tm.tm_sec = ct.sec;
-	tm.tm_min = ct.min;
-	tm.tm_hour = ct.hour;
-
-	tm.tm_year = ct.year;
-	tm.tm_mon = ct.mon;
-	tm.tm_mday = ct.day;
-	if (efi_set_time(&tm))
-		printf("ERROR: COULD NOT RESET EFI CLOCK!\n");
 }
