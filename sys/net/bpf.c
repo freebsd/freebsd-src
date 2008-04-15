@@ -88,8 +88,6 @@ MALLOC_DEFINE(M_BPF, "BPF", "BPF data");
 
 #define PRINET  26			/* interruptible */
 
-#define	M_SKIP_BPF	M_SKIP_FIREWALL
-
 /*
  * bpf_iflist is a list of BPF interface structures, each corresponding to a
  * specific DLT.  The same network interface might have several BPF interface
@@ -843,9 +841,6 @@ bpfwrite(struct cdev *dev, struct uio *uio, int ioflag)
 		mc = m_dup(m, M_DONTWAIT);
 		if (mc != NULL)
 			mc->m_pkthdr.rcvif = ifp;
-		/* XXX Do not return the same packet twice. */
-		if (d->bd_direction == BPF_D_INOUT)
-			m->m_flags |= M_SKIP_BPF;
 	} else
 		mc = NULL;
 
@@ -1573,9 +1568,12 @@ bpf_tap(struct bpf_if *bp, u_char *pkt, u_int pktlen)
 	BPFIF_UNLOCK(bp);
 }
 
-#define	BPF_CHECK_DIRECTION(d, m) \
-	if (((d)->bd_direction == BPF_D_IN && (m)->m_pkthdr.rcvif == NULL) || \
-	    ((d)->bd_direction == BPF_D_OUT && (m)->m_pkthdr.rcvif != NULL))
+#define	BPF_CHECK_DIRECTION(d, i)				\
+	    (((d)->bd_direction == BPF_D_IN && (i) == NULL) ||	\
+	    ((d)->bd_direction == BPF_D_OUT && (i) != NULL))
+#define	BPF_CHECK_DUPLICATE(d, i)				\
+	    ((d)->bd_feedback &&				\
+	    (d)->bd_direction == BPF_D_INOUT &&	(i) == NULL)
 
 /*
  * Incoming linkage from device drivers, when packet is in an mbuf chain.
@@ -1588,18 +1586,14 @@ bpf_mtap(struct bpf_if *bp, struct mbuf *m)
 	int gottime;
 	struct timeval tv;
 
-	if (m->m_flags & M_SKIP_BPF) {
-		m->m_flags &= ~M_SKIP_BPF;
-		return;
-	}
-
 	gottime = 0;
 
 	pktlen = m_length(m, NULL);
 
 	BPFIF_LOCK(bp);
 	LIST_FOREACH(d, &bp->bif_dlist, bd_next) {
-		BPF_CHECK_DIRECTION(d, m)
+		if (BPF_CHECK_DIRECTION(d, m->m_pkthdr.rcvif) ||
+		    BPF_CHECK_DUPLICATE(d, m->m_pkthdr.rcvif))
 			continue;
 		BPFD_LOCK(d);
 		++d->bd_rcount;
@@ -1642,11 +1636,6 @@ bpf_mtap2(struct bpf_if *bp, void *data, u_int dlen, struct mbuf *m)
 	int gottime;
 	struct timeval tv;
 
-	if (m->m_flags & M_SKIP_BPF) {
-		m->m_flags &= ~M_SKIP_BPF;
-		return;
-	}
-
 	gottime = 0;
 
 	pktlen = m_length(m, NULL);
@@ -1662,7 +1651,8 @@ bpf_mtap2(struct bpf_if *bp, void *data, u_int dlen, struct mbuf *m)
 
 	BPFIF_LOCK(bp);
 	LIST_FOREACH(d, &bp->bif_dlist, bd_next) {
-		BPF_CHECK_DIRECTION(d, m)
+		if (BPF_CHECK_DIRECTION(d, m->m_pkthdr.rcvif) ||
+		    BPF_CHECK_DUPLICATE(d, m->m_pkthdr.rcvif))
 			continue;
 		BPFD_LOCK(d);
 		++d->bd_rcount;
@@ -1685,6 +1675,7 @@ bpf_mtap2(struct bpf_if *bp, void *data, u_int dlen, struct mbuf *m)
 }
 
 #undef	BPF_CHECK_DIRECTION
+#undef	BPF_CHECK_DUPLICATE
 
 /*
  * Move the packet data from interface memory (pkt) into the
