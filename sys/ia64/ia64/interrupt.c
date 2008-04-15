@@ -47,6 +47,7 @@
 #include <sys/ktr.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/sched.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
@@ -241,6 +242,9 @@ interrupt(struct trapframe *tf)
 	} else if (vector == ipi_vector[IPI_TEST]) {
 		CTR1(KTR_SMP, "IPI_TEST, cpuid=%d", PCPU_GET(cpuid));
 		mp_ipi_test++;
+	} else if (vector == ipi_vector[IPI_PREEMPT]) {
+		CTR1(KTR_SMP, "IPI_PREEMPT, cpuid=%d", PCPU_GET(cpuid));
+		sched_preempt(curthread);
 #endif
 	} else {
 		ints[PCPU_GET(cpuid)]++;
