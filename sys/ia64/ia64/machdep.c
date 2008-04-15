@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_ddb.h"
 #include "opt_kstack_pages.h"
 #include "opt_msgbuf.h"
+#include "opt_sched.h"
 
 #include <sys/param.h>
 #include <sys/proc.h>
@@ -370,6 +371,12 @@ cpu_switch(struct thread *old, struct thread *new, struct mtx *mtx)
 	if (PCPU_GET(fpcurthread) == old)
 		old->td_frame->tf_special.psr |= IA64_PSR_DFH;
 	if (!savectx(oldpcb)) {
+		old->td_lock = mtx;
+#if defined(SCHED_ULE) && defined(SMP)
+		/* td_lock is volatile */
+		while (new->td_lock == &blocked_lock)
+			;
+#endif
 		newpcb = new->td_pcb;
 		oldpcb->pcb_current_pmap =
 		    pmap_switch(newpcb->pcb_current_pmap);
@@ -890,12 +897,16 @@ DELAY(int n)
 {
 	u_int64_t start, end, now;
 
+	sched_pin();
+
 	start = ia64_get_itc();
 	end = start + (itc_frequency * n) / 1000000;
 	/* printf("DELAY from 0x%lx to 0x%lx\n", start, end); */
 	do {
 		now = ia64_get_itc();
 	} while (now < end || (now > start && end < start));
+
+	sched_unpin();
 }
 
 /*
