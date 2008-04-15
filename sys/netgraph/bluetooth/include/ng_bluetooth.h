@@ -34,6 +34,8 @@
 #ifndef _NETGRAPH_BLUETOOTH_H_
 #define _NETGRAPH_BLUETOOTH_H_
 
+#include <sys/queue.h>
+
 /*
  * Version of the stack
  */
@@ -147,8 +149,7 @@ typedef struct ng_bt_mbufq *	ng_bt_mbufq_p;
 struct ng_item;
 
 struct ng_bt_itemq {
-	struct ng_item	*head;   /* first item in the queue */
-	struct ng_item	*tail;   /* last item in the queue */
+	STAILQ_HEAD(, ng_item)	queue;	/* actually items queue */
 	u_int32_t	 len;    /* number of items in the queue */
 	u_int32_t	 maxlen; /* maximal number of items in the queue */
 	u_int32_t	 drops;  /* number if dropped items */
@@ -156,14 +157,20 @@ struct ng_bt_itemq {
 typedef struct ng_bt_itemq	ng_bt_itemq_t;
 typedef struct ng_bt_itemq *	ng_bt_itemq_p;
 
-#define NG_BT_ITEMQ_INIT(q, _maxlen)	NG_BT_MBUFQ_INIT((q), (_maxlen))
+#define NG_BT_ITEMQ_INIT(q, _maxlen)			\
+	do {						\
+		STAILQ_INIT(&(q)->queue);		\
+		(q)->len = 0;				\
+		(q)->maxlen = (_maxlen);		\
+		(q)->drops = 0;				\
+	} while (0)
 
 #define NG_BT_ITEMQ_DESTROY(q)				\
 	do {						\
 		NG_BT_ITEMQ_DRAIN((q));			\
 	} while (0)
 
-#define NG_BT_ITEMQ_FIRST(q)	NG_BT_MBUFQ_FIRST((q))
+#define NG_BT_ITEMQ_FIRST(q)	STAILQ_FIRST(&(q)->queue)
 
 #define NG_BT_ITEMQ_LEN(q)	NG_BT_MBUFQ_LEN((q))
 
@@ -173,37 +180,22 @@ typedef struct ng_bt_itemq *	ng_bt_itemq_p;
 
 #define NG_BT_ITEMQ_ENQUEUE(q, i)			\
 	do {						\
-		(i)->el_next = NULL;			\
-							\
-		if ((q)->tail == NULL)			\
-			(q)->head = (i);		\
-		else					\
-			(q)->tail->el_next = (i);	\
-							\
-		(q)->tail = (i);			\
+		STAILQ_INSERT_TAIL(&(q)->queue, (i), el_next);	\
 		(q)->len ++;				\
 	} while (0)
 
 #define NG_BT_ITEMQ_DEQUEUE(q, i)			\
 	do {						\
-		(i) = (q)->head;			\
+		(i) = STAILQ_FIRST(&(q)->queue);	\
 		if ((i) != NULL) {			\
-			(q)->head = (q)->head->el_next;	\
-			if ((q)->head == NULL)		\
-				(q)->tail = NULL;	\
-							\
+			STAILQ_REMOVE_HEAD(&(q)->queue, el_next);	\
 			(q)->len --;			\
-			(i)->el_next = NULL;		\
 		} 					\
 	} while (0)
 
 #define NG_BT_ITEMQ_PREPEND(q, i)			\
 	do {						\
-		(i)->el_next = (q)->head;		\
-		if ((q)->tail == NULL)			\
-			(q)->tail = (i);		\
-							\
-		(q)->head = (i);			\
+		STAILQ_INSERT_HEAD(&(q)->queue, (i), el_next);	\
 		(q)->len ++;				\
 	} while (0)
 
