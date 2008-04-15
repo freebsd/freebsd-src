@@ -118,7 +118,7 @@ struct winsize {
 #define	TIOCSTAT	 _IO('t', 101)		/* simulate ^T status message */
 #define		UIOCCMD(n)	_IO('u', n)	/* usr cntl op "n" */
 						/* 100 see consio.h */
-						/* 99 obsolete or unused */
+#define	TIOCGSID	_IOR('t', 99, int)	/* get session id */
 #define	TIOCCONS	_IOW('t', 98, int)	/* become virtual console */
 #define	TIOCSCTTY	 _IO('t', 97)		/* become controlling tty */
 						/* 97-90 tun; some conflicts */
