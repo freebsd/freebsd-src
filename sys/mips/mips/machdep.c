@@ -93,7 +93,6 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include <sys/random.h>
-#include <machine/ns16550.h>
 #include <net/if.h>
 
 #define	BOOTINFO_DEBUG	0
@@ -292,19 +291,6 @@ mips_proc0_init(void)
 	PCPU_SET(curthread, &thread0);
 	PCPU_SET(curpcb, thread0.td_pcb);
 }
-
-#ifdef	DEBUG_UART_POLLED
-void
-init_bootstrap_console()
-{
-	/*
-	 * Initalize the (temporary) bootstrap console interface, so
-	 * we can use printf until the VM system starts being setup.
-	 * The real console is initialized before then.
-	 */
-	uart_post_init(PA_2_K1VA(ADDR_NS16550_UART1));
-}
-#endif
 
 struct msgbuf *msgbufp=0;
 

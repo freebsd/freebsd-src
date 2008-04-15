@@ -60,11 +60,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/pmap.h>
 #include <machine/resource.h>
 
-#ifdef	DCHU_DEBUG_UART
-#include <machine/pltfm.h>
-#include <machine/ns16550.h>
-#endif
-
 static struct rman irq_rman, port_rman, mem_rman;
 
 static	int mainbus_probe(device_t);
@@ -115,10 +110,6 @@ static driver_t mainbus_driver = {
 	1,			/* no softc */
 };
 static devclass_t mainbus_devclass;
-
-#ifdef	DEBUG_UART
-#define	printf(s)	puts_post(PA_2_K1VA(ADDR_NS16550_UART1), s)
-#endif
 
 DRIVER_MODULE(mainbus, root, mainbus_driver, mainbus_devclass, 0, 0);
 
@@ -179,9 +170,7 @@ mainbus_print_child(device_t bus, device_t child)
 	int retval = 0;
 
 	retval += bus_print_child_header(bus, child);
-#ifndef DEBUG_UART
 	retval += printf(" on motherboard\n");
-#endif
 
 	return (retval);
 }
