@@ -19,6 +19,7 @@ start_postcmd="ppp_poststart"
 ppp_start_profile()
 {
 	local _ppp_profile _ppp_mode _ppp_nat _ppp_unit
+	local _ppp_profile_cleaned _punct _punct_c
 
 	_ppp_profile=$1
 	_ppp_profile_cleaned=$1
@@ -64,6 +65,7 @@ ppp_start_profile()
 	if [ -n "${_ppp_unit}" ]; then
 		_ppp_unit="-unit${_ppp_unit}"
 	fi
+	rc_flags="$rc_flags $_ppp_unit"
 
 	# Run!
 	#
