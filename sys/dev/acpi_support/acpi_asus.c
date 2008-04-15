@@ -509,7 +509,7 @@ acpi_asus_probe(device_t dev)
 		}
 
 		/* if EeePC */
-		if(strncmp("ASUS010", rstr, 7) == 0) {
+		if (strncmp("ASUS010", rstr, 7) == 0) {
 			sc->model = &acpi_eeepc_models[0];
 			device_set_desc(dev, "ASUS EeePC");
 			AcpiOsFree(Buf.Pointer);
