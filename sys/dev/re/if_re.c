@@ -1185,21 +1185,15 @@ re_attach(dev)
 				device_printf(dev, "Using %d MSI messages\n",
 				    msic);
 				sc->rl_msi = 1;
+				/* Explicitly set MSI enable bit. */
+				CSR_WRITE_1(sc, RL_EECMD, RL_EE_MODE);
+				cfg = CSR_READ_1(sc, RL_CFG2);
+				cfg |= RL_CFG2_MSI;
+				CSR_WRITE_1(sc, RL_CFG2, cfg);
+				CSR_WRITE_1(sc, RL_EECMD, 0);
 			} else
 				pci_release_msi(dev);
 		}
-	}
-
-	/* For MSI capable hardwares, explicitily set/clear MSI enable bit. */
-	if (msic != 0) {
-		CSR_WRITE_1(sc, RL_EECMD, RL_EE_MODE);
-		cfg = CSR_READ_1(sc, RL_CFG2);
-		if (sc->rl_msi != 0)
-			cfg |= RL_CFG2_MSI;
-		else
-			cfg &= ~RL_CFG2_MSI;
-		CSR_WRITE_1(sc, RL_CFG2, cfg);
-		CSR_WRITE_1(sc, RL_EECMD, 0);
 	}
 
 	/* Allocate interrupt */
