@@ -1010,6 +1010,11 @@ ttioctl(struct tty *tp, u_long cmd, void *data, int flag)
 			return (ENOTTY);
 		*(int *)data = tp->t_pgrp ? tp->t_pgrp->pg_id : NO_PID;
 		break;
+	case TIOCGSID:                  /* get sid of tty */
+		if (!isctty(p, tp))
+			return (ENOTTY);
+		*(int *)data = tp->t_session->s_sid;
+		break;
 #ifdef TIOCHPCL
 	case TIOCHPCL:			/* hang up on last close */
 		s = spltty();

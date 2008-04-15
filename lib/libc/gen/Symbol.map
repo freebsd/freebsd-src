@@ -337,6 +337,7 @@ FBSD_1.1 {
 	fts_get_clientptr;
 	fts_get_stream;
 	fts_set_clientptr;
+	tcgetsid;
 };
 
 FBSDprivate_1.0 {
