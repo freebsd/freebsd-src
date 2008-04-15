@@ -43,6 +43,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/clock.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
@@ -53,6 +54,7 @@
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
+#include <machine/efi.h>
 #include <machine/intr.h>
 #include <machine/nexusvar.h>
 #include <machine/pmap.h>
@@ -65,6 +67,8 @@
 
 #include <isa/isareg.h>
 #include <sys/rtprio.h>
+
+#include "clock_if.h"
 
 static MALLOC_DEFINE(M_NEXUSDEV, "nexusdev", "Nexus device");
 struct nexus_device {
@@ -104,6 +108,9 @@ static void nexus_delete_resource(device_t, device_t, int, int);
 static	int nexus_config_intr(device_t, int, enum intr_trigger,
 			      enum intr_polarity);
 
+static int nexus_gettime(device_t, struct timespec *);
+static int nexus_settime(device_t, struct timespec *);
+
 static device_method_t nexus_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		nexus_probe),
@@ -129,6 +136,10 @@ static device_method_t nexus_methods[] = {
 	DEVMETHOD(bus_get_resource,	nexus_get_resource),
 	DEVMETHOD(bus_delete_resource,	nexus_delete_resource),
 	DEVMETHOD(bus_config_intr,	nexus_config_intr),
+
+	/* Clock interface */
+	DEVMETHOD(clock_gettime,	nexus_gettime),
+	DEVMETHOD(clock_settime,	nexus_settime),
 
 	{ 0, 0 }
 };
@@ -229,6 +240,7 @@ nexus_attach(device_t dev)
 
 	if (acpi_identify() == 0)
 		BUS_ADD_CHILD(dev, 10, "acpi", 0);
+	clock_register(dev, 1000);
 	bus_generic_attach(dev);
 	return 0;
 }
@@ -521,54 +533,49 @@ nexus_config_intr(device_t dev, int irq, enum intr_trigger trig,
 	return (sapic_config_intr(irq, trig, pol));
 }
 
-#if 0
-
-/*
- * Placeholder which claims PnP 'devices' which describe system 
- * resources.
- */
-static struct isa_pnp_id sysresource_ids[] = {
-	{ 0x010cd041 /* PNP0c01 */, "System Memory" },
-	{ 0x020cd041 /* PNP0c02 */, "System Resource" },
-	{ 0 }
-};
-
 static int
-sysresource_probe(device_t dev)
+nexus_gettime(device_t dev, struct timespec *ts)
 {
-	int	result;
-	
-	if ((result = ISA_PNP_PROBE(device_get_parent(dev), dev, sysresource_ids)) <= 0) {
-		device_quiet(dev);
-	}
-	return(result);
+	struct clocktime ct;
+	struct efi_tm tm;
+
+	efi_get_time(&tm);
+
+	/*
+	 * This code was written in 2005, so logically EFI cannot return
+	 * a year smaller than that. Assume the EFI clock is out of whack
+	 * in that case and reset the EFI clock.
+	 */
+	if (tm.tm_year < 2005)
+		return (EINVAL);
+
+	ct.nsec = tm.tm_nsec;
+	ct.sec = tm.tm_sec;
+	ct.min = tm.tm_min;
+	ct.hour = tm.tm_hour;
+	ct.day = tm.tm_mday;
+	ct.mon = tm.tm_mon;
+	ct.year = tm.tm_year;
+	ct.dow = -1;
+	return (clock_ct_to_ts(&ct, ts));
 }
 
 static int
-sysresource_attach(device_t dev)
+nexus_settime(device_t dev, struct timespec *ts)
 {
-	return(0);
+	struct clocktime ct;
+	struct efi_tm tm;
+
+	efi_get_time(&tm);
+
+	clock_ts_to_ct(ts, &ct);
+	tm.tm_nsec = ts->tv_nsec;
+	tm.tm_sec = ct.sec;
+	tm.tm_min = ct.min;
+	tm.tm_hour = ct.hour;
+	tm.tm_year = ct.year;
+	tm.tm_mon = ct.mon;
+	tm.tm_mday = ct.day;
+	return (efi_set_time(&tm));
 }
 
-static device_method_t sysresource_methods[] = {
-	/* Device interface */
-	DEVMETHOD(device_probe,		sysresource_probe),
-	DEVMETHOD(device_attach,	sysresource_attach),
-	DEVMETHOD(device_detach,	bus_generic_detach),
-	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
-	DEVMETHOD(device_suspend,	bus_generic_suspend),
-	DEVMETHOD(device_resume,	bus_generic_resume),
-	{ 0, 0 }
-};
-
-static driver_t sysresource_driver = {
-	"sysresource",
-	sysresource_methods,
-	1,		/* no softc */
-};
-
-static devclass_t sysresource_devclass;
-
-DRIVER_MODULE(sysresource, isa, sysresource_driver, sysresource_devclass, 0, 0);
-
-#endif
