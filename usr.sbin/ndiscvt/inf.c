@@ -539,8 +539,10 @@ dump_defaultinfo(const struct section *s, const struct reg *r, int devidx)
 			continue;
 		fprintf(ofp, "\n\t{ \"%s\" }, %d },", reg->value == NULL ? "" :
 		    stringcvt(reg->value), devidx);
-			break;
+		return;
 	}
+	/* Default registry entry missing */
+	fprintf(ofp, "\n\t{ \"\" }, %d },", devidx);
 	return;
 }
 
