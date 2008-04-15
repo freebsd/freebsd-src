@@ -1,4 +1,0 @@
-/*-
- * EMPTY FILE -- needed?
- * $FreeBSD$
- */
