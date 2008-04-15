@@ -963,10 +963,12 @@ build-tools:
 #
 # cross-tools: Build cross-building tools
 #
-.if ${TARGET_ARCH} != ${MACHINE_ARCH}
+.if ${TARGET_ARCH} != ${MACHINE_ARCH} || ${BOOTSTRAPPING} < 800035
 .if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "i386"
 _btxld=		usr.sbin/btxld
 .endif
+.endif
+.if ${TARGET_ARCH} != ${MACHINE_ARCH}
 .if ${MK_RESCUE} != "no" || defined(RELEASEDIR)
 _crunchide=	usr.sbin/crunch/crunchide
 .endif
