@@ -66,7 +66,7 @@
  * Change it for NETGRAPH_DEBUG version so we cannot mix debug and non debug
  * modules.
  */
-#define _NG_ABI_VERSION 11
+#define _NG_ABI_VERSION 12
 #ifdef	NETGRAPH_DEBUG /*----------------------------------------------*/
 #define NG_ABI_VERSION	(_NG_ABI_VERSION + 0x10000)
 #else	/* NETGRAPH_DEBUG */ /*----------------------------------------------*/
@@ -107,13 +107,13 @@ struct ng_hook {
 	char	hk_name[NG_HOOKSIZ];	/* what this node knows this link as */
 	void   *hk_private;		/* node dependant ID for this hook */
 	int	hk_flags;		/* info about this hook/link */
-	int	hk_refs;		/* dont actually free this till 0 */
 	int	hk_type;		/* tbd: hook data link type */
 	struct	ng_hook *hk_peer;	/* the other end of this link */
 	struct	ng_node *hk_node;	/* The node this hook is attached to */
 	LIST_ENTRY(ng_hook) hk_hooks;	/* linked list of all hooks on node */
 	ng_rcvmsg_t	*hk_rcvmsg;	/* control messages come here */
 	ng_rcvdata_t	*hk_rcvdata;	/* data comes here */
+	int	hk_refs;		/* dont actually free this till 0 */
 #ifdef	NETGRAPH_DEBUG /*----------------------------------------------*/
 #define HK_MAGIC 0x78573011
 	int	hk_magic;
@@ -331,26 +331,25 @@ _ng_hook_hi_stack(hook_p hook, char * file, int line)
  * embedded in the node structure
  */
 struct ng_queue {
-	u_long		q_flags;
+	u_int		q_flags;	/* Current r/w/q lock flags */
+	u_int		q_flags2;	/* Other queue flags */
 	struct mtx	q_mtx;
-	item_p queue;
-	item_p *last;
-	struct ng_node *q_node;		/* find the front of the node.. */
+	STAILQ_ENTRY(ng_node)	q_work;	/* nodes with work to do */
+	STAILQ_HEAD(, ng_item)	queue;	/* actually items queue */
 };
 
 struct ng_node {
 	char	nd_name[NG_NODESIZ];	/* optional globally unique name */
 	struct	ng_type *nd_type;	/* the installed 'type' */
 	int	nd_flags;		/* see below for bit definitions */
-	int	nd_refs;		/* # of references to this node */
 	int	nd_numhooks;		/* number of hooks */
 	void   *nd_private;		/* node type dependant node ID */
 	ng_ID_t	nd_ID;			/* Unique per node */
 	LIST_HEAD(hooks, ng_hook) nd_hooks;	/* linked list of node hooks */
 	LIST_ENTRY(ng_node)	  nd_nodes;	/* linked list of all nodes */
 	LIST_ENTRY(ng_node)	  nd_idnodes;	/* ID hash collision list */
-	TAILQ_ENTRY(ng_node)	  nd_work;	/* nodes with work to do */
 	struct	ng_queue	  nd_input_queue; /* input queue for locking */
+	int	nd_refs;		/* # of references to this node */
 #ifdef	NETGRAPH_DEBUG /*----------------------------------------------*/
 #define ND_MAGIC 0x59264837
 	int	nd_magic;
@@ -363,8 +362,6 @@ struct ng_node {
 /* Flags for a node */
 #define NGF_INVALID	0x00000001	/* free when refs go to 0 */
 #define NG_INVALID	NGF_INVALID	/* compat for old code */
-#define NGF_WORKQ	0x00000002	/* node is on the work queue */
-#define NG_WORKQ	NGF_WORKQ	/* compat for old code */
 #define NGF_FORCE_WRITER	0x00000004	/* Never multithread this node */
 #define NG_FORCE_WRITER	NGF_FORCE_WRITER /* compat for old code */
 #define NGF_CLOSING	0x00000008	/* ng_rmnode() at work */
@@ -612,7 +609,7 @@ struct ng_apply_info {
 };
 struct ng_item {
 	u_long	el_flags;
-	item_p	el_next;
+	STAILQ_ENTRY(ng_item)	el_next;
 	node_p	el_dest; /* The node it will be applied against (or NULL) */
 	hook_p	el_hook; /* Entering hook. Optional in Control messages */
 	union {
@@ -635,7 +632,7 @@ struct ng_item {
 	 * and its context.
 	 */
 	struct ng_apply_info	*apply;
-	uintptr_t		depth;
+	u_int	depth;
 #ifdef	NETGRAPH_DEBUG /*----------------------------------------------*/
 	char *lastfile;
 	int  lastline;
