@@ -184,7 +184,7 @@ ng_netflow_constructor(node_p node)
 	priv->info.nfinfo_act_t = ACTIVE_TIMEOUT;
 
 	/* Initialize callout handle */
-	callout_init(&priv->exp_callout, 1);
+	callout_init(&priv->exp_callout, CALLOUT_MPSAFE);
 
 	/* Allocate memory and set up flow cache */
 	if ((error = ng_netflow_cache_init(priv)))

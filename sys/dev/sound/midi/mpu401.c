@@ -177,7 +177,7 @@ mpu401_init(kobj_class_t cls, void *cookie, driver_intr_t softintr,
 
 	kobj_init((kobj_t)m, cls);
 
-	callout_init(&m->timer, 1);
+	callout_init(&m->timer, CALLOUT_MPSAFE);
 
 	m->si = softintr;
 	m->cookie = cookie;
