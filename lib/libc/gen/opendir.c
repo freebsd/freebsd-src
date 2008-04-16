@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1983, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -51,17 +51,14 @@ __FBSDID("$FreeBSD$");
  * Open a directory.
  */
 DIR *
-opendir(name)
-	const char *name;
+opendir(const char *name)
 {
 
 	return (__opendir2(name, DTF_HIDEW|DTF_NODUP));
 }
 
 DIR *
-__opendir2(name, flags)
-	const char *name;
-	int flags;
+__opendir2(const char *name, int flags)
 {
 	DIR *dirp;
 	int fd;
