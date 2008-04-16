@@ -144,7 +144,7 @@ static CLIENT *nlm_lockd;
  */
 
 /*
- * A pending asynchronous lock request, stored on the nc_pending list
+ * A pending asynchronous lock request, stored on the nh_pending list
  * of the NLM host.
  */
 struct nlm_async_lock {
@@ -323,6 +323,10 @@ again:
 		 */
 		struct netbuf *a;
 		a = __rpc_uaddr2taddr_af(ss.ss_family, uaddr);
+		if (!a) {
+			CLNT_DESTROY(rpcb);
+			return (NULL);
+		}
 		memcpy(&ss, a->buf, a->len);
 		free(a->buf, M_RPC);
 		free(a, M_RPC);
@@ -336,7 +340,6 @@ again:
 
 		rpcvers = PMAPVERS;
 		CLNT_CONTROL(rpcb, CLSET_VERS, &rpcvers);
-
 
 		mapping.pm_prog = parms.r_prog;
 		mapping.pm_vers = parms.r_vers;
@@ -366,6 +369,7 @@ again:
 	if (stat != RPC_SUCCESS) {
 		printf("NLM: failed to contact remote rpcbind, stat = %d\n",
 		    (int) stat);
+		CLNT_DESTROY(rpcb);
 		return (NULL);
 	}
 
@@ -399,7 +403,7 @@ nlm_lock_callback(void *arg, int pending)
 	 * Send the results back to the host.
 	 *
 	 * Note: there is a possible race here with nlm_host_notify
-	 * destroying teh RPC client. To avoid problems, the first
+	 * destroying the RPC client. To avoid problems, the first
 	 * thing nlm_host_notify does is to cancel pending async lock
 	 * requests.
 	 */
