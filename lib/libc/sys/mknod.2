@@ -28,11 +28,12 @@
 .\"     @(#)mknod.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd April 10, 2008
 .Dt MKNOD 2
 .Os
 .Sh NAME
-.Nm mknod
+.Nm mknod ,
+.Nm mknodat
 .Nd make a special file node
 .Sh LIBRARY
 .Lb libc
@@ -40,6 +41,8 @@
 .In unistd.h
 .Ft int
 .Fn mknod "const char *path" "mode_t mode" "dev_t dev"
+.Ft int
+.Fn mknodat "int fd" "const char *path" "mode_t mode" "dev_t dev"
 .Sh DESCRIPTION
 The file system node
 .Fa path
@@ -61,6 +64,27 @@ The
 .Fn mknod
 system call
 requires super-user privileges.
+.Pp
+The
+.Fn mknodat
+system call is equivalent to
+.Fn mknod
+except in the case where
+.Fa path
+specifies a relative path.
+In this case the newly created device node is created relative to the
+directory associated with the file descriptor
+.Fa fd
+instead of the current working directory.
+If
+.Fn mknodat
+is passed the special value
+.Dv AT_FDCWD
+in the
+.Fa fd
+parameter, the current working directory is used and the behavior is
+identical to a call to
+.Fn mknod .
 .Sh RETURN VALUES
 .Rv -std mknod
 .Sh ERRORS
@@ -114,13 +138,45 @@ file (or a
 .Em whiteout )
 is not supported.
 .El
+.Pp
+In addition to the errors returned by the
+.Fn mknod ,
+the
+.Fn mknodat
+may fail if:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The
+.Fa path
+argument does not specify an absolute path and the
+.Fa fd
+argument is neither
+.Dv AT_FDCWD
+nor a valid file descriptor open for searching.
+.It Bq Er ENOTDIR
+The
+.Fa path
+argument is not an absolute path and
+.Fa fd
+is neither
+.Dv AT_FDCWD
+nor a file descriptor associated with a directory.
+.El
 .Sh SEE ALSO
 .Xr chmod 2 ,
 .Xr mkfifo 2 ,
 .Xr stat 2 ,
 .Xr umask 2
+.Sh STANDARDS
+The
+.Fn mknodat
+system call follows The Open Group Extended API Set 2 specification.
 .Sh HISTORY
 The
 .Fn mknod
 function appeared in
 .At v6 .
+The
+.Fn mknodat
+system call appeared in
+.Fx 8.0 .

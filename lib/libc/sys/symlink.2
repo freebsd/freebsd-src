@@ -28,11 +28,12 @@
 .\"     @(#)symlink.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd December 9, 2006
+.Dd April 10, 2008
 .Dt SYMLINK 2
 .Os
 .Sh NAME
-.Nm symlink
+.Nm symlink ,
+.Nm symlinkat
 .Nd make symbolic link to a file
 .Sh LIBRARY
 .Lb libc
@@ -40,6 +41,8 @@
 .In unistd.h
 .Ft int
 .Fn symlink "const char *name1" "const char *name2"
+.Ft int
+.Fn symlinkat "const char *name1" "int fd" "const char *name2"
 .Sh DESCRIPTION
 A symbolic link
 .Fa name2
@@ -53,6 +56,27 @@ is the string
 used in creating the symbolic link).
 Either name may be an arbitrary path name; the files need not
 be on the same file system.
+.Pp
+The
+.Fn symlinkat
+system call is equivalent to
+.Fn symlink
+except in the case where
+.Fa name2
+specifies a relative path.
+In this case the symbolic link is created relative to the directory
+associated with the file descriptor
+.Fa fd
+instead of the current working directory.
+If
+.Fn symlinkat
+is passed the special value
+.Dv AT_FDCWD
+in the
+.Fa fd
+parameter, the current working directory is used and the behavior is
+identical to a call to
+.Fn symlink .
 .Sh RETURN VALUES
 .Rv -std symlink
 .Sh ERRORS
@@ -135,6 +159,30 @@ or
 argument
 points outside the process's allocated address space.
 .El
+.Pp
+In addition to the errors returned by the
+.Fn symlink ,
+the
+.Fn symlinkat
+may fail if:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The
+.Fa name2
+argument does not specify an absolute path and the
+.Fa fd
+argument is neither
+.Dv AT_FDCWD
+nor a valid file descriptor open for searching.
+.It Bq Er ENOTDIR
+The
+.Fa name2
+argument is not an absolute path and
+.Fa fd
+is neither
+.Dv AT_FDCWD
+nor a file descriptor associated with a directory.
+.El
 .Sh SEE ALSO
 .Xr ln 1 ,
 .Xr chflags 2 ,
@@ -143,8 +191,16 @@ points outside the process's allocated address space.
 .Xr readlink 2 ,
 .Xr unlink 2 ,
 .Xr symlink 7
+.Sh STANDARDS
+The
+.Fn symlinkat
+system call follows The Open Group Extended API Set 2 specification.
 .Sh HISTORY
 The
 .Fn symlink
 system call appeared in
 .Bx 4.2 .
+The
+.Fn symlinkat
+system call appeared in
+.Fx 8.0 .
