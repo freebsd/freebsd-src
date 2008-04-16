@@ -39,7 +39,6 @@
 	ASMSTR("from: @(#)Ovfork.s	8.1 (Berkeley) 6/4/93")
 	ASMSTR("$NetBSD: compat_Ovfork.S,v 1.1 2005/09/17 11:49:39 tsutsui Exp $")
 #endif /* LIBC_SCCS and not lint */
-#include <machine/asm.h>
 __FBSDID("$FreeBSD$");
 
 WARN_REFERENCES(vfork, \
