@@ -266,8 +266,8 @@ SYSCTL_INT(_machdep, OID_AUTO, moea_pte_spills, CTLFLAG_RD,
 struct	pvo_entry *moea_pvo_zeropage;
 struct	mtx	moea_pvo_zeropage_mtx;
 
-vm_offset_t	moea_rkva_start = VM_MIN_KERNEL_ADDRESS;
-u_int		moea_rkva_count = 4;
+vm_offset_t	moea_rkva_start;
+u_int		moea_rkva_count;
 
 /*
  * Allocate physical memory for use in moea_bootstrap.
@@ -664,27 +664,11 @@ moea_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 	       "mtdbatu 0,%0; mtdbatl 0,%1; isync"
 	    :: "r"(batu), "r"(batl));
 
-#if 0
-	/* map frame buffer */
-	batu = BATU(0x90000000, BAT_BL_256M, BAT_Vs);
-	batl = BATL(0x90000000, BAT_I|BAT_G, BAT_PP_RW);
-	__asm ("mtdbatu 1,%0; mtdbatl 1,%1; isync"
-	    :: "r"(batu), "r"(batl));
-#endif
-
-#if 1
 	/* map pci space */
 	batu = BATU(0x80000000, BAT_BL_256M, BAT_Vs);
 	batl = BATL(0x80000000, BAT_I|BAT_G, BAT_PP_RW);
 	__asm ("mtdbatu 1,%0; mtdbatl 1,%1; isync"
 	    :: "r"(batu), "r"(batl));
-#endif
-
-	/*
-	 * Set the start and end of kva.
-	 */
-	virtual_avail = VM_MIN_KERNEL_ADDRESS;
-	virtual_end = VM_MAX_KERNEL_ADDRESS;
 
 	mem_regions(&pregions, &pregions_sz, &regions, &regions_sz);
 	CTR0(KTR_PMAP, "moea_bootstrap: physical memory");
@@ -785,11 +769,6 @@ moea_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 	    MTX_RECURSE);
 
 	/*
-	 * Allocate the message buffer.
-	 */
-	msgbuf_phys = moea_bootstrap_alloc(MSGBUF_SIZE, 0);
-
-	/*
 	 * Initialise the unmanaged pvo pool.
 	 */
 	moea_bpvo_pool = (struct pvo_entry *)moea_bootstrap_alloc(
@@ -856,9 +835,13 @@ moea_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 			ofw_mappings++;
 		}
 	}
-#ifdef SMP
-	TLBSYNC();
-#endif
+
+	/*
+	 * Calculate the last available physical address.
+	 */
+	for (i = 0; phys_avail[i + 2] != 0; i += 2)
+		;
+	Maxmem = powerpc_btop(phys_avail[i + 1]);
 
 	/*
 	 * Initialize the kernel pmap (which is statically allocated).
@@ -870,36 +853,6 @@ moea_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 	kernel_pmap->pm_sr[KERNEL_SR] = KERNEL_SEGMENT;
 	kernel_pmap->pm_sr[KERNEL2_SR] = KERNEL2_SEGMENT;
 	kernel_pmap->pm_active = ~0;
-
-	/*
-	 * Allocate a kernel stack with a guard page for thread0 and map it
-	 * into the kernel page map.
-	 */
-	pa = moea_bootstrap_alloc(KSTACK_PAGES * PAGE_SIZE, 0);
-	kstack0_phys = pa;
-	kstack0 = virtual_avail + (KSTACK_GUARD_PAGES * PAGE_SIZE);
-	CTR2(KTR_PMAP, "moea_bootstrap: kstack0 at %#x (%#x)", kstack0_phys,
-	    kstack0);
-	virtual_avail += (KSTACK_PAGES + KSTACK_GUARD_PAGES) * PAGE_SIZE;
-	for (i = 0; i < KSTACK_PAGES; i++) {
-		pa = kstack0_phys + i * PAGE_SIZE;
-		va = kstack0 + i * PAGE_SIZE;
-		moea_kenter(mmup, va, pa);
-		TLBIE(va);
-	}
-
-	/*
-	 * Calculate the last available physical address.
-	 */
-	for (i = 0; phys_avail[i + 2] != 0; i += 2)
-		;
-	Maxmem = powerpc_btop(phys_avail[i + 1]);
-
-	/*
-	 * Allocate virtual address space for the message buffer.
-	 */
-	msgbufp = (struct msgbuf *)virtual_avail;
-	virtual_avail += round_page(MSGBUF_SIZE);
 
 	/*
 	 * Initialize hardware.
@@ -916,6 +869,45 @@ moea_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 	tlbia();
 
 	pmap_bootstrapped++;
+
+	/*
+	 * Set the start and end of kva.
+	 */
+	virtual_avail = VM_MIN_KERNEL_ADDRESS;
+	virtual_end = VM_MAX_KERNEL_ADDRESS;
+
+	moea_rkva_start = virtual_avail;
+	moea_rkva_count = 4;
+	virtual_avail += moea_rkva_count * PAGE_SIZE;
+
+	/*
+	 * Allocate a kernel stack with a guard page for thread0 and map it
+	 * into the kernel page map.
+	 */
+	pa = moea_bootstrap_alloc(KSTACK_PAGES * PAGE_SIZE, PAGE_SIZE);
+	va = virtual_avail + KSTACK_GUARD_PAGES * PAGE_SIZE;
+	virtual_avail = va + KSTACK_PAGES * PAGE_SIZE;
+	CTR2(KTR_PMAP, "moea_bootstrap: kstack0 at %#x (%#x)", pa, va);
+	thread0.td_kstack = va;
+	thread0.td_kstack_pages = KSTACK_PAGES;
+	for (i = 0; i < KSTACK_PAGES; i++) {
+		moea_kenter(mmup, va, pa);;
+		pa += PAGE_SIZE;
+		va += PAGE_SIZE;
+	}
+
+	/*
+	 * Allocate virtual address space for the message buffer.
+	 */
+	pa = msgbuf_phys = moea_bootstrap_alloc(MSGBUF_SIZE, PAGE_SIZE);
+	msgbufp = (struct msgbuf *)virtual_avail;
+	va = virtual_avail;
+	virtual_avail += round_page(MSGBUF_SIZE);
+	while (va < virtual_avail) {
+		moea_kenter(mmup, va, pa);;
+		pa += PAGE_SIZE;
+		va += PAGE_SIZE;
+	}
 }
 
 /*
