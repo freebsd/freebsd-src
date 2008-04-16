@@ -809,7 +809,7 @@ gpib_ib_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 
 	ib = malloc(sizeof *ib, M_IBFOO, M_WAITOK | M_ZERO);
 	LIST_INIT(&ib->handles);
-	callout_init(&ib->callout, 1);
+	callout_init(&ib->callout, CALLOUT_MPSAFE);
 	ib->unrhdr = new_unrhdr(0, INT_MAX, NULL);
 	dev->si_drv2 = ib;
 	ib->u = u;
