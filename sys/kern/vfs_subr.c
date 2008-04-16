@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
+#include <sys/lockf.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/namei.h>
@@ -2523,6 +2524,10 @@ vgonel(struct vnode *vp)
 		vn_finished_secondary_write(mp);
 	VNASSERT(vp->v_object == NULL, vp,
 	    ("vop_reclaim left v_object vp=%p, tag=%s", vp, vp->v_tag));
+	/*
+	 * Clear the advisory locks and wake up waiting threads.
+	 */
+	lf_purgelocks(vp, &(vp->v_lockf));
 	/*
 	 * Delete from old mount point vnode list.
 	 */

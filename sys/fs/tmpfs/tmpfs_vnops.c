@@ -1429,36 +1429,6 @@ tmpfs_pathconf(struct vop_pathconf_args *v)
 	return error;
 }
 
-/* --------------------------------------------------------------------- */
-
-static int
-tmpfs_advlock(struct vop_advlock_args *v)
-{
-	struct vnode *vp = v->a_vp;
-
-	struct tmpfs_node *node;
-
-	node = VP_TO_TMPFS_NODE(vp);
-
-	return lf_advlock(v, &node->tn_lockf, node->tn_size);
-}
-
-/* --------------------------------------------------------------------- */
-
-static int
-tmpfs_advlockasync(struct vop_advlockasync_args *v)
-{
-	struct vnode *vp = v->a_vp;
-
-	struct tmpfs_node *node;
-
-	node = VP_TO_TMPFS_NODE(vp);
-
-	return lf_advlockasync(v, &node->tn_lockf, node->tn_size);
-}
-
-/* --------------------------------------------------------------------- */
-
 static int
 tmpfs_vptofh(struct vop_vptofh_args *ap)
 {
@@ -1506,8 +1476,6 @@ struct vop_vector tmpfs_vnodeop_entries = {
 	.vop_reclaim =			tmpfs_reclaim,
 	.vop_print =			tmpfs_print,
 	.vop_pathconf =			tmpfs_pathconf,
-	.vop_advlock =			tmpfs_advlock,
-	.vop_advlockasync =		tmpfs_advlockasync,
 	.vop_vptofh =			tmpfs_vptofh,
 	.vop_bmap =			VOP_EOPNOTSUPP,
 };
