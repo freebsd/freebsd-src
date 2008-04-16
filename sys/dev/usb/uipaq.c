@@ -338,6 +338,8 @@ uipaq_detach(device_t self)
 	DPRINTF(("uipaq_detach: sc=%p flags=%d\n", sc, flags));
 	ucom->sc_dying = 1;
 
+	rv = ucom_detach(ucom);
+
 	return (rv);
 }
 
