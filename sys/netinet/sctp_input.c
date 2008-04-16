@@ -1248,7 +1248,11 @@ sctp_process_cookie_existing(struct mbuf *m, int iphlen, int offset,
 			return (NULL);
 		}
 		/* pre-reserve some space */
+#ifdef INET6
 		SCTP_BUF_RESV_UF(op_err, sizeof(struct ip6_hdr));
+#else
+		SCTP_BUF_RESV_UF(op_err, sizeof(struct ip));
+#endif
 		SCTP_BUF_RESV_UF(op_err, sizeof(struct sctphdr));
 		SCTP_BUF_RESV_UF(op_err, sizeof(struct sctp_chunkhdr));
 		/* Set the len */
@@ -2116,31 +2120,40 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 	}
 	/* First get the destination address setup too. */
 	iph = mtod(m, struct ip *);
-	if (iph->ip_v == IPVERSION) {
-		/* its IPv4 */
-		struct sockaddr_in *lsin;
+	switch (iph->ip_v) {
+	case IPVERSION:
+		{
+			/* its IPv4 */
+			struct sockaddr_in *lsin;
 
-		lsin = (struct sockaddr_in *)(localep_sa);
-		memset(lsin, 0, sizeof(*lsin));
-		lsin->sin_family = AF_INET;
-		lsin->sin_len = sizeof(*lsin);
-		lsin->sin_port = sh->dest_port;
-		lsin->sin_addr.s_addr = iph->ip_dst.s_addr;
-		size_of_pkt = SCTP_GET_IPV4_LENGTH(iph);
-	} else if (iph->ip_v == (IPV6_VERSION >> 4)) {
-		/* its IPv6 */
-		struct ip6_hdr *ip6;
-		struct sockaddr_in6 *lsin6;
+			lsin = (struct sockaddr_in *)(localep_sa);
+			memset(lsin, 0, sizeof(*lsin));
+			lsin->sin_family = AF_INET;
+			lsin->sin_len = sizeof(*lsin);
+			lsin->sin_port = sh->dest_port;
+			lsin->sin_addr.s_addr = iph->ip_dst.s_addr;
+			size_of_pkt = SCTP_GET_IPV4_LENGTH(iph);
+			break;
+		}
+#ifdef INET6
+	case IPV6_VERSION >> 4:
+		{
+			/* its IPv6 */
+			struct ip6_hdr *ip6;
+			struct sockaddr_in6 *lsin6;
 
-		lsin6 = (struct sockaddr_in6 *)(localep_sa);
-		memset(lsin6, 0, sizeof(*lsin6));
-		lsin6->sin6_family = AF_INET6;
-		lsin6->sin6_len = sizeof(struct sockaddr_in6);
-		ip6 = mtod(m, struct ip6_hdr *);
-		lsin6->sin6_port = sh->dest_port;
-		lsin6->sin6_addr = ip6->ip6_dst;
-		size_of_pkt = SCTP_GET_IPV6_LENGTH(ip6) + iphlen;
-	} else {
+			lsin6 = (struct sockaddr_in6 *)(localep_sa);
+			memset(lsin6, 0, sizeof(*lsin6));
+			lsin6->sin6_family = AF_INET6;
+			lsin6->sin6_len = sizeof(struct sockaddr_in6);
+			ip6 = mtod(m, struct ip6_hdr *);
+			lsin6->sin6_port = sh->dest_port;
+			lsin6->sin6_addr = ip6->ip6_dst;
+			size_of_pkt = SCTP_GET_IPV6_LENGTH(ip6) + iphlen;
+			break;
+		}
+#endif
+	default:
 		return (NULL);
 	}
 
@@ -2287,7 +2300,11 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 			return (NULL);
 		}
 		/* pre-reserve some space */
+#ifdef INET6
 		SCTP_BUF_RESV_UF(op_err, sizeof(struct ip6_hdr));
+#else
+		SCTP_BUF_RESV_UF(op_err, sizeof(struct ip));
+#endif
 		SCTP_BUF_RESV_UF(op_err, sizeof(struct sctphdr));
 		SCTP_BUF_RESV_UF(op_err, sizeof(struct sctp_chunkhdr));
 

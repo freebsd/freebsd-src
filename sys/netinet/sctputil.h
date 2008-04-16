@@ -203,6 +203,8 @@ sctp_connectx_helper_find(struct sctp_inpcb *inp, struct sockaddr *addr,
     int *totaddr, int *num_v4, int *num_v6, int *error, int limit, int *bad_addr);
 
 int sctp_is_there_an_abort_here(struct mbuf *, int, uint32_t *);
+
+#ifdef INET6
 uint32_t sctp_is_same_scope(struct sockaddr_in6 *, struct sockaddr_in6 *);
 
 struct sockaddr_in6 *
@@ -222,7 +224,7 @@ struct sockaddr_in6 *
 		} \
 	 } \
 } while (0)
-
+#endif
 
 int sctp_cmpaddr(struct sockaddr *, struct sockaddr *);
 
