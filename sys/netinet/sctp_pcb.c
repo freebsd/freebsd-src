@@ -51,6 +51,7 @@ struct sctp_epinfo sctppcbinfo;
 
 /* FIX: we don't handle multiple link local scopes */
 /* "scopeless" replacement IN6_ARE_ADDR_EQUAL */
+#ifdef INET6
 int
 SCTP6_ARE_ADDR_EQUAL(struct in6_addr *a, struct in6_addr *b)
 {
@@ -63,6 +64,8 @@ SCTP6_ARE_ADDR_EQUAL(struct in6_addr *a, struct in6_addr *b)
 	in6_clearscope(&tmp_b);
 	return (IN6_ARE_ADDR_EQUAL(&tmp_a, &tmp_b));
 }
+
+#endif
 
 void
 sctp_fill_pcbinfo(struct sctp_pcbinfo *spcb)
@@ -608,37 +611,47 @@ sctp_add_addr_to_vrf(uint32_t vrf_id, void *ifn, uint32_t ifn_index,
 	sctp_ifap->localifa_flags = SCTP_ADDR_VALID | SCTP_ADDR_DEFER_USE;
 	sctp_ifap->flags = ifa_flags;
 	/* Set scope */
-	if (sctp_ifap->address.sa.sa_family == AF_INET) {
-		struct sockaddr_in *sin;
+	switch (sctp_ifap->address.sa.sa_family) {
+	case AF_INET:
+		{
+			struct sockaddr_in *sin;
 
-		sin = (struct sockaddr_in *)&sctp_ifap->address.sin;
-		if (SCTP_IFN_IS_IFT_LOOP(sctp_ifap->ifn_p) ||
-		    (IN4_ISLOOPBACK_ADDRESS(&sin->sin_addr))) {
-			sctp_ifap->src_is_loop = 1;
+			sin = (struct sockaddr_in *)&sctp_ifap->address.sin;
+			if (SCTP_IFN_IS_IFT_LOOP(sctp_ifap->ifn_p) ||
+			    (IN4_ISLOOPBACK_ADDRESS(&sin->sin_addr))) {
+				sctp_ifap->src_is_loop = 1;
+			}
+			if ((IN4_ISPRIVATE_ADDRESS(&sin->sin_addr))) {
+				sctp_ifap->src_is_priv = 1;
+			}
+			sctp_ifnp->num_v4++;
+			if (new_ifn_af)
+				new_ifn_af = AF_INET;
+			break;
 		}
-		if ((IN4_ISPRIVATE_ADDRESS(&sin->sin_addr))) {
-			sctp_ifap->src_is_priv = 1;
-		}
-		sctp_ifnp->num_v4++;
-		if (new_ifn_af)
-			new_ifn_af = AF_INET;
-	} else if (sctp_ifap->address.sa.sa_family == AF_INET6) {
-		/* ok to use deprecated addresses? */
-		struct sockaddr_in6 *sin6;
+#ifdef INET6
+	case AF_INET6:
+		{
+			/* ok to use deprecated addresses? */
+			struct sockaddr_in6 *sin6;
 
-		sin6 = (struct sockaddr_in6 *)&sctp_ifap->address.sin6;
-		if (SCTP_IFN_IS_IFT_LOOP(sctp_ifap->ifn_p) ||
-		    (IN6_IS_ADDR_LOOPBACK(&sin6->sin6_addr))) {
-			sctp_ifap->src_is_loop = 1;
+			sin6 = (struct sockaddr_in6 *)&sctp_ifap->address.sin6;
+			if (SCTP_IFN_IS_IFT_LOOP(sctp_ifap->ifn_p) ||
+			    (IN6_IS_ADDR_LOOPBACK(&sin6->sin6_addr))) {
+				sctp_ifap->src_is_loop = 1;
+			}
+			if (IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr)) {
+				sctp_ifap->src_is_priv = 1;
+			}
+			sctp_ifnp->num_v6++;
+			if (new_ifn_af)
+				new_ifn_af = AF_INET6;
+			break;
 		}
-		if (IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr)) {
-			sctp_ifap->src_is_priv = 1;
-		}
-		sctp_ifnp->num_v6++;
-		if (new_ifn_af)
-			new_ifn_af = AF_INET6;
-	} else {
+#endif
+	default:
 		new_ifn_af = 0;
+		break;
 	}
 	hash_of_addr = sctp_get_ifa_hash_val(&sctp_ifap->address.sa);
 
@@ -893,7 +906,9 @@ sctp_tcb_special_locate(struct sctp_inpcb **inp_p, struct sockaddr *from,
 							match = 1;
 							break;
 						}
-					} else {
+					}
+#ifdef INET6
+					if (from->sa_family == AF_INET6) {
 						struct sockaddr_in6 *intf_addr6;
 						struct sockaddr_in6 *sin6;
 
@@ -907,6 +922,7 @@ sctp_tcb_special_locate(struct sctp_inpcb **inp_p, struct sockaddr *from,
 							break;
 						}
 					}
+#endif
 				}
 			}
 			if (match == 0) {
@@ -944,38 +960,56 @@ sctp_tcb_special_locate(struct sctp_inpcb **inp_p, struct sockaddr *from,
 				/* not the same family, can't be a match */
 				continue;
 			}
-			if (from->sa_family == AF_INET) {
-				struct sockaddr_in *sin, *rsin;
+			switch (from->sa_family) {
+			case AF_INET:
+				{
+					struct sockaddr_in *sin, *rsin;
 
-				sin = (struct sockaddr_in *)&net->ro._l_addr;
-				rsin = (struct sockaddr_in *)from;
-				if (sin->sin_addr.s_addr ==
-				    rsin->sin_addr.s_addr) {
-					/* found it */
-					if (netp != NULL) {
-						*netp = net;
+					sin = (struct sockaddr_in *)&net->ro._l_addr;
+					rsin = (struct sockaddr_in *)from;
+					if (sin->sin_addr.s_addr ==
+					    rsin->sin_addr.s_addr) {
+						/* found it */
+						if (netp != NULL) {
+							*netp = net;
+						}
+						/*
+						 * Update the endpoint
+						 * pointer
+						 */
+						*inp_p = inp;
+						SCTP_INP_RUNLOCK(inp);
+						return (stcb);
 					}
-					/* Update the endpoint pointer */
-					*inp_p = inp;
-					SCTP_INP_RUNLOCK(inp);
-					return (stcb);
+					break;
 				}
-			} else {
-				struct sockaddr_in6 *sin6, *rsin6;
+#ifdef INET6
+			case AF_INET6:
+				{
+					struct sockaddr_in6 *sin6, *rsin6;
 
-				sin6 = (struct sockaddr_in6 *)&net->ro._l_addr;
-				rsin6 = (struct sockaddr_in6 *)from;
-				if (SCTP6_ARE_ADDR_EQUAL(&sin6->sin6_addr,
-				    &rsin6->sin6_addr)) {
-					/* found it */
-					if (netp != NULL) {
-						*netp = net;
+					sin6 = (struct sockaddr_in6 *)&net->ro._l_addr;
+					rsin6 = (struct sockaddr_in6 *)from;
+					if (SCTP6_ARE_ADDR_EQUAL(&sin6->sin6_addr,
+					    &rsin6->sin6_addr)) {
+						/* found it */
+						if (netp != NULL) {
+							*netp = net;
+						}
+						/*
+						 * Update the endpoint
+						 * pointer
+						 */
+						*inp_p = inp;
+						SCTP_INP_RUNLOCK(inp);
+						return (stcb);
 					}
-					/* Update the endpoint pointer */
-					*inp_p = inp;
-					SCTP_INP_RUNLOCK(inp);
-					return (stcb);
+					break;
 				}
+#endif
+			default:
+				/* TSNH */
+				break;
 			}
 		}
 		SCTP_TCB_UNLOCK(stcb);
@@ -1076,53 +1110,67 @@ sctp_findassociation_ep_addr(struct sctp_inpcb **inp_p, struct sockaddr *remote,
 					/* not the same family */
 					continue;
 				}
-				if (remote->sa_family == AF_INET) {
-					struct sockaddr_in *sin, *rsin;
+				switch (remote->sa_family) {
+				case AF_INET:
+					{
+						struct sockaddr_in *sin,
+						           *rsin;
 
-					sin = (struct sockaddr_in *)
-					    &net->ro._l_addr;
-					rsin = (struct sockaddr_in *)remote;
-					if (sin->sin_addr.s_addr ==
-					    rsin->sin_addr.s_addr) {
-						/* found it */
-						if (netp != NULL) {
-							*netp = net;
+						sin = (struct sockaddr_in *)
+						    &net->ro._l_addr;
+						rsin = (struct sockaddr_in *)remote;
+						if (sin->sin_addr.s_addr ==
+						    rsin->sin_addr.s_addr) {
+							/* found it */
+							if (netp != NULL) {
+								*netp = net;
+							}
+							if (locked_tcb == NULL) {
+								SCTP_INP_DECR_REF(inp);
+							} else if (locked_tcb != stcb) {
+								SCTP_TCB_LOCK(locked_tcb);
+							}
+							if (locked_tcb) {
+								atomic_subtract_int(&locked_tcb->asoc.refcnt, 1);
+							}
+							SCTP_INP_WUNLOCK(inp);
+							SCTP_INP_INFO_RUNLOCK();
+							return (stcb);
 						}
-						if (locked_tcb == NULL) {
-							SCTP_INP_DECR_REF(inp);
-						} else if (locked_tcb != stcb) {
-							SCTP_TCB_LOCK(locked_tcb);
-						}
-						if (locked_tcb) {
-							atomic_subtract_int(&locked_tcb->asoc.refcnt, 1);
-						}
-						SCTP_INP_WUNLOCK(inp);
-						SCTP_INP_INFO_RUNLOCK();
-						return (stcb);
+						break;
 					}
-				} else if (remote->sa_family == AF_INET6) {
-					struct sockaddr_in6 *sin6, *rsin6;
+#ifdef INET6
+				case AF_INET6:
+					{
+						struct sockaddr_in6 *sin6,
+						            *rsin6;
 
-					sin6 = (struct sockaddr_in6 *)&net->ro._l_addr;
-					rsin6 = (struct sockaddr_in6 *)remote;
-					if (SCTP6_ARE_ADDR_EQUAL(&sin6->sin6_addr,
-					    &rsin6->sin6_addr)) {
-						/* found it */
-						if (netp != NULL) {
-							*netp = net;
+						sin6 = (struct sockaddr_in6 *)&net->ro._l_addr;
+						rsin6 = (struct sockaddr_in6 *)remote;
+						if (SCTP6_ARE_ADDR_EQUAL(&sin6->sin6_addr,
+						    &rsin6->sin6_addr)) {
+							/* found it */
+							if (netp != NULL) {
+								*netp = net;
+							}
+							if (locked_tcb == NULL) {
+								SCTP_INP_DECR_REF(inp);
+							} else if (locked_tcb != stcb) {
+								SCTP_TCB_LOCK(locked_tcb);
+							}
+							if (locked_tcb) {
+								atomic_subtract_int(&locked_tcb->asoc.refcnt, 1);
+							}
+							SCTP_INP_WUNLOCK(inp);
+							SCTP_INP_INFO_RUNLOCK();
+							return (stcb);
 						}
-						if (locked_tcb == NULL) {
-							SCTP_INP_DECR_REF(inp);
-						} else if (locked_tcb != stcb) {
-							SCTP_TCB_LOCK(locked_tcb);
-						}
-						if (locked_tcb) {
-							atomic_subtract_int(&locked_tcb->asoc.refcnt, 1);
-						}
-						SCTP_INP_WUNLOCK(inp);
-						SCTP_INP_INFO_RUNLOCK();
-						return (stcb);
+						break;
 					}
+#endif
+				default:
+					/* TSNH */
+					break;
 				}
 			}
 			SCTP_TCB_UNLOCK(stcb);
@@ -1159,54 +1207,68 @@ sctp_findassociation_ep_addr(struct sctp_inpcb **inp_p, struct sockaddr *remote,
 					/* not the same family */
 					continue;
 				}
-				if (remote->sa_family == AF_INET) {
-					struct sockaddr_in *sin, *rsin;
+				switch (remote->sa_family) {
+				case AF_INET:
+					{
+						struct sockaddr_in *sin,
+						           *rsin;
 
-					sin = (struct sockaddr_in *)
-					    &net->ro._l_addr;
-					rsin = (struct sockaddr_in *)remote;
-					if (sin->sin_addr.s_addr ==
-					    rsin->sin_addr.s_addr) {
-						/* found it */
-						if (netp != NULL) {
-							*netp = net;
+						sin = (struct sockaddr_in *)
+						    &net->ro._l_addr;
+						rsin = (struct sockaddr_in *)remote;
+						if (sin->sin_addr.s_addr ==
+						    rsin->sin_addr.s_addr) {
+							/* found it */
+							if (netp != NULL) {
+								*netp = net;
+							}
+							if (locked_tcb == NULL) {
+								SCTP_INP_DECR_REF(inp);
+							} else if (locked_tcb != stcb) {
+								SCTP_TCB_LOCK(locked_tcb);
+							}
+							if (locked_tcb) {
+								atomic_subtract_int(&locked_tcb->asoc.refcnt, 1);
+							}
+							SCTP_INP_WUNLOCK(inp);
+							SCTP_INP_INFO_RUNLOCK();
+							return (stcb);
 						}
-						if (locked_tcb == NULL) {
-							SCTP_INP_DECR_REF(inp);
-						} else if (locked_tcb != stcb) {
-							SCTP_TCB_LOCK(locked_tcb);
-						}
-						if (locked_tcb) {
-							atomic_subtract_int(&locked_tcb->asoc.refcnt, 1);
-						}
-						SCTP_INP_WUNLOCK(inp);
-						SCTP_INP_INFO_RUNLOCK();
-						return (stcb);
+						break;
 					}
-				} else if (remote->sa_family == AF_INET6) {
-					struct sockaddr_in6 *sin6, *rsin6;
+#ifdef INET6
+				case AF_INET6:
+					{
+						struct sockaddr_in6 *sin6,
+						            *rsin6;
 
-					sin6 = (struct sockaddr_in6 *)
-					    &net->ro._l_addr;
-					rsin6 = (struct sockaddr_in6 *)remote;
-					if (SCTP6_ARE_ADDR_EQUAL(&sin6->sin6_addr,
-					    &rsin6->sin6_addr)) {
-						/* found it */
-						if (netp != NULL) {
-							*netp = net;
+						sin6 = (struct sockaddr_in6 *)
+						    &net->ro._l_addr;
+						rsin6 = (struct sockaddr_in6 *)remote;
+						if (SCTP6_ARE_ADDR_EQUAL(&sin6->sin6_addr,
+						    &rsin6->sin6_addr)) {
+							/* found it */
+							if (netp != NULL) {
+								*netp = net;
+							}
+							if (locked_tcb == NULL) {
+								SCTP_INP_DECR_REF(inp);
+							} else if (locked_tcb != stcb) {
+								SCTP_TCB_LOCK(locked_tcb);
+							}
+							if (locked_tcb) {
+								atomic_subtract_int(&locked_tcb->asoc.refcnt, 1);
+							}
+							SCTP_INP_WUNLOCK(inp);
+							SCTP_INP_INFO_RUNLOCK();
+							return (stcb);
 						}
-						if (locked_tcb == NULL) {
-							SCTP_INP_DECR_REF(inp);
-						} else if (locked_tcb != stcb) {
-							SCTP_TCB_LOCK(locked_tcb);
-						}
-						if (locked_tcb) {
-							atomic_subtract_int(&locked_tcb->asoc.refcnt, 1);
-						}
-						SCTP_INP_WUNLOCK(inp);
-						SCTP_INP_INFO_RUNLOCK();
-						return (stcb);
+						break;
 					}
+#endif
+				default:
+					/* TSNH */
+					break;
 				}
 			}
 			SCTP_TCB_UNLOCK(stcb);
@@ -1332,20 +1394,37 @@ sctp_endpoint_probe(struct sockaddr *nam, struct sctppcbhead *head,
 {
 	struct sctp_inpcb *inp;
 	struct sockaddr_in *sin;
+
+#ifdef INET6
 	struct sockaddr_in6 *sin6;
+
+#endif
 	struct sctp_laddr *laddr;
+
+#ifdef INET6
+	struct sockaddr_in6 *intf_addr6;
+
+#endif
+
 	int fnd;
 
 	/*
 	 * Endpoing probe expects that the INP_INFO is locked.
 	 */
-	if (nam->sa_family == AF_INET) {
+	sin = NULL;
+#ifdef INET6
+	sin6 = NULL;
+#endif
+	switch (nam->sa_family) {
+	case AF_INET:
 		sin = (struct sockaddr_in *)nam;
-		sin6 = NULL;
-	} else if (nam->sa_family == AF_INET6) {
+		break;
+#ifdef INET6
+	case AF_INET6:
 		sin6 = (struct sockaddr_in6 *)nam;
-		sin = NULL;
-	} else {
+		break;
+#endif
+	default:
 		/* unsupported family */
 		return (NULL);
 	}
@@ -1390,11 +1469,14 @@ sctp_endpoint_probe(struct sockaddr *nam, struct sctppcbhead *head,
 	    (sin->sin_addr.s_addr == INADDR_ANY)) {
 		/* Can't hunt for one that has no address specified */
 		return (NULL);
-	} else if ((nam->sa_family == AF_INET6) &&
+	}
+#ifdef INET6
+	if ((nam->sa_family == AF_INET6) &&
 	    (IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr))) {
 		/* Can't hunt for one that has no address specified */
 		return (NULL);
 	}
+#endif
 	/*
 	 * ok, not bound to all so see if we can find a EP bound to this
 	 * address.
@@ -1443,21 +1525,24 @@ sctp_endpoint_probe(struct sockaddr *nam, struct sctppcbhead *head,
 				struct sockaddr_in *intf_addr;
 
 				intf_addr = &laddr->ifa->address.sin;
-				if (nam->sa_family == AF_INET) {
+				switch (nam->sa_family) {
+				case AF_INET:
 					if (sin->sin_addr.s_addr ==
 					    intf_addr->sin_addr.s_addr) {
 						SCTP_INP_RUNLOCK(inp);
 						return (inp);
 					}
-				} else if (nam->sa_family == AF_INET6) {
-					struct sockaddr_in6 *intf_addr6;
-
+					break;
+#ifdef INET6
+				case AF_INET6:
 					intf_addr6 = &laddr->ifa->address.sin6;
 					if (SCTP6_ARE_ADDR_EQUAL(&sin6->sin6_addr,
 					    &intf_addr6->sin6_addr)) {
 						SCTP_INP_RUNLOCK(inp);
 						return (inp);
 					}
+					break;
+#endif
 				}
 			}
 		}
@@ -1774,33 +1859,42 @@ sctp_findassociation_addr(struct mbuf *m, int iphlen, int offset,
 	struct sctp_inpcb *inp;
 
 	iph = mtod(m, struct ip *);
-	if (iph->ip_v == IPVERSION) {
-		/* its IPv4 */
-		struct sockaddr_in *from4;
+	switch (iph->ip_v) {
+	case IPVERSION:
+		{
+			/* its IPv4 */
+			struct sockaddr_in *from4;
 
-		from4 = (struct sockaddr_in *)&from_store;
-		bzero(from4, sizeof(*from4));
-		from4->sin_family = AF_INET;
-		from4->sin_len = sizeof(struct sockaddr_in);
-		from4->sin_addr.s_addr = iph->ip_src.s_addr;
-		from4->sin_port = sh->src_port;
-	} else if (iph->ip_v == (IPV6_VERSION >> 4)) {
-		/* its IPv6 */
-		struct ip6_hdr *ip6;
-		struct sockaddr_in6 *from6;
+			from4 = (struct sockaddr_in *)&from_store;
+			bzero(from4, sizeof(*from4));
+			from4->sin_family = AF_INET;
+			from4->sin_len = sizeof(struct sockaddr_in);
+			from4->sin_addr.s_addr = iph->ip_src.s_addr;
+			from4->sin_port = sh->src_port;
+			break;
+		}
+#ifdef INET6
+	case IPV6_VERSION >> 4:
+		{
+			/* its IPv6 */
+			struct ip6_hdr *ip6;
+			struct sockaddr_in6 *from6;
 
-		ip6 = mtod(m, struct ip6_hdr *);
-		from6 = (struct sockaddr_in6 *)&from_store;
-		bzero(from6, sizeof(*from6));
-		from6->sin6_family = AF_INET6;
-		from6->sin6_len = sizeof(struct sockaddr_in6);
-		from6->sin6_addr = ip6->ip6_src;
-		from6->sin6_port = sh->src_port;
-		/* Get the scopes in properly to the sin6 addr's */
-		/* we probably don't need these operations */
-		(void)sa6_recoverscope(from6);
-		sa6_embedscope(from6, ip6_use_defzone);
-	} else {
+			ip6 = mtod(m, struct ip6_hdr *);
+			from6 = (struct sockaddr_in6 *)&from_store;
+			bzero(from6, sizeof(*from6));
+			from6->sin6_family = AF_INET6;
+			from6->sin6_len = sizeof(struct sockaddr_in6);
+			from6->sin6_addr = ip6->ip6_src;
+			from6->sin6_port = sh->src_port;
+			/* Get the scopes in properly to the sin6 addr's */
+			/* we probably don't need these operations */
+			(void)sa6_recoverscope(from6);
+			sa6_embedscope(from6, ip6_use_defzone);
+			break;
+		}
+#endif
+	default:
 		/* Currently not supported. */
 		return (NULL);
 	}
@@ -1812,32 +1906,44 @@ sctp_findassociation_addr(struct mbuf *m, int iphlen, int offset,
 			return (retval);
 		}
 	}
-	if (iph->ip_v == IPVERSION) {
-		/* its IPv4 */
-		struct sockaddr_in *to4;
+	switch (iph->ip_v) {
+	case IPVERSION:
+		{
+			/* its IPv4 */
+			struct sockaddr_in *to4;
 
-		to4 = (struct sockaddr_in *)&to_store;
-		bzero(to4, sizeof(*to4));
-		to4->sin_family = AF_INET;
-		to4->sin_len = sizeof(struct sockaddr_in);
-		to4->sin_addr.s_addr = iph->ip_dst.s_addr;
-		to4->sin_port = sh->dest_port;
-	} else if (iph->ip_v == (IPV6_VERSION >> 4)) {
-		/* its IPv6 */
-		struct ip6_hdr *ip6;
-		struct sockaddr_in6 *to6;
+			to4 = (struct sockaddr_in *)&to_store;
+			bzero(to4, sizeof(*to4));
+			to4->sin_family = AF_INET;
+			to4->sin_len = sizeof(struct sockaddr_in);
+			to4->sin_addr.s_addr = iph->ip_dst.s_addr;
+			to4->sin_port = sh->dest_port;
+			break;
+		}
+#ifdef INET6
+	case IPV6_VERSION >> 4:
+		{
+			/* its IPv6 */
+			struct ip6_hdr *ip6;
+			struct sockaddr_in6 *to6;
 
-		ip6 = mtod(m, struct ip6_hdr *);
-		to6 = (struct sockaddr_in6 *)&to_store;
-		bzero(to6, sizeof(*to6));
-		to6->sin6_family = AF_INET6;
-		to6->sin6_len = sizeof(struct sockaddr_in6);
-		to6->sin6_addr = ip6->ip6_dst;
-		to6->sin6_port = sh->dest_port;
-		/* Get the scopes in properly to the sin6 addr's */
-		/* we probably don't need these operations */
-		(void)sa6_recoverscope(to6);
-		sa6_embedscope(to6, ip6_use_defzone);
+			ip6 = mtod(m, struct ip6_hdr *);
+			to6 = (struct sockaddr_in6 *)&to_store;
+			bzero(to6, sizeof(*to6));
+			to6->sin6_family = AF_INET6;
+			to6->sin6_len = sizeof(struct sockaddr_in6);
+			to6->sin6_addr = ip6->ip6_dst;
+			to6->sin6_port = sh->dest_port;
+			/* Get the scopes in properly to the sin6 addr's */
+			/* we probably don't need these operations */
+			(void)sa6_recoverscope(to6);
+			sa6_embedscope(to6, ip6_use_defzone);
+			break;
+		}
+#endif
+	default:
+		/* TSNH */
+		break;
 	}
 	find_tcp_pool = 0;
 	if ((ch->chunk_type != SCTP_INITIATION) &&
@@ -1895,9 +2001,18 @@ sctp_findassociation_ep_asconf(struct mbuf *m, int iphlen, int offset,
 {
 	struct sctp_tcb *stcb;
 	struct sockaddr_in *sin;
+
+#ifdef INET6
 	struct sockaddr_in6 *sin6;
+
+#endif
 	struct sockaddr_storage local_store, remote_store;
 	struct ip *iph;
+
+#ifdef INET6
+	struct ip6_hdr *ip6;
+
+#endif
 	struct sctp_paramhdr parm_buf, *phdr;
 	int ptype;
 	int zero_address = 0;
@@ -1908,24 +2023,27 @@ sctp_findassociation_ep_asconf(struct mbuf *m, int iphlen, int offset,
 
 	/* First get the destination address setup too. */
 	iph = mtod(m, struct ip *);
-	if (iph->ip_v == IPVERSION) {
+	switch (iph->ip_v) {
+	case IPVERSION:
 		/* its IPv4 */
 		sin = (struct sockaddr_in *)&local_store;
 		sin->sin_family = AF_INET;
 		sin->sin_len = sizeof(*sin);
 		sin->sin_port = sh->dest_port;
 		sin->sin_addr.s_addr = iph->ip_dst.s_addr;
-	} else if (iph->ip_v == (IPV6_VERSION >> 4)) {
+		break;
+#ifdef INET6
+	case IPV6_VERSION >> 4:
 		/* its IPv6 */
-		struct ip6_hdr *ip6;
-
 		ip6 = mtod(m, struct ip6_hdr *);
 		sin6 = (struct sockaddr_in6 *)&local_store;
 		sin6->sin6_family = AF_INET6;
 		sin6->sin6_len = sizeof(*sin6);
 		sin6->sin6_port = sh->dest_port;
 		sin6->sin6_addr = ip6->ip6_dst;
-	} else {
+		break;
+#endif
+	default:
 		return NULL;
 	}
 
@@ -1938,51 +2056,60 @@ sctp_findassociation_ep_asconf(struct mbuf *m, int iphlen, int offset,
 	}
 	ptype = (int)((uint32_t) ntohs(phdr->param_type));
 	/* get the correlation address */
-	if (ptype == SCTP_IPV6_ADDRESS) {
-		/* ipv6 address param */
-		struct sctp_ipv6addr_param *p6, p6_buf;
+	switch (ptype) {
+#ifdef INET6
+	case SCTP_IPV6_ADDRESS:
+		{
+			/* ipv6 address param */
+			struct sctp_ipv6addr_param *p6, p6_buf;
 
-		if (ntohs(phdr->param_length) != sizeof(struct sctp_ipv6addr_param)) {
-			return NULL;
+			if (ntohs(phdr->param_length) != sizeof(struct sctp_ipv6addr_param)) {
+				return NULL;
+			}
+			p6 = (struct sctp_ipv6addr_param *)sctp_get_next_param(m,
+			    offset + sizeof(struct sctp_asconf_chunk),
+			    &p6_buf.ph, sizeof(*p6));
+			if (p6 == NULL) {
+				SCTPDBG(SCTP_DEBUG_INPUT3, "%s: failed to get asconf v6 lookup addr\n",
+				    __FUNCTION__);
+				return (NULL);
+			}
+			sin6 = (struct sockaddr_in6 *)&remote_store;
+			sin6->sin6_family = AF_INET6;
+			sin6->sin6_len = sizeof(*sin6);
+			sin6->sin6_port = sh->src_port;
+			memcpy(&sin6->sin6_addr, &p6->addr, sizeof(struct in6_addr));
+			if (IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr))
+				zero_address = 1;
+			break;
 		}
-		p6 = (struct sctp_ipv6addr_param *)sctp_get_next_param(m,
-		    offset + sizeof(struct sctp_asconf_chunk),
-		    &p6_buf.ph, sizeof(*p6));
-		if (p6 == NULL) {
-			SCTPDBG(SCTP_DEBUG_INPUT3, "%s: failed to get asconf v6 lookup addr\n",
-			    __FUNCTION__);
-			return (NULL);
-		}
-		sin6 = (struct sockaddr_in6 *)&remote_store;
-		sin6->sin6_family = AF_INET6;
-		sin6->sin6_len = sizeof(*sin6);
-		sin6->sin6_port = sh->src_port;
-		memcpy(&sin6->sin6_addr, &p6->addr, sizeof(struct in6_addr));
-		if (IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr))
-			zero_address = 1;
-	} else if (ptype == SCTP_IPV4_ADDRESS) {
-		/* ipv4 address param */
-		struct sctp_ipv4addr_param *p4, p4_buf;
+#endif
+	case SCTP_IPV4_ADDRESS:
+		{
+			/* ipv4 address param */
+			struct sctp_ipv4addr_param *p4, p4_buf;
 
-		if (ntohs(phdr->param_length) != sizeof(struct sctp_ipv4addr_param)) {
-			return NULL;
+			if (ntohs(phdr->param_length) != sizeof(struct sctp_ipv4addr_param)) {
+				return NULL;
+			}
+			p4 = (struct sctp_ipv4addr_param *)sctp_get_next_param(m,
+			    offset + sizeof(struct sctp_asconf_chunk),
+			    &p4_buf.ph, sizeof(*p4));
+			if (p4 == NULL) {
+				SCTPDBG(SCTP_DEBUG_INPUT3, "%s: failed to get asconf v4 lookup addr\n",
+				    __FUNCTION__);
+				return (NULL);
+			}
+			sin = (struct sockaddr_in *)&remote_store;
+			sin->sin_family = AF_INET;
+			sin->sin_len = sizeof(*sin);
+			sin->sin_port = sh->src_port;
+			memcpy(&sin->sin_addr, &p4->addr, sizeof(struct in_addr));
+			if (sin->sin_addr.s_addr == INADDR_ANY)
+				zero_address = 1;
+			break;
 		}
-		p4 = (struct sctp_ipv4addr_param *)sctp_get_next_param(m,
-		    offset + sizeof(struct sctp_asconf_chunk),
-		    &p4_buf.ph, sizeof(*p4));
-		if (p4 == NULL) {
-			SCTPDBG(SCTP_DEBUG_INPUT3, "%s: failed to get asconf v4 lookup addr\n",
-			    __FUNCTION__);
-			return (NULL);
-		}
-		sin = (struct sockaddr_in *)&remote_store;
-		sin->sin_family = AF_INET;
-		sin->sin_len = sizeof(*sin);
-		sin->sin_port = sh->src_port;
-		memcpy(&sin->sin_addr, &p4->addr, sizeof(struct in_addr));
-		if (sin->sin_addr.s_addr == INADDR_ANY)
-			zero_address = 1;
-	} else {
+	default:
 		/* invalid address param type */
 		return NULL;
 	}
@@ -2416,62 +2543,76 @@ sctp_inpcb_bind(struct socket *so, struct sockaddr *addr,
 		prison = 1;
 	}
 	if (addr != NULL) {
-		if (addr->sa_family == AF_INET) {
-			struct sockaddr_in *sin;
+		switch (addr->sa_family) {
+		case AF_INET:
+			{
+				struct sockaddr_in *sin;
 
-			/* IPV6_V6ONLY socket? */
-			if (SCTP_IPV6_V6ONLY(ip_inp)) {
-				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, EINVAL);
-				return (EINVAL);
+				/* IPV6_V6ONLY socket? */
+				if (SCTP_IPV6_V6ONLY(ip_inp)) {
+					SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, EINVAL);
+					return (EINVAL);
+				}
+				if (addr->sa_len != sizeof(*sin)) {
+					SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, EINVAL);
+					return (EINVAL);
+				}
+				sin = (struct sockaddr_in *)addr;
+				lport = sin->sin_port;
+				if (prison) {
+					/*
+					 * For INADDR_ANY and  LOOPBACK the
+					 * prison_ip() call will transmute
+					 * the ip address to the proper
+					 * value (i.e. the IP address owned
+					 * by the jail).
+					 */
+					if (prison_ip(p->td_ucred, 0, &sin->sin_addr.s_addr)) {
+						SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, EINVAL);
+						return (EINVAL);
+					}
+				}
+				if (sin->sin_addr.s_addr != INADDR_ANY) {
+					bindall = 0;
+				}
+				break;
 			}
-			if (addr->sa_len != sizeof(*sin)) {
-				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, EINVAL);
-				return (EINVAL);
-			}
-			sin = (struct sockaddr_in *)addr;
-			lport = sin->sin_port;
-			if (prison) {
+#ifdef INET6
+		case AF_INET6:
+			{
 				/*
-				 * For INADDR_ANY and  LOOPBACK the
-				 * prison_ip() call will transmute the ip
-				 * address to the proper value (i.e. the IP
-				 * address owned by the jail).
+				 * Only for pure IPv6 Address. (No IPv4
+				 * Mapped!)
 				 */
-				if (prison_ip(p->td_ucred, 0, &sin->sin_addr.s_addr)) {
+				struct sockaddr_in6 *sin6;
+
+				sin6 = (struct sockaddr_in6 *)addr;
+
+				if (addr->sa_len != sizeof(*sin6)) {
 					SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, EINVAL);
 					return (EINVAL);
 				}
-			}
-			if (sin->sin_addr.s_addr != INADDR_ANY) {
-				bindall = 0;
-			}
-		} else if (addr->sa_family == AF_INET6) {
-			/* Only for pure IPv6 Address. (No IPv4 Mapped!) */
-			struct sockaddr_in6 *sin6;
-
-			sin6 = (struct sockaddr_in6 *)addr;
-
-			if (addr->sa_len != sizeof(*sin6)) {
-				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, EINVAL);
-				return (EINVAL);
-			}
-			lport = sin6->sin6_port;
-			/*
-			 * Jail checks for IPv6 should go HERE! i.e. add the
-			 * prison_ip() equivilant in this postion to
-			 * transmute the addresses to the proper one jailed.
-			 */
-			if (!IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr)) {
-				bindall = 0;
-				/* KAME hack: embed scopeid */
-				if (sa6_embedscope(sin6, ip6_use_defzone) != 0) {
-					SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, EINVAL);
-					return (EINVAL);
+				lport = sin6->sin6_port;
+				/*
+				 * Jail checks for IPv6 should go HERE! i.e.
+				 * add the prison_ip() equivilant in this
+				 * postion to transmute the addresses to the
+				 * proper one jailed.
+				 */
+				if (!IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr)) {
+					bindall = 0;
+					/* KAME hack: embed scopeid */
+					if (sa6_embedscope(sin6, ip6_use_defzone) != 0) {
+						SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, EINVAL);
+						return (EINVAL);
+					}
 				}
+				/* this must be cleared for ifa_ifwithaddr() */
+				sin6->sin6_scope_id = 0;
+				break;
 			}
-			/* this must be cleared for ifa_ifwithaddr() */
-			sin6->sin6_scope_id = 0;
-		} else {
+#endif
+		default:
 			SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, EAFNOSUPPORT);
 			return (EAFNOSUPPORT);
 		}
@@ -3472,6 +3613,7 @@ sctp_add_remote_addr(struct sctp_tcb *stcb, struct sockaddr *newaddr,
 	SCTP_OS_TIMER_INIT(&net->pmtu_timer.timer);
 
 	/* Now generate a route for this guy */
+#ifdef INET6
 	/* KAME hack: embed scopeid */
 	if (newaddr->sa_family == AF_INET6) {
 		struct sockaddr_in6 *sin6;
@@ -3480,14 +3622,17 @@ sctp_add_remote_addr(struct sctp_tcb *stcb, struct sockaddr *newaddr,
 		(void)sa6_embedscope(sin6, ip6_use_defzone);
 		sin6->sin6_scope_id = 0;
 	}
+#endif
 	SCTP_RTALLOC((sctp_route_t *) & net->ro, stcb->asoc.vrf_id);
 
+#ifdef INET6
 	if (newaddr->sa_family == AF_INET6) {
 		struct sockaddr_in6 *sin6;
 
 		sin6 = (struct sockaddr_in6 *)&net->ro._l_addr;
 		(void)sa6_recoverscope(sin6);
 	}
+#endif
 	if (SCTP_ROUTE_HAS_VALID_IFN(&net->ro)) {
 		/* Get source address */
 		net->ro._s_addr = sctp_source_address_selection(stcb->sctp_ep,
@@ -5205,33 +5350,43 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 	sin6.sin6_port = stcb->rport;
 	if (altsa == NULL) {
 		iph = mtod(m, struct ip *);
-		if (iph->ip_v == IPVERSION) {
-			/* its IPv4 */
-			struct sockaddr_in *sin_2;
+		switch (iph->ip_v) {
+		case IPVERSION:
+			{
+				/* its IPv4 */
+				struct sockaddr_in *sin_2;
 
-			sin_2 = (struct sockaddr_in *)(local_sa);
-			memset(sin_2, 0, sizeof(sin));
-			sin_2->sin_family = AF_INET;
-			sin_2->sin_len = sizeof(sin);
-			sin_2->sin_port = sh->dest_port;
-			sin_2->sin_addr.s_addr = iph->ip_dst.s_addr;
-			sin.sin_addr = iph->ip_src;
-			sa = (struct sockaddr *)&sin;
-		} else if (iph->ip_v == (IPV6_VERSION >> 4)) {
-			/* its IPv6 */
-			struct ip6_hdr *ip6;
-			struct sockaddr_in6 *sin6_2;
+				sin_2 = (struct sockaddr_in *)(local_sa);
+				memset(sin_2, 0, sizeof(sin));
+				sin_2->sin_family = AF_INET;
+				sin_2->sin_len = sizeof(sin);
+				sin_2->sin_port = sh->dest_port;
+				sin_2->sin_addr.s_addr = iph->ip_dst.s_addr;
+				sin.sin_addr = iph->ip_src;
+				sa = (struct sockaddr *)&sin;
+				break;
+			}
+#ifdef INET6
+		case IPV6_VERSION >> 4:
+			{
+				/* its IPv6 */
+				struct ip6_hdr *ip6;
+				struct sockaddr_in6 *sin6_2;
 
-			ip6 = mtod(m, struct ip6_hdr *);
-			sin6_2 = (struct sockaddr_in6 *)(local_sa);
-			memset(sin6_2, 0, sizeof(sin6));
-			sin6_2->sin6_family = AF_INET6;
-			sin6_2->sin6_len = sizeof(struct sockaddr_in6);
-			sin6_2->sin6_port = sh->dest_port;
-			sin6.sin6_addr = ip6->ip6_src;
-			sa = (struct sockaddr *)&sin6;
-		} else {
+				ip6 = mtod(m, struct ip6_hdr *);
+				sin6_2 = (struct sockaddr_in6 *)(local_sa);
+				memset(sin6_2, 0, sizeof(sin6));
+				sin6_2->sin6_family = AF_INET6;
+				sin6_2->sin6_len = sizeof(struct sockaddr_in6);
+				sin6_2->sin6_port = sh->dest_port;
+				sin6.sin6_addr = ip6->ip6_src;
+				sa = (struct sockaddr *)&sin6;
+				break;
+			}
+#endif
+		default:
 			sa = NULL;
+			break;
 		}
 	} else {
 		/*
