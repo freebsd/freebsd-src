@@ -845,31 +845,43 @@ send_reply:
 		/* pullup already done, IP options already stripped */
 		iph = mtod(m, struct ip *);
 		sh = (struct sctphdr *)((caddr_t)iph + sizeof(*iph));
-		if (iph->ip_v == IPVERSION) {
-			struct sockaddr_in *from4;
+		switch (iph->ip_v) {
+		case IPVERSION:
+			{
+				struct sockaddr_in *from4;
 
-			from4 = (struct sockaddr_in *)&from_store;
-			bzero(from4, sizeof(*from4));
-			from4->sin_family = AF_INET;
-			from4->sin_len = sizeof(struct sockaddr_in);
-			from4->sin_addr.s_addr = iph->ip_src.s_addr;
-			from4->sin_port = sh->src_port;
-		} else if (iph->ip_v == (IPV6_VERSION >> 4)) {
-			struct ip6_hdr *ip6;
-			struct sockaddr_in6 *from6;
+				from4 = (struct sockaddr_in *)&from_store;
+				bzero(from4, sizeof(*from4));
+				from4->sin_family = AF_INET;
+				from4->sin_len = sizeof(struct sockaddr_in);
+				from4->sin_addr.s_addr = iph->ip_src.s_addr;
+				from4->sin_port = sh->src_port;
+				break;
+			}
+#ifdef INET6
+		case IPV6_VERSION >> 4:
+			{
+				struct ip6_hdr *ip6;
+				struct sockaddr_in6 *from6;
 
-			ip6 = mtod(m, struct ip6_hdr *);
-			from6 = (struct sockaddr_in6 *)&from_store;
-			bzero(from6, sizeof(*from6));
-			from6->sin6_family = AF_INET6;
-			from6->sin6_len = sizeof(struct sockaddr_in6);
-			from6->sin6_addr = ip6->ip6_src;
-			from6->sin6_port = sh->src_port;
-			/* Get the scopes in properly to the sin6 addr's */
-			/* we probably don't need these operations */
-			(void)sa6_recoverscope(from6);
-			sa6_embedscope(from6, ip6_use_defzone);
-		} else {
+				ip6 = mtod(m, struct ip6_hdr *);
+				from6 = (struct sockaddr_in6 *)&from_store;
+				bzero(from6, sizeof(*from6));
+				from6->sin6_family = AF_INET6;
+				from6->sin6_len = sizeof(struct sockaddr_in6);
+				from6->sin6_addr = ip6->ip6_src;
+				from6->sin6_port = sh->src_port;
+				/*
+				 * Get the scopes in properly to the sin6
+				 * addr's
+				 */
+				/* we probably don't need these operations */
+				(void)sa6_recoverscope(from6);
+				sa6_embedscope(from6, ip6_use_defzone);
+				break;
+			}
+#endif
+		default:
 			/* unknown address type */
 			from = NULL;
 		}
@@ -1162,11 +1174,13 @@ sctp_path_check_and_react(struct sctp_tcb *stcb, struct sctp_ifa *newifa)
 			if (sctp_v4src_match_nexthop(newifa, (sctp_route_t *) & net->ro))
 				changed = 1;
 		}
+#ifdef INET6
 		if (net->ro._l_addr.sa.sa_family == AF_INET6) {
 			if (sctp_v6src_match_nexthop(
 			    &newifa->address.sin6, (sctp_route_t *) & net->ro))
 				changed = 1;
 		}
+#endif
 		/*
 		 * if the newly added address does not relate routing
 		 * information, we skip.
@@ -1858,6 +1872,7 @@ sctp_handle_asconf_ack(struct mbuf *m, int offset,
 	}
 }
 
+#ifdef INET6
 static uint32_t
 sctp_is_scopeid_in_nets(struct sctp_tcb *stcb, struct sockaddr *sa)
 {
@@ -1889,6 +1904,8 @@ sctp_is_scopeid_in_nets(struct sctp_tcb *stcb, struct sockaddr *sa)
 	/* didn't find one */
 	return (0);
 }
+
+#endif
 
 /*
  * address management functions
@@ -1932,47 +1949,56 @@ sctp_addr_mgmt_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	 * anything... note: this would leave the address on both inp and
 	 * asoc lists
 	 */
-	if (ifa->address.sa.sa_family == AF_INET6) {
-		struct sockaddr_in6 *sin6;
+	switch (ifa->address.sa.sa_family) {
+#ifdef INET6
+	case AF_INET6:
+		{
+			struct sockaddr_in6 *sin6;
 
-		sin6 = (struct sockaddr_in6 *)&ifa->address.sin6;
-		if (IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr)) {
-			/* we skip unspecifed addresses */
-			return;
-		}
-		if (IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr)) {
-			if (stcb->asoc.local_scope == 0) {
+			sin6 = (struct sockaddr_in6 *)&ifa->address.sin6;
+			if (IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr)) {
+				/* we skip unspecifed addresses */
 				return;
 			}
-			/* is it the right link local scope? */
-			if (sctp_is_scopeid_in_nets(stcb, &ifa->address.sa) == 0) {
+			if (IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr)) {
+				if (stcb->asoc.local_scope == 0) {
+					return;
+				}
+				/* is it the right link local scope? */
+				if (sctp_is_scopeid_in_nets(stcb, &ifa->address.sa) == 0) {
+					return;
+				}
+			}
+			if (stcb->asoc.site_scope == 0 &&
+			    IN6_IS_ADDR_SITELOCAL(&sin6->sin6_addr)) {
 				return;
 			}
+			break;
 		}
-		if (stcb->asoc.site_scope == 0 &&
-		    IN6_IS_ADDR_SITELOCAL(&sin6->sin6_addr)) {
-			return;
-		}
-	} else if (ifa->address.sa.sa_family == AF_INET) {
-		struct sockaddr_in *sin;
-		struct in6pcb *inp6;
+#endif
+	case AF_INET:
+		{
+			struct sockaddr_in *sin;
+			struct in6pcb *inp6;
 
-		inp6 = (struct in6pcb *)&inp->ip_inp.inp;
-		/* invalid if we are a v6 only endpoint */
-		if ((inp->sctp_flags & SCTP_PCB_FLAGS_BOUND_V6) &&
-		    SCTP_IPV6_V6ONLY(inp6))
-			return;
+			inp6 = (struct in6pcb *)&inp->ip_inp.inp;
+			/* invalid if we are a v6 only endpoint */
+			if ((inp->sctp_flags & SCTP_PCB_FLAGS_BOUND_V6) &&
+			    SCTP_IPV6_V6ONLY(inp6))
+				return;
 
-		sin = (struct sockaddr_in *)&ifa->address.sa;
-		if (sin->sin_addr.s_addr == 0) {
-			/* we skip unspecifed addresses */
-			return;
+			sin = (struct sockaddr_in *)&ifa->address.sa;
+			if (sin->sin_addr.s_addr == 0) {
+				/* we skip unspecifed addresses */
+				return;
+			}
+			if (stcb->asoc.ipv4_local_scope == 0 &&
+			    IN4_ISPRIVATE_ADDRESS(&sin->sin_addr)) {
+				return;
+			}
+			break;
 		}
-		if (stcb->asoc.ipv4_local_scope == 0 &&
-		    IN4_ISPRIVATE_ADDRESS(&sin->sin_addr)) {
-			return;
-		}
-	} else {
+	default:
 		/* else, not AF_INET or AF_INET6, so skip */
 		return;
 	}
@@ -2106,66 +2132,76 @@ sctp_asconf_iterator_stcb(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 			continue;
 		}
 		/* Same checks again for assoc */
-		if (ifa->address.sa.sa_family == AF_INET6) {
-			/* invalid if we're not a v6 endpoint */
-			struct sockaddr_in6 *sin6;
+		switch (ifa->address.sa.sa_family) {
+#ifdef INET6
+		case AF_INET6:
+			{
+				/* invalid if we're not a v6 endpoint */
+				struct sockaddr_in6 *sin6;
 
-			if ((inp->sctp_flags & SCTP_PCB_FLAGS_BOUND_V6) == 0) {
-				cnt_invalid++;
-				if (asc->cnt == cnt_invalid)
-					return;
-				else
-					continue;
-			}
-			sin6 = (struct sockaddr_in6 *)&ifa->address.sin6;
-			if (IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr)) {
-				/* we skip unspecifed addresses */
-				continue;
-			}
-			if (IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr)) {
-				if (stcb->asoc.local_scope == 0) {
+				if ((inp->sctp_flags & SCTP_PCB_FLAGS_BOUND_V6) == 0) {
+					cnt_invalid++;
+					if (asc->cnt == cnt_invalid)
+						return;
+					else
+						continue;
+				}
+				sin6 = (struct sockaddr_in6 *)&ifa->address.sin6;
+				if (IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr)) {
+					/* we skip unspecifed addresses */
 					continue;
 				}
-				/* is it the right link local scope? */
-				if (sctp_is_scopeid_in_nets(stcb, &ifa->address.sa) == 0) {
+				if (IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr)) {
+					if (stcb->asoc.local_scope == 0) {
+						continue;
+					}
+					/* is it the right link local scope? */
+					if (sctp_is_scopeid_in_nets(stcb, &ifa->address.sa) == 0) {
+						continue;
+					}
+				}
+				break;
+			}
+#endif
+		case AF_INET:
+			{
+				/* invalid if we are a v6 only endpoint */
+				struct in6pcb *inp6;
+				struct sockaddr_in *sin;
+
+				inp6 = (struct in6pcb *)&inp->ip_inp.inp;
+				/* invalid if we are a v6 only endpoint */
+				if ((inp->sctp_flags & SCTP_PCB_FLAGS_BOUND_V6) &&
+				    SCTP_IPV6_V6ONLY(inp6))
+					continue;
+
+				sin = (struct sockaddr_in *)&ifa->address.sa;
+				if (sin->sin_addr.s_addr == 0) {
+					/* we skip unspecifed addresses */
 					continue;
 				}
+				if (stcb->asoc.ipv4_local_scope == 0 &&
+				    IN4_ISPRIVATE_ADDRESS(&sin->sin_addr)) {
+					continue;;
+				}
+				if ((inp->sctp_flags & SCTP_PCB_FLAGS_BOUND_V6) &&
+				    SCTP_IPV6_V6ONLY(inp6)) {
+					cnt_invalid++;
+					if (asc->cnt == cnt_invalid)
+						return;
+					else
+						continue;
+				}
+				break;
 			}
-		} else if (ifa->address.sa.sa_family == AF_INET) {
-			/* invalid if we are a v6 only endpoint */
-			struct in6pcb *inp6;
-			struct sockaddr_in *sin;
-
-			inp6 = (struct in6pcb *)&inp->ip_inp.inp;
-			/* invalid if we are a v6 only endpoint */
-			if ((inp->sctp_flags & SCTP_PCB_FLAGS_BOUND_V6) &&
-			    SCTP_IPV6_V6ONLY(inp6))
-				continue;
-
-			sin = (struct sockaddr_in *)&ifa->address.sa;
-			if (sin->sin_addr.s_addr == 0) {
-				/* we skip unspecifed addresses */
-				continue;
-			}
-			if (stcb->asoc.ipv4_local_scope == 0 &&
-			    IN4_ISPRIVATE_ADDRESS(&sin->sin_addr)) {
-				continue;;
-			}
-			if ((inp->sctp_flags & SCTP_PCB_FLAGS_BOUND_V6) &&
-			    SCTP_IPV6_V6ONLY(inp6)) {
-				cnt_invalid++;
-				if (asc->cnt == cnt_invalid)
-					return;
-				else
-					continue;
-			}
-		} else {
+		default:
 			/* invalid address family */
 			cnt_invalid++;
 			if (asc->cnt == cnt_invalid)
 				return;
 			else
 				continue;
+			break;
 		}
 
 		if (type == SCTP_ADD_IP_ADDRESS) {
