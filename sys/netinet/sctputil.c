@@ -3029,23 +3029,33 @@ sctp_notify_peer_addr_change(struct sctp_tcb *stcb, uint32_t state,
 	spc->spc_type = SCTP_PEER_ADDR_CHANGE;
 	spc->spc_flags = 0;
 	spc->spc_length = sizeof(struct sctp_paddr_change);
-	if (sa->sa_family == AF_INET) {
+	switch (sa->sa_family) {
+	case AF_INET:
 		memcpy(&spc->spc_aaddr, sa, sizeof(struct sockaddr_in));
-	} else {
-		struct sockaddr_in6 *sin6;
+		break;
+#ifdef INET6
+	case AF_INET6:
+		{
+			struct sockaddr_in6 *sin6;
 
-		memcpy(&spc->spc_aaddr, sa, sizeof(struct sockaddr_in6));
+			memcpy(&spc->spc_aaddr, sa, sizeof(struct sockaddr_in6));
 
-		sin6 = (struct sockaddr_in6 *)&spc->spc_aaddr;
-		if (IN6_IS_SCOPE_LINKLOCAL(&sin6->sin6_addr)) {
-			if (sin6->sin6_scope_id == 0) {
-				/* recover scope_id for user */
-				(void)sa6_recoverscope(sin6);
-			} else {
-				/* clear embedded scope_id for user */
-				in6_clearscope(&sin6->sin6_addr);
+			sin6 = (struct sockaddr_in6 *)&spc->spc_aaddr;
+			if (IN6_IS_SCOPE_LINKLOCAL(&sin6->sin6_addr)) {
+				if (sin6->sin6_scope_id == 0) {
+					/* recover scope_id for user */
+					(void)sa6_recoverscope(sin6);
+				} else {
+					/* clear embedded scope_id for user */
+					in6_clearscope(&sin6->sin6_addr);
+				}
 			}
+			break;
 		}
+#endif
+	default:
+		/* TSNH */
+		break;
 	}
 	spc->spc_state = state;
 	spc->spc_error = error;
@@ -4048,6 +4058,7 @@ sctp_is_there_an_abort_here(struct mbuf *m, int iphlen, uint32_t * vtagfill)
  * currently (2/02), ifa_addr embeds scope_id's and don't have sin6_scope_id
  * set (i.e. it's 0) so, create this function to compare link local scopes
  */
+#ifdef INET6
 uint32_t
 sctp_is_same_scope(struct sockaddr_in6 *addr1, struct sockaddr_in6 *addr2)
 {
@@ -4097,6 +4108,8 @@ sctp_recover_scope(struct sockaddr_in6 *addr, struct sockaddr_in6 *store)
 	return (addr);
 }
 
+#endif
+
 /*
  * are the two addresses the same?  currently a "scopeless" check returns: 1
  * if same, 0 if not
@@ -4113,22 +4126,29 @@ sctp_cmpaddr(struct sockaddr *sa1, struct sockaddr *sa2)
 	if (sa1->sa_family != sa2->sa_family)
 		return (0);
 
-	if (sa1->sa_family == AF_INET6) {
-		/* IPv6 addresses */
-		struct sockaddr_in6 *sin6_1, *sin6_2;
+	switch (sa1->sa_family) {
+#ifdef INET6
+	case AF_INET6:
+		{
+			/* IPv6 addresses */
+			struct sockaddr_in6 *sin6_1, *sin6_2;
 
-		sin6_1 = (struct sockaddr_in6 *)sa1;
-		sin6_2 = (struct sockaddr_in6 *)sa2;
-		return (SCTP6_ARE_ADDR_EQUAL(&sin6_1->sin6_addr,
-		    &sin6_2->sin6_addr));
-	} else if (sa1->sa_family == AF_INET) {
-		/* IPv4 addresses */
-		struct sockaddr_in *sin_1, *sin_2;
+			sin6_1 = (struct sockaddr_in6 *)sa1;
+			sin6_2 = (struct sockaddr_in6 *)sa2;
+			return (SCTP6_ARE_ADDR_EQUAL(&sin6_1->sin6_addr,
+			    &sin6_2->sin6_addr));
+		}
+#endif
+	case AF_INET:
+		{
+			/* IPv4 addresses */
+			struct sockaddr_in *sin_1, *sin_2;
 
-		sin_1 = (struct sockaddr_in *)sa1;
-		sin_2 = (struct sockaddr_in *)sa2;
-		return (sin_1->sin_addr.s_addr == sin_2->sin_addr.s_addr);
-	} else {
+			sin_1 = (struct sockaddr_in *)sa1;
+			sin_2 = (struct sockaddr_in *)sa2;
+			return (sin_1->sin_addr.s_addr == sin_2->sin_addr.s_addr);
+		}
+	default:
 		/* we don't do these... */
 		return (0);
 	}
@@ -4137,69 +4157,94 @@ sctp_cmpaddr(struct sockaddr *sa1, struct sockaddr *sa2)
 void
 sctp_print_address(struct sockaddr *sa)
 {
+#ifdef INET6
 	char ip6buf[INET6_ADDRSTRLEN];
 
 	ip6buf[0] = 0;
-	if (sa->sa_family == AF_INET6) {
-		struct sockaddr_in6 *sin6;
+#endif
 
-		sin6 = (struct sockaddr_in6 *)sa;
-		SCTP_PRINTF("IPv6 address: %s:port:%d scope:%u\n",
-		    ip6_sprintf(ip6buf, &sin6->sin6_addr),
-		    ntohs(sin6->sin6_port),
-		    sin6->sin6_scope_id);
-	} else if (sa->sa_family == AF_INET) {
-		struct sockaddr_in *sin;
-		unsigned char *p;
+	switch (sa->sa_family) {
+#ifdef INET6
+	case AF_INET6:
+		{
+			struct sockaddr_in6 *sin6;
 
-		sin = (struct sockaddr_in *)sa;
-		p = (unsigned char *)&sin->sin_addr;
-		SCTP_PRINTF("IPv4 address: %u.%u.%u.%u:%d\n",
-		    p[0], p[1], p[2], p[3], ntohs(sin->sin_port));
-	} else {
+			sin6 = (struct sockaddr_in6 *)sa;
+			SCTP_PRINTF("IPv6 address: %s:port:%d scope:%u\n",
+			    ip6_sprintf(ip6buf, &sin6->sin6_addr),
+			    ntohs(sin6->sin6_port),
+			    sin6->sin6_scope_id);
+			break;
+		}
+#endif
+	case AF_INET:
+		{
+			struct sockaddr_in *sin;
+			unsigned char *p;
+
+			sin = (struct sockaddr_in *)sa;
+			p = (unsigned char *)&sin->sin_addr;
+			SCTP_PRINTF("IPv4 address: %u.%u.%u.%u:%d\n",
+			    p[0], p[1], p[2], p[3], ntohs(sin->sin_port));
+			break;
+		}
+	default:
 		SCTP_PRINTF("?\n");
+		break;
 	}
 }
 
 void
 sctp_print_address_pkt(struct ip *iph, struct sctphdr *sh)
 {
-	if (iph->ip_v == IPVERSION) {
-		struct sockaddr_in lsa, fsa;
+	switch (iph->ip_v) {
+		case IPVERSION:
+		{
+			struct sockaddr_in lsa, fsa;
 
-		bzero(&lsa, sizeof(lsa));
-		lsa.sin_len = sizeof(lsa);
-		lsa.sin_family = AF_INET;
-		lsa.sin_addr = iph->ip_src;
-		lsa.sin_port = sh->src_port;
-		bzero(&fsa, sizeof(fsa));
-		fsa.sin_len = sizeof(fsa);
-		fsa.sin_family = AF_INET;
-		fsa.sin_addr = iph->ip_dst;
-		fsa.sin_port = sh->dest_port;
-		SCTP_PRINTF("src: ");
-		sctp_print_address((struct sockaddr *)&lsa);
-		SCTP_PRINTF("dest: ");
-		sctp_print_address((struct sockaddr *)&fsa);
-	} else if (iph->ip_v == (IPV6_VERSION >> 4)) {
-		struct ip6_hdr *ip6;
-		struct sockaddr_in6 lsa6, fsa6;
+			bzero(&lsa, sizeof(lsa));
+			lsa.sin_len = sizeof(lsa);
+			lsa.sin_family = AF_INET;
+			lsa.sin_addr = iph->ip_src;
+			lsa.sin_port = sh->src_port;
+			bzero(&fsa, sizeof(fsa));
+			fsa.sin_len = sizeof(fsa);
+			fsa.sin_family = AF_INET;
+			fsa.sin_addr = iph->ip_dst;
+			fsa.sin_port = sh->dest_port;
+			SCTP_PRINTF("src: ");
+			sctp_print_address((struct sockaddr *)&lsa);
+			SCTP_PRINTF("dest: ");
+			sctp_print_address((struct sockaddr *)&fsa);
+			break;
+		}
+#ifdef INET6
+	case IPV6_VERSION >> 4:
+		{
+			struct ip6_hdr *ip6;
+			struct sockaddr_in6 lsa6, fsa6;
 
-		ip6 = (struct ip6_hdr *)iph;
-		bzero(&lsa6, sizeof(lsa6));
-		lsa6.sin6_len = sizeof(lsa6);
-		lsa6.sin6_family = AF_INET6;
-		lsa6.sin6_addr = ip6->ip6_src;
-		lsa6.sin6_port = sh->src_port;
-		bzero(&fsa6, sizeof(fsa6));
-		fsa6.sin6_len = sizeof(fsa6);
-		fsa6.sin6_family = AF_INET6;
-		fsa6.sin6_addr = ip6->ip6_dst;
-		fsa6.sin6_port = sh->dest_port;
-		SCTP_PRINTF("src: ");
-		sctp_print_address((struct sockaddr *)&lsa6);
-		SCTP_PRINTF("dest: ");
-		sctp_print_address((struct sockaddr *)&fsa6);
+			ip6 = (struct ip6_hdr *)iph;
+			bzero(&lsa6, sizeof(lsa6));
+			lsa6.sin6_len = sizeof(lsa6);
+			lsa6.sin6_family = AF_INET6;
+			lsa6.sin6_addr = ip6->ip6_src;
+			lsa6.sin6_port = sh->src_port;
+			bzero(&fsa6, sizeof(fsa6));
+			fsa6.sin6_len = sizeof(fsa6);
+			fsa6.sin6_family = AF_INET6;
+			fsa6.sin6_addr = ip6->ip6_dst;
+			fsa6.sin6_port = sh->dest_port;
+			SCTP_PRINTF("src: ");
+			sctp_print_address((struct sockaddr *)&lsa6);
+			SCTP_PRINTF("dest: ");
+			sctp_print_address((struct sockaddr *)&fsa6);
+			break;
+		}
+#endif
+	default:
+		/* TSNH */
+		break;
 	}
 }
 
@@ -4723,7 +4768,9 @@ sctp_find_ifa_in_ep(struct sctp_inpcb *inp, struct sockaddr *addr,
 				return (laddr->ifa);
 				break;
 			}
-		} else if (addr->sa_family == AF_INET6) {
+		}
+#ifdef INET6
+		if (addr->sa_family == AF_INET6) {
 			if (SCTP6_ARE_ADDR_EQUAL(&((struct sockaddr_in6 *)addr)->sin6_addr,
 			    &laddr->ifa->address.sin6.sin6_addr)) {
 				/* found him. */
@@ -4734,6 +4781,7 @@ sctp_find_ifa_in_ep(struct sctp_inpcb *inp, struct sockaddr *addr,
 				break;
 			}
 		}
+#endif
 	}
 	if (holds_lock == 0) {
 		SCTP_INP_RUNLOCK(inp);
@@ -4810,7 +4858,9 @@ sctp_find_ifa_by_addr(struct sockaddr *addr, uint32_t vrf_id, int holds_lock)
 				return (sctp_ifap);
 				break;
 			}
-		} else if (addr->sa_family == AF_INET6) {
+		}
+#ifdef INET6
+		if (addr->sa_family == AF_INET6) {
 			if (SCTP6_ARE_ADDR_EQUAL(&((struct sockaddr_in6 *)addr)->sin6_addr,
 			    &sctp_ifap->address.sin6.sin6_addr)) {
 				/* found him. */
@@ -4820,6 +4870,7 @@ sctp_find_ifa_by_addr(struct sockaddr *addr, uint32_t vrf_id, int holds_lock)
 				break;
 			}
 		}
+#endif
 	}
 	if (holds_lock == 0)
 		SCTP_IPI_ADDR_RUNLOCK();
@@ -5399,7 +5450,7 @@ found_one:
 
 		to = from;
 #if defined(INET) && defined(INET6)
-		if ((inp->sctp_flags & SCTP_PCB_FLAGS_NEEDS_MAPPED_V4) &&
+		if ((sctp_is_feature_on(inp, SCTP_PCB_FLAGS_NEEDS_MAPPED_V4)) &&
 		    (to->sa_family == AF_INET) &&
 		    ((size_t)fromlen >= sizeof(struct sockaddr_in6))) {
 			struct sockaddr_in *sin;
@@ -5409,10 +5460,10 @@ found_one:
 			bzero(&sin6, sizeof(sin6));
 			sin6.sin6_family = AF_INET6;
 			sin6.sin6_len = sizeof(struct sockaddr_in6);
-			sin6.sin6_addr.s6_addr16[2] = 0xffff;
+			sin6.sin6_addr.s6_addr32[2] = ntohl(0x0000ffff);
 			bcopy(&sin->sin_addr,
-			    &sin6.sin6_addr.s6_addr16[3],
-			    sizeof(sin6.sin6_addr.s6_addr16[3]));
+			    &sin6.sin6_addr.s6_addr32[3],
+			    sizeof(sin6.sin6_addr.s6_addr32[3]));
 			sin6.sin6_port = sin->sin_port;
 			memcpy(from, (caddr_t)&sin6, sizeof(sin6));
 		}
@@ -6185,7 +6236,11 @@ sctp_bindx_add_address(struct socket *so, struct sctp_inpcb *inp,
     uint32_t vrf_id, int *error, void *p)
 {
 	struct sockaddr *addr_touse;
+
+#ifdef INET6
 	struct sockaddr_in sin;
+
+#endif
 
 	/* see if we're bound all already! */
 	if (inp->sctp_flags & SCTP_PCB_FLAGS_BOUNDALL) {
@@ -6307,7 +6362,11 @@ sctp_bindx_delete_address(struct socket *so, struct sctp_inpcb *inp,
     uint32_t vrf_id, int *error)
 {
 	struct sockaddr *addr_touse;
+
+#ifdef INET6
 	struct sockaddr_in sin;
+
+#endif
 
 	/* see if we're bound all already! */
 	if (inp->sctp_flags & SCTP_PCB_FLAGS_BOUNDALL) {
@@ -6424,49 +6483,72 @@ sctp_local_addr_count(struct sctp_tcb *stcb)
 			LIST_FOREACH(sctp_ifa, &sctp_ifn->ifalist, next_ifa) {
 				if (sctp_is_addr_restricted(stcb, sctp_ifa))
 					continue;
+				switch (sctp_ifa->address.sa.sa_family) {
+				case AF_INET:
+					if (ipv4_addr_legal) {
+						struct sockaddr_in *sin;
 
-				if ((sctp_ifa->address.sa.sa_family == AF_INET) &&
-				    (ipv4_addr_legal)) {
-					struct sockaddr_in *sin;
-
-					sin = (struct sockaddr_in *)&sctp_ifa->address.sa;
-					if (sin->sin_addr.s_addr == 0) {
-						/* skip unspecified addrs */
-						continue;
-					}
-					if ((ipv4_local_scope == 0) &&
-					    (IN4_ISPRIVATE_ADDRESS(&sin->sin_addr))) {
-						continue;
-					}
-					/* count this one */
-					count++;
-				} else if ((sctp_ifa->address.sa.sa_family == AF_INET6) &&
-				    (ipv6_addr_legal)) {
-					struct sockaddr_in6 *sin6;
-
-					sin6 = (struct sockaddr_in6 *)&sctp_ifa->address.sa;
-					if (IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr)) {
-						continue;
-					}
-					if (IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr)) {
-						if (local_scope == 0)
+						sin = (struct sockaddr_in *)&sctp_ifa->address.sa;
+						if (sin->sin_addr.s_addr == 0) {
+							/*
+							 * skip unspecified
+							 * addrs
+							 */
 							continue;
-						if (sin6->sin6_scope_id == 0) {
-							if (sa6_recoverscope(sin6) != 0)
-								/*
-								 * bad link
-								 * local
-								 * address
-								 */
-								continue;
 						}
-					}
-					if ((site_scope == 0) &&
-					    (IN6_IS_ADDR_SITELOCAL(&sin6->sin6_addr))) {
+						if ((ipv4_local_scope == 0) &&
+						    (IN4_ISPRIVATE_ADDRESS(&sin->sin_addr))) {
+							continue;
+						}
+						/* count this one */
+						count++;
+					} else {
 						continue;
 					}
-					/* count this one */
-					count++;
+					break;
+#ifdef INET6
+				case AF_INET6:
+					if (ipv6_addr_legal) {
+						struct sockaddr_in6 *sin6;
+
+						sin6 = (struct sockaddr_in6 *)&sctp_ifa->address.sa;
+						if (IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr)) {
+							continue;
+						}
+						if (IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr)) {
+							if (local_scope == 0)
+								continue;
+							if (sin6->sin6_scope_id == 0) {
+								if (sa6_recoverscope(sin6) != 0)
+									/*
+									 * 
+									 * bad
+									 * 
+									 * li
+									 * nk
+									 * 
+									 * loc
+									 * al
+									 * 
+									 * add
+									 * re
+									 * ss
+									 * */
+									continue;
+							}
+						}
+						if ((site_scope == 0) &&
+						    (IN6_IS_ADDR_SITELOCAL(&sin6->sin6_addr))) {
+							continue;
+						}
+						/* count this one */
+						count++;
+					}
+					break;
+#endif
+				default:
+					/* TSNH */
+					break;
 				}
 			}
 		}
