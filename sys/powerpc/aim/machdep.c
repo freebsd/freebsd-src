@@ -132,9 +132,6 @@ int cold = 1;
 static struct pcpu pcpu0;
 static struct trapframe frame0;
 
-vm_offset_t	kstack0;
-vm_offset_t	kstack0_phys;
-
 char		machine[] = "powerpc";
 SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD, machine, 0, "");
 
@@ -145,7 +142,7 @@ SYSCTL_INT(_machdep, CPU_CACHELINE, cacheline_size,
 static void	cpu_startup(void *);
 SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL);
 
-void		powerpc_init(u_int, u_int, u_int, void *);
+u_int		powerpc_init(u_int, u_int, u_int, void *);
 
 int		save_ofw_mapping(void);
 int		restore_ofw_mapping(void);
@@ -248,11 +245,11 @@ extern void     *extint, *extsize;
 extern void	*dblow, *dbsize;
 extern void	*vectrap, *vectrapsize;
 
-void
+u_int
 powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
 {
 	struct		pcpu *pc;
-	vm_offset_t	end, off;
+	vm_offset_t	end;
 	void		*kmdp;
         char		*env;
 
@@ -295,7 +292,6 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
 	pc = &pcpu0;
 	pcpu_init(pc, 0, sizeof(struct pcpu));
 	pc->pc_curthread = &thread0;
-	pc->pc_curpcb = thread0.td_pcb;
 	pc->pc_cpuid = 0;
 
 	__asm __volatile("mtsprg 0, %0" :: "r"(pc));
@@ -379,15 +375,12 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
 	/*
 	 * Finish setting up thread0.
 	 */
-	thread0.td_kstack = kstack0;
 	thread0.td_pcb = (struct pcb *)
-	    (thread0.td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
+	    ((thread0.td_kstack + thread0.td_kstack_pages * PAGE_SIZE -
+	    sizeof(struct pcb)) & ~15);
+	pc->pc_curpcb = thread0.td_pcb;
 
-	/*
-	 * Map and initialise the message buffer.
-	 */
-	for (off = 0; off < round_page(MSGBUF_SIZE); off += PAGE_SIZE)
-		pmap_kenter((vm_offset_t)msgbufp + off, msgbuf_phys + off);
+	/* Initialise the message buffer. */
 	msgbufinit(msgbufp, MSGBUF_SIZE);
 
 #ifdef KDB
@@ -395,6 +388,8 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
 		kdb_enter(KDB_WHY_BOOTFLAGS,
 		    "Boot flags requested debugger");
 #endif
+
+	return (((uintptr_t)thread0.td_pcb - 16) & ~15);
 }
 
 void
