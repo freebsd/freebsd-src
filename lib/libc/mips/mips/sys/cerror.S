@@ -38,7 +38,6 @@
 	ASMSTR("from: @(#)cerror.s	8.1 (Berkeley) 6/16/93")
 	ASMSTR("$NetBSD: cerror.S,v 1.13 2003/08/07 16:42:17 agc Exp $")
 #endif /* LIBC_SCCS and not lint */
-#include <machine/asm.h>
 __FBSDID("$FreeBSD$");
 
 	/*

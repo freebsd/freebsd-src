@@ -38,7 +38,6 @@
 	ASMSTR("from: @(#)pipe.s	8.1 (Berkeley) 6/4/93")
 	ASMSTR("$NetBSD: pipe.S,v 1.11 2005/04/22 06:58:01 simonb Exp $")
 #endif /* LIBC_SCCS and not lint */
-#include <machine/asm.h>
 __FBSDID("$FreeBSD$");
 
 LEAF(__sys_pipe)
