@@ -570,6 +570,11 @@ lf_advlockasync(struct vop_advlockasync_args *ap, struct lockf **statep,
 	 * the vnode interlock.
 	 */
 	VI_LOCK(vp);
+	if (vp->v_iflag & VI_DOOMED) {
+		VI_UNLOCK(vp);
+		lf_free_lock(lock);
+		return (ENOENT);
+	}
 
 	/*
 	 * Allocate a state structure if necessary.
@@ -595,6 +600,16 @@ lf_advlockasync(struct vop_advlockasync_args *ap, struct lockf **statep,
 		 * trying to allocate memory.
 		 */
 		VI_LOCK(vp);
+		if (vp->v_iflag & VI_DOOMED) {
+			VI_UNLOCK(vp);
+			sx_xlock(&lf_lock_states_lock);
+			LIST_REMOVE(ls, ls_link);
+			sx_xunlock(&lf_lock_states_lock);
+			sx_destroy(&ls->ls_lock);
+			free(ls, M_LOCKF);
+			lf_free_lock(lock);
+			return (ENOENT);
+		}
 		if ((*statep) == NULL) {
 			state = *statep = ls;
 			VI_UNLOCK(vp);
@@ -687,6 +702,7 @@ lf_advlockasync(struct vop_advlockasync_args *ap, struct lockf **statep,
 	VI_LOCK(vp);
 
 	state->ls_threads--;
+	wakeup(state);
 	if (LIST_EMPTY(&state->ls_active) && state->ls_threads == 0) {
 		KASSERT(LIST_EMPTY(&state->ls_pending),
 		    ("freeing state with pending locks"));
@@ -720,6 +736,77 @@ lf_advlock(struct vop_advlock_args *ap, struct lockf **statep, u_quad_t size)
 	a.a_cookiep = NULL;
 
 	return (lf_advlockasync(&a, statep, size));
+}
+
+void
+lf_purgelocks(struct vnode *vp, struct lockf **statep)
+{
+	struct lockf *state;
+	struct lockf_entry *lock, *nlock;
+
+	/*
+	 * For this to work correctly, the caller must ensure that no
+	 * other threads enter the locking system for this vnode,
+	 * e.g. by checking VI_DOOMED. We wake up any threads that are
+	 * sleeping waiting for locks on this vnode and then free all
+	 * the remaining locks.
+	 */
+	VI_LOCK(vp);
+	state = *statep;
+	if (state) {
+		state->ls_threads++;
+		VI_UNLOCK(vp);
+
+		sx_xlock(&state->ls_lock);
+		sx_xlock(&lf_owner_graph_lock);
+		LIST_FOREACH_SAFE(lock, &state->ls_pending, lf_link, nlock) {
+			LIST_REMOVE(lock, lf_link);
+			lf_remove_outgoing(lock);
+			lf_remove_incoming(lock);
+
+			/*
+			 * If its an async lock, we can just free it
+			 * here, otherwise we let the sleeping thread
+			 * free it.
+			 */
+			if (lock->lf_async_task) {
+				lf_free_lock(lock);
+			} else {
+				lock->lf_flags |= F_INTR;
+				wakeup(lock);
+			}
+		}
+		sx_xunlock(&lf_owner_graph_lock);
+		sx_xunlock(&state->ls_lock);
+
+		/*
+		 * Wait for all other threads, sleeping and otherwise
+		 * to leave.
+		 */
+		VI_LOCK(vp);
+		while (state->ls_threads > 1)
+			msleep(state, VI_MTX(vp), 0, "purgelocks", 0);
+		*statep = 0;
+		VI_UNLOCK(vp);
+
+		/*
+		 * We can just free all the active locks since they
+		 * will have no dependancies (we removed them all
+		 * above). We don't need to bother locking since we
+		 * are the last thread using this state structure.
+		 */
+		LIST_FOREACH_SAFE(lock, &state->ls_pending, lf_link, nlock) {
+			LIST_REMOVE(lock, lf_link);
+			lf_free_lock(lock);
+		}
+		sx_xlock(&lf_lock_states_lock);
+		LIST_REMOVE(state, ls_link);
+		sx_xunlock(&lf_lock_states_lock);
+		sx_destroy(&state->ls_lock);
+		free(state, M_LOCKF);
+	} else {
+		VI_UNLOCK(vp);
+	}
 }
 
 /*
@@ -1346,7 +1433,10 @@ lf_setlock(struct lockf *state, struct lockf_entry *lock, struct vnode *vp,
 		 * remove our lock graph edges) and/or by another
 		 * process releasing a lock (in which case our edges
 		 * have already been removed and we have been moved to
-		 * the active list).
+		 * the active list). We may also have been woken by
+		 * lf_purgelocks which we report to the caller as
+		 * EINTR. In that case, lf_purgelocks will have
+		 * removed our lock graph edges.
 		 *
 		 * Note that it is possible to receive a signal after
 		 * we were successfully woken (and moved to the active
@@ -1358,6 +1448,11 @@ lf_setlock(struct lockf *state, struct lockf_entry *lock, struct vnode *vp,
 		 * may now have incoming edges from some newer lock
 		 * which is waiting behind us in the queue.
 		 */
+		if (lock->lf_flags & F_INTR) {
+			error = EINTR;
+			lf_free_lock(lock);
+			goto out;
+		}
 		if (LIST_EMPTY(&lock->lf_outedges)) {
 			error = 0;
 		} else {

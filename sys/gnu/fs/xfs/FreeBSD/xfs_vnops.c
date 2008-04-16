@@ -1231,13 +1231,13 @@ _xfs_advlock(
 #ifdef notyet
 	switch (ap->a_op) {
 	    case F_SETLK:
-		error = lf_advlock(ap, &np->n_lockf, size);
+		error = lf_advlock(ap, &vp->v_lockf, size);
 		break;
 	    case F_UNLCK:
-		lf_advlock(ap, &np->n_lockf, size);
+		lf_advlock(ap, &vp->v_lockf, size);
 		break;
 	    case F_GETLK:
-		error = lf_advlock(ap, &np->n_lockf, size);
+		error = lf_advlock(ap, &vp->v_lockf, size);
 		break;
 	    default:
 		return (EINVAL);
