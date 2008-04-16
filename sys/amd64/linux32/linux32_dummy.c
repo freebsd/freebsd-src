@@ -99,6 +99,12 @@ DUMMY(migrate_pages);
 DUMMY(pselect6);
 DUMMY(ppoll);
 DUMMY(unshare);
+DUMMY(set_robust_list);
+DUMMY(get_robust_list);
+DUMMY(splice);
+DUMMY(sync_file_range);
+DUMMY(tee);
+DUMMY(vmsplice);
 
 #define DUMMY_XATTR(s)						\
 int								\
