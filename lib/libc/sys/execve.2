@@ -28,11 +28,12 @@
 .\"     @(#)execve.2	8.5 (Berkeley) 6/1/94
 .\" $FreeBSD$
 .\"
-.Dd June 1, 1994
+.Dd April 10, 2008
 .Dt EXECVE 2
 .Os
 .Sh NAME
-.Nm execve
+.Nm execve ,
+.Nm fexecve
 .Nd execute a file
 .Sh LIBRARY
 .Lb libc
@@ -40,6 +41,8 @@
 .In unistd.h
 .Ft int
 .Fn execve "const char *path" "char *const argv[]" "char *const envp[]"
+.Ft int
+.Fn fexecve "int fd" "char *const argv[]" "char *const envp[]"
 .Sh DESCRIPTION
 The
 .Fn execve
@@ -50,6 +53,15 @@ whose name is pointed to by
 .Fa path ,
 called the
 .Em new process file .
+The
+.Fn fexecve
+system call is equivalent to
+.Fn execve
+except that the file to be executed is determined by the file
+descriptor
+.Fa fd
+instead of a
+.Fa path .
 This file is either an executable object file,
 or a file of data for an interpreter.
 An executable object file consists of an identifying header,
@@ -199,6 +211,29 @@ and
 .Fa argv
 points to the array of character pointers
 to the arguments themselves.
+.Pp
+The
+.Fn fexecve
+ignores the file offset of
+.Fa fd .
+Since execute permission is checked by
+.Fn fexecve ,
+the file descriptor
+.Fa fd
+need not have been
+opened with the
+.Dv O_EXEC
+flag.
+However, if the file to be executed denies read and write
+permission for the process preparing to do the exec, the only way to
+provide the
+.Fa fd
+to
+.Fn fexecve
+is to use the
+.Dv O_EXEC
+flag when opening
+.Fa fd .
 .Sh RETURN VALUES
 As the
 .Fn execve
@@ -269,6 +304,16 @@ to an illegal address.
 .It Bq Er EIO
 An I/O error occurred while reading from the file system.
 .El
+.Pp
+In addition, the
+.Fn fexecve
+will fail and return to the calling process if:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The
+.Fa fd
+argument is not a valid file descriptor open for executing.
+.El
 .Sh CAVEAT
 If a program is
 .Em setuid
@@ -281,6 +326,7 @@ of a super-user as well.
 .Xr ktrace 1 ,
 .Xr _exit 2 ,
 .Xr fork 2 ,
+.Xr open 2 ,
 .Xr execl 3 ,
 .Xr exit 3 ,
 .Xr sysctl 3 ,
@@ -299,8 +345,15 @@ A future update of the Standard is expected to require this behavior,
 and it may become the default for non-privileged processes as well.
 .\" NB: update this caveat when TC1 is blessed.
 The support for executing interpreted programs is an extension.
+The
+.Fn fexecve
+system call conforms to The Open Group Extended API Set 2 specification.
 .Sh HISTORY
 The
 .Fn execve
 system call appeared in
 .Bx 4.2 .
+The
+.Fn fexecve
+system call appeared in
+.Fx 8.0 .

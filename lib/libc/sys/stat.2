@@ -28,13 +28,14 @@
 .\"     @(#)stat.2	8.4 (Berkeley) 5/1/95
 .\" $FreeBSD$
 .\"
-.Dd October 12, 2006
+.Dd April 10, 2008
 .Dt STAT 2
 .Os
 .Sh NAME
 .Nm stat ,
 .Nm lstat ,
-.Nm fstat
+.Nm fstat ,
+.Nm fstatat
 .Nd get file status
 .Sh LIBRARY
 .Lb libc
@@ -47,6 +48,8 @@
 .Fn lstat "const char *path" "struct stat *sb"
 .Ft int
 .Fn fstat "int fd" "struct stat *sb"
+.Ft int
+.Fn fstatat "int fd" "const char *path" "struct stat *buf" "int flag"
 .Sh DESCRIPTION
 The
 .Fn stat
@@ -73,6 +76,48 @@ The
 system call obtains the same information about an open file
 known by the file descriptor
 .Fa fd .
+.Pp
+The
+.Fn fstatat
+system call is equivalent to
+.Fn stat
+and
+.Fn lstat
+except in the case where the
+.Fa path
+specifies a relative path.
+In this case the status is retrieved from a file relative to
+the directory associated with the file descriptor
+.Fa fd
+instead of the current working directory.
+.Pp
+The values for the
+.Fa flag
+are constructed by a bitwise-inclusive OR of flags from the following list,
+defined in
+.In fcntl.h :
+.Bl -tag -width indent
+.It Dv AT_SYMLINK_NOFOLLOW
+If
+.Fa path
+names a symbolic link, the status of the symbolic link is returned.
+.El
+.Pp
+If
+.Fn fstatat
+is passed the special value
+.Dv AT_FDCWD
+in the
+.Fa fd
+parameter, the current working directory is used and the behavior is
+identical to a call to
+.Fn stat
+or
+.Fn lstat
+respectively, depending on whether or not the
+.Dv AT_SYMLINK_NOFOLLOW
+bit is set in
+.Fa flag .
 .Pp
 The
 .Fa sb
@@ -315,6 +360,34 @@ The file size in bytes cannot be
 represented correctly in the structure pointed to by
 .Fa sb .
 .El
+.Pp
+In addition to the errors returned by the
+.Fn lstat ,
+the
+.Fn fstatat
+may fail if:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The
+.Fa path
+argument does not specify an absolute path and the
+.Fa fd
+argument is neither
+.Dv AT_FDCWD
+nor a valid file descriptor open for searching.
+.It Bq Er EINVAL
+The value of the
+.Fa flag
+argument is not valid.
+.It Bq Er ENOTDIR
+The
+.Fa path
+argument is not an absolute path and
+.Fa fd
+is neither
+.Dv AT_FDCWD
+nor a file descriptor associated with a directory.
+.El
 .Sh SEE ALSO
 .Xr access 2 ,
 .Xr chmod 2 ,
@@ -331,6 +404,9 @@ and
 .Fn fstat
 system calls are expected to conform to
 .St -p1003.1-90 .
+The
+.Fn fchownat
+system call follows The Open Group Extended API Set 2 specification.
 .Sh HISTORY
 The
 .Fn stat
@@ -342,6 +418,10 @@ The
 .Fn lstat
 system call appeared in
 .Bx 4.2 .
+The
+.Fn fstatat
+system call appeared in
+.Fx 8.0 .
 .Sh BUGS
 Applying
 .Fn fstat

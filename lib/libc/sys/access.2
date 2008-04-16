@@ -28,11 +28,13 @@
 .\"     @(#)access.2	8.2 (Berkeley) 4/1/94
 .\" $FreeBSD$
 .\"
-.Dd February 11, 2008
+.Dd April 10, 2008
 .Dt ACCESS 2
 .Os
 .Sh NAME
-.Nm access , eaccess
+.Nm access ,
+.Nm eaccess ,
+.Nm faccessat
 .Nd check accessibility of a file
 .Sh LIBRARY
 .Lb libc
@@ -42,6 +44,8 @@
 .Fn access "const char *path" "int mode"
 .Ft int
 .Fn eaccess "const char *path" "int mode"
+.Ft int
+.Fn faccessat "int fd" "const char *path" "int mode" "int flag"
 .Sh DESCRIPTION
 The
 .Fn access
@@ -86,6 +90,38 @@ the real user ID in place of the effective user ID,
 the real group ID in place of the effective group ID,
 and the rest of the group access list.
 .Pp
+The
+.Fn faccessat
+system call is equivalent to
+.Fn access
+except in the case where
+.Fa path
+specifies a relative path.
+In this case the file whose accessibility is to be determined is
+located relative to the directory associated with the file descriptor
+.Fa fd
+instead of the current working directory.
+If
+.Fn faccessat
+is passed the special value
+.Dv AT_FDCWD
+in the
+.Fa fd
+parameter, the current working directory is used and the behavior is
+identical to a call to
+.Fn access .
+Values for
+.Fa flag
+are constructed by a bitwise-inclusive OR of flags from the following
+list, defined in
+.In fcntl.h :
+.Bl -tag -width indent
+.It Dv AT_EACCESS
+The checks for accessibility are performed using the effective user and group
+IDs instead of the real user and group ID as required in a call to
+.Fn access .
+.El
+.Pp
 Even if a process's real or effective user has appropriate privileges
 and indicates success for
 .Dv X_OK ,
@@ -125,6 +161,33 @@ points outside the process's allocated address space.
 .It Bq Er EIO
 An I/O error occurred while reading from or writing to the file system.
 .El
+.Pp
+Also, the
+.Fn faccessat
+system call may fail if:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The
+.Fa path
+argument does not specify an absolute path and the
+.Fa fd
+argument is
+neither
+.Dv AT_FDCWD
+nor a valid file descriptor.
+.It Bq Er EINVAL
+The value of the
+.Fa flag
+argument is not valid.
+.It Bq Er ENOTDIR
+The
+.Fa path
+argument is not an absolute path and
+.Fa fd
+is neither
+.Dv AT_FDCWD
+nor a file descriptor associated with a directory.
+.El
 .Sh SECURITY CONSIDERATIONS
 The
 .Fn access
@@ -158,8 +221,15 @@ The
 .Fn access
 system call is expected to conform to
 .St -p1003.1-90 .
+The
+.Fn faccessat
+system call follows The Open Group Extended API Set 2 specification.
 .Sh HISTORY
 The
 .Fn access
 function appeared in
 .At v7 .
+The
+.Fn faccessat
+system call appeared in
+.Fx 8.0 .

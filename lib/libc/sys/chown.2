@@ -28,13 +28,14 @@
 .\"     @(#)chown.2	8.4 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd December 9, 2006
+.Dd April 10, 2008
 .Dt CHOWN 2
 .Os
 .Sh NAME
 .Nm chown ,
 .Nm fchown ,
-.Nm lchown
+.Nm lchown ,
+.Nm fchownat
 .Nd change owner and group of a file
 .Sh LIBRARY
 .Lb libc
@@ -46,6 +47,8 @@
 .Fn fchown "int fd" "uid_t owner" "gid_t group"
 .Ft int
 .Fn lchown "const char *path" "uid_t owner" "gid_t group"
+.Ft int
+.Fn fchownat "int fd" "const char *path" "uid_t owner" "gid_t group" "int flag"
 .Sh DESCRIPTION
 The owner ID and group ID of the file
 named by
@@ -90,6 +93,49 @@ The
 system call is similar to
 .Fn chown
 but does not follow symbolic links.
+.Pp
+The
+.Fn fchownat
+system call is equivalent to the
+.Fn chown
+and
+.Fn lchown
+except in the case where
+.Fa path
+specifies a relative path.
+In this case the file to be changed is determined relative to the directory
+associated with the file descriptor
+.Fa fd
+instead of the current working directory.
+.Pp
+Values for
+.Fa flag
+are constructed by a bitwise-inclusive OR of flags from the following
+list, defined in
+.In fcntl.h :
+.Bl -tag -width indent
+.It Dv AT_SYMLINK_NOFOLLOW
+If
+.Fa path
+names a symbolic link, ownership of the symbolic link is changed.
+.El
+.Pp
+If
+.Fn fchownat
+is passed the special value
+.Dv AT_FDCWD
+in the
+.Fa fd
+parameter, the current working directory is used and the behavior is identical
+to a call to
+.Fn chown
+or
+.Fn lchown
+respectively, depending on whether or not the
+.Dv AT_SYMLINK_NOFOLLOW
+bit is set in the
+.Fa flag
+argument.
 .Pp
 One of the owner or group id's
 may be left unchanged by specifying it as -1.
@@ -152,6 +198,36 @@ The named file resides on a read-only file system.
 .It Bq Er EIO
 An I/O error occurred while reading from or writing to the file system.
 .El
+.Pp
+In addition to the errors specified for
+.Fn chown
+and
+.Fn lchown ,
+the
+.Fn fchownat
+system call may fail if:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The
+.Fa path
+argument does not specify an absolute path and the
+.Fa fd
+argument is neither
+.Dv AT_FDCWD
+nor a valid file descriptor open for searching.
+.It Bq Er EINVAL
+The value of the
+.Fa flag
+argument is not valid.
+.It Bq Er ENOTDIR
+The
+.Fa path
+argument is not an absolute path and
+.Fa fd
+is neither
+.Dv AT_FDCWD
+nor a file descriptor associated with a directory.
+.El
 .Sh SEE ALSO
 .Xr chgrp 1 ,
 .Xr chflags 2 ,
@@ -163,6 +239,9 @@ The
 .Fn chown
 system call is expected to conform to
 .St -p1003.1-90 .
+The
+.Fn fchownat
+system call follows The Open Group Extended API Set 2 specification.
 .Sh HISTORY
 The
 .Fn chown
@@ -182,3 +261,8 @@ The
 system call was added in
 .Fx 3.0
 to compensate for the loss of functionality.
+.Pp
+The
+.Fn fchownat
+system call appeared in
+.Fx 8.0 .

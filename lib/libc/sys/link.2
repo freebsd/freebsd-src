@@ -28,11 +28,12 @@
 .\"     @(#)link.2	8.3 (Berkeley) 1/12/94
 .\" $FreeBSD$
 .\"
-.Dd December 9, 2006
+.Dd April 10, 2008
 .Dt LINK 2
 .Os
 .Sh NAME
-.Nm link
+.Nm link ,
+.Nm linkat
 .Nd make a hard file link
 .Sh LIBRARY
 .Lb libc
@@ -40,6 +41,10 @@
 .In unistd.h
 .Ft int
 .Fn link "const char *name1" "const char *name2"
+.Ft int
+.Fo linkat
+.Fa "int fd1" "const char *name1" "int fd2" "const char *name2" "int flag"
+.Fc
 .Sh DESCRIPTION
 The
 .Fn link
@@ -79,6 +84,67 @@ The
 .Fa name1
 argument
 may not be a directory.
+.Pp
+The
+.Fn linkat
+system call is equivalent to
+.Fa link
+except in the case where either
+.Fa name1
+or
+.Fa name2
+or both are relative paths.
+In this case a relative path
+.Fa name1
+is interpreted relative to
+the directory associated with the file descriptor
+.Fa fd1
+instead of the current working directory and similarly for
+.Fa name2
+and the file descriptor
+.Fa fd2 .
+.Pp
+Values for
+.Fa flag
+are constructed by a bitwise-inclusive OR of flags from the following
+list, defined in
+.In fcntl.h :
+.Bl -tag -width indent
+.It Dv AT_SYMLINK_NOFOLLOW
+If
+.Fa name1
+names a symbolic link, a new link for the target of the symbolic link is
+created.
+.El
+.Pp
+If
+.Fn linkat
+is passed the special value
+.Dv AT_FDCWD
+in the
+.Fa fd1
+or
+.Fa fd2
+parameter, the current working directory is used for the respective
+.Fa name
+argument.
+If both
+.Fa fd1
+and
+.Fa fd2
+have value
+.Dv AT_FDCWD ,
+the behavior is identical to a call to
+.Fn link .
+Unless
+.Fa flag
+contains the
+.Dv AT_SYMLINK_FOLLOW
+flag, if
+.Fa name1
+names a symbolic link, a new link is created for the symbolic link
+.Fa name1
+and not its target.
 .Sh RETURN VALUES
 .Rv -std link
 .Sh ERRORS
@@ -156,6 +222,42 @@ system.
 One of the pathnames specified
 is outside the process's allocated address space.
 .El
+.Pp
+In addition to the errors returned by the
+.Fn link ,
+the
+.Fn linkat
+system call may fail if:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The
+.Fa name1
+or
+.Fa name2
+argument does not specify an absolute path and the
+.Fa fd1
+or
+.Fa fd2
+argument, respectively, is neither
+.Dv AT_FDCWD
+nor a valid file descriptor open for searching.
+.It Bq Er EINVAL
+The value of the
+.Fa flag
+argument is not valid.
+.It Bq Er ENOTDIR
+The
+.Fa name1
+or
+.Fa name2
+argument is not an absolute path and
+.Fa fd1
+or
+.Fa fd2 ,
+respectively, is neither
+.Dv AT_FDCWD
+nor a file descriptor associated with a directory.
+.El
 .Sh SEE ALSO
 .Xr chflags 2 ,
 .Xr readlink 2 ,
@@ -166,15 +268,21 @@ The
 .Fn link
 system call is expected to conform to
 .St -p1003.1-90 .
+The
+.Fn linkat
+system call follows The Open Group Extended API Set 2 specification.
 .Sh HISTORY
 The
 .Fn link
 function appeared in
 .At v7 .
+The
+.Fn linkat
+system call appeared in
+.Fx 8.0 .
 .Pp
 The
 .Fn link
 system call traditionally allows the super-user to link directories which
 corrupts the file system coherency.
-This implementation no longer permits
-it.
+This implementation no longer permits it.
