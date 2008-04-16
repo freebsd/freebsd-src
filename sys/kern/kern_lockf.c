@@ -2389,7 +2389,7 @@ lf_printlist(char *tag, struct lockf_entry *lock)
 	printf("%s: Lock list for ino %ju on dev <%s>:\n",
 	    tag, (uintmax_t)lock->lf_inode->i_number,
 	    devtoname(lock->lf_inode->i_dev));
-	LIST_FOREACH(lf, &lock->lf_inode->i_lockf->ls_active, lf_link) {
+	LIST_FOREACH(lf, &lock->lf_vnode->v_lockf->ls_active, lf_link) {
 		printf("\tlock %p for ",(void *)lf);
 		lf_print_owner(lock->lf_owner);
 		printf(", %s, start %jd, end %jd",
