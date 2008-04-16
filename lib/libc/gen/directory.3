@@ -28,11 +28,12 @@
 .\"     @(#)directory.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd April 16, 2008
 .Dt DIRECTORY 3
 .Os
 .Sh NAME
 .Nm opendir ,
+.Nm fdopendir ,
 .Nm readdir ,
 .Nm readdir_r ,
 .Nm telldir ,
@@ -48,6 +49,8 @@
 .In dirent.h
 .Ft DIR *
 .Fn opendir "const char *filename"
+.Ft DIR *
+.Fn fdopendir "int fd"
 .Ft struct dirent *
 .Fn readdir "DIR *dirp"
 .Ft int
@@ -82,6 +85,36 @@ is returned if
 cannot be accessed, or if it cannot
 .Xr malloc 3
 enough memory to hold the whole thing.
+.Pp
+The
+.Fn fdopendir
+function is equivalent to the
+.Fn opendir
+function except that the directory is specified by a file descriptor
+.Fa fd
+rather than by a name.
+The file offset associated with the file descriptor at the time of the call
+determines which entries are returned.
+.Pp
+Upon successful return from
+.Fn fdopendir ,
+the file descriptor is under the control of the system,
+and if any attempt is made to close the file descriptor,
+or to modify the state of the associated description other than by means
+of
+.Fn closedir ,
+.Fn readdir ,
+.Fn readdir_r ,
+or
+.Fn rewinddir ,
+the behavior is undefined.
+Upon calling
+.Fn closedir
+the file descriptor is closed.
+The
+.Dv FD_CLOEXEC
+flag is set on the file descriptor by a successful call to
+.Fn fdopendir .
 .Pp
 The
 .Fn readdir
@@ -202,3 +235,7 @@ and
 .Fn dirfd
 functions appeared in
 .Bx 4.2 .
+The
+.Fn fdopendir
+function appeared in
+.Fx 8.0 .
