@@ -160,7 +160,6 @@ STATIC_LIB_REQUIRE(_spinlock);
 STATIC_LIB_REQUIRE(_spinlock_debug);
 STATIC_LIB_REQUIRE(_spinunlock);
 STATIC_LIB_REQUIRE(_thread_init_hack);
-STATIC_LIB_REQUIRE(_vfork);
 
 /*
  * These are needed when linking statically.  All references within
