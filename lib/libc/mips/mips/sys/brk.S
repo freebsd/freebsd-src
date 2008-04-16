@@ -38,7 +38,6 @@
 	ASMSTR("from: @(#)brk.s	8.1 (Berkeley) 6/4/93")
 	ASMSTR("$NetBSD: brk.S,v 1.16 2003/08/07 16:42:17 agc Exp $")
 #endif /* LIBC_SCCS and not lint */
-#include <machine/asm.h>
 __FBSDID("$FreeBSD$");
 
 	.globl	_C_LABEL(minbrk)
