@@ -562,7 +562,7 @@ sctp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 	p(sctps_sendretransdata, "\t\t%ju retransmitted DATA chunk%s\n");
 	p(sctps_sendfastretrans, "\t\t%ju fast retransmitted DATA chunk%s\n");
 	p(sctps_sendmultfastretrans, "\t\t%ju FR'%s that happened more "
-	    "than once to same chunk.\n");
+	    "than once to same chunk\n");
 	p(sctps_sendheartbeat, "\t\t%ju intput HB chunk%s\n");
 	p(sctps_sendecne, "\t\t%ju output ECNE chunk%s\n");
 	p(sctps_sendauth, "\t\t%ju output AUTH chunk%s\n");
@@ -644,12 +644,12 @@ sctp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 #endif
 	p1a(sctps_naglesent, "\t%ju RFC813 allowed sending\n");
 	p1a(sctps_naglequeued, "\t%ju RFC813 does not allow sending\n");
-	p1a(sctps_maxburstqueued, "\t%ju max burst dosn't allow sending\n");
+	p1a(sctps_maxburstqueued, "\t%ju times max burst prohibited sending\n");
 	p1a(sctps_ifnomemqueued, "\t%ju look ahead tells us no memory in "
 	    "interface\n");
 	p(sctps_windowprobed, "\t%ju number%s of window probes sent\n");
 	p(sctps_lowlevelerr, "\t%ju time%s an output error to clamp "
-	    "down on next user send.\n");
+	    "down on next user send\n");
 	p(sctps_lowlevelerrusr, "\t%ju time%s sctp_senderrors were "
 	    "caused from a user\n");
 	p(sctps_datadropchklmt, "\t%ju number of in data drop%s due to "
@@ -659,7 +659,7 @@ sctp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 	p(sctps_ecnereducedcwnd, "\t%ju time%s a ECN reduced "
 	    "the cwnd\n");
 	p1a(sctps_vtagexpress, "\t%ju used express lookup via vtag\n");
-	p1a(sctps_vtagbogus, "\t%ju collision in express lookup.\n");
+	p1a(sctps_vtagbogus, "\t%ju collision in express lookup\n");
 	p(sctps_primary_randry, "\t%ju time%s the sender ran dry "
 	    "of user data on primary\n");
 	p1a(sctps_cmt_randry, "\t%ju same for above\n");
