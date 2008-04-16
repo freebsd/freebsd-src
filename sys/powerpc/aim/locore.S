@@ -182,6 +182,9 @@ __start:
 	mr	7,21
 
 	bl	powerpc_init
+	mr	%r1, %r3
+	li	%r3, 0
+	stw	%r3, 0(%r1)
 	bl	mi_startup
 	b	OF_exit
 
