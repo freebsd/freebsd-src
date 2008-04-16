@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 14, 2007
+.Dd April 13, 2008
 .Dt GJOURNAL 8
 .Os
 .Sh NAME
@@ -219,7 +219,7 @@ allows this (i.e., if the last sector is not already used by the file system):
 .Bd -literal -offset indent
 umount /dev/da0s1d
 gjournal label da0s1d da0s1e && \e
-    tunefs -J enable -n disable && \e
+    tunefs -J enable -n disable da01sd.journal && \e
     mount -o async /dev/da0s1d.journal /mnt || \e
     mount /dev/da0s1d /mnt
 .Ed
