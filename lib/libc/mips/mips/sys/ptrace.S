@@ -38,7 +38,6 @@
 	ASMSTR("from: @(#)ptrace.s	8.1 (Berkeley) 6/4/93")
 	ASMSTR("$NetBSD: ptrace.S,v 1.9 2003/08/07 16:42:17 agc Exp $")
 #endif /* LIBC_SCCS and not lint */
-#include <machine/asm.h>
 __FBSDID("$FreeBSD$");
 
 LEAF(ptrace)

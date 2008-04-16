@@ -38,7 +38,6 @@
 	ASMSTR("from: @(#)syscall.s	8.1 (Berkeley) 6/4/93")
 	ASMSTR("$NetBSD: syscall.S,v 1.5 2003/08/07 16:42:18 agc Exp $")
 #endif /* LIBC_SCCS and not lint */
-#include <machine/asm.h>
 __FBSDID("$FreeBSD$");
 
 RSYSCALL(syscall)
