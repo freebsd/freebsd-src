@@ -28,13 +28,14 @@
 .\"     @(#)chmod.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd January 16, 2006
+.Dd April 10, 2008
 .Dt CHMOD 2
 .Os
 .Sh NAME
 .Nm chmod ,
 .Nm fchmod ,
-.Nm lchmod
+.Nm lchmod ,
+.Nm fchmodat
 .Nd change mode of file
 .Sh LIBRARY
 .Lb libc
@@ -46,6 +47,8 @@
 .Fn fchmod "int fd" "mode_t mode"
 .Ft int
 .Fn lchmod "const char *path" "mode_t mode"
+.Ft int
+.Fn fchmodat "int fd" "const char *path" "mode_t mode" "int flag"
 .Sh DESCRIPTION
 The file permission bits of the file named specified by
 .Fa path
@@ -72,6 +75,45 @@ The
 system call is similar to
 .Fn chmod
 but does not follow symbolic links.
+.Pp
+The
+.Fn fchmodat
+is equivalent to either
+.Fn chmod
+or
+.Fn lchmod
+depending on the
+.Fa flag
+except in the case where
+.Fa path
+specifies a relative path.
+In this case the file to be changed is determined relative to the directory
+associated with the file descriptor
+.Fa fd
+instead of the current working directory.
+The values for the
+.Fa flag
+are constructed by a bitwise-inclusive OR of flags from the following list, defined
+in
+.In fcntl.h :
+.Bl -tag -width indent
+.It Dv AT_SYMLINK_NOFOLLOW
+If
+.Fa path
+names a symbolic link, then the mode of the symbolic link is changed.
+.El
+.Pp
+If
+.Fn fchmodat
+is passed the special value
+.Dv AT_FDCWD
+in the
+.Fa fd
+parameter, the current working directory is used.
+If also
+.Fa flag
+is zero, the behavior is identical to a call to
+.Fn chmod .
 .Pp
 A mode is created from
 .Em or'd
@@ -213,6 +255,34 @@ The file resides on a read-only file system.
 .It Bq Er EIO
 An I/O error occurred while reading from or writing to the file system.
 .El
+.Pp
+In addition to the
+.Fn chmod
+errors,
+.Fn fchmodat
+fails if:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The
+.Fa path
+argument does not specify an absolute path and the
+.Fa fd
+argument is neither
+.Fa AT_FDCWD
+nor a valid file descriptor open for searching.
+.It Bq Er EINVAL
+The value of the
+.Fa flag
+argument is not valid.
+.It Bq Er ENOTDIR
+The
+.Fa path
+argument is not an absolute path and
+.Fa fd
+is neither
+.Dv AT_FDCWD
+nor a file descriptor associated with a directory.
+.El
 .Sh SEE ALSO
 .Xr chmod 1 ,
 .Xr chflags 2 ,
@@ -229,6 +299,9 @@ except for the return of
 .Er EFTYPE
 and the use of
 .Dv S_ISTXT .
+The
+.Fn fchmodat
+system call follows The Open Group Extended API Set 2 specification.
 .Sh HISTORY
 The
 .Fn chmod
@@ -242,3 +315,7 @@ The
 .Fn lchmod
 system call appeared in
 .Fx 3.0 .
+The
+.Fn fchmodat
+system call appeared in
+.Fx 8.0 .

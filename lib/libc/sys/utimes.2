@@ -30,13 +30,14 @@
 .\"     @(#)utimes.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd December 9, 2006
+.Dd April 10, 2008
 .Dt UTIMES 2
 .Os
 .Sh NAME
 .Nm utimes ,
 .Nm lutimes ,
-.Nm futimes
+.Nm futimes ,
+.Nm futimesat
 .Nd set file access and modification times
 .Sh LIBRARY
 .Lb libc
@@ -48,6 +49,8 @@
 .Fn lutimes "const char *path" "const struct timeval *times"
 .Ft int
 .Fn futimes "int fd" "const struct timeval *times"
+.Ft int
+.Fn futimesat "int fd" "const char *path" "const struct timeval times[2]"
 .Sh DESCRIPTION
 The access and modification times of the file named by
 .Fa path
@@ -97,6 +100,28 @@ changes the access and modification times of the link,
 while
 .Fn utimes
 changes the times of the file the link references.
+.Pp
+The
+.Fn futimesat
+system call is equivalent to
+.Fn utimes
+except in the case where
+.Fa path
+specifies a relative path.
+In this case the access and modification time
+is set to that of a file relative to the directory associated with the file
+descriptor
+.Fa fd
+instead of the current working directory.
+If
+.Fn futimesat
+is passed the special value
+.Dv AT_FDCWD
+in the
+.Fa fd
+parameter, the current working directory is used and the behavior is identical to
+a call to
+.Fn utimes .
 .Sh RETURN VALUES
 .Rv -std
 .Sh ERRORS
@@ -197,10 +222,42 @@ does not match the owner of the file and is not the super-user.
 .It Bq Er EROFS
 The file system containing the file is mounted read-only.
 .El
+.Pp
+In addition to the errors returned by the
+.Fn utimes ,
+the
+.Fn futimesat
+may fail if:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The
+.Fa path
+argument does not specify an absolute path and the
+.Fa fd
+argument is neither
+.Dv AT_FDCWD
+nor a valid file descriptor open for searching.
+.It Bq Er ENOTDIR
+The
+.Fa path
+argument is not an absolute path and
+.Fa fd
+is neither
+.Dv AT_FDCWD
+nor a file descriptor associated with a directory.
+.El
 .Sh SEE ALSO
 .Xr chflags 2 ,
 .Xr stat 2 ,
 .Xr utime 3
+.Sh STANDARDS
+The
+.Fn utimes
+function is expected to conform to
+.St -xpg4.2 .
+The
+.Fn futimesat
+system call follows The Open Group Extended API Set 2 specification.
 .Sh HISTORY
 The
 .Fn utimes
@@ -212,3 +269,7 @@ and
 .Fn lutimes
 system calls first appeared in
 .Fx 3.0 .
+The
+.Fn futimesat
+system call appeared in
+.Fx 8.0 .
