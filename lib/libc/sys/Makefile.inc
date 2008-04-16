@@ -98,16 +98,17 @@ MAN+=	sched_get_priority_max.2 sched_setparam.2 \
 	sched_setscheduler.2 sched_yield.2
 .endif
 
-MLINKS+=access.2 eaccess.2
+MLINKS+=access.2 eaccess.2 access.2 faccessat.2
 MLINKS+=brk.2 sbrk.2
 MLINKS+=chdir.2 fchdir.2
 MLINKS+=chflags.2 fchflags.2 chflags.2 lchflags.2
-MLINKS+=chmod.2 fchmod.2 chmod.2 lchmod.2
-MLINKS+=chown.2 fchown.2 chown.2 lchown.2
+MLINKS+=chmod.2 fchmod.2 chmod.2 fchmodat.2 chmod.2 lchmod.2
+MLINKS+=chown.2 fchown.2 chown.2 fchownat.2 chown.2 lchown.2
 MLINKS+=clock_gettime.2 clock_getres.2 clock_gettime.2 clock_settime.2
 MLINKS+=cpuset.2 cpuset_setid.2 cpuset.2 cpuset_getid.2
 MLINKS+=cpuset_getaffinity.2 cpuset_setaffinity.2
 MLINKS+=dup.2 dup2.2
+MLINKS+=execve.2 fexecve.2
 MLINKS+=extattr_get_file.2 extattr.2 \
 	extattr_get_file.2 extattr_delete_fd.2 \
 	extattr_get_file.2 extattr_delete_file.2 \
@@ -138,7 +139,11 @@ MLINKS+=intro.2 errno.2
 MLINKS+=jail.2 jail_attach.2
 MLINKS+=kqueue.2 kevent.2
 MLINKS+=kldunload.2 kldunloadf.2
+MLINKS+=link.2 linkat.2
 MLINKS+=madvise.2 posix_madvise.2
+MLINKS+=mkdir.2 mkdirat.2
+MLINKS+=mkfifo.2 mkfifoat.2
+MLINKS+=mknod.2 mknodat.2
 MLINKS+=mlock.2 munlock.2
 MLINKS+=mlockall.2 munlockall.2
 MLINKS+=modnext.2 modfnext.2
@@ -146,9 +151,12 @@ MLINKS+=mount.2 nmount.2 mount.2 unmount.2
 MLINKS+=mq_send.2 mq_timedsend.2
 MLINKS+=mq_receive.2 mq_timedreceive.2
 MLINKS+=ntp_adjtime.2 ntp_gettime.2
+MLINKS+=open.2 openat.2
 MLINKS+=pathconf.2 fpathconf.2
 MLINKS+=read.2 pread.2 read.2 readv.2 read.2 preadv.2
+MLINKS+=readlink.2 readlinkat.2
 MLINKS+=recv.2 recvfrom.2 recv.2 recvmsg.2
+MLINKS+=rename.2 renameat.2
 MLINKS+=select.2 FD_CLR.3 select.2 FD_ISSET.3 select.2 FD_SET.3 \
 	select.2 FD_ZERO.3
 MLINKS+=send.2 sendmsg.2 send.2 sendto.2
@@ -158,13 +166,15 @@ MLINKS+=setuid.2 setegid.2 setuid.2 seteuid.2 setuid.2 setgid.2
 MLINKS+=shmat.2 shmdt.2
 MLINKS+=shm_open.2 shm_unlink.2
 MLINKS+=sigwaitinfo.2 sigtimedwait.2
-MLINKS+=stat.2 fstat.2 stat.2 lstat.2
+MLINKS+=stat.2 fstat.2 stat.2 fstatat.2 stat.2 lstat.2
 MLINKS+=statfs.2 fstatfs.2
 MLINKS+=syscall.2 __syscall.2
 MLINKS+=swapon.2 swapoff.2
+MLINKS+=symlink.2 symlinkat.2
 MLINKS+=timer_settime.2 timer_gettime.2 timer_settime.2 timer_getoverrun.2
 MLINKS+=truncate.2 ftruncate.2
-MLINKS+=utimes.2 futimes.2 utimes.2 lutimes.2
+MLINKS+=unlink.2 unlinkat.2
+MLINKS+=utimes.2 futimes.2 utimes.2 futimesat.2 utimes.2 lutimes.2
 MLINKS+=wait.2 wait3.2 wait.2 wait4.2 wait.2 waitpid.2
 MLINKS+=write.2 pwrite.2 write.2 writev.2 write.2 pwritev.2
 .if !defined(NO_P1003_1B)
