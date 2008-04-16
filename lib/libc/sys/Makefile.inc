@@ -18,7 +18,7 @@
 .endif
 
 # Sources common to both syscall interfaces:
-SRCS+=	stack_protector.c  __error.c
+SRCS+=	stack_protector.c __error.c
 .if !defined(WITHOUT_SYSCALL_COMPAT)
 SRCS+=	fcntl.c ftruncate.c lseek.c mmap.c pread.c pwrite.c truncate.c
 PSEUDO+= _fcntl.o
@@ -59,12 +59,12 @@ ${SPSEUDO}:
 	printf '#include "SYS.h"\nPSEUDO(${.PREFIX:S/_//})\n' \
 	    > ${.TARGET}
 
-MAN+=	_exit.2 abort2.2 accept.2 access.2 acct.2  adjtime.2 \
+MAN+=	abort2.2 accept.2 access.2 acct.2 adjtime.2 \
 	aio_cancel.2 aio_error.2 aio_read.2 aio_return.2 \
 	aio_suspend.2 aio_waitcomplete.2 aio_write.2 \
 	bind.2 brk.2 chdir.2 chflags.2 \
 	chmod.2 chown.2 chroot.2 clock_gettime.2 close.2 \
-	connect.2 cpuset.2 cpuset_getaffinity.2 dup.2 execve.2 \
+	connect.2 cpuset.2 cpuset_getaffinity.2 dup.2 execve.2 _exit.2 \
 	extattr_get_file.2 fcntl.2 fhopen.2 flock.2 fork.2 fsync.2 \
 	getdirentries.2 getdtablesize.2 \
 	getfh.2 getfsstat.2 getgid.2 getgroups.2 getitimer.2 getlogin.2 \
@@ -79,24 +79,25 @@ MAN+=	_exit.2 abort2.2 accept.2 access.2 acct.2  adjtime.2 \
 	mlockall.2 mmap.2 modfind.2 modnext.2 modstat.2 mount.2 mprotect.2 \
 	mq_close.2 mq_getattr.2 mq_notify.2 mq_open.2 mq_receive.2 mq_send.2 \
 	mq_setattr.2 \
-	msync.2 munmap.2 nanosleep.2 ntp_adjtime.2 \
-	nfssvc.2 open.2 pathconf.2 pipe.2 poll.2 profil.2 ptrace.2 quotactl.2 \
+	msync.2 munmap.2 nanosleep.2 nfssvc.2 ntp_adjtime.2 \
+	open.2 pathconf.2 pipe.2 poll.2 profil.2 ptrace.2 quotactl.2 \
 	read.2 readlink.2 reboot.2 recv.2 rename.2 revoke.2 rfork.2 rmdir.2 \
-	rtprio.2 select.2 semctl.2 semget.2 semop.2 send.2 sendfile.2 \
+	rtprio.2
+.if !defined(NO_P1003_1B)
+MAN+=	sched_get_priority_max.2 sched_setparam.2 \
+	sched_setscheduler.2 sched_yield.2
+.endif
+MAN+=	sctp_generic_recvmsg.2 sctp_generic_sendmsg.2 sctp_peeloff.2 \
+	select.2 semctl.2 semget.2 semop.2 send.2 sendfile.2 \
 	setgroups.2 setpgid.2 setregid.2 setresuid.2 setreuid.2 setsid.2 \
 	setuid.2 shmat.2 shmctl.2 shmget.2 shm_open.2 shutdown.2 \
 	sigaction.2 sigaltstack.2 sigpending.2 sigprocmask.2 sigqueue.2 \
 	sigreturn.2 sigstack.2 sigsuspend.2 sigwait.2 sigwaitinfo.2 \
 	socket.2 socketpair.2 stat.2 statfs.2 \
-        sctp_generic_recvmsg.2  sctp_generic_sendmsg.2  sctp_peeloff.2 \
 	swapon.2 symlink.2 sync.2 sysarch.2 syscall.2 \
 	timer_create.2 timer_delete.2 timer_settime.2 \
 	truncate.2 umask.2 undelete.2 \
 	unlink.2 utimes.2 utrace.2 uuidgen.2 vfork.2 wait.2 write.2
-.if !defined(NO_P1003_1B)
-MAN+=	sched_get_priority_max.2 sched_setparam.2 \
-	sched_setscheduler.2 sched_yield.2
-.endif
 
 MLINKS+=access.2 eaccess.2 access.2 faccessat.2
 MLINKS+=brk.2 sbrk.2
@@ -105,7 +106,7 @@ MLINKS+=chflags.2 fchflags.2 chflags.2 lchflags.2
 MLINKS+=chmod.2 fchmod.2 chmod.2 fchmodat.2 chmod.2 lchmod.2
 MLINKS+=chown.2 fchown.2 chown.2 fchownat.2 chown.2 lchown.2
 MLINKS+=clock_gettime.2 clock_getres.2 clock_gettime.2 clock_settime.2
-MLINKS+=cpuset.2 cpuset_setid.2 cpuset.2 cpuset_getid.2
+MLINKS+=cpuset.2 cpuset_getid.2 cpuset.2 cpuset_setid.2
 MLINKS+=cpuset_getaffinity.2 cpuset_setaffinity.2
 MLINKS+=dup.2 dup2.2
 MLINKS+=execve.2 fexecve.2
@@ -137,8 +138,8 @@ MLINKS+=gettimeofday.2 settimeofday.2
 MLINKS+=getuid.2 geteuid.2
 MLINKS+=intro.2 errno.2
 MLINKS+=jail.2 jail_attach.2
-MLINKS+=kqueue.2 kevent.2
 MLINKS+=kldunload.2 kldunloadf.2
+MLINKS+=kqueue.2 kevent.2
 MLINKS+=link.2 linkat.2
 MLINKS+=madvise.2 posix_madvise.2
 MLINKS+=mkdir.2 mkdirat.2
@@ -148,38 +149,38 @@ MLINKS+=mlock.2 munlock.2
 MLINKS+=mlockall.2 munlockall.2
 MLINKS+=modnext.2 modfnext.2
 MLINKS+=mount.2 nmount.2 mount.2 unmount.2
-MLINKS+=mq_send.2 mq_timedsend.2
 MLINKS+=mq_receive.2 mq_timedreceive.2
+MLINKS+=mq_send.2 mq_timedsend.2
 MLINKS+=ntp_adjtime.2 ntp_gettime.2
 MLINKS+=open.2 openat.2
 MLINKS+=pathconf.2 fpathconf.2
-MLINKS+=read.2 pread.2 read.2 readv.2 read.2 preadv.2
+MLINKS+=read.2 pread.2 read.2 preadv.2 read.2 readv.2
 MLINKS+=readlink.2 readlinkat.2
 MLINKS+=recv.2 recvfrom.2 recv.2 recvmsg.2
 MLINKS+=rename.2 renameat.2
-MLINKS+=select.2 FD_CLR.3 select.2 FD_ISSET.3 select.2 FD_SET.3 \
-	select.2 FD_ZERO.3
-MLINKS+=send.2 sendmsg.2 send.2 sendto.2
-MLINKS+=setpgid.2 setpgrp.2
-MLINKS+=setresuid.2 setresgid.2 setresuid.2 getresuid.2 setresuid.2 getresgid.2
-MLINKS+=setuid.2 setegid.2 setuid.2 seteuid.2 setuid.2 setgid.2
-MLINKS+=shmat.2 shmdt.2
-MLINKS+=shm_open.2 shm_unlink.2
-MLINKS+=sigwaitinfo.2 sigtimedwait.2
-MLINKS+=stat.2 fstat.2 stat.2 fstatat.2 stat.2 lstat.2
-MLINKS+=statfs.2 fstatfs.2
-MLINKS+=syscall.2 __syscall.2
-MLINKS+=swapon.2 swapoff.2
-MLINKS+=symlink.2 symlinkat.2
-MLINKS+=timer_settime.2 timer_gettime.2 timer_settime.2 timer_getoverrun.2
-MLINKS+=truncate.2 ftruncate.2
-MLINKS+=unlink.2 unlinkat.2
-MLINKS+=utimes.2 futimes.2 utimes.2 futimesat.2 utimes.2 lutimes.2
-MLINKS+=wait.2 wait3.2 wait.2 wait4.2 wait.2 waitpid.2
-MLINKS+=write.2 pwrite.2 write.2 writev.2 write.2 pwritev.2
 .if !defined(NO_P1003_1B)
 MLINKS+=sched_get_priority_max.2 sched_get_priority_min.2 \
 	sched_get_priority_max.2 sched_rr_get_interval.2
 MLINKS+=sched_setparam.2 sched_getparam.2
 MLINKS+=sched_setscheduler.2 sched_getscheduler.2
 .endif
+MLINKS+=select.2 FD_CLR.3 select.2 FD_ISSET.3 select.2 FD_SET.3 \
+	select.2 FD_ZERO.3
+MLINKS+=send.2 sendmsg.2 send.2 sendto.2
+MLINKS+=setpgid.2 setpgrp.2
+MLINKS+=setresuid.2 getresgid.2 setresuid.2 getresuid.2 setresuid.2 setresgid.2
+MLINKS+=setuid.2 setegid.2 setuid.2 seteuid.2 setuid.2 setgid.2
+MLINKS+=shmat.2 shmdt.2
+MLINKS+=shm_open.2 shm_unlink.2
+MLINKS+=sigwaitinfo.2 sigtimedwait.2
+MLINKS+=stat.2 fstat.2 stat.2 fstatat.2 stat.2 lstat.2
+MLINKS+=statfs.2 fstatfs.2
+MLINKS+=swapon.2 swapoff.2
+MLINKS+=symlink.2 symlinkat.2
+MLINKS+=syscall.2 __syscall.2
+MLINKS+=timer_settime.2 timer_getoverrun.2 timer_settime.2 timer_gettime.2
+MLINKS+=truncate.2 ftruncate.2
+MLINKS+=unlink.2 unlinkat.2
+MLINKS+=utimes.2 futimes.2 utimes.2 futimesat.2 utimes.2 lutimes.2
+MLINKS+=wait.2 wait3.2 wait.2 wait4.2 wait.2 waitpid.2
+MLINKS+=write.2 pwrite.2 write.2 pwritev.2 write.2 writev.2
