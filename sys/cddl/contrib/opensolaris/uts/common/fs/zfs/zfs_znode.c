@@ -136,7 +136,6 @@ zfs_znode_cache_constructor(void *buf, void *cdrarg, int kmflags)
 
 	zp->z_dbuf_held = 0;
 	zp->z_dirlocks = 0;
-	zp->z_lockf = NULL;
 	return (0);
 }
 
