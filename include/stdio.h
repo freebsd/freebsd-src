@@ -98,15 +98,19 @@ struct __sFILEX;
  * that does not match the previous one in _bf.  When this happens,
  * _ub._base becomes non-nil (i.e., a stream has ungetc() data iff
  * _ub._base!=NULL) and _up and _ur save the current values of _p and _r.
+ *
+ * Certain members of __sFILE are accessed directly via macros or
+ * inline functions.  To preserve ABI compat, these members must not
+ * be disturbed.  These members are marked below with (*).
  */
 typedef	struct __sFILE {
-	unsigned char *_p;	/* current position in (some) buffer */
-	int	_r;		/* read space left for getc() */
-	int	_w;		/* write space left for putc() */
-	short	_flags;		/* flags, below; this FILE is free if 0 */
-	short	_file;		/* fileno, if Unix descriptor, else -1 */
+	unsigned char *_p;	/* (*) current position in (some) buffer */
+	int	_r;		/* (*) read space left for getc() */
+	int	_w;		/* (*) write space left for putc() */
+	short	_flags;		/* (*) flags, below; this FILE is free if 0 */
+	short	_file;		/* (*) fileno, if Unix descriptor, else -1 */
 	struct	__sbuf _bf;	/* the buffer (at least 1 byte, if !NULL) */
-	int	_lbfsize;	/* 0 or -_bf._size, for inline putc */
+	int	_lbfsize;	/* (*) 0 or -_bf._size, for inline putc */
 
 	/* operations */
 	void	*_cookie;	/* cookie passed to io functions */
