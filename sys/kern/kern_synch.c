@@ -38,6 +38,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_ktrace.h"
+#include "opt_sched.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -390,6 +391,9 @@ mi_switch(int flags, struct thread *newtd)
 		td->td_ru.ru_nvcsw++;
 	else
 		td->td_ru.ru_nivcsw++;
+#ifdef SCHED_STATS
+	SCHED_STAT_INC(sched_switch_stats[flags & SW_TYPE_MASK]);
+#endif
 	/*
 	 * Compute the amount of time during which the current
 	 * thread was running, and add that to its total so far.
@@ -533,7 +537,7 @@ yield(struct thread *td, struct yield_args *uap)
 
 	thread_lock(td);
 	sched_prio(td, PRI_MAX_TIMESHARE);
-	mi_switch(SW_VOL, NULL);
+	mi_switch(SW_VOL | SWT_RELINQUISH, NULL);
 	thread_unlock(td);
 	td->td_retval[0] = 0;
 	return (0);

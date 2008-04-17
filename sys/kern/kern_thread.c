@@ -723,7 +723,7 @@ thread_suspend_check(int return_instead)
 			td->td_flags |= TDF_BOUNDARY;
 		}
 		PROC_SUNLOCK(p);
-		mi_switch(SW_INVOL, NULL);
+		mi_switch(SW_INVOL | SWT_SUSPEND, NULL);
 		if (return_instead == 0)
 			td->td_flags &= ~TDF_BOUNDARY;
 		thread_unlock(td);
@@ -756,7 +756,7 @@ thread_suspend_switch(struct thread *td)
 	sched_sleep(td, 0);
 	PROC_SUNLOCK(p);
 	DROP_GIANT();
-	mi_switch(SW_VOL, NULL);
+	mi_switch(SW_VOL | SWT_SUSPEND, NULL);
 	thread_unlock(td);
 	PICKUP_GIANT();
 	PROC_LOCK(p);

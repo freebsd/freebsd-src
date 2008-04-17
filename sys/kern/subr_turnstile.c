@@ -741,8 +741,7 @@ turnstile_wait(struct turnstile *ts, struct thread *owner, int queue)
 		    td->td_tid, lock, lock->lo_name);
 
 	THREAD_LOCKPTR_ASSERT(td, &ts->ts_lock);
-	SCHED_STAT_INC(switch_turnstile);
-	mi_switch(SW_VOL, NULL);
+	mi_switch(SW_VOL | SWT_TURNSTILE, NULL);
 
 	if (LOCK_LOG_TEST(lock, 0))
 		CTR4(KTR_LOCK, "%s: td %d free from blocked on [%p] %s",

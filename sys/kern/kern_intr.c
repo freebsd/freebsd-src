@@ -1231,7 +1231,7 @@ ithread_loop(void *arg)
 		if (!ithd->it_need && !(ithd->it_flags & IT_DEAD)) {
 			TD_SET_IWAIT(td);
 			ie->ie_count = 0;
-			mi_switch(SW_VOL, NULL);
+			mi_switch(SW_VOL | SWT_IWAIT, NULL);
 		}
 		thread_unlock(td);
 	}
@@ -1389,7 +1389,7 @@ ithread_loop(void *arg)
 		if (!ithd->it_need && !(ithd->it_flags & IT_DEAD)) {
 			TD_SET_IWAIT(td);
 			ie->ie_count = 0;
-			mi_switch(SW_VOL, NULL);
+			mi_switch(SW_VOL | SWT_IWAIT, NULL);
 		}
 		thread_unlock(td);
 	}

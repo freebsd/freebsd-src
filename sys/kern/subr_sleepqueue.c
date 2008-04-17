@@ -486,8 +486,7 @@ sleepq_switch(void *wchan, int pri)
 	sched_sleep(td, pri);
 	thread_lock_set(td, &sc->sc_lock);
 	TD_SET_SLEEPING(td);
-	SCHED_STAT_INC(switch_sleepq);
-	mi_switch(SW_VOL, NULL);
+	mi_switch(SW_VOL | SWT_SLEEPQ, NULL);
 	KASSERT(TD_IS_RUNNING(td), ("running but not TDS_RUNNING"));
 	CTR3(KTR_PROC, "sleepq resume: thread %p (pid %ld, %s)",
 	    (void *)td, (long)td->td_proc->p_pid, (void *)td->td_name);
@@ -527,8 +526,7 @@ sleepq_check_timeout(void)
 	else if (callout_stop(&td->td_slpcallout) == 0) {
 		td->td_flags |= TDF_TIMEOUT;
 		TD_SET_SLEEPING(td);
-		SCHED_STAT_INC(switch_sleepqtimo);
-		mi_switch(SW_INVOL, NULL);
+		mi_switch(SW_INVOL | SWT_SLEEPQTIMO, NULL);
 	}
 	return (0);
 }
