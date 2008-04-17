@@ -1139,17 +1139,19 @@ rl_rxeof(struct rl_softc *sc)
 		 * datasheet makes absolutely no mention of this and
 		 * RealTek should be shot for this.
 		 */
-		if ((uint16_t)(rxstat >> 16) == RL_RXSTAT_UNFINISHED)
+		total_len = rxstat >> 16;
+		if (total_len == RL_RXSTAT_UNFINISHED)
 			break;
 
-		if (!(rxstat & RL_RXSTAT_RXOK)) {
+		if (!(rxstat & RL_RXSTAT_RXOK) ||
+		    total_len < ETHER_MIN_LEN ||
+		    total_len > ETHER_MAX_LEN + ETHER_VLAN_ENCAP_LEN) {
 			ifp->if_ierrors++;
 			rl_init_locked(sc);
 			return;
 		}
 
 		/* No errors; receive the packet. */
-		total_len = rxstat >> 16;
 		rx_bytes += total_len + 4;
 
 		/*
