@@ -909,7 +909,7 @@ tdq_idled(struct tdq *tdq)
 		}
 		spinlock_exit();
 		TDQ_UNLOCK(steal);
-		mi_switch(SW_VOL, NULL);
+		mi_switch(SW_VOL | SWT_IDLE, NULL);
 		thread_unlock(curthread);
 
 		return (0);
@@ -1073,6 +1073,13 @@ sched_setcpu(struct thread *td, int cpu, int flags)
 	return (tdq);
 }
 
+SCHED_STAT_DEFINE(pickcpu_intrbind, "Soft interrupt binding");
+SCHED_STAT_DEFINE(pickcpu_idle_affinity, "Picked idle cpu based on affinity");
+SCHED_STAT_DEFINE(pickcpu_affinity, "Picked cpu based on affinity");
+SCHED_STAT_DEFINE(pickcpu_lowest, "Selected lowest load");
+SCHED_STAT_DEFINE(pickcpu_local, "Migrated to current cpu");
+SCHED_STAT_DEFINE(pickcpu_migration, "Selection may have caused migration");
+
 static int
 sched_pickcpu(struct thread *td, int flags)
 {
@@ -1098,8 +1105,10 @@ sched_pickcpu(struct thread *td, int flags)
 	 * the interrupt.
 	 */
 	if (td->td_priority <= PRI_MAX_ITHD && THREAD_CAN_SCHED(td, self) &&
-	    curthread->td_intr_nesting_level)
+	    curthread->td_intr_nesting_level && ts->ts_cpu != self) {
+		SCHED_STAT_INC(pickcpu_intrbind);
 		ts->ts_cpu = self;
+	}
 	/*
 	 * If the thread can run on the last cpu and the affinity has not
 	 * expired or it is idle run it there.
@@ -1107,10 +1116,14 @@ sched_pickcpu(struct thread *td, int flags)
 	pri = td->td_priority;
 	tdq = TDQ_CPU(ts->ts_cpu);
 	if (THREAD_CAN_SCHED(td, ts->ts_cpu)) {
-		if (tdq->tdq_lowpri > PRI_MIN_IDLE)
+		if (tdq->tdq_lowpri > PRI_MIN_IDLE) {
+			SCHED_STAT_INC(pickcpu_idle_affinity);
 			return (ts->ts_cpu);
-		if (SCHED_AFFINITY(ts, CG_SHARE_L2) && tdq->tdq_lowpri > pri)
+		}
+		if (SCHED_AFFINITY(ts, CG_SHARE_L2) && tdq->tdq_lowpri > pri) {
+			SCHED_STAT_INC(pickcpu_affinity);
 			return (ts->ts_cpu);
+		}
 	}
 	/*
 	 * Search for the highest level in the tree that still has affinity.
@@ -1129,8 +1142,13 @@ sched_pickcpu(struct thread *td, int flags)
 	 * Compare the lowest loaded cpu to current cpu.
 	 */
 	if (THREAD_CAN_SCHED(td, self) && TDQ_CPU(self)->tdq_lowpri > pri &&
-	    TDQ_CPU(cpu)->tdq_lowpri < PRI_MIN_IDLE)
+	    TDQ_CPU(cpu)->tdq_lowpri < PRI_MIN_IDLE) {
+		SCHED_STAT_INC(pickcpu_local);
 		cpu = self;
+	} else
+		SCHED_STAT_INC(pickcpu_lowest);
+	if (cpu != ts->ts_cpu)
+		SCHED_STAT_INC(pickcpu_migration);
 	KASSERT(cpu != -1, ("sched_pickcpu: Failed to find a cpu."));
 	return (cpu);
 }
@@ -1989,10 +2007,15 @@ sched_preempt(struct thread *td)
 	TDQ_LOCK_ASSERT(tdq, MA_OWNED);
 	tdq->tdq_ipipending = 0;
 	if (td->td_priority > tdq->tdq_lowpri) {
+		int flags;
+
+		flags = SW_INVOL | SW_PREEMPT;
 		if (td->td_critnest > 1)
 			td->td_owepreempt = 1;
+		else if (TD_IS_IDLETHREAD(td))
+			mi_switch(flags | SWT_REMOTEWAKEIDLE, NULL);
 		else
-			mi_switch(SW_INVOL | SW_PREEMPT, NULL);
+			mi_switch(flags | SWT_REMOTEPREEMPT, NULL);
 	}
 	thread_unlock(td);
 }
@@ -2378,8 +2401,7 @@ void
 sched_relinquish(struct thread *td)
 {
 	thread_lock(td);
-	SCHED_STAT_INC(switch_relinquish);
-	mi_switch(SW_VOL, NULL);
+	mi_switch(SW_VOL | SWT_RELINQUISH, NULL);
 	thread_unlock(td);
 }
 

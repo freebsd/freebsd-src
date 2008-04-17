@@ -73,25 +73,35 @@ static int kern_sched_preemption = 0;
 SYSCTL_INT(_kern_sched, OID_AUTO, preemption, CTLFLAG_RD,
     &kern_sched_preemption, 0, "Kernel preemption enabled");
 
+/*
+ * Support for scheduler stats exported via kern.sched.stats.  All stats may
+ * be reset with kern.sched.stats.reset = 1.  Stats may be defined elsewhere
+ * with SCHED_STAT_DEFINE().
+ */
 #ifdef SCHED_STATS
-long switch_preempt;
-long switch_owepreempt;
-long switch_turnstile;
-long switch_sleepq;
-long switch_sleepqtimo;
-long switch_relinquish;
-long switch_needresched;
-static SYSCTL_NODE(_kern_sched, OID_AUTO, stats, CTLFLAG_RW, 0, "switch stats");
-SYSCTL_INT(_kern_sched_stats, OID_AUTO, preempt, CTLFLAG_RD, &switch_preempt, 0, "");
-SYSCTL_INT(_kern_sched_stats, OID_AUTO, owepreempt, CTLFLAG_RD, &switch_owepreempt, 0, "");
-SYSCTL_INT(_kern_sched_stats, OID_AUTO, turnstile, CTLFLAG_RD, &switch_turnstile, 0, "");
-SYSCTL_INT(_kern_sched_stats, OID_AUTO, sleepq, CTLFLAG_RD, &switch_sleepq, 0, "");
-SYSCTL_INT(_kern_sched_stats, OID_AUTO, sleepqtimo, CTLFLAG_RD, &switch_sleepqtimo, 0, "");
-SYSCTL_INT(_kern_sched_stats, OID_AUTO, relinquish, CTLFLAG_RD, &switch_relinquish, 0, "");
-SYSCTL_INT(_kern_sched_stats, OID_AUTO, needresched, CTLFLAG_RD, &switch_needresched, 0, "");
+long sched_switch_stats[SWT_COUNT];	/* Switch reasons from mi_switch(). */
+
+SYSCTL_NODE(_kern_sched, OID_AUTO, stats, CTLFLAG_RW, 0, "switch stats");
+SCHED_STAT_DEFINE_VAR(uncategorized, &sched_switch_stats[SWT_NONE], "");
+SCHED_STAT_DEFINE_VAR(preempt, &sched_switch_stats[SWT_PREEMPT], "");
+SCHED_STAT_DEFINE_VAR(owepreempt, &sched_switch_stats[SWT_OWEPREEMPT], "");
+SCHED_STAT_DEFINE_VAR(turnstile, &sched_switch_stats[SWT_TURNSTILE], "");
+SCHED_STAT_DEFINE_VAR(sleepq, &sched_switch_stats[SWT_SLEEPQ], "");
+SCHED_STAT_DEFINE_VAR(sleepqtimo, &sched_switch_stats[SWT_SLEEPQTIMO], "");
+SCHED_STAT_DEFINE_VAR(relinquish, &sched_switch_stats[SWT_RELINQUISH], "");
+SCHED_STAT_DEFINE_VAR(needresched, &sched_switch_stats[SWT_NEEDRESCHED], "");
+SCHED_STAT_DEFINE_VAR(idle, &sched_switch_stats[SWT_IDLE], "");
+SCHED_STAT_DEFINE_VAR(iwait, &sched_switch_stats[SWT_IWAIT], "");
+SCHED_STAT_DEFINE_VAR(suspend, &sched_switch_stats[SWT_SUSPEND], "");
+SCHED_STAT_DEFINE_VAR(remotepreempt, &sched_switch_stats[SWT_REMOTEPREEMPT],
+    "");
+SCHED_STAT_DEFINE_VAR(remotewakeidle, &sched_switch_stats[SWT_REMOTEWAKEIDLE],
+    "");
+
 static int
 sysctl_stats_reset(SYSCTL_HANDLER_ARGS)
 {
+	struct sysctl_oid *p;
         int error;
 	int val;
 
@@ -101,14 +111,15 @@ sysctl_stats_reset(SYSCTL_HANDLER_ARGS)
                 return (error);
         if (val == 0)
                 return (0);
-	switch_preempt = 0;
-	switch_owepreempt = 0;
-	switch_turnstile = 0;
-	switch_sleepq = 0;
-	switch_sleepqtimo = 0;
-	switch_relinquish = 0;
-	switch_needresched = 0;
-
+	/*
+	 * Traverse the list of children of _kern_sched_stats and reset each
+	 * to 0.  Skip the reset entry.
+	 */
+	SLIST_FOREACH(p, oidp->oid_parent, oid_link) {
+		if (p == oidp || p->oid_arg1 == NULL)
+			continue;
+		*(long *)p->oid_arg1 = 0;
+	}
 	return (0);
 }
 
@@ -164,6 +175,7 @@ void
 critical_exit(void)
 {
 	struct thread *td;
+	int flags;
 
 	td = curthread;
 	KASSERT(td->td_critnest != 0,
@@ -175,8 +187,12 @@ critical_exit(void)
 			td->td_critnest = 1;
 			thread_lock(td);
 			td->td_critnest--;
-			SCHED_STAT_INC(switch_owepreempt);
-			mi_switch(SW_INVOL|SW_PREEMPT, NULL);
+			flags = SW_INVOL | SW_PREEMPT;
+			if (TD_IS_IDLETHREAD(td))
+				flags |= SWT_IDLE;
+			else
+				flags |= SWT_OWEPREEMPT;
+			mi_switch(flags, NULL);
 			thread_unlock(td);
 		}
 	} else

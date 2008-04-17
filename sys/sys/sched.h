@@ -154,17 +154,19 @@ sched_unpin(void)
 #define	SRQ_PREEMPTED	0x0008		/* has been preempted.. be kind */
 #define	SRQ_BORROWING	0x0010		/* Priority updated due to prio_lend */
 
-/* Switch stats. */
+/* Scheduler stats. */
 #ifdef SCHED_STATS
-extern long switch_preempt;
-extern long switch_owepreempt;
-extern long switch_turnstile;
-extern long switch_sleepq;
-extern long switch_sleepqtimo;
-extern long switch_relinquish;
-extern long switch_needresched;
+extern long sched_switch_stats[SWT_COUNT];
+
+#define	SCHED_STAT_DEFINE_VAR(name, ptr, descr)				\
+    SYSCTL_LONG(_kern_sched_stats, OID_AUTO, name, CTLFLAG_RD, ptr, 0, descr)
+#define	SCHED_STAT_DEFINE(name, descr)					\
+    unsigned long name;							\
+    SCHED_STAT_DEFINE_VAR(name, &name, descr)
 #define SCHED_STAT_INC(var)     atomic_add_long(&(var), 1)
 #else
+#define	SCHED_STAT_DEFINE_VAR(name, descr, ptr)
+#define	SCHED_STAT_DEFINE(name, descr)
 #define SCHED_STAT_INC(var)
 #endif
 

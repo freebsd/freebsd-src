@@ -127,7 +127,7 @@ vm_pagezero(void __unused *arg)
 #ifndef PREEMPTION
 			if (sched_runnable()) {
 				thread_lock(curthread);
-				mi_switch(SW_VOL, NULL);
+				mi_switch(SW_VOL | SWT_IDLE, NULL);
 				thread_unlock(curthread);
 			}
 #endif

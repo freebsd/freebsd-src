@@ -456,7 +456,7 @@ uio_yield(void)
 	DROP_GIANT();
 	thread_lock(td);
 	sched_prio(td, td->td_user_pri);
-	mi_switch(SW_INVOL, NULL);
+	mi_switch(SW_INVOL | SWT_RELINQUISH, NULL);
 	thread_unlock(td);
 	PICKUP_GIANT();
 }
