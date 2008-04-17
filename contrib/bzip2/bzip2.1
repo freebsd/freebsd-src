@@ -1,7 +1,7 @@
 .PU
 .TH bzip2 1
 .SH NAME
-bzip2, bunzip2 \- a block-sorting file compressor, v1.0.2
+bzip2, bunzip2 \- a block-sorting file compressor, v1.0.4
 .br
 bzcat \- decompresses files to stdout
 .br
@@ -405,19 +405,19 @@ I/O error messages are not as helpful as they could be.
 tries hard to detect I/O errors and exit cleanly, but the details of
 what the problem is sometimes seem rather misleading.
 
-This manual page pertains to version 1.0.2 of
+This manual page pertains to version 1.0.4 of
 .I bzip2.  
 Compressed data created by this version is entirely forwards and
 backwards compatible with the previous public releases, versions
-0.1pl2, 0.9.0, 0.9.5, 1.0.0 and 1.0.1, but with the following
+0.1pl2, 0.9.0, 0.9.5, 1.0.0, 1.0.1, 1.0.2 and 1.0.3, but with the following
 exception: 0.9.0 and above can correctly decompress multiple
 concatenated compressed files.  0.1pl2 cannot do this; it will stop
 after decompressing just the first file in the stream.
 
 .I bzip2recover
-versions prior to this one, 1.0.2, used 32-bit integers to represent
-bit positions in compressed files, so it could not handle compressed
-files more than 512 megabytes long.  Version 1.0.2 and above uses
+versions prior to 1.0.2 used 32-bit integers to represent
+bit positions in compressed files, so they could not handle compressed
+files more than 512 megabytes long.  Versions 1.0.2 and above use
 64-bit ints on some platforms which support them (GNU supported
 targets, and Windows).  To establish whether or not bzip2recover was
 built with such a limitation, run it without arguments.  In any event
@@ -427,9 +427,9 @@ with MaybeUInt64 set to be an unsigned 64-bit integer.
 
 
 .SH AUTHOR
-Julian Seward, jseward@acm.org.
+Julian Seward, jsewardbzip.org.
 
-http://sources.redhat.com/bzip2
+http://www.bzip.org
 
 The ideas embodied in
 .I bzip2
@@ -447,6 +447,7 @@ source distribution for pointers to sources of documentation.  Christian
 von Roques encouraged me to look for faster sorting algorithms, so as to
 speed up compression.  Bela Lubkin encouraged me to improve the
 worst-case compression performance.  
+Donna Robinson XMLised the documentation.
 The bz* scripts are derived from those of GNU gzip.
 Many people sent patches, helped
 with portability problems, lent machines, gave advice and were generally

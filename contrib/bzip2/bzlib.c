@@ -4,77 +4,36 @@
 /*---                                               bzlib.c ---*/
 /*-------------------------------------------------------------*/
 
-/*--
-  This file is a part of bzip2 and/or libbzip2, a program and
-  library for lossless, block-sorting data compression.
+/* ------------------------------------------------------------------
+   This file is part of bzip2/libbzip2, a program and library for
+   lossless, block-sorting data compression.
 
-  Copyright (C) 1996-2002 Julian R Seward.  All rights reserved.
+   bzip2/libbzip2 version 1.0.5 of 10 December 2007
+   Copyright (C) 1996-2007 Julian Seward <jseward@bzip.org>
 
-  Redistribution and use in source and binary forms, with or without
-  modification, are permitted provided that the following conditions
-  are met:
+   Please read the WARNING, DISCLAIMER and PATENTS sections in the 
+   README file.
 
-  1. Redistributions of source code must retain the above copyright
-     notice, this list of conditions and the following disclaimer.
+   This program is released under the terms of the license contained
+   in the file LICENSE.
+   ------------------------------------------------------------------ */
 
-  2. The origin of this software must not be misrepresented; you must 
-     not claim that you wrote the original software.  If you use this 
-     software in a product, an acknowledgment in the product 
-     documentation would be appreciated but is not required.
-
-  3. Altered source versions must be plainly marked as such, and must
-     not be misrepresented as being the original software.
-
-  4. The name of the author may not be used to endorse or promote 
-     products derived from this software without specific prior written 
-     permission.
-
-  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS
-  OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-  WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-  ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
-  DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-  DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
-  GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
-  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-  NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-  Julian Seward, Cambridge, UK.
-  jseward@acm.org
-  bzip2/libbzip2 version 1.0 of 21 March 2000
-
-  This program is based on (at least) the work of:
-     Mike Burrows
-     David Wheeler
-     Peter Fenwick
-     Alistair Moffat
-     Radford Neal
-     Ian H. Witten
-     Robert Sedgewick
-     Jon L. Bentley
-
-  For more information on these sources, see the manual.
---*/
-
-/*--
-   CHANGES
-   ~~~~~~~
-   0.9.0 -- original version.
-
+/* CHANGES
+   0.9.0    -- original version.
    0.9.0a/b -- no changes in this file.
+   0.9.0c   -- made zero-length BZ_FLUSH work correctly in bzCompress().
+     fixed bzWrite/bzRead to ignore zero-length requests.
+     fixed bzread to correctly handle read requests after EOF.
+     wrong parameter order in call to bzDecompressInit in
+     bzBuffToBuffDecompress.  Fixed.
+*/
 
-   0.9.0c
-      * made zero-length BZ_FLUSH work correctly in bzCompress().
-      * fixed bzWrite/bzRead to ignore zero-length requests.
-      * fixed bzread to correctly handle read requests after EOF.
-      * wrong parameter order in call to bzDecompressInit in
-        bzBuffToBuffDecompress.  Fixed.
---*/
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "bzlib_private.h"
 
+#ifndef BZ_NO_COMPRESS
 
 /*---------------------------------------------------*/
 /*--- Compression stuff                           ---*/
@@ -88,12 +47,12 @@ void BZ2_bz__AssertH__fail ( int errcode )
    fprintf(stderr, 
       "\n\nbzip2/libbzip2: internal error number %d.\n"
       "This is a bug in bzip2/libbzip2, %s.\n"
-      "Please report it to me at: jseward@acm.org.  If this happened\n"
+      "Please report it to me at: jseward@bzip.org.  If this happened\n"
       "when you were using some program which uses libbzip2 as a\n"
       "component, you should also report this bug to the author(s)\n"
       "of that program.  Please make an effort to report this bug;\n"
       "timely and accurate bug reports eventually lead to higher\n"
-      "quality software.  Thanks.  Julian Seward, 30 December 2001.\n\n",
+      "quality software.  Thanks.  Julian Seward, 10 December 2007.\n\n",
       errcode,
       BZ2_bzlibVersion()
    );
@@ -130,6 +89,7 @@ void BZ2_bz__AssertH__fail ( int errcode )
 }
 #endif
 
+#endif /* BZ_NO_COMPRESS */
 
 /*---------------------------------------------------*/
 static
@@ -156,6 +116,7 @@ void default_bzfree ( void* opaque, void* addr )
    if (addr != NULL) free ( addr );
 }
 
+#ifndef BZ_NO_COMPRESS
 
 /*---------------------------------------------------*/
 static
@@ -528,6 +489,7 @@ int BZ_API(BZ2_bzCompressEnd)  ( bz_stream *strm )
    return BZ_OK;
 }
 
+#endif /* BZ_NO_COMPRESS */
 
 /*---------------------------------------------------*/
 /*--- Decompression stuff                         ---*/
@@ -643,6 +605,7 @@ Bool unRLE_obuf_to_output_FAST ( DState* s )
       UInt32        c_tPos               = s->tPos;
       char*         cs_next_out          = s->strm->next_out;
       unsigned int  cs_avail_out         = s->strm->avail_out;
+      Int32         ro_blockSize100k     = s->blockSize100k;
       /* end restore */
 
       UInt32       avail_out_INIT = cs_avail_out;
@@ -921,6 +884,7 @@ int BZ_API(BZ2_bzDecompressEnd)  ( bz_stream *strm )
    return BZ_OK;
 }
 
+#ifndef BZ_NO_COMPRESS
 
 #ifndef BZ_NO_STDIO
 /*---------------------------------------------------*/
@@ -1394,8 +1358,7 @@ int BZ_API(BZ2_bzBuffToBuffDecompress)
 
 /*---------------------------------------------------*/
 /*--
-   Code contributed by Yoshioka Tsuneo
-   (QWF00133@niftyserve.or.jp/tsuneo-y@is.aist-nara.ac.jp),
+   Code contributed by Yoshioka Tsuneo (tsuneo@rr.iij4u.or.jp)
    to support better zlib compatibility.
    This code is not _officially_ part of libbzip2 (yet);
    I haven't tested it, documented it, or considered the
@@ -1406,7 +1369,7 @@ int BZ_API(BZ2_bzBuffToBuffDecompress)
 
 /*---------------------------------------------------*/
 /*--
-   return version like "0.9.0c".
+   return version like "0.9.5d, 4-Sept-1999".
 --*/
 const char * BZ_API(BZ2_bzlibVersion)(void)
 {
@@ -1559,9 +1522,10 @@ int BZ_API(BZ2_bzflush) (BZFILE *b)
 void BZ_API(BZ2_bzclose) (BZFILE* b)
 {
    int bzerr;
-   FILE *fp = ((bzFile *)b)->handle;
+   FILE *fp;
    
    if (b==NULL) {return;}
+   fp = ((bzFile *)b)->handle;
    if(((bzFile*)b)->writing){
       BZ2_bzWriteClose(&bzerr,b,0,NULL,NULL);
       if(bzerr != BZ_OK){
@@ -1580,7 +1544,7 @@ void BZ_API(BZ2_bzclose) (BZFILE* b)
 /*--
    return last error code 
 --*/
-static char *bzerrorstrings[] = {
+static const char *bzerrorstrings[] = {
        "OK"
       ,"SEQUENCE_ERROR"
       ,"PARAM_ERROR"
@@ -1610,6 +1574,7 @@ const char * BZ_API(BZ2_bzerror) (BZFILE *b, int *errnum)
 }
 #endif
 
+#endif /* BZ_NO_COMPRESS */
 
 /*-------------------------------------------------------------*/
 /*--- end                                           bzlib.c ---*/

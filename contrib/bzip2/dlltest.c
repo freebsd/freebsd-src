@@ -1,9 +1,8 @@
 /*
    minibz2
       libbz2.dll test program.
-      by Yoshioka Tsuneo(QWF00133@nifty.ne.jp/tsuneo-y@is.aist-nara.ac.jp)
-      This file is Public Domain.
-      welcome any email to me.
+      by Yoshioka Tsuneo (tsuneo@rr.iij4u.or.jp)
+      This file is Public Domain.  Welcome any email to me.
 
    usage: minibz2 [-d] [-{1,2,..9}] [[srcfilename] destfilename]
 */

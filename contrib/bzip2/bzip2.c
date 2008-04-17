@@ -3,118 +3,26 @@
 /*--- A block-sorting, lossless compressor        bzip2.c ---*/
 /*-----------------------------------------------------------*/
 
-/*--
-  This file is a part of bzip2 and/or libbzip2, a program and
-  library for lossless, block-sorting data compression.
+/* ------------------------------------------------------------------
+   This file is part of bzip2/libbzip2, a program and library for
+   lossless, block-sorting data compression.
 
-  Copyright (C) 1996-2002 Julian R Seward.  All rights reserved.
+   bzip2/libbzip2 version 1.0.5 of 10 December 2007
+   Copyright (C) 1996-2007 Julian Seward <jseward@bzip.org>
 
-  Redistribution and use in source and binary forms, with or without
-  modification, are permitted provided that the following conditions
-  are met:
+   Please read the WARNING, DISCLAIMER and PATENTS sections in the 
+   README file.
 
-  1. Redistributions of source code must retain the above copyright
-     notice, this list of conditions and the following disclaimer.
-
-  2. The origin of this software must not be misrepresented; you must 
-     not claim that you wrote the original software.  If you use this 
-     software in a product, an acknowledgment in the product 
-     documentation would be appreciated but is not required.
-
-  3. Altered source versions must be plainly marked as such, and must
-     not be misrepresented as being the original software.
-
-  4. The name of the author may not be used to endorse or promote 
-     products derived from this software without specific prior written 
-     permission.
-
-  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS
-  OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-  WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-  ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
-  DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-  DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
-  GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
-  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-  NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-  Julian Seward, Cambridge, UK.
-  jseward@acm.org
-  bzip2/libbzip2 version 1.0 of 21 March 2000
-
-  This program is based on (at least) the work of:
-     Mike Burrows
-     David Wheeler
-     Peter Fenwick
-     Alistair Moffat
-     Radford Neal
-     Ian H. Witten
-     Robert Sedgewick
-     Jon L. Bentley
-
-  For more information on these sources, see the manual.
---*/
+   This program is released under the terms of the license contained
+   in the file LICENSE.
+   ------------------------------------------------------------------ */
 
 
-/*----------------------------------------------------*/
-/*--- IMPORTANT                                    ---*/
-/*----------------------------------------------------*/
-
-/*--
-   WARNING:
-      This program and library (attempts to) compress data by 
-      performing several non-trivial transformations on it.  
-      Unless you are 100% familiar with *all* the algorithms 
-      contained herein, and with the consequences of modifying them, 
-      you should NOT meddle with the compression or decompression 
-      machinery.  Incorrect changes can and very likely *will* 
-      lead to disasterous loss of data.
-
-   DISCLAIMER:
-      I TAKE NO RESPONSIBILITY FOR ANY LOSS OF DATA ARISING FROM THE
-      USE OF THIS PROGRAM, HOWSOEVER CAUSED.
-
-      Every compression of a file implies an assumption that the
-      compressed file can be decompressed to reproduce the original.
-      Great efforts in design, coding and testing have been made to
-      ensure that this program works correctly.  However, the
-      complexity of the algorithms, and, in particular, the presence
-      of various special cases in the code which occur with very low
-      but non-zero probability make it impossible to rule out the
-      possibility of bugs remaining in the program.  DO NOT COMPRESS
-      ANY DATA WITH THIS PROGRAM AND/OR LIBRARY UNLESS YOU ARE PREPARED 
-      TO ACCEPT THE POSSIBILITY, HOWEVER SMALL, THAT THE DATA WILL 
-      NOT BE RECOVERABLE.
-
-      That is not to say this program is inherently unreliable.
-      Indeed, I very much hope the opposite is true.  bzip2/libbzip2
-      has been carefully constructed and extensively tested.
-
-   PATENTS:
-      To the best of my knowledge, bzip2/libbzip2 does not use any 
-      patented algorithms.  However, I do not have the resources 
-      available to carry out a full patent search.  Therefore I cannot 
-      give any guarantee of the above statement.
---*/
-
-
-
-/*----------------------------------------------------*/
-/*--- and now for something much more pleasant :-) ---*/
-/*----------------------------------------------------*/
-
-/*---------------------------------------------*/
-/*--
-  Place a 1 beside your platform, and 0 elsewhere.
---*/
-
-/*--
-  Generic 32-bit Unix.
-  Also works on 64-bit Unix boxes.
-  This is the default.
---*/
+/* Place a 1 beside your platform, and 0 elsewhere.
+   Generic 32-bit Unix.
+   Also works on 64-bit Unix boxes.
+   This is the default.
+*/
 #define BZ_UNIX      1
 
 /*--
@@ -302,17 +210,17 @@ Char    progNameReally[FILE_NAME_LEN];
 FILE    *outputHandleJustInCase;
 Int32   workFactor;
 
-static void    panic                 ( Char* )   NORETURN;
-static void    ioError               ( void )    NORETURN;
-static void    outOfMemory           ( void )    NORETURN;
-static void    configError           ( void )    NORETURN;
-static void    crcError              ( void )    NORETURN;
-static void    cleanUpAndFail        ( Int32 )   NORETURN;
-static void    compressedStreamEOF   ( void )    NORETURN;
+static void    panic                 ( const Char* ) NORETURN;
+static void    ioError               ( void )        NORETURN;
+static void    outOfMemory           ( void )        NORETURN;
+static void    configError           ( void )        NORETURN;
+static void    crcError              ( void )        NORETURN;
+static void    cleanUpAndFail        ( Int32 )       NORETURN;
+static void    compressedStreamEOF   ( void )        NORETURN;
 
 static void    copyFileName ( Char*, Char* );
 static void*   myMalloc     ( Int32 );
-static int     applySavedFileAttrToOutputFile ( int fd );
+static void    applySavedFileAttrToOutputFile ( IntNative fd );
 
 
 
@@ -458,10 +366,9 @@ void compressStream ( FILE *stream, FILE *zStream )
    ret = fflush ( zStream );
    if (ret == EOF) goto errhandler_io;
    if (zStream != stdout) {
-      int fd = fileno ( zStream );
+      Int32 fd = fileno ( zStream );
       if (fd < 0) goto errhandler_io;
-      ret = applySavedFileAttrToOutputFile ( fd );
-      if (ret != 0) goto errhandler_io;
+      applySavedFileAttrToOutputFile ( fd );
       ret = fclose ( zStream );
       outputHandleJustInCase = NULL;
       if (ret == EOF) goto errhandler_io;
@@ -574,11 +481,10 @@ Bool uncompressStream ( FILE *zStream, FILE *stream )
 
    closeok:
    if (ferror(zStream)) goto errhandler_io;
-   if ( stream != stdout) {
-      int fd = fileno ( stream );
+   if (stream != stdout) {
+      Int32 fd = fileno ( stream );
       if (fd < 0) goto errhandler_io;
-      ret = applySavedFileAttrToOutputFile ( fd );
-      if (ret != 0) goto errhandler_io;
+      applySavedFileAttrToOutputFile ( fd );
    }
    ret = fclose ( zStream );
    if (ret == EOF) goto errhandler_io;
@@ -837,13 +743,13 @@ void cleanUpAndFail ( Int32 ec )
 
 /*---------------------------------------------*/
 static 
-void panic ( Char* s )
+void panic ( const Char* s )
 {
    fprintf ( stderr,
              "\n%s: PANIC -- internal consistency error:\n"
              "\t%s\n"
              "\tThis is a BUG.  Please report it to me at:\n"
-             "\tjseward@acm.org\n",
+             "\tjseward@bzip.org\n",
              progName, s );
    showFileNames();
    cleanUpAndFail( 3 );
@@ -923,7 +829,7 @@ void mySIGSEGVorSIGBUScatcher ( IntNative n )
       "   The user's manual, Section 4.3, has more info on (1) and (2).\n"
       "   \n"
       "   If you suspect this is a bug in bzip2, or are unsure about (1)\n"
-      "   or (2), feel free to report it to me at: jseward@acm.org.\n"
+      "   or (2), feel free to report it to me at: jseward@bzip.org.\n"
       "   Section 4.3 of the user's manual describes the info a useful\n"
       "   bug report should have.  If the manual is available on your\n"
       "   system, please try and read it before mailing me.  If you don't\n"
@@ -946,7 +852,7 @@ void mySIGSEGVorSIGBUScatcher ( IntNative n )
       "   The user's manual, Section 4.3, has more info on (2) and (3).\n"
       "   \n"
       "   If you suspect this is a bug in bzip2, or are unsure about (2)\n"
-      "   or (3), feel free to report it to me at: jseward@acm.org.\n"
+      "   or (3), feel free to report it to me at: jseward@bzip.org.\n"
       "   Section 4.3 of the user's manual describes the info a useful\n"
       "   bug report should have.  If the manual is available on your\n"
       "   system, please try and read it before mailing me.  If you don't\n"
@@ -1050,6 +956,7 @@ Bool fileExists ( Char* name )
    For non-Unix platforms, if we are not worrying about
    security issues, simple this simply behaves like fopen.
 */
+static
 FILE* fopen_output_safely ( Char* name, const char* mode )
 {
 #  if BZ_UNIX
@@ -1155,20 +1062,18 @@ void applySavedTimeInfoToOutputFile ( Char *dstName )
 }
 
 static 
-int applySavedFileAttrToOutputFile ( int fd )
+void applySavedFileAttrToOutputFile ( IntNative fd )
 {
 #  if BZ_UNIX
-   IntNative      retVal;
+   IntNative retVal;
 
    retVal = fchmod ( fd, fileMetaInfo.st_mode );
-   if (retVal != 0)
-       return retVal;
+   ERROR_IF_NOT_ZERO ( retVal );
 
    (void) fchown ( fd, fileMetaInfo.st_uid, fileMetaInfo.st_gid );
    /* chown() will in many cases return with EPERM, which can
       be safely ignored.
    */
-   return 0;
 #  endif
 }
 
@@ -1196,13 +1101,13 @@ Bool containsDubiousChars ( Char* name )
 /*---------------------------------------------*/
 #define BZ_N_SUFFIX_PAIRS 4
 
-Char* zSuffix[BZ_N_SUFFIX_PAIRS] 
+const Char* zSuffix[BZ_N_SUFFIX_PAIRS] 
    = { ".bz2", ".bz", ".tbz2", ".tbz" };
-Char* unzSuffix[BZ_N_SUFFIX_PAIRS] 
+const Char* unzSuffix[BZ_N_SUFFIX_PAIRS] 
    = { "", "", ".tar", ".tar" };
 
 static 
-Bool hasSuffix ( Char* s, Char* suffix )
+Bool hasSuffix ( Char* s, const Char* suffix )
 {
    Int32 ns = strlen(s);
    Int32 nx = strlen(suffix);
@@ -1213,7 +1118,8 @@ Bool hasSuffix ( Char* s, Char* suffix )
 
 static 
 Bool mapSuffix ( Char* name, 
-                 Char* oldSuffix, Char* newSuffix )
+                 const Char* oldSuffix, 
+                 const Char* newSuffix )
 {
    if (!hasSuffix(name,oldSuffix)) return False;
    name[strlen(name)-strlen(oldSuffix)] = 0;
@@ -1238,8 +1144,8 @@ void compress ( Char *name )
 
    switch (srcMode) {
       case SM_I2O: 
-         copyFileName ( inName, "(stdin)" );
-         copyFileName ( outName, "(stdout)" ); 
+         copyFileName ( inName, (Char*)"(stdin)" );
+         copyFileName ( outName, (Char*)"(stdout)" ); 
          break;
       case SM_F2F: 
          copyFileName ( inName, name );
@@ -1248,7 +1154,7 @@ void compress ( Char *name )
          break;
       case SM_F2O: 
          copyFileName ( inName, name );
-         copyFileName ( outName, "(stdout)" ); 
+         copyFileName ( outName, (Char*)"(stdout)" ); 
          break;
    }
 
@@ -1422,8 +1328,8 @@ void uncompress ( Char *name )
    cantGuess = False;
    switch (srcMode) {
       case SM_I2O: 
-         copyFileName ( inName, "(stdin)" );
-         copyFileName ( outName, "(stdout)" ); 
+         copyFileName ( inName, (Char*)"(stdin)" );
+         copyFileName ( outName, (Char*)"(stdout)" ); 
          break;
       case SM_F2F: 
          copyFileName ( inName, name );
@@ -1436,7 +1342,7 @@ void uncompress ( Char *name )
          break;
       case SM_F2O: 
          copyFileName ( inName, name );
-         copyFileName ( outName, "(stdout)" ); 
+         copyFileName ( outName, (Char*)"(stdout)" ); 
          break;
    }
 
@@ -1614,9 +1520,9 @@ void testf ( Char *name )
    if (name == NULL && srcMode != SM_I2O)
       panic ( "testf: bad modes\n" );
 
-   copyFileName ( outName, "(none)" );
+   copyFileName ( outName, (Char*)"(none)" );
    switch (srcMode) {
-      case SM_I2O: copyFileName ( inName, "(stdin)" ); break;
+      case SM_I2O: copyFileName ( inName, (Char*)"(stdin)" ); break;
       case SM_F2F: copyFileName ( inName, name ); break;
       case SM_F2O: copyFileName ( inName, name ); break;
    }
@@ -1699,11 +1605,11 @@ void license ( void )
     "bzip2, a block-sorting file compressor.  "
     "Version %s.\n"
     "   \n"
-    "   Copyright (C) 1996-2002 by Julian Seward.\n"
+    "   Copyright (C) 1996-2007 by Julian Seward.\n"
     "   \n"
     "   This program is free software; you can redistribute it and/or modify\n"
     "   it under the terms set out in the LICENSE file, which is included\n"
-    "   in the bzip2-1.0 source distribution.\n"
+    "   in the bzip2-1.0.5 source distribution.\n"
     "   \n"
     "   This program is distributed in the hope that it will be useful,\n"
     "   but WITHOUT ANY WARRANTY; without even the implied warranty of\n"
@@ -1906,8 +1812,8 @@ IntNative main ( IntNative argc, Char *argv[] )
 #  endif
 #  endif
 
-   copyFileName ( inName,  "(none)" );
-   copyFileName ( outName, "(none)" );
+   copyFileName ( inName,  (Char*)"(none)" );
+   copyFileName ( outName, (Char*)"(none)" );
 
    copyFileName ( progNameReally, argv[0] );
    progName = &progNameReally[0];
@@ -1919,8 +1825,8 @@ IntNative main ( IntNative argc, Char *argv[] )
         expand filename wildcards in arg list.
    --*/
    argList = NULL;
-   addFlagsFromEnvVar ( &argList,  "BZIP2" );
-   addFlagsFromEnvVar ( &argList,  "BZIP" );
+   addFlagsFromEnvVar ( &argList,  (Char*)"BZIP2" );
+   addFlagsFromEnvVar ( &argList,  (Char*)"BZIP" );
    for (i = 1; i <= argc-1; i++)
       APPEND_FILESPEC(argList, argv[i]);
 

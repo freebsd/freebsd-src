@@ -1,56 +1,24 @@
-
 /*-----------------------------------------------------------*/
 /*--- Block recoverer program for bzip2                   ---*/
 /*---                                      bzip2recover.c ---*/
 /*-----------------------------------------------------------*/
 
-/*--
-  This program is bzip2recover, a program to attempt data 
-  salvage from damaged files created by the accompanying
-  bzip2-1.0 program.
+/* ------------------------------------------------------------------
+   This file is part of bzip2/libbzip2, a program and library for
+   lossless, block-sorting data compression.
 
-  Copyright (C) 1996-2002 Julian R Seward.  All rights reserved.
+   bzip2/libbzip2 version 1.0.5 of 10 December 2007
+   Copyright (C) 1996-2007 Julian Seward <jseward@bzip.org>
 
-  Redistribution and use in source and binary forms, with or without
-  modification, are permitted provided that the following conditions
-  are met:
+   Please read the WARNING, DISCLAIMER and PATENTS sections in the 
+   README file.
 
-  1. Redistributions of source code must retain the above copyright
-     notice, this list of conditions and the following disclaimer.
+   This program is released under the terms of the license contained
+   in the file LICENSE.
+   ------------------------------------------------------------------ */
 
-  2. The origin of this software must not be misrepresented; you must 
-     not claim that you wrote the original software.  If you use this 
-     software in a product, an acknowledgment in the product 
-     documentation would be appreciated but is not required.
-
-  3. Altered source versions must be plainly marked as such, and must
-     not be misrepresented as being the original software.
-
-  4. The name of the author may not be used to endorse or promote 
-     products derived from this software without specific prior written 
-     permission.
-
-  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS
-  OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-  WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-  ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
-  DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-  DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
-  GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
-  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-  NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-  Julian Seward, Cambridge, UK.
-  jseward@acm.org
-  bzip2/libbzip2 version 1.0 of 21 March 2000
---*/
-
-/*--
-  This program is a complete hack and should be rewritten
-  properly.  It isn't very complicated.
---*/
+/* This program is a complete hack and should be rewritten properly.
+	 It isn't very complicated. */
 
 #include <stdio.h>
 #include <errno.h>
@@ -114,7 +82,7 @@ MaybeUInt64 bytesIn  = 0;
 /*---------------------------------------------------*/
 
 /*---------------------------------------------*/
-void readError ( void )
+static void readError ( void )
 {
    fprintf ( stderr,
              "%s: I/O error reading `%s', possible reason follows.\n",
@@ -127,7 +95,7 @@ void readError ( void )
 
 
 /*---------------------------------------------*/
-void writeError ( void )
+static void writeError ( void )
 {
    fprintf ( stderr,
              "%s: I/O error reading `%s', possible reason follows.\n",
@@ -140,7 +108,7 @@ void writeError ( void )
 
 
 /*---------------------------------------------*/
-void mallocFail ( Int32 n )
+static void mallocFail ( Int32 n )
 {
    fprintf ( stderr,
              "%s: malloc failed on request for %d bytes.\n",
@@ -152,7 +120,7 @@ void mallocFail ( Int32 n )
 
 
 /*---------------------------------------------*/
-void tooManyBlocks ( Int32 max_handled_blocks )
+static void tooManyBlocks ( Int32 max_handled_blocks )
 {
    fprintf ( stderr,
              "%s: `%s' appears to contain more than %d blocks\n",
@@ -183,7 +151,7 @@ typedef
 
 
 /*---------------------------------------------*/
-BitStream* bsOpenReadStream ( FILE* stream )
+static BitStream* bsOpenReadStream ( FILE* stream )
 {
    BitStream *bs = malloc ( sizeof(BitStream) );
    if (bs == NULL) mallocFail ( sizeof(BitStream) );
@@ -196,7 +164,7 @@ BitStream* bsOpenReadStream ( FILE* stream )
 
 
 /*---------------------------------------------*/
-BitStream* bsOpenWriteStream ( FILE* stream )
+static BitStream* bsOpenWriteStream ( FILE* stream )
 {
    BitStream *bs = malloc ( sizeof(BitStream) );
    if (bs == NULL) mallocFail ( sizeof(BitStream) );
@@ -209,7 +177,7 @@ BitStream* bsOpenWriteStream ( FILE* stream )
 
 
 /*---------------------------------------------*/
-void bsPutBit ( BitStream* bs, Int32 bit )
+static void bsPutBit ( BitStream* bs, Int32 bit )
 {
    if (bs->buffLive == 8) {
       Int32 retVal = putc ( (UChar) bs->buffer, bs->handle );
@@ -228,7 +196,7 @@ void bsPutBit ( BitStream* bs, Int32 bit )
 /*--
    Returns 0 or 1, or 2 to indicate EOF.
 --*/
-Int32 bsGetBit ( BitStream* bs )
+static Int32 bsGetBit ( BitStream* bs )
 {
    if (bs->buffLive > 0) {
       bs->buffLive --;
@@ -247,7 +215,7 @@ Int32 bsGetBit ( BitStream* bs )
 
 
 /*---------------------------------------------*/
-void bsClose ( BitStream* bs )
+static void bsClose ( BitStream* bs )
 {
    Int32 retVal;
 
@@ -271,7 +239,7 @@ void bsClose ( BitStream* bs )
 
 
 /*---------------------------------------------*/
-void bsPutUChar ( BitStream* bs, UChar c )
+static void bsPutUChar ( BitStream* bs, UChar c )
 {
    Int32 i;
    for (i = 7; i >= 0; i--)
@@ -280,7 +248,7 @@ void bsPutUChar ( BitStream* bs, UChar c )
 
 
 /*---------------------------------------------*/
-void bsPutUInt32 ( BitStream* bs, UInt32 c )
+static void bsPutUInt32 ( BitStream* bs, UInt32 c )
 {
    Int32 i;
 
@@ -290,7 +258,7 @@ void bsPutUInt32 ( BitStream* bs, UInt32 c )
 
 
 /*---------------------------------------------*/
-Bool endsInBz2 ( Char* name )
+static Bool endsInBz2 ( Char* name )
 {
    Int32 n = strlen ( name );
    if (n <= 4) return False;
@@ -345,7 +313,7 @@ Int32 main ( Int32 argc, Char** argv )
    inFileName[0] = outFileName[0] = 0;
 
    fprintf ( stderr, 
-             "bzip2recover 1.0.2: extracts blocks from damaged .bz2 files.\n" );
+             "bzip2recover 1.0.5: extracts blocks from damaged .bz2 files.\n" );
 
    if (argc != 2) {
       fprintf ( stderr, "%s: usage is `%s damaged_file_name'.\n",
@@ -374,7 +342,7 @@ Int32 main ( Int32 argc, Char** argv )
    if (strlen(argv[1]) >= BZ_MAX_FILENAME-20) {
       fprintf ( stderr, 
                 "%s: supplied filename is suspiciously (>= %d chars) long.  Bye!\n",
-                progName, strlen(argv[1]) );
+                progName, (int)strlen(argv[1]) );
       exit(1);
    }
 

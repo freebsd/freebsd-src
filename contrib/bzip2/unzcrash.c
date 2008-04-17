@@ -8,10 +8,25 @@
    This should not cause any invalid memory accesses.  If it does, 
    I want to know about it!
 
-   p.s.  As you can see from the above description, the process is
+   PS.  As you can see from the above description, the process is
    incredibly slow.  A file of size eg 5KB will cause it to run for
    many hours.
 */
+
+/* ------------------------------------------------------------------
+   This file is part of bzip2/libbzip2, a program and library for
+   lossless, block-sorting data compression.
+
+   bzip2/libbzip2 version 1.0.5 of 10 December 2007
+   Copyright (C) 1996-2007 Julian Seward <jseward@bzip.org>
+
+   Please read the WARNING, DISCLAIMER and PATENTS sections in the 
+   README file.
+
+   This program is released under the terms of the license contained
+   in the file LICENSE.
+   ------------------------------------------------------------------ */
+
 
 #include <stdio.h>
 #include <assert.h>
