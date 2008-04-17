@@ -36,8 +36,13 @@
 #include <sys/queue.h>
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
+#include <sys/_rwlock.h>
 
 #include <net/route.h>
+
+#ifdef _KERNEL
+#include <sys/rwlock.h>
+#endif
 
 #define	in6pcb		inpcb	/* for KAME src sync over BSD*'s */
 #define	in6p_sp		inp_sp	/* for KAME src sync over BSD*'s */
@@ -171,7 +176,7 @@ struct inpcb {
 	struct	inpcbport *inp_phd;	/* head of this list */
 #define inp_zero_size offsetof(struct inpcb, inp_gencnt)
 	inp_gen_t	inp_gencnt;	/* generation count of this instance */
-	struct mtx	inp_mtx;
+	struct rwlock	inp_lock;
 
 #define	in6p_faddr	inp_inc.inc6_faddr
 #define	in6p_laddr	inp_inc.inc6_laddr
@@ -264,7 +269,7 @@ struct inpcbinfo {
 	 * or freed.
 	 */
 	u_quad_t		 ipi_gencnt;
-	struct mtx		 ipi_mtx;
+	struct rwlock		 ipi_lock;
 
 	/*
 	 * vimage 1
@@ -274,12 +279,16 @@ struct inpcbinfo {
 };
 
 #define INP_LOCK_INIT(inp, d, t) \
-	mtx_init(&(inp)->inp_mtx, (d), (t), MTX_DEF | MTX_RECURSE | MTX_DUPOK)
-#define INP_LOCK_DESTROY(inp)	mtx_destroy(&(inp)->inp_mtx)
-#define INP_LOCK(inp)		mtx_lock(&(inp)->inp_mtx)
-#define INP_UNLOCK(inp)		mtx_unlock(&(inp)->inp_mtx)
-#define INP_LOCK_ASSERT(inp)	mtx_assert(&(inp)->inp_mtx, MA_OWNED)
-#define	INP_UNLOCK_ASSERT(inp)	mtx_assert(&(inp)->inp_mtx, MA_NOTOWNED)
+	rw_init_flags(&(inp)->inp_lock, (t), RW_RECURSE |  RW_DUPOK)
+#define INP_LOCK_DESTROY(inp)	rw_destroy(&(inp)->inp_lock)
+#define INP_RLOCK(inp)		rw_rlock(&(inp)->inp_lock)
+#define INP_WLOCK(inp)		rw_wlock(&(inp)->inp_lock)
+#define INP_RUNLOCK(inp)	rw_runlock(&(inp)->inp_lock)
+#define INP_WUNLOCK(inp)	rw_wunlock(&(inp)->inp_lock)
+#define INP_LOCK_ASSERT(inp)	rw_assert(&(inp)->inp_lock, RA_LOCKED)
+#define	INP_RLOCK_ASSERT(inp)	rw_assert(&(inp)->inp_lock, RA_RLOCKED)
+#define	INP_WLOCK_ASSERT(inp)	rw_assert(&(inp)->inp_lock, RA_WLOCKED)
+#define	INP_UNLOCK_ASSERT(inp)	rw_assert(&(inp)->inp_lock, RA_UNLOCKED)
 
 #ifdef _KERNEL
 /*
@@ -311,15 +320,16 @@ inp_unlock_assert(struct inpcb *inp __unused)
 
 
 #define INP_INFO_LOCK_INIT(ipi, d) \
-	mtx_init(&(ipi)->ipi_mtx, (d), NULL, MTX_DEF | MTX_RECURSE)
-#define INP_INFO_LOCK_DESTROY(ipi)  mtx_destroy(&(ipi)->ipi_mtx)
-#define INP_INFO_RLOCK(ipi)	mtx_lock(&(ipi)->ipi_mtx)
-#define INP_INFO_WLOCK(ipi)	mtx_lock(&(ipi)->ipi_mtx)
-#define INP_INFO_RUNLOCK(ipi)	mtx_unlock(&(ipi)->ipi_mtx)
-#define INP_INFO_WUNLOCK(ipi)	mtx_unlock(&(ipi)->ipi_mtx)
-#define INP_INFO_RLOCK_ASSERT(ipi)	mtx_assert(&(ipi)->ipi_mtx, MA_OWNED)
-#define INP_INFO_WLOCK_ASSERT(ipi)	mtx_assert(&(ipi)->ipi_mtx, MA_OWNED)
-#define INP_INFO_UNLOCK_ASSERT(ipi)	mtx_assert(&(ipi)->ipi_mtx, MA_NOTOWNED)
+	rw_init_flags(&(ipi)->ipi_lock, (d), RW_RECURSE)
+#define INP_INFO_LOCK_DESTROY(ipi)  rw_destroy(&(ipi)->ipi_lock)
+#define INP_INFO_RLOCK(ipi)	rw_rlock(&(ipi)->ipi_lock)
+#define INP_INFO_WLOCK(ipi)	rw_wlock(&(ipi)->ipi_lock)
+#define INP_INFO_RUNLOCK(ipi)	rw_runlock(&(ipi)->ipi_lock)
+#define INP_INFO_WUNLOCK(ipi)	rw_wunlock(&(ipi)->ipi_lock)
+#define	INP_INFO_LOCK_ASSERT(ipi)	rw_assert(&(ipi)->ipi_lock, RA_LOCKED)
+#define INP_INFO_RLOCK_ASSERT(ipi)	rw_assert(&(ipi)->ipi_lock, RA_RLOCKED)
+#define INP_INFO_WLOCK_ASSERT(ipi)	rw_assert(&(ipi)->ipi_lock, RA_WLOCKED)
+#define INP_INFO_UNLOCK_ASSERT(ipi)	rw_assert(&(ipi)->ipi_lock, RA_UNLOCKED)
 
 #define INP_PCBHASH(faddr, lport, fport, mask) \
 	(((faddr) ^ ((faddr) >> 16) ^ ntohs((lport) ^ (fport))) & (mask))

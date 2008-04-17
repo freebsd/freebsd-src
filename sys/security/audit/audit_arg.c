@@ -649,7 +649,7 @@ audit_arg_file(struct proc *p, struct file *fp)
 			    so->so_proto->pr_protocol;
 			SOCK_UNLOCK(so);
 			pcb = (struct inpcb *)so->so_pcb;
-			INP_LOCK(pcb);
+			INP_WLOCK(pcb);
 			ar->k_ar.ar_arg_sockinfo.so_raddr =
 			    pcb->inp_faddr.s_addr;
 			ar->k_ar.ar_arg_sockinfo.so_laddr =
@@ -658,7 +658,7 @@ audit_arg_file(struct proc *p, struct file *fp)
 			    pcb->inp_fport;
 			ar->k_ar.ar_arg_sockinfo.so_lport =
 			    pcb->inp_lport;
-			INP_UNLOCK(pcb);
+			INP_WUNLOCK(pcb);
 			ARG_SET_VALID(ar, ARG_SOCKINFO);
 		}
 		break;

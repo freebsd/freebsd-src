@@ -152,7 +152,7 @@ tcp_output(struct tcpcb *tp)
 	isipv6 = (tp->t_inpcb->inp_vflag & INP_IPV6) != 0;
 #endif
 
-	INP_LOCK_ASSERT(tp->t_inpcb);
+	INP_WLOCK_ASSERT(tp->t_inpcb);
 
 	/*
 	 * Determine length of data that should be transmitted,
