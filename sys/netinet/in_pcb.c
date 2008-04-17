@@ -218,7 +218,7 @@ in_pcballoc(struct socket *so, struct inpcbinfo *pcbinfo)
 	if (ip6_auto_flowlabel)
 		inp->inp_flags |= IN6P_AUTOFLOWLABEL;
 #endif
-	INP_LOCK(inp);
+	INP_WLOCK(inp);
 	inp->inp_gencnt = ++pcbinfo->ipi_gencnt;
 	
 #if defined(IPSEC) || defined(MAC)
@@ -235,7 +235,7 @@ in_pcbbind(struct inpcb *inp, struct sockaddr *nam, struct ucred *cred)
 	int anonport, error;
 
 	INP_INFO_WLOCK_ASSERT(inp->inp_pcbinfo);
-	INP_LOCK_ASSERT(inp);
+	INP_WLOCK_ASSERT(inp);
 
 	if (inp->inp_lport != 0 || inp->inp_laddr.s_addr != INADDR_ANY)
 		return (EINVAL);
@@ -278,7 +278,11 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 	int error, prison = 0;
 	int dorandom;
 
-	INP_INFO_WLOCK_ASSERT(pcbinfo);
+	/*
+	 * Because no actual state changes occur here, a write global write
+	 * lock on the pcbinfo isn't required.
+	 */
+	INP_INFO_LOCK_ASSERT(pcbinfo);
 	INP_LOCK_ASSERT(inp);
 
 	if (TAILQ_EMPTY(&in_ifaddrhead)) /* XXX broken! */
@@ -484,7 +488,7 @@ in_pcbconnect(struct inpcb *inp, struct sockaddr *nam, struct ucred *cred)
 	int anonport, error;
 
 	INP_INFO_WLOCK_ASSERT(inp->inp_pcbinfo);
-	INP_LOCK_ASSERT(inp);
+	INP_WLOCK_ASSERT(inp);
 
 	lport = inp->inp_lport;
 	laddr = inp->inp_laddr.s_addr;
@@ -546,7 +550,11 @@ in_pcbconnect_setup(struct inpcb *inp, struct sockaddr *nam,
 	u_short lport, fport;
 	int error;
 
-	INP_INFO_WLOCK_ASSERT(inp->inp_pcbinfo);
+	/*
+	 * Because a global state change doesn't actually occur here, a read
+	 * lock is sufficient.
+	 */
+	INP_INFO_LOCK_ASSERT(inp->inp_pcbinfo);
 	INP_LOCK_ASSERT(inp);
 
 	if (oinpp != NULL)
@@ -666,7 +674,7 @@ in_pcbdisconnect(struct inpcb *inp)
 {
 
 	INP_INFO_WLOCK_ASSERT(inp->inp_pcbinfo);
-	INP_LOCK_ASSERT(inp);
+	INP_WLOCK_ASSERT(inp);
 
 	inp->inp_faddr.s_addr = INADDR_ANY;
 	inp->inp_fport = 0;
@@ -695,8 +703,9 @@ in_pcbfree(struct inpcb *inp)
 	struct inpcbinfo *ipi = inp->inp_pcbinfo;
 
 	KASSERT(inp->inp_socket == NULL, ("in_pcbfree: inp_socket != NULL"));
+
 	INP_INFO_WLOCK_ASSERT(ipi);
-	INP_LOCK_ASSERT(inp);
+	INP_WLOCK_ASSERT(inp);
 
 #ifdef IPSEC
 	ipsec4_delete_pcbpolicy(inp);
@@ -712,7 +721,7 @@ in_pcbfree(struct inpcb *inp)
 #ifdef MAC
 	mac_inpcb_destroy(inp);
 #endif
-	INP_UNLOCK(inp);
+	INP_WUNLOCK(inp);
 	uma_zfree(ipi->ipi_zone, inp);
 }
 
@@ -727,7 +736,7 @@ in_pcbdrop(struct inpcb *inp)
 {
 
 	INP_INFO_WLOCK_ASSERT(inp->inp_pcbinfo);
-	INP_LOCK_ASSERT(inp);
+	INP_WLOCK_ASSERT(inp);
 
 	inp->inp_vflag |= INP_DROPPED;
 	if (inp->inp_lport) {
@@ -771,10 +780,10 @@ in_getsockaddr(struct socket *so, struct sockaddr **nam)
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("in_getsockaddr: inp == NULL"));
 
-	INP_LOCK(inp);
+	INP_WLOCK(inp);
 	port = inp->inp_lport;
 	addr = inp->inp_laddr;
-	INP_UNLOCK(inp);
+	INP_WUNLOCK(inp);
 
 	*nam = in_sockaddr(port, &addr);
 	return 0;
@@ -790,10 +799,10 @@ in_getpeeraddr(struct socket *so, struct sockaddr **nam)
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("in_getpeeraddr: inp == NULL"));
 
-	INP_LOCK(inp);
+	INP_WLOCK(inp);
 	port = inp->inp_fport;
 	addr = inp->inp_faddr;
-	INP_UNLOCK(inp);
+	INP_WUNLOCK(inp);
 
 	*nam = in_sockaddr(port, &addr);
 	return 0;
@@ -807,20 +816,20 @@ in_pcbnotifyall(struct inpcbinfo *pcbinfo, struct in_addr faddr, int errno,
 
 	INP_INFO_WLOCK(pcbinfo);
 	LIST_FOREACH_SAFE(inp, pcbinfo->ipi_listhead, inp_list, inp_temp) {
-		INP_LOCK(inp);
+		INP_WLOCK(inp);
 #ifdef INET6
 		if ((inp->inp_vflag & INP_IPV4) == 0) {
-			INP_UNLOCK(inp);
+			INP_WUNLOCK(inp);
 			continue;
 		}
 #endif
 		if (inp->inp_faddr.s_addr != faddr.s_addr ||
 		    inp->inp_socket == NULL) {
-			INP_UNLOCK(inp);
+			INP_WUNLOCK(inp);
 			continue;
 		}
 		if ((*notify)(inp, errno))
-			INP_UNLOCK(inp);
+			INP_WUNLOCK(inp);
 	}
 	INP_INFO_WUNLOCK(pcbinfo);
 }
@@ -834,7 +843,7 @@ in_pcbpurgeif0(struct inpcbinfo *pcbinfo, struct ifnet *ifp)
 
 	INP_INFO_RLOCK(pcbinfo);
 	LIST_FOREACH(inp, pcbinfo->ipi_listhead, inp_list) {
-		INP_LOCK(inp);
+		INP_WLOCK(inp);
 		imo = inp->inp_moptions;
 		if ((inp->inp_vflag & INP_IPV4) &&
 		    imo != NULL) {
@@ -860,7 +869,7 @@ in_pcbpurgeif0(struct inpcbinfo *pcbinfo, struct ifnet *ifp)
 			}
 			imo->imo_num_memberships -= gap;
 		}
-		INP_UNLOCK(inp);
+		INP_WUNLOCK(inp);
 	}
 	INP_INFO_RUNLOCK(pcbinfo);
 }
@@ -882,7 +891,7 @@ in_pcblookup_local(struct inpcbinfo *pcbinfo, struct in_addr laddr,
 	int wildcard;
 	u_short lport = lport_arg;
 
-	INP_INFO_WLOCK_ASSERT(pcbinfo);
+	INP_INFO_LOCK_ASSERT(pcbinfo);
 
 	if (!wild_okay) {
 		struct inpcbhead *head;
@@ -989,7 +998,7 @@ in_pcblookup_hash(struct inpcbinfo *pcbinfo, struct in_addr faddr,
 	struct inpcb *inp;
 	u_short fport = fport_arg, lport = lport_arg;
 
-	INP_INFO_RLOCK_ASSERT(pcbinfo);
+	INP_INFO_LOCK_ASSERT(pcbinfo);
 
 	/*
 	 * First look for an exact match.
@@ -1064,7 +1073,7 @@ in_pcbinshash(struct inpcb *inp)
 	u_int32_t hashkey_faddr;
 
 	INP_INFO_WLOCK_ASSERT(pcbinfo);
-	INP_LOCK_ASSERT(inp);
+	INP_WLOCK_ASSERT(inp);
 
 #ifdef INET6
 	if (inp->inp_vflag & INP_IPV6)
@@ -1118,7 +1127,7 @@ in_pcbrehash(struct inpcb *inp)
 	u_int32_t hashkey_faddr;
 
 	INP_INFO_WLOCK_ASSERT(pcbinfo);
-	INP_LOCK_ASSERT(inp);
+	INP_WLOCK_ASSERT(inp);
 
 #ifdef INET6
 	if (inp->inp_vflag & INP_IPV6)
@@ -1143,7 +1152,7 @@ in_pcbremlists(struct inpcb *inp)
 	struct inpcbinfo *pcbinfo = inp->inp_pcbinfo;
 
 	INP_INFO_WLOCK_ASSERT(pcbinfo);
-	INP_LOCK_ASSERT(inp);
+	INP_WLOCK_ASSERT(inp);
 
 	inp->inp_gencnt = ++pcbinfo->ipi_gencnt;
 	if (inp->inp_lport) {
@@ -1173,11 +1182,11 @@ in_pcbsosetlabel(struct socket *so)
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("in_pcbsosetlabel: so->so_pcb == NULL"));
 
-	INP_LOCK(inp);
+	INP_WLOCK(inp);
 	SOCK_LOCK(so);
 	mac_inpcb_sosetlabel(so, inp);
 	SOCK_UNLOCK(so);
-	INP_UNLOCK(inp);
+	INP_WUNLOCK(inp);
 #endif
 }
 
@@ -1205,28 +1214,28 @@ void
 inp_wlock(struct inpcb *inp)
 {
 
-	INP_LOCK(inp);
+	INP_WLOCK(inp);
 }
 
 void
 inp_wunlock(struct inpcb *inp)
 {
 
-	INP_UNLOCK(inp);
+	INP_WUNLOCK(inp);
 }
 
 void
 inp_rlock(struct inpcb *inp)
 {
 
-	INP_LOCK(inp);
+	INP_WLOCK(inp);
 }
 
 void
 inp_runlock(struct inpcb *inp)
 {
 
-	INP_UNLOCK(inp);
+	INP_WUNLOCK(inp);
 }
 
 #ifdef INVARIANTS
@@ -1234,7 +1243,7 @@ void
 inp_lock_assert(struct inpcb *inp)
 {
 
-	INP_LOCK_ASSERT(inp);
+	INP_WLOCK_ASSERT(inp);
 }
 
 void

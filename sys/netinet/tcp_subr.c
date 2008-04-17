@@ -332,7 +332,7 @@ tcpip_fillheaders(struct inpcb *inp, void *ip_ptr, void *tcp_ptr)
 {
 	struct tcphdr *th = (struct tcphdr *)tcp_ptr;
 
-	INP_LOCK_ASSERT(inp);
+	INP_WLOCK_ASSERT(inp);
 
 #ifdef INET6
 	if ((inp->inp_vflag & INP_IPV6) != 0) {
@@ -438,7 +438,7 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 	if (tp != NULL) {
 		inp = tp->t_inpcb;
 		KASSERT(inp != NULL, ("tcp control block w/o inpcb"));
-		INP_LOCK_ASSERT(inp);
+		INP_WLOCK_ASSERT(inp);
 	} else
 		inp = NULL;
 
@@ -525,7 +525,7 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 		 * Packet is associated with a socket, so allow the
 		 * label of the response to reflect the socket label.
 		 */
-		INP_LOCK_ASSERT(inp);
+		INP_WLOCK_ASSERT(inp);
 		mac_inpcb_create_mbuf(inp, m);
 	} else {
 		/*
@@ -648,7 +648,7 @@ tcp_drop(struct tcpcb *tp, int errno)
 	struct socket *so = tp->t_inpcb->inp_socket;
 
 	INP_INFO_WLOCK_ASSERT(&tcbinfo);
-	INP_LOCK_ASSERT(tp->t_inpcb);
+	INP_WLOCK_ASSERT(tp->t_inpcb);
 
 	if (TCPS_HAVERCVDSYN(tp->t_state)) {
 		tp->t_state = TCPS_CLOSED;
@@ -672,7 +672,7 @@ tcp_discardcb(struct tcpcb *tp)
 	int isipv6 = (inp->inp_vflag & INP_IPV6) != 0;
 #endif /* INET6 */
 
-	INP_LOCK_ASSERT(inp);
+	INP_WLOCK_ASSERT(inp);
 
 	/*
 	 * Make sure that all of our timers are stopped before we
@@ -770,7 +770,7 @@ tcp_close(struct tcpcb *tp)
 	struct socket *so;
 
 	INP_INFO_WLOCK_ASSERT(&tcbinfo);
-	INP_LOCK_ASSERT(inp);
+	INP_WLOCK_ASSERT(inp);
 
 	/* Notify any offload devices of listener close */
 	if (tp->t_state == TCPS_LISTEN)
@@ -784,7 +784,7 @@ tcp_close(struct tcpcb *tp)
 		KASSERT(so->so_state & SS_PROTOREF,
 		    ("tcp_close: !SS_PROTOREF"));
 		inp->inp_vflag &= ~INP_SOCKREF;
-		INP_UNLOCK(inp);
+		INP_WUNLOCK(inp);
 		ACCEPT_LOCK();
 		SOCK_LOCK(so);
 		so->so_state &= ~SS_PROTOREF;
@@ -815,7 +815,7 @@ tcp_drain(void)
 		LIST_FOREACH(inpb, tcbinfo.ipi_listhead, inp_list) {
 			if (inpb->inp_vflag & INP_TIMEWAIT)
 				continue;
-			INP_LOCK(inpb);
+			INP_WLOCK(inpb);
 			if ((tcpb = intotcpcb(inpb)) != NULL) {
 				while ((te = LIST_FIRST(&tcpb->t_segq))
 			            != NULL) {
@@ -827,7 +827,7 @@ tcp_drain(void)
 				}
 				tcp_clean_sackreport(tcpb);
 			}
-			INP_UNLOCK(inpb);
+			INP_WUNLOCK(inpb);
 		}
 		INP_INFO_RUNLOCK(&tcbinfo);
 	}
@@ -847,7 +847,7 @@ tcp_notify(struct inpcb *inp, int error)
 	struct tcpcb *tp;
 
 	INP_INFO_WLOCK_ASSERT(&tcbinfo);
-	INP_LOCK_ASSERT(inp);
+	INP_WLOCK_ASSERT(inp);
 
 	if ((inp->inp_vflag & INP_TIMEWAIT) ||
 	    (inp->inp_vflag & INP_DROPPED))
@@ -942,7 +942,7 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 	INP_INFO_RLOCK(&tcbinfo);
 	for (inp = LIST_FIRST(tcbinfo.ipi_listhead), i = 0; inp != NULL && i
 	    < n; inp = LIST_NEXT(inp, inp_list)) {
-		INP_LOCK(inp);
+		INP_WLOCK(inp);
 		if (inp->inp_gencnt <= gencnt) {
 			/*
 			 * XXX: This use of cr_cansee(), introduced with
@@ -961,7 +961,7 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 			if (error == 0)
 				inp_list[i++] = inp;
 		}
-		INP_UNLOCK(inp);
+		INP_WUNLOCK(inp);
 	}
 	INP_INFO_RUNLOCK(&tcbinfo);
 	n = i;
@@ -969,7 +969,7 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 	error = 0;
 	for (i = 0; i < n; i++) {
 		inp = inp_list[i];
-		INP_LOCK(inp);
+		INP_WLOCK(inp);
 		if (inp->inp_gencnt <= gencnt) {
 			struct xtcpcb xt;
 			void *inp_ppcb;
@@ -993,10 +993,10 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 				xt.xt_socket.xso_protocol = IPPROTO_TCP;
 			}
 			xt.xt_inp.inp_gencnt = inp->inp_gencnt;
-			INP_UNLOCK(inp);
+			INP_WUNLOCK(inp);
 			error = SYSCTL_OUT(req, &xt, sizeof xt);
 		} else
-			INP_UNLOCK(inp);
+			INP_WUNLOCK(inp);
 	
 	}
 	if (!error) {
@@ -1042,7 +1042,7 @@ tcp_getcred(SYSCTL_HANDLER_ARGS)
 		error = ENOENT;
 		goto outunlocked;
 	}
-	INP_LOCK(inp);
+	INP_WLOCK(inp);
 	if (inp->inp_socket == NULL) {
 		error = ENOENT;
 		goto out;
@@ -1052,7 +1052,7 @@ tcp_getcred(SYSCTL_HANDLER_ARGS)
 		goto out;
 	cru2x(inp->inp_socket->so_cred, &xuc);
 out:
-	INP_UNLOCK(inp);
+	INP_WUNLOCK(inp);
 outunlocked:
 	INP_INFO_RUNLOCK(&tcbinfo);
 	if (error == 0)
@@ -1106,7 +1106,7 @@ tcp6_getcred(SYSCTL_HANDLER_ARGS)
 		error = ENOENT;
 		goto outunlocked;
 	}
-	INP_LOCK(inp);
+	INP_WLOCK(inp);
 	if (inp->inp_socket == NULL) {
 		error = ENOENT;
 		goto out;
@@ -1116,7 +1116,7 @@ tcp6_getcred(SYSCTL_HANDLER_ARGS)
 		goto out;
 	cru2x(inp->inp_socket->so_cred, &xuc);
 out:
-	INP_UNLOCK(inp);
+	INP_WUNLOCK(inp);
 outunlocked:
 	INP_INFO_RUNLOCK(&tcbinfo);
 	if (error == 0)
@@ -1181,7 +1181,7 @@ tcp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 		inp = in_pcblookup_hash(&tcbinfo, faddr, th->th_dport,
 		    ip->ip_src, th->th_sport, 0, NULL);
 		if (inp != NULL)  {
-			INP_LOCK(inp);
+			INP_WLOCK(inp);
 			if (!(inp->inp_vflag & INP_TIMEWAIT) &&
 			    !(inp->inp_vflag & INP_DROPPED) &&
 			    !(inp->inp_socket == NULL)) {
@@ -1230,7 +1230,7 @@ tcp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 				}
 			}
 			if (inp != NULL)
-				INP_UNLOCK(inp);
+				INP_WUNLOCK(inp);
 		} else {
 			inc.inc_fport = th->th_dport;
 			inc.inc_lport = th->th_sport;
@@ -1381,7 +1381,7 @@ tcp_new_isn(struct tcpcb *tp)
 	u_int32_t md5_buffer[4];
 	tcp_seq new_isn;
 
-	INP_LOCK_ASSERT(tp->t_inpcb);
+	INP_WLOCK_ASSERT(tp->t_inpcb);
 
 	ISN_LOCK();
 	/* Seed if this is the first use, reseed if requested. */
@@ -1452,7 +1452,7 @@ tcp_drop_syn_sent(struct inpcb *inp, int errno)
 	struct tcpcb *tp;
 
 	INP_INFO_WLOCK_ASSERT(&tcbinfo);
-	INP_LOCK_ASSERT(inp);
+	INP_WLOCK_ASSERT(inp);
 
 	if ((inp->inp_vflag & INP_TIMEWAIT) ||
 	    (inp->inp_vflag & INP_DROPPED))
@@ -1487,7 +1487,7 @@ tcp_mtudisc(struct inpcb *inp, int errno)
 	int isipv6;
 #endif /* INET6 */
 
-	INP_LOCK_ASSERT(inp);
+	INP_WLOCK_ASSERT(inp);
 	if ((inp->inp_vflag & INP_TIMEWAIT) ||
 	    (inp->inp_vflag & INP_DROPPED))
 		return (inp);
@@ -1752,7 +1752,7 @@ tcp_xmit_bandwidth_limit(struct tcpcb *tp, tcp_seq ack_seq)
 	u_long bwnd;
 	int save_ticks;
 
-	INP_LOCK_ASSERT(tp->t_inpcb);
+	INP_WLOCK_ASSERT(tp->t_inpcb);
 
 	/*
 	 * If inflight_enable is disabled in the middle of a tcp connection,
@@ -2045,7 +2045,7 @@ sysctl_drop(SYSCTL_HANDLER_ARGS)
 		break;
 	}
 	if (inp != NULL) {
-		INP_LOCK(inp);
+		INP_WLOCK(inp);
 		if (inp->inp_vflag & INP_TIMEWAIT) {
 			/*
 			 * XXXRW: There currently exists a state where an
@@ -2057,15 +2057,15 @@ sysctl_drop(SYSCTL_HANDLER_ARGS)
 			if (tw != NULL)
 				tcp_twclose(tw, 0);
 			else
-				INP_UNLOCK(inp);
+				INP_WUNLOCK(inp);
 		} else if (!(inp->inp_vflag & INP_DROPPED) &&
 			   !(inp->inp_socket->so_options & SO_ACCEPTCONN)) {
 			tp = intotcpcb(inp);
 			tp = tcp_drop(tp, ECONNABORTED);
 			if (tp != NULL)
-				INP_UNLOCK(inp);
+				INP_WUNLOCK(inp);
 		} else
-			INP_UNLOCK(inp);
+			INP_WUNLOCK(inp);
 	} else
 		error = ESRCH;
 	INP_INFO_WUNLOCK(&tcbinfo);

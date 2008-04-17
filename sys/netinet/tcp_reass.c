@@ -131,7 +131,7 @@ tcp_reass(struct tcpcb *tp, struct tcphdr *th, int *tlenp, struct mbuf *m)
 	struct socket *so = tp->t_inpcb->inp_socket;
 	int flags;
 
-	INP_LOCK_ASSERT(tp->t_inpcb);
+	INP_WLOCK_ASSERT(tp->t_inpcb);
 
 	/*
 	 * XXX: tcp_reass() is rather inefficient with its data structures

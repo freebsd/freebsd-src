@@ -130,7 +130,7 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 	}
 
 	if (inp != NULL)
-		INP_LOCK_ASSERT(inp);
+		INP_WLOCK_ASSERT(inp);
 
 	if (opt) {
 		len = 0;
@@ -844,9 +844,9 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 				m_free(m);
 				break;
 			}
-			INP_LOCK(inp);
+			INP_WLOCK(inp);
 			error = ip_pcbopts(inp, sopt->sopt_name, m);
-			INP_UNLOCK(inp);
+			INP_WUNLOCK(inp);
 			return (error);
 		}
 
@@ -883,12 +883,12 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 				break;
 
 #define	OPTSET(bit) do {						\
-	INP_LOCK(inp);							\
+	INP_WLOCK(inp);							\
 	if (optval)							\
 		inp->inp_flags |= bit;					\
 	else								\
 		inp->inp_flags &= ~bit;					\
-	INP_UNLOCK(inp);						\
+	INP_WUNLOCK(inp);						\
 } while (0)
 
 			case IP_RECVOPTS:
@@ -955,7 +955,7 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 			if (error)
 				break;
 
-			INP_LOCK(inp);
+			INP_WLOCK(inp);
 			switch (optval) {
 			case IP_PORTRANGE_DEFAULT:
 				inp->inp_flags &= ~(INP_LOWPORT);
@@ -976,7 +976,7 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 				error = EINVAL;
 				break;
 			}
-			INP_UNLOCK(inp);
+			INP_WUNLOCK(inp);
 			break;
 
 #ifdef IPSEC
