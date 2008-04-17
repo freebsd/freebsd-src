@@ -624,6 +624,7 @@ icmp_reflect(struct mbuf *m)
 
 	if (IN_MULTICAST(ntohl(ip->ip_src.s_addr)) ||
 	    IN_EXPERIMENTAL(ntohl(ip->ip_src.s_addr)) ||
+            IN_LOOPBACK(ntohl(ip->ip_src.s_addr)) ||
 	    IN_ZERONET(ntohl(ip->ip_src.s_addr)) ) {
 		m_freem(m);	/* Bad return address */
 		icmpstat.icps_badaddr++;
