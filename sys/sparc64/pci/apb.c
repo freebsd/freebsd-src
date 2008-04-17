@@ -106,9 +106,6 @@ static device_method_t apb_methods[] = {
 	/* ofw_bus interface */
 	DEVMETHOD(ofw_bus_get_node,	ofw_pcib_gen_get_node),
 
-	/* ofw_pci interface */
-	DEVMETHOD(ofw_pci_adjust_busrange,	ofw_pcib_gen_adjust_busrange),
-
 	{ 0, 0 }
 };
 
@@ -179,6 +176,11 @@ apb_attach(device_t dev)
 	/*
 	 * Get current bridge configuration.
 	 */
+	sc->sc_bsc.ops_pcib_sc.domain = pci_get_domain(dev);
+	sc->sc_bsc.ops_pcib_sc.secbus =
+	    pci_read_config(dev, PCIR_SECBUS_1, 1);
+	sc->sc_bsc.ops_pcib_sc.subbus =
+	    pci_read_config(dev, PCIR_SUBBUS_1, 1);
 	sc->sc_iomap = pci_read_config(dev, APBR_IOMAP, 1);
 	sc->sc_memmap = pci_read_config(dev, APBR_MEMMAP, 1);
 	ofw_pcib_gen_setup(dev);
@@ -198,7 +200,7 @@ apb_attach(device_t dev)
 		printf("\n");
 	}
 
-	device_add_child(dev, "pci", sc->sc_bsc.ops_pcib_sc.secbus);
+	device_add_child(dev, "pci", -1);
 	return (bus_generic_attach(dev));
 }
 
@@ -207,7 +209,7 @@ apb_attach(device_t dev)
  * is set up to, or capable of handling them.
  */
 static struct resource *
-apb_alloc_resource(device_t dev, device_t child, int type, int *rid, 
+apb_alloc_resource(device_t dev, device_t child, int type, int *rid,
     u_long start, u_long end, u_long count, u_int flags)
 {
 	struct apb_softc *sc;
