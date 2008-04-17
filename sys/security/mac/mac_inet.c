@@ -201,7 +201,7 @@ mac_inpcb_create_mbuf(struct inpcb *inp, struct mbuf *m)
 {
 	struct label *mlabel;
 
-	INP_LOCK_ASSERT(inp);
+	INP_WLOCK_ASSERT(inp);
 	mlabel = mac_mbuf_to_label(m);
 
 	MAC_PERFORM(inpcb_create_mbuf, inp, inp->inp_label, m, mlabel);
@@ -306,7 +306,7 @@ void
 mac_inpcb_sosetlabel(struct socket *so, struct inpcb *inp)
 {
 
-	INP_LOCK_ASSERT(inp);
+	INP_WLOCK_ASSERT(inp);
 	SOCK_LOCK_ASSERT(so);
 	MAC_PERFORM(inpcb_sosetlabel, so, so->so_label, inp, inp->inp_label);
 }
@@ -376,7 +376,7 @@ void
 mac_syncache_create(struct label *label, struct inpcb *inp)
 {
 
-	INP_LOCK_ASSERT(inp);
+	INP_WLOCK_ASSERT(inp);
 	MAC_PERFORM(syncache_create, label, inp);
 }
 
