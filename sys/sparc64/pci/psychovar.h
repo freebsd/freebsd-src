@@ -71,11 +71,10 @@ struct psycho_softc {
 
 	bus_space_handle_t		sc_pci_bh[PSYCHO_NRANGE];
 
-	u_int				sc_pci_secbus;
-	u_int				sc_pci_subbus;
-
 	struct rman			sc_pci_mem_rman;
 	struct rman			sc_pci_io_rman;
+
+	uint8_t				sc_pci_secbus;
 
 	uint8_t				sc_pci_hpbcfg[16];
 
