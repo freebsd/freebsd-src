@@ -179,10 +179,6 @@ ofw_pcibus_attach(device_t dev)
 	pcib = device_get_parent(dev);
 
 	domain = pcib_get_domain(dev);
-	/*
-	 * Ask the bridge for the bus number - in some cases, we need to
-	 * renumber buses, so the firmware information cannot be trusted.
-	 */
 	busno = pcib_get_bus(dev);
 	if (bootverbose)
 		device_printf(dev, "domain=%d, physical bus=%d\n",
