@@ -49,7 +49,6 @@ snprintf(char * __restrict str, size_t n, char const * __restrict fmt, ...)
 	int ret;
 	va_list ap;
 	FILE f;
-	struct __sFILEX ext;
 
 	on = n;
 	if (n != 0)
@@ -61,8 +60,8 @@ snprintf(char * __restrict str, size_t n, char const * __restrict fmt, ...)
 	f._flags = __SWR | __SSTR;
 	f._bf._base = f._p = (unsigned char *)str;
 	f._bf._size = f._w = n;
-	f._extra = &ext;
-	INITEXTRA(&f);
+	f._orientation = 0;
+	memset(&f._mbstate, 0, sizeof(mbstate_t));
 	ret = __vfprintf(&f, fmt, ap);
 	if (on > 0)
 		*f._p = '\0';

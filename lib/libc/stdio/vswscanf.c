@@ -63,7 +63,6 @@ vswscanf(const wchar_t * __restrict str, const wchar_t * __restrict fmt,
 	static const mbstate_t initial;
 	mbstate_t mbs;
 	FILE f;
-	struct __sFILEX ext;
 	char *mbstr;
 	size_t mlen;
 	int r;
@@ -86,8 +85,8 @@ vswscanf(const wchar_t * __restrict str, const wchar_t * __restrict fmt,
 	f._read = eofread;
 	f._ub._base = NULL;
 	f._lb._base = NULL;
-	f._extra = &ext;
-	INITEXTRA(&f);
+	f._orientation = 0;
+	memset(&f._mbstate, 0, sizeof(mbstate_t));
 	r = __vfwscanf(&f, fmt, ap);
 	free(mbstr);
 

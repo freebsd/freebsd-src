@@ -42,9 +42,9 @@ fwide(FILE *fp, int mode)
 
 	FLOCKFILE(fp);
 	/* Only change the orientation if the stream is not oriented yet. */
-	if (mode != 0 && fp->_extra->orientation == 0)
-		fp->_extra->orientation = mode > 0 ? 1 : -1;
-	m = fp->_extra->orientation;
+	if (mode != 0 && fp->_orientation == 0)
+		fp->_orientation = mode > 0 ? 1 : -1;
+	m = fp->_orientation;
 	FUNLOCKFILE(fp);
 
 	return (m);

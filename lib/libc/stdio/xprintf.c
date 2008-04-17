@@ -583,7 +583,8 @@ __v3printf(FILE *fp, const char *fmt, int pct, va_list ap)
 	fake._file = fp->_file;
 	fake._cookie = fp->_cookie;
 	fake._write = fp->_write;
-	fake._extra = fp->_extra;
+	fake._orientation = fp->_orientation;
+	fake._mbstate = fp->_mbstate;
 
 	/* set up the buffer */
 	fake._bf._base = fake._p = buf;

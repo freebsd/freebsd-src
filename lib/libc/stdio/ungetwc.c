@@ -49,7 +49,7 @@ __ungetwc(wint_t wc, FILE *fp)
 
 	if (wc == WEOF)
 		return (WEOF);
-	if ((len = __wcrtomb(buf, wc, &fp->_extra->mbstate)) == (size_t)-1) {
+	if ((len = __wcrtomb(buf, wc, &fp->_mbstate)) == (size_t)-1) {
 		fp->_flags |= __SERR;
 		return (WEOF);
 	}
