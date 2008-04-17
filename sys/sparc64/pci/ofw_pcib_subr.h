@@ -42,6 +42,5 @@ struct ofw_pcib_gen_softc {
 void ofw_pcib_gen_setup(device_t);
 pcib_route_interrupt_t ofw_pcib_gen_route_interrupt;
 ofw_bus_get_node_t ofw_pcib_gen_get_node;
-ofw_pci_adjust_busrange_t ofw_pcib_gen_adjust_busrange;
 
 #endif /* !_SPARC64_PCI_OFW_PCI_SUBR_H */
