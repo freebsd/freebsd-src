@@ -8,6 +8,10 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20080416:	p20	FreeBSD-SA-08:05.openssh
+	Fix logic error in sshd(8) concerning the handling of failed
+	attempts to bind ports for X11 forwarding.
+
 20080214:	p19	FreeBSD-SA-08:02.sendfile, FreeBSD-SA-08:03.ipsec
 	Fix sendfile(2) write-only file permission bypass. [08:02]
 

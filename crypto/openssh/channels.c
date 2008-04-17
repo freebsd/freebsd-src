@@ -2529,9 +2529,6 @@ x11_create_display_inet(int x11_display_offset, int x11_use_localhost,
 				debug2("bind port %d: %.100s", port, strerror(errno));
 				close(sock);
 
-				if (ai->ai_next)
-					continue;
-
 				for (n = 0; n < num_socks; n++) {
 					close(socks[n]);
 				}
