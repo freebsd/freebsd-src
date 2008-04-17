@@ -311,6 +311,9 @@
     <para><application>BIND</application> has been updated from 9.3.1
       to 9.3.4-p1.</para>
 
+    <para><application>bzip2</application> has been updated from 1.0.2
+      to 1.0.5.</para>
+
     <para><application>netcat</application> has been updated from the
       version in a 4 February 2005 OpenBSD snapshot to the version
       included in OpenBSD 3.9.</para>
