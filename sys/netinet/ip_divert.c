@@ -268,7 +268,7 @@ divert_packet(struct mbuf *m, int incoming)
 	nport = htons((u_int16_t)divert_info(mtag));
 	INP_INFO_RLOCK(&divcbinfo);
 	LIST_FOREACH(inp, &divcb, inp_list) {
-		INP_LOCK(inp);
+		INP_WLOCK(inp);
 		/* XXX why does only one socket match? */
 		if (inp->inp_lport == nport) {
 			sa = inp->inp_socket;
@@ -280,10 +280,10 @@ divert_packet(struct mbuf *m, int incoming)
 				sa = NULL;	/* force mbuf reclaim below */
 			} else
 				sorwakeup_locked(sa);
-			INP_UNLOCK(inp);
+			INP_WUNLOCK(inp);
 			break;
 		}
-		INP_UNLOCK(inp);
+		INP_WUNLOCK(inp);
 	}
 	INP_INFO_RUNLOCK(&divcbinfo);
 	if (sa == NULL) {
@@ -356,7 +356,7 @@ div_output(struct socket *so, struct mbuf *m, struct sockaddr_in *sin,
 		dt->info |= IP_FW_DIVERT_OUTPUT_FLAG;
 		INP_INFO_WLOCK(&divcbinfo);
 		inp = sotoinpcb(so);
-		INP_LOCK(inp);
+		INP_WLOCK(inp);
 		/*
 		 * Don't allow both user specified and setsockopt options,
 		 * and don't allow packet length sizes that will crash
@@ -364,7 +364,7 @@ div_output(struct socket *so, struct mbuf *m, struct sockaddr_in *sin,
 		if (((ip->ip_hl != (sizeof (*ip) >> 2)) && inp->inp_options) ||
 		     ((u_short)ntohs(ip->ip_len) > m->m_pkthdr.len)) {
 			error = EINVAL;
-			INP_UNLOCK(inp);
+			INP_WUNLOCK(inp);
 			INP_INFO_WUNLOCK(&divcbinfo);
 			m_freem(m);
 		} else {
@@ -405,7 +405,7 @@ div_output(struct socket *so, struct mbuf *m, struct sockaddr_in *sin,
 				if (options == NULL)
 					error = ENOBUFS;
 			}
-			INP_UNLOCK(inp);
+			INP_WUNLOCK(inp);
 			INP_INFO_WUNLOCK(&divcbinfo);
 			if (error == ENOBUFS) {
 				m_freem(m);
@@ -480,7 +480,7 @@ div_attach(struct socket *so, int proto, struct thread *td)
 	inp->inp_ip_p = proto;
 	inp->inp_vflag |= INP_IPV4;
 	inp->inp_flags |= INP_HDRINCL;
-	INP_UNLOCK(inp);
+	INP_WUNLOCK(inp);
 	return 0;
 }
 
@@ -492,7 +492,7 @@ div_detach(struct socket *so)
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("div_detach: inp == NULL"));
 	INP_INFO_WLOCK(&divcbinfo);
-	INP_LOCK(inp);
+	INP_WLOCK(inp);
 	in_pcbdetach(inp);
 	in_pcbfree(inp);
 	INP_INFO_WUNLOCK(&divcbinfo);
@@ -517,9 +517,9 @@ div_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 		return EAFNOSUPPORT;
 	((struct sockaddr_in *)nam)->sin_addr.s_addr = INADDR_ANY;
 	INP_INFO_WLOCK(&divcbinfo);
-	INP_LOCK(inp);
+	INP_WLOCK(inp);
 	error = in_pcbbind(inp, nam, td->td_ucred);
-	INP_UNLOCK(inp);
+	INP_WUNLOCK(inp);
 	INP_INFO_WUNLOCK(&divcbinfo);
 	return error;
 }
@@ -531,9 +531,9 @@ div_shutdown(struct socket *so)
 
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("div_shutdown: inp == NULL"));
-	INP_LOCK(inp);
+	INP_WLOCK(inp);
 	socantsendmore(so);
-	INP_UNLOCK(inp);
+	INP_WUNLOCK(inp);
 	return 0;
 }
 
@@ -615,11 +615,11 @@ div_pcblist(SYSCTL_HANDLER_ARGS)
 	INP_INFO_RLOCK(&divcbinfo);
 	for (inp = LIST_FIRST(divcbinfo.ipi_listhead), i = 0; inp && i < n;
 	     inp = LIST_NEXT(inp, inp_list)) {
-		INP_LOCK(inp);
+		INP_WLOCK(inp);
 		if (inp->inp_gencnt <= gencnt &&
 		    cr_canseesocket(req->td->td_ucred, inp->inp_socket) == 0)
 			inp_list[i++] = inp;
-		INP_UNLOCK(inp);
+		INP_WUNLOCK(inp);
 	}
 	INP_INFO_RUNLOCK(&divcbinfo);
 	n = i;
@@ -627,7 +627,7 @@ div_pcblist(SYSCTL_HANDLER_ARGS)
 	error = 0;
 	for (i = 0; i < n; i++) {
 		inp = inp_list[i];
-		INP_LOCK(inp);
+		INP_WLOCK(inp);
 		if (inp->inp_gencnt <= gencnt) {
 			struct xinpcb xi;
 			bzero(&xi, sizeof(xi));
@@ -636,10 +636,10 @@ div_pcblist(SYSCTL_HANDLER_ARGS)
 			bcopy(inp, &xi.xi_inp, sizeof *inp);
 			if (inp->inp_socket)
 				sotoxsocket(inp->inp_socket, &xi.xi_socket);
-			INP_UNLOCK(inp);
+			INP_WUNLOCK(inp);
 			error = SYSCTL_OUT(req, &xi, sizeof xi);
 		} else
-			INP_UNLOCK(inp);
+			INP_WUNLOCK(inp);
 	}
 	if (!error) {
 		/*

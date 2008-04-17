@@ -589,7 +589,7 @@ ip_pcbopts(struct inpcb *inp, int optname, struct mbuf *m)
 	struct mbuf **pcbopt;
 	u_char opt;
 
-	INP_LOCK_ASSERT(inp);
+	INP_WLOCK_ASSERT(inp);
 
 	pcbopt = &inp->inp_options;
 

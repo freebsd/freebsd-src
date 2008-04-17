@@ -154,10 +154,10 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 
 	INP_INFO_RLOCK(&ripcbinfo);
 	LIST_FOREACH(in6p, &ripcb, inp_list) {
-		INP_LOCK(in6p);
+		INP_WLOCK(in6p);
 		if ((in6p->in6p_vflag & INP_IPV6) == 0) {
 docontinue:
-			INP_UNLOCK(in6p);
+			INP_WUNLOCK(in6p);
 			continue;
 		}
 		if (in6p->in6p_ip6_nxt &&
@@ -207,7 +207,7 @@ docontinue:
 					sorwakeup(last->in6p_socket);
 				opts = NULL;
 			}
-			INP_UNLOCK(last);
+			INP_WUNLOCK(last);
 		}
 		last = in6p;
 	}
@@ -220,7 +220,7 @@ docontinue:
 		ipsec6stat.in_polvio++;
 		ip6stat.ip6s_delivered--;
 		/* do not inject data into pcb */
-		INP_UNLOCK(last);
+		INP_WUNLOCK(last);
 	} else
 #endif /* IPSEC */
 	if (last) {
@@ -237,7 +237,7 @@ docontinue:
 			rip6stat.rip6s_fullsock++;
 		} else
 			sorwakeup(last->in6p_socket);
-		INP_UNLOCK(last);
+		INP_WUNLOCK(last);
 	} else {
 		rip6stat.rip6s_nosock++;
 		if (m->m_flags & M_MCAST)
@@ -335,7 +335,7 @@ rip6_output(m, va_alist)
 	va_end(ap);
 
 	in6p = sotoin6pcb(so);
-	INP_LOCK(in6p);
+	INP_WLOCK(in6p);
 
 	dst = &dstsock->sin6_addr;
 	if (control) {
@@ -465,7 +465,7 @@ rip6_output(m, va_alist)
 		ip6_clearpktopts(&opt, -1);
 		m_freem(control);
 	}
-	INP_UNLOCK(in6p);
+	INP_WUNLOCK(in6p);
 	return (error);
 }
 
@@ -569,7 +569,7 @@ rip6_attach(struct socket *so, int proto, struct thread *td)
 	inp->in6p_cksum = -1;
 	inp->in6p_icmp6filt = filter;
 	ICMP6_FILTER_SETPASSALL(inp->in6p_icmp6filt);
-	INP_UNLOCK(inp);
+	INP_WUNLOCK(inp);
 	return 0;
 }
 
@@ -585,7 +585,7 @@ rip6_detach(struct socket *so)
 		ip6_mrouter_done();
 	/* xxx: RSVP */
 	INP_INFO_WLOCK(&ripcbinfo);
-	INP_LOCK(inp);
+	INP_WLOCK(inp);
 	if (inp->in6p_icmp6filt) {
 		FREE(inp->in6p_icmp6filt, M_PCB);
 		inp->in6p_icmp6filt = NULL;
@@ -656,9 +656,9 @@ rip6_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 		return (EADDRNOTAVAIL);
 	}
 	INP_INFO_WLOCK(&ripcbinfo);
-	INP_LOCK(inp);
+	INP_WLOCK(inp);
 	inp->in6p_laddr = addr->sin6_addr;
-	INP_UNLOCK(inp);
+	INP_WUNLOCK(inp);
 	INP_INFO_WUNLOCK(&ripcbinfo);
 	return 0;
 }
@@ -694,13 +694,13 @@ rip6_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		return(error);
 
 	INP_INFO_WLOCK(&ripcbinfo);
-	INP_LOCK(inp);
+	INP_WLOCK(inp);
 	/* Source address selection. XXX: need pcblookup? */
 	in6a = in6_selectsrc(addr, inp->in6p_outputopts,
 			     inp->in6p_moptions, NULL,
 			     &inp->in6p_laddr, &ifp, &error);
 	if (in6a == NULL) {
-		INP_UNLOCK(inp);
+		INP_WUNLOCK(inp);
 		INP_INFO_WUNLOCK(&ripcbinfo);
 		return (error ? error : EADDRNOTAVAIL);
 	}
@@ -708,14 +708,14 @@ rip6_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	/* XXX: see above */
 	if (ifp && scope_ambiguous &&
 	    (error = in6_setscope(&addr->sin6_addr, ifp, NULL)) != 0) {
-		INP_UNLOCK(inp);
+		INP_WUNLOCK(inp);
 		INP_INFO_WUNLOCK(&ripcbinfo);
 		return(error);
 	}
 	inp->in6p_faddr = addr->sin6_addr;
 	inp->in6p_laddr = *in6a;
 	soisconnected(so);
-	INP_UNLOCK(inp);
+	INP_WUNLOCK(inp);
 	INP_INFO_WUNLOCK(&ripcbinfo);
 	return 0;
 }
@@ -727,9 +727,9 @@ rip6_shutdown(struct socket *so)
 
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("rip6_shutdown: inp == NULL"));
-	INP_LOCK(inp);
+	INP_WLOCK(inp);
 	socantsendmore(so);
-	INP_UNLOCK(inp);
+	INP_WUNLOCK(inp);
 	return 0;
 }
 
