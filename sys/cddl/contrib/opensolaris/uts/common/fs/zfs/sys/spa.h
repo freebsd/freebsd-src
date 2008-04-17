@@ -295,7 +295,7 @@ typedef struct blkptr {
  * Note: the byteorder is either 0 or -1, both of which are palindromes.
  * This simplifies the endianness handling a bit.
  */
-#if BYTE_ORDER == _BIG_ENDIAN
+#ifdef _BIG_ENDIAN
 #define	ZFS_HOST_BYTEORDER	(0ULL)
 #else
 #define	ZFS_HOST_BYTEORDER	(-1ULL)

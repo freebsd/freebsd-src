@@ -470,6 +470,8 @@ extern uint64_t physmem;
 
 #define	gethrestime_sec()	time(NULL)
 
+#define	open64(...)		open(__VA_ARGS__)
+#define	pread64(d, p, n, o)	pread(d, p, n, o)
 #define	pwrite64(d, p, n, o)	pwrite(d, p, n, o)
 #define	readdir64(d)		readdir(d)
 #define	SIGPENDING(td)		(0)

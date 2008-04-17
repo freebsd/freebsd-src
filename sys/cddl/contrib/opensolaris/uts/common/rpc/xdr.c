@@ -54,12 +54,10 @@
 #pragma weak xdr_int64_t = xdr_longlong_t
 #pragma weak xdr_uint64_t = xdr_u_longlong_t
 
-#if defined(sun)
 #if !defined(_BIG_ENDIAN) && !defined(_LITTLE_ENDIAN)
 #error "Exactly one of _BIG_ENDIAN or _LITTLE_ENDIAN must be defined"
 #elif defined(_BIG_ENDIAN) && defined(_LITTLE_ENDIAN)
 #error "Only one of _BIG_ENDIAN or _LITTLE_ENDIAN may be defined"
-#endif
 #endif
 
 /*
@@ -176,12 +174,12 @@ bool_t
 xdr_longlong_t(XDR *xdrs, longlong_t *hp)
 {
 	if (xdrs->x_op == XDR_ENCODE) {
-#if BYTE_ORDER == _LITTLE_ENDIAN
+#if defined(_LITTLE_ENDIAN)
 		if (XDR_PUTINT32(xdrs, (int32_t *)((char *)hp +
 		    BYTES_PER_XDR_UNIT)) == TRUE) {
 			return (XDR_PUTINT32(xdrs, (int32_t *)hp));
 		}
-#else
+#elif defined(_BIG_ENDIAN)
 		if (XDR_PUTINT32(xdrs, (int32_t *)hp) == TRUE) {
 			return (XDR_PUTINT32(xdrs, (int32_t *)((char *)hp +
 			    BYTES_PER_XDR_UNIT)));
@@ -191,12 +189,12 @@ xdr_longlong_t(XDR *xdrs, longlong_t *hp)
 
 	}
 	if (xdrs->x_op == XDR_DECODE) {
-#if BYTE_ORDER == _LITTLE_ENDIAN
+#if defined(_LITTLE_ENDIAN)
 		if (XDR_GETINT32(xdrs, (int32_t *)((char *)hp +
 		    BYTES_PER_XDR_UNIT)) == TRUE) {
 			return (XDR_GETINT32(xdrs, (int32_t *)hp));
 		}
-#else
+#elif defined(_BIG_ENDIAN)
 		if (XDR_GETINT32(xdrs, (int32_t *)hp) == TRUE) {
 			return (XDR_GETINT32(xdrs, (int32_t *)((char *)hp +
 			    BYTES_PER_XDR_UNIT)));
@@ -215,12 +213,12 @@ xdr_u_longlong_t(XDR *xdrs, u_longlong_t *hp)
 {
 
 	if (xdrs->x_op == XDR_ENCODE) {
-#if BYTE_ORDER == _LITTLE_ENDIAN
+#if defined(_LITTLE_ENDIAN)
 		if (XDR_PUTINT32(xdrs, (int32_t *)((char *)hp +
 		    BYTES_PER_XDR_UNIT)) == TRUE) {
 			return (XDR_PUTINT32(xdrs, (int32_t *)hp));
 		}
-#else
+#elif defined(_BIG_ENDIAN)
 		if (XDR_PUTINT32(xdrs, (int32_t *)hp) == TRUE) {
 			return (XDR_PUTINT32(xdrs, (int32_t *)((char *)hp +
 			    BYTES_PER_XDR_UNIT)));
@@ -230,12 +228,12 @@ xdr_u_longlong_t(XDR *xdrs, u_longlong_t *hp)
 
 	}
 	if (xdrs->x_op == XDR_DECODE) {
-#if BYTE_ORDER == _LITTLE_ENDIAN
+#if defined(_LITTLE_ENDIAN)
 		if (XDR_GETINT32(xdrs, (int32_t *)((char *)hp +
 		    BYTES_PER_XDR_UNIT)) == TRUE) {
 			return (XDR_GETINT32(xdrs, (int32_t *)hp));
 		}
-#else
+#elif defined(_BIG_ENDIAN)
 		if (XDR_GETINT32(xdrs, (int32_t *)hp) == TRUE) {
 			return (XDR_GETINT32(xdrs, (int32_t *)((char *)hp +
 			    BYTES_PER_XDR_UNIT)));

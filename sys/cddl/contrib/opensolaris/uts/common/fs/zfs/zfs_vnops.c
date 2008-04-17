@@ -346,10 +346,6 @@ again:
 			VM_OBJECT_LOCK(obj);
 			vm_page_wakeup(m);
 		} else {
-			if (__predict_false(obj->cache != NULL)) {
-				vm_page_cache_free(obj, OFF_TO_IDX(start),
-				    OFF_TO_IDX(start) + 1);
-			}
 			dirbytes += bytes;
 		}
 		len -= bytes;
@@ -1117,12 +1113,12 @@ zfs_lookup(vnode_t *dvp, char *nm, vnode_t **vpp, struct componentname *cnp,
 		int ltype = 0;
 
 		if (cnp->cn_flags & ISDOTDOT) {
-			ltype = VOP_ISLOCKED(dvp);
-			VOP_UNLOCK(dvp, 0);
+			ltype = VOP_ISLOCKED(dvp, td);
+			VOP_UNLOCK(dvp, 0, td);
 		}
-		error = vn_lock(*vpp, cnp->cn_lkflags);
+		error = vn_lock(*vpp, cnp->cn_lkflags, td);
 		if (cnp->cn_flags & ISDOTDOT)
-			vn_lock(dvp, ltype | LK_RETRY);
+			vn_lock(dvp, ltype | LK_RETRY, td);
 		if (error != 0) {
 			VN_RELE(*vpp);
 			*vpp = NULL;
@@ -1175,7 +1171,7 @@ zfs_lookup(vnode_t *dvp, char *nm, vnode_t **vpp, struct componentname *cnp,
 /* ARGSUSED */
 static int
 zfs_create(vnode_t *dvp, char *name, vattr_t *vap, int excl, int mode,
-    vnode_t **vpp, cred_t *cr)
+    vnode_t **vpp, cred_t *cr, kthread_t *td)
 {
 	znode_t		*zp, *dzp = VTOZ(dvp);
 	zfsvfs_t	*zfsvfs = dzp->z_zfsvfs;
@@ -1306,7 +1302,7 @@ out:
 
 	if (error == 0) {
 		*vpp = ZTOV(zp);
-		vn_lock(*vpp, LK_EXCLUSIVE | LK_RETRY);
+		vn_lock(*vpp, LK_EXCLUSIVE | LK_RETRY, td);
 	}
 
 	if (dl)
@@ -1588,7 +1584,7 @@ top:
 	zfs_log_create(zilog, tx, TX_MKDIR, dzp, zp, dirname);
 	dmu_tx_commit(tx);
 
-	vn_lock(*vpp, LK_EXCLUSIVE | LK_RETRY);
+	vn_lock(*vpp, LK_EXCLUSIVE | LK_RETRY, curthread);
 
 	zfs_dirent_unlock(dl);
 
@@ -2773,7 +2769,7 @@ out:
 	if (error == 0) {
 		zfs_log_symlink(zilog, tx, TX_SYMLINK, dzp, zp, name, link);
 		*vpp = ZTOV(zp);
-		vn_lock(*vpp, LK_EXCLUSIVE | LK_RETRY);
+		vn_lock(*vpp, LK_EXCLUSIVE | LK_RETRY, td);
 	}
 
 	dmu_tx_commit(tx);
@@ -3249,7 +3245,7 @@ zfs_freebsd_create(ap)
 	mode = vap->va_mode & ALLPERMS;
 
 	return (zfs_create(ap->a_dvp, cnp->cn_nameptr, vap, !EXCL, mode,
-	    ap->a_vpp, cnp->cn_cred));
+	    ap->a_vpp, cnp->cn_cred, cnp->cn_thread));
 }
 
 static int
@@ -3533,6 +3529,43 @@ zfs_freebsd_pathconf(ap)
 	return (error);
 }
 
+/*
+ * Advisory record locking support
+ */
+static int
+zfs_freebsd_advlock(ap)
+	struct vop_advlock_args /* {
+		struct vnode *a_vp;
+		caddr_t  a_id;
+		int  a_op;
+		struct flock *a_fl;
+		int  a_flags;
+	} */ *ap;
+{
+	znode_t	*zp = VTOZ(ap->a_vp);
+
+	return (lf_advlock(ap, &(zp->z_lockf), zp->z_phys->zp_size));
+}
+
+/*
+ * Advisory record locking support
+ */
+static int
+zfs_freebsd_advlockasync(ap)
+	struct vop_advlockasync_args /* {
+		struct vnode *a_vp;
+		caddr_t  a_id;
+		int  a_op;
+		struct flock *a_fl;
+		int  a_flags;
+		struct task *a_task;
+	} */ *ap;
+{
+	znode_t	*zp = VTOZ(ap->a_vp);
+
+	return (lf_advlockasync(ap, &(zp->z_lockf), zp->z_phys->zp_size));
+}
+
 struct vop_vector zfs_vnodeops;
 struct vop_vector zfs_fifoops;
 
@@ -3565,6 +3598,8 @@ struct vop_vector zfs_vnodeops = {
 	.vop_write =	zfs_freebsd_write,
 	.vop_remove =	zfs_freebsd_remove,
 	.vop_rename =	zfs_freebsd_rename,
+	.vop_advlock =	zfs_freebsd_advlock,
+	.vop_advlockasync = zfs_freebsd_advlockasync,
 	.vop_pathconf =	zfs_freebsd_pathconf,
 	.vop_bmap =	VOP_EOPNOTSUPP,
 	.vop_fid =	zfs_freebsd_fid,

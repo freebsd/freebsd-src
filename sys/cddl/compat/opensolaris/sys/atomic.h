@@ -106,7 +106,7 @@ atomic_inc_64_nv(volatile uint64_t *target)
 static __inline void *
 atomic_cas_ptr(volatile void *target, void *cmp,  void *newval)
 {
-	return ((void *)atomic_cas_64((volatile uint64_t *)target, (uint64_t)cmp,
+	return ((void *)atomic_cas_64((uint64_t *)target, (uint64_t)cmp,
 	    (uint64_t)newval));
 }
 #endif
