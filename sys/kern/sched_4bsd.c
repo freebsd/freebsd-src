@@ -316,8 +316,7 @@ maybe_preempt(struct thread *td)
 	TD_SET_RUNNING(td);
 	CTR3(KTR_PROC, "preempting to thread %p (pid %d, %s)\n", td,
 	    td->td_proc->p_pid, td->td_name);
-	SCHED_STAT_INC(switch_preempt);
-	mi_switch(SW_INVOL|SW_PREEMPT, td);
+	mi_switch(SW_INVOL | SW_PREEMPT | SWT_PREEMPT, td);
 	/*
 	 * td's lock pointer may have changed.  We have to return with it
 	 * locked.
@@ -1332,7 +1331,7 @@ sched_preempt(struct thread *td)
 	if (td->td_critnest > 1)
 		td->td_owepreempt = 1;
 	else
-		mi_switch(SW_INVOL | SW_PREEMPT, NULL);
+		mi_switch(SW_INVOL | SW_PREEMPT | SWT_PREEMPT, NULL);
 	thread_unlock(td);
 }
 
@@ -1397,8 +1396,7 @@ void
 sched_relinquish(struct thread *td)
 {
 	thread_lock(td);
-	SCHED_STAT_INC(switch_relinquish);
-	mi_switch(SW_VOL, NULL);
+	mi_switch(SW_VOL | SWT_RELINQUISH, NULL);
 	thread_unlock(td);
 }
 
@@ -1448,7 +1446,7 @@ sched_idletd(void *dummy)
 			cpu_idle();
 
 		mtx_lock_spin(&sched_lock);
-		mi_switch(SW_VOL, NULL);
+		mi_switch(SW_VOL | SWT_IDLE, NULL);
 		mtx_unlock_spin(&sched_lock);
 	}
 }

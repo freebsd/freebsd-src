@@ -588,10 +588,26 @@ struct proc {
 
 #ifdef _KERNEL
 
-/* Flags for mi_switch(). */
-#define	SW_VOL		0x0001		/* Voluntary switch. */
-#define	SW_INVOL	0x0002		/* Involuntary switch. */
-#define SW_PREEMPT	0x0004		/* The invol switch is a preemption */
+/* Types and flags for mi_switch(). */
+#define	SW_TYPE_MASK		0xff	/* First 8 bits are switch type */
+#define	SWT_NONE		0	/* Unspecified switch. */
+#define	SWT_PREEMPT		1	/* Switching due to preemption. */
+#define	SWT_OWEPREEMPT		2	/* Switching due to opepreempt. */
+#define	SWT_TURNSTILE		3	/* Turnstile contention. */
+#define	SWT_SLEEPQ		4	/* Sleepq wait. */
+#define	SWT_SLEEPQTIMO		5	/* Sleepq timeout wait. */
+#define	SWT_RELINQUISH		6	/* yield call. */
+#define	SWT_NEEDRESCHED		7	/* NEEDRESCHED was set. */
+#define	SWT_IDLE		8	/* Switching from the idle thread. */
+#define	SWT_IWAIT		9	/* Waiting for interrupts. */
+#define	SWT_SUSPEND		10	/* Thread suspended. */
+#define	SWT_REMOTEPREEMPT	11	/* Remote processor preempted. */
+#define	SWT_REMOTEWAKEIDLE	12	/* Remote processor preempted idle. */
+#define	SWT_COUNT		13	/* Number of switch types. */
+/* Flags */
+#define	SW_VOL		0x0100		/* Voluntary switch. */
+#define	SW_INVOL	0x0200		/* Involuntary switch. */
+#define SW_PREEMPT	0x0400		/* The invol switch is a preemption */
 
 /* How values for thread_single(). */
 #define	SINGLE_NO_EXIT	0

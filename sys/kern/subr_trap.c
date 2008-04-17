@@ -211,8 +211,7 @@ ast(struct trapframe *framep)
 #endif
 		thread_lock(td);
 		sched_prio(td, td->td_user_pri);
-		SCHED_STAT_INC(switch_needresched);
-		mi_switch(SW_INVOL, NULL);
+		mi_switch(SW_INVOL | SWT_NEEDRESCHED, NULL);
 		thread_unlock(td);
 #ifdef KTRACE
 		if (KTRPOINT(td, KTR_CSW))
