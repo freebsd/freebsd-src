@@ -622,13 +622,14 @@ icmp_reflect(struct mbuf *m)
 	struct mbuf *opts = 0;
 	int optlen = (ip->ip_hl << 2) - sizeof(struct ip);
 
-	if (!in_canforward(ip->ip_src) &&
-	    ((ntohl(ip->ip_src.s_addr) & IN_CLASSA_NET) !=
-	     (IN_LOOPBACKNET << IN_CLASSA_NSHIFT))) {
+	if (IN_MULTICAST(ntohl(ip->ip_src.s_addr)) ||
+	    IN_EXPERIMENTAL(ntohl(ip->ip_src.s_addr)) ||
+	    IN_ZERONET(ntohl(ip->ip_src.s_addr)) ) {
 		m_freem(m);	/* Bad return address */
 		icmpstat.icps_badaddr++;
 		goto done;	/* Ip_output() will check for broadcast */
 	}
+
 	t = ip->ip_dst;
 	ip->ip_dst = ip->ip_src;
 
