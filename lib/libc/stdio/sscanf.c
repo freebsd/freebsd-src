@@ -59,7 +59,6 @@ sscanf(const char * __restrict str, char const * __restrict fmt, ...)
 {
 	int ret;
 	va_list ap;
-	struct __sFILEX extra;
 	FILE f;
 
 	f._file = -1;
@@ -69,8 +68,8 @@ sscanf(const char * __restrict str, char const * __restrict fmt, ...)
 	f._read = eofread;
 	f._ub._base = NULL;
 	f._lb._base = NULL;
-	f._extra = &extra;
-	INITEXTRA(&f);
+	f._orientation = 0;
+	memset(&f._mbstate, 0, sizeof(mbstate_t));
 	va_start(ap, fmt);
 	ret = __svfscanf(&f, fmt, ap);
 	va_end(ap);

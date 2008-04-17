@@ -56,8 +56,7 @@ __fputwc(wchar_t wc, FILE *fp)
 		*buf = (unsigned char)wc;
 		len = 1;
 	} else {
-		if ((len = __wcrtomb(buf, wc, &fp->_extra->mbstate)) ==
-		    (size_t)-1) {
+		if ((len = __wcrtomb(buf, wc, &fp->_mbstate)) == (size_t)-1) {
 			fp->_flags |= __SERR;
 			return (WEOF);
 		}

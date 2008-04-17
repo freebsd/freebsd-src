@@ -54,36 +54,19 @@ int	__sdidinit;
 #define	NDYNAMIC 10		/* add ten more whenever necessary */
 
 #define	std(flags, file) \
-  	{0,0,0,flags,file,{0},0,__sF+file,__sclose,__sread,__sseek,__swrite, \
-	 {0}, __sFX + file}
+  	{0,0,0,flags,file,{0},0,__sF+file,__sclose,__sread,__sseek,__swrite}
   /*	 p r w flags file _bf z  cookie      close    read    seek    write */
-  /*     _ub _extra */
+
 				/* the usual - (stdin + stdout + stderr) */
 static FILE usual[FOPEN_MAX - 3];
-static struct __sFILEX usual_extra[FOPEN_MAX - 3];
 static struct glue uglue = { NULL, FOPEN_MAX - 3, usual };
 
-static struct __sFILEX __sFX[3];
-
-/*
- * We can't make this 'static' until 6.0-current due to binary
- * compatibility concerns.  This also means we cannot change the
- * sizeof(FILE) until that time either and must continue to use the
- * __sFILEX stuff to add to FILE.
- */
-FILE __sF[3] = {
+static FILE __sF[3] = {
 	std(__SRD, STDIN_FILENO),
 	std(__SWR, STDOUT_FILENO),
 	std(__SWR|__SNBF, STDERR_FILENO)
 };
 
-/*
- * The following kludge is done to ensure enough binary compatibility
- * with future versions of libc.  Or rather it allows us to work with
- * libraries that have been built with a newer libc that defines these
- * symbols and expects libc to provide them.  We only have need to support
- * i386 because it is the only "old" system we have deployed.
- */
 FILE *__stdinp = &__sF[0];
 FILE *__stdoutp = &__sF[1];
 FILE *__stderrp = &__sF[2];
@@ -109,25 +92,17 @@ moreglue(n)
 {
 	struct glue *g;
 	static FILE empty;
-	static struct __sFILEX emptyx;
 	FILE *p;
-	struct __sFILEX *fx;
 
-	g = (struct glue *)malloc(sizeof(*g) + ALIGNBYTES + n * sizeof(FILE) +
-	    n * sizeof(struct __sFILEX));
+	g = (struct glue *)malloc(sizeof(*g) + ALIGNBYTES + n * sizeof(FILE));
 	if (g == NULL)
 		return (NULL);
 	p = (FILE *)ALIGN(g + 1);
-	fx = (struct __sFILEX *)&p[n];
 	g->next = NULL;
 	g->niobs = n;
 	g->iobs = p;
-	while (--n >= 0) {
-		*p = empty;
-		p->_extra = fx;
-		*p->_extra = emptyx;
-		p++, fx++;
-	}
+	while (--n >= 0)
+		*p++ = empty;
 	return (g);
 }
 
@@ -175,8 +150,8 @@ found:
 	fp->_lb._base = NULL;	/* no line buffer */
 	fp->_lb._size = 0;
 /*	fp->_lock = NULL; */	/* once set always set (reused) */
-	fp->_extra->orientation = 0;
-	memset(&fp->_extra->mbstate, 0, sizeof(mbstate_t));
+	fp->_orientation = 0;
+	memset(&fp->_mbstate, 0, sizeof(mbstate_t));
 	return (fp);
 }
 
@@ -229,17 +204,8 @@ _cleanup()
 void
 __sinit()
 {
-	int	i;
 
-	THREAD_LOCK();
-	if (__sdidinit == 0) {
-		/* Set _extra for the usual suspects. */
-		for (i = 0; i < FOPEN_MAX - 3; i++)
-			usual[i]._extra = &usual_extra[i];
-
-		/* Make sure we clean up on exit. */
-		__cleanup = _cleanup;		/* conservative */
-		__sdidinit = 1;
-	}
-	THREAD_UNLOCK();
+	/* Make sure we clean up on exit. */
+	__cleanup = _cleanup;		/* conservative */
+	__sdidinit = 1;
 }

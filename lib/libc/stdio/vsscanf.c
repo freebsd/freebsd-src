@@ -61,7 +61,6 @@ vsscanf(str, fmt, ap)
 	__va_list ap;
 {
 	FILE f;
-	struct __sFILEX ext;
 
 	f._file = -1;
 	f._flags = __SRD;
@@ -70,7 +69,7 @@ vsscanf(str, fmt, ap)
 	f._read = eofread;
 	f._ub._base = NULL;
 	f._lb._base = NULL;
-	f._extra = &ext;
-	INITEXTRA(&f);
+	f._orientation = 0;
+	memset(&f._mbstate, 0, sizeof(mbstate_t));
 	return (__svfscanf(&f, fmt, ap));
 }

@@ -71,7 +71,7 @@ __fgetwc(FILE *fp)
 		return (wc);
 	}
 	do {
-		nconv = __mbrtowc(&wc, fp->_p, fp->_r, &fp->_extra->mbstate);
+		nconv = __mbrtowc(&wc, fp->_p, fp->_r, &fp->_mbstate);
 		if (nconv == (size_t)-1)
 			break;
 		else if (nconv == (size_t)-2)

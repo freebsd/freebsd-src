@@ -45,14 +45,13 @@ vsprintf(char * __restrict str, const char * __restrict fmt, __va_list ap)
 {
 	int ret;
 	FILE f;
-	struct __sFILEX ext;
 
 	f._file = -1;
 	f._flags = __SWR | __SSTR;
 	f._bf._base = f._p = (unsigned char *)str;
 	f._bf._size = f._w = INT_MAX;
-	f._extra = &ext;
-	INITEXTRA(&f);
+	f._orientation = 0;
+	memset(&f._mbstate, 0, sizeof(mbstate_t));
 	ret = __vfprintf(&f, fmt, ap);
 	*f._p = 0;
 	return (ret);
