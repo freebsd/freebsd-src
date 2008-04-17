@@ -464,7 +464,7 @@ ata_pci_dmastart(struct ata_request *request)
 
     ATA_IDX_OUTB(ch, ATA_BMSTAT_PORT, (ATA_IDX_INB(ch, ATA_BMSTAT_PORT) | 
 		 (ATA_BMSTAT_INTERRUPT | ATA_BMSTAT_ERROR)));
-    ATA_IDX_OUTL(ch, ATA_BMDTP_PORT, request->dma.sg_bus);
+    ATA_IDX_OUTL(ch, ATA_BMDTP_PORT, request->dma->sg_bus);
     ch->dma.flags |= ATA_DMA_ACTIVE;
     ATA_IDX_OUTB(ch, ATA_BMCMD_PORT,
 		 (ATA_IDX_INB(ch, ATA_BMCMD_PORT) & ~ATA_BMCMD_WRITE_READ) |
@@ -609,17 +609,17 @@ ata_pcichannel_attach(device_t dev)
     struct ata_channel *ch = device_get_softc(dev);
     int error;
 
-    if (ctlr->dmainit) {
+    if (ctlr->dmainit)
 	ctlr->dmainit(dev);
-	ch->dma.alloc(dev);
-    }
 
-    if ((error = ctlr->allocate(dev))) {
-	ch->dma.free(dev);
+    if ((error = ctlr->allocate(dev)))
 	return error;
-    }
 
-    return ata_attach(dev);
+    if ((error = ata_attach(dev)))
+	return error;
+
+    ch->dma.alloc(dev);
+    return 0;
 }
 
 static int

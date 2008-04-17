@@ -447,7 +447,7 @@ ata_pm_identify(device_t dev)
     case 0x37261095:
 	/* Some of these bogusly reports 6 ports */
 	pm_ports = 5;
-	device_printf(dev, "SiI-3726-R%x Portmultiplier with %d ports\n",
+	device_printf(dev, "SiI 3726 r%x Portmultiplier with %d ports\n",
 		      pm_revision, pm_ports);
 	break;
 
@@ -455,6 +455,9 @@ ata_pm_identify(device_t dev)
 	device_printf(dev, "Portmultiplier (id=%08x rev=%x) with %d ports\n",
 		      pm_chipid, pm_revision, pm_ports);
     }
+
+    /* inform dma.alloc() about needed DMA slots */
+    ch->dma.dma_slots = pm_ports;
 
     /* reset all ports and register if anything connected */
     for (port=0; port < pm_ports; port++) {
@@ -1166,8 +1169,7 @@ ata_ahci_dmasetprd(void *xsc, bus_dma_segment_t *segs, int nsegs, int error)
 	}
     }
 
-    /* we only have space for 16 entries in a slot */
-    KASSERT(nsegs <= 16, ("too many DMA segment entries\n"));
+    KASSERT(nsegs <= ATA_AHCI_DMA_ENTRIES, ("too many DMA segment entries\n"));
     args->nsegs = nsegs;
 }
 
@@ -2102,6 +2104,7 @@ ata_intel_ident(device_t dev)
      { ATA_I63XXESB2_R2, 0, AHCI, 0x00, ATA_SA300, "63XXESB2" },
      { ATA_I82801HB_S1,  0, AHCI, 0x00, ATA_SA300, "ICH8" },
      { ATA_I82801HB_S2,  0, AHCI, 0x00, ATA_SA300, "ICH8" },
+     { ATA_I82801HB_R1,  2, AHCI, 0x00, ATA_SA300, "ICH9R" },
      { ATA_I82801HB_R1,  0, AHCI, 0x00, ATA_SA300, "ICH8" },
      { ATA_I82801HB_AH4, 0, AHCI, 0x00, ATA_SA300, "ICH8" },
      { ATA_I82801HB_AH6, 0, AHCI, 0x00, ATA_SA300, "ICH8" },
@@ -3020,8 +3023,8 @@ ata_marvell_edma_begin_transaction(struct ata_request *request)
     quadp = (u_int32_t *)bytep;
 
     /* fill in this request */
-    quadp[0] = (long)request->dma.sg_bus & 0xffffffff;
-    quadp[1] = (u_int64_t)request->dma.sg_bus >> 32;
+    quadp[0] = (long)request->dma->sg_bus & 0xffffffff;
+    quadp[1] = (u_int64_t)request->dma->sg_bus >> 32;
     wordp[4] = (request->flags & ATA_R_READ ? 0x01 : 0x00) | (request->tag<<1);
 
     i = 10;
@@ -3767,11 +3770,11 @@ ata_promise_dmastart(struct ata_request *request)
 		 ATA_INB(ctlr->r_res1, 0x11) | (ch->unit ? 0x08 : 0x02));
 	ATA_OUTL(ctlr->r_res1, ch->unit ? 0x24 : 0x20,
 		 ((request->flags & ATA_R_READ) ? 0x05000000 : 0x06000000) |
-		 (request->dma.cur_iosize >> 1));
+		 (request->bytecount >> 1));
     }
     ATA_IDX_OUTB(ch, ATA_BMSTAT_PORT, (ATA_IDX_INB(ch, ATA_BMSTAT_PORT) |
 		 (ATA_BMSTAT_INTERRUPT | ATA_BMSTAT_ERROR)));
-    ATA_IDX_OUTL(ch, ATA_BMDTP_PORT, request->dma.sg_bus);
+    ATA_IDX_OUTL(ch, ATA_BMDTP_PORT, request->dma->sg_bus);
     ATA_IDX_OUTB(ch, ATA_BMCMD_PORT,
 		 ((request->flags & ATA_R_READ) ? ATA_BMCMD_WRITE_READ : 0) |
 		 ATA_BMCMD_START_STOP);
@@ -4095,7 +4098,7 @@ ata_promise_mio_command(struct ata_request *request)
 	wordp[0] = htole32(0x00 | ((ch->unit + 1) << 16) | (0x00 << 24));
 	break;
     }
-    wordp[1] = htole32(request->dma.sg_bus);
+    wordp[1] = htole32(request->dma->sg_bus);
     wordp[2] = 0;
     ata_promise_apkt((u_int8_t*)wordp, request);
 
@@ -4438,7 +4441,7 @@ ata_promise_sx4_command(struct ata_request *request)
     device_t gparent = GRANDPARENT(request->dev);
     struct ata_pci_controller *ctlr = device_get_softc(gparent);
     struct ata_channel *ch = device_get_softc(request->parent);
-    struct ata_dma_prdentry *prd = request->dma.sg;
+    struct ata_dma_prdentry *prd = request->dma->sg;
     caddr_t window = rman_get_virtual(ctlr->r_res1);
     u_int32_t *wordp;
     int i, idx, length = 0;
@@ -4896,20 +4899,20 @@ ata_sii_ident(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
     static struct ata_chip_id ids[] =
-    {{ ATA_SII3114,   0x00, SIIMEMIO, SII4CH,    ATA_SA150, "SiI 3114" },
-     { ATA_SII3512,   0x02, SIIMEMIO, 0,         ATA_SA150, "SiI 3512" },
-     { ATA_SII3112,   0x02, SIIMEMIO, 0,         ATA_SA150, "SiI 3112" },
-     { ATA_SII3112_1, 0x02, SIIMEMIO, 0,         ATA_SA150, "SiI 3112" },
-     { ATA_SII3512,   0x00, SIIMEMIO, SIIBUG,    ATA_SA150, "SiI 3512" },
-     { ATA_SII3112,   0x00, SIIMEMIO, SIIBUG,    ATA_SA150, "SiI 3112" },
-     { ATA_SII3112_1, 0x00, SIIMEMIO, SIIBUG,    ATA_SA150, "SiI 3112" },
-     { ATA_SII3124,   0x00, SIIPRBIO, SII4CH,    ATA_SA300, "SiI 3124" },
-     { ATA_SII3132,   0x00, SIIPRBIO, 0,         ATA_SA300, "SiI 3132" },
-     { ATA_SII0680,   0x00, SIIMEMIO, SIISETCLK, ATA_UDMA6, "SiI 0680" },
-     { ATA_CMD649,    0x00, 0,        SIIINTR,   ATA_UDMA5, "CMD 649" },
-     { ATA_CMD648,    0x00, 0,        SIIINTR,   ATA_UDMA4, "CMD 648" },
-     { ATA_CMD646,    0x07, 0,        0,         ATA_UDMA2, "CMD 646U2" },
-     { ATA_CMD646,    0x00, 0,        0,         ATA_WDMA2, "CMD 646" },
+    {{ ATA_SII3114,   0x00, SIIMEMIO, SII4CH,    ATA_SA150, "3114" },
+     { ATA_SII3512,   0x02, SIIMEMIO, 0,         ATA_SA150, "3512" },
+     { ATA_SII3112,   0x02, SIIMEMIO, 0,         ATA_SA150, "3112" },
+     { ATA_SII3112_1, 0x02, SIIMEMIO, 0,         ATA_SA150, "3112" },
+     { ATA_SII3512,   0x00, SIIMEMIO, SIIBUG,    ATA_SA150, "3512" },
+     { ATA_SII3112,   0x00, SIIMEMIO, SIIBUG,    ATA_SA150, "3112" },
+     { ATA_SII3112_1, 0x00, SIIMEMIO, SIIBUG,    ATA_SA150, "3112" },
+     { ATA_SII3124,   0x00, SIIPRBIO, SII4CH,    ATA_SA300, "3124" },
+     { ATA_SII3132,   0x00, SIIPRBIO, 0,         ATA_SA300, "3132" },
+     { ATA_SII0680,   0x00, SIIMEMIO, SIISETCLK, ATA_UDMA6, "680" },
+     { ATA_CMD649,    0x00, 0,        SIIINTR,   ATA_UDMA5, "(CMD) 649" },
+     { ATA_CMD648,    0x00, 0,        SIIINTR,   ATA_UDMA4, "(CMD) 648" },
+     { ATA_CMD646,    0x07, 0,        0,         ATA_UDMA2, "(CMD) 646U2" },
+     { ATA_CMD646,    0x00, 0,        0,         ATA_WDMA2, "(CMD) 646" },
      { 0, 0, 0, 0, 0, 0}};
 
     if (!(ctlr->chip = ata_match_chip(dev, ids)))
@@ -5245,13 +5248,14 @@ struct ata_siiprb_dma_prdentry {
     u_int32_t control;
 } __packed;
 
+#define ATA_SIIPRB_DMA_ENTRIES		125
 struct ata_siiprb_ata_command {
-    struct ata_siiprb_dma_prdentry prd[126];
+    struct ata_siiprb_dma_prdentry prd[ATA_SIIPRB_DMA_ENTRIES];
 } __packed;
 
 struct ata_siiprb_atapi_command {
     u_int8_t ccb[16];
-    struct ata_siiprb_dma_prdentry prd[125];
+    struct ata_siiprb_dma_prdentry prd[ATA_SIIPRB_DMA_ENTRIES];
 } __packed;
 
 struct ata_siiprb_command {
@@ -5660,7 +5664,7 @@ ata_siiprb_dmasetprd(void *xsc, bus_dma_segment_t *segs, int nsegs, int error)
 	prd[i].count = htole32(segs[i].ds_len);
     }
     prd[i - 1].control = htole32(ATA_DMA_EOT);
-    KASSERT(nsegs <= ATA_DMA_ENTRIES, ("too many DMA segment entries\n"));
+    KASSERT(nsegs <= ATA_SIIPRB_DMA_ENTRIES,("too many DMA segment entries\n"));
     args->nsegs = nsegs;
 }
 

@@ -119,10 +119,11 @@ int
 ata_controlcmd(device_t dev, u_int8_t command, u_int16_t feature,
 	       u_int64_t lba, u_int16_t count)
 {
-    struct ata_request *request = ata_alloc_request(dev);
+    struct ata_request *request = ata_alloc_request();
     int error = ENOMEM;
 
     if (request) {
+	request->dev = dev;
 	request->u.ata.command = command;
 	request->u.ata.lba = lba;
 	request->u.ata.count = count;
@@ -141,11 +142,12 @@ int
 ata_atapicmd(device_t dev, u_int8_t *ccb, caddr_t data,
 	     int count, int flags, int timeout)
 {
-    struct ata_request *request = ata_alloc_request(dev);
+    struct ata_request *request = ata_alloc_request();
     struct ata_device *atadev = device_get_softc(dev);
     int error = ENOMEM;
 
     if (request) {
+	request->dev = dev;
 	if ((atadev->param.config & ATA_PROTO_MASK) == ATA_PROTO_ATAPI_12)
 	    bcopy(ccb, request->u.atapi.ccb, 12);
 	else
@@ -356,8 +358,8 @@ ata_completed(void *context, int dummy)
 			      "\4MEDIA_CHANGE_REQEST"
 			      "\3ABORTED\2NO_MEDIA\1ILLEGAL_LENGTH");
 		if ((request->flags & ATA_R_DMA) &&
-		    (request->dma.status & ATA_BMSTAT_ERROR))
-		    printf(" dma=0x%02x", request->dma.status);
+		    (request->dma->status & ATA_BMSTAT_ERROR))
+		    printf(" dma=0x%02x", request->dma->status);
 		if (!(request->flags & (ATA_R_ATAPI | ATA_R_CONTROL)))
 		    printf(" LBA=%ju", request->u.ata.lba);
 		printf("\n");

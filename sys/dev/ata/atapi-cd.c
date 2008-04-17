@@ -691,11 +691,12 @@ acd_geom_access(struct g_provider *pp, int dr, int dw, int de)
 		       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
     int timeout = 60, track;
 
-    if (!(request = ata_alloc_request(dev)))
+    if (!(request = ata_alloc_request()))
 	return ENOMEM;
 
     /* wait if drive is not finished loading the medium */
     while (timeout--) {
+	request->dev = dev;
 	bcopy(ccb, request->u.atapi.ccb, 16);
 	request->flags = ATA_R_ATAPI;
 	request->timeout = 5;
@@ -855,10 +856,11 @@ acd_strategy(struct bio *bp)
     ccb[7] = count>>8;
     ccb[8] = count;
 
-    if (!(request = ata_alloc_request(dev))) {
+    if (!(request = ata_alloc_request())) {
 	g_io_deliver(bp, ENOMEM);
 	return;
     }
+    request->dev = dev;
     request->bio = bp;
     bcopy(ccb, request->u.atapi.ccb,
 	  (atadev->param.config & ATA_PROTO_MASK) == 
@@ -1218,9 +1220,10 @@ acd_get_progress(device_t dev, int *finished)
     struct ata_request *request;
     int8_t dummy[8];
 
-    if (!(request = ata_alloc_request(dev)))
+    if (!(request = ata_alloc_request()))
 	return ENOMEM;
 
+    request->dev = dev;
     bcopy(ccb, request->u.atapi.ccb, 16);
     request->data = dummy;
     request->bytecount = sizeof(dummy);
