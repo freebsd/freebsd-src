@@ -735,7 +735,7 @@ loop:
 		thread_lock(&thread0);
 		if (!proc0_rescan) {
 			TD_SET_IWAIT(&thread0);
-			mi_switch(SW_VOL, NULL);
+			mi_switch(SW_VOL | SWT_IWAIT, NULL);
 		}
 		proc0_rescan = 0;
 		thread_unlock(&thread0);
