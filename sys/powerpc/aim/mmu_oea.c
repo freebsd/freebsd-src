@@ -263,12 +263,6 @@ SYSCTL_INT(_machdep, OID_AUTO, moea_pvo_remove_calls, CTLFLAG_RD,
 SYSCTL_INT(_machdep, OID_AUTO, moea_pte_spills, CTLFLAG_RD,
     &moea_pte_spills, 0, "");
 
-struct	pvo_entry *moea_pvo_zeropage;
-struct	mtx	moea_pvo_zeropage_mtx;
-
-vm_offset_t	moea_rkva_start;
-u_int		moea_rkva_count;
-
 /*
  * Allocate physical memory for use in moea_bootstrap.
  */
@@ -293,10 +287,6 @@ static struct	pte *moea_pvo_to_pte(const struct pvo_entry *, int);
  */
 static void		moea_enter_locked(pmap_t, vm_offset_t, vm_page_t,
 			    vm_prot_t, boolean_t);
-static struct		pvo_entry *moea_rkva_alloc(mmu_t);
-static void		moea_pa_map(struct pvo_entry *, vm_offset_t,
-			    struct pte *, int *);
-static void		moea_pa_unmap(struct pvo_entry *, struct pte *, int *);
 static void		moea_syncicache(vm_offset_t, vm_size_t);
 static boolean_t	moea_query_bit(vm_page_t, int);
 static u_int		moea_clear_bit(vm_page_t, int, int *);
@@ -876,10 +866,6 @@ moea_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 	virtual_avail = VM_MIN_KERNEL_ADDRESS;
 	virtual_end = VM_MAX_KERNEL_ADDRESS;
 
-	moea_rkva_start = virtual_avail;
-	moea_rkva_count = 4;
-	virtual_avail += moea_rkva_count * PAGE_SIZE;
-
 	/*
 	 * Allocate a kernel stack with a guard page for thread0 and map it
 	 * into the kernel page map.
@@ -983,65 +969,27 @@ void
 moea_zero_page(mmu_t mmu, vm_page_t m)
 {
 	vm_offset_t pa = VM_PAGE_TO_PHYS(m);
-	caddr_t va;
-
-	if (pa < SEGMENT_LENGTH) {
-		va = (caddr_t) pa;
-	} else if (moea_initialized) {
-		if (moea_pvo_zeropage == NULL) {
-			moea_pvo_zeropage = moea_rkva_alloc(mmu);
-			mtx_init(&moea_pvo_zeropage_mtx, "pvo zero page",
-			    NULL, MTX_DEF);
-		}
-		mtx_lock(&moea_pvo_zeropage_mtx);
-		moea_pa_map(moea_pvo_zeropage, pa, NULL, NULL);
-		va = (caddr_t)PVO_VADDR(moea_pvo_zeropage);
-	} else {
-		panic("moea_zero_page: can't zero pa %#x", pa);
-	}
+	void *va = (void *)pa;
 
 	bzero(va, PAGE_SIZE);
-
-	if (pa >= SEGMENT_LENGTH) {
-		moea_pa_unmap(moea_pvo_zeropage, NULL, NULL);
-		mtx_unlock(&moea_pvo_zeropage_mtx);
-	}
 }
 
 void
 moea_zero_page_area(mmu_t mmu, vm_page_t m, int off, int size)
 {
 	vm_offset_t pa = VM_PAGE_TO_PHYS(m);
-	caddr_t va;
+	void *va = (void *)(pa + off);
 
-	if (pa < SEGMENT_LENGTH) {
-		va = (caddr_t) pa;
-	} else if (moea_initialized) {
-		if (moea_pvo_zeropage == NULL) {
-			moea_pvo_zeropage = moea_rkva_alloc(mmu);
-			mtx_init(&moea_pvo_zeropage_mtx, "pvo zero page",
-			    NULL, MTX_DEF);
-		}
-		mtx_lock(&moea_pvo_zeropage_mtx);
-		moea_pa_map(moea_pvo_zeropage, pa, NULL, NULL);
-		va = (caddr_t)PVO_VADDR(moea_pvo_zeropage);
-	} else {
-		panic("moea_zero_page: can't zero pa %#x", pa);
-	}
-
-	bzero(va + off, size);
-
-	if (pa >= SEGMENT_LENGTH) {
-		moea_pa_unmap(moea_pvo_zeropage, NULL, NULL);
-		mtx_unlock(&moea_pvo_zeropage_mtx);
-	}
+	bzero(va, size);
 }
 
 void
 moea_zero_page_idle(mmu_t mmu, vm_page_t m)
 {
+	vm_offset_t pa = VM_PAGE_TO_PHYS(m);
+	void *va = (void *)pa;
 
-	moea_zero_page(mmu, m);
+	bzero(va, PAGE_SIZE);
 }
 
 /*
@@ -1767,108 +1715,6 @@ moea_bootstrap_alloc(vm_size_t size, u_int align)
 		return (s);
 	}
 	panic("moea_bootstrap_alloc: could not allocate memory");
-}
-
-/*
- * Return an unmapped pvo for a kernel virtual address.
- * Used by pmap functions that operate on physical pages.
- */
-static struct pvo_entry *
-moea_rkva_alloc(mmu_t mmu)
-{
-	struct		pvo_entry *pvo;
-	struct		pte *pt;
-	vm_offset_t	kva;
-	int		pteidx;
-
-	if (moea_rkva_count == 0)
-		panic("moea_rkva_alloc: no more reserved KVAs");
-
-	kva = moea_rkva_start + (PAGE_SIZE * --moea_rkva_count);
-	moea_kenter(mmu, kva, 0);
-
-	pvo = moea_pvo_find_va(kernel_pmap, kva, &pteidx);
-
-	if (pvo == NULL)
-		panic("moea_kva_alloc: moea_pvo_find_va failed");
-
-	pt = moea_pvo_to_pte(pvo, pteidx);
-
-	if (pt == NULL)
-		panic("moea_kva_alloc: moea_pvo_to_pte failed");
-
-	moea_pte_unset(pt, &pvo->pvo_pte, pvo->pvo_vaddr);
-	mtx_unlock(&moea_table_mutex);
-	PVO_PTEGIDX_CLR(pvo);
-
-	moea_pte_overflow++;
-
-	return (pvo);
-}
-
-static void
-moea_pa_map(struct pvo_entry *pvo, vm_offset_t pa, struct pte *saved_pt,
-    int *depth_p)
-{
-	struct	pte *pt;
-
-	/*
-	 * If this pvo already has a valid pte, we need to save it so it can
-	 * be restored later.  We then just reload the new PTE over the old
-	 * slot.
-	 */
-	if (saved_pt != NULL) {
-		pt = moea_pvo_to_pte(pvo, -1);
-
-		if (pt != NULL) {
-			moea_pte_unset(pt, &pvo->pvo_pte, pvo->pvo_vaddr);
-			mtx_unlock(&moea_table_mutex);
-			PVO_PTEGIDX_CLR(pvo);
-			moea_pte_overflow++;
-		}
-
-		*saved_pt = pvo->pvo_pte;
-
-		pvo->pvo_pte.pte_lo &= ~PTE_RPGN;
-	}
-
-	pvo->pvo_pte.pte_lo |= pa;
-
-	if (!moea_pte_spill(pvo->pvo_vaddr))
-		panic("moea_pa_map: could not spill pvo %p", pvo);
-
-	if (depth_p != NULL)
-		(*depth_p)++;
-}
-
-static void
-moea_pa_unmap(struct pvo_entry *pvo, struct pte *saved_pt, int *depth_p)
-{
-	struct	pte *pt;
-
-	pt = moea_pvo_to_pte(pvo, -1);
-
-	if (pt != NULL) {
-		moea_pte_unset(pt, &pvo->pvo_pte, pvo->pvo_vaddr);
-		mtx_unlock(&moea_table_mutex);
-		PVO_PTEGIDX_CLR(pvo);
-		moea_pte_overflow++;
-	}
-
-	pvo->pvo_pte.pte_lo &= ~PTE_RPGN;
-
-	/*
-	 * If there is a saved PTE and it's valid, restore it and return.
-	 */
-	if (saved_pt != NULL && (saved_pt->pte_lo & PTE_RPGN) != 0) {
-		if (depth_p != NULL && --(*depth_p) == 0)
-			panic("moea_pa_unmap: restoring but depth == 0");
-
-		pvo->pvo_pte = *saved_pt;
-
-		if (!moea_pte_spill(pvo->pvo_vaddr))
-			panic("moea_pa_unmap: could not spill pvo %p", pvo);
-	}
 }
 
 static void
