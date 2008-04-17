@@ -72,9 +72,6 @@ struct __sbuf {
 	int	_size;
 };
 
-/* hold a buncha junk that would grow the ABI */
-struct __sFILEX;
-
 /*
  * stdio state variables.
  *
@@ -121,7 +118,7 @@ typedef	struct __sFILE {
 
 	/* separate buffer for long sequences of ungetc() */
 	struct	__sbuf _ub;	/* ungetc buffer */
-	struct __sFILEX *_extra; /* additions to FILE to not break ABI */
+	unsigned char	*_up;	/* saved _p when _p is doing ungetc data */
 	int	_ur;		/* saved _r when _r is counting ungetc data */
 
 	/* tricks to meet minimum requirements even when malloc() fails */
@@ -134,6 +131,12 @@ typedef	struct __sFILE {
 	/* Unix stdio files get aligned to block boundaries on fseek() */
 	int	_blksize;	/* stat.st_blksize (may be != _bf._size) */
 	fpos_t	_offset;	/* current lseek offset */
+
+	struct pthread_mutex *_fl_mutex;	/* used for MT-safety */
+	struct pthread *_fl_owner;	/* current owner */
+	int	_fl_count;	/* recursive lock count */
+	int	_orientation;	/* orientation for fwide() */
+	__mbstate_t _mbstate;	/* multibyte conversion state */
 } FILE;
 
 #ifndef _STDSTREAM_DECLARED

@@ -62,7 +62,7 @@ fgetws(wchar_t * __restrict ws, int n, FILE * __restrict fp)
 		nl = memchr(fp->_p, '\n', fp->_r);
 		nconv = __mbsnrtowcs(wsp, &src,
 		    nl != NULL ? (nl - fp->_p + 1) : fp->_r,
-		    n - 1, &fp->_extra->mbstate);
+		    n - 1, &fp->_mbstate);
 		if (nconv == (size_t)-1)
 			/* Conversion error */
 			goto error;
@@ -86,7 +86,7 @@ fgetws(wchar_t * __restrict ws, int n, FILE * __restrict fp)
 	if (wsp == ws)
 		/* EOF */
 		goto error;
-	if (!__mbsinit(&fp->_extra->mbstate))
+	if (!__mbsinit(&fp->_mbstate))
 		/* Incomplete character */
 		goto error;
 	*wsp++ = L'\0';

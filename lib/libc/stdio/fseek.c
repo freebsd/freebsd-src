@@ -233,7 +233,7 @@ _fseeko(fp, offset, whence, ltest)
 	 */
 	if (HASUB(fp)) {
 		curoff += fp->_r;	/* kill off ungetc */
-		n = fp->_extra->_up - fp->_bf._base;
+		n = fp->_up - fp->_bf._base;
 		curoff -= n;
 		n += fp->_ur;
 	} else {
@@ -255,7 +255,7 @@ _fseeko(fp, offset, whence, ltest)
 		if (HASUB(fp))
 			FREEUB(fp);
 		fp->_flags &= ~__SEOF;
-		memset(&fp->_extra->mbstate, 0, sizeof(mbstate_t));
+		memset(&fp->_mbstate, 0, sizeof(mbstate_t));
 		return (0);
 	}
 
@@ -283,7 +283,7 @@ abspos:
 		fp->_r -= n;
 	}
 	fp->_flags &= ~__SEOF;
-	memset(&fp->_extra->mbstate, 0, sizeof(mbstate_t));
+	memset(&fp->_mbstate, 0, sizeof(mbstate_t));
 	return (0);
 
 	/*
@@ -306,6 +306,6 @@ dumb:
 	fp->_r = 0;
 	/* fp->_w = 0; */	/* unnecessary (I think...) */
 	fp->_flags &= ~__SEOF;
-	memset(&fp->_extra->mbstate, 0, sizeof(mbstate_t));
+	memset(&fp->_mbstate, 0, sizeof(mbstate_t));
 	return (0);
 }

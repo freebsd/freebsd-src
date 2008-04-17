@@ -80,16 +80,6 @@ extern size_t	__fread(void * __restrict buf, size_t size, size_t count,
 extern int	__sdidinit;
 
 
-/* hold a buncha junk that would grow the ABI */
-struct __sFILEX {
-	unsigned char	*_up;	/* saved _p when _p is doing ungetc data */
-	pthread_mutex_t	fl_mutex;	/* used for MT-safety */
-	pthread_t	fl_owner;	/* current owner */
-	int		fl_count;	/* recursive lock count */
-	int		orientation;	/* orientation for fwide() */
-	mbstate_t	mbstate;	/* multibyte conversion state */
-};
-
 /*
  * Prepare the given FILE for writing, and return 0 iff it
  * can be written now.  Otherwise, return EOF and set errno.
@@ -119,20 +109,11 @@ struct __sFILEX {
 	(fp)->_lb._base = NULL; \
 }
 
-#define	INITEXTRA(fp) { \
-	(fp)->_extra->_up = NULL; \
-	(fp)->_extra->fl_mutex = PTHREAD_MUTEX_INITIALIZER; \
-	(fp)->_extra->fl_owner = NULL; \
-	(fp)->_extra->fl_count = 0; \
-	(fp)->_extra->orientation = 0; \
-	memset(&(fp)->_extra->mbstate, 0, sizeof(mbstate_t)); \
-}
-
 /*
  * Set the orientation for a stream. If o > 0, the stream has wide-
  * orientation. If o < 0, the stream has byte-orientation.
  */
 #define	ORIENT(fp, o)	do {				\
-	if ((fp)->_extra->orientation == 0)		\
-		(fp)->_extra->orientation = (o);	\
+	if ((fp)->_orientation == 0)			\
+		(fp)->_orientation = (o);		\
 } while (0)
