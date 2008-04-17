@@ -129,7 +129,7 @@ struct ndis_softc {
 	ndis_miniport_block	*ndis_block;
 	ndis_miniport_characteristics	*ndis_chars;
 	interface_type		ndis_type;
-	struct callout_handle	ndis_stat_ch;
+	struct callout		ndis_stat_callout;
 	int			ndis_maxpkts;
 	ndis_oid		*ndis_oids;
 	int			ndis_oidcnt;
