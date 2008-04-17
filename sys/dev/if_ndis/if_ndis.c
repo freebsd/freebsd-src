@@ -1935,7 +1935,7 @@ ndis_init(xsc)
 	if (sc->ndis_block->nmb_checkforhangsecs == 0)
 		sc->ndis_block->nmb_checkforhangsecs = 3;
 
-	callout_init(&sc->ndis_stat_callout, 1);
+	callout_init(&sc->ndis_stat_callout, CALLOUT_MPSAFE);
 	callout_reset(&sc->ndis_stat_callout,
 	    hz * sc->ndis_block->nmb_checkforhangsecs, ndis_tick, sc);
 
