@@ -45,15 +45,8 @@ typedef enum {
 } kcv_type_t;
 
 #define	zfs_cv_init(cv, name, type, arg)	do {			\
-	const char *_name;						\
 	ASSERT((type) == CV_DEFAULT);					\
-	for (_name = #cv; *_name != '\0'; _name++) {			\
-		if (*_name >= 'a' && *_name <= 'z')			\
-			break;						\
-	}								\
-	if (*_name == '\0')						\
-		_name = #cv;						\
-	cv_init((cv), _name);						\
+	cv_init((cv), "zfs:" #cv);					\
 } while (0)
 #define	cv_init(cv, name, type, arg)	zfs_cv_init((cv), (name), (type), (arg))
 

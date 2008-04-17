@@ -108,18 +108,18 @@ zfs_kmem_free(void *buf, size_t size __unused)
 	free(buf, M_SOLARIS);
 }
 
-uint64_t
+u_long
 kmem_size(void)
 {
 
-	return ((uint64_t)vm_kmem_size);
+	return ((u_long)vm_kmem_size);
 }
 
-uint64_t
+u_long
 kmem_used(void)
 {
 
-	return ((uint64_t)kmem_map->size);
+	return ((u_long)kmem_map->size);
 }
 
 static int

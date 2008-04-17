@@ -116,7 +116,7 @@ typedef void *(vmem_ximport_t)(vmem_t *, size_t *, int);
 extern vmem_t *vmem_init(const char *, void *, size_t, size_t,
     vmem_alloc_t *, vmem_free_t *);
 extern void vmem_update(void *);
-extern int vmem_is_populator(void);
+extern int vmem_is_populator();
 extern size_t vmem_seg_size;
 #endif
 

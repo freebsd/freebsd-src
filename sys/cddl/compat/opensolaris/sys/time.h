@@ -31,17 +31,9 @@
 
 #include_next <sys/time.h>
 
-#define SEC		1
-#define MILLISEC	1000
-#define MICROSEC	1000000
-#define NANOSEC		1000000000
-
-typedef longlong_t	hrtime_t;
-
-#define	LBOLT	((gethrtime() * hz) / NANOSEC)
-
 #ifdef _KERNEL
-#define	lbolt64	(int64_t)(LBOLT)
+#define	lbolt	((gethrtime() * hz) / NANOSEC)
+#define	lbolt64	(int64_t)(lbolt)
 
 static __inline hrtime_t
 gethrtime(void) {
@@ -60,15 +52,6 @@ gethrtime(void) {
 
 #define	gethrestime_sec()	(time_second)
 #define	gethrestime(ts)		getnanotime(ts)
-
-#else
-
-static __inline hrtime_t gethrtime(void) {
-	struct timespec ts;
-	clock_gettime(CLOCK_UPTIME,&ts);
-	return (((u_int64_t) ts.tv_sec) * NANOSEC + ts.tv_nsec);
-}
-
 
 #endif	/* _KERNEL */
 
