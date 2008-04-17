@@ -226,10 +226,9 @@
 
 #define ATA_AHCI_CL_SIZE                32
 #define ATA_AHCI_CL_OFFSET              0
-#define ATA_AHCI_FB_OFFSET              1024
-#define ATA_AHCI_CT_OFFSET              1024+4096
-#define ATA_AHCI_CT_SG_OFFSET           128
-#define ATA_AHCI_CT_SIZE                256
+#define ATA_AHCI_FB_OFFSET              (ATA_AHCI_CL_SIZE * 32)
+#define ATA_AHCI_CT_OFFSET              (ATA_AHCI_FB_OFFSET + 4096)
+#define ATA_AHCI_CT_SIZE                (1024 + 128)
 
 struct ata_ahci_dma_prd {
     u_int64_t                   dba;
@@ -243,7 +242,8 @@ struct ata_ahci_cmd_tab {
     u_int8_t                    cfis[64];
     u_int8_t                    acmd[32];
     u_int8_t                    reserved[32];
-    struct ata_ahci_dma_prd     prd_tab[16];
+#define ATA_AHCI_DMA_ENTRIES            64
+    struct ata_ahci_dma_prd     prd_tab[ATA_AHCI_DMA_ENTRIES];
 } __packed;
 
 struct ata_ahci_cmd_list {
@@ -373,18 +373,9 @@ struct ata_request {
 #define         ATA_R_DANGER1           0x20000000
 #define         ATA_R_DANGER2           0x40000000
 
+    struct ata_dmaslot          *dma;           /* DMA slot of this request */
     u_int8_t                    status;         /* ATA status */
     u_int8_t                    error;          /* ATA error */
-    struct {
-	u_int8_t                status;         /* DMA status */
-	bus_dma_tag_t           sg_tag;         /* SG list DMA tag */
-	bus_dmamap_t            sg_map;         /* SG list DMA map */
-	void                    *sg;            /* DMA transfer table */
-	bus_addr_t              sg_bus;         /* bus address of dmatab */
-	bus_dma_tag_t           data_tag;       /* data DMA tag */
-	bus_dmamap_t            data_map;       /* data DMA map */
-	u_int32_t               cur_iosize;     /* DMA data current IO size */
-    } dma;
     u_int32_t                   donecount;      /* bytes transferred */
     int                         result;         /* result error code */
     void                        (*callback)(struct ata_request *request);
@@ -447,6 +438,16 @@ struct ata_dmasetprd_args {
     int error;
 };
 
+struct ata_dmaslot {
+    u_int8_t                    status;         /* DMA status */
+    bus_dma_tag_t               sg_tag;         /* SG list DMA tag */
+    bus_dmamap_t                sg_map;         /* SG list DMA map */
+    void                        *sg;            /* DMA transfer table */
+    bus_addr_t                  sg_bus;         /* bus address of dmatab */
+    bus_dma_tag_t               data_tag;       /* data DMA tag */
+    bus_dmamap_t                data_map;       /* data DMA map */
+};
+
 /* structure holding DMA related information */
 struct ata_dma {
     bus_dma_tag_t               dmatag;         /* parent DMA tag */
@@ -454,6 +455,10 @@ struct ata_dma {
     bus_dmamap_t                work_map;       /* workspace DMA map */
     u_int8_t                    *work;          /* workspace */
     bus_addr_t                  work_bus;       /* bus address of dmatab */
+
+#define ATA_DMA_SLOTS			32
+    int				dma_slots;	/* DMA slots allocated */
+    struct ata_dmaslot		slot[ATA_DMA_SLOTS];
     u_int32_t                   alignment;      /* DMA SG list alignment */
     u_int32_t                   boundary;       /* DMA SG list boundary */
     u_int32_t                   segsize;        /* DMA SG list segment size */
@@ -499,7 +504,7 @@ struct ata_channel {
     struct resource             *r_irq;         /* interrupt of this channel */
     void                        *ih;            /* interrupt handle */
     struct ata_lowlevel         hw;             /* lowlevel HW functions */
-    struct ata_dma              dma;           /* DMA data / functions */
+    struct ata_dma              dma;            /* DMA data / functions */
     int                         flags;          /* channel flags */
 #define         ATA_NO_SLAVE            0x01
 #define         ATA_USE_16BIT           0x02
@@ -581,8 +586,12 @@ void ata_generic_reset(device_t dev);
 int ata_generic_command(struct ata_request *request);
 
 /* macros for alloc/free of struct ata_request */
-struct ata_request *ata_alloc_request(device_t dev);
-void ata_free_request(struct ata_request *request);
+extern uma_zone_t ata_request_zone;
+#define ata_alloc_request() uma_zalloc(ata_request_zone, M_NOWAIT | M_ZERO)
+#define ata_free_request(request) { \
+	if (!(request->flags & ATA_R_DANGER2)) \
+	    uma_zfree(ata_request_zone, request); \
+	}
 
 /* macros for alloc/free of struct ata_composite */
 extern uma_zone_t ata_composite_zone;

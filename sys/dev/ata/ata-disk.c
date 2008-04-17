@@ -224,10 +224,11 @@ ad_spindown(void *priv)
 	return;
     device_printf(dev, "Idle, spin down\n");
     atadev->spindown_state = 1;
-    if (!(request = ata_alloc_request(dev))) {
+    if (!(request = ata_alloc_request())) {
 	device_printf(dev, "FAILURE - out of memory in ad_spindown\n");
 	return;
     }
+    request->dev = dev;
     request->flags = ATA_R_CONTROL;
     request->timeout = 5;
     request->retries = 1;
@@ -248,13 +249,14 @@ ad_strategy(struct bio *bp)
 	callout_reset(&atadev->spindown_timer, hz * atadev->spindown,
 		      ad_spindown, dev);
 
-    if (!(request = ata_alloc_request(dev))) {
+    if (!(request = ata_alloc_request())) {
 	device_printf(dev, "FAILURE - out of memory in start\n");
 	biofinish(bp, NULL, ENOMEM);
 	return;
     }
 
     /* setup request */
+    request->dev = dev;
     request->bio = bp;
     request->callback = ad_done;
     if (atadev->spindown_state) {
@@ -448,10 +450,11 @@ ad_set_geometry(device_t dev)
 		      adp->total_secs / (adp->heads * adp->sectors),
 		      adp->heads, adp->sectors);
 
-    if (!(request = ata_alloc_request(dev)))
+    if (!(request = ata_alloc_request()))
 	return;
 
     /* get the max native size the device supports */
+    request->dev = dev;
     request->u.ata.command = ATA_READ_NATIVE_MAX_ADDRESS;
     request->u.ata.lba = 0;
     request->u.ata.count = 0;

@@ -71,12 +71,12 @@ MALLOC_DEFINE(M_ATA, "ata_generic", "ATA driver generic layer");
 int (*ata_raid_ioctl_func)(u_long cmd, caddr_t data) = NULL;
 struct intr_config_hook *ata_delayed_attach = NULL;
 devclass_t ata_devclass;
+uma_zone_t ata_request_zone;
 uma_zone_t ata_composite_zone;
 int ata_wc = 1;
 int ata_setmax = 0;
 
 /* local vars */
-static uma_zone_t ata_request_zone;
 static int ata_dma = 1;
 static int atapi_dma = 1;
 
@@ -451,10 +451,11 @@ ata_device_ioctl(device_t dev, u_long cmd, caddr_t data)
 	if (!(buf = malloc(ioc_request->count, M_ATA, M_NOWAIT))) {
 	    return ENOMEM;
 	}
-	if (!(request = ata_alloc_request(dev))) {
+	if (!(request = ata_alloc_request())) {
 	    free(buf, M_ATA);
 	    return  ENOMEM;
 	}
+	request->dev = atadev->dev;
 	if (ioc_request->flags & ATA_CMD_WRITE) {
 	    error = copyin(ioc_request->data, buf, ioc_request->count);
 	    if (error) {
@@ -587,8 +588,9 @@ ata_getparam(struct ata_device *atadev, int init)
 	return ENXIO;
 
     while (retries-- > 0 && error) {
-	if (!(request = ata_alloc_request(atadev->dev)))
+	if (!(request = ata_alloc_request()))
 	    break;
+	request->dev = atadev->dev;
 	request->timeout = 1;
 	request->retries = 0;
 	request->u.ata.command = command;
@@ -682,7 +684,8 @@ ata_identify(device_t dev)
 	    }
 	    devices[i]->unit = i;
 #ifdef ATA_STATIC_ID
-	    unit = (device_get_unit(dev) << 1) + i;
+	    if (ch->devices & ((ATA_ATA_MASTER << i)))
+		unit = (device_get_unit(dev) << 1) + i;
 #endif
 	    if (!(childdevs[i] = ata_add_child(dev, devices[i], unit))) {
 		free(devices[i], M_ATA);
@@ -1002,60 +1005,6 @@ bpack(int8_t *src, int8_t *dst, int len)
 	dst[j] = 0x00;
 }
 
-struct ata_request *
-ata_alloc_request(device_t dev)
-{
-    struct ata_channel *ch = device_get_softc(device_get_parent(dev));
-    struct ata_request *request;
-
-    if ((request = uma_zalloc(ata_request_zone, M_NOWAIT | M_ZERO))) {
-	if (bus_dma_tag_create(ch->dma.dmatag, PAGE_SIZE, PAGE_SIZE,
-			       ch->dma.max_address, BUS_SPACE_MAXADDR,
-			       NULL, NULL, PAGE_SIZE, 1, PAGE_SIZE,
-			       0, NULL, NULL, &request->dma.sg_tag)) {
-            device_printf(ch->dev, "FAILURE - create sg_tag\n");
-	    uma_zfree(ata_request_zone, request);
-            return NULL;
-	}
-	if (bus_dmamem_alloc(request->dma.sg_tag, (void **)&request->dma.sg, 0,
-			     &request->dma.sg_map)) {
-	    device_printf(ch->dev, "FAILURE - alloc sg_map\n");
-	    bus_dma_tag_destroy(request->dma.sg_tag);
-	    uma_zfree(ata_request_zone, request);
-	    return NULL;
-        }
-	if (bus_dma_tag_create(ch->dma.dmatag,
-			       ch->dma.alignment, ch->dma.boundary,
-                               ch->dma.max_address, BUS_SPACE_MAXADDR,
-                               NULL, NULL, ch->dma.max_iosize,
-                               ATA_DMA_ENTRIES, ch->dma.segsize,
-                               BUS_DMA_ALLOCNOW, NULL, NULL,
-                               &request->dma.data_tag)) {
-	    device_printf(ch->dev, "FAILURE - create data_tag\n");
-	    bus_dmamem_free(request->dma.sg_tag, request->dma.sg,
-			    request->dma.sg_map);
-	    bus_dma_tag_destroy(request->dma.sg_tag);
-	    uma_zfree(ata_request_zone, request);
-	    return NULL;
-	}
-	request->dev = dev;
-    }
-    else
-	device_printf(dev, "FAILURE - ata_alloc_request\n");
-    return request;
-}
-
-void
-ata_free_request(struct ata_request *request)
-{
-    if (!(request->flags & ATA_R_DANGER2)) {
-	if (request->dma.data_tag)
-	    bus_dma_tag_destroy(request->dma.data_tag);
-	if (request->dma.sg_tag)
-	    bus_dma_tag_destroy(request->dma.sg_tag);
-	uma_zfree(ata_request_zone, request);
-    }
-}
 
 /*
  * module handeling

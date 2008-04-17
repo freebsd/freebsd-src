@@ -4027,10 +4027,11 @@ ata_raid_init_request(device_t dev, struct ar_softc *rdp, struct bio *bio)
 {
     struct ata_request *request;
 
-    if (!(request = ata_alloc_request(dev))) {
+    if (!(request = ata_alloc_request())) {
 	printf("FAILURE - out of memory in ata_raid_init_request\n");
 	return NULL;
     }
+    request->dev = dev;
     request->timeout = 5;
     request->retries = 2;
     request->callback = ata_raid_done;
@@ -4098,12 +4099,13 @@ ata_raid_rw(device_t dev, u_int64_t lba, void *data, u_int bcount, int flags)
 	return ENOMEM;
     }
 	
-    if (!(request = ata_alloc_request(dev))) {
+    if (!(request = ata_alloc_request())) {
 	device_printf(dev, "FAILURE - out of memory in ata_raid_rw\n");
 	return ENOMEM;
     }
 
     /* setup request */
+    request->dev = dev;
     request->timeout = 10;
     request->retries = 0;
     request->data = data;

@@ -313,12 +313,12 @@ ata_end_transaction(struct ata_request *request)
 
 	/* stop DMA engine and get status */
 	if (ch->dma.stop)
-	    request->dma.status = ch->dma.stop(request);
+	    request->dma->status = ch->dma.stop(request);
 
 	/* did we get error or data */
 	if (request->status & ATA_S_ERROR)
 	    request->error = ATA_IDX_INB(ch, ATA_ERROR);
-	else if (request->dma.status & ATA_BMSTAT_ERROR)
+	else if (request->dma->status & ATA_BMSTAT_ERROR)
 	    request->status |= ATA_S_ERROR;
 	else if (!(request->flags & ATA_R_TIMEOUT))
 	    request->donecount = request->bytecount;
@@ -425,12 +425,12 @@ ata_end_transaction(struct ata_request *request)
 
 	/* stop DMA engine and get status */
 	if (ch->dma.stop)
-	    request->dma.status = ch->dma.stop(request);
+	    request->dma->status = ch->dma.stop(request);
 
 	/* did we get error or data */
 	if (request->status & (ATA_S_ERROR | ATA_S_DWF))
 	    request->error = ATA_IDX_INB(ch, ATA_ERROR);
-	else if (request->dma.status & ATA_BMSTAT_ERROR)
+	else if (request->dma->status & ATA_BMSTAT_ERROR)
 	    request->status |= ATA_S_ERROR;
 	else if (!(request->flags & ATA_R_TIMEOUT))
 	    request->donecount = request->bytecount;
