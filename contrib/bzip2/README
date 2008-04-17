@@ -6,8 +6,8 @@ This version is fully compatible with the previous public releases.
 This file is part of bzip2/libbzip2, a program and library for
 lossless, block-sorting data compression.
 
-bzip2/libbzip2 version 1.0.4 of 20 December 2006
-Copyright (C) 1996-2006 Julian Seward <jseward@bzip.org>
+bzip2/libbzip2 version 1.0.5 of 10 December 2007
+Copyright (C) 1996-2007 Julian Seward <jseward@bzip.org>
 
 Please read the WARNING, DISCLAIMER and PATENTS sections in this file.
 
@@ -177,6 +177,10 @@ WHAT'S NEW IN 1.0.4 ?
 
    See the CHANGES file.
 
+WHAT'S NEW IN 1.0.5 ?
+
+   See the CHANGES file.
+
 
 I hope you find bzip2 useful.  Feel free to contact me at
    jseward@bzip.org
@@ -203,3 +207,4 @@ Cambridge, UK.
 30 December 2001 (bzip2, version 1.0.2pre1)
 15 February 2005 (bzip2, version 1.0.3)
 20 December 2006 (bzip2, version 1.0.4)
+10 December 2007 (bzip2, version 1.0.5)
