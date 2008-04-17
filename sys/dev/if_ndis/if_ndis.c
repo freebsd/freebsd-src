@@ -1582,17 +1582,13 @@ ndis_tick(xsc)
 {
 	struct ndis_softc	*sc;
 
-	mtx_unlock(&Giant);
-
 	sc = xsc;
 
 	IoQueueWorkItem(sc->ndis_tickitem,
 	    (io_workitem_func)ndis_ticktask_wrap,
 	    WORKQUEUE_CRITICAL, sc);
-	sc->ndis_stat_ch = timeout(ndis_tick, sc, hz *
-	    sc->ndis_block->nmb_checkforhangsecs);
-
-	mtx_lock(&Giant);
+	callout_reset(&sc->ndis_stat_callout,
+	    hz * sc->ndis_block->nmb_checkforhangsecs, ndis_tick, sc);
 
 	return;
 }
@@ -1939,8 +1935,9 @@ ndis_init(xsc)
 	if (sc->ndis_block->nmb_checkforhangsecs == 0)
 		sc->ndis_block->nmb_checkforhangsecs = 3;
 
-	sc->ndis_stat_ch = timeout(ndis_tick, sc,
-	    hz * sc->ndis_block->nmb_checkforhangsecs);
+	callout_init(&sc->ndis_stat_callout, 1);
+	callout_reset(&sc->ndis_stat_callout,
+	    hz * sc->ndis_block->nmb_checkforhangsecs, ndis_tick, sc);
 
 	return;
 }
@@ -3153,7 +3150,7 @@ ndis_stop(sc)
 		ieee80211_new_state(ic, IEEE80211_S_INIT, -1);
 
 	ifp = sc->ifp;
-	untimeout(ndis_tick, sc, sc->ndis_stat_ch);
+	callout_drain(&sc->ndis_stat_callout);
 
 	NDIS_LOCK(sc);
 	ifp->if_timer = 0;
