@@ -55,7 +55,7 @@ fputws(const wchar_t * __restrict ws, FILE * __restrict fp)
 	iov.iov_base = buf;
 	do {
 		nbytes = __wcsnrtombs(buf, &ws, SIZE_T_MAX, sizeof(buf),
-		    &fp->_extra->mbstate);
+		    &fp->_mbstate);
 		if (nbytes == (size_t)-1)
 			goto error;
 		iov.iov_len = uio.uio_resid = nbytes;
