@@ -248,6 +248,13 @@
 	    <entry>14&nbsp;February&nbsp;2008</entry>
 	    <entry><para>IPsec null pointer dereference panic</para></entry>
 	  </row>
+
+	  <row>
+	    <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-08:05.openssh.asc"
+		>SA-08:05.openssh</ulink></entry>
+	    <entry>17&nbsp;April&nbsp;2008</entry>
+	    <entry><para>OpenSSH X11-forwarding privilege escalation</para></entry>
+	  </row>
 	</tbody>
       </tgroup>
     </informaltable>
