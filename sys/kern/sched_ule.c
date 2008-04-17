@@ -183,6 +183,8 @@ static int preempt_thresh = PRI_MIN_KERN;
 static int preempt_thresh = 0;
 #endif
 static int static_boost = PRI_MIN_TIMESHARE;
+static int sched_idlespins = 10000;
+static int sched_idlespinthresh = 4;
 
 /*
  * tdq - per processor runqs and statistics.  All fields are protected by the
@@ -193,9 +195,12 @@ struct tdq {
 	/* Ordered to improve efficiency of cpu_search() and switch(). */
 	struct mtx	tdq_lock;		/* run queue lock. */
 	struct cpu_group *tdq_cg;		/* Pointer to cpu topology. */
-	int		tdq_load;		/* Aggregate load. */
+	volatile int	tdq_load;		/* Aggregate load. */
 	int		tdq_sysload;		/* For loadavg, !ITHD load. */
 	int		tdq_transferable;	/* Transferable thread count. */
+	volatile int	tdq_idlestate;		/* State of the idle thread. */
+	short		tdq_switchcnt;		/* Switches this tick. */
+	short		tdq_oldswitchcnt;	/* Switches last tick. */
 	u_char		tdq_lowpri;		/* Lowest priority thread. */
 	u_char		tdq_ipipending;		/* IPI pending. */
 	u_char		tdq_idx;		/* Current insert index. */
@@ -206,6 +211,9 @@ struct tdq {
 	char		tdq_name[sizeof("sched lock") + 6];
 } __aligned(64);
 
+/* Idle thread states and config. */
+#define	TDQ_RUNNING	1
+#define	TDQ_IDLE	2
 
 #ifdef SMP
 struct cpu_group *cpu_top;
@@ -329,16 +337,19 @@ tdq_print(int cpu)
 	printf("\tlock            %p\n", TDQ_LOCKPTR(tdq));
 	printf("\tLock name:      %s\n", tdq->tdq_name);
 	printf("\tload:           %d\n", tdq->tdq_load);
+	printf("\tswitch cnt:     %d\n", tdq->tdq_switchcnt);
+	printf("\told switch cnt: %d\n", tdq->tdq_oldswitchcnt);
+	printf("\tidle state:     %d\n", tdq->tdq_idlestate);
 	printf("\ttimeshare idx:  %d\n", tdq->tdq_idx);
 	printf("\ttimeshare ridx: %d\n", tdq->tdq_ridx);
+	printf("\tload transferable: %d\n", tdq->tdq_transferable);
+	printf("\tlowest priority:   %d\n", tdq->tdq_lowpri);
 	printf("\trealtime runq:\n");
 	runq_print(&tdq->tdq_realtime);
 	printf("\ttimeshare runq:\n");
 	runq_print(&tdq->tdq_timeshare);
 	printf("\tidle runq:\n");
 	runq_print(&tdq->tdq_idle);
-	printf("\tload transferable: %d\n", tdq->tdq_transferable);
-	printf("\tlowest priority:   %d\n", tdq->tdq_lowpri);
 }
 
 static inline int
@@ -935,6 +946,15 @@ tdq_notify(struct tdq *tdq, struct thread *td)
 	cpri = pcpu_find(cpu)->pc_curthread->td_priority;
 	if (!sched_shouldpreempt(pri, cpri, 1))
 		return;
+	if (TD_IS_IDLETHREAD(td)) {
+		/*
+		 * If the idle thread is still 'running' it's probably
+		 * waiting on us to release the tdq spinlock already.  No
+		 * need to ipi.
+		 */
+		if (tdq->tdq_idlestate == TDQ_RUNNING)
+			return;
+	}
 	tdq->tdq_ipipending = 1;
 	ipi_selected(1 << cpu, IPI_PREEMPT);
 }
@@ -1757,6 +1777,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 	td->td_oncpu = NOCPU;
 	td->td_flags &= ~TDF_NEEDRESCHED;
 	td->td_owepreempt = 0;
+	tdq->tdq_switchcnt++;
 	/*
 	 * The lock pointer in an idle thread should never change.  Reset it
 	 * to CAN_RUN as well.
@@ -2068,6 +2089,16 @@ sched_clock(struct thread *td)
 			sched_balance();
 	}
 #endif
+	/*
+	 * Save the old switch count so we have a record of the last ticks
+	 * activity.   Initialize the new switch count based on our load.
+	 * If there is some activity seed it to reflect that.
+	 */
+	tdq->tdq_oldswitchcnt = tdq->tdq_switchcnt;
+	if (tdq->tdq_load)
+		tdq->tdq_switchcnt = 2;
+	else
+		tdq->tdq_switchcnt = 0;
 	/*
 	 * Advance the insert index once for each tick to ensure that all
 	 * threads get a chance to run.
@@ -2444,18 +2475,47 @@ sched_idletd(void *dummy)
 {
 	struct thread *td;
 	struct tdq *tdq;
+	int switchcnt;
+	int i;
 
 	td = curthread;
 	tdq = TDQ_SELF();
 	mtx_assert(&Giant, MA_NOTOWNED);
 	/* ULE relies on preemption for idle interruption. */
 	for (;;) {
+		tdq->tdq_idlestate = TDQ_RUNNING;
 #ifdef SMP
-		if (tdq_idled(tdq))
-			cpu_idle();
-#else
-		cpu_idle();
+		if (tdq_idled(tdq) == 0)
+			continue;
 #endif
+		switchcnt = tdq->tdq_switchcnt + tdq->tdq_oldswitchcnt;
+		/*
+		 * If we're switching very frequently, spin while checking
+		 * for load rather than entering a low power state that 
+		 * requires an IPI.
+		 */
+		if (switchcnt > sched_idlespinthresh) {
+			for (i = 0; i < sched_idlespins; i++) {
+				if (tdq->tdq_load)
+					break;
+				cpu_spinwait();
+			}
+		}
+		/*
+		 * We must set our state to IDLE before checking
+		 * tdq_load for the last time to avoid a race with
+		 * tdq_notify().
+		 */
+		if (tdq->tdq_load == 0) {
+			tdq->tdq_idlestate = TDQ_IDLE;
+			if (tdq->tdq_load == 0)
+				cpu_idle();
+		}
+		if (tdq->tdq_load) {
+			thread_lock(td);
+			mi_switch(SW_VOL | SWT_IDLE, NULL);
+			thread_unlock(td);
+		}
 	}
 }
 
@@ -2524,6 +2584,10 @@ SYSCTL_INT(_kern_sched, OID_AUTO, preempt_thresh, CTLFLAG_RW, &preempt_thresh,
      0,"Min priority for preemption, lower priorities have greater precedence");
 SYSCTL_INT(_kern_sched, OID_AUTO, static_boost, CTLFLAG_RW, &static_boost,
      0,"Controls whether static kernel priorities are assigned to sleeping threads.");
+SYSCTL_INT(_kern_sched, OID_AUTO, idlespins, CTLFLAG_RW, &sched_idlespins,
+     0,"Number of times idle will spin waiting for new work.");
+SYSCTL_INT(_kern_sched, OID_AUTO, idlespinthresh, CTLFLAG_RW, &sched_idlespinthresh,
+     0,"Threshold before we will permit idle spinning.");
 #ifdef SMP
 SYSCTL_INT(_kern_sched, OID_AUTO, affinity, CTLFLAG_RW, &affinity, 0,
     "Number of hz ticks to keep thread affinity for");
