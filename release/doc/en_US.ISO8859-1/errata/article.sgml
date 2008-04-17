@@ -130,7 +130,33 @@
 ]]>
 
 <![ %release.type.snapshot [
-    <para>No advisories.</para>
+    <para>The following security advisories pertain to &os; &release.bugfix;.
+      For more information, consult the individual advisories available from
+      <ulink url="http://security.FreeBSD.org/"></ulink>.</para>
+
+    <informaltable frame="none" pgwide="0">
+      <tgroup cols="3">
+	<colspec colwidth="1*">
+	<colspec colwidth="1*">
+	<colspec colwidth="3*">
+	<thead>
+	  <row>
+	    <entry>Advisory</entry>
+	    <entry>Date</entry>
+	    <entry>Topic</entry>
+	  </row>
+	</thead>
+
+	<tbody>
+	  <row>
+	    <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-08:05.openssh.asc"
+		>SA-08:05.openssh</ulink></entry>
+	    <entry>17&nbsp;April&nbsp;2008</entry>
+	    <entry><para>OpenSSH X11-forwarding privilege escalation</para></entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </informaltable>
 ]]>
 
   </sect1>
