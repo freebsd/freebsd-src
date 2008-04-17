@@ -199,6 +199,9 @@
   <sect2 id="contrib">
     <title>Contributed Software</title>
 
+    <para><application>bzip2</application> has been updated from 1.0.4
+      to 1.0.5.</para>
+
     <para>The timezone database has been updated from
       the <application>tzdata2007k</application> release to
       the <application>tzdata2008b</application> release.</para>
