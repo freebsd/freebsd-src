@@ -383,6 +383,8 @@ __END_DECLS
 #define	IN_BADCLASS(i)		(((u_int32_t)(i) & 0xf0000000) == 0xf0000000)
 
 #define IN_LINKLOCAL(i)		(((u_int32_t)(i) & 0xffff0000) == 0xa9fe0000)
+#define IN_LOOPBACK(i)		(((u_int32_t)(i) & 0xff000000) == 0x7f000000)
+#define IN_ZERONET(i)		(((u_int32_t)(i) & 0xff000000) == 0)
 
 #define	IN_PRIVATE(i)	((((u_int32_t)(i) & 0xff000000) == 0x0a000000) || \
 			 (((u_int32_t)(i) & 0xfff00000) == 0xac100000) || \
