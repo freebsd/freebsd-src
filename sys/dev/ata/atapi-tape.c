@@ -421,10 +421,11 @@ ast_strategy(struct bio *bp)
     ccb[3] = blkcount >> 8;
     ccb[4] = blkcount;
 
-    if (!(request = ata_alloc_request(dev))) {
+    if (!(request = ata_alloc_request())) {
 	biofinish(bp, NULL, ENOMEM);
 	return;
     }
+    request->dev = dev;
     request->driver = bp;
     bcopy(ccb, request->u.atapi.ccb,
 	  (atadev->param.config & ATA_PROTO_MASK) == 

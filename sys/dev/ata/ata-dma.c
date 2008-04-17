@@ -45,6 +45,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/ata/ata-pci.h>
 
 /* prototypes */
+static void ata_dmafini(device_t dev);
+static void ata_dmasetupc_cb(void *xsc, bus_dma_segment_t *segs, int nsegs, int error);
 static void ata_dmaalloc(device_t dev);
 static void ata_dmafree(device_t dev);
 static void ata_dmasetprd(void *xsc, bus_dma_segment_t *segs, int nsegs, int error);
@@ -67,6 +69,7 @@ void
 ata_dmainit(device_t dev)
 {
     struct ata_channel *ch = device_get_softc(dev);
+    struct ata_dc_cb_args dcba;
 
     ch->dma.alloc = ata_dmaalloc;
     ch->dma.free = ata_dmafree;
@@ -78,6 +81,59 @@ ata_dmainit(device_t dev)
     ch->dma.segsize = 63536;
     ch->dma.max_iosize = 128 * DEV_BSIZE;
     ch->dma.max_address = BUS_SPACE_MAXADDR_32BIT;
+    ch->dma.dma_slots = 1;
+
+    if (bus_dma_tag_create(bus_get_dma_tag(dev), ch->dma.alignment, 0,
+			   ch->dma.max_address, BUS_SPACE_MAXADDR,
+			   NULL, NULL, ch->dma.max_iosize,
+			   ATA_DMA_ENTRIES, ch->dma.segsize,
+			   0, NULL, NULL, &ch->dma.dmatag))
+	goto error;
+
+    if (bus_dma_tag_create(ch->dma.dmatag, PAGE_SIZE, 64 * 1024,
+			   ch->dma.max_address, BUS_SPACE_MAXADDR,
+			   NULL, NULL, MAXWSPCSZ, 1, MAXWSPCSZ,
+			   0, NULL, NULL, &ch->dma.work_tag))
+	goto error;
+
+    if (bus_dmamem_alloc(ch->dma.work_tag, (void **)&ch->dma.work, 0,
+			 &ch->dma.work_map))
+	goto error;
+
+    if (bus_dmamap_load(ch->dma.work_tag, ch->dma.work_map, ch->dma.work,
+			MAXWSPCSZ, ata_dmasetupc_cb, &dcba, 0) ||
+			dcba.error) {
+	bus_dmamem_free(ch->dma.work_tag, ch->dma.work, ch->dma.work_map);
+	goto error;
+    }
+    ch->dma.work_bus = dcba.maddr;
+    return;
+
+error:
+    device_printf(dev, "WARNING - DMA initialization failed, disabling DMA\n");
+    ata_dmafini(dev);
+}
+
+void 
+ata_dmafini(device_t dev)
+{
+    struct ata_channel *ch = device_get_softc(dev);
+
+    if (ch->dma.work_bus) {
+	bus_dmamap_unload(ch->dma.work_tag, ch->dma.work_map);
+	bus_dmamem_free(ch->dma.work_tag, ch->dma.work, ch->dma.work_map);
+	ch->dma.work_bus = 0;
+	ch->dma.work_map = NULL;
+	ch->dma.work = NULL;
+    }
+    if (ch->dma.work_tag) {
+	bus_dma_tag_destroy(ch->dma.work_tag);
+	ch->dma.work_tag = NULL;
+    }
+    if (ch->dma.dmatag) {
+	bus_dma_tag_destroy(ch->dma.dmatag);
+	ch->dma.dmatag = NULL;
+    }
 }
 
 static void
@@ -94,6 +150,7 @@ ata_dmaalloc(device_t dev)
 {
     struct ata_channel *ch = device_get_softc(dev);
     struct ata_dc_cb_args dcba;
+    int i;
 
     if (bus_dma_tag_create(bus_get_dma_tag(dev), ch->dma.alignment, 0,
 			   ch->dma.max_address, BUS_SPACE_MAXADDR,
@@ -120,6 +177,48 @@ ata_dmaalloc(device_t dev)
     }
     ch->dma.work_bus = dcba.maddr;
 
+    /* alloc and setup needed dma slots */
+    bzero(ch->dma.slot, sizeof(struct ata_dmaslot) * ATA_DMA_SLOTS);
+    for (i = 0; i < ch->dma.dma_slots; i++) {
+	struct ata_dmaslot *slot = &ch->dma.slot[i];
+
+	if (bus_dma_tag_create(ch->dma.dmatag, PAGE_SIZE, PAGE_SIZE,
+			       ch->dma.max_address, BUS_SPACE_MAXADDR,
+			       NULL, NULL, PAGE_SIZE, 1, PAGE_SIZE,
+			       0, NULL, NULL, &slot->sg_tag)) {
+            device_printf(ch->dev, "FAILURE - create sg_tag\n");
+            goto error;
+	}
+
+	if (bus_dmamem_alloc(slot->sg_tag, (void **)&slot->sg,
+			     0, &slot->sg_map)) {
+	    device_printf(ch->dev, "FAILURE - alloc sg_map\n");
+	    goto error;
+        }
+
+	if (bus_dmamap_load(slot->sg_tag, slot->sg_map, slot->sg, MAXTABSZ,
+			    ata_dmasetupc_cb, &dcba, 0) || dcba.error) {
+	    device_printf(ch->dev, "FAILURE - load sg\n");
+	    goto error;
+	}
+	slot->sg_bus = dcba.maddr;
+
+	if (bus_dma_tag_create(ch->dma.dmatag,
+			       ch->dma.alignment, ch->dma.boundary,
+                               ch->dma.max_address, BUS_SPACE_MAXADDR,
+                               NULL, NULL, ch->dma.max_iosize,
+                               ATA_DMA_ENTRIES, ch->dma.segsize,
+                               BUS_DMA_ALLOCNOW, NULL, NULL, &slot->data_tag)) {
+	    device_printf(ch->dev, "FAILURE - create data_tag\n");
+	    goto error;
+	}
+
+	if (bus_dmamap_create(slot->data_tag, 0, &slot->data_map)) {
+	    device_printf(ch->dev, "FAILURE - create data_map\n");
+	    goto error;
+        }
+    }
+
     return;
 
 error:
@@ -131,21 +230,34 @@ static void
 ata_dmafree(device_t dev)
 {
     struct ata_channel *ch = device_get_softc(dev);
+    int i;
 
-    if (ch->dma.work_bus) {
-	bus_dmamap_unload(ch->dma.work_tag, ch->dma.work_map);
-	bus_dmamem_free(ch->dma.work_tag, ch->dma.work, ch->dma.work_map);
-	ch->dma.work_bus = 0;
-	ch->dma.work_map = NULL;
-	ch->dma.work = NULL;
-    }
-    if (ch->dma.work_tag) {
-	bus_dma_tag_destroy(ch->dma.work_tag);
-	ch->dma.work_tag = NULL;
-    }
-    if (ch->dma.dmatag) {
-	bus_dma_tag_destroy(ch->dma.dmatag);
-	ch->dma.dmatag = NULL;
+    /* free all dma slots */
+    for (i = 0; i < ATA_DMA_SLOTS; i++) {
+	struct ata_dmaslot *slot = &ch->dma.slot[i];
+
+	if (slot->sg_bus) {
+            bus_dmamap_unload(slot->sg_tag, slot->sg_map);
+            slot->sg_bus = 0;
+	}
+	if (slot->sg_map) {
+            bus_dmamem_free(slot->sg_tag, slot->sg, slot->sg_map);
+            bus_dmamap_destroy(slot->sg_tag, slot->sg_map);
+            slot->sg = NULL;
+            slot->sg_map = NULL;
+	}
+	if (slot->data_map) {
+            bus_dmamap_destroy(slot->data_tag, slot->data_map);
+            slot->data_map = NULL;
+	}
+	if (slot->sg_tag) {
+            bus_dma_tag_destroy(slot->sg_tag);
+            slot->sg_tag = NULL;
+	}
+	if (slot->data_tag) {
+            bus_dma_tag_destroy(slot->data_tag);
+            slot->data_tag = NULL;
+	}
     }
 }
 
@@ -172,13 +284,13 @@ static int
 ata_dmaload(struct ata_request *request, void *addr, int *entries)
 {
     struct ata_channel *ch = device_get_softc(request->parent);
-    struct ata_dc_cb_args dcba;
+    struct ata_device *atadev = device_get_softc(request->dev);
     struct ata_dmasetprd_args dspa;
     int error;
 
     ATA_DEBUG_RQ(request, "dmaload");
 
-    if (request->dma.cur_iosize) {
+    if (request->dma) {
 	device_printf(request->dev,
 		      "FAILURE - already active DMA on this device\n");
 	return EIO;
@@ -201,27 +313,15 @@ ata_dmaload(struct ata_request *request, void *addr, int *entries)
 	return EIO;
     }
 
-    if (bus_dmamap_load(request->dma.sg_tag, request->dma.sg_map,
-			request->dma.sg, MAXTABSZ, ata_dmasetupc_cb, &dcba, 0)||
-			dcba.error) {
-	bus_dmamem_free(request->dma.sg_tag,
-			request->dma.sg, request->dma.sg_map);
-	device_printf(request->dev, "FAILURE - load sg\n");
-	goto error;
-    }
-    request->dma.sg_bus = dcba.maddr;
-
-    if (bus_dmamap_create(request->dma.data_tag, 0, &request->dma.data_map)) {
-	device_printf(request->dev, "FAILURE - create data_map\n");
-	goto error;
-    }
+    /* set our slot, unit for simplicity XXX SOS NCQ will change that */
+    request->dma = &ch->dma.slot[atadev->unit];
 
     if (addr)
 	dspa.dmatab = addr;
     else
-	dspa.dmatab = request->dma.sg;
+	dspa.dmatab = request->dma->sg;
 
-    if ((error = bus_dmamap_load(request->dma.data_tag, request->dma.data_map,
+    if ((error = bus_dmamap_load(request->dma->data_tag, request->dma->data_map,
 				 request->data, request->bytecount,
 				 ch->dma.setprd, &dspa, BUS_DMA_NOWAIT)) ||
 				 (error = dspa.error)) {
@@ -232,15 +332,11 @@ ata_dmaload(struct ata_request *request, void *addr, int *entries)
     if (entries)
 	*entries = dspa.nsegs;
 
-    bus_dmamap_sync(request->dma.sg_tag, request->dma.sg_map,
+    bus_dmamap_sync(request->dma->sg_tag, request->dma->sg_map,
 		    BUS_DMASYNC_PREWRITE);
-
-    bus_dmamap_sync(request->dma.data_tag, request->dma.data_map,
+    bus_dmamap_sync(request->dma->data_tag, request->dma->data_map,
 		    (request->flags & ATA_R_READ) ?
 		    BUS_DMASYNC_PREREAD : BUS_DMASYNC_PREWRITE);
-
-    request->dma.cur_iosize = request->bytecount;
-
     return 0;
 
 error:
@@ -253,31 +349,15 @@ ata_dmaunload(struct ata_request *request)
 {
     ATA_DEBUG_RQ(request, "dmaunload");
 
-    if (request->dma.cur_iosize) {
-	bus_dmamap_sync(request->dma.sg_tag, request->dma.sg_map,
+    if (request->dma) {
+	bus_dmamap_sync(request->dma->sg_tag, request->dma->sg_map,
 			BUS_DMASYNC_POSTWRITE);
-
-	bus_dmamap_sync(request->dma.data_tag, request->dma.data_map,
+	bus_dmamap_sync(request->dma->data_tag, request->dma->data_map,
 			(request->flags & ATA_R_READ) ?
 			BUS_DMASYNC_POSTREAD : BUS_DMASYNC_POSTWRITE);
-	bus_dmamap_unload(request->dma.data_tag, request->dma.data_map);
 
-	request->dma.cur_iosize = 0;
+	bus_dmamap_unload(request->dma->data_tag, request->dma->data_map);
+        request->dma = NULL;
     }
-
-    if (request->dma.data_map) {
-	bus_dmamap_destroy(request->dma.data_tag, request->dma.data_map);
-	request->dma.data_map = NULL;
-    }
-
-    if (request->dma.sg_bus) {
-	bus_dmamap_unload(request->dma.sg_tag, request->dma.sg_map);
-	bus_dmamem_free(request->dma.sg_tag, request->dma.sg,
-			request->dma.sg_map);
-	request->dma.sg = NULL;
-	request->dma.sg_bus = 0;
-	request->dma.sg_map = NULL;
-    }
-
     return 0;
 }
