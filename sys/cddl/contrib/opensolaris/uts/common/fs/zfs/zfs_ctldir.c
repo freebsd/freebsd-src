@@ -391,7 +391,7 @@ zfsctl_root_lookup(vnode_t *dvp, char *nm, vnode_t **vpp, pathname_t *pnp,
 	if (strcmp(nm, "..") == 0) {
 		err = VFS_ROOT(dvp->v_vfsp, LK_EXCLUSIVE, vpp, curthread);
 		if (err == 0)
-			VOP_UNLOCK(*vpp, 0);
+			VOP_UNLOCK(*vpp, 0, curthread);
 	} else {
 		err = gfs_dir_lookup(dvp, nm, vpp);
 	}
@@ -429,7 +429,7 @@ zfsctl_root_lookup_vop(ap)
 
 	err = zfsctl_root_lookup(dvp, nm, vpp, NULL, 0, NULL, cr);
 	if (err == 0 && (nm[0] != '.' || nm[1] != '\0'))
-		vn_lock(*vpp, LK_EXCLUSIVE | LK_RETRY);
+		vn_lock(*vpp, LK_EXCLUSIVE | LK_RETRY, ap->a_cnp->cn_thread);
 
 	return (err);
 }
@@ -692,7 +692,7 @@ zfsctl_snapdir_lookup(ap)
 			 */
 			goto domount;
 		}
-		vn_lock(*vpp, LK_EXCLUSIVE | LK_RETRY);
+		vn_lock(*vpp, LK_EXCLUSIVE | LK_RETRY, ap->a_cnp->cn_thread);
 		mutex_exit(&sdp->sd_lock);
 		ZFS_EXIT(zfsvfs);
 		return (0);
@@ -732,7 +732,7 @@ domount:
 	kmem_free(mountpoint, mountpoint_len);
 	/* FreeBSD: This line was moved from below to avoid a lock recursion. */
 	if (err == 0)
-		vn_lock(*vpp, LK_EXCLUSIVE | LK_RETRY);
+		vn_lock(*vpp, LK_EXCLUSIVE | LK_RETRY, curthread);
 	mutex_exit(&sdp->sd_lock);
 
 	/*
@@ -882,7 +882,7 @@ zfsctl_snapshot_inactive(ap)
 
 	VERIFY(gfs_dir_lookup(vp, "..", &dvp) == 0);
 	sdp = dvp->v_data;
-	VOP_UNLOCK(dvp, 0);
+	VOP_UNLOCK(dvp, 0, ap->a_td);
 
 	if (!(locked = MUTEX_HELD(&sdp->sd_lock)))
 		mutex_enter(&sdp->sd_lock);

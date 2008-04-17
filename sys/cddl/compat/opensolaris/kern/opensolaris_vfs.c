@@ -163,7 +163,6 @@ domount(kthread_t *td, vnode_t *vp, const char *fstype, char *fspath,
 {
 	struct mount *mp;
 	struct vfsconf *vfsp;
-	struct ucred *newcr, *oldcr;
 	int error;
 
 	/*
@@ -192,9 +191,9 @@ domount(kthread_t *td, vnode_t *vp, const char *fstype, char *fspath,
 	/*
 	 * Allocate and initialize the filesystem.
 	 */
-	vn_lock(vp, LK_SHARED | LK_RETRY);
+	vn_lock(vp, LK_SHARED | LK_RETRY, td);
 	mp = vfs_mount_alloc(vp, vfsp, fspath, td);
-	VOP_UNLOCK(vp, 0);
+	VOP_UNLOCK(vp, 0, td);
 
 	mp->mnt_optnew = NULL;
 	vfs_setmntopt(mp, "from", fspec, 0);
@@ -203,9 +202,7 @@ domount(kthread_t *td, vnode_t *vp, const char *fstype, char *fspath,
 
 	/*
 	 * Set the mount level flags.
-	 * crdup() can sleep, so do it before acquiring a mutex.
 	 */
-	newcr = crdup(kcred);
 	MNT_ILOCK(mp);
 	if (fsflags & MNT_RDONLY)
 		mp->mnt_flag |= MNT_RDONLY;
@@ -215,11 +212,10 @@ domount(kthread_t *td, vnode_t *vp, const char *fstype, char *fspath,
 	 * Unprivileged user can trigger mounting a snapshot, but we don't want
 	 * him to unmount it, so we switch to privileged credentials.
 	 */
-	oldcr = mp->mnt_cred;
-	mp->mnt_cred = newcr;
+	crfree(mp->mnt_cred);
+	mp->mnt_cred = crdup(kcred);
 	mp->mnt_stat.f_owner = mp->mnt_cred->cr_uid;
 	MNT_IUNLOCK(mp);
-	crfree(oldcr);
 	/*
 	 * Mount the filesystem.
 	 * XXX The final recipients of VFS_MOUNT just overwrite the ndp they
@@ -238,7 +234,7 @@ domount(kthread_t *td, vnode_t *vp, const char *fstype, char *fspath,
 	 * mnt_optnew.
 	*/
 	mp->mnt_optnew = NULL;
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	/*
 	 * Put the new filesystem on the mount list after root.
 	 */
@@ -260,7 +256,7 @@ domount(kthread_t *td, vnode_t *vp, const char *fstype, char *fspath,
 			panic("mount: lost mount");
 		mountcheckdirs(vp, mvp);
 		vput(mvp);
-		VOP_UNLOCK(vp, 0);
+		VOP_UNLOCK(vp, 0, td);
 		if ((mp->mnt_flag & MNT_RDONLY) == 0)
 			error = vfs_allocate_syncvnode(mp);
 		vfs_unbusy(mp, td);
@@ -272,7 +268,7 @@ domount(kthread_t *td, vnode_t *vp, const char *fstype, char *fspath,
 		VI_LOCK(vp);
 		vp->v_iflag &= ~VI_MOUNT;
 		VI_UNLOCK(vp);
-		VOP_UNLOCK(vp, 0);
+		VOP_UNLOCK(vp, 0, td);
 		vfs_unbusy(mp, td);
 		vfs_mount_destroy(mp);
 	}

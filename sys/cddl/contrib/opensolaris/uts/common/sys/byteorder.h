@@ -58,7 +58,7 @@ extern "C" {
  * macros for conversion between host and (internet) network byte order
  */
 
-#if BYTE_ORDER == _BIG_ENDIAN && !defined(ntohl) && !defined(__lint)
+#if defined(_BIG_ENDIAN) && !defined(ntohl) && !defined(__lint)
 /* big-endian */
 #define	ntohl(x)	(x)
 #define	ntohs(x)	(x)
@@ -108,7 +108,7 @@ extern	in_port_t ntohs(in_port_t);
 /*
  * Macros to convert from a specific byte order to/from native byte order
  */
-#if BYTE_ORDER == _BIG_ENDIAN
+#ifdef _BIG_ENDIAN
 #define	BE_8(x)		BMASK_8(x)
 #define	BE_16(x)	BMASK_16(x)
 #define	BE_32(x)	BMASK_32(x)

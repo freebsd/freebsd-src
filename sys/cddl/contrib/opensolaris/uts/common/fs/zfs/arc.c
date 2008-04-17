@@ -1148,7 +1148,7 @@ arc_evict(arc_state_t *state, int64_t bytes, boolean_t recycle,
 		/* prefetch buffers have a minimum lifespan */
 		if (HDR_IO_IN_PROGRESS(ab) ||
 		    (ab->b_flags & (ARC_PREFETCH|ARC_INDIRECT) &&
-		    LBOLT - ab->b_arc_access < arc_min_prefetch_lifespan)) {
+		    lbolt - ab->b_arc_access < arc_min_prefetch_lifespan)) {
 			skipped++;
 			continue;
 		}
@@ -1439,7 +1439,7 @@ arc_reclaim_needed(void)
 		return (1);
 #endif
 #else
-	if (kmem_used() > (kmem_size() * 3) / 4)
+	if (kmem_used() > (kmem_size() * 4) / 5)
 		return (1);
 #endif
 
@@ -1525,7 +1525,7 @@ arc_reclaim_thread(void *dummy __unused)
 			}
 
 			/* reset the growth delay for every reclaim */
-			growtime = LBOLT + (arc_grow_retry * hz);
+			growtime = lbolt + (arc_grow_retry * hz);
 			ASSERT(growtime > 0);
 
 			if (zfs_needfree && last_reclaim == ARC_RECLAIM_CONS) {
@@ -1538,7 +1538,7 @@ arc_reclaim_thread(void *dummy __unused)
 				last_reclaim = ARC_RECLAIM_AGGR;
 			}
 			arc_kmem_reap_now(last_reclaim);
-		} else if ((growtime > 0) && ((growtime - LBOLT) <= 0)) {
+		} else if ((growtime > 0) && ((growtime - lbolt) <= 0)) {
 			arc_no_grow = FALSE;
 		}
 
@@ -1757,7 +1757,7 @@ arc_access(arc_buf_hdr_t *buf, kmutex_t *hash_lock)
 		 */
 
 		ASSERT(buf->b_arc_access == 0);
-		buf->b_arc_access = LBOLT;
+		buf->b_arc_access = lbolt;
 		DTRACE_PROBE1(new_state__mru, arc_buf_hdr_t *, buf);
 		arc_change_state(arc_mru, buf, hash_lock);
 
@@ -1781,7 +1781,7 @@ arc_access(arc_buf_hdr_t *buf, kmutex_t *hash_lock)
 				buf->b_flags &= ~ARC_PREFETCH;
 				ARCSTAT_BUMP(arcstat_mru_hits);
 			}
-			buf->b_arc_access = LBOLT;
+			buf->b_arc_access = lbolt;
 			return;
 		}
 
@@ -1790,13 +1790,13 @@ arc_access(arc_buf_hdr_t *buf, kmutex_t *hash_lock)
 		 * but it is still in the cache. Move it to the MFU
 		 * state.
 		 */
-		if (LBOLT > buf->b_arc_access + ARC_MINTIME) {
+		if (lbolt > buf->b_arc_access + ARC_MINTIME) {
 			/*
 			 * More than 125ms have passed since we
 			 * instantiated this buffer.  Move it to the
 			 * most frequently used state.
 			 */
-			buf->b_arc_access = LBOLT;
+			buf->b_arc_access = lbolt;
 			DTRACE_PROBE1(new_state__mfu, arc_buf_hdr_t *, buf);
 			arc_change_state(arc_mfu, buf, hash_lock);
 		}
@@ -1819,7 +1819,7 @@ arc_access(arc_buf_hdr_t *buf, kmutex_t *hash_lock)
 			DTRACE_PROBE1(new_state__mfu, arc_buf_hdr_t *, buf);
 		}
 
-		buf->b_arc_access = LBOLT;
+		buf->b_arc_access = lbolt;
 		arc_change_state(new_state, buf, hash_lock);
 
 		ARCSTAT_BUMP(arcstat_mru_ghost_hits);
@@ -1842,7 +1842,7 @@ arc_access(arc_buf_hdr_t *buf, kmutex_t *hash_lock)
 			mutex_exit(&arc_mfu->arcs_mtx);
 		}
 		ARCSTAT_BUMP(arcstat_mfu_hits);
-		buf->b_arc_access = LBOLT;
+		buf->b_arc_access = lbolt;
 	} else if (buf->b_state == arc_mfu_ghost) {
 		arc_state_t	*new_state = arc_mfu;
 		/*
@@ -1860,7 +1860,7 @@ arc_access(arc_buf_hdr_t *buf, kmutex_t *hash_lock)
 			new_state = arc_mru;
 		}
 
-		buf->b_arc_access = LBOLT;
+		buf->b_arc_access = lbolt;
 		DTRACE_PROBE1(new_state__mfu, arc_buf_hdr_t *, buf);
 		arc_change_state(new_state, buf, hash_lock);
 
@@ -2729,7 +2729,7 @@ arc_init(void)
 		arc_c_max = (arc_c * 8) - (1<<30);
 	else
 		arc_c_max = arc_c_min;
-	arc_c_max = MAX(arc_c * 5, arc_c_max);
+	arc_c_max = MAX(arc_c * 6, arc_c_max);
 #ifdef _KERNEL
 	/*
 	 * Allow the tunables to override our calculations if they are
@@ -2800,17 +2800,16 @@ arc_init(void)
 	arc_dead = FALSE;
 
 #ifdef _KERNEL
-	/* Warn about ZFS memory and address space requirements. */
+	/* Warn about ZFS memory requirements. */
 	if (((uint64_t)physmem * PAGESIZE) < (256 + 128 + 64) * (1 << 20)) {
 		printf("ZFS WARNING: Recommended minimum RAM size is 512MB; "
 		    "expect unstable behavior.\n");
-	}
-	if (kmem_size() < 512 * (1 << 20)) {
-		printf("ZFS WARNING: Recommended minimum kmem_size is 512MB; "
+	} else if (kmem_size() < 256 * (1 << 20)) {
+		printf("ZFS WARNING: Recommended minimum kmem_size is 256MB; "
 		    "expect unstable behavior.\n");
-		printf("	     Consider tuning vm.kmem_size and "
-		    "vm.kmem_size_max\n");
-		printf("	     in /boot/loader.conf.\n");
+		printf("             Consider tuning vm.kmem_size or "
+		    "vm.kmem_size_min\n");
+		printf("             in /boot/loader.conf.\n");
 	}
 #endif
 }

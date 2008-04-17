@@ -44,6 +44,8 @@
 #define	max_ncpus	mp_ncpus
 #define	boot_max_ncpus	mp_ncpus
 
+extern int hz;	/* system clock's frequency */
+
 #define	TS_RUN	0
 
 #define	p0	proc0
@@ -75,12 +77,12 @@ thread_create(caddr_t stk, size_t stksize, void (*proc)(void *), void *arg,
 	ASSERT(len == 0);
 	ASSERT(state == TS_RUN);
 
-	error = kproc_create(proc, arg, &p, 0, ZFS_KSTACK_PAGES,
+	error = kthread_create(proc, arg, &p, 0, ZFS_KSTACK_PAGES,
 	    "solthread %p", proc);
 	return (error == 0 ? FIRST_THREAD_IN_PROC(p) : NULL);
 }
 
-#define	thread_exit()	kproc_exit(0)
+#define	thread_exit()	kthread_exit(0)
 
 #endif	/* _KERNEL */
 

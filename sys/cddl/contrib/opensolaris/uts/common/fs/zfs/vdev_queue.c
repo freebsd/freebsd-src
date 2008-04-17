@@ -43,7 +43,7 @@
 int zfs_vdev_max_pending = 35;
 int zfs_vdev_min_pending = 4;
 
-/* deadline = pri + (LBOLT >> time_shift) */
+/* deadline = pri + (lbolt >> time_shift) */
 int zfs_vdev_time_shift = 6;
 
 /* exponential I/O issue ramp-up rate */

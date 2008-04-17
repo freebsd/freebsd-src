@@ -57,10 +57,6 @@
 #include <sys/zfs_znode.h>
 #include <sys/refcount.h>
 
-/* Used by fstat(1). */
-SYSCTL_INT(_debug_sizeof, OID_AUTO, znode, CTLFLAG_RD, 0, sizeof(znode_t),
-    "sizeof(znode_t)");
-
 /*
  * Functions needed for userland (ie: libzpool) are not put under
  * #ifdef_KERNEL; the rest of the functions have dependencies
@@ -85,9 +81,9 @@ znode_pageout_func(dmu_buf_t *dbuf, void *user_ptr)
 		ZTOV(zp) = NULL;
 		vhold(vp);
 		mutex_exit(&zp->z_lock);
-		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, curthread);
 		vrecycle(vp, curthread);
-		VOP_UNLOCK(vp, 0);
+		VOP_UNLOCK(vp, 0, curthread);
 		vdrop(vp);
 		zfs_znode_free(zp);
 	} else {
@@ -119,8 +115,8 @@ zfs_znode_cache_constructor(void *buf, void *cdrarg, int kmflags)
 		ASSERT(error == 0);
 		zp->z_vnode = vp;
 		vp->v_data = (caddr_t)zp;
-		VN_LOCK_AREC(vp);
-		VN_LOCK_ASHARE(vp);
+		vp->v_vnlock->lk_flags |= LK_CANRECURSE;
+		vp->v_vnlock->lk_flags &= ~LK_NOSHARE;
 	} else {
 		zp->z_vnode = NULL;
 	}
@@ -136,6 +132,7 @@ zfs_znode_cache_constructor(void *buf, void *cdrarg, int kmflags)
 
 	zp->z_dbuf_held = 0;
 	zp->z_dirlocks = 0;
+	zp->z_lockf = NULL;
 	return (0);
 }
 
@@ -603,8 +600,8 @@ zfs_zget(zfsvfs_t *zfsvfs, uint64_t obj_num, znode_t **zpp)
 			ASSERT(err == 0);
 			vp = ZTOV(zp);
 			vp->v_data = (caddr_t)zp;
-			VN_LOCK_AREC(vp);
-			VN_LOCK_ASHARE(vp);
+			vp->v_vnlock->lk_flags |= LK_CANRECURSE;
+			vp->v_vnlock->lk_flags &= ~LK_NOSHARE;
 			vp->v_type = IFTOVT((mode_t)zp->z_phys->zp_mode);
 			if (vp->v_type == VDIR)
 				zp->z_zn_prefetch = B_TRUE;	/* z_prefetch default is enabled */
