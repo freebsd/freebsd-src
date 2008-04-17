@@ -117,14 +117,23 @@ _lockuser_reinit(struct lockuser *lu, void *priv)
 {
 	if (lu == NULL)
 		return (-1);
-	/*
-	 * All lockusers keep their watch request and drop their
-	 * own (lu_myreq) request.  Their own request is either
-	 * some other lockuser's watch request or is the head of
-	 * the lock.
-	 */
-	lu->lu_myreq = lu->lu_watchreq;
-	if (lu->lu_myreq == NULL)
+
+	if (lu->lu_watchreq != NULL) {
+		/*
+		 * In this case the lock is active.  All lockusers
+		 * keep their watch request and drop their own
+		 * (lu_myreq) request.  Their own request is either
+		 * some other lockuser's watch request or is the
+		 * head of the lock.
+		 */
+		lu->lu_myreq = lu->lu_watchreq;
+		lu->lu_watchreq = NULL;
+       }
+       if (lu->lu_myreq == NULL)
+		/*
+		 * Oops, something isn't quite right.  Try to
+		 * allocate one.
+		 */
 		return (_lockuser_init(lu, priv));
 	else {
 		lu->lu_myreq->lr_locked = 1;

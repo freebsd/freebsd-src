@@ -345,6 +345,17 @@ _kse_single_thread(struct pthread *curthread)
 		_LCK_SET_PRIVATE2(&curthread->kse->k_lockusers[i], NULL);
 	}
 	curthread->kse->k_locklevel = 0;
+
+	/*
+	 * Reinitialize the thread and signal locks so that
+	 * sigaction() will work after a fork().
+	 */
+	_lock_reinit(&curthread->lock, LCK_ADAPTIVE, _thr_lock_wait,
+	    _thr_lock_wakeup);
+	_lock_reinit(&_thread_signal_lock, LCK_ADAPTIVE, _kse_lock_wait,
+	    _kse_lock_wakeup);
+
+ 
 	_thr_spinlock_init();
 	if (__isthreaded) {
 		_thr_rtld_fini();
@@ -353,6 +364,20 @@ _kse_single_thread(struct pthread *curthread)
 	__isthreaded = 0;
 	curthread->kse->k_kcb->kcb_kmbx.km_curthread = NULL;
 	curthread->attr.flags |= PTHREAD_SCOPE_SYSTEM;
+
+	/*
+	 * After a fork, it is possible that an upcall occurs in
+	 * the parent KSE that fork()'d before the child process
+	 * is fully created and before its vm space is copied.
+	 * During the upcall, the tcb is set to null or to another
+	 * thread, and this is what gets copied in the child process
+	 * when the vm space is cloned sometime after the upcall
+	 * occurs.  Note that we shouldn't have to set the kcb, but
+	 * we do it for completeness.
+	 */
+	_kcb_set(curthread->kse->k_kcb);
+	_tcb_set(curthread->kse->k_kcb, curthread->tcb);
+ 
 
 	/* After a fork(), there child should have no pending signals. */
 	sigemptyset(&curthread->sigpend);
