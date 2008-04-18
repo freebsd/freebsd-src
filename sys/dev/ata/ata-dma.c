@@ -152,31 +152,6 @@ ata_dmaalloc(device_t dev)
     struct ata_dc_cb_args dcba;
     int i;
 
-    if (bus_dma_tag_create(bus_get_dma_tag(dev), ch->dma.alignment, 0,
-			   ch->dma.max_address, BUS_SPACE_MAXADDR,
-			   NULL, NULL, ch->dma.max_iosize,
-			   ATA_DMA_ENTRIES, ch->dma.segsize,
-			   0, NULL, NULL, &ch->dma.dmatag))
-	goto error;
-
-    if (bus_dma_tag_create(ch->dma.dmatag, PAGE_SIZE, 64 * 1024,
-			   ch->dma.max_address, BUS_SPACE_MAXADDR,
-			   NULL, NULL, MAXWSPCSZ, 1, MAXWSPCSZ,
-			   0, NULL, NULL, &ch->dma.work_tag))
-	goto error;
-
-    if (bus_dmamem_alloc(ch->dma.work_tag, (void **)&ch->dma.work, 0,
-			 &ch->dma.work_map))
-	goto error;
-
-    if (bus_dmamap_load(ch->dma.work_tag, ch->dma.work_map, ch->dma.work,
-			MAXWSPCSZ, ata_dmasetupc_cb, &dcba, 0) ||
-			dcba.error) {
-	bus_dmamem_free(ch->dma.work_tag, ch->dma.work, ch->dma.work_map);
-	goto error;
-    }
-    ch->dma.work_bus = dcba.maddr;
-
     /* alloc and setup needed dma slots */
     bzero(ch->dma.slot, sizeof(struct ata_dmaslot) * ATA_DMA_SLOTS);
     for (i = 0; i < ch->dma.dma_slots; i++) {
