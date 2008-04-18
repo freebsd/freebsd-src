@@ -670,13 +670,15 @@ ata_identify(device_t dev)
     struct ata_channel *ch = device_get_softc(dev);
     struct ata_device *devices[ATA_PM];
     device_t childdevs[ATA_PM];
-    int i, unit = -1;
+    int i;
 
     if (bootverbose)
 	device_printf(dev, "identify ch->devices=%08x\n", ch->devices);
 
     for (i = 0; i < ATA_PM; ++i) {
 	if (ch->devices & (((ATA_ATA_MASTER | ATA_ATAPI_MASTER) << i))) {
+	    int unit = -1;
+
 	    if (!(devices[i] = malloc(sizeof(struct ata_device),
 				      M_ATA, M_NOWAIT | M_ZERO))) {
 		device_printf(dev, "out of memory\n");
