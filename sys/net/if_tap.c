@@ -404,6 +404,7 @@ tapcreate(struct cdev *dev)
 	struct ifnet		*ifp = NULL;
 	struct tap_softc	*tp = NULL;
 	unsigned short		 macaddr_hi;
+	uint32_t		 macaddr_mid;
 	int			 unit, s;
 	char			*name = NULL;
 	u_char			eaddr[6];
@@ -432,8 +433,9 @@ tapcreate(struct cdev *dev)
 
 	/* generate fake MAC address: 00 bd xx xx xx unit_no */
 	macaddr_hi = htons(0x00bd);
+	macaddr_mid = (uint32_t) ticks;
 	bcopy(&macaddr_hi, eaddr, sizeof(short));
-	bcopy(&ticks, &eaddr[2], sizeof(long));
+	bcopy(&macaddr_mid, &eaddr[2], sizeof(uint32_t));
 	eaddr[5] = (u_char)unit;
 
 	/* fill the rest and attach interface */
