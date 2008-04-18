@@ -33,6 +33,12 @@
 #ifndef _SYS_TERMIOS_H_
 #define _SYS_TERMIOS_H_
 
+#include <sys/_types.h>
+#ifndef _PID_T_DECLARED
+typedef	__pid_t		pid_t;
+#define	_PID_T_DECLARED
+#endif
+
 /*
  * Special Control Characters
  *
@@ -255,6 +261,10 @@ int	tcdrain(int);
 int	tcflow(int, int);
 int	tcflush(int, int);
 int	tcsendbreak(int, int);
+
+#if __POSIX_VISIBLE >= 200112 || __BSD_VISIBLE
+pid_t	tcgetsid(int);
+#endif
 
 #ifndef _POSIX_SOURCE
 void	cfmakeraw(struct termios *);
