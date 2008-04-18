@@ -56,3 +56,6 @@ Boston, MA 02111-1307, USA.  */
 	%{!dynamic-linker:-dynamic-linker %(fbsd_dynamic_linker) }} \
     %{static:-Bstatic}} \
   %{symbolic:-Bsymbolic}"
+
+#undef	MCOUNT_NAME
+#define	MCOUNT_NAME ".mcount"
