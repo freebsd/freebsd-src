@@ -173,8 +173,9 @@ enum {                     /* TCP congestion control algorithms */
 
 enum {			   /* RSS hash type */
 	RSS_HASH_NONE = 0,
-	RSS_HASH_2_TUPLE = 1 << 0,
-	RSS_HASH_4_TUPLE = 1 << 1
+	RSS_HASH_2_TUPLE = 1,
+	RSS_HASH_4_TUPLE = 2,
+	RSS_HASH_TCPV6 = 3
 };
 
 union opcode_tid {
@@ -306,6 +307,7 @@ struct work_request_hdr {
 #define S_WR_GEN    31
 #define V_WR_GEN(x) ((x) << S_WR_GEN)
 #define F_WR_GEN    V_WR_GEN(1U)
+#define G_WR_GEN(x) ((x) >> S_WR_GEN)
 
 # define WR_HDR struct work_request_hdr wr
 # define RSS_HDR
@@ -1096,6 +1098,11 @@ struct cpl_rx_data_ddp {
 #define V_DDP_OFFSET(x) ((x) << S_DDP_OFFSET)
 #define G_DDP_OFFSET(x) (((x) >> S_DDP_OFFSET) & M_DDP_OFFSET)
 
+#define S_DDP_DACK_MODE    22
+#define M_DDP_DACK_MODE    0x3
+#define V_DDP_DACK_MODE(x) ((x) << S_DDP_DACK_MODE)
+#define G_DDP_DACK_MODE(x) (((x) >> S_DDP_DACK_MODE) & M_DDP_DACK_MODE)
+
 #define S_DDP_URG    24
 #define V_DDP_URG(x) ((x) << S_DDP_URG)
 #define F_DDP_URG    V_DDP_URG(1U)
@@ -1130,6 +1137,18 @@ struct cpl_tx_pkt_lso {
 	__be32 rsvd;
 	__be32 lso_info;
 };
+
+struct cpl_tx_pkt_batch_entry {
+	__be32 cntrl;
+	__be32 len;
+	__be64 addr;
+};
+
+struct cpl_tx_pkt_batch {
+	WR_HDR;
+	struct cpl_tx_pkt_batch_entry pkt_entry[7];
+};
+
 
 /* cpl_tx_pkt*.cntrl fields */
 #define S_TXPKT_VLAN    0

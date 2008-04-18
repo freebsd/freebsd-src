@@ -1,6 +1,6 @@
 /**************************************************************************
 
-Copyright (c) 2007, Chelsio Inc.
+Copyright (c) 2007-2008, Chelsio Inc.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -101,15 +101,16 @@ struct ch_mem_range {
 };
 
 struct ch_qset_params {
-	uint32_t qset_idx;
-	int32_t  txq_size[3];
-	int32_t  rspq_size;
-	int32_t  fl_size[2];
-	int32_t  intr_lat;
-	int32_t  polling;
-	int32_t  cong_thres;
-	int32_t  vector;
-	int32_t  qnum;
+	uint32_t 	qset_idx;
+	int32_t		txq_size[3];
+	int32_t		rspq_size;
+	int32_t		fl_size[2];
+	int32_t		intr_lat;
+	int32_t		polling;
+	int32_t		lro;
+	int32_t		cong_thres;
+	int32_t		vector;
+	int32_t		qnum;
 };
 
 struct ch_pktsched_params {
@@ -260,4 +261,6 @@ struct mii_data {
 #define CHELSIO_SET_FILTER          _IOW('f', CH_SET_FILTER, struct ch_filter)
 #define CHELSIO_DEL_FILTER          _IOW('f', CH_DEL_FILTER, struct ch_filter)
 #define CHELSIO_DEVUP               _IO('f', CH_DEVUP)
+
+#define CHELSIO_GET_TCB             _IOWR('f', CH_GET_TCB, struct ch_tcb)
 #endif

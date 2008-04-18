@@ -1,6 +1,6 @@
 /**************************************************************************
 
-Copyright (c) 2007, Chelsio Inc.
+Copyright (c) 2007-2008, Chelsio Inc.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -36,6 +36,9 @@ $FreeBSD$
 #include <sys/endian.h>
 #include <sys/bus.h>
 
+#include <sys/lock.h>
+#include <sys/mutex.h>
+
 #include <dev/mii/mii.h>
 
 #ifdef CONFIG_DEFINED
@@ -52,20 +55,33 @@ $FreeBSD$
 typedef struct adapter adapter_t;
 struct sge_rspq;
 
+
 struct t3_mbuf_hdr {
 	struct mbuf *mh_head;
 	struct mbuf *mh_tail;
 };
 
-
-#define PANIC_IF(exp) do {                  \
-	if (exp)                            \
-		panic("BUG: %s", exp);      \
-} while (0)
-
-
 #define m_get_priority(m) ((uintptr_t)(m)->m_pkthdr.rcvif)
 #define m_set_priority(m, pri) ((m)->m_pkthdr.rcvif = (struct ifnet *)((uintptr_t)pri))
+#define m_set_sgl(m, sgl) ((m)->m_pkthdr.header = (sgl))
+#define m_get_sgl(m) ((bus_dma_segment_t *)(m)->m_pkthdr.header)
+#define m_set_sgllen(m, len) ((m)->m_pkthdr.ether_vtag = len)
+#define m_get_sgllen(m) ((m)->m_pkthdr.ether_vtag)
+
+/*
+ * XXX FIXME
+ */
+#define m_set_toep(m, a) ((m)->m_pkthdr.header = (a))
+#define m_get_toep(m) ((m)->m_pkthdr.header)
+#define m_set_handler(m, handler) ((m)->m_pkthdr.header = (handler))
+
+#define m_set_socket(m, a) ((m)->m_pkthdr.header = (a))
+#define m_get_socket(m) ((m)->m_pkthdr.header)
+
+#define	KTR_CXGB	KTR_SPARE2
+void cxgb_log_tcb(struct adapter *sc, unsigned int tid);
+
+#define MT_DONTFREE  128
 
 #if __FreeBSD_version > 700030
 #define INTR_FILTERS
@@ -97,8 +113,6 @@ struct t3_mbuf_hdr {
 
 #define CXGB_TX_CLEANUP_THRESHOLD        32
 
-#define LOG_WARNING                       1
-#define LOG_ERR                           2
 
 #ifdef DEBUG_PRINT
 #define DPRINTF printf
@@ -108,19 +122,25 @@ struct t3_mbuf_hdr {
 
 #define TX_MAX_SIZE                (1 << 16)    /* 64KB                          */
 #define TX_MAX_SEGS                      36     /* maximum supported by card     */
+
 #define TX_MAX_DESC                       4     /* max descriptors per packet    */
+
 
 #define TX_START_MIN_DESC  (TX_MAX_DESC << 2)
 
-#if 0
-#define TX_START_MAX_DESC (TX_ETH_Q_SIZE >> 2)  /* maximum number of descriptors */
-#endif
+
 
 #define TX_START_MAX_DESC (TX_MAX_DESC << 3)    /* maximum number of descriptors
 						 * call to start used per 	 */
 
 #define TX_CLEAN_MAX_DESC (TX_MAX_DESC << 4)    /* maximum tx descriptors
 						 * to clean per iteration        */
+#define TX_WR_SIZE_MAX    11*1024              /* the maximum total size of packets aggregated into a single
+						* TX WR
+						*/
+#define TX_WR_COUNT_MAX         7              /* the maximum total number of packets that can be
+						* aggregated into a single TX WR
+						*/
 
 
 #if defined(__i386__) || defined(__amd64__)
@@ -129,7 +149,7 @@ struct t3_mbuf_hdr {
 #define wmb()   __asm volatile("sfence" ::: "memory")
 #define smp_mb() mb()
 
-#define L1_CACHE_BYTES 64
+#define L1_CACHE_BYTES 128
 static __inline
 void prefetch(void *x) 
 { 
@@ -139,7 +159,7 @@ void prefetch(void *x)
 extern void kdb_backtrace(void);
 
 #define WARN_ON(condition) do { \
-        if (unlikely((condition)!=0)) { \
+        if ((condition)!=0) { \
                 log(LOG_WARNING, "BUG: warning at %s:%d/%s()\n", __FILE__, __LINE__, __FUNCTION__); \
                 kdb_backtrace(); \
         } \
@@ -154,6 +174,156 @@ extern void kdb_backtrace(void);
 #define prefetch(x)
 #define L1_CACHE_BYTES 32
 #endif
+
+struct buf_ring {
+	caddr_t          *br_ring;
+	volatile uint32_t br_cons;
+	volatile uint32_t br_prod;
+	int               br_size;
+	struct mtx        br_lock;
+};
+
+struct buf_ring *buf_ring_alloc(int count, int flags);
+void buf_ring_free(struct buf_ring *);
+
+static __inline int
+buf_ring_count(struct buf_ring *mr)
+{
+	int size = mr->br_size;
+	uint32_t mask = size - 1;
+	
+	return ((size + mr->br_prod - mr->br_cons) & mask);
+}
+
+static __inline int
+buf_ring_empty(struct buf_ring *mr)
+{
+	return (mr->br_cons == mr->br_prod);
+}
+
+static __inline int
+buf_ring_full(struct buf_ring *mr)
+{
+	uint32_t mask;
+
+	mask = mr->br_size - 1;
+	return (mr->br_cons == ((mr->br_prod + 1) & mask));
+}
+
+/*
+ * The producer and consumer are independently locked
+ * this relies on the consumer providing his own serialization
+ *
+ */
+static __inline void *
+buf_ring_dequeue(struct buf_ring *mr)
+{
+	uint32_t prod, cons, mask;
+	caddr_t *ring, m;
+	
+	ring = (caddr_t *)mr->br_ring;
+	mask = mr->br_size - 1;
+	cons = mr->br_cons;
+	mb();
+	prod = mr->br_prod;
+	m = NULL;
+	if (cons != prod) {
+		m = ring[cons];
+		ring[cons] = NULL;
+		mr->br_cons = (cons + 1) & mask;
+		mb();
+	}
+	return (m);
+}
+
+#ifdef DEBUG_BUFRING
+static __inline void
+__buf_ring_scan(struct buf_ring *mr, void *m, char *file, int line)
+{
+	int i;
+
+	for (i = 0; i < mr->br_size; i++)
+		if (m == mr->br_ring[i])
+			panic("%s:%d m=%p present prod=%d cons=%d idx=%d", file,
+			    line, m, mr->br_prod, mr->br_cons, i);
+}
+
+static __inline void
+buf_ring_scan(struct buf_ring *mr, void *m, char *file, int line)
+{
+	mtx_lock(&mr->br_lock);
+	__buf_ring_scan(mr, m, file, line);
+	mtx_unlock(&mr->br_lock);
+}
+
+#else
+static __inline void
+__buf_ring_scan(struct buf_ring *mr, void *m, char *file, int line)
+{
+}
+
+static __inline void
+buf_ring_scan(struct buf_ring *mr, void *m, char *file, int line)
+{
+}
+#endif
+
+static __inline int
+__buf_ring_enqueue(struct buf_ring *mr, void *m, char *file, int line)
+{
+	
+	uint32_t prod, cons, mask;
+	int err;
+	
+	mask = mr->br_size - 1;
+	prod = mr->br_prod;
+	mb();
+	cons = mr->br_cons;
+	__buf_ring_scan(mr, m, file, line);
+	if (((prod + 1) & mask) != cons) {
+		KASSERT(mr->br_ring[prod] == NULL, ("overwriting entry"));
+		mr->br_ring[prod] = m;
+		mb();
+		mr->br_prod = (prod + 1) & mask;
+		err = 0;
+	} else
+		err = ENOBUFS;
+
+	return (err);
+}
+
+static __inline int
+buf_ring_enqueue_(struct buf_ring *mr, void *m, char *file, int line)
+{
+	int err;
+	
+	mtx_lock(&mr->br_lock);
+	err = __buf_ring_enqueue(mr, m, file, line);
+	mtx_unlock(&mr->br_lock);
+
+	return (err);
+}
+
+#define buf_ring_enqueue(mr, m) buf_ring_enqueue_((mr), (m), __FILE__, __LINE__)
+
+
+static __inline void *
+buf_ring_peek(struct buf_ring *mr)
+{
+	int prod, cons, mask;
+	caddr_t *ring, m;
+	
+	ring = (caddr_t *)mr->br_ring;
+	mask = mr->br_size - 1;
+	cons = mr->br_cons;
+	prod = mr->br_prod;
+	m = NULL;
+	if (cons != prod)
+		m = ring[cons];
+
+	return (m);
+}
+
 #define DBG_RX          (1 << 0)
 static const int debug_flags = DBG_RX;
 
@@ -166,24 +336,22 @@ static const int debug_flags = DBG_RX;
 #define DBG(...)
 #endif
 
+#include <sys/syslog.h>
+
 #define promisc_rx_mode(rm)  ((rm)->port->ifp->if_flags & IFF_PROMISC) 
 #define allmulti_rx_mode(rm) ((rm)->port->ifp->if_flags & IFF_ALLMULTI) 
 
-#define CH_ERR(adap, fmt, ...)device_printf(adap->dev, fmt, ##__VA_ARGS__);
-
-#define CH_WARN(adap, fmt, ...)	device_printf(adap->dev, fmt, ##__VA_ARGS__)
-#define CH_ALERT(adap, fmt, ...) device_printf(adap->dev, fmt, ##__VA_ARGS__)
+#define CH_ERR(adap, fmt, ...) log(LOG_ERR, fmt, ##__VA_ARGS__)
+#define CH_WARN(adap, fmt, ...)	log(LOG_WARNING, fmt, ##__VA_ARGS__)
+#define CH_ALERT(adap, fmt, ...) log(LOG_ALERT, fmt, ##__VA_ARGS__)
 
 #define t3_os_sleep(x) DELAY((x) * 1000)
 
-#define test_and_clear_bit(bit, p) atomic_cmpset_int((p), ((*(p)) | bit), ((*(p)) & ~bit)) 
-
+#define test_and_clear_bit(bit, p) atomic_cmpset_int((p), ((*(p)) | (1<<bit)), ((*(p)) & ~(1<<bit)))
 
 #define max_t(type, a, b) (type)max((a), (b))
 #define net_device ifnet
 #define cpu_to_be32            htobe32
-
-
 
 /* Standard PHY definitions */
 #define BMCR_LOOPBACK		BMCR_LOOP
@@ -201,13 +369,21 @@ static const int debug_flags = DBG_RX;
 #define MII_CTRL1000		MII_100T2CR
 
 #define ADVERTISE_PAUSE_CAP	ANAR_FC
-#define ADVERTISE_PAUSE_ASYM	0x0800
+#define ADVERTISE_PAUSE_ASYM	ANAR_X_PAUSE_ASYM
+#define ADVERTISE_PAUSE		ANAR_X_PAUSE_SYM
 #define ADVERTISE_1000HALF	ANAR_X_HD
 #define ADVERTISE_1000FULL	ANAR_X_FD
 #define ADVERTISE_10FULL	ANAR_10_FD
 #define ADVERTISE_10HALF	ANAR_10
 #define ADVERTISE_100FULL	ANAR_TX_FD
 #define ADVERTISE_100HALF	ANAR_TX
+
+
+#define ADVERTISE_1000XHALF	ANAR_X_HD
+#define ADVERTISE_1000XFULL	ANAR_X_FD
+#define ADVERTISE_1000XPSE_ASYM	ANAR_X_PAUSE_ASYM
+#define ADVERTISE_1000XPAUSE	ANAR_X_PAUSE_SYM
+
 
 /* Standard PCI Extended Capaibilities definitions */
 #define PCI_CAP_ID_VPD	0x03
@@ -230,23 +406,27 @@ static const int debug_flags = DBG_RX;
 #define udelay(x) DELAY(x)
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 #define le32_to_cpu(x) le32toh(x)
+#define le16_to_cpu(x) le16toh(x)
 #define cpu_to_le32(x) htole32(x)
 #define swab32(x) bswap32(x)
 #define simple_strtoul strtoul
 
-/* More types and endian definitions */
-typedef uint8_t u8;
-typedef uint16_t u16;
-typedef uint32_t u32;
-typedef uint64_t u64;
 
-typedef uint8_t	__u8;
-typedef uint16_t __u16;
-typedef uint32_t __u32;
-typedef uint8_t __be8;
-typedef uint16_t __be16;
-typedef uint32_t __be32;
-typedef uint64_t __be64;
+#ifndef LINUX_TYPES_DEFINED
+typedef uint8_t 	u8;
+typedef uint16_t 	u16;
+typedef uint32_t 	u32;
+typedef uint64_t 	u64;
+ 
+typedef uint8_t		__u8;
+typedef uint16_t	__u16;
+typedef uint32_t	__u32;
+typedef uint8_t		__be8;
+typedef uint16_t	__be16;
+typedef uint32_t	__be32;
+typedef uint64_t	__be64;
+#endif
+
 
 #if BYTE_ORDER == BIG_ENDIAN
 #define __BIG_ENDIAN_BITFIELD

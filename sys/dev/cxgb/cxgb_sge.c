@@ -26,6 +26,8 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 
 ***************************************************************************/
+#define DEBUG_BUFRING
+
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -45,9 +47,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/taskqueue.h>
 
 #include <sys/proc.h>
+#include <sys/sbuf.h>
 #include <sys/sched.h>
 #include <sys/smp.h>
 #include <sys/systm.h>
+#include <sys/syslog.h>
 
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
@@ -57,20 +61,39 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
+#include <vm/vm.h>
+#include <vm/pmap.h>
+
 #ifdef CONFIG_DEFINED
 #include <cxgb_include.h>
+#include <sys/mvec.h>
 #else
 #include <dev/cxgb/cxgb_include.h>
+#include <dev/cxgb/sys/mvec.h>
 #endif
 
-uint32_t collapse_free = 0;
-uint32_t mb_free_vec_free = 0;
 int      txq_fills = 0;
-int      collapse_mbufs = 0;
-static int bogus_imm = 0;
-#ifndef DISABLE_MBUF_IOVEC
-static int recycle_enable = 1;
-#endif
+/*
+ * XXX don't re-enable this until TOE stops assuming
+ * we have an m_ext
+ */
+static int recycle_enable = 0;
+extern int cxgb_txq_buf_ring_size;
+int cxgb_cached_allocations;
+int cxgb_cached;
+int cxgb_ext_freed = 0;
+int cxgb_ext_inited = 0;
+int fl_q_size = 0;
+int jumbo_q_size = 0;
+
+extern int cxgb_use_16k_clusters;
+extern int cxgb_pcpu_cache_enable;
+extern int nmbjumbop;
+extern int nmbjumbo9;
+extern int nmbjumbo16;
+
+
+
 
 #define USE_GTS 0
 
@@ -83,11 +106,6 @@ static int recycle_enable = 1;
  * frequently as Tx buffers are usually reclaimed by new Tx packets.
  */
 #define TX_RECLAIM_PERIOD       (hz >> 1)
-
-/* 
- * work request size in bytes
- */
-#define WR_LEN (WR_FLITS * 8)
 
 /* 
  * Values for sge_txq.flags
@@ -127,15 +145,16 @@ struct rsp_desc {               /* response queue descriptor */
 #define RSPQ_SOP_EOP             G_RSPD_SOP_EOP(F_RSPD_SOP|F_RSPD_EOP)
 
 struct tx_sw_desc {                /* SW state per Tx descriptor */
-	struct mbuf	*m;        
+	struct mbuf_iovec mi;
 	bus_dmamap_t	map;
 	int		flags;
 };
 
 struct rx_sw_desc {                /* SW state per Rx descriptor */
-	void	        *cl;
-	bus_dmamap_t	map;
-	int		flags;
+	caddr_t	         rxsd_cl;
+	caddr_t	         data;
+	bus_dmamap_t	  map;
+	int		  flags;
 };
 
 struct txq_state {
@@ -179,11 +198,9 @@ static uint8_t flit_desc_map[] = {
 static int lro_default = 0;
 int cxgb_debug = 0;
 
-static void t3_free_qset(adapter_t *sc, struct sge_qset *q);
 static void sge_timer_cb(void *arg);
 static void sge_timer_reclaim(void *arg, int ncount);
 static void sge_txq_reclaim_handler(void *arg, int ncount);
-static int free_tx_desc(struct sge_txq *q, int n, struct mbuf **m_vec);
 
 /**
  *	reclaim_completed_tx - reclaims completed Tx descriptors
@@ -195,19 +212,20 @@ static int free_tx_desc(struct sge_txq *q, int n, struct mbuf **m_vec);
  *	queue's lock held.
  */
 static __inline int
-reclaim_completed_tx(struct sge_txq *q, int nbufs, struct mbuf **mvec)
+reclaim_completed_tx_(struct sge_txq *q, int reclaim_min)
 {
-	int reclaimed, reclaim = desc_reclaimable(q);
-	int n = 0;
+	int reclaim = desc_reclaimable(q);
 
+	if (reclaim < reclaim_min)
+		return (0);
+	
 	mtx_assert(&q->lock, MA_OWNED);
 	if (reclaim > 0) {
-		n = free_tx_desc(q, min(reclaim, nbufs), mvec);
-		reclaimed = min(reclaim, nbufs);
-		q->cleaned += reclaimed;
-		q->in_use -= reclaimed;
+		t3_free_tx_desc(q, reclaim);
+		q->cleaned += reclaim;
+		q->in_use -= reclaim;
 	} 
-	return (n);
+	return (reclaim);
 }
 
 /**
@@ -242,7 +260,7 @@ t3_sge_init(adapter_t *adap, struct sge_params *p)
 	ups = 0; /* = ffs(pci_resource_len(adap->pdev, 2) >> 12); */
 
 	ctrl = F_DROPPKT | V_PKTSHIFT(2) | F_FLMODE | F_AVOIDCQOVFL |
-	       F_CQCRDTCTRL |
+	       F_CQCRDTCTRL | F_CONGMODE | F_TNLFLMODE | F_FATLPERREN |
 	       V_HOSTPAGESIZE(PAGE_SHIFT - 11) | F_BIGENDIANINGRESS |
 	       V_USERSPACESIZE(ups ? ups - 1 : 0) | F_ISCSICOALESCING;
 #if SGE_NUM_GENBITS == 1
@@ -251,7 +269,6 @@ t3_sge_init(adapter_t *adap, struct sge_params *p)
 	if (adap->params.rev > 0) {
 		if (!(adap->flags & (USING_MSIX | USING_MSI)))
 			ctrl |= F_ONEINTMULTQ | F_OPTONEINTMULTQ;
-		ctrl |= F_CQCRDTCTRL | F_AVOIDCQOVFL;
 	}
 	t3_write_reg(adap, A_SG_CONTROL, ctrl);
 	t3_write_reg(adap, A_SG_EGR_RCQ_DRB_THRSH, V_HIRCQDRBTHRSH(512) |
@@ -259,7 +276,8 @@ t3_sge_init(adapter_t *adap, struct sge_params *p)
 	t3_write_reg(adap, A_SG_TIMER_TICK, core_ticks_per_usec(adap) / 10);
 	t3_write_reg(adap, A_SG_CMDQ_CREDIT_TH, V_THRESHOLD(32) |
 		     V_TIMEOUT(200 * core_ticks_per_usec(adap)));
-	t3_write_reg(adap, A_SG_HI_DRB_HI_THRSH, 1000);
+	t3_write_reg(adap, A_SG_HI_DRB_HI_THRSH,
+		     adap->params.rev < T3_REV_C ? 1000 : 500);
 	t3_write_reg(adap, A_SG_HI_DRB_LO_THRSH, 256);
 	t3_write_reg(adap, A_SG_LO_DRB_HI_THRSH, 1000);
 	t3_write_reg(adap, A_SG_LO_DRB_LO_THRSH, 256);
@@ -287,81 +305,16 @@ sgl_len(unsigned int n)
  *
  *	Return a packet containing the immediate data of the given response.
  */
-#ifdef DISABLE_MBUF_IOVEC
-static __inline int
-get_imm_packet(adapter_t *sc, const struct rsp_desc *resp, struct t3_mbuf_hdr *mh)
-{
-	struct mbuf *m;
-	int len;
-	uint32_t flags = ntohl(resp->flags);       	
-	uint8_t sopeop = G_RSPD_SOP_EOP(flags);
-
-	/*
-	 * would be a firmware bug
-	 */
-	if (sopeop == RSPQ_NSOP_NEOP || sopeop == RSPQ_SOP)
-		return (0);
-	
-	m = m_gethdr(M_NOWAIT, MT_DATA);
-	len = G_RSPD_LEN(ntohl(resp->len_cq));
-	
-	if (m) {
-		MH_ALIGN(m, IMMED_PKT_SIZE);
-		memcpy(m->m_data, resp->imm_data, IMMED_PKT_SIZE);
-		m->m_len = len;
-		
-		switch (sopeop) {
-		case RSPQ_SOP_EOP:
-			mh->mh_head = mh->mh_tail = m;
-			m->m_pkthdr.len = len;
-			m->m_flags |= M_PKTHDR;
-			break;
-		case RSPQ_EOP:	
-			m->m_flags &= ~M_PKTHDR;
-			mh->mh_head->m_pkthdr.len += len;
-			mh->mh_tail->m_next = m;
-			mh->mh_tail = m;
-			break;
-		}
-	}
-	return (m != NULL);
-}
-
-#else
 static int
-get_imm_packet(adapter_t *sc, const struct rsp_desc *resp, struct mbuf *m, void *cl, uint32_t flags)
+get_imm_packet(adapter_t *sc, const struct rsp_desc *resp, struct mbuf *m)
 {
-	int len, error;
-	uint8_t sopeop = G_RSPD_SOP_EOP(flags);
-	
-	/*
-	 * would be a firmware bug
-	 */
-	len = G_RSPD_LEN(ntohl(resp->len_cq));	
-	if (sopeop == RSPQ_NSOP_NEOP || sopeop == RSPQ_SOP) {
-		if (cxgb_debug)
-			device_printf(sc->dev, "unexpected value sopeop=%d flags=0x%x len=%din get_imm_packet\n", sopeop, flags, len);
-		bogus_imm++;
-		return (EINVAL);
-	}
-	error = 0;
-	switch (sopeop) {
-	case RSPQ_SOP_EOP:
-		m->m_len = m->m_pkthdr.len = len; 
-		memcpy(mtod(m, uint8_t *), resp->imm_data, len); 
-		break;
-	case RSPQ_EOP:
-		memcpy(cl, resp->imm_data, len); 
-		m_iovappend(m, cl, MSIZE, len, 0); 
-		break;
-	default:
-		bogus_imm++;
-		error = EINVAL;
-	}
 
-	return (error);
+	m->m_len = m->m_pkthdr.len = IMMED_PKT_SIZE;
+	m->m_ext.ext_buf = NULL;
+	m->m_ext.ext_type = 0;
+	memcpy(mtod(m, uint8_t *), resp->imm_data, IMMED_PKT_SIZE); 
+	return (0);	
 }
-#endif
 
 static __inline u_int
 flits_to_desc(u_int n)
@@ -369,14 +322,33 @@ flits_to_desc(u_int n)
 	return (flit_desc_map[n]);
 }
 
+#define SGE_PARERR (F_CPPARITYERROR | F_OCPARITYERROR | F_RCPARITYERROR | \
+		    F_IRPARITYERROR | V_ITPARITYERROR(M_ITPARITYERROR) | \
+		    V_FLPARITYERROR(M_FLPARITYERROR) | F_LODRBPARITYERROR | \
+		    F_HIDRBPARITYERROR | F_LORCQPARITYERROR | \
+		    F_HIRCQPARITYERROR)
+#define SGE_FRAMINGERR (F_UC_REQ_FRAMINGERROR | F_R_REQ_FRAMINGERROR)
+#define SGE_FATALERR (SGE_PARERR | SGE_FRAMINGERR | F_RSPQCREDITOVERFOW | \
+		      F_RSPQDISABLED)
+
+/**
+ *	t3_sge_err_intr_handler - SGE async event interrupt handler
+ *	@adapter: the adapter
+ *
+ *	Interrupt handler for SGE asynchronous (non-data) events.
+ */
 void
 t3_sge_err_intr_handler(adapter_t *adapter)
 {
 	unsigned int v, status;
 
-	
 	status = t3_read_reg(adapter, A_SG_INT_CAUSE);
-	
+	if (status & SGE_PARERR)
+		CH_ALERT(adapter, "SGE parity error (0x%x)\n",
+			 status & SGE_PARERR);
+	if (status & SGE_FRAMINGERR)
+		CH_ALERT(adapter, "SGE framing error (0x%x)\n",
+			 status & SGE_FRAMINGERR);
 	if (status & F_RSPQCREDITOVERFOW)
 		CH_ALERT(adapter, "SGE response queue credit overflow\n");
 
@@ -389,31 +361,51 @@ t3_sge_err_intr_handler(adapter_t *adapter)
 	}
 
 	t3_write_reg(adapter, A_SG_INT_CAUSE, status);
-	if (status & (F_RSPQCREDITOVERFOW | F_RSPQDISABLED))
+	if (status & SGE_FATALERR)
 		t3_fatal_err(adapter);
 }
 
 void
 t3_sge_prep(adapter_t *adap, struct sge_params *p)
 {
-	int i;
+	int i, nqsets;
 
+	nqsets = min(SGE_QSETS, mp_ncpus*4);
+
+	fl_q_size = min(nmbclusters/(3*nqsets), FL_Q_SIZE);
+
+	while (!powerof2(fl_q_size))
+		fl_q_size--;
+#if __FreeBSD_version > 700000
+	if (cxgb_use_16k_clusters) 
+		jumbo_q_size = min(nmbjumbo16/(3*nqsets), JUMBO_Q_SIZE);
+	else
+		jumbo_q_size = min(nmbjumbo9/(3*nqsets), JUMBO_Q_SIZE);
+#else
+	jumbo_q_size = min(nmbjumbop/(3*nqsets), JUMBO_Q_SIZE);
+#endif
+	while (!powerof2(jumbo_q_size))
+		jumbo_q_size--;		
+	
 	/* XXX Does ETHER_ALIGN need to be accounted for here? */
-	p->max_pkt_size = MJUM16BYTES - sizeof(struct cpl_rx_data);
+	p->max_pkt_size = adap->sge.qs[0].fl[1].buf_size - sizeof(struct cpl_rx_data);
 
 	for (i = 0; i < SGE_QSETS; ++i) {
 		struct qset_params *q = p->qset + i;
 
-		q->polling = adap->params.rev > 0;
-
-		if (adap->params.nports > 2)
+		if (adap->params.nports > 2) {
 			q->coalesce_nsecs = 50000;
-		else
+		} else {
+#ifdef INVARIANTS			
+			q->coalesce_nsecs = 10000;
+#else
 			q->coalesce_nsecs = 5000;
-
+#endif			
+		}
+		q->polling = adap->params.rev > 0;
 		q->rspq_size = RSPQ_Q_SIZE;
-		q->fl_size = FL_Q_SIZE;
-		q->jumbo_size = JUMBO_Q_SIZE;
+		q->fl_size = fl_q_size;
+		q->jumbo_size = jumbo_q_size;
 		q->txq_size[TXQ_ETH] = TX_ETH_Q_SIZE;
 		q->txq_size[TXQ_OFLD] = 1024;
 		q->txq_size[TXQ_CTRL] = 256;
@@ -454,8 +446,8 @@ t3_sge_alloc(adapter_t *sc)
 	/* 
 	 * DMA tag for jumbo sized RX frames.
 	 */
-	if (bus_dma_tag_create(sc->parent_dmat, MJUMPAGESIZE, 0, BUS_SPACE_MAXADDR,
-		BUS_SPACE_MAXADDR, NULL, NULL, MJUMPAGESIZE, 1, MJUMPAGESIZE,
+	if (bus_dma_tag_create(sc->parent_dmat, MJUM16BYTES, 0, BUS_SPACE_MAXADDR,
+		BUS_SPACE_MAXADDR, NULL, NULL, MJUM16BYTES, 1, MJUM16BYTES,
 		BUS_DMA_ALLOCNOW, NULL, NULL, &sc->rx_jumbo_dmat)) {
 		device_printf(sc->dev, "Cannot allocate RX jumbo DMA tag\n");
 		return (ENOMEM);
@@ -502,6 +494,7 @@ t3_update_qset_coalesce(struct sge_qset *qs, const struct qset_params *p)
 	qs->rspq.polling = 0 /* p->polling */;
 }
 
+#if !defined(__i386__) && !defined(__amd64__)
 static void
 refill_fl_cb(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 {
@@ -512,7 +505,7 @@ refill_fl_cb(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 	cb_arg->nseg = nseg;
 
 }
-
+#endif
 /**
  *	refill_fl - refill an SGE free-buffer list
  *	@sc: the controller softc
@@ -528,18 +521,20 @@ refill_fl(adapter_t *sc, struct sge_fl *q, int n)
 	struct rx_sw_desc *sd = &q->sdesc[q->pidx];
 	struct rx_desc *d = &q->desc[q->pidx];
 	struct refill_fl_cb_arg cb_arg;
-	void *cl;
-	int err;
-
+	caddr_t cl;
+	int err, count = 0;
+	int header_size = sizeof(struct m_hdr) + sizeof(struct pkthdr) + sizeof(struct m_ext_) + sizeof(uint32_t);
+	
 	cb_arg.error = 0;
 	while (n--) {
 		/*
 		 * We only allocate a cluster, mbuf allocation happens after rx
 		 */
-		if ((cl = m_cljget(NULL, M_DONTWAIT, q->buf_size)) == NULL) {
+		if ((cl = cxgb_cache_get(q->zone)) == NULL) {
 			log(LOG_WARNING, "Failed to allocate cluster\n");
 			goto done;
 		}
+		
 		if ((sd->flags & RX_SW_DESC_MAP_CREATED) == 0) {
 			if ((err = bus_dmamap_create(q->entry_tag, 0, &sd->map))) {
 				log(LOG_WARNING, "bus_dmamap_create failed %d\n", err);
@@ -548,7 +543,9 @@ refill_fl(adapter_t *sc, struct sge_fl *q, int n)
 			}
 			sd->flags |= RX_SW_DESC_MAP_CREATED;
 		}
-		err = bus_dmamap_load(q->entry_tag, sd->map, cl, q->buf_size,
+#if !defined(__i386__) && !defined(__amd64__)
+		err = bus_dmamap_load(q->entry_tag, sd->map,
+		    cl + header_size, q->buf_size,
 		    refill_fl_cb, &cb_arg, 0);
 		
 		if (err != 0 || cb_arg.error) {
@@ -558,9 +555,12 @@ refill_fl(adapter_t *sc, struct sge_fl *q, int n)
 			 */
 			return;
 		}
-		
+#else
+		cb_arg.seg.ds_addr = pmap_kextract((vm_offset_t)(cl + header_size));
+#endif		
 		sd->flags |= RX_SW_DESC_INUSE;
-		sd->cl = cl;
+		sd->rxsd_cl = cl;
+		sd->data = cl + header_size;
 		d->addr_lo = htobe32(cb_arg.seg.ds_addr & 0xffffffff);
 		d->addr_hi = htobe32(((uint64_t)cb_arg.seg.ds_addr >>32) & 0xffffffff);
 		d->len_gen = htobe32(V_FLD_GEN1(q->gen));
@@ -576,10 +576,12 @@ refill_fl(adapter_t *sc, struct sge_fl *q, int n)
 			d = q->desc;
 		}
 		q->credits++;
+		count++;
 	}
 
 done:
-	t3_write_reg(sc, A_SG_KDOORBELL, V_EGRCNTX(q->cntxt_id));
+	if (count)
+		t3_write_reg(sc, A_SG_KDOORBELL, V_EGRCNTX(q->cntxt_id));
 }
 
 
@@ -602,9 +604,9 @@ free_rx_bufs(adapter_t *sc, struct sge_fl *q)
 		if (d->flags & RX_SW_DESC_INUSE) {
 			bus_dmamap_unload(q->entry_tag, d->map);
 			bus_dmamap_destroy(q->entry_tag, d->map);
-			uma_zfree(q->zone, d->cl);
+			uma_zfree(q->zone, d->rxsd_cl);
 		}
-		d->cl = NULL;
+		d->rxsd_cl = NULL;
 		if (++cidx == q->size)
 			cidx = 0;
 	}
@@ -616,7 +618,19 @@ __refill_fl(adapter_t *adap, struct sge_fl *fl)
 	refill_fl(adap, fl, min(16U, fl->size - fl->credits));
 }
 
-#ifndef DISABLE_MBUF_IOVEC
+static __inline void
+__refill_fl_lt(adapter_t *adap, struct sge_fl *fl, int max)
+{
+	if ((fl->size - fl->credits) < max)
+		refill_fl(adap, fl, min(max, fl->size - fl->credits));
+}
+
+void
+refill_fl_service(adapter_t *adap, struct sge_fl *fl)
+{
+	__refill_fl_lt(adap, fl, 512);
+}
+
 /**
  *	recycle_rx_buf - recycle a receive buffer
  *	@adapter: the adapter
@@ -646,7 +660,6 @@ recycle_rx_buf(adapter_t *adap, struct sge_fl *q, unsigned int idx)
 	}
 	t3_write_reg(adap, A_SG_KDOORBELL, V_EGRCNTX(q->cntxt_id));
 }
-#endif
 
 static void
 alloc_ring_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
@@ -687,8 +700,7 @@ alloc_ring(adapter_t *sc, size_t nelem, size_t elem_size, size_t sw_size,
 
 	if (sw_size) {
 		len = nelem * sw_size;
-		s = malloc(len, M_DEVBUF, M_WAITOK);
-		bzero(s, len);
+		s = malloc(len, M_DEVBUF, M_WAITOK|M_ZERO);
 		*(void **)sdesc = s;
 	}
 	if (parent_entry_tag == NULL)
@@ -746,26 +758,27 @@ static void
 sge_timer_cb(void *arg)
 {
 	adapter_t *sc = arg;
-	struct port_info *p;
+#ifndef IFNET_MULTIQUEUE	
+	struct port_info *pi;
 	struct sge_qset *qs;
 	struct sge_txq  *txq;
 	int i, j;
-	int reclaim_eth, reclaim_ofl, refill_rx;
-	
+	int reclaim_ofl, refill_rx;
+
 	for (i = 0; i < sc->params.nports; i++) 
 		for (j = 0; j < sc->port[i].nqsets; j++) {
 			qs = &sc->sge.qs[i + j];
 			txq = &qs->txq[0];
-			reclaim_eth = txq[TXQ_ETH].processed - txq[TXQ_ETH].cleaned;
 			reclaim_ofl = txq[TXQ_OFLD].processed - txq[TXQ_OFLD].cleaned;
 			refill_rx = ((qs->fl[0].credits < qs->fl[0].size) || 
 			    (qs->fl[1].credits < qs->fl[1].size));
-			if (reclaim_eth || reclaim_ofl || refill_rx) {
-				p = &sc->port[i];
-				taskqueue_enqueue(p->tq, &p->timer_reclaim_task);
+			if (reclaim_ofl || refill_rx) {
+				pi = &sc->port[i];
+				taskqueue_enqueue(pi->tq, &pi->timer_reclaim_task);
 				break;
 			}
 		}
+#endif
 	if (sc->params.nports > 2) {
 		int i;
 
@@ -792,27 +805,30 @@ t3_sge_init_adapter(adapter_t *sc)
 	callout_init(&sc->sge_timer_ch, CALLOUT_MPSAFE);
 	callout_reset(&sc->sge_timer_ch, TX_RECLAIM_PERIOD, sge_timer_cb, sc);
 	TASK_INIT(&sc->slow_intr_task, 0, sge_slow_intr_handler, sc);
+	mi_init();
+	cxgb_cache_init();
 	return (0);
 }
 
 int
-t3_sge_init_port(struct port_info *p)
+t3_sge_reset_adapter(adapter_t *sc)
 {
-	TASK_INIT(&p->timer_reclaim_task, 0, sge_timer_reclaim, p);
+	callout_reset(&sc->sge_timer_ch, TX_RECLAIM_PERIOD, sge_timer_cb, sc);
+	return (0);
+}
+
+int
+t3_sge_init_port(struct port_info *pi)
+{
+	TASK_INIT(&pi->timer_reclaim_task, 0, sge_timer_reclaim, pi);
 	return (0);
 }
 
 void
 t3_sge_deinit_sw(adapter_t *sc)
 {
-	int i;
-	
-	callout_drain(&sc->sge_timer_ch);
-	if (sc->tq) 
-		taskqueue_drain(sc->tq, &sc->slow_intr_task);
-	for (i = 0; i < sc->params.nports; i++) 
-		if (sc->port[i].tq != NULL)
-			taskqueue_drain(sc->port[i].tq, &sc->port[i].timer_reclaim_task);
+
+	mi_deinit();
 }
 
 /**
@@ -834,35 +850,16 @@ refill_rspq(adapter_t *sc, const struct sge_rspq *q, u_int credits)
 }
 
 static __inline void
-sge_txq_reclaim_(struct sge_txq *txq)
+sge_txq_reclaim_(struct sge_txq *txq, int force)
 {
-	int reclaimable, i, n;
-	struct mbuf *m_vec[TX_CLEAN_MAX_DESC];
-	struct port_info *p;
 
-	p = txq->port;
-reclaim_more:
-	n = 0;
-	reclaimable = desc_reclaimable(txq);
-	if (reclaimable > 0 && mtx_trylock(&txq->lock)) {
-		n = reclaim_completed_tx(txq, TX_CLEAN_MAX_DESC, m_vec);
-		mtx_unlock(&txq->lock);
-	}
-	if (n == 0)
+	if (desc_reclaimable(txq) < 16)
 		return;
-	
-	for (i = 0; i < n; i++) {
-		m_freem_vec(m_vec[i]);
-	}
-	if (p && p->ifp->if_drv_flags & IFF_DRV_OACTIVE &&
-	    txq->size - txq->in_use >= TX_START_MAX_DESC) {
-		txq_fills++;
-		p->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-		taskqueue_enqueue(p->tq, &p->start_task);
-	}
+	if (mtx_trylock(&txq->lock) == 0) 
+		return;
+	reclaim_completed_tx_(txq, 16);
+	mtx_unlock(&txq->lock);
 
-	if (n)
-		goto reclaim_more;
 }
 
 static void
@@ -870,26 +867,29 @@ sge_txq_reclaim_handler(void *arg, int ncount)
 {
 	struct sge_txq *q = arg;
 
-	sge_txq_reclaim_(q);
+	sge_txq_reclaim_(q, TRUE);
 }
+
+
 
 static void
 sge_timer_reclaim(void *arg, int ncount)
 {
-	struct port_info *p = arg;
-	int i, nqsets = p->nqsets;
-	adapter_t *sc = p->adapter;
+	struct port_info *pi = arg;
+	int i, nqsets = pi->nqsets;
+	adapter_t *sc = pi->adapter;
 	struct sge_qset *qs;
 	struct sge_txq *txq;
 	struct mtx *lock;
 
+#ifdef IFNET_MULTIQUEUE
+	panic("%s should not be called with multiqueue support\n", __FUNCTION__);
+#endif 
 	for (i = 0; i < nqsets; i++) {
 		qs = &sc->sge.qs[i];
-		txq = &qs->txq[TXQ_ETH];
-		sge_txq_reclaim_(txq);
 
 		txq = &qs->txq[TXQ_OFLD];
-		sge_txq_reclaim_(txq);
+		sge_txq_reclaim_(txq, FALSE);
 		
 		lock = (sc->flags & USING_MSIX) ? &qs->rspq.lock :
 			    &sc->sge.qs[0].rspq.lock;
@@ -935,6 +935,10 @@ init_qset_cntxt(struct sge_qset *qs, u_int id)
 	qs->txq[TXQ_OFLD].cntxt_id = FW_OFLD_SGEEC_START + id;
 	qs->txq[TXQ_CTRL].cntxt_id = FW_CTRL_SGEEC_START + id;
 	qs->txq[TXQ_CTRL].token = FW_CTRL_TID_START + id;
+
+	mbufq_init(&qs->txq[TXQ_ETH].sendq);
+	mbufq_init(&qs->txq[TXQ_OFLD].sendq);
+	mbufq_init(&qs->txq[TXQ_CTRL].sendq);
 }
 
 
@@ -948,11 +952,21 @@ txq_prod(struct sge_txq *txq, unsigned int ndesc, struct txq_state *txqs)
 	 */
 	txqs->gen = txq->gen;
 	txq->unacked += ndesc;
-	txqs->compl = (txq->unacked & 8) << (S_WR_COMPL - 3);
-	txq->unacked &= 7;
+	txqs->compl = (txq->unacked & 32) << (S_WR_COMPL - 5);
+	txq->unacked &= 31;
 	txqs->pidx = txq->pidx;
 	txq->pidx += ndesc;
-	
+#ifdef INVARIANTS
+	if (((txqs->pidx > txq->cidx) &&
+		(txq->pidx < txqs->pidx) &&
+		(txq->pidx >= txq->cidx)) ||
+	    ((txqs->pidx < txq->cidx) &&
+		(txq->pidx >= txq-> cidx)) ||
+	    ((txqs->pidx < txq->cidx) &&
+		(txq->cidx < txqs->pidx)))
+		panic("txqs->pidx=%d txq->pidx=%d txq->cidx=%d",
+		    txqs->pidx, txq->pidx, txq->cidx);
+#endif
 	if (txq->pidx >= txq->size) {
 		txq->pidx -= txq->size;
 		txq->gen ^= 1;
@@ -978,7 +992,7 @@ calc_tx_descs(const struct mbuf *m, int nsegs)
 
 	flits = sgl_len(nsegs) + 2;
 #ifdef TSO_SUPPORTED
-	if  (m->m_pkthdr.csum_flags & (CSUM_TSO))
+	if (m->m_pkthdr.csum_flags & CSUM_TSO)
 		flits++;
 #endif	
 	return flits_to_desc(flits);
@@ -986,28 +1000,27 @@ calc_tx_descs(const struct mbuf *m, int nsegs)
 
 static unsigned int
 busdma_map_mbufs(struct mbuf **m, struct sge_txq *txq,
-    struct tx_sw_desc *stx, bus_dma_segment_t *segs, int *nsegs)
+    struct tx_sw_desc *txsd, bus_dma_segment_t *segs, int *nsegs)
 {
 	struct mbuf *m0;
-	int err, pktlen;
+	int err, pktlen, pass = 0;
 	
+retry:
+	err = 0;
 	m0 = *m;
 	pktlen = m0->m_pkthdr.len;
-
-	err = bus_dmamap_load_mvec_sg(txq->entry_tag, stx->map, m0, segs, nsegs, 0);
-#ifdef DEBUG		
-	if (err) {
-		int n = 0;
-		struct mbuf *mtmp = m0;
-		while(mtmp) {
-			n++;
-			mtmp = mtmp->m_next;
-		}
-		printf("map_mbufs: bus_dmamap_load_mbuf_sg failed with %d - pkthdr.len==%d nmbufs=%d\n",
-		    err, m0->m_pkthdr.len, n);
-	}
+#if defined(__i386__) || defined(__amd64__)
+	if (busdma_map_sg_collapse(m, segs, nsegs) == 0) {
+		goto done;
+	} else
 #endif
-	if (err == EFBIG) {
+		err = bus_dmamap_load_mbuf_sg(txq->entry_tag, txsd->map, m0, segs, nsegs, 0);
+
+	if (err == 0) {
+		goto done;
+	}
+	if (err == EFBIG && pass == 0) {
+		pass = 1;
 		/* Too many segments, try to defrag */
 		m0 = m_defrag(m0, M_DONTWAIT);
 		if (m0 == NULL) {
@@ -1016,23 +1029,21 @@ busdma_map_mbufs(struct mbuf **m, struct sge_txq *txq,
 			return (ENOBUFS);
 		}
 		*m = m0;
-		err = bus_dmamap_load_mbuf_sg(txq->entry_tag, stx->map, m0, segs, nsegs, 0);
-	}
-
-	if (err == ENOMEM) {
+		goto retry;
+	} else if (err == ENOMEM) {
 		return (err);
-	}
-
-	if (err) {
+	} if (err) {
 		if (cxgb_debug)
 			printf("map failure err=%d pktlen=%d\n", err, pktlen);
-		m_freem_vec(m0);
+		m_freem(m0);
 		*m = NULL;
 		return (err);
 	}
-
-	bus_dmamap_sync(txq->entry_tag, stx->map, BUS_DMASYNC_PREWRITE);
-	stx->flags |= TX_SW_DESC_MAPPED;
+done:
+#if !defined(__i386__) && !defined(__amd64__)
+	bus_dmamap_sync(txq->entry_tag, txsd->map, BUS_DMASYNC_PREWRITE);
+#endif	
+	txsd->flags |= TX_SW_DESC_MAPPED;
 
 	return (0);
 }
@@ -1052,16 +1063,24 @@ make_sgl(struct sg_ent *sgp, bus_dma_segment_t *segs, int nsegs)
 {
 	int i, idx;
 	
-	for (idx = 0, i = 0; i < nsegs; i++, idx ^= 1) {
+	for (idx = 0, i = 0; i < nsegs; i++) {
+		/*
+		 * firmware doesn't like empty segments
+		 */
+		if (segs[i].ds_len == 0)
+			continue;
 		if (i && idx == 0) 
 			++sgp;
-
+		
 		sgp->len[idx] = htobe32(segs[i].ds_len);
 		sgp->addr[idx] = htobe64(segs[i].ds_addr);
+		idx ^= 1;
 	}
 	
-	if (idx)
+	if (idx) {
 		sgp->len[idx] = 0;
+		sgp->addr[idx] = 0;
+	}
 }
 	
 /**
@@ -1105,8 +1124,6 @@ wr_gen2(struct tx_desc *d, unsigned int gen)
 #endif
 }
 
-
-
 /**
  *	write_wr_hdr_sgl - write a WR header and, optionally, SGL
  *	@ndesc: number of Tx descriptors spanned by the SGL
@@ -1124,7 +1141,6 @@ wr_gen2(struct tx_desc *d, unsigned int gen)
  *	and we just need to write the WR header.  Otherwise we distribute the
  *	SGL across the number of descriptors it spans.
  */
-
 static void
 write_wr_hdr_sgl(unsigned int ndesc, struct tx_desc *txd, struct txq_state *txqs,
     const struct sge_txq *txq, const struct sg_ent *sgl, unsigned int flits,
@@ -1142,6 +1158,7 @@ write_wr_hdr_sgl(unsigned int ndesc, struct tx_desc *txd, struct txq_state *txqs
 		    V_WR_GEN(txqs->gen)) | wr_lo;
 		/* XXX gen? */
 		wr_gen2(txd, txqs->gen);
+		
 	} else {
 		unsigned int ogen = txqs->gen;
 		const uint64_t *fp = (const uint64_t *)sgl;
@@ -1176,7 +1193,8 @@ write_wr_hdr_sgl(unsigned int ndesc, struct tx_desc *txd, struct txq_state *txqs
 			 * is freed all clusters will be freed
 			 * with it
 			 */
-			txsd->m = NULL;
+			KASSERT(txsd->mi.mi_base == NULL,
+			    ("overwriting valid entry mi_base==%p", txsd->mi.mi_base));
 			wrp = (struct work_request_hdr *)txd;
 			wrp->wr_hi = htonl(V_WR_DATATYPE(1) |
 			    V_WR_SGLSFLT(1)) | wr_hi;
@@ -1193,80 +1211,155 @@ write_wr_hdr_sgl(unsigned int ndesc, struct tx_desc *txd, struct txq_state *txqs
 	}
 }
 
-	
 /* sizeof(*eh) + sizeof(*vhdr) + sizeof(*ip) + sizeof(*tcp) */
 #define TCPPKTHDRSIZE (ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN + 20 + 20)
 
+#ifdef VLAN_SUPPORTED
+#define GET_VTAG(cntrl, m) \
+do { \
+	if ((m)->m_flags & M_VLANTAG)					            \
+		cntrl |= F_TXPKT_VLAN_VLD | V_TXPKT_VLAN((m)->m_pkthdr.ether_vtag); \
+} while (0)
+
+#define GET_VTAG_MI(cntrl, mi) \
+do { \
+	if ((mi)->mi_flags & M_VLANTAG)					\
+		cntrl |= F_TXPKT_VLAN_VLD | V_TXPKT_VLAN((mi)->mi_ether_vtag); \
+} while (0)
+#else
+#define GET_VTAG(cntrl, m)
+#define GET_VTAG_MI(cntrl, m)
+#endif
+
 int
-t3_encap(struct port_info *p, struct mbuf **m, int *free)
+t3_encap(struct sge_qset *qs, struct mbuf **m, int count)
 {
 	adapter_t *sc;
 	struct mbuf *m0;
-	struct sge_qset *qs;
 	struct sge_txq *txq;
-	struct tx_sw_desc *stx;
 	struct txq_state txqs;
+	struct port_info *pi;
 	unsigned int ndesc, flits, cntrl, mlen;
 	int err, nsegs, tso_info = 0;
 
 	struct work_request_hdr *wrp;
 	struct tx_sw_desc *txsd;
-	struct sg_ent *sgp, sgl[TX_MAX_SEGS / 2 + 1];
-	bus_dma_segment_t segs[TX_MAX_SEGS];
+	struct sg_ent *sgp, *sgl;
 	uint32_t wr_hi, wr_lo, sgl_flits; 
+	bus_dma_segment_t segs[TX_MAX_SEGS];
 
 	struct tx_desc *txd;
-	struct cpl_tx_pkt *cpl;
-       
-	m0 = *m;	
-	sc = p->adapter;
-	
-	DPRINTF("t3_encap port_id=%d qsidx=%d ", p->port_id, p->first_qset);
+	struct mbuf_vec *mv;
+	struct mbuf_iovec *mi;
+		
+	DPRINTF("t3_encap cpu=%d ", curcpu);
 
-	/* port_id=1 qsid=1 txpkt_intf=2 tx_chan=0 */
-
-	qs = &sc->sge.qs[p->first_qset];
-
+	mi = NULL;
+	pi = qs->port;
+	sc = pi->adapter;
 	txq = &qs->txq[TXQ_ETH];
-	stx = &txq->sdesc[txq->pidx];
 	txd = &txq->desc[txq->pidx];
-	cpl = (struct cpl_tx_pkt *)txd;
-	mlen = m0->m_pkthdr.len;
-	cpl->len = htonl(mlen | 0x80000000);
+	txsd = &txq->sdesc[txq->pidx];
+	sgl = txq->txq_sgl;
+	m0 = *m;
 	
-	DPRINTF("mlen=%d txpkt_intf=%d tx_chan=%d\n", mlen, p->txpkt_intf, p->tx_chan);
-	/*
-	 * XXX handle checksum, TSO, and VLAN here
-	 *	 
-	 */
-	cntrl = V_TXPKT_INTF(p->txpkt_intf);
-
-	/*
-	 * XXX need to add VLAN support for 6.x
-	 */
+	DPRINTF("t3_encap port_id=%d qsidx=%d ", pi->port_id, pi->first_qset);
+	DPRINTF("mlen=%d txpkt_intf=%d tx_chan=%d\n", m[0]->m_pkthdr.len, pi->txpkt_intf, pi->tx_chan);
+	if (cxgb_debug)
+		printf("mi_base=%p cidx=%d pidx=%d\n\n", txsd->mi.mi_base, txq->cidx, txq->pidx);
+	
+	mtx_assert(&txq->lock, MA_OWNED);
+	cntrl = V_TXPKT_INTF(pi->txpkt_intf);
+/*
+ * XXX need to add VLAN support for 6.x
+ */
 #ifdef VLAN_SUPPORTED
-	if (m0->m_flags & M_VLANTAG) 
-		cntrl |= F_TXPKT_VLAN_VLD | V_TXPKT_VLAN(m0->m_pkthdr.ether_vtag);
 	if  (m0->m_pkthdr.csum_flags & (CSUM_TSO))
 		tso_info = V_LSO_MSS(m0->m_pkthdr.tso_segsz);
-#endif		
-	if (tso_info) {
-		int eth_type;
-		struct cpl_tx_pkt_lso *hdr = (struct cpl_tx_pkt_lso *) cpl;
+#endif
+	KASSERT(txsd->mi.mi_base == NULL,
+	    ("overwriting valid entry mi_base==%p", txsd->mi.mi_base));
+	if (count > 1) {
+		panic("count > 1 not support in CVS\n");
+		if ((err = busdma_map_sg_vec(m, &m0, segs, count)))
+			return (err);
+		nsegs = count;
+	} else if ((err = busdma_map_sg_collapse(&m0, segs, &nsegs))) {
+		if (cxgb_debug)
+			printf("failed ... err=%d\n", err);
+		return (err);
+	} 
+	KASSERT(m0->m_pkthdr.len, ("empty packet nsegs=%d count=%d", nsegs, count));
+
+	if (!(m0->m_pkthdr.len <= PIO_LEN)) {
+		mi_collapse_mbuf(&txsd->mi, m0);
+		mi = &txsd->mi;
+	}
+	if (count > 1) {
+		struct cpl_tx_pkt_batch *cpl_batch = (struct cpl_tx_pkt_batch *)txd;
+		int i, fidx;
+		struct mbuf_iovec *batchmi;
+
+		mv = mtomv(m0);
+		batchmi = mv->mv_vec;
+		
+		wrp = (struct work_request_hdr *)txd;
+
+		flits = count*2 + 1;
+		txq_prod(txq, 1, &txqs);
+
+		for (fidx = 1, i = 0; i < count; i++, batchmi++, fidx += 2) {
+			struct cpl_tx_pkt_batch_entry *cbe = &cpl_batch->pkt_entry[i];
+
+			cntrl = V_TXPKT_INTF(pi->txpkt_intf);
+			GET_VTAG_MI(cntrl, batchmi);
+			cntrl |= V_TXPKT_OPCODE(CPL_TX_PKT);
+			cbe->cntrl = htonl(cntrl);
+			cbe->len = htonl(batchmi->mi_len | 0x80000000);
+			cbe->addr = htobe64(segs[i].ds_addr);
+			txd->flit[fidx] |= htobe64(1 << 24);
+		}
+
+		wrp->wr_hi = htonl(F_WR_SOP | F_WR_EOP | V_WR_DATATYPE(1) |
+		    V_WR_SGLSFLT(flits)) | htonl(V_WR_OP(FW_WROPCODE_TUNNEL_TX_PKT) | txqs.compl);
+		wmb();
+		wrp->wr_lo = htonl(V_WR_LEN(flits) |
+		    V_WR_GEN(txqs.gen)) | htonl(V_WR_TID(txq->token));
+		/* XXX gen? */
+		wr_gen2(txd, txqs.gen);
+		check_ring_tx_db(sc, txq);
+		
+		return (0);		
+	} else if (tso_info) {
+		int undersized, eth_type;
+		struct cpl_tx_pkt_lso *hdr = (struct cpl_tx_pkt_lso *)txd;
 		struct ip *ip;
 		struct tcphdr *tcp;
-		char *pkthdr, tmp[TCPPKTHDRSIZE]; /* is this too large for the stack? */
+		char *pkthdr, tmp[TCPPKTHDRSIZE];
+		struct mbuf_vec *mv;
+		struct mbuf_iovec *tmpmi;
+
+		mv = mtomv(m0);
+		tmpmi = mv->mv_vec;
 		
 		txd->flit[2] = 0;
+		GET_VTAG_MI(cntrl, mi);
 		cntrl |= V_TXPKT_OPCODE(CPL_TX_PKT_LSO);
 		hdr->cntrl = htonl(cntrl);
-		
-		if (__predict_false(m0->m_len < TCPPKTHDRSIZE)) {
-			pkthdr = &tmp[0];
-			m_copydata(m0, 0, TCPPKTHDRSIZE, pkthdr);
-		} else {
-			pkthdr = mtod(m0, char *);
-		}
+		mlen = m0->m_pkthdr.len;
+		hdr->len = htonl(mlen | 0x80000000);
+
+		DPRINTF("tso buf len=%d\n", mlen);
+		undersized = (((tmpmi->mi_len < TCPPKTHDRSIZE) &&
+			(m0->m_flags & M_VLANTAG)) ||
+		    (tmpmi->mi_len < TCPPKTHDRSIZE - ETHER_VLAN_ENCAP_LEN));
+
+		if (__predict_false(undersized)) {
+			pkthdr = tmp;
+			dump_mi(mi);
+			panic("discontig packet - fixxorz");
+		} else 
+			pkthdr = m0->m_data;
 
 		if (__predict_false(m0->m_flags & M_VLANTAG)) {
 			eth_type = CPL_ETH_II_VLAN;
@@ -1285,19 +1378,19 @@ t3_encap(struct port_info *p, struct mbuf **m, int *free)
 		hdr->lso_info = htonl(tso_info);
 		flits = 3;	
 	} else {
+		struct cpl_tx_pkt *cpl = (struct cpl_tx_pkt *)txd;
+
+		GET_VTAG(cntrl, m0);
 		cntrl |= V_TXPKT_OPCODE(CPL_TX_PKT);
 		cpl->cntrl = htonl(cntrl);
-		
-		if (mlen <= WR_LEN - sizeof(*cpl)) {
-			txq_prod(txq, 1, &txqs);
-			txq->sdesc[txqs.pidx].m = NULL;
-			
-			if (m0->m_len == m0->m_pkthdr.len)
-				memcpy(&txd->flit[2], mtod(m0, uint8_t *), mlen);
-			else
-				m_copydata(m0, 0, mlen, (caddr_t)&txd->flit[2]);
+		mlen = m0->m_pkthdr.len;
+		cpl->len = htonl(mlen | 0x80000000);
 
-			*free = 1;
+		if (mlen <= PIO_LEN) {
+			txq_prod(txq, 1, &txqs);
+			m_copydata(m0, 0, mlen, (caddr_t)&txd->flit[2]);
+			m_freem(m0);
+			m0 = NULL;
 			flits = (mlen + 7) / 8 + 2;
 			cpl->wr.wr_hi = htonl(V_WR_BCNTLFLT(mlen & 7) |
 					  V_WR_OP(FW_WROPCODE_TUNNEL_TX_PKT) |
@@ -1308,17 +1401,23 @@ t3_encap(struct port_info *p, struct mbuf **m, int *free)
 
 			wr_gen2(txd, txqs.gen);
 			check_ring_tx_db(sc, txq);
+			DPRINTF("pio buf\n");
 			return (0);
 		}
+		DPRINTF("regular buf\n");
 		flits = 2;
 	}
-
 	wrp = (struct work_request_hdr *)txd;
-	
-	if ((err = busdma_map_mbufs(m, txq, stx, segs, &nsegs)) != 0) {
+
+#ifdef	nomore
+	/*
+	 * XXX need to move into one of the helper routines above
+	 *
+	 */
+	if ((err = busdma_map_mbufs(m, txq, txsd, segs, &nsegs)) != 0) 
 		return (err);
-	}
 	m0 = *m;
+#endif
 	ndesc = calc_tx_descs(m0, nsegs);
 	
 	sgp = (ndesc == 1) ? (struct sg_ent *)&txd->flit[flits] : sgl;
@@ -1328,15 +1427,19 @@ t3_encap(struct port_info *p, struct mbuf **m, int *free)
 
 	DPRINTF("make_sgl success nsegs==%d ndesc==%d\n", nsegs, ndesc);
 	txq_prod(txq, ndesc, &txqs);
-	txsd = &txq->sdesc[txqs.pidx];
 	wr_hi = htonl(V_WR_OP(FW_WROPCODE_TUNNEL_TX_PKT) | txqs.compl);
 	wr_lo = htonl(V_WR_TID(txq->token));
-	txsd->m = m0;
-	m_set_priority(m0, txqs.pidx); 
-
 	write_wr_hdr_sgl(ndesc, txd, &txqs, txq, sgl, flits, sgl_flits, wr_hi, wr_lo);
-	check_ring_tx_db(p->adapter, txq);
+	check_ring_tx_db(pi->adapter, txq);
 
+	if ((m0->m_type == MT_DATA) &&
+	    ((m0->m_flags & (M_EXT|M_NOFREE)) == M_EXT) &&
+	    (m0->m_ext.ext_type != EXT_PACKET)) {
+		m0->m_flags &= ~M_EXT ;
+		cxgb_mbufs_outstanding--;
+		m_free(m0);
+	}
+	
 	return (0);
 }
 
@@ -1360,6 +1463,11 @@ write_imm(struct tx_desc *d, struct mbuf *m,
 	struct work_request_hdr *from = mtod(m, struct work_request_hdr *);
 	struct work_request_hdr *to = (struct work_request_hdr *)d;
 
+	if (len > WR_LEN)
+		panic("len too big %d\n", len);
+	if (len < sizeof(*from))
+		panic("len too small %d", len);
+	
 	memcpy(&to[1], &from[1], len - sizeof(*from));
 	to->wr_hi = from->wr_hi | htonl(F_WR_SOP | F_WR_EOP |
 					V_WR_BCNTLFLT(len & 7));
@@ -1367,7 +1475,14 @@ write_imm(struct tx_desc *d, struct mbuf *m,
 	to->wr_lo = from->wr_lo | htonl(V_WR_GEN(gen) |
 					V_WR_LEN((len + 7) / 8));
 	wr_gen2(d, gen);
-	m_freem(m);
+
+	/*
+	 * This check is a hack we should really fix the logic so
+	 * that this can't happen
+	 */
+	if (m->m_type != MT_DONTFREE)
+		m_freem(m);
+	
 }
 
 /**
@@ -1406,6 +1521,8 @@ addq_exit:	mbufq_tail(&q->sendq, m);
 
 		struct sge_qset *qs = txq_to_qset(q, qid);
 
+		printf("stopping q\n");
+		
 		setbit(&qs->txq_stopped, qid);
 		smp_mb();
 
@@ -1465,7 +1582,7 @@ ctrl_xmit(adapter_t *adap, struct sge_txq *q, struct mbuf *m)
 		m_freem(m);
 		return 0;
 	}
-
+	
 	wrp->wr_hi |= htonl(F_WR_SOP | F_WR_EOP);
 	wrp->wr_lo = htonl(V_WR_TID(q->token));
 
@@ -1476,13 +1593,13 @@ again:	reclaim_completed_tx_imm(q);
 	if (__predict_false(ret)) {
 		if (ret == 1) {
 			mtx_unlock(&q->lock);
-			return (-1);
+			log(LOG_ERR, "no desc available\n");
+			return (ENOSPC);
 		}
 		goto again;
 	}
-
 	write_imm(&q->desc[q->pidx], m, m->m_len, q->gen);
-
+	
 	q->in_use++;
 	if (++q->pidx >= q->size) {
 		q->pidx = 0;
@@ -1510,6 +1627,8 @@ restart_ctrlq(void *data, int npending)
 	struct sge_txq *q = &qs->txq[TXQ_CTRL];
 	adapter_t *adap = qs->port->adapter;
 
+	log(LOG_WARNING, "Restart_ctrlq in_use=%d\n", q->in_use);
+	
 	mtx_lock(&q->lock);
 again:	reclaim_completed_tx_imm(q);
 
@@ -1534,6 +1653,7 @@ again:	reclaim_completed_tx_imm(q);
 		q->stops++;
 	}
 	mtx_unlock(&q->lock);
+	wmb();
 	t3_write_reg(adap, A_SG_KDOORBELL,
 		     F_SELEGRCNTX | V_EGRCNTX(q->cntxt_id));
 }
@@ -1548,6 +1668,7 @@ t3_mgmt_tx(struct adapter *adap, struct mbuf *m)
 	return ctrl_xmit(adap, &adap->sge.qs[0].txq[TXQ_CTRL], m);
 }
 
+
 /**
  *	free_qset - free the resources of an SGE queue set
  *	@sc: the controller owning the queue set
@@ -1557,16 +1678,23 @@ t3_mgmt_tx(struct adapter *adap, struct mbuf *m)
  *	as HW contexts, packet buffers, and descriptor rings.  Traffic to the
  *	queue set must be quiesced prior to calling this.
  */
-static void
+void
 t3_free_qset(adapter_t *sc, struct sge_qset *q)
 {
 	int i;
-
+	
+	t3_free_tx_desc_all(&q->txq[TXQ_ETH]);
+	
+	for (i = 0; i < SGE_TXQ_PER_SET; i++) 
+		if (q->txq[i].txq_mr.br_ring != NULL) {
+			free(q->txq[i].txq_mr.br_ring, M_DEVBUF);
+			mtx_destroy(&q->txq[i].txq_mr.br_lock);
+		}
 	for (i = 0; i < SGE_RXQ_PER_SET; ++i) {
 		if (q->fl[i].desc) {
-			mtx_lock(&sc->sge.reg_lock);
+			mtx_lock_spin(&sc->sge.reg_lock);
 			t3_sge_disable_fl(sc, q->fl[i].cntxt_id);
-			mtx_unlock(&sc->sge.reg_lock);
+			mtx_unlock_spin(&sc->sge.reg_lock);
 			bus_dmamap_unload(q->fl[i].desc_tag, q->fl[i].desc_map);
 			bus_dmamem_free(q->fl[i].desc_tag, q->fl[i].desc,
 					q->fl[i].desc_map);
@@ -1581,9 +1709,9 @@ t3_free_qset(adapter_t *sc, struct sge_qset *q)
 
 	for (i = 0; i < SGE_TXQ_PER_SET; i++) {
 		if (q->txq[i].desc) {
-			mtx_lock(&sc->sge.reg_lock);
+			mtx_lock_spin(&sc->sge.reg_lock);
 			t3_sge_enable_ecntxt(sc, q->txq[i].cntxt_id, 0);
-			mtx_unlock(&sc->sge.reg_lock);
+			mtx_unlock_spin(&sc->sge.reg_lock);
 			bus_dmamap_unload(q->txq[i].desc_tag,
 					q->txq[i].desc_map);
 			bus_dmamem_free(q->txq[i].desc_tag, q->txq[i].desc,
@@ -1598,9 +1726,9 @@ t3_free_qset(adapter_t *sc, struct sge_qset *q)
 	}
 
 	if (q->rspq.desc) {
-		mtx_lock(&sc->sge.reg_lock);
+		mtx_lock_spin(&sc->sge.reg_lock);
 		t3_sge_disable_rspcntxt(sc, q->rspq.cntxt_id);
-		mtx_unlock(&sc->sge.reg_lock);
+		mtx_unlock_spin(&sc->sge.reg_lock);
 		
 		bus_dmamap_unload(q->rspq.desc_tag, q->rspq.desc_map);
 		bus_dmamem_free(q->rspq.desc_tag, q->rspq.desc,
@@ -1622,10 +1750,13 @@ void
 t3_free_sge_resources(adapter_t *sc)
 {
 	int i, nqsets;
-
+	
+#ifdef IFNET_MULTIQUEUE
+	panic("%s should not be called when IFNET_MULTIQUEUE is defined", __FUNCTION__);
+#endif		
 	for (nqsets = i = 0; i < (sc)->params.nports; i++) 
 		nqsets += sc->port[i].nqsets;
-	
+
 	for (i = 0; i < nqsets; ++i)
 		t3_free_qset(sc, &sc->sge.qs[i]);
 }
@@ -1668,63 +1799,94 @@ t3_sge_stop(adapter_t *sc)
 	
 	for (nqsets = i = 0; i < (sc)->params.nports; i++) 
 		nqsets += sc->port[i].nqsets;
-	
+#ifdef notyet
+	/*
+	 * 
+	 * XXX
+	 */
 	for (i = 0; i < nqsets; ++i) {
 		struct sge_qset *qs = &sc->sge.qs[i];
 		
 		taskqueue_drain(sc->tq, &qs->txq[TXQ_OFLD].qresume_task);
 		taskqueue_drain(sc->tq, &qs->txq[TXQ_CTRL].qresume_task);
 	}
+#endif
 }
 
-
 /**
- *	free_tx_desc - reclaims Tx descriptors and their buffers
+ *	t3_free_tx_desc - reclaims Tx descriptors and their buffers
  *	@adapter: the adapter
  *	@q: the Tx queue to reclaim descriptors from
- *	@n: the number of descriptors to reclaim
+ *	@reclaimable: the number of descriptors to reclaim
+ *      @m_vec_size: maximum number of buffers to reclaim
+ *      @desc_reclaimed: returns the number of descriptors reclaimed
  *
  *	Reclaims Tx descriptors from an SGE Tx queue and frees the associated
  *	Tx buffers.  Called with the Tx queue lock held.
+ *
+ *      Returns number of buffers of reclaimed   
  */
-int
-free_tx_desc(struct sge_txq *q, int n, struct mbuf **m_vec)
+void
+t3_free_tx_desc(struct sge_txq *q, int reclaimable)
 {
-	struct tx_sw_desc *d;
-	unsigned int cidx = q->cidx;
-	int nbufs = 0;
+	struct tx_sw_desc *txsd;
+	unsigned int cidx;
 	
 #ifdef T3_TRACE
 	T3_TRACE2(sc->tb[q->cntxt_id & 7],
-		  "reclaiming %u Tx descriptors at cidx %u", n, cidx);
+		  "reclaiming %u Tx descriptors at cidx %u", reclaimable, cidx);
 #endif
-	d = &q->sdesc[cidx];
-	
-	while (n-- > 0) {
-		DPRINTF("cidx=%d d=%p\n", cidx, d);
-		if (d->m) {
-			if (d->flags & TX_SW_DESC_MAPPED) {
-				bus_dmamap_unload(q->entry_tag, d->map);
-				bus_dmamap_destroy(q->entry_tag, d->map);
-				d->flags &= ~TX_SW_DESC_MAPPED;
+	cidx = q->cidx;
+	txsd = &q->sdesc[cidx];
+	DPRINTF("reclaiming %d WR\n", reclaimable);
+	mtx_assert(&q->lock, MA_OWNED);
+	while (reclaimable--) {
+		DPRINTF("cidx=%d d=%p\n", cidx, txsd);
+		if (txsd->mi.mi_base != NULL) {
+			if (txsd->flags & TX_SW_DESC_MAPPED) {
+				bus_dmamap_unload(q->entry_tag, txsd->map);
+				txsd->flags &= ~TX_SW_DESC_MAPPED;
 			}
-			if (m_get_priority(d->m) == cidx) {
-				m_vec[nbufs] = d->m;
-				d->m = NULL;
-				nbufs++;
-			} else {
-				printf("pri=%d cidx=%d\n", (int)m_get_priority(d->m), cidx);
-			}
-		}
-		++d;
+			m_freem_iovec(&txsd->mi);	
+			buf_ring_scan(&q->txq_mr, txsd->mi.mi_base, __FILE__, __LINE__);
+			txsd->mi.mi_base = NULL;
+
+#if defined(DIAGNOSTIC) && 0
+			if (m_get_priority(txsd->m[0]) != cidx) 
+				printf("pri=%d cidx=%d\n",
+				    (int)m_get_priority(txsd->m[0]), cidx);
+#endif			
+
+		} else
+			q->txq_skipped++;
+		
+		++txsd;
 		if (++cidx == q->size) {
 			cidx = 0;
-			d = q->sdesc;
+			txsd = q->sdesc;
 		}
 	}
 	q->cidx = cidx;
 
-	return (nbufs);
+}
+
+void
+t3_free_tx_desc_all(struct sge_txq *q)
+{
+	int i;
+	struct tx_sw_desc *txsd;
+	
+	for (i = 0; i < q->size; i++) {
+		txsd = &q->sdesc[i];
+		if (txsd->mi.mi_base != NULL) {
+			if (txsd->flags & TX_SW_DESC_MAPPED) {
+				bus_dmamap_unload(q->entry_tag, txsd->map);
+				txsd->flags &= ~TX_SW_DESC_MAPPED;
+			}
+			m_freem_iovec(&txsd->mi);
+			bzero(&txsd->mi, sizeof(txsd->mi));
+		}
+	}
 }
 
 /**
@@ -1775,27 +1937,25 @@ write_ofld_wr(adapter_t *adap, struct mbuf *m,
 	struct tx_desc *d = &q->desc[pidx];
 	struct txq_state txqs;
 	
-	if (immediate(m)) {
-		q->sdesc[pidx].m = NULL;
+	if (immediate(m) && nsegs == 0) {
 		write_imm(d, m, m->m_len, gen);
 		return;
 	}
 
 	/* Only TX_DATA builds SGLs */
-
 	from = mtod(m, struct work_request_hdr *);
-	memcpy(&d->flit[1], &from[1],
-	    (uint8_t *)m->m_pkthdr.header - mtod(m, uint8_t *) - sizeof(*from));
+	memcpy(&d->flit[1], &from[1], m->m_len - sizeof(*from));
 
-	flits = ((uint8_t *)m->m_pkthdr.header - mtod(m, uint8_t *)) / 8;
+	flits = m->m_len / 8;
 	sgp = (ndesc == 1) ? (struct sg_ent *)&d->flit[flits] : sgl;
 
 	make_sgl(sgp, segs, nsegs);
 	sgl_flits = sgl_len(nsegs);
 
-	txqs.gen = q->gen;
-	txqs.pidx = q->pidx;
-	txqs.compl = (q->unacked & 8) << (S_WR_COMPL - 3);
+	txqs.gen = gen;
+	txqs.pidx = pidx;
+	txqs.compl = 0;
+
 	write_wr_hdr_sgl(ndesc, d, &txqs, q, sgl, flits, sgl_flits,
 	    from->wr_hi, from->wr_lo);
 }
@@ -1811,17 +1971,25 @@ static __inline unsigned int
 calc_tx_descs_ofld(struct mbuf *m, unsigned int nsegs)
 {
 	unsigned int flits, cnt = 0;
+	int ndescs;
 
-
-	if (m->m_len <= WR_LEN)
-		return 1;                 /* packet fits as immediate data */
+	if (m->m_len <= WR_LEN && nsegs == 0)
+		return (1);                 /* packet fits as immediate data */
 
 	if (m->m_flags & M_IOVEC)
 		cnt = mtomv(m)->mv_count;
+	else
+		cnt = nsegs;
 
-	flits = ((uint8_t *)m->m_pkthdr.header - mtod(m, uint8_t *)) / 8;   /* headers */
+	/* headers */
+	flits = m->m_len / 8;
 
-	return flits_to_desc(flits + sgl_len(cnt));
+	ndescs = flits_to_desc(flits + sgl_len(cnt));
+
+	CTR4(KTR_CXGB, "flits=%d sgl_len=%d nsegs=%d ndescs=%d",
+	    flits, sgl_len(cnt), nsegs, ndescs);
+
+	return (ndescs);
 }
 
 /**
@@ -1838,25 +2006,27 @@ ofld_xmit(adapter_t *adap, struct sge_txq *q, struct mbuf *m)
 	int ret, nsegs;
 	unsigned int ndesc;
 	unsigned int pidx, gen;
-	struct mbuf *m_vec[TX_CLEAN_MAX_DESC];
-	bus_dma_segment_t segs[TX_MAX_SEGS];
-	int i, cleaned;
-	struct tx_sw_desc *stx = &q->sdesc[q->pidx];
+	bus_dma_segment_t segs[TX_MAX_SEGS], *vsegs;
+	struct tx_sw_desc *stx;
 
-	mtx_lock(&q->lock);
-	if ((ret = busdma_map_mbufs(&m, q, stx, segs, &nsegs)) != 0) {
-		mtx_unlock(&q->lock);
-		return (ret);
-	}
+	nsegs = m_get_sgllen(m);
+	vsegs = m_get_sgl(m);
 	ndesc = calc_tx_descs_ofld(m, nsegs);
-again:	cleaned = reclaim_completed_tx(q, TX_CLEAN_MAX_DESC, m_vec);
+	busdma_map_sgl(vsegs, segs, nsegs);
 
+	stx = &q->sdesc[q->pidx];
+	KASSERT(stx->mi.mi_base == NULL, ("mi_base set"));
+	
+	mtx_lock(&q->lock);
+again:	reclaim_completed_tx_(q, 16);
 	ret = check_desc_avail(adap, q, m, ndesc, TXQ_OFLD);
 	if (__predict_false(ret)) {
 		if (ret == 1) {
+			printf("no ofld desc avail\n");
+			
 			m_set_priority(m, ndesc);     /* save for restart */
 			mtx_unlock(&q->lock);
-			return EINTR;
+			return (EINTR);
 		}
 		goto again;
 	}
@@ -1879,10 +2049,6 @@ again:	cleaned = reclaim_completed_tx(q, TX_CLEAN_MAX_DESC, m_vec);
 
 	write_ofld_wr(adap, m, q, pidx, gen, ndesc, segs, nsegs);
 	check_ring_tx_db(adap, q);
-	
-	for (i = 0; i < cleaned; i++) {
-		m_freem_vec(m_vec[i]);
-	}
 	return (0);
 }
 
@@ -1895,18 +2061,16 @@ again:	cleaned = reclaim_completed_tx(q, TX_CLEAN_MAX_DESC, m_vec);
 static void
 restart_offloadq(void *data, int npending)
 {
-
 	struct mbuf *m;
 	struct sge_qset *qs = data;
 	struct sge_txq *q = &qs->txq[TXQ_OFLD];
 	adapter_t *adap = qs->port->adapter;
-	struct mbuf *m_vec[TX_CLEAN_MAX_DESC];
 	bus_dma_segment_t segs[TX_MAX_SEGS];
-	int nsegs, i, cleaned;
 	struct tx_sw_desc *stx = &q->sdesc[q->pidx];
+	int nsegs, cleaned;
 		
 	mtx_lock(&q->lock);
-again:	cleaned = reclaim_completed_tx(q, TX_CLEAN_MAX_DESC, m_vec);
+again:	cleaned = reclaim_completed_tx_(q, 16);
 
 	while ((m = mbufq_peek(&q->sendq)) != NULL) {
 		unsigned int gen, pidx;
@@ -1944,12 +2108,9 @@ again:	cleaned = reclaim_completed_tx(q, TX_CLEAN_MAX_DESC, m_vec);
 	set_bit(TXQ_RUNNING, &q->flags);
 	set_bit(TXQ_LAST_PKT_DB, &q->flags);
 #endif
+	wmb();
 	t3_write_reg(adap, A_SG_KDOORBELL,
 		     F_SELEGRCNTX | V_EGRCNTX(q->cntxt_id));
-	
-	for (i = 0; i < cleaned; i++) {
-		m_freem_vec(m_vec[i]);
-	}
 }
 
 /**
@@ -1988,12 +2149,12 @@ is_ctrl_pkt(const struct mbuf *m)
  *	should be sent as regular or control, bits 1-3 select the queue set.
  */
 int
-t3_offload_tx(struct toedev *tdev, struct mbuf *m)
+t3_offload_tx(struct t3cdev *tdev, struct mbuf *m)
 {
 	adapter_t *adap = tdev2adap(tdev);
 	struct sge_qset *qs = &adap->sge.qs[queue_set(m)];
 
-	if (__predict_false(is_ctrl_pkt(m)))
+	if (__predict_false(is_ctrl_pkt(m))) 
 		return ctrl_xmit(adap, &qs->txq[TXQ_CTRL], m);
 
 	return ofld_xmit(adap, &qs->txq[TXQ_OFLD], m);
@@ -2009,7 +2170,7 @@ t3_offload_tx(struct toedev *tdev, struct mbuf *m)
  *	Delivers a (partial) bundle of Rx offload packets to an offload device.
  */
 static __inline void
-deliver_partial_bundle(struct toedev *tdev,
+deliver_partial_bundle(struct t3cdev *tdev,
 			struct sge_rspq *q,
 			struct mbuf *mbufs[], int n)
 {
@@ -2020,13 +2181,13 @@ deliver_partial_bundle(struct toedev *tdev,
 }
 
 static __inline int
-rx_offload(struct toedev *tdev, struct sge_rspq *rq,
+rx_offload(struct t3cdev *tdev, struct sge_rspq *rq,
     struct mbuf *m, struct mbuf *rx_gather[],
     unsigned int gather_idx)
 {
+	
 	rq->offload_pkts++;
 	m->m_pkthdr.header = mtod(m, void *);
-	    
 	rx_gather[gather_idx++] = m;
 	if (gather_idx == RX_BUNDLE_SIZE) {
 		cxgb_ofld_recv(tdev, rx_gather, RX_BUNDLE_SIZE);
@@ -2041,16 +2202,24 @@ restart_tx(struct sge_qset *qs)
 {
 	struct adapter *sc = qs->port->adapter;
 	
+	
 	if (isset(&qs->txq_stopped, TXQ_OFLD) &&
 	    should_restart_tx(&qs->txq[TXQ_OFLD]) &&
 	    test_and_clear_bit(TXQ_OFLD, &qs->txq_stopped)) {
 		qs->txq[TXQ_OFLD].restarts++;
+		DPRINTF("restarting TXQ_OFLD\n");
 		taskqueue_enqueue(sc->tq, &qs->txq[TXQ_OFLD].qresume_task);
 	}
+	DPRINTF("stopped=0x%x restart=%d processed=%d cleaned=%d in_use=%d\n",
+	    qs->txq_stopped, should_restart_tx(&qs->txq[TXQ_CTRL]),
+	    qs->txq[TXQ_CTRL].processed, qs->txq[TXQ_CTRL].cleaned,
+	    qs->txq[TXQ_CTRL].in_use);
+	
 	if (isset(&qs->txq_stopped, TXQ_CTRL) &&
 	    should_restart_tx(&qs->txq[TXQ_CTRL]) &&
 	    test_and_clear_bit(TXQ_CTRL, &qs->txq_stopped)) {
 		qs->txq[TXQ_CTRL].restarts++;
+		DPRINTF("restarting TXQ_CTRL\n");
 		taskqueue_enqueue(sc->tq, &qs->txq[TXQ_CTRL].qresume_task);
 	}
 }
@@ -2075,9 +2244,21 @@ t3_sge_alloc_qset(adapter_t *sc, u_int id, int nports, int irq_vec_idx,
 		  const struct qset_params *p, int ntxq, struct port_info *pi)
 {
 	struct sge_qset *q = &sc->sge.qs[id];
-	int i, ret = 0;
+	int i, header_size, ret = 0;
+
+	for (i = 0; i < SGE_TXQ_PER_SET; i++) {
+		if ((q->txq[i].txq_mr.br_ring = malloc(cxgb_txq_buf_ring_size*sizeof(struct mbuf *),
+			    M_DEVBUF, M_WAITOK|M_ZERO)) == NULL) {
+			device_printf(sc->dev, "failed to allocate mbuf ring\n");
+			goto err;
+		}
+		q->txq[i].txq_mr.br_prod = q->txq[i].txq_mr.br_cons = 0;
+		q->txq[i].txq_mr.br_size = cxgb_txq_buf_ring_size;
+		mtx_init(&q->txq[i].txq_mr.br_lock, "txq mbuf ring", NULL, MTX_DEF);
+	}
 
 	init_qset_cntxt(q, id);
+	q->idx = id;
 	
 	if ((ret = alloc_ring(sc, p->fl_size, sizeof(struct rx_desc),
 		    sizeof(struct rx_sw_desc), &q->fl[0].phys_addr,
@@ -2145,19 +2326,32 @@ t3_sge_alloc_qset(adapter_t *sc, u_int id, int nports, int irq_vec_idx,
 	q->rspq.cidx = 0;
 	q->rspq.size = p->rspq_size;
 
+
+	header_size = sizeof(struct m_hdr) + sizeof(struct pkthdr) + sizeof(struct m_ext_) + sizeof(uint32_t);
 	q->txq[TXQ_ETH].stop_thres = nports *
 	    flits_to_desc(sgl_len(TX_MAX_SEGS + 1) + 3);
 
-	q->fl[0].buf_size = MCLBYTES;
+	q->fl[0].buf_size = (MCLBYTES - header_size);
 	q->fl[0].zone = zone_clust;
 	q->fl[0].type = EXT_CLUSTER;
-	q->fl[1].buf_size = MJUMPAGESIZE;
+#if __FreeBSD_version > 800000
+	if (cxgb_use_16k_clusters) {		
+		q->fl[1].buf_size = MJUM16BYTES - header_size;
+		q->fl[1].zone = zone_jumbo16;
+		q->fl[1].type = EXT_JUMBO16;
+	} else {
+		q->fl[1].buf_size = MJUM9BYTES - header_size;
+		q->fl[1].zone = zone_jumbo9;
+		q->fl[1].type = EXT_JUMBO9;		
+	}
+#else
+	q->fl[1].buf_size = MJUMPAGESIZE - header_size;
 	q->fl[1].zone = zone_jumbop;
 	q->fl[1].type = EXT_JUMBOP;
-	
+#endif
 	q->lro.enabled = lro_default;
 
-	mtx_lock(&sc->sge.reg_lock);
+	mtx_lock_spin(&sc->sge.reg_lock);
 	ret = -t3_sge_init_rspcntxt(sc, q->rspq.cntxt_id, irq_vec_idx,
 				   q->rspq.phys_addr, q->rspq.size,
 				   q->fl[0].buf_size, 1, 0);
@@ -2213,7 +2407,7 @@ t3_sge_alloc_qset(adapter_t *sc, u_int id, int nports, int irq_vec_idx,
 	    device_get_unit(sc->dev), irq_vec_idx);
 	MTX_INIT(&q->rspq.lock, q->rspq.lockbuf, NULL, MTX_DEF);
 	
-	mtx_unlock(&sc->sge.reg_lock);
+	mtx_unlock_spin(&sc->sge.reg_lock);
 	t3_update_qset_coalesce(q, p);
 	q->port = pi;
 	
@@ -2227,7 +2421,7 @@ t3_sge_alloc_qset(adapter_t *sc, u_int id, int nports, int irq_vec_idx,
 	return (0);
 
 err_unlock:
-	mtx_unlock(&sc->sge.reg_lock);
+	mtx_unlock_spin(&sc->sge.reg_lock);
 err:	
 	t3_free_qset(sc, q);
 
@@ -2262,14 +2456,60 @@ t3_rx_eth(struct adapter *adap, struct sge_rspq *rq, struct mbuf *m, int ethpad)
 	
 	m->m_pkthdr.rcvif = ifp;
 	m->m_pkthdr.header = mtod(m, uint8_t *) + sizeof(*cpl) + ethpad;
+#ifndef DISABLE_MBUF_IOVEC
 	m_explode(m);
+#endif	
 	/*
 	 * adjust after conversion to mbuf chain
 	 */
-	m_adj(m, sizeof(*cpl) + ethpad);
+	m->m_pkthdr.len -= (sizeof(*cpl) + ethpad);
+	m->m_len -= (sizeof(*cpl) + ethpad);
+	m->m_data += (sizeof(*cpl) + ethpad);
 
 	(*ifp->if_input)(ifp, m);
 }
+
+static void
+ext_free_handler(void *buf, void * args)
+{
+	uintptr_t type = (uintptr_t)args;
+	uma_zone_t zone;
+	struct mbuf *m;
+
+	m = buf;
+	zone = m_getzonefromtype(type);
+	m->m_ext.ext_type = (int)type;
+	cxgb_ext_freed++;
+	cxgb_cache_put(zone, m);
+}
+
+static void
+init_cluster_mbuf(caddr_t cl, int flags, int type, uma_zone_t zone)
+{
+	struct mbuf *m;
+	int header_size;
+	
+	header_size = sizeof(struct m_hdr) + sizeof(struct pkthdr) +
+	    sizeof(struct m_ext_) + sizeof(uint32_t);
+	
+	bzero(cl, header_size);
+	m = (struct mbuf *)cl;
+	
+	cxgb_ext_inited++;
+	SLIST_INIT(&m->m_pkthdr.tags);
+	m->m_type = MT_DATA;
+	m->m_flags = flags | M_NOFREE | M_EXT;
+	m->m_data = cl + header_size;
+	m->m_ext.ext_buf = cl;
+	m->m_ext.ref_cnt = (uint32_t *)(cl + header_size - sizeof(uint32_t));
+	m->m_ext.ext_size = m_getsizefromtype(type);
+	m->m_ext.ext_free = ext_free_handler;
+	m->m_ext.ext_args = (void *)(uintptr_t)type;
+	m->m_ext.ext_type = EXT_EXTREF;
+	*(m->m_ext.ref_cnt) = 1;
+	DPRINTF("data=%p ref_cnt=%p\n", m->m_data, m->m_ext.ref_cnt); 
+}
+
 
 /**
  *	get_packet - return the next ingress packet buffer from a free list
@@ -2291,7 +2531,7 @@ t3_rx_eth(struct adapter *adap, struct sge_rspq *rq, struct mbuf *m, int ethpad)
 
 static int
 get_packet(adapter_t *adap, unsigned int drop_thres, struct sge_qset *qs,
-    struct t3_mbuf_hdr *mh, struct rsp_desc *r, struct mbuf *m)
+    struct t3_mbuf_hdr *mh, struct rsp_desc *r)
 {
 
 	unsigned int len_cq =  ntohl(r->len_cq);
@@ -2300,31 +2540,47 @@ get_packet(adapter_t *adap, unsigned int drop_thres, struct sge_qset *qs,
 	uint32_t len = G_RSPD_LEN(len_cq);
 	uint32_t flags = ntohl(r->flags);
 	uint8_t sopeop = G_RSPD_SOP_EOP(flags);
+	caddr_t cl;
+	struct mbuf *m, *m0;
 	int ret = 0;
-
-	prefetch(sd->cl);
+	
+	prefetch(sd->rxsd_cl);
 
 	fl->credits--;
 	bus_dmamap_sync(fl->entry_tag, sd->map, BUS_DMASYNC_POSTREAD);
-	bus_dmamap_unload(fl->entry_tag, sd->map);
+	
+	if (recycle_enable && len <= SGE_RX_COPY_THRES && sopeop == RSPQ_SOP_EOP) {
+		if ((m0 = m_gethdr(M_DONTWAIT, MT_DATA)) == NULL)
+			goto skip_recycle;
+		cl = mtod(m0, void *);
+		memcpy(cl, sd->data, len);
+		recycle_rx_buf(adap, fl, fl->cidx);
+		m = m0;
+		m0->m_len = len;
+	} else {
+	skip_recycle:
 
-	m_cljset(m, sd->cl, fl->type);
-	m->m_len = len;
+		bus_dmamap_unload(fl->entry_tag, sd->map);
+		cl = sd->rxsd_cl;
+		m = m0 = (struct mbuf *)cl;
 
+		if ((sopeop == RSPQ_SOP_EOP) ||
+		    (sopeop == RSPQ_SOP))
+			flags = M_PKTHDR;
+		init_cluster_mbuf(cl, flags, fl->type, fl->zone);
+		m0->m_len = len;
+	}		
 	switch(sopeop) {
 	case RSPQ_SOP_EOP:
 		DBG(DBG_RX, ("get_packet: SOP-EOP m %p\n", m));
 		mh->mh_head = mh->mh_tail = m;
 		m->m_pkthdr.len = len;
-		m->m_flags |= M_PKTHDR;
 		ret = 1;
 		break;
 	case RSPQ_NSOP_NEOP:
 		DBG(DBG_RX, ("get_packet: NO_SOP-NO_EOP m %p\n", m));
-		m->m_flags &= ~M_PKTHDR;
 		if (mh->mh_tail == NULL) {
-			if (cxgb_debug)
-				printf("discarding intermediate descriptor entry\n");
+			log(LOG_ERR, "discarding intermediate descriptor entry\n");
 			m_freem(m);
 			break;
 		}
@@ -2337,12 +2593,10 @@ get_packet(adapter_t *adap, unsigned int drop_thres, struct sge_qset *qs,
 		DBG(DBG_RX, ("get_packet: SOP m %p\n", m));
 		m->m_pkthdr.len = len;
 		mh->mh_head = mh->mh_tail = m;
-		m->m_flags |= M_PKTHDR;
 		ret = 0;
 		break;
 	case RSPQ_EOP:
 		DBG(DBG_RX, ("get_packet: EOP m %p\n", m));
-		m->m_flags &= ~M_PKTHDR;
 		mh->mh_head->m_pkthdr.len += len;
 		mh->mh_tail->m_next = m;
 		mh->mh_tail = m;
@@ -2356,9 +2610,10 @@ get_packet(adapter_t *adap, unsigned int drop_thres, struct sge_qset *qs,
 }
 
 #else
+
 static int
 get_packet(adapter_t *adap, unsigned int drop_thres, struct sge_qset *qs,
-    struct mbuf *m, struct rsp_desc *r)
+    struct mbuf **m, struct rsp_desc *r)
 {
 	
 	unsigned int len_cq =  ntohl(r->len_cq);
@@ -2369,45 +2624,61 @@ get_packet(adapter_t *adap, unsigned int drop_thres, struct sge_qset *qs,
 	uint8_t sopeop = G_RSPD_SOP_EOP(flags);
 	void *cl;
 	int ret = 0;
-	
-	prefetch(sd->cl);
-
+	struct mbuf *m0;
+#if 0
+	if ((sd + 1 )->rxsd_cl)
+		prefetch((sd + 1)->rxsd_cl);
+	if ((sd + 2)->rxsd_cl)
+		prefetch((sd + 2)->rxsd_cl);
+#endif
+	DPRINTF("rx cpu=%d\n", curcpu);
 	fl->credits--;
 	bus_dmamap_sync(fl->entry_tag, sd->map, BUS_DMASYNC_POSTREAD);
 
 	if (recycle_enable && len <= SGE_RX_COPY_THRES && sopeop == RSPQ_SOP_EOP) {
-		cl = mtod(m, void *);
-		memcpy(cl, sd->cl, len);
+		if ((m0 = m_gethdr(M_DONTWAIT, MT_DATA)) == NULL)
+			goto skip_recycle;
+		cl = mtod(m0, void *);
+		memcpy(cl, sd->data, len);
 		recycle_rx_buf(adap, fl, fl->cidx);
+		*m = m0;
 	} else {
-		cl = sd->cl;
+	skip_recycle:
 		bus_dmamap_unload(fl->entry_tag, sd->map);
+		cl = sd->rxsd_cl;
+		*m = m0 = (struct mbuf *)cl;
 	}
+
 	switch(sopeop) {
 	case RSPQ_SOP_EOP:
 		DBG(DBG_RX, ("get_packet: SOP-EOP m %p\n", m));
-		if (cl == sd->cl)
-			m_cljset(m, cl, fl->type);
-		m->m_len = m->m_pkthdr.len = len;
+		if (cl == sd->rxsd_cl)
+			init_cluster_mbuf(cl, M_PKTHDR, fl->type, fl->zone);
+		m0->m_len = m0->m_pkthdr.len = len;
 		ret = 1;
 		goto done;
 		break;
 	case RSPQ_NSOP_NEOP:
 		DBG(DBG_RX, ("get_packet: NO_SOP-NO_EOP m %p\n", m));
+		panic("chaining unsupported");
 		ret = 0;
 		break;
 	case RSPQ_SOP:
 		DBG(DBG_RX, ("get_packet: SOP m %p\n", m));
-		m_iovinit(m);
+		panic("chaining unsupported");
+		m_iovinit(m0);
 		ret = 0;
 		break;
 	case RSPQ_EOP:
 		DBG(DBG_RX, ("get_packet: EOP m %p\n", m));
+		panic("chaining unsupported");
 		ret = 1;
 		break;
 	}
-	m_iovappend(m, cl, fl->buf_size, len, 0);
-
+	panic("append not supported");
+#if 0	
+	m_iovappend(m0, cl, fl->buf_size, len, sizeof(uint32_t), sd->rxsd_ref);
+#endif	
 done:	
 	if (++fl->cidx == fl->size)
 		fl->cidx = 0;
@@ -2434,12 +2705,8 @@ handle_rsp_cntrl_info(struct sge_qset *qs, uint32_t flags)
 		clear_bit(TXQ_RUNNING, &qs->txq[TXQ_ETH].flags);
 #endif
 	credits = G_RSPD_TXQ0_CR(flags);
-	if (credits) {
+	if (credits) 
 		qs->txq[TXQ_ETH].processed += credits;
-		if (desc_reclaimable(&qs->txq[TXQ_ETH]) > TX_START_MAX_DESC)
-			taskqueue_enqueue(qs->port->adapter->tq,
-			    &qs->port->timer_reclaim_task);
-	}
 	
 	credits = G_RSPD_TXQ2_CR(flags);
 	if (credits) 
@@ -2452,6 +2719,7 @@ handle_rsp_cntrl_info(struct sge_qset *qs, uint32_t flags)
 	credits = G_RSPD_TXQ1_CR(flags);
 	if (credits)
 		qs->txq[TXQ_OFLD].processed += credits;
+
 }
 
 static void
@@ -2476,7 +2744,7 @@ check_ring_db(adapter_t *adap, struct sge_qset *qs,
  *	on this queue.  If the system is under memory shortage use a fairly
  *	long delay to help recovery.
  */
-static int
+int
 process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
 {
 	struct sge_rspq *rspq = &qs->rspq;
@@ -2499,119 +2767,114 @@ process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
 		int eth, eop = 0, ethpad = 0;
 		uint32_t flags = ntohl(r->flags);
 		uint32_t rss_csum = *(const uint32_t *)r;
-		uint32_t rss_hash = r->rss_hdr.rss_hash_val;
+		uint32_t rss_hash = be32toh(r->rss_hdr.rss_hash_val);
 		
 		eth = (r->rss_hdr.opcode == CPL_RX_PKT);
 		
 		if (__predict_false(flags & F_RSPD_ASYNC_NOTIF)) {
-			/* XXX */
-			printf("async notification\n");
-
-		} else if  (flags & F_RSPD_IMM_DATA_VALID) {
-#ifdef DISABLE_MBUF_IOVEC
+			struct mbuf *m;
 
 			if (cxgb_debug)
-				printf("IMM DATA VALID opcode=0x%x rspq->cidx=%d\n", r->rss_hdr.opcode, rspq->cidx);
+				printf("async notification\n");
 
-			if(get_imm_packet(adap, r, &rspq->rspq_mh) == 0) {
-				rspq->next_holdoff = NOMEM_INTR_DELAY;
-				budget_left--;
-				break;
+			if (rspq->rspq_mh.mh_head == NULL) {
+				rspq->rspq_mh.mh_head = m_gethdr(M_DONTWAIT, MT_DATA);
+				m = rspq->rspq_mh.mh_head;
 			} else {
-				eop = 1;
+				m = m_gethdr(M_DONTWAIT, MT_DATA);
 			}
-#else
+
+			/* XXX m is lost here if rspq->rspq_mbuf is not NULL */
+
+			if (m == NULL)
+				goto no_mem;
+
+                        memcpy(mtod(m, char *), r, AN_PKT_SIZE);
+			m->m_len = m->m_pkthdr.len = AN_PKT_SIZE;
+                        *mtod(m, char *) = CPL_ASYNC_NOTIF;
+			rss_csum = htonl(CPL_ASYNC_NOTIF << 24);
+			eop = 1;
+                        rspq->async_notif++;
+			goto skip;
+		} else if  (flags & F_RSPD_IMM_DATA_VALID) {
 			struct mbuf *m = NULL;
 
-			if (rspq->rspq_mbuf == NULL)
-				rspq->rspq_mbuf = m_gethdr(M_DONTWAIT, MT_DATA);
-                        else
+			DPRINTF("IMM DATA VALID opcode=0x%x rspq->cidx=%d\n",
+			    r->rss_hdr.opcode, rspq->cidx);
+			if (rspq->rspq_mh.mh_head == NULL)
+				rspq->rspq_mh.mh_head = m_gethdr(M_DONTWAIT, MT_DATA);
+                        else 
 				m = m_gethdr(M_DONTWAIT, MT_DATA);
 
-			/*
-			 * XXX revisit me
-			 */
-			if (rspq->rspq_mbuf == NULL &&  m == NULL) {
+			if (rspq->rspq_mh.mh_head == NULL &&  m == NULL) {	
+		no_mem:
 				rspq->next_holdoff = NOMEM_INTR_DELAY;
 				budget_left--;
 				break;
 			}
-			if (get_imm_packet(adap, r, rspq->rspq_mbuf, m, flags))
-				goto skip;
+			get_imm_packet(adap, r, rspq->rspq_mh.mh_head);
 			eop = 1;
-#endif			
 			rspq->imm_data++;
-		} else if (r->len_cq) {			
+		} else if (r->len_cq) {
 			int drop_thresh = eth ? SGE_RX_DROP_THRES : 0;
 			
 #ifdef DISABLE_MBUF_IOVEC
-			struct mbuf *m;
-			m = m_gethdr(M_NOWAIT, MT_DATA);
-
-			if (m == NULL) {
-				log(LOG_WARNING, "failed to get mbuf for packet\n");
-				break;
-			}
-			
-			eop = get_packet(adap, drop_thresh, qs, &rspq->rspq_mh, r, m);
+			eop = get_packet(adap, drop_thresh, qs, &rspq->rspq_mh, r);
 #else
-			if (rspq->rspq_mbuf == NULL)  
-				rspq->rspq_mbuf = m_gethdr(M_DONTWAIT, MT_DATA);
-			if (rspq->rspq_mbuf == NULL) { 
-				log(LOG_WARNING, "failed to get mbuf for packet\n"); 
-				break; 
-			}
-			eop = get_packet(adap, drop_thresh, qs, rspq->rspq_mbuf, r);
+			eop = get_packet(adap, drop_thresh, qs, &rspq->rspq_mbuf, r);
 #endif
+#ifdef IFNET_MULTIQUEUE
+			rspq->rspq_mh.mh_head->m_pkthdr.rss_hash = rss_hash;
+#endif			
 			ethpad = 2;
 		} else {
 			DPRINTF("pure response\n");
 			rspq->pure_rsps++;
 		}
-
+	skip:
 		if (flags & RSPD_CTRL_MASK) {
 			sleeping |= flags & RSPD_GTS_MASK;
 			handle_rsp_cntrl_info(qs, flags);
 		}
-#ifndef DISABLE_MBUF_IOVEC		
-	skip:
-#endif		
+
 		r++;
 		if (__predict_false(++rspq->cidx == rspq->size)) {
 			rspq->cidx = 0;
 			rspq->gen ^= 1;
 			r = rspq->desc;
 		}
-		
 		prefetch(r);
 		if (++rspq->credits >= (rspq->size / 4)) {
 			refill_rspq(adap, rspq, rspq->credits);
 			rspq->credits = 0;
 		}
-		
-		if (eop) {
+		DPRINTF("eth=%d eop=%d flags=0x%x\n", eth, eop, flags);
+
+		if (!eth && eop) {
+			rspq->rspq_mh.mh_head->m_pkthdr.csum_data = rss_csum;
+			/*
+			 * XXX size mismatch
+			 */
+			m_set_priority(rspq->rspq_mh.mh_head, rss_hash);
+
+			
+			ngathered = rx_offload(&adap->tdev, rspq,
+			    rspq->rspq_mh.mh_head, offload_mbufs, ngathered);
+			rspq->rspq_mh.mh_head = NULL;
+			DPRINTF("received offload packet\n");
+			
+		} else if (eth && eop) {
 			prefetch(mtod(rspq->rspq_mh.mh_head, uint8_t *)); 
-			prefetch(mtod(rspq->rspq_mh.mh_head, uint8_t *) + L1_CACHE_BYTES); 
+			prefetch(mtod(rspq->rspq_mh.mh_head, uint8_t *) + L1_CACHE_BYTES);
 
-			if (eth) {				
-				t3_rx_eth_lro(adap, rspq, rspq->rspq_mh.mh_head, ethpad,
-				    rss_hash, rss_csum, lro);
-
+			t3_rx_eth_lro(adap, rspq, rspq->rspq_mh.mh_head, ethpad,
+			    rss_hash, rss_csum, lro);
+			DPRINTF("received tunnel packet\n");
 				rspq->rspq_mh.mh_head = NULL;
-			} else {
-				rspq->rspq_mh.mh_head->m_pkthdr.csum_data = rss_csum;
-				/*
-				 * XXX size mismatch
-				 */
-				m_set_priority(rspq->rspq_mh.mh_head, rss_hash);
-				
-				ngathered = rx_offload(&adap->tdev, rspq,
-				    rspq->rspq_mh.mh_head, offload_mbufs, ngathered);
-			}
-			__refill_fl(adap, &qs->fl[0]);
-			__refill_fl(adap, &qs->fl[1]);
 
 		}
+		__refill_fl_lt(adap, &qs->fl[0], 32);
+		__refill_fl_lt(adap, &qs->fl[1], 32);
 		--budget_left;
 	}
 
@@ -2622,9 +2885,14 @@ process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
 		check_ring_db(adap, qs, sleeping);
 
 	smp_mb();  /* commit Tx queue processed updates */
-	if (__predict_false(qs->txq_stopped != 0))
+	if (__predict_false(qs->txq_stopped > 1)) {
+		printf("restarting tx on %p\n", qs);
+		
 		restart_tx(qs);
-
+	}
+	
+	__refill_fl_lt(adap, &qs->fl[0], 512);
+	__refill_fl_lt(adap, &qs->fl[1], 512);
 	budget -= budget_left;
 	return (budget);
 }
@@ -2644,10 +2912,10 @@ process_responses_gts(adapter_t *adap, struct sge_rspq *rq)
 		printf("next_holdoff=%d\n", rq->next_holdoff);
 		last_holdoff = rq->next_holdoff;
 	}
-	if (work)
-		t3_write_reg(adap, A_SG_GTS, V_RSPQ(rq->cntxt_id) |
-		    V_NEWTIMER(rq->next_holdoff) | V_NEWINDEX(rq->cidx));
-	return work;
+	t3_write_reg(adap, A_SG_GTS, V_RSPQ(rq->cntxt_id) |
+	    V_NEWTIMER(rq->next_holdoff) | V_NEWINDEX(rq->cidx));
+	
+	return (work);
 }
 
 
@@ -2710,16 +2978,222 @@ t3_intr_msix(void *data)
 	struct sge_qset *qs = data;
 	adapter_t *adap = qs->port->adapter;
 	struct sge_rspq *rspq = &qs->rspq;
-
+#ifndef IFNET_MULTIQUEUE
 	mtx_lock(&rspq->lock);
-	if (process_responses_gts(adap, rspq) == 0)
-		rspq->unhandled_irqs++;
-	mtx_unlock(&rspq->lock);
+#else	
+	if (mtx_trylock(&rspq->lock)) 
+#endif
+	{
+		
+		if (process_responses_gts(adap, rspq) == 0)
+			rspq->unhandled_irqs++;
+		mtx_unlock(&rspq->lock);
+	}
 }
 
-/* 
- * broken by recent mbuf changes 
- */ 
+#define QDUMP_SBUF_SIZE		32 * 400
+static int
+t3_dump_rspq(SYSCTL_HANDLER_ARGS)
+{
+	struct sge_rspq *rspq;
+	struct sge_qset *qs;
+	int i, err, dump_end, idx;
+	static int multiplier = 1;
+	struct sbuf *sb;
+	struct rsp_desc *rspd;
+	uint32_t data[4];
+	
+	rspq = arg1;
+	qs = rspq_to_qset(rspq);
+	if (rspq->rspq_dump_count == 0) 
+		return (0);
+	if (rspq->rspq_dump_count > RSPQ_Q_SIZE) {
+		log(LOG_WARNING,
+		    "dump count is too large %d\n", rspq->rspq_dump_count);
+		rspq->rspq_dump_count = 0;
+		return (EINVAL);
+	}
+	if (rspq->rspq_dump_start > (RSPQ_Q_SIZE-1)) {
+		log(LOG_WARNING,
+		    "dump start of %d is greater than queue size\n",
+		    rspq->rspq_dump_start);
+		rspq->rspq_dump_start = 0;
+		return (EINVAL);
+	}
+	err = t3_sge_read_rspq(qs->port->adapter, rspq->cntxt_id, data);
+	if (err)
+		return (err);
+retry_sbufops:
+	sb = sbuf_new(NULL, NULL, QDUMP_SBUF_SIZE*multiplier, SBUF_FIXEDLEN);
+
+	sbuf_printf(sb, " \n index=%u size=%u MSI-X/RspQ=%u intr enable=%u intr armed=%u\n",
+	    (data[0] & 0xffff), data[0] >> 16, ((data[2] >> 20) & 0x3f),
+	    ((data[2] >> 26) & 1), ((data[2] >> 27) & 1));
+	sbuf_printf(sb, " generation=%u CQ mode=%u FL threshold=%u\n",
+	    ((data[2] >> 28) & 1), ((data[2] >> 31) & 1), data[3]);
+	
+	sbuf_printf(sb, " start=%d -> end=%d\n", rspq->rspq_dump_start,
+	    (rspq->rspq_dump_start + rspq->rspq_dump_count) & (RSPQ_Q_SIZE-1));
+	
+	dump_end = rspq->rspq_dump_start + rspq->rspq_dump_count;
+	for (i = rspq->rspq_dump_start; i < dump_end; i++) {
+		idx = i & (RSPQ_Q_SIZE-1);
+		
+		rspd = &rspq->desc[idx];
+		sbuf_printf(sb, "\tidx=%04d opcode=%02x cpu_idx=%x hash_type=%x cq_idx=%x\n",
+		    idx, rspd->rss_hdr.opcode, rspd->rss_hdr.cpu_idx,
+		    rspd->rss_hdr.hash_type, be16toh(rspd->rss_hdr.cq_idx));
+		sbuf_printf(sb, "\trss_hash_val=%x flags=%08x len_cq=%x intr_gen=%x\n",
+		    rspd->rss_hdr.rss_hash_val, be32toh(rspd->flags),
+		    be32toh(rspd->len_cq), rspd->intr_gen);
+	}
+	if (sbuf_overflowed(sb)) {
+		sbuf_delete(sb);
+		multiplier++;
+		goto retry_sbufops;
+	}
+	sbuf_finish(sb);
+	err = SYSCTL_OUT(req, sbuf_data(sb), sbuf_len(sb) + 1);
+	sbuf_delete(sb);
+	return (err);
+}	
+
+static int
+t3_dump_txq_eth(SYSCTL_HANDLER_ARGS)
+{
+	struct sge_txq *txq;
+	struct sge_qset *qs;
+	int i, j, err, dump_end;
+	static int multiplier = 1;
+	struct sbuf *sb;
+	struct tx_desc *txd;
+	uint32_t *WR, wr_hi, wr_lo, gen;
+	uint32_t data[4];
+	
+	txq = arg1;
+	qs = txq_to_qset(txq, TXQ_ETH);
+	if (txq->txq_dump_count == 0) {
+		return (0);
+	}
+	if (txq->txq_dump_count > TX_ETH_Q_SIZE) {
+		log(LOG_WARNING,
+		    "dump count is too large %d\n", txq->txq_dump_count);
+		txq->txq_dump_count = 1;
+		return (EINVAL);
+	}
+	if (txq->txq_dump_start > (TX_ETH_Q_SIZE-1)) {
+		log(LOG_WARNING,
+		    "dump start of %d is greater than queue size\n",
+		    txq->txq_dump_start);
+		txq->txq_dump_start = 0;
+		return (EINVAL);
+	}
+	err = t3_sge_read_ecntxt(qs->port->adapter, qs->rspq.cntxt_id, data);
+	if (err)
+		return (err);
+	
+	    
+retry_sbufops:
+	sb = sbuf_new(NULL, NULL, QDUMP_SBUF_SIZE*multiplier, SBUF_FIXEDLEN);
+
+	sbuf_printf(sb, " \n credits=%u GTS=%u index=%u size=%u rspq#=%u cmdq#=%u\n",
+	    (data[0] & 0x7fff), ((data[0] >> 15) & 1), (data[0] >> 16), 
+	    (data[1] & 0xffff), ((data[3] >> 4) & 7), ((data[3] >> 7) & 1));
+	sbuf_printf(sb, " TUN=%u TOE=%u generation%u uP token=%u valid=%u\n",
+	    ((data[3] >> 8) & 1), ((data[3] >> 9) & 1), ((data[3] >> 10) & 1),
+	    ((data[3] >> 11) & 0xfffff), ((data[3] >> 31) & 1));
+	sbuf_printf(sb, " qid=%d start=%d -> end=%d\n", qs->idx,
+	    txq->txq_dump_start,
+	    (txq->txq_dump_start + txq->txq_dump_count) & (TX_ETH_Q_SIZE-1));
+
+	dump_end = txq->txq_dump_start + txq->txq_dump_count;
+	for (i = txq->txq_dump_start; i < dump_end; i++) {
+		txd = &txq->desc[i & (TX_ETH_Q_SIZE-1)];
+		WR = (uint32_t *)txd->flit;
+		wr_hi = ntohl(WR[0]);
+		wr_lo = ntohl(WR[1]);		
+		gen = G_WR_GEN(wr_lo);
+		
+		sbuf_printf(sb," wr_hi %08x wr_lo %08x gen %d\n",
+		    wr_hi, wr_lo, gen);
+		for (j = 2; j < 30; j += 4) 
+			sbuf_printf(sb, "\t%08x %08x %08x %08x \n",
+			    WR[j], WR[j + 1], WR[j + 2], WR[j + 3]);
+
+	}
+	if (sbuf_overflowed(sb)) {
+		sbuf_delete(sb);
+		multiplier++;
+		goto retry_sbufops;
+	}
+	sbuf_finish(sb);
+	err = SYSCTL_OUT(req, sbuf_data(sb), sbuf_len(sb) + 1);
+	sbuf_delete(sb);
+	return (err);
+}
+
+static int
+t3_dump_txq_ctrl(SYSCTL_HANDLER_ARGS)
+{
+	struct sge_txq *txq;
+	struct sge_qset *qs;
+	int i, j, err, dump_end;
+	static int multiplier = 1;
+	struct sbuf *sb;
+	struct tx_desc *txd;
+	uint32_t *WR, wr_hi, wr_lo, gen;
+	
+	txq = arg1;
+	qs = txq_to_qset(txq, TXQ_CTRL);
+	if (txq->txq_dump_count == 0) {
+		return (0);
+	}
+	if (txq->txq_dump_count > 256) {
+		log(LOG_WARNING,
+		    "dump count is too large %d\n", txq->txq_dump_count);
+		txq->txq_dump_count = 1;
+		return (EINVAL);
+	}
+	if (txq->txq_dump_start > 255) {
+		log(LOG_WARNING,
+		    "dump start of %d is greater than queue size\n",
+		    txq->txq_dump_start);
+		txq->txq_dump_start = 0;
+		return (EINVAL);
+	}
+
+retry_sbufops:
+	sb = sbuf_new(NULL, NULL, QDUMP_SBUF_SIZE*multiplier, SBUF_FIXEDLEN);
+	sbuf_printf(sb, " qid=%d start=%d -> end=%d\n", qs->idx,
+	    txq->txq_dump_start,
+	    (txq->txq_dump_start + txq->txq_dump_count) & 255);
+
+	dump_end = txq->txq_dump_start + txq->txq_dump_count;
+	for (i = txq->txq_dump_start; i < dump_end; i++) {
+		txd = &txq->desc[i & (255)];
+		WR = (uint32_t *)txd->flit;
+		wr_hi = ntohl(WR[0]);
+		wr_lo = ntohl(WR[1]);		
+		gen = G_WR_GEN(wr_lo);
+		
+		sbuf_printf(sb," wr_hi %08x wr_lo %08x gen %d\n",
+		    wr_hi, wr_lo, gen);
+		for (j = 2; j < 30; j += 4) 
+			sbuf_printf(sb, "\t%08x %08x %08x %08x \n",
+			    WR[j], WR[j + 1], WR[j + 2], WR[j + 3]);
+
+	}
+	if (sbuf_overflowed(sb)) {
+		sbuf_delete(sb);
+		multiplier++;
+		goto retry_sbufops;
+	}
+	sbuf_finish(sb);
+	err = SYSCTL_OUT(req, sbuf_data(sb), sbuf_len(sb) + 1);
+	sbuf_delete(sb);
+	return (err);
+}
+
 static int
 t3_lro_enable(SYSCTL_HANDLER_ARGS)
 {
@@ -2729,7 +3203,6 @@ t3_lro_enable(SYSCTL_HANDLER_ARGS)
 #ifndef LRO_WORKING
 	return (0);
 #endif	
-	
 	sc = arg1;
 	enabled = sc->sge.qs[0].lro.enabled;
         err = sysctl_handle_int(oidp, &enabled, arg2, req);
@@ -2758,7 +3231,10 @@ t3_set_coalesce_nsecs(SYSCTL_HANDLER_ARGS)
 	struct sge_qset *qs;
 	int i, j, err, nqsets = 0;
 	struct mtx *lock;
-	
+
+	if ((sc->flags & FULL_INIT_DONE) == 0)
+		return (ENXIO);
+		
 	coalesce_nsecs = qsp->coalesce_nsecs;
         err = sysctl_handle_int(oidp, &coalesce_nsecs, arg2, req);
 
@@ -2794,11 +3270,11 @@ t3_set_coalesce_nsecs(SYSCTL_HANDLER_ARGS)
 
 
 void
-t3_add_sysctls(adapter_t *sc)
+t3_add_attach_sysctls(adapter_t *sc)
 {
 	struct sysctl_ctx_list *ctx;
 	struct sysctl_oid_list *children;
-	
+
 	ctx = device_get_sysctl_ctx(sc->dev);
 	children = SYSCTL_CHILDREN(device_get_sysctl_tree(sc->dev));
 
@@ -2813,39 +3289,212 @@ t3_add_sysctls(adapter_t *sc)
 	    CTLTYPE_INT|CTLFLAG_RW, sc,
 	    0, t3_lro_enable,
 	    "I", "enable large receive offload");
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
+	    "hw_revision",
+	    CTLFLAG_RD, &sc->params.rev,
+	    0, "chip model");
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
+	    "enable_debug",
+	    CTLFLAG_RW, &cxgb_debug,
+	    0, "enable verbose debugging output");
+	SYSCTL_ADD_ULONG(ctx, children, OID_AUTO, "tunq_coalesce",
+	    CTLFLAG_RD, &sc->tunq_coalesce,
+	    "#tunneled packets freed");
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
+	    "txq_overrun",
+	    CTLFLAG_RD, &txq_fills,
+	    0, "#times txq overrun");
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
+	    "pcpu_cache_enable",
+	    CTLFLAG_RW, &cxgb_pcpu_cache_enable,
+	    0, "#enable driver local pcpu caches");
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
+	    "cache_alloc",
+	    CTLFLAG_RD, &cxgb_cached_allocations,
+	    0, "#times a cluster was allocated from cache");
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
+	    "cached",
+	    CTLFLAG_RD, &cxgb_cached,
+	    0, "#times a cluster was cached");
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
+	    "ext_freed",
+	    CTLFLAG_RD, &cxgb_ext_freed,
+	    0, "#times a cluster was freed through ext_free");
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
+	    "ext_inited",
+	    CTLFLAG_RD, &cxgb_ext_inited,
+	    0, "#times a cluster was initialized for ext_free");
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
+	    "mbufs_outstanding",
+	    CTLFLAG_RD, &cxgb_mbufs_outstanding,
+	    0, "#mbufs in flight in the driver");
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
+	    "pack_outstanding",
+	    CTLFLAG_RD, &cxgb_pack_outstanding,
+	    0, "#packet in flight in the driver"); 	
+}
+
+
+static const char *rspq_name = "rspq";
+static const char *txq_names[] =
+{
+	"txq_eth",
+	"txq_ofld",
+	"txq_ctrl"	
+};		
+
+void
+t3_add_configured_sysctls(adapter_t *sc)
+{
+	struct sysctl_ctx_list *ctx;
+	struct sysctl_oid_list *children;
+	int i, j;
+	
+	ctx = device_get_sysctl_ctx(sc->dev);
+	children = SYSCTL_CHILDREN(device_get_sysctl_tree(sc->dev));
 
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, 
 	    "intr_coal",
 	    CTLTYPE_INT|CTLFLAG_RW, sc,
 	    0, t3_set_coalesce_nsecs,
 	    "I", "interrupt coalescing timer (ns)");
-	SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
-	    "enable_debug",
-	    CTLFLAG_RW, &cxgb_debug,
-	    0, "enable verbose debugging output");
 
-	SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
-	    "collapse_free",
-	    CTLFLAG_RD, &collapse_free,
-	    0, "frees during collapse");
-	SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
-	    "mb_free_vec_free",
-	    CTLFLAG_RD, &mb_free_vec_free,
-	    0, "frees during mb_free_vec");
-	SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
-	    "collapse_mbufs",
-	    CTLFLAG_RW, &collapse_mbufs,
-	    0, "collapse mbuf chains into iovecs");
-	SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
-	    "txq_overrun",
-	    CTLFLAG_RD, &txq_fills,
-	    0, "#times txq overrun");
-	SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
-	    "bogus_imm",
-	    CTLFLAG_RD, &bogus_imm,
-	    0, "#times a bogus immediate response was seen");	
+	for (i = 0; i < sc->params.nports; i++) {
+		struct port_info *pi = &sc->port[i];
+		struct sysctl_oid *poid;
+		struct sysctl_oid_list *poidlist;
+		
+		snprintf(pi->namebuf, PORT_NAME_LEN, "port%d", i);
+		poid = SYSCTL_ADD_NODE(ctx, children, OID_AUTO, 
+		    pi->namebuf, CTLFLAG_RD, NULL, "port statistics");
+		poidlist = SYSCTL_CHILDREN(poid);
+		SYSCTL_ADD_INT(ctx, poidlist, OID_AUTO, 
+		    "nqsets", CTLFLAG_RD, &pi->nqsets,
+		    0, "#queue sets");
+		
+		for (j = 0; j < pi->nqsets; j++) {
+			struct sge_qset *qs = &sc->sge.qs[pi->first_qset + j];
+			struct sysctl_oid *qspoid, *rspqpoid, *txqpoid, *ctrlqpoid;
+			struct sysctl_oid_list *qspoidlist, *rspqpoidlist, *txqpoidlist, *ctrlqpoidlist;
+			struct sge_txq *txq = &qs->txq[TXQ_ETH];
+			
+			snprintf(qs->namebuf, QS_NAME_LEN, "qs%d", j);
+			
+			qspoid = SYSCTL_ADD_NODE(ctx, poidlist, OID_AUTO, 
+			    qs->namebuf, CTLFLAG_RD, NULL, "qset statistics");
+			qspoidlist = SYSCTL_CHILDREN(qspoid);
+			
+			rspqpoid = SYSCTL_ADD_NODE(ctx, qspoidlist, OID_AUTO, 
+			    rspq_name, CTLFLAG_RD, NULL, "rspq statistics");
+			rspqpoidlist = SYSCTL_CHILDREN(rspqpoid);
+
+			txqpoid = SYSCTL_ADD_NODE(ctx, qspoidlist, OID_AUTO, 
+			    txq_names[0], CTLFLAG_RD, NULL, "txq statistics");
+			txqpoidlist = SYSCTL_CHILDREN(txqpoid);
+
+			ctrlqpoid = SYSCTL_ADD_NODE(ctx, qspoidlist, OID_AUTO, 
+			    txq_names[2], CTLFLAG_RD, NULL, "ctrlq statistics");
+			ctrlqpoidlist = SYSCTL_CHILDREN(ctrlqpoid);
+
+			SYSCTL_ADD_UINT(ctx, rspqpoidlist, OID_AUTO, "size",
+			    CTLFLAG_RD, &qs->rspq.size,
+			    0, "#entries in response queue");
+			SYSCTL_ADD_UINT(ctx, rspqpoidlist, OID_AUTO, "cidx",
+			    CTLFLAG_RD, &qs->rspq.cidx,
+			    0, "consumer index");
+			SYSCTL_ADD_UINT(ctx, rspqpoidlist, OID_AUTO, "credits",
+			    CTLFLAG_RD, &qs->rspq.credits,
+			    0, "#credits");
+			SYSCTL_ADD_XLONG(ctx, rspqpoidlist, OID_AUTO, "phys_addr",
+			    CTLFLAG_RD, &qs->rspq.phys_addr,
+			    "physical_address_of the queue");
+			SYSCTL_ADD_UINT(ctx, rspqpoidlist, OID_AUTO, "dump_start",
+			    CTLFLAG_RW, &qs->rspq.rspq_dump_start,
+			    0, "start rspq dump entry");
+			SYSCTL_ADD_UINT(ctx, rspqpoidlist, OID_AUTO, "dump_count",
+			    CTLFLAG_RW, &qs->rspq.rspq_dump_count,
+			    0, "#rspq entries to dump");
+			SYSCTL_ADD_PROC(ctx, rspqpoidlist, OID_AUTO, "qdump",
+			    CTLTYPE_STRING | CTLFLAG_RD, &qs->rspq,
+			    0, t3_dump_rspq, "A", "dump of the response queue");
+
+
+			SYSCTL_ADD_INT(ctx, txqpoidlist, OID_AUTO, "dropped",
+			    CTLFLAG_RD, &qs->txq[TXQ_ETH].txq_drops,
+			    0, "#tunneled packets dropped");
+			SYSCTL_ADD_INT(ctx, txqpoidlist, OID_AUTO, "sendqlen",
+			    CTLFLAG_RD, &qs->txq[TXQ_ETH].sendq.qlen,
+			    0, "#tunneled packets waiting to be sent");
+			SYSCTL_ADD_UINT(ctx, txqpoidlist, OID_AUTO, "queue_pidx",
+			    CTLFLAG_RD, (uint32_t *)(uintptr_t)&qs->txq[TXQ_ETH].txq_mr.br_prod,
+			    0, "#tunneled packets queue producer index");
+			SYSCTL_ADD_UINT(ctx, txqpoidlist, OID_AUTO, "queue_cidx",
+			    CTLFLAG_RD, (uint32_t *)(uintptr_t)&qs->txq[TXQ_ETH].txq_mr.br_cons,
+			    0, "#tunneled packets queue consumer index");
+			SYSCTL_ADD_INT(ctx, txqpoidlist, OID_AUTO, "processed",
+			    CTLFLAG_RD, &qs->txq[TXQ_ETH].processed,
+			    0, "#tunneled packets processed by the card");
+			SYSCTL_ADD_UINT(ctx, txqpoidlist, OID_AUTO, "cleaned",
+			    CTLFLAG_RD, &txq->cleaned,
+			    0, "#tunneled packets cleaned");
+			SYSCTL_ADD_UINT(ctx, txqpoidlist, OID_AUTO, "in_use",
+			    CTLFLAG_RD, &txq->in_use,
+			    0, "#tunneled packet slots in use");
+			SYSCTL_ADD_ULONG(ctx, txqpoidlist, OID_AUTO, "frees",
+			    CTLFLAG_RD, &txq->txq_frees,
+			    "#tunneled packets freed");
+			SYSCTL_ADD_UINT(ctx, txqpoidlist, OID_AUTO, "skipped",
+			    CTLFLAG_RD, &txq->txq_skipped,
+			    0, "#tunneled packet descriptors skipped");
+			SYSCTL_ADD_UINT(ctx, txqpoidlist, OID_AUTO, "coalesced",
+			    CTLFLAG_RD, &txq->txq_coalesced,
+			    0, "#tunneled packets coalesced");
+			SYSCTL_ADD_UINT(ctx, txqpoidlist, OID_AUTO, "enqueued",
+			    CTLFLAG_RD, &txq->txq_enqueued,
+			    0, "#tunneled packets enqueued to hardware");
+			SYSCTL_ADD_UINT(ctx, txqpoidlist, OID_AUTO, "stopped_flags",
+			    CTLFLAG_RD, &qs->txq_stopped,
+			    0, "tx queues stopped");
+			SYSCTL_ADD_XLONG(ctx, txqpoidlist, OID_AUTO, "phys_addr",
+			    CTLFLAG_RD, &txq->phys_addr,
+			    "physical_address_of the queue");
+			SYSCTL_ADD_UINT(ctx, txqpoidlist, OID_AUTO, "qgen",
+			    CTLFLAG_RW, &qs->txq[TXQ_ETH].gen,
+			    0, "txq generation");
+			SYSCTL_ADD_UINT(ctx, txqpoidlist, OID_AUTO, "hw_cidx",
+			    CTLFLAG_RD, &txq->cidx,
+			    0, "hardware queue cidx");			
+			SYSCTL_ADD_UINT(ctx, txqpoidlist, OID_AUTO, "hw_pidx",
+			    CTLFLAG_RD, &txq->pidx,
+			    0, "hardware queue pidx");
+			SYSCTL_ADD_UINT(ctx, txqpoidlist, OID_AUTO, "dump_start",
+			    CTLFLAG_RW, &qs->txq[TXQ_ETH].txq_dump_start,
+			    0, "txq start idx for dump");
+			SYSCTL_ADD_UINT(ctx, txqpoidlist, OID_AUTO, "dump_count",
+			    CTLFLAG_RW, &qs->txq[TXQ_ETH].txq_dump_count,
+			    0, "txq #entries to dump");			
+			SYSCTL_ADD_PROC(ctx, txqpoidlist, OID_AUTO, "qdump",
+			    CTLTYPE_STRING | CTLFLAG_RD, &qs->txq[TXQ_ETH],
+			    0, t3_dump_txq_eth, "A", "dump of the transmit queue");
+
+			SYSCTL_ADD_UINT(ctx, ctrlqpoidlist, OID_AUTO, "dump_start",
+			    CTLFLAG_RW, &qs->txq[TXQ_CTRL].txq_dump_start,
+			    0, "ctrlq start idx for dump");
+			SYSCTL_ADD_UINT(ctx, ctrlqpoidlist, OID_AUTO, "dump_count",
+			    CTLFLAG_RW, &qs->txq[TXQ_CTRL].txq_dump_count,
+			    0, "ctrl #entries to dump");			
+			SYSCTL_ADD_PROC(ctx, ctrlqpoidlist, OID_AUTO, "qdump",
+			    CTLTYPE_STRING | CTLFLAG_RD, &qs->txq[TXQ_CTRL],
+			    0, t3_dump_txq_ctrl, "A", "dump of the transmit queue");
+
+
+			
+
+			
+		}
+	}
 }
-
+	
 /**
  *	t3_get_desc - dump an SGE descriptor for debugging purposes
  *	@qs: the queue set
