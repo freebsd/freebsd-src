@@ -247,7 +247,6 @@ TARGET_INC+=	${GCC_CPU}/freebsd.h
 .if ${TARGET_ARCH} == "amd64"
 TARGET_INC+=	${GCC_CPU}/x86-64.h
 TARGET_INC+=	${GCC_CPU}/freebsd64.h
-TARGET_INC+=	freebsd64-fix.h
 .endif
 .if ${TARGET_ARCH} == "powepc"
 TARGET_INC+=	altivec-defs.h
