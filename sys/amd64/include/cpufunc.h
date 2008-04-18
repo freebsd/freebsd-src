@@ -514,6 +514,19 @@ load_es(u_int sel)
 	__asm __volatile("movl %0,%%es" : : "rm" (sel));
 }
 
+static inline void
+cpu_monitor(const void *addr, int extensions, int hints)
+{
+	__asm __volatile("monitor;"
+	    : :"a" (addr), "c" (extensions), "d"(hints));
+}
+
+static inline void
+cpu_mwait(int extensions, int hints)
+{
+	__asm __volatile("mwait;" : :"a" (hints), "c" (extensions));
+}
+
 #ifdef _KERNEL
 /* This is defined in <machine/specialreg.h> but is too painful to get to */
 #ifndef	MSR_FSBASE
