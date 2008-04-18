@@ -25,7 +25,7 @@ CFLAGS+=	-mpreferred-stack-boundary=2
 CFLAGS+=	-msoft-float -D_STANDALONE
 .endif
 .if ${MACHINE_ARCH} == "amd64"
-CFLAGS+=	-m32
+CFLAGS+=	-m32 -I.
 .endif
 
 # standalone components and stuff we have modified locally
@@ -45,7 +45,7 @@ SRCS+=	strcasecmp.c
 SRCS+= htons.S ntohs.S htonl.S ntohl.S
 
 # string functions from libc
-.PATH:	${.CURDIR}/../libc/string
+.PATH: ${.CURDIR}/../libc/string
 .if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "powerpc" || \
 	${MACHINE_ARCH} == "sparc64" || ${MACHINE_ARCH} == "amd64"
 SRCS+=	bcmp.c bcopy.c bzero.c ffs.c index.c memccpy.c memchr.c memcmp.c \
@@ -121,53 +121,52 @@ SRCS+=	syncicache.c
 
 # _setjmp/_longjmp
 .if ${MACHINE_ARCH} == "amd64"
-.PATH:	${.CURDIR}/i386
+.PATH: ${.CURDIR}/i386
 .else
-.PATH:	${.CURDIR}/${MACHINE_ARCH}
+.PATH: ${.CURDIR}/${MACHINE_ARCH}
 .endif
 SRCS+=	_setjmp.S
 
 # decompression functionality from libbz2
-.PATH:	${.CURDIR}/../../contrib/bzip2
-CFLAGS+=-I. -DBZ_NO_STDIO -DBZ_NO_COMPRESS
-SRCS+=	_bzlib.c _crctable.c _decompress.c _huffman.c _randtable.c _bzlib.h \
-	_bzlib_private.h
+# NOTE: to actually test this functionality after libbz2 upgrade compile
+# loader(8) with LOADER_BZIP2_SUPPORT defined
+.PATH: ${.CURDIR}/../../contrib/bzip2
+CFLAGS+= -DBZ_NO_STDIO -DBZ_NO_COMPRESS
+SRCS+=	libstand_bzlib_private.h
 
-# check your belt - ugly bzip2 stuff ahead
-.for file in bzlib.c bzlib.h bzlib_private.h
-CLEANFILES+=   _${file} _${file}.orig
-
-_${file}: ${file} ${file}.diff
-	patch -s -b .orig -o ${.TARGET} < ${.ALLSRC:M*.diff} ${.ALLSRC:M*.[ch]}
-.endfor
-
-.for file in crctable.c decompress.c huffman.c randtable.c
-CLEANFILES+=    _${file}
-
-_${file}: ${file}
-	sed "s|bzlib_private\.h|_bzlib_private.h|" ${.ALLSRC} > ${.TARGET}
-.endfor
-
-# decompression functionality from libz
-.PATH:	${.CURDIR}/../libz
-CFLAGS+=-DHAVE_MEMCPY -I${.CURDIR}/../libz
-SRCS+=	adler32.c crc32.c _infback.c _inffast.c _inflate.c \
-	_inftrees.c _zutil.c _zutil.h
-
-# aargh
-.for file in zutil.h
-CLEANFILES+=	_${file} _${file}.orig
-
-_${file}: ${file} ${file}.diff
-	patch -s -b .orig -o ${.TARGET} < ${.ALLSRC:M*.diff} ${.ALLSRC:M*.[ch]}
-.endfor
-
-.for file in infback.c inffast.c inflate.c inftrees.c zutil.c
+.for file in bzlib.c crctable.c decompress.c huffman.c randtable.c
+SRCS+=	_${file}
 CLEANFILES+=	_${file}
 
 _${file}: ${file}
-	sed "s|zutil\.h|_zutil.h|" ${.ALLSRC} > ${.TARGET}
+	sed "s|bzlib_private\.h|libstand_bzlib_private.h|" ${.ALLSRC} > ${.TARGET}
 .endfor
+
+CLEANFILES+= libstand_bzlib_private.h
+libstand_bzlib_private.h: bzlib_private.h
+	sed -e 's|<stdlib.h>|"stand.h"|' \
+		${.ALLSRC} > ${.TARGET}
+
+# decompression functionality from libz
+.PATH: ${.CURDIR}/../libz
+CFLAGS+=-DHAVE_MEMCPY -I${.CURDIR}/../libz
+SRCS+=	adler32.c crc32.c libstand_zutil.h
+
+.for file in infback.c inffast.c inflate.c inftrees.c zutil.c
+SRCS+=	_${file}
+CLEANFILES+=	_${file}
+
+_${file}: ${file}
+	sed "s|zutil\.h|libstand_zutil.h|" ${.ALLSRC} > ${.TARGET}
+.endfor
+
+# depend on stand.h being able to be included multiple times
+CLEANFILES+= libstand_zutil.h
+libstand_zutil.h: zutil.h
+	sed -e 's|<stddef.h>|"stand.h"|' \
+	    -e 's|<string.h>|"stand.h"|' \
+	    -e 's|<stdlib.h>|"stand.h"|' \
+	    ${.ALLSRC} > ${.TARGET}
 
 # io routines
 SRCS+=	closeall.c dev.c ioctl.c nullfs.c stat.c \
