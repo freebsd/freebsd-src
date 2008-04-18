@@ -1,7 +1,3 @@
-/* $FreeBSD$ */
-/* From: NetBSD: vmparam.h,v 1.6 1997/09/23 23:23:23 mjacob Exp */
-#ifndef	_MACHINE_VMPARAM_H
-#define	_MACHINE_VMPARAM_H
 /*-
  * Copyright (c) 1988 University of Utah.
  * Copyright (c) 1992, 1993
@@ -38,11 +34,13 @@
  * from: Utah $Hdr: vmparam.h 1.16 91/01/18$
  *
  *	@(#)vmparam.h	8.2 (Berkeley) 4/22/94
+ *
+ * $FreeBSD$
  */
 
-/*
- * Machine dependent constants for ia64.
- */
+#ifndef	_MACHINE_VMPARAM_H_
+#define	_MACHINE_VMPARAM_H_
+
 /*
  * USRSTACK is the top (end) of the user stack.  Immediately above the user
  * stack resides the syscall gateway page.
@@ -72,18 +70,6 @@
 #endif
 
 /*
- * Boundary at which to place first MAPMEM segment if not explicitly
- * specified.  Should be a power of two.  This allows some slop for
- * the data segment to grow underneath the first mapped segment.
- */
-#define MMSEG		0x200000
-
-/*
- * The size of the clock loop.
- */
-#define	LOOPPAGES	(maxfree - firstfree)
-
-/*
  * The time for a process to be blocked before being very swappable.
  * This is a number of seconds which the system takes as being a non-trivial
  * amount of real time.  You probably shouldn't change this;
@@ -93,17 +79,6 @@
  * change over time.
  */
 #define	MAXSLP 		20
-
-/*
- * A swapped in process is given a small amount of core without being bothered
- * by the page replacement algorithm.  Basically this says that if you are
- * swapped in you deserve some resources.  We protect the last SAFERSS
- * pages against paging and will just swap you out rather than paging you.
- * Note that each process has at least UPAGES pages which are not
- * paged anyways, in addition to SAFERSS.
- */
-#define	SAFERSS		10		/* nominal ``small'' resident set size
-					   protected against replacement */
 
 /*
  * We need region 7 virtual addresses for pagetables.
@@ -207,4 +182,4 @@
 #define	VM_INITIAL_PAGEIN	16
 #endif
 
-#endif	/* !_MACHINE_VMPARAM_H */
+#endif	/* !_MACHINE_VMPARAM_H_ */
