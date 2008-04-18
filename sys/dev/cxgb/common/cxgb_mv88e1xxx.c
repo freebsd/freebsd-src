@@ -221,6 +221,16 @@ static int mv88e1xxx_get_link_status(struct cphy *cphy, int *link_ok,
 	return 0;
 }
 
+static int mv88e1xxx_set_speed_duplex(struct cphy *phy, int speed, int duplex)
+{
+	int err = t3_set_phy_speed_duplex(phy, speed, duplex);
+
+	/* PHY needs reset for new settings to take effect */
+	if (!err)
+		err = mv88e1xxx_reset(phy, 0);
+	return err;
+}
+
 static int mv88e1xxx_downshift_set(struct cphy *cphy, int downshift_enable)
 {
 	/*
@@ -258,7 +268,6 @@ static int mv88e1xxx_intr_handler(struct cphy *cphy)
 
 #ifdef C99_NOT_SUPPORTED
 static struct cphy_ops mv88e1xxx_ops = {
-	NULL,
 	mv88e1xxx_reset,
 	mv88e1xxx_intr_enable,
 	mv88e1xxx_intr_disable,
@@ -268,7 +277,7 @@ static struct cphy_ops mv88e1xxx_ops = {
 	mv88e1xxx_autoneg_restart,
 	t3_phy_advertise,
 	mv88e1xxx_set_loopback,
-	t3_set_phy_speed_duplex,
+	mv88e1xxx_set_speed_duplex,
 	mv88e1xxx_get_link_status,
 	mv88e1xxx_power_down,
 };
@@ -283,20 +292,28 @@ static struct cphy_ops mv88e1xxx_ops = {
 	.autoneg_restart   = mv88e1xxx_autoneg_restart,
 	.advertise         = t3_phy_advertise,
 	.set_loopback      = mv88e1xxx_set_loopback,
-	.set_speed_duplex  = t3_set_phy_speed_duplex,
+	.set_speed_duplex  = mv88e1xxx_set_speed_duplex,
 	.get_link_status   = mv88e1xxx_get_link_status,
 	.power_down        = mv88e1xxx_power_down,
 };
 #endif
 
-void t3_mv88e1xxx_phy_prep(struct cphy *phy, adapter_t *adapter, int phy_addr,
+int t3_mv88e1xxx_phy_prep(struct cphy *phy, adapter_t *adapter, int phy_addr,
 			   const struct mdio_ops *mdio_ops)
 {
-	cphy_init(phy, adapter, phy_addr, &mv88e1xxx_ops, mdio_ops);
+	int err;
+
+	cphy_init(phy, adapter, phy_addr, &mv88e1xxx_ops, mdio_ops,
+		  SUPPORTED_10baseT_Full | SUPPORTED_100baseT_Full |
+		  SUPPORTED_1000baseT_Full | SUPPORTED_Autoneg | SUPPORTED_MII |
+		  SUPPORTED_TP | SUPPORTED_IRQ, "10/100/1000BASE-T");
 
 	/* Configure copper PHY transmitter as class A to reduce EMI. */
-	mdio_write(phy, 0, MV88E1XXX_EXTENDED_ADDR, 0xb);
-	mdio_write(phy, 0, MV88E1XXX_EXTENDED_DATA, 0x8004);
-		
-	mv88e1xxx_downshift_set(phy, 1);   /* Enable downshift */
+	err = mdio_write(phy, 0, MV88E1XXX_EXTENDED_ADDR, 0xb);
+
+	if (!err)
+		err = mdio_write(phy, 0, MV88E1XXX_EXTENDED_DATA, 0x8004);
+	if (!err)
+		err = mv88e1xxx_downshift_set(phy, 1);   /* Enable downshift */
+	return err;
 }

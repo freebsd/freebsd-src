@@ -1,7 +1,7 @@
 
 /**************************************************************************
 
-Copyright (c) 2007, Chelsio Inc.
+Copyright (c) 2007-2008, Chelsio Inc.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -36,14 +36,22 @@ $FreeBSD$
 #ifdef CONFIG_DEFINED
 #include <common/cxgb_version.h>
 #include <cxgb_config.h>
-#include <cxgb_l2t.h>
+#ifdef TOE_ENABLED
+#include <ulp/tom/cxgb_l2t.h>
+#endif
 #include <common/cxgb_tcb.h>
+#include <t3cdev.h>
 #else
 #include <dev/cxgb/common/cxgb_version.h>
 #include <dev/cxgb/cxgb_config.h>
-#include <dev/cxgb/cxgb_l2t.h>
-#include <dev/cxgb/common/cxgb_tcb.h>
+#ifdef TOE_ENABLED
+#include <dev/cxgb/ulp/tom/cxgb_l2t.h>
 #endif
+#include <dev/cxgb/common/cxgb_tcb.h>
+#include <dev/cxgb/t3cdev.h>
+#endif
+
+MALLOC_DECLARE(M_CXGB);
 
 struct adapter;
 struct cxgb_client;
@@ -55,30 +63,31 @@ void cxgb_adapter_ofld(struct adapter *adapter);
 void cxgb_adapter_unofld(struct adapter *adapter);
 int cxgb_offload_activate(struct adapter *adapter);
 void cxgb_offload_deactivate(struct adapter *adapter);
-int cxgb_ofld_recv(struct toedev *dev, struct mbuf **m, int n);
+int cxgb_ofld_recv(struct t3cdev *dev, struct mbuf **m, int n);
 
-void cxgb_set_dummy_ops(struct toedev *dev);
+void cxgb_set_dummy_ops(struct t3cdev *dev);
 
 
 /*
  * Client registration.  Users of T3 driver must register themselves.
  * The T3 driver will call the add function of every client for each T3
- * adapter activated, passing up the toedev ptr.  Each client fills out an
+ * adapter activated, passing up the t3cdev ptr.  Each client fills out an
  * array of callback functions to process CPL messages.
  */
 
 void cxgb_register_client(struct cxgb_client *client);
 void cxgb_unregister_client(struct cxgb_client *client);
-void cxgb_add_clients(struct toedev *tdev);
-void cxgb_remove_clients(struct toedev *tdev);
+void cxgb_add_clients(struct t3cdev *tdev);
+void cxgb_remove_clients(struct t3cdev *tdev);
 
-typedef int (*cxgb_cpl_handler_func)(struct toedev *dev,
+typedef int (*cxgb_cpl_handler_func)(struct t3cdev *dev,
 				      struct mbuf *m, void *ctx);
 
+#ifdef TOE_ENABLED
 struct cxgb_client {
 	char 			*name;
-	void 			(*add) (struct toedev *);
-	void 			(*remove) (struct toedev *);
+	void 			(*add) (struct t3cdev *);
+	void 			(*remove) (struct t3cdev *);
 	cxgb_cpl_handler_func 	*handlers;
 	int			(*redirect)(void *ctx, struct rtentry *old,
 					    struct rtentry *new,
@@ -89,17 +98,19 @@ struct cxgb_client {
 /*
  * TID allocation services.
  */
-int cxgb_alloc_atid(struct toedev *dev, struct cxgb_client *client,
+int cxgb_alloc_atid(struct t3cdev *dev, struct cxgb_client *client,
 		     void *ctx);
-int cxgb_alloc_stid(struct toedev *dev, struct cxgb_client *client,
+int cxgb_alloc_stid(struct t3cdev *dev, struct cxgb_client *client,
 		     void *ctx);
-void *cxgb_free_atid(struct toedev *dev, int atid);
-void cxgb_free_stid(struct toedev *dev, int stid);
-void cxgb_insert_tid(struct toedev *dev, struct cxgb_client *client,
+#endif
+void *cxgb_free_atid(struct t3cdev *dev, int atid);
+void cxgb_free_stid(struct t3cdev *dev, int stid);
+void *cxgb_get_lctx(struct t3cdev *tdev, int stid);
+void cxgb_insert_tid(struct t3cdev *dev, struct cxgb_client *client,
 		      void *ctx,
 	unsigned int tid);
-void cxgb_queue_tid_release(struct toedev *dev, unsigned int tid);
-void cxgb_remove_tid(struct toedev *dev, void *ctx, unsigned int tid);
+void cxgb_queue_tid_release(struct t3cdev *dev, unsigned int tid);
+void cxgb_remove_tid(struct t3cdev *dev, void *ctx, unsigned int tid);
 
 struct toe_tid_entry {
 	struct cxgb_client 	*client;
@@ -123,7 +134,7 @@ enum {
 	CPL_RET_UNKNOWN_TID = 4	// unexpected unknown TID
 };
 
-typedef int (*cpl_handler_func)(struct toedev *dev, struct mbuf *m);
+typedef int (*cpl_handler_func)(struct t3cdev *dev, struct mbuf *m);
 
 /*
  * Returns a pointer to the first byte of the CPL header in an sk_buff that
@@ -181,11 +192,8 @@ struct tid_info {
 	unsigned int stids_in_use;
 };
 
-struct toe_data {
-#ifdef notyet	
-	struct list_head list_node;
-#endif	
-	struct toedev *dev;
+struct t3c_data {
+	struct t3cdev *dev;
 	unsigned int tx_max_chunk;  /* max payload for TX_DATA */
 	unsigned int max_wrs;       /* max in-flight WRs per connection */
 	unsigned int nmtus;
@@ -198,9 +206,9 @@ struct toe_data {
 };
 
 /*
- * toedev -> toe_data accessor
+ * t3cdev -> toe_data accessor
  */
-#define TOE_DATA(dev) (*(struct toe_data **)&(dev)->l4opt)
+#define T3C_DATA(dev) (*(struct t3c_data **)&(dev)->l4opt)
 
 /*
  * Map an ATID or STID to their entries in the corresponding TID tables.
@@ -251,11 +259,11 @@ static inline struct toe_tid_entry *lookup_atid(const struct tid_info *t,
 
 void *cxgb_alloc_mem(unsigned long size);
 void cxgb_free_mem(void *addr);
-void cxgb_neigh_update(struct rtentry *rt);
-void cxgb_redirect(struct rtentry *old, struct rtentry *new);
-int process_rx(struct toedev *dev, struct mbuf **m, int n);
-int attach_toedev(struct toedev *dev);
-void detach_toedev(struct toedev *dev);
+void cxgb_neigh_update(struct rtentry *rt, uint8_t *enaddr, struct sockaddr *sa);
+void cxgb_redirect(struct rtentry *old, struct rtentry *new, struct sockaddr *sa);
+int process_rx(struct t3cdev *dev, struct mbuf **m, int n);
+int attach_t3cdev(struct t3cdev *dev);
+void detach_t3cdev(struct t3cdev *dev);
 
-
+#define UNIMPLEMENTED() panic("IMPLEMENT: %s:%s:%d", __FUNCTION__, __FILE__, __LINE__)
 #endif

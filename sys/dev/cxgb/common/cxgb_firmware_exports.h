@@ -74,6 +74,8 @@ $FreeBSD$
 
 #define FW_WROPCODE_MNGT			0x1D
 #define FW_MNGTOPCODE_PKTSCHED_SET		0x00
+#define FW_MNGTOPCODE_WRC_SET			0x01
+#define FW_MNGTOPCODE_TUNNEL_CR_FLUSH		0x02
 
 /* Maximum size of a WR sent from the host, limited by the SGE. 
  *

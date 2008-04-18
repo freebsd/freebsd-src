@@ -1,6 +1,6 @@
 /**************************************************************************
 
-Copyright (c) 2007, Chelsio Inc.
+Copyright (c) 2007-2008, Chelsio Inc.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -37,5 +37,5 @@ $FreeBSD$
 #define __CHELSIO_VERSION_H
 #define DRV_DESC "Chelsio T3 Network Driver"
 #define DRV_NAME "cxgb"
-#define DRV_VERSION "1.0.086"
+#define DRV_VERSION "1.0.133"
 #endif
