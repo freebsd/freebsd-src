@@ -106,6 +106,19 @@ enable_intr(void)
 	__asm __volatile("sti");
 }
 
+static inline void
+cpu_monitor(const void *addr, int extensions, int hints)
+{
+	__asm __volatile("monitor;"
+	    : :"a" (addr), "c" (extensions), "d"(hints));
+}
+
+static inline void
+cpu_mwait(int extensions, int hints)
+{
+	__asm __volatile("mwait;" : :"a" (hints), "c" (extensions));
+}
+
 #ifdef _KERNEL
 
 #define	HAVE_INLINE_FFS
