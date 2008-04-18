@@ -1,6 +1,6 @@
 /**************************************************************************
 
-Copyright (c) 2007, Chelsio Inc.
+Copyright (c) 2007-2008, Chelsio Inc.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -635,7 +635,7 @@ cxgb_pcpu_start_proc(void *arg)
 	t3_free_qset(qs->port->adapter, qs);
 
 	qs->qs_flags &= ~QS_RUNNING;
-	kproc_exit(0);
+	kthread_exit(0);
 }
 
 #ifdef IFNET_MULTIQUEUE
@@ -680,7 +680,7 @@ cxgb_pcpu_startup_threads(struct adapter *sc)
 			device_printf(sc->dev, "starting thread for %d\n",
 			    qs->qs_cpuid);
 
-			kproc_create(cxgb_pcpu_start_proc, qs, &p,
+			kthread_create(cxgb_pcpu_start_proc, qs, &p,
 			    RFNOWAIT, 0, "cxgbsp");
 			DELAY(200);
 		}

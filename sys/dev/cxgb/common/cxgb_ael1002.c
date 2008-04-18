@@ -1,6 +1,6 @@
 /**************************************************************************
 
-Copyright (c) 2007, Chelsio Inc.
+Copyright (c) 2007-2008, Chelsio Inc.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -36,6 +36,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/cxgb/cxgb_include.h>
 #endif
 
+#undef msleep
+#define msleep t3_os_sleep
+
 enum {
 	AEL100X_TX_DISABLE  = 9,
 	AEL100X_TX_CONFIG1  = 0xc002,
@@ -52,9 +55,9 @@ static void ael100x_txon(struct cphy *phy)
 {
 	int tx_on_gpio = phy->addr == 0 ? F_GPIO7_OUT_VAL : F_GPIO2_OUT_VAL;
 
-	t3_os_sleep(100);
+	msleep(100);
 	t3_set_reg_field(phy->adapter, A_T3DBG_GPIO_EN, 0, tx_on_gpio);
-	t3_os_sleep(30);
+	msleep(30);
 }
 
 static int ael1002_power_down(struct cphy *phy, int enable)
@@ -115,7 +118,6 @@ static int ael100x_get_link_status(struct cphy *phy, int *link_ok,
 
 #ifdef C99_NOT_SUPPORTED
 static struct cphy_ops ael1002_ops = {
-	NULL,
 	ael1002_reset,
 	ael1002_intr_noop,
 	ael1002_intr_noop,
@@ -141,11 +143,14 @@ static struct cphy_ops ael1002_ops = {
 };
 #endif
 
-void t3_ael1002_phy_prep(struct cphy *phy, adapter_t *adapter, int phy_addr,
-			 const struct mdio_ops *mdio_ops)
+int t3_ael1002_phy_prep(struct cphy *phy, adapter_t *adapter, int phy_addr,
+			const struct mdio_ops *mdio_ops)
 {
-	cphy_init(phy, adapter, phy_addr, &ael1002_ops, mdio_ops);
+	cphy_init(phy, adapter, phy_addr, &ael1002_ops, mdio_ops,
+		  SUPPORTED_10000baseT_Full | SUPPORTED_AUI | SUPPORTED_FIBRE,
+		  "10GBASE-R");
 	ael100x_txon(phy);
+	return 0;
 }
 
 static int ael1006_reset(struct cphy *phy, int wait)
@@ -188,7 +193,6 @@ static int ael1006_power_down(struct cphy *phy, int enable)
 
 #ifdef C99_NOT_SUPPORTED
 static struct cphy_ops ael1006_ops = {
-	NULL,
 	ael1006_reset,
 	ael1006_intr_enable,
 	ael1006_intr_disable,
@@ -214,16 +218,18 @@ static struct cphy_ops ael1006_ops = {
 };
 #endif
 
-void t3_ael1006_phy_prep(struct cphy *phy, adapter_t *adapter, int phy_addr,
-			 const struct mdio_ops *mdio_ops)
+int t3_ael1006_phy_prep(struct cphy *phy, adapter_t *adapter, int phy_addr,
+			const struct mdio_ops *mdio_ops)
 {
-	cphy_init(phy, adapter, phy_addr, &ael1006_ops, mdio_ops);
+	cphy_init(phy, adapter, phy_addr, &ael1006_ops, mdio_ops,
+		  SUPPORTED_10000baseT_Full | SUPPORTED_AUI | SUPPORTED_FIBRE,
+		  "10GBASE-SR");
 	ael100x_txon(phy);
+	return 0;
 }
 
 #ifdef C99_NOT_SUPPORTED
 static struct cphy_ops qt2045_ops = {
-	NULL,
 	ael1006_reset,
 	ael1006_intr_enable,
 	ael1006_intr_disable,
@@ -249,12 +255,14 @@ static struct cphy_ops qt2045_ops = {
 };
 #endif
 
-void t3_qt2045_phy_prep(struct cphy *phy, adapter_t *adapter, int phy_addr,
-			const struct mdio_ops *mdio_ops)
+int t3_qt2045_phy_prep(struct cphy *phy, adapter_t *adapter, int phy_addr,
+		       const struct mdio_ops *mdio_ops)
 {
 	unsigned int stat;
 
-	cphy_init(phy, adapter, phy_addr, &qt2045_ops, mdio_ops);
+	cphy_init(phy, adapter, phy_addr, &qt2045_ops, mdio_ops,
+		  SUPPORTED_10000baseT_Full | SUPPORTED_AUI | SUPPORTED_TP,
+		  "10GBASE-CX4");
 
 	/*
 	 * Some cards where the PHY is supposed to be at address 0 actually
@@ -263,6 +271,7 @@ void t3_qt2045_phy_prep(struct cphy *phy, adapter_t *adapter, int phy_addr,
 	if (!phy_addr && !mdio_read(phy, MDIO_DEV_PMA_PMD, MII_BMSR, &stat) &&
 	    stat == 0xffff)
 		phy->addr = 1;
+	return 0;
 }
 
 static int xaui_direct_reset(struct cphy *phy, int wait)
@@ -300,7 +309,6 @@ static int xaui_direct_power_down(struct cphy *phy, int enable)
 
 #ifdef C99_NOT_SUPPORTED
 static struct cphy_ops xaui_direct_ops = {
-	NULL,
 	xaui_direct_reset,
 	ael1002_intr_noop,
 	ael1002_intr_noop,
@@ -326,8 +334,11 @@ static struct cphy_ops xaui_direct_ops = {
 };
 #endif
 
-void t3_xaui_direct_phy_prep(struct cphy *phy, adapter_t *adapter, int phy_addr,
-			     const struct mdio_ops *mdio_ops)
+int t3_xaui_direct_phy_prep(struct cphy *phy, adapter_t *adapter, int phy_addr,
+			    const struct mdio_ops *mdio_ops)
 {
-	cphy_init(phy, adapter, phy_addr, &xaui_direct_ops, mdio_ops);
+	cphy_init(phy, adapter, phy_addr, &xaui_direct_ops, mdio_ops,
+		  SUPPORTED_10000baseT_Full | SUPPORTED_AUI | SUPPORTED_TP,
+		  "10GBASE-CX4");
+	return 0;
 }

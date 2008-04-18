@@ -384,7 +384,7 @@ int t3_mc5_init(struct mc5 *mc5, unsigned int nservers, unsigned int nfilters,
 	return err;
 }
 
-/*
+/**
  *	read_mc5_range - dump a part of the memory managed by MC5
  *	@mc5: the MC5 handle
  *	@start: the start address for the dump
@@ -425,8 +425,11 @@ int t3_read_mc5_range(const struct mc5 *mc5, unsigned int start,
 
 #define MC5_INT_FATAL (F_PARITYERR | F_REQQPARERR | F_DISPQPARERR)
 
-/*
- * MC5 interrupt handler
+/**
+ *	t3_mc5_intr_handler - MC5 interrupt handler
+ *	@mc5: the MC5 handle
+ *
+ *	The MC5 interrupt handler.
  */
 void t3_mc5_intr_handler(struct mc5 *mc5)
 {
@@ -462,6 +465,16 @@ void t3_mc5_intr_handler(struct mc5 *mc5)
 	t3_write_reg(adap, A_MC5_DB_INT_CAUSE, cause);
 }
 
+
+/**
+ *	t3_mc5_prep - initialize the SW state for MC5
+ *	@adapter: the adapter
+ *	@mc5: the MC5 handle
+ *	@mode: whether the TCAM will be in 72- or 144-bit mode
+ *
+ *	Initialize the SW state associated with MC5.  Among other things
+ *	this determines the size of the attached TCAM.
+ */
 void __devinit t3_mc5_prep(adapter_t *adapter, struct mc5 *mc5, int mode)
 {
 #define K * 1024

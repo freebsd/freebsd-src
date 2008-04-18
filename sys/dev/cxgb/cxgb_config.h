@@ -1,6 +1,6 @@
 /**************************************************************************
 
-Copyright (c) 2007, Chelsio Inc.
+Copyright (c) 2007-2008, Chelsio Inc.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,9 @@ $FreeBSD$
 ***************************************************************************/
 #ifndef _CXGB_CONFIG_H_
 #define _CXGB_CONFIG_H_
-
+#define DISABLE_MBUF_IOVEC
+#define RTALLOC2_DEFINED
+#define VM_FAULT_HOLD_DEFINED
 #ifndef CONFIG_DEFINED
 #define CONFIG_CHELSIO_T3_CORE
 #endif

@@ -1,6 +1,6 @@
 /**************************************************************************
 
-Copyright (c) 2007, Chelsio Inc.
+Copyright (c) 2007-2008, Chelsio Inc.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -98,8 +98,8 @@ enum {
 	    (((x) >> S_TP_VERSION_MICRO) & M_TP_VERSION_MICRO)
 
 enum {
-	FW_VERSION_MAJOR = 4,
-	FW_VERSION_MINOR = 7,
+	FW_VERSION_MAJOR = 5,
+	FW_VERSION_MINOR = 0,
 	FW_VERSION_MICRO = 0
 };
 
@@ -157,10 +157,10 @@ struct adapter_info {
 };
 
 struct port_type_info {
-	void (*phy_prep)(struct cphy *phy, adapter_t *adapter, int phy_addr,
-			 const struct mdio_ops *ops);
-	unsigned int caps;
-	const char *desc;
+	int (*phy_prep)(struct cphy *phy, adapter_t *adapter, int phy_addr,
+			const struct mdio_ops *ops);
+
+
 };
 
 struct mc5_stats {
@@ -508,7 +508,6 @@ enum {
 
 /* PHY operations */
 struct cphy_ops {
-	void (*destroy)(struct cphy *phy);
 	int (*reset)(struct cphy *phy, int wait);
 
 	int (*intr_enable)(struct cphy *phy);
@@ -530,7 +529,9 @@ struct cphy_ops {
 /* A PHY instance */
 struct cphy {
 	int addr;                            /* PHY address */
+	unsigned int caps;                   /* PHY capabilities */
 	adapter_t *adapter;                  /* associated adapter */
+	const char *desc;                    /* PHY description */
 	unsigned long fifo_errors;           /* FIFO over/under-flows */
 	const struct cphy_ops *ops;          /* PHY operations */
 	int (*mdio_read)(adapter_t *adapter, int phy_addr, int mmd_addr,
@@ -555,10 +556,13 @@ static inline int mdio_write(struct cphy *phy, int mmd, int reg,
 /* Convenience initializer */
 static inline void cphy_init(struct cphy *phy, adapter_t *adapter,
 			     int phy_addr, struct cphy_ops *phy_ops,
-			     const struct mdio_ops *mdio_ops)
+                             const struct mdio_ops *mdio_ops, unsigned int caps,
+                             const char *desc)
 {
 	phy->adapter = adapter;
 	phy->addr    = phy_addr;
+	phy->caps    = caps;
+	phy->desc    = desc;
 	phy->ops     = phy_ops;
 	if (mdio_ops) {
 		phy->mdio_read  = mdio_ops->read;
@@ -667,11 +671,12 @@ int t3_seeprom_wp(adapter_t *adapter, int enable);
 int t3_read_flash(adapter_t *adapter, unsigned int addr, unsigned int nwords,
 		  u32 *data, int byte_oriented);
 int t3_get_tp_version(adapter_t *adapter, u32 *vers);
-int t3_check_tpsram_version(adapter_t *adapter);
+int t3_check_tpsram_version(adapter_t *adapter, int *must_load);
 int t3_check_tpsram(adapter_t *adapter, const u8 *tp_ram, unsigned int size);
 int t3_load_fw(adapter_t *adapter, const const u8 *fw_data, unsigned int size);
+int t3_load_boot(adapter_t *adapter, u8 *boot_data, unsigned int size);
 int t3_get_fw_version(adapter_t *adapter, u32 *vers);
-int t3_check_fw_version(adapter_t *adapter);
+int t3_check_fw_version(adapter_t *adapter, int *must_load);
 int t3_init_hw(adapter_t *adapter, u32 fw_params);
 void mac_prep(struct cmac *mac, adapter_t *adapter, int index);
 void early_hw_init(adapter_t *adapter, const struct adapter_info *ai);
@@ -679,6 +684,7 @@ int t3_prep_adapter(adapter_t *adapter, const struct adapter_info *ai, int reset
 void t3_led_ready(adapter_t *adapter);
 void t3_fatal_err(adapter_t *adapter);
 void t3_set_vlan_accel(adapter_t *adapter, unsigned int ports, int on);
+void t3_tp_set_offload_mode(adapter_t *adap, int enable);
 void t3_enable_filters(adapter_t *adap);
 void t3_config_rss(adapter_t *adapter, unsigned int rss_config, const u8 *cpus,
 		   const u16 *rspq);
@@ -713,10 +719,9 @@ void t3_mc5_intr_handler(struct mc5 *mc5);
 int t3_read_mc5_range(const struct mc5 *mc5, unsigned int start, unsigned int n,
 		      u32 *buf);
 
-#ifdef CONFIG_CHELSIO_T3_CORE
+#if defined(CONFIG_CHELSIO_T3_CORE)
 int t3_tp_set_coalescing_size(adapter_t *adap, unsigned int size, int psh);
 void t3_tp_set_max_rxsize(adapter_t *adap, unsigned int size);
-void t3_tp_set_offload_mode(adapter_t *adap, int enable);
 void t3_tp_get_mib_stats(adapter_t *adap, struct tp_mib_stats *tps);
 void t3_load_mtus(adapter_t *adap, unsigned short mtus[NMTUS],
                   unsigned short alpha[NCCTRL_WIN],
@@ -769,18 +774,21 @@ int t3_vsc7323_set_mtu(adapter_t *adap, unsigned int mtu, int port);
 int t3_vsc7323_set_addr(adapter_t *adap, u8 addr[6], int port);
 int t3_vsc7323_enable(adapter_t *adap, int port, int which);
 int t3_vsc7323_disable(adapter_t *adap, int port, int which);
+
+int t3_phy_advertise_fiber(struct cphy *phy, unsigned int advert);
+
 const struct mac_stats *t3_vsc7323_update_stats(struct cmac *mac);
 
-void t3_mv88e1xxx_phy_prep(struct cphy *phy, adapter_t *adapter, int phy_addr,
+int t3_mv88e1xxx_phy_prep(struct cphy *phy, adapter_t *adapter, int phy_addr,
 			   const struct mdio_ops *mdio_ops);
-void t3_vsc8211_phy_prep(struct cphy *phy, adapter_t *adapter, int phy_addr,
+int t3_vsc8211_phy_prep(struct cphy *phy, adapter_t *adapter, int phy_addr,
 			 const struct mdio_ops *mdio_ops);
-void t3_ael1002_phy_prep(struct cphy *phy, adapter_t *adapter, int phy_addr,
+int t3_ael1002_phy_prep(struct cphy *phy, adapter_t *adapter, int phy_addr,
 			 const struct mdio_ops *mdio_ops);
-void t3_ael1006_phy_prep(struct cphy *phy, adapter_t *adapter, int phy_addr,
+int t3_ael1006_phy_prep(struct cphy *phy, adapter_t *adapter, int phy_addr,
 			 const struct mdio_ops *mdio_ops);
-void t3_qt2045_phy_prep(struct cphy *phy, adapter_t *adapter, int phy_addr,
+int t3_qt2045_phy_prep(struct cphy *phy, adapter_t *adapter, int phy_addr,
 			const struct mdio_ops *mdio_ops);
-void t3_xaui_direct_phy_prep(struct cphy *phy, adapter_t *adapter, int phy_addr,
+int t3_xaui_direct_phy_prep(struct cphy *phy, adapter_t *adapter, int phy_addr,
 			     const struct mdio_ops *mdio_ops);
 #endif /* __CHELSIO_COMMON_H */
