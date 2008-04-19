@@ -336,6 +336,7 @@ pc98/cbus/gdc.c			optional gdc
 pc98/cbus/nmi.c			standard
 pc98/cbus/olpt.c		optional olpt
 pc98/cbus/pckbd.c		optional pckbd
+pc98/cbus/pcrtc.c		standard
 pc98/cbus/pmc.c			optional pmc
 pc98/cbus/scgdcrndr.c		optional sc gdc
 pc98/cbus/scterm-sck.c		optional sc
