@@ -540,4 +540,3 @@ t3_free_l2t(struct l2t_data *d)
 
 	cxgb_free_mem(d);
 }
-

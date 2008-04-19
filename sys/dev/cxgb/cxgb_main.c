@@ -1,6 +1,6 @@
 /**************************************************************************
 
-Copyright (c) 2007, Chelsio Inc.
+Copyright (c) 2007-2008, Chelsio Inc.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -9,7 +9,7 @@ modification, are permitted provided that the following conditions are met:
  1. Redistributions of source code must retain the above copyright notice,
     this list of conditions and the following disclaimer.
 
-2. Neither the name of the Chelsio Corporation nor the names of its
+ 2. Neither the name of the Chelsio Corporation nor the names of its
     contributors may be used to endorse or promote products derived from
     this software without specific prior written permission.
 
@@ -723,9 +723,10 @@ cxgb_free(struct adapter *sc)
 			printf("cxgb_free: DEVMAP_BIT not set\n");
 	} else
 		printf("not offloading set\n");	
-
+#ifdef notyet	
 	if (sc->flags & CXGB_OFLD_INIT)
 		cxgb_offload_deactivate(sc);
+#endif
 	free(sc->filters, M_DEVBUF);
 	t3_sge_free(sc);
 	
@@ -1732,9 +1733,6 @@ offload_open(struct port_info *pi)
 
 	t3_tp_set_offload_mode(adapter, 1);
 	tdev->lldev = pi->ifp;
-	err = cxgb_offload_activate(adapter);
-	if (err)
-		goto out;
 
 	init_port_mtus(adapter);
 	t3_load_mtus(adapter, adapter->params.mtus, adapter->params.a_wnd,
@@ -1743,10 +1741,6 @@ offload_open(struct port_info *pi)
 		       adapter->port[0].ifp->if_mtu : 0xffff);
 	init_smt(adapter);
 
-	/* Call back all registered clients */
-	cxgb_add_clients(tdev);
-
-out:
 	/* restore them in case the offload module has changed them */
 	if (err) {
 		t3_tp_set_offload_mode(adapter, 0);
@@ -1764,8 +1758,6 @@ offload_close(struct t3cdev *tdev)
 	if (!isset(&adapter->open_device_map, OFFLOAD_DEVMAP_BIT))
 		return (0);
 	
-	/* Call back all registered clients */
-	cxgb_remove_clients(tdev);
 	tdev->lldev = NULL;
 	cxgb_set_dummy_ops(tdev);
 	t3_tp_set_offload_mode(adapter, 0);

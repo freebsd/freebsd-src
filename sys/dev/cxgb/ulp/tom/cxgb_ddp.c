@@ -44,7 +44,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/socket.h>
 #include <sys/syslog.h>
-#include <sys/socketvar.h>
 #include <sys/uio.h>
 
 #include <machine/bus.h>
@@ -61,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/cxgb/cxgb_osdep.h>
 #include <dev/cxgb/sys/mbufq.h>
 
+#include <dev/cxgb/ulp/tom/cxgb_tcp_offload.h>
 #include <netinet/tcp.h>
 #include <netinet/tcp_var.h>
 #include <netinet/tcp_fsm.h>
@@ -72,7 +72,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/cxgb/common/cxgb_t3_cpl.h>
 #include <dev/cxgb/common/cxgb_tcb.h>
 #include <dev/cxgb/common/cxgb_ctl_defs.h>
-#include <dev/cxgb/cxgb_l2t.h>
 #include <dev/cxgb/cxgb_offload.h>
 
 #include <vm/vm.h>
@@ -89,6 +88,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/cxgb/ulp/tom/cxgb_toepcb.h>
 #include <dev/cxgb/ulp/tom/cxgb_tcp.h>
 #include <dev/cxgb/ulp/tom/cxgb_vm.h>
+
 
 #define MAX_SCHEDULE_TIMEOUT	300
 
@@ -222,13 +222,15 @@ t3_free_ddp_gl(struct ddp_gather_list *gl)
  * pods before failing entirely.
  */
 static int
-alloc_buf1_ppods(struct socket *so, struct ddp_state *p,
+alloc_buf1_ppods(struct toepcb *toep, struct ddp_state *p,
 			    unsigned long addr, unsigned int len)
 {
 	int err, tag, npages, nppods;
-	struct tom_data *d = TOM_DATA(TOE_DEV(so));
+	struct tom_data *d = TOM_DATA(toep->tp_toedev);
 
+#if 0
 	SOCKBUF_LOCK_ASSERT(&so->so_rcv);
+#endif	
 	npages = ((addr & PAGE_MASK) + len + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	nppods = min(pages2ppods(npages), MAX_PPODS);
 	nppods = roundup2(nppods, PPOD_CLUSTER_SIZE);
@@ -243,7 +245,7 @@ alloc_buf1_ppods(struct socket *so, struct ddp_state *p,
 	p->ubuf_nppods = nppods;
 	p->ubuf_tag = tag;
 #if NUM_DDP_KBUF == 1
-	t3_set_ddp_tag(so, 1, tag << 6);
+	t3_set_ddp_tag(toep, 1, tag << 6);
 #endif
 	return (0);
 }
@@ -255,7 +257,7 @@ alloc_buf1_ppods(struct socket *so, struct ddp_state *p,
 #define UBUF_OFFSET 1
 
 static __inline unsigned long
-select_ddp_flags(const struct socket *so, int buf_idx,
+select_ddp_flags(const struct toepcb *toep, int buf_idx,
                  int nonblock, int rcv_flags)
 {
 	if (buf_idx == 1) {
@@ -266,7 +268,7 @@ select_ddp_flags(const struct socket *so, int buf_idx,
 		if (nonblock)
 			return V_TF_DDP_BUF1_FLUSH(1);
 
-		return V_TF_DDP_BUF1_FLUSH(!TOM_TUNABLE(TOE_DEV(so),
+		return V_TF_DDP_BUF1_FLUSH(!TOM_TUNABLE(toep->tp_toedev,
 							ddp_push_wait));
 	}
 
@@ -277,7 +279,7 @@ select_ddp_flags(const struct socket *so, int buf_idx,
 	if (nonblock)
 		return V_TF_DDP_BUF0_FLUSH(1);
 
-	return V_TF_DDP_BUF0_FLUSH(!TOM_TUNABLE(TOE_DEV(so), ddp_push_wait));
+	return V_TF_DDP_BUF0_FLUSH(!TOM_TUNABLE(toep->tp_toedev, ddp_push_wait));
 }
 
 /*
@@ -289,21 +291,22 @@ select_ddp_flags(const struct socket *so, int buf_idx,
  * needs to be done separately.
  */
 static void
-t3_repost_kbuf(struct socket *so, unsigned int bufidx, int modulate, 
+t3_repost_kbuf(struct toepcb *toep, unsigned int bufidx, int modulate, 
     int activate, int nonblock)
 {
-	struct toepcb *toep = sototcpcb(so)->t_toe;
 	struct ddp_state *p = &toep->tp_ddp_state;
 	unsigned long flags;
-	
+
+#if 0	
 	SOCKBUF_LOCK_ASSERT(&so->so_rcv);
+#endif	
 	p->buf_state[bufidx].cur_offset = p->kbuf[bufidx]->dgl_offset;
 	p->buf_state[bufidx].flags = p->kbuf_noinval ? DDP_BF_NOINVAL : 0;
 	p->buf_state[bufidx].gl = p->kbuf[bufidx];
 	p->cur_buf = bufidx;
 	p->kbuf_idx = bufidx;
 
-	flags = select_ddp_flags(so, bufidx, nonblock, 0);
+	flags = select_ddp_flags(toep, bufidx, nonblock, 0);
 	if (!bufidx)
 		t3_setup_ddpbufs(toep, 0, 0, 0, 0, flags |
 			 V_TF_DDP_PSH_NO_INVALIDATE0(p->kbuf_noinval) |
@@ -342,19 +345,20 @@ t3_repost_kbuf(struct socket *so, unsigned int bufidx, int modulate,
  * The current implementation handles iovecs with only one entry.
  */
 static int
-setup_uio_ppods(struct socket *so, const struct uio *uio, int oft, int *length)
+setup_uio_ppods(struct toepcb *toep, const struct uio *uio, int oft, int *length)
 {
 	int err;
 	unsigned int len;
 	struct ddp_gather_list *gl = NULL;
-	struct toepcb *toep = sototcpcb(so)->t_toe;
 	struct ddp_state *p = &toep->tp_ddp_state;
 	struct iovec *iov = uio->uio_iov;
 	vm_offset_t addr = (vm_offset_t)iov->iov_base - oft;
 
+#ifdef notyet	
 	SOCKBUF_LOCK_ASSERT(&so->so_rcv);
+#endif
 	if (__predict_false(p->ubuf_nppods == 0)) {
-		err = alloc_buf1_ppods(so, p, addr, iov->iov_len + oft);
+		err = alloc_buf1_ppods(toep, p, addr, iov->iov_len + oft);
 		if (err)
 			return (err);
 	}
@@ -363,7 +367,7 @@ setup_uio_ppods(struct socket *so, const struct uio *uio, int oft, int *length)
 	len -= addr & PAGE_MASK;
 	if (len > M_TCB_RX_DDP_BUF0_LEN)
 		len = M_TCB_RX_DDP_BUF0_LEN;
-	len = min(len, sototcpcb(so)->rcv_wnd - 32768);
+	len = min(len, toep->tp_tp->rcv_wnd - 32768);
 	len = min(len, iov->iov_len + oft);
 
 	if (len <= p->kbuf[0]->dgl_length) {
@@ -378,7 +382,7 @@ setup_uio_ppods(struct socket *so, const struct uio *uio, int oft, int *length)
 		if (p->ubuf)
 			t3_free_ddp_gl(p->ubuf);
 		p->ubuf = gl;
-		t3_setup_ppods(so, gl, pages2ppods(gl->dgl_nelem), p->ubuf_tag, len,
+		t3_setup_ppods(toep, gl, pages2ppods(gl->dgl_nelem), p->ubuf_tag, len,
 			       gl->dgl_offset, 0);
 	}
 	*length = len;
@@ -389,26 +393,19 @@ setup_uio_ppods(struct socket *so, const struct uio *uio, int oft, int *length)
  * 
  */
 void
-t3_cancel_ubuf(struct toepcb *toep)
+t3_cancel_ubuf(struct toepcb *toep, struct sockbuf *rcv)
 {
 	struct ddp_state *p = &toep->tp_ddp_state;
 	int ubuf_pending = t3_ddp_ubuf_pending(toep);
-	struct socket *so = toeptoso(toep);
-	int err = 0, count=0;
+	int err = 0, count = 0;
 	
 	if (p->ubuf == NULL)
 		return;
+	
+	sockbuf_lock_assert(rcv);
 
-	SOCKBUF_LOCK_ASSERT(&so->so_rcv);	
 	p->cancel_ubuf = 1;
-	while (ubuf_pending && !(so->so_rcv.sb_state & SBS_CANTRCVMORE)) {
-#ifdef T3_TRACE
-		T3_TRACE3(TB(p), 
-		  "t3_cancel_ubuf: flags0 0x%x flags1 0x%x get_tcb_count %d",
-		  p->buf_state[0].flags & (DDP_BF_NOFLIP | DDP_BF_NOCOPY), 
-		  p->buf_state[1].flags & (DDP_BF_NOFLIP | DDP_BF_NOCOPY),
-		  p->get_tcb_count);
-#endif
+	while (ubuf_pending && !(rcv->sb_state & SBS_CANTRCVMORE)) {
 		CTR3(KTR_TOM,
 		  "t3_cancel_ubuf: flags0 0x%x flags1 0x%x get_tcb_count %d",
 		  p->buf_state[0].flags & (DDP_BF_NOFLIP | DDP_BF_NOCOPY), 
@@ -417,20 +414,22 @@ t3_cancel_ubuf(struct toepcb *toep)
 		if (p->get_tcb_count == 0)
 			t3_cancel_ddpbuf(toep, p->cur_buf);
 		else
-			CTR5(KTR_TOM, "waiting err=%d get_tcb_count=%d timeo=%d so=%p SBS_CANTRCVMORE=%d",
-			    err, p->get_tcb_count, so->so_rcv.sb_timeo, so,
-			    !!(so->so_rcv.sb_state & SBS_CANTRCVMORE));
+			CTR5(KTR_TOM, "waiting err=%d get_tcb_count=%d timeo=%d rcv=%p SBS_CANTRCVMORE=%d",
+			    err, p->get_tcb_count, rcv->sb_timeo, rcv,
+			    !!(rcv->sb_state & SBS_CANTRCVMORE));
 		
-		while (p->get_tcb_count && !(so->so_rcv.sb_state & SBS_CANTRCVMORE)) {
+		while (p->get_tcb_count && !(rcv->sb_state & SBS_CANTRCVMORE)) {
 			if (count & 0xfffffff)
-				CTR5(KTR_TOM, "waiting err=%d get_tcb_count=%d timeo=%d so=%p count=%d",
-				    err, p->get_tcb_count, so->so_rcv.sb_timeo, so, count);
+				CTR5(KTR_TOM, "waiting err=%d get_tcb_count=%d timeo=%d rcv=%p count=%d",
+				    err, p->get_tcb_count, rcv->sb_timeo, rcv, count);
 			count++;
-			err = sbwait(&so->so_rcv);
+			err = sbwait(rcv);
 		}
 		ubuf_pending = t3_ddp_ubuf_pending(toep);
 	}
 	p->cancel_ubuf = 0;
+	p->user_ddp_pending = 0;
+
 }
 
 #define OVERLAY_MASK (V_TF_DDP_PSH_NO_INVALIDATE0(1) | \
@@ -445,31 +444,34 @@ t3_cancel_ubuf(struct toepcb *toep)
  * Post a user buffer as an overlay on top of the current kernel buffer.
  */
 int
-t3_overlay_ubuf(struct socket *so, const struct uio *uio,
-    int nonblock, int rcv_flags, int modulate, int post_kbuf)
+t3_overlay_ubuf(struct toepcb *toep, struct sockbuf *rcv,
+    const struct uio *uio, int nonblock, int rcv_flags,
+    int modulate, int post_kbuf)
 {
 	int err, len, ubuf_idx;
 	unsigned long flags;
-	struct toepcb *toep = sototcpcb(so)->t_toe;
 	struct ddp_state *p = &toep->tp_ddp_state;
 
 	if (p->kbuf[0] == NULL) {
 		return (EINVAL);
 	}
-	
-	SOCKBUF_LOCK_ASSERT(&so->so_rcv);
-	err = setup_uio_ppods(so, uio, 0, &len);
-	if (err) {
+	sockbuf_unlock(rcv);
+	err = setup_uio_ppods(toep, uio, 0, &len);
+	sockbuf_lock(rcv);
+	if (err)
 		return (err);
-	}
 	
+	if ((rcv->sb_state & SBS_CANTRCVMORE) ||
+	    (toep->tp_tp->t_flags & TF_TOE) == 0) 
+		return (EINVAL);
+		
 	ubuf_idx = p->kbuf_idx;
 	p->buf_state[ubuf_idx].flags = DDP_BF_NOFLIP;
 	/* Use existing offset */
 	/* Don't need to update .gl, user buffer isn't copied. */
 	p->cur_buf = ubuf_idx;
 
-	flags = select_ddp_flags(so, ubuf_idx, nonblock, rcv_flags);
+	flags = select_ddp_flags(toep, ubuf_idx, nonblock, rcv_flags);
 
 	if (post_kbuf) {
 		struct ddp_buf_state *dbs = &p->buf_state[ubuf_idx ^ 1];
@@ -565,14 +567,13 @@ t3_release_ddp_resources(struct toepcb *toep)
 }
 
 void
-t3_post_kbuf(struct socket *so, int modulate, int nonblock)
+t3_post_kbuf(struct toepcb *toep, int modulate, int nonblock)
 {
-	struct toepcb *toep = sototcpcb(so)->t_toe;
 	struct ddp_state *p = &toep->tp_ddp_state;
 
-	t3_set_ddp_tag(so, p->cur_buf, p->kbuf_tag[p->cur_buf] << 6);
-	t3_set_ddp_buf(so, p->cur_buf, 0, p->kbuf[p->cur_buf]->dgl_length);
-	t3_repost_kbuf(so, p->cur_buf, modulate, 1, nonblock);
+	t3_set_ddp_tag(toep, p->cur_buf, p->kbuf_tag[p->cur_buf] << 6);
+	t3_set_ddp_buf(toep, p->cur_buf, 0, p->kbuf[p->cur_buf]->dgl_length);
+	t3_repost_kbuf(toep, p->cur_buf, modulate, 1, nonblock);
 #ifdef T3_TRACE
 	T3_TRACE1(TIDTB(so),
 		  "t3_post_kbuf: cur_buf = kbuf_idx = %u ", p->cur_buf);
@@ -586,12 +587,11 @@ t3_post_kbuf(struct socket *so, int modulate, int nonblock)
  * open.
  */
 int
-t3_enter_ddp(struct socket *so, unsigned int kbuf_size, unsigned int waitall, int nonblock)
+t3_enter_ddp(struct toepcb *toep, unsigned int kbuf_size, unsigned int waitall, int nonblock)
 {
 	int i, err = ENOMEM;
 	static vm_pindex_t color;
 	unsigned int nppods, kbuf_pages, idx = 0;
-	struct toepcb *toep = sototcpcb(so)->t_toe;
 	struct ddp_state *p = &toep->tp_ddp_state;
 	struct tom_data *d = TOM_DATA(toep->tp_toedev);
 
@@ -599,8 +599,9 @@ t3_enter_ddp(struct socket *so, unsigned int kbuf_size, unsigned int waitall, in
 	if (kbuf_size > M_TCB_RX_DDP_BUF0_LEN)
 		return (EINVAL);
 
+#ifdef notyet	
 	SOCKBUF_LOCK_ASSERT(&so->so_rcv);
-	
+#endif	
 	kbuf_pages = (kbuf_size + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	nppods = pages2ppods(kbuf_pages);
 
@@ -643,18 +644,18 @@ t3_enter_ddp(struct socket *so, unsigned int kbuf_size, unsigned int waitall, in
 			    pci_map_page(p->pdev, p->kbuf[idx]->pages[i],
 					 0, PAGE_SIZE, PCI_DMA_FROMDEVICE);
 #endif
-		t3_setup_ppods(so, p->kbuf[idx], nppods, p->kbuf_tag[idx], 
+		t3_setup_ppods(toep, p->kbuf[idx], nppods, p->kbuf_tag[idx], 
 			       p->kbuf[idx]->dgl_length, 0, 0);
 	}
 	cxgb_log_tcb(TOEP_T3C_DEV(toep)->adapter, toep->tp_tid);
 
-	t3_set_ddp_tag(so, 0, p->kbuf_tag[0] << 6);
-	t3_set_ddp_buf(so, 0, 0, p->kbuf[0]->dgl_length);
-	t3_repost_kbuf(so, 0, 0, 1, nonblock);
+	t3_set_ddp_tag(toep, 0, p->kbuf_tag[0] << 6);
+	t3_set_ddp_buf(toep, 0, 0, p->kbuf[0]->dgl_length);
+	t3_repost_kbuf(toep, 0, 0, 1, nonblock);
 
-	t3_set_rcv_coalesce_enable(so, 
-	    TOM_TUNABLE(TOE_DEV(so), ddp_rcvcoalesce));
-	t3_set_dack_mss(so, TOM_TUNABLE(TOE_DEV(so), delack)>>1);
+	t3_set_rcv_coalesce_enable(toep, 
+	    TOM_TUNABLE(toep->tp_toedev, ddp_rcvcoalesce));
+	t3_set_dack_mss(toep, TOM_TUNABLE(toep->tp_toedev, delack)>>1);
 	
 #ifdef T3_TRACE
 	T3_TRACE4(TIDTB(so),
@@ -664,7 +665,6 @@ t3_enter_ddp(struct socket *so, unsigned int kbuf_size, unsigned int waitall, in
 	CTR4(KTR_TOM,
 		  "t3_enter_ddp: kbuf_size %u waitall %u tag0 %d tag1 %d",
 		   kbuf_size, waitall, p->kbuf_tag[0], p->kbuf_tag[1]);
-	DELAY(100000);
 	cxgb_log_tcb(TOEP_T3C_DEV(toep)->adapter, toep->tp_tid);
 	return (0);
 
