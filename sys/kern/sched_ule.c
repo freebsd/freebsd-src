@@ -845,7 +845,6 @@ tdq_notify(struct td_sched *ts)
 	if (pri > preempt_thresh)
 		return;
 sendipi:
-	ctd->td_flags |= TDF_NEEDRESCHED;
 	ipi_selected(1 << cpu, IPI_PREEMPT);
 }
 
@@ -1758,6 +1757,23 @@ sched_switchin(struct tdq *tdq, struct thread *td)
 }
 
 /*
+ * Block a thread for switching.  Similar to thread_block() but does not
+ * bump the spin count.
+ */
+static inline struct mtx *
+thread_block_switch(struct thread *td)
+{
+	struct mtx *lock;
+
+	THREAD_LOCK_ASSERT(td, MA_OWNED);
+	lock = td->td_lock;
+	td->td_lock = &blocked_lock;
+	mtx_unlock_spin(lock);
+
+	return (lock);
+}
+
+/*
  * Handle migration from sched_switch().  This happens only for
  * cpu binding.
  */
@@ -1791,23 +1807,6 @@ sched_switch_migrate(struct tdq *tdq, struct thread *td, int flags)
 	spinlock_exit();
 #endif
 	return (TDQ_LOCKPTR(tdn));
-}
-
-/*
- * Block a thread for switching.  Similar to thread_block() but does not
- * bump the spin count.
- */
-static inline struct mtx *
-thread_block_switch(struct thread *td)
-{
-	struct mtx *lock;
-
-	THREAD_LOCK_ASSERT(td, MA_OWNED);
-	lock = td->td_lock;
-	td->td_lock = &blocked_lock;
-	mtx_unlock_spin(lock);
-
-	return (lock);
 }
 
 /*
@@ -2183,17 +2182,16 @@ sched_clock(struct thread *td)
 			tdq->tdq_ridx = tdq->tdq_idx;
 	}
 	ts = td->td_sched;
-	/*
-	 * We only do slicing code for TIMESHARE threads.
-	 */
-	if (td->td_pri_class != PRI_TIMESHARE)
+	if (td->td_pri_class & PRI_FIFO_BIT)
 		return;
-	/*
-	 * We used a tick; charge it to the thread so that we can compute our
-	 * interactivity.
-	 */
-	td->td_sched->ts_runtime += tickincr;
-	sched_interact_update(td);
+	if (td->td_pri_class == PRI_TIMESHARE) {
+		/*
+		 * We used a tick; charge it to the thread so
+		 * that we can compute our interactivity.
+		 */
+		td->td_sched->ts_runtime += tickincr;
+		sched_interact_update(td);
+	}
 	/*
 	 * We used up one time slice.
 	 */
@@ -2408,9 +2406,10 @@ sched_add(struct thread *td, int flags)
 	 * Pick the destination cpu and if it isn't ours transfer to the
 	 * target cpu.
 	 */
-	if (td->td_priority <= PRI_MAX_ITHD && THREAD_CAN_MIGRATE(td))
-		cpu = cpuid;
-	else if (!THREAD_CAN_MIGRATE(td))
+	if (td->td_priority <= PRI_MAX_ITHD && THREAD_CAN_MIGRATE(td) &&
+	    curthread->td_intr_nesting_level)
+		ts->ts_cpu = cpuid;
+	if (!THREAD_CAN_MIGRATE(td))
 		cpu = ts->ts_cpu;
 	else
 		cpu = sched_pickcpu(ts, flags);
