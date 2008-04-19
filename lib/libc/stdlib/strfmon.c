@@ -225,6 +225,8 @@ strfmon(char * __restrict s, size_t maxsize, const char * __restrict format,
 				goto format_error;
 		}
 
+		if (currency_symbol != NULL)
+			free(currency_symbol);
 		if (flags & USE_INTL_CURRENCY) {
 			currency_symbol = strdup(lc->int_curr_symbol);
 			if (currency_symbol != NULL)
@@ -253,6 +255,8 @@ strfmon(char * __restrict s, size_t maxsize, const char * __restrict format,
 				pad_size = 0;
 		}
 
+		if (asciivalue != NULL)
+			free(asciivalue);
 		asciivalue = __format_grouped_double(value, &flags,
 				left_prec, right_prec, pad_char);
 		if (asciivalue == NULL)
