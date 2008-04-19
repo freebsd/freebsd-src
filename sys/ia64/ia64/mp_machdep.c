@@ -63,7 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/smp.h>
 #include <i386/include/specialreg.h>
 
-MALLOC_DECLARE(M_PMAP);
+MALLOC_DEFINE(M_SMP, "SMP", "SMP related allocations");
 
 void ia64_ap_startup(void);
 
@@ -209,7 +209,7 @@ cpu_mp_add(u_int acpiid, u_int apicid, u_int apiceid)
 	}
 
 	if (acpiid != 0) {
-		pc = (struct pcpu *)malloc(sizeof(*pc), M_PMAP, M_WAITOK);
+		pc = (struct pcpu *)malloc(sizeof(*pc), M_SMP, M_WAITOK);
 		pcpu_init(pc, acpiid, sizeof(*pc));
 	} else
 		pc = pcpup;
@@ -250,7 +250,7 @@ cpu_mp_start()
 		pc->pc_other_cpus = all_cpus & ~pc->pc_cpumask;
 		if (pc->pc_cpuid > 0) {
 			ap_pcpu = pc;
-			ap_stack = malloc(KSTACK_PAGES * PAGE_SIZE, M_PMAP,
+			ap_stack = malloc(KSTACK_PAGES * PAGE_SIZE, M_SMP,
 			    M_WAITOK);
 			ap_vhpt = pmap_vhpt_base[pc->pc_cpuid];
 			ap_delay = 2000;
