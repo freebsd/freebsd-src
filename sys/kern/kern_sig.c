@@ -759,9 +759,7 @@ kern_sigaction(td, sig, act, oact, flags)
 			}
 #endif
 			/* never to be seen again */
-			PROC_SLOCK(p);
 			sigqueue_delete_proc(p, sig);
-			PROC_SUNLOCK(p);
 			if (sig != SIGCONT)
 				/* easier in psignal */
 				SIGADDSET(ps->ps_sigignore, sig);
@@ -957,9 +955,7 @@ execsigs(struct proc *p)
 		if (sigprop(sig) & SA_IGNORE) {
 			if (sig != SIGCONT)
 				SIGADDSET(ps->ps_sigignore, sig);
-			PROC_SLOCK(p);
 			sigqueue_delete_proc(p, sig);
-			PROC_SUNLOCK(p);
 		}
 		ps->ps_sigact[_SIG_IDX(sig)] = SIG_DFL;
 	}
@@ -2135,9 +2131,7 @@ do_tdsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 				ksiginfo_tryfree(ksi);
 			return (ret);
 		}
-		PROC_SLOCK(p);
 		sigqueue_delete_proc(p, SIGCONT);
-		PROC_SUNLOCK(p);
 		if (p->p_flag & P_CONTINUED) {
 			p->p_flag &= ~P_CONTINUED;
 			PROC_LOCK(p->p_pptr);
