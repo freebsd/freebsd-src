@@ -77,12 +77,14 @@ void toepcb_hold(struct toepcb *);
 void toepcb_release(struct toepcb *);
 void toepcb_init(struct toepcb *);
 
-void t3_set_rcv_coalesce_enable(struct socket *so, int on_off);
-void t3_set_dack_mss(struct socket *so, int on);
-void t3_set_keepalive(struct socket *so, int on_off);
-void t3_set_ddp_tag(struct socket *so, int buf_idx, unsigned int tag);
-void t3_set_ddp_buf(struct socket *so, int buf_idx, unsigned int offset,
+void t3_set_rcv_coalesce_enable(struct toepcb *toep, int on_off);
+void t3_set_dack_mss(struct toepcb *toep, int on);
+void t3_set_keepalive(struct toepcb *toep, int on_off);
+void t3_set_ddp_tag(struct toepcb *toep, int buf_idx, unsigned int tag);
+void t3_set_ddp_buf(struct toepcb *toep, int buf_idx, unsigned int offset,
 		    unsigned int len);
-int t3_get_tcb(struct socket *so);
+int t3_get_tcb(struct toepcb *toep);
+
+int t3_ctloutput(struct socket *so, struct sockopt *sopt);
 
 #endif
