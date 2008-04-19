@@ -67,6 +67,8 @@ __FBSDID("$FreeBSD$");
 	while (isdigit((unsigned char)*fmt)) {			\
 		VAR *= 10;					\
 		VAR += *fmt - '0';				\
+		if (VAR < 0)					\
+			goto e2big_error;			\
 		fmt++;						\
 	}							\
 } while (0)
@@ -187,7 +189,7 @@ strfmon(char * __restrict s, size_t maxsize, const char * __restrict format,
 			/* Do we have enough space to put number with
 			 * required width ?
 			 */
-			if (dst + width >= s + maxsize)
+			if ((unsigned int)width >= maxsize - (dst - s))
 				goto e2big_error;
 		}
 
@@ -196,6 +198,8 @@ strfmon(char * __restrict s, size_t maxsize, const char * __restrict format,
 			if (!isdigit((unsigned char)*++fmt))
 				goto format_error;
 			GET_NUMBER(left_prec);
+			if ((unsigned int)left_prec >= maxsize - (dst - s))
+				goto e2big_error;
 		}
 
 		/* Right precision */
@@ -203,6 +207,9 @@ strfmon(char * __restrict s, size_t maxsize, const char * __restrict format,
 			if (!isdigit((unsigned char)*++fmt))
 				goto format_error;
 			GET_NUMBER(right_prec);
+			if ((unsigned int)right_prec >= maxsize - (dst - s) -
+			    left_prec)
+				goto e2big_error;
 		}
 
 		/* Conversion Characters */
