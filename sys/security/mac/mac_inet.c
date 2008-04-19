@@ -201,7 +201,7 @@ mac_inpcb_create_mbuf(struct inpcb *inp, struct mbuf *m)
 {
 	struct label *mlabel;
 
-	INP_WLOCK_ASSERT(inp);
+	INP_LOCK_ASSERT(inp);
 	mlabel = mac_mbuf_to_label(m);
 
 	MAC_PERFORM(inpcb_create_mbuf, inp, inp->inp_label, m, mlabel);
