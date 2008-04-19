@@ -118,8 +118,6 @@ __FBSDID("$FreeBSD$");
 /* XXX move to a header. */
 extern uint64_t ia64_gateway_page[];
 
-MALLOC_DEFINE(M_PMAP, "PMAP", "PMAP Structures");
-
 #ifndef PMAP_SHPGPERPROC
 #define PMAP_SHPGPERPROC 200
 #endif
