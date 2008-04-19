@@ -780,10 +780,10 @@ in_getsockaddr(struct socket *so, struct sockaddr **nam)
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("in_getsockaddr: inp == NULL"));
 
-	INP_WLOCK(inp);
+	INP_RLOCK(inp);
 	port = inp->inp_lport;
 	addr = inp->inp_laddr;
-	INP_WUNLOCK(inp);
+	INP_RUNLOCK(inp);
 
 	*nam = in_sockaddr(port, &addr);
 	return 0;
@@ -799,10 +799,10 @@ in_getpeeraddr(struct socket *so, struct sockaddr **nam)
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("in_getpeeraddr: inp == NULL"));
 
-	INP_WLOCK(inp);
+	INP_RLOCK(inp);
 	port = inp->inp_fport;
 	addr = inp->inp_faddr;
-	INP_WUNLOCK(inp);
+	INP_RUNLOCK(inp);
 
 	*nam = in_sockaddr(port, &addr);
 	return 0;
@@ -1228,14 +1228,14 @@ void
 inp_rlock(struct inpcb *inp)
 {
 
-	INP_WLOCK(inp);
+	INP_RLOCK(inp);
 }
 
 void
 inp_runlock(struct inpcb *inp)
 {
 
-	INP_WUNLOCK(inp);
+	INP_RUNLOCK(inp);
 }
 
 #ifdef INVARIANTS
