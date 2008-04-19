@@ -44,7 +44,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/smp.h>
 #include <sys/socket.h>
 #include <sys/syslog.h>
-#include <sys/socketvar.h>
 #include <sys/uio.h>
 #include <sys/file.h>
 
@@ -64,6 +63,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/cxgb/cxgb_osdep.h>
 #include <dev/cxgb/sys/mbufq.h>
 
+
+#include <dev/cxgb/ulp/tom/cxgb_tcp_offload.h>
+
 #include <netinet/tcp.h>
 #include <netinet/tcp_var.h>
 #include <netinet/tcp_fsm.h>
@@ -75,7 +77,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/cxgb/common/cxgb_t3_cpl.h>
 #include <dev/cxgb/common/cxgb_tcb.h>
 #include <dev/cxgb/common/cxgb_ctl_defs.h>
-#include <dev/cxgb/cxgb_l2t.h>
 #include <dev/cxgb/cxgb_offload.h>
 
 #include <vm/vm.h>
@@ -92,6 +93,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/cxgb/ulp/tom/cxgb_toepcb.h>
 #include <dev/cxgb/ulp/tom/cxgb_tcp.h>
 #include <dev/cxgb/ulp/tom/cxgb_vm.h>
+
 
 static int	(*pru_sosend)(struct socket *so, struct sockaddr *addr,
     struct uio *uio, struct mbuf *top, struct mbuf *control,
@@ -262,13 +264,13 @@ so_should_ddp(const struct toepcb *toep, int last_recv_len)
 static inline int
 is_ddp(const struct mbuf *m)
 {
-	return (m->m_flags & M_DDP);
+	return ((m->m_flags & M_DDP) != 0);
 }
 
 static inline int
 is_ddp_psh(const struct mbuf *m)
 {
-        return is_ddp(m) && (m->m_pkthdr.csum_flags & DDP_BF_PSH);
+        return ((is_ddp(m) && (m->m_pkthdr.csum_flags & DDP_BF_PSH)) != 0);
 }
 
 static int
@@ -398,11 +400,12 @@ t3_sosend(struct socket *so, struct uio *uio)
 {
 	int rv, count, hold_resid, sent, iovcnt;
 	struct iovec iovtmp[TMP_IOV_MAX], *iovtmpp, *iov;
-	struct tcpcb *tp = sototcpcb(so);
+	struct tcpcb *tp = so_sototcpcb(so);
 	struct toepcb *toep = tp->t_toe;
 	struct mbuf *m;
 	struct uio uiotmp;
-
+	struct sockbuf *snd;
+	
 	/*
 	 * Events requiring iteration:
 	 *  - number of pages exceeds max hold pages for process or system
@@ -418,11 +421,12 @@ t3_sosend(struct socket *so, struct uio *uio)
 	iovcnt = uio->uio_iovcnt;
 	iov = uio->uio_iov;
 	sent = 0;
+	snd = so_sockbuf_snd(so);
 sendmore:
 	/*
 	 * Make sure we don't exceed the socket buffer
 	 */
-	count = min(toep->tp_page_count, (sbspace(&so->so_snd) >> PAGE_SHIFT) + 2*PAGE_SIZE);
+	count = min(toep->tp_page_count, (sockbuf_sbspace(snd) >> PAGE_SHIFT) + 2*PAGE_SIZE);
 	rv = cxgb_hold_iovec_pages(&uiotmp, toep->tp_pages, &count, 0);
 	hold_resid = uiotmp.uio_resid;
 	if (rv)
@@ -455,7 +459,7 @@ sendmore:
 		}
 		uio->uio_resid -= m->m_pkthdr.len;
 		sent += m->m_pkthdr.len;
-		sbappend(&so->so_snd, m);
+		sbappend(snd, m);
 		t3_push_frames(so, TRUE);
 		iov_adj(&uiotmp.uio_iov, &iovcnt, uiotmp.uio_resid);
 	}
@@ -487,7 +491,7 @@ static int
 cxgb_sosend(struct socket *so, struct sockaddr *addr, struct uio *uio,
     struct mbuf *top, struct mbuf *control, int flags, struct thread *td)
 {
-	struct tcpcb *tp = sototcpcb(so);
+	struct tcpcb *tp = so_sototcpcb(so);
 	struct toedev *tdev; 
 	int zcopy_thres, zcopy_enabled, rv;
 
@@ -503,13 +507,15 @@ cxgb_sosend(struct socket *so, struct sockaddr *addr, struct uio *uio,
 	 *  - blocking socket XXX for now
 	 *
 	 */
-	if (tp->t_flags & TF_TOE) {
-		tdev = TOE_DEV(so);
+	if (tp && tp->t_flags & TF_TOE) {
+		struct toepcb *toep = tp->t_toe;
+		
+		tdev = toep->tp_toedev;
 		zcopy_thres = TOM_TUNABLE(tdev, zcopy_sosend_partial_thres);
 		zcopy_enabled = TOM_TUNABLE(tdev, zcopy_sosend_enabled);
 
 		if (uio && (uio->uio_resid > zcopy_thres) &&
-		    (uio->uio_iovcnt < TMP_IOV_MAX) &&  ((so->so_state & SS_NBIO) == 0)
+		    (uio->uio_iovcnt < TMP_IOV_MAX) &&  ((so_state_get(so) & SS_NBIO) == 0)
 		    && zcopy_enabled) {
 			rv = t3_sosend(so, uio);
 			if (rv != EAGAIN)
@@ -530,8 +536,9 @@ cxgb_sosend(struct socket *so, struct sockaddr *addr, struct uio *uio,
 static __inline void
 sockbuf_pushsync(struct sockbuf *sb, struct mbuf *nextrecord)
 {
-
+#ifdef notyet
 	SOCKBUF_LOCK_ASSERT(sb);
+#endif
 	/*
 	 * First, update for the new value of nextrecord.  If necessary, make
 	 * it the first record.
@@ -554,13 +561,12 @@ sockbuf_pushsync(struct sockbuf *sb, struct mbuf *nextrecord)
                 sb->sb_lastrecord = sb->sb_mb;
 }
 
-#define IS_NONBLOCKING(so)	((so)->so_state & SS_NBIO)
-
+#define IS_NONBLOCKING(so)	(so_state_get(so) & SS_NBIO)
 
 static int
 t3_soreceive(struct socket *so, int *flagsp, struct uio *uio)
 {
-	struct tcpcb *tp = sototcpcb(so);
+	struct tcpcb *tp = so_sototcpcb(so);
 	struct toepcb *toep = tp->t_toe;
 	struct mbuf *m;
 	uint32_t offset;
@@ -568,68 +574,83 @@ t3_soreceive(struct socket *so, int *flagsp, struct uio *uio)
 	int target;		/* Read at least this many bytes */
 	int user_ddp_ok;
 	struct ddp_state *p;
-	struct inpcb *inp = sotoinpcb(so);
-
+	struct inpcb *inp = so_sotoinpcb(so);
+	int socket_state, socket_error;
+	struct sockbuf *rcv;
+	
 	avail = offset = copied = copied_unacked = 0;
 	flags = flagsp ? (*flagsp &~ MSG_EOR) : 0;
-	err = sblock(&so->so_rcv, SBLOCKWAIT(flags));
+	rcv = so_sockbuf_rcv(so);
+	
+	err = sblock(rcv, SBLOCKWAIT(flags));
 	p = &toep->tp_ddp_state;
 
 	if (err)
 		return (err);
 
-	SOCKBUF_LOCK(&so->so_rcv);
+	rcv = so_sockbuf_rcv(so);
+	sockbuf_lock(rcv);
+	if ((tp->t_flags & TF_TOE) == 0) {
+		sockbuf_unlock(rcv);
+		err = EAGAIN;
+		goto done_unlocked;
+	}
+	
 	p->user_ddp_pending = 0;
 restart:
+	if ((tp->t_flags & TF_TOE) == 0) {
+		sockbuf_unlock(rcv);
+		err = EAGAIN;
+		goto done_unlocked;
+	}
+
 	len = uio->uio_resid;
-	m = so->so_rcv.sb_mb;
-	target = (flags & MSG_WAITALL) ? len : so->so_rcv.sb_lowat;
+	m = rcv->sb_mb;
+	target = (flags & MSG_WAITALL) ? len : rcv->sb_lowat;
 	user_ddp_ok = p->ubuf_ddp_ready;
 	p->cancel_ubuf = 0;
-
+	
 	if (len == 0)
 		goto done;
-#if 0	
-	while (m && m->m_len == 0) {
-		so->so_rcv.sb_mb = m_free(m);
-		m = so->so_rcv.sb_mb;
-	}
-#endif	
 	if (m) 
 		goto got_mbuf;
 
 	/* empty receive queue */
-	if (copied >= target && (so->so_rcv.sb_mb == NULL) &&
+	if (copied >= target && (rcv->sb_mb == NULL) &&
 	    !p->user_ddp_pending)
 		goto done;
 
+	socket_state = so_state_get(so);
+	socket_error = so_error_get(so);
+	rcv = so_sockbuf_rcv(so);
+	
 	if (copied) {
-		if (so->so_error || tp->t_state == TCPS_CLOSED || 
-		    (so->so_state & (SS_ISDISCONNECTING|SS_ISDISCONNECTED)))
+		if (socket_error || tp->t_state == TCPS_CLOSED || 
+		    (socket_state & (SS_ISDISCONNECTING|SS_ISDISCONNECTED)))
 			goto done;
 	} else {
-		if (so->so_state & SS_NOFDREF)
+		if (socket_state & SS_NOFDREF)
 			goto done;
-		if (so->so_error) {
-			err = so->so_error;
-			so->so_error = 0;
+		if (socket_error) {
+			err = socket_error;
+			socket_error = 0;
 			goto done;
 		}
-		if (so->so_rcv.sb_state & SBS_CANTRCVMORE) 
+		if (rcv->sb_state & SBS_CANTRCVMORE) 
 			goto done;
-		if (so->so_state & (SS_ISDISCONNECTING|SS_ISDISCONNECTED))
+		if (socket_state & (SS_ISDISCONNECTING|SS_ISDISCONNECTED))
 			goto done;
 		if (tp->t_state == TCPS_CLOSED) {
 			err = ENOTCONN; 
 			goto done;
 		}
 	}
-	if (so->so_rcv.sb_mb && !p->user_ddp_pending) {
-		SOCKBUF_UNLOCK(&so->so_rcv);
+	if (rcv->sb_mb && !p->user_ddp_pending) {
+		sockbuf_unlock(rcv);
 		inp_wlock(inp);
 		t3_cleanup_rbuf(tp, copied_unacked);
 		inp_wunlock(inp);
-		SOCKBUF_LOCK(&so->so_rcv);
+		sockbuf_lock(rcv);
 		copied_unacked = 0;
 		goto restart;
 	}
@@ -637,14 +658,15 @@ restart:
 	    uio->uio_iov->iov_len > p->kbuf[0]->dgl_length &&
 	    p->ubuf_ddp_ready) {
 		p->user_ddp_pending =
-		    !t3_overlay_ubuf(so, uio, IS_NONBLOCKING(so), flags, 1, 1);
+		    !t3_overlay_ubuf(toep, rcv, uio,
+			IS_NONBLOCKING(so), flags, 1, 1);
 		if (p->user_ddp_pending) {
 			p->kbuf_posted++;
 			user_ddp_ok = 0;
 		}
 	}
 	if (p->kbuf[0] && (p->kbuf_posted == 0)) {
-		t3_post_kbuf(so, 1, IS_NONBLOCKING(so));
+		t3_post_kbuf(toep, 1, IS_NONBLOCKING(so));
 		p->kbuf_posted++;
 	}
 	if (p->user_ddp_pending) {
@@ -652,8 +674,7 @@ restart:
 		if (copied >= target)
 			user_ddp_ok = 0;
 
-		DPRINTF("sbwaiting 1\n");
-		if ((err = sbwait(&so->so_rcv)) != 0)
+		if ((err = sbwait(rcv)) != 0)
 			goto done;
 //for timers to work			await_ddp_completion(sk, flags, &timeo);
 	} else if (copied >= target)
@@ -662,26 +683,27 @@ restart:
 		if (copied_unacked) {
 			int i = 0;
 
-			SOCKBUF_UNLOCK(&so->so_rcv);
+			sockbuf_unlock(rcv);
 			inp_wlock(inp);
 			t3_cleanup_rbuf(tp, copied_unacked);
 			inp_wunlock(inp);
 			copied_unacked = 0;
 			if (mp_ncpus > 1)
-				while (i++ < 200 && so->so_rcv.sb_mb == NULL)
+				while (i++ < 200 && rcv->sb_mb == NULL)
 					cpu_spinwait();
-			SOCKBUF_LOCK(&so->so_rcv);
+			sockbuf_lock(rcv);
 		}
-		
-		if (so->so_rcv.sb_mb)
+		if (rcv->sb_mb)
 			goto restart;
-		DPRINTF("sbwaiting 2 copied=%d target=%d avail=%d so=%p mb=%p cc=%d\n", copied, target, avail, so,
-		    so->so_rcv.sb_mb, so->so_rcv.sb_cc);
-		if ((err = sbwait(&so->so_rcv)) != 0)
-			goto done;
+		if ((err = sbwait(rcv)) != 0)
+		    goto done;
 	}
      	goto restart;
 got_mbuf:
+	CTR6(KTR_TOM, "t3_soreceive: ddp=%d m_len=%u resid=%u "
+	    "m_seq=0x%08x copied_seq=0x%08x copied_unacked=%u",
+	    is_ddp(m), m->m_pkthdr.len, len, m->m_seq, toep->tp_copied_seq,
+	    copied_unacked);
 	KASSERT(((m->m_flags & M_EXT) && (m->m_ext.ext_type == EXT_EXTREF)) || !(m->m_flags & M_EXT), ("unexpected type M_EXT=%d ext_type=%d m_len=%d m_pktlen=%d\n", !!(m->m_flags & M_EXT), m->m_ext.ext_type, m->m_len, m->m_pkthdr.len));
 	KASSERT(m->m_next != (struct mbuf *)0xffffffff, ("bad next value m_next=%p m_nextpkt=%p m_flags=0x%x m->m_len=%d",
 		m->m_next, m->m_nextpkt, m->m_flags, m->m_len));
@@ -690,17 +712,24 @@ got_mbuf:
 			panic("empty mbuf and NOCOPY not set\n");
 		CTR0(KTR_TOM, "ddp done notification");
 		p->user_ddp_pending = 0;
-		sbdroprecord_locked(&so->so_rcv);
+		sbdroprecord_locked(rcv);
 		goto done;
 	}
-	
-	offset = toep->tp_copied_seq + copied_unacked - m->m_seq;
-	DPRINTF("m=%p copied_seq=0x%x copied_unacked=%d m_seq=0x%x offset=%d pktlen=%d is_ddp(m)=%d\n",
-	    m, toep->tp_copied_seq, copied_unacked, m->m_seq, offset, m->m_pkthdr.len, !!is_ddp(m));
 
+	
+	if (is_ddp(m)) {
+		KASSERT((int32_t)(toep->tp_copied_seq + copied_unacked - m->m_seq) >= 0,
+		    ("offset will go negative: offset=%d copied_seq=0x%08x copied_unacked=%d m_seq=0x%08x",
+			offset, toep->tp_copied_seq, copied_unacked, m->m_seq));
+	
+		offset = toep->tp_copied_seq + copied_unacked - m->m_seq;
+	} else
+		offset = 0;
+	
 	if (offset >= m->m_pkthdr.len)
-		panic("t3_soreceive: OFFSET >= LEN offset %d copied_seq 0x%x seq 0x%x "
-		    "pktlen %d ddp flags 0x%x", offset, toep->tp_copied_seq + copied_unacked, m->m_seq,
+		panic("t3_soreceive: OFFSET >= LEN offset %d copied_seq 0x%x "
+		    "seq 0x%x pktlen %d ddp flags 0x%x", offset,
+		    toep->tp_copied_seq + copied_unacked, m->m_seq,
 		    m->m_pkthdr.len, m->m_ddp_flags);
 
 	avail = m->m_pkthdr.len - offset;
@@ -709,7 +738,6 @@ got_mbuf:
 			panic("bad state in t3_soreceive len=%d avail=%d offset=%d\n", len, avail, offset);
 		avail = len;
 	}
-	CTR4(KTR_TOM, "t3_soreceive: m_len=%u offset=%u len=%u m_seq=0%08x", m->m_pkthdr.len, offset, len, m->m_seq);
 	
 #ifdef URGENT_DATA_SUPPORTED
 	/*
@@ -724,7 +752,7 @@ got_mbuf:
 			if (urg_offset) {
 				/* stop short of the urgent data */
 				avail = urg_offset;
-			} else if ((so->so_options & SO_OOBINLINE) == 0) {
+			} else if ((so_options_get(so) & SO_OOBINLINE) == 0) {
 				/* First byte is urgent, skip */
 				toep->tp_copied_seq++;
 				offset++;
@@ -735,7 +763,7 @@ got_mbuf:
 		}	
 	}	
 #endif
-	if (is_ddp_psh(m) || offset) {
+	if (is_ddp_psh(m) || offset || (rcv->sb_mb && !is_ddp(m))) {
 		user_ddp_ok = 0;
 #ifdef T3_TRACE	
 		T3_TRACE0(TIDTB(so), "t3_sosend: PSH");
@@ -746,7 +774,8 @@ got_mbuf:
 	    uio->uio_iov->iov_len > p->kbuf[0]->dgl_length &&
 	    p->ubuf_ddp_ready) {
 		p->user_ddp_pending = 
-		    !t3_overlay_ubuf(so, uio, IS_NONBLOCKING(so), flags, 1, 1);
+		    !t3_overlay_ubuf(toep, rcv, uio,
+			IS_NONBLOCKING(so), flags, 1, 1);
 		if (p->user_ddp_pending) {
 			p->kbuf_posted++;
 			user_ddp_ok = 0;
@@ -765,16 +794,23 @@ got_mbuf:
 	if (__predict_true(!(flags & MSG_TRUNC))) {
 		int resid = uio->uio_resid;
 		
-		SOCKBUF_UNLOCK(&so->so_rcv);
+		sockbuf_unlock(rcv);
 		if ((err = copy_data(m, offset, avail, uio))) {
 			if (err)
 				err = EFAULT;
 			goto done_unlocked;
 		}
-		SOCKBUF_LOCK(&so->so_rcv);
+
+		sockbuf_lock(rcv);
 		if (avail != (resid - uio->uio_resid))
 			printf("didn't copy all bytes :-/ avail=%d offset=%d pktlen=%d resid=%d uio_resid=%d copied=%d copied_unacked=%d is_ddp(m)=%d\n",
 			    avail, offset, m->m_pkthdr.len, resid, uio->uio_resid, copied, copied_unacked, is_ddp(m));
+
+		if ((tp->t_flags & TF_TOE) == 0) {
+			sockbuf_unlock(rcv);
+			err = EAGAIN;
+			goto done_unlocked;
+		}
 	}
 	
 	copied += avail;
@@ -816,42 +852,45 @@ skip_copy:
 		while (count > 0) {
 			count -= m->m_len;
 			KASSERT(((m->m_flags & M_EXT) && (m->m_ext.ext_type == EXT_EXTREF)) || !(m->m_flags & M_EXT), ("unexpected type M_EXT=%d ext_type=%d m_len=%d\n", !!(m->m_flags & M_EXT), m->m_ext.ext_type, m->m_len));
-			sbfree(&so->so_rcv, m);
-			so->so_rcv.sb_mb = m_free(m);
-			m = so->so_rcv.sb_mb;
+			sbfree(rcv, m);
+			rcv->sb_mb = m_free(m);
+			m = rcv->sb_mb;
 		}
-		sockbuf_pushsync(&so->so_rcv, nextrecord);
+		sockbuf_pushsync(rcv, nextrecord);
 #if 0
-		sbdrop_locked(&so->so_rcv, m->m_pkthdr.len);
+		sbdrop_locked(rcv, m->m_pkthdr.len);
 #endif		
 		exitnow = got_psh || nomoredata;
-		if  (copied >= target && (so->so_rcv.sb_mb == NULL) && exitnow)
+		if  (copied >= target && (rcv->sb_mb == NULL) && exitnow)
 			goto done;
-		if (copied_unacked > (so->so_rcv.sb_hiwat >> 2)) {
-			SOCKBUF_UNLOCK(&so->so_rcv);
+		if (copied_unacked > (rcv->sb_hiwat >> 2)) {
+			sockbuf_unlock(rcv);
 			inp_wlock(inp);
 			t3_cleanup_rbuf(tp, copied_unacked);
 			inp_wunlock(inp);
 			copied_unacked = 0;
-			SOCKBUF_LOCK(&so->so_rcv);
+			sockbuf_lock(rcv);
 		}
 	} 
 	if (len > 0)
 		goto restart;
 
 	done:
+	if ((tp->t_flags & TF_TOE) == 0) {
+		sockbuf_unlock(rcv);
+		err = EAGAIN;
+		goto done_unlocked;
+	}
 	/*
 	 * If we can still receive decide what to do in preparation for the
 	 * next receive.  Note that RCV_SHUTDOWN is set if the connection
 	 * transitioned to CLOSE but not if it was in that state to begin with.
 	 */
-	if (__predict_true((so->so_state & (SS_ISDISCONNECTING|SS_ISDISCONNECTED)) == 0)) {
+	if (__predict_true((so_state_get(so) & (SS_ISDISCONNECTING|SS_ISDISCONNECTED)) == 0)) {
 		if (p->user_ddp_pending) {
-			SOCKBUF_UNLOCK(&so->so_rcv);
-			SOCKBUF_LOCK(&so->so_rcv);
 			user_ddp_ok = 0;
-			t3_cancel_ubuf(toep);
-			if (so->so_rcv.sb_mb) {
+			t3_cancel_ubuf(toep, rcv);
+			if (rcv->sb_mb) {
 				if (copied < 0)
 					copied = 0;
 				if (len > 0)
@@ -865,11 +904,11 @@ skip_copy:
 			  "chelsio_recvmsg: about to exit, repost kbuf");
 #endif
 
-			t3_post_kbuf(so, 1, IS_NONBLOCKING(so));
+			t3_post_kbuf(toep, 1, IS_NONBLOCKING(so));
 			p->kbuf_posted++;
 		} else if (so_should_ddp(toep, copied) && uio->uio_iovcnt == 1) {
 			CTR1(KTR_TOM ,"entering ddp on tid=%u", toep->tp_tid);
-			if (!t3_enter_ddp(so, TOM_TUNABLE(TOE_DEV(so),
+			if (!t3_enter_ddp(toep, TOM_TUNABLE(toep->tp_toedev,
 				    ddp_copy_limit), 0, IS_NONBLOCKING(so)))
 				p->kbuf_posted = 1;
 		}
@@ -881,14 +920,14 @@ skip_copy:
 		  copied, len, buffers_freed, p ? p->kbuf_posted : -1, 
 	    p->user_ddp_pending);
 #endif
-	SOCKBUF_UNLOCK(&so->so_rcv);
+	sockbuf_unlock(rcv);
 done_unlocked:	
-	if (copied_unacked) {
+	if (copied_unacked && (tp->t_flags & TF_TOE)) {
 		inp_wlock(inp);
 		t3_cleanup_rbuf(tp, copied_unacked);
 		inp_wunlock(inp);
 	}
-	sbunlock(&so->so_rcv);
+	sbunlock(rcv);
 
 	return (err);
 }
@@ -899,8 +938,8 @@ cxgb_soreceive(struct socket *so, struct sockaddr **psa, struct uio *uio,
 {
 	struct toedev *tdev;
 	int rv, zcopy_thres, zcopy_enabled, flags;
-	struct tcpcb *tp = sototcpcb(so);
-
+	struct tcpcb *tp = so_sototcpcb(so);
+	
 	flags = flagsp ? *flagsp &~ MSG_EOR : 0;
 	
 	/*
@@ -916,30 +955,61 @@ cxgb_soreceive(struct socket *so, struct sockaddr **psa, struct uio *uio,
 	 *  - iovcnt is 1
 	 *
 	 */
-	
-	if ((tp->t_flags & TF_TOE) && uio && ((flags & (MSG_OOB|MSG_PEEK|MSG_DONTWAIT)) == 0)
+	if (tp && (tp->t_flags & TF_TOE) && uio && ((flags & (MSG_OOB|MSG_PEEK|MSG_DONTWAIT)) == 0)
 	    && (uio->uio_iovcnt == 1) && (mp0 == NULL)) {
-		tdev =  TOE_DEV(so);
+		struct toepcb *toep = tp->t_toe;
+		
+		tdev =  toep->tp_toedev;
 		zcopy_thres = TOM_TUNABLE(tdev, ddp_thres);
 		zcopy_enabled = TOM_TUNABLE(tdev, ddp);
 		if ((uio->uio_resid > zcopy_thres) &&
 		    (uio->uio_iovcnt == 1)
 		    && zcopy_enabled) {
+			CTR3(KTR_CXGB, "cxgb_soreceive: t_flags=0x%x flags=0x%x uio_resid=%d",
+			    tp->t_flags, flags, uio->uio_resid);
 			rv = t3_soreceive(so, flagsp, uio);
 			if (rv != EAGAIN)
 				return (rv);
 			else
 				printf("returned EAGAIN\n");
 		} 
-	} else if ((tp->t_flags & TF_TOE) && uio && mp0 == NULL)
-		printf("skipping t3_soreceive flags=0x%x iovcnt=%d sb_state=0x%x\n",
-		    flags, uio->uio_iovcnt, so->so_rcv.sb_state);
+	} else if (tp && (tp->t_flags & TF_TOE) && uio && mp0 == NULL) {
+		struct sockbuf *rcv = so_sockbuf_rcv(so);
+		
+		log(LOG_INFO, "skipping t3_soreceive flags=0x%x iovcnt=%d sb_state=0x%x\n",
+		    flags, uio->uio_iovcnt, rcv->sb_state);
+	}
+	
 	return pru_soreceive(so, psa, uio, mp0, controlp, flagsp);
 }
+
+struct protosw cxgb_protosw;
+struct pr_usrreqs cxgb_tcp_usrreqs;
+
 
 void
 t3_install_socket_ops(struct socket *so)
 {
+	static int copied = 0;
+	struct pr_usrreqs *pru;
+	struct protosw *psw;
+	
+	if (copied == 0) {
+		psw = so_protosw_get(so);	
+		pru = psw->pr_usrreqs;
+
+		bcopy(psw, &cxgb_protosw, sizeof(*psw));
+		bcopy(pru, &cxgb_tcp_usrreqs, sizeof(*pru));
+
+		cxgb_protosw.pr_ctloutput = t3_ctloutput;
+		cxgb_protosw.pr_usrreqs = &cxgb_tcp_usrreqs;
+		cxgb_tcp_usrreqs.pru_sosend = cxgb_sosend;
+		cxgb_tcp_usrreqs.pru_soreceive = cxgb_soreceive;
+	}
+	so_protosw_set(so, &cxgb_protosw);
+	
+#if 0	
 	so->so_proto->pr_usrreqs->pru_sosend = cxgb_sosend;
 	so->so_proto->pr_usrreqs->pru_soreceive = cxgb_soreceive;
+#endif
 }

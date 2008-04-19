@@ -229,6 +229,12 @@ int	tcp_offload_connect(struct socket *so, struct sockaddr *nam);
  * Connection is offloaded
  */
 #define	tp_offload(tp)		((tp)->t_flags & TF_TOE)
+
+/*
+ * hackish way of allowing this file to also be included by TOE
+ * which needs to be kept ignorant of socket implementation details
+ */
+#ifdef _SYS_SOCKETVAR_H_
 /*
  * The socket has not been marked as "do not offload"
  */
@@ -324,7 +330,7 @@ tcp_offload_listen_close(struct tcpcb *tp)
 	EVENTHANDLER_INVOKE(tcp_offload_listen_stop, tp);
 #endif	
 }
-
-#undef tp_offload
 #undef SO_OFFLOADABLE
+#endif /* _SYS_SOCKETVAR_H_ */
+#undef tp_offload
 #endif /* _NETINET_TCP_OFFLOAD_H_ */
