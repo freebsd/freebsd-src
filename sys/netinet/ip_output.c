@@ -130,7 +130,7 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 	}
 
 	if (inp != NULL)
-		INP_WLOCK_ASSERT(inp);
+		INP_LOCK_ASSERT(inp);
 
 	if (opt) {
 		len = 0;
