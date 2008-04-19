@@ -1422,6 +1422,9 @@ syncache_offload_add(struct in_conninfo *inc, struct tcpopt *to,
     struct tcphdr *th, struct inpcb *inp, struct socket **lsop,
     struct toe_usrreqs *tu, void *toepcb)
 {
+
+	INP_INFO_WLOCK(&tcbinfo);
+	INP_WLOCK(inp);
 	_syncache_add(inc, to, th, inp, lsop, NULL, tu, toepcb);
 }
 
