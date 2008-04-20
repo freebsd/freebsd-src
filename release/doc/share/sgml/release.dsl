@@ -94,6 +94,88 @@
 ; Put URLs in footnotes, and put footnotes at the bottom of each page.
       (define bop-footnotes #t)
       (define %footnote-ulinks% #t)
+
+      (define ($paragraph$)
+	(let  ((arch (attribute-string (normalize "arch")))
+	       (role (attribute-string (normalize "role")))
+	       (arch-string (entity-text "arch"))
+	       (merged-string (entity-text "merged")))
+	  (if (or (equal? (print-backend) 'tex)
+		  (equal? (print-backend) #f))
+	      ;; avoid using country: characteristic because of a JadeTeX bug...
+	      (make paragraph
+		first-line-start-indent: (if (is-first-para)
+					     %para-indent-firstpara%
+					     %para-indent%)
+		space-before: %para-sep%
+		space-after: (if (INLIST?)
+				 0pt
+				 %para-sep%)
+		quadding: %default-quadding%
+		hyphenate?: %hyphenation%
+		language: (dsssl-language-code)
+		(make sequence
+		  (cond
+		   ;; If arch= not specified, then print unconditionally.  This clause
+		   ;; handles the majority of cases.
+		   ((or (equal? arch #f)
+			(equal? arch "")
+			(equal? arch "all"))
+		    (process-children-trim))
+		   (else
+		    (make sequence
+		      (literal "[")
+		      (let loop ((prev (car (split-string-to-list arch)))
+				 (rest (cdr (split-string-to-list arch))))
+			(make sequence
+			  (literal prev)
+			  (if (not (null? rest))
+			      (make sequence
+				(literal ", ")
+				(loop (car rest) (cdr rest)))
+			      (empty-sosofo))))
+		      (literal "] ")
+		      (process-children-trim))))
+		  (if (and (not (null? role)) (equal? role "merged"))
+		      (literal " [" merged-string "]")
+		      (empty-sosofo))))
+	      (make paragraph
+		first-line-start-indent: (if (is-first-para)
+					     %para-indent-firstpara%
+					     %para-indent%)
+		space-before: %para-sep%
+		space-after: (if (INLIST?)
+				 0pt
+				 %para-sep%)
+		quadding: %default-quadding%
+		hyphenate?: %hyphenation%
+		language: (dsssl-language-code)
+		country: (dsssl-country-code)
+		(make sequence
+		  (cond
+		   ;; If arch= not specified, then print unconditionally.  This clause
+		   ;; handles the majority of cases.
+		   ((or (equal? arch #f)
+			(equal? arch "")
+			(equal? arch "all"))
+		    (process-children-trim))
+		   (else
+		    (make sequence
+		      (literal "[")
+		      (let loop ((prev (car (split-string-to-list arch)))
+				 (rest (cdr (split-string-to-list arch))))
+			(make sequence
+			  (literal prev)
+			  (if (not (null? rest))
+			      (make sequence
+				(literal ", ")
+				(loop (car rest) (cdr rest)))
+			      (empty-sosofo))))
+		      (literal "] ")
+		      (process-children-trim))))
+		  (if (and (not (null? role)) (equal? role "merged"))
+		      (literal " [" merged-string "]")
+		      (empty-sosofo)))))))
     ]]>
 
     <![ %output.html; [
@@ -159,10 +241,10 @@
 				   (loop (car rest) (cdr rest)))
 				 (empty-sosofo))))
 			 (literal "] ")
-			 (process-children)
-			 (if (and (not (null? role)) (equal? role "merged"))
-			     (literal " [" merged-string "]")
-			     (empty-sosofo))))))
+			 (process-children)))))
+		    (if (and (not (null? role)) (equal? role "merged"))
+			(literal " [" merged-string "]")
+			(empty-sosofo))
 		    (if (or %footnotes-at-end% tgroup (node-list-empty? footnotes))
 			(empty-sosofo)
 			(make element gi: "BLOCKQUOTE"
