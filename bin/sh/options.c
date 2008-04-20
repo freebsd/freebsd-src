@@ -383,7 +383,7 @@ shiftcmd(int argc, char **argv)
 	}
 	ap2 = shellparam.p;
 	while ((*ap2++ = *ap1++) != NULL);
-	shellparam.optnext = NULL;
+	shellparam.reset = 1;
 	INTON;
 	return 0;
 }
@@ -405,6 +405,7 @@ setcmd(int argc, char **argv)
 	if (*argptr != NULL) {
 		setparam(argptr);
 	}
+	shellparam.reset = 1;
 	INTON;
 	return 0;
 }
@@ -414,7 +415,6 @@ void
 getoptsreset(const char *value)
 {
 	if (number(value) == 1) {
-		shellparam.optnext = NULL;
 		shellparam.reset = 1;
 	}
 }
