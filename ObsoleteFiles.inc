@@ -19,6 +19,22 @@ OLD_FILES+=usr/sbin/pkg_check
 OLD_FILES+=usr/sbin/pkg_sign
 OLD_FILES+=usr/share/man/man1/pkg_check.1.gz
 OLD_FILES+=usr/share/man/man1/pkg_sign.1.gz
+# 20080325: tzdata2008b import
+OLD_FILES+=usr/share/zoneinfo/Asia/Calcutta
+OLD_FILES+=usr/share/zoneinfo/Asia/Saigon
+# 20080314: stack_print(9) mlink fixed
+OLD_FILES+=usr/share/man/man9/stack_printf.9.gz
+# 20080312: libkse removal
+OLD_FILES+=usr/include/sys/kse.h
+OLD_FILES+=usr/lib/libkse.so
+OLD_LIBS+=usr/lib/libkse.so.3
+OLD_FILES+=usr/share/man/man2/kse.2.gz
+OLD_FILES+=usr/share/man/man2/kse_create.2.gz
+OLD_FILES+=usr/share/man/man2/kse_exit.2.gz
+OLD_FILES+=usr/share/man/man2/kse_release.2.gz
+OLD_FILES+=usr/share/man/man2/kse_switchin.2.gz
+OLD_FILES+=usr/share/man/man2/kse_thr_interrupt.2.gz
+OLD_FILES+=usr/share/man/man2/kse_wakeup.2.gz
 # 20080220: geom_lvm rename to geom_linux_lvm
 OLD_FILES+=usr/share/man/man4/geom_lvm.4.gz
 # 20080126: oldcard.4 removal
