@@ -43,8 +43,8 @@
  * interact with the TrustedBSD MAC Framework.
  */
 
-#ifndef _SYS_SECURITY_MAC_MAC_FRAMEWORK_H_
-#define	_SYS_SECURITY_MAC_MAC_FRAMEWORK_H_
+#ifndef _SECURITY_MAC_MAC_FRAMEWORK_H_
+#define	_SECURITY_MAC_MAC_FRAMEWORK_H_
 
 #ifndef _KERNEL
 #error "no user-serviceable parts inside"
@@ -425,4 +425,4 @@ int	mac_priv_grant(struct ucred *cred, int priv);
  */
 int	vop_stdsetlabel_ea(struct vop_setlabel_args *ap);
 
-#endif /* !_SYS_SECURITY_MAC_MAC_FRAMEWORK_H_ */
+#endif /* !_SECURITY_MAC_MAC_FRAMEWORK_H_ */
