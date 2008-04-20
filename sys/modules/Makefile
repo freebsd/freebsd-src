@@ -33,7 +33,6 @@ SUBDIR=	${_3dfx} \
 	${_ath_rate_sample} \
 	aue \
 	${_auxio} \
-	${_awi} \
 	axe \
 	bce \
 	bfe \
@@ -377,7 +376,6 @@ _ath_hal=	ath_hal
 _ath_rate_amrr=	ath_rate_amrr
 _ath_rate_onoe=	ath_rate_onoe
 _ath_rate_sample=ath_rate_sample
-_awi=		awi
 _bktr=		bktr
 _cardbus=	cardbus
 _cbb=		cbb
