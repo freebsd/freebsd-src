@@ -84,55 +84,6 @@
        ;; None of the above
        (else (next-match))))))
 
-;; $paragraph$ function with arch attribute support.
-(define ($paragraph$ #!optional (para-wrapper "P"))
-  (let ((footnotes (select-elements (descendants (current-node))
-                                    (normalize "footnote")))
-        (tgroup (have-ancestor? (normalize "tgroup")))
-	(arch (attribute-string (normalize "arch")))
-	(role (attribute-string (normalize "role")))
-	(arch-string (entity-text "arch"))
-	(merged-string (entity-text "merged")))
-    (make sequence
-      (make element gi: para-wrapper
-            attributes: (append
-                         (if %default-quadding%
-                             (list (list "ALIGN" %default-quadding%))
-                             '()))
-	    (make sequence
-	      (cond
-	       ;; If arch= not specified, then print unconditionally.  This clause
-	       ;; handles the majority of cases.
-	       ((or (equal? arch #f)
-		    (equal? arch "")
-		    (equal? arch "all"))
-		(process-children))
-	       (else
-		(sosofo-append
-		 (make sequence
-		   (literal "[")
-		   (let loop ((prev (car (split-string-to-list arch)))
-			      (rest (cdr (split-string-to-list arch))))
-		     (make sequence
-		       (literal prev)
-		       (if (not (null? rest))
-			   (make sequence
-			     (literal ", ")
-			     (loop (car rest) (cdr rest)))
-			   (empty-sosofo))))
-		   (literal "] ")
-		   (process-children)
-		   (if (and (not (null? role)) (equal? role "merged"))
-		       (literal " [" merged-string "]")
-		       (empty-sosofo))))))
-	      (if (or %footnotes-at-end% tgroup (node-list-empty? footnotes))
-		  (empty-sosofo)
-		  (make element gi: "BLOCKQUOTE"
-			attributes: (list
-				     (list "CLASS" "FOOTNOTES"))
-			(with-mode footnote-mode
-			  (process-node-list footnotes)))))))))
-
 ; We might have some sect1 level elements where the modification times
 ; are significant.  An example of this is the "What's New" section in
 ; the release notes.  We enable the printing of pubdate entry in
@@ -170,6 +121,55 @@
               (("netbsd")  (string-append u "&" "manpath=NetBSD+&release.manpath.netbsd;"))
               (("ports")   (string-append u "&" "manpath=FreeBSD+&release.manpath.freebsd-ports;"))
               (else        (string-append u "&" "manpath=FreeBSD+&release.manpath.freebsd;")))))
+
+      ;; $paragraph$ function with arch attribute support.
+      (define ($paragraph$ #!optional (para-wrapper "P"))
+	(let ((footnotes (select-elements (descendants (current-node))
+					  (normalize "footnote")))
+	      (tgroup (have-ancestor? (normalize "tgroup")))
+	      (arch (attribute-string (normalize "arch")))
+	      (role (attribute-string (normalize "role")))
+	      (arch-string (entity-text "arch"))
+	      (merged-string (entity-text "merged")))
+	  (make sequence
+	    (make element gi: para-wrapper
+		  attributes: (append
+			       (if %default-quadding%
+				   (list (list "ALIGN" %default-quadding%))
+				   '()))
+		  (make sequence
+		    (cond
+		     ;; If arch= not specified, then print unconditionally.  This clause
+		     ;; handles the majority of cases.
+		     ((or (equal? arch #f)
+			  (equal? arch "")
+			  (equal? arch "all"))
+		      (process-children))
+		     (else
+		      (sosofo-append
+		       (make sequence
+			 (literal "[")
+			 (let loop ((prev (car (split-string-to-list arch)))
+				    (rest (cdr (split-string-to-list arch))))
+			   (make sequence
+			     (literal prev)
+			     (if (not (null? rest))
+				 (make sequence
+				   (literal ", ")
+				   (loop (car rest) (cdr rest)))
+				 (empty-sosofo))))
+			 (literal "] ")
+			 (process-children)
+			 (if (and (not (null? role)) (equal? role "merged"))
+			     (literal " [" merged-string "]")
+			     (empty-sosofo))))))
+		    (if (or %footnotes-at-end% tgroup (node-list-empty? footnotes))
+			(empty-sosofo)
+			(make element gi: "BLOCKQUOTE"
+			      attributes: (list
+					   (list "CLASS" "FOOTNOTES"))
+			      (with-mode footnote-mode
+				(process-node-list footnotes)))))))))
     ]]>
 
       (define (toc-depth nd)
