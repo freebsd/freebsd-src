@@ -366,12 +366,13 @@ ata_ioctl(struct cdev *dev, u_long cmd, caddr_t data,
 
     switch (cmd) {
     case IOCATAGMAXCHANNEL:
+	/* In case we have channel 0..n this will return n+1. */
 	*value = devclass_get_maxunit(ata_devclass);
 	error = 0;
 	break;
 
     case IOCATAREINIT:
-	if (*value > devclass_get_maxunit(ata_devclass) ||
+	if (*value >= devclass_get_maxunit(ata_devclass) ||
 	    !(device = devclass_get_device(ata_devclass, *value)))
 	    return ENXIO;
 	error = ata_reinit(device);
@@ -379,7 +380,7 @@ ata_ioctl(struct cdev *dev, u_long cmd, caddr_t data,
 	break;
 
     case IOCATAATTACH:
-	if (*value > devclass_get_maxunit(ata_devclass) ||
+	if (*value >= devclass_get_maxunit(ata_devclass) ||
 	    !(device = devclass_get_device(ata_devclass, *value)))
 	    return ENXIO;
 	/* XXX SOS should enable channel HW on controller */
@@ -387,7 +388,7 @@ ata_ioctl(struct cdev *dev, u_long cmd, caddr_t data,
 	break;
 
     case IOCATADETACH:
-	if (*value > devclass_get_maxunit(ata_devclass) ||
+	if (*value >= devclass_get_maxunit(ata_devclass) ||
 	    !(device = devclass_get_device(ata_devclass, *value)))
 	    return ENXIO;
 	error = ata_detach(device);
@@ -395,7 +396,7 @@ ata_ioctl(struct cdev *dev, u_long cmd, caddr_t data,
 	break;
 
     case IOCATADEVICES:
-	if (devices->channel > devclass_get_maxunit(ata_devclass) ||
+	if (devices->channel >= devclass_get_maxunit(ata_devclass) ||
 	    !(device = devclass_get_device(ata_devclass, devices->channel)))
 	    return ENXIO;
 	bzero(devices->name[0], 32);
