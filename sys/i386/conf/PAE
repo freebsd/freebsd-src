@@ -80,6 +80,5 @@ nodevice	an
 nodevice	ath		# Atheros pci/cardbus NIC's
 nodevice	ath_hal		# Atheros HAL (Hardware Access Layer)
 nodevice	ath_rate_sample	# SampleRate tx rate control for ath
-nodevice	awi
 nodevice	ral
 nodevice	wi
