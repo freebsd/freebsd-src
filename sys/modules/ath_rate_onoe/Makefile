@@ -40,7 +40,7 @@
 
 KMOD=	ath_rate
 SRCS=	onoe.c
-SRCS+=	device_if.h bus_if.h pci_if.h opt_inet.h opt_ah.h
+SRCS+=	device_if.h bus_if.h pci_if.h opt_inet.h opt_ah.h opt_wlan.h
 
 HAL=	${.CURDIR}/../../contrib/dev/ath
 CFLAGS+=  -I. -I${.CURDIR}/../../dev/ath -I${HAL}
@@ -56,7 +56,13 @@ ATH_MODULE_ARCH=powerpc-be
 ATH_MODULE_ARCH=${MACHINE_ARCH}
 .endif
 
+.if !defined(KERNBUILDDIR)
 opt_ah.h: ${HAL}/public/${ATH_MODULE_ARCH}-elf.opt_ah.h
 	cp ${HAL}/public/${ATH_MODULE_ARCH}-elf.opt_ah.h ${.TARGET}
+
+opt_wlan.h:
+	echo "#define IEEE80211_DEBUG 1" > opt_wlan.h
+#	echo > opt_wlan.h
+.endif
 
 .include <bsd.kmod.mk>

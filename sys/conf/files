@@ -770,6 +770,9 @@ dev/le/lance.c			optional le
 dev/led/led.c			standard
 dev/lge/if_lge.c		optional lge
 dev/lmc/if_lmc.c		optional lmc
+dev/malo/if_malo.c		optional malo
+dev/malo/if_malohal.c		optional malo
+dev/malo/if_malo_pci.c		optional malo pci
 dev/mc146818/mc146818.c		optional mc146818
 dev/mca/mca_bus.c		optional mca
 dev/mcd/mcd.c			optional mcd isa nowerror
@@ -918,7 +921,6 @@ dev/puc/pucdata.c		optional puc pci
 dev/quicc/quicc_core.c		optional quicc
 dev/ral/rt2560.c		optional ral
 dev/ral/rt2661.c		optional ral
-dev/ral/if_ralrate.c		optional ral
 dev/ral/if_ral_pci.c		optional ral pci
 dev/random/harvest.c		standard
 dev/random/hash.c		optional random
@@ -1677,24 +1679,32 @@ net/zlib.c			optional crypto | geom_uzip | ipsec | \
 					 mxge | ppp_deflate | netgraph_deflate
 net80211/ieee80211.c		optional wlan
 net80211/ieee80211_acl.c	optional wlan_acl
+net80211/ieee80211_adhoc.c	optional wlan
 net80211/ieee80211_amrr.c	optional wlan_amrr
 net80211/ieee80211_crypto.c	optional wlan
 net80211/ieee80211_crypto_ccmp.c optional wlan_ccmp
 net80211/ieee80211_crypto_none.c optional wlan
 net80211/ieee80211_crypto_tkip.c optional wlan_tkip
 net80211/ieee80211_crypto_wep.c	optional wlan_wep
+net80211/ieee80211_ddb.c	optional wlan ddb
+net80211/ieee80211_dfs.c	optional wlan
 net80211/ieee80211_freebsd.c	optional wlan
+net80211/ieee80211_hostap.c	optional wlan
 net80211/ieee80211_ht.c		optional wlan
 net80211/ieee80211_input.c	optional wlan
 net80211/ieee80211_ioctl.c	optional wlan
+net80211/ieee80211_monitor.c	optional wlan
 net80211/ieee80211_node.c	optional wlan
 net80211/ieee80211_output.c	optional wlan
+net80211/ieee80211_phy.c	optional wlan
 net80211/ieee80211_power.c	optional wlan
 net80211/ieee80211_proto.c	optional wlan
 net80211/ieee80211_regdomain.c	optional wlan
+net80211/ieee80211_rssadapt.c	optional wlan_rssadapt
 net80211/ieee80211_scan.c	optional wlan
-net80211/ieee80211_scan_ap.c	optional wlan_scan_ap
-net80211/ieee80211_scan_sta.c	optional wlan_scan_sta
+net80211/ieee80211_scan_sta.c	optional wlan
+net80211/ieee80211_sta.c	optional wlan
+net80211/ieee80211_wds.c	optional wlan
 net80211/ieee80211_xauth.c	optional wlan_xauth
 netatalk/aarp.c			optional netatalk
 netatalk/at_control.c		optional netatalk

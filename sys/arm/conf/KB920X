@@ -135,5 +135,3 @@ device          wlan_wep        # 802.11 WEP support
 device          wlan_ccmp       # 802.11 CCMP support
 device          wlan_tkip       # 802.11 TKIP support
 device          wlan_amrr       # AMRR transmit rate control algorithm
-device          wlan_scan_ap    # 802.11 AP mode scanning
-device          wlan_scan_sta   # 802.11 STA mode scanning

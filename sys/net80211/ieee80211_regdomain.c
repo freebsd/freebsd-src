@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2007 Sam Leffler, Errno Consulting
+ * Copyright (c) 2005-2008 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,6 +29,7 @@ __FBSDID("$FreeBSD$");
 /*
  * IEEE 802.11 regdomain support.
  */
+#include "opt_wlan.h"
 
 #include <sys/param.h>
 #include <sys/systm.h> 
@@ -37,25 +38,59 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 
 #include <net/if.h>
-#include <net/if_arp.h>
-#include <net/if_dl.h>
 #include <net/if_media.h>
-#include <net/if_types.h>
-#include <net/ethernet.h>
 
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_regdomain.h>
 
+static void
+null_getradiocaps(struct ieee80211com *ic, int *n, struct ieee80211_channel *c)
+{
+	/* just feed back the current channel list */
+	*n = ic->ic_nchans;
+	memcpy(c, ic->ic_channels,
+	    ic->ic_nchans*sizeof(struct ieee80211_channel));
+}
+
+static int
+null_setregdomain(struct ieee80211com *ic,
+	struct ieee80211_regdomain *rd,
+	int nchans, struct ieee80211_channel chans[])
+{
+	return 0;		/* accept anything */
+}
+
 void
 ieee80211_regdomain_attach(struct ieee80211com *ic)
 {
-	ic->ic_regdomain = 0;			/* XXX */
-	ic->ic_countrycode = CTRY_UNITED_STATES;/* XXX */
-	ic->ic_location = 1+2;			/* both */
+	if (ic->ic_regdomain.regdomain == 0 &&
+	    ic->ic_regdomain.country == CTRY_DEFAULT) {
+		ic->ic_regdomain.country = CTRY_UNITED_STATES;	/* XXX */
+		ic->ic_regdomain.location = ' ';		/* both */
+		ic->ic_regdomain.isocc[0] = 'U';		/* XXX */
+		ic->ic_regdomain.isocc[1] = 'S';		/* XXX */
+		/* XXX? too late to setup default channel list */
+	}
+	ic->ic_getradiocaps = null_getradiocaps;
+	ic->ic_setregdomain = null_setregdomain;
 }
 
 void
 ieee80211_regdomain_detach(struct ieee80211com *ic)
+{
+	if (ic->ic_countryie != NULL) {
+		free(ic->ic_countryie, M_80211_NODE_IE);
+		ic->ic_countryie = NULL;
+	}
+}
+
+void
+ieee80211_regdomain_vattach(struct ieee80211vap *vap)
+{
+}
+
+void
+ieee80211_regdomain_vdetach(struct ieee80211vap *vap)
 {
 }
 
@@ -68,6 +103,7 @@ addchan(struct ieee80211com *ic, int ieee, int flags)
 	c->ic_freq = ieee80211_ieee2mhz(ieee, flags);
 	c->ic_ieee = ieee;
 	c->ic_flags = flags;
+	c->ic_extieee = 0;
 }
 
 /*
@@ -76,24 +112,27 @@ addchan(struct ieee80211com *ic, int ieee, int flags)
  * when a driver does not obtain the channel list from another
  * source (such as firmware).
  */
-void
+int
 ieee80211_init_channels(struct ieee80211com *ic,
-	int rd, enum ISOCountryCode cc, int bands, int outdoor, int ecm)
+	const struct ieee80211_regdomain *rd, const uint8_t bands[])
 {
 	int i;
 
 	/* XXX just do something for now */
 	ic->ic_nchans = 0;
-	if (isset(&bands, IEEE80211_MODE_11B) ||
-	    isset(&bands, IEEE80211_MODE_11G)) {
-		for (i = 1; i <= (ecm ? 14 : 11); i++) {
-			if (isset(&bands, IEEE80211_MODE_11B))
+	if (isset(bands, IEEE80211_MODE_11B) ||
+	    isset(bands, IEEE80211_MODE_11G)) {
+		int maxchan = 11;
+		if (rd != NULL && rd->ecm)
+			maxchan = 14;
+		for (i = 1; i <= maxchan; i++) {
+			if (isset(bands, IEEE80211_MODE_11B))
 				addchan(ic, i, IEEE80211_CHAN_B);
-			if (isset(&bands, IEEE80211_MODE_11G))
+			if (isset(bands, IEEE80211_MODE_11G))
 				addchan(ic, i, IEEE80211_CHAN_G);
 		}
 	}
-	if (isset(&bands, IEEE80211_MODE_11A)) {
+	if (isset(bands, IEEE80211_MODE_11A)) {
 		for (i = 36; i <= 64; i += 4)
 			addchan(ic, i, IEEE80211_CHAN_A);
 		for (i = 100; i <= 140; i += 4)
@@ -101,17 +140,73 @@ ieee80211_init_channels(struct ieee80211com *ic,
 		for (i = 149; i <= 161; i += 4)
 			addchan(ic, i, IEEE80211_CHAN_A);
 	}
-	ic->ic_regdomain = rd;
-	ic->ic_countrycode = cc;
-	ic->ic_location = outdoor;
+	if (rd != NULL)
+		ic->ic_regdomain = *rd;
+
+	return 0;
+}
+
+static __inline int
+chancompar(const void *a, const void *b)
+{
+	const struct ieee80211_channel *ca = a;
+	const struct ieee80211_channel *cb = b;
+
+	return (ca->ic_freq == cb->ic_freq) ?
+		(ca->ic_flags & IEEE80211_CHAN_ALL) -
+		    (cb->ic_flags & IEEE80211_CHAN_ALL) :
+		ca->ic_freq - cb->ic_freq;
 }
 
 /*
- * Add Country Information IE.
+ * Insertion sort.
  */
-uint8_t *
-ieee80211_add_countryie(uint8_t *frm, struct ieee80211com *ic,
-	enum ISOCountryCode cc, int location)
+#define swap(_a, _b, _size) {			\
+	uint8_t *s = _b;			\
+	int i = _size;				\
+	do {					\
+		uint8_t tmp = *_a;		\
+		*_a++ = *s;			\
+		*s++ = tmp;			\
+	} while (--i);				\
+	_a -= _size;				\
+}
+
+static void
+sort_channels(void *a, size_t n, size_t size)
+{
+	uint8_t *aa = a;
+	uint8_t *ai, *t;
+
+	KASSERT(n > 0, ("no channels"));
+	for (ai = aa+size; --n >= 1; ai += size)
+		for (t = ai; t > aa; t -= size) {
+			uint8_t *u = t - size;
+			if (chancompar(u, t) <= 0)
+				break;
+			swap(u, t, size);
+		}
+}
+#undef swap
+
+/*
+ * Order channels w/ the same frequency so that
+ * b < g < htg and a < hta.  This is used to optimize
+ * channel table lookups and some user applications
+ * may also depend on it (though they should not).
+ */
+void
+ieee80211_sort_channels(struct ieee80211_channel chans[], int nchans)
+{
+	if (nchans > 0)
+		sort_channels(chans, nchans, sizeof(struct ieee80211_channel));
+}
+
+/*
+ * Allocate and construct a Country Information IE.
+ */
+struct ieee80211_appie *
+ieee80211_alloc_countryie(struct ieee80211com *ic)
 {
 #define	CHAN_UNINTERESTING \
     (IEEE80211_CHAN_TURBO | IEEE80211_CHAN_STURBO | \
@@ -131,35 +226,46 @@ ieee80211_add_countryie(uint8_t *frm, struct ieee80211com *ic,
 	    CHAN_UNINTERESTING | IEEE80211_CHAN_2GHZ,	/* MODE_11NA */
 	    CHAN_UNINTERESTING | IEEE80211_CHAN_5GHZ,	/* MODE_11NG */
 	};
-	struct ieee80211_country_ie *ie = (struct ieee80211_country_ie *)frm;
-	const char *iso_name;
-	uint8_t nextchan, chans[IEEE80211_CHAN_BYTES];
-	int i, skip;
+	const struct ieee80211_regdomain *rd = &ic->ic_regdomain;
+	uint8_t nextchan, chans[IEEE80211_CHAN_BYTES], *frm;
+	struct ieee80211_appie *aie;
+	struct ieee80211_country_ie *ie;
+	int i, skip, nruns;
 
-	ie->ie = IEEE80211_ELEMID_COUNTRY;
-	iso_name = ieee80211_cctoiso(cc);
-	if (iso_name == NULL) {
-		if_printf(ic->ic_ifp, "bad country code %d ignored\n", cc);
-		iso_name = "  ";
+	aie = malloc(IEEE80211_COUNTRY_MAX_SIZE, M_80211_NODE_IE,
+	    M_NOWAIT | M_ZERO);
+	if (aie == NULL) {
+		if_printf(ic->ic_ifp,
+		    "%s: unable to allocate memory for country ie\n", __func__);
+		/* XXX stat */
+		return NULL;
 	}
-	ie->cc[0] = iso_name[0];
-	ie->cc[1] = iso_name[1];
+	ie = (struct ieee80211_country_ie *) aie->ie_data;
+	ie->ie = IEEE80211_ELEMID_COUNTRY;
+	if (rd->isocc[0] == '\0') {
+		if_printf(ic->ic_ifp, "no ISO country string for cc %d; "
+			"using blanks\n", rd->country);
+		ie->cc[0] = ie->cc[1] = ' ';
+	} else {
+		ie->cc[0] = rd->isocc[0];
+		ie->cc[1] = rd->isocc[1];
+	}
 	/* 
-	 * Indoor/Outdoor portion of country string.
-	 * NB: this is not quite right, since we should have one of:
+	 * Indoor/Outdoor portion of country string:
 	 *     'I' indoor only
 	 *     'O' outdoor only
 	 *     ' ' all enviroments
 	 */
-	ie->cc[2] = ((location & 3) == 3 ? ' ' : location & 1 ? 'I' : 'O');
-
+	ie->cc[2] = (rd->location == 'I' ? 'I' :
+		     rd->location == 'O' ? 'O' : ' ');
 	/* 
 	 * Run-length encoded channel+max tx power info.
 	 */
 	frm = (uint8_t *)&ie->band[0];
 	nextchan = 0;			/* NB: impossible channel # */
+	nruns = 0;
 	memset(chans, 0, sizeof(chans));
-	skip = skipflags[ic->ic_curmode];
+	skip = skipflags[ieee80211_chan2mode(ic->ic_bsschan)];
 	for (i = 0; i < ic->ic_nchans; i++) {
 		const struct ieee80211_channel *c = &ic->ic_channels[i];
 
@@ -170,12 +276,19 @@ ieee80211_add_countryie(uint8_t *frm, struct ieee80211com *ic,
 		setbit(chans, c->ic_ieee);
 		if (c->ic_ieee != nextchan ||
 		    c->ic_maxregpower != frm[-1]) {	/* new run */
-			/* XXX max of 83 runs */
+			if (nruns == IEEE80211_COUNTRY_MAX_BANDS) {
+				if_printf(ic->ic_ifp, "%s: country ie too big, "
+				    "runs > max %d, truncating\n",
+				    __func__, IEEE80211_COUNTRY_MAX_BANDS);
+				/* XXX stat? fail? */
+				break;
+			}
 			frm[0] = c->ic_ieee;		/* starting channel # */
 			frm[1] = 1;			/* # channels in run */
 			frm[2] = c->ic_maxregpower;	/* tx power cap */
 			frm += 3;
 			nextchan = c->ic_ieee + 1;	/* overflow? */
+			nruns++;
 		} else {				/* extend run */
 			frm[-2]++;
 			nextchan++;
@@ -186,154 +299,114 @@ ieee80211_add_countryie(uint8_t *frm, struct ieee80211com *ic,
 		ie->len++;
 		*frm++ = 0;
 	}
-	return frm;
+	aie->ie_len = frm - aie->ie_data;
+
+	return aie;
 #undef CHAN_UNINTERESTING
 }
 
-/*
- * Country Code Table for code-to-string conversion.
- */
-static const struct {
-	enum ISOCountryCode iso_code;	   
-	const char*	iso_name;
-} country_strings[] = {
-    { CTRY_DEBUG,	 	"DB" },		/* NB: nonstandard */
-    { CTRY_DEFAULT,	 	"NA" },		/* NB: nonstandard */
-    { CTRY_ALBANIA,		"AL" },
-    { CTRY_ALGERIA,		"DZ" },
-    { CTRY_ARGENTINA,		"AR" },
-    { CTRY_ARMENIA,		"AM" },
-    { CTRY_AUSTRALIA,		"AU" },
-    { CTRY_AUSTRIA,		"AT" },
-    { CTRY_AZERBAIJAN,		"AZ" },
-    { CTRY_BAHRAIN,		"BH" },
-    { CTRY_BELARUS,		"BY" },
-    { CTRY_BELGIUM,		"BE" },
-    { CTRY_BELIZE,		"BZ" },
-    { CTRY_BOLIVIA,		"BO" },
-    { CTRY_BRAZIL,		"BR" },
-    { CTRY_BRUNEI_DARUSSALAM,	"BN" },
-    { CTRY_BULGARIA,		"BG" },
-    { CTRY_CANADA,		"CA" },
-    { CTRY_CHILE,		"CL" },
-    { CTRY_CHINA,		"CN" },
-    { CTRY_COLOMBIA,		"CO" },
-    { CTRY_COSTA_RICA,		"CR" },
-    { CTRY_CROATIA,		"HR" },
-    { CTRY_CYPRUS,		"CY" },
-    { CTRY_CZECH,		"CZ" },
-    { CTRY_DENMARK,		"DK" },
-    { CTRY_DOMINICAN_REPUBLIC,	"DO" },
-    { CTRY_ECUADOR,		"EC" },
-    { CTRY_EGYPT,		"EG" },
-    { CTRY_EL_SALVADOR,		"SV" },    
-    { CTRY_ESTONIA,		"EE" },
-    { CTRY_FINLAND,		"FI" },
-    { CTRY_FRANCE,		"FR" },
-    { CTRY_FRANCE2,		"F2" },
-    { CTRY_GEORGIA,		"GE" },
-    { CTRY_GERMANY,		"DE" },
-    { CTRY_GREECE,		"GR" },
-    { CTRY_GUATEMALA,		"GT" },
-    { CTRY_HONDURAS,		"HN" },
-    { CTRY_HONG_KONG,		"HK" },
-    { CTRY_HUNGARY,		"HU" },
-    { CTRY_ICELAND,		"IS" },
-    { CTRY_INDIA,		"IN" },
-    { CTRY_INDONESIA,		"ID" },
-    { CTRY_IRAN,		"IR" },
-    { CTRY_IRELAND,		"IE" },
-    { CTRY_ISRAEL,		"IL" },
-    { CTRY_ITALY,		"IT" },
-    { CTRY_JAMAICA,		"JM" },
-    { CTRY_JAPAN,		"JP" },
-    { CTRY_JAPAN1,		"J1" },
-    { CTRY_JAPAN2,		"J2" },    
-    { CTRY_JAPAN3,		"J3" },
-    { CTRY_JAPAN4,		"J4" },
-    { CTRY_JAPAN5,		"J5" },    
-    { CTRY_JORDAN,		"JO" },
-    { CTRY_KAZAKHSTAN,		"KZ" },
-    { CTRY_KOREA_NORTH,		"KP" },
-    { CTRY_KOREA_ROC,		"KR" },
-    { CTRY_KOREA_ROC2,		"K2" },
-    { CTRY_KUWAIT,		"KW" },
-    { CTRY_LATVIA,		"LV" },
-    { CTRY_LEBANON,		"LB" },
-    { CTRY_LIECHTENSTEIN,	"LI" },
-    { CTRY_LITHUANIA,		"LT" },
-    { CTRY_LUXEMBOURG,		"LU" },
-    { CTRY_MACAU,		"MO" },
-    { CTRY_MACEDONIA,		"MK" },
-    { CTRY_MALAYSIA,		"MY" },
-    { CTRY_MEXICO,		"MX" },
-    { CTRY_MONACO,		"MC" },
-    { CTRY_MOROCCO,		"MA" },
-    { CTRY_NETHERLANDS,		"NL" },
-    { CTRY_NEW_ZEALAND,		"NZ" },
-    { CTRY_NORWAY,		"NO" },
-    { CTRY_OMAN,		"OM" },
-    { CTRY_PAKISTAN,		"PK" },
-    { CTRY_PANAMA,		"PA" },
-    { CTRY_PERU,		"PE" },
-    { CTRY_PHILIPPINES,		"PH" },
-    { CTRY_POLAND,		"PL" },
-    { CTRY_PORTUGAL,		"PT" },
-    { CTRY_PUERTO_RICO,		"PR" },
-    { CTRY_QATAR,		"QA" },
-    { CTRY_ROMANIA,		"RO" },
-    { CTRY_RUSSIA,		"RU" },
-    { CTRY_SAUDI_ARABIA,	"SA" },
-    { CTRY_SINGAPORE,		"SG" },
-    { CTRY_SLOVAKIA,		"SK" },
-    { CTRY_SLOVENIA,		"SI" },
-    { CTRY_SOUTH_AFRICA,	"ZA" },
-    { CTRY_SPAIN,		"ES" },
-    { CTRY_SWEDEN,		"SE" },
-    { CTRY_SWITZERLAND,		"CH" },
-    { CTRY_SYRIA,		"SY" },
-    { CTRY_TAIWAN,		"TW" },
-    { CTRY_THAILAND,		"TH" },
-    { CTRY_TRINIDAD_Y_TOBAGO,	"TT" },
-    { CTRY_TUNISIA,		"TN" },
-    { CTRY_TURKEY,		"TR" },
-    { CTRY_UKRAINE,		"UA" },
-    { CTRY_UAE,			"AE" },
-    { CTRY_UNITED_KINGDOM,	"GB" },
-    { CTRY_UNITED_STATES,	"US" },
-    { CTRY_URUGUAY,		"UY" },
-    { CTRY_UZBEKISTAN,		"UZ" },    
-    { CTRY_VENEZUELA,		"VE" },
-    { CTRY_VIET_NAM,		"VN" },
-    { CTRY_YEMEN,		"YE" },
-    { CTRY_ZIMBABWE,		"ZW" }    
-};
-
-const char *
-ieee80211_cctoiso(enum ISOCountryCode cc)
+static int
+allvapsdown(struct ieee80211com *ic)
 {
-#define	N(a)	(sizeof(a) / sizeof(a[0]))
-	int i;
+	struct ieee80211vap *vap;
 
-	for (i = 0; i < N(country_strings); i++) {
-		if (country_strings[i].iso_code == cc)
-			return country_strings[i].iso_name;
-	}
-	return NULL;
-#undef N
+	IEEE80211_LOCK_ASSERT(ic);
+	TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next)
+		if (vap->iv_state != IEEE80211_S_INIT)
+			return 0;
+	return 1;
 }
 
 int
-ieee80211_isotocc(const char iso[2])
+ieee80211_setregdomain(struct ieee80211vap *vap,
+    struct ieee80211_regdomain_req *reg)
 {
-#define	N(a)	(sizeof(a) / sizeof(a[0]))
-	int i;
+	struct ieee80211com *ic = vap->iv_ic;
+	struct ieee80211_channel *c;
+	int desfreq = 0, desflags = 0;		/* XXX silence gcc complaint */
+	int error, i;
 
-	for (i = 0; i < N(country_strings); i++) {
-		if (country_strings[i].iso_name[0] == iso[0] &&
-		    country_strings[i].iso_name[1] == iso[1])
-			return country_strings[i].iso_code;
+	if (reg->rd.location != 'I' && reg->rd.location != 'O' &&
+	    reg->rd.location != ' ')
+		return EINVAL;
+	if (reg->rd.isocc[0] == '\0' || reg->rd.isocc[1] == '\0')
+		return EINVAL;
+	if (reg->chaninfo.ic_nchans >= IEEE80211_CHAN_MAX)
+		return EINVAL;
+	/*
+	 * Calculate freq<->IEEE mapping and default max tx power
+	 * for channels not setup.  The driver can override these
+	 * setting to reflect device properties/requirements.
+	 */
+	for (i = 0; i < reg->chaninfo.ic_nchans; i++) {
+		c = &reg->chaninfo.ic_chans[i];
+		if (c->ic_freq == 0 || c->ic_flags == 0)
+			return EINVAL;
+		if (c->ic_maxregpower == 0)
+			return EINVAL;
+		if (c->ic_ieee == 0)
+			c->ic_ieee = ieee80211_mhz2ieee(c->ic_freq,c->ic_flags);
+		if (IEEE80211_IS_CHAN_HT40(c) && c->ic_extieee == 0)
+			c->ic_extieee = ieee80211_mhz2ieee(c->ic_freq +
+			    (IEEE80211_IS_CHAN_HT40U(c) ? 20 : -20),
+			    c->ic_flags);
+		if (c->ic_maxpower == 0)
+			c->ic_maxpower = 2*c->ic_maxregpower;
 	}
-	return -1;
-#undef N
+	IEEE80211_LOCK(ic);
+	error = ic->ic_setregdomain(ic, &reg->rd,
+	    reg->chaninfo.ic_nchans, reg->chaninfo.ic_chans);
+	if (error != 0) {
+		IEEE80211_UNLOCK(ic);
+		return error;
+	}
+	/* XXX bandaid; a running vap will likely crash */
+	if (!allvapsdown(ic)) {
+		IEEE80211_UNLOCK(ic);
+		return EBUSY;
+	}
+	/*
+	 * Commit: copy in new channel table and reset media state.
+	 * On return the state machines will be clocked so all vaps
+	 * will reset their state.
+	 *
+	 * XXX ic_bsschan is marked undefined, must have vap's in
+	 *     INIT state or we blow up forcing stations off
+	 */
+	/*
+	 * Save any desired channel for restore below.  Note this
+	 * needs to be done for all vaps but for now we only do
+	 * the one where the ioctl is issued.
+	 */
+	if (vap->iv_des_chan != IEEE80211_CHAN_ANYC) {
+		desfreq = vap->iv_des_chan->ic_freq;
+		desflags = vap->iv_des_chan->ic_flags;
+	}
+	/* regdomain parameters */
+	memcpy(&ic->ic_regdomain, &reg->rd, sizeof(reg->rd));
+	/* channel table */
+	memcpy(ic->ic_channels, reg->chaninfo.ic_chans,
+	    reg->chaninfo.ic_nchans * sizeof(struct ieee80211_channel));
+	ic->ic_nchans = reg->chaninfo.ic_nchans;
+	memset(&ic->ic_channels[ic->ic_nchans], 0,
+	    (IEEE80211_CHAN_MAX - ic->ic_nchans) *
+	       sizeof(struct ieee80211_channel));
+	ieee80211_media_init(ic);
+
+	/*
+	 * Invalidate channel-related state.
+	 */
+	if (ic->ic_countryie != NULL) {
+		free(ic->ic_countryie, M_80211_NODE_IE);
+		ic->ic_countryie = NULL;
+	}
+	ieee80211_scan_flush(vap);
+	ieee80211_dfs_reset(ic);
+	if (vap->iv_des_chan != IEEE80211_CHAN_ANYC) {
+		/* NB: may be NULL if not present in new channel list */
+		vap->iv_des_chan = ieee80211_find_channel(ic, desfreq, desflags);
+	}
+	IEEE80211_UNLOCK(ic);
+
+	return 0;
 }

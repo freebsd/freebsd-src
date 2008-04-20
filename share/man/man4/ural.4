@@ -15,7 +15,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 10, 2007
+.Dd April 13, 2008
 .Os
 .Dt URAL 4
 .Sh NAME
@@ -52,6 +52,18 @@ and a radio transceiver (the model of which depends on the card revision).
 The RT2522, RT2523, RT2524, RT2525, RT2525e and RT2526 radio transceivers
 operate in the 2.4GHz band (802.11b/g) whereas the RT5222 is a dual-band radio
 transceiver that can operate in the 2.4GHz and 5.2GHz bands (802.11a).
+.Pp
+.Nm
+supports
+.Cm station ,
+.Cm adhoc ,
+.Cm hostap ,
+and
+.Cm monitor
+mode operation.
+Only one virtual interface may be configured at any time.
+For more information on configuring this device, see
+.Xr ifconfig 8 .
 .Sh HARDWARE
 The
 .Nm
@@ -94,22 +106,25 @@ An up to date list can be found at
 .Sh EXAMPLES
 Join an existing BSS network (i.e., connect to an access point):
 .Pp
-.Dl "ifconfig ural0 inet 192.168.0.20 netmask 0xffffff00"
+.Bd -literal -offset indent
+ifconfig wlan create wlandev ural0 inet 192.168.0.20 \e
+    netmask 0xffffff00
+.Ed
 .Pp
 Join a specific BSS network with network name
 .Dq Li my_net :
 .Pp
-.Dl "ifconfig ural0 inet 192.168.0.20 netmask 0xffffff00 ssid my_net"
+.Dl "ifconfig wlan create wlandev ural0 ssid my_net up"
 .Pp
-Join a specific BSS network with 40-bit WEP encryption:
+Join a specific BSS network with 64-bit WEP encryption:
 .Bd -literal -offset indent
-ifconfig ural0 inet 192.168.0.20 netmask 0xffffff00 ssid my_net \e
-    wepmode on wepkey 0x1234567890 weptxkey 1
+ifconfig wlan create wlandev ural0 ssid my_net \e
+	wepmode on wepkey 0x1234567890 weptxkey 1 up
 .Ed
 .Pp
-Join a specific BSS network with 104-bit WEP encryption:
+Join a specific BSS network with 128-bit WEP encryption:
 .Bd -literal -offset indent
-ifconfig ural0 inet 192.168.0.20 netmask 0xffffff00 ssid my_net \e
+ifconfig wlan create wlandev ural0 wlanmode adhoc ssid my_net \e
     wepmode on wepkey 0x01020304050607080910111213 weptxkey 1
 .Ed
 .Sh DIAGNOSTICS
@@ -119,13 +134,18 @@ The driver will reset the hardware.
 This should not happen.
 .El
 .Sh SEE ALSO
-.Xr altq 4 ,
-.Xr arp 4 ,
+.Xr intro 4 ,
 .Xr netintro 4 ,
 .Xr usb 4 ,
 .Xr wlan 4 ,
 .Xr wlan_amrr 4 ,
-.Xr ifconfig 8
+.Xr wlan_ccmp 4 ,
+.Xr wlan_tkip 4 ,
+.Xr wlan_wep 4 ,
+.Xr wlan_xauth 4 ,
+.Xr ifconfig 8 ,
+.Xr hostapd 8 ,
+.Xr wpa_supplicant 8 .
 .Rs
 .%T "Ralink Technology"
 .%O http://www.ralinktech.com/
@@ -135,14 +155,8 @@ The
 .Nm
 driver first appeared in
 .Ox 3.7 .
-.Sh CAVEATS
-.Pp
-The
-.Nm
-driver does not support automatic adaptation of the transmit speed in IBSS
-and HostAP operating modes.
 .Sh AUTHORS
-The
+The original
 .Nm
 driver was written by
-.An Damien Bergamini Aq damien@FreeBSD.org .
+.An Damien Bergamini Aq damien.bergamini@free.fr

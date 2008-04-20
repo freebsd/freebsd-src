@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 10, 2007
+.Dd April 13, 2008
 .Dt WLAN_AMRR 4
 .Os
 .Sh NAME
@@ -37,15 +37,15 @@
 The
 .Nm
 module implements the Adaptive Multi-Rate Retry tx rate control
-algorithm for use with 802.11 devices.
-The
-.Nm
-module is an 802.11 tx rate control module for use by the
-device-independent implementation.
+algorithm for use by 802.11 device drivers.
 .Sh SEE ALSO
+.Xr bwi 4 ,
+.Xr iwn 4 ,
+.Xr ral 4 ,
 .Xr rum 4 ,
 .Xr ural 4 ,
 .Xr wlan 4 ,
+.Xr wpi 4 ,
 .Xr zyd 4
 .Sh STANDARDS
 More information can be found in the paper describing the 

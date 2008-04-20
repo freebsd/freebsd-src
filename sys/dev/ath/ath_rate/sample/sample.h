@@ -155,12 +155,13 @@ static unsigned calc_usecs_unicast_packet(struct ath_softc *sc,
 				int length, 
 				int rix, int short_retries, int long_retries) {
 	const HAL_RATE_TABLE *rt = sc->sc_currates;
+	struct ifnet *ifp = sc->sc_ifp;
+	struct ieee80211com *ic = ifp->if_l2com;
 	int rts, cts;
 	
 	unsigned t_slot = 20;
 	unsigned t_difs = 50; 
 	unsigned t_sifs = 10; 
-	struct ieee80211com *ic = &sc->sc_ic;
 	int tt = 0;
 	int x = 0;
 	int cw = WIFI_CW_MIN;

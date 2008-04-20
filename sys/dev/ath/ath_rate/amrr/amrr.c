@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
  *    Mathieu Lacage, Hossein Manshaei, Thierry Turletti
  */
 #include "opt_inet.h"
+#include "opt_wlan.h"
 
 #include <sys/param.h>
 #include <sys/systm.h> 
@@ -65,7 +66,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/if_media.h>
 #include <net/if_arp.h>
-#include <net/ethernet.h>		/* XXX for ether_sprintf */
 
 #include <net80211/ieee80211_var.h>
 
@@ -80,21 +80,10 @@ __FBSDID("$FreeBSD$");
 #include <dev/ath/ath_rate/amrr/amrr.h>
 #include <contrib/dev/ath/ah_desc.h>
 
-#define	AMRR_DEBUG
-#ifdef AMRR_DEBUG
-#define	DPRINTF(sc, _fmt, ...) do {					\
-	if (sc->sc_debug & 0x10)					\
-		printf(_fmt, __VA_ARGS__);				\
-} while (0)
-#else
-#define	DPRINTF(sc, _fmt, ...)
-#endif
-
 static	int ath_rateinterval = 1000;		/* rate ctl interval (ms)  */
 static	int ath_rate_max_success_threshold = 10;
 static	int ath_rate_min_success_threshold = 1;
 
-static void	ath_ratectl(void *);
 static void	ath_rate_update(struct ath_softc *, struct ieee80211_node *,
 			int rate);
 static void	ath_rate_ctl_start(struct ath_softc *, struct ieee80211_node *);
@@ -104,7 +93,6 @@ void
 ath_rate_node_init(struct ath_softc *sc, struct ath_node *an)
 {
 	/* NB: assumed to be zero'd by caller */
-	ath_rate_update(sc, &an->an_node, 0);
 }
 
 void
@@ -166,6 +154,11 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 		amn->amn_tx_try3_cnt++;
 		amn->amn_tx_failure_cnt++;
 	}
+	if (amn->amn_interval != 0 &&
+	    ticks - amn->amn_ticks > amn->amn_interval) {
+		ath_rate_ctl(sc, &an->an_node);
+		amn->amn_ticks = ticks;
+	}
 }
 
 void
@@ -176,7 +169,7 @@ ath_rate_newassoc(struct ath_softc *sc, struct ath_node *an, int isnew)
 }
 
 static void 
-node_reset (struct amrr_node *amn)
+node_reset(struct amrr_node *amn)
 {
 	amn->amn_tx_try0_cnt = 0;
 	amn->amn_tx_try1_cnt = 0;
@@ -200,17 +193,18 @@ ath_rate_update(struct ath_softc *sc, struct ieee80211_node *ni, int rate)
 {
 	struct ath_node *an = ATH_NODE(ni);
 	struct amrr_node *amn = ATH_NODE_AMRR(an);
+	struct ieee80211vap *vap = ni->ni_vap;
 	const HAL_RATE_TABLE *rt = sc->sc_currates;
 	u_int8_t rix;
 
 	KASSERT(rt != NULL, ("no rate table, mode %u", sc->sc_curmode));
 
-	DPRINTF(sc, "%s: set xmit rate for %s to %dM\n",
-	    __func__, ether_sprintf(ni->ni_macaddr),
+	IEEE80211_NOTE(vap, IEEE80211_MSG_RATECTL, ni,
+	    "%s: set xmit rate to %dM", __func__, 
 	    ni->ni_rates.rs_nrates > 0 ?
 		(ni->ni_rates.rs_rates[rate] & IEEE80211_RATE_VAL) / 2 : 0);
 
-	ni->ni_txrate = rate;
+	amn->amn_rix = rate;
 	/*
 	 * Before associating a node has no rate set setup
 	 * so we can't calculate any transmit codes to use.
@@ -219,8 +213,8 @@ ath_rate_update(struct ath_softc *sc, struct ieee80211_node *ni, int rate)
 	 * lowest hardware rate.
 	 */
 	if (ni->ni_rates.rs_nrates > 0) {
-		amn->amn_tx_rix0 = sc->sc_rixmap[
-					       ni->ni_rates.rs_rates[rate] & IEEE80211_RATE_VAL];
+		ni->ni_txrate = ni->ni_rates.rs_rates[rate] & IEEE80211_RATE_VAL;
+		amn->amn_tx_rix0 = sc->sc_rixmap[ni->ni_txrate];
 		amn->amn_tx_rate0 = rt->info[amn->amn_tx_rix0].rateCode;
 		amn->amn_tx_rate0sp = amn->amn_tx_rate0 |
 			rt->info[amn->amn_tx_rix0].shortPreamble;
@@ -268,7 +262,12 @@ ath_rate_update(struct ath_softc *sc, struct ieee80211_node *ni, int rate)
 			amn->amn_tx_rate3 = amn->amn_tx_rate3sp = 0;
 		}
 	}
-	node_reset (amn);
+	node_reset(amn);
+
+	amn->amn_interval = ath_rateinterval;
+	if (vap->iv_opmode == IEEE80211_M_STA)
+		amn->amn_interval /= 2;
+	amn->amn_interval = (amn->amn_interval * hz) / 1000;
 }
 
 /*
@@ -278,11 +277,12 @@ static void
 ath_rate_ctl_start(struct ath_softc *sc, struct ieee80211_node *ni)
 {
 #define	RATE(_ix)	(ni->ni_rates.rs_rates[(_ix)] & IEEE80211_RATE_VAL)
-	struct ieee80211com *ic = &sc->sc_ic;
+	struct ath_node *an = ATH_NODE(ni);
+	const struct ieee80211_txparam *tp = an->an_tp;
 	int srate;
 
 	KASSERT(ni->ni_rates.rs_nrates > 0, ("no rates"));
-	if (ic->ic_fixed_rate == IEEE80211_FIXED_RATE_NONE) {
+	if (tp == NULL || tp->ucastrate == IEEE80211_FIXED_RATE_NONE) {
 		/*
 		 * No fixed rate is requested. For 11b start with
 		 * the highest negotiated rate; otherwise, for 11g
@@ -308,7 +308,7 @@ ath_rate_ctl_start(struct ath_softc *sc, struct ieee80211_node *ni)
 		 */
 		/* NB: the rate set is assumed sorted */
 		srate = ni->ni_rates.rs_nrates - 1;
-		for (; srate >= 0 && RATE(srate) != ic->ic_fixed_rate; srate--)
+		for (; srate >= 0 && RATE(srate) != tp->ucastrate; srate--)
 			;
 	}
 	/*
@@ -333,22 +333,20 @@ ath_rate_cb(void *arg, struct ieee80211_node *ni)
  * Reset the rate control state for each 802.11 state transition.
  */
 void
-ath_rate_newstate(struct ath_softc *sc, enum ieee80211_state state)
+ath_rate_newstate(struct ieee80211vap *vap, enum ieee80211_state state)
 {
-	struct amrr_softc *asc = (struct amrr_softc *) sc->sc_rc;
-	struct ieee80211com *ic = &sc->sc_ic;
+	struct ieee80211com *ic = vap->iv_ic;
+	struct ath_softc *sc = ic->ic_ifp->if_softc;
 	struct ieee80211_node *ni;
 
-	if (state == IEEE80211_S_INIT) {
-		callout_stop(&asc->timer);
+	if (state == IEEE80211_S_INIT)
 		return;
-	}
-	if (ic->ic_opmode == IEEE80211_M_STA) {
+	if (vap->iv_opmode == IEEE80211_M_STA) {
 		/*
 		 * Reset local xmit state; this is really only
 		 * meaningful when operating in station mode.
 		 */
-		ni = ic->ic_bss;
+		ni = vap->iv_bss;
 		if (state == IEEE80211_S_RUN) {
 			ath_rate_ctl_start(sc, ni);
 		} else {
@@ -362,20 +360,7 @@ ath_rate_newstate(struct ath_softc *sc, enum ieee80211_state state)
 		 * tx rate state of each node.
 		 */
 		ieee80211_iterate_nodes(&ic->ic_sta, ath_rate_cb, sc);
-		ath_rate_update(sc, ic->ic_bss, 0);
-	}
-	if (ic->ic_fixed_rate == IEEE80211_FIXED_RATE_NONE &&
-	    state == IEEE80211_S_RUN) {
-		int interval;
-		/*
-		 * Start the background rate control thread if we
-		 * are not configured to use a fixed xmit rate.
-		 */
-		interval = ath_rateinterval;
-		if (ic->ic_opmode == IEEE80211_M_STA)
-			interval /= 2;
-		callout_reset(&asc->timer, (interval * hz) / 1000,
-			ath_ratectl, sc->sc_ifp);
+		ath_rate_update(sc, vap->iv_bss, 0);
 	}
 }
 
@@ -387,7 +372,7 @@ ath_rate_ctl(void *arg, struct ieee80211_node *ni)
 {
 	struct ath_softc *sc = arg;
 	struct amrr_node *amn = ATH_NODE_AMRR(ATH_NODE (ni));
-	int old_rate;
+	int rix;
 
 #define is_success(amn) \
 (amn->amn_tx_try1_cnt  < (amn->amn_tx_try0_cnt/10))
@@ -395,52 +380,53 @@ ath_rate_ctl(void *arg, struct ieee80211_node *ni)
 (amn->amn_tx_try0_cnt > 10)
 #define is_failure(amn) \
 (amn->amn_tx_try1_cnt > (amn->amn_tx_try0_cnt/3))
-#define is_max_rate(ni) \
-((ni->ni_txrate + 1) >= ni->ni_rates.rs_nrates)
-#define is_min_rate(ni) \
-(ni->ni_txrate == 0)
 
-	old_rate = ni->ni_txrate;
+	rix = amn->amn_rix;
   
-  	DPRINTF (sc, "cnt0: %d cnt1: %d cnt2: %d cnt3: %d -- threshold: %d\n",
-		 amn->amn_tx_try0_cnt,
-		 amn->amn_tx_try1_cnt,
-		 amn->amn_tx_try2_cnt,
-		 amn->amn_tx_try3_cnt,
-		 amn->amn_success_threshold);
+  	IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_RATECTL, ni,
+	    "cnt0: %d cnt1: %d cnt2: %d cnt3: %d -- threshold: %d",
+	    amn->amn_tx_try0_cnt, amn->amn_tx_try1_cnt, amn->amn_tx_try2_cnt,
+	    amn->amn_tx_try3_cnt, amn->amn_success_threshold);
   	if (is_success (amn) && is_enough (amn)) {
 		amn->amn_success++;
 		if (amn->amn_success == amn->amn_success_threshold &&
-  		    !is_max_rate (ni)) {
+		    rix + 1 < ni->ni_rates.rs_nrates) {
   			amn->amn_recovery = 1;
   			amn->amn_success = 0;
-  			ni->ni_txrate++;
-			DPRINTF (sc, "increase rate to %d\n", ni->ni_txrate);
+  			rix++;
+			IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_RATECTL, ni,
+			    "increase rate to %d", rix);
   		} else {
 			amn->amn_recovery = 0;
 		}
   	} else if (is_failure (amn)) {
   		amn->amn_success = 0;
-  		if (!is_min_rate (ni)) {
+		if (rix > 0) {
   			if (amn->amn_recovery) {
   				/* recovery failure. */
   				amn->amn_success_threshold *= 2;
   				amn->amn_success_threshold = min (amn->amn_success_threshold,
 								  (u_int)ath_rate_max_success_threshold);
- 				DPRINTF (sc, "decrease rate recovery thr: %d\n", amn->amn_success_threshold);
+				IEEE80211_NOTE(ni->ni_vap,
+				    IEEE80211_MSG_RATECTL, ni,
+				    "decrease rate recovery thr: %d",
+				    amn->amn_success_threshold);
   			} else {
   				/* simple failure. */
  				amn->amn_success_threshold = ath_rate_min_success_threshold;
- 				DPRINTF (sc, "decrease rate normal thr: %d\n", amn->amn_success_threshold);
+				IEEE80211_NOTE(ni->ni_vap,
+				    IEEE80211_MSG_RATECTL, ni,
+				    "decrease rate normal thr: %d",
+				    amn->amn_success_threshold);
   			}
 			amn->amn_recovery = 0;
-  			ni->ni_txrate--;
+  			rix--;
    		} else {
 			amn->amn_recovery = 0;
 		}
 
    	}
-	if (is_enough (amn) || old_rate != ni->ni_txrate) {
+	if (is_enough (amn) || rix != amn->amn_rix) {
 		/* reset counters. */
 		amn->amn_tx_try0_cnt = 0;
 		amn->amn_tx_try1_cnt = 0;
@@ -448,33 +434,9 @@ ath_rate_ctl(void *arg, struct ieee80211_node *ni)
 		amn->amn_tx_try3_cnt = 0;
 		amn->amn_tx_failure_cnt = 0;
 	}
-	if (old_rate != ni->ni_txrate) {
-		ath_rate_update(sc, ni, ni->ni_txrate);
+	if (rix != amn->amn_rix) {
+		ath_rate_update(sc, ni, rix);
 	}
-}
-
-static void
-ath_ratectl(void *arg)
-{
-	struct ifnet *ifp = arg;
-	struct ath_softc *sc = ifp->if_softc;
-	struct amrr_softc *asc = (struct amrr_softc *) sc->sc_rc;
-	struct ieee80211com *ic = &sc->sc_ic;
-	int interval;
-
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-		sc->sc_stats.ast_rate_calls++;
-
-		if (ic->ic_opmode == IEEE80211_M_STA)
-			ath_rate_ctl(sc, ic->ic_bss);	/* NB: no reference */
-		else
-			ieee80211_iterate_nodes(&ic->ic_sta, ath_rate_ctl, sc);
-	}
-	interval = ath_rateinterval;
-	if (ic->ic_opmode == IEEE80211_M_STA)
-		interval /= 2;
-	callout_reset(&asc->timer, (interval * hz) / 1000,
-		ath_ratectl, sc->sc_ifp);
 }
 
 static void
@@ -504,7 +466,6 @@ ath_rate_attach(struct ath_softc *sc)
 	if (asc == NULL)
 		return NULL;
 	asc->arc.arc_space = sizeof(struct amrr_node);
-	callout_init(&asc->timer, CALLOUT_MPSAFE);
 	ath_rate_sysctlattach(sc);
 
 	return &asc->arc;
@@ -515,7 +476,6 @@ ath_rate_detach(struct ath_ratectrl *arc)
 {
 	struct amrr_softc *asc = (struct amrr_softc *) arc;
 
-	callout_drain(&asc->timer);
 	free(asc, M_DEVBUF);
 }
 

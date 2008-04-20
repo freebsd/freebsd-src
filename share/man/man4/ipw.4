@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 6, 2007
+.Dd April 13, 2008
 .Os
 .Dt IPW 4
 .Sh NAME
@@ -37,27 +37,24 @@ place the following lines in your
 kernel configuration file:
 .Bd -ragged -offset indent
 .Cd "device ipw"
+.Cd "device ipwfw"
 .Cd "device pci"
 .Cd "device wlan"
 .Cd "device firmware"
 .Ed
 .Pp
 Alternatively, to load the driver as a
-module at boot time, place the following lines in
+module at boot time, place the following line in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
 if_ipw_load="YES"
-wlan_load="YES"
-firmware_load="YES"
 .Ed
 .Pp
-In both cases, place the following lines in
+In both cases, place the following line in
 .Xr loader.conf 5
-to load the firmware modules:
+to acknowledge the firmware license (see below):
 .Bd -literal -offset indent
-ipw_bss_load="YES"
-ipw_ibss_load="YES"
-ipw_monitor_load="YES"
+legal.intel_ipw.license_ack=1
 .Ed
 .Sh DESCRIPTION
 The
@@ -65,19 +62,23 @@ The
 driver provides support for the
 .Tn Intel
 PRO/Wireless 2100 MiniPCI network adapter.
-.Pp
-By default, the
 .Nm
-driver configures the adapter for BSS operation (aka infrastructure mode).
-This mode requires the use of an access point.
-.Pp
+supports
+.Cm station ,
+.Cm adhoc ,
+and
+.Cm monitor
+mode operation.
+Only one virtual interface may be configured at any time.
 For more information on configuring this device, see
 .Xr ifconfig 8 .
 .Pp
-This driver requires firmware to be loaded before it will work.
-For the loaded firmware to work the license at
+This driver requires the firmware built with the
+.Nm ipwfw
+module to work.
+For the loaded firmware to be enabled for use the license at
 .Pa /usr/share/doc/legal/intel_ipw/LICENSE
-must be agreed to and the following line be added to
+must be agreed by adding the following line to
 .Xr loader.conf 5 :
 .Pp
 .Dl "legal.intel_ipw.license_ack=1"
@@ -90,22 +91,25 @@ firmware license
 .Sh EXAMPLES
 Join an existing BSS network (i.e., connect to an access point):
 .Pp
-.Dl "ifconfig ipw0 inet 192.168.0.20 netmask 0xffffff00"
+.Bd -literal -offset indent
+ifconfig wlan create wlandev ipw0 inet 192.168.0.20 \e
+    netmask 0xffffff00
+.Ed
 .Pp
 Join a specific BSS network with network name
 .Dq Li my_net :
 .Pp
-.Dl "ifconfig ipw0 inet 192.168.0.20 netmask 0xffffff00 ssid my_net"
+.Dl "ifconfig wlan create wlandev ipw0 ssid my_net up"
 .Pp
-Join a specific BSS network with 40-bit WEP encryption:
+Join a specific BSS network with 64-bit WEP encryption:
 .Bd -literal -offset indent
-ifconfig ipw0 inet 192.168.0.20 netmask 0xffffff00 ssid my_net \e
-    wepmode on wepkey 0x1234567890 weptxkey 1
+ifconfig wlan create wlandev ipw0 ssid my_net \e
+	wepmode on wepkey 0x1234567890 weptxkey 1 up
 .Ed
 .Pp
-Join a specific BSS network with 104-bit WEP encryption:
+Join a specific BSS network with 128-bit WEP encryption:
 .Bd -literal -offset indent
-ifconfig ipw0 inet 192.168.0.20 netmask 0xffffff00 ssid my_net \e
+ifconfig wlan create wlandev ipw0 wlanmode adhoc ssid my_net \e
     wepmode on wepkey 0x01020304050607080910111213 weptxkey 1
 .Ed
 .Sh DIAGNOSTICS
@@ -124,8 +128,9 @@ This should not happen.
 The driver failed to load the firmware image using the
 .Xr firmware 9
 subsystem.
-Verify that the necessary firmware modules are loaded and the
-license agreement
+Verify the 
+.Xr ipwfw 4
+firmware module is installed and the license agreement
 .Xr loader 8
 tunable has been set.
 .It "ipw%d: could not load microcode"
@@ -136,14 +141,16 @@ An attempt to upload the firmware image to the onboard microcontroller failed.
 This should not happen.
 .El
 .Sh SEE ALSO
-.Xr altq 4 ,
-.Xr iwi 4 ,
+.Xr ipwfw 4 ,
 .Xr pci 4 ,
 .Xr wlan 4 ,
-.Xr wpi 4 ,
-.Xr ifconfig 8
+.Xr wlan_ccmp 4 ,
+.Xr wlan_tkip 4 ,
+.Xr wlan_wep 4 ,
+.Xr ifconfig 8 ,
+.Xr wpa_supplicant 8 .
 .Sh AUTHORS
-The
+The original
 .Nm
 driver was written by
-.An Damien Bergamini Aq damien@FreeBSD.org .
+.An Damien Bergamini Aq damien.bergamini@free.fr

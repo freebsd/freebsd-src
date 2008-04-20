@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002-2007 Sam Leffler, Errno Consulting
+ * Copyright (c) 2002-2008 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,8 @@ __FBSDID("$FreeBSD$");
  * AP driver. The code is used with the consent of the author and
  * it's license is included below.
  */
+#include "opt_wlan.h"
+
 #include <sys/param.h>
 #include <sys/systm.h> 
 #include <sys/mbuf.h>   
@@ -49,7 +51,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net80211/ieee80211_var.h>
 
-static	void *tkip_attach(struct ieee80211com *, struct ieee80211_key *);
+static	void *tkip_attach(struct ieee80211vap *, struct ieee80211_key *);
 static	void tkip_detach(struct ieee80211_key *);
 static	int tkip_setkey(struct ieee80211_key *);
 static	int tkip_encap(struct ieee80211_key *, struct mbuf *m, uint8_t keyid);
@@ -77,10 +79,9 @@ typedef	uint8_t u8;
 typedef	uint16_t u16;
 typedef	uint32_t __u32;
 typedef	uint32_t u32;
-#define	memmove(dst, src, n)	ovbcopy(src, dst, n)
 
 struct tkip_ctx {
-	struct ieee80211com *tc_ic;	/* for diagnostics */
+	struct ieee80211vap *tc_vap;	/* for diagnostics+statistics */
 
 	u16	tx_ttak[5];
 	int	tx_phase1_done;
@@ -104,18 +105,18 @@ static	int tkip_decrypt(struct tkip_ctx *, struct ieee80211_key *,
 static	int nrefs = 0;
 
 static void *
-tkip_attach(struct ieee80211com *ic, struct ieee80211_key *k)
+tkip_attach(struct ieee80211vap *vap, struct ieee80211_key *k)
 {
 	struct tkip_ctx *ctx;
 
 	MALLOC(ctx, struct tkip_ctx *, sizeof(struct tkip_ctx),
-		M_DEVBUF, M_NOWAIT | M_ZERO);
+		M_80211_CRYPTO, M_NOWAIT | M_ZERO);
 	if (ctx == NULL) {
-		ic->ic_stats.is_crypto_nomem++;
+		vap->iv_stats.is_crypto_nomem++;
 		return NULL;
 	}
 
-	ctx->tc_ic = ic;
+	ctx->tc_vap = vap;
 	nrefs++;			/* NB: we assume caller locking */
 	return ctx;
 }
@@ -125,7 +126,7 @@ tkip_detach(struct ieee80211_key *k)
 {
 	struct tkip_ctx *ctx = k->wk_private;
 
-	FREE(ctx, M_DEVBUF);
+	FREE(ctx, M_80211_CRYPTO);
 	KASSERT(nrefs > 0, ("imbalanced attach/detach"));
 	nrefs--;			/* NB: we assume caller locking */
 }
@@ -137,7 +138,7 @@ tkip_setkey(struct ieee80211_key *k)
 
 	if (k->wk_keylen != (128/NBBY)) {
 		(void) ctx;		/* XXX */
-		IEEE80211_DPRINTF(ctx->tc_ic, IEEE80211_MSG_CRYPTO,
+		IEEE80211_DPRINTF(ctx->tc_vap, IEEE80211_MSG_CRYPTO,
 			"%s: Invalid key length %u, expecting %u\n",
 			__func__, k->wk_keylen, 128/NBBY);
 		return 0;
@@ -153,22 +154,22 @@ static int
 tkip_encap(struct ieee80211_key *k, struct mbuf *m, uint8_t keyid)
 {
 	struct tkip_ctx *ctx = k->wk_private;
-	struct ieee80211com *ic = ctx->tc_ic;
+	struct ieee80211vap *vap = ctx->tc_vap;
+	struct ieee80211com *ic = vap->iv_ic;
 	uint8_t *ivp;
 	int hdrlen;
 
 	/*
 	 * Handle TKIP counter measures requirement.
 	 */
-	if (ic->ic_flags & IEEE80211_F_COUNTERM) {
+	if (vap->iv_flags & IEEE80211_F_COUNTERM) {
 #ifdef IEEE80211_DEBUG
 		struct ieee80211_frame *wh = mtod(m, struct ieee80211_frame *);
 #endif
 
-		IEEE80211_DPRINTF(ic, IEEE80211_MSG_CRYPTO,
-			"[%s] Discard frame due to countermeasures (%s)\n",
-			ether_sprintf(wh->i_addr2), __func__);
-		ic->ic_stats.is_crypto_tkipcm++;
+		IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_CRYPTO, wh->i_addr2,
+		    "discard frame due to countermeasures (%s)", __func__);
+		vap->iv_stats.is_crypto_tkipcm++;
 		return 0;
 	}
 	hdrlen = ieee80211_hdrspace(ic, mtod(m, void *));
@@ -215,11 +216,12 @@ tkip_enmic(struct ieee80211_key *k, struct mbuf *m, int force)
 
 	if (force || (k->wk_flags & IEEE80211_KEY_SWMIC)) {
 		struct ieee80211_frame *wh = mtod(m, struct ieee80211_frame *);
-		struct ieee80211com *ic = ctx->tc_ic;
+		struct ieee80211vap *vap = ctx->tc_vap;
+		struct ieee80211com *ic = vap->iv_ic;
 		int hdrlen;
 		uint8_t mic[IEEE80211_WEP_MICLEN];
 
-		ic->ic_stats.is_crypto_tkipenmic++;
+		vap->iv_stats.is_crypto_tkipenmic++;
 
 		hdrlen = ieee80211_hdrspace(ic, wh);
 
@@ -247,9 +249,9 @@ static int
 tkip_decap(struct ieee80211_key *k, struct mbuf *m, int hdrlen)
 {
 	struct tkip_ctx *ctx = k->wk_private;
-	struct ieee80211com *ic = ctx->tc_ic;
+	struct ieee80211vap *vap = ctx->tc_vap;
 	struct ieee80211_frame *wh;
-	uint8_t *ivp;
+	uint8_t *ivp, tid;
 
 	/*
 	 * Header should have extended IV and sequence number;
@@ -261,30 +263,29 @@ tkip_decap(struct ieee80211_key *k, struct mbuf *m, int hdrlen)
 		/*
 		 * No extended IV; discard frame.
 		 */
-		IEEE80211_DPRINTF(ctx->tc_ic, IEEE80211_MSG_CRYPTO,
-			"[%s] missing ExtIV for TKIP cipher\n",
-			ether_sprintf(wh->i_addr2));
-		ctx->tc_ic->ic_stats.is_rx_tkipformat++;
+		IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_CRYPTO, wh->i_addr2,
+		    "%s", "missing ExtIV for TKIP cipher");
+		vap->iv_stats.is_rx_tkipformat++;
 		return 0;
 	}
 	/*
 	 * Handle TKIP counter measures requirement.
 	 */
-	if (ic->ic_flags & IEEE80211_F_COUNTERM) {
-		IEEE80211_DPRINTF(ic, IEEE80211_MSG_CRYPTO,
-			"[%s] discard frame due to countermeasures (%s)\n",
-			ether_sprintf(wh->i_addr2), __func__);
-		ic->ic_stats.is_crypto_tkipcm++;
+	if (vap->iv_flags & IEEE80211_F_COUNTERM) {
+		IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_CRYPTO, wh->i_addr2,
+		    "discard frame due to countermeasures (%s)", __func__);
+		vap->iv_stats.is_crypto_tkipcm++;
 		return 0;
 	}
 
+	tid = ieee80211_gettid(wh);
 	ctx->rx_rsc = READ_6(ivp[2], ivp[0], ivp[4], ivp[5], ivp[6], ivp[7]);
-	if (ctx->rx_rsc <= k->wk_keyrsc) {
+	if (ctx->rx_rsc <= k->wk_keyrsc[tid]) {
 		/*
 		 * Replay violation; notify upper layer.
 		 */
-		ieee80211_notify_replay_failure(ctx->tc_ic, wh, k, ctx->rx_rsc);
-		ctx->tc_ic->ic_stats.is_rx_tkipreplay++;
+		ieee80211_notify_replay_failure(vap, wh, k, ctx->rx_rsc);
+		vap->iv_stats.is_rx_tkipreplay++;
 		return 0;
 	}
 	/*
@@ -322,15 +323,17 @@ static int
 tkip_demic(struct ieee80211_key *k, struct mbuf *m, int force)
 {
 	struct tkip_ctx *ctx = k->wk_private;
+	struct ieee80211_frame *wh;
+	uint8_t tid;
 
+	wh = mtod(m, struct ieee80211_frame *);
 	if (force || (k->wk_flags & IEEE80211_KEY_SWMIC)) {
-		struct ieee80211_frame *wh = mtod(m, struct ieee80211_frame *);
-		struct ieee80211com *ic = ctx->tc_ic;
-		int hdrlen = ieee80211_hdrspace(ic, wh);
+		struct ieee80211vap *vap = ctx->tc_vap;
+		int hdrlen = ieee80211_hdrspace(vap->iv_ic, wh);
 		u8 mic[IEEE80211_WEP_MICLEN];
 		u8 mic0[IEEE80211_WEP_MICLEN];
 
-		ic->ic_stats.is_crypto_tkipdemic++;
+		vap->iv_stats.is_crypto_tkipdemic++;
 
 		michael_mic(ctx, k->wk_rxmic, 
 			m, hdrlen, m->m_pkthdr.len - (hdrlen + tkip.ic_miclen),
@@ -339,7 +342,7 @@ tkip_demic(struct ieee80211_key *k, struct mbuf *m, int force)
 			tkip.ic_miclen, mic0);
 		if (memcmp(mic, mic0, tkip.ic_miclen)) {
 			/* NB: 802.11 layer handles statistic and debug msg */
-			ieee80211_notify_michael_failure(ic, wh,
+			ieee80211_notify_michael_failure(vap, wh,
 				k->wk_rxkeyix != IEEE80211_KEYIX_NONE ?
 					k->wk_rxkeyix : k->wk_keyix);
 			return 0;
@@ -353,7 +356,8 @@ tkip_demic(struct ieee80211_key *k, struct mbuf *m, int force)
 	/*
 	 * Ok to update rsc now that MIC has been verified.
 	 */
-	k->wk_keyrsc = ctx->rx_rsc;
+	tid = ieee80211_gettid(wh);
+	k->wk_keyrsc[tid] = ctx->rx_rsc;
 
 	return 1;
 }
@@ -904,7 +908,7 @@ tkip_encrypt(struct tkip_ctx *ctx, struct ieee80211_key *key,
 	struct ieee80211_frame *wh;
 	uint8_t icv[IEEE80211_WEP_CRCLEN];
 
-	ctx->tc_ic->ic_stats.is_crypto_tkip++;
+	ctx->tc_vap->iv_stats.is_crypto_tkip++;
 
 	wh = mtod(m, struct ieee80211_frame *);
 	if (!ctx->tx_phase1_done) {
@@ -932,17 +936,20 @@ tkip_decrypt(struct tkip_ctx *ctx, struct ieee80211_key *key,
 	struct mbuf *m, int hdrlen)
 {
 	struct ieee80211_frame *wh;
+	struct ieee80211vap *vap = ctx->tc_vap;
 	u32 iv32;
 	u16 iv16;
+	u8 tid;
 
-	ctx->tc_ic->ic_stats.is_crypto_tkip++;
+	vap->iv_stats.is_crypto_tkip++;
 
 	wh = mtod(m, struct ieee80211_frame *);
 	/* NB: tkip_decap already verified header and left seq in rx_rsc */
 	iv16 = (u16) ctx->rx_rsc;
 	iv32 = (u32) (ctx->rx_rsc >> 16);
 
-	if (iv32 != (u32)(key->wk_keyrsc >> 16) || !ctx->rx_phase1_done) {
+	tid = ieee80211_gettid(wh);
+	if (iv32 != (u32)(key->wk_keyrsc[tid] >> 16) || !ctx->rx_phase1_done) {
 		tkip_mixing_phase1(ctx->rx_ttak, key->wk_key,
 			wh->i_addr2, iv32);
 		ctx->rx_phase1_done = 1;
@@ -953,15 +960,14 @@ tkip_decrypt(struct tkip_ctx *ctx, struct ieee80211_key *key,
 	if (wep_decrypt(ctx->rx_rc4key,
 		m, hdrlen + tkip.ic_header,
 	        m->m_pkthdr.len - (hdrlen + tkip.ic_header + tkip.ic_trailer))) {
-		if (iv32 != (u32)(key->wk_keyrsc >> 16)) {
+		if (iv32 != (u32)(key->wk_keyrsc[tid] >> 16)) {
 			/* Previously cached Phase1 result was already lost, so
 			 * it needs to be recalculated for the next packet. */
 			ctx->rx_phase1_done = 0;
 		}
-		IEEE80211_DPRINTF(ctx->tc_ic, IEEE80211_MSG_CRYPTO,
-		    "[%s] TKIP ICV mismatch on decrypt\n",
-		    ether_sprintf(wh->i_addr2));
-		ctx->tc_ic->ic_stats.is_rx_tkipicv++;
+		IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_CRYPTO, wh->i_addr2,
+		    "%s", "TKIP ICV mismatch on decrypt");
+		vap->iv_stats.is_rx_tkipicv++;
 		return 0;
 	}
 	return 1;
