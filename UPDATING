@@ -22,6 +22,16 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20080420:
+	The 802.11 wireless support was redone to enable multi-bss
+	operation on devices that are capable.  The underlying device
+	is no longer used directly but instead wlanX devices are
+	cloned with ifconfig.  This requires changes to rc.conf files.
+
+	As part of the multi-bss changes the wlan_scan_ap and wlan_scan_sta
+	modules were merged into the base wlan module.  All references
+	to these modules (e.g. in kernel config files) must be removed.
+
 20080408:
 	psm(4) has gained write(2) support in native operation level.
 	Arbitrary commands can be written to /dev/psm%d and status can
