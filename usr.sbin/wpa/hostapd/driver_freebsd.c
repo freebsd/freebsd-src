@@ -25,13 +25,12 @@
 #include <net/if.h>
 #include <netinet/in.h>
 
-#include <net80211/ieee80211.h>
-#include <net80211/ieee80211_crypto.h>
 #include <net80211/ieee80211_ioctl.h>
 
 #include "hostapd.h"
 #include "driver.h"
 #include "ieee802_1x.h"
+#include "ieee802_11_auth.h"
 #include "eloop.h"
 #include "sta_info.h"
 #include "l2_packet.h"
@@ -48,6 +47,7 @@ struct bsd_driver_data {
 	struct hostapd_data *hapd;		/* back pointer */
 
 	char	iface[IFNAMSIZ + 1];
+	unsigned int ifindex;			/* interface index */
 	struct l2_packet_data *sock_xmit;	/* raw packet xmit socket */
 	int	ioctl_sock;			/* socket for ioctl() use */
 	int	wext_sock;			/* socket for wireless events */
@@ -122,107 +122,14 @@ ether_sprintf(const u8 *addr)
 	return buf;
 }
 
-/*
- * Configure WPA parameters.
- */
 static int
-bsd_configure_wpa(struct bsd_driver_data *drv)
-{
-	static const char *ciphernames[] =
-	    { "WEP", "TKIP", "AES-OCB", "AES-CCM", "*BAD*", "CKIP", "NONE" };
-	struct hostapd_data *hapd = drv->hapd;
-	struct hostapd_bss_config *conf = hapd->conf;
-	int v;
-
-	switch (conf->wpa_group) {
-	case WPA_CIPHER_CCMP:
-		v = IEEE80211_CIPHER_AES_CCM;
-		break;
-	case WPA_CIPHER_TKIP:
-		v = IEEE80211_CIPHER_TKIP;
-		break;
-	case WPA_CIPHER_WEP104:
-		v = IEEE80211_CIPHER_WEP;
-		break;
-	case WPA_CIPHER_WEP40:
-		v = IEEE80211_CIPHER_WEP;
-		break;
-	case WPA_CIPHER_NONE:
-		v = IEEE80211_CIPHER_NONE;
-		break;
-	default:
-		printf("Unknown group key cipher %u\n",
-			conf->wpa_group);
-		return -1;
-	}
-	HOSTAPD_DEBUG(HOSTAPD_DEBUG_MINIMAL,
-		"%s: group key cipher=%s (%u)\n", __func__, ciphernames[v], v);
-	if (set80211param(drv, IEEE80211_IOC_MCASTCIPHER, v)) {
-		printf("Unable to set group key cipher to %u (%s)\n",
-			v, ciphernames[v]);
-		return -1;
-	}
-	if (v == IEEE80211_CIPHER_WEP) {
-		/* key length is done only for specific ciphers */
-		v = (conf->wpa_group == WPA_CIPHER_WEP104 ? 13 : 5);
-		if (set80211param(drv, IEEE80211_IOC_MCASTKEYLEN, v)) {
-			printf("Unable to set group key length to %u\n", v);
-			return -1;
-		}
-	}
-
-	v = 0;
-	if (conf->wpa_pairwise & WPA_CIPHER_CCMP)
-		v |= 1<<IEEE80211_CIPHER_AES_CCM;
-	if (conf->wpa_pairwise & WPA_CIPHER_TKIP)
-		v |= 1<<IEEE80211_CIPHER_TKIP;
-	if (conf->wpa_pairwise & WPA_CIPHER_NONE)
-		v |= 1<<IEEE80211_CIPHER_NONE;
-	HOSTAPD_DEBUG(HOSTAPD_DEBUG_MINIMAL,
-		"%s: pairwise key ciphers=0x%x\n", __func__, v);
-	if (set80211param(drv, IEEE80211_IOC_UCASTCIPHERS, v)) {
-		printf("Unable to set pairwise key ciphers to 0x%x\n", v);
-		return -1;
-	}
-
-	HOSTAPD_DEBUG(HOSTAPD_DEBUG_MINIMAL,
-		"%s: key management algorithms=0x%x\n",
-		__func__, conf->wpa_key_mgmt);
-	if (set80211param(drv, IEEE80211_IOC_KEYMGTALGS, conf->wpa_key_mgmt)) {
-		printf("Unable to set key management algorithms to 0x%x\n",
-			conf->wpa_key_mgmt);
-		return -1;
-	}
-
-	v = 0;
-	if (conf->rsn_preauth)
-		v |= BIT(0);
-	HOSTAPD_DEBUG(HOSTAPD_DEBUG_MINIMAL,
-		"%s: rsn capabilities=0x%x\n", __func__, conf->rsn_preauth);
-	if (set80211param(drv, IEEE80211_IOC_RSNCAPS, v)) {
-		printf("Unable to set RSN capabilities to 0x%x\n", v);
-		return -1;
-	}
-
-	HOSTAPD_DEBUG(HOSTAPD_DEBUG_MINIMAL,
-		"%s: enable WPA= 0x%x\n", __func__, conf->wpa);
-	if (set80211param(drv, IEEE80211_IOC_WPA, conf->wpa)) {
-		printf("Unable to set WPA to %u\n", conf->wpa);
-		return -1;
-	}
-	return 0;
-}
-
-
-static int
-bsd_set_iface_flags(void *priv, int dev_up)
+bsd_set_iface_flags(void *priv, int flags)
 {
 	struct bsd_driver_data *drv = priv;
 	struct hostapd_data *hapd = drv->hapd;
 	struct ifreq ifr;
 
-	HOSTAPD_DEBUG(HOSTAPD_DEBUG_VERBOSE,
-		"%s: dev_up=%d\n", __func__, dev_up);
+	HOSTAPD_DEBUG(HOSTAPD_DEBUG_VERBOSE, "%s: flags=0x%x\n", __func__, flags);
 
 	if (drv->ioctl_sock < 0)
 		return -1;
@@ -235,17 +142,23 @@ bsd_set_iface_flags(void *priv, int dev_up)
 		return -1;
 	}
 
-	if (dev_up)
-		ifr.ifr_flags |= IFF_UP;
-	else
-		ifr.ifr_flags &= ~IFF_UP;
+	if (flags < 0) {
+		flags = -flags;
+		if ((ifr.ifr_flags & flags) == 0)
+			return 0;
+		ifr.ifr_flags &= ~flags;
+	} else {
+		if ((ifr.ifr_flags & flags) == flags)
+			return 0;
+		ifr.ifr_flags |= flags;
+	}
 
 	if (ioctl(drv->ioctl_sock, SIOCSIFFLAGS, &ifr) != 0) {
 		perror("ioctl[SIOCSIFFLAGS]");
 		return -1;
 	}
 
-	if (dev_up) {
+	if (flags > 0) {
 		memset(&ifr, 0, sizeof(ifr));
 		snprintf(ifr.ifr_name, IFNAMSIZ, "%s", drv->iface);
 		ifr.ifr_mtu = HOSTAPD_MTU;
@@ -257,6 +170,12 @@ bsd_set_iface_flags(void *priv, int dev_up)
 	}
 
 	return 0;
+}
+
+static int
+bsd_commit(void *priv)
+{
+	return bsd_set_iface_flags(priv, IFF_UP);
 }
 
 static int
@@ -279,7 +198,7 @@ bsd_set_ieee8021x(const char *ifname, void *priv, int enabled)
 			HOSTAPD_LEVEL_WARNING, "No 802.1X or WPA enabled!");
 		return -1;
 	}
-	if (conf->wpa && bsd_configure_wpa(drv) != 0) {
+	if (conf->wpa && set80211param(drv, IEEE80211_IOC_WPA, conf->wpa)) {
 		hostapd_logger(hapd, NULL, HOSTAPD_MODULE_DRIVER,
 			HOSTAPD_LEVEL_WARNING, "Error configuring WPA state!");
 		return -1;
@@ -290,7 +209,7 @@ bsd_set_ieee8021x(const char *ifname, void *priv, int enabled)
 			HOSTAPD_LEVEL_WARNING, "Error enabling WPA/802.1X!");
 		return -1;
 	}
-	return bsd_set_iface_flags(priv, 1);
+	return 0;
 }
 
 static int
@@ -394,14 +313,16 @@ bsd_set_key(const char *ifname, void *priv, const char *alg,
 
 	memset(&wk, 0, sizeof(wk));
 	wk.ik_type = cipher;
-	wk.ik_flags = IEEE80211_KEY_RECV | IEEE80211_KEY_XMIT;
 	if (addr == NULL) {
 		memset(wk.ik_macaddr, 0xff, IEEE80211_ADDR_LEN);
 		wk.ik_keyix = key_idx;
-		wk.ik_flags |= IEEE80211_KEY_DEFAULT | IEEE80211_KEY_GROUP;
+		wk.ik_flags = IEEE80211_KEY_XMIT
+			    | IEEE80211_KEY_GROUP
+			    | IEEE80211_KEY_DEFAULT;
 	} else {
 		memcpy(wk.ik_macaddr, addr, IEEE80211_ADDR_LEN);
 		wk.ik_keyix = IEEE80211_KEYIX_NONE;
+		wk.ik_flags = IEEE80211_KEY_RECV | IEEE80211_KEY_XMIT;
 	}
 	wk.ik_keylen = key_len;
 	memcpy(wk.ik_keydata, key, key_len);
@@ -487,10 +408,23 @@ bsd_sta_clear_stats(void *priv, const u8 *addr)
 static int
 bsd_set_opt_ie(const char *ifname, void *priv, const u8 *ie, size_t ie_len)
 {
-	/*
-	 * Do nothing; we setup parameters at startup that define the
-	 * contents of the beacon information element.
-	 */
+	struct bsd_driver_data *drv = priv;
+	struct hostapd_data *hapd = drv->hapd;
+	struct ieee80211req ireq;
+
+	memset(&ireq, 0, sizeof(ireq));
+	strncpy(ireq.i_name, drv->iface, IFNAMSIZ);
+	ireq.i_type = IEEE80211_IOC_APPIE;
+	ireq.i_val = IEEE80211_APPIE_WPA;
+	ireq.i_data = (void *) ie;
+	ireq.i_len = ie_len;
+
+	HOSTAPD_DEBUG(HOSTAPD_DEBUG_MINIMAL, "%s: set WPA+RSN ie (len %d)\n",
+	    __func__, ie_len);
+	if (ioctl(drv->ioctl_sock, SIOCS80211, &ireq) < 0) {
+		printf("Unable to set WPA+RSN ie\n");
+		return -1;
+	}
 	return 0;
 }
 
@@ -622,6 +556,9 @@ bsd_wireless_event_receive(int sock, void *ctx, void *sock_ctx)
 	struct ieee80211_michael_event *mic;
 	struct ieee80211_join_event *join;
 	struct ieee80211_leave_event *leave;
+#ifdef CONFIG_DRIVER_RADIUS_ACL
+	struct ieee80211_auth_event *auth;
+#endif
 	int n;
 
 	n = read(sock, buf, sizeof(buf));
@@ -638,6 +575,12 @@ bsd_wireless_event_receive(int sock, void *ctx, void *sock_ctx)
 		return;
 	}
 	ifan = (struct if_announcemsghdr *) rtm;
+	if (ifan->ifan_index != drv->ifindex) {
+		wpa_printf(MSG_DEBUG, "Discard routing message to if#%d "
+			"(not for us %d)\n",
+			ifan->ifan_index, drv->ifindex);
+		return;
+	}
 	switch (rtm->rtm_type) {
 	case RTM_IEEE80211:
 		switch (ifan->ifan_what) {
@@ -668,6 +611,32 @@ bsd_wireless_event_receive(int sock, void *ctx, void *sock_ctx)
 				MAC2STR(mic->iev_src));
 			ieee80211_michael_mic_failure(hapd, mic->iev_src, 1);
 			break;
+#ifdef CONFIG_DRIVER_RADIUS_ACL
+		case RTM_IEEE80211_AUTH:
+			auth = (struct ieee80211_auth_event *) &ifan[1];
+			wpa_printf(MSG_DEBUG, "802.11 AUTH, STA = " MACSTR,
+			    MAC2STR(auth->iev_addr));
+			n = hostapd_allowed_address(hapd, auth->iev_addr,
+				NULL, 0, NULL, NULL, NULL);
+			switch (n) {
+			case HOSTAPD_ACL_ACCEPT:
+			case HOSTAPD_ACL_REJECT:
+				hostapd_set_radius_acl_auth(hapd,
+				    auth->iev_addr, n, 0);
+				wpa_printf(MSG_DEBUG,
+				    "802.11 AUTH, STA = " MACSTR " hostapd says: %s",
+				    MAC2STR(auth->iev_addr),
+				    (n == HOSTAPD_ACL_ACCEPT ?
+					"ACCEPT" : "REJECT" ));
+				break;
+			case HOSTAPD_ACL_PENDING:
+				wpa_printf(MSG_DEBUG,
+				    "802.11 AUTH, STA = " MACSTR " pending",
+				    MAC2STR(auth->iev_addr));
+				break;
+			}
+			break;
+#endif /* CONFIG_DRIVER_RADIUS_ACL */
 		}
 		break;
 	}
@@ -800,6 +769,67 @@ bsd_set_countermeasures(void *priv, int enabled)
 	return set80211param(drv, IEEE80211_IOC_COUNTERMEASURES, enabled);
 }
 
+#ifdef CONFIG_DRIVER_RADIUS_ACL
+static int 
+bsd_set_radius_acl_auth(void *priv, const u8 *mac, int accepted, 
+	u32 session_timeout)
+{
+	struct bsd_driver_data *drv = priv;
+	struct hostapd_data *hapd = drv->hapd;
+	struct ieee80211req_mlme mlme;
+
+	switch (accepted) {
+	case HOSTAPD_ACL_ACCEPT_TIMEOUT:
+		wpa_printf(MSG_DEBUG, "[%s] STA " MACSTR 
+			" has been accepted by RADIUS ACL with timeout "
+			"of %d.\n", hapd->conf->iface, MAC2STR(mac), 
+			session_timeout);
+		mlme.im_reason = IEEE80211_STATUS_SUCCESS;
+		break;
+	case HOSTAPD_ACL_ACCEPT:
+		wpa_printf(MSG_DEBUG, "[%s] STA " MACSTR 
+			" has been accepted by RADIUS ACL.\n", 
+			hapd->conf->iface, MAC2STR(mac));
+		mlme.im_reason = IEEE80211_STATUS_SUCCESS;
+		break;
+	case HOSTAPD_ACL_REJECT:
+		wpa_printf(MSG_DEBUG, "[%s] STA " MACSTR 
+			" has been rejected by RADIUS ACL.\n", 
+			hapd->conf->iface, MAC2STR(mac));
+		mlme.im_reason = IEEE80211_STATUS_UNSPECIFIED;
+		break;
+	default:
+		wpa_printf(MSG_ERROR, "[%s] STA " MACSTR 
+			" has unknown status (%d) by RADIUS ACL.  "
+			"Nothing to do...\n", hapd->conf->iface, 
+			MAC2STR(mac), accepted);
+		return 0;
+	}
+	memset(&mlme, 0, sizeof(mlme));
+	mlme.im_op = IEEE80211_MLME_AUTH;
+	memcpy(mlme.im_macaddr, mac, IEEE80211_ADDR_LEN);
+	return set80211var(drv, IEEE80211_IOC_MLME, &mlme, sizeof(mlme));
+}
+
+static int
+bsd_set_radius_acl_expire(void *priv, const u8 *mac)
+{
+	struct bsd_driver_data *drv = priv;
+	struct hostapd_data *hapd = drv->hapd;
+
+	/*
+	 * The expiry of the MAC address from RADIUS ACL cache doesn't mean 
+	 * that we should kick off the client.  Our current approach doesn't 
+	 * require adding/removing entries from an allow/deny list; so this
+	 * function is likely unecessary
+	 */
+	wpa_printf(MSG_DEBUG, "[%s] STA " MACSTR " radius acl cache "
+		"expired; nothing to do...", hapd->conf->iface, 
+		MAC2STR(mac));
+	return 0;
+}
+#endif /* CONFIG_DRIVER_RADIUS_ACL */
+
 static int
 bsd_init(struct hostapd_data *hapd)
 {
@@ -820,6 +850,18 @@ bsd_init(struct hostapd_data *hapd)
 		goto bad;
 	}
 	memcpy(drv->iface, hapd->conf->iface, sizeof(drv->iface));
+	/*
+	 * NB: We require the interface name be mappable to an index.
+	 *     This implies we do not support having wpa_supplicant
+	 *     wait for an interface to appear.  This seems ok; that
+	 *     doesn't belong here; it's really the job of devd.
+	 *     XXXSCW: devd is FreeBSD-specific.
+	 */
+	drv->ifindex = if_nametoindex(drv->iface);
+	if (drv->ifindex == 0) {
+		printf("%s: interface %s does not exist", __func__, drv->iface);
+		goto bad;
+	}
 
 	drv->sock_xmit = l2_packet_init(drv->iface, NULL, ETH_P_EAPOL,
 					handle_read, drv, 1);
@@ -828,7 +870,7 @@ bsd_init(struct hostapd_data *hapd)
 	if (l2_packet_get_own_addr(drv->sock_xmit, hapd->own_addr))
 		goto bad;
 
-	bsd_set_iface_flags(drv, 0);	/* mark down during setup */
+	bsd_set_iface_flags(drv, -IFF_UP);	/* mark down during setup */
 
 	hapd->driver = &drv->ops;
 	return 0;
@@ -851,7 +893,7 @@ bsd_deinit(void *priv)
 
 	drv->hapd->driver = NULL;
 
-	(void) bsd_set_iface_flags(drv, 0);
+	(void) bsd_set_iface_flags(drv, -IFF_UP);
 	if (drv->ioctl_sock >= 0)
 		close(drv->ioctl_sock);
 	if (drv->sock_xmit != NULL)
@@ -880,6 +922,11 @@ static const struct driver_ops bsd_driver_ops = {
 	.get_ssid		= bsd_get_ssid,
 	.set_countermeasures	= bsd_set_countermeasures,
 	.sta_clear_stats        = bsd_sta_clear_stats,
+	.commit			= bsd_commit,
+#ifdef CONFIG_DRIVER_RADIUS_ACL
+	.set_radius_acl_auth	= bsd_set_radius_acl_auth,
+	.set_radius_acl_expire	= bsd_set_radius_acl_expire,
+#endif
 };
 
 void bsd_driver_register(void)
