@@ -80,6 +80,10 @@ const char *progname;
 #define	IEEE80211_MSG_INACT	0x00000080	/* inactivity handling */
 #define	IEEE80211_MSG_ROAM	0x00000040	/* sta-mode roaming */
 #define	IEEE80211_MSG_RATECTL	0x00000020	/* tx rate control */
+#define	IEEE80211_MSG_ACTION	0x00000010	/* action frame handling */
+#define	IEEE80211_MSG_WDS	0x00000008	/* WDS handling */
+#define	IEEE80211_MSG_IOCTL	0x00000004	/* ioctl handling */
+#define	IEEE80211_MSG_ADDBA	0x00000002	/* ADDBA handling */
 
 static struct {
 	const char	*name;
@@ -112,6 +116,10 @@ static struct {
 	{ "inact",	IEEE80211_MSG_INACT },
 	{ "roam",	IEEE80211_MSG_ROAM },
 	{ "rate",	IEEE80211_MSG_RATECTL },
+	{ "action",	IEEE80211_MSG_ACTION },
+	{ "wds",	IEEE80211_MSG_WDS },
+	{ "ioctl",	IEEE80211_MSG_IOCTL },
+	{ "addba",	IEEE80211_MSG_ADDBA },
 };
 
 static u_int
@@ -148,47 +156,44 @@ usage(void)
 	exit(-1);
 }
 
+static void
+setoid(char oid[], size_t oidlen, const char *wlan)
+{
+#ifdef __linux__
+	snprintf(oid, oidlen, "net.%s.debug", wlan);
+#elif __FreeBSD__
+	snprintf(oid, oidlen, "net.wlan.%s.debug", wlan+4);
+#elif __NetBSD__
+	snprintf(oid, oidlen, "net.link.ieee80211.%s.debug", wlan+4);
+#else
+#error "No support for this system"
+#endif
+}
+
 int
 main(int argc, char *argv[])
 {
-	const char *ifname = "ath0";
 	const char *cp, *tp;
 	const char *sep;
 	int op, i, unit;
 	u_int32_t debug, ndebug;
 	size_t debuglen, parentlen;
-	char oid[256], parent[256];
+	char oid[256];
 
 	progname = argv[0];
+	setoid(oid, sizeof(oid), "wlan0");
 	if (argc > 1) {
 		if (strcmp(argv[1], "-i") == 0) {
 			if (argc < 2)
 				errx(1, "missing interface name for -i option");
-			ifname = argv[2];
+			if (strncmp(argv[2], "wlan", 4) != 0)
+				errx(1, "expecting a wlan interface name");
+			setoid(oid, sizeof(oid), argv[2]);
 			argc -= 2, argv += 2;
 		} else if (strcmp(argv[1], "-?") == 0)
 			usage();
 	}
 
-	for (unit = 0; unit < 10; unit++) {
-#ifdef __linux__
-		snprintf(oid, sizeof(oid), "net.wlan%d.%%parent", unit);
-#else
-		snprintf(oid, sizeof(oid), "net.wlan.%d.%%parent", unit);
-#endif
-		parentlen = sizeof(parent);
-		if (sysctlbyname(oid, parent, &parentlen, NULL, 0) < 0)
-			continue;
-		if (strncmp(parent, ifname, parentlen) == 0)
-			break;
-	}
-	if (unit == 10)
-		errx(1, "%s: cannot locate wlan sysctl node.", ifname);
-#ifdef __linux__
-	snprintf(oid, sizeof(oid), "net.wlan%d.debug", unit);
-#else
-	snprintf(oid, sizeof(oid), "net.wlan.%d.debug", unit);
-#endif
 	debuglen = sizeof(debug);
 	if (sysctlbyname(oid, &debug, &debuglen, NULL, 0) < 0)
 		err(1, "sysctl-get(%s)", oid);
