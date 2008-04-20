@@ -55,7 +55,8 @@ struct rt2560_tx_data {
 	bus_dmamap_t			map;
 	struct mbuf			*m;
 	struct ieee80211_node		*ni;
-	struct ral_rssdesc		id;
+	uint8_t				rix;
+	int8_t				rssi;
 };
 
 struct rt2560_tx_ring {
@@ -94,14 +95,22 @@ struct rt2560_rx_ring {
 
 struct rt2560_node {
 	struct ieee80211_node	ni;
-	struct ral_rssadapt	rssadapt;
+	struct ieee80211_amrr_node amrr;
 };
+#define	RT2560_NODE(ni)		((struct rt2560_node *)(ni))
+
+struct rt2560_vap {
+	struct ieee80211vap	ral_vap;
+	struct ieee80211_beacon_offsets	ral_bo;
+	struct ieee80211_amrr	amrr;
+
+	int			(*ral_newstate)(struct ieee80211vap *,
+				    enum ieee80211_state, int);
+};
+#define	RT2560_VAP(vap)		((struct rt2560_vap *)(vap))
 
 struct rt2560_softc {
 	struct ifnet		*sc_ifp;
-	struct ieee80211com	sc_ic;
-	int			(*sc_newstate)(struct ieee80211com *,
-				    enum ieee80211_state, int);
 	device_t		sc_dev;
 	bus_space_tag_t		sc_st;
 	bus_space_handle_t	sc_sh;
@@ -109,10 +118,12 @@ struct rt2560_softc {
 	struct mtx		sc_mtx;
 
 	struct callout		watchdog_ch;
-	struct callout		rssadapt_ch;
 
 	int			sc_tx_timer;
 	int                     sc_invalid;
+	int			sc_debug;
+
+	const struct ieee80211_rate_table *sc_rates;
 /*
  * The same in both up to here
  * ------------------------------------------------
@@ -128,8 +139,6 @@ struct rt2560_softc {
 	struct rt2560_tx_ring	bcnq;
 	struct rt2560_rx_ring	rxq;
 
-	struct ieee80211_beacon_offsets	sc_bo;
-
 	uint32_t		rf_regs[4];
 	uint8_t			txpow[14];
 
@@ -144,22 +153,10 @@ struct rt2560_softc {
 	int			tx_ant;
 	int			nb_ant;
 
-	int			dwelltime;
-
-	struct bpf_if		*sc_drvbpf;
-
-	union {
-		struct rt2560_rx_radiotap_header th;
-		uint8_t	pad[64];
-	}			sc_rxtapu;
-#define sc_rxtap	sc_rxtapu.th
+	struct rt2560_rx_radiotap_header sc_rxtap;
 	int			sc_rxtap_len;
 
-	union {
-		struct rt2560_tx_radiotap_header th;
-		uint8_t	pad[64];
-	}			sc_txtapu;
-#define sc_txtap	sc_txtapu.th
+	struct rt2560_tx_radiotap_header sc_txtap;
 	int			sc_txtap_len;
 #define RT2560_F_INPUT_RUNNING	0x1
 #define RT2560_F_PRIO_OACTIVE	0x2
@@ -173,5 +170,6 @@ void	rt2560_stop(void *);
 void	rt2560_resume(void *);
 void	rt2560_intr(void *);
 
-#define RAL_LOCK(sc)	mtx_lock(&(sc)->sc_mtx)
-#define RAL_UNLOCK(sc)	mtx_unlock(&(sc)->sc_mtx)
+#define RAL_LOCK(sc)		mtx_lock(&(sc)->sc_mtx)
+#define RAL_LOCK_ASSERT(sc)	mtx_assert(&(sc)->sc_mtx, MA_OWNED)
+#define RAL_UNLOCK(sc)		mtx_unlock(&(sc)->sc_mtx)

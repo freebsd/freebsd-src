@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd February 29, 2008
+.Dd April 11, 2008
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -584,8 +584,137 @@ If the interface was reset when previously marked down,
 the hardware will be re-initialized.
 .El
 .Pp
-The following parameters are specific to IEEE 802.11 wireless interfaces:
+The following parameters are specific to cloning
+IEEE 802.11 wireless interfaces with the
+.Cm create
+request:
 .Bl -tag -width indent
+.It Cm wlandev Ar device
+Use
+.Ar device
+as the parent for the cloned device.
+.It Cm wlanmode Ar mode
+Specify the operating mode for this cloned device.
+.Ar mode
+is one of
+.Cm sta ,
+.Cm ahdemo 
+(or
+.Cm adhoc-demo ),
+.Cm ibss ,
+(or
+.Cm adhoc ),
+.Cm ap ,
+(or
+.Cm hostap ),
+.Cm wds ,
+and
+.Cm monitor .
+The operating mode of a cloned interface cannot be changed.
+.It Cm wlanbssid Ar bssid
+The 802.11 mac address to use for the bssid.
+This must be specified at create time for a legacy
+.Cm wds
+device.
+.It Cm wlanaddr Ar address
+The local mac address.
+If this is not specified then a mac address will automatically be assigned
+to the cloned device.
+Typically this address is the same as the address of the parent device
+but if the
+.Cm bssid
+parameter is specified then the driver will craft a unique address for
+the device (if supported).
+.It Cm wdslegacy
+Mark a
+.Cm wds
+device as operating in ``legacy mode''.
+Legacy 
+.Cm wds
+devices have a fixed peer relationship and do not, for example, roam
+if their peer stops communicating.
+For completeness a Dynamic WDS (DWDS) interface may marked as
+.Fl wdslegacy .
+.It Cm bssid
+Request a unique local mac address for the cloned device.
+This is only possible if the device supports multiple mac addresses.
+To force use of the parent's mac address use
+.Fl bssid .
+.It Cm beacons
+Mark the cloned interface as depending on hardware support to
+track received beacons.
+To have beacons tracked in software use
+.Fl beacons .
+For 
+.Cm hostap
+mode 
+.Fl beacons
+can also be used to indicate no beacons should
+be transmitted; this can be useful when creating a WDS configuration but
+.Cm wds
+interfaces can only be created as companions to an access point.
+.El
+.Pp
+The following parameters are specific to IEEE 802.11 wireless interfaces
+cloned with a
+.Cm create
+operation:
+.Bl -tag -width indent
+.It Cm ampdu
+Enable sending and receiving AMPDU frames when using 802.11n (default).
+The 802.11n specification states a compliant station must be capable
+of receiving AMPDU frames but transmision is optional.
+Use
+.Fl ampdu
+to disable all use of AMPDU with 802.11n.
+For testing and/or to work around interoperability problems one can use
+.Cm ampdutx
+and
+.Cm ampdurx
+to control use of AMPDU in one direction.
+.It Cm ampdudensity Ar density
+Set the AMPDU density parameter used when operating with 802.11n.
+This parameter controls the inter-packet gap for AMPDU frames.
+The sending device normally controls this setting but a receiving station
+may request wider gaps.
+Legal values for
+.Ar density
+are 0, .25, .5, 1, 2, 4, 8, and 16 (microseconds).
+A value of
+.Cm -
+is treated the same as 0.
+.It Cm ampdulimit Ar limit
+Set the limit on packet size for receiving AMPDU frames when operating
+with 802.11n.
+Legal values for
+.Ar limit
+are 8192, 16384, 32768, and 65536 but one can also specify
+just the unique prefix: 8, 16, 32, 64.
+Note the sender may limit the size of AMPDU frames to be less
+than the maximum specified by the receiving station.
+.It Cm amsdu
+Enable sending and receiving AMSDU frames when using 802.11n.
+By default AMSDU is received but not transmitted.
+Use
+.Fl amsdu
+to disable all use of AMSDU with 802.11n.
+For testing and/or to work around interoperability problems one can use
+.Cm amsdutx
+and
+.Cm amsdurx
+to control use of AMSDU in one direction.
+.It Cm amsdulimit Ar limit
+Set the limit on packet size for sending and receiving AMSDU frames
+when operating with 802.11n.
+Legal values for
+.Ar limit
+are 7935 and 3839 (bytes).
+Note the sender may limit the size of AMSDU frames to be less
+than the maximum specified by the receiving station.
+Note also that devices are not required to support the 7935 limit,
+only 3839 is required by the specification and the larger value
+may require more memory to be dedicated to support functionality
+that is rarely used.
 .It Cm apbridge
 When operating as an access point, pass packets between
 wireless clients directly (default).
@@ -597,7 +726,7 @@ is useful when traffic is to be processed with
 packet filtering.
 .It Cm authmode Ar mode
 Set the desired authentication mode in infrastructure mode.
-Not all adaptors support all modes.
+Not all adapters support all modes.
 The set of
 valid modes is
 .Cm none , open , shared
@@ -725,7 +854,7 @@ or
 .Cm -
 will give you the default for your adaptor.
 Some
-adaptors ignore this setting unless you are in ad-hoc mode.
+adapters ignore this setting unless you are in ad-hoc mode.
 Alternatively the frequency, in megahertz, may be specified
 instead of the channel number.
 .Pp
@@ -770,9 +899,61 @@ a 40MHz HT channel specification may include the location
 of the extension channel by appending ``+'' or ``-'' for above and below,
 respectively; e.g. ``2437:ht/40+'' specifies 40MHz wide HT operation 
 with the center channel at frequency 2437 and the extension channel above.
+.It Cm country Ar name
+Set the country code to use in calculating the regulatory constraints
+for operation.
+In particular the set of available channels, how the wireless device
+will operation on the channels, and the maximum transmit power that
+can be used on a channel are defined by this setting.
+Country/Region codes are specified as a 2-character abbreviation
+defined by ISO 3166 or using a longer, but possibly ambiguous, spelling;
+e.g. "ES" and "Spain".
+The set of country codes are taken from /etc/regdomain.xml and can also
+be viewed with the ``list countries'' request.
+Note that not all devices support changing the country code from a default
+setting; typically stored in EEPROM.
+See also
+.Cm regdomain ,
+.Cm indoor ,
+.Cm outdoor ,
+and
+.Cm anywhere .
+.It Cm dfs
+Enable Dynamic Frequency Selection (DFS) as specified in 802.11h.
+DFS embodies several facilities including detection of overlapping
+radar signals, dynamic transmit power control, and channel selection
+according to a least-congested criteria.
+DFS support is mandatory for some 5Ghz frequencies in certain
+locales (e.g. ETSI).
+By default DFS is enabled according to the regulatory definitions
+specified in /etc/regdomain.xml and the curent country code, regdomain,
+and channel.
+Note the underlying device (and driver) must support radar detection
+for full DFS support to work.
+To be fully compliant with the local regulatory agency frequencies that
+require DFS should not be used unless it is fully supported.
+Use
+.Fl dfs
+to disable this functionality for testing.
+.It Cm dotd
+Enable support for the 802.11d specification (default).
+When this support is enabled in station mode, beacon frames that advertise
+a country code different than the currently configured country code will
+cause an event to be dispatched to user applications.
+This event can be used by the station to adopt that country code and
+operate according to the associated regulatory constraints.
+When operating as an access point with 802.11d enabled the beacon and
+probe response frames transmitted will advertise the current regulatory
+domain settings.
+To disable 802.11d use
+.Fl dotd .
 .It Cm doth
-Enable inclusion of an 802.11h country information element in beacon
-frames transmitted when operating as an access point.
+Enable 802.11h support including spectrum management.
+When 802.11h is enabled beacon and probe response frames will have
+the SpectrumMgt bit set in the capabilities field and
+country and power constraint information elements will be present.
+802.11h support also includes handling Channel Switch Announcements (CSA)
+which are a mechanism to coordinate channel changes by an access point.
 By default 802.11h is enabled if the device is capable.
 To disable 802.11h use
 .Fl doth .
@@ -811,28 +992,35 @@ channels depending on the regulatory constraints; use the
 command to identify the channels where turbo mode may be used.
 To disable Dynamic Turbo mode use
 .Fl dturbo .
-.It Cm fragthreshold Ar length
-Set the threshold for which transmitted frames are broken into fragments.
-The
-.Ar length
-argument is the frame size in bytes and must be in the range 256 to 2346.
-Setting
-.Ar length
-to
-.Li 2346 ,
-.Cm any ,
-or
-.Cm -
-disables transmit fragmentation.
-Not all adaptors honor the fragmentation threshold.
-.It Cm hidessid
-When operating as an access point, do not broadcast the SSID
-in beacon frames or respond to probe request frames unless
-they are directed to the ap (i.e., they include the ap's SSID).
-By default, the SSID is included in beacon frames and
-undirected probe request frames are answered.
-To re-enable the broadcast of the SSID etc., use
-.Fl hidessid .
+.It Cm dwds
+Enable Dynamic WDS (DWDS) support.
+DWDS is a facility by which 4-address traffic can be carried between
+stations operating in infrastructure mode.
+A station first associates to an access point and authenticates using
+normal procedures (e.g. WPA).
+Then 4-address frames are passed to carry traffic for stations
+operating on either side of the wireless link.
+DWDS extends the normal WDS mechanism by leveraging existing security
+protocols and eliminating static binding.
+.Pp
+When DWDS is enabled on an access point 4-address frames received from
+an authorized station will generate a ``DWDS discovery'' event to user
+applications.
+This event should be used to create a WDS interface that is bound
+to the remote station (and usually plumbed into a bridge).
+Once the WDS interface is up and running 4-address traffic then logically
+flows through that interface.
+.Pp
+When DWDS is enabled on a station, traffic with a destination address
+different from the peer station are encapsulated in a 4-address frame
+and transmitted to the peer.
+All 4-address traffic uses the security information of the stations
+(e.g. cryptographic keys).
+A station is associated using 802.11n facilities may transport
+4-address traffic using these same mechanisms; this depends on available
+resources and capabilities of the device.
+The DWDS implementation guards against layer 2 routing loops of
+multicast traffic.
 .It Cm ff
 Enable the use of Atheros Fast Frames when communicating with
 another Fast Frames-capable station.
@@ -846,6 +1034,98 @@ non-Atheros devices.
 By default, use of fast frames is enabled if the device is capable.
 To explicitly disable fast frames, use
 .Fl ff .
+.It Cm fragthreshold Ar length
+Set the threshold for which transmitted frames are broken into fragments.
+The
+.Ar length
+argument is the frame size in bytes and must be in the range 256 to 2346.
+Setting
+.Ar length
+to
+.Li 2346 ,
+.Cm any ,
+or
+.Cm -
+disables transmit fragmentation.
+Not all adapters honor the fragmentation threshold.
+.It Cm hidessid
+When operating as an access point, do not broadcast the SSID
+in beacon frames or respond to probe request frames unless
+they are directed to the ap (i.e., they include the ap's SSID).
+By default, the SSID is included in beacon frames and
+undirected probe request frames are answered.
+To re-enable the broadcast of the SSID etc., use
+.Fl hidessid .
+.It Cm ht
+Enable use of High Throughput (HT) when using 802.11n (default).
+The 802.11n specification includes mechanisms for operation
+on 20MHz and 40MHz wide channels using different signalling mechanisms
+than specified in 802.11b, 802.11g, and 802.11a.
+Stations negotiate use of these facilities, termed HT20 and HT40,
+when they associate.
+To disable all use of 802.11n use
+.Fl ht .
+To disable use of HT20 (e.g. to force only HT40 use) use
+.Fl ht20 .
+To disable use of HT40 use
+.Fl ht40 .
+.Pp
+HT configuration is used to ``auto promote'' operation
+when several choices are available.
+For example, if a station associates to an 11n-capable access point
+it controls whether the station uses legacy operation, HT20, or HT40.
+When an 11n-capable device is setup as an access point and
+Auto Channel Selection is used to locate a channel to operate on,
+HT configuration controls whether legacy, HT20, or HT40 operation is setup
+on the selected channel.
+If a fixed channel is specified for a station then HT configuration can
+be given as part of the channel specification; e.g. 6:ht/20 to setup
+HT20 operation on channel 6.
+.It Cm htcompat
+Enable use of compatibility support for pre-802.11n devices (default).
+The 802.11n protocol specification went through several incompatible iterations.
+Some vendors implemented 11n support to older specifications that
+will not interoperate with a purely 11n-compliant station.
+In particular the information elements included in management frames
+for old devices are different.
+When compatibility support is enabled both standard and compatible data
+will be provided.
+Stations that associate using the compatiblity mechanisms are flagged
+in ``list sta''.
+To disable compatiblity support use
+.Fl htcompat .
+.It Cm htprotmode Ar technique
+For interfaces operating in 802.11n, use the specified
+.Ar technique
+for protecting HT frames in a mixed legacy/HT network.
+The set of valid techniques is
+.Cm off ,
+and
+.Cm rts
+(RTS/CTS, default).
+Technique names are case insensitive.
+.It Cm inact
+Enable inactivity processing for stations associated to an
+access point (default).
+When operating as an access point the 802.11 layer monitors
+the activity of each associated station.
+When a station is inactive for 5 minutes it will send several
+``probe frames'' to see if the station is still present.
+If no response is received then the station is deauthenticated.
+Applications that prefer to handle this work can disable this
+facility by using
+.Fl inact .
+.It Cm indoor
+Set the location to use in calculating regulatory constraints.
+The location is also advertised in beacon and probe response frames
+when 802.11d is enabled with
+.Cm dotd .
+See also
+.Cm outdoor ,
+.Cm anywhere ,
+.Cm country ,
+and
+.Cm regdomain .
 .It Cm list active
 Display the list of channels available for use taking into account
 any restrictions set with the
@@ -883,6 +1163,9 @@ is another way of requesting this information.
 By default a compacted list of channels is displayed; if the
 .Fl v
 option is specified then all channels are shown.
+.It Cm list countries
+Display the set of country codes and regulatory domains that can be
+used in regulatory configuration.
 .It Cm list mac
 Display the current MAC Access Control List state.
 Each address is prefixed with a character that indicates the
@@ -894,18 +1177,79 @@ indicates the address is denied access,
 .Ql *
 indicates the address is present but the current policy open
 (so the ACL is not consulted).
+.It Cm list regdomain
+Display the current regulatory settings including the available channels
+and transmit power caps.
+.It Cm list roam
+Display the parameters that govern roaming operation.
+.It Cm list txparam
+Display the parameters that govern transmit operation.
+.It Cm list txpower
+Display the transmit power caps for each channel.
 .It Cm list scan
 Display the access points and/or ad-hoc neighbors
 located in the vicinity.
-The
-.Fl v
-flag may be used to display long SSIDs.
-.Fl v
-also causes received information elements to be displayed symbolicaly.
-This information may be updated automatically by the adaptor
-and/or with a
+This information may be updated automatically by the adapter
+with a
 .Cm scan
 request or through background scanning.
+Depending on the capabilities of the stations the following
+flags can be included in the output:
+.Bl -tag -width 3n
+.It Li A
+Authorized.
+Indicates that the station is permitted to send/receive data frames.
+.It Li E
+Extended Rate Phy (ERP).
+Indicates that the station is operating in an 802.11g network
+using extended transmit rates.
+.It Li H
+High Throughput (HT).
+Indicates that the station is using HT transmit rates.
+If a `+' follows immediately after then the station associated
+using deprecated mechanisms supported only when
+.Cm htcompat
+is enabled.
+.It Li P
+Power Save.
+Indicates that the station is operating in power save mode.
+.It Li Q
+Quality of Service (QoS).
+Indicates that the station is using QoS encapsulation for
+data frame.
+QoS encapsulation is enabled only when WME mode is enabled.
+.It Li T
+Transitional Security Network (TSN).
+Indicates that the station associated using TSN; see also
+.Cm tsn
+below.
+.It Li W
+Wi-Fi Protected Setup (WPS).
+Indicates that the station associated using WPS.
+.El
+.Pp
+By default interesting information elements captured from the neighboring
+stations are displayed at the end of each row.
+Possible elements include:
+.Cm WME
+(station supports WME),
+.Cm WPA
+(station supports WPA),
+.Cm RSN
+(station supports 802.11i/RSN),
+.Cm HTCAP
+(station supports 802.11n/HT communication),
+.Cm ATH
+(station supoprts Atheros protocol extensions),
+.Cm VEN
+(station supports unknown vendor-specific extensions).
+If the
+.Fl v
+flag is used all the information elements and their
+contents will be shown.
+Specifying The
+.Fl v
+flag also enables display of long SSIDs.
 .Cm list ap
 is another way of requesting this information.
 .It Cm list sta
@@ -930,7 +1274,11 @@ Indicates that the station is operating in an 802.11g network
 using extended transmit rates.
 .It Li H
 High Throughput (HT).
-Indicates that the station is using MCS to send/receive frames.
+Indicates that the station is using HT transmit rates.
+If a `+' follows immediately after then the station associated
+using deprecated mechanisms supported only when
+.Cm htcompat
+is enabled.
 .It Li P
 Power Save.
 Indicates that the station is operating in power save mode.
@@ -939,6 +1287,14 @@ Quality of Service (QoS).
 Indicates that the station is using QoS encapsulation for
 data frame.
 QoS encapsulation is enabled only when WME mode is enabled.
+.It Li T
+Transitional Security Network (TSN).
+Indicates that the station associated using TSN; see also
+.Cm tsn
+below.
+.It Li W
+Wi-Fi Protected Setup (WPS).
+Indicates that the station associated using WPS.
 .El
 .Pp
 By default information elements received from associated stations
@@ -953,12 +1309,30 @@ for examining parameters when WME mode is disabled.
 See the description of the
 .Cm wme
 directive for information on the various parameters.
+.It Cm maxretry Ar count
+Set the maximum number of tries to use in sending unicast frames.
+The default setting is 6 but drivers may override this with a value
+they choose.
 .It Cm mcastrate Ar rate
 Set the rate for transmitting multicast/broadcast frames.
 Rates are specified as megabits/second in decimal; e.g.\& 5.5 for 5.5 Mb/s.
 This rate should be valid for the current operating conditions;
 if an invalid rate is specified drivers are free to chose an
 appropriate rate.
+.It Cm mgtrate Ar rate
+Set the rate for transmitting management and/or control frames.
+Rates are specified as megabits/second in decimal; e.g.\& 5.5 for 5.5 Mb/s.
+.It Cm outdoor
+Set the location to use in calculating regulatory constraints.
+The location is also advertised in beacon and probe response frames
+when 802.11d is enabled with
+.Cm dotd .
+See also
+.Cm anywhere ,
+.Cm country ,
+.Cm indoor ,
+and
+.Cm regdomain .
 .It Cm powersave
 Enable powersave operation.
 When operating as a client, the station will conserve power by
@@ -994,6 +1368,60 @@ When operating as an access point in 802.11g mode allow only
 permitted to associate).
 To allow both 11g and 11b-only stations to associate, use
 .Fl pureg .
+.It Cm puren
+When operating as an access point in 802.11n mode allow only
+HT-capable stations to associate (legacy stations are not
+permitted to associate).
+To allow both HT and legacy stations to associate, use
+.Fl puren .
+.It Cm regdomain Ar sku
+Set the regulatory domain to use in calculating the regulatory constraints
+for operation.
+In particular the set of available channels, how the wireless device
+will operation on the channels, and the maximum transmit power that
+can be used on a channel are defined by this setting.
+Regdomain codes (SKU's) are taken from /etc/regdomain.xml and can also
+be viewed with the ``list countries'' request.
+Note that not all devices support changing the regdomain from a default
+setting; typically stored in EEPROM.
+See also
+.Cm country ,
+.Cm indoor ,
+.Cm outdoor ,
+and
+.Cm anywhere .
+.It Cm roam:rate Ar rate
+Set the threshold for controlling roaming when operating in a BSS.
+The
+.Ar rate
+parameter specifies the transmit rate in megabits
+at which roaming should be considered.
+If the current transmit rate drops below this setting and background scanning
+is enabled, then the system will check if a more desirable access point is
+available and switch over to it.
+The current scan cache contents are used if they are considered
+valid according to the
+.Cm scanvalid
+parameter; otherwise a background scan operation is triggered before
+any selection occurs.
+Each channel type has a separate rate threshold; the default values are:
+12 Mb/s (11a), 2 Mb/s (11b), 2 Mb/s (11g), MCS 1 (11na, 11ng).
+.It Cm roam:rssi Ar rssi
+Set the threshold for controlling roaming when operating in a BSS.
+The
+.Ar rssi
+parameter specifies the receive signal strength in dBm units
+at which roaming should be considered.
+If the current rssi drops below this setting and background scanning
+is enabled, then the system will check if a more desirable access point is
+available and switch over to it.
+The current scan cache contents are used if they are considered
+valid according to the
+.Cm scanvalid
+parameter; otherwise a background scan operation is triggered before
+any selection occurs.
+Rach channel type has a separate rssi threshold; the default values are
+all 7 dBm.
 .It Cm roaming Ar mode
 When operating as a station, control how the system will
 behave when communication with the current access point
@@ -1013,78 +1441,6 @@ attempt to reestablish communication.
 Manual mode is used by applications such as
 .Xr wpa_supplicant 8
 that want to control the selection of an access point.
-.It Cm roam:rssi11a Ar rssi
-Set the threshold for controlling roaming when operating in an
-802.11a BSS.
-The
-.Ar rssi
-parameter specifies the receive signal strength in dBm units
-at which roaming should be considered.
-If the current rssi drops below this setting and background scanning
-is enabled, then the system will check if a more desirable access point is
-available and switch over to it.
-The current scan cache contents are used if they are considered
-valid according to the
-.Cm scanvalid
-parameter; otherwise a background scan operation is triggered before
-any selection occurs.
-By default
-.Ar rssi
-is set to 7 dBm.
-.It Cm roam:rssi11b Ar rssi
-Set the threshold for controlling roaming when operating in an
-802.11b-only BSS.
-See 
-.Cm roam:rssi11a
-for a description of this parameter.
-By default
-.Ar rssi
-is set to 7 dBm.
-.It Cm roam:rssi11g Ar rssi
-Set the threshold for controlling roaming when operating in a
-(mixed) 802.11g BSS.
-See 
-.Cm roam:rssi11a
-for a description of this parameter.
-By default
-.Ar rssi
-is set to 7 dBm.
-.It Cm roam:rate11a Ar rate
-Set the threshold for controlling roaming when operating in an
-802.11a BSS.
-The
-.Ar rate
-parameter specifies the transmit rate in megabits
-at which roaming should be considered.
-If the current transmit rate drops below this setting and background scanning
-is enabled, then the system will check if a more desirable access point is
-available and switch over to it.
-The current scan cache contents are used if they are considered
-valid according to the
-.Cm scanvalid
-parameter; otherwise a background scan operation is triggered before
-any selection occurs.
-By default
-.Ar rate
-is set to 12 Mb/s.
-.It Cm roam:rate11b Ar rate
-Set the threshold for controlling roaming when operating in an
-802.11b-only BSS.
-See 
-.Cm roam:rate11a
-for a description of this parameter.
-By default
-.Ar rate
-is set to 1 Mb/s.
-.It Cm roam:rate11g Ar rate
-Set the threshold for controlling roaming when operating in a
-(mixed) 802.11g BSS.
-See 
-.Cm roam:rate11a
-for a description of this parameter.
-By default
-.Ar rate
-is set to 5 Mb/s.
 .It Cm rtsthreshold Ar length
 Set the threshold for which
 transmitted frames are preceded by transmission of an
@@ -1102,93 +1458,20 @@ to
 or
 .Cm -
 disables transmission of RTS frames.
-Not all adaptors support setting the RTS threshold.
-.It Cm ssid Ar ssid
-Set the desired Service Set Identifier (aka network name).
-The SSID is a string up to 32 characters
-in length and may be specified as either a normal string or in
-hexadecimal when preceded by
-.Ql 0x .
-Additionally, the SSID may be cleared by setting it to
-.Ql - .
+Not all adapters support setting the RTS threshold.
 .It Cm scan
 Initiate a scan of neighboring stations, wait for it to complete, and
 display all stations found.
 Only the super-user can initiate a scan.
-Depending on the capabilities of the APs, the following
-flags can be included in the output:
-.Bl -tag -width 3n
-.It Li A
-Channel Agility.
-Indicates that the station support channel hopping as described by the
-IEEE 802.11b specification.
-.It Li B
-Packet Binary Convolution Code (PBCC).
-A modulation alternative to the standard OFDM method.
-.It Dv C
-Pollreq
-.It Dv c
-Pollable
-.It Dv D
-Direct Sequence Spread Spectrum (DSSSOFDM).
-Indicates the the station supports DSSS modulation.
-.It Li E
-Extended Service Set (ESS).
-Indicates that the station is part of an infrastructure network
-(in contrast to an IBSS/ad-hoc network).
-.It Li I
-IBSS/ad-hoc network.
-Indicates that the station is part of an ad-hoc network
-(in contrast to an ESS network).
-.It Li P
-Privacy.
-Data confidentiality is required for all data frames
-exchanged within the BSS.
-This means that this BSS requires the station to
-use cryptographic means such as WEP, TKIP or AES-CCMP to
-encrypt/decrypt data frames being exchanged with others.
-.It Dv R
-Robust Security Network (RSN).
-Indicates that the station supports the IEEE 802.11i authentication
-and key management protocol.
-.It Li S
-Short Preamble.
-Indicates that the network is using short preambles (defined
-in 802.11b High Rate/DSSS PHY, short preamble utilizes a
-56 bit sync field in contrast to a 128 bit field used in long
-preamble mode).
-.It Li s
-Short slot time.
-Indicates that the network is using a short slot time.
-.El
-.Pp
-Interesting information elements captured from the neighboring
-stations are displayed at the end of each row.
-Possible elements are:
-.Cm WME
-(station supports WME),
-.Cm WPA
-(station supports WPA),
-.Cm RSN
-(station supports 802.11i/RSN),
-.Cm HT
-(station supports 802.11n/HT communication),
-.Cm ATH
-(station supoprts Atheros protocol extensions),
-.Cm VEN
-(station supports unknown vendor-specific extensions).
-If the
-.Fl v
-flag is used the information element contents will be shown.
-.Pp
+See
+.Cm list scan
+for information on the display.
+By default a background scan is done; otherwise a foreground
+scan is done and the station may roam to a different access point.
 The
 .Cm list scan
 request can be used to show recent scan results without
 initiating a new scan.
-.Pp
-The
-.Fl v
-flag may be used to prevent the shortening of long SSIDs.
 .It Cm scanvalid Ar threshold
 Set the maximum time the scan cache contents are considered valid;
 i.e. will be used without first triggering a scan operation to
@@ -1202,13 +1485,25 @@ is 10 seconds.
 One should take care setting this threshold; if it is set too low
 then attempts to roam to another access point may trigger unnecessary
 background scan operations.
-.It Cm stationname Ar name
-Set the name of this station.
-The station name is not part of the IEEE 802.11
-protocol though some interfaces support it.
-As such it only
-seems to be meaningful to identical or virtually identical equipment.
-Setting the station name is identical in syntax to setting the SSID.
+.It Cm shortgi
+Enable use of Short Guard Interval when operating in 802.11n
+on an HT channel.
+NB: this currently enables Short GI on both HT40 and HT20 channels.
+To disable Short GI use
+.Fl shortgi .
+.It Cm ssid Ar ssid
+Set the desired Service Set Identifier (aka network name).
+The SSID is a string up to 32 characters
+in length and may be specified as either a normal string or in
+hexadecimal when preceded by
+.Ql 0x .
+Additionally, the SSID may be cleared by setting it to
+.Ql - .
+.It Cm tsn
+When operating as an access point with WPA/802.11i allow legacy
+stations to associate using static key WEP and open authentication.
+To disallow legacy station use of WEP, use
+.Fl tsn .
 .It Cm txpower Ar power
 Set the power used to transmit frames.
 The
@@ -1217,10 +1512,16 @@ argument is specified in .5 dBm units.
 Out of range values are truncated.
 Typically only a few discreet power settings are available and
 the driver will use the setting closest to the specified value.
-Not all adaptors support changing the transmit power.
+Not all adapters support changing the transmit power.
+.It Cm ucastrate Ar rate
+Set a fixed rate for transmitting unicast frames.
+Rates are specified as megabits/second in decimal; e.g.\& 5.5 for 5.5 Mb/s.
+This rate should be valid for the current operating conditions;
+if an invalid rate is specified drivers are free to chose an
+appropriate rate.
 .It Cm wepmode Ar mode
 Set the desired WEP mode.
-Not all adaptors support all modes.
+Not all adapters support all modes.
 The set of valid modes is
 .Cm off , on ,
 and
@@ -1229,10 +1530,10 @@ The
 .Cm mixed
 mode explicitly tells the adaptor to allow association with access
 points which allow both encrypted and unencrypted traffic.
-On these adaptors,
+On these adapters,
 .Cm on
 means that the access point must only allow encrypted connections.
-On other adaptors,
+On other adapters,
 .Cm on
 is generally another name for
 .Cm mixed .
@@ -1261,7 +1562,7 @@ drivers do this mapping differently to
 A key may be cleared by setting it to
 .Ql - .
 If WEP is supported then there are at least four keys.
-Some adaptors support more than four keys.
+Some adapters support more than four keys.
 If that is the case, then the first four keys
 (1-4) will be the standard temporary keys and any others will be adaptor
 specific keys such as permanent keys stored in NVRAM.
@@ -1276,6 +1577,8 @@ WME is a subset of the IEEE 802.11e standard to support the
 efficient communication of realtime and multimedia data.
 To disable WME support, use
 .Fl wme .
+Another name for this parameter is
+.Cm wmm .
 .Pp
 The following parameters are meaningful only when WME support is in use.
 Parameters are specified per-AC (Access Category) and
@@ -1362,10 +1665,15 @@ This parameter is meaningful only when operating in ap mode.
 Set the TxOpLimit channel access parameter to send to stations in a BSS.
 This parameter is meaningful only when operating in ap mode.
 .El
+.It Cm wps
+Enable Wireless Privacy Subscriber support.
+Note that WPS support requires a WPS-capable supplicant.
+To disable this function use
+.Fl wps .
 .El
 .Pp
 The following parameters support an optional access control list
-feature available with some adaptors when operating in ap mode; see
+feature available with some adapters when operating in ap mode; see
 .Xr wlan_acl 4 .
 This facility allows an access point to accept/deny association
 requests based on the MAC address of the station.
@@ -1392,6 +1700,14 @@ address database.
 Set the ACL policy to allow all stations to associate.
 .It Cm mac:flush
 Delete all entries in the database.
+.It Cm mac:radius
+Set the ACL policy to permit association only by
+stations approved by a RADIUS server.
+Note that this feature requires the
+.Xr hostapd 8
+program be configured to do the right thing
+as it handles the RADIUS processing
+(and marks stations as authorized).
 .El
 .Pp
 The following parameters are for compatibility with other systems:
@@ -1403,11 +1719,16 @@ parameter.
 Included for
 .Nx
 compatibility.
-.It Cm station Ar name
-Another name for the
-.Cm stationname
-parameter.
-Included for
+.It Cm stationname Ar name
+Set the name of this station.
+The station name is not part of the IEEE 802.11
+protocol though some interfaces support it.
+As such it only
+seems to be meaningful to identical or virtually identical equipment.
+Setting the station name is identical in syntax to setting the SSID.
+One can also use
+.Cm station
+for
 .Bsx
 compatibility.
 .It Cm wep

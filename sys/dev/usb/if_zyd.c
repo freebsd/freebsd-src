@@ -47,9 +47,8 @@
 
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_amrr.h>
+#include <net80211/ieee80211_phy.h>
 #include <net80211/ieee80211_radiotap.h>
-#include <net80211/ieee80211_proto.h>
-#include <net80211/ieee80211_node.h>
 #include <net80211/ieee80211_regdomain.h>
 
 #include <net/bpf.h>
@@ -67,10 +66,7 @@
 #include <dev/usb/if_zydreg.h>
 #include <dev/usb/if_zydfw.h>
 
-#ifdef USB_DEBUG
 #define ZYD_DEBUG
-#endif
-
 #ifdef ZYD_DEBUG
 #define DPRINTF(x)	do { if (zyddebug > 0) printf x; } while (0)
 #define DPRINTFN(n, x)	do { if (zyddebug > (n)) printf x; } while (0)
@@ -154,6 +150,11 @@ static device_probe_t zyd_match;
 static device_attach_t zyd_attach;
 static device_detach_t zyd_detach;
 
+static struct ieee80211vap *zyd_vap_create(struct ieee80211com *,
+		    const char name[IFNAMSIZ], int unit, int opmode,
+		    int flags, const uint8_t bssid[IEEE80211_ADDR_LEN],
+		    const uint8_t mac[IEEE80211_ADDR_LEN]);
+static void	zyd_vap_delete(struct ieee80211vap *);
 static int	zyd_attachhook(struct zyd_softc *);
 static int	zyd_complete_attach(struct zyd_softc *);
 static int	zyd_open_pipes(struct zyd_softc *);
@@ -163,9 +164,8 @@ static void	zyd_free_tx_list(struct zyd_softc *);
 static int	zyd_alloc_rx_list(struct zyd_softc *);
 static void	zyd_free_rx_list(struct zyd_softc *);
 static struct	ieee80211_node *zyd_node_alloc(struct ieee80211_node_table *);
-static int	zyd_media_change(struct ifnet *);
 static void	zyd_task(void *);
-static int	zyd_newstate(struct ieee80211com *, enum ieee80211_state, int);
+static int	zyd_newstate(struct ieee80211vap *, enum ieee80211_state, int);
 static int	zyd_cmd(struct zyd_softc *, uint16_t, const void *, int,
 		    void *, int, u_int);
 static int	zyd_read16(struct zyd_softc *, uint16_t, uint16_t *);
@@ -205,11 +205,11 @@ static int	zyd_set_macaddr(struct zyd_softc *, const uint8_t *);
 static int	zyd_set_bssid(struct zyd_softc *, const uint8_t *);
 static int	zyd_switch_radio(struct zyd_softc *, int);
 static void	zyd_set_led(struct zyd_softc *, int, int);
-static void	zyd_set_multi(struct zyd_softc *);
+static void	zyd_set_multi(void *);
+static void	zyd_update_mcast(struct ifnet *);
 static int	zyd_set_rxfilter(struct zyd_softc *);
 static void	zyd_set_chan(struct zyd_softc *, struct ieee80211_channel *);
 static int	zyd_set_beacon_interval(struct zyd_softc *, int);
-static uint8_t	zyd_plcp_signal(int);
 static void	zyd_intr(usbd_xfer_handle, usbd_private_handle, usbd_status);
 static void	zyd_rx_data(struct zyd_softc *, const uint8_t *, uint16_t);
 static void	zyd_rxeof(usbd_xfer_handle, usbd_private_handle, usbd_status);
@@ -219,13 +219,14 @@ static int	zyd_tx_mgt(struct zyd_softc *, struct mbuf *,
 static int	zyd_tx_data(struct zyd_softc *, struct mbuf *,
 		    struct ieee80211_node *);
 static void	zyd_start(struct ifnet *);
+static int	zyd_raw_xmit(struct ieee80211_node *, struct mbuf *,
+		    const struct ieee80211_bpf_params *);
 static void	zyd_watchdog(void *);
 static int	zyd_ioctl(struct ifnet *, u_long, caddr_t);
+static void	zyd_init_locked(struct zyd_softc *);
 static void	zyd_init(void *);
 static void	zyd_stop(struct zyd_softc *, int);
 static int	zyd_loadfirmware(struct zyd_softc *, u_char *, size_t);
-static void	zyd_iter_func(void *, struct ieee80211_node *);
-static void	zyd_amrr_timeout(void *);
 static void	zyd_newassoc(struct ieee80211_node *, int);
 static void	zyd_scantask(void *);
 static void	zyd_scan_start(struct ieee80211com *);
@@ -282,7 +283,7 @@ zyd_attach(device_t dev)
 
 	sc->sc_dev = dev;
 
-	ifp = sc->sc_ifp = if_alloc(IFT_ETHER);
+	ifp = sc->sc_ifp = if_alloc(IFT_IEEE80211);
 	if (ifp == NULL) {
 		device_printf(dev, "can not if_alloc()\n");
 		return ENXIO;
@@ -325,18 +326,18 @@ bad:
 static int
 zyd_complete_attach(struct zyd_softc *sc)
 {
-	struct ieee80211com *ic = &sc->sc_ic;
 	struct ifnet *ifp = sc->sc_ifp;
+	struct ieee80211com *ic = ifp->if_l2com;
 	usbd_status error;
-	int bands;
+	uint8_t bands;
 
 	mtx_init(&sc->sc_mtx, device_get_nameunit(sc->sc_dev), MTX_NETWORK_LOCK,
 	    MTX_DEF | MTX_RECURSE);
 
 	usb_init_task(&sc->sc_scantask, zyd_scantask, sc);
 	usb_init_task(&sc->sc_task, zyd_task, sc);
+	usb_init_task(&sc->sc_mcasttask, zyd_set_multi, sc);
 
-	callout_init(&sc->sc_amrr_ch, 0);
 	callout_init(&sc->sc_watchdog_ch, 0);
 
 	error = usbd_set_config_no(sc->sc_udev, ZYD_CONFIG_NO, 1);
@@ -381,10 +382,11 @@ zyd_complete_attach(struct zyd_softc *sc)
 	    sc->fw_rev >> 8, sc->fw_rev & 0xff, zyd_rf_name(sc->rf_rev),
 	    sc->pa_rev, ether_sprintf(ic->ic_myaddr));
 
+	IEEE80211_ADDR_COPY(sc->sc_bssid, ic->ic_myaddr);
+
 	ic->ic_ifp = ifp;
 	ic->ic_phytype = IEEE80211_T_OFDM;	/* not only, but not used */
-	ic->ic_opmode = IEEE80211_M_STA;	/* default to BSS mode */
-	ic->ic_state = IEEE80211_S_INIT;
+	ic->ic_opmode = IEEE80211_M_STA;
 
 	/* set device capabilities */
 	ic->ic_caps =
@@ -398,29 +400,22 @@ zyd_complete_attach(struct zyd_softc *sc)
 	bands = 0;
 	setbit(&bands, IEEE80211_MODE_11B);
 	setbit(&bands, IEEE80211_MODE_11G);
-	ieee80211_init_channels(ic, 0, CTRY_DEFAULT, bands, 0, 1);
+	ieee80211_init_channels(ic, NULL, &bands);
 
 	ieee80211_ifattach(ic);
-	ic->ic_node_alloc = zyd_node_alloc;
 	ic->ic_newassoc = zyd_newassoc;
-
-	/* enable s/w bmiss handling in sta mode */
-	ic->ic_flags_ext |= IEEE80211_FEXT_SWBMISS;
+	ic->ic_raw_xmit = zyd_raw_xmit;
+	ic->ic_node_alloc = zyd_node_alloc;
 	ic->ic_scan_start = zyd_scan_start;
 	ic->ic_scan_end = zyd_scan_end;
 	ic->ic_set_channel = zyd_set_channel;
 
-	/* override state transition machine */
-	sc->sc_newstate = ic->ic_newstate;
-	ic->ic_newstate = zyd_newstate;
-	ieee80211_media_init(ic, zyd_media_change, ieee80211_media_status);
-	ieee80211_amrr_init(&sc->amrr, ic,
-	    IEEE80211_AMRR_MIN_SUCCESS_THRESHOLD,
-	    IEEE80211_AMRR_MAX_SUCCESS_THRESHOLD);
+	ic->ic_vap_create = zyd_vap_create;
+	ic->ic_vap_delete = zyd_vap_delete;
+	ic->ic_update_mcast = zyd_update_mcast;
 
-	bpfattach2(ifp, DLT_IEEE802_11_RADIO,
-	    sizeof(struct ieee80211_frame) + sizeof(sc->sc_txtap),
-	    &sc->sc_drvbpf);
+	bpfattach(ifp, DLT_IEEE802_11_RADIO,
+	    sizeof(struct ieee80211_frame) + sizeof(sc->sc_txtap));
 
 	sc->sc_rxtap_len = sizeof(sc->sc_rxtap);
 	sc->sc_rxtap.wr_ihdr.it_len = htole16(sc->sc_rxtap_len);
@@ -447,8 +442,8 @@ static int
 zyd_detach(device_t dev)
 {
 	struct zyd_softc *sc = device_get_softc(dev);
-	struct ieee80211com *ic = &sc->sc_ic;
 	struct ifnet *ifp = sc->sc_ifp;
+	struct ieee80211com *ic = ifp->if_l2com;
 
 	if (!device_is_attached(dev))
 		return 0;
@@ -457,22 +452,66 @@ zyd_detach(device_t dev)
 	ifp->if_flags &= ~IFF_UP;
 
 	zyd_stop(sc, 1);
+	bpfdetach(ifp);
+	ieee80211_ifdetach(ic);
+
 	usb_rem_task(sc->sc_udev, &sc->sc_scantask);
 	usb_rem_task(sc->sc_udev, &sc->sc_task);
-	callout_stop(&sc->sc_amrr_ch);
 	callout_stop(&sc->sc_watchdog_ch);
 
 	zyd_close_pipes(sc);
 
-	bpfdetach(ifp);
-	ieee80211_ifdetach(ic);
 	if_free(ifp);
-
 	mtx_destroy(&sc->sc_mtx);
 
 	usbd_add_drv_event(USB_EVENT_DRIVER_DETACH, sc->sc_udev, sc->sc_dev);
 
 	return 0;
+}
+
+static struct ieee80211vap *
+zyd_vap_create(struct ieee80211com *ic,
+	const char name[IFNAMSIZ], int unit, int opmode, int flags,
+	const uint8_t bssid[IEEE80211_ADDR_LEN],
+	const uint8_t mac[IEEE80211_ADDR_LEN])
+{
+	struct zyd_vap *zvp;
+	struct ieee80211vap *vap;
+
+	if (!TAILQ_EMPTY(&ic->ic_vaps))		/* only one at a time */
+		return NULL;
+	zvp = (struct zyd_vap *) malloc(sizeof(struct zyd_vap),
+	    M_80211_VAP, M_NOWAIT | M_ZERO);
+	if (zvp == NULL)
+		return NULL;
+	vap = &zvp->vap;
+	/* enable s/w bmiss handling for sta mode */
+	ieee80211_vap_setup(ic, vap, name, unit, opmode,
+	    flags | IEEE80211_CLONE_NOBEACONS, bssid, mac);
+
+	/* override state transition machine */
+	zvp->newstate = vap->iv_newstate;
+	vap->iv_newstate = zyd_newstate;
+
+	ieee80211_amrr_init(&zvp->amrr, vap,
+	    IEEE80211_AMRR_MIN_SUCCESS_THRESHOLD,
+	    IEEE80211_AMRR_MAX_SUCCESS_THRESHOLD,
+	    1000 /* 1 sec */);
+
+	/* complete setup */
+	ieee80211_vap_attach(vap, ieee80211_media_change, ieee80211_media_status);
+	ic->ic_opmode = opmode;
+	return vap;
+}
+
+static void
+zyd_vap_delete(struct ieee80211vap *vap)
+{
+	struct zyd_vap *zvp = ZYD_VAP(vap);
+
+	ieee80211_amrr_cleanup(&zvp->amrr);
+	ieee80211_vap_detach(vap);
+	free(zvp, M_80211_VAP);
 }
 
 static int
@@ -666,86 +705,70 @@ zyd_node_alloc(struct ieee80211_node_table *nt __unused)
 	return zn != NULL ? &zn->ni : NULL;
 }
 
-static int
-zyd_media_change(struct ifnet *ifp)
-{
-	struct zyd_softc *sc = ifp->if_softc;
-	int error;
-
-	error = ieee80211_media_change(ifp);
-	if (error != ENETRESET)
-		return error;
-
-	if ((ifp->if_flags & IFF_UP) == IFF_UP &&
-	    (ifp->if_drv_flags & IFF_DRV_RUNNING) == IFF_DRV_RUNNING)
-		zyd_init(sc);
-
-	return 0;
-}
-
 static void
 zyd_task(void *arg)
 {
 	struct zyd_softc *sc = arg;
-	struct ieee80211com *ic = &sc->sc_ic;
-	enum ieee80211_state ostate;
-
-	ostate = ic->ic_state;
+	struct ifnet *ifp = sc->sc_ifp;
+	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
+	struct zyd_vap *zvp = ZYD_VAP(vap);
 
 	switch (sc->sc_state) {
 	case IEEE80211_S_RUN:
 	{
-		struct ieee80211_node *ni = ic->ic_bss;
+		struct ieee80211_node *ni = vap->iv_bss;
 
 		zyd_set_chan(sc, ic->ic_curchan);
 
-		if (ic->ic_opmode != IEEE80211_M_MONITOR) {
+		if (vap->iv_opmode != IEEE80211_M_MONITOR) {
 			/* turn link LED on */
 			zyd_set_led(sc, ZYD_LED1, 1);
 
 			/* make data LED blink upon Tx */
 			zyd_write32(sc, sc->fwbase + ZYD_FW_LINK_STATUS, 1);
 
-			zyd_set_bssid(sc, ni->ni_bssid);
+			IEEE80211_ADDR_COPY(sc->sc_bssid, ni->ni_bssid);
+			zyd_set_bssid(sc, sc->sc_bssid);
 		}
 
-		if (ic->ic_opmode == IEEE80211_M_STA) {
+		if (vap->iv_opmode == IEEE80211_M_STA) {
 			/* fake a join to init the tx rate */
 			zyd_newassoc(ni, 1);
 		}
-
-		/* start automatic rate control timer */
-		if (ic->ic_fixed_rate == IEEE80211_FIXED_RATE_NONE)
-			callout_reset(&sc->sc_amrr_ch, hz,
-			    zyd_amrr_timeout, sc);
-
 		break;
 	}
 	default:
 		break;
 	}
 
-	sc->sc_newstate(ic, sc->sc_state, sc->sc_arg);
+	IEEE80211_LOCK(ic);
+	zvp->newstate(vap, sc->sc_state, sc->sc_arg);
+	if (vap->iv_newstate_cb != NULL)
+		vap->iv_newstate_cb(vap, sc->sc_state, sc->sc_arg);
+	IEEE80211_UNLOCK(ic);
 }
 
 static int
-zyd_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
+zyd_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 {
+	struct zyd_vap *zvp = ZYD_VAP(vap);
+	struct ieee80211com *ic = vap->iv_ic;
 	struct zyd_softc *sc = ic->ic_ifp->if_softc;
 
 	usb_rem_task(sc->sc_udev, &sc->sc_task);
-	callout_stop(&sc->sc_amrr_ch);
 
 	/* do it in a process context */
 	sc->sc_state = nstate;
 	sc->sc_arg = arg;
 
-	if (nstate == IEEE80211_S_INIT)
-		sc->sc_newstate(ic, nstate, arg);
-	else
+	if (nstate == IEEE80211_S_INIT) {
+		zvp->newstate(vap, nstate, arg);
+		return 0;
+	} else {
 		usb_add_task(sc->sc_udev, &sc->sc_task, USB_TASKQ_DRIVER);
-
-	return 0;
+		return EINPROGRESS;
+	}
 }
 
 static int
@@ -1582,7 +1605,8 @@ fail:	return error;
 static int
 zyd_read_eeprom(struct zyd_softc *sc)
 {
-	struct ieee80211com *ic = &sc->sc_ic;
+	struct ifnet *ifp = sc->sc_ifp;
+	struct ieee80211com *ic = ifp->if_l2com;
 	uint32_t tmp;
 	uint16_t val;
 	int i;
@@ -1607,6 +1631,7 @@ zyd_read_eeprom(struct zyd_softc *sc)
 	(void)zyd_read32(sc, ZYD_EEPROM_SUBID, &tmp);
 	sc->regdomain = tmp >> 16;
 	DPRINTF(("regulatory domain %x\n", sc->regdomain));
+	/* XXX propagate to net80211 after mapping to SKU */
 
 	/* read Tx power calibration tables */
 	for (i = 0; i < 7; i++) {
@@ -1687,10 +1712,11 @@ zyd_set_led(struct zyd_softc *sc, int which, int on)
 }
 
 static void
-zyd_set_multi(struct zyd_softc *sc)
+zyd_set_multi(void *arg)
 {
-	struct ieee80211com *ic = &sc->sc_ic;
-	struct ifnet *ifp = ic->ic_ifp;
+	struct zyd_softc *sc = arg;
+	struct ifnet *ifp = sc->sc_ifp;
+	struct ieee80211com *ic = ifp->if_l2com;
 	struct ifmultiaddr *ifma;
 	uint32_t low, high;
 	uint8_t v;
@@ -1725,12 +1751,22 @@ zyd_set_multi(struct zyd_softc *sc)
 	zyd_write32(sc, ZYD_MAC_GHTBH, high);
 }
 
+static void
+zyd_update_mcast(struct ifnet *ifp)
+{
+	struct zyd_softc *sc = ifp->if_softc;
+
+	usb_add_task(sc->sc_udev, &sc->sc_mcasttask, USB_TASKQ_DRIVER);
+}
+
 static int
 zyd_set_rxfilter(struct zyd_softc *sc)
 {
+	struct ifnet *ifp = sc->sc_ifp;
+	struct ieee80211com *ic = ifp->if_l2com;
 	uint32_t rxfilter;
 
-	switch (sc->sc_ic.ic_opmode) {
+	switch (ic->ic_opmode) {
 	case IEEE80211_M_STA:
 		rxfilter = ZYD_FILTER_BSS;
 		break;
@@ -1751,7 +1787,8 @@ zyd_set_rxfilter(struct zyd_softc *sc)
 static void
 zyd_set_chan(struct zyd_softc *sc, struct ieee80211_channel *c)
 {
-	struct ieee80211com *ic = &sc->sc_ic;
+	struct ifnet *ifp = sc->sc_ifp;
+	struct ieee80211com *ic = ifp->if_l2com;
 	struct zyd_rf *rf = &sc->sc_rf;
 	uint32_t tmp;
 	u_int chan;
@@ -1809,31 +1846,6 @@ zyd_set_beacon_interval(struct zyd_softc *sc, int bintval)
 	return 0;
 }
 
-static uint8_t
-zyd_plcp_signal(int rate)
-{
-	switch (rate) {
-	/* CCK rates (returned values are device-dependent) */
-	case 2:		return 0x0;
-	case 4:		return 0x1;
-	case 11:	return 0x2;
-	case 22:	return 0x3;
-
-	/* OFDM rates (cf IEEE Std 802.11a-1999, pp. 14 Table 80) */
-	case 12:	return 0xb;
-	case 18:	return 0xf;
-	case 24:	return 0xa;
-	case 36:	return 0xe;
-	case 48:	return 0x9;
-	case 72:	return 0xd;
-	case 96:	return 0x8;
-	case 108:	return 0xc;
-
-	/* unsupported rates (should not get there) */
-	default:	return 0xff;
-	}
-}
-
 static void
 zyd_intr(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 {
@@ -1857,8 +1869,9 @@ zyd_intr(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 	if (le16toh(cmd->code) == ZYD_NOTIF_RETRYSTATUS) {
 		struct zyd_notif_retry *retry =
 		    (struct zyd_notif_retry *)cmd->data;
-		struct ieee80211com *ic = &sc->sc_ic;
 		struct ifnet *ifp = sc->sc_ifp;
+		struct ieee80211com *ic = ifp->if_l2com;
+		struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 		struct ieee80211_node *ni;
 
 		DPRINTF(("retry intr: rate=0x%x addr=%s count=%d (0x%x)\n",
@@ -1870,15 +1883,12 @@ zyd_intr(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 		 * retry statistics.  In BSS mode, this node is the AP we're
 		 * associated to so no lookup is actually needed.
 		 */
-		if (ic->ic_opmode != IEEE80211_M_STA) {
-			ni = ieee80211_find_node(&ic->ic_sta, retry->macaddr);
-			if (ni == NULL)
-				return;	/* just ignore */
-		} else
-			ni = ic->ic_bss;
-
-		((struct zyd_node *)ni)->amn.amn_retrycnt++;
-
+		ni = ieee80211_find_txnode(vap, retry->macaddr);
+		if (ni != NULL) {
+			ieee80211_amrr_tx_complete(&ZYD_NODE(ni)->amn,
+			    IEEE80211_AMRR_FAILURE, 1);
+			ieee80211_free_node(ni);
+		}
 		if (le16toh(retry->count) & 0x100)
 			ifp->if_oerrors++;	/* too many retries */
 	} else if (le16toh(cmd->code) == ZYD_NOTIF_IORD) {
@@ -1918,30 +1928,16 @@ zyd_intr(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 	}
 }
 
-static __inline uint8_t
-zyd_plcp2ieee(int signal, int isofdm)
-{
-       if (isofdm) {
-               static const uint8_t ofdmrates[16] =
-                   { 0, 0, 0, 0, 0, 0, 0, 96, 48, 24, 12, 108, 72, 36, 18 };
-               return ofdmrates[signal & 0xf];
-       } else {
-               static const uint8_t cckrates[16] =
-                   { 0, 0, 0, 0, 4, 0, 0, 11, 0, 0, 2, 0, 0, 0, 22, 0 };
-               return cckrates[signal & 0xf];
-       }
-}
-
 static void
 zyd_rx_data(struct zyd_softc *sc, const uint8_t *buf, uint16_t len)
 {
-	struct ieee80211com *ic = &sc->sc_ic;
 	struct ifnet *ifp = sc->sc_ifp;
+	struct ieee80211com *ic = ifp->if_l2com;
 	struct ieee80211_node *ni;
 	const struct zyd_plcphdr *plcp;
 	const struct zyd_rx_stat *stat;
 	struct mbuf *m;
-	int rlen;
+	int rlen, rssi, nf;
 
 	if (len < ZYD_MIN_FRAGSZ) {
 		DPRINTF(("%s: frame too short (length=%d)\n",
@@ -1980,7 +1976,7 @@ zyd_rx_data(struct zyd_softc *sc, const uint8_t *buf, uint16_t len)
 	m->m_pkthdr.len = m->m_len = rlen;
 	bcopy((const uint8_t *)(plcp + 1), mtod(m, uint8_t *), rlen);
 
-	if (bpf_peers_present(sc->sc_drvbpf)) {
+	if (bpf_peers_present(ifp->if_bpf)) {
 		struct zyd_rx_radiotap_header *tap = &sc->sc_rxtap;
 
 		tap->wr_flags = 0;
@@ -1989,20 +1985,23 @@ zyd_rx_data(struct zyd_softc *sc, const uint8_t *buf, uint16_t len)
 		/* XXX toss, no way to express errors */
 		if (stat->flags & ZYD_RX_DECRYPTERR)
 			tap->wr_flags |= IEEE80211_RADIOTAP_F_BADFCS;
-		tap->wr_rate =
-		    zyd_plcp2ieee(plcp->signal, stat->flags & ZYD_RX_OFDM);
+		tap->wr_rate = ieee80211_plcp2rate(plcp->signal,
+		    stat->flags & ZYD_RX_OFDM);
 		tap->wr_antsignal = stat->rssi + -95;
 		tap->wr_antnoise = -95;		/* XXX */
 		
-		bpf_mtap2(sc->sc_drvbpf, tap, sc->sc_rxtap_len, m);
+		bpf_mtap2(ifp->if_bpf, tap, sc->sc_rxtap_len, m);
 	}
 
-	ni = ieee80211_find_rxnode(ic, mtod(m, struct ieee80211_frame_min *));
-	ieee80211_input(ic, m, ni,
-	    stat->rssi > 63 ? 127 : 2 * stat->rssi, -95/*XXX*/, 0);
+	rssi = stat->rssi > 63 ? 127 : 2 * stat->rssi;
+	nf = -95;		/* XXX */
 
-	/* node is no longer needed */
-	ieee80211_free_node(ni);
+	ni = ieee80211_find_rxnode(ic, mtod(m, struct ieee80211_frame_min *));
+	if (ni != NULL) {
+		(void) ieee80211_input(ni, m, rssi, nf, 0);
+		ieee80211_free_node(ni);
+	} else
+		(void) ieee80211_input_all(ic, m, rssi, nf, 0);
 }
 
 static void
@@ -2067,7 +2066,8 @@ skip:	/* setup a new transfer */
 static int
 zyd_tx_mgt(struct zyd_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 {
-	struct ieee80211com *ic = &sc->sc_ic;
+	struct ieee80211vap *vap = ni->ni_vap;
+	struct ieee80211com *ic = ni->ni_ic;
 	struct ifnet *ifp = sc->sc_ifp;
 	struct zyd_tx_desc *desc;
 	struct zyd_tx_data *data;
@@ -2085,7 +2085,7 @@ zyd_tx_mgt(struct zyd_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 	wh = mtod(m0, struct ieee80211_frame *);
 
 	if (wh->i_fc[1] & IEEE80211_FC1_WEP) {
-		k = ieee80211_crypto_encap(ic, ni, m0);
+		k = ieee80211_crypto_encap(ni, m0);
 		if (k == NULL) {
 			m_freem(m0);
 			return ENOBUFS;
@@ -2106,7 +2106,7 @@ zyd_tx_mgt(struct zyd_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 	desc->flags = ZYD_TX_FLAG_BACKOFF;
 	if (!IEEE80211_IS_MULTICAST(wh->i_addr1)) {
 		/* multicast frames are not sent at OFDM rates in 802.11b/g */
-		if (totlen > ic->ic_rtsthreshold) {
+		if (totlen > vap->iv_rtsthreshold) {
 			desc->flags |= ZYD_TX_FLAG_RTS;
 		} else if (ZYD_RATE_IS_OFDM(rate) &&
 		    (ic->ic_flags & IEEE80211_F_USEPROT)) {
@@ -2123,7 +2123,7 @@ zyd_tx_mgt(struct zyd_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 	    (IEEE80211_FC0_TYPE_CTL | IEEE80211_FC0_SUBTYPE_PS_POLL))
 		desc->flags |= ZYD_TX_FLAG_TYPE(ZYD_TX_TYPE_PS_POLL);
 
-	desc->phy = zyd_plcp_signal(rate);
+	desc->phy = ieee80211_rate2plcp(rate);
 	if (ZYD_RATE_IS_OFDM(rate)) {
 		desc->phy |= ZYD_TX_PHY_OFDM;
 		if (IEEE80211_IS_CHAN_5GHZ(ic->ic_curchan))
@@ -2145,13 +2145,13 @@ zyd_tx_mgt(struct zyd_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 			desc->plcp_service |= ZYD_PLCP_LENGEXT;
 	}
 
-	if (bpf_peers_present(sc->sc_drvbpf)) {
+	if (bpf_peers_present(ifp->if_bpf)) {
 		struct zyd_tx_radiotap_header *tap = &sc->sc_txtap;
 
 		tap->wt_flags = 0;
 		tap->wt_rate = rate;
 
-		bpf_mtap2(sc->sc_drvbpf, tap, sc->sc_txtap_len, m0);
+		bpf_mtap2(ifp->if_bpf, tap, sc->sc_txtap_len, m0);
 	}
 
 	m_copydata(m0, 0, m0->m_pkthdr.len,
@@ -2200,7 +2200,8 @@ zyd_txeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 
 	ni = data->ni;
 	/* update rate control statistics */
-	((struct zyd_node *)ni)->amn.amn_txcnt++;
+	ieee80211_amrr_tx_complete(&ZYD_NODE(ni)->amn,
+	    IEEE80211_AMRR_SUCCESS, 0);
 
 	/*
 	 * Do any tx complete callback.  Note this must
@@ -2227,11 +2228,13 @@ zyd_txeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 static int
 zyd_tx_data(struct zyd_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 {
-	struct ieee80211com *ic = &sc->sc_ic;
+	struct ieee80211vap *vap = ni->ni_vap;
+	struct ieee80211com *ic = ni->ni_ic;
 	struct ifnet *ifp = sc->sc_ifp;
 	struct zyd_tx_desc *desc;
 	struct zyd_tx_data *data;
 	struct ieee80211_frame *wh;
+	const struct ieee80211_txparam *tp;
 	struct ieee80211_key *k;
 	int xferlen, totlen, rate;
 	uint16_t pktlen;
@@ -2242,17 +2245,19 @@ zyd_tx_data(struct zyd_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 	desc = (struct zyd_tx_desc *)data->buf;
 
 	desc->flags = ZYD_TX_FLAG_BACKOFF;
+	tp = &vap->iv_txparms[ieee80211_chan2mode(ni->ni_chan)];
 	if (IEEE80211_IS_MULTICAST(wh->i_addr1)) {
-		rate = ic->ic_mcast_rate;
+		rate = tp->mcastrate;
 		desc->flags |= ZYD_TX_FLAG_MULTICAST;
-	} else if (ic->ic_fixed_rate != IEEE80211_FIXED_RATE_NONE)
-		rate = ic->ic_fixed_rate;
-	else
-		rate = ni->ni_rates.rs_rates[ni->ni_txrate];
-	rate &= IEEE80211_RATE_VAL;
+	} else if (tp->ucastrate != IEEE80211_FIXED_RATE_NONE) {
+		rate = tp->ucastrate;
+	} else {
+		(void) ieee80211_amrr_choose(ni, &ZYD_NODE(ni)->amn);
+		rate = ni->ni_txrate;
+	}
 
 	if (wh->i_fc[1] & IEEE80211_FC1_WEP) {
-		k = ieee80211_crypto_encap(ic, ni, m0);
+		k = ieee80211_crypto_encap(ni, m0);
 		if (k == NULL) {
 			m_freem(m0);
 			return ENOBUFS;
@@ -2273,7 +2278,7 @@ zyd_tx_data(struct zyd_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 
 	if (!IEEE80211_IS_MULTICAST(wh->i_addr1)) {
 		/* multicast frames are not sent at OFDM rates in 802.11b/g */
-		if (totlen > ic->ic_rtsthreshold) {
+		if (totlen > vap->iv_rtsthreshold) {
 			desc->flags |= ZYD_TX_FLAG_RTS;
 		} else if (ZYD_RATE_IS_OFDM(rate) &&
 		    (ic->ic_flags & IEEE80211_F_USEPROT)) {
@@ -2289,7 +2294,7 @@ zyd_tx_data(struct zyd_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 	    (IEEE80211_FC0_TYPE_CTL | IEEE80211_FC0_SUBTYPE_PS_POLL))
 		desc->flags |= ZYD_TX_FLAG_TYPE(ZYD_TX_TYPE_PS_POLL);
 
-	desc->phy = zyd_plcp_signal(rate);
+	desc->phy = ieee80211_rate2plcp(rate);
 	if (ZYD_RATE_IS_OFDM(rate)) {
 		desc->phy |= ZYD_TX_PHY_OFDM;
 		if (IEEE80211_IS_CHAN_5GHZ(ic->ic_curchan))
@@ -2311,7 +2316,7 @@ zyd_tx_data(struct zyd_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 			desc->plcp_service |= ZYD_PLCP_LENGEXT;
 	}
 
-	if (bpf_peers_present(sc->sc_drvbpf)) {
+	if (bpf_peers_present(ifp->if_bpf)) {
 		struct zyd_tx_radiotap_header *tap = &sc->sc_txtap;
 
 		tap->wt_flags = 0;
@@ -2319,7 +2324,7 @@ zyd_tx_data(struct zyd_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 		tap->wt_chan_freq = htole16(ic->ic_curchan->ic_freq);
 		tap->wt_chan_flags = htole16(ic->ic_curchan->ic_flags);
 
-		bpf_mtap2(sc->sc_drvbpf, tap, sc->sc_txtap_len, m0);
+		bpf_mtap2(ifp->if_bpf, tap, sc->sc_txtap_len, m0);
 	}
 
 	m_copydata(m0, 0, m0->m_pkthdr.len,
@@ -2348,81 +2353,81 @@ static void
 zyd_start(struct ifnet *ifp)
 {
 	struct zyd_softc *sc = ifp->if_softc;
-	struct ieee80211com *ic = &sc->sc_ic;
-	struct ether_header *eh;
 	struct ieee80211_node *ni;
-	struct mbuf *m0;
+	struct mbuf *m;
 
 	for (;;) {
-		IF_POLL(&ic->ic_mgtq, m0);
-		if (m0 != NULL) {
-			if (sc->tx_queued >= ZYD_TX_LIST_CNT) {
-				ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-				break;
-			}
-			IF_DEQUEUE(&ic->ic_mgtq, m0);
-
-			ni = (struct ieee80211_node *)m0->m_pkthdr.rcvif;
-			m0->m_pkthdr.rcvif = NULL;
-			if (bpf_peers_present(ic->ic_rawbpf))
-				bpf_mtap(ic->ic_rawbpf, m0);
-			if (zyd_tx_mgt(sc, m0, ni) != 0)
-				break;
-		} else {
-			if (ic->ic_state != IEEE80211_S_RUN)
-				break;
-			IFQ_POLL(&ifp->if_snd, m0);
-			if (m0 == NULL)
-				break;
-			if (sc->tx_queued >= ZYD_TX_LIST_CNT) {
-				ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-				break;
-			}
-			IFQ_DEQUEUE(&ifp->if_snd, m0);
-			/*
-			 * Cancel any background scan.
-			 */
-			if (ic->ic_flags & IEEE80211_F_SCAN)
-				ieee80211_cancel_scan(ic);
-
-			if (m0->m_len < sizeof(struct ether_header) &&
-			    !(m0 = m_pullup(m0, sizeof(struct ether_header))))
-				continue;
-
-			eh = mtod(m0, struct ether_header *);
-			ni = ieee80211_find_txnode(ic, eh->ether_dhost);
-			if (ni == NULL) {
-				m_freem(m0);
-				continue;
-			}
-			if (bpf_peers_present(ifp->if_bpf))
-				bpf_mtap(ifp->if_bpf, m0);
-			if ((m0 = ieee80211_encap(ic, m0, ni)) == NULL) {
-				ieee80211_free_node(ni);
-				ifp->if_oerrors++;
-				continue;
-			}
-			if (bpf_peers_present(ic->ic_rawbpf))
-				bpf_mtap(ic->ic_rawbpf, m0);
-			if (zyd_tx_data(sc, m0, ni) != 0) {
-				ieee80211_free_node(ni);
-				ifp->if_oerrors++;
-				break;
-			}
+		IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
+		if (m == NULL)
+			break;
+		if (sc->tx_queued >= ZYD_TX_LIST_CNT) {
+			IFQ_DRV_PREPEND(&ifp->if_snd, m);
+			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+			break;
+		}
+		ni = (struct ieee80211_node *)m->m_pkthdr.rcvif;
+		m = ieee80211_encap(ni, m);
+		if (m == NULL) {
+			ieee80211_free_node(ni);
+			ifp->if_oerrors++;
+			continue;
+		}
+		if (zyd_tx_data(sc, m, ni) != 0) {
+			ieee80211_free_node(ni);
+			ifp->if_oerrors++;
+			break;
 		}
 
 		sc->tx_timer = 5;
-		ic->ic_lastdata = ticks;
 		callout_reset(&sc->sc_watchdog_ch, hz, zyd_watchdog, sc);
 	}
+}
+
+static int
+zyd_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
+	const struct ieee80211_bpf_params *params)
+{
+	struct ieee80211com *ic = ni->ni_ic;
+	struct ifnet *ifp = ic->ic_ifp;
+	struct zyd_softc *sc = ifp->if_softc;
+
+	/* prevent management frames from being sent if we're not ready */
+	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
+		m_freem(m);
+		ieee80211_free_node(ni);
+		return ENETDOWN;
+	}
+	if (sc->tx_queued >= ZYD_TX_LIST_CNT) {
+		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+		m_freem(m);
+		ieee80211_free_node(ni);
+		return ENOBUFS;		/* XXX */
+	}
+
+	ifp->if_opackets++;
+
+	/*
+	 * Legacy path; interpret frame contents to decide
+	 * precisely how to send the frame.
+	 * XXX raw path
+	 */
+	if (zyd_tx_mgt(sc, m, ni) != 0)
+		goto bad;
+	sc->tx_timer = 5;
+	callout_reset(&sc->sc_watchdog_ch, hz, zyd_watchdog, sc);
+
+	return 0;
+bad:
+	ifp->if_oerrors++;
+	ieee80211_free_node(ni);
+	return EIO;		/* XXX */
 }
 
 static void
 zyd_watchdog(void *arg)
 {
 	struct zyd_softc *sc = arg;
-	struct ieee80211com *ic = &sc->sc_ic;
-	struct ifnet *ifp = ic->ic_ifp;
+	struct ifnet *ifp = sc->sc_ifp;
 
 	if (sc->tx_timer > 0) {
 		if (--sc->tx_timer == 0) {
@@ -2439,11 +2444,11 @@ static int
 zyd_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	struct zyd_softc *sc = ifp->if_softc;
-	struct ieee80211com *ic = &sc->sc_ic;
-	int error = 0;
+	struct ieee80211com *ic = ifp->if_l2com;
+	struct ifreq *ifr = (struct ifreq *) data;
+	int error = 0, startall = 0;
 
 	ZYD_LOCK(sc);
-
 	switch (cmd) {
 	case SIOCSIFFLAGS:
 		if (ifp->if_flags & IFF_UP) {
@@ -2451,43 +2456,36 @@ zyd_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				if ((ifp->if_flags ^ sc->sc_if_flags) &
 				    (IFF_ALLMULTI | IFF_PROMISC))
 					zyd_set_multi(sc);
-			} else
-				zyd_init(sc);
+			} else {
+				zyd_init_locked(sc);
+				startall = 1;
+			}
 		} else {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 				zyd_stop(sc, 1);
 		}
 		sc->sc_if_flags = ifp->if_flags;
 		break;
-
-	case SIOCADDMULTI:
-	case SIOCDELMULTI:
-		if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-			zyd_set_multi(sc);
+	case SIOCGIFMEDIA:
+	case SIOCSIFMEDIA:
+		error = ifmedia_ioctl(ifp, ifr, &ic->ic_media, cmd);
 		break;
-
 	default:
-		error = ieee80211_ioctl(ic, cmd, data);
+		error = ether_ioctl(ifp, cmd, data);
+		break;
 	}
-
-	if (error == ENETRESET) {
-		if ((ifp->if_flags & IFF_UP) == IFF_UP && 
-		    (ifp->if_drv_flags & IFF_DRV_RUNNING) == IFF_DRV_RUNNING)
-			zyd_init(sc);
-		error = 0;
-	}
-
 	ZYD_UNLOCK(sc);
 
+	if (startall)
+		ieee80211_start_all(ic);
 	return error;
 }
 
 static void
-zyd_init(void *priv)
+zyd_init_locked(struct zyd_softc *sc)
 {
-	struct zyd_softc *sc = priv;
-	struct ieee80211com *ic = &sc->sc_ic;
-	struct ifnet *ifp = ic->ic_ifp;
+	struct ifnet *ifp = sc->sc_ifp;
+	struct ieee80211com *ic = ifp->if_l2com;
 	int i, error;
 
 	zyd_stop(sc, 0);
@@ -2569,13 +2567,6 @@ zyd_init(void *priv)
 
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
-
-	if (ic->ic_opmode != IEEE80211_M_MONITOR) {
-		if (ic->ic_roaming != IEEE80211_ROAMING_MANUAL)
-			ieee80211_new_state(ic, IEEE80211_S_SCAN, -1);
-	} else
-		ieee80211_new_state(ic, IEEE80211_S_RUN, -1);
-
 	return;
 
 fail:	zyd_stop(sc, 1);
@@ -2583,12 +2574,24 @@ fail:	zyd_stop(sc, 1);
 }
 
 static void
+zyd_init(void *priv)
+{
+	struct zyd_softc *sc = priv;
+	struct ifnet *ifp = sc->sc_ifp;
+	struct ieee80211com *ic = ifp->if_l2com;
+
+	ZYD_LOCK(sc);
+	zyd_init_locked(sc);
+	ZYD_UNLOCK(sc);
+
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+		ieee80211_start_all(ic);		/* start all vap's */
+}
+
+static void
 zyd_stop(struct zyd_softc *sc, int disable)
 {
 	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = &sc->sc_ic;
-
-	ieee80211_new_state(ic, IEEE80211_S_INIT, -1);	/* free all nodes */
 
 	sc->tx_timer = 0;
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
@@ -2661,43 +2664,11 @@ zyd_loadfirmware(struct zyd_softc *sc, u_char *fw, size_t size)
 }
 
 static void
-zyd_iter_func(void *arg, struct ieee80211_node *ni)
-{
-	struct zyd_softc *sc = arg;
-	struct zyd_node *zn = (struct zyd_node *)ni;
-
-	ieee80211_amrr_choose(&sc->amrr, ni, &zn->amn);
-}
-
-static void
-zyd_amrr_timeout(void *arg)
-{
-	struct zyd_softc *sc = arg;
-	struct ieee80211com *ic = &sc->sc_ic;
-
-	ZYD_LOCK(sc);
-	if (ic->ic_opmode == IEEE80211_M_STA)
-		zyd_iter_func(sc, ic->ic_bss);
-	else
-		ieee80211_iterate_nodes(&ic->ic_sta, zyd_iter_func, sc);
-	ZYD_UNLOCK(sc);
-
-	callout_reset(&sc->sc_amrr_ch, hz, zyd_amrr_timeout, sc);
-}
-
-static void
 zyd_newassoc(struct ieee80211_node *ni, int isnew)
 {
-	struct zyd_softc *sc = ni->ni_ic->ic_ifp->if_softc;
-	int i;
+	struct ieee80211vap *vap = ni->ni_vap;
 
-	ieee80211_amrr_node_init(&sc->amrr, &((struct zyd_node *)ni)->amn);
-
-	/* set rate to some reasonable initial value */
-	for (i = ni->ni_rates.rs_nrates - 1;
-	     i > 0 && (ni->ni_rates.rs_rates[i] & IEEE80211_RATE_VAL) > 72;
-	     i--);
-	ni->ni_txrate = i;
+	ieee80211_amrr_node_init(&ZYD_VAP(vap)->amrr, &ZYD_NODE(ni)->amn, ni);
 }
 
 static void
@@ -2740,18 +2711,20 @@ static void
 zyd_scantask(void *arg)
 {
 	struct zyd_softc *sc = arg;
-	struct ieee80211com *ic = &sc->sc_ic;
-	struct ifnet *ifp = ic->ic_ifp;
+	struct ifnet *ifp = sc->sc_ifp;
+	struct ieee80211com *ic = ifp->if_l2com;
 
 	ZYD_LOCK(sc);
 
 	switch (sc->sc_scan_action) {
 	case ZYD_SCAN_START:
+		/* want broadcast address while scanning */
                 zyd_set_bssid(sc, ifp->if_broadcastaddr);
                 break;
 
         case ZYD_SCAN_END:
-                zyd_set_bssid(sc, ic->ic_bss->ni_bssid);
+		/* restore previous bssid */
+                zyd_set_bssid(sc, sc->sc_bssid);
                 break;
 
         case ZYD_SET_CHANNEL:

@@ -36,7 +36,9 @@
 .Sh DESCRIPTION
 The
 .Nm
-module implements an authenticator plugin that is intended
+module is a
+.Xr wlan 4
+authenticator plugin
 for use with user-mode authentication implementations such
 as
 .Nm hostapd .
@@ -44,13 +46,10 @@ It hooks into the 802.11 layer and does nothing.
 As a result, 802.11 stations that associate are not authorized to
 send or receive frames until they are authorized by an external agent;
 typically using a protocol such as WPA, 802.1x, or 802.11i.
-The
-.Nm
-module is an 802.11 authenticator plugin module for use by the
-.Xr wlan 4
-module.
-This module is automatically loaded if an application configures
-an 802.11 device for operation as an AP with WPA or 802.1x authentication.
+.Pp
+This module is automatically loaded by the rc script that normally
+starts
+.Xr hostapd 8 .
 .Sh SEE ALSO
 .Xr wlan 4
 .Sh STANDARDS

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003-2007 Sam Leffler, Errno Consulting
+ * Copyright (c) 2003-2008 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,12 +28,18 @@
 #define _NET80211_IEEE80211_FREEBSD_H_
 
 #ifdef _KERNEL
+#include <sys/param.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/rwlock.h>
+
 /*
  * Common state locking definitions.
  */
 typedef struct mtx ieee80211_com_lock_t;
 #define	IEEE80211_LOCK_INIT(_ic, _name) \
-	mtx_init(&(_ic)->ic_comlock, _name, "802.11 com lock", MTX_DEF)
+	mtx_init(&(_ic)->ic_comlock, _name, "802.11 com lock", \
+	    MTX_DEF | MTX_RECURSE)
 #define	IEEE80211_LOCK_DESTROY(_ic) mtx_destroy(&(_ic)->ic_comlock)
 #define	IEEE80211_LOCK(_ic)	   mtx_lock(&(_ic)->ic_comlock)
 #define	IEEE80211_UNLOCK(_ic)	   mtx_unlock(&(_ic)->ic_comlock)
@@ -41,43 +47,61 @@ typedef struct mtx ieee80211_com_lock_t;
 	mtx_assert(&(_ic)->ic_comlock, MA_OWNED)
 
 /*
- * Beacon locking definitions.
- */
-typedef struct mtx ieee80211_beacon_lock_t;
-#define	IEEE80211_BEACON_LOCK_INIT(_ic, _name) \
-	mtx_init(&(_ic)->ic_beaconlock, _name, "802.11 beacon lock", MTX_DEF)
-#define	IEEE80211_BEACON_LOCK_DESTROY(_ic) mtx_destroy(&(_ic)->ic_beaconlock)
-#define	IEEE80211_BEACON_LOCK(_ic)	   mtx_lock(&(_ic)->ic_beaconlock)
-#define	IEEE80211_BEACON_UNLOCK(_ic)	   mtx_unlock(&(_ic)->ic_beaconlock)
-#define	IEEE80211_BEACON_LOCK_ASSERT(_ic) \
-	mtx_assert(&(_ic)->ic_beaconlock, MA_OWNED)
-
-/*
  * Node locking definitions.
- * NB: MTX_DUPOK is because we don't generate per-interface strings.
  */
-typedef struct mtx ieee80211_node_lock_t;
-#define	IEEE80211_NODE_LOCK_INIT(_nt, _name) \
-	mtx_init(&(_nt)->nt_nodelock, _name, "802.11 node table", \
-		MTX_DEF | MTX_DUPOK)
-#define	IEEE80211_NODE_LOCK_DESTROY(_nt)	mtx_destroy(&(_nt)->nt_nodelock)
-#define	IEEE80211_NODE_LOCK(_nt)		mtx_lock(&(_nt)->nt_nodelock)
-#define	IEEE80211_NODE_IS_LOCKED(_nt)		mtx_owned(&(_nt)->nt_nodelock)
-#define	IEEE80211_NODE_UNLOCK(_nt)		mtx_unlock(&(_nt)->nt_nodelock)
-#define	IEEE80211_NODE_LOCK_ASSERT(_nt) \
-	mtx_assert(&(_nt)->nt_nodelock, MA_OWNED)
+typedef struct {
+	char		name[16];		/* e.g. "ath0_node_lock" */
+	struct mtx	mtx;
+} ieee80211_node_lock_t;
+#define	IEEE80211_NODE_LOCK_INIT(_nt, _name) do {			\
+	ieee80211_node_lock_t *nl = &(_nt)->nt_nodelock;		\
+	snprintf(nl->name, sizeof(nl->name), "%s_node_lock", _name);	\
+	mtx_init(&nl->mtx, NULL, nl->name, MTX_DEF | MTX_RECURSE);	\
+} while (0)
+#define	IEEE80211_NODE_LOCK_DESTROY(_nt) \
+	mtx_destroy(&(_nt)->nt_nodelock.mtx)
+#define	IEEE80211_NODE_LOCK(_nt) \
+	mtx_lock(&(_nt)->nt_nodelock.mtx)
+#define	IEEE80211_NODE_IS_LOCKED(_nt) \
+	mtx_owned(&(_nt)->nt_nodelock.mtx)
+#define	IEEE80211_NODE_UNLOCK(_nt) \
+	mtx_unlock(&(_nt)->nt_nodelock.mtx)
+#define	IEEE80211_NODE_LOCK_ASSERT(_nt)	\
+	mtx_assert(&(_nt)->nt_nodelock.mtx, MA_OWNED)
 
 /*
- * Node table scangen locking definitions.
+ * Node table iteration locking definitions; this protects the
+ * scan generation # used to iterate over the station table
+ * while grabbing+releasing the node lock.
  */
-typedef struct mtx ieee80211_scan_lock_t;
-#define	IEEE80211_SCAN_LOCK_INIT(_nt, _name) \
-	mtx_init(&(_nt)->nt_scanlock, _name, "802.11 node scangen", MTX_DEF)
-#define	IEEE80211_SCAN_LOCK_DESTROY(_nt)	mtx_destroy(&(_nt)->nt_scanlock)
-#define	IEEE80211_SCAN_LOCK(_nt)		mtx_lock(&(_nt)->nt_scanlock)
-#define	IEEE80211_SCAN_UNLOCK(_nt)		mtx_unlock(&(_nt)->nt_scanlock)
-#define	IEEE80211_SCAN_LOCK_ASSERT(_nt) \
-	mtx_assert(&(_nt)->nt_scanlock, MA_OWNED)
+typedef struct {
+	char		name[16];		/* e.g. "ath0_scan_lock" */
+	struct mtx	mtx;
+} ieee80211_scan_lock_t;
+#define	IEEE80211_NODE_ITERATE_LOCK_INIT(_nt, _name) do {		\
+	ieee80211_scan_lock_t *sl = &(_nt)->nt_scanlock;		\
+	snprintf(sl->name, sizeof(sl->name), "%s_scan_lock", _name);	\
+	mtx_init(&sl->mtx, NULL, sl->name, MTX_DEF);			\
+} while (0)
+#define	IEEE80211_NODE_ITERATE_LOCK_DESTROY(_nt) \
+	mtx_destroy(&(_nt)->nt_scanlock.mtx)
+#define	IEEE80211_NODE_ITERATE_LOCK(_nt) \
+	mtx_lock(&(_nt)->nt_scanlock.mtx)
+#define	IEEE80211_NODE_ITERATE_UNLOCK(_nt) \
+	mtx_unlock(&(_nt)->nt_scanlock.mtx)
+
+#define	_AGEQ_ENQUEUE(_ifq, _m, _qlen, _age) do {		\
+	(_m)->m_nextpkt = NULL;					\
+	if ((_ifq)->ifq_tail != NULL) { 			\
+		_age -= M_AGE_GET((_ifq)->ifq_tail);		\
+		(_ifq)->ifq_tail->m_nextpkt = (_m);		\
+	} else { 						\
+		(_ifq)->ifq_head = (_m); 			\
+	}							\
+	M_AGE_SET(_m, _age);					\
+	(_ifq)->ifq_tail = (_m); 				\
+	(_qlen) = ++(_ifq)->ifq_len; 				\
+} while (0)
 
 /*
  * Per-node power-save queue definitions. 
@@ -113,16 +137,7 @@ typedef struct mtx ieee80211_scan_lock_t;
 	_IF_DEQUEUE(&(_ni)->ni_savedq, m);			\
 } while (0)
 #define	_IEEE80211_NODE_SAVEQ_ENQUEUE(_ni, _m, _qlen, _age) do {\
-	(_m)->m_nextpkt = NULL;					\
-	if ((_ni)->ni_savedq.ifq_tail != NULL) { 		\
-		_age -= M_AGE_GET((_ni)->ni_savedq.ifq_tail);	\
-		(_ni)->ni_savedq.ifq_tail->m_nextpkt = (_m);	\
-	} else { 						\
-		(_ni)->ni_savedq.ifq_head = (_m); 		\
-	}							\
-	M_AGE_SET(_m, _age);					\
-	(_ni)->ni_savedq.ifq_tail = (_m); 			\
-	(_qlen) = ++(_ni)->ni_savedq.ifq_len; 			\
+	_AGEQ_ENQUEUE(&ni->ni_savedq, _m, _qlen, _age);		\
 } while (0)
 
 #define	IEEE80211_TAPQ_INIT(_tap) do {				\
@@ -146,6 +161,24 @@ typedef struct mtx ieee80211_scan_lock_t;
 	IF_UNLOCK(ifq);						\
 } while (0)
 #endif /* IF_PREPEND_LIST */
+
+/* XXX temporary */
+#define	IEEE80211_NODE_WDSQ_INIT(_ni, _name) do {		\
+	mtx_init(&(_ni)->ni_wdsq.ifq_mtx, _name, "802.11 wds queue", MTX_DEF);\
+	(_ni)->ni_wdsq.ifq_maxlen = IEEE80211_PS_MAX_QUEUE;	\
+} while (0)
+#define	IEEE80211_NODE_WDSQ_DESTROY(_ni) do { \
+	mtx_destroy(&(_ni)->ni_wdsq.ifq_mtx); \
+} while (0)
+#define	IEEE80211_NODE_WDSQ_QLEN(_ni)	_IF_QLEN(&(_ni)->ni_wdsq)
+#define	IEEE80211_NODE_WDSQ_LOCK(_ni)	IF_LOCK(&(_ni)->ni_wdsq)
+#define	IEEE80211_NODE_WDSQ_UNLOCK(_ni)	IF_UNLOCK(&(_ni)->ni_wdsq)
+#define	_IEEE80211_NODE_WDSQ_DEQUEUE_HEAD(_ni, _m) do {		\
+	_IF_DEQUEUE(&(_ni)->ni_wdsq, m);			\
+} while (0)
+#define	_IEEE80211_NODE_WDSQ_ENQUEUE(_ni, _m, _qlen, _age) do {	\
+	_AGEQ_ENQUEUE(&ni->ni_wdsq, _m, _qlen, _age);		\
+} while (0)
 
 /*
  * 802.1x MAC ACL database locking definitions.
@@ -182,43 +215,53 @@ int	ieee80211_node_dectestref(struct ieee80211_node *ni);
 #define	ieee80211_node_refcnt(_ni)	(_ni)->ni_refcnt
 
 struct ifqueue;
+struct ieee80211vap;
 void	ieee80211_drain_ifq(struct ifqueue *);
+void	ieee80211_flush_ifq(struct ifqueue *, struct ieee80211vap *);
+
+void	ieee80211_vap_destroy(struct ieee80211vap *);
+
+#define	IFNET_IS_UP_RUNNING(_ifp) \
+	(((_ifp)->if_flags & IFF_UP) && \
+	 ((_ifp)->if_drv_flags & IFF_DRV_RUNNING))
 
 #define	msecs_to_ticks(ms)	(((ms)*hz)/1000)
-#define	ticks_to_msecs(t)	((t) / hz)
+#define	ticks_to_msecs(t)	(1000*(t) / hz)
+#define	ticks_to_secs(t)	((t) / hz)
 #define time_after(a,b) 	((long)(b) - (long)(a) < 0)
 #define time_before(a,b)	time_after(b,a)
 #define time_after_eq(a,b)	((long)(a) - (long)(b) >= 0)
 #define time_before_eq(a,b)	time_after_eq(b,a)
 
+#define	memmove(dst, src, n)	ovbcopy(src, dst, n)
+
 struct mbuf *ieee80211_getmgtframe(uint8_t **frm, int headroom, int pktlen);
 
 /* tx path usage */
 #define	M_LINK0		M_PROTO1		/* WEP requested */
+#define	M_WDS		M_PROTO2		/* WDS frame */
+#define	M_EAPOL		M_PROTO3		/* PAE/EAPOL frame */
 #define	M_PWR_SAV	M_PROTO4		/* bypass PS handling */
 #define	M_MORE_DATA	M_PROTO5		/* more data frames to follow */
-#define	M_FF		0x20000			/* fast frame */
-#define	M_TXCB		0x40000			/* do tx complete callback */
-#define	M_80211_TX	(0x60000|M_PROTO1|M_WME_AC_MASK|M_PROTO4|M_PROTO5)
+#define	M_FF		M_PROTO6		/* fast frame */
+#define	M_TXCB		M_PROTO7		/* do tx complete callback */
+#define	M_80211_TX \
+	(M_LINK0|M_WDS|M_EAPOL|M_PWR_SAV|M_MORE_DATA|M_FF|M_TXCB)
 
 /* rx path usage */
 #define	M_AMPDU		M_PROTO1		/* A-MPDU processing done */
 #define	M_WEP		M_PROTO2		/* WEP done by hardware */
 #define	M_80211_RX	(M_AMPDU|M_WEP)
 /*
- * Encode WME access control bits in the PROTO flags.
- * This is safe since it's passed directly in to the
- * driver and there's no chance someone else will clobber
- * them on us.
+ * Store WME access control bits in the vlan tag.
+ * This is safe since it's done after the packet is classified
+ * (where we use any previous tag) and because it's passed
+ * directly in to the driver and there's no chance someone
+ * else will clobber them on us.
  */
-#define	M_WME_AC_MASK	(M_PROTO2|M_PROTO3)
-/* XXX 5 is wrong if M_PROTO* are redefined */
-#define	M_WME_AC_SHIFT	5
-
 #define	M_WME_SETAC(m, ac) \
-	((m)->m_flags = ((m)->m_flags &~ M_WME_AC_MASK) | \
-		((ac) << M_WME_AC_SHIFT))
-#define	M_WME_GETAC(m)	(((m)->m_flags >> M_WME_AC_SHIFT) & 0x3)
+	((m)->m_pkthdr.ether_vtag = (ac))
+#define	M_WME_GETAC(m)	((m)->m_pkthdr.ether_vtag)
 
 /*
  * Mbufs on the power save queue are tagged with an age and
@@ -246,16 +289,29 @@ struct ieee80211com;
 
 void	ieee80211_sysctl_attach(struct ieee80211com *);
 void	ieee80211_sysctl_detach(struct ieee80211com *);
+void	ieee80211_sysctl_vattach(struct ieee80211vap *);
+void	ieee80211_sysctl_vdetach(struct ieee80211vap *);
 
 void	ieee80211_load_module(const char *);
 
-#define	IEEE80211_CRYPTO_MODULE(name, version) \
+/*
+ * A "policy module" is an adjunct module to net80211 that provides
+ * functionality that typically includes policy decisions.  This
+ * modularity enables extensibility and vendor-supplied functionality.
+ */
+#define	_IEEE80211_POLICY_MODULE(policy, name, version)			\
+typedef void (*policy##_setup)(int);					\
+SET_DECLARE(policy##_set, policy##_setup);				\
 static int								\
-name##_modevent(module_t mod, int type, void *unused)			\
+wlan_##name##_modevent(module_t mod, int type, void *unused)		\
 {									\
+	policy##_setup * const *iter, f;				\
 	switch (type) {							\
 	case MOD_LOAD:							\
-		ieee80211_crypto_register(&name);			\
+		SET_FOREACH(iter, policy##_set) {			\
+			f = (void*) *iter;				\
+			f(type);					\
+		}							\
 		return 0;						\
 	case MOD_UNLOAD:						\
 	case MOD_QUIESCE:						\
@@ -264,20 +320,100 @@ name##_modevent(module_t mod, int type, void *unused)			\
 				nrefs);					\
 			return EBUSY;					\
 		}							\
-		if (type == MOD_UNLOAD)					\
-			ieee80211_crypto_unregister(&name);		\
+		if (type == MOD_UNLOAD) {				\
+			SET_FOREACH(iter, policy##_set) {		\
+				f = (void*) *iter;			\
+				f(type);				\
+			}						\
+		}							\
 		return 0;						\
 	}								\
 	return EINVAL;							\
 }									\
 static moduledata_t name##_mod = {					\
 	"wlan_" #name,							\
-	name##_modevent,						\
+	wlan_##name##_modevent,						\
 	0								\
 };									\
 DECLARE_MODULE(wlan_##name, name##_mod, SI_SUB_DRIVERS, SI_ORDER_FIRST);\
 MODULE_VERSION(wlan_##name, version);					\
 MODULE_DEPEND(wlan_##name, wlan, 1, 1, 1)
+
+/*
+ * Crypto modules implement cipher support.
+ */
+#define	IEEE80211_CRYPTO_MODULE(name, version)				\
+_IEEE80211_POLICY_MODULE(crypto, name, version);			\
+static void								\
+name##_modevent(int type)						\
+{									\
+	if (type == MOD_LOAD)						\
+		ieee80211_crypto_register(&name);			\
+	else								\
+		ieee80211_crypto_unregister(&name);			\
+}									\
+TEXT_SET(crypto##_set, name##_modevent)
+
+/*
+ * Scanner modules provide scanning policy.
+ */
+#define	IEEE80211_SCANNER_MODULE(name, version)				\
+	_IEEE80211_POLICY_MODULE(scanner, name, version)
+
+#define	IEEE80211_SCANNER_ALG(name, alg, v)				\
+static void								\
+name##_modevent(int type)						\
+{									\
+	if (type == MOD_LOAD)						\
+		ieee80211_scanner_register(alg, &v);			\
+	else								\
+		ieee80211_scanner_unregister(alg, &v);			\
+}									\
+TEXT_SET(scanner_set, name##_modevent);					\
+
+/*
+ * ACL modules implement acl policy.
+ */
+#define	IEEE80211_ACL_MODULE(name, alg, version)			\
+_IEEE80211_POLICY_MODULE(acl, name, version);				\
+static void								\
+alg##_modevent(int type)						\
+{									\
+	if (type == MOD_LOAD)						\
+		ieee80211_aclator_register(&alg);			\
+	else								\
+		ieee80211_aclator_unregister(&alg);			\
+}									\
+TEXT_SET(acl_set, alg##_modevent);					\
+
+/*
+ * Authenticator modules handle 802.1x/WPA authentication.
+ */
+#define	IEEE80211_AUTH_MODULE(name, version)				\
+	_IEEE80211_POLICY_MODULE(auth, name, version)
+
+#define	IEEE80211_AUTH_ALG(name, alg, v)				\
+static void								\
+name##_modevent(int type)						\
+{									\
+	if (type == MOD_LOAD)						\
+		ieee80211_authenticator_register(alg, &v);		\
+	else								\
+		ieee80211_authenticator_unregister(alg);		\
+}									\
+TEXT_SET(auth_set, name##_modevent)
+
+/*
+ * Rate control modules provide tx rate control support.
+ */
+#define	IEEE80211_RATE_MODULE(alg, version)				\
+_IEEE80211_POLICY_MODULE(rate, alg, version);				\
+static void								\
+alg##_modevent(int type)						\
+{									\
+	/* XXX nothing to do until the rate control framework arrives */\
+}									\
+TEXT_SET(rate##_set, alg##_modevent)
 #endif /* _KERNEL */
 
 /* XXX this stuff belongs elsewhere */
@@ -310,6 +446,50 @@ struct ieee80211_michael_event {
 	uint8_t		iev_keyix;	/* key id/index */
 };
 
+struct ieee80211_wds_event {
+	uint8_t		iev_addr[6];
+};
+
+struct ieee80211_csa_event {
+	uint32_t	iev_flags;	/* channel flags */
+	uint16_t	iev_freq;	/* setting in Mhz */
+	uint8_t		iev_ieee;	/* IEEE channel number */
+	uint8_t		iev_mode;	/* CSA mode */
+	uint8_t		iev_count;	/* CSA count */
+};
+
+struct ieee80211_cac_event {
+	uint32_t	iev_flags;	/* channel flags */
+	uint16_t	iev_freq;	/* setting in Mhz */
+	uint8_t		iev_ieee;	/* IEEE channel number */
+	/* XXX timestamp? */
+	uint8_t		iev_type;	/* IEEE80211_NOTIFY_CAC_* */
+};
+
+struct ieee80211_radar_event {
+	uint32_t	iev_flags;	/* channel flags */
+	uint16_t	iev_freq;	/* setting in Mhz */
+	uint8_t		iev_ieee;	/* IEEE channel number */
+	/* XXX timestamp? */
+};
+
+struct ieee80211_auth_event {
+	uint8_t		iev_addr[6];
+};
+
+struct ieee80211_deauth_event {
+	uint8_t		iev_addr[6];
+};
+
+struct ieee80211_country_event {
+	uint8_t		iev_addr[6];
+	uint8_t		iev_cc[2];	/* ISO country code */
+};
+
+struct ieee80211_radio_event {
+	uint8_t		iev_state;	/* 1 on, 0 off */
+};
+
 #define	RTM_IEEE80211_ASSOC	100	/* station associate (bss mode) */
 #define	RTM_IEEE80211_REASSOC	101	/* station re-associate (bss mode) */
 #define	RTM_IEEE80211_DISASSOC	102	/* station disassociate (bss mode) */
@@ -319,6 +499,14 @@ struct ieee80211_michael_event {
 #define	RTM_IEEE80211_REPLAY	106	/* sequence counter replay detected */
 #define	RTM_IEEE80211_MICHAEL	107	/* Michael MIC failure detected */
 #define	RTM_IEEE80211_REJOIN	108	/* station re-associate (ap mode) */
+#define	RTM_IEEE80211_WDS	109	/* WDS discovery (ap mode) */
+#define	RTM_IEEE80211_CSA	110	/* Channel Switch Announcement event */
+#define	RTM_IEEE80211_RADAR	111	/* radar event */
+#define	RTM_IEEE80211_CAC	112	/* Channel Availability Check event */
+#define	RTM_IEEE80211_DEAUTH	113	/* station deauthenticate */
+#define	RTM_IEEE80211_AUTH	114	/* station authenticate (ap mode) */
+#define	RTM_IEEE80211_COUNTRY	115	/* discovered country code (sta mode) */
+#define	RTM_IEEE80211_RADIO	116	/* RF kill switch state change */
 
 /*
  * Structure prepended to raw packets sent through the bpf

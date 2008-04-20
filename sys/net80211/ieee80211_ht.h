@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2007 Sam Leffler, Errno Consulting
+ * Copyright (c) 2007-2008 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -46,13 +46,16 @@ struct ieee80211_tx_ampdu {
 #define	IEEE80211_AGGR_NAK		0x0010	/* peer NAK'd ADDBA request */
 	uint8_t		txa_ac;
 	uint8_t		txa_token;	/* dialog token */
+	int		txa_lastsample;	/* ticks @ last traffic sample */
+	int		txa_pkts;	/* packets over last sample interval */
+	int		txa_avgpps;	/* filtered traffic over window */
 	int		txa_qbytes;	/* data queued (bytes) */
 	short		txa_qframes;	/* data queued (frames) */
 	ieee80211_seq	txa_seqstart;
 	ieee80211_seq	txa_start;
 	uint16_t	txa_wnd;	/* BA window size */
-	uint8_t		txa_attempts;	/* # setup attempts */
-	int		txa_lastrequest;/* time of last ADDBA request */
+	uint8_t		txa_attempts;	/* # ADDBA requests w/o a response */
+	int		txa_nextrequest;/* soonest to make next ADDBA request */
 	struct ifqueue	txa_q;		/* packet queue */
 	struct callout	txa_timer;
 	void		*txa_private;	/* driver-private storage */
@@ -66,6 +69,65 @@ struct ieee80211_tx_ampdu {
 #define	IEEE80211_AMPDU_REQUESTED(tap) \
 	(((tap)->txa_flags & \
 	 (IEEE80211_AGGR_RUNNING|IEEE80211_AGGR_XCHGPEND|IEEE80211_AGGR_NAK)) != 0)
+
+/*
+ * Traffic estimator support.  We estimate packets/sec for
+ * each AC that is setup for AMPDU or will potentially be
+ * setup for AMPDU.  The traffic rate can be used to decide
+ * when AMPDU should be setup (according to a threshold)
+ * and is available for drivers to do things like cache
+ * eviction when only a limited number of BA streams are
+ * available and more streams are requested than available.
+ */
+
+static void __inline
+ieee80211_txampdu_update_pps(struct ieee80211_tx_ampdu *tap)
+{
+	/* NB: scale factor of 2 was picked heuristically */
+	tap->txa_avgpps = ((tap->txa_avgpps << 2) -
+	     tap->txa_avgpps + tap->txa_pkts) >> 2;
+}
+
+/*
+ * Count a packet towards the pps estimate.
+ */
+static void __inline
+ieee80211_txampdu_count_packet(struct ieee80211_tx_ampdu *tap)
+{
+	/* XXX bound loop/do more crude estimate? */
+	while (ticks - tap->txa_lastsample >= hz) {
+		ieee80211_txampdu_update_pps(tap);
+		/* reset to start new sample interval */
+		tap->txa_pkts = 0;
+		if (tap->txa_avgpps == 0) {
+			tap->txa_lastsample = ticks;
+			break;
+		}
+		tap->txa_lastsample += hz;
+	}
+	tap->txa_pkts++;
+}
+
+/*
+ * Get the current pps estimate.  If the average is out of
+ * date due to lack of traffic then we decay the estimate
+ * to account for the idle time.
+ */
+static int __inline
+ieee80211_txampdu_getpps(struct ieee80211_tx_ampdu *tap)
+{
+	/* XXX bound loop/do more crude estimate? */
+	while (ticks - tap->txa_lastsample >= hz) {
+		ieee80211_txampdu_update_pps(tap);
+		tap->txa_pkts = 0;
+		if (tap->txa_avgpps == 0) {
+			tap->txa_lastsample = ticks;
+			break;
+		}
+		tap->txa_lastsample += hz;
+	}
+	return tap->txa_avgpps;
+}
 
 struct ieee80211_rx_ampdu {
 	int		rxa_flags;
@@ -81,10 +143,18 @@ struct ieee80211_rx_ampdu {
 
 void	ieee80211_ht_attach(struct ieee80211com *);
 void	ieee80211_ht_detach(struct ieee80211com *);
+void	ieee80211_ht_vattach(struct ieee80211vap *);
+void	ieee80211_ht_vdetach(struct ieee80211vap *);
 
 void	ieee80211_ht_announce(struct ieee80211com *);
 
-extern const int ieee80211_htrates[16];
+struct ieee80211_mcs_rates {
+	uint16_t	ht20_rate_800ns;
+	uint16_t	ht20_rate_400ns;
+	uint16_t	ht40_rate_800ns;
+	uint16_t	ht40_rate_400ns;
+};
+extern const struct ieee80211_mcs_rates ieee80211_htrates[16];
 const struct ieee80211_htrateset *ieee80211_get_suphtrates(
 		struct ieee80211com *, const struct ieee80211_channel *);
 
@@ -98,12 +168,14 @@ int	ieee80211_ampdu_reorder(struct ieee80211_node *, struct mbuf *);
 void	ieee80211_recv_bar(struct ieee80211_node *, struct mbuf *);
 void	ieee80211_ht_node_init(struct ieee80211_node *, const uint8_t *);
 void	ieee80211_ht_node_cleanup(struct ieee80211_node *);
+void	ieee80211_ht_node_age(struct ieee80211_node *);
+
 struct ieee80211_channel *ieee80211_ht_adjust_channel(struct ieee80211com *,
 		struct ieee80211_channel *, int);
 void	ieee80211_ht_wds_init(struct ieee80211_node *);
 void	ieee80211_ht_node_join(struct ieee80211_node *);
 void	ieee80211_ht_node_leave(struct ieee80211_node *);
-void	ieee80211_htinfo_update(struct ieee80211com *, int protmode);
+void	ieee80211_htprot_update(struct ieee80211com *, int protmode);
 void	ieee80211_ht_timeout(struct ieee80211com *);
 void	ieee80211_parse_htcap(struct ieee80211_node *, const uint8_t *);
 void	ieee80211_parse_htinfo(struct ieee80211_node *, const uint8_t *);
@@ -122,6 +194,6 @@ uint8_t	*ieee80211_add_htcap_vendor(uint8_t *, struct ieee80211_node *);
 uint8_t	*ieee80211_add_htinfo(uint8_t *, struct ieee80211_node *);
 uint8_t	*ieee80211_add_htinfo_vendor(uint8_t *, struct ieee80211_node *);
 struct ieee80211_beacon_offsets;
-void	ieee80211_ht_update_beacon(struct ieee80211com *,
+void	ieee80211_ht_update_beacon(struct ieee80211vap *,
 		struct ieee80211_beacon_offsets *);
 #endif /* _NET80211_IEEE80211_HT_H_ */

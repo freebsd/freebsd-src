@@ -16,7 +16,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 7, 2007
+.Dd April 13, 2008
 .Os
 .Dt RUM 4
 .Sh NAME
@@ -45,11 +45,11 @@ if_rum_load="YES"
 .Sh DESCRIPTION
 The
 .Nm
-driver supports USB 2.0 and PCI Express Mini Card wireless adapters based on the
-Ralink RT2501USB and RT2601USB chipsets.
+driver supports USB 2.0 and PCI Express Mini Card wireless adapters
+based on the Ralink RT2501USB and RT2601USB chipsets.
 .Pp
-Ralink PCI Express Mini Card adapters show up as normal USB 2.0 devices and are
-thus handled by the
+Ralink PCI Express Mini Card adapters show up as normal USB 2.0
+devices and are thus handled by the
 .Nm
 driver.
 .Pp
@@ -58,15 +58,27 @@ Ralink.
 It consists of two integrated chips, an RT2571W MAC/BBP and an RT2528 or
 RT5226 radio transceiver.
 .Pp
-The RT2601USB chipset consists of two integrated chips, an RT2671 MAC/BBP and
-an RT2527 or RT5225 radio transceiver.
-This chipset uses the MIMO (multiple-input multiple-output) technology with
-multiple antennas to extend the operating range of the adapter and to achieve
-higher throughput.
+The RT2601USB chipset consists of two integrated chips, an RT2671
+MAC/BBP and an RT2527 or RT5225 radio transceiver.
+This chipset uses the MIMO (multiple-input multiple-output) technology
+with multiple antennas to extend the operating range of the adapter
+and to achieve higher throughput.
+.Pp
+.Nm
+supports
+.Cm station ,
+.Cm adhoc ,
+.Cm hostap ,
+and
+.Cm monitor
+mode operation.
+Only one virtual interface may be configured at any time.
+For more information on configuring this device, see
+.Xr ifconfig 8 .
 .Sh HARDWARE
 The
 .Nm
-driver supports USB 2.0 and PCI Express Mini Card wireless
+driver supports USB 2.0 wireless
 adapters based on the Ralink RT2501USB and RT2601USB chipsets,
 including:
 .Pp
@@ -108,22 +120,25 @@ including:
 .Sh EXAMPLES
 Join an existing BSS network (i.e., connect to an access point):
 .Pp
-.Dl "ifconfig rum0 inet 192.168.0.20 netmask 0xffffff00"
+.Bd -literal -offset indent
+ifconfig wlan create wlandev rum0 inet 192.168.0.20 \e
+    netmask 0xffffff00
+.Ed
 .Pp
 Join a specific BSS network with network name
 .Dq Li my_net :
 .Pp
-.Dl "ifconfig rum0 inet 192.168.0.20 netmask 0xffffff00 ssid my_net"
+.Dl "ifconfig wlan create wlandev rum0 ssid my_net up"
 .Pp
-Join a specific BSS network with 40-bit WEP encryption:
+Join a specific BSS network with 64-bit WEP encryption:
 .Bd -literal -offset indent
-ifconfig rum0 inet 192.168.0.20 netmask 0xffffff00 ssid my_net \e
-    wepmode on wepkey 0x1234567890 weptxkey 1
+ifconfig wlan create wlandev rum0 ssid my_net \e
+	wepmode on wepkey 0x1234567890 weptxkey 1 up
 .Ed
 .Pp
-Join a specific BSS network with 104-bit WEP encryption:
+Join a specific BSS network with 128-bit WEP encryption:
 .Bd -literal -offset indent
-ifconfig rum0 inet 192.168.0.20 netmask 0xffffff00 ssid my_net \e
+ifconfig wlan create wlandev rum0 wlanmode adhoc ssid my_net \e
     wepmode on wepkey 0x01020304050607080910111213 weptxkey 1
 .Ed
 .Sh DIAGNOSTICS
@@ -135,13 +150,18 @@ The driver will reset the hardware.
 This should not happen.
 .El
 .Sh SEE ALSO
-.Xr altq 4 ,
-.Xr arp 4 ,
+.Xr intro 4 ,
 .Xr netintro 4 ,
 .Xr usb 4 ,
 .Xr wlan 4 ,
 .Xr wlan_amrr 4 ,
-.Xr ifconfig 8
+.Xr wlan_ccmp 4 ,
+.Xr wlan_tkip 4 ,
+.Xr wlan_wep 4 ,
+.Xr wlan_xauth 4 ,
+.Xr ifconfig 8 ,
+.Xr hostapd 8 ,
+.Xr wpa_supplicant 8 .
 .Rs
 .%T "Ralink Technology"
 .%O http://www.ralinktech.com/
@@ -151,16 +171,8 @@ The
 .Nm
 driver first appeared in
 .Ox 4.0 .
-.Sh CAVEATS
-.Pp
-The
-.Nm
-driver supports automatic control of the transmit speed in BSS mode only.
-Therefore the use of a
-.Nm
-adapter in Host AP mode is discouraged.
 .Sh AUTHORS
-The
+The original
 .Nm
 driver was written by
 .An Niall O'Higgins Aq niallo@openbsd.org

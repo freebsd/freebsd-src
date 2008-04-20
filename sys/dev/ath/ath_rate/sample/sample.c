@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
  * John Bicket's SampleRate control algorithm.
  */
 #include "opt_inet.h"
+#include "opt_wlan.h"
 
 #include <sys/param.h>
 #include <sys/systm.h> 
@@ -61,7 +62,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/if_media.h>
 #include <net/if_arp.h>
-#include <net/ethernet.h>		/* XXX for ether_sprintf */
 
 #include <net80211/ieee80211_var.h>
 
@@ -75,23 +75,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/ath/if_athvar.h>
 #include <dev/ath/ath_rate/sample/sample.h>
 #include <contrib/dev/ath/ah_desc.h>
-
-#define	SAMPLE_DEBUG
-#ifdef SAMPLE_DEBUG
-enum {
-	ATH_DEBUG_NODE		= 0x00080000,	/* node management */
-	ATH_DEBUG_RATE		= 0x00000010,	/* rate control */
-	ATH_DEBUG_ANY		= 0xffffffff
-};
-#define	DPRINTF(sc, m, fmt, ...) do {				\
-	if (sc->sc_debug & (m))					\
-		printf(fmt, __VA_ARGS__);			\
-} while (0)
-#else
-#define	DPRINTF(sc, m, fmt, ...) do {				\
-	(void) sc;						\
-} while (0)
-#endif
 
 /*
  * This file is an implementation of the SampleRate algorithm
@@ -152,14 +135,12 @@ rate_to_ndx(struct sample_node *sn, int rate) {
 void
 ath_rate_node_init(struct ath_softc *sc, struct ath_node *an)
 {
-	DPRINTF(sc, ATH_DEBUG_NODE, "%s:\n", __func__);
 	/* NB: assumed to be zero'd by caller */
 }
 
 void
 ath_rate_node_cleanup(struct ath_softc *sc, struct ath_node *an)
 {
-	DPRINTF(sc, ATH_DEBUG_NODE, "%s:\n", __func__);
 }
 
 
@@ -258,7 +239,8 @@ ath_rate_findrate(struct ath_softc *sc, struct ath_node *an,
 {
 	struct sample_node *sn = ATH_NODE_SAMPLE(an);
 	struct sample_softc *ssc = ATH_SOFTC_SAMPLE(sc);
-	struct ieee80211com *ic = &sc->sc_ic;
+	struct ifnet *ifp = sc->sc_ifp;
+	struct ieee80211com *ic = ifp->if_l2com;
 	int ndx, size_bin, mrr, best_ndx, change_rates;
 	unsigned average_tx_time;
 
@@ -323,10 +305,11 @@ ath_rate_findrate(struct ath_softc *sc, struct ath_node *an,
 			
 			if (change_rates) {
 				if (best_ndx != sn->current_rate[size_bin]) {
-					DPRINTF(sc, ATH_DEBUG_RATE,
-"%s: %s size %d switch rate %d (%d/%d) -> %d (%d/%d) after %d packets mrr %d\n",
+					IEEE80211_NOTE(an->an_node.ni_vap,
+					    IEEE80211_MSG_RATECTL,
+					    &an->an_node,
+"%s: size %d switch rate %d (%d/%d) -> %d (%d/%d) after %d packets mrr %d",
 					    __func__,
-					    ether_sprintf(an->an_node.ni_macaddr),
 					    packet_size_bins[size_bin],
 					    sn->rates[sn->current_rate[size_bin]].rate,
 					    sn->stats[size_bin][sn->current_rate[size_bin]].average_tx_time,
@@ -340,16 +323,13 @@ ath_rate_findrate(struct ath_softc *sc, struct ath_node *an,
 				sn->packets_since_switch[size_bin] = 0;
 				sn->current_rate[size_bin] = best_ndx;
 				sn->ticks_since_switch[size_bin] = ticks;
+	    			/* 
+	    			 * Set the visible txrate for this node.
+			         */
+				an->an_node.ni_txrate = sn->rates[best_ndx].rate;
 			}
 			ndx = sn->current_rate[size_bin];
 			sn->packets_since_switch[size_bin]++;
-			if (size_bin == 0) {
-	    			/* 
-	    			 * set the visible txrate for this node
-			         * to the rate of small packets
-			         */
-				an->an_node.ni_txrate = ndx;
-			}
 		}
 	}
 
@@ -494,9 +474,10 @@ update_stats(struct ath_softc *sc, struct ath_node *an,
 
 
 	if (ndx0 == sn->current_sample_ndx[size_bin]) {
-		DPRINTF(sc, ATH_DEBUG_RATE,
-"%s: %s size %d %s sample rate %d tries (%d/%d) tt %d avg_tt (%d/%d)\n", 
-		    __func__, ether_sprintf(an->an_node.ni_macaddr), 
+		IEEE80211_NOTE(an->an_node.ni_vap, IEEE80211_MSG_RATECTL,
+		   &an->an_node,
+"%s: size %d %s sample rate %d tries (%d/%d) tt %d avg_tt (%d/%d)", 
+		    __func__, 
 		    size,
 		    status ? "FAIL" : "OK",
 		    rate, short_tries, tries, tt, 
@@ -511,7 +492,8 @@ void
 ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 	const struct ath_buf *bf)
 {
-	struct ieee80211com *ic = &sc->sc_ic;
+	struct ifnet *ifp = sc->sc_ifp;
+	struct ieee80211com *ic = ifp->if_l2com;
 	struct sample_node *sn = ATH_NODE_SAMPLE(an);
 	const struct ath_tx_status *ts = &bf->bf_status.ds_txstat;
 	const struct ath_desc *ds0 = &bf->bf_desc[0];
@@ -526,9 +508,10 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 		frame_size = 1500;
 
 	if (sn->num_rates <= 0) {
-		DPRINTF(sc, ATH_DEBUG_RATE,
-		    "%s: %s size %d %s rate/try %d/%d no rates yet\n", 
-		    __func__, ether_sprintf(an->an_node.ni_macaddr),
+		IEEE80211_NOTE(an->an_node.ni_vap, IEEE80211_MSG_RATECTL,
+		    &an->an_node,
+		    "%s: size %d %s rate/try %d/%d no rates yet", 
+		    __func__,
 		    bin_to_size(size_to_bin(frame_size)),
 		    ts->ts_status ? "FAIL" : "OK",
 		    short_tries, long_tries);
@@ -541,9 +524,9 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 		/*
 		 * Only one rate was used; optimize work.
 		 */
-		DPRINTF(sc, ATH_DEBUG_RATE,
-		    "%s: %s size %d %s rate/try %d/%d/%d\n", 
-		     __func__, ether_sprintf(an->an_node.ni_macaddr),
+		IEEE80211_NOTE(an->an_node.ni_vap, IEEE80211_MSG_RATECTL,
+		     &an->an_node, "%s: size %d %s rate/try %d/%d/%d",
+		     __func__,
 		     bin_to_size(size_to_bin(frame_size)),
 		     ts->ts_status ? "FAIL" : "OK",
 		     final_rate, short_tries, long_tries);
@@ -591,9 +574,10 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 		tries3 = MS(ds0->ds_ctl2, AR_XmitDataTries3);
 		ndx3 = rate_to_ndx(sn, rate3);
 
-		DPRINTF(sc, ATH_DEBUG_RATE,
-"%s: %s size %d finaltsidx %d tries %d %s rate/try [%d/%d %d/%d %d/%d %d/%d]\n", 
-		     __func__, ether_sprintf(an->an_node.ni_macaddr),
+		IEEE80211_NOTE(an->an_node.ni_vap, IEEE80211_MSG_RATECTL,
+		    &an->an_node,
+"%s: size %d finaltsidx %d tries %d %s rate/try [%d/%d %d/%d %d/%d %d/%d]", 
+		     __func__,
 		     bin_to_size(size_to_bin(frame_size)),
 		     finalTSIdx,
 		     long_tries, 
@@ -658,8 +642,6 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 void
 ath_rate_newassoc(struct ath_softc *sc, struct ath_node *an, int isnew)
 {
-	DPRINTF(sc, ATH_DEBUG_NODE, "%s: %s isnew %d\n", __func__,
-	     ether_sprintf(an->an_node.ni_macaddr), isnew);
 	if (isnew)
 		ath_rate_ctl_reset(sc, &an->an_node);
 }
@@ -671,15 +653,15 @@ static void
 ath_rate_ctl_reset(struct ath_softc *sc, struct ieee80211_node *ni)
 {
 #define	RATE(_ix)	(ni->ni_rates.rs_rates[(_ix)] & IEEE80211_RATE_VAL)
-	struct ieee80211com *ic = &sc->sc_ic;
 	struct ath_node *an = ATH_NODE(ni);
+	const struct ieee80211_txparam *tp = an->an_tp;
 	struct sample_node *sn = ATH_NODE_SAMPLE(an);
 	const HAL_RATE_TABLE *rt = sc->sc_currates;
 	int x, y, srate;
 
 	KASSERT(rt != NULL, ("no rate table, mode %u", sc->sc_curmode));
         sn->static_rate_ndx = -1;
-	if (ic->ic_fixed_rate != IEEE80211_FIXED_RATE_NONE) {
+	if (tp != NULL && tp->ucastrate != IEEE80211_FIXED_RATE_NONE) {
 		/*
 		 * A fixed rate is to be used; ic_fixed_rate is the
 		 * IEEE code for this rate (sans basic bit).  Convert this
@@ -688,7 +670,7 @@ ath_rate_ctl_reset(struct ath_softc *sc, struct ieee80211_node *ni)
 		 */
 		/* NB: the rate set is assumed sorted */
 		srate = ni->ni_rates.rs_nrates - 1;
-		for (; srate >= 0 && RATE(srate) != ic->ic_fixed_rate; srate--)
+		for (; srate >= 0 && RATE(srate) != tp->ucastrate; srate--)
 			;
 		/*
 		 * The fixed rate may not be available due to races
@@ -700,32 +682,34 @@ ath_rate_ctl_reset(struct ath_softc *sc, struct ieee80211_node *ni)
 			sn->static_rate_ndx = srate;
 	}
 
-        DPRINTF(sc, ATH_DEBUG_RATE, "%s: %s size 1600 rate/tt",
-	    __func__, ether_sprintf(ni->ni_macaddr));
-
 	sn->num_rates = ni->ni_rates.rs_nrates;
         for (x = 0; x < ni->ni_rates.rs_nrates; x++) {
 		sn->rates[x].rate = ni->ni_rates.rs_rates[x] & IEEE80211_RATE_VAL;
 		sn->rates[x].rix = sc->sc_rixmap[sn->rates[x].rate];
 		if (sn->rates[x].rix == 0xff) {
-			DPRINTF(sc, ATH_DEBUG_RATE,
-			    "%s: ignore bogus rix at %d\n", __func__, x);
+			IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_RATECTL, ni,
+			    "%s: ignore bogus rix at %d", __func__, x);
 			continue;
 		}
 		sn->rates[x].rateCode = rt->info[sn->rates[x].rix].rateCode;
 		sn->rates[x].shortPreambleRateCode = 
 			rt->info[sn->rates[x].rix].rateCode | 
 			rt->info[sn->rates[x].rix].shortPreamble;
-
-		DPRINTF(sc, ATH_DEBUG_RATE, " %d/%d", sn->rates[x].rate,
-		    calc_usecs_unicast_packet(sc, 1600, sn->rates[x].rix, 0,0));
 	}
-	DPRINTF(sc, ATH_DEBUG_RATE, "%s\n", "");
-	
-	/* set the visible bit-rate to the lowest one available */
-	ni->ni_txrate = 0;
-	sn->num_rates = ni->ni_rates.rs_nrates;
-	
+#ifdef IEEE80211_DEBUG
+	if (ieee80211_msg(ni->ni_vap, IEEE80211_MSG_RATECTL)) {
+		ieee80211_note(ni->ni_vap, "[%6D] %s: size 1600 rate/tt",
+		    __func__, ni->ni_macaddr, ":");
+		for (x = 0; x < sn->num_rates; x++) {
+			if (sn->rates[x].rix == 0xff)
+				continue;
+			printf(" %d/%d", sn->rates[x].rate,
+			    calc_usecs_unicast_packet(sc, 1600,
+				sn->rates[x].rix, 0,0));
+		}
+		printf("\n");
+	}
+#endif
 	for (y = 0; y < NUM_PACKET_SIZE_BINS; y++) {
 		int size = bin_to_size(y);
 		int ndx = 0;
@@ -756,9 +740,8 @@ ath_rate_ctl_reset(struct ath_softc *sc, struct ieee80211_node *ni)
 		sn->current_rate[y] = ndx;
 	}
 
-	DPRINTF(sc, ATH_DEBUG_RATE,
-	    "%s: %s %d rates %d%sMbps (%dus)- %d%sMbps (%dus)\n",
-	    __func__, ether_sprintf(ni->ni_macaddr), 
+	IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_RATECTL, ni,
+	    "%s: %d rates %d%sMbps (%dus)- %d%sMbps (%dus)", __func__, 
 	    sn->num_rates,
 	    sn->rates[0].rate/2, sn->rates[0].rate % 0x1 ? ".5" : "",
 	    sn->stats[1][0].perfect_tx_time,
@@ -767,10 +750,11 @@ ath_rate_ctl_reset(struct ath_softc *sc, struct ieee80211_node *ni)
 	    sn->stats[1][sn->num_rates-1].perfect_tx_time
 	);
 
-        if (sn->static_rate_ndx != -1)
-		ni->ni_txrate = sn->static_rate_ndx;
+	/* set the visible bit-rate */
+	if (sn->static_rate_ndx != -1)
+		ni->ni_txrate = sn->rates[sn->static_rate_ndx].rate;
 	else
-		ni->ni_txrate = sn->current_rate[0];
+		ni->ni_txrate = sn->rates[0].rate;
 #undef RATE
 }
 
@@ -786,18 +770,19 @@ rate_cb(void *arg, struct ieee80211_node *ni)
  * Reset the rate control state for each 802.11 state transition.
  */
 void
-ath_rate_newstate(struct ath_softc *sc, enum ieee80211_state state)
+ath_rate_newstate(struct ieee80211vap *vap, enum ieee80211_state state)
 {
-	struct ieee80211com *ic = &sc->sc_ic;
+	struct ieee80211com *ic = vap->iv_ic;
+	struct ath_softc *sc = ic->ic_ifp->if_softc;
 
 	if (state == IEEE80211_S_RUN) {
-		if (ic->ic_opmode != IEEE80211_M_STA) {
+		if (vap->iv_opmode != IEEE80211_M_STA) {
 			/*
 			 * Sync rates for associated stations and neighbors.
 			 */
 			ieee80211_iterate_nodes(&ic->ic_sta, rate_cb, sc);
 		}
-		ath_rate_newassoc(sc, ATH_NODE(ic->ic_bss), 1);
+		ath_rate_newassoc(sc, ATH_NODE(vap->iv_bss), 1);
 	}
 }
 
@@ -822,7 +807,6 @@ ath_rate_attach(struct ath_softc *sc)
 {
 	struct sample_softc *osc;
 	
-	DPRINTF(sc, ATH_DEBUG_ANY, "%s:\n", __func__);
 	osc = malloc(sizeof(struct sample_softc), M_DEVBUF, M_NOWAIT|M_ZERO);
 	if (osc == NULL)
 		return NULL;
