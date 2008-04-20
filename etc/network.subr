@@ -30,6 +30,56 @@
 # Requires that rc.conf be loaded first.
 #
 
+# ifn_start ifn
+# Bring up and configure an interface.  If some configuration is applied
+# print the interface configuration.
+#
+ifn_start()
+{
+	local ifn cfg
+	ifn="$1"
+	cfg=1
+
+	[ -z "$ifn" ] && err 1 "ifn_start called without an interface"
+
+	ifscript_up ${ifn} && cfg=0
+	ifconfig_up ${ifn} && cfg=0
+	ipv4_up ${ifn} && cfg=0
+	ipx_up ${ifn} && cfg=0
+	childif_create ${ifn} && cfg=0
+
+	if [ "$cfg" -eq 0 ]; then
+		ifconfig ${ifn}
+	fi
+
+	return $cfg
+}
+
+# ifn_start ifn
+# Shutdown and de-configure an interface.  If action is taken print the
+# interface name.
+#
+ifn_stop()
+{
+	local ifn cfg
+	ifn="$1"
+	cfg=1
+
+	[ -z "$ifn" ] && return 1
+
+	ipx_down ${ifn} && cfg=0
+	ipv4_down ${ifn} && cfg=0
+	ifconfig_down ${ifn} && cfg=0
+	ifscript_down ${ifn} && cfg=0
+	childif_destroy ${ifn} && cfg=0
+
+	if [ "$cfg" -eq 0 ]; then
+		echo -n " ${ifn}"
+	fi
+
+	return $cfg
+}
+
 # ifconfig_up if
 #	Evaluate ifconfig(8) arguments for interface $if and
 #	run ifconfig(8) with those arguments. It returns 0 if
@@ -43,8 +93,8 @@ ifconfig_up()
 
 	ifconfig_args=`ifconfig_getargs $1`
 	if [ -n "${ifconfig_args}" ]; then
-		ifconfig $1 up
 		ifconfig $1 ${ifconfig_args}
+		ifconfig $1 up
 		_cfg=0
 	fi
 
@@ -450,6 +500,44 @@ clone_down()
 		fi
 	done
 	debug "Destroyed clones: ${_list}"
+}
+
+# Create and configure child interfaces.
+# Return 0 if child interfaces are created.
+#
+childif_create()
+{
+	local cfg child child_vaps create_args ifn i
+	cfg=1
+
+	ifn=$1
+
+	# Create VAPs
+	child_vaps=`get_if_var $ifn vaps_IF`
+	for child in ${child_vaps}; do
+		create_args="wlandev $ifn `get_if_var $child vap_create_IF`"
+		if expr $child : 'wlan[0-9][0-9]*$' >/dev/null 2>&1; then
+			ifconfig $child create ${create_args} && cfg=0
+		else
+			i=`ifconfig wlan create ${create_args}`
+			ifconfig $i name $child && cfg=0
+		fi
+		ifn_start $child
+	done
+
+	return 
+}
+
+# Destroy child interfaces.
+#
+childif_destroy()
+{
+	local cfg child child_vaps ifn
+
+	child_vaps=`get_if_var $ifn vaps_IF`
+	for child in ${child_vaps}; do
+		ifconfig $child destroy && cfg=0
+	done
 }
 
 # Create netgraph nodes.
