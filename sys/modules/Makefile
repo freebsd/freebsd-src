@@ -311,8 +311,7 @@ SUBDIR=	${_3dfx} \
 	wlan_acl \
 	wlan_amrr \
 	wlan_ccmp \
-	wlan_scan_ap \
-	wlan_scan_sta \
+	wlan_rssadapt \
 	wlan_tkip \
 	wlan_wep \
 	wlan_xauth \

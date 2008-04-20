@@ -38,11 +38,14 @@
 /* per-device state */
 struct onoe_softc {
 	struct ath_ratectrl arc;	/* base state */
-	struct callout timer;		/* periodic timer */
 };
 
 /* per-node state */
 struct onoe_node {
+	int		on_rix;		/* current rate index */
+	int		on_ticks;	/* time of last update */
+	int		on_interval;	/* update interval (ticks) */
+
 	u_int		on_tx_ok;	/* tx ok pkt */
 	u_int		on_tx_err;	/* tx !ok pkt */
 	u_int		on_tx_retr;	/* tx retry count */

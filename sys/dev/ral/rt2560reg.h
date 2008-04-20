@@ -208,6 +208,8 @@ struct rt2560_tx_desc {
 #define RT2560_TX_CIPHER_TKIP		(3 << 29)
 #define RT2560_TX_CIPHER_AES		(4 << 29)
 
+#define RT2560_TX_RETRYCNT(v)	(((v) >> 5) & 0x7)
+
 	uint32_t	physaddr;
 	uint16_t	wme;
 #define RT2560_LOGCWMAX(x)	(((x) & 0xf) << 12)

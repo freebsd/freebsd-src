@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002-2007 Sam Leffler, Errno Consulting
+ * Copyright (c) 2002-2008 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,7 +29,10 @@ __FBSDID("$FreeBSD$");
 /*
  * IEEE 802.11 NULL crypto support.
  */
+#include "opt_wlan.h"
+
 #include <sys/param.h>
+#include <sys/kernel.h> 
 #include <sys/systm.h> 
 #include <sys/mbuf.h>   
 #include <sys/module.h>
@@ -42,7 +45,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net80211/ieee80211_var.h>
 
-static	void *none_attach(struct ieee80211com *, struct ieee80211_key *);
+static	void *none_attach(struct ieee80211vap *, struct ieee80211_key *);
 static	void none_detach(struct ieee80211_key *);
 static	int none_setkey(struct ieee80211_key *);
 static	int none_encap(struct ieee80211_key *, struct mbuf *, uint8_t);
@@ -66,9 +69,9 @@ const struct ieee80211_cipher ieee80211_cipher_none = {
 };
 
 static void *
-none_attach(struct ieee80211com *ic, struct ieee80211_key *k)
+none_attach(struct ieee80211vap *vap, struct ieee80211_key *k)
 {
-	return ic;		/* for diagnostics+stats */
+	return vap;		/* for diagnostics+stats */
 }
 
 static void
@@ -87,7 +90,7 @@ none_setkey(struct ieee80211_key *k)
 static int
 none_encap(struct ieee80211_key *k, struct mbuf *m, uint8_t keyid)
 {
-	struct ieee80211com *ic = k->wk_private;
+	struct ieee80211vap *vap = k->wk_private;
 #ifdef IEEE80211_DEBUG
 	struct ieee80211_frame *wh = mtod(m, struct ieee80211_frame *);
 #endif
@@ -96,17 +99,16 @@ none_encap(struct ieee80211_key *k, struct mbuf *m, uint8_t keyid)
 	 * The specified key is not setup; this can
 	 * happen, at least, when changing keys.
 	 */
-	IEEE80211_DPRINTF(ic, IEEE80211_MSG_CRYPTO,
-		"[%s] key id %u is not set (encap)\n",
-		ether_sprintf(wh->i_addr1), keyid>>6);
-	ic->ic_stats.is_tx_badcipher++;
+	IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_CRYPTO, wh->i_addr1,
+	    "key id %u is not set (encap)", keyid>>6);
+	vap->iv_stats.is_tx_badcipher++;
 	return 0;
 }
 
 static int
 none_decap(struct ieee80211_key *k, struct mbuf *m, int hdrlen)
 {
-	struct ieee80211com *ic = k->wk_private;
+	struct ieee80211vap *vap = k->wk_private;
 #ifdef IEEE80211_DEBUG
 	struct ieee80211_frame *wh = mtod(m, struct ieee80211_frame *);
 	const uint8_t *ivp = (const uint8_t *)&wh[1];
@@ -117,27 +119,26 @@ none_decap(struct ieee80211_key *k, struct mbuf *m, int hdrlen)
 	 * happen, at least, when changing keys.
 	 */
 	/* XXX useful to know dst too */
-	IEEE80211_DPRINTF(ic, IEEE80211_MSG_CRYPTO,
-		"[%s] key id %u is not set (decap)\n",
-		ether_sprintf(wh->i_addr2), ivp[IEEE80211_WEP_IVLEN] >> 6);
-	ic->ic_stats.is_rx_badkeyid++;
+	IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_CRYPTO, wh->i_addr2,
+	    "key id %u is not set (decap)", ivp[IEEE80211_WEP_IVLEN] >> 6);
+	vap->iv_stats.is_rx_badkeyid++;
 	return 0;
 }
 
 static int
 none_enmic(struct ieee80211_key *k, struct mbuf *m, int force)
 {
-	struct ieee80211com *ic = k->wk_private;
+	struct ieee80211vap *vap = k->wk_private;
 
-	ic->ic_stats.is_tx_badcipher++;
+	vap->iv_stats.is_tx_badcipher++;
 	return 0;
 }
 
 static int
 none_demic(struct ieee80211_key *k, struct mbuf *m, int force)
 {
-	struct ieee80211com *ic = k->wk_private;
+	struct ieee80211vap *vap = k->wk_private;
 
-	ic->ic_stats.is_rx_badkeyid++;
+	vap->iv_stats.is_rx_badkeyid++;
 	return 0;
 }

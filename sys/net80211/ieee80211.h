@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2001 Atsushi Onoe
- * Copyright (c) 2002-2007 Sam Leffler, Errno Consulting
+ * Copyright (c) 2002-2008 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -696,8 +696,12 @@ struct ieee80211_country_ie {
 		uint8_t schan;			/* starting channel */
 		uint8_t nchan;			/* number channels */
 		uint8_t maxtxpwr;		/* tx power cap */
-	} __packed band[10];			/* sub bands */
+	} __packed band[1];			/* sub bands (NB: var size) */
 } __packed;
+
+#define	IEEE80211_COUNTRY_MAX_BANDS	84	/* max possible bands */
+#define	IEEE80211_COUNTRY_MAX_SIZE \
+	(sizeof(struct ieee80211_country_ie) + 3*(IEEE80211_COUNTRY_MAX_BANDS-1))
 
 /*
  * 802.11h Channel Switch Announcement (CSA).
@@ -889,6 +893,9 @@ enum {
 #define	IEEE80211_WEP_IVLEN		3	/* 24bit */
 #define	IEEE80211_WEP_KIDLEN		1	/* 1 octet */
 #define	IEEE80211_WEP_CRCLEN		4	/* CRC-32 */
+#define	IEEE80211_WEP_TOTLEN		(IEEE80211_WEP_IVLEN + \
+					 IEEE80211_WEP_KIDLEN + \
+					 IEEE80211_WEP_CRCLEN)
 #define	IEEE80211_WEP_NKID		4	/* number of key ids */
 
 /*
@@ -924,12 +931,12 @@ enum {
 /*
  * The 802.11 spec says at most 2007 stations may be
  * associated at once.  For most AP's this is way more
- * than is feasible so we use a default of 128.  This
- * number may be overridden by the driver and/or by
- * user configuration.
+ * than is feasible so we use a default of IEEE80211_AID_DEF.
+ * This number may be overridden by the driver and/or by
+ * user configuration but may not be less than IEEE80211_AID_MIN
+ * (see _ieee80211.h for implementation-specific settings).
  */
 #define	IEEE80211_AID_MAX		2007
-#define	IEEE80211_AID_DEF		128
 
 #define	IEEE80211_AID(b)	((b) &~ 0xc000)
 

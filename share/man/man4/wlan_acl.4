@@ -40,12 +40,11 @@ module implements a MAC-based access control plugin for use
 with 802.11 devices operating as an access point.
 The
 .Nm
-module is an 802.11 access control plugin module for use with the
-.Xr wlan 4
-module.
-This module is automatically loaded if an application configures
-an access control policy for an 802.11 device operating as an access
-point.
+must be loaded for 
+.Xr ifconfig 8
+to handle the
+.Cm mac:*
+requests.
 .Sh SEE ALSO
 .Xr wlan 4 ,
 .Xr ifconfig 8

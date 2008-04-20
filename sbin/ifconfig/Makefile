@@ -23,7 +23,10 @@ SRCS+=	ifclone.c		# clone device support
 SRCS+=	ifmac.c			# MAC support
 SRCS+=	ifmedia.c		# SIOC[GS]IFMEDIA support
 SRCS+=	ifvlan.c		# SIOC[GS]ETVLAN support
-SRCS+=	ifieee80211.c		# SIOC[GS]IEEE80211 support
+
+SRCS+=	ifieee80211.c regdomain.c # SIOC[GS]IEEE80211 support
+DPADD+=	${LIBBSDXML} ${LIBSBUF}
+LDADD+=	-lbsdxml -lsbuf
 
 SRCS+=	ifcarp.c		# SIOC[GS]VH support
 SRCS+=	ifgroup.c		# ...
@@ -34,8 +37,8 @@ SRCS+=	iflagg.c		# lagg support
 
 .if ${MK_IPX_SUPPORT} != "no" && !defined(RELEASE_CRUNCH)
 SRCS+=	af_ipx.c		# IPX support
-DPADD=	${LIBIPX}
-LDADD=	-lipx
+DPADD+=	${LIBIPX}
+LDADD+=	-lipx
 .endif
 
 MAN=	ifconfig.8

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002-2007 Sam Leffler, Errno Consulting
+ * Copyright (c) 2002-2008 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,14 +30,16 @@
 struct ieee80211com;
 
 void	ieee80211_power_attach(struct ieee80211com *);
-void	ieee80211_power_lateattach(struct ieee80211com *);
 void	ieee80211_power_detach(struct ieee80211com *);
+void	ieee80211_power_vattach(struct ieee80211vap *);
+void	ieee80211_power_vdetach(struct ieee80211vap *);
+void	ieee80211_power_latevattach(struct ieee80211vap *);
 
 int	ieee80211_node_saveq_drain(struct ieee80211_node *);
 int	ieee80211_node_saveq_age(struct ieee80211_node *);
 void	ieee80211_pwrsave(struct ieee80211_node *, struct mbuf *);
 void	ieee80211_node_pwrsave(struct ieee80211_node *, int enable);
-void	ieee80211_sta_pwrsave(struct ieee80211com *, int enable);
+void	ieee80211_sta_pwrsave(struct ieee80211vap *, int enable);
 
 void	ieee80211_power_poll(struct ieee80211com *);
 #endif /* _NET80211_IEEE80211_POWER_H_ */

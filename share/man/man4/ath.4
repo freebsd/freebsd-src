@@ -1,5 +1,5 @@
 .\"-
-.\" Copyright (c) 2002-2004 Sam Leffler, Errno Consulting
+.\" Copyright (c) 2002-2008 Sam Leffler, Errno Consulting
 .\" All rights reserved.
 .\""
 .\" Redistribution and use in source and binary forms, with or without
@@ -12,9 +12,6 @@
 .\"    similar to the "NO WARRANTY" disclaimer below ("Disclaimer") and any
 .\"    redistribution must be conditioned upon including a substantially
 .\"    similar Disclaimer requirement for further binary redistribution.
-.\" 3. Neither the names of the above-listed copyright holders nor the names
-.\"    of any contributors may be used to endorse or promote products derived
-.\"    from this software without specific prior written permission.
 .\"
 .\" NO WARRANTY
 .\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
@@ -31,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"/
-.Dd December 7, 2006
+.Dd April 13, 2008
 .Dt ATH 4
 .Os
 .Sh NAME
@@ -59,7 +56,7 @@ The
 .Nm
 driver provides support for wireless network adapters based on
 the Atheros AR5210, AR5211, and AR5212 programming APIs.
-These APIs are used by a wide variety of chips; all chips with
+These APIs are used by a wide variety of chips; most all chips with
 a PCI and/or CardBus interface are supported.
 Chip-specific support is provided by the Atheros Hardware Access Layer
 (HAL), that is packaged separately.
@@ -97,26 +94,32 @@ To enable encryption, use
 .Xr ifconfig 8
 as shown below.
 .Pp
-By default, the
-.Nm
-driver configures the card for BSS operation (aka infrastructure
-mode).
-This mode requires the use of an access point (base station).
-.Pp
-The
-.Nm
-driver also supports the standard IBSS point-to-point mode
-where stations can communicate amongst themselves without the
-aid of an access point.
-.Pp
-The driver may also be configured to operate in hostap mode.
-In this mode a host may function as an access point (base station).
-Access points are different than operating in IBSS mode.
-They operate in BSS mode.
-They allow for easier roaming and bridge all Ethernet traffic such
-that machines connected via an access point appear to be on the local
-Ethernet segment.
-.Pp
+The driver supports
+.Cm station ,
+.Cm adhoc ,
+.Cm adhoc-demo ,
+.Cm hostap ,
+.Cm wds ,
+and
+.Cm monitor
+mode operation.
+Multiple
+.Cm hostap
+virtual interfaces may be configured for simultaneous
+use on cards that use a 5212 part.
+When multiple interfaces are configured each may have a separate
+mac address that is formed by setting the U/L bits in the mac
+address assigned to the underlying device.
+Any number of 
+.Cm wds
+virtual interfaces may be configured together with
+.Cm hostap
+interfaces.
+Multiple
+.Cm station
+interfaces may be operated together with 
+.Cm hostap
+interfaces to construct a wireless repeater device.
 For more information on configuring this device, see
 .Xr ifconfig 8 .
 .Pp
@@ -127,8 +130,10 @@ Wireless cards in Cardbus slots may be inserted and ejected on the fly.
 .Sh HARDWARE
 The
 .Nm
-driver supports all Atheros Cardbus or PCI cards,
+driver supports most Atheros Cardbus or PCI cards,
 except those that are based on the AR5005VL chipset.
+More recent parts may require a hal that is not part of
+.Fb .
 .Pp
 A list of cards that are supported can be found at
 .Pa http://customerproducts.atheros.com/customerproducts/default.asp .
@@ -144,38 +149,37 @@ Join a specific BSS network with network name
 .Pp
 Join a specific BSS network with WEP encryption:
 .Bd -literal -offset indent
-ifconfig ath0 inet 192.168.0.20 netmask 0xffffff00 ssid my_net \e
+ifconfig wlan0 create wlandev ath0
+ifconfig wlan0 inet 192.168.0.20 netmask 0xffffff00 ssid my_net \e
 	wepmode on wepkey 0x8736639624
 .Ed
 .Pp
 Join/create an 802.11b IBSS network with network name
 .Dq Li my_net :
 .Bd -literal -offset indent
-ifconfig ath0 inet 192.168.0.22 netmask 0xffffff00 ssid my_net \e
-	mode 11b mediaopt adhoc
+ifconfig wlan0 create wlandev ath0 wlanmode adhoc
+ifconfig wlan0 inet 192.168.0.22 netmask 0xffffff00 ssid my_net \e
+	mode 11b
 .Ed
 .Pp
 Create an 802.11g host-based access point:
 .Bd -literal -offset indent
-ifconfig ath0 inet 192.168.0.10 netmask 0xffffff00 ssid my_ap \e
-	mode 11g mediaopt hostap
+ifconfig wlan0 create wlandev ath0 wlanmode hostap
+ifconfig wlan0 inet 192.168.0.10 netmask 0xffffff00 ssid my_ap \e
+	mode 11g
 .Ed
 .Pp
-Create an 802.11a host-based access point with WEP enabled:
+Create two virtual 802.11a host-based access points, one with
+with WEP enabled and one with no security, and bridge them to
+the fxp0 (wired) device:
 .Bd -literal -offset indent
-ifconfig ath0 inet 192.168.0.10 netmask 0xffffff00 ssid my_ap \e
-	wepmode on wepkey 0x1234567890 mode 11a mediaopt hostap
+ifconfig wlan0 create wlandev ath0 wlanmode hostap \e
+	ssid paying-customers wepmode on wepkey 0x1234567890 \e
+	mode 11a up 
+ifconfig wlan1 create wlandev ath0 wlanmode hostap bssid \e
+	ssid freeloaders up
+ifconfig bridge0 create addm wlan0 addm wlan1 addm fxp0 up
 .Ed
-.Pp
-Create a host-based wireless bridge to fxp0:
-.Bd -literal -offset indent
-ifconfig ath0 inet up ssid my_ap media DS/11Mbps mediaopt hostap
-sysctl net.inet.ip.check_interface=0
-ifconfig bridge0 create
-ifconfig bridge0 addm ath0 addm fxp0 up
-.Ed
-.Pp
-This will give you the same functionality as an access point.
 .Sh DIAGNOSTICS
 .Bl -diag
 .It "ath%d: unable to attach hardware; HAL status %u"
@@ -252,15 +256,18 @@ The driver was unable to install the device interrupt handler.
 This should not happen.
 .El
 .Sh SEE ALSO
-.Xr altq 4 ,
-.Xr an 4 ,
-.Xr arp 4 ,
 .Xr ath_hal 4 ,
-.Xr netintro 4 ,
+.Xr intro 4 ,
+.Xr cardbus 4 ,
 .Xr pcic 4 ,
-.Xr wi 4 ,
 .Xr wlan 4 ,
+.Xr wlan_ccmp 4 ,
+.Xr wlan_tkip 4 ,
+.Xr wlan_wep 4 ,
+.Xr wlan_xauth 4 ,
+.Xr hostapd 8 ,
 .Xr ifconfig 8 ,
+.Xr wpa_supplicant 8 .
 .Sh HISTORY
 The
 .Nm
@@ -281,17 +288,7 @@ Intersil PrismGT chip and are not supported by this driver.
 .Sh BUGS
 There is no software retransmit; only hardware retransmit is used.
 .Pp
-The driver does not fully enable power-save operation of the chip;
-consequently power use is suboptimal.
-.Pp
-The driver honors the regulatory domain programmed into the EEPROM of a
-device and does not support overriding this setting.
-This is done to insure compliance with local regulatory agencies when
-operating as an access point.
-Unfortunately this also means that devices purchased for use in one locale
-may not be usable in another.
-Changes are planned to remove this restriction when operating in station mode.
+The driver does not fully enable power-save operation of the chip
+in station mode; consequently power use is suboptimal (e.g. on a laptop).
 .Pp
 WPA is not supported for 5210 parts.
-.Pp
-Atheros' SuperG functionality is not supported.

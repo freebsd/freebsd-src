@@ -28,6 +28,8 @@ __FBSDID("$FreeBSD$");
  *  INRIA Sophia - Projet Planete
  *  http://www-sop.inria.fr/rapports/sophia/RR-5208.html
  */
+#include "opt_wlan.h"
+
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
@@ -51,66 +53,90 @@ __FBSDID("$FreeBSD$");
 	((amn)->amn_retrycnt > (amn)->amn_txcnt / 3)
 #define is_enough(amn)		\
 	((amn)->amn_txcnt > 10)
-#define is_min_rate(ni)		\
-	((ni)->ni_txrate == 0)
-#define is_max_rate(ni)		\
-	((ni)->ni_txrate == (ni)->ni_rates.rs_nrates - 1)
-#define increase_rate(ni)	\
-	((ni)->ni_txrate++)
-#define decrease_rate(ni)	\
-	((ni)->ni_txrate--)
-#define reset_cnt(amn)		\
-	do { (amn)->amn_txcnt = (amn)->amn_retrycnt = 0; } while (0)
+
+static void amrr_sysctlattach(struct ieee80211_amrr *amrr,
+	struct sysctl_ctx_list *ctx, struct sysctl_oid *tree);
+
+/* number of references from net80211 layer */
+static	int nrefs = 0;
+
+void
+ieee80211_amrr_setinterval(struct ieee80211_amrr *amrr, int msecs)
+{
+	int t;
+
+	if (msecs < 100)
+		msecs = 100;
+	t = msecs_to_ticks(msecs);
+	amrr->amrr_interval = (t < 1) ? 1 : t;
+}
 
 void
 ieee80211_amrr_init(struct ieee80211_amrr *amrr,
-    struct ieee80211com *ic, int amin, int amax)
+    struct ieee80211vap *vap, int amin, int amax, int interval)
 {
 	/* XXX bounds check? */
 	amrr->amrr_min_success_threshold = amin;
 	amrr->amrr_max_success_threshold = amax;
-	amrr->amrr_ic = ic;
+	ieee80211_amrr_setinterval(amrr, interval);
+
+	amrr_sysctlattach(amrr, vap->iv_sysctl, vap->iv_oid);
+}
+
+void
+ieee80211_amrr_cleanup(struct ieee80211_amrr *amrr)
+{
 }
 
 void
 ieee80211_amrr_node_init(struct ieee80211_amrr *amrr,
-    struct ieee80211_amrr_node *amn)
+    struct ieee80211_amrr_node *amn, struct ieee80211_node *ni)
 {
+	const struct ieee80211_rateset *rs = &ni->ni_rates;
+
+	amn->amn_amrr = amrr;
 	amn->amn_success = 0;
 	amn->amn_recovery = 0;
 	amn->amn_txcnt = amn->amn_retrycnt = 0;
 	amn->amn_success_threshold = amrr->amrr_min_success_threshold;
+
+	/* pick initial rate */
+	for (amn->amn_rix = rs->rs_nrates - 1;
+	     amn->amn_rix > 0 && (rs->rs_rates[amn->amn_rix] & IEEE80211_RATE_VAL) > 72;
+	     amn->amn_rix--)
+		;
+	ni->ni_txrate = rs->rs_rates[amn->amn_rix] & IEEE80211_RATE_VAL;
+	amn->amn_ticks = ticks;
+
+	IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_RATECTL, ni,
+	    "AMRR initial rate %d", ni->ni_txrate);
 }
 
-/*
- * Update ni->ni_txrate.
- */
-void
-ieee80211_amrr_choose(struct ieee80211_amrr *amrr, struct ieee80211_node *ni,
-    struct ieee80211_amrr_node *amn)
+static int
+amrr_update(struct ieee80211_amrr *amrr, struct ieee80211_amrr_node *amn,
+    struct ieee80211_node *ni)
 {
-	int need_change = 0;
+	int rix = amn->amn_rix;
 
-	if (is_success(amn) && is_enough(amn)) {
+	KASSERT(is_enough(amn), ("txcnt %d", amn->amn_txcnt));
+
+	if (is_success(amn)) {
 		amn->amn_success++;
 		if (amn->amn_success >= amn->amn_success_threshold &&
-		    !is_max_rate(ni)) {
+		    rix + 1 < ni->ni_rates.rs_nrates) {
 			amn->amn_recovery = 1;
 			amn->amn_success = 0;
-			increase_rate(ni);
-			IEEE80211_DPRINTF(amrr->amrr_ic, IEEE80211_MSG_RATECTL,
-			    "AMRR increasing rate %d (txcnt=%d "
-			    "retrycnt=%d)\n",
-			    ni->ni_rates.rs_rates[ni->ni_txrate] &
-				IEEE80211_RATE_VAL,
+			rix++;
+			IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_RATECTL, ni,
+			    "AMRR increasing rate %d (txcnt=%d retrycnt=%d)",
+			    ni->ni_rates.rs_rates[rix] & IEEE80211_RATE_VAL,
 			    amn->amn_txcnt, amn->amn_retrycnt);
-			need_change = 1;
 		} else {
 			amn->amn_recovery = 0;
 		}
 	} else if (is_failure(amn)) {
 		amn->amn_success = 0;
-		if (!is_min_rate(ni)) {
+		if (rix > 0) {
 			if (amn->amn_recovery) {
 				amn->amn_success_threshold *= 2;
 				if (amn->amn_success_threshold >
@@ -121,44 +147,80 @@ ieee80211_amrr_choose(struct ieee80211_amrr *amrr, struct ieee80211_node *ni,
 				amn->amn_success_threshold =
 				    amrr->amrr_min_success_threshold;
 			}
-			decrease_rate(ni);
-			IEEE80211_DPRINTF(amrr->amrr_ic, IEEE80211_MSG_RATECTL,
-			    "AMRR decreasing rate %d (txcnt=%d "
-			    "retrycnt=%d)\n",
-			    ni->ni_rates.rs_rates[ni->ni_txrate] &
-				IEEE80211_RATE_VAL,
+			rix--;
+			IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_RATECTL, ni,
+			    "AMRR decreasing rate %d (txcnt=%d retrycnt=%d)",
+			    ni->ni_rates.rs_rates[rix] & IEEE80211_RATE_VAL,
 			    amn->amn_txcnt, amn->amn_retrycnt);
-			need_change = 1;
 		}
 		amn->amn_recovery = 0;
 	}
 
-	if (is_enough(amn) || need_change)
-		reset_cnt(amn);
+	/* reset counters */
+	amn->amn_txcnt = 0;
+	amn->amn_retrycnt = 0;
+
+	return rix;
+}
+
+/*
+ * Return the rate index to use in sending a data frame.
+ * Update our internal state if it's been long enough.
+ * If the rate changes we also update ni_txrate to match.
+ */
+int
+ieee80211_amrr_choose(struct ieee80211_node *ni,
+    struct ieee80211_amrr_node *amn)
+{
+	struct ieee80211_amrr *amrr = amn->amn_amrr;
+	int rix;
+
+	if (is_enough(amn) && (ticks - amn->amn_ticks) > amrr->amrr_interval) {
+		rix = amrr_update(amrr, amn, ni);
+		if (rix != amn->amn_rix) {
+			/* update public rate */
+			ni->ni_txrate =
+			    ni->ni_rates.rs_rates[rix] & IEEE80211_RATE_VAL;
+			amn->amn_rix = rix;
+		}
+		amn->amn_ticks = ticks;
+	} else
+		rix = amn->amn_rix;
+	return rix;
+}
+
+static int
+amrr_sysctl_interval(SYSCTL_HANDLER_ARGS)
+{
+	struct ieee80211_amrr *amrr = arg1;
+	int msecs = ticks_to_msecs(amrr->amrr_interval);
+	int error;
+
+	error = sysctl_handle_int(oidp, &msecs, 0, req);
+	if (error || !req->newptr)
+		return error;
+	ieee80211_amrr_setinterval(amrr, msecs);
+	return 0;
+}
+
+static void
+amrr_sysctlattach(struct ieee80211_amrr *amrr,
+    struct sysctl_ctx_list *ctx, struct sysctl_oid *tree)
+{
+
+	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+	    "amrr_rate_interval", CTLTYPE_INT | CTLFLAG_RW, amrr,
+	    0, amrr_sysctl_interval, "I", "amrr operation interval (ms)");
+	/* XXX bounds check values */
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+	    "amrr_max_sucess_threshold", CTLFLAG_RW,
+	    &amrr->amrr_max_success_threshold, 0, "");
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+	    "amrr_min_sucess_threshold", CTLFLAG_RW,
+	    &amrr->amrr_min_success_threshold, 0, "");
 }
 
 /*
  * Module glue.
  */
-static int
-amrr_modevent(module_t mod, int type, void *unused)
-{
-	switch (type) {
-	case MOD_LOAD:
-		if (bootverbose)
-			printf("wlan_amrr: <AMRR Transmit Rate Control Algorithm>\n");
-		return 0;
-	case MOD_UNLOAD:
-		return 0;
-	}
-	return EINVAL;
-}
-
-static moduledata_t amrr_mod = {
-	"wlan_amrr",
-	amrr_modevent,
-	0
-};
-DECLARE_MODULE(wlan_amrr, amrr_mod, SI_SUB_DRIVERS, SI_ORDER_FIRST);
-MODULE_VERSION(wlan_amrr, 1);
-MODULE_DEPEND(wlan_amrr, wlan, 1, 1, 1);
+IEEE80211_RATE_MODULE(amrr, 1);
