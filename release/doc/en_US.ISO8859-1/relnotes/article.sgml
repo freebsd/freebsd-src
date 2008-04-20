@@ -320,6 +320,12 @@
       supports a <option>-a</option> flag, which is equivalent to
       specifying the <option>-RrP</option> flags.</para>
 
+    <para>The &man.env.1; program now supports <option>-u
+      <replaceable>name</replaceable></option>
+      which will completely unset the given variable
+      <replaceable>name</replaceable> by removing it from the environment,
+      instead of just setting it to a null value.</para>
+
     <para>&man.find.1; has been enhanced by the addition of a number
       of primaries that were present in GNU find but not &os;
       &man.find.1;.</para>
