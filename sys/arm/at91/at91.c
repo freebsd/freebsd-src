@@ -47,6 +47,8 @@ __FBSDID("$FreeBSD$");
 
 static struct at91_softc *at91_softc;
 
+static void at91_eoi(void *);
+
 static int
 at91_bs_map(void *t, bus_addr_t bpa, bus_size_t size, int flags,
     bus_space_handle_t *bshp)
@@ -172,6 +174,7 @@ static int
 at91_probe(device_t dev)
 {
 	device_set_desc(dev, "AT91 device bus");
+	arm_post_filter = at91_eoi;
 	return (0);
 }
 
@@ -687,6 +690,13 @@ arm_unmask_irq(uintptr_t nb)
 	bus_space_write_4(at91_softc->sc_st, at91_softc->sc_sys_sh,
 	    IC_EOICR, 0);
 
+}
+
+static void
+at91_eoi(void *unused)
+{
+	bus_space_write_4(at91_softc->sc_st, at91_softc->sc_sys_sh,
+	    IC_EOICR, 0);
 }
 
 static device_method_t at91_methods[] = {
