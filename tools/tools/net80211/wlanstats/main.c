@@ -31,7 +31,7 @@
 
 /*
  * wlanstats [-i interface]
- * (default interface is ath0).
+ * (default interface is wlan0).
  */
 
 #include <sys/types.h>
@@ -39,10 +39,12 @@
 #include <net/ethernet.h>
 #include <net80211/_ieee80211.h>
 
+#include <stdlib.h>
 #include <stdio.h>
 #include <signal.h>
 #include <unistd.h>
 #include <err.h>
+#include <strings.h>
 
 #include "wlanstats.h"
 
@@ -139,7 +141,7 @@ main(int argc, char *argv[])
 	int allnodes = 0;
 	int c, mode;
 
-	wf = wlanstats_new("ath0", S_DEFAULT);
+	wf = wlanstats_new("wlan0", S_DEFAULT);
 	while ((c = getopt(argc, argv, "ai:lm:o:")) != -1) {
 		switch (c) {
 		case 'a':
