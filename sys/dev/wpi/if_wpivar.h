@@ -110,6 +110,7 @@ struct wpi_node {
         struct  ieee80211_node ni;      /* must be the first */
         struct  ieee80211_amrr_node     amn;
 };
+#define	WPI_NODE(ni)	((struct wpi_node *)(ni))
 
 struct wpi_power_sample {
 	uint8_t	index;
@@ -118,25 +119,25 @@ struct wpi_power_sample {
 
 struct wpi_power_group {
 #define WPI_SAMPLES_COUNT	5
-    struct wpi_power_sample samples[WPI_SAMPLES_COUNT];
-    uint8_t	chan;
-    int8_t	maxpwr;
-    int16_t	temp;
+	struct wpi_power_sample samples[WPI_SAMPLES_COUNT];
+	uint8_t	chan;
+	int8_t	maxpwr;
+	int16_t	temp;
 };
+
+struct wpi_vap {
+	struct ieee80211vap	vap;
+	struct ieee80211_amrr	amrr;
+
+	int			(*newstate)(struct ieee80211vap *,
+				    enum ieee80211_state, int);
+};
+#define	WPI_VAP(vap)	((struct wpi_vap *)(vap))
 
 struct wpi_softc {
 	device_t		sc_dev;
 	struct ifnet		*sc_ifp;
-
-	/* net80211 driver specifics */
-	struct ieee80211com	sc_ic;
-	int			(*sc_newstate)(struct ieee80211com *,
-				    enum ieee80211_state, int);
-	unsigned long		maxdwell; /* Max dwell time whilst scanning */
-
 	struct mtx		sc_mtx;
-
-	struct ieee80211_amrr	amrr;
 
 	/* Flags indicating the current state the driver
 	 * expects the hardware to be in
@@ -212,15 +213,15 @@ struct wpi_softc {
 	int                     sc_cmd_next;   /* last queued scan task */
 	struct mtx              sc_cmdlock;
 
-       /* Task queues used to control the driver */
-       struct taskqueue		*sc_tq; /* Main command task queue */
-       struct taskqueue		*sc_tq2;/* firmware reset task queue */
+	/* Task queues used to control the driver */
+	struct taskqueue	*sc_tq;		/* Main command task queue */
+	struct taskqueue	*sc_tq2;	/* firmware reset task queue */
 
-       /* Tasks used by the driver */
-       struct task		sc_radioontask; /* enable rf transmitter task*/
-       struct task		sc_radioofftask;/* disable rf transmitter task*/
-	struct task             sc_opstask; /* operation handling task */
-	struct task		sc_restarttask; /* reset firmware task */
+	/* Tasks used by the driver */
+	struct task		sc_radioontask;	/* enable rf transmitter task*/
+	struct task		sc_radioofftask;/* disable rf transmitter task*/
+	struct task		sc_opstask;	/* operation handling task */
+	struct task		sc_restarttask;	/* reset firmware task */
 
        /* Eeprom info */
 	uint8_t			cap;
@@ -228,7 +229,7 @@ struct wpi_softc {
 	uint8_t			type;
 	struct wpi_power_group	groups[WPI_POWER_GROUPS_COUNT];
 	int8_t			maxpwr[IEEE80211_CHAN_MAX];
-	char			domain[4]; //reglatory domain //XXX
+	char			domain[4];	/*reglatory domain XXX */
 };
 #define WPI_LOCK_INIT(_sc) \
 	mtx_init(&(_sc)->sc_mtx, device_get_nameunit((_sc)->sc_dev), \
@@ -236,7 +237,6 @@ struct wpi_softc {
 #define WPI_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
 #define WPI_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
 #define WPI_LOCK_ASSERT(sc)     mtx_assert(&(sc)->sc_mtx, MA_OWNED)
-#define WPI_LOCK_OWNED(_sc)	mtx_owned(&(_sc)->sc_mtx)
 #define WPI_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->sc_mtx)
 
 #define WPI_CMD_LOCK_INIT(_sc)  \

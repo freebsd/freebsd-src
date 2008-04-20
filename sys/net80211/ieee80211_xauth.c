@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2004 Video54 Technologies, Inc.
- * Copyright (c) 2004-2007 Sam Leffler, Errno Consulting
+ * Copyright (c) 2004-2008 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -39,6 +39,8 @@ __FBSDID("$FreeBSD$");
  * of the available callbacks--the user mode authenticator process works
  * entirely from messages about stations joining and leaving.
  */
+#include "opt_wlan.h"
+
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h> 
@@ -54,6 +56,9 @@ __FBSDID("$FreeBSD$");
 
 #include <net80211/ieee80211_var.h>
 
+/* XXX number of references from net80211 layer; needed for module code */
+static	int nrefs = 0;
+
 /*
  * One module handles everything for now.  May want
  * to split things up for embedded applications.
@@ -66,30 +71,6 @@ static const struct ieee80211_authenticator xauth = {
 	.ia_node_leave	= NULL,
 };
 
-/*
- * Module glue.
- */
-static int
-wlan_xauth_modevent(module_t mod, int type, void *unused)
-{
-	switch (type) {
-	case MOD_LOAD:
-		ieee80211_authenticator_register(IEEE80211_AUTH_8021X, &xauth);
-		ieee80211_authenticator_register(IEEE80211_AUTH_WPA, &xauth);
-		return 0;
-	case MOD_UNLOAD:
-		ieee80211_authenticator_unregister(IEEE80211_AUTH_8021X);
-		ieee80211_authenticator_unregister(IEEE80211_AUTH_WPA);
-		return 0;
-	}
-	return EINVAL;
-}
-
-static moduledata_t wlan_xauth_mod = {
-	"wlan_xauth",
-	wlan_xauth_modevent,
-	0
-};
-DECLARE_MODULE(wlan_xauth, wlan_xauth_mod, SI_SUB_DRIVERS, SI_ORDER_FIRST);
-MODULE_VERSION(wlan_xauth, 1);
-MODULE_DEPEND(wlan_xauth, wlan, 1, 1, 1);
+IEEE80211_AUTH_MODULE(xauth, 1);
+IEEE80211_AUTH_ALG(x8021x, IEEE80211_AUTH_8021X, xauth);
+IEEE80211_AUTH_ALG(wpa, IEEE80211_AUTH_WPA, xauth);

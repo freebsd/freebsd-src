@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003-2007 Sam Leffler, Errno Consulting
+ * Copyright (c) 2003-2008 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,6 +29,8 @@ __FBSDID("$FreeBSD$");
 /*
  * IEEE 802.11 support (FreeBSD-specific code)
  */
+#include "opt_wlan.h"
+
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h> 
@@ -41,7 +43,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 
 #include <net/if.h>
+#include <net/if_clone.h>
 #include <net/if_media.h>
+#include <net/if_types.h>
 #include <net/ethernet.h>
 #include <net/route.h>
 
@@ -57,24 +61,112 @@ SYSCTL_INT(_net_wlan, OID_AUTO, debug, CTLFLAG_RW, &ieee80211_debug,
 extern int ieee80211_recv_bar_ena;
 SYSCTL_INT(_net_wlan, OID_AUTO, recv_bar, CTLFLAG_RW, &ieee80211_recv_bar_ena,
 	    0, "BAR frame processing (ena/dis)");
+extern int ieee80211_nol_timeout;
+SYSCTL_INT(_net_wlan, OID_AUTO, nol_timeout, CTLFLAG_RW,
+	&ieee80211_nol_timeout, 0, "NOL timeout (secs)");
+extern int ieee80211_cac_timeout;
+SYSCTL_INT(_net_wlan, OID_AUTO, cac_timeout, CTLFLAG_RW,
+	&ieee80211_cac_timeout, 0, "CAC timeout (secs)");
 
-#ifdef IEEE80211_AMPDU_AGE
-static int
-ieee80211_sysctl_ampdu_age(SYSCTL_HANDLER_ARGS)
+MALLOC_DEFINE(M_80211_COM, "80211com", "802.11 com state");
+
+/*
+ * Allocate/free com structure in conjunction with ifnet;
+ * these routines are registered with if_register_com_alloc
+ * below and are called automatically by the ifnet code
+ * when the ifnet of the parent device is created.
+ */
+static void *
+wlan_alloc(u_char type, struct ifnet *ifp)
 {
-	extern int ieee80211_ampdu_age;
-	int ampdu_age = ticks_to_msecs(ieee80211_ampdu_age);
+	struct ieee80211com *ic;
+
+	ic = malloc(sizeof(struct ieee80211com), M_80211_COM, M_WAITOK|M_ZERO);
+	ic->ic_ifp = ifp;
+
+	return (ic);
+}
+
+static void
+wlan_free(void *ic, u_char type)
+{
+	free(ic, M_80211_COM);
+}
+
+static int
+wlan_clone_create(struct if_clone *ifc, int unit, caddr_t params)
+{
+	struct ieee80211_clone_params cp;
+	struct ieee80211vap *vap;
+	struct ieee80211com *ic;
+	struct ifnet *ifp;
 	int error;
 
-	error = sysctl_handle_int(oidp, &ampdu_age, 0, req);
+	error = copyin(params, &cp, sizeof(cp));
+	if (error)
+		return error;
+	ifp = ifunit(cp.icp_parent);
+	if (ifp == NULL)
+		return ENXIO;
+	if (ifp->if_type != IFT_IEEE80211) {
+		if_printf(ifp, "%s: reject, not an 802.11 device\n", __func__);
+		return EINVAL;
+	}
+	ic = ifp->if_l2com;
+	vap = ic->ic_vap_create(ic, ifc->ifc_name, unit,
+			cp.icp_opmode, cp.icp_flags, cp.icp_bssid,
+			cp.icp_flags & IEEE80211_CLONE_MACADDR ?
+			    cp.icp_macaddr : ic->ic_myaddr);
+	return (vap == NULL ? EIO : 0);
+}
+
+static void
+wlan_clone_destroy(struct ifnet *ifp)
+{
+	struct ieee80211vap *vap = ifp->if_softc;
+	struct ieee80211com *ic = vap->iv_ic;
+
+	ic->ic_vap_delete(vap);
+}
+IFC_SIMPLE_DECLARE(wlan, 0);
+
+void
+ieee80211_vap_destroy(struct ieee80211vap *vap)
+{
+	ifc_simple_destroy(&wlan_cloner, vap->iv_ifp);
+}
+
+static int
+ieee80211_sysctl_msecs_ticks(SYSCTL_HANDLER_ARGS)
+{
+	int msecs = ticks_to_msecs(*(int *)arg1);
+	int error, t;
+
+	error = sysctl_handle_int(oidp, &msecs, 0, req);
 	if (error || !req->newptr)
 		return error;
-	ieee80211_ampdu_age = msecs_to_ticks(ampdu_age);
+	t = msecs_to_ticks(msecs);
+	*(int *)arg1 = (t < 1) ? 1 : t;
 	return 0;
 }
-SYSCTL_PROC(_net_wlan, OID_AUTO, "ampdu_age", CTLFLAG_RW, NULL, 0,
-	ieee80211_sysctl_ampdu_age, "A", "AMPDU max reorder age (ms)");
+
+#ifdef IEEE80211_AMPDU_AGE
+extern int ieee80211_ampdu_age;
+SYSCTL_PROC(_net_wlan, OID_AUTO, ampdu_age, CTLFLAG_RW,
+	&ieee80211_ampdu_age, 0, ieee80211_sysctl_msecs_ticks, "I",
+	"AMPDU max reorder age (ms)");
 #endif
+extern int ieee80211_addba_timeout;
+SYSCTL_PROC(_net_wlan, OID_AUTO, addba_timeout, CTLFLAG_RW,
+	&ieee80211_addba_timeout, 0, ieee80211_sysctl_msecs_ticks, "I",
+	"ADDBA request timeout (ms)");
+extern int ieee80211_addba_backoff;
+SYSCTL_PROC(_net_wlan, OID_AUTO, addba_backoff, CTLFLAG_RW,
+	&ieee80211_addba_backoff, 0, ieee80211_sysctl_msecs_ticks, "I",
+	"ADDBA request backoff (ms)");
+extern int ieee80211_addba_maxtries;
+SYSCTL_INT(_net_wlan, OID_AUTO, addba_maxtries, CTLFLAG_RW,
+	&ieee80211_addba_maxtries, 0, "max ADDBA requests sent before backoff");
 
 static int
 ieee80211_sysctl_inact(SYSCTL_HANDLER_ARGS)
@@ -101,6 +193,17 @@ ieee80211_sysctl_parent(SYSCTL_HANDLER_ARGS)
 void
 ieee80211_sysctl_attach(struct ieee80211com *ic)
 {
+}
+
+void
+ieee80211_sysctl_detach(struct ieee80211com *ic)
+{
+}
+
+void
+ieee80211_sysctl_vattach(struct ieee80211vap *vap)
+{
+	struct ifnet *ifp = vap->iv_ifp;
 	struct sysctl_ctx_list *ctx;
 	struct sysctl_oid *oid;
 	char num[14];			/* sufficient for 32 bits */
@@ -108,57 +211,76 @@ ieee80211_sysctl_attach(struct ieee80211com *ic)
 	MALLOC(ctx, struct sysctl_ctx_list *, sizeof(struct sysctl_ctx_list),
 		M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (ctx == NULL) {
-		if_printf(ic->ic_ifp, "%s: cannot allocate sysctl context!\n",
+		if_printf(ifp, "%s: cannot allocate sysctl context!\n",
 			__func__);
 		return;
 	}
 	sysctl_ctx_init(ctx);
-	snprintf(num, sizeof(num), "%u", ic->ic_vap);
+	snprintf(num, sizeof(num), "%u", ifp->if_dunit);
 	oid = SYSCTL_ADD_NODE(ctx, &SYSCTL_NODE_CHILDREN(_net, wlan),
 		OID_AUTO, num, CTLFLAG_RD, NULL, "");
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
-		"%parent", CTLFLAG_RD, ic, 0, ieee80211_sysctl_parent, "A",
-		"parent device");
-#ifdef IEEE80211_DEBUG
-	ic->ic_debug = ieee80211_debug;
+		"%parent", CTLFLAG_RD, vap->iv_ic, 0,
+		ieee80211_sysctl_parent, "A", "parent device");
 	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
-		"debug", CTLFLAG_RW, &ic->ic_debug, 0,
+		"driver_caps", CTLFLAG_RW, &vap->iv_caps, 0,
+		"driver capabilities");
+#ifdef IEEE80211_DEBUG
+	vap->iv_debug = ieee80211_debug;
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
+		"debug", CTLFLAG_RW, &vap->iv_debug, 0,
 		"control debugging printfs");
 #endif
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
+		"bmiss_max", CTLFLAG_RW, &vap->iv_bmiss_max, 0,
+		"consecutive beacon misses before scanning");
 	/* XXX inherit from tunables */
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
-		"inact_run", CTLTYPE_INT | CTLFLAG_RW, &ic->ic_inact_run, 0,
+		"inact_run", CTLTYPE_INT | CTLFLAG_RW, &vap->iv_inact_run, 0,
 		ieee80211_sysctl_inact, "I",
 		"station inactivity timeout (sec)");
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
-		"inact_probe", CTLTYPE_INT | CTLFLAG_RW, &ic->ic_inact_probe, 0,
+		"inact_probe", CTLTYPE_INT | CTLFLAG_RW, &vap->iv_inact_probe, 0,
 		ieee80211_sysctl_inact, "I",
 		"station inactivity probe timeout (sec)");
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
-		"inact_auth", CTLTYPE_INT | CTLFLAG_RW, &ic->ic_inact_auth, 0,
+		"inact_auth", CTLTYPE_INT | CTLFLAG_RW, &vap->iv_inact_auth, 0,
 		ieee80211_sysctl_inact, "I",
 		"station authentication timeout (sec)");
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
-		"inact_init", CTLTYPE_INT | CTLFLAG_RW, &ic->ic_inact_init, 0,
+		"inact_init", CTLTYPE_INT | CTLFLAG_RW, &vap->iv_inact_init, 0,
 		ieee80211_sysctl_inact, "I",
 		"station initial state timeout (sec)");
-	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
-		"driver_caps", CTLFLAG_RW, &ic->ic_caps, 0,
-		"driver capabilities");
-	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
-		"bmiss_max", CTLFLAG_RW, &ic->ic_bmiss_max, 0,
-		"consecutive beacon misses before scanning");
-	ic->ic_sysctl = ctx;
+	if (vap->iv_htcaps & IEEE80211_HTC_HT) {
+		SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
+			"ampdu_mintraffic_bk", CTLFLAG_RW,
+			&vap->iv_ampdu_mintraffic[WME_AC_BK], 0,
+			"BK traffic tx aggr threshold (pps)");
+		SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
+			"ampdu_mintraffic_be", CTLFLAG_RW,
+			&vap->iv_ampdu_mintraffic[WME_AC_BE], 0,
+			"BE traffic tx aggr threshold (pps)");
+		SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
+			"ampdu_mintraffic_vo", CTLFLAG_RW,
+			&vap->iv_ampdu_mintraffic[WME_AC_VO], 0,
+			"VO traffic tx aggr threshold (pps)");
+		SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
+			"ampdu_mintraffic_vi", CTLFLAG_RW,
+			&vap->iv_ampdu_mintraffic[WME_AC_VI], 0,
+			"VI traffic tx aggr threshold (pps)");
+	}
+	vap->iv_sysctl = ctx;
+	vap->iv_oid = oid;
 }
 
 void
-ieee80211_sysctl_detach(struct ieee80211com *ic)
+ieee80211_sysctl_vdetach(struct ieee80211vap *vap)
 {
 
-	if (ic->ic_sysctl != NULL) {
-		sysctl_ctx_free(ic->ic_sysctl);
-		FREE(ic->ic_sysctl, M_DEVBUF);
-		ic->ic_sysctl = NULL;
+	if (vap->iv_sysctl != NULL) {
+		sysctl_ctx_free(vap->iv_sysctl);
+		FREE(vap->iv_sysctl, M_DEVBUF);
+		vap->iv_sysctl = NULL;
 	}
 }
 
@@ -188,6 +310,33 @@ ieee80211_drain_ifq(struct ifqueue *ifq)
 
 		m_freem(m);
 	}
+}
+
+void
+ieee80211_flush_ifq(struct ifqueue *ifq, struct ieee80211vap *vap)
+{
+	struct ieee80211_node *ni;
+	struct mbuf *m, **mprev;
+
+	IF_LOCK(ifq);
+	mprev = &ifq->ifq_head;
+	while ((m = *mprev) != NULL) {
+		ni = (struct ieee80211_node *)m->m_pkthdr.rcvif;
+		if (ni != NULL && ni->ni_vap == vap) {
+			*mprev = m->m_nextpkt;		/* remove from list */
+			ifq->ifq_len--;
+
+			m_freem(m);
+			ieee80211_free_node(ni);	/* reclaim ref */
+		} else
+			mprev = &m->m_nextpkt;
+	}
+	/* recalculate tail ptr */
+	m = ifq->ifq_head;
+	for (; m != NULL && m->m_nextpkt != NULL; m = m->m_nextpkt)
+		;
+	ifq->ifq_tail = m;
+	IF_UNLOCK(ifq);
 }
 
 /*
@@ -290,66 +439,78 @@ get_random_bytes(void *p, size_t n)
 	}
 }
 
-void
-ieee80211_notify_node_join(struct ieee80211com *ic, struct ieee80211_node *ni, int newassoc)
+/*
+ * Helper function for events that pass just a single mac address.
+ */
+static void
+notify_macaddr(struct ifnet *ifp, int op, const uint8_t mac[IEEE80211_ADDR_LEN])
 {
-	struct ifnet *ifp = ic->ic_ifp;
 	struct ieee80211_join_event iev;
 
 	memset(&iev, 0, sizeof(iev));
-	if (ni == ic->ic_bss) {
-		IEEE80211_ADDR_COPY(iev.iev_addr, ni->ni_bssid);
-		rt_ieee80211msg(ifp, newassoc ?
-			RTM_IEEE80211_ASSOC : RTM_IEEE80211_REASSOC,
-			&iev, sizeof(iev));
+	IEEE80211_ADDR_COPY(iev.iev_addr, mac);
+	rt_ieee80211msg(ifp, op, &iev, sizeof(iev));
+}
+
+void
+ieee80211_notify_node_join(struct ieee80211_node *ni, int newassoc)
+{
+	struct ieee80211vap *vap = ni->ni_vap;
+	struct ifnet *ifp = vap->iv_ifp;
+
+	IEEE80211_NOTE(vap, IEEE80211_MSG_NODE, ni, "%snode join",
+	    (ni == vap->iv_bss) ? "bss " : "");
+
+	if (ni == vap->iv_bss) {
+		notify_macaddr(ifp, newassoc ?
+		    RTM_IEEE80211_ASSOC : RTM_IEEE80211_REASSOC, ni->ni_bssid);
 		if_link_state_change(ifp, LINK_STATE_UP);
 	} else {
-		IEEE80211_ADDR_COPY(iev.iev_addr, ni->ni_macaddr);
-		rt_ieee80211msg(ifp, newassoc ?
-			RTM_IEEE80211_JOIN : RTM_IEEE80211_REJOIN,
-			&iev, sizeof(iev));
+		notify_macaddr(ifp, newassoc ?
+		    RTM_IEEE80211_JOIN : RTM_IEEE80211_REJOIN, ni->ni_macaddr);
 	}
 }
 
 void
-ieee80211_notify_node_leave(struct ieee80211com *ic, struct ieee80211_node *ni)
+ieee80211_notify_node_leave(struct ieee80211_node *ni)
 {
-	struct ifnet *ifp = ic->ic_ifp;
-	struct ieee80211_leave_event iev;
+	struct ieee80211vap *vap = ni->ni_vap;
+	struct ifnet *ifp = vap->iv_ifp;
 
-	if (ni == ic->ic_bss) {
+	IEEE80211_NOTE(vap, IEEE80211_MSG_NODE, ni, "%snode leave",
+	    (ni == vap->iv_bss) ? "bss " : "");
+
+	if (ni == vap->iv_bss) {
 		rt_ieee80211msg(ifp, RTM_IEEE80211_DISASSOC, NULL, 0);
 		if_link_state_change(ifp, LINK_STATE_DOWN);
 	} else {
 		/* fire off wireless event station leaving */
-		memset(&iev, 0, sizeof(iev));
-		IEEE80211_ADDR_COPY(iev.iev_addr, ni->ni_macaddr);
-		rt_ieee80211msg(ifp, RTM_IEEE80211_LEAVE, &iev, sizeof(iev));
+		notify_macaddr(ifp, RTM_IEEE80211_LEAVE, ni->ni_macaddr);
 	}
 }
 
 void
-ieee80211_notify_scan_done(struct ieee80211com *ic)
+ieee80211_notify_scan_done(struct ieee80211vap *vap)
 {
-	struct ifnet *ifp = ic->ic_ifp;
+	struct ifnet *ifp = vap->iv_ifp;
 
-	IEEE80211_DPRINTF(ic, IEEE80211_MSG_SCAN, "%s\n", "notify scan done");
+	IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN, "%s\n", "notify scan done");
 
 	/* dispatch wireless event indicating scan completed */
 	rt_ieee80211msg(ifp, RTM_IEEE80211_SCAN, NULL, 0);
 }
 
 void
-ieee80211_notify_replay_failure(struct ieee80211com *ic,
+ieee80211_notify_replay_failure(struct ieee80211vap *vap,
 	const struct ieee80211_frame *wh, const struct ieee80211_key *k,
 	u_int64_t rsc)
 {
-	struct ifnet *ifp = ic->ic_ifp;
+	struct ifnet *ifp = vap->iv_ifp;
 
-	IEEE80211_DPRINTF(ic, IEEE80211_MSG_CRYPTO,
-	    "[%s] %s replay detected <rsc %ju, csc %ju, keyix %u rxkeyix %u>\n",
-	    ether_sprintf(wh->i_addr2), k->wk_cipher->ic_name,
-	    (intmax_t) rsc, (intmax_t) k->wk_keyrsc,
+	IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_CRYPTO, wh->i_addr2,
+	    "%s replay detected <rsc %ju, csc %ju, keyix %u rxkeyix %u>",
+	    k->wk_cipher->ic_name, (intmax_t) rsc,
+	    (intmax_t) k->wk_keyrsc[IEEE80211_NONQOS_TID],
 	    k->wk_keyix, k->wk_rxkeyix);
 
 	if (ifp != NULL) {		/* NB: for cipher test modules */
@@ -362,22 +523,21 @@ ieee80211_notify_replay_failure(struct ieee80211com *ic,
 			iev.iev_keyix = k->wk_rxkeyix;
 		else
 			iev.iev_keyix = k->wk_keyix;
-		iev.iev_keyrsc = k->wk_keyrsc;
+		iev.iev_keyrsc = k->wk_keyrsc[0];	/* XXX need tid */
 		iev.iev_rsc = rsc;
 		rt_ieee80211msg(ifp, RTM_IEEE80211_REPLAY, &iev, sizeof(iev));
 	}
 }
 
 void
-ieee80211_notify_michael_failure(struct ieee80211com *ic,
+ieee80211_notify_michael_failure(struct ieee80211vap *vap,
 	const struct ieee80211_frame *wh, u_int keyix)
 {
-	struct ifnet *ifp = ic->ic_ifp;
+	struct ifnet *ifp = vap->iv_ifp;
 
-	IEEE80211_DPRINTF(ic, IEEE80211_MSG_CRYPTO,
-		"[%s] michael MIC verification failed <keyix %u>\n",
-	       ether_sprintf(wh->i_addr2), keyix);
-	ic->ic_stats.is_rx_tkipmic++;
+	IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_CRYPTO, wh->i_addr2,
+	    "michael MIC verification failed <keyix %u>", keyix);
+	vap->iv_stats.is_rx_tkipmic++;
 
 	if (ifp != NULL) {		/* NB: for cipher test modules */
 		struct ieee80211_michael_event iev;
@@ -388,6 +548,107 @@ ieee80211_notify_michael_failure(struct ieee80211com *ic,
 		iev.iev_keyix = keyix;
 		rt_ieee80211msg(ifp, RTM_IEEE80211_MICHAEL, &iev, sizeof(iev));
 	}
+}
+
+void
+ieee80211_notify_wds_discover(struct ieee80211_node *ni)
+{
+	struct ieee80211vap *vap = ni->ni_vap;
+	struct ifnet *ifp = vap->iv_ifp;
+
+	notify_macaddr(ifp, RTM_IEEE80211_WDS, ni->ni_macaddr);
+}
+
+void
+ieee80211_notify_csa(struct ieee80211com *ic,
+	const struct ieee80211_channel *c, int mode, int count)
+{
+	struct ifnet *ifp = ic->ic_ifp;
+	struct ieee80211_csa_event iev;
+
+	memset(&iev, 0, sizeof(iev));
+	iev.iev_flags = c->ic_flags;
+	iev.iev_freq = c->ic_freq;
+	iev.iev_ieee = c->ic_ieee;
+	iev.iev_mode = mode;
+	iev.iev_count = count;
+	rt_ieee80211msg(ifp, RTM_IEEE80211_CSA, &iev, sizeof(iev));
+}
+
+void
+ieee80211_notify_radar(struct ieee80211com *ic,
+	const struct ieee80211_channel *c)
+{
+	struct ifnet *ifp = ic->ic_ifp;
+	struct ieee80211_radar_event iev;
+
+	memset(&iev, 0, sizeof(iev));
+	iev.iev_flags = c->ic_flags;
+	iev.iev_freq = c->ic_freq;
+	iev.iev_ieee = c->ic_ieee;
+	rt_ieee80211msg(ifp, RTM_IEEE80211_RADAR, &iev, sizeof(iev));
+}
+
+void
+ieee80211_notify_cac(struct ieee80211com *ic,
+	const struct ieee80211_channel *c, enum ieee80211_notify_cac_event type)
+{
+	struct ifnet *ifp = ic->ic_ifp;
+	struct ieee80211_cac_event iev;
+
+	memset(&iev, 0, sizeof(iev));
+	iev.iev_flags = c->ic_flags;
+	iev.iev_freq = c->ic_freq;
+	iev.iev_ieee = c->ic_ieee;
+	iev.iev_type = type;
+	rt_ieee80211msg(ifp, RTM_IEEE80211_CAC, &iev, sizeof(iev));
+}
+
+void
+ieee80211_notify_node_deauth(struct ieee80211_node *ni)
+{
+	struct ieee80211vap *vap = ni->ni_vap;
+	struct ifnet *ifp = vap->iv_ifp;
+
+	IEEE80211_NOTE(vap, IEEE80211_MSG_NODE, ni, "%s", "node deauth");
+
+	notify_macaddr(ifp, RTM_IEEE80211_DEAUTH, ni->ni_macaddr);
+}
+
+void
+ieee80211_notify_node_auth(struct ieee80211_node *ni)
+{
+	struct ieee80211vap *vap = ni->ni_vap;
+	struct ifnet *ifp = vap->iv_ifp;
+
+	IEEE80211_NOTE(vap, IEEE80211_MSG_NODE, ni, "%s", "node auth");
+
+	notify_macaddr(ifp, RTM_IEEE80211_AUTH, ni->ni_macaddr);
+}
+
+void
+ieee80211_notify_country(struct ieee80211vap *vap,
+	const uint8_t bssid[IEEE80211_ADDR_LEN], const uint8_t cc[2])
+{
+	struct ifnet *ifp = vap->iv_ifp;
+	struct ieee80211_country_event iev;
+
+	memset(&iev, 0, sizeof(iev));
+	IEEE80211_ADDR_COPY(iev.iev_addr, bssid);
+	iev.iev_cc[0] = cc[0];
+	iev.iev_cc[1] = cc[1];
+	rt_ieee80211msg(ifp, RTM_IEEE80211_COUNTRY, &iev, sizeof(iev));
+}
+
+void
+ieee80211_notify_radio(struct ieee80211com *ic, int state)
+{
+	struct ifnet *ifp = ic->ic_ifp;
+	struct ieee80211_radio_event iev;
+
+	memset(&iev, 0, sizeof(iev));
+	iev.iev_state = state;
+	rt_ieee80211msg(ifp, RTM_IEEE80211_RADIO, &iev, sizeof(iev));
 }
 
 void
@@ -413,8 +674,12 @@ wlan_modevent(module_t mod, int type, void *unused)
 	case MOD_LOAD:
 		if (bootverbose)
 			printf("wlan: <802.11 Link Layer>\n");
+		if_clone_attach(&wlan_cloner);
+		if_register_com_alloc(IFT_IEEE80211, wlan_alloc, wlan_free);
 		return 0;
 	case MOD_UNLOAD:
+		if_deregister_com_alloc(IFT_IEEE80211);
+		if_clone_detach(&wlan_cloner);
 		return 0;
 	}
 	return EINVAL;

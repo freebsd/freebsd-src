@@ -15,7 +15,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 10, 2007
+.Dd April 13, 2008
 .Os
 .Dt RAL 4
 .Sh NAME
@@ -27,7 +27,10 @@ place the following lines in your
 kernel configuration file:
 .Bd -ragged -offset indent
 .Cd "device ral"
+.Cd "device ralfw"
 .Cd "device wlan"
+.Cd "device wlan_amrr"
+.Cd "device firmware"
 .Ed
 .Pp
 Alternatively, to load the driver as a
@@ -63,6 +66,31 @@ MIMO is the basis of the forthcoming IEEE 802.11n standard.
 The transmit speed is user-selectable or can be adapted automatically by the
 driver depending on the received signal strength and on the number of hardware
 transmission retries.
+.Pp
+.Nm
+supports
+.Cm station ,
+.Cm adhoc ,
+.Cm hostap ,
+.Cm wds ,
+and
+.Cm monitor
+mode operation.
+Only one
+.Cm hostap
+virtual interface may be configured at a time.
+Any number of 
+.Cm wds
+virtual interfaces may be configured together with a
+.Cm hostap
+interface.
+Multiple
+.Cm station
+interfaces may be operated together with a
+.Cm hostap
+interface to construct a wireless repeater device.
+For more information on configuring this device, see
+.Xr ifconfig 8 .
 .Sh HARDWARE
 The
 .Nm
@@ -163,22 +191,27 @@ An up to date list can be found at
 .Sh EXAMPLES
 Join an existing BSS network (i.e., connect to an access point):
 .Pp
-.Dl "ifconfig ral0 inet 192.168.0.20 netmask 0xffffff00"
+.Dl "ifconfig wlan create wlandev ral0 inet 192.168.0.20 netmask 0xffffff00"
 .Pp
 Join a specific BSS network with network name
 .Dq Li my_net :
 .Pp
-.Dl "ifconfig ral0 inet 192.168.0.20 netmask 0xffffff00 ssid my_net"
+.Bd -literal -offset indent
+ifconfig wlan create wlandev ral0 inet 192.168.0.20 \e
+    netmask 0xffffff00 ssid my_net
+.Ed
 .Pp
 Join a specific BSS network with 40-bit WEP encryption:
 .Bd -literal -offset indent
-ifconfig ral0 inet 192.168.0.20 netmask 0xffffff00 ssid my_net \e
+ifconfig wlan create wlandev ral0 inet 192.168.0.20 \e
+    netmask 0xffffff00 ssid my_net \e
     wepmode on wepkey 0x1234567890 weptxkey 1
 .Ed
 .Pp
 Join a specific BSS network with 104-bit WEP encryption:
 .Bd -literal -offset indent
-ifconfig ral0 inet 192.168.0.20 netmask 0xffffff00 ssid my_net \e
+ifconfig wlan create wlandev ral0 inet 192.168.0.20 \e
+    netmask 0xffffff00 ssid my_net \e
     wepmode on wepkey 0x01020304050607080910111213 weptxkey 1
 .Ed
 .Sh DIAGNOSTICS
@@ -194,13 +227,16 @@ The driver will reset the hardware.
 This should not happen.
 .El
 .Sh SEE ALSO
-.Xr altq 4 ,
-.Xr arp 4 ,
+.Xr intro 4 ,
 .Xr cardbus 4 ,
-.Xr netintro 4 ,
-.Xr pci 4 ,
 .Xr wlan 4 ,
-.Xr ifconfig 8
+.Xr wlan_ccmp 4 ,
+.Xr wlan_tkip 4 ,
+.Xr wlan_wep 4 ,
+.Xr wlan_xauth 4 ,
+.Xr hostapd 8 ,
+.Xr ifconfig 8 ,
+.Xr wpa_supplicant 8 .
 .Rs
 .%T "Ralink Technology"
 .%O http://www.ralinktech.com/
@@ -210,17 +246,8 @@ The
 .Nm
 driver first appeared in
 .Ox 3.7 .
-.Sh CAVEATS
-PCI
-.Nm
-adapters seem to require a PCI 2.2 compliant motherboard and will likely not
-work with PCI 2.1 only motherboard.
-.Pp
-The
-.Nm
-driver does not implement frame aggregation.
 .Sh AUTHORS
-The
+The original
 .Nm
 driver was written by
 .An Damien Bergamini Aq damien@FreeBSD.org .

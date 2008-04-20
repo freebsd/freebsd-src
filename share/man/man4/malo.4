@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"/
-.Dd March 25, 2008
+.Dd April 13, 2008
 .Dt MALO 4
 .Os
 .Sh NAME
@@ -53,41 +53,33 @@ module at boot time, place the following lines in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
 if_malo_load="YES"
-wlan_load="YES"
-firmware_load="YES"
-.Ed
-.Pp
-In both cases, place the following line in
-.Xr loader.conf 5
-to load the firmware module:
-.Bd -literal -offset indent
-malofw_load="YES"
 .Ed
 .Sh DESCRIPTION
 The
 .Nm
 driver provides support for Marvell Libertas 88W8335 based PCI
-network adapters.
-.Pp
-This driver requires firmware to be loaded before it will work.
-These firmware files are from the
-.Ox
+and Cardbus network adapters.
 .Nm
-driver.
+supports
+.Cm station ,
+.Cm adhoc ,
+and
+.Cm monitor
+mode operation.
+Only one virtual interface may be configured at any time.
+For more information on configuring this device, see
+.Xr ifconfig 8 .
 .Pp
-A package for the firmware which can be installed via
+This driver requires the
+.Nm malofw
+be installed before it will work.
+The firmware files are not publicly available.
+A package of the firmware which can be installed via
 .Xr pkg_add 1
-can be found at:
+with:
 .Bd -literal -offset indent
 http://weongyo.org/project/malo/malo-firmware-1.4.tar.gz
 .Ed
-.Pp
-This package must be installed before
-.Xr ifconfig 8
-will work.
-.Pp 
-For more information on configuring this device, see
-.Xr ifconfig 8 .
 .Sh HARDWARE
 The following cards are among those supported by the
 .Nm
@@ -102,26 +94,38 @@ U-Khan UW-2054i	88W8335	PCI	b/g
 .Sh EXAMPLES
 Join an existing BSS network (i.e., connect to an access point):
 .Pp
-.Dl "ifconfig malo0 inet 192.168.0.20 netmask 0xffffff00"
+.Bd -literal -offset indent
+ifconfig wlan create wlandev iwn0 inet 192.168.0.20 \e
+    netmask 0xffffff00
+.Ed
 .Pp
 Join a specific BSS network with network name
 .Dq Li my_net :
 .Pp
-.Dl "ifconfig malo0 inet 192.168.0.20 netmask 0xffffff00 ssid my_net"
+.Dl "ifconfig wlan create wlandev iwn0 ssid my_net up"
 .Pp
-Join a specific BSS network with WEP encryption:
+Join a specific BSS network with 64-bit WEP encryption:
 .Bd -literal -offset indent
-ifconfig malo0 inet 192.168.0.20 netmask 0xffffff00 ssid my_net \e
-        wepmode on wepkey 0x8736639624
+ifconfig wlan create wlandev iwn0 ssid my_net \e
+	wepmode on wepkey 0x1234567890 weptxkey 1 up
+.Ed
+.Pp
+Join a specific BSS network with 128-bit WEP encryption:
+.Bd -literal -offset indent
+ifconfig wlan create wlandev iwn0 wlanmode adhoc ssid my_net \e
+    wepmode on wepkey 0x01020304050607080910111213 weptxkey 1
+.Ed
 .Ed
 .Sh SEE ALSO
-.Xr altq 4 ,
-.Xr arp 4 ,
-.Xr cardbus 4 ,
-.Xr netintro 4 ,
+.Xr malofw 4 ,
 .Xr pci 4 ,
+.Xr cardbus 4 ,
 .Xr wlan 4 ,
-.Xr ifconfig 8
+.Xr wlan_ccmp 4 ,
+.Xr wlan_tkip 4 ,
+.Xr wlan_wep 4 ,
+.Xr ifconfig 8 ,
+.Xr wpa_supplicant 8 .
 .Sh HISTORY
 The
 .Nm

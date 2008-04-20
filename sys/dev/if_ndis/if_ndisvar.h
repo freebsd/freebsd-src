@@ -99,8 +99,15 @@ struct ndis_evt {
 	char			*ne_buf;
 };
 
+struct ndis_vap {
+	struct ieee80211vap	vap;
+
+	int			(*newstate)(struct ieee80211vap *,
+				    enum ieee80211_state, int);
+};
+#define	NDIS_VAP(vap)	((struct ndis_vap *)(vap))
+
 struct ndis_softc {
-	struct ieee80211com	ic;		/* interface info */
 	struct ifnet		*ifp;
 	struct ifmedia		ifmedia;	/* media info */
 	u_long			ndis_hwassist;

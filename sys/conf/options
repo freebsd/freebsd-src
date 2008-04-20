@@ -734,6 +734,11 @@ ATH_RXBUF		opt_ath.h
 ATH_DIAGAPI		opt_ath.h
 ATH_TX99_DIAG		opt_ath.h
 
+# options for the Marvell 8335 wireless driver
+MALO_DEBUG		opt_malo.h
+MALO_TXBUF		opt_malo.h
+MALO_RXBUF		opt_malo.h
+
 # dcons options 
 DCONS_BUF_SIZE		opt_dcons.h
 DCONS_POLL_HZ		opt_dcons.h
@@ -762,6 +767,11 @@ XFS
 
 # Interrupt filtering
 INTR_FILTER
+
+# 802.11 support layer
+IEEE80211_DEBUG		opt_wlan.h
+IEEE80211_DEBUG_REFCNT	opt_wlan.h
+IEEE80211_AMPDU_AGE	opt_wlan.h
 
 #Disable code to dispatch tcp offloading
 TCP_OFFLOAD_DISABLE	opt_inet.h
