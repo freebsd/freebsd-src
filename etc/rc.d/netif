@@ -68,7 +68,7 @@ network_start()
 	fi
 
 	# Configure the interface(s).
-	network_common ifn_start verbose
+	network_common ifn_start
 
 	if [ -f /etc/rc.d/ipfilter ] ; then
 		# Resync ipfilter
@@ -92,34 +92,31 @@ network_stop()
 	echo '.'
 }
 
-# network_common routine verbose
+# network_common routine
 #	Common configuration subroutine for network interfaces. This
 #	routine takes all the preparatory steps needed for configuriing
-#	an interface and then calls $routine. If $verbose is specified,
-#	it will call ifconfig(8) to show, in long format, the configured
-#	interfaces. If $verbose is not given, it will simply output the
-#	configured interface(s).
+#	an interface and then calls $routine.
 network_common()
 {
-	local _cooked_list _fail _func _verbose
+	local _cooked_list _fail _func
 
 	_func=
-	_verbose=
 
 	if [ -z "$1" ]; then
 		err 1 "network_common(): No function name specified."
 	else
 		_func="$1"
 	fi
-	[ -n "$2" ] && _verbose=yes
 
 	# Set the scope of the command (all interfaces or just one).
 	#
 	_cooked_list=
 	if [ -n "$cmdifn" ]; then
-		# Don't check that the interfaces exist.  We need to run
+		# Don't check that the interface(s) exist.  We need to run
 		# the down code even when the interface doesn't exist to
 		# kill off wpa_supplicant.
+		# XXXBED: is this really true or does wpa_supplicant die?
+		# if so, we should get rid of the devd entry
 		_cooked_list="$cmdifn"
 	else
 		_cooked_list="`list_net_interfaces`"
@@ -127,58 +124,12 @@ network_common()
 
 	_fail=
 	for ifn in ${_cooked_list}; do
-		if ${_func} ${ifn} ; then
-			eval showstat_$ifn=1
-		else
-			_fail="$_fail $ifn"
+		if ! ${_func} ${ifn} $2; then
+			_fail="${_fail} ${ifn}"
 		fi
 	done
 
-	# Display interfaces configured by this script
-	#
-	for ifn in ${_cooked_list}; do
-		eval showstat=\$showstat_${ifn}
-		if [ ! -z ${showstat} ]; then
-			if [ -n "$_verbose" ]; then
-				ifconfig ${ifn}
-			else
-				echo -n " ${ifn}"
-			fi
-		fi
-	done
 	debug "The following interfaces were not configured: $_fail"
-}
-
-ifn_start()
-{
-	local ifn cfg
-	ifn="$1"
-	cfg=1
-
-	[ -z "$ifn" ] && return 1
-
-	ifscript_up ${ifn} && cfg=0
-	ifconfig_up ${ifn} && cfg=0
-	ipv4_up ${ifn} && cfg=0
-	ipx_up ${ifn} && cfg=0
-
-	return $cfg
-}
-
-ifn_stop()
-{
-	local ifn cfg
-	ifn="$1"
-	cfg=1
-
-	[ -z "$ifn" ] && return 1
-
-	ipx_down ${ifn} && cfg=0
-	ipv4_down ${ifn} && cfg=0
-	ifconfig_down ${ifn} && cfg=0
-	ifscript_down ${ifn} && cfg=0
-
-	return $cfg
 }
 
 load_rc_config $name
