@@ -32,7 +32,6 @@ MAN=	aac.4 \
 	audit.4 \
 	auditpipe.4 \
 	aue.4 \
-	awi.4 \
 	axe.4 \
 	bce.4 \
 	bfe.4 \
@@ -436,7 +435,6 @@ MLINKS+=ata.4 acd.4 \
 	ata.4 afd.4 \
 	ata.4 ast.4
 MLINKS+=aue.4 if_aue.4
-MLINKS+=awi.4 if_awi.4
 MLINKS+=axe.4 if_axe.4
 MLINKS+=bce.4 if_bce.4
 MLINKS+=bfe.4 if_bfe.4

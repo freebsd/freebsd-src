@@ -486,9 +486,6 @@ dev/ath/if_ath.c		optional ath \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
 dev/ath/if_ath_pci.c		optional ath pci \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
-dev/awi/am79c930.c		optional awi
-dev/awi/awi.c			optional awi
-dev/awi/if_awi_pccard.c		optional awi pccard
 dev/bce/if_bce.c		optional bce
 dev/bfe/if_bfe.c		optional bfe
 dev/bge/if_bge.c		optional bge
