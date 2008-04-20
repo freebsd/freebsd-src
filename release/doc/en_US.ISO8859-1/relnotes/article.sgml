@@ -181,7 +181,7 @@
     <para arch="amd64">The &os; kernel now has support for large
       memory page mappings (<quote>superpages</quote>).</para>
 
-    <para arch="amd64,i386,powerpc" role="merged">The ULE
+    <para arch="amd64,i386,ia64,powerpc" role="merged">The ULE
       scheduler is now the default process scheduler
       in <filename>GENERIC</filename> kernels.</para>
 
@@ -326,6 +326,8 @@
       <replaceable>name</replaceable> by removing it from the environment,
       instead of just setting it to a null value.</para>
 
+    <para>The &man.fdopendir.3; library function has been added.</para>
+
     <para>&man.find.1; has been enhanced by the addition of a number
       of primaries that were present in GNU find but not &os;
       &man.find.1;.</para>
@@ -354,6 +356,11 @@
     <para>The &man.tar.1; utility now supports a <option>-Z</option>
       flag to enable &man.compress.1;-style
       compression/decompression.</para>
+
+    <para>The &man.tcgetsid.3; library function has been added to
+      return the process group ID for the session leader for the
+      controlling terminal.  It is defined in IEEE Std 1003.1-2001
+      (POSIX).</para>
 
     <para>&man.top.1; now supports a <option>-P</option> flag to
       provide per-CPU usage statistics.</para>
