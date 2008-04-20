@@ -2915,7 +2915,7 @@ pf_socket_lookup(int direction, struct pf_pdesc *pd)
 	pd->lookup.pid = NO_PID;		/* XXX: revisit */
 #ifdef __FreeBSD__
 	if (inp_arg != NULL) {
-		INP_WLOCK_ASSERT(inp_arg);
+		INP_LOCK_ASSERT(inp_arg);
 		if (inp_arg->inp_socket) {
 			pd->lookup.uid = inp_arg->inp_socket->so_cred->cr_uid;
 			pd->lookup.gid =
@@ -3018,16 +3018,15 @@ pf_socket_lookup(int direction, struct pf_pdesc *pd)
 		return (-1);
 	}
 #ifdef __FreeBSD__
-	INP_WLOCK(inp);
+	INP_RLOCK(inp);
+	INP_INFO_RUNLOCK(pi);
 	if ((inp->inp_socket == NULL) || (inp->inp_socket->so_cred == NULL)) {
-		INP_WUNLOCK(inp);
-		INP_INFO_RUNLOCK(pi);
+		INP_RUNLOCK(inp);
 		return (-1);
 	}
 	pd->lookup.uid = inp->inp_socket->so_cred->cr_uid;
 	pd->lookup.gid = inp->inp_socket->so_cred->cr_groups[0];
-	INP_WUNLOCK(inp);
-	INP_INFO_RUNLOCK(pi);
+	INP_RUNLOCK(inp);
 #else
 	pd->lookup.uid = inp->inp_socket->so_euid;
 	pd->lookup.gid = inp->inp_socket->so_egid;
