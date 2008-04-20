@@ -1396,6 +1396,7 @@ product HP HN210E		0x811c	Ethernet HN210E
 product HP2 C500		0x6002	PhotoSmart C500
 
 /* HTC products */
+product HTC WINMOBILE		0x00ce	HTC USB Sync
 product HTC SMARTPHONE		0x0a51	SmartPhone USB Sync
 
 /* HUAWEI products */
