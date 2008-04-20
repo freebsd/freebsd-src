@@ -770,11 +770,9 @@ ng_unref_node(node_p node)
 		return (0);
 	}
 
-	do {
-		v = node->nd_refs - 1;
-	} while (! atomic_cmpset_int(&node->nd_refs, v + 1, v));
+	v = atomic_fetchadd_int(&node->nd_refs, -1);
 
-	if (v == 0) { /* we were the last */
+	if (v == 1) { /* we were the last */
 
 		mtx_lock(&ng_namehash_mtx);
 		node->nd_type->refs--; /* XXX maybe should get types lock? */
@@ -788,7 +786,7 @@ ng_unref_node(node_p node)
 		mtx_destroy(&node->nd_input_queue.q_mtx);
 		NG_FREE_NODE(node);
 	}
-	return (v);
+	return (v - 1);
 }
 
 /************************************************************************
@@ -959,15 +957,12 @@ ng_unref_hook(hook_p hook)
 	if (hook == &ng_deadhook) {
 		return;
 	}
-	do {
-		v = hook->hk_refs;
-	} while (! atomic_cmpset_int(&hook->hk_refs, v, v - 1));
+
+	v = atomic_fetchadd_int(&hook->hk_refs, -1);
 
 	if (v == 1) { /* we were the last */
-		if (_NG_HOOK_NODE(hook)) { /* it'll probably be ng_deadnode */
+		if (_NG_HOOK_NODE(hook)) /* it'll probably be ng_deadnode */
 			_NG_NODE_UNREF((_NG_HOOK_NODE(hook)));
-			hook->hk_node = NULL;
-		}
 		NG_FREE_HOOK(hook);
 	}
 }
@@ -1996,13 +1991,6 @@ ng_dequeue(struct ng_queue *ngq, int *rw)
 		 * we don't need to change the PENDING flag.
 		 */
 		atomic_add_long(&ngq->q_flags, add_arg);
-		/*
-		 * If we see more doable work, make sure we are
-		 * on the work queue.
-		 */
-		if (NEXT_QUEUED_ITEM_CAN_PROCEED(ngq)) {
-			ng_setisr(ngq->q_node);
-		}
 	}
 	CTR6(KTR_NET, "%20s: node [%x] (%p) returning item %p as %s; "
 	    "queue flags 0x%lx", __func__,
@@ -3385,10 +3373,6 @@ ngintr(void)
 		 * All this time, keep the reference
 		 * that lets us be sure that the node still exists.
 		 * Let the reference go at the last minute.
-		 * ng_dequeue will put us back on the worklist
-		 * if there is more too do. This may be of use if there
-		 * are Multiple Processors and multiple Net threads in the
-		 * future.
 		 */
 		for (;;) {
 			int rw;
@@ -3575,11 +3559,10 @@ ng_address_hook(node_p here, item_p item, hook_p hook, ng_ID_t retaddr)
 	 * that the peer is still connected (even if invalid,) we know
 	 * that the peer node is present, though maybe invalid.
 	 */
-	if ((hook == NULL)
-	|| NG_HOOK_NOT_VALID(hook)
-	|| (NG_HOOK_PEER(hook) == NULL)
-	|| NG_HOOK_NOT_VALID(NG_HOOK_PEER(hook))
-	|| NG_NODE_NOT_VALID(NG_PEER_NODE(hook))) {
+	if ((hook == NULL) ||
+	    NG_HOOK_NOT_VALID(hook) ||
+	    NG_HOOK_NOT_VALID(peer = NG_HOOK_PEER(hook)) ||
+	    NG_NODE_NOT_VALID(peernode = NG_PEER_NODE(hook))) {
 		NG_FREE_ITEM(item);
 		TRAP_ERROR();
 		return (ENETDOWN);
@@ -3588,11 +3571,9 @@ ng_address_hook(node_p here, item_p item, hook_p hook, ng_ID_t retaddr)
 	/*
 	 * Transfer our interest to the other (peer) end.
 	 */
-	peer = NG_HOOK_PEER(hook);
 	NG_HOOK_REF(peer);
-	NGI_SET_HOOK(item, peer);
-	peernode = NG_PEER_NODE(hook);
 	NG_NODE_REF(peernode);
+	NGI_SET_HOOK(item, peer);
 	NGI_SET_NODE(item, peernode);
 	SET_RETADDR(item, here, retaddr);
 	return (0);
