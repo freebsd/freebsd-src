@@ -32,8 +32,6 @@
 #include <net/if.h>
 #include <net/ethernet.h>
 
-#include <net80211/ieee80211.h>
-#include <net80211/ieee80211_crypto.h>
 #include <net80211/ieee80211_ioctl.h>
 
 struct wpa_driver_bsd_data {
@@ -45,6 +43,11 @@ struct wpa_driver_bsd_data {
 	int	prev_roaming;		/* roaming state to restore on deinit */
 	int	prev_privacy;		/* privacy state to restore on deinit */
 	int	prev_wpa;		/* wpa state to restore on deinit */
+	int	prev_scanvalid;		/* scan valid to restore on deinit */
+	uint8_t	lastssid[IEEE80211_NWID_LEN];
+	int	lastssid_len;
+	uint32_t drivercaps;		/* general driver capabilities */
+	uint32_t cryptocaps;		/* hardware crypto support */
 };
 
 static int
@@ -131,7 +134,7 @@ getifflags(struct wpa_driver_bsd_data *drv, int *flags)
 		perror("SIOCGIFFLAGS");
 		return errno;
 	}
-	*flags = ifr.ifr_flags & 0xffff;
+	*flags = (ifr.ifr_flags & 0xffff) | (ifr.ifr_flagshigh << 16);
 	return 0;
 }
 
@@ -143,6 +146,7 @@ setifflags(struct wpa_driver_bsd_data *drv, int flags)
 	memset(&ifr, 0, sizeof(ifr));
 	strncpy(ifr.ifr_name, drv->ifname, sizeof (ifr.ifr_name));
 	ifr.ifr_flags = flags & 0xffff;
+	ifr.ifr_flagshigh = flags >> 16;
 	if (ioctl(drv->sock, SIOCSIFFLAGS, (caddr_t)&ifr) < 0) {
 		perror("SIOCSIFFLAGS");
 		return errno;
@@ -192,7 +196,21 @@ static int
 wpa_driver_bsd_set_wpa_ie(struct wpa_driver_bsd_data *drv,
 	const char *wpa_ie, size_t wpa_ie_len)
 {
-	return set80211var(drv, IEEE80211_IOC_OPTIE, wpa_ie, wpa_ie_len);
+	struct ieee80211req ireq;
+
+	memset(&ireq, 0, sizeof(ireq));
+	strncpy(ireq.i_name, drv->ifname, IFNAMSIZ);
+	ireq.i_type = IEEE80211_IOC_APPIE;
+	ireq.i_val = IEEE80211_APPIE_WPA;
+	ireq.i_len = wpa_ie_len;
+	ireq.i_data = (void *) wpa_ie;
+	if (ioctl(drv->sock, SIOCS80211, &ireq) < 0) {
+		fprintf(stderr,
+		    "ioctl[IEEE80211_IOC_APPIE:IEEE80211_APPIE_WPA]: %s\n",
+		    strerror(errno));
+		return -1;
+	}
+	return 0;
 }
 
 static int
@@ -281,9 +299,9 @@ wpa_driver_bsd_set_key(void *priv, wpa_alg alg,
 
 	memcpy(&ea, addr, IEEE80211_ADDR_LEN);
 	wpa_printf(MSG_DEBUG,
-		"%s: alg=%s addr=%s key_idx=%d set_tx=%d seq_len=%zu key_len=%zu",
-		__func__, alg_name, ether_ntoa(&ea), key_idx, set_tx,
-		seq_len, key_len);
+	    "%s: alg=%s addr=%s key_idx=%d set_tx=%d seq_len=%zu key_len=%zu",
+	    __func__, alg_name, ether_ntoa(&ea), key_idx, set_tx,
+	    seq_len, key_len);
 
 	if (seq_len > sizeof(u_int64_t)) {
 		wpa_printf(MSG_DEBUG, "%s: seq_len %zu too big",
@@ -348,6 +366,8 @@ wpa_driver_bsd_deauthenticate(void *priv, const u8 *addr, int reason_code)
 	struct wpa_driver_bsd_data *drv = priv;
 	struct ieee80211req_mlme mlme;
 
+	drv->lastssid_len = 0;
+
 	wpa_printf(MSG_DEBUG, "%s", __func__);
 	memset(&mlme, 0, sizeof(mlme));
 	mlme.im_op = IEEE80211_MLME_DEAUTH;
@@ -361,6 +381,8 @@ wpa_driver_bsd_disassociate(void *priv, const u8 *addr, int reason_code)
 {
 	struct wpa_driver_bsd_data *drv = priv;
 	struct ieee80211req_mlme mlme;
+
+	drv->lastssid_len = 0;
 
 	wpa_printf(MSG_DEBUG, "%s", __func__);
 	memset(&mlme, 0, sizeof(mlme));
@@ -414,6 +436,8 @@ wpa_driver_bsd_associate(void *priv, struct wpa_driver_associate_params *params)
 		memcpy(mlme.im_macaddr, params->bssid, IEEE80211_ADDR_LEN);
 	if (set80211var(drv, IEEE80211_IOC_MLME, &mlme, sizeof(mlme)) < 0)
 		return -1;
+	memcpy(drv->lastssid, params->ssid, params->ssid_len);
+	drv->lastssid_len = params->ssid_len;
 	return 0;
 }
 
@@ -441,18 +465,53 @@ static int
 wpa_driver_bsd_scan(void *priv, const u8 *ssid, size_t ssid_len)
 {
 	struct wpa_driver_bsd_data *drv = priv;
+	struct ieee80211_scan_req sr;
 	int flags;
 
+	/* XXX not true but easiest to perpetuate the myth */
 	/* NB: interface must be marked UP to do a scan */
-	if (getifflags(drv, &flags) != 0 || setifflags(drv, flags | IFF_UP) != 0)
+	if (getifflags(drv, &flags) != 0) {
+		wpa_printf(MSG_DEBUG, "%s did not mark interface UP", __func__);
 		return -1;
+	}
+	if ((flags & IFF_UP) == 0 && setifflags(drv, flags | IFF_UP) != 0) {
+		wpa_printf(MSG_DEBUG, "%s unable to mark interface UP",
+		    __func__);
+		return -1;
+	}
 
-	/* set desired ssid before scan */
-	if (wpa_driver_bsd_set_ssid(drv, ssid, ssid_len) < 0)
-		return -1;
+	memset(&sr, 0, sizeof(sr));
+	sr.sr_flags = IEEE80211_IOC_SCAN_ACTIVE
+		    | IEEE80211_IOC_SCAN_ONCE
+		    | IEEE80211_IOC_SCAN_NOJOIN
+		    ;
+	sr.sr_duration = IEEE80211_IOC_SCAN_FOREVER;
+	if (ssid_len != 0) {
+		/* XXX ssid_len must be <= IEEE80211_NWID_LEN */
+		memcpy(sr.sr_ssid[sr.sr_nssid].ssid, ssid, ssid_len);
+		sr.sr_ssid[sr.sr_nssid].len = ssid_len;
+		sr.sr_nssid++;
+	}
+	if (drv->lastssid_len != 0 &&
+	    (drv->lastssid_len != ssid_len ||
+	     memcmp(drv->lastssid, ssid, ssid_len) != 0)) {
+		/*
+		 * If we are scanning because we received a deauth
+		 * and the scan cache is warm then we'll find the
+		 * ap there and short circuit a full-blown scan.
+		 */
+		memcpy(sr.sr_ssid[sr.sr_nssid].ssid, drv->lastssid,
+		    drv->lastssid_len);
+		sr.sr_ssid[sr.sr_nssid].len = drv->lastssid_len;
+		sr.sr_nssid++;
+		/* NB: clear so we don't retry w/o associating first */
+		drv->lastssid_len = 0;
+	}
+	if (sr.sr_nssid != 0)		/* NB: check scan cache first */
+		sr.sr_flags |= IEEE80211_IOC_SCAN_CHECK;
 
 	/* NB: net80211 delivers a scan complete event so no need to poll */
-	return set80211param(drv, IEEE80211_IOC_SCAN_REQ, 0);
+	return set80211var(drv, IEEE80211_IOC_SCAN_REQ, &sr, sizeof(sr));
 }
 
 #include <net/route.h>
@@ -681,12 +740,33 @@ wpa_driver_bsd_get_scan_results(void *priv,
 #undef min
 }
 
+#define	GETPARAM(drv, param, v) \
+	(((v) = get80211param(drv, param)) != -1)
+#define	IEEE80211_C_BGSCAN	0x20000000
+
+/*
+ * Set the scan cache valid threshold to 1.5 x bg scan interval
+ * to force all scan requests to consult the cache unless they
+ * explicitly bypass it.
+ */
+static int
+setscanvalid(struct wpa_driver_bsd_data *drv)
+{
+	int bgscan, scanvalid;
+
+	if (!GETPARAM(drv, IEEE80211_IOC_SCANVALID, drv->prev_scanvalid) ||
+	    !GETPARAM(drv, IEEE80211_IOC_BGSCAN_INTERVAL, bgscan))
+		return -1;
+	scanvalid = 3*bgscan/2;
+	return (drv->prev_scanvalid < scanvalid) ?
+	    set80211param(drv, IEEE80211_IOC_SCANVALID, scanvalid) : 0;
+}
+
 static void *
 wpa_driver_bsd_init(void *ctx, const char *ifname)
 {
-#define	GETPARAM(drv, param, v) \
-	(((v) = get80211param(drv, param)) != -1)
 	struct wpa_driver_bsd_data *drv;
+	struct ieee80211_devcaps_req devcaps;
 	int flags;
 
 	drv = malloc(sizeof(*drv));
@@ -725,6 +805,15 @@ wpa_driver_bsd_init(void *ctx, const char *ifname)
 	eloop_register_read_sock(drv->route,
 		wpa_driver_bsd_event_receive, ctx, drv);
 
+	if (get80211var(drv, IEEE80211_IOC_DEVCAPS, &devcaps, sizeof(devcaps)) < 0) {
+		wpa_printf(MSG_DEBUG,
+		    "%s: failed to get device capabilities: %s",
+		    __func__, strerror(errno));
+		goto fail;
+	}
+	drv->drivercaps = devcaps.dc_drivercaps;
+	drv->cryptocaps = devcaps.dc_cryptocaps;
+
 	if (!GETPARAM(drv, IEEE80211_IOC_ROAMING, drv->prev_roaming)) {
 		wpa_printf(MSG_DEBUG, "%s: failed to get roaming state: %s",
 			__func__, strerror(errno));
@@ -745,7 +834,18 @@ wpa_driver_bsd_init(void *ctx, const char *ifname)
 			   "roaming: %s", __func__, strerror(errno));
 		goto fail;
 	}
-
+	if (drv->drivercaps & IEEE80211_C_BGSCAN) {
+		/*
+		 * Driver does background scanning; force the scan valid
+		 * setting to 1.5 x bg scan interval so the scan cache is
+		 * always consulted before we force a foreground scan.
+		 */ 
+		if (setscanvalid(drv) < 0) {
+			wpa_printf(MSG_DEBUG,
+			    "%s: warning, failed to set scanvalid, scanning "
+			    "may be suboptimal: %s", __func__, strerror(errno));
+		}
+	}
 	if (set80211param(drv, IEEE80211_IOC_WPA, 1+2) < 0) {
 		wpa_printf(MSG_DEBUG, "%s: failed to enable WPA support %s",
 			   __func__, strerror(errno));
@@ -758,8 +858,8 @@ fail:
 fail1:
 	free(drv);
 	return NULL;
-#undef GETPARAM
 }
+#undef GETPARAM
 
 static void
 wpa_driver_bsd_deinit(void *priv)
@@ -772,9 +872,17 @@ wpa_driver_bsd_deinit(void *priv)
 		(void) setifflags(drv, flags &~ IFF_UP);
 
 	wpa_driver_bsd_set_wpa_internal(drv, drv->prev_wpa, drv->prev_privacy);
-	if (set80211param(drv, IEEE80211_IOC_ROAMING, drv->prev_roaming) < 0)
-		wpa_printf(MSG_DEBUG, "%s: failed to restore roaming state",
-			__func__);
+	if (set80211param(drv, IEEE80211_IOC_ROAMING, drv->prev_roaming) < 0) {
+		/* NB: don't whinge if device ejected or equivalent */
+		if (errno != ENXIO)
+			wpa_printf(MSG_DEBUG, "%s: failed to restore roaming "
+			    "state", __func__);
+	}
+	if (drv->drivercaps & IEEE80211_C_BGSCAN) {
+		/* XXX check return value */
+		(void) set80211param(drv, IEEE80211_IOC_SCANVALID,
+		    drv->prev_scanvalid);
+	}
 
 	(void) close(drv->route);		/* ioctl socket */
 	(void) close(drv->sock);		/* event socket */
