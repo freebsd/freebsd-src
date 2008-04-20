@@ -176,7 +176,7 @@ typedef	__pid_t		pid_t;
 #define	F_OGETLK	7		/* get record locking information */
 #define	F_OSETLK	8		/* set record locking information */
 #define	F_OSETLKW	9		/* F_SETLK; wait if blocked */
-/* 10 reserved for F_DUP2FD */
+#define	F_DUP2FD	10		/* duplicate file descriptor to arg */
 #define	F_GETLK		11		/* get record locking information */
 #define	F_SETLK		12		/* set record locking information */
 #define	F_SETLKW	13		/* F_SETLK; wait if blocked */
