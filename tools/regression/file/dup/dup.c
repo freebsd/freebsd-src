@@ -20,6 +20,15 @@
  * Test #9:  check if fcntl(F_DUPFD) cleared close-on-exec flag for duped fd.
  * Test #10: check if dup2() to a fd > current maximum number of open files
  *           limit work.
+ * Test #11: check if fcntl(F_DUP2FD) works.
+ * Test #12: check if fcntl(F_DUP2FD) returned a fd we asked for.
+ * Test #13: check if fcntl(F_DUP2FD) cleared close-on-exec flag for duped fd.
+ * Test #14: check if fcntl(F_DUP2FD) allows to dup fd to itself.
+ * Test #15: check if fcntl(F_DUP2FD) returned a fd we asked for.
+ * Test #16: check if fcntl(F_DUP2FD) did not clear close-on-exec flag for
+ *           duped fd.
+ * Test #17: check if fcntl(F_DUP2FD) to a fd > current maximum number of open
+ *           files limit work.
  */
 
 #include <sys/types.h>
@@ -56,7 +65,7 @@ main(int __unused argc, char __unused *argv[])
 
 	orgfd = getafile();
 
-	printf("1..10\n");
+	printf("1..17\n");
 
 	/* If dup(2) ever work? */
 	if ((fd1 = dup(orgfd)) < 0)
@@ -151,10 +160,70 @@ main(int __unused argc, char __unused *argv[])
 	++test;
 	if (getrlimit(RLIMIT_NOFILE, &rlp) < 0)
 		err(1, "getrlimit");
-        if ((fd2 = dup2(fd1, rlp.rlim_cur + 1)) == 0)
+	if ((fd2 = dup2(fd1, rlp.rlim_cur + 1)) >= 0)
 		printf("not ok %d - dup2(2) bypassed NOFILE limit\n", test);
 	else
 		printf("ok %d - dup2(2) didn't bypass NOFILE limit\n", test);
+
+	/* If fcntl(F_DUP2FD) ever work? */
+	if ((fd2 = fcntl(fd1, F_DUP2FD, fd1 + 1)) < 0)
+		err(1, "fcntl(F_DUP2FD)");
+	printf("ok %d - fcntl(F_DUP2FD) works\n", ++test);
+
+	/* Do we get the right fd? */
+	++test;
+	if (fd2 != fd1 + 1)
+		printf(
+		    "no ok %d - fcntl(F_DUP2FD) didn't give us the right fd\n",
+		    test);
+	else
+		printf("ok %d - fcntl(F_DUP2FD) returned a correct fd\n",
+		    test);
+
+	/* Was close-on-exec cleared? */
+	++test;
+	if (fcntl(fd2, F_GETFD) != 0)
+		printf(
+		    "not ok %d - fcntl(F_DUP2FD) didn't clear close-on-exec\n",
+		    test);
+	else
+		printf("ok %d - fcntl(F_DUP2FD) cleared close-on-exec\n",
+		    test);
+
+	/* Dup to itself */
+	if ((fd2 = fcntl(fd1, F_DUP2FD, fd1)) < 0)
+		err(1, "fcntl(F_DUP2FD)");
+	printf("ok %d - fcntl(F_DUP2FD) to itself works\n", ++test);
+
+	/* Do we get the right fd? */
+	++test;
+	if (fd2 != fd1)
+		printf(
+		    "not ok %d - fcntl(F_DUP2FD) didn't give us the right fd\n",
+		    test);
+	else
+		printf(
+		    "ok %d - fcntl(F_DUP2FD) to itself returned a correct fd\n",
+		    test);
+
+	/* Was close-on-exec cleared? */
+	++test;
+	if (fcntl(fd2, F_GETFD) == 0)
+		printf("not ok %d - fcntl(F_DUP2FD) cleared close-on-exec\n",
+		    test);
+	else
+		printf("ok %d - fcntl(F_DUP2FD) didn't clear close-on-exec\n",
+		    test);
+
+	++test;
+	if (getrlimit(RLIMIT_NOFILE, &rlp) < 0)
+		err(1, "getrlimit");
+	if ((fd2 = fcntl(fd1, F_DUP2FD, rlp.rlim_cur + 1)) >= 0)
+		printf("not ok %d - fcntl(F_DUP2FD) bypassed NOFILE limit\n",
+		    test);
+	else
+		printf("ok %d - fcntl(F_DUP2FD) didn't bypass NOFILE limit\n",
+		    test);
 
 	return (0);
 }
