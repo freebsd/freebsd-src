@@ -184,7 +184,7 @@ malo_bar1_read1(struct malo_softc *sc, bus_size_t off)
 int
 malo_attach(uint16_t devid, struct malo_softc *sc)
 {
-	int error;
+	int error, i;
 	struct ieee80211com *ic;
 	struct ifnet *ifp;
 	struct malo_hal *mh;
