@@ -210,9 +210,7 @@ dev/wpi/if_wpi.c		optional	wpi
 isa/atrtc.c			standard
 isa/syscons_isa.c		optional	sc
 isa/vga_isa.c			optional	vga
-kern/clock_if.m			standard
 kern/link_elf_obj.c		standard
-kern/subr_rtc.c			standard
 #
 # IA32 binary support
 #

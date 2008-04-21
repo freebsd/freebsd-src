@@ -91,7 +91,6 @@ device		ehci			# EHCI PCI->USB interface (USB 2.0)
 #device		uart
 #device		uart_ns8250
 
-device		genclock
 device		loop
 device		ether
 device		md
