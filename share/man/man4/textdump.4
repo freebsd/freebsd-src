@@ -48,7 +48,7 @@ and persistent form than a traditional dump.
 By combining
 .Nm
 with other
-.Xr DDB 4
+.Xr ddb 4
 facilities, such as scripting and output capture, detailed bug information
 can be captured in a fully automated manner.
 .Sh FORMAT
@@ -67,7 +67,7 @@ The following parts may be present:
 .Bl -tag -width version.txt
 .It Pa ddb.txt
 Captured
-.Xr DDB 4
+.Xr ddb 4
 output, if the capture facility has been used.
 May be disabled by clearing the
 .Dv debug.ddb.textdump.do_ddb
@@ -110,7 +110,7 @@ By default, kernel dumps generated on panic or via explicit requests for a
 dump will be regular memory dumps; however, by using the
 .Ic textdump set
 command in
-.Xr DDB 4 ,
+.Xr ddb 4 ,
 or by setting the
 .Dv debug.ddb.textdump.pending
 sysctl to 1 using
@@ -118,7 +118,7 @@ sysctl to 1 using
 it is possible to request that the next dump be a textdump.
 .Pp
 If at the
-.Xr DDB 4
+.Xr ddb 4
 command line, the commands
 .Ic textdump set ,
 .Ic textdump status ,
