@@ -155,7 +155,7 @@ raw_append(struct inpcb *last, struct ip *ip, struct mbuf *n)
 {
 	int policyfail = 0;
 
-	INP_WLOCK_ASSERT(last);
+	INP_RLOCK_ASSERT(last);
 
 #ifdef IPSEC
 	/* check AH/ESP integrity. */
@@ -209,10 +209,10 @@ rip_input(struct mbuf *m, int off)
 	ripsrc.sin_addr = ip->ip_src;
 	last = NULL;
 	LIST_FOREACH(inp, &ripcb, inp_list) {
-		INP_WLOCK(inp);
+		INP_RLOCK(inp);
 		if (inp->inp_ip_p && inp->inp_ip_p != proto) {
 	docontinue:
-			INP_WUNLOCK(inp);
+			INP_RUNLOCK(inp);
 			continue;
 		}
 #ifdef INET6
@@ -236,14 +236,14 @@ rip_input(struct mbuf *m, int off)
 			if (n != NULL)
 				(void) raw_append(last, ip, n);
 			/* XXX count dropped packet */
-			INP_WUNLOCK(last);
+			INP_RUNLOCK(last);
 		}
 		last = inp;
 	}
 	if (last != NULL) {
 		if (raw_append(last, ip, m) != 0)
 			ipstat.ips_delivered--;
-		INP_WUNLOCK(last);
+		INP_RUNLOCK(last);
 	} else {
 		m_freem(m);
 		ipstat.ips_noproto++;
@@ -278,7 +278,7 @@ rip_output(struct mbuf *m, struct socket *so, u_long dst)
 		if (m == NULL)
 			return(ENOBUFS);
 
-		INP_WLOCK(inp);
+		INP_RLOCK(inp);
 		ip = mtod(m, struct ip *);
 		ip->ip_tos = inp->inp_ip_tos;
 		if (inp->inp_flags & INP_DONTFRAG)
@@ -299,12 +299,12 @@ rip_output(struct mbuf *m, struct socket *so, u_long dst)
 			m_freem(m);
 			return(EMSGSIZE);
 		}
-		INP_WLOCK(inp);
+		INP_RLOCK(inp);
 		ip = mtod(m, struct ip *);
 		if (jailed(inp->inp_socket->so_cred)) {
 			if (ip->ip_src.s_addr !=
 			    htonl(prison_getip(inp->inp_socket->so_cred))) {
-				INP_WUNLOCK(inp);
+				INP_RUNLOCK(inp);
 				m_freem(m);
 				return (EPERM);
 			}
@@ -315,7 +315,7 @@ rip_output(struct mbuf *m, struct socket *so, u_long dst)
 		     && inp->inp_options)
 		    || (ip->ip_len > m->m_pkthdr.len)
 		    || (ip->ip_len < (ip->ip_hl << 2))) {
-			INP_WUNLOCK(inp);
+			INP_RUNLOCK(inp);
 			m_freem(m);
 			return EINVAL;
 		}
@@ -335,7 +335,7 @@ rip_output(struct mbuf *m, struct socket *so, u_long dst)
 
 	error = ip_output(m, inp->inp_options, NULL, flags,
 	    inp->inp_moptions, inp);
-	INP_WUNLOCK(inp);
+	INP_RUNLOCK(inp);
 	return error;
 }
 
@@ -851,13 +851,13 @@ rip_pcblist(SYSCTL_HANDLER_ARGS)
 	INP_INFO_RLOCK(&ripcbinfo);
 	for (inp = LIST_FIRST(ripcbinfo.ipi_listhead), i = 0; inp && i < n;
 	     inp = LIST_NEXT(inp, inp_list)) {
-		INP_WLOCK(inp);
+		INP_RLOCK(inp);
 		if (inp->inp_gencnt <= gencnt &&
 		    cr_canseesocket(req->td->td_ucred, inp->inp_socket) == 0) {
 			/* XXX held references? */
 			inp_list[i++] = inp;
 		}
-		INP_WUNLOCK(inp);
+		INP_RUNLOCK(inp);
 	}
 	INP_INFO_RUNLOCK(&ripcbinfo);
 	n = i;
@@ -865,7 +865,7 @@ rip_pcblist(SYSCTL_HANDLER_ARGS)
 	error = 0;
 	for (i = 0; i < n; i++) {
 		inp = inp_list[i];
-		INP_WLOCK(inp);
+		INP_RLOCK(inp);
 		if (inp->inp_gencnt <= gencnt) {
 			struct xinpcb xi;
 			bzero(&xi, sizeof(xi));
@@ -874,10 +874,10 @@ rip_pcblist(SYSCTL_HANDLER_ARGS)
 			bcopy(inp, &xi.xi_inp, sizeof *inp);
 			if (inp->inp_socket)
 				sotoxsocket(inp->inp_socket, &xi.xi_socket);
-			INP_WUNLOCK(inp);
+			INP_RUNLOCK(inp);
 			error = SYSCTL_OUT(req, &xi, sizeof xi);
 		} else
-			INP_WUNLOCK(inp);
+			INP_RUNLOCK(inp);
 	}
 	if (!error) {
 		/*
