@@ -83,10 +83,6 @@ static u_long		ticks_per_sec = 12500000;
 static long		ticks_per_intr;
 static volatile u_long	lasttb;
 
-#define	DIFF19041970	2082844800
-
-static int		clockinitted = 0;
-
 static timecounter_get_t	decr_get_timecount;
 
 static struct timecounter	decr_timecounter = {
@@ -96,70 +92,6 @@ static struct timecounter	decr_timecounter = {
 	0,			/* frequency */
 	"decrementer"		/* name */
 };
-
-void
-inittodr(time_t base)
-{
-	time_t		deltat;
-	u_int		rtc_time;
-	struct timespec	ts;
-	phandle_t	phandle;
-	ihandle_t	ihandle;
-	char		rtcpath[128];
-	u_int		rtcsecs;
-
-	/*
-	 * If we can't read from RTC, use the fs time.
-	 */
-	phandle = OF_finddevice("rtc");
-	if (phandle != -1) {
-		OF_package_to_path(phandle, rtcpath, sizeof(rtcpath));
-		ihandle = OF_open(rtcpath);
-		if (ihandle != -1) {
-			if (OF_call_method("read-rtc", ihandle,
-			    0, 1, &rtcsecs))
-				printf("RTC call method error\n");
-			else {
-				ts.tv_sec = rtcsecs - DIFF19041970;
-				ts.tv_nsec = 0;
-				tc_setclock(&ts);
-				return;
-			}
-		}
-	}
-
-	{
-		ts.tv_sec = base;
-		ts.tv_nsec = 0;
-		tc_setclock(&ts);
-		return;
-	}
-	clockinitted = 1;
-	ts.tv_sec = rtc_time - DIFF19041970;
-
-	deltat = ts.tv_sec - base;
-	if (deltat < 0) {
-		deltat = -deltat;
-	}
-	if (deltat < 2 * SECDAY) {
-		tc_setclock(&ts);
-		return;
-	}
-
-	printf("WARNING: clock %s %d days",
-	    ts.tv_sec < base ? "lost" : "gained", (int)(deltat / SECDAY));
-
-	printf(" -- CHECK AND RESET THE DATE!\n");
-}
-
-/*
- * Similar to the above
- */
-void
-resettodr()
-{
-
-}
 
 void
 decr_intr(struct trapframe *frame)

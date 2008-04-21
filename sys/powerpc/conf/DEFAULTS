@@ -6,6 +6,7 @@
 machine		powerpc
 
 # Pseudo devices.
+device		genclock
 device		mem		# Memory and kernel memory devices
 
 # UART chips on this platform
