@@ -9,9 +9,11 @@ $FreeBSD$
 6. If there is conflicits, try to resolve them.
 7. do build in f-nc/../../usr.bin/nc
 8. If everything seems ok, do the actual import in v-nc:
-	cvs -n import src/contrib/netcat OPENBSD OPENBSD_<date>
+	cvs -n import src/contrib/netcat OPENBSD OPENBSD_<release>
    Everything appears be Ok? Do:
-	cvs import src/contrib/netcat OPENBSD OPENBSD_<date>
+	cvs import src/contrib/netcat OPENBSD OPENBSD_<release>
+   (note: recently we import from OpenBSD's release branches
+    rather than importing -HEAD snapshots)
 9. Resolve the conflicits with the patchset obtained in step 6.
 
-delphij@FreeBSD.org - 06 Feb 2005
+delphij@FreeBSD.org - 21 Apr 2008
