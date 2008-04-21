@@ -924,14 +924,11 @@ int
 linker_search_symbol_name(caddr_t value, char *buf, u_int buflen,
     long *offset)
 {
-	int error, locked;
+	int error;
 
-	locked = KLD_LOCKED();
-	if (!locked)
-		KLD_LOCK();
+	KLD_LOCK();
 	error = linker_debug_search_symbol_name(value, buf, buflen, offset);
-	if (!locked)
-		KLD_UNLOCK();
+	KLD_UNLOCK();
 	return (error);
 }
 
