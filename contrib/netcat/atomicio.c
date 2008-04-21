@@ -1,7 +1,7 @@
-/* $OpenBSD: atomicio.c,v 1.8 2006/02/11 19:31:18 otto Exp $ */
-
+/* $OpenBSD: atomicio.c,v 1.9 2007/09/07 14:50:44 tobias Exp $ */
 /*
- * Copyright (c) 2005 Anil Madhavapeddy.  All rights served.
+ * Copyright (c) 2006 Damien Miller. All rights reserved.
+ * Copyright (c) 2005 Anil Madhavapeddy. All rights reserved.
  * Copyright (c) 1995,1999 Theo de Raadt.  All rights reserved.
  * All rights reserved.
  *
@@ -26,32 +26,37 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/types.h>
-#include <sys/uio.h>
+#include <sys/param.h>
+
 #include <errno.h>
+#include <poll.h>
 #include <unistd.h>
+
 #include "atomicio.h"
 
 /*
  * ensure all of data on socket comes through. f==read || f==vwrite
  */
 size_t
-atomicio(f, fd, _s, n)
-	ssize_t (*f) (int, void *, size_t);
-	int fd;
-	void *_s;
-	size_t n;
+atomicio(ssize_t (*f) (int, void *, size_t), int fd, void *_s, size_t n)
 {
 	char *s = _s;
 	size_t pos = 0;
 	ssize_t res;
+	struct pollfd pfd;
 
+	pfd.fd = fd;
+	pfd.events = f == read ? POLLIN : POLLOUT;
 	while (n > pos) {
 		res = (f) (fd, s + pos, n - pos);
 		switch (res) {
 		case -1:
-			if (errno == EINTR || errno == EAGAIN)
+			if (errno == EINTR)
 				continue;
+			if (errno == EAGAIN) {
+				(void)poll(&pfd, 1, -1);
+				continue;
+			}
 			return 0;
 		case 0:
 			errno = EPIPE;
@@ -60,5 +65,5 @@ atomicio(f, fd, _s, n)
 			pos += (size_t)res;
 		}
 	}
-	return pos;
+	return (pos);
 }
