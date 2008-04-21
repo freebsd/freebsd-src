@@ -764,8 +764,6 @@
 
     &hwlist.ath;
 
-    &hwlist.awi;
-
     &hwlist.cnw;
 
     <para>[&arch.i386;, &arch.amd64;] Intel PRO/Wireless 2100 MiniPCI network
