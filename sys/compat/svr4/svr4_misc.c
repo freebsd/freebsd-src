@@ -898,9 +898,7 @@ svr4_sys_ulimit(td, uap)
 
 			if (r == -1)
 				r = 0x7fffffff;
-			mtx_lock(&Giant);	/* XXX */
 			r += (long) vm->vm_daddr;
-			mtx_unlock(&Giant);
 			if (r < 0)
 				r = 0x7fffffff;
 			*retval = r;
