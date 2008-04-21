@@ -694,7 +694,7 @@ ata_ahci_allocate(device_t dev)
 	      ATA_AHCI_P_IX_PS | ATA_AHCI_P_IX_DHR));
 
     /* enable FIS based switching */
-    ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_FBS + offset, 0x00000003);
+    //ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_FBS + offset, 0x00000003);
 
     /* start operations on this channel */
     ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_CMD + offset,
@@ -820,7 +820,7 @@ ata_ahci_begin_transaction(struct ata_request *request)
 		 ~ATA_AHCI_P_CMD_ATAPI);
 
     /* set PM port to address */
-    ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_FBS + offset, (port << 8) | 0x00000001);
+    //ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_FBS + offset, (port << 8) | 0x00000001);
 
     /* issue command to controller */
     ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_CI + offset, (1 << request->tag));
