@@ -268,7 +268,7 @@ divert_packet(struct mbuf *m, int incoming)
 	nport = htons((u_int16_t)divert_info(mtag));
 	INP_INFO_RLOCK(&divcbinfo);
 	LIST_FOREACH(inp, &divcb, inp_list) {
-		INP_WLOCK(inp);
+		INP_RLOCK(inp);
 		/* XXX why does only one socket match? */
 		if (inp->inp_lport == nport) {
 			sa = inp->inp_socket;
@@ -280,10 +280,10 @@ divert_packet(struct mbuf *m, int incoming)
 				sa = NULL;	/* force mbuf reclaim below */
 			} else
 				sorwakeup_locked(sa);
-			INP_WUNLOCK(inp);
+			INP_RUNLOCK(inp);
 			break;
 		}
-		INP_WUNLOCK(inp);
+		INP_RUNLOCK(inp);
 	}
 	INP_INFO_RUNLOCK(&divcbinfo);
 	if (sa == NULL) {
@@ -356,7 +356,7 @@ div_output(struct socket *so, struct mbuf *m, struct sockaddr_in *sin,
 		dt->info |= IP_FW_DIVERT_OUTPUT_FLAG;
 		INP_INFO_WLOCK(&divcbinfo);
 		inp = sotoinpcb(so);
-		INP_WLOCK(inp);
+		INP_RLOCK(inp);
 		/*
 		 * Don't allow both user specified and setsockopt options,
 		 * and don't allow packet length sizes that will crash
@@ -364,7 +364,7 @@ div_output(struct socket *so, struct mbuf *m, struct sockaddr_in *sin,
 		if (((ip->ip_hl != (sizeof (*ip) >> 2)) && inp->inp_options) ||
 		     ((u_short)ntohs(ip->ip_len) > m->m_pkthdr.len)) {
 			error = EINVAL;
-			INP_WUNLOCK(inp);
+			INP_RUNLOCK(inp);
 			INP_INFO_WUNLOCK(&divcbinfo);
 			m_freem(m);
 		} else {
@@ -405,7 +405,7 @@ div_output(struct socket *so, struct mbuf *m, struct sockaddr_in *sin,
 				if (options == NULL)
 					error = ENOBUFS;
 			}
-			INP_WUNLOCK(inp);
+			INP_RUNLOCK(inp);
 			INP_INFO_WUNLOCK(&divcbinfo);
 			if (error == ENOBUFS) {
 				m_freem(m);
@@ -615,11 +615,11 @@ div_pcblist(SYSCTL_HANDLER_ARGS)
 	INP_INFO_RLOCK(&divcbinfo);
 	for (inp = LIST_FIRST(divcbinfo.ipi_listhead), i = 0; inp && i < n;
 	     inp = LIST_NEXT(inp, inp_list)) {
-		INP_WLOCK(inp);
+		INP_RLOCK(inp);
 		if (inp->inp_gencnt <= gencnt &&
 		    cr_canseesocket(req->td->td_ucred, inp->inp_socket) == 0)
 			inp_list[i++] = inp;
-		INP_WUNLOCK(inp);
+		INP_RUNLOCK(inp);
 	}
 	INP_INFO_RUNLOCK(&divcbinfo);
 	n = i;
@@ -627,7 +627,7 @@ div_pcblist(SYSCTL_HANDLER_ARGS)
 	error = 0;
 	for (i = 0; i < n; i++) {
 		inp = inp_list[i];
-		INP_WLOCK(inp);
+		INP_RLOCK(inp);
 		if (inp->inp_gencnt <= gencnt) {
 			struct xinpcb xi;
 			bzero(&xi, sizeof(xi));
@@ -636,10 +636,10 @@ div_pcblist(SYSCTL_HANDLER_ARGS)
 			bcopy(inp, &xi.xi_inp, sizeof *inp);
 			if (inp->inp_socket)
 				sotoxsocket(inp->inp_socket, &xi.xi_socket);
-			INP_WUNLOCK(inp);
+			INP_RUNLOCK(inp);
 			error = SYSCTL_OUT(req, &xi, sizeof xi);
 		} else
-			INP_WUNLOCK(inp);
+			INP_RUNLOCK(inp);
 	}
 	if (!error) {
 		/*
