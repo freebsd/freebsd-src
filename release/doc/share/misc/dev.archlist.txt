@@ -47,7 +47,6 @@ arcmsr	i386,amd64
 asr	i386
 ath	i386,pc98,amd64,sparc64
 aue	i386,pc98,ia64,amd64,powerpc
-awi	i386,pc98,amd64
 axe	i386,pc98,amd64,powerpc
 bce	i386,amd64
 bge	i386,pc98,sparc64,ia64,amd64
