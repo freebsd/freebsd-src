@@ -60,6 +60,7 @@
 #include <sys/systm.h>
 #include <sys/module.h>
 #include <sys/bus.h>
+#include <sys/clock.h>
 #include <sys/cons.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
@@ -74,6 +75,7 @@
 
 #include <sys/rman.h>
 
+#include "clock_if.h"
 #include "ofw_bus_if.h"
 #include "pic_if.h"
 
@@ -104,12 +106,13 @@ struct nexus_softc {
  * Device interface
  */
 static int	nexus_probe(device_t);
-static void	nexus_probe_nomatch(device_t, device_t);
+static int	nexus_attach(device_t);
 
 /*
  * Bus interface
  */
 static device_t nexus_add_child(device_t, int, const char *, int);
+static void	nexus_probe_nomatch(device_t, device_t);
 static int	nexus_read_ivar(device_t, device_t, int, uintptr_t *);
 static int	nexus_write_ivar(device_t, device_t, int, uintptr_t);
 static int	nexus_setup_intr(device_t, device_t, struct resource *, int,
@@ -125,10 +128,19 @@ static int	nexus_deactivate_resource(device_t, device_t, int, int,
 static int	nexus_release_resource(device_t, device_t, int, int,
 		    struct resource *);
 
+/*
+ * OFW bus interface.
+ */
 static phandle_t	 nexus_ofw_get_node(device_t, device_t);
 static const char	*nexus_ofw_get_name(device_t, device_t);
 static const char	*nexus_ofw_get_type(device_t, device_t);
 static const char	*nexus_ofw_get_compat(device_t, device_t);
+
+/*
+ * Clock interface.
+ */
+static int nexus_gettime(device_t, struct timespec *);
+static int nexus_settime(device_t, struct timespec *);
 
 /*
  * Local routines
@@ -138,7 +150,7 @@ static device_t	nexus_device_from_node(device_t, phandle_t);
 static device_method_t nexus_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		nexus_probe),
-	DEVMETHOD(device_attach,	bus_generic_attach),
+	DEVMETHOD(device_attach,	nexus_attach),
 	DEVMETHOD(device_detach,	bus_generic_detach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 	DEVMETHOD(device_suspend,	bus_generic_suspend),
@@ -163,6 +175,10 @@ static device_method_t nexus_methods[] = {
 	DEVMETHOD(ofw_bus_get_type, nexus_ofw_get_type),
 	DEVMETHOD(ofw_bus_get_compat, nexus_ofw_get_compat),
 
+	/* Clock interface */
+	DEVMETHOD(clock_gettime,	nexus_gettime),
+	DEVMETHOD(clock_settime,	nexus_settime),
+
 	{ 0, 0 }
 };
 
@@ -178,6 +194,14 @@ DRIVER_MODULE(nexus, root, nexus_driver, nexus_devclass, 0, 0);
 
 static int
 nexus_probe(device_t dev)
+{
+	bus_generic_probe(dev);
+	device_set_desc(dev, "Open Firmware Nexus device");
+	return (0);
+}
+
+static int
+nexus_attach(device_t dev)
 {
 	phandle_t	root;
 	phandle_t	child;
@@ -201,11 +225,6 @@ nexus_probe(device_t dev)
 		panic("nexus_probe IRQ rman");
 
 	/*
-	 * Allow devices to identify
-	 */
-	bus_generic_probe(dev);
-
-	/*
 	 * Now walk the OFW tree to locate top-level devices
 	 */
 	for (child = OF_child(root); child != 0; child = OF_peer(child)) {
@@ -214,8 +233,9 @@ nexus_probe(device_t dev)
 		(void)nexus_device_from_node(dev, child);
 
 	}
-	device_set_desc(dev, "Open Firmware Nexus device");
-	return (0);
+
+	clock_register(dev, 1000);
+	return (bus_generic_attach(dev));
 }
 
 static void
@@ -484,4 +504,52 @@ nexus_ofw_get_compat(device_t bus, device_t dev)
 		return (NULL);
 	
 	return (dinfo->ndi_compatible);
+}
+
+#define	DIFF19041970	2082844800
+
+static int
+nexus_gettime(device_t dev, struct timespec *ts)
+{
+	char path[128];
+	ihandle_t ih;
+	phandle_t ph;
+	u_int rtc;
+
+	ph = OF_finddevice("rtc");
+	if (ph == -1)
+		return (ENOENT);
+
+	OF_package_to_path(ph, path, sizeof(path));
+	ih = OF_open(path);
+	if (ih == -1)
+		return (ENXIO);
+
+	if (OF_call_method("read-rtc", ih, 0, 1, &rtc))
+		return (EIO);
+
+	ts->tv_sec = rtc - DIFF19041970;
+	ts->tv_nsec = 0;
+	return (0);
+}
+
+static int
+nexus_settime(device_t dev, struct timespec *ts)
+{
+	char path[128];
+	ihandle_t ih;
+	phandle_t ph;     
+	u_int rtc;
+
+	ph = OF_finddevice("rtc");     
+	if (ph == -1)     
+		return (ENOENT);
+
+	OF_package_to_path(ph, path, sizeof(path));                   
+	ih = OF_open(path);
+	if (ih == -1)
+		return (ENXIO);
+
+	rtc = ts->tv_sec + DIFF19041970;
+	return ((OF_call_method("write-rtc", ih, 1, 0, rtc) != 0) ? EIO : 0);
 }
