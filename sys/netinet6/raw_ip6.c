@@ -154,10 +154,10 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 
 	INP_INFO_RLOCK(&ripcbinfo);
 	LIST_FOREACH(in6p, &ripcb, inp_list) {
-		INP_WLOCK(in6p);
+		INP_RLOCK(in6p);
 		if ((in6p->in6p_vflag & INP_IPV6) == 0) {
 docontinue:
-			INP_WUNLOCK(in6p);
+			INP_RUNLOCK(in6p);
 			continue;
 		}
 		if (in6p->in6p_ip6_nxt &&
@@ -207,7 +207,7 @@ docontinue:
 					sorwakeup(last->in6p_socket);
 				opts = NULL;
 			}
-			INP_WUNLOCK(last);
+			INP_RUNLOCK(last);
 		}
 		last = in6p;
 	}
@@ -220,7 +220,7 @@ docontinue:
 		ipsec6stat.in_polvio++;
 		ip6stat.ip6s_delivered--;
 		/* do not inject data into pcb */
-		INP_WUNLOCK(last);
+		INP_RUNLOCK(last);
 	} else
 #endif /* IPSEC */
 	if (last) {
@@ -237,7 +237,7 @@ docontinue:
 			rip6stat.rip6s_fullsock++;
 		} else
 			sorwakeup(last->in6p_socket);
-		INP_WUNLOCK(last);
+		INP_RUNLOCK(last);
 	} else {
 		rip6stat.rip6s_nosock++;
 		if (m->m_flags & M_MCAST)
