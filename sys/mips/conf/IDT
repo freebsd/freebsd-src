@@ -31,7 +31,6 @@ options		BOOTP_COMPAT
 options		INVARIANTS		#Enable calls of extra sanity checking
 options		INVARIANT_SUPPORT	#Extra sanity checks of internal structures, required by INVARIANTS
 
-device		genclock
 device		loop
 device		pci
 device		ether
