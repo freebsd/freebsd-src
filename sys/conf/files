@@ -1425,7 +1425,7 @@ fs/cd9660/cd9660_vfsops.c	optional cd9660
 fs/cd9660/cd9660_vnops.c	optional cd9660
 fs/cd9660/cd9660_iconv.c	optional cd9660_iconv
 kern/bus_if.m			standard
-kern/clock_if.m			optional genclock
+kern/clock_if.m			standard
 kern/cpufreq_if.m		standard
 kern/device_if.m		standard
 kern/imgact_elf.c		standard
@@ -1524,7 +1524,7 @@ kern/subr_power.c		standard
 kern/subr_prf.c			standard
 kern/subr_prof.c		standard
 kern/subr_rman.c		standard
-kern/subr_rtc.c			optional genclock
+kern/subr_rtc.c			standard
 kern/subr_sbuf.c		standard
 kern/subr_scanf.c		standard
 kern/subr_sleepqueue.c		standard

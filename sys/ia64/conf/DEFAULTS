@@ -9,7 +9,6 @@ machine		ia64
 device 		acpi		# ACPI support
 
 # Pseudo devices.
-device		genclock	# Real-time clock
 device		mem		# Memory and kernel memory devices
 
 # UART chips on this platform

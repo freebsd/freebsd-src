@@ -70,4 +70,3 @@ device		ugen
 #device		uhci
 device		umass
 device		usb
-device		genclock
