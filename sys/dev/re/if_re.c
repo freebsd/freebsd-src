@@ -280,6 +280,8 @@ static void re_miibus_statchg	(device_t);
 
 static void re_setmulti		(struct rl_softc *);
 static void re_reset		(struct rl_softc *);
+static void re_setwol		(struct rl_softc *);
+static void re_clrwol		(struct rl_softc *);
 
 #ifdef RE_DIAG
 static int re_diag		(struct rl_softc *);
@@ -1334,6 +1336,9 @@ re_attach(dev)
 	ifp->if_capabilities |= IFCAP_VLAN_MTU | IFCAP_VLAN_HWTAGGING;
 	if (ifp->if_capabilities & IFCAP_HWCSUM)
 		ifp->if_capabilities |= IFCAP_VLAN_HWCSUM;
+	/* Enable WOL if PM is supported. */
+	if (pci_find_extcap(sc->rl_dev, PCIY_PMG, &reg) == 0)
+		ifp->if_capabilities |= IFCAP_WOL;
 	ifp->if_capenable = ifp->if_capabilities;
 #ifdef DEVICE_POLLING
 	ifp->if_capabilities |= IFCAP_POLLING;
@@ -2715,6 +2720,15 @@ re_ioctl(ifp, command, data)
 			else
 				ifp->if_hwassist &= ~CSUM_TSO;
 		}
+		if ((mask & IFCAP_WOL) != 0 &&
+		    (ifp->if_capabilities & IFCAP_WOL) != 0) {
+			if ((mask & IFCAP_WOL_UCAST) != 0)
+				ifp->if_capenable ^= IFCAP_WOL_UCAST;
+			if ((mask & IFCAP_WOL_MCAST) != 0)
+				ifp->if_capenable ^= IFCAP_WOL_MCAST;
+			if ((mask & IFCAP_WOL_MAGIC) != 0)
+				ifp->if_capenable ^= IFCAP_WOL_MAGIC;
+		}
 		if (reinit && ifp->if_drv_flags & IFF_DRV_RUNNING)
 			re_init(sc);
 		VLAN_CAPABILITIES(ifp);
@@ -2820,6 +2834,7 @@ re_suspend(dev)
 
 	RL_LOCK(sc);
 	re_stop(sc);
+	re_setwol(sc);
 	sc->suspended = 1;
 	RL_UNLOCK(sc);
 
@@ -2848,6 +2863,11 @@ re_resume(dev)
 	if (ifp->if_flags & IFF_UP)
 		re_init_locked(sc);
 
+	/*
+	 * Clear WOL matching such that normal Rx filtering
+	 * wouldn't interfere with WOL patterns.
+	 */
+	re_clrwol(sc);
 	sc->suspended = 0;
 	RL_UNLOCK(sc);
 
@@ -2874,7 +2894,95 @@ re_shutdown(dev)
 	 * cases.
 	 */
 	sc->rl_ifp->if_flags &= ~IFF_UP;
+	re_setwol(sc);
 	RL_UNLOCK(sc);
 
 	return (0);
+}
+
+static void
+re_setwol(sc)
+	struct rl_softc		*sc;
+{
+	struct ifnet		*ifp;
+	int			pmc;
+	uint16_t		pmstat;
+	uint8_t			v;
+
+	RL_LOCK_ASSERT(sc);
+
+	if (pci_find_extcap(sc->rl_dev, PCIY_PMG, &pmc) != 0)
+		return;
+
+	ifp = sc->rl_ifp;
+	/* Enable config register write. */
+	CSR_WRITE_1(sc, RL_EECMD, RL_EE_MODE);
+
+	/* Enable PME. */
+	v = CSR_READ_1(sc, RL_CFG1);
+	v &= ~RL_CFG1_PME;
+	if ((ifp->if_capenable & IFCAP_WOL) != 0)
+		v |= RL_CFG1_PME;
+	CSR_WRITE_1(sc, RL_CFG1, v);
+
+	v = CSR_READ_1(sc, RL_CFG3);
+	v &= ~(RL_CFG3_WOL_LINK | RL_CFG3_WOL_MAGIC);
+	if ((ifp->if_capenable & IFCAP_WOL_MAGIC) != 0)
+		v |= RL_CFG3_WOL_MAGIC;
+	CSR_WRITE_1(sc, RL_CFG3, v);
+
+	/* Config register write done. */
+	CSR_WRITE_1(sc, RL_EECMD, 0);
+
+	v = CSR_READ_1(sc, RL_CFG5);
+	v &= ~(RL_CFG5_WOL_BCAST | RL_CFG5_WOL_MCAST | RL_CFG5_WOL_UCAST);
+	v &= ~RL_CFG5_WOL_LANWAKE;
+	if ((ifp->if_capenable & IFCAP_WOL_UCAST) != 0)
+		v |= RL_CFG5_WOL_UCAST;
+	if ((ifp->if_capenable & IFCAP_WOL_MCAST) != 0)
+		v |= RL_CFG5_WOL_MCAST | RL_CFG5_WOL_BCAST;
+	if ((ifp->if_capenable & IFCAP_WOL) != 0)
+		v |= RL_CFG5_WOL_LANWAKE;
+	CSR_WRITE_1(sc, RL_CFG5, v);
+
+	/*
+	 * It seems that hardware resets its link speed to 100Mbps in
+	 * power down mode so switching to 100Mbps in driver is not
+	 * needed.
+	 */
+
+	/* Request PME if WOL is requested. */
+	pmstat = pci_read_config(sc->rl_dev, pmc + PCIR_POWER_STATUS, 2);
+	pmstat &= ~(PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE);
+	if ((ifp->if_capenable & IFCAP_WOL) != 0)
+		pmstat |= PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE;
+	pci_write_config(sc->rl_dev, pmc + PCIR_POWER_STATUS, pmstat, 2);
+}
+
+static void
+re_clrwol(sc)
+	struct rl_softc		*sc;
+{
+	int			pmc;
+	uint8_t			v;
+
+	RL_LOCK_ASSERT(sc);
+
+	if (pci_find_extcap(sc->rl_dev, PCIY_PMG, &pmc) != 0)
+		return;
+
+	/* Enable config register write. */
+	CSR_WRITE_1(sc, RL_EECMD, RL_EE_MODE);
+
+	v = CSR_READ_1(sc, RL_CFG3);
+	v &= ~(RL_CFG3_WOL_LINK | RL_CFG3_WOL_MAGIC);
+	CSR_WRITE_1(sc, RL_CFG3, v);
+
+	/* Config register write done. */
+	CSR_WRITE_1(sc, RL_EECMD, 0);
+
+	v = CSR_READ_1(sc, RL_CFG5);
+	v &= ~(RL_CFG5_WOL_BCAST | RL_CFG5_WOL_MCAST | RL_CFG5_WOL_UCAST);
+	v &= ~RL_CFG5_WOL_LANWAKE;
+	CSR_WRITE_1(sc, RL_CFG5, v);
 }
