@@ -155,7 +155,7 @@ ufs_lookup(ap)
 	struct ucred *cred = cnp->cn_cred;
 	int flags = cnp->cn_flags;
 	int nameiop = cnp->cn_nameiop;
-	ino_t saved_ino;
+	ino_t ino;
 	int ltype;
 
 	bp = NULL;
@@ -176,6 +176,7 @@ ufs_lookup(ap)
 	 * we watch for a place to put the new file in
 	 * case it doesn't already exist.
 	 */
+	ino = 0;
 	i_diroff = dp->i_diroff;
 	slotstatus = FOUND;
 	slotfreespace = slotsize = slotneeded = 0;
@@ -358,7 +359,7 @@ foundentry:
 					numdirpasses--;
 					goto notfound;
 				}
-				dp->i_ino = ep->d_ino;
+				ino = ep->d_ino;
 				dp->i_reclen = ep->d_reclen;
 				goto found;
 			}
@@ -393,7 +394,6 @@ notfound:
 	      (ap->a_cnp->cn_flags & DOWHITEOUT) &&
 	      (ap->a_cnp->cn_flags & ISWHITEOUT))) &&
 	    (flags & ISLASTCN) && dp->i_effnlink != 0) {
-		ASSERT_VOP_ELOCKED(vdp, __FUNCTION__);
 		/*
 		 * Access for write is interpreted as allowing
 		 * creation of files in the directory.
@@ -496,12 +496,12 @@ found:
 			dp->i_count = 0;
 		else
 			dp->i_count = dp->i_offset - prevoff;
-		if (dp->i_number == dp->i_ino) {
+		if (dp->i_number == ino) {
 			VREF(vdp);
 			*vpp = vdp;
 			return (0);
 		}
-		if ((error = VFS_VGET(vdp->v_mount, dp->i_ino,
+		if ((error = VFS_VGET(vdp->v_mount, ino,
 		    LK_EXCLUSIVE, &tdp)) != 0)
 			return (error);
 		/*
@@ -533,9 +533,9 @@ found:
 		 * Careful about locking second inode.
 		 * This can only occur if the target is ".".
 		 */
-		if (dp->i_number == dp->i_ino)
+		if (dp->i_number == ino)
 			return (EISDIR);
-		if ((error = VFS_VGET(vdp->v_mount, dp->i_ino,
+		if ((error = VFS_VGET(vdp->v_mount, ino,
 		    LK_EXCLUSIVE, &tdp)) != 0)
 			return (error);
 		*vpp = tdp;
@@ -565,15 +565,13 @@ found:
 	pdp = vdp;
 	if (flags & ISDOTDOT) {
 		ltype = VOP_ISLOCKED(pdp);
-		saved_ino = dp->i_ino;
 		VOP_UNLOCK(pdp, 0);	/* race to get the inode */
-		error = VFS_VGET(pdp->v_mount, saved_ino,
-		    cnp->cn_lkflags, &tdp);
+		error = VFS_VGET(pdp->v_mount, ino, cnp->cn_lkflags, &tdp);
 		vn_lock(pdp, ltype | LK_RETRY);
 		if (error)
 			return (error);
 		*vpp = tdp;
-	} else if (dp->i_number == dp->i_ino) {
+	} else if (dp->i_number == ino) {
 		VREF(vdp);	/* we want ourself, ie "." */
 		/*
 		 * When we lookup "." we still can be asked to lock it
@@ -588,8 +586,7 @@ found:
 		}
 		*vpp = vdp;
 	} else {
-		error = VFS_VGET(pdp->v_mount, dp->i_ino,
-		    cnp->cn_lkflags, &tdp);
+		error = VFS_VGET(pdp->v_mount, ino, cnp->cn_lkflags, &tdp);
 		if (error)
 			return (error);
 		*vpp = tdp;
