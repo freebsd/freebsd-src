@@ -233,7 +233,6 @@ static int re_probe		(device_t);
 static int re_attach		(device_t);
 static int re_detach		(device_t);
 
-static struct mbuf *re_defrag	(struct mbuf *, int, int);
 static int re_encap		(struct rl_softc *, struct mbuf **);
 
 static void re_dma_map_addr	(void *, bus_dma_segment_t *, int, int);
@@ -2129,95 +2128,6 @@ re_int_task(arg, npending)
 	return;
 }
 
-/*
- * It's copy of ath_defrag(ath(4)).
- *
- * Defragment an mbuf chain, returning at most maxfrags separate
- * mbufs+clusters.  If this is not possible NULL is returned and
- * the original mbuf chain is left in it's present (potentially
- * modified) state.  We use two techniques: collapsing consecutive
- * mbufs and replacing consecutive mbufs by a cluster.
- */
-static struct mbuf *
-re_defrag(m0, how, maxfrags)
-	struct mbuf *m0;
-	int how;
-	int maxfrags;
-{
-	struct mbuf *m, *n, *n2, **prev;
-	u_int curfrags;
-
-	/*
-	 * Calculate the current number of frags.
-	 */
-	curfrags = 0;
-	for (m = m0; m != NULL; m = m->m_next)
-		curfrags++;
-	/*
-	 * First, try to collapse mbufs.  Note that we always collapse
-	 * towards the front so we don't need to deal with moving the
-	 * pkthdr.  This may be suboptimal if the first mbuf has much
-	 * less data than the following.
-	 */
-	m = m0;
-again:
-	for (;;) {
-		n = m->m_next;
-		if (n == NULL)
-			break;
-		if ((m->m_flags & M_RDONLY) == 0 &&
-		    n->m_len < M_TRAILINGSPACE(m)) {
-			bcopy(mtod(n, void *), mtod(m, char *) + m->m_len,
-				n->m_len);
-			m->m_len += n->m_len;
-			m->m_next = n->m_next;
-			m_free(n);
-			if (--curfrags <= maxfrags)
-				return (m0);
-		} else
-			m = n;
-	}
-	KASSERT(maxfrags > 1,
-		("maxfrags %u, but normal collapse failed", maxfrags));
-	/*
-	 * Collapse consecutive mbufs to a cluster.
-	 */
-	prev = &m0->m_next;		/* NB: not the first mbuf */
-	while ((n = *prev) != NULL) {
-		if ((n2 = n->m_next) != NULL &&
-		    n->m_len + n2->m_len < MCLBYTES) {
-			m = m_getcl(how, MT_DATA, 0);
-			if (m == NULL)
-				goto bad;
-			bcopy(mtod(n, void *), mtod(m, void *), n->m_len);
-			bcopy(mtod(n2, void *), mtod(m, char *) + n->m_len,
-				n2->m_len);
-			m->m_len = n->m_len + n2->m_len;
-			m->m_next = n2->m_next;
-			*prev = m;
-			m_free(n);
-			m_free(n2);
-			if (--curfrags <= maxfrags)	/* +1 cl -2 mbufs */
-				return m0;
-			/*
-			 * Still not there, try the normal collapse
-			 * again before we allocate another cluster.
-			 */
-			goto again;
-		}
-		prev = &n->m_next;
-	}
-	/*
-	 * No place where we can collapse to a cluster; punt.
-	 * This can occur if, for example, you request 2 frags
-	 * but the packet requires that both be clusters (we
-	 * never reallocate the first mbuf to avoid moving the
-	 * packet header).
-	 */
-bad:
-	return (NULL);
-}
-
 static int
 re_encap(sc, m_head)
 	struct rl_softc		*sc;
@@ -2290,7 +2200,7 @@ re_encap(sc, m_head)
 	error = bus_dmamap_load_mbuf_sg(sc->rl_ldata.rl_tx_mtag, txd->tx_dmamap,
 	    *m_head, segs, &nsegs, BUS_DMA_NOWAIT);
 	if (error == EFBIG) {
-		m_new = re_defrag(*m_head, M_DONTWAIT, RL_NTXSEGS);
+		m_new = m_collapse(*m_head, M_DONTWAIT, RL_NTXSEGS);
 		if (m_new == NULL) {
 			m_freem(*m_head);
 			*m_head = NULL;
