@@ -62,6 +62,7 @@ miwi [label="Martin Wilke\nmiwi@FreeBSD.org\n2007/10/26"]
 murray [label="Murray Stokely\nmurray@FreeBSD.org\n2000/04/05"]
 nik [label="Nik Clayton\nnik@FreeBSD.org\n1998/02/26"]
 pav [label="Pav Lucistnik\npav@FreeBSD.org\n2005/08/12"]
+pgj [label="Gabor Pali\npgj@FreeBSD.org\n2008/04/21"]
 remko [label="Remko Lodder\nremko@FreeBSD.org\n2004/10/16"]
 roam [label="Peter Pentchev\nroam@FreeBSD.org\n2003/02/14"]
 simon [label="Simon L. Nielsen\nsimon@FreeBSD.org\n2003/07/20"]
@@ -85,6 +86,8 @@ den -> marck
 
 delphij -> chinsan
 delphij -> loader
+
+gabor -> pgj
 
 jesusr -> jcamou
 
