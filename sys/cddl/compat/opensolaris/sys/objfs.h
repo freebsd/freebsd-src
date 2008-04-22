@@ -17,6 +17,8 @@
  * information: Portions Copyright [yyyy] [name of copyright owner]
  *
  * CDDL HEADER END
+ *
+ * $FreeBSD$
  */
 
 #ifndef _COMPAT_OPENSOLARIS_SYS_OBJFS_H

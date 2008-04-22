@@ -17,6 +17,8 @@
  * information: Portions Copyright [yyyy] [name of copyright owner]
  *
  * CDDL HEADER END
+ *
+ * $FreeBSD$
  */
 /*
  * Copyright 2006 Ricardo Correia.  All rights reserved.
