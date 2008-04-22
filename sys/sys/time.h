@@ -255,6 +255,13 @@ struct clockinfo {
 #endif
 
 #ifdef _KERNEL
+
+/*
+ * Kernel to clock driver interface.
+ */
+void	inittodr(time_t base);
+void	resettodr(void);
+
 extern time_t	time_second;
 extern time_t	time_uptime;
 extern struct timeval boottime;

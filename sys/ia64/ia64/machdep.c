@@ -261,7 +261,6 @@ cpu_startup(dummy)
 	 */
 	identifycpu();
 
-	/* startrtclock(); */
 #ifdef PERFMON
 	perfmon_init();
 #endif
