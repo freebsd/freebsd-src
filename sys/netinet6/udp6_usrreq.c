@@ -129,7 +129,7 @@ udp6_append(struct inpcb *inp, struct mbuf *n, int off,
 	struct socket *so;
 	struct mbuf *opts;
 
-	INP_WLOCK_ASSERT(inp);
+	INP_LOCK_ASSERT(inp);
 
 #ifdef IPSEC
 	/* Check AH/ESP integrity. */
@@ -277,9 +277,9 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 				struct mbuf *n;
 
 				if ((n = m_copy(m, 0, M_COPYALL)) != NULL) {
-					INP_WLOCK(last);
+					INP_RLOCK(last);
 					udp6_append(last, n, off, &fromsa);
-					INP_WUNLOCK(last);
+					INP_RUNLOCK(last);
 				}
 			}
 			last = inp;
@@ -306,9 +306,9 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 			udpstat.udps_noportmcast++;
 			goto badheadlocked;
 		}
-		INP_WLOCK(last);
+		INP_RLOCK(last);
 		udp6_append(last, m, off, &fromsa);
-		INP_WUNLOCK(last);
+		INP_RUNLOCK(last);
 		INP_INFO_RUNLOCK(&udbinfo);
 		return (IPPROTO_DONE);
 	}
@@ -343,9 +343,9 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 		icmp6_error(m, ICMP6_DST_UNREACH, ICMP6_DST_UNREACH_NOPORT, 0);
 		return (IPPROTO_DONE);
 	}
-	INP_WLOCK(inp);
+	INP_RLOCK(inp);
 	udp6_append(inp, m, off, &fromsa);
-	INP_WUNLOCK(inp);
+	INP_RUNLOCK(inp);
 	INP_INFO_RUNLOCK(&udbinfo);
 	return (IPPROTO_DONE);
 
@@ -453,7 +453,7 @@ udp6_getcred(SYSCTL_HANDLER_ARGS)
 		INP_INFO_RUNLOCK(&udbinfo);
 		return (ENOENT);
 	}
-	INP_WLOCK(inp);
+	INP_RLOCK(inp);
 	if (inp->inp_socket == NULL) {
 		error = ENOENT;
 		goto out;
@@ -463,7 +463,7 @@ udp6_getcred(SYSCTL_HANDLER_ARGS)
 		goto out;
 	cru2x(inp->inp_socket->so_cred, &xuc);
 out:
-	INP_WUNLOCK(inp);
+	INP_RUNLOCK(inp);
 	INP_INFO_RUNLOCK(&udbinfo);
 	if (error == 0)
 		error = SYSCTL_OUT(req, &xuc, sizeof(struct xucred));
