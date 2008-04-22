@@ -82,7 +82,6 @@ struct inode {
 	doff_t	  i_endoff;	/* End of useful stuff in directory. */
 	doff_t	  i_diroff;	/* Offset in dir, where we found last entry. */
 	doff_t	  i_offset;	/* Offset of free space in directory. */
-	ino_t	  i_ino;	/* Inode number of found directory. */
 	u_int32_t i_reclen;	/* Size of found directory entry. */
 
 	union {
