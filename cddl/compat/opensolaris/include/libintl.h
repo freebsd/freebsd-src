@@ -1,3 +1,5 @@
+/* $FreeBSD$ */
+
 #ifndef	_LIBINTL_H_
 #define	_LIBINTL_H_
 
