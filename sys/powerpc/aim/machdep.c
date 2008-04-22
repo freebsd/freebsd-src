@@ -196,7 +196,6 @@ cpu_startup(void *dummy)
 	 */
 	cpu_setup(PCPU_GET(cpuid));
 
-	/* startrtclock(); */
 #ifdef PERFMON
 	perfmon_init();
 #endif
