@@ -191,9 +191,8 @@ ip_ipsec_input(struct mbuf *m)
  * Returns MTU suggestion for ICMP needfrag reply.
  */
 int
-ip_ipsec_mtu(struct mbuf *m)
+ip_ipsec_mtu(struct mbuf *m, int mtu)
 {
-	int mtu = 0;
 	/*
 	 * If the packet is routed over IPsec tunnel, tell the
 	 * originator the tunnel MTU.
