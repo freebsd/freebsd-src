@@ -85,8 +85,6 @@ static MALLOC_DEFINE(M_BPF, "BPF", "BPF data");
 
 #define PRINET  26			/* interruptible */
 
-#define	M_SKIP_BPF	M_SKIP_FIREWALL
-
 /*
  * bpf_iflist is a list of BPF interface structures, each corresponding to a
  * specific DLT.  The same network interface might have several BPF interface
@@ -644,9 +642,9 @@ bpfwrite(struct cdev *dev, struct uio *uio, int ioflag)
 		mc = m_dup(m, M_DONTWAIT);
 		if (mc != NULL)
 			mc->m_pkthdr.rcvif = ifp;
-		/* XXX Do not return the same packet twice. */
+		/* Set M_PROMISC for outgoing packets to be discarded. */
 		if (d->bd_direction == BPF_D_INOUT)
-			m->m_flags |= M_SKIP_BPF;
+			m->m_flags |= M_PROMISC;
 	} else
 		mc = NULL;
 
@@ -1332,9 +1330,9 @@ bpf_mcopy(const void *src_arg, void *dst_arg, size_t len)
 	}
 }
 
-#define	BPF_CHECK_DIRECTION(d, m) \
-	if (((d)->bd_direction == BPF_D_IN && (m)->m_pkthdr.rcvif == NULL) || \
-	    ((d)->bd_direction == BPF_D_OUT && (m)->m_pkthdr.rcvif != NULL))
+#define	BPF_CHECK_DIRECTION(d, i)				\
+	    (((d)->bd_direction == BPF_D_IN && (i) == NULL) ||	\
+	    ((d)->bd_direction == BPF_D_OUT && (i) != NULL))
 
 /*
  * Incoming linkage from device drivers, when packet is in an mbuf chain.
@@ -1347,10 +1345,9 @@ bpf_mtap(struct bpf_if *bp, struct mbuf *m)
 	int gottime;
 	struct timeval tv;
 
-	if (m->m_flags & M_SKIP_BPF) {
-		m->m_flags &= ~M_SKIP_BPF;
-		return;
-	}
+	/* Skip outgoing duplicate packets. */
+	if ((m->m_flags & M_PROMISC) != 0 && m->m_pkthdr.rcvif == NULL) {
+		m->m_flags &= ~M_PROMISC;
 
 	gottime = 0;
 
@@ -1358,7 +1355,7 @@ bpf_mtap(struct bpf_if *bp, struct mbuf *m)
 
 	BPFIF_LOCK(bp);
 	LIST_FOREACH(d, &bp->bif_dlist, bd_next) {
-		BPF_CHECK_DIRECTION(d, m)
+		if (BPF_CHECK_DIRECTION(d, m->m_pkthdr.rcvif))
 			continue;
 		BPFD_LOCK(d);
 		++d->bd_rcount;
@@ -1401,8 +1398,9 @@ bpf_mtap2(struct bpf_if *bp, void *data, u_int dlen, struct mbuf *m)
 	int gottime;
 	struct timeval tv;
 
-	if (m->m_flags & M_SKIP_BPF) {
-		m->m_flags &= ~M_SKIP_BPF;
+	/* Skip outgoing duplicate packets. */
+	if ((m->m_flags & M_PROMISC) != 0 && m->m_pkthdr.rcvif == NULL) {
+		m->m_flags &= ~M_PROMISC;
 		return;
 	}
 
@@ -1421,7 +1419,7 @@ bpf_mtap2(struct bpf_if *bp, void *data, u_int dlen, struct mbuf *m)
 
 	BPFIF_LOCK(bp);
 	LIST_FOREACH(d, &bp->bif_dlist, bd_next) {
-		BPF_CHECK_DIRECTION(d, m)
+		if (BPF_CHECK_DIRECTION(d, m->m_pkthdr.rcvif))
 			continue;
 		BPFD_LOCK(d);
 		++d->bd_rcount;
