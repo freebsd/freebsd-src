@@ -1348,6 +1348,8 @@ bpf_mtap(struct bpf_if *bp, struct mbuf *m)
 	/* Skip outgoing duplicate packets. */
 	if ((m->m_flags & M_PROMISC) != 0 && m->m_pkthdr.rcvif == NULL) {
 		m->m_flags &= ~M_PROMISC;
+		return;
+	}
 
 	gottime = 0;
 
