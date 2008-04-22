@@ -1,3 +1,5 @@
+/* $FreeBSD$ */
+
 #ifndef	_OPENSOLARIS_MNTTAB_H_
 #define	_OPENSOLARIS_MNTTAB_H_
 
