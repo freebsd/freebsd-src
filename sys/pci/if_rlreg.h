@@ -497,6 +497,12 @@
 
 #define RL_ETHER_ALIGN	2
 
+/*
+ * re(4) hardware ip4csum-tx could be mangled with 28 bytes or less IP packets.
+ */
+#define	RL_IP4CSUMTX_MINLEN	28
+#define	RL_IP4CSUMTX_PADLEN	(ETHER_HDR_LEN + RL_IP4CSUMTX_MINLEN)
+
 struct rl_chain_data {
 	uint16_t		cur_rx;
 	uint8_t			*rl_rx_buf;
