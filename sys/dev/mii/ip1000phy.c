@@ -30,7 +30,7 @@
 __FBSDID("$FreeBSD$");
 
 /*
- * Driver for the IC Plus IP1000A 10/100/1000 PHY.
+ * Driver for the IC Plus IP1000A/IP1001 10/100/1000 PHY.
  */
 
 #include <sys/param.h>
@@ -57,6 +57,12 @@ __FBSDID("$FreeBSD$");
 static int ip1000phy_probe(device_t);
 static int ip1000phy_attach(device_t);
 
+struct ip1000phy_softc {
+	struct mii_softc mii_sc;
+	int model;
+	int revision;
+};
+
 static device_method_t ip1000phy_methods[] = {
 	/* device interface */
 	DEVMETHOD(device_probe,		ip1000phy_probe),
@@ -82,6 +88,7 @@ static int	ip1000phy_mii_phy_auto(struct mii_softc *);
 
 static const struct mii_phydesc ip1000phys[] = {
 	MII_PHY_DESC(ICPLUS, IP1000A),
+	MII_PHY_DESC(ICPLUS, IP1001),
 	MII_PHY_END
 };
 
@@ -95,11 +102,13 @@ ip1000phy_probe(device_t dev)
 static int
 ip1000phy_attach(device_t dev)
 {
+	struct ip1000phy_softc *isc;
 	struct mii_softc *sc;
 	struct mii_attach_args *ma;
 	struct mii_data *mii;
 
-	sc = device_get_softc(dev);
+	isc = device_get_softc(dev);
+	sc = &isc->mii_sc;
 	ma = device_get_ivars(dev);
 	sc->mii_dev = device_get_parent(dev);
 	mii = device_get_softc(sc->mii_dev);
@@ -113,6 +122,9 @@ ip1000phy_attach(device_t dev)
 	sc->mii_flags |= MIIF_NOISOLATE;
 
 	mii->mii_instance++;
+
+	isc->model = MII_MODEL(ma->mii_id2);
+	isc->revision = MII_REV(ma->mii_id2);
 
 	device_printf(dev, " ");
 
@@ -302,9 +314,12 @@ done:
 static void
 ip1000phy_status(struct mii_softc *sc)
 {
+	struct ip1000phy_softc *isc;
 	struct mii_data *mii = sc->mii_pdata;
 	uint32_t bmsr, bmcr, stat;
 	uint32_t ar, lpar;
+
+	isc = (struct ip1000phy_softc *)sc;
 
 	mii->mii_media_status = IFM_AVALID;
 	mii->mii_media_active = IFM_ETHER;
@@ -326,25 +341,44 @@ ip1000phy_status(struct mii_softc *sc)
                 }
         }
 
-	stat = PHY_READ(sc, STGE_PhyCtrl);
-	switch (PC_LinkSpeed(stat)) {
-	case PC_LinkSpeed_Down:
-		mii->mii_media_active |= IFM_NONE;
-		return;
-	case PC_LinkSpeed_10:
-		mii->mii_media_active |= IFM_10_T;
-		break;
-	case PC_LinkSpeed_100:
-		mii->mii_media_active |= IFM_100_TX;
-		break;
-	case PC_LinkSpeed_1000:
-		mii->mii_media_active |= IFM_1000_T;
-		break;
+	if (isc->model == MII_MODEL_ICPLUS_IP1001) {
+		stat = PHY_READ(sc, IP1000PHY_LSR);
+		switch (stat & IP1000PHY_LSR_SPEED_MASK) {
+		case IP1000PHY_LSR_SPEED_10:
+			mii->mii_media_active |= IFM_10_T;
+			break;
+		case IP1000PHY_LSR_SPEED_100:
+			mii->mii_media_active |= IFM_100_TX;
+			break;
+		case IP1000PHY_LSR_SPEED_1000:
+			mii->mii_media_active |= IFM_1000_T;
+			break;
+		}
+		if ((stat & IP1000PHY_LSR_FULL_DUPLEX) != 0)
+			mii->mii_media_active |= IFM_FDX;
+		else
+			mii->mii_media_active |= IFM_HDX;
+	} else {
+		stat = PHY_READ(sc, STGE_PhyCtrl);
+		switch (PC_LinkSpeed(stat)) {
+		case PC_LinkSpeed_Down:
+			mii->mii_media_active |= IFM_NONE;
+			return;
+		case PC_LinkSpeed_10:
+			mii->mii_media_active |= IFM_10_T;
+			break;
+		case PC_LinkSpeed_100:
+			mii->mii_media_active |= IFM_100_TX;
+			break;
+		case PC_LinkSpeed_1000:
+			mii->mii_media_active |= IFM_1000_T;
+			break;
+		}
+		if ((stat & PC_PhyDuplexStatus) != 0)
+			mii->mii_media_active |= IFM_FDX;
+		else
+			mii->mii_media_active |= IFM_HDX;
 	}
-	if ((stat & PC_PhyDuplexStatus) != 0)
-		mii->mii_media_active |= IFM_FDX;
-	else
-		mii->mii_media_active |= IFM_HDX;
 
 	ar = PHY_READ(sc, IP1000PHY_MII_ANAR);
 	lpar = PHY_READ(sc, IP1000PHY_MII_ANLPAR);
@@ -410,10 +444,12 @@ ip1000phy_load_dspcode(struct mii_softc *sc)
 static void
 ip1000phy_reset(struct mii_softc *sc)
 {
+	struct ip1000phy_softc *isc;
 	struct stge_softc *stge_sc;
 	struct mii_data *mii;
 	uint32_t reg;
 
+	isc = (struct ip1000phy_softc *)sc;
 	mii_phy_reset(sc);
 
 	/* clear autoneg/full-duplex as we don't want it after reset */
@@ -426,7 +462,8 @@ ip1000phy_reset(struct mii_softc *sc)
 	 * XXX There should be more general way to pass PHY specific
 	 * data via mii interface.
 	 */
-	if (strcmp(mii->mii_ifp->if_dname, "stge") == 0) {
+	if (isc->model == MII_MODEL_ICPLUS_IP1000A &&
+	     strcmp(mii->mii_ifp->if_dname, "stge") == 0) {
 		stge_sc = mii->mii_ifp->if_softc;
 		if (stge_sc->sc_rev >= 0x40 && stge_sc->sc_rev <= 0x4e)
 			ip1000phy_load_dspcode(sc);
