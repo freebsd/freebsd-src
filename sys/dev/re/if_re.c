@@ -201,8 +201,7 @@ static struct rl_type re_devs[] = {
 	{ LINKSYS_VENDORID, LINKSYS_DEVICEID_EG1032, RL_HWREV_8169S,
 		"Linksys EG1032 (RTL8169S) Gigabit Ethernet" },
 	{ USR_VENDORID, USR_DEVICEID_997902, RL_HWREV_8169S,
-		"US Robotics 997902 (RTL8169S) Gigabit Ethernet" },
-	{ 0, 0, 0, NULL }
+		"US Robotics 997902 (RTL8169S) Gigabit Ethernet" }
 };
 
 static struct rl_hwrev re_hwrevs[] = {
@@ -918,51 +917,38 @@ re_probe(dev)
 	device_t		dev;
 {
 	struct rl_type		*t;
-	struct rl_softc		*sc;
-	int			rid;
-	u_int32_t		hwrev;
+	uint16_t		devid, vendor;
+	uint16_t		revid, sdevid;
+	int			i;
+	
+	vendor = pci_get_vendor(dev);
+	devid = pci_get_device(dev);
+	revid = pci_get_revid(dev);
+	sdevid = pci_get_subdevice(dev);
 
-	t = re_devs;
-	sc = device_get_softc(dev);
-
-	while (t->rl_name != NULL) {
-		if ((pci_get_vendor(dev) == t->rl_vid) &&
-		    (pci_get_device(dev) == t->rl_did)) {
+	if (vendor == LINKSYS_VENDORID && devid == LINKSYS_DEVICEID_EG1032) {
+		if (sdevid != LINKSYS_SUBDEVICE_EG1032_REV3) {
 			/*
 			 * Only attach to rev. 3 of the Linksys EG1032 adapter.
-			 * Rev. 2 i supported by sk(4).
+			 * Rev. 2 is supported by sk(4).
 			 */
-			if ((t->rl_vid == LINKSYS_VENDORID) &&
-				(t->rl_did == LINKSYS_DEVICEID_EG1032) &&
-				(pci_get_subdevice(dev) !=
-				LINKSYS_SUBDEVICE_EG1032_REV3)) {
-				t++;
-				continue;
-			}
-
-			/*
-			 * Temporarily map the I/O space
-			 * so we can read the chip ID register.
-			 */
-			rid = RL_RID;
-			sc->rl_res = bus_alloc_resource_any(dev, RL_RES, &rid,
-			    RF_ACTIVE);
-			if (sc->rl_res == NULL) {
-				device_printf(dev,
-				    "couldn't map ports/memory\n");
-				return (ENXIO);
-			}
-			sc->rl_btag = rman_get_bustag(sc->rl_res);
-			sc->rl_bhandle = rman_get_bushandle(sc->rl_res);
-			hwrev = CSR_READ_4(sc, RL_TXCFG) & RL_TXCFG_HWREV;
-			bus_release_resource(dev, RL_RES,
-			    RL_RID, sc->rl_res);
-			if (t->rl_basetype == hwrev) {
-				device_set_desc(dev, t->rl_name);
-				return (BUS_PROBE_DEFAULT);
-			}
+			return (ENXIO);
 		}
-		t++;
+	}
+
+	if (vendor == RT_VENDORID && devid == RT_DEVICEID_8139) {
+		if (revid != 0x20) {
+			/* 8139, let rl(4) take care of this device. */
+			return (ENXIO);
+		}
+	}
+
+	t = re_devs;
+	for (i = 0; i < sizeof(re_devs) / sizeof(re_devs[0]); i++, t++) {
+		if (vendor == t->rl_vid && devid == t->rl_did) {
+			device_set_desc(dev, t->rl_name);
+			return (BUS_PROBE_DEFAULT);
+		}
 	}
 
 	return (ENXIO);
@@ -1267,6 +1253,11 @@ re_attach(dev)
 		sc->rl_txstart = RL_TXSTART;
 		sc->rl_ldata.rl_tx_desc_cnt = RL_8139_TX_DESC_CNT;
 		sc->rl_ldata.rl_rx_desc_cnt = RL_8139_RX_DESC_CNT;
+	}
+	if (hw_rev->rl_desc == NULL) {
+		device_printf(dev, "Unsupported revision : 0x%08x\n", hwrev);
+		error = ENXIO;
+		goto fail;
 	}
 
 	error = re_allocmem(dev, sc);
