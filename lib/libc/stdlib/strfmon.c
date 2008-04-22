@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <limits.h>
 #include <locale.h>
+#include <monetary.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -66,6 +67,8 @@ __FBSDID("$FreeBSD$");
 	while (isdigit((unsigned char)*fmt)) {			\
 		VAR *= 10;					\
 		VAR += *fmt - '0';				\
+		if (VAR < 0)					\
+			goto e2big_error;			\
 		fmt++;						\
 	}							\
 } while (0)
@@ -186,7 +189,7 @@ strfmon(char * __restrict s, size_t maxsize, const char * __restrict format,
 			/* Do we have enough space to put number with
 			 * required width ?
 			 */
-			if (dst + width >= s + maxsize)
+			if ((unsigned int)width >= maxsize - (dst - s))
 				goto e2big_error;
 		}
 
@@ -195,6 +198,8 @@ strfmon(char * __restrict s, size_t maxsize, const char * __restrict format,
 			if (!isdigit((unsigned char)*++fmt))
 				goto format_error;
 			GET_NUMBER(left_prec);
+			if ((unsigned int)left_prec >= maxsize - (dst - s))
+				goto e2big_error;
 		}
 
 		/* Right precision */
@@ -202,6 +207,9 @@ strfmon(char * __restrict s, size_t maxsize, const char * __restrict format,
 			if (!isdigit((unsigned char)*++fmt))
 				goto format_error;
 			GET_NUMBER(right_prec);
+			if ((unsigned int)right_prec >= maxsize - (dst - s) -
+			    left_prec)
+				goto e2big_error;
 		}
 
 		/* Conversion Characters */
@@ -217,6 +225,8 @@ strfmon(char * __restrict s, size_t maxsize, const char * __restrict format,
 				goto format_error;
 		}
 
+		if (currency_symbol != NULL)
+			free(currency_symbol);
 		if (flags & USE_INTL_CURRENCY) {
 			currency_symbol = strdup(lc->int_curr_symbol);
 			if (currency_symbol != NULL)
@@ -245,6 +255,8 @@ strfmon(char * __restrict s, size_t maxsize, const char * __restrict format,
 				pad_size = 0;
 		}
 
+		if (asciivalue != NULL)
+			free(asciivalue);
 		asciivalue = __format_grouped_double(value, &flags,
 				left_prec, right_prec, pad_char);
 		if (asciivalue == NULL)
@@ -534,12 +546,11 @@ __format_grouped_double(double value, int *flags,
 
 	/* make sure that we've enough space for result string */
 	bufsize = strlen(avalue)*2+1;
-	rslt = malloc(bufsize);
+	rslt = calloc(1, bufsize);
 	if (rslt == NULL) {
 		free(avalue);
 		return (NULL);
 	}
-	memset(rslt, 0, bufsize);
 	bufend = rslt + bufsize - 1;	/* reserve space for trailing '\0' */
 
 	/* skip spaces at beggining */
