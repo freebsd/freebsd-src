@@ -76,7 +76,11 @@
 #define RL_EECMD	0x0050		/* EEPROM command register */
 #define RL_CFG0		0x0051		/* config register #0 */
 #define RL_CFG1		0x0052		/* config register #1 */
-                                        /* 0053-0057 reserved */   
+#define	RL_CFG2		0x0053		/* config register #2 */
+#define	RL_CFG3		0x0054		/* config register #3 */
+#define	RL_CFG4		0x0055		/* config register #4 */
+#define	RL_CFG5		0x0056		/* config register #5 */
+					/* 0057 reserved */
 #define RL_MEDIASTAT	0x0058		/* media status register (8139) */
 					/* 0059-005A reserved */
 #define RL_MII		0x005A		/* 8129 chip only */
@@ -359,14 +363,48 @@
  * Config 1 register
  */
 #define RL_CFG1_PWRDWN		0x01
+#define RL_CFG1_PME		0x01	
 #define RL_CFG1_SLEEP		0x02
+#define RL_CFG1_VPDEN		0x02
 #define RL_CFG1_IOMAP		0x04
 #define RL_CFG1_MEMMAP		0x08
 #define RL_CFG1_RSVD		0x10
+#define	RL_CFG1_LWACT		0x10
 #define RL_CFG1_DRVLOAD		0x20
 #define RL_CFG1_LED0		0x40
 #define RL_CFG1_FULLDUPLEX	0x40	/* 8129 only */
 #define RL_CFG1_LED1		0x80
+
+/*
+ * Config 2 register
+ */
+#define	RL_CFG2_PCI33MHZ	0x00
+#define	RL_CFG2_PCI66MHZ	0x01
+#define	RL_CFG2_PCI64BIT	0x08
+#define	RL_CFG2_AUXPWR		0x10
+
+/*
+ * Config 3 register
+ */
+#define	RL_CFG3_GRANTSEL	0x80
+#define	RL_CFG3_WOL_MAGIC	0x20
+#define	RL_CFG3_WOL_LINK	0x10
+#define	RL_CFG3_FAST_B2B	0x01
+
+/*
+ * Config 4 register
+ */
+#define	RL_CFG4_LWPTN		0x04
+#define	RL_CFG4_LWPME		0x10
+
+/*
+ * Config 5 register
+ */
+#define	RL_CFG5_WOL_BCAST	0x40
+#define	RL_CFG5_WOL_MCAST	0x20
+#define	RL_CFG5_WOL_UCAST	0x10
+#define	RL_CFG5_WOL_LANWAKE	0x02
+#define	RL_CFG5_PME_STS		0x01
 
 /*
  * 8139C+ register definitions
