@@ -2640,10 +2640,18 @@ re_ioctl(ifp, command, data)
 
 	switch (command) {
 	case SIOCSIFMTU:
-		RL_LOCK(sc);
-		if (ifr->ifr_mtu > RL_JUMBO_MTU)
+		if (ifr->ifr_mtu < ETHERMIN || ifr->ifr_mtu > RL_JUMBO_MTU) {
 			error = EINVAL;
-		ifp->if_mtu = ifr->ifr_mtu;
+			break;
+		}
+		if (sc->rl_type == RL_8139CPLUS &&
+		    ifr->ifr_mtu > RL_MAX_FRAMELEN) {
+			error = EINVAL;
+			break;
+		}
+		RL_LOCK(sc);
+		if (ifp->if_mtu != ifr->ifr_mtu)
+			ifp->if_mtu = ifr->ifr_mtu;
 		RL_UNLOCK(sc);
 		break;
 	case SIOCSIFFLAGS:
