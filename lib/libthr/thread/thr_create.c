@@ -56,7 +56,7 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 	struct rtprio rtp;
 	int ret = 0, locked, create_suspended;
 	sigset_t set, oset;
-	cpuset_t *cpuset = NULL;
+	cpuset_t *cpusetp = NULL;
 	int cpusetsize = 0;
 
 	_thr_check_init();
@@ -78,7 +78,7 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 		new_thread->attr = _pthread_attr_default;
 	else {
 		new_thread->attr = *(*attr);
-		cpuset = new_thread->attr.cpuset;
+		cpusetp = new_thread->attr.cpuset;
 		cpusetsize = new_thread->attr.cpusetsize;
 		new_thread->attr.cpuset = NULL;
 		new_thread->attr.cpusetsize = 0;
@@ -137,7 +137,7 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 	_thr_link(curthread, new_thread);
 	/* Return thread pointer eariler so that new thread can use it. */
 	(*thread) = new_thread;
-	if (SHOULD_REPORT_EVENT(curthread, TD_CREATE) || cpuset != NULL) {
+	if (SHOULD_REPORT_EVENT(curthread, TD_CREATE) || cpusetp != NULL) {
 		THR_THREAD_LOCK(curthread, new_thread);
 		locked = 1;
 	} else
@@ -201,9 +201,9 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 		_thr_ref_delete_unlocked(curthread, new_thread);
 		THREAD_LIST_UNLOCK(curthread);
 	} else if (locked) {
-		if (cpuset != NULL) {
+		if (cpusetp != NULL) {
 			if (cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID,
-				TID(new_thread), cpusetsize, cpuset)) {
+				TID(new_thread), cpusetsize, cpusetp)) {
 				ret = errno;
 				/* kill the new thread */
 				new_thread->force_exit = 1;
