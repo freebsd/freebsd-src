@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-TESTS=	test-trimdomain test-trimdomain-nodomain test-flopen
+TESTS=	test-trimdomain test-trimdomain-nodomain test-flopen test-grp
 CFLAGS+= -g -Wall -lutil
 
 .PHONY: tests
