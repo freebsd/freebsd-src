@@ -62,6 +62,8 @@ static int g_part_mbr_add(struct g_part_table *, struct g_part_entry *,
 static int g_part_mbr_bootcode(struct g_part_table *, struct g_part_parms *);
 static int g_part_mbr_create(struct g_part_table *, struct g_part_parms *);
 static int g_part_mbr_destroy(struct g_part_table *, struct g_part_parms *);
+static int g_part_mbr_dumpconf(struct g_part_table *, struct g_part_entry *,
+    struct sbuf *, const char *);
 static int g_part_mbr_dumpto(struct g_part_table *, struct g_part_entry *);
 static int g_part_mbr_modify(struct g_part_table *, struct g_part_entry *,  
     struct g_part_parms *);
@@ -78,6 +80,7 @@ static kobj_method_t g_part_mbr_methods[] = {
 	KOBJMETHOD(g_part_bootcode,	g_part_mbr_bootcode),
 	KOBJMETHOD(g_part_create,	g_part_mbr_create),
 	KOBJMETHOD(g_part_destroy,	g_part_mbr_destroy),
+	KOBJMETHOD(g_part_dumpconf,	g_part_mbr_dumpconf),
 	KOBJMETHOD(g_part_dumpto,	g_part_mbr_dumpto),
 	KOBJMETHOD(g_part_modify,	g_part_mbr_modify),
 	KOBJMETHOD(g_part_name,		g_part_mbr_name),
@@ -242,6 +245,20 @@ g_part_mbr_destroy(struct g_part_table *basetable, struct g_part_parms *gpp)
 
 	/* Wipe the first sector to clear the partitioning. */
 	basetable->gpt_smhead |= 1;
+	return (0);
+}
+
+static int
+g_part_mbr_dumpconf(struct g_part_table *table, struct g_part_entry *baseentry, 
+    struct sbuf *sb, const char *indent)
+{
+	struct g_part_mbr_entry *entry;
+ 
+	if (indent != NULL)
+		return (0);
+ 
+	entry = (struct g_part_mbr_entry *)baseentry;
+	sbuf_printf(sb, " xs MBR xt %u", entry->ent.dp_typ);
 	return (0);
 }
 
