@@ -61,6 +61,8 @@ static int g_part_apm_add(struct g_part_table *, struct g_part_entry *,
     struct g_part_parms *);
 static int g_part_apm_create(struct g_part_table *, struct g_part_parms *);
 static int g_part_apm_destroy(struct g_part_table *, struct g_part_parms *);
+static int g_part_apm_dumpconf(struct g_part_table *, struct g_part_entry *,
+    struct sbuf *, const char *);
 static int g_part_apm_dumpto(struct g_part_table *, struct g_part_entry *);
 static int g_part_apm_modify(struct g_part_table *, struct g_part_entry *,
     struct g_part_parms *);
@@ -76,6 +78,7 @@ static kobj_method_t g_part_apm_methods[] = {
 	KOBJMETHOD(g_part_add,		g_part_apm_add),
 	KOBJMETHOD(g_part_create,	g_part_apm_create),
 	KOBJMETHOD(g_part_destroy,	g_part_apm_destroy),
+	KOBJMETHOD(g_part_dumpconf,	g_part_apm_dumpconf),
 	KOBJMETHOD(g_part_dumpto,	g_part_apm_dumpto),
 	KOBJMETHOD(g_part_modify,	g_part_apm_modify),
 	KOBJMETHOD(g_part_name,		g_part_apm_name),
@@ -225,6 +228,20 @@ g_part_apm_destroy(struct g_part_table *basetable, struct g_part_parms *gpp)
 
 	/* Wipe the first 2 sectors to clear the partitioning. */
 	basetable->gpt_smhead |= 3;
+	return (0);
+}
+
+static int
+g_part_apm_dumpconf(struct g_part_table *table, struct g_part_entry *baseentry,
+    struct sbuf *sb, const char *indent)
+{
+	struct g_part_apm_entry *entry;
+
+	if (indent != NULL)
+		return (0);
+
+	entry = (struct g_part_apm_entry *)baseentry;
+	sbuf_printf(sb, " xs APPLE xt %s", entry->ent.ent_type);
 	return (0);
 }
 
