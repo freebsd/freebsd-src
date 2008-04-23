@@ -317,6 +317,13 @@ parse_uuid(const char *s, uuid_t *uuid)
 			return (0);
 		}
 		break;
+	case 'z':
+		if (strcmp(s, "zfs") == 0) {
+			uuid_t zfs = GPT_ENT_TYPE_FREEBSD_ZFS;
+			*uuid = zfs;
+			return (0);
+		}
+		break;
 	}
 	return (EINVAL);
 }
