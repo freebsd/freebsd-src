@@ -1489,6 +1489,13 @@ g_part_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 		sbuf_printf(sb, " i %u o %ju ty %s", entry->gpe_index,
 		    (uintmax_t)entry->gpe_offset,
 		    G_PART_TYPE(table, entry, buf, sizeof(buf)));
+		/*
+		 * libdisk compatibility quirk - the scheme dumps the
+		 * slicer name and partition type in a way that is
+		 * compatible with libdisk. When libdisk is not used
+		 * anymore, this should go away.
+		 */
+		G_PART_DUMPCONF(table, entry, sb, indent);
 	} else if (cp != NULL) {	/* Consumer configuration. */
 		KASSERT(pp == NULL, (__func__));
 		/* none */

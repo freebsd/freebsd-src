@@ -63,6 +63,8 @@ static int g_part_pc98_add(struct g_part_table *, struct g_part_entry *,
 static int g_part_pc98_bootcode(struct g_part_table *, struct g_part_parms *);
 static int g_part_pc98_create(struct g_part_table *, struct g_part_parms *);
 static int g_part_pc98_destroy(struct g_part_table *, struct g_part_parms *);
+static int g_part_pc98_dumpconf(struct g_part_table *, struct g_part_entry *,
+    struct sbuf *, const char *);
 static int g_part_pc98_dumpto(struct g_part_table *, struct g_part_entry *);
 static int g_part_pc98_modify(struct g_part_table *, struct g_part_entry *,  
     struct g_part_parms *);
@@ -79,6 +81,7 @@ static kobj_method_t g_part_pc98_methods[] = {
 	KOBJMETHOD(g_part_bootcode,	g_part_pc98_bootcode),
 	KOBJMETHOD(g_part_create,	g_part_pc98_create),
 	KOBJMETHOD(g_part_destroy,	g_part_pc98_destroy),
+	KOBJMETHOD(g_part_dumpconf,	g_part_pc98_dumpconf),
 	KOBJMETHOD(g_part_dumpto,	g_part_pc98_dumpto),
 	KOBJMETHOD(g_part_modify,	g_part_pc98_modify),
 	KOBJMETHOD(g_part_name,		g_part_pc98_name),
@@ -230,6 +233,21 @@ g_part_pc98_destroy(struct g_part_table *basetable, struct g_part_parms *gpp)
 
 	/* Wipe the first two sectors to clear the partitioning. */
 	basetable->gpt_smhead |= 3;
+	return (0);
+}
+
+static int
+g_part_pc98_dumpconf(struct g_part_table *table,
+    struct g_part_entry *baseentry, struct sbuf *sb, const char *indent)
+{
+	struct g_part_pc98_entry *entry;
+	u_int type;
+	if (indent != NULL)
+		return (0);
+
+	entry = (struct g_part_pc98_entry *)baseentry;
+	type = entry->ent.dp_mid + (entry->ent.dp_sid << 8);
+	sbuf_printf(sb, " xs PC98 xt %u", type);
 	return (0);
 }
 
