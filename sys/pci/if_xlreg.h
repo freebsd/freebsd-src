@@ -486,6 +486,7 @@ struct xl_chain_onefrag {
 struct xl_chain_data {
 	struct xl_chain_onefrag	xl_rx_chain[XL_RX_LIST_CNT];
 	struct xl_chain		xl_tx_chain[XL_TX_LIST_CNT];
+	bus_dma_segment_t	xl_tx_segs[XL_MAXFRAGS];
 
 	struct xl_chain_onefrag	*xl_rx_head;
 
@@ -589,7 +590,7 @@ struct xl_softc {
 	struct resource		*xl_irq;
 	struct resource		*xl_res;
 	device_t		xl_miibus;
-	struct xl_type		*xl_info;	/* 3Com adapter info */
+	const struct xl_type	*xl_info;	/* 3Com adapter info */
 	bus_dma_tag_t		xl_mtag;
 	bus_dmamap_t		xl_tmpmap;	/* spare DMA map */
 	u_int8_t		xl_unit;	/* interface number */
