@@ -236,7 +236,7 @@ main(int argc, char **argv)
 	 * Don't try to apply heuristics if arguments are regexs or if
 	 * the argument refers to an existing file.
 	 */
-	if (MatchType != MATCH_REGEX && MatchType != MATCH_EREGEX && !isfile(*argv))
+	if (MatchType != MATCH_REGEX && MatchType != MATCH_EREGEX && !isfile(*argv) && !isURL(*argv))
 	    while ((pkgs_split = strrchr(*argv, (int)'/')) != NULL) {
 		*pkgs_split++ = '\0';
 		/*
