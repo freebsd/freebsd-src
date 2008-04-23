@@ -74,7 +74,8 @@ static ofw_bus_get_devinfo_t fhc_get_devinfo;
 
 static void fhc_intr_enable(void *);
 static void fhc_intr_disable(void *);
-static void fhc_intr_eoi(void *);
+static void fhc_intr_assign(void *);
+static void fhc_intr_clear(void *);
 static void fhc_led_func(void *, int);
 static int fhc_print_res(struct fhc_devinfo *);
 
@@ -123,7 +124,8 @@ DRIVER_MODULE(fhc, nexus, fhc_driver, fhc_devclass, 0, 0);
 static const struct intr_controller fhc_ic = {
 	fhc_intr_enable,
 	fhc_intr_disable,
-	fhc_intr_eoi
+	fhc_intr_assign,
+	fhc_intr_clear
 };
 
 struct fhc_icarg {
@@ -366,7 +368,18 @@ fhc_intr_disable(void *arg)
 }
 
 static void
-fhc_intr_eoi(void *arg)
+fhc_intr_assign(void *arg)
+{
+	struct intr_vector *iv = arg;
+	struct fhc_icarg *fica = iv->iv_icarg;
+
+	bus_write_4(fica->fica_memres, FHC_IMAP, INTMAP_TID(
+	    bus_read_4(fica->fica_memres, FHC_IMAP), iv->iv_mid));
+	(void)bus_read_4(fica->fica_memres, FHC_IMAP);
+}
+
+static void
+fhc_intr_clear(void *arg)
 {
 	struct intr_vector *iv = arg;
 	struct fhc_icarg *fica = iv->iv_icarg;
