@@ -126,7 +126,7 @@ main(int argc, char **argv)
 			case 'G':
 			case 'g':
 				value = getenv(arg == 'g' ? optarg : NULL);
-				printf("%s%s", value == NULL ? "" : value, eol);
+				printf("%s%s", value == NULL ? "*NULL*" : value, eol);
 				break;
 
 			case 'p':

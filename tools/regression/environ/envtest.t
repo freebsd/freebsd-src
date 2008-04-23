@@ -68,6 +68,9 @@ check_result()
 # Regression tests
 #
 
+# How NULL will be returned by program.
+readonly NULL="\*NULL\*"
+
 # Setup environment for tests.
 readonly BAR="bar"
 readonly NEWBAR="newbar"
@@ -79,16 +82,16 @@ run_test -g FOO
 check_result "${FOO}"
 
 run_test -c -g FOO
-check_result ""
+check_result "${NULL}"
 
 run_test -g FOOBAR
-check_result ""
+check_result "${NULL}"
 
 run_test -c -g FOOBAR
-check_result ""
+check_result "${NULL}"
 
 run_test -G
-check_result ""
+check_result "${NULL}"
 
 
 # Sets.
@@ -138,10 +141,10 @@ check_result "0 0 ${BAR} 0 0 ${NEWBAR}"
 
 # Unsets.
 run_test -u FOO -g FOO
-check_result "0 0"
+check_result "0 0 ${NULL}"
 
 run_test -c -u FOO -g FOO
-check_result "0 0"
+check_result "0 0 ${NULL}"
 
 run_test -U
 check_result "-1 22"
@@ -153,11 +156,11 @@ run_test -u "=${BAR}"
 check_result "-1 22"
 
 run_test -c -s FOO ${NEWBAR} 1 -g FOO -u FOO -g FOO
-check_result "0 0 ${NEWBAR} 0 0"
+check_result "0 0 ${NEWBAR} 0 0 ${NULL}"
 
 run_test -c -u FOO -s FOO ${BAR} 1 -g FOO -u FOO -g FOO -c -u FOO\
 	-s FOO ${NEWBAR} 1 -g FOO
-check_result "0 0 0 0 ${BAR} 0 0  0 0 0 0 ${NEWBAR}"
+check_result "0 0 0 0 ${BAR} 0 0 ${NULL} 0 0 0 0 ${NEWBAR}"
 
 
 # Puts.
@@ -189,7 +192,7 @@ run_test -s FOO ${NEWBAR} 1 -p FOO=${BAR} -u FOO
 check_result "0 0 0 0 0 0"
 
 run_test -s FOO ${NEWBAR} 1 -p FOO=${BAR} -c -g FOO -p FOO=${NEWBAR} -g FOO
-check_result "0 0 0 0  0 0 ${NEWBAR}"
+check_result "0 0 0 0 ${NULL} 0 0 ${NEWBAR}"
 
 run_test -c -p FOO=${BAR} -g FOO -c -p FOO=${NEWBAR} -g FOO
 check_result "0 0 ${BAR} 0 0 ${NEWBAR}"
@@ -197,7 +200,7 @@ check_result "0 0 ${BAR} 0 0 ${NEWBAR}"
 
 # environ replacements.
 run_test -r -g FOO -s FOO ${BAR} 1 -g FOO -u FOO -g FOO
-check_result "${BAR} 0 0 ${BAR} 0 0"
+check_result "${BAR} 0 0 ${BAR} 0 0 ${NULL}"
 
 run_test -r -g FOO -u FOO -g FOO -s FOO ${BAR} 1 -g FOO
-check_result "${BAR} 0 0  0 0 ${BAR}"
+check_result "${BAR} 0 0 ${NULL} 0 0 ${BAR}"
