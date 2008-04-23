@@ -117,6 +117,10 @@ static const char *ehci_device_ich5 = "Intel 82801EB/R (ICH5) USB 2.0 controller
 static const char *ehci_device_ich6 = "Intel 82801FB (ICH6) USB 2.0 controller";
 #define PCI_EHCI_DEVICEID_ICH7		0x27cc8086
 static const char *ehci_device_ich7 = "Intel 82801GB/R (ICH7) USB 2.0 controller";
+#define PCI_EHCI_DEVICEID_ICH8_A	0x28368086
+static const char *ehci_device_ich8_a = "Intel 82801H (ICH8) USB 2.0 controller USB2-A";
+#define PCI_EHCI_DEVICEID_ICH8_B	0x283a8086
+static const char *ehci_device_ich8_b = "Intel 82801H (ICH8) USB 2.0 controller USB2-B";
 #define PCI_EHCI_DEVICEID_63XX		0x268c8086
 static const char *ehci_device_63XX = "Intel 63XXESB USB 2.0 controller";
  
@@ -230,6 +234,10 @@ ehci_pci_match(device_t self)
 		return (ehci_device_ich6);
 	case PCI_EHCI_DEVICEID_ICH7:
 		return (ehci_device_ich7);
+	case PCI_EHCI_DEVICEID_ICH8_A:
+		return (ehci_device_ich8_a);
+	case PCI_EHCI_DEVICEID_ICH8_B:
+		return (ehci_device_ich8_b);
 	case PCI_EHCI_DEVICEID_NEC:
 		return (ehci_device_nec);
 	case PCI_EHCI_DEVICEID_NF2:
