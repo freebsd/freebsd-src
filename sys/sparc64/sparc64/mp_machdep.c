@@ -171,7 +171,7 @@ cpu_mp_setmaxid(void)
 {
 	char buf[128];
 	phandle_t child;
-	int cpus;
+	u_int cpus;
 
 	all_cpus = 1 << curcpu;
 	mp_ncpus = 1;
@@ -251,7 +251,7 @@ cpu_mp_start(void)
 	phandle_t child;
 	u_int clock;
 	u_int mid;
-	int cpuid;
+	u_int cpuid;
 
 	mtx_init(&ipi_mtx, "ipi", NULL, MTX_SPIN);
 
@@ -302,6 +302,7 @@ cpu_mp_start(void)
 		pc->pc_node = child;
 
 		all_cpus |= 1 << cpuid;
+		intr_add_cpu(cpuid);
 	}
 	KASSERT(!isjbus || mp_ncpus <= IDR_JALAPENO_MAX_BN_PAIRS,
 	    ("%s: can only IPI a maximum of %d JBus-CPUs",
