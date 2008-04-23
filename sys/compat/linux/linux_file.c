@@ -886,6 +886,7 @@ linux_readlinkat(struct thread *td, struct linux_readlinkat_args *args)
 	LFREEPATH(name);
 	return (error);
 }
+
 int
 linux_truncate(struct thread *td, struct linux_truncate_args *args)
 {
@@ -904,6 +905,23 @@ linux_truncate(struct thread *td, struct linux_truncate_args *args)
 	return (error);
 }
 
+int
+linux_truncate64(struct thread *td, struct linux_truncate64_args *args)
+{
+	char *path;
+	int error;
+
+	LCONVPATHEXIST(td, args->path, &path);
+
+#ifdef DEBUG
+	if (ldebug(truncate64))
+		printf(ARGS(truncate64, "%s, %jd"), path, args->length);
+#endif
+
+	error = kern_truncate(td, path, UIO_SYSSPACE, args->length);
+	LFREEPATH(path);
+	return (error);
+}
 int
 linux_ftruncate(struct thread *td, struct linux_ftruncate_args *args)
 {
