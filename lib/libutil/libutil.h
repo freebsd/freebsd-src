@@ -119,6 +119,13 @@ const char *pw_tempname(void);
 int	pw_tmp(int _mfd);
 #endif
 
+#ifdef _GRP_H_
+int	gr_equal(const struct group *gr1, const struct group *gr2);
+char	*gr_make(const struct group *gr);
+struct group *gr_dup(const struct group *gr);
+struct group *gr_scan(const char *line);
+#endif
+
 #ifdef _SYS_PARAM_H_
 struct pidfh *pidfile_open(const char *path, mode_t mode, pid_t *pidptr);
 int pidfile_write(struct pidfh *pfh);
