@@ -196,7 +196,8 @@ static struct sbus_devinfo * sbus_setup_dinfo(device_t, struct sbus_softc *,
 static void sbus_destroy_dinfo(struct sbus_devinfo *);
 static void sbus_intr_enable(void *);
 static void sbus_intr_disable(void *);
-static void sbus_intr_eoi(void *);
+static void sbus_intr_assign(void *);
+static void sbus_intr_clear(void *);
 static int sbus_find_intrmap(struct sbus_softc *, u_int, bus_addr_t *,
     bus_addr_t *);
 static bus_space_tag_t sbus_alloc_bustag(struct sbus_softc *);
@@ -253,7 +254,8 @@ DRIVER_MODULE(sbus, nexus, sbus_driver, sbus_devclass, 0, 0);
 static const struct intr_controller sbus_ic = {
 	sbus_intr_enable,
 	sbus_intr_disable,
-	sbus_intr_eoi
+	sbus_intr_assign,
+	sbus_intr_clear
 };
 
 struct sbus_icarg {
@@ -667,6 +669,7 @@ sbus_intr_enable(void *arg)
 	SYSIO_WRITE8(sica->sica_sc, sica->sica_map,
 	    INTMAP_ENABLE(iv->iv_vec, iv->iv_mid));
 }
+
 static void
 sbus_intr_disable(void *arg)
 {
@@ -677,7 +680,17 @@ sbus_intr_disable(void *arg)
 }
 
 static void
-sbus_intr_eoi(void *arg)
+sbus_intr_assign(void *arg)
+{
+	struct intr_vector *iv = arg;
+	struct sbus_icarg *sica = iv->iv_icarg;
+
+	SYSIO_WRITE8(sica->sica_sc, sica->sica_map, INTMAP_TID(
+	    SYSIO_READ8(sica->sica_sc, sica->sica_map), iv->iv_mid));
+}
+
+static void
+sbus_intr_clear(void *arg)
 {
 	struct intr_vector *iv = arg;
 	struct sbus_icarg *sica = iv->iv_icarg;

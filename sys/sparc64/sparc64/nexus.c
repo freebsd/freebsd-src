@@ -93,6 +93,9 @@ static bus_get_resource_list_t nexus_get_resource_list;
 static bus_get_dma_tag_t nexus_get_dma_tag;
 static ofw_bus_get_devinfo_t nexus_get_devinfo;
 
+#ifdef SMP
+static int nexus_bind_intr(device_t, device_t, struct resource *, int);
+#endif
 static int nexus_inlist(const char *, const char **);
 static struct nexus_devinfo * nexus_setup_dinfo(device_t, phandle_t);
 static void nexus_destroy_dinfo(struct nexus_devinfo *);
@@ -119,6 +122,9 @@ static device_method_t nexus_methods[] = {
 	DEVMETHOD(bus_release_resource,	nexus_release_resource),
 	DEVMETHOD(bus_setup_intr,	nexus_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	nexus_teardown_intr),
+#ifdef SMP
+	DEVMETHOD(bus_bind_intr,	nexus_bind_intr),
+#endif
 	DEVMETHOD(bus_get_resource,	bus_generic_rl_get_resource),
 	DEVMETHOD(bus_get_resource_list, nexus_get_resource_list),
 	DEVMETHOD(bus_get_dma_tag,	nexus_get_dma_tag),
@@ -310,6 +316,15 @@ nexus_teardown_intr(device_t dev, device_t child, struct resource *r, void *ih)
 	inthand_remove(rman_get_start(r), ih);
 	return (0);
 }
+
+#ifdef SMP
+static int
+nexus_bind_intr(device_t dev, device_t child, struct resource *r, int cpu)
+{
+
+	return (intr_bind(rman_get_start(r), cpu));
+}
+#endif
 
 static struct resource *
 nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
