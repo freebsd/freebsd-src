@@ -61,7 +61,7 @@ using namespace std;
 //
 void usage()
 {
-    cout << "mctest -i interface -g multicast group -s packet size -n number -t inter-packet gap\n";
+    cout << "mctest [-r] -M clients -m client number -i interface -g multicast group -s packet size -n number -t inter-packet gap\n";
     exit(-1);
 }
 
@@ -86,10 +86,13 @@ void usage(string message)
 // @param group			///< multicast group
 // @param pkt_size		///< packet Size
 // @param number                ///< number of packets we're expecting
+// @param clients               ///< total number of clients  (N)
+// @param client		///< our client number (0..N)
 // 
 // @return 0 for 0K, -1 for error, sets errno
 //
-int sink(char *interface, struct in_addr *group, int pkt_size, int number) {
+int sink(char *interface, struct in_addr *group, int pkt_size, int number,
+	 int clients, int client) {
 
     
     int sock, backchan;
@@ -172,11 +175,18 @@ int sink(char *interface, struct in_addr *group, int pkt_size, int number) {
 	    perror("recvfrom failed");
 	    return -1;
 	}
-	recvd.sin_port = htons(SERVER_PORT);
-	if (sendto(backchan, packet, pkt_size, 0, 
-		   (struct sockaddr *)&recvd, sizeof(recvd)) < 0) {
-	    perror("sendto failed");
-	    return -1;
+	/*
+	 * Bandwidth limiting.  If there are N clients then we want
+	 * 1/N packets from each, otherwise the clients will overwhelm
+	 * the sender. 
+	 */
+	if (n % clients == client) {
+		recvd.sin_port = htons(SERVER_PORT + client);
+		if (sendto(backchan, packet, pkt_size, 0, 
+			   (struct sockaddr *)&recvd, sizeof(recvd)) < 0) {
+		    perror("sendto failed");
+		    return -1;
+		}
 	}
 	gettimeofday(&packets[ntohl(*(int *)packet)], 0);
 	n++;
@@ -208,10 +218,11 @@ int sink(char *interface, struct in_addr *group, int pkt_size, int number) {
 //
 // Structure to hold thread arguments
 //
-typedef struct server_args {
+struct server_args {
     struct timeval *packets; 	///< The timestamps of returning packets
     int number;			///< Number of packets to expect.
     int pkt_size;		///< Size of the packets
+    int client;			///< Which client we listen for
 };
 
 //
@@ -238,7 +249,7 @@ void* server(void *passed) {
     bzero(&addr, sizeof(addr));
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = INADDR_ANY;
-    addr.sin_port = htons(SERVER_PORT);
+    addr.sin_port = htons(SERVER_PORT + args->client);
     addr.sin_len = sizeof(addr);
 
     if (bind(sock, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
@@ -279,11 +290,12 @@ void* server(void *passed) {
 // @param pkt_size		///< packet size
 // @param number                ///< number of packets
 // @param gap			///< inter packet gap in nano-seconds
+// @param clients		///< number of clients we intend to run
 // 
 // @return 0 for OK, -1 for error, sets errno
 //
 int source(char *interface, struct in_addr *group, int pkt_size, 
-	   int number, int gap) {
+	   int number, int gap, int clients) {
 
     int sock;
     struct sockaddr_in addr;
@@ -346,18 +358,21 @@ int source(char *interface, struct in_addr *group, int pkt_size,
 	*(int *)packets[i] = htonl(i);
     }
     
-    struct timeval received[number];
     struct timeval sent[number];
-    server_args args;
-    pthread_t thread;
-    args.packets = received;
-    args.number = number;
-    args.pkt_size = pkt_size;
+    struct timeval received[clients][number];
+    server_args args[clients];
+    pthread_t thread[clients];
 
-     if (pthread_create(&thread, NULL, server, &args) < 0) {
- 	perror("failed to create server thread");
- 	return -1;
-     }
+    for (int i = 0;i < clients; i++) {
+        args[i].pkt_size = pkt_size;
+        args[i].packets = received[i];
+        args[i].number = number / clients;
+	args[i].client = i;
+	if (pthread_create(&thread[i], NULL, server, &args[i]) < 0) {
+	    perror("failed to create server thread");
+	    return -1;
+        }
+    }
 
     struct timespec sleeptime;
     sleeptime.tv_sec = 0;
@@ -377,16 +392,23 @@ int source(char *interface, struct in_addr *group, int pkt_size,
 	    }
     }
 
-     if (pthread_join(thread, NULL) < 0) {
- 	perror("failed to join thread");
- 	return -1;
-     }
-    
+    for (int i = 0; i < clients; i++) {
+        if (pthread_join(thread[i], NULL) < 0) {
+ 	    perror("failed to join thread");
+ 	    return -1;
+        }
+    }
+
     timeval result;
-    for (int i = 0; i < number; i++) {
-	timersub(&args.packets[i], &sent[i], &result);
-	cout << "sec: " << result.tv_sec;
-	cout << " usecs: " << result.tv_usec << endl;
+    for (int client = 0;client < clients; client++) {
+	cout << "Results from client #" << client << endl;
+        for (int i = 0; i < number; i++) {
+	    if (i % clients != client) 
+		continue;
+	    timersub(&args[client].packets[i], &sent[i], &result);
+	    cout << "sec: " << result.tv_sec;
+	    cout << " usecs: " << result.tv_usec << endl;
+            }
     }
 
     return 0;
@@ -415,12 +437,14 @@ int main(int argc, char**argv)
 	int pkt_size = 0;       ///< packet size
 	int gap = 0;		///< inter packet gap (in nanoseconds)
 	int number = 0;         ///< number of packets to transmit
-	bool server = false;
+	bool server = false;	///< are we on he receiving end of multicast
+	int client = 0;		///< for receivers which client are we
+	int clients = 1;	///< for senders how many clients are there
 	
-	if (argc < 2 || argc > 11)
+	if (argc < 2 || argc > 14)
 		usage();
 	
-	while ((ch = getopt(argc, argv, "g:i:n:s:t:rh")) != -1) {
+	while ((ch = getopt(argc, argv, "M:m:g:i:n:s:t:rh")) != -1) {
 		switch (ch) {
 		case 'g':
 			group = new (struct in_addr );
@@ -433,7 +457,7 @@ int main(int argc, char**argv)
 			break;
 		case 'n':
 			number = atoi(optarg);
-			if (number < 0 || number > 10000)
+			if (number < 0 || number > INT_MAX)
 				usage(argv[0] + string(" Error: ") + optarg + 
 				      string(" number of packets out of range"));
 			break;
@@ -452,6 +476,12 @@ int main(int argc, char**argv)
 		case 'r':
 			server = true;
 			break;
+		case 'm':
+			client = atoi(optarg);
+			break;
+		case 'M':
+			clients = atoi(optarg);
+			break;
 		case 'h':
 			usage(string("Help\n"));
 			break;
@@ -459,9 +489,13 @@ int main(int argc, char**argv)
 	}
 	
 	if (server) {
-		sink(interface, group, pkt_size, number);
+	    if (clients <= 0 || client < 0)
+		usage("must specify client (-m) and number of clients (-M)");
+	    sink(interface, group, pkt_size, number, clients, client);
 	} else {
-		source(interface, group, pkt_size, number, gap);
+	    if (clients <= 0)
+		usage("must specify number of clients (-M)");
+	    source(interface, group, pkt_size, number, gap, clients);
 	}
 	
 }
