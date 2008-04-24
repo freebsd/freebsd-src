@@ -40,6 +40,7 @@ options 	UFS_DIRHASH		# Improve performance on big directories
 options 	MD_ROOT			# MD is a potential root device
 options 	NFSCLIENT		# Network Filesystem Client
 options 	NFSSERVER		# Network Filesystem Server
+options 	NFSLOCKD		# Network Lock Manager
 options 	NFS_ROOT		# NFS usable as /, requires NFSCLIENT
 options 	MSDOSFS			# MSDOS Filesystem
 options 	CD9660			# ISO 9660 Filesystem
@@ -57,6 +58,13 @@ options 	SYSVSEM			# SYSV-style semaphores
 options 	_KPOSIX_PRIORITY_SCHEDULING # POSIX P1003_1B real-time extensions
 options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
 options 	ADAPTIVE_GIANT		# Giant mutex is adaptive.
+
+options 	KDB
+options 	KDB_TRACE
+options 	KDB_UNATTENDED
+options 	DDB
+options 	DDB_NUMSYM
+options 	GDB
 
 device		apic			# I/O APIC
 

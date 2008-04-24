@@ -136,6 +136,7 @@ SUBDIR=	${_3dfx} \
 	${_ixgb} \
 	joy \
 	kbdmux \
+	krpc \
 	kue \
 	le \
 	lge \
@@ -178,6 +179,7 @@ SUBDIR=	${_3dfx} \
 	${_ndis} \
 	netgraph \
 	nfsclient \
+	nfslockd \
 	nfsserver \
 	nge \
 	nmdm \

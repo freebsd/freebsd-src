@@ -30,6 +30,7 @@ SUBDIR=	ac \
 	chown \
 	chroot \
 	ckdist \
+	clear_locks \
 	config \
 	cron \
 	crunch \

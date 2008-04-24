@@ -1893,6 +1893,12 @@ nfsserver/nfs_srvsock.c		optional nfsserver
 nfsserver/nfs_srvcache.c	optional nfsserver
 nfsserver/nfs_srvsubs.c		optional nfsserver
 nfsserver/nfs_syscalls.c	optional nfsserver
+nlm/nlm_prot_clnt.c		optional nfslockd
+nlm/nlm_prot_impl.c		optional nfslockd
+nlm/nlm_prot_server.c		optional nfslockd
+nlm/nlm_prot_svc.c		optional nfslockd
+nlm/nlm_prot_xdr.c		optional nfslockd
+nlm/sm_inter_xdr.c		optional nfslockd
 # crypto support
 opencrypto/cast.c		optional crypto
 opencrypto/cast.c		optional ipsec ipsec_esp
@@ -1932,7 +1938,27 @@ pci/xrpu.c			optional xrpu pci
 posix4/ksched.c			optional _kposix_priority_scheduling
 posix4/p1003_1b.c		standard
 posix4/posix4_mib.c		standard
+rpc/auth_none.c			optional nfslockd
+rpc/auth_unix.c			optional nfslockd
+rpc/authunix_prot.c		optional nfslockd
+rpc/clnt_dg.c			optional nfslockd
+rpc/clnt_rc.c			optional nfslockd
+rpc/clnt_vc.c			optional nfslockd
+rpc/getnetconfig.c		optional nfslockd
+rpc/inet_ntop.c			optional nfslockd
+rpc/inet_pton.c			optional nfslockd
+rpc/rpc_callmsg.c		optional nfslockd
+rpc/rpc_generic.c		optional nfslockd
+rpc/rpc_prot.c			optional nfslockd
+rpc/rpcb_clnt.c			optional nfslockd
+rpc/rpcb_prot.c			optional nfslockd
 rpc/rpcclnt.c			optional nfsclient
+rpc/svc.c			optional nfslockd
+rpc/svc_auth.c			optional nfslockd
+rpc/svc_auth_unix.c		optional nfslockd
+rpc/svc_dg.c			optional nfslockd
+rpc/svc_generic.c		optional nfslockd
+rpc/svc_vc.c			optional nfslockd
 security/audit/audit.c		optional audit
 security/audit/audit_arg.c	optional audit
 security/audit/audit_bsm.c	optional audit
@@ -2007,3 +2033,9 @@ vm/vm_pager.c			standard
 vm/vm_unix.c			standard
 vm/vm_zeroidle.c		standard
 vm/vnode_pager.c		standard
+xdr/xdr.c			optional nfslockd
+xdr/xdr_array.c			optional nfslockd
+xdr/xdr_mbuf.c			optional nfslockd
+xdr/xdr_mem.c			optional nfslockd
+xdr/xdr_reference.c		optional nfslockd
+xdr/xdr_sizeof.c		optional nfslockd
