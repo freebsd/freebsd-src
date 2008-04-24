@@ -554,6 +554,15 @@ m_chtype(struct mbuf *m, short new_type)
 	m->m_type = new_type;
 }
 
+static __inline struct mbuf *
+m_last(struct mbuf *m)
+{
+
+	while (m->m_next)
+		m = m->m_next;
+	return (m);
+}
+
 /*
  * mbuf, cluster, and external object allocation macros
  * (for compatibility purposes).

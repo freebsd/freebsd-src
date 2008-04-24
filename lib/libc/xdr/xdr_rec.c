@@ -574,6 +574,12 @@ __xdrrec_getrec(xdrs, statp, expectdata)
 			rstrm->in_header &= ~LAST_FRAG;
 			rstrm->last_frag = TRUE;
 		}
+		/*
+		 * We can only reasonably expect to read once from a
+		 * non-blocking stream. Reading the fragment header
+		 * may have drained the stream.
+		 */
+		expectdata = FALSE;
 	}
 
 	n =  rstrm->readit(rstrm->tcp_handle,
