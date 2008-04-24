@@ -269,7 +269,9 @@ rtalloc_mpath(struct route *ro, int hash)
 	ro->ro_rt = rtalloc1(&ro->ro_dst, 1, 0UL);
 
 	/* if the route does not exist or it is not multipath, don't care */
-	if (!ro->ro_rt || !rn_mpath_next((struct radix_node *)ro->ro_rt)) {
+	if (ro->ro_rt == NULL)
+		return;
+	if (rn_mpath_next((struct radix_node *)ro->ro_rt) == NULL) {
 		RT_UNLOCK(ro->ro_rt);
 		return;
 	}
