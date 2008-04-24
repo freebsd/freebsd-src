@@ -94,7 +94,7 @@ hash32_stre(const void *buf, int end, char **ep, uint32_t hash)
 		hash = HASHSTEP(hash, *p++);
 
 	if (ep)
-		*ep = (char *)p;
+		*ep = (char *)(uintptr_t)p;
 
 	return hash;
 }
@@ -113,7 +113,7 @@ hash32_strne(const void *buf, size_t len, int end, char **ep, uint32_t hash)
 		hash = HASHSTEP(hash, *p++);
 
 	if (ep)
-		*ep = (char *)p;
+		*ep = (char *)(uintptr_t)p;
 
 	return hash;
 }

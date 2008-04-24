@@ -135,4 +135,13 @@ extern const char *__progname;
  */
 extern struct _spinlock *__malloc_lock;
 
+/*
+ * Get kern.osreldate to detect ABI revisions.  Explicitly
+ * ignores value of $OSVERSION and caches result.
+ */
+extern int __getosreldate(void);
+
+/* Without back-compat translation */
+extern int	__sys_fcntl(int, int, ...);
+
 #endif /* _LIBC_PRIVATE_H_ */

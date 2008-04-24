@@ -389,6 +389,8 @@ TCP_SIGNATURE		opt_inet.h
 TCP_SACK_DEBUG		opt_tcp_sack.h 
 TCP_DROP_SYNFIN		opt_tcp_input.h
 XBONEHACK
+KRPC
+NFSLOCKD
 
 # Netgraph(4). Use option NETGRAPH to enable the base netgraph code.
 # Each netgraph node type can be either be compiled into the kernel

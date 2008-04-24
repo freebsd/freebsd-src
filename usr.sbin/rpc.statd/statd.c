@@ -167,6 +167,9 @@ main(int argc, char **argv)
 	      }
 	  }
 
+	  if (nconf->nc_semantics != NC_TPI_CLTS)
+	      listen(sock, SOMAXCONN);
+
 	  transp = svc_tli_create(sock, nconf, NULL,
 	    	RPC_MAXDATASIZE, RPC_MAXDATASIZE);
       } else {

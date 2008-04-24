@@ -19,6 +19,10 @@
 
 # Sources common to both syscall interfaces:
 SRCS+=	ftruncate.c lseek.c mmap.c pread.c pwrite.c truncate.c __error.c
+.if !defined(WITHOUT_SYSCALL_COMPAT)
+SRCS+=	fcntl.c
+PSEUDO+= _fcntl.o
+.endif
 
 # Add machine dependent asm sources:
 SRCS+=${MDASM}
