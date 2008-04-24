@@ -132,7 +132,7 @@ cpu_thread_clean(struct thread *td)
 }
 
 void
-cpu_thread_setup(struct thread *td)
+cpu_thread_alloc(struct thread *td)
 {
 	struct pcb *pcb;
 
@@ -143,6 +143,11 @@ cpu_thread_setup(struct thread *td)
 	td->td_pcb = pcb;
 }
 
+void
+cpu_thread_free(struct thread *td)
+{
+}
+ 
 void
 cpu_thread_swapin(struct thread *td)
 {

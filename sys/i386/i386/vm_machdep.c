@@ -361,13 +361,20 @@ cpu_thread_swapout(struct thread *td)
 }
 
 void
-cpu_thread_setup(struct thread *td)
+cpu_thread_alloc(struct thread *td)
 {
 
 	td->td_pcb = (struct pcb *)(td->td_kstack +
 	    td->td_kstack_pages * PAGE_SIZE) - 1;
 	td->td_frame = (struct trapframe *)((caddr_t)td->td_pcb - 16) - 1;
 	td->td_pcb->pcb_ext = NULL; 
+}
+
+void
+cpu_thread_free(struct thread *td)
+{
+
+	cpu_thread_clean(td);
 }
 
 /*
