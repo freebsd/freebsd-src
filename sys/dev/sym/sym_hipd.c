@@ -614,7 +614,7 @@ static m_addr_t ___dma_getp(m_pool_s *mp)
 		goto out_err;
 
 	if (bus_dmamem_alloc(mp->dmat, &vaddr,
-			      BUS_DMA_NOWAIT, &vbp->dmamap))
+			BUS_DMA_COHERENT | BUS_DMA_WAITOK, &vbp->dmamap))
 		goto out_err;
 	bus_dmamap_load(mp->dmat, vbp->dmamap, vaddr,
 			MEMO_CLUSTER_SIZE, getbaddrcb, &baddr, BUS_DMA_NOWAIT);
@@ -680,7 +680,7 @@ static m_pool_s *___cre_dma_pool(bus_dma_tag_t dev_dmat)
 			       BUS_SPACE_MAXADDR,
 			       NULL, NULL, MEMO_CLUSTER_SIZE, 1,
 			       MEMO_CLUSTER_SIZE, 0,
-			       busdma_lock_mutex, &Giant, &mp->dmat)) {
+			       NULL, NULL, &mp->dmat)) {
 			mp->getp = ___dma_getp;
 #ifdef	MEMO_FREE_UNUSED
 			mp->freep = ___dma_freep;
@@ -876,28 +876,28 @@ struct sym_nvram {
 
 #if defined(SYM_CONF_IOMAPPED)
 
-#define INB_OFF(o)	bus_space_read_1(np->io_tag, np->io_bsh, o)
-#define INW_OFF(o)	bus_space_read_2(np->io_tag, np->io_bsh, o)
-#define INL_OFF(o)	bus_space_read_4(np->io_tag, np->io_bsh, o)
+#define INB_OFF(o)	bus_read_1(np->io_res, (o))
+#define INW_OFF(o)	bus_read_2(np->io_res, (o))
+#define INL_OFF(o)	bus_read_4(np->io_res, (o))
 
-#define OUTB_OFF(o, v)	bus_space_write_1(np->io_tag, np->io_bsh, o, (v))
-#define OUTW_OFF(o, v)	bus_space_write_2(np->io_tag, np->io_bsh, o, (v))
-#define OUTL_OFF(o, v)	bus_space_write_4(np->io_tag, np->io_bsh, o, (v))
+#define OUTB_OFF(o, v)	bus_write_1(np->io_res, (o), (v))
+#define OUTW_OFF(o, v)	bus_write_2(np->io_res, (o), (v))
+#define OUTL_OFF(o, v)	bus_write_4(np->io_res, (o), (v))
 
 #else	/* Memory mapped IO */
 
-#define INB_OFF(o)	bus_space_read_1(np->mmio_tag, np->mmio_bsh, o)
-#define INW_OFF(o)	bus_space_read_2(np->mmio_tag, np->mmio_bsh, o)
-#define INL_OFF(o)	bus_space_read_4(np->mmio_tag, np->mmio_bsh, o)
+#define INB_OFF(o)	bus_read_1(np->mmio_res, (o))
+#define INW_OFF(o)	bus_read_2(np->mmio_res, (o))
+#define INL_OFF(o)	bus_read_4(np->mmio_res, (o))
 
-#define OUTB_OFF(o, v)	bus_space_write_1(np->mmio_tag, np->mmio_bsh, o, (v))
-#define OUTW_OFF(o, v)	bus_space_write_2(np->mmio_tag, np->mmio_bsh, o, (v))
-#define OUTL_OFF(o, v)	bus_space_write_4(np->mmio_tag, np->mmio_bsh, o, (v))
+#define OUTB_OFF(o, v)	bus_write_1(np->mmio_res, (o), (v))
+#define OUTW_OFF(o, v)	bus_write_2(np->mmio_res, (o), (v))
+#define OUTL_OFF(o, v)	bus_write_4(np->mmio_res, (o), (v))
 
 #endif	/* SYM_CONF_IOMAPPED */
 
 #define OUTRAM_OFF(o, a, l)	\
-	bus_space_write_region_1(np->ram_tag, np->ram_bsh, o, (a), (l))
+	bus_write_region_1(np->ram_res, (o), (a), (l))
 
 
 /*
@@ -1033,6 +1033,13 @@ struct sym_nvram {
 /*
  *  Misc.
  */
+#define	SYM_LOCK()		mtx_lock(&np->mtx)
+#define	SYM_LOCK_ASSERT(_what)	mtx_assert(&np->mtx, (_what))
+#define	SYM_LOCK_DESTROY()	mtx_destroy(&np->mtx)
+#define	SYM_LOCK_INIT()		mtx_init(&np->mtx, "sym_lock", NULL, MTX_DEF)
+#define	SYM_LOCK_INITIALIZED()	mtx_initialized(&np->mtx)
+#define	SYM_UNLOCK()		mtx_unlock(&np->mtx)
+
 #define SYM_SNOOP_TIMEOUT (10000000)
 #define SYM_PCI_IO	PCIR_BAR(0)
 #define SYM_PCI_MMIO	PCIR_BAR(1)
@@ -1396,6 +1403,7 @@ struct sym_ccb {
 	/*
 	 *  Pointer to CAM ccb and related stuff.
 	 */
+	struct callout ch;	/* callout handle		*/
 	union ccb *cam_ccb;	/* CAM scsiio ccb		*/
 	u8	cdb_buf[16];	/* Copy of CDB			*/
 	u8	*sns_bbuf;	/* Bounce buffer for sense data	*/
@@ -1462,6 +1470,8 @@ struct sym_ccb {
  *  Host Control Block
  */
 struct sym_hcb {
+	struct mtx	mtx;
+
 	/*
 	 *  Global headers.
 	 *  Due to poorness of addressing capabilities, earlier
@@ -1566,12 +1576,6 @@ struct sym_hcb {
 	 *  deals with part of the BUS stuff complexity only to fit O/S
 	 *  requirements.
 	 */
-	bus_space_handle_t	io_bsh;
-	bus_space_tag_t		io_tag;
-	bus_space_handle_t	mmio_bsh;
-	bus_space_tag_t		mmio_tag;
-	bus_space_handle_t	ram_bsh;
-	bus_space_tag_t		ram_tag;
 
 	/*
 	 *  DMA stuff.
@@ -1579,18 +1583,13 @@ struct sym_hcb {
 	bus_dma_tag_t	bus_dmat;	/* DMA tag from parent BUS	*/
 	bus_dma_tag_t	data_dmat;	/* DMA tag for user data	*/
 	/*
-	 *  Virtual and physical bus addresses of the chip.
+	 *  BUS addresses of the chip
 	 */
-	vm_offset_t	mmio_va;	/* MMIO kernel virtual address	*/
-	vm_offset_t	mmio_pa;	/* MMIO CPU physical address	*/
 	vm_offset_t	mmio_ba;	/* MMIO BUS address		*/
 	int		mmio_ws;	/* MMIO Window size		*/
 
-	vm_offset_t	ram_va;		/* RAM kernel virtual address	*/
-	vm_offset_t	ram_pa;		/* RAM CPU physical address	*/
 	vm_offset_t	ram_ba;		/* RAM BUS address		*/
 	int		ram_ws;		/* RAM window size		*/
-	u32		io_port;	/* IO port address		*/
 
 	/*
 	 *  SCRIPTS virtual and physical bus addresses.
@@ -2265,11 +2264,10 @@ static void sym_getclock (hcb_p np, int mult);
 static int  sym_getpciclock (hcb_p np);
 static void sym_complete_ok (hcb_p np, ccb_p cp);
 static void sym_complete_error (hcb_p np, ccb_p cp);
-static void sym_timeout (void *arg);
+static void sym_callout (void *arg);
 static int  sym_abort_scsiio (hcb_p np, union ccb *ccb, int timed_out);
 static void sym_reset_dev (hcb_p np, union ccb *ccb);
 static void sym_action (struct cam_sim *sim, union ccb *ccb);
-static void sym_action1 (struct cam_sim *sim, union ccb *ccb);
 static int  sym_setup_cdb (hcb_p np, struct ccb_scsiio *csio, ccb_p cp);
 static void sym_setup_data_and_start (hcb_p np, struct ccb_scsiio *csio,
 				      ccb_p cp);
@@ -2348,13 +2346,19 @@ static __inline int sym_get_cam_status(union ccb *ccb)
 /*
  *  Enqueue a CAM CCB.
  */
-static void sym_enqueue_cam_ccb(hcb_p np, union ccb *ccb)
+static void sym_enqueue_cam_ccb(ccb_p cp)
 {
+	hcb_p np;
+	union ccb *ccb;
+
+	ccb = cp->cam_ccb;
+	np = (hcb_p) cp->arg;
+
 	assert(!(ccb->ccb_h.status & CAM_SIM_QUEUED));
 	ccb->ccb_h.status = CAM_REQ_INPROG;
 
-	ccb->ccb_h.timeout_ch = timeout(sym_timeout, (caddr_t) ccb,
-				       ccb->ccb_h.timeout*hz/1000);
+	callout_reset(&cp->ch, ccb->ccb_h.timeout * hz / 1000, sym_callout,
+			(caddr_t) ccb);
 	ccb->ccb_h.status |= CAM_SIM_QUEUED;
 	ccb->ccb_h.sym_hcb_ptr = np;
 
@@ -2364,23 +2368,37 @@ static void sym_enqueue_cam_ccb(hcb_p np, union ccb *ccb)
 /*
  *  Complete a pending CAM CCB.
  */
-static void sym_xpt_done(hcb_p np, union ccb *ccb)
+static void _sym_xpt_done(hcb_p np, union ccb *ccb)
 {
-	if (ccb->ccb_h.status & CAM_SIM_QUEUED) {
-		untimeout(sym_timeout, (caddr_t) ccb, ccb->ccb_h.timeout_ch);
-		sym_remque(sym_qptr(&ccb->ccb_h.sim_links));
-		ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
-		ccb->ccb_h.sym_hcb_ptr = NULL;
-	}
+	SYM_LOCK_ASSERT(MA_OWNED);
+
+	KASSERT((ccb->ccb_h.status & CAM_SIM_QUEUED) == 0,
+			("%s: status=CAM_SIM_QUEUED", __func__));
+
 	if (ccb->ccb_h.flags & CAM_DEV_QFREEZE)
 		sym_freeze_cam_ccb(ccb);
 	xpt_done(ccb);
 }
 
+static void sym_xpt_done(hcb_p np, union ccb *ccb, ccb_p cp)
+{
+	SYM_LOCK_ASSERT(MA_OWNED);
+
+	if (ccb->ccb_h.status & CAM_SIM_QUEUED) {
+		callout_stop(&cp->ch);
+		sym_remque(sym_qptr(&ccb->ccb_h.sim_links));
+		ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
+		ccb->ccb_h.sym_hcb_ptr = NULL;
+	}
+	_sym_xpt_done(np, ccb);
+}
+
 static void sym_xpt_done2(hcb_p np, union ccb *ccb, int cam_status)
 {
+	SYM_LOCK_ASSERT(MA_OWNED);
+
 	sym_set_cam_status(ccb, cam_status);
-	sym_xpt_done(np, ccb);
+	_sym_xpt_done(np, ccb);
 }
 
 /*
@@ -3070,6 +3088,8 @@ static int sym_wakeup_done (hcb_p np)
 	int i, n;
 	u32 dsa;
 
+	SYM_LOCK_ASSERT(MA_OWNED);
+
 	n = 0;
 	i = np->dqueueget;
 	while (1) {
@@ -3122,6 +3142,8 @@ static void sym_init (hcb_p np, int reason)
 {
  	int	i;
 	u32	phys;
+
+	SYM_LOCK_ASSERT(MA_OWNED);
 
  	/*
 	 *  Reset chip if asked, otherwise just clear fifos.
@@ -3824,6 +3846,8 @@ static void sym_intr1 (hcb_p np)
 	u_char	dstat;
 	u_short	sist;
 
+	SYM_LOCK_ASSERT(MA_OWNED);
+
 	/*
 	 *  interrupt on the fly ?
 	 *
@@ -3961,16 +3985,18 @@ unknown_int:
 
 static void sym_intr(void *arg)
 {
+	hcb_p np = arg;
+
+	SYM_LOCK();
 	if (DEBUG_FLAGS & DEBUG_TINY) printf ("[");
 	sym_intr1((hcb_p) arg);
 	if (DEBUG_FLAGS & DEBUG_TINY) printf ("]");
+	SYM_UNLOCK();
 }
 
 static void sym_poll(struct cam_sim *sim)
 {
-	int s = splcam();
-	sym_intr(cam_sim_softc(sim));
-	splx(s);
+	sym_intr1(cam_sim_softc(sim));
 }
 
 
@@ -4634,9 +4660,9 @@ sym_flush_comp_queue(hcb_p np, int cam_status)
 		ccb = cp->cam_ccb;
 		if (cam_status)
 			sym_set_cam_status(ccb, cam_status);
-		sym_free_ccb(np, cp);
 		sym_freeze_cam_ccb(ccb);
-		sym_xpt_done(np, ccb);
+		sym_xpt_done(np, ccb, cp);
+		sym_free_ccb(np, cp);
 	}
 }
 
@@ -4667,6 +4693,8 @@ static void sym_sir_bad_scsi_status(hcb_p np, int num, ccb_p cp)
 	int		msglen;
 	int		nego;
 	int		i;
+
+	SYM_LOCK_ASSERT(MA_OWNED);
 
 	/*
 	 *  Compute the index of the next job to start from SCRIPTS.
@@ -6010,6 +6038,8 @@ static void sym_int_sir (hcb_p np)
 	tcb_p	tp	= &np->target[target];
 	int	tmp;
 
+	SYM_LOCK_ASSERT(MA_OWNED);
+
 	if (DEBUG_FLAGS & DEBUG_TINY) printf ("I#%d", num);
 
 	switch (num) {
@@ -6275,7 +6305,7 @@ static	ccb_p sym_get_ccb (hcb_p np, u_char tn, u_char ln, u_char tag_order)
 	 *  Look for a free CCB
 	 */
 	if (sym_que_empty(&np->free_ccbq))
-		(void) sym_alloc_ccb(np);
+		goto out;
 	qp = sym_remque_head(&np->free_ccbq);
 	if (!qp)
 		goto out;
@@ -6483,6 +6513,8 @@ static ccb_p sym_alloc_ccb(hcb_p np)
 	ccb_p cp = NULL;
 	int hcode;
 
+	SYM_LOCK_ASSERT(MA_NOTOWNED);
+
 	/*
 	 *  Prevent from allocating more CCBs than we can
 	 *  queue to the controller.
@@ -6495,7 +6527,7 @@ static ccb_p sym_alloc_ccb(hcb_p np)
 	 */
 	cp = sym_calloc_dma(sizeof(struct sym_ccb), "CCB");
 	if (!cp)
-		goto out_free;
+		return NULL;
 
 	/*
 	 *  Allocate a bounce buffer for sense data.
@@ -6513,6 +6545,11 @@ static ccb_p sym_alloc_ccb(hcb_p np)
 	 *  Count it.
 	 */
 	np->actccbs++;
+
+	/*
+	 * Initialize the callout.
+	 */
+	callout_init(&cp->ch, 1);
 
 	/*
 	 *  Compute the bus address of this ccb.
@@ -6544,11 +6581,9 @@ static ccb_p sym_alloc_ccb(hcb_p np)
 
 	return cp;
 out_free:
-	if (cp) {
-		if (cp->sns_bbuf)
-			sym_mfree_dma(cp->sns_bbuf,SYM_SNS_BBUF_LEN,"SNS_BBUF");
-		sym_mfree_dma(cp, sizeof(*cp), "CCB");
-	}
+	if (cp->sns_bbuf)
+		sym_mfree_dma(cp->sns_bbuf, SYM_SNS_BBUF_LEN, "SNS_BBUF");
+	sym_mfree_dma(cp, sizeof(*cp), "CCB");
 	return NULL;
 }
 
@@ -7117,6 +7152,8 @@ static void sym_complete_error (hcb_p np, ccb_p cp)
 	u_int cam_status;
 	int i;
 
+	SYM_LOCK_ASSERT(MA_OWNED);
+
 	/*
 	 *  Paranoid check. :)
 	 */
@@ -7265,6 +7302,8 @@ static void sym_complete_ok (hcb_p np, ccb_p cp)
 	tcb_p tp;
 	lcb_p lp;
 
+	SYM_LOCK_ASSERT(MA_OWNED);
+
 	/*
 	 *  Paranoid check. :)
 	 */
@@ -7314,14 +7353,14 @@ static void sym_complete_ok (hcb_p np, ccb_p cp)
 	 */
 	csio->scsi_status = cp->ssss_status;
 	sym_set_cam_status((union ccb *) csio, CAM_REQ_CMP);
-	sym_free_ccb (np, cp);
-	sym_xpt_done(np, (union ccb *) csio);
+	sym_xpt_done(np, (union ccb *) csio, cp);
+	sym_free_ccb(np, cp);
 }
 
 /*
- *  Our timeout handler.
+ *  Our callout handler
  */
-static void sym_timeout1(void *arg)
+static void sym_callout(void *arg)
 {
 	union ccb *ccb = (union ccb *) arg;
 	hcb_p np = ccb->ccb_h.sym_hcb_ptr;
@@ -7332,6 +7371,8 @@ static void sym_timeout1(void *arg)
 	if (!np)
 		return;
 
+	SYM_LOCK();
+
 	switch(ccb->ccb_h.func_code) {
 	case XPT_SCSI_IO:
 		(void) sym_abort_scsiio(np, ccb, 1);
@@ -7339,13 +7380,8 @@ static void sym_timeout1(void *arg)
 	default:
 		break;
 	}
-}
 
-static void sym_timeout(void *arg)
-{
-	int s = splcam();
-	sym_timeout1(arg);
-	splx(s);
+	SYM_UNLOCK();
 }
 
 /*
@@ -7355,6 +7391,8 @@ static int sym_abort_scsiio(hcb_p np, union ccb *ccb, int timed_out)
 {
 	ccb_p cp;
 	SYM_QUEHEAD *qp;
+
+	SYM_LOCK_ASSERT(MA_OWNED);
 
 	/*
 	 *  Look up our CCB control block.
@@ -7383,7 +7421,7 @@ static int sym_abort_scsiio(hcb_p np, union ccb *ccb, int timed_out)
 	 *  Mark the CCB for abort and allow time for.
 	 */
 	cp->to_abort = timed_out ? 2 : 1;
-	ccb->ccb_h.timeout_ch = timeout(sym_timeout, (caddr_t) ccb, 10*hz);
+	callout_reset(&cp->ch, 10 * hz, sym_callout, (caddr_t) ccb);
 
 	/*
 	 *  Tell the SCRIPTS processor to stop and synchronize with us.
@@ -7400,6 +7438,8 @@ static void sym_reset_dev(hcb_p np, union ccb *ccb)
 {
 	tcb_p tp;
 	struct ccb_hdr *ccb_h = &ccb->ccb_h;
+
+	SYM_LOCK_ASSERT(MA_OWNED);
 
 	if (ccb_h->target_id   == np->myaddr ||
 	    ccb_h->target_id   >= SYM_CONF_MAX_TARGET ||
@@ -7422,13 +7462,6 @@ static void sym_reset_dev(hcb_p np, union ccb *ccb)
  */
 static void sym_action(struct cam_sim *sim, union ccb *ccb)
 {
-	int s = splcam();
-	sym_action1(sim, ccb);
-	splx(s);
-}
-
-static void sym_action1(struct cam_sim *sim, union ccb *ccb)
-{
 	hcb_p	np;
 	tcb_p	tp;
 	lcb_p	lp;
@@ -7445,6 +7478,8 @@ static void sym_action1(struct cam_sim *sim, union ccb *ccb)
 	 *  Retrieve our controller data structure.
 	 */
 	np = (hcb_p) cam_sim_softc(sim);
+
+	SYM_LOCK_ASSERT(MA_OWNED);
 
 	/*
 	 *  The common case is SCSI IO.
@@ -7603,8 +7638,8 @@ static void sym_action1(struct cam_sim *sim, union ccb *ccb)
 	 *  command
 	 */
 	if (sym_setup_cdb(np, csio, cp) < 0) {
+		sym_xpt_done(np, ccb, cp);
 		sym_free_ccb(np, cp);
-		sym_xpt_done(np, ccb);
 		return;
 	}
 
@@ -7645,6 +7680,8 @@ static int sym_setup_cdb(hcb_p np, struct ccb_scsiio *csio, ccb_p cp)
 	struct ccb_hdr *ccb_h;
 	u32	cmd_ba;
 	int	cmd_len;
+
+	SYM_LOCK_ASSERT(MA_OWNED);
 
 	ccb_h = &csio->ccb_h;
 
@@ -7692,6 +7729,8 @@ sym_setup_data_pointers(hcb_p np, ccb_p cp, int dir)
 {
 	u32 lastp, goalp;
 
+	SYM_LOCK_ASSERT(MA_OWNED);
+
 	/*
 	 *  No segments means no data.
 	 */
@@ -7735,13 +7774,12 @@ sym_execute_ccb(void *arg, bus_dma_segment_t *psegs, int nsegs, int error)
 	ccb_p	cp;
 	hcb_p	np;
 	union	ccb *ccb;
-	int	s;
-
-	s = splcam();
 
 	cp  = (ccb_p) arg;
 	ccb = cp->cam_ccb;
 	np  = (hcb_p) cp->arg;
+
+	SYM_LOCK_ASSERT(MA_OWNED);
 
 	/*
 	 *  Deal with weird races.
@@ -7798,7 +7836,7 @@ sym_execute_ccb(void *arg, bus_dma_segment_t *psegs, int nsegs, int error)
 	/*
 	 *  Enqueue this IO in our pending queue.
 	 */
-	sym_enqueue_cam_ccb(np, ccb);
+	sym_enqueue_cam_ccb(cp);
 
 	/*
 	 *  When `#ifed 1', the code below makes the driver
@@ -7820,13 +7858,10 @@ sym_execute_ccb(void *arg, bus_dma_segment_t *psegs, int nsegs, int error)
 	 *  Activate this job.
 	 */
 	sym_put_start_queue(np, cp);
-out:
-	splx(s);
 	return;
 out_abort:
+	sym_xpt_done(np, ccb, cp);
 	sym_free_ccb(np, cp);
-	sym_xpt_done(np, ccb);
-	goto out;
 }
 
 /*
@@ -7838,6 +7873,8 @@ sym_setup_data_and_start(hcb_p np, struct ccb_scsiio *csio, ccb_p cp)
 {
 	struct ccb_hdr *ccb_h;
 	int dir, retv;
+
+	SYM_LOCK_ASSERT(MA_OWNED);
 
 	ccb_h = &csio->ccb_h;
 
@@ -7860,11 +7897,8 @@ sym_setup_data_and_start(hcb_p np, struct ccb_scsiio *csio, ccb_p cp)
 		/* Single buffer */
 		if (!(ccb_h->flags & CAM_DATA_PHYS)) {
 			/* Buffer is virtual */
-			int s;
-
 			cp->dmamapped = (dir == CAM_DIR_IN) ?
 						SYM_DMA_READ : SYM_DMA_WRITE;
-			s = splsoftvm();
 			retv = bus_dmamap_load(np->data_dmat, cp->dmamap,
 					       csio->data_ptr, csio->dxfer_len,
 					       sym_execute_ccb, cp, 0);
@@ -7873,7 +7907,6 @@ sym_setup_data_and_start(hcb_p np, struct ccb_scsiio *csio, ccb_p cp)
 				xpt_freeze_simq(np->sim, 1);
 				csio->ccb_h.status |= CAM_RELEASE_SIMQ;
 			}
-			splx(s);
 		} else {
 			/* Buffer is physical */
 			struct bus_dma_segment seg;
@@ -7903,8 +7936,8 @@ sym_setup_data_and_start(hcb_p np, struct ccb_scsiio *csio, ccb_p cp)
 	}
 	return;
 out_abort:
+	sym_xpt_done(np, (union ccb *) csio, cp);
 	sym_free_ccb(np, cp);
-	sym_xpt_done(np, (union ccb *) csio);
 }
 
 /*
@@ -7916,6 +7949,8 @@ sym_fast_scatter_sg_physical(hcb_p np, ccb_p cp,
 {
 	struct sym_tblmove *data;
 	bus_dma_segment_t *psegs2;
+
+	SYM_LOCK_ASSERT(MA_OWNED);
 
 	if (nsegs > SYM_CONF_MAX_SG)
 		return -1;
@@ -7955,6 +7990,8 @@ sym_scatter_sg_physical(hcb_p np, ccb_p cp, bus_dma_segment_t *psegs, int nsegs)
 	u_long	ps, pe, pn;
 	u_long	k;
 	int s, t;
+
+	SYM_LOCK_ASSERT(MA_OWNED);
 
 	s  = SYM_CONF_MAX_SG - 1;
 	t  = nsegs - 1;
@@ -8003,6 +8040,8 @@ static void sym_action2(struct cam_sim *sim, union ccb *ccb)
 	 *  Retrieve our controller data structure.
 	 */
 	np = (hcb_p) cam_sim_softc(sim);
+
+	SYM_LOCK_ASSERT(MA_OWNED);
 
 	ccb_h = &ccb->ccb_h;
 
@@ -8182,12 +8221,11 @@ sym_async(void *cb_arg, u32 code, struct cam_path *path, void *arg)
 	struct cam_sim *sim;
 	u_int tn;
 	tcb_p tp;
-	int s;
-
-	s = splcam();
 
 	sim = (struct cam_sim *) cb_arg;
 	np  = (hcb_p) cam_sim_softc(sim);
+
+	SYM_LOCK_ASSERT(MA_OWNED);
 
 	switch (code) {
 	case AC_LOST_DEVICE:
@@ -8211,8 +8249,6 @@ sym_async(void *cb_arg, u32 code, struct cam_path *path, void *arg)
 	default:
 		break;
 	}
-
-	splx(s);
 }
 
 /*
@@ -8221,6 +8257,8 @@ sym_async(void *cb_arg, u32 code, struct cam_path *path, void *arg)
 static void sym_update_trans(hcb_p np, tcb_p tp, struct sym_trans *tip,
 			    struct ccb_trans_settings *cts)
 {
+	SYM_LOCK_ASSERT(MA_OWNED);
+
 	/*
 	 *  Update the infos.
 	 */
@@ -8288,6 +8326,8 @@ static void sym_update_trans(hcb_p np, tcb_p tp, struct sym_trans *tip,
 static void
 sym_update_dflags(hcb_p np, u_char *flags, struct ccb_trans_settings *cts)
 {
+	SYM_LOCK_ASSERT(MA_OWNED);
+
 #define	cts__scsi (&cts->proto_specific.scsi)
 #define	cts__spi  (&cts->xport_specific.spi)
 	if ((cts__spi->valid & CTS_SPI_VALID_DISC) != 0) {
@@ -8320,7 +8360,7 @@ static device_method_t sym_pci_methods[] = {
 static driver_t sym_pci_driver = {
 	"sym",
 	sym_pci_methods,
-	sizeof(struct sym_hcb)
+	1	/* no softc */
 };
 
 static devclass_t sym_devclass;
@@ -8497,7 +8537,9 @@ sym_pci_attach(device_t dev)
 	if (np)
 		np->bus_dmat = bus_dmat;
 	else
-		goto attach_failed;
+		return (ENXIO);
+
+	SYM_LOCK_INIT();
 
 	/*
 	 *  Copy some useful infos to the HCB.
@@ -8544,7 +8586,7 @@ sym_pci_attach(device_t dev)
 				BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR,
 				NULL, NULL,
 				BUS_SPACE_MAXSIZE, SYM_CONF_MAX_SG,
-				(1<<24), 0, busdma_lock_mutex, &Giant,
+				(1<<24), 0, busdma_lock_mutex, &np->mtx,
 				&np->data_dmat)) {
 		device_printf(dev, "failed to create DMA tag.\n");
 		goto attach_failed;
@@ -8584,11 +8626,7 @@ sym_pci_attach(device_t dev)
 		device_printf(dev, "failed to allocate MMIO resources\n");
 		goto attach_failed;
 	}
-	np->mmio_bsh = rman_get_bushandle(np->mmio_res);
-	np->mmio_tag = rman_get_bustag(np->mmio_res);
-	np->mmio_pa  = rman_get_start(np->mmio_res);
-	np->mmio_va  = (vm_offset_t) rman_get_virtual(np->mmio_res);
-	np->mmio_ba  = np->mmio_pa;
+	np->mmio_ba = rman_get_start(np->mmio_res);
 
 	/*
 	 *  Allocate the IRQ.
@@ -8615,9 +8653,6 @@ sym_pci_attach(device_t dev)
 		device_printf(dev, "failed to allocate IO resources\n");
 		goto attach_failed;
 	}
-	np->io_bsh  = rman_get_bushandle(np->io_res);
-	np->io_tag  = rman_get_bustag(np->io_res);
-	np->io_port = rman_get_start(np->io_res);
 
 #endif /* SYM_CONF_IOMAPPED */
 
@@ -8637,11 +8672,7 @@ sym_pci_attach(device_t dev)
 			goto attach_failed;
 		}
 		np->ram_id  = regs_id;
-		np->ram_bsh = rman_get_bushandle(np->ram_res);
-		np->ram_tag = rman_get_bustag(np->ram_res);
-		np->ram_pa  = rman_get_start(np->ram_res);
-		np->ram_va  = (vm_offset_t) rman_get_virtual(np->ram_res);
-		np->ram_ba  = np->ram_pa;
+		np->ram_ba = rman_get_start(np->ram_res);
 	}
 
 	/*
@@ -8710,9 +8741,11 @@ sym_pci_attach(device_t dev)
 		goto attach_failed;
 
 	/*
-	 *  Allocate some CCB. We need at least ONE.
+	 *  Allocate the CCBs. We need at least ONE.
 	 */
-	if (!sym_alloc_ccb(np))
+	for (i = 0; sym_alloc_ccb(np) != NULL; i++)
+		;
+	if (i < 1)
 		goto attach_failed;
 
 	/*
@@ -8857,14 +8890,11 @@ static void sym_pci_free(hcb_p np)
 	tcb_p tp;
 	lcb_p lp;
 	int target, lun;
-	int s;
 
 	/*
 	 *  First free CAM resources.
 	 */
-	s = splcam();
 	sym_cam_free(np);
-	splx(s);
 
 	/*
 	 *  Now every should be quiet for us to
@@ -8931,6 +8961,8 @@ static void sym_pci_free(hcb_p np)
 		sym_mfree_dma(np->targtbl, 256, "TARGTBL");
 	if (np->data_dmat)
 		bus_dma_tag_destroy(np->data_dmat);
+	if (SYM_LOCK_INITIALIZED() != 0)
+		SYM_LOCK_DESTROY();
 	sym_mfree_dma(np, sizeof(*np), "HCB");
 }
 
@@ -8943,16 +8975,14 @@ static int sym_cam_attach(hcb_p np)
 	struct cam_sim *sim = NULL;
 	struct cam_path *path = NULL;
 	struct ccb_setasync csa;
-	int err, s;
-
-	s = splcam();
+	int err;
 
 	/*
 	 *  Establish our interrupt handler.
 	 */
 	err = bus_setup_intr(np->device, np->irq_res,
-			     INTR_TYPE_CAM | INTR_ENTROPY, NULL, sym_intr, np,
-			     &np->intr);
+			INTR_ENTROPY | INTR_MPSAFE | INTR_TYPE_CAM,
+			NULL, sym_intr, np, &np->intr);
 	if (err) {
 		device_printf(np->device, "bus_setup_intr() failed: %d\n",
 			      err);
@@ -8970,15 +9000,15 @@ static int sym_cam_attach(hcb_p np)
 	 *  Construct our SIM entry.
 	 */
 	sim = cam_sim_alloc(sym_action, sym_poll, "sym", np, np->unit,
-			    &Giant, 1, SYM_SETUP_MAX_TAG, devq);
+			&np->mtx, 1, SYM_SETUP_MAX_TAG, devq);
 	if (!sim)
 		goto fail;
-	devq = 0;
+
+	SYM_LOCK();
 
 	if (xpt_bus_register(sim, np->device, 0) != CAM_SUCCESS)
 		goto fail;
 	np->sim = sim;
-	sim = 0;
 
 	if (xpt_create_path(&path, 0,
 			    cam_sim_path(np->sim), CAM_TARGET_WILDCARD,
@@ -9005,7 +9035,7 @@ static int sym_cam_attach(hcb_p np)
 	 */
 	sym_init (np, 0);
 
-	splx(s);
+	SYM_UNLOCK();
 	return 1;
 fail:
 	if (sim)
@@ -9013,9 +9043,10 @@ fail:
 	if (devq)
 		cam_simq_free(devq);
 
+	SYM_UNLOCK();
+
 	sym_cam_free(np);
 
-	splx(s);
 	return 0;
 }
 
@@ -9024,10 +9055,14 @@ fail:
  */
 static void sym_cam_free(hcb_p np)
 {
+	SYM_LOCK_ASSERT(MA_NOTOWNED);
+
 	if (np->intr) {
 		bus_teardown_intr(np->device, np->irq_res, np->intr);
 		np->intr = NULL;
 	}
+
+	SYM_LOCK();
 
 	if (np->sim) {
 		xpt_bus_deregister(cam_sim_path(np->sim));
@@ -9038,6 +9073,8 @@ static void sym_cam_free(hcb_p np)
 		xpt_free_path(np->path);
 		np->path = NULL;
 	}
+
+	SYM_UNLOCK();
 }
 
 /*============ OPTIONNAL NVRAM SUPPORT =================*/
