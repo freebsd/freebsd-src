@@ -17,10 +17,6 @@
    definitions under operating systems (like, say, Windows NT) with different
    file system semantics.  */
 
-/*
- * $FreeBSD$
- */
-
 #include <assert.h>
 #include "cvs.h"
 
