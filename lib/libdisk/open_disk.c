@@ -193,7 +193,7 @@ Int_Open_Disk(const char *name, char *conftxt)
 			if (!strcmp(a, "o"))
 				off = o;
 			else if (!strcmp(a, "i"))
-				i = o;
+				i = (!strcmp(t, "PART")) ? o - 1 : o;
 			else if (!strcmp(a, "ty"))
 				ty = o;
 			else if (!strcmp(a, "sc"))
@@ -202,6 +202,14 @@ Int_Open_Disk(const char *name, char *conftxt)
 				hd = o;
 			else if (!strcmp(a, "alt"))
 				alt = o;
+			else if (!strcmp(a, "xs"))
+				t = b;
+			else if (!strcmp(a, "xt")) {
+				if (*r)
+					sn = b;
+				else
+					ty = o;
+			}
 		}
 
 		/* PLATFORM POLICY BEGIN ----------------------------------- */
@@ -278,11 +286,7 @@ Int_Open_Disk(const char *name, char *conftxt)
 			i = Add_Chunk(d, off, len, n, gpt, 0, 0, b);
 		else if (!strcmp(t, "APPLE"))
 			i = Add_Chunk(d, off, len, n, apple, 0, 0, sn);
-		else if (!strcmp(t, "PART")) {
-#ifdef __powerpc__
-			i = Add_Chunk(d, off, len, n, apple, 0, 0, sn);
-#endif
-		} else
+		else
 			; /* Ignore unknown classes. */
 	}
 	/* PLATFORM POLICY BEGIN ------------------------------------- */
