@@ -36,7 +36,9 @@
 .Op Fl n Ar number
 .Op Fl s Ar size
 .Op Fl t Ar inter-packet gap
-.Op Fl r
+.Op Fl M Ar number of clients (source only)
+.Op Fl m Ar my client number (sink only)
+.Op Fl r 
 .Sh DESCRIPTION
 The 
 .Nm
@@ -48,7 +50,8 @@ the time at which they're received and then reflects them back
 over unicast to the source.  When the source has captured all
 the reflected packets it prints out the round trip time of each.
 .Pp
-The sink prints out the time between the packets received.
+The source prints out the round trip time of packets sent to the
+sinks.  The sink prints out the time between the packets received.
 .Pp
 The options are as follows:
 .Bl -tag -width ".Fl d Ar argument"
@@ -60,6 +63,10 @@ Packet size in bytes.
 Number of packets.
 .It Fl t Ar gap
 Inter-packet gap in nanoseconds.
+.It Fl M Ar clients
+The number of clients that are listening
+.It Fl m Ar my number
+The client's number 0, 1, etc.
 .It Fl r
 This version of
 .Nm
@@ -73,9 +80,9 @@ of the
 command:
 .Pp
 Source
-.Dl "mctest -i em0 -s 1024 -n 100 -t 1"
+.Dl "mctest -i em0 -M 1 -s 1024 -n 100 -t 1"
 Sink
-.Dl "mctest -i em0 -s 1024 -n 100 -r"
+.Dl "mctest -i em0 -m 0 -s 1024 -n 100 -r"
 .Pp
 Send 100 packets of 1024 bytes, with an inter-packet gap of 1 nanosecond.
 .Pp
