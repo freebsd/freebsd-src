@@ -65,6 +65,8 @@ __FBSDID("$FreeBSD$");
 #define GET_NUMBER(VAR)	do {					\
 	VAR = 0;						\
 	while (isdigit((unsigned char)*fmt)) {			\
+		if (VAR > INT_MAX / 10)				\
+			goto e2big_error;			\
 		VAR *= 10;					\
 		VAR += *fmt - '0';				\
 		if (VAR < 0)					\
