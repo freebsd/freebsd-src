@@ -16,9 +16,17 @@ hint.uart.1.irq=13
 
 # NPE Hardware Queue Manager
 hint.ixpqmgr.0.at="ixp0"
+
 # NPE wireless NIC's, requires ixpqmgr
 hint.npe.0.at="ixp0"
+hint.npe.0.mac="A"
+hint.npe.0.mii="A"
+hint.npe.0.phy=0
 hint.npe.1.at="ixp0"
+hint.npe.1.mac="B"
+# NB: on 2348 boards all PHY's are addressed through MAC A
+hint.npe.1.mii="A"
+hint.npe.1.phy=1
 
 # CF IDE controller
 hint.ata_avila.0.at="ixp0"
