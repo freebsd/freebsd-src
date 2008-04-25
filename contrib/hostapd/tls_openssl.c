@@ -1095,6 +1095,18 @@ static int tls_connection_ca_cert(void *_ssl_ctx, struct tls_connection *conn,
 {
 	SSL_CTX *ssl_ctx = _ssl_ctx;
 
+	/*
+	 * Remove previously configured trusted CA certificates before adding
+	 * new ones.
+	 */
+	X509_STORE_free(ssl_ctx->cert_store);
+	ssl_ctx->cert_store = X509_STORE_new();
+	if (ssl_ctx->cert_store == NULL) {
+		wpa_printf(MSG_DEBUG, "OpenSSL: %s - failed to allocate new "
+			   "certificate store", __func__);
+		return -1;
+	}
+
 	if (ca_cert_blob) {
 		X509 *cert = d2i_X509(NULL, (OPENSSL_d2i_TYPE) &ca_cert_blob,
 				      ca_cert_blob_len);
@@ -2272,7 +2284,11 @@ int tls_connection_get_keyblock_size(void *tls_ctx,
 		return -1;
 
 	c = conn->ssl->enc_read_ctx->cipher;
+#if OPENSSL_VERSION_NUMBER >= 0x00909000L
+	h = EVP_MD_CTX_md(conn->ssl->read_hash);
+#else
 	h = conn->ssl->read_hash;
+#endif
 
 	return 2 * (EVP_CIPHER_key_length(c) +
 		    EVP_MD_size(h) +

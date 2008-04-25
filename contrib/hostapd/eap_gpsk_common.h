@@ -32,7 +32,7 @@
 #define EAP_GPSK_MAX_PK_LEN 32
 #define EAP_GPSK_MAX_MIC_LEN 32
 
-#define EAP_GPSK_VENDOR_IETF		0x000000
+#define EAP_GPSK_VENDOR_IETF		0x00000000
 #define EAP_GPSK_CIPHER_RESERVED	0x000000
 #define EAP_GPSK_CIPHER_AES		0x000001
 #define EAP_GPSK_CIPHER_SHA256		0x000002
@@ -43,8 +43,8 @@
 #endif /* _MSC_VER */
 
 struct eap_gpsk_csuite {
-	u8 vendor[3];
-	u8 specifier[3];
+	u8 vendor[4];
+	u8 specifier[2];
 } STRUCT_PACKED;
 
 #ifdef _MSC_VER

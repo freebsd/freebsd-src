@@ -170,9 +170,10 @@ static int test_driver_send_mgmt_frame(void *priv, const void *buf,
 	u16 fc;
 
 	if (drv->test_socket < 0 || len < 10 || drv->socket_dir == NULL) {
-		wpa_printf(MSG_DEBUG, "%s: invalid parameters (sock=%d len=%d "
-			   "socket_dir=%p)",
-			   __func__, drv->test_socket, len, drv->socket_dir);
+		wpa_printf(MSG_DEBUG, "%s: invalid parameters (sock=%d len=%lu"
+			   " socket_dir=%p)",
+			   __func__, drv->test_socket, (unsigned long) len,
+			   drv->socket_dir);
 		return -1;
 	}
 

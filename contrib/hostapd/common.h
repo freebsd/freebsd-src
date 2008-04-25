@@ -264,12 +264,12 @@ enum { MSG_MSGDUMP, MSG_DEBUG, MSG_INFO, MSG_WARNING, MSG_ERROR };
 #define wpa_hexdump_key(l,t,b,le) do { } while (0)
 #define wpa_hexdump_ascii(l,t,b,le) do { } while (0)
 #define wpa_hexdump_ascii_key(l,t,b,le) do { } while (0)
-#define wpa_debug_open_file() do { } while (0)
+#define wpa_debug_open_file(p) do { } while (0)
 #define wpa_debug_close_file() do { } while (0)
 
 #else /* CONFIG_NO_STDOUT_DEBUG */
 
-int wpa_debug_open_file(void);
+int wpa_debug_open_file(const char *path);
 void wpa_debug_close_file(void);
 
 /**
