@@ -131,7 +131,7 @@ getifflags(struct wpa_driver_bsd_data *drv, int *flags)
 		perror("SIOCGIFFLAGS");
 		return errno;
 	}
-	*flags = ifr.ifr_flags & 0xffff;
+	*flags = (ifr.ifr_flags & 0xffff) | (ifr.ifr_flagshigh << 16);
 	return 0;
 }
 
@@ -143,6 +143,7 @@ setifflags(struct wpa_driver_bsd_data *drv, int flags)
 	memset(&ifr, 0, sizeof(ifr));
 	strncpy(ifr.ifr_name, drv->ifname, sizeof (ifr.ifr_name));
 	ifr.ifr_flags = flags & 0xffff;
+	ifr.ifr_flagshigh = flags >> 16;
 	if (ioctl(drv->sock, SIOCSIFFLAGS, (caddr_t)&ifr) < 0) {
 		perror("SIOCSIFFLAGS");
 		return errno;
