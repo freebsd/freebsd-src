@@ -176,7 +176,29 @@ get_ifa(char *cp, int n)
 
 	return (NULL);
 }
+
 struct iaddr defaddr = { 4 };
+uint8_t curbssid[6];
+
+static void
+disassoc(void *arg)
+{
+	struct interface_info *ifi = arg;
+
+	/*
+	 * Clear existing state.
+	 */
+	if (ifi->client->active != NULL) {
+		script_init("EXPIRE", NULL);
+		script_write_params("old_",
+		    ifi->client->active);
+		if (ifi->client->alias)
+			script_write_params("alias_",
+				ifi->client->alias);
+		script_go();
+	}
+	ifi->client->state = S_INIT;
+}
 
 /* ARGSUSED */
 void
@@ -187,6 +209,7 @@ routehandler(struct protocol *p)
 	struct if_msghdr *ifm;
 	struct ifa_msghdr *ifam;
 	struct if_announcemsghdr *ifan;
+	struct ieee80211_join_event *jev;
 	struct client_lease *l;
 	time_t t = time(NULL);
 	struct sockaddr *sa;
@@ -255,24 +278,17 @@ routehandler(struct protocol *p)
 		switch (ifan->ifan_what) {
 		case RTM_IEEE80211_ASSOC:
 		case RTM_IEEE80211_REASSOC:
-			state_reboot(ifi);
-			break;
-		case RTM_IEEE80211_DISASSOC:
 			/*
-			 * Clear existing state; transition to the init
-			 * state and then wait for either a link down
-			 * notification or an associate event.
+			 * Use assoc/reassoc event to kick state machine
+			 * in case we roam.  Otherwise fall back to the
+			 * normal state machine just like a wired network.
 			 */
-			if (ifi->client->active != NULL) {
-				script_init("EXPIRE", NULL);
-				script_write_params("old_",
-				    ifi->client->active);
-				if (ifi->client->alias)
-					script_write_params("alias_",
-						ifi->client->alias);
-				script_go();
+			jev = (struct ieee80211_join_event *) &ifan[1];
+			if (memcmp(curbssid, jev->iev_addr, 6)) {
+				disassoc(ifi);
+				state_reboot(ifi);
 			}
-			ifi->client->state = S_INIT;
+			memcpy(curbssid, jev->iev_addr, 6);
 			break;
 		}
 		break;
