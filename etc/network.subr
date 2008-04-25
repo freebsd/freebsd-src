@@ -476,7 +476,7 @@ clone_up()
 	_prefix=
 	_list=
 	for ifn in ${cloned_interfaces}; do
-		ifconfig ${ifn} create
+		ifconfig ${ifn} create `get_if_var ${ifn} create_args_IF`
 		if [ $? -eq 0 ]; then
 			_list="${_list}${_prefix}${ifn}"
 			[ -z "$_prefix" ] && _prefix=' '
@@ -507,15 +507,22 @@ clone_down()
 #
 childif_create()
 {
-	local cfg child child_vaps create_args ifn i
+	local cfg child child_wlans create_args ifn i
 	cfg=1
 
 	ifn=$1
 
-	# Create VAPs
-	child_vaps=`get_if_var $ifn vaps_IF`
-	for child in ${child_vaps}; do
-		create_args="wlandev $ifn `get_if_var $child vap_create_IF`"
+	# Create wireless interfaces
+	child_wlans=`get_if_var $ifn wlans_IF`
+	if [ -z "${child_wlans}" ]; then
+		child_wlans=`get_if_var $ifn vaps_IF`
+		if [ -n "${child_wlans}" ]; then
+			warn "soon to be deleted vaps_$ifn variable defined use wlans_$ifn"
+		fi
+	fi
+
+	for child in ${child_wlans}; do
+		create_args="wlandev $ifn `get_if_var $child create_args_IF` `get_if_var $child vap_create_IF`"
 		if expr $child : 'wlan[0-9][0-9]*$' >/dev/null 2>&1; then
 			ifconfig $child create ${create_args} && cfg=0
 		else
@@ -532,10 +539,10 @@ childif_create()
 #
 childif_destroy()
 {
-	local cfg child child_vaps ifn
+	local cfg child child_wlans ifn
 
-	child_vaps=`get_if_var $ifn vaps_IF`
-	for child in ${child_vaps}; do
+	child_wlans="`get_if_var $ifn wlans_IF` `get_if_var $ifn vaps_IF`"
+	for child in ${child_wlans}; do
 		ifconfig $child destroy && cfg=0
 	done
 }

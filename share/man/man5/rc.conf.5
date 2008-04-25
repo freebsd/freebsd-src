@@ -1146,6 +1146,26 @@ and
 .Va ifconfig_ Ns Ao Ar interface Ac Ns Va _alias Ns Aq Ar n
 variables.
 .Pp
+If a
+.Va wlans_ Ns Aq Ar interface
+variable is set,
+an
+.Xr wlan 4
+interface will be created for each item in the list with the
+.Ar wlandev
+argument set to
+.Ar interface .
+Further wlan cloning arguments may be passed to the
+.Xr ifconfig 8
+.Cm create
+command by setting the
+.Va create_args_ Ns Aq Ar interface
+variable.
+One or more
+.Xr wlan 4
+devices must be created for each wireless devices as of
+.Fx 8.0 .
+.Pp
 If the
 .Va ifconfig_ Ns Aq Ar interface
 contains the keyword
@@ -1184,12 +1204,14 @@ Finally, you can add
 options in this variable, in addition to the
 .Pa /etc/start_if. Ns Aq Ar interface
 file.
-For instance, to initialize the
-.Li wi0
-device via DHCP, using WPA authentication and 802.11b mode, it is
+For instance, configure an
+.Xr ath 4
+wireless device in station mode with an address obtained 
+via DHCP, using WPA authentication and 802.11b mode, it is
 possible to use something like:
 .Bd -literal
-ifconfig_wi0="DHCP WPA mode 11b"
+wlans_ath0="wlan0"
+ifconfig_wlan0="DHCP WPA mode 11b"
 .Ed
 .Pp
 In addition to the
