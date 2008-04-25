@@ -142,7 +142,10 @@ extern vm_offset_t ksym_start, ksym_end;
 static void cpu_startup(void *);
 SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL);
 
-struct msgbuf *msgbufp=0;
+struct msgbuf *msgbufp = NULL;
+
+/* Other subsystems (e.g., ACPI) can hook this later. */
+void (*cpu_idle_hook)(void) = NULL;
 
 long Maxmem = 0;
 long realmem = 0;
@@ -334,18 +337,15 @@ cpu_halt()
 	efi_reset_system();
 }
 
-static void
-cpu_idle_default(int busy)
+void
+cpu_idle(int busy)
 {
 	struct ia64_pal_result res;
 
-	res = ia64_call_pal_static(PAL_HALT_LIGHT, 0, 0, 0);
-}
-
-void
-cpu_idle()
-{
-	(*cpu_idle_hook)();
+	if (cpu_idle_hook != NULL)
+		(*cpu_idle_hook)();
+	else
+		res = ia64_call_pal_static(PAL_HALT_LIGHT, 0, 0, 0);
 }
 
 int
@@ -354,9 +354,6 @@ cpu_idle_wakeup(int cpu)
 
 	return (0);
 }
-
-/* Other subsystems (e.g., ACPI) can hook this later. */
-void (*cpu_idle_hook)(void) = cpu_idle_default;
 
 void
 cpu_reset()
