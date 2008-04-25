@@ -321,8 +321,7 @@ set(int argc, char **argv)
 			struct timeval tv;
 			gettimeofday(&tv, 0);
 			expire_time = tv.tv_sec + 20 * 60;
-		}
-		else if (strncmp(argv[0], "pub", 3) == 0) {
+		} else if (strncmp(argv[0], "pub", 3) == 0) {
 			flags |= RTF_ANNOUNCE;
 			doing_proxy = 1;
 			if (argc && strncmp(argv[1], "only", 3) == 0) {
@@ -330,6 +329,10 @@ set(int argc, char **argv)
 				dst->sin_other = SIN_PROXY;
 				argc--; argv++;
 			}
+		} else if (strncmp(argv[0], "blackhole", 9) == 0) {
+			flags |= RTF_BLACKHOLE;
+		} else if (strncmp(argv[0], "reject", 6) == 0) {
+			flags |= RTF_REJECT;
 		} else if (strncmp(argv[0], "trail", 5) == 0) {
 			/* XXX deprecated and undocumented feature */
 			printf("%s: Sending trailers is no longer supported\n",
@@ -627,8 +630,8 @@ usage(void)
 		"       arp [-n] [-i interface] -a",
 		"       arp -d hostname [pub]",
 		"       arp -d [-i interface] -a",
-		"       arp -s hostname ether_addr [temp] [pub [only]]",
-		"       arp -S hostname ether_addr [temp] [pub [only]]",
+		"       arp -s hostname ether_addr [temp] [reject] [blackhole] [pub [only]]",
+		"       arp -S hostname ether_addr [temp] [reject] [blackhole] [pub [only]]",
 		"       arp -f filename");
 	exit(1);
 }
