@@ -33,7 +33,6 @@
 /*$FreeBSD$*/
 
 #include "e1000_api.h"
-#include "e1000_mac.h"
 
 /**
  *  e1000_init_mac_ops_generic - Initialize MAC function pointers
@@ -526,7 +525,7 @@ void e1000_update_mc_addr_list_generic(struct e1000_hw *hw,
 
 	/* Load any remaining multicast addresses into the hash table. */
 	for (; mc_addr_count > 0; mc_addr_count--) {
-		hash_value = e1000_hash_mc_addr(hw, mc_addr_list);
+		hash_value = e1000_hash_mc_addr_generic(hw, mc_addr_list);
 		DEBUGOUT1("Hash value = 0x%03X\n", hash_value);
 		hw->mac.ops.mta_set(hw, hash_value);
 		mc_addr_list += ETH_ADDR_LEN;

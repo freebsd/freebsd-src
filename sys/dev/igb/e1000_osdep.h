@@ -71,11 +71,13 @@
 	#define DEBUGOUT3(S,A,B,C)
 	#define DEBUGOUT7(S,A,B,C,D,E,F,G)
 
-#define STATIC				static
-#define FALSE               0
-#define TRUE                1
-#define CMD_MEM_WRT_INVALIDATE          0x0010  /* BIT_4 */
-#define PCI_COMMAND_REGISTER            PCIR_COMMAND
+#define STATIC			static
+#define FALSE			0
+#define false			FALSE /* shared code stupidity */
+#define TRUE			1
+#define true			TRUE
+#define CMD_MEM_WRT_INVALIDATE	0x0010  /* BIT_4 */
+#define PCI_COMMAND_REGISTER	PCIR_COMMAND
 
 /*
 ** These typedefs are necessary due to the new

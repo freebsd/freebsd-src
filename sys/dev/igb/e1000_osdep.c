@@ -52,20 +52,6 @@ e1000_read_pci_cfg(struct e1000_hw *hw, uint32_t reg, uint16_t *value)
 	*value = pci_read_config(((struct e1000_osdep *)hw->back)->dev, reg, 2);
 }
 
-void
-e1000_pci_set_mwi(struct e1000_hw *hw)
-{
-	pci_write_config(((struct e1000_osdep *)hw->back)->dev, PCIR_COMMAND,
-	    (hw->bus.pci_cmd_word | CMD_MEM_WRT_INVALIDATE), 2);
-}
-
-void
-e1000_pci_clear_mwi(struct e1000_hw *hw)
-{
-	pci_write_config(((struct e1000_osdep *)hw->back)->dev, PCIR_COMMAND,
-	    (hw->bus.pci_cmd_word & ~CMD_MEM_WRT_INVALIDATE), 2);
-}
-
 /*
  * Read the PCI Express capabilities
  */

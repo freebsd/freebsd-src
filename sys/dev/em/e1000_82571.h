@@ -43,4 +43,12 @@
 
 #define E1000_GCR_L1_ACT_WITHOUT_L0S_RX 0x08000000
 
+/* Intr Throttling - RW */
+#define E1000_EITR_82574(_n)    (0x000E8 + (0x4 * (_n)))
+
+#define E1000_EIAC_82574        0x000DC /* Ext. Interrupt Auto Clear - RW */
+#define E1000_EIAC_MASK_82574   0x01500000
+
+#define E1000_RXCFGL    0x0B634 /* TimeSync Rx EtherType & Msg Type Reg - RW */
+
 #endif

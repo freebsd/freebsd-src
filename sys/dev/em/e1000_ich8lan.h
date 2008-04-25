@@ -112,4 +112,16 @@
     E1000_IMS_PHYINT | \
     E1000_IMS_EPRST)
 
+/* Additional interrupt register bit definitions */
+#define E1000_ICR_LSECPNC       0x00004000          /* PN threshold - client */
+#define E1000_IMS_LSECPNC       E1000_ICR_LSECPNC   /* PN threshold - client */
+#define E1000_ICS_LSECPNC       E1000_ICR_LSECPNC   /* PN threshold - client */
+
+/* Security Processing bit Indication */
+#define E1000_RXDEXT_LINKSEC_STATUS_LSECH       0x01000000
+#define E1000_RXDEXT_LINKSEC_ERROR_BIT_MASK     0x60000000
+#define E1000_RXDEXT_LINKSEC_ERROR_NO_SA_MATCH  0x20000000
+#define E1000_RXDEXT_LINKSEC_ERROR_REPLAY_ERROR 0x40000000
+#define E1000_RXDEXT_LINKSEC_ERROR_BAD_SIG      0x60000000
+
 #endif

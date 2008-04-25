@@ -79,6 +79,8 @@ static s32  e1000_flash_cycle_init_ich8lan(struct e1000_hw *hw);
 static s32  e1000_get_phy_info_ife_ich8lan(struct e1000_hw *hw);
 static void e1000_initialize_hw_bits_ich8lan(struct e1000_hw *hw);
 static s32  e1000_kmrn_lock_loss_workaround_ich8lan(struct e1000_hw *hw);
+static s32  e1000_read_flash_byte_ich8lan(struct e1000_hw *hw,
+                                          u32 offset, u8* data);
 static s32  e1000_read_flash_data_ich8lan(struct e1000_hw *hw, u32 offset,
                                           u8 size, u16* data);
 static s32  e1000_read_flash_word_ich8lan(struct e1000_hw *hw,
@@ -1020,10 +1022,46 @@ out:
 static s32 e1000_valid_nvm_bank_detect_ich8lan(struct e1000_hw *hw, u32 *bank)
 {
 	s32 ret_val = E1000_SUCCESS;
-	if (E1000_READ_REG(hw, E1000_EECD) & E1000_EECD_SEC1VAL)
-		*bank = 1;
-	else
-		*bank = 0;
+	struct e1000_nvm_info *nvm = &hw->nvm;
+	/* flash bank size is in words */
+	u32 bank1_offset = nvm->flash_bank_size * sizeof(u16);
+	u32 act_offset = E1000_ICH_NVM_SIG_WORD * 2 + 1;
+	u8 bank_high_byte = 0;
+
+	if (hw->mac.type != e1000_ich10lan) {
+		if (E1000_READ_REG(hw, E1000_EECD) & E1000_EECD_SEC1VAL)
+			*bank = 1;
+		else
+			*bank = 0;
+	} else if (hw->dev_spec != NULL) {
+		/*
+		 * Make sure the signature for bank 0 is valid,
+		 * if not check for bank1
+		 */
+		e1000_read_flash_byte_ich8lan(hw, act_offset, &bank_high_byte);
+		if ((bank_high_byte & 0xC0) == 0x80) {
+			*bank = 0;
+		} else {
+			/*
+			 * find if segment 1 is valid by verifying
+			 * bit 15:14 = 10b in word 0x13
+			 */
+			e1000_read_flash_byte_ich8lan(hw,
+			                              act_offset + bank1_offset,
+			                              &bank_high_byte);
+			
+			/* bank1 has a valid signature equivalent to SEC1V */
+			if ((bank_high_byte & 0xC0) == 0x80) {
+				*bank = 1;
+			} else {
+				DEBUGOUT("ERROR: EEPROM not present\n");
+				ret_val = -E1000_ERR_NVM;
+			}
+		}
+	} else {
+		DEBUGOUT("DEV SPEC is NULL\n");
+		ret_val = -E1000_ERR_NVM;
+	}
 	
 	return ret_val;
 }
@@ -1235,6 +1273,30 @@ static s32 e1000_read_flash_word_ich8lan(struct e1000_hw *hw, u32 offset,
 	offset <<= 1;
 
 	ret_val = e1000_read_flash_data_ich8lan(hw, offset, 2, data);
+
+out:
+	return ret_val;
+}
+
+/**
+ *  e1000_read_flash_byte_ich8lan - Read byte from flash
+ *  @hw: pointer to the HW structure
+ *  @offset: The offset of the byte to read.
+ *  @data: Pointer to a byte to store the value read.
+ *
+ *  Reads a single byte from the NVM using the flash access registers.
+ **/
+static s32 e1000_read_flash_byte_ich8lan(struct e1000_hw *hw, u32 offset,
+                                         u8* data)
+{
+	s32 ret_val = E1000_SUCCESS;
+	u16 word = 0;
+
+	ret_val = e1000_read_flash_data_ich8lan(hw, offset, 1, &word);
+	if (ret_val)
+		goto out;
+
+	*data = (u8)word;
 
 out:
 	return ret_val;
@@ -2483,13 +2545,14 @@ out:
  *  'LPLU Enabled' and 'Gig Disable' to force link speed negotiation
  *  to a lower speed.
  *
- *  Should only be called for ICH9.
+ *  Should only be called for ICH9 and ICH10 devices.
  **/
 void e1000_disable_gig_wol_ich8lan(struct e1000_hw *hw)
 {
 	u32 phy_ctrl;
 
-	if (hw->mac.type == e1000_ich9lan) {
+	if ((hw->mac.type == e1000_ich10lan) ||
+	    (hw->mac.type == e1000_ich9lan)) {
 		phy_ctrl = E1000_READ_REG(hw, E1000_PHY_CTRL);
 		phy_ctrl |= E1000_PHY_CTRL_D0A_LPLU |
 		            E1000_PHY_CTRL_GBE_DISABLE;
@@ -2578,13 +2641,22 @@ static s32 e1000_led_off_ich8lan(struct e1000_hw *hw)
 static s32 e1000_get_cfg_done_ich8lan(struct e1000_hw *hw)
 {
 	s32 ret_val = E1000_SUCCESS;
+	u32 bank = 0;
 
 	e1000_get_cfg_done_generic(hw);
 
 	/* If EEPROM is not marked present, init the IGP 3 PHY manually */
-	if (((E1000_READ_REG(hw, E1000_EECD) & E1000_EECD_PRES) == 0) &&
-	    (hw->phy.type == e1000_phy_igp_3)) {
-		e1000_phy_init_script_igp3(hw);
+	if (hw->mac.type != e1000_ich10lan) {
+		if (((E1000_READ_REG(hw, E1000_EECD) & E1000_EECD_PRES) == 0) &&
+    		    (hw->phy.type == e1000_phy_igp_3)) {
+			e1000_phy_init_script_igp3(hw);
+		}
+	} else {
+		if (e1000_valid_nvm_bank_detect_ich8lan(hw, &bank)) {
+			/* Maybe we should do a basic Boazman config */
+			DEBUGOUT("EEPROM not present\n");
+			ret_val = -E1000_ERR_CONFIG;
+		}
 	}
 
 	return ret_val;

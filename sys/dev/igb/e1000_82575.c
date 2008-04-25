@@ -37,7 +37,6 @@
  */
 
 #include "e1000_api.h"
-#include "e1000_82575.h"
 
 static s32  e1000_init_phy_params_82575(struct e1000_hw *hw);
 static s32  e1000_init_nvm_params_82575(struct e1000_hw *hw);
@@ -554,7 +553,7 @@ static s32 e1000_phy_hw_reset_sgmii_82575(struct e1000_hw *hw)
 	DEBUGFUNC("e1000_phy_hw_reset_sgmii_82575");
 
 	/*
-	 * This isn't a true "hard" reset, but is the only reset
+	 * This isn't a TRUE "hard" reset, but is the only reset
 	 * available to us at this time.
 	 */
 
@@ -1303,25 +1302,25 @@ static s32 e1000_reset_init_script_82575(struct e1000_hw* hw)
 	if (hw->mac.type == e1000_82575) {
 		DEBUGOUT("Running reset init script for 82575\n");
 		/* SerDes configuration via SERDESCTRL */
-		e1000_write_8bit_ctrl_reg(hw, E1000_SCTL, 0x00, 0x0C);
-		e1000_write_8bit_ctrl_reg(hw, E1000_SCTL, 0x01, 0x78);
-		e1000_write_8bit_ctrl_reg(hw, E1000_SCTL, 0x1B, 0x23);
-		e1000_write_8bit_ctrl_reg(hw, E1000_SCTL, 0x23, 0x15);
+		e1000_write_8bit_ctrl_reg_generic(hw, E1000_SCTL, 0x00, 0x0C);
+		e1000_write_8bit_ctrl_reg_generic(hw, E1000_SCTL, 0x01, 0x78);
+		e1000_write_8bit_ctrl_reg_generic(hw, E1000_SCTL, 0x1B, 0x23);
+		e1000_write_8bit_ctrl_reg_generic(hw, E1000_SCTL, 0x23, 0x15);
 
 		/* CCM configuration via CCMCTL register */
-		e1000_write_8bit_ctrl_reg(hw, E1000_CCMCTL, 0x14, 0x00);
-		e1000_write_8bit_ctrl_reg(hw, E1000_CCMCTL, 0x10, 0x00);
+		e1000_write_8bit_ctrl_reg_generic(hw, E1000_CCMCTL, 0x14, 0x00);
+		e1000_write_8bit_ctrl_reg_generic(hw, E1000_CCMCTL, 0x10, 0x00);
 
 		/* PCIe lanes configuration */
-		e1000_write_8bit_ctrl_reg(hw, E1000_GIOCTL, 0x00, 0xEC);
-		e1000_write_8bit_ctrl_reg(hw, E1000_GIOCTL, 0x61, 0xDF);
-		e1000_write_8bit_ctrl_reg(hw, E1000_GIOCTL, 0x34, 0x05);
-		e1000_write_8bit_ctrl_reg(hw, E1000_GIOCTL, 0x2F, 0x81);
+		e1000_write_8bit_ctrl_reg_generic(hw, E1000_GIOCTL, 0x00, 0xEC);
+		e1000_write_8bit_ctrl_reg_generic(hw, E1000_GIOCTL, 0x61, 0xDF);
+		e1000_write_8bit_ctrl_reg_generic(hw, E1000_GIOCTL, 0x34, 0x05);
+		e1000_write_8bit_ctrl_reg_generic(hw, E1000_GIOCTL, 0x2F, 0x81);
 
 		/* PCIe PLL Configuration */
-		e1000_write_8bit_ctrl_reg(hw, E1000_SCCTL, 0x02, 0x47);
-		e1000_write_8bit_ctrl_reg(hw, E1000_SCCTL, 0x14, 0x00);
-		e1000_write_8bit_ctrl_reg(hw, E1000_SCCTL, 0x10, 0x00);
+		e1000_write_8bit_ctrl_reg_generic(hw, E1000_SCCTL, 0x02, 0x47);
+		e1000_write_8bit_ctrl_reg_generic(hw, E1000_SCCTL, 0x14, 0x00);
+		e1000_write_8bit_ctrl_reg_generic(hw, E1000_SCCTL, 0x10, 0x00);
 	}
 
 	return E1000_SUCCESS;

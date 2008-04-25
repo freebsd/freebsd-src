@@ -46,7 +46,9 @@ extern void    e1000_init_function_pointers_82571(struct e1000_hw *hw);
 extern void    e1000_init_function_pointers_82541(struct e1000_hw *hw);
 extern void    e1000_init_function_pointers_80003es2lan(struct e1000_hw *hw);
 extern void    e1000_init_function_pointers_ich8lan(struct e1000_hw *hw);
+#ifndef NO_82575_SUPPORT
 extern void    e1000_init_function_pointers_82575(struct e1000_hw *hw);
+#endif
 
 s32  e1000_set_mac_type(struct e1000_hw *hw);
 s32  e1000_setup_init_funcs(struct e1000_hw *hw, bool init_device);
