@@ -46,6 +46,15 @@ __FBSDID("$FreeBSD$");
 
 static void	dumpthread(volatile struct proc *p, volatile struct thread *td,
 		    int all);
+/*
+ * At least one non-optional show-command must be implemented using
+ * DB_SHOW_ALL_COMMAND() so that db_show_all_cmd_set gets created.
+ * Here is one.
+ */
+DB_SHOW_ALL_COMMAND(procs, db_procs_cmd)
+{
+	db_ps(addr, have_addr, count, modif);
+}
 
 /*
  * Layout:
