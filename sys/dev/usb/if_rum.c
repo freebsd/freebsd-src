@@ -816,13 +816,14 @@ rum_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	struct ieee80211com *ic = vap->iv_ic;
 	struct rum_softc *sc = ic->ic_ifp->if_softc;
 
+	usb_rem_task(sc->sc_udev, &sc->sc_task);
+	usb_rem_task(sc->sc_udev, &sc->sc_scantask);
 	callout_stop(&rvp->amrr_ch);
 
 	/* do it in a process context */
 	sc->sc_state = nstate;
 	sc->sc_arg = arg;
 
-	usb_rem_task(sc->sc_udev, &sc->sc_task);
 	if (nstate == IEEE80211_S_INIT) {
 		rvp->newstate(vap, nstate, arg);
 		return 0;
