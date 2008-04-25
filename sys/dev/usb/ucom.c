@@ -161,12 +161,9 @@ ucom_modevent(module_t mod, int type, void *data)
 }
 
 int
-ucom_attach(struct ucom_softc *sc)
+ucom_attach_tty(struct ucom_softc *sc, int flags, char* fmt, int unit)
 {
 	struct tty *tp;
-	int unit;
-
-	unit = device_get_unit(sc->sc_dev);
 
 	sc->sc_tty = tp = ttyalloc();
 	tp->t_sc = sc;
@@ -179,10 +176,18 @@ ucom_attach(struct ucom_softc *sc)
 	tp->t_modem = ucommodem;
 	tp->t_ioctl = ucomioctl;
 
-	DPRINTF(("ucom_attach: tty_attach tp = %p\n", tp));
+	return ttycreate(tp, flags, fmt, unit);
+}
 
-	ttycreate(tp, TS_CALLOUT, "U%d", unit);
-	DPRINTF(("ucom_attach: ttycreate: ttyU%d\n", unit));
+int
+ucom_attach(struct ucom_softc *sc)
+{
+
+	ucom_attach_tty(sc, TS_CALLOUT,
+	    "U%d", device_get_unit(sc->sc_dev));
+
+	DPRINTF(("ucom_attach: ttycreate: tp = %p, %s\n",
+	    sc->sc_tty, sc->sc_tty->t_dev->si_name));
 
 	return (0);
 }
