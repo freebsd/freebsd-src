@@ -3825,7 +3825,7 @@ igb_fixup_rx(struct rx_ring *rxr)
 			rxr->fmp = n;
 		} else {
 			adapter->dropped_pkts++;
-			m_freem(adapter->fmp);
+			m_freem(rxr->fmp);
 			rxr->fmp = NULL;
 			error = ENOMEM;
 		}
@@ -4188,22 +4188,22 @@ igb_print_debug_info(struct adapter *adapter)
 		    E1000_READ_REG(&adapter->hw, E1000_TDT(i)));
 		device_printf(dev, "no descriptors avail event = %lu\n",
 		    txr->no_desc_avail);
-		device_printf(dev, "TX(%d) MSIX IRQ Handled = %lu\n", txr->me,
-		    txr->tx_irq);
-		device_printf(dev, "TX(%d) Packets sent = %lu\n", txr->me,
-		    txr->tx_packets);
+		device_printf(dev, "TX(%d) MSIX IRQ Handled = %lld\n", txr->me,
+		    (long long)txr->tx_irq);
+		device_printf(dev, "TX(%d) Packets sent = %lld\n", txr->me,
+		    (long long)txr->tx_packets);
 	}
 
 	for (int i = 0; i < adapter->num_rx_queues; i++, rxr++) {
 		device_printf(dev, "Queue(%d) rdh = %d, rdt = %d\n", i,
 		    E1000_READ_REG(&adapter->hw, E1000_RDH(i)),
 		    E1000_READ_REG(&adapter->hw, E1000_RDT(i)));
-		device_printf(dev, "RX(%d) Packets received = %lu\n", rxr->me,
-		    rxr->rx_packets);
-		device_printf(dev, "RX(%d) Byte count = %lu\n", rxr->me,
-		    rxr->rx_bytes);
-		device_printf(dev, "RX(%d) MSIX IRQ Handled = %lu\n", rxr->me,
-		    rxr->rx_irq);
+		device_printf(dev, "RX(%d) Packets received = %lld\n", rxr->me,
+		    (long long)rxr->rx_packets);
+		device_printf(dev, "RX(%d) Byte count = %lld\n", rxr->me,
+		    (long long)rxr->rx_bytes);
+		device_printf(dev, "RX(%d) MSIX IRQ Handled = %lld\n", rxr->me,
+		    (long long)rxr->rx_irq);
 	}
 	device_printf(dev, "LINK MSIX IRQ Handled = %u\n", adapter->link_irq);
 
