@@ -39,7 +39,9 @@ int os_get_time(struct os_time *t)
 int os_mktime(int year, int month, int day, int hour, int min, int sec,
 	      os_time_t *t)
 {
-	struct tm tm;
+	struct tm tm, *tm1;
+	time_t t_local, t1, t2;
+	os_time_t tz_offset;
 
 	if (year < 1970 || month < 1 || month > 12 || day < 1 || day > 31 ||
 	    hour < 0 || hour > 23 || min < 0 || min > 59 || sec < 0 ||
@@ -54,7 +56,22 @@ int os_mktime(int year, int month, int day, int hour, int min, int sec,
 	tm.tm_min = min;
 	tm.tm_sec = sec;
 
-	*t = (os_time_t) mktime(&tm);
+	t_local = mktime(&tm);
+
+	/* figure out offset to UTC */
+	tm1 = localtime(&t_local);
+	if (tm1) {
+		t1 = mktime(tm1);
+		tm1 = gmtime(&t_local);
+		if (tm1) {
+			t2 = mktime(tm1);
+			tz_offset = t2 - t1;
+		} else
+			tz_offset = 0;
+	} else
+		tz_offset = 0;
+
+	*t = (os_time_t) t_local - tz_offset;
 	return 0;
 }
 

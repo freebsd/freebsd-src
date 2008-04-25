@@ -441,9 +441,10 @@ wpa_supplicant_select_bss(struct wpa_supplicant *wpa_s, struct wpa_ssid *group,
 				wpa_printf(MSG_DEBUG, "   skip - disabled");
 				continue;
 			}
-			if (bss->ssid_len != ssid->ssid_len ||
-			    os_memcmp(bss->ssid, ssid->ssid,
-				      bss->ssid_len) != 0) {
+			if (ssid->ssid_len != 0 &&
+			    (bss->ssid_len != ssid->ssid_len ||
+			     os_memcmp(bss->ssid, ssid->ssid,
+				       bss->ssid_len) != 0)) {
 				wpa_printf(MSG_DEBUG, "   skip - "
 					   "SSID mismatch");
 				continue;
@@ -466,8 +467,8 @@ wpa_supplicant_select_bss(struct wpa_supplicant *wpa_s, struct wpa_ssid *group,
 			}
 
 			if ((ssid->key_mgmt & 
-			     (WPA_KEY_MGMT_IEEE8021X | WPA_KEY_MGMT_PSK)) ||
-			    bss->wpa_ie_len != 0 || bss->rsn_ie_len != 0) {
+			     (WPA_KEY_MGMT_IEEE8021X | WPA_KEY_MGMT_PSK)) &&
+			    (bss->wpa_ie_len != 0 || bss->rsn_ie_len != 0)) {
 				wpa_printf(MSG_DEBUG, "   skip - "
 					   "WPA network");
 				continue;
@@ -517,7 +518,7 @@ static void wpa_supplicant_event_scan_results(struct wpa_supplicant *wpa_s)
 
 	wpa_supplicant_dbus_notify_scan_results(wpa_s);
 
-	if (wpa_s->conf->ap_scan == 2)
+	if (wpa_s->conf->ap_scan == 2 || wpa_s->disconnected)
 		return;
 	results = wpa_s->scan_results;
 	num = wpa_s->num_scan_results;

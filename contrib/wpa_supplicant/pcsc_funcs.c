@@ -848,7 +848,8 @@ static int scard_read_record(struct scard_data *scard,
 	}
 	if (blen != len + 2) {
 		wpa_printf(MSG_DEBUG, "SCARD: record read returned unexpected "
-			   "length %d (expected %d)", blen, len + 2);
+			   "length %ld (expected %ld)",
+			   (long) blen, (long) len + 2);
 		os_free(buf);
 		return -3;
 	}
@@ -891,7 +892,8 @@ static int scard_read_file(struct scard_data *scard,
 	}
 	if (blen != len + 2) {
 		wpa_printf(MSG_DEBUG, "SCARD: file read returned unexpected "
-			   "length %d (expected %d)", blen, len + 2);
+			   "length %ld (expected %ld)",
+			   (long) blen, (long) len + 2);
 		os_free(buf);
 		return -3;
 	}
@@ -969,7 +971,7 @@ int scard_get_imsi(struct scard_data *scard, char *imsi, size_t *len)
 		return -1;
 	if (blen < 4) {
 		wpa_printf(MSG_WARNING, "SCARD: too short (GSM) EF-IMSI "
-			   "header (len=%d)", blen);
+			   "header (len=%ld)", (long) blen);
 		return -2;
 	}
 
@@ -982,14 +984,14 @@ int scard_get_imsi(struct scard_data *scard, char *imsi, size_t *len)
 		blen = file_size;
 	}
 	if (blen < 2 || blen > sizeof(buf)) {
-		wpa_printf(MSG_DEBUG, "SCARD: invalid IMSI file length=%d",
-			   blen);
+		wpa_printf(MSG_DEBUG, "SCARD: invalid IMSI file length=%ld",
+			   (long) blen);
 		return -3;
 	}
 
 	imsilen = (blen - 2) * 2 + 1;
-	wpa_printf(MSG_DEBUG, "SCARD: IMSI file length=%d imsilen=%d",
-		   blen, imsilen);
+	wpa_printf(MSG_DEBUG, "SCARD: IMSI file length=%ld imsilen=%ld",
+		   (long) blen, (long) imsilen);
 	if (blen < 2 || imsilen > *len) {
 		*len = imsilen;
 		return -4;
@@ -1071,8 +1073,8 @@ int scard_gsm_auth(struct scard_data *scard, const unsigned char *_rand,
 	    (scard->sim_type == SCARD_USIM &&
 	     (len != 2 || resp[0] != 0x61 || resp[1] != 0x0e))) {
 		wpa_printf(MSG_WARNING, "SCARD: unexpected response for GSM "
-			   "auth request (len=%d resp=%02x %02x)",
-			   len, resp[0], resp[1]);
+			   "auth request (len=%ld resp=%02x %02x)",
+			   (long) len, resp[0], resp[1]);
 		return -3;
 	}
 	get_resp[4] = resp[1];
@@ -1085,8 +1087,8 @@ int scard_gsm_auth(struct scard_data *scard, const unsigned char *_rand,
 	if (scard->sim_type == SCARD_GSM_SIM) {
 		if (len != 4 + 8 + 2) {
 			wpa_printf(MSG_WARNING, "SCARD: unexpected data "
-				   "length for GSM auth (len=%d, expected 14)",
-				   len);
+				   "length for GSM auth (len=%ld, expected 14)",
+				   (long) len);
 			return -5;
 		}
 		os_memcpy(sres, buf, 4);
@@ -1094,8 +1096,8 @@ int scard_gsm_auth(struct scard_data *scard, const unsigned char *_rand,
 	} else {
 		if (len != 1 + 4 + 1 + 8 + 2) {
 			wpa_printf(MSG_WARNING, "SCARD: unexpected data "
-				   "length for USIM auth (len=%d, "
-				   "expected 16)", len);
+				   "length for USIM auth (len=%ld, "
+				   "expected 16)", (long) len);
 			return -5;
 		}
 		if (buf[0] != 4 || buf[5] != 8) {
@@ -1176,8 +1178,8 @@ int scard_umts_auth(struct scard_data *scard, const unsigned char *_rand,
 		return -1;
 	} else if (len != 2 || resp[0] != 0x61) {
 		wpa_printf(MSG_WARNING, "SCARD: unexpected response for UMTS "
-			   "auth request (len=%d resp=%02x %02x)",
-			   len, resp[0], resp[1]);
+			   "auth request (len=%ld resp=%02x %02x)",
+			   (long) len, resp[0], resp[1]);
 		return -1;
 	}
 	get_resp[4] = resp[1];

@@ -12,11 +12,12 @@
   <refsynopsisdiv>
     <cmdsynopsis>
       <command>wpa_supplicant</command>
-      <arg>-BddehLqqvw</arg>
+      <arg>-BddfhKLqqtuvwW</arg>
       <arg>-i<replaceable>ifname</replaceable></arg>
       <arg>-c<replaceable>config file</replaceable></arg>
       <arg>-D<replaceable>driver</replaceable></arg>
       <arg>-P<replaceable>PID_file</replaceable></arg>
+      <arg>-f<replaceable>output file</replaceable></arg>
     </cmdsynopsis>
   </refsynopsisdiv>
   <refsect1>
@@ -372,6 +373,13 @@
 	<term>-D driver</term>
 	<listitem>
 	  <para>Driver to use.  See the available options below.</para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>-f output file</term>
+	<listitem>
+	  <para>Log output to specified file instead of stdout.</para>
 	</listitem>
       </varlistentry>
 

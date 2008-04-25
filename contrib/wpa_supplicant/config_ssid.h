@@ -851,6 +851,18 @@ struct wpa_ssid {
 		IEEE80211W_REQUIRED = 2
 	} ieee80211w;
 #endif /* CONFIG_IEEE80211W */
+
+	/**
+	 * frequency - Channel frequency in megahertz (MHz) for IBSS
+	 *
+	 * This value is used to configure the initial channel for IBSS (adhoc)
+	 * networks, e.g., 2412 = IEEE 802.11b/g channel 1. It is ignored in
+	 * the infrastructure mode. In addition, this value is only used by the
+	 * station that creates the IBSS. If an IBSS network with the
+	 * configured SSID is already present, the frequency of the network
+	 * will be used instead of this configured value.
+	 */
+	int frequency;
 };
 
 int wpa_config_allowed_eap_method(struct wpa_ssid *ssid, int vendor,
