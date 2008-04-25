@@ -732,6 +732,48 @@ dev/ips/ips_disk.c		optional ips
 dev/ips/ips_ioctl.c		optional ips
 dev/ips/ips_pci.c		optional ips pci
 dev/ipw/if_ipw.c		optional ipw
+ipwbssfw.c			optional ipwbssfw | ipwfw		\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk ipw_bss.fw:ipw_bss:130 -lintel_ipw -mipw_bss -c${.TARGET}" \
+	no-implicit-rule before-depend local				\
+	clean		"ipwbssfw.c"
+ipw_bss.fwo			optional ipwbssfw | ipwfw		\
+	dependency	"ipw_bss.fw"					\
+	compile-with	"${LD} -b binary -d -warn-common -r -d -o ${.TARGET} ipw_bss.fw" \
+	no-implicit-rule						\
+	clean		"ipw_bss.fwo"
+ipw_bss.fw			optional ipwbssfw | ipwfw		\
+	dependency	".PHONY"					\
+	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/ipw/ipw2100-1.3.fw.uu" \
+	no-obj no-implicit-rule						\
+	clean		"ipw_bss.fw"
+ipwibssfw.c			optional ipwibssfw | ipwfw		\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk ipw_ibss.fw:ipw_ibss:130 -lintel_ipw -mipw_ibss -c${.TARGET}" \
+	no-implicit-rule before-depend local				\
+	clean		"ipwibssfw.c"
+ipw_ibss.fwo			optional ipwibssfw | ipwfw		\
+	dependency	"ipw_ibss.fw"					\
+	compile-with	"${LD} -b binary -d -warn-common -r -d -o ${.TARGET} ipw_ibss.fw" \
+	no-implicit-rule						\
+	clean		"ipw_ibss.fwo"
+ipw_ibss.fw			optional ipwibssfw | ipwfw		\
+	dependency	".PHONY"					\
+	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/ipw/ipw2100-1.3-i.fw.uu" \
+	no-obj no-implicit-rule						\
+	clean		"ipw_ibss.fw"
+ipwmonitorfw.c			optional ipwmonitorfw | ipwfw		\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk ipw_monitor.fw:ipw_monitor:130 -lintel_ipw -mipw_monitor -c${.TARGET}" \
+	no-implicit-rule before-depend local				\
+	clean		"ipwmonitorfw.c"
+ipw_monitor.fwo			optional ipwmonitorfw | ipwfw		\
+	dependency	"ipw_monitor.fw"				\
+	compile-with	"${LD} -b binary -d -warn-common -r -d -o ${.TARGET} ipw_monitor.fw" \
+	no-implicit-rule						\
+	clean		"ipw_monitor.fwo"
+ipw_monitor.fw			optional ipwmonitorfw | ipwfw		\
+	dependency	".PHONY"					\
+	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/ipw/ipw2100-1.3-p.fw.uu" \
+	no-obj no-implicit-rule						\
+	clean		"ipw_monitor.fw"
 dev/iscsi/initiator/iscsi.c	optional iscsi_initiator scbus
 dev/iscsi/initiator/iscsi_subr.c	optional iscsi_initiator scbus
 dev/iscsi/initiator/isc_cam.c	optional iscsi_initiator scbus
@@ -746,6 +788,48 @@ dev/isp/isp_sbus.c		optional isp sbus
 dev/isp/isp_target.c		optional isp
 dev/ispfw/ispfw.c		optional ispfw
 dev/iwi/if_iwi.c		optional iwi
+iwibssfw.c			optional iwibssfw | iwifw		\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwi_bss.fw:iwi_bss:300 -lintel_iwi -miwi_bss -c${.TARGET}" \
+	no-implicit-rule before-depend local				\
+	clean		"iwibssfw.c"
+iwi_bss.fwo			optional iwibssfw | iwifw		\
+	dependency	"iwi_bss.fw"					\
+	compile-with	"${LD} -b binary -d -warn-common -r -d -o ${.TARGET} iwi_bss.fw" \
+	no-implicit-rule						\
+	clean		"iwi_bss.fwo"
+iwi_bss.fw			optional iwibssfw | iwifw		\
+	dependency	".PHONY"					\
+	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/iwi/ipw2200-bss.fw.uu" \
+	no-obj no-implicit-rule						\
+	clean		"iwi_bss.fw"
+iwiibssfw.c			optional iwiibssfw | iwifw		\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwi_ibss.fw:iwi_ibss:300 -lintel_iwi -miwi_ibss -c${.TARGET}" \
+	no-implicit-rule before-depend local				\
+	clean		"iwiibssfw.c"
+iwi_ibss.fwo			optional iwiibssfw | iwifw		\
+	dependency	"iwi_ibss.fw"					\
+	compile-with	"${LD} -b binary -d -warn-common -r -d -o ${.TARGET} iwi_ibss.fw" \
+	no-implicit-rule						\
+	clean		"iwi_ibss.fwo"
+iwi_ibss.fw			optional iwiibssfw | iwifw		\
+	dependency	".PHONY"					\
+	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/iwi/ipw2200-ibss.fw.uu" \
+	no-obj no-implicit-rule						\
+	clean		"iwi_ibss.fw"
+iwimonitorfw.c			optional iwimonitorfw | iwifw		\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwi_monitor.fw:iwi_monitor:300 -lintel_iwi -miwi_monitor -c${.TARGET}" \
+	no-implicit-rule before-depend local				\
+	clean		"iwimonitorfw.c"
+iwi_monitor.fwo			optional iwimonitorfw | iwifw		\
+	dependency	"iwi_monitor.fw"				\
+	compile-with	"${LD} -b binary -d -warn-common -r -d -o ${.TARGET} iwi_monitor.fw" \
+	no-implicit-rule						\
+	clean		"iwi_monitor.fwo"
+iwi_monitor.fw			optional iwimonitorfw | iwifw		\
+	dependency	".PHONY"					\
+	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/iwi/ipw2200-sniffer.fw.uu" \
+	no-obj no-implicit-rule						\
+	clean		"iwi_monitor.fw"
 dev/ixgb/if_ixgb.c		optional ixgb
 dev/ixgb/ixgb_ee.c		optional ixgb
 dev/ixgb/ixgb_hw.c		optional ixgb
@@ -922,6 +1006,62 @@ dev/quicc/quicc_core.c		optional quicc
 dev/ral/rt2560.c		optional ral
 dev/ral/rt2661.c		optional ral
 dev/ral/if_ral_pci.c		optional ral pci
+rt2561fw.c			optional rt2561fw | ralfw		\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk rt2561.fw:rt2561fw -mrt2561 -c${.TARGET}" \
+	no-implicit-rule before-depend local				\
+	clean		"rt2561fw.c"
+rt2561fw.fwo			optional rt2561fw | ralfw		\
+	dependency	"rt2561.fw"					\
+	compile-with	"${LD} -b binary -d -warn-common -r -d -o ${.TARGET} rt2561.fw" \
+	no-implicit-rule						\
+	clean		"rt2561.fwo"
+rt2561.fw			optional rt2561fw | ralfw		\
+	dependency	".PHONY"					\
+	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/ral/rt2561.fw.uu" \
+	no-obj no-implicit-rule						\
+	clean		"rt2561.fw"
+rt2561sfw.c			optional rt2561sfw | ralfw		\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk rt2561s.fw:rt2561sfw -mrt2561s -c${.TARGET}" \
+	no-implicit-rule before-depend local				\
+	clean		"rt2561sfw.c"
+rt2561sfw.fwo			optional rt2561sfw | ralfw		\
+	dependency	"rt2561s.fw"					\
+	compile-with	"${LD} -b binary -d -warn-common -r -d -o ${.TARGET} rt2561s.fw" \
+	no-implicit-rule						\
+	clean		"rt2561s.fwo"
+rt2561s.fw			optional rt2561sfw | ralfw		\
+	dependency	".PHONY"					\
+	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/ral/rt2561s.fw.uu"	\
+	no-obj no-implicit-rule						\
+	clean		"rt2561s.fw"
+rt2661fw.c			optional rt2661fw | ralfw		\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk rt2661.fw:rt2661fw -mrt2661 -c${.TARGET}" \
+	no-implicit-rule before-depend local				\
+	clean		"rt2661fw.c"
+rt2661fw.fwo			optional rt2661fw | ralfw		\
+	dependency	"rt2661.fw"					\
+	compile-with	"${LD} -b binary -d -warn-common -r -d -o ${.TARGET} rt2661.fw" \
+	no-implicit-rule						\
+	clean		"rt2661.fwo"
+rt2661.fw			optional rt2661fw | ralfw		\
+	dependency	".PHONY"					\
+	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/ral/rt2661.fw.uu"	\
+	no-obj no-implicit-rule						\
+	clean		"rt2661.fw"
+rt2860fw.c			optional rt2860fw | ralfw		\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk rt2860.fw:rt2860fw -mrt2860 -c${.TARGET}" \
+	no-implicit-rule before-depend local				\
+	clean		"rt2860fw.c"
+rt2860fw.fwo			optional rt2860fw | ralfw		\
+	dependency	"rt2860.fw"					\
+	compile-with	"${LD} -b binary -d -warn-common -r -d -o ${.TARGET} rt2860.fw" \
+	no-implicit-rule						\
+	clean		"rt2860.fwo"
+rt2860.fw			optional rt2860fw | ralfw		\
+	dependency	".PHONY"					\
+	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/ral/rt2860.fw.uu"	\
+	no-obj no-implicit-rule						\
+	clean		"rt2860.fw"
 dev/random/harvest.c		standard
 dev/random/hash.c		optional random
 dev/random/probe.c		optional random
@@ -1183,6 +1323,20 @@ dev/wi/if_wi.c			optional wi
 dev/wi/if_wi_pccard.c		optional wi pccard
 dev/wi/if_wi_pci.c		optional wi pci
 dev/wl/if_wl.c			optional wl isa
+wpifw.c			optional wpifw					\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk wpi.fw:wpifw:2144 -lintel_wpi -mwpi -c${.TARGET}" \
+	no-implicit-rule before-depend local				\
+	clean		"wpifw.c"
+wpifw.fwo			optional wpifw				\
+	dependency	"wpi.fw"					\
+	compile-with	"${LD} -b binary -d -warn-common -r -d -o ${.TARGET} wpi.fw" \
+	no-implicit-rule						\
+	clean		"wpi.fwo"
+wpi.fw			optional wpifw					\
+	dependency	".PHONY"					\
+	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/wpi/iwlwifi-3945-2.14.4.fw.uu"	\
+	no-obj no-implicit-rule						\
+	clean		"wpi.fw"
 dev/xe/if_xe.c			optional xe
 dev/xe/if_xe_pccard.c		optional xe pccard
 fs/coda/coda_fbsd.c		optional vcoda
