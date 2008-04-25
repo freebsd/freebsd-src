@@ -33,7 +33,6 @@
 /*$FreeBSD$*/
 
 #include "e1000_api.h"
-#include "e1000_phy.h"
 
 /* Cable length tables */
 static const u16 e1000_m88_cable_length_table[] =
@@ -670,7 +669,7 @@ s32 e1000_copper_link_setup_igp(struct e1000_hw *hw)
 		goto out;
 	}
 
-	ret_val = e1000_phy_hw_reset(hw);
+	ret_val = hw->phy.ops.reset(hw);
 	if (ret_val) {
 		DEBUGOUT("Error resetting the PHY.\n");
 		goto out;
@@ -688,7 +687,7 @@ s32 e1000_copper_link_setup_igp(struct e1000_hw *hw)
 	 */
 	if (phy->type == e1000_phy_igp) {
 		/* disable lplu d3 during driver init */
-		ret_val = e1000_set_d3_lplu_state(hw, FALSE);
+		ret_val = hw->phy.ops.set_d3_lplu_state(hw, FALSE);
 		if (ret_val) {
 			DEBUGOUT("Error Disabling LPLU D3\n");
 			goto out;
@@ -696,7 +695,7 @@ s32 e1000_copper_link_setup_igp(struct e1000_hw *hw)
 	}
 
 	/* disable lplu d0 during driver init */
-	ret_val = e1000_set_d0_lplu_state(hw, FALSE);
+	ret_val = hw->phy.ops.set_d0_lplu_state(hw, FALSE);
 	if (ret_val) {
 		DEBUGOUT("Error Disabling LPLU D0\n");
 		goto out;
@@ -846,7 +845,7 @@ s32 e1000_copper_link_autoneg(struct e1000_hw *hw)
 	 * check at a later time (for example, callback routine).
 	 */
 	if (phy->autoneg_wait_to_complete) {
-		ret_val = e1000_wait_autoneg(hw);
+		ret_val = hw->mac.ops.wait_autoneg(hw);
 		if (ret_val) {
 			DEBUGOUT("Error while waiting for "
 			         "autoneg to complete\n");
@@ -1343,7 +1342,7 @@ void e1000_phy_force_speed_duplex_setup(struct e1000_hw *hw, u16 *phy_ctrl)
  *  Success returns 0, Failure returns 1
  *
  *  The low power link up (lplu) state is set to the power management level D3
- *  and SmartSpeed is disabled when active is true, else clear lplu for D3
+ *  and SmartSpeed is disabled when active is TRUE, else clear lplu for D3
  *  and enable Smartspeed.  LPLU and Smartspeed are mutually exclusive.  LPLU
  *  is used during Dx states where the power conservation is most important.
  *  During driver activity, SmartSpeed should be enabled so performance is
@@ -1798,7 +1797,7 @@ s32 e1000_get_phy_info_m88(struct e1000_hw *hw)
 	phy->is_mdix = (phy_data & M88E1000_PSSR_MDIX) ? TRUE : FALSE;
 
 	if ((phy_data & M88E1000_PSSR_SPEED) == M88E1000_PSSR_1000MBS) {
-		ret_val = e1000_get_cable_length(hw);
+		ret_val = hw->phy.ops.get_cable_length(hw);
 		if (ret_val)
 			goto out;
 
@@ -1866,7 +1865,7 @@ s32 e1000_get_phy_info_igp(struct e1000_hw *hw)
 
 	if ((data & IGP01E1000_PSSR_SPEED_MASK) ==
 	    IGP01E1000_PSSR_SPEED_1000MBPS) {
-		ret_val = e1000_get_cable_length(hw);
+		ret_val = hw->phy.ops.get_cable_length(hw);
 		if (ret_val)
 			goto out;
 

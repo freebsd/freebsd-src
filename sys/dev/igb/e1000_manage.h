@@ -44,6 +44,7 @@ s32  e1000_mng_write_cmd_header_generic(struct e1000_hw *hw,
                                     struct e1000_host_mng_command_header *hdr);
 s32  e1000_mng_write_dhcp_info_generic(struct e1000_hw *hw,
                                        u8 *buffer, u16 length);
+bool e1000_enable_mng_pass_thru(struct e1000_hw *hw);
 
 typedef enum {
 	e1000_mng_mode_none = 0,

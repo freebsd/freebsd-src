@@ -50,6 +50,10 @@
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
 #include <sys/taskqueue.h>
+#ifdef EM_TIMESYNC
+#include <sys/ioccom.h>
+#include <sys/time.h>
+#endif
 #include <machine/bus.h>
 #include <machine/resource.h>
 
@@ -76,6 +80,7 @@
 #include <dev/pci/pcireg.h>
 
 #include "e1000_api.h"
+#include "e1000_82571.h" /* For Hartwell */
 #include "if_em.h"
 
 /*********************************************************************
@@ -86,7 +91,7 @@ int	em_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version:
  *********************************************************************/
-char em_driver_version[] = "6.8.8";
+char em_driver_version[] = "6.9.0";
 
 
 /*********************************************************************
@@ -187,6 +192,9 @@ static em_vendor_info_t em_vendor_info_array[] =
 	{ 0x8086, E1000_DEV_ID_ICH9_IFE,	PCI_ANY_ID, PCI_ANY_ID, 0},
 	{ 0x8086, E1000_DEV_ID_ICH9_IFE_GT,	PCI_ANY_ID, PCI_ANY_ID, 0},
 	{ 0x8086, E1000_DEV_ID_ICH9_IFE_G,	PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_82574L,		PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_ICH10_D_BM_LM,	PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_ICH10_D_BM_LF,	PCI_ANY_ID, PCI_ANY_ID, 0},
 	/* required last entry */
 	{ 0, 0, 0, 0, 0}
 };
@@ -284,6 +292,11 @@ static void     em_get_hw_control(struct adapter *);
 static void     em_release_hw_control(struct adapter *);
 static void     em_enable_wakeup(device_t);
 
+#ifdef EM_TIMESYNC
+/* Precision Time sync support */
+static int	em_tsync_init(struct adapter *);
+static void	em_tsync_disable(struct adapter *);
+#endif
 
 #ifdef EM_LEGACY_IRQ
 static void	em_intr(void *);
@@ -293,9 +306,10 @@ static void	em_irq_fast(void *);
 #else
 static int	em_irq_fast(void *);
 #endif
-static int	em_tx_fast(void *);
-static int	em_rx_fast(void *);
-static int	em_link_fast(void *);
+/* MSIX handlers */
+static void	em_msix_tx(void *);
+static void	em_msix_rx(void *);
+static void	em_msix_link(void *);
 static void	em_add_rx_process_limit(struct adapter *, const char *,
 		    const char *, int *, int);
 static void	em_handle_rxtx(void *context, int pending);
@@ -352,6 +366,10 @@ static int em_rx_abs_int_delay_dflt = EM_TICKS_TO_USECS(EM_RADV);
 static int em_rxd = EM_DEFAULT_RXD;
 static int em_txd = EM_DEFAULT_TXD;
 static int em_smart_pwr_down = FALSE;
+/* Controls whether promiscuous also shows bad packets */
+static int em_debug_sbp = FALSE;
+/* Local switch for MSI/MSIX */
+static int em_enable_msi = TRUE;
 
 TUNABLE_INT("hw.em.tx_int_delay", &em_tx_int_delay_dflt);
 TUNABLE_INT("hw.em.rx_int_delay", &em_rx_int_delay_dflt);
@@ -360,6 +378,8 @@ TUNABLE_INT("hw.em.rx_abs_int_delay", &em_rx_abs_int_delay_dflt);
 TUNABLE_INT("hw.em.rxd", &em_rxd);
 TUNABLE_INT("hw.em.txd", &em_txd);
 TUNABLE_INT("hw.em.smart_pwr_down", &em_smart_pwr_down);
+TUNABLE_INT("hw.em.sbp", &em_debug_sbp);
+TUNABLE_INT("hw.em.enable_msi", &em_enable_msi);
 
 #ifndef EM_LEGACY_IRQ
 /* How many packets rxeof tries to clean at a time */
@@ -445,6 +465,7 @@ em_attach(device_t dev)
 	adapter->dev = adapter->osdep.dev = dev;
 	EM_CORE_LOCK_INIT(adapter, device_get_nameunit(dev));
 	EM_TX_LOCK_INIT(adapter, device_get_nameunit(dev));
+	EM_RX_LOCK_INIT(adapter, device_get_nameunit(dev));
 
 	/* SYSCTL stuff */
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
@@ -477,6 +498,7 @@ em_attach(device_t dev)
 	** identified
 	*/
 	if ((adapter->hw.mac.type == e1000_ich8lan) ||
+	    (adapter->hw.mac.type == e1000_ich10lan) ||
 	    (adapter->hw.mac.type == e1000_ich9lan)) {
 		int rid = EM_BAR_TYPE_FLASH;
 		adapter->flash = bus_alloc_resource_any(dev,
@@ -770,6 +792,7 @@ err_tx_desc:
 err_pci:
 	em_free_pci_resources(adapter);
 	EM_TX_LOCK_DESTROY(adapter);
+	EM_RX_LOCK_DESTROY(adapter);
 	EM_CORE_LOCK_DESTROY(adapter);
 
 	return (error);
@@ -818,6 +841,7 @@ em_detach(device_t dev)
 
 	if (((adapter->hw.mac.type == e1000_82573) ||
 	    (adapter->hw.mac.type == e1000_ich8lan) ||
+	    (adapter->hw.mac.type == e1000_ich10lan) ||
 	    (adapter->hw.mac.type == e1000_ich9lan)) &&
 	    e1000_check_mng_mode(&adapter->hw))
 		em_release_hw_control(adapter);
@@ -856,6 +880,7 @@ em_detach(device_t dev)
 	}
 
 	EM_TX_LOCK_DESTROY(adapter);
+	EM_RX_LOCK_DESTROY(adapter);
 	EM_CORE_LOCK_DESTROY(adapter);
 
 	return (0);
@@ -891,6 +916,7 @@ em_suspend(device_t dev)
 
         if (((adapter->hw.mac.type == e1000_82573) ||
             (adapter->hw.mac.type == e1000_ich8lan) ||
+            (adapter->hw.mac.type == e1000_ich10lan) ||
             (adapter->hw.mac.type == e1000_ich9lan)) &&
             e1000_check_mng_mode(&adapter->hw))
                 em_release_hw_control(adapter);
@@ -915,12 +941,8 @@ em_resume(device_t dev)
 	EM_CORE_LOCK(adapter);
 	em_init_locked(adapter);
 	em_init_manageability(adapter);
-
-	if ((ifp->if_flags & IFF_UP) &&
-	    (ifp->if_drv_flags & IFF_DRV_RUNNING))
-		em_start_locked(ifp);
-
 	EM_CORE_UNLOCK(adapter);
+	em_start(ifp);
 
 	return bus_generic_resume(dev);
 }
@@ -1050,6 +1072,8 @@ em_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		case e1000_82571:
 		case e1000_82572:
 		case e1000_ich9lan:
+		case e1000_ich10lan:
+		case e1000_82574:
 		case e1000_80003es2lan:	/* Limit Jumbo Frame size */
 			max_frame_size = 9234;
 			break;
@@ -1082,7 +1106,7 @@ em_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		if (ifp->if_flags & IFF_UP) {
 			if ((ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 				if ((ifp->if_flags ^ adapter->if_flags) &
-				    IFF_PROMISC) {
+				    (IFF_PROMISC | IFF_ALLMULTI)) {
 					em_disable_promisc(adapter);
 					em_set_promisc(adapter);
 				}
@@ -1180,6 +1204,69 @@ em_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		break;
 	    }
 
+#ifdef EM_TIMESYNC
+	/*
+	** IOCTL support for Precision Time (IEEE 1588) Support
+	*/
+	case EM_TIMESYNC_READTS:
+	    {
+		u32 rx_ctl, tx_ctl;
+		struct em_tsync_read *tdata;
+
+		tdata = (struct em_tsync_read *) ifr->ifr_data;
+
+		IOCTL_DEBUGOUT("Reading Timestamp\n");
+
+		if (tdata->read_current_time) {
+			getnanotime(&tdata->system_time);
+			tdata->network_time = E1000_READ_REG(&adapter->hw, E1000_SYSTIML);
+			tdata->network_time |=
+			    (u64)E1000_READ_REG(&adapter->hw, E1000_SYSTIMH ) << 32;
+		}
+ 
+		rx_ctl = E1000_READ_REG(&adapter->hw, E1000_TSYNCRXCTL);
+		tx_ctl = E1000_READ_REG(&adapter->hw, E1000_TSYNCTXCTL);
+
+		IOCTL_DEBUGOUT1("RX_CTL value = %u\n", rx_ctl);
+		IOCTL_DEBUGOUT1("TX_CTL value = %u\n", tx_ctl);
+
+		if (rx_ctl & 0x1) {
+			IOCTL_DEBUGOUT("RX timestamp is valid\n");
+			u32 tmp;
+			unsigned char *tmp_cp;
+
+			tdata->rx_valid = 1;
+			tdata->rx_stamp = E1000_READ_REG(&adapter->hw, E1000_RXSTMPL);
+			tdata->rx_stamp |= (u64)E1000_READ_REG(&adapter->hw,
+			    E1000_RXSTMPH) << 32;
+
+			tmp = E1000_READ_REG(&adapter->hw, E1000_RXSATRL);
+			tmp_cp = (unsigned char *) &tmp;
+			tdata->srcid[0] = tmp_cp[0];
+			tdata->srcid[1] = tmp_cp[1];
+			tdata->srcid[2] = tmp_cp[2];
+			tdata->srcid[3] = tmp_cp[3];
+			tmp = E1000_READ_REG(&adapter->hw, E1000_RXSATRH);
+			tmp_cp = (unsigned char *) &tmp;
+			tdata->srcid[4] = tmp_cp[0];
+			tdata->srcid[5] = tmp_cp[1];
+			tdata->seqid = tmp >> 16;
+			tdata->seqid = htons(tdata->seqid);
+		} else
+			tdata->rx_valid = 0;
+
+		if (tx_ctl & 0x1) {
+			IOCTL_DEBUGOUT("TX timestamp is valid\n");
+			tdata->tx_valid = 1;
+			tdata->tx_stamp = E1000_READ_REG(&adapter->hw, E1000_TXSTMPL);
+			tdata->tx_stamp |= (u64) E1000_READ_REG(&adapter->hw,
+			    E1000_TXSTMPH) << 32;
+		} else
+			tdata->tx_valid = 0;
+
+		return (0);
+	    }
+#endif	/* EM_TIMESYNC */
 
 	default:
 		error = ether_ioctl(ifp, command, data);
@@ -1294,7 +1381,11 @@ em_init_locked(struct adapter *adapter)
 	case e1000_82573: /* 82573: Total Packet Buffer is 32K */
 			pba = E1000_PBA_12K; /* 12K for Rx, 20K for Tx */
 		break;
+	case e1000_82574:
+			pba = E1000_PBA_20K; /* 20K for Rx, 20K for Tx */
+		break;
 	case e1000_ich9lan:
+	case e1000_ich10lan:
 #define E1000_PBA_10K	0x000A
 		pba = E1000_PBA_10K;
 		break;
@@ -1383,6 +1474,21 @@ em_init_locked(struct adapter *adapter)
 	callout_reset(&adapter->timer, hz, em_local_timer, adapter);
 	e1000_clear_hw_cntrs_base_generic(&adapter->hw);
 
+	/* MSI/X configuration for 82574 */
+	if (adapter->hw.mac.type == e1000_82574) {
+		int tmp;
+		tmp = E1000_READ_REG(&adapter->hw, E1000_CTRL_EXT);
+		tmp |= E1000_CTRL_EXT_PBA_CLR;
+		E1000_WRITE_REG(&adapter->hw, E1000_CTRL_EXT, tmp);
+		/*
+		** Set the IVAR - interrupt vector routing.
+		** Each nibble represents a vector, high bit
+		** is enable, other 3 bits are the MSIX table
+		** entry, we map RXQ0 to 0, TXQ0 to 1, and
+		** Link (other) to 2, hence the magic number.
+		*/
+		E1000_WRITE_REG(&adapter->hw, E1000_IVAR, 0x800A0908);
+	}
 
 #ifdef DEVICE_POLLING
 	/*
@@ -1395,6 +1501,12 @@ em_init_locked(struct adapter *adapter)
 #endif /* DEVICE_POLLING */
 		em_enable_intr(adapter);
 
+#ifdef EM_TIMESYNC
+	/* Initializae IEEE 1588 Precision Time hardware */
+	if ((adapter->hw.mac.type == e1000_82574) ||
+	    (adapter->hw.mac.type == e1000_ich10lan))
+		em_tsync_init(adapter);
+#endif
 
 	/* Don't reset the phy next time init gets called */
 	adapter->hw.phy.reset_disable = TRUE;
@@ -1439,8 +1551,9 @@ em_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 			    em_local_timer, adapter);
 		}
 	}
-	em_rxeof(adapter, count);
 	EM_CORE_UNLOCK(adapter);
+
+	em_rxeof(adapter, count);
 
 	EM_TX_LOCK(adapter);
 	em_txeof(adapter);
@@ -1462,17 +1575,14 @@ static void
 em_intr(void *arg)
 {
 	struct adapter	*adapter = arg;
-	struct ifnet	*ifp;
+	struct ifnet	*ifp = adapter->ifp;
 	u32		reg_icr;
 
-	EM_CORE_LOCK(adapter);
-	ifp = adapter->ifp;
 
-	if (ifp->if_capenable & IFCAP_POLLING) {
-		EM_CORE_UNLOCK(adapter);
+	if (ifp->if_capenable & IFCAP_POLLING)
 		return;
-	}
 
+	EM_CORE_LOCK(adapter);
 	for (;;) {
 		reg_icr = E1000_READ_REG(&adapter->hw, E1000_ICR);
 
@@ -1491,12 +1601,14 @@ em_intr(void *arg)
 		if (reg_icr == 0xffffffff)
 			break;
 
+		EM_CORE_UNLOCK(adapter);
 		if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 			em_rxeof(adapter, -1);
 			EM_TX_LOCK(adapter);
 			em_txeof(adapter);
 			EM_TX_UNLOCK(adapter);
 		}
+		EM_CORE_LOCK(adapter);
 
 		/* Link status change */
 		if (reg_icr & (E1000_ICR_RXSEQ | E1000_ICR_LSC)) {
@@ -1525,9 +1637,7 @@ static void
 em_handle_link(void *context, int pending)
 {
 	struct adapter	*adapter = context;
-	struct ifnet *ifp;
-
-	ifp = adapter->ifp;
+	struct ifnet *ifp = adapter->ifp;
 
 	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
 		return;
@@ -1564,19 +1674,16 @@ em_handle_rxtx(void *context, int pending)
 	em_enable_intr(adapter);
 }
 
-/* RX deferred handler: used with MSIX */
 static void
 em_handle_rx(void *context, int pending)
 {
 	struct adapter	*adapter = context;
 	struct ifnet	*ifp = adapter->ifp;
 
-	++adapter->rx_irq;
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) &&
 	    (em_rxeof(adapter, adapter->rx_process_limit) != 0))
 		taskqueue_enqueue(adapter->tq, &adapter->rx_task);
 
-	em_enable_intr(adapter);
 }
 
 static void
@@ -1585,17 +1692,13 @@ em_handle_tx(void *context, int pending)
 	struct adapter	*adapter = context;
 	struct ifnet	*ifp = adapter->ifp;
 
-	++adapter->tx_irq;
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 		EM_TX_LOCK(adapter);
 		em_txeof(adapter);
-
 		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 			em_start_locked(ifp);
 		EM_TX_UNLOCK(adapter);
 	}
-
-	em_enable_intr(adapter);
 }
 
 /*********************************************************************
@@ -1657,52 +1760,50 @@ em_irq_fast(void *arg)
 
 /*********************************************************************
  *
- *  MSIX TX Fast Interrupt Service routine
+ *  MSIX Interrupt Service Routines
  *
  **********************************************************************/
+#define EM_MSIX_TX	0x00040000
+#define EM_MSIX_RX	0x00010000
+#define EM_MSIX_LINK	0x00100000
 
-static int
-em_tx_fast(void *arg)
+static void
+em_msix_tx(void *arg)
 {
 	struct adapter *adapter = arg;
-	u32		reg_icr;
+	struct ifnet	*ifp = adapter->ifp;
 
-	reg_icr = E1000_READ_REG(&adapter->hw, E1000_ICR);
-	/*
-	 * Mask interrupts until the taskqueue is finished running.  This is
-         * cheap, just assume that it is needed.  This also works around the
-	 * MSI message reordering errata on certain systems.
-	 */
-	em_disable_intr(adapter);
-	taskqueue_enqueue(adapter->tq, &adapter->tx_task);
-
-	return FILTER_HANDLED;
+	++adapter->tx_irq;
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+		EM_TX_LOCK(adapter);
+		em_txeof(adapter);
+		EM_TX_UNLOCK(adapter);
+		taskqueue_enqueue(adapter->tq, &adapter->tx_task);
+	}
+	/* Reenable this interrupt */
+	E1000_WRITE_REG(&adapter->hw, E1000_IMS, EM_MSIX_TX);
+	return;
 }
 
 /*********************************************************************
  *
- *  MSIX RX Fast Interrupt Service routine
+ *  MSIX RX Interrupt Service routine
  *
  **********************************************************************/
 
-static int
-em_rx_fast(void *arg)
+static void
+em_msix_rx(void *arg)
 {
 	struct adapter *adapter = arg;
-	u32		reg_icr;
+	struct ifnet	*ifp = adapter->ifp;
 
-	reg_icr = E1000_READ_REG(&adapter->hw, E1000_ICR);
-	/*
-	 * Mask interrupts until the taskqueue is finished running.  This is
-	 * cheap, just assume that it is needed.  This also works around the
-	 * MSI message reordering errata on certain systems.
-	 */
-	em_disable_intr(adapter);
-	taskqueue_enqueue(adapter->tq, &adapter->rx_task);
-	if (reg_icr & E1000_ICR_RXO)
-		adapter->rx_overruns++;
-
-	return FILTER_HANDLED;
+	++adapter->rx_irq;
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) &&
+	    (em_rxeof(adapter, adapter->rx_process_limit) != 0))
+		taskqueue_enqueue(adapter->tq, &adapter->rx_task);
+	/* Reenable this interrupt */
+	E1000_WRITE_REG(&adapter->hw, E1000_IMS, EM_MSIX_RX);
+	return;
 }
 
 /*********************************************************************
@@ -1711,19 +1812,22 @@ em_rx_fast(void *arg)
  *
  **********************************************************************/
 
-static int
-em_link_fast(void *arg)
+static void
+em_msix_link(void *arg)
 {
 	struct adapter	*adapter = arg;
-	u32		reg_eicr;
+	u32		reg_icr;
 
-	reg_eicr = E1000_READ_REG(&adapter->hw, E1000_ICR);
+	++adapter->link_irq;
+	reg_icr = E1000_READ_REG(&adapter->hw, E1000_ICR);
 
-	if (reg_eicr & (E1000_ICR_RXSEQ | E1000_ICR_LSC))
+	if (reg_icr & (E1000_ICR_RXSEQ | E1000_ICR_LSC)) {
+		adapter->hw.mac.get_link_status = 1;
 		taskqueue_enqueue(taskqueue_fast, &adapter->link_task);
-
-	E1000_WRITE_REG(&adapter->hw, E1000_IMS, E1000_IMS_LSC);
-	return FILTER_HANDLED;
+	}
+	E1000_WRITE_REG(&adapter->hw, E1000_IMS,
+	    EM_MSIX_LINK | E1000_IMS_LSC);
+	return;
 }
 #endif /* EM_FAST_IRQ */
 
@@ -1988,12 +2092,14 @@ em_xmit(struct adapter *adapter, struct mbuf **m_headp)
 		tso_desc = TRUE;
 	} else
 #endif
+#ifndef EM_TIMESYNC
 	/*
 	** Timesync needs to check the packet header 
 	** so call checksum code to do so, but don't
 	** penalize the code if not defined.
 	*/
 	if (m_head->m_pkthdr.csum_flags & CSUM_OFFLOAD)
+#endif
 		em_transmit_checksum_setup(adapter,  m_head,
 		    &txd_upper, &txd_lower);
 
@@ -2150,6 +2256,11 @@ em_xmit(struct adapter *adapter, struct mbuf **m_headp)
 			    m_head->m_pkthdr.len);
 	}
 
+#ifdef EM_TIMESYNC
+	if (ctxd->upper.data & E1000_TXD_EXTCMD_TSTAMP) {
+		HW_DEBUGOUT( "@@@ Timestamp bit is set in transmit descriptor\n" );
+	} 
+#endif
 	return (0);
 }
 
@@ -2280,6 +2391,9 @@ em_set_promisc(struct adapter *adapter)
 
 	if (ifp->if_flags & IFF_PROMISC) {
 		reg_rctl |= (E1000_RCTL_UPE | E1000_RCTL_MPE);
+		/* Turn this on if you want to see bad packets */
+		if (em_debug_sbp)
+			reg_rctl |= E1000_RCTL_SBP;
 		E1000_WRITE_REG(&adapter->hw, E1000_RCTL, reg_rctl);
 	} else if (ifp->if_flags & IFF_ALLMULTI) {
 		reg_rctl |= E1000_RCTL_MPE;
@@ -2297,6 +2411,7 @@ em_disable_promisc(struct adapter *adapter)
 
 	reg_rctl &=  (~E1000_RCTL_UPE);
 	reg_rctl &=  (~E1000_RCTL_MPE);
+	reg_rctl &=  (~E1000_RCTL_SBP);
 	E1000_WRITE_REG(&adapter->hw, E1000_RCTL, reg_rctl);
 }
 
@@ -2493,6 +2608,12 @@ em_stop(void *arg)
 	/* Tell the stack that the interface is no longer active */
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 
+#ifdef EM_TIMESYNC
+	/* Disable IEEE 1588 Time hardware */
+	if ((adapter->hw.mac.type == e1000_82574) ||
+	    (adapter->hw.mac.type == e1000_ich10lan))
+		em_tsync_disable(adapter);
+#endif
 
 	e1000_reset_hw(&adapter->hw);
 	if (adapter->hw.mac.type >= e1000_82544)
@@ -2603,7 +2724,8 @@ em_allocate_pci_resources(struct adapter *adapter)
 	/*
 	 * Setup MSI/X or MSI if PCI Express
 	 */
-	adapter->msi = em_setup_msix(adapter);
+	if (em_enable_msi)
+		adapter->msi = em_setup_msix(adapter);
 
 	adapter->hw.back = &adapter->osdep;
 
@@ -2725,7 +2847,7 @@ em_allocate_msix(struct adapter *adapter)
 
 	/* First slot to RX */
 	if ((error = bus_setup_intr(dev, adapter->res[0],
-	    INTR_TYPE_NET, em_rx_fast, NULL, adapter,
+	    INTR_TYPE_NET | INTR_MPSAFE, NULL, em_msix_rx, adapter,
 	    &adapter->tag[0])) != 0) {
 		device_printf(dev, "Failed to register RX handler");
 		return (error);
@@ -2733,7 +2855,7 @@ em_allocate_msix(struct adapter *adapter)
 
 	/* Next TX */
 	if ((error = bus_setup_intr(dev, adapter->res[1],
-	    INTR_TYPE_NET, em_tx_fast, NULL, adapter,
+	    INTR_TYPE_NET | INTR_MPSAFE, NULL, em_msix_tx, adapter,
 	    &adapter->tag[1])) != 0) {
 		device_printf(dev, "Failed to register TX handler");
 		return (error);
@@ -2741,7 +2863,7 @@ em_allocate_msix(struct adapter *adapter)
 
 	/* And Link */
 	if ((error = bus_setup_intr(dev, adapter->res[2],
-	    INTR_TYPE_NET, em_link_fast, NULL, adapter,
+	    INTR_TYPE_NET | INTR_MPSAFE, NULL, em_msix_link, adapter,
 	    &adapter->tag[2])) != 0) {
 		device_printf(dev, "Failed to register TX handler");
 		return (error);
@@ -2809,6 +2931,30 @@ em_setup_msix(struct adapter *adapter)
 	if (adapter->hw.mac.type < e1000_82571)
 		return (0);
 
+	/* Setup MSI/X for Hartwell */
+	if (adapter->hw.mac.type == e1000_82574) {
+		/* Map the MSIX BAR */
+		int rid = PCIR_BAR(EM_MSIX_BAR);
+		adapter->msix = bus_alloc_resource_any(dev,
+		    SYS_RES_MEMORY, &rid, RF_ACTIVE);
+       		if (!adapter->msix) {
+			/* May not be enabled */
+               		device_printf(adapter->dev,
+			    "Unable to map MSIX table \n");
+			goto msi;
+       		}
+		val = pci_msix_count(dev); 
+		/*
+		** 82574 can be configured for 5 but
+		** we limit use to 3.
+		*/
+		if (val > 3) val = 3;
+		if ((val) && pci_alloc_msix(dev, &val) == 0) {
+               		device_printf(adapter->dev,"Using MSIX interrupts\n");
+			return (val);
+		}
+	}
+msi:
        	val = pci_msi_count(dev);
        	if (val == 1 && pci_alloc_msi(dev, &val) == 0) {
                	adapter->msi = 1;
@@ -2838,6 +2984,7 @@ em_hardware_init(struct adapter *adapter)
 	/* Get control from any management/hw control */
 	if (((adapter->hw.mac.type == e1000_82573) ||
 	    (adapter->hw.mac.type == e1000_ich8lan) ||
+	    (adapter->hw.mac.type == e1000_ich10lan) ||
 	    (adapter->hw.mac.type == e1000_ich9lan)) &&
 	    e1000_check_mng_mode(&adapter->hw))
 		em_get_hw_control(adapter);
@@ -3463,6 +3610,11 @@ em_transmit_checksum_setup(struct adapter *adapter, struct mbuf *mp,
 		ipproto = ip6->ip6_nxt;
 
 		break;
+#ifdef EM_TIMESYNC
+	case ETHERTYPE_IEEE1588:
+		*txd_upper |= E1000_TXD_EXTCMD_TSTAMP;
+		break;
+#endif
 	default:
 		*txd_upper = 0;
 		*txd_lower = 0;
@@ -3488,6 +3640,15 @@ em_transmit_checksum_setup(struct adapter *adapter, struct mbuf *mp,
 		break;
 	case IPPROTO_UDP:
 	{
+#ifdef EM_TIMESYNC
+		void *hdr = (caddr_t) ip + ip_hlen;
+		struct udphdr *uh = (struct udphdr *)hdr;
+
+		if (uh->uh_dport == htons(TSYNC_PORT)) {
+			*txd_upper |= E1000_TXD_EXTCMD_TSTAMP;
+			IOCTL_DEBUGOUT("@@@ Sending Event Packet\n");
+		}
+#endif
 		if (mp->m_pkthdr.csum_flags & CSUM_UDP) {
 			/*
 			 * Start offset for header checksum calculation.
@@ -3506,6 +3667,15 @@ em_transmit_checksum_setup(struct adapter *adapter, struct mbuf *mp,
 		break;
 	}
 
+#ifdef EM_TIMESYNC
+	/*
+	** We might be here just for TIMESYNC
+	** which means we don't need the context
+	** descriptor.
+	*/
+	if (!mp->m_pkthdr.csum_flags & CSUM_OFFLOAD)
+		return;
+#endif
 	*txd_lower = E1000_TXD_CMD_DEXT |	/* Extended descr type */
 		     E1000_TXD_DTYP_D;		/* Data descr */
 	TXD->tcp_seg_setup.data = htole32(0);
@@ -3968,6 +4138,9 @@ em_setup_receive_structures(struct adapter *adapter)
  *  Enable receive unit.
  *
  **********************************************************************/
+#define MAX_INTS_PER_SEC	8000
+#define DEFAULT_ITR	     1000000000/(MAX_INTS_PER_SEC * 256)
+
 static void
 em_initialize_receive_unit(struct adapter *adapter)
 {
@@ -3984,17 +4157,29 @@ em_initialize_receive_unit(struct adapter *adapter)
 	rctl = E1000_READ_REG(&adapter->hw, E1000_RCTL);
 	E1000_WRITE_REG(&adapter->hw, E1000_RCTL, rctl & ~E1000_RCTL_EN);
 
-	if(adapter->hw.mac.type >= e1000_82540) {
+	if (adapter->hw.mac.type >= e1000_82540) {
 		E1000_WRITE_REG(&adapter->hw, E1000_RADV,
 		    adapter->rx_abs_int_delay.value);
 		/*
 		 * Set the interrupt throttling rate. Value is calculated
 		 * as DEFAULT_ITR = 1/(MAX_INTS_PER_SEC * 256ns)
 		 */
-#define MAX_INTS_PER_SEC	8000
-#define DEFAULT_ITR	     1000000000/(MAX_INTS_PER_SEC * 256)
 		E1000_WRITE_REG(&adapter->hw, E1000_ITR, DEFAULT_ITR);
 	}
+
+	/*
+	** When using MSIX interrupts we need to throttle
+	** using the EITR register (82574 only)
+	*/
+	if (adapter->msix)
+		for (int i = 0; i < 4; i++)
+			E1000_WRITE_REG(&adapter->hw,
+			    E1000_EITR_82574(i), DEFAULT_ITR);
+
+	/* Disable accelerated ackknowledge */
+	if (adapter->hw.mac.type == e1000_82574)
+		E1000_WRITE_REG(&adapter->hw,
+		    E1000_RFCTL, E1000_RFCTL_ACK_DIS);
 
 	/* Setup the Base and Length of the Rx Descriptor Ring */
 	bus_addr = adapter->rxdma.dma_paddr;
@@ -4138,21 +4323,23 @@ em_free_receive_structures(struct adapter *adapter)
 static int
 em_rxeof(struct adapter *adapter, int count)
 {
-	struct ifnet	*ifp;
+	struct ifnet	*ifp = adapter->ifp;;
 	struct mbuf	*mp;
 	u8		status, accept_frame = 0, eop = 0;
 	u16 		len, desc_len, prev_len_adj;
 	int		i;
 	struct e1000_rx_desc   *current_desc;
 
-	ifp = adapter->ifp;
+	EM_RX_LOCK(adapter);
 	i = adapter->next_rx_desc_to_check;
 	current_desc = &adapter->rx_desc_base[i];
 	bus_dmamap_sync(adapter->rxdma.dma_tag, adapter->rxdma.dma_map,
 	    BUS_DMASYNC_POSTREAD);
 
-	if (!((current_desc->status) & E1000_RXD_STAT_DD))
+	if (!((current_desc->status) & E1000_RXD_STAT_DD)) {
+		EM_RX_UNLOCK(adapter);
 		return (0);
+	}
 
 	while ((current_desc->status & E1000_RXD_STAT_DD) &&
 	    (count != 0) &&
@@ -4295,14 +4482,10 @@ discard:
 			i = 0;
 		if (m != NULL) {
 			adapter->next_rx_desc_to_check = i;
-#ifdef EM_LEGACY_IRQ
-			EM_CORE_UNLOCK(adapter);
+			/* Unlock for call into stack */
+			EM_RX_UNLOCK(adapter);
 			(*ifp->if_input)(ifp, m);
-			EM_CORE_LOCK(adapter);
-#else
-			/* Already running unlocked */
-			(*ifp->if_input)(ifp, m);
-#endif
+			EM_RX_LOCK(adapter);
 			i = adapter->next_rx_desc_to_check;
 		}
 		current_desc = &adapter->rx_desc_base[i];
@@ -4313,6 +4496,7 @@ discard:
 	if (--i < 0)
 		i = adapter->num_rx_desc - 1;
 	E1000_WRITE_REG(&adapter->hw, E1000_RDT(0), i);
+	EM_RX_UNLOCK(adapter);
 	if (!((current_desc->status) & E1000_RXD_STAT_DD))
 		return (0);
 
@@ -4422,28 +4606,26 @@ em_enable_hw_vlans(struct adapter *adapter)
 	E1000_WRITE_REG(&adapter->hw, E1000_CTRL, ctrl);
 }
 
-#define QUEUE_MASK	0x01500000
-
 static void
 em_enable_intr(struct adapter *adapter)
 {
+	struct e1000_hw *hw = &adapter->hw;
 	u32 ims_mask = IMS_ENABLE_MASK;
 
 	if (adapter->msix) {
-		E1000_WRITE_REG(&adapter->hw, E1000_EIMS, QUEUE_MASK);
-		E1000_WRITE_REG(&adapter->hw, E1000_EIAC, QUEUE_MASK);
-		ims_mask |= QUEUE_MASK;
+		E1000_WRITE_REG(hw, EM_EIAC, EM_MSIX_MASK);
+		ims_mask |= EM_MSIX_MASK;
 	} 
-	E1000_WRITE_REG(&adapter->hw, E1000_IMS, ims_mask);
+	E1000_WRITE_REG(hw, E1000_IMS, ims_mask);
 }
 
 static void
 em_disable_intr(struct adapter *adapter)
 {
-	if (adapter->msix) {
-		E1000_WRITE_REG(&adapter->hw, E1000_EIMC, ~0);
-		E1000_WRITE_REG(&adapter->hw, E1000_EIAC, 0);
-	}
+	struct e1000_hw *hw = &adapter->hw;
+
+	if (adapter->msix)
+		E1000_WRITE_REG(hw, EM_EIAC, 0);
 	E1000_WRITE_REG(&adapter->hw, E1000_IMC, 0xffffffff);
 }
 
@@ -4522,6 +4704,7 @@ em_get_hw_control(struct adapter *adapter)
 	case e1000_80003es2lan:
 	case e1000_ich8lan:
 	case e1000_ich9lan:
+	case e1000_ich10lan:
 		ctrl_ext = E1000_READ_REG(&adapter->hw, E1000_CTRL_EXT);
 		E1000_WRITE_REG(&adapter->hw, E1000_CTRL_EXT,
 		    ctrl_ext | E1000_CTRL_EXT_DRV_LOAD);
@@ -4555,6 +4738,7 @@ em_release_hw_control(struct adapter *adapter)
 	case e1000_80003es2lan:
 	case e1000_ich8lan:
 	case e1000_ich9lan:
+	case e1000_ich10lan:
 		ctrl_ext = E1000_READ_REG(&adapter->hw, E1000_CTRL_EXT);
 		E1000_WRITE_REG(&adapter->hw, E1000_CTRL_EXT,
 		    ctrl_ext & ~E1000_CTRL_EXT_DRV_LOAD);
@@ -4841,8 +5025,9 @@ em_print_hw_stats(struct adapter *adapter)
 	device_printf(dev, "RX overruns = %ld\n", adapter->rx_overruns);
 	device_printf(dev, "watchdog timeouts = %ld\n",
 	    adapter->watchdog_events);
-	device_printf(dev, "TX Interrupts = %ld ", adapter->tx_irq);
-	device_printf(dev, "RX Interrupts = %ld\n", adapter->rx_irq);
+	device_printf(dev, "RX MSIX IRQ = %ld TX MSIX IRQ = %ld"
+	    " LINK MSIX IRQ = %ld\n", adapter->rx_irq,
+	    adapter->tx_irq , adapter->link_irq);
 	device_printf(dev, "XON Rcvd = %lld\n",
 	    (long long)adapter->stats.xonrxc);
 	device_printf(dev, "XON Xmtd = %lld\n",
@@ -5009,3 +5194,100 @@ em_add_rx_process_limit(struct adapter *adapter, const char *name,
 }
 #endif
 
+#ifdef EM_TIMESYNC
+/*
+ * Initialize the Time Sync Feature
+ */
+static int
+em_tsync_init(struct adapter *adapter)
+{
+	device_t	dev = adapter->dev;
+	u32		tx_ctl, rx_ctl;
+
+
+	E1000_WRITE_REG(&adapter->hw, E1000_TIMINCA, (1<<24) |
+	    20833/PICOSECS_PER_TICK);
+
+	adapter->last_stamp =  E1000_READ_REG(&adapter->hw, E1000_SYSTIML);
+	adapter->last_stamp |= (u64)E1000_READ_REG(&adapter->hw,
+	    E1000_SYSTIMH) << 32ULL;
+
+	/* Enable the TX side */
+	tx_ctl =  E1000_READ_REG(&adapter->hw, E1000_TSYNCTXCTL);
+	tx_ctl |= 0x10;
+	E1000_WRITE_REG(&adapter->hw, E1000_TSYNCTXCTL, tx_ctl);
+	E1000_WRITE_FLUSH(&adapter->hw);
+
+	tx_ctl = E1000_READ_REG(&adapter->hw, E1000_TSYNCTXCTL);
+	if ((tx_ctl & 0x10) == 0) {
+     		device_printf(dev, "Failed to enable TX timestamping\n");
+		return (ENXIO);
+	} 
+
+	/* Enable RX */
+	rx_ctl = E1000_READ_REG(&adapter->hw, E1000_TSYNCRXCTL);
+	rx_ctl |= 0x10; /* Enable the feature */
+	rx_ctl |= 0x0a; /* This value turns on Ver 1 and 2 */
+	E1000_WRITE_REG(&adapter->hw, E1000_TSYNCRXCTL, rx_ctl);
+
+	/*
+	 * Ethertype Stamping (Ethertype = 0x88F7)
+	 */
+	E1000_WRITE_REG(&adapter->hw, E1000_RXMTRL, htonl(0x440088f7));
+
+	/*
+	 * Source Port Queue Filter Setup:
+	 *  this is for UDP port filtering 
+	 */
+	E1000_WRITE_REG(&adapter->hw, E1000_RXUDP, htons(TSYNC_PORT));
+	/* Protocol = UDP, enable Timestamp, and filter on source/protocol */
+
+	E1000_WRITE_FLUSH(&adapter->hw);
+
+	rx_ctl = E1000_READ_REG(&adapter->hw, E1000_TSYNCRXCTL);
+	if ((rx_ctl & 0x10) == 0) {
+     		device_printf(dev, "Failed to enable RX timestamping\n");
+		return (ENXIO);
+	} 
+
+	device_printf(dev, "IEEE 1588 Precision Time Protocol enabled\n");
+
+	return (0);
+}
+
+/*
+ * Disable the Time Sync Feature
+ */
+static void
+em_tsync_disable(struct adapter *adapter)
+{
+	u32		tx_ctl, rx_ctl;
+ 
+	tx_ctl =  E1000_READ_REG(&adapter->hw, E1000_TSYNCTXCTL);
+	tx_ctl &= ~0x10;
+	E1000_WRITE_REG(&adapter->hw, E1000_TSYNCTXCTL, tx_ctl);
+	E1000_WRITE_FLUSH(&adapter->hw);
+   
+	/* Invalidate TX Timestamp */
+	E1000_READ_REG(&adapter->hw, E1000_TXSTMPH);
+ 
+	tx_ctl = E1000_READ_REG(&adapter->hw, E1000_TSYNCTXCTL);
+	if (tx_ctl & 0x10)
+     		HW_DEBUGOUT("Failed to disable TX timestamping\n");
+   
+	rx_ctl = E1000_READ_REG(&adapter->hw, E1000_TSYNCRXCTL);
+	rx_ctl &= ~0x10;
+   
+	E1000_WRITE_REG(&adapter->hw, E1000_TSYNCRXCTL, rx_ctl);
+	E1000_WRITE_FLUSH(&adapter->hw);
+   
+	/* Invalidate RX Timestamp */
+	E1000_READ_REG(&adapter->hw, E1000_RXSATRH);
+ 
+	rx_ctl = E1000_READ_REG(&adapter->hw, E1000_TSYNCRXCTL);
+	if (rx_ctl & 0x10)
+		HW_DEBUGOUT("Failed to disable RX timestamping\n");
+ 
+	return;
+}
+#endif /* EM_TIMESYNC */

@@ -57,7 +57,7 @@ struct e1000_hw;
 typedef enum {
 	e1000_undefined = 0,
 	e1000_82575,
-	e1000_num_macs  /* List is 1-based, so subtract 1 for true count. */
+	e1000_num_macs  /* List is 1-based, so subtract 1 for TRUE count. */
 } e1000_mac_type;
 
 typedef enum {
@@ -615,9 +615,9 @@ struct e1000_hw {
 	u8  revision_id;
 };
 
+#include "e1000_82575.h"
+
 /* These functions must be implemented by drivers */
-void e1000_pci_clear_mwi(struct e1000_hw *hw);
-void e1000_pci_set_mwi(struct e1000_hw *hw);
 s32  e1000_alloc_zeroed_dev_spec_struct(struct e1000_hw *hw, u32 size);
 s32  e1000_read_pcie_cap_reg(struct e1000_hw *hw, u32 reg, u16 *value);
 void e1000_free_dev_spec_struct(struct e1000_hw *hw);

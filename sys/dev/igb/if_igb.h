@@ -203,7 +203,14 @@
 
 /* PCI Config defines */
 #define IGB_MSIX_BAR		3
-#define IGB_MSIX_VEC		10	/* Max vectors supported */
+
+/*
+** This is the total number of MSIX vectors you wish
+** to use, it also controls the size of resources.
+** The 82575 has a total of 10, 82576 has 25. Set this
+** to the real amount you need to streamline data storage.
+*/
+#define IGB_MSIX_VEC		5	/* MSIX vectors configured */
 
 /* Defines for printing debug information */
 #define DEBUG_INIT  0
@@ -318,6 +325,7 @@ struct adapter {
 	u32		eims_mask;
 
 	int		linkvec;
+	int		link_mask;
 	int		link_irq;
 
 	struct ifmedia	media;
