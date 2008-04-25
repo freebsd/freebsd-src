@@ -7,7 +7,7 @@
  * - AES-128 EAX mode encryption/decryption
  * - AES-128 CBC
  *
- * Copyright (c) 2003-2005, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2003-2007, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -34,10 +34,11 @@
 
 /**
  * aes_wrap - Wrap keys with AES Key Wrap Algorithm (128-bit KEK) (RFC3394)
- * @kek: Key encryption key (KEK)
- * @n: Length of the wrapped key in 64-bit units; e.g., 2 = 128-bit = 16 bytes
- * @plain: Plaintext key to be wrapped, n * 64 bit
- * @cipher: Wrapped key, (n + 1) * 64 bit
+ * @kek: 16-octet Key encryption key (KEK)
+ * @n: Length of the plaintext key in 64-bit units; e.g., 2 = 128-bit = 16
+ * bytes
+ * @plain: Plaintext key to be wrapped, n * 64 bits
+ * @cipher: Wrapped key, (n + 1) * 64 bits
  * Returns: 0 on success, -1 on failure
  */
 int aes_wrap(const u8 *kek, int n, const u8 *plain, u8 *cipher)
@@ -93,9 +94,10 @@ int aes_wrap(const u8 *kek, int n, const u8 *plain, u8 *cipher)
 /**
  * aes_unwrap - Unwrap key with AES Key Wrap Algorithm (128-bit KEK) (RFC3394)
  * @kek: Key encryption key (KEK)
- * @n: Length of the wrapped key in 64-bit units; e.g., 2 = 128-bit = 16 bytes
- * @cipher: Wrapped key to be unwrapped, (n + 1) * 64 bit
- * @plain: Plaintext key, n * 64 bit
+ * @n: Length of the plaintext key in 64-bit units; e.g., 2 = 128-bit = 16
+ * bytes
+ * @cipher: Wrapped key to be unwrapped, (n + 1) * 64 bits
+ * @plain: Plaintext key, n * 64 bits
  * Returns: 0 on success, -1 on failure (e.g., integrity verification failed)
  */
 int aes_unwrap(const u8 *kek, int n, const u8 *cipher, u8 *plain)
@@ -167,28 +169,45 @@ static void gf_mulx(u8 *pad)
 
 
 /**
- * omac1_aes_128 - One-Key CBC MAC (OMAC1) hash with AES-128 (aka AES-CMAC)
+ * omac1_aes_128_vector - One-Key CBC MAC (OMAC1) hash with AES-128
  * @key: 128-bit key for the hash operation
- * @data: Data buffer for which a MAC is determined
- * @data: Length of data buffer in bytes
+ * @num_elem: Number of elements in the data vector
+ * @addr: Pointers to the data areas
+ * @len: Lengths of the data blocks
  * @mac: Buffer for MAC (128 bits, i.e., 16 bytes)
  * Returns: 0 on success, -1 on failure
  */
-int omac1_aes_128(const u8 *key, const u8 *data, size_t data_len, u8 *mac)
+int omac1_aes_128_vector(const u8 *key, size_t num_elem,
+			 const u8 *addr[], const size_t *len, u8 *mac)
 {
 	void *ctx;
 	u8 cbc[BLOCK_SIZE], pad[BLOCK_SIZE];
-	const u8 *pos = data;
-	size_t i, left = data_len;
+	const u8 *pos, *end;
+	size_t i, e, left, total_len;
 
 	ctx = aes_encrypt_init(key, 16);
 	if (ctx == NULL)
 		return -1;
 	os_memset(cbc, 0, BLOCK_SIZE);
 
+	total_len = 0;
+	for (e = 0; e < num_elem; e++)
+		total_len += len[e];
+	left = total_len;
+
+	e = 0;
+	pos = addr[0];
+	end = pos + len[0];
+
 	while (left >= BLOCK_SIZE) {
-		for (i = 0; i < BLOCK_SIZE; i++)
+		for (i = 0; i < BLOCK_SIZE; i++) {
 			cbc[i] ^= *pos++;
+			if (pos >= end) {
+				e++;
+				pos = addr[e];
+				end = pos + len[e];
+			}
+		}
 		if (left > BLOCK_SIZE)
 			aes_encrypt(ctx, cbc, cbc);
 		left -= BLOCK_SIZE;
@@ -198,9 +217,15 @@ int omac1_aes_128(const u8 *key, const u8 *data, size_t data_len, u8 *mac)
 	aes_encrypt(ctx, pad, pad);
 	gf_mulx(pad);
 
-	if (left || data_len == 0) {
-		for (i = 0; i < left; i++)
+	if (left || total_len == 0) {
+		for (i = 0; i < left; i++) {
 			cbc[i] ^= *pos++;
+			if (pos >= end) {
+				e++;
+				pos = addr[e];
+				end = pos + len[e];
+			}
+		}
 		cbc[left] ^= 0x80;
 		gf_mulx(pad);
 	}
@@ -210,6 +235,24 @@ int omac1_aes_128(const u8 *key, const u8 *data, size_t data_len, u8 *mac)
 	aes_encrypt(ctx, pad, mac);
 	aes_encrypt_deinit(ctx);
 	return 0;
+}
+
+
+/**
+ * omac1_aes_128 - One-Key CBC MAC (OMAC1) hash with AES-128 (aka AES-CMAC)
+ * @key: 128-bit key for the hash operation
+ * @data: Data buffer for which a MAC is determined
+ * @data_len: Length of data buffer in bytes
+ * @mac: Buffer for MAC (128 bits, i.e., 16 bytes)
+ * Returns: 0 on success, -1 on failure
+ *
+ * This is a mode for using block cipher (AES in this case) for authentication.
+ * OMAC1 was standardized with the name CMAC by NIST in a Special Publication
+ * (SP) 800-38B.
+ */
+int omac1_aes_128(const u8 *key, const u8 *data, size_t data_len, u8 *mac)
+{
+	return omac1_aes_128_vector(key, 1, &data, &data_len, mac);
 }
 
 #endif /* CONFIG_NO_AES_OMAC1 */

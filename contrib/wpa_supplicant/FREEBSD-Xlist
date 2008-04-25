@@ -1,10 +1,13 @@
 $FreeBSD$
 .cvsignore
 README-Windows.txt
+config_winreg.c
+ctrl_iface_named_pipe.c
 driver_atmel.c
 driver_broadcom.c
 driver_bsd.c
 driver_hostap.c
+driver_hostap.h
 driver_ipw.c
 driver_madwifi.c
 driver_ndiswrapper.c
@@ -13,6 +16,7 @@ driver_prism54.c
 driver_test.c
 driver_wext.c
 driver_wext.h
+eloop_win.c
 l2_packet_freebsd.c
 l2_packet_linux.c
 l2_packet_ndis.c

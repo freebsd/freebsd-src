@@ -203,6 +203,12 @@ IEEE 802.1X EAPOL state machine logoff.
 Force reassociation.
 
 
+\subsection ctrl_iface_RECONNECT RECONNECT
+
+Connect if disconnected (i.e., like \c REASSOCIATE, but only connect
+if in disconnected state).
+
+
 \subsection ctrl_iface_PREAUTH PREAUTH <BSSID>
 
 Start pre-authentication with the given BSSID.
@@ -255,7 +261,8 @@ network id / ssid / bssid / flags
 
 \subsection ctrl_iface_DISCONNECT DISCONNECT
 
-Disconnect and wait for \c REASSOCIATE command before connecting.
+Disconnect and wait for \c REASSOCIATE or \c RECONNECT command before
+connecting.
 
 
 \subsection ctrl_iface_SCAN SCAN

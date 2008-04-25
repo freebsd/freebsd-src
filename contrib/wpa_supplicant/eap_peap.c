@@ -41,6 +41,8 @@ struct eap_peap_data {
 	const struct eap_method *phase2_method;
 	void *phase2_priv;
 	int phase2_success;
+	int phase2_eap_success;
+	int phase2_eap_started;
 
 	struct eap_method_type phase2_type;
 	struct eap_method_type *phase2_types;
@@ -296,7 +298,9 @@ static int eap_peap_phase2_request(struct eap_sm *sm,
 		break;
 	case EAP_TYPE_TLV:
 		os_memset(&iret, 0, sizeof(iret));
-		if (eap_tlv_process(sm, &iret, hdr, resp, resp_len)) {
+		if (eap_tlv_process(sm, &iret, hdr, resp, resp_len,
+				    data->phase2_eap_started &&
+				    !data->phase2_eap_success)) {
 			ret->methodState = METHOD_DONE;
 			ret->decision = DECISION_FAIL;
 			return -1;
@@ -354,6 +358,7 @@ static int eap_peap_phase2_request(struct eap_sm *sm,
 			ret->decision = DECISION_FAIL;
 			return -1;
 		}
+		data->phase2_eap_started = 1;
 		os_memset(&iret, 0, sizeof(iret));
 		*resp = data->phase2_method->process(sm, data->phase2_priv,
 						     &iret, (u8 *) hdr, len,
@@ -362,6 +367,7 @@ static int eap_peap_phase2_request(struct eap_sm *sm,
 		     iret.methodState == METHOD_MAY_CONT) &&
 		    (iret.decision == DECISION_UNCOND_SUCC ||
 		     iret.decision == DECISION_COND_SUCC)) {
+			data->phase2_eap_success = 1;
 			data->phase2_success = 1;
 		}
 		break;
@@ -550,6 +556,17 @@ continue_req:
 			/* EAP-Success within TLS tunnel is used to indicate
 			 * shutdown of the TLS channel. The authentication has
 			 * been completed. */
+			if (data->phase2_eap_started &&
+			    !data->phase2_eap_success) {
+				wpa_printf(MSG_DEBUG, "EAP-PEAP: Phase 2 "
+					   "Success used to indicate success, "
+					   "but Phase 2 EAP was not yet "
+					   "completed successfully");
+				ret->methodState = METHOD_DONE;
+				ret->decision = DECISION_FAIL;
+				os_free(in_decrypted);
+				return 0;
+			}
 			wpa_printf(MSG_DEBUG, "EAP-PEAP: Version 1 - "
 				   "EAP-Success within TLS tunnel - "
 				   "authentication completed");
@@ -797,6 +814,8 @@ static void * eap_peap_init_for_reauth(struct eap_sm *sm, void *priv)
 	    data->phase2_method->init_for_reauth)
 		data->phase2_method->init_for_reauth(sm, data->phase2_priv);
 	data->phase2_success = 0;
+	data->phase2_eap_success = 0;
+	data->phase2_eap_started = 0;
 	data->resuming = 1;
 	sm->peap_done = FALSE;
 	return priv;

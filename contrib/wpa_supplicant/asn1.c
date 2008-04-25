@@ -58,6 +58,10 @@ int asn1_get_next(const u8 *buf, size_t len, struct asn1_hdr *hdr)
 		}
 		tmp &= 0x7f; /* number of subsequent octets */
 		hdr->length = 0;
+		if (tmp > 4) {
+			wpa_printf(MSG_DEBUG, "ASN.1: Too long length field");
+			return -1;
+		}
 		while (tmp--) {
 			if (pos >= end) {
 				wpa_printf(MSG_DEBUG, "ASN.1: Length "
@@ -71,7 +75,7 @@ int asn1_get_next(const u8 *buf, size_t len, struct asn1_hdr *hdr)
 		hdr->length = tmp;
 	}
 
-	if (pos + hdr->length > end) {
+	if (end < pos || hdr->length > (unsigned int) (end - pos)) {
 		wpa_printf(MSG_DEBUG, "ASN.1: Contents underflow");
 		return -1;
 	}

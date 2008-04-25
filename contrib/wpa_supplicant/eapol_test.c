@@ -248,7 +248,8 @@ static int eapol_test_eapol_send(void *ctx, int type, const u8 *buf,
 				 size_t len)
 {
 	/* struct wpa_supplicant *wpa_s = ctx; */
-	printf("WPA: eapol_test_eapol_send(type=%d len=%d)\n", type, len);
+	printf("WPA: eapol_test_eapol_send(type=%d len=%lu)\n",
+	       type, (unsigned long) len);
 	if (type == IEEE802_1X_TYPE_EAP_PACKET) {
 		wpa_hexdump(MSG_DEBUG, "TX EAP -> RADIUS", buf, len);
 		ieee802_1x_encapsulate_radius(&eapol_test, buf, len);
@@ -1051,6 +1052,9 @@ int main(int argc, char *argv[])
 	eloop_register_signal_terminate(eapol_test_terminate, NULL);
 	eloop_register_signal_reconfig(eapol_test_terminate, NULL);
 	eloop_run();
+
+	eloop_cancel_timeout(eapol_test_timeout, &eapol_test, NULL);
+	eloop_cancel_timeout(eapol_sm_reauth, &eapol_test, NULL);
 
 	if (eapol_test_compare_pmk(&eapol_test) == 0 ||
 	    eapol_test.no_mppe_keys)

@@ -1,6 +1,6 @@
 /*
  * X.509v3 certificate parsing and processing (RFC 3280 profile)
- * Copyright (c) 2006, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2006-2007, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -75,8 +75,39 @@ void x509_certificate_chain_free(struct x509_certificate *cert)
 }
 
 
+static int x509_whitespace(char c)
+{
+	return c == ' ' || c == '\t';
+}
+
+
+static void x509_str_strip_whitespace(char *a)
+{
+	char *ipos, *opos;
+	int remove_whitespace = 1;
+
+	ipos = opos = a;
+
+	while (*ipos) {
+		if (remove_whitespace && x509_whitespace(*ipos))
+			ipos++;
+		else {
+			remove_whitespace = x509_whitespace(*ipos);
+			*opos++ = *ipos++;
+		}
+	}
+
+	*opos-- = '\0';
+	if (opos > a && x509_whitespace(*opos))
+		*opos = '\0';
+}
+
+
 static int x509_str_compare(const char *a, const char *b)
 {
+	char *aa, *bb;
+	int ret;
+
 	if (!a && b)
 		return -1;
 	if (a && !b)
@@ -84,14 +115,31 @@ static int x509_str_compare(const char *a, const char *b)
 	if (!a && !b)
 		return 0;
 
-	return os_strcmp(a, b);
+	aa = os_strdup(a);
+	bb = os_strdup(b);
+
+	if (aa == NULL || bb == NULL) {
+		os_free(aa);
+		os_free(bb);
+		return os_strcasecmp(a, b);
+	}
+
+	x509_str_strip_whitespace(aa);
+	x509_str_strip_whitespace(bb);
+
+	ret = os_strcasecmp(aa, bb);
+
+	os_free(aa);
+	os_free(bb);
+
+	return ret;
 }
 
 
 /**
  * x509_name_compare - Compare X.509 certificate names
  * @a: Certificate name
- * @b: Certifiatte name
+ * @b: Certificate name
  * Returns: <0, 0, or >0 based on whether a is less than, equal to, or
  * greater than b
  */
@@ -553,6 +601,17 @@ static int x509_parse_time(const u8 *buf, size_t len, u8 asn1_tag,
 	if (os_mktime(year, month, day, hour, min, sec, val) < 0) {
 		wpa_hexdump_ascii(MSG_DEBUG, "X509: Failed to convert Time",
 				  buf, len);
+		if (year < 1970) {
+			/*
+			 * At least some test certificates have been configured
+			 * to use dates prior to 1970. Set the date to
+			 * beginning of 1970 to handle these case.
+			 */
+			wpa_printf(MSG_DEBUG, "X509: Year=%d before epoch - "
+				   "assume epoch as the time", year);
+			*val = 0;
+			return 0;
+		}
 		return -1;
 	}
 
@@ -720,7 +779,8 @@ static int x509_parse_ext_basic_constraints(struct x509_certificate *cert,
 			return 0;
 		}
 
-		if (asn1_get_next(pos, len, &hdr) < 0 ||
+		if (asn1_get_next(hdr.payload + hdr.length, len - hdr.length,
+				  &hdr) < 0 ||
 		    hdr.class != ASN1_CLASS_UNIVERSAL) {
 			wpa_printf(MSG_DEBUG, "X509: Failed to parse "
 				   "BasicConstraints");
@@ -1443,6 +1503,13 @@ static int x509_valid_issuer(const struct x509_certificate *cert)
 		return -1;
 	}
 
+	if (cert->version == X509_CERT_V3 &&
+	    !(cert->extensions_present & X509_EXT_BASIC_CONSTRAINTS)) {
+		wpa_printf(MSG_DEBUG, "X509: v3 CA certificate did not "
+			   "include BasicConstraints extension");
+		return -1;
+	}
+
 	if ((cert->extensions_present & X509_EXT_KEY_USAGE) &&
 	    !(cert->key_usage & X509_KEY_USAGE_KEY_CERT_SIGN)) {
 		wpa_printf(MSG_DEBUG, "X509: Issuer certificate did not have "
@@ -1466,7 +1533,8 @@ int x509_certificate_chain_validate(struct x509_certificate *trusted,
 				    struct x509_certificate *chain,
 				    int *reason)
 {
-	int idx, chain_trusted = 0;
+	long unsigned idx;
+	int chain_trusted = 0;
 	struct x509_certificate *cert, *trust;
 	char buf[128];
 	struct os_time now;
@@ -1478,12 +1546,15 @@ int x509_certificate_chain_validate(struct x509_certificate *trusted,
 
 	for (cert = chain, idx = 0; cert; cert = cert->next, idx++) {
 		x509_name_string(&cert->subject, buf, sizeof(buf)); 
-		wpa_printf(MSG_DEBUG, "X509: %d: %s", idx, buf);
+		wpa_printf(MSG_DEBUG, "X509: %lu: %s", idx, buf);
 
 		if (chain_trusted)
 			continue;
 
-		if (now.sec < cert->not_before || now.sec > cert->not_after) {
+		if ((unsigned long) now.sec <
+		    (unsigned long) cert->not_before ||
+		    (unsigned long) now.sec >
+		    (unsigned long) cert->not_after) {
 			wpa_printf(MSG_INFO, "X509: Certificate not valid "
 				   "(now=%lu not_before=%lu not_after=%lu)",
 				   now.sec, cert->not_before, cert->not_after);
@@ -1505,7 +1576,16 @@ int x509_certificate_chain_validate(struct x509_certificate *trusted,
 				return -1;
 			}
 
-			/* TODO: validate pathLenConstraint */
+			if ((cert->next->extensions_present &
+			     X509_EXT_PATH_LEN_CONSTRAINT) &&
+			    idx > cert->next->path_len_constraint) {
+				wpa_printf(MSG_DEBUG, "X509: pathLenConstraint"
+					   " not met (idx=%lu issuer "
+					   "pathLenConstraint=%lu)", idx,
+					   cert->next->path_len_constraint);
+				*reason = X509_VALIDATE_BAD_CERTIFICATE;
+				return -1;
+			}
 
 			if (x509_certificate_check_signature(cert->next, cert)
 			    < 0) {

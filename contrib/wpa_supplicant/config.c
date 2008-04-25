@@ -66,17 +66,19 @@ static char * wpa_config_parse_string(const char *value, size_t *len)
 		return os_strdup(value);
 	} else {
 		u8 *str;
-		size_t hlen = os_strlen(value);
+		size_t tlen, hlen = os_strlen(value);
 		if (hlen & 1)
 			return NULL;
-		*len = hlen / 2;
-		str = os_malloc(*len);
+		tlen = hlen / 2;
+		str = os_malloc(tlen + 1);
 		if (str == NULL)
 			return NULL;
-		if (hexstr2bin(value, str, *len)) {
+		if (hexstr2bin(value, str, tlen)) {
 			os_free(str);
 			return NULL;
 		}
+		str[tlen] = '\0';
+		*len = tlen;
 		return (char *) str;
 	}
 }
@@ -1157,7 +1159,8 @@ static const struct parse_data ssid_fields[] = {
 	{ INT_RANGE(ieee80211w, 0, 2) },
 #endif /* CONFIG_IEEE80211W */
 	{ INT_RANGE(peerkey, 0, 1) },
-	{ INT_RANGE(mixed_cell, 0, 1) }
+	{ INT_RANGE(mixed_cell, 0, 1) },
+	{ INT_RANGE(frequency, 0, 10000) }
 };
 
 #undef OFFSET

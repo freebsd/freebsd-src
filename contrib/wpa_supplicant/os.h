@@ -63,6 +63,9 @@ int os_get_time(struct os_time *t);
  * @t: Buffer for returning calendar time representation (seconds since
  * 1970-01-01 00:00:00)
  * Returns: 0 on success, -1 on failure
+ *
+ * Note: The result is in seconds from Epoch, i.e., in UTC, not in local time
+ * which is used by POSIX mktime().
  */
 int os_mktime(int year, int month, int day, int hour, int min, int sec,
 	      os_time_t *t);

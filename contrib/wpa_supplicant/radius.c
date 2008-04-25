@@ -1,6 +1,6 @@
 /*
  * hostapd / RADIUS message processing
- * Copyright (c) 2002-2005, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2002-2008, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -138,6 +138,7 @@ static struct radius_attr_type radius_attrs[] =
 	{ RADIUS_ATTR_CALLING_STATION_ID, "Calling-Station-Id",
 	  RADIUS_ATTR_TEXT },
 	{ RADIUS_ATTR_NAS_IDENTIFIER, "NAS-Identifier", RADIUS_ATTR_TEXT },
+	{ RADIUS_ATTR_PROXY_STATE, "Proxy-State", RADIUS_ATTR_UNDIST },
 	{ RADIUS_ATTR_ACCT_STATUS_TYPE, "Acct-Status-Type",
 	  RADIUS_ATTR_INT32 },
 	{ RADIUS_ATTR_ACCT_DELAY_TIME, "Acct-Delay-Time", RADIUS_ATTR_INT32 },
@@ -230,8 +231,9 @@ static void radius_msg_dump_attr(struct radius_attr_hdr *hdr)
 
 	case RADIUS_ATTR_IP:
 		if (len == 4) {
-			struct in_addr *addr = (struct in_addr *) pos;
-			printf("      Value: %s\n", inet_ntoa(*addr));
+			struct in_addr addr;
+			os_memcpy(&addr, pos, 4);
+			printf("      Value: %s\n", inet_ntoa(addr));
 		} else
 			printf("      Invalid IP address length %d\n", len);
 		break;
@@ -664,24 +666,21 @@ int radius_msg_verify(struct radius_msg *msg, const u8 *secret,
 int radius_msg_copy_attr(struct radius_msg *dst, struct radius_msg *src,
 			 u8 type)
 {
-	struct radius_attr_hdr *attr = NULL;
+	struct radius_attr_hdr *attr;
 	size_t i;
+	int count = 0;
 
 	for (i = 0; i < src->attr_used; i++) {
-		if (src->attrs[i]->type == type) {
-			attr = src->attrs[i];
-			break;
+		attr = src->attrs[i];
+		if (attr->type == type) {
+			if (!radius_msg_add_attr(dst, type, (u8 *) (attr + 1),
+						 attr->length - sizeof(*attr)))
+				return -1;
+			count++;
 		}
 	}
 
-	if (attr == NULL)
-		return 0;
-
-	if (!radius_msg_add_attr(dst, type, (u8 *) (attr + 1),
-				 attr->length - sizeof(*attr)))
-		return -1;
-
-	return 1;
+	return count;
 }
 
 

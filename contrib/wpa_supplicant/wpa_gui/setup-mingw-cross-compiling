@@ -4,8 +4,8 @@
 # and I have no idea how to change these. For now, just override the
 # directories in the Makefile.Release file after qmake run.
 
-qmake -spec /q/jm/qt4-win/4.0.0/mkspecs/win32-g++ wpa_gui.pro -o Makefile
+qmake -spec /q/jm/qt4-win/4.3.3/mkspecs/win32-g++ wpa_gui.pro -o Makefile
 cat Makefile.Release |
-    sed s%qt4/lib%qt4-win/4.0.0/lib%g |
-    sed s%qt4/include%qt4-win/4.0.0/include%g > tmp.Makefile.Release &&
+    sed s%/usr/lib/qt4%/q/jm/qt4-win/4.3.3/lib%g |
+    sed s%/usr/include/qt4%/q/jm/qt4-win/4.3.3/include%g > tmp.Makefile.Release &&
 mv -f tmp.Makefile.Release Makefile.Release

@@ -162,7 +162,7 @@ void NetworkConfig::addNetwork()
 
 	setNetworkParam(id, "ssid", ssidEdit->text().ascii(), true);
 
-	char *key_mgmt = NULL, *proto = NULL, *pairwise = NULL;
+	const char *key_mgmt = NULL, *proto = NULL, *pairwise = NULL;
 	switch (auth) {
 	case AUTH_NONE:
 		key_mgmt = "NONE";
