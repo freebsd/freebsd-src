@@ -65,6 +65,7 @@ db_addr_t	db_next;
 
 SET_DECLARE(db_cmd_set, struct command);
 SET_DECLARE(db_show_cmd_set, struct command);
+SET_DECLARE(db_show_all_cmd_set, struct command);
 
 static db_cmdfcn_t	db_fncall;
 static db_cmdfcn_t	db_gdb;
@@ -80,12 +81,13 @@ static db_cmdfcn_t	db_watchdog;
  */
 
 static struct command db_show_all_cmds[] = {
-	{ "procs",	db_ps,			0,	0 },
 	{ (char *)0 }
 };
 
 static struct command_table db_show_all_table = {
-	db_show_all_cmds
+	db_show_all_cmds,
+	SET_BEGIN(db_show_all_cmd_set),
+	SET_LIMIT(db_show_all_cmd_set)
 };
 
 static struct command db_show_cmds[] = {
