@@ -52,6 +52,7 @@ struct cmd {
 		c_func	*c_func;
 		c_func2	*c_func2;
 	} c_u;
+	int	c_iscloneop;
 	struct cmd *c_next;
 };
 void	cmd_register(struct cmd *);
@@ -71,6 +72,8 @@ void	callback_register(callback_func *, void *);
 #define	DEF_CMD_ARG(name, func)		{ name, NEXTARG, { .c_func = func } }
 #define	DEF_CMD_OPTARG(name, func)	{ name, OPTARG, { .c_func = func } }
 #define	DEF_CMD_ARG2(name, func)	{ name, NEXTARG2, { .c_func2 = func } }
+#define	DEF_CLONE_CMD(name, param, func) { name, param, { .c_func = func }, 1 }
+#define	DEF_CLONE_CMD_ARG(name, func)	{ name, NEXTARG, { .c_func = func }, 1 }
 
 struct ifaddrs;
 struct addrinfo;
