@@ -43,6 +43,7 @@
  * other processors"
  */
 #define	PCPU_MD_FIELDS							\
+	char	pc_monitorbuf[128] __aligned(128); /* cache line */	\
 	struct	pcpu *pc_prvspace;	/* Self-reference */		\
 	struct	pmap *pc_curpmap;					\
 	struct	amd64tss *pc_tssp;					\

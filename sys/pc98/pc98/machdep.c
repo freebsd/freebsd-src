@@ -1133,7 +1133,7 @@ cpu_idle_default(void)
  * is a runnable process.
  */
 void
-cpu_idle(void)
+cpu_idle(int busy)
 {
 
 #ifdef SMP
@@ -1148,6 +1148,13 @@ cpu_idle(void)
 		else
 			(*cpu_idle_hook)();
 	}
+}
+
+int
+cpu_idle_wakeup(int cpu)
+{
+
+	return (0);
 }
 
 /* Other subsystems (e.g., ACPI) can hook this later. */

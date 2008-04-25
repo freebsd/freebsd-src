@@ -1128,63 +1128,192 @@ cpu_halt(void)
 		__asm__ ("hlt");
 }
 
-/*
- * Hook to idle the CPU when possible.  In the SMP case we default to
- * off because a halted cpu will not currently pick up a new thread in the
- * run queue until the next timer tick.  If turned on this will result in
- * approximately a 4.2% loss in real time performance in buildworld tests
- * (but improves user and sys times oddly enough), and saves approximately
- * 5% in power consumption on an idle machine (tests w/2xCPU 1.1GHz P3).
- *
- * XXX we need to have a cpu mask of idle cpus and generate an IPI or
- * otherwise generate some sort of interrupt to wake up cpus sitting in HLT.
- * Then we can have our cake and eat it too.
- *
- * XXX I'm turning it on for SMP as well by default for now.  It seems to
- * help lock contention somewhat, and this is critical for HTT. -Peter
- */
-static int	cpu_idle_hlt = 1;
-TUNABLE_INT("machdep.cpu_idle_hlt", &cpu_idle_hlt);
-SYSCTL_INT(_machdep, OID_AUTO, cpu_idle_hlt, CTLFLAG_RW,
-    &cpu_idle_hlt, 0, "Idle loop HLT enable");
+void (*cpu_idle_hook)(void) = NULL;	/* ACPI idle hook. */
 
 static void
-cpu_idle_default(void)
+cpu_idle_hlt(int busy)
 {
 	/*
-	 * we must absolutely guarentee that hlt is the
-	 * absolute next instruction after sti or we
-	 * introduce a timing window.
+	 * we must absolutely guarentee that hlt is the next instruction
+	 * after sti or we introduce a timing window.
 	 */
-	__asm __volatile("sti; hlt");
+	disable_intr();
+  	if (sched_runnable())
+		enable_intr();
+	else
+		__asm __volatile("sti; hlt");
 }
 
-/*
- * Note that we have to be careful here to avoid a race between checking
- * sched_runnable() and actually halting.  If we don't do this, we may waste
- * the time between calling hlt and the next interrupt even though there
- * is a runnable process.
- */
-void
-cpu_idle(void)
+static void
+cpu_idle_acpi(int busy)
 {
+	disable_intr();
+  	if (sched_runnable())
+		enable_intr();
+	else if (cpu_idle_hook)
+		cpu_idle_hook();
+	else
+		__asm __volatile("sti; hlt");
+}
 
+static void
+cpu_idle_spin(int busy)
+{
+	return;
+}
+
+void (*cpu_idle_fn)(int) = cpu_idle_acpi;
+
+void
+cpu_idle(int busy)
+{
 #ifdef SMP
 	if (mp_grab_cpu_hlt())
 		return;
 #endif
-
-	if (cpu_idle_hlt) {
-		disable_intr();
-  		if (sched_runnable())
-			enable_intr();
-		else
-			(*cpu_idle_hook)();
-	}
+	cpu_idle_fn(busy);
 }
 
-/* Other subsystems (e.g., ACPI) can hook this later. */
-void (*cpu_idle_hook)(void) = cpu_idle_default;
+/*
+ * mwait cpu power states.  Lower 4 bits are sub-states.
+ */
+#define	MWAIT_C0	0xf0
+#define	MWAIT_C1	0x00
+#define	MWAIT_C2	0x10
+#define	MWAIT_C3	0x20
+#define	MWAIT_C4	0x30
+
+#define	MWAIT_DISABLED	0x0
+#define	MWAIT_WOKEN	0x1
+#define	MWAIT_WAITING	0x2
+
+static void
+cpu_idle_mwait(int busy)
+{
+	int *mwait;
+
+	mwait = (int *)PCPU_PTR(monitorbuf);
+	*mwait = MWAIT_WAITING;
+	if (sched_runnable())
+		return;
+	cpu_monitor(mwait, 0, 0);
+	if (*mwait == MWAIT_WAITING)
+		cpu_mwait(0, MWAIT_C1);
+}
+
+static void
+cpu_idle_mwait_hlt(int busy)
+{
+	int *mwait;
+
+	mwait = (int *)PCPU_PTR(monitorbuf);
+	if (busy == 0) {
+		*mwait = MWAIT_DISABLED;
+		cpu_idle_hlt(busy);
+		return;
+	}
+	*mwait = MWAIT_WAITING;
+	if (sched_runnable())
+		return;
+	cpu_monitor(mwait, 0, 0);
+	if (*mwait == MWAIT_WAITING)
+		cpu_mwait(0, MWAIT_C1);
+}
+
+int
+cpu_idle_wakeup(int cpu)
+{
+	struct pcpu *pcpu;
+	int *mwait;
+
+	if (cpu_idle_fn == cpu_idle_spin)
+		return (1);
+	if (cpu_idle_fn != cpu_idle_mwait && cpu_idle_fn != cpu_idle_mwait_hlt)
+		return (0);
+	pcpu = pcpu_find(cpu);
+	mwait = (int *)pcpu->pc_monitorbuf;
+	/*
+	 * This doesn't need to be atomic since missing the race will
+	 * simply result in unnecessary IPIs.
+	 */
+	if (cpu_idle_fn == cpu_idle_mwait_hlt && *mwait == MWAIT_DISABLED)
+		return (0);
+	*mwait = MWAIT_WOKEN;
+
+	return (1);
+}
+
+/*
+ * Ordered by speed/power consumption.
+ */
+struct {
+	void	*id_fn;
+	char	*id_name;
+} idle_tbl[] = {
+	{ cpu_idle_spin, "spin" },
+	{ cpu_idle_mwait, "mwait" },
+	{ cpu_idle_mwait_hlt, "mwait_hlt" },
+	{ cpu_idle_hlt, "hlt" },
+	{ cpu_idle_acpi, "acpi" },
+	{ NULL, NULL }
+};
+
+static int
+idle_sysctl_available(SYSCTL_HANDLER_ARGS)
+{
+	char *avail, *p;
+	int error;
+	int i;
+
+	avail = malloc(256, M_TEMP, M_WAITOK);
+	p = avail;
+	for (i = 0; idle_tbl[i].id_name != NULL; i++) {
+		if (strstr(idle_tbl[i].id_name, "mwait") &&
+		    (cpu_feature2 & CPUID2_MON) == 0)
+			continue;
+		p += sprintf(p, "%s, ", idle_tbl[i].id_name);
+	}
+	error = sysctl_handle_string(oidp, avail, 0, req);
+	free(avail, M_TEMP);
+	return (error);
+}
+
+static int
+idle_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	char buf[16];
+	int error;
+	char *p;
+	int i;
+
+	p = "unknown";
+	for (i = 0; idle_tbl[i].id_name != NULL; i++) {
+		if (idle_tbl[i].id_fn == cpu_idle_fn) {
+			p = idle_tbl[i].id_name;
+			break;
+		}
+	}
+	strncpy(buf, p, sizeof(buf));
+	error = sysctl_handle_string(oidp, buf, sizeof(buf), req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+	for (i = 0; idle_tbl[i].id_name != NULL; i++) {
+		if (strstr(idle_tbl[i].id_name, "mwait") &&
+		    (cpu_feature2 & CPUID2_MON) == 0)
+			continue;
+		if (strcmp(idle_tbl[i].id_name, buf))
+			continue;
+		cpu_idle_fn = idle_tbl[i].id_fn;
+		return (0);
+	}
+	return (EINVAL);
+}
+
+SYSCTL_PROC(_machdep, OID_AUTO, idle_available, CTLTYPE_STRING | CTLFLAG_RD,
+    0, 0, idle_sysctl_available, "A", "list of available idle functions");
+
+SYSCTL_PROC(_machdep, OID_AUTO, idle, CTLTYPE_STRING | CTLFLAG_RW, 0, 0,
+    idle_sysctl, "A", "currently selected idle function");
 
 /*
  * Clear registers on exec

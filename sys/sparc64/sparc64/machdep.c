@@ -750,9 +750,16 @@ sparc64_shutdown_final(void *dummy, int howto)
 }
 
 void
-cpu_idle(void)
+cpu_idle(int busy)
 {
 	/* Insert code to halt (until next interrupt) for the idle loop */
+}
+
+int
+cpu_idle_wakeup(int cpu)
+{
+
+	return (0);
 }
 
 int
