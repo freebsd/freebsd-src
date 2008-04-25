@@ -139,18 +139,19 @@ ixp425_md_attach(device_t dev)
 		panic("ixp425_md_attach: failed to set up IRQ rman");
 }
 
-#define	IXP425_MAX_DEV	4
+#define	IXP425_MAX_DEV	5
 #define	IXP425_MAX_LINE	4
 
 int
 ixp425_md_route_interrupt(device_t bridge, device_t device, int pin)
 {
-	static int ixp425_pci_table[IXP425_MAX_DEV][IXP425_MAX_LINE] =
-	{
+	static int ixp425_pci_table[IXP425_MAX_DEV][IXP425_MAX_LINE] = {
 		{PCI_INT_A, PCI_INT_B, PCI_INT_C, PCI_INT_D},
 		{PCI_INT_B, PCI_INT_C, PCI_INT_D, PCI_INT_A},
 		{PCI_INT_C, PCI_INT_D, PCI_INT_A, PCI_INT_B},
 		{PCI_INT_D, PCI_INT_A, PCI_INT_B, PCI_INT_C},
+		/* NB: for optional USB controller on Gateworks Avila */
+		{PCI_INT_A, PCI_INT_B, PCI_INT_C, PCI_INT_D},
 	};
 	int dev;
 	
