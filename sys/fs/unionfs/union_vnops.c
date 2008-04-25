@@ -503,7 +503,7 @@ unionfs_open(struct vop_open_args *ap)
 
 unionfs_open_abort:
 	if (error != 0)
-		unionfs_tryrem_node_status(unp, td, unsp);
+		unionfs_tryrem_node_status(unp, unsp);
 
 	UNIONFS_INTERNAL_DEBUG("unionfs_open: leave (%d)\n", error);
 
@@ -569,7 +569,7 @@ unionfs_close(struct vop_close_args *ap)
 		unsp->uns_lower_opencnt--;
 
 unionfs_close_abort:
-	unionfs_tryrem_node_status(unp, td, unsp);
+	unionfs_tryrem_node_status(unp, unsp);
 
 	if (locked != 0)
 		VOP_UNLOCK(ap->a_vp, 0);
@@ -877,7 +877,7 @@ unionfs_ioctl(struct vop_ioctl_args *ap)
 	unp = VTOUNIONFS(ap->a_vp);
 	unionfs_get_node_status(unp, ap->a_td, &unsp);
 	ovp = (unsp->uns_upper_opencnt ? unp->un_uppervp : unp->un_lowervp);
-	unionfs_tryrem_node_status(unp, ap->a_td, unsp);
+	unionfs_tryrem_node_status(unp, unsp);
 	VOP_UNLOCK(ap->a_vp, 0);
 
 	if (ovp == NULLVP)
@@ -902,7 +902,7 @@ unionfs_poll(struct vop_poll_args *ap)
 	unp = VTOUNIONFS(ap->a_vp);
 	unionfs_get_node_status(unp, ap->a_td, &unsp);
 	ovp = (unsp->uns_upper_opencnt ? unp->un_uppervp : unp->un_lowervp);
-	unionfs_tryrem_node_status(unp, ap->a_td, unsp);
+	unionfs_tryrem_node_status(unp, unsp);
 	VOP_UNLOCK(ap->a_vp, 0);
 
 	if (ovp == NULLVP)
@@ -921,7 +921,7 @@ unionfs_fsync(struct vop_fsync_args *ap)
 	unp = VTOUNIONFS(ap->a_vp);
 	unionfs_get_node_status(unp, ap->a_td, &unsp);
 	ovp = (unsp->uns_upper_opencnt ? unp->un_uppervp : unp->un_lowervp);
-	unionfs_tryrem_node_status(unp, ap->a_td, unsp);
+	unionfs_tryrem_node_status(unp, unsp);
 
 	if (ovp == NULLVP)
 		return (EBADF);
@@ -1426,7 +1426,7 @@ unionfs_readdir(struct vop_readdir_args *ap)
 	unionfs_get_node_status(unp, td, &unsp);
 	if ((uvp != NULLVP && unsp->uns_upper_opencnt <= 0) ||
 	    (lvp != NULLVP && unsp->uns_lower_opencnt <= 0)) {
-		unionfs_tryrem_node_status(unp, td, unsp);
+		unionfs_tryrem_node_status(unp, unsp);
 		error = EBADF;
 	}
 	if (locked == 1)
@@ -1892,7 +1892,7 @@ unionfs_advlock(struct vop_advlock_args *ap)
 			VOP_CLOSE(unp->un_lowervp, unsp->uns_lower_openmode, td->td_ucred, td);
 			unsp->uns_lower_opencnt--;
 		} else
-			unionfs_tryrem_node_status(unp, td, unsp);
+			unionfs_tryrem_node_status(unp, unsp);
 	}
 
 	VOP_UNLOCK(vp, 0);
