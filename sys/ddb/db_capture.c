@@ -83,12 +83,15 @@ SX_SYSINIT(db_capture_sx, &db_capture_sx, "db_capture_sx");
 static SYSCTL_NODE(_debug_ddb, OID_AUTO, capture, CTLFLAG_RW, 0,
     "DDB capture options");
 
-SYSCTL_UINT(_debug_ddb_capture, OID_AUTO, bytes, CTLFLAG_RD,
+SYSCTL_UINT(_debug_ddb_capture, OID_AUTO, bufoff, CTLFLAG_RD,
     &db_capture_bufoff, 0, "Bytes of data in DDB capture buffer");
 
 SYSCTL_UINT(_debug_ddb_capture, OID_AUTO, maxbufsize, CTLFLAG_RD,
     &db_capture_maxbufsize, 0,
     "Maximum value for debug.ddb.capture.bufsize");
+
+SYSCTL_UINT(_debug_ddb_capture, OID_AUTO, inprogress, CTLFLAG_RD,
+    &db_capture_inprogress, 0, "DDB output capture in progress");
 
 /*
  * Boot-time allocation of the DDB capture buffer, if any.  Force all buffer
