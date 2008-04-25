@@ -335,7 +335,7 @@ cpu_halt()
 }
 
 static void
-cpu_idle_default(void)
+cpu_idle_default(int busy)
 {
 	struct ia64_pal_result res;
 
@@ -346,6 +346,13 @@ void
 cpu_idle()
 {
 	(*cpu_idle_hook)();
+}
+
+int
+cpu_idle_wakeup(int cpu)
+{
+
+	return (0);
 }
 
 /* Other subsystems (e.g., ACPI) can hook this later. */

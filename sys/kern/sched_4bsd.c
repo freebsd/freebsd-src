@@ -1443,7 +1443,7 @@ sched_idletd(void *dummy)
 		mtx_assert(&Giant, MA_NOTOWNED);
 
 		while (sched_runnable() == 0)
-			cpu_idle();
+			cpu_idle(0);
 
 		mtx_lock_spin(&sched_lock);
 		mi_switch(SW_VOL | SWT_IDLE, NULL);

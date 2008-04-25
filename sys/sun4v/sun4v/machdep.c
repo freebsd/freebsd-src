@@ -819,7 +819,7 @@ sparc64_shutdown_final(void *dummy, int howto)
 }
 
 void
-cpu_idle(void)
+cpu_idle(int busy)
 {
 
 	if (rdpr(pil) != 0) 
@@ -829,6 +829,13 @@ cpu_idle(void)
 		/* XXX heinous hack begin*/
 	
 	cpu_yield();
+}
+
+int
+cpu_idle_wakeup(int cpu)
+{
+
+	return (0);
 }
 
 int

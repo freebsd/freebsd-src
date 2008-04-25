@@ -730,7 +730,7 @@ cpu_halt(void)
 }
 
 void
-cpu_idle(void)
+cpu_idle(int busy)
 {
 	uint32_t msr;
 
@@ -748,6 +748,13 @@ cpu_idle(void)
 		mtmsr(msr | PSL_POW);
 		isync();
 	}
+}
+
+int
+cpu_idle_wakeup(int cpu)
+{
+
+	return (0);
 }
 
 /*
