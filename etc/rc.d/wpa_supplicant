@@ -31,8 +31,8 @@ esac
 
 load_rc_config $name
 
-pid_file="/var/run/${name}/${ifn}.pid"
-command_args="-B -q -i $ifn -c $conf_file -D $driver -P $pid_file"
+pidfile="/var/run/${name}/${ifn}.pid"
+command_args="-B -q -i $ifn -c $conf_file -D $driver -P $pidfile"
 required_files=$conf_file
 
 run_rc_command "$1"
