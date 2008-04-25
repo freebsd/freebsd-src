@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 21, 2008
+.Dd March 24, 2008
 .Dt WPA_SUPPLICANT 8
 .Os
 .Sh NAME
@@ -32,7 +32,7 @@
 .Nd "WPA/802.11i Supplicant for wireless network devices"
 .Sh SYNOPSIS
 .Nm
-.Op Fl BdehLqvw
+.Op Fl BdehLqsvw
 .Fl i Ar ifname
 .Fl c Ar config-file
 .Sh DESCRIPTION
@@ -100,6 +100,10 @@ Show help text.
 Decrease debugging verbosity (i.e., counteract the use of the
 .Fl d
 flag).
+.It Fl s
+Send log messages through
+.Xr syslog 3
+instead of to the terminal.
 .It Fl v
 Display version information on the terminal and exit.
 .It Fl w
