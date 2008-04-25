@@ -95,6 +95,7 @@ struct e1000_hw;
 #define E1000_DEV_ID_82573E                   0x108B
 #define E1000_DEV_ID_82573E_IAMT              0x108C
 #define E1000_DEV_ID_82573L                   0x109A
+#define E1000_DEV_ID_82574L                   0x10D3
 #define E1000_DEV_ID_80003ES2LAN_COPPER_DPT   0x1096
 #define E1000_DEV_ID_80003ES2LAN_SERDES_DPT   0x1098
 #define E1000_DEV_ID_80003ES2LAN_COPPER_SPT   0x10BA
@@ -110,10 +111,16 @@ struct e1000_hw;
 #define E1000_DEV_ID_ICH9_IGP_M_AMT           0x10F5
 #define E1000_DEV_ID_ICH9_IGP_M_V             0x10CB
 #define E1000_DEV_ID_ICH9_IGP_AMT             0x10BD
+#define E1000_DEV_ID_ICH9_BM                  0x10E5
 #define E1000_DEV_ID_ICH9_IGP_C               0x294C
 #define E1000_DEV_ID_ICH9_IFE                 0x10C0
 #define E1000_DEV_ID_ICH9_IFE_GT              0x10C3
 #define E1000_DEV_ID_ICH9_IFE_G               0x10C2
+#define E1000_DEV_ID_ICH10_R_BM_LM            0x10CC
+#define E1000_DEV_ID_ICH10_R_BM_LF            0x10CD
+#define E1000_DEV_ID_ICH10_R_BM_V             0x10CE
+#define E1000_DEV_ID_ICH10_D_BM_LM            0x10DE
+#define E1000_DEV_ID_ICH10_D_BM_LF            0x10DF
 #define E1000_DEV_ID_82575EB_COPPER           0x10A7
 #define E1000_DEV_ID_82575EB_FIBER_SERDES     0x10A9
 #define E1000_DEV_ID_82575GB_QUAD_COPPER      0x10D6
@@ -146,9 +153,11 @@ typedef enum {
 	e1000_82571,
 	e1000_82572,
 	e1000_82573,
+	e1000_82574,
 	e1000_80003es2lan,
 	e1000_ich8lan,
 	e1000_ich9lan,
+	e1000_ich10lan,
 	e1000_82575,
 	e1000_num_macs  /* List is 1-based, so subtract 1 for TRUE count. */
 } e1000_mac_type;

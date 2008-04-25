@@ -154,6 +154,7 @@
 #define E1000_CTRL_EXT_DF_PAREN       0x02000000 /* descriptor FIFO parity error detection enable */
 #define E1000_CTRL_EXT_GHOST_PAREN    0x40000000
 #define E1000_CTRL_EXT_PBA_CLR        0x80000000 /* PBA Clear */
+#define E1000_CTRL_EXT_LSECCK         0x00001000
 #define E1000_I2CCMD_REG_ADDR_SHIFT   16
 #define E1000_I2CCMD_REG_ADDR         0x00FF0000
 #define E1000_I2CCMD_PHY_ADDR_SHIFT   24
@@ -201,6 +202,13 @@
 #define E1000_RXDEXT_STATERR_TCPE  0x20000000
 #define E1000_RXDEXT_STATERR_IPE   0x40000000
 #define E1000_RXDEXT_STATERR_RXE   0x80000000
+
+#define E1000_RXDEXT_LSECH                0x01000000
+#define E1000_RXDEXT_LSECE_MASK           0x60000000
+#define E1000_RXDEXT_LSECE_NO_ERROR       0x00000000
+#define E1000_RXDEXT_LSECE_NO_SA_MATCH    0x20000000
+#define E1000_RXDEXT_LSECE_REPLAY_DETECT  0x40000000
+#define E1000_RXDEXT_LSECE_BAD_SIG        0x60000000
 
 /* mask to determine if packets should be dropped due to frame errors */
 #define E1000_RXD_ERR_FRAME_ERR_MASK ( \
@@ -397,6 +405,7 @@
 #define E1000_CTRL_PHY_RESET4     E1000_CTRL_EXT_SDP4_DATA
 
 #define E1000_CONNSW_ENRGSRC             0x4
+#define E1000_PCS_CFG_PCS_EN             8
 #define E1000_PCS_LCTL_FLV_LINK_UP       1
 #define E1000_PCS_LCTL_FSV_10            0
 #define E1000_PCS_LCTL_FSV_100           2
@@ -556,6 +565,8 @@
 #define E1000_TXD_CMD_TSE    0x04000000 /* TCP Seg enable */
 #define E1000_TXD_STAT_TC    0x00000004 /* Tx Underrun */
 /* Extended desc bits for Linksec and timesync */
+#define E1000_TXD_CMD_LINKSEC     0x10000000 /* Apply LinkSec on packet */
+#define E1000_TXD_EXTCMD_TSTAMP   0x00000010 /* IEEE1588 Timestamp packet */
 
 /* Transmit Control */
 #define E1000_TCTL_RST    0x00000001    /* software reset */
@@ -715,6 +726,11 @@
 #define E1000_ICR_DSW           0x00000020 /* FW changed the status of DISSW bit in the FWSM */
 #define E1000_ICR_PHYINT        0x00001000 /* LAN connected device generates an interrupt */
 #define E1000_ICR_EPRST         0x00100000 /* ME hardware reset occurs */
+#define E1000_ICR_RXQ0          0x00100000 /* Rx Queue 0 Interrupt */
+#define E1000_ICR_RXQ1          0x00200000 /* Rx Queue 1 Interrupt */
+#define E1000_ICR_TXQ0          0x00400000 /* Tx Queue 0 Interrupt */
+#define E1000_ICR_TXQ1          0x00800000 /* Tx Queue 1 Interrupt */
+#define E1000_ICR_OTHER         0x01000000 /* Other Interrupts */
 
 /* Extended Interrupt Cause Read */
 #define E1000_EICR_RX_QUEUE0    0x00000001 /* Rx Queue 0 Interrupt */
@@ -787,6 +803,11 @@
 #define E1000_IMS_DSW       E1000_ICR_DSW
 #define E1000_IMS_PHYINT    E1000_ICR_PHYINT
 #define E1000_IMS_EPRST     E1000_ICR_EPRST
+#define E1000_IMS_RXQ0          E1000_ICR_RXQ0 /* Rx Queue 0 Interrupt */
+#define E1000_IMS_RXQ1          E1000_ICR_RXQ1 /* Rx Queue 1 Interrupt */
+#define E1000_IMS_TXQ0          E1000_ICR_TXQ0 /* Tx Queue 0 Interrupt */
+#define E1000_IMS_TXQ1          E1000_ICR_TXQ1 /* Tx Queue 1 Interrupt */
+#define E1000_IMS_OTHER         E1000_ICR_OTHER /* Other Interrupts */
 
 /* Extended Interrupt Mask Set */
 #define E1000_EIMS_RX_QUEUE0    E1000_EICR_RX_QUEUE0 /* Rx Queue 0 Interrupt */

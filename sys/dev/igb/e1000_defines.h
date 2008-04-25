@@ -384,6 +384,7 @@
 #define E1000_CTRL_PHY_RESET4     E1000_CTRL_EXT_SDP4_DATA
 
 #define E1000_CONNSW_ENRGSRC             0x4
+#define E1000_PCS_CFG_PCS_EN             8
 #define E1000_PCS_LCTL_FLV_LINK_UP       1
 #define E1000_PCS_LCTL_FSV_10            0
 #define E1000_PCS_LCTL_FSV_100           2

@@ -33,9 +33,6 @@
 /*$FreeBSD$*/
 
 #include "e1000_api.h"
-#include "e1000_mac.h"
-#include "e1000_nvm.h"
-#include "e1000_phy.h"
 
 /**
  *  e1000_init_mac_params - Initialize MAC function pointers
@@ -260,7 +257,7 @@ s32 e1000_get_bus_info(struct e1000_hw *hw)
 void e1000_clear_vfta(struct e1000_hw *hw)
 {
 	if (hw->mac.ops.clear_vfta)
-		hw->mac.ops.clear_vfta (hw);
+		hw->mac.ops.clear_vfta(hw);
 }
 
 /**
@@ -871,7 +868,7 @@ s32 e1000_phy_commit(struct e1000_hw *hw)
  *  Success returns 0, Failure returns 1
  *
  *  The low power link up (lplu) state is set to the power management level D0
- *  and SmartSpeed is disabled when active is true, else clear lplu for D0
+ *  and SmartSpeed is disabled when active is TRUE, else clear lplu for D0
  *  and enable Smartspeed.  LPLU and Smartspeed are mutually exclusive.  LPLU
  *  is used during Dx states where the power conservation is most important.
  *  During driver activity, SmartSpeed should be enabled so performance is
@@ -893,7 +890,7 @@ s32 e1000_set_d0_lplu_state(struct e1000_hw *hw, bool active)
  *  Success returns 0, Failure returns 1
  *
  *  The low power link up (lplu) state is set to the power management level D3
- *  and SmartSpeed is disabled when active is true, else clear lplu for D3
+ *  and SmartSpeed is disabled when active is TRUE, else clear lplu for D3
  *  and enable Smartspeed.  LPLU and Smartspeed are mutually exclusive.  LPLU
  *  is used during Dx states where the power conservation is most important.
  *  During driver activity, SmartSpeed should be enabled so performance is

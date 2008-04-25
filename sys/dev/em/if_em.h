@@ -1,36 +1,37 @@
-/**************************************************************************
+/******************************************************************************
 
-Copyright (c) 2001-2008, Intel Corporation
-All rights reserved.
+  Copyright (c) 2001-2008, Intel Corporation 
+  All rights reserved.
+  
+  Redistribution and use in source and binary forms, with or without 
+  modification, are permitted provided that the following conditions are met:
+  
+   1. Redistributions of source code must retain the above copyright notice, 
+      this list of conditions and the following disclaimer.
+  
+   2. Redistributions in binary form must reproduce the above copyright 
+      notice, this list of conditions and the following disclaimer in the 
+      documentation and/or other materials provided with the distribution.
+  
+   3. Neither the name of the Intel Corporation nor the names of its 
+      contributors may be used to endorse or promote products derived from 
+      this software without specific prior written permission.
+  
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
+  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE 
+  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
+  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
+  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
+  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
+  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
+  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+  POSSIBILITY OF SUCH DAMAGE.
 
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
+******************************************************************************/
+/*$FreeBSD$*/
 
- 1. Redistributions of source code must retain the above copyright notice,
-    this list of conditions and the following disclaimer.
-
- 2. Redistributions in binary form must reproduce the above copyright
-    notice, this list of conditions and the following disclaimer in the
-    documentation and/or other materials provided with the distribution.
-
- 3. Neither the name of the Intel Corporation nor the names of its
-    contributors may be used to endorse or promote products derived from
-    this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
-LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-POSSIBILITY OF SUCH DAMAGE.
-
-***************************************************************************/
-/* $FreeBSD$ */
 
 #ifndef _EM_H_DEFINED_
 #define _EM_H_DEFINED_
@@ -232,9 +233,18 @@ POSSIBILITY OF SUCH DAMAGE.
 #define EM_MAX_SCATTER		64
 #define EM_TSO_SIZE		(65535 + sizeof(struct ether_vlan_header))
 #define EM_TSO_SEG_SIZE		4096	/* Max dma segment size */
+#define EM_MSIX_MASK		0x01F00000 /* For 82574 use */
 #define ETH_ZLEN		60
 #define ETH_ADDR_LEN		6
 #define CSUM_OFFLOAD		7	/* Offload bits in mbuf flag */
+
+/*
+ * 82574 has a nonstandard address for EIAC
+ * and since its only used in MSIX, and in
+ * the em driver only 82574 uses MSIX we can
+ * solve it just using this define.
+ */
+#define EM_EIAC 0x000DC
 
 /* Used in for 82547 10Mb Half workaround */
 #define EM_PBA_BYTES_SHIFT	0xA
@@ -243,6 +253,29 @@ POSSIBILITY OF SUCH DAMAGE.
 #define EM_FIFO_HDR		0x10
 #define EM_82547_PKT_THRESH	0x3e0
 
+#ifdef EM_TIMESYNC
+/* Precision Time Sync (IEEE 1588) defines */
+#define ETHERTYPE_IEEE1588	0x88F7
+#define PICOSECS_PER_TICK	20833
+#define TSYNC_PORT		319 /* UDP port for the protocol */
+
+/* TIMESYNC IOCTL defines */
+#define EM_TIMESYNC_READTS	_IOWR('i', 127, struct em_tsync_read)
+  
+/* Used in the READTS IOCTL */
+struct em_tsync_read {
+	int read_current_time;
+	struct timespec	system_time;
+	u64 network_time;
+	u64 rx_stamp;
+	u64 tx_stamp;
+	u16 seqid;
+	unsigned char srcid[6];
+	int rx_valid;
+	int tx_valid;
+};
+
+#endif /* EM_TIMESYNC */
 
 struct adapter;
 
@@ -296,6 +329,7 @@ struct adapter {
 	int		min_frame_size;
 	struct mtx	core_mtx;
 	struct mtx	tx_mtx;
+	struct mtx	rx_mtx;
 	int		em_insert_vlan_header;
 
 	/* Task for FAST handling */
@@ -376,6 +410,7 @@ struct adapter {
 	unsigned long	rx_overruns;
 	unsigned long	rx_irq;
 	unsigned long	tx_irq;
+	unsigned long	link_irq;
 
 	/* 82547 workaround */
 	uint32_t	tx_fifo_size;
@@ -389,6 +424,11 @@ struct adapter {
 	boolean_t       pcix_82544;
 	boolean_t       in_detach;
 
+#ifdef EM_TIMESYNC
+	u64		last_stamp;
+	u64		last_sec;
+	u32		last_ns;
+#endif
 
 	struct e1000_hw_stats stats;
 };
@@ -432,12 +472,17 @@ typedef struct _DESCRIPTOR_PAIR
 	mtx_init(&(_sc)->core_mtx, _name, "EM Core Lock", MTX_DEF)
 #define	EM_TX_LOCK_INIT(_sc, _name) \
 	mtx_init(&(_sc)->tx_mtx, _name, "EM TX Lock", MTX_DEF)
+#define	EM_RX_LOCK_INIT(_sc, _name) \
+	mtx_init(&(_sc)->rx_mtx, _name, "EM RX Lock", MTX_DEF)
 #define	EM_CORE_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->core_mtx)
 #define	EM_TX_LOCK_DESTROY(_sc)		mtx_destroy(&(_sc)->tx_mtx)
+#define	EM_RX_LOCK_DESTROY(_sc)		mtx_destroy(&(_sc)->rx_mtx)
 #define	EM_CORE_LOCK(_sc)		mtx_lock(&(_sc)->core_mtx)
 #define	EM_TX_LOCK(_sc)			mtx_lock(&(_sc)->tx_mtx)
+#define	EM_RX_LOCK(_sc)			mtx_lock(&(_sc)->rx_mtx)
 #define	EM_CORE_UNLOCK(_sc)		mtx_unlock(&(_sc)->core_mtx)
 #define	EM_TX_UNLOCK(_sc)		mtx_unlock(&(_sc)->tx_mtx)
+#define	EM_RX_UNLOCK(_sc)		mtx_unlock(&(_sc)->rx_mtx)
 #define	EM_CORE_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->core_mtx, MA_OWNED)
 #define	EM_TX_LOCK_ASSERT(_sc)		mtx_assert(&(_sc)->tx_mtx, MA_OWNED)
 

@@ -104,8 +104,12 @@ struct e1000_osdep
 	struct device     *dev;
 };
 
+#ifdef NO_82542_SUPPORT
+#define E1000_REGISTER(hw, reg) reg
+#else
 #define E1000_REGISTER(hw, reg) (((hw)->mac.type >= e1000_82543) \
     ? reg : e1000_translate_register_82542(reg))
+#endif
 
 #define E1000_WRITE_FLUSH(a) E1000_READ_REG(a, E1000_STATUS)
 
