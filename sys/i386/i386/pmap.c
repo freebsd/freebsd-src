@@ -2375,7 +2375,7 @@ pmap_demote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va)
 	 * the 2mpage to referencing the page table page.
 	 */
 	if ((oldpde & PG_MANAGED) != 0)
-		pmap_pv_demote_pde(pmap, va, oldpde & PG_FRAME);
+		pmap_pv_demote_pde(pmap, va, oldpde & PG_PS_FRAME);
 
 	pmap_pde_demotions++;
 	CTR2(KTR_PMAP, "pmap_demote_pde: success for va %#x"
@@ -2410,10 +2410,10 @@ pmap_remove_pde(pmap_t pmap, pd_entry_t *pdq, vm_offset_t sva,
 		pmap_invalidate_page(kernel_pmap, sva);
 	pmap->pm_stats.resident_count -= NBPDR / PAGE_SIZE;
 	if (oldpde & PG_MANAGED) {
-		pvh = pa_to_pvh(oldpde & PG_FRAME);
+		pvh = pa_to_pvh(oldpde & PG_PS_FRAME);
 		pmap_pvh_free(pvh, pmap, sva);
 		eva = sva + NBPDR;
-		for (va = sva, m = PHYS_TO_VM_PAGE(oldpde & PG_FRAME);
+		for (va = sva, m = PHYS_TO_VM_PAGE(oldpde & PG_PS_FRAME);
 		    va < eva; va += PAGE_SIZE, m++) {
 			if ((oldpde & (PG_M | PG_RW)) == (PG_M | PG_RW))
 				vm_page_dirty(m);
@@ -2693,7 +2693,7 @@ retry:
 	oldpde = newpde = *pde;
 	if (oldpde & PG_MANAGED) {
 		eva = sva + NBPDR;
-		for (va = sva, m = PHYS_TO_VM_PAGE(oldpde & PG_FRAME);
+		for (va = sva, m = PHYS_TO_VM_PAGE(oldpde & PG_PS_FRAME);
 		    va < eva; va += PAGE_SIZE, m++) {
 			/*
 			 * In contrast to the analogous operation on a 4KB page
@@ -2952,7 +2952,7 @@ retry:
 	 * Promote the pv entries.
 	 */
 	if ((newpde & PG_MANAGED) != 0)
-		pmap_pv_promote_pde(pmap, va, newpde & PG_FRAME);
+		pmap_pv_promote_pde(pmap, va, newpde & PG_PS_FRAME);
 
 	/*
 	 * Propagate the PAT index to its proper position.
@@ -3958,7 +3958,7 @@ pmap_remove_pages(pmap_t pmap)
 				pc->pc_map[field] |= bitmask;
 				if ((tpte & PG_PS) != 0) {
 					pmap->pm_stats.resident_count -= NBPDR / PAGE_SIZE;
-					pvh = pa_to_pvh(tpte & PG_FRAME);
+					pvh = pa_to_pvh(tpte & PG_PS_FRAME);
 					TAILQ_REMOVE(&pvh->pv_list, pv, pv_list);
 					if (TAILQ_EMPTY(&pvh->pv_list)) {
 						for (mt = m; mt < &m[NBPDR / PAGE_SIZE]; mt++)
@@ -4177,7 +4177,7 @@ pmap_ts_referenced(vm_page_t m)
 					 * table page.
 					 */
 					va += VM_PAGE_TO_PHYS(m) - (oldpde &
-					    PG_FRAME);
+					    PG_PS_FRAME);
 					pmap_remove_page(pmap, va, NULL);
 					rtval++;
 					if (rtval > 4) {
@@ -4248,7 +4248,7 @@ pmap_clear_modify(vm_page_t m)
 					 * write access may repromote.
 					 */
 					va += VM_PAGE_TO_PHYS(m) - (oldpde &
-					    PG_FRAME);
+					    PG_PS_FRAME);
 					pte = pmap_pte_quick(pmap, va);
 					oldpte = *pte;
 					if ((oldpte & PG_V) != 0) {
@@ -4325,7 +4325,8 @@ pmap_clear_reference(vm_page_t m)
 				 * fully populated, this removal never frees
 				 * a page table page.
 				 */
-				va += VM_PAGE_TO_PHYS(m) - (oldpde & PG_FRAME);
+				va += VM_PAGE_TO_PHYS(m) - (oldpde &
+				    PG_PS_FRAME);
 				pmap_remove_page(pmap, va, NULL);
 			}
 		}
