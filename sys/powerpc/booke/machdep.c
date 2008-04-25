@@ -696,7 +696,7 @@ freebsd4_sigreturn(struct thread *td, struct freebsd4_sigreturn_args *uap)
  * Set Wait state enable.
  */
 void
-cpu_idle (void)
+cpu_idle (int busy)
 {
 	register_t msr;
 
@@ -721,6 +721,13 @@ cpu_idle (void)
 		/* no output */	:
 		"r" (msr));
 #endif
+}
+
+int
+cpu_idle_wakeup(int cpu)
+{
+
+	return (0);
 }
 
 void
