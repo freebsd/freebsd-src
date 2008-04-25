@@ -29,6 +29,7 @@
 #ifndef DDB_H
 #define	DDB_H
 
+void	ddb_capture(int argc, char *argv[]);
 void	ddb_script(int argc, char *argv[]);
 void	ddb_scripts(int argc, char *argv[]);
 void	ddb_unscript(int argc, char *argv[]);
