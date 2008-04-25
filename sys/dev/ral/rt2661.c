@@ -374,8 +374,10 @@ rt2661_detach(void *xsc)
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ifnet *ifp = ic->ic_ifp;
 	
-	rt2661_stop(sc);
+	RAL_LOCK(sc);
+	rt2661_stop_locked(sc);
 	callout_stop(&sc->watchdog_ch);
+	RAL_UNLOCK(sc);
 	callout_stop(&sc->rssadapt_ch);
 
 	bpfdetach(ifp);
