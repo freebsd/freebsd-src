@@ -181,6 +181,22 @@ null_update_promisc(struct ifnet *ifp)
 	if_printf(ifp, "need promiscuous mode update callback\n");
 }
 
+static int
+null_output(struct ifnet *ifp, struct mbuf *m,
+	struct sockaddr *dst, struct rtentry *rt0)
+{
+	if_printf(ifp, "discard raw packet\n");
+	m_freem(m);
+	return EIO;
+}
+
+static void
+null_input(struct ifnet *ifp, struct mbuf *m)
+{
+	if_printf(ifp, "if_input should not be called\n");
+	m_freem(m);
+}
+
 /*
  * Attach/setup the common net80211 state.  Called by
  * the driver on attach to prior to creating any vap's.
@@ -225,6 +241,9 @@ ieee80211_ifattach(struct ieee80211com *ic)
 	if_attach(ifp);
 	ifp->if_mtu = IEEE80211_MTU_MAX;
 	ifp->if_broadcastaddr = ieee80211broadcastaddr;
+	ifp->if_output = null_output;
+	ifp->if_input = null_input;	/* just in case */
+	ifp->if_resolvemulti = NULL;	/* NB: callers check */
 
 	ifa = ifaddr_byindex(ifp->if_index);
 	KASSERT(ifa != NULL, ("%s: no lladdr!\n", __func__));
