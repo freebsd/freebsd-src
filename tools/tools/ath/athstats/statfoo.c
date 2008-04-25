@@ -144,12 +144,20 @@ statfoo_print_total(struct statfoo *sf, FILE *fd)
 static void
 statfoo_print_verbose(struct statfoo *sf, FILE *fd)
 {
+	const struct fmt *f;
 	char s[32];
-	int i;
+	int i, width;
 
+	width = 0;
 	for (i = 0; i < sf->nstats; i++) {
+		f = &sf->stats[i];
+		if (f->width > width)
+			width = f->width;
+	}
+	for (i = 0; i < sf->nstats; i++) {
+		f = &sf->stats[i];
 		if (sf->get_totstat(sf, i, s, sizeof(s)) && strcmp(s, "0"))
-			fprintf(fd, "%s %s\n", s, sf->stats[i].desc);
+			fprintf(fd, "%-*s %s\n", width, s, f->desc);
 	}
 }
 
