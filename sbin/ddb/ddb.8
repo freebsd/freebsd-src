@@ -1,5 +1,5 @@
 .\"-
-.\" Copyright (c) 2007 Robert N. M. Watson
+.\" Copyright (c) 2007-2008 Robert N. M. Watson
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -25,13 +25,23 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 4, 2008
+.Dd April 24, 2008
 .Dt DDB 8
 .Os
 .Sh NAME
 .Nm ddb
 .Nd "configure DDB kernel debugger properties"
 .Sh SYNOPSIS
+.Nm
+.Cm capture
+.Op Fl M core
+.Op Fl N system
+.Cm print
+.Nm
+.Cm capture
+.Op Fl M core
+.Op Fl N system
+.Cm status
 .Nm
 .Cm script
 .Ar scriptname
@@ -67,6 +77,33 @@ utility.
 Whitespace at the beginning of lines will be ignored as will lines where the
 first non-whitespace character is
 .Ql # .
+.Sh OUTPUT CAPTURE
+The
+.Nm
+utility can be used to extract the contents of the
+.Xr ddb 4
+output capture buffer of the current live kernel, or from the crash dump of a
+kernel on disk.
+The following debugger commands are available from the command line:
+.Bl -tag -width indent
+.It Xo
+.Ic Cm capture
+.Op Fl M Ar core
+.Op Fl N Ar system
+.Cm print
+.Xc
+Print the current contents of the
+.Xr ddb 4
+output capture buffer.
+.It Xo
+.Ic Cm capture
+.Op Fl M Ar core
+.Op Fl N Ar system
+.Cm status
+.Xc
+Print the current status of the
+.Xr ddb 4
+output capture buffer.
 .Sh SCRIPTING
 The
 .Nm
