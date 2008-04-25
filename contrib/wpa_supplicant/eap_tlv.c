@@ -1,6 +1,6 @@
 /*
  * EAP peer method: EAP-TLV (draft-josefsson-pppext-eap-tls-eap-07.txt)
- * Copyright (c) 2004-2006, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2004-2008, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -103,7 +103,8 @@ u8 * eap_tlv_build_result(int id, u16 status, size_t *resp_len)
  * Returns: 0 on success, -1 on failure
  */
 int eap_tlv_process(struct eap_sm *sm, struct eap_method_ret *ret,
-		    const struct eap_hdr *hdr, u8 **resp, size_t *resp_len)
+		    const struct eap_hdr *hdr, u8 **resp, size_t *resp_len,
+		    int force_failure)
 {
 	size_t left, tlv_len;
 	const u8 *pos;
@@ -174,8 +175,15 @@ int eap_tlv_process(struct eap_sm *sm, struct eap_method_ret *ret,
 		if (status == EAP_TLV_RESULT_SUCCESS) {
 			wpa_printf(MSG_INFO, "EAP-TLV: TLV Result - Success "
 				   "- EAP-TLV/Phase2 Completed");
-			resp_status = EAP_TLV_RESULT_SUCCESS;
-			ret->decision = DECISION_UNCOND_SUCC;
+			if (force_failure) {
+				wpa_printf(MSG_INFO, "EAP-TLV: Earlier failure"
+					   " - force failed Phase 2");
+				resp_status = EAP_TLV_RESULT_FAILURE;
+				ret->decision = DECISION_FAIL;
+			} else {
+				resp_status = EAP_TLV_RESULT_SUCCESS;
+				ret->decision = DECISION_UNCOND_SUCC;
+			}
 		} else if (status == EAP_TLV_RESULT_FAILURE) {
 			wpa_printf(MSG_INFO, "EAP-TLV: TLV Result - Failure");
 			resp_status = EAP_TLV_RESULT_FAILURE;

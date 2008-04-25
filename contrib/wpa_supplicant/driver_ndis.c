@@ -725,6 +725,7 @@ static int wpa_driver_ndis_scan(void *priv, const u8 *ssid, size_t ssid_len)
 	}
 
 	res = ndis_set_oid(drv, OID_802_11_BSSID_LIST_SCAN, "    ", 4);
+	eloop_cancel_timeout(wpa_driver_ndis_scan_timeout, drv, drv->ctx);
 	eloop_register_timeout(7, 0, wpa_driver_ndis_scan_timeout, drv,
 			       drv->ctx);
 	return res;
@@ -1169,7 +1170,6 @@ static int wpa_driver_ndis_remove_pmkid(void *priv, const u8 *bssid,
 
 	entry = drv->pmkid;
 	prev = NULL;
-	drv->pmkid = NULL;
 	while (entry) {
 		if (os_memcmp(entry->bssid, bssid, ETH_ALEN) == 0 &&
 		    os_memcmp(entry->pmkid, pmkid, 16) == 0) {

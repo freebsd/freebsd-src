@@ -1120,6 +1120,12 @@ char * wpa_supplicant_ctrl_iface_process(struct wpa_supplicant *wpa_s,
 		wpa_s->disconnected = 0;
 		wpa_s->reassociate = 1;
 		wpa_supplicant_req_scan(wpa_s, 0, 0);
+	} else if (os_strcmp(buf, "RECONNECT") == 0) {
+		if (wpa_s->disconnected) {
+			wpa_s->disconnected = 0;
+			wpa_s->reassociate = 1;
+			wpa_supplicant_req_scan(wpa_s, 0, 0);
+		}
 	} else if (os_strncmp(buf, "PREAUTH ", 8) == 0) {
 		if (wpa_supplicant_ctrl_iface_preauth(wpa_s, buf + 8))
 			reply_len = -1;
@@ -1147,6 +1153,7 @@ char * wpa_supplicant_ctrl_iface_process(struct wpa_supplicant *wpa_s,
 		reply_len = wpa_supplicant_ctrl_iface_list_networks(
 			wpa_s, reply, reply_size);
 	} else if (os_strcmp(buf, "DISCONNECT") == 0) {
+		wpa_s->reassociate = 0;
 		wpa_s->disconnected = 1;
 		wpa_supplicant_disassociate(wpa_s, REASON_DEAUTH_LEAVING);
 	} else if (os_strcmp(buf, "SCAN") == 0) {
