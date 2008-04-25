@@ -90,6 +90,7 @@ struct acpi_tz_softc {
     int				tz_temperature;	/*Current temperature*/
     int				tz_active;	/*Current active cooling*/
 #define TZ_ACTIVE_NONE		-1
+#define TZ_ACTIVE_UNKNOWN	-2
     int				tz_requested;	/*Minimum active cooling*/
     int				tz_thflags;	/*Current temp-related flags*/
 #define TZ_THFLAG_NONE		0
@@ -202,7 +203,7 @@ acpi_tz_attach(device_t dev)
     sc->tz_dev = dev;
     sc->tz_handle = acpi_get_handle(dev);
     sc->tz_requested = TZ_ACTIVE_NONE;
-    sc->tz_active = TZ_ACTIVE_NONE;
+    sc->tz_active = TZ_ACTIVE_UNKNOWN;
     sc->tz_thflags = TZ_THFLAG_NONE;
     sc->tz_cooling_proc = NULL;
     sc->tz_cooling_proc_running = FALSE;
@@ -520,6 +521,7 @@ acpi_tz_monitor(void *Context)
      * minimum cooling run time if requested.
      */
     if (acpi_tz_min_runtime > 0 && sc->tz_active != TZ_ACTIVE_NONE &&
+	sc->tz_active != TZ_ACTIVE_UNKNOWN &&
 	(newactive == TZ_ACTIVE_NONE || newactive > sc->tz_active)) {
 
 	getnanotime(&curtime);
@@ -543,6 +545,23 @@ acpi_tz_monitor(void *Context)
 	newflags |= TZ_THFLAG_CRT;
 
     /* If the active cooling state has changed, we have to switch things. */
+    if (sc->tz_active == TZ_ACTIVE_UNKNOWN) {
+	/*
+	 * We don't know which cooling device is on or off,
+	 * so stop them all, because we now know which
+	 * should be on (if any).
+	 */
+	for (i = 0; i < TZ_NUMLEVELS; i++) {
+	    if (sc->tz_zone.al[i].Pointer != NULL) {
+		acpi_ForeachPackageObject(
+		    (ACPI_OBJECT *)sc->tz_zone.al[i].Pointer,
+		    acpi_tz_switch_cooler_off, sc);
+	    }
+	}
+	/* now we know that all devices are off */
+	sc->tz_active = TZ_ACTIVE_NONE;
+    }
+
     if (newactive != sc->tz_active) {
 	/* Turn off the cooling devices that are on, if any are */
 	if (sc->tz_active != TZ_ACTIVE_NONE)
