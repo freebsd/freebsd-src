@@ -1165,6 +1165,9 @@ unionfs_rename(struct vop_rename_args *ap)
 		}
 	}
 
+	if (rfvp == rtvp)
+		goto unionfs_rename_abort;
+
 	if (needrelookup != 0) {
 		if ((error = vn_lock(fdvp, LK_EXCLUSIVE)) != 0)
 			goto unionfs_rename_abort;
@@ -1192,10 +1195,6 @@ unionfs_rename(struct vop_rename_args *ap)
 			cache_purge(fdvp);
 	}
 
-	if (fdvp != rfdvp)
-		vrele(fdvp);
-	if (fvp != rfvp)
-		vrele(fvp);
 	if (ltdvp != NULLVP)
 		VOP_UNLOCK(ltdvp, 0);
 	if (tdvp != rtdvp)
@@ -1208,27 +1207,31 @@ unionfs_rename(struct vop_rename_args *ap)
 		else
 			vrele(tvp);
 	}
+	if (fdvp != rfdvp)
+		vrele(fdvp);
+	if (fvp != rfvp)
+		vrele(fvp);
 
 	UNIONFS_INTERNAL_DEBUG("unionfs_rename: leave (%d)\n", error);
 
 	return (error);
 
 unionfs_rename_abort:
-	if (fdvp != rfdvp)
-		vrele(rfdvp);
-	if (fvp != rfvp)
-		vrele(rfvp);
+	vput(tdvp);
 	if (tdvp != rtdvp)
 		vrele(rtdvp);
-	vput(tdvp);
-	if (tvp != rtvp && rtvp != NULLVP)
-		vrele(rtvp);
 	if (tvp != NULLVP) {
 		if (tdvp != tvp)
 			vput(tvp);
 		else
 			vrele(tvp);
 	}
+	if (tvp != rtvp && rtvp != NULLVP)
+		vrele(rtvp);
+	if (fdvp != rfdvp)
+		vrele(rfdvp);
+	if (fvp != rfvp)
+		vrele(rfvp);
 	vrele(fdvp);
 	vrele(fvp);
 
