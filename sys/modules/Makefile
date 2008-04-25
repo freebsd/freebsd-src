@@ -610,6 +610,9 @@ _auxio=		auxio
 _em=		em
 _i2c=		i2c
 _sound=		sound
+.if ${MK_ZFS} != "no" || defined(ALL_MODULES)
+_zfs=		zfs
+.endif
 .endif
 
 .if defined(MODULES_OVERRIDE) && !defined(ALL_MODULES)
