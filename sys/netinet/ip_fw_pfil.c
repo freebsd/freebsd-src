@@ -101,16 +101,6 @@ ipfw_check_in(void *arg, struct mbuf **m0, struct ifnet *ifp, int dir,
 
 	bzero(&args, sizeof(args));
 
-	dn_tag = m_tag_find(*m0, PACKET_TAG_DUMMYNET, NULL);
-	if (dn_tag != NULL){
-		struct dn_pkt_tag *dt;
-
-		dt = (struct dn_pkt_tag *)(dn_tag+1);
-		args.rule = dt->rule;
-
-		m_tag_delete(*m0, dn_tag);
-	}
-
 	ng_tag = (struct ng_ipfw_tag *)m_tag_locate(*m0, NGM_IPFW_COOKIE, 0,
 	    NULL);
 	if (ng_tag != NULL) {
@@ -121,6 +111,16 @@ ipfw_check_in(void *arg, struct mbuf **m0, struct ifnet *ifp, int dir,
 	}
 
 again:
+	dn_tag = m_tag_find(*m0, PACKET_TAG_DUMMYNET, NULL);
+	if (dn_tag != NULL){
+		struct dn_pkt_tag *dt;
+
+		dt = (struct dn_pkt_tag *)(dn_tag+1);
+		args.rule = dt->rule;
+
+		m_tag_delete(*m0, dn_tag);
+	}
+
 	args.m = *m0;
 	args.inp = inp;
 	ipfw = ipfw_chk(&args);
@@ -157,10 +157,11 @@ again:
 		if (!DUMMYNET_LOADED)
 			goto drop;
 		if (mtod(*m0, struct ip *)->ip_v == 4)
-			ip_dn_io_ptr(*m0, DN_TO_IP_IN, &args);
+			ip_dn_io_ptr(m0, DN_TO_IP_IN, &args);
 		else if (mtod(*m0, struct ip *)->ip_v == 6)
-			ip_dn_io_ptr(*m0, DN_TO_IP6_IN, &args);
-		*m0 = NULL;
+			ip_dn_io_ptr(m0, DN_TO_IP6_IN, &args);
+		if (*m0 != NULL)
+			goto again;
 		return 0;		/* packet consumed */
 
 	case IP_FW_TEE:
@@ -222,16 +223,6 @@ ipfw_check_out(void *arg, struct mbuf **m0, struct ifnet *ifp, int dir,
 
 	bzero(&args, sizeof(args));
 
-	dn_tag = m_tag_find(*m0, PACKET_TAG_DUMMYNET, NULL);
-	if (dn_tag != NULL) {
-		struct dn_pkt_tag *dt;
-
-		dt = (struct dn_pkt_tag *)(dn_tag+1);
-		args.rule = dt->rule;
-
-		m_tag_delete(*m0, dn_tag);
-	}
-
 	ng_tag = (struct ng_ipfw_tag *)m_tag_locate(*m0, NGM_IPFW_COOKIE, 0,
 	    NULL);
 	if (ng_tag != NULL) {
@@ -242,6 +233,16 @@ ipfw_check_out(void *arg, struct mbuf **m0, struct ifnet *ifp, int dir,
 	}
 
 again:
+	dn_tag = m_tag_find(*m0, PACKET_TAG_DUMMYNET, NULL);
+	if (dn_tag != NULL) {
+		struct dn_pkt_tag *dt;
+
+		dt = (struct dn_pkt_tag *)(dn_tag+1);
+		args.rule = dt->rule;
+
+		m_tag_delete(*m0, dn_tag);
+	}
+
 	args.m = *m0;
 	args.oif = ifp;
 	args.inp = inp;
@@ -283,10 +284,11 @@ again:
 		if (!DUMMYNET_LOADED)
 			break;
 		if (mtod(*m0, struct ip *)->ip_v == 4)
-			ip_dn_io_ptr(*m0, DN_TO_IP_OUT, &args);
+			ip_dn_io_ptr(m0, DN_TO_IP_OUT, &args);
 		else if (mtod(*m0, struct ip *)->ip_v == 6)
-			ip_dn_io_ptr(*m0, DN_TO_IP6_OUT, &args);
-		*m0 = NULL;
+			ip_dn_io_ptr(m0, DN_TO_IP6_OUT, &args);
+		if (*m0 != NULL)
+			goto again;
 		return 0;		/* packet consumed */
 
 		break;
