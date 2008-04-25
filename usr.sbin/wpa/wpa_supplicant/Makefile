@@ -10,6 +10,7 @@ SRCS=	config.c eloop.c common.c md5.c rc4.c sha1.c aes_wrap.c \
 	wpa_supplicant.c events.c wpa.c preauth.c pmksa_cache.c \
 	ctrl_iface.c ctrl_iface_unix.c l2_packet.c main.c drivers.c \
 	driver_ndis.c Packet32.c \
+	driver_wired.c \
 	driver_freebsd.c os_unix.c
 
 MAN=	wpa_supplicant.8 wpa_supplicant.conf.5
@@ -22,6 +23,7 @@ FILES=	wpa_supplicant.conf
 CFLAGS+= -I${.CURDIR} -I${WPA_SUPPLICANT_DISTDIR}
 CFLAGS+= -DCONFIG_DRIVER_BSD
 CFLAGS+= -DCONFIG_DRIVER_NDIS
+CFLAGS+= -DCONFIG_DRIVER_WIRED
 CFLAGS+= -DCONFIG_CTRL_IFACE
 CFLAGS+= -DCONFIG_CTRL_IFACE_UNIX
 CFLAGS+= -DCONFIG_TERMINATE_ONLASTIF
