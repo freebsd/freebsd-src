@@ -808,7 +808,8 @@ int	sigonstack(size_t sp);
 void	sleepinit(void);
 void	stopevent(struct proc *, u_int, u_int);
 void	threadinit(void);
-void	cpu_idle(void);
+void	cpu_idle(int);
+int	cpu_idle_wakeup(int);
 extern	void (*cpu_idle_hook)(void);	/* Hook to machdep CPU idler. */
 void	cpu_switch(struct thread *, struct thread *, struct mtx *);
 void	cpu_throw(struct thread *, struct thread *) __dead2;

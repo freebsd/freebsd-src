@@ -527,12 +527,19 @@ get_cyclecount(void)
  * call platform specific code to halt (until next interrupt) for the idle loop
  */
 void
-cpu_idle(void)
+cpu_idle(int busy)
 {
 	if (mips_cp0_status_read() & SR_INT_ENAB)
 		__asm __volatile ("wait");
 	else
 		panic("ints disabled in idleproc!");
+}
+
+int
+cpu_idle_wakeup(int cpu)
+{
+
+	return (0);
 }
 
 void

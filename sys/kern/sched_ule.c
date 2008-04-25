@@ -954,6 +954,12 @@ tdq_notify(struct tdq *tdq, struct thread *td)
 		 */
 		if (tdq->tdq_idlestate == TDQ_RUNNING)
 			return;
+		/*
+		 * If the MD code has an idle wakeup routine try that before
+		 * falling back to IPI.
+		 */
+		if (cpu_idle_wakeup(cpu))
+			return;
 	}
 	tdq->tdq_ipipending = 1;
 	ipi_selected(1 << cpu, IPI_PREEMPT);
@@ -2095,10 +2101,7 @@ sched_clock(struct thread *td)
 	 * If there is some activity seed it to reflect that.
 	 */
 	tdq->tdq_oldswitchcnt = tdq->tdq_switchcnt;
-	if (tdq->tdq_load)
-		tdq->tdq_switchcnt = 2;
-	else
-		tdq->tdq_switchcnt = 0;
+	tdq->tdq_switchcnt = tdq->tdq_load;
 	/*
 	 * Advance the insert index once for each tick to ensure that all
 	 * threads get a chance to run.
@@ -2507,9 +2510,10 @@ sched_idletd(void *dummy)
 		 * tdq_notify().
 		 */
 		if (tdq->tdq_load == 0) {
+			switchcnt = tdq->tdq_switchcnt + tdq->tdq_oldswitchcnt;
 			tdq->tdq_idlestate = TDQ_IDLE;
 			if (tdq->tdq_load == 0)
-				cpu_idle();
+				cpu_idle(switchcnt > 1);
 		}
 		if (tdq->tdq_load) {
 			thread_lock(td);

@@ -326,9 +326,16 @@ cpu_est_clockrate(int cpu_id, uint64_t *rate)
 }
 
 void
-cpu_idle(void)
+cpu_idle(int busy)
 {
 	cpu_sleep(0);
+}
+
+int
+cpu_idle_wakeup(int cpu)
+{
+
+	return (0);
 }
 
 int
