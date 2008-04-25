@@ -216,6 +216,9 @@ s32 e1000_set_mac_type(struct e1000_hw *hw)
 	case E1000_DEV_ID_82573L:
 		mac->type = e1000_82573;
 		break;
+	case E1000_DEV_ID_82574L:
+		mac->type = e1000_82574;
+		break;
 	case E1000_DEV_ID_80003ES2LAN_COPPER_DPT:
 	case E1000_DEV_ID_80003ES2LAN_SERDES_DPT:
 	case E1000_DEV_ID_80003ES2LAN_COPPER_SPT:
@@ -238,14 +241,24 @@ s32 e1000_set_mac_type(struct e1000_hw *hw)
 	case E1000_DEV_ID_ICH9_IGP_M_AMT:
 	case E1000_DEV_ID_ICH9_IGP_M_V:
 	case E1000_DEV_ID_ICH9_IGP_AMT:
+	case E1000_DEV_ID_ICH9_BM:
 	case E1000_DEV_ID_ICH9_IGP_C:
+	case E1000_DEV_ID_ICH10_R_BM_LM:
+	case E1000_DEV_ID_ICH10_R_BM_LF:
+	case E1000_DEV_ID_ICH10_R_BM_V:
 		mac->type = e1000_ich9lan;
 		break;
+	case E1000_DEV_ID_ICH10_D_BM_LM:
+	case E1000_DEV_ID_ICH10_D_BM_LF:
+		mac->type = e1000_ich10lan;
+		break;
+#ifndef NO_82575_SUPPORT
 	case E1000_DEV_ID_82575EB_COPPER:
 	case E1000_DEV_ID_82575EB_FIBER_SERDES:
 	case E1000_DEV_ID_82575GB_QUAD_COPPER:
 		mac->type = e1000_82575;
 		break;
+#endif
 	default:
 		/* Should never have loaded on this device */
 		ret_val = -E1000_ERR_MAC_INIT;
@@ -323,6 +336,7 @@ s32 e1000_setup_init_funcs(struct e1000_hw *hw, bool init_device)
 	case e1000_82571:
 	case e1000_82572:
 	case e1000_82573:
+	case e1000_82574:
 		e1000_init_function_pointers_82571(hw);
 		break;
 	case e1000_80003es2lan:
@@ -330,11 +344,14 @@ s32 e1000_setup_init_funcs(struct e1000_hw *hw, bool init_device)
 		break;
 	case e1000_ich8lan:
 	case e1000_ich9lan:
+	case e1000_ich10lan:
 		e1000_init_function_pointers_ich8lan(hw);
 		break;
+#ifndef NO_82575_SUPPORT
 	case e1000_82575:
 		e1000_init_function_pointers_82575(hw);
 		break;
+#endif
 	default:
 		DEBUGOUT("Hardware not supported\n");
 		ret_val = -E1000_ERR_CONFIG;
@@ -403,7 +420,7 @@ s32 e1000_get_bus_info(struct e1000_hw *hw)
 void e1000_clear_vfta(struct e1000_hw *hw)
 {
 	if (hw->mac.ops.clear_vfta)
-		hw->mac.ops.clear_vfta (hw);
+		hw->mac.ops.clear_vfta(hw);
 }
 
 /**

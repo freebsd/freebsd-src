@@ -150,6 +150,25 @@ static s32 e1000_init_phy_params_82571(struct e1000_hw *hw)
 			goto out;
 		}
 		break;
+	case e1000_82574:
+		phy->type                   = e1000_phy_bm;
+		phy->ops.get_cfg_done       = e1000_get_cfg_done_generic;
+		phy->ops.get_info           = e1000_get_phy_info_m88;
+		phy->ops.commit             = e1000_phy_sw_reset_generic;
+		phy->ops.force_speed_duplex = e1000_phy_force_speed_duplex_m88;
+		phy->ops.get_cable_length   = e1000_get_cable_length_m88;
+		phy->ops.read_reg           = e1000_read_phy_reg_bm2;
+		phy->ops.write_reg          = e1000_write_phy_reg_bm2;
+
+		/* This uses above function pointers */
+		ret_val = e1000_get_phy_id_82571(hw);
+		/* Verify PHY ID */
+		if (phy->id != BME1000_E_PHY_ID_R2) { 
+			ret_val = -E1000_ERR_PHY;
+			DEBUGOUT1("PHY ID unknown: type = 0x%08x\n", phy->id);
+			goto out;
+		}
+		break;
 	default:
 		ret_val = -E1000_ERR_PHY;
 		goto out;
@@ -193,6 +212,7 @@ static s32 e1000_init_nvm_params_82571(struct e1000_hw *hw)
 
 	switch (hw->mac.type) {
 	case e1000_82573:
+	case e1000_82574:
 		if (((eecd >> 15) & 0x3) == 0x3) {
 			nvm->type = e1000_nvm_flash_hw;
 			nvm->word_size = 2048;
@@ -374,6 +394,7 @@ static s32 e1000_get_phy_id_82571(struct e1000_hw *hw)
 {
 	struct e1000_phy_info *phy = &hw->phy;
 	s32 ret_val = E1000_SUCCESS;
+	u16 phy_id = 0;
 
 	DEBUGFUNC("e1000_get_phy_id_82571");
 
@@ -391,11 +412,26 @@ static s32 e1000_get_phy_id_82571(struct e1000_hw *hw)
 	case e1000_82573:
 		ret_val = e1000_get_phy_id(hw);
 		break;
+	case e1000_82574:
+		ret_val = phy->ops.read_reg(hw, PHY_ID1, &phy_id);
+		if (ret_val)
+			goto out;
+
+		phy->id = (u32)(phy_id << 16);
+		usec_delay(20);
+		ret_val = phy->ops.read_reg(hw, PHY_ID2, &phy_id);
+		if (ret_val)
+			goto out;
+
+		phy->id |= (u32)(phy_id);
+		phy->revision = (u32)(phy_id & ~PHY_REVISION_MASK);
+		break;
 	default:
 		ret_val = -E1000_ERR_PHY;
 		break;
 	}
 
+out:
 	return ret_val;
 }
 
@@ -476,7 +512,7 @@ static s32 e1000_acquire_nvm_82571(struct e1000_hw *hw)
 	if (ret_val)
 		goto out;
 
-	if (hw->mac.type != e1000_82573)
+	if (hw->mac.type != e1000_82573 && hw->mac.type != e1000_82574)
 		ret_val = e1000_acquire_nvm_generic(hw);
 
 	if (ret_val)
@@ -521,6 +557,7 @@ static s32 e1000_write_nvm_82571(struct e1000_hw *hw, u16 offset, u16 words,
 
 	switch (hw->mac.type) {
 	case e1000_82573:
+	case e1000_82574:
 		ret_val = e1000_write_nvm_eewr_82571(hw, offset, words, data);
 		break;
 	case e1000_82571:
@@ -825,7 +862,7 @@ static s32 e1000_reset_hw_82571(struct e1000_hw *hw)
 	 * Must acquire the MDIO ownership before MAC reset.
 	 * Ownership defaults to firmware after a reset.
 	 */
-	if (hw->mac.type == e1000_82573) {
+	if (hw->mac.type == e1000_82573 || hw->mac.type == e1000_82574) {
 		extcnf_ctrl = E1000_READ_REG(hw, E1000_EXTCNF_CTRL);
 		extcnf_ctrl |= E1000_EXTCNF_CTRL_MDIO_SW_OWNERSHIP;
 
@@ -866,7 +903,7 @@ static s32 e1000_reset_hw_82571(struct e1000_hw *hw)
 	 * Need to wait for Phy configuration completion before accessing
 	 * NVM and Phy.
 	 */
-	if (hw->mac.type == e1000_82573)
+	if (hw->mac.type == e1000_82573 || hw->mac.type == e1000_82574)
 		msec_delay(25);
 
 	/* Clear any pending interrupt events. */
@@ -934,7 +971,7 @@ static s32 e1000_init_hw_82571(struct e1000_hw *hw)
 	E1000_WRITE_REG(hw, E1000_TXDCTL(0), reg_data);
 
 	/* ...for both queues. */
-	if (mac->type != e1000_82573) {
+	if (mac->type != e1000_82573 && mac->type != e1000_82574) {
 		reg_data = E1000_READ_REG(hw, E1000_TXDCTL(1));
 		reg_data = (reg_data & ~E1000_TXDCTL_WTHRESH) |
 		           E1000_TXDCTL_FULL_TX_DESC_WB |
@@ -1014,14 +1051,14 @@ static void e1000_initialize_hw_bits_82571(struct e1000_hw *hw)
 	}
 
 	/* Device Control */
-	if (hw->mac.type == e1000_82573) {
+	if (hw->mac.type == e1000_82573 || hw->mac.type == e1000_82574) {
 		reg = E1000_READ_REG(hw, E1000_CTRL);
 		reg &= ~(1 << 29);
 		E1000_WRITE_REG(hw, E1000_CTRL, reg);
 	}
 
 	/* Extended Device Control */
-	if (hw->mac.type == e1000_82573) {
+	if (hw->mac.type == e1000_82573 || hw->mac.type == e1000_82574) {
 		reg = E1000_READ_REG(hw, E1000_CTRL_EXT);
 		reg &= ~(1 << 23);
 		reg |= (1 << 22);
@@ -1048,7 +1085,7 @@ static void e1000_clear_vfta_82571(struct e1000_hw *hw)
 
 	DEBUGFUNC("e1000_clear_vfta_82571");
 
-	if (hw->mac.type == e1000_82573) {
+	if (hw->mac.type == e1000_82573 || hw->mac.type == e1000_82574) {
 		if (hw->mng_cookie.vlan_id != 0) {
 			/*
 			 * The VFTA is a 4096b bit-field, each identifying
@@ -1121,7 +1158,8 @@ static s32 e1000_setup_link_82571(struct e1000_hw *hw)
 	 * the default flow control setting, so we explicitly
 	 * set it to full.
 	 */
-	if (hw->mac.type == e1000_82573 && hw->fc.type  == e1000_fc_default)
+	if ((hw->mac.type == e1000_82573 || hw->mac.type == e1000_82574) &&
+	    hw->fc.type  == e1000_fc_default)
 		hw->fc.type = e1000_fc_full;
 
 	return e1000_setup_link_generic(hw);
@@ -1224,11 +1262,10 @@ static s32 e1000_valid_led_default_82571(struct e1000_hw *hw, u16 *data)
 		goto out;
 	}
 
-	if (hw->mac.type == e1000_82573 &&
+	if ((hw->mac.type == e1000_82573 || hw->mac.type == e1000_82574) &&
 	    *data == ID_LED_RESERVED_F746)
 		*data = ID_LED_DEFAULT_82573;
-	else if (*data == ID_LED_RESERVED_0000 ||
-	         *data == ID_LED_RESERVED_FFFF)
+	else if (*data == ID_LED_RESERVED_0000 || *data == ID_LED_RESERVED_FFFF)
 		*data = ID_LED_DEFAULT;
 out:
 	return ret_val;

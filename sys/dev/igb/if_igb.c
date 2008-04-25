@@ -88,7 +88,7 @@ int	igb_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version:
  *********************************************************************/
-char igb_driver_version[] = "version - 1.1.6";
+char igb_driver_version[] = "version - 1.1.9";
 
 
 /*********************************************************************
@@ -271,12 +271,17 @@ TUNABLE_INT("hw.igb.rxd", &igb_rxd);
 TUNABLE_INT("hw.igb.txd", &igb_txd);
 TUNABLE_INT("hw.igb.smart_pwr_down", &igb_smart_pwr_down);
 
-/* These auto configure if set to 0, based on number of cpus */
-extern int mp_ncpus;
+/*
+** IF YOU CHANGE THESE: be sure and change IGB_MSIX_VEC in
+** if_igb.h to match. These can be autoconfigured if set to
+** 0, it will then be based on number of cpus.
+*/
 static int igb_tx_queues = 1;
 static int igb_rx_queues = 1;
 TUNABLE_INT("hw.igb.tx_queues", &igb_tx_queues);
 TUNABLE_INT("hw.igb.rx_queues", &igb_rx_queues);
+
+extern int mp_ncpus;
 
 /* How many packets rxeof tries to clean at a time */
 static int igb_rx_process_limit = 100;
@@ -605,11 +610,11 @@ igb_detach(device_t dev)
 
 	callout_drain(&adapter->timer);
 
+	e1000_remove_device(&adapter->hw);
 	igb_free_pci_resources(adapter);
 	bus_generic_detach(dev);
 	if_free(ifp);
 
-	e1000_remove_device(&adapter->hw);
 	igb_free_transmit_structures(adapter);
 	igb_free_receive_structures(adapter);
 
@@ -819,7 +824,7 @@ igb_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		if (ifp->if_flags & IFF_UP) {
 			if ((ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 				if ((ifp->if_flags ^ adapter->if_flags) &
-				    IFF_PROMISC) {
+				    (IFF_PROMISC | IFF_ALLMULTI)) {
 					igb_disable_promisc(adapter);
 					igb_set_promisc(adapter);
 				}
@@ -1090,8 +1095,10 @@ igb_init_locked(struct adapter *adapter)
 	else
 #endif /* DEVICE_POLLING */
 	{
+		/* this clears any pending interrupts */
 		E1000_READ_REG(&adapter->hw, E1000_ICR);
 		igb_enable_intr(adapter);
+		E1000_WRITE_REG(&adapter->hw, E1000_ICS, E1000_ICS_LSC);
 	}
 
 
@@ -1268,7 +1275,7 @@ igb_irq_fast(void *arg)
 	/* Link status change */
 	if (reg_icr & (E1000_ICR_RXSEQ | E1000_ICR_LSC)) {
 		adapter->hw.mac.get_link_status = 1;
-		taskqueue_enqueue(taskqueue_fast, &adapter->link_task);
+		taskqueue_enqueue(adapter->tq, &adapter->link_task);
 	}
 
 	if (reg_icr & E1000_ICR_RXO)
@@ -1341,11 +1348,12 @@ igb_msix_link(void *arg)
 	if (!(icr & E1000_ICR_LSC))
 		goto spurious;
 	adapter->hw.mac.get_link_status = 1;
-	taskqueue_enqueue(taskqueue_fast, &adapter->link_task);
+	taskqueue_enqueue(adapter->tq, &adapter->link_task);
 
 spurious:
+	/* Rearm */
 	E1000_WRITE_REG(&adapter->hw, E1000_IMS, E1000_IMS_LSC);
-	E1000_WRITE_REG(&adapter->hw, E1000_EIMS, E1000_EIMS_OTHER);
+	E1000_WRITE_REG(&adapter->hw, E1000_EIMS, adapter->link_mask);
 	return;
 }
 
@@ -2094,7 +2102,7 @@ igb_configure_queues(struct adapter *adapter)
                 E1000_WRITE_REG(hw, E1000_CTRL_EXT, tmp);
 
 	 	/* Set the interrupt throttling rate. */
-		for (int i = 0; i < 10; i++)
+		for (int i = 0; i < IGB_MSIX_VEC; i++)
 			E1000_WRITE_REG(&adapter->hw,
 			    E1000_EITR(i), DEFAULT_ITR);
 
@@ -2117,7 +2125,8 @@ igb_configure_queues(struct adapter *adapter)
 		/* Link */
 		E1000_WRITE_REG(hw, E1000_MSIXBM(adapter->linkvec),
 		    E1000_EIMS_OTHER);
-		adapter->eims_mask |= E1000_EIMS_OTHER;
+		adapter->link_mask |= E1000_EIMS_OTHER;
+		adapter->eims_mask |= adapter->link_mask;
 	}
 	return;
 }
@@ -2191,6 +2200,10 @@ igb_setup_msix(struct adapter *adapter)
 		goto msi;
 	}
 
+	/* Limit by the number set in header */
+	if (msgs > IGB_MSIX_VEC)
+		msgs = IGB_MSIX_VEC;
+
 	/* Figure out a reasonable auto config value */
 	queues = (mp_ncpus > ((msgs-1)/2)) ? (msgs-1)/2 : mp_ncpus;
 
@@ -2204,7 +2217,7 @@ igb_setup_msix(struct adapter *adapter)
 	else {
                	device_printf(adapter->dev,
 		    "MSIX Configuration Problem, "
-		    "%d vectors but %d queues wanted!\n",
+		    "%d vectors configured, but %d queues wanted!\n",
 		    msgs, want);
 		return (ENXIO);
 	}
@@ -2860,7 +2873,6 @@ igb_tso_setup(struct tx_ring *txr, struct mbuf *mp, u32 *hdrlen)
 	ip = (struct ip *)(mp->m_data + ehdrlen);
 	if (ip->ip_p != IPPROTO_TCP)
                 return FALSE;   /* 0 */
-	ip->ip_len = 0;
 	ip->ip_sum = 0;
 	ip_hlen = ip->ip_hl << 2;
 	th = (struct tcphdr *)((caddr_t)ip + ip_hlen);
@@ -3813,7 +3825,7 @@ igb_fixup_rx(struct rx_ring *rxr)
 			rxr->fmp = n;
 		} else {
 			adapter->dropped_pkts++;
-			m_freem(rxr->fmp);
+			m_freem(adapter->fmp);
 			rxr->fmp = NULL;
 			error = ENOMEM;
 		}
@@ -3885,6 +3897,8 @@ igb_enable_intr(struct adapter *adapter)
 	if (adapter->msix_mem) {
 		E1000_WRITE_REG(&adapter->hw, E1000_EIAC,
 		    adapter->eims_mask);
+		E1000_WRITE_REG(&adapter->hw, E1000_EIAM,
+		    adapter->eims_mask);
 		E1000_WRITE_REG(&adapter->hw, E1000_EIMS,
 		    adapter->eims_mask);
 		E1000_WRITE_REG(&adapter->hw, E1000_IMS,
@@ -3905,7 +3919,7 @@ igb_disable_intr(struct adapter *adapter)
 		E1000_WRITE_REG(&adapter->hw, E1000_EIMC, ~0);
 		E1000_WRITE_REG(&adapter->hw, E1000_EIAC, 0);
 	} 
-		E1000_WRITE_REG(&adapter->hw, E1000_IMC, ~0);
+	E1000_WRITE_REG(&adapter->hw, E1000_IMC, ~0);
 	E1000_WRITE_FLUSH(&adapter->hw);
 	return;
 }
@@ -4143,9 +4157,18 @@ igb_print_debug_info(struct adapter *adapter)
 	device_printf(dev, "CTRL = 0x%x RCTL = 0x%x \n",
 	    E1000_READ_REG(&adapter->hw, E1000_CTRL),
 	    E1000_READ_REG(&adapter->hw, E1000_RCTL));
+
+#if	(DEBUG_HW > 0)  /* Dont output these errors normally */
 	device_printf(dev, "IMS = 0x%x EIMS = 0x%x \n",
 	    E1000_READ_REG(&adapter->hw, E1000_IMS),
 	    E1000_READ_REG(&adapter->hw, E1000_EIMS));
+	/* Kawela only */
+	device_printf(dev, "IVAR0 = 0x%x IVAR1 = 0x%x IVAR_MISC = 0x%x\n",
+	    E1000_READ_REG_ARRAY(&adapter->hw, E1000_IVAR0, 0),
+	    E1000_READ_REG_ARRAY(&adapter->hw, E1000_IVAR0, 1),
+	    E1000_READ_REG(&adapter->hw, E1000_IVAR_MISC));
+#endif
+
 	device_printf(dev, "Packet buffer = Tx=%dk Rx=%dk \n",
 	    ((E1000_READ_REG(&adapter->hw, E1000_PBA) & 0xffff0000) >> 16),\
 	    (E1000_READ_REG(&adapter->hw, E1000_PBA) & 0xffff) );
@@ -4163,24 +4186,24 @@ igb_print_debug_info(struct adapter *adapter)
 		device_printf(dev, "Queue(%d) tdh = %d, tdt = %d\n", i,
 		    E1000_READ_REG(&adapter->hw, E1000_TDH(i)),
 		    E1000_READ_REG(&adapter->hw, E1000_TDT(i)));
-		device_printf(dev, "no descriptors avail event = %lld\n",
-		    (long long)txr->no_desc_avail);
-		device_printf(dev, "TX(%d) MSIX IRQ Handled = %lld\n", txr->me,
-		    (long long)txr->tx_irq);
-		device_printf(dev, "TX(%d) Packets sent = %lld\n", txr->me,
-		    (long long)txr->tx_packets);
+		device_printf(dev, "no descriptors avail event = %lu\n",
+		    txr->no_desc_avail);
+		device_printf(dev, "TX(%d) MSIX IRQ Handled = %lu\n", txr->me,
+		    txr->tx_irq);
+		device_printf(dev, "TX(%d) Packets sent = %lu\n", txr->me,
+		    txr->tx_packets);
 	}
 
 	for (int i = 0; i < adapter->num_rx_queues; i++, rxr++) {
 		device_printf(dev, "Queue(%d) rdh = %d, rdt = %d\n", i,
 		    E1000_READ_REG(&adapter->hw, E1000_RDH(i)),
 		    E1000_READ_REG(&adapter->hw, E1000_RDT(i)));
-		device_printf(dev, "RX(%d) Packets received = %lld\n", rxr->me,
-		    (long long)rxr->rx_packets);
-		device_printf(dev, "RX(%d) Byte count = %lld\n", rxr->me,
-		    (long long)rxr->rx_bytes);
-		device_printf(dev, "RX(%d) MSIX IRQ Handled = %lld\n", rxr->me,
-		    (long long)rxr->rx_irq);
+		device_printf(dev, "RX(%d) Packets received = %lu\n", rxr->me,
+		    rxr->rx_packets);
+		device_printf(dev, "RX(%d) Byte count = %lu\n", rxr->me,
+		    rxr->rx_bytes);
+		device_printf(dev, "RX(%d) MSIX IRQ Handled = %lu\n", rxr->me,
+		    rxr->rx_irq);
 	}
 	device_printf(dev, "LINK MSIX IRQ Handled = %u\n", adapter->link_irq);
 
