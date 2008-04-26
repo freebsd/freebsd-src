@@ -217,8 +217,14 @@ Int_Open_Disk(const char *name, char *conftxt)
 					uuid = _swap;
 				else if (!strcmp(r, "freebsd-ufs"))
 					uuid = _ufs;
-				else
-					uuid_from_string(r, &uuid, &status);
+				else {
+					if (!strcmp(type, "PART"))
+						uuid_from_string(r + 1, &uuid,
+						    &status);
+					else
+						uuid_from_string(r, &uuid,
+						    &status);
+				}
 			} else
 				status = uuid_s_invalid_string_uuid;
 			if (!strcmp(q, "o"))
