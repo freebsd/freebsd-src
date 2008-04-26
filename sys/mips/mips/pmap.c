@@ -493,24 +493,6 @@ pmap_nw_modified(pt_entry_t pte)
 #endif
 
 
-/*
- * this routine defines the region(s) of memory that should
- * not be tested for the modified bit.
- */
-static PMAP_INLINE int
-pmap_track_modified(vm_offset_t va)
-{
-	/*
-	 * Kernel submap initialization has been moved for MD to MI code. ie
-	 * from cpu_startup() to vm_ksubmap_init(). clean_sva and clean_eva
-	 * are part of the kmi structure.
-	 */
-	if ((va < kmi.clean_sva) || (va >= kmi.clean_eva))
-		return (1);
-	else
-		return (0);
-}
-
 static void
 pmap_invalidate_all(pmap_t pmap)
 {
@@ -1450,8 +1432,7 @@ pmap_remove_pte(struct pmap *pmap, pt_entry_t *ptq, vm_offset_t va)
 				    va, oldpte);
 			}
 #endif
-			if (pmap_track_modified(va))
-				vm_page_dirty(m);
+			vm_page_dirty(m);
 		}
 		if (m->md.pv_flags & PV_TABLE_REF)
 			vm_page_flag_set(m, PG_REFERENCED);
@@ -1588,8 +1569,7 @@ pmap_remove_all(vm_page_t m)
 				    pv->pv_va, tpte);
 			}
 #endif
-			if (pmap_track_modified(pv->pv_va))
-				vm_page_dirty(m);
+			vm_page_dirty(m);
 		}
 		pmap_invalidate_page(pv->pv_pmap, pv->pv_va);
 
@@ -1657,10 +1637,8 @@ retry:
 				m->md.pv_flags &= ~PV_TABLE_REF;
 			}
 			if (pbits & PTE_M) {
-				if (pmap_track_modified(sva)) {
-					vm_page_dirty(m);
-					m->md.pv_flags &= ~PV_TABLE_MOD;
-				}
+				vm_page_dirty(m);
+				m->md.pv_flags &= ~PV_TABLE_MOD;
 			}
 		}
 		pbits = (pbits & ~PTE_M) | PTE_RO;
@@ -1798,6 +1776,8 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t fault_type, vm_page_t m, vm_pr
 	 * called at interrupt time.
 	 */
 	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0) {
+		KASSERT(va < kmi.clean_sva || va >= kmi.clean_eva,
+		    ("pmap_enter: managed mapping within the clean submap"));
 		pmap_insert_entry(pmap, va, mpte, m, wired);
 	}
 	/*
@@ -1843,8 +1823,7 @@ validate:
 				KASSERT((origpte & PTE_RW),
 				    ("pmap_enter: modified page not writable:"
 				    " va: 0x%x, pte: 0x%lx", va, origpte));
-				if ((page_is_managed(opa)) &&
-				    pmap_track_modified(va))
+				if (page_is_managed(opa))
 					vm_page_dirty(om);
 			}
 		} else {
@@ -1884,6 +1863,9 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot)
 	vm_offset_t pa;
 	vm_page_t mpte = NULL;
 
+	KASSERT(va < kmi.clean_sva || va >= kmi.clean_eva ||
+	    (m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0,
+	    ("pmap_enter_quick: managed mapping within the clean submap"));
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
 	PMAP_LOCK(pmap);
@@ -2520,11 +2502,6 @@ pmap_testbit(vm_page_t m, int bit)
 
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
-
-		if (bit & PTE_M) {
-			if (!pmap_track_modified(pv->pv_va))
-				continue;
-		}
 #if defined(PMAP_DIAGNOSTIC)
 		if (!pv->pv_pmap) {
 			printf("Null pmap (tb) at va: 0x%x\n", pv->pv_va);
@@ -2559,14 +2536,6 @@ pmap_changebit(vm_page_t m, int bit, boolean_t setem)
 	 * setting RO do we need to clear the VAC?
 	 */
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
-
-		/*
-		 * don't write protect pager mappings
-		 */
-		if (!setem && (bit == PTE_RW)) {
-			if (!pmap_track_modified(pv->pv_va))
-				continue;
-		}
 #if defined(PMAP_DIAGNOSTIC)
 		if (!pv->pv_pmap) {
 			printf("Null pmap (cb) at va: 0x%x\n", pv->pv_va);
