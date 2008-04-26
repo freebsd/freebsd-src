@@ -82,7 +82,11 @@ dt_epid_add(dtrace_hdl_t *dtp, dtrace_epid_t id)
 	enabled->dtepd_epid = id;
 	enabled->dtepd_nrecs = 1;
 
+#if defined(sun)
 	if (dt_ioctl(dtp, DTRACEIOC_EPROBE, enabled) == -1) {
+#else
+	if (dt_ioctl(dtp, DTRACEIOC_EPROBE, &enabled) == -1) {
+#endif
 		rval = dt_set_errno(dtp, errno);
 		free(enabled);
 		return (rval);
@@ -102,7 +106,11 @@ dt_epid_add(dtrace_hdl_t *dtp, dtrace_epid_t id)
 		if ((enabled = nenabled) == NULL)
 			return (dt_set_errno(dtp, EDT_NOMEM));
 
+#if defined(sun)
 		rval = dt_ioctl(dtp, DTRACEIOC_EPROBE, enabled);
+#else
+		rval = dt_ioctl(dtp, DTRACEIOC_EPROBE, &enabled);
+#endif
 
 		if (rval == -1) {
 			rval = dt_set_errno(dtp, errno);
@@ -322,7 +330,11 @@ dt_aggid_add(dtrace_hdl_t *dtp, dtrace_aggid_t id)
 		agg->dtagd_id = id;
 		agg->dtagd_nrecs = 1;
 
+#if defined(sun)
 		if (dt_ioctl(dtp, DTRACEIOC_AGGDESC, agg) == -1) {
+#else
+		if (dt_ioctl(dtp, DTRACEIOC_AGGDESC, &agg) == -1) {
+#endif
 			rval = dt_set_errno(dtp, errno);
 			free(agg);
 			return (rval);
@@ -341,7 +353,11 @@ dt_aggid_add(dtrace_hdl_t *dtp, dtrace_aggid_t id)
 			if ((agg = nagg) == NULL)
 				return (dt_set_errno(dtp, EDT_NOMEM));
 
+#if defined(sun)
 			rval = dt_ioctl(dtp, DTRACEIOC_AGGDESC, agg);
+#else
+			rval = dt_ioctl(dtp, DTRACEIOC_AGGDESC, &agg);
+#endif
 
 			if (rval == -1) {
 				rval = dt_set_errno(dtp, errno);
@@ -359,7 +375,7 @@ dt_aggid_add(dtrace_hdl_t *dtp, dtrace_aggid_t id)
 		 * provide the compiler-generated aggregation information.
 		 */
 		if (dtp->dt_options[DTRACEOPT_GRABANON] == DTRACEOPT_UNSET &&
-		    agg->dtagd_rec[0].dtrd_uarg != NULL) {
+		    agg->dtagd_rec[0].dtrd_uarg != 0) {
 			dtrace_stmtdesc_t *sdp;
 			dt_ident_t *aid;
 
