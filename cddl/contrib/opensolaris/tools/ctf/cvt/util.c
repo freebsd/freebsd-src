@@ -43,7 +43,7 @@
 #include "ctftools.h"
 #include "memory.h"
 
-static void (*terminate_cleanup)() = NULL;
+static void (*terminate_cleanup)(void) = NULL;
 
 /* returns 1 if s1 == s2, 0 otherwise */
 int
@@ -116,7 +116,7 @@ elf_ptrsz(Elf *elf)
 
 /*PRINTFLIKE2*/
 static void
-whine(char *type, char *format, va_list ap)
+whine(const char *type, const char *format, va_list ap)
 {
 	int error = errno;
 
@@ -128,14 +128,14 @@ whine(char *type, char *format, va_list ap)
 }
 
 void
-set_terminate_cleanup(void (*cleanup)())
+set_terminate_cleanup(void (*cleanup)(void))
 {
 	terminate_cleanup = cleanup;
 }
 
 /*PRINTFLIKE1*/
 void
-terminate(char *format, ...)
+terminate(const char *format, ...)
 {
 	va_list ap;
 
@@ -148,12 +148,22 @@ terminate(char *format, ...)
 
 	if (getenv("CTF_ABORT_ON_TERMINATE") != NULL)
 		abort();
+#if defined(__FreeBSD__)
+/*
+ * For the time being just output the termination message, but don't
+ * return an exit status that would cause the build to fail. We need
+ * to get as much stuff built as possible before going back and
+ * figuring out what is wrong with certain files.
+ */
+	exit(0);
+#else
 	exit(1);
+#endif
 }
 
 /*PRINTFLIKE1*/
 void
-aborterr(char *format, ...)
+aborterr(const char *format, ...)
 {
 	va_list ap;
 
@@ -161,12 +171,16 @@ aborterr(char *format, ...)
 	whine("ERROR", format, ap);
 	va_end(ap);
 
+#if defined(sun)
 	abort();
+#else
+	exit(0);
+#endif
 }
 
 /*PRINTFLIKE1*/
 void
-warning(char *format, ...)
+warning(const char *format, ...)
 {
 	va_list ap;
 
@@ -180,7 +194,7 @@ warning(char *format, ...)
 
 /*PRINTFLIKE2*/
 void
-vadebug(int level, char *format, va_list ap)
+vadebug(int level, const char *format, va_list ap)
 {
 	if (level > debug_level)
 		return;
@@ -192,7 +206,7 @@ vadebug(int level, char *format, va_list ap)
 
 /*PRINTFLIKE2*/
 void
-debug(int level, char *format, ...)
+debug(int level, const char *format, ...)
 {
 	va_list ap;
 
@@ -234,3 +248,36 @@ tdesc_name(tdesc_t *tdp)
 {
 	return (tdp->t_name == NULL ? "(anon)" : tdp->t_name);
 }
+
+char	*watch_address = NULL;
+int	watch_length = 0;
+
+void
+watch_set(void *addr, int len)
+{
+	watch_address = addr;
+	watch_length  = len;
+}
+
+void
+watch_dump(int v)
+{
+	char *p = watch_address;
+	int i;
+
+	if (watch_address == NULL || watch_length == 0)
+		return;
+
+	printf("%d: watch %p len %d\n",v,watch_address,watch_length);
+        for (i = 0; i < watch_length; i++) {
+                if (*p >= 0x20 && *p < 0x7f) {
+                        printf(" %c",*p++ & 0xff);
+                } else {
+                        printf(" %02x",*p++ & 0xff);
+                }
+        }
+        printf("\n");
+
+}
+
+
