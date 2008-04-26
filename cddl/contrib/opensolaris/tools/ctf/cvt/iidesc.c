@@ -68,8 +68,10 @@ iidesc_hash(int nbuckets, void *arg)
 }
 
 static int
-iidesc_cmp(iidesc_t *src, iidesc_find_t *find)
+iidesc_cmp(void *arg1, void *arg2)
 {
+	iidesc_t *src = arg1;
+	iidesc_find_t *find = arg2;
 	iidesc_t *tgt = find->iif_tgt;
 
 	if (src->ii_type != tgt->ii_type ||
@@ -89,7 +91,7 @@ iidesc_add(hash_t *hash, iidesc_t *new)
 	find.iif_tgt = new;
 	find.iif_ret = NULL;
 
-	(void) hash_match(hash, new, (int (*)())iidesc_cmp, &find);
+	(void) hash_match(hash, new, iidesc_cmp, &find);
 
 	if (find.iif_ret != NULL) {
 		iidesc_t *old = find.iif_ret;
@@ -107,13 +109,14 @@ iidesc_add(hash_t *hash, iidesc_t *new)
 }
 
 void
-iter_iidescs_by_name(tdata_t *td, const char *name,
-    int (*func)(iidesc_t *, void *), void *data)
+iter_iidescs_by_name(tdata_t *td, char const *name,
+    int (*func)(void *, void *), void *data)
 {
 	iidesc_t tmpdesc;
-	bzero(&tmpdesc, sizeof (iidesc_t));
-	tmpdesc.ii_name = (char *)name;
-	(void) hash_match(td->td_iihash, &tmpdesc, (int (*)())func, data);
+	bzero(&tmpdesc, sizeof(tmpdesc));
+	tmpdesc.ii_name = xstrdup(name);
+	(void) hash_match(td->td_iihash, &tmpdesc, func, data);
+	free(tmpdesc.ii_name);
 }
 
 iidesc_t *
@@ -151,8 +154,9 @@ iidesc_dup_rename(iidesc_t *src, char const *name, char const *owner)
 
 /*ARGSUSED*/
 void
-iidesc_free(iidesc_t *idp, void *private)
+iidesc_free(void *arg, void *private __unused)
 {
+	iidesc_t *idp = arg;
 	if (idp->ii_name)
 		free(idp->ii_name);
 	if (idp->ii_nargs)

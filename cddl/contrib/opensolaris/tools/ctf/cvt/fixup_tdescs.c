@@ -52,17 +52,17 @@
 static void
 fix_ptrptr_to_struct(tdata_t *td)
 {
-	char *strs[2] = { "as", "fdbuffer" };
-	char *mems[2] = { "a_objectdir", "fd_shadow" };
-	char *acts[2] = { "vnode", "page" };
-	char *tgts[2] = { "vnode_t", "page_t" };
+	const char *strs[2] = { "as", "fdbuffer" };
+	const char *mems[2] = { "a_objectdir", "fd_shadow" };
+	const char *acts[2] = { "vnode", "page" };
+	const char *tgts[2] = { "vnode_t", "page_t" };
 	tdesc_t *str;
 	tdesc_t *act, *tgt;
 	tdesc_t *p1, *p2;
 	mlist_t *ml;
 	int i;
 
-	for (i = 0; i < sizeof (strs) / sizeof (strs[0]); i++) {
+	for (i = 0; i < (int) (sizeof (strs) / sizeof (strs[0])); i++) {
 		if (!(str = lookupname(strs[i])) || str->t_type != STRUCT)
 			continue;
 
@@ -106,8 +106,8 @@ fix_ptrptr_to_struct(tdata_t *td)
 static void
 fix_ptr_to_struct(tdata_t *td)
 {
-	char *strs[2] = { "vmem", "id_space" };
-	char *mems[2] = { NULL, "is_vmem" };
+	const char *strs[2] = { "vmem", "id_space" };
+	const char *mems[2] = { NULL, "is_vmem" };
 	tdesc_t *ptr = NULL;
 	tdesc_t *str, *vmt;
 	mlist_t *ml;
@@ -116,7 +116,7 @@ fix_ptr_to_struct(tdata_t *td)
 	if ((vmt = lookupname("vmem_t")) == NULL || vmt->t_type != TYPEDEF)
 		return;
 
-	for (i = 0; i < sizeof (strs) / sizeof (strs[0]); i++) {
+	for (i = 0; i < (int) (sizeof (strs) / sizeof (strs[0])); i++) {
 		if (!(str = lookupname(strs[i])) || str->t_type != STRUCT)
 			continue;
 
@@ -163,8 +163,10 @@ struct match {
 };
 
 static int
-matching_iidesc(iidesc_t *iidesc, struct match *match)
+matching_iidesc(void *arg1, void *arg2)
 {
+	iidesc_t *iidesc = arg1;
+	struct match *match = arg2;
 	if (!streq(iidesc->ii_name, match->m_name))
 		return (0);
 
@@ -176,10 +178,10 @@ matching_iidesc(iidesc_t *iidesc, struct match *match)
 }
 
 static tdesc_t *
-lookup_tdesc(tdata_t *td, const char *name)
+lookup_tdesc(tdata_t *td, char const *name)
 {
 	struct match match = { NULL, name };
-	iter_iidescs_by_name(td, name, (int (*)())matching_iidesc, &match);
+	iter_iidescs_by_name(td, name, matching_iidesc, &match);
 	return (match.m_ret);
 }
 
