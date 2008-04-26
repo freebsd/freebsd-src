@@ -42,7 +42,7 @@ iswctype(wint_t wc, wctype_t charclass)
 wctype_t
 wctype(const char *property)
 {
-	struct {
+	static const struct {
 		const char	*name;
 		wctype_t	 mask;
 	} props[] = {
