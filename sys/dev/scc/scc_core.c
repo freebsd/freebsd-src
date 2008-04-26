@@ -94,7 +94,7 @@ scc_bfe_intr(void *arg)
 }
 
 int
-scc_bfe_attach(device_t dev)
+scc_bfe_attach(device_t dev, u_int ipc)
 {
 	struct resource_list_entry *rle;
 	struct scc_chan *ch;
@@ -144,9 +144,18 @@ scc_bfe_attach(device_t dev)
 	    M_SCC, M_WAITOK | M_ZERO);
 	for (c = 0; c < cl->cl_channels; c++) {
 		ch = &sc->sc_chan[c];
-		ch->ch_irid = c;
+		/*
+		 * XXX temporary hack. If we have more than 1 interrupt
+		 * per channel, allocate the first for the channel. At
+		 * this time only the macio bus front-end has more than
+		 * 1 interrupt per channel and we don't use the 2nd and
+		 * 3rd, because we don't support DMA yet.
+		 */
+		ch->ch_irid = c * ipc;
 		ch->ch_ires = bus_alloc_resource_any(dev, SYS_RES_IRQ,
 		    &ch->ch_irid, RF_ACTIVE | RF_SHAREABLE);
+		if (ipc == 0)
+			break;
 	}
 
 	/*

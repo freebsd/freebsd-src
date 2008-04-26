@@ -61,10 +61,17 @@ scc_macio_probe(device_t dev)
 	return (ENXIO);
 }
 
+static int
+scc_macio_attach(device_t dev)
+{
+
+	return (scc_bfe_attach(dev, 3));
+}
+
 static device_method_t scc_macio_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		scc_macio_probe),
-	DEVMETHOD(device_attach,	scc_bfe_attach),
+	DEVMETHOD(device_attach,	scc_macio_attach),
 	DEVMETHOD(device_detach,	scc_bfe_detach),
 
 	DEVMETHOD(bus_alloc_resource,	scc_bus_alloc_resource),
