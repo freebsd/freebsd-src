@@ -203,9 +203,8 @@ print_header(const ctf_header_t *hp, const ctf_data_t *cd)
 static int
 print_labeltable(const ctf_header_t *hp, const ctf_data_t *cd)
 {
-	/* LINTED - pointer alignment */
-	const ctf_lblent_t *ctl = (ctf_lblent_t *)(cd->cd_ctfdata +
-	    hp->cth_lbloff);
+	void *v = (void *) (cd->cd_ctfdata + hp->cth_lbloff);
+	const ctf_lblent_t *ctl = v;
 	ulong_t i, n = (hp->cth_objtoff - hp->cth_lbloff) / sizeof (*ctl);
 
 	print_line("- Label Table ");
@@ -267,8 +266,8 @@ next_sym(const ctf_data_t *cd, const int symidx, const uchar_t matchtype,
 static int
 read_data(const ctf_header_t *hp, const ctf_data_t *cd)
 {
-	/* LINTED - pointer alignment */
-	const ushort_t *idp = (ushort_t *)(cd->cd_ctfdata + hp->cth_objtoff);
+	void *v = (void *) (cd->cd_ctfdata + hp->cth_objtoff);
+	const ushort_t *idp = v;
 	ulong_t n = (hp->cth_funcoff - hp->cth_objtoff) / sizeof (ushort_t);
 
 	if (flags != F_STATS)
@@ -287,7 +286,7 @@ read_data(const ctf_header_t *hp, const ctf_data_t *cd)
 		int symidx, len, i;
 		char *name = NULL;
 
-		for (symidx = -1, i = 0; i < n; i++) {
+		for (symidx = -1, i = 0; i < (int) n; i++) {
 			int nextsym;
 
 			if (cd->cd_symdata == NULL || (nextsym = next_sym(cd,
@@ -311,11 +310,11 @@ read_data(const ctf_header_t *hp, const ctf_data_t *cd)
 static int
 read_funcs(const ctf_header_t *hp, const ctf_data_t *cd)
 {
-	/* LINTED - pointer alignment */
-	const ushort_t *fp = (ushort_t *)(cd->cd_ctfdata + hp->cth_funcoff);
+	void *v = (void *) (cd->cd_ctfdata + hp->cth_funcoff);
+	const ushort_t *fp = v;
 
-	/* LINTED - pointer alignment */
-	const ushort_t *end = (ushort_t *)(cd->cd_ctfdata + hp->cth_typeoff);
+	v = (void *) (cd->cd_ctfdata + hp->cth_typeoff);
+	const ushort_t *end = v;
 
 	ulong_t id;
 	int symidx;
@@ -388,11 +387,11 @@ read_funcs(const ctf_header_t *hp, const ctf_data_t *cd)
 static int
 read_types(const ctf_header_t *hp, const ctf_data_t *cd)
 {
-	/* LINTED - pointer alignment */
-	const ctf_type_t *tp = (ctf_type_t *)(cd->cd_ctfdata + hp->cth_typeoff);
+	void *v = (void *) (cd->cd_ctfdata + hp->cth_typeoff);
+	const ctf_type_t *tp = v;
 
-	/* LINTED - pointer alignment */
-	const ctf_type_t *end = (ctf_type_t *)(cd->cd_ctfdata + hp->cth_stroff);
+	v = (void *) (cd->cd_ctfdata + hp->cth_stroff);
+	const ctf_type_t *end = v;
 
 	ulong_t id;
 
@@ -419,7 +418,7 @@ read_types(const ctf_header_t *hp, const ctf_data_t *cd)
 
 		union {
 			const void *ptr;
-			const ctf_array_t *ap;
+			ctf_array_t *ap;
 			const ctf_member_t *mp;
 			const ctf_lmember_t *lmp;
 			const ctf_enum_t *ep;
@@ -439,7 +438,7 @@ read_types(const ctf_header_t *hp, const ctf_data_t *cd)
 			increment = sizeof (ctf_stype_t);
 			size = tp->ctt_size;
 		}
-		u.ptr = (caddr_t)tp + increment;
+		u.ptr = (const char *)tp + increment;
 
 		switch (kind) {
 		case CTF_K_INTEGER:
@@ -527,7 +526,7 @@ read_types(const ctf_header_t *hp, const ctf_data_t *cd)
 			}
 
 			if (flags != F_STATS) {
-				(void) printf(" %s (%d bytes)\n",
+				(void) printf(" %s (%zd bytes)\n",
 				    ref_to_str(tp->ctt_name, hp, cd), size);
 
 				if (size >= CTF_LSTRUCT_THRESH) {
@@ -536,6 +535,7 @@ read_types(const ctf_header_t *hp, const ctf_data_t *cd)
 						    "\t%s type=%u off=%llu\n",
 						    ref_to_str(u.lmp->ctlm_name,
 						    hp, cd), u.lmp->ctlm_type,
+						    (unsigned long long)
 						    CTF_LMEM_OFFSET(u.lmp));
 					}
 				} else {
@@ -785,7 +785,7 @@ print_usage(FILE *fp, int verbose)
 }
 
 static Elf_Scn *
-findelfscn(Elf *elf, GElf_Ehdr *ehdr, char *secname)
+findelfscn(Elf *elf, GElf_Ehdr *ehdr, const char *secname)
 {
 	GElf_Shdr shdr;
 	Elf_Scn *scn;
@@ -811,7 +811,7 @@ main(int argc, char *argv[])
 
 	ctf_data_t cd;
 	const ctf_preamble_t *pp;
-	ctf_header_t *hp;
+	ctf_header_t *hp = NULL;
 	Elf *elf;
 	GElf_Ehdr ehdr;
 
@@ -871,7 +871,7 @@ main(int argc, char *argv[])
 	if ((elf = elf_begin(fd, ELF_C_READ, NULL)) != NULL &&
 	    gelf_getehdr(elf, &ehdr) != NULL) {
 
-		Elf_Data *dp;
+		Elf_Data *dp = NULL;
 		Elf_Scn *ctfscn = findelfscn(elf, &ehdr, ".SUNW_ctf");
 		Elf_Scn *symscn;
 		GElf_Shdr ctfshdr;
@@ -929,15 +929,15 @@ main(int argc, char *argv[])
 	if (cd.cd_ctflen < sizeof (ctf_preamble_t))
 		die("%s does not contain a CTF preamble\n", filename);
 
-	/* LINTED - pointer alignment */
-	pp = (const ctf_preamble_t *)cd.cd_ctfdata;
+	void *v = (void *) cd.cd_ctfdata;
+	pp = v;
 
 	if (pp->ctp_magic != CTF_MAGIC)
 		die("%s does not appear to contain CTF data\n", filename);
 
 	if (pp->ctp_version == CTF_VERSION) {
-		/* LINTED - pointer alignment */
-		hp = (ctf_header_t *)cd.cd_ctfdata;
+		v = (void *) cd.cd_ctfdata;
+		hp = v;
 		cd.cd_ctfdata = (caddr_t)cd.cd_ctfdata + sizeof (ctf_header_t);
 
 		if (cd.cd_ctflen < sizeof (ctf_header_t)) {
@@ -1012,7 +1012,7 @@ main(int argc, char *argv[])
 
 		if ((ufd = open(ufile, O_WRONLY|O_CREAT|O_TRUNC, 0666)) < 0 ||
 		    write(ufd, &h, sizeof (h)) != sizeof (h) ||
-		    write(ufd, cd.cd_ctfdata, cd.cd_ctflen) != cd.cd_ctflen) {
+		    write(ufd, cd.cd_ctfdata, cd.cd_ctflen) != (int) cd.cd_ctflen) {
 			warn("failed to write CTF data to '%s'", ufile);
 			error |= E_ERROR;
 		}
