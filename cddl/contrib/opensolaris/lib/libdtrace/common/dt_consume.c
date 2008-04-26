@@ -32,9 +32,7 @@
 #include <limits.h>
 #include <assert.h>
 #include <ctype.h>
-#if defined(sun)
 #include <alloca.h>
-#endif
 #include <dt_impl.h>
 
 #define	DT_MASK_LO 0x00000000FFFFFFFFULL
@@ -712,7 +710,7 @@ dt_print_stddev(dtrace_hdl_t *dtp, FILE *fp, caddr_t addr,
 /*ARGSUSED*/
 int
 dt_print_bytes(dtrace_hdl_t *dtp, FILE *fp, caddr_t addr,
-    size_t nbytes, int width, int quiet, int raw)
+    size_t nbytes, int width, int quiet)
 {
 	/*
 	 * If the byte stream is a series of printable characters, followed by
@@ -725,7 +723,7 @@ dt_print_bytes(dtrace_hdl_t *dtp, FILE *fp, caddr_t addr,
 	if (nbytes == 0)
 		return (0);
 
-	if (raw || dtp->dt_options[DTRACEOPT_RAWBYTES] != DTRACEOPT_UNSET)
+	if (dtp->dt_options[DTRACEOPT_RAWBYTES] != DTRACEOPT_UNSET)
 		goto raw;
 
 	for (i = 0; i < nbytes; i++) {
@@ -860,7 +858,7 @@ dt_print_stack(dtrace_hdl_t *dtp, FILE *fp, const char *format,
 			return (dt_set_errno(dtp, EDT_BADSTACKPC));
 		}
 
-		if (pc == 0)
+		if (pc == NULL)
 			break;
 
 		addr += size;
@@ -948,23 +946,15 @@ dt_print_ustack(dtrace_hdl_t *dtp, FILE *fp, const char *format,
 	if (P != NULL)
 		dt_proc_lock(dtp, P); /* lock handle while we perform lookups */
 
-	for (i = 0; i < depth && pc[i] != 0; i++) {
+	for (i = 0; i < depth && pc[i] != NULL; i++) {
 		const prmap_t *map;
 
 		if ((err = dt_printf(dtp, fp, "%*s", indent, "")) < 0)
 			break;
 
-#if defined(sun)
 		if (P != NULL && Plookup_by_addr(P, pc[i],
-#else
-		if (P != NULL && proc_addr2sym(P, pc[i],
-#endif
 		    name, sizeof (name), &sym) == 0) {
-#if defined(sun)
 			(void) Pobjname(P, pc[i], objname, sizeof (objname));
-#else
-			(void) proc_objname(P, pc[i], objname, sizeof (objname));
-#endif
 
 			if (pc[i] > sym.st_value) {
 				(void) snprintf(c, sizeof (c),
@@ -975,12 +965,8 @@ dt_print_ustack(dtrace_hdl_t *dtp, FILE *fp, const char *format,
 				    "%s`%s", dt_basename(objname), name);
 			}
 		} else if (str != NULL && str[0] != '\0' && str[0] != '@' &&
-#if defined(sun)
 		    (P != NULL && ((map = Paddr_to_map(P, pc[i])) == NULL ||
 		    (map->pr_mflags & MA_WRITE)))) {
-#else
-		    (P != NULL && ((map = proc_addr2map(P, pc[i])) == NULL))) {
-#endif
 			/*
 			 * If the current string pointer in the string table
 			 * does not point to an empty string _and_ the program
@@ -996,12 +982,8 @@ dt_print_ustack(dtrace_hdl_t *dtp, FILE *fp, const char *format,
 			 */
 			(void) snprintf(c, sizeof (c), "%s", str);
 		} else {
-#if defined(sun)
 			if (P != NULL && Pobjname(P, pc[i], objname,
-#else
-			if (P != NULL && proc_objname(P, pc[i], objname,
-#endif
-			    sizeof (objname)) != 0) {
+			    sizeof (objname)) != NULL) {
 				(void) snprintf(c, sizeof (c), "%s`0x%llx",
 				    dt_basename(objname), (u_longlong_t)pc[i]);
 			} else {
@@ -1070,11 +1052,7 @@ dt_print_usym(dtrace_hdl_t *dtp, FILE *fp, caddr_t addr, dtrace_actkind_t act)
 
 			dt_proc_lock(dtp, P);
 
-#if defined(sun)
 			if (Plookup_by_addr(P, pc, NULL, 0, &sym) == 0)
-#else
-			if (proc_addr2sym(P, pc, NULL, 0, &sym) == 0)
-#endif
 				pc = sym.st_value;
 
 			dt_proc_unlock(dtp, P);
@@ -1117,11 +1095,7 @@ dt_print_umod(dtrace_hdl_t *dtp, FILE *fp, const char *format, caddr_t addr)
 	if (P != NULL)
 		dt_proc_lock(dtp, P); /* lock handle while we perform lookups */
 
-#if defined(sun)
-	if (P != NULL && Pobjname(P, pc, objname, sizeof (objname)) != 0) {
-#else
-	if (P != NULL && proc_objname(P, pc, objname, sizeof (objname)) != 0) {
-#endif
+	if (P != NULL && Pobjname(P, pc, objname, sizeof (objname)) != NULL) {
 		(void) snprintf(c, sizeof (c), "%s", dt_basename(objname));
 	} else {
 		(void) snprintf(c, sizeof (c), "0x%llx", (u_longlong_t)pc);
@@ -1135,314 +1109,6 @@ dt_print_umod(dtrace_hdl_t *dtp, FILE *fp, const char *format, caddr_t addr)
 	}
 
 	return (err);
-}
-
-int
-dt_print_memory(dtrace_hdl_t *dtp, FILE *fp, caddr_t addr)
-{
-	int quiet = (dtp->dt_options[DTRACEOPT_QUIET] != DTRACEOPT_UNSET);
-	size_t nbytes = *((uintptr_t *) addr);
-
-	return (dt_print_bytes(dtp, fp, addr + sizeof(uintptr_t),
-	    nbytes, 50, quiet, 1));
-}
-
-typedef struct dt_type_cbdata {
-	dtrace_hdl_t		*dtp;
-	dtrace_typeinfo_t	dtt;
-	caddr_t			addr;
-	caddr_t			addrend;
-	const char		*name;
-	int			f_type;
-	int			indent;
-	int			type_width;
-	int			name_width;
-	FILE			*fp;
-} dt_type_cbdata_t;
-
-static int	dt_print_type_data(dt_type_cbdata_t *, ctf_id_t);
-
-static int
-dt_print_type_member(const char *name, ctf_id_t type, ulong_t off, void *arg)
-{
-	dt_type_cbdata_t cbdata;
-	dt_type_cbdata_t *cbdatap = arg;
-	ssize_t ssz;
-
-	if ((ssz = ctf_type_size(cbdatap->dtt.dtt_ctfp, type)) <= 0)
-		return (0);
-
-	off /= 8;
-
-	cbdata = *cbdatap;
-	cbdata.name = name;
-	cbdata.addr += off;
-	cbdata.addrend = cbdata.addr + ssz;
-
-	return (dt_print_type_data(&cbdata, type));
-}
-
-static int
-dt_print_type_width(const char *name, ctf_id_t type, ulong_t off, void *arg)
-{
-	char buf[DT_TYPE_NAMELEN];
-	char *p;
-	dt_type_cbdata_t *cbdatap = arg;
-	size_t sz = strlen(name);
-
-	ctf_type_name(cbdatap->dtt.dtt_ctfp, type, buf, sizeof (buf));
-
-	if ((p = strchr(buf, '[')) != NULL)
-		p[-1] = '\0';
-	else
-		p = "";
-
-	sz += strlen(p);
-
-	if (sz > cbdatap->name_width)
-		cbdatap->name_width = sz;
-
-	sz = strlen(buf);
-
-	if (sz > cbdatap->type_width)
-		cbdatap->type_width = sz;
-
-	return (0);
-}
-
-static int
-dt_print_type_data(dt_type_cbdata_t *cbdatap, ctf_id_t type)
-{
-	caddr_t addr = cbdatap->addr;
-	caddr_t addrend = cbdatap->addrend;
-	char buf[DT_TYPE_NAMELEN];
-	char *p;
-	int cnt = 0;
-	uint_t kind = ctf_type_kind(cbdatap->dtt.dtt_ctfp, type);
-	ssize_t ssz = ctf_type_size(cbdatap->dtt.dtt_ctfp, type);
-
-	ctf_type_name(cbdatap->dtt.dtt_ctfp, type, buf, sizeof (buf));
-
-	if ((p = strchr(buf, '[')) != NULL)
-		p[-1] = '\0';
-	else
-		p = "";
-
-	if (cbdatap->f_type) {
-		int type_width = roundup(cbdatap->type_width + 1, 4);
-		int name_width = roundup(cbdatap->name_width + 1, 4);
-
-		name_width -= strlen(cbdatap->name);
-
-		dt_printf(cbdatap->dtp, cbdatap->fp, "%*s%-*s%s%-*s	= ",cbdatap->indent * 4,"",type_width,buf,cbdatap->name,name_width,p);
-	}
-
-	while (addr < addrend) {
-		dt_type_cbdata_t cbdata;
-		ctf_arinfo_t arinfo;
-		ctf_encoding_t cte;
-		uintptr_t *up;
-		void *vp = addr;
-		cbdata = *cbdatap;
-		cbdata.name = "";
-		cbdata.addr = addr;
-		cbdata.addrend = addr + ssz;
-		cbdata.f_type = 0;
-		cbdata.indent++;
-		cbdata.type_width = 0;
-		cbdata.name_width = 0;
-
-		if (cnt > 0)
-			dt_printf(cbdatap->dtp, cbdatap->fp, "%*s", cbdatap->indent * 4,"");
-
-		switch (kind) {
-		case CTF_K_INTEGER:
-			if (ctf_type_encoding(cbdatap->dtt.dtt_ctfp, type, &cte) != 0)
-				return (-1);
-			if ((cte.cte_format & CTF_INT_SIGNED) != 0)
-				switch (cte.cte_bits) {
-				case 8:
-					if (isprint(*((char *) vp)))
-						dt_printf(cbdatap->dtp, cbdatap->fp, "'%c', ", *((char *) vp));
-					dt_printf(cbdatap->dtp, cbdatap->fp, "%d (0x%x);\n", *((char *) vp), *((char *) vp));
-					break;
-				case 16:
-					dt_printf(cbdatap->dtp, cbdatap->fp, "%hd (0x%hx);\n", *((short *) vp), *((u_short *) vp));
-					break;
-				case 32:
-					dt_printf(cbdatap->dtp, cbdatap->fp, "%d (0x%x);\n", *((int *) vp), *((u_int *) vp));
-					break;
-				case 64:
-					dt_printf(cbdatap->dtp, cbdatap->fp, "%jd (0x%jx);\n", *((long long *) vp), *((unsigned long long *) vp));
-					break;
-				default:
-					dt_printf(cbdatap->dtp, cbdatap->fp, "CTF_K_INTEGER: format %x offset %u bits %u\n",cte.cte_format,cte.cte_offset,cte.cte_bits);
-					break;
-				}
-			else
-				switch (cte.cte_bits) {
-				case 8:
-					dt_printf(cbdatap->dtp, cbdatap->fp, "%u (0x%x);\n", *((uint8_t *) vp) & 0xff, *((uint8_t *) vp) & 0xff);
-					break;
-				case 16:
-					dt_printf(cbdatap->dtp, cbdatap->fp, "%hu (0x%hx);\n", *((u_short *) vp), *((u_short *) vp));
-					break;
-				case 32:
-					dt_printf(cbdatap->dtp, cbdatap->fp, "%u (0x%x);\n", *((u_int *) vp), *((u_int *) vp));
-					break;
-				case 64:
-					dt_printf(cbdatap->dtp, cbdatap->fp, "%ju (0x%jx);\n", *((unsigned long long *) vp), *((unsigned long long *) vp));
-					break;
-				default:
-					dt_printf(cbdatap->dtp, cbdatap->fp, "CTF_K_INTEGER: format %x offset %u bits %u\n",cte.cte_format,cte.cte_offset,cte.cte_bits);
-					break;
-				}
-			break;
-		case CTF_K_FLOAT:
-			dt_printf(cbdatap->dtp, cbdatap->fp, "CTF_K_FLOAT: format %x offset %u bits %u\n",cte.cte_format,cte.cte_offset,cte.cte_bits);
-			break;
-		case CTF_K_POINTER:
-			dt_printf(cbdatap->dtp, cbdatap->fp, "%p;\n", *((void **) addr));
-			break;
-		case CTF_K_ARRAY:
-			if (ctf_array_info(cbdatap->dtt.dtt_ctfp, type, &arinfo) != 0)
-				return (-1);
-			dt_printf(cbdatap->dtp, cbdatap->fp, "{\n%*s",cbdata.indent * 4,"");
-			dt_print_type_data(&cbdata, arinfo.ctr_contents);
-			dt_printf(cbdatap->dtp, cbdatap->fp, "%*s};\n",cbdatap->indent * 4,"");
-			break;
-		case CTF_K_FUNCTION:
-			dt_printf(cbdatap->dtp, cbdatap->fp, "CTF_K_FUNCTION:\n");
-			break;
-		case CTF_K_STRUCT:
-			cbdata.f_type = 1;
-			if (ctf_member_iter(cbdatap->dtt.dtt_ctfp, type,
-			    dt_print_type_width, &cbdata) != 0)
-				return (-1);
-			dt_printf(cbdatap->dtp, cbdatap->fp, "{\n");
-			if (ctf_member_iter(cbdatap->dtt.dtt_ctfp, type,
-			    dt_print_type_member, &cbdata) != 0)
-				return (-1);
-			dt_printf(cbdatap->dtp, cbdatap->fp, "%*s};\n",cbdatap->indent * 4,"");
-			break;
-		case CTF_K_UNION:
-			cbdata.f_type = 1;
-			if (ctf_member_iter(cbdatap->dtt.dtt_ctfp, type,
-			    dt_print_type_width, &cbdata) != 0)
-				return (-1);
-			dt_printf(cbdatap->dtp, cbdatap->fp, "{\n");
-			if (ctf_member_iter(cbdatap->dtt.dtt_ctfp, type,
-			    dt_print_type_member, &cbdata) != 0)
-				return (-1);
-			dt_printf(cbdatap->dtp, cbdatap->fp, "%*s};\n",cbdatap->indent * 4,"");
-			break;
-		case CTF_K_ENUM:
-			dt_printf(cbdatap->dtp, cbdatap->fp, "%s;\n", ctf_enum_name(cbdatap->dtt.dtt_ctfp, type, *((int *) vp)));
-			break;
-		case CTF_K_TYPEDEF:
-			dt_print_type_data(&cbdata, ctf_type_reference(cbdatap->dtt.dtt_ctfp,type));
-			break;
-		case CTF_K_VOLATILE:
-			if (cbdatap->f_type)
-				dt_printf(cbdatap->dtp, cbdatap->fp, "volatile ");
-			dt_print_type_data(&cbdata, ctf_type_reference(cbdatap->dtt.dtt_ctfp,type));
-			break;
-		case CTF_K_CONST:
-			if (cbdatap->f_type)
-				dt_printf(cbdatap->dtp, cbdatap->fp, "const ");
-			dt_print_type_data(&cbdata, ctf_type_reference(cbdatap->dtt.dtt_ctfp,type));
-			break;
-		case CTF_K_RESTRICT:
-			if (cbdatap->f_type)
-				dt_printf(cbdatap->dtp, cbdatap->fp, "restrict ");
-			dt_print_type_data(&cbdata, ctf_type_reference(cbdatap->dtt.dtt_ctfp,type));
-			break;
-		default:
-			break;
-		}
-
-		addr += ssz;
-		cnt++;
-	}
-
-	return (0);
-}
-
-static int
-dt_print_type(dtrace_hdl_t *dtp, FILE *fp, caddr_t addr)
-{
-	caddr_t addrend;
-	char *p;
-	dtrace_typeinfo_t dtt;
-	dt_type_cbdata_t cbdata;
-	int num = 0;
-	int quiet = (dtp->dt_options[DTRACEOPT_QUIET] != DTRACEOPT_UNSET);
-	ssize_t ssz;
-
-	if (!quiet)
-		dt_printf(dtp, fp, "\n");
-
-	/* Get the total number of bytes of data buffered. */
-	size_t nbytes = *((uintptr_t *) addr);
-	addr += sizeof(uintptr_t);
-
-	/*
-	 * Get the size of the type so that we can check that it matches
-	 * the CTF data we look up and so that we can figure out how many
-	 * type elements are buffered.
-	 */
-	size_t typs = *((uintptr_t *) addr);
-	addr += sizeof(uintptr_t);
-
-	/*
-	 * Point to the type string in the buffer. Get it's string
-	 * length and round it up to become the offset to the start
-	 * of the buffered type data which we would like to be aligned
-	 * for easy access.
-	 */
-	char *strp = (char *) addr;
-	int offset = roundup(strlen(strp) + 1, sizeof(uintptr_t));
-
-	/*
-	 * The type string might have a format such as 'int [20]'.
-	 * Check if there is an array dimension present.
-	 */
-	if ((p = strchr(strp, '[')) != NULL) {
-		/* Strip off the array dimension. */
-		*p++ = '\0';
-
-		for (; *p != '\0' && *p != ']'; p++)
-			num = num * 10 + *p - '0';
-	} else
-		/* No array dimension, so default. */
-		num = 1;
-
-	/* Lookup the CTF type from the type string. */
-	if (dtrace_lookup_by_type(dtp,  DTRACE_OBJ_EVERY, strp, &dtt) < 0)
-		return (-1);
-
-	/* Offset the buffer address to the start of the data... */
-	addr += offset;
-
-	ssz = ctf_type_size(dtt.dtt_ctfp, dtt.dtt_type);
-
-	if (typs != ssz) {
-		printf("Expected type size from buffer (%lu) to match type size looked up now (%ld)\n", (u_long) typs, (long) ssz);
-		return (-1);
-	}
-
-	cbdata.dtp = dtp;
-	cbdata.dtt = dtt;
-	cbdata.name = "";
-	cbdata.addr = addr;
-	cbdata.addrend = addr + nbytes;
-	cbdata.indent = 1;
-	cbdata.f_type = 1;
-	cbdata.type_width = 0;
-	cbdata.name_width = 0;
-	cbdata.fp = fp;
-
-	return (dt_print_type_data(&cbdata, dtt.dtt_type));
 }
 
 static int
@@ -1764,7 +1430,7 @@ dt_print_datum(dtrace_hdl_t *dtp, FILE *fp, dtrace_recdesc_t *rec,
 		    (uint32_t)normal);
 		break;
 	default:
-		err = dt_print_bytes(dtp, fp, addr, size, 50, 0, 0);
+		err = dt_print_bytes(dtp, fp, addr, size, 50, 0);
 		break;
 	}
 
@@ -2139,18 +1805,6 @@ again:
 				goto nextrec;
 			}
 
-			if (act == DTRACEACT_PRINTM) {
-				if (dt_print_memory(dtp, fp, addr) < 0)
-					return (-1);
-				goto nextrec;
-			}
-
-			if (act == DTRACEACT_PRINTT) {
-				if (dt_print_type(dtp, fp, addr) < 0)
-					return (-1);
-				goto nextrec;
-			}
-
 			if (DTRACEACT_ISPRINTFLIKE(act)) {
 				void *fmtdata;
 				int (*func)(dtrace_hdl_t *, FILE *, void *,
@@ -2281,7 +1935,7 @@ nofmt:
 				break;
 			default:
 				n = dt_print_bytes(dtp, fp, addr,
-				    rec->dtrd_size, 33, quiet, 0);
+				    rec->dtrd_size, 33, quiet);
 				break;
 			}
 
@@ -2410,20 +2064,13 @@ dt_consume_begin(dtrace_hdl_t *dtp, FILE *fp, dtrace_bufdesc_t *buf,
 	dt_begin_t begin;
 	processorid_t cpu = dtp->dt_beganon;
 	dtrace_bufdesc_t nbuf;
-#if !defined(sun)
-	dtrace_bufdesc_t *pbuf;
-#endif
 	int rval, i;
 	static int max_ncpus;
 	dtrace_optval_t size;
 
 	dtp->dt_beganon = -1;
 
-#if defined(sun)
 	if (dt_ioctl(dtp, DTRACEIOC_BUFSNAP, buf) == -1) {
-#else
-	if (dt_ioctl(dtp, DTRACEIOC_BUFSNAP, &buf) == -1) {
-#endif
 		/*
 		 * We really don't expect this to fail, but it is at least
 		 * technically possible for this to fail with ENOENT.  In this
@@ -2485,12 +2132,7 @@ dt_consume_begin(dtrace_hdl_t *dtp, FILE *fp, dtrace_bufdesc_t *buf,
 		if (i == cpu)
 			continue;
 
-#if defined(sun)
 		if (dt_ioctl(dtp, DTRACEIOC_BUFSNAP, &nbuf) == -1) {
-#else
-		pbuf = &nbuf;
-		if (dt_ioctl(dtp, DTRACEIOC_BUFSNAP, &pbuf) == -1) {
-#endif
 			/*
 			 * If we failed with ENOENT, it may be because the
 			 * CPU was unconfigured -- this is okay.  Any other
@@ -2597,11 +2239,7 @@ dtrace_consume(dtrace_hdl_t *dtp, FILE *fp,
 		if (dtp->dt_stopped && (i == dtp->dt_endedon))
 			continue;
 
-#if defined(sun)
 		if (dt_ioctl(dtp, DTRACEIOC_BUFSNAP, buf) == -1) {
-#else
-		if (dt_ioctl(dtp, DTRACEIOC_BUFSNAP, &buf) == -1) {
-#endif
 			/*
 			 * If we failed with ENOENT, it may be because the
 			 * CPU was unconfigured -- this is okay.  Any other
@@ -2622,11 +2260,7 @@ dtrace_consume(dtrace_hdl_t *dtp, FILE *fp,
 
 	buf->dtbd_cpu = dtp->dt_endedon;
 
-#if defined(sun)
 	if (dt_ioctl(dtp, DTRACEIOC_BUFSNAP, buf) == -1) {
-#else
-	if (dt_ioctl(dtp, DTRACEIOC_BUFSNAP, &buf) == -1) {
-#endif
 		/*
 		 * This _really_ shouldn't fail, but it is strictly speaking
 		 * possible for this to return ENOENT if the CPU that called

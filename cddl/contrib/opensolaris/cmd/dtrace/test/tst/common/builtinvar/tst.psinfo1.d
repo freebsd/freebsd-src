@@ -49,8 +49,3 @@ BEGIN
 	printf("address of process = %u\n", curpsinfo->pr_addr);
 	exit (0);
 }
-
-ERROR
-{
-	exit(1);
-}

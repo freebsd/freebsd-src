@@ -32,9 +32,7 @@
 #include <errno.h>
 #include <assert.h>
 #include <ctype.h>
-#if defined(sun)
 #include <alloca.h>
-#endif
 
 #include <dt_impl.h>
 #include <dt_program.h>
@@ -153,7 +151,6 @@ int
 dtrace_program_exec(dtrace_hdl_t *dtp, dtrace_prog_t *pgp,
     dtrace_proginfo_t *pip)
 {
-	dtrace_enable_io_t args;
 	void *dof;
 	int n, err;
 
@@ -162,9 +159,7 @@ dtrace_program_exec(dtrace_hdl_t *dtp, dtrace_prog_t *pgp,
 	if ((dof = dtrace_dof_create(dtp, pgp, DTRACE_D_STRIP)) == NULL)
 		return (-1);
 
-	args.dof = dof;
-	args.n_matched = 0;
-	n = dt_ioctl(dtp, DTRACEIOC_ENABLE, &args);
+	n = dt_ioctl(dtp, DTRACEIOC_ENABLE, dof);
 	dtrace_dof_destroy(dtp, dof);
 
 	if (n == -1) {
@@ -186,7 +181,7 @@ dtrace_program_exec(dtrace_hdl_t *dtp, dtrace_prog_t *pgp,
 	}
 
 	if (pip != NULL)
-		pip->dpi_matches += args.n_matched;
+		pip->dpi_matches += n;
 
 	return (0);
 }

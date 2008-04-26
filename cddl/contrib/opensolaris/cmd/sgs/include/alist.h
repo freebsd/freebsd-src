@@ -39,11 +39,7 @@ extern "C" {
 #endif
 
 #include <sys/types.h>
-#if defined(sun)
 #include <sys/machelf.h>
-#else
-#include <sys/elf.h>
-#endif
 
 /*
  * An Alist implements array lists. The functionality is similar to
