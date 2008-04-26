@@ -1119,7 +1119,7 @@ bdg_forward(struct mbuf *m0, struct ifnet *dst)
 	    }
 
 	    args.oif = real_dst;
-	    ip_dn_io_ptr(m, DN_TO_BDG_FWD, &args);
+	    ip_dn_io_ptr(&m, DN_TO_BDG_FWD, &args);
 	    return m0;
 	}
 	/*
