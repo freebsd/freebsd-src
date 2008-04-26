@@ -26,7 +26,9 @@
 #
 #ident	"%Z%%M%	%I%	%E% SMI"
 
-echo "\
+BSDECHO=-e
+
+echo ${BSDECHO} "\
 /*\n\
  * Copyright 2005 Sun Microsystems, Inc.  All rights reserved.\n\
  * Use is subject to license terms.\n\
@@ -47,7 +49,7 @@ nawk '
 	printf("\tcase %s: return (\"%s\");\n", $2, tolower(substr($2, 10)));
 }'
 
-echo "\
+echo ${BSDECHO} "\
 	default: return (\"unknown\");\n\
 	}\n\
 }"
