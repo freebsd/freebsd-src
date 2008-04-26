@@ -191,6 +191,7 @@ ruptime(const char *host, int aflg, int (*cmp)(const void *, const void *))
 	rewinddir(dirp);
 	hsp = NULL;
 	maxloadav = -1;
+	(void)time(&now);
 	for (nhosts = hspace = 0; (dp = readdir(dirp)) != NULL;) {
 		if (dp->d_ino == 0 || strncmp(dp->d_name, "whod.", 5) != 0)
 			continue;
@@ -239,7 +240,6 @@ ruptime(const char *host, int aflg, int (*cmp)(const void *, const void *))
 			warnx("host %s not in %s", host, _PATH_RWHODIR);
 	}
 
-	(void)time(&now);
 	qsort(hs, nhosts, sizeof(hs[0]), cmp);
 	for (i = 0; i < (int)nhosts; i++) {
 		hsp = &hs[i];
