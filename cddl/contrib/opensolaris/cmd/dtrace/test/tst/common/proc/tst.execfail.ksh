@@ -45,7 +45,7 @@ script()
 		self->exec = 1;
 	}
 
-	proc:::exec-failure
+	proc:::exec_failure
 	/self->exec/
 	{
 		exit(0);
@@ -56,7 +56,7 @@ EOF
 sleeper()
 {
 	while true; do
-		/usr/bin/sleep 1
+		/bin/sleep 1
 		$badexec
 	done
 }

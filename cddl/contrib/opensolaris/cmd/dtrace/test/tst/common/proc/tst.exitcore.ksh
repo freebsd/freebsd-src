@@ -43,18 +43,16 @@ script()
 	$dtrace -s /dev/stdin <<EOF
 	proc:::exit
 	/curpsinfo->pr_ppid == $child &&
-	    curpsinfo->pr_psargs == "$longsleep" && args[0] == CLD_DUMPED/
+	    execargs == "$longsleep" && args[0] == CLD_DUMPED/
 	{
 		exit(0);
 	}
 
 	proc:::exit
 	/curpsinfo->pr_ppid == $child &&
-	    curpsinfo->pr_psargs == "$longsleep" && args[0] != CLD_DUMPED/
+	    execargs == "$longsleep" && args[0] != CLD_DUMPED/
 	{
-		printf("Child process could not dump core.  Check coreadm(1M)");
-		printf(" settings; either per-process or global core dumps ");
-		printf("must be enabled for this test to work properly.");
+		printf("Child process could did dump core.");
 		exit(1);
 	}
 EOF
@@ -62,13 +60,12 @@ EOF
 
 sleeper()
 {
-	/usr/bin/coreadm -p $corefile
 	while true; do
 		$longsleep &
-		/usr/bin/sleep 1
+		/bin/sleep 1
 		kill -SEGV $!
 	done
-	/usr/bin/rm -f $corefile
+	/bin/rm -f $corefile
 }
 
 if [ $# != 1 ]; then
@@ -77,8 +74,8 @@ if [ $# != 1 ]; then
 fi
 
 dtrace=$1
-longsleep="/usr/bin/sleep 10000"
-corefile=/tmp/core.$$
+longsleep="/bin/sleep 10000"
+corefile=/tmp/sleep.core
 
 sleeper &
 child=$!
@@ -86,10 +83,10 @@ child=$!
 script
 status=$?
 
-pstop $child
-pkill -P $child
+#pstop $child
+#pkill -P $child
 kill $child
-prun $child
+#prun $child
 
-/usr/bin/rm -f $corefile
+/bin/rm -f $corefile
 exit $status
