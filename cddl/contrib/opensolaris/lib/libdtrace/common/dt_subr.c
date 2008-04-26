@@ -26,7 +26,9 @@
 
 #pragma ident	"%Z%%M%	%I%	%E% SMI"
 
+#if defined(sun)
 #include <sys/sysmacros.h>
+#endif
 
 #include <strings.h>
 #include <unistd.h>
@@ -36,7 +38,11 @@
 #include <stdio.h>
 #include <errno.h>
 #include <ctype.h>
+#if defined(sun)
 #include <alloca.h>
+#else
+#include <sys/sysctl.h>
+#endif
 #include <assert.h>
 #include <libgen.h>
 #include <limits.h>
@@ -467,9 +473,18 @@ dt_dprintf(const char *format, ...)
 }
 
 int
+#if defined(sun)
 dt_ioctl(dtrace_hdl_t *dtp, int val, void *arg)
+#else
+dt_ioctl(dtrace_hdl_t *dtp, u_long val, void *arg)
+#endif
 {
 	const dtrace_vector_t *v = dtp->dt_vector;
+
+#if !defined(sun)
+	/* Avoid sign extension. */
+	val &= 0xffffffff;
+#endif
 
 	if (v != NULL)
 		return (v->dtv_ioctl(dtp->dt_varg, val, arg));
@@ -486,8 +501,18 @@ dt_status(dtrace_hdl_t *dtp, processorid_t cpu)
 {
 	const dtrace_vector_t *v = dtp->dt_vector;
 
-	if (v == NULL)
+	if (v == NULL) {
+#if defined(sun)
 		return (p_online(cpu, P_STATUS));
+#else
+		int maxid = 0;
+		size_t len = sizeof(maxid);
+		if (sysctlbyname("kern.smp.maxid", &maxid, &len, NULL, 0) != 0)
+			return (cpu == 0 ? 1 : -1);
+		else
+			return (cpu <= maxid ? 1 : -1);
+#endif
+	}
 
 	return (v->dtv_status(dtp->dt_varg, cpu));
 }
@@ -553,6 +578,16 @@ dt_printf(dtrace_hdl_t *dtp, FILE *fp, const char *format, ...)
 {
 	va_list ap;
 	int n;
+
+#if !defined(sun)
+	/*
+	 * On FreeBSD, check if output is currently being re-directed
+	 * to another file. If so, output to that file instead of the
+	 * one the caller has specified.
+	 */
+	if (dtp->dt_freopen_fp != NULL)
+		fp = dtp->dt_freopen_fp;
+#endif
 
 	va_start(ap, format);
 
@@ -644,6 +679,7 @@ dt_printf(dtrace_hdl_t *dtp, FILE *fp, const char *format, ...)
 	}
 
 	n = vfprintf(fp, format, ap);
+	fflush(fp);
 	va_end(ap);
 
 	if (n < 0) {
@@ -693,6 +729,11 @@ dt_zalloc(dtrace_hdl_t *dtp, size_t size)
 {
 	void *data;
 
+	if (size > 16 * 1024 * 1024) {
+		(void) dt_set_errno(dtp, EDT_NOMEM);
+		return (NULL);
+	}
+
 	if ((data = malloc(size)) == NULL)
 		(void) dt_set_errno(dtp, EDT_NOMEM);
 	else
@@ -705,6 +746,11 @@ void *
 dt_alloc(dtrace_hdl_t *dtp, size_t size)
 {
 	void *data;
+
+	if (size > 16 * 1024 * 1024) {
+		(void) dt_set_errno(dtp, EDT_NOMEM);
+		return (NULL);
+	}
 
 	if ((data = malloc(size)) == NULL)
 		(void) dt_set_errno(dtp, EDT_NOMEM);
@@ -803,6 +849,7 @@ dt_popcb(const ulong_t *bp, ulong_t n)
 	return (popc + dt_popc(bp[maxw] & ((1UL << maxb) - 1)));
 }
 
+#if defined(sun)
 struct _rwlock;
 struct _lwp_mutex;
 
@@ -819,12 +866,17 @@ dt_rw_write_held(pthread_rwlock_t *lock)
 	extern int _rw_write_held(struct _rwlock *);
 	return (_rw_write_held((struct _rwlock *)lock));
 }
+#endif
 
 int
 dt_mutex_held(pthread_mutex_t *lock)
 {
+#if defined(sun)
 	extern int _mutex_held(struct _lwp_mutex *);
 	return (_mutex_held((struct _lwp_mutex *)lock));
+#else
+	return (1);
+#endif
 }
 
 static int
@@ -911,8 +963,13 @@ dtrace_uaddr2str(dtrace_hdl_t *dtp, pid_t pid,
 
 	dt_proc_lock(dtp, P);
 
+#if defined(sun)
 	if (Plookup_by_addr(P, addr, name, sizeof (name), &sym) == 0) {
 		(void) Pobjname(P, addr, objname, sizeof (objname));
+#else
+	if (proc_addr2sym(P, addr, name, sizeof (name), &sym) == 0) {
+		(void) proc_objname(P, addr, objname, sizeof (objname));
+#endif
 
 		obj = dt_basename(objname);
 
@@ -922,7 +979,11 @@ dtrace_uaddr2str(dtrace_hdl_t *dtp, pid_t pid,
 		} else {
 			(void) snprintf(c, sizeof (c), "%s`%s", obj, name);
 		}
-	} else if (Pobjname(P, addr, objname, sizeof (objname)) != NULL) {
+#if defined(sun)
+	} else if (Pobjname(P, addr, objname, sizeof (objname)) != 0) {
+#else
+	} else if (proc_objname(P, addr, objname, sizeof (objname)) != 0) {
+#endif
 		(void) snprintf(c, sizeof (c), "%s`0x%llx",
 		    dt_basename(objname), addr);
 	} else {
