@@ -260,11 +260,8 @@ static const struct udav_type {
 	{{ USB_VENDOR_COREGA, USB_PRODUCT_COREGA_FETHER_USB_TXC }, 0},
 	/* ShanTou ST268 USB NIC */
 	{{ USB_VENDOR_SHANTOU, USB_PRODUCT_SHANTOU_ST268 }, 0},
-#if 0
-	/* DAVICOM DM9601 Generic? */
-	/*  XXX: The following ids was obtained from the data sheet. */
-	{{ 0x0a46, 0x9601 }, 0},
-#endif
+	/* ShanTou DM9601 USB NIC */
+	{{ USB_VENDOR_SHANTOU, USB_PRODUCT_SHANTOU_DM9601}, 0},
 };
 #define udav_lookup(v, p) ((const struct udav_type *)usb_lookup(udav_devs, v, p))
 
