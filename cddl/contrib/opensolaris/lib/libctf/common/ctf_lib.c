@@ -29,17 +29,24 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
+#include <sys/zmod.h>
 #include <ctf_impl.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
+#if defined(sun)
 #include <dlfcn.h>
+#else
+#include <zlib.h>
+#endif
 #include <gelf.h>
 
+#if defined(sun)
 #ifdef _LP64
 static const char *_libctf_zlib = "/usr/lib/64/libz.so";
 #else
 static const char *_libctf_zlib = "/usr/lib/libz.so";
+#endif
 #endif
 
 static struct {
@@ -51,14 +58,20 @@ static struct {
 static size_t _PAGESIZE;
 static size_t _PAGEMASK;
 
+#if defined(sun)
 #pragma init(_libctf_init)
+#else
+void    _libctf_init(void) __attribute__ ((constructor));
+#endif
 void
 _libctf_init(void)
 {
+#if defined(sun)
 	const char *p = getenv("LIBCTF_DECOMPRESSOR");
 
 	if (p != NULL)
 		_libctf_zlib = p; /* use alternate decompression library */
+#endif
 
 	_libctf_debug = getenv("LIBCTF_DEBUG") != NULL;
 
@@ -74,6 +87,7 @@ _libctf_init(void)
 void *
 ctf_zopen(int *errp)
 {
+#if defined(sun)
 	ctf_dprintf("decompressing CTF data using %s\n", _libctf_zlib);
 
 	if (zlib.z_dlp != NULL)
@@ -85,14 +99,21 @@ ctf_zopen(int *errp)
 	if ((zlib.z_dlp = dlopen(_libctf_zlib, RTLD_LAZY | RTLD_LOCAL)) == NULL)
 		return (ctf_set_open_errno(errp, ECTF_ZINIT));
 
-	zlib.z_uncompress = (int (*)()) dlsym(zlib.z_dlp, "uncompress");
-	zlib.z_error = (const char *(*)()) dlsym(zlib.z_dlp, "zError");
+	zlib.z_uncompress = (int (*)(uchar_t *, ulong_t *, const uchar_t *, ulong_t)) dlsym(zlib.z_dlp, "uncompress");
+	zlib.z_error = (const char *(*)(int)) dlsym(zlib.z_dlp, "zError");
 
 	if (zlib.z_uncompress == NULL || zlib.z_error == NULL) {
 		(void) dlclose(zlib.z_dlp);
 		bzero(&zlib, sizeof (zlib));
 		return (ctf_set_open_errno(errp, ECTF_ZINIT));
 	}
+#else
+	zlib.z_uncompress = uncompress;
+	zlib.z_error = zError;
+
+	/* Dummy return variable as 'no error' */
+	zlib.z_dlp = (void *) (uintptr_t) 1;
+#endif
 
 	return (zlib.z_dlp);
 }
@@ -220,7 +241,7 @@ ctf_fdopen(int fd, int *errp)
 	 * If we have read enough bytes to form a CTF header and the magic
 	 * string matches, attempt to interpret the file as raw CTF.
 	 */
-	if (nbytes >= sizeof (ctf_preamble_t) &&
+	if (nbytes >= (ssize_t) sizeof (ctf_preamble_t) &&
 	    hdr.ctf.ctp_magic == CTF_MAGIC) {
 		if (hdr.ctf.ctp_version > CTF_VERSION)
 			return (ctf_set_open_errno(errp, ECTF_CTFVERS));
@@ -250,7 +271,7 @@ ctf_fdopen(int fd, int *errp)
 	 * do our own largefile ELF processing, and convert everything to
 	 * GElf structures so that clients can operate on any data model.
 	 */
-	if (nbytes >= sizeof (Elf32_Ehdr) &&
+	if (nbytes >= (ssize_t) sizeof (Elf32_Ehdr) &&
 	    bcmp(&hdr.e32.e_ident[EI_MAG0], ELFMAG, SELFMAG) == 0) {
 #ifdef	_BIG_ENDIAN
 		uchar_t order = ELFDATA2MSB;
@@ -262,7 +283,7 @@ ctf_fdopen(int fd, int *errp)
 
 		void *strs_map;
 		size_t strs_mapsz;
-		const char *strs;
+		char *strs;
 
 		if (hdr.e32.e_ident[EI_DATA] != order)
 			return (ctf_set_open_errno(errp, ECTF_ENDIAN));
@@ -270,7 +291,7 @@ ctf_fdopen(int fd, int *errp)
 			return (ctf_set_open_errno(errp, ECTF_ELFVERS));
 
 		if (hdr.e32.e_ident[EI_CLASS] == ELFCLASS64) {
-			if (nbytes < sizeof (GElf_Ehdr))
+			if (nbytes < (ssize_t) sizeof (GElf_Ehdr))
 				return (ctf_set_open_errno(errp, ECTF_FMT));
 		} else {
 			Elf32_Ehdr e32 = hdr.e32;
@@ -321,7 +342,7 @@ ctf_fdopen(int fd, int *errp)
 		strs_map = mmap64(NULL, strs_mapsz, PROT_READ, MAP_PRIVATE,
 		    fd, sp[hdr.e64.e_shstrndx].sh_offset & _PAGEMASK);
 
-		strs = (const char *)strs_map +
+		strs = (char *)strs_map +
 		    (sp[hdr.e64.e_shstrndx].sh_offset & ~_PAGEMASK);
 
 		if (strs_map == MAP_FAILED) {
