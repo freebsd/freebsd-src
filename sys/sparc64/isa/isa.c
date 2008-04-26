@@ -64,7 +64,6 @@ device_t isa_bus_device;
 static phandle_t isab_node;
 static struct isa_ranges *isab_ranges;
 static int isab_nrange;
-static ofw_pci_intr_t isa_ino[8];
 static struct ofw_bus_iinfo isa_iinfo;
 
 /*
@@ -82,23 +81,6 @@ static struct ofw_bus_iinfo isa_iinfo;
 
 static void	isa_setup_children(device_t, phandle_t);
 
-intrmask_t
-isa_irq_pending(void)
-{
-	intrmask_t pending;
-	int i;
-
-	/* XXX: Is this correct? */
-	for (i = 7, pending = 0; i >= 0; i--) {
-		pending <<= 1;
-		if (isa_ino[i] != PCI_INVALID_IRQ) {
-			pending |= (OFW_PCI_INTR_PENDING(isa_bus_device,
-			    isa_ino[i]) == 0) ? 0 : 1;
-		}
-	}
-	return (pending);
-}
-
 void
 isa_init(device_t dev)
 {
@@ -114,17 +96,6 @@ isa_init(device_t dev)
 		panic("isa_init: cannot get bridge range property");
 
 	ofw_bus_setup_iinfo(isab_node, &isa_iinfo, sizeof(ofw_isa_intr_t));
-
-	/*
-	 * This is really a bad kludge; however, it is needed to provide
-	 * isa_irq_pending(), which is unfortunately still used by some
-	 * drivers.
-	 * XXX:	The only driver still using isa_irq_pending() is sio(4)
-	 *	which we don't use on sparc64. Should we just drop support
-	 *	for isa_irq_pending()?
-	 */
-	for (i = 0; i < 8; i++)
-		isa_ino[i] = PCI_INVALID_IRQ;
 
 	isa_setup_children(dev, isab_node);
 
@@ -275,7 +246,6 @@ isa_setup_children(device_t dev, phandle_t parent)
 				    intrs[i], (unsigned long)node, name);
 				continue;
 			}
-			isa_ino[intrs[i]] = rintr;
 			bus_set_resource(cdev, SYS_RES_IRQ, i, rintr, 1);
 		}
 		if (intrs != NULL)
