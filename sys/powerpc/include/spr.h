@@ -545,6 +545,15 @@
 #define	SPR_MCSRR1		0x23b	/* ..8 571 Machine check SRR1 */
 
 #define	SPR_SVR			0x3ff	/* ..8 1023 System Version Register */
+#define	  SVR_MPC8533		  0x803c0010
+#define	  SVR_MPC8533E		  0x80340010
+#define	  SVR_MPC8541		  0x80720011
+#define	  SVR_MPC8541E		  0x807a0011
+#define	  SVR_MPC8555		  0x80710011
+#define	  SVR_MPC8555E		  0x80790011
+#define	  SVR_MPC8572		  0x80e00010
+#define	  SVR_MPC8572E		  0x80e80010
+
 #define	SPR_PID0		0x030	/* ..8 Process ID Register 0 */
 #define	SPR_PID1		0x279	/* ..8 Process ID Register 1 */
 #define	SPR_PID2		0x27a	/* ..8 Process ID Register 2 */
@@ -599,14 +608,5 @@
 
 #endif /* #elif defined(E500) */
 
-/*
- * Definitions for system version register.
- */
-#define	SVR_MPC8533	0x803c0010
-#define	SVR_MPC8533E	0x80340010
-#define	SVR_MPC8541	0x80720011
-#define	SVR_MPC8541E	0x807a0011
-#define	SVR_MPC8555	0x80710011
-#define	SVR_MPC8555E	0x80790011
 
 #endif /* !_POWERPC_SPR_H_ */
