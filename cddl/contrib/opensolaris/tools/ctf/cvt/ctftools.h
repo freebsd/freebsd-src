@@ -91,7 +91,7 @@ extern "C" {
 extern const char *progname;
 extern int debug_level;
 extern int debug_parse;
-extern const char *curhdr;
+extern char *curhdr;
 
 /*
  * This is a partial copy of the stab.h that DevPro includes with their
@@ -354,11 +354,11 @@ tdata_t *ctf_load(char *, caddr_t, size_t, symit_data_t *, char *);
 iidesc_t *iidesc_new(char *);
 int iidesc_hash(int, void *);
 void iter_iidescs_by_name(tdata_t *, const char *,
-    int (*)(iidesc_t *, void *), void *);
+    int (*)(void *, void *), void *);
 iidesc_t *iidesc_dup(iidesc_t *);
 iidesc_t *iidesc_dup_rename(iidesc_t *, char const *, char const *);
 void iidesc_add(hash_t *, iidesc_t *);
-void iidesc_free(iidesc_t *, void *);
+void iidesc_free(void *, void *);
 int iidesc_count_type(void *, void *);
 void iidesc_stats(hash_t *);
 int iidesc_dump(iidesc_t *);
@@ -404,10 +404,10 @@ void check_hash(void);
 void resolve_typed_bitfields(void);
 
 /* stabs.c */
-int stabs_read(tdata_t *, Elf *, const char *);
+int stabs_read(tdata_t *, Elf *, char *);
 
 /* dwarf.c */
-int dw_read(tdata_t *, Elf *, const char *);
+int dw_read(tdata_t *, Elf *, char *);
 const char *dw_tag2str(uint_t);
 
 /* tdata.c */
@@ -422,7 +422,7 @@ int tdesc_namecmp(void *, void *);
 int tdesc_layouthash(int, void *);
 int tdesc_layoutcmp(void *, void *);
 void tdesc_free(tdesc_t *);
-void tdata_label_add(tdata_t *, char *, int);
+void tdata_label_add(tdata_t *, const char *, int);
 labelent_t *tdata_label_top(tdata_t *);
 int tdata_label_find(tdata_t *, char *);
 void tdata_label_free(tdata_t *);
@@ -434,13 +434,17 @@ int streq(const char *, const char *);
 int findelfsecidx(Elf *, const char *, const char *);
 size_t elf_ptrsz(Elf *);
 char *mktmpname(const char *, const char *);
-void terminate(char *, ...);
-void aborterr(char *, ...);
-void set_terminate_cleanup(void (*)());
+void terminate(const char *, ...);
+void aborterr(const char *, ...);
+void set_terminate_cleanup(void (*)(void));
 void elfterminate(const char *, const char *, ...);
-void warning(char *, ...);
-void vadebug(int, char *, va_list);
-void debug(int, char *, ...);
+void warning(const char *, ...);
+void vadebug(int, const char *, va_list);
+void debug(int, const char *, ...);
+
+
+void watch_dump(int);
+void watch_set(void *, int);
 
 #ifdef __cplusplus
 }

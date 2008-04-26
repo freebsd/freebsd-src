@@ -37,10 +37,8 @@
 #include "traverse.h"
 #include "memory.h"
 
-int (*tddescenders[])();
-int (*tdnops[])();
-
-int tdtraverse(tdesc_t *, tdesc_t **, tdtrav_data_t *);
+int (*tddescenders[])(tdesc_t *, tdtrav_data_t *);
+tdtrav_cb_f tdnops[];
 
 void
 tdtrav_init(tdtrav_data_t *tdtd, int *vgenp, tdtrav_cb_f *firstops,
@@ -68,7 +66,7 @@ tdtrav_func(tdesc_t *this, tdtrav_data_t *tdtd)
 	if ((rc = tdtraverse(fn->fn_ret, &fn->fn_ret, tdtd)) < 0)
 		return (rc);
 
-	for (i = 0; i < fn->fn_nargs; i++) {
+	for (i = 0; i < (int) fn->fn_nargs; i++) {
 		if ((rc = tdtraverse(fn->fn_args[i], &fn->fn_args[i],
 		    tdtd)) < 0)
 			return (rc);
@@ -106,7 +104,7 @@ tdtrav_su(tdesc_t *this, tdtrav_data_t *tdtd)
 
 /*ARGSUSED*/
 int
-tdtrav_assert(tdesc_t *node, tdesc_t **nodep, void *private)
+tdtrav_assert(tdesc_t *node __unused, tdesc_t **nodep __unused, void *private __unused)
 {
 	assert(1 == 0);
 
@@ -151,7 +149,7 @@ int
 tdtraverse(tdesc_t *this, tdesc_t **thisp, tdtrav_data_t *tdtd)
 {
 	tdtrav_cb_f travcb;
-	int (*descender)();
+	int (*descender)(tdesc_t *, tdtrav_data_t *);
 	int descend = 1;
 	int rc;
 
@@ -187,8 +185,10 @@ tdtraverse(tdesc_t *this, tdesc_t **thisp, tdtrav_data_t *tdtd)
 }
 
 int
-iitraverse_td(iidesc_t *ii, tdtrav_data_t *tdtd)
+iitraverse_td(void *arg1, void *arg2)
 {
+	iidesc_t *ii = arg1;
+	tdtrav_data_t *tdtd = arg2;
 	int i, rc;
 
 	if ((rc = tdtraverse(ii->ii_dtype, &ii->ii_dtype, tdtd)) < 0)
@@ -222,5 +222,5 @@ iitraverse_hash(hash_t *iihash, int *vgenp, tdtrav_cb_f *firstops,
 
 	tdtrav_init(&tdtd, vgenp, firstops, preops, postops, private);
 
-	return (hash_iter(iihash, (int (*)())iitraverse_td, &tdtd));
+	return (hash_iter(iihash, iitraverse_td, &tdtd));
 }

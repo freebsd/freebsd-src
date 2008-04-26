@@ -205,7 +205,7 @@ strtab_size(const strtab_t *sp)
 
 ssize_t
 strtab_write(const strtab_t *sp,
-    ssize_t (*func)(const void *, size_t, void *), void *priv)
+    ssize_t (*func)(void *, size_t, void *), void *priv)
 {
 	ssize_t res, total = 0;
 	ulong_t i;

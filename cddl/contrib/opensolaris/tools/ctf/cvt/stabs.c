@@ -47,7 +47,7 @@
 #include "memory.h"
 #include "traverse.h"
 
-const char *curhdr;
+char *curhdr;
 
 /*
  * The stabs generator will sometimes reference types before they've been
@@ -59,7 +59,7 @@ const char *curhdr;
  */
 /*ARGSUSED2*/
 static int
-resolve_tou_node(tdesc_t *node, tdesc_t **nodep, void *private)
+resolve_tou_node(tdesc_t *node, tdesc_t **nodep, void *private __unused)
 {
 	tdesc_t *new;
 
@@ -79,7 +79,7 @@ resolve_tou_node(tdesc_t *node, tdesc_t **nodep, void *private)
 
 /*ARGSUSED*/
 static int
-resolve_fwd_node(tdesc_t *node, tdesc_t **nodep, void *private)
+resolve_fwd_node(tdesc_t *node, tdesc_t **nodep, void *private __unused)
 {
 	tdesc_t *new = lookupname(node->t_name);
 
@@ -174,7 +174,7 @@ fnarg_free(iidesc_t *ii)
  * assembled under an iidesc list.
  */
 int
-stabs_read(tdata_t *td, Elf *elf, const char *file)
+stabs_read(tdata_t *td, Elf *elf, char *file)
 {
 	Elf_Scn *scn;
 	Elf_Data *data;
@@ -200,7 +200,7 @@ stabs_read(tdata_t *td, Elf *elf, const char *file)
 
 	file_stack = stack_new(free);
 
-	stack_push(file_stack, (void *)file);
+	stack_push(file_stack, file);
 	curhdr = file;
 
 	debug(3, "Found stabs in %d, strings in %d\n", stabidx, stabstridx);
@@ -255,7 +255,7 @@ stabs_read(tdata_t *td, Elf *elf, const char *file)
 
 		if (stab->n_type == N_BINCL) {
 			curhdr = xstrdup(str);
-			stack_push(file_stack, (void *)curhdr);
+			stack_push(file_stack, curhdr);
 			continue;
 		} else if (stab->n_type == N_SO) {
 			if (str[strlen(str) - 1] != '/') {
