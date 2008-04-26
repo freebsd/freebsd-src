@@ -121,7 +121,6 @@ static pcib_maxslots_t psycho_maxslots;
 static pcib_read_config_t psycho_read_config;
 static pcib_write_config_t psycho_write_config;
 static pcib_route_interrupt_t psycho_route_interrupt;
-static ofw_pci_intr_pending_t psycho_intr_pending;
 static ofw_bus_get_node_t psycho_get_node;
 
 static device_method_t psycho_methods[] = {
@@ -151,9 +150,6 @@ static device_method_t psycho_methods[] = {
 
 	/* ofw_bus interface */
 	DEVMETHOD(ofw_bus_get_node,	psycho_get_node),
-
-	/* ofw_pci interface */
-	DEVMETHOD(ofw_pci_intr_pending,	psycho_intr_pending),
 
 	{ 0, 0 }
 };
@@ -1371,21 +1367,6 @@ psycho_get_dma_tag(device_t bus, device_t child)
 
 	sc = device_get_softc(bus);
 	return (sc->sc_pci_dmat);
-}
-
-static int
-psycho_intr_pending(device_t dev, ofw_pci_intr_t intr)
-{
-	struct psycho_softc *sc;
-	u_long diag;
-
-	sc = device_get_softc(dev);
-	if (psycho_find_intrmap(sc, intr, NULL, NULL, &diag) == 0) {
-		device_printf(dev, "%s: mapping not found for %d\n", __func__,
-		    intr);
-		return (0);
-	}
-	return (diag != 0);
 }
 
 static phandle_t
