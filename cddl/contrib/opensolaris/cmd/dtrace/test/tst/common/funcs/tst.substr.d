@@ -20,20 +20,18 @@
  */
 
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
 #pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #pragma D option quiet
-#pragma D option strsize=32
 
 struct {
 	int index;
 	int length;
 	int nolen;
-	int alt;
 } command[int];
 
 int i;
@@ -41,9 +39,6 @@ int i;
 BEGIN
 {
 	str = "foobarbazbop";
-	str2 = "";
-	altstr = "CRAIG: Positioned them, I don't ";
-	altstr2 = "know... I'm fairly wide guy.";
 
 	command[i].index = 3;
 	command[i].nolen = 1;
@@ -113,18 +108,6 @@ BEGIN
 	command[i].length = -1;
 	i++;
 
-	command[i].index = 3;
-	command[i].length = -4;
-	i++;
-
-	command[i].index = 3;
-	command[i].length = -20;
-	i++;
-
-	command[i].index = -10;
-	command[i].length = -5;
-	i++;
-
 	command[i].index = 0;
 	command[i].length = 400;
 	i++;
@@ -161,16 +144,6 @@ BEGIN
 	command[i].length = strlen(str) - 1;
 	i++;
 
-	command[i].index = 100;
-	command[i].length = 10;
-	command[i].alt = 1;
-	i++;
-
-	command[i].index = 100;
-	command[i].nolen = 1;
-	command[i].alt = 1;
-	i++;
-
 	end = i;
 	i = 0;
 	printf("#!/usr/perl5/bin/perl\n\nBEGIN {\n");
@@ -180,21 +153,17 @@ BEGIN
 tick-1ms
 /i < end && command[i].nolen/
 {
-	this->str = command[i].alt ? altstr : str;
-	this->str2 = command[i].alt ? altstr2 : str2;
-	this->result = substr(command[i].alt ?
-	    "CRAIG: Positioned them, I don't know... I'm fairly wide guy." :
+	this->result = substr(str, command[i].index);
+
+	printf("\tif (substr(\"%s\", %d) != \"%s\") {\n",
+	    str, command[i].index, this->result);
+
+	printf("\t\tprintf(\"perl => substr(\\\"%s\\\", %d) = ",
 	    str, command[i].index);
-
-	printf("\tif (substr(\"%s%s\", %d) ne \"%s\") {\n",
-	    this->str, this->str2, command[i].index, this->result);
-
-	printf("\t\tprintf(\"perl => substr(\\\"%s%s\\\", %d) = ",
-	    this->str, this->str2, command[i].index);
-	printf("\\\"%%s\\\"\\n\",\n\t\t    substr(\"%s%s\", %d));\n",
-	    this->str, this->str2, command[i].index);
-	printf("\t\tprintf(\"   D => substr(\\\"%s%s\\\", %d) = ",
-	    this->str, this->str2, command[i].index);
+	printf("\\\"%%s\\\"\\n\",\n\t\t    substr(\"%s\", %d));\n",
+	    str, command[i].index);
+	printf("\t\tprintf(\"   D => substr(\\\"%s\\\", %d) = ",
+	    str, command[i].index);
 	printf("\\\"%%s\\\"\\n\",\n\t\t    \"%s\");\n", this->result);
 	printf("\t\t$failed++;\n");
 	printf("\t}\n\n");
@@ -203,21 +172,16 @@ tick-1ms
 tick-1ms
 /i < end && !command[i].nolen/
 {
-	this->str = command[i].alt ? altstr : str;
-	this->str2 = command[i].alt ? altstr2 : str2;
-	this->result = substr(command[i].alt ?
-	    "CRAIG: Positioned them, I don't know... I'm fairly wide guy." :
-	    str, command[i].index, command[i].length);
+	this->result = substr(str, command[i].index, command[i].length);
 
-	printf("\tif (substr(\"%s%s\", %d, %d) ne \"%s\") {\n",
-	    this->str, this->str2, command[i].index, command[i].length,
-	    this->result);
-	printf("\t\tprintf(\"perl => substr(\\\"%s%s\\\", %d, %d) = ",
-	    this->str, this->str2, command[i].index, command[i].length);
-	printf("\\\"%%s\\\"\\n\",\n\t\t    substr(\"%s%s\", %d, %d));\n",
-	    this->str, this->str2, command[i].index, command[i].length);
-	printf("\t\tprintf(\"   D => substr(\\\"%s%s\\\", %d, %d) = ",
-	    this->str, this->str2, command[i].index, command[i].length);
+	printf("\tif (substr(\"%s\", %d, %d) != \"%s\") {\n",
+	    str, command[i].index, command[i].length, this->result);
+	printf("\t\tprintf(\"perl => substr(\\\"%s\\\", %d, %d) = ",
+	    str, command[i].index, command[i].length);
+	printf("\\\"%%s\\\"\\n\",\n\t\t    substr(\"%s\", %d, %d));\n",
+	    str, command[i].index, command[i].length);
+	printf("\t\tprintf(\"   D => substr(\\\"%s\\\", %d, %d) = ",
+	    str, command[i].index, command[i].length);
 	printf("\\\"%%s\\\"\\n\",\n\t\t    \"%s\");\n", this->result);
 	printf("\t\t$failed++;\n");
 	printf("\t}\n\n");

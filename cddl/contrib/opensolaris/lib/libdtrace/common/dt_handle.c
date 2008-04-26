@@ -31,9 +31,7 @@
 #include <errno.h>
 #include <unistd.h>
 #include <assert.h>
-#if defined(sun)
 #include <alloca.h>
-#endif
 
 #include <dt_impl.h>
 #include <dt_program.h>
@@ -249,7 +247,7 @@ dt_handle_liberr(dtrace_hdl_t *dtp, const dtrace_probedata_t *data,
 	err.dteda_action = -1;
 	err.dteda_offset = -1;
 	err.dteda_fault = DTRACEFLT_LIBRARY;
-	err.dteda_addr = 0;
+	err.dteda_addr = NULL;
 
 	len = strlen(faultstr) +
 	    strlen(errpd->dtpd_provider) + strlen(errpd->dtpd_mod) +

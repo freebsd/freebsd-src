@@ -40,8 +40,3 @@ BEGIN
 	self->x[123] = `kmem_flags;
 	self->x[456] = *`rootvp;
 }
-
-ERROR
-{
-	exit(1);
-}

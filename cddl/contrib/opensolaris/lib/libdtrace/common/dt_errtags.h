@@ -235,11 +235,7 @@ typedef enum {
 	D_FREOPEN_INVALID,		/* frename() filename is invalid */
 	D_LQUANT_MATCHBASE,		/* lquantize() mismatch on base */
 	D_LQUANT_MATCHLIM,		/* lquantize() mismatch on limit */
-	D_LQUANT_MATCHSTEP,		/* lquantize() mismatch on step */
-	D_PRINTM_ADDR,			/* printm() memref bad type */
-	D_PRINTM_SIZE,			/* printm() size bad type */
-	D_PRINTT_ADDR,			/* printt() typeref bad type */
-	D_PRINTT_SIZE			/* printt() size bad type */
+	D_LQUANT_MATCHSTEP		/* lquantize() mismatch on step */
 } dt_errtag_t;
 
 extern const char *dt_errtag(dt_errtag_t);
