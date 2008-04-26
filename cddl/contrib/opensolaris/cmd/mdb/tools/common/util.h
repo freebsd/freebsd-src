@@ -40,7 +40,9 @@ extern int findelfsecidx(Elf *, char *);
 extern void die(char *, ...);
 extern void elfdie(char *, ...);
 
+#if defined(sun)
 extern const char *progname;
+#endif
 
 #ifdef __cplusplus
 }
