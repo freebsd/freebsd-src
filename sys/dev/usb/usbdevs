@@ -2016,6 +2016,7 @@ product SENAO NUB8301		0x2000	NUB-8301
 
 /* ShanTou products */
 product SHANTOU ST268		0x0268	ST268
+product SHANTOU DM9601		0x9601	DM 9601
 
 /* Shark products */
 product SHARK PA		0x0400	Pocket Adapter
