@@ -2009,18 +2009,7 @@ ti_chipinit(sc)
 		}
 	}
 
-#ifdef __brokenalpha__
-	/*
-	 * From the Alteon sample driver:
-	 * Must insure that we do not cross an 8K (bytes) boundary
-	 * for DMA reads.  Our highest limit is 1K bytes.  This is a
-	 * restriction on some ALPHA platforms with early revision
-	 * 21174 PCI chipsets, such as the AlphaPC 164lx
-	 */
-	TI_SETBIT(sc, TI_PCI_STATE, pci_writemax|TI_PCI_READMAX_1024);
-#else
 	TI_SETBIT(sc, TI_PCI_STATE, pci_writemax);
-#endif
 
 	/* This sets the min dma param all the way up (0xff). */
 	TI_SETBIT(sc, TI_PCI_STATE, TI_PCISTATE_MINDMA);
@@ -2314,7 +2303,7 @@ ti_attach(dev)
 
 	rid = TI_PCI_LOMEM;
 	sc->ti_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
-	    RF_ACTIVE|PCI_RF_DENSE);
+	    RF_ACTIVE);
 
 	if (sc->ti_res == NULL) {
 		device_printf(dev, "couldn't map memory\n");

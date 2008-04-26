@@ -210,13 +210,6 @@ struct pci_devinfo {
 
 #include "pci_if.h"
 
-/*
- * Define pci-specific resource flags for accessing memory via dense
- * or bwx memory spaces. These flags are ignored on i386.
- */
-#define	PCI_RF_DENSE	0x10000
-#define	PCI_RF_BWX	0x20000
-
 enum pci_device_ivars {
     PCI_IVAR_SUBVENDOR,
     PCI_IVAR_SUBDEVICE,
