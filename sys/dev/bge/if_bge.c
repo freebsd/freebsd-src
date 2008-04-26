@@ -2240,7 +2240,7 @@ bge_attach(device_t dev)
 
 	rid = BGE_PCI_BAR0;
 	sc->bge_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
-	    RF_ACTIVE | PCI_RF_DENSE);
+	    RF_ACTIVE);
 
 	if (sc->bge_res == NULL) {
 		device_printf (sc->bge_dev, "couldn't map memory\n");
