@@ -32,7 +32,9 @@
 #include <stdio.h>
 #include <errno.h>
 #include <ctype.h>
+#if defined(sun)
 #include <alloca.h>
+#endif
 #include <libgen.h>
 #include <stddef.h>
 
@@ -66,10 +68,14 @@ typedef struct dt_pid_probe {
 static void
 dt_pid_objname(char *buf, size_t len, Lmid_t lmid, const char *obj)
 {
+#if defined(sun)
 	if (lmid == LM_ID_BASE)
 		(void) strncpy(buf, obj, len);
 	else
 		(void) snprintf(buf, len, "LM%lx`%s", lmid, obj);
+#else
+	(void) strncpy(buf, obj, len);
+#endif
 }
 
 static int
@@ -114,7 +120,11 @@ dt_pid_per_sym(dt_pid_probe_t *pp, const GElf_Sym *symp, const char *func)
 	int isdash = strcmp("-", func) == 0;
 	pid_t pid;
 
+#if defined(sun)
 	pid = Pstatus(pp->dpp_pr)->pr_pid;
+#else
+	pid = proc_getpid(pp->dpp_pr);
+#endif
 
 	dt_dprintf("creating probe pid%d:%s:%s:%s\n", (int)pid, pp->dpp_obj,
 	    func, pp->dpp_name);
@@ -134,6 +144,7 @@ dt_pid_per_sym(dt_pid_probe_t *pp, const GElf_Sym *symp, const char *func)
 	    pp->dpp_obj);
 
 	if (!isdash && gmatch("return", pp->dpp_name)) {
+#ifdef DOODAD
 		if (dt_pid_create_return_probe(pp->dpp_pr, dtp, ftp, symp,
 		    pp->dpp_stret) < 0) {
 			return (dt_pid_error(dtp, pcb, dpr, ftp,
@@ -141,17 +152,20 @@ dt_pid_per_sym(dt_pid_probe_t *pp, const GElf_Sym *symp, const char *func)
 			    "for '%s': %s", func,
 			    dtrace_errmsg(dtp, dtrace_errno(dtp))));
 		}
+#endif
 
 		nmatches++;
 	}
 
 	if (!isdash && gmatch("entry", pp->dpp_name)) {
+#ifdef DOODAD
 		if (dt_pid_create_entry_probe(pp->dpp_pr, dtp, ftp, symp) < 0) {
 			return (dt_pid_error(dtp, pcb, dpr, ftp,
 			    D_PROC_CREATEFAIL, "failed to create entry probe "
 			    "for '%s': %s", func,
 			    dtrace_errmsg(dtp, dtrace_errno(dtp))));
 		}
+#endif
 
 		nmatches++;
 	}
@@ -170,8 +184,10 @@ dt_pid_per_sym(dt_pid_probe_t *pp, const GElf_Sym *symp, const char *func)
 			    (u_longlong_t)off, func));
 		}
 
+#ifdef DOODAD
 		err = dt_pid_create_offset_probe(pp->dpp_pr, pp->dpp_dtp, ftp,
 		    symp, off);
+#endif
 
 		if (err == DT_PROC_ERR) {
 			return (dt_pid_error(dtp, pcb, dpr, ftp,
@@ -189,6 +205,7 @@ dt_pid_per_sym(dt_pid_probe_t *pp, const GElf_Sym *symp, const char *func)
 		nmatches++;
 
 	} else if (glob && !isdash) {
+#ifdef DOODAD
 		if (dt_pid_create_glob_offset_probes(pp->dpp_pr,
 		    pp->dpp_dtp, ftp, symp, pp->dpp_name) < 0) {
 			return (dt_pid_error(dtp, pcb, dpr, ftp,
@@ -196,6 +213,7 @@ dt_pid_per_sym(dt_pid_probe_t *pp, const GElf_Sym *symp, const char *func)
 			    "failed to create offset probes in '%s': %s", func,
 			    dtrace_errmsg(dtp, dtrace_errno(dtp))));
 		}
+#endif
 
 		nmatches++;
 	}
@@ -254,13 +272,17 @@ dt_pid_per_mod(void *arg, const prmap_t *pmp, const char *obj)
 	if (obj == NULL)
 		return (0);
 
+#if defined(sun)
 	(void) Plmid(pp->dpp_pr, pmp->pr_vaddr, &pp->dpp_lmid);
+#endif
+	
 
 	if ((pp->dpp_obj = strrchr(obj, '/')) == NULL)
 		pp->dpp_obj = obj;
 	else
 		pp->dpp_obj++;
 
+#if defined(sun)
 	if (Pxlookup_by_name(pp->dpp_pr, pp->dpp_lmid, obj, ".stret1", &sym,
 	    NULL) == 0)
 		pp->dpp_stret[0] = sym.st_value;
@@ -284,6 +306,27 @@ dt_pid_per_mod(void *arg, const prmap_t *pmp, const char *obj)
 		pp->dpp_stret[3] = sym.st_value;
 	else
 		pp->dpp_stret[3] = 0;
+#else
+	if (proc_name2sym(pp->dpp_pr, obj, ".stret1", &sym) == 0)
+		pp->dpp_stret[0] = sym.st_value;
+	else
+		pp->dpp_stret[0] = 0;
+
+	if (proc_name2sym(pp->dpp_pr, obj, ".stret2", &sym) == 0)
+		pp->dpp_stret[1] = sym.st_value;
+	else
+		pp->dpp_stret[1] = 0;
+
+	if (proc_name2sym(pp->dpp_pr, obj, ".stret4", &sym) == 0)
+		pp->dpp_stret[2] = sym.st_value;
+	else
+		pp->dpp_stret[2] = 0;
+
+	if (proc_name2sym(pp->dpp_pr, obj, ".stret8", &sym) == 0)
+		pp->dpp_stret[3] = sym.st_value;
+	else
+		pp->dpp_stret[3] = 0;
+#endif
 
 	dt_dprintf("%s stret %llx %llx %llx %llx\n", obj,
 	    (u_longlong_t)pp->dpp_stret[0], (u_longlong_t)pp->dpp_stret[1],
@@ -304,16 +347,24 @@ dt_pid_per_mod(void *arg, const prmap_t *pmp, const char *obj)
 		 * just fail silently in the hopes that some other object will
 		 * contain the desired symbol.
 		 */
+#if defined(sun)
 		if (Pxlookup_by_name(pp->dpp_pr, pp->dpp_lmid, obj,
 		    pp->dpp_func, &sym, NULL) != 0) {
+#else
+		if (proc_name2sym(pp->dpp_pr, obj, pp->dpp_func, &sym) != 0) {
+#endif
 			if (strcmp("-", pp->dpp_func) == 0) {
 				sym.st_name = 0;
 				sym.st_info =
 				    GELF_ST_INFO(STB_LOCAL, STT_FUNC);
 				sym.st_other = 0;
 				sym.st_value = 0;
+#if defined(sun)
 				sym.st_size = Pstatus(pp->dpp_pr)->pr_dmodel ==
 				    PR_MODEL_ILP32 ? -1U : -1ULL;
+#else
+				sym.st_size = ~((Elf64_Xword) 0);
+#endif
 
 			} else if (!strisglob(pp->dpp_mod)) {
 				return (dt_pid_error(dtp, pcb, dpr, NULL,
@@ -336,14 +387,21 @@ dt_pid_per_mod(void *arg, const prmap_t *pmp, const char *obj)
 		 * We don't instrument PLTs -- they're dynamically rewritten,
 		 * and, so, inherently dicey to instrument.
 		 */
+#ifdef DOODAD
 		if (Ppltdest(pp->dpp_pr, sym.st_value) != NULL)
 			return (0);
+#endif
 
+#if defined(sun)
 		(void) Plookup_by_addr(pp->dpp_pr, sym.st_value, pp->dpp_func,
+#else
+		(void) proc_addr2sym(pp->dpp_pr, sym.st_value, pp->dpp_func,
+#endif
 		    DTRACE_FUNCNAMELEN, &sym);
 
 		return (dt_pid_per_sym(pp, &sym, pp->dpp_func));
 	} else {
+#ifdef DOODAD
 		uint_t nmatches = pp->dpp_nmatches;
 
 		if (Psymbol_iter_by_addr(pp->dpp_pr, obj, PR_SYMTAB,
@@ -359,6 +417,7 @@ dt_pid_per_mod(void *arg, const prmap_t *pmp, const char *obj)
 			    BIND_ANY | TYPE_FUNC, dt_pid_sym_filt, pp) == 1)
 				return (1);
 		}
+#endif
 	}
 
 	return (0);
@@ -373,7 +432,11 @@ dt_pid_mod_filt(void *arg, const prmap_t *pmp, const char *obj)
 	if (gmatch(obj, pp->dpp_mod))
 		return (dt_pid_per_mod(pp, pmp, obj));
 
+#if defined(sun)
 	(void) Plmid(pp->dpp_pr, pmp->pr_vaddr, &pp->dpp_lmid);
+#else
+	pp->dpp_lmid = 0;
+#endif
 
 	if ((pp->dpp_obj = strrchr(obj, '/')) == NULL)
 		pp->dpp_obj = obj;
@@ -391,11 +454,14 @@ dt_pid_mod_filt(void *arg, const prmap_t *pmp, const char *obj)
 static const prmap_t *
 dt_pid_fix_mod(dtrace_probedesc_t *pdp, struct ps_prochandle *P)
 {
+#ifdef DOODAD
 	char m[MAXPATHLEN];
 	Lmid_t lmid = PR_LMID_EVERY;
 	const char *obj;
+#endif
 	const prmap_t *pmp;
 
+#ifdef DOODAD
 	/*
 	 * Pick apart the link map from the library name.
 	 */
@@ -427,7 +493,11 @@ dt_pid_fix_mod(dtrace_probedesc_t *pdp, struct ps_prochandle *P)
 		obj++;
 
 	(void) Plmid(P, pmp->pr_vaddr, &lmid);
+
 	dt_pid_objname(pdp->dtpd_mod, sizeof (pdp->dtpd_mod), lmid, obj);
+#else
+pmp = NULL;
+#endif
 
 	return (pmp);
 }
@@ -445,6 +515,7 @@ dt_pid_create_pid_probes(dtrace_probedesc_t *pdp, dtrace_hdl_t *dtp,
 	pp.dpp_pr = dpr->dpr_proc;
 	pp.dpp_pcb = pcb;
 
+#ifdef DOODAD
 	/*
 	 * We can only trace dynamically-linked executables (since we've
 	 * hidden some magic in ld.so.1 as well as libc.so.1).
@@ -454,6 +525,7 @@ dt_pid_create_pid_probes(dtrace_probedesc_t *pdp, dtrace_hdl_t *dtp,
 		    "process %s is not a dynamically-linked executable",
 		    &pdp->dtpd_provider[3]));
 	}
+#endif
 
 	pp.dpp_mod = pdp->dtpd_mod[0] != '\0' ? pdp->dtpd_mod : "*";
 	pp.dpp_func = pdp->dtpd_func[0] != '\0' ? pdp->dtpd_func : "*";
@@ -467,8 +539,13 @@ dt_pid_create_pid_probes(dtrace_probedesc_t *pdp, dtrace_hdl_t *dtp,
 			pp.dpp_mod = pdp->dtpd_mod;
 			(void) strcpy(pdp->dtpd_mod, "a.out");
 		} else if (strisglob(pp.dpp_mod) ||
+#if defined(sun)
 		    (aout = Pname_to_map(pp.dpp_pr, "a.out")) == NULL ||
 		    (pmp = Pname_to_map(pp.dpp_pr, pp.dpp_mod)) == NULL ||
+#else
+		    (aout = proc_name2map(pp.dpp_pr, "a.out")) == NULL ||
+		    (pmp = proc_name2map(pp.dpp_pr, pp.dpp_mod)) == NULL ||
+#endif
 		    aout->pr_vaddr != pmp->pr_vaddr) {
 			return (dt_pid_error(dtp, pcb, dpr, NULL, D_PROC_LIB,
 			    "only the a.out module is valid with the "
@@ -487,6 +564,7 @@ dt_pid_create_pid_probes(dtrace_probedesc_t *pdp, dtrace_hdl_t *dtp,
 	 * to iterate over each module and compare its name against the
 	 * pattern. An empty module name is treated as '*'.
 	 */
+#ifdef DOODAD
 	if (strisglob(pp.dpp_mod)) {
 		ret = Pobject_iter(pp.dpp_pr, dt_pid_mod_filt, &pp);
 	} else {
@@ -507,6 +585,7 @@ dt_pid_create_pid_probes(dtrace_probedesc_t *pdp, dtrace_hdl_t *dtp,
 			ret = dt_pid_per_mod(&pp, pmp, obj);
 		}
 	}
+#endif
 
 	return (ret);
 }
@@ -516,7 +595,9 @@ dt_pid_usdt_mapping(void *data, const prmap_t *pmp, const char *oname)
 {
 	struct ps_prochandle *P = data;
 	GElf_Sym sym;
+#if defined(sun)
 	prsyminfo_t sip;
+#endif
 	dof_helper_t dh;
 	GElf_Half e_type;
 	const char *mname;
@@ -530,8 +611,12 @@ dt_pid_usdt_mapping(void *data, const prmap_t *pmp, const char *oname)
 	 * run the code to instantiate these providers.
 	 */
 	for (i = 0; i < 2; i++) {
+#if defined(sun)
 		if (Pxlookup_by_name(P, PR_LMID_EVERY, oname, syms[i], &sym,
 		    &sip) != 0) {
+#else
+		if (proc_name2sym(P, oname, syms[i], &sym) != 0) {
+#endif
 			continue;
 		}
 
@@ -542,18 +627,25 @@ dt_pid_usdt_mapping(void *data, const prmap_t *pmp, const char *oname)
 
 		dt_dprintf("lookup of %s succeeded for %s\n", syms[i], mname);
 
+#ifdef DOODAD
 		if (Pread(P, &e_type, sizeof (e_type), pmp->pr_vaddr +
 		    offsetof(Elf64_Ehdr, e_type)) != sizeof (e_type)) {
 			dt_dprintf("read of ELF header failed");
 			continue;
 		}
+#endif
 
 		dh.dofhp_dof = sym.st_value;
 		dh.dofhp_addr = (e_type == ET_EXEC) ? 0 : pmp->pr_vaddr;
 
 		dt_pid_objname(dh.dofhp_mod, sizeof (dh.dofhp_mod),
+#if defined(sun)
 		    sip.prs_lmid, mname);
+#else
+		    0, mname);
+#endif
 
+#ifdef DOODAD
 		if (fd == -1 &&
 		    (fd = pr_open(P, "/dev/dtrace/helper", O_RDWR, 0)) < 0) {
 			dt_dprintf("pr_open of helper device failed: %s\n",
@@ -563,10 +655,13 @@ dt_pid_usdt_mapping(void *data, const prmap_t *pmp, const char *oname)
 
 		if (pr_ioctl(P, fd, DTRACEHIOC_ADDDOF, &dh, sizeof (dh)) < 0)
 			dt_dprintf("DOF was rejected for %s\n", dh.dofhp_mod);
+#endif
 	}
 
+#ifdef DOODAD
 	if (fd != -1)
 		(void) pr_close(P, fd);
+#endif
 
 	return (0);
 }
@@ -580,13 +675,19 @@ dt_pid_create_usdt_probes(dtrace_probedesc_t *pdp, dtrace_hdl_t *dtp,
 
 	assert(DT_MUTEX_HELD(&dpr->dpr_lock));
 
+#ifdef DOODAD
 	(void) Pupdate_maps(P);
 	if (Pobject_iter(P, dt_pid_usdt_mapping, P) != 0) {
 		ret = -1;
 		(void) dt_pid_error(dtp, pcb, dpr, NULL, D_PROC_USDT,
 		    "failed to instantiate probes for pid %d: %s",
+#if defined(sun)
 		    (int)Pstatus(P)->pr_pid, strerror(errno));
+#else
+		    (int)proc_getpid(P), strerror(errno));
+#endif
 	}
+#endif
 
 	/*
 	 * Put the module name in its canonical form.
@@ -667,7 +768,13 @@ dt_pid_create_probes(dtrace_probedesc_t *pdp, dtrace_hdl_t *dtp, dt_pcb_t *pcb)
 		assert(dpr != NULL);
 		(void) pthread_mutex_lock(&dpr->dpr_lock);
 
-		err = dt_pid_create_pid_probes(pdp, dtp, pcb, dpr);
+		if ((err = dt_pid_create_pid_probes(pdp, dtp, pcb, dpr)) == 0) {
+			/*
+			 * Alert other retained enablings which may match
+			 * against the newly created probes.
+			 */
+			(void) dt_ioctl(dtp, DTRACEIOC_ENABLE, NULL);
+		}
 
 		(void) pthread_mutex_unlock(&dpr->dpr_lock);
 		dt_proc_release(dtp, P);
@@ -702,6 +809,7 @@ dt_pid_create_probes(dtrace_probedesc_t *pdp, dtrace_hdl_t *dtp, dt_pcb_t *pcb)
 int
 dt_pid_create_probes_module(dtrace_hdl_t *dtp, dt_proc_t *dpr)
 {
+	dtrace_enable_io_t args;
 	dtrace_prog_t *pgp;
 	dt_stmt_t *stp;
 	dtrace_probedesc_t *pdp, pd;
@@ -746,7 +854,9 @@ dt_pid_create_probes_module(dtrace_hdl_t *dtp, dt_proc_t *dpr)
 		 * Give DTrace a shot to the ribs to get it to check
 		 * out the newly created probes.
 		 */
-		(void) dt_ioctl(dtp, DTRACEIOC_ENABLE, NULL);
+		args.dof = NULL;
+		args.n_matched = 0;
+		(void) dt_ioctl(dtp, DTRACEIOC_ENABLE, &args);
 	}
 
 	return (ret);
