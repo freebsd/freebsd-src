@@ -32,15 +32,28 @@
 
 /*LINTLIBRARY*/
 
+#if defined(sun)
 #pragma weak gmatch = _gmatch
+#endif
 
+#if defined(sun)
 #include "gen_synonyms.h"
+#endif
 #include <sys/types.h>
 #include <libgen.h>
 #include <stdlib.h>
 #include <limits.h>
+#if defined(sun)
 #include <widec.h>
 #include "_range.h"
+#else
+/* DOODAD */ static int multibyte = 0;
+#define WCHAR_CSMASK    0x30000000
+#define valid_range(c1, c2) \
+    (((c1) & WCHAR_CSMASK) == ((c2) & WCHAR_CSMASK) && \
+    ((c1) > 0xff || !iscntrl((int)c1)) && ((c2) > 0xff || \
+    !iscntrl((int)c2)))
+#endif
 
 #define	Popwchar(p, c) \
 	n = mbtowc(&cl, p, MB_LEN_MAX); \
