@@ -38,22 +38,22 @@ fbt:::
 fbt:::
 /on/
 {
-	@[rw_read_held((krwlock_t *)&`clock)] = count();
-	@[rw_read_held((krwlock_t *)rand())] = count();
+	@[rw_read_held((struct rwlock *)&`unp_global_rwlock)] = count();
+	@[rw_read_held((struct rwlock *)rand())] = count();
 }
 
 fbt:::
 /on/
 {
-	@[rw_write_held((krwlock_t *)&`clock)] = count();
-	@[rw_write_held((krwlock_t *)rand())] = count();
+	@[rw_write_held((struct rwlock *)&`unp_global_rwlock)] = count();
+	@[rw_write_held((struct rwlock *)rand())] = count();
 }
 
 fbt:::
 /on/
 {
-	@[rw_iswriter((krwlock_t *)&`clock)] = count();
-	@[rw_iswriter((krwlock_t *)rand())] = count();
+	@[rw_iswriter((struct rwlock *)&`unp_global_rwlock)] = count();
+	@[rw_iswriter((struct rwlock *)rand())] = count();
 }
 
 tick-1sec

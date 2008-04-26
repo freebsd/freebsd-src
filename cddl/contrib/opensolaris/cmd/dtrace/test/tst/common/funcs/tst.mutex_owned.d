@@ -38,8 +38,8 @@
 
 lockstat:::adaptive-acquire
 {
-	this->owned = mutex_owned((kmutex_t *)arg0);
-	this->owner = mutex_owner((kmutex_t *)arg0);
+	this->owned = mutex_owned((struct mtx *)arg0);
+	this->owner = mutex_owner((struct mtx *)arg0);
 }
 
 lockstat:::adaptive-acquire

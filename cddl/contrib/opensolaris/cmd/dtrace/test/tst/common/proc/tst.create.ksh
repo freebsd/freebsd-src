@@ -36,7 +36,7 @@ script()
 {
 	$dtrace -s /dev/stdin <<EOF
 	proc:::create
-	/args[0]->pr_ppid == $child && pid == $child/
+	/args[0]->p_pptr->p_pid == $child && pid == $child/
 	{
 		exit(0);
 	}
@@ -46,7 +46,7 @@ EOF
 sleeper()
 {
 	while true; do
-		/usr/bin/sleep 1
+		/bin/sleep 1
 	done
 }
 
