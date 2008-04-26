@@ -113,6 +113,8 @@ devclass_t ocpbus_devclass;
 
 DRIVER_MODULE(ocpbus, nexus, ocpbus_driver, ocpbus_devclass, 0, 0);
 
+static int law_max = 0;
+
 static __inline uint32_t
 ccsr_read4(uintptr_t addr)
 {
@@ -204,18 +206,18 @@ ocpbus_write_law(int trgt, int type, u_long *startp, u_long *countp)
 	sr = 0x80000000 | (trgt << 20) | (ffsl(size) - 2);
 
 	/* Check if already programmed. */
-	for (i = 0; i < 8; i++) {
+	for (i = 0; i < law_max; i++) {
 		if (sr == ccsr_read4(OCP85XX_LAWSR(i)) &&
 		    bar == ccsr_read4(OCP85XX_LAWBAR(i)))
 			return (0);
 	}
 
 	/* Find an unused access window .*/
-	for (i = 0; i < 8; i++) {
+	for (i = 0; i < law_max; i++) {
 		if ((ccsr_read4(OCP85XX_LAWSR(i)) & 0x80000000) == 0)
 			break;
 	}
-	if (i == 8)
+	if (i == law_max)
 		return (ENOSPC);
 
 	ccsr_write4(OCP85XX_LAWBAR(i), bar);
@@ -226,6 +228,16 @@ ocpbus_write_law(int trgt, int type, u_long *startp, u_long *countp)
 static int
 ocpbus_probe (device_t dev)
 {
+	struct ocpbus_softc *sc;
+	uint32_t svr;
+
+	sc = device_get_softc(dev);
+
+	svr = mfsvr();
+	if (svr == SVR_MPC8572E || svr == SVR_MPC8572)
+		law_max = 12;
+	else
+		law_max = 8;
 
 	device_set_desc(dev, "On-Chip Peripherals bus");
 	return (BUS_PROBE_DEFAULT);
@@ -234,10 +246,10 @@ ocpbus_probe (device_t dev)
 static int
 ocpbus_attach (device_t dev)
 {
-	struct ocpbus_softc	*sc;
-	int			error, i;
-	uint32_t		sr;
-	u_long			start, end;
+	struct ocpbus_softc *sc;
+	int error, i, tgt;
+	uint32_t sr;
+	u_long start, end;
 
 	sc = device_get_softc(dev);
 
@@ -284,13 +296,18 @@ ocpbus_attach (device_t dev)
 		return (error);
 	}
 
-	/* Clear local access windows. */
-	for (i = 0; i < 8; i++) {
+	/*
+	 * Clear local access windows. Skip DRAM entries, so we don't shoot
+	 * ourselves in the foot.
+	 */
+	for (i = 0; i < law_max; i++) {
 		sr = ccsr_read4(OCP85XX_LAWSR(i));
 		if ((sr & 0x80000000) == 0)
 			continue;
-		if ((sr & 0x00f00000) == 0x00f00000)
+		tgt = (sr & 0x01f00000) >> 20;
+		if (tgt == OCP85XX_TGTIF_RAM1 || tgt == OCP85XX_TGTIF_RAM2)
 			continue;
+
 		ccsr_write4(OCP85XX_LAWSR(i), sr & 0x7fffffff);
 	}
 
@@ -597,7 +614,7 @@ static int
 ocpbus_setup_intr(device_t dev, device_t child, struct resource *res, int flags,
     driver_filter_t *filter, driver_intr_t *ihand, void *arg, void **cookiep)
 {
-	int	error;
+	int error;
 
 	if (res == NULL)
 		panic("ocpbus_setup_intr: NULL irq resource!");
