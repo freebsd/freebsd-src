@@ -44,6 +44,7 @@ powerpc_mb(void)
 #include <sys/types.h>
 
 #include <machine/psl.h>
+#include <machine/spr.h>
 
 struct thread;
 
@@ -118,6 +119,16 @@ mfpvr(void)
 	register_t	value;
 
 	__asm __volatile ("mfpvr %0" : "=r"(value));
+
+	return (value);
+}
+
+static __inline register_t
+mfsvr(void)
+{
+	register_t	value;
+
+	__asm __volatile ("mfspr %0, %1" : "=r"(value) : "K"(SPR_SVR));
 
 	return (value);
 }
