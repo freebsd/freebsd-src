@@ -41,17 +41,17 @@
 
 #pragma D option quiet
 
-struct thread *ptr;
+kthread_t *ptr;
 
 BEGIN
 {
 	i = 0;
 }
 
-lockstat::mtx_lock:adaptive-acquire
+lockstat:genunix:mutex_enter:adaptive-acquire
 {
 
-	ptr = mutex_owner((struct mtx *)arg0);
+	ptr = mutex_owner((kmutex_t *)arg0);
 	i++;
 }
 

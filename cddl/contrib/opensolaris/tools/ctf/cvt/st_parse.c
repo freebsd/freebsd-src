@@ -76,11 +76,12 @@ static char *tdefdecl(char *cp, int h, tdesc_t **rtdp);
 static char *intrinsic(char *cp, tdesc_t **rtdp);
 static char *arraydef(char *cp, tdesc_t **rtdp);
 
+extern int debug_level;
 int debug_parse = DEBUG_PARSE;
 
 /*PRINTFLIKE3*/
 static void
-parse_debug(int level, char *cp, const char *fmt, ...)
+parse_debug(int level, char *cp, char *fmt, ...)
 {
 	va_list ap;
 	char buf[1024];
@@ -112,9 +113,9 @@ parse_debug(int level, char *cp, const char *fmt, ...)
 /* Report unexpected syntax in stabs. */
 static void
 _expected(
-	const char *who,	/* what function, or part thereof, is reporting */
-	const char *what,	/* what was expected */
-	const char *where,	/* where we were in the line of input */
+	char *who,	/* what function, or part thereof, is reporting */
+	char *what,	/* what was expected */
+	char *where,	/* where we were in the line of input */
 	int line)
 {
 	fprintf(stderr, "%s, expecting \"%s\" at \"%s\"\n", who, what, where);
@@ -125,7 +126,7 @@ _expected(
 
 /*ARGSUSED*/
 void
-parse_init(tdata_t *td __unused)
+parse_init(tdata_t *td)
 {
 	int i;
 
@@ -158,7 +159,7 @@ unres_new(int tid)
 	return (tdp);
 }
 
-static char *
+char *
 read_tid(char *cp, tdesc_t **tdpp)
 {
 	tdesc_t *tdp;
@@ -189,7 +190,7 @@ read_tid(char *cp, tdesc_t **tdpp)
 static iitype_t
 parse_fun(char *cp, iidesc_t *ii)
 {
-	iitype_t iitype = 0;
+	iitype_t iitype;
 	tdesc_t *tdp;
 	tdesc_t **args = NULL;
 	int nargs = 0;
@@ -249,7 +250,7 @@ static iitype_t
 parse_sym(char *cp, iidesc_t *ii)
 {
 	tdesc_t *tdp;
-	iitype_t iitype = 0;
+	iitype_t iitype;
 
 	/*
 	 * name:G		global variable
@@ -1037,14 +1038,14 @@ enumdef(char *cp, tdesc_t **rtdp)
 	}
 }
 
-static tdesc_t *
-lookup_name(tdesc_t **hash, const char *name1)
+tdesc_t *
+lookup_name(tdesc_t **hash, const char *name)
 {
-	int bucket = compute_sum(name1);
+	int bucket = compute_sum(name);
 	tdesc_t *tdp, *ttdp = NULL;
 
 	for (tdp = hash[bucket]; tdp != NULL; tdp = tdp->t_next) {
-		if (tdp->t_name != NULL && strcmp(tdp->t_name, name1) == 0) {
+		if (tdp->t_name != NULL && strcmp(tdp->t_name, name) == 0) {
 			if (tdp->t_type == STRUCT || tdp->t_type == UNION ||
 			    tdp->t_type == ENUM || tdp->t_type == INTRINSIC)
 				return (tdp);
@@ -1056,9 +1057,9 @@ lookup_name(tdesc_t **hash, const char *name1)
 }
 
 tdesc_t *
-lookupname(const char *name1)
+lookupname(const char *name)
 {
-	return (lookup_name(name_table, name1));
+	return (lookup_name(name_table, name));
 }
 
 /*
@@ -1150,9 +1151,8 @@ check_hash(void)
 
 /*ARGSUSED1*/
 static int
-resolve_typed_bitfields_cb(void *arg, void *private __unused)
+resolve_typed_bitfields_cb(mlist_t *ml, void *private)
 {
-	mlist_t *ml = arg;
 	tdesc_t *tdp = ml->ml_type;
 
 	debug(3, "Resolving typed bitfields (member %s)\n",
@@ -1194,5 +1194,5 @@ void
 resolve_typed_bitfields(void)
 {
 	(void) list_iter(typedbitfldmems,
-	    resolve_typed_bitfields_cb, NULL);
+	    (int (*)())resolve_typed_bitfields_cb, NULL);
 }

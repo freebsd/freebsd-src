@@ -36,12 +36,12 @@ script()
 {
 	$dtrace -s /dev/stdin <<EOF
 	proc:::exec
-	/curpsinfo->pr_ppid == $child && args[0] == "/bin/sleep"/
+	/curpsinfo->pr_ppid == $child && args[0] == "/usr/bin/sleep"/
 	{
 		self->exec = 1;
 	}
 
-	proc:::exec_success
+	proc:::exec-success
 	/self->exec/
 	{
 		exit(0);
@@ -52,7 +52,7 @@ EOF
 sleeper()
 {
 	while true; do
-		/bin/sleep 1
+		/usr/bin/sleep 1
 	done
 }
 

@@ -40,8 +40,3 @@ BEGIN
 	x[123] = `kmem_flags;
 	x[456] = *`rootvp;
 }
-
-ERROR
-{
-	exit(1);
-}

@@ -27,6 +27,7 @@
 #pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #include <ctf_impl.h>
+#include <libctf.h>
 #include <sys/mman.h>
 #include <stdarg.h>
 
@@ -57,7 +58,7 @@ ctf_alloc(size_t size)
 
 /*ARGSUSED*/
 void
-ctf_free(void *buf, __unused size_t size)
+ctf_free(void *buf, size_t size)
 {
 	free(buf);
 }
@@ -65,7 +66,7 @@ ctf_free(void *buf, __unused size_t size)
 const char *
 ctf_strerror(int err)
 {
-	return ((const char *) strerror(err));
+	return (strerror(err));
 }
 
 /*PRINTFLIKE1*/

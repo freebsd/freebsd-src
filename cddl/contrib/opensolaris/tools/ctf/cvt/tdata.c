@@ -174,10 +174,9 @@ tdesc_namecmp(void *arg1, void *arg2)
 	return (!streq(tdp1->t_name, tdp2->t_name));
 }
 
-#if defined(sun)
 /*ARGSUSED1*/
-static int
-tdesc_print(void *data, void *private __unused)
+int
+tdesc_print(void *data, void *private)
 {
 	tdesc_t *tdp = data;
 
@@ -185,7 +184,6 @@ tdesc_print(void *data, void *private __unused)
 
 	return (1);
 }
-#endif
 
 static void
 free_intr(tdesc_t *tdp)
@@ -249,42 +247,39 @@ static void (*free_cbs[])(tdesc_t *) = {
 };
 
 /*ARGSUSED1*/
-static void
-tdesc_free_cb(void *arg, void *private __unused)
+static int
+tdesc_free_cb(tdesc_t *tdp, void *private)
 {
-	tdesc_t *tdp = arg;
 	if (tdp->t_name)
 		free(tdp->t_name);
 	if (free_cbs[tdp->t_type])
 		free_cbs[tdp->t_type](tdp);
 	free(tdp);
 
-	return;
+	return (1);
 }
 
 void
 tdesc_free(tdesc_t *tdp)
 {
-	tdesc_free_cb(tdp, NULL);
+	(void) tdesc_free_cb(tdp, NULL);
 }
 
 static int
-tdata_label_cmp(void *arg1, void *arg2)
+tdata_label_cmp(labelent_t *le1, labelent_t *le2)
 {
-	labelent_t *le1 = arg1;
-	labelent_t *le2 = arg2;
 	return (le1->le_idx - le2->le_idx);
 }
 
 void
-tdata_label_add(tdata_t *td, const char *label, int idx)
+tdata_label_add(tdata_t *td, char *label, int idx)
 {
 	labelent_t *le = xmalloc(sizeof (*le));
 
 	le->le_name = xstrdup(label);
 	le->le_idx = (idx == -1 ? td->td_nextid - 1 : idx);
 
-	slist_add(&td->td_labels, le, tdata_label_cmp);
+	slist_add(&td->td_labels, le, (int (*)())tdata_label_cmp);
 }
 
 static int
@@ -309,10 +304,8 @@ tdata_label_top(tdata_t *td)
 }
 
 static int
-tdata_label_find_cb(void *arg1, void *arg2)
+tdata_label_find_cb(labelent_t *le, labelent_t *tmpl)
 {
-	labelent_t *le = arg1;
-	labelent_t *tmpl = arg2;
 	return (streq(le->le_name, tmpl->le_name));
 }
 
@@ -330,7 +323,7 @@ tdata_label_find(tdata_t *td, char *label)
 	let.le_name = label;
 
 	if (!(ret = (labelent_t *)list_find(td->td_labels, &let,
-	    tdata_label_find_cb)))
+	    (int (*)())tdata_label_find_cb)))
 		return (-1);
 
 	return (ret->le_idx);
@@ -358,9 +351,8 @@ tdata_label_newmax(tdata_t *td, int newmax)
 
 /*ARGSUSED1*/
 static void
-tdata_label_free_cb(void *arg, void *private __unused)
+tdata_label_free_cb(labelent_t *le, void *private)
 {
-	labelent_t *le = arg;
 	if (le->le_name)
 		free(le->le_name);
 	free(le);
@@ -369,7 +361,7 @@ tdata_label_free_cb(void *arg, void *private __unused)
 void
 tdata_label_free(tdata_t *td)
 {
-	list_free(td->td_labels, tdata_label_free_cb, NULL);
+	list_free(td->td_labels, (void (*)())tdata_label_free_cb, NULL);
 	td->td_labels = NULL;
 }
 
@@ -399,8 +391,8 @@ tdata_new(void)
 void
 tdata_free(tdata_t *td)
 {
-	hash_free(td->td_iihash, iidesc_free, NULL);
-	hash_free(td->td_layouthash, tdesc_free_cb, NULL);
+	hash_free(td->td_iihash, (void (*)())iidesc_free, NULL);
+	hash_free(td->td_layouthash, (void (*)())tdesc_free_cb, NULL);
 	hash_free(td->td_idhash, NULL, NULL);
 	list_free(td->td_fwdlist, NULL, NULL);
 
@@ -416,7 +408,7 @@ tdata_free(tdata_t *td)
 
 /*ARGSUSED1*/
 static int
-build_hashes(tdesc_t *ctdp, tdesc_t **ctdpp __unused, void *private)
+build_hashes(tdesc_t *ctdp, tdesc_t **ctdpp, void *private)
 {
 	tdata_t *td = private;
 
@@ -473,7 +465,7 @@ tdata_merge(tdata_t *td1, tdata_t *td2)
 	td2->td_fwdlist = NULL;
 
 	slist_merge(&td1->td_labels, td2->td_labels,
-	    tdata_label_cmp);
+	    (int (*)())tdata_label_cmp);
 	td2->td_labels = NULL;
 
 	/* free the td2 hashes (data is now part of td1) */
