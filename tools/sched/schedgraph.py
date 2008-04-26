@@ -866,9 +866,6 @@ class Counter(EventSource):
 
 class KTRFile:
 	def __init__(self, file):
-		self.timestamp_first = {}
-		self.timestamp_last = {}
-		self.timestamp_adjust = {}
 		self.timestamp_f = None
 		self.timestamp_l = None
 		self.threads = []
@@ -962,9 +959,7 @@ class KTRFile:
 
 		global lineno
 		lineno = 0
-		lines = ifp.readlines()
-		self.synchstamp(lines)
-		for line in lines:
+		for line in ifp.readlines():
 			lineno += 1
 			if ((lineno % 1024) == 0):
 				status.startup("Parsing line " + str(lineno))
@@ -976,73 +971,13 @@ class KTRFile:
 			if (m == None):
 				print line,
 
-	def synchstamp(self, lines):
-		status.startup("Rationalizing Timestamps")
-		tstamp_re = re.compile("\s*\d+\s+(\d+)\s+(\d+)\s+.*")
-		for line in lines:
-			m = tstamp_re.match(line)
-			if (m != None):
-				self.addstamp(*m.groups())
-		self.pickstamp()
-		self.monostamp(lines)
-
-
-	def monostamp(self, lines):
-		laststamp = None
-		tstamp_re = re.compile("\s*\d+\s+(\d+)\s+(\d+)\s+.*")
-		for line in lines:
-			m = tstamp_re.match(line)
-			if (m == None):
-				continue
-			(cpu, timestamp) = m.groups()
-			timestamp = int(timestamp)
-			cpu = int(cpu)
-			timestamp -= self.timestamp_adjust[cpu]
-			if (laststamp != None and timestamp > laststamp):
-				self.timestamp_adjust[cpu] += timestamp - laststamp
-			laststamp = timestamp
-
-	def addstamp(self, cpu, timestamp):
-		timestamp = int(timestamp)
-		cpu = int(cpu)
-		try:
-			if (timestamp > self.timestamp_first[cpu]):
-				return
-		except:
-			self.timestamp_first[cpu] = timestamp
-		self.timestamp_last[cpu] = timestamp
-
-	def pickstamp(self):
-		base = self.timestamp_last[0]
-		for i in range(0, len(self.timestamp_last)):
-			if (self.timestamp_last[i] < base):
-				base = self.timestamp_last[i]
-
-		print "Adjusting to base stamp", base
-		for i in range(0, len(self.timestamp_last)):
-			self.timestamp_adjust[i] = self.timestamp_last[i] - base;
-			print "CPU ", i, "adjust by ", self.timestamp_adjust[i]
-
-		self.timestamp_f = 0
-		for i in range(0, len(self.timestamp_first)):
-			first = self.timestamp_first[i] - self.timestamp_adjust[i]
-			if (first > self.timestamp_f):
-				self.timestamp_f = first
-
-		self.timestamp_l = 0
-		for i in range(0, len(self.timestamp_last)):
-			last = self.timestamp_last[i] - self.timestamp_adjust[i]
-			if (last > self.timestamp_l):
-				self.timestamp_l = last
-
-
 	def checkstamp(self, cpu, timestamp):
-		cpu = int(cpu)
 		timestamp = int(timestamp)
-		if (timestamp > self.timestamp_first[cpu]):
-			print "Bad timestamp on line ", lineno, " (", timestamp, " > ", self.timestamp_first[cpu], ")"
+		if (self.timestamp_f == None):
+			self.timestamp_f = timestamp;
+		if (self.timestamp_l != None and timestamp > self.timestamp_l):
 			return (0)
-		timestamp -= self.timestamp_adjust[cpu]
+		self.timestamp_l = timestamp;
 		return (timestamp)
 
 	def timespan(self):
