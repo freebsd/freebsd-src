@@ -26,15 +26,23 @@
 #pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #include <sys/types.h>
+#if defined(sun)
 #include <sys/modctl.h>
 #include <sys/kobj.h>
 #include <sys/kobj_impl.h>
 #include <sys/sysmacros.h>
 #include <sys/elf.h>
 #include <sys/task.h>
+#else
+#include <sys/param.h>
+#include <sys/linker.h>
+#include <sys/stat.h>
+#endif
 
 #include <unistd.h>
+#if defined(sun)
 #include <project.h>
+#endif
 #include <strings.h>
 #include <stdlib.h>
 #include <libelf.h>
@@ -42,6 +50,9 @@
 #include <assert.h>
 #include <errno.h>
 #include <dirent.h>
+#if !defined(sun)
+#include <fcntl.h>
+#endif
 
 #include <dt_strtab.h>
 #include <dt_module.h>
@@ -66,7 +77,7 @@ dt_module_symhash_insert(dt_module_t *dmp, const char *name, uint_t id)
 static uint_t
 dt_module_syminit32(dt_module_t *dmp)
 {
-	const Elf32_Sym *sym = dmp->dm_symtab.cts_data;
+	Elf32_Sym *sym = dmp->dm_symtab.cts_data;
 	const char *base = dmp->dm_strtab.cts_data;
 	size_t ss_size = dmp->dm_strtab.cts_size;
 	uint_t i, n = dmp->dm_nsymelems;
@@ -83,8 +94,13 @@ dt_module_syminit32(dt_module_t *dmp)
 			continue; /* skip null or invalid names */
 
 		if (sym->st_value != 0 &&
-		    (ELF32_ST_BIND(sym->st_info) != STB_LOCAL || sym->st_size))
+		    (ELF32_ST_BIND(sym->st_info) != STB_LOCAL || sym->st_size)) {
 			asrsv++; /* reserve space in the address map */
+
+#if !defined(sun)
+			sym->st_value += (Elf_Addr) dmp->dm_reloc_offset;
+#endif
+		}
 
 		dt_module_symhash_insert(dmp, name, i);
 	}
@@ -95,7 +111,7 @@ dt_module_syminit32(dt_module_t *dmp)
 static uint_t
 dt_module_syminit64(dt_module_t *dmp)
 {
-	const Elf64_Sym *sym = dmp->dm_symtab.cts_data;
+	Elf64_Sym *sym = dmp->dm_symtab.cts_data;
 	const char *base = dmp->dm_strtab.cts_data;
 	size_t ss_size = dmp->dm_strtab.cts_size;
 	uint_t i, n = dmp->dm_nsymelems;
@@ -112,8 +128,13 @@ dt_module_syminit64(dt_module_t *dmp)
 			continue; /* skip null or invalid names */
 
 		if (sym->st_value != 0 &&
-		    (ELF64_ST_BIND(sym->st_info) != STB_LOCAL || sym->st_size))
+		    (ELF64_ST_BIND(sym->st_info) != STB_LOCAL || sym->st_size)) {
 			asrsv++; /* reserve space in the address map */
+
+#if !defined(sun)
+			sym->st_value += (Elf_Addr) dmp->dm_reloc_offset;
+#endif
+		}
 
 		dt_module_symhash_insert(dmp, name, i);
 	}
@@ -489,7 +510,13 @@ dt_module_load_sect(dtrace_hdl_t *dtp, dt_module_t *dmp, ctf_sect_t *ctsp)
 	if (sp == NULL || (dp = elf_getdata(sp, NULL)) == NULL)
 		return (0);
 
+#if defined(sun)
 	ctsp->cts_data = dp->d_buf;
+#else
+	if ((ctsp->cts_data = malloc(dp->d_size)) == NULL)
+		return (0);
+	memcpy(ctsp->cts_data, dp->d_buf, dp->d_size);
+#endif
 	ctsp->cts_size = dp->d_size;
 
 	dt_dprintf("loaded %s [%s] (%lu bytes)\n",
@@ -665,6 +692,18 @@ dt_module_unload(dtrace_hdl_t *dtp, dt_module_t *dmp)
 	ctf_close(dmp->dm_ctfp);
 	dmp->dm_ctfp = NULL;
 
+#if !defined(sun)
+	if (dmp->dm_ctdata.cts_data != NULL) {
+		free(dmp->dm_ctdata.cts_data);
+	}
+	if (dmp->dm_symtab.cts_data != NULL) {
+		free(dmp->dm_symtab.cts_data);
+	}
+	if (dmp->dm_strtab.cts_data != NULL) {
+		free(dmp->dm_strtab.cts_data);
+	}
+#endif
+
 	bzero(&dmp->dm_ctdata, sizeof (ctf_sect_t));
 	bzero(&dmp->dm_symtab, sizeof (ctf_sect_t));
 	bzero(&dmp->dm_strtab, sizeof (ctf_sect_t));
@@ -690,11 +729,11 @@ dt_module_unload(dtrace_hdl_t *dtp, dt_module_t *dmp)
 	dmp->dm_asrsv = 0;
 	dmp->dm_aslen = 0;
 
-	dmp->dm_text_va = NULL;
+	dmp->dm_text_va = 0;
 	dmp->dm_text_size = 0;
-	dmp->dm_data_va = NULL;
+	dmp->dm_data_va = 0;
 	dmp->dm_data_size = 0;
-	dmp->dm_bss_va = NULL;
+	dmp->dm_bss_va = 0;
 	dmp->dm_bss_size = 0;
 
 	if (dmp->dm_extern != NULL) {
@@ -781,9 +820,16 @@ dt_module_modelname(dt_module_t *dmp)
 /*
  * Update our module cache by adding an entry for the specified module 'name'.
  * We create the dt_module_t and populate it using /system/object/<name>/.
+ *
+ * On FreeBSD, the module name is passed as the full module file name, 
+ * including the path.
  */
 static void
+#if defined(sun)
 dt_module_update(dtrace_hdl_t *dtp, const char *name)
+#else
+dt_module_update(dtrace_hdl_t *dtp, struct kld_file_stat *k_stat)
+#endif
 {
 	char fname[MAXPATHLEN];
 	struct stat64 st;
@@ -796,8 +842,17 @@ dt_module_update(dtrace_hdl_t *dtp, const char *name)
 	Elf_Data *dp;
 	Elf_Scn *sp;
 
+#if defined(sun)
 	(void) snprintf(fname, sizeof (fname),
 	    "%s/%s/object", OBJFS_ROOT, name);
+#else
+	GElf_Phdr ph;
+	char name[MAXPATHLEN];
+	int i = 0;
+
+	(void) strlcpy(name, k_stat->name, sizeof(name));
+	(void) strlcpy(fname, k_stat->pathname, sizeof(fname));
+#endif
 
 	if ((fd = open(fname, O_RDONLY)) == -1 || fstat64(fd, &st) == -1 ||
 	    (dmp = dt_module_create(dtp, name)) == NULL) {
@@ -869,7 +924,23 @@ dt_module_update(dtrace_hdl_t *dtp, const char *name)
 	}
 
 	dmp->dm_flags |= DT_DM_KERNEL;
+#if defined(sun)
 	dmp->dm_modid = (int)OBJFS_MODID(st.st_ino);
+#else
+#if defined(__i386__)
+	/*
+	 * Find the first load section and figure out the relocation
+	 * offset for the symbols. The kernel module will not need
+	 * relocation, but the kernel linker modules will.
+	 */
+	for (i = 0; gelf_getphdr(dmp->dm_elf, i, &ph) != NULL; i++) {
+		if (ph.p_type == PT_LOAD) {
+			dmp->dm_reloc_offset = k_stat->address - ph.p_vaddr;
+			break;
+		}
+	}
+#endif
+#endif
 
 	if (dmp->dm_info.objfs_info_primary)
 		dmp->dm_flags |= DT_DM_PRIMARY;
@@ -887,11 +958,15 @@ dtrace_update(dtrace_hdl_t *dtp)
 {
 	dt_module_t *dmp;
 	DIR *dirp;
+#if defined(__FreeBSD__)
+	int fileid;
+#endif
 
 	for (dmp = dt_list_next(&dtp->dt_modlist);
 	    dmp != NULL; dmp = dt_list_next(dmp))
 		dt_module_unload(dtp, dmp);
 
+#if defined(sun)
 	/*
 	 * Open /system/object and attempt to create a libdtrace module for
 	 * each kernel module that is loaded on the current system.
@@ -907,6 +982,18 @@ dtrace_update(dtrace_hdl_t *dtp)
 
 		(void) closedir(dirp);
 	}
+#elif defined(__FreeBSD__)
+	/*
+	 * Use FreeBSD's kernel loader interface to discover what kernel
+	 * modules are loaded and create a libdtrace module for each one.
+	 */
+	for (fileid = kldnext(0); fileid > 0; fileid = kldnext(fileid)) {
+		struct kld_file_stat k_stat;
+		k_stat.version = sizeof(k_stat);
+		if (kldstat(fileid, &k_stat) == 0)
+			dt_module_update(dtp, &k_stat);
+	}
+#endif
 
 	/*
 	 * Look up all the macro identifiers and set di_id to the latest value.
@@ -919,9 +1006,13 @@ dtrace_update(dtrace_hdl_t *dtp)
 	dt_idhash_lookup(dtp->dt_macros, "pid")->di_id = getpid();
 	dt_idhash_lookup(dtp->dt_macros, "pgid")->di_id = getpgid(0);
 	dt_idhash_lookup(dtp->dt_macros, "ppid")->di_id = getppid();
+#if defined(sun)
 	dt_idhash_lookup(dtp->dt_macros, "projid")->di_id = getprojid();
+#endif
 	dt_idhash_lookup(dtp->dt_macros, "sid")->di_id = getsid(0);
+#if defined(sun)
 	dt_idhash_lookup(dtp->dt_macros, "taskid")->di_id = gettaskid();
+#endif
 	dt_idhash_lookup(dtp->dt_macros, "uid")->di_id = getuid();
 
 	/*
