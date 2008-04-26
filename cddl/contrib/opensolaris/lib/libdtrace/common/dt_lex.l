@@ -41,32 +41,12 @@
  * We need to undefine lex's input and unput macros so that references to these
  * call the functions provided at the end of this source file.
  */
-#if defined(sun)
 #undef input
 #undef unput
-#else
-/* 
- * Define YY_INPUT for flex since input() can't be re-defined.
- */
-#define YY_INPUT(buf,result,max_size) \
-	if (yypcb->pcb_fileptr != NULL) { \
-		if (((result = fread(buf, 1, max_size, yypcb->pcb_fileptr)) == 0) \
-		    && ferror(yypcb->pcb_fileptr)) \
-			longjmp(yypcb->pcb_jmpbuf, EDT_FIO); \
-	} else { \
-		int n; \
-		for (n = 0; n < max_size && \
-		    yypcb->pcb_strptr < yypcb->pcb_string + yypcb->pcb_strlen; n++) \
-			buf[n] = *yypcb->pcb_strptr++; \
-		result = n; \
-	}
-#endif
 
 static int id_or_type(const char *);
-#if defined(sun)
 static int input(void);
 static void unput(int);
-#endif
 
 /*
  * We first define a set of labeled states for use in the D lexer and then a
@@ -428,7 +408,7 @@ if (yypcb->pcb_token != 0) {
 				xyerror(D_CHR_OFLOW, "character constant is "
 				    "too long");
 			}
-#if BYTE_ORDER == _LITTLE_ENDIAN
+#ifdef _LITTLE_ENDIAN
 			p = ((char *)&yylval.l_int) + nbytes - 1;
 			for (q = s; nbytes != 0; nbytes--)
 				*p-- = *q++;
@@ -717,9 +697,7 @@ yyinit(dt_pcb_t *pcb)
 	yypcb = pcb;
 	yylineno = 1;
 	yypragma = NULL;
-#if defined(sun)
 	yysptr = yysbuf;
-#endif
 }
 
 /*
@@ -815,7 +793,6 @@ id_or_type(const char *s)
 	return (ttok);
 }
 
-#if defined(sun)
 static int
 input(void)
 {
@@ -857,4 +834,3 @@ unput(int c)
 	*yysptr++ = c;
 	yytchar = c;
 }
-#endif

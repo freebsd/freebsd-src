@@ -27,17 +27,13 @@
 #pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #include <sys/types.h>
-#if defined(sun)
 #include <sys/sysmacros.h>
-#endif
 
 #include <assert.h>
 #include <limits.h>
 #include <strings.h>
 #include <stdlib.h>
-#if defined(sun)
 #include <alloca.h>
-#endif
 #include <unistd.h>
 #include <errno.h>
 

@@ -84,7 +84,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <strings.h>
 #include <errno.h>
 #include <libelf.h>
@@ -129,7 +128,7 @@
 typedef struct dwarf {
 	Dwarf_Debug dw_dw;		/* for libdwarf */
 	Dwarf_Error dw_err;		/* for libdwarf */
-	Dwarf_Off dw_maxoff;		/* highest legal offset in this cu */
+	Dwarf_Unsigned dw_maxoff;	/* highest legal offset in this cu */
 	tdata_t *dw_td;			/* root of the tdesc/iidesc tree */
 	hash_t *dw_tidhash;		/* hash of tdescs by t_id */
 	hash_t *dw_fwdhash;		/* hash of fwd decls by name */
@@ -160,12 +159,11 @@ tdesc_add(dwarf_t *dw, tdesc_t *tdp)
 static tdesc_t *
 tdesc_lookup(dwarf_t *dw, int tid)
 {
-	tdesc_t tmpl;
-	void *tdp;
+	tdesc_t tmpl, *tdp;
 
 	tmpl.t_id = tid;
 
-	if (hash_find(dw->dw_tidhash, &tmpl, &tdp))
+	if (hash_find(dw->dw_tidhash, &tmpl, (void **)&tdp))
 		return (tdp);
 	else
 		return (NULL);
@@ -273,7 +271,7 @@ die_off(dwarf_t *dw, Dwarf_Die die)
 		return (off);
 
 	terminate("failed to get offset for die: %s\n",
-	    dwarf_errmsg(&dw->dw_err));
+	    dwarf_errmsg(dw->dw_err));
 	/*NOTREACHED*/
 	return (0);
 }
@@ -291,7 +289,7 @@ die_sibling(dwarf_t *dw, Dwarf_Die die)
 		return (NULL);
 
 	terminate("die %llu: failed to find type sibling: %s\n",
-	    die_off(dw, die), dwarf_errmsg(&dw->dw_err));
+	    die_off(dw, die), dwarf_errmsg(dw->dw_err));
 	/*NOTREACHED*/
 	return (NULL);
 }
@@ -308,7 +306,7 @@ die_child(dwarf_t *dw, Dwarf_Die die)
 		return (NULL);
 
 	terminate("die %llu: failed to find type child: %s\n",
-	    die_off(dw, die), dwarf_errmsg(&dw->dw_err));
+	    die_off(dw, die), dwarf_errmsg(dw->dw_err));
 	/*NOTREACHED*/
 	return (NULL);
 }
@@ -322,7 +320,7 @@ die_tag(dwarf_t *dw, Dwarf_Die die)
 		return (tag);
 
 	terminate("die %llu: failed to get tag for type: %s\n",
-	    die_off(dw, die), dwarf_errmsg(&dw->dw_err));
+	    die_off(dw, die), dwarf_errmsg(dw->dw_err));
 	/*NOTREACHED*/
 	return (0);
 }
@@ -345,23 +343,43 @@ die_attr(dwarf_t *dw, Dwarf_Die die, Dwarf_Half name, int req)
 	}
 
 	terminate("die %llu: failed to get attribute for type: %s\n",
-	    die_off(dw, die), dwarf_errmsg(&dw->dw_err));
+	    die_off(dw, die), dwarf_errmsg(dw->dw_err));
 	/*NOTREACHED*/
 	return (NULL);
+}
+
+static Dwarf_Half
+die_attr_form(dwarf_t *dw, Dwarf_Attribute attr)
+{
+	Dwarf_Half form;
+
+	if (dwarf_whatform(attr, &form, &dw->dw_err) == DW_DLV_OK)
+		return (form);
+
+	terminate("failed to get attribute form for type: %s\n",
+	    dwarf_errmsg(dw->dw_err));
+	/*NOTREACHED*/
+	return (0);
 }
 
 static int
 die_signed(dwarf_t *dw, Dwarf_Die die, Dwarf_Half name, Dwarf_Signed *valp,
     int req)
 {
-	*valp = 0;
-	if (dwarf_attrval_signed(die, name, valp, &dw->dw_err) != DWARF_E_NONE) {
-		if (req) 
-			terminate("die %llu: failed to get signed: %s\n",
-			    die_off(dw, die), dwarf_errmsg(&dw->dw_err));
-		return (0);
+	Dwarf_Attribute attr;
+	Dwarf_Signed val;
+
+	if ((attr = die_attr(dw, die, name, req)) == NULL)
+		return (0); /* die_attr will terminate for us if necessary */
+
+	if (dwarf_formsdata(attr, &val, &dw->dw_err) != DW_DLV_OK) {
+		terminate("die %llu: failed to get signed (form 0x%x)\n",
+		    die_off(dw, die), die_attr_form(dw, attr));
 	}
 
+	dwarf_dealloc(dw->dw_dw, attr, DW_DLA_ATTR);
+
+	*valp = val;
 	return (1);
 }
 
@@ -369,47 +387,59 @@ static int
 die_unsigned(dwarf_t *dw, Dwarf_Die die, Dwarf_Half name, Dwarf_Unsigned *valp,
     int req)
 {
-	*valp = 0;
-	if (dwarf_attrval_unsigned(die, name, valp, &dw->dw_err) != DWARF_E_NONE) {
-		if (req) 
-			terminate("die %llu: failed to get unsigned: %s\n",
-			    die_off(dw, die), dwarf_errmsg(&dw->dw_err));
-		return (0);
+	Dwarf_Attribute attr;
+	Dwarf_Unsigned val;
+
+	if ((attr = die_attr(dw, die, name, req)) == NULL)
+		return (0); /* die_attr will terminate for us if necessary */
+
+	if (dwarf_formudata(attr, &val, &dw->dw_err) != DW_DLV_OK) {
+		terminate("die %llu: failed to get unsigned (form 0x%x)\n",
+		    die_off(dw, die), die_attr_form(dw, attr));
 	}
 
+	dwarf_dealloc(dw->dw_dw, attr, DW_DLA_ATTR);
+
+	*valp = val;
 	return (1);
 }
 
 static int
 die_bool(dwarf_t *dw, Dwarf_Die die, Dwarf_Half name, Dwarf_Bool *valp, int req)
 {
-	*valp = 0;
+	Dwarf_Attribute attr;
+	Dwarf_Bool val;
 
-	if (dwarf_attrval_flag(die, name, valp, &dw->dw_err) != DWARF_E_NONE) {
-		if (req) 
-			terminate("die %llu: failed to get flag: %s\n",
-			    die_off(dw, die), dwarf_errmsg(&dw->dw_err));
-		return (0);
+	if ((attr = die_attr(dw, die, name, req)) == NULL)
+		return (0); /* die_attr will terminate for us if necessary */
+
+	if (dwarf_formflag(attr, &val, &dw->dw_err) != DW_DLV_OK) {
+		terminate("die %llu: failed to get bool (form 0x%x)\n",
+		    die_off(dw, die), die_attr_form(dw, attr));
 	}
 
+	dwarf_dealloc(dw->dw_dw, attr, DW_DLA_ATTR);
+
+	*valp = val;
 	return (1);
 }
 
 static int
 die_string(dwarf_t *dw, Dwarf_Die die, Dwarf_Half name, char **strp, int req)
 {
-	const char *str = NULL;
+	Dwarf_Attribute attr;
+	char *str;
 
-	if (dwarf_attrval_string(die, name, &str, &dw->dw_err) != DWARF_E_NONE ||
-	    str == NULL) {
-		if (req) 
-			terminate("die %llu: failed to get string: %s\n",
-			    die_off(dw, die), dwarf_errmsg(&dw->dw_err));
-		else
-			*strp = NULL;
-		return (0);
-	} else
-		*strp = xstrdup(str);
+	if ((attr = die_attr(dw, die, name, req)) == NULL)
+		return (0); /* die_attr will terminate for us if necessary */
+
+	if (dwarf_formstring(attr, &str, &dw->dw_err) != DW_DLV_OK) {
+		terminate("die %llu: failed to get string (form 0x%x)\n",
+		    die_off(dw, die), die_attr_form(dw, attr));
+	}
+
+	*strp = xstrdup(str);
+	dwarf_dealloc(dw->dw_dw, str, DW_DLA_STRING);
 
 	return (1);
 }
@@ -417,12 +447,17 @@ die_string(dwarf_t *dw, Dwarf_Die die, Dwarf_Half name, char **strp, int req)
 static Dwarf_Off
 die_attr_ref(dwarf_t *dw, Dwarf_Die die, Dwarf_Half name)
 {
+	Dwarf_Attribute attr;
 	Dwarf_Off off;
 
-	if (dwarf_attrval_unsigned(die, name, &off, &dw->dw_err) != DWARF_E_NONE) {
-		terminate("die %llu: failed to get ref: %s\n",
-		    die_off(dw, die), dwarf_errmsg(&dw->dw_err));
+	attr = die_attr(dw, die, name, DW_ATTR_REQ);
+
+	if (dwarf_formref(attr, &off, &dw->dw_err) != DW_DLV_OK) {
+		terminate("die %llu: failed to get ref (form 0x%x)\n",
+		    die_off(dw, die), die_attr_form(dw, attr));
 	}
+
+	dwarf_dealloc(dw->dw_dw, attr, DW_DLA_ATTR);
 
 	return (off);
 }
@@ -487,13 +522,21 @@ die_lookup_pass1(dwarf_t *dw, Dwarf_Die die, Dwarf_Half name)
 
 static int
 die_mem_offset(dwarf_t *dw, Dwarf_Die die, Dwarf_Half name,
-    Dwarf_Unsigned *valp, int req __unused)
+    Dwarf_Unsigned *valp, int req)
 {
-	Dwarf_Locdesc *loc = NULL;
-	Dwarf_Signed locnum = 0;
+	Dwarf_Attribute attr;
+	Dwarf_Locdesc *loc;
+	Dwarf_Signed locnum;
 
-	if (dwarf_locdesc(die, name, &loc, &locnum, &dw->dw_err) != DW_DLV_OK)
-		return (0);
+	if ((attr = die_attr(dw, die, name, req)) == NULL)
+		return (0); /* die_attr will terminate for us if necessary */
+
+	if (dwarf_loclist(attr, &loc, &locnum, &dw->dw_err) != DW_DLV_OK) {
+		terminate("die %llu: failed to get mem offset location list\n",
+		    die_off(dw, die));
+	}
+
+	dwarf_dealloc(dw->dw_dw, attr, DW_DLA_ATTR);
 
 	if (locnum != 1 || loc->ld_s->lr_atom != DW_OP_plus_uconst) {
 		terminate("die %llu: cannot parse member offset\n",
@@ -502,10 +545,8 @@ die_mem_offset(dwarf_t *dw, Dwarf_Die die, Dwarf_Half name,
 
 	*valp = loc->ld_s->lr_number;
 
-	if (loc != NULL)
-		if (dwarf_locdesc_free(loc, &dw->dw_err) != DW_DLV_OK)
-			terminate("die %llu: cannot free location descriptor: %s\n",
-			    die_off(dw, die), dwarf_errmsg(&dw->dw_err));
+	dwarf_dealloc(dw->dw_dw, loc->ld_s, DW_DLA_LOC_BLOCK);
+	dwarf_dealloc(dw->dw_dw, loc, DW_DLA_LOCDESC);
 
 	return (1);
 }
@@ -599,7 +640,7 @@ tdesc_array_create(dwarf_t *dw, Dwarf_Die dim, tdesc_t *arrtdp,
 {
 	Dwarf_Unsigned uval;
 	Dwarf_Signed sval;
-	tdesc_t *ctdp = NULL;
+	tdesc_t *ctdp;
 	Dwarf_Die dim2;
 	ardef_t *ar;
 
@@ -662,7 +703,7 @@ die_array_create(dwarf_t *dw, Dwarf_Die arr, Dwarf_Off off, tdesc_t *tdp)
 	Dwarf_Unsigned uval;
 	Dwarf_Die dim;
 
-	debug(3, "die %llu <%llx>: creating array\n", off, off);
+	debug(3, "die %llu: creating array\n", off);
 
 	if ((dim = die_child(dw, arr)) == NULL ||
 	    die_tag(dw, dim) != DW_TAG_subrange_type)
@@ -693,13 +734,13 @@ die_array_create(dwarf_t *dw, Dwarf_Die arr, Dwarf_Off off, tdesc_t *tdp)
 		tdp->t_flags |= flags;
 	}
 
-	debug(3, "die %llu <%llx>: array nelems %u size %u\n", off, off,
+	debug(3, "die %llu: array nelems %u size %u\n", off,
 	    tdp->t_ardef->ad_nelems, tdp->t_size);
 }
 
 /*ARGSUSED1*/
 static int
-die_array_resolve(tdesc_t *tdp, tdesc_t **tdpp __unused, void *private)
+die_array_resolve(tdesc_t *tdp, tdesc_t **tdpp, void *private)
 {
 	dwarf_t *dw = private;
 	size_t sz;
@@ -729,7 +770,7 @@ die_array_resolve(tdesc_t *tdp, tdesc_t **tdpp __unused, void *private)
 
 /*ARGSUSED1*/
 static int
-die_array_failed(tdesc_t *tdp, tdesc_t **tdpp __unused, void *private __unused)
+die_array_failed(tdesc_t *tdp, tdesc_t **tdpp, void *private)
 {
 	tdesc_t *cont = tdp->t_ardef->ad_contents;
 
@@ -825,7 +866,7 @@ die_enum_match(void *arg1, void *arg2)
 
 /*ARGSUSED1*/
 static int
-die_enum_resolve(tdesc_t *tdp, tdesc_t **tdpp __unused, void *private)
+die_enum_resolve(tdesc_t *tdp, tdesc_t **tdpp, void *private)
 {
 	dwarf_t *dw = private;
 	tdesc_t *full = NULL;
@@ -897,9 +938,8 @@ die_sou_create(dwarf_t *dw, Dwarf_Die str, Dwarf_Off off, tdesc_t *tdp,
 	/*
 	 * GCC allows empty SOUs as an extension.
 	 */
-	if ((mem = die_child(dw, str)) == NULL) {
+	if ((mem = die_child(dw, str)) == NULL)
 		goto out;
-	}
 
 	mlastp = &tdp->t_members;
 
@@ -926,7 +966,7 @@ die_sou_create(dwarf_t *dw, Dwarf_Die str, Dwarf_Off off, tdesc_t *tdp,
 		 * bug 11816).
 		 */
 		if ((ml->ml_name = die_name(dw, mem)) == NULL)
-			ml->ml_name = NULL;
+			ml->ml_name = "";
 
 		ml->ml_type = die_lookup_pass1(dw, mem, DW_AT_type);
 
@@ -943,7 +983,7 @@ die_sou_create(dwarf_t *dw, Dwarf_Die str, Dwarf_Off off, tdesc_t *tdp,
 			ml->ml_size = tdesc_bitsize(ml->ml_type);
 
 		if (die_unsigned(dw, mem, DW_AT_bit_offset, &bitoff, 0)) {
-#if BYTE_ORDER == _BIG_ENDIAN
+#ifdef	_BIG_ENDIAN
 			ml->ml_offset += bitoff;
 #else
 			ml->ml_offset += tdesc_bitsize(ml->ml_type) - bitoff -
@@ -1017,7 +1057,7 @@ die_union_create(dwarf_t *dw, Dwarf_Die die, Dwarf_Off off, tdesc_t *tdp)
 
 /*ARGSUSED1*/
 static int
-die_sou_resolve(tdesc_t *tdp, tdesc_t **tdpp __unused, void *private)
+die_sou_resolve(tdesc_t *tdp, tdesc_t **tdpp, void *private)
 {
 	dwarf_t *dw = private;
 	mlist_t *ml;
@@ -1076,7 +1116,7 @@ die_sou_resolve(tdesc_t *tdp, tdesc_t **tdpp __unused, void *private)
 
 /*ARGSUSED1*/
 static int
-die_sou_failed(tdesc_t *tdp, tdesc_t **tdpp __unused, void *private __unused)
+die_sou_failed(tdesc_t *tdp, tdesc_t **tdpp, void *private)
 {
 	const char *typename = (tdp->t_type == STRUCT ? "struct" : "union");
 	mlist_t *ml;
@@ -1086,11 +1126,10 @@ die_sou_failed(tdesc_t *tdp, tdesc_t **tdpp __unused, void *private __unused)
 
 	for (ml = tdp->t_members; ml != NULL; ml = ml->ml_next) {
 		if (ml->ml_size == 0) {
-			fprintf(stderr, "%s %d <%x>: failed to size member \"%s\" "
-			    "of type %s (%d <%x>)\n", typename, tdp->t_id,
-			    tdp->t_id,
+			fprintf(stderr, "%s %d: failed to size member \"%s\" "
+			    "of type %s (%d)\n", typename, tdp->t_id,
 			    ml->ml_name, tdesc_name(ml->ml_type),
-			    ml->ml_type->t_id, ml->ml_type->t_id);
+			    ml->ml_type->t_id);
 		}
 	}
 
@@ -1106,7 +1145,7 @@ die_funcptr_create(dwarf_t *dw, Dwarf_Die die, Dwarf_Off off, tdesc_t *tdp)
 	fndef_t *fn;
 	int i;
 
-	debug(3, "die %llu <%llx>: creating function pointer\n", off, off);
+	debug(3, "die %llu: creating function pointer\n", off);
 
 	/*
 	 * We'll begin by processing any type definition nodes that may be
@@ -1136,6 +1175,7 @@ die_funcptr_create(dwarf_t *dw, Dwarf_Die die, Dwarf_Off off, tdesc_t *tdp)
 	tdp->t_type = FUNCTION;
 
 	if ((attr = die_attr(dw, die, DW_AT_type, 0)) != NULL) {
+		dwarf_dealloc(dw->dw_dw, attr, DW_DLA_ATTR);
 		fn->fn_ret = die_lookup_pass1(dw, die, DW_AT_type);
 	} else {
 		fn->fn_ret = tdesc_intr_void(dw);
@@ -1159,7 +1199,7 @@ die_funcptr_create(dwarf_t *dw, Dwarf_Die die, Dwarf_Off off, tdesc_t *tdp)
 
 		fn->fn_args = xcalloc(sizeof (tdesc_t *) * fn->fn_nargs);
 		for (i = 0, arg = die_child(dw, die);
-		    arg != NULL && i < (int) fn->fn_nargs;
+		    arg != NULL && i < fn->fn_nargs;
 		    arg = die_sibling(dw, arg)) {
 			if (die_tag(dw, arg) != DW_TAG_formal_parameter)
 				continue;
@@ -1184,8 +1224,7 @@ static intr_t *
 die_base_name_parse(const char *name, char **newp)
 {
 	char buf[100];
-	char const *base;
-	char *c;
+	char *base, *c;
 	int nlong = 0, nshort = 0, nchar = 0, nint = 0;
 	int sign = 1;
 	char fmt = '\0';
@@ -1269,7 +1308,7 @@ static const fp_size_map_t fp_encodings[] = {
 #else
 	{ { 12, 16 }, { CTF_FP_LDOUBLE, CTF_FP_LDCPLX, CTF_FP_LDIMAGRY } },
 #endif
-	{ { 0, 0 }, { 0, 0, 0 } }
+	{ { 0, 0 } }
 };
 
 static uint_t
@@ -1282,11 +1321,8 @@ die_base_type2enc(dwarf_t *dw, Dwarf_Off off, Dwarf_Signed enc, size_t sz)
 	if (enc == DW_ATE_complex_float) {
 		mult = 2;
 		col = 1;
-	} else if (enc == DW_ATE_imaginary_float
-#if defined(sun)
-	    || enc == DW_ATE_SUN_imaginary_float
-#endif
-	    )
+	} else if (enc == DW_ATE_imaginary_float ||
+	    enc == DW_ATE_SUN_imaginary_float)
 		col = 2;
 
 	while (map->fsm_typesz[szidx] != 0) {
@@ -1334,10 +1370,8 @@ die_base_from_dwarf(dwarf_t *dw, Dwarf_Die base, Dwarf_Off off, size_t sz)
 	case DW_ATE_float:
 	case DW_ATE_complex_float:
 	case DW_ATE_imaginary_float:
-#if defined(sun)
 	case DW_ATE_SUN_imaginary_float:
 	case DW_ATE_SUN_interval_float:
-#endif
 		intr->intr_type = INTR_REAL;
 		intr->intr_signed = 1;
 		intr->intr_fformat = die_base_type2enc(dw, off, enc, sz);
@@ -1407,11 +1441,12 @@ die_through_create(dwarf_t *dw, Dwarf_Die die, Dwarf_Off off, tdesc_t *tdp,
 {
 	Dwarf_Attribute attr;
 
-	debug(3, "die %llu <%llx>: creating %s type %d\n", off, off, typename, type);
+	debug(3, "die %llu: creating %s\n", off, typename);
 
 	tdp->t_type = type;
 
 	if ((attr = die_attr(dw, die, DW_AT_type, 0)) != NULL) {
+		dwarf_dealloc(dw->dw_dw, attr, DW_DLA_ATTR);
 		tdp->t_tdesc = die_lookup_pass1(dw, die, DW_AT_type);
 	} else {
 		tdp->t_tdesc = tdesc_intr_void(dw);
@@ -1464,14 +1499,14 @@ die_volatile_create(dwarf_t *dw, Dwarf_Die die, Dwarf_Off off, tdesc_t *tdp)
 
 /*ARGSUSED3*/
 static void
-die_function_create(dwarf_t *dw, Dwarf_Die die, Dwarf_Off off, tdesc_t *tdp __unused)
+die_function_create(dwarf_t *dw, Dwarf_Die die, Dwarf_Off off, tdesc_t *tdp)
 {
 	Dwarf_Die arg;
 	Dwarf_Half tag;
 	iidesc_t *ii;
 	char *name;
 
-	debug(3, "die %llu <%llx>: creating function definition\n", off, off);
+	debug(3, "die %llu: creating function definition\n", off);
 
 	/*
 	 * We'll begin by processing any type definition nodes that may be
@@ -1510,7 +1545,7 @@ die_function_create(dwarf_t *dw, Dwarf_Die die, Dwarf_Off off, tdesc_t *tdp __un
 
 	for (arg = die_child(dw, die); arg != NULL;
 	    arg = die_sibling(dw, arg)) {
-		char *name1;
+		char *name;
 
 		debug(3, "die %llu: looking at sub member at %llu\n",
 		    off, die_off(dw, die));
@@ -1518,13 +1553,13 @@ die_function_create(dwarf_t *dw, Dwarf_Die die, Dwarf_Off off, tdesc_t *tdp __un
 		if (die_tag(dw, arg) != DW_TAG_formal_parameter)
 			continue;
 
-		if ((name1 = die_name(dw, arg)) == NULL) {
+		if ((name = die_name(dw, arg)) == NULL) {
 			terminate("die %llu: func arg %d has no name\n",
 			    off, ii->ii_nargs + 1);
 		}
 
-		if (strcmp(name1, "...") == 0) {
-			free(name1);
+		if (strcmp(name, "...") == 0) {
+			free(name);
 			ii->ii_vargs = 1;
 			continue;
 		}
@@ -1556,7 +1591,7 @@ die_function_create(dwarf_t *dw, Dwarf_Die die, Dwarf_Off off, tdesc_t *tdp __un
 
 /*ARGSUSED3*/
 static void
-die_variable_create(dwarf_t *dw, Dwarf_Die die, Dwarf_Off off, tdesc_t *tdp __unused)
+die_variable_create(dwarf_t *dw, Dwarf_Die die, Dwarf_Off off, tdesc_t *tdp)
 {
 	iidesc_t *ii;
 	char *name;
@@ -1578,7 +1613,7 @@ die_variable_create(dwarf_t *dw, Dwarf_Die die, Dwarf_Off off, tdesc_t *tdp __un
 
 /*ARGSUSED2*/
 static int
-die_fwd_resolve(tdesc_t *fwd, tdesc_t **fwdp, void *private __unused)
+die_fwd_resolve(tdesc_t *fwd, tdesc_t **fwdp, void *private)
 {
 	if (fwd->t_flags & TDESC_F_RESOLVED)
 		return (1);
@@ -1596,7 +1631,7 @@ die_fwd_resolve(tdesc_t *fwd, tdesc_t **fwdp, void *private __unused)
 
 /*ARGSUSED*/
 static void
-die_lexblk_descend(dwarf_t *dw, Dwarf_Die die, Dwarf_Off off __unused, tdesc_t *tdp __unused)
+die_lexblk_descend(dwarf_t *dw, Dwarf_Die die, Dwarf_Off off, tdesc_t *tdp)
 {
 	Dwarf_Die child = die_child(dw, die);
 
@@ -1634,7 +1669,7 @@ static const die_creator_t die_creators[] = {
 	{ DW_TAG_variable,		DW_F_NOTDP,	die_variable_create },
 	{ DW_TAG_volatile_type,		0,		die_volatile_create },
 	{ DW_TAG_restrict_type,		0,		die_restrict_create },
-	{ 0, 0, NULL }
+	{ 0, NULL }
 };
 
 static const die_creator_t *
@@ -1658,7 +1693,7 @@ die_create_one(dwarf_t *dw, Dwarf_Die die)
 	Dwarf_Half tag;
 	tdesc_t *tdp;
 
-	debug(3, "die %llu <%llx>: create_one\n", off, off);
+	debug(3, "die %llu: create_one\n", off);
 
 	if (off > dw->dw_maxoff) {
 		terminate("illegal die offset %llu (max %llu)\n", off,
@@ -1742,7 +1777,7 @@ die_resolve(dwarf_t *dw)
 
 		debug(3, "resolve: pass %d, %u left\n", pass, dw->dw_nunres);
 
-		if ((int) dw->dw_nunres == last) {
+		if (dw->dw_nunres == last) {
 			fprintf(stderr, "%s: failed to resolve the following "
 			    "types:\n", progname);
 
@@ -1760,12 +1795,11 @@ die_resolve(dwarf_t *dw)
 
 /*ARGSUSED*/
 int
-dw_read(tdata_t *td, Elf *elf, char *filename __unused)
+dw_read(tdata_t *td, Elf *elf, const char *filename)
 {
 	Dwarf_Unsigned abboff, hdrlen, nxthdr;
 	Dwarf_Half vers, addrsz;
-	Dwarf_Die cu = 0;
-	Dwarf_Die child = 0;
+	Dwarf_Die cu, child;
 	dwarf_t dw;
 	char *prod = NULL;
 	int rc;
@@ -1780,12 +1814,12 @@ dw_read(tdata_t *td, Elf *elf, char *filename __unused)
 	dw.dw_enumhash = hash_new(TDESC_HASH_BUCKETS, tdesc_namehash,
 	    tdesc_namecmp);
 
-	if ((rc = dwarf_elf_init(elf, DW_DLC_READ, &dw.dw_dw,
+	if ((rc = dwarf_elf_init(elf, DW_DLC_READ, NULL, NULL, &dw.dw_dw,
 	    &dw.dw_err)) == DW_DLV_NO_ENTRY) {
 		errno = ENOENT;
 		return (-1);
 	} else if (rc != DW_DLV_OK) {
-		if (dwarf_errno(&dw.dw_err) == DW_DLE_DEBUG_INFO_NULL) {
+		if (dwarf_errno(dw.dw_err) == DW_DLE_DEBUG_INFO_NULL) {
 			/*
 			 * There's no type data in the DWARF section, but
 			 * libdwarf is too clever to handle that properly.
@@ -1794,14 +1828,13 @@ dw_read(tdata_t *td, Elf *elf, char *filename __unused)
 		}
 
 		terminate("failed to initialize DWARF: %s\n",
-		    dwarf_errmsg(&dw.dw_err));
+		    dwarf_errmsg(dw.dw_err));
 	}
 
 	if ((rc = dwarf_next_cu_header(dw.dw_dw, &hdrlen, &vers, &abboff,
-	    &addrsz, &nxthdr, &dw.dw_err)) != DW_DLV_OK)
-		terminate("rc = %d %s\n", rc, dwarf_errmsg(&dw.dw_err));
-
-	if ((cu = die_sibling(&dw, NULL)) == NULL)
+	    &addrsz, &nxthdr, &dw.dw_err)) != DW_DLV_OK ||
+	    (cu = die_sibling(&dw, NULL)) == NULL ||
+	    (child = die_child(&dw, cu)) == NULL)
 		terminate("file does not contain dwarf type data "
 		    "(try compiling with -g)\n");
 
@@ -1829,14 +1862,13 @@ dw_read(tdata_t *td, Elf *elf, char *filename __unused)
 		debug(1, "CU name: %s\n", dw.dw_cuname);
 	}
 
-	if ((child = die_child(&dw, cu)) != NULL)
-		die_create(&dw, child);
+	die_create(&dw, child);
 
 	if ((rc = dwarf_next_cu_header(dw.dw_dw, &hdrlen, &vers, &abboff,
 	    &addrsz, &nxthdr, &dw.dw_err)) != DW_DLV_NO_ENTRY)
 		terminate("multiple compilation units not supported\n");
 
-	(void) dwarf_finish(&dw.dw_dw, &dw.dw_err);
+	(void) dwarf_finish(dw.dw_dw, &dw.dw_err);
 
 	die_resolve(&dw);
 

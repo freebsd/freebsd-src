@@ -35,7 +35,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
-#include "memory.h"
 
 static void
 memory_bailout(void)

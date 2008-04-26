@@ -27,7 +27,6 @@
 #pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #include <sys/types.h>
-#include <sgs.h>
 
 /*
  * function that will find a prime'ish number.  Usefull for

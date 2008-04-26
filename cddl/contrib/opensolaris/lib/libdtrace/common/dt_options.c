@@ -35,9 +35,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <limits.h>
-#if defined(sun)
 #include <alloca.h>
-#endif
 #include <errno.h>
 #include <fcntl.h>
 
@@ -797,12 +795,7 @@ dt_options_load(dtrace_hdl_t *dtp)
 	bzero(&hdr, sizeof (dof_hdr_t));
 	hdr.dofh_loadsz = sizeof (dof_hdr_t);
 
-#if defined(sun)
 	if (dt_ioctl(dtp, DTRACEIOC_DOFGET, &hdr) == -1)
-#else
-	dof = &hdr;
-	if (dt_ioctl(dtp, DTRACEIOC_DOFGET, &dof) == -1)
-#endif
 		return (dt_set_errno(dtp, errno));
 
 	if (hdr.dofh_loadsz < sizeof (dof_hdr_t))
@@ -815,11 +808,7 @@ dt_options_load(dtrace_hdl_t *dtp)
 	for (i = 0; i < DTRACEOPT_MAX; i++)
 		dtp->dt_options[i] = DTRACEOPT_UNSET;
 
-#if defined(sun)
 	if (dt_ioctl(dtp, DTRACEIOC_DOFGET, dof) == -1)
-#else
-	if (dt_ioctl(dtp, DTRACEIOC_DOFGET, &dof) == -1)
-#endif
 		return (dt_set_errno(dtp, errno));
 
 	for (i = 0; i < dof->dofh_secnum; i++) {
@@ -923,7 +912,7 @@ static const dt_option_t _dtrace_ctoptions[] = {
 	{ "verbose", dt_opt_cflags, DTRACE_C_DIFV },
 	{ "version", dt_opt_version },
 	{ "zdefs", dt_opt_cflags, DTRACE_C_ZDEFS },
-	{ NULL, NULL, 0 }
+	{ NULL }
 };
 
 /*
@@ -947,7 +936,7 @@ static const dt_option_t _dtrace_rtoptions[] = {
 	{ "statusrate", dt_opt_rate, DTRACEOPT_STATUSRATE },
 	{ "strsize", dt_opt_strsize, DTRACEOPT_STRSIZE },
 	{ "ustackframes", dt_opt_runtime, DTRACEOPT_USTACKFRAMES },
-	{ NULL, NULL, 0 }
+	{ NULL }
 };
 
 /*
@@ -964,7 +953,7 @@ static const dt_option_t _dtrace_drtoptions[] = {
 	{ "rawbytes", dt_opt_runtime, DTRACEOPT_RAWBYTES },
 	{ "stackindent", dt_opt_runtime, DTRACEOPT_STACKINDENT },
 	{ "switchrate", dt_opt_rate, DTRACEOPT_SWITCHRATE },
-	{ NULL, NULL, 0 }
+	{ NULL }
 };
 
 int

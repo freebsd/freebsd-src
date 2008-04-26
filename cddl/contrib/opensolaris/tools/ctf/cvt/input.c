@@ -71,7 +71,6 @@ built_source_types(Elf *elf, char const *file)
 			/* ignore */
 			break;
 		case 's':
-		case 'S':
 			types |= SOURCE_S;
 			break;
 		default:
@@ -88,7 +87,7 @@ read_file(Elf *elf, char *file, char *label, read_cb_f *func, void *arg,
     int require_ctf)
 {
 	Elf_Scn *ctfscn;
-	Elf_Data *ctfdata = NULL;
+	Elf_Data *ctfdata;
 	symit_data_t *si = NULL;
 	int ctfscnidx;
 	tdata_t *td;
@@ -221,7 +220,7 @@ read_ctf_common(char *file, char *label, read_cb_f *func, void *arg,
 
 /*ARGSUSED*/
 int
-read_ctf_save_cb(tdata_t *td, char *name __unused, void *retp)
+read_ctf_save_cb(tdata_t *td, char *name, void *retp)
 {
 	tdata_t **tdp = retp;
 

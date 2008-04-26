@@ -34,20 +34,15 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <stdio.h>
-#include <string.h>
 #include <strings.h>
 #include <unistd.h>
 #include <limits.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <signal.h>
-#if defined(sun)
 #include <alloca.h>
-#endif
 #include <libgen.h>
-#if defined(sun)
 #include <libproc.h>
-#endif
 
 typedef struct dtrace_cmd {
 	void (*dc_func)(struct dtrace_cmd *);	/* function to compile arg */
@@ -97,9 +92,8 @@ static int g_mode = DMODE_EXEC;
 static int g_status = E_SUCCESS;
 static int g_grabanon = 0;
 static const char *g_ofile = NULL;
-static FILE *g_ofp;
+static FILE *g_ofp = stdout;
 static dtrace_hdl_t *g_dtp;
-#if defined(sun)
 static char *g_etcfile = "/etc/system";
 static const char *g_etcbegin = "* vvvv Added by DTrace";
 static const char *g_etcend = "* ^^^^ Added by DTrace";
@@ -114,7 +108,6 @@ static const char *g_etc[] =  {
 "* chapter of the Solaris Dynamic Tracing Guide for details.",
 "*",
 NULL };
-#endif
 
 static int
 usage(FILE *fp)
@@ -202,10 +195,6 @@ fatal(const char *fmt, ...)
 static void
 dfatal(const char *fmt, ...)
 {
-#if !defined(sun) && defined(NEED_ERRLOC)
-	char *p_errfile = NULL;
-	int errline = 0;
-#endif
 	va_list ap;
 
 	va_start(ap, fmt);
@@ -223,11 +212,6 @@ dfatal(const char *fmt, ...)
 		(void) fprintf(stderr, "%s\n",
 		    dtrace_errmsg(g_dtp, dtrace_errno(g_dtp)));
 	}
-#if !defined(sun) && defined(NEED_ERRLOC)
-	dt_get_errloc(g_dtp, &p_errfile, &errline);
-	if (p_errfile != NULL)
-		printf("File '%s', line %d\n", p_errfile, errline);
-#endif
 
 	/*
 	 * Close the DTrace handle to ensure that any controlled processes are
@@ -388,7 +372,6 @@ dof_prune(const char *fname)
 	free(buf);
 }
 
-#if defined(sun)
 static void
 etcsystem_prune(void)
 {
@@ -499,7 +482,6 @@ etcsystem_add(void)
 
 	error("added forceload directives to %s\n", g_ofile);
 }
-#endif
 
 static void
 print_probe_info(const dtrace_probeinfo_t *p)
@@ -629,26 +611,12 @@ anon_prog(const dtrace_cmd_t *dcp, dof_hdr_t *dof, int n)
 	p = (uchar_t *)dof;
 	q = p + dof->dofh_loadsz;
 
-#if defined(sun)
 	oprintf("dof-data-%d=0x%x", n, *p++);
 
 	while (p < q)
 		oprintf(",0x%x", *p++);
 
 	oprintf(";\n");
-#else
-	/*
-	 * On FreeBSD, the DOF data is handled as a kernel environment (kenv)
-	 * string. We use two hex characters per DOF byte.
-	 */
-	oprintf("dof-data-%d=%02x", n, *p++);
-
-	while (p < q)
-		oprintf("%02x", *p++);
-
-	oprintf("\n");
-#endif
-
 	dtrace_dof_destroy(g_dtp, dof);
 }
 
@@ -773,8 +741,6 @@ compile_str(dtrace_cmd_t *dcp)
 static void
 prochandler(struct ps_prochandle *P, const char *msg, void *arg)
 {
-fatal("DOODAD in function %s, file %s, line %d\n",__FUNCTION__,__FILE__,__LINE__);
-#ifdef DOODAD
 	const psinfo_t *prp = Ppsinfo(P);
 	int pid = Pstatus(P)->pr_pid;
 	char name[SIG2STR_MAX];
@@ -812,7 +778,6 @@ fatal("DOODAD in function %s, file %s, line %d\n",__FUNCTION__,__FILE__,__LINE__
 		g_pslive--;
 		break;
 	}
-#endif
 }
 
 /*ARGSUSED*/
@@ -1194,10 +1159,9 @@ main(int argc, char *argv[])
 	dtrace_optval_t opt;
 	dtrace_cmd_t *dcp;
 
-	g_ofp = stdout;
 	int done = 0, mode = 0;
-	int err, i, c;
-	char *p, **v;
+	int err, i;
+	char c, *p, **v;
 	struct ps_prochandle *P;
 	pid_t pid;
 
@@ -1224,7 +1188,7 @@ main(int argc, char *argv[])
 	 * options into g_argv[], and abort if any invalid options are found.
 	 */
 	for (optind = 1; optind < argc; optind++) {
-		while ((c = getopt(argc, argv, DTRACE_OPTSTR)) != -1) {
+		while ((c = getopt(argc, argv, DTRACE_OPTSTR)) != EOF) {
 			switch (c) {
 			case '3':
 				if (strcmp(optarg, "2") != 0) {
@@ -1373,14 +1337,8 @@ main(int argc, char *argv[])
 		    dtrace_errmsg(NULL, err));
 	}
 
-#if defined(__i386__)
-	/* XXX The 32-bit seems to need more buffer space by default -sson */
-	(void) dtrace_setopt(g_dtp, "bufsize", "12m");
-	(void) dtrace_setopt(g_dtp, "aggsize", "12m");
-#else
 	(void) dtrace_setopt(g_dtp, "bufsize", "4m");
 	(void) dtrace_setopt(g_dtp, "aggsize", "4m");
-#endif
 
 	/*
 	 * If -G is specified, enable -xlink=dynamic and -xunodefs to permit
@@ -1413,7 +1371,7 @@ main(int argc, char *argv[])
 	 * this time; these will compiled as part of the fourth processing pass.
 	 */
 	for (optind = 1; optind < argc; optind++) {
-		while ((c = getopt(argc, argv, DTRACE_OPTSTR)) != -1) {
+		while ((c = getopt(argc, argv, DTRACE_OPTSTR)) != EOF) {
 			switch (c) {
 			case 'a':
 				if (dtrace_setopt(g_dtp, "grabanon", 0) != 0)
@@ -1570,7 +1528,7 @@ main(int argc, char *argv[])
 	 * may been affected by any library options set by the second pass.
 	 */
 	for (optind = 1; optind < argc; optind++) {
-		while ((c = getopt(argc, argv, DTRACE_OPTSTR)) != -1) {
+		while ((c = getopt(argc, argv, DTRACE_OPTSTR)) != EOF) {
 			switch (c) {
 			case 'c':
 				if ((v = make_argv(optarg)) == NULL)
@@ -1658,21 +1616,10 @@ main(int argc, char *argv[])
 
 	case DMODE_ANON:
 		if (g_ofile == NULL)
-#if defined(sun)
 			g_ofile = "/kernel/drv/dtrace.conf";
-#else
-			/*
-			 * On FreeBSD, anonymous DOF data is written to
-			 * the DTrace DOF file that the boot loader will
-			 * read if booting with the DTrace option.
-			 */
-			g_ofile = "/boot/dtrace.dof";
-#endif
 
 		dof_prune(g_ofile); /* strip out any old DOF directives */
-#if defined(sun)
 		etcsystem_prune(); /* string out any forceload directives */
-#endif
 
 		if (g_cmdc == 0) {
 			dtrace_close(g_dtp);
@@ -1703,10 +1650,8 @@ main(int argc, char *argv[])
 		 * that itself contains a #pragma D option quiet.
 		 */
 		error("saved anonymous enabling in %s\n", g_ofile);
-#if defined(sun)
 		etcsystem_add();
 		error("run update_drv(1M) or reboot to enable changes\n");
-#endif
 
 		dtrace_close(g_dtp);
 		return (g_status);
@@ -1834,11 +1779,6 @@ main(int argc, char *argv[])
 
 	if (sigaction(SIGTERM, NULL, &oact) == 0 && oact.sa_handler != SIG_IGN)
 		(void) sigaction(SIGTERM, &act, NULL);
-
-#if !defined(sun)
-	if (sigaction(SIGUSR1, NULL, &oact) == 0 && oact.sa_handler != SIG_IGN)
-		(void) sigaction(SIGUSR1, &act, NULL);
-#endif
 
 	/*
 	 * Now that tracing is active and we are ready to consume trace data,
