@@ -52,16 +52,19 @@ typedef struct alist_el {
 } alist_el_t;
 
 static int
-alist_hash(int nbuckets, alist_el_t *el)
+alist_hash(int nbuckets, void *arg)
 {
+	alist_el_t *el = arg;
 	uintptr_t num = (uintptr_t)el->ale_name;
 
 	return (num % nbuckets);
 }
 
 static int
-alist_cmp(alist_el_t *el1, alist_el_t *el2)
+alist_cmp(void *arg1, void *arg2)
 {
+	alist_el_t *el1 = arg1;
+	alist_el_t *el2 = arg2;
 	return ((uintptr_t)el1->ale_name != (uintptr_t)el2->ale_name);
 }
 
@@ -84,12 +87,14 @@ alist_t *
 alist_new(void (*namefree)(void *), void (*valfree)(void *))
 {
 	return (alist_xnew(ALIST_HASH_SIZE, namefree, valfree,
-	    (int (*)())alist_hash, (int (*)())alist_cmp));
+	    alist_hash, alist_cmp));
 }
 
 static void
-alist_free_cb(alist_el_t *el, alist_t *alist)
+alist_free_cb(void *arg1, void *arg2)
 {
+	alist_el_t *el = arg1;
+	alist_t *alist = arg2;
 	if (alist->al_namefree)
 		alist->al_namefree(el->ale_name);
 	if (alist->al_valfree)
@@ -100,7 +105,7 @@ alist_free_cb(alist_el_t *el, alist_t *alist)
 void
 alist_free(alist_t *alist)
 {
-	hash_free(alist->al_elements, (void (*)())alist_free_cb, alist);
+	hash_free(alist->al_elements, alist_free_cb, alist);
 	free(alist);
 }
 
@@ -118,14 +123,17 @@ alist_add(alist_t *alist, void *name, void *value)
 int
 alist_find(alist_t *alist, void *name, void **value)
 {
-	alist_el_t template, *ret;
+	alist_el_t template, *retx;
+	void *ret;
 
 	template.ale_name = name;
-	if (!hash_find(alist->al_elements, &template, (void **)&ret))
+	if (!hash_find(alist->al_elements, &template, &ret))
 		return (0);
 
-	if (value)
-		*value = ret->ale_value;
+	if (value) {
+		retx = ret;
+		*value = retx->ale_value;
+	}
 
 	return (1);
 }
@@ -136,8 +144,10 @@ typedef struct alist_iter_data {
 } alist_iter_data_t;
 
 static int
-alist_iter_cb(alist_el_t *el, alist_iter_data_t *aid)
+alist_iter_cb(void *arg1, void *arg2)
 {
+	alist_el_t *el = arg1;
+	alist_iter_data_t *aid = arg2;
 	return (aid->aid_func(el->ale_name, el->ale_value, aid->aid_priv));
 }
 
@@ -149,7 +159,7 @@ alist_iter(alist_t *alist, int (*func)(void *, void *, void *), void *private)
 	aid.aid_func = func;
 	aid.aid_priv = private;
 
-	return (hash_iter(alist->al_elements, (int (*)())alist_iter_cb, &aid));
+	return (hash_iter(alist->al_elements, alist_iter_cb, &aid));
 }
 
 /*
@@ -171,13 +181,13 @@ alist_def_print_cb(void *key, void *value)
 {
 	printf("Key: ");
 	if (alist_def_print_cb_key_int == 1)
-		printf("%5d ", (int)key);
+		printf("%5lu ", (ulong_t)key);
 	else
 		printf("%s\n", (char *)key);
 
 	printf("Value: ");
 	if (alist_def_print_cb_value_int == 1)
-		printf("%5d\n", (int)value);
+		printf("%5lu\n", (ulong_t)value);
 	else
 		printf("%s\n", (char *)key);
 
@@ -187,7 +197,7 @@ alist_def_print_cb(void *key, void *value)
 static int
 alist_dump_cb(void *node, void *private)
 {
-	int (*printer)(void *, void *) = (int (*)())private;
+	int (*printer)(void *, void *) = private;
 	alist_el_t *el = node;
 
 	printer(el->ale_name, el->ale_value);
