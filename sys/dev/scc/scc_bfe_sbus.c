@@ -61,10 +61,17 @@ scc_sbus_probe(device_t dev)
 	return (ENXIO);
 }
 
+static int
+scc_sbus_attach(device_t dev)
+{
+
+	return (scc_bfe_attach(dev, 0));
+}
+
 static device_method_t scc_sbus_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		scc_sbus_probe),
-	DEVMETHOD(device_attach,	scc_bfe_attach),
+	DEVMETHOD(device_attach,	scc_sbus_attach),
 	DEVMETHOD(device_detach,	scc_bfe_detach),
 
 	DEVMETHOD(bus_alloc_resource,	scc_bus_alloc_resource),
