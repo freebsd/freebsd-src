@@ -138,7 +138,7 @@ struct scc_softc {
 extern devclass_t scc_devclass;
 extern char scc_driver_name[];
 
-int scc_bfe_attach(device_t dev);
+int scc_bfe_attach(device_t dev, u_int ipc);
 int scc_bfe_detach(device_t dev);
 int scc_bfe_probe(device_t dev, u_int regshft, u_int rclk, u_int rid);
 
