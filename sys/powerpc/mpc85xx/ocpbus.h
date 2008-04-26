@@ -52,6 +52,11 @@
 #define	OCP85XX_PORDEVSR2	(CCSRBAR_VA + 0xe0014)
 
 /*
+ * Status Registers.
+ */
+#define	OCP85XX_RSTCR		(CCSRBAR_VA + 0xe00b0)
+
+/*
  * OCP Bus Definitions
  */
 #define	OCP85XX_I2C0_OFF	0x03000

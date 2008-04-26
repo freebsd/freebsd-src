@@ -33,9 +33,15 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 
+#include <vm/vm.h>
+#include <vm/vm_param.h>
+
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
+#include <machine/pio.h>
 #include <machine/spr.h>
+
+#include <powerpc/mpc85xx/ocpbus.h>
 
 /*
  * MPC85xx system specific routines
@@ -44,16 +50,23 @@ __FBSDID("$FreeBSD$");
 void
 cpu_reset()
 {
+	uint32_t svr = mfsvr();
 
-	/* Clear DBCR0, disables debug interrupts and events. */
-	mtspr(SPR_DBCR0, 0);
-	__asm volatile("isync");
+	if (svr == SVR_MPC8572E || svr == SVR_MPC8572)
+		/* Systems with dedicated reset register */
+		out32(OCP85XX_RSTCR, 2);
+	else {
+		/* Clear DBCR0, disables debug interrupts and events. */
+		mtspr(SPR_DBCR0, 0);
+		__asm volatile("isync");
 
-	/* Enable Debug Interrupts in MSR. */
-	mtmsr(mfmsr() | PSL_DE);
+		/* Enable Debug Interrupts in MSR. */
+		mtmsr(mfmsr() | PSL_DE);
 
-	/* Enable debug interrupts and issue reset. */
-	mtspr(SPR_DBCR0, mfspr(SPR_DBCR0) | DBCR0_IDM | DBCR0_RST_SYSTEM);
+		/* Enable debug interrupts and issue reset. */
+		mtspr(SPR_DBCR0, mfspr(SPR_DBCR0) | DBCR0_IDM | DBCR0_RST_SYSTEM);
+	}
+
 	printf("Reset failed...\n");
 	while (1);
 }
