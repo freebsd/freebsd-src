@@ -2583,9 +2583,9 @@ sysctl_kern_proc_filedesc(SYSCTL_HANDLER_ARGS)
 		return (error);
 	}
 	fdp = fdhold(p);
-	if (fdp == NULL)
-		return (0);
 	PROC_UNLOCK(p);
+	if (fdp == NULL)
+		return (ENOENT);
 	kif = malloc(sizeof(*kif), M_TEMP, M_WAITOK);
 	FILEDESC_SLOCK(fdp);
 	if (fdp->fd_cdir != NULL)
