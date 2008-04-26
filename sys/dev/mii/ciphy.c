@@ -34,7 +34,7 @@
 __FBSDID("$FreeBSD$");
 
 /*
- * Driver for the Cicada CS8201/CS8204 10/100/1000 copper PHY.
+ * Driver for the Cicada/Vitesse CS/VSC8xxx 10/100/1000 copper PHY.
  */
 
 #include <sys/param.h>
@@ -92,6 +92,7 @@ static const struct mii_phydesc ciphys[] = {
 	MII_PHY_DESC(CICADA, CS8201A),
 	MII_PHY_DESC(CICADA, CS8201B),
 	MII_PHY_DESC(CICADA, CS8204),
+	MII_PHY_DESC(CICADA, CS8244),
 	MII_PHY_DESC(VITESSE, VSC8601),
 	MII_PHY_END
 };
@@ -416,6 +417,7 @@ ciphy_fixup(struct mii_softc *sc)
 		}
 
 		break;
+	case MII_MODEL_CICADA_CS8244:
 	case MII_MODEL_VITESSE_VSC8601:
 		break;
 	default:
