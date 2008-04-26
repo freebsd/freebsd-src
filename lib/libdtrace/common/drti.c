@@ -55,7 +55,7 @@
  *	DTRACE_DOF_INIT_DEVNAME		set the path to the helper node
  */
 
-static const char *devnamep = "/dev/dtrace/helper";
+static const char *devname = "/dev/dtrace/helper";
 static const char *olddevname = "/devices/pseudo/dtrace@0:helper";
 
 static const char *modname;	/* Name of this load object */
@@ -85,12 +85,7 @@ dprintf(int debug, const char *fmt, ...)
 	va_end(ap);
 }
 
-#if defined(sun)
 #pragma init(dtrace_dof_init)
-#else
-static void dtrace_dof_init(void) __attribute__ ((constructor));
-#endif
-
 static void
 dtrace_dof_init(void)
 {
@@ -101,13 +96,8 @@ dtrace_dof_init(void)
 	Elf32_Ehdr *elf;
 #endif
 	dof_helper_t dh;
-#if defined(sun)
 	Link_map *lmp;
 	Lmid_t lmid;
-#else
-	struct link_map *lmp;
-	u_long lmid = 0;
-#endif
 	int fd;
 	const char *p;
 
@@ -119,12 +109,10 @@ dtrace_dof_init(void)
 		return;
 	}
 
-#if defined(sun)
 	if (dlinfo(RTLD_SELF, RTLD_DI_LMID, &lmid) == -1) {
 		dprintf(1, "couldn't discover link map ID\n");
 		return;
 	}
-#endif
 
 	if ((modname = strrchr(lmp->l_name, '/')) == NULL)
 		modname = lmp->l_name;
@@ -142,7 +130,7 @@ dtrace_dof_init(void)
 	elf = (void *)lmp->l_addr;
 
 	dh.dofhp_dof = (uintptr_t)dof;
-	dh.dofhp_addr = elf->e_type == ET_DYN ? (uintptr_t) lmp->l_addr : 0;
+	dh.dofhp_addr = elf->e_type == ET_DYN ? lmp->l_addr : 0;
 
 	if (lmid == 0) {
 		(void) snprintf(dh.dofhp_mod, sizeof (dh.dofhp_mod),
@@ -153,10 +141,10 @@ dtrace_dof_init(void)
 	}
 
 	if ((p = getenv("DTRACE_DOF_INIT_DEVNAME")) != NULL)
-		devnamep = p;
+		devname = p;
 
-	if ((fd = open64(devnamep, O_RDWR)) < 0) {
-		dprintf(1, "failed to open helper device %s", devnamep);
+	if ((fd = open64(devname, O_RDWR)) < 0) {
+		dprintf(1, "failed to open helper device %s", devname);
 
 		/*
 		 * If the device path wasn't explicitly set, try again with
@@ -165,10 +153,10 @@ dtrace_dof_init(void)
 		if (p != NULL)
 			return;
 
-		devnamep = olddevname;
+		devname = olddevname;
 
-		if ((fd = open64(devnamep, O_RDWR)) < 0) {
-			dprintf(1, "failed to open helper device %s", devnamep);
+		if ((fd = open64(devname, O_RDWR)) < 0) {
+			dprintf(1, "failed to open helper device %s", devname);
 			return;
 		}
 	}
@@ -181,19 +169,14 @@ dtrace_dof_init(void)
 	(void) close(fd);
 }
 
-#if defined(sun)
 #pragma fini(dtrace_dof_fini)
-#else
-static void dtrace_dof_fini(void) __attribute__ ((destructor));
-#endif
-
 static void
 dtrace_dof_fini(void)
 {
 	int fd;
 
-	if ((fd = open64(devnamep, O_RDWR)) < 0) {
-		dprintf(1, "failed to open helper device %s", devnamep);
+	if ((fd = open64(devname, O_RDWR)) < 0) {
+		dprintf(1, "failed to open helper device %s", devname);
 		return;
 	}
 

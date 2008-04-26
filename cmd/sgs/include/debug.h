@@ -405,7 +405,6 @@ extern	uintptr_t	Dbg_setup(const char *, Dbg_desc *);
 
 #define	Dbg_unused_file		Dbg64_unused_file
 #define	Dbg_unused_lcinterface	Dbg64_unused_lcinterface
-#define	Dbg_unused_path		Dbg64_unused_path
 #define	Dbg_unused_sec		Dbg64_unused_sec
 #define	Dbg_unused_unref	Dbg64_unused_unref
 
@@ -608,7 +607,6 @@ extern	uintptr_t	Dbg_setup(const char *, Dbg_desc *);
 
 #define	Dbg_unused_file		Dbg32_unused_file
 #define	Dbg_unused_lcinterface	Dbg32_unused_lcinterface
-#define	Dbg_unused_path		Dbg32_unused_path
 #define	Dbg_unused_sec		Dbg32_unused_sec
 #define	Dbg_unused_unref	Dbg32_unused_unref
 
@@ -678,7 +676,7 @@ extern	void	Dbg_file_del_rescan(Lm_list *);
 extern	void	Dbg_file_delete(Rt_map *);
 extern	void	Dbg_file_dlclose(Lm_list *, const char *, int);
 extern	void	Dbg_file_dldump(Rt_map *, const char *, int);
-extern	void	Dbg_file_dlopen(Rt_map *, const char *, int *, int);
+extern	void	Dbg_file_dlopen(Rt_map *, const char *, int);
 extern	void	Dbg_file_elf(Lm_list *, const char *, ulong_t, ulong_t,
 		    ulong_t, ulong_t, const char *, Aliste);
 extern	void	Dbg_file_filtee(Lm_list *, const char *, const char *, int);
@@ -710,7 +708,7 @@ extern	void	Dbg_libs_found(Lm_list *, const char *, int);
 extern	void	Dbg_libs_ignore(Lm_list *, const char *);
 extern	void	Dbg_libs_init(Lm_list *, List *, List *);
 extern	void	Dbg_libs_l(Lm_list *, const char *, const char *);
-extern	void	Dbg_libs_path(Lm_list *, const char *, uint_t, const char *);
+extern	void	Dbg_libs_path(Lm_list *, const char *, Half, const char *);
 extern	void	Dbg_libs_req(Lm_list *, const char *, const char *,
 		    const char *);
 extern	void	Dbg_libs_update(Lm_list *, List *, List *);
@@ -807,8 +805,7 @@ extern	void	Dbg_syms_ar_resolve(Lm_list *, Xword, Elf_Arsym *,
 extern	void	Dbg_syms_ar_title(Lm_list *, const char *, int);
 extern	void	Dbg_syms_created(Lm_list *, const char *);
 extern	void	Dbg_syms_discarded(Lm_list *, Sym_desc *);
-extern	void	Dbg_syms_dlsym(Rt_map *, const char *, int *, const char *,
-		    int);
+extern	void	Dbg_syms_dlsym(Rt_map *, const char *, const char *, int);
 extern	void	Dbg_syms_dup_sort_addr(Lm_list *, const char *, const char *,
 		    const char *, Addr);
 extern	void	Dbg_syms_entered(Ofl_desc *, Sym *, Sym_desc *);
@@ -861,8 +858,6 @@ extern	void	Dbg_util_wait(Rt_map *, Rt_map *, int);
 
 extern	void	Dbg_unused_file(Lm_list *, const char *, int, uint_t);
 extern	void	Dbg_unused_lcinterface(Rt_map *, Rt_map *, int);
-extern	void	Dbg_unused_path(Lm_list *, const char *, uint_t, uint_t,
-		    const char *);
 extern	void	Dbg_unused_sec(Lm_list *, Is_desc *);
 extern	void	Dbg_unused_unref(Rt_map *, const char *);
 
