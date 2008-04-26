@@ -52,3 +52,8 @@ tick-1
 {
 	exit(0);
 }
+
+ERROR
+{
+	exit(1);
+}

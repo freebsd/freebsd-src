@@ -44,9 +44,9 @@ BEGIN
 	ret = -99;
 }
 
-mutex_enter:adaptive-acquire
+mtx_lock:adaptive-acquire
 {
-	ret = mutex_type_adaptive((kmutex_t *)arg0);
+	ret = mutex_type_adaptive((struct mtx *)arg0);
 	i++;
 }
 

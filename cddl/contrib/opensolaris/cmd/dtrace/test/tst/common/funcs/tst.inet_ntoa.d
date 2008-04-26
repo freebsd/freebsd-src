@@ -28,17 +28,17 @@
 
 #pragma D option quiet
 
-ipaddr_t *ip4a;
-ipaddr_t *ip4b;
-ipaddr_t *ip4c;
-ipaddr_t *ip4d;
+in_addr_t *ip4a;
+in_addr_t *ip4b;
+in_addr_t *ip4c;
+in_addr_t *ip4d;
 
 BEGIN
 {
-	this->buf4a = alloca(sizeof (ipaddr_t));
-	this->buf4b = alloca(sizeof (ipaddr_t));
-	this->buf4c = alloca(sizeof (ipaddr_t));
-	this->buf4d = alloca(sizeof (ipaddr_t));
+	this->buf4a = alloca(sizeof (in_addr_t));
+	this->buf4b = alloca(sizeof (in_addr_t));
+	this->buf4c = alloca(sizeof (in_addr_t));
+	this->buf4d = alloca(sizeof (in_addr_t));
 	ip4a = this->buf4a;
 	ip4b = this->buf4b;
 	ip4c = this->buf4c;
