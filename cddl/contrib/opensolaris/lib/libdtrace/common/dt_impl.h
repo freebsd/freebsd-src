@@ -18,6 +18,7 @@
  *
  * CDDL HEADER END
  */
+
 /*
  * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
@@ -30,6 +31,13 @@
 
 #include <sys/param.h>
 #include <sys/objfs.h>
+#if !defined(sun)
+#include <sys/bitmap.h>
+#include <sys/utsname.h>
+#include <sys/ioccom.h>
+#include <sys/time.h>
+#include <string.h>
+#endif
 #include <setjmp.h>
 #include <libctf.h>
 #include <dtrace.h>
@@ -127,6 +135,9 @@ typedef struct dt_module {
 	GElf_Addr dm_bss_va;	/* virtual address of BSS */
 	GElf_Xword dm_bss_size;	/* size in bytes of BSS */
 	dt_idhash_t *dm_extern;	/* external symbol definitions */
+#if !defined(sun)
+	caddr_t dm_reloc_offset;	/* Symbol relocation offset. */
+#endif
 } dt_module_t;
 
 #define	DT_DM_LOADED	0x1	/* module symbol and type data is loaded */
@@ -183,6 +194,7 @@ typedef struct dt_lib_depend {
 	char *dtld_libpath;		/* library pathname */
 	uint_t dtld_finish;		/* completion time in tsort for lib */
 	uint_t dtld_start;		/* starting time in tsort for lib */
+	uint_t dtld_loaded;		/* boolean: is this library loaded */
 	dt_list_t dtld_dependencies;	/* linked-list of lib dependencies */
 	dt_list_t dtld_dependents;	/* linked-list of lib dependents */
 } dt_lib_depend_t;
@@ -265,12 +277,20 @@ struct dtrace_hdl {
 	int dt_version;		/* library version requested by client */
 	int dt_ctferr;		/* error resulting from last CTF failure */
 	int dt_errno;		/* error resulting from last failed operation */
+#if !defined(sun)
+	const char *dt_errfile;
+	int dt_errline;
+#endif
 	int dt_fd;		/* file descriptor for dtrace pseudo-device */
 	int dt_ftfd;		/* file descriptor for fasttrap pseudo-device */
 	int dt_fterr;		/* saved errno from failed open of dt_ftfd */
 	int dt_cdefs_fd;	/* file descriptor for C CTF debugging cache */
 	int dt_ddefs_fd;	/* file descriptor for D CTF debugging cache */
+#if defined(sun)
 	int dt_stdout_fd;	/* file descriptor for saved stdout */
+#else
+	FILE *dt_freopen_fp;	/* file pointer for freopened stdout */
+#endif
 	dtrace_handle_err_f *dt_errhdlr; /* error handler, if any */
 	void *dt_errarg;	/* error handler argument */
 	dtrace_prog_t *dt_errprog; /* error handler program, if any */
@@ -412,6 +432,8 @@ struct dtrace_hdl {
 #define	DT_ACT_UMOD		DT_ACT(26)	/* umod() action */
 #define	DT_ACT_UADDR		DT_ACT(27)	/* uaddr() action */
 #define	DT_ACT_SETOPT		DT_ACT(28)	/* setopt() action */
+#define	DT_ACT_PRINTM		DT_ACT(29)	/* printm() action */
+#define	DT_ACT_PRINTT		DT_ACT(30)	/* printt() action */
 
 /*
  * Sentinel to tell freopen() to restore the saved stdout.  This must not
@@ -539,11 +561,21 @@ extern int dt_version_defined(dt_version_t);
 extern char *dt_cpp_add_arg(dtrace_hdl_t *, const char *);
 extern char *dt_cpp_pop_arg(dtrace_hdl_t *);
 
+#if defined(sun)
 extern int dt_set_errno(dtrace_hdl_t *, int);
+#else
+int _dt_set_errno(dtrace_hdl_t *, int, const char *, int);
+void dt_get_errloc(dtrace_hdl_t *, const char **, int *);
+#define dt_set_errno(_a,_b)	_dt_set_errno(_a,_b,__FILE__,__LINE__)
+#endif
 extern void dt_set_errmsg(dtrace_hdl_t *, const char *, const char *,
     const char *, int, const char *, va_list);
 
+#if defined(sun)
 extern int dt_ioctl(dtrace_hdl_t *, int, void *);
+#else
+extern int dt_ioctl(dtrace_hdl_t *, u_long, void *);
+#endif
 extern int dt_status(dtrace_hdl_t *, processorid_t);
 extern long dt_sysconf(dtrace_hdl_t *, int);
 extern ssize_t dt_write(dtrace_hdl_t *, int, const void *, size_t);
