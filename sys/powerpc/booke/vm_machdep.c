@@ -257,22 +257,6 @@ cpu_throw(struct thread *old, struct thread *new)
 	panic("cpu_throw() didn't");
 }
 
-/* Reset back to firmware. */
-void
-cpu_reset()
-{
-
-	/* Clear DBCR0, disables debug interrupts and events. */
-	mtspr(SPR_DBCR0, 0);
-	__asm volatile("isync");
-
-	/* Enable Debug Interrupts in MSR. */
-	mtmsr(mfmsr() | PSL_DE);
-
-	/* Enable debug interrupts and issue reset. */
-	mtspr(SPR_DBCR0, mfspr(SPR_DBCR0) | DBCR0_IDM | DBCR0_RST_SYSTEM);
-}
-
 /*
  * Allocate a pool of sf_bufs (sendfile(2) or "super-fast" if you prefer. :-))
  */
@@ -404,7 +388,7 @@ is_physical_memory(vm_offset_t addr)
 	 * stuff other tests for known memory-mapped devices (PCI?)
 	 * here
 	 */
-	return 1;
+	return (1);
 }
 
 /*
