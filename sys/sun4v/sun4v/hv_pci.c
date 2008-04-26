@@ -85,7 +85,6 @@ static pcib_read_config_t hvpci_read_config;
 static pcib_write_config_t hvpci_write_config;
 static pcib_route_interrupt_t hvpci_route_interrupt;
 static ofw_bus_get_node_t hvpci_get_node;
-static ofw_pci_intr_pending_t hvpci_intr_pending;
 
 static device_method_t hv_pcib_methods[] = {
 	/* Device interface */
@@ -115,9 +114,6 @@ static device_method_t hv_pcib_methods[] = {
 
 	/* ofw_bus interface */
 	DEVMETHOD(ofw_bus_get_node,	hvpci_get_node),
-
-	/* ofw_pci interface */
-	DEVMETHOD(ofw_pci_intr_pending,	hvpci_intr_pending),
 
 	{ 0, 0 }
 };
@@ -354,13 +350,6 @@ hvpci_get_node(device_t bus, device_t dev)
 	sc = device_get_softc(bus);
 
 	return (sc->hs_node);
-}
-
-static int
-hvpci_intr_pending(device_t dev, ofw_pci_intr_t intr)
-{
-	/* XXX - implement */
-	panic("unimplemnted");
 }
 
 static int
