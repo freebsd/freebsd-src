@@ -60,7 +60,7 @@ int iitraverse(iidesc_t *, int *, tdtrav_cb_f *, tdtrav_cb_f *, tdtrav_cb_f *,
     void *);
 int iitraverse_hash(hash_t *, int *, tdtrav_cb_f *, tdtrav_cb_f *,
     tdtrav_cb_f *, void *);
-int iitraverse_td(iidesc_t *ii, tdtrav_data_t *);
+int iitraverse_td(void *, void *);
 
 int tdtrav_assert(tdesc_t *, tdesc_t **, void *);
 

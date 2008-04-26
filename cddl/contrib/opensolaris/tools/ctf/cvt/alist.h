@@ -48,6 +48,7 @@ void alist_add(alist_t *, void *, void *);
 int alist_find(alist_t *, void *, void **);
 int alist_iter(alist_t *, int (*)(void *, void *, void *), void *);
 void alist_stats(alist_t *, int);
+int alist_dump(alist_t *, int (*)(void *, void *));
 
 #ifdef __cplusplus
 }

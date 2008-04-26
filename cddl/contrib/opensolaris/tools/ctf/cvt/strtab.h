@@ -59,7 +59,7 @@ extern void strtab_destroy(strtab_t *);
 extern size_t strtab_insert(strtab_t *, const char *);
 extern size_t strtab_size(const strtab_t *);
 extern ssize_t strtab_write(const strtab_t *,
-    ssize_t (*)(const void *, size_t, void *), void *);
+    ssize_t (*)(void *, size_t, void *), void *);
 extern void strtab_print(const strtab_t *);
 
 #ifdef	__cplusplus
