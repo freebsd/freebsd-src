@@ -33,6 +33,8 @@
 #include <errno.h>
 #include <string.h>
 
+#define NANOSEC	1000000000
+
 int
 main(int argc, char **argv)
 {
@@ -41,6 +43,7 @@ main(int argc, char **argv)
 	sigset_t set;
 	timer_t tid;
 	char *cmd = argv[0];
+	int sig;
 
 	ev.sigev_notify = SIGEV_SIGNAL;
 	ev.sigev_signo = SIGUSR1;
@@ -66,9 +69,9 @@ main(int argc, char **argv)
 		exit(EXIT_FAILURE);
 	}
 
-	for (;;) {
-		(void) sigwait(&set);
-	}
+	do {
+		(void) sigwait(&set, &sig);
+	} while(sig != SIGUSR1);
 
 	/*NOTREACHED*/
 	return (0);
