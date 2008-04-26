@@ -41,6 +41,11 @@
 #include <sys/_mutex.h>
 #endif
 
+/*
+ * NOTE: When changing statfs structure, mount structure, MNT_* flags or
+ * MNTK_* flags also update DDB show mount command in vfs_subr.c.
+ */
+
 typedef struct fsid { int32_t val[2]; } fsid_t;	/* filesystem id type */
 
 /*
