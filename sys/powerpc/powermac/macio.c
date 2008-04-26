@@ -179,27 +179,40 @@ macio_get_quirks(const char *name)
 static void
 macio_add_intr(phandle_t devnode, struct macio_devinfo *dinfo)
 {
-	int	intr;
+	int	*intr;
+	int	i, nintr;
+	phandle_t iparent;
+	int 	icells;
 
-	if (dinfo->mdi_ninterrupts >= 5) {
-		printf("macio: device has more than 5 interrupts\n");
+	if (dinfo->mdi_ninterrupts >= 6) {
+		printf("macio: device has more than 6 interrupts\n");
 		return;
 	}
 
-	if (OF_getprop(devnode, "interrupts", &intr, sizeof(intr)) == -1) {
-		if (OF_getprop(devnode, "AAPL,interrupts", &intr,
-		    sizeof(intr)) == -1)
+	icells = 1;
+	
+	if (OF_getprop(devnode, "interrupt-parent", &iparent, sizeof(iparent)) == sizeof(iparent))
+		OF_getprop(iparent, "#interrupt-cells", &icells, sizeof(icells));
+
+	nintr = OF_getprop_alloc(devnode, "interrupts", sizeof(*intr), 
+		(void **)&intr);
+	if (nintr == -1) {
+		nintr = OF_getprop_alloc(devnode, "AAPL,interrupts", 
+			sizeof(*intr), (void **)&intr);
+		if (nintr == -1)
 			return;
 	}
 
-	if (intr == -1)
+	if (intr[0] == -1)
 		return;
 
-        resource_list_add(&dinfo->mdi_resources, SYS_RES_IRQ,
-	    dinfo->mdi_ninterrupts, intr, intr, 1);
+	for (i = 0; i < nintr; i+=icells) {
+		resource_list_add(&dinfo->mdi_resources, SYS_RES_IRQ,
+		    dinfo->mdi_ninterrupts, intr[i], intr[i], 1);
 
-	dinfo->mdi_interrupts[dinfo->mdi_ninterrupts] = intr;
-	dinfo->mdi_ninterrupts++;
+		dinfo->mdi_interrupts[dinfo->mdi_ninterrupts] = intr[i];
+		dinfo->mdi_ninterrupts++;
+	}
 }
 
 
@@ -413,9 +426,9 @@ macio_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		rle = resource_list_find(&dinfo->mdi_resources, SYS_RES_IRQ,
 		    *rid);
 		if (rle == NULL) {
-			if (dinfo->mdi_ninterrupts >= 5) {
+			if (dinfo->mdi_ninterrupts >= 6) {
 				device_printf(bus,
-				    "%s has more than 5 interrupts\n",
+				    "%s has more than 6 interrupts\n",
 				    device_get_nameunit(child));
 				return (NULL);
 			}
