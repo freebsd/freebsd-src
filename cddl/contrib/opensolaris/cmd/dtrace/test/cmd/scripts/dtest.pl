@@ -1,4 +1,4 @@
-#!/usr/perl5/bin/perl
+#!/usr/local/bin/perl
 #
 # CDDL HEADER START
 #
@@ -43,7 +43,7 @@ $USAGE = "Usage: $PNAME [-abfghjlnqs] [-d dir] [-i isa] "
 
 @dtrace_argv = ();
 
-$ksh_path = '/usr/bin/ksh';
+$ksh_path = '/bin/sh';
 
 @files = ();
 %exceptions = ();
@@ -273,7 +273,7 @@ sub run_tests {
 		}
 
 		$fullname = "$dir/$name";
-		$exe = "$dir/$base.exe";
+		$exe = "./$base.exe";
 		$exe_pid = -1;
 
 		if ($opt_a && ($status != 0 || $tag != 0 || $droptag != 0 ||
@@ -592,7 +592,7 @@ if ($opt_g) {
 # Ensure that $PATH contains a cc(1) so that we can execute the
 # test programs that require compilation of C code.
 #
-$ENV{'PATH'} = $ENV{'PATH'} . ':/ws/onnv-tools/SUNWspro/SS11/bin';
+#$ENV{'PATH'} = $ENV{'PATH'} . ':/ws/onnv-tools/SUNWspro/SS11/bin';
 
 if ($opt_b) {
 	logmsg("badioctl'ing ... ");
