@@ -100,7 +100,9 @@
 #include <setjmp.h>
 #include <strings.h>
 #include <assert.h>
+#if defined(sun)
 #include <alloca.h>
+#endif
 #include <stdlib.h>
 #include <stdarg.h>
 #include <stdio.h>
