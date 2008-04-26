@@ -69,7 +69,7 @@
  * For adaptive mutexes, how many times to spin doing trylock2
  * before entering the kernel to block
  */
-#define MUTEX_ADAPTIVE_SPINS	200
+#define MUTEX_ADAPTIVE_SPINS	2000
 
 /*
  * Prototypes
