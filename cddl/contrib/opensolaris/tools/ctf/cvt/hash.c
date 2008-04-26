@@ -50,7 +50,7 @@ struct hash {
 
 struct hash_data {
 	hash_t *hd_hash;
-	int (*hd_fun)(void *, void *);
+	int (*hd_fun)();
 	void *hd_key;
 	void *hd_private;
 
@@ -58,14 +58,13 @@ struct hash_data {
 };
 
 static int
-hash_def_hash(int nbuckets, void *arg)
+hash_def_hash(int nbuckets, uintptr_t data)
 {
-	uintptr_t data = (uintptr_t) arg;
 	return (data % nbuckets);
 }
 
 static int
-hash_def_cmp(void *d1, void *d2)
+hash_def_cmp(uintptr_t d1, uintptr_t d2)
 {
 	return (d1 != d2);
 }
@@ -97,8 +96,8 @@ hash_new(int nbuckets, int (*hashfn)(int, void *), int (*cmp)(void *, void *))
 	hash = xmalloc(sizeof (hash_t));
 	hash->h_buckets = xcalloc(sizeof (list_t *) * nbuckets);
 	hash->h_nbuckets = nbuckets;
-	hash->h_hashfn = hashfn ? hashfn : hash_def_hash;
-	hash->h_cmp = cmp ? cmp : hash_def_cmp;
+	hash->h_hashfn = hashfn ? hashfn : (int (*)())hash_def_hash;
+	hash->h_cmp = cmp ? cmp : (int (*)())hash_def_cmp;
 
 	return (hash);
 }
@@ -125,9 +124,8 @@ hash_merge(hash_t *to, hash_t *from)
 }
 
 static int
-hash_remove_cb(void *key1, void *key2, void *arg)
+hash_remove_cb(void *key1, void *key2, hash_t *hash)
 {
-	hash_t *hash = arg;
 	return (hash->h_cmp(key1, key2));
 }
 
@@ -137,7 +135,7 @@ hash_remove(hash_t *hash, void *key)
 	int bucket = hash->h_hashfn(hash->h_nbuckets, key);
 
 	(void) list_remove(&hash->h_buckets[bucket], key,
-	    hash_remove_cb, hash);
+	    (int (*)())hash_remove_cb, hash);
 }
 
 int
@@ -150,9 +148,8 @@ hash_match(hash_t *hash, void *key, int (*fun)(void *, void *),
 }
 
 static int
-hash_find_list_cb(void *node, void *arg)
+hash_find_list_cb(void *node, struct hash_data *hd)
 {
-	struct hash_data *hd = arg;
 	int cbrc;
 	int rc = 0;
 
@@ -177,15 +174,14 @@ hash_find_iter(hash_t *hash, void *key, int (*fun)(void *, void *),
 	hd.hd_key = key;
 	hd.hd_private = private;
 
-	return (list_iter(hash->h_buckets[bucket], hash_find_list_cb,
+	return (list_iter(hash->h_buckets[bucket], (int (*)())hash_find_list_cb,
 	    &hd));
 }
 
 /* stop on first match */
 static int
-hash_find_first_cb(void *node, void *arg)
+hash_find_first_cb(void *node, struct hash_data *hd)
 {
-	struct hash_data *hd = arg;
 	if (hd->hd_hash->h_cmp(hd->hd_key, node) == 0) {
 		hd->hd_ret = node;
 		return (-1);
@@ -204,7 +200,7 @@ hash_find(hash_t *hash, void *key, void **value)
 	hd.hd_fun = hash_find_first_cb;
 	hd.hd_key = key;
 
-	ret = hash_match(hash, key, hash_find_first_cb, &hd);
+	ret = hash_match(hash, key, (int (*)())hash_find_first_cb, &hd);
 	if (ret && value)
 		*value = hd.hd_ret;
 

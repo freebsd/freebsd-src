@@ -46,7 +46,7 @@
 const  char *progname;
 int debug_level = DEBUG_LEVEL;
 
-static char *infile = NULL;
+static const char *infile = NULL;
 static const char *outfile = NULL;
 static int dynsym;
 
@@ -64,12 +64,10 @@ usage(void)
 static void
 terminate_cleanup(void)
 {
-#if !defined(__FreeBSD__)
 	if (!outfile) {
 		fprintf(stderr, "Removing %s\n", infile);
 		unlink(infile);
 	}
-#endif
 }
 
 static void
@@ -79,10 +77,10 @@ handle_sig(int sig)
 }
 
 static int
-file_read(tdata_t *td, char *filename, int ignore_non_c)
+file_read(tdata_t *td, const char *filename, int ignore_non_c)
 {
-	typedef int (*reader_f)(tdata_t *, Elf *, char *);
-	static reader_f readers[] = {
+	typedef int (*reader_f)(tdata_t *, Elf *, const char *);
+	static const reader_f readers[] = {
 		stabs_read,
 		dw_read,
 		NULL
@@ -149,17 +147,15 @@ int
 main(int argc, char **argv)
 {
 	tdata_t *filetd, *mstrtd;
-	const char *label = NULL;
+	char *label = NULL;
 	int verbose = 0;
 	int ignore_non_c = 0;
 	int keep_stabs = 0;
 	int c;
 
-#if defined(sun)
 	sighold(SIGINT);
 	sighold(SIGQUIT);
 	sighold(SIGTERM);
-#endif
 
 	progname = basename(argv[0]);
 
@@ -221,15 +217,9 @@ main(int argc, char **argv)
 	 */
 	set_terminate_cleanup(terminate_cleanup);
 
-#if defined(sun)
 	sigset(SIGINT, handle_sig);
 	sigset(SIGQUIT, handle_sig);
 	sigset(SIGTERM, handle_sig);
-#else
-	signal(SIGINT, handle_sig);
-	signal(SIGQUIT, handle_sig);
-	signal(SIGTERM, handle_sig);
-#endif
 
 	filetd = tdata_new();
 
@@ -253,6 +243,7 @@ main(int argc, char **argv)
 		write_ctf(mstrtd, infile, outfile, dynsym | keep_stabs);
 	} else {
 		char *tmpname = mktmpname(infile, ".ctf");
+
 		write_ctf(mstrtd, infile, tmpname, dynsym | keep_stabs);
 		if (rename(tmpname, infile) != 0)
 			terminate("Couldn't rename temp file %s", tmpname);

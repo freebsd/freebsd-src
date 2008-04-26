@@ -132,7 +132,7 @@ typedef struct merge_cb_data merge_cb_data_t;
  * own traversal mechanism and ops vector here for those two cases.
  */
 typedef struct tdesc_ops {
-	const char *name;
+	char *name;
 	int (*equiv)(tdesc_t *, tdesc_t *, equiv_data_t *);
 	tdesc_t *(*conjure)(tdesc_t *, int, merge_cb_data_t *);
 } tdesc_ops_t;
@@ -179,21 +179,21 @@ struct merge_cb_data {
 static void
 add_mapping(alist_t *ta, tid_t srcid, tid_t tgtid)
 {
-	debug(3, "Adding mapping %u <%x> => %u <%x>\n", srcid, srcid, tgtid, tgtid);
+	debug(3, "Adding mapping %u => %u\n", srcid, tgtid);
 
-	assert(!alist_find(ta, (void *)(uintptr_t)srcid, NULL));
+	assert(!alist_find(ta, (void *)srcid, NULL));
 	assert(srcid != 0 && tgtid != 0);
 
-	alist_add(ta, (void *)(uintptr_t)srcid, (void *)(uintptr_t)tgtid);
+	alist_add(ta, (void *)srcid, (void *)tgtid);
 }
 
 static tid_t
 get_mapping(alist_t *ta, int srcid)
 {
-	void *ltgtid;
+	long ltgtid;
 
-	if (alist_find(ta, (void *)(uintptr_t)srcid, (void **)&ltgtid))
-		return ((uintptr_t)ltgtid);
+	if (alist_find(ta, (void *)srcid, (void **)&ltgtid))
+		return ((int)ltgtid);
 	else
 		return (0);
 }
@@ -216,7 +216,7 @@ static int equiv_node(tdesc_t *, tdesc_t *, equiv_data_t *);
 
 /*ARGSUSED2*/
 static int
-equiv_intrinsic(tdesc_t *stdp, tdesc_t *ttdp, equiv_data_t *ed __unused)
+equiv_intrinsic(tdesc_t *stdp, tdesc_t *ttdp, equiv_data_t *ed)
 {
 	intr_t *si = stdp->t_intr;
 	intr_t *ti = ttdp->t_intr;
@@ -256,7 +256,7 @@ equiv_function(tdesc_t *stdp, tdesc_t *ttdp, equiv_data_t *ed)
 	if (!equiv_node(fn1->fn_ret, fn2->fn_ret, ed))
 		return (0);
 
-	for (i = 0; i < (int) fn1->fn_nargs; i++) {
+	for (i = 0; i < fn1->fn_nargs; i++) {
 		if (!equiv_node(fn1->fn_args[i], fn2->fn_args[i], ed))
 			return (0);
 	}
@@ -313,7 +313,7 @@ equiv_su(tdesc_t *stdp, tdesc_t *ttdp, equiv_data_t *ed)
 
 /*ARGSUSED2*/
 static int
-equiv_enum(tdesc_t *stdp, tdesc_t *ttdp, equiv_data_t *ed __unused)
+equiv_enum(tdesc_t *stdp, tdesc_t *ttdp, equiv_data_t *ed)
 {
 	elist_t *el1 = stdp->t_emem;
 	elist_t *el2 = ttdp->t_emem;
@@ -335,7 +335,7 @@ equiv_enum(tdesc_t *stdp, tdesc_t *ttdp, equiv_data_t *ed __unused)
 
 /*ARGSUSED*/
 static int
-equiv_assert(tdesc_t *stdp __unused, tdesc_t *ttdp __unused, equiv_data_t *ed __unused)
+equiv_assert(tdesc_t *stdp, tdesc_t *ttdp, equiv_data_t *ed)
 {
 	/* foul, evil, and very bad - this is a "shouldn't happen" */
 	assert(1 == 0);
@@ -354,7 +354,7 @@ fwd_equiv(tdesc_t *ctdp, tdesc_t *mtdp)
 static int
 equiv_node(tdesc_t *ctdp, tdesc_t *mtdp, equiv_data_t *ed)
 {
-	int (*equiv)(tdesc_t *, tdesc_t *, equiv_data_t *);
+	int (*equiv)();
 	int mapping;
 
 	if (ctdp->t_emark > ed->ed_clear_mark ||
@@ -418,8 +418,7 @@ equiv_cb(void *bucket, void *arg)
 	ed->ed_cur_mark = ed->ed_clear_mark + 1;
 
 	if (equiv_node(ctdp, mtdp, ed)) {
-		debug(3, "equiv_node matched %d <%x> %d <%x>\n",
-		    ctdp->t_id, ctdp->t_id, mtdp->t_id, mtdp->t_id);
+		debug(3, "equiv_node matched %d %d\n", ctdp->t_id, mtdp->t_id);
 		ed->ed_tgt = mtdp;
 		/* matched.  stop looking */
 		return (-1);
@@ -430,7 +429,7 @@ equiv_cb(void *bucket, void *arg)
 
 /*ARGSUSED1*/
 static int
-map_td_tree_pre(tdesc_t *ctdp, tdesc_t **ctdpp __unused, void *private)
+map_td_tree_pre(tdesc_t *ctdp, tdesc_t **ctdpp, void *private)
 {
 	merge_cb_data_t *mcd = private;
 
@@ -442,7 +441,7 @@ map_td_tree_pre(tdesc_t *ctdp, tdesc_t **ctdpp __unused, void *private)
 
 /*ARGSUSED1*/
 static int
-map_td_tree_post(tdesc_t *ctdp, tdesc_t **ctdpp __unused, void *private)
+map_td_tree_post(tdesc_t *ctdp, tdesc_t **ctdpp, void *private)
 {
 	merge_cb_data_t *mcd = private;
 	equiv_data_t ed;
@@ -453,7 +452,7 @@ map_td_tree_post(tdesc_t *ctdp, tdesc_t **ctdpp __unused, void *private)
 	ed.ed_node = ctdp;
 	ed.ed_selfuniquify = 0;
 
-	debug(3, "map_td_tree_post on %d <%x> %s\n", ctdp->t_id, ctdp->t_id,tdesc_name(ctdp));
+	debug(3, "map_td_tree_post on %d %s\n", ctdp->t_id, tdesc_name(ctdp));
 
 	if (hash_find_iter(mcd->md_parent->td_layouthash, ctdp,
 	    equiv_cb, &ed) < 0) {
@@ -461,7 +460,7 @@ map_td_tree_post(tdesc_t *ctdp, tdesc_t **ctdpp __unused, void *private)
 		if (ed.ed_tgt->t_type == FORWARD && ctdp->t_type != FORWARD) {
 			int id = mcd->md_tgt->td_nextid++;
 
-			debug(3, "Creating new defn type %d <%x>\n", id, id);
+			debug(3, "Creating new defn type %d\n", id);
 			add_mapping(mcd->md_ta, ctdp->t_id, id);
 			alist_add(mcd->md_fdida, (void *)(ulong_t)ed.ed_tgt,
 			    (void *)(ulong_t)id);
@@ -482,7 +481,7 @@ map_td_tree_post(tdesc_t *ctdp, tdesc_t **ctdpp __unused, void *private)
 	} else {
 		int id = mcd->md_tgt->td_nextid++;
 
-		debug(3, "Creating new type %d <%x>\n", id, id);
+		debug(3, "Creating new type %d\n", id);
 		add_mapping(mcd->md_ta, ctdp->t_id, id);
 		hash_add(mcd->md_tdtba, ctdp);
 	}
@@ -494,7 +493,7 @@ map_td_tree_post(tdesc_t *ctdp, tdesc_t **ctdpp __unused, void *private)
 
 /*ARGSUSED1*/
 static int
-map_td_tree_self_post(tdesc_t *ctdp, tdesc_t **ctdpp __unused, void *private)
+map_td_tree_self_post(tdesc_t *ctdp, tdesc_t **ctdpp, void *private)
 {
 	merge_cb_data_t *mcd = private;
 	equiv_data_t ed;
@@ -507,8 +506,8 @@ map_td_tree_self_post(tdesc_t *ctdp, tdesc_t **ctdpp __unused, void *private)
 	ed.ed_tgt = NULL;
 
 	if (hash_find_iter(mcd->md_tdtba, ctdp, equiv_cb, &ed) < 0) {
-		debug(3, "Self check found %d <%x> in %d <%x>\n", ctdp->t_id,
-		    ctdp->t_id, ed.ed_tgt->t_id, ed.ed_tgt->t_id);
+		debug(3, "Self check found %d in %d\n", ctdp->t_id,
+		    ed.ed_tgt->t_id);
 		add_mapping(mcd->md_ta, ctdp->t_id,
 		    get_mapping(mcd->md_ta, ed.ed_tgt->t_id));
 	} else if (debug_level > 1 && hash_iter(mcd->md_tdtba,
@@ -519,13 +518,12 @@ map_td_tree_self_post(tdesc_t *ctdp, tdesc_t **ctdpp __unused, void *private)
 		 * through the entire hash.  This usually means that the hash
 		 * function is broken.
 		 */
-		aborterr("Self-unique second pass for %d <%x> (%s) == %d <%x>\n",
-		    ctdp->t_id, ctdp->t_id, tdesc_name(ctdp), ed.ed_tgt->t_id,
-		    ed.ed_tgt->t_id);
+		aborterr("Self-unique second pass for %d (%s) == %d\n",
+		    ctdp->t_id, tdesc_name(ctdp), ed.ed_tgt->t_id);
 	} else {
 		int id = mcd->md_tgt->td_nextid++;
 
-		debug(3, "Creating new type %d <%x>\n", id, id);
+		debug(3, "Creating new type %d\n", id);
 		add_mapping(mcd->md_ta, ctdp->t_id, id);
 		hash_add(mcd->md_tdtba, ctdp);
 	}
@@ -698,14 +696,14 @@ remap_node(tdesc_t **tgtp, tdesc_t *oldtgt, int selftid, tdesc_t *newself,
 	}
 
 	if ((template.t_id = get_mapping(mcd->md_ta, oldid)) == 0)
-		aborterr("failed to get mapping for tid %d <%x>\n", oldid, oldid);
+		aborterr("failed to get mapping for tid %d\n", oldid);
 
 	if (!hash_find(mcd->md_parent->td_idhash, (void *)&template,
 	    (void *)&tgt) && (!(mcd->md_flags & MCD_F_REFMERGE) ||
 	    !hash_find(mcd->md_tgt->td_idhash, (void *)&template,
 	    (void *)&tgt))) {
-		debug(3, "Remap couldn't find %d <%x> (from %d <%x>)\n", template.t_id,
-		    template.t_id, oldid, oldid);
+		debug(3, "Remap couldn't find %d (from %d)\n", template.t_id,
+		    oldid);
 		*tgtp = oldtgt;
 		list_add(mcd->md_tdtbr, tgtp);
 		return (0);
@@ -731,7 +729,7 @@ conjure_template(tdesc_t *old, int newselfid)
 
 /*ARGSUSED2*/
 static tdesc_t *
-conjure_intrinsic(tdesc_t *old, int newselfid, merge_cb_data_t *mcd __unused)
+conjure_intrinsic(tdesc_t *old, int newselfid, merge_cb_data_t *mcd)
 {
 	tdesc_t *new = conjure_template(old, newselfid);
 
@@ -767,7 +765,7 @@ conjure_function(tdesc_t *old, int newselfid, merge_cb_data_t *mcd)
 	if (nfn->fn_nargs > 0)
 		nfn->fn_args = xcalloc(sizeof (tdesc_t *) * ofn->fn_nargs);
 
-	for (i = 0; i < (int) ofn->fn_nargs; i++) {
+	for (i = 0; i < ofn->fn_nargs; i++) {
 		(void) remap_node(&nfn->fn_args[i], ofn->fn_args[i], old->t_id,
 		    new, mcd);
 	}
@@ -807,7 +805,7 @@ conjure_su(tdesc_t *old, int newselfid, merge_cb_data_t *mcd)
 		*nmemp = xmalloc(sizeof (mlist_t));
 		(*nmemp)->ml_offset = omem->ml_offset;
 		(*nmemp)->ml_size = omem->ml_size;
-		(*nmemp)->ml_name = xstrdup(omem->ml_name ? omem->ml_name : "empty omem->ml_name");
+		(*nmemp)->ml_name = xstrdup(omem->ml_name);
 		(void) remap_node(&((*nmemp)->ml_type), omem->ml_type,
 		    old->t_id, new, mcd);
 	}
@@ -818,7 +816,7 @@ conjure_su(tdesc_t *old, int newselfid, merge_cb_data_t *mcd)
 
 /*ARGSUSED2*/
 static tdesc_t *
-conjure_enum(tdesc_t *old, int newselfid, merge_cb_data_t *mcd __unused)
+conjure_enum(tdesc_t *old, int newselfid, merge_cb_data_t *mcd)
 {
 	tdesc_t *new = conjure_template(old, newselfid);
 	elist_t *oel, **nelp;
@@ -847,7 +845,7 @@ conjure_forward(tdesc_t *old, int newselfid, merge_cb_data_t *mcd)
 
 /*ARGSUSED*/
 static tdesc_t *
-conjure_assert(tdesc_t *old __unused, int newselfid __unused, merge_cb_data_t *mcd __unused)
+conjure_assert(tdesc_t *old, int newselfid, merge_cb_data_t *mcd)
 {
 	assert(1 == 0);
 	return (NULL);
@@ -872,7 +870,7 @@ static int
 fwd_redir(tdesc_t *fwd, tdesc_t **fwdp, void *private)
 {
 	alist_t *map = private;
-	void *defn;
+	tdesc_t *defn;
 
 	if (!alist_find(map, (void *)fwd, (void **)&defn))
 		return (0);
@@ -910,7 +908,7 @@ static int
 redir_mstr_fwd_cb(void *name, void *value, void *arg)
 {
 	tdesc_t *fwd = name;
-	int defnid = (uintptr_t)value;
+	int defnid = (int)value;
 	redir_mstr_data_t *rmd = arg;
 	tdesc_t template;
 	tdesc_t *defn;
@@ -989,9 +987,8 @@ add_tdesc(tdesc_t *oldtdp, int newid, merge_cb_data_t *mcd)
 	assert(hash_find(mcd->md_parent->td_idhash,
 	    (void *)&template, NULL) == 0);
 
-	debug(3, "trying to conjure %d %s (%d, <%x>) as %d, <%x>\n",
-	    oldtdp->t_type, tdesc_name(oldtdp), oldtdp->t_id,
-	    oldtdp->t_id, newid, newid);
+	debug(3, "trying to conjure %d %s (%d) as %d\n",
+	    oldtdp->t_type, tdesc_name(oldtdp), oldtdp->t_id, newid);
 
 	if ((newtdp = tdesc_ops[oldtdp->t_type].conjure(oldtdp, newid,
 	    mcd)) == NULL)
@@ -1052,16 +1049,16 @@ merge_types(hash_t *src, merge_cb_data_t *mcd)
 
 	(void) hash_iter(src, merge_type_cb, mcd);
 
-	tdrc = hash_iter(mcd->md_tdtba, add_tdtba_cb, mcd);
+	tdrc = hash_iter(mcd->md_tdtba, add_tdtba_cb, (void *)mcd);
 	debug(3, "add_tdtba_cb added %d items\n", tdrc);
 
-	iirc = list_iter(*mcd->md_iitba, add_iitba_cb, mcd);
+	iirc = list_iter(*mcd->md_iitba, add_iitba_cb, (void *)mcd);
 	debug(3, "add_iitba_cb added %d items\n", iirc);
 
 	assert(list_count(*mcd->md_iitba) == 0 &&
 	    hash_count(mcd->md_tdtba) == 0);
 
-	tdrc = list_iter(*mcd->md_tdtbr, add_tdtbr_cb, mcd);
+	tdrc = list_iter(*mcd->md_tdtbr, add_tdtbr_cb, (void *)mcd);
 	debug(3, "add_tdtbr_cb added %d items\n", tdrc);
 
 	if (list_count(*mcd->md_tdtbr) != 0)

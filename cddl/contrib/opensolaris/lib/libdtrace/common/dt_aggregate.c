@@ -32,11 +32,7 @@
 #include <unistd.h>
 #include <dt_impl.h>
 #include <assert.h>
-#if defined(sun)
 #include <alloca.h>
-#else
-#include <sys/sysctl.h>
-#endif
 #include <limits.h>
 
 #define	DTRACE_AHASHSIZE	32779		/* big 'ol prime */
@@ -58,7 +54,7 @@ static int dt_keypos;
 static void
 dt_aggregate_count(int64_t *existing, int64_t *new, size_t size)
 {
-	uint_t i;
+	int i;
 
 	for (i = 0; i < size / sizeof (int64_t); i++)
 		existing[i] = existing[i] + new[i];
@@ -211,10 +207,9 @@ dt_aggregate_lquantizedcmp(int64_t *lhs, int64_t *rhs)
 static int
 dt_aggregate_quantizedcmp(int64_t *lhs, int64_t *rhs)
 {
-	int nbuckets = DTRACE_QUANTIZE_NBUCKETS;
+	int nbuckets = DTRACE_QUANTIZE_NBUCKETS, i;
 	long double ltotal = 0, rtotal = 0;
 	int64_t lzero, rzero;
-	uint_t i;
 
 	for (i = 0; i < nbuckets; i++) {
 		int64_t bucketval = DTRACE_QUANTIZE_BUCKETVAL(i);
@@ -264,11 +259,7 @@ dt_aggregate_usym(dtrace_hdl_t *dtp, uint64_t *data)
 
 	dt_proc_lock(dtp, P);
 
-#if defined(sun)
 	if (Plookup_by_addr(P, *pc, NULL, 0, &sym) == 0)
-#else
-	if (proc_addr2sym(P, *pc, NULL, 0, &sym) == 0)
-#endif
 		*pc = sym.st_value;
 
 	dt_proc_unlock(dtp, P);
@@ -291,11 +282,7 @@ dt_aggregate_umod(dtrace_hdl_t *dtp, uint64_t *data)
 
 	dt_proc_lock(dtp, P);
 
-#if defined(sun)
 	if ((map = Paddr_to_map(P, *pc)) != NULL)
-#else
-	if ((map = proc_addr2map(P, *pc)) != NULL)
-#endif
 		*pc = map->pr_vaddr;
 
 	dt_proc_unlock(dtp, P);
@@ -380,11 +367,7 @@ dt_aggregate_snap_cpu(dtrace_hdl_t *dtp, processorid_t cpu)
 
 	buf->dtbd_cpu = cpu;
 
-#if defined(sun)
 	if (dt_ioctl(dtp, DTRACEIOC_AGGSNAP, buf) == -1) {
-#else
-	if (dt_ioctl(dtp, DTRACEIOC_AGGSNAP, &buf) == -1) {
-#endif
 		if (errno == ENOENT) {
 			/*
 			 * If that failed with ENOENT, it may be because the
@@ -653,7 +636,7 @@ dtrace_aggregate_snap(dtrace_hdl_t *dtp)
 		return (0);
 
 	for (i = 0; i < agp->dtat_ncpus; i++) {
-		if ((rval = dt_aggregate_snap_cpu(dtp, agp->dtat_cpus[i])))
+		if (rval = dt_aggregate_snap_cpu(dtp, agp->dtat_cpus[i]))
 			return (rval);
 	}
 
@@ -1131,7 +1114,7 @@ dt_aggwalk_rval(dtrace_hdl_t *dtp, dt_ahashent_t *h, int rval)
 
 	case DTRACE_AGGWALK_REMOVE: {
 		dtrace_aggdata_t *aggdata = &h->dtahe_data;
-		int max_cpus = agp->dtat_maxcpu;
+		int i, max_cpus = agp->dtat_maxcpu;
 
 		/*
 		 * First, remove this hash entry from its hash chain.
