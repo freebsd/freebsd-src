@@ -36,6 +36,15 @@
 #define	OCP85XX_LAWBAR(n)	(CCSRBAR_VA + 0xc08 + 0x20 * (n))
 #define	OCP85XX_LAWSR(n)	(CCSRBAR_VA + 0xc10 + 0x20 * (n))
 
+#define	OCP85XX_TGTIF_PCI0	0
+#define	OCP85XX_TGTIF_PCI1	1
+#define	OCP85XX_TGTIF_PCI2	2
+#define	OCP85XX_TGTIF_LBC	4
+#define	OCP85XX_TGTIF_RAM_INTL	11
+#define	OCP85XX_TGTIF_RIO	12
+#define	OCP85XX_TGTIF_RAM1	15
+#define	OCP85XX_TGTIF_RAM2	22
+
 /*
  * Power-On Reset configuration.
  */
@@ -66,12 +75,6 @@
 #define	OCP85XX_OPENPIC_SIZE	0x200B4
 #define	OCP85XX_QUICC_OFF	0x80000
 #define	OCP85XX_QUICC_SIZE	0x20000
-
-#define	OCP85XX_TGTIF_PCI0	0
-#define	OCP85XX_TGTIF_PCI1	1
-#define	OCP85XX_TGTIF_PCI2	2
-#define	OCP85XX_TGTIF_LBC	4
-#define	OCP85XX_TGTIF_RAM	15
 
 /*
  * PIC definitions

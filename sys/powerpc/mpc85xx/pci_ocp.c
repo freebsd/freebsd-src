@@ -590,7 +590,7 @@ pci_ocp_inbound(struct pci_ocp_softc *sc, int wnd, int tgt, u_long start,
 	KASSERT(wnd > 0, ("%s: inbound window 0 is invalid", __func__));
 
 	switch (tgt) {
-	case OCP85XX_TGTIF_RAM:
+	case OCP85XX_TGTIF_RAM1:
 		attr = 0xa0f55000 | (ffsl(size) - 2);
 		break;
 	default:
@@ -721,7 +721,7 @@ pci_ocp_attach(device_t dev)
 
 	pci_ocp_inbound(sc, 1, -1, 0, 0, 0);
 	pci_ocp_inbound(sc, 2, -1, 0, 0, 0);
-	pci_ocp_inbound(sc, 3, OCP85XX_TGTIF_RAM, 0, 2U*1024U*1024U*1024U, 0);
+	pci_ocp_inbound(sc, 3, OCP85XX_TGTIF_RAM1, 0, 2U*1024U*1024U*1024U, 0);
 
 	maxslot = (sc->sc_pcie) ? 1 : 31;
 	pci_ocp_init(sc, sc->sc_busnr, maxslot);
