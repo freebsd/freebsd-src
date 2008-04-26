@@ -18,8 +18,9 @@
  *
  * CDDL HEADER END
  */
+
 /*
- * Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
@@ -27,7 +28,9 @@
 
 #include <assert.h>
 #include <strings.h>
+#if defined(sun)
 #include <alloca.h>
+#endif
 #include <stdlib.h>
 #include <stdio.h>
 
@@ -210,6 +213,7 @@ dt_pragma_depends(const char *prname, dt_node_t *cnp)
 	dt_node_t *nnp = cnp ? cnp->dn_list : NULL;
 	int found;
 	dt_lib_depend_t *dld;
+	char lib[MAXPATHLEN];
 
 	if (cnp == NULL || nnp == NULL ||
 	    cnp->dn_kind != DT_NODE_IDENT || nnp->dn_kind != DT_NODE_IDENT) {
@@ -223,29 +227,53 @@ dt_pragma_depends(const char *prname, dt_node_t *cnp)
 		dt_module_t *mp = dt_module_lookup_by_name(dtp, nnp->dn_string);
 		found = mp != NULL && dt_module_getctf(dtp, mp) != NULL;
 	} else if (strcmp(cnp->dn_string, "library") == 0) {
-
-		/*
-		 * We have the file we are working on in dtp->dt_filetag
-		 * so find that node and add the dependency in.
-		 */
 		if (yypcb->pcb_cflags & DTRACE_C_CTL) {
-			char lib[MAXPATHLEN];
+			assert(dtp->dt_filetag != NULL);
+
+			/*
+			 * We have the file we are working on in dtp->dt_filetag
+			 * so find that node and add the dependency in.
+			 */
+			dld = dt_lib_depend_lookup(&dtp->dt_lib_dep,
+			    dtp->dt_filetag);
+			assert(dld != NULL);
+
+			(void) snprintf(lib, sizeof (lib), "%s%s",
+			    dld->dtld_libpath, nnp->dn_string);
+			if ((dt_lib_depend_add(dtp, &dld->dtld_dependencies,
+			    lib)) != 0) {
+				xyerror(D_PRAGMA_DEPEND,
+				    "failed to add dependency %s:%s\n", lib,
+				    dtrace_errmsg(dtp, dtrace_errno(dtp)));
+			}
+		} else {
+			/*
+			 * By this point we have already performed a topological
+			 * sort of the dependencies; we process this directive
+			 * as satisfied as long as the dependency was properly
+			 * loaded.
+			 */
+			if (dtp->dt_filetag == NULL)
+				xyerror(D_PRAGMA_DEPEND, "main program may "
+				    "not explicitly depend on a library");
 
 			dld = dt_lib_depend_lookup(&dtp->dt_lib_dep,
 			    dtp->dt_filetag);
 			assert(dld != NULL);
 
-			(void) snprintf(lib, MAXPATHLEN, "%s%s",
+			(void) snprintf(lib, sizeof (lib), "%s%s",
 			    dld->dtld_libpath, nnp->dn_string);
-			if ((dt_lib_depend_add(dtp, &dld->dtld_dependencies,
-			    lib)) != 0) {
-				xyerror(D_PRAGMA_DEPEND,
-				    "failed to add dependency %s:%s\n",
-				    lib,
-				    dtrace_errmsg(dtp, dtrace_errno(dtp)));
-			}
+			dld = dt_lib_depend_lookup(&dtp->dt_lib_dep_sorted,
+			    lib);
+			assert(dld != NULL);
+
+			if (!dld->dtld_loaded)
+				xyerror(D_PRAGMA_DEPEND, "program requires "
+				    "library \"%s\" which failed to load",
+				    lib);
 		}
-		found = 1;
+
+		found = B_TRUE;
 	} else {
 		xyerror(D_PRAGMA_INVAL, "invalid class %s "
 		    "specified by #pragma %s\n", cnp->dn_string, prname);
