@@ -145,9 +145,17 @@ int
 kse_switchin(struct thread *td, struct kse_switchin_args *uap)
 {
 #ifdef KSE
-	struct kse_thr_mailbox tmbx;
+	struct kse_thr_mailbox tmbx, *tmbxp;
 	struct kse_upcall *ku;
-	int error;
+	int error, flags;
+
+	/*
+	 * Put the arguments in local variables, to allow uap to
+	 * point into the trapframe. We clobber the trapframe as
+	 * part of setting a new context.
+	 */
+	tmbxp = uap->tmbx;
+	flags = uap->flags;
 
 	thread_lock(td);
 	if ((ku = td->td_upcall) == NULL || TD_CAN_UNBIND(td)) {
@@ -155,18 +163,18 @@ kse_switchin(struct thread *td, struct kse_switchin_args *uap)
 		return (EINVAL);
 	}
 	thread_unlock(td);
-	error = (uap->tmbx == NULL) ? EINVAL : 0;
+	error = (tmbxp == NULL) ? EINVAL : 0;
 	if (!error)
-		error = copyin(uap->tmbx, &tmbx, sizeof(tmbx));
-	if (!error && (uap->flags & KSE_SWITCHIN_SETTMBX))
+		error = copyin(tmbxp, &tmbx, sizeof(tmbx));
+	if (!error && (flags & KSE_SWITCHIN_SETTMBX))
 		error = (suword(&ku->ku_mailbox->km_curthread,
-			 (long)uap->tmbx) != 0 ? EINVAL : 0);
+			 (long)tmbxp) != 0 ? EINVAL : 0);
 	if (!error)
 		error = set_mcontext(td, &tmbx.tm_context.uc_mcontext);
 	if (!error) {
-		suword32(&uap->tmbx->tm_lwp, td->td_tid);
-		if (uap->flags & KSE_SWITCHIN_SETTMBX) {
-			td->td_mailbox = uap->tmbx;
+		suword32(&tmbxp->tm_lwp, td->td_tid);
+		if (flags & KSE_SWITCHIN_SETTMBX) {
+			td->td_mailbox = tmbxp;
 			td->td_pflags |= TDP_CAN_UNBIND;
 		}
 		PROC_LOCK(td->td_proc);
