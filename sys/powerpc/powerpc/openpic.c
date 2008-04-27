@@ -82,7 +82,7 @@ int
 openpic_attach(device_t dev)
 {
 	struct openpic_softc *sc;
-	u_int     ipi, irq;
+	u_int     cpu, ipi, irq;
 	u_int32_t x;
 
 	sc = device_get_softc(dev);
@@ -132,6 +132,9 @@ openpic_attach(device_t dev)
 		    "Version %s, supports %d CPUs and %d irqs\n",
 		    sc->sc_version, sc->sc_ncpu, sc->sc_nirq);
 
+	for (cpu = 0; cpu < sc->sc_ncpu; cpu++)
+		openpic_write(sc, OPENPIC_PCPU_TPR(cpu), 15);
+
 	/* Reset and disable all interrupts. */
 	for (irq = 0; irq < sc->sc_nirq; irq++) {
 		x = irq;                /* irq == vector. */
@@ -150,8 +153,6 @@ openpic_attach(device_t dev)
 		openpic_write(sc, OPENPIC_IPI_VECTOR(ipi), x);
 	}
 
-	openpic_set_priority(sc, 15);
-
 	/* we don't need 8259 passthrough mode */
 	x = openpic_read(sc, OPENPIC_CONFIG);
 	x |= OPENPIC_CONFIG_8259_PASSTHRU_DISABLE;
@@ -161,9 +162,8 @@ openpic_attach(device_t dev)
 	for (irq = 0; irq < sc->sc_nirq; irq++)
 		openpic_write(sc, OPENPIC_IDEST(irq), 1 << 0);
 
-	/* XXX set spurious intr vector */
-
-	openpic_set_priority(sc, 0);
+	for (cpu = 0; cpu < sc->sc_ncpu; cpu++)
+		openpic_write(sc, OPENPIC_PCPU_TPR(cpu), 0);
 
 	/* clear all pending interrupts */
 	for (irq = 0; irq < sc->sc_nirq; irq++) {
@@ -203,8 +203,14 @@ openpic_config(device_t dev, u_int irq, enum intr_trigger trig,
 void
 openpic_dispatch(device_t dev, struct trapframe *tf)
 {
+	static int once = 0;
 	struct openpic_softc *sc;
 	u_int vector;
+
+	if (once == 0 && PCPU_GET(cpuid) != 0) {
+		printf("XXX: got interrupt!\n");
+		once++;
+	}
 
 	sc = device_get_softc(dev);
 	while (1) {
@@ -212,6 +218,10 @@ openpic_dispatch(device_t dev, struct trapframe *tf)
 		vector &= OPENPIC_VECTOR_MASK;
 		if (vector == 255)
 			break;
+		if (once == 1 && PCPU_GET(cpuid) != 0) {
+			printf("XXX: got vector %u\n", vector);
+			once++;
+		}
 		powerpc_dispatch_intr(vector, tf);
 	}
 }

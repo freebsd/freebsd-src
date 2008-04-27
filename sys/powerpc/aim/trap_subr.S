@@ -228,20 +228,67 @@
 	mfsprg2	%r2;			/* restore r2 & r3 */		\
 	mfsprg3	%r3
 
-#ifdef KDB
+#ifdef SMP
 /*
- * Define the kdb debugger stack
+ * Processor reset exception handler. These are typically
+ * the first instructions the processor executes after a
+ * software reset.
  */
-	.data
-GLOBAL(dbstk)
-	.space INTSTK+8			/* kdb stack */
+	.globl	CNAME(rstcode), CNAME(rstsize)
+CNAME(rstcode):
+	bl	1f
+
+	/* We use this space for tracing purposes. */
+	.long	0
+	.long	0
+
+1:
+	mflr	%r2
+	mfmsr	%r3
+	stw	%r2,0(%r2)		/* trace: 0x104 - we're here. */
+	stw	%r3,4(%r2)		/* trace data: MSR */
+	sync
+
+	lis	%r1,(tmpstk+TMPSTKSZ-16)@ha
+	addi	%r1,%r1,(tmpstk+TMPSTKSZ-16)@l
+
+	addi	%r3,%r2,4
+	stw	%r3,0(%r1)
+	sync
+	stw	%r3,0(%r2)		/* trace: 0x108 - stack is writable */
+	stw	%r1,4(%r2)		/* trace data: SP */
+	sync
+
+	mr	%r3,%r2
+	lis	%r4,1@l
+	bla	CNAME(pmap_cpu_bootstrap)
+
+	addi	%r3,%r2,8
+	stw	%r3,0(%r2)		/* trace 0x10c - back from 1st call */
+	sync
+
+	mr	%r3,%r2
+	bla	CNAME(cpudep_ap_bootstrap)
+	mr	%r1,%r3
+
+	addi    %r3,%r2,12
+	stw     %r3,0(%r2)              /* trace 0x110 - back from 2nd call */
+	stw	%r1,4(%r2)		/* trace data: SP */
+
+	mr	%r3,%r2
+	bla	CNAME(machdep_ap_bootstrap)
+
+	/* Should not be reached */
+9:
+	b	9b
+CNAME(rstsize) = . - CNAME(rstcode)
 #endif
 
 /*
  * This code gets copied to all the trap vectors
  * (except ISI/DSI, ALI, and the interrupts)
  */
-	.text
+
 	.globl	CNAME(trapcode),CNAME(trapsize)
 CNAME(trapcode):
 	mtsprg1	%r1			/* save SP */
@@ -385,8 +432,8 @@ disitrap:
 	stw	%r30,(PC_DBSAVE  +CPUSAVE_R30)(%r1) /* save r30 */
 	lwz	%r31,(PC_DISISAVE+CPUSAVE_R31)(%r1) /* get  r31 */
 	stw	%r31,(PC_DBSAVE  +CPUSAVE_R31)(%r1) /* save r31 */
-	lis	%r1,dbstk+INTSTK@ha	/* get new SP */
-	addi	%r1,%r1,dbstk+INTSTK@l
+	lis	%r1,(tmpstk+TMPSTKSZ-16)@ha	/* get new SP */
+	addi	%r1,%r1,(tmpstk+TMPSTKSZ-16)@l
 	b	dbtrap
 #endif
 
@@ -457,8 +504,8 @@ CNAME(vectrapsize) = .-CNAME(vectrap)
 /*
  * Deliberate entry to dbtrap
  */
-	.globl	CNAME(ppc_db_trap)
-CNAME(ppc_db_trap):
+	.globl	CNAME(breakpoint)
+CNAME(breakpoint):
 	mtsprg1	%r1
 	mfmsr	%r3
 	mtsrr1	%r3
@@ -533,8 +580,8 @@ CNAME(dblow):
         stw	%r30,(PC_DBSAVE+CPUSAVE_R30)(%r1)	/* free r30 */
         stw	%r31,(PC_DBSAVE+CPUSAVE_R31)(%r1)	/* free r31 */
         mflr	%r28					/* save LR */
-	lis	%r1,dbstk+INTSTK@ha	/* get new SP */
-	addi	%r1,%r1,dbstk+INTSTK@l
+	lis	%r1,(tmpstk+TMPSTKSZ-16)@ha	/* get new SP */
+	addi	%r1,%r1,(tmpstk+TMPSTKSZ-16)@l
 	bla	dbtrap
 CNAME(dbsize) = .-CNAME(dblow)
 #endif /* KDB */
