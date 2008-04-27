@@ -123,16 +123,6 @@ mfpvr(void)
 	return (value);
 }
 
-static __inline register_t
-mfsvr(void)
-{
-	register_t	value;
-
-	__asm __volatile ("mfspr %0, %1" : "=r"(value) : "K"(SPR_SVR));
-
-	return (value);
-}
-
 static __inline void
 eieio(void)
 {

@@ -50,7 +50,7 @@ __FBSDID("$FreeBSD$");
 void
 cpu_reset()
 {
-	uint32_t svr = mfsvr();
+	uint32_t svr = mfspr(SPR_SVR);
 
 	if (svr == SVR_MPC8572E || svr == SVR_MPC8572)
 		/* Systems with dedicated reset register */
