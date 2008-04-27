@@ -75,10 +75,7 @@ __FBSDID("$FreeBSD$");
 
 exp:
 	expr
-		{
-		*YYPARSE_PARAM = $1;
-		return (0);
-		}
+		{ return ($1); }
 	;
 
 expr:
@@ -262,13 +259,12 @@ expr:
 #include "output.h"
 #include "memalloc.h"
 
-#define YYPARSE_PARAM_TYPE arith_t *
-#define YYPARSE_PARAM result
+#define lstrlen(var) (3 + (2 + CHAR_BIT * sizeof((var))) / 3)
 
 char *arith_buf, *arith_startbuf;
 
 int yylex(void);
-int yyparse(YYPARSE_PARAM_TYPE);
+int yyparse(void);
 
 static int
 arith_assign(char *name, arith_t value)
@@ -276,22 +272,22 @@ arith_assign(char *name, arith_t value)
 	char *str;
 	int ret;
 
-	str = (char *)ckmalloc(DIGITS(value));
+	str = (char *)ckmalloc(lstrlen(value));
 	sprintf(str, ARITH_FORMAT_STR, value);
 	ret = setvarsafe(name, str, 0);
 	free(str);
 	return ret;
 }
 
-arith_t
+int
 arith(char *s)
 {
-	arith_t result;
+	long result;
 
 	arith_buf = arith_startbuf = s;
 
 	INTOFF;
-	yyparse(&result);
+	result = yyparse();
 	arith_lex_reset();	/* Reprime lex. */
 	INTON;
 
@@ -317,7 +313,7 @@ expcmd(int argc, char **argv)
 	char *p;
 	char *concat;
 	char **ap;
-	arith_t i;
+	long i;
 
 	if (argc > 1) {
 		p = argv[1];
@@ -342,7 +338,7 @@ expcmd(int argc, char **argv)
 
 	i = arith(p);
 
-	out1fmt(ARITH_FORMAT_STR "\n", i);
+	out1fmt("%ld\n", i);
 	return !i;
 }
 
