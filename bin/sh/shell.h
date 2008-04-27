@@ -33,6 +33,11 @@
  * $FreeBSD$
  */
 
+#ifndef SHELL_H_
+#define SHELL_H_
+
+#include <inttypes.h>
+
 /*
  * The follow should be set to reflect the type of system you have:
  *	JOBS -> 1 if you have Berkeley job control, 0 otherwise.
@@ -50,10 +55,10 @@
 /*
  * Type of used arithmetics. SUSv3 requires us to have at least signed long.
  */
-typedef long arith_t;
-#define	ARITH_FORMAT_STR  "%ld"
-#define	atoarith_t(arg)  strtol(arg, NULL, 0)
-#define	strtoarith_t(nptr, endptr, base)  strtol(nptr, endptr, base)
+typedef intmax_t arith_t;
+#define	ARITH_FORMAT_STR  "%" PRIdMAX
+#define	atoarith_t(arg)  strtoimax(arg, NULL, 0)
+#define	strtoarith_t(nptr, endptr, base)  strtoimax(nptr, endptr, base)
 
 typedef void *pointer;
 #define STATIC  static
@@ -68,3 +73,5 @@ extern char nullstr[1];		/* null string */
 #else
 #define TRACE(param)
 #endif
+
+#endif /* !SHELL_H_ */
