@@ -147,6 +147,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #include <machine/psl.h>
 #include <machine/pte.h>
+#include <machine/smp.h>
 #include <machine/sr.h>
 #include <machine/mmuvar.h>
 
@@ -202,8 +203,6 @@ int		regions_sz, pregions_sz;
 static struct	ofw_map *translations;
 
 extern struct pmap ofw_pmap;
-
-
 
 /*
  * Lock for the pteg and pvo tables.
@@ -605,6 +604,59 @@ om_cmp(const void *a, const void *b)
 }
 
 void
+pmap_cpu_bootstrap(volatile uint32_t *trcp, int ap)
+{
+	u_int sdr;
+	int i;
+
+	trcp[0] = 0x1000;
+	trcp[1] = (uint32_t)&pmap_cpu_bootstrap;
+
+	if (ap) {
+		__asm __volatile("mtdbatu 0,%0" :: "r"(battable[0].batu));
+		__asm __volatile("mtdbatl 0,%0" :: "r"(battable[0].batl));
+		isync();
+		__asm __volatile("mtibatu 0,%0" :: "r"(battable[0].batu));
+		__asm __volatile("mtibatl 0,%0" :: "r"(battable[0].batl));
+		isync();
+	}
+
+	trcp[0] = 0x1001;
+
+	for (i = 1; i < 4; i++) {
+		__asm __volatile("mtdbatu %0,%1" :: "n"(i), "r"(0));
+		__asm __volatile("mtibatu %0,%1" :: "n"(i), "r"(0));
+		isync();
+	}
+
+	trcp[0] = 0x1002;
+
+	__asm __volatile("mtdbatu 1,%0" :: "r"(battable[8].batu));
+	__asm __volatile("mtdbatl 1,%0" :: "r"(battable[8].batl));
+	isync();
+
+	trcp[0] = 0x1003;
+
+	for (i = 0; i < 16; i++)
+		mtsrin(i << ADDR_SR_SHFT, EMPTY_SEGMENT);
+
+	trcp[0] = 0x1004;
+
+	__asm __volatile("mtsr %0,%1" :: "n"(KERNEL_SR), "r"(KERNEL_SEGMENT));
+	__asm __volatile("mtsr %0,%1" :: "n"(KERNEL2_SR), "r"(KERNEL2_SEGMENT));
+	__asm __volatile("sync");
+
+	trcp[0] = 0x1005;
+
+	sdr = (u_int)moea_pteg_table | (moea_pteg_mask >> 10);
+	__asm __volatile("mtsdr1 %0" :: "r"(sdr));
+	isync();
+
+	trcp[0] = 0x1006;
+	trcp[1] = sdr;
+}
+
+void
 moea_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 {
 	ihandle_t	mmui;
@@ -612,9 +664,9 @@ moea_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 	int		sz;
 	int		i, j;
 	int		ofw_mappings;
+	uint32_t	trace[2];
 	vm_size_t	size, physsz, hwphyssz;
 	vm_offset_t	pa, va, off;
-	u_int		batl, batu;
 
         /*
          * Set up BAT0 to map the lowest 256 MB area
@@ -647,18 +699,15 @@ moea_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 	 * Use an IBAT and a DBAT to map the bottom segment of memory
 	 * where we are.
 	 */
-	batu = BATU(0x00000000, BAT_BL_256M, BAT_Vs);
-	batl = BATL(0x00000000, BAT_M, BAT_PP_RW);
 	__asm (".balign 32; \n"
 	       "mtibatu 0,%0; mtibatl 0,%1; isync; \n"
 	       "mtdbatu 0,%0; mtdbatl 0,%1; isync"
-	    :: "r"(batu), "r"(batl));
+	    :: "r"(battable[0].batu), "r"(battable[0].batl));
 
 	/* map pci space */
-	batu = BATU(0x80000000, BAT_BL_256M, BAT_Vs);
-	batl = BATL(0x80000000, BAT_I|BAT_G, BAT_PP_RW);
-	__asm ("mtdbatu 1,%0; mtdbatl 1,%1; isync"
-	    :: "r"(batu), "r"(batl));
+	__asm __volatile("mtdbatu 1,%0" :: "r"(battable[8].batu));
+	__asm __volatile("mtdbatl 1,%0" :: "r"(battable[8].batl));
+	isync();
 
 	mem_regions(&pregions, &pregions_sz, &regions, &regions_sz);
 	CTR0(KTR_PMAP, "moea_bootstrap: physical memory");
@@ -844,18 +893,7 @@ moea_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 	kernel_pmap->pm_sr[KERNEL2_SR] = KERNEL2_SEGMENT;
 	kernel_pmap->pm_active = ~0;
 
-	/*
-	 * Initialize hardware.
-	 */
-	for (i = 0; i < 16; i++) {
-		mtsrin(i << ADDR_SR_SHFT, EMPTY_SEGMENT);
-	}
-	__asm __volatile ("mtsr %0,%1"
-	    :: "n"(KERNEL_SR), "r"(KERNEL_SEGMENT));
-	__asm __volatile ("mtsr %0,%1"
-	    :: "n"(KERNEL2_SR), "r"(KERNEL2_SEGMENT));
-	__asm __volatile ("sync; mtsdr1 %0; isync"
-	    :: "r"((u_int)moea_pteg_table | (moea_pteg_mask >> 10)));
+	pmap_cpu_bootstrap(trace, 0);
 	tlbia();
 
 	pmap_bootstrapped++;

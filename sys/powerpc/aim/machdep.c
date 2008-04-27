@@ -129,7 +129,8 @@ extern vm_offset_t ksym_start, ksym_end;
 
 int cold = 1;
 
-static struct pcpu pcpu0;
+struct pcpu __pcpu[MAXCPU];
+
 static struct trapframe frame0;
 
 char		machine[] = "powerpc";
@@ -236,6 +237,9 @@ cpu_startup(void *dummy)
 
 extern char	kernel_text[], _end[];
 
+#ifdef SMP
+extern void	*rstcode, *rstsize;
+#endif
 extern void	*trapcode, *trapsize;
 extern void	*alitrap, *alisize;
 extern void	*dsitrap, *dsisize;
@@ -288,7 +292,7 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
 	/*
 	 * Set up per-cpu data.
 	 */
-	pc = &pcpu0;
+	pc = __pcpu;
 	pcpu_init(pc, 0, sizeof(struct pcpu));
 	pc->pc_curthread = &thread0;
 	pc->pc_cpuid = 0;
@@ -320,7 +324,11 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
 	 */
 	mtmsr(mfmsr() & ~(PSL_IR | PSL_DR));
 	isync();
+#ifdef SMP
+	bcopy(&rstcode,  (void *)EXC_RST,  (size_t)&rstsize);
+#else
 	bcopy(&trapcode, (void *)EXC_RST,  (size_t)&trapsize);
+#endif
 	bcopy(&trapcode, (void *)EXC_MCHK, (size_t)&trapsize);
 	bcopy(&dsitrap,  (void *)EXC_DSI,  (size_t)&dsisize);
 	bcopy(&trapcode, (void *)EXC_ISI,  (size_t)&trapsize);
@@ -337,8 +345,7 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
 	bcopy(&trapcode, (void *)EXC_THRM, (size_t)&trapsize);
 	bcopy(&trapcode, (void *)EXC_BPT,  (size_t)&trapsize);
 #ifdef KDB
-	bcopy(&dblow,	 (void *)EXC_RST,  (size_t)&dbsize);
-	bcopy(&dblow,	 (void *)EXC_MCHK, (size_t)&dbsize);
+	bcopy(&dblow,   (void *)EXC_MCHK, (size_t)&dbsize);
 	bcopy(&dblow,   (void *)EXC_PGM,  (size_t)&dbsize);
 	bcopy(&dblow,   (void *)EXC_TRC,  (size_t)&dbsize);
 	bcopy(&dblow,   (void *)EXC_BPT,  (size_t)&dbsize);

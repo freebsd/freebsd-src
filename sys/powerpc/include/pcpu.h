@@ -40,6 +40,11 @@ struct pmap;
 	int		pc_inside_intr;					\
 	struct pmap	*pc_curpmap;		/* current pmap */	\
 	struct thread	*pc_fputhread;		/* current fpu user */  \
+	uintptr_t	pc_hwref;					\
+	uint32_t	pc_pir;						\
+	int		pc_bsp:1;					\
+	int		pc_awake:1;					\
+	uint32_t	pc_ipimask;					\
 	register_t	pc_tempsave[CPUSAVE_LEN];			\
 	register_t	pc_disisave[CPUSAVE_LEN];			\
 	register_t	pc_dbsave[CPUSAVE_LEN];
@@ -112,18 +117,18 @@ struct pmap;
 	int		pc_md_placeholder
 #endif
 
-#define PCPUP	((struct pcpu *) powerpc_get_pcpup())
+#define pcpup	((struct pcpu *) powerpc_get_pcpup())
 
-#define	PCPU_GET(member)	(PCPUP->pc_ ## member)
+#define	PCPU_GET(member)	(pcpup->pc_ ## member)
 
 /*
  * XXX The implementation of this operation should be made atomic
  * with respect to preemption.
  */
-#define	PCPU_ADD(member, value)	(PCPUP->pc_ ## member += (value))
+#define	PCPU_ADD(member, value)	(pcpup->pc_ ## member += (value))
 #define	PCPU_INC(member)	PCPU_ADD(member, 1)
-#define	PCPU_PTR(member)	(&PCPUP->pc_ ## member)
-#define	PCPU_SET(member,value)	(PCPUP->pc_ ## member = (value))
+#define	PCPU_PTR(member)	(&pcpup->pc_ ## member)
+#define	PCPU_SET(member,value)	(pcpup->pc_ ## member = (value))
 
 #endif	/* _KERNEL */
 

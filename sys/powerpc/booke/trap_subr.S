@@ -795,8 +795,8 @@ CNAME(asttrapexit):
 /*
  * Deliberate entry to dbtrap
  */
-	.globl	CNAME(ppc_db_trap)
-CNAME(ppc_db_trap):
+	.globl	CNAME(breakpoint)
+CNAME(breakpoint):
 	mtsprg1	%r1
 	mfmsr	%r3
 	mtsrr1	%r3
