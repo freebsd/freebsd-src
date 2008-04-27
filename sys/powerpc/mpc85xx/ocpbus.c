@@ -233,7 +233,7 @@ ocpbus_probe (device_t dev)
 
 	sc = device_get_softc(dev);
 
-	svr = mfsvr();
+	svr = mfspr(SPR_SVR);
 	if (svr == SVR_MPC8572E || svr == SVR_MPC8572)
 		law_max = 12;
 	else
