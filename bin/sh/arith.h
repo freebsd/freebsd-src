@@ -30,12 +30,8 @@
  * $FreeBSD$
  */
 
-#include "shell.h"
-
-#define DIGITS(var) (3 + (2 + CHAR_BIT * sizeof((var))) / 3)
-
 extern char *arith_buf, *arith_startbuf;
 
-arith_t arith(char *);
+int arith(char *);
 void arith_lex_reset(void);
 int expcmd(int, char **);
