@@ -5920,7 +5920,12 @@ ath_getradiocaps(struct ieee80211com *ic,
 	ath_hal_setregdomain(ah, 0);
 	/* XXX not quite right but close enough for now */
 	getchannels(sc, nchans, chans, CTRY_DEBUG, AH_TRUE, AH_FALSE);
+
+	/* NB: restore previous state */
 	ath_hal_setregdomain(ah, ord);
+	(void) getchannels(sc, NULL, NULL, ic->ic_regdomain.country,
+	     ic->ic_regdomain.ecm ? AH_TRUE : AH_FALSE,
+	     ic->ic_regdomain.location == 'O' ? AH_TRUE : AH_FALSE);
 }
 
 static int
