@@ -163,8 +163,6 @@ typedef struct pv_entry {
 
 extern vm_offset_t avail_end;
 extern vm_offset_t avail_start;
-extern vm_offset_t clean_eva;
-extern vm_offset_t clean_sva;
 extern vm_offset_t phys_avail[];
 extern char *ptvmmap;		/* poor name! */
 extern vm_offset_t virtual_avail;
