@@ -27,6 +27,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	operation on devices that are capable.  The underlying device
 	is no longer used directly but instead wlanX devices are
 	cloned with ifconfig.  This requires changes to rc.conf files.
+	For example, change:
+		ifconfig_ath0="WPA DHCP"
+	to
+		wlans_ath0=wlan0
+		ifconfig_wlan0="WPA DHCP"
+	see rc.conf(5) for more details.
 
 	As part of the multi-bss changes the wlan_scan_ap and wlan_scan_sta
 	modules were merged into the base wlan module.  All references
