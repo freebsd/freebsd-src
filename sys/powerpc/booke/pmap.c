@@ -379,20 +379,6 @@ static mmu_def_t booke_mmu = {
 };
 MMU_DEF(booke_mmu);
 
-/*
- * This routine defines the region(s) of memory that should
- * not be tested for the modified bit.
- */
-static __inline int
-track_modified_needed(pmap_t pmap, vm_offset_t va)
-{
-
-	if (pmap == kernel_pmap)
-		return ((va < kmi.clean_sva) || (va >= kmi.clean_eva));
-	else
-		return (1);
-}
-
 /* Return number of entries in TLB0. */
 static __inline void
 tlb0_get_tlbconf(void)
@@ -780,10 +766,8 @@ pte_remove(mmu_t mmu, pmap_t pmap, vm_offset_t va, u_int8_t flags)
 		if (PTE_ISMANAGED(pte)) {
 
 			/* Handle modified pages. */
-			if (PTE_ISMODIFIED(pte)) {
-				if (track_modified_needed(pmap, va))
-					vm_page_dirty(m);
-			}
+			if (PTE_ISMODIFIED(pte))
+				vm_page_dirty(m);
 
 			/* Referenced pages. */
 			if (PTE_ISREFERENCED(pte))
@@ -1487,10 +1471,8 @@ mmu_booke_enter_locked(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_page_t m,
 				pte->flags |= PTE_UW;
 		} else {
 			/* Handle modified pages, sense modify status. */
-			if (PTE_ISMODIFIED(pte)) {
-				if (track_modified_needed(pmap, va))
-					vm_page_dirty(m);
-			}
+			if (PTE_ISMODIFIED(pte))
+				vm_page_dirty(m);
 		}
 
 		/* If we're turning on execute permissions, flush the icache. */
@@ -1809,10 +1791,8 @@ mmu_booke_protect(mmu_t mmu, pmap_t pmap, vm_offset_t sva, vm_offset_t eva,
 				m = PHYS_TO_VM_PAGE(PTE_PA(pte));
 
 				/* Handle modified pages. */
-				if (PTE_ISMODIFIED(pte)) {
-					if (track_modified_needed(pmap, va))
-						vm_page_dirty(m);
-				}
+				if (PTE_ISMODIFIED(pte))
+					vm_page_dirty(m);
 
 				/* Referenced pages. */
 				if (PTE_ISREFERENCED(pte))
@@ -1850,11 +1830,8 @@ mmu_booke_remove_write(mmu_t mmu, vm_page_t m)
 				m = PHYS_TO_VM_PAGE(PTE_PA(pte));
 
 				/* Handle modified pages. */
-				if (PTE_ISMODIFIED(pte)) {
-					if (track_modified_needed(pv->pv_pmap,
-					    pv->pv_va))
-						vm_page_dirty(m);
-				}
+				if (PTE_ISMODIFIED(pte))
+					vm_page_dirty(m);
 
 				/* Referenced pages. */
 				if (PTE_ISREFERENCED(pte))
@@ -2055,9 +2032,6 @@ mmu_booke_is_modified(mmu_t mmu, vm_page_t m)
 			if (!PTE_ISVALID(pte))
 				goto make_sure_to_unlock;
 
-			if (!track_modified_needed(pv->pv_pmap, pv->pv_va))
-				goto make_sure_to_unlock;
-
 			if (PTE_ISMODIFIED(pte)) {
 				PMAP_UNLOCK(pv->pv_pmap);
 				return (TRUE);
@@ -2136,9 +2110,6 @@ mmu_booke_ts_referenced(mmu_t mmu, vm_page_t m)
 		PMAP_LOCK(pv->pv_pmap);
 		if ((pte = pte_find(mmu, pv->pv_pmap, pv->pv_va)) != NULL) {
 			if (!PTE_ISVALID(pte))
-				goto make_sure_to_unlock;
-
-			if (!track_modified_needed(pv->pv_pmap, pv->pv_va))
 				goto make_sure_to_unlock;
 
 			if (PTE_ISREFERENCED(pte)) {
