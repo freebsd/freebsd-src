@@ -200,7 +200,9 @@ vx_attach(device_t dev)
 
 	sc->vx_tx_start_thresh = 20;	/* probably a good starting point. */
 
+	VX_LOCK(sc);
 	vx_stop(sc);
+	VX_UNLOCK(sc);
 
 	return 1;
 }
@@ -300,7 +302,7 @@ vx_getlink(struct vx_softc *sc)
 		}
 	}
 	if (sc->vx_connectors == 0) {
-		printf("no connectors!");
+		printf("no connectors!\n");
 		return;
 	}
 	GO_WINDOW(3);
@@ -310,9 +312,9 @@ vx_getlink(struct vx_softc *sc)
 	if (sc->vx_connector & 0x10) {
 		sc->vx_connector &= 0x0f;
 		printf("[*%s*]", conn_tab[(int)sc->vx_connector].name);
-		printf(": disable 'auto select' with DOS util!");
+		printf(": disable 'auto select' with DOS util!\n");
 	} else {
-		printf("[*%s*]", conn_tab[(int)sc->vx_connector].name);
+		printf("[*%s*]\n", conn_tab[(int)sc->vx_connector].name);
 	}
 }
 
