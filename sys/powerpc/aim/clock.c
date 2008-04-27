@@ -61,10 +61,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/sysctl.h>
 #include <sys/bus.h>
-#include <sys/timetc.h>
 #include <sys/interrupt.h>
+#include <sys/pcpu.h>
+#include <sys/sysctl.h>
+#include <sys/timetc.h>
 
 #include <dev/ofw/openfirm.h>
 
@@ -76,11 +77,9 @@ __FBSDID("$FreeBSD$");
 /*
  * Initially we assume a processor with a bus frequency of 12.5 MHz.
  */
-u_int			tickspending;
 u_long			ns_per_tick = 80;
 static u_long		ticks_per_sec = 12500000;
 static long		ticks_per_intr;
-static volatile u_long	lasttb;
 
 static timecounter_get_t	decr_get_timecount;
 
@@ -95,7 +94,6 @@ static struct timecounter	decr_timecounter = {
 void
 decr_intr(struct trapframe *frame)
 {
-	u_long		tb;
 	long		tick;
 	int		nticks;
 
@@ -109,36 +107,17 @@ decr_intr(struct trapframe *frame)
 	 * Based on the actual time delay since the last decrementer reload,
 	 * we arrange for earlier interrupt next time.
 	 */
-	__asm ("mftb %0; mfdec %1" : "=r"(tb), "=r"(tick));
+	__asm ("mfdec %0" : "=r"(tick));
 	for (nticks = 0; tick < 0; nticks++)
 		tick += ticks_per_intr;
 	mtdec(tick);
-	/*
-	 * lasttb is used during microtime. Set it to the virtual
-	 * start of this tick interval.
-	 */
-	lasttb = tb + tick - ticks_per_intr;
 
-	nticks += tickspending;
-	tickspending = 0;
-
-	/*
-	 * Reenable interrupts
-	 */
-#if 0
-	msr = mfmsr();
-	mtmsr(msr | PSL_EE | PSL_RI);
-#endif
-	/*
-	 * Do standard timer interrupt stuff.
-	 * Do softclock stuff only on the last iteration.
-	 */
-#if 0
-	while (--nticks > 0) {
-		hardclock(TRAPF_USERMODE(frame), TRAPF_PC(frame));
+	while (nticks-- > 0) {
+		if (PCPU_GET(cpuid) == 0)
+			hardclock(TRAPF_USERMODE(frame), TRAPF_PC(frame));
+		else
+			hardclock_cpu(TRAPF_USERMODE(frame));
 	}
-#endif
-	hardclock(TRAPF_USERMODE(frame), TRAPF_PC(frame));
 }
 
 void
@@ -166,7 +145,6 @@ decr_init(void)
 
 			ns_per_tick = 1000000000 / ticks_per_sec;
 			ticks_per_intr = ticks_per_sec / hz;
-			__asm __volatile ("mftb %0" : "=r"(lasttb));
 			mtdec(ticks_per_intr);
 
 			mtmsr(msr);

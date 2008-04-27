@@ -192,15 +192,6 @@ cpu_exit(td)
 {
 }
 
-/* Temporary helper */
-void
-cpu_throw(struct thread *old, struct thread *new)
-{
-
-	cpu_switch(old, new, old->td_lock);
-	panic("cpu_throw() didn't");
-}
-
 /*
  * Reset back to firmware.
  */
