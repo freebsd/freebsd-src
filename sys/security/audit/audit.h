@@ -35,7 +35,7 @@
  */
 
 #ifndef _SECURITY_AUDIT_KERNEL_H_
-#define	_SEUCRITY_AUDIT_KERNEL_H_
+#define	_SECURITY_AUDIT_KERNEL_H_
 
 #ifndef _KERNEL
 #error "no user-serviceable parts inside"
