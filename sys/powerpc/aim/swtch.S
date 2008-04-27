@@ -67,6 +67,13 @@
 #include <machine/asm.h>
 
 /*
+ * void cpu_throw(struct thread *old, struct thread *new)
+ */
+ENTRY(cpu_throw)
+	mr	%r15, %r4
+	b	cpu_switchin
+
+/*
  * void cpu_switch(struct thread *old,
  *		   struct thread *new,
  *		   struct mutex *mtx); 
@@ -94,7 +101,8 @@ ENTRY(cpu_switch)
 	mr	%r14,%r3		/* Copy the old thread ptr... */
 	mr	%r15,%r4		/* and the new thread ptr in scratch */
 	
-	lwz	%r6,PCB_FLAGS(%r5)	/* Save FPU context if needed */
+	lwz	%r6,PCB_FLAGS(%r5)
+	/* Save FPU context if needed */
 	andi.	%r6, %r6, PCB_FPU
 	beq	.L1
 	bl	save_fpu
@@ -102,6 +110,7 @@ ENTRY(cpu_switch)
 .L1:
 	bl	pmap_deactivate		/* Deactivate the current pmap */
 
+cpu_switchin:
 	mr	%r3,%r15		/* Get new thread ptr */
 	bl	pmap_activate		/* Activate the new address space */
 
@@ -110,7 +119,8 @@ ENTRY(cpu_switch)
 	lwz	%r17,TD_PCB(%r15)	/* Store new current PCB */
 	stw	%r17,PC_CURPCB(%r7)
 
-	lwz	%r6, PCB_FLAGS(%r17)	/* Restore FPU context if needed */
+	lwz	%r6, PCB_FLAGS(%r17)
+	/* Restore FPU context if needed */
 	andi.	%r6, %r6, PCB_FPU
 	beq	.L2
 	mr	%r3,%r15		/* Pass curthread to enable_fpu */

@@ -78,6 +78,7 @@
 #include <machine/frame.h>
 #include <machine/intr_machdep.h>
 #include <machine/md_var.h>
+#include <machine/smp.h>
 #include <machine/trap.h>
 
 #include "pic_if.h"
@@ -98,6 +99,12 @@ struct powerpc_intr {
 static struct powerpc_intr *powerpc_intrs[INTR_VECTORS];
 static u_int nvectors;		/* Allocated vectors */
 static u_int stray_count;
+
+#ifdef SMP
+static void *ipi_cookie;
+#endif
+
+static u_int ipi_irq;
 
 device_t pic;
 
@@ -190,13 +197,30 @@ powerpc_register_pic(device_t dev, u_int ipi)
 {
 
 	pic = dev;
+	ipi_irq = ipi;
 }
 
 int
 powerpc_enable_intr(void)
 {
 	struct powerpc_intr *i;
+#ifdef SMP
+	int error;
+#endif
 	int vector;
+
+	if (pic == NULL)
+		panic("no PIC detected\n");
+
+#ifdef SMP
+	/* Install an IPI handler. */
+	error = powerpc_setup_intr("IPI", ipi_irq, powerpc_ipi_handler,
+	    NULL, NULL, INTR_TYPE_MISC | INTR_EXCL | INTR_FAST, &ipi_cookie);
+	if (error) {
+		printf("unable to setup IPI handler\n");
+		return (error);
+	}
+#endif
 
 	for (vector = 0; vector < nvectors; vector++) {
 		i = powerpc_intrs[vector];
@@ -210,6 +234,11 @@ powerpc_enable_intr(void)
 		if (i->event != NULL)
 			PIC_ENABLE(pic, i->irq, vector);
 	}
+
+#ifdef SMP
+	/* Send ourself a test IPI message. */
+	ipi_self(IPI_PPC_TEST);
+#endif
 
 	return (0);
 }

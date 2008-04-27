@@ -49,16 +49,8 @@ powerpc_mb(void)
 struct thread;
 
 #ifdef KDB
-void ppc_db_trap(void);
+void breakpoint(void);
 #endif
-
-static __inline void
-breakpoint(void)
-{
-#ifdef KDB
-	ppc_db_trap();
-#endif
-}
 
 /* CPU register mangling inlines */
 

@@ -77,20 +77,21 @@
         .globl  kernbase
         .set    kernbase, KERNBASE
 
+#define	TMPSTKSZ	8192		/* 8K temporary stack */
+
 /*
  * Globals
  */
 	.data
 	.align	4
 GLOBAL(tmpstk)
-	.space	8192
+	.space	TMPSTKSZ
 GLOBAL(esym)
 	.long	0			/* end of symbol table */
 
 GLOBAL(ofmsr)
 	.long	0, 0, 0, 0, 0		/* msr/sprg0-3 used in Open Firmware */
 
-#define	INTSTK		16384		/* 16K interrupt stack */
 #define	INTRCNT_COUNT	256		/* max(HROWPIC_IRQMAX,OPENPIC_IRQMAX) */
 GLOBAL(intrnames)
 	.space	INTRCNT_COUNT * (MAXCOMLEN + 1) * 2
@@ -152,9 +153,8 @@ __start:
 	stw	5,openfirmware_entry@l(8) /* save client interface handler */
 	mr	3,5
 
-	lis	1,tmpstk@ha
-	addi	1,1,tmpstk@l
-	addi	1,1,8192-16
+	lis	1,(tmpstk+TMPSTKSZ-16)@ha
+	addi	1,1,(tmpstk+TMPSTKSZ-16)@l
 
 	mfmsr	0
 	lis	9,ofmsr@ha
