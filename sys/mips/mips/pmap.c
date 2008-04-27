@@ -65,10 +65,6 @@
  *	and to when physical maps must be made correct.
  */
 
-/* XXXimp
- * mips2 has a pmap_initialized, but we don't use it here.  Why?
- */
-
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
