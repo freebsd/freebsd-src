@@ -706,17 +706,14 @@ static int
 fifo_read_f(struct file *fp, struct uio *uio, struct ucred *cred, int flags, struct thread *td)
 {
 	struct fifoinfo *fip;
-	int error, sflags;
+	int sflags;
 
 	fip = fp->f_data;
 	KASSERT(uio->uio_rw == UIO_READ,("fifo_read mode"));
 	if (uio->uio_resid == 0)
 		return (0);
 	sflags = (fp->f_flag & FNONBLOCK) ? MSG_NBIO : 0;
-	mtx_lock(&Giant);
-	error = soreceive(fip->fi_readsock, NULL, uio, NULL, NULL, &sflags);
-	mtx_unlock(&Giant);
-	return (error);
+	return (soreceive(fip->fi_readsock, NULL, uio, NULL, NULL, &sflags));
 }
 
 static int
@@ -730,13 +727,10 @@ static int
 fifo_write_f(struct file *fp, struct uio *uio, struct ucred *cred, int flags, struct thread *td)
 {
 	struct fifoinfo *fip;
-	int error, sflags;
+	int sflags;
 
 	fip = fp->f_data;
 	KASSERT(uio->uio_rw == UIO_WRITE,("fifo_write mode"));
 	sflags = (fp->f_flag & FNONBLOCK) ? MSG_NBIO : 0;
-	mtx_lock(&Giant);
-	error = sosend(fip->fi_writesock, NULL, uio, 0, NULL, sflags, td);
-	mtx_unlock(&Giant);
-	return (error);
+	return (sosend(fip->fi_writesock, NULL, uio, 0, NULL, sflags, td));
 }
