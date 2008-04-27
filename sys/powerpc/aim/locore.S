@@ -81,8 +81,9 @@
  * Globals
  */
 	.data
+	.align	4
 GLOBAL(tmpstk)
-	.space	8208
+	.space	8192
 GLOBAL(esym)
 	.long	0			/* end of symbol table */
 
@@ -153,7 +154,7 @@ __start:
 
 	lis	1,tmpstk@ha
 	addi	1,1,tmpstk@l
-	addi	1,1,8192
+	addi	1,1,8192-16
 
 	mfmsr	0
 	lis	9,ofmsr@ha
