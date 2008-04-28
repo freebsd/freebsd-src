@@ -233,8 +233,8 @@ kmem_suballoc(parent, min, max, size)
 
 	size = round_page(size);
 
-	*min = (vm_offset_t) vm_map_min(parent);
-	ret = vm_map_find(parent, NULL, (vm_offset_t) 0,
+	*min = vm_map_min(parent);
+	ret = vm_map_find(parent, NULL, 0,
 	    min, size, TRUE, VM_PROT_ALL, VM_PROT_ALL, 0);
 	if (ret != KERN_SUCCESS)
 		panic("kmem_suballoc: bad status return of %d", ret);
