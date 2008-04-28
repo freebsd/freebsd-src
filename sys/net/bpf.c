@@ -1571,9 +1571,9 @@ bpf_tap(struct bpf_if *bp, u_char *pkt, u_int pktlen)
 	BPFIF_UNLOCK(bp);
 }
 
-#define	BPF_CHECK_DIRECTION(d, i)				\
-	    (((d)->bd_direction == BPF_D_IN && (i) == NULL) ||	\
-	    ((d)->bd_direction == BPF_D_OUT && (i) != NULL))
+#define	BPF_CHECK_DIRECTION(d, r, i)				\
+	    (((d)->bd_direction == BPF_D_IN && (r) != (i)) ||	\
+	    ((d)->bd_direction == BPF_D_OUT && (r) == (i)))
 
 /*
  * Incoming linkage from device drivers, when packet is in an mbuf chain.
@@ -1598,7 +1598,7 @@ bpf_mtap(struct bpf_if *bp, struct mbuf *m)
 
 	BPFIF_LOCK(bp);
 	LIST_FOREACH(d, &bp->bif_dlist, bd_next) {
-		if (BPF_CHECK_DIRECTION(d, m->m_pkthdr.rcvif))
+		if (BPF_CHECK_DIRECTION(d, m->m_pkthdr.rcvif, bp->bif_ifp))
 			continue;
 		BPFD_LOCK(d);
 		++d->bd_rcount;
@@ -1662,7 +1662,7 @@ bpf_mtap2(struct bpf_if *bp, void *data, u_int dlen, struct mbuf *m)
 
 	BPFIF_LOCK(bp);
 	LIST_FOREACH(d, &bp->bif_dlist, bd_next) {
-		if (BPF_CHECK_DIRECTION(d, m->m_pkthdr.rcvif))
+		if (BPF_CHECK_DIRECTION(d, m->m_pkthdr.rcvif, bp->bif_ifp))
 			continue;
 		BPFD_LOCK(d);
 		++d->bd_rcount;
