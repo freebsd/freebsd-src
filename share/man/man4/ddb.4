@@ -60,7 +60,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 26, 2007
+.Dd April 28, 2008
 .Dt DDB 4
 .Os
 .Sh NAME
@@ -558,6 +558,12 @@ complete object is printed.
 .Pp
 .It Ic show Cm vnode Ar addr
 Displays details about the given vnode.
+.Pp
+.It Ic show Cm mount
+Displays short info about all currently mounted file systems.
+.Pp
+.It Ic show Cm mount Ar addr
+Displays details about the given mount point.
 .Pp
 .It Ic show Cm watches
 Displays all watchpoints.
