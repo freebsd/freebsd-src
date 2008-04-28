@@ -1172,13 +1172,12 @@ found:
 
 int
 vm_map_fixed(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
-    vm_offset_t *addr /* IN/OUT */, vm_size_t length, vm_prot_t prot,
+    vm_offset_t start, vm_size_t length, vm_prot_t prot,
     vm_prot_t max, int cow)
 {
-	vm_offset_t start, end;
+	vm_offset_t end;
 	int result;
 
-	start = *addr;
 	vm_map_lock(map);
 	end = start + length;
 	VM_MAP_RANGE_CHECK(map, start, end);
