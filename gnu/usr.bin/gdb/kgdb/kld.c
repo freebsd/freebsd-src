@@ -195,7 +195,6 @@ struct add_section_info {
 	struct section_addr_info *section_addrs;
 	int sect_index;
 	CORE_ADDR base_addr;
-	int add_kld_command;
 };
 
 static void
@@ -215,14 +214,12 @@ add_section (bfd *bfd, asection *sect, void *arg)
 	asi->section_addrs->other[asi->sect_index].name = name;
 	asi->section_addrs->other[asi->sect_index].addr = address;
 	asi->section_addrs->other[asi->sect_index].sectindex = sect->index;
-	if (asi->add_kld_command)
-		printf_unfiltered("\t%s_addr = %s\n", name,
-		    local_hex_string(address));
+	printf_unfiltered("\t%s_addr = %s\n", name, local_hex_string(address));
 	asi->sect_index++;
 }
 
 static void
-load_kld (char *path, CORE_ADDR base_addr, int from_tty, int add_kld_command)
+load_kld (char *path, CORE_ADDR base_addr, int from_tty)
 {
 	struct add_section_info asi;
 	struct cleanup *cleanup;
@@ -242,23 +239,19 @@ load_kld (char *path, CORE_ADDR base_addr, int from_tty, int add_kld_command)
 	if (bfd_get_section_by_name (bfd, ".text") == NULL)
 		error("\"%s\": can't find text section", path);
 
-	if (add_kld_command)
-		printf_unfiltered("add symbol table from file \"%s\" at\n",
-		    path);
+	printf_unfiltered("add symbol table from file \"%s\" at\n", path);
 
 	/* Build a section table for symbol_file_add() from the bfd sections. */
 	asi.section_addrs = alloc_section_addr_info(bfd_count_sections(bfd));
 	cleanup = make_cleanup(xfree, asi.section_addrs);
 	asi.sect_index = 0;
 	asi.base_addr = base_addr;
-	asi.add_kld_command = add_kld_command;
 	bfd_map_over_sections(bfd, add_section, &asi);
 
 	if (from_tty && (!query("%s", "")))
 		error("Not confirmed.");
 
-	symbol_file_add(path, from_tty, asi.section_addrs, 0,
-	    add_kld_command ? OBJF_USERLOADED : 0);
+	symbol_file_add(path, from_tty, asi.section_addrs, 0, OBJF_USERLOADED);
 
 	do_cleanups(cleanup);
 }
@@ -288,7 +281,7 @@ kgdb_add_kld_cmd (char *arg, int from_tty)
 		return;
 	}
 
-	load_kld(path, base_addr, from_tty, 1);
+	load_kld(path, base_addr, from_tty);
 
 	reinit_frame_cache();
 }
