@@ -73,7 +73,7 @@ extern	void	ctl_transact(struct in_addr,CTL_MSG,int,CTL_RESPONSE *);
 extern	void	disp_msg(int);
 extern	void	display(xwin_t *, char *, int);
 extern	void	end_msgs(void);
-extern	void	get_addrs(char *, char *);
+extern	void	get_addrs(const char *, const char *);
 extern	int	get_iface(struct in_addr *, struct in_addr *);
 extern	void	get_names(int, char **);
 extern	void	init_display(void);

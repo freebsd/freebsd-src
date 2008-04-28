@@ -55,14 +55,13 @@ int	current_line = 0;
 
 /* ARGSUSED */
 void
-disp_msg(signo)
-	int signo __unused;
+disp_msg(int signo __unused)
 {
 	message(current_state);
 }
 
 void
-start_msgs()
+start_msgs(void)
 {
 	struct itimerval itimer;
 
@@ -74,7 +73,7 @@ start_msgs()
 }
 
 void
-end_msgs()
+end_msgs(void)
 {
 	struct itimerval itimer;
 
