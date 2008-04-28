@@ -67,7 +67,7 @@ int	local_id, remote_id;
 jmp_buf invitebuf;
 
 void
-invite_remote()
+invite_remote(void)
 {
 	int new_sockt;
 	struct itimerval itimer;
@@ -124,8 +124,7 @@ invite_remote()
  */
 /* ARGSUSED */
 void
-re_invite(signo)
-	int signo __unused;
+re_invite(int signo __unused)
 {
 
 	message("Ringing your party again");
@@ -155,7 +154,7 @@ static	const char *answers[] = {
  * Transmit the invitation and process the response
  */
 void
-announce_invite()
+announce_invite(void)
 {
 	CTL_RESPONSE response;
 
@@ -177,7 +176,7 @@ announce_invite()
  * Tell the daemon to remove your invitation
  */
 void
-send_delete()
+send_delete(void)
 {
 
 	msg.type = DELETE;

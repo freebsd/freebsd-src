@@ -55,11 +55,7 @@ static const char sccsid[] = "@(#)ctl_transact.c	8.1 (Berkeley) 6/6/93";
  * of time
  */
 void
-ctl_transact(target, lmsg, type, rp)
-	struct in_addr target;
-	CTL_MSG lmsg;
-	int type;
-	CTL_RESPONSE *rp;
+ctl_transact(struct in_addr target, CTL_MSG lmsg, int type, CTL_RESPONSE *rp)
 {
 	fd_set read_mask, ctl_mask;
 	int nready = 0, cc;
