@@ -65,7 +65,7 @@ volatile sig_atomic_t gotwinch = 0;
  * The routine to do the actual talking
  */
 void
-talk()
+talk(void)
 {
 	struct hostent *hp, *hp2;
 	int nb;
@@ -138,7 +138,7 @@ talk()
 			 */
 			int i;
 			ioctl(0, FIONREAD, (void *) &nb);
-			if (nb > sizeof buf)
+			if (nb > (ssize_t)(sizeof buf))
 				nb = sizeof buf;
 			nb = read(STDIN_FILENO, buf, nb);
 			display(&my_win, buf, nb);
@@ -156,8 +156,7 @@ talk()
  * on the screen and then exits. (i.e. a curses version of perror)
  */
 void
-p_error(string)
-	const char *string;
+p_error(const char *string)
 {
 	wmove(my_win.x_win, current_line, 0);
 	wprintw(my_win.x_win, "[%s : %s (%d)]\n",
@@ -172,8 +171,7 @@ p_error(string)
  * Display string in the standard location
  */
 void
-message(string)
-	const char *string;
+message(const char *string)
 {
 	wmove(my_win.x_win, current_line, 0);
 	wprintw(my_win.x_win, "[%s]\n", string);

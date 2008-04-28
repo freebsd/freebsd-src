@@ -65,14 +65,12 @@ static const char copyright[] =
  */
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char **argv)
 {
 	(void) setlocale(LC_CTYPE, "");
 
 	get_names(argc, argv);
-	setproctitle("");
+	setproctitle(" ");
 	check_writeable();
 	init_display();
 	open_ctl();

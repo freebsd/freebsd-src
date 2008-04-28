@@ -52,9 +52,9 @@ static const char sccsid[] = "@(#)ctl.c	8.1 (Berkeley) 6/6/93";
 
 #include "talk.h"
 
-struct	sockaddr_in daemon_addr = { sizeof(daemon_addr), AF_INET };
-struct	sockaddr_in ctl_addr = { sizeof(ctl_addr), AF_INET };
-struct	sockaddr_in my_addr = { sizeof(my_addr), AF_INET };
+struct	sockaddr_in daemon_addr = { .sin_len = sizeof(daemon_addr), .sin_family = AF_INET };
+struct	sockaddr_in ctl_addr = { .sin_len = sizeof(ctl_addr), .sin_family = AF_INET };
+struct	sockaddr_in my_addr = { .sin_len = sizeof(my_addr), .sin_family = AF_INET };
 
 	/* inet addresses of the two machines */
 struct	in_addr my_machine_addr;
@@ -69,7 +69,7 @@ int	invitation_waiting = 0;
 CTL_MSG msg;
 
 void
-open_sockt()
+open_sockt(void)
 {
 	socklen_t length;
 
@@ -90,7 +90,7 @@ open_sockt()
 
 /* open the ctl socket */
 void
-open_ctl()
+open_ctl(void)
 {
 	socklen_t length;
 
@@ -113,8 +113,7 @@ open_ctl()
 
 /* print_addr is a debug print routine */
 void
-print_addr(addr)
-	struct sockaddr_in addr;
+print_addr(struct sockaddr_in addr)
 {
 	int i;
 
