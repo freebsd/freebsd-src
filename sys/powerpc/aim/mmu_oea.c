@@ -623,16 +623,17 @@ pmap_cpu_bootstrap(volatile uint32_t *trcp, int ap)
 
 	trcp[0] = 0x1001;
 
-	for (i = 1; i < 4; i++) {
-		__asm __volatile("mtdbatu %0,%1" :: "n"(i), "r"(0));
-		__asm __volatile("mtibatu %0,%1" :: "n"(i), "r"(0));
-		isync();
-	}
+	__asm __volatile("mtdbatu 1,%0" :: "r"(battable[8].batu));
+	__asm __volatile("mtdbatl 1,%0" :: "r"(battable[8].batl));
+	isync();
 
 	trcp[0] = 0x1002;
 
-	__asm __volatile("mtdbatu 1,%0" :: "r"(battable[8].batu));
-	__asm __volatile("mtdbatl 1,%0" :: "r"(battable[8].batl));
+	__asm __volatile("mtibatu 1,%0" :: "r"(0));
+	__asm __volatile("mtdbatu 2,%0" :: "r"(0));
+	__asm __volatile("mtibatu 2,%0" :: "r"(0));
+	__asm __volatile("mtdbatu 3,%0" :: "r"(0));
+	__asm __volatile("mtibatu 3,%0" :: "r"(0));
 	isync();
 
 	trcp[0] = 0x1003;
