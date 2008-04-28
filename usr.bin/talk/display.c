@@ -58,8 +58,7 @@ int	curses_initialized = 0;
  * an argument of the form --foo at least once.
  */
 int
-max(a,b)
-	int a, b;
+max(int a, int b)
 {
 
 	return (a > b ? a : b);
@@ -70,10 +69,7 @@ max(a,b)
  * characters while we are at it.
  */
 void
-display(win, text, size)
-	xwin_t *win;
-	char *text;
-	int size;
+display(xwin_t *win, char *text, int size)
 {
 	int i;
 	char cch;
@@ -180,10 +176,7 @@ display(win, text, size)
  * Read the character at the indicated position in win
  */
 int
-readwin(win, line, col)
-	WINDOW *win;
-	int line;
-	int col;
+readwin(WINDOW *win, int line, int col)
 {
 	int oldline, oldcol;
 	int c;

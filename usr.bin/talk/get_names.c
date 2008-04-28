@@ -61,13 +61,11 @@ usage(void)
  * Determine the local and remote user, tty, and machines
  */
 void
-get_names(argc, argv)
-	int argc;
-	char *argv[];
+get_names(int argc, char *argv[])
 {
 	char hostname[MAXHOSTNAMELEN];
 	char *his_name, *my_name;
-	char *my_machine_name, *his_machine_name;
+	const char *my_machine_name, *his_machine_name;
 	const char *his_tty;
 	char *cp;
 

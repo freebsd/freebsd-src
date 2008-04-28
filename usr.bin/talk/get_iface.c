@@ -47,9 +47,7 @@ __FBSDID("$FreeBSD$");
  */
 
 int
-get_iface(dst, iface)
-	struct in_addr *dst;
-	struct in_addr *iface;
+get_iface(struct in_addr *dst, struct in_addr *iface)
 {
 	static struct sockaddr_in local;
 	struct sockaddr_in remote;

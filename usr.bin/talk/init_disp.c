@@ -60,7 +60,7 @@ extern volatile sig_atomic_t gotwinch;
  * Make sure the callee can write to the screen
  */
 void
-check_writeable()
+check_writeable(void)
 {
 	char *tty;
 	struct stat sb;
@@ -78,7 +78,7 @@ check_writeable()
  * and build the various windows.
  */
 void
-init_display()
+init_display(void)
 {
 	struct sigaction sa;
 
@@ -128,7 +128,7 @@ init_display()
  * connection are the three edit characters.
  */
 void
-set_edit_chars()
+set_edit_chars(void)
 {
 	char buf[3];
 	int cc;
@@ -160,8 +160,7 @@ set_edit_chars()
 
 /* ARGSUSED */
 void
-sig_sent(signo)
-	int signo __unused;
+sig_sent(int signo __unused)
 {
 
 	message("Connection closing. Exiting");
@@ -169,7 +168,7 @@ sig_sent(signo)
 }
 
 void
-sig_winch(int dummy)
+sig_winch(int dummy __unused)
 {
  
 	gotwinch = 1;
@@ -179,7 +178,7 @@ sig_winch(int dummy)
  * All done talking...hang up the phone and reset terminal thingy's
  */
 void
-quit()
+quit(void)
 {
 
 	if (curses_initialized) {
