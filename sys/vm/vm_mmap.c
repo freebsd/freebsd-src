@@ -1466,7 +1466,7 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 		rv = vm_map_find(map, object, foff, addr, size, TRUE,
 				 prot, maxprot, docow);
 	else
-		rv = vm_map_fixed(map, object, foff, addr, size,
+		rv = vm_map_fixed(map, object, foff, *addr, size,
 				 prot, maxprot, docow);
 
 	if (rv != KERN_SUCCESS) {
