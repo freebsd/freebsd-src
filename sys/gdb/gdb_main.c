@@ -139,6 +139,11 @@ gdb_trap(int type, int code)
 			kdb_cpu_clear_singlestep();
 			return (1);
 		}
+		case 'D': {     /* Detach */
+			gdb_tx_ok();
+			kdb_cpu_clear_singlestep();
+			return (1);
+		}
 		case 'g': {	/* Read registers. */
 			size_t r;
 			gdb_tx_begin(0);
