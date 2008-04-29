@@ -85,6 +85,15 @@ INLINE_LIMIT?=	15000
 .endif
 
 #
+# For MIPS we also tell gcc to use floating point emulation and 
+# disable MIPS DSP ASE Instruction set.
+#
+.if ${MACHINE_ARCH} == "mips"
+CFLAGS+=	-msoft-float -mno-dsp
+INLINE_LIMIT?=	15000
+.endif
+
+#
 # GCC 3.0 and above like to do certain optimizations based on the
 # assumption that the program is linked against libc.  Stop this.
 #
