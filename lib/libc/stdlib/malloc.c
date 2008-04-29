@@ -1530,6 +1530,13 @@ static void *
 chunk_alloc_dss(size_t size)
 {
 
+	/*
+	 * sbrk() uses a signed increment argument, so take care not to
+	 * interpret a huge allocation request as a negative increment.
+	 */
+	if ((intptr_t)size < 0)
+		return (NULL);
+
 	malloc_mutex_lock(&dss_mtx);
 	if (dss_prev != (void *)-1) {
 		intptr_t incr;
