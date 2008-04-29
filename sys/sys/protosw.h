@@ -226,7 +226,8 @@ struct pr_usrreqs {
 #define	PRUS_EOF	0x2
 #define	PRUS_MORETOCOME	0x4
 	int	(*pru_sense)(struct socket *so, struct stat *sb);
-	int	(*pru_shutdown)(struct socket *so);
+        int	(*pru_shutdown)(struct socket *so);
+	int	(*pru_flush)(struct socket *so, int direction);  
 	int	(*pru_sockaddr)(struct socket *so, struct sockaddr **nam);
 	int	(*pru_sosend)(struct socket *so, struct sockaddr *addr,
 		    struct uio *uio, struct mbuf *top, struct mbuf *control,
