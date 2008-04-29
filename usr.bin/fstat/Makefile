@@ -18,8 +18,7 @@ CFLAGS+=-D_KVM_VNODE
 CFLAGS+= -DZFS
 OBJS+=	zfs/zfs.o
 SUBDIR=	zfs
-${PROG}: zfs
-zfs/zfs.o:
+zfs/zfs.o: .PHONY
 	@cd ${.CURDIR}/zfs && ${MAKE} zfs.o
 .endif
 
