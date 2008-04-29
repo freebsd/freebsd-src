@@ -78,6 +78,12 @@ kgdb_thr_init(void)
 	struct thread td;
 	struct kthr *kt;
 	uintptr_t addr, paddr;
+	
+	while (first != NULL) {
+		kt = first;
+		first = kt->next;
+		free(kt);
+	}
 
 	addr = kgdb_lookup("_allproc");
 	if (addr == 0) {
