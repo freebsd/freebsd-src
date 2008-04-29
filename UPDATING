@@ -32,7 +32,9 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	to
 		wlans_ath0=wlan0
 		ifconfig_wlan0="WPA DHCP"
-	see rc.conf(5) for more details.
+	see rc.conf(5) for more details.  In addition, mergemaster of
+	/etc/rc.d is highly recommended.  Simultaneous update of userland
+	and kernel wouldn't hurt either.
 
 	As part of the multi-bss changes the wlan_scan_ap and wlan_scan_sta
 	modules were merged into the base wlan module.  All references
