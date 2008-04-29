@@ -192,7 +192,7 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 		new_thread->tid = TID_TERMINATED;
 		if (new_thread->flags & THR_FLAGS_NEED_SUSPEND) {
 			new_thread->cycle++;
-			_thr_umtx_wake(&new_thread->cycle, INT_MAX);
+			_thr_umtx_wake(&new_thread->cycle, INT_MAX, 0);
 		}
 		THR_THREAD_UNLOCK(curthread, new_thread);
 		THREAD_LIST_LOCK(curthread);

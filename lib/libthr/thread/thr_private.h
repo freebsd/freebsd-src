@@ -315,7 +315,7 @@ struct pthread {
 	struct umutex		lock;
 
 	/* Internal condition variable cycle number. */
-	long			cycle;
+	uint32_t		cycle;
 
 	/* How many low level locks the thread held. */
 	int			locklevel;
