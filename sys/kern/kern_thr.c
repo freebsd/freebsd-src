@@ -276,7 +276,7 @@ thr_exit(struct thread *td, struct thr_exit_args *uap)
 	/* Signal userland that it can free the stack. */
 	if ((void *)uap->state != NULL) {
 		suword_lwpid(uap->state, 1);
-		kern_umtx_wake(td, uap->state, INT_MAX);
+		kern_umtx_wake(td, uap->state, INT_MAX, 0);
 	}
 
 	PROC_LOCK(p);
