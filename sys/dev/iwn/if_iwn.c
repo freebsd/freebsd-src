@@ -388,6 +388,8 @@ iwn_attach(device_t dev)
 #endif
 		| IEEE80211_C_WME		/* WME */
 		;
+#if 0
+	/* XXX disable until HT channel setup works */
 	ic->ic_htcaps =
 		  IEEE80211_HTCAP_SMPS_ENA	/* SM PS mode enabled */
 		| IEEE80211_HTCAP_CHWIDTH40	/* 40MHz channel width */
@@ -400,7 +402,7 @@ iwn_attach(device_t dev)
 		| IEEE80211_HTC_AMPDU		/* tx A-MPDU */
 		| IEEE80211_HTC_AMSDU		/* tx A-MSDU */
 		;
-
+#endif
 	/* read supported channels and MAC address from EEPROM */
 	iwn_read_eeprom(sc);
 
