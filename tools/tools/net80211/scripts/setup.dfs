@@ -1,6 +1,6 @@
 #! /bin/sh
 #
-# Scrip for testing DFS; setup an AP vap on a DFS channel
+# Script for testing DFS; setup an AP vap on a DFS channel
 # then simulate a radar event and verify operation.
 #
 # $FreeBSD$
