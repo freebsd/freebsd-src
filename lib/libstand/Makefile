@@ -143,9 +143,7 @@ SRCS+=	splitfs.c
 .include <bsd.lib.mk>
 
 .if ${MACHINE_ARCH} == "amd64"
-${SRCS:M*.c:R:S/$/.o/g}:	machine
-
-beforedepend:	machine
+beforedepend ${OBJS}: machine
 cleandepend: cleanmachine
 cleanmachine:
 	rm -f machine
