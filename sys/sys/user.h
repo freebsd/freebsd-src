@@ -99,6 +99,9 @@
 #ifdef __i386__
 #define	KINFO_PROC_SIZE	768
 #endif
+#ifdef __mips__
+#define	KINFO_PROC_SIZE	816
+#endif
 #ifdef __powerpc__
 #define	KINFO_PROC_SIZE	768
 #endif
