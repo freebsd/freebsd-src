@@ -3157,6 +3157,19 @@ sctp_add_cookie(struct sctp_inpcb *inp, struct mbuf *init, int init_offset,
 		sctp_m_freem(mret);
 		return (NULL);
 	}
+#ifdef SCTP_MBUF_LOGGING
+	if (sctp_logging_level & SCTP_MBUF_LOGGING_ENABLE) {
+		struct mbuf *mat;
+
+		mat = copy_init;
+		while (mat) {
+			if (SCTP_BUF_IS_EXTENDED(mat)) {
+				sctp_log_mb(mat, SCTP_MBUF_ICOPY);
+			}
+			mat = SCTP_BUF_NEXT(mat);
+		}
+	}
+#endif
 	copy_initack = SCTP_M_COPYM(initack, initack_offset, M_COPYALL,
 	    M_DONTWAIT);
 	if (copy_initack == NULL) {
@@ -3164,6 +3177,19 @@ sctp_add_cookie(struct sctp_inpcb *inp, struct mbuf *init, int init_offset,
 		sctp_m_freem(copy_init);
 		return (NULL);
 	}
+#ifdef SCTP_MBUF_LOGGING
+	if (sctp_logging_level & SCTP_MBUF_LOGGING_ENABLE) {
+		struct mbuf *mat;
+
+		mat = copy_initack;
+		while (mat) {
+			if (SCTP_BUF_IS_EXTENDED(mat)) {
+				sctp_log_mb(mat, SCTP_MBUF_ICOPY);
+			}
+			mat = SCTP_BUF_NEXT(mat);
+		}
+	}
+#endif
 	/* easy side we just drop it on the end */
 	ph = mtod(mret, struct sctp_paramhdr *);
 	SCTP_BUF_LEN(mret) = sizeof(struct sctp_state_cookie) +
@@ -5665,6 +5691,19 @@ error_out:
 		} else {
 			/* copy the old fashion way */
 			appendchain = SCTP_M_COPYM(clonechain, 0, M_COPYALL, M_DONTWAIT);
+#ifdef SCTP_MBUF_LOGGING
+			if (sctp_logging_level & SCTP_MBUF_LOGGING_ENABLE) {
+				struct mbuf *mat;
+
+				mat = appendchain;
+				while (mat) {
+					if (SCTP_BUF_IS_EXTENDED(mat)) {
+						sctp_log_mb(mat, SCTP_MBUF_ICOPY);
+					}
+					mat = SCTP_BUF_NEXT(mat);
+				}
+			}
+#endif
 		}
 	}
 	if (appendchain == NULL) {
@@ -5752,6 +5791,19 @@ sctp_sendall_iterator(struct sctp_inpcb *inp, struct sctp_tcb *stcb, void *ptr,
 			ca->cnt_failed++;
 			return;
 		}
+#ifdef SCTP_MBUF_LOGGING
+		if (sctp_logging_level & SCTP_MBUF_LOGGING_ENABLE) {
+			struct mbuf *mat;
+
+			mat = m;
+			while (mat) {
+				if (SCTP_BUF_IS_EXTENDED(mat)) {
+					sctp_log_mb(mat, SCTP_MBUF_ICOPY);
+				}
+				mat = SCTP_BUF_NEXT(mat);
+			}
+		}
+#endif
 	} else {
 		m = NULL;
 	}
@@ -6490,6 +6542,19 @@ dont_do_it:
 			to_move = 0;
 			goto out_of;
 		}
+#ifdef SCTP_MBUF_LOGGING
+		if (sctp_logging_level & SCTP_MBUF_LOGGING_ENABLE) {
+			struct mbuf *mat;
+
+			mat = chk->data;
+			while (mat) {
+				if (SCTP_BUF_IS_EXTENDED(mat)) {
+					sctp_log_mb(mat, SCTP_MBUF_ICOPY);
+				}
+				mat = SCTP_BUF_NEXT(mat);
+			}
+		}
+#endif
 		/* Pull off the data */
 		m_adj(sp->data, to_move);
 		/* Now lets work our way down and compact it */
@@ -7859,6 +7924,19 @@ sctp_send_cookie_echo(struct mbuf *m,
 				/* No memory */
 				return (-2);
 			}
+#ifdef SCTP_MBUF_LOGGING
+			if (sctp_logging_level & SCTP_MBUF_LOGGING_ENABLE) {
+				struct mbuf *mat;
+
+				mat = cookie;
+				while (mat) {
+					if (SCTP_BUF_IS_EXTENDED(mat)) {
+						sctp_log_mb(mat, SCTP_MBUF_ICOPY);
+					}
+					mat = SCTP_BUF_NEXT(mat);
+				}
+			}
+#endif
 			break;
 		}
 		at += SCTP_SIZE32(plen);
@@ -7920,6 +7998,19 @@ sctp_send_heartbeat_ack(struct sctp_tcb *stcb,
 		/* gak out of memory */
 		return;
 	}
+#ifdef SCTP_MBUF_LOGGING
+	if (sctp_logging_level & SCTP_MBUF_LOGGING_ENABLE) {
+		struct mbuf *mat;
+
+		mat = outchain;
+		while (mat) {
+			if (SCTP_BUF_IS_EXTENDED(mat)) {
+				sctp_log_mb(mat, SCTP_MBUF_ICOPY);
+			}
+			mat = SCTP_BUF_NEXT(mat);
+		}
+	}
+#endif
 	chdr = mtod(outchain, struct sctp_chunkhdr *);
 	chdr->chunk_type = SCTP_HEARTBEAT_ACK;
 	chdr->chunk_flags = 0;
@@ -8175,6 +8266,20 @@ sctp_send_asconf_ack(struct sctp_tcb *stcb)
 			/* couldn't copy it */
 			return;
 		}
+#ifdef SCTP_MBUF_LOGGING
+		if (sctp_logging_level & SCTP_MBUF_LOGGING_ENABLE) {
+			struct mbuf *mat;
+
+			mat = m_ack;
+			while (mat) {
+				if (SCTP_BUF_IS_EXTENDED(mat)) {
+					sctp_log_mb(mat, SCTP_MBUF_ICOPY);
+				}
+				mat = SCTP_BUF_NEXT(mat);
+			}
+		}
+#endif
+
 		sctp_alloc_a_chunk(stcb, chk);
 		if (chk == NULL) {
 			/* no memory */
@@ -11592,7 +11697,7 @@ sctp_lower_sosend(struct socket *so,
 			/* we already checked for non-blocking above. */
 			max_len = sndlen;
 		} else {
-			max_len = SCTP_SB_LIMIT_SND(so) - stcb->asoc.total_output_queue_size;
+			max_len = SCTP_SB_LIMIT_SND(so) - inqueue_bytes;
 		}
 	} else {
 		max_len = 0;
