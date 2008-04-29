@@ -179,7 +179,7 @@ sem_cancel_handler(void *arg)
 
 	atomic_add_int(&(*sem)->nwaiters, -1);
 	if ((*sem)->nwaiters && (*sem)->count)
-		_thr_umtx_wake(&(*sem)->count, 1);
+		_thr_umtx_wake(&(*sem)->count, 1, 0);
 }
 
 int
@@ -208,7 +208,7 @@ _sem_wait(sem_t *sem)
 		atomic_add_int(&(*sem)->nwaiters, 1);
 		THR_CLEANUP_PUSH(curthread, sem_cancel_handler, sem);
 		_thr_cancel_enter(curthread);
-		retval = _thr_umtx_wait_uint(&(*sem)->count, 0, NULL);
+		retval = _thr_umtx_wait_uint(&(*sem)->count, 0, NULL, 0);
 		_thr_cancel_leave(curthread);
 		THR_CLEANUP_POP(curthread, 0);
 		atomic_add_int(&(*sem)->nwaiters, -1);
@@ -255,7 +255,7 @@ _sem_timedwait(sem_t * __restrict sem,
 		atomic_add_int(&(*sem)->nwaiters, 1);
 		THR_CLEANUP_PUSH(curthread, sem_cancel_handler, sem);
 		_thr_cancel_enter(curthread);
-		retval = _thr_umtx_wait_uint(&(*sem)->count, 0, &ts2);
+		retval = _thr_umtx_wait_uint((uint32_t*)&(*sem)->count, 0, &ts2, 0);
 		_thr_cancel_leave(curthread);
 		THR_CLEANUP_POP(curthread, 0);
 		atomic_add_int(&(*sem)->nwaiters, -1);
@@ -283,7 +283,7 @@ _sem_post(sem_t *sem)
 	atomic_add_rel_int(&(*sem)->count, 1);
 
 	if ((*sem)->nwaiters) {
-		retval = _thr_umtx_wake(&(*sem)->count, 1);
+		retval = _thr_umtx_wake(&(*sem)->count, 1, 0);
 		if (retval != 0)
 			retval = -1;
 	}
