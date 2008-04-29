@@ -37,6 +37,7 @@
 #include "opt_mac.h"
 #include "opt_netgraph.h"
 #include "opt_carp.h"
+#include "opt_mbuf_profiling.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -162,6 +163,7 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 		senderr(error);
 #endif
 
+	M_PROFILE(m);
 	if (ifp->if_flags & IFF_MONITOR)
 		senderr(ENETDOWN);
 	if (!((ifp->if_flags & IFF_UP) &&

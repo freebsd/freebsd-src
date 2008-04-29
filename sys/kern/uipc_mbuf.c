@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_mac.h"
 #include "opt_param.h"
 #include "opt_mbuf_stress_test.h"
+#include "opt_mbuf_profiling.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -1938,3 +1939,154 @@ m_unshare(struct mbuf *m0, int how)
 	}
 	return (m0);
 }
+
+#ifdef MBUF_PROFILING
+
+#define MP_BUCKETS 32 /* don't just change this as things may overflow.*/
+struct mbufprofile {
+	u_int64_t wasted[MP_BUCKETS];
+	u_int64_t used[MP_BUCKETS];
+	u_int64_t segments[MP_BUCKETS];
+} mbprof;
+
+#define MP_MAXDIGITS 21	/* strlen("16,000,000,000,000,000,000") == 21 */
+#define MP_NUMLINES 6
+#define MP_NUMSPERLINE 16
+#define MP_EXTRABYTES 64	/* > strlen("used:\nwasted:\nsegments:\n") */
+/* work out max space needed and add a bit of spare space too */
+#define MP_MAXLINE ((MP_MAXDIGITS+1) * MP_NUMSPERLINE)
+#define MP_BUFSIZE ((MP_MAXLINE * MP_NUMLINES) + 1 + MP_EXTRABYTES)
+
+char mbprofbuf[MP_BUFSIZE];
+
+void
+m_profile(struct mbuf *m)
+{
+	int segments = 0;
+	int used = 0;
+	int wasted = 0;
+	
+	while (m) {
+		segments++;
+		used += m->m_len;
+		if (m->m_flags & M_EXT) {
+			wasted += MHLEN - sizeof(m->m_ext) +
+			    m->m_ext.ext_size - m->m_len;
+		} else {
+			if (m->m_flags & M_PKTHDR)
+				wasted += MHLEN - m->m_len;
+			else
+				wasted += MLEN - m->m_len;
+		}
+		m = m->m_next;
+	}
+	/* be paranoid.. it helps */
+	if (segments > MP_BUCKETS - 1)
+		segments = MP_BUCKETS - 1;
+	if (used > 100000)
+		used = 100000;
+	if (wasted > 100000)
+		wasted = 100000;
+	/* store in the appropriate bucket */
+	/* don't bother locking. if it's slightly off, so what? */
+	mbprof.segments[segments]++;
+	mbprof.used[fls(used)]++;
+	mbprof.wasted[fls(wasted)]++;
+}
+
+static void
+mbprof_textify(void)
+{
+	int offset;
+	char *c;
+	u_int64_t *p;
+	
+
+	p = &mbprof.wasted[0];
+	c = mbprofbuf;
+	offset = snprintf(c, MP_MAXLINE + 10, 
+	    "wasted:\n"
+	    "%lld %lld %lld %lld %lld %lld %lld %lld "
+	    "%lld %lld %lld %lld %lld %lld %lld %lld\n",
+	    p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7],
+	    p[8], p[9], p[10], p[11], p[12], p[13], p[14], p[15]);
+#ifdef BIG_ARRAY
+	p = &mbprof.wasted[16];
+	c += offset;
+	offset = snprintf(c, MP_MAXLINE, 
+	    "%lld %lld %lld %lld %lld %lld %lld %lld "
+	    "%lld %lld %lld %lld %lld %lld %lld %lld\n",
+	    p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7],
+	    p[8], p[9], p[10], p[11], p[12], p[13], p[14], p[15]);
+#endif
+	p = &mbprof.used[0];
+	c += offset;
+	offset = snprintf(c, MP_MAXLINE + 10, 
+	    "used:\n"
+	    "%lld %lld %lld %lld %lld %lld %lld %lld "
+	    "%lld %lld %lld %lld %lld %lld %lld %lld\n",
+	    p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7],
+	    p[8], p[9], p[10], p[11], p[12], p[13], p[14], p[15]);
+#ifdef BIG_ARRAY
+	p = &mbprof.used[16];
+	c += offset;
+	offset = snprintf(c, MP_MAXLINE, 
+	    "%lld %lld %lld %lld %lld %lld %lld %lld "
+	    "%lld %lld %lld %lld %lld %lld %lld %lld\n",
+	    p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7],
+	    p[8], p[9], p[10], p[11], p[12], p[13], p[14], p[15]);
+#endif
+	p = &mbprof.segments[0];
+	c += offset;
+	offset = snprintf(c, MP_MAXLINE + 10, 
+	    "segments:\n"
+	    "%lld %lld %lld %lld %lld %lld %lld %lld "
+	    "%lld %lld %lld %lld %lld %lld %lld %lld\n",
+	    p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7],
+	    p[8], p[9], p[10], p[11], p[12], p[13], p[14], p[15]);
+#ifdef BIG_ARRAY
+	p = &mbprof.segments[16];
+	c += offset;
+	offset = snprintf(c, MP_MAXLINE, 
+	    "%lld %lld %lld %lld %lld %lld %lld %lld "
+	    "%lld %lld %lld %lld %lld %lld %lld %lld\n",
+	    p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7],
+	    p[8], p[9], p[10], p[11], p[12], p[13], p[14], p[15]);
+#endif
+}
+
+static int
+mbprof_handler(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+
+	mbprof_textify();
+	error = SYSCTL_OUT(req, mbprofbuf, strlen(mbprofbuf) + 1);
+	return (error);
+}
+
+static int
+mbprof_clr_handler(SYSCTL_HANDLER_ARGS)
+{
+	int clear, error;
+ 
+	clear = 0;
+	error = sysctl_handle_int(oidp, &clear, 0, req);
+	if (error || !req->newptr)
+		return (error);
+ 
+	if (clear) {
+		bzero(&mbprof, sizeof(mbprof));
+	}
+ 
+	return (error);
+}
+
+
+SYSCTL_PROC(_kern_ipc, OID_AUTO, mbufprofile, CTLTYPE_STRING|CTLFLAG_RD,
+	    NULL, 0, mbprof_handler, "A", "mbuf profiling statistics");
+
+SYSCTL_PROC(_kern_ipc, OID_AUTO, mbufprofileclr, CTLTYPE_INT|CTLFLAG_RW,
+	    NULL, 0, mbprof_clr_handler, "I", "clear mbuf profiling statistics");
+#endif
+
