@@ -362,7 +362,6 @@ if_alloc(u_char type)
 		if_index = ifp->if_index;
 	if (if_index >= if_indexlim)
 		if_grow();
-	ifnet_byindex(ifp->if_index) = ifp;
 
 	ifp->if_type = type;
 
@@ -373,6 +372,7 @@ if_alloc(u_char type)
 			return (NULL);
 		}
 	}
+	ifnet_byindex(ifp->if_index) = ifp;
 	IF_ADDR_LOCK_INIT(ifp);
 
 	return (ifp);
