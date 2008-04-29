@@ -99,7 +99,9 @@ struct urwlock {
 #define	UMTX_OP_RW_RDLOCK	12
 #define	UMTX_OP_RW_WRLOCK	13
 #define	UMTX_OP_RW_UNLOCK	14
-#define	UMTX_OP_MAX		15
+#define	UMTX_OP_WAIT_UINT_PRIVATE	15
+#define	UMTX_OP_WAKE_PRIVATE		16
+#define	UMTX_OP_MAX		17
 
 /* flags for UMTX_OP_CV_WAIT */
 #define UMTX_CHECK_UNPARKING	0x01
@@ -190,11 +192,11 @@ struct thread;
 
 struct umtx_q *umtxq_alloc(void);
 void umtxq_free(struct umtx_q *);
-int kern_umtx_wake(struct thread *td, void *uaddr, int n_wake);
-void umtx_pi_adjust(struct thread *td, u_char oldpri);
-void umtx_thread_init(struct thread *td);
-void umtx_thread_fini(struct thread *td);
-void umtx_thread_alloc(struct thread *td);
-void umtx_thread_exit(struct thread *td);
+int kern_umtx_wake(struct thread *, void *, int, int);
+void umtx_pi_adjust(struct thread *, u_char);
+void umtx_thread_init(struct thread *);
+void umtx_thread_fini(struct thread *);
+void umtx_thread_alloc(struct thread *);
+void umtx_thread_exit(struct thread *);
 #endif /* !_KERNEL */
 #endif /* !_SYS_UMTX_H_ */
