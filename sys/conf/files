@@ -830,6 +830,21 @@ iwi_monitor.fw			optional iwimonitorfw | iwifw		\
 	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/iwi/ipw2200-sniffer.fw.uu" \
 	no-obj no-implicit-rule						\
 	clean		"iwi_monitor.fw"
+dev/iwn/if_iwn.c		optional iwn
+iwnfw.c			optional iwnfw					\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwn.fw:iwnfw:44417 -lintel_iwn -miwn -c${.TARGET}" \
+	no-implicit-rule before-depend local				\
+	clean		"iwnfw.c"
+iwnfw.fwo			optional iwnfw				\
+	dependency	"iwn.fw"					\
+	compile-with	"${LD} -b binary -d -warn-common -r -d -o ${.TARGET} iwn.fw" \
+	no-implicit-rule						\
+	clean		"iwn.fwo"
+iwn.fw			optional iwnfw					\
+	dependency	".PHONY"					\
+	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/iwn/iwlwifi-4965-4.44.17.fw.uu"	\
+	no-obj no-implicit-rule						\
+	clean		"iwn.fw"
 dev/ixgb/if_ixgb.c		optional ixgb
 dev/ixgb/ixgb_ee.c		optional ixgb
 dev/ixgb/ixgb_hw.c		optional ixgb

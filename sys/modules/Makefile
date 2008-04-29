@@ -137,6 +137,8 @@ SUBDIR=	${_3dfx} \
 	ispfw \
 	${_iwi} \
 	${_iwifw} \
+	${_iwn} \
+	${_iwnfw} \
 	${_ixgb} \
 	joy \
 	${_k8temp} \
@@ -468,6 +470,8 @@ _ipw=		ipw
 _ipwfw=		ipwfw
 _iwi=		iwi
 _iwifw=		iwifw
+_iwn=		iwn
+_iwnfw=		iwnfw
 _ixgb=		ixgb
 _mly=		mly
 _nfe=		nfe
@@ -530,6 +534,8 @@ _ipmi=		ipmi
 _ips=		ips
 _ipw=		ipw
 _ipwfw=		ipwfw
+_iwn=		iwn
+_iwnfw=		iwnfw
 _ixgb=		ixgb
 _k8temp=	k8temp
 _linprocfs=	linprocfs
