@@ -57,6 +57,12 @@
 .Fn kproc_suspend "struct proc *p" "int timo"
 .Ft void
 .Fn kproc_suspend_check "struct proc *p"
+.Ft int
+.Fo kproc_kthread_add
+.Fa "void (*func)(void *)" "void *arg"
+.Fa "struct proc **procptr" "struct thread **tdptr"
+.Fa "int flags" "int pages" "char * procname" "const char *fmt" "..."
+.Fc
 .Sh DESCRIPTION
 The function
 .Fn kproc_start
@@ -196,6 +202,58 @@ need to be suspended voluntarily during system shutdown so as not to interfere
 with system shutdown activities.
 The actual suspension of the kernel process is done with
 .Fn kproc_suspend .
+.Pp
+The
+.Fn kproc_kthread_add
+function is much like the 
+.Fn kproc_create
+function above except that if the kproc already exists,
+then only a new thread (see
+.Xr kthread 9 )
+is created on the existing process.
+The
+.Fa func
+argument specifies the function that the process should execute.
+The
+.Fa arg
+argument is an arbitrary pointer that is passed in as the only argument to
+.Fa func
+when it is called by the new process.
+The
+.Fa procptr
+pointer points to a
+.Vt "struct proc "
+pointer that is the location to be updated with the new proc pointer
+if a new process is created, or if not
+.Dv NULL ,
+must contain the process pointer for the already exisiting process.
+If this argument points to
+.Dv NULL ,
+then a new process is created and the field updated.
+If not NULL, the
+.Fa tdptr
+pointer points to a
+.Vt "struct thread "
+pointer that is the location to be updated with the new thread pointer.
+The
+.Fa flags
+argument specifies a set of flags as described in
+.Xr rfork 2 .
+The
+.Fa pages
+argument specifies the size of the new kernel thread's stack in pages.
+If 0 is used, the default kernel stack size is allocated.
+The procname argument is the name the new process should be given if it needs to be created.
+It is
+.Em NOT
+a printf style format specifier but a simple string.
+The rest of the arguments form a
+.Xr printf 9
+argument list that is used to build the name of the new thread and is stored
+in the
+.Va td_name
+member of the new thread's
+.Vt "struct thread" .
 .Sh RETURN VALUES
 The
 .Fn kproc_create ,

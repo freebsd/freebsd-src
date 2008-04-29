@@ -403,7 +403,8 @@ kproc_kthread_add(void (*func)(void *), void *arg,
 		if (error)
 			return (error);
 		td = FIRST_THREAD_IN_PROC(*procptr);
-		*tdptr = td;
+		if (tdptr)
+			*tdptr = td;
 		va_start(ap, fmt);
 		vsnprintf(td->td_name, sizeof(td->td_name), fmt, ap);
 		va_end(ap);
