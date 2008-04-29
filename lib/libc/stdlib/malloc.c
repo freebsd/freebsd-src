@@ -214,6 +214,11 @@ __FBSDID("$FreeBSD$");
 #  define SIZEOF_PTR_2POW	2
 #  define NO_TLS
 #endif
+#ifdef __mips__
+#  define QUANTUM_2POW_MIN	3
+#  define SIZEOF_PTR_2POW	2
+#  define NO_TLS
+#endif
 #ifdef __powerpc__
 #  define QUANTUM_2POW_MIN	4
 #  define SIZEOF_PTR_2POW	2
