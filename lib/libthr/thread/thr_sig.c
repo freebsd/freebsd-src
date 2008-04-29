@@ -89,7 +89,7 @@ _thr_ast(struct pthread *curthread)
 void
 _thr_suspend_check(struct pthread *curthread)
 {
-	long cycle;
+	uint32_t cycle;
 	int err;
 
 	if (curthread->force_exit)
@@ -114,7 +114,7 @@ _thr_suspend_check(struct pthread *curthread)
 		cycle = curthread->cycle;
 
 		/* Wake the thread suspending us. */
-		_thr_umtx_wake(&curthread->cycle, INT_MAX);
+		_thr_umtx_wake(&curthread->cycle, INT_MAX, 0);
 
 		/*
 		 * if we are from pthread_exit, we don't want to
@@ -124,7 +124,7 @@ _thr_suspend_check(struct pthread *curthread)
 			break;
 		curthread->flags |= THR_FLAGS_SUSPENDED;
 		THR_UMUTEX_UNLOCK(curthread, &(curthread)->lock);
-		_thr_umtx_wait(&curthread->cycle, cycle, NULL);
+		_thr_umtx_wait_uint(&curthread->cycle, cycle, NULL, 0);
 		THR_UMUTEX_LOCK(curthread, &(curthread)->lock);
 		curthread->flags &= ~THR_FLAGS_SUSPENDED;
 	}
