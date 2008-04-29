@@ -76,6 +76,7 @@ fopen(file, mode)
 	 * open.
 	 */
 	if (f > SHRT_MAX) {
+		fp->_flags = 0;			/* release */
 		_close(f);
 		errno = EMFILE;
 		return (NULL);
