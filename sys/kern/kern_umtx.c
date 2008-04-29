@@ -948,7 +948,7 @@ do_unlock_umtx32(struct thread *td, uint32_t *m, uint32_t id)
  */
 static int
 do_wait(struct thread *td, void *addr, u_long id,
-	struct timespec *timeout, int compat32)
+	struct timespec *timeout, int compat32, int is_private)
 {
 	struct umtx_q *uq;
 	struct timespec ts, ts2, ts3;
@@ -957,8 +957,8 @@ do_wait(struct thread *td, void *addr, u_long id,
 	int error = 0;
 
 	uq = td->td_umtxq;
-	if ((error = umtx_key_get(addr, TYPE_SIMPLE_WAIT, AUTO_SHARE,
-	    &uq->uq_key)) != 0)
+	if ((error = umtx_key_get(addr, TYPE_SIMPLE_WAIT,
+		is_private ? THREAD_SHARE : AUTO_SHARE, &uq->uq_key)) != 0)
 		return (error);
 
 	umtxq_lock(&uq->uq_key);
@@ -1013,13 +1013,13 @@ do_wait(struct thread *td, void *addr, u_long id,
  * Wake up threads sleeping on the specified address.
  */
 int
-kern_umtx_wake(struct thread *td, void *uaddr, int n_wake)
+kern_umtx_wake(struct thread *td, void *uaddr, int n_wake, int is_private)
 {
 	struct umtx_key key;
 	int ret;
 	
-	if ((ret = umtx_key_get(uaddr, TYPE_SIMPLE_WAIT, AUTO_SHARE,
-	   &key)) != 0)
+	if ((ret = umtx_key_get(uaddr, TYPE_SIMPLE_WAIT,
+		is_private ? THREAD_SHARE : AUTO_SHARE, &key)) != 0)
 		return (ret);
 	umtxq_lock(&key);
 	ret = umtxq_signal(&key, n_wake);
@@ -2745,7 +2745,7 @@ __umtx_op_wait(struct thread *td, struct _umtx_op_args *uap)
 			return (EINVAL);
 		ts = &timeout;
 	}
-	return do_wait(td, uap->obj, uap->val, ts, 0);
+	return do_wait(td, uap->obj, uap->val, ts, 0, 0);
 }
 
 static int
@@ -2765,13 +2765,39 @@ __umtx_op_wait_uint(struct thread *td, struct _umtx_op_args *uap)
 			return (EINVAL);
 		ts = &timeout;
 	}
-	return do_wait(td, uap->obj, uap->val, ts, 1);
+	return do_wait(td, uap->obj, uap->val, ts, 1, 0);
+}
+
+static int
+__umtx_op_wait_uint_private(struct thread *td, struct _umtx_op_args *uap)
+{
+	struct timespec *ts, timeout;
+	int error;
+
+	if (uap->uaddr2 == NULL)
+		ts = NULL;
+	else {
+		error = copyin(uap->uaddr2, &timeout, sizeof(timeout));
+		if (error != 0)
+			return (error);
+		if (timeout.tv_nsec >= 1000000000 ||
+		    timeout.tv_nsec < 0)
+			return (EINVAL);
+		ts = &timeout;
+	}
+	return do_wait(td, uap->obj, uap->val, ts, 1, 1);
 }
 
 static int
 __umtx_op_wake(struct thread *td, struct _umtx_op_args *uap)
 {
-	return (kern_umtx_wake(td, uap->obj, uap->val));
+	return (kern_umtx_wake(td, uap->obj, uap->val, 0));
+}
+
+static int
+__umtx_op_wake_private(struct thread *td, struct _umtx_op_args *uap)
+{
+	return (kern_umtx_wake(td, uap->obj, uap->val, 1));
 }
 
 static int
@@ -2920,7 +2946,9 @@ static _umtx_op_func op_table[] = {
 	__umtx_op_wait_uint,		/* UMTX_OP_WAIT_UINT */
 	__umtx_op_rw_rdlock,		/* UMTX_OP_RW_RDLOCK */
 	__umtx_op_rw_wrlock,		/* UMTX_OP_RW_WRLOCK */
-	__umtx_op_rw_unlock		/* UMTX_OP_RW_UNLOCK */
+	__umtx_op_rw_unlock,		/* UMTX_OP_RW_UNLOCK */
+	__umtx_op_wait_uint_private,	/* UMTX_OP_WAIT_UINT_PRIVATE */
+	__umtx_op_wake_private		/* UMTX_OP_WAKE_PRIVATE */
 };
 
 int
@@ -3010,7 +3038,7 @@ __umtx_op_wait_compat32(struct thread *td, struct _umtx_op_args *uap)
 			return (EINVAL);
 		ts = &timeout;
 	}
-	return do_wait(td, uap->obj, uap->val, ts, 1);
+	return do_wait(td, uap->obj, uap->val, ts, 1, 0);
 }
 
 static int
@@ -3101,6 +3129,26 @@ __umtx_op_rw_wrlock_compat32(struct thread *td, struct _umtx_op_args *uap)
 	return (error);
 }
 
+static int
+__umtx_op_wait_uint_private_compat32(struct thread *td, struct _umtx_op_args *uap)
+{
+	struct timespec *ts, timeout;
+	int error;
+
+	if (uap->uaddr2 == NULL)
+		ts = NULL;
+	else {
+		error = copyin_timeout32(uap->uaddr2, &timeout);
+		if (error != 0)
+			return (error);
+		if (timeout.tv_nsec >= 1000000000 ||
+		    timeout.tv_nsec < 0)
+			return (EINVAL);
+		ts = &timeout;
+	}
+	return do_wait(td, uap->obj, uap->val, ts, 1, 1);
+}
+
 static _umtx_op_func op_table_compat32[] = {
 	__umtx_op_lock_umtx_compat32,	/* UMTX_OP_LOCK */
 	__umtx_op_unlock_umtx_compat32,	/* UMTX_OP_UNLOCK */
@@ -3116,7 +3164,9 @@ static _umtx_op_func op_table_compat32[] = {
 	__umtx_op_wait_compat32,	/* UMTX_OP_WAIT_UINT */
 	__umtx_op_rw_rdlock_compat32,	/* UMTX_OP_RW_RDLOCK */
 	__umtx_op_rw_wrlock_compat32,	/* UMTX_OP_RW_WRLOCK */
-	__umtx_op_rw_unlock		/* UMTX_OP_RW_UNLOCK */
+	__umtx_op_rw_unlock,		/* UMTX_OP_RW_UNLOCK */
+	__umtx_op_wait_uint_private_compat32,	/* UMTX_OP_WAIT_UINT_PRIVATE */
+	__umtx_op_wake_private		/* UMTX_OP_WAKE_PRIVATE */
 };
 
 int
