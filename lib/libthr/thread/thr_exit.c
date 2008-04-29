@@ -125,7 +125,7 @@ _pthread_exit(void *status)
 	curthread->state = PS_DEAD;
 	if (curthread->flags & THR_FLAGS_NEED_SUSPEND) {
 		curthread->cycle++;
-		_thr_umtx_wake(&curthread->cycle, INT_MAX);
+		_thr_umtx_wake(&curthread->cycle, INT_MAX, 0);
 	}
 	THR_UNLOCK(curthread);
 	/*

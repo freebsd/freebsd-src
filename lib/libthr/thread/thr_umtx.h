@@ -46,8 +46,8 @@ void _thr_umutex_init(struct umutex *mtx) __hidden;
 int _thr_umtx_wait(volatile long *mtx, long exp,
 	const struct timespec *timeout) __hidden;
 int _thr_umtx_wait_uint(volatile u_int *mtx, u_int exp,
-	const struct timespec *timeout) __hidden;
-int _thr_umtx_wake(volatile void *mtx, int count) __hidden;
+	const struct timespec *timeout, int shared) __hidden;
+int _thr_umtx_wake(volatile void *mtx, int count, int shared) __hidden;
 int _thr_ucond_wait(struct ucond *cv, struct umutex *m,
         const struct timespec *timeout, int check_unpaking) __hidden;
 void _thr_ucond_init(struct ucond *cv) __hidden;

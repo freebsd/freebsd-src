@@ -94,19 +94,20 @@ _thr_umtx_wait(volatile long *mtx, long id, const struct timespec *timeout)
 }
 
 int
-_thr_umtx_wait_uint(volatile u_int *mtx, u_int id, const struct timespec *timeout)
+_thr_umtx_wait_uint(volatile u_int *mtx, u_int id, const struct timespec *timeout, int shared)
 {
 	if (timeout && (timeout->tv_sec < 0 || (timeout->tv_sec == 0 &&
 		timeout->tv_nsec <= 0)))
 		return (ETIMEDOUT);
-	return _umtx_op_err(__DEVOLATILE(void *, mtx), UMTX_OP_WAIT_UINT, id, 0,
-		__DECONST(void*, timeout));
+	return _umtx_op_err(__DEVOLATILE(void *, mtx), 
+			shared ? UMTX_OP_WAIT_UINT : UMTX_OP_WAIT_UINT_PRIVATE, id, 0,
+			__DECONST(void*, timeout));
 }
 
 int
-_thr_umtx_wake(volatile void *mtx, int nr_wakeup)
+_thr_umtx_wake(volatile void *mtx, int nr_wakeup, int shared)
 {
-	return _umtx_op_err(__DEVOLATILE(void *, mtx), UMTX_OP_WAKE,
+	return _umtx_op_err(__DEVOLATILE(void *, mtx), shared ? UMTX_OP_WAKE : UMTX_OP_WAKE_PRIVATE,
 		nr_wakeup, 0, 0);
 }
 
