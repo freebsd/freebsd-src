@@ -585,6 +585,7 @@ hint.mse.0.irq="5"
 #       Intel EtherExpress
 # ipw:	Intel PRO/Wireless 2100 IEEE 802.11 adapter
 # iwi:	Intel PRO/Wireless 2200BG/2225BG/2915ABG IEEE 802.11 adapters
+# iwn:	Intel Wireless WiFi Link 4965AGN 802.11 network adapters
 # nfe:	nVidia nForce MCP on-board Ethernet Networking (BSD open source)
 # nve:	nVidia nForce MCP on-board Ethernet Networking
 # oltr: Olicom ISA token-ring adapters OC-3115, OC-3117, OC-3118 and OC-3133.
@@ -638,6 +639,7 @@ hint.ie.2.port="0x300"
 hint.ie.2.irq="5"
 hint.ie.2.maddr="0xd0000"
 device		iwi
+device		iwn
 device		ipw
 # Hint for the i386-only ISA front-end of le(4).
 hint.le.0.at="isa"
