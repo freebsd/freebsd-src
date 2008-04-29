@@ -57,6 +57,12 @@
 .Fn kthread_suspend "struct thread *td" "int timo"
 .Ft void
 .Fn kthread_suspend_check "struct thread *td"
+.Ft int
+.Fo kproc_kthread_add
+.Fa "void (*func)(void *)" "void *arg"
+.Fa "struct proc **procptr" "struct thread **tdptr"
+.Fa "int flags" "int pages" "char * procname" "const char *fmt" "..."
+.Fc
 .Sh DESCRIPTION
 The function
 .Fn kthread_start
@@ -149,6 +155,16 @@ in the
 .Va td_name
 member of the new thread's
 .Vt "struct thread" .
+.Pp
+The
+.Fn kproc_kthread_add
+function is much like the 
+.Fn kthread_add
+function above except that if the kproc does not already
+exist, it is created. 
+This function is better documented in the 
+.Xr kproc 9
+manual page.
 .Pp
 The
 .Fn kthread_exit
