@@ -57,7 +57,7 @@
 #  6.  `mergemaster -p'
 #  7.  `make installworld'
 #  8.  `make delete-old'
-#  9.  `mergemaster'
+#  9.  `mergemaster'                         (you may wish to use -U or -ai).
 # 10.  `reboot'
 # 11.  `make delete-old-libs' (in case no 3rd party program uses them anymore)
 #
