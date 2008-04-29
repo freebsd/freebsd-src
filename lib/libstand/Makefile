@@ -146,6 +146,9 @@ SRCS+=	splitfs.c
 ${SRCS:M*.c:R:S/$/.o/g}:	machine
 
 beforedepend:	machine
+cleandepend: cleanmachine
+cleanmachine:
+	rm -f machine
 
 machine:
 	ln -s ${.CURDIR}/../../sys/i386/include machine
