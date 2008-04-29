@@ -134,6 +134,7 @@ static const struct mii_phydesc brgphys[] = {
 	MII_PHY_DESC(xxBROADCOM_ALT1, BCM5709CAX),
 	MII_PHY_DESC(xxBROADCOM_ALT1, BCM5722),
 	MII_PHY_DESC(xxBROADCOM_ALT1, BCM5709C),
+	MII_PHY_DESC(BROADCOM2, BCM5906),
 	MII_PHY_END
 };
 
@@ -189,6 +190,7 @@ brgphy_attach(device_t dev)
 	/* Handle any special cases based on the PHY ID */
 	switch (bsc->mii_oui) {
 	case MII_OUI_BROADCOM: 
+	case MII_OUI_BROADCOM2: 
 		break;
 	case MII_OUI_xxBROADCOM:
 		switch (bsc->mii_model) {
@@ -229,12 +231,14 @@ brgphy_attach(device_t dev)
 		bce_sc = ifp->if_softc;
 	}
 
-	/* Todo: Need to add additional controllers such as 5906 & 5787F */
+	/* Todo: Need to add additional controllers such as 5787F */
 	/* The 590x chips are 10/100 only. */
 	if (bge_sc &&
 	    pci_get_vendor(bge_sc->bge_dev) == BCOM_VENDORID &&
 	    (pci_get_device(bge_sc->bge_dev) == BCOM_DEVICEID_BCM5901 ||
-	    pci_get_device(bge_sc->bge_dev) == BCOM_DEVICEID_BCM5901A2)) {
+	    pci_get_device(bge_sc->bge_dev) == BCOM_DEVICEID_BCM5901A2 ||
+	    pci_get_device(bge_sc->bge_dev) == BCOM_DEVICEID_BCM5906 ||
+	    pci_get_device(bge_sc->bge_dev) == BCOM_DEVICEID_BCM5906M)) {
 		fast_ether = 1;
 		sc->mii_anegticks = MII_ANEGTICKS;
 	}
@@ -927,6 +931,11 @@ brgphy_reset(struct mii_softc *sc)
 			    PHY_READ(sc, BRGPHY_MII_PHY_EXTCTL) &
 			    ~BRGPHY_PHY_EXTCTL_3_LED);
 		}
+
+		/* Adjust output voltage (From Linux driver) */
+		if (bge_sc->bge_asicrev == BGE_ASICREV_BCM5906)
+			PHY_WRITE(sc, BRGPHY_MII_EPHY_PTEST, 0x12);
+
 	/* Handle any bce (NetXtreme II) workarounds. */
 	} else if (bce_sc) {
 
