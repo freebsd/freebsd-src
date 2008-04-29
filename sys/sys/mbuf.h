@@ -959,4 +959,12 @@ m_tag_find(struct mbuf *m, int type, struct m_tag *start)
 
 #endif /* _KERNEL */
 
+#ifdef MBUF_PROFILING
+ void m_profile(struct mbuf *m);
+ #define M_PROFILE(m) m_profile(m)
+#else
+ #define M_PROFILE(m)
+#endif
+
+
 #endif /* !_SYS_MBUF_H_ */
