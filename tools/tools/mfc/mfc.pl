@@ -51,6 +51,7 @@ use warnings;
 use Env;
 use Env qw(MFCHOME MFCLOGIN MFCCVSROOT);
 use Getopt::Std;
+use IO::Handle;
 
 my $mfchome = $MFCHOME ? $MFCHOME : "/var/tmp/mfc";
 my $mfclogin = $MFCLOGIN ? $MFCLOGIN : "";
@@ -77,6 +78,10 @@ my $mfc_func = \&mfc_headers;
 
 sub init()
 {
+	# Enable autoflush of output to always show prompts.  Without this,
+	# piping output will fail to display a prompt.
+	autoflush STDOUT 1;
+
 	# Look for pre-requisites.
 	my @reqs = ( "fetch", "cvs", "mkdir", "cat", "chmod", "grep" );
 	my $cmd;
