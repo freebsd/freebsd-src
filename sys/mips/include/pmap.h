@@ -92,7 +92,6 @@ struct pmap {
 	pd_entry_t *pm_segtab;	/* KVA of segment table */
 	           TAILQ_HEAD(, pv_entry)pm_pvlist;	/* list of mappings in
 							 * pmap */
-	int pm_count;		/* reference count */
 	int pm_active;		/* active on cpus */
 	struct {
 		u_int32_t asid:ASID_BITS;	/* TLB address space tag */
