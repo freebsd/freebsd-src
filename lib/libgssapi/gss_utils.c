@@ -36,6 +36,11 @@
 int
 _gss_oid_equal(const gss_OID oid1, const gss_OID oid2)
 {
+
+	if (oid1 == oid2)
+		return (1);
+	if (!oid1 || !oid2)
+		return (0);
 	if (oid1->length != oid2->length)
 		return (0);
 	if (memcmp(oid1->elements, oid2->elements, oid1->length))
