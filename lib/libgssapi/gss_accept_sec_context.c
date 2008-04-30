@@ -187,10 +187,13 @@ OM_uint32 gss_accept_sec_context(OM_uint32 *minor_status,
 		*src_name = (gss_name_t) name;
 	}
 
+	if (delegated_mc == GSS_C_NO_CREDENTIAL)
+		mech_ret_flags &= ~GSS_C_DELEG_FLAG;
+
 	if (mech_ret_flags & GSS_C_DELEG_FLAG) {
 		if (!delegated_cred_handle) {
 			m->gm_release_cred(minor_status, &delegated_mc);
-			*ret_flags &= ~GSS_C_DELEG_FLAG;
+			mech_ret_flags &= ~GSS_C_DELEG_FLAG;
 		} else {
 			struct _gss_cred *cred;
 			struct _gss_mechanism_cred *mc;
@@ -200,6 +203,7 @@ OM_uint32 gss_accept_sec_context(OM_uint32 *minor_status,
 				*minor_status = ENOMEM;
 				return (GSS_S_FAILURE);
 			}
+			SLIST_INIT(&cred->gc_mc);
 			mc = malloc(sizeof(struct _gss_mechanism_cred));
 			if (!mc) {
 				free(cred);
