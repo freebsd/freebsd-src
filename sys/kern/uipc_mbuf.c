@@ -1944,9 +1944,9 @@ m_unshare(struct mbuf *m0, int how)
 
 #define MP_BUCKETS 32 /* don't just change this as things may overflow.*/
 struct mbufprofile {
-	u_int64_t wasted[MP_BUCKETS];
-	u_int64_t used[MP_BUCKETS];
-	u_int64_t segments[MP_BUCKETS];
+	uintmax_t wasted[MP_BUCKETS];
+	uintmax_t used[MP_BUCKETS];
+	uintmax_t segments[MP_BUCKETS];
 } mbprof;
 
 #define MP_MAXDIGITS 21	/* strlen("16,000,000,000,000,000,000") == 21 */
@@ -2006,16 +2006,16 @@ mbprof_textify(void)
 	c = mbprofbuf;
 	offset = snprintf(c, MP_MAXLINE + 10, 
 	    "wasted:\n"
-	    "%lld %lld %lld %lld %lld %lld %lld %lld "
-	    "%lld %lld %lld %lld %lld %lld %lld %lld\n",
+	    "%ju %ju %ju %ju %ju %ju %ju %ju "
+	    "%ju %ju %ju %ju %ju %ju %ju %ju\n",
 	    p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7],
 	    p[8], p[9], p[10], p[11], p[12], p[13], p[14], p[15]);
 #ifdef BIG_ARRAY
 	p = &mbprof.wasted[16];
 	c += offset;
 	offset = snprintf(c, MP_MAXLINE, 
-	    "%lld %lld %lld %lld %lld %lld %lld %lld "
-	    "%lld %lld %lld %lld %lld %lld %lld %lld\n",
+	    "%ju %ju %ju %ju %ju %ju %ju %ju "
+	    "%ju %ju %ju %ju %ju %ju %ju %ju\n",
 	    p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7],
 	    p[8], p[9], p[10], p[11], p[12], p[13], p[14], p[15]);
 #endif
@@ -2023,16 +2023,16 @@ mbprof_textify(void)
 	c += offset;
 	offset = snprintf(c, MP_MAXLINE + 10, 
 	    "used:\n"
-	    "%lld %lld %lld %lld %lld %lld %lld %lld "
-	    "%lld %lld %lld %lld %lld %lld %lld %lld\n",
+	    "%ju %ju %ju %ju %ju %ju %ju %ju "
+	    "%ju %ju %ju %ju %ju %ju %ju %ju\n",
 	    p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7],
 	    p[8], p[9], p[10], p[11], p[12], p[13], p[14], p[15]);
 #ifdef BIG_ARRAY
 	p = &mbprof.used[16];
 	c += offset;
 	offset = snprintf(c, MP_MAXLINE, 
-	    "%lld %lld %lld %lld %lld %lld %lld %lld "
-	    "%lld %lld %lld %lld %lld %lld %lld %lld\n",
+	    "%ju %ju %ju %ju %ju %ju %ju %ju "
+	    "%ju %ju %ju %ju %ju %ju %ju %ju\n",
 	    p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7],
 	    p[8], p[9], p[10], p[11], p[12], p[13], p[14], p[15]);
 #endif
@@ -2040,16 +2040,16 @@ mbprof_textify(void)
 	c += offset;
 	offset = snprintf(c, MP_MAXLINE + 10, 
 	    "segments:\n"
-	    "%lld %lld %lld %lld %lld %lld %lld %lld "
-	    "%lld %lld %lld %lld %lld %lld %lld %lld\n",
+	    "%ju %ju %ju %ju %ju %ju %ju %ju "
+	    "%ju %ju %ju %ju %ju %ju %ju %ju\n",
 	    p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7],
 	    p[8], p[9], p[10], p[11], p[12], p[13], p[14], p[15]);
 #ifdef BIG_ARRAY
 	p = &mbprof.segments[16];
 	c += offset;
 	offset = snprintf(c, MP_MAXLINE, 
-	    "%lld %lld %lld %lld %lld %lld %lld %lld "
-	    "%lld %lld %lld %lld %lld %lld %lld %lld\n",
+	    "%ju %ju %ju %ju %ju %ju %ju %ju "
+	    "%ju %ju %ju %ju %ju %ju %ju %jju",
 	    p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7],
 	    p[8], p[9], p[10], p[11], p[12], p[13], p[14], p[15]);
 #endif
