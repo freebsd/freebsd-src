@@ -49,7 +49,7 @@
 #include "wlanstats.h"
 
 #define	S_DEFAULT \
-	"input,output,rx_ucast,rx_mcast,tx_ucast,tx_mcast,rssi,rate"
+	"input,rx_mgmt,output,rx_badkeyid,scan_active,scan_bg,bmiss,rssi,noise,rate"
 #define	S_AMPDU \
 	"input,output,ampdu_reorder,ampdu_oor,rx_dup,ampdu_flush,ampdu_move,ampdu_drop,ampdu_bar,ampdu_baroow,ampdu_barmove,rssi,rate"
 

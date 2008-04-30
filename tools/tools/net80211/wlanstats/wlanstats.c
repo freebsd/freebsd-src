@@ -157,7 +157,7 @@ static const struct fmt wlanstats[] = {
 	{ 5,  "rx_unauth",	"unauth",
 		"rx discard 'cuz port unauthorized" },
 #define	S_RX_BADKEYID		AFTER(S_RX_UNAUTH)
-	{ 5,  "rx_badkeyid",	"badkeyid",	"rx w/ incorrect keyid" },
+	{ 5,  "rx_badkeyid",	"rxkid",	"rx w/ incorrect keyid" },
 #define	S_RX_CCMPREPLAY		AFTER(S_RX_BADKEYID)
 	{ 5,  "rx_ccmpreplay",	"ccmpreplay",	"rx seq# violation (CCMP)" },
 #define	S_RX_CCMPFORMAT		AFTER(S_RX_CCMPREPLAY)
@@ -195,11 +195,11 @@ static const struct fmt wlanstats[] = {
 #define	S_TX_FRAGS		AFTER(S_TX_FRAGFRAMES)
 	{ 5,  "tx_frags",	"frags",		"tx frags generated" },
 #define	S_SCAN_ACTIVE		AFTER(S_TX_FRAGS)
-	{ 5,  "scan_active",	"scan_active",	"active scans started" },
+	{ 5,  "scan_active",	"ascan",	"active scans started" },
 #define	S_SCAN_PASSIVE		AFTER(S_SCAN_ACTIVE)
-	{ 5,  "scan_passive",	"scan_passive",	"passive scans started" },
+	{ 5,  "scan_passive",	"pscan",	"passive scans started" },
 #define	S_SCAN_BG		AFTER(S_SCAN_PASSIVE)
-	{ 5,  "scan_bg",	"scan_bg",	"background scans started" },
+	{ 5,  "scan_bg",	"bgscn",	"background scans started" },
 #define	S_NODE_TIMEOUT		AFTER(S_SCAN_BG)
 	{ 5,  "node_timeout",	"node_timeout",	"nodes timed out for inactivity" },
 #define	S_CRYPTO_NOMEM		AFTER(S_NODE_TIMEOUT)
@@ -259,7 +259,7 @@ static const struct fmt wlanstats[] = {
 #define	S_RX_BADBINTVAL		AFTER(S_FF_ENCAPFAIL)
 	{ 5,  "rx_badbintval",	"rx_badbintval","rx frame with bogus beacon interval" },
 #define	S_RX_MGMT		AFTER(S_RX_BADBINTVAL)
-	{ 5,  "rx_mgmt",	"rx_mgmt",	"rx management frames" },
+	{ 8,  "rx_mgmt",	"mgmt",		"rx management frames" },
 #define	S_RX_DEMICFAIL		AFTER(S_RX_MGMT)
 	{ 5,  "rx_demicfail",	"rx_demicfail",	"rx demic failed" },
 #define	S_RX_DEFRAG		AFTER(S_RX_DEMICFAIL)
@@ -335,13 +335,13 @@ static const struct fmt wlanstats[] = {
 #define	S_TX_MCAST		AFTER(S_TX_UCAST)
 	{ 8,	"tx_mcast",	"tx_mcast",	"multicast data frames sent" },
 #define	S_RATE			AFTER(S_TX_MCAST)
-	{ 4,	"rate",		"rate",		"current transmit rate" },
+	{ 5,	"rate",		"rate",		"current transmit rate" },
 #define	S_RSSI			AFTER(S_RATE)
-	{ 4,	"rssi",		"rssi",		"current rssi" },
+	{ 5,	"rssi",		"rssi",		"current rssi" },
 #define	S_NOISE			AFTER(S_RSSI)
-	{ 4,	"noise",	"noise",	"current noise floor (dBm)" },
+	{ 5,	"noise",	"noise",	"current noise floor (dBm)" },
 #define	S_SIGNAL		AFTER(S_NOISE)
-	{ 4,	"signal",	"sig",		"current signal (dBm)" },
+	{ 5,	"signal",	"sig",		"current signal (dBm)" },
 };
 
 struct wlanstatfoo_p {
