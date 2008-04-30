@@ -646,16 +646,18 @@ bfe_list_newbuf(struct bfe_softc *sc, int c, struct mbuf *m)
 	struct bfe_desc *d;
 	struct bfe_data *r;
 	u_int32_t ctrl;
-	int error;
+	int allocated, error;
 
 	if ((c < 0) || (c >= BFE_RX_LIST_CNT))
 		return (EINVAL);
 
+	allocated = 0;
 	if(m == NULL) {
 		m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
 		if(m == NULL)
 			return (ENOBUFS);
 		m->m_len = m->m_pkthdr.len = MCLBYTES;
+		allocated++;
 	}
 	else
 		m->m_data = m->m_ext.ext_buf;
@@ -670,8 +672,14 @@ bfe_list_newbuf(struct bfe_softc *sc, int c, struct mbuf *m)
 	r = &sc->bfe_rx_ring[c];
 	error = bus_dmamap_load(sc->bfe_tag, r->bfe_map, mtod(m, void *),
 			MCLBYTES, bfe_dma_map_desc, d, BUS_DMA_NOWAIT);
-	if (error)
-		printf("Serious error: bfe failed to map RX buffer\n");
+	if (error != 0) {
+		if (allocated != 0)
+			m_free(m);
+		if (error != ENOMEM)
+			printf("bfe%d: failed to map RX buffer, error %d\n",
+			    sc->bfe_unit, error);
+		return (ENOBUFS);
+	}
 	bus_dmamap_sync(sc->bfe_tag, r->bfe_map, BUS_DMASYNC_PREWRITE);
 
 	ctrl = ETHER_MAX_LEN + 32;
