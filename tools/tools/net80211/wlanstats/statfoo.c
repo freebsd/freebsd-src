@@ -40,9 +40,9 @@ statfoo_setfmt(struct statfoo *sf, const char *fmt0)
 #define	N(a)	(sizeof(a)/sizeof(a[0]))
 	char fmt[4096];
 	char *fp, *tok;
-	int i, j;
+	int i, j, field;
 
-	j = 0;
+	j = field = 0;
 	strlcpy(fmt, fmt0, sizeof(fmt));
 	for (fp = fmt; (tok = strsep(&fp, ", ")) != NULL;) {
 		for (i = 0; i < sf->nstats; i++)
@@ -58,9 +58,15 @@ statfoo_setfmt(struct statfoo *sf, const char *fmt0)
 				"stopped at %s\n", sf->name, tok);
 			break;
 		}
+		if (field > 127) {
+			fprintf(stderr, "%s: too many fields; "
+				"stopped at %s\n", sf->name, tok);
+			break;
+		}
 		if (j != 0)
 			sf->fmts[j++] = ' ';
-		sf->fmts[j++] = 0x80 | i;
+		sf->fmts[j++] = 0x80 | field;
+		sf->fields[field++] = i;
 	}
 	sf->fmts[j] = '\0';
 #undef N
@@ -92,7 +98,8 @@ statfoo_print_header(struct statfoo *sf, FILE *fd)
 
 	for (cp = sf->fmts; *cp != '\0'; cp++) {
 		if (*cp & 0x80) {
-			const struct fmt *f = &sf->stats[*cp &~ 0x80];
+			int six = sf->fields[*cp &~ 0x80];
+			const struct fmt *f = &sf->stats[six];
 			fprintf(fd, "%*s", f->width, f->label);
 		} else
 			putc(*cp, fd);
@@ -108,8 +115,9 @@ statfoo_print_current(struct statfoo *sf, FILE *fd)
 
 	for (cp = sf->fmts; *cp != '\0'; cp++) {
 		if (*cp & 0x80) {
-			const struct fmt *f = &sf->stats[*cp &~ 0x80];
-			if (sf->get_curstat(sf, *cp &~ 0x80, buf, sizeof(buf)))
+			int six = sf->fields[*cp &~ 0x80];
+			const struct fmt *f = &sf->stats[six];
+			if (sf->get_curstat(sf, six, buf, sizeof(buf)))
 				fprintf(fd, "%*s", f->width, buf);
 		} else
 			putc(*cp, fd);
@@ -125,8 +133,9 @@ statfoo_print_total(struct statfoo *sf, FILE *fd)
 
 	for (cp = sf->fmts; *cp != '\0'; cp++) {
 		if (*cp & 0x80) {
-			const struct fmt *f = &sf->stats[*cp &~ 0x80];
-			if (sf->get_totstat(sf, *cp &~ 0x80, buf, sizeof(buf)))
+			int six = sf->fields[*cp &~ 0x80];
+			const struct fmt *f = &sf->stats[six];
+			if (sf->get_totstat(sf, six, buf, sizeof(buf)))
 				fprintf(fd, "%*s", f->width, buf);
 		} else
 			putc(*cp, fd);
