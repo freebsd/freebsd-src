@@ -132,7 +132,7 @@ powerpc/powerpc/in_cksum.c	optional	inet
 powerpc/powerpc/intr_machdep.c	standard
 powerpc/powerpc/mem.c		optional	mem
 powerpc/powerpc/mmu_if.m	standard
-powerpc/powerpc/mp_machdep.c	optional	smp aim
+powerpc/powerpc/mp_machdep.c	optional	smp
 powerpc/powerpc/openpic.c	standard
 powerpc/powerpc/pic_if.m	standard
 powerpc/powerpc/pmap_dispatch.c	standard
