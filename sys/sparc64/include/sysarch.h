@@ -36,6 +36,8 @@
 #ifndef _MACHINE_SYSARCH_H_
 #define _MACHINE_SYSARCH_H_
 
+#include <machine/utrap.h>
+
 #define	SPARC_UTRAP_INSTALL	1
 #define	SPARC_SIGTRAMP_INSTALL	2
 
@@ -61,12 +63,12 @@ struct sparc_utrap_args {
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
-int __sparc_utrap_install(utrap_entry_t type, utrap_handler_t new_precise,
-			  utrap_handler_t new_deferred,
-			  utrap_handler_t *old_precise,
-			  utrap_handler_t *old_deferred);
-int sysarch(int, void *);
+int	__sparc_utrap_install(utrap_entry_t _type,
+	    utrap_handler_t _new_precise, utrap_handler_t _new_deferred,
+	    utrap_handler_t *_old_precise, utrap_handler_t *_old_deferred);
+int	sysarch(int _number, void *_args);
 __END_DECLS
+
 #endif
 
 #endif /* !_MACHINE_SYSARCH_H_ */
