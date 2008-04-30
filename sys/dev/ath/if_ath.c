@@ -6302,16 +6302,6 @@ ath_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		} else
 			ath_stop_locked(ifp);
 		break;
-	case SIOCADDMULTI:
-	case SIOCDELMULTI:
-		/*
-		 * The upper layer has already installed/removed
-		 * the multicast address(es), just recalculate the
-		 * multicast filter for the card.
-		 */
-		if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-			ath_mode_init(sc);
-		break;
 	case SIOCGIFMEDIA:
 	case SIOCSIFMEDIA:
 		error = ifmedia_ioctl(ifp, ifr, &ic->ic_media, cmd);
