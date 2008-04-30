@@ -2887,14 +2887,14 @@ iwn_enable_tsf(struct iwn_softc *sc, struct ieee80211_node *ni)
 	/* XXX all wrong */
 	/* compute remaining time until next beacon */
 	val = (uint64_t)ni->ni_intval * 1024;	/* msecs -> usecs */
-	DPRINTF(sc, IWN_DEBUG_ANY, "%s: val = %llu %s\n", __func__,
+	DPRINTF(sc, IWN_DEBUG_ANY, "%s: val = %ju %s\n", __func__,
 	    val, val == 0 ? "correcting" : "");
 	if (val == 0)
 		val = 1;
 	mod = le64toh(tsf.tstamp) % val;
 	tsf.binitval = htole32((uint32_t)(val - mod));
 
-	DPRINTF(sc, IWN_DEBUG_RESET, "TSF bintval=%u tstamp=%llu, init=%u\n",
+	DPRINTF(sc, IWN_DEBUG_RESET, "TSF bintval=%u tstamp=%ju, init=%u\n",
 	    ni->ni_intval, le64toh(tsf.tstamp), (uint32_t)(val - mod));
 
 	if (iwn_cmd(sc, IWN_CMD_TSF, &tsf, sizeof tsf, 1) != 0)
