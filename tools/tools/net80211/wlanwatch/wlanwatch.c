@@ -67,6 +67,14 @@
 #include <unistd.h>
 #include <ifaddrs.h>
 
+/* XXX */
+enum ieee80211_notify_cac_event {
+	IEEE80211_NOTIFY_CAC_START  = 0, /* CAC timer started */
+	IEEE80211_NOTIFY_CAC_STOP   = 1, /* CAC intentionally stopped */
+	IEEE80211_NOTIFY_CAC_RADAR  = 2, /* CAC stopped due to radar detectio */
+	IEEE80211_NOTIFY_CAC_EXPIRE = 3, /* CAC expired w/o radar */
+};
+
 static	void print_rtmsg(struct rt_msghdr *rtm, int msglen);
 
 int	nflag = 0;
@@ -378,6 +386,63 @@ print_rtmsg(struct rt_msghdr *rtm, int msglen)
 			    , V(ieee80211_michael_event)->iev_cipher
 			    , V(ieee80211_michael_event)->iev_keyix
 			);
+			break;
+		case RTM_IEEE80211_WDS:
+			printf("%s wds discovery",
+			    ether_sprintf(V(ieee80211_wds_event)->iev_addr));
+			break;
+		case RTM_IEEE80211_CSA:
+			printf("channel switch announcement: channel %u (%u MHz flags 0x%x) mode %d count %d"
+			    , V(ieee80211_csa_event)->iev_ieee
+			    , V(ieee80211_csa_event)->iev_freq
+			    , V(ieee80211_csa_event)->iev_flags
+			    , V(ieee80211_csa_event)->iev_mode
+			    , V(ieee80211_csa_event)->iev_count
+			);
+			break;
+		case RTM_IEEE80211_CAC:
+			printf("channel availability check "
+			    "(channel %u, %u MHz flags 0x%x) "
+			    , V(ieee80211_cac_event)->iev_ieee
+			    , V(ieee80211_cac_event)->iev_freq
+			    , V(ieee80211_cac_event)->iev_flags
+			);
+			switch (V(ieee80211_cac_event)->iev_type) {
+			case IEEE80211_NOTIFY_CAC_START:
+				printf("start timer");
+				break;
+			case IEEE80211_NOTIFY_CAC_STOP:
+				printf("stop timer");
+				break;
+			case IEEE80211_NOTIFY_CAC_EXPIRE:
+				printf("timer expired");
+				break;
+			case IEEE80211_NOTIFY_CAC_RADAR:
+				printf("radar detected");
+				break;
+			default:
+				printf("unknown type %d",
+				   V(ieee80211_cac_event)->iev_type);
+				break;
+			}
+			break;
+		case RTM_IEEE80211_DEAUTH:
+			printf("%s wds deauth",
+			    ether_sprintf(V(ieee80211_deauth_event)->iev_addr));
+			break;
+		case RTM_IEEE80211_AUTH:
+			printf("%s node authenticate",
+			    ether_sprintf(V(ieee80211_auth_event)->iev_addr));
+			break;
+		case RTM_IEEE80211_COUNTRY:
+			printf("%s adopt country code '%c%c'",
+			    ether_sprintf(V(ieee80211_country_event)->iev_addr),
+			    V(ieee80211_country_event)->iev_cc[0],
+			    V(ieee80211_country_event)->iev_cc[1]);
+			break;
+		case RTM_IEEE80211_RADIO:
+			printf("radio %s",
+			    V(ieee80211_radio_event)->iev_state ? "ON" : "OFF");
 			break;
 		default:
 			printf("what: #%d", ifan->ifan_what);
