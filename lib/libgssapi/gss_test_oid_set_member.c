@@ -28,15 +28,7 @@
 
 #include <gssapi/gssapi.h>
 
-static int
-_gss_oid_equal(const gss_OID oid1, const gss_OID oid2)
-{
-	if (oid1->length != oid2->length)
-		return (0);
-	if (memcmp(oid1->elements, oid2->elements, oid1->length))
-		return (0);
-	return (1);
-}
+#include "utils.h"
 
 OM_uint32
 gss_test_oid_set_member(OM_uint32 *minor_status,
