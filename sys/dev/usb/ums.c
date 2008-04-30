@@ -387,6 +387,26 @@ ums_attach(device_t self)
 		sc->sc_loc_btn[2].pos = 10;
 	}
 
+	/*
+	 * The Microsoft Wireless Notebook Optical Mouse 3000 Model 1049 has
+	 * five Report IDs: 19 23 24 17 18 (in the order they appear in report
+	 * descriptor), it seems that report id 17 contains the necessary
+	 * mouse information(3-buttons,X,Y,wheel) so we specify it manually.
+	 */
+	if (uaa->vendor == USB_VENDOR_MICROSOFT &&
+	    uaa->product == USB_PRODUCT_MICROSOFT_WLNOTEBOOK3) {
+		sc->flags = UMS_Z;
+		sc->nbuttons = 3;
+		sc->sc_isize = 5;
+		sc->sc_iid = 17;
+		sc->sc_loc_x.pos = 8;
+		sc->sc_loc_y.pos = 16;
+		sc->sc_loc_z.pos = 24;
+		sc->sc_loc_btn[0].pos = 0;
+		sc->sc_loc_btn[1].pos = 1;
+		sc->sc_loc_btn[2].pos = 2;
+	}
+
 	sc->sc_ep_addr = ed->bEndpointAddress;
 	sc->sc_disconnected = 0;
 	free(desc, M_TEMP);
