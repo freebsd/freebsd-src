@@ -3,7 +3,7 @@
  */
 
 /* $FreeBSD$ */
-OUTPUT_FORMAT("elf32-bigmips", "elf32-bigmips", "elf32-littlemips")
+OUTPUT_FORMAT("elf32-tradbigmips", "elf32-tradbigmips", "elf32-tradlittlemips")
 OUTPUT_ARCH(mips)
 ENTRY(_start)
 SEARCH_DIR(/usr/lib);
