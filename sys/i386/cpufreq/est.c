@@ -101,7 +101,7 @@ const char centaur_id[] = "CentaurHauls";
 CTASSERT(EST_MAX_SETTINGS <= MAX_SETTINGS);
 
 /* Estimate in microseconds of latency for performing a transition. */
-#define EST_TRANS_LAT		10
+#define EST_TRANS_LAT		1000
 
 /*
  * Frequency (MHz) and voltage (mV) settings.  Data from the
@@ -1091,6 +1091,7 @@ est_acpi_info(device_t dev, freq_info **freqs)
 	sets = malloc(MAX_SETTINGS * sizeof(*sets), M_TEMP, M_NOWAIT);
 	if (sets == NULL)
 		return (ENOMEM);
+	count = MAX_SETTINGS;
 	error = CPUFREQ_DRV_SETTINGS(perf_dev, sets, &count);
 	if (error)
 		goto out;
