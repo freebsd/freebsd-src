@@ -3952,7 +3952,7 @@ bge_ifmedia_upd_locked(struct ifnet *ifp)
 	 */
 	BGE_SETBIT(sc, BGE_MISC_LOCAL_CTL, BGE_MLC_INTR_SET);
 #ifdef	notyet
-	BGE_SETBIT(sc, BGE_HCC_MODE, BGE_HCCMODE_ATTN);
+	BGE_SETBIT(sc, BGE_HCC_MODE, BGE_HCCMODE_COAL_NOW);
 #endif
 
 	return (0);
