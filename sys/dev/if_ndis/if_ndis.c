@@ -147,6 +147,7 @@ static void ndis_starttask	(device_object *, void *);
 static void ndis_resettask	(device_object *, void *);
 static void ndis_inputtask	(device_object *, void *);
 static int ndis_ioctl		(struct ifnet *, u_long, caddr_t);
+static int ndis_ioctl_80211	(struct ifnet *, u_long, caddr_t);
 static int ndis_newstate	(struct ieee80211vap *, enum ieee80211_state,
 	int);
 static int ndis_nettype_chan	(uint32_t);
@@ -714,6 +715,7 @@ ndis_attach(dev)
 		    device_get_nameunit(dev));
 		TASK_INIT(&sc->ndis_scantask, 0, ndis_scan, sc);
 
+		ifp->if_ioctl = ndis_ioctl_80211;
 		ic->ic_ifp = ifp;
 		ic->ic_opmode = IEEE80211_M_STA;
 	        ic->ic_phytype = IEEE80211_T_DS;
@@ -2705,11 +2707,7 @@ ndis_ioctl(ifp, command, data)
 	caddr_t			data;
 {
 	struct ndis_softc	*sc = ifp->if_softc;
-	struct ieee80211com	*ic = ifp->if_l2com;
 	struct ifreq		*ifr = (struct ifreq *) data;
-	struct ndis_oid_data	oid;
-	struct ndis_evt		evt;
-	void			*oidbuf;
 	int			i, error = 0;
 
 	/*NDIS_LOCK(sc);*/
@@ -2751,10 +2749,7 @@ ndis_ioctl(ifp, command, data)
 		break;
 	case SIOCGIFMEDIA:
 	case SIOCSIFMEDIA:
-		if (sc->ndis_80211)
-			error = ifmedia_ioctl(ifp, ifr, &ic->ic_media, command);
-		else
-			error = ifmedia_ioctl(ifp, ifr, &sc->ifmedia, command);
+		error = ifmedia_ioctl(ifp, ifr, &sc->ifmedia, command);
 		break;
 	case SIOCSIFCAP:
 		ifp->if_capenable = ifr->ifr_reqcap;
@@ -2763,6 +2758,46 @@ ndis_ioctl(ifp, command, data)
 		else
 			ifp->if_hwassist = 0;
 		ndis_set_offload(sc);
+		break;
+	default:
+		error = ether_ioctl(ifp, command, data);
+		break;
+	}
+
+	/*NDIS_UNLOCK(sc);*/
+
+	return(error);
+}
+
+static int
+ndis_ioctl_80211(ifp, command, data)
+	struct ifnet		*ifp;
+	u_long			command;
+	caddr_t			data;
+{
+	struct ndis_softc	*sc = ifp->if_softc;
+	struct ieee80211com	*ic = ifp->if_l2com;
+	struct ifreq		*ifr = (struct ifreq *) data;
+	struct ndis_oid_data	oid;
+	struct ndis_evt		evt;
+	void			*oidbuf;
+	int			error = 0;
+
+	switch(command) {
+	case SIOCSIFFLAGS:
+		/*NDIS_LOCK(sc);*/
+		if (ifp->if_flags & IFF_UP) {
+			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
+				ndis_init(sc);
+				ieee80211_start_all(ic);
+			}
+		} else {
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+				ndis_stop(sc);
+		}
+		sc->ndis_if_flags = ifp->if_flags;
+		error = 0;
+		/*NDIS_UNLOCK(sc);*/
 		break;
 	case SIOCGDRVSPEC:
 		if ((error = priv_check(curthread, PRIV_DRIVER)))
@@ -2863,13 +2898,16 @@ ndis_ioctl(ifp, command, data)
 		NDIS_EVTINC(sc->ndis_evtcidx);
 		NDIS_UNLOCK(sc);
 		break;
-	default:
+	case SIOCGIFMEDIA:
+		error = ifmedia_ioctl(ifp, ifr, &ic->ic_media, command);
+		break;
+	case SIOCGIFADDR:
 		error = ether_ioctl(ifp, command, data);
 		break;
+	default:
+		error = EINVAL;
+		break;
 	}
-
-	/*NDIS_UNLOCK(sc);*/
-
 	return(error);
 }
 

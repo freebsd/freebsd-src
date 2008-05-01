@@ -1427,9 +1427,9 @@ rum_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	struct ifreq *ifr = (struct ifreq *) data;
 	int error = 0, startall = 0;
 
-	RUM_LOCK(sc);
 	switch (cmd) {
 	case SIOCSIFFLAGS:
+		RUM_LOCK(sc);
 		if (ifp->if_flags & IFF_UP) {
 			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
 				rum_init(sc);
@@ -1440,18 +1440,20 @@ rum_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 				rum_stop(sc);
 		}
+		RUM_UNLOCK(sc);
+		if (startall)
+			ieee80211_start_all(ic);
 		break;
 	case SIOCGIFMEDIA:
-	case SIOCSIFMEDIA:
 		error = ifmedia_ioctl(ifp, ifr, &ic->ic_media, cmd);
 		break;
-	default:
+	case SIOCGIFADDR:
 		error = ether_ioctl(ifp, cmd, data);
+		break;
+	default:
+		error = EINVAL;
+		break;
 	}
-	RUM_UNLOCK(sc);
-
-	if (startall)
-		ieee80211_start_all(ic);
 	return error;
 }
 
