@@ -299,22 +299,15 @@ kgdb_trgt_trapframe_prev_register(struct frame_info *next_frame,
 	*realnump = -1;
 
 	if (!ofs_fixed) {
-		uintptr_t calltrap_addr;
-		char calltrap[1];
-
-		calltrap_addr = kgdb_lookup("calltrap");
-		if (calltrap_addr != 0) {
-			if (kvm_read(kvm, calltrap_addr, calltrap,
-				     sizeof(calltrap)) != sizeof(calltrap)) {
-				warnx("kvm_read: %s", kvm_geterr(kvm));
-			} else if (calltrap[0] == 0x54) /* push %esp */ {
-				/*
-				 * To accomodate for rev. 1.117 of
-				 * i386/i386/exception.s
-				 */
-				ofs_fix = 4;
-			}
-		}
+		/*
+		 * In revision 1.117 of i386/i386/exception.S trap handlers
+		 * were changed to pass trapframes by reference rather than
+		 * by value.  Detect this by seeing if the first instruction
+		 * at the 'calltrap' label is a "push %esp" which has the
+		 * opcode 0x54.
+		 */
+		if (kgdb_parse("((char *)calltrap)[0]") == 0x54)
+			ofs_fix = 4;
 		ofs_fixed = 1;
 	}
 	ofs = (regnum >= I386_EAX_REGNUM && regnum <= I386_FS_REGNUM)
