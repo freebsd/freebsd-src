@@ -218,21 +218,24 @@ kgdb_thr_extra_thread_info(int tid)
 	struct kthr *kt;
 	struct proc *p;
 	struct thread *t;
-	static char info[MAXCOMLEN + 1 + MAXCOMLEN + 1];
+	static char buf[64];
 
 	kt = kgdb_thr_lookup_tid(tid);
 	if (kt == NULL)
-		return (NULL);
+		return (NULL);	
+	snprintf(buf, sizeof(buf), "PID=%d", kt->pid);
 	p = (struct proc *)kt->paddr;
-	t = (struct thread *)kt->kaddr;
 	if (kvm_read(kvm, (uintptr_t)&p->p_comm[0], &comm, sizeof(comm)) !=
 	    sizeof(comm))
-		return (NULL);
+		return (buf);
+	strlcat(buf, ": ", sizeof(buf));
+	strlcat(buf, comm, sizeof(buf));
+	t = (struct thread *)kt->kaddr;
 	if (kvm_read(kvm, (uintptr_t)&t->td_name[0], &td_name,
 	    sizeof(td_name)) == sizeof(td_name) &&
-	    strcmp(comm, td_name) != 0)
-		snprintf(info, sizeof(info), "%s/%s", comm, td_name);
-	else
-		strlcpy(info, comm, sizeof(info));
-	return (info);
+	    strcmp(comm, td_name) != 0) {
+		strlcat(buf, "/", sizeof(buf));
+		strlcat(buf, td_name, sizeof(buf));
+	}
+	return (buf);
 }
