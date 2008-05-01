@@ -2448,9 +2448,9 @@ zyd_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	struct ifreq *ifr = (struct ifreq *) data;
 	int error = 0, startall = 0;
 
-	ZYD_LOCK(sc);
 	switch (cmd) {
 	case SIOCSIFFLAGS:
+		ZYD_LOCK(sc);
 		if (ifp->if_flags & IFF_UP) {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 				if ((ifp->if_flags ^ sc->sc_if_flags) &
@@ -2465,19 +2465,20 @@ zyd_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				zyd_stop(sc, 1);
 		}
 		sc->sc_if_flags = ifp->if_flags;
+		ZYD_UNLOCK(sc);
+		if (startall)
+			ieee80211_start_all(ic);
 		break;
 	case SIOCGIFMEDIA:
-	case SIOCSIFMEDIA:
 		error = ifmedia_ioctl(ifp, ifr, &ic->ic_media, cmd);
 		break;
-	default:
+	case SIOCGIFADDR:
 		error = ether_ioctl(ifp, cmd, data);
 		break;
+	default:
+		error = EINVAL;
+		break;
 	}
-	ZYD_UNLOCK(sc);
-
-	if (startall)
-		ieee80211_start_all(ic);
 	return error;
 }
 

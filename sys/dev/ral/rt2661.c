@@ -1747,9 +1747,9 @@ rt2661_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	struct ifreq *ifr = (struct ifreq *) data;
 	int error = 0, startall = 0;
 
-	RAL_LOCK(sc);
 	switch (cmd) {
 	case SIOCSIFFLAGS:
+		RAL_LOCK(sc);
 		if (ifp->if_flags & IFF_UP) {
 			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
 				rt2661_init_locked(sc);
@@ -1760,19 +1760,20 @@ rt2661_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 				rt2661_stop_locked(sc);
 		}
+		RAL_UNLOCK(sc);
+		if (startall)
+			ieee80211_start_all(ic);
 		break;
 	case SIOCGIFMEDIA:
-	case SIOCSIFMEDIA:
 		error = ifmedia_ioctl(ifp, ifr, &ic->ic_media, cmd);
 		break;
-	default:
+	case SIOCGIFADDR:
 		error = ether_ioctl(ifp, cmd, data);
 		break;
+	default:
+		error = EINVAL;
+		break;
 	}
-	RAL_UNLOCK(sc);
-
-	if (startall)
-		ieee80211_start_all(ic);
 	return error;
 }
 

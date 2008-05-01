@@ -1181,9 +1181,9 @@ wi_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	struct ifreq *ifr = (struct ifreq *) data;
 	int error = 0, startall = 0;
 
-	WI_LOCK(sc);
 	switch (cmd) {
 	case SIOCSIFFLAGS:
+		WI_LOCK(sc);
 		/*
 		 * Can't do promisc and hostap at the same time.  If all that's
 		 * changing is the promisc flag, try to short-circuit a call to
@@ -1209,19 +1209,20 @@ wi_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			sc->wi_gone = 0;
 		}
 		sc->sc_if_flags = ifp->if_flags;
+		WI_UNLOCK(sc);
+		if (startall)
+			ieee80211_start_all(ic);
 		break;
 	case SIOCGIFMEDIA:
-	case SIOCSIFMEDIA:
 		error = ifmedia_ioctl(ifp, ifr, &ic->ic_media, cmd);
 		break;
-	default:
+	case SIOCGIFADDR:
 		error = ether_ioctl(ifp, cmd, data);
 		break;
+	default:
+		error = EINVAL;
+		break;
 	}
-	WI_UNLOCK(sc);
-
-	if (startall)
-		ieee80211_start_all(ic);
 	return error;
 }
 

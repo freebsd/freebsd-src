@@ -2083,9 +2083,9 @@ wpi_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	struct ifreq *ifr = (struct ifreq *) data;
 	int error = 0, startall = 0;
 
-	WPI_LOCK(sc);
 	switch (cmd) {
 	case SIOCSIFFLAGS:
+		WPI_LOCK(sc);
 		if ((ifp->if_flags & IFF_UP)) {
 			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 				wpi_init_locked(sc, 0);
@@ -2094,19 +2094,20 @@ wpi_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		} else if ((ifp->if_drv_flags & IFF_DRV_RUNNING) ||
 			   (sc->flags & WPI_FLAG_HW_RADIO_OFF))
 			wpi_stop_locked(sc);
+		WPI_UNLOCK(sc);
+		if (startall)
+			ieee80211_start_all(ic);
 		break;
 	case SIOCGIFMEDIA:
-	case SIOCSIFMEDIA:
 		error = ifmedia_ioctl(ifp, ifr, &ic->ic_media, cmd);
 		break;
-	default:
+	case SIOCGIFADDR:
 		error = ether_ioctl(ifp, cmd, data);
 		break;
+	default:
+		error = EINVAL;
+		break;
 	}
-	WPI_UNLOCK(sc);
-
-	if (startall)
-		ieee80211_start_all(ic);
 	return error;
 }
 
