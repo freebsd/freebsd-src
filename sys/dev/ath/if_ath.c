@@ -6277,9 +6277,9 @@ ath_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	struct ifreq *ifr = (struct ifreq *)data;
 	int error = 0;
 
-	ATH_LOCK(sc);
 	switch (cmd) {
 	case SIOCSIFFLAGS:
+		ATH_LOCK(sc);
 		if (IS_RUNNING(ifp)) {
 			/*
 			 * To avoid rescanning another access point,
@@ -6301,6 +6301,7 @@ ath_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				ath_init(sc);	/* XXX lose error */
 		} else
 			ath_stop_locked(ifp);
+		ATH_UNLOCK(sc);
 		break;
 	case SIOCGIFMEDIA:
 	case SIOCSIFMEDIA:
@@ -6315,27 +6316,20 @@ ath_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			&sc->sc_stats.ast_rx_noise);
 #endif
 		sc->sc_stats.ast_tx_rate = sc->sc_hwmap[sc->sc_txrate].ieeerate;
-		ATH_UNLOCK(sc);
-		/*
-		 * NB: Drop the softc lock in case of a page fault;
-		 * we'll accept any potential inconsisentcy in the
-		 * statistics.  The alternative is to copy the data
-		 * to a local structure.
-		 */
 		return copyout(&sc->sc_stats,
-				ifr->ifr_data, sizeof (sc->sc_stats));
+		    ifr->ifr_data, sizeof (sc->sc_stats));
 #ifdef ATH_DIAGAPI
 	case SIOCGATHDIAG:
-		ATH_UNLOCK(sc);
 		error = ath_ioctl_diag(sc, (struct ath_diag *) ifr);
-		ATH_LOCK(sc);
 		break;
 #endif
-	default:
+	case SIOCGIFADDR:
 		error = ether_ioctl(ifp, cmd, data);
 		break;
+	default:
+		error = EINVAL;
+		break;
 	}
-	ATH_UNLOCK(sc);
 	return error;
 #undef IS_RUNNING
 }
