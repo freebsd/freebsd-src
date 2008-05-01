@@ -1960,10 +1960,6 @@ ndis_init(xsc)
 
 	/* Setup task offload. */
 	ndis_set_offload(sc);
-
-	if (sc->ndis_80211)
-		ndis_setstate_80211(sc);
-
 	NDIS_LOCK(sc);
 
 	sc->ndis_txidx = 0;
@@ -3171,17 +3167,19 @@ ndis_scan(void *arg, int npending)
 		return;
 	}
 
-	if (ss->ss_nssid != 0) {
+	len = sizeof(ssid);
+	bzero((char *)&ssid, len);
+	if (ss->ss_nssid == 0)
+		ssid.ns_ssidlen = 1;
+	else {
 		/* Perform a directed scan */
-		len = sizeof(ssid);
-		bzero((char *)&ssid, len);
 		ssid.ns_ssidlen = ss->ss_ssid[0].len;
 		bcopy(ss->ss_ssid[0].ssid, ssid.ns_ssid, ssid.ns_ssidlen);
-
-		error = ndis_set_info(sc, OID_802_11_SSID, &ssid, &len);
-		if (error)
-			DPRINTF(("%s: set ESSID failed\n", __func__));
 	}
+
+	error = ndis_set_info(sc, OID_802_11_SSID, &ssid, &len);
+	if (error)
+		DPRINTF(("%s: set ESSID failed\n", __func__));
 
 	len = 0;
 	error = ndis_set_info(sc, OID_802_11_BSSID_LIST_SCAN,
