@@ -1645,7 +1645,7 @@ ieee80211_node_reclaim(struct ieee80211_node *ni)
 
 #ifdef IEEE80211_DEBUG_REFCNT
 	IEEE80211_DPRINTF(ni->ni_vap, IEEE80211_MSG_NODE,
-		"%s (%s:%u) %p<%s> refcnt %d\n", __func__, func, line, ni,
+		"%s %p<%s> refcnt %d\n", __func__, ni,
 		 ether_sprintf(ni->ni_macaddr), ieee80211_node_refcnt(ni)-1);
 #endif
 	IEEE80211_NODE_LOCK(nt);
