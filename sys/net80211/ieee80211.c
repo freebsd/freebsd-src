@@ -379,11 +379,8 @@ ieee80211_vap_setup(struct ieee80211com *ic, struct ieee80211vap *vap,
 	 * Enable various functionality by default if we're
 	 * capable; the driver can override us if it knows better.
 	 */
-#if 0
-	/* XXX temp disable until we resolve regressions */
 	if (vap->iv_caps & IEEE80211_C_WME)
 		vap->iv_flags |= IEEE80211_F_WME;
-#endif
 	if (vap->iv_caps & IEEE80211_C_BURST)
 		vap->iv_flags |= IEEE80211_F_BURST;
 	if (vap->iv_caps & IEEE80211_C_FF)
