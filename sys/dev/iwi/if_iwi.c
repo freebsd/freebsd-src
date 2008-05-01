@@ -2052,9 +2052,9 @@ iwi_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	int error = 0, startall = 0;
 	IWI_LOCK_DECL;
 
-	IWI_LOCK(sc);
 	switch (cmd) {
 	case SIOCSIFFLAGS:
+		IWI_LOCK(sc);
 		if (ifp->if_flags & IFF_UP) {
 			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 				iwi_init_locked(sc);
@@ -2064,19 +2064,20 @@ iwi_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 				iwi_stop_locked(sc);
 		}
+		IWI_UNLOCK(sc);
+		if (startall)
+			ieee80211_start_all(ic);
 		break;
 	case SIOCGIFMEDIA:
-	case SIOCSIFMEDIA:
 		error = ifmedia_ioctl(ifp, ifr, &ic->ic_media, cmd);
 		break;
-	default:
+	case SIOCGIFADDR:
 		error = ether_ioctl(ifp, cmd, data);
 		break;
+	default:
+		error = EINVAL;
+		break;
 	}
-	IWI_UNLOCK(sc);
-
-	if (startall)
-		ieee80211_start_all(ic);
 	return error;
 }
 
