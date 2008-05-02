@@ -289,7 +289,5 @@ int	 truncate(const char *, __off_t);
 #endif
 #endif /* __BSD_VISIBLE */
 
-#if __BSD_VISIBLE
-#endif
 __END_DECLS
 #endif /* !_STDIO_H_ */
