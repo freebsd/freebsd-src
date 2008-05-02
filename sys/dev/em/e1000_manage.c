@@ -1,6 +1,6 @@
-/*******************************************************************************
+/******************************************************************************
 
-  Copyright (c) 2001-2007, Intel Corporation 
+  Copyright (c) 2001-2008, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -29,9 +29,8 @@
   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE.
 
-*******************************************************************************/
-/* $FreeBSD$ */
-
+******************************************************************************/
+/*$FreeBSD$*/
 
 #include "e1000_api.h"
 #include "e1000_manage.h"
@@ -68,7 +67,7 @@ static u8 e1000_calculate_checksum(u8 *buffer, u32 length)
  *
  *  Returns E1000_success upon success, else E1000_ERR_HOST_INTERFACE_COMMAND
  *
- *  This function checks whether the HOST IF is enabled for command operaton
+ *  This function checks whether the HOST IF is enabled for command operation
  *  and also checks whether the previous command is completed.  It busy waits
  *  in case of previous command is not completed.
  **/
@@ -106,11 +105,11 @@ out:
 }
 
 /**
- *  e1000_check_mng_mode_generic - Generic check managament mode
+ *  e1000_check_mng_mode_generic - Generic check management mode
  *  @hw: pointer to the HW structure
  *
- *  Reads the firmware semaphore register and returns true (>0) if
- *  manageability is enabled, else false (0).
+ *  Reads the firmware semaphore register and returns TRUE (>0) if
+ *  manageability is enabled, else FALSE (0).
  **/
 bool e1000_check_mng_mode_generic(struct e1000_hw *hw)
 {
@@ -143,7 +142,7 @@ bool e1000_enable_tx_pkt_filtering_generic(struct e1000_hw *hw)
 	DEBUGFUNC("e1000_enable_tx_pkt_filtering_generic");
 
 	/* No manageability, no filtering */
-	if (!e1000_check_mng_mode(hw)) {
+	if (!hw->mac.ops.check_mng_mode(hw)) {
 		tx_filter = FALSE;
 		goto out;
 	}
@@ -152,7 +151,7 @@ bool e1000_enable_tx_pkt_filtering_generic(struct e1000_hw *hw)
 	 * If we can't read from the host interface for whatever
 	 * reason, disable filtering.
 	 */
-	ret_val = e1000_mng_enable_host_if(hw);
+	ret_val = hw->mac.ops.mng_enable_host_if(hw);
 	if (ret_val != E1000_SUCCESS) {
 		tx_filter = FALSE;
 		goto out;
@@ -163,8 +162,8 @@ bool e1000_enable_tx_pkt_filtering_generic(struct e1000_hw *hw)
 	offset = E1000_MNG_DHCP_COOKIE_OFFSET >> 2;
 	for (i = 0; i < len; i++) {
 		*(buffer + i) = E1000_READ_REG_ARRAY_DWORD(hw,
-							   E1000_HOST_IF,
-							   offset + i);
+		                                           E1000_HOST_IF,
+		                                           offset + i);
 	}
 	hdr_csum = hdr->checksum;
 	hdr->checksum = 0;
@@ -213,18 +212,18 @@ s32 e1000_mng_write_dhcp_info_generic(struct e1000_hw * hw, u8 *buffer,
 	hdr.checksum = 0;
 
 	/* Enable the host interface */
-	ret_val = e1000_mng_enable_host_if(hw);
+	ret_val = hw->mac.ops.mng_enable_host_if(hw);
 	if (ret_val)
 		goto out;
 
 	/* Populate the host interface with the contents of "buffer". */
-	ret_val = e1000_mng_host_if_write(hw, buffer, length,
+	ret_val = hw->mac.ops.mng_host_if_write(hw, buffer, length,
 	                                  sizeof(hdr), &(hdr.checksum));
 	if (ret_val)
 		goto out;
 
 	/* Write the manageability command header */
-	ret_val = e1000_mng_write_cmd_header(hw, &hdr);
+	ret_val = hw->mac.ops.mng_write_cmd_header(hw, &hdr);
 	if (ret_val)
 		goto out;
 
@@ -244,7 +243,7 @@ out:
  *  Writes the command header after does the checksum calculation.
  **/
 s32 e1000_mng_write_cmd_header_generic(struct e1000_hw * hw,
-                                       struct e1000_host_mng_command_header * hdr)
+                                    struct e1000_host_mng_command_header * hdr)
 {
 	u16 i, length = sizeof(struct e1000_host_mng_command_header);
 
@@ -266,7 +265,7 @@ s32 e1000_mng_write_cmd_header_generic(struct e1000_hw * hw,
 }
 
 /**
- *  e1000_mng_host_if_write_generic - Writes to the manageability host interface
+ *  e1000_mng_host_if_write_generic - Write to the manageability host interface
  *  @hw: pointer to the HW structure
  *  @buffer: pointer to the host interface buffer
  *  @length: size of the buffer

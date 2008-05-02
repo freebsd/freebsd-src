@@ -1,6 +1,6 @@
 /*******************************************************************************
 
-  Copyright (c) 2001-2007, Intel Corporation 
+  Copyright (c) 2001-2008, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -57,6 +57,7 @@
 #define E1000_IMS      0x000D0  /* Interrupt Mask Set - RW */
 #define E1000_IMC      0x000D8  /* Interrupt Mask Clear - WO */
 #define E1000_IAM      0x000E0  /* Interrupt Acknowledge Auto Mask */
+#define E1000_IVAR     0x000E4  /* Interrupt Vector Allocation Register - RW */
 #define E1000_RCTL     0x00100  /* Rx Control - RW */
 #define E1000_FCTTV    0x00170  /* Flow Control Transmit Timer Value - RW */
 #define E1000_TXCW     0x00178  /* Tx Configuration Word - RW */
@@ -138,9 +139,9 @@
 #define E1000_RAID     0x02C08  /* Receive Ack Interrupt Delay - RW */
 #define E1000_TXDMAC   0x03000  /* Tx DMA Control - RW */
 #define E1000_KABGTXD  0x03004  /* AFE Band Gap Transmit Ref Data */
-#define E1000_PSRTYPE_REG(_i)   (0x05480 + ((_i) * 4))
-#define E1000_RAL(_i)           (0x05400 + ((_i) * 8))
-#define E1000_RAH(_i)           (0x05404 + ((_i) * 8))
+#define E1000_PSRTYPE(_i)       (0x05480 + ((_i) * 4))
+#define E1000_RAL(_i)  (((_i) <= 15) ? (0x05400 + ((_i) * 8)) : (0x054E0 + ((_i - 16) * 8)))
+#define E1000_RAH(_i)  (((_i) <= 15) ? (0x05404 + ((_i) * 8)) : (0x054E4 + ((_i - 16) * 8)))
 #define E1000_IP4AT_REG(_i)     (0x05840 + ((_i) * 8))
 #define E1000_IP6AT_REG(_i)     (0x05880 + ((_i) * 4))
 #define E1000_WUPM_REG(_i)      (0x05A00 + ((_i) * 4))
@@ -229,46 +230,6 @@
 #define E1000_ICRXDMTC 0x04120  /* Interrupt Cause Rx Descriptor Minimum Threshold Count */
 #define E1000_ICRXOC   0x04124  /* Interrupt Cause Receiver Overrun Count */
 
-#define E1000_LSECTXUT        0x04300  /* LinkSec Tx Untagged Packet Count - OutPktsUntagged */
-#define E1000_LSECTXPKTE      0x04304  /* LinkSec Encrypted Tx Packets Count - OutPktsEncrypted */
-#define E1000_LSECTXPKTP      0x04308  /* LinkSec Protected Tx Packet Count - OutPktsProtected */
-#define E1000_LSECTXOCTE      0x0430C  /* LinkSec Encrypted Tx Octets Count - OutOctetsEncrypted */
-#define E1000_LSECTXOCTP      0x04310  /* LinkSec Protected Tx Octets Count - OutOctetsProtected */
-#define E1000_LSECRXUT        0x04314  /* LinkSec Untagged non-Strict Rx Packet Count - InPktsUntagged/InPktsNoTag */
-#define E1000_LSECRXOCTD      0x0431C  /* LinkSec Rx Octets Decrypted Count - InOctetsDecrypted */
-#define E1000_LSECRXOCTV      0x04320  /* LinkSec Rx Octets Validated - InOctetsValidated */
-#define E1000_LSECRXBAD       0x04324  /* LinkSec Rx Bad Tag - InPktsBadTag */
-#define E1000_LSECRXNOSCI     0x04328  /* LinkSec Rx Packet No SCI Count - InPktsNoSci */ 
-#define E1000_LSECRXUNSCI     0x0432C  /* LinkSec Rx Packet Unknown SCI Count - InPktsUnknownSci */
-#define E1000_LSECRXUNCH      0x04330  /* LinkSec Rx Unchecked Packets Count - InPktsUnchecked */
-#define E1000_LSECRXDELAY     0x04340  /* LinkSec Rx Delayed Packet Count - InPktsDelayed */
-#define E1000_LSECRXLATE      0x04350  /* LinkSec Rx Late Packets Count - InPktsLate */
-#define E1000_LSECRXOK(_n)    (0x04360 + (0x04 * (_n))) /* LinkSec Rx Packet OK Count - InPktsOk */
-#define E1000_LSECRXINV(_n)   (0x04380 + (0x04 * (_n))) /* LinkSec Rx Invalid Count - InPktsInvalid */
-#define E1000_LSECRXNV(_n)    (0x043A0 + (0x04 * (_n))) /* LinkSec Rx Not Valid Count - InPktsNotValid */
-#define E1000_LSECRXUNSA      0x043C0  /* LinkSec Rx Unused SA Count - InPktsUnusedSa */
-#define E1000_LSECRXNUSA      0x043D0  /* LinkSec Rx Not Using SA Count - InPktsNotUsingSa */
-#define E1000_LSECTXCAP       0x0B000  /* LinkSec Tx Capabilities Register - RO */
-#define E1000_LSECRXCAP       0x0B300  /* LinkSec Rx Capabilities Register - RO */
-#define E1000_LSECTXCTRL      0x0B004  /* LinkSec Tx Control - RW */
-#define E1000_LSECRXCTRL      0x0B304  /* LinkSec Rx Control - RW */
-#define E1000_LSECTXSCIL      0x0B008  /* LinkSec Tx SCI Low - RW */
-#define E1000_LSECTXSCIH      0x0B00C  /* LinkSec Tx SCI High - RW */
-#define E1000_LSECTXSA        0x0B010  /* LinkSec Tx SA0 - RW */
-#define E1000_LSECTXPN0       0x0B018  /* LinkSec Tx SA PN 0 - RW */
-#define E1000_LSECTXPN1       0x0B01C  /* LinkSec Tx SA PN 1 - RW */
-#define E1000_LSECRXSCL       0x0B3D0  /* LinkSec Rx SCI Low - RW */
-#define E1000_LSECRXSCH       0x0B3E0  /* LinkSec Rx SCI High - RW */
-#define E1000_LSECTXKEY0(_n)  (0x0B020 + (0x04 * (_n))) /* LinkSec Tx 128-bit Key 0 - WO */
-#define E1000_LSECTXKEY1(_n)  (0x0B030 + (0x04 * (_n))) /* LinkSec Tx 128-bit Key 1 - WO */
-#define E1000_LSECRXSA(_n)    (0x0B310 + (0x04 * (_n))) /* LinkSec Rx SAs - RW */
-#define E1000_LSECRXPN(_n)    (0x0B330 + (0x04 * (_n))) /* LinkSec Rx SAs - RW */
-/*
- * LinkSec Rx Keys  - where _n is the SA no. and _m the 4 dwords of the 128 bit
- * key - RW.
- */
-#define E1000_LSECRXKEY(_n, _m) (0x0B350 + (0x10 * (_n)) + (0x04 * (_m)))
-
 #define E1000_PCS_CFG0    0x04200  /* PCS Configuration 0 - RW */
 #define E1000_PCS_LCTL    0x04208  /* PCS Link Control - RW */
 #define E1000_PCS_LSTAT   0x0420C  /* PCS Link Status - RO */
@@ -296,7 +257,6 @@
 #define E1000_RFCTL    0x05008  /* Receive Filter Control*/
 #define E1000_MTA      0x05200  /* Multicast Table Array - RW Array */
 #define E1000_RA       0x05400  /* Receive Address - RW Array */
-#define E1000_PSRTYPE  0x05480  /* Packet Split Receive Type - RW */
 #define E1000_VFTA     0x05600  /* VLAN Filter Table Array - RW Array */
 #define E1000_VMD_CTL  0x0581C  /* VMDq Control - RW */
 #define E1000_VFQA0    0x0B000  /* VLAN Filter Queue Array 0 - RW Array */
@@ -334,7 +294,7 @@
 #define E1000_DCA_ID    0x05B70 /* DCA Requester ID Information - RO */
 #define E1000_DCA_CTRL  0x05B74 /* DCA Control - RW */
 #define E1000_FFLT_DBG  0x05F04 /* Debug Register */
-#define E1000_HICR      0x08F00 /* Host Inteface Control */
+#define E1000_HICR      0x08F00 /* Host Interface Control */
 
 /* RSS registers */
 #define E1000_CPUVEC    0x02C10 /* CPU Vector Register - RW */
@@ -352,5 +312,19 @@
 #define E1000_RSSRK(_i) (0x05C80 + ((_i) * 4)) /* RSS Random Key - RW Array */
 #define E1000_RSSIM     0x05864 /* RSS Interrupt Mask */
 #define E1000_RSSIR     0x05868 /* RSS Interrupt Request */
-
+/* Time Sync */
+#define E1000_TSYNCRXCTL 0x0B620 /* Rx Time Sync Control register - RW */
+#define E1000_TSYNCTXCTL 0x0B614 /* Tx Time Sync Control register - RW */
+#define E1000_TSYNCRXCFG 0x05F50 /* Time Sync Rx Configuration - RW */
+#define E1000_RXSTMPL    0x0B624 /* Rx timestamp Low - RO */
+#define E1000_RXSTMPH    0x0B628 /* Rx timestamp High - RO */
+#define E1000_RXSATRL    0x0B62C /* Rx timestamp attribute low - RO */
+#define E1000_RXSATRH    0x0B630 /* Rx timestamp attribute high - RO */
+#define E1000_TXSTMPL    0x0B618 /* Tx timestamp value Low - RO */
+#define E1000_TXSTMPH    0x0B61C /* Tx timestamp value High - RO */
+#define E1000_SYSTIML    0x0B600 /* System time register Low - RO */
+#define E1000_SYSTIMH    0x0B604 /* System time register High - RO */
+#define E1000_TIMINCA    0x0B608 /* Increment attributes register - RW */
+#define E1000_RXMTRL     0x0B634 /* Time sync Rx EtherType and Message Type - RW */
+#define E1000_RXUDP      0x0B638 /* Time Sync Rx UDP Port - RW */
 #endif
