@@ -5,11 +5,15 @@ SRCS    = device_if.h bus_if.h pci_if.h opt_bdg.h
 SRCS    += if_em.c $(SHARED_SRCS)
 SHARED_SRCS = e1000_api.c e1000_phy.c e1000_nvm.c e1000_mac.c e1000_manage.c
 SHARED_SRCS += e1000_80003es2lan.c e1000_82542.c e1000_82541.c e1000_82543.c
-SHARED_SRCS += e1000_82540.c e1000_ich8lan.c e1000_82571.c e1000_82575.c
+SHARED_SRCS += e1000_82540.c e1000_ich8lan.c e1000_82571.c e1000_osdep.c
 
-CFLAGS+= -I${.CURDIR}/../../dev/em
+CFLAGS+= -DNO_82575_SUPPORT -I${.CURDIR}/../../dev/em
 
-# DEVICE_POLLING gives you Legacy interrupt handling
+# Uncomment this to disable Fast interrupt handling.
+# and enable legacy interrupt handling
+#CFLAGS  += -DEM_LEGACY_IRQ
+
+# DEVICE_POLLING gives you non-interrupt handling
 #CFLAGS  += -DDEVICE_POLLING
 
 clean:
