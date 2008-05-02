@@ -1573,7 +1573,7 @@ LibAliasRefreshModules(void)
 
 	for (;;) {
 		fgets(buf, 256, fd);
-		if feof(fd) 
+		if (feof(fd)) 
 		        break;
 		len = strlen(buf);
 		if (len > 1) {
