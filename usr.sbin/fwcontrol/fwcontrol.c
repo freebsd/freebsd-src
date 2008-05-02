@@ -64,10 +64,12 @@ static void
 usage(void)
 {
 	fprintf(stderr,
-		"fwcontrol [-u bus_num] [-rt] [-g gap_count] [-o node] "
+		"fwcontrol [-u bus_num] [-rt] [-f node] [-g gap_count] "
+		    "[-o node] "
 		    "[-b pri_req] [-c node] [-d node] [-l file] "
 		    "[-R file] [-S file] [-m target]\n"
 		"\t-u: specify bus number\n"
+		"\t-f: broadcast force_root by phy_config packet\n"
 		"\t-g: broadcast gap_count by phy_config packet\n"
 		"\t-o: send link-on packet to the node\n"
 		"\t-s: write RESET_START register on the node\n"
@@ -153,20 +155,23 @@ list_dev(int fd)
 	struct fw_devlstreq *data;
 	struct fw_devinfo *devinfo;
 	struct eui64 eui;
-	char addr[EUI64_SIZ];
+	char addr[EUI64_SIZ], hostname[40];
 	int i;
 
 	data = get_dev(fd);
 	printf("%d devices (info_len=%d)\n", data->n, data->info_len);
-	printf("node           EUI64          status\n");
+	printf("node           EUI64          status    hostname\n");
 	for (i = 0; i < data->info_len; i++) {
 		devinfo = &data->dev[i];
 		fweui2eui64(&devinfo->eui, &eui);
 		eui64_ntoa(&eui, addr, sizeof(addr));
-		printf("%4d  %s %6d\n",
+	        if (eui64_ntohost(hostname, sizeof(hostname), &eui))
+			hostname[0] = 0;
+		printf("%4d  %s %6d    %s\n",
 			(devinfo->status || i == 0) ? devinfo->dst : -1,
 			addr,
-			devinfo->status
+			devinfo->status,
+			hostname
 		);
 	}
 	free((void *)data);
@@ -198,7 +203,7 @@ read_write_quad(int fd, struct fw_eui64 eui, u_int32_t addr_lo, int readmode, u_
 
 	qld = (u_int32_t *)&asyreq->pkt;
 	if (!readmode)
-		asyreq->pkt.mode.wreqq.data = data;
+		asyreq->pkt.mode.wreqq.data = htonl(data);
 
 	if (ioctl(fd, FW_ASYREQ, asyreq) < 0) {
        		err(1, "ioctl");
@@ -676,7 +681,7 @@ main(int argc, char **argv)
 		list_dev(fd);
 	}
 
-	while ((ch = getopt(argc, argv, "M:g:m:o:s:b:prtc:d:l:u:R:S:")) != -1)
+	while ((ch = getopt(argc, argv, "M:f:g:m:o:s:b:prtc:d:l:u:R:S:")) != -1)
 		switch(ch) {
 		case 'b':
 			tmp = strtol(optarg, NULL, 0);
@@ -696,6 +701,11 @@ main(int argc, char **argv)
 			tmp = str2node(fd, optarg);
 			get_crom(fd, tmp, crom_buf, len);
 			dump_crom(crom_buf);
+			break;
+		case 'f':
+			tmp = strtol(optarg, NULL, 0);
+			open_dev(&fd, devbase);
+			send_phy_config(fd, tmp, -1);
 			break;
 		case 'g':
 			tmp = strtol(optarg, NULL, 0);
