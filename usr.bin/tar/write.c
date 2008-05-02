@@ -1534,7 +1534,7 @@ test_for_append(struct bsdtar *bsdtar)
 {
 	struct stat s;
 
-	if (*bsdtar->argv == NULL)
+	if (*bsdtar->argv == NULL && bsdtar->names_from_file == NULL)
 		bsdtar_errc(bsdtar, 1, 0, "no files or directories specified");
 	if (bsdtar->filename == NULL)
 		bsdtar_errc(bsdtar, 1, 0, "Cannot append to stdout.");
