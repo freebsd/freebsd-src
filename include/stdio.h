@@ -213,10 +213,10 @@ int	 putc_unlocked(int, FILE *);
 int	 putchar_unlocked(int);
 #endif
 #if __BSD_VISIBLE
-void	clearerr_unlocked(FILE *);
-int	feof_unlocked(FILE *);
-int	ferror_unlocked(FILE *);
-int	fileno_unlocked(FILE *);
+void	 clearerr_unlocked(FILE *);
+int	 feof_unlocked(FILE *);
+int	 ferror_unlocked(FILE *);
+int	 fileno_unlocked(FILE *);
 #endif
 
 #if __POSIX_VISIBLE >= 200112
@@ -239,10 +239,11 @@ char	*tempnam(const char *, const char *);
 #if __BSD_VISIBLE
 int	 asprintf(char **, const char *, ...) __printflike(2, 3);
 char	*ctermid_r(char *);
-void	fcloseall(void);
+void	 fcloseall(void);
 char	*fgetln(FILE *, size_t *);
 __const char *fmtcheck(const char *, const char *) __format_arg(2);
 int	 fpurge(FILE *);
+int	 renameat(int, const char *, int, const char *);
 void	 setbuffer(FILE *, char *, int);
 int	 setlinebuf(FILE *);
 int	 vasprintf(char **, const char *, __va_list)
@@ -289,7 +290,6 @@ int	 truncate(const char *, __off_t);
 #endif /* __BSD_VISIBLE */
 
 #if __BSD_VISIBLE
-int	 renameat(int, const char *, int, const char *);
 #endif
 __END_DECLS
 #endif /* !_STDIO_H_ */
