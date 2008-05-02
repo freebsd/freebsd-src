@@ -42,8 +42,6 @@ __FBSDID("$FreeBSD$");
 #include "libc_private.h"
 #include "local.h"
 
-#undef getc
-
 int
 getc(FILE *fp)
 {
@@ -54,4 +52,11 @@ getc(FILE *fp)
 	retval = __sgetc(fp);
 	FUNLOCKFILE(fp);
 	return (retval);
+}
+
+int
+getc_unlocked(FILE *fp)
+{
+
+	return (__sgetc(fp));
 }
