@@ -1079,7 +1079,6 @@ est_acpi_info(device_t dev, freq_info **freqs)
 	freq_info *table;
 	device_t perf_dev;
 	int count, error, i, j, maxi, maxfreq;
-	uint16_t saved_id16;
 
 	perf_dev = device_find_child(device_get_parent(dev), "acpi_perf", -1);
 	if (perf_dev == NULL || !device_is_attached(perf_dev))
@@ -1108,7 +1107,6 @@ est_acpi_info(device_t dev, freq_info **freqs)
 		 * Confirm id16 value is correct.
 		 */
 		if (sets[i].freq > 0) {
-			est_get_id16(&saved_id16);
 			error = est_set_id16(dev, sets[i].spec[0], 1);
 			if (error != 0) {
 				if (bootverbose) 
