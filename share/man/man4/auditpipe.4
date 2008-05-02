@@ -185,7 +185,7 @@ The ioctl argument should be of type
 .It Dv AUDITPIPE_GET_PRESELECT_AUID
 Query the current preselection masks for a specific auid on the pipe.
 The ioctl argument should be of type
-.Vt "struct auditpipe_preselect" .
+.Vt "struct auditpipe_ioctl_preselect" .
 The auid to query is specified via the
 .Va ap_auid
 field of type
