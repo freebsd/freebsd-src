@@ -86,6 +86,7 @@ __FBSDID("$FreeBSD$");
 #include <syslog.h>
 #include <unistd.h>
 #include "un-namespace.h"
+#include "libc_private.h"
 #ifdef NS_CACHING
 #include "nscache.h"
 #endif
