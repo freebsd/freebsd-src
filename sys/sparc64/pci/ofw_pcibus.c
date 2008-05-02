@@ -45,8 +45,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/openfirm.h>
 
 #include <machine/bus.h>
-#include <machine/bus_common.h>
 #ifndef SUN4V
+#include <machine/bus_common.h>
 #include <machine/iommureg.h>
 #endif
 #include <machine/resource.h>
@@ -233,12 +233,14 @@ ofw_pcibus_assign_interrupt(device_t dev, device_t child)
 	if (isz != sizeof(intr)) {
 		/* No property; our best guess is the intpin. */
 		intr = pci_get_intpin(child);
+#ifndef SUN4V
 	} else if (intr >= 255) {
 		/*
 		 * A fully specified interrupt (including IGN), as present on
 		 * SPARCengine Ultra AX and e450. Extract the INO and return it.
 		 */
 		return (INTINO(intr));
+#endif
 	}
 	/*
 	 * If we got intr from a property, it may or may not be an intpin.
