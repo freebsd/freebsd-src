@@ -1,6 +1,6 @@
-/*******************************************************************************
+/******************************************************************************
 
-  Copyright (c) 2001-2007, Intel Corporation 
+  Copyright (c) 2001-2008, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -29,12 +29,137 @@
   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE.
 
-*******************************************************************************/
-/* $FreeBSD$ */
-
+******************************************************************************/
+/*$FreeBSD$*/
 
 #include "e1000_api.h"
 #include "e1000_mac.h"
+
+/**
+ *  e1000_init_mac_ops_generic - Initialize MAC function pointers
+ *  @hw: pointer to the HW structure
+ *
+ *  Setups up the function pointers to no-op functions
+ **/
+void e1000_init_mac_ops_generic(struct e1000_hw *hw)
+{
+	struct e1000_mac_info *mac = &hw->mac;
+	DEBUGFUNC("e1000_init_mac_ops_generic");
+
+	/* General Setup */
+	mac->ops.init_params = e1000_null_ops_generic;
+	mac->ops.init_hw = e1000_null_ops_generic;
+	mac->ops.reset_hw = e1000_null_ops_generic;
+	mac->ops.setup_physical_interface = e1000_null_ops_generic;
+	mac->ops.get_bus_info = e1000_null_ops_generic;
+	mac->ops.read_mac_addr = e1000_read_mac_addr_generic;
+	mac->ops.remove_device = e1000_remove_device_generic;
+	mac->ops.config_collision_dist = e1000_config_collision_dist_generic;
+	mac->ops.clear_hw_cntrs = e1000_null_mac_generic;
+	/* LED */
+	mac->ops.cleanup_led = e1000_null_ops_generic;
+	mac->ops.setup_led = e1000_null_ops_generic;
+	mac->ops.blink_led = e1000_null_ops_generic;
+	mac->ops.led_on = e1000_null_ops_generic;
+	mac->ops.led_off = e1000_null_ops_generic;
+	/* LINK */
+	mac->ops.setup_link = e1000_null_ops_generic;
+	mac->ops.get_link_up_info = e1000_null_link_info;
+	mac->ops.check_for_link = e1000_null_ops_generic;
+	mac->ops.wait_autoneg = e1000_wait_autoneg_generic;
+	/* Management */
+	mac->ops.check_mng_mode = e1000_null_mng_mode;
+	mac->ops.mng_host_if_write = e1000_mng_host_if_write_generic;
+	mac->ops.mng_write_cmd_header = e1000_mng_write_cmd_header_generic;
+	mac->ops.mng_enable_host_if = e1000_mng_enable_host_if_generic;
+	/* VLAN, MC, etc. */
+	mac->ops.update_mc_addr_list = e1000_null_update_mc;
+	mac->ops.clear_vfta = e1000_null_mac_generic;
+	mac->ops.write_vfta = e1000_null_write_vfta;
+	mac->ops.mta_set = e1000_null_mta_set;
+	mac->ops.rar_set = e1000_rar_set_generic;
+	mac->ops.validate_mdi_setting = e1000_validate_mdi_setting_generic;
+}
+
+/**
+ *  e1000_null_ops_generic - No-op function, returns 0
+ *  @hw: pointer to the HW structure
+ **/
+s32 e1000_null_ops_generic(struct e1000_hw *hw)
+{
+	DEBUGFUNC("e1000_null_ops_generic");
+	return E1000_SUCCESS;
+}
+
+/**
+ *  e1000_null_mac_generic - No-op function, return void
+ *  @hw: pointer to the HW structure
+ **/
+void e1000_null_mac_generic(struct e1000_hw *hw)
+{
+	DEBUGFUNC("e1000_null_mac_generic");
+	return;
+}
+
+/**
+ *  e1000_null_link_info - No-op function, return 0
+ *  @hw: pointer to the HW structure
+ **/
+s32 e1000_null_link_info(struct e1000_hw *hw, u16 *s, u16 *d)
+{
+	DEBUGFUNC("e1000_null_link_info");
+	return E1000_SUCCESS;
+}
+
+/**
+ *  e1000_null_mng_mode - No-op function, return FALSE
+ *  @hw: pointer to the HW structure
+ **/
+bool e1000_null_mng_mode(struct e1000_hw *hw)
+{
+	DEBUGFUNC("e1000_null_mng_mode");
+	return FALSE;
+}
+
+/**
+ *  e1000_null_update_mc - No-op function, return void
+ *  @hw: pointer to the HW structure
+ **/
+void e1000_null_update_mc(struct e1000_hw *hw, u8 *h, u32 a, u32 b, u32 c)
+{
+	DEBUGFUNC("e1000_null_update_mc");
+	return;
+}
+
+/**
+ *  e1000_null_write_vfta - No-op function, return void
+ *  @hw: pointer to the HW structure
+ **/
+void e1000_null_write_vfta(struct e1000_hw *hw, u32 a, u32 b)
+{
+	DEBUGFUNC("e1000_null_write_vfta");
+	return;
+}
+
+/**
+ *  e1000_null_set_mta - No-op function, return void
+ *  @hw: pointer to the HW structure
+ **/
+void e1000_null_mta_set(struct e1000_hw *hw, u32 a)
+{
+	DEBUGFUNC("e1000_null_mta_set");
+	return;
+}
+
+/**
+ *  e1000_null_rar_set - No-op function, return void
+ *  @hw: pointer to the HW structure
+ **/
+void e1000_null_rar_set(struct e1000_hw *hw, u8 *h, u32 a)
+{
+	DEBUGFUNC("e1000_null_rar_set");
+	return;
+}
 
 /**
  *  e1000_remove_device_generic - Free device specific structure
@@ -207,7 +332,7 @@ void e1000_init_rx_addrs_generic(struct e1000_hw *hw, u16 rar_count)
 	/* Setup the receive address */
 	DEBUGOUT("Programming MAC Address into RAR[0]\n");
 
-	e1000_rar_set_generic(hw, hw->mac.addr, 0);
+	hw->mac.ops.rar_set(hw, hw->mac.addr, 0);
 
 	/* Zero out the other (rar_entry_count - 1) receive addresses */
 	DEBUGOUT1("Clearing RAR[1-%u]\n", rar_count-1);
@@ -239,7 +364,8 @@ s32 e1000_check_alt_mac_addr_generic(struct e1000_hw *hw)
 
 	DEBUGFUNC("e1000_check_alt_mac_addr_generic");
 
-	ret_val = e1000_read_nvm(hw, NVM_ALT_MAC_ADDR_PTR, 1, &nvm_alt_mac_addr_offset);
+	ret_val = hw->nvm.ops.read(hw, NVM_ALT_MAC_ADDR_PTR, 1,
+	                         &nvm_alt_mac_addr_offset);
 	if (ret_val) {
 		DEBUGOUT("NVM Read Error\n");
 		goto out;
@@ -255,7 +381,7 @@ s32 e1000_check_alt_mac_addr_generic(struct e1000_hw *hw)
 
 	for (i = 0; i < ETH_ADDR_LEN; i += 2) {
 		offset = nvm_alt_mac_addr_offset + (i >> 1);
-		ret_val = e1000_read_nvm(hw, offset, 1, &nvm_data);
+		ret_val = hw->nvm.ops.read(hw, offset, 1, &nvm_data);
 		if (ret_val) {
 			DEBUGOUT("NVM Read Error\n");
 			goto out;
@@ -274,7 +400,7 @@ s32 e1000_check_alt_mac_addr_generic(struct e1000_hw *hw)
 	for (i = 0; i < ETH_ADDR_LEN; i++)
 		hw->mac.addr[i] = hw->mac.perm_addr[i] = alt_mac_addr[i];
 
-	e1000_rar_set(hw, hw->mac.perm_addr, 0);
+	hw->mac.ops.rar_set(hw, hw->mac.perm_addr, 0);
 
 out:
 	return ret_val;
@@ -300,8 +426,8 @@ void e1000_rar_set_generic(struct e1000_hw *hw, u8 *addr, u32 index)
 	 * from network order (big endian) to little endian
 	 */
 	rar_low = ((u32) addr[0] |
-		   ((u32) addr[1] << 8) |
-		    ((u32) addr[2] << 16) | ((u32) addr[3] << 24));
+	           ((u32) addr[1] << 8) |
+	           ((u32) addr[2] << 16) | ((u32) addr[3] << 24));
 
 	rar_high = ((u32) addr[4] | ((u32) addr[5] << 8));
 
@@ -311,8 +437,8 @@ void e1000_rar_set_generic(struct e1000_hw *hw, u8 *addr, u32 index)
 			rar_high |= E1000_RAH_AV;
 	}
 
-	E1000_WRITE_REG_ARRAY(hw, E1000_RA, (index << 1), rar_low);
-	E1000_WRITE_REG_ARRAY(hw, E1000_RA, ((index << 1) + 1), rar_high);
+	E1000_WRITE_REG(hw, E1000_RAL(index), rar_low);
+	E1000_WRITE_REG(hw, E1000_RAH(index), rar_high);
 }
 
 /**
@@ -380,7 +506,7 @@ void e1000_update_mc_addr_list_generic(struct e1000_hw *hw,
 	 */
 	for (i = rar_used_count; i < rar_count; i++) {
 		if (mc_addr_count) {
-			e1000_rar_set(hw, mc_addr_list, i);
+			hw->mac.ops.rar_set(hw, mc_addr_list, i);
 			mc_addr_count--;
 			mc_addr_list += ETH_ADDR_LEN;
 		} else {
@@ -402,7 +528,7 @@ void e1000_update_mc_addr_list_generic(struct e1000_hw *hw,
 	for (; mc_addr_count > 0; mc_addr_count--) {
 		hash_value = e1000_hash_mc_addr(hw, mc_addr_list);
 		DEBUGOUT1("Hash value = 0x%03X\n", hash_value);
-		e1000_mta_set(hw, hash_value);
+		hw->mac.ops.mta_set(hw, hash_value);
 		mc_addr_list += ETH_ADDR_LEN;
 	}
 }
@@ -486,8 +612,8 @@ u32 e1000_hash_mc_addr_generic(struct e1000_hw *hw, u8 *mc_addr)
  *
  *  In certain situations, a system BIOS may report that the PCIx maximum
  *  memory read byte count (MMRBC) value is higher than than the actual
- *  value. We check the PCIx command regsiter with the current PCIx status
- *  regsiter.
+ *  value. We check the PCIx command register with the current PCIx status
+ *  register.
  **/
 void e1000_pcix_mmrbc_workaround_generic(struct e1000_hw *hw)
 {
@@ -505,9 +631,9 @@ void e1000_pcix_mmrbc_workaround_generic(struct e1000_hw *hw)
 	e1000_read_pci_cfg(hw, PCIX_COMMAND_REGISTER, &pcix_cmd);
 	e1000_read_pci_cfg(hw, PCIX_STATUS_REGISTER_HI, &pcix_stat_hi_word);
 	cmd_mmrbc = (pcix_cmd & PCIX_COMMAND_MMRBC_MASK) >>
-		    PCIX_COMMAND_MMRBC_SHIFT;
+	             PCIX_COMMAND_MMRBC_SHIFT;
 	stat_mmrbc = (pcix_stat_hi_word & PCIX_STATUS_HI_MMRBC_MASK) >>
-		     PCIX_STATUS_HI_MMRBC_SHIFT;
+	              PCIX_STATUS_HI_MMRBC_SHIFT;
 	if (stat_mmrbc == PCIX_STATUS_HI_MMRBC_4K)
 		stat_mmrbc = PCIX_STATUS_HI_MMRBC_2K;
 	if (cmd_mmrbc > stat_mmrbc) {
@@ -820,7 +946,6 @@ out:
  **/
 s32 e1000_setup_link_generic(struct e1000_hw *hw)
 {
-	struct e1000_functions *func = &hw->func;
 	s32 ret_val = E1000_SUCCESS;
 
 	DEBUGFUNC("e1000_setup_link_generic");
@@ -829,8 +954,9 @@ s32 e1000_setup_link_generic(struct e1000_hw *hw)
 	 * In the case of the phy reset being blocked, we already have a link.
 	 * We do not need to set it up again.
 	 */
-	if (e1000_check_reset_block(hw))
-		goto out;
+	if (hw->phy.ops.check_reset_block)
+		if (hw->phy.ops.check_reset_block(hw))
+			goto out;
 
 	/*
 	 * If flow control is set to default, set flow control based on
@@ -852,7 +978,7 @@ s32 e1000_setup_link_generic(struct e1000_hw *hw)
 	DEBUGOUT1("After fix-ups FlowControl is now = %x\n", hw->fc.type);
 
 	/* Call the necessary media_type subroutine to configure the link. */
-	ret_val = func->setup_physical_interface(hw);
+	ret_val = hw->mac.ops.setup_physical_interface(hw);
 	if (ret_val)
 		goto out;
 
@@ -914,7 +1040,7 @@ s32 e1000_setup_fiber_serdes_link_generic(struct e1000_hw *hw)
 	msec_delay(1);
 
 	/*
-	 * For these adapters, the SW defineable pin 1 is set when the optics
+	 * For these adapters, the SW definable pin 1 is set when the optics
 	 * detect a signal.  If we have a signal, then poll for a "Link-Up"
 	 * indication.
 	 */
@@ -968,7 +1094,7 @@ s32 e1000_poll_fiber_serdes_link_generic(struct e1000_hw *hw)
 	DEBUGFUNC("e1000_poll_fiber_serdes_link_generic");
 
 	/*
-	 * If we have a signal (the cable is plugged in, or assumed true for
+	 * If we have a signal (the cable is plugged in, or assumed TRUE for
 	 * serdes media) then poll for a "Link-Up" indication in the Device
 	 * Status Register.  Time-out if a link isn't seen in 500 milliseconds
 	 * seconds (Auto-negotiation should complete in less than 500
@@ -989,7 +1115,7 @@ s32 e1000_poll_fiber_serdes_link_generic(struct e1000_hw *hw)
 		 * link up if we detect a signal. This will allow us to
 		 * communicate with non-autonegotiating link partners.
 		 */
-		ret_val = e1000_check_for_link(hw);
+		ret_val = hw->mac.ops.check_for_link(hw);
 		if (ret_val) {
 			DEBUGOUT("Error while checking for link\n");
 			goto out;
@@ -1086,7 +1212,7 @@ out:
  *
  *  Sets the flow control high/low threshold (watermark) registers.  If
  *  flow control XON frame transmission is enabled, then set XON frame
- *  tansmission as well.
+ *  transmission as well.
  **/
 s32 e1000_set_fc_watermarks_generic(struct e1000_hw *hw)
 {
@@ -1143,7 +1269,7 @@ s32 e1000_set_default_fc_generic(struct e1000_hw *hw)
 	 * control setting, then the variable hw->fc will
 	 * be initialized based on a value in the EEPROM.
 	 */
-	ret_val = e1000_read_nvm(hw, NVM_INIT_CONTROL2_REG, 1, &nvm_data);
+	ret_val = hw->nvm.ops.read(hw, NVM_INIT_CONTROL2_REG, 1, &nvm_data);
 
 	if (ret_val) {
 		DEBUGOUT("NVM Read Error\n");
@@ -1241,6 +1367,7 @@ out:
 s32 e1000_config_fc_after_link_up_generic(struct e1000_hw *hw)
 {
 	struct e1000_mac_info *mac = &hw->mac;
+	struct e1000_phy_info *phy = &hw->phy;
 	s32 ret_val = E1000_SUCCESS;
 	u16 mii_status_reg, mii_nway_adv_reg, mii_nway_lp_ability_reg;
 	u16 speed, duplex;
@@ -1278,10 +1405,10 @@ s32 e1000_config_fc_after_link_up_generic(struct e1000_hw *hw)
 		 * has completed.  We read this twice because this reg has
 		 * some "sticky" (latched) bits.
 		 */
-		ret_val = e1000_read_phy_reg(hw, PHY_STATUS, &mii_status_reg);
+		ret_val = phy->ops.read_reg(hw, PHY_STATUS, &mii_status_reg);
 		if (ret_val)
 			goto out;
-		ret_val = e1000_read_phy_reg(hw, PHY_STATUS, &mii_status_reg);
+		ret_val = phy->ops.read_reg(hw, PHY_STATUS, &mii_status_reg);
 		if (ret_val)
 			goto out;
 
@@ -1298,12 +1425,12 @@ s32 e1000_config_fc_after_link_up_generic(struct e1000_hw *hw)
 		 * Page Ability Register (Address 5) to determine how
 		 * flow control was negotiated.
 		 */
-		ret_val = e1000_read_phy_reg(hw, PHY_AUTONEG_ADV,
-					    &mii_nway_adv_reg);
+		ret_val = phy->ops.read_reg(hw, PHY_AUTONEG_ADV,
+		                             &mii_nway_adv_reg);
 		if (ret_val)
 			goto out;
-		ret_val = e1000_read_phy_reg(hw, PHY_LP_ABILITY,
-					    &mii_nway_lp_ability_reg);
+		ret_val = phy->ops.read_reg(hw, PHY_LP_ABILITY,
+		                             &mii_nway_lp_ability_reg);
 		if (ret_val)
 			goto out;
 
@@ -1402,7 +1529,7 @@ s32 e1000_config_fc_after_link_up_generic(struct e1000_hw *hw)
 		 * negotiated to HALF DUPLEX, flow control should not be
 		 * enabled per IEEE 802.3 spec.
 		 */
-		ret_val = e1000_get_speed_and_duplex(hw, &speed, &duplex);
+		ret_val = mac->ops.get_link_up_info(hw, &speed, &duplex);
 		if (ret_val) {
 			DEBUGOUT("Error getting link speed and duplex\n");
 			goto out;
@@ -1427,7 +1554,7 @@ out:
 }
 
 /**
- *  e1000_get_speed_and_duplex_copper_generic - Retreive current speed/duplex
+ *  e1000_get_speed_and_duplex_copper_generic - Retrieve current speed/duplex
  *  @hw: pointer to the HW structure
  *  @speed: stores the current speed
  *  @duplex: stores the current duplex
@@ -1466,7 +1593,7 @@ s32 e1000_get_speed_and_duplex_copper_generic(struct e1000_hw *hw, u16 *speed,
 }
 
 /**
- *  e1000_get_speed_and_duplex_fiber_generic - Retreive current speed/duplex
+ *  e1000_get_speed_and_duplex_fiber_generic - Retrieve current speed/duplex
  *  @hw: pointer to the HW structure
  *  @speed: stores the current speed
  *  @duplex: stores the current duplex
@@ -1478,7 +1605,6 @@ s32 e1000_get_speed_and_duplex_fiber_serdes_generic(struct e1000_hw *hw,
                                                     u16 *speed, u16 *duplex)
 {
 	DEBUGFUNC("e1000_get_speed_and_duplex_fiber_serdes_generic");
-	UNREFERENCED_PARAMETER(hw);
 
 	*speed = SPEED_1000;
 	*duplex = FULL_DUPLEX;
@@ -1604,7 +1730,7 @@ s32 e1000_valid_led_default_generic(struct e1000_hw *hw, u16 *data)
 
 	DEBUGFUNC("e1000_valid_led_default_generic");
 
-	ret_val = e1000_read_nvm(hw, NVM_ID_LED_SETTINGS, 1, data);
+	ret_val = hw->nvm.ops.read(hw, NVM_ID_LED_SETTINGS, 1, data);
 	if (ret_val) {
 		DEBUGOUT("NVM Read Error\n");
 		goto out;
@@ -1634,7 +1760,7 @@ s32 e1000_id_led_init_generic(struct e1000_hw * hw)
 
 	DEBUGFUNC("e1000_id_led_init_generic");
 
-	ret_val = hw->func.valid_led_default(hw, &data);
+	ret_val = hw->nvm.ops.valid_led_default(hw, &data);
 	if (ret_val)
 		goto out;
 
@@ -1698,7 +1824,7 @@ s32 e1000_setup_led_generic(struct e1000_hw *hw)
 
 	DEBUGFUNC("e1000_setup_led_generic");
 
-	if (hw->func.setup_led != e1000_setup_led_generic) {
+	if (hw->mac.ops.setup_led != e1000_setup_led_generic) {
 		ret_val = -E1000_ERR_CONFIG;
 		goto out;
 	}
@@ -1734,7 +1860,7 @@ s32 e1000_cleanup_led_generic(struct e1000_hw *hw)
 
 	DEBUGFUNC("e1000_cleanup_led_generic");
 
-	if (hw->func.cleanup_led != e1000_cleanup_led_generic) {
+	if (hw->mac.ops.cleanup_led != e1000_cleanup_led_generic) {
 		ret_val = -E1000_ERR_CONFIG;
 		goto out;
 	}
@@ -1749,7 +1875,7 @@ out:
  *  e1000_blink_led_generic - Blink LED
  *  @hw: pointer to the HW structure
  *
- *  Blink the led's which are set to be on.
+ *  Blink the LEDs which are set to be on.
  **/
 s32 e1000_blink_led_generic(struct e1000_hw *hw)
 {
@@ -1869,7 +1995,7 @@ out:
  *  @hw: pointer to the HW structure
  *
  *  Returns 0 (E1000_SUCCESS) if successful, else returns -10
- *  (-E1000_ERR_MASTER_REQUESTS_PENDING) if master disable bit has not casued
+ *  (-E1000_ERR_MASTER_REQUESTS_PENDING) if master disable bit has not caused
  *  the master requests to be disabled.
  *
  *  Disables PCI-Express master access and verifies there are no pending
@@ -1985,7 +2111,7 @@ out:
  *  e1000_validate_mdi_setting_generic - Verify MDI/MDIx settings
  *  @hw: pointer to the HW structure
  *
- *  Verify that when not using auto-negotitation that MDI/MDIx is correctly
+ *  Verify that when not using auto-negotiation that MDI/MDIx is correctly
  *  set, which is forced to MDI mode only.
  **/
 s32 e1000_validate_mdi_setting_generic(struct e1000_hw *hw)

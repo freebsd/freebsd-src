@@ -1,6 +1,6 @@
-/*******************************************************************************
+/******************************************************************************
 
-  Copyright (c) 2001-2007, Intel Corporation 
+  Copyright (c) 2001-2008, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -29,9 +29,8 @@
   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE.
 
-*******************************************************************************/
+******************************************************************************/
 /* $FreeBSD$ */
-
 
 #ifndef _E1000_HW_H_
 #define _E1000_HW_H_
@@ -96,6 +95,7 @@ struct e1000_hw;
 #define E1000_DEV_ID_82573E                   0x108B
 #define E1000_DEV_ID_82573E_IAMT              0x108C
 #define E1000_DEV_ID_82573L                   0x109A
+#define E1000_DEV_ID_82574L                   0x10D3
 #define E1000_DEV_ID_80003ES2LAN_COPPER_DPT   0x1096
 #define E1000_DEV_ID_80003ES2LAN_SERDES_DPT   0x1098
 #define E1000_DEV_ID_80003ES2LAN_COPPER_SPT   0x10BA
@@ -107,11 +107,20 @@ struct e1000_hw;
 #define E1000_DEV_ID_ICH8_IFE_GT              0x10C4
 #define E1000_DEV_ID_ICH8_IFE_G               0x10C5
 #define E1000_DEV_ID_ICH8_IGP_M               0x104D
+#define E1000_DEV_ID_ICH9_IGP_M               0x10BF
+#define E1000_DEV_ID_ICH9_IGP_M_AMT           0x10F5
+#define E1000_DEV_ID_ICH9_IGP_M_V             0x10CB
 #define E1000_DEV_ID_ICH9_IGP_AMT             0x10BD
+#define E1000_DEV_ID_ICH9_BM                  0x10E5
 #define E1000_DEV_ID_ICH9_IGP_C               0x294C
 #define E1000_DEV_ID_ICH9_IFE                 0x10C0
 #define E1000_DEV_ID_ICH9_IFE_GT              0x10C3
 #define E1000_DEV_ID_ICH9_IFE_G               0x10C2
+#define E1000_DEV_ID_ICH10_R_BM_LM            0x10CC
+#define E1000_DEV_ID_ICH10_R_BM_LF            0x10CD
+#define E1000_DEV_ID_ICH10_R_BM_V             0x10CE
+#define E1000_DEV_ID_ICH10_D_BM_LM            0x10DE
+#define E1000_DEV_ID_ICH10_D_BM_LF            0x10DF
 #define E1000_DEV_ID_82575EB_COPPER           0x10A7
 #define E1000_DEV_ID_82575EB_FIBER_SERDES     0x10A9
 #define E1000_DEV_ID_82575GB_QUAD_COPPER      0x10D6
@@ -144,11 +153,13 @@ typedef enum {
 	e1000_82571,
 	e1000_82572,
 	e1000_82573,
+	e1000_82574,
 	e1000_80003es2lan,
 	e1000_ich8lan,
 	e1000_ich9lan,
+	e1000_ich10lan,
 	e1000_82575,
-	e1000_num_macs  /* List is 1-based, so subtract 1 for true count. */
+	e1000_num_macs  /* List is 1-based, so subtract 1 for TRUE count. */
 } e1000_mac_type;
 
 typedef enum {
@@ -185,6 +196,7 @@ typedef enum {
 	e1000_phy_gg82563,
 	e1000_phy_igp_3,
 	e1000_phy_ife,
+	e1000_phy_bm,
 } e1000_phy_type;
 
 typedef enum {
@@ -517,9 +529,9 @@ struct e1000_host_mng_command_info {
 #include "e1000_nvm.h"
 #include "e1000_manage.h"
 
-struct e1000_functions {
+struct e1000_mac_operations {
 	/* Function pointers for the MAC. */
-	s32  (*init_mac_params)(struct e1000_hw *);
+	s32  (*init_params)(struct e1000_hw *);
 	s32  (*blink_led)(struct e1000_hw *);
 	s32  (*check_for_link)(struct e1000_hw *);
 	bool (*check_mng_mode)(struct e1000_hw *hw);
@@ -549,39 +561,42 @@ struct e1000_functions {
                       struct e1000_host_mng_command_header*);
 	s32  (*mng_enable_host_if)(struct e1000_hw*);
 	s32  (*wait_autoneg)(struct e1000_hw*);
+};
 
-	/* Function pointers for the PHY. */
-	s32  (*init_phy_params)(struct e1000_hw *);
-	s32  (*acquire_phy)(struct e1000_hw *);
+struct e1000_phy_operations {
+	s32  (*init_params)(struct e1000_hw *);
+	s32  (*acquire)(struct e1000_hw *);
 	s32  (*check_polarity)(struct e1000_hw *);
 	s32  (*check_reset_block)(struct e1000_hw *);
-	s32  (*commit_phy)(struct e1000_hw *);
+	s32  (*commit)(struct e1000_hw *);
 	s32  (*force_speed_duplex)(struct e1000_hw *);
 	s32  (*get_cfg_done)(struct e1000_hw *hw);
 	s32  (*get_cable_length)(struct e1000_hw *);
-	s32  (*get_phy_info)(struct e1000_hw *);
-	s32  (*read_phy_reg)(struct e1000_hw *, u32, u16 *);
-	void (*release_phy)(struct e1000_hw *);
-	s32  (*reset_phy)(struct e1000_hw *);
+	s32  (*get_info)(struct e1000_hw *);
+	s32  (*read_reg)(struct e1000_hw *, u32, u16 *);
+	void (*release)(struct e1000_hw *);
+	s32  (*reset)(struct e1000_hw *);
 	s32  (*set_d0_lplu_state)(struct e1000_hw *, bool);
 	s32  (*set_d3_lplu_state)(struct e1000_hw *, bool);
-	s32  (*write_phy_reg)(struct e1000_hw *, u32, u16);
-	void (*power_up_phy)(struct e1000_hw *);
-	void (*power_down_phy)(struct e1000_hw *);
+	s32  (*write_reg)(struct e1000_hw *, u32, u16);
+	void (*power_up)(struct e1000_hw *);
+	void (*power_down)(struct e1000_hw *);
+};
 
-	/* Function pointers for the NVM. */
-	s32  (*init_nvm_params)(struct e1000_hw *);
-	s32  (*acquire_nvm)(struct e1000_hw *);
-	s32  (*read_nvm)(struct e1000_hw *, u16, u16, u16 *);
-	void (*release_nvm)(struct e1000_hw *);
-	void (*reload_nvm)(struct e1000_hw *);
-	s32  (*update_nvm)(struct e1000_hw *);
+struct e1000_nvm_operations {
+	s32  (*init_params)(struct e1000_hw *);
+	s32  (*acquire)(struct e1000_hw *);
+	s32  (*read)(struct e1000_hw *, u16, u16, u16 *);
+	void (*release)(struct e1000_hw *);
+	void (*reload)(struct e1000_hw *);
+	s32  (*update)(struct e1000_hw *);
 	s32  (*valid_led_default)(struct e1000_hw *, u16 *);
-	s32  (*validate_nvm)(struct e1000_hw *);
-	s32  (*write_nvm)(struct e1000_hw *, u16, u16, u16 *);
+	s32  (*validate)(struct e1000_hw *);
+	s32  (*write)(struct e1000_hw *, u16, u16, u16 *);
 };
 
 struct e1000_mac_info {
+	struct e1000_mac_operations ops;
 	u8 addr[6];
 	u8 perm_addr[6];
 
@@ -621,6 +636,7 @@ struct e1000_mac_info {
 };
 
 struct e1000_phy_info {
+	struct e1000_phy_operations ops;
 	e1000_phy_type type;
 
 	e1000_1000t_rx_status local_rx;
@@ -654,6 +670,7 @@ struct e1000_phy_info {
 };
 
 struct e1000_nvm_info {
+	struct e1000_nvm_operations ops;
 	e1000_nvm_type type;
 	e1000_nvm_override override;
 
@@ -696,7 +713,6 @@ struct e1000_hw {
 	u8 *flash_address;
 	unsigned long io_base;
 
-	struct e1000_functions func;
 	struct e1000_mac_info  mac;
 	struct e1000_fc_info   fc;
 	struct e1000_phy_info  phy;

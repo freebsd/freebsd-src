@@ -1,6 +1,6 @@
-/*******************************************************************************
+/******************************************************************************
 
-  Copyright (c) 2001-2007, Intel Corporation 
+  Copyright (c) 2001-2008, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -29,9 +29,8 @@
   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE.
 
-*******************************************************************************/
+******************************************************************************/
 /* $FreeBSD$ */
-
 
 #ifndef _E1000_ICH8LAN_H_
 #define _E1000_ICH8LAN_H_
@@ -83,7 +82,7 @@
 #define E1000_ICH8_LAN_INIT_TIMEOUT      1500
 
 #define E1000_FEXTNVM_SW_CONFIG        1
-#define E1000_FEXTNVM_SW_CONFIG_ICH8M (1 << 27) /* Bit redefined for ICH8M :/ */
+#define E1000_FEXTNVM_SW_CONFIG_ICH8M (1 << 27) /* Bit redefined for ICH8M */
 
 #define PCIE_ICH8_SNOOP_ALL   PCIE_NO_SNOOP_ALL
 
@@ -113,5 +112,16 @@
     E1000_IMS_PHYINT | \
     E1000_IMS_EPRST)
 
+/* Additional interrupt register bit definitions */
+#define E1000_ICR_LSECPNC       0x00004000          /* PN threshold - client */
+#define E1000_IMS_LSECPNC       E1000_ICR_LSECPNC   /* PN threshold - client */
+#define E1000_ICS_LSECPNC       E1000_ICR_LSECPNC   /* PN threshold - client */
+
+/* Security Processing bit Indication */
+#define E1000_RXDEXT_LINKSEC_STATUS_LSECH       0x01000000
+#define E1000_RXDEXT_LINKSEC_ERROR_BIT_MASK     0x60000000
+#define E1000_RXDEXT_LINKSEC_ERROR_NO_SA_MATCH  0x20000000
+#define E1000_RXDEXT_LINKSEC_ERROR_REPLAY_ERROR 0x40000000
+#define E1000_RXDEXT_LINKSEC_ERROR_BAD_SIG      0x60000000
 
 #endif
