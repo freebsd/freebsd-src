@@ -1,6 +1,6 @@
-/*******************************************************************************
+/******************************************************************************
 
-  Copyright (c) 2001-2007, Intel Corporation 
+  Copyright (c) 2001-2008, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -29,14 +29,26 @@
   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE.
 
-*******************************************************************************/
+******************************************************************************/
 /* $FreeBSD$ */
-
 
 #ifndef _E1000_API_H_
 #define _E1000_API_H_
 
 #include "e1000_hw.h"
+
+#ifndef NO_82542_SUPPORT
+extern void    e1000_init_function_pointers_82542(struct e1000_hw *hw);
+#endif
+extern void    e1000_init_function_pointers_82543(struct e1000_hw *hw);
+extern void    e1000_init_function_pointers_82540(struct e1000_hw *hw);
+extern void    e1000_init_function_pointers_82571(struct e1000_hw *hw);
+extern void    e1000_init_function_pointers_82541(struct e1000_hw *hw);
+extern void    e1000_init_function_pointers_80003es2lan(struct e1000_hw *hw);
+extern void    e1000_init_function_pointers_ich8lan(struct e1000_hw *hw);
+#ifndef NO_82575_SUPPORT
+extern void    e1000_init_function_pointers_82575(struct e1000_hw *hw);
+#endif
 
 s32  e1000_set_mac_type(struct e1000_hw *hw);
 s32  e1000_setup_init_funcs(struct e1000_hw *hw, bool init_device);
@@ -77,6 +89,8 @@ s32  e1000_write_phy_reg(struct e1000_hw *hw, u32 offset, u16 data);
 s32  e1000_write_8bit_ctrl_reg(struct e1000_hw *hw, u32 reg,
                                u32 offset, u8 data);
 s32  e1000_get_phy_info(struct e1000_hw *hw);
+void e1000_release_phy(struct e1000_hw *hw);
+s32  e1000_acquire_phy(struct e1000_hw *hw);
 s32  e1000_phy_hw_reset(struct e1000_hw *hw);
 s32  e1000_phy_commit(struct e1000_hw *hw);
 void e1000_power_up_phy(struct e1000_hw *hw);
@@ -121,6 +135,7 @@ void e1000_set_kmrn_lock_loss_workaround_ich8lan(struct e1000_hw *hw,
                                                  bool state);
 void e1000_igp3_phy_powerdown_workaround_ich8lan(struct e1000_hw *hw);
 void e1000_gig_downshift_workaround_ich8lan(struct e1000_hw *hw);
+void e1000_disable_gig_wol_ich8lan(struct e1000_hw *hw);
 
 
 /*

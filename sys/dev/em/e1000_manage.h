@@ -1,6 +1,6 @@
 /*******************************************************************************
 
-  Copyright (c) 2001-2007, Intel Corporation 
+  Copyright (c) 2001-2008, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -71,8 +71,8 @@ typedef enum {
 #define E1000_VFTA_ENTRY_MASK                0x7F
 #define E1000_VFTA_ENTRY_BIT_SHIFT_MASK      0x1F
 
-#define E1000_HI_MAX_BLOCK_BYTE_LENGTH       1792 /* Number of bytes in range */
-#define E1000_HI_MAX_BLOCK_DWORD_LENGTH      448 /* Number of dwords in range */
+#define E1000_HI_MAX_BLOCK_BYTE_LENGTH       1792 /* Num of bytes in range */
+#define E1000_HI_MAX_BLOCK_DWORD_LENGTH      448 /* Num of dwords in range */
 #define E1000_HI_COMMAND_TIMEOUT             500 /* Process HI command limit */
 
 #define E1000_HICR_EN              0x01  /* Enable bit - RO */
