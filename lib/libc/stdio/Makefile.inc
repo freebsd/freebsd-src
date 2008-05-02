@@ -16,7 +16,7 @@ SRCS+=	_flock_stub.c asprintf.c clrerr.c fclose.c fcloseall.c fdopen.c \
 	refill.c remove.c rewind.c rget.c scanf.c setbuf.c setbuffer.c \
 	setvbuf.c snprintf.c sprintf.c sscanf.c stdio.c swprintf.c swscanf.c \
 	tempnam.c tmpfile.c \
-	tmpnam.c ungetc.c ungetwc.c unlocked.c vasprintf.c vfprintf.c \
+	tmpnam.c ungetc.c ungetwc.c vasprintf.c vfprintf.c \
 	vfscanf.c \
 	vfwprintf.c vfwscanf.c vprintf.c vscanf.c vsnprintf.c vsprintf.c \
 	vsscanf.c \

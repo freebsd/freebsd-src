@@ -42,8 +42,6 @@ __FBSDID("$FreeBSD$");
 #include "local.h"
 #include "libc_private.h"
 
-#undef putc
-
 int
 putc(c, fp)
 	int c;
@@ -56,4 +54,11 @@ putc(c, fp)
 	retval = __sputc(c, fp);
 	FUNLOCKFILE(fp);
 	return (retval);
+}
+
+int
+putc_unlocked(int ch, FILE *fp)
+{
+
+	return (__sputc(ch, fp));
 }
