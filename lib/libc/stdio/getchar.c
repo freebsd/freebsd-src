@@ -45,8 +45,6 @@ __FBSDID("$FreeBSD$");
 #include "local.h"
 #include "libc_private.h"
 
-#undef getchar
-
 int
 getchar()
 {
@@ -57,4 +55,11 @@ getchar()
 	retval = __sgetc(stdin);
 	FUNLOCKFILE(stdin);
 	return (retval);
+}
+
+int
+getchar_unlocked(void)
+{
+
+	return (__sgetc(stdin));
 }

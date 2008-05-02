@@ -39,9 +39,10 @@ __FBSDID("$FreeBSD$");
 #include "namespace.h"
 #include <stdio.h>
 #include "un-namespace.h"
+#include "local.h"
 #include "libc_private.h"
 
-#undef feof
+#define	__sfeof(p)	(((p)->_flags & __SEOF) != 0)
 
 int
 feof(FILE *fp)
@@ -52,4 +53,11 @@ feof(FILE *fp)
 	ret= __sfeof(fp);
 	FUNLOCKFILE(fp);
 	return (ret);
+}
+
+int
+feof_unlocked(FILE *fp)
+{
+
+	return (__sfeof(fp));
 }
