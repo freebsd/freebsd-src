@@ -42,8 +42,6 @@ __FBSDID("$FreeBSD$");
 #include "local.h"
 #include "libc_private.h"
 
-#undef putchar
-
 /*
  * A subroutine version of the macro putchar
  */
@@ -60,4 +58,11 @@ putchar(c)
 	retval = __sputc(c, so);
 	FUNLOCKFILE(so);
 	return (retval);
+}
+
+int
+putchar_unlocked(int ch)
+{
+
+	return (__sputc(ch, stdout));
 }

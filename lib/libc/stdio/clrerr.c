@@ -39,8 +39,10 @@ __FBSDID("$FreeBSD$");
 #include "namespace.h"
 #include <stdio.h>
 #include "un-namespace.h"
+#include "local.h"
 #include "libc_private.h"
-#undef	clearerr
+
+#define	__sclearerr(p)	((void)((p)->_flags &= ~(__SERR|__SEOF)))
 
 void
 clearerr(fp)
@@ -49,4 +51,11 @@ clearerr(fp)
 	FLOCKFILE(fp);
 	__sclearerr(fp);
 	FUNLOCKFILE(fp);
+}
+
+void
+clearerr_unlocked(FILE *fp)
+{
+
+	__sclearerr(fp);
 }

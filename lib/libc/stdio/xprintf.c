@@ -33,7 +33,7 @@
  * $FreeBSD$
  */
 
-#include <namespace.h>
+#include "namespace.h"
 #include <err.h>
 #include <sys/types.h>
 #include <stdio.h>
@@ -46,7 +46,8 @@
 #include <namespace.h>
 #include <string.h>
 #include <wchar.h>
-#include <un-namespace.h>
+#include "un-namespace.h"
+#include "local.h"
 
 #include "printf.h"
 #include "fvwrite.h"
