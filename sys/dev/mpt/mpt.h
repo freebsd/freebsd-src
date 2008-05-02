@@ -270,18 +270,30 @@ void mpt_map_rquest(void *, bus_dma_segment_t *, int, int);
 #define	mpt_setup_intr	bus_setup_intr
 #endif
 
+/* **************************** NewBUS CAM Support ****************************/
+#if __FreeBSD_version < 700049
+#define mpt_xpt_bus_register(sim, parent, bus)	\
+	xpt_bus_register(sim, bus)
+#else
+#define mpt_xpt_bus_register	xpt_bus_register
+#endif
+
 /**************************** Kernel Thread Support ***************************/
-#if __FreeBSD_version > 500005
 #if __FreeBSD_version > 800001
 #define mpt_kthread_create(func, farg, proc_ptr, flags, stackpgs, fmtstr, arg) \
 	kproc_create(func, farg, proc_ptr, flags, stackpgs, fmtstr, arg)
-#else
+#define	mpt_kthread_exit(status)	\
+	kproc_exit(status)
+#elif __FreeBSD_version > 500005
 #define mpt_kthread_create(func, farg, proc_ptr, flags, stackpgs, fmtstr, arg) \
 	kthread_create(func, farg, proc_ptr, flags, stackpgs, fmtstr, arg)
-#endif
+#define	mpt_kthread_exit(status)	\
+	kthread_exit(status)
 #else
 #define mpt_kthread_create(func, farg, proc_ptr, flags, stackpgs, fmtstr, arg) \
 	kthread_create(func, farg, proc_ptr, fmtstr, arg)
+#define	mpt_kthread_exit(status)	\
+	kthread_exit(status)
 #endif
 
 /****************************** Timer Facilities ******************************/
