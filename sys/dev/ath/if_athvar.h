@@ -246,6 +246,8 @@ struct ath_softc {
 				sc_swbmiss  : 1,/* sta mode using sw bmiss */
 				sc_stagbeacons:1,/* use staggered beacons */
 				sc_wmetkipmic:1;/* can do WME+TKIP MIC */
+	uint32_t		sc_eerd;	/* regdomain from EEPROM */
+	uint32_t		sc_eecc;	/* country code from EEPROM */
 						/* rate tables */
 #define	IEEE80211_MODE_HALF	(IEEE80211_MODE_MAX+0)
 #define	IEEE80211_MODE_QUARTER	(IEEE80211_MODE_MAX+1)
