@@ -87,14 +87,6 @@ int FtpTimedOut;
 /* FTP unhappy status codes */
 #define FTP_TIMED_OUT		421
 
-/*
- * XXX
- * gross!  evil!  bad!  We really need an access primitive for cookie in stdio itself.
- * it's too convenient a hook to bury and it's already exported through funopen as it is, so...
- * XXX
- */
-#define fcookie(fp)	((fp)->_cookie)
-
 /* Placeholder in case we want to do any pre-init stuff at some point */ 
 int
 networkInit()
@@ -126,7 +118,7 @@ check_code(FTP_t ftp, int var, int preferred)
 int
 ftpAscii(FILE *fp)
 {
-    FTP_t ftp = fcookie(fp);
+    FTP_t ftp = __fgetcookie(fp);
     int i;
 
     if (!ftp->is_binary)
@@ -141,7 +133,7 @@ ftpAscii(FILE *fp)
 int
 ftpBinary(FILE *fp)
 {
-    FTP_t ftp = fcookie(fp);
+    FTP_t ftp = __fgetcookie(fp);
     int i;
 
     if (ftp->is_binary)
@@ -155,7 +147,7 @@ ftpBinary(FILE *fp)
 void
 ftpVerbose(FILE *fp, int status)
 {
-    FTP_t ftp = fcookie(fp);
+    FTP_t ftp = __fgetcookie(fp);
     ftp->is_verbose = status;
 }
 
@@ -163,7 +155,7 @@ int
 ftpChdir(FILE *fp, char *dir)
 {
     int i;
-    FTP_t ftp = fcookie(fp);
+    FTP_t ftp = __fgetcookie(fp);
 
     i = cmd(ftp, "CWD %s", dir);
     if (i < 0 || check_code(ftp, i, FTP_CHDIR_HAPPY))
@@ -174,7 +166,7 @@ ftpChdir(FILE *fp, char *dir)
 int
 ftpErrno(FILE *fp)
 {
-    FTP_t ftp = fcookie(fp);
+    FTP_t ftp = __fgetcookie(fp);
     return ftp->error;
 }
 
@@ -199,7 +191,7 @@ ftpGetSize(FILE *fp, char *name)
 {
     int i;
     char p[BUFSIZ], *cp, *ep;
-    FTP_t ftp = fcookie(fp);
+    FTP_t ftp = __fgetcookie(fp);
     off_t size;
 
     check_passive(fp);
@@ -225,7 +217,7 @@ ftpGetModtime(FILE *fp, char *name)
     char p[BUFSIZ], *cp;
     struct tm t;
     time_t t0 = time (0);
-    FTP_t ftp = fcookie(fp);
+    FTP_t ftp = __fgetcookie(fp);
     int i;
 
     check_passive(fp);
@@ -255,7 +247,7 @@ FILE *
 ftpGet(FILE *fp, char *file, off_t *seekto)
 {
     FILE *fp2;
-    FTP_t ftp = fcookie(fp);
+    FTP_t ftp = __fgetcookie(fp);
 
     check_passive(fp);
     if (ftpBinary(fp) != SUCCESS)
@@ -292,7 +284,7 @@ ftpLoginAf(char *host, int af, char *user, char *passwd, int port, int verbose, 
     fp = NULL;
     if (n && ftp_login_session(n, host, af, user, passwd, port, verbose) == SUCCESS) {
 	fp = funopen(n, ftp_read_method, ftp_write_method, NULL, ftp_close_method);	/* BSD 4.4 function! */
-	fp->_file = n->fd_ctrl;
+	__fsetfileno(fp, n->fd_ctrl);
     }
     if (retcode) {
 	if (!n)
@@ -319,7 +311,7 @@ FILE *
 ftpPut(FILE *fp, char *file)
 {
     FILE *fp2;
-    FTP_t ftp = fcookie(fp);
+    FTP_t ftp = __fgetcookie(fp);
 
     check_passive(fp);
     if (ftp_file_op(ftp, "STOR", file, &fp2, "w", NULL) == SUCCESS)
@@ -330,7 +322,7 @@ ftpPut(FILE *fp, char *file)
 int
 ftpPassive(FILE *fp, int st)
 {
-    FTP_t ftp = fcookie(fp);
+    FTP_t ftp = __fgetcookie(fp);
 
     ftp->is_passive = !!st;	/* normalize "st" to zero or one */
     return SUCCESS;
