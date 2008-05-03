@@ -237,10 +237,11 @@ pattern_match(match_t MatchType, char *pattern, const char *pkgname)
  * Synopsis is similar to matchinstalled(), but use origin
  * as a key for matching packages.
  */
-char **
+char ***
 matchallbyorigin(const char **origins, int *retval)
 {
-    char **installed, **allorigins = NULL, **matches = NULL;
+    char **installed, **allorigins = NULL;
+    char ***matches = NULL;
     int i, j;
 
     if (retval != NULL)
@@ -299,16 +300,20 @@ matchallbyorigin(const char **origins, int *retval)
     /* Resolve origins into package names, retaining the sequence */
     for (i = 0; origins[i] != NULL; i++) {
 	matches = realloc(matches, (i + 1) * sizeof(*matches));
-	matches[i] = NULL;
+	struct store *store = NULL;
+	store = storecreate(store);
 
 	for (j = 0; installed[j] != NULL; j++) {
 	    if (allorigins[j]) {
 		if (csh_match(origins[i], allorigins[j], FNM_PATHNAME) == 0) {
-		    matches[i] = installed[j];
-		    break;
+		    storeappend(store, installed[j]);
 		}
 	    }
 	}
+	if (store->used == 0)
+	    matches[i] = NULL;
+	else
+	    matches[i] = store->store;
     }
 
     if (allorigins) {
@@ -329,16 +334,14 @@ char **
 matchbyorigin(const char *origin, int *retval)
 {
    const char *origins[2];
-   char **tmp;
+   char ***tmp;
 
    origins[0] = origin;
    origins[1] = NULL;
 
    tmp = matchallbyorigin(origins, retval);
    if (tmp && tmp[0]) {
-	tmp = realloc(tmp, 2 * sizeof(*tmp));
-	tmp[1] = NULL;
-	return tmp;
+	return tmp[0];
    } else {
 	return NULL;
    }
