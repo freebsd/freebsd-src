@@ -120,6 +120,7 @@ SUBDIR=	${_3dfx} \
 	if_tap \
 	if_tun \
 	if_vlan \
+	${_igb} \
 	${_iir} \
 	${_io} \
 	ipdivert \
@@ -397,6 +398,7 @@ _i2c=		i2c
 _ibcs2=		ibcs2
 _ie=		ie
 _if_ndis=	if_ndis
+_igb=		igb
 _io=		io
 _linprocfs=	linprocfs
 _linsysfs=	linsysfs
@@ -519,6 +521,7 @@ _i2c=		i2c
 _ichwd=		ichwd
 _ida=		ida
 _if_ndis=	if_ndis
+_igb=		igb
 _iir=		iir
 _io=		io
 _ipmi=		ipmi
@@ -575,6 +578,7 @@ _ep=		ep
 _exca=		exca
 _fe=		fe
 _hfa=		hfa
+_igb=		igb
 _iir=		iir
 _mly=		mly
 _pccard=	pccard
@@ -609,6 +613,7 @@ _ath_rate_sample=ath_rate_sample
 _auxio=		auxio
 _em=		em
 _i2c=		i2c
+_igb=		igb
 _sound=		sound
 .if ${MK_ZFS} != "no" || defined(ALL_MODULES)
 _zfs=		zfs
