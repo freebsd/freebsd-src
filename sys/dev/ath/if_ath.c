@@ -5941,7 +5941,6 @@ ath_getchannels(struct ath_softc *sc)
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
 	struct ath_hal *ah = sc->sc_ah;
-	u_int32_t rd, cc;
 	int error;
 
 	/*
@@ -5949,19 +5948,19 @@ ath_getchannels(struct ath_softc *sc)
 	 */
 	error = getchannels(sc, &ic->ic_nchans, ic->ic_channels,
 	    CTRY_DEFAULT, AH_TRUE, AH_FALSE);
-	(void) ath_hal_getregdomain(ah, &rd);
-	ath_hal_getcountrycode(ah, &cc);	/* NB: cannot fail */
+	(void) ath_hal_getregdomain(ah, &sc->sc_eerd);
+	ath_hal_getcountrycode(ah, &sc->sc_eecc);	/* NB: cannot fail */
 	if (error) {
 		if_printf(ifp, "%s: unable to collect channel list from hal, "
 		    "error %d\n", __func__, error);
 		if (error == EINVAL) {
 			if_printf(ifp, "%s: regdomain likely %u country code %u\n",
-			    __func__, rd, cc);
+			    __func__, sc->sc_eerd, sc->sc_eecc);
 		}
 		return error;
 	}
-	ic->ic_regdomain.regdomain = ath_mapregdomain(sc, rd);
-	ic->ic_regdomain.country = cc;
+	ic->ic_regdomain.regdomain = ath_mapregdomain(sc, sc->sc_eerd);
+	ic->ic_regdomain.country = sc->sc_eecc;
 	ic->ic_regdomain.ecm = 1;
 	ic->ic_regdomain.location = 'I';
 	ic->ic_regdomain.isocc[0] = ' ';	/* XXX don't know */
@@ -6585,6 +6584,12 @@ ath_sysctlattach(struct ath_softc *sc)
 	struct sysctl_oid *tree = device_get_sysctl_tree(sc->sc_dev);
 	struct ath_hal *ah = sc->sc_ah;
 
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"countrycode", CTLFLAG_RD, &sc->sc_eecc, 0,
+		"EEPROM country code");
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"regdomain", CTLFLAG_RD, &sc->sc_eerd, 0,
+		"EEPROM regdomain code");
 #ifdef	ATH_DEBUG
 	sc->sc_debug = ath_debug;
 	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
