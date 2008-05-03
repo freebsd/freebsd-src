@@ -21,7 +21,7 @@ CFLAGS+= -DPC98
 .endif
 CFLAGS+= -I${.CURDIR}/../../gnu/lib/libdialog -I.
 
-DPADD=	${LIBDIALOG} ${LIBNCURSES} ${LIBUTIL} ${LIBDISK} ${LIBFTPIO}
-LDADD=	-ldialog -lncurses -lutil -ldisk -lftpio
+DPADD=	${LIBDIALOG} ${LIBNCURSES} ${LIBUTIL} ${LIBDISK}
+LDADD=	-ldialog -lncurses -lutil -ldisk
 
 .include <bsd.prog.mk>
