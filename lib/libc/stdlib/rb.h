@@ -743,7 +743,7 @@ a_prefix##remove(a_tree_type *tree, a_type *node) {			\
  *
  *       rb_foreach_begin(a_type, a_field, a_tree, node) {
  *           ...
- *           rb_prev(a_type, a_field, a_cmp, a_tree, node, tnode);
+ *           rb_next(a_type, a_field, a_cmp, a_tree, node, tnode);
  *           rb_remove(a_type, a_field, a_cmp, a_tree, node);
  *           rb_foreach_next(a_type, a_field, a_cmp, a_tree, tnode);
  *           ...
