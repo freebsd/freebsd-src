@@ -46,6 +46,20 @@ __FBSDID("$FreeBSD$");
 #include "un-namespace.h"
 #include "local.h"
 
+void *
+__fgetcookie(FILE *fp)
+{
+
+	return (fp->_cookie);
+}
+
+void
+__fsetfileno(FILE *fp, int fd)
+{
+
+	fp->_file = fd;
+}
+
 /*
  * Small standard I/O/seek/close functions.
  */
