@@ -249,8 +249,11 @@ int	 setlinebuf(FILE *);
 int	 vasprintf(char **, const char *, __va_list)
 	    __printflike(2, 0);
 
+/* XXX used by libftpio */
 void	*__fgetcookie(FILE *);
 void	__fsetfileno(FILE *, int);
+/* XXX used by sort */
+size_t	__fgetpendout(FILE *);
 
 /*
  * The system error table contains messages for the first sys_nerr
