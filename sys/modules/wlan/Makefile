@@ -15,6 +15,7 @@ SRCS+=	bus_if.h device_if.h opt_inet.h opt_ipx.h opt_wlan.h
 .if !defined(KERNBUILDDIR)
 opt_wlan.h:
 	echo "#define IEEE80211_DEBUG 1" > opt_wlan.h
+	echo "#define IEEE80211_AMDPU_AGE 1" >> opt_wlan.h
 
 opt_inet.h:
 	echo "#define INET 1" > opt_inet.h
