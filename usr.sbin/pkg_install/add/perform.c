@@ -452,7 +452,7 @@ pkg_do(char *pkg)
     /* Time to record the deed? */
     if (!NoRecord && !Fake) {
 	char contents[FILENAME_MAX];
-	char **depnames = NULL, **deporigins = NULL, **depmatches;
+	char **depnames = NULL, **deporigins = NULL, ***depmatches;
 	int i, dep_count = 0;
 	FILE *contfile;
 
@@ -540,20 +540,24 @@ pkg_do(char *pkg)
 	    if (!IgnoreDeps && depmatches) {
 		for (i = 0; i < dep_count; i++) {
 		    if (depmatches[i]) {
-			/* Origin looked up */
-			sprintf(contents, "%s/%s/%s", LOG_DIR, depmatches[i],
-			    REQUIRED_BY_FNAME);
-			if (depnames[i] && strcmp(depnames[i], depmatches[i]) != 0)
-			    warnx("warning: package '%s' requires '%s', but '%s' "
-				"is installed", Plist.name, depnames[i], depmatches[i]);
-			contfile = fopen(contents, "a");
-			if (!contfile) {
-			    warnx("can't open dependency file '%s'!\n"
-				"dependency registration is incomplete", contents);
-			} else {
-			    fprintf(contfile, "%s\n", Plist.name);
-			    if (fclose(contfile) == EOF)
-				warnx("cannot properly close file %s", contents);
+			int j;
+			char **tmp = depmatches[i];
+			for (j = 0; tmp[j] != NULL; j++) {
+			    /* Origin looked up */
+			    sprintf(contents, "%s/%s/%s", LOG_DIR, tmp[j],
+				REQUIRED_BY_FNAME);
+			    if (depnames[i] && strcmp(depnames[i], tmp[j]) != 0)
+				warnx("warning: package '%s' requires '%s', but '%s' "
+				    "is installed", Plist.name, depnames[i], tmp[j]);
+			    contfile = fopen(contents, "a");
+			    if (!contfile) {
+				warnx("can't open dependency file '%s'!\n"
+				    "dependency registration is incomplete", contents);
+			    } else {
+				fprintf(contfile, "%s\n", Plist.name);
+				if (fclose(contfile) == EOF)
+				    warnx("cannot properly close file %s", contents);
+			    }
 			}
 		    } else if (depnames[i]) {
 			/* No package present with this origin, try literal package name */
