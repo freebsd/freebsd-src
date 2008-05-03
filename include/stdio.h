@@ -249,6 +249,9 @@ int	 setlinebuf(FILE *);
 int	 vasprintf(char **, const char *, __va_list)
 	    __printflike(2, 0);
 
+void	*__fgetcookie(FILE *);
+void	__fsetfileno(FILE *, int);
+
 /*
  * The system error table contains messages for the first sys_nerr
  * positive errno values.  Use strerror() or strerror_r() from <string.h>
