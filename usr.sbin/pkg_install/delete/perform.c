@@ -122,7 +122,7 @@ static int
 pkg_do(char *pkg)
 {
     FILE *cfile;
-    char *deporigin, **deporigins = NULL, **depnames = NULL, **depmatches, home[FILENAME_MAX];
+    char *deporigin, **deporigins = NULL, **depnames = NULL, ***depmatches, home[FILENAME_MAX];
     PackingList p;
     int i, len;
     int isinstalled;
@@ -295,7 +295,10 @@ pkg_do(char *pkg)
 	if (depmatches) {
 	    for (i = 0; i < dep_count; i++) {
 		if (depmatches[i]) {
-		    undepend(depmatches[i], pkg);
+		    char **tmp = depmatches[i];
+		    int j;
+		    for (j = 0; tmp[j] != NULL; j++)
+			undepend(tmp[j], pkg);
 		} else if (depnames[i]) {
 		    undepend(depnames[i], pkg);
 		}
