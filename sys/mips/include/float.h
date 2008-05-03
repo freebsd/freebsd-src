@@ -47,6 +47,12 @@ __END_DECLS
 #else
 #define	FLT_ROUNDS	__flt_rounds() /* FP addition rounds to nearest */
 #endif
+/*
+ * XXXMIPS: MIPS32 has both float and double type, so set FLT_EVAL_METHOD
+ *   to 0. Check it for 64-bits systems.
+ */
+#define	FLT_EVAL_METHOD	0
+#define	DECIMAL_DIG	17
 
 #define	FLT_MANT_DIG	24		/* p */
 #define	FLT_EPSILON	1.19209290E-07F /* b**(1-p) */
