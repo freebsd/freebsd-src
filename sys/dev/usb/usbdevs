@@ -963,6 +963,7 @@ product CANON LIDE25		0x2220	CanoScan LIDE 25
 product CANON S10		0x3041	PowerShot S10
 product CANON S100		0x3045	PowerShot S100
 product CANON S200		0x3065	PowerShot S200
+product CANON REBELXT		0x30ef	Digital Rebel XT
 
 /* CATC products */
 product CATC NETMATE		0x000a	Netmate Ethernet
@@ -972,6 +973,7 @@ product CATC ANDROMEDA		0x1237	Andromeda hub
 
 /* CASIO products */
 product CASIO QV_DIGICAM	0x1001	QV DigiCam
+product CASIO EXS880		0x1105	Exilim EX-S880
 product CASIO BE300		0x2002	BE-300 PDA
 product CASIO NAMELAND		0x4001	CASIO Nameland EZ-USB
 
