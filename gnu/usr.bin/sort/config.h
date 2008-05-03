@@ -1240,7 +1240,7 @@
 #define PACKAGE_VERSION "5.3.0-20040812-FreeBSD"
 
 /* the number of pending output bytes on stream `fp' */
-#define PENDING_OUTPUT_N_BYTES fp->_p - fp->_bf._base
+#define PENDING_OUTPUT_N_BYTES __fgetpendout(fp)
 
 /* Define if <inttypes.h> exists and defines unusable PRI* macros. */
 /* #undef PRI_MACROS_BROKEN */

@@ -53,6 +53,13 @@ __fgetcookie(FILE *fp)
 	return (fp->_cookie);
 }
 
+size_t
+__fgetpendout(FILE *fp)
+{
+
+	return (fp->_p - fp->_bf._base);
+}
+
 void
 __fsetfileno(FILE *fp, int fd)
 {
