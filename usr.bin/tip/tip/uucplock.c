@@ -126,5 +126,6 @@ uu_unlock(char *ttyname)
 	char tbuf[sizeof(_PATH_LOCKDIRNAME) + MAXNAMLEN];
 
 	(void)snprintf(tbuf, sizeof tbuf, _PATH_LOCKDIRNAME, ttyname);
+	unexcl();
 	return(unlink(tbuf));
 }

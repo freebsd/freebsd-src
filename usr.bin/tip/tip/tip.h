@@ -341,6 +341,7 @@ void	timeout(int);
 void	tipabort(char *);
 void	tipout(void);
 void	user_uid(void);
+void	unexcl(void);
 void	unraw(void);
 void	v3451_abort(void);
 void	v3451_disconnect(void);
