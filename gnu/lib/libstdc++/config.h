@@ -371,7 +371,7 @@
 /* #undef HAVE_TANL */
 
 /* Define to 1 if the target supports thread-local storage. */
-#if !defined(__sparc64__) && !defined(__arm__)
+#if !defined(__sparc64__) && !defined(__arm__) && !defined(__mips__)
 #define HAVE_TLS 1
 #endif
 
