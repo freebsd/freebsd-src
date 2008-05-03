@@ -85,6 +85,11 @@ __FBSDID("$FreeBSD$");
 #endif
 
 /*
+ * We require a HAL w/ the changes for split tx/rx MIC.
+ */
+CTASSERT(HAL_ABI_VERSION > 0x06052200);
+
+/*
  * ATH_BCBUF determines the number of vap's that can transmit
  * beacons and also (currently) the number of vap's that can
  * have unique mac addresses/bssid.  When staggering beacons
@@ -2067,13 +2072,11 @@ ath_keyprint(struct ath_softc *sc, const char *tag, u_int ix,
 		printf(" %s ", sc->sc_splitmic ? "mic" : "rxmic");
 		for (i = 0; i < sizeof(hk->kv_mic); i++)
 			printf("%02x", hk->kv_mic[i]);
-#if HAL_ABI_VERSION > 0x06052200
 		if (!sc->sc_splitmic) {
 			printf(" txmic ");
 			for (i = 0; i < sizeof(hk->kv_txmic); i++)
 				printf("%02x", hk->kv_txmic[i]);
 		}
-#endif
 	}
 	printf("\n");
 }
@@ -2116,18 +2119,19 @@ ath_keyset_tkip(struct ath_softc *sc, const struct ieee80211_key *k,
 			 * will handle the rest.
 			 */
 			memcpy(hk->kv_mic, k->wk_rxmic, sizeof(hk->kv_mic));
-#if HAL_ABI_VERSION > 0x06052200
 			memcpy(hk->kv_txmic, k->wk_txmic, sizeof(hk->kv_txmic));
-#endif
 			KEYPRINTF(sc, k->wk_keyix, hk, mac);
 			return ath_hal_keyset(ah, k->wk_keyix, hk, mac);
 		}
 	} else if (k->wk_flags & IEEE80211_KEY_XMIT) {
-#if HAL_ABI_VERSION > 0x06052200
-		memcpy(hk->kv_txmic, k->wk_txmic, sizeof(hk->kv_txmic));
-#else
-		memcpy(hk->kv_mic, k->wk_mic, sizeof(hk->kv_mic));
-#endif
+		if (sc->sc_splitmic) {
+			/*
+			 * NB: must pass MIC key in expected location when
+			 * the keycache only holds one MIC key per entry.
+			 */
+			memcpy(hk->kv_mic, k->wk_txmic, sizeof(hk->kv_txmic));
+		} else
+			memcpy(hk->kv_txmic, k->wk_txmic, sizeof(hk->kv_txmic));
 		KEYPRINTF(sc, k->wk_keyix, hk, mac);
 		return ath_hal_keyset(ah, k->wk_keyix, hk, mac);
 	} else if (k->wk_flags & IEEE80211_KEY_RECV) {
