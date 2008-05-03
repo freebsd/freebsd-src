@@ -325,6 +325,15 @@ unraw(void)
 		tcsetattr(0, TCSADRAIN, &defterm);
 }
 
+/*
+ * give up exclusive tty access
+ */
+void
+unexcl()
+{
+	ioctl(FD, TIOCNXCL, 0);
+}
+
 static	jmp_buf promptbuf;
 
 /*

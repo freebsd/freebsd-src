@@ -666,6 +666,7 @@ tipabort(char *msg)
 	daemon_uid();
 	(void)uu_unlock(uucplock);
 	unraw();
+	unexcl();
 	exit(0);
 }
 
