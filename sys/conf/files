@@ -710,7 +710,7 @@ dev/ieee488/tnt4882.c		optional tnt4882
 dev/ieee488/upd7210.c		optional pcii | tnt4882
 dev/igb/if_igb.c		optional igb \
 	compile-with "${NORMAL_C} -I$S/dev/igb"
-dev/igb/e1000_82575.c		optional igb \
+dev/igb/e1000_82575.c		optional igb | em \
 	compile-with "${NORMAL_C} -I$S/dev/igb"
 dev/iicbus/ad7418.c		optional ad7418
 dev/iicbus/ds1672.c		optional ds1672
