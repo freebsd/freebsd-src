@@ -1,14 +1,14 @@
 # $FreeBSD$
 
-SUBDIR=	hfa pci
+SUBDIR=	${eisa} hfa pci ${sbus}
 
 .ifdef notyet
 .if ${MACHINE_ARCH} == "i386"
-SUBDIR+=eisa
+eisa=	eisa
 .endif
 
-.if ${MACHINE_ARCH} == "sparc64"
-SUBDIR+=sbus
+.if ${MACHINE} == "sparc64"
+sbus=	sbus
 .endif
 .endif
 
