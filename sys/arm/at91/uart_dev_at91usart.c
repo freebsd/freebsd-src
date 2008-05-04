@@ -506,9 +506,20 @@ static __inline void
 at91_rx_put(struct uart_softc *sc, int key)
 {
 #if defined(KDB) && defined(ALT_BREAK_TO_DEBUGGER)
+	int kdb_brk;
+
 	if (sc->sc_sysdev != NULL && sc->sc_sysdev->type == UART_DEV_CONSOLE) {
-		if (kdb_alt_break(key, &sc->sc_altbrk))
-			kdb_enter(KDB_WHY_BREAK, "Break sequence to console");
+		if ((kdb_brk = kdb_alt_break(key, &sc->sc_altbrk)) != 0) {
+		case KDB_REQ_DEBUGGER:
+			kdb_enter(KDB_WHY_BREAK, "Break sequence on console");
+			break;
+		case KDB_REQ_PANIC:
+			kdb_panic("Panic sequence on console");
+			break;
+		case KDB_REQ_REBOOT:
+			kdb_reboot();
+			break;
+		}
 	}
 #endif
 	uart_rx_put(sc, key);	
