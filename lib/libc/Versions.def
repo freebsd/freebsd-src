@@ -15,3 +15,6 @@ FBSD_1.1 {
 # simple ABI-checking tools.
 FBSDprivate_1.0 {
 } FBSD_1.0;
+
+FBSDprivate_1.1 {
+} FBSD_1.1;
