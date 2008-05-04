@@ -89,6 +89,9 @@ __FBSDID("$FreeBSD$");
 #include <ddb/ddb.h>
 #endif
 
+#define	WI_MPSAFEQ	0
+#define	WI_GIANTQ	1
+
 static MALLOC_DEFINE(M_NETADDR, "subr_export_host", "Export host address structure");
 
 static void	delmntque(struct vnode *vp);
@@ -221,7 +224,7 @@ int	prtactive;
 static int syncer_delayno;
 static long syncer_mask;
 LIST_HEAD(synclist, bufobj);
-static struct synclist *syncer_workitem_pending;
+static struct synclist *syncer_workitem_pending[2];
 /*
  * The sync_mtx protects:
  *	bo->bo_synclist
@@ -317,8 +320,10 @@ vntblinit(void *dummy __unused)
 	/*
 	 * Initialize the filesystem syncer.
 	 */
-	syncer_workitem_pending = hashinit(syncer_maxdelay, M_VNODE,
-		&syncer_mask);
+	syncer_workitem_pending[WI_MPSAFEQ] = hashinit(syncer_maxdelay, M_VNODE,
+	    &syncer_mask);
+	syncer_workitem_pending[WI_GIANTQ] = hashinit(syncer_maxdelay, M_VNODE,
+	    &syncer_mask);
 	syncer_maxdelay = syncer_mask + 1;
 	mtx_init(&sync_mtx, "Syncer mtx", NULL, MTX_DEF);
 }
@@ -1568,7 +1573,7 @@ brelvp(struct buf *bp)
 static void
 vn_syncer_add_to_worklist(struct bufobj *bo, int delay)
 {
-	int slot;
+	int queue, slot;
 
 	ASSERT_BO_LOCKED(bo);
 
@@ -1584,7 +1589,10 @@ vn_syncer_add_to_worklist(struct bufobj *bo, int delay)
 		delay = syncer_maxdelay - 2;
 	slot = (syncer_delayno + delay) & syncer_mask;
 
-	LIST_INSERT_HEAD(&syncer_workitem_pending[slot], bo, bo_synclist);
+	queue = VFS_NEEDSGIANT(bo->__bo_vnode->v_mount) ? WI_GIANTQ :
+	    WI_MPSAFEQ;
+	LIST_INSERT_HEAD(&syncer_workitem_pending[queue][slot], bo,
+	    bo_synclist);
 	mtx_unlock(&sync_mtx);
 }
 
@@ -1617,38 +1625,13 @@ sync_vnode(struct synclist *slp, struct bufobj **bo, struct thread *td)
 {
 	struct vnode *vp;
 	struct mount *mp;
-	int vfslocked;
 
-	vfslocked = 0;
-restart:
 	*bo = LIST_FIRST(slp);
-	if (*bo == NULL) {
-		VFS_UNLOCK_GIANT(vfslocked);
+	if (*bo == NULL)
 		return (0);
-	}
 	vp = (*bo)->__bo_vnode;	/* XXX */
-	if (VFS_NEEDSGIANT(vp->v_mount)) {
-		if (!vfslocked) {
-			vfslocked = 1;
-			if (mtx_trylock(&Giant) == 0) {
-				mtx_unlock(&sync_mtx);
-				mtx_lock(&Giant);
-				mtx_lock(&sync_mtx);
-				goto restart;
-			}
-		}
-	} else {
-		VFS_UNLOCK_GIANT(vfslocked);
-		vfslocked = 0;
-	}
-	if (VOP_ISLOCKED(vp) != 0) {
-		VFS_UNLOCK_GIANT(vfslocked);
+	if (VOP_ISLOCKED(vp) != 0 || VI_TRYLOCK(vp) == 0)
 		return (1);
-	}
-	if (VI_TRYLOCK(vp) == 0) {
-		VFS_UNLOCK_GIANT(vfslocked);
-		return (1);
-	}
 	/*
 	 * We use vhold in case the vnode does not
 	 * successfully sync.  vhold prevents the vnode from
@@ -1660,7 +1643,6 @@ restart:
 	VI_UNLOCK(vp);
 	if (vn_start_write(vp, &mp, V_NOWAIT) != 0) {
 		vdrop(vp);
-		VFS_UNLOCK_GIANT(vfslocked);
 		mtx_lock(&sync_mtx);
 		return (*bo == LIST_FIRST(slp));
 	}
@@ -1680,7 +1662,6 @@ restart:
 	}
 	BO_UNLOCK(*bo);
 	vdrop(vp);
-	VFS_UNLOCK_GIANT(vfslocked);
 	mtx_lock(&sync_mtx);
 	return (0);
 }
@@ -1691,8 +1672,8 @@ restart:
 static void
 sched_sync(void)
 {
-	struct synclist *next;
-	struct synclist *slp;
+	struct synclist *gnext, *next;
+	struct synclist *gslp, *slp;
 	struct bufobj *bo;
 	long starttime;
 	struct thread *td = curthread;
@@ -1739,11 +1720,13 @@ sched_sync(void)
 		 * Skip over empty worklist slots when shutting down.
 		 */
 		do {
-			slp = &syncer_workitem_pending[syncer_delayno];
+			slp = &syncer_workitem_pending[WI_MPSAFEQ][syncer_delayno];
+			gslp = &syncer_workitem_pending[WI_GIANTQ][syncer_delayno];
 			syncer_delayno += 1;
 			if (syncer_delayno == syncer_maxdelay)
 				syncer_delayno = 0;
-			next = &syncer_workitem_pending[syncer_delayno];
+			next = &syncer_workitem_pending[WI_MPSAFEQ][syncer_delayno];
+			gnext = &syncer_workitem_pending[WI_GIANTQ][syncer_delayno];
 			/*
 			 * If the worklist has wrapped since the
 			 * it was emptied of all but syncer vnodes,
@@ -1757,7 +1740,7 @@ sched_sync(void)
 				syncer_final_iter = SYNCER_SHUTDOWN_SPEEDUP;
 			}
 		} while (syncer_state != SYNCER_RUNNING && LIST_EMPTY(slp) &&
-		    syncer_worklist_len > 0);
+		    LIST_EMPTY(gslp) && syncer_worklist_len > 0);
 
 		/*
 		 * Keep track of the last time there was anything
@@ -1776,6 +1759,21 @@ sched_sync(void)
 				LIST_INSERT_HEAD(next, bo, bo_synclist);
 				continue;
 			}
+		}
+		if (!LIST_EMPTY(gslp)) {
+			mtx_unlock(&sync_mtx);
+			mtx_lock(&Giant);
+			mtx_lock(&sync_mtx);
+			while (!LIST_EMPTY(gslp)) {
+				error = sync_vnode(gslp, &bo, td);
+				if (error == 1) {
+					LIST_REMOVE(bo, bo_synclist);
+					LIST_INSERT_HEAD(gnext, bo,
+					    bo_synclist);
+					continue;
+				}
+			}
+			mtx_unlock(&Giant);
 		}
 		if (syncer_state == SYNCER_FINAL_DELAY && syncer_final_iter > 0)
 			syncer_final_iter--;
