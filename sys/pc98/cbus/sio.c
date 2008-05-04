@@ -2268,12 +2268,16 @@ siointr1(com)
 	u_char	modem_status;
 	u_char	*ioptr;
 	u_char	recv_data;
-
 #ifdef PC98
 	u_char	tmp = 0;
 	u_char	rsa_buf_status = 0;
 	int	rsa_tx_fifo_size = 0;
 #endif /* PC98 */
+#if defined(KDB) && defined(ALT_BREAK_TO_DEBUGGER)
+	int	kdb_brk;
+
+again:
+#endif
 
 	if (COM_IIR_TXRDYBUG(com->flags)) {
 		int_ctl = inb(com->int_ctl_port);
@@ -2368,9 +2372,24 @@ more_intr:
 #ifdef KDB
 #ifdef ALT_BREAK_TO_DEBUGGER
 			if (com->unit == comconsole &&
-			    kdb_alt_break(recv_data, &com->alt_brk_state) != 0)
-				kdb_enter(KDB_WHY_BREAK,
-				    "Break sequence on console");
+			    (kdb_brk = kdb_alt_break(recv_data,
+					&com->alt_brk_state)) != 0) {
+				mtx_unlock_spin(&sio_lock);
+				switch (kdb_brk) {
+				case KDB_REQ_DEBUGGER:
+					kdb_enter(KDB_WHY_BREAK,
+					    "Break sequence on console");
+					break;
+				case KDB_REQ_PANIC:
+					kdb_panic("panic on console");
+					break;
+				case KDB_REQ_REBOOT:
+					kdb_reboot();
+					break;
+				}
+				mtx_lock_spin(&sio_lock);
+				goto again;
+			}
 #endif /* ALT_BREAK_TO_DEBUGGER */
 #endif /* KDB */
 			if (line_status & (LSR_BI | LSR_FE | LSR_PE)) {

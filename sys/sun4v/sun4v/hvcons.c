@@ -223,11 +223,25 @@ hvcn_cngetc(struct consdev *cp)
 
 	while ((l = hv_cons_getchar(&ch)) != H_EOK) {
 #if defined(KDB)
+		int kdb_brk;
+
 		if (l == H_BREAK || l ==  H_HUP)
 			kdb_enter(KDB_WHY_BREAK, "Break sequence on console");
 
-	if (kdb_alt_break(ch, &alt_break_state))
-		kdb_enter(KDB_WHY_BREAK, "Break sequence on console");
+		if ((kdb_brk = kdb_alt_break(ch, &alt_break_state)) != 0) {
+			switch (kdb_brk) {
+			case KDB_REQ_DEBUGGER:
+				kdb_enter(KDB_WHY_BREAK,
+				    "Break sequence on console");
+				break;
+			case KDB_REQ_PANIC:
+				kdb_panic("Panic sequence on console");
+				break;
+			case KDB_REQ_REBOOT:
+				kdb_reboot();
+				break;
+			}
+		}
 #endif
 		if (l != -2 && l != 0) {
 			return (-1);

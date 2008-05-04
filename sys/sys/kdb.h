@@ -69,6 +69,8 @@ int	kdb_dbbe_select(const char *);
 void	kdb_enter(const char *, const char *);
 void	kdb_init(void);
 void *	kdb_jmpbuf(jmp_buf);
+void	kdb_panic(const char *);
+void	kdb_reboot(void);
 void	kdb_reenter(void);
 struct pcb *kdb_thr_ctx(struct thread *);
 struct thread *kdb_thr_first(void);
@@ -104,5 +106,10 @@ extern const char * volatile kdb_why;
 #define	KDB_WHY_MAC		"mac"		/* MAC Framework. */
 #define	KDB_WHY_POWERPC		"powerpc"	/* Unhandled powerpc intr. */
 #define	KDB_WHY_UNIONFS		"unionfs"	/* Unionfs bug. */
+
+/* Return values for kdb_alt_break */
+#define	KDB_REQ_DEBUGGER	1	/* User requested Debugger */
+#define	KDB_REQ_PANIC		2	/* User requested a panic */
+#define	KDB_REQ_REBOOT		3	/* User requested a clean reboot */
 
 #endif /* !_SYS_KDB_H_ */
