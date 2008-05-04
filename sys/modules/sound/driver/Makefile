@@ -6,10 +6,10 @@ audiocs=	audiocs
 .endif
 SUBDIR=	${audiocs} es137x
 .else
-SUBDIR=	ad1816 als4000 atiixp cmi cs4281 csa ds1 emu10k1 emu10kx envy24
-SUBDIR=	envy24ht es137x ess fm801 hda ich maestro maestro3 mss neomagic
-SUBDIR=	sb16 sb8 sbc solo spicds t4dwave via8233 via82c686 vibes
-SUBDIR=	driver uaudio
+SUBDIR=		ad1816 als4000 atiixp cmi cs4281 csa ds1 emu10k1 emu10kx
+SUBDIR+=	envy24 envy24ht es137x ess fm801 hda ich maestro maestro3
+SUBDIR+=	mss neomagic sb16 sb8 sbc solo spicds t4dwave via8233
+SUBDIR+=	via82c686 vibes driver uaudio
 .endif
 
 .include <bsd.subdir.mk>
