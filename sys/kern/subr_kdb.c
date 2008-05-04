@@ -221,6 +221,25 @@ kdb_sysctl_trap_code(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
+void
+kdb_panic(const char *msg)
+{
+	
+#ifdef SMP
+	stop_cpus(PCPU_GET(other_cpus));
+#endif
+	printf("KDB: panic\n");
+	panic(msg);
+}
+
+void
+kdb_reboot(void)
+{
+
+	printf("KDB: reboot requested\n");
+	shutdown_nice(0);
+}
+
 /*
  * Solaris implements a new BREAK which is initiated by a character sequence
  * CR ~ ^b which is similar to a familiar pattern used on Sun servers by the
@@ -235,6 +254,8 @@ kdb_sysctl_trap_code(SYSCTL_HANDLER_ARGS)
 #define	KEY_CR		13	/* CR '\r' */
 #define	KEY_TILDE	126	/* ~ */
 #define	KEY_CRTLB	2	/* ^B */
+#define	KEY_CRTLP	16	/* ^P */
+#define	KEY_CRTLR	18	/* ^R */
 
 int
 kdb_alt_break(int key, int *state)
@@ -242,20 +263,23 @@ kdb_alt_break(int key, int *state)
 	int brk;
 
 	brk = 0;
-	switch (key) {
-	case KEY_CR:
-		*state = KEY_TILDE;
+	switch (*state) {
+	case 0:
+		if (key == KEY_CR)
+			*state = 1;
 		break;
-	case KEY_TILDE:
-		*state = (*state == KEY_TILDE) ? KEY_CRTLB : 0;
+	case 1:
+		if (key == KEY_TILDE)
+			*state = 2;
 		break;
-	case KEY_CRTLB:
-		if (*state == KEY_CRTLB)
-			brk = 1;
-		/* FALLTHROUGH */
-	default:
+	case 2:
+		if (key == KEY_CRTLB)
+			brk = KDB_REQ_DEBUGGER;
+		else if (key == KEY_CRTLP)
+			brk = KDB_REQ_PANIC;
+		else if (key == KEY_CRTLR)
+			brk = KDB_REQ_REBOOT;
 		*state = 0;
-		break;
 	}
 	return (brk);
 }

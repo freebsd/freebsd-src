@@ -198,22 +198,36 @@ extern struct gdb_dbgport *gdb_cur;
 static int
 dcons_check_break(struct dcons_softc *dc, int c)
 {
+#if __FreeBSD_version >= 502122
+	int kdb_brk;
+#endif
 	if (c < 0)
 		return (c);
 
 #if __FreeBSD_version >= 502122
-	if (kdb_alt_break(c, &dc->brk_state)) {
-		if ((dc->flags & DC_GDB) != 0) {
+	if ((kdb_brk = kdb_alt_break(c, &dc->brk_state)) != 0) {
+		switch (kdb_brk) {
+		case KDB_REQ_DEBUGGER:
+		
+			if ((dc->flags & DC_GDB) != 0) {
 #ifdef GDB
-			if (gdb_cur == &dcons_gdb_dbgport) {
-				kdb_dbbe_select("gdb");
-				kdb_enter(KDB_WHY_BREAK,
-				    "Break sequence on dcons gdb port");
-			}
+				if (gdb_cur == &dcons_gdb_dbgport) {
+					kdb_dbbe_select("gdb");
+					kdb_enter(KDB_WHY_BREAK,
+					    "Break sequence on dcons gdb port");
+				}
 #endif
-		} else
-			kdb_enter(KDB_WHY_BREAK,
-			    "Break sequence on dcons console port");
+			} else
+				kdb_enter(KDB_WHY_BREAK,
+				    "Break sequence on dcons console port");
+			break;
+		case KDB_REQ_PANIC:
+			kdb_panic("Panic sequence on dcons console port");
+			break;
+		case KDB_REQ_BREAK:
+			kdb_reboot();
+			break;
+		}
 	}
 #else
 	switch (dc->brk_state) {
