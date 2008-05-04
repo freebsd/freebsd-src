@@ -175,9 +175,23 @@ uart_intr_rxready(void *arg)
 #if defined(KDB) && defined(ALT_BREAK_TO_DEBUGGER)
 	if (sc->sc_sysdev != NULL && sc->sc_sysdev->type == UART_DEV_CONSOLE) {
 		while (rxp != sc->sc_rxput) {
-			if (kdb_alt_break(sc->sc_rxbuf[rxp++], &sc->sc_altbrk))
-				kdb_enter(KDB_WHY_BREAK,
-				    "Break sequence on console");
+			int kdb_brk;
+
+			if ((kdb_brk = kdb_alt_break(sc->sc_rxbuf[rxp++],
+			    &sc->sc_altbrk)) != 0) {
+				switch (kdb_brk) {
+				case KDB_REQ_DEBUGGER:
+					kdb_enter(KDB_WHY_BREAK,
+					    "Break sequence on console");
+					break;
+				case KDB_REQ_PANIC:
+					kdb_panic("Panic sequence on console");
+					break;
+				case KDB_REQ_REBOOT:
+					kdb_reboot();
+					break;
+				}
+			}
 			if (rxp == sc->sc_rxbufsz)
 				rxp = 0;
 		}
