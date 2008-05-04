@@ -32,7 +32,8 @@ enum platform {
 	p_ia64,
 	p_ppc,
 	p_amd64,
-	p_arm
+	p_arm,
+	p_mips
 };
 extern const enum platform platform;
 
