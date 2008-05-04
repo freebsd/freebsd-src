@@ -578,6 +578,10 @@ list_net_interfaces()
 		_tmplist="${_lo}${_tmplist}"
 		;;
 	*)
+		if [ -z "$type"]; then
+			warn "Values of network_interfaces other than" \
+			    "AUTO are deprecated"
+		fi
 		_tmplist="${network_interfaces} ${cloned_interfaces}"
 		;;
 	esac
