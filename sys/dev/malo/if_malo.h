@@ -512,14 +512,8 @@ struct malo_txrec {
 	struct ieee80211_frame_addr4 wh;
 } __packed;
 
-struct malo_vap {
-	struct ieee80211vap malo_vap;
-	int			(*malo_newstate)(struct ieee80211vap *,
-				    enum ieee80211_state, int);
-};
-#define	MALO_VAP(vap)	((struct malo_vap *)(vap))
-
 struct malo_softc {
+	struct ieee80211com	malo_ic;	/* IEEE 802.11 common */
 	device_t		malo_dev;
 	struct ifnet		*malo_ifp;	/* interface common */
 	struct mtx		malo_mtx;	/* master lock (recursive) */
@@ -533,7 +527,8 @@ struct malo_softc {
 
 	unsigned int		malo_invalid : 1,/* disable hardware accesses */
 				malo_recvsetup : 1,	/* recv setup */
-				malo_fixedrate: 1;	/* use fixed tx rate */
+				malo_fixedrate : 1,	/* use fixed tx rate */
+				malo_fw_loaded : 1;	/* fw loaded */
 
 	struct malo_hal		*malo_mh;	/* h/w access layer */
 	struct malo_hal_hwspec	malo_hwspecs;	/* h/w capabilities */
@@ -550,6 +545,9 @@ struct malo_softc {
 
 	struct malo_txq		malo_txq[MALO_NUM_TX_QUEUES];
 	struct task		malo_txtask;	/* tx int processing */
+
+	int			(*malo_newstate)(struct ieee80211com *,
+				    enum ieee80211_state, int);
 
 	struct bpf_if		*malo_drvbpf;
 	struct malo_tx_radiotap_header malo_tx_th;

@@ -31,12 +31,12 @@
 .\"
 .\" $FreeBSD$
 .\"/
-.Dd April 13, 2008
+.Dd February 18 2008
 .Dt MALO 4
 .Os
 .Sh NAME
 .Nm malo
-.Nd "Marvell Libertas IEEE 802.11b/g wireless network driver"
+.Nd "Marvell Libertas IEEE 802.11b/g wireless network device"
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following lines in your
@@ -53,33 +53,36 @@ module at boot time, place the following lines in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
 if_malo_load="YES"
+wlan_load="YES"
+firmware_load="YES"
+.Ed
+.Pp
+In both cases, place the following lines in
+.Xr loader.conf 5
+to load the firmware modules:
+.Bd -literal -offset indent
+malofw_load="YES"
 .Ed
 .Sh DESCRIPTION
 The
 .Nm
 driver provides support for Marvell Libertas 88W8335 based PCI
-and Cardbus network adapters.
+network adapters.
+.Sh FILES
+The driver needs a firmware kernel module which is used when
+an interface is brought up.  This firmware files are comed from
+.Ox
 .Nm
-supports
-.Cm station ,
-.Cm adhoc ,
-and
-.Cm monitor
-mode operation.
-Only one virtual interface may be configured at any time.
-For more information on configuring this device, see
-.Xr ifconfig 8 .
+driver.
 .Pp
-This driver requires the
-.Nm malofw
-be installed before it will work.
-The firmware files are not publicly available.
-A package of the firmware which can be installed via
-.Xr pkg_add 1
-with:
+A port package for the firmware can be found at:
 .Bd -literal -offset indent
 http://weongyo.org/project/malo/malo-firmware-1.4.tar.gz
 .Ed
+.Pp
+You need to install this port package manually before
+.Xr ifconfig 8
+will work.
 .Sh HARDWARE
 The following cards are among those supported by the
 .Nm
@@ -92,40 +95,28 @@ Tenda TWL542P	88W8335	PCI	b/g
 U-Khan UW-2054i	88W8335	PCI	b/g
 .El
 .Sh EXAMPLES
-Join an existing BSS network (i.e., connect to an access point):
+Join an existing BSS network (ie: connect to an access point):
 .Pp
-.Bd -literal -offset indent
-ifconfig wlan create wlandev iwn0 inet 192.168.0.20 \e
-    netmask 0xffffff00
-.Ed
+.Dl "ifconfig malo0 inet 192.168.0.20 netmask 0xffffff00"
 .Pp
 Join a specific BSS network with network name
 .Dq Li my_net :
 .Pp
-.Dl "ifconfig wlan create wlandev iwn0 ssid my_net up"
+.Dl "ifconfig malo0 inet 192.168.0.20 netmask 0xffffff00 ssid my_net"
 .Pp
-Join a specific BSS network with 64-bit WEP encryption:
+Join a specific BSS network with WEP encryption:
 .Bd -literal -offset indent
-ifconfig wlan create wlandev iwn0 ssid my_net \e
-	wepmode on wepkey 0x1234567890 weptxkey 1 up
-.Ed
-.Pp
-Join a specific BSS network with 128-bit WEP encryption:
-.Bd -literal -offset indent
-ifconfig wlan create wlandev iwn0 wlanmode adhoc ssid my_net \e
-    wepmode on wepkey 0x01020304050607080910111213 weptxkey 1
-.Ed
+ifconfig malo0 inet 192.168.0.20 netmask 0xffffff00 ssid my_net \e
+        wepmode on wepkey 0x8736639624
 .Ed
 .Sh SEE ALSO
-.Xr malofw 4 ,
-.Xr pci 4 ,
+.Xr altq 4 ,
+.Xr arp 4 ,
 .Xr cardbus 4 ,
+.Xr netintro 4 ,
+.Xr pci 4 ,
 .Xr wlan 4 ,
-.Xr wlan_ccmp 4 ,
-.Xr wlan_tkip 4 ,
-.Xr wlan_wep 4 ,
-.Xr ifconfig 8 ,
-.Xr wpa_supplicant 8 .
+.Xr ifconfig 8
 .Sh HISTORY
 The
 .Nm
