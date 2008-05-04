@@ -52,6 +52,8 @@ const enum platform platform =
 	p_amd64
 #elif defined(__arm__)
 	p_arm
+#elif defined(__mips__)
+	p_mips
 #else
 	IHAVENOIDEA
 #endif
