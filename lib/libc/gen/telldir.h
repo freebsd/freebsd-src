@@ -59,7 +59,7 @@ struct _telldir {
 	long	td_loccnt;	/* index of entry for sequential readdir's */
 };
 
-struct dirent	*_readdir_unlocked(DIR *);
+struct dirent	*_readdir_unlocked(DIR *, int);
 void 		_reclaim_telldir(DIR *);
 void 		_seekdir(DIR *, long);
 
