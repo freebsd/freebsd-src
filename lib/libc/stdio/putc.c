@@ -42,6 +42,9 @@ __FBSDID("$FreeBSD$");
 #include "local.h"
 #include "libc_private.h"
 
+#undef putc
+#undef putc_unlocked
+
 int
 putc(c, fp)
 	int c;

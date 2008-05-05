@@ -60,8 +60,84 @@ typedef	__va_list	va_list;
 
 #define	_FSTDIO			/* Define for new stdio with functions. */
 
-struct __sFILE;
-typedef	struct __sFILE FILE;
+/*
+ * NB: to fit things in six character monocase externals, the stdio
+ * code uses the prefix `__s' for stdio objects, typically followed
+ * by a three-character attempt at a mnemonic.
+ */
+
+/* stdio buffers */
+struct __sbuf {
+	unsigned char *_base;
+	int	_size;
+};
+
+/*
+ * stdio state variables.
+ *
+ * The following always hold:
+ *
+ *	if (_flags&(__SLBF|__SWR)) == (__SLBF|__SWR),
+ *		_lbfsize is -_bf._size, else _lbfsize is 0
+ *	if _flags&__SRD, _w is 0
+ *	if _flags&__SWR, _r is 0
+ *
+ * This ensures that the getc and putc macros (or inline functions) never
+ * try to write or read from a file that is in `read' or `write' mode.
+ * (Moreover, they can, and do, automatically switch from read mode to
+ * write mode, and back, on "r+" and "w+" files.)
+ *
+ * _lbfsize is used only to make the inline line-buffered output stream
+ * code as compact as possible.
+ *
+ * _ub, _up, and _ur are used when ungetc() pushes back more characters
+ * than fit in the current _bf, or when ungetc() pushes back a character
+ * that does not match the previous one in _bf.  When this happens,
+ * _ub._base becomes non-nil (i.e., a stream has ungetc() data iff
+ * _ub._base!=NULL) and _up and _ur save the current values of _p and _r.
+ *
+ * Certain members of __sFILE are accessed directly via macros or
+ * inline functions.  To preserve ABI compat, these members must not
+ * be disturbed.  These members are marked below with (*).
+ */
+typedef	struct __sFILE {
+	unsigned char *_p;	/* (*) current position in (some) buffer */
+	int	_r;		/* (*) read space left for getc() */
+	int	_w;		/* (*) write space left for putc() */
+	short	_flags;		/* (*) flags, below; this FILE is free if 0 */
+	short	_file;		/* (*) fileno, if Unix descriptor, else -1 */
+	struct	__sbuf _bf;	/* the buffer (at least 1 byte, if !NULL) */
+	int	_lbfsize;	/* (*) 0 or -_bf._size, for inline putc */
+
+	/* operations */
+	void	*_cookie;	/* cookie passed to io functions */
+	int	(*_close)(void *);
+	int	(*_read)(void *, char *, int);
+	fpos_t	(*_seek)(void *, fpos_t, int);
+	int	(*_write)(void *, const char *, int);
+
+	/* separate buffer for long sequences of ungetc() */
+	struct	__sbuf _ub;	/* ungetc buffer */
+	unsigned char	*_up;	/* saved _p when _p is doing ungetc data */
+	int	_ur;		/* saved _r when _r is counting ungetc data */
+
+	/* tricks to meet minimum requirements even when malloc() fails */
+	unsigned char _ubuf[3];	/* guarantee an ungetc() buffer */
+	unsigned char _nbuf[1];	/* guarantee a getc() buffer */
+
+	/* separate buffer for fgetln() when line crosses buffer boundary */
+	struct	__sbuf _lb;	/* buffer for fgetln() */
+
+	/* Unix stdio files get aligned to block boundaries on fseek() */
+	int	_blksize;	/* stat.st_blksize (may be != _bf._size) */
+	fpos_t	_offset;	/* current lseek offset */
+
+	struct pthread_mutex *_fl_mutex;	/* used for MT-safety */
+	struct pthread *_fl_owner;	/* current owner */
+	int	_fl_count;	/* recursive lock count */
+	int	_orientation;	/* orientation for fwide() */
+	__mbstate_t _mbstate;	/* multibyte conversion state */
+} FILE;
 
 #ifndef _STDSTREAM_DECLARED
 __BEGIN_DECLS
@@ -72,11 +148,32 @@ __END_DECLS
 #define	_STDSTREAM_DECLARED
 #endif
 
+#define	__SLBF	0x0001		/* line buffered */
+#define	__SNBF	0x0002		/* unbuffered */
+#define	__SRD	0x0004		/* OK to read */
+#define	__SWR	0x0008		/* OK to write */
+	/* RD and WR are never simultaneously asserted */
+#define	__SRW	0x0010		/* open for reading & writing */
+#define	__SEOF	0x0020		/* found EOF */
+#define	__SERR	0x0040		/* found error */
+#define	__SMBF	0x0080		/* _buf is from malloc */
+#define	__SAPP	0x0100		/* fdopen()ed in append mode */
+#define	__SSTR	0x0200		/* this is an sprintf/snprintf string */
+#define	__SOPT	0x0400		/* do fseek() optimization */
+#define	__SNPT	0x0800		/* do not do fseek() optimization */
+#define	__SOFF	0x1000		/* set iff _offset is in fact correct */
+#define	__SMOD	0x2000		/* true => fgetln modified _p text */
+#define	__SALC	0x4000		/* allocate string space dynamically */
+#define	__SIGN	0x8000		/* ignore this file in _fwalk */
+
 /*
  * The following three definitions are for ANSI C, which took them
  * from System V, which brilliantly took internal interface macros and
  * made them official arguments to setvbuf(), without renaming them.
  * Hence, these ugly _IOxxx names are *supposed* to appear in user code.
+ *
+ * Although numbered as their counterparts above, the implementation
+ * does not rely on this.
  */
 #define	_IOFBF	0		/* setvbuf should set fully buffered */
 #define	_IOLBF	1		/* setvbuf should set line buffered */
@@ -204,8 +301,8 @@ void	 flockfile(FILE *);
 void	 funlockfile(FILE *);
 
 /*
- * See ISO/IEC 9945-1 ANSI/IEEE Std 1003.1 Second Edition 1996-07-12
- * B.8.2.7 for the rationale behind the *_unlocked() functions.
+ * These are normally used through macros as defined below, but POSIX
+ * requires functions as well.
  */
 int	 getc_unlocked(FILE *);
 int	 getchar_unlocked(void);
@@ -294,6 +391,77 @@ void	*mmap(void *, size_t, int, int, int, __off_t);
 int	 truncate(const char *, __off_t);
 #endif
 #endif /* __BSD_VISIBLE */
+
+/*
+ * Functions internal to the implementation.
+ */
+int	__srget(FILE *);
+int	__swbuf(int, FILE *);
+
+/*
+ * The __sfoo macros are here so that we can
+ * define function versions in the C library.
+ */
+#define	__sgetc(p) (--(p)->_r < 0 ? __srget(p) : (int)(*(p)->_p++))
+#if defined(__GNUC__) && defined(__STDC__)
+static __inline int __sputc(int _c, FILE *_p) {
+	if (--_p->_w >= 0 || (_p->_w >= _p->_lbfsize && (char)_c != '\n'))
+		return (*_p->_p++ = _c);
+	else
+		return (__swbuf(_c, _p));
+}
+#else
+/*
+ * This has been tuned to generate reasonable code on the vax using pcc.
+ */
+#define	__sputc(c, p) \
+	(--(p)->_w < 0 ? \
+		(p)->_w >= (p)->_lbfsize ? \
+			(*(p)->_p = (c)), *(p)->_p != '\n' ? \
+				(int)*(p)->_p++ : \
+				__swbuf('\n', p) : \
+			__swbuf((int)(c), p) : \
+		(*(p)->_p = (c), (int)*(p)->_p++))
+#endif
+
+#define	__sfeof(p)	(((p)->_flags & __SEOF) != 0)
+#define	__sferror(p)	(((p)->_flags & __SERR) != 0)
+#define	__sclearerr(p)	((void)((p)->_flags &= ~(__SERR|__SEOF)))
+#define	__sfileno(p)	((p)->_file)
+
+extern int __isthreaded;
+
+#define	feof(p)		(!__isthreaded ? __sfeof(p) : (feof)(p))
+#define	ferror(p)	(!__isthreaded ? __sferror(p) : (ferror)(p))
+#define	clearerr(p)	(!__isthreaded ? __sclearerr(p) : (clearerr)(p))
+
+#if __POSIX_VISIBLE
+#define	fileno(p)	(!__isthreaded ? __sfileno(p) : (fileno)(p))
+#endif
+
+#define	getc(fp)	(!__isthreaded ? __sgetc(fp) : (getc)(fp))
+#define	putc(x, fp)	(!__isthreaded ? __sputc(x, fp) : (putc)(x, fp))
+
+#define	getchar()	getc(stdin)
+#define	putchar(x)	putc(x, stdout)
+
+#if __BSD_VISIBLE
+/*
+ * See ISO/IEC 9945-1 ANSI/IEEE Std 1003.1 Second Edition 1996-07-12
+ * B.8.2.7 for the rationale behind the *_unlocked() macros.
+ */
+#define	feof_unlocked(p)	__sfeof(p)
+#define	ferror_unlocked(p)	__sferror(p)
+#define	clearerr_unlocked(p)	__sclearerr(p)
+#define	fileno_unlocked(p)	__sfileno(p)
+#endif
+#if __POSIX_VISIBLE >= 199506
+#define	getc_unlocked(fp)	__sgetc(fp)
+#define	putc_unlocked(x, fp)	__sputc(x, fp)
+
+#define	getchar_unlocked()	getc_unlocked(stdin)
+#define	putchar_unlocked(x)	putc_unlocked(x, stdout)
+#endif
 
 __END_DECLS
 #endif /* !_STDIO_H_ */

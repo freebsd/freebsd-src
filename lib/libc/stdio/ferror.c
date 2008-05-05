@@ -39,8 +39,10 @@ __FBSDID("$FreeBSD$");
 #include "namespace.h"
 #include <stdio.h>
 #include "un-namespace.h"
-#include "local.h"
 #include "libc_private.h"
+
+#undef ferror
+#undef ferror_unlocked
 
 int
 ferror(FILE *fp)
