@@ -1776,6 +1776,9 @@
 /* Misc. config register */
 #define	BGE_MISCCFG_RESET_CORE_CLOCKS	0x00000001
 #define	BGE_MISCCFG_TIMER_PRESCALER	0x000000FE
+#define	BGE_MISCCFG_BOARD_ID		0x0001E000
+#define	BGE_MISCCFG_BOARD_ID_5788	0x00010000
+#define	BGE_MISCCFG_BOARD_ID_5788M	0x00018000
 #define	BGE_MISCCFG_EPHY_IDDQ		0x00200000
 
 #define	BGE_32BITTIME_66MHZ		(0x41 << 1)
@@ -2546,6 +2549,7 @@ struct bge_softc {
 #define	BGE_FLAG_ADJUST_TRIM	0x04000000
 #define	BGE_FLAG_CRC_BUG	0x08000000
 #define	BGE_FLAG_NO_EEPROM	0x10000000
+#define	BGE_FLAG_5788		0x20000000
 	uint32_t		bge_chipid;
 	uint8_t			bge_asicrev;
 	uint8_t			bge_chiprev;
