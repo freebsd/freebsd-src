@@ -29,10 +29,12 @@ typedef	int32_t		__s32;
 #define IS_ERR(ptr)  ((unsigned long)(ptr) > (unsigned long)(-1000))
 #define PTR_ERR(ptr)    ((long)(ptr))
 
+#ifndef PANIC_IF
 #define PANIC_IF(exp) do {                  \
 	if (exp)                            \
 		panic("BUG func %s line %u: %s", __FUNCTION__, __LINE__, #exp);      \
 } while (0)
+#endif
 
 #define container_of(p, stype, field) ((stype *)(((uint8_t *)(p)) - offsetof(stype, field)))
 
