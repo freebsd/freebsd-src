@@ -132,6 +132,7 @@ struct ncp_conn_stat {
 #ifdef _KERNEL
 
 #ifndef LK_SHARED
+#include <sys/lock.h>
 #include <sys/lockmgr.h>
 #endif
 
