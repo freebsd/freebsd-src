@@ -173,6 +173,12 @@ struct lock {
 #define LK_KERNPROC ((struct thread *)-2)
 #define LK_NOPROC ((struct thread *) -1)
 
+#ifdef _KERNEL
+
+#if !defined(LOCK_FILE) || !defined(LOCK_LINE)
+#error	"LOCK_FILE and LOCK_LINE not defined, include <sys/lock.h> before"
+#endif
+
 #ifdef INVARIANTS
 #define	LOCKMGR_ASSERT(lkp, what, p) do {				\
 	switch ((what)) {						\
@@ -183,19 +189,18 @@ struct lock {
 	case LK_EXCLUSIVE:						\
 		if (lockstatus((lkp), (p)) != LK_EXCLUSIVE)		\
 			panic("lock %s %s not held at %s:%d",		\
-			    (lkp)->lk_wmesg, #what, __FILE__,		\
-			    __LINE__);					\
+			    (lkp)->lk_wmesg, #what, LOCK_FILE,		\
+			    LOCK_LINE);					\
 		break;							\
 	default:							\
-		panic("unknown LOCKMGR_ASSERT at %s:%d", __FILE__,	\
-		    __LINE__);						\
+		panic("unknown LOCKMGR_ASSERT at %s:%d", LOCK_FILE,	\
+		    LOCK_LINE);						\
 	}								\
 } while (0)
 #else	/* INVARIANTS */
 #define	LOCKMGR_ASSERT(lkp, p, what)
 #endif	/* INVARIANTS */
 
-void dumplockinfo(struct lock *lkp);
 struct thread;
 
 void	lockinit(struct lock *, int prio, const char *wmesg,
@@ -210,9 +215,12 @@ int	lockstatus(struct lock *, struct thread *);
 int	lockcount(struct lock *);
 int	lockwaiters(struct lock *);
 
-#define lockmgr(lock, flags, mtx, td) _lockmgr((lock), (flags), (mtx), (td), __FILE__, __LINE__)
+#define	lockmgr(lock, flags, mtx, td)					\
+	_lockmgr((lock), (flags), (mtx), (td), LOCK_FILE, LOCK_LINE)
 #ifdef DDB
 int	lockmgr_chain(struct thread *td, struct thread **ownerp);
 #endif
+
+#endif /* !_KERNEL */
 
 #endif /* !_SYS_LOCKMGR_H_ */
