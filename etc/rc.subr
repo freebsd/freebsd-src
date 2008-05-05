@@ -179,7 +179,7 @@ stop_boot()
 	*)
 		always=false
 		;;
-	fi
+	esac
 	if [ "$autoboot" = yes -o "$always" = true ]; then
 		echo "ERROR: ABORTING BOOT (sending SIGTERM to parent)!"
 		kill -TERM ${RC_PID}
