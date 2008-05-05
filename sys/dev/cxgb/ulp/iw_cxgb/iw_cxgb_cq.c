@@ -259,7 +259,7 @@ int iwch_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc)
 		do {
 			err = iwch_poll_cq_one(rhp, chp, wc + npolled);
 #ifdef DEBUG
-			BUG_ON(++i > 1000);
+			PANIC_IF(++i > 1000);
 #endif
 		} while (err == -EAGAIN);
 		if (err <= 0)
