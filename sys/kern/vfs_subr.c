@@ -2210,7 +2210,7 @@ vput(struct vnode *vp)
 	v_decr_useonly(vp);
 	vp->v_iflag |= VI_OWEINACT;
 	if (VOP_ISLOCKED(vp, NULL) != LK_EXCLUSIVE) {
-		error = VOP_LOCK(vp, LK_EXCLUPGRADE|LK_INTERLOCK|LK_NOWAIT, td);
+		error = VOP_LOCK(vp, LK_UPGRADE|LK_INTERLOCK|LK_NOWAIT, td);
 		VI_LOCK(vp);
 		if (error) {
 			if (vp->v_usecount > 0)
