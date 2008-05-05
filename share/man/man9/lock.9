@@ -39,6 +39,7 @@
 .Nd "lockmgr family of functions"
 .Sh SYNOPSIS
 .In sys/types.h
+.In sys/lock.h
 .In sys/lockmgr.h
 .Ft void
 .Fn lockinit "struct lock *lkp" "int prio" "const char *wmesg" "int timo" "int flags"
