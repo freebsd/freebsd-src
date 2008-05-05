@@ -39,10 +39,10 @@ __FBSDID("$FreeBSD$");
 #include "namespace.h"
 #include <stdio.h>
 #include "un-namespace.h"
-#include "local.h"
 #include "libc_private.h"
 
-#define	__sfileno(p)	((p)->_file)
+#undef fileno
+#undef fileno_unlocked
 
 int
 fileno(FILE *fp)

@@ -47,7 +47,6 @@
 #include <string.h>
 #include <wchar.h>
 #include "un-namespace.h"
-#include "local.h"
 
 #include "printf.h"
 #include "fvwrite.h"

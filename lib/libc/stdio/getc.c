@@ -42,6 +42,9 @@ __FBSDID("$FreeBSD$");
 #include "libc_private.h"
 #include "local.h"
 
+#undef getc
+#undef getc_unlocked
+
 int
 getc(FILE *fp)
 {

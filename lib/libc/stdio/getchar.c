@@ -45,6 +45,9 @@ __FBSDID("$FreeBSD$");
 #include "local.h"
 #include "libc_private.h"
 
+#undef getchar
+#undef getchar_unlocked
+
 int
 getchar()
 {
