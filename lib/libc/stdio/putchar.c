@@ -42,6 +42,9 @@ __FBSDID("$FreeBSD$");
 #include "local.h"
 #include "libc_private.h"
 
+#undef putchar
+#undef putchar_unlocked
+
 /*
  * A subroutine version of the macro putchar
  */
