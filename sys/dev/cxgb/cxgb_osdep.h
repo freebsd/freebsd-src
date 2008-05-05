@@ -61,10 +61,12 @@ struct t3_mbuf_hdr {
 	struct mbuf *mh_tail;
 };
 
+#ifndef PANIC_IF
 #define PANIC_IF(exp) do {                  \
 	if (exp)                            \
 		panic("BUG: %s", #exp);      \
 } while (0)
+#endif
 
 #define m_get_priority(m) ((uintptr_t)(m)->m_pkthdr.rcvif)
 #define m_set_priority(m, pri) ((m)->m_pkthdr.rcvif = (struct ifnet *)((uintptr_t)pri))
@@ -132,9 +134,6 @@ void cxgb_log_tcb(struct adapter *sc, unsigned int tid);
 
 
 #define TX_START_MIN_DESC  (TX_MAX_DESC << 2)
-
-
-
 #define TX_START_MAX_DESC (TX_MAX_DESC << 3)    /* maximum number of descriptors
 						 * call to start used per 	 */
 
@@ -164,7 +163,7 @@ void prefetch(void *x)
 extern void kdb_backtrace(void);
 
 #define WARN_ON(condition) do { \
-        if (unlikely((condition)!=0)) { \
+        if (__predict_false((condition)!=0)) { \
                 log(LOG_WARNING, "BUG: warning at %s:%d/%s()\n", __FILE__, __LINE__, __FUNCTION__); \
                 kdb_backtrace(); \
         } \
