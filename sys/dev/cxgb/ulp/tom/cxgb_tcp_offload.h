@@ -60,8 +60,8 @@ int  sockbuf_sbspace(struct sockbuf *);
 struct tcphdr;
 struct tcpopt;
 
-int	 syncache_offload_expand(struct in_conninfo *, struct tcpopt *,
-	     struct tcphdr *, struct socket **, struct mbuf *);
+int	syncache_offload_expand(struct in_conninfo *, struct tcpopt *,
+    struct tcphdr *, struct socket **, struct mbuf *);
 
 #ifndef _SYS_SOCKETVAR_H_
 #include <sys/selinfo.h>
@@ -82,6 +82,7 @@ int	 syncache_offload_expand(struct in_conninfo *, struct tcpopt *,
 #define	SB_AIO		0x80		/* AIO operations queued */
 #define	SB_KNOTE	0x100		/* kernel note attached */
 #define	SB_NOCOALESCE	0x200		/* don't coalesce new data into existing mbufs */
+#define	SB_IN_TOE	0x400		/* socket buffer is in the middle of an operation */
 #define	SB_AUTOSIZE	0x800		/* automatically size socket buffer */
 
 

@@ -1,6 +1,5 @@
-
 /*-
- * Copyright (c) 2007, Chelsio Inc.
+ * Copyright (c) 2007-2008, Chelsio Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,7 +35,6 @@
 struct toepcb {
 	struct toedev 		*tp_toedev;
 	struct l2t_entry 	*tp_l2t;
-	pr_ctloutput_t 		*tp_ctloutput;
 	unsigned int 		tp_tid;
 	int 			tp_wr_max;
 	int 			tp_wr_avail;
