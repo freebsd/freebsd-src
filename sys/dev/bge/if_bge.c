@@ -2356,7 +2356,7 @@ bge_attach(device_t dev)
 {
 	struct ifnet *ifp;
 	struct bge_softc *sc;
-	uint32_t hwcfg = 0;
+	uint32_t hwcfg = 0, misccfg;
 	u_char eaddr[ETHER_ADDR_LEN];
 	int error, reg, rid, trys;
 
@@ -2445,6 +2445,16 @@ bge_attach(device_t dev)
 		} else if (sc->bge_asicrev != BGE_ASICREV_BCM5906)
 			sc->bge_flags |= BGE_FLAG_BER_BUG;
 	}
+
+
+	/*
+	 * We could possibly check for BCOM_DEVICEID_BCM5788 in bge_probe()
+	 * but I do not know the DEVICEID for the 5788M.
+	 */
+	misccfg = CSR_READ_4(sc, BGE_MISC_CFG) & BGE_MISCCFG_BOARD_ID;
+	if (misccfg == BGE_MISCCFG_BOARD_ID_5788 ||
+	    misccfg == BGE_MISCCFG_BOARD_ID_5788M)
+		sc->bge_flags |= BGE_FLAG_5788;
 
   	/*
 	 * Check if this is a PCI-X or PCI Express device.
@@ -3410,7 +3420,11 @@ bge_tick(void *xsc)
 #endif
 		{
 		sc->bge_link_evt++;
-		BGE_SETBIT(sc, BGE_MISC_LOCAL_CTL, BGE_MLC_INTR_SET);
+		if (sc->bge_asicrev == BGE_ASICREV_BCM5700 ||
+		    sc->bge_flags & BGE_FLAG_5788)
+			BGE_SETBIT(sc, BGE_MISC_LOCAL_CTL, BGE_MLC_INTR_SET);
+		else
+			BGE_SETBIT(sc, BGE_HCC_MODE, BGE_HCCMODE_COAL_NOW);
 		}
 	}
 
@@ -3950,10 +3964,11 @@ bge_ifmedia_upd_locked(struct ifnet *ifp)
 	 * need to do this here if BGE_FLAG_TBI is set but as
 	 * we poll for fiber anyway it should not harm.
 	 */
-	BGE_SETBIT(sc, BGE_MISC_LOCAL_CTL, BGE_MLC_INTR_SET);
-#ifdef	notyet
-	BGE_SETBIT(sc, BGE_HCC_MODE, BGE_HCCMODE_COAL_NOW);
-#endif
+	if (sc->bge_asicrev == BGE_ASICREV_BCM5700 ||
+	    sc->bge_flags & BGE_FLAG_5788)
+		BGE_SETBIT(sc, BGE_MISC_LOCAL_CTL, BGE_MLC_INTR_SET);
+	else
+		BGE_SETBIT(sc, BGE_HCC_MODE, BGE_HCCMODE_COAL_NOW);
 
 	return (0);
 }
