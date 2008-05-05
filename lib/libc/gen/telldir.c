@@ -98,7 +98,7 @@ _seekdir(dirp, loc)
 	dirp->dd_seek = lp->loc_seek;
 	dirp->dd_loc = 0;
 	while (dirp->dd_loc < lp->loc_loc) {
-		dp = _readdir_unlocked(dirp);
+		dp = _readdir_unlocked(dirp, 0);
 		if (dp == NULL)
 			break;
 	}
