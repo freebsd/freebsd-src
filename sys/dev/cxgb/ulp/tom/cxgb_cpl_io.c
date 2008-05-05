@@ -173,7 +173,8 @@ SBAPPEND(struct sockbuf *sb, struct mbuf *n)
 			m->m_next, m->m_nextpkt, m->m_flags));
 		m = m->m_next;
 	}
-	sbappend_locked(sb, n);
+	KASSERT(sb->sb_flags & SB_NOCOALESCE, ("NOCOALESCE not set"));
+	sbappendstream_locked(sb, n);
 	m = sb->sb_mb;
 
 	while (m) {
@@ -1449,7 +1450,10 @@ active_open_failed(struct toepcb *toep, struct mbuf *m)
 	} else
 #endif
 	{
-		inp_wlock(inp);			    
+		inp_wlock(inp);
+		/*
+		 * drops the inpcb lock
+		 */
 		fail_act_open(toep, act_open_rpl_status_to_errno(rpl->status));
 	}
 	
@@ -1502,6 +1506,9 @@ act_open_req_arp_failure(struct t3cdev *dev, struct mbuf *m)
 	
 	inp_wlock(inp);
 	if (tp->t_state == TCPS_SYN_SENT || tp->t_state == TCPS_SYN_RECEIVED) {
+		/*
+		 * drops the inpcb lock
+		 */
 		fail_act_open(so, EHOSTUNREACH);
 		printf("freeing %p\n", m);
 		
@@ -1647,12 +1654,14 @@ t3_ip_ctloutput(struct socket *so, struct sockopt *sopt)
 		return (EPERM);
 
 	inp = so_sotoinpcb(so);
+	inp_wlock(inp);
 	inp_ip_tos_set(inp, optval);
 #if 0	
 	inp->inp_ip_tos = optval;
 #endif
 	t3_set_tos(inp_inpcbtotcpcb(inp)->t_toe);
-	
+	inp_wunlock(inp);
+
 	return (0);
 }
 
@@ -1715,7 +1724,7 @@ t3_tcp_ctloutput(struct socket *so, struct sockopt *sopt)
 		inp_wunlock(inp);
 
 
-		if (oldval != tp->t_flags)
+		if (oldval != tp->t_flags && (tp->t_toe != NULL))
 			t3_set_nagle(tp->t_toe);
 
 	}
@@ -2329,13 +2338,14 @@ process_ddp_complete(struct toepcb *toep, struct mbuf *m)
 #endif
 	inp_wunlock(tp->t_inpcb);
 
-	KASSERT(m->m_len > 0, ("%s m_len=%d", __FUNCTION__, m->m_len));
+	KASSERT(m->m_len >= 0, ("%s m_len=%d", __FUNCTION__, m->m_len));
 	CTR5(KTR_TOM,
 		  "process_ddp_complete: tp->rcv_nxt 0x%x cur_offset %u "
 		  "ddp_report 0x%x offset %u, len %u",
 		  tp->rcv_nxt, bsp->cur_offset, ddp_report,
 		   G_DDP_OFFSET(ddp_report), m->m_len);
-	
+
+	m->m_cur_offset = bsp->cur_offset;
 	bsp->cur_offset += m->m_len;
 
 	if (!(bsp->flags & DDP_BF_NOFLIP)) {
@@ -2518,7 +2528,10 @@ do_peer_fin(struct toepcb *toep, struct mbuf *m)
 		}
 	}
 	if (TCPS_HAVERCVDFIN(tp->t_state) == 0) {
+		CTR1(KTR_TOM,
+		    "waking up waiters for cantrcvmore on %p ", so);	
 		socantrcvmore(so);
+
 		/*
 		 * If connection is half-synchronized
 		 * (ie NEEDSYN flag on) then delay ACK,
@@ -2567,9 +2580,6 @@ do_peer_fin(struct toepcb *toep, struct mbuf *m)
 	}
 	inp_wunlock(tp->t_inpcb);					
 
-	DPRINTF("waking up waiters on %p rcv_notify=%d flags=0x%x\n", so, sb_notify(rcv), rcv->sb_flags);
-
-
 	if (action == TCP_TIMEWAIT) {
 		enter_timewait(tp);
 	} else if (action == TCP_DROP) {
@@ -2577,7 +2587,7 @@ do_peer_fin(struct toepcb *toep, struct mbuf *m)
 	} else if (action == TCP_CLOSE) {
 		tcp_offload_close(tp);		
 	}
-	
+
 #ifdef notyet		
 	/* Do not send POLL_HUP for half duplex close. */
 	if ((sk->sk_shutdown & SEND_SHUTDOWN) ||
@@ -3641,10 +3651,6 @@ do_pass_establish(struct t3cdev *cdev, struct mbuf *m, void *ctx)
 
 	inp_wunlock(tp->t_inpcb);
 
-	snd = so_sockbuf_snd(so);
-	rcv = so_sockbuf_rcv(so);
-
-	
 	so_lock(so);
 	LIST_REMOVE(toep, synq_entry);
 	so_unlock(so);
@@ -3665,7 +3671,9 @@ do_pass_establish(struct t3cdev *cdev, struct mbuf *m, void *ctx)
 	tp = so_sototcpcb(so);
 	inp_wlock(tp->t_inpcb);
 
-	
+	snd = so_sockbuf_snd(so);
+	rcv = so_sockbuf_rcv(so);
+
 	snd->sb_flags |= SB_NOCOALESCE;
 	rcv->sb_flags |= SB_NOCOALESCE;
 
