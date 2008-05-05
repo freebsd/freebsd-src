@@ -1401,12 +1401,10 @@ tcp_addoptions(struct tcpopt *to, u_char *optp)
 	 *   "The content of the header beyond the End-of-Option option
 	 *    must be header padding (i.e., zero)."
 	 *   and later: "The padding is composed of zeros."
-	 * While EOLs are zeros use an explicit 0x00 here to not confuse
-	 * people with padding of EOLs.
 	 */
 	while (optlen % 4) {
-		optlen += 1;
-		*optp++ = 0x00;
+		optlen += TCPOLEN_PAD;
+		*optp++ = TCPOPT_PAD;
 	}
 
 	KASSERT(optlen <= TCP_MAXOLEN, ("%s: TCP options too long", __func__));
