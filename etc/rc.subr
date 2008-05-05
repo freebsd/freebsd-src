@@ -171,8 +171,8 @@ stop_boot()
 {
 	local always
 
-        case $1 in
-                #       "yes", "true", "on", or "1"
+	case $1 in
+		#	"yes", "true", "on", or "1"
         [Yy][Ee][Ss]|[Tt][Rr][Uu][Ee]|[Oo][Nn]|1)
 		always=true
 		;;
