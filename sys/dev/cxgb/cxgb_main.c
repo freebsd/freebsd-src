@@ -1741,6 +1741,10 @@ offload_open(struct port_info *pi)
 		       adapter->port[0].ifp->if_mtu : 0xffff);
 	init_smt(adapter);
 
+	/* Call back all registered clients */
+	cxgb_add_clients(tdev);
+
+	
 	/* restore them in case the offload module has changed them */
 	if (err) {
 		t3_tp_set_offload_mode(adapter, 0);
@@ -1757,7 +1761,10 @@ offload_close(struct t3cdev *tdev)
 
 	if (!isset(&adapter->open_device_map, OFFLOAD_DEVMAP_BIT))
 		return (0);
-	
+
+	/* Call back all registered clients */
+	cxgb_remove_clients(tdev);
+
 	tdev->lldev = NULL;
 	cxgb_set_dummy_ops(tdev);
 	t3_tp_set_offload_mode(adapter, 0);

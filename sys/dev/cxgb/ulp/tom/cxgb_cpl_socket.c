@@ -1,6 +1,6 @@
 /**************************************************************************
 
-Copyright (c) 2007, Chelsio Inc.
+Copyright (c) 2007-2008, Chelsio Inc.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -58,14 +58,10 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
 
-
 #include <dev/cxgb/cxgb_config.h>
 #include <dev/cxgb/cxgb_osdep.h>
 #include <dev/cxgb/sys/mbufq.h>
-
-
 #include <dev/cxgb/ulp/tom/cxgb_tcp_offload.h>
-
 #include <netinet/tcp.h>
 #include <netinet/tcp_var.h>
 #include <netinet/tcp_fsm.h>
@@ -320,11 +316,10 @@ copy_data(const struct mbuf *m, int offset, int len, struct uio *uio)
 {
 	struct iovec *to = uio->uio_iov;
 	int err;
-
 	
-	if (__predict_true(!is_ddp(m))) {                             /* RX_DATA */
+	if (__predict_true(!is_ddp(m)))                              /* RX_DATA */
 		return m_uiomove(m, offset, len, uio);
-	} if (__predict_true(m->m_ddp_flags & DDP_BF_NOCOPY)) { /* user DDP */
+	if (__predict_true(m->m_ddp_flags & DDP_BF_NOCOPY)) { /* user DDP */
 		to->iov_len -= len;
 		to->iov_base = ((caddr_t)to->iov_base) + len;
 		uio->uio_iov = to;
@@ -536,9 +531,7 @@ cxgb_sosend(struct socket *so, struct sockaddr *addr, struct uio *uio,
 static __inline void
 sockbuf_pushsync(struct sockbuf *sb, struct mbuf *nextrecord)
 {
-#ifdef notyet
-	SOCKBUF_LOCK_ASSERT(sb);
-#endif
+	sockbuf_lock_assert(sb);
 	/*
 	 * First, update for the new value of nextrecord.  If necessary, make
 	 * it the first record.
@@ -674,6 +667,9 @@ restart:
 		if (copied >= target)
 			user_ddp_ok = 0;
 
+		if (rcv->sb_state & SBS_CANTRCVMORE) 
+			goto done;
+		CTR0(KTR_TOM, "ddp pending -- waiting");
 		if ((err = sbwait(rcv)) != 0)
 			goto done;
 //for timers to work			await_ddp_completion(sk, flags, &timeo);
@@ -695,18 +691,35 @@ restart:
 		}
 		if (rcv->sb_mb)
 			goto restart;
-		if ((err = sbwait(rcv)) != 0)
-		    goto done;
+
+		if (rcv->sb_state & SBS_CANTRCVMORE)
+			goto done;
+
+		CTR0(KTR_TOM, "no buffers -- waiting");
+
+		if ((err = sbwait(rcv)) != 0) 
+			goto done;
 	}
      	goto restart;
 got_mbuf:
-	CTR6(KTR_TOM, "t3_soreceive: ddp=%d m_len=%u resid=%u "
-	    "m_seq=0x%08x copied_seq=0x%08x copied_unacked=%u",
-	    is_ddp(m), m->m_pkthdr.len, len, m->m_seq, toep->tp_copied_seq,
-	    copied_unacked);
-	KASSERT(((m->m_flags & M_EXT) && (m->m_ext.ext_type == EXT_EXTREF)) || !(m->m_flags & M_EXT), ("unexpected type M_EXT=%d ext_type=%d m_len=%d m_pktlen=%d\n", !!(m->m_flags & M_EXT), m->m_ext.ext_type, m->m_len, m->m_pkthdr.len));
-	KASSERT(m->m_next != (struct mbuf *)0xffffffff, ("bad next value m_next=%p m_nextpkt=%p m_flags=0x%x m->m_len=%d",
-		m->m_next, m->m_nextpkt, m->m_flags, m->m_len));
+	/*
+	 * Adjust the mbuf seqno if it has already been partially processed by
+	 * soreceive_generic
+	 */
+	if (m->m_pkthdr.len != m->m_len) {
+		m->m_seq += m->m_pkthdr.len - m->m_len;
+		m->m_pkthdr.len = m->m_len;
+	}
+	    
+	CTR6(KTR_TOM, "t3_soreceive: ddp_flags=0x%x m_len=%u resid=%u "
+	    "m_seq=0x%08x c_seq=0x%08x c_unack=%u",
+	    (is_ddp(m) ? m->m_ddp_flags : 0), m->m_pkthdr.len, len,
+	    m->m_seq, toep->tp_copied_seq, copied_unacked);
+	KASSERT(((m->m_flags & M_EXT) && (m->m_ext.ext_type == EXT_EXTREF)) || !(m->m_flags & M_EXT),
+	    ("unexpected type M_EXT=%d ext_type=%d m_len=%d m_pktlen=%d\n", !!(m->m_flags & M_EXT),
+		m->m_ext.ext_type, m->m_len, m->m_pkthdr.len));
+	KASSERT(m->m_next != (struct mbuf *)0xffffffff, ("bad next value m_next=%p m_nextpkt=%p"
+		" m_flags=0x%x m->m_len=%d", m->m_next, m->m_nextpkt, m->m_flags, m->m_len));
 	if (m->m_pkthdr.len == 0) {
 		if ((m->m_ddp_flags & DDP_BF_NOCOPY) == 0)
 			panic("empty mbuf and NOCOPY not set\n");
@@ -716,15 +729,10 @@ got_mbuf:
 		goto done;
 	}
 
-	
-	if (is_ddp(m)) {
-		KASSERT((int32_t)(toep->tp_copied_seq + copied_unacked - m->m_seq) >= 0,
-		    ("offset will go negative: offset=%d copied_seq=0x%08x copied_unacked=%d m_seq=0x%08x",
-			offset, toep->tp_copied_seq, copied_unacked, m->m_seq));
-	
-		offset = toep->tp_copied_seq + copied_unacked - m->m_seq;
-	} else
-		offset = 0;
+	KASSERT((int32_t)(toep->tp_copied_seq + copied_unacked - m->m_seq) >= 0,
+	    ("offset will go negative: offset=%d copied_seq=0x%08x copied_unacked=%d m_seq=0x%08x",
+		offset, toep->tp_copied_seq, copied_unacked, m->m_seq));
+	offset = toep->tp_copied_seq + copied_unacked - m->m_seq;
 	
 	if (offset >= m->m_pkthdr.len)
 		panic("t3_soreceive: OFFSET >= LEN offset %d copied_seq 0x%x "
@@ -737,8 +745,10 @@ got_mbuf:
 		if (is_ddp(m) && (m->m_ddp_flags & DDP_BF_NOCOPY)) 
 			panic("bad state in t3_soreceive len=%d avail=%d offset=%d\n", len, avail, offset);
 		avail = len;
-	}
-	
+		rcv->sb_flags |= SB_IN_TOE;
+	} else if (p->kbuf_posted == 0 && p->user_ddp_pending == 0)
+		rcv->sb_flags &= ~SB_IN_TOE;
+		
 #ifdef URGENT_DATA_SUPPORTED
 	/*
 	 * Check if the data we are preparing to copy contains urgent
@@ -800,7 +810,7 @@ got_mbuf:
 				err = EFAULT;
 			goto done_unlocked;
 		}
-
+			    
 		sockbuf_lock(rcv);
 		if (avail != (resid - uio->uio_resid))
 			printf("didn't copy all bytes :-/ avail=%d offset=%d pktlen=%d resid=%d uio_resid=%d copied=%d copied_unacked=%d is_ddp(m)=%d\n",
@@ -852,6 +862,7 @@ skip_copy:
 		while (count > 0) {
 			count -= m->m_len;
 			KASSERT(((m->m_flags & M_EXT) && (m->m_ext.ext_type == EXT_EXTREF)) || !(m->m_flags & M_EXT), ("unexpected type M_EXT=%d ext_type=%d m_len=%d\n", !!(m->m_flags & M_EXT), m->m_ext.ext_type, m->m_len));
+			CTR2(KTR_TOM, "freeing mbuf m_len = %d pktlen = %d", m->m_len, m->m_pkthdr.len);
 			sbfree(rcv, m);
 			rcv->sb_mb = m_free(m);
 			m = rcv->sb_mb;
@@ -909,8 +920,11 @@ skip_copy:
 		} else if (so_should_ddp(toep, copied) && uio->uio_iovcnt == 1) {
 			CTR1(KTR_TOM ,"entering ddp on tid=%u", toep->tp_tid);
 			if (!t3_enter_ddp(toep, TOM_TUNABLE(toep->tp_toedev,
-				    ddp_copy_limit), 0, IS_NONBLOCKING(so)))
+				    ddp_copy_limit), 0, IS_NONBLOCKING(so))) {
+				rcv->sb_flags |= SB_IN_TOE;
 				p->kbuf_posted = 1;
+			}
+			
 		}
 	}
 #ifdef T3_TRACE
@@ -939,6 +953,7 @@ cxgb_soreceive(struct socket *so, struct sockaddr **psa, struct uio *uio,
 	struct toedev *tdev;
 	int rv, zcopy_thres, zcopy_enabled, flags;
 	struct tcpcb *tp = so_sototcpcb(so);
+	struct sockbuf *rcv = so_sockbuf_rcv(so);
 	
 	flags = flagsp ? *flagsp &~ MSG_EOR : 0;
 	
@@ -956,17 +971,17 @@ cxgb_soreceive(struct socket *so, struct sockaddr **psa, struct uio *uio,
 	 *
 	 */
 	if (tp && (tp->t_flags & TF_TOE) && uio && ((flags & (MSG_OOB|MSG_PEEK|MSG_DONTWAIT)) == 0)
-	    && (uio->uio_iovcnt == 1) && (mp0 == NULL)) {
+	    && (uio->uio_iovcnt == 1) && (mp0 == NULL) &&
+	    ((rcv->sb_flags & SB_IN_TOE) || (uio->uio_iovcnt == 1))) {
 		struct toepcb *toep = tp->t_toe;
 		
 		tdev =  toep->tp_toedev;
 		zcopy_thres = TOM_TUNABLE(tdev, ddp_thres);
 		zcopy_enabled = TOM_TUNABLE(tdev, ddp);
-		if ((uio->uio_resid > zcopy_thres) &&
-		    (uio->uio_iovcnt == 1)
-		    && zcopy_enabled) {
-			CTR3(KTR_CXGB, "cxgb_soreceive: t_flags=0x%x flags=0x%x uio_resid=%d",
-			    tp->t_flags, flags, uio->uio_resid);
+		if ((rcv->sb_flags & SB_IN_TOE) ||((uio->uio_resid > zcopy_thres) &&
+			(uio->uio_iovcnt == 1) && zcopy_enabled)) {
+			CTR4(KTR_TOM, "cxgb_soreceive: sb_flags=0x%x t_flags=0x%x flags=0x%x uio_resid=%d",
+			    rcv->sb_flags, tp->t_flags, flags, uio->uio_resid);
 			rv = t3_soreceive(so, flagsp, uio);
 			if (rv != EAGAIN)
 				return (rv);

@@ -1,6 +1,6 @@
 /**************************************************************************
 
-Copyright (c) 2007, Chelsio Inc.
+Copyright (c) 2007-2008, Chelsio Inc.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -677,7 +677,7 @@ err:
 int
 t3_ddp_copy(const struct mbuf *m, int offset, struct uio *uio, int len)
 {
-	int page_off, resid_init, err;
+	int resid_init, err;
 	struct ddp_gather_list *gl = (struct ddp_gather_list *)m->m_ddp_gl;
 	
 	resid_init = uio->uio_resid;
@@ -685,12 +685,14 @@ t3_ddp_copy(const struct mbuf *m, int offset, struct uio *uio, int len)
 	if (!gl->dgl_pages)
 		panic("pages not set\n");
 
+	CTR4(KTR_TOM, "t3_ddp_copy: offset=%d dgl_offset=%d cur_offset=%d len=%d",
+	    offset, gl->dgl_offset, m->m_cur_offset, len);
 	offset += gl->dgl_offset + m->m_cur_offset;
-	page_off = offset & PAGE_MASK;
 	KASSERT(len <= gl->dgl_length,
 	    ("len=%d > dgl_length=%d in ddp_copy\n", len, gl->dgl_length));
 
-	err = uiomove_fromphys(gl->dgl_pages, page_off, len, uio);
+
+	err = uiomove_fromphys(gl->dgl_pages, offset, len, uio);
 	return (err);
 }
 
