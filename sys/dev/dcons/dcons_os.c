@@ -224,7 +224,7 @@ dcons_check_break(struct dcons_softc *dc, int c)
 		case KDB_REQ_PANIC:
 			kdb_panic("Panic sequence on dcons console port");
 			break;
-		case KDB_REQ_BREAK:
+		case KDB_REQ_REBOOT:
 			kdb_reboot();
 			break;
 		}
