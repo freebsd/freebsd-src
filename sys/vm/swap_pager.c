@@ -2018,7 +2018,7 @@ swaponsomething(struct vnode *vp, void *id, u_long nblks, sw_strategy_t *strateg
 	sp->sw_strategy = strategy;
 	sp->sw_close = close;
 
-	sp->sw_blist = blist_create(nblks);
+	sp->sw_blist = blist_create(nblks, M_WAITOK);
 	/*
 	 * Do not free the first two block in order to avoid overwriting
 	 * any bsd label at the front of the partition
