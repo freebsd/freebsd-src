@@ -226,6 +226,7 @@ SUBDIR=	${_3dfx} \
 	${_ray} \
 	rc \
 	rc4 \
+	${_rdma} \
 	re \
 	reiserfs \
 	rl \
@@ -421,6 +422,7 @@ _pcfclock=	pcfclock
 _pecoff=	pecoff
 _pst=		pst
 _ray=		ray
+_rdma=		rdma
 _safe=		safe
 _sbni=		sbni
 _scsi_low=	scsi_low
@@ -548,6 +550,7 @@ _nve=		nve
 _nvram=		nvram
 _nxge=		nxge
 _pccard=	pccard
+_rdma=		rdma	
 _safe=		safe
 _scsi_low=	scsi_low
 _smbfs=		smbfs
