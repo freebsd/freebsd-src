@@ -55,6 +55,7 @@
 
 struct bufobj;
 struct buf_ops;
+struct thread;
 
 extern struct buf_ops buf_ops_bio;
 
