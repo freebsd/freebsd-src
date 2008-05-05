@@ -110,7 +110,7 @@ typedef	struct __sFILE {
 	int	_lbfsize;	/* (*) 0 or -_bf._size, for inline putc */
 
 	/* operations */
-	void	*_cookie;	/* cookie passed to io functions */
+	void	*_cookie;	/* (*) cookie passed to io functions */
 	int	(*_close)(void *);
 	int	(*_read)(void *, char *, int);
 	fpos_t	(*_seek)(void *, fpos_t, int);
