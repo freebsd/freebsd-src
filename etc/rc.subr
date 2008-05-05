@@ -171,10 +171,14 @@ stop_boot()
 {
 	local always
 
-	if [ -n "$1" ] && checkyesno $1; then
+        case $1 in
+                #       "yes", "true", "on", or "1"
+        [Yy][Ee][Ss]|[Tt][Rr][Uu][Ee]|[Oo][Nn]|1)
 		always=true
-	else
+		;;
+	*)
 		always=false
+		;;
 	fi
 	if [ "$autoboot" = yes -o "$always" = true ]; then
 		echo "ERROR: ABORTING BOOT (sending SIGTERM to parent)!"
