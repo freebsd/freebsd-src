@@ -159,13 +159,13 @@ void cxio_dump_pbl(struct cxio_rdev *rdev, uint32_t pbl_addr, uint32_t len, u8 s
 void cxio_dump_wqe(union t3_wr *wqe)
 {
 	uint64_t *data = (uint64_t *)wqe;
-	uint32_t size = (uint32_t)(be64_to_cpu(*data) & 0xff);
+	uint32_t size = (uint32_t)(be64toh(*data) & 0xff);
 
 	if (size == 0)
 		size = 8;
 	while (size > 0) {
 		CTR2(KTR_IW_CXGB, "WQE %p: %016llx", data,
-		     (unsigned long long) be64_to_cpu(*data));
+		     (unsigned long long) be64toh(*data));
 		size--;
 		data++;
 	}
@@ -178,7 +178,7 @@ void cxio_dump_wce(struct t3_cqe *wce)
 
 	while (size > 0) {
 		CTR2(KTR_IW_CXGB, "WCE %p: %016llx", data,
-		     (unsigned long long) be64_to_cpu(*data));
+		     (unsigned long long) be64toh(*data));
 		size -= 8;
 		data++;
 	}
