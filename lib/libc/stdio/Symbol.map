@@ -149,9 +149,3 @@ FBSDprivate_1.0 {
 	__printf_arginfo_vis;
 	__printf_render_vis;
 };
-
-FBSDprivate_1.1 {
-	__fgetcookie;
-	__fgetpendout;
-	__fsetfileno;
-};
