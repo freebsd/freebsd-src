@@ -13,5 +13,7 @@ FBSD_1.1 {
 # strictly for use only by other FreeBSD applications and libraries
 # are listed here.  We use a separate namespace so we can write
 # simple ABI-checking tools.
+#
+# Please do NOT increment the version of this namespace.
 FBSDprivate_1.0 {
-} FBSD_1.0;
+};
