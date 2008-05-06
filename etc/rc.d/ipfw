@@ -14,8 +14,16 @@
 name="ipfw"
 rcvar="firewall_enable"
 start_cmd="ipfw_start"
+start_precmd="ipfw_prestart"
 stop_cmd="ipfw_stop"
 required_modules="ipfw"
+
+ipfw_prestart()
+{
+	if checkyesno dummynet_enable; then
+		required_modules="$required_modules dummynet"
+	fi
+}
 
 ipfw_start()
 {
