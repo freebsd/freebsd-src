@@ -26,6 +26,10 @@ ipfw_precmd()
 		fi
 	fi
 
+	if checkyesno dummynet_enable; then
+		required_modules="$required_modules dummynet"
+	fi
+
 	return 0
 }
 
