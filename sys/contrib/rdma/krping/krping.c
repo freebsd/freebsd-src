@@ -900,7 +900,7 @@ static void rlat_test(struct krping_cb *cb)
                 stop_tv.tv_sec  -= 1;
         }
 
-	log(LOG_ERR, "delta sec %lu delta usec %lu iter %d size %d\n",
+	log(LOG_ERR, "delta sec %zu delta usec %lu iter %d size %d\n",
 		stop_tv.tv_sec - start_tv.tv_sec, 
 		stop_tv.tv_usec - start_tv.tv_usec,
 		scnt, cb->size);
@@ -1066,7 +1066,7 @@ static void wlat_test(struct krping_cb *cb)
 		sum_last_poll += poll_cycles_stop[i] - last_poll_cycles_start[i];
 	}
 
-	log(LOG_ERR, "delta sec %lu delta usec %lu iter %d size %d cycle_iters %d sum_post %llu sum_poll %llu sum_last_poll %llu\n",
+	log(LOG_ERR, "delta sec %zu delta usec %lu iter %d size %d cycle_iters %d sum_post %llu sum_poll %llu sum_last_poll %llu\n",
 		stop_tv.tv_sec - start_tv.tv_sec, 
 		stop_tv.tv_usec - start_tv.tv_usec,
 		scnt, cb->size, cycle_iters, 
@@ -1167,7 +1167,7 @@ static void bw_test(struct krping_cb *cb)
 		sum_last_poll += poll_cycles_stop[i] - last_poll_cycles_start[i];
 	}
 
-	log(LOG_ERR, "delta sec %lu delta usec %lu iter %d size %d cycle_iters %d sum_post %llu sum_poll %llu sum_last_poll %llu\n",
+	log(LOG_ERR, "delta sec %zu delta usec %lu iter %d size %d cycle_iters %d sum_post %llu sum_poll %llu sum_last_poll %llu\n",
 		stop_tv.tv_sec - start_tv.tv_sec, 
 		stop_tv.tv_usec - start_tv.tv_usec,
 		scnt, cb->size, cycle_iters, 
