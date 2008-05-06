@@ -62,22 +62,6 @@ _thread_exit(const char *fname, int lineno, const char *msg)
 void
 _thr_exit_cleanup(void)
 {
-	struct pthread	*curthread = _get_curthread();
-
-	/*
-	 * POSIX states that cancellation/termination of a thread should
-	 * not release any visible resources (such as mutexes) and that
-	 * it is the applications responsibility.  Resources that are
-	 * internal to the threads library, including file and fd locks,
-	 * are not visible to the application and need to be released.
-	 */
-	/* Unlock all private mutexes: */
-	_mutex_unlock_private(curthread);
-
-	/*
-	 * This still isn't quite correct because we don't account
-	 * for held spinlocks (see libc/stdlib/malloc.c).
-	 */
 }
 
 void
