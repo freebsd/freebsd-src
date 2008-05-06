@@ -52,6 +52,7 @@ typedef struct rtld_lock *rtld_lock_t;
 
 extern rtld_lock_t	rtld_bind_lock;
 extern rtld_lock_t	rtld_libc_lock;
+extern rtld_lock_t	rtld_phdr_lock;
 
 int	rlock_acquire(rtld_lock_t);
 int 	wlock_acquire(rtld_lock_t);
