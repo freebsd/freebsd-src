@@ -870,7 +870,7 @@ options 	TCPDEBUG
 # The MBUF_STRESS_TEST option enables options which create
 # various random failures / extreme cases related to mbuf
 # functions.  See mbuf(9) for a list of available test cases.
-# MBUF_PROFILING enables code to profile teh mbif chains
+# MBUF_PROFILING enables code to profile the mbuf chains
 # exiting the system (via participating interfaces) and
 # return a logarithmic histogram of monitored parameters
 # (e.g. packet size, wasted space, number of mbufs in chain).
