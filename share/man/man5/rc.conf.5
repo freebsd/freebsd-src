@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 9, 2008
+.Dd May 6, 2008
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -522,6 +522,16 @@ kernel NAT should run.
 .It Va firewall_nat_flags
 .Pq Vt str
 Additional configuration parameters for kernel NAT should be placed here.
+.It Va dummynet_enable
+.Pq Vt bool
+Setting this to
+.Dq Li YES
+will automatically load the
+.Xr dummynet 4
+module if
+.Va firewall_enable
+is also set to
+.Dq Li YES .
 .\" -------------------------------------------------------------------
 .It Va natd_program
 .Pq Vt str
@@ -3988,6 +3998,7 @@ Default
 .Xr vi 1 ,
 .Xr vidcontrol 1 ,
 .Xr bridge 4 ,
+.Xr dummynet 4 ,
 .Xr ip 4 ,
 .Xr ipf 4 ,
 .Xr ipfw 4 ,
