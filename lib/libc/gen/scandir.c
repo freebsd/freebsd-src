@@ -41,8 +41,6 @@ __FBSDID("$FreeBSD$");
  */
 
 #include "namespace.h"
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <dirent.h>
 #include <stdlib.h>
 #include <string.h>
@@ -68,20 +66,13 @@ scandir(dirname, namelist, select, dcomp)
 {
 	struct dirent *d, *p, **names = NULL;
 	size_t nitems = 0;
-	struct stat stb;
 	long arraysz;
 	DIR *dirp;
 
 	if ((dirp = opendir(dirname)) == NULL)
 		return(-1);
-	if (_fstat(dirp->dd_fd, &stb) < 0)
-		goto fail;
 
-	/*
-	 * estimate the array size by taking the size of the directory file
-	 * and dividing it by a multiple of the minimum size entry.
-	 */
-	arraysz = (stb.st_size / 24);
+	arraysz = 32;	/* initial estimate of the array size */
 	names = (struct dirent **)malloc(arraysz * sizeof(struct dirent *));
 	if (names == NULL)
 		goto fail;
@@ -105,17 +96,16 @@ scandir(dirname, namelist, select, dcomp)
 		 * realloc the maximum size.
 		 */
 		if (nitems >= arraysz) {
-			const int inc = 10;	/* increase by this much */
 			struct dirent **names2;
 
 			names2 = (struct dirent **)realloc((char *)names,
-				(arraysz + inc) * sizeof(struct dirent *));
+				(arraysz * 2) * sizeof(struct dirent *));
 			if (names2 == NULL) {
 				free(p);
 				goto fail;
 			}
 			names = names2;
-			arraysz += inc;
+			arraysz *= 2;
 		}
 		names[nitems++] = p;
 	}
