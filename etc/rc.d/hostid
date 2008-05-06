@@ -45,7 +45,7 @@ hostid_set()
 {
 	uuid=$1
 	# Generate hostid based on hostuuid - take first four bytes from md5(uuid).
-	id=`echo -n $uuid | md5`
+	id=`echo -n $uuid | /sbin/md5`
 	id="0x${id%????????????????????????}"
 	# Set both kern.hostuuid and kern.hostid.
 	echo "Setting hostuuid: ${uuid}."
