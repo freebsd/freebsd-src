@@ -33,10 +33,10 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: base64-test.c,v 1.2 2001/05/29 13:12:21 assar Exp $");
+RCSID("$Id: base64-test.c 21005 2007-06-08 01:54:35Z lha $");
 #endif
 
-#include <roken.h>
+#include "roken.h"
 #include <base64.h>
 
 int
@@ -71,8 +71,8 @@ main(int argc, char **argv)
 	str = strdup(t->result);
 	len = base64_decode(t->result, str);
 	if(len != t->len) {
-	    fprintf(stderr, "failed test %d: len %d != %d\n", numtest,
-		    len, t->len);
+	    fprintf(stderr, "failed test %d: len %lu != %lu\n", numtest,
+		    (unsigned long)len, (unsigned long)t->len);
 	    numerr++;
 	} else if(memcmp(str, t->data, t->len) != 0) {
 	    fprintf(stderr, "failed test %d: data\n", numtest);

@@ -33,7 +33,7 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: freehostent.c,v 1.2 1999/12/02 16:58:46 joda Exp $");
+RCSID("$Id: freehostent.c 14773 2005-04-12 11:29:18Z lha $");
 #endif
 
 #include "roken.h"
@@ -42,7 +42,7 @@ RCSID("$Id: freehostent.c,v 1.2 1999/12/02 16:58:46 joda Exp $");
  * free a malloced hostent
  */
 
-void
+void ROKEN_LIB_FUNCTION
 freehostent (struct hostent *h)
 {
     char **p;

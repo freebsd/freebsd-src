@@ -1,4 +1,4 @@
-dnl $Id: have-type.m4,v 1.6.12.1 2004/04/01 07:27:33 joda Exp $
+dnl $Id: have-type.m4 14166 2004-08-26 12:35:42Z joda $
 dnl
 dnl check for existance of a type
 
@@ -8,16 +8,16 @@ AC_REQUIRE([AC_HEADER_STDC])
 cv=`echo "$1" | sed 'y%./+- %__p__%'`
 AC_MSG_CHECKING(for $1)
 AC_CACHE_VAL([ac_cv_type_$cv],
-AC_TRY_COMPILE(
-[#include <sys/types.h>
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+#include <sys/types.h>
 #if STDC_HEADERS
 #include <stdlib.h>
 #include <stddef.h>
 #endif
-$2],
-[$1 foo;],
-eval "ac_cv_type_$cv=yes",
-eval "ac_cv_type_$cv=no"))dnl
+$2]],
+[[$1 foo;]])],
+[eval "ac_cv_type_$cv=yes"],
+[eval "ac_cv_type_$cv=no"]))dnl
 ac_foo=`eval echo \\$ac_cv_type_$cv`
 AC_MSG_RESULT($ac_foo)
 if test "$ac_foo" = yes; then

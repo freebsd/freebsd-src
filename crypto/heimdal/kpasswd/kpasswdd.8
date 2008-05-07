@@ -1,4 +1,4 @@
-.\" $Id: kpasswdd.8,v 1.8 2003/02/04 21:48:01 lha Exp $
+.\" $Id: kpasswdd.8 14481 2005-01-05 18:07:44Z lha $
 .\"
 .Dd April 19, 1999
 .Dt KPASSWDD 8
@@ -8,6 +8,8 @@
 .Nd Kerberos 5 password changing server
 .Sh SYNOPSIS
 .Nm
+.Bk -words
+.Op Fl -addresses= Ns Ar address
 .Op Fl -check-library= Ns Ar library
 .Op Fl -check-function= Ns Ar function
 .Oo Fl k Ar kspec \*(Ba Xo
@@ -24,6 +26,7 @@
 .Oc
 .Op Fl -version
 .Op Fl -help
+.Ek
 .Sh DESCRIPTION
 .Nm
 serves request for password changes. It listens on UDP port 464
@@ -32,6 +35,11 @@ the database directly and should thus only run on the master KDC.
 .Pp
 Supported options:
 .Bl -tag -width Ds
+.It Xo
+.Fl -addresses= Ns Ar address
+.Xc
+For each till the argument is given, add the address to what kpasswdd
+should listen too.
 .It Xo
 .Fl -check-library= Ns Ar library
 .Xc
@@ -59,12 +67,12 @@ is not zero terminated.
 .Fl k Ar kspec ,
 .Fl -keytab= Ns Ar kspec
 .Xc
-Keytab to get authentication key from
+Keytab to get authentication key from.
 .It Xo
 .Fl r Ar realm ,
 .Fl -realm= Ns Ar realm
 .Xc
-Default realm
+Default realm.
 .It Xo
 .Fl p Ar string ,
 .Fl -port= Ns Ar string

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1999, 2003, 2005 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,10 +33,13 @@
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
+#ifdef TEST_STRPFTIME
+#include "strpftime-test.h"
+#endif
 #include <ctype.h>
 #include "roken.h"
 
-RCSID("$Id: strptime.c,v 1.2 1999/11/12 15:29:55 assar Exp $");
+RCSID("$Id: strptime.c 21895 2007-08-09 08:45:54Z lha $");
 
 static const char *abb_weekdays[] = {
     "Sun",
@@ -79,7 +82,7 @@ static const char *abb_month[] = {
 static const char *full_month[] = {
     "January",
     "February",
-    "Mars",
+    "March",
     "April",
     "May",
     "June",
@@ -120,7 +123,41 @@ match_string (const char **buf, const char **strs)
 }
 
 /*
- * tm_year is relative this year */
+ * Try to match `*buf' to at the most `n' characters and return the
+ * resulting number in `num'. Returns 0 or an error.  Also advance
+ * buf.
+ */
+
+static int
+parse_number (const char **buf, int n, int *num)
+{
+    char *s, *str;
+    int i;
+
+    str = malloc(n + 1);
+    if (str == NULL)
+	return -1;
+
+    /* skip whitespace */
+    for (; **buf != '\0' && isspace((unsigned char)(**buf)); (*buf)++)
+	;
+
+    /* parse at least n characters */
+    for (i = 0; **buf != '\0' && i < n && isdigit((unsigned char)(**buf)); i++, (*buf)++)
+	str[i] = **buf;
+    str[i] = '\0';
+
+    *num = strtol (str, &s, 10);
+    free(str);
+    if (s == str)
+	return -1;
+
+    return 0;
+}
+
+/*
+ * tm_year is relative this year
+ */
 
 const int tm_year_base = 1900;
 
@@ -204,7 +241,7 @@ set_week_number_mon4 (struct tm *timeptr, int wnum)
  *
  */
 
-char *
+char * ROKEN_LIB_FUNCTION
 strptime (const char *buf, const char *format, struct tm *timeptr)
 {
     char c;
@@ -213,8 +250,8 @@ strptime (const char *buf, const char *format, struct tm *timeptr)
 	char *s;
 	int ret;
 
-	if (isspace (c)) {
-	    while (isspace (*buf))
+	if (isspace ((unsigned char)c)) {
+	    while (isspace ((unsigned char)*buf))
 		++buf;
 	} else if (c == '%' && format[1] != '\0') {
 	    c = *++format;
@@ -247,11 +284,9 @@ strptime (const char *buf, const char *format, struct tm *timeptr)
 		timeptr->tm_mon = ret;
 		break;
 	    case 'C' :
-		ret = strtol (buf, &s, 10);
-		if (s == buf)
+		if (parse_number(&buf, 2, &ret))
 		    return NULL;
 		timeptr->tm_year = (ret * 100) - tm_year_base;
-		buf = s;
 		break;
 	    case 'c' :
 		abort ();
@@ -263,57 +298,47 @@ strptime (const char *buf, const char *format, struct tm *timeptr)
 		break;
 	    case 'd' :
 	    case 'e' :
-		ret = strtol (buf, &s, 10);
-		if (s == buf)
+		if (parse_number(&buf, 2, &ret))
 		    return NULL;
 		timeptr->tm_mday = ret;
-		buf = s;
 		break;
 	    case 'H' :
 	    case 'k' :
-		ret = strtol (buf, &s, 10);
-		if (s == buf)
+		if (parse_number(&buf, 2, &ret))
 		    return NULL;
 		timeptr->tm_hour = ret;
-		buf = s;
 		break;
 	    case 'I' :
 	    case 'l' :
-		ret = strtol (buf, &s, 10);
-		if (s == buf)
+		if (parse_number(&buf, 2, &ret))
 		    return NULL;
 		if (ret == 12)
 		    timeptr->tm_hour = 0;
 		else
 		    timeptr->tm_hour = ret;
-		buf = s;
 		break;
 	    case 'j' :
-		ret = strtol (buf, &s, 10);
-		if (s == buf)
+		if (parse_number(&buf, 3, &ret))
+		    return NULL;
+		if (ret == 0)
 		    return NULL;
 		timeptr->tm_yday = ret - 1;
-		buf = s;
 		break;
 	    case 'm' :
-		ret = strtol (buf, &s, 10);
-		if (s == buf)
+		if (parse_number(&buf, 2, &ret))
+		    return NULL;
+		if (ret == 0)
 		    return NULL;
 		timeptr->tm_mon = ret - 1;
-		buf = s;
 		break;
 	    case 'M' :
-		ret = strtol (buf, &s, 10);
-		if (s == buf)
+		if (parse_number(&buf, 2, &ret))
 		    return NULL;
 		timeptr->tm_min = ret;
-		buf = s;
 		break;
 	    case 'n' :
-		if (*buf == '\n')
-		    ++buf;
-		else
-		    return NULL;
+		while (isspace ((unsigned char)*buf))
+		    buf++;
 		break;
 	    case 'p' :
 		ret = match_string (&buf, ampm);
@@ -338,17 +363,13 @@ strptime (const char *buf, const char *format, struct tm *timeptr)
 		buf = s;
 		break;
 	    case 'S' :
-		ret = strtol (buf, &s, 10);
-		if (s == buf)
+		if (parse_number(&buf, 2, &ret))
 		    return NULL;
 		timeptr->tm_sec = ret;
-		buf = s;
 		break;
 	    case 't' :
-		if (*buf == '\t')
-		    ++buf;
-		else
-		    return NULL;
+		while (isspace ((unsigned char)*buf))
+		    buf++;
 		break;
 	    case 'T' :		/* %H:%M:%S */
 	    case 'X' :
@@ -358,39 +379,31 @@ strptime (const char *buf, const char *format, struct tm *timeptr)
 		buf = s;
 		break;
 	    case 'u' :
-		ret = strtol (buf, &s, 10);
-		if (s == buf)
+		if (parse_number(&buf, 1, &ret))
+		    return NULL;
+		if (ret <= 0)
 		    return NULL;
 		timeptr->tm_wday = ret - 1;
-		buf = s;
 		break;
 	    case 'w' :
-		ret = strtol (buf, &s, 10);
-		if (s == buf)
+		if (parse_number(&buf, 1, &ret))
 		    return NULL;
 		timeptr->tm_wday = ret;
-		buf = s;
 		break;
 	    case 'U' :
-		ret = strtol (buf, &s, 10);
-		if (s == buf)
+		if (parse_number(&buf, 2, &ret))
 		    return NULL;
 		set_week_number_sun (timeptr, ret);
-		buf = s;
 		break;
 	    case 'V' :
-		ret = strtol (buf, &s, 10);
-		if (s == buf)
+		if (parse_number(&buf, 2, &ret))
 		    return NULL;
 		set_week_number_mon4 (timeptr, ret);
-		buf = s;
 		break;
 	    case 'W' :
-		ret = strtol (buf, &s, 10);
-		if (s == buf)
+		if (parse_number(&buf, 2, &ret))
 		    return NULL;
 		set_week_number_mon (timeptr, ret);
-		buf = s;
 		break;
 	    case 'x' :
 		s = strptime (buf, "%Y:%m:%d", timeptr);
@@ -399,21 +412,17 @@ strptime (const char *buf, const char *format, struct tm *timeptr)
 		buf = s;
 		break;
 	    case 'y' :
-		ret = strtol (buf, &s, 10);
-		if (s == buf)
+		if (parse_number(&buf, 2, &ret))
 		    return NULL;
 		if (ret < 70)
 		    timeptr->tm_year = 100 + ret;
 		else
 		    timeptr->tm_year = ret;
-		buf = s;
 		break;
 	    case 'Y' :
-		ret = strtol (buf, &s, 10);
-		if (s == buf)
+		if (parse_number(&buf, 4, &ret))
 		    return NULL;
 		timeptr->tm_year = ret - tm_year_base;
-		buf = s;
 		break;
 	    case 'Z' :
 		abort ();
@@ -440,5 +449,5 @@ strptime (const char *buf, const char *format, struct tm *timeptr)
 		return NULL;
 	}
     }
-    return (char *)buf;
+    return rk_UNCONST(buf);
 }

@@ -57,5 +57,7 @@
 #define	_PATH_FTPWELCOME	SYSCONFDIR "/ftpwelcome"
 #define	_PATH_FTPLOGINMESG	SYSCONFDIR "/motd"
 
+#ifndef _PATH_ISSUE
 #define _PATH_ISSUE		SYSCONFDIR "/issue"
+#endif
 #define _PATH_ISSUE_NET		SYSCONFDIR "/issue.net"

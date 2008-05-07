@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000 - 2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 2000 - 2004 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "kpasswd_locl.h"
 
-RCSID("$Id: kpasswd-generator.c,v 1.5 2001/07/31 02:44:42 assar Exp $");
+RCSID("$Id: kpasswd-generator.c 19233 2006-12-06 08:04:05Z lha $");
 
 static unsigned
 read_words (const char *filename, char ***ret_w)
@@ -48,8 +48,7 @@ read_words (const char *filename, char ***ret_w)
 	err (1, "cannot open %s", filename);
     alloc = n = 0;
     while (fgets (buf, sizeof(buf), f) != NULL) {
-	if (buf[strlen (buf) - 1] == '\n')
-	    buf[strlen (buf) - 1] = '\0';
+	buf[strcspn(buf, "\r\n")] = '\0';
 	if (n >= alloc) {
 	    alloc += 16;
 	    w = erealloc (w, alloc * sizeof(char **));
@@ -57,6 +56,8 @@ read_words (const char *filename, char ***ret_w)
 	w[n++] = estrdup (buf);
     }
     *ret_w = w;
+    if (n == 0)
+	errx(1, "%s is an empty file, no words to try", filename);
     return n;
 }
 
@@ -88,17 +89,17 @@ generate_requests (const char *filename, unsigned nreq)
 
     for (i = 0; i < nreq; ++i) {
 	char *name = words[rand() % nwords];
-	krb5_get_init_creds_opt opt;
+	krb5_get_init_creds_opt *opt;
 	krb5_creds cred;
 	krb5_principal principal;
 	int result_code;
 	krb5_data result_code_string, result_string;
 	char *old_pwd, *new_pwd;
 
-	krb5_get_init_creds_opt_init (&opt);
-	krb5_get_init_creds_opt_set_tkt_life (&opt, 300);
-	krb5_get_init_creds_opt_set_forwardable (&opt, FALSE);
-	krb5_get_init_creds_opt_set_proxiable (&opt, FALSE);
+	krb5_get_init_creds_opt_alloc (context, &opt);
+	krb5_get_init_creds_opt_set_tkt_life (opt, 300);
+	krb5_get_init_creds_opt_set_forwardable (opt, FALSE);
+	krb5_get_init_creds_opt_set_proxiable (opt, FALSE);
 
 	ret = krb5_parse_name (context, name, &principal);
 	if (ret)
@@ -115,7 +116,7 @@ generate_requests (const char *filename, unsigned nreq)
 					    NULL,
 					    0,
 					    "kadmin/changepw",
-					    &opt);
+					    opt);
 	if( ret == KRB5KRB_AP_ERR_BAD_INTEGRITY
 	    || ret == KRB5KRB_AP_ERR_MODIFIED) {
 	    char *tmp;
@@ -132,7 +133,7 @@ generate_requests (const char *filename, unsigned nreq)
 						NULL,
 						0,
 						"kadmin/changepw",
-						&opt);
+						opt);
 	}
 	if (ret)
 	    krb5_err (context, 1, ret, "krb5_get_init_creds_password");
@@ -148,7 +149,8 @@ generate_requests (const char *filename, unsigned nreq)
 
 	free (old_pwd);
 	free (new_pwd);
-	krb5_free_creds_contents (context, &cred);
+	krb5_free_cred_contents (context, &cred);
+	krb5_get_init_creds_opt_free(context, opt);
     }
 }
 

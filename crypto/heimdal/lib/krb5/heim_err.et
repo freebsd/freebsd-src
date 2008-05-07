@@ -3,7 +3,7 @@
 #
 # This might look like a com_err file, but is not
 #
-id "$Id: heim_err.et,v 1.12 2001/06/21 03:51:36 assar Exp $"
+id "$Id: heim_err.et 13352 2004-02-13 16:23:40Z lha $"
 
 error_table heim
 
@@ -17,6 +17,14 @@ error_code OPNOTSUPP,		"Operation not supported"
 error_code EOF,			"End of file"
 error_code BAD_MKEY,		"Failed to get the master key"
 error_code SERVICE_NOMATCH,	"Unacceptable service used"
+
+index 64
+prefix HEIM_PKINIT
+error_code NO_CERTIFICATE,	"Certificate missing"
+error_code NO_PRIVATE_KEY,	"Private key missing"
+error_code NO_VALID_CA,		"No valid certificate authority"
+error_code CERTIFICATE_INVALID,	"Certificate invalid"
+error_code PRIVATE_KEY_INVALID,	"Private key invalid"
 
 index 128
 prefix HEIM_EAI

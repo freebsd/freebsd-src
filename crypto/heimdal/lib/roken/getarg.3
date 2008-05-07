@@ -29,7 +29,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
 .\" SUCH DAMAGE. 
 .\" 
-.\" $Id: getarg.3,v 1.7 2003/04/16 13:58:24 lha Exp $
+.\" $Id: getarg.3 13380 2004-02-17 12:04:59Z lha $
 .Dd September 24, 1999
 .Dt GETARG 3
 .Os ROKEN
@@ -220,7 +220,7 @@ to specify a coordinate); if you also have to set
 to a sane value.
 .Pp
 The collect function should return one of
-.Dv ARG_ERR_NO_MATCH , ARG_ERR_BAD_ARG , ARG_ERR_NO_ARG
+.Dv ARG_ERR_NO_MATCH , ARG_ERR_BAD_ARG , ARG_ERR_NO_ARG, ENOMEM
 on error, zero otherwise.
 .Pp
 For your convenience there is a function,

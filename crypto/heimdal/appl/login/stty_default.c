@@ -33,7 +33,7 @@
 
 #include "login_locl.h"
 
-RCSID("$Id: stty_default.c,v 1.8 1999/12/02 17:04:56 joda Exp $");
+RCSID("$Id: stty_default.c 7464 1999-12-02 17:05:13Z joda $");
 
 #include <termios.h>
 

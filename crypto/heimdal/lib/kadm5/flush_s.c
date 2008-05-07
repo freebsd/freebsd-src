@@ -32,7 +32,7 @@
 
 #include "kadm5_locl.h"
 
-RCSID("$Id: flush_s.c,v 1.1 1999/03/23 18:23:37 joda Exp $");
+RCSID("$Id: flush_s.c 5723 1999-03-23 18:23:37Z joda $");
 
 kadm5_ret_t 
 kadm5_s_flush(void *server_handle)

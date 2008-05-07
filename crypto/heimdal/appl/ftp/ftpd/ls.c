@@ -33,7 +33,7 @@
 #ifndef TEST
 #include "ftpd_locl.h"
 
-RCSID("$Id: ls.c,v 1.26 2003/02/25 10:51:30 lha Exp $");
+RCSID("$Id: ls.c 16216 2005-10-22 13:15:43Z lha $");
 
 #else
 #include <stdio.h>
@@ -146,16 +146,16 @@ block_convert(size_t blocks)
 #endif
 }
 
-static void
+static int
 make_fileinfo(FILE *out, const char *filename, struct fileinfo *file, int flags)
 {
     char buf[128];
     int file_type = 0;
     struct stat *st = &file->st;
-
+    
     file->inode = st->st_ino;
     file->bsize = block_convert(st->st_blocks);
-
+    
     if(S_ISDIR(st->st_mode)) {
 	file->mode[0] = 'd';
 	file_type = '/';
@@ -218,31 +218,51 @@ make_fileinfo(FILE *out, const char *filename, struct fileinfo *file, int flags)
     {
 	struct passwd *pwd;
 	pwd = getpwuid(st->st_uid);
-	if(pwd == NULL)
-	    asprintf(&file->user, "%u", (unsigned)st->st_uid);
-	else
+	if(pwd == NULL) {
+	    if (asprintf(&file->user, "%u", (unsigned)st->st_uid) == -1)
+		file->user = NULL;
+	} else
 	    file->user = strdup(pwd->pw_name);
+	if (file->user == NULL) {
+	    syslog(LOG_ERR, "out of memory");
+	    return -1;
+	}
     }
     {
 	struct group *grp;
 	grp = getgrgid(st->st_gid);
-	if(grp == NULL)
-	    asprintf(&file->group, "%u", (unsigned)st->st_gid);
-	else
+	if(grp == NULL) {
+	    if (asprintf(&file->group, "%u", (unsigned)st->st_gid) == -1)
+		file->group = NULL;
+	} else
 	    file->group = strdup(grp->gr_name);
+	if (file->group == NULL) {
+	    syslog(LOG_ERR, "out of memory");
+	    return -1;
+	}
     }
     
     if(S_ISCHR(st->st_mode) || S_ISBLK(st->st_mode)) {
 #if defined(major) && defined(minor)
-	asprintf(&file->major, "%u", (unsigned)major(st->st_rdev));
-	asprintf(&file->minor, "%u", (unsigned)minor(st->st_rdev));
+	if (asprintf(&file->major, "%u", (unsigned)major(st->st_rdev)) == -1)
+	    file->major = NULL;
+	if (asprintf(&file->minor, "%u", (unsigned)minor(st->st_rdev)) == -1)
+	    file->minor = NULL;
 #else
 	/* Don't want to use the DDI/DKI crap. */
-	asprintf(&file->major, "%u", (unsigned)st->st_rdev);
-	asprintf(&file->minor, "%u", 0);
+	if (asprintf(&file->major, "%u", (unsigned)st->st_rdev) == -1)
+	    file->major = NULL;
+	if (asprintf(&file->minor, "%u", 0) == -1)
+	    file->minor = NULL;
 #endif
-    } else
-	asprintf(&file->size, "%lu", (unsigned long)st->st_size);
+	if (file->major == NULL || file->minor == NULL) {
+	    syslog(LOG_ERR, "out of memory");
+	    return -1;
+	}
+    } else {
+	if (asprintf(&file->size, "%lu", (unsigned long)st->st_size) == -1)
+	    file->size = NULL;
+    }
 
     {
 	time_t t = time(NULL);
@@ -254,6 +274,10 @@ make_fileinfo(FILE *out, const char *filename, struct fileinfo *file, int flags)
 	else
 	    strftime(buf, sizeof(buf), "%b %e %H:%M", tm);
 	file->date = strdup(buf);
+	if (file->date == NULL) {
+	    syslog(LOG_ERR, "out of memory");
+	    return -1;
+	}
     }
     {
 	const char *p = strrchr(filename, '/');
@@ -261,10 +285,15 @@ make_fileinfo(FILE *out, const char *filename, struct fileinfo *file, int flags)
 	    p++;
 	else
 	    p = filename;
-	if((flags & LS_TYPE) && file_type != 0)
-	    asprintf(&file->filename, "%s%c", p, file_type);
-	else
+	if((flags & LS_TYPE) && file_type != 0) {
+	    if (asprintf(&file->filename, "%s%c", p, file_type) == -1)
+		file->filename = NULL;
+	} else
 	    file->filename = strdup(p);
+	if (file->filename == NULL) {
+	    syslog(LOG_ERR, "out of memory");
+	    return -1;
+	}
     }
     if(S_ISLNK(st->st_mode)) {
 	int n;
@@ -272,9 +301,14 @@ make_fileinfo(FILE *out, const char *filename, struct fileinfo *file, int flags)
 	if(n >= 0) {
 	    buf[n] = '\0';
 	    file->link = strdup(buf);
+	    if (file->link == NULL) {
+		syslog(LOG_ERR, "out of memory");
+		return -1;
+	    }
 	} else
 	    sec_fprintf2(out, "readlink(%s): %s", filename, strerror(errno));
     }
+    return 0;
 }
 
 static void
@@ -356,7 +390,7 @@ compare_size(struct fileinfo *a, struct fileinfo *b)
 static int list_dir(FILE*, const char*, int);
 
 static int
-log10(int num)
+find_log10(int num)
 {
     int i = 1;
     while(num > 10) {
@@ -508,7 +542,9 @@ list_files(FILE *out, const char **files, int n_files, int flags)
 		    include_in_list = 0;
 	    }
 	    if(include_in_list) {
-		make_fileinfo(out, files[i], &fi[i], flags);
+		ret = make_fileinfo(out, files[i], &fi[i], flags);
+		if (ret)
+		    goto out;
 		n_print++;
 	    }
 	}
@@ -563,9 +599,9 @@ list_files(FILE *out, const char **files, int n_files, int flags)
 	    max_size = max_major + max_minor + 2;
 	else if(max_size - max_minor - 2 > max_major)
 	    max_major = max_size - max_minor - 2;
-	max_inode = log10(max_inode);
-	max_bsize = log10(max_bsize);
-	max_n_link = log10(max_n_link);
+	max_inode = find_log10(max_inode);
+	max_bsize = find_log10(max_bsize);
+	max_n_link = find_log10(max_n_link);
 	
 	if(n_print > 0)
 	    sec_fprintf2(out, "total %lu\r\n", (unsigned long)total_blocks);
@@ -611,8 +647,8 @@ list_files(FILE *out, const char **files, int n_files, int flags)
 	    }
 	    if(strlen(fi[i].filename) > max_len)
 		max_len = strlen(fi[i].filename);
-	    if(log10(fi[i].bsize) > size_len)
-		size_len = log10(fi[i].bsize);
+	    if(find_log10(fi[i].bsize) > size_len)
+		size_len = find_log10(fi[i].bsize);
 	}
 	if(num_files == 0)
 	    goto next;
@@ -729,6 +765,7 @@ list_dir(FILE *out, const char *directory, int flags)
     struct dirent *ent;
     char **files = NULL;
     int n_files = 0;
+    int ret;
 
     if(d == NULL) {
 	syslog(LOG_ERR, "%s: %m", directory);
@@ -747,8 +784,8 @@ list_dir(FILE *out, const char *directory, int flags)
 	    return -1;
 	}
 	files = tmp;
-	asprintf(&files[n_files], "%s/%s", directory, ent->d_name);
-	if (files[n_files] == NULL) {
+	ret = asprintf(&files[n_files], "%s/%s", directory, ent->d_name);
+	if (ret == -1) {
 	    syslog(LOG_ERR, "%s: out of memory", directory);
 	    free_files (files, n_files);
 	    closedir (d);

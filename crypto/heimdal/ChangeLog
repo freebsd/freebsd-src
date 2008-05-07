@@ -1,897 +1,1356 @@
-2004-09-13  Johan Danielsson  <joda@pdc.kth.se>
+2008-01-24  Love Hörnquist Åstrand  <lha@it.su.se>
 
-	* Release 0.6.3
-	
-2004-09-05  Love Hörnquist Åstrand  <lha@it.su.se>
+	* Release 1.1
+
+2008-01-21  Love Hörnquist Åstrand  <lha@it.su.se>
 
-	* lib/asn1/der_get.c (decode_enumerated): check that the tag
-	length isn't longer the the length
+	* lib/krb5/get_for_creds.c: Use on variable less.
 
-2004-08-31  Love Hörnquist Åstrand  <lha@it.su.se>
+	* lib/krb5/get_for_creds.c: Try to handle ticket full and
+	ticketless tickets better. Add doxygen comments while here.
 
-	* lib/krb5/init_creds_pw.c (krb5_get_init_creds_password):
-	kdc_reply can be set in case of failure too, clean on entry and
-	free the exit unconditionally to avoid memory leak
+	* lib/krb5/test_forward.c: Used for testing
+	krb5_get_forwarded_creds().
 	
-2004-08-20  Love Hörnquist Åstrand  <lha@it.su.se>
+	* lib/krb5/Makefile.am: noinst_PROGRAMS += test_forward
 
-	* lib/krb5/context.c: 1.93: (krb5_get_err_text): if neither of
-	com_right nor strerror finds the error-code, return Unknown error.
+	* lib/krb5/Makefile.am: drop CHECK_SYMBOLS
 
-2004-08-13  Love Hörnquist Åstrand  <lha@it.su.se>
+	* lib/hdb/Makefile.am: drop CHECK_SYMBOLS
 
-	* kdc/kerberos5.c: based on 1.162: (get_pa_etype_info): check for
-	dup enctypes from the client and filter them out.
-	
-2004-06-21  Love Hörnquist Åstrand  <lha@it.su.se>
+	* kdc/Makefile.am: drop CHECK_SYMBOLS
 
-	* admin/get.c: 1.23: (kt_get): catch errors from krb5_parse_name
-	
-2004-06-21  Love Hörnquist Åstrand  <lha@it.su.se>
+2008-01-18  Love Hörnquist Åstrand  <lha@it.su.se>
 
-	* lib/krb5/Makefile.am: man_MANS += krb5_set_password.3
+	* lib/krb5/version-script.map: Add krb5_digest_probe.
 	
-	* lib/krb5/krb5_set_password.3: 1.1-1.3: change password manpage
+2008-01-13  Love Hörnquist Åstrand  <lha@it.su.se>
 	
-	* lib/krb5/changepw.c: 1.49: implement
-	krb5_set_password_using_ccache 1.47: add tcp support to the set
-	protocol, should be cleaned up to enable sharing code with
-	krb5_sendto 1.46: (process_reply): log into result_string if
-	something goes bad, return 0 (even on failure), not the KPASSWD
-	protocol error code 1.45: krb5_princ_realm ->
-	krb5_principal_get_realm 1.44: (setpw_send_request): free
-	ap_req_data on failure 1.41: ooops, remove cut and paste error
-	1.40: draft-ietf-cat-kerb-chg-password-02 and rfc3244 share the
-	response packet sure more constants now that they exists 1.39:
-	implement rfc3244, partly from shadow@dementia.org
+	* lib/krb5/pkinit.c: Replace hx509_name_to_der_name with
+	hx509_name_binary.
+
+2008-01-12  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* lib/krb5/Makefile.am: add missing files
+
+2007-12-28  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* kdc/digest.c: Log probe message, add NTLM_TARGET_DOMAIN to the
+	type2 message.
+
+2007-12-14  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* lib/hdb/dbinfo.c: Add hdb_default_db().
+
+	* Makefile.am: Add some extra cf/*.
+
+2007-12-12  Love Hörnquist Åstrand  <lha@it.su.se>
 	
-	* lib/krb5/krb5.h: 1.211: some defines for rfc3244
+	* kuser/kgetcred.c: Fix type of name-type. From Andy Polyakov.
+
+2007-12-09  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* kdc/log.c: Use hdb_db_dir().
+
+	* kpasswd/kpasswdd.c: Use hdb_db_dir().
+
+2007-12-08  Love Hörnquist Åstrand  <lha@it.su.se>
 	
-	* lib/asn1/Makefile.am: 1.71: (gen_files):
-	asn1_ChangePasswdDataMS.x for RFC3244
+	* kdc/config.c: Use hdb_db_dir().
+
+	* kdc/kdc_locl.h: add KDC_LOG_FILE
+
+	* kdc/hpropd.c: Use hdb_default_db().
+
+	* kdc/kstash.c: Use hdb_db_dir().
+
+	* kdc/pkinit.c: Adapt to hx509 changes, use hdb_db_dir().
+
+	* lib/krb5/rd_req.c: Document krb5_rd_req_in_set_pac_check.
+
+	* lib/krb5/verify_krb5_conf.c: Check check_pac.
+
+	* lib/krb5/rd_req.c: use KRB5_CTX_F_CHECK_PAC to init check_pac
+	field in the krb5_rd_req_in_ctx
+
+	* lib/krb5/expand_hostname.c: Adapt to changing
+	dns_canonicalize_hostname into flags field.
+
+	* lib/krb5/context.c: Adapt to changing dns_canonicalize_hostname
+	into flags field, add check-pac as an libdefaults option.
+
+	* lib/krb5/pkinit.c: Adapt to changes in hx509 interface.
+
+	* doc: add doxygen documentation to hcrypto
+
+	* doc/doxytmpl.dxy: generate links
 	
-	* lib/asn1/k5.asn1: 1.30: add ChangePasswdDataMS, for RFC3244
+2007-12-07  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* lib/krb5/Makefile.am: build_HEADERZ += heim_threads.h
+
+	* lib/hdb/dbinfo.c (hdb_db_dir): Return the directory where the
+	hdb database resides.
+
+	* configure.in: Add --with-hdbdir to specify where the database is
+	stored.
+
+	* lib/krb5/crypto.c: revert previous patch, the problem is located
+	in the RAND_file_name() function that will cause recursive nss
+	lookups, can't fix that here.
+
+2007-12-06  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* lib/krb5/crypto.c (krb5_generate_random_block): try to avoid the
+	dead-lock in by not holding the lock while running
+	RAND_file_name. Prompted by Hai Zaar.
+
+	* lib/krb5/n-fold.c: spelling
 	
-	* kuser/kinit.c: 1.114: move "setpag if (argc < 1)" to common path
+2007-12-04  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* kuser/kdigest.c (digest-probe): implement command.
+
+	* kuser/kdigest-commands.in (digest-probe): new command
 	
-2004-05-06  Johan Danielsson  <joda@pdc.kth.se>
+	* kdc/digest.c: Implement supportedMechs request.
 
-	* Release 0.6.2
+	* lib/krb5/error_string.c: Make krb5_get_error_string return an
+	allocated string to make the function indempotent. From
+	Zeqing (Fred) Xia.
 
-2004-04-02  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-12-03  Love Hörnquist Åstrand  <lha@it.su.se>
 
-	* kdc/connect.c: case size_t to unsigned long for LP64 platforms
-	
-2004-04-01  Johan Danielsson  <joda@pdc.kth.se>
+	* lib/krb5/krb5_locl.h (krb5_context_data): Flag if
+	default_cc_name was set by the user.
 
-	* Release 0.6.1
+	* lib/krb5/fcache.c (fcc_move): make sure ->version is uptodate.
 
-2004-03-30  Love Hörnquist Åstrand  <lha@it.su.se>
+	* kcm/acquire.c: use krb5_free_cred_contents
 
-	* kdc/kerberos4.c: 1.46: stop the client from renewing tickets
-	into the future From: Jeffrey Hutzelman <jhutz@cmu.edu>
+	* kuser/kimpersonate.c: use krb5_free_cred_contents
 	
-2004-03-10  Love Hörnquist Åstrand  <lha@it.su.se>
+	* kuser/kinit.c: Use krb5_cc_move to make an atomic switch of the
+	cred cache.
 
-	* lib/krb5/fcache.c: 1.43: (fcc_store_cred): NULL terminate
-	krb5_config_get_bool_default' arglist
+	* lib/krb5/cache.c: Put back code that was needed, move gen_new
+	into new_unique.
+
+	* lib/krb5/mcache.c (mcc_default_name): Remove const
+
+	* lib/krb5/krb5_locl.h: Add KRB5_DEFAULT_CCNAME_KCM, redefine
+	KRB5_DEFAULT_CCNAME to KRB5_DEFAULT_CCTYPE
+
+	* lib/krb5/cache.c: Use krb5_cc_ops->default_name to get the
+	default name.
+
+	* lib/krb5/kcm.c: Implement krb5_cc_ops->default_name.
+
+	* lib/krb5/mcache.c: Implement krb5_cc_ops->default_name.
+
+	* lib/krb5/fcache.c: Implement krb5_cc_ops->default_name.
+
+	* lib/krb5/krb5.h: Add krb5_cc_ops->default_name.
+
+	* lib/krb5/acache.c: Free context when done, implement
+	krb5_cc_ops->default_name.
+
+	* lib/krb5/kcm.c: implement dummy kcm_move
+
+	* lib/krb5/mcache.c: Implement the move operation.
+
+	* lib/krb5/version-script.map: export krb5_cc_move
+
+	* lib/krb5/cache.c: New function krb5_cc_move().
+
+	* lib/krb5/fcache.c: Implement the move operation.
+
+	* lib/krb5/krb5.h: Add move to the krb5_cc_ops, causes major
+	version bump.
+
+	* lib/krb5/acache.c: Implement the move operation. Avoid using
+	cc_set_principal() since it broken on Mac OS X 10.5.0.
 	
-2004-03-09  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-12-02  Love Hörnquist Åstrand  <lha@it.su.se>
 
-	* lib/krb5/krb5.conf.5: 1.44: document
-	[libdefaults]fcc-mit-ticketflags=boolean 1.43: don't use path's in
-	first .Nm, it confuses some locate.updatedb, use FILES section to
-	describe where the file is instead.
+	* lib/krb5/krb5_ccapi.h: Drop variable names to avoid -Wshadow.
 	
-	* lib/krb5/fcache.c (fcc_store_cred): default to use old format
+2007-11-14  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* kdc/krb5tgs.c: Should pass different key usage constants
+	depending on whether or not optional sub-session key was passed by
+	the client for the check of authorization data. The constant is
+	used to derive "specific key" and its values are specified in
+	7.5.1 of RFC4120.
 	
-	* lib/krb5/fcache.c: 1.42: (fcc_store_cred): use
-	[libdefaults]fcc-mit-ticketflags=boolean to decide what format to
-	write the fcc in. Default to mit format (aka heimdal 0.7 format)
-	1.41: (_krb5_xlock): handle that everything was ok, and don't put
-	an error in the error strings then
+	Patch from Andy Polyakov.
+
+	* kdc/krb5tgs.c: Don't send auth data in referrals, microsoft
+	clients have started to not like that. Thanks to Andy Polyakov for
+	excellent research.
+
+2007-11-11  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* lib/krb5/creds.c: use krb5_data_cmp
+
+	* lib/krb5/acache.c: use krb5_free_cred_contents
+
+	* lib/krb5/test_renew.c: use krb5_free_cred_contents
 	
-	* lib/krb5/store.c: 1.43: add _krb5_store_creds_heimdal_0_7 and
-	_krb5_store_creds_heimdal_pre_0_7 that store the creds in just
-	that format make krb5_store_creds default to mit format 1.42:
-	(krb5_ret_creds): Runtime detect the what is the higher bits of
-	the bitfield 1.41: (krb5_store_creds): add disabled code that
-	store the ticket flags in reverse order (bitswap32): new function
-	1.40: (krb5_ret_creds): if the higher ticket flags are set, its a
-	mit cache, reverse the bits, bug pointed out by Sergio Gelato
-	<Sergio.Gelato@astro.su.se>
+2007-11-10  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* lib/krb5/acl.c: doxygen documentation
+
+	* lib/krb5/addr_families.c: doxygen documentation
+
+	* doc: add doxygen
+
+	* lib/krb5/plugin.c: doxygen documentation
+
+	* lib/krb5/kcm.c: doxygen documentation
+
+	* lib/krb5/fcache.c: doxygen documentation
+
+	* lib/krb5/cache.c: doxygen documentations
 	
-	delta modfied to not change the behavior of krb5_store_creds
+	* lib/krb5/doxygen.c: doxygen introduction
+
+	* lib/krb5/error_string.c: Doxygen documentation.
+
+2007-11-03  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* lib/krb5/test_plugin.c: expose krb5_plugin_register
+
+	* lib/krb5/plugin.c: expose krb5_plugin_register
+
+	* lib/krb5/version-script.map: sort, expose krb5_plugin_register
+
+2007-10-24  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* kdc/kerberos5.c: Adding same enctype is enough one time. From
+	Andy Polyakov and Bjorn Sandell.
 	
-2004-03-07  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-10-18  Love  <lha@stacken.kth.se>
 
-	* lib/krb5/mk_safe.c (krb5_mk_safe): fix assignment of usec2
+	* lib/krb5/cache.c (krb5_cc_retrieve_cred): check return value
+	from krb5_cc_start_seq_get. From Zeqing (Fred) Xia
 	
-2004-03-06  Love Hörnquist Åstrand  <lha@it.su.se>
+	* lib/krb5/fcache.c (init_fcc): provide better error codes
+
+	* kdc/kerberos5.c (get_pa_etype_info2): more paranoia, avoid
+	sending warning about pruned etypes.
+
+	* kdc/kerberos5.c (older_enctype): old windows enctypes (arcfour
+	based) "old", this to support windows 2000 clients (unjoined to a
+	domain). From Andy Polyakov.
+
+2007-10-07  Love Hörnquist Åstrand  <lha@it.su.se>
 
-	* lib/krb5/mcache.c: patch based on 1.17 and 1.18 but with
-	threading code pulled out;
+	* doc/setup.texi: Spelling, from Mark Peoples via Bjorn Sandell.
 	
-	1.18: (mcc_get_principal): also check for primary_principal ==
-	NULL now that that isn't used as dead flag 1.17: don't overload
-	the primary_principal == NULL as dead since that doesn't always
-	work Based on patch from Jeffrey Hutzelman <jhutz@cmu.edu>, but
-	tweek by me
+2007-10-04  Love Hörnquist Åstrand  <lha@it.su.se>
 
-	* lib/krb5/crypto.c: 1.94: (decrypt_internal_special): do not not
-	modify the original data test case from Ronnie Sahlberg
-	<ronnie_sahlberg@ozemail.com.au>
+	* kdc/krb5tgs.c: More prettier printing of enctype, from KAMADA
+	Ken'ichi.
 
-2004-02-13  Love Hörnquist Åstrand  <lha@it.su.se>
+	* lib/krb5/crypto.c (krb5_enctype_to_string): make sure string is
+	NULL on failure.
 
-	* lib/krb5/verify_krb5_conf.c: 1.22->1.23: (check_host): don't
-	check for EAI_NODATA, because its depricated in RFC3493 Pointed
-	out by Hajimu UMEMOTO <ume@mahoroba.org> on heimdal-discuss
+2007-10-03  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* kdc/kdc-replay.c: Catch KRB5_PROG_ATYPE_NOSUPP from
+	krb5_addr2sockaddr and igore thte test is that case.
 	
-	* lib/krb5/eai_to_heim_errno.c: 1.3->1.4: EAI_ADDRFAMILY and
-	EAI_NODATA is deprecated in RFC3493
+2007-09-29  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* lib/krb5/context.c (krb5_free_context): free
+	default_cc_name_env, from Gunther Deschner.
+
+2007-08-27  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* lib/krb5/{krb5.h,pac.c,test_pac.c,send_to_kdc.c,rd_req.c}: Make
+	work with c++, reported by Hai Zaar
+
+	* lib/krb5/{digest.c,krb5.h}: Make work with c++, reported by Hai Zaar
+
+2007-08-20  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* lib/hdb/Makefile.am: EXTRA_DIST += hdb.schema
+
+2007-07-31  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* check return value of alloc functions, from Charles Longeau
+
+	* lib/krb5/principal.c: spelling.
+
+	* kadmin/kadmin.8: spelling
+
+	* lib/krb5/crypto.c: Check return values from alloc
+	functions. Prompted by patch of Charles Longeau.
+
+	* lib/krb5/n-fold.c: Make _krb5_n_fold return a error
+	code. Prompted by patch of Charles Longeau.
+
+2007-07-27  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* lib/krb5/init_creds.c: Always set the ticket options, use
+	KRB5_ADDRESSLESS_DEFAULT as the default value, this make the unset
+	tri-state not so useful.
+
+2007-07-24  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* tools/heimdal-gssapi.pc.in: Add LIB_pkinit to the list of
+	libraries.
+
+	* tools/heimdal-gssapi.pc.in: pkg-config file for libgssapi in
+	heimdal.
+
+	* tools/Makefile.am: Add heimdal-gssapi.pc and install it into
+	$(libdir)/pkgconfig
 
-2004-02-09  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-07-23  Love Hörnquist Åstrand  <lha@it.su.se>
 
-	* lib/asn1/der_length.c: 1.16: Fix len_unsigned for certain
-	negative integers, it got the length wrong, fix from Panasas, Inc.
+	* lib/krb5/pkinit.c: Add RFC3526 modp group14 as a default.
+
+2007-07-22  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* lib/hdb/dbinfo.c (get_dbinfo): use dbname instead of realm as
+	key if the entry is a correct entry.
+
+	* lib/krb5/get_cred.c: Make krb5_get_renewed_creds work, from
+	Gunther Deschner.
+
+	* lib/krb5/Makefile.am: Add test_renew to noinst_PROGRAMS.
+
+	* lib/krb5/test_renew.c: Test for krb5_get_renewed_creds.
+
+2007-07-21  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* lib/hdb/keys.c: Make parse_key_set handle key set string "v5",
+	from Peter Meinecke.
+
+	* kdc/kaserver.c: Don't ovewrite the error code, from Peter
+	Meinecke.
+
+2007-07-18  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* TODO-1.0: remove 
+
+	* Makefile.am: remove TODO-1.0
+
+2007-07-17  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* Heimdal 1.0 release branch cut here
+	
+	* doc/hx509.texi: use version.texi
 	
-	* lib/asn1/der_locl.h: 1.5: add _heim_len_unsigned, _heim_len_int
+	* doc/heimdal.texi: use version.texi
 	
-2004-01-26  Love Hörnquist Åstrand  <lha@it.su.se>
+	* doc/version.texi: version.texi
 
-	* lib/asn1/gen_length.c: 1.14: (length_type): TSequenceOf: add up
-	the size of all the elements, don't use just the size of the last
-	element.
+	* lib/hdb/db3.c: avoid type-punned pointer warning.
 
-	* lib/krb5/fcache.c: 1.40: (_krb5_xlock): catch EINVAL and assume
-	that it means that the filesystem doesn't support locking 1.39:
-	(_krb5_xlock): fix compile error in last commit 1.38: internally
-	export x{,un}lock and thus prefix them with _krb5_
-	
-2004-01-13  Love Hörnquist Åstrand  <lha@it.su.se>
+	* kdc/kx509.c: Use unsigned char * as argument to HMAC_Update to
+	please OpenSSL and gcc.
 
-	* kuser/kinit.c: 1.106: (renew_validate): if renewable_flag and
-	not time specifed, use "1 month"
-	1.105: make -9 work again
+	* kdc/digest.c: Use unsigned char * as argument to MD5_Update to
+	please OpenSSL and gcc.
 
-2004-01-09  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-07-16  Love Hörnquist Åstrand  <lha@it.su.se>
 
-	* lib/krb5/get_for_creds.c: 1.36: (add_addrs): don't increase
-	addr->len until in contains interesting data, use right iteration
-	counter when clearing the addresses 1.39: krb5_princ_realm ->
-	krb5_principal_get_realm 1.38: (krb5_get_forwarded_creds): use
-	KRB5_AUTH_CONTEXT_DO_TIME if we want timestamp in forwarded
-	krb-cred 1.39: (krb5_get_forwarded_creds): If tickets are
-	address-less, forward address-less tickets.  1.40:
-	(krb5_get_forwarded_creds): try to handle errors better for
-	previous commit 1.41: (add_addrs): don't add same address multiple
-	times
-	
-	* lib/krb5/get_cred.c: 1.96->1.97: rename get_krbtgt to
-	_krb5_get_krbtgt and export it
+	* include/Makefile.am: Add krb_err.h.
 
-2003-12-14  Love Hörnquist Åstrand  <lha@it.su.se>
+	* kdc/set_dbinfo.c: Print acl file too.
 
-	* kdc/kerberos5.c: part of 1.146->1.147: handle NULL client/server
-	names
+	* kdc/kerberos4.c: Error codes are just fine, remove XXX now.
 
-2003-12-03  Love Hörnquist Åstrand  <lha@it.su.se>
+	* lib/krb5/krb5-v4compat.h: Drop duplicate error codes.
 
-	* lib/krb5/crypto.c: 1.90->1.91: require cipher-text to be padded
-	to padsize 1.91->1.92: (decrypt_internal_derived): move up padsize
-	check to avoid memory leak
-	
-2003-12-01  Love Hörnquist Åstrand  <lha@it.su.se>
+	* kdc/kerberos4.c: switch to ET errors.
 
-	* kuser/kinit.c: 1.103->1.104: (main): return the return value
-	from simple_execvp
+	* lib/krb5/Makefile.am: Add krb_err.h to build_HEADERZ.
 
-2003-10-22  Love Hörnquist Åstrand  <lha@it.su.se>
+	* lib/krb5/v4_glue.c: If its a Kerberos 4 error-code, remove the
+	et BASE.
 
-	* lib/krb5/transited.c: 1.13->1.14: (krb5_domain_x500_encode):
-	always zero out encoding to make sure it have a defined value on
-	failure
+2007-07-15  Love Hörnquist Åstrand  <lha@it.su.se>
 
-	* lib/krb5/transited.c: 1.12->1.13: (krb5_domain_x500_encode): if
-	num_realms == 0, set encoding and return (avoids malloc(0)) check
-	return value from malloc
-	
-2003-10-21  Love Hörnquist Åstrand  <lha@it.su.se>
+	* lib/krb5/krb5-v4compat.h: Include "krb_err.h".
+
+	* lib/krb5/v4_glue.c: return more interesting error codes.
 
-	* doc/setup.texi: 1.35->1.36: spelling
+	* lib/krb5/plugin.c: Prefix enum plugin_type.
+
+	* lib/krb5/krb5_locl.h: Expose plugin structures.
 	
-	* kdc/kdc_locl.h: 1.58->1.59: add flag to always check transited
-	policy
+	* lib/krb5/krb5.h: Add plugin structures.
+
+	* lib/krb5/krb_err.et: V4 errors.
+
+	* lib/krb5/version-script.map: First version of version script.
+
+2007-07-13  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* kdc/kerberos5.c: Java 1.6 expects the name to be the same type,
+	lets allow that for uncomplicated name-types.
+
+2007-07-12  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* lib/krb5/v4_glue.c (_krb5_krb_rd_req): if ticket contains
+	address 0, its ticket less and don't really care about
+	from_addr. return better error codes.
+
+	* kpasswd/kpasswdd.c: Fix pointer vs strict alias rules.
+
+2007-07-11  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* lib/hdb/hdb-ldap.c: When using sambaNTPassword, avoid adding
+	more then one enctype 23 to krb5EncryptionType.
+
+	* lib/krb5/cache.c: Spelling.
+
+	* kdc/kerberos5.c: Don't send newer enctypes in ETYPE-INFO.
+	(get_pa_etype_info2): return the enctypes as sorted in the
+	database
+
+2007-07-10  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* kuser/kinit.c: krb5-v4compat.h defines prototypes for
+	v4 (semiprivate functions) in libkrb5, don't include
+	krb5-private.h any longer.
+
+	* lib/krb5/krbhst.c: Set error string when there is no KDC for a
+	realm.
+
+	* lib/krb5/Makefile.am: New library version.
+
+	* kdc/Makefile.am: New library version.
+
+	* lib/krb5/krb5_locl.h: Add default_cc_name_env.
+
+	* lib/krb5/cache.c (enviroment_changed): return non-zero if
+	enviroment that will determine default krb5cc name has changed.
+	(krb5_cc_default_name): also check if cached value is uptodate.
 
-	* doc/setup.texi: 1.27->1.35: many changes
+	* lib/krb5/krb5_locl.h: Drop pkinit_flags.
+
+2007-07-05  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* configure.in: add tests/java/Makefile
+
+	* lib/hdb/dbinfo.c: Add hdb_dbinfo_get_log_file.
+
+2007-07-04  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* kdc/kerberos5.c: Improve the default salt detection to avoid
+	returning v4 password salting to java that doesn't look at the
+	returning padata for salting.
+
+	* kdc: Split out krb5_kdc_set_dbinfo, From Andrew Bartlett
+
+2007-07-02  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* kdc/digest.c: Try harder to provide better error message for
+	digest messages.
+
+	* lib/krb5/Makefile.am: verify_krb5_conf_OBJECTS depends on
+	krb5-pr*.h, make -j finds this.
 	
-	* lib/krb5/get_cred.c: 1.95->1.96: get capath info from [capaths]
-	section
+2007-06-28  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* kdc/digest.c: On success, print username, not ip-adress.
 
-	* lib/krb5/rd_req.c: 1.50->1.51: (krb5_decrypt_ticket): try to
-	verify transited realms, unless the transited-policy-checked flag
-	is set
+2007-06-26  Love Hörnquist Åstrand  <lha@it.su.se>
 
-	* lib/krb5/transited.c:
-	1.12: (krb5_domain_x500_decode): set *num_realms to zero not num_realms
-	1.11: (krb5_domain_x500_decode): handle zero length tr data;
-	(krb5_check_transited): new function that does more useful stuff
+	* lib/krb5/get_cred.c: Add krb5_get_renewed_creds.
 
-	* kdc/kdc.8: 1.23->1.24: document enforce-transited-policy
+	* lib/krb5/krb5_get_credentials.3: add krb5_get_renewed_creds
+
+	* lib/krb5/pkinit.c: Use hx509_cms_unwrap_ContentInfo.
 	
-	* kdc/config.c: 1.47->1.48: add flag to always check transited
-	policy
+2007-06-25  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* doc/setup.texi: Add example for pkinit_win2k_require_binding
+	in [kdc] section.
+
+	* kdc/default_config.c: Rename require_binding to
+	win2k_require_binding to match client configuration.
+
+	* kdc/default_config.c: Add [kdc]pkinit_require_binding option.
+
+	* kdc/pkinit.c (pk_mk_pa_reply_enckey): only allow non-bound reply
+	if its not required.
+
+	* kdc/default_config.c: rename pkinit_princ_in_cert and add
+	pkinit_require_binding
+
+	* kdc/kdc.h: rename pkinit_princ_in_cert and add
+	pkinit_require_binding
+
+	* kdc/pkinit.c: rename pkinit_princ_in_cert
+
+2007-06-24  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* lib/krb5/pkinit.c: Adapt to hx509_verify_hostname change.
 
-	* kdc/kerberos5.c:
-	1.150: (fix_transited_encoding): also verify with policy,
-	unless asked not to
-	1.151: always check transited policy if flag set either globally
-	(on principal part of patch not pulled up)
-	1.152: (fix_transited_encoding): set transited type
-	1.153: (fix_transited_encoding): always print cross-realm information
+2007-06-21  Love Hörnquist Åstrand  <lha@it.su.se>
 
-2003-10-06  Love Hörnquist Åstrand  <lha@it.su.se>
+	* kdc/krb5tgs.c: Drop unused variable.
 
-	* lib/krb5/config_file.c: 1.48->1.49:
-	(krb5_config_parse_file_debug): punt if there is binding before a
-	section declaration.
-	Bug found by Arkadiusz Miskiewicz <arekm@pld-linux.org>
+	* kdc/krb5tgs.c: disable anonyous tgs requests
 
-	* kdc/kaserver.c: 1.21->1.23:
-	(do_getticket): if times data is shorter then 8 bytes, request is
-	malformed.
-	(do_authenticate): if request length is less then 8 bytes, its a
-	bad request and fail. Pointed out by Marco Foglia <marco@foglia.org>
+	* kdc/krb5tgs.c: Don't check PAC on cross realm for now.
 
-2003-09-22  Love Hörnquist Åstrand  <lha@it.su.se>
+	* kuser/kgetcred.c: Set KRB5_GC_CONSTRAINED_DELEGATION and parse
+	nametypes.
 
-	* lib/krb5/verify_krb5_conf.c: 1.17->1.18: add missing " within
-	#if 0 From: stefan sokoll <stefansokoll@yahoo.de>
+	* lib/krb5/krb5_principal.3: Document krb5_parse_nametype.
+
+	* lib/krb5/principal.c (krb5_parse_nametype): parse nametype and
+	return their integer values.
+
+	* lib/krb5/krb5.h (krb5_get_creds): Add
+	KRB5_GC_CONSTRAINED_DELEGATION.
+
+	* lib/krb5/get_cred.c (krb5_get_creds): if
+	KRB5_GC_CONSTRAINED_DELEGATION is set, set both request_anonymous
+	and constrained_delegation.
+
+2007-06-20  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* kdc/digest.c: Return an error message instead of dropping the
+	packet for more failure cases.
+
+	* lib/krb5/krb5_principal.3: Add KRB5_PRINCIPAL_UNPARSE_DISPLAY.
+
+	* appl/gssmask/gssmask.c (AcquirePKInitCreds): fail more
+	gracefully
 	
-2003-09-19  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-06-18  Love Hörnquist Åstrand  <lha@it.su.se>
 
-	* lib/krb5/rd_req.c:
-	1.47->1.48: (krb5_rd_req): allow caller to pass in a key
-	in the auth_context, they way processes that doesn't use the
-	keytab can still pass in the key of the service (matches behavior
-	of MIT Kerberos).
+	* lib/krb5/pac.c: make compile.
 	
-2003-09-18  Love Hörnquist Åstrand  <lha@it.su.se>
+	* lib/krb5/pac.c (verify_checksum): memset cksum to avoid using
+	pointer from stack.
+
+	* lib/krb5/plugin.c: Don't expose free pointer.
+
+	* lib/krb5/pkinit.c (_krb5_pk_load_id): fail directoy for first
+	calloc.
 	
-	* lib/krb5/crypto.c: 
-	1.87->1.88: (usage2arcfour): simplify, only
-	include special cases From: Luke Howard <lukeh@PADL.COM>
-	1.86->1.87: (arcfour_checksum_p): return true when is arcfour,
-	not when its not pointed out by Luke Howard
-	1.82->1.83: Do the arcfour checksum mapping for
-	krb5_create_checksum and krb5_verify_checksum, From: Luke Howard
-	<lukeh@PADL.COM>
-	1.81->1.82: (hmac): make it return an error
-	when out of memory, update callsites to either return error or use
-	krb5_abortx
-	(krb5_hmac): expose hmac
-	* lib/krb5/mk_req_ext.c: 1.26->1.27: (krb5_mk_req_internal):
-	when using arcfour-hmac-md5, use an unkeyed checksum
-	(rsa-md5), since Microsoft calculates the keyed checksum with
-	the subkey of the authenticator.
+	* lib/krb5/pkinit.c (get_reply_key*): don't expose freed memory
 
-	* lib/krb5/get_cred.c:
-	1.93->1.94 (init_tgs_req): make generation of subkey
-	optional on configuration parameter
-	[realms]realm={tgs_require_subkey=bool}
-	defaults to off. The RFC1510 weakly defines the correct behavior,
-	so old DCE secd apparently required the subkey to be there, and MS
-	will use it when its there. But the request isn't encrypted in the
-	subkey, so you get to choose if you want to talk to a MS mdc or a
-	old DCE secd.
+	* lib/krb5/krbhst.c: Host is static memory, don't free.
 
-	partly 1.91->1.92: (init_tgs_req): in case of error, don't
-	free in	the req_body addresses since they where pass in by caller
+	* lib/krb5/crypto.c (decrypt_internal_derived): make sure length
+	is longer then confounder + checksum.
 
-	lib/krb5/get_in_tkt.c:
-	1.108->1.1.09: (krb5_get_in_tkt): for compatibility with with
-	the mit implemtation, don't free `creds' argument when done, its up
-	the the caller to do that, also allow a NULL ccache.
+	* kdc: export get_dbinfo as krb5_kdc_set_dbinfo and call from
+	users. This to allows libkdc users to to specify their own
+	databases
 
-	* doc/ack.texi
-	1.16->1.17: update Luke Howard email address
+	* lib/krb5/pkinit.c (pk_rd_pa_reply_enckey): simplify handling of
+	content data (and avoid leaking memory).
 
-	* lib/hdb/hdb-ldap.c:
-	1.13->1.14: code rewrite from Luke Howard <lukeh@PADL.COM>
-	1.12->1.13: (LDAP_store): log what principal/dn failed
-	1.11->1.12: use int2HDBFlags/HDBFlags2int
-	From: Alberto Patino <jalbertop@aranea.com.mx>, 
-	Luke Howard <lukeh@PADL.COM>
-	Pointed out by Andrew Bartlett of Samba
-	1.10->1.11: (LDAP__connect): bind sasl "EXTERNAL" to ldap connection
-	(LDAP_store): remove superfluous argument to asprintf
-	From Alberto Patino <jalbertop@aranea.com.mx>
+	* kdc/misc.c (_kdc_db_fetch): set error string for failures.
+	
+2007-06-15  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* kdc/pkinit.c: Use KRB5_AUTHDATA_INITIAL_VERIFIED_CAS.
 
-	* lib/krb5/krb5.h:
-	1.214->1.2015: add KEYTYPE_ARCFOUR_56
+2007-06-13  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* kdc/pkinit.c: tell user when they got a pk-init request with
+	pkinit disabled.
+
+2007-06-12  Love Hörnquist Åstrand  <lha@it.su.se>
 	
-2003-09-12  Love Hörnquist Åstrand  <lha@it.su.se>
+	* lib/krb5/principal.c: Rename UNPARSE_NO_QUOTE to
+	UNPARSE_DISPLAY.
+
+	* lib/krb5/krb5.h: Rename UNPARSE_NO_QUOTE to UNPARSE_DISPLAY.
 
-	* lib/krb5/config_file.c: fix prototypes Fredrik Ljungberg
-	<flag@pobox.se>
+	* lib/krb5/principal.c: Make no-quote mean replace strange chars
+	with space.
+
+	* lib/krb5/principal.c: Support KRB5_PRINCIPAL_UNPARSE_NO_QUOTE.
+
+	* lib/krb5/krb5.h: Add KRB5_PRINCIPAL_UNPARSE_NO_QUOTE.
+
+	* lib/krb5/test_princ.c: Test quoteing.
+
+	* lib/krb5/pkinit.c: update (c)
 	
-2003-09-11  Love Hörnquist Åstrand  <lha@it.su.se>
+	* lib/krb5/get_cred.c: use krb5_sendto_context to talk to the KDC.
+
+	* lib/krb5/send_to_kdc.c (_krb5_kdc_retry): check if the whole
+	process needs to restart or just skip this KDC.
 
-	* lib/hdb/hdb_locl.h: 1.18->1.19: include <limits.h> for ULONG_MAX
-	noted by Wissler Magnus <M.Wissler@abalon.se> on heimdal-discuss
+	* lib/krb5/init_creds_pw.c: Use krb5_sendto_context to talk to
+	KDC.
+
+	* lib/krb5/krb5.h: Add sendto hooks and opaque structure.
+
+	* lib/krb5/krb5_rd_error.3: Update prototype.
+
+	* lib/krb5/send_to_kdc.c: Add hooks for processing the reply from
+	the server.
 	
-2003-08-29  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-06-11  Love Hörnquist Åstrand  <lha@it.su.se>
 
-	* lib/hdb/db3.c: 1.8->1.9: patch for working with DB4 on
-	heimdal-discuss From: Luke Howard <lukeh@PADL.COM> 1.9->1.10: try
-	to include more db headers
+	* lib/krb5/krb5_err.et: Some new error codes from RFC 4120.
 	
-2003-08-25  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-06-09  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* kdc/krb5tgs.c: Constify.
 
-	* kdc/connect.c: 1.92->1.93 (handle_tcp): handle recvfrom
-	returning 0 (connection closed) 1.91->1.92: (grow_descr):
-	increment the size after we succeed to allocate the space
+	* kdc/kerberos5.c: Constify.
+
+	* kdc/pkinit.c: Check for KRB5-PADATA-PK-AS-09-BINDING. Constify.
+
+2007-06-08  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* include/Makefile.am: Make krb5-types.h nodist_include_HEADERS.
+
+	* kdc/Makefile.am: EXTRA_DIST += version-script.map.
+	
+2007-06-07  Love Hörnquist Åstrand  <lha@it.su.se>
 	
-2003-08-15  Love Hörnquist Åstrand  <lha@it.su.se>
+	* Makefile.am (print-distdir): print name of dist
 
-	* lib/krb5/principal.c: 1.83->1.85: (unparse_name): len can't be
-	zero, so, don't check for that
-	(unparse_name): make sure there are space for a NUL, set *name to NULL
-	when there is a failure (so caller can't get hold of a freed
-	pointer)
+	* kdc/pkinit.c: Break out loading of mappings file to a separate
+	function and remove warning that it can't open the mapping file,
+	there are now mappings in the db, maybe the users uses that
+	instead...
 
-2003-05-08  Johan Danielsson  <joda@ratatosk.pdc.kth.se>
+	* lib/krb5/crypto.c: Require the raw key have the correct size and
+	do away with the minsize.  Minsize was a thing that originated
+	from RC2, but since RC2 is done in the x509/cms subsystem now
+	there is no need to keep that around.
 
-	* Release 0.6
+	* lib/hdb/dbinfo.c: If there is no default dbname, also check for
+	unset mkey_file and set it default mkey name, make backward compat
+	stuff work.
 
-2003-05-08  Love Hörnquist Åstrand  <lha@it.su.se>
+	* kdc/version-script.map: add new symbols
 
-	* kuser/klist.c: 1.68->1.69: print tokens even if there isn't v4
-	support
+	* kdc/kdc-replay.c: Also update krb5_context view of what the time
+	is.
 
-	* kuser/kdestroy.c: 1.14->1.15: destroy tokens even if there isn't
-	v4 support
+	* configure.in: add tests/can/Makefile
 
-	* kuser/kinit.c: 1.90->1.91: print tokens even if there isn't v4
-	support
+	* kdc/kdc-replay.c: Add --[version|help].
 
-2003-05-06  Johan Danielsson  <joda@pdc.kth.se>
+	* kdc/pkinit.c: Push down the kdc time into the x509 library.
 
-	* lib/krb5/name-45-test.c: need to use empty krb5.conf for some
-	tests
+	* kdc/connect.c: Move up krb5_kdc_save_request so we can catch the
+	reply data too.
 
-	* lib/asn1/check-gen.c: there is no \e escape sequence; replace
-	everything with hex-codes, and cast to unsigned char* to make some
-	compilers happy
+	* kdc/kdc-replay.c: verify reply by checking asn1 class, type and
+	tag of the reply if there is one.
 
-2003-05-06  Love Hörnquist Åstrand  <lha@it.su.se>
+	* kdc/process.c: Save asn1 class, type and tag of the reply if
+	there is one. Used to verify the reply in kdc-replay.
+
+2007-06-06  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* kdc/kdc_locl.h: extern for request_log.
+
+	* kdc/Makefile.am: Add kdc-replay.
+
+	* kdc/kdc-replay.c: Replay kdc messages to the KDC library.
+
+	* kdc/config.c: Pick up request_log from [kdc]kdc-request-log.
+
+	* kdc/connect.c: Option to save the request to disk.
+
+	* kdc/process.c (krb5_kdc_save_request): save request to file.
+
+	* kdc/process.c (krb5_kdc_process*): dont update _kdc_time
+	automagicly.
+	(krb5_kdc_update_time): set or get current kdc-time.
+
+	* kdc/pkinit.c (_kdc_pk_rd_padata): accept both pkcs-7 and
+	pkauthdata as the signeddata oid
+	
+	* kdc/pkinit.c (_kdc_pk_rd_padata): Try to log what went wrong.
 
-	* lib/krb5/get_in_tkt.c (make_pa_enc_timestamp): make sure first
-	argument to krb5_us_timeofday have correct type
+2007-06-05  Love Hörnquist Åstrand  <lha@it.su.se>
 	
-2003-05-05  Assar Westerlund  <assar@kth.se>
+	* kdc/pkinit.c: Use oid_id_pkcs7_data for pkinit-9 encKey reply to
+	match windows DC behavior better.
+	
+2007-06-04  Love Hörnquist Åstrand  <lha@it.su.se>
 
-	* include/make_crypto.c (main): include aes.h if ENABLE_AES
+	* configure.in: use test for -framework Security
 
-2003-05-05  Love Hörnquist Åstrand  <lha@it.su.se>
+	* appl/test/uu_server.c: Print status to stdout.
 
-	* NEWS: 1.108->1.110: fix text about gssapi compat
+	* kdc/digest.c (digest ntlm): provide log entires by setting ret
+	to an error.
 	
-2003-04-28  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-06-03  Love Hörnquist Åstrand  <lha@it.su.se>
 
-	* kdc/v4_dump.c: 1.4->1.5: (v4_prop_dump): limit strings length,
-	from openbsd
+	* doc/hx509.texi: Indent crl-sign.
 
-2003-04-24  Love Hörnquist Åstrand  <lha@it.su.se>
+	* doc/hx509.texi: One more crl-sign example.
 
-	* doc/programming.texi: 1.2-1.3: s/managment/management/, from jmc
-	<jmc@prioris.mini.pw.edu.pl>
+	* lib/krb5/test_princ.c: plug memory leaks.
 
-2003-04-22  Love Hörnquist Åstrand  <lha@it.su.se>
+	* lib/krb5/pac.c: plug memory leaks.
 
-	* lib/krb5/krbhst.c: 1.43->1.44: copy NUL too, from janj@wenf.org
-	via openbsd
+	* lib/krb5/test_pac.c: plug memory leaks.
 
-2003-04-17  Love Hörnquist Åstrand  <lha@it.su.se>
+	* lib/krb5/test_prf.c: plug memory leak.
 
-	* lib/asn1/der_copy.c (copy_general_string): use strdup
-	* lib/asn1/der_put.c: remove sprintf
-	* lib/asn1/gen.c: remove strcpy/sprintf
-	
-	* lib/krb5/name-45-test.c: use a more unique name then ratatosk so
-	that other (me) have such hosts in the local domain and the tests
-	fails, to take hokkigai.pdc.kth.se instead
-	
-	* lib/krb5/test_alname.c: add --version and --help
+	* lib/krb5/test_cc.c: plug memory leaks.
+
+	* doc/hx509.texi: Simple blob about publishing CRLs.
+
+	* doc/win2k.texi: drop text about enctypes.
 	
-2003-04-16  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-06-02  Love Hörnquist Åstrand  <lha@it.su.se>
 
-	* lib/krb5/krb5_warn.3: add krb5_get_err_text
+	* kdc/pkinit.c: In case of OCSP verification failure, referash
+	every 5 min. In case of success, refreash 2 min before expiring or
+	faster.
 	
-	* lib/krb5/transited.c: use strlcat/strlcpy, from openbsd
-	* lib/krb5/krbhst.c (srv_find_realm): use strlcpy, from openbsd
-	* lib/krb5/aname_to_localname.c (krb5_aname_to_localname): use
-	strlcpy, from openbsd
-	* kdc/hpropd.c: s/strcat/strlcat/, inspired from openbsd
-	* appl/kf/kfd.c: use strlcpy, from openbsd
+2007-05-31  Love Hörnquist Åstrand  <lha@it.su.se>
 	
-2003-04-16  Johan Danielsson  <joda@pdc.kth.se>
+	* lib/krb5/krb5_err.et: add error 68, WRONG_REALM
+
+	* kdc/pkinit.c: Handle the ms san in a propper way, still cheat
+	with the realm name.
 
-	* configure.in: fix for large file support in AIX, _LARGE_FILES
-	needs to be defined on the command line, since lex likes to
-	include stdio.h before we get to config.h
+	* kdc/kerberos5.c: If _kdc_pk_check_client failes, bail out
+	directly and hand the error back to the client.
 
-2003-04-16  Love Hörnquist Åstrand  <lha@it.su.se>
+	* lib/krb5/krb5_err.et: Add missing REVOCATION_STATUS_UNAVAILABLE
+	and fix error message for CLIENT_NAME_MISMATCH.
+
+	* kdc/pkinit.c: More logging for pk-init client mismatch.
+
+	* kdc/kerberos5.c: Also add a KRB5_PADATA_PK_AS_REQ_WIN for
+	windows pk-init (-9) to make MIT clients happy.
 	
-	* lib/krb5/*.3: Change .Fd #include <header.h> to .In header.h,
-	from Thomas Klausner <wiz@netbsd.org>
+2007-05-30  Love Hörnquist Åstrand  <lha@it.su.se>
 	
-	* lib/krb5/krb5.conf.5: spelling, from Thomas Klausner
-	<wiz@netbsd.org>
+	* kdc/pkinit.c: Force des3 for win2k.
+
+	* kdc/pkinit.c: Add wrapping to ContentInfo wrapping to
+	COMPAT_WIN2K.
 
-2003-04-15  Love Hörnquist Åstrand  <lha@it.su.se>
+	* lib/krb5/keytab_keyfile.c: Spelling.
 
-	* kdc/kerberos5.c: fix some more memory leaks
+	* kdc/pkinit.c: Allow matching by MS UPN SAN, note that this delta
+	doesn't deal with case of realm.
 	
-2003-04-11  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-05-16  Love Hörnquist Åstrand  <lha@it.su.se>
 
-	* appl/kf/kf.1: spelling, from jmc <jmc@prioris.mini.pw.edu.pl>
+	* lib/krb5/crypto.c (krb5_crypto_overhead): return static overhead
+	of encryption.
 	
-2003-04-08  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-05-10  Dave Love  <fx@gnu.org>
+	
+	* doc/win2k.texi: Update some URLs.
+
+2007-05-13  Love Hörnquist Åstrand  <lha@it.su.se>
 
-	* admin/ktutil.8: typos, from jmc <jmc@acn.waw.pl>
+	* kuser/kimpersonate.c: Fix version number of ticket, it should be
+	5 not the kvno.
 	
-2003-04-06  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-05-08  Love Hörnquist Åstrand  <lha@it.su.se>
 
-	* lib/krb5/krb5.3: s/kerberos/Kerberos/
-	* lib/krb5/krb5_data.3: s/kerberos/Kerberos/
-	* lib/krb5/krb5_address.3: s/kerberos/Kerberos/
-	* lib/krb5/krb5_ccache.3: s/kerberos/Kerberos/
-	* lib/krb5/krb5.conf.5: s/kerberos/Kerberos/
-	* kuser/kinit.1: s/kerberos/Kerberos/
-	* kdc/kdc.8: s/kerberos/Kerberos/
+	* doc/setup.texi: Salting is really Encryption types and salting.
 	
-2003-04-01  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-05-07  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* doc/setup.texi: spelling, from Ronny Blomme
 
-	* lib/krb5/test_alname.c: more krb5_aname_to_localname tests
+	* doc/win2k.texi: Fix ksetup /SetComputerPassword, from Ronny
+	Blomme
 	
-	* lib/krb5/aname_to_localname.c (krb5_aname_to_localname): when
-	converting too root, make sure user is ok according to
-	krb5_kuserok before allowing it.
+2007-05-02  Love Hörnquist Åstrand  <lha@it.su.se>
 
-	* lib/krb5/Makefile.am (noinst_PROGRAMS): += test_alname
+	* lib/hdb/dbinfo.c (hdb_get_dbinfo) If there are no database
+	specified, create one and let it use the defaults.
 	
-	* lib/krb5/test_alname.c: add test for krb5_aname_to_localname
+2007-04-27  Love Hörnquist Åstrand  <lha@it.su.se>
 	
-	* lib/krb5/crypto.c (krb5_DES_AFS3_CMU_string_to_key): used p1
-	instead of the "illegal" salt #~, same change as kth-krb did
-	1999. Problems occur with crypt() that behaves like AT&T crypt
-	(openssl does this). Pointed out by Marcus Watts.
+	* lib/hdb/test_dbinfo.c: test acl file
+
+	* lib/hdb/test_dbinfo.c: test acl file
+
+	* lib/hdb/dbinfo.c: add acl file
+
+	* etc: ignore Makefile.in
+
+	* Makefile.am: SUBDIRS += etc
+
+	* configure.in: Add etc/Makefile.
+
+	* etc/Makefile.am: make sure services.append is distributed
+
+2007-04-24  Love Hörnquist Åstrand  <lha@it.su.se>
 
-	* admin/change.c (kt_change): collect all principals we are going
-	to change, and pick the highest kvno and use that to guess what
-	kvno the resulting kvno is going to be. Now two ktutil change in a
-	row works. XXX fix the protocol to pass the kvno back.
+	* kdc: rename windc_init to krb5_kdc_windc_init
+
+	* kdc/version-script.map: version script for libkdc
+	
+	* kdc/Makefile.am: version script for libkdc
 	
-2003-03-31  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-04-23  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* lib/krb5/init_creds.c (krb5_get_init_creds_opt_get_error):
+	correct the order of the arguments.
+
+	* lib/hdb/Makefile.am: Add and test dbinfo.
+
+	* lib/hdb/hdb.h: Forward declaration for struct hdb_dbinfo;
 
-	* appl/kf/kf.1: afs->AFS, from jmc <jmc@acn.waw.pl>
+	* kdc/config.c: Use krb5_kdc_get_config and just fill in what the
+	users wanted differently.
+
+	* kdc/default_config.c: Make the default configuration fetch info
+	from the krb5.conf.
 	
-2003-03-30  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-04-22  Love Hörnquist Åstrand  <lha@it.su.se>
 
-	* doc/setup.texi: add description on how to turn on v4, 524 and
-	kaserver support
+	* lib/krb5/store.c (krb5_store_creds_tag): use session.keytype to
+	determine if to send the session-key, for the second place in the
+	function.
 
-2003-03-29  Love Hörnquist Åstrand  <lha@it.su.se>
+	* tools/krb5-config.in: rename des to hcrypto
 
-	* lib/krb5/verify_krb5_conf.c (appdefaults_entries): add afslog
-	and afs-use-524
+	* kuser/Makefile.am: depend on libheimntlm
 
-2003-03-28  Love Hörnquist Åstrand  <lha@it.su.se>
+	* kuser/kinit.c: Add --ntlm-domain that store the ntlm cred for
+	this domain if the Kerberos password auth worked.
 
-	* kdc/kerberos5.c (as_rep): when the second enctype_to_string
-	failes, remember to free memory from the first enctype_to_string
+	* kuser/klist.c: add new option --hidden that doesn't display
+	principal that starts with @
 
-	* lib/krb5/crypto.c (usage2arcfour): map KRB5_KU_TICKET to 2,
-	from Harald Joerg <harald.joerg@fujitsu-siemens.com>
-	(enctype_arcfour_hmac_md5): disable checksum_hmac_md5_enc
+	* tools/krb5-config.in: Add heimntlm when we use gssapi.
 
-	* lib/hdb/mkey.c (hdb_unseal_keys_mkey): truncate key to the key
-	length when key is longer then expected length, its probably
-	longer since the encrypted data was padded, reported by Aidan
-	Cully <aidan@kublai.com>
+	* lib/krb5/krb5_ccache.3 (krb5_cc_retrieve_cred): document what to
+	free 'cred' with.
 
-	* lib/krb5/crypto.c (krb5_enctype_keysize): return key size of
-	encyption type, inspired by Aidan Cully <aidan@kublai.com>
+	* lib/krb5/cache.c (krb5_cc_retrieve_cred): document what to free
+	'cred' with.
 	
-2003-03-27  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-04-21  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* lib/krb5/store.c (krb5_store_creds_tag): use session.keytype to
+	determine if to send the session-key.
 
-	* lib/krb5/keytab.c (krb5_kt_get_entry): avoid printing 0
-	(wildcard kvno) after principal when the keytab entry isn't found,
-	reported by Chris Chiappa <chris@chiappa.net>
+	* kcm/client.c (kcm_ccache_new_client): make root be able to pass
+	the name constraints, not the opposite. From Bryan Jacobs.
 	
-2003-03-26  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-04-20  Love Hörnquist Åstrand  <lha@it.su.se>
 
-	* doc/misc.texi: update 2b example to match reality (from
-	mattiasa@e.kth.se)
+	* kcm/acl.c: make compile again.
 
-	* doc/misc.texi: spelling and add `Configuring AFS clients'
-	subsection
+	* kcm/client.c: fix warning.
+	
+	* kcm: First, it allows root to ignore the naming conventions.
+	Second, it allows root to always perform any operation on any
+	ccache.  Note that root could do this anyway with FILE ccaches.
+	From Bryan Jacobs.
 
-2003-03-25  Love Hörnquist Åstrand  <lha@it.su.se>
+	* Rename libdes to libhcrypto.
 
-	* lib/krb5/krb5.3: add krb5_free_data_contents.3
-	
-	* lib/krb5/data.c: add krb5_free_data_contents for compat with MIT
-	API
+2007-04-19  Love Hörnquist Åstrand  <lha@it.su.se>
 
-	* lib/krb5/krb5_data.3: add krb5_free_data_contents for compat
-	with MIT API
+	* kinit: remove code that depend on kerberos 4 library
 	
-	* lib/krb5/krb5_verify_user.3: write more about how the ccache
-	argument should be inited when used
+	* kdc: remove code that depend on kerberos 4 library
 	
-2003-03-25  Johan Danielsson  <joda@pdc.kth.se>
+	* configure.in: Drop kerberos 4 support.
 
-	* lib/krb5/addr_families.c (krb5_print_address): make sure
-	print_addr is defined for the given address type; make addrports
-	printable
+	* kdc/hpropd.c (main): free the message when done with it.
 
-	* kdc/string2key.c: print the used enctype for kerberos 5 keys
+	* lib/krb5/pkinit.c (_krb5_get_init_creds_opt_free_pkinit):
+	remember to free memory too.
 
-2003-03-25  Love Hörnquist Åstrand  <lha@it.su.se>
+	* lib/krb5/pkinit.c (pk_rd_pa_reply_dh): free content-type when
+	done.
 
-	* lib/krb5/aes-test.c: add another arcfour test
+	* configure.in: test rk_VERSIONSCRIPT
 	
-2003-03-22  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-04-18  Love Hörnquist Åstrand  <lha@it.su.se>
 
-	* lib/krb5/aes-test.c: sneek in a test for arcfour-hmac-md5
-	
-2003-03-20  Love Hörnquist Åstrand  <lha@it.su.se>
-	
-	* lib/krb5/krb5_ccache.3: update .Dd
+	* fix-export: remove, all done by make dist now
 
-	* lib/krb5/krb5.3: sort in krb5_data functions
+2007-04-15  Love Hörnquist Åstrand  <lha@it.su.se>
 
-	* lib/krb5/Makefile.am (man_MANS): += krb5_data.3
+	* lib/krb5/krb5_get_credentials.3: spelling, from Jason McIntyre
 
-	* lib/krb5/krb5_data.3: document krb5_data
+2007-04-11  Love Hörnquist Åstrand  <lha@it.su.se>
 
-	* lib/krb5/init_creds_pw.c (krb5_get_init_creds_password): if
-	prompter is NULL, don't try to ask for a password to
-	change. reported by Iain Moffat @ ufl.edu via Howard Chu
-	<hyc@highlandsun.com>
+	* kdc/kstash.8: Spelling, from raga <raga@comcast.net> 
+	via Bjorn Sandell.
 
-2003-03-19  Love Hörnquist Åstrand  <lha@it.su.se>
+	* lib/krb5/store_mem.c: indent.
 
-	* lib/krb5/krb5_keytab.3: spelling, from
-	<jmc@prioris.mini.pw.edu.pl>
+	* lib/krb5/recvauth.c: Set error string.
 
-	* lib/krb5/krb5.conf.5: . means new line
-	
-	* lib/krb5/krb5.conf.5: spelling, from
-	<jmc@prioris.mini.pw.edu.pl>
+	* lib/krb5/rd_req.c: clear error strings.
 
-	* lib/krb5/krb5_auth_context.3: spelling, from
-	<jmc@prioris.mini.pw.edu.pl>
+	* lib/krb5/rd_cred.c: clear error string.
 
-2003-03-18  Love Hörnquist Åstrand  <lha@it.su.se>
+	* lib/krb5/pkinit.c: Set error strings.
 
-	* kuser/Makefile.am: INCLUDES: -I$(srcdir)/../lib/krb5
+	* lib/krb5/get_cred.c: Tell what principal we are not finding for
+	all KRB5_CC_NOTFOUND.
 	
-	* lib/krb5/convert_creds.c: add _krb5_krb_life_to_time
+2007-02-22  Love Hörnquist Åstrand  <lha@it.su.se>
 	
-	* lib/krb5/krb5-v4compat.h: add _krb5_krb_life_to_time
+	* kdc/kerberos5.c: Return the same error codes as a windows KDC.
 
-	* kdc/kdc_locl.h: 524 is independent of kerberos 4, so move out
-	#ifdef KRB4 from enable_v4_cross_realm since 524 needs it
+	* kuser/kinit.c: KRB5KDC_ERR_PREAUTH_FAILED is also a password
+	failed.
 	
-	* kdc/config.c: 524 is independent of kerberos 4, so move out
-	enable_v4_cross_realm from #ifdef KRB4 since 524 needs it
-	
-2003-03-17  Assar Westerlund  <assar@kth.se>
+	* kdc/kerberos5.c: Make handling of replying e_data more generic,
+	from metze.
 
-	* kdc/kdc.8: document --kerberos4-cross-realm
-	* kdc/kerberos4.c: pay attention to enable_v4_cross_realm
-	* kdc/kdc_locl.h (enable_v4_cross_realm): add
-	* kdc/524.c (encode_524_response): check the enable_v4_cross_realm
-	flag before giving out v4 tickets for foreign v5 principals
-	* kdc/config.c: add --enable-kerberos4-cross-realm option (default
-	to off)
+	* kdc/kerberos5.c: Fix (string const and shadow) warnings, from
+	metze.
 
-2003-03-17  Love Hörnquist Åstrand  <lha@it.su.se>
+	* lib/krb5/pac.c: Create the PAC element in the same order as
+	w2k3, maybe there's some broken code in windows which relies on
+	this... From metze.
 
-	* lib/krb5/Makefile.am (man_MANS) += krb5_aname_to_localname.3
+	* kdc/kerberos5.c: Select a session enctype from the list of the
+	crypto systems supported enctype, is supported by the client and
+	is one of the enctype of the enctype of the krbtgt.
+	
+	The later is used as a hint what enctype all KDC are supporting to
+	make sure a newer version of KDC wont generate a session enctype
+	that and older version of a KDC in the same realm can't decrypt.
+	
+	But if the KDC admin is paranoid and doesn't want to have "no the
+	best" enctypes on the krbtgt, lets save the best pick from the
+	client list and hope that that will work for any other KDCs.
 	
-	* lib/krb5/krb5_aname_to_localname.3: manpage for
-	krb5_aname_to_localname
+	Reported by metze.
 
-	* lib/krb5/krb5_kuserok.3: s/KRB5_USEROK/KRB5_KUSEROK/
+	* kdc/hprop.c (propagate_database): on any failure, drop the
+	connection to the peer and try next one.
 	
-2003-03-16  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-02-18  Love Hörnquist Åstrand  <lha@it.su.se>
 
-	* lib/krb5/Makefile.am (man_MANS): add krb5_set_default_realm.3
+	* lib/krb5/krb5_get_init_creds.3: document new options.
 
-	* lib/krb5/krb5.3: add manpages from krb5_set_default_realm.3
+	* kdc/krb5tgs.c: Only check service key for cross realm PACs.
 
-	* lib/krb5/krb5_set_default_realm.3: Manpage for
-	krb5_free_host_realm, krb5_get_default_realm,
-	krb5_get_default_realms, krb5_get_host_realm, and
-	krb5_set_default_realm.
+	* lib/krb5/init_creds.c: use the new merged flags field.
+	(krb5_get_init_creds_opt_set_win2k): new function, turn on all w2k
+	compat flags.
 
-	* admin/ktutil.8: s/entype/enctype/, from Igor Sobrado
-	<sobrado@acm.org> via NetBSD
+	* lib/krb5/init_creds_pw.c: use the new merged flags field.
 
-	* lib/krb5/krb5_keytab.3: add documention for krb5_kt_get_type
+	* lib/krb5/krb5_locl.h: merge all flags into one entity
 	
-	* lib/krb5/keytab.c (krb5_kt_get_type): get prefix/type of keytab
+2007-02-11  Dave Love  <fx@gnu.org>
 	
-	* lib/krb5/krb5.h (KRB5_KT_PREFIX_MAX_LEN): max length of prefix
+	* lib/krb5/krb5_aname_to_localname.3: Small fixes
 	
-	* lib/krb5/krb5_ccache.3: document krb5_cc_get_ops, add more
-	types, add krb5_fcc_ops and krb5_mcc_ops
+	* lib/krb5/krb5_digest.3: Small fixes
 	
-	* lib/krb5/cache.c (krb5_cc_get_ops): new function, return ops for
-	a id
+	* kuser/kimpersonate.1: Small fixes
 
-2003-03-15  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-02-17  Love Hörnquist Åstrand  <lha@it.su.se>
 
-	* doc/intro.texi: add reference to source code, binaries and the
-	manual
+	* lib/krb5/init_creds_pw.c (find_pa_data): if there is no list,
+	there is no entry.
 
-	* lib/krb5/krb5.3: krb5.h isn't in krb5 directory in heimdal
-	
-2003-03-14  Love Hörnquist Åstrand  <lha@it.su.se>
+	* kdc/krb5tgs.c: Don't check PACs on cross realm requests.
+
+	* lib/krb5/krb5.h: add KRB5_KU_CANONICALIZED_NAMES.
 
-	* kdc/kdc.8: better/difrent english
+	* lib/krb5/init_creds_pw.c: Verify client referral data.
 
-	* kdc/kdc.8: . -> .\n, copyright/license
+	* kdc/kerberos5.c: switch some "return ret" to "goto out".
 	
-	* kdc/kdc.8: changed configuration file -> restart kdc
+	* kdc/kerberos5.c: Pass down canonicalize request to hdb layer,
+	sign client referrals.
+	
+	* lib/hdb/hdb.h: Add HDB_F_CANON.
+
+	* lib/hdb: add simple alias support to the database backends
+
+2007-02-16  Love Hörnquist Åstrand  <lha@it.su.se>
 
-	* kdc/kerberos4.c: add krb4 into the most error messages written
-	to the logfile
+	* kuser/kinit.c: Add canonicalize flag.
 
-	* lib/krb5/krb5_ccache.3: add missing name of argument
-	(krb5_context) to most functions
+	* lib/krb5/init_creds_pw.c: Use EXTRACT_TICKET_* flags, support
+	canonicalize.
 
-2003-03-13  Love Hörnquist Åstrand  <lha@it.su.se>
+	* lib/krb5/init_creds.c (krb5_get_init_creds_opt_set_canonicalize):
+	new function.
+	
+	* lib/krb5/get_cred.c: Use EXTRACT_TICKET_* flags.
 
-	* lib/krb5/kuserok.c (krb5_kuserok): preserve old behviour of
-	function and return FALSE when there isn't a local account for
-	`luser'.
+	* lib/krb5/get_in_tkt.c: Use EXTRACT_TICKET_* flags.
 
-	* lib/krb5/krb5_kuserok.3: fix prototype, spelling and more text
-	describing the function
+	* lib/krb5/krb5_locl.h: Add EXTRACT_TICKET_* flags.
+	
+2007-02-15  Love Hörnquist Åstrand  <lha@it.su.se>
 
-2003-03-12  Love Hörnquist Åstrand  <lha@it.su.se>
+	* lib/krb5/test_princ.c: test parsing enterprise-names.
 
-	* lib/krb5/cache.c (krb5_cc_default): if krb5_cc_default_name
-	returned memory, don't return ENOMEM
+	* lib/krb5/principal.c: Add support for parsing enterprise-names.
 
-2003-03-11  Love Hörnquist Åstrand  <lha@it.su.se>
+	* lib/krb5/krb5.h: Add KRB5_PRINCIPAL_PARSE_ENTERPRISE.
 
-	* lib/krb5/krb5.3: add krb5_address stuff and sort
+	* lib/hdb/hdb-ldap.c: Make work again.
 	
-	* lib/krb5/krb5_address.3: fix krb5_addr2sockaddr description
+2007-02-11  Dave Love  <fx@gnu.org>
+
+	* kcm/client.c (kcm_ccache_new_client): Cast snprintf'ed value.
 	
-	* lib/krb5/Makefile.am (man_MANS): += krb5_address.3
+2007-02-10  Love Hörnquist Åstrand  <lha@it.su.se>
 	
-	* lib/krb5/krb5_address.3: document types krb5_address and
-	krb5_addresses and their helper functions
+	* doc/setup.texi: prune trailing space
 
-2003-03-10  Love Hörnquist Åstrand  <lha@it.su.se>
+	* lib/hdb/db.c: Be better at setting and clearing error string.
 
-	* lib/krb5/Makefile.am (man_MANS): += krb5_kuserok.3
+	* lib/hdb/hdb.c: Be better at setting and clearing error string.
 
-	* lib/krb5/krb5_kuserok.3: spelling, from cizzi@it.su.se
+2007-02-09  Love Hörnquist Åstrand  <lha@it.su.se>
 
-	* lib/krb5/Makefile.am (man_MANS): += krb5_ccache.3
+	* lib/krb5/keytab.c (krb5_kt_get_entry): Use krb5_kt_get_full_name
+	to print out the keytab name.
 
-	* lib/krb5/krb5_ccache.3: spelling, from cizzi@it.su.se
+	* doc/setup.texi: Spelling, from Guido Guenther
 	
-	* lib/krb5/krb5.3: add more functions
+2007-02-08  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* lib/krb5/rd_cred.c: Plug memory leak, from Michael B Allen.
+
+2007-02-06  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* lib/krb5/test_store.c (test_uint16): unsigned ints can't be
+	negative
 	
-	* lib/krb5/krb5_ccache.3: document krb5_ccache and krb5_cc
-	functions
+2007-02-03  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* kdc/pkinit.c: pass extra flags for detached signatures.
+
+	* lib/krb5/pkinit.c: pass extra flags for detached signatures.
+
+	* kdc/digest.c: Remove debug output.
 
-	* lib/krb5/krb5_kuserok.3: document krb5_kuserok
+	* kuser/kdigest.c: Add support for ms-chap-v2 client.
 	
-	* lib/krb5/krb5_verify_user.3: document
-	krb5_verify_opt_set_flags(opt, KRB5_VERIFY_LREALMS) behavior
+2007-02-02  Love Hörnquist Åstrand  <lha@it.su.se>
+		
+	* kdc/digest.c: Fix ms-chap-v2 get_masterkey
 
-	* lib/krb5/krb5_verify_user.3: document krb5_verify_opt* and
-	krb5_verify_user_opt
+	* kdc/digest.c: Fix ms-chap-v2 mutual response auth code.
 
-	* lib/krb5/*.[0-9]: add copyright/licenses on more manpages
+	* kuser/kdigest.c: Print session key if there is one.
 
-	* kuser/kdestroy.c (main): handle that krb5_cc_default_name can
-	return NULL
+	* lib/krb5/digest.c: rename hash-a1 to session key
 
-	* lib/krb5/Makefile.am (libkrb5_la_LDFLAGS): bump minor
-	(TESTS): add test_cc
+	* kdc/digest.c: Add get_master from RFC 3079 3.4 for MS-CHAP-V2
 
-	* lib/krb5/test_cc.c: test some
-	krb5_cc_default_name/krb5_cc_set_default_name combinations
+	* kuser/kdigest.c: print rsp if there is one, from Klas.
+
+	* kdc/digest.c: Use right size, from Klas Lindfors.
+
+	* kuser/kdigest.c: Set client nonce if avaible, from Klas.
+
+	* kdc/digest.c: First version from kllin.
+
+	* kuser/kdigest.c: Don't restrict the type.
+	
+2007-02-01  Love Hörnquist Åstrand  <lha@it.su.se>
 	
-	* lib/krb5/context.c (init_context_from_config_file): set
-	default_cc_name to NULL
-	(krb5_free_context): free default_cc_name if set
+	* kuser/kdigest-commands.in: add --client-response
 
-	* lib/krb5/cache.c (krb5_cc_set_default_name): new function
-	(krb5_cc_default_name): use krb5_cc_set_default_name
+	* kuser/kdigest.c: Print status instead of response.
 
-	* lib/krb5/krb5.h (krb5_context_data): add default_cc_name
+	* kdc/digest.c: Better logging and return status = FALSE when
+	checksum doesn't match.
+
+	* kdc/digest.c: Check the digest response in the KDC.
+
+	* lib/krb5/digest.c: New functions to send in requestResponse to
+	KDC and get status of the request.
+
+	* kdc/digest.c: Add support for MS-CHAP v2.
+
+	* lib/hdb/hdb-ldap.c: Set hdb->hdb_db for ldap.
 	
-2003-02-25  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-01-31  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* fix-export: Make hx509.info too
 
-	* appl/kf/kf.1: s/securly/securely/ from NetBSD
+	* kdc/digest.c: don't verify identifier in CHAP, its the client
+	that chooses it.
 	
-2003-02-18  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-01-23  Love Hörnquist Åstrand  <lha@it.su.se>
 
-	* kdc/connect.c: s/intialize/initialize, from
-	<jmc@prioris.mini.pw.edu.pl>
+	* lib/krb5/Makefile.am: Basic test of prf.
 
-2003-02-17  Love Hörnquist Åstrand  <lha@it.su.se>
+	* lib/krb5/test_prf.c: Basic test of prf.
 
-	* configure.in: add AM_MAINTAINER_MODE
+	* lib/krb5/mit_glue.c: Add MIT glue for Kerberos RFC 3961 PRF
+	functions.
+
+	* lib/krb5/crypto.c: Add Kerberos RFC 3961 PRF functions.
+
+	* lib/krb5/krb5_data.3: Document krb5_data_cmp.
+
+	* lib/krb5/data.c: Add krb5_data_cmp.
+	
+2007-01-20  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* kdc/kx509.c: Don't use C99 syntax.
+	
+2007-01-17  Love Hörnquist Åstrand  <lha@it.su.se>
 	
-2003-02-16  Love Hörnquist Åstrand  <lha@it.su.se>
+	* configure.in: its LIBADD_roken (and shouldn't really exist, our
+	libtool usage it broken)
 
-	* **/*.[0-9]: add copyright/licenses on all manpages
+	* configure.in: Add an extra variable for roken, LIBADD, that
+	should be used for library depencies.
 
-2003-14-16  Jacques Vidrine  <nectar@kth.se>
+	* lib/krb5/send_to_kdc.c (krb5_sendto): zero out receive buffer.
 
-	* lib/krb5/get_in_tkt.c (init_as_req): Send only a single
-	PA-ENC-TIMESTAMP in the AS-REQ, using the first encryption
-	type specified by the KDC.
+	* lib/krb5/krb5_init_context.3: fix mdoc errors
 
-2003-02-15  Love Hörnquist Åstrand  <lha@it.su.se>
+	* Heimdal 0.8 branch cut today
 
-	* fix-export: some autoconf put their version number in
-	autom4te.cache, so remove autom4te*.cache
+	* doc/hx509.texi: Spelling and more about proxy certificates.
+
+	* configure.in: check for arc4random
 	
-	* fix-export: make sure $1 is a directory
+2007-01-16  Love Hörnquist Åstrand  <lha@it.su.se>
 	
-2003-02-04  Love Hörnquist Åstrand  <lha@it.su.se>
+	* lib/krb5/send_to_kdc.c (krb5_sendto): zero receive krb5_data
+	before starting
 
-	* kpasswd/kpasswdd.8: spelling, from jmc <jmc@prioris.mini.pw.edu.pl>
+	* tools/heimdal-build.sh: make cvs keep quiet
 
-	* kdc/kdc.8: spelling, from jmc <jmc@prioris.mini.pw.edu.pl>
+	* kuser/kverify.c: Use argument as principal if passed an
+	argument. Bug report from Douglas E. Engert
 	
-2003-01-31  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-01-15  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* lib/krb5/rd_req.c (krb5_rd_req_ctx): The code failed to consider
+	the enc_tkt_in_skey case, from Douglas E. Engert.
+
+	* kdc/kx509.c: Issue certificates.
 
-	* kdc/hpropd.8: s/databases/a database/ s/Not/not/
+	* kdc/config.c: Parse kx509/kca configuration.
 
-	* kdc/hprop.8: add missing .
+	* kdc/kdc.h: add kx509 config
 	
-2003-01-30  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-01-14  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* kdc/kerberos5.c (_kdc_find_padata): if there is not padata,
+	there is nothing find.
+
+	* doc/hx509.texi: Examples for pk-init.
 
-	* lib/krb5/krb5.conf.5: documentation for of boolean, etypes,
-	address, write out encryption type in sentences, s/Host/host
+	* doc/hx509.texi: About extending ca lifetime and sub cas.
 	
-2003-01-26  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-01-13  Love Hörnquist Åstrand <lha@it.su.se>
+	
+	* doc/hx509.texi: More about certificates.
+	
+2007-01-12  Love Hörnquist Åstrand  <lha@it.su.se>
 
-	* lib/asn1/check-gen.c: add checks for Authenticator too
+	* doc/hx509.texi: add Application requirements and write about
+	xmpp/jabber.
 	
-2003-01-25  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-01-11  Love Hörnquist Åstrand  <lha@it.su.se>
 
-	* doc/setup.texi: in the hprop example, use hprop and the first
-	component, not host
+	* doc/hx509.texi: More about issuing certificates.
 
-	* lib/krb5/get_addrs.c (find_all_addresses): address-less
-	point-to-point might not have an address, just ignore
-	those. Reported by Harald Barth.
+	* doc/hx509.texi: Start of a x.509 manual.
 
-2003-01-23  Love Hörnquist Åstrand  <lha@it.su.se>
+	* include/Makefile.am: remove install headerfiles
 
-	* lib/krb5/verify_krb5_conf.c (check_section): when key isn't
-	found, don't print out all known keys
+	* lib/krb5/test_pac.c: Use more interesting data to cause more
+	errors.
 
-	* lib/krb5/verify_krb5_conf.c (syslogvals): mark up where severity
-	and facility start resp
-	(check_log): find_value() returns -1 when key isn't found
+	* include/Makefile.am: remove install headerfiles
 
-	* lib/krb5/crypto.c (_krb5_aes_cts_encrypt): make key argument a
-	'const void *' to avoid AES_KEY being exposed in krb5-private.h
-	
-	* lib/krb5/krb5.conf.5: add [kdc]use_2b
+	* lib/krb5/mcache.c: MCC_CURSOR not used, remove.
 
-	* kdc/524.c (encode_524_response): its 2b not b2
-	
-	* doc/misc.texi: quote @ where missing
+	* lib/krb5/crypto.c: macro kcrypto_oid_enc now longer used
+
+	* lib/krb5/rd_safe.c (krb5_rd_safe): set length before trying to
+	allocate data
 	
-	* lib/asn1/Makefile.am: add check-gen
+2007-01-10  Love Hörnquist Åstrand  <lha@it.su.se>
 	
-	* lib/asn1/check-gen.c: add Principal check
+	* doc/setup.texi: Hint about hxtool validate.
+
+	* appl/test/uu_server.c: print both "server" and "client"
+
+	* kdc/krb5tgs.c: Rename keys to be more obvious what they do.
+
+	* kdc/kerberos5.c: Use other keys to sign PAC with. From Andrew
+	Bartlett
 	
-	* lib/asn1/check-common.h: move generic asn1/der functions from
-	check-der.c to here
+	* kdc/windc.c: ident, spelling.
 
-	* lib/asn1/check-common.c: move generic asn1/der functions from
-	check-der.c to here
+	* kdc/windc_plugin.h: indent.
 
-	* lib/asn1/check-der.c: move out the generic asn1/der functions to
-	a common file
+	* kdc/krb5tgs.c: Pass down server entry to verify_pac function.
+	from Andrew Bartlett
 
-2003-01-22  Love Hörnquist Åstrand  <lha@it.su.se>
+	* kdc/windc.c: pass down server entry to verify_pac function, from
+	Andrew Bartlett
 
-	* doc/misc.texi: more text about afs, how to get get your KeyFile,
-	and how to start use 2b tokens
+	* kdc/windc_plugin.h: pass down server entry to verify_pac
+	function, from Andrew Bartlett
 
-	* lib/krb5/krb5.conf.5: spelling, from Jason McIntyre
-	<jmc@cvs.openbsd.org>
+	* configure.in: Provide a automake symbol ENABLE_SHARED if shared
+	libraries are built.
+
+	* lib/krb5/rd_req.c (krb5_rd_req_ctx): Use the correct keyblock
+	when verifying the PAC.  From Andrew Bartlett.
 	
-2003-01-21  Jacques Vidrine  <nectar@kth.se>
+2007-01-09  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* lib/krb5/test_pac.c: move around to code test on real PAC.
 
-	* kuser/kuser_locl.h: include crypto-headers.h for
-	des_read_pw_string prototype
+	* lib/krb5/pac.c: A tiny 2 char diffrence that make the code work
+	for real.
 
-2003-01-16  Love Hörnquist Åstrand  <lha@it.su.se>
+	* lib/krb5/test_pac.c: Test more PAC (note that the values used in
+	this test is wrong, they have to be fixed when the pac code is
+	fixed).
 
-	* admin/ktutil.8: document -v, --verbose
+	* doc/setup.texi: Update to new hxtool issue-certificate usage
 
-	* admin/get.c (kt_get): make getarg usage consistent with other
-	other parts of ktutil
+	* lib/krb5/init_creds_pw.c: Make sure we don't sent both ENC-TS
+	and PK-INIT pa data, no need to expose our password protecting our
+	PKCS12 key.
 
-	* admin/copy.c (kt_copy): remove adding verbose_flag to args
-	struct, since it will overrun the args array (from Sumit Bose)
+	* kuser/klist.c (print_cred_verbose): include ticket length in the
+	verbose output
 	
-2003-01-15  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-01-08  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* lib/krb5/acache.c (loadlib): pass RTLD_LAZY to dlopen, without
+	it linux is unhappy.
 
-	* lib/krb5/krb5.conf.5: write more about [realms] REALM = { kdc =
-	... }
+	* lib/krb5/plugin.c (loadlib): pass RTLD_LAZY to dlopen, without
+	it linux is unhappy.
 
-	* lib/krb5/aes-test.c: test vectors in aes-draft
-	
-	* lib/krb5/Makefile.am: add aes-test.c
+	* lib/krb5/name-45-test.c: One of the hosts I sometimes uses is
+	named "bar.domain", this make one of the tests pass when it
+	shouldn't.
 
-	* lib/krb5/crypto.c: Add support for AES
-	(draft-raeburn-krb-rijndael-krb-02), not enabled by default.
-	(HMAC_SHA1_DES3_checksum): rename to SP_HMAC_SHA1_checksum and modify
-	to support checksumtype that are have a shorter wireformat then
-	their output block size.
-	
-	* lib/krb5/crypto.c (struct encryption_type): split the blocksize
-	into blocksize and padsize, padsize is the minimum padding
-	size. they are the same for now
-	(enctype_*): add padsize
-	(encrypt_internal): use padsize
-	(encrypt_internal_derived): use padsize
-	(wrapped_length): use padsize
-	(wrapped_length_dervied): use padsize
+2007-01-05  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* doc/setup.texi: Change --key argument to --out-key.
 
-	* lib/krb5/crypto.c: add extra `opaque' argument to string_to_key
-	function for each enctype in preparation enctypes that uses
-	`Encryption and Checksum Specifications for Kerberos 5' draft
+	* kuser/kimpersonate.1: mangle my name
 	
-	* lib/asn1/k5.asn1: add checksum and enctype for AES from
-	draft-raeburn-krb-rijndael-krb-02.txt
+2007-01-04  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* doc/setup.texi: describe how to use hx509 to create
+	certificates.
 
-	* lib/krb5/krb5.h (krb5_keytype): add KEYTYPE_AES128,
-	KEYTYPE_AES256
+	* tools/heimdal-build.sh: Add --distcheck.
 
-2003-01-14  Love Hörnquist Åstrand  <lha@it.su.se>
+	* kdc/kerberos5.c: Check for KRB5_PADATA_PA_PAC_REQUEST to check
+	if we should include the PAC in the krbtgt.
 
-	* lib/hdb/common.c (_hdb_fetch): handle error code from
-	hdb_value2entry
+	* kdc/pkinit.c (_kdc_as_rep): check if
+	krb5_generate_random_keyblock failes.
 
-	* kdc/Makefile.am: always include kerberos4.c and 524.c in
-	kdc_SOURCES to support 524
+	* kdc/kerberos5.c (_kdc_as_rep): check if
+	krb5_generate_random_keyblock failes.
 
-	* kdc/524.c: always compile in support for 524
-	
-	* kdc/kdc_locl.h: move out krb/524 protos from under #ifdef KRB4
+	* kdc/krb5tgs.c (tgs_build_reply): check if
+	krb5_generate_random_keyblock failes.
+
+	* kdc/krb5tgs.c: Scope etype.
+
+	* lib/krb5/rd_req.c: Make it possible to turn off PAC check, its
+	default on.
+
+	* lib/krb5/rd_req.c (krb5_rd_req_ctx): If there is a PAC, verify
+	its server signature.
+
+	* kdc/kerberos5.c (_kdc_as_rep): call windc client access hook.
+	(_kdc_tkt_add_if_relevant_ad): constify in data argument.
+
+	* kdc/windc_plugin.h: More comments add a client_access hook.
+
+	* kdc/windc.c: Add _kdc_windc_client_access.
+
+	* kdc/krb5tgs.c: rename functions after export some more pac
+	functions.
+
+	* lib/krb5/test_pac.c: export some more pac functions.
+
+	* lib/krb5/pac.c: export some more pac functions.
+
+	* kdc/krb5tgs.c: Resign the PAC in tgsreq if we have a PAC.
+
+	* configure.in: add tests/plugin/Makefile
 	
-	* kdc/config.c: always compile in support for 524
+2007-01-03  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* kdc/krb5tgs.c: Get right key for PAC krbtgt verification.
+
+	* kdc/config.c: spelling
+
+	* lib/krb5/krb5.h: typedef for krb5_pac.
+
+	* kdc/headers.h: Include <windc_plugin.h>.
+
+	* kdc/Makefile.am: Include windc.c and use windc_plugin.h
+
+	* kdc/krb5tgs.c: Call callbacks for emulating a Windows Domain
+	Controller.
+
+	* kdc/kerberos5.c: Call callbacks for emulating a Windows Domain
+	Controller.  Move the some of the log related stuff to its own
+	function.
+
+	* kdc/config.c: Init callbacks for emulating a Windows Domain
+	Controller.
+
+	* kdc/windc.c: Rename the init function to windc instead of pac.
+
+	* kdc/windc.c: Callbacks specific to emulating a Windows Domain
+	Controller.
+
+	* kdc/windc_plugin.h: Callbacks specific to emulating a Windows
+	Domain Controller.
+
+	* lib/krb5/Makefile.am: add krb5_HEADERS to build_HEADERZ
+
+	* lib/krb5/pac.c: Support all keyed checksum types.
 	
-	* kdc/connect.c: always compile in support for 524
+2007-01-02  Love Hörnquist Åstrand  <lha@it.su.se>
 	
-	* kdc/kerberos4.c: export encode_v4_ticket() and get_des_key()
-	even when we build without kerberos 4, 524 needs them
+	* lib/krb5/pac.c (krb5_pac_get_types): Return list of types.
 	
-	* lib/krb5/convert_creds.c, lib/krb5/krb5-v4compat.h: Split out
-	Kerberos 4 help functions/structures so other parts of the source
-	tree can use it (like the KDC)
+	* lib/krb5/test_pac.c: test krb5_pac_get_types
+
+	* lib/krb5/krbhst.c: Add KRB5_KRBHST_KCA.
+
+	* lib/krb5/krbhst.c: Add KRB5_KRBHST_KCA.
 
+	* lib/krb5/krb5.h: Add KRB5_KRBHST_KCA.
+
+	* lib/krb5/test_pac.c: test Add/remove pac buffer functions.
+
+	* lib/krb5/pac.c: Add/remove pac buffer functions.
+
+	* lib/krb5/pac.c: sprinkle const
+
+	* lib/krb5/pac.c: rename DCHECK to CHECK
+	
+	* Happy New Year.

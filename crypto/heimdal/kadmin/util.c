@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2002 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2006 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -34,7 +34,7 @@
 #include "kadmin_locl.h"
 #include <parse_units.h>
 
-RCSID("$Id: util.c,v 1.39 2003/04/14 11:55:27 lha Exp $");
+RCSID("$Id: util.c 21745 2007-07-31 16:11:25Z lha $");
 
 /*
  * util.c - functions for parsing, unparsing, and editing different
@@ -49,6 +49,10 @@ get_response(const char *prompt, const char *def, char *buf, size_t len);
  */
 
 struct units kdb_attrs[] = {
+    { "allow-digest",		KRB5_KDB_ALLOW_DIGEST },
+    { "allow-kerberos4",	KRB5_KDB_ALLOW_KERBEROS4 },
+    { "trusted-for-delegation",	KRB5_KDB_TRUSTED_FOR_DELEGATION },
+    { "ok-as-delegate",		KRB5_KDB_OK_AS_DELEGATE },
     { "new-princ",		KRB5_KDB_NEW_PRINC },
     { "support-desmd5",		KRB5_KDB_SUPPORT_DESMD5 },
     { "pwchange-service",	KRB5_KDB_PWCHANGE_SERVICE },
@@ -114,7 +118,7 @@ parse_attributes (const char *resp, krb5_flags *attr, int *mask, int bit)
     } else if(*resp == '?') {
 	print_flags_table (kdb_attrs, stderr);
     } else {
-	fprintf (stderr, "Unable to parse '%s'\n", resp);
+	fprintf (stderr, "Unable to parse \"%s\"\n", resp);
     }
     return -1;
 }
@@ -178,6 +182,7 @@ str2time_t (const char *str, time_t *t)
     struct tm tm, tm2;
 
     memset (&tm, 0, sizeof (tm));
+    memset (&tm2, 0, sizeof (tm2));
 
     if(strcasecmp(str, "never") == 0) {
 	*t = 0;
@@ -194,15 +199,20 @@ str2time_t (const char *str, time_t *t)
     if (p == NULL)
 	return -1;
 
-    /* Do it on the end of the day */
-    tm2.tm_hour = 23;
-    tm2.tm_min  = 59;
-    tm2.tm_sec  = 59;
+    while(isspace((unsigned char)*p))
+	p++;
 
-    if(strptime (p, "%H:%M:%S", &tm2) != NULL) {
+    /* XXX this is really a bit optimistic, we should really complain
+       if there was a problem parsing the time */
+    if(p[0] != '\0' && strptime (p, "%H:%M:%S", &tm2) != NULL) {
 	tm.tm_hour = tm2.tm_hour;
 	tm.tm_min  = tm2.tm_min;
 	tm.tm_sec  = tm2.tm_sec;
+    } else {
+	/* Do it on the end of the day */
+	tm.tm_hour = 23;
+	tm.tm_min  = 59;
+	tm.tm_sec  = 59;
     }
 
     *t = tm2time (tm, 0);
@@ -223,11 +233,10 @@ parse_timet (const char *resp, krb5_timestamp *value, int *mask, int bit)
 	if(mask)
 	    *mask |= bit;
 	return 0;
-    } else if(*resp == '?') {
-	printf ("Print date on format YYYY-mm-dd [hh:mm:ss]\n");
-    } else {
-	fprintf (stderr, "Unable to parse time '%s'\n", resp);
-    }
+    } 
+    if(*resp != '?')
+	fprintf (stderr, "Unable to parse time \"%s\"\n", resp);
+    fprintf (stderr, "Print date on format YYYY-mm-dd [hh:mm:ss]\n");
     return -1;
 }
 
@@ -313,7 +322,7 @@ parse_deltat (const char *resp, krb5_deltat *value, int *mask, int bit)
     } else if(*resp == '?') {
 	print_time_table (stderr);
     } else {
-	fprintf (stderr, "Unable to parse time '%s'\n", resp);
+	fprintf (stderr, "Unable to parse time \"%s\"\n", resp);
     }
     return -1;
 }
@@ -482,9 +491,13 @@ is_expression(const char *string)
     return 0;
 }
 
-/* loop over all principals matching exp */
+/*
+ * Loop over all principals matching exp.  If any of calls to `func'
+ * failes, the first error is returned when all principals are
+ * processed.
+ */
 int
-foreach_principal(const char *exp, 
+foreach_principal(const char *exp_str, 
 		  int (*func)(krb5_principal, void*), 
 		  const char *funcname,
 		  void *data)
@@ -492,15 +505,15 @@ foreach_principal(const char *exp,
     char **princs;
     int num_princs;
     int i;
-    krb5_error_code ret;
+    krb5_error_code saved_ret = 0, ret = 0;
     krb5_principal princ_ent;
     int is_expr;
 
     /* if this isn't an expression, there is no point in wading
        through the whole database looking for matches */
-    is_expr = is_expression(exp);
+    is_expr = is_expression(exp_str);
     if(is_expr)
-	ret = kadm5_get_principals(kadm_handle, exp, &princs, &num_princs);
+	ret = kadm5_get_principals(kadm_handle, exp_str, &princs, &num_princs);
     if(!is_expr || ret == KADM5_AUTH_LIST) {
 	/* we might be able to perform the requested opreration even
            if we're not allowed to list principals */
@@ -508,7 +521,7 @@ foreach_principal(const char *exp,
 	princs = malloc(sizeof(*princs));
 	if(princs == NULL)
 	    return ENOMEM;
-	princs[0] = strdup(exp);
+	princs[0] = strdup(exp_str);
 	if(princs[0] == NULL){ 
 	    free(princs);
 	    return ENOMEM;
@@ -524,12 +537,18 @@ foreach_principal(const char *exp,
 	    continue;
 	}
 	ret = (*func)(princ_ent, data);
-	if(ret)
+	if(ret) {
+	    krb5_clear_error_string(context);
 	    krb5_warn(context, ret, "%s %s", funcname, princs[i]);
+	    if (saved_ret == 0)
+		saved_ret = ret;
+	}
 	krb5_free_principal(context, princ_ent);
     }
+    if (ret == 0 && saved_ret != 0)
+	ret = saved_ret;
     kadm5_free_name_list(kadm_handle, princs, &num_princs);
-    return 0;
+    return ret;
 }
 
 /*
@@ -556,11 +575,11 @@ get_response(const char *prompt, const char *def, char *buf, size_t len)
     osig = signal(SIGINT, interrupt);
     if(setjmp(jmpbuf)) {
 	signal(SIGINT, osig);
-	printf("\n");
+	fprintf(stderr, "\n");
 	return 1;
     }
 
-    printf("%s [%s]:", prompt, def);
+    fprintf(stderr, "%s [%s]:", prompt, def);
     if(fgets(buf, len, stdin) == NULL) {
 	int save_errno = errno;
 	if(ferror(stdin))
@@ -601,14 +620,14 @@ hex2n (char c)
 
 int
 parse_des_key (const char *key_string, krb5_key_data *key_data,
-	       const char **err)
+	       const char **error)
 {
     const char *p = key_string;
     unsigned char bits[8];
     int i;
 
     if (strlen (key_string) != 16) {
-	*err = "bad length, should be 16 for DES key";
+	*error = "bad length, should be 16 for DES key";
 	return 1;
     }
     for (i = 0; i < 8; ++i) {
@@ -617,7 +636,7 @@ parse_des_key (const char *key_string, krb5_key_data *key_data,
 	d1 = hex2n(p[2 * i]);
 	d2 = hex2n(p[2 * i + 1]);
 	if (d1 < 0 || d2 < 0) {
-	    *err = "non-hex character";
+	    *error = "non-hex character";
 	    return 1;
 	}
 	bits[i] = (d1 << 4) | d2;
@@ -629,6 +648,10 @@ parse_des_key (const char *key_string, krb5_key_data *key_data,
 	key_data[i].key_data_type[0]     = ETYPE_DES_CBC_CRC;
 	key_data[i].key_data_length[0]   = 8;
 	key_data[i].key_data_contents[0] = malloc(8);
+	if (key_data[i].key_data_contents[0] == NULL) {
+	    *error = "malloc";
+	    return ENOMEM;
+	}
 	memcpy (key_data[i].key_data_contents[0], bits, 8);
 	/* salt */
 	key_data[i].key_data_type[1]     = KRB5_PW_SALT;

@@ -33,9 +33,9 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: net_read.c,v 1.6 2002/08/21 09:08:06 joda Exp $");
+RCSID("$Id: net_read.c 13863 2004-05-25 21:46:46Z lha $");
 
-krb5_ssize_t
+krb5_ssize_t KRB5_LIB_FUNCTION
 krb5_net_read (krb5_context context,
 	       void *p_fd,
 	       void *buf,

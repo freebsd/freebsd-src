@@ -32,7 +32,7 @@
 
 #include "login_locl.h"
 
-RCSID("$Id: conf.c,v 1.3 2000/05/29 16:52:24 assar Exp $");
+RCSID("$Id: conf.c 8302 2000-05-29 16:52:24Z assar $");
 
 static char *confbuf;
 

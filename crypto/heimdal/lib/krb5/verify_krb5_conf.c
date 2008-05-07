@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999 - 2003 Kungliga Tekniska Högskolan
+ * Copyright (c) 1999 - 2005 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -35,16 +35,19 @@
 #include <getarg.h>
 #include <parse_bytes.h>
 #include <err.h>
-RCSID("$Id: verify_krb5_conf.c,v 1.17.2.2 2004/02/13 16:19:44 lha Exp $");
+RCSID("$Id: verify_krb5_conf.c 22233 2007-12-08 21:43:37Z lha $");
 
 /* verify krb5.conf */
 
 static int dumpconfig_flag = 0;
 static int version_flag = 0;
 static int help_flag	= 0;
+static int warn_mit_syntax_flag = 0;
 
 static struct getargs args[] = {
     {"dumpconfig", 0,      arg_flag,       &dumpconfig_flag, 
+     "show the parsed config files", NULL },
+    {"warn-mit-syntax", 0, arg_flag,       &warn_mit_syntax_flag, 
      "show the parsed config files", NULL },
     {"version",	0,	arg_flag,	&version_flag,
      "print version", NULL },
@@ -138,23 +141,68 @@ check_host(krb5_context context, const char *path, char *data)
     int ret;
     char hostname[128];
     const char *p = data;
+    struct addrinfo hints;
+    char service[32];
+    int defport;
     struct addrinfo *ai;
+
+    hints.ai_flags = 0;
+    hints.ai_family = PF_UNSPEC;
+    hints.ai_socktype = 0;
+    hints.ai_protocol = 0;
+
+    hints.ai_addrlen = 0;
+    hints.ai_canonname = NULL;
+    hints.ai_addr = NULL;
+    hints.ai_next = NULL;
+    
     /* XXX data could be a list of hosts that this code can't handle */
     /* XXX copied from krbhst.c */
     if(strncmp(p, "http://", 7) == 0){
         p += 7;
+	hints.ai_socktype = SOCK_STREAM;
+	strlcpy(service, "http", sizeof(service));
+	defport = 80;
     } else if(strncmp(p, "http/", 5) == 0) {
         p += 5;
+	hints.ai_socktype = SOCK_STREAM;
+	strlcpy(service, "http", sizeof(service));
+	defport = 80;
     }else if(strncmp(p, "tcp/", 4) == 0){
         p += 4;
+	hints.ai_socktype = SOCK_STREAM;
+	strlcpy(service, "kerberos", sizeof(service));
+	defport = 88;
     } else if(strncmp(p, "udp/", 4) == 0) {
         p += 4;
+	hints.ai_socktype = SOCK_DGRAM;
+	strlcpy(service, "kerberos", sizeof(service));
+	defport = 88;
+    } else {
+	hints.ai_socktype = SOCK_DGRAM;
+	strlcpy(service, "kerberos", sizeof(service));
+	defport = 88;
     }
     if(strsep_copy(&p, ":", hostname, sizeof(hostname)) < 0) {
 	return 1;
     }
     hostname[strcspn(hostname, "/")] = '\0';
-    ret = getaddrinfo(hostname, "telnet" /* XXX */, NULL, &ai);
+    if(p != NULL) {
+	char *end;
+	int tmp = strtol(p, &end, 0);
+	if(end == p) {
+	    krb5_warnx(context, "%s: failed to parse port number in %s", 
+		       path, data);
+	    return 1;
+	}
+	defport = tmp;
+	snprintf(service, sizeof(service), "%u", defport);
+    }
+    ret = getaddrinfo(hostname, service, &hints, &ai);
+    if(ret == EAI_SERVICE && !isdigit((unsigned char)service[0])) {
+	snprintf(service, sizeof(service), "%u", defport);
+	ret = getaddrinfo(hostname, service, &hints, &ai);
+    }
     if(ret != 0) {
 	krb5_warnx(context, "%s: %s (%s)", path, gai_strerror(ret), hostname);
 	return 1;
@@ -162,17 +210,16 @@ check_host(krb5_context context, const char *path, char *data)
     return 0;
 }
 
-#if 0
 static int
 mit_entry(krb5_context context, const char *path, char *data)
 {
-    krb5_warnx(context, "%s is only used by MIT Kerberos", path);
+    if (warn_mit_syntax_flag)
+	krb5_warnx(context, "%s is only used by MIT Kerberos", path);
     return 0;
 }
-#endif
 
 struct s2i {
-    char *s;
+    const char *s;
     int val;
 };
 
@@ -304,6 +351,12 @@ struct entry all_strings[] = {
     { NULL }
 };
 
+struct entry all_boolean[] = {
+    { "", krb5_config_string, check_boolean },
+    { NULL }
+};
+
+
 struct entry v4_name_convert_entries[] = {
     { "host", krb5_config_list, all_strings },
     { "plain", krb5_config_list, all_strings },
@@ -313,13 +366,16 @@ struct entry v4_name_convert_entries[] = {
 struct entry libdefaults_entries[] = {
     { "accept_null_addresses", krb5_config_string, check_boolean },
     { "capath", krb5_config_list, all_strings },
+    { "check_pac", krb5_config_string, check_boolean },
     { "clockskew", krb5_config_string, check_time },
     { "date_format", krb5_config_string, NULL },
+    { "default_cc_name", krb5_config_string, NULL },
     { "default_etypes", krb5_config_string, NULL },
     { "default_etypes_des", krb5_config_string, NULL },
     { "default_keytab_modify_name", krb5_config_string, NULL },
     { "default_keytab_name", krb5_config_string, NULL },
     { "default_realm", krb5_config_string, NULL },
+    { "dns_canonize_hostname", krb5_config_string, check_boolean },
     { "dns_proxy", krb5_config_string, NULL },
     { "dns_lookup_kdc", krb5_config_string, check_boolean },
     { "dns_lookup_realm", krb5_config_string, check_boolean },
@@ -328,6 +384,7 @@ struct entry libdefaults_entries[] = {
     { "encrypt", krb5_config_string, check_boolean },
     { "extra_addresses", krb5_config_string, NULL },
     { "fcache_version", krb5_config_string, check_numeric },
+    { "fcc-mit-ticketflags", krb5_config_string, check_boolean },
     { "forward", krb5_config_string, check_boolean },
     { "forwardable", krb5_config_string, check_boolean },
     { "http_proxy", krb5_config_string, check_host /* XXX */ },
@@ -342,21 +399,38 @@ struct entry libdefaults_entries[] = {
     { "ticket_lifetime", krb5_config_string, check_time },
     { "time_format", krb5_config_string, NULL },
     { "transited_realms_reject", krb5_config_string, NULL },
+    { "no-addresses", krb5_config_string, check_boolean },
     { "v4_instance_resolve", krb5_config_string, check_boolean },
     { "v4_name_convert", krb5_config_list, v4_name_convert_entries },
     { "verify_ap_req_nofail", krb5_config_string, check_boolean },
+    { "max_retries", krb5_config_string, check_time },
+    { "renew_lifetime", krb5_config_string, check_time },
+    { "proxiable", krb5_config_string, check_boolean },
+    { "warn_pwexpire", krb5_config_string, check_time },
+    /* MIT stuff */
+    { "permitted_enctypes", krb5_config_string, mit_entry },
+    { "default_tgs_enctypes", krb5_config_string, mit_entry },
+    { "default_tkt_enctypes", krb5_config_string, mit_entry },
     { NULL }
 };
 
 struct entry appdefaults_entries[] = {
     { "afslog", krb5_config_string, check_boolean },
     { "afs-use-524", krb5_config_string, check_524 },
+    { "encrypt", krb5_config_string, check_boolean },
+    { "forward", krb5_config_string, check_boolean },
     { "forwardable", krb5_config_string, check_boolean },
     { "proxiable", krb5_config_string, check_boolean },
     { "ticket_lifetime", krb5_config_string, check_time },
     { "renew_lifetime", krb5_config_string, check_time },
     { "no-addresses", krb5_config_string, check_boolean },
     { "krb4_get_tickets", krb5_config_string, check_boolean },
+    { "pkinit_anchors", krb5_config_string, NULL },
+    { "pkinit_win2k", krb5_config_string, NULL },
+    { "pkinit_win2k_require_binding", krb5_config_string, NULL },
+    { "pkinit_require_eku", krb5_config_string, NULL },
+    { "pkinit_require_krbtgt_otherName", krb5_config_string, NULL },
+    { "pkinit_require_hostname_match", krb5_config_string, NULL },
 #if 0
     { "anonymous", krb5_config_string, check_boolean },
 #endif
@@ -378,7 +452,7 @@ struct entry realms_entries[] = {
     { "v4_instance_convert", krb5_config_list, all_strings },
     { "v4_domains", krb5_config_string, NULL },
     { "default_domain", krb5_config_string, NULL },
-#if 0
+    { "win2k_pkinit", krb5_config_string, NULL },
     /* MIT stuff */
     { "admin_keytab", krb5_config_string, mit_entry },
     { "acl_file", krb5_config_string, mit_entry },
@@ -394,7 +468,6 @@ struct entry realms_entries[] = {
     { "default_principal_flags", krb5_config_string, mit_entry },
     { "supported_enctypes", krb5_config_string, mit_entry },
     { "database_name", krb5_config_string, mit_entry },
-#endif
     { NULL }
 };
 
@@ -408,6 +481,8 @@ struct entry kdc_database_entries[] = {
     { "realm", krb5_config_string, NULL },
     { "dbname", krb5_config_string, NULL },
     { "mkey_file", krb5_config_string, NULL },
+    { "acl_file", krb5_config_string, NULL },
+    { "log_file", krb5_config_string, NULL },
     { NULL }
 };
 
@@ -422,13 +497,25 @@ struct entry kdc_entries[] = {
     { "enable-kerberos4", krb5_config_string, check_boolean },
     { "enable-524", krb5_config_string, check_boolean },
     { "enable-http", krb5_config_string, check_boolean },
-    { "check_ticket-addresses", krb5_config_string, check_boolean },
-    { "allow-null-addresses", krb5_config_string, check_boolean },
+    { "check-ticket-addresses", krb5_config_string, check_boolean },
+    { "allow-null-ticket-addresses", krb5_config_string, check_boolean },
     { "allow-anonymous", krb5_config_string, check_boolean },
     { "v4_realm", krb5_config_string, NULL },
     { "enable-kaserver", krb5_config_string, check_boolean },
     { "encode_as_rep_as_tgs_rep", krb5_config_string, check_boolean },
     { "kdc_warn_pwexpire", krb5_config_string, check_time },
+    { "use_2b", krb5_config_list, NULL },
+    { "enable-pkinit", krb5_config_string, check_boolean },
+    { "pkinit_identity", krb5_config_string, NULL },
+    { "pkinit_anchors", krb5_config_string, NULL },
+    { "pkinit_pool", krb5_config_string, NULL },
+    { "pkinit_revoke", krb5_config_string, NULL },
+    { "pkinit_kdc_ocsp", krb5_config_string, NULL },
+    { "pkinit_principal_in_certificate", krb5_config_string, NULL },
+    { "pkinit_dh_min_bits", krb5_config_string, NULL },
+    { "pkinit_allow_proxy_certificate", krb5_config_string, NULL },
+    { "hdb-ldap-create-base", krb5_config_string, NULL },
+    { "v4-realm", krb5_config_string, NULL },
     { NULL }
 };
 
@@ -436,6 +523,7 @@ struct entry kadmin_entries[] = {
     { "password_lifetime", krb5_config_string, check_time },
     { "default_keys", krb5_config_string, NULL },
     { "use_v4_salt", krb5_config_string, NULL },
+    { "require-preauth", krb5_config_string, check_boolean },
     { NULL }
 };
 struct entry log_strings[] = {
@@ -444,13 +532,26 @@ struct entry log_strings[] = {
 };
 
 
-#if 0
+/* MIT stuff */
 struct entry kdcdefaults_entries[] = {
     { "kdc_ports", krb5_config_string, mit_entry },
     { "v4_mode", krb5_config_string, mit_entry },
     { NULL }
 };
-#endif
+
+struct entry capaths_entries[] = {
+    { "", krb5_config_list, all_strings },
+    { NULL }
+};
+
+struct entry password_quality_entries[] = {
+    { "policies", krb5_config_string, NULL },
+    { "external_program", krb5_config_string, NULL },
+    { "min_classes", krb5_config_string, check_numeric },
+    { "min_length", krb5_config_string, check_numeric },
+    { "", krb5_config_list, all_strings },
+    { NULL }
+};
 
 struct entry toplevel_sections[] = {
     { "libdefaults" , krb5_config_list, libdefaults_entries },
@@ -460,10 +561,11 @@ struct entry toplevel_sections[] = {
     { "kdc", krb5_config_list, kdc_entries },
     { "kadmin", krb5_config_list, kadmin_entries },
     { "appdefaults", krb5_config_list, appdefaults_entries },
-#if 0
+    { "gssapi", krb5_config_list, NULL },
+    { "capaths", krb5_config_list, capaths_entries },
+    { "password_quality", krb5_config_list, password_quality_entries },
     /* MIT stuff */
     { "kdcdefaults", krb5_config_list, kdcdefaults_entries },
-#endif
     { NULL }
 };
 
@@ -532,15 +634,17 @@ main(int argc, char **argv)
     krb5_context context;
     krb5_error_code ret;
     krb5_config_section *tmp_cf;
-    int optind = 0;
+    int optidx = 0;
 
     setprogname (argv[0]);
 
     ret = krb5_init_context(&context);
-    if (ret)
-	errx (1, "krb5_init_context failed");
+    if (ret == KRB5_CONFIG_BADFORMAT)
+	errx (1, "krb5_init_context failed to parse configuration file");
+    else if (ret)
+	errx (1, "krb5_init_context failed with %d", ret);
 
-    if(getarg(args, sizeof(args) / sizeof(args[0]), argc, argv, &optind))
+    if(getarg(args, sizeof(args) / sizeof(args[0]), argc, argv, &optidx))
 	usage(1);
     
     if (help_flag)
@@ -551,8 +655,8 @@ main(int argc, char **argv)
 	exit(0);
     }
 
-    argc -= optind;
-    argv += optind;
+    argc -= optidx;
+    argv += optidx;
 
     tmp_cf = NULL;
     if(argc == 0)

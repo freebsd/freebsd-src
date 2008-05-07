@@ -31,7 +31,7 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: kuser_locl.h,v 1.13 2003/01/21 14:13:51 nectar Exp $ */
+/* $Id: kuser_locl.h 20458 2007-04-19 20:41:27Z lha $ */
 
 #ifndef __KUSER_LOCL_H__
 #define __KUSER_LOCL_H__
@@ -75,9 +75,6 @@
 #include <err.h>
 #include <krb5.h>
 
-#ifdef KRB4
-#include <krb.h>
-#endif
 #if defined(HAVE_SYS_IOCTL_H) && SunOS != 40
 #include <sys/ioctl.h>
 #endif

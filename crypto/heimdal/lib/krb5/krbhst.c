@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 2001 - 2003 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,8 +33,9 @@
 
 #include "krb5_locl.h"
 #include <resolve.h>
+#include "locate_plugin.h"
 
-RCSID("$Id: krbhst.c,v 1.43.2.1 2003/04/22 15:00:38 lha Exp $");
+RCSID("$Id: krbhst.c 21457 2007-07-10 12:53:25Z lha $");
 
 static int
 string_to_proto(const char *string)
@@ -66,6 +67,9 @@ srv_find_realm(krb5_context context, krb5_krbhst_info ***res, int *count,
     int proto_num;
     int def_port;
 
+    *res = NULL;
+    *count = 0;
+
     proto_num = string_to_proto(proto);
     if(proto_num < 0) {
 	krb5_set_error_string(context, "unknown protocol `%s'", proto);
@@ -82,11 +86,8 @@ srv_find_realm(krb5_context context, krb5_krbhst_info ***res, int *count,
     snprintf(domain, sizeof(domain), "_%s._%s.%s.", service, proto, realm);
 
     r = dns_lookup(domain, dns_type);
-    if(r == NULL) {
-	*res = NULL;
-	*count = 0;
+    if(r == NULL)
 	return KRB5_KDC_UNREACH;
-    }
 
     for(num_srv = 0, rr = r->head; rr; rr = rr->next) 
 	if(rr->type == T_SRV)
@@ -112,6 +113,7 @@ srv_find_realm(krb5_context context, krb5_krbhst_info ***res, int *count,
 		while(--num_srv >= 0)
 		    free((*res)[num_srv]);
 		free(*res);
+		*res = NULL;
 		return ENOMEM;
 	    }
 	    (*res)[num_srv++] = hi;
@@ -139,13 +141,14 @@ struct krb5_krbhst_data {
     unsigned int flags;
     int def_port;
     int port;			/* hardwired port number if != 0 */
-#define KD_CONFIG		1
-#define KD_SRV_UDP		2
-#define KD_SRV_TCP		4
-#define KD_SRV_HTTP		8
-#define KD_FALLBACK	       16
-#define KD_CONFIG_EXISTS       32
-
+#define KD_CONFIG		 1
+#define KD_SRV_UDP		 2
+#define KD_SRV_TCP		 4
+#define KD_SRV_HTTP		 8
+#define KD_FALLBACK		16
+#define KD_CONFIG_EXISTS	32
+#define KD_LARGE_MSG		64
+#define KD_PLUGIN	       128
     krb5_error_code (*get_next)(krb5_context, struct krb5_krbhst_data *, 
 				krb5_krbhst_info**);
 
@@ -161,12 +164,26 @@ krbhst_empty(const struct krb5_krbhst_data *kd)
 }
 
 /*
+ * Return the default protocol for the `kd' (either TCP or UDP)
+ */
+
+static int
+krbhst_get_default_proto(struct krb5_krbhst_data *kd)
+{
+    if (kd->flags & KD_LARGE_MSG)
+	return KRB5_KRBHST_TCP;
+    return KRB5_KRBHST_UDP;
+}
+
+
+/*
  * parse `spec' into a krb5_krbhst_info, defaulting the port to `def_port'
  * and forcing it to `port' if port != 0
  */
 
 static struct krb5_krbhst_info*
-parse_hostspec(krb5_context context, const char *spec, int def_port, int port)
+parse_hostspec(krb5_context context, struct krb5_krbhst_data *kd,
+	       const char *spec, int def_port, int port)
 {
     const char *p = spec;
     struct krb5_krbhst_info *hi;
@@ -175,7 +192,7 @@ parse_hostspec(krb5_context context, const char *spec, int def_port, int port)
     if(hi == NULL)
 	return NULL;
        
-    hi->proto = KRB5_KRBHST_UDP;
+    hi->proto = krbhst_get_default_proto(kd);
 
     if(strncmp(p, "http://", 7) == 0){
 	hi->proto = KRB5_KRBHST_HTTP;
@@ -213,13 +230,37 @@ parse_hostspec(krb5_context context, const char *spec, int def_port, int port)
     return hi;
 }
 
-static void
-free_krbhst_info(krb5_krbhst_info *hi)
+void
+_krb5_free_krbhst_info(krb5_krbhst_info *hi)
 {
     if (hi->ai != NULL)
 	freeaddrinfo(hi->ai);
     free(hi);
 }
+
+krb5_error_code
+_krb5_krbhost_info_move(krb5_context context,
+			krb5_krbhst_info *from,
+			krb5_krbhst_info **to)
+{
+    size_t hostnamelen = strlen(from->hostname);
+    /* trailing NUL is included in structure */
+    *to = calloc(1, sizeof(**to) + hostnamelen); 
+    if(*to == NULL) {
+	krb5_set_error_string(context, "malloc - out of memory");
+	return ENOMEM;
+    }
+
+    (*to)->proto = from->proto;
+    (*to)->port = from->port;
+    (*to)->def_port = from->def_port;
+    (*to)->ai = from->ai;
+    from->ai = NULL;
+    (*to)->next = NULL;
+    memcpy((*to)->hostname, from->hostname, hostnamelen + 1);
+    return 0;
+}
+
 
 static void
 append_host_hostinfo(struct krb5_krbhst_data *kd, struct krb5_krbhst_info *host)
@@ -230,7 +271,7 @@ append_host_hostinfo(struct krb5_krbhst_data *kd, struct krb5_krbhst_info *host)
 	if(h->proto == host->proto && 
 	   h->port == host->port && 
 	   strcmp(h->hostname, host->hostname) == 0) {
-	    free_krbhst_info(host);
+	    _krb5_free_krbhst_info(host);
 	    return;
 	}
     *kd->end = host;
@@ -243,7 +284,7 @@ append_host_string(krb5_context context, struct krb5_krbhst_data *kd,
 {
     struct krb5_krbhst_info *hi;
 
-    hi = parse_hostspec(context, host, def_port, port);
+    hi = parse_hostspec(context, kd, host, def_port, port);
     if(hi == NULL)
 	return ENOMEM;
     
@@ -255,7 +296,7 @@ append_host_string(krb5_context context, struct krb5_krbhst_data *kd,
  * return a readable representation of `host' in `hostname, hostlen'
  */
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_krbhst_format_string(krb5_context context, const krb5_krbhst_info *host, 
 			  char *hostname, size_t hostlen)
 {
@@ -296,7 +337,7 @@ make_hints(struct addrinfo *hints, int proto)
  * in `host'.  free:ing is handled by krb5_krbhst_free.
  */
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_krbhst_get_addrinfo(krb5_context context, krb5_krbhst_info *host,
 			 struct addrinfo **ai)
 {
@@ -329,13 +370,14 @@ get_next(struct krb5_krbhst_data *kd, krb5_krbhst_info **host)
 
 static void
 srv_get_hosts(krb5_context context, struct krb5_krbhst_data *kd, 
-	const char *proto, const char *service)
+	      const char *proto, const char *service)
 {
     krb5_krbhst_info **res;
     int count, i;
 
-    srv_find_realm(context, &res, &count, kd->realm, "SRV", proto, service,
-		   kd->port);
+    if (srv_find_realm(context, &res, &count, kd->realm, "SRV", proto, service,
+		       kd->port))
+	return;
     for(i = 0; i < count; i++)
 	append_host_hostinfo(kd, res[i]);
     free(res);
@@ -382,6 +424,15 @@ fallback_get_hosts(krb5_context context, struct krb5_krbhst_data *kd,
     struct addrinfo hints;
     char portstr[NI_MAXSERV];
 
+    /* 
+     * Don't try forever in case the DNS server keep returning us
+     * entries (like wildcard entries or the .nu TLD)
+     */
+    if(kd->fallback_count >= 5) {
+	kd->flags |= KD_FALLBACK;
+	return 0;
+    }
+
     if(kd->fallback_count == 0)
 	asprintf(&host, "%s.%s.", serv_string, kd->realm);
     else
@@ -411,8 +462,8 @@ fallback_get_hosts(krb5_context context, struct krb5_krbhst_data *kd,
 	hi->proto = proto;
 	hi->port  = hi->def_port = port;
 	hi->ai    = ai;
-	memmove(hi->hostname, host, hostlen - 1);
-	hi->hostname[hostlen - 1] = '\0';
+	memmove(hi->hostname, host, hostlen);
+	hi->hostname[hostlen] = '\0';
 	free(host);
 	append_host_hostinfo(kd, hi);
 	kd->fallback_count++;
@@ -420,12 +471,99 @@ fallback_get_hosts(krb5_context context, struct krb5_krbhst_data *kd,
     return 0;
 }
 
+/*
+ * Fetch hosts from plugin
+ */
+
+static krb5_error_code 
+add_locate(void *ctx, int type, struct sockaddr *addr)
+{
+    struct krb5_krbhst_info *hi;
+    struct krb5_krbhst_data *kd = ctx;
+    char host[NI_MAXHOST], port[NI_MAXSERV];
+    struct addrinfo hints, *ai;
+    socklen_t socklen;
+    size_t hostlen;
+    int ret;
+
+    socklen = socket_sockaddr_size(addr);
+
+    ret = getnameinfo(addr, socklen, host, sizeof(host), port, sizeof(port),
+		      NI_NUMERICHOST|NI_NUMERICSERV);
+    if (ret != 0)
+	return 0;
+
+    make_hints(&hints, krbhst_get_default_proto(kd));
+    ret = getaddrinfo(host, port, &hints, &ai);
+    if (ret)
+	return 0;
+
+    hostlen = strlen(host);
+
+    hi = calloc(1, sizeof(*hi) + hostlen);
+    if(hi == NULL)
+	return ENOMEM;
+    
+    hi->proto = krbhst_get_default_proto(kd);
+    hi->port  = hi->def_port = socket_get_port(addr);
+    hi->ai    = ai;
+    memmove(hi->hostname, host, hostlen);
+    hi->hostname[hostlen] = '\0';
+    append_host_hostinfo(kd, hi);
+
+    return 0;
+}
+
+static void
+plugin_get_hosts(krb5_context context,
+		 struct krb5_krbhst_data *kd,
+		 enum locate_service_type type)
+{
+    struct krb5_plugin *list = NULL, *e;
+    krb5_error_code ret;
+
+    ret = _krb5_plugin_find(context, PLUGIN_TYPE_DATA, "resolve", &list);
+    if(ret != 0 || list == NULL)
+	return;
+
+    kd->flags |= KD_CONFIG_EXISTS;
+
+    for (e = list; e != NULL; e = _krb5_plugin_get_next(e)) {
+	krb5plugin_service_locate_ftable *service;
+	void *ctx;
+
+	service = _krb5_plugin_get_symbol(e);
+	if (service->minor_version != 0)
+	    continue;
+	
+	(*service->init)(context, &ctx);
+	ret = (*service->lookup)(ctx, type, kd->realm, 0, 0, add_locate, kd);
+	(*service->fini)(ctx);
+	if (ret) {
+	    krb5_set_error_string(context, "Plugin failed to lookup");
+	    break;
+	}
+    }
+    _krb5_plugin_free(list);
+}
+
+/*
+ *
+ */
+
 static krb5_error_code
 kdc_get_next(krb5_context context,
 	     struct krb5_krbhst_data *kd,
 	     krb5_krbhst_info **host)
 {
     krb5_error_code ret;
+
+    if ((kd->flags & KD_PLUGIN) == 0) {
+	plugin_get_hosts(context, kd, locate_service_kdc);
+	kd->flags |= KD_PLUGIN;
+	if(get_next(kd, host))
+	    return 0;
+    }
 
     if((kd->flags & KD_CONFIG) == 0) {
 	config_get_hosts(context, kd, "kdc");
@@ -438,7 +576,7 @@ kdc_get_next(krb5_context context,
 	return KRB5_KDC_UNREACH; /* XXX */
 
     if(context->srv_lookup) {
-	if((kd->flags & KD_SRV_UDP) == 0) {
+	if((kd->flags & KD_SRV_UDP) == 0 && (kd->flags & KD_LARGE_MSG) == 0) {
 	    srv_get_hosts(context, kd, "udp", "kerberos");
 	    kd->flags |= KD_SRV_UDP;
 	    if(get_next(kd, host))
@@ -461,7 +599,8 @@ kdc_get_next(krb5_context context,
 
     while((kd->flags & KD_FALLBACK) == 0) {
 	ret = fallback_get_hosts(context, kd, "kerberos",
-				 kd->def_port, KRB5_KRBHST_UDP);
+				 kd->def_port, 
+				 krbhst_get_default_proto(kd));
 	if(ret)
 	    return ret;
 	if(get_next(kd, host))
@@ -477,6 +616,13 @@ admin_get_next(krb5_context context,
 	       krb5_krbhst_info **host)
 {
     krb5_error_code ret;
+
+    if ((kd->flags & KD_PLUGIN) == 0) {
+	plugin_get_hosts(context, kd, locate_service_kadmin);
+	kd->flags |= KD_PLUGIN;
+	if(get_next(kd, host))
+	    return 0;
+    }
 
     if((kd->flags & KD_CONFIG) == 0) {
 	config_get_hosts(context, kd, "admin_server");
@@ -500,7 +646,8 @@ admin_get_next(krb5_context context,
     if (krbhst_empty(kd)
 	&& (kd->flags & KD_FALLBACK) == 0) {
 	ret = fallback_get_hosts(context, kd, "kerberos",
-				 kd->def_port, KRB5_KRBHST_UDP);
+				 kd->def_port,
+				 krbhst_get_default_proto(kd));
 	if(ret)
 	    return ret;
 	kd->flags |= KD_FALLBACK;
@@ -518,8 +665,16 @@ kpasswd_get_next(krb5_context context,
 {
     krb5_error_code ret;
 
+    if ((kd->flags & KD_PLUGIN) == 0) {
+	plugin_get_hosts(context, kd, locate_service_kpasswd);
+	kd->flags |= KD_PLUGIN;
+	if(get_next(kd, host))
+	    return 0;
+    }
+
     if((kd->flags & KD_CONFIG) == 0) {
 	config_get_hosts(context, kd, "kpasswd_server");
+	kd->flags |= KD_CONFIG;
 	if(get_next(kd, host))
 	    return 0;
     }
@@ -534,6 +689,12 @@ kpasswd_get_next(krb5_context context,
 	    if(get_next(kd, host))
 		return 0;
 	}
+	if((kd->flags & KD_SRV_TCP) == 0) {
+	    srv_get_hosts(context, kd, "tcp", "kpasswd");
+	    kd->flags |= KD_SRV_TCP;
+	    if(get_next(kd, host))
+		return 0;
+	}
     }
 
     /* no matches -> try admin */
@@ -544,7 +705,7 @@ kpasswd_get_next(krb5_context context,
 	kd->get_next = admin_get_next;
 	ret = (*kd->get_next)(context, kd, host);
 	if (ret == 0)
-	    (*host)->proto = KRB5_KRBHST_UDP;
+	    (*host)->proto = krbhst_get_default_proto(kd);
 	return ret;
     }
 
@@ -556,6 +717,13 @@ krb524_get_next(krb5_context context,
 		struct krb5_krbhst_data *kd,
 		krb5_krbhst_info **host)
 {
+    if ((kd->flags & KD_PLUGIN) == 0) {
+	plugin_get_hosts(context, kd, locate_service_krb524);
+	kd->flags |= KD_PLUGIN;
+	if(get_next(kd, host))
+	    return 0;
+    }
+
     if((kd->flags & KD_CONFIG) == 0) {
 	config_get_hosts(context, kd, "krb524_server");
 	if(get_next(kd, host))
@@ -596,7 +764,8 @@ krb524_get_next(krb5_context context,
 
 static struct krb5_krbhst_data*
 common_init(krb5_context context,
-	    const char *realm)
+	    const char *realm,
+	    int flags)
 {
     struct krb5_krbhst_data *kd;
 
@@ -608,6 +777,12 @@ common_init(krb5_context context,
 	return NULL;
     }
 
+    /* For 'realms' without a . do not even think of going to DNS */
+    if (!strchr(realm, '.'))
+	kd->flags |= KD_CONFIG_EXISTS;
+
+    if (flags & KRB5_KRBHST_FLAGS_LARGE_MSG)
+	kd->flags |= KD_LARGE_MSG;
     kd->end = kd->index = &kd->hosts;
     return kd;
 }
@@ -616,43 +791,53 @@ common_init(krb5_context context,
  * initialize `handle' to look for hosts of type `type' in realm `realm'
  */
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_krbhst_init(krb5_context context,
 		 const char *realm,
 		 unsigned int type,
 		 krb5_krbhst_handle *handle)
 {
+    return krb5_krbhst_init_flags(context, realm, type, 0, handle);
+}
+
+krb5_error_code KRB5_LIB_FUNCTION
+krb5_krbhst_init_flags(krb5_context context,
+		       const char *realm,
+		       unsigned int type,
+		       int flags,
+		       krb5_krbhst_handle *handle)
+{
     struct krb5_krbhst_data *kd;
-    krb5_error_code (*get_next)(krb5_context, struct krb5_krbhst_data *, 
-				krb5_krbhst_info **);
+    krb5_error_code (*next)(krb5_context, struct krb5_krbhst_data *, 
+			    krb5_krbhst_info **);
     int def_port;
 
     switch(type) {
     case KRB5_KRBHST_KDC:
-	get_next = kdc_get_next;
+	next = kdc_get_next;
 	def_port = ntohs(krb5_getportbyname (context, "kerberos", "udp", 88));
 	break;
     case KRB5_KRBHST_ADMIN:
-	get_next = admin_get_next;
+	next = admin_get_next;
 	def_port = ntohs(krb5_getportbyname (context, "kerberos-adm",
 					     "tcp", 749));
 	break;
     case KRB5_KRBHST_CHANGEPW:
-	get_next = kpasswd_get_next;
+	next = kpasswd_get_next;
 	def_port = ntohs(krb5_getportbyname (context, "kpasswd", "udp",
 					     KPASSWD_PORT));
 	break;
     case KRB5_KRBHST_KRB524:
-	get_next = krb524_get_next;
+	next = krb524_get_next;
 	def_port = ntohs(krb5_getportbyname (context, "krb524", "udp", 4444));
 	break;
     default:
 	krb5_set_error_string(context, "unknown krbhst type (%u)", type);
 	return ENOTTY;
     }
-    if((kd = common_init(context, realm)) == NULL)
+    if((kd = common_init(context, realm, flags)) == NULL)
 	return ENOMEM;
-    kd->get_next = get_next;
+    kd->get_next = next;
     kd->def_port = def_port;
     *handle = kd;
     return 0;
@@ -662,7 +847,7 @@ krb5_krbhst_init(krb5_context context,
  * return the next host information from `handle' in `host'
  */
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_krbhst_next(krb5_context context,
 		 krb5_krbhst_handle handle,
 		 krb5_krbhst_info **host)
@@ -678,7 +863,7 @@ krb5_krbhst_next(krb5_context context,
  * in `hostname' (or length `hostlen)
  */
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_krbhst_next_as_string(krb5_context context,
 			   krb5_krbhst_handle handle,
 			   char *hostname,
@@ -693,13 +878,13 @@ krb5_krbhst_next_as_string(krb5_context context,
 }
 
 
-void
+void KRB5_LIB_FUNCTION
 krb5_krbhst_reset(krb5_context context, krb5_krbhst_handle handle)
 {
     handle->index = &handle->hosts;
 }
 
-void
+void KRB5_LIB_FUNCTION
 krb5_krbhst_free(krb5_context context, krb5_krbhst_handle handle)
 {
     krb5_krbhst_info *h, *next;
@@ -709,7 +894,7 @@ krb5_krbhst_free(krb5_context context, krb5_krbhst_handle handle)
 
     for (h = handle->hosts; h != NULL; h = next) {
 	next = h->next;
-	free_krbhst_info(h);
+	_krb5_free_krbhst_info(h);
     }
 
     free(handle->realm);
@@ -734,8 +919,10 @@ gethostlist(krb5_context context, const char *realm,
 
     while(krb5_krbhst_next(context, handle, &hostinfo) == 0)
 	nhost++;
-    if(nhost == 0)
+    if(nhost == 0) {
+	krb5_set_error_string(context, "No KDC found for realm %s", realm);
 	return KRB5_KDC_UNREACH;
+    }
     *hostlist = calloc(nhost + 1, sizeof(**hostlist));
     if(*hostlist == NULL) {
 	krb5_krbhst_free(context, handle);
@@ -761,7 +948,7 @@ gethostlist(krb5_context context, const char *realm,
  * return an malloced list of kadmin-hosts for `realm' in `hostlist'
  */
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_get_krb_admin_hst (krb5_context context,
 			const krb5_realm *realm,
 			char ***hostlist)
@@ -773,7 +960,7 @@ krb5_get_krb_admin_hst (krb5_context context,
  * return an malloced list of changepw-hosts for `realm' in `hostlist'
  */
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_get_krb_changepw_hst (krb5_context context,
 			   const krb5_realm *realm,
 			   char ***hostlist)
@@ -785,7 +972,7 @@ krb5_get_krb_changepw_hst (krb5_context context,
  * return an malloced list of 524-hosts for `realm' in `hostlist'
  */
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_get_krb524hst (krb5_context context,
 		    const krb5_realm *realm,
 		    char ***hostlist)
@@ -798,7 +985,7 @@ krb5_get_krb524hst (krb5_context context,
  * return an malloced list of KDC's for `realm' in `hostlist'
  */
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_get_krbhst (krb5_context context,
 		 const krb5_realm *realm,
 		 char ***hostlist)
@@ -810,7 +997,7 @@ krb5_get_krbhst (krb5_context context,
  * free all the memory allocated in `hostlist'
  */
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_free_krbhst (krb5_context context,
 		  char **hostlist)
 {

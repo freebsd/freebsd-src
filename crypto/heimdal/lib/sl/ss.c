@@ -35,7 +35,7 @@
 #include <com_err.h>
 #include "ss.h"
 
-RCSID("$Id: ss.c,v 1.6 2000/05/25 00:14:58 assar Exp $");
+RCSID("$Id: ss.c 15429 2005-06-16 19:24:11Z lha $");
 
 struct ss_subst {
     char *name;
@@ -89,35 +89,35 @@ ss_create_invocation(const char *subsystem,
 }
 
 void
-ss_error (int index, long code, const char *fmt, ...)
+ss_error (int idx, long code, const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
-    com_err_va (subsystems[index].name, code, fmt, ap);
+    com_err_va (subsystems[idx].name, code, fmt, ap);
     va_end(ap);
 }
 
 void
-ss_perror (int index, long code, const char *msg)
+ss_perror (int idx, long code, const char *msg)
 {
-    ss_error(index, code, "%s", msg);
+    ss_error(idx, code, "%s", msg);
 }
 
 int
-ss_execute_command(int index, char **argv)
+ss_execute_command(int idx, char **argv)
 {
     int argc = 0;
     int ret;
 
     while(argv[argc++]);
-    ret = sl_command(subsystems[index].table, argc, argv);
+    ret = sl_command(subsystems[idx].table, argc, argv);
     if (ret == SL_BADCOMMAND)
 	return SS_ET_COMMAND_NOT_FOUND;
     return 0;
 }
 
 int
-ss_execute_line (int index, const char *line)
+ss_execute_line (int idx, const char *line)
 {
     char *buf = strdup(line);
     int argc;
@@ -127,7 +127,7 @@ ss_execute_line (int index, const char *line)
     if (buf == NULL)
 	return ENOMEM;
     sl_make_argv(buf, &argc, &argv);
-    ret = sl_command(subsystems[index].table, argc, argv);
+    ret = sl_command(subsystems[idx].table, argc, argv);
     free(buf);
     if (ret == SL_BADCOMMAND)
 	return SS_ET_COMMAND_NOT_FOUND;
@@ -135,23 +135,23 @@ ss_execute_line (int index, const char *line)
 }
 
 int
-ss_listen (int index)
+ss_listen (int idx)
 {
-    char *prompt = malloc(strlen(subsystems[index].name) + 3);
+    char *prompt = malloc(strlen(subsystems[idx].name) + 3);
     if (prompt == NULL)
 	return ENOMEM;
 
-    strcpy(prompt, subsystems[index].name);
+    strcpy(prompt, subsystems[idx].name);
     strcat(prompt, ": ");
-    sl_loop(subsystems[index].table, prompt);
+    sl_loop(subsystems[idx].table, prompt);
     free(prompt);
     return 0;
 }
 
 int
-ss_list_requests(int argc, char **argv /* , int index, void *info */)
+ss_list_requests(int argc, char **argv /* , int idx, void *info */)
 {
-    sl_help(subsystems[0 /* index */].table, argc, argv);
+    sl_help(subsystems[0 /* idx */].table, argc, argv);
     return 0;
 }
 

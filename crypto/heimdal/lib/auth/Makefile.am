@@ -1,4 +1,4 @@
-# $Id: Makefile.am,v 1.2 1999/03/21 17:11:08 joda Exp $
+# $Id: Makefile.am 5683 1999-03-21 17:11:08Z joda $
 
 include $(top_srcdir)/Makefile.am.common
 

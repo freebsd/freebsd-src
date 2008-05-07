@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998, 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2005 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,14 +33,44 @@
 
 #include "gen_locl.h"
 #include <getarg.h>
+#include "lex.h"
 
-RCSID("$Id: main.c,v 1.11 2001/02/20 01:44:52 assar Exp $");
+RCSID("$Id: main.c 20858 2007-06-03 18:56:41Z lha $");
 
 extern FILE *yyin;
 
+static getarg_strings preserve;
+static getarg_strings seq;
+
+int
+preserve_type(const char *p)
+{
+    int i;
+    for (i = 0; i < preserve.num_strings; i++)
+	if (strcmp(preserve.strings[i], p) == 0)
+	    return 1;
+    return 0;
+}
+
+int
+seq_type(const char *p)
+{
+    int i;
+    for (i = 0; i < seq.num_strings; i++)
+	if (strcmp(seq.strings[i], p) == 0)
+	    return 1;
+    return 0;
+}
+
+int dce_fix;
+int rfc1510_bitstring;
 int version_flag;
 int help_flag;
 struct getargs args[] = {
+    { "encode-rfc1510-bit-string", 0, arg_flag, &rfc1510_bitstring },
+    { "decode-dce-ber", 0, arg_flag, &dce_fix },
+    { "preserve-binary", 0, arg_strings, &preserve },
+    { "sequence", 0, arg_strings, &seq },
     { "version", 0, arg_flag, &version_flag },
     { "help", 0, arg_flag, &help_flag }
 };
@@ -53,16 +83,18 @@ usage(int code)
     exit(code);
 }
 
+int error_flag;
+
 int
 main(int argc, char **argv)
 {
     int ret;
-    char *file;
-    char *name = NULL;
-    int optind = 0;
+    const char *file;
+    const char *name = NULL;
+    int optidx = 0;
 
     setprogname(argv[0]);
-    if(getarg(args, num_args, argc, argv, &optind))
+    if(getarg(args, num_args, argc, argv, &optidx))
 	usage(1);
     if(help_flag)
 	usage(0);
@@ -70,21 +102,32 @@ main(int argc, char **argv)
 	print_version(NULL);
 	exit(0);
     }
-    if (argc == optind) {
+    if (argc == optidx) {
 	file = "stdin";
 	name = "stdin";
 	yyin = stdin;
     } else {
-	file = argv[optind];
+	file = argv[optidx];
 	yyin = fopen (file, "r");
 	if (yyin == NULL)
 	    err (1, "open %s", file);
-	name = argv[optind + 1];
+	if (argc == optidx + 1) {
+	    char *p;
+	    name = estrdup(file);
+	    p = strrchr(name, '.');
+	    if (p)
+		*p = '\0';
+	} else
+	    name = argv[optidx + 1];
     }
 
     init_generate (file, name);
     initsym ();
     ret = yyparse ();
+    if(ret != 0 || error_flag != 0)
+	exit(1);
     close_generate ();
-    return ret;
+    if (argc != optidx)
+	fclose(yyin);
+    return 0;
 }

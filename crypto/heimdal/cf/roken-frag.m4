@@ -1,4 +1,4 @@
-dnl $Id: roken-frag.m4,v 1.45.2.1 2004/04/01 07:27:35 joda Exp $
+dnl $Id: roken-frag.m4 20639 2007-05-10 17:22:58Z lha $
 dnl
 dnl some code to get roken working
 dnl
@@ -26,7 +26,7 @@ dnl C characteristics
 AC_REQUIRE([AC_C___ATTRIBUTE__])
 AC_REQUIRE([AC_C_INLINE])
 AC_REQUIRE([AC_C_CONST])
-AC_WFLAGS(-Wall -Wmissing-prototypes -Wpointer-arith -Wbad-function-cast -Wmissing-declarations -Wnested-externs)
+rk_WFLAGS(-Wall -Wmissing-prototypes -Wpointer-arith -Wbad-function-cast -Wmissing-declarations -Wnested-externs)
 
 AC_REQUIRE([rk_DB])
 
@@ -46,37 +46,32 @@ AC_REQUIRE([AC_HEADER_TIME])
 
 AC_CHECK_HEADERS([\
 	arpa/inet.h				\
-	arpa/nameser.h				\
 	config.h				\
 	crypt.h					\
 	dirent.h				\
 	errno.h					\
 	err.h					\
 	fcntl.h					\
+	fnmatch.h				\
 	grp.h					\
 	ifaddrs.h				\
-	net/if.h				\
-	netdb.h					\
 	netinet/in.h				\
 	netinet/in6.h				\
 	netinet/in_systm.h			\
 	netinet6/in6.h				\
-	netinet6/in6_var.h			\
 	paths.h					\
+	poll.h					\
 	pwd.h					\
-	resolv.h				\
 	rpcsvc/ypclnt.h				\
 	shadow.h				\
+	stdint.h				\
 	sys/bswap.h				\
 	sys/ioctl.h				\
 	sys/mman.h				\
 	sys/param.h				\
-	sys/proc.h				\
 	sys/resource.h				\
-	sys/socket.h				\
 	sys/sockio.h				\
 	sys/stat.h				\
-	sys/sysctl.h				\
 	sys/time.h				\
 	sys/tty.h				\
 	sys/types.h				\
@@ -89,13 +84,66 @@ AC_CHECK_HEADERS([\
 	userconf.h				\
 	usersec.h				\
 	util.h					\
-	vis.h					\
 ])
+
+AC_HAVE_TYPE([uintptr_t],[#ifdef HAVE_STDINT_H
+#include <stdint.h>
+#endif])
+
+dnl Sunpro 5.2 has a vis.h which is something different.
+AC_CHECK_HEADERS(vis.h, , , [
+#include <vis.h>
+#ifndef VIS_SP
+#error invis
+#endif])
 	
+AC_CHECK_HEADERS(netdb.h, , , [AC_INCLUDES_DEFAULT
+#ifdef HAVE_SYS_TYPES_H
+#include <sys/types.h>
+#endif
+])
+
+AC_CHECK_HEADERS(sys/socket.h, , , [AC_INCLUDES_DEFAULT
+#ifdef HAVE_SYS_TYPES_H
+#include <sys/types.h>
+#endif
+])
+
+AC_CHECK_HEADERS(net/if.h, , , [AC_INCLUDES_DEFAULT
+#ifdef HAVE_SYS_TYPES_H
+#include <sys/types.h>
+#endif
+#if HAVE_SYS_SOCKET_H
+#include <sys/socket.h>
+#endif])
+
+AC_CHECK_HEADERS(netinet6/in6_var.h, , , [AC_INCLUDES_DEFAULT
+#ifdef HAVE_SYS_TYPES_H
+#include <sys/types.h>
+#endif
+#if HAVE_SYS_SOCKET_H
+#include <sys/socket.h>
+#endif
+#ifdef HAVE_NETINET6_IN6_H
+#include <netinet6/in6.h>
+#endif
+])
+
+AC_CHECK_HEADERS(sys/sysctl.h, , , [AC_INCLUDES_DEFAULT
+#ifdef HAVE_SYS_PARAM_H
+#include <sys/param.h>
+#endif
+])
+
+AC_CHECK_HEADERS(sys/proc.h, , , [AC_INCLUDES_DEFAULT
+#ifdef HAVE_SYS_PARAM_H
+#include <sys/param.h>
+#endif
+])
+
 AC_REQUIRE([CHECK_NETINET_IP_AND_TCP])
 
 AM_CONDITIONAL(have_err_h, test "$ac_cv_header_err_h" = yes)
-AM_CONDITIONAL(have_fnmatch_h, test "$ac_cv_header_fnmatch_h" = yes)
 AM_CONDITIONAL(have_ifaddrs_h, test "$ac_cv_header_ifaddrs_h" = yes)
 AM_CONDITIONAL(have_vis_h, test "$ac_cv_header_vis_h" = yes)
 
@@ -109,75 +157,7 @@ AC_KRB_IPV6
 
 AC_FIND_FUNC(gethostbyname2, inet6 ip6)
 
-AC_FIND_FUNC(res_search, resolv,
-[
-#include <stdio.h>
-#ifdef HAVE_SYS_TYPES_H
-#include <sys/types.h>
-#endif
-#ifdef HAVE_NETINET_IN_H
-#include <netinet/in.h>
-#endif
-#ifdef HAVE_ARPA_NAMESER_H
-#include <arpa/nameser.h>
-#endif
-#ifdef HAVE_RESOLV_H
-#include <resolv.h>
-#endif
-],
-[0,0,0,0,0])
-
-AC_FIND_FUNC(res_nsearch, resolv,
-[
-#include <stdio.h>
-#ifdef HAVE_SYS_TYPES_H
-#include <sys/types.h>
-#endif
-#ifdef HAVE_NETINET_IN_H
-#include <netinet/in.h>
-#endif
-#ifdef HAVE_ARPA_NAMESER_H
-#include <arpa/nameser.h>
-#endif
-#ifdef HAVE_RESOLV_H
-#include <resolv.h>
-#endif
-],
-[0,0,0,0,0,0])
-
-AC_FIND_FUNC(dn_expand, resolv,
-[
-#include <stdio.h>
-#ifdef HAVE_SYS_TYPES_H
-#include <sys/types.h>
-#endif
-#ifdef HAVE_NETINET_IN_H
-#include <netinet/in.h>
-#endif
-#ifdef HAVE_ARPA_NAMESER_H
-#include <arpa/nameser.h>
-#endif
-#ifdef HAVE_RESOLV_H
-#include <resolv.h>
-#endif
-],
-[0,0,0,0,0])
-
-rk_CHECK_VAR(_res, 
-[#include <stdio.h>
-#ifdef HAVE_SYS_TYPES_H
-#include <sys/types.h>
-#endif
-#ifdef HAVE_NETINET_IN_H
-#include <netinet/in.h>
-#endif
-#ifdef HAVE_ARPA_NAMESER_H
-#include <arpa/nameser.h>
-#endif
-#ifdef HAVE_RESOLV_H
-#include <resolv.h>
-#endif])
-
+rk_RESOLV
 
 AC_BROKEN_SNPRINTF
 AC_BROKEN_VSNPRINTF
@@ -201,6 +181,7 @@ AC_CHECK_FUNCS([				\
 	initstate				\
 	issetugid				\
 	on_exit					\
+	poll					\
 	random					\
 	setprogname				\
 	setstate				\
@@ -221,6 +202,7 @@ AC_CHECK_FUNCS([				\
 if test "$ac_cv_func_cgetent" = no; then
 	AC_LIBOBJ(getcap)
 fi
+AM_CONDITIONAL(have_cgetent, test "$ac_cv_func_cgetent" = yes)
 
 AC_REQUIRE([AC_FUNC_GETLOGIN])
 
@@ -298,6 +280,7 @@ AC_FIND_IF_NOT_BROKEN(gai_strerror,,
 AC_BROKEN([					\
 	chown					\
 	copyhostent				\
+	closefrom				\
 	daemon					\
 	ecalloc					\
 	emalloc					\
@@ -353,6 +336,7 @@ AC_BROKEN([					\
 	strtok_r				\
 	strupr					\
 	swab					\
+	timegm					\
 	unsetenv				\
 	verr					\
 	verrx					\
@@ -363,6 +347,9 @@ AC_BROKEN([					\
 	warnx					\
 	writev					\
 ])
+
+AM_CONDITIONAL(have_fnmatch_h,
+	test "$ac_cv_header_fnmatch_h" = yes -a "$ac_cv_func_fnmatch" = yes)
 
 AC_FOREACH([rk_func], [strndup strsep strtok_r],
 	[AC_NEED_PROTO([#include <string.h>], rk_func)])
@@ -424,13 +411,6 @@ dnl
 AC_HAVE_STRUCT_FIELD(struct sockaddr, sa_len, [#include <sys/types.h>
 #include <sys/socket.h>])
 
-if test "$ac_cv_func_getnameinfo" = "yes"; then
-  rk_BROKEN_GETNAMEINFO
-  if test "$ac_cv_func_getnameinfo_broken" = yes; then
-	AC_LIBOBJ(getnameinfo)
-  fi
-fi
-
 if test "$ac_cv_func_getaddrinfo" = "yes"; then
   rk_BROKEN_GETADDRINFO
   if test "$ac_cv_func_getaddrinfo_numserv" = no; then
@@ -444,6 +424,27 @@ AC_NEED_PROTO([#include <stdlib.h>], unsetenv)
 AC_NEED_PROTO([#include <unistd.h>], gethostname)
 AC_NEED_PROTO([#include <unistd.h>], mkstemp)
 AC_NEED_PROTO([#include <unistd.h>], getusershell)
+AC_NEED_PROTO([#include <unistd.h>], daemon)
+AC_NEED_PROTO([
+#ifdef HAVE_SYS_TYPES_H
+#include <sys/types.h>
+#endif
+#ifdef HAVE_SYS_SOCKET_H
+#include <sys/socket.h>
+#endif
+#ifdef HAVE_NETINET_IN_H
+#include <netinet/in.h>
+#endif
+#ifdef HAVE_ARPA_INET_H
+#include <arpa/inet.h>
+#endif
+#ifdef HAVE_NETDB_H
+#include <netdb.h>
+#endif
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif],
+iruserok)
 
 AC_NEED_PROTO([
 #ifdef HAVE_SYS_TYPES_H
@@ -579,24 +580,11 @@ rk_CHECK_VAR([__progname],
 #include <err.h>
 #endif])
 
-AC_CHECK_DECLARATION([#include <stdlib.h>
+AC_CHECK_DECLS([optarg, optind, opterr, optopt, environ],[],[][
+#include <stdlib.h>
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
-#endif], optarg)
-AC_CHECK_DECLARATION([#include <stdlib.h>
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
-#endif], optind)
-AC_CHECK_DECLARATION([#include <stdlib.h>
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
-#endif], opterr)
-AC_CHECK_DECLARATION([#include <stdlib.h>
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
-#endif], optopt)
-
-AC_CHECK_DECLARATION([#include <stdlib.h>], environ)
+#endif])
 
 dnl
 dnl Check for fields in struct tm
@@ -612,11 +600,21 @@ dnl
 rk_CHECK_VAR(timezone,[#include <time.h>])
 rk_CHECK_VAR(altzone,[#include <time.h>])
 
-AC_HAVE_TYPE([sa_family_t],[#include <sys/socket.h>])
-AC_HAVE_TYPE([socklen_t],[#include <sys/socket.h>])
-AC_HAVE_TYPE([struct sockaddr], [#include <sys/socket.h>])
-AC_HAVE_TYPE([struct sockaddr_storage], [#include <sys/socket.h>])
-AC_HAVE_TYPE([struct addrinfo], [#include <netdb.h>])
+AC_HAVE_TYPE([sa_family_t],[
+#include <sys/types.h>
+#include <sys/socket.h>])
+AC_HAVE_TYPE([socklen_t],[
+#include <sys/types.h>
+#include <sys/socket.h>])
+AC_HAVE_TYPE([struct sockaddr], [
+#include <sys/types.h>
+#include <sys/socket.h>])
+AC_HAVE_TYPE([struct sockaddr_storage], [
+#include <sys/types.h>
+#include <sys/socket.h>])
+AC_HAVE_TYPE([struct addrinfo], [
+#include <sys/types.h>
+#include <netdb.h>])
 AC_HAVE_TYPE([struct ifaddrs], [#include <ifaddrs.h>])
 AC_HAVE_TYPE([struct iovec],[
 #include <sys/types.h>
@@ -638,6 +636,12 @@ dnl Check for struct spwd
 dnl
 
 AC_KRB_STRUCT_SPWD
+
+#
+# Check if we want samba's socket wrapper
+#
+
+samba_SOCKET_WRAPPER
 
 dnl won't work with automake
 dnl moved to AC_OUTPUT in configure.in

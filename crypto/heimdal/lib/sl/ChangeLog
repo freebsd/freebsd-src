@@ -1,3 +1,136 @@
+2007-07-17  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* Makefile.am: roken_rename.h is a dist_ source k
+
+	* Makefile.am: split source files in dist and nodist.
+
+2007-07-10  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* Makefile.am: New library version.
+
+2007-06-18  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* sl.c: make compile.
+
+	* sl.c: Pass in pointer to strlen().
+
+	* sl.c (sl_make_argv): use memmove since we are dealing with
+	overlapping strings.
+
+2007-06-09  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* Makefile.am: don't clean yacc/lex files in CLEANFILES,
+	maintainers clean will do that for us.
+	
+2007-06-01  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* slc-gram.y (main): also fclose yyin.
+	
+2007-04-20  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* Makefile.am: Add dependency on slc-gram.h for slc-lex.c, breaks
+	in disttree with make -j
+	
+2006-12-29  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* test_sl.c: Fix caseing for case-sensitive filesystems
+	
+2006-12-27  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* test_sl.c: catch test that should fail but didn't
+
+	* test_sl.c: Test more quoting variants.
+
+	* sl_locl.h: Include <ctype.h>.
+
+	* test_sl.c: test sl_make_argv
+
+	* sl.c (sl_make_argv): Add quoting support (both "" and \ style).
+	
+2006-12-05  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* sl.c: Use strcspn to remove \n from fgets result. Prompted by
+	change by Ray Lai of OpenBSD via Björn Sandell.
+	
+2006-10-19  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* Makefile.am (ES): add roken_rename.h
+	
+2006-08-30  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* sl.c (sl_slc_help): remove return
+	
+2006-08-28  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* sl.h: Add sl_slc_help.
+
+	* sl.c: Add sl_slc_help.
+	
+2005-07-27  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* slc-gram.y (gen_wrapper): use the generated version of name for
+	function, if no function is is used, also use the generated name
+	for the structure name.
+	
+2005-06-16  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* slc-gram.y: fix a merge error
+	
+	* slc-gram.y: rename optind to optidx, rename variables to avoid
+	shadowing
+
+	* make_cmds.c: rename optind to optidx, move variable define to
+	avoid shadowing
+
+	* ss.c: rename index to idx
+	
+	* sl.c: use rk_UNCONST to un-constify
+
+2005-05-10  Dave Love  <fx@gnu.org>
+
+	* slc-lex.l: Include <stdlib.h>.
+
+2005-05-09  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* sl.c (sl_command_loop): new return code -2 for EOF
+	(sl_loop): treat all return value from sl_command_loop >= 0 as ok, and
+	continue.
+
+2005-04-29  Dave Love  <fx@gnu.org>
+
+	* Makefile.am (LDADD): Add libsl.la.
+
+2005-04-19  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* slc-gram.y: include <config.h> since defines _GNU_SOURCE if
+	needed, avoid asprintf warning
+
+2005-01-21  Dave Love  <d.love@dl.ac.uk>
+
+	* slc-gram.y: include <roken.h>
+
+2005-01-09  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* slc-gram.y: cast argument to isalnum to unsigned char
+
+2004-09-22  Johan Danielsson  <joda@pdc.kth.se>
+
+	* slc-gram.y: add support for "strings" and "negative-flag" types,
+	plus some usability tweaks and bug fixes
+	
+2004-07-05  Johan Danielsson  <joda@pdc.kth.se>
+
+	* slc-gram.y: add min_args/max_args checking
+	
+2004-06-21  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* slc-gram.y: pull in <stdlib.h> and <vers.h> to avoid warnings
+	
+2004-03-02  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* sl.h: make it possible to use libsl from c++
+	From: Mattias Amnefelt <mattiasa@kth.se>
+	
 2002-05-19  Johan Danielsson  <joda@pdc.kth.se>
 
 	* Makefile.am: just link mk_cmds against libsl; avoids libtool

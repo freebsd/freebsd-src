@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
  * SUCH DAMAGE. 
  */
-/* $Id: admin.h,v 1.18 2000/08/04 11:26:21 joda Exp $ */
+/* $Id: admin.h 20237 2007-02-16 23:54:34Z lha $ */
 
 #ifndef __KADM5_ADMIN_H__
 #define __KADM5_ADMIN_H__
@@ -64,6 +64,10 @@
 #define KRB5_KDB_PWCHANGE_SERVICE	0x00002000
 #define KRB5_KDB_SUPPORT_DESMD5		0x00004000
 #define KRB5_KDB_NEW_PRINC		0x00008000
+#define KRB5_KDB_OK_AS_DELEGATE		0x00010000
+#define KRB5_KDB_TRUSTED_FOR_DELEGATION	0x00020000
+#define KRB5_KDB_ALLOW_KERBEROS4	0x00040000
+#define KRB5_KDB_ALLOW_DIGEST		0x00080000
 
 #define KADM5_PRINCIPAL		0x000001
 #define KADM5_PRINC_EXPIRE_TIME	0x000002
@@ -115,6 +119,17 @@ typedef struct _krb5_tl_data {
     void*   tl_data_contents;     
 } krb5_tl_data;
 
+#define KRB5_TL_LAST_PWD_CHANGE		0x0001
+#define KRB5_TL_MOD_PRINC		0x0002
+#define KRB5_TL_KADM_DATA		0x0003
+#define KRB5_TL_KADM5_E_DATA		0x0004
+#define KRB5_TL_RB1_CHALLENGE		0x0005
+#define KRB5_TL_SECURID_STATE           0x0006
+#define KRB5_TL_PASSWORD           	0x0007
+#define KRB5_TL_EXTENSION           	0x0008
+#define KRB5_TL_PKINIT_ACL           	0x0009
+#define KRB5_TL_ALIASES           	0x000a
+
 typedef struct _kadm5_principal_ent_t {
     krb5_principal principal;
 
@@ -129,7 +144,7 @@ typedef struct _kadm5_principal_ent_t {
     krb5_kvno mkvno;
 
     char * policy;
-    u_int32_t aux_attributes;
+    uint32_t aux_attributes;
 
     krb5_deltat max_renewable_life;
     krb5_timestamp last_success;
@@ -144,12 +159,12 @@ typedef struct _kadm5_principal_ent_t {
 typedef struct _kadm5_policy_ent_t {
     char *policy;
 
-    u_int32_t pw_min_life;
-    u_int32_t pw_max_life;
-    u_int32_t pw_min_length;
-    u_int32_t pw_min_classes;
-    u_int32_t pw_history_num;
-    u_int32_t policy_refcnt;
+    uint32_t pw_min_life;
+    uint32_t pw_max_life;
+    uint32_t pw_min_length;
+    uint32_t pw_min_classes;
+    uint32_t pw_history_num;
+    uint32_t policy_refcnt;
 } kadm5_policy_ent_rec, *kadm5_policy_ent_t;
 
 #define KADM5_CONFIG_REALM			(1 << 0)
@@ -185,7 +200,7 @@ typedef struct {
 }krb5_key_salt_tuple;
 
 typedef struct _kadm5_config_params {
-    u_int32_t mask;
+    uint32_t mask;
 
     /* Client and server fields */
     char *realm;
@@ -217,7 +232,7 @@ kadm5_decrypt_key(void *server_handle,
 
 kadm5_ret_t
 kadm5_create_policy(void *server_handle,
-		    kadm5_policy_ent_t policy, u_int32_t mask); 
+		    kadm5_policy_ent_t policy, uint32_t mask); 
 
 kadm5_ret_t
 kadm5_delete_policy(void *server_handle, char *policy);
@@ -226,7 +241,7 @@ kadm5_delete_policy(void *server_handle, char *policy);
 kadm5_ret_t
 kadm5_modify_policy(void *server_handle,
 		    kadm5_policy_ent_t policy, 
-		    u_int32_t mask);
+		    uint32_t mask);
 
 kadm5_ret_t
 kadm5_get_policy(void *server_handle, char *policy, kadm5_policy_ent_t ent); 

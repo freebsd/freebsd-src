@@ -57,6 +57,7 @@ extern int	debug;			/* debugging level */
 extern int	bell;			/* ring bell on cmd completion */
 extern int	doglob;			/* glob local file names */
 extern int	autologin;		/* establish user account on connection */
+extern int	doencrypt;
 extern int	proxy;			/* proxy server connection active */
 extern int	proxflag;		/* proxy connection exists */
 extern int	sunique;		/* store files on server with unique name */

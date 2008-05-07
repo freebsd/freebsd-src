@@ -33,7 +33,7 @@
 
 #include "kadm5_locl.h"
 
-RCSID("$Id: init_s.c,v 1.10 2000/12/31 08:01:16 assar Exp $");
+RCSID("$Id: init_s.c 9441 2000-12-31 08:01:16Z assar $");
 
 
 static kadm5_ret_t 

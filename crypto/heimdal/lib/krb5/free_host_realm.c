@@ -33,13 +33,13 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: free_host_realm.c,v 1.4 1999/12/02 17:05:09 joda Exp $");
+RCSID("$Id: free_host_realm.c 13863 2004-05-25 21:46:46Z lha $");
 
 /*
  * Free all memory allocated by `realmlist'
  */
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_free_host_realm(krb5_context context,
 		     krb5_realm *realmlist)
 {

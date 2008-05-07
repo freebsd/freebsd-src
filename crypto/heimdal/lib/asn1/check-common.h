@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999 - 2003 Kungliga Tekniska Högskolan
+ * Copyright (c) 1999 - 2005 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -34,13 +34,14 @@
 struct test_case {
     void *val;
     int byte_len;
-    const unsigned char *bytes;
+    const char *bytes;
     char *name;
 };
 
 typedef int (*generic_encode)(unsigned char *, size_t, void *, size_t *);
 typedef int (*generic_length)(void *);
 typedef int (*generic_decode)(unsigned char *, size_t, void *, size_t *);
+typedef int (*generic_free)(void *);
 
 int
 generic_test (const struct test_case *tests,
@@ -49,5 +50,21 @@ generic_test (const struct test_case *tests,
 	      int (*encode)(unsigned char *, size_t, void *, size_t *),
 	      int (*length)(void *),
 	      int (*decode)(unsigned char *, size_t, void *, size_t *),
+	      int (*free_data)(void *),
 	      int (*cmp)(void *a, void *b));
 
+int
+generic_decode_fail(const struct test_case *tests,
+		    unsigned ntests,
+		    size_t data_size,
+		    int (*decode)(unsigned char *, size_t, void *, size_t *));
+
+
+struct map_page;
+
+enum map_type { OVERRUN, UNDERRUN };
+
+struct map_page;
+
+void *	map_alloc(enum map_type, const void *, size_t, struct map_page **);
+void	map_free(struct map_page *, const char *, const char *);

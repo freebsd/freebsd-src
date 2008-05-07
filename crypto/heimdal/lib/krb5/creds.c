@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2005 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,16 +33,32 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: creds.c,v 1.15 2001/05/14 06:14:45 assar Exp $");
+RCSID("$Id: creds.c 22062 2007-11-11 15:41:50Z lha $");
 
-krb5_error_code
-krb5_free_cred_contents (krb5_context context, krb5_creds *c)
+#undef __attribute__
+#define __attribute__(X)
+
+/* keep this for compatibility with older code */
+krb5_error_code KRB5_LIB_FUNCTION __attribute__((deprecated))
+krb5_free_creds_contents (krb5_context context, krb5_creds *c)
 {
-    return krb5_free_creds_contents (context, c);
+    return krb5_free_cred_contents (context, c);
 }    
 
-krb5_error_code
-krb5_free_creds_contents (krb5_context context, krb5_creds *c)
+/**
+ * Free content of krb5_creds.
+ *
+ * @param context Kerberos 5 context.
+ * @param c krb5_creds to free.
+ *
+ * @return Returns 0 to indicate success. Otherwise an kerberos et
+ * error code is returned, see krb5_get_error_message().
+ *
+ * @ingroup krb5
+ */
+
+krb5_error_code KRB5_LIB_FUNCTION
+krb5_free_cred_contents (krb5_context context, krb5_creds *c)
 {
     krb5_free_principal (context, c->client);
     c->client = NULL;
@@ -53,10 +69,24 @@ krb5_free_creds_contents (krb5_context context, krb5_creds *c)
     krb5_data_free (&c->second_ticket);
     free_AuthorizationData (&c->authdata);
     krb5_free_addresses (context, &c->addresses);
+    memset(c, 0, sizeof(*c));
     return 0;
 }
 
-krb5_error_code
+/**
+ * Copy content of krb5_creds.
+ *
+ * @param context Kerberos 5 context.
+ * @param incred source credential
+ * @param c destination credential, free with krb5_free_cred_contents().
+ *
+ * @return Returns 0 to indicate success. Otherwise an kerberos et
+ * error code is returned, see krb5_get_error_message().
+ *
+ * @ingroup krb5
+ */
+
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_copy_creds_contents (krb5_context context,
 			  const krb5_creds *incred,
 			  krb5_creds *c)
@@ -96,11 +126,24 @@ krb5_copy_creds_contents (krb5_context context,
     return 0;
 
 fail:
-    krb5_free_creds_contents (context, c);
+    krb5_free_cred_contents (context, c);
     return ret;
 }
 
-krb5_error_code
+/**
+ * Copy krb5_creds.
+ *
+ * @param context Kerberos 5 context.
+ * @param incred source credential
+ * @param outcred destination credential, free with krb5_free_creds().
+ *
+ * @return Returns 0 to indicate success. Otherwise an kerberos et
+ * error code is returned, see krb5_get_error_message().
+ *
+ * @ingroup krb5
+ */
+
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_copy_creds (krb5_context context,
 		 const krb5_creds *incred,
 		 krb5_creds **outcred)
@@ -117,35 +160,110 @@ krb5_copy_creds (krb5_context context,
     return krb5_copy_creds_contents (context, incred, c);
 }
 
-krb5_error_code
+/**
+ * Free krb5_creds.
+ *
+ * @param context Kerberos 5 context.
+ * @param c krb5_creds to free.
+ *
+ * @return Returns 0 to indicate success. Otherwise an kerberos et
+ * error code is returned, see krb5_get_error_message().
+ *
+ * @ingroup krb5
+ */
+
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_free_creds (krb5_context context, krb5_creds *c)
 {
-    krb5_free_creds_contents (context, c);
+    krb5_free_cred_contents (context, c);
     free (c);
     return 0;
 }
 
-/*
+/* XXX this do not belong here */
+static krb5_boolean
+krb5_times_equal(const krb5_times *a, const krb5_times *b)
+{
+    return a->starttime == b->starttime &&
+	a->authtime == b->authtime &&
+	a->endtime == b->endtime &&
+	a->renew_till == b->renew_till;
+}
+
+/**
  * Return TRUE if `mcreds' and `creds' are equal (`whichfields'
  * determines what equal means).
+ *
+ * @param context Kerberos 5 context.
+ * @param whichfields which fields to compare.
+ * @param mcreds cred to compare with.
+ * @param creds cred to compare with.
+ *
+ * @return return TRUE if mcred and creds are equal, FALSE if not.
+ *
+ * @ingroup krb5
  */
 
-krb5_boolean
-krb5_compare_creds(krb5_context context, krb5_flags whichfields, 
-		   const krb5_creds *mcreds, const krb5_creds *creds)
+krb5_boolean KRB5_LIB_FUNCTION
+krb5_compare_creds(krb5_context context, krb5_flags whichfields,
+		   const krb5_creds * mcreds, const krb5_creds * creds)
 {
-    krb5_boolean match;
+    krb5_boolean match = TRUE;
+    
+    if (match && mcreds->server) {
+	if (whichfields & (KRB5_TC_DONT_MATCH_REALM | KRB5_TC_MATCH_SRV_NAMEONLY)) 
+	    match = krb5_principal_compare_any_realm (context, mcreds->server, 
+						      creds->server);
+	else
+	    match = krb5_principal_compare (context, mcreds->server, 
+					    creds->server);
+    }
 
-    if(whichfields & KRB5_TC_DONT_MATCH_REALM)
-	match = krb5_principal_compare_any_realm(context, 
-						 mcreds->server, 
-						 creds->server);
-    else
-	match = krb5_principal_compare(context, mcreds->server, creds->server);
-    if(match && (whichfields & KRB5_TC_MATCH_KEYTYPE) &&
-       !krb5_enctypes_compatible_keys (context,
-				       mcreds->session.keytype,
-				       creds->session.keytype))
-	match = FALSE;
+    if (match && mcreds->client) {
+	if(whichfields & KRB5_TC_DONT_MATCH_REALM)
+	    match = krb5_principal_compare_any_realm (context, mcreds->client, 
+						      creds->client);
+	else
+	    match = krb5_principal_compare (context, mcreds->client, 
+					    creds->client);
+    }
+	    
+    if (match && (whichfields & KRB5_TC_MATCH_KEYTYPE))
+	match = krb5_enctypes_compatible_keys(context,
+					      mcreds->session.keytype,
+					      creds->session.keytype);
+
+    if (match && (whichfields & KRB5_TC_MATCH_FLAGS_EXACT))
+	match = mcreds->flags.i == creds->flags.i;
+
+    if (match && (whichfields & KRB5_TC_MATCH_FLAGS))
+	match = (creds->flags.i & mcreds->flags.i) == mcreds->flags.i;
+
+    if (match && (whichfields & KRB5_TC_MATCH_TIMES_EXACT))
+	match = krb5_times_equal(&mcreds->times, &creds->times);
+    
+    if (match && (whichfields & KRB5_TC_MATCH_TIMES))
+	/* compare only expiration times */
+	match = (mcreds->times.renew_till <= creds->times.renew_till) &&
+	    (mcreds->times.endtime <= creds->times.endtime);
+
+    if (match && (whichfields & KRB5_TC_MATCH_AUTHDATA)) {
+	unsigned int i;
+	if(mcreds->authdata.len != creds->authdata.len)
+	    match = FALSE;
+	else
+	    for(i = 0; match && i < mcreds->authdata.len; i++)
+		match = (mcreds->authdata.val[i].ad_type == 
+			 creds->authdata.val[i].ad_type) &&
+		    (krb5_data_cmp(&mcreds->authdata.val[i].ad_data,
+				   &creds->authdata.val[i].ad_data) == 0);
+    }
+    if (match && (whichfields & KRB5_TC_MATCH_2ND_TKT))
+	match = (krb5_data_cmp(&mcreds->second_ticket, &creds->second_ticket) == 0);
+
+    if (match && (whichfields & KRB5_TC_MATCH_IS_SKEY))
+	match = ((mcreds->second_ticket.length == 0) == 
+		 (creds->second_ticket.length == 0));
+
     return match;
 }

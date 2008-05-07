@@ -33,7 +33,7 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: parse_reply-test.c,v 1.2 2002/09/04 03:25:06 assar Exp $");
+RCSID("$Id: parse_reply-test.c 15287 2005-05-29 21:21:12Z lha $");
 #endif
 
 #include <sys/types.h>
@@ -109,18 +109,18 @@ main(int argc, char **argv)
 #endif
 	flags |= MAP_PRIVATE;
 
-	p1 = (char *)mmap(0, 2 * pagesize, PROT_READ | PROT_WRITE,
+	p1 = (unsigned char *)mmap(0, 2 * pagesize, PROT_READ | PROT_WRITE,
 		  flags, fd, 0);
 	if (p1 == (unsigned char *)MAP_FAILED)
 	    err (1, "mmap");
 	p2 = p1 + pagesize;
-	ret = mprotect (p2, pagesize, 0);
+	ret = mprotect ((void *)p2, pagesize, 0);
 	if (ret < 0)
 	    err (1, "mprotect");
 	buf = p2 - t->buf_len;
 	memcpy (buf, t->buf, t->buf_len);
 	parse_reply (buf, t->buf_len);
-	ret = munmap (p1, 2 * pagesize);
+	ret = munmap ((void *)p1, 2 * pagesize);
 	if (ret < 0)
 	    err (1, "munmap");
     }

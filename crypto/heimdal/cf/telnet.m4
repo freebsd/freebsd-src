@@ -1,5 +1,5 @@
 dnl
-dnl $Id: telnet.m4,v 1.1 2002/08/28 19:19:01 joda Exp $
+dnl $Id: telnet.m4 15435 2005-06-16 19:45:52Z lha $
 dnl
 dnl stuff used by telnet
 
@@ -31,11 +31,11 @@ case "$host" in
 	AC_CHECK_FUNC(getmsg)
 	if test "$ac_cv_func_getmsg" = "yes"; then
 		AC_CACHE_CHECK([if getmsg works], ac_cv_func_getmsg_works,
-		AC_TRY_RUN([
+		AC_RUN_IFELSE([AC_LANG_SOURCE([[
 			#include <stdio.h>
 			#include <errno.h>
 
-			int main()
+			int main(int argc, char **argv)
 			{
 			  int ret;
 			  ret = getmsg(open("/dev/null", 0), NULL, NULL, NULL);
@@ -43,9 +43,9 @@ case "$host" in
 			    return 1;
 			  return 0;
 			}
-			], ac_cv_func_getmsg_works=yes, 
-			ac_cv_func_getmsg_works=no,
-			ac_cv_func_getmsg_works=no))
+			]])], [ac_cv_func_getmsg_works=yes], 
+			[ac_cv_func_getmsg_works=no],
+			[ac_cv_func_getmsg_works=no]))
 		if test "$ac_cv_func_getmsg_works" = "yes"; then
 			AC_DEFINE(HAVE_GETMSG, 1,
 				[Define if you have a working getmsg.])

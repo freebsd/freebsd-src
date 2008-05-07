@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2004 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,81 +33,61 @@
 
 #include "ktutil_locl.h"
 
-RCSID("$Id: remove.c,v 1.3 2001/07/23 09:46:41 joda Exp $");
+RCSID("$Id: remove.c 17004 2006-04-07 13:06:37Z lha $");
 
 int
-kt_remove(int argc, char **argv)
+kt_remove(struct remove_options *opt, int argc, char **argv)
 {
     krb5_error_code ret = 0;
     krb5_keytab_entry entry;
     krb5_keytab keytab;
-    char *principal_string = NULL;
     krb5_principal principal = NULL;
-    int kvno = 0;
-    char *keytype_string = NULL;
     krb5_enctype enctype = 0;
-    int help_flag = 0;
-    struct getargs args[] = {
-	{ "principal", 'p', arg_string, NULL, "principal to remove" },
-	{ "kvno", 'V', arg_integer, NULL, "key version to remove" },
-	{ "enctype", 'e', arg_string, NULL, "enctype to remove" },
-	{ "help", 'h', arg_flag, NULL }
-    };
-    int num_args = sizeof(args) / sizeof(args[0]);
-    int optind = 0;
-    int i = 0;
-    args[i++].value = &principal_string;
-    args[i++].value = &kvno;
-    args[i++].value = &keytype_string;
-    args[i++].value = &help_flag;
-    if(getarg(args, num_args, argc, argv, &optind)) {
-	arg_printusage(args, num_args, "ktutil remove", "");
-	return 1;
-    }
-    if(help_flag) {
-	arg_printusage(args, num_args, "ktutil remove", "");
-	return 0;
-    }
-    if(principal_string) {
-	ret = krb5_parse_name(context, principal_string, &principal);
+
+    if(opt->principal_string) {
+	ret = krb5_parse_name(context, opt->principal_string, &principal);
 	if(ret) {
-	    krb5_warn(context, ret, "%s", principal_string);
+	    krb5_warn(context, ret, "%s", opt->principal_string);
 	    return 1;
 	}
     }
-    if(keytype_string) {
-	ret = krb5_string_to_enctype(context, keytype_string, &enctype);
+    if(opt->enctype_string) {
+	ret = krb5_string_to_enctype(context, opt->enctype_string, &enctype);
 	if(ret) {
 	    int t;
-	    if(sscanf(keytype_string, "%d", &t) == 1)
+	    if(sscanf(opt->enctype_string, "%d", &t) == 1)
 		enctype = t;
 	    else {
-		krb5_warn(context, ret, "%s", keytype_string);
+		krb5_warn(context, ret, "%s", opt->enctype_string);
 		if(principal)
 		    krb5_free_principal(context, principal);
 		return 1;
 	    }
 	}
     }
-    if (!principal && !enctype && !kvno) {
+    if (!principal && !enctype && !opt->kvno_integer) {
 	krb5_warnx(context, 
 		   "You must give at least one of "
 		   "principal, enctype or kvno.");
-	return 1;
+	ret = EINVAL;
+	goto out;
     }
 
-    if((keytab = ktutil_open_keytab()) == NULL)
-	return 1;
+    if((keytab = ktutil_open_keytab()) == NULL) {
+	ret = 1;
+	goto out;
+    }
 
     entry.principal = principal;
     entry.keyblock.keytype = enctype;
-    entry.vno = kvno;
+    entry.vno = opt->kvno_integer;
     ret = krb5_kt_remove_entry(context, keytab, &entry);
     krb5_kt_close(context, keytab);
     if(ret)
 	krb5_warn(context, ret, "remove");
+ out:
     if(principal)
 	krb5_free_principal(context, principal);
-    return 0;
+    return ret != 0;
 }
 

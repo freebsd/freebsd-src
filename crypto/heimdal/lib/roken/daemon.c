@@ -10,11 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -39,7 +35,7 @@ static char sccsid[] = "@(#)daemon.c	8.1 (Berkeley) 6/4/93";
 #include <config.h>
 #endif
 
-RCSID("$Id: daemon.c,v 1.3 1997/10/04 21:55:48 joda Exp $");
+RCSID("$Id: daemon.c 14773 2005-04-12 11:29:18Z lha $");
 
 #ifndef HAVE_DAEMON
 
@@ -55,7 +51,7 @@ RCSID("$Id: daemon.c,v 1.3 1997/10/04 21:55:48 joda Exp $");
 
 #include "roken.h"
 
-int
+int ROKEN_LIB_FUNCTION
 daemon(int nochdir, int noclose)
 {
     int fd;

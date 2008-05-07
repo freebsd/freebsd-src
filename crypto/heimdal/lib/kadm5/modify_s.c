@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2001, 2003, 2005-2006 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,50 +33,54 @@
 
 #include "kadm5_locl.h"
 
-RCSID("$Id: modify_s.c,v 1.12 2001/01/30 01:24:28 assar Exp $");
+RCSID("$Id: modify_s.c 20610 2007-05-08 07:12:37Z lha $");
 
 static kadm5_ret_t
 modify_principal(void *server_handle,
 		 kadm5_principal_ent_t princ, 
-		 u_int32_t mask,
-		 u_int32_t forbidden_mask)
+		 uint32_t mask,
+		 uint32_t forbidden_mask)
 {
     kadm5_server_context *context = server_handle;
-    hdb_entry ent;
+    hdb_entry_ex ent;
     kadm5_ret_t ret;
     if((mask & forbidden_mask))
 	return KADM5_BAD_MASK;
     if((mask & KADM5_POLICY) && strcmp(princ->policy, "default"))
 	return KADM5_UNK_POLICY;
     
-    ent.principal = princ->principal;
-    ret = context->db->open(context->context, context->db, O_RDWR, 0);
+    memset(&ent, 0, sizeof(ent));
+    ret = context->db->hdb_open(context->context, context->db, O_RDWR, 0);
     if(ret)
 	return ret;
-    ret = context->db->fetch(context->context, context->db, 0, &ent);
+    ret = context->db->hdb_fetch(context->context, context->db, 
+				 princ->principal, HDB_F_GET_ANY, &ent);
     if(ret)
 	goto out;
     ret = _kadm5_setup_entry(context, &ent, mask, princ, mask, NULL, 0);
     if(ret)
 	goto out2;
-    ret = _kadm5_set_modifier(context, &ent);
+    ret = _kadm5_set_modifier(context, &ent.entry);
     if(ret)
 	goto out2;
 
-    ret = hdb_seal_keys(context->context, context->db, &ent);
+    ret = hdb_seal_keys(context->context, context->db, &ent.entry);
+    if (ret)
+	goto out2;
+
+    ret = context->db->hdb_store(context->context, context->db, 
+			     HDB_F_REPLACE, &ent);
     if (ret)
 	goto out2;
 
     kadm5_log_modify (context,
-		      &ent,
+		      &ent.entry,
 		      mask | KADM5_MOD_NAME | KADM5_MOD_TIME);
-		      
-    ret = context->db->store(context->context, context->db, 
-			     HDB_F_REPLACE, &ent);
+
 out2:
     hdb_free_entry(context->context, &ent);
 out:
-    context->db->close(context->context, context->db);
+    context->db->hdb_close(context->context, context->db);
     return _kadm5_error_code(ret);
 }
 
@@ -84,7 +88,7 @@ out:
 kadm5_ret_t
 kadm5_s_modify_principal(void *server_handle,
 			 kadm5_principal_ent_t princ, 
-			 u_int32_t mask)
+			 uint32_t mask)
 {
     return modify_principal(server_handle, princ, mask, 
 			    KADM5_LAST_PWD_CHANGE | KADM5_MOD_TIME 

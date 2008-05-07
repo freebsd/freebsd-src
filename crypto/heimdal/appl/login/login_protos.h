@@ -4,6 +4,10 @@
 
 #include <stdarg.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void
 add_env (
 	const char */*var*/,
@@ -48,6 +52,11 @@ prepare_utmp (
 	const char */*hostname*/);
 
 int
+read_limits_conf (
+	const char */*file*/,
+	const struct passwd */*pwd*/);
+
+int
 read_string (
 	const char */*prompt*/,
 	char */*buf*/,
@@ -74,5 +83,9 @@ utmpx_login (
 	char */*line*/,
 	const char */*user*/,
 	const char */*host*/);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __login_protos_h__ */

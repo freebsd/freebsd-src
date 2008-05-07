@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2003 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2005 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include <krb5_locl.h>
 
-RCSID("$Id: changepw.c,v 1.38.2.1 2004/06/21 08:38:10 lha Exp $");
+RCSID("$Id: changepw.c 21505 2007-07-12 12:28:38Z lha $");
 
 static void
 str2data (krb5_data *d,
@@ -46,10 +46,12 @@ str2data (krb5_data *d,
 	  ...)
 {
     va_list args;
+    char *str;
 
     va_start(args, fmt);
-    d->length = vasprintf ((char **)&d->data, fmt, args);
+    d->length = vasprintf (&str, fmt, args);
     va_end(args);
+    d->data = str;
 }
 
 /*
@@ -67,7 +69,7 @@ chgpw_send_request (krb5_context context,
 		    krb5_principal targprinc,
 		    int is_stream,
 		    int sock,
-		    char *passwd,
+		    const char *passwd,
 		    const char *host)
 {
     krb5_error_code ret;
@@ -98,7 +100,7 @@ chgpw_send_request (krb5_context context,
     if (ret)
 	return ret;
 
-    passwd_data.data   = passwd;
+    passwd_data.data   = rk_UNCONST(passwd);
     passwd_data.length = strlen(passwd);
 
     krb5_data_zero (&krb_priv_data);
@@ -160,7 +162,7 @@ setpw_send_request (krb5_context context,
 		    krb5_principal targprinc,
 		    int is_stream,
 		    int sock,
-		    char *passwd,
+		    const char *passwd,
 		    const char *host)
 {
     krb5_error_code ret;
@@ -186,7 +188,7 @@ setpw_send_request (krb5_context context,
 	return ret;
 
     chpw.newpasswd.length = strlen(passwd);
-    chpw.newpasswd.data = passwd;
+    chpw.newpasswd.data = rk_UNCONST(passwd);
     if (targprinc) {
 	chpw.targname = &targprinc->name;
 	chpw.targrealm = &targprinc->realm;
@@ -271,7 +273,7 @@ process_reply (krb5_context context,
     krb5_error_code ret;
     u_char reply[1024 * 3];
     ssize_t len;
-    u_int16_t pkt_len, pkt_ver;
+    uint16_t pkt_len, pkt_ver;
     krb5_data ap_rep_data;
     int save_errno;
 
@@ -319,7 +321,7 @@ process_reply (krb5_context context,
 
     if (len < 6) {
 	str2data (result_string, "server %s sent to too short message "
-		  "(%d bytes)", host, len);
+		  "(%ld bytes)", host, (long)len);
 	*result_code = KRB5_KPASSWD_MALFORMED;
 	return 0;
     }
@@ -456,7 +458,7 @@ typedef krb5_error_code (*kpwd_send_request) (krb5_context,
 					      krb5_principal,
 					      int,
 					      int,
-					      char *,
+					      const char *,
 					      const char *);
 typedef krb5_error_code (*kpwd_process_reply) (krb5_context,
 					       krb5_auth_context,
@@ -467,7 +469,7 @@ typedef krb5_error_code (*kpwd_process_reply) (krb5_context,
 					       krb5_data *,
 					       const char *);
 
-struct kpwd_proc {
+static struct kpwd_proc {
     const char *name;
     int flags;
 #define SUPPORT_TCP	1
@@ -509,7 +511,7 @@ static krb5_error_code
 change_password_loop (krb5_context	context,
 		      krb5_creds	*creds,
 		      krb5_principal	targprinc,
-		      char		*newpw,
+		      const char	*newpw,
 		      int		*result_code,
 		      krb5_data		*result_code_string,
 		      krb5_data		*result_string,
@@ -522,7 +524,12 @@ change_password_loop (krb5_context	context,
     int sock;
     int i;
     int done = 0;
-    krb5_realm realm = creds->client->realm;
+    krb5_realm realm;
+
+    if (targprinc)
+	realm = targprinc->realm;
+    else
+	realm = creds->client->realm;
 
     ret = krb5_auth_con_init (context, &auth_context);
     if (ret)
@@ -643,10 +650,12 @@ change_password_loop (krb5_context	context,
     if (done)
 	return 0;
     else {
-	if (ret == KRB5_KDC_UNREACH)
+	if (ret == KRB5_KDC_UNREACH) {
 	    krb5_set_error_string(context,
 				  "unable to reach any changepw server "
 				  " in realm %s", realm);
+	    *result_code = KRB5_KPASSWD_HARDERROR;
+	}
 	return ret;
     }
 }
@@ -658,10 +667,10 @@ change_password_loop (krb5_context	context,
  * the operation in `result_*' and an error code or 0.
  */
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_change_password (krb5_context	context,
 		      krb5_creds	*creds,
-		      char		*newpw,
+		      const char	*newpw,
 		      int		*result_code,
 		      krb5_data		*result_code_string,
 		      krb5_data		*result_string)
@@ -684,10 +693,10 @@ krb5_change_password (krb5_context	context,
  *
  */
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_set_password(krb5_context context,
 		  krb5_creds *creds,
-		  char *newpw,
+		  const char *newpw,
 		  krb5_principal targprinc,
 		  int *result_code,
 		  krb5_data *result_code_string,
@@ -710,7 +719,7 @@ krb5_set_password(krb5_context context,
 
     for (i = 0; procs[i].name != NULL; i++) {
 	*result_code = 0;
-	ret = change_password_loop(context, creds, targprinc, newpw, 
+	ret = change_password_loop(context, creds, principal, newpw, 
 				   result_code, result_code_string, 
 				   result_string, 
 				   &procs[i]);
@@ -727,10 +736,10 @@ krb5_set_password(krb5_context context,
  *
  */
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_set_password_using_ccache(krb5_context context,
 			       krb5_ccache ccache,
-			       char *newpw,
+			       const char *newpw,
 			       krb5_principal targprinc,
 			       int *result_code,
 			       krb5_data *result_code_string,
@@ -792,7 +801,7 @@ krb5_set_password_using_ccache(krb5_context context,
  *
  */
 
-const char*
+const char* KRB5_LIB_FUNCTION
 krb5_passwd_result_to_string (krb5_context context,
 			      int result)
 {

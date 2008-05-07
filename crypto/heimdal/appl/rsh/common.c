@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 1999, 2002 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2004 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -32,7 +32,7 @@
  */
 
 #include "rsh_locl.h"
-RCSID("$Id: common.c,v 1.16 2002/09/04 15:50:36 assar Exp $");
+RCSID("$Id: common.c 17450 2006-05-05 11:11:43Z lha $");
 
 #if defined(KRB4) || defined(KRB5)
 
@@ -43,7 +43,7 @@ void *ivec_in[2];
 void *ivec_out[2];
 
 void
-init_ivecs(int client)
+init_ivecs(int client, int have_errsock)
 {
     size_t blocksize;
 
@@ -52,14 +52,20 @@ init_ivecs(int client)
     ivec_in[0] = malloc(blocksize);
     memset(ivec_in[0], client, blocksize);
 
-    ivec_in[1] = malloc(blocksize);
-    memset(ivec_in[1], 2 | client, blocksize);
+    if(have_errsock) {
+	ivec_in[1] = malloc(blocksize);
+	memset(ivec_in[1], 2 | client, blocksize);
+    } else
+	ivec_in[1] = ivec_in[0];
 
     ivec_out[0] = malloc(blocksize);
     memset(ivec_out[0], !client, blocksize);
 
-    ivec_out[1] = malloc(blocksize);
-    memset(ivec_out[1], 2 | !client, blocksize);
+    if(have_errsock) {
+	ivec_out[1] = malloc(blocksize);
+	memset(ivec_out[1], 2 | !client, blocksize);
+    } else
+	ivec_out[1] = ivec_out[0];
 }
 #endif
 
@@ -76,7 +82,7 @@ do_read (int fd, void *buf, size_t sz, void *ivec)
 #ifdef KRB5
         if(auth_method == AUTH_KRB5) {
 	    krb5_error_code ret;
-	    u_int32_t len, outer_len;
+	    uint32_t len, outer_len;
 	    int status;
 	    krb5_data data;
 	    void *edata;

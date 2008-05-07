@@ -31,30 +31,25 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 
 #include "krb5_locl.h"
+#include <hex.h>
+#include <err.h>
 
 #ifdef HAVE_OPENSSL
 #include <openssl/evp.h>
 #endif
 
-RCSID("$Id: aes-test.c,v 1.3 2003/03/25 11:30:41 lha Exp $");
+RCSID("$Id: aes-test.c 18301 2006-10-07 13:50:34Z lha $");
 
 static int verbose = 0;
 
 static void
-hex_dump_data(krb5_data *data)
+hex_dump_data(const void *data, size_t length)
 {
-    unsigned char *p = data->data;
-    int i, j;
+    char *p;
 
-    for (i = j = 0; i < data->length; i++, j++) {
-	printf("%02x ", p[i]);
-	if (j > 15) {
-	    printf("\n");
-	    j = 0;
-	}
-    }
-    if (j != 0)
-	printf("\n");
+    hex_encode(data, length, &p);
+    printf("%s\n", p);
+    free(p);
 }
 
 struct {
@@ -63,11 +58,10 @@ struct {
     int saltlen;
     int iterations;
     krb5_enctype enctype;
-    int keylen;
+    size_t keylen;
     char *pbkdf2;
     char *key;
 } keys[] = {
-#ifdef ENABLE_AES
     { 
 	"password", "ATHENA.MIT.EDUraeburn", -1,
 	1, 
@@ -185,7 +179,6 @@ struct {
 	"\x4b\x6d\x98\x39\xf8\x44\x06\xdf\x1f\x09\xcc\x16\x6d\xb4\xb8\x3c"
 	"\x57\x18\x48\xb7\x84\xa3\xd6\xbd\xc3\x46\x58\x9a\x3e\x39\x3f\x9e"
     },
-#endif
     {
 	"foo", "", -1, 
 	0,
@@ -207,11 +200,9 @@ string_to_key_test(krb5_context context)
 {
     krb5_data password, opaque;
     krb5_error_code ret;
-    krb5_keyblock key;
     krb5_salt salt;
     int i, val = 0;
     char iter[4];
-    char keyout[32];
 
     for (i = 0; i < sizeof(keys)/sizeof(keys[0]); i++) {
 
@@ -229,119 +220,100 @@ string_to_key_test(krb5_context context)
 	opaque.length = sizeof(iter);
 	_krb5_put_int(iter, keys[i].iterations, 4);
 	
-	if (verbose)
-	    printf("%d: password: %s salt: %s\n",
-		   i, keys[i].password, keys[i].salt);
-
-	if (keys[i].keylen > sizeof(keyout))
-	    abort();
-
-#ifdef ENABLE_AES
 	if (keys[i].pbkdf2) {
+	    unsigned char keyout[32];
 
-#ifdef HAVE_OPENSSL
+	    if (keys[i].keylen > sizeof(keyout))
+		abort();
+
 	    PKCS5_PBKDF2_HMAC_SHA1(password.data, password.length,
 				   salt.saltvalue.data, salt.saltvalue.length,
 				   keys[i].iterations, 
 				   keys[i].keylen, keyout);
 	    
 	    if (memcmp(keyout, keys[i].pbkdf2, keys[i].keylen) != 0) {
-		krb5_warnx(context, "%d: openssl key pbkdf2", i);
+		krb5_warnx(context, "%d: pbkdf2", i);
 		val = 1;
 		continue;
 	    }
-#endif
 	    
-	    ret = krb5_PKCS5_PBKDF2(context, CKSUMTYPE_SHA1, password, salt, 
-				    keys[i].iterations - 1,
-				    keys[i].enctype,
-				    &key);
+	    if (verbose) {
+		printf("PBKDF2:\n");
+		hex_dump_data(keyout, keys[i].keylen);
+	    }
+	}
+
+	{
+	    krb5_keyblock key;
+
+	    ret = krb5_string_to_key_data_salt_opaque (context,
+						       keys[i].enctype,
+						       password, 
+						       salt, 
+						       opaque, 
+						       &key);
 	    if (ret) {
-		krb5_warn(context, ret, "%d: krb5_PKCS5_PBKDF2", i);
+		krb5_warn(context, ret, "%d: string_to_key_data_salt_opaque", 
+			  i);
 		val = 1;
 		continue;
 	    }
 	    
 	    if (key.keyvalue.length != keys[i].keylen) {
-		krb5_warnx(context, "%d: size key pbkdf2", i);
+		krb5_warnx(context, "%d: key wrong length (%lu/%lu)",
+			   i, (unsigned long)key.keyvalue.length, 
+			   (unsigned long)keys[i].keylen);
 		val = 1;
 		continue;
-	    }
-
-	    if (memcmp(key.keyvalue.data, keys[i].pbkdf2, keys[i].keylen) != 0) {
-		krb5_warnx(context, "%d: key pbkdf2 pl %d", 
-			   i, password.length);
-		val = 1;
-		continue;
-	    }
-
-	    if (verbose) {
-		printf("PBKDF2:\n");
-		hex_dump_data(&key.keyvalue);
 	    }
 	    
+	    if (memcmp(key.keyvalue.data, keys[i].key, keys[i].keylen) != 0) {
+		krb5_warnx(context, "%d: key wrong", i);
+		val = 1;
+		continue;
+	    }
+	    
+	    if (verbose) {
+		printf("key:\n");
+		hex_dump_data(key.keyvalue.data, key.keyvalue.length);
+	    }
 	    krb5_free_keyblock_contents(context, &key);
 	}
-#endif
-
-	ret = krb5_string_to_key_data_salt_opaque (context, keys[i].enctype,
-						   password, salt, opaque, 
-						   &key);
-	if (ret) {
-	    krb5_warn(context, ret, "%d: string_to_key_data_salt_opaque", i);
-	    val = 1;
-	    continue;
-	}
-
-	if (key.keyvalue.length != keys[i].keylen) {
-	    krb5_warnx(context, "%d: key wrong length (%d/%d)",
-		       i, key.keyvalue.length, keys[i].keylen);
-	    val = 1;
-	    continue;
-	}
-
-	if (memcmp(key.keyvalue.data, keys[i].key, keys[i].keylen) != 0) {
-	    krb5_warnx(context, "%d: key wrong", i);
-	    val = 1;
-	    continue;
-	}
-	
-	if (verbose) {
-	    printf("key:\n");
-	    hex_dump_data(&key.keyvalue);
-	}
-	krb5_free_keyblock_contents(context, &key);
     }
     return val;
 }
 
-#ifdef ENABLE_AES
-
-struct {
+struct enc_test {
     size_t len;
     char *input;
     char *output;
-} encs[] = {
+    char *nextiv;
+};
+
+struct enc_test encs1[] = {
     {
 	17,
 	"\x49\x20\x77\x6f\x75\x6c\x64\x20\x6c\x69\x6b\x65\x20\x74\x68\x65"
 	"\x20",
 	"\xc6\x35\x35\x68\xf2\xbf\x8c\xb4\xd8\xa5\x80\x36\x2d\xa7\xff\x7f"
-	"\x97"
+	"\x97",
+	"\xc6\x35\x35\x68\xf2\xbf\x8c\xb4\xd8\xa5\x80\x36\x2d\xa7\xff\x7f"
     },
     {
 	31,
 	"\x49\x20\x77\x6f\x75\x6c\x64\x20\x6c\x69\x6b\x65\x20\x74\x68\x65"
 	"\x20\x47\x65\x6e\x65\x72\x61\x6c\x20\x47\x61\x75\x27\x73\x20",
 	"\xfc\x00\x78\x3e\x0e\xfd\xb2\xc1\xd4\x45\xd4\xc8\xef\xf7\xed\x22"
-	"\x97\x68\x72\x68\xd6\xec\xcc\xc0\xc0\x7b\x25\xe2\x5e\xcf\xe5"
+	"\x97\x68\x72\x68\xd6\xec\xcc\xc0\xc0\x7b\x25\xe2\x5e\xcf\xe5",
+	"\xfc\x00\x78\x3e\x0e\xfd\xb2\xc1\xd4\x45\xd4\xc8\xef\xf7\xed\x22"
     },
     {
 	32,
 	"\x49\x20\x77\x6f\x75\x6c\x64\x20\x6c\x69\x6b\x65\x20\x74\x68\x65"
 	"\x20\x47\x65\x6e\x65\x72\x61\x6c\x20\x47\x61\x75\x27\x73\x20\x43",
 	"\x39\x31\x25\x23\xa7\x86\x62\xd5\xbe\x7f\xcb\xcc\x98\xeb\xf5\xa8"
-	"\x97\x68\x72\x68\xd6\xec\xcc\xc0\xc0\x7b\x25\xe2\x5e\xcf\xe5\x84"
+	"\x97\x68\x72\x68\xd6\xec\xcc\xc0\xc0\x7b\x25\xe2\x5e\xcf\xe5\x84",
+	"\x39\x31\x25\x23\xa7\x86\x62\xd5\xbe\x7f\xcb\xcc\x98\xeb\xf5\xa8"
     },
     {
 	47,
@@ -350,7 +322,18 @@ struct {
 	"\x68\x69\x63\x6b\x65\x6e\x2c\x20\x70\x6c\x65\x61\x73\x65\x2c",
 	"\x97\x68\x72\x68\xd6\xec\xcc\xc0\xc0\x7b\x25\xe2\x5e\xcf\xe5\x84"
 	"\xb3\xff\xfd\x94\x0c\x16\xa1\x8c\x1b\x55\x49\xd2\xf8\x38\x02\x9e"
-	"\x39\x31\x25\x23\xa7\x86\x62\xd5\xbe\x7f\xcb\xcc\x98\xeb\xf5"
+	"\x39\x31\x25\x23\xa7\x86\x62\xd5\xbe\x7f\xcb\xcc\x98\xeb\xf5",
+	"\xb3\xff\xfd\x94\x0c\x16\xa1\x8c\x1b\x55\x49\xd2\xf8\x38\x02\x9e"
+    },
+    {
+	48,
+	"\x49\x20\x77\x6f\x75\x6c\x64\x20\x6c\x69\x6b\x65\x20\x74\x68\x65"
+	"\x20\x47\x65\x6e\x65\x72\x61\x6c\x20\x47\x61\x75\x27\x73\x20\x43"
+	"\x68\x69\x63\x6b\x65\x6e\x2c\x20\x70\x6c\x65\x61\x73\x65\x2c\x20",
+	"\x97\x68\x72\x68\xd6\xec\xcc\xc0\xc0\x7b\x25\xe2\x5e\xcf\xe5\x84"
+	"\x9d\xad\x8b\xbb\x96\xc4\xcd\xc0\x3b\xc1\x03\xe1\xa1\x94\xbb\xd8"
+	"\x39\x31\x25\x23\xa7\x86\x62\xd5\xbe\x7f\xcb\xcc\x98\xeb\xf5\xa8",
+	"\x9d\xad\x8b\xbb\x96\xc4\xcd\xc0\x3b\xc1\x03\xe1\xa1\x94\xbb\xd8"
     },
     {
 	64,
@@ -361,16 +344,137 @@ struct {
 	"\x97\x68\x72\x68\xd6\xec\xcc\xc0\xc0\x7b\x25\xe2\x5e\xcf\xe5\x84"
 	"\x39\x31\x25\x23\xa7\x86\x62\xd5\xbe\x7f\xcb\xcc\x98\xeb\xf5\xa8"
 	"\x48\x07\xef\xe8\x36\xee\x89\xa5\x26\x73\x0d\xbc\x2f\x7b\xc8\x40"
-	"\x9d\xad\x8b\xbb\x96\xc4\xcd\xc0\x3b\xc1\x03\xe1\xa1\x94\xbb\xd8"
+	"\x9d\xad\x8b\xbb\x96\xc4\xcd\xc0\x3b\xc1\x03\xe1\xa1\x94\xbb\xd8",
+	"\x48\x07\xef\xe8\x36\xee\x89\xa5\x26\x73\x0d\xbc\x2f\x7b\xc8\x40"
     }
 };
 	
-char *enc_key =
+
+struct enc_test encs2[] = {
+    {
+	17,
+	"\x49\x20\x77\x6f\x75\x6c\x64\x20\x6c\x69\x6b\x65\x20\x74\x68\x65"
+	"\x20",
+	"\x5c\x13\x26\x27\xc4\xcb\xca\x04\x14\x43\x8a\xb5\x97\x97\x7c\x10"
+	"\x16"
+    },
+    {
+	31,
+	"\x49\x20\x77\x6f\x75\x6c\x64\x20\x6c\x69\x6b\x65\x20\x74\x68\x65"
+	"\x20\x47\x65\x6e\x65\x72\x61\x6c\x20\x47\x61\x75\x27\x73\x20",
+	"\x16\xb3\xd8\xe5\xcd\x93\xe6\x2c\x28\x70\xa0\x36\x6e\x9a\xb9\x74"
+	"\x16\xc1\xee\xdf\x39\xc8\x3f\xfb\xc5\xf6\x72\xe9\xc1\x6e\x53"
+    },
+    {
+	32,
+	"\x49\x20\x77\x6f\x75\x6c\x64\x20\x6c\x69\x6b\x65\x20\x74\x68\x65"
+	"\x20\x47\x65\x6e\x65\x72\x61\x6c\x20\x47\x61\x75\x27\x73\x20\x43",
+	"\x69\xde\xce\x59\x83\x6a\x82\xe1\xcd\x21\x93\xd0\x9e\x2a\xff\xc8"
+	"\x16\xc1\xee\xdf\x39\xc8\x3f\xfb\xc5\xf6\x72\xe9\xc1\x6e\x53\x0c"
+    },
+    {
+	47,
+	"\x49\x20\x77\x6f\x75\x6c\x64\x20\x6c\x69\x6b\x65\x20\x74\x68\x65"
+	"\x20\x47\x65\x6e\x65\x72\x61\x6c\x20\x47\x61\x75\x27\x73\x20\x43"
+	"\x68\x69\x63\x6b\x65\x6e\x2c\x20\x70\x6c\x65\x61\x73\x65\x2c",
+	"\x16\xc1\xee\xdf\x39\xc8\x3f\xfb\xc5\xf6\x72\xe9\xc1\x6e\x53\x0c"
+	"\xe5\x56\xb4\x88\x41\xb9\xde\x27\xf0\x07\xa1\x6e\x89\x94\x47\xf1"
+	"\x69\xde\xce\x59\x83\x6a\x82\xe1\xcd\x21\x93\xd0\x9e\x2a\xff"
+    },
+    {
+	48,
+	"\x49\x20\x77\x6f\x75\x6c\x64\x20\x6c\x69\x6b\x65\x20\x74\x68\x65"
+	"\x20\x47\x65\x6e\x65\x72\x61\x6c\x20\x47\x61\x75\x27\x73\x20\x43"
+	"\x68\x69\x63\x6b\x65\x6e\x2c\x20\x70\x6c\x65\x61\x73\x65\x2c\x20",
+	"\x16\xc1\xee\xdf\x39\xc8\x3f\xfb\xc5\xf6\x72\xe9\xc1\x6e\x53\x0c"
+	"\xfd\x68\xd1\x56\x32\x23\x7b\xfa\xb0\x09\x86\x3b\x17\x53\xfa\x30"
+	"\x69\xde\xce\x59\x83\x6a\x82\xe1\xcd\x21\x93\xd0\x9e\x2a\xff\xc8"
+    },
+    {
+	64,
+	"\x49\x20\x77\x6f\x75\x6c\x64\x20\x6c\x69\x6b\x65\x20\x74\x68\x65"
+	"\x20\x47\x65\x6e\x65\x72\x61\x6c\x20\x47\x61\x75\x27\x73\x20\x43"
+	"\x68\x69\x63\x6b\x65\x6e\x2c\x20\x70\x6c\x65\x61\x73\x65\x2c\x20"
+	"\x61\x6e\x64\x20\x77\x6f\x6e\x74\x6f\x6e\x20\x73\x6f\x75\x70\x2e",
+	"\x16\xc1\xee\xdf\x39\xc8\x3f\xfb\xc5\xf6\x72\xe9\xc1\x6e\x53\x0c"
+	"\x69\xde\xce\x59\x83\x6a\x82\xe1\xcd\x21\x93\xd0\x9e\x2a\xff\xc8"
+	"\x70\x29\xf2\x6f\x7c\x79\xc1\x77\x91\xad\x94\xb0\x78\x62\x27\x67"
+	"\xfd\x68\xd1\x56\x32\x23\x7b\xfa\xb0\x09\x86\x3b\x17\x53\xfa\x30"
+    },
+    {
+	78,
+	"\x49\x20\x77\x6f\x75\x6c\x64\x20\x6c\x69\x6b\x65\x20\x74\x68\x65"
+	"\x20\x47\x65\x6e\x65\x72\x61\x6c\x20\x47\x61\x75\x27\x73\x20\x43"
+	"\x68\x69\x63\x6b\x65\x6e\x2c\x20\x70\x6c\x65\x61\x73\x65\x2c\x20"
+	"\x61\x6e\x64\x20\x77\x6f\x6e\x74\x6f\x6e\x20\x73\x6f\x75\x70\x2e"
+	"\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41",
+	"\x16\xc1\xee\xdf\x39\xc8\x3f\xfb\xc5\xf6\x72\xe9\xc1\x6e\x53\x0c"
+	"\x69\xde\xce\x59\x83\x6a\x82\xe1\xcd\x21\x93\xd0\x9e\x2a\xff\xc8"
+	"\xfd\x68\xd1\x56\x32\x23\x7b\xfa\xb0\x09\x86\x3b\x17\x53\xfa\x30"
+	"\x73\xfb\x2c\x36\x76\xaf\xcf\x31\xff\xe3\x8a\x89\x0c\x7e\x99\x3f"
+	"\x70\x29\xf2\x6f\x7c\x79\xc1\x77\x91\xad\x94\xb0\x78\x62"
+    },
+    {
+	83,
+	"\x49\x20\x77\x6f\x75\x6c\x64\x20\x6c\x69\x6b\x65\x20\x74\x68\x65"
+	"\x20\x47\x65\x6e\x65\x72\x61\x6c\x20\x47\x61\x75\x27\x73\x20\x43"
+	"\x68\x69\x63\x6b\x65\x6e\x2c\x20\x70\x6c\x65\x61\x73\x65\x2c\x20"
+	"\x61\x6e\x64\x20\x77\x6f\x6e\x74\x6f\x6e\x20\x73\x6f\x75\x70\x2e"
+	"\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41"
+	"\x41\x41\x41",
+	"\x16\xc1\xee\xdf\x39\xc8\x3f\xfb\xc5\xf6\x72\xe9\xc1\x6e\x53\x0c"
+	"\x69\xde\xce\x59\x83\x6a\x82\xe1\xcd\x21\x93\xd0\x9e\x2a\xff\xc8"
+	"\xfd\x68\xd1\x56\x32\x23\x7b\xfa\xb0\x09\x86\x3b\x17\x53\xfa\x30"
+	"\x70\x29\xf2\x6f\x7c\x79\xc1\x77\x91\xad\x94\xb0\x78\x62\x27\x67"
+	"\x65\x39\x3a\xdb\x92\x05\x4d\x4f\x08\xa1\xfa\x59\xda\x56\x58\x0e"
+	"\x3b\xac\x12"
+    },
+    {
+	92,
+	"\x49\x20\x77\x6f\x75\x6c\x64\x20\x6c\x69\x6b\x65\x20\x74\x68\x65"
+	"\x20\x47\x65\x6e\x65\x72\x61\x6c\x20\x47\x61\x75\x27\x73\x20\x43"
+	"\x68\x69\x63\x6b\x65\x6e\x2c\x20\x70\x6c\x65\x61\x73\x65\x2c\x20"
+	"\x61\x6e\x64\x20\x77\x6f\x6e\x74\x6f\x6e\x20\x73\x6f\x75\x70\x2e"
+	"\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41"
+	"\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41",
+	"\x16\xc1\xee\xdf\x39\xc8\x3f\xfb\xc5\xf6\x72\xe9\xc1\x6e\x53\x0c"
+	"\x69\xde\xce\x59\x83\x6a\x82\xe1\xcd\x21\x93\xd0\x9e\x2a\xff\xc8"
+	"\xfd\x68\xd1\x56\x32\x23\x7b\xfa\xb0\x09\x86\x3b\x17\x53\xfa\x30"
+	"\x70\x29\xf2\x6f\x7c\x79\xc1\x77\x91\xad\x94\xb0\x78\x62\x27\x67"
+	"\x0c\xff\xd7\x63\x50\xf8\x4e\xf9\xec\x56\x1c\x79\xc5\xc8\xfe\x50"
+	"\x3b\xac\x12\x6e\xd3\x2d\x02\xc4\xe5\x06\x43\x5f"
+    },
+    {
+	96,
+	"\x49\x20\x77\x6f\x75\x6c\x64\x20\x6c\x69\x6b\x65\x20\x74\x68\x65"
+	"\x20\x47\x65\x6e\x65\x72\x61\x6c\x20\x47\x61\x75\x27\x73\x20\x43"
+	"\x68\x69\x63\x6b\x65\x6e\x2c\x20\x70\x6c\x65\x61\x73\x65\x2c\x20"
+	"\x61\x6e\x64\x20\x77\x6f\x6e\x74\x6f\x6e\x20\x73\x6f\x75\x70\x2e"
+	"\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41"
+	"\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41\x41",
+	"\x16\xc1\xee\xdf\x39\xc8\x3f\xfb\xc5\xf6\x72\xe9\xc1\x6e\x53\x0c"
+	"\x69\xde\xce\x59\x83\x6a\x82\xe1\xcd\x21\x93\xd0\x9e\x2a\xff\xc8"
+	"\xfd\x68\xd1\x56\x32\x23\x7b\xfa\xb0\x09\x86\x3b\x17\x53\xfa\x30"
+	"\x70\x29\xf2\x6f\x7c\x79\xc1\x77\x91\xad\x94\xb0\x78\x62\x27\x67"
+	"\x08\x28\x49\xad\xfc\x2d\x8e\x86\xae\x69\xa5\xa8\xd9\x29\x9e\xe4"
+	"\x3b\xac\x12\x6e\xd3\x2d\x02\xc4\xe5\x06\x43\x5f\x4c\x41\xd1\xb8"
+    }
+};
+
+
+
+char *aes_key1 = 
 	"\x63\x68\x69\x63\x6b\x65\x6e\x20\x74\x65\x72\x69\x79\x61\x6b\x69";
 
+char *aes_key2 =
+	"\x63\x68\x69\x63\x6b\x65\x6e\x20\x74\x65\x72\x69\x79\x61\x6b\x69"
+	"\x2c\x20\x79\x75\x6d\x6d\x79\x20\x79\x75\x6d\x6d\x79\x21\x21\x21";
+
+
 static int
-samep(int testn, char *type, const char *p1, const char *p2, size_t len)
+samep(int testn, char *type, const void *pp1, const void *pp2, size_t len)
 {
+    const unsigned char *p1 = pp1, *p2 = pp2;
     size_t i;
     int val = 1;
 
@@ -390,59 +494,258 @@ samep(int testn, char *type, const char *p1, const char *p2, size_t len)
 }
 
 static int
-encryption_test(krb5_context context)
+encryption_test(krb5_context context, const void *key, size_t keylen,
+		struct enc_test *enc, int numenc)
 {
-    char iv[AES_BLOCK_SIZE];
-    int i, val = 0;
+    unsigned char iv[AES_BLOCK_SIZE];
+    int i, val, failed = 0;
     AES_KEY ekey, dkey;
-    char *p;
+    unsigned char *p;
 
-    AES_set_encrypt_key(enc_key, 128, &ekey);
-    AES_set_decrypt_key(enc_key, 128, &dkey);
+    AES_set_encrypt_key(key, keylen, &ekey);
+    AES_set_decrypt_key(key, keylen, &dkey);
 
-    for (i = 0; i < sizeof(encs)/sizeof(encs[0]); i++) {
+    for (i = 0; i < numenc; i++) {
+	val = 0;
+
 	if (verbose)
 	    printf("test: %d\n", i);
 	memset(iv, 0, sizeof(iv));
 
-	p = malloc(encs[i].len + 1);
+	p = malloc(enc[i].len + 1);
 	if (p == NULL)
 	    krb5_errx(context, 1, "malloc");
 
-	p[encs[i].len] = '\0';
+	p[enc[i].len] = '\0';
 
-	memcpy(p, encs[i].input, encs[i].len);
+	memcpy(p, enc[i].input, enc[i].len);
 
-	_krb5_aes_cts_encrypt(p, p, encs[i].len, 
+	_krb5_aes_cts_encrypt(p, p, enc[i].len,
 			      &ekey, iv, AES_ENCRYPT);
 
-	if (p[encs[i].len] != '\0') {
+	if (p[enc[i].len] != '\0') {
 	    krb5_warnx(context, "%d: encrypt modified off end", i);
 	    val = 1;
 	}
 
-	if (!samep(i, "cipher", p, encs[i].output, encs[i].len))
+	if (!samep(i, "cipher", p, enc[i].output, enc[i].len)) {
+	    krb5_warnx(context, "%d: cipher", i);
 	    val = 1;
+	}
+
+	if (enc[i].nextiv && !samep(i, "iv", iv, enc[i].nextiv, 16)){ /*XXX*/ 
+	    krb5_warnx(context, "%d: iv", i);
+	    val = 1;
+	}
 
 	memset(iv, 0, sizeof(iv));
 
-	_krb5_aes_cts_encrypt(p, p, encs[i].len, 
+	_krb5_aes_cts_encrypt(p, p, enc[i].len,
 			      &dkey, iv, AES_DECRYPT);
 
-	if (p[encs[i].len] != '\0') {
+	if (p[enc[i].len] != '\0') {
 	    krb5_warnx(context, "%d: decrypt modified off end", i);
 	    val = 1;
 	}
 
-	if (!samep(i, "clear", p, encs[i].input, encs[i].len))
+	if (!samep(i, "clear", p, enc[i].input, enc[i].len))
 	    val = 1;
 
+	if (enc[i].nextiv && !samep(i, "iv", iv, enc[i].nextiv, 16)){ /*XXX*/ 
+	    krb5_warnx(context, "%d: iv", i);
+	    val = 1;
+	}
+
 	free(p);
+
+	if (val) {
+	    printf("test %d failed\n", i);
+	    failed = 1;
+	}
+	val = 0;
     }
-    return val;
+    return failed;
 }
 
-#endif /* ENABLE_AES */
+static int
+krb_enc(krb5_context context,
+	krb5_crypto crypto, 
+	unsigned usage,
+	krb5_data *cipher, 
+	krb5_data *clear)
+{
+    krb5_data decrypt;
+    krb5_error_code ret;
+
+    krb5_data_zero(&decrypt);
+
+    ret = krb5_decrypt(context,
+		       crypto,
+		       usage,
+		       cipher->data,
+		       cipher->length,
+		       &decrypt);
+
+    if (ret) {
+	krb5_warn(context, ret, "krb5_decrypt");
+	return ret;
+    }
+
+    if (decrypt.length != clear->length ||
+	memcmp(decrypt.data, clear->data, decrypt.length) != 0) {
+	krb5_warnx(context, "clear text not same");
+	return EINVAL;
+    }
+
+    krb5_data_free(&decrypt);
+
+    return 0;
+}
+
+static int
+krb_enc_mit(krb5_context context,
+	    krb5_enctype enctype,
+	    krb5_keyblock *key,
+	    unsigned usage,
+	    krb5_data *cipher, 
+	    krb5_data *clear)
+{
+    krb5_error_code ret;
+    krb5_enc_data e;
+    krb5_data decrypt;
+    size_t len;
+
+    e.kvno = 0;
+    e.enctype = enctype;
+    e.ciphertext = *cipher;
+
+    ret = krb5_c_decrypt(context, *key, usage, NULL, &e, &decrypt);
+    if (ret)
+	return ret;
+
+    if (decrypt.length != clear->length ||
+	memcmp(decrypt.data, clear->data, decrypt.length) != 0) {
+	krb5_warnx(context, "clear text not same");
+	return EINVAL;
+    }
+
+    krb5_data_free(&decrypt);
+
+    ret = krb5_c_encrypt_length(context, enctype, clear->length, &len);
+    if (ret)
+	return ret;
+
+    if (len != cipher->length) {
+	krb5_warnx(context, "c_encrypt_length wrong %lu != %lu",
+		   (unsigned long)len, (unsigned long)cipher->length);
+	return EINVAL;
+    }
+
+    return 0;
+}
+
+
+struct {
+    krb5_enctype enctype;
+    unsigned usage;
+    size_t keylen;
+    void *key;
+    size_t elen;
+    void* edata;
+    size_t plen;
+    void *pdata;
+} krbencs[] =  {
+    { 
+	ETYPE_AES256_CTS_HMAC_SHA1_96,
+	7,
+	32,   
+	"\x47\x75\x69\x64\x65\x6c\x69\x6e\x65\x73\x20\x74\x6f\x20\x41\x75"
+	"\x74\x68\x6f\x72\x73\x20\x6f\x66\x20\x49\x6e\x74\x65\x72\x6e\x65",
+	44,
+	"\xcf\x79\x8f\x0d\x76\xf3\xe0\xbe\x8e\x66\x94\x70\xfa\xcc\x9e\x91"
+	"\xa9\xec\x1c\x5c\x21\xfb\x6e\xef\x1a\x7a\xc8\xc1\xcc\x5a\x95\x24"
+	"\x6f\x9f\xf4\xd5\xbe\x5d\x59\x97\x44\xd8\x47\xcd",
+	16,
+	"\x54\x68\x69\x73\x20\x69\x73\x20\x61\x20\x74\x65\x73\x74\x2e\x0a"
+    }
+};
+
+
+static int
+krb_enc_test(krb5_context context)
+{
+    krb5_error_code ret;
+    krb5_crypto crypto;
+    krb5_keyblock kb;
+    krb5_data cipher, plain;
+    int i, failed = 0;
+
+    for (i = 0; i < sizeof(krbencs)/sizeof(krbencs[0]); i++) {
+
+	kb.keytype = krbencs[i].enctype;
+	kb.keyvalue.length = krbencs[i].keylen;
+	kb.keyvalue.data = krbencs[i].key;
+
+	ret = krb5_crypto_init(context, &kb, krbencs[i].enctype, &crypto);
+
+	cipher.length = krbencs[i].elen;
+	cipher.data = krbencs[i].edata;
+	plain.length = krbencs[i].plen;
+	plain.data = krbencs[i].pdata;
+	
+	ret = krb_enc(context, crypto, krbencs[i].usage, &cipher, &plain);
+		       
+	if (ret) {
+	    failed = 1;
+	    printf("krb_enc failed with %d\n", ret);
+	}
+	krb5_crypto_destroy(context, crypto);
+
+	ret = krb_enc_mit(context, krbencs[i].enctype, &kb, 
+			  krbencs[i].usage, &cipher, &plain);
+	if (ret) {
+	    failed = 1;
+	    printf("krb_enc_mit failed with %d\n", ret);
+	}
+
+    }
+
+    return failed;
+}
+
+
+static int
+random_to_key(krb5_context context)
+{
+    krb5_error_code ret;
+    krb5_keyblock key;
+
+    ret = krb5_random_to_key(context,
+			     ETYPE_DES3_CBC_SHA1,
+			     "\x21\x39\x04\x58\x6A\xBD\x7F"
+			     "\x21\x39\x04\x58\x6A\xBD\x7F"
+			     "\x21\x39\x04\x58\x6A\xBD\x7F",
+			     21,
+			     &key);
+    if (ret){
+	krb5_warn(context, ret, "random_to_key");
+	return 1;
+    }
+    if (key.keyvalue.length != 24)
+	return 1;
+
+    if (memcmp(key.keyvalue.data,
+	       "\x20\x38\x04\x58\x6b\xbc\x7f\xc7"
+	       "\x20\x38\x04\x58\x6b\xbc\x7f\xc7"
+	       "\x20\x38\x04\x58\x6b\xbc\x7f\xc7",
+	       24) != 0)
+	return 1;
+
+    krb5_free_keyblock_contents(context, &key);
+
+    return 0;
+}
+
 
 int
 main(int argc, char **argv)
@@ -457,9 +760,12 @@ main(int argc, char **argv)
 
     val |= string_to_key_test(context);
 
-#ifdef ENABLE_AES
-    val |= encryption_test(context);
-#endif
+    val |= encryption_test(context, aes_key1, 128,
+			   encs1, sizeof(encs1)/sizeof(encs1[0]));
+    val |= encryption_test(context, aes_key2, 256, 
+			   encs2, sizeof(encs2)/sizeof(encs2[0]));
+    val |= krb_enc_test(context);
+    val |= random_to_key(context);
 
     if (verbose && val == 0)
 	printf("all ok\n");

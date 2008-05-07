@@ -1,4 +1,4 @@
-.\" Copyright (c) 1997 - 2003 Kungliga Tekniska Högskolan
+.\" Copyright (c) 1997-2004 Kungliga Tekniska Högskolan
 .\" (Royal Institute of Technology, Stockholm, Sweden). 
 .\" All rights reserved. 
 .\"
@@ -29,9 +29,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
 .\" SUCH DAMAGE. 
 .\" 
-.\" $Id: ktutil.8,v 1.19 2003/04/08 20:55:10 lha Exp $
+.\" $Id: ktutil.8 14792 2005-04-14 16:43:57Z lha $
 .\"
-.Dd December 16, 2000
+.Dd April 14, 2005
 .Dt KTUTIL 8
 .Os HEIMDAL
 .Sh NAME
@@ -76,9 +76,11 @@ can be one of the following:
 .Op Fl -random
 .Op Fl s
 .Op Fl -no-salt
+.Op Fl H
+.Op Fl -hex
 .Xc
 Adds a key to the keytab. Options that are not specified will be
-prompted for. This requires that you know the password of the
+prompted for. This requires that you know the password or the hex key of the
 principal to add; if what you really want is to add a new principal to
 the keytab, you should consider the
 .Ar get
@@ -155,10 +157,10 @@ to
 .It purge Xo
 .Op Fl -age= Ns Ar age
 .Xc
-Removes all old entries (for which there is a newer version) that are
-older than
+Removes all old versions of a key for which there is a newer version
+that is at least
 .Ar age
-(default one week).
+(default one week) old.
 .It srvconvert
 .It srv2keytab Xo
 .Op Fl s Ar srvtab

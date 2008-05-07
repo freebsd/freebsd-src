@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: krb5-config.in,v 1.9 2002/09/09 22:29:06 joda Exp $
+# $Id: krb5-config.in 20528 2007-04-22 13:22:16Z lha $
 
 do_libs=no
 do_cflags=no
@@ -21,7 +21,7 @@ for i in $*; do
     ;;
   --version)
     echo "@PACKAGE@ @VERSION@"
-    echo '$Id: krb5-config.in,v 1.9 2002/09/09 22:29:06 joda Exp $'
+    echo '$Id: krb5-config.in 20528 2007-04-22 13:22:16Z lha $'
     exit 0
     ;;
   --prefix=*)
@@ -54,6 +54,9 @@ for i in $*; do
   kadm-server)
     library=kadm-server
     ;;
+  kafs)
+    library=kafs
+    ;;
   *)
     echo "unknown option: $i"
     exit 1
@@ -64,7 +67,7 @@ done
 if test "$do_usage" = "yes"; then
     echo "usage: $0 [options] [libraries]"
     echo "options: [--prefix[=dir]] [--exec-prefix[=dir]] [--libs] [--cflags]"
-    echo "libraries: krb5 gssapi kadm-client kadm-server"
+    echo "libraries: krb5 gssapi kadm-client kadm-server kafs"
     exit $usage_exit
 fi
 
@@ -90,21 +93,26 @@ if test "$do_libs" = "yes"; then
     lib_flags="-L${libdir}"
     case $library in
     gssapi)
-	lib_flags="$lib_flags -lgssapi"
+	lib_flags="$lib_flags -lgssapi -lheimntlm"
 	;;
     kadm-client)
 	lib_flags="$lib_flags -lkadm5clnt"
 	;;
     kadm-server)
-	lib_flags="$lib_flags -lkadm5srv"
+	lib_flags="$lib_flags -lkadm5srv @LIB_dbopen@"
+	;;
+    kafs)
+	lib_flags="$lib_flags -lkafs"
 	;;
     esac
-    lib_flags="$lib_flags -lkrb5 -lasn1 @LIB_des_appl@ -lroken"
-    lib_flags="$lib_flags @LIB_crypt@ @LIB_dbopen@ @LIBS@"
+    lib_flags="$lib_flags -lkrb5 @LIB_pkinit@ -lcom_err"
+    lib_flags="$lib_flags @LIB_hcrypto_appl@ -lasn1 -lroken"
+    lib_flags="$lib_flags @LIB_crypt@ @LIB_dlopen@"
+    lib_flags="$lib_flags @LIB_door_create@ @LIBS@"
     echo $lib_flags
 fi
 if test "$do_cflags" = "yes"; then
-    echo "-I${includedir} @INCLUDE_des@"
+    echo "-I${includedir} @INCLUDE_hcrypto@"
 fi
 
 exit 0

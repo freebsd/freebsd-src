@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2002 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2004 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -32,182 +32,126 @@
  */
 
 #include "ktutil_locl.h"
+#include <rtbl.h>
 
-RCSID("$Id: list.c,v 1.10 2002/01/30 10:12:21 joda Exp $");
-
-static int help_flag;
-static int list_keys;
-static int list_timestamp;
-
-static struct getargs args[] = {
-    { "help",      'h', arg_flag, &help_flag },
-    { "keys",	   0,   arg_flag, &list_keys, "show key value" },
-    { "timestamp", 0,   arg_flag, &list_timestamp, "show timestamp" },
-};
-
-static int num_args = sizeof(args) / sizeof(args[0]);
-
-struct key_info {
-    char *version;
-    char *etype;
-    char *principal;
-    char *timestamp;
-    char *key;
-    struct key_info *next;
-};
+RCSID("$Id: list.c 21745 2007-07-31 16:11:25Z lha $");
 
 static int
-do_list(const char *keytab_string)
+do_list(struct list_options *opt, const char *keytab_str)
 {
     krb5_error_code ret;
     krb5_keytab keytab;
     krb5_keytab_entry entry;
     krb5_kt_cursor cursor;
-    struct key_info *ki, **kie = &ki, *kp;
-
-    int max_version = sizeof("Vno") - 1;
-    int max_etype = sizeof("Type") - 1;
-    int max_principal = sizeof("Principal") - 1;
-    int max_timestamp = sizeof("Date") - 1;
-    int max_key = sizeof("Key") - 1;
+    rtbl_t table;
 
     /* XXX specialcase the ANY type */
-    if(strncasecmp(keytab_string, "ANY:", 4) == 0) {
+    if(strncasecmp(keytab_str, "ANY:", 4) == 0) {
 	int flag = 0;
 	char buf[1024];
-	keytab_string += 4;
-	while (strsep_copy((const char**)&keytab_string, ",", 
+	keytab_str += 4;
+	ret = 0;
+	while (strsep_copy((const char**)&keytab_str, ",", 
 			   buf, sizeof(buf)) != -1) {
 	    if(flag)
 		printf("\n");
-	    do_list(buf);
+	    if(do_list(opt, buf))
+		ret = 1;
 	    flag = 1;
 	}
-	return 0;
+	return ret;
     }
 
-    ret = krb5_kt_resolve(context, keytab_string, &keytab);
+    ret = krb5_kt_resolve(context, keytab_str, &keytab);
     if (ret) {
-	krb5_warn(context, ret, "resolving keytab %s", keytab_string);
-	return 0;
+	krb5_warn(context, ret, "resolving keytab %s", keytab_str);
+	return ret;
     }
 
     ret = krb5_kt_start_seq_get(context, keytab, &cursor);
-    if(ret){
-	krb5_warn(context, ret, "krb5_kt_start_seq_get %s", keytab_string);
-	goto out;
+    if(ret) {
+	krb5_warn(context, ret, "krb5_kt_start_seq_get %s", keytab_str);
+	krb5_kt_close(context, keytab);
+	return ret;
     }
 
-    printf ("%s:\n\n", keytab_string);
+    printf ("%s:\n\n", keytab_str);
 	
+    table = rtbl_create();
+    rtbl_add_column_by_id(table, 0, "Vno", RTBL_ALIGN_RIGHT);
+    rtbl_add_column_by_id(table, 1, "Type", 0);
+    rtbl_add_column_by_id(table, 2, "Principal", 0);
+    if (opt->timestamp_flag)
+	rtbl_add_column_by_id(table, 3, "Date", 0);
+    if(opt->keys_flag)
+	rtbl_add_column_by_id(table, 4, "Key", 0);
+    rtbl_set_separator(table, "  ");
+
     while((ret = krb5_kt_next_entry(context, keytab, &entry, &cursor)) == 0){
-#define CHECK_MAX(F) if(max_##F < strlen(kp->F)) max_##F = strlen(kp->F)
+	char buf[1024], *s;
 
-	kp = malloc(sizeof(*kp));
-	if (kp == NULL) {
-	    krb5_kt_free_entry(context, &entry);
-	    krb5_kt_end_seq_get(context, keytab, &cursor);
-	    krb5_warn(context, ret, "malloc failed");
-	    goto out;
-	}
+	snprintf(buf, sizeof(buf), "%d", entry.vno);
+	rtbl_add_column_entry_by_id(table, 0, buf);
 
-	asprintf(&kp->version, "%d", entry.vno);
-	CHECK_MAX(version);
 	ret = krb5_enctype_to_string(context, 
-				     entry.keyblock.keytype, &kp->etype);
-	if (ret != 0) 
-	    asprintf(&kp->etype, "unknown (%d)", entry.keyblock.keytype);
-	CHECK_MAX(etype);
-	krb5_unparse_name(context, entry.principal, &kp->principal);
-	CHECK_MAX(principal);
-	if (list_timestamp) {
-	    char tstamp[256];
-
-	    krb5_format_time(context, entry.timestamp, 
-			     tstamp, sizeof(tstamp), FALSE);
-
-	    kp->timestamp = strdup(tstamp);
-	    CHECK_MAX(timestamp);
+				     entry.keyblock.keytype, &s);
+	if (ret != 0) {
+	    snprintf(buf, sizeof(buf), "unknown (%d)", entry.keyblock.keytype);
+	    rtbl_add_column_entry_by_id(table, 1, buf);
+	} else {
+	    rtbl_add_column_entry_by_id(table, 1, s);
+	    free(s);
 	}
-	if(list_keys) {
+
+	krb5_unparse_name_fixed(context, entry.principal, buf, sizeof(buf));
+	rtbl_add_column_entry_by_id(table, 2, buf);
+
+	if (opt->timestamp_flag) {
+	    krb5_format_time(context, entry.timestamp, buf, 
+			     sizeof(buf), FALSE);
+	    rtbl_add_column_entry_by_id(table, 3, buf);
+	}
+	if(opt->keys_flag) {
 	    int i;
-	    kp->key = malloc(2 * entry.keyblock.keyvalue.length + 1);
+	    s = malloc(2 * entry.keyblock.keyvalue.length + 1);
+	    if (s == NULL) {
+		krb5_warnx(context, "malloc failed");
+		ret = ENOMEM;
+		goto out;
+	    }
 	    for(i = 0; i < entry.keyblock.keyvalue.length; i++)
-		snprintf(kp->key + 2 * i, 3, "%02x", 
+		snprintf(s + 2 * i, 3, "%02x", 
 			 ((unsigned char*)entry.keyblock.keyvalue.data)[i]);
-	    CHECK_MAX(key);
+	    rtbl_add_column_entry_by_id(table, 4, s);
+	    free(s);
 	}
-	*kie = kp;
-	kie = &kp->next;
 	krb5_kt_free_entry(context, &entry);
     }
-    *kie = NULL; /* termiate list */
     ret = krb5_kt_end_seq_get(context, keytab, &cursor);
+    rtbl_format(table, stdout);
 
-    printf("%-*s  %-*s  %-*s", max_version, "Vno", 
-	   max_etype, "Type", 
-	   max_principal, "Principal");
-    if(list_timestamp)
-	printf("  %-*s", max_timestamp, "Date");
-    if(list_keys)
-	printf("  %s", "Key");
-    printf("\n");
-
-    for(kp = ki; kp; ) {
-	printf("%*s  %-*s  %-*s", max_version, kp->version, 
-	       max_etype, kp->etype, 
-	       max_principal, kp->principal);
-	if(list_timestamp)
-	    printf("  %-*s", max_timestamp, kp->timestamp);
-	if(list_keys)
-	    printf("  %s", kp->key);
-	printf("\n");
-
-	/* free entries */
-	free(kp->version);
-	free(kp->etype);
-	free(kp->principal);
-	if(list_timestamp)
-	    free(kp->timestamp);
-	if(list_keys) {
-	    memset(kp->key, 0, strlen(kp->key));
-	    free(kp->key);
-	}
-	ki = kp;
-	kp = kp->next;
-	free(ki);
-    }
 out:
+    rtbl_destroy(table);
+
     krb5_kt_close(context, keytab);
-    return 0;
+    return ret;
 }
 
 int
-kt_list(int argc, char **argv)
+kt_list(struct list_options *opt, int argc, char **argv)
 {
     krb5_error_code ret;
-    int optind = 0;
     char kt[1024];
 
     if(verbose_flag)
-	list_timestamp = 1;
-
-    if(getarg(args, num_args, argc, argv, &optind)){
-	arg_printusage(args, num_args, "ktutil list", "");
-	return 1;
-    }
-    if(help_flag){
-	arg_printusage(args, num_args, "ktutil list", "");
-	return 0;
-    }
+	opt->timestamp_flag = 1;
 
     if (keytab_string == NULL) {
 	if((ret = krb5_kt_default_name(context, kt, sizeof(kt))) != 0) {
 	    krb5_warn(context, ret, "getting default keytab name");
-	    return 0;
+	    return 1;
 	}
 	keytab_string = kt;
     }
-    do_list(keytab_string);
-    return 0;
+    return do_list(opt, keytab_string) != 0;
 }

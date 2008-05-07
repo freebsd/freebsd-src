@@ -1,5 +1,5 @@
 dnl
-dnl $Id: sunos.m4,v 1.2 2002/10/16 14:42:13 joda Exp $
+dnl $Id: sunos.m4 14608 2005-03-01 22:17:44Z lha $
 dnl
 
 AC_DEFUN([rk_SUNOS],[
@@ -11,7 +11,7 @@ case "$host" in
 *-*-solaris2.7)
 	sunos=57
 	;;
-*-*-solaris2.[[89]])
+*-*-solaris2.[[89]] | *-*-solaris2.10)
 	sunos=58
 	;;
 *-*-solaris2*)

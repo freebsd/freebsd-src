@@ -33,44 +33,90 @@
 
 #include "kdc_locl.h"
 
-RCSID("$Id: misc.c,v 1.22 2001/01/30 03:54:21 assar Exp $");
+RCSID("$Id: misc.c 21106 2007-06-18 10:18:11Z lha $");
 
-struct timeval now;
+struct timeval _kdc_now;
 
 krb5_error_code
-db_fetch(krb5_principal principal, hdb_entry **h)
+_kdc_db_fetch(krb5_context context,
+	      krb5_kdc_configuration *config,
+	      krb5_const_principal principal,
+	      unsigned flags,
+	      HDB **db,
+	      hdb_entry_ex **h)
 {
-    hdb_entry *ent;
-    krb5_error_code ret = HDB_ERR_NOENTRY;
+    hdb_entry_ex *ent;
+    krb5_error_code ret;
     int i;
 
-    ent = malloc (sizeof (*ent));
-    if (ent == NULL)
+    ent = calloc (1, sizeof (*ent));
+    if (ent == NULL) {
+	krb5_set_error_string(context, "out of memory");
 	return ENOMEM;
-    ent->principal = principal;
+    }
 
-    for(i = 0; i < num_db; i++) {
-	ret = db[i]->open(context, db[i], O_RDONLY, 0);
+    for(i = 0; i < config->num_db; i++) {
+	ret = config->db[i]->hdb_open(context, config->db[i], O_RDONLY, 0);
 	if (ret) {
-	    kdc_log(0, "Failed to open database: %s", 
+	    kdc_log(context, config, 0, "Failed to open database: %s", 
 		    krb5_get_err_text(context, ret));
 	    continue;
 	}
-	ret = db[i]->fetch(context, db[i], HDB_F_DECRYPT, ent);
-	db[i]->close(context, db[i]);
+	ret = config->db[i]->hdb_fetch(context, 
+				       config->db[i],
+				       principal,
+				       flags | HDB_F_DECRYPT,
+				       ent);
+	config->db[i]->hdb_close(context, config->db[i]);
 	if(ret == 0) {
+	    if (db)
+		*db = config->db[i];
 	    *h = ent;
 	    return 0;
 	}
     }
     free(ent);
-    return ret;
+    krb5_set_error_string(context, "no such entry found in hdb");
+    return  HDB_ERR_NOENTRY;
 }
 
 void
-free_ent(hdb_entry *ent)
+_kdc_free_ent(krb5_context context, hdb_entry_ex *ent)
 {
     hdb_free_entry (context, ent);
     free (ent);
+}
+
+/*
+ * Use the order list of preferred encryption types and sort the
+ * available keys and return the most preferred key.
+ */
+
+krb5_error_code
+_kdc_get_preferred_key(krb5_context context,
+		       krb5_kdc_configuration *config,
+		       hdb_entry_ex *h,
+		       const char *name,
+		       krb5_enctype *enctype,
+		       Key **key)
+{
+    const krb5_enctype *p;
+    krb5_error_code ret;
+    int i;
+
+    p = krb5_kerberos_enctypes(context);
+
+    for (i = 0; p[i] != ETYPE_NULL; i++) {
+	if (krb5_enctype_valid(context, p[i]) != 0)
+	    continue;
+	ret = hdb_enctype2key(context, &h->entry, p[i], key);
+	if (ret == 0) {
+	    *enctype = p[i];
+	    return 0;
+	}
+    }
+
+    krb5_set_error_string(context, "No valid kerberos key found for %s", name);
+    return EINVAL;
 }
 

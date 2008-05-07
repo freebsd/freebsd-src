@@ -1,4 +1,4 @@
-.\" Copyright (c) 1998 - 1999, 2001 - 2003 Kungliga Tekniska Högskolan
+.\" Copyright (c) 1998 - 2006 Kungliga Tekniska Högskolan
 .\" (Royal Institute of Technology, Stockholm, Sweden). 
 .\" All rights reserved. 
 .\"
@@ -29,13 +29,14 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
 .\" SUCH DAMAGE. 
 .\" 
-.\"	$Id: kafs.3,v 1.16 2003/04/16 13:58:27 lha Exp $
+.\"	$Id: kafs.3 17380 2006-05-01 07:01:18Z lha $
 .\"
-.Dd Mar 17, 2003
+.Dd May  1, 2006
 .Os HEIMDAL
 .Dt KAFS 3
 .Sh NAME
 .Nm k_hasafs ,
+.Nm k_hasafs_recheck ,
 .Nm k_pioctl ,
 .Nm k_unlog ,
 .Nm k_setpag ,
@@ -44,7 +45,7 @@
 .Nm kafs_settoken_rxkad ,
 .Nm kafs_settoken ,
 .Nm krb_afslog ,
-.Nm krb_afslog_uid
+.Nm krb_afslog_uid ,
 .Nm kafs_settoken5 ,
 .Nm krb5_afslog ,
 .Nm krb5_afslog_uid
@@ -57,6 +58,8 @@ AFS cache manager access library (libkafs, -lkafs)
 .Fn k_afs_cell_of_file "const char *path" "char *cell" "int len"
 .Ft int
 .Fn k_hasafs "void"
+.Ft int
+.Fn k_hasafs_recheck "void"
 .Ft int
 .Fn k_pioctl "char *a_path" "int o_opcode" "struct ViceIoctl *a_paramsP" "int a_followSymlinks"
 .Ft int
@@ -85,6 +88,13 @@ presence of AFS in the kernel, none of the other functions should be
 called before
 .Fn k_hasafs
 is called, or if it fails.
+.Pp
+.Fn k_hasafs_recheck
+forces a recheck if a AFS client has started since last time
+.Fn k_hasafs
+or
+.Fn k_hasafs_recheck
+was called.
 .Pp
 .Fn kafs_set_verbose
 set a log function that will be called each time the kafs library does
@@ -151,7 +161,7 @@ and
 .Pp
 .Fn krb5_afslog ,
 .Fn kafs_settoken5
-can be configured to behave diffrently via a 
+can be configured to behave differently via a 
 .Nm krb5_appdefault
 option
 .Li afs-use-524
@@ -186,7 +196,7 @@ as application name when running the
 .Nm krb5_appdefault
 function call.
 .Pp
-The (uppercased) cellname is used as the realm to the
+The (uppercased) cell name is used as the realm to the
 .Nm krb5_appdefault function.
 .Pp
 .\" The extra arguments are the ubiquitous context, and the cache id where
@@ -208,7 +218,7 @@ characters is put in
 .Fn k_pioctl
 does a
 .Fn pioctl
-syscall with the specified arguments. This function is equivalent to
+system call with the specified arguments. This function is equivalent to
 .Fn lpioctl .
 .Pp
 .Fn k_setpag
@@ -261,15 +271,14 @@ If any of these functions (apart from
 is called without AFS being present in the kernel, the process will
 usually (depending on the operating system) receive a SIGSYS signal.
 .Sh SEE ALSO
+.Xr krb5_appdefault 3 ,
+.Xr krb5.conf 5
 .Rs
 .%A Transarc Corporation
 .%J AFS-3 Programmer's Reference
 .%T File Server/Cache Manager Interface
 .%D 1991
 .Re
-.Pp
-.Xr krb5_appdefaults 3 ,
-.Xr krb5.conf 5
 .Sh BUGS
 .Ev AFS_SYSCALL
 has no effect under AIX.

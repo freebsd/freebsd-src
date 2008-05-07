@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2004 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "ktutil_locl.h"
 
-RCSID("$Id: purge.c,v 1.6 2001/07/23 09:46:41 joda Exp $");
+RCSID("$Id: purge.c 14261 2004-09-23 14:46:43Z joda $");
 
 /*
  * keep track of the highest version for every principal.
@@ -42,6 +42,7 @@ RCSID("$Id: purge.c,v 1.6 2001/07/23 09:46:41 joda Exp $");
 struct e {
     krb5_principal principal;
     int max_vno;
+    time_t timestamp;
     struct e *next;
 };
 
@@ -57,14 +58,17 @@ get_entry (krb5_principal princ, struct e *head)
 }
 
 static void
-add_entry (krb5_principal princ, int vno, struct e **head)
+add_entry (krb5_principal princ, int vno, time_t timestamp, struct e **head)
 {
     krb5_error_code ret;
     struct e *e;
 
     e = get_entry (princ, *head);
     if (e != NULL) {
-	e->max_vno = max (e->max_vno, vno);
+	if(e->max_vno < vno) {
+	    e->max_vno = vno;
+	    e->timestamp = timestamp;
+	}
 	return;
     }
     e = malloc (sizeof (*e));
@@ -74,6 +78,7 @@ add_entry (krb5_principal princ, int vno, struct e **head)
     if (ret)
 	krb5_err (context, 1, ret, "krb5_copy_principal");
     e->max_vno = vno;
+    e->timestamp = timestamp;
     e->next    = *head;
     *head      = e;
 }
@@ -95,40 +100,19 @@ delete_list (struct e *head)
  */
 
 int
-kt_purge(int argc, char **argv)
+kt_purge(struct purge_options *opt, int argc, char **argv)
 {
     krb5_error_code ret = 0;
     krb5_kt_cursor cursor;
     krb5_keytab keytab;
     krb5_keytab_entry entry;
-    int help_flag = 0;
-    char *age_str = "1 week";
     int age;
-    struct getargs args[] = {
-	{ "age",   0,  arg_string, NULL, "age to retire" },
-	{ "help", 'h', arg_flag, NULL }
-    };
-    int num_args = sizeof(args) / sizeof(args[0]);
-    int optind = 0;
-    int i = 0;
     struct e *head = NULL;
     time_t judgement_day;
 
-    args[i++].value = &age_str;
-    args[i++].value = &help_flag;
-
-    if(getarg(args, num_args, argc, argv, &optind)) {
-	arg_printusage(args, num_args, "ktutil purge", "");
-	return 1;
-    }
-    if(help_flag) {
-	arg_printusage(args, num_args, "ktutil purge", "");
-	return 1;
-    }
-
-    age = parse_time(age_str, "s");
+    age = parse_time(opt->age_string, "s");
     if(age < 0) {
-	krb5_warnx(context, "unparasable time `%s'", age_str);
+	krb5_warnx(context, "unparasable time `%s'", opt->age_string);
 	return 1;
     }
 
@@ -137,12 +121,12 @@ kt_purge(int argc, char **argv)
 
     ret = krb5_kt_start_seq_get(context, keytab, &cursor);
     if(ret){
-	krb5_warn(context, ret, "krb5_kt_start_seq_get %s", keytab_string);
+	krb5_warn(context, ret, "%s", keytab_string);
 	goto out;
     }
 
     while((ret = krb5_kt_next_entry(context, keytab, &entry, &cursor)) == 0) {
-	add_entry (entry.principal, entry.vno, &head);
+	add_entry (entry.principal, entry.vno, entry.timestamp, &head);
 	krb5_kt_free_entry(context, &entry);
     }
     ret = krb5_kt_end_seq_get(context, keytab, &cursor);
@@ -151,7 +135,7 @@ kt_purge(int argc, char **argv)
 
     ret = krb5_kt_start_seq_get(context, keytab, &cursor);
     if(ret){
-	krb5_warn(context, ret, "krb5_kt_start_seq_get, %s", keytab_string);
+	krb5_warn(context, ret, "%s", keytab_string);
 	goto out;
     }
 
@@ -164,7 +148,7 @@ kt_purge(int argc, char **argv)
 	}
 
 	if (entry.vno < e->max_vno
-	    && judgement_day - entry.timestamp > age) {
+	    && judgement_day - e->timestamp > age) {
 	    if (verbose_flag) {
 		char *name_str;
 

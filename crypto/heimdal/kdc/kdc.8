@@ -1,4 +1,4 @@
-.\" Copyright (c) 2003 Kungliga Tekniska Högskolan
+.\" Copyright (c) 2003 - 2004 Kungliga Tekniska Högskolan
 .\" (Royal Institute of Technology, Stockholm, Sweden). 
 .\" All rights reserved. 
 .\"
@@ -29,9 +29,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
 .\" SUCH DAMAGE. 
 .\"
-.\" $Id: kdc.8,v 1.23.2.1 2003/10/21 20:06:01 lha Exp $
+.\" $Id: kdc.8 18419 2006-10-12 10:05:57Z lha $
 .\"
-.Dd October 21, 2003
+.Dd August 24, 2006
 .Dt KDC 8
 .Os HEIMDAL
 .Sh NAME
@@ -39,6 +39,7 @@
 .Nd Kerberos 5 server
 .Sh SYNOPSIS
 .Nm
+.Bk -words
 .Oo Fl c Ar file \*(Ba Xo
 .Fl -config-file= Ns Ar file
 .Xc
@@ -59,7 +60,9 @@
 .Xc
 .Oc
 .Op Fl -detach
+.Op Fl -disable-DES
 .Op Fl -addresses= Ns Ar list of addresses
+.Ek
 .Sh DESCRIPTION
 .Nm
 serves requests for tickets.
@@ -147,6 +150,10 @@ By default, the kdc will listen on all the locally configured
 addresses.
 If only a subset is desired, or the automatic detection fails, this
 option might be used.
+.It Fl -detach
+detach from pty and run as a daemon.
+.It Fl -disable-DES
+disable add des encryption types, makes the kdc not use them.
 .El
 .Pp
 All activities are logged to one or more destinations, see
@@ -177,18 +184,41 @@ specified as:
 And there are some configuration options which do not have
 command-line equivalents:
 .Bl -tag -width "xxx" -offset indent
+.It Li enable-digest = Va boolean
+turn on support for digest processing in the KDC.
+The default is FALSE.
 .It Li check-ticket-addresses = Va boolean
 Check the addresses in the ticket when processing TGS requests.
-The default is FALSE.
+The default is TRUE.
 .It Li allow-null-ticket-addresses = Va boolean
 Permit tickets with no addresses.
 This option is only relevant when check-ticket-addresses is TRUE.
 .It Li allow-anonymous = Va boolean
 Permit anonymous tickets with no addresses.
-.It Li enforce-transited-policy = Va boolean
-Always verify the transited policy, ignoring the
-.Va disable-transited-check 
-flag if set in the KDC client request.
+.It Li max-kdc-datagram-reply-length = Va number
+Maximum packet size the UDP rely that the KDC will transmit, instead
+the KDC sends back a reply telling the client to use TCP instead.
+.It Li transited-policy = Xo
+.Li always-check \*(Ba
+.Li allow-per-principal |
+.Li always-honour-request
+.Xc
+This controls how KDC requests with the
+.Li disable-transited-check
+flag are handled. It can be one of:
+.Bl -tag -width "xxx" -offset indent
+.It Li always-check
+Always check transited encoding, this is the default.
+.It Li allow-per-principal
+Currently this is identical to
+.Li always-check .
+In a future release, it will be possible to mark a principal as able
+to handle unchecked requests.
+.It Li always-honour-request
+Always do what the client asked.
+In a future release, it will be possible to force a check per
+principal.
+.El
 .It encode_as_rep_as_tgs_rep = Va boolean
 Encode AS-Rep as TGS-Rep to be bug-compatible with old DCE code.
 The Heimdal clients allow both.
@@ -209,7 +239,6 @@ An example of a config file:
 [kdc]
 	require-preauth = no
 	v4-realm = FOO.SE
-	key-file = /key-file
 .Ed
 .Sh BUGS
 If the machine running the KDC has new addresses added to it, the KDC
