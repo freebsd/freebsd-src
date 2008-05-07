@@ -309,7 +309,6 @@ sbus_attach(device_t dev)
 	device_t cdev;
 	bus_addr_t intrclr, intrmap, phys;
 	bus_size_t size;
-	char *name;
 	u_long vec;
 	phandle_t child, node;
 	int clock, i, intr, rid;
@@ -401,18 +400,12 @@ sbus_attach(device_t dev)
 	sc->sc_is.is_sb[0] = SBR_STRBUF;
 	sc->sc_is.is_sb[1] = 0;
 
-	/* give us a nice name.. */
-	name = (char *)malloc(32, M_DEVBUF, M_NOWAIT);
-	if (name == NULL)
-		panic("%s: cannot malloc iommu name", __func__);
-	snprintf(name, 32, "%s dvma", device_get_name(dev));
-
 	/*
 	 * Note: the SBus IOMMU ignores the high bits of an address, so a NULL
 	 * DMA pointer will be translated by the first page of the IOTSB.
 	 * To detect bugs we'll allocate and ignore the first entry.
 	 */
-	iommu_init(name, &sc->sc_is, 3, -1, 1);
+	iommu_init(device_get_nameunit(dev), &sc->sc_is, 3, -1, 1);
 
 	/* Create the DMA tag. */
 	if (bus_dma_tag_create(bus_get_dma_tag(dev), 8, 0,
@@ -473,7 +466,8 @@ sbus_attach(device_t dev)
 		panic("%s: failed to set up power fail interrupt", __func__);
 
 	/* Initialize the counter-timer. */
-	sparc64_counter_init(rman_get_bustag(sc->sc_sysio_res),
+	sparc64_counter_init(device_get_nameunit(dev),
+	    rman_get_bustag(sc->sc_sysio_res),
 	    rman_get_bushandle(sc->sc_sysio_res), SBR_TC0);
 
 	/*
