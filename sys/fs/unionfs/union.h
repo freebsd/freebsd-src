@@ -83,7 +83,12 @@ struct unionfs_node {
 	struct vnode   *un_uppervp;		/* upper side vnode */
 	struct vnode   *un_dvp;			/* parent unionfs vnode */
 	struct vnode   *un_vnode;		/* Back pointer */
-	LIST_HEAD(, unionfs_node_status) un_unshead;  /* unionfs status head */
+	LIST_HEAD(, unionfs_node_status) un_unshead;
+						/* unionfs status head */
+	LIST_HEAD(unionfs_node_hashhead, unionfs_node) *un_hashtbl;
+						/* dir vnode hash table */
+	LIST_ENTRY(unionfs_node)   un_hash;	/* hash list entry */
+	u_long		un_hashmask;		/* bit mask */
 	char           *un_path;		/* path */
 	int		un_flag;		/* unionfs node flag */
 };
