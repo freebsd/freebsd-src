@@ -2,7 +2,7 @@
 
 .PATH: ${.CURDIR}/../../dev/scc
 
-.if ${MACHINE_ARCH} == "sparc64"
+.if ${MACHINE} == "sparc64"
 scc_bfe= scc_bfe_ebus.c scc_bfe_sbus.c
 .endif
 .if ${MACHINE_ARCH} == "powerpc"
