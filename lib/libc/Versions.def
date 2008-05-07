@@ -16,4 +16,4 @@ FBSD_1.1 {
 #
 # Please do NOT increment the version of this namespace.
 FBSDprivate_1.0 {
-};
+} FBSD_1.1;
