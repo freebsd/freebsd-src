@@ -242,12 +242,13 @@ unionfs_get_node_status(struct unionfs_node *unp, struct thread *td,
 			struct unionfs_node_status **unspp)
 {
 	struct unionfs_node_status *unsp;
+	pid_t pid = td->td_proc->p_pid;
 
 	KASSERT(NULL != unspp, ("null pointer"));
 	ASSERT_VOP_ELOCKED(UNIONFSTOV(unp), "unionfs_get_node_status");
 
 	LIST_FOREACH(unsp, &(unp->un_unshead), uns_list) {
-		if (unsp->uns_tid == td->td_tid) {
+		if (unsp->uns_pid == pid) {
 			*unspp = unsp;
 			return;
 		}
@@ -257,7 +258,7 @@ unionfs_get_node_status(struct unionfs_node *unp, struct thread *td,
 	MALLOC(unsp, struct unionfs_node_status *,
 	    sizeof(struct unionfs_node_status), M_TEMP, M_WAITOK | M_ZERO);
 
-	unsp->uns_tid = td->td_tid;
+	unsp->uns_pid = pid;
 	LIST_INSERT_HEAD(&(unp->un_unshead), unsp, uns_list);
 
 	*unspp = unsp;
@@ -268,7 +269,7 @@ unionfs_get_node_status(struct unionfs_node *unp, struct thread *td,
  * You need exclusive lock this vnode.
  */
 void
-unionfs_tryrem_node_status(struct unionfs_node *unp, struct thread *td,
+unionfs_tryrem_node_status(struct unionfs_node *unp,
 			   struct unionfs_node_status *unsp)
 {
 	KASSERT(NULL != unsp, ("null pointer"));
