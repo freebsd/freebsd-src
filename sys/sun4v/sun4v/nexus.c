@@ -47,7 +47,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/openfirm.h>
 
 #include <machine/bus.h>
-#include <machine/bus_common.h>
 #include <machine/intr_machdep.h>
 #include <machine/nexusvar.h>
 #include <machine/ofw_nexus.h>
