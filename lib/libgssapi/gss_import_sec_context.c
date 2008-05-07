@@ -47,7 +47,7 @@ gss_import_sec_context(OM_uint32 *minor_status,
 	size_t len;
 
 	*minor_status = 0;
-	*context_handle = 0;
+	*context_handle = GSS_C_NO_CONTEXT;
 
 	/*
 	 * We added an oid to the front of the token in
@@ -77,6 +77,7 @@ gss_import_sec_context(OM_uint32 *minor_status,
 	major_status = m->gm_import_sec_context(minor_status,
 	    &buf, &ctx->gc_ctx);
 	if (major_status != GSS_S_COMPLETE) {
+		_gss_mg_error(m, major_status, *minor_status);
 		free(ctx);
 	} else {
 		*context_handle = (gss_ctx_id_t) ctx;

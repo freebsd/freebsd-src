@@ -30,6 +30,7 @@
 
 #include "mech_switch.h"
 #include "context.h"
+#include "utils.h"
 
 OM_uint32
 gss_wrap(OM_uint32 *minor_status,
@@ -42,6 +43,14 @@ gss_wrap(OM_uint32 *minor_status,
 {
 	struct _gss_context *ctx = (struct _gss_context *) context_handle;
 	struct _gss_mech_switch *m = ctx->gc_mech;
+
+	if (conf_state)
+		*conf_state = 0;
+	_gss_buffer_zero(output_message_buffer);
+	if (ctx == NULL) {
+		*minor_status = 0;
+		return (GSS_S_NO_CONTEXT);
+	}
 
 	return (m->gm_wrap(minor_status, ctx->gc_ctx,
 		    conf_req_flag, qop_req, input_message_buffer,

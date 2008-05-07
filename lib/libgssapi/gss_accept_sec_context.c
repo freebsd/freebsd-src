@@ -35,6 +35,116 @@
 #include "context.h"
 #include "cred.h"
 #include "name.h"
+#include "utils.h"
+
+static OM_uint32
+parse_header(const gss_buffer_t input_token, gss_OID mech_oid)
+{
+	unsigned char *p = input_token->value;
+	size_t len = input_token->length;
+	size_t a, b;
+	
+	/*
+	 * Token must start with [APPLICATION 0] SEQUENCE.
+	 * But if it doesn't assume it is DCE-STYLE Kerberos!
+	 */
+	if (len == 0)
+		return (GSS_S_DEFECTIVE_TOKEN);
+	
+	p++;
+	len--;
+		
+	/*
+	 * Decode the length and make sure it agrees with the
+	 * token length.
+	 */
+	if (len == 0)
+		return (GSS_S_DEFECTIVE_TOKEN);
+	if ((*p & 0x80) == 0) {
+		a = *p;
+		p++;
+		len--;
+	} else {
+		b = *p & 0x7f;
+		p++;
+		len--;
+		if (len < b)
+		    return (GSS_S_DEFECTIVE_TOKEN);
+		a = 0;
+		while (b) {
+		    a = (a << 8) | *p;
+		    p++;
+		    len--;
+		    b--;
+		}
+	}
+	if (a != len)
+		return (GSS_S_DEFECTIVE_TOKEN);
+		
+	/*
+	 * Decode the OID for the mechanism. Simplify life by
+	 * assuming that the OID length is less than 128 bytes.
+	 */
+	if (len < 2 || *p != 0x06)
+		return (GSS_S_DEFECTIVE_TOKEN);
+	if ((p[1] & 0x80) || p[1] > (len - 2))
+		return (GSS_S_DEFECTIVE_TOKEN);
+	mech_oid->length = p[1];
+	p += 2;
+	len -= 2;
+	mech_oid->elements = p;
+	
+	return (GSS_S_COMPLETE);
+}		       
+
+static gss_OID_desc krb5_mechanism =
+{9, (void *)(uintptr_t) "\x2a\x86\x48\x86\xf7\x12\x01\x02\x02"};
+static gss_OID_desc ntlm_mechanism =
+{10, (void *)(uintptr_t) "\x2b\x06\x01\x04\x01\x82\x37\x02\x02\x0a"};
+static gss_OID_desc spnego_mechanism =
+{6, (void *)(uintptr_t) "\x2b\x06\x01\x05\x05\x02"};
+
+static OM_uint32
+choose_mech(const gss_buffer_t input, gss_OID mech_oid)
+{
+	OM_uint32 status;
+
+	/*
+	 * First try to parse the gssapi token header and see if it's a
+	 * correct header, use that in the first hand.
+	 */
+
+	status = parse_header(input, mech_oid);
+	if (status == GSS_S_COMPLETE)
+		return (GSS_S_COMPLETE);
+    
+	/*
+	 * Lets guess what mech is really is, callback function to mech ??
+	 */
+
+	if (input->length > 8 && 
+	    memcmp((const char *)input->value, "NTLMSSP\x00", 8) == 0)
+	{
+		*mech_oid = ntlm_mechanism;
+		return (GSS_S_COMPLETE);
+	} else if (input->length != 0 &&
+	    ((const char *)input->value)[0] == 0x6E)
+	{
+		/* Could be a raw AP-REQ (check for APPLICATION tag) */
+		*mech_oid = krb5_mechanism;
+		return (GSS_S_COMPLETE);
+	} else if (input->length == 0) {
+		/* 
+		 * There is the a wierd mode of SPNEGO (in CIFS and
+		 * SASL GSS-SPENGO where the first token is zero
+		 * length and the acceptor returns a mech_list, lets
+		 * hope that is what is happening now.
+		 */
+		*mech_oid = spnego_mechanism;
+		return (GSS_S_COMPLETE);
+	}
+	return (status);
+}
 
 OM_uint32 gss_accept_sec_context(OM_uint32 *minor_status,
     gss_ctx_id_t *context_handle,
@@ -58,71 +168,28 @@ OM_uint32 gss_accept_sec_context(OM_uint32 *minor_status,
 	int allocated_ctx;
 
 	*minor_status = 0;
-	if (src_name) *src_name = 0;
-	if (mech_type) *mech_type = 0;
-	if (ret_flags) *ret_flags = 0;
-	if (time_rec) *time_rec = 0;
-	if (delegated_cred_handle) *delegated_cred_handle = 0;
-	output_token->length = 0;
-	output_token->value = 0;
+	if (src_name)
+		*src_name = GSS_C_NO_NAME;
+	if (mech_type)
+		*mech_type = GSS_C_NO_OID;
+	if (ret_flags)
+		*ret_flags = 0;
+	if (time_rec)
+		*time_rec = 0;
+	if (delegated_cred_handle)
+		*delegated_cred_handle = GSS_C_NO_CREDENTIAL;
+	_gss_buffer_zero(output_token);
 
 	/*
 	 * If this is the first call (*context_handle is NULL), we must
 	 * parse the input token to figure out the mechanism to use.
 	 */
 	if (*context_handle == GSS_C_NO_CONTEXT) {
-		unsigned char *p = input_token->value;
-		size_t len = input_token->length;
-		size_t a, b;
 		gss_OID_desc mech_oid;
 
-		/*
-		 * Token must start with [APPLICATION 0] SEQUENCE.
-		 */
-		if (len == 0 || *p != 0x60)
-			return (GSS_S_DEFECTIVE_TOKEN);
-		p++;
-		len--;
-
-		/*
-		 * Decode the length and make sure it agrees with the
-		 * token length.
-		 */
-		if (len == 0)
-			return (GSS_S_DEFECTIVE_TOKEN);
-		if ((*p & 0x80) == 0) {
-			a = *p;
-			p++;
-			len--;
-		} else {
-			b = *p & 0x7f;
-			p++;
-			len--;
-			if (len < b)
-				return (GSS_S_DEFECTIVE_TOKEN);
-			a = 0;
-			while (b) {
-				a = (a << 8) | *p;
-				p++;
-				len--;
-				b--;
-			}
-		}
-		if (a != len)
-			return (GSS_S_DEFECTIVE_TOKEN);
-
-		/*
-		 * Decode the OID for the mechanism. Simplify life by
-		 * assuming that the OID length is less than 128 bytes.
-		 */
-		if (len < 2 || *p != 0x06)
-			return (GSS_S_DEFECTIVE_TOKEN);
-		if ((p[1] & 0x80) || p[1] > (len - 2))
-			return (GSS_S_DEFECTIVE_TOKEN);
-		mech_oid.length = p[1];
-		p += 2;
-		len -= 2;
-		mech_oid.elements = p;
+		major_status = choose_mech(input_token, &mech_oid);
+		if (major_status != GSS_S_COMPLETE)
+			return (major_status);
 
 		/*
 		 * Now that we have a mechanism, we can find the
@@ -157,6 +224,7 @@ OM_uint32 gss_accept_sec_context(OM_uint32 *minor_status,
 	}
 	delegated_mc = GSS_C_NO_CREDENTIAL;
 	
+	mech_ret_flags = 0;
 	major_status = m->gm_accept_sec_context(minor_status,
 	    &ctx->gc_ctx,
 	    acceptor_mc,
@@ -169,12 +237,12 @@ OM_uint32 gss_accept_sec_context(OM_uint32 *minor_status,
 	    time_rec,
 	    &delegated_mc);
 	if (major_status != GSS_S_COMPLETE &&
-	    major_status != GSS_S_CONTINUE_NEEDED)
+	    major_status != GSS_S_CONTINUE_NEEDED) {
+		_gss_mg_error(m, major_status, *minor_status);
 		return (major_status);
+	}
 
-	if (!src_name) {
-		m->gm_release_name(minor_status, &src_mn);
-	} else {
+	if (src_name && src_mn) {
 		/*
 		 * Make a new name and mark it as an MN.
 		 */
@@ -185,6 +253,8 @@ OM_uint32 gss_accept_sec_context(OM_uint32 *minor_status,
 			return (GSS_S_FAILURE);
 		}
 		*src_name = (gss_name_t) name;
+	} else if (src_mn) {
+		m->gm_release_name(minor_status, &src_mn);
 	}
 
 	if (delegated_mc == GSS_C_NO_CREDENTIAL)
@@ -195,29 +265,27 @@ OM_uint32 gss_accept_sec_context(OM_uint32 *minor_status,
 			m->gm_release_cred(minor_status, &delegated_mc);
 			mech_ret_flags &= ~GSS_C_DELEG_FLAG;
 		} else {
-			struct _gss_cred *cred;
-			struct _gss_mechanism_cred *mc;
+			struct _gss_cred *dcred;
+			struct _gss_mechanism_cred *dmc;
 
-			cred = malloc(sizeof(struct _gss_cred));
-			if (!cred) {
+			dcred = malloc(sizeof(struct _gss_cred));
+			if (!dcred) {
 				*minor_status = ENOMEM;
 				return (GSS_S_FAILURE);
 			}
-			SLIST_INIT(&cred->gc_mc);
-			mc = malloc(sizeof(struct _gss_mechanism_cred));
-			if (!mc) {
-				free(cred);
+			SLIST_INIT(&dcred->gc_mc);
+			dmc = malloc(sizeof(struct _gss_mechanism_cred));
+			if (!dmc) {
+				free(dcred);
 				*minor_status = ENOMEM;
 				return (GSS_S_FAILURE);
 			}
-			m->gm_inquire_cred(minor_status, delegated_mc,
-			    0, 0, &cred->gc_usage, 0);
-			mc->gmc_mech = m;
-			mc->gmc_mech_oid = &m->gm_mech_oid;
-			mc->gmc_cred = delegated_mc;
-			SLIST_INSERT_HEAD(&cred->gc_mc, mc, gmc_link);
+			dmc->gmc_mech = m;
+			dmc->gmc_mech_oid = &m->gm_mech_oid;
+			dmc->gmc_cred = delegated_mc;
+			SLIST_INSERT_HEAD(&dcred->gc_mc, dmc, gmc_link);
 
-			*delegated_cred_handle = (gss_cred_id_t) cred;
+			*delegated_cred_handle = (gss_cred_id_t) dcred;
 		}
 	}
 

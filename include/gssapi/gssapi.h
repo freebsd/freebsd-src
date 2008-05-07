@@ -41,6 +41,11 @@
  */
 #include <stdint.h>
 
+#ifndef _SSIZE_T_DECLARED
+typedef	__ssize_t	ssize_t;
+#define	_SSIZE_T_DECLARED
+#endif
+
 #if 0
 /*
  * If the platform supports the xom.h header file, it should be
@@ -732,25 +737,101 @@ OM_uint32 gss_unseal
 	      );
 
 /*
- * kerberos mechanism specific functions
+ * Other extensions and helper functions.
  */
-struct krb5_ccache_data;
-#define GSS_C_KRB5_COMPAT_DES3_MIC 1
 
-OM_uint32 gsskrb5_register_acceptor_identity
-	      (const char *	  /* identity */
+int gss_oid_equal
+	      (const gss_OID,	  /* first OID to compare */
+	       const gss_OID	  /* second OID to compare */
 	      );
 
-OM_uint32 gss_krb5_copy_ccache
-	      (OM_uint32 *,	  /* minor_status */
-	       gss_cred_id_t,	  /* cred_handle */
-	       struct krb5_ccache_data * /* out */
+OM_uint32 gss_release_oid
+	      (OM_uint32 *,	  /* minor status */
+	       gss_OID *	  /* oid to free */
 	      );
 
-OM_uint32 gss_krb5_compat_des3_mic
-	      (OM_uint32 *,	  /* minor_status */
-	       gss_ctx_id_t,	  /* context_handle */
-	       int		  /* flag */
+OM_uint32 gss_decapsulate_token
+	      (const gss_buffer_t,  /* mechanism independent token */
+	       gss_OID,		 /* desired mechanism */
+	       gss_buffer_t	 /* decapsulated mechanism dependant token */
+	      );
+
+OM_uint32 gss_encapsulate_token
+	      (const gss_buffer_t,  /* mechanism dependant token */
+	       gss_OID,		 /* desired mechanism */
+	       gss_buffer_t	 /* encapsulated mechanism independent token */
+	      );
+
+OM_uint32 gss_duplicate_oid
+              (OM_uint32 *,	/* minor status */
+	       const gss_OID,	/* oid to copy */
+	       gss_OID *	/* result */
+	      );
+
+OM_uint32 gss_oid_to_str
+	      (OM_uint32 *,	/* minor status */
+	       gss_OID,		/* oid to convert */
+	       gss_buffer_t	/* buffer to contain string */
+	      );
+
+typedef struct gss_buffer_set_desc_struct  {
+  size_t	count;
+  gss_buffer_desc *elements;
+} gss_buffer_set_desc, *gss_buffer_set_t;
+
+#define GSS_C_NO_BUFFER_SET ((gss_buffer_set_t) 0)
+
+OM_uint32 gss_create_empty_buffer_set
+	      (OM_uint32 *,		/* minor status */
+	       gss_buffer_set_t *	/* location for new buffer set */
+	      );
+
+OM_uint32 gss_add_buffer_set_member
+	      (OM_uint32 *,		/* minor status */
+	       gss_buffer_t,		/* buffer to add */
+	       gss_buffer_set_t *	/* set to add to */
+	      );
+
+OM_uint32 gss_release_buffer_set
+	      (OM_uint32 *,		/* minor status */
+	       gss_buffer_set_t *	/* set to release */
+	      );
+
+OM_uint32 gss_inquire_sec_context_by_oid
+	      (OM_uint32 *,		/* minor_status */
+	       const gss_ctx_id_t,	/* context_handle */
+	       const gss_OID,		/* desired_object */
+	       gss_buffer_set_t *	/* result */
+	      );
+
+OM_uint32 gss_inquire_cred_by_oid
+	      (OM_uint32 *,		/* minor_status */
+	       const gss_cred_id_t,	/* cred_handle */
+	       const gss_OID,		/* desired_object */
+	       gss_buffer_set_t *	/* result */
+	      );
+
+OM_uint32 gss_set_sec_context_option
+	      (OM_uint32 *,		/* minor status */
+	       gss_ctx_id_t *,		/* context */
+	       const gss_OID,		/* option to set */
+	       const gss_buffer_t	/* option value */
+	      );
+
+OM_uint32 gss_set_cred_option
+	      (OM_uint32 *,		/* minor status */
+	       gss_cred_id_t *,		/* cred */
+	       const gss_OID,		/* option to set */
+	       const gss_buffer_t	/* option value */
+	      );
+
+OM_uint32 gss_pseudo_random
+	      (OM_uint32 *,		/* minor status */
+	       gss_ctx_id_t,		/* context handle */
+	       int prf_key,		/* XXX */
+	       const gss_buffer_t,	/* data to seed generator */
+	       ssize_t,			/* amount of data required */
+	       gss_buffer_t		/* buffer for result */
 	      );
 
 #endif /* _GSSAPI_GSSAPI_H_ */

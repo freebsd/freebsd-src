@@ -36,11 +36,11 @@ gss_test_oid_set_member(OM_uint32 *minor_status,
     const gss_OID_set set,
     int *present)
 {
-	int i;
+	size_t i;
 
 	*present = 0;
 	for (i = 0; i < set->count; i++)
-		if (_gss_oid_equal(member, &set->elements[i]))
+		if (gss_oid_equal(member, &set->elements[i]))
 			*present = 1;
 
 	*minor_status = 0;

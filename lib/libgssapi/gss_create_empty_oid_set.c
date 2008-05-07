@@ -37,7 +37,7 @@ gss_create_empty_oid_set(OM_uint32 *minor_status,
 	gss_OID_set set;
 
 	*minor_status = 0;
-	*oid_set = 0;
+	*oid_set = GSS_C_NO_OID_SET;
 
 	set = malloc(sizeof(gss_OID_set_desc));
 	if (!set) {

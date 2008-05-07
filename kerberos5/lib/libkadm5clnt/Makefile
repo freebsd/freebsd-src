@@ -10,7 +10,8 @@ INCS=	admin.h \
 
 INCSDIR=${INCLUDEDIR}/kadm5
 
-SRCS=	chpass_c.c \
+SRCS=	ad.c \
+	chpass_c.c \
 	client_glue.c \
 	common_glue.c \
 	create_c.c \

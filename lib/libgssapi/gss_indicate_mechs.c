@@ -37,7 +37,7 @@ gss_indicate_mechs(OM_uint32 *minor_status,
 	struct _gss_mech_switch *m;
 	OM_uint32 major_status;
 	gss_OID_set set;
-	int i;
+	size_t i;
 
 	_gss_load_mech();
 
@@ -50,6 +50,12 @@ gss_indicate_mechs(OM_uint32 *minor_status,
 			major_status = m->gm_indicate_mechs(minor_status, &set);
 			if (major_status)
 				continue;
+			if (set == GSS_C_NO_OID_SET) {
+				major_status = gss_add_oid_set_member(
+					minor_status,
+					&m->gm_mech_oid, mech_set);
+				continue;
+			}
 			for (i = 0; i < set->count; i++)
 				major_status = gss_add_oid_set_member(minor_status,
 				    &set->elements[i], mech_set);

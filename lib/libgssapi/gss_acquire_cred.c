@@ -52,14 +52,23 @@ gss_acquire_cred(OM_uint32 *minor_status,
 	struct _gss_cred *cred;
 	struct _gss_mechanism_cred *mc;
 	struct _gss_mechanism_name *mn;
-	OM_uint32 min_time, time;
-	int i;
+	OM_uint32 min_time, cred_time;
+	size_t i;
+
+	*minor_status = 0;
+	if (output_cred_handle)
+		*output_cred_handle = GSS_C_NO_CREDENTIAL;
+	if (actual_mechs)
+		*actual_mechs = GSS_C_NO_OID_SET;
+	if (time_rec)
+		*time_rec = 0;
+
+	_gss_load_mech();
 
 	/*
 	 * First make sure that at least one of the requested
 	 * mechanisms is one that we support.
 	 */
-	_gss_load_mech();
 	if (mechs) {
 		for (i = 0; i < mechs->count; i++) {
 			int t;
@@ -69,7 +78,6 @@ gss_acquire_cred(OM_uint32 *minor_status,
 				break;
 		}
 		if (i == mechs->count) {
-			*output_cred_handle = 0;
 			*minor_status = 0;
 			return (GSS_S_BAD_MECH);
 		}
@@ -91,7 +99,6 @@ gss_acquire_cred(OM_uint32 *minor_status,
 		*minor_status = ENOMEM;
 		return (GSS_S_FAILURE);
 	}
-	cred->gc_usage = cred_usage;
 	SLIST_INIT(&cred->gc_mc);
 
 	set.count = 1;
@@ -102,8 +109,9 @@ gss_acquire_cred(OM_uint32 *minor_status,
 			continue;
 
 		if (desired_name != GSS_C_NO_NAME) {
-			mn = _gss_find_mn(name, &mechs->elements[i]);
-			if (!mn)
+			major_status = _gss_find_mn(minor_status, name,
+						    &mechs->elements[i], &mn);
+			if (major_status != GSS_S_COMPLETE)
 				continue;
 		}
 
@@ -122,13 +130,13 @@ gss_acquire_cred(OM_uint32 *minor_status,
 		    (desired_name != GSS_C_NO_NAME
 			? mn->gmn_name : GSS_C_NO_NAME),
 		    time_req, &set, cred_usage,
-		    &mc->gmc_cred, NULL, &time);
+		    &mc->gmc_cred, NULL, &cred_time);
 		if (major_status) {
 			free(mc);
 			continue;
 		}
-		if (time < min_time)
-			min_time = time;
+		if (cred_time < min_time)
+			min_time = cred_time;
 
 		if (actual_mechs) {
 			major_status = gss_add_oid_set_member(minor_status,
@@ -152,7 +160,6 @@ gss_acquire_cred(OM_uint32 *minor_status,
 		free(cred);
 		if (actual_mechs)
 			gss_release_oid_set(minor_status, actual_mechs);
-		*output_cred_handle = 0;
 		*minor_status = 0;
 		return (GSS_S_NO_CRED);
 	}

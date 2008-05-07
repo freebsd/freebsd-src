@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2004 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -32,7 +32,7 @@
  */
 
 /* 
- * $Id: kadmin_locl.h,v 1.41 2002/09/10 20:04:45 joda Exp $
+ * $Id: kadmin_locl.h 17580 2006-05-13 21:28:56Z lha $
  * $FreeBSD$
  */
 
@@ -91,92 +91,57 @@
 #include <krb5_locl.h>
 #include <hdb.h>
 #include <hdb_err.h>
+#include <hex.h>
 #include <kadm5/admin.h>
 #include <kadm5/private.h>
 #include <kadm5/kadm5_err.h>
 #include <parse_time.h>
 #include <getarg.h>
 
-
 extern krb5_context context;
 extern void * kadm_handle;
-
-#define DECL(X) int X(int, char **)
-
-DECL(add_new_key);
-DECL(cpw_entry);
-DECL(del_entry);
-DECL(del_enctype);
-DECL(exit_kadmin);
-DECL(ext_keytab);
-DECL(get_entry);
-DECL(get_privs);
-DECL(help);
-DECL(list_princs);
-DECL(mod_entry);
-DECL(rename_entry);
-DECL(init);
-DECL(dump);
-DECL(load);
-DECL(merge);
 
 #undef ALLOC
 #define ALLOC(X) ((X) = malloc(sizeof(*(X))))
 
 /* util.c */
 
-void attributes2str(krb5_flags attributes, char *str, size_t len);
-int  str2attributes(const char *str, krb5_flags *flags);
-int  parse_attributes (const char *resp, krb5_flags *attr, int *mask, int bit);
-int  edit_attributes (const char *prompt, krb5_flags *attr, int *mask,
-		      int bit);
+void attributes2str(krb5_flags, char *, size_t);
+int  str2attributes(const char *, krb5_flags *);
+int  parse_attributes (const char *, krb5_flags *, int *, int);
+int  edit_attributes (const char *, krb5_flags *, int *, int);
 
-void time_t2str(time_t t, char *str, size_t len, int include_time);
-int  str2time_t (const char *str, time_t *time);
-int  parse_timet (const char *resp, krb5_timestamp *value, int *mask, int bit);
-int  edit_timet (const char *prompt, krb5_timestamp *value, int *mask,
-		 int bit);
+void time_t2str(time_t, char *, size_t, int);
+int  str2time_t (const char *, time_t *);
+int  parse_timet (const char *, krb5_timestamp *, int *, int);
+int  edit_timet (const char *, krb5_timestamp *, int *,
+		 int);
 
-void deltat2str(unsigned t, char *str, size_t len);
-int  str2deltat(const char *str, krb5_deltat *delta);
-int  parse_deltat (const char *resp, krb5_deltat *value, int *mask, int bit);
-int  edit_deltat (const char *prompt, krb5_deltat *value, int *mask, int bit);
+void deltat2str(unsigned, char *, size_t);
+int  str2deltat(const char *, krb5_deltat *);
+int  parse_deltat (const char *, krb5_deltat *, int *, int);
+int  edit_deltat (const char *, krb5_deltat *, int *, int);
 
-int edit_entry(kadm5_principal_ent_t ent, int *mask,
-	       kadm5_principal_ent_t default_ent, int default_mask);
-void set_defaults(kadm5_principal_ent_t ent, int *mask,
-		  kadm5_principal_ent_t default_ent, int default_mask);
-int set_entry(krb5_context context,
-	      kadm5_principal_ent_t ent,
-	      int *mask,
-	      const char *max_ticket_life,
-	      const char *max_renewable_life,
-	      const char *expiration,
-	      const char *pw_expiration,
-	      const char *attributes);
+int edit_entry(kadm5_principal_ent_t, int *, kadm5_principal_ent_t, int);
+void set_defaults(kadm5_principal_ent_t, int *, kadm5_principal_ent_t, int);
+int set_entry(krb5_context, kadm5_principal_ent_t, int *,
+	      const char *, const char *, const char *,
+	      const char *, const char *);
 int
-foreach_principal(const char *exp, 
-		  int (*func)(krb5_principal, void*), 
-		  const char *funcname,
-		  void *data);
+foreach_principal(const char *, int (*)(krb5_principal, void*), 
+		  const char *, void *);
 
-int parse_des_key (const char *key_string,
-		   krb5_key_data *key_data, const char **err);
+int parse_des_key (const char *, krb5_key_data *, const char **);
 
 /* server.c */
 
 krb5_error_code
 kadmind_loop (krb5_context, krb5_auth_context, krb5_keytab, int);
 
-/* version4.c */
-
-void
-handle_v4(krb5_context context, krb5_keytab keytab, int len, int fd);
-
 /* random_password.c */
 
 void
-random_password(char *pw, size_t len);
+random_password(char *, size_t);
 
 /* kadm_conn.c */
 

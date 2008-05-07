@@ -37,5 +37,6 @@ gss_verify(OM_uint32 *minor_status,
 {
 
 	return (gss_verify_mic(minor_status,
-		    context_handle, message_buffer, token_buffer, qop_state));
+		context_handle, message_buffer, token_buffer,
+		(gss_qop_t *)qop_state));
 }
