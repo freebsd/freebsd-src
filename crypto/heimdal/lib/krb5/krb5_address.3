@@ -1,37 +1,37 @@
-.\" Copyright (c) 2003 Kungliga Tekniska Högskolan
-.\" (Royal Institute of Technology, Stockholm, Sweden). 
-.\" All rights reserved. 
+.\" Copyright (c) 2003, 2005 - 2006 Kungliga Tekniska Högskolan
+.\" (Royal Institute of Technology, Stockholm, Sweden).
+.\" All rights reserved.
 .\"
-.\" Redistribution and use in source and binary forms, with or without 
-.\" modification, are permitted provided that the following conditions 
-.\" are met: 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
 .\"
-.\" 1. Redistributions of source code must retain the above copyright 
-.\"    notice, this list of conditions and the following disclaimer. 
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
 .\"
-.\" 2. Redistributions in binary form must reproduce the above copyright 
-.\"    notice, this list of conditions and the following disclaimer in the 
-.\"    documentation and/or other materials provided with the distribution. 
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
 .\"
-.\" 3. Neither the name of the Institute nor the names of its contributors 
-.\"    may be used to endorse or promote products derived from this software 
-.\"    without specific prior written permission. 
+.\" 3. Neither the name of the Institute nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
 .\"
-.\" THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
-.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
-.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
-.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
-.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
-.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
-.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
-.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
-.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
-.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
-.\" SUCH DAMAGE. 
-.\" 
-.\" $Id: krb5_address.3,v 1.4 2003/04/16 13:58:12 lha Exp $
-.\" 
-.Dd March 11, 2002
+.\" THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: krb5_address.3 17461 2006-05-05 13:13:18Z lha $
+.\"
+.Dd May  1, 2006
 .Dt KRB5_ADDRESS 3
 .Os HEIMDAL
 .Sh NAME
@@ -56,7 +56,7 @@
 .Nm krb5_copy_addresses ,
 .Nm krb5_append_addresses ,
 .Nm krb5_make_addrport
-.Nd mange addresses in Kerberos.
+.Nd mange addresses in Kerberos
 .Sh LIBRARY
 Kerberos 5 Library (libkrb5, -lkrb5)
 .Sh SYNOPSIS
@@ -192,7 +192,7 @@ The
 structure holds a set of krb5_address:es.
 .Pp
 .Fn krb5_sockaddr2address
-stores a address a 
+stores a address a
 .Li "struct sockaddr"
 .Fa sa
 in the krb5_address
@@ -213,8 +213,9 @@ from
 .Fa addr
 and
 .Fa port .
-.Fa Sa_size
-should be initially contain the size of the
+The argument
+.Fa sa_size
+should initially contain the size of the
 .Fa sa ,
 and after the call, it will contain the actual length of the address.
 .Pp
@@ -228,7 +229,7 @@ returns
 .Dv TRUE
 for all
 .Fa sa
-that for that the kerberos library thinks are uninteresting.
+that the kerberos library thinks are uninteresting.
 One example are link local addresses.
 .Pp
 .Fn krb5_h_addr2sockaddr
@@ -241,14 +242,13 @@ and the
 .Li "struct hostent"
 (see
 .Xr gethostbyname 3 )
-.Fa h_addr_list 
+.Fa h_addr_list
 component.
-.Fa Sa_size
-should be initially contain the size of the
+The argument
+.Fa sa_size
+should initially contain the size of the
 .Fa sa ,
 and after the call, it will contain the actual length of the address.
-.Fa sa
-argument.
 .Pp
 .Fn krb5_h_addr2addr
 works like
@@ -256,55 +256,59 @@ works like
 with the exception that it operates on a
 .Li krb5_address
 instead of a
-.Li struct sockaddr
+.Li struct sockaddr .
 .Pp
 .Fn krb5_anyaddr
 fills in a
 .Li "struct sockaddr"
 .Fa sa
 that can be used to
-.Xf bind 3
+.Xr bind 2
 to.
-.Fa Sa_size
-should be initially contain the size of the
+The argument
+.Fa sa_size
+should initially contain the size of the
 .Fa sa ,
 and after the call, it will contain the actual length of the address.
 .Pp
 .Fn krb5_print_address
 prints the address in
 .Fa addr
-to the a string
+to the string
 .Fa string
 that have the length
 .Fa len .
 If
 .Fa ret_len
-if not
+is not
 .Dv NULL ,
-it will be filled in length of the string.
+it will be filled with the length of the string if size were unlimited (not
+including the final
+.Ql \e0 ) .
 .Pp
 .Fn krb5_parse_address
-Returns the resolving a hostname in
+Returns the resolved hostname in
 .Fa string
 to the
 .Li krb5_addresses
 .Fa addresses .
 .Pp
 .Fn krb5_address_order
-compares to addresses
+compares the addresses
 .Fa addr1
 and
 .Fa addr2
 so that it can be used for sorting addresses. If the addresses are the
 same address
-.Fa krb5_address_order will be return 0.
+.Fa krb5_address_order
+will return 0.
 .Pp
 .Fn krb5_address_compare
 compares the addresses
 .Fa addr1
 and
 .Fa addr2 .
-returns
+Returns
 .Dv TRUE
 if the two addresses are the same.
 .Pp
@@ -344,7 +348,7 @@ to
 While copying the addresses, duplicates are also sorted out.
 .Pp
 .Fn krb5_make_addrport
-allocates and creates an 
+allocates and creates an
 krb5_address in
 .Fa res
 of type KRB5_ADDRESS_ADDRPORT from

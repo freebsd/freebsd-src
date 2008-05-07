@@ -1,37 +1,37 @@
-.\" Copyright (c) 2001 - 2003 Kungliga Tekniska Högskolan
-.\" (Royal Institute of Technology, Stockholm, Sweden). 
-.\" All rights reserved. 
+.\" Copyright (c) 2001 - 2005 Kungliga Tekniska Högskolan
+.\" (Royal Institute of Technology, Stockholm, Sweden).
+.\" All rights reserved.
 .\"
-.\" Redistribution and use in source and binary forms, with or without 
-.\" modification, are permitted provided that the following conditions 
-.\" are met: 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
 .\"
-.\" 1. Redistributions of source code must retain the above copyright 
-.\"    notice, this list of conditions and the following disclaimer. 
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
 .\"
-.\" 2. Redistributions in binary form must reproduce the above copyright 
-.\"    notice, this list of conditions and the following disclaimer in the 
-.\"    documentation and/or other materials provided with the distribution. 
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
 .\"
-.\" 3. Neither the name of the Institute nor the names of its contributors 
-.\"    may be used to endorse or promote products derived from this software 
-.\"    without specific prior written permission. 
+.\" 3. Neither the name of the Institute nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
 .\"
-.\" THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
-.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
-.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
-.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
-.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
-.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
-.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
-.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
-.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
-.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
-.\" SUCH DAMAGE. 
+.\" THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
 .\"
-.\" $Id: krb5_keytab.3,v 1.9 2003/04/16 13:58:16 lha Exp $
+.\" $Id: krb5_keytab.3 22071 2007-11-14 20:04:50Z lha $
 .\"
-.Dd February 5, 2001
+.Dd August 12, 2005
 .Dt KRB5_KEYTAB 3
 .Os HEIMDAL
 .Sh NAME
@@ -43,6 +43,7 @@
 .Nm krb5_kt_compare ,
 .Nm krb5_kt_copy_entry_contents ,
 .Nm krb5_kt_default ,
+.Nm krb5_kt_default_modify_name ,
 .Nm krb5_kt_default_name ,
 .Nm krb5_kt_end_seq_get ,
 .Nm krb5_kt_free_entry ,
@@ -90,6 +91,12 @@ Kerberos 5 Library (libkrb5, -lkrb5)
 .Fo krb5_kt_default
 .Fa "krb5_context context"
 .Fa "krb5_keytab *id"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_kt_default_modify_name
+.Fa "krb5_context context"
+.Fa "char *name"
+.Fa "size_t namesize"
 .Fc
 .Ft krb5_error_code
 .Fo krb5_kt_default_name
@@ -191,8 +198,20 @@ are:
 .Bl -tag -width Ds
 .It Nm file
 store the keytab in a file, the type's name is
-.Li KEYFILE .
+.Li FILE .
 The residual part is a filename.
+For compatibility with other Kerberos implemtation
+.Li WRFILE
+and
+.LI JAVA14
+is also accepted.
+.Li WRFILE
+has the same format as
+.Li FILE .
+.Li JAVA14
+have a format that is compatible with older versions of MIT kerberos
+and SUN's Java based installation.  They store a truncted kvno, so
+when the knvo excess 255, they are truncted in this format.
 .It Nm keyfile
 store the keytab in a
 .Li AFS
@@ -211,10 +230,11 @@ The residual part is a filename.
 The keytab is stored in a memory segment. This allows sensitive and/or
 temporary data not to be stored on disk. The type's name is
 .Li MEMORY .
-There are no residual part, the only pointer back to the keytab is the
-.Fa id
-returned by
-.Fn krb5_kt_resolve .
+Each
+.Li MEMORY
+keytab is referenced counted by and opened by the residual name, so two
+handles can point to the same memory area.
+When the last user closes the entry, it disappears.
 .El
 .Pp
 .Nm krb5_keytab_entry
@@ -244,8 +264,10 @@ Returns 0 or an error. The opposite of
 .Fn krb5_kt_resolve
 is
 .Fn krb5_kt_close .
+.Pp
 .Fn krb5_kt_close
-frees all resources allocated to the keytab.
+frees all resources allocated to the keytab, even on failure.
+Returns 0 or an error.
 .Pp
 .Fn krb5_kt_default
 sets the argument
@@ -253,15 +275,22 @@ sets the argument
 to the default keytab.
 Returns 0 or an error.
 .Pp
+.Fn krb5_kt_default_modify_name
+copies the name of the default modify keytab into
+.Fa name .
+Return 0 or KRB5_CONFIG_NOTENUFSPACE if
+.Fa namesize
+is too short.
+.Pp
 .Fn krb5_kt_default_name
-copy the name of the default keytab into
+copies the name of the default keytab into
 .Fa name .
 Return 0 or KRB5_CONFIG_NOTENUFSPACE if
 .Fa namesize
 is too short.
 .Pp
 .Fn krb5_kt_add_entry
-Add a new
+adds a new
 .Fa entry
 to the keytab
 .Fa id .
@@ -306,7 +335,7 @@ and store the prefix/name for type of the keytab into
 .Fa prefix ,
 .Fa prefixsize .
 The prefix will have the maximum length of
-.Dv KRB5_KT_PREFIX_MAX_LEN 
+.Dv KRB5_KT_PREFIX_MAX_LEN
 (including terminating
 .Dv NUL ) .
 Returns 0 or an error.
@@ -329,6 +358,8 @@ pointed to by
 .Fa cursor
 and advance the
 .Fa cursor .
+On success the returne entry must be freed with
+.Fn krb5_kt_free_entry .
 Returns 0 or an error.
 .Pp
 .Fn krb5_kt_end_seq_get
@@ -338,23 +369,45 @@ releases all resources associated with
 .Fn krb5_kt_get_entry
 retrieves the keytab entry for
 .Fa principal ,
-.Fa kvno,
+.Fa kvno ,
 .Fa enctype
 into
 .Fa entry
 from the keytab
 .Fa id .
+When comparing an entry in the keytab to determine a match, the
+function
+.Fn krb5_kt_compare
+is used, so the wildcard rules applies to the argument of
+.F krb5_kt_get_entry
+too.
+On success the returne entry must be freed with
+.Fn krb5_kt_free_entry .
 Returns 0 or an error.
 .Pp
 .Fn krb5_kt_read_service_key
 reads the key identified by
-.Ns ( Fa principal ,
+.Fa ( principal ,
 .Fa vno ,
 .Fa enctype )
 from the keytab in
 .Fa keyprocarg
-(the default if == NULL) into
+(the system default keytab if 
+.Dv NULL
+is used) into
 .Fa *key .
+.Fa keyprocarg
+is the same argument as to
+.Fa name
+argument to
+.Fn krb5_kt_resolve .
+Internal
+.Fn krb5_kt_compare
+will be used, so the same wildcard rules applies
+to
+.Fn krb5_kt_read_service_key .
+On success the returned key must be freed with
+.Fa krb5_free_keyblock .
 Returns 0 or an error.
 .Pp
 .Fn krb5_kt_remove_entry
@@ -362,13 +415,20 @@ removes the entry
 .Fa entry
 from the keytab
 .Fa id .
-Returns 0 or an error.
+When comparing an entry in the keytab to determine a match, the
+function
+.Fn krb5_kt_compare
+is use, so the wildcard rules applies to the argument of
+.Fn krb5_kt_remove_entry .
+Returns 0, 
+.Dv KRB5_KT_NOTFOUND
+if not entry matched or another error.
 .Pp
 .Fn krb5_kt_register
 registers a new keytab type
 .Fa ops .
 Returns 0 or an error.
-.Sh EXAMPLE
+.Sh EXAMPLES
 This is a minimalistic version of
 .Nm ktutil .
 .Pp
@@ -402,10 +462,21 @@ main (int argc, char **argv)
     ret = krb5_kt_end_seq_get(context, keytab, &cursor);
     if (ret)
 	krb5_err(context, 1, ret, "krb5_kt_end_seq_get");
+    ret = krb5_kt_close(context, keytab);
+    if (ret)
+	krb5_err(context, 1, ret, "krb5_kt_close");
     krb5_free_context(context);
     return 0;
 }
 .Ed
+.Sh COMPATIBILITY
+Heimdal stored the ticket flags in machine bit-field order before
+Heimdal 0.7.  The behavior is possible to change in with the option
+.Li [libdefaults]fcc-mit-ticketflags .
+Heimdal 0.7 also code to detech that ticket flags was in the wrong
+order and correct them.  This matters when doing delegation in GSS-API
+because the client code looks at the flag to determin if it is possible
+to do delegation if the user requested it.
 .Sh SEE ALSO
 .Xr krb5.conf 5 ,
 .Xr kerberos 8

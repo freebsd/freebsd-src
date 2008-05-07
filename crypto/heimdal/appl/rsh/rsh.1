@@ -29,9 +29,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
 .\" SUCH DAMAGE. 
 .\" 
-.\"	$Id: rsh.1,v 1.6 2003/04/16 19:57:25 lha Exp $
+.\"	$Id: rsh.1 13394 2004-02-20 12:21:42Z joda $
 .\"
-.Dd September 4, 2002
+.Dd February 20, 2004
 .Dt RSH 1
 .Os HEIMDAL
 .Sh NAME
@@ -85,9 +85,9 @@ option.
 .Xc
 The
 .Fl K
-option turns off all Kerberos authentication. The long name implies
-that this is more or less totally unsecure. The security in this mode
-relies on reserved ports, which is not very secure.
+option turns off all Kerberos authentication. The security in this
+mode relies on reserved ports. The long name is an indication of how
+good this is.
 .It Xo
 .Fl n ,
 .Fl -no-input
@@ -99,6 +99,10 @@ option directs the input from the
 device (see the
 .Sx BUGS
 section of this manual page).
+.It Fl d
+Enable
+.Xr setsockopt 2
+socket debugging.
 .It Xo
 .Fl e ,
 .Fl -no-stderr
@@ -120,32 +124,73 @@ section for limitations).
 .Xc
 The opposite of
 .Fl x .
-This is the default, but encryption can be enabled when using
-Kerberos 5, by setting the
-.Li libdefaults/encrypt
-option in
-.Xr krb5.conf 5 .
+This is the default, and is mainly useful if encryption has been
+enabled by default, for instance in the
+.Li appdefaults
+section of 
+.Pa /etc/krb5.conf
+when using Kerberos 5.
 .It Xo
 .Fl f ,
 .Fl -forward
 .Xc
-Forward Kerberos 5 credentials to the remote host. Also controlled by
-.Li libdefaults/forward
-in
-.Xr krb5.conf 5 .
-.It Xo
-.Fl G
-.Xc
-The opposite of
-.Fl f .
+Forward Kerberos 5 credentials to the remote host.
+Also settable via
+.Li appdefaults
+(see
+.Xr krb5.conf ) .
 .It Xo
 .Fl F ,
 .Fl -forwardable
 .Xc
-Make the forwarded credentials re-forwardable. Also controlled by
-.Li libdefaults/forwardable
-in
-.Xr krb5.conf 5 .
+Make the forwarded credentials re-forwardable. 
+Also settable via
+.Li appdefaults
+(see
+.Xr krb5.conf ) .
+.It Xo
+.Fl l Ar string ,
+.Fl -user= Ns Ar string
+.Xc
+By default the remote username is the same as the local. The
+.Fl l
+option or the
+.Pa username@host
+format allow the remote name to be specified.
+.It Xo
+.Fl n ,
+.Fl -no-input
+.Xc
+Direct input from 
+.Pa /dev/null
+(see the
+.Sx BUGS
+section).
+.It Xo
+.Fl p Ar number-or-service ,
+.Fl -port= Ns Ar number-or-service
+.Xc
+Connect to this port instead of the default (which is 514 when using
+old port based authentication, 544 for Kerberos 5 and non-encrypted
+Kerberos 4, and 545 for encrytpted Kerberos 4; subject of course to
+the contents of
+.Pa /etc/services ) .
+.It Xo
+.Fl P Ar N|O|1|2 ,
+.Fl -protocol= Ns Ar N|O|1|2
+.Xc
+Specifies the protocol version to use with Kerberos 5.
+.Ar N
+and
+.Ar 2
+select protocol version 2, while 
+.Ar O
+and
+.Ar 1
+select version 1. Version 2 is believed to be more secure, and is the
+default. Unless asked for a specific version,
+.Nm
+will try both.  This behaviour may change in the future.
 .It Xo
 .Fl u ,
 .Fl -unique
@@ -160,39 +205,23 @@ any existing cache. Mutually exclusive to
 Name of the remote credentials cache. Mutually exclusive to
 .Fl u .
 .It Xo
-.Fl p Ar number-or-service ,
-.Fl -port= Ns Ar number-or-service
+.Fl x ,
+.Fl -encrypt
 .Xc
-Connect to this port instead of the default (which is 514 when using
-old port based authentication, 544 for Kerberos 5 and non-encrypted
-Kerberos 4, and 545 for encrytpted Kerberos 4; subject of course to
-the contents of
-.Pa /etc/services ) .
-.It Xo
-.Fl l Ar string ,
-.Fl -user= Ns Ar string
-.Xc
-By default the remote username is the same as the local. The
-.Fl l
-option or the
-.Pa username@host
-format allow the remote name to be specified.
-.It Xo
-.Fl P Ar N|O|1|2 ,
-.Fl -protocol= Ns Ar N|O|1|2
-.Xc
-Specifies which protocol version to use with Kerberos 5.
-.Ar N
-and
-.Ar 2
-selects protocol version 2, while 
-.Ar O
-and
-.Ar 1
-selects version 1. Version 2 is believed to be more secure, and is the
-default. Unless asked for a specific version,
-.Nm
-will try both.  This behaviour may change in the future.
+The
+.Fl x
+option enables encryption for all data exchange. This is only valid
+for Kerberos authenticated connections (see the
+.Sx BUGS
+section for limitations).
+.It Fl z
+The opposite of
+.Fl x .
+This is the default, but encryption can be enabled when using
+Kerberos 5, by setting the
+.Li libdefaults/encrypt
+option in
+.Xr krb5.conf 5 .
 .El
 .\".Pp
 .\"Without a
@@ -208,7 +237,7 @@ machine.
 .Pp
 The following command:
 .Pp
-.Dl rsh otherhost cat remotefile > localfile
+.Dl rsh otherhost cat remotefile \*[Gt] localfile
 .Pp
 will write the contents of the remote
 .Pa remotefile
@@ -216,7 +245,7 @@ to the local
 .Pa localfile ,
 but:
 .Pp
-.Dl rsh otherhost 'cat remotefile > remotefile2'
+.Dl rsh otherhost 'cat remotefile \*[Gt] remotefile2'
 .Pp
 will write it to the remote
 .Pa remotefile2 .

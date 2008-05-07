@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2005 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -34,7 +34,7 @@
 #include "krb5_locl.h"
 #include <resolve.h>
 
-RCSID("$Id: get_host_realm.c,v 1.29 2002/08/28 13:36:57 nectar Exp $");
+RCSID("$Id: get_host_realm.c 18541 2006-10-17 19:28:36Z lha $");
 
 /* To automagically find the correct realm of a host (without
  * [domain_realm] in krb5.conf) add a text record for your domain with
@@ -94,30 +94,41 @@ dns_find_realm(krb5_context context,
 	       const char *domain,
 	       krb5_realm **realms)
 {
-    static char *default_labels[] = { "_kerberos", NULL };
+    static const char *default_labels[] = { "_kerberos", NULL };
     char dom[MAXHOSTNAMELEN];
     struct dns_reply *r;
-    char **labels;
+    const char **labels;
+    char **config_labels;
     int i, ret;
     
-    labels = krb5_config_get_strings(context, NULL, "libdefaults",
-	"dns_lookup_realm_labels", NULL);
-    if(labels == NULL)
+    config_labels = krb5_config_get_strings(context, NULL, "libdefaults",
+					    "dns_lookup_realm_labels", NULL);
+    if(config_labels != NULL)
+	labels = (const char **)config_labels;
+    else
 	labels = default_labels;
     if(*domain == '.')
 	domain++;
     for (i = 0; labels[i] != NULL; i++) {
-	if(snprintf(dom, sizeof(dom), "%s.%s.", labels[i], domain) >=
-	    sizeof(dom))
+	ret = snprintf(dom, sizeof(dom), "%s.%s.", labels[i], domain);
+	if(ret < 0 || ret >= sizeof(dom)) {
+	    if (config_labels)
+		krb5_config_free_strings(config_labels);
 	    return -1;
+	}
     	r = dns_lookup(dom, "TXT");
     	if(r != NULL) {
 	    ret = copy_txt_to_realms (r->head, realms);
 	    dns_free_data(r);
-	    if(ret == 0)
+	    if(ret == 0) {
+		if (config_labels)
+		    krb5_config_free_strings(config_labels);
 		return 0;
+	    }
 	}
     }
+    if (config_labels)
+	krb5_config_free_strings(config_labels);
     return -1;
 }
 
@@ -149,11 +160,11 @@ config_find_realm(krb5_context context,
  * fall back to guessing
  */
 
-krb5_error_code
-krb5_get_host_realm_int (krb5_context context,
-			 const char *host,
-			 krb5_boolean use_dns,
-			 krb5_realm **realms)
+krb5_error_code KRB5_LIB_FUNCTION
+_krb5_get_host_realm_int (krb5_context context,
+			  const char *host,
+			  krb5_boolean use_dns,
+			  krb5_realm **realms)
 {
     const char *p, *q;
     krb5_boolean dns_locate_enable;
@@ -200,21 +211,47 @@ krb5_get_host_realm_int (krb5_context context,
 }
 
 /*
- * Return the realm(s) of `host' as a NULL-terminated list in `realms'.
+ * Return the realm(s) of `host' as a NULL-terminated list in
+ * `realms'. Free `realms' with krb5_free_host_realm().
  */
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_get_host_realm(krb5_context context,
-		    const char *host,
+		    const char *targethost,
 		    krb5_realm **realms)
 {
+    const char *host = targethost;
     char hostname[MAXHOSTNAMELEN];
+    krb5_error_code ret;
+    int use_dns;
 
     if (host == NULL) {
-	if (gethostname (hostname, sizeof(hostname)))
+	if (gethostname (hostname, sizeof(hostname))) {
+	    *realms = NULL;
 	    return errno;
+	}
 	host = hostname;
     }
 
-    return krb5_get_host_realm_int (context, host, 1, realms);
+    /* 
+     * If our local hostname is without components, don't even try to dns.
+     */
+
+    use_dns = (strchr(host, '.') != NULL);
+
+    ret = _krb5_get_host_realm_int (context, host, use_dns, realms);
+    if (ret && targethost != NULL) {
+	/*
+	 * If there was no realm mapping for the host (and we wasn't
+	 * looking for ourself), guess at the local realm, maybe our
+	 * KDC knows better then we do and we get a referral back.
+	 */
+	ret = krb5_get_default_realms(context, realms);
+	if (ret) {
+	    krb5_set_error_string(context, "Unable to find realm of host %s",
+				  host);
+	    return KRB5_ERR_HOST_REALM_UNKNOWN;
+	}
+    }
+    return ret;
 }

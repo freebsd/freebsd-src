@@ -33,7 +33,7 @@
 
 #include <config.h>
 
-RCSID("$Id: spx.c,v 1.17 1999/09/16 20:41:34 assar Exp $");
+RCSID("$Id: spx.c 22071 2007-11-14 20:04:50Z lha $");
 
 #ifdef	SPX
 /*
@@ -532,7 +532,7 @@ spx_printsub(data, cnt, buf, buflen)
 {
 	int i;
 
-	buf[buflen-1] = '\0';		/* make sure its NULL terminated */
+	buf[buflen-1] = '\0';		/* make sure it's NULL terminated */
 	buflen -= 1;
 
 	switch(data[3]) {

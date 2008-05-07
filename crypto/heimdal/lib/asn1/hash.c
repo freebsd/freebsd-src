@@ -37,7 +37,7 @@
 
 #include "gen_locl.h"
 
-RCSID("$Id: hash.c,v 1.8 1999/12/02 17:05:02 joda Exp $");
+RCSID("$Id: hash.c 17016 2006-04-07 22:16:00Z lha $");
 
 static Hashentry *_search(Hashtab * htab,	/* The hash table */
 			  void *ptr);	/* And key */
@@ -53,17 +53,16 @@ hashtabnew(int sz,
     assert(sz > 0);
 
     htab = (Hashtab *) malloc(sizeof(Hashtab) + (sz - 1) * sizeof(Hashentry *));
+    if (htab == NULL)
+	return NULL;
+
     for (i = 0; i < sz; ++i)
 	htab->tab[i] = NULL;
 
-    if (htab == NULL) {
-	return NULL;
-    } else {
-	htab->cmp = cmp;
-	htab->hash = hash;
-	htab->sz = sz;
-	return htab;
-    }
+    htab->cmp = cmp;
+    htab->hash = hash;
+    htab->sz = sz;
+    return htab;
 }
 
 /* Intern search function */
@@ -183,7 +182,7 @@ hashcaseadd(const char *s)
     assert(s);
 
     for (i = 0; *s; ++s)
-	i += toupper(*s);
+	i += toupper((unsigned char)*s);
     return i;
 }
 

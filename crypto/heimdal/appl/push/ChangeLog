@@ -1,6 +1,10 @@
-2004-06-21  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-04-19  Love Hörnquist Åstrand  <lha@it.su.se>
 
-	* push.c: 1.48: alloc memory to handle very long lines
+	* push.c: catch when snprint needs a larger buffer
+
+2004-06-17  Johan Danielsson  <joda@pdc.kth.se>
+
+	* push.c: alloc memory to handle very long lines
 	
 2003-04-03  Assar Westerlund  <assar@kth.se>
 

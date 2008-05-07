@@ -37,7 +37,7 @@
 
 #include "telnet_locl.h"
 
-RCSID("$Id: utilities.c,v 1.25 2001/08/29 00:45:21 assar Exp $");
+RCSID("$Id: utilities.c 10587 2001-08-29 00:45:23Z assar $");
 
 FILE	*NetTrace = 0;		/* Not in bss, since needs to stay */
 int	prettydump;

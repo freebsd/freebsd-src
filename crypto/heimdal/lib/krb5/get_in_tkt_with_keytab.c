@@ -33,16 +33,16 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: get_in_tkt_with_keytab.c,v 1.6 2001/05/14 06:14:48 assar Exp $");
+RCSID("$Id: get_in_tkt_with_keytab.c 15477 2005-06-17 04:56:44Z lha $");
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_keytab_key_proc (krb5_context context,
 		      krb5_enctype enctype,
 		      krb5_salt salt,
 		      krb5_const_pointer keyseed,
 		      krb5_keyblock **key)
 {
-    krb5_keytab_key_proc_args *args  = (krb5_keytab_key_proc_args *)keyseed;
+    krb5_keytab_key_proc_args *args  = rk_UNCONST(keyseed);
     krb5_keytab keytab = args->keytab;
     krb5_principal principal  = args->principal;
     krb5_error_code ret;
@@ -68,7 +68,7 @@ krb5_keytab_key_proc (krb5_context context,
     return ret;
 }
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_get_in_tkt_with_keytab (krb5_context context,
 			     krb5_flags options,
 			     krb5_addresses *addrs,
@@ -79,16 +79,10 @@ krb5_get_in_tkt_with_keytab (krb5_context context,
 			     krb5_creds *creds,
 			     krb5_kdc_rep *ret_as_reply)
 {
-    krb5_keytab_key_proc_args *a;
+    krb5_keytab_key_proc_args a;
 
-    a = malloc(sizeof(*a));
-    if (a == NULL) {
-	krb5_set_error_string(context, "malloc: out of memory");
-	return ENOMEM;
-    }
-
-    a->principal = creds->client;
-    a->keytab    = keytab;
+    a.principal = creds->client;
+    a.keytab    = keytab;
 
     return krb5_get_in_tkt (context,
 			    options,
@@ -96,7 +90,7 @@ krb5_get_in_tkt_with_keytab (krb5_context context,
 			    etypes,
 			    pre_auth_types,
 			    krb5_keytab_key_proc,
-			    a,
+			    &a,
 			    NULL,
 			    NULL,
 			    creds,

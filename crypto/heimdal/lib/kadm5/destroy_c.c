@@ -33,7 +33,7 @@
 
 #include "kadm5_locl.h"
 
-RCSID("$Id: destroy_c.c,v 1.3 1999/12/02 17:05:05 joda Exp $");
+RCSID("$Id: destroy_c.c 13198 2003-12-07 19:01:39Z lha $");
 
 kadm5_ret_t 
 kadm5_c_destroy(void *server_handle)
@@ -43,6 +43,10 @@ kadm5_c_destroy(void *server_handle)
     free(context->realm);
     free(context->admin_server);
     close(context->sock);
+    if (context->client_name)
+	free(context->client_name);
+    if (context->service_name)
+	free(context->service_name);
     if (context->ac != NULL)
 	krb5_auth_con_free(context->context, context->ac);
     if(context->my_context)

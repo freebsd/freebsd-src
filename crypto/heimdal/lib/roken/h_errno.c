@@ -33,7 +33,7 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: h_errno.c,v 1.1 2001/08/08 03:47:23 assar Exp $");
+RCSID("$Id: h_errno.c 10442 2001-08-08 03:47:23Z assar $");
 #endif
 
 #ifndef HAVE_H_ERRNO

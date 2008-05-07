@@ -33,7 +33,7 @@
  *	@(#)ring.h	8.1 (Berkeley) 6/6/93
  */
 
-/* $Id: ring.h,v 1.4 2000/02/06 05:15:47 assar Exp $ */
+/* $Id: ring.h 7853 2000-02-06 05:15:47Z assar $ */
 
 /*
  * This defines a structure for a ring buffer.

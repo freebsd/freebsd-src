@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2002 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2006 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -34,7 +34,7 @@
 #include "krb5_locl.h"
 #include "store-int.h"
 
-RCSID("$Id: store.c,v 1.38.4.1 2004/03/09 19:32:14 lha Exp $");
+RCSID("$Id: store.c 22071 2007-11-14 20:04:50Z lha $");
 
 #define BYTEORDER_IS(SP, V) (((SP)->flags & KRB5_STORAGE_BYTEORDER_MASK) == (V))
 #define BYTEORDER_IS_LE(SP) BYTEORDER_IS((SP), KRB5_STORAGE_BYTEORDER_LE)
@@ -42,62 +42,62 @@ RCSID("$Id: store.c,v 1.38.4.1 2004/03/09 19:32:14 lha Exp $");
 #define BYTEORDER_IS_HOST(SP) (BYTEORDER_IS((SP), KRB5_STORAGE_BYTEORDER_HOST) || \
 			       krb5_storage_is_flags((SP), KRB5_STORAGE_HOST_BYTEORDER))
 
-void
+void KRB5_LIB_FUNCTION
 krb5_storage_set_flags(krb5_storage *sp, krb5_flags flags)
 {
     sp->flags |= flags;
 }
 
-void
+void KRB5_LIB_FUNCTION
 krb5_storage_clear_flags(krb5_storage *sp, krb5_flags flags)
 {
     sp->flags &= ~flags;
 }
 
-krb5_boolean
+krb5_boolean KRB5_LIB_FUNCTION
 krb5_storage_is_flags(krb5_storage *sp, krb5_flags flags)
 {
     return (sp->flags & flags) == flags;
 }
 
-void
+void KRB5_LIB_FUNCTION
 krb5_storage_set_byteorder(krb5_storage *sp, krb5_flags byteorder)
 {
     sp->flags &= ~KRB5_STORAGE_BYTEORDER_MASK;
     sp->flags |= byteorder;
 }
 
-krb5_flags
+krb5_flags KRB5_LIB_FUNCTION
 krb5_storage_get_byteorder(krb5_storage *sp, krb5_flags byteorder)
 {
     return sp->flags & KRB5_STORAGE_BYTEORDER_MASK;
 }
 
-off_t
+off_t KRB5_LIB_FUNCTION
 krb5_storage_seek(krb5_storage *sp, off_t offset, int whence)
 {
     return (*sp->seek)(sp, offset, whence);
 }
 
-krb5_ssize_t
+krb5_ssize_t KRB5_LIB_FUNCTION
 krb5_storage_read(krb5_storage *sp, void *buf, size_t len)
 {
     return sp->fetch(sp, buf, len);
 }
 
-krb5_ssize_t
+krb5_ssize_t KRB5_LIB_FUNCTION
 krb5_storage_write(krb5_storage *sp, const void *buf, size_t len)
 {
     return sp->store(sp, buf, len);
 }
 
-void
+void KRB5_LIB_FUNCTION
 krb5_storage_set_eof_code(krb5_storage *sp, int code)
 {
     sp->eof_code = code;
 }
 
-krb5_ssize_t
+krb5_ssize_t KRB5_LIB_FUNCTION
 _krb5_put_int(void *buffer, unsigned long value, size_t size)
 {
     unsigned char *p = buffer;
@@ -109,7 +109,7 @@ _krb5_put_int(void *buffer, unsigned long value, size_t size)
     return size;
 }
 
-krb5_ssize_t
+krb5_ssize_t KRB5_LIB_FUNCTION
 _krb5_get_int(void *buffer, unsigned long *value, size_t size)
 {
     unsigned char *p = buffer;
@@ -121,7 +121,7 @@ _krb5_get_int(void *buffer, unsigned long *value, size_t size)
     return size;
 }
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_storage_free(krb5_storage *sp)
 {
     if(sp->free)
@@ -131,7 +131,7 @@ krb5_storage_free(krb5_storage *sp)
     return 0;
 }
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_storage_to_data(krb5_storage *sp, krb5_data *data)
 {
     off_t pos;
@@ -170,7 +170,7 @@ krb5_store_int(krb5_storage *sp,
     return 0;
 }
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_store_int32(krb5_storage *sp,
 		 int32_t value)
 {
@@ -179,6 +179,13 @@ krb5_store_int32(krb5_storage *sp,
     else if(BYTEORDER_IS_LE(sp))
 	value = bswap32(value);
     return krb5_store_int(sp, value, 4);
+}
+
+krb5_error_code KRB5_LIB_FUNCTION
+krb5_store_uint32(krb5_storage *sp,
+		  uint32_t value)
+{
+    return krb5_store_int32(sp, (int32_t)value);
 }
 
 static krb5_error_code
@@ -197,7 +204,7 @@ krb5_ret_int(krb5_storage *sp,
     return 0;
 }
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_ret_int32(krb5_storage *sp,
 	       int32_t *value)
 {
@@ -211,7 +218,21 @@ krb5_ret_int32(krb5_storage *sp,
     return 0;
 }
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
+krb5_ret_uint32(krb5_storage *sp,
+		uint32_t *value)
+{
+    krb5_error_code ret;
+    int32_t v;
+
+    ret = krb5_ret_int32(sp, &v);
+    if (ret == 0)
+	*value = (uint32_t)v;
+
+    return ret;
+}
+
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_store_int16(krb5_storage *sp,
 		 int16_t value)
 {
@@ -222,7 +243,14 @@ krb5_store_int16(krb5_storage *sp,
     return krb5_store_int(sp, value, 2);
 }
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
+krb5_store_uint16(krb5_storage *sp,
+		  uint16_t value)
+{
+    return krb5_store_int16(sp, (int16_t)value);
+}
+
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_ret_int16(krb5_storage *sp,
 	       int16_t *value)
 {
@@ -239,7 +267,21 @@ krb5_ret_int16(krb5_storage *sp,
     return 0;
 }
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
+krb5_ret_uint16(krb5_storage *sp,
+		uint16_t *value)
+{
+    krb5_error_code ret;
+    int16_t v;
+
+    ret = krb5_ret_int16(sp, &v);
+    if (ret == 0)
+	*value = (uint16_t)v;
+
+    return ret;
+}
+
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_store_int8(krb5_storage *sp,
 		int8_t value)
 {
@@ -251,7 +293,14 @@ krb5_store_int8(krb5_storage *sp,
     return 0;
 }
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
+krb5_store_uint8(krb5_storage *sp,
+		 uint8_t value)
+{
+    return krb5_store_int8(sp, (int8_t)value);
+}
+
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_ret_int8(krb5_storage *sp,
 	      int8_t *value)
 {
@@ -263,7 +312,21 @@ krb5_ret_int8(krb5_storage *sp,
     return 0;
 }
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
+krb5_ret_uint8(krb5_storage *sp,
+	       uint8_t *value)
+{
+    krb5_error_code ret;
+    int8_t v;
+
+    ret = krb5_ret_int8(sp, &v);
+    if (ret == 0)
+	*value = (uint8_t)v;
+
+    return ret;
+}
+
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_store_data(krb5_storage *sp,
 		krb5_data data)
 {
@@ -280,7 +343,7 @@ krb5_store_data(krb5_storage *sp,
     return 0;
 }
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_ret_data(krb5_storage *sp,
 	      krb5_data *data)
 {
@@ -301,16 +364,16 @@ krb5_ret_data(krb5_storage *sp,
     return 0;
 }
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_store_string(krb5_storage *sp, const char *s)
 {
     krb5_data data;
     data.length = strlen(s);
-    data.data = (void*)s;
+    data.data = rk_UNCONST(s);
     return krb5_store_data(sp, data);
 }
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_ret_string(krb5_storage *sp,
 		char **string)
 {
@@ -328,7 +391,7 @@ krb5_ret_string(krb5_storage *sp,
     return 0;
 }
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_store_stringz(krb5_storage *sp, const char *s)
 {
     size_t len = strlen(s) + 1;
@@ -344,7 +407,7 @@ krb5_store_stringz(krb5_storage *sp, const char *s)
     return 0;
 }
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_ret_stringz(krb5_storage *sp,
 		char **string)
 {
@@ -377,22 +440,92 @@ krb5_ret_stringz(krb5_storage *sp,
     return 0;
 }
 
+krb5_error_code KRB5_LIB_FUNCTION
+krb5_store_stringnl(krb5_storage *sp, const char *s)
+{
+    size_t len = strlen(s);
+    ssize_t ret;
 
-krb5_error_code
+    ret = sp->store(sp, s, len);
+    if(ret != len) {
+	if(ret < 0)
+	    return ret;
+	else
+	    return sp->eof_code;
+    }
+    ret = sp->store(sp, "\n", 1);
+    if(ret != 1) {
+	if(ret < 0)
+	    return ret;
+	else
+	    return sp->eof_code;
+    }
+
+    return 0;
+
+}
+
+krb5_error_code KRB5_LIB_FUNCTION
+krb5_ret_stringnl(krb5_storage *sp,
+		  char **string)
+{
+    int expect_nl = 0;
+    char c;
+    char *s = NULL;
+    size_t len = 0;
+    ssize_t ret;
+
+    while((ret = sp->fetch(sp, &c, 1)) == 1){
+	char *tmp;
+
+	if (c == '\r') {
+	    expect_nl = 1;
+	    continue;
+	}
+	if (expect_nl && c != '\n') {
+	    free(s);
+	    return KRB5_BADMSGTYPE;
+	}
+
+	len++;
+	tmp = realloc (s, len);
+	if (tmp == NULL) {
+	    free (s);
+	    return ENOMEM;
+	}
+	s = tmp;
+	if(c == '\n') {
+	    s[len - 1] = '\0';
+	    break;
+	}
+	s[len - 1] = c;
+    }
+    if(ret != 1){
+	free(s);
+	if(ret == 0)
+	    return sp->eof_code;
+	return ret;
+    }
+    *string = s;
+    return 0;
+}
+
+
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_store_principal(krb5_storage *sp,
-		     krb5_principal p)
+		     krb5_const_principal p)
 {
     int i;
     int ret;
 
     if(!krb5_storage_is_flags(sp, KRB5_STORAGE_PRINCIPAL_NO_NAME_TYPE)) {
-    ret = krb5_store_int32(sp, p->name.name_type);
-    if(ret) return ret;
+	ret = krb5_store_int32(sp, p->name.name_type);
+	if(ret) return ret;
     }
     if(krb5_storage_is_flags(sp, KRB5_STORAGE_PRINCIPAL_WRONG_NUM_COMPONENTS))
 	ret = krb5_store_int32(sp, p->name.name_string.len + 1);
     else
-    ret = krb5_store_int32(sp, p->name.name_string.len);
+	ret = krb5_store_int32(sp, p->name.name_string.len);
     
     if(ret) return ret;
     ret = krb5_store_string(sp, p->realm);
@@ -404,7 +537,7 @@ krb5_store_principal(krb5_storage *sp,
     return 0;
 }
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_ret_principal(krb5_storage *sp,
 		   krb5_principal *princ)
 {
@@ -420,7 +553,7 @@ krb5_ret_principal(krb5_storage *sp,
 
     if(krb5_storage_is_flags(sp, KRB5_STORAGE_PRINCIPAL_NO_NAME_TYPE))
 	type = KRB5_NT_UNKNOWN;
-    else 	if((ret = krb5_ret_int32(sp, &type))){
+    else if((ret = krb5_ret_int32(sp, &type))){
 	free(p);
 	return ret;
     }
@@ -430,24 +563,38 @@ krb5_ret_principal(krb5_storage *sp,
     }
     if(krb5_storage_is_flags(sp, KRB5_STORAGE_PRINCIPAL_WRONG_NUM_COMPONENTS))
 	ncomp--;
+    if (ncomp < 0) {
+	free(p);
+	return EINVAL;
+    }
     p->name.name_type = type;
     p->name.name_string.len = ncomp;
     ret = krb5_ret_string(sp, &p->realm);
-    if(ret) return ret;
+    if(ret) {
+	free(p);
+	return ret;
+    }
     p->name.name_string.val = calloc(ncomp, sizeof(*p->name.name_string.val));
-    if(p->name.name_string.val == NULL){
+    if(p->name.name_string.val == NULL && ncomp != 0){
 	free(p->realm);
+	free(p);
 	return ENOMEM;
     }
     for(i = 0; i < ncomp; i++){
 	ret = krb5_ret_string(sp, &p->name.name_string.val[i]);
-	if(ret) return ret; /* XXX */
+	if(ret) {
+	    while (i >= 0)
+		free(p->name.name_string.val[i--]);
+	    free(p->realm);
+	    free(p);
+	    return ret;
+	}
     }
     *princ = p;
     return 0;
 }
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_store_keyblock(krb5_storage *sp, krb5_keyblock p)
 {
     int ret;
@@ -465,7 +612,7 @@ krb5_store_keyblock(krb5_storage *sp, krb5_keyblock p)
     return ret;
 }
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_ret_keyblock(krb5_storage *sp, krb5_keyblock *p)
 {
     int ret;
@@ -484,7 +631,7 @@ krb5_ret_keyblock(krb5_storage *sp, krb5_keyblock *p)
     return ret;
 }
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_store_times(krb5_storage *sp, krb5_times times)
 {
     int ret;
@@ -498,7 +645,7 @@ krb5_store_times(krb5_storage *sp, krb5_times times)
     return ret;
 }
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_ret_times(krb5_storage *sp, krb5_times *times)
 {
     int ret;
@@ -517,7 +664,7 @@ krb5_ret_times(krb5_storage *sp, krb5_times *times)
     return ret;
 }
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_store_address(krb5_storage *sp, krb5_address p)
 {
     int ret;
@@ -527,7 +674,7 @@ krb5_store_address(krb5_storage *sp, krb5_address p)
     return ret;
 }
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_ret_address(krb5_storage *sp, krb5_address *adr)
 {
     int16_t t;
@@ -539,7 +686,7 @@ krb5_ret_address(krb5_storage *sp, krb5_address *adr)
     return ret;
 }
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_store_addrs(krb5_storage *sp, krb5_addresses p)
 {
     int i;
@@ -553,7 +700,7 @@ krb5_store_addrs(krb5_storage *sp, krb5_addresses p)
     return ret;
 }
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_ret_addrs(krb5_storage *sp, krb5_addresses *adr)
 {
     int i;
@@ -564,6 +711,8 @@ krb5_ret_addrs(krb5_storage *sp, krb5_addresses *adr)
     if(ret) return ret;
     adr->len = tmp;
     ALLOC(adr->val, adr->len);
+    if (adr->val == NULL && adr->len != 0)
+	return ENOMEM;
     for(i = 0; i < adr->len; i++){
 	ret = krb5_ret_address(sp, &adr->val[i]);
 	if(ret) break;
@@ -571,7 +720,7 @@ krb5_ret_addrs(krb5_storage *sp, krb5_addresses *adr)
     return ret;
 }
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_store_authdata(krb5_storage *sp, krb5_authdata auth)
 {
     krb5_error_code ret;
@@ -587,7 +736,7 @@ krb5_store_authdata(krb5_storage *sp, krb5_authdata auth)
     return 0;
 }
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_ret_authdata(krb5_storage *sp, krb5_authdata *auth)
 {
     krb5_error_code ret;
@@ -597,6 +746,8 @@ krb5_ret_authdata(krb5_storage *sp, krb5_authdata *auth)
     ret = krb5_ret_int32(sp, &tmp);
     if(ret) return ret;
     ALLOC_SEQ(auth, tmp);
+    if (auth->val == NULL && tmp != 0)
+	return ENOMEM;
     for(i = 0; i < tmp; i++){
 	ret = krb5_ret_int16(sp, &tmp2);
 	if(ret) break;
@@ -624,8 +775,8 @@ bitswap32(int32_t b)
  *
  */
 
-krb5_error_code
-_krb5_store_creds_internal(krb5_storage *sp, krb5_creds *creds, int v0_6)
+krb5_error_code KRB5_LIB_FUNCTION
+krb5_store_creds(krb5_storage *sp, krb5_creds *creds)
 {
     int ret;
 
@@ -641,19 +792,17 @@ _krb5_store_creds_internal(krb5_storage *sp, krb5_creds *creds, int v0_6)
     ret = krb5_store_times(sp, creds->times);
     if(ret)
 	return ret;
-    ret = krb5_store_int8(sp, 0);  /* this is probably the
-				enc-tkt-in-skey bit from KDCOptions */
+    ret = krb5_store_int8(sp, creds->second_ticket.length != 0); /* is_skey */
     if(ret)
 	return ret;
-    if (v0_6) {
+
+    if(krb5_storage_is_flags(sp, KRB5_STORAGE_CREDS_FLAGS_WRONG_BITORDER))
 	ret = krb5_store_int32(sp, creds->flags.i);
-	if(ret)
-	    return ret;
-    } else {
+    else
 	ret = krb5_store_int32(sp, bitswap32(TicketFlags2int(creds->flags.b)));
-	if(ret)
-	    return ret;
-    }
+    if(ret)
+	return ret;
+
     ret = krb5_store_addrs(sp, creds->addresses);
     if(ret)
 	return ret;
@@ -667,29 +816,7 @@ _krb5_store_creds_internal(krb5_storage *sp, krb5_creds *creds, int v0_6)
     return ret;
 }
 
-/*
- * store `creds' on `sp' returning error or zero
- */
-
-krb5_error_code
-krb5_store_creds(krb5_storage *sp, krb5_creds *creds)
-{
-    return _krb5_store_creds_internal(sp, creds, 1);
-}
-
-krb5_error_code
-_krb5_store_creds_heimdal_0_7(krb5_storage *sp, krb5_creds *creds)
-{
-    return _krb5_store_creds_internal(sp, creds, 0);
-}
-
-krb5_error_code
-_krb5_store_creds_heimdal_pre_0_7(krb5_storage *sp, krb5_creds *creds)
-{
-    return _krb5_store_creds_internal(sp, creds, 1);
-}
-
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_ret_creds(krb5_storage *sp, krb5_creds *creds)
 {
     krb5_error_code ret;
@@ -711,13 +838,13 @@ krb5_ret_creds(krb5_storage *sp, krb5_creds *creds)
     if(ret) goto cleanup;
     /*
      * Runtime detect the what is the higher bits of the bitfield. If
-     * any of the higher bits are set in the input data, its either a
-     * new ticket flag (and this code need to be removed), or its a
+     * any of the higher bits are set in the input data, it's either a
+     * new ticket flag (and this code need to be removed), or it's a
      * MIT cache (or new Heimdal cache), lets change it to our current
      * format.
      */
     {
-	u_int32_t mask = 0xffff0000;
+	uint32_t mask = 0xffff0000;
 	creds->flags.i = 0;
 	creds->flags.b.anonymous = 1;
 	if (creds->flags.i & mask)
@@ -736,7 +863,172 @@ krb5_ret_creds(krb5_storage *sp, krb5_creds *creds)
 cleanup:
     if(ret) {
 #if 0	
-	krb5_free_creds_contents(context, creds); /* XXX */
+	krb5_free_cred_contents(context, creds); /* XXX */
+#endif
+    }
+    return ret;
+}
+
+#define SC_CLIENT_PRINCIPAL	    0x0001
+#define SC_SERVER_PRINCIPAL	    0x0002
+#define SC_SESSION_KEY		    0x0004
+#define SC_TICKET		    0x0008
+#define SC_SECOND_TICKET	    0x0010
+#define SC_AUTHDATA		    0x0020
+#define SC_ADDRESSES		    0x0040
+
+/*
+ *
+ */
+
+krb5_error_code KRB5_LIB_FUNCTION
+krb5_store_creds_tag(krb5_storage *sp, krb5_creds *creds)
+{
+    int ret;
+    int32_t header = 0;
+
+    if (creds->client)
+	header |= SC_CLIENT_PRINCIPAL;
+    if (creds->server)
+	header |= SC_SERVER_PRINCIPAL;
+    if (creds->session.keytype != ETYPE_NULL)
+	header |= SC_SESSION_KEY;
+    if (creds->ticket.data)
+	header |= SC_TICKET;
+    if (creds->second_ticket.length)
+	header |= SC_SECOND_TICKET;
+    if (creds->authdata.len)
+	header |= SC_AUTHDATA;
+    if (creds->addresses.len)
+	header |= SC_ADDRESSES;
+
+    ret = krb5_store_int32(sp, header);
+
+    if (creds->client) {
+	ret = krb5_store_principal(sp, creds->client);
+	if(ret)
+	    return ret;
+    }
+
+    if (creds->server) {
+	ret = krb5_store_principal(sp, creds->server);
+	if(ret)
+	    return ret;
+    }
+
+    if (creds->session.keytype != ETYPE_NULL) {
+	ret = krb5_store_keyblock(sp, creds->session);
+	if(ret)
+	    return ret;
+    }
+
+    ret = krb5_store_times(sp, creds->times);
+    if(ret)
+	return ret;
+    ret = krb5_store_int8(sp, creds->second_ticket.length != 0); /* is_skey */
+    if(ret)
+	return ret;
+
+    ret = krb5_store_int32(sp, bitswap32(TicketFlags2int(creds->flags.b)));
+    if(ret)
+	return ret;
+
+    if (creds->addresses.len) {
+	ret = krb5_store_addrs(sp, creds->addresses);
+	if(ret)
+	    return ret;
+    }
+
+    if (creds->authdata.len) {
+	ret = krb5_store_authdata(sp, creds->authdata);
+	if(ret)
+	    return ret;
+    }
+
+    if (creds->ticket.data) {
+	ret = krb5_store_data(sp, creds->ticket);
+	if(ret)
+	    return ret;
+    }
+
+    if (creds->second_ticket.data) {
+	ret = krb5_store_data(sp, creds->second_ticket);
+	if (ret)
+	    return ret;
+    }
+
+    return ret;
+}
+
+krb5_error_code KRB5_LIB_FUNCTION
+krb5_ret_creds_tag(krb5_storage *sp,
+		   krb5_creds *creds)
+{
+    krb5_error_code ret;
+    int8_t dummy8;
+    int32_t dummy32, header;
+
+    memset(creds, 0, sizeof(*creds));
+
+    ret = krb5_ret_int32 (sp, &header);
+    if (ret) goto cleanup;
+
+    if (header & SC_CLIENT_PRINCIPAL) {
+	ret = krb5_ret_principal (sp,  &creds->client);
+	if(ret) goto cleanup;
+    }
+    if (header & SC_SERVER_PRINCIPAL) {
+	ret = krb5_ret_principal (sp,  &creds->server);
+	if(ret) goto cleanup;
+    }
+    if (header & SC_SESSION_KEY) {
+	ret = krb5_ret_keyblock (sp,  &creds->session);
+	if(ret) goto cleanup;
+    }
+    ret = krb5_ret_times (sp,  &creds->times);
+    if(ret) goto cleanup;
+    ret = krb5_ret_int8 (sp,  &dummy8);
+    if(ret) goto cleanup;
+    ret = krb5_ret_int32 (sp,  &dummy32);
+    if(ret) goto cleanup;
+    /*
+     * Runtime detect the what is the higher bits of the bitfield. If
+     * any of the higher bits are set in the input data, it's either a
+     * new ticket flag (and this code need to be removed), or it's a
+     * MIT cache (or new Heimdal cache), lets change it to our current
+     * format.
+     */
+    {
+	uint32_t mask = 0xffff0000;
+	creds->flags.i = 0;
+	creds->flags.b.anonymous = 1;
+	if (creds->flags.i & mask)
+	    mask = ~mask;
+	if (dummy32 & mask)
+	    dummy32 = bitswap32(dummy32);
+    }
+    creds->flags.i = dummy32;
+    if (header & SC_ADDRESSES) {
+	ret = krb5_ret_addrs (sp,  &creds->addresses);
+	if(ret) goto cleanup;
+    }
+    if (header & SC_AUTHDATA) {
+	ret = krb5_ret_authdata (sp,  &creds->authdata);
+	if(ret) goto cleanup;
+    }
+    if (header & SC_TICKET) {
+	ret = krb5_ret_data (sp,  &creds->ticket);
+	if(ret) goto cleanup;
+    }
+    if (header & SC_SECOND_TICKET) {
+	ret = krb5_ret_data (sp,  &creds->second_ticket);
+	if(ret) goto cleanup;
+    }
+
+cleanup:
+    if(ret) {
+#if 0	
+	krb5_free_cred_contents(context, creds); /* XXX */
 #endif
     }
     return ret;

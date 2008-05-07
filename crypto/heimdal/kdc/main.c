@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2002 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2005 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -36,57 +36,38 @@
 #include <util.h>
 #endif
 
-RCSID("$Id: main.c,v 1.27 2002/08/28 21:27:16 joda Exp $");
+RCSID("$Id: main.c 20454 2007-04-19 20:21:51Z lha $");
 
 sig_atomic_t exit_flag = 0;
-krb5_context context;
 
-#ifdef HAVE_DAEMON
-extern int detach_from_console;
-#endif
+int detach_from_console = -1;
 
 static RETSIGTYPE
 sigterm(int sig)
 {
-    exit_flag = 1;
+    exit_flag = sig;
 }
 
 int
 main(int argc, char **argv)
 {
     krb5_error_code ret;
+    krb5_context context;
+    krb5_kdc_configuration *config;
+
     setprogname(argv[0]);
     
     ret = krb5_init_context(&context);
-    if (ret)
+    if (ret == KRB5_CONFIG_BADFORMAT)
+	errx (1, "krb5_init_context failed to parse configuration file");
+    else if (ret)
 	errx (1, "krb5_init_context failed: %d", ret);
 
-    configure(argc, argv);
+    ret = krb5_kt_register(context, &hdb_kt_ops);
+    if (ret)
+	errx (1, "krb5_kt_register(HDB) failed: %d", ret);
 
-    if(databases == NULL) {
-	db = malloc(sizeof(*db));
-	num_db = 1;
-	ret = hdb_create(context, &db[0], NULL);
-	if(ret)
-	    krb5_err(context, 1, ret, "hdb_create %s", HDB_DEFAULT_DB);
-	ret = hdb_set_master_keyfile(context, db[0], NULL);
-	if (ret)
-	    krb5_err(context, 1, ret, "hdb_set_master_keyfile");
-    } else {
-	struct dbinfo *d;
-	int i;
-	/* count databases */
-	for(d = databases, i = 0; d; d = d->next, i++);
-	db = malloc(i * sizeof(*db));
-	for(d = databases, num_db = 0; d; d = d->next, num_db++) {
-	    ret = hdb_create(context, &db[num_db], d->dbname);
-	    if(ret)
-		krb5_err(context, 1, ret, "hdb_create %s", d->dbname);
-	    ret = hdb_set_master_keyfile(context, db[num_db], d->mkey_file);
-	    if (ret)
-		krb5_err(context, 1, ret, "hdb_set_master_keyfile");
-	}
-    }
+    config = configure(context, argc, argv);
 
 #ifdef HAVE_SIGACTION
     {
@@ -98,17 +79,21 @@ main(int argc, char **argv)
 
 	sigaction(SIGINT, &sa, NULL);
 	sigaction(SIGTERM, &sa, NULL);
+	sigaction(SIGXCPU, &sa, NULL);
+
+	sa.sa_handler = SIG_IGN;
+	sigaction(SIGPIPE, &sa, NULL);
     }
 #else
     signal(SIGINT, sigterm);
     signal(SIGTERM, sigterm);
+    signal(SIGXCPU, sigterm);
+    signal(SIGPIPE, SIG_IGN);
 #endif
-#ifdef HAVE_DAEMON
     if (detach_from_console)
 	daemon(0, 0);
-#endif
     pidfile(NULL);
-    loop();
+    loop(context, config);
     krb5_free_context(context);
     return 0;
 }

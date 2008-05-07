@@ -34,7 +34,7 @@
 #include "test_locl.h"
 #include <gssapi.h>
 #include "gss_common.h"
-RCSID("$Id: gssapi_server.c,v 1.15 2000/08/09 20:53:07 assar Exp $");
+RCSID("$Id: gssapi_server.c 14762 2005-04-10 14:47:41Z lha $");
 
 static int
 process_it(int sock,
@@ -43,22 +43,31 @@ process_it(int sock,
 	   )
 {
     OM_uint32 maj_stat, min_stat;
-    gss_buffer_desc name_token;
     gss_buffer_desc real_input_token, real_output_token;
     gss_buffer_t input_token = &real_input_token,
 	output_token = &real_output_token;
+    gss_name_t server_name;
+    int conf_flag;
 
-    maj_stat = gss_display_name (&min_stat,
-				 client_name,
-				 &name_token,
-				 NULL);
+    print_gss_name("User is", client_name);
+
+    maj_stat = gss_inquire_context(&min_stat,
+				   context_hdl,
+				   NULL,
+				   &server_name,
+				   NULL,
+				   NULL,
+				   NULL,
+				   NULL,
+				   NULL);
     if (GSS_ERROR(maj_stat))
-	gss_err (1, min_stat, "gss_display_name");
+	gss_err (1, min_stat, "gss_inquire_context");
 
-    fprintf (stderr, "User is `%.*s'\n", (int)name_token.length,
-	    (char *)name_token.value);
+    print_gss_name("Server is", server_name);
 
-    gss_release_buffer (&min_stat, &name_token);
+    maj_stat = gss_release_name(&min_stat, &server_name);
+    if (GSS_ERROR(maj_stat))
+	gss_err (1, min_stat, "gss_release_name");
 
     /* gss_verify_mic */
 
@@ -87,13 +96,32 @@ process_it(int sock,
 			   context_hdl,
 			   input_token,
 			   output_token,
-			   NULL,
+			   &conf_flag,
 			   NULL);
     if(GSS_ERROR(maj_stat))
 	gss_err (1, min_stat, "gss_unwrap");
 
-    fprintf (stderr, "gss_unwrap: %.*s\n", (int)output_token->length,
-	    (char *)output_token->value);
+    fprintf (stderr, "gss_unwrap: %.*s %s\n", (int)output_token->length,
+	    (char *)output_token->value,
+	     conf_flag ? "CONF" : "INT");
+
+    gss_release_buffer (&min_stat, input_token);
+    gss_release_buffer (&min_stat, output_token);
+
+    read_token (sock, input_token);
+
+    maj_stat = gss_unwrap (&min_stat,
+			   context_hdl,
+			   input_token,
+			   output_token,
+			   &conf_flag,
+			   NULL);
+    if(GSS_ERROR(maj_stat))
+	gss_err (1, min_stat, "gss_unwrap");
+
+    fprintf (stderr, "gss_unwrap: %.*s %s\n", (int)output_token->length,
+	     (char *)output_token->value,
+	     conf_flag ? "CONF" : "INT");
 
     gss_release_buffer (&min_stat, input_token);
     gss_release_buffer (&min_stat, output_token);
@@ -117,6 +145,8 @@ proto (int sock, const char *service)
     krb5_ccache ccache;
     u_char init_buf[4];
     u_char acct_buf[4];
+    gss_OID mech_oid;
+    char *mech, *p;
 
     addrlen = sizeof(local);
     if (getsockname (sock, (struct sockaddr *)&local, &addrlen) < 0
@@ -156,8 +186,7 @@ proto (int sock, const char *service)
     input_chan_bindings.application_data.value = NULL;
 #endif
     
-    delegated_cred_handle = emalloc(sizeof(*delegated_cred_handle));
-    memset((char*)delegated_cred_handle, 0, sizeof(*delegated_cred_handle));
+    delegated_cred_handle = GSS_C_NO_CREDENTIAL;
     
     do {
 	read_token (sock, input_token);
@@ -168,11 +197,11 @@ proto (int sock, const char *service)
 				    input_token,
 				    &input_chan_bindings,
 				    &client_name,
-				    NULL,
+				    &mech_oid,
 				    output_token,
 				    NULL,
 				    NULL,
-				    /*&delegated_cred_handle*/ NULL);
+				    &delegated_cred_handle);
 	if(GSS_ERROR(maj_stat))
 	    gss_err (1, min_stat, "gss_accept_sec_context");
 	if (output_token->length != 0)
@@ -186,15 +215,43 @@ proto (int sock, const char *service)
 	}
     } while(maj_stat & GSS_S_CONTINUE_NEEDED);
     
-    if (delegated_cred_handle->ccache) {
+    p = (char *)mech_oid->elements;
+    if (mech_oid->length == GSS_KRB5_MECHANISM->length
+	&& memcmp(p, GSS_KRB5_MECHANISM->elements, mech_oid->length) == 0)
+	mech = "Kerberos 5";
+    else if (mech_oid->length == GSS_SPNEGO_MECHANISM->length
+	&& memcmp(p, GSS_SPNEGO_MECHANISM->elements, mech_oid->length) == 0)
+	mech = "SPNEGO"; /* XXX Silly, wont show up */
+    else
+	mech = "Unknown";
+
+    printf("Using mech: %s\n", mech);
+
+    if (delegated_cred_handle != GSS_C_NO_CREDENTIAL) {
        krb5_context context;
+
+       printf("Delegated cred found\n");
 
        maj_stat = krb5_init_context(&context);
        maj_stat = krb5_cc_resolve(context, "FILE:/tmp/krb5cc_test", &ccache);
-       maj_stat = krb5_cc_copy_cache(context,
-                                      delegated_cred_handle->ccache, ccache);
+       maj_stat = gss_krb5_copy_ccache(&min_stat,
+				       delegated_cred_handle,
+				       ccache);
+       if (maj_stat == 0) {
+	   krb5_principal p;
+	   maj_stat = krb5_cc_get_principal(context, ccache, &p);
+	   if (maj_stat == 0) {
+	       char *name;
+	       maj_stat = krb5_unparse_name(context, p, &name);
+	       if (maj_stat == 0) {
+		   printf("Delegated user is: `%s'\n", name);
+		   free(name);
+	       }
+	       krb5_free_principal(context, p);
+	   }
+       }
        krb5_cc_close(context, ccache);
-       krb5_cc_destroy(context, delegated_cred_handle->ccache);
+       gss_release_cred(&min_stat, &delegated_cred_handle);
     }
 
     if (fork_flag) {

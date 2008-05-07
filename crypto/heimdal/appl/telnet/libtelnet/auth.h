@@ -53,7 +53,7 @@
  * or implied warranty.
  */
 
-/* $Id: auth.h,v 1.4 1998/06/09 19:24:41 joda Exp $ */
+/* $Id: auth.h 5027 1998-06-09 19:25:40Z joda $ */
 
 #ifndef	__AUTH__
 #define	__AUTH__

@@ -31,7 +31,7 @@
 .\"
 .\"	@(#)telnetd.8	8.4 (Berkeley) 6/1/94
 .\"
-.Dd June 1, 1994
+.Dd September 19, 2006
 .Dt TELNETD 8
 .Os BSD 4.2
 .Sh NAME
@@ -41,7 +41,7 @@
 protocol server
 .Sh SYNOPSIS
 .Nm telnetd
-.Op Fl BUhkln
+.Op Fl BeUhkln
 .Op Fl D Ar debugmode
 .Op Fl S Ar tos
 .Op Fl X Ar authtype
@@ -173,6 +173,10 @@ Displays data written to the pty.
 .It Cm exercise
 Has not been implemented yet.
 .El
+.It Fl e
+require encryption to be turned on (in both direction) by the client
+and disconnects if the client tries to turn the encryption off (in
+either direction).
 .It Fl h
 Disables the printing of host-specific information before
 login has been completed.

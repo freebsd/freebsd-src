@@ -1,4 +1,4 @@
-dnl $Id: krb-version.m4,v 1.3.6.1 2004/04/01 07:27:34 joda Exp $
+dnl $Id: krb-version.m4 13338 2004-02-12 14:21:14Z lha $
 dnl
 dnl
 dnl output a C header-file with some version strings

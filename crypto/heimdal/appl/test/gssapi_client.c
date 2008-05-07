@@ -34,7 +34,7 @@
 #include "test_locl.h"
 #include <gssapi.h>
 #include "gss_common.h"
-RCSID("$Id: gssapi_client.c,v 1.16 2000/08/09 20:53:06 assar Exp $");
+RCSID("$Id: gssapi_client.c 21521 2007-07-12 13:13:40Z lha $");
 
 static int
 do_trans (int sock, gss_ctx_id_t context_hdl)
@@ -65,6 +65,17 @@ do_trans (int sock, gss_ctx_id_t context_hdl)
     input_token->length = 7;
     input_token->value  = "hemligt";
 
+    maj_stat = gss_wrap (&min_stat,
+			 context_hdl,
+			 0,
+			 GSS_C_QOP_DEFAULT,
+			 input_token,
+			 NULL,
+			 output_token);
+    if (GSS_ERROR(maj_stat))
+	gss_err (1, min_stat, "gss_wrap");
+
+    write_token (sock, output_token);
 
     maj_stat = gss_wrap (&min_stat,
 			 context_hdl,
@@ -98,10 +109,17 @@ proto (int sock, const char *hostname, const char *service)
     struct gss_channel_bindings_struct input_chan_bindings;
     u_char init_buf[4];
     u_char acct_buf[4];
+    gss_OID mech_oid;
+    char *str;
 
-    name_token.length = asprintf ((char **)&name_token.value,
+    mech_oid = select_mech(mech);
+
+    name_token.length = asprintf (&str,
 				  "%s@%s", service, hostname);
-
+    if (str == NULL)
+	errx(1, "malloc - out of memory");
+    name_token.value = str;
+	
     maj_stat = gss_import_name (&min_stat,
 				&name_token,
 				GSS_C_NT_HOSTBASED_SERVICE,
@@ -155,7 +173,7 @@ proto (int sock, const char *hostname, const char *service)
 				 GSS_C_NO_CREDENTIAL,
 				 &context_hdl,
 				 server,
-				 GSS_C_NO_OID,
+				 mech_oid,
 				 GSS_C_MUTUAL_FLAG | GSS_C_SEQUENCE_FLAG
 				 | GSS_C_DELEG_FLAG,
 				 0,

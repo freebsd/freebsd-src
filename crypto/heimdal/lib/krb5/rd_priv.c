@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2007 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,130 +33,153 @@
 
 #include <krb5_locl.h>
 
-RCSID("$Id: rd_priv.c,v 1.29 2001/06/18 02:46:15 assar Exp $");
+RCSID("$Id: rd_priv.c 21751 2007-07-31 20:42:20Z lha $");
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_rd_priv(krb5_context context,
 	     krb5_auth_context auth_context,
 	     const krb5_data *inbuf,
 	     krb5_data *outbuf,
-	     /*krb5_replay_data*/ void *outdata)
+	     krb5_replay_data *outdata)
 {
-  krb5_error_code ret;
-  KRB_PRIV priv;
-  EncKrbPrivPart part;
-  size_t len;
-  krb5_data plain;
-  krb5_keyblock *key;
-  krb5_crypto crypto;
+    krb5_error_code ret;
+    KRB_PRIV priv;
+    EncKrbPrivPart part;
+    size_t len;
+    krb5_data plain;
+    krb5_keyblock *key;
+    krb5_crypto crypto;
 
-  memset(&priv, 0, sizeof(priv));
-  ret = decode_KRB_PRIV (inbuf->data, inbuf->length, &priv, &len);
-  if (ret) 
-      goto failure;
-  if (priv.pvno != 5) {
-      krb5_clear_error_string (context);
-      ret = KRB5KRB_AP_ERR_BADVERSION;
-      goto failure;
-  }
-  if (priv.msg_type != krb_priv) {
-      krb5_clear_error_string (context);
-      ret = KRB5KRB_AP_ERR_MSG_TYPE;
-      goto failure;
-  }
+    if (outbuf)
+	krb5_data_zero(outbuf);
 
-  if (auth_context->remote_subkey)
-      key = auth_context->remote_subkey;
-  else if (auth_context->local_subkey)
-      key = auth_context->local_subkey;
-  else
-      key = auth_context->keyblock;
+    if ((auth_context->flags & 
+	 (KRB5_AUTH_CONTEXT_RET_TIME | KRB5_AUTH_CONTEXT_RET_SEQUENCE)) &&
+	outdata == NULL) {
+	krb5_clear_error_string (context);
+	return KRB5_RC_REQUIRED; /* XXX better error, MIT returns this */
+    }
 
-  ret = krb5_crypto_init(context, key, 0, &crypto);
-  if (ret)
-      goto failure;
-  ret = krb5_decrypt_EncryptedData(context,
-				   crypto,
-				   KRB5_KU_KRB_PRIV,
-				   &priv.enc_part,
-				   &plain);
-  krb5_crypto_destroy(context, crypto);
-  if (ret) 
-      goto failure;
+    memset(&priv, 0, sizeof(priv));
+    ret = decode_KRB_PRIV (inbuf->data, inbuf->length, &priv, &len);
+    if (ret) {
+	krb5_clear_error_string (context);
+	goto failure;
+    }
+    if (priv.pvno != 5) {
+	krb5_clear_error_string (context);
+	ret = KRB5KRB_AP_ERR_BADVERSION;
+	goto failure;
+    }
+    if (priv.msg_type != krb_priv) {
+	krb5_clear_error_string (context);
+	ret = KRB5KRB_AP_ERR_MSG_TYPE;
+	goto failure;
+    }
 
-  ret = decode_EncKrbPrivPart (plain.data, plain.length, &part, &len);
-  krb5_data_free (&plain);
-  if (ret) 
-      goto failure;
+    if (auth_context->remote_subkey)
+	key = auth_context->remote_subkey;
+    else if (auth_context->local_subkey)
+	key = auth_context->local_subkey;
+    else
+	key = auth_context->keyblock;
+
+    ret = krb5_crypto_init(context, key, 0, &crypto);
+    if (ret)
+	goto failure;
+    ret = krb5_decrypt_EncryptedData(context,
+				     crypto,
+				     KRB5_KU_KRB_PRIV,
+				     &priv.enc_part,
+				     &plain);
+    krb5_crypto_destroy(context, crypto);
+    if (ret) 
+	goto failure;
+
+    ret = decode_EncKrbPrivPart (plain.data, plain.length, &part, &len);
+    krb5_data_free (&plain);
+    if (ret) {
+	krb5_clear_error_string (context);
+	goto failure;
+    }
   
-  /* check sender address */
+    /* check sender address */
 
-  if (part.s_address
-      && auth_context->remote_address
-      && !krb5_address_compare (context,
-				auth_context->remote_address,
-				part.s_address)) {
-      krb5_clear_error_string (context);
-      ret = KRB5KRB_AP_ERR_BADADDR;
-      goto failure_part;
-  }
+    if (part.s_address
+	&& auth_context->remote_address
+	&& !krb5_address_compare (context,
+				  auth_context->remote_address,
+				  part.s_address)) {
+	krb5_clear_error_string (context);
+	ret = KRB5KRB_AP_ERR_BADADDR;
+	goto failure_part;
+    }
 
-  /* check receiver address */
+    /* check receiver address */
 
-  if (part.r_address
-      && auth_context->local_address
-      && !krb5_address_compare (context,
-				auth_context->local_address,
-				part.r_address)) {
-      krb5_clear_error_string (context);
-      ret = KRB5KRB_AP_ERR_BADADDR;
-      goto failure_part;
-  }
+    if (part.r_address
+	&& auth_context->local_address
+	&& !krb5_address_compare (context,
+				  auth_context->local_address,
+				  part.r_address)) {
+	krb5_clear_error_string (context);
+	ret = KRB5KRB_AP_ERR_BADADDR;
+	goto failure_part;
+    }
 
-  /* check timestamp */
-  if (auth_context->flags & KRB5_AUTH_CONTEXT_DO_TIME) {
-      krb5_timestamp sec;
+    /* check timestamp */
+    if (auth_context->flags & KRB5_AUTH_CONTEXT_DO_TIME) {
+	krb5_timestamp sec;
 
-      krb5_timeofday (context, &sec);
-      if (part.timestamp == NULL ||
-	  part.usec      == NULL ||
-	  abs(*part.timestamp - sec) > context->max_skew) {
-	  krb5_clear_error_string (context);
-	  ret = KRB5KRB_AP_ERR_SKEW;
-	  goto failure_part;
-      }
-  }
+	krb5_timeofday (context, &sec);
+	if (part.timestamp == NULL ||
+	    part.usec      == NULL ||
+	    abs(*part.timestamp - sec) > context->max_skew) {
+	    krb5_clear_error_string (context);
+	    ret = KRB5KRB_AP_ERR_SKEW;
+	    goto failure_part;
+	}
+    }
 
-  /* XXX - check replay cache */
+    /* XXX - check replay cache */
 
-  /* check sequence number. since MIT krb5 cannot generate a sequence
-     number of zero but instead generates no sequence number, we accept that
-  */
+    /* check sequence number. since MIT krb5 cannot generate a sequence
+       number of zero but instead generates no sequence number, we accept that
+    */
 
-  if (auth_context->flags & KRB5_AUTH_CONTEXT_DO_SEQUENCE) {
-      if ((part.seq_number == NULL
-	   && auth_context->remote_seqnumber != 0)
-	  || (part.seq_number != NULL
-	      && *part.seq_number != auth_context->remote_seqnumber)) {
-	  krb5_clear_error_string (context);
-	  ret = KRB5KRB_AP_ERR_BADORDER;
-	  goto failure_part;
-      }
-      auth_context->remote_seqnumber++;
-  }
+    if (auth_context->flags & KRB5_AUTH_CONTEXT_DO_SEQUENCE) {
+	if ((part.seq_number == NULL
+	     && auth_context->remote_seqnumber != 0)
+	    || (part.seq_number != NULL
+		&& *part.seq_number != auth_context->remote_seqnumber)) {
+	    krb5_clear_error_string (context);
+	    ret = KRB5KRB_AP_ERR_BADORDER;
+	    goto failure_part;
+	}
+	auth_context->remote_seqnumber++;
+    }
 
-  ret = krb5_data_copy (outbuf, part.user_data.data, part.user_data.length);
-  if (ret)
-      goto failure_part;
+    ret = krb5_data_copy (outbuf, part.user_data.data, part.user_data.length);
+    if (ret)
+	goto failure_part;
 
-  free_EncKrbPrivPart (&part);
-  free_KRB_PRIV (&priv);
-  return 0;
+    if ((auth_context->flags & 
+	 (KRB5_AUTH_CONTEXT_RET_TIME | KRB5_AUTH_CONTEXT_RET_SEQUENCE))) {
+	/* if these fields are not present in the priv-part, silently
+           return zero */
+	memset(outdata, 0, sizeof(*outdata));
+	if(part.timestamp)
+	    outdata->timestamp = *part.timestamp;
+	if(part.usec)
+	    outdata->usec = *part.usec;
+	if(part.seq_number)
+	    outdata->seq = *part.seq_number;
+    }
 
-failure_part:
-  free_EncKrbPrivPart (&part);
+  failure_part:
+    free_EncKrbPrivPart (&part);
 
-failure:
-  free_KRB_PRIV (&priv);
-  return ret;
+  failure:
+    free_KRB_PRIV (&priv);
+    return ret;
 }

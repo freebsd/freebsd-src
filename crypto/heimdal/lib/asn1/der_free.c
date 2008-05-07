@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2003 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2005 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,25 +33,87 @@
 
 #include "der_locl.h"
 
-RCSID("$Id: der_free.c,v 1.8.6.1 2003/08/20 16:24:20 joda Exp $");
+RCSID("$Id: der_free.c 19539 2006-12-28 17:15:05Z lha $");
 
 void
-free_general_string (general_string *str)
+der_free_general_string (heim_general_string *str)
 {
     free(*str);
     *str = NULL;
 }
 
 void
-free_octet_string (octet_string *k)
+der_free_utf8string (heim_utf8_string *str)
 {
-    free(k->data);
-    k->data = NULL;
+    free(*str);
+    *str = NULL;
 }
 
 void
-free_oid (oid *k)
+der_free_printable_string (heim_printable_string *str)
+{
+    free(*str);
+    *str = NULL;
+}
+
+void
+der_free_ia5_string (heim_ia5_string *str)
+{
+    free(*str);
+    *str = NULL;
+}
+
+void
+der_free_bmp_string (heim_bmp_string *k)
+{
+    free(k->data);
+    k->data = NULL;
+    k->length = 0;
+}
+
+void
+der_free_universal_string (heim_universal_string *k)
+{
+    free(k->data);
+    k->data = NULL;
+    k->length = 0;
+}
+
+void
+der_free_visible_string (heim_visible_string *str)
+{
+    free(*str);
+    *str = NULL;
+}
+
+void
+der_free_octet_string (heim_octet_string *k)
+{
+    free(k->data);
+    k->data = NULL;
+    k->length = 0;
+}
+
+void
+der_free_heim_integer (heim_integer *k)
+{
+    free(k->data);
+    k->data = NULL;
+    k->length = 0;
+}
+
+void
+der_free_oid (heim_oid *k)
 {
     free(k->components);
     k->components = NULL;
+    k->length = 0;
+}
+
+void
+der_free_bit_string (heim_bit_string *k)
+{
+    free(k->data);
+    k->data = NULL;
+    k->length = 0;
 }

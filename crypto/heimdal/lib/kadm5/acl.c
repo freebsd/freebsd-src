@@ -33,7 +33,7 @@
 
 #include "kadm5_locl.h"
 
-RCSID("$Id: acl.c,v 1.13 2001/08/24 04:01:42 assar Exp $");
+RCSID("$Id: acl.c 17445 2006-05-05 10:37:46Z lha $");
 
 static struct units acl_units[] = {
     { "all",		KADM5_PRIV_ALL },
@@ -48,7 +48,7 @@ static struct units acl_units[] = {
 };
 
 kadm5_ret_t
-_kadm5_string_to_privs(const char *s, u_int32_t* privs)
+_kadm5_string_to_privs(const char *s, uint32_t* privs)
 {
     int flags;
     flags = parse_flags(s, acl_units, 0);
@@ -59,7 +59,7 @@ _kadm5_string_to_privs(const char *s, u_int32_t* privs)
 }
 
 kadm5_ret_t
-_kadm5_privs_to_string(u_int32_t privs, char *string, size_t len)
+_kadm5_privs_to_string(uint32_t privs, char *string, size_t len)
 {
     if(privs == 0)
 	strlcpy(string, "none", len);
@@ -115,7 +115,7 @@ fetch_acl (kadm5_server_context *context,
 	ret = _kadm5_string_to_privs(p, &flags);
 	if (ret)
 	    break;
-	p = strtok_r(NULL, "\n", &foo);
+	p = strtok_r(NULL, " \t\n", &foo);
 	if (p == NULL) {
 	    *ret_flags = flags;
 	    break;

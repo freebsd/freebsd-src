@@ -55,7 +55,7 @@
  * or implied warranty.
  */
 
-/* $Id: encrypt.h,v 1.8 2002/09/10 20:03:47 joda Exp $ */
+/* $Id: encrypt.h 11444 2002-09-10 20:03:49Z joda $ */
 
 #ifndef	__ENCRYPT__
 #define	__ENCRYPT__

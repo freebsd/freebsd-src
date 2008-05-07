@@ -1,0 +1,4 @@
+init --realm-max-ticket-life=1day --realm-max-renewable-life=1month TEST.H5L.SE
+cpw -p kaka krbtgt/TEST.H5L.SE@TEST.H5L.SE
+add -p foo --use-defaults foo@TEST.H5L.SE
+add -p foo --use-defaults bar@TEST.H5L.SE

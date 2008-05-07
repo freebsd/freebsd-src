@@ -1,4 +1,4 @@
-.\" Copyright (c) 2000 - 2003 Kungliga Tekniska Högskolan
+.\" Copyright (c) 2000 - 2004 Kungliga Tekniska Högskolan
 .\" (Royal Institute of Technology, Stockholm, Sweden). 
 .\" All rights reserved. 
 .\"
@@ -29,9 +29,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
 .\" SUCH DAMAGE. 
 .\" 
-.\" $Id: hprop.8,v 1.18 2003/02/16 21:10:19 lha Exp $
+.\" $Id: hprop.8 20456 2007-04-19 20:29:42Z lha $
 .\"
-.Dd June 19, 2000
+.Dd December  8, 2004
 .Dt HPROP 8
 .Os HEIMDAL
 .Sh NAME
@@ -39,6 +39,7 @@
 .Nd propagate the KDC database
 .Sh SYNOPSIS
 .Nm
+.Bk -words
 .Oo Fl m Ar file \*(Ba Xo
 .Fl -master-key= Ns Pa file
 .Xc
@@ -47,7 +48,7 @@
 .Fl -database= Ns Pa file
 .Xc
 .Oc
-.Op Fl -source= Ns Ar heimdal|mit-dump|krb4-dump|krb4-db|kaserver
+.Op Fl -source= Ns Ar heimdal|mit-dump|krb4-dump|kaserver
 .Oo Fl r Ar string \*(Ba Xo
 .Fl -v4-realm= Ns Ar string
 .Xc
@@ -73,6 +74,7 @@
 .Op Fl h | Fl -help
 .Op Ar host Ns Op : Ns Ar port
 .Ar ...
+.Ek
 .Sh DESCRIPTION
 .Nm
 takes a principal database in a specified format and converts it into
@@ -99,7 +101,7 @@ Where to find the master key to encrypt or decrypt keys with.
 .Xc
 The database to be propagated.
 .It Xo
-.Fl -source= Ns Ar heimdal|mit-dump|krb4-dump|krb4-db|kaserver
+.Fl -source= Ns Ar heimdal|mit-dump|krb4-dump|kaserver
 .Xc
 Specifies the type of the source database. Alternatives include:
 .Pp
@@ -108,8 +110,6 @@ Specifies the type of the source database. Alternatives include:
 a Heimdal database
 .It mit-dump
 a MIT Kerberos 5 dump file
-.It krb4-db
-a Kerberos 4 database
 .It krb4-dump
 a Kerberos 4 dump file
 .It kaserver
@@ -168,12 +168,6 @@ The AFS cell name, used if reading a kaserver database.
 .Xc
 Also dump the principals marked as special in the kaserver database.
 .It Xo
-.Fl 4 ,
-.Fl -v4-db
-.Xc
-Deprecated, identical to
-.Sq --source=krb4-db .
-.It Xo
 .Fl K ,
 .Fl -ka-db
 .Xc
@@ -183,14 +177,9 @@ Deprecated, identical to
 .Sh EXAMPLES
 The following will propagate a database to another machine (which
 should run
-.Xr hpropd 8):
+.Xr hpropd 8 ):
 .Bd -literal -offset indent
 $ hprop slave-1 slave-2
-.Ed
-.Pp
-Copy a Kerberos 4 database to a Kerberos 5 slave:
-.Bd -literal -offset indent
-$ hprop --source=krb4-db -E krb5-slave
 .Ed
 .Pp
 Convert a Kerberos 4 dump-file for use with a Heimdal KDC:

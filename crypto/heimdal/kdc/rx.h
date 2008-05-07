@@ -31,7 +31,7 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: rx.h,v 1.4 1999/12/02 17:05:00 joda Exp $ */
+/* $Id: rx.h 17447 2006-05-05 10:52:01Z lha $ */
 
 #ifndef __RX_H__
 #define __RX_H__
@@ -59,17 +59,17 @@ enum rx_header_flag {
 };
 
 struct rx_header {
-     u_int32_t epoch;
-     u_int32_t connid;		/* And channel ID */
-     u_int32_t callid;
-     u_int32_t seqno;
-     u_int32_t serialno;
+     uint32_t epoch;
+     uint32_t connid;		/* And channel ID */
+     uint32_t callid;
+     uint32_t seqno;
+     uint32_t serialno;
      u_char type;
      u_char flags;
      u_char status;
      u_char secindex;
-     u_int16_t reserved;	/* ??? verifier? */
-     u_int16_t serviceid;
+     uint16_t reserved;	/* ??? verifier? */
+     uint16_t serviceid;
 /* This should be the other way around according to everything but */
 /* tcpdump */
 };

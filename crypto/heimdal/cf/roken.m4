@@ -1,4 +1,4 @@
-dnl $Id: roken.m4,v 1.3.8.1 2004/04/01 07:27:35 joda Exp $
+dnl $Id: roken.m4 14162 2004-08-26 11:27:32Z joda $
 dnl
 dnl try to look for an installed roken library with sufficient stuff
 dnl
@@ -10,7 +10,7 @@ dnl AC_ROKEN(version,directory-to-try,roken-dir,fallback-library,fallback-cppfla
 AC_DEFUN([AC_ROKEN], [
 
 AC_ARG_WITH(roken,
-	AC_HELP_STRING([--with-roken=dir],[use the roken library in dir]),
+	AS_HELP_STRING([--with-roken=dir],[use the roken library in dir]),
 [if test "$withval" = "no"; then
   AC_MSG_ERROR(roken is required)
 fi])
@@ -32,13 +32,13 @@ AC_MSG_CHECKING(for roken in $i)
 
 CPPFLAGS="-I$i/include ${CPPFLAGS}"
 
-AC_TRY_CPP(
-[#include <roken.h>
+AC_PREPROC_IFELSE([AC_LANG_SOURCE([[
+#include <roken.h>
 #if ROKEN_VERSION < $1
 #error old roken version, should be $1
 fail
 #endif
-],[roken_installed=yes; break])
+]])],[roken_installed=yes; break])
 
 AC_MSG_RESULT($roken_installed)
 

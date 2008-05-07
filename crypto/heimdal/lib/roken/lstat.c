@@ -33,12 +33,12 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: lstat.c,v 1.4 1999/12/02 16:58:51 joda Exp $");
+RCSID("$Id: lstat.c 14773 2005-04-12 11:29:18Z lha $");
 #endif
 
 #include "roken.h"
 
-int
+int ROKEN_LIB_FUNCTION
 lstat(const char *path, struct stat *buf)
 {
   return stat(path, buf);

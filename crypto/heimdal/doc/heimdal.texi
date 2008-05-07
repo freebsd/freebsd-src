@@ -1,6 +1,6 @@
 \input texinfo @c -*- texinfo -*-
 @c %**start of header
-@c $Id: heimdal.texi,v 1.17 2001/02/24 05:09:24 assar Exp $
+@c $Id: heimdal.texi 22191 2007-12-06 17:26:30Z lha $
 @setfilename heimdal.info
 @settitle HEIMDAL
 @iftex
@@ -14,13 +14,14 @@
 @syncodeindex pg cp
 @c %**end of header
 
-@c not yet @include version.texi
-@set UPDATED $Date: 2001/02/24 05:09:24 $
-@set EDITION 0.1
-@set VERSION 0.3a
+@include vars.texi
+
+@set UPDATED $Date: 2007-12-06 09:26:30 -0800 (Tor, 06 Dec 2007) $
+@set VERSION @value{PACKAGE_VERSION}
+@set EDITION 1.0
 
 @ifinfo
-@dircategory Heimdal
+@dircategory Security
 @direntry
 * Heimdal: (heimdal).           The Kerberos 5 distribution from KTH
 @end direntry
@@ -31,8 +32,9 @@
 @title Heimdal
 @subtitle Kerberos 5 from KTH
 @subtitle Edition @value{EDITION}, for version @value{VERSION}
-@subtitle 1999
+@subtitle 2007
 @author Johan Danielsson
+@author Love Hörnquist Åstrand
 @author Assar Westerlund
 @author last updated @value{UPDATED}
 
@@ -41,7 +43,7 @@
 @def@copyrightend{}
 @page
 @copyrightstart
-Copyright (c) 1997-2000 Kungliga Tekniska Högskolan 
+Copyright (c) 1997-2007 Kungliga Tekniska Högskolan 
 (Royal Institute of Technology, Stockholm, Sweden).
 All rights reserved.
 
@@ -64,52 +66,6 @@ THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
 ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
 ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
-FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
-OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
-SUCH DAMAGE.
-
-@copynext
-
-Copyright (C) 1995-1997 Eric Young (eay@@mincom.oz.au)
-All rights reserved.
-
-This package is an DES implementation written by Eric Young (eay@@mincom.oz.au).
-The implementation was written so as to conform with MIT's libdes.
-
-This library is free for commercial and non-commercial use as long as
-the following conditions are aheared to.  The following conditions
-apply to all code found in this distribution.
-
-Copyright remains Eric Young's, and as such any Copyright notices in
-the code are not to be removed.
-If this package is used in a product, Eric Young should be given attribution
-as the author of that the SSL library.  This can be in the form of a textual
-message at program startup or in documentation (online or textual) provided
-with the package.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions
-are met:
-
-1. Redistributions of source code must retain the copyright
-   notice, this list of conditions and the following disclaimer.
-
-2. Redistributions in binary form must reproduce the above copyright
-   notice, this list of conditions and the following disclaimer in the
-   documentation and/or other materials provided with the distribution.
-
-3. All advertising materials mentioning features or use of this software
-   must display the following acknowledgement:
-   This product includes software developed by Eric Young (eay@@mincom.oz.au)
-
-THIS SOFTWARE IS PROVIDED BY ERIC YOUNG ``AS IS'' AND
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
 FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
 DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
 OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -154,12 +110,7 @@ are met:
    notice, this list of conditions and the following disclaimer in the
    documentation and/or other materials provided with the distribution.
 
-3. All advertising materials mentioning features or use of this software
-   must display the following acknowledgement:
-     This product includes software developed by the University of
-     California, Berkeley and its contributors.
-
-4. Neither the name of the University nor the names of its contributors
+3. Neither the name of the University nor the names of its contributors
    may be used to endorse or promote products derived from this software
    without specific prior written permission.
 
@@ -199,8 +150,114 @@ to the following restrictions:
 
 4. This notice may not be removed or altered.
 
+@copynext
+
+IMath is Copyright 2002-2005 Michael J. Fromberger
+You may use it subject to the following Licensing Terms:
+
+Permission is hereby granted, free of charge, to any person obtaining
+a copy of this software and associated documentation files (the
+"Software"), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish,
+distribute, sublicense, and/or sell copies of the Software, and to
+permit persons to whom the Software is furnished to do so, subject to
+the following conditions:
+
+The above copyright notice and this permission notice shall be
+included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+@copynext
+
+Copyright (c) 2005 Doug Rabson
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions
+are met:
+1. Redistributions of source code must retain the above copyright
+   notice, this list of conditions and the following disclaimer.
+2. Redistributions in binary form must reproduce the above copyright
+   notice, this list of conditions and the following disclaimer in the
+   documentation and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+SUCH DAMAGE.
+
+@copynext
+
+Copyright (c) 2005 Marko Kreen
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions
+are met:
+1. Redistributions of source code must retain the above copyright
+       notice, this list of conditions and the following disclaimer.
+2. Redistributions in binary form must reproduce the above copyright
+       notice, this list of conditions and the following disclaimer in the
+       documentation and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED.	IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+SUCH DAMAGE.
+
+@copynext
+
+Copyright (c) 2006,2007
+NTT (Nippon Telegraph and Telephone Corporation) . All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions
+are met:
+1. Redistributions of source code must retain the above copyright
+  notice, this list of conditions and the following disclaimer as
+  the first lines of this file unmodified.
+2. Redistributions in binary form must reproduce the above copyright
+  notice, this list of conditions and the following disclaimer in the
+  documentation and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY NTT ``AS IS'' AND ANY EXPRESS OR
+IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+IN NO EVENT SHALL NTT BE LIABLE FOR ANY DIRECT, INDIRECT,
+INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
 @copyrightend
 @end titlepage
+
+@macro manpage{man, section}
+@cite{\man\(\section\)}
+@end macro
 
 @c Less filling! Tastes great!
 @iftex
@@ -214,29 +271,92 @@ to the following restrictions:
 @paragraphindent 0
 @end ifinfo
 
-@ifinfo
+@ifnottex
 @node Top, Introduction, (dir), (dir)
 @top Heimdal
-@end ifinfo
+@end ifnottex
+
+This manual is last updated @value{UPDATED} for version
+@value{VERSION} of Heimdal.
 
 @menu
 * Introduction::                
 * What is Kerberos?::           
 * Building and Installing::     
 * Setting up a realm::          
+* Applications::                
 * Things in search for a better place::  
 * Kerberos 4 issues::           
-* Windows 2000 compatability::
-* Programming with Kerberos::
-* Migration::
+* Windows 2000 compatability::  
+* Programming with Kerberos::   
+* Migration::                   
 * Acknowledgments::             
 
+@detailmenu
+ --- The Detailed Node Listing ---
+
+Setting up a realm
+
+* Configuration file::          
+* Creating the database::       
+* Modifying the database::      
+* keytabs::                     
+* Serving Kerberos 4/524/kaserver::  
+* Remote administration::       
+* Password changing::           
+* Testing clients and servers::  
+* Slave Servers::               
+* Incremental propagation::     
+* Encryption types and salting::                     
+* Cross realm::                 
+* Transit policy::              
+* Setting up DNS::              
+* Using LDAP to store the database::  
+* Providing Kerberos credentials to servers and programs::  
+* Setting up PK-INIT::
+
+Applications
+
+* Authentication modules::      
+* AFS::                         
+
+Authentication modules
+
+* Digital SIA::                 
+* IRIX::                        
+
+Kerberos 4 issues
+
+* Principal conversion issues::  
+* Converting a version 4 database::  
+* kaserver::                    
+
+Windows 2000 compatability
+
+* Configuring Windows 2000 to use a Heimdal KDC::  
+* Inter-Realm keys (trust) between Windows 2000 and a Heimdal KDC::  
+* Create account mappings::     
+* Encryption types::            
+* Authorisation data::          
+* Quirks of Windows 2000 KDC::  
+* Useful links when reading about the Windows 2000::  
+
+Programming with Kerberos
+
+* Kerberos 5 API Overview::     
+* Walkthrough of a sample Kerberos 5 client::  
+* Validating a password in a server application::  
+* API differences to MIT Kerberos::  
+* File formats::
+
+@end detailmenu
 @end menu
 
 @include intro.texi
 @include whatis.texi
 @include install.texi
 @include setup.texi
+@include apps.texi
 @include misc.texi
 @include kerberos4.texi
 @include win2k.texi

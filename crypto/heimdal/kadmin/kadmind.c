@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2002 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2004 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,30 +33,23 @@
 
 #include "kadmin_locl.h"
 
-RCSID("$Id: kadmind.c,v 1.28.2.1 2004/04/29 12:30:32 lha Exp $");
+RCSID("$Id: kadmind.c 22250 2007-12-09 05:57:31Z lha $");
 
 static char *check_library  = NULL;
 static char *check_function = NULL;
+static getarg_strings policy_libraries = { 0, NULL };
 static char *config_file;
-static char *keyfile;
 static char *keytab_str = "HDB:";
 static int help_flag;
 static int version_flag;
 static int debug_flag;
 static char *port_str;
 char *realm;
-#ifdef KRB4
-int do_kerberos4 = 0;
-#endif
 
 static struct getargs args[] = {
     { 
 	"config-file",	'c',	arg_string,	&config_file, 
 	"location of config file",	"file" 
-    },
-    {
-	"key-file",	'k',	arg_string, &keyfile, 
-	"location of master key file", "file"
     },
     {
 	"keytab",	0,	arg_string, &keytab_str,
@@ -70,15 +63,12 @@ static struct getargs args[] = {
       "library to load password check function from", "library" },
     { "check-function", 0, arg_string, &check_function,
       "password check function to load", "function" },
+    { "policy-libraries", 0, arg_strings, &policy_libraries,
+      "password check function to load", "function" },
 #endif
     {	"debug",	'd',	arg_flag,   &debug_flag, 
 	"enable debugging" 
     },
-#ifdef KRB4
-    {	"kerberos4", 0,		arg_flag,   &do_kerberos4,
-	"don't respond to kerberos 4 requests"
-    },
-#endif
     {	"ports",	'p',	arg_string, &port_str, 
 	"ports to listen to", "port" },
     {	"help",		'h',	arg_flag,   &help_flag },
@@ -100,10 +90,10 @@ int
 main(int argc, char **argv)
 {
     krb5_error_code ret;
-    krb5_config_section *cf;
-    int optind = 0;
-    int e;
-    krb5_log_facility *logf;
+    char **files;
+    int optidx = 0;
+    int e, i;
+    krb5_log_facility *logfacility;
     krb5_keytab keytab;
 
     setprogname(argv[0]);
@@ -112,11 +102,8 @@ main(int argc, char **argv)
     if (ret)
 	errx (1, "krb5_init_context failed: %d", ret);
 
-    ret = krb5_openlog(context, "kadmind", &logf);
-    ret = krb5_set_warn_dest(context, logf);
-
-    while((e = getarg(args, num_args, argc, argv, &optind)))
-	warnx("error at argument `%s'", argv[optind]);
+    while((e = getarg(args, num_args, argc, argv, &optidx)))
+	warnx("error at argument `%s'", argv[optidx]);
 
     if (help_flag)
 	usage (0);
@@ -126,28 +113,50 @@ main(int argc, char **argv)
 	exit(0);
     }
 
-    argc -= optind;
-    argv += optind;
+    argc -= optidx;
+    argv += optidx;
+
+    if (config_file == NULL) {
+	asprintf(&config_file, "%s/kdc.conf", hdb_db_dir(context));
+	if (config_file == NULL)
+	    errx(1, "out of memory");
+    }
+    
+    ret = krb5_prepend_config_files_default(config_file, &files);
+    if (ret)
+	krb5_err(context, 1, ret, "getting configuration files");
+    
+    ret = krb5_set_config_files(context, files);
+    krb5_free_config_files(files);
+    if(ret) 
+	krb5_err(context, 1, ret, "reading configuration files");
+    
+    ret = krb5_openlog(context, "kadmind", &logfacility);
+    if (ret)
+	krb5_err(context, 1, ret, "krb5_openlog");
+    ret = krb5_set_warn_dest(context, logfacility);
+    if (ret)
+	krb5_err(context, 1, ret, "krb5_set_warn_dest");
 
     ret = krb5_kt_register(context, &hdb_kt_ops);
     if(ret)
 	krb5_err(context, 1, ret, "krb5_kt_register");
-
-    if (config_file == NULL)
-	config_file = HDB_DB_DIR "/kdc.conf";
-
-    if(krb5_config_parse_file(context, config_file, &cf) == 0) {
-	const char *p = krb5_config_get_string (context, cf, 
-						"kdc", "key-file", NULL);
-	if (p)
-	    keyfile = strdup(p);
-    }
 
     ret = krb5_kt_resolve(context, keytab_str, &keytab);
     if(ret)
 	krb5_err(context, 1, ret, "krb5_kt_resolve");
 
     kadm5_setup_passwd_quality_check (context, check_library, check_function);
+
+    for (i = 0; i < policy_libraries.num_strings; i++) {
+	ret = kadm5_add_passwd_quality_verifier(context, 
+						policy_libraries.strings[i]);
+	if (ret)
+	    krb5_err(context, 1, ret, "kadm5_add_passwd_quality_verifier");
+    }
+    ret = kadm5_add_passwd_quality_verifier(context, NULL);
+    if (ret)
+	krb5_err(context, 1, ret, "kadm5_add_passwd_quality_verifier");
 
     {
 	int fd = 0;

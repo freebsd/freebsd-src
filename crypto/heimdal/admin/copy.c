@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2004 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "ktutil_locl.h"
 
-RCSID("$Id: copy.c,v 1.9 2003/01/16 18:59:03 lha Exp $");
+RCSID("$Id: copy.c 14260 2004-09-23 14:45:29Z joda $");
 
 
 static krb5_boolean
@@ -80,8 +80,16 @@ kt_copy_int (const char *from, const char *to)
 				    &entry, &cursor)) == 0) {
 	char *name_str;
 	char *etype_str;
-	krb5_unparse_name (context, entry.principal, &name_str);
-	krb5_enctype_to_string(context, entry.keyblock.keytype, &etype_str);
+	ret = krb5_unparse_name (context, entry.principal, &name_str);
+	if(ret) {
+	    krb5_warn(context, ret, "krb5_unparse_name");
+	    name_str = NULL; /* XXX */
+	}
+	ret = krb5_enctype_to_string(context, entry.keyblock.keytype, &etype_str);
+	if(ret) {
+	    krb5_warn(context, ret, "krb5_enctype_to_string");
+	    etype_str = NULL; /* XXX */
+	}
 	ret = krb5_kt_get_entry(context, dst_keytab, 
 				entry.principal, 
 				entry.vno, 
@@ -102,7 +110,8 @@ kt_copy_int (const char *from, const char *to)
 	    free(etype_str);
 	    continue;
 	} else if(ret != KRB5_KT_NOTFOUND) {
-	    krb5_warn(context, ret, "krb5_kt_get_entry(%s)", name_str);
+	    krb5_warn (context, ret, "%s: fetching %s/%s/%u", 
+		       to, name_str, etype_str, entry.vno);
 	    krb5_kt_free_entry (context, &entry);
 	    free(name_str);
 	    free(etype_str);
@@ -114,7 +123,8 @@ kt_copy_int (const char *from, const char *to)
 	ret = krb5_kt_add_entry (context, dst_keytab, &entry);
 	krb5_kt_free_entry (context, &entry);
 	if (ret) {
-	    krb5_warn (context, ret, "krb5_kt_add_entry(%s)", name_str);
+	    krb5_warn (context, ret, "%s: adding %s/%s/%u", 
+		       to, name_str, etype_str, entry.vno);
 	    free(name_str);
 	    free(etype_str);
 	    break;
@@ -127,121 +137,39 @@ kt_copy_int (const char *from, const char *to)
   out:
     krb5_kt_close (context, src_keytab);
     krb5_kt_close (context, dst_keytab);
-    return 0;
+    return ret != 0;
 }
 
 int
-kt_copy (int argc, char **argv)
+kt_copy (void *opt, int argc, char **argv)
 {
-    int help_flag = 0;
-    int optind = 0;
-
-    struct getargs args[] = {
-	{ "help", 'h', arg_flag, NULL}
-    };
-
-    int num_args = sizeof(args) / sizeof(args[0]);
-    int i = 0;
-
-    args[i++].value = &help_flag;
-
-    if(getarg(args, num_args, argc, argv, &optind)) {
-	arg_printusage(args, num_args, "ktutil copy",
-		       "keytab-src keytab-dest");
-	return 1;
-    }
-    if (help_flag) {
-	arg_printusage(args, num_args, "ktutil copy",
-		       "keytab-src keytab-dest");
-	return 1;
-    }
-
-    argv += optind;
-    argc -= optind;
-
-    if (argc != 2) {
-	arg_printusage(args, num_args, "ktutil copy",
-		       "keytab-src keytab-dest");
-	return 1;
-    }
-
     return kt_copy_int(argv[0], argv[1]);
 }
 
-#ifndef KEYFILE
-#define KEYFILE SYSCONFDIR "/srvtab"
-#endif
-
-/* copy to from v4 srvtab, just short for copy */
-static int
-conv(int srvconv, int argc, char **argv)
+int
+srvconv(struct srvconvert_options *opt, int argc, char **argv)
 {
-    int help_flag = 0;
-    char *srvtab = KEYFILE;
-    int optind = 0;
     char kt4[1024], kt5[1024];
 
-    char *name;
+    snprintf(kt4, sizeof(kt4), "krb4:%s", opt->srvtab_string);
 
-    struct getargs args[] = {
-	{ "srvtab", 's', arg_string, NULL},
-	{ "help", 'h', arg_flag, NULL}
-    };
+    if(keytab_string != NULL)
+	return kt_copy_int(kt4, keytab_string);
 
-    int num_args = sizeof(args) / sizeof(args[0]);
-    int i = 0;
-
-    args[i++].value = &srvtab;
-    args[i++].value = &help_flag;
-
-    if(srvconv)
-	name = "ktutil srvconvert";
-    else 
-	name = "ktutil srvcreate";
-
-    if(getarg(args, num_args, argc, argv, &optind)){
-	arg_printusage(args, num_args, name, "");
-	return 1;
-    }
-    if(help_flag){
-	arg_printusage(args, num_args, name, "");
-	return 0;
-    }
-
-    argc -= optind;
-    argv += optind;
-
-    if (argc != 0) {
-	arg_printusage(args, num_args, name, "");
-	return 1;
-    }
-
-    snprintf(kt4, sizeof(kt4), "krb4:%s", srvtab);
-
-    if(srvconv) {
-	if(keytab_string != NULL)
-	    return kt_copy_int(kt4, keytab_string);
-	else {
-	    krb5_kt_default_modify_name(context, kt5, sizeof(kt5));
-	    return kt_copy_int(kt4, kt5);
-	}
-    } else {
-	if(keytab_string != NULL)
-	    return kt_copy_int(keytab_string, kt4);
-
-	krb5_kt_default_name(context, kt5, sizeof(kt5));
-	return kt_copy_int(kt5, kt4);
-    }
+    krb5_kt_default_modify_name(context, kt5, sizeof(kt5));
+    return kt_copy_int(kt4, kt5);
 }
 
 int
-srvconv(int argc, char **argv)
+srvcreate(struct srvcreate_options *opt, int argc, char **argv)
 {
-    return conv(1, argc, argv);
-}
+    char kt4[1024], kt5[1024];
 
-int
-srvcreate(int argc, char **argv)
-{
-    return conv(0, argc, argv);
+    snprintf(kt4, sizeof(kt4), "krb4:%s", opt->srvtab_string);
+
+    if(keytab_string != NULL)
+	return kt_copy_int(keytab_string, kt4);
+
+    krb5_kt_default_name(context, kt5, sizeof(kt5));
+    return kt_copy_int(kt5, kt4);
 }

@@ -37,7 +37,7 @@
 #include "make_cmds.h"
 #include "parse.h"
 
-RCSID("$Id: lex.l,v 1.6 2001/09/16 23:10:10 assar Exp $");
+RCSID("$Id: lex.l 10703 2001-09-16 23:10:10Z assar $");
 
 static unsigned lineno = 1;
 static int getstring(void);

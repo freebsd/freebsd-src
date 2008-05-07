@@ -1,4 +1,4 @@
-# $Id: Makefile.am,v 1.24 2001/01/27 18:34:39 assar Exp $
+# $Id: Makefile.am 17775 2006-06-30 20:26:15Z lha $
 
 include $(top_srcdir)/Makefile.am.common
 
@@ -13,6 +13,7 @@ SUBDIRS = 					\
 	  ftp					\
 	  login					\
 	  $(dir_otp)				\
+	  gssmask				\
 	  popper				\
 	  push					\
 	  rsh					\

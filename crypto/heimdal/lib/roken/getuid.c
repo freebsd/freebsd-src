@@ -38,9 +38,10 @@
 
 #ifndef HAVE_GETUID
 
-RCSID("$Id: getuid.c,v 1.3 1999/12/02 16:58:46 joda Exp $");
+RCSID("$Id: getuid.c 14773 2005-04-12 11:29:18Z lha $");
 
-int getuid(void)
+int ROKEN_LIB_FUNCTION
+getuid(void)
 {
     return 17;
 }

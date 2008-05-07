@@ -1,19 +1,23 @@
-# $Id: Makefile.am,v 1.34 2001/08/28 08:31:26 assar Exp $
+# $Id: Makefile.am 20466 2007-04-20 08:29:05Z lha $
 
 include $(top_srcdir)/Makefile.am.common
 
-INCLUDES += $(INCLUDE_readline) $(INCLUDE_krb4) $(INCLUDE_des) -I$(srcdir)/../lib/krb5
+AM_CPPFLAGS += $(INCLUDE_readline) $(INCLUDE_hcrypto) -I$(srcdir)/../lib/krb5
 
 sbin_PROGRAMS = kadmin
 
 libexec_PROGRAMS = kadmind
 
+SLC = $(top_builddir)/lib/sl/slc
+
 man_MANS = kadmin.8 kadmind.8
 
 noinst_PROGRAMS = add_random_users
 
-kadmin_SOURCES =				\
+dist_kadmin_SOURCES =				\
 	ank.c					\
+	add_enctype.c				\
+	check.c					\
 	cpw.c					\
 	del.c					\
 	del_enctype.c				\
@@ -25,14 +29,22 @@ kadmin_SOURCES =				\
 	load.c					\
 	mod.c					\
 	rename.c				\
+	stash.c					\
 	util.c					\
+	pw_quality.c				\
 	random_password.c			\
 	kadmin_locl.h
 
-if KRB4
-KRB4LIB = $(LIB_krb4)
-version4_c = version4.c
-endif
+nodist_kadmin_SOURCES =				\
+	kadmin-commands.c			\
+	kadmin-commands.h
+
+$(kadmin_OBJECTS): kadmin-commands.h
+
+CLEANFILES = kadmin-commands.h kadmin-commands.c
+
+kadmin-commands.c kadmin-commands.h: kadmin-commands.in
+	$(SLC) $(srcdir)/kadmin-commands.in
 
 kadmind_SOURCES =				\
 	kadmind.c				\
@@ -41,20 +53,24 @@ kadmind_SOURCES =				\
 	$(version4_c)				\
 	kadm_conn.c
 
-EXTRA_kadmind_SOURCES = version4.c
-
 add_random_users_SOURCES = add-random-users.c
+
+test_util_SOURCES = test_util.c util.c
+
+TESTS = test_util
+
+check_PROGRAMS = $(TESTS)
 
 LDADD_common = \
 	$(top_builddir)/lib/hdb/libhdb.la \
 	$(LIB_openldap) \
 	$(top_builddir)/lib/krb5/libkrb5.la \
-	$(LIB_des) \
+	$(LIB_hcrypto) \
 	$(top_builddir)/lib/asn1/libasn1.la \
 	$(LIB_roken) \
 	$(DBLIB)
 
-kadmind_LDADD = $(KRB4LIB) $(top_builddir)/lib/kadm5/libkadm5srv.la \
+kadmind_LDADD = $(top_builddir)/lib/kadm5/libkadm5srv.la \
 	$(LDADD_common) \
 	$(LIB_pidfile) \
 	$(LIB_dlopen)
@@ -72,3 +88,7 @@ add_random_users_LDADD = \
 	$(top_builddir)/lib/kadm5/libkadm5srv.la \
 	$(LDADD_common) \
 	$(LIB_dlopen)
+
+test_util_LDADD = $(kadmin_LDADD)
+
+EXTRA_DIST = $(man_MANS) kadmin-commands.in
