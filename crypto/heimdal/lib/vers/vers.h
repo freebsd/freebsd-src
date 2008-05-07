@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: vers.h,v 1.1 2000/07/01 19:47:36 assar Exp $ */
+/* $Id: vers.h 8513 2000-07-01 19:47:36Z assar $ */
 
 #ifndef __VERS_H__
 #define __VERS_H__

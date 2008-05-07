@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2001, 2003-2006 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "kadm5_locl.h"
 
-RCSID("$Id: randkey_s.c,v 1.13 2001/01/30 01:24:28 assar Exp $");
+RCSID("$Id: randkey_s.c 20611 2007-05-08 07:13:07Z lha $");
 
 /*
  * Set the keys of `princ' to random values, returning the random keys
@@ -47,42 +47,48 @@ kadm5_s_randkey_principal(void *server_handle,
 			  int *n_keys)
 {
     kadm5_server_context *context = server_handle;
-    hdb_entry ent;
+    hdb_entry_ex ent;
     kadm5_ret_t ret;
 
-    ent.principal = princ;
-    ret = context->db->open(context->context, context->db, O_RDWR, 0);
+    memset(&ent, 0, sizeof(ent));
+    ret = context->db->hdb_open(context->context, context->db, O_RDWR, 0);
     if(ret)
 	return ret;
-    ret = context->db->fetch(context->context, context->db, 0, &ent);
+    ret = context->db->hdb_fetch(context->context, context->db, princ, 
+				 HDB_F_GET_ANY, &ent);
     if(ret)
 	goto out;
 
     ret = _kadm5_set_keys_randomly (context,
-				    &ent,
+				    &ent.entry,
 				    new_keys,
 				    n_keys);
     if (ret)
 	goto out2;
+    ent.entry.kvno++;
 
-    ret = _kadm5_set_modifier(context, &ent);
+    ret = _kadm5_set_modifier(context, &ent.entry);
     if(ret)
 	goto out3;
-    ret = _kadm5_bump_pw_expire(context, &ent);
+    ret = _kadm5_bump_pw_expire(context, &ent.entry);
     if (ret)
 	goto out2;
 
-    ret = hdb_seal_keys(context->context, context->db, &ent);
+    ret = hdb_seal_keys(context->context, context->db, &ent.entry);
+    if (ret)
+	goto out2;
+
+    ret = context->db->hdb_store(context->context, context->db, 
+				 HDB_F_REPLACE, &ent);
     if (ret)
 	goto out2;
 
     kadm5_log_modify (context,
-		      &ent,
+		      &ent.entry,
 		      KADM5_PRINCIPAL | KADM5_MOD_NAME | KADM5_MOD_TIME |
-		      KADM5_KEY_DATA | KADM5_KVNO | KADM5_PW_EXPIRATION);
+		      KADM5_KEY_DATA | KADM5_KVNO | KADM5_PW_EXPIRATION |
+		      KADM5_TL_DATA);
 
-    ret = context->db->store(context->context, context->db, 
-			     HDB_F_REPLACE, &ent);
 out3:
     if (ret) {
 	int i;
@@ -96,6 +102,6 @@ out3:
 out2:
     hdb_free_entry(context->context, &ent);
 out:
-    context->db->close(context->context, context->db);
+    context->db->hdb_close(context->context, context->db);
     return _kadm5_error_code(ret);
 }

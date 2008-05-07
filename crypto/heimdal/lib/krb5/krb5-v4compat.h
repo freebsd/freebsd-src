@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2002 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2003 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -31,10 +31,12 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: krb5-v4compat.h,v 1.2 2003/03/18 03:08:20 lha Exp $ */
+/* $Id: krb5-v4compat.h 21575 2007-07-16 07:44:54Z lha $ */
 
 #ifndef __KRB5_V4COMPAT_H__
 #define __KRB5_V4COMPAT_H__
+
+#include "krb_err.h"
 
 /* 
  * This file must only be included with v4 compat glue stuff in
@@ -42,6 +44,26 @@
  *
  * It MUST NOT be installed.
  */
+
+#define		KRB_PROT_VERSION 	4
+
+#define		AUTH_MSG_KDC_REQUEST			 (1<<1)
+#define 	AUTH_MSG_KDC_REPLY			 (2<<1)
+#define		AUTH_MSG_APPL_REQUEST			 (3<<1)
+#define		AUTH_MSG_APPL_REQUEST_MUTUAL		 (4<<1)
+#define		AUTH_MSG_ERR_REPLY			 (5<<1)
+#define		AUTH_MSG_PRIVATE			 (6<<1)
+#define		AUTH_MSG_SAFE				 (7<<1)
+#define		AUTH_MSG_APPL_ERR			 (8<<1)
+#define		AUTH_MSG_KDC_FORWARD			 (9<<1)
+#define		AUTH_MSG_KDC_RENEW			(10<<1)
+#define 	AUTH_MSG_DIE				(63<<1)
+
+/* General definitions */
+#define		KSUCCESS	0
+#define		KFAILURE	255
+
+/* */
 
 #define		MAX_KTXT_LEN	1250
 
@@ -53,14 +75,14 @@
 struct ktext {
     unsigned int length;		/* Length of the text */
     unsigned char dat[MAX_KTXT_LEN];	/* The data itself */
-    u_int32_t mbz;		/* zero to catch runaway strings */
+    uint32_t mbz;		/* zero to catch runaway strings */
 };
 
 struct credentials {
     char    service[ANAME_SZ];	/* Service name */
     char    instance[INST_SZ];	/* Instance */
     char    realm[REALM_SZ];	/* Auth domain */
-    des_cblock session;		/* Session key */
+    char    session[8];		/* Session key */
     int     lifetime;		/* Lifetime */
     int     kvno;		/* Key version number */
     struct ktext ticket_st;	/* The ticket itself */
@@ -68,7 +90,6 @@ struct credentials {
     char    pname[ANAME_SZ];	/* Principal's name */
     char    pinst[INST_SZ];	/* Principal's instance */
 };
-
 
 #define TKTLIFENUMFIXED 64
 #define TKTLIFEMINFIXED 0x80
@@ -81,11 +102,29 @@ struct credentials {
 
 #define		KERB_ERR_NULL_KEY	10
 
-int
-_krb5_krb_time_to_life(time_t start, time_t end);
+#define 	CLOCK_SKEW	5*60
 
-time_t
-_krb5_krb_life_to_time(int start, int life_);
+#ifndef TKT_ROOT
+#define TKT_ROOT "/tmp/tkt"
+#endif
+
+struct _krb5_krb_auth_data {
+    int8_t  k_flags;		/* Flags from ticket */
+    char    *pname;		/* Principal's name */
+    char    *pinst;		/* His Instance */
+    char    *prealm;		/* His Realm */
+    uint32_t checksum;		/* Data checksum (opt) */
+    krb5_keyblock session;	/* Session Key */
+    unsigned char life;		/* Life of ticket */
+    uint32_t time_sec;		/* Time ticket issued */
+    uint32_t address;		/* Address in ticket */
+};
+
+time_t		_krb5_krb_life_to_time (int, int);
+int		_krb5_krb_time_to_life (time_t, time_t);
+krb5_error_code	_krb5_krb_tf_setup (krb5_context, struct credentials *,
+				    const char *, int);
+krb5_error_code	_krb5_krb_dest_tkt(krb5_context, const char *);
 
 #define krb_time_to_life	_krb5_krb_time_to_life
 #define krb_life_to_time	_krb5_krb_life_to_time

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2002 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2003 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,9 +33,9 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: mk_error.c,v 1.18 2002/09/04 16:26:04 joda Exp $");
+RCSID("$Id: mk_error.c 15457 2005-06-16 21:16:40Z lha $");
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_mk_error(krb5_context context,
 	      krb5_error_code error_code,
 	      const char *e_text,
@@ -47,7 +47,8 @@ krb5_mk_error(krb5_context context,
 	      krb5_data *reply)
 {
     KRB_ERROR msg;
-    int32_t sec, usec;
+    krb5_timestamp sec;
+    int32_t usec;
     size_t len;
     krb5_error_code ret = 0;
 
@@ -68,9 +69,9 @@ krb5_mk_error(krb5_context context,
     }
     msg.error_code = error_code - KRB5KDC_ERR_NONE;
     if (e_text)
-	msg.e_text = (general_string*)&e_text;
+	msg.e_text = rk_UNCONST(&e_text);
     if (e_data)
-	msg.e_data = (octet_string*)e_data;
+	msg.e_data = rk_UNCONST(e_data);
     if(server){
 	msg.realm = server->realm;
 	msg.sname = server->name;

@@ -33,13 +33,13 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: rcmd.c,v 1.3 1999/12/02 16:58:51 joda Exp $");
+RCSID("$Id: rcmd.c 14773 2005-04-12 11:29:18Z lha $");
 #endif
 
 #include "roken.h"
 #include <stdio.h>
 
-int
+int ROKEN_LIB_FUNCTION
 rcmd(char **ahost,
      unsigned short inport,
      const char *locuser,

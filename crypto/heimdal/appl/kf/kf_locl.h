@@ -31,7 +31,7 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: kf_locl.h,v 1.3 2002/09/04 20:29:04 joda Exp $ */
+/* $Id: kf_locl.h 11376 2002-09-04 20:29:04Z joda $ */
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>

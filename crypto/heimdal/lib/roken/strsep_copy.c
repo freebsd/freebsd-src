@@ -33,7 +33,7 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: strsep_copy.c,v 1.4 2002/08/14 17:20:40 joda Exp $");
+RCSID("$Id: strsep_copy.c 14773 2005-04-12 11:29:18Z lha $");
 #endif
 
 #include <string.h>
@@ -44,7 +44,7 @@ RCSID("$Id: strsep_copy.c,v 1.4 2002/08/14 17:20:40 joda Exp $");
 
 /* strsep, but with const stringp, so return string in buf */
 
-ssize_t
+ssize_t ROKEN_LIB_FUNCTION
 strsep_copy(const char **stringp, const char *delim, char *buf, size_t len)
 {
     const char *save = *stringp;

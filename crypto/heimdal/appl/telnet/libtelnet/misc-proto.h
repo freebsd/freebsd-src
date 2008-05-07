@@ -53,7 +53,7 @@
  * or implied warranty.
  */
 
-/* $Id: misc-proto.h,v 1.9 2000/11/15 23:00:21 assar Exp $ */
+/* $Id: misc-proto.h 9187 2000-11-15 23:00:21Z assar $ */
 
 #ifndef	__MISC_PROTO__
 #define	__MISC_PROTO__

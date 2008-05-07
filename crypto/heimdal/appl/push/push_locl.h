@@ -31,7 +31,7 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: push_locl.h,v 1.6 1999/12/02 16:58:33 joda Exp $ */
+/* $Id: push_locl.h 7463 1999-12-02 16:58:55Z joda $ */
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>

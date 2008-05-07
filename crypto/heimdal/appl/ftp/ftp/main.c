@@ -38,7 +38,7 @@
 #include "ftp_locl.h"
 #include <getarg.h>
 
-RCSID("$Id: main.c,v 1.33.2.1 2003/08/20 16:43:14 lha Exp $");
+RCSID("$Id: main.c 16160 2005-10-12 09:42:47Z joda $");
 
 static int help_flag;
 static int version_flag;
@@ -61,12 +61,16 @@ struct getargs getargs[] = {
       "Packet tracing", NULL},
 #ifdef KRB5
     { "gss-bindings", 0,  arg_negative_flag, &ftp_do_gss_bindings,
-      "Use GSS-API bindings", NULL},
+      "Don't use GSS-API bindings", NULL},
+    { "gss-delegate", 0,  arg_negative_flag, &ftp_do_gss_delegate,
+      "Disable delegation of GSS-API credentials", NULL},
 #endif
     { NULL,	'v', arg_counter, &verbose,
       "verbosity", NULL},
     { NULL,	'K', arg_negative_flag, &use_kerberos,
       "Disable kerberos authentication", NULL},
+    { "encrypt", 'x', arg_flag, &doencrypt,
+      "Encrypt command and data channel if possible" },
     { "version", 0,  arg_flag, &version_flag },
     { "help",	'h', arg_flag, &help_flag },
 };

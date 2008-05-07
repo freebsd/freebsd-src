@@ -1,4 +1,4 @@
-.\" Copyright (c) 1999 - 2004 Kungliga Tekniska Högskolan
+.\" Copyright (c) 1999 - 2005 Kungliga Tekniska Högskolan
 .\" (Royal Institute of Technology, Stockholm, Sweden).
 .\" All rights reserved.
 .\"
@@ -29,9 +29,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Id: krb5.conf.5,v 1.35.2.2 2004/03/09 19:52:07 lha Exp $
+.\" $Id: krb5.conf.5 15514 2005-06-23 18:43:34Z lha $
 .\"
-.Dd March  9, 2004
+.Dd May  4, 2005
 .Dt KRB5.CONF 5
 .Os HEIMDAL
 .Sh NAME
@@ -88,6 +88,7 @@ values can be either yes/true or no/false.
 .It time
 values can be a list of year, month, day, hour, min, second.
 Example: 1 month 2 days 30 min.
+If no unit is given, seconds is assumed.
 .It etypes
 valid encryption types are: des-cbc-crc, des-cbc-md4, des-cbc-md5,
 des3-cbc-sha1, arcfour-hmac-md5, aes128-cts-hmac-sha1-96, and
@@ -148,8 +149,8 @@ times.
 Default is 300 seconds (five minutes).
 .It Li kdc_timeout = Va time
 Maximum time to wait for a reply from the kdc, default is 3 seconds.
-.It v4_name_convert
-.It v4_instance_resolve
+.It Li v4_name_convert
+.It Li v4_instance_resolve
 These are described in the
 .Xr krb5_425_conv_principal  3
 manual page.
@@ -162,6 +163,12 @@ manual page.
 This is deprecated, see the 
 .Li capaths
 section below.
+.It Li default_cc_name = Va ccname
+the default credentials cache name.
+The string can contain variables that are expanded on runtime.
+Only support variable now is
+.Li %{uid}
+that expands to the current user id.
 .It Li default_etypes = Va etypes ...
 A list of default encryption types to use.
 .It Li default_etypes_des = Va etypes ...
@@ -178,6 +185,9 @@ Try to keep track of the time differential between the local machine
 and the KDC, and then compensate for that when issuing requests.
 .It Li max_retries = Va number
 The max number of times to try to contact each KDC.
+.It Li large_msg_size = Va number
+The threshold where protocols with tiny maximum message sizes are not
+considered usable to send messages to the KDC.
 .It Li ticket_lifetime = Va time
 Default ticket lifetime.
 .It Li renew_lifetime = Va time
@@ -241,6 +251,13 @@ Each binding in this section looks like:
 The domain can be either a full name of a host or a trailing
 component, in the latter case the domain-string should start with a
 period.
+The trailing component only matches hosts that are in the same domain, ie
+.Dq .example.com
+matches
+.Dq foo.example.com ,
+but not
+.Dq foo.test.example.com .
+.Pp
 The realm may be the token `dns_locate', in which case the actual
 realm will be determined using DNS (independently of the setting
 of the `dns_lookup_realm' option).
@@ -330,72 +347,94 @@ manual page for a list of defined destinations.
 .El
 .It Li [kdc]
 .Bl -tag -width "xxx" -offset indent
-.It database Li = {
+.It Li database Li = {
 .Bl -tag -width "xxx" -offset indent
-.It dbname Li = Va DATABASENAME
+.It Li dbname Li = Va DATABASENAME
 Use this database for this realm.
-.It realm Li = Va REALM
+See the info documetation how to configure diffrent database backends.
+.It Li realm Li = Va REALM
 Specifies the realm that will be stored in this database.
-.It mkey_file Li = Pa FILENAME
+It realm isn't set, it will used as the default database, there can
+only be one entry that doesn't have a
+.Li realm
+stanza.
+.It Li mkey_file Li = Pa FILENAME
 Use this keytab file for the master key of this database.
 If not specified
 .Va DATABASENAME Ns .mkey
 will be used.
-.It acl_file Li = PA FILENAME
+.It Li acl_file Li = PA FILENAME
 Use this file for the ACL list of this database.
-.It log_file Li = Pa FILENAME
+.It Li log_file Li = Pa FILENAME
 Use this file as the log of changes performed to the database.
 This file is used by
 .Nm ipropd-master
 for propagating changes to slaves.
 .El
 .It Li }
-.It max-request = Va SIZE
+.It Li max-request = Va SIZE
 Maximum size of a kdc request.
-.It require-preauth = Va BOOL
+.It Li require-preauth = Va BOOL
 If set pre-authentication is required.
 Since krb4 requests are not pre-authenticated they will be rejected.
-.It ports = Va "list of ports"
+.It Li ports = Va "list of ports"
 List of ports the kdc should listen to.
-.It addresses = Va "list of interfaces"
+.It Li addresses = Va "list of interfaces"
 List of addresses the kdc should bind to.
-.It enable-kerberos4 = Va BOOL
+.It Li enable-kerberos4 = Va BOOL
 Turn on Kerberos 4 support.
-.It v4-realm = Va REALM
+.It Li v4-realm = Va REALM
 To what realm v4 requests should be mapped.
-.It enable-524 = Va BOOL
+.It Li enable-524 = Va BOOL
 Should the Kerberos 524 converting facility be turned on.
-Default is same as
+Default is the same as
 .Va enable-kerberos4 .
-.It enable-http = Va BOOL
+.It Li enable-http = Va BOOL
 Should the kdc answer kdc-requests over http.
-.It enable-kaserver = Va BOOL
+.It Li enable-kaserver = Va BOOL
 If this kdc should emulate the AFS kaserver.
-.It check-ticket-addresses = Va BOOL
-verify the addresses in the tickets used in tgs requests.
+.It Li check-ticket-addresses = Va BOOL
+Verify the addresses in the tickets used in tgs requests.
 .\" XXX
-.It allow-null-ticket-addresses = Va BOOL
-Allow addresses-less tickets.
+.It Li allow-null-ticket-addresses = Va BOOL
+Allow address-less tickets.
 .\" XXX
-.It allow-anonymous = Va BOOL
+.It Li allow-anonymous = Va BOOL
 If the kdc is allowed to hand out anonymous tickets.
-.It encode_as_rep_as_tgs_rep = Va BOOL
+.It Li encode_as_rep_as_tgs_rep = Va BOOL
 Encode as-rep as tgs-rep tobe compatible with mistakes older DCE secd did.
 .\" XXX
-.It kdc_warn_pwexpire = Va TIME
+.It Li kdc_warn_pwexpire = Va TIME
 The time before expiration that the user should be warned that her
 password is about to expire.
-.It logging = Va Logging
+.It Li logging = Va Logging
 What type of logging the kdc should use, see also [logging]/kdc.
-.It use_2b = Va principal list
-List of principals to use AFS 2b tokens for.
+.It Li use_2b = {
+.Bl -tag -width "xxx" -offset indent
+.It Va principal Li = Va BOOL
+boolean value if the 524 daemon should return AFS 2b tokens for
+.Fa principal .
+.It ...
+.El
+.It Li }
+.It Li hdb-ldap-structural-object Va structural object
+If the LDAP backend is used for storing principals, this is the
+structural object that will be used when creating and when reading
+objects.
+The default value is account .
+.It Li hdb-ldap-create-base Va creation dn
+is the dn that will be appended to the principal when creating entries.
+Default value is the search dn.
 .El
 .It Li [kadmin]
 .Bl -tag -width "xxx" -offset indent
-.It require-preauth = Va BOOL
+.It Li require-preauth = Va BOOL
 If pre-authentication is required to talk to the kadmin server.
-.It default_keys = Va keytypes...
-for each entry in
+.It Li password_lifetime = Va time
+If a principal already have its password set for expiration, this is
+the time it will be valid for after a change.
+.It Li default_keys = Va keytypes...
+For each entry in
 .Va default_keys
 try to parse it as a sequence of
 .Va etype:salttype:salt
@@ -409,19 +448,33 @@ is omitted it means everything, and if string is omitted it means the
 default salt string (for that principal and encryption type).
 Additional special values of keytypes are:
 .Bl -tag -width "xxx" -offset indent
-.It v5
+.It Li v5
 The Kerberos 5 salt
 .Va pw-salt
-.It v4
+.It Li v4
 The Kerberos 4 salt
 .Va des:pw-salt:
 .El
-.It use_v4_salt = Va BOOL
+.It Li use_v4_salt = Va BOOL
 When true, this is the same as
 .Pp
 .Va default_keys = Va des3:pw-salt Va v4
 .Pp
 and is only left for backwards compatibility.
+.El
+.It Li [password-quality]
+Check the Password quality assurance in the info documentation for
+more information.
+.Bl -tag -width "xxx" -offset indent
+.It Li check_library = Va library-name
+Library name that contains the password check_function
+.It Li check_function = Va function-name
+Function name for checking passwords in check_library
+.It Li policy_libraries = Va library1 ... libraryN
+List of libraries that can do password policy checks
+.It Li policies = Va policy1 ... policyN
+List of policy names to apply to the password. Builtin policies are
+among other minimum-length, character-class, external-check.
 .El
 .El
 .Sh ENVIRONMENT

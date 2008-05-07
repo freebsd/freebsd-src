@@ -1,11 +1,16 @@
-dnl $Id: db.m4,v 1.9 2002/09/10 14:29:47 joda Exp $
+dnl $Id: db.m4 15456 2005-06-16 21:04:43Z lha $
 dnl
 dnl tests for various db libraries
 dnl
 AC_DEFUN([rk_DB],[
 AC_ARG_ENABLE(berkeley-db,
-                       AC_HELP_STRING([--disable-berkeley-db],
+                       AS_HELP_STRING([--disable-berkeley-db],
                                       [if you don't want berkeley db]),[
+])
+
+AC_ARG_ENABLE(ndbm-db,
+                       AS_HELP_STRING([--disable-ndbm-db],
+                                      [if you don't want ndbm db]),[
 ])
 
 have_ndbm=no
@@ -95,70 +100,72 @@ dnl test for ndbm compatability
 
 fi # berkeley db
 
-if test "$db_type" = "unknown" -o "$ac_cv_func_dbm_firstkey" = ""; then
+if test "$enable_ndbm_db" != "no"; then
 
-  AC_CHECK_HEADERS([				\
-	dbm.h					\
-	ndbm.h					\
-  ])
-
-  AC_FIND_FUNC_NO_LIBS(dbm_firstkey, ndbm, [
-  #include <stdio.h>
-  #if defined(HAVE_NDBM_H)
-  #include <ndbm.h>
-  #elif defined(HAVE_DBM_H)
-  #include <dbm.h>
-  #endif
-  DBM *dbm;
-  ],[NULL])
-
-  if test "$ac_cv_func_dbm_firstkey" = "yes"; then
-    if test "$ac_cv_funclib_dbm_firstkey" != "yes"; then
-      LIB_NDBM="$ac_cv_funclib_dbm_firstkey"
-    else
-      LIB_NDBM=""
-    fi
-    AC_DEFINE(HAVE_NDBM, 1, [define if you have a ndbm library])dnl
-    have_ndbm=yes
-    if test "$db_type" = "unknown"; then
-      db_type=ndbm
-      DBLIB="$LIB_NDBM"
-    fi
-  else
-
-    $as_unset ac_cv_func_dbm_firstkey
-    $as_unset ac_cv_funclib_dbm_firstkey
+  if test "$db_type" = "unknown" -o "$ac_cv_func_dbm_firstkey" = ""; then
 
     AC_CHECK_HEADERS([				\
-	  gdbm/ndbm.h				\
+  	dbm.h					\
+  	ndbm.h					\
     ])
-
-    AC_FIND_FUNC_NO_LIBS(dbm_firstkey, gdbm, [
+  
+    AC_FIND_FUNC_NO_LIBS(dbm_firstkey, ndbm, [
     #include <stdio.h>
-    #include <gdbm/ndbm.h>
+    #if defined(HAVE_NDBM_H)
+    #include <ndbm.h>
+    #elif defined(HAVE_DBM_H)
+    #include <dbm.h>
+    #endif
     DBM *dbm;
     ],[NULL])
-
+  
     if test "$ac_cv_func_dbm_firstkey" = "yes"; then
       if test "$ac_cv_funclib_dbm_firstkey" != "yes"; then
-	LIB_NDBM="$ac_cv_funclib_dbm_firstkey"
+        LIB_NDBM="$ac_cv_funclib_dbm_firstkey"
       else
-	LIB_NDBM=""
+        LIB_NDBM=""
       fi
       AC_DEFINE(HAVE_NDBM, 1, [define if you have a ndbm library])dnl
       have_ndbm=yes
       if test "$db_type" = "unknown"; then
-	db_type=ndbm
-	DBLIB="$LIB_NDBM"
+        db_type=ndbm
+        DBLIB="$LIB_NDBM"
+      fi
+    else
+  
+      $as_unset ac_cv_func_dbm_firstkey
+      $as_unset ac_cv_funclib_dbm_firstkey
+  
+      AC_CHECK_HEADERS([				\
+  	  gdbm/ndbm.h				\
+      ])
+  
+      AC_FIND_FUNC_NO_LIBS(dbm_firstkey, gdbm, [
+      #include <stdio.h>
+      #include <gdbm/ndbm.h>
+      DBM *dbm;
+      ],[NULL])
+  
+      if test "$ac_cv_func_dbm_firstkey" = "yes"; then
+        if test "$ac_cv_funclib_dbm_firstkey" != "yes"; then
+  	LIB_NDBM="$ac_cv_funclib_dbm_firstkey"
+        else
+  	LIB_NDBM=""
+        fi
+        AC_DEFINE(HAVE_NDBM, 1, [define if you have a ndbm library])dnl
+        have_ndbm=yes
+        if test "$db_type" = "unknown"; then
+  	db_type=ndbm
+  	DBLIB="$LIB_NDBM"
+        fi
       fi
     fi
-  fi
-
+  fi #enable_ndbm_db
 fi # unknown
 
 if test "$have_ndbm" = "yes"; then
   AC_MSG_CHECKING([if ndbm is implemented with db])
-  AC_TRY_RUN([
+  AC_RUN_IFELSE([AC_LANG_SOURCE([[
 #include <unistd.h>
 #include <fcntl.h>
 #if defined(HAVE_GDBM_NDBM_H)
@@ -168,7 +175,7 @@ if test "$have_ndbm" = "yes"; then
 #elif defined(HAVE_DBM_H)
 #include <dbm.h>
 #endif
-int main()
+int main(int argc, char **argv)
 {
   DBM *d;
 
@@ -177,7 +184,7 @@ int main()
     return 1;
   dbm_close(d);
   return 0;
-}],[
+}]])],[
     if test -f conftest.db; then
       AC_MSG_RESULT([yes])
       AC_DEFINE(HAVE_NEW_DB, 1, [Define if NDBM really is DB (creates files *.db)])

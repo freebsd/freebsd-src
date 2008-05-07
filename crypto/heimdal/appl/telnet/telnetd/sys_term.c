@@ -33,7 +33,7 @@
 
 #include "telnetd.h"
 
-RCSID("$Id: sys_term.c,v 1.104 2001/09/17 02:09:04 assar Exp $");
+RCSID("$Id: sys_term.c 22390 2007-12-31 10:12:48Z lha $");
 
 #if defined(_CRAY) || (defined(__hpux) && !defined(HAVE_UTMPX_H))
 # define PARENT_DOES_UTMP
@@ -90,29 +90,6 @@ char	wtmpf[]	= "/etc/wtmp";
 #include <tmpdir.h>
 #endif	/* CRAY */
 
-#ifdef	STREAMSPTY
-
-#ifdef HAVE_SAC_H
-#include <sac.h>
-#endif
-
-#ifdef HAVE_SYS_STROPTS_H
-#include <sys/stropts.h>
-#endif
-
-#endif /* STREAMSPTY */
-
-#undef NOERROR
-
-#ifdef	HAVE_SYS_STREAM_H
-#ifdef  HAVE_SYS_UIO_H
-#include <sys/uio.h>
-#endif
-#ifdef __hpux
-#undef SE
-#endif
-#include <sys/stream.h>
-#endif
 #if !(defined(__sgi) || defined(__linux) || defined(_AIX)) && defined(HAVE_SYS_TTY)
 #include <sys/tty.h>
 #endif
@@ -215,13 +192,14 @@ set_termbuf(void)
     /*
      * Only make the necessary changes.
 	 */
-    if (memcmp(&termbuf, &termbuf2, sizeof(termbuf)))
+    if (memcmp(&termbuf, &termbuf2, sizeof(termbuf))) {
 # ifdef  STREAMSPTY
 	if (really_stream)
 	    tcsetattr(ttyfd, TCSANOW, &termbuf);
 	else
 # endif
 	    tcsetattr(ourpty, TCSANOW, &termbuf);
+    }
 }
 
 
@@ -358,6 +336,8 @@ getnpty()
  * Returns the file descriptor of the opened pty.
  */
 
+static int ptyslavefd = -1;
+
 static char Xline[] = "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
 char *line = Xline;
 
@@ -378,150 +358,151 @@ static char *ptsname(int fd)
 
 int getpty(int *ptynum)
 {
-#ifdef __osf__ /* XXX */
-    int master;
-    int slave;
-    if(openpty(&master, &slave, line, 0, 0) == 0){
-	close(slave);
-	return master;
+#if defined(HAVE_OPENPTY) || defined(__linux) || defined(__osf__) /* XXX */
+    {
+	int master;
+	int slave;
+	if(openpty(&master, &slave, line, 0, 0) == 0){
+	    ptyslavefd = slave;
+	    return master;
+	}
     }
-    return -1;
-#else
+#endif /* HAVE_OPENPTY .... */
 #ifdef HAVE__GETPTY
-    int master, slave;
-    char *p;
-    p = _getpty(&master, O_RDWR, 0600, 1);
-    if(p == NULL)
-	return -1;
-    strlcpy(line, p, sizeof(Xline));
-    return master;
-#else
-
-    int p;
-    char *cp, *p1, *p2;
-    int i;
-#if SunOS == 40
-    int dummy;
-#endif
-#if __linux
-    int master;
-    int slave;
-    if(openpty(&master, &slave, line, 0, 0) == 0){
-	close(slave);
+    {
+	int master;
+	char *p;
+	p = _getpty(&master, O_RDWR, 0600, 1);
+	if(p == NULL)
+	    return -1;
+	strlcpy(line, p, sizeof(Xline));
 	return master;
     }
-#else
+#endif
+    
 #ifdef	STREAMSPTY
-    char *clone[] = { "/dev/ptc", "/dev/ptmx", "/dev/ptm", 
-		      "/dev/ptym/clone", 0 };
-
-    char **q;
-    for(q=clone; *q; q++){
-	p=open(*q, O_RDWR);
-	if(p >= 0){
+    {
+	char *clone[] = { "/dev/ptc", "/dev/ptmx", "/dev/ptm", 
+			  "/dev/ptym/clone", 0 };
+	
+	char **q;
+	int p;
+	for(q=clone; *q; q++){
+	    p=open(*q, O_RDWR);
+	    if(p >= 0){
 #ifdef HAVE_GRANTPT
-	    grantpt(p);
+		grantpt(p);
 #endif
 #ifdef HAVE_UNLOCKPT
-	    unlockpt(p);
+		unlockpt(p);
 #endif
-	    strlcpy(line, ptsname(p), sizeof(Xline));
-	    really_stream = 1;
-	    return p;
+		strlcpy(line, ptsname(p), sizeof(Xline));
+		really_stream = 1;
+		return p;
+	    }
 	}
     }
 #endif /* STREAMSPTY */
 #ifndef _CRAY
-
-#ifndef	__hpux
-    snprintf(line, sizeof(Xline), "/dev/ptyXX");
-    p1 = &line[8];
-    p2 = &line[9];
-#else
-    snprintf(line, sizeof(Xline), "/dev/ptym/ptyXX");
-    p1 = &line[13];
-    p2 = &line[14];
-#endif
-
+    {
+	int p;
+	char *cp, *p1, *p2;
+	int i;
 	
-    for (cp = "pqrstuvwxyzPQRST"; *cp; cp++) {
-	struct stat stb;
-
-	*p1 = *cp;
-	*p2 = '0';
-	/*
-	 * This stat() check is just to keep us from
-	 * looping through all 256 combinations if there
-	 * aren't that many ptys available.
-	 */
-	if (stat(line, &stb) < 0)
-	    break;
-	for (i = 0; i < 16; i++) {
-	    *p2 = "0123456789abcdef"[i];
-	    p = open(line, O_RDWR);
-	    if (p > 0) {
 #ifndef	__hpux
-		line[5] = 't';
+	snprintf(line, sizeof(Xline), "/dev/ptyXX");
+	p1 = &line[8];
+	p2 = &line[9];
 #else
-		for (p1 = &line[8]; *p1; p1++)
-		    *p1 = *(p1+1);
-		line[9] = 't';
+	snprintf(line, sizeof(Xline), "/dev/ptym/ptyXX");
+	p1 = &line[13];
+	p2 = &line[14];
 #endif
-		chown(line, 0, 0);
-		chmod(line, 0600);
+	
+	
+	for (cp = "pqrstuvwxyzPQRST"; *cp; cp++) {
+	    struct stat stb;
+	    
+	    *p1 = *cp;
+	    *p2 = '0';
+	    /*
+	     * This stat() check is just to keep us from
+	     * looping through all 256 combinations if there
+	     * aren't that many ptys available.
+	     */
+	    if (stat(line, &stb) < 0)
+		break;
+	    for (i = 0; i < 16; i++) {
+		*p2 = "0123456789abcdef"[i];
+		p = open(line, O_RDWR);
+		if (p > 0) {
 #if SunOS == 40
-		if (ioctl(p, TIOCGPGRP, &dummy) == 0
-		    || errno != EIO) {
-		    chmod(line, 0666);
-		    close(p);
-		    line[5] = 'p';
-		} else
+		    int dummy;
+#endif
+		    
+#ifndef	__hpux
+		    line[5] = 't';
+#else
+		    for (p1 = &line[8]; *p1; p1++)
+			*p1 = *(p1+1);
+		    line[9] = 't';
+#endif
+		    chown(line, 0, 0);
+		    chmod(line, 0600);
+#if SunOS == 40
+		    if (ioctl(p, TIOCGPGRP, &dummy) == 0
+			|| errno != EIO) {
+			chmod(line, 0666);
+			close(p);
+			line[5] = 'p';
+		    } else
 #endif /* SunOS == 40 */
-		    return(p);
+			return(p);
+		}
 	    }
 	}
     }
 #else	/* CRAY */
-    extern lowpty, highpty;
-    struct stat sb;
-
-    for (*ptynum = lowpty; *ptynum <= highpty; (*ptynum)++) {
-	snprintf(myline, sizeof(myline), "/dev/pty/%03d", *ptynum);
-	p = open(myline, 2);
-	if (p < 0)
-	    continue;
-	snprintf(line, sizeof(Xline), "/dev/ttyp%03d", *ptynum);
-	/*
-	 * Here are some shenanigans to make sure that there
-	 * are no listeners lurking on the line.
-	 */
-	if(stat(line, &sb) < 0) {
-	    close(p);
-	    continue;
-	}
-	if(sb.st_uid || sb.st_gid || sb.st_mode != 0600) {
-	    chown(line, 0, 0);
-	    chmod(line, 0600);
-	    close(p);
+    {
+	extern lowpty, highpty;
+	struct stat sb;
+	int p;
+	
+	for (*ptynum = lowpty; *ptynum <= highpty; (*ptynum)++) {
+	    snprintf(myline, sizeof(myline), "/dev/pty/%03d", *ptynum);
 	    p = open(myline, 2);
 	    if (p < 0)
 		continue;
-	}
-	/*
-	 * Now it should be safe...check for accessability.
-	 */
-	if (access(line, 6) == 0)
-	    return(p);
-	else {
-	    /* no tty side to pty so skip it */
-	    close(p);
+	    snprintf(line, sizeof(Xline), "/dev/ttyp%03d", *ptynum);
+	    /*
+	     * Here are some shenanigans to make sure that there
+	     * are no listeners lurking on the line.
+	     */
+	    if(stat(line, &sb) < 0) {
+		close(p);
+		continue;
+	    }
+	    if(sb.st_uid || sb.st_gid || sb.st_mode != 0600) {
+		chown(line, 0, 0);
+		chmod(line, 0600);
+		close(p);
+		p = open(myline, 2);
+		if (p < 0)
+		    continue;
+	    }
+	    /*
+	     * Now it should be safe...check for accessability.
+	     */
+	    if (access(line, 6) == 0)
+		return(p);
+	    else {
+		/* no tty side to pty so skip it */
+		close(p);
+	    }
 	}
     }
 #endif	/* CRAY */
-#endif	/* STREAMSPTY */
-#endif /* OPENPTY */
     return(-1);
-#endif
 }
 
 
@@ -966,6 +947,9 @@ int cleanopen(char *line)
 {
     int t;
 
+    if (ptyslavefd != -1)
+	return ptyslavefd;
+
 #ifdef STREAMSPTY
     if (!really_stream)
 #endif
@@ -1072,6 +1056,8 @@ int login_tty(int t)
  * Clean the tty name.  Return a pointer to the cleaned version.
  */
 
+static char * clean_ttyname (char *) __attribute__((unused));
+
 static char *
 clean_ttyname (char *tty)
 {
@@ -1135,7 +1121,7 @@ startslave(const char *host, const char *utmp_host,
 #ifdef ENCRYPTION
 	if (!no_warn && (encrypt_output == 0 || decrypt_input == 0))
 #endif
-	    writenet((unsigned char*)tbuf, strlen(tbuf));
+	    writenet(tbuf, strlen(tbuf));
     }
 # ifdef	PARENT_DOES_UTMP
     utmp_sig_init();
@@ -1262,7 +1248,7 @@ scrub_env(void)
 struct arg_val {
     int size;
     int argc;
-    const char **argv;
+    char **argv;
 };
 
 static void addarg(struct arg_val*, const char*);
@@ -1281,29 +1267,40 @@ start_login(const char *host, int autologin, char *name)
     char *user;
     int save_errno;
 
-#ifdef HAVE_UTMPX_H
-    int pid = getpid();
-    struct utmpx utmpx;
-    char *clean_tty;
-
-    /*
-     * Create utmp entry for child
-     */
-
-    clean_tty = clean_ttyname(line);
-    memset(&utmpx, 0, sizeof(utmpx));
-    strncpy(utmpx.ut_user,  ".telnet", sizeof(utmpx.ut_user));
-    strncpy(utmpx.ut_line,  clean_tty, sizeof(utmpx.ut_line));
-#ifdef HAVE_STRUCT_UTMP_UT_ID
-    strncpy(utmpx.ut_id, make_id(clean_tty), sizeof(utmpx.ut_id));
+#ifdef ENCRYPTION
+    encrypt_output = NULL;
+    decrypt_input = NULL;
 #endif
-    utmpx.ut_pid = pid;
+    
+#ifdef HAVE_UTMPX_H
+    {
+	int pid = getpid();
+	struct utmpx utmpx;
+	struct timeval tv;
+	char *clean_tty;
 	
-    utmpx.ut_type = LOGIN_PROCESS;
+	/*
+	 * Create utmp entry for child
+	 */
+	
+	clean_tty = clean_ttyname(line);
+	memset(&utmpx, 0, sizeof(utmpx));
+	strncpy(utmpx.ut_user,  ".telnet", sizeof(utmpx.ut_user));
+	strncpy(utmpx.ut_line,  clean_tty, sizeof(utmpx.ut_line));
+#ifdef HAVE_STRUCT_UTMP_UT_ID
+	strncpy(utmpx.ut_id, make_id(clean_tty), sizeof(utmpx.ut_id));
+#endif
+	utmpx.ut_pid = pid;
+	
+	utmpx.ut_type = LOGIN_PROCESS;
+	
+	gettimeofday (&tv, NULL);
+	utmpx.ut_tv.tv_sec = tv.tv_sec;
+	utmpx.ut_tv.tv_usec = tv.tv_usec;
 
-    gettimeofday (&utmpx.ut_tv, NULL);
-    if (pututxline(&utmpx) == NULL)
-	fatal(net, "pututxline failed");
+	if (pututxline(&utmpx) == NULL)
+	    fatal(net, "pututxline failed");
+    }
 #endif
 
     scrub_env();
@@ -1376,7 +1373,7 @@ start_login(const char *host, int autologin, char *name)
 
     execv(new_login, argv.argv);
     save_errno = errno;
-    syslog(LOG_ERR, "%s: %m\n", new_login);
+    syslog(LOG_ERR, "%s: %m", new_login);
     fatalperror_errno(net, new_login, save_errno);
     /*NOTREACHED*/
 }
@@ -1390,7 +1387,8 @@ addarg(struct arg_val *argv, const char *val)
 	    fatal (net, "realloc: out of memory");
 	argv->size+=10;
     }
-    argv->argv[argv->argc++] = val;
+    if((argv->argv[argv->argc++] = strdup(val)) == NULL)
+	fatal (net, "strdup: out of memory");
     argv->argv[argv->argc]   = NULL;
 }
 
@@ -1420,6 +1418,7 @@ rmut(void)
     non_save_utxp = getutxline(&utmpx);
     if (non_save_utxp) {
 	struct utmpx *utxp;
+	struct timeval tv;
 	char user0;
 
 	utxp = malloc(sizeof(struct utmpx));
@@ -1439,7 +1438,10 @@ rmut(void)
 	utxp->ut_exit.e_exit = 0;
 #endif
 #endif
-	gettimeofday(&utxp->ut_tv, NULL);
+	gettimeofday (&tv, NULL);
+	utxp->ut_tv.tv_sec = tv.tv_sec;
+	utxp->ut_tv.tv_usec = tv.tv_usec;
+
 	pututxline(utxp);
 #ifdef WTMPX_FILE
 	utxp->ut_user[0] = user0;
@@ -1838,10 +1840,8 @@ jobend(jid, path, user)
     }
 
     if (path) {
-	strncpy(saved_path, path, sizeof(wtmp.ut_tpath));
-	strncpy(saved_user, user, sizeof(wtmp.ut_user));
-	saved_path[sizeof(saved_path)] = '\0';
-	saved_user[sizeof(saved_user)] = '\0';
+	strlcpy(saved_path, path, sizeof(saved_path));
+	strlcpy(saved_user, user, sizeof(saved_user));
     }
     if (saved_jid == 0) {
 	saved_jid = jid;
@@ -1883,7 +1883,7 @@ cleantmpdir(jid, tpath, user)
 	       tpath);
 	break;
     case 0:
-	execl(CLEANTMPCMD, CLEANTMPCMD, user, tpath, 0);
+	execl(CLEANTMPCMD, CLEANTMPCMD, user, tpath, NULL);
 	syslog(LOG_ERR, "TMPDIR cleanup(%s): execl(%s) failed: %m\n",
 	       tpath, CLEANTMPCMD);
 	exit(1);

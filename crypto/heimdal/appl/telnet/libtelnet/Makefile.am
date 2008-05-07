@@ -1,8 +1,8 @@
-# $Id: Makefile.am,v 1.9 2001/08/28 08:31:23 assar Exp $
+# $Id: Makefile.am 20466 2007-04-20 08:29:05Z lha $
 
 include $(top_srcdir)/Makefile.am.common
 
-INCLUDES += -I$(srcdir)/.. $(INCLUDE_krb4) $(INCLUDE_des)
+AM_CPPFLAGS += -I$(srcdir)/.. $(INCLUDE_krb4) $(INCLUDE_hcrypto)
 
 noinst_LIBRARIES = libtelnet.a
 

@@ -33,7 +33,7 @@
 
 #include <config.h>
 
-RCSID("$Id: misc.c,v 1.15 2000/01/25 23:24:58 assar Exp $");
+RCSID("$Id: misc.c 7822 2000-01-25 23:24:58Z assar $");
 
 #include <stdio.h>
 #include <stdlib.h>

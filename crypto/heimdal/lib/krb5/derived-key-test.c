@@ -31,8 +31,9 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 
 #include "krb5_locl.h"
+#include <err.h>
 
-RCSID("$Id: derived-key-test.c,v 1.1 2001/03/12 07:44:52 assar Exp $");
+RCSID("$Id: derived-key-test.c 16342 2005-12-02 14:14:43Z lha $");
 
 enum { MAXSIZE = 24 };
 
@@ -76,7 +77,7 @@ static struct testcase {
     {0}
 };
 
-int
+int KRB5_LIB_FUNCTION
 main(int argc, char **argv)
 {
     struct testcase *t;
@@ -114,6 +115,9 @@ main(int argc, char **argv)
 	    printf ("\n");
 	    val = 1;
 	}
+	krb5_free_keyblock(context, dkey);
     }
+    krb5_free_context(context);
+
     return val;
 }

@@ -1,4 +1,4 @@
-.\" Copyright (c) 2002 - 2003 Kungliga Tekniska Högskolan
+.\" Copyright (c) 2002 - 2004 Kungliga Tekniska Högskolan
 .\" (Royal Institute of Technology, Stockholm, Sweden). 
 .\" All rights reserved. 
 .\"
@@ -29,9 +29,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
 .\" SUCH DAMAGE. 
 .\" 
-.\" $Id: kadmind.8,v 1.14 2003/04/06 17:47:57 lha Exp $
+.\" $Id: kadmind.8 14370 2004-12-08 17:20:21Z lha $
 .\"
-.Dd March 5, 2002
+.Dd December  8, 2004
 .Dt KADMIND 8
 .Os HEIMDAL
 .Sh NAME
@@ -39,6 +39,7 @@
 .Nd "server for administrative access to Kerberos database"
 .Sh SYNOPSIS
 .Nm
+.Bk -words
 .Oo Fl c Ar file \*(Ba Xo
 .Fl -config-file= Ns Ar file
 .Xc
@@ -57,7 +58,7 @@
 .Fl -ports= Ns Ar port
 .Xc
 .Oc
-.Op Fl -no-kerberos4
+.Ek
 .Sh DESCRIPTION
 .Nm
 listens for requests for changes to the Kerberos database and performs
@@ -71,11 +72,7 @@ option causes
 .Nm
 to accept exactly one connection, which is useful for debugging.
 .Pp
-If built with krb4 support, it implements both the Heimdal Kerberos 5
-administrative protocol and the Kerberos 4 protocol. Password changes
-via the Kerberos 4 protocol are also performed by
-.Nm kadmind ,
-but the
+The
 .Xr kpasswdd 8
 daemon is responsible for the Kerberos 5 password changing protocol
 (used by
@@ -149,17 +146,12 @@ enable debugging
 .Fl p Ar port ,
 .Fl -ports= Ns Ar port
 .Xc
-ports to listen to. By default, if run as a daemon, it listens to ports
-749, and 751 (if Kerberos 4 support is built and enabled), but you can
-add any number of ports with this option. The port string is a
-whitespace separated list of port specifications, with the special
-string
+ports to listen to. By default, if run as a daemon, it listens to port
+749, but you can add any number of ports with this option. The port
+string is a whitespace separated list of port specifications, with the
+special string
 .Dq +
-representing the default set of ports.
-.It Fl -no-kerberos4
-make 
-.Nm 
-ignore Kerberos 4 kadmin requests.
+representing the default port.
 .El
 .\".Sh ENVIRONMENT
 .Sh FILES

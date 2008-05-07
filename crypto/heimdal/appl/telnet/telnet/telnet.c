@@ -32,11 +32,8 @@
  */
 
 #include "telnet_locl.h"
-#ifdef HAVE_TERMCAP_H
-#include <termcap.h>
-#endif
 
-RCSID("$Id: telnet.c,v 1.34 2002/05/03 10:19:43 joda Exp $");
+RCSID("$Id: telnet.c 16285 2005-11-03 18:38:57Z lha $");
 
 #define	strip(x) (eight ? (x) : ((x) & 0x7f))
 
@@ -503,7 +500,7 @@ dontoption(int option)
 
 /*
  * Given a buffer returned by tgetent(), this routine will turn
- * the pipe seperated list of names in the buffer into an array
+ * the pipe separated list of names in the buffer into an array
  * of pointers to null terminated names.  We toss out any bad,
  * duplicate, or verbose names (names with spaces).
  */
@@ -579,11 +576,12 @@ mklist(char *buf, char *name)
 		 * Skip entries with spaces or non-ascii values.
 		 * Convert lower case letters to upper case.
 		 */
+#undef ISASCII
 #define ISASCII(c) (!((c)&0x80))
 		if ((c == ' ') || !ISASCII(c))
 			n = 1;
 		else if (islower((unsigned char)c))
-			*cp = toupper(c);
+			*cp = toupper((unsigned char)c);
 	}
 
 	/*
@@ -1294,6 +1292,7 @@ slc_check()
 
 
 unsigned char slc_reply[128];
+unsigned char const * const slc_reply_eom = &slc_reply[sizeof(slc_reply)];
 unsigned char *slc_replyp;
 
 void
@@ -1309,6 +1308,14 @@ slc_start_reply()
 void
 slc_add_reply(unsigned char func, unsigned char flags, cc_t value)
 {
+	/* A sequence of up to 6 bytes my be written for this member of the SLC
+	 * suboption list by this function.  The end of negotiation command,
+	 * which is written by slc_end_reply(), will require 2 additional
+	 * bytes.  Do not proceed unless there is sufficient space for these
+	 * items.
+	 */
+	if (&slc_replyp[6+2] > slc_reply_eom)
+		return;
 	if ((*slc_replyp++ = func) == IAC)
 		*slc_replyp++ = IAC;
 	if ((*slc_replyp++ = flags) == IAC)
@@ -1322,6 +1329,9 @@ slc_end_reply()
 {
     int len;
 
+    /* The end of negotiation command requires 2 bytes. */
+    if (&slc_replyp[2] > slc_reply_eom)
+            return;
     *slc_replyp++ = IAC;
     *slc_replyp++ = SE;
     len = slc_replyp - slc_reply;
@@ -1415,7 +1425,7 @@ env_opt(unsigned char *buf, int len)
 	}
 }
 
-#define	OPT_REPLY_SIZE	256
+#define	OPT_REPLY_SIZE	(2 * SUBBUFSIZE)
 unsigned char *opt_reply;
 unsigned char *opt_replyp;
 unsigned char *opt_replyend;
@@ -1475,9 +1485,9 @@ env_opt_add(unsigned char *ep)
 		return;
 	}
 	vp = env_getvalue(ep);
-	if (opt_replyp + (vp ? strlen((char *)vp) : 0) +
-				strlen((char *)ep) + 6 > opt_replyend)
-	{
+        if (opt_replyp + (vp ? 2 * strlen((char *)vp) : 0) +
+                                2 * strlen((char *)ep) + 6 > opt_replyend)
+        {
 		int len;
 		void *tmp;
 		opt_replyend += OPT_REPLY_SIZE;
@@ -1503,6 +1513,8 @@ env_opt_add(unsigned char *ep)
 		*opt_replyp++ = ENV_USERVAR;
 	for (;;) {
 		while ((c = *ep++)) {
+			if (opt_replyp + (2 + 2) > opt_replyend)
+				return;
 			switch(c&0xff) {
 			case IAC:
 				*opt_replyp++ = IAC;
@@ -1517,6 +1529,8 @@ env_opt_add(unsigned char *ep)
 			*opt_replyp++ = c;
 		}
 		if ((ep = vp)) {
+			if (opt_replyp + (1 + 2 + 2) > opt_replyend)
+				return;
 #ifdef	OLD_ENVIRON
 			if (telopt_environ == TELOPT_OLD_ENVIRON)
 				*opt_replyp++ = old_env_value;
@@ -1547,7 +1561,9 @@ env_opt_end(int emptyok)
 {
 	int len;
 
-	len = opt_replyp - opt_reply + 2;
+	if (opt_replyp + 2 > opt_replyend)
+		return;
+	len = opt_replyp + 2 - opt_reply;
 	if (emptyok || len > 6) {
 		*opt_replyp++ = IAC;
 		*opt_replyp++ = SE;
@@ -1759,12 +1775,12 @@ process_iac:
 		    /*
 		     * This is an error.  We only expect to get
 		     * "IAC IAC" or "IAC SE".  Several things may
-		     * have happend.  An IAC was not doubled, the
+		     * have happened.  An IAC was not doubled, the
 		     * IAC SE was left off, or another option got
 		     * inserted into the suboption are all possibilities.
 		     * If we assume that the IAC was not doubled,
 		     * and really the IAC SE was left off, we could
-		     * get into an infinate loop here.  So, instead,
+		     * get into an infinite loop here.  So, instead,
 		     * we terminate the suboption, and process the
 		     * partial suboption if we can.
 		     */
@@ -2011,6 +2027,8 @@ Scheduler(int block) /* should we block in the select ? */
     return returnValue;
 }
 
+extern int auth_has_failed; /* XXX should be somewhere else */
+
 /*
  * Select from tty and network...
  */
@@ -2064,7 +2082,6 @@ my_telnet(char *user)
      * forever. 
      */
     if (telnetport && wantencryption) {
-	extern int auth_has_failed;
 	time_t timeout = time(0) + 60;
 
 	send_do(TELOPT_ENCRYPT, 1);
@@ -2080,7 +2097,7 @@ my_telnet(char *user)
 		}
 	    }
 	    if (auth_has_failed) {
-		printf("\nAuthentication negotation has failed,\n");
+		printf("\nAuthentication negotiation has failed,\n");
 		printf("which is required for encryption.\n");
 		Exit(1);
 	    }
@@ -2109,7 +2126,11 @@ my_telnet(char *user)
 		    printf("\nUser interrupt.\n");
 		    Exit(1);
 	    }
-	    telnet_spin();
+	    if (telnet_spin()) {
+		    printf("\nServer disconnected.\n");
+		    Exit(1);
+	    }
+		
 	}
 	if (printed_encrypt) {
 		printf("Encryption negotiated.\n");

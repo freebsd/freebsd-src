@@ -35,7 +35,7 @@
 #include <gssapi.h>
 #include "nt_gss_common.h"
 
-RCSID("$Id: nt_gss_common.c,v 1.3 1999/12/02 17:04:57 joda Exp $");
+RCSID("$Id: nt_gss_common.c 17450 2006-05-05 11:11:43Z lha $");
 
 /*
  * These are functions that are needed to interoperate with the
@@ -51,7 +51,7 @@ void
 nt_write_token (int sock, gss_buffer_t buf)
 {
     unsigned char net_len[4];
-    u_int32_t len;
+    uint32_t len;
     OM_uint32 min_stat;
 
     len = buf->length;
@@ -77,7 +77,7 @@ void
 nt_read_token (int sock, gss_buffer_t buf)
 {
     unsigned char net_len[4];
-    u_int32_t len;
+    uint32_t len;
 
     if (read(sock, net_len, 4) != 4)
 	err (1, "read");

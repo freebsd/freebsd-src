@@ -33,7 +33,7 @@
 
 #include "kadm5_locl.h"
 
-RCSID("$Id: bump_pw_expire.c,v 1.1 2000/07/24 03:47:54 assar Exp $");
+RCSID("$Id: bump_pw_expire.c 8797 2000-07-24 03:47:54Z assar $");
 
 /*
  * extend password_expiration if it's defined

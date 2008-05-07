@@ -1,8 +1,8 @@
-# $Id: Makefile.am,v 1.17 2000/11/15 22:51:09 assar Exp $
+# $Id: Makefile.am 20466 2007-04-20 08:29:05Z lha $
 
 include $(top_srcdir)/Makefile.am.common
 
-INCLUDES += $(INCLUDE_krb4) $(INCLUDE_hesiod)
+AM_CPPFLAGS += $(INCLUDE_krb4) $(INCLUDE_hesiod)
 
 bin_SCRIPTS		= pfrom
 
@@ -22,6 +22,6 @@ EXTRA_DIST = pfrom.in $(man_MANS)
 
 LDADD = $(LIB_krb5) \
 	$(LIB_krb4) \
-	$(LIB_des) \
+	$(LIB_hcrypto) \
 	$(LIB_roken) \
 	$(LIB_hesiod)

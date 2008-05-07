@@ -32,7 +32,7 @@
  */
 
 #include "ftp_locl.h"
-RCSID("$Id: domacro.c,v 1.7 1999/09/16 20:37:29 assar Exp $");
+RCSID("$Id: domacro.c 14951 2005-04-25 13:09:26Z lha $");
 
 void
 domacro(int argc, char **argv)
@@ -60,24 +60,29 @@ domacro(int argc, char **argv)
 TOP:
 	cp1 = macros[i].mac_start;
 	while (cp1 != macros[i].mac_end) {
-		while (isspace(*cp1)) {
+		while (isspace((unsigned char)*cp1)) {
 			cp1++;
 		}
 		cp2 = line;
 		while (*cp1 != '\0') {
+		      size_t len;
 		      switch(*cp1) {
 		   	    case '\\':
-				 *cp2++ = *++cp1;
+				if (line + sizeof(line) - 2 < cp2)
+				    goto out;
+				*cp2++ = *++cp1;
 				 break;
 			    case '$':
-				 if (isdigit(*(cp1+1))) {
+				 if (isdigit((unsigned char)*(cp1+1))) {
 				    j = 0;
-				    while (isdigit(*++cp1)) {
+				    while (isdigit((unsigned char)*++cp1)) {
 					  j = 10*j +  *cp1 - '0';
 				    }
 				    cp1--;
 				    if (argc - 2 >= j) {
-					strcpy(cp2, argv[j+1]);
+					len = sizeof(line) - (cp2 - line) - 1;
+					if (strlcpy(cp2, argv[j+1], len) >= len)
+					    goto out;
 					cp2 += strlen(argv[j+1]);
 				    }
 				    break;
@@ -86,13 +91,17 @@ TOP:
 					loopflg = 1;
 					cp1++;
 					if (count < argc) {
-					   strcpy(cp2, argv[count]);
+					   len = sizeof(line) - (cp2 - line) - 1;
+					   if (strlcpy(cp2, argv[count], len) >= len)
+					       goto out;
 					   cp2 += strlen(argv[count]);
 					}
 					break;
 				}
 				/* intentional drop through */
 			    default:
+				if (line + sizeof(line) - 2 < cp2)
+				    goto out;
 				*cp2++ = *cp1;
 				break;
 		      }
@@ -100,6 +109,7 @@ TOP:
 			 cp1++;
 		      }
 		}
+	out:
 		*cp2 = '\0';
 		makeargv();
 		c = getcmd(margv[0]);
@@ -123,7 +133,7 @@ TOP:
 			if (bell && c->c_bell) {
 				putchar('\007');
 			}
-			strcpy(line, line2);
+			strlcpy(line, line2, sizeof(line));
 			makeargv();
 			argc = margc;
 			argv = margv;

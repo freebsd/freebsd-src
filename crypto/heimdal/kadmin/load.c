@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2002 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2005 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -32,9 +32,10 @@
  */
 
 #include "kadmin_locl.h"
+#include "kadmin-commands.h"
 #include <kadm5/private.h>
 
-RCSID("$Id: load.c,v 1.44 2002/09/04 20:44:35 joda Exp $");
+RCSID("$Id: load.c 16658 2006-01-25 12:29:46Z lha $");
 
 struct entry {
     char *principal;
@@ -48,6 +49,7 @@ struct entry {
     char *pw_end;
     char *flags;
     char *generation;
+    char *extensions;
 };
 
 static char *
@@ -116,7 +118,7 @@ parse_time_string_alloc (time_t **t, const char *s)
  */
 
 static int
-parse_integer(unsigned *u, const char *s)
+parse_integer(unsigned int *u, const char *s)
 {
     if(strcmp(s, "-") == 0)
 	return 0;
@@ -126,9 +128,9 @@ parse_integer(unsigned *u, const char *s)
 }
 
 static int
-parse_integer_alloc (int **u, const char *s)
+parse_integer_alloc (unsigned int **u, const char *s)
 {
-    unsigned tmp;
+    unsigned int tmp;
     int ret;
 
     *u = NULL;
@@ -274,7 +276,7 @@ static int
 parse_hdbflags2int(HDBFlags *f, const char *s)
 {
     int ret;
-    unsigned tmp;
+    unsigned int tmp;
 
     ret = parse_integer (&tmp, s);
     if (ret == 1)
@@ -308,6 +310,49 @@ parse_generation(char *str, GENERATION **gen)
     return 0;
 }
 
+static int
+parse_extensions(char *str, HDB_extensions **e)
+{
+    char *p;
+    int ret;
+
+    if(strcmp(str, "-") == 0 || *str == '\0') {
+	*e = NULL;
+	return 0;
+    }
+    *e = calloc(1, sizeof(**e));
+
+    p = strsep(&str, ":");
+
+    while (p) {
+	HDB_extension ext;
+	ssize_t len;
+	void *d;
+
+	len = strlen(p);
+	d = malloc(len);
+
+	len = hex_decode(p, d, len);
+	if (len < 0)
+	    return -1;
+
+	ret = decode_HDB_extension(d, len, &ext, NULL);
+	free(d);
+	if (ret)
+	    return -1;
+	d = realloc((*e)->val, ((*e)->len + 1) * sizeof((*e)->val[0]));
+	if (d == NULL)
+	    abort();
+	(*e)->val = d;
+	(*e)->val[(*e)->len] = ext;
+	(*e)->len++;
+
+	p = strsep(&str, ":");
+    }
+
+    return 0;
+}
+
 
 /*
  * Parse the dump file in `filename' and create the database (merging
@@ -315,7 +360,7 @@ parse_generation(char *str, GENERATION **gen)
  */
 
 static int
-doit(const char *filename, int merge)
+doit(const char *filename, int mergep)
 {
     krb5_error_code ret;
     FILE *f;
@@ -324,7 +369,7 @@ doit(const char *filename, int merge)
     int line;
     int flags = O_RDWR;
     struct entry e;
-    hdb_entry ent;
+    hdb_entry_ex ent;
     HDB *db = _kadm5_s_get_db(kadm_handle);
 
     f = fopen(filename, "r");
@@ -339,9 +384,9 @@ doit(const char *filename, int merge)
 	return 1;
     }
 
-    if(!merge)
+    if(!mergep)
 	flags |= O_CREAT | O_TRUNC;
-    ret = db->open(context, db, flags, 0600);
+    ret = db->hdb_open(context, db, flags, 0600);
     if(ret){
 	krb5_warn(context, ret, "hdb_open");
 	fclose(f);
@@ -352,7 +397,12 @@ doit(const char *filename, int merge)
     while(fgets(s, sizeof(s), f) != NULL) {
 	ret = 0;
 	line++;
-	e.principal = s;
+
+	p = s;
+	while (isspace((unsigned char)*p))
+	    p++;
+
+	e.principal = p;
 	for(p = s; *p; p++){
 	    if(*p == '\\')
 		p++;
@@ -393,8 +443,11 @@ doit(const char *filename, int merge)
 	e.generation = p;
 	p = skip_next(p);
 
+	e.extensions = p;
+	p = skip_next(p);
+
 	memset(&ent, 0, sizeof(ent));
-	ret = krb5_parse_name(context, e.principal, &ent.principal);
+	ret = krb5_parse_name(context, e.principal, &ent.entry.principal);
 	if(ret) {
 	    fprintf(stderr, "%s:%d:%s (%s)\n", 
 		    filename, 
@@ -404,137 +457,113 @@ doit(const char *filename, int merge)
 	    continue;
 	}
 	
-	if (parse_keys(&ent, e.key)) {
+	if (parse_keys(&ent.entry, e.key)) {
 	    fprintf (stderr, "%s:%d:error parsing keys (%s)\n",
 		     filename, line, e.key);
 	    hdb_free_entry (context, &ent);
 	    continue;
 	}
 	
-	if (parse_event(&ent.created_by, e.created) == -1) {
+	if (parse_event(&ent.entry.created_by, e.created) == -1) {
 	    fprintf (stderr, "%s:%d:error parsing created event (%s)\n",
 		     filename, line, e.created);
 	    hdb_free_entry (context, &ent);
 	    continue;
 	}
-	if (parse_event_alloc (&ent.modified_by, e.modified) == -1) {
+	if (parse_event_alloc (&ent.entry.modified_by, e.modified) == -1) {
 	    fprintf (stderr, "%s:%d:error parsing event (%s)\n",
 		     filename, line, e.modified);
 	    hdb_free_entry (context, &ent);
 	    continue;
 	}
-	if (parse_time_string_alloc (&ent.valid_start, e.valid_start) == -1) {
+	if (parse_time_string_alloc (&ent.entry.valid_start, e.valid_start) == -1) {
 	    fprintf (stderr, "%s:%d:error parsing time (%s)\n",
 		     filename, line, e.valid_start);
 	    hdb_free_entry (context, &ent);
 	    continue;
 	}
-	if (parse_time_string_alloc (&ent.valid_end,   e.valid_end) == -1) {
+	if (parse_time_string_alloc (&ent.entry.valid_end,   e.valid_end) == -1) {
 	    fprintf (stderr, "%s:%d:error parsing time (%s)\n",
 		     filename, line, e.valid_end);
 	    hdb_free_entry (context, &ent);
 	    continue;
 	}
-	if (parse_time_string_alloc (&ent.pw_end,      e.pw_end) == -1) {
+	if (parse_time_string_alloc (&ent.entry.pw_end,      e.pw_end) == -1) {
 	    fprintf (stderr, "%s:%d:error parsing time (%s)\n",
 		     filename, line, e.pw_end);
 	    hdb_free_entry (context, &ent);
 	    continue;
 	}
 
-	if (parse_integer_alloc (&ent.max_life,  e.max_life) == -1) {
+	if (parse_integer_alloc (&ent.entry.max_life,  e.max_life) == -1) {
 	    fprintf (stderr, "%s:%d:error parsing lifetime (%s)\n",
 		     filename, line, e.max_life);
 	    hdb_free_entry (context, &ent);
 	    continue;
 
 	}
-	if (parse_integer_alloc (&ent.max_renew, e.max_renew) == -1) {
+	if (parse_integer_alloc (&ent.entry.max_renew, e.max_renew) == -1) {
 	    fprintf (stderr, "%s:%d:error parsing lifetime (%s)\n",
 		     filename, line, e.max_renew);
 	    hdb_free_entry (context, &ent);
 	    continue;
 	}
 
-	if (parse_hdbflags2int (&ent.flags, e.flags) != 1) {
+	if (parse_hdbflags2int (&ent.entry.flags, e.flags) != 1) {
 	    fprintf (stderr, "%s:%d:error parsing flags (%s)\n",
 		     filename, line, e.flags);
 	    hdb_free_entry (context, &ent);
 	    continue;
 	}
 
-	if(parse_generation(e.generation, &ent.generation) == -1) {
+	if(parse_generation(e.generation, &ent.entry.generation) == -1) {
 	    fprintf (stderr, "%s:%d:error parsing generation (%s)\n",
 		     filename, line, e.generation);
 	    hdb_free_entry (context, &ent);
 	    continue;
 	}
 
-	ret = db->store(context, db, HDB_F_REPLACE, &ent);
+	if(parse_extensions(e.extensions, &ent.entry.extensions) == -1) {
+	    fprintf (stderr, "%s:%d:error parsing extension (%s)\n",
+		     filename, line, e.extensions);
+	    hdb_free_entry (context, &ent);
+	    continue;
+	}
+
+	ret = db->hdb_store(context, db, HDB_F_REPLACE, &ent);
 	hdb_free_entry (context, &ent);
 	if (ret) {
 	    krb5_warn(context, ret, "db_store");
 	    break;
 	}
     }
-    db->close(context, db);
+    db->hdb_close(context, db);
     fclose(f);
     return ret != 0;
 }
 
 
-static struct getargs args[] = {
-    { "help", 'h', arg_flag, NULL }
-};
+extern int local_flag;
 
-static int num_args = sizeof(args) / sizeof(args[0]);
-
-static void
-usage(const char *name)
+static int
+loadit(int mergep, const char *name, int argc, char **argv)
 {
-    arg_printusage (args, num_args, name, "file");
+    if(!local_flag) {
+	krb5_warnx(context, "%s is only available in local (-l) mode", name);
+	return 0;
+    }
+
+    return doit(argv[0], mergep);
 }
-
-
-
+ 
 int
-load(int argc, char **argv)
+load(void *opt, int argc, char **argv)
 {
-    int optind = 0;
-    int help_flag = 0;
-
-    args[0].value = &help_flag;
-
-    if(getarg(args, num_args, argc, argv, &optind)) {
-	usage ("load");
-	return 0;
-    }
-    if(argc - optind != 1 || help_flag) {
-	usage ("load");
-	return 0;
-    }
-
-    doit(argv[optind], 0);
-    return 0;
+    return loadit(0, "load", argc, argv);
 }
-
+ 
 int
-merge(int argc, char **argv)
+merge(void *opt, int argc, char **argv)
 {
-    int optind = 0;
-    int help_flag = 0;
-
-    args[0].value = &help_flag;
-
-    if(getarg(args, num_args, argc, argv, &optind)) {
-	usage ("merge");
-	return 0;
-    }
-    if(argc - optind != 1 || help_flag) {
-	usage ("merge");
-	return 0;
-    }
-
-    doit(argv[optind], 1);
-    return 0;
+    return loadit(1, "merge", argc, argv);
 }

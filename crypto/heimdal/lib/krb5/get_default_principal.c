@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: get_default_principal.c,v 1.7 2001/05/14 06:14:46 assar Exp $");
+RCSID("$Id: get_default_principal.c 14870 2005-04-20 20:53:29Z lha $");
 
 /*
  * Try to find out what's a reasonable default principal.
@@ -50,23 +50,21 @@ get_env_user(void)
     return user;
 }
 
+/*
+ * Will only use operating-system dependant operation to get the
+ * default principal, for use of functions that in ccache layer to
+ * avoid recursive calls.
+ */
+
 krb5_error_code
-krb5_get_default_principal (krb5_context context,
-			    krb5_principal *princ)
+_krb5_get_default_principal_local (krb5_context context, 
+				   krb5_principal *princ)
 {
     krb5_error_code ret;
-    krb5_ccache id;
     const char *user;
     uid_t uid;
 
-    ret = krb5_cc_default (context, &id);
-    if (ret == 0) {
-	ret = krb5_cc_get_principal (context, id, princ);
-	krb5_cc_close (context, id);
-	if (ret == 0)
-	    return 0;
-    }
-
+    *princ = NULL;
 
     uid = getuid();    
     if(uid == 0) {
@@ -93,6 +91,25 @@ krb5_get_default_principal (krb5_context context,
 	}
 	ret = krb5_make_principal(context, princ, NULL, user, NULL);
     }
-
     return ret;
+}
+
+krb5_error_code KRB5_LIB_FUNCTION
+krb5_get_default_principal (krb5_context context,
+			    krb5_principal *princ)
+{
+    krb5_error_code ret;
+    krb5_ccache id;
+
+    *princ = NULL;
+
+    ret = krb5_cc_default (context, &id);
+    if (ret == 0) {
+	ret = krb5_cc_get_principal (context, id, princ);
+	krb5_cc_close (context, id);
+	if (ret == 0)
+	    return 0;
+    }
+
+    return _krb5_get_default_principal_local(context, princ);
 }

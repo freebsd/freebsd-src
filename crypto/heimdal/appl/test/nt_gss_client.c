@@ -35,7 +35,7 @@
 #include <gssapi.h>
 #include "nt_gss_common.h"
 
-RCSID("$Id: nt_gss_client.c,v 1.4 2000/08/09 20:53:07 assar Exp $");
+RCSID("$Id: nt_gss_client.c 21522 2007-07-12 13:15:04Z lha $");
 
 /*
  * This program tries to act as a client for the sample in `Sample
@@ -55,9 +55,13 @@ proto (int sock, const char *hostname, const char *service)
     OM_uint32 maj_stat, min_stat;
     gss_name_t server;
     gss_buffer_desc name_token;
+    char *str;
 
-    name_token.length = asprintf ((char **)&name_token.value,
+    name_token.length = asprintf (&str,
 				  "%s@%s", service, hostname);
+    if (str == NULL)
+	errx(1, "out of memory");
+    name_token.value = str;
 
     maj_stat = gss_import_name (&min_stat,
 				&name_token,

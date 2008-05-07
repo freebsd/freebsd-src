@@ -15,11 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -40,7 +36,7 @@
 #include <config.h>
 #endif
 #include "roken.h"
-RCSID("$Id: getcap.c,v 1.8 2003/04/16 16:23:36 lha Exp $");
+RCSID("$Id: getcap.c 22071 2007-11-14 20:04:50Z lha $");
 
 #include <sys/types.h>
 #include <ctype.h>
@@ -73,8 +69,13 @@ static size_t	 topreclen;	/* toprec length */
 static char	*toprec;	/* Additional record specified by cgetset() */
 static int	 gottoprec;	/* Flag indicating retrieval of toprecord */
 
+#if 0 /*
+       * Don't use db support unless it's build into libc but we don't
+       * check for that now, so just disable the code.
+       */
 #if defined(HAVE_DBOPEN) && defined(HAVE_DB_H)
 #define USE_DB
+#endif
 #endif
 
 #ifdef USE_DB
@@ -84,24 +85,24 @@ static int 	getent (char **, size_t *, char **, int, const char *, int, char *);
 static int	nfcmp (char *, char *);
 
 
-int cgetset(const char *ent);
-char *cgetcap(char *buf, const char *cap, int type);
-int cgetent(char **buf, char **db_array, const char *name);
-int cgetmatch(const char *buf, const char *name);
-int cgetclose(void);
+int ROKEN_LIB_FUNCTION cgetset(const char *ent);
+char *ROKEN_LIB_FUNCTION cgetcap(char *buf, const char *cap, int type);
+int ROKEN_LIB_FUNCTION cgetent(char **buf, char **db_array, const char *name);
+int ROKEN_LIB_FUNCTION cgetmatch(const char *buf, const char *name);
+int ROKEN_LIB_FUNCTION cgetclose(void);
 #if 0
 int cgetfirst(char **buf, char **db_array);
 int cgetnext(char **bp, char **db_array);
 #endif
-int cgetstr(char *buf, const char *cap, char **str);
-int cgetustr(char *buf, const char *cap, char **str);
-int cgetnum(char *buf, const char *cap, long *num);
+int ROKEN_LIB_FUNCTION cgetstr(char *buf, const char *cap, char **str);
+int ROKEN_LIB_FUNCTION cgetustr(char *buf, const char *cap, char **str);
+int ROKEN_LIB_FUNCTION cgetnum(char *buf, const char *cap, long *num);
 /*
  * Cgetset() allows the addition of a user specified buffer to be added
  * to the database array, in effect "pushing" the buffer on top of the
  * virtual database. 0 is returned on success, -1 on failure.
  */
-int
+int ROKEN_LIB_FUNCTION
 cgetset(const char *ent)
 {
     const char *source, *check;
@@ -154,7 +155,7 @@ cgetset(const char *ent)
  * If (cap, '@') or (cap, terminator, '@') is found before (cap, terminator)
  * return NULL.
  */
-char *
+char * ROKEN_LIB_FUNCTION
 cgetcap(char *buf, const char *cap, int type)
 {
     char *bp;
@@ -205,7 +206,7 @@ cgetcap(char *buf, const char *cap, int type)
  * encountered (couldn't open/read a file, etc.), and -3 if a potential
  * reference loop is detected.
  */
-int
+int ROKEN_LIB_FUNCTION
 cgetent(char **buf, char **db_array, const char *name)
 {
     size_t dummy;
@@ -305,6 +306,8 @@ getent(char **cap, size_t *len, char **db_array, int fd,
 				/* save the data; close frees it */
 		clen = strlen(record);
 		cbuf = malloc(clen + 1);
+		if (cbuf == NULL)
+		    return (-2);
 		memmove(cbuf, record, clen + 1);
 		if (capdbp->close(capdbp) < 0) {
 		    free(cbuf);
@@ -699,7 +702,7 @@ static FILE *pfp;
 static int slash;
 static char **dbp;
 
-int
+int ROKEN_LIB_FUNCTION
 cgetclose(void)
 {
     if (pfp != NULL) {
@@ -846,7 +849,7 @@ cgetnext(char **bp, char **db_array)
  * couldn't be found, -2 if a system error was encountered (storage
  * allocation failure).
  */
-int
+int ROKEN_LIB_FUNCTION
 cgetstr(char *buf, const char *cap, char **str)
 {
     u_int m_room;
@@ -970,7 +973,7 @@ cgetstr(char *buf, const char *cap, char **str)
  * -1 if the requested string capability couldn't be found, -2 if a system 
  * error was encountered (storage allocation failure).
  */
-int
+int ROKEN_LIB_FUNCTION
 cgetustr(char *buf, const char *cap, char **str)
 {
     u_int m_room;
@@ -1039,7 +1042,7 @@ cgetustr(char *buf, const char *cap, char **str)
  * the long pointed to by num.  0 is returned on success, -1 if the requested
  * numeric capability couldn't be found.
  */
-int
+int ROKEN_LIB_FUNCTION
 cgetnum(char *buf, const char *cap, long *num)
 {
     long n;

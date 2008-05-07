@@ -33,12 +33,21 @@
 
 #include <krb5_locl.h>
 
-RCSID("$Id: generate_subkey.c,v 1.8 2001/05/14 06:14:46 assar Exp $");
+RCSID("$Id: generate_subkey.c 14455 2005-01-05 02:39:21Z lukeh $");
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_generate_subkey(krb5_context context,
 		     const krb5_keyblock *key,
 		     krb5_keyblock **subkey)
+{
+    return krb5_generate_subkey_extended(context, key, key->keytype, subkey);
+}
+
+krb5_error_code KRB5_LIB_FUNCTION
+krb5_generate_subkey_extended(krb5_context context,
+			      const krb5_keyblock *key,
+			      krb5_enctype etype,
+			      krb5_keyblock **subkey)
 {
     krb5_error_code ret;
 
@@ -47,8 +56,17 @@ krb5_generate_subkey(krb5_context context,
 	krb5_set_error_string(context, "malloc: out of memory");
 	return ENOMEM;
     }
-    ret = krb5_generate_random_keyblock(context, key->keytype, *subkey);
-    if(ret)
+
+    if (etype == ETYPE_NULL)
+	etype = key->keytype; /* use session key etype */
+
+    /* XXX should we use the session key as input to the RF? */
+    ret = krb5_generate_random_keyblock(context, etype, *subkey);
+    if (ret != 0) {
 	free(*subkey);
+	*subkey = NULL;
+    }
+
     return ret;
 }
+

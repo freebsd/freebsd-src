@@ -33,11 +33,11 @@
 
 #include "kadm5_locl.h"
 
-RCSID("$Id: get_princs_c.c,v 1.4 2000/07/11 16:00:19 joda Exp $");
+RCSID("$Id: get_princs_c.c 15484 2005-06-17 05:21:07Z lha $");
 
 kadm5_ret_t
 kadm5_c_get_principals(void *server_handle, 
-		       const char *exp,
+		       const char *expression,
 		       char ***princs, 
 		       int *count)
 {
@@ -56,9 +56,9 @@ kadm5_c_get_principals(void *server_handle,
     if (sp == NULL)
 	return ENOMEM;
     krb5_store_int32(sp, kadm_get_princs);
-    krb5_store_int32(sp, exp != NULL);
-    if(exp)
-	krb5_store_string(sp, exp);
+    krb5_store_int32(sp, expression != NULL);
+    if(expression)
+	krb5_store_string(sp, expression);
     ret = _kadm5_client_send(context, sp);
     krb5_storage_free(sp);
     ret = _kadm5_client_recv(context, &reply);

@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: crc.c,v 1.9 2000/08/03 01:45:14 assar Exp $");
+RCSID("$Id: crc.c 17442 2006-05-05 09:31:15Z lha $");
 
 static u_long table[256];
 
@@ -62,8 +62,8 @@ _krb5_crc_init_table(void)
     flag = 1;
 }
 
-u_int32_t
-_krb5_crc_update (const char *p, size_t len, u_int32_t res)
+uint32_t
+_krb5_crc_update (const char *p, size_t len, uint32_t res)
 {
     while (len--)
 	res = table[(res ^ *p++) & 0xFF] ^ (res >> 8);

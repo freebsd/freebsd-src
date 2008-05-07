@@ -43,7 +43,7 @@ static const char rcsid[] =
 
 #include "rcp_locl.h"
 
-RCSID("$Id: util.c,v 1.6 2001/09/04 14:35:58 assar Exp $");
+RCSID("$Id: util.c 17878 2006-08-08 21:43:58Z lha $");
 
 char *
 colon(cp)
@@ -81,9 +81,9 @@ okname(cp0)
 	char *cp0;
 {
 	int c;
-	char *cp;
+	unsigned char *cp;
 
-	cp = cp0;
+	cp = (unsigned char *)cp0;
 	do {
 		c = *cp;
 		if (c & 0200)
@@ -112,7 +112,8 @@ susystem(s, userid)
 		return (127);
 
 	case 0:
-		(void)setuid(userid);
+		if (setuid(userid) < 0)
+			_exit(127);
 		execl(_PATH_BSHELL, "sh", "-c", s, NULL);
 		_exit(127);
 	}

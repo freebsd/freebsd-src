@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2002 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2004 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include <krb5_locl.h>
 
-RCSID("$Id: get_for_creds.c,v 1.34.4.1 2004/01/09 00:51:55 lha Exp $");
+RCSID("$Id: get_for_creds.c 22504 2008-01-21 15:49:58Z lha $");
 
 static krb5_error_code
 add_addrs(krb5_context context,
@@ -50,7 +50,7 @@ add_addrs(krb5_context context,
 	++n;
 
     tmp = realloc(addr->val, (addr->len + n) * sizeof(*addr->val));
-    if (tmp == NULL) {
+    if (tmp == NULL && (addr->len + n) != 0) {
 	krb5_set_error_string(context, "malloc: out of memory");
 	ret = ENOMEM;
 	goto fail;
@@ -83,14 +83,26 @@ fail:
     return ret;
 }
 
-/*
- * Forward credentials for `client' to host `hostname`,
- * making them forwardable if `forwardable', and returning the
- * blob of data to sent in `out_data'.
- * If hostname == NULL, pick it from `server'
+/**
+ * Forward credentials for client to host hostname , making them
+ * forwardable if forwardable, and returning the blob of data to sent
+ * in out_data.  If hostname == NULL, pick it from server.
+ *
+ * @param context A kerberos 5 context.
+ * @param auth_context the auth context with the key to encrypt the out_data.
+ * @param hostname the host to forward the tickets too.
+ * @param client the client to delegate from.
+ * @param server the server to delegate the credential too.
+ * @param ccache credential cache to use.
+ * @param forwardable make the forwarded ticket forwabledable.
+ * @param out_data the resulting credential.
+ *
+ * @return Return an error code or 0.
+ *
+ * @ingroup krb5_credential
  */
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_fwd_tgt_creds (krb5_context	context,
 		    krb5_auth_context	auth_context,
 		    const char		*hostname,
@@ -147,11 +159,34 @@ krb5_fwd_tgt_creds (krb5_context	context,
     return ret;
 }
 
-/*
+/**
+ * Gets tickets forwarded to hostname. If the tickets that are
+ * forwarded are address-less, the forwarded tickets will also be
+ * address-less.
+ * 
+ * If the ticket have any address, hostname will be used for figure
+ * out the address to forward the ticket too. This since this might
+ * use DNS, its insecure and also doesn't represent configured all
+ * addresses of the host. For example, the host might have two
+ * adresses, one IPv4 and one IPv6 address where the later is not
+ * published in DNS. This IPv6 address might be used communications
+ * and thus the resulting ticket useless.
  *
+ * @param context A kerberos 5 context.
+ * @param auth_context the auth context with the key to encrypt the out_data.
+ * @param ccache credential cache to use
+ * @param flags the flags to control the resulting ticket flags
+ * @param hostname the host to forward the tickets too.
+ * @param in_creds the in client and server ticket names.  The client
+ * and server components forwarded to the remote host.
+ * @param out_data the resulting credential.
+ *
+ * @return Return an error code or 0.
+ *
+ * @ingroup krb5_credential
  */
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_get_forwarded_creds (krb5_context	    context,
 			  krb5_auth_context auth_context,
 			  krb5_ccache       ccache,
@@ -173,33 +208,32 @@ krb5_get_forwarded_creds (krb5_context	    context,
     krb5_crypto crypto;
     struct addrinfo *ai;
     int save_errno;
-    krb5_keyblock *key;
     krb5_creds *ticket;
-    char *realm;
 
-    if (in_creds->client && in_creds->client->realm)
-	realm = in_creds->client->realm;
-    else
-	realm = in_creds->server->realm;
-
+    paddrs = NULL;
     addrs.len = 0;
     addrs.val = NULL;
-    paddrs = &addrs;
 
+    ret = krb5_get_credentials(context, 0, ccache, in_creds, &ticket);
+    if(ret == 0) {
+	if (ticket->addresses.len)
+	    paddrs = &addrs;
+	krb5_free_creds (context, ticket);
+    } else {
+	krb5_boolean noaddr;
+	krb5_appdefault_boolean(context, NULL,
+				krb5_principal_get_realm(context, 
+							 in_creds->client),
+				"no-addresses", KRB5_ADDRESSLESS_DEFAULT,
+				&noaddr);
+	if (!noaddr)
+	    paddrs = &addrs;
+    }
+	
     /*
-     * If tickets are address-less, forward address-less tickets.
+     * If tickets have addresses, get the address of the remote host.
      */
 
-    ret = _krb5_get_krbtgt (context,
-			    ccache,
-			    realm,
-			    &ticket);
-    if(ret == 0) {
-	if (ticket->addresses.len == 0)
-	    paddrs = NULL;
-	krb5_free_creds (context, ticket);
-    }
-    
     if (paddrs != NULL) {
 
 	ret = getaddrinfo (hostname, NULL, NULL, &ai);
@@ -216,7 +250,7 @@ krb5_get_forwarded_creds (krb5_context	    context,
 	    return ret;
     }
     
-    kdc_flags.i = flags;
+    kdc_flags.b = int2KDCOptions(flags);
 
     ret = krb5_get_kdc_cred (context,
 			     ccache,
@@ -226,9 +260,8 @@ krb5_get_forwarded_creds (krb5_context	    context,
 			     in_creds,
 			     &out_creds);
     krb5_free_addresses (context, &addrs);
-    if (ret) {
+    if (ret)
 	return ret;
-    }
 
     memset (&cred, 0, sizeof(cred));
     cred.pvno = 5;
@@ -254,7 +287,8 @@ krb5_get_forwarded_creds (krb5_context	    context,
     }
     
     if (auth_context->flags & KRB5_AUTH_CONTEXT_DO_TIME) {
-	int32_t sec, usec;
+	krb5_timestamp sec;
+	int32_t usec;
 	
 	krb5_us_timeofday (context, &sec, &usec);
 	
@@ -277,30 +311,28 @@ krb5_get_forwarded_creds (krb5_context	    context,
 	enc_krb_cred_part.usec = NULL;
     }
 
-    if (auth_context->local_address && auth_context->local_port) {
-	krb5_boolean noaddr;
-	krb5_const_realm realm;
+    if (auth_context->local_address && auth_context->local_port && paddrs) {
 
-	realm = krb5_principal_get_realm(context, out_creds->server);
-	krb5_appdefault_boolean(context, NULL, realm, "no-addresses", FALSE,
-				&noaddr);
-	if (!noaddr) {
-	    ret = krb5_make_addrport (context,
-				      &enc_krb_cred_part.s_address,
-				      auth_context->local_address,
-				      auth_context->local_port);
-	    if (ret)
-		goto out4;
-	}
+	ret = krb5_make_addrport (context,
+				  &enc_krb_cred_part.s_address,
+				  auth_context->local_address,
+				  auth_context->local_port);
+	if (ret)
+	    goto out4;
     }
 
     if (auth_context->remote_address) {
 	if (auth_context->remote_port) {
 	    krb5_boolean noaddr;
-	    krb5_const_realm realm;
+	    krb5_const_realm srealm;
 
-	    realm = krb5_principal_get_realm(context, out_creds->server);
-	    krb5_appdefault_boolean(context, NULL, realm, "no-addresses",
+	    srealm = krb5_principal_get_realm(context, out_creds->server);
+	    /* Is this correct, and should we use the paddrs == NULL
+               trick here as well? Having an address-less ticket may
+               indicate that we don't know our own global address, but
+               it does not necessary mean that we don't know the
+               server's. */
+	    krb5_appdefault_boolean(context, NULL, srealm, "no-addresses",
 				    FALSE, &noaddr);
 	    if (!noaddr) {
 		ret = krb5_make_addrport (context,
@@ -367,31 +399,46 @@ krb5_get_forwarded_creds (krb5_context	    context,
     if(buf_size != len)
 	krb5_abortx(context, "internal error in ASN.1 encoder");
 
-    if (auth_context->local_subkey)
-	key = auth_context->local_subkey;
-    else if (auth_context->remote_subkey)
-	key = auth_context->remote_subkey;
-    else
-	key = auth_context->keyblock;
+    /**
+     * Some older of the MIT gssapi library used clear-text tickets
+     * (warped inside AP-REQ encryption), use the krb5_auth_context
+     * flag KRB5_AUTH_CONTEXT_CLEAR_FORWARDED_CRED to support those
+     * tickets. The session key is used otherwise to encrypt the
+     * forwarded ticket.
+     */
 
-    ret = krb5_crypto_init(context, key, 0, &crypto);
-    if (ret) {
+    if (auth_context->flags & KRB5_AUTH_CONTEXT_CLEAR_FORWARDED_CRED) {
+	cred.enc_part.etype = ENCTYPE_NULL;
+	cred.enc_part.kvno = NULL;
+	cred.enc_part.cipher.data = buf;
+	cred.enc_part.cipher.length = buf_size;
+    } else {
+	/* 
+	 * Here older versions then 0.7.2 of Heimdal used the local or
+	 * remote subkey. That is wrong, the session key should be
+	 * used. Heimdal 0.7.2 and newer have code to try both in the
+	 * receiving end.
+	 */
+	
+	ret = krb5_crypto_init(context, auth_context->keyblock, 0, &crypto);
+	if (ret) {
+	    free(buf);
+	    free_KRB_CRED(&cred);
+	    return ret;
+	}
+	ret = krb5_encrypt_EncryptedData (context,
+					  crypto,
+					  KRB5_KU_KRB_CRED,
+					  buf,
+					  len,
+					  0,
+					  &cred.enc_part);
 	free(buf);
-	free_KRB_CRED(&cred);
-	return ret;
-    }
-    ret = krb5_encrypt_EncryptedData (context,
-				      crypto,
-				      KRB5_KU_KRB_CRED,
-				      buf,
-				      len,
-				      0,
-				      &cred.enc_part);
-    free(buf);
-    krb5_crypto_destroy(context, crypto);
-    if (ret) {
-	free_KRB_CRED(&cred);
-	return ret;
+	krb5_crypto_destroy(context, crypto);
+	if (ret) {
+	    free_KRB_CRED(&cred);
+	    return ret;
+	}
     }
 
     ASN1_MALLOC_ENCODE(KRB_CRED, buf, buf_size, &cred, &len, ret);

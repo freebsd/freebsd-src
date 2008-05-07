@@ -33,9 +33,16 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: keyblock.c,v 1.12 2001/05/14 06:14:48 assar Exp $");
+RCSID("$Id: keyblock.c 15167 2005-05-18 04:21:57Z lha $");
 
-void
+void KRB5_LIB_FUNCTION
+krb5_keyblock_zero(krb5_keyblock *keyblock)
+{
+    keyblock->keytype = 0;
+    krb5_data_zero(&keyblock->keyvalue);
+}
+
+void KRB5_LIB_FUNCTION
 krb5_free_keyblock_contents(krb5_context context,
 			    krb5_keyblock *keyblock)
 {
@@ -43,10 +50,11 @@ krb5_free_keyblock_contents(krb5_context context,
 	if (keyblock->keyvalue.data != NULL)
 	    memset(keyblock->keyvalue.data, 0, keyblock->keyvalue.length);
 	krb5_data_free (&keyblock->keyvalue);
+	keyblock->keytype = ENCTYPE_NULL;
     }
 }
 
-void
+void KRB5_LIB_FUNCTION
 krb5_free_keyblock(krb5_context context,
 		   krb5_keyblock *keyblock)
 {
@@ -56,7 +64,7 @@ krb5_free_keyblock(krb5_context context,
     }
 }
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_copy_keyblock_contents (krb5_context context,
 			     const krb5_keyblock *inblock,
 			     krb5_keyblock *to)
@@ -64,7 +72,7 @@ krb5_copy_keyblock_contents (krb5_context context,
     return copy_EncryptionKey(inblock, to);
 }
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_copy_keyblock (krb5_context context,
 		    const krb5_keyblock *inblock,
 		    krb5_keyblock **to)
@@ -78,4 +86,48 @@ krb5_copy_keyblock (krb5_context context,
     }
     *to = k;
     return krb5_copy_keyblock_contents (context, inblock, k);
+}
+
+krb5_enctype
+krb5_keyblock_get_enctype(const krb5_keyblock *block)
+{
+    return block->keytype;
+}
+
+/*
+ * Fill in `key' with key data of type `enctype' from `data' of length
+ * `size'. Key should be freed using krb5_free_keyblock_contents.
+ */
+
+krb5_error_code KRB5_LIB_FUNCTION
+krb5_keyblock_init(krb5_context context,
+		   krb5_enctype type,
+		   const void *data,
+		   size_t size,
+		   krb5_keyblock *key)
+{
+    krb5_error_code ret;
+    size_t len;
+
+    memset(key, 0, sizeof(*key));
+
+    ret = krb5_enctype_keysize(context, type, &len);
+    if (ret)
+	return ret;
+
+    if (len != size) {
+	krb5_set_error_string(context, "Encryption key %d is %lu bytes "
+			      "long, %lu was passed in",
+			      type, (unsigned long)len, (unsigned long)size);
+	return KRB5_PROG_ETYPE_NOSUPP;
+    }
+    ret = krb5_data_copy(&key->keyvalue, data, len);
+    if(ret) {
+	krb5_set_error_string(context, "malloc failed: %lu",
+			      (unsigned long)len);
+	return ret;
+    }
+    key->keytype = type;
+
+    return 0;
 }

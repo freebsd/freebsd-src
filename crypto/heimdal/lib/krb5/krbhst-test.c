@@ -36,7 +36,7 @@
 #include <err.h>
 #include <getarg.h>
 
-RCSID("$Id: krbhst-test.c,v 1.3 2002/08/23 03:43:18 assar Exp $");
+RCSID("$Id: krbhst-test.c 15466 2005-06-17 04:21:47Z lha $");
 
 static int version_flag = 0;
 static int help_flag	= 0;
@@ -66,11 +66,11 @@ main(int argc, char **argv)
     int types[] = {KRB5_KRBHST_KDC, KRB5_KRBHST_ADMIN, KRB5_KRBHST_CHANGEPW,
 		   KRB5_KRBHST_KRB524};
     const char *type_str[] = {"kdc", "admin", "changepw", "krb524"};
-    int optind = 0;
+    int optidx = 0;
     
     setprogname (argv[0]);
 
-    if(getarg(args, sizeof(args) / sizeof(args[0]), argc, argv, &optind))
+    if(getarg(args, sizeof(args) / sizeof(args[0]), argc, argv, &optidx))
 	usage(1);
     
     if (help_flag)
@@ -81,8 +81,8 @@ main(int argc, char **argv)
 	exit(0);
     }
 
-    argc -= optind;
-    argv += optind;
+    argc -= optidx;
+    argv += optidx;
 
     krb5_init_context (&context);
     for(i = 0; i < argc; i++) {

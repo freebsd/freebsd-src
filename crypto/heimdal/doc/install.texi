@@ -1,4 +1,4 @@
-@c $Id: install.texi,v 1.18 2002/09/04 03:18:48 assar Exp $
+@c $Id: install.texi 16768 2006-02-27 12:26:49Z joda $
 
 @node Building and Installing, Setting up a realm, What is Kerberos?, Top
 @comment  node-name,  next,  previous,  up
@@ -35,7 +35,7 @@ install}. The default location for installation is @file{/usr/heimdal},
 but this can be changed by running @code{configure} with
 @samp{--prefix=/some/other/place}.
 
-If you need to change the default behavior, configure understands the
+If you need to change the default behaviour, configure understands the
 following options:
 
 @table @asis
@@ -46,9 +46,10 @@ instead, you can use this option.
 @item @kbd{--with-krb4=@file{dir}}
 Gives the location of Kerberos 4 libraries and headers. This enables
 Kerberos 4 support in the applications (telnet, rsh, popper, etc) and
-the KDC. It is automatically check for in @file{/usr/athena}. If you
-keep libraries and headers in different places, you can instead give the
-path to each with the @kbd{--with-krb4-lib=@file{dir}}, and
+the KDC. It is automatically found if present under
+@file{/usr/athena}.  If you keep libraries and headers in different
+places, you can instead give the path to each with the
+@kbd{--with-krb4-lib=@file{dir}}, and
 @kbd{--with-krb4-include=@file{dir}} options.
 
 You will need a fairly recent version of our Kerberos 4 distribution for
@@ -84,7 +85,7 @@ Disable the IPv6 support.
 @item @kbd{--with-openldap}
 Compile Heimdal with support for storing the database in LDAP.  Requires
 OpenLDAP @url{http://www.openldap.org}.  See
-@url{http://www.padl.com/~lukeh/heimdal/} for more information.
+@url{http://www.padl.com/Research/Heimdal.html} for more information.
 
 @item @kbd{--enable-bigendian}
 @item @kbd{--enable-littleendian}

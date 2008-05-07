@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: kafs_locl.h,v 1.17 2003/04/14 08:28:37 lha Exp $ */
+/* $Id: kafs_locl.h 16116 2005-10-02 03:14:47Z lha $ */
 
 #ifndef __KAFS_LOCL_H__
 #define __KAFS_LOCL_H__
@@ -58,6 +58,9 @@
 #endif
 #ifdef HAVE_SYS_FILIO_H
 #include <sys/filio.h>
+#endif
+#ifdef HAVE_SYS_SYSCTL_H
+#include <sys/sysctl.h>
 #endif
 
 #ifdef HAVE_SYS_SYSCALL_H
@@ -119,13 +122,13 @@ typedef int (*get_cred_func_t)(struct kafs_data*, const char*, const char*,
 
 typedef char* (*get_realm_func_t)(struct kafs_data*, const char*);
 
-typedef struct kafs_data {
+struct kafs_data {
     const char *name;
     afslog_uid_func_t afslog_uid;
     get_cred_func_t get_cred;
     get_realm_func_t get_realm;
     void *data;
-} kafs_data;
+};
 
 struct kafs_token {
     struct ClearToken ct;
@@ -135,13 +138,13 @@ struct kafs_token {
 
 void _kafs_foldup(char *, const char *);
 
-int _kafs_afslog_all_local_cells(kafs_data*, uid_t, const char*);
+int _kafs_afslog_all_local_cells(struct kafs_data*, uid_t, const char*);
 
-int _kafs_get_cred(kafs_data*, const char*, const char*, const char *, 
+int _kafs_get_cred(struct kafs_data*, const char*, const char*, const char *, 
 		   uid_t, struct kafs_token *);
 
 int
-_kafs_realm_of_cell(kafs_data *, const char *, char **);
+_kafs_realm_of_cell(struct kafs_data *, const char *, char **);
 
 int
 _kafs_v4_to_kt(CREDENTIALS *, uid_t, struct kafs_token *);
