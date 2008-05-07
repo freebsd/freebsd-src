@@ -68,7 +68,7 @@ zfs_filestat(struct vnode *vp, struct filestat *fsp)
 	uint64_t *zid;
 	void *znodeptr, *vnodeptr;
 	char *dataptr;
-	int *zphys_addr;
+	void *zphys_addr;
 	size_t len;
 	int size;
 
@@ -100,9 +100,9 @@ zfs_filestat(struct vnode *vp, struct filestat *fsp)
 	 */
 	dataptr = znodeptr;
 	zid = (uint64_t *)(dataptr + LOCATION_ZID);
-	zphys_addr = (int *)(dataptr + LOCATION_ZPHYS(size));
+	zphys_addr = *(void **)(dataptr + LOCATION_ZPHYS(size));
 
-	if (!KVM_READ(*zphys_addr, &zphys, sizeof(zphys))) {
+	if (!KVM_READ(zphys_addr, &zphys, sizeof(zphys))) {
 		dprintf(stderr, "can't read znode_phys at %p for pid %d\n",
 		    zphys_addr, Pid);
 		goto bad;
