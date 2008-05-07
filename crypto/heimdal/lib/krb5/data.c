@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2007 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,30 +33,65 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: data.c,v 1.17 2003/03/25 22:07:17 lha Exp $");
+RCSID("$Id: data.c 22064 2007-11-11 16:28:14Z lha $");
 
-void
+/**
+ * Reset the (potentially uninitalized) krb5_data structure.
+ *
+ * @param p krb5_data to reset.
+ *
+ * @ingroup krb5
+ */
+
+void KRB5_LIB_FUNCTION
 krb5_data_zero(krb5_data *p)
 {
     p->length = 0;
     p->data   = NULL;
 }
 
-void
+/**
+ * Free the content of krb5_data structure, its ok to free a zeroed
+ * structure. When done, the structure will be zeroed.
+ * 
+ * @param p krb5_data to free.
+ *
+ * @ingroup krb5
+ */
+
+void KRB5_LIB_FUNCTION
 krb5_data_free(krb5_data *p)
 {
     if(p->data != NULL)
 	free(p->data);
-    p->length = 0;
+    krb5_data_zero(p);
 }
 
-void 
+/**
+ * Same as krb5_data_free().
+ * 
+ * @param context Kerberos 5 context.
+ * @param data krb5_data to free.
+ *
+ * @ingroup krb5
+ */
+
+void KRB5_LIB_FUNCTION 
 krb5_free_data_contents(krb5_context context, krb5_data *data)
 {
     krb5_data_free(data);
 }
 
-void
+/**
+ * Free krb5_data (and its content).
+ * 
+ * @param context Kerberos 5 context.
+ * @param p krb5_data to free.
+ *
+ * @ingroup krb5
+ */
+
+void KRB5_LIB_FUNCTION
 krb5_free_data(krb5_context context,
 	       krb5_data *p)
 {
@@ -64,7 +99,19 @@ krb5_free_data(krb5_context context,
     free(p);
 }
 
-krb5_error_code
+/**
+ * Allocate data of and krb5_data.
+ * 
+ * @param p krb5_data to free.
+ * @param len size to allocate.
+ *
+ * @return Returns 0 to indicate success. Otherwise an kerberos et
+ * error code is returned.
+ *
+ * @ingroup krb5
+ */
+
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_data_alloc(krb5_data *p, int len)
 {
     p->data = malloc(len);
@@ -74,7 +121,19 @@ krb5_data_alloc(krb5_data *p, int len)
     return 0;
 }
 
-krb5_error_code
+/**
+ * Grow (or shrink) the content of krb5_data to a new size.
+ * 
+ * @param p krb5_data to free.
+ * @param len new size.
+ *
+ * @return Returns 0 to indicate success. Otherwise an kerberos et
+ * error code is returned.
+ *
+ * @ingroup krb5
+ */
+
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_data_realloc(krb5_data *p, int len)
 {
     void *tmp;
@@ -86,7 +145,20 @@ krb5_data_realloc(krb5_data *p, int len)
     return 0;
 }
 
-krb5_error_code
+/**
+ * Copy the data of len into the krb5_data.
+ * 
+ * @param p krb5_data to copy into.
+ * @param data data to copy..
+ * @param len new size.
+ *
+ * @return Returns 0 to indicate success. Otherwise an kerberos et
+ * error code is returned.
+ *
+ * @ingroup krb5
+ */
+
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_data_copy(krb5_data *p, const void *data, size_t len)
 {
     if (len) {
@@ -99,7 +171,20 @@ krb5_data_copy(krb5_data *p, const void *data, size_t len)
     return 0;
 }
 
-krb5_error_code
+/**
+ * Copy the data into a newly allocated krb5_data.
+ * 
+ * @param context Kerberos 5 context.
+ * @param indata the krb5_data data to copy
+ * @param outdata new krb5_date to copy too. Free with krb5_free_data().
+ *
+ * @return Returns 0 to indicate success. Otherwise an kerberos et
+ * error code is returned.
+ *
+ * @ingroup krb5
+ */
+
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_copy_data(krb5_context context, 
 	       const krb5_data *indata, 
 	       krb5_data **outdata)
@@ -110,10 +195,30 @@ krb5_copy_data(krb5_context context,
 	krb5_set_error_string(context, "malloc: out of memory");
 	return ENOMEM;
     }
-    ret = copy_octet_string(indata, *outdata);
+    ret = der_copy_octet_string(indata, *outdata);
     if(ret) {
 	krb5_clear_error_string (context);
 	free(*outdata);
+	*outdata = NULL;
     }
     return ret;
+}
+
+/**
+ * Compare to data.
+ * 
+ * @param data1 krb5_data to compare
+ * @param data2 krb5_data to compare
+ *
+ * @return return the same way as memcmp(), useful when sorting.
+ *
+ * @ingroup krb5
+ */
+
+int KRB5_LIB_FUNCTION
+krb5_data_cmp(const krb5_data *data1, const krb5_data *data2)
+{
+    if (data1->length != data2->length)
+	return data1->length - data2->length;
+    return memcmp(data1->data, data2->data, data1->length);
 }

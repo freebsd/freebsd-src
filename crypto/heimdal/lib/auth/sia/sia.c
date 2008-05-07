@@ -33,7 +33,7 @@
 
 #include "sia_locl.h"
 
-RCSID("$Id: sia.c,v 1.36 2001/09/13 01:19:14 assar Exp $");
+RCSID("$Id: sia.c 14838 2005-04-19 04:41:07Z lha $");
 
 int 
 siad_init(void)
@@ -125,7 +125,7 @@ doauth(SIAENTITY *entity, int pkgind, char *name)
     int secure;
 #endif
 	
-    if(getpwnam_r(name, &pw, pwbuf, sizeof(pwbuf), &pwd) != 0){
+    if(getpwnam_r(name, &pw, pwbuf, sizeof(pwbuf), &pwd) != 0 || pwd == NULL){
 	SIA_DEBUG(("DEBUG", "failed to getpwnam(%s)", name));
 	return SIADFAIL;
     }
@@ -162,7 +162,7 @@ doauth(SIAENTITY *entity, int pkgind, char *name)
 #else
 	ouid = getuid();
 #endif
-	if(getpwuid_r(ouid, &fpw, fpwbuf, sizeof(fpwbuf), &fpwd) != 0){
+	if(getpwuid_r(ouid, &fpw, fpwbuf, sizeof(fpwbuf), &fpwd) != 0 || fpwd == NULL){
 	    SIA_DEBUG(("DEBUG", "failed to getpwuid(%u)", ouid));
 	    return SIADFAIL;
 	}
@@ -328,7 +328,19 @@ siad_ses_launch(sia_collect_func_t *collect,
 #endif
 	putenv(env);
     }
-#ifdef KRB4
+#ifdef SIA_KRB5
+    if (k_hasafs()) {
+	char cell[64];
+	krb5_ccache ccache;
+	if(krb5_cc_resolve(s->context, s->ticket, &ccache) == 0) {
+	    k_setpag();
+	    if(k_afs_cell_of_file(entity->pwd->pw_dir, cell, sizeof(cell)) == 0)
+		krb5_afslog(s->context, ccache, cell, 0);
+	    krb5_afslog_home(s->context, ccache, 0, 0, entity->pwd->pw_dir);
+	}
+    }
+#endif
+#ifdef SIA_KRB4
     if (k_hasafs()) {
 	char cell[64];
 	k_setpag();
@@ -390,7 +402,20 @@ siad_ses_reauthent (sia_collect_func_t *collect,
            duplicate some code here... */
 	struct state *s = (struct state*)entity->mech[pkgind];
 	chown(s->ticket, entity->pwd->pw_uid, entity->pwd->pw_gid);
-#ifdef KRB4
+#ifdef SIA_KRB5
+	if (k_hasafs()) {
+	    char cell[64];
+	    krb5_ccache ccache;
+	    if(krb5_cc_resolve(s->context, s->ticket, &ccache) == 0) {
+		k_setpag();
+		if(k_afs_cell_of_file(entity->pwd->pw_dir, 
+				      cell, sizeof(cell)) == 0)
+		    krb5_afslog(s->context, ccache, cell, 0);
+		krb5_afslog_home(s->context, ccache, 0, 0, entity->pwd->pw_dir);
+	    }
+	}
+#endif
+#ifdef SIA_KRB4
 	if(k_hasafs()) {
 	    char cell[64];
 	    if(k_afs_cell_of_file(entity->pwd->pw_dir, 

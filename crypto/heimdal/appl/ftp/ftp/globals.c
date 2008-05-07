@@ -1,5 +1,5 @@
 #include "ftp_locl.h"
-RCSID("$Id: globals.c,v 1.8 2000/11/15 22:56:08 assar Exp $");
+RCSID("$Id: globals.c 16160 2005-10-12 09:42:47Z joda $");
 
 /*
  * Options and other state info.
@@ -15,6 +15,7 @@ int	lineedit;		/* use line-editing */
 int	debug;			/* debugging level */
 int	bell;			/* ring bell on cmd completion */
 int	doglob;			/* glob local file names */
+int	doencrypt;		/* try to use encryption */
 int	autologin;		/* establish user account on connection */
 int	proxy;			/* proxy server connection active */
 int	proxflag;		/* proxy connection exists */

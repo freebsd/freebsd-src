@@ -33,7 +33,7 @@
 
 #include "hprop.h"
 
-RCSID("$Id: v4_dump.c,v 1.4.8.1 2003/04/28 12:24:54 lha Exp $");
+RCSID("$Id: v4_dump.c 17023 2006-04-09 17:41:47Z lha $");
 
 static time_t
 time_parse(const char *cp)
@@ -138,5 +138,6 @@ v4_prop_dump(void *arg, const char *file)
 	v4_prop(arg, &pr);
 	memset(&pr, 0, sizeof(pr));
     }
+    fclose(f);
     return 0;
 }

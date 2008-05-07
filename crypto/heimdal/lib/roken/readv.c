@@ -33,12 +33,12 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: readv.c,v 1.5 1999/12/02 16:58:52 joda Exp $");
+RCSID("$Id: readv.c 14773 2005-04-12 11:29:18Z lha $");
 #endif
 
 #include "roken.h"
 
-ssize_t
+ssize_t ROKEN_LIB_FUNCTION
 readv(int d, const struct iovec *iov, int iovcnt)
 {
     ssize_t ret, nb;

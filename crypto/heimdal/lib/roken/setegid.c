@@ -33,7 +33,7 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: setegid.c,v 1.9 1999/12/02 16:58:52 joda Exp $");
+RCSID("$Id: setegid.c 14773 2005-04-12 11:29:18Z lha $");
 #endif
 
 #ifdef HAVE_UNISTD_H
@@ -42,7 +42,7 @@ RCSID("$Id: setegid.c,v 1.9 1999/12/02 16:58:52 joda Exp $");
 
 #include "roken.h"
 
-int
+int ROKEN_LIB_FUNCTION
 setegid(gid_t egid)
 {
 #ifdef HAVE_SETREGID

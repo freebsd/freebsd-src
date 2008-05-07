@@ -33,4 +33,54 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: misc.c,v 1.5 1999/12/02 17:05:11 joda Exp $");
+RCSID("$Id: misc.c 21174 2007-06-19 10:10:58Z lha $");
+
+krb5_error_code KRB5_LIB_FUNCTION
+_krb5_s4u2self_to_checksumdata(krb5_context context, 
+			       const PA_S4U2Self *self, 
+			       krb5_data *data)
+{
+    krb5_error_code ret;
+    krb5_ssize_t ssize;
+    krb5_storage *sp;
+    size_t size;
+    int i;
+
+    sp = krb5_storage_emem();
+    if (sp == NULL) {
+	krb5_clear_error_string(context);
+	return ENOMEM;
+    }
+    krb5_storage_set_flags(sp, KRB5_STORAGE_BYTEORDER_LE);
+    ret = krb5_store_int32(sp, self->name.name_type);
+    if (ret)
+	goto out;
+    for (i = 0; i < self->name.name_string.len; i++) {
+	size = strlen(self->name.name_string.val[i]);
+	ssize = krb5_storage_write(sp, self->name.name_string.val[i], size);
+	if (ssize != size) {
+	    ret = ENOMEM;
+	    goto out;
+	}
+    }
+    size = strlen(self->realm);
+    ssize = krb5_storage_write(sp, self->realm, size);
+    if (ssize != size) {
+	ret = ENOMEM;
+	goto out;
+    }
+    size = strlen(self->auth);
+    ssize = krb5_storage_write(sp, self->auth, size);
+    if (ssize != size) {
+	ret = ENOMEM;
+	goto out;
+    }
+
+    ret = krb5_storage_to_data(sp, data);
+    krb5_storage_free(sp);
+    return ret;
+
+out:
+    krb5_clear_error_string(context);
+    return ret;
+}

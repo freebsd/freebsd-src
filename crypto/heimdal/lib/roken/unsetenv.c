@@ -33,7 +33,7 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: unsetenv.c,v 1.7 1999/12/02 16:58:53 joda Exp $");
+RCSID("$Id: unsetenv.c 14773 2005-04-12 11:29:18Z lha $");
 #endif
 
 #include <stdlib.h>
@@ -46,7 +46,7 @@ extern char **environ;
 /*
  * unsetenv --
  */
-void
+void ROKEN_LIB_FUNCTION
 unsetenv(const char *name)
 {
   int len;

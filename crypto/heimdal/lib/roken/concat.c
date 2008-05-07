@@ -33,11 +33,11 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: concat.c,v 1.4 1999/12/02 16:58:45 joda Exp $");
+RCSID("$Id: concat.c 14773 2005-04-12 11:29:18Z lha $");
 #endif
 #include "roken.h"
 
-int
+int ROKEN_LIB_FUNCTION
 roken_concat (char *s, size_t len, ...)
 {
     int ret;
@@ -49,7 +49,7 @@ roken_concat (char *s, size_t len, ...)
     return ret;
 }
 
-int
+int ROKEN_LIB_FUNCTION
 roken_vconcat (char *s, size_t len, va_list args)
 {
     const char *a;
@@ -67,7 +67,7 @@ roken_vconcat (char *s, size_t len, va_list args)
     return 0;
 }
 
-size_t
+size_t ROKEN_LIB_FUNCTION
 roken_vmconcat (char **s, size_t max_len, va_list args)
 {
     const char *a;
@@ -99,7 +99,7 @@ roken_vmconcat (char **s, size_t max_len, va_list args)
     return len;
 }
 
-size_t
+size_t ROKEN_LIB_FUNCTION
 roken_mconcat (char **s, size_t max_len, ...)
 {
     int ret;

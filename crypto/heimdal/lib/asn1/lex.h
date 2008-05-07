@@ -31,11 +31,12 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: lex.h,v 1.5 2000/07/01 20:21:34 assar Exp $ */
+/* $Id: lex.h 15617 2005-07-12 06:27:42Z lha $ */
 
 #include <roken.h>
 
 void error_message (const char *, ...)
 __attribute__ ((format (printf, 1, 2)));
+extern int error_flag;
 
 int yylex(void);

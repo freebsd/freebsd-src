@@ -1,4 +1,4 @@
-.\" Copyright (c) 1997, 2000 - 2002 Kungliga Tekniska Högskolan
+.\" Copyright (c) 1997, 2000 - 2005 Kungliga Tekniska Högskolan
 .\" (Royal Institute of Technology, Stockholm, Sweden). 
 .\" All rights reserved. 
 .\"
@@ -29,9 +29,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
 .\" SUCH DAMAGE. 
 .\" 
-.\" $Id: kpasswd.1,v 1.5 2003/02/16 21:10:22 lha Exp $
+.\" $Id: kpasswd.1 14478 2005-01-05 16:08:58Z lha $
 .\"
-.Dd August 27, 1997
+.Dd January  5, 2005
 .Dt KPASSWD 1
 .Os HEIMDAL
 .Sh NAME
@@ -39,10 +39,28 @@
 .Nd Kerberos 5 password changing program
 .Sh SYNOPSIS
 .Nm
-.Op Ar principal
+.Op Fl -admin-principal= Ns Ar principal
+.Oo Fl c Ar cache \*(Ba Xo
+.Fl -cache= Ns Ar cache
+.Xc
+.Oc
+.Op Ar principal ...
 .Sh DESCRIPTION
 .Nm
 is the client for changing passwords.
+.Pp
+If administrator principal is given that principal is used to change
+the password.
+.Pp
+Multiple passwords for different users can be changed at the same time,
+then the administrator principal will be used.
+If the administrator isn't specified on the command prompt, the
+principal of the default credential cache will be used.
+.Pp
+If a credential cache is given, the
+.Fl -admin-principal
+flag is ignored and use the default name of the credential cache is
+used instead.
 .Sh DIAGNOSTICS
 If the password quality check fails or some other error occurs, an
 explanation is printed.

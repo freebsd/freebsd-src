@@ -33,7 +33,7 @@
  *	@(#)extern.h	8.3 (Berkeley) 10/9/94
  */
 
-/* $Id: extern.h,v 1.19 2000/09/19 13:15:12 assar Exp $ */
+/* $Id: extern.h 9075 2000-09-19 13:15:12Z assar $ */
 
 #include <setjmp.h>
 #include <stdlib.h>

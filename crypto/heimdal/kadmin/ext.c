@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2002 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2006 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -32,85 +32,108 @@
  */
 
 #include "kadmin_locl.h"
+#include "kadmin-commands.h"
 
-RCSID("$Id: ext.c,v 1.8 2002/02/11 14:29:52 joda Exp $");
+RCSID("$Id: ext.c 16658 2006-01-25 12:29:46Z lha $");
 
 struct ext_keytab_data {
     krb5_keytab keytab;
 };
 
-static struct getargs args[] = {
-    { "keytab",		'k',	arg_string,	NULL, "keytab to use" },
-};
-
-static int num_args = sizeof(args) / sizeof(args[0]);
-
-static void
-usage(void)
-{
-    arg_printusage(args, num_args, "ext", "principal...");
-}
-
 static int
 do_ext_keytab(krb5_principal principal, void *data)
 {
     krb5_error_code ret;
-    int i;
     kadm5_principal_ent_rec princ;
     struct ext_keytab_data *e = data;
-
+    krb5_keytab_entry *keys = NULL;
+    krb5_keyblock *k = NULL;
+    int i, n_k;
+    
     ret = kadm5_get_principal(kadm_handle, principal, &princ, 
 			      KADM5_PRINCIPAL|KADM5_KVNO|KADM5_KEY_DATA);
     if(ret)
 	return ret;
-    for(i = 0; i < princ.n_key_data; i++){
-	krb5_keytab_entry key;
-	krb5_key_data *k = &princ.key_data[i];
-	key.principal = princ.principal;
-	key.vno = k->key_data_kvno;
-	key.keyblock.keytype = k->key_data_type[0];
-	key.keyblock.keyvalue.length = k->key_data_length[0];
-	key.keyblock.keyvalue.data = k->key_data_contents[0];
-	key.timestamp = time(NULL);
-	ret = krb5_kt_add_entry(context, e->keytab, &key);
-	if(ret)
-	    krb5_warn(context, ret, "krb5_kt_add_entry");
+
+    if (princ.n_key_data) {
+	keys = malloc(sizeof(*keys) * princ.n_key_data);
+	if (keys == NULL) {
+	    kadm5_free_principal_ent(kadm_handle, &princ);
+	    krb5_clear_error_string(context);
+	    return ENOMEM;
+	}
+	for (i = 0; i < princ.n_key_data; i++) {
+	    krb5_key_data *kd = &princ.key_data[i];
+
+	    keys[i].principal = princ.principal;
+	    keys[i].vno = kd->key_data_kvno;
+	    keys[i].keyblock.keytype = kd->key_data_type[0];
+	    keys[i].keyblock.keyvalue.length = kd->key_data_length[0];
+	    keys[i].keyblock.keyvalue.data = kd->key_data_contents[0];
+	    keys[i].timestamp = time(NULL);
+	}
+
+	n_k = princ.n_key_data;
+    } else {
+	ret = kadm5_randkey_principal(kadm_handle, principal, &k, &n_k);
+	if (ret) {
+	    kadm5_free_principal_ent(kadm_handle, &princ);
+	    return ret;
+	}
+	keys = malloc(sizeof(*keys) * n_k);
+	if (keys == NULL) {
+	    kadm5_free_principal_ent(kadm_handle, &princ);
+	    krb5_clear_error_string(context);
+	    return ENOMEM;
+	}
+	for (i = 0; i < n_k; i++) {
+	    keys[i].principal = principal;
+	    keys[i].vno = princ.kvno + 1; /* XXX get entry again */
+	    keys[i].keyblock = k[i];
+	    keys[i].timestamp = time(NULL);
+	}
     }
+
+    for(i = 0; i < n_k; i++) {
+	ret = krb5_kt_add_entry(context, e->keytab, &keys[i]);
+	if(ret)
+	    krb5_warn(context, ret, "krb5_kt_add_entry(%d)", i);
+    }
+
+    if (k) {
+	memset(k, 0, n_k * sizeof(*k));
+	free(k);
+    }
+    if (keys)
+	free(keys);
     kadm5_free_principal_ent(kadm_handle, &princ);
     return 0;
 }
 
 int
-ext_keytab(int argc, char **argv)
+ext_keytab(struct ext_keytab_options *opt, int argc, char **argv)
 {
     krb5_error_code ret;
     int i;
-    int optind = 0;
-    char *keytab = NULL;
     struct ext_keytab_data data;
-    
-    args[0].value = &keytab;
-    if(getarg(args, num_args, argc, argv, &optind)){
-	usage();
-	return 0;
-    }
-    if (keytab == NULL)
+
+    if (opt->keytab_string == NULL)
 	ret = krb5_kt_default(context, &data.keytab);
     else
-	ret = krb5_kt_resolve(context, keytab, &data.keytab);
+	ret = krb5_kt_resolve(context, opt->keytab_string, &data.keytab);
 
     if(ret){
 	krb5_warn(context, ret, "krb5_kt_resolve");
-	return 0;
+	return 1;
     }
 
-    argc -= optind;
-    argv += optind;
-
-    for(i = 0; i < argc; i++) 
-	foreach_principal(argv[i], do_ext_keytab, "ext", &data);
+    for(i = 0; i < argc; i++) {
+	ret = foreach_principal(argv[i], do_ext_keytab, "ext", &data);
+	if (ret)
+	    break;
+    }
 
     krb5_kt_close(context, data.keytab);
 
-    return 0;
+    return ret != 0;
 }

@@ -33,7 +33,7 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: getaddrinfo-test.c,v 1.4 2001/02/20 01:44:54 assar Exp $");
+RCSID("$Id: getaddrinfo-test.c 15930 2005-08-12 13:42:17Z lha $");
 #endif
 
 #include "roken.h"
@@ -94,7 +94,7 @@ doit (const char *nodename, const char *servname)
 	    printf ("\tbad address?\n");
 	    continue;
 	} 
-	printf ("\t(family = %d, socktype = %d, protocol = %d, "
+	printf ("\tfamily = %d, socktype = %d, protocol = %d, "
 		"address = \"%s\", port = %d",
 		r->ai_family, r->ai_socktype, r->ai_protocol,
 		addrstr,
@@ -109,13 +109,13 @@ doit (const char *nodename, const char *servname)
 int
 main(int argc, char **argv)
 {
-    int optind = 0;
+    int optidx = 0;
     int i;
 
     setprogname (argv[0]);
 
     if (getarg (args, sizeof(args) / sizeof(args[0]), argc, argv,
-		&optind))
+		&optidx))
 	usage (1);
 
     if (help_flag)
@@ -126,8 +126,8 @@ main(int argc, char **argv)
 	return 0;
     }
 
-    argc -= optind;
-    argv += optind;
+    argc -= optidx;
+    argv += optidx;
 
     if (argc % 2 != 0)
 	usage (1);

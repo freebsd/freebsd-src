@@ -33,7 +33,7 @@
 
 #include "login_locl.h"
 
-RCSID("$Id: shadow.c,v 1.5 1999/12/02 17:04:56 joda Exp $");
+RCSID("$Id: shadow.c 7464 1999-12-02 17:05:13Z joda $");
 
 #ifdef HAVE_SHADOW_H
 

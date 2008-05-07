@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2002 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2004 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -32,7 +32,7 @@
  */
 
 #include "krb5_locl.h"
-RCSID("$Id: convert_creds.c,v 1.26 2003/03/18 03:11:16 lha Exp $");
+RCSID("$Id: convert_creds.c 22050 2007-11-11 11:20:46Z lha $");
 
 #include "krb5-v4compat.h"
 
@@ -42,70 +42,23 @@ check_ticket_flags(TicketFlags f)
     return 0; /* maybe add some more tests here? */
 }
 
-/* include this here, to avoid dependencies on libkrb */
-
-static const int _tkt_lifetimes[TKTLIFENUMFIXED] = {
-   38400,   41055,   43894,   46929,   50174,   53643,   57352,   61318,
-   65558,   70091,   74937,   80119,   85658,   91581,   97914,  104684,
-  111922,  119661,  127935,  136781,  146239,  156350,  167161,  178720,
-  191077,  204289,  218415,  233517,  249664,  266926,  285383,  305116,
-  326213,  348769,  372885,  398668,  426234,  455705,  487215,  520904,
-  556921,  595430,  636601,  680618,  727680,  777995,  831789,  889303,
-  950794, 1016537, 1086825, 1161973, 1242318, 1328218, 1420057, 1518247,
- 1623226, 1735464, 1855462, 1983758, 2120925, 2267576, 2424367, 2592000
-};
-
-int
-_krb5_krb_time_to_life(time_t start, time_t end)
-{
-    int i;
-    time_t life = end - start;
-
-    if (life > MAXTKTLIFETIME || life <= 0) 
-	return 0;
-#if 0    
-    if (krb_no_long_lifetimes) 
-	return (life + 5*60 - 1)/(5*60);
-#endif
-    
-    if (end >= NEVERDATE)
-	return TKTLIFENOEXPIRE;
-    if (life < _tkt_lifetimes[0]) 
-	return (life + 5*60 - 1)/(5*60);
-    for (i=0; i<TKTLIFENUMFIXED; i++)
-	if (life <= _tkt_lifetimes[i])
-	    return i + TKTLIFEMINFIXED;
-    return 0;
-    
-}
-
-time_t
-_krb5_krb_life_to_time(int start, int life_)
-{
-    unsigned char life = (unsigned char) life_;
-
-#if 0    
-    if (krb_no_long_lifetimes)
-	return start + life*5*60;
-#endif
-
-    if (life == TKTLIFENOEXPIRE)
-	return NEVERDATE;
-    if (life < TKTLIFEMINFIXED)
-	return start + life*5*60;
-    if (life > TKTLIFEMAXFIXED)
-	return start + MAXTKTLIFETIME;
-    return start + _tkt_lifetimes[life - TKTLIFEMINFIXED];
-}
-
-
-/* Convert the v5 credentials in `in_cred' to v4-dito in `v4creds'.
- * This is done by sending them to the 524 function in the KDC.  If
+/**
+ * Convert the v5 credentials in in_cred to v4-dito in v4creds.  This
+ * is done by sending them to the 524 function in the KDC.  If
  * `in_cred' doesn't contain a DES session key, then a new one is
  * gotten from the KDC and stored in the cred cache `ccache'.
+ *
+ * @param context Kerberos 5 context.
+ * @param in_cred the credential to convert
+ * @param v4creds the converted credential
+ *
+ * @return Returns 0 to indicate success. Otherwise an kerberos et
+ * error code is returned, see krb5_get_error_message().
+ *
+ * @ingroup krb5_v4compat
  */
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb524_convert_creds_kdc(krb5_context context, 
 			 krb5_creds *in_cred,
 			 struct credentials *v4creds)
@@ -126,8 +79,8 @@ krb524_convert_creds_kdc(krb5_context context,
 	krb5_krbhst_handle handle;
 
 	ret = krb5_krbhst_init(context,
-			       *krb5_princ_realm(context, 
-						v5_creds->server),
+			       krb5_principal_get_realm(context, 
+							v5_creds->server),
 			       KRB5_KRBHST_KRB524,
 			       &handle);
 	if (ret)
@@ -191,7 +144,22 @@ out2:
     return ret;
 }
 
-krb5_error_code
+/**
+ * Convert the v5 credentials in in_cred to v4-dito in v4creds,
+ * check the credential cache ccache before checking with the KDC.
+ *
+ * @param context Kerberos 5 context.
+ * @param ccache credential cache used to check for des-ticket.
+ * @param in_cred the credential to convert
+ * @param v4creds the converted credential
+ *
+ * @return Returns 0 to indicate success. Otherwise an kerberos et
+ * error code is returned, see krb5_get_error_message().
+ *
+ * @ingroup krb5_v4compat
+ */
+
+krb5_error_code KRB5_LIB_FUNCTION
 krb524_convert_creds_kdc_ccache(krb5_context context, 
 				krb5_ccache ccache,
 				krb5_creds *in_cred,
@@ -212,18 +180,18 @@ krb524_convert_creds_kdc_ccache(krb5_context context,
 	template.session.keytype = ENCTYPE_DES_CBC_CRC;
 	ret = krb5_copy_principal (context, in_cred->client, &template.client);
 	if (ret) {
-	    krb5_free_creds_contents (context, &template);
+	    krb5_free_cred_contents (context, &template);
 	    return ret;
 	}
 	ret = krb5_copy_principal (context, in_cred->server, &template.server);
 	if (ret) {
-	    krb5_free_creds_contents (context, &template);
+	    krb5_free_cred_contents (context, &template);
 	    return ret;
 	}
 
 	ret = krb5_get_credentials (context, 0, ccache,
 				    &template, &v5_creds);
-	krb5_free_creds_contents (context, &template);
+	krb5_free_cred_contents (context, &template);
 	if (ret)
 	    return ret;
     }

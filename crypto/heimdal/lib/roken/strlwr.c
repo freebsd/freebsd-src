@@ -33,15 +33,15 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: strlwr.c,v 1.5 2003/04/14 11:44:34 lha Exp $");
+RCSID("$Id: strlwr.c 21005 2007-06-08 01:54:35Z lha $");
 #endif
 #include <string.h>
 #include <ctype.h>
 
-#include <roken.h>
+#include "roken.h"
 
 #ifndef HAVE_STRLWR
-char *
+char * ROKEN_LIB_FUNCTION
 strlwr(char *str)
 {
   char *s;

@@ -33,7 +33,7 @@
 
 #include "telnet_locl.h"
 
-RCSID("$Id: terminal.c,v 1.11 2001/03/06 20:10:14 assar Exp $");
+RCSID("$Id: terminal.c 9733 2001-03-06 20:10:14Z assar $");
 
 Ring		ttyoring, ttyiring;
 unsigned char	ttyobuf[2*BUFSIZ], ttyibuf[BUFSIZ];

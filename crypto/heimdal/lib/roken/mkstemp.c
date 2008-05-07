@@ -44,11 +44,11 @@
 #endif
 #include <errno.h>
 
-RCSID("$Id: mkstemp.c,v 1.3 1999/12/02 16:58:51 joda Exp $");
+RCSID("$Id: mkstemp.c 14773 2005-04-12 11:29:18Z lha $");
 
 #ifndef HAVE_MKSTEMP
 
-int
+int ROKEN_LIB_FUNCTION
 mkstemp(char *template)
 {
     int start, i;

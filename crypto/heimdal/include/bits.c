@@ -33,7 +33,7 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: bits.c,v 1.22 2002/08/28 16:08:44 joda Exp $");
+RCSID("$Id: bits.c 18703 2006-10-20 20:33:58Z lha $");
 #endif
 #include <stdio.h>
 #include <string.h>
@@ -112,8 +112,13 @@ int main(int argc, char **argv)
 {
     FILE *f;
     int flag;
-    char *fn, *hb;
+    const char *fn, *hb;
     
+    if (argc > 1 && strcmp(argv[1], "--version") == 0) {
+	printf("some version");
+	return 0;
+    }
+
     if(argc < 2){
 	fn = "bits.h";
 	hb = "__BITS_H__";
@@ -121,9 +126,10 @@ int main(int argc, char **argv)
     } else {
 	char *p;
 	fn = argv[1];
-	hb = malloc(strlen(fn) + 5);
-	sprintf(hb, "__%s__", fn);
-	for(p = hb; *p; p++){
+	p = malloc(strlen(fn) + 5);
+	sprintf(p, "__%s__", fn);
+	hb = p;
+	for(; *p; p++){
 	    if(!isalnum((unsigned char)*p))
 		*p = '_';
 	}
@@ -131,7 +137,7 @@ int main(int argc, char **argv)
     }
     fprintf(f, "/* %s -- this file was generated for %s by\n", fn, HOST);
     fprintf(f, "   %*s    %s */\n\n", (int)strlen(fn), "", 
-	    "$Id: bits.c,v 1.22 2002/08/28 16:08:44 joda Exp $");
+	    "$Id: bits.c 18703 2006-10-20 20:33:58Z lha $");
     fprintf(f, "#ifndef %s\n", hb);
     fprintf(f, "#define %s\n", hb);
     fprintf(f, "\n");
@@ -168,12 +174,10 @@ int main(int argc, char **argv)
     flag = print_bt(f, flag);
     try_signed (f, 32);
 #endif /* HAVE_INT32_T */
-#if 0
 #ifndef HAVE_INT64_T
     flag = print_bt(f, flag);
     try_signed (f, 64);
 #endif /* HAVE_INT64_T */
-#endif
 
 #ifndef HAVE_UINT8_T
     flag = print_bt(f, flag);
@@ -187,12 +191,10 @@ int main(int argc, char **argv)
     flag = print_bt(f, flag);
     try_unsigned (f, 32);
 #endif /* HAVE_UINT32_T */
-#if 0
 #ifndef HAVE_UINT64_T
     flag = print_bt(f, flag);
     try_unsigned (f, 64);
 #endif /* HAVE_UINT64_T */
-#endif
 
 #define X(S) fprintf(f, "typedef uint" #S "_t u_int" #S "_t;\n")
 #ifndef HAVE_U_INT8_T
@@ -207,12 +209,10 @@ int main(int argc, char **argv)
     flag = print_bt(f, flag);
     X(32);
 #endif /* HAVE_U_INT32_T */
-#if 0
 #ifndef HAVE_U_INT64_T
     flag = print_bt(f, flag);
     X(64);
 #endif /* HAVE_U_INT64_T */
-#endif
 
     if(flag){
 	fprintf(f, "\n");

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2006 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -32,57 +32,32 @@
  */
 
 #include "kadmin_locl.h"
+#include "kadmin-commands.h"
 
-RCSID("$Id: rename.c,v 1.4 2001/05/04 13:07:03 joda Exp $");
-
-static struct getargs args[] = {
-    { "help", 'h', arg_flag, NULL }
-};
-
-static int num_args = sizeof(args) / sizeof(args[0]);
-
-static void
-usage(void)
-{
-    arg_printusage (args, num_args, "rename", "from to");
-}
+RCSID("$Id: rename.c 17007 2006-04-07 13:11:24Z lha $");
 
 int
-rename_entry(int argc, char **argv)
+rename_entry(void *opt, int argc, char **argv)
 {
-    int optind = 0;
-    int help_flag = 0;
-
     krb5_error_code ret;
     krb5_principal princ1, princ2;
 
-    args[0].value = &help_flag;
-
-    if(getarg(args, num_args, argc, argv, &optind)) {
-	usage ();
-	return 0;
-    }
-    if(argc - optind != 2 || help_flag) {
-	usage ();
-	return 0;
-    }
-
-    ret = krb5_parse_name(context, argv[1], &princ1);
+    ret = krb5_parse_name(context, argv[0], &princ1);
     if(ret){
+	krb5_warn(context, ret, "krb5_parse_name(%s)", argv[0]);
+	return ret != 0;
+    }
+    ret = krb5_parse_name(context, argv[1], &princ2);
+    if(ret){
+	krb5_free_principal(context, princ1);
 	krb5_warn(context, ret, "krb5_parse_name(%s)", argv[1]);
-	return 0;
-    }
-    ret = krb5_parse_name(context, argv[2], &princ2);
-    if(ret){
-	krb5_free_principal(context, princ2);
-	krb5_warn(context, ret, "krb5_parse_name(%s)", argv[2]);
-	return 0;
+	return ret != 0;
     }
     ret = kadm5_rename_principal(kadm_handle, princ1, princ2);
     if(ret)
 	krb5_warn(context, ret, "rename");
     krb5_free_principal(context, princ1);
     krb5_free_principal(context, princ2);
-    return 0;
+    return ret != 0;
 }
 

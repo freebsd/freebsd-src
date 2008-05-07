@@ -31,9 +31,32 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: roken_rename.h,v 1.3 1999/12/02 16:58:38 joda Exp $ */
+/* $Id: roken_rename.h 14930 2005-04-24 19:43:06Z lha $ */
 
 #ifndef __roken_rename_h__
 #define __roken_rename_h__
+
+#ifndef HAVE_SNPRINTF
+#define snprintf _com_err_snprintf
+#endif
+#ifndef HAVE_VSNPRINTF
+#define vsnprintf _com_err_vsnprintf
+#endif
+#ifndef HAVE_ASPRINTF
+#define asprintf _com_err_asprintf
+#endif
+#ifndef HAVE_ASNPRINTF
+#define asnprintf _com_err_asnprintf
+#endif
+#ifndef HAVE_VASPRINTF
+#define vasprintf _com_err_vasprintf
+#endif
+#ifndef HAVE_VASNPRINTF
+#define vasnprintf _com_err_vasnprintf
+#endif
+#ifndef HAVE_STRLCPY
+#define strlcpy _com_err_strlcpy
+#endif
+
 
 #endif /* __roken_rename_h__ */

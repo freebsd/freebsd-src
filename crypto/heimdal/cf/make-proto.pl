@@ -1,5 +1,5 @@
 # Make prototypes from .c files
-# $Id: make-proto.pl,v 1.16 2002/09/19 19:29:42 joda Exp $
+# $Id: make-proto.pl 14183 2004-09-03 08:50:57Z lha $
 
 ##use Getopt::Std;
 require 'getopts.pl';
@@ -10,7 +10,7 @@ $debug = 0;
 $oproto = 1;
 $private_func_re = "^_";
 
-do Getopts('o:p:dqR:P:') || die "foo";
+do Getopts('x:m:o:p:dqE:R:P:') || die "foo";
 
 if($opt_d) {
     $debug = 1;
@@ -22,6 +22,45 @@ if($opt_q) {
 
 if($opt_R) {
     $private_func_re = $opt_R;
+}
+%flags = (
+	  'multiline-proto' => 1,
+	  'header' => 1,
+	  'function-blocking' => 0,
+	  'gnuc-attribute' => 1,
+	  'cxx' => 1
+	  );
+if($opt_m) {
+    foreach $i (split(/,/, $opt_m)) {
+	if($i eq "roken") {
+	    $flags{"multiline-proto"} = 0;
+	    $flags{"header"} = 0;
+	    $flags{"function-blocking"} = 0;
+	    $flags{"gnuc-attribute"} = 0;
+	    $flags{"cxx"} = 0;
+	} else {
+	    if(substr($i, 0, 3) eq "no-") {
+		$flags{substr($i, 3)} = 0;
+	    } else {
+		$flags{$i} = 1;
+	    }
+	}
+    }
+}
+
+if($opt_x) {
+    open(EXP, $opt_x);
+    while(<EXP>) {
+	chomp;
+	s/\#.*//g;
+	s/\s+/ /g;
+	if(/^([a-zA-Z0-9_]+)\s?(.*)$/) {
+	    $exported{$1} = $2;
+	} else {
+	    print $_, "\n";
+	}
+    }
+    close EXP;
 }
 
 while(<>) {
@@ -68,6 +107,7 @@ while(<>) {
 		# remove parameter names 
 		if($opt_P eq "remove") {
 		    s/(\s*)([a-zA-Z0-9_]+)([,>])/$3/g;
+		    s/\s+\*/*/g;
 		    s/\(\*(\s*)([a-zA-Z0-9_]+)\)/(*)/g;
 		} elsif($opt_P eq "comment") {
 		    s/([a-zA-Z0-9_]+)([,>])/\/\*$1\*\/$2/g;
@@ -75,7 +115,11 @@ while(<>) {
 		}
 		s/\<\>/<void>/;
 		# add newlines before parameters
-		s/,\s*/,\n\t/g;
+		if($flags{"multiline-proto"}) {
+		    s/,\s*/,\n\t/g;
+		} else {
+		    s/,\s*/, /g;
+		}
 		# fix removed ,
 		s/\$/,/g;
 		# match function name
@@ -89,14 +133,16 @@ while(<>) {
 		    $RP = ")";
 		}
 		# only add newline if more than one parameter
-                if(/,/){ 
+                if($flags{"multiline-proto"} && /,/){ 
 		    s/\</ $LP\n\t/;
 		}else{
 		    s/\</ $LP/;
 		}
 		s/\>/$RP/;
 		# insert newline before function name
-		s/(.*)\s([a-zA-Z0-9_]+ \Q$LP\E)/$1\n$2/;
+		if($flags{"multiline-proto"}) {
+		    s/(.*)\s([a-zA-Z0-9_]+ \Q$LP\E)/$1\n$2/;
+		}
 		if($attr ne "") {
 		    $_ .= "\n    $attr";
 		}
@@ -142,13 +188,13 @@ if($opt_p) {
 $public_h = "";
 $private_h = "";
 
-$public_h_header = "/* This is a generated file */
+$public_h_header .= "/* This is a generated file */
 #ifndef $block
 #define $block
 
 ";
 if ($oproto) {
-$public_h_header .= "#ifdef __STDC__
+    $public_h_header .= "#ifdef __STDC__
 #include <stdarg.h>
 #ifndef __P
 #define __P(x) x
@@ -165,6 +211,7 @@ $public_h_header .= "#ifdef __STDC__
 
 ";
 }
+$public_h_trailer = "";
 
 $private_h_header = "/* This is a generated file */
 #ifndef $private
@@ -172,7 +219,7 @@ $private_h_header = "/* This is a generated file */
 
 ";
 if($oproto) {
-$private_h_header .= "#ifdef __STDC__
+    $private_h_header .= "#ifdef __STDC__
 #include <stdarg.h>
 #ifndef __P
 #define __P(x) x
@@ -189,43 +236,94 @@ $private_h_header .= "#ifdef __STDC__
 
 ";
 }
+$private_h_trailer = "";
+
 foreach(sort keys %funcs){
     if(/^(main)$/) { next }
-    if(/$private_func_re/) {
+    if(!defined($exported{$_}) && /$private_func_re/) {
 	$private_h .= $funcs{$_} . "\n\n";
 	if($funcs{$_} =~ /__attribute__/) {
 	    $private_attribute_seen = 1;
 	}
     } else {
-	$public_h .= $funcs{$_} . "\n\n";
+	if($flags{"function-blocking"}) {
+	    $fupper = uc $_;
+	    if($exported{$_} =~ /proto/) {
+		$public_h .= "#if !defined(HAVE_$fupper) || defined(NEED_${fupper}_PROTO)\n";
+	    } else {
+		$public_h .= "#ifndef HAVE_$fupper\n";
+	    }
+	}
+	$public_h .= $funcs{$_} . "\n";
 	if($funcs{$_} =~ /__attribute__/) {
 	    $public_attribute_seen = 1;
 	}
+	if($flags{"function-blocking"}) {
+	    $public_h .= "#endif\n";
+	}
+	$public_h .= "\n";
     }
 }
 
-if ($public_attribute_seen) {
-    $public_h_header .= "#if !defined(__GNUC__) && !defined(__attribute__)
+if($flags{"gnuc-attribute"}) {
+    if ($public_attribute_seen) {
+	$public_h_header .= "#if !defined(__GNUC__) && !defined(__attribute__)
 #define __attribute__(x)
 #endif
 
 ";
-}
+    }
 
-if ($private_attribute_seen) {
-    $private_h_header .= "#if !defined(__GNUC__) && !defined(__attribute__)
+    if ($private_attribute_seen) {
+	$private_h_header .= "#if !defined(__GNUC__) && !defined(__attribute__)
 #define __attribute__(x)
 #endif
 
 ";
+    }
 }
+if($flags{"cxx"}) {
+    $public_h_header .= "#ifdef __cplusplus
+extern \"C\" {
+#endif
 
-
-if ($public_h ne "") {
-    $public_h = $public_h_header . $public_h . "#endif /* $block */\n";
+";
+    $public_h_trailer .= "#ifdef __cplusplus
 }
-if ($private_h ne "") {
-    $private_h = $private_h_header . $private_h . "#endif /* $private */\n";
+#endif
+
+";
+
+}
+if ($opt_E) {
+    $public_h_header .= "#ifndef $opt_E
+#if defined(_WIN32)
+#define $opt_E _stdcall
+#else
+#define $opt_E
+#endif
+#endif
+
+";
+    
+    $private_h_header .= "#ifndef $opt_E
+#if defined(_WIN32)
+#define $opt_E _stdcall
+#else
+#define $opt_E
+#endif
+#endif
+
+";
+}
+    
+if ($public_h ne "" && $flags{"header"}) {
+    $public_h = $public_h_header . $public_h . 
+	$public_h_trailer . "#endif /* $block */\n";
+}
+if ($private_h ne "" && $flags{"header"}) {
+    $private_h = $private_h_header . $private_h .
+	$private_h_trailer . "#endif /* $private */\n";
 }
 
 if($opt_o) {

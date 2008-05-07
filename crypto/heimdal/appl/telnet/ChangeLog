@@ -1,21 +1,266 @@
-2004-06-21  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-12-31  Love Hörnquist Åstrand  <lha@it.su.se>
 
-	* telnet/network.c: 1.12: make network rings larger From: MAAAAA
-	MOOOR <huaraz@btinternet.com>
+	* telnetd/sys_term.c: Use strlcpy instead of strncpy, thanks to
+	Antoine Brodin.
 	
-	* telnetd/state.c: 1.14: make subbuffer larger XXX resize
-	dynamicly From: MAAAAA MOOOR <huaraz@btinternet.com>
+2007-07-31  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* telnetd/telnetd.c (usage): use exit_code, add --version and
+	--help.
+
+	* telnetd/telnetd.c: Add --help, reported by David Love.
+
+2007-07-30  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* telnet/main.c: Catch --help, reported by David Love.
 	
-	* libtelnet/kerberos5.c: 1.54: (Data): allocate the data needed to
-	be send
+2007-07-12  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* telnetd/sys_term.c: GLIBC made the choice that ut_tv should be
+	shared between 32 and 64 bit platforms so now we can no longer use
+	struct timeval functions to compare or set/get data that uses
+	pointer (gettimeofday for example) since ut_tv is now not a struct
+	timeval but rather a struct { int32_t tv_sec; int32_t tv_usec; };
+
+2006-10-21  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* telnet/telnet_locl.h: Include roken.h before the local
+	headerfiles.
+
+	* telnetd/telnetd.h: HP/UX defines SE in sys/uio.h, #undef it.
+
+	* telnetd/sys_term.c: Dont't include some streamspty headers here.
+
+	* telnetd/telnetd.c: Dont't include some streamspty headers here.
+
+	* telnetd/telnetd.h: includes some STREAMSPTY header here to avoid
+	ioctl vs socket_wrapper horror.
+	
+2006-10-20  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* telnet/Makefile.am: more files
+	
+	* telnetd/Makefile.am: more files
+	
+2006-09-19  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* telnetd/telnetd.8: Add documentation for -e, require encryption.
+
+	* telnetd/telnetd.h: Add require_encryption.
+
+	* telnetd/telnetd.c: Allow encryption to be required, wait to the
+	client to turn it on, if failes, refuse the connection.
+
+	* telnetd/state.c: If encryption is required, don't allow it to be
+	turned off.
+	
+2006-09-04  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* libtelnet/kerberos5.c (kerberos5_forward): use KDCOptions2int on
+	flags before passing them to krb5_get_forwarded_creds.
+	
+2006-05-05  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* Rename u_intXX_t to uintXX_t
+
+2006-03-23  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* libtelnet/encrypt.c: Spelling.
+
+2005-12-01  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* telnetd/telnetd.c: Initialize the slc mapping table before its
+	used.  Based on bug report from Russell Sanford
+	<rrs@clyde.dcccd.edu>
+	
+2005-11-03  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* telnet/telnet.c: Spelling in comments, from Dave Love
+	<fx@gnu.org>
+	
+2005-10-31  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* libtelnet/kerberos5.c (Data): Use right variable. From Tomas
+	Olsson
+	
+2005-10-22  Love Hörnquist Åstrand <lha@it.su.se>
+
+	* telnet/commands.c: Check return value from asprintf instead of
+	string != NULL since it undefined behavior on Linux. From Björn
+	Sandell
+
+	* libtelnet/kerberos5.c: Check return value from asprintf instead
+	of string != NULL since it undefined behavior on Linux. From Björn
+	Sandell
+
+	* libtelnet/kerberos.c: Check return value from asprintf instead
+	of string != NULL since it undefined behavior on Linux. From Björn
+	Sandell
+	
+2005-08-08  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* telnetd/telnetd.c: Fix printing of /etc/issue{,.net}.
+	
+	* telnetd/utility.c: make writenet take const void * and size_t,
+	abort if size it too large
+
+	* telnetd/state.c: Fix ansi c warning.
+
+	* telnetd/sys_term.c: no need to typecast argument to writenet
+
+	* telnetd/ext.h: make writenet take const void * and size_t
+
+2005-07-07  Assar Westerlund  <assar@kth.se>
+
+	* libtelnet/kerberos.c: Do not assume that des_key_schedule is an
+	array.
+
+2005-05-27  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* libtelnet/kerberos5.c: case uid_t to unsigned long in printf
+	format
+
+	* telnetd/sys_term.c (set_termbuf): use {} around if to make else
+	unambiguous
+
+2005-05-20  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* telnetd/sys_term.c (start_login): put utmpx code into a new
+	scope to avoid pre c99 problems.
+
+2005-05-19  Dave Love  <fx@gnu.org>
+
+	* telnet/telnet.c,telnet_locl.h: Make solaris find tgetent
+
+2005-05-13  Johan Danielsson  <joda@pdc.kth.se>
+
+	* telnetd/sys_term.c (start_login): set encryption pointers to
+	NULL, so we don't try to do either
+	
+2005-05-11  Dave Love  <fx@gnu.org>
+
+	* telnet/telnet.c: undef ISASCII before we define our own (problem
+	on Irix)
+
+2005-04-28  Johan Danielsson  <joda@pdc.kth.se>
+
+	* telnetd/utility.c (putf): %t: the regular and streamspty case
+	are functionally equivalent, so merge them, this also makes it
+	work better on machines that puts their devices in a subdirectory
+	to /dev
+
+2005-04-27  Dave Love  <fx@gnu.org>
+
+	* telnetd/sys_term.c (getpty): Declare p.
+
+2005-04-25  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* telnetd/telnetd.c: use strlcpy
+	
+2005-04-24  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* telnetd/global.c, telnetd/state.c, telnetd/telnetd.c,
+	telentd/ext.h: remove another strcpy
+
+2005-04-19  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* telnetd/sys_term.c: rewrite getpty to make use openpty when its
+	found, save the slave fd so that cleanopen can use it if its
+	available
+
+2005-04-07  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* telnetd/sys_term.c: clean_ttyname might be unused, mark it so
+	with __attribute__
+	
+2005-04-06  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* telnetd/sys_term.c: use NULL as last argument to execl, not 0
+
+	* telnet/commands.c: use NULL as last argument to execl, not 0
+	
+2005-03-29  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* telnet/telnet.c: From FreeBSD:
+	
+	Correct a pair of buffer overflows in the telnet(1) command:
+	
+	 (CAN-2005-0468) A heap buffer overflow in env_opt_add() and related
+	 functions.
+	
+	 (CAN-2005-0469) A global uninitialized data section buffer overflow in
+	 slc_add_reply() and related functions.
+	
+	As a result of these vulnerabilities, it may be possible for a
+	malicious telnet server or active network attacker to cause
+	telnet(1) to execute arbitrary code with the privileges of the
+	user running it.
+	
+	Security: CAN-2005-0468, CAN-2005-0469 Security:
+	FreeBSD-SA-05:01.telnet Security:
+	http://www.idefense.com/application/poi/display?id=220&type=vulnerabilities
+	Security:
+	http://www.idefense.com/application/poi/display?id=221&type=vulnerabilities
+	
+	These fixes are based in part on patches Submitted by: Solar
+	Designer <solar@openwall.com>
+
+2005-03-23  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* telnetd/telnetd.c: remove setting of DES_check_key, all code
+	uses DES_set_key_checked
+
+	* libtelnet/enc_des.c: use DES_set_key_checked
+	
+2005-01-09  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* telnet/telnet.c: cast argument to toupper to unsigned char
+
+	* telnet/commands.c: cast argument to is* to unsigned char
+
+2004-06-20  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* telnet/network.c: make network rings larger From: MAAAAA MOOOR
+	<huaraz@btinternet.com>
+	
+	* telnetd/state.c: make subbuffer larger XXX resize dynamicly
 	From: MAAAAA MOOOR <huaraz@btinternet.com>
+	
+	* libtelnet/kerberos5.c (Data): allocate the data needed to be
+	send From: MAAAAA MOOOR <huaraz@btinternet.com>
+	
+2004-04-02  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* telnet/main.c: make encrypt, forwardable, forward use appdefault
+	(that also searches libdefaults), prompted by Thomas Nystrom
+	<thn@saeab.se>
 	
 2004-03-22  Love Hörnquist Åstrand  <lha@it.su.se>
 
-        * telnetd/telnetd.c: call setprogname to make libvers happy
+	* telnetd/telnetd.c: call setprogname to make libvers happy
 
-        * telnet/main.c: call setprogname to make libvers happy
+	* telnet/main.c: call setprogname to make libvers happy
 
+2003-09-25  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* telnet/externs.h: export Scheduler and scheduler_lockout_tty
+	
+	* telnet/telnet.c (my_telnet): if telnet_spin returns failure,
+	complain that the server disconnected and exit
+	
+	* telnet/authenc.c (telnet_spin): if Scheduler() returns failure
+	(-1) propagate to higher level
+
+2003-09-03  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* telnetd/telnetd.c: use new DES_ api
+	
+	* libtelnet/enc_des.c: use new DES_ api
+	
+2003-04-22  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* telnet/telnet.1: replace <,> with \*[Lt],\*[Gt]
+	
 2002-09-02  Johan Danielsson  <joda@pdc.kth.se>
 
 	* libtelnet/kerberos5.c: set AP_OPTS_USE_SUBKEY

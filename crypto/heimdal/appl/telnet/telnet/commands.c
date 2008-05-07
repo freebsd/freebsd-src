@@ -33,7 +33,7 @@
 
 #include "telnet_locl.h"
 
-RCSID("$Id: commands.c,v 1.72 2002/08/28 21:04:59 joda Exp $");
+RCSID("$Id: commands.c 16224 2005-10-22 17:17:44Z lha $");
 
 #if	defined(IPPROTO_IP) && defined(IP_TOS)
 int tos = -1;
@@ -74,7 +74,7 @@ makeargv()
     }
     while ((c = *cp)) {
 	int inquote = 0;
-	while (isspace(c))
+	while (isspace((unsigned char)c))
 	    c = *++cp;
 	if (c == '\0')
 	    break;
@@ -96,7 +96,7 @@ makeargv()
 		} else if (c == '\'') {
 		    inquote = '\'';
 		    continue;
-		} else if (isspace(c))
+		} else if (isspace((unsigned char)c))
 		    break;
 	    }
 	    *cp2++ = c;
@@ -1318,9 +1318,9 @@ shell(int argc, char **argv)
 	    else
 		shellname++;
 	    if (argc > 1)
-		execl(shellp, shellname, "-c", &saveline[1], 0);
+		execl(shellp, shellname, "-c", &saveline[1], NULL);
 	    else
-		execl(shellp, shellname, 0);
+		execl(shellp, shellname, NULL);
 	    perror("Execl");
 	    _exit(1);
 	}
@@ -1582,6 +1582,7 @@ env_init(void)
 	    || strncmp((char *)ep->value, "unix:", 5) == 0)) {
 		char hbuf[256+1];
 		char *cp2 = strchr((char *)ep->value, ':');
+		int error;
 
 		/* XXX - should be k_gethostname? */
 		gethostname(hbuf, 256);
@@ -1590,7 +1591,6 @@ env_init(void)
 		/* If this is not the full name, try to get it via DNS */
 		if (strchr(hbuf, '.') == 0) {
 			struct addrinfo hints, *ai, *a;
-			int error;
 
 			memset (&hints, 0, sizeof(hints));
 			hints.ai_flags = AI_CANONNAME;
@@ -1608,9 +1608,11 @@ env_init(void)
 			}
 		}
 
-		asprintf (&cp, "%s%s", hbuf, cp2);
-		free (ep->value);
-		ep->value = (unsigned char *)cp;
+		error = asprintf (&cp, "%s%s", hbuf, cp2);
+		if (error != -1) {
+		    free (ep->value);
+		    ep->value = (unsigned char *)cp;
+		}
 	}
 	/*
 	 * If USER is not defined, but LOGNAME is, then add
@@ -2026,11 +2028,11 @@ cmdrc(char *m1, char *m2)
 	if (line[0] == '#')
 	    continue;
 	if (gotmachine) {
-	    if (!isspace(line[0]))
+	    if (!isspace((unsigned char)line[0]))
 		gotmachine = 0;
 	}
 	if (gotmachine == 0) {
-	    if (isspace(line[0]))
+	    if (isspace((unsigned char)line[0]))
 		continue;
 	    if (strncasecmp(line, m1, l1) == 0)
 		strncpy(line, &line[l1], sizeof(line) - l1);

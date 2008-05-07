@@ -33,9 +33,9 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: net_write.c,v 1.7 2002/08/21 09:08:07 joda Exp $");
+RCSID("$Id: net_write.c 13863 2004-05-25 21:46:46Z lha $");
 
-krb5_ssize_t
+krb5_ssize_t KRB5_LIB_FUNCTION
 krb5_net_write (krb5_context context,
 		void *p_fd,
 		const void *buf,
@@ -44,4 +44,62 @@ krb5_net_write (krb5_context context,
   int fd = *((int *)p_fd);
 
   return net_write (fd, buf, len);
+}
+
+krb5_ssize_t KRB5_LIB_FUNCTION
+krb5_net_write_block(krb5_context context,
+		     void *p_fd,
+		     const void *buf,
+		     size_t len,
+		     time_t timeout)
+{
+  int fd = *((int *)p_fd);
+  int ret;
+  struct timeval tv, *tvp;
+  const char *cbuf = (const char *)buf;
+  size_t rem = len;
+  ssize_t count;
+  fd_set wfds;
+
+  do {
+      FD_ZERO(&wfds);
+      FD_SET(fd, &wfds);
+      
+      if (timeout != 0) {
+	  tv.tv_sec = timeout;
+	  tv.tv_usec = 0;
+	  tvp = &tv;
+      } else
+	  tvp = NULL;
+
+      ret = select(fd + 1, NULL, &wfds, NULL, tvp);
+      if (ret < 0) {
+	  if (errno == EINTR)
+	      continue;
+	  return -1;
+      } else if (ret == 0)
+	  return 0;
+      
+      if (!FD_ISSET(fd, &wfds)) {
+	  errno = ETIMEDOUT;
+	  return -1;
+      }
+
+#ifdef WIN32
+      count = send (fd, cbuf, rem, 0);
+#else
+      count = write (fd, cbuf, rem);
+#endif
+      if (count < 0) {
+	  if (errno == EINTR)
+	      continue;
+	  else
+	      return count;
+      }
+      cbuf += count;
+      rem -= count;
+
+  } while (rem > 0);
+
+  return len;
 }

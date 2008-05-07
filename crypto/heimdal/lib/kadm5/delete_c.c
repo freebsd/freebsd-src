@@ -33,7 +33,7 @@
 
 #include "kadm5_locl.h"
 
-RCSID("$Id: delete_c.c,v 1.4 2000/07/11 15:59:29 joda Exp $");
+RCSID("$Id: delete_c.c 16661 2006-01-25 12:50:10Z lha $");
 
 kadm5_ret_t
 kadm5_c_delete_principal(void *server_handle, krb5_principal princ)
@@ -50,8 +50,10 @@ kadm5_c_delete_principal(void *server_handle, krb5_principal princ)
 	return ret;
 
     sp = krb5_storage_from_mem(buf, sizeof(buf));
-    if (sp == NULL)
+    if (sp == NULL) {
+	krb5_clear_error_string(context->context);
 	return ENOMEM;
+    }
     krb5_store_int32(sp, kadm_delete);
     krb5_store_principal(sp, princ);
     ret = _kadm5_client_send(context, sp);
@@ -63,10 +65,12 @@ kadm5_c_delete_principal(void *server_handle, krb5_principal princ)
 	return ret;
     sp = krb5_storage_from_data (&reply);
     if(sp == NULL) {
+	krb5_clear_error_string(context->context);
 	krb5_data_free (&reply);
 	return ENOMEM;
     }
     krb5_ret_int32(sp, &tmp);
+    krb5_clear_error_string(context->context);
     krb5_storage_free(sp);
     krb5_data_free (&reply);
     return tmp;

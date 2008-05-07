@@ -33,7 +33,7 @@
 
 #include "kadmin_locl.h"
 
-RCSID("$Id: random_password.c,v 1.4 2001/02/15 04:20:53 assar Exp $");
+RCSID("$Id: random_password.c 21745 2007-07-31 16:11:25Z lha $");
 
 /* This file defines some a function that generates a random password,
    that can be used when creating a large amount of principals (such
@@ -123,7 +123,11 @@ generate_password(char **pw, int num_classes, ...)
     unsigned char rbuf[8]; /* random buffer */
     int rleft = 0;
 
+    *pw = NULL;
+
     classes = malloc(num_classes * sizeof(*classes));
+    if(classes == NULL)
+	return;
     va_start(ap, num_classes);
     len = 0;
     for(i = 0; i < num_classes; i++){
@@ -134,8 +138,10 @@ generate_password(char **pw, int num_classes, ...)
     }
     va_end(ap);
     *pw = malloc(len + 1);
-    if(*pw == NULL)
+    if(*pw == NULL) {
+	free(classes);
 	return;
+    }
     for(i = 0; i < len; i++) {
 	int j;
 	int x = RND(rbuf, sizeof(rbuf), &rleft) % (len - i);

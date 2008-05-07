@@ -1,4 +1,4 @@
-dnl $Id: check-getpwnam_r-posix.m4,v 1.2.34.1 2004/04/01 07:27:32 joda Exp $
+dnl $Id: check-getpwnam_r-posix.m4 15435 2005-06-16 19:45:52Z lha $
 dnl
 dnl check for getpwnam_r, and if it's posix or not
 
@@ -8,14 +8,15 @@ if test "$ac_cv_func_getpwnam_r" = yes; then
 	AC_CACHE_CHECK(if getpwnam_r is posix,ac_cv_func_getpwnam_r_posix,
 	ac_libs="$LIBS"
 	LIBS="$LIBS $LIB_getpwnam_r"
-	AC_TRY_RUN([
+	AC_RUN_IFELSE([AC_LANG_SOURCE([[
+#define _POSIX_PTHREAD_SEMANTICS
 #include <pwd.h>
-int main()
+int main(int argc, char **argv)
 {
 	struct passwd pw, *pwd;
 	return getpwnam_r("", &pw, NULL, 0, &pwd) < 0;
 }
-],ac_cv_func_getpwnam_r_posix=yes,ac_cv_func_getpwnam_r_posix=no,:)
+]])],[ac_cv_func_getpwnam_r_posix=yes],[ac_cv_func_getpwnam_r_posix=no],[:])
 LIBS="$ac_libs")
 if test "$ac_cv_func_getpwnam_r_posix" = yes; then
 	AC_DEFINE(POSIX_GETPWNAM_R, 1, [Define if getpwnam_r has POSIX flavour.])

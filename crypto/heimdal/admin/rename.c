@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 2001-2004 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,52 +33,28 @@
 
 #include "ktutil_locl.h"
 
-RCSID("$Id: rename.c,v 1.1 2001/07/23 10:17:32 joda Exp $");
+RCSID("$Id: rename.c 14260 2004-09-23 14:45:29Z joda $");
 
 int
-kt_rename(int argc, char **argv)
+kt_rename(void *opt, int argc, char **argv)
 {
     krb5_error_code ret = 0;
     krb5_keytab_entry entry;
     krb5_keytab keytab;
     krb5_kt_cursor cursor;
     krb5_principal from_princ, to_princ;
-    int help_flag = 0;
-
-    struct getargs args[] = {
-	{ "help", 'h', arg_flag, NULL }
-    };
-    int num_args = sizeof(args) / sizeof(args[0]);
-    int optind = 0;
-    int i = 0;
-
-    args[i++].value = &help_flag;
-    if(getarg(args, num_args, argc, argv, &optind)) {
-	arg_printusage(args, num_args, "ktutil rename", "from to");
-	return 1;
-    }
-    if(help_flag) {
-	arg_printusage(args, num_args, "ktutil rename", "from to");
-	return 0;
-    }
-    argv += optind;
-    argc -= optind;
-    if(argc != 2) {
-	arg_printusage(args, num_args, "ktutil rename", "from to");
-	return 0;
-    }
 
     ret = krb5_parse_name(context, argv[0], &from_princ);
     if(ret != 0) {
 	krb5_warn(context, ret, "%s", argv[0]);
-	return 0;
+	return 1;
     }
 
     ret = krb5_parse_name(context, argv[1], &to_princ);
     if(ret != 0) {
 	krb5_free_principal(context, from_princ);
 	krb5_warn(context, ret, "%s", argv[1]);
-	return 0;
+	return 1;
     }
 
     if((keytab = ktutil_open_keytab()) == NULL) {
@@ -99,6 +75,8 @@ kt_rename(int argc, char **argv)
 	if(ret != 0) {
 	    if(ret != KRB5_CC_END && ret != KRB5_KT_END)
 		krb5_warn(context, ret, "getting entry from keytab");
+	    else
+		ret = 0;
 	    break;
 	}
 	if(krb5_principal_compare(context, entry.principal, from_princ)) {
@@ -128,6 +106,6 @@ kt_rename(int argc, char **argv)
     krb5_free_principal(context, from_princ);
     krb5_free_principal(context, to_princ);
 
-    return 0;
+    return ret != 0;
 }
 

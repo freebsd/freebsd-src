@@ -1,4 +1,4 @@
-dnl $Id: krb-sys-nextstep.m4,v 1.4.6.1 2004/04/01 07:27:34 joda Exp $
+dnl $Id: krb-sys-nextstep.m4 13338 2004-02-12 14:21:14Z lha $
 dnl
 dnl NEXTSTEP is not posix compliant by default,
 dnl you need a switch -posix to the compiler

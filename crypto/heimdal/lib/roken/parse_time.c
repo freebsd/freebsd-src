@@ -33,7 +33,7 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: parse_time.c,v 1.6 2003/03/07 15:51:06 lha Exp $");
+RCSID("$Id: parse_time.c 14773 2005-04-12 11:29:18Z lha $");
 #endif
 
 #include <parse_units.h>
@@ -53,25 +53,25 @@ static struct units time_units[] = {
     {NULL, 0},
 };
 
-int
+int ROKEN_LIB_FUNCTION
 parse_time (const char *s, const char *def_unit)
 {
     return parse_units (s, time_units, def_unit);
 }
 
-size_t
+size_t ROKEN_LIB_FUNCTION
 unparse_time (int t, char *s, size_t len)
 {
     return unparse_units (t, time_units, s, len);
 }
 
-size_t
+size_t ROKEN_LIB_FUNCTION
 unparse_time_approx (int t, char *s, size_t len)
 {
     return unparse_units_approx (t, time_units, s, len);
 }
 
-void
+void ROKEN_LIB_FUNCTION
 print_time_table (FILE *f)
 {
     print_units_table (time_units, f);

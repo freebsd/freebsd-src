@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999-2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1999-2006 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -32,32 +32,17 @@
  */
 
 #include "kadmin_locl.h"
+#include "kadmin-commands.h"
 
-RCSID("$Id: del_enctype.c,v 1.7 2001/04/19 07:26:52 joda Exp $");
+RCSID("$Id: del_enctype.c 16658 2006-01-25 12:29:46Z lha $");
 
 /*
  * del_enctype principal enctypes...
  */
 
-static struct getargs args[] = {
-    { "help", 'h', arg_flag, NULL }
-};
-
-static int num_args = sizeof(args) / sizeof(args[0]);
-
-static void
-usage(void)
-{
-    arg_printusage (args, num_args, "del_enctype", "principal enctypes...");
-}
-
-
 int
-del_enctype(int argc, char **argv)
+del_enctype(void *opt, int argc, char **argv)
 {
-    int optind = 0;
-    int help_flag = 0;
-
     kadm5_principal_ent_rec princ;
     krb5_principal princ_ent = NULL;
     krb5_error_code ret;
@@ -67,29 +52,19 @@ del_enctype(int argc, char **argv)
     int n_etypes;
     krb5_enctype *etypes;
 
-    args[0].value = &help_flag;
-
-    if(getarg(args, num_args, argc, argv, &optind)) {
-	usage ();
-	return 0;
-    }
-    if(argc - optind < 2 || help_flag) {
-	usage ();
-	return 0;
-    }
-
     memset (&princ, 0, sizeof(princ));
-    princ_name = argv[1];
-    n_etypes   = argc - 2;
+    princ_name = argv[0];
+    n_etypes   = argc - 1;
     etypes     = malloc (n_etypes * sizeof(*etypes));
     if (etypes == NULL) {
 	krb5_warnx (context, "out of memory");
 	return 0;
     }
+    argv++;
     for (i = 0; i < n_etypes; ++i) {
-	ret = krb5_string_to_enctype (context, argv[i + 2], &etypes[i]);
+	ret = krb5_string_to_enctype (context, argv[i], &etypes[i]);
 	if (ret) {
-	    krb5_warnx (context, "bad enctype `%s'", argv[i + 2]);
+	    krb5_warnx (context, "bad enctype \"%s\"", argv[i]);
 	    goto out2;
 	}
     }
@@ -144,5 +119,5 @@ out:
     kadm5_free_principal_ent(kadm_handle, &princ);
 out2:
     free (etypes);
-    return 0;
+    return ret != 0;
 }

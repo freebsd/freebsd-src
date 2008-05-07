@@ -31,7 +31,7 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: kadm5_locl.h,v 1.23 2000/07/08 11:57:40 assar Exp $ */
+/* $Id: kadm5_locl.h 8579 2000-07-08 11:57:40Z assar $ */
 
 #ifndef __KADM5_LOCL_H__
 #define __KADM5_LOCL_H__

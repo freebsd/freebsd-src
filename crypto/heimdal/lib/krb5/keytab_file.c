@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2002 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2005 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,16 +33,20 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: keytab_file.c,v 1.12 2002/09/24 16:43:30 joda Exp $");
+RCSID("$Id: keytab_file.c 17457 2006-05-05 12:36:57Z lha $");
 
 #define KRB5_KT_VNO_1 1
 #define KRB5_KT_VNO_2 2
 #define KRB5_KT_VNO   KRB5_KT_VNO_2
 
+#define KRB5_KT_FL_JAVA 1
+
+
 /* file operations -------------------------------------------- */
 
 struct fkt_data {
     char *filename;
+    int flags;
 };
 
 static krb5_error_code
@@ -70,7 +74,7 @@ krb5_kt_ret_data(krb5_context context,
 static krb5_error_code
 krb5_kt_ret_string(krb5_context context,
 		   krb5_storage *sp,
-		   general_string *data)
+		   heim_general_string *data)
 {
     int ret;
     int16_t size;
@@ -109,7 +113,7 @@ krb5_kt_store_data(krb5_context context,
 
 static krb5_error_code
 krb5_kt_store_string(krb5_storage *sp,
-		     general_string data)
+		     heim_general_string data)
 {
     int ret;
     size_t len = strlen(data);
@@ -160,7 +164,7 @@ krb5_kt_ret_principal(krb5_context context,
     int i;
     int ret;
     krb5_principal p;
-    int16_t tmp;
+    int16_t len;
     
     ALLOC(p, 1);
     if(p == NULL) {
@@ -168,25 +172,34 @@ krb5_kt_ret_principal(krb5_context context,
 	return ENOMEM;
     }
 
-    ret = krb5_ret_int16(sp, &tmp);
-    if(ret)
-	return ret;
+    ret = krb5_ret_int16(sp, &len);
+    if(ret) {
+	krb5_set_error_string(context,
+			      "Failed decoding length of keytab principal");
+	goto out;
+    }
     if(krb5_storage_is_flags(sp, KRB5_STORAGE_PRINCIPAL_WRONG_NUM_COMPONENTS))
-	tmp--;
-    p->name.name_string.len = tmp;
+	len--;
+    if (len < 0) {
+	krb5_set_error_string(context, 
+			      "Keytab principal contains invalid length");
+	ret = KRB5_KT_END;
+	goto out;
+    }
     ret = krb5_kt_ret_string(context, sp, &p->realm);
     if(ret)
-	return ret;
-    p->name.name_string.val = calloc(p->name.name_string.len, 
-				     sizeof(*p->name.name_string.val));
+	goto out;
+    p->name.name_string.val = calloc(len, sizeof(*p->name.name_string.val));
     if(p->name.name_string.val == NULL) {
 	krb5_set_error_string (context, "malloc: out of memory");
-	return ENOMEM;
+	ret = ENOMEM;
+	goto out;
     }
+    p->name.name_string.len = len;
     for(i = 0; i < p->name.name_string.len; i++){
 	ret = krb5_kt_ret_string(context, sp, p->name.name_string.val + i);
 	if(ret)
-	    return ret;
+	    goto out;
     }
     if (krb5_storage_is_flags(sp, KRB5_STORAGE_PRINCIPAL_NO_NAME_TYPE))
 	p->name.name_type = KRB5_NT_UNKNOWN;
@@ -195,10 +208,13 @@ krb5_kt_ret_principal(krb5_context context,
 	ret = krb5_ret_int32(sp, &tmp32);
 	p->name.name_type = tmp32;
 	if (ret)
-	    return ret;
+	    goto out;
     }
     *princ = p;
     return 0;
+out:
+    krb5_free_principal(context, p);
+    return ret;
 }
 
 static krb5_error_code
@@ -246,8 +262,22 @@ fkt_resolve(krb5_context context, const char *name, krb5_keytab id)
 	krb5_set_error_string (context, "malloc: out of memory");
 	return ENOMEM;
     }
+    d->flags = 0;
     id->data = d;
     return 0;
+}
+
+static krb5_error_code
+fkt_resolve_java14(krb5_context context, const char *name, krb5_keytab id)
+{
+    krb5_error_code ret;
+
+    ret = fkt_resolve(context, name, id);
+    if (ret == 0) {
+	struct fkt_data *d = id->data;
+	d->flags |= KRB5_KT_FL_JAVA;
+    }
+    return ret;
 }
 
 static krb5_error_code
@@ -294,6 +324,7 @@ static krb5_error_code
 fkt_start_seq_get_int(krb5_context context, 
 		      krb5_keytab id, 
 		      int flags,
+		      int exclusive,
 		      krb5_kt_cursor *c)
 {
     int8_t pvno, tag;
@@ -307,16 +338,30 @@ fkt_start_seq_get_int(krb5_context context,
 			      strerror(ret));
 	return ret;
     }
+    ret = _krb5_xlock(context, c->fd, exclusive, d->filename);
+    if (ret) {
+	close(c->fd);
+	return ret;
+    }
     c->sp = krb5_storage_from_fd(c->fd);
+    if (c->sp == NULL) {
+	_krb5_xunlock(context, c->fd);
+	close(c->fd);
+	krb5_set_error_string (context, "malloc: out of memory");
+	return ENOMEM;
+    }
     krb5_storage_set_eof_code(c->sp, KRB5_KT_END);
     ret = krb5_ret_int8(c->sp, &pvno);
     if(ret) {
 	krb5_storage_free(c->sp);
+	_krb5_xunlock(context, c->fd);
 	close(c->fd);
+	krb5_clear_error_string(context);
 	return ret;
     }
     if(pvno != 5) {
 	krb5_storage_free(c->sp);
+	_krb5_xunlock(context, c->fd);
 	close(c->fd);
 	krb5_clear_error_string (context);
 	return KRB5_KEYTAB_BADVNO;
@@ -324,7 +369,9 @@ fkt_start_seq_get_int(krb5_context context,
     ret = krb5_ret_int8(c->sp, &tag);
     if (ret) {
 	krb5_storage_free(c->sp);
+	_krb5_xunlock(context, c->fd);
 	close(c->fd);
+	krb5_clear_error_string(context);
 	return ret;
     }
     id->version = tag;
@@ -337,7 +384,7 @@ fkt_start_seq_get(krb5_context context,
 		  krb5_keytab id, 
 		  krb5_kt_cursor *c)
 {
-    return fkt_start_seq_get_int(context, id, O_RDONLY | O_BINARY, c);
+    return fkt_start_seq_get_int(context, id, O_RDONLY | O_BINARY, 0, c);
 }
 
 static krb5_error_code
@@ -381,14 +428,14 @@ loop:
      * if it's zero, assume that the 8bit one was right,
      * otherwise trust the new value */
     curpos = krb5_storage_seek(cursor->sp, 0, SEEK_CUR);
-    if(len + 4 + pos - curpos == 4) {
+    if(len + 4 + pos - curpos >= 4) {
 	ret = krb5_ret_int32(cursor->sp, &tmp32);
 	if (ret == 0 && tmp32 != 0) {
 	    entry->vno = tmp32;
 	}
     }
     if(start) *start = pos;
-    if(end) *end = *start + 4 + len;
+    if(end) *end = pos + 4 + len;
  out:
     krb5_storage_seek(cursor->sp, pos + 4 + len, SEEK_SET);
     return ret;
@@ -409,6 +456,7 @@ fkt_end_seq_get(krb5_context context,
 		krb5_kt_cursor *cursor)
 {
     krb5_storage_free(cursor->sp);
+    _krb5_xunlock(context, cursor->fd);
     close(cursor->fd);
     return 0;
 }
@@ -448,17 +496,25 @@ fkt_add_entry(krb5_context context,
 				  strerror(ret));
 	    return ret;
 	}
+	ret = _krb5_xlock(context, fd, 1, d->filename);
+	if (ret) {
+	    close(fd);
+	    return ret;
+	}
 	sp = krb5_storage_from_fd(fd);
 	krb5_storage_set_eof_code(sp, KRB5_KT_END);
 	ret = fkt_setup_keytab(context, id, sp);
 	if(ret) {
-	    krb5_storage_free(sp);
-	    close(fd);
-	    return ret;
+	    goto out;
 	}
 	storage_set_flags(context, sp, id->version);
     } else {
 	int8_t pvno, tag;
+	ret = _krb5_xlock(context, fd, 1, d->filename);
+	if (ret) {
+	    close(fd);
+	    return ret;
+	}
 	sp = krb5_storage_from_fd(fd);
 	krb5_storage_set_eof_code(sp, KRB5_KT_END);
 	ret = krb5_ret_int8(sp, &pvno);
@@ -469,28 +525,21 @@ fkt_add_entry(krb5_context context,
 	    if(ret) {
 		krb5_set_error_string(context, "%s: keytab is corrupted: %s", 
 				      d->filename, strerror(ret));
-		krb5_storage_free(sp);
-		close(fd);
-		return ret;
+		goto out;
 	    }
 	    storage_set_flags(context, sp, id->version);
 	} else {
 	    if(pvno != 5) {
-		krb5_storage_free(sp);
-		close(fd);
-		krb5_clear_error_string (context);
 		ret = KRB5_KEYTAB_BADVNO;
 		krb5_set_error_string(context, "%s: %s", 
 				      d->filename, strerror(ret));
-		return ret;
+		goto out;
 	    }
 	    ret = krb5_ret_int8 (sp, &tag);
 	    if (ret) {
 		krb5_set_error_string(context, "%s: reading tag: %s", 
 				      d->filename, strerror(ret));
-		krb5_storage_free(sp);
-		close(fd);
-		return ret;
+		goto out;
 	    }
 	    id->version = tag;
 	    storage_set_flags(context, sp, id->version);
@@ -525,10 +574,12 @@ fkt_add_entry(krb5_context context,
 	    krb5_storage_free(emem);
 	    goto out;
 	}
-	ret = krb5_store_int32 (emem, entry->vno);
-	if (ret) {
-	    krb5_storage_free(emem);
-	    goto out;
+	if ((d->flags & KRB5_KT_FL_JAVA) == 0) {
+	    ret = krb5_store_int32 (emem, entry->vno);
+	    if (ret) {
+		krb5_storage_free(emem);
+		goto out;
+	    }
 	}
 
 	ret = krb5_storage_to_data(emem, &keytab);
@@ -559,6 +610,7 @@ fkt_add_entry(krb5_context context,
     krb5_data_free(&keytab);
   out:
     krb5_storage_free(sp);
+    _krb5_xunlock(context, fd);
     close(fd);
     return ret;
 }
@@ -574,7 +626,7 @@ fkt_remove_entry(krb5_context context,
     int found = 0;
     krb5_error_code ret;
     
-    ret = fkt_start_seq_get_int(context, id, O_RDWR | O_BINARY, &cursor);
+    ret = fkt_start_seq_get_int(context, id, O_RDWR | O_BINARY, 1, &cursor);
     if(ret != 0) 
 	goto out; /* return other error here? */
     while(fkt_next_entry_int(context, id, &e, &cursor, 
@@ -593,6 +645,7 @@ fkt_remove_entry(krb5_context context,
 		len -= min(len, sizeof(buf));
 	    }
 	}
+	krb5_kt_free_entry(context, &e);
     }
     krb5_kt_end_seq_get(context, id, &cursor);
   out:
@@ -606,6 +659,32 @@ fkt_remove_entry(krb5_context context,
 const krb5_kt_ops krb5_fkt_ops = {
     "FILE",
     fkt_resolve,
+    fkt_get_name,
+    fkt_close,
+    NULL, /* get */
+    fkt_start_seq_get,
+    fkt_next_entry,
+    fkt_end_seq_get,
+    fkt_add_entry,
+    fkt_remove_entry
+};
+
+const krb5_kt_ops krb5_wrfkt_ops = {
+    "WRFILE",
+    fkt_resolve,
+    fkt_get_name,
+    fkt_close,
+    NULL, /* get */
+    fkt_start_seq_get,
+    fkt_next_entry,
+    fkt_end_seq_get,
+    fkt_add_entry,
+    fkt_remove_entry
+};
+
+const krb5_kt_ops krb5_javakt_ops = {
+    "JAVA14",
+    fkt_resolve_java14,
     fkt_get_name,
     fkt_close,
     NULL, /* get */
