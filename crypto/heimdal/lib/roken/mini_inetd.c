@@ -33,7 +33,7 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: mini_inetd.c,v 1.30 2002/02/18 19:08:55 joda Exp $");
+RCSID("$Id: mini_inetd.c 14773 2005-04-12 11:29:18Z lha $");
 #endif
 
 #include <err.h>
@@ -62,7 +62,7 @@ accept_it (int s)
  * Listen on a specified port, emulating inetd.
  */
 
-void
+void ROKEN_LIB_FUNCTION
 mini_inetd_addrinfo (struct addrinfo *ai)
 {
     int ret;
@@ -124,7 +124,7 @@ mini_inetd_addrinfo (struct addrinfo *ai)
     abort ();
 }
 
-void
+void ROKEN_LIB_FUNCTION
 mini_inetd (int port)
 {
     int error;

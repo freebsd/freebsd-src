@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: common.h,v 1.12 1999/12/02 16:58:29 joda Exp $ */
+/* $Id: common.h 7463 1999-12-02 16:58:55Z joda $ */
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>

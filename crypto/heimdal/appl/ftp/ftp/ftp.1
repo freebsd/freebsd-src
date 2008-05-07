@@ -33,7 +33,7 @@
 .\"
 .\"	@(#)ftp.1	8.3 (Berkeley) 10/9/94
 .\"
-.Dd April 27, 1996
+.Dd March 23, 2006
 .Dt FTP 1
 .Os BSD 4.2
 .Sh NAME
@@ -43,30 +43,35 @@
 file transfer program
 .Sh SYNOPSIS
 .Nm ftp
+.Op Fl K
+.Op Fl d
+.Op Fl g
+.Op Fl i
+.Op Fl l
+.Op Fl n
+.Op Fl p
 .Op Fl t
 .Op Fl v
-.Op Fl d
-.Op Fl i
-.Op Fl n
-.Op Fl g
-.Op Fl p
-.Op Fl l
+.Op Fl x
 .Op Fl -no-gss-bindings
+.Op Fl -no-gss-delegate
 .Op Ar host
 .Sh DESCRIPTION
-.Nm Ftp
+.Nm
 is the user interface to the
 .Tn ARPANET
 standard File Transfer Protocol.
 The program allows a user to transfer files to and from a
 remote network site.
 .Pp
-Modifications has been made so that it almost follows the ftpsec
-Internet draft.
+Modifications have been made so that it almost follows the FTP
+Security Extensions, RFC 2228.
 .Pp
 Options may be specified at the command line, or to the
 command interpreter.
 .Bl -tag -width flag
+.It Fl K
+Disable Kerberos authentication.
 .It Fl t
 Enables packet tracing.
 .It Fl v
@@ -98,10 +103,15 @@ Turn on passive mode.
 Enables debugging.
 .It Fl g
 Disables file name globbing.
-.It Fl -no-gss-bindings
-use GSS-API bindings when talking to peer (ie make sure IP addresses match).
+ .It Fl -no-gss-bindings
+Don't use GSS-API bindings when talking to peer. IP addresses will not
+be checked to ensure they match.
+.It Fl -no-gss-delegate
+Disable delegation of GSSAPI credentials.
 .It Fl l
 Disables command line editing.
+.It Fl x
+Encrypt command and data channel.
 .El
 .Pp
 The client host with which

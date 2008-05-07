@@ -33,7 +33,7 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: ndbm_wrap.c,v 1.1.8.1 2003/08/29 17:00:34 lha Exp $");
+RCSID("$Id: ndbm_wrap.c 21634 2007-07-17 11:30:36Z lha $");
 #endif
 
 #include "ndbm_wrap.h"
@@ -50,6 +50,8 @@ RCSID("$Id: ndbm_wrap.c,v 1.1.8.1 2003/08/29 17:00:34 lha Exp $");
 #include <string.h>
 #include <fcntl.h>
 
+/* XXX undefine open so this works on Solaris with large file support */
+#undef open
 
 #define DBT2DATUM(DBT, DATUM) do { (DATUM)->dptr = (DBT)->data; (DATUM)->dsize = (DBT)->size; } while(0)
 #define DATUM2DBT(DATUM, DBT) do { (DBT)->data = (DATUM)->dptr; (DBT)->size = (DATUM)->dsize; } while(0)
@@ -61,7 +63,7 @@ static DBC *cursor;
 
 #define D(X) ((DB*)(X))
 
-void
+void ROKEN_LIB_FUNCTION
 dbm_close (DBM *db)
 {
 #ifdef HAVE_DB3
@@ -72,7 +74,7 @@ dbm_close (DBM *db)
 #endif
 }
 
-int
+int ROKEN_LIB_FUNCTION
 dbm_delete (DBM *db, datum dkey)
 {
     DBT key;
@@ -94,8 +96,10 @@ dbm_fetch (DBM *db, datum dkey)
 #ifdef HAVE_DB3
 	       NULL, 
 #endif
-	       &key, &value, 0) != 0) 
+	       &key, &value, 0) != 0) {
 	dvalue.dptr = NULL;
+	dvalue.dsize = 0;
+    }
     else
 	DBT2DATUM(&value, &dvalue);
 
@@ -110,9 +114,10 @@ dbm_get (DB *db, int flags)
 #ifdef HAVE_DB3
     if(cursor == NULL) 
 	db->cursor(db, NULL, &cursor, 0);
-    if(cursor->c_get(cursor, &key, &value, flags) != 0) 
+    if(cursor->c_get(cursor, &key, &value, flags) != 0) {
 	datum.dptr = NULL;
-    else 
+	datum.dsize = 0;
+    } else 
 	DBT2DATUM(&value, &datum);
 #else
     db->seq(db, &key, &value, flags);
@@ -127,19 +132,19 @@ dbm_get (DB *db, int flags)
 #define DB_KEYEXIST	1
 #endif
 
-datum
+datum ROKEN_LIB_FUNCTION
 dbm_firstkey (DBM *db)
 {
     return dbm_get(D(db), DB_FIRST);
 }
 
-datum 
+datum ROKEN_LIB_FUNCTION
 dbm_nextkey (DBM *db)
 {
     return dbm_get(D(db), DB_NEXT);
 }
 
-DBM*
+DBM* ROKEN_LIB_FUNCTION
 dbm_open (const char *file, int flags, mode_t mode)
 {
     DB *db;
@@ -182,7 +187,7 @@ dbm_open (const char *file, int flags, mode_t mode)
     return (DBM*)db;
 }
 
-int
+int ROKEN_LIB_FUNCTION
 dbm_store (DBM *db, datum dkey, datum dvalue, int flags)
 {
     int ret;
@@ -202,13 +207,13 @@ dbm_store (DBM *db, datum dkey, datum dvalue, int flags)
     RETURN(ret);
 }
 
-int
+int ROKEN_LIB_FUNCTION
 dbm_error (DBM *db)
 {
     return 0;
 }
 
-int
+int ROKEN_LIB_FUNCTION
 dbm_clearerr (DBM *db)
 {
     return 0;

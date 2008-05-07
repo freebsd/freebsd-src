@@ -31,7 +31,7 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: kadb.h,v 1.3 2000/03/03 12:36:26 assar Exp $ */
+/* $Id: kadb.h 7997 2000-03-03 12:36:26Z assar $ */
 
 #ifndef __kadb_h__
 #define __kadb_h__

@@ -49,7 +49,7 @@
  * interface is identical to gethostname(2).)
  */
 
-int
+int ROKEN_LIB_FUNCTION
 gethostname(char *name, int namelen)
 {
 #if defined(HAVE_UNAME)

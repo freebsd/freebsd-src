@@ -35,22 +35,22 @@
 #include <getarg.h>
 #include <err.h>
 
-RCSID("$Id: prog_setup.c,v 1.9 2001/02/20 01:44:54 assar Exp $");
+RCSID("$Id: prog_setup.c 15470 2005-06-17 04:29:41Z lha $");
 
-void
+void KRB5_LIB_FUNCTION
 krb5_std_usage(int code, struct getargs *args, int num_args)
 {
     arg_printusage(args, num_args, NULL, "");
     exit(code);
 }
 
-int
+int KRB5_LIB_FUNCTION
 krb5_program_setup(krb5_context *context, int argc, char **argv,
 		   struct getargs *args, int num_args, 
 		   void (*usage)(int, struct getargs*, int))
 {
     krb5_error_code ret;
-    int optind = 0;
+    int optidx = 0;
 
     if(usage == NULL)
 	usage = krb5_std_usage;
@@ -60,7 +60,7 @@ krb5_program_setup(krb5_context *context, int argc, char **argv,
     if (ret)
 	errx (1, "krb5_init_context failed: %d", ret);
     
-    if(getarg(args, num_args, argc, argv, &optind))
+    if(getarg(args, num_args, argc, argv, &optidx))
 	(*usage)(1, args, num_args);
-    return optind;
+    return optidx;
 }

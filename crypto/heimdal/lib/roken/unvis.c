@@ -12,11 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -36,9 +32,9 @@
 #if 1
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: unvis.c,v 1.2 2000/12/06 21:41:46 joda Exp $");
+RCSID("$Id: unvis.c 21005 2007-06-08 01:54:35Z lha $");
 #endif
-#include <roken.h>
+#include "roken.h"
 #ifndef _DIAGASSERT
 #define _DIAGASSERT(X)
 #endif
@@ -86,12 +82,17 @@ __warn_references(unvis,
 
 #define	isoctal(c)	(((u_char)(c)) >= '0' && ((u_char)(c)) <= '7')
 
+int ROKEN_LIB_FUNCTION
+	rk_strunvis (char *, const char *);
+int ROKEN_LIB_FUNCTION
+	rk_unvis (char *, int, int *, int);
+
 /*
  * unvis - decode characters previously encoded by vis
  */
-#ifndef HAVE_UNVIS
-int
-unvis(char *cp, int c, int *astate, int flag)
+
+int ROKEN_LIB_FUNCTION
+rk_unvis(char *cp, int c, int *astate, int flag)
 {
 
 	_DIAGASSERT(cp != NULL);
@@ -244,7 +245,6 @@ unvis(char *cp, int c, int *astate, int flag)
 		return (UNVIS_SYNBAD);
 	}
 }
-#endif
 
 /*
  * strunvis - decode src into dst 
@@ -253,9 +253,8 @@ unvis(char *cp, int c, int *astate, int flag)
  *	Dst is null terminated.
  */
 
-#ifndef HAVE_STRUNVIS
-int
-strunvis(char *dst, const char *src)
+int ROKEN_LIB_FUNCTION
+rk_strunvis(char *dst, const char *src)
 {
 	char c;
 	char *start = dst;
@@ -266,7 +265,7 @@ strunvis(char *dst, const char *src)
 
 	while ((c = *src++) != '\0') {
 	again:
-		switch (unvis(dst, c, &state, 0)) {
+		switch (rk_unvis(dst, (unsigned char)c, &state, 0)) {
 		case UNVIS_VALID:
 			dst++;
 			break;
@@ -280,9 +279,8 @@ strunvis(char *dst, const char *src)
 			return (-1);
 		}
 	}
-	if (unvis(dst, c, &state, UNVIS_END) == UNVIS_VALID)
+	if (unvis(dst, (unsigned char)c, &state, UNVIS_END) == UNVIS_VALID)
 		dst++;
 	*dst = '\0';
 	return (dst - start);
 }
-#endif

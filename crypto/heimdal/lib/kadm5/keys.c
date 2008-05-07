@@ -33,29 +33,17 @@
 
 #include "kadm5_locl.h"
 
-RCSID("$Id: keys.c,v 1.1 2000/07/22 05:53:02 assar Exp $");
+RCSID("$Id: keys.c 14297 2004-10-11 23:50:25Z lha $");
 
 /*
  * free all the memory used by (len, keys)
  */
 
 void
-_kadm5_free_keys (kadm5_server_context *context,
+_kadm5_free_keys (krb5_context context,
 		  int len, Key *keys)
 {
-    int i;
-
-    for (i = 0; i < len; ++i) {
-	free (keys[i].mkvno);
-	keys[i].mkvno = NULL;
-	if (keys[i].salt != NULL) {
-	    free_Salt(keys[i].salt);
-	    free(keys[i].salt);
-	    keys[i].salt = NULL;
-	}
-	krb5_free_keyblock_contents(context->context, &keys[i].key);
-    }
-    free (keys);
+    hdb_free_keys(context, len, keys);
 }
 
 /*

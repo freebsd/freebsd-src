@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001, 2003, 2005 - 2005 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "kadm5_locl.h"
 
-RCSID("$Id: rename_s.c,v 1.11 2001/01/30 01:24:29 assar Exp $");
+RCSID("$Id: rename_s.c 21745 2007-07-31 16:11:25Z lha $");
 
 kadm5_ret_t
 kadm5_s_rename_principal(void *server_handle, 
@@ -42,21 +42,22 @@ kadm5_s_rename_principal(void *server_handle,
 {
     kadm5_server_context *context = server_handle;
     kadm5_ret_t ret;
-    hdb_entry ent, ent2;
-    ent.principal = source;
+    hdb_entry_ex ent;
+    krb5_principal oldname;
+
+    memset(&ent, 0, sizeof(ent));
     if(krb5_principal_compare(context->context, source, target))
 	return KADM5_DUP; /* XXX is this right? */
-    if(!krb5_realm_compare(context->context, source, target))
-	return KADM5_FAILURE; /* XXX better code */
-    ret = context->db->open(context->context, context->db, O_RDWR, 0);
+    ret = context->db->hdb_open(context->context, context->db, O_RDWR, 0);
     if(ret)
 	return ret;
-    ret = context->db->fetch(context->context, context->db, 0, &ent);
+    ret = context->db->hdb_fetch(context->context, context->db, 
+				 source, HDB_F_GET_ANY, &ent);
     if(ret){
-	context->db->close(context->context, context->db);
+	context->db->hdb_close(context->context, context->db);
 	goto out;
     }
-    ret = _kadm5_set_modifier(context, &ent);
+    ret = _kadm5_set_modifier(context, &ent.entry);
     if(ret)
 	goto out2;
     {
@@ -67,10 +68,13 @@ kadm5_s_rename_principal(void *server_handle,
 	krb5_get_pw_salt(context->context, source, &salt2);
 	salt.type = hdb_pw_salt;
 	salt.salt = salt2.saltvalue;
-	for(i = 0; i < ent.keys.len; i++){
-	    if(ent.keys.val[i].salt == NULL){
-		ent.keys.val[i].salt = malloc(sizeof(*ent.keys.val[i].salt));
-		ret = copy_Salt(&salt, ent.keys.val[i].salt);
+	for(i = 0; i < ent.entry.keys.len; i++){
+	    if(ent.entry.keys.val[i].salt == NULL){
+		ent.entry.keys.val[i].salt = 
+		    malloc(sizeof(*ent.entry.keys.val[i].salt));
+		if(ent.entry.keys.val[i].salt == NULL)
+		    return ENOMEM;
+		ret = copy_Salt(&salt, ent.entry.keys.val[i].salt);
 		if(ret)
 		    break;
 	    }
@@ -79,28 +83,26 @@ kadm5_s_rename_principal(void *server_handle,
     }
     if(ret)
 	goto out2;
-    ent2.principal = ent.principal;
-    ent.principal = target;
+    oldname = ent.entry.principal;
+    ent.entry.principal = target;
 
-    ret = hdb_seal_keys(context->context, context->db, &ent);
+    ret = hdb_seal_keys(context->context, context->db, &ent.entry);
     if (ret) {
-	ent.principal = ent2.principal;
+	ent.entry.principal = oldname;
 	goto out2;
     }
 
-    kadm5_log_rename (context,
-		      source,
-		      &ent);
+    kadm5_log_rename (context, source, &ent.entry);
 
-    ret = context->db->store(context->context, context->db, 0, &ent);
+    ret = context->db->hdb_store(context->context, context->db, 0, &ent);
     if(ret){
-	ent.principal = ent2.principal;
+	ent.entry.principal = oldname;
 	goto out2;
     }
-    ret = context->db->remove(context->context, context->db, &ent2);
-    ent.principal = ent2.principal;
+    ret = context->db->hdb_remove(context->context, context->db, oldname);
+    ent.entry.principal = oldname;
 out2:
-    context->db->close(context->context, context->db);
+    context->db->hdb_close(context->context, context->db);
     hdb_free_entry(context->context, &ent);
 out:
     return _kadm5_error_code(ret);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2006 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,10 +33,11 @@
 
 #include "der_locl.h"
 
-RCSID("$Id: der_copy.c,v 1.10 2003/04/17 07:13:08 lha Exp $");
+RCSID("$Id: der_copy.c 19539 2006-12-28 17:15:05Z lha $");
 
 int
-copy_general_string (const general_string *from, general_string *to)
+der_copy_general_string (const heim_general_string *from, 
+			 heim_general_string *to)
 {
     *to = strdup(*from);
     if(*to == NULL)
@@ -45,7 +46,57 @@ copy_general_string (const general_string *from, general_string *to)
 }
 
 int
-copy_octet_string (const octet_string *from, octet_string *to)
+der_copy_utf8string (const heim_utf8_string *from, heim_utf8_string *to)
+{
+    return der_copy_general_string(from, to);
+}
+
+int
+der_copy_printable_string (const heim_printable_string *from, 
+		       heim_printable_string *to)
+{
+    return der_copy_general_string(from, to);
+}
+
+int
+der_copy_ia5_string (const heim_printable_string *from, 
+		     heim_printable_string *to)
+{
+    return der_copy_general_string(from, to);
+}
+
+int
+der_copy_bmp_string (const heim_bmp_string *from, heim_bmp_string *to)
+{
+    to->length = from->length;
+    to->data   = malloc(to->length * sizeof(to->data[0]));
+    if(to->length != 0 && to->data == NULL)
+	return ENOMEM;
+    memcpy(to->data, from->data, to->length * sizeof(to->data[0]));
+    return 0;
+}
+
+int
+der_copy_universal_string (const heim_universal_string *from,
+			   heim_universal_string *to)
+{
+    to->length = from->length;
+    to->data   = malloc(to->length * sizeof(to->data[0]));
+    if(to->length != 0 && to->data == NULL)
+	return ENOMEM;
+    memcpy(to->data, from->data, to->length * sizeof(to->data[0]));
+    return 0;
+}
+
+int
+der_copy_visible_string (const heim_visible_string *from, 
+			 heim_visible_string *to)
+{
+    return der_copy_general_string(from, to);
+}
+
+int
+der_copy_octet_string (const heim_octet_string *from, heim_octet_string *to)
 {
     to->length = from->length;
     to->data   = malloc(to->length);
@@ -56,12 +107,39 @@ copy_octet_string (const octet_string *from, octet_string *to)
 }
 
 int
-copy_oid (const oid *from, oid *to)
+der_copy_heim_integer (const heim_integer *from, heim_integer *to)
+{
+    to->length = from->length;
+    to->data   = malloc(to->length);
+    if(to->length != 0 && to->data == NULL)
+	return ENOMEM;
+    memcpy(to->data, from->data, to->length);
+    to->negative = from->negative;
+    return 0;
+}
+
+int
+der_copy_oid (const heim_oid *from, heim_oid *to)
 {
     to->length     = from->length;
     to->components = malloc(to->length * sizeof(*to->components));
     if (to->length != 0 && to->components == NULL)
 	return ENOMEM;
-    memcpy(to->components, from->components, to->length);
+    memcpy(to->components, from->components,
+	   to->length * sizeof(*to->components));
+    return 0;
+}
+
+int
+der_copy_bit_string (const heim_bit_string *from, heim_bit_string *to)
+{
+    size_t len;
+
+    len = (from->length + 7) / 8;
+    to->length = from->length;
+    to->data   = malloc(len);
+    if(len != 0 && to->data == NULL)
+	return ENOMEM;
+    memcpy(to->data, from->data, len);
     return 0;
 }

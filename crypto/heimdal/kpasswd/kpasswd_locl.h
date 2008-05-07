@@ -31,7 +31,7 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: kpasswd_locl.h,v 1.13 2002/09/10 20:03:48 joda Exp $ */
+/* $Id: kpasswd_locl.h 11444 2002-09-10 20:03:49Z joda $ */
 
 #ifndef __KPASSWD_LOCL_H__
 #define __KPASSWD_LOCL_H__

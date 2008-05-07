@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2002 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2006 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,13 +33,13 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: log.c,v 1.31 2002/09/05 14:59:14 joda Exp $");
+RCSID("$Id: log.c 19088 2006-11-21 08:08:46Z lha $");
 
 struct facility {
     int min;
     int max;
-    krb5_log_log_func_t log;
-    krb5_log_close_func_t close;
+    krb5_log_log_func_t log_func;
+    krb5_log_close_func_t close_func;
     void *data;
 };
 
@@ -47,10 +47,10 @@ static struct facility*
 log_realloc(krb5_log_facility *f)
 {
     struct facility *fp;
-    f->len++;
-    fp = realloc(f->val, f->len * sizeof(*f->val));
+    fp = realloc(f->val, (f->len + 1) * sizeof(*f->val));
     if(fp == NULL)
 	return NULL;
+    f->len++;
     f->val = fp;
     fp += f->len - 1;
     return fp;
@@ -114,7 +114,7 @@ find_value(const char *s, struct s2i *table)
     return table->val;
 }
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_initlog(krb5_context context,
 	     const char *program,
 	     krb5_log_facility **fac)
@@ -134,13 +134,13 @@ krb5_initlog(krb5_context context,
     return 0;
 }
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_addlog_func(krb5_context context,
 		 krb5_log_facility *fac,
 		 int min,
 		 int max,
-		 krb5_log_log_func_t log,
-		 krb5_log_close_func_t close,
+		 krb5_log_log_func_t log_func,
+		 krb5_log_close_func_t close_func,
 		 void *data)
 {
     struct facility *fp = log_realloc(fac);
@@ -150,8 +150,8 @@ krb5_addlog_func(krb5_context context,
     }
     fp->min = min;
     fp->max = max;
-    fp->log = log;
-    fp->close = close;
+    fp->log_func = log_func;
+    fp->close_func = close_func;
     fp->data = data;
     return 0;
 }
@@ -162,7 +162,7 @@ struct _heimdal_syslog_data{
 };
 
 static void
-log_syslog(const char *time,
+log_syslog(const char *timestr,
 	   const char *msg,
 	   void *data)
      
@@ -211,7 +211,7 @@ struct file_data{
 };
 
 static void
-log_file(const char *time,
+log_file(const char *timestr,
 	 const char *msg,
 	 void *data)
 {
@@ -220,9 +220,11 @@ log_file(const char *time,
 	f->fd = fopen(f->filename, f->mode);
     if(f->fd == NULL)
 	return;
-    fprintf(f->fd, "%s %s\n", time, msg);
-    if(f->keep_open == 0)
+    fprintf(f->fd, "%s %s\n", timestr, msg);
+    if(f->keep_open == 0) {
 	fclose(f->fd);
+	f->fd = NULL;
+    }
 }
 
 static void
@@ -253,7 +255,7 @@ open_file(krb5_context context, krb5_log_facility *fac, int min, int max,
 
 
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_addlog_dest(krb5_context context, krb5_log_facility *f, const char *orig)
 {
     krb5_error_code ret = 0;
@@ -284,7 +286,7 @@ krb5_addlog_dest(krb5_context context, krb5_log_facility *f, const char *orig)
 	ret = open_file(context, f, min, max, NULL, NULL, stderr, 1);
     }else if(strcmp(p, "CONSOLE") == 0){
 	ret = open_file(context, f, min, max, "/dev/console", "w", NULL, 0);
-    }else if(strncmp(p, "FILE:", 4) == 0 && (p[4] == ':' || p[4] == '=')){
+    }else if(strncmp(p, "FILE", 4) == 0 && (p[4] == ':' || p[4] == '=')){
 	char *fn;
 	FILE *file = NULL;
 	int keep_open = 0;
@@ -300,6 +302,7 @@ krb5_addlog_dest(krb5_context context, krb5_log_facility *f, const char *orig)
 		ret = errno;
 		krb5_set_error_string (context, "open(%s): %s", fn,
 				       strerror(ret));
+		free(fn);
 		return ret;
 	    }
 	    file = fdopen(i, "a");
@@ -308,12 +311,13 @@ krb5_addlog_dest(krb5_context context, krb5_log_facility *f, const char *orig)
 		close(i);
 		krb5_set_error_string (context, "fdopen(%s): %s", fn,
 				       strerror(ret));
+		free(fn);
 		return ret;
 	    }
 	    keep_open = 1;
 	}
 	ret = open_file(context, f, min, max, fn, "a", file, keep_open);
-    }else if(strncmp(p, "DEVICE=", 6) == 0){
+    }else if(strncmp(p, "DEVICE", 6) == 0 && (p[6] == ':' || p[6] == '=')){
 	ret = open_file(context, f, min, max, strdup(p + 7), "w", NULL, 0);
     }else if(strncmp(p, "SYSLOG", 6) == 0 && (p[6] == '\0' || p[6] == ':')){
 	char severity[128] = "";
@@ -336,7 +340,7 @@ krb5_addlog_dest(krb5_context context, krb5_log_facility *f, const char *orig)
 }
 
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_openlog(krb5_context context,
 	     const char *program,
 	     krb5_log_facility **fac)
@@ -360,20 +364,26 @@ krb5_openlog(krb5_context context,
     return 0;
 }
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_closelog(krb5_context context,
 	      krb5_log_facility *fac)
 {
     int i;
     for(i = 0; i < fac->len; i++)
-	(*fac->val[i].close)(fac->val[i].data);
+	(*fac->val[i].close_func)(fac->val[i].data);
+    free(fac->val);
+    free(fac->program);
+    fac->val = NULL;
+    fac->len = 0;
+    fac->program = NULL;
+    free(fac);
     return 0;
 }
 
 #undef __attribute__
 #define __attribute__(X)
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_vlog_msg(krb5_context context,
 	      krb5_log_facility *fac,
 	      char **reply,
@@ -403,7 +413,7 @@ krb5_vlog_msg(krb5_context context,
 		else
 		    actual = msg;
 	    }
-	    (*fac->val[i].log)(buf, actual, fac->val[i].data);
+	    (*fac->val[i].log_func)(buf, actual, fac->val[i].data);
 	}
     if(reply == NULL)
 	free(msg);
@@ -412,7 +422,7 @@ krb5_vlog_msg(krb5_context context,
     return 0;
 }
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_vlog(krb5_context context,
 	  krb5_log_facility *fac,
 	  int level,
@@ -423,7 +433,7 @@ krb5_vlog(krb5_context context,
     return krb5_vlog_msg(context, fac, NULL, level, fmt, ap);
 }
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_log_msg(krb5_context context,
 	     krb5_log_facility *fac,
 	     int level,
@@ -442,7 +452,7 @@ krb5_log_msg(krb5_context context,
 }
 
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_log(krb5_context context,
 	 krb5_log_facility *fac,
 	 int level,

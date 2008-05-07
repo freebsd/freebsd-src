@@ -34,12 +34,12 @@
 #include "test_locl.h"
 #include <gssapi.h>
 #include "gss_common.h"
-RCSID("$Id: gss_common.c,v 1.9 2000/11/15 23:05:27 assar Exp $");
+RCSID("$Id: gss_common.c 19937 2007-01-16 21:56:01Z lha $");
 
 void
 write_token (int sock, gss_buffer_t buf)
 {
-    u_int32_t len, net_len;
+    uint32_t len, net_len;
     OM_uint32 min_stat;
 
     len = buf->length;
@@ -69,7 +69,7 @@ enet_read(int fd, void *buf, size_t len)
 void
 read_token (int sock, gss_buffer_t buf)
 {
-    u_int32_t len, net_len;
+    uint32_t len, net_len;
 
     enet_read (sock, &net_len, 4);
     len = ntohl(net_len);
@@ -93,7 +93,8 @@ gss_print_errors (int min_stat)
 				  GSS_C_NO_OID,
 				  &msg_ctx,
 				  &status_string);
-	fprintf (stderr, "%s\n", (char *)status_string.value);
+	fprintf (stderr, "%.*s\n", (int)status_string.length, 
+		 (char *)status_string.value);
 	gss_release_buffer (&new_stat, &status_string);
     } while (!GSS_ERROR(ret) && msg_ctx != 0);
 }
@@ -116,3 +117,36 @@ gss_err(int exitval, int status, const char *fmt, ...)
     va_end(args);
 }
 
+gss_OID
+select_mech(const char *mech)
+{
+    if (strcasecmp(mech, "krb5") == 0)
+	return GSS_KRB5_MECHANISM;
+    else if (strcasecmp(mech, "spnego") == 0)
+	return GSS_SPNEGO_MECHANISM;
+    else if (strcasecmp(mech, "no-oid") == 0)
+	return GSS_C_NO_OID;
+    else
+	errx (1, "Unknown mechanism '%s' (spnego, krb5, no-oid)", mech);
+}
+
+void
+print_gss_name(const char *prefix, gss_name_t name)
+{
+    OM_uint32 maj_stat, min_stat;
+    gss_buffer_desc name_token;
+
+    maj_stat = gss_display_name (&min_stat,
+				 name,
+				 &name_token,
+				 NULL);
+    if (GSS_ERROR(maj_stat))
+	gss_err (1, min_stat, "gss_display_name");
+
+    fprintf (stderr, "%s `%.*s'\n", prefix,
+	     (int)name_token.length,
+	     (char *)name_token.value);
+
+    gss_release_buffer (&min_stat, &name_token);
+
+}

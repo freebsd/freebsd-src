@@ -1,4 +1,4 @@
-# $Id: Makefile.am,v 1.122.6.3 2003/10/14 16:13:15 joda Exp $
+# $Id: Makefile.am 22409 2008-01-12 05:53:37Z lha $
 
 include $(top_srcdir)/Makefile.am.common
 
@@ -7,17 +7,24 @@ ACLOCAL_AMFLAGS = -I ../../cf
 CLEANFILES = roken.h make-roken.c $(XHEADERS)
 
 lib_LTLIBRARIES = libroken.la
-libroken_la_LDFLAGS = -version-info 16:3:0
+libroken_la_LDFLAGS = -version-info 19:0:1
+libroken_la_CPPFLAGS = -DBUILD_ROKEN_LIB
 
-noinst_PROGRAMS = make-roken snprintf-test
+# XXX this is needed for the LIBOBJS objects
+CPPFLAGS = $(libroken_la_CPPFLAGS)
+
+noinst_PROGRAMS = make-roken snprintf-test resolve-test
 
 nodist_make_roken_SOURCES = make-roken.c
 
 check_PROGRAMS = 				\
 		base64-test			\
 		getaddrinfo-test		\
+		hex-test			\
+		test-readenv			\
 		parse_bytes-test		\
 		parse_reply-test		\
+		parse_time-test			\
 		snprintf-test			\
 		strpftime-test
 
@@ -28,21 +35,29 @@ make_roken_LDADD =
 
 noinst_LTLIBRARIES = libtest.la
 libtest_la_SOURCES = strftime.c strptime.c snprintf.c
-libtest_la_CFLAGS = -DTEST_SNPRINTF
+libtest_la_CFLAGS = -DTEST_SNPRINTF -DTEST_STRPFTIME
 
 parse_reply_test_SOURCES = parse_reply-test.c resolve.c
 parse_reply_test_CFLAGS  = -DTEST_RESOLVE
 
-strpftime_test_SOURCES	= strpftime-test.c
+test_readenv_SOURCES = test-readenv.c test-mem.c
+
+parse_time_test_SOURCES = parse_time-test.c test-mem.c
+
+strpftime_test_SOURCES	= strpftime-test.c strpftime-test.h
 strpftime_test_LDADD = libtest.la $(LDADD)
-snprintf_test_SOURCES	= snprintf-test.c
+strpftime_test_CFLAGS = -DTEST_STRPFTIME
+snprintf_test_SOURCES	= snprintf-test.c snprintf-test.h
 snprintf_test_LDADD = libtest.la $(LDADD)
 snprintf_test_CFLAGS	= -DTEST_SNPRINTF
+
+resolve_test_SOURCES = resolve-test.c
 
 libroken_la_SOURCES =		\
 	base64.c		\
 	bswap.c			\
 	concat.c		\
+	dumpdata.c		\
 	environment.c		\
 	eread.c			\
 	esetenv.c		\
@@ -54,6 +69,7 @@ libroken_la_SOURCES =		\
 	getnameinfo_verified.c	\
 	getprogname.c		\
 	h_errno.c		\
+	hex.c			\
 	hostent_find_fqdn.c	\
 	issuid.c		\
 	k_getpwnam.c		\
@@ -64,6 +80,7 @@ libroken_la_SOURCES =		\
 	parse_bytes.c		\
 	parse_time.c		\
 	parse_units.c		\
+	realloc.c		\
 	resolve.c		\
 	roken_gethostby.c	\
 	rtbl.c			\
@@ -74,6 +91,7 @@ libroken_la_SOURCES =		\
 	snprintf.c		\
 	socket.c		\
 	strcollect.c		\
+	strpool.c		\
 	timeval.c		\
 	tm2time.c		\
 	unvis.c			\
@@ -87,12 +105,11 @@ libroken_la_SOURCES =		\
 EXTRA_libroken_la_SOURCES =	\
 	err.hin			\
 	glob.hin		\
+	fnmatch.hin		\
 	ifaddrs.hin		\
 	vis.hin	
 
-EXTRA_DIST = roken.awk roken.h.in
-
-libroken_la_LIBADD = @LTLIBOBJS@ $(DBLIB)
+libroken_la_LIBADD = @LTLIBOBJS@
 
 $(LTLIBOBJS) $(libroken_la_OBJECTS): roken.h $(XHEADERS)
 
@@ -130,22 +147,32 @@ endif
 
 ## these are controlled by configure
 XHEADERS = $(err_h) $(fnmatch_h) $(glob_h) $(ifaddrs_h) $(vis_h)
+CLEANFILES += err.h fnmatch.h glob.h ifaddrs.h vis.h
 
-include_HEADERS = 				\
+dist_include_HEADERS = 				\
 	base64.h				\
 	getarg.h				\
+	hex.h					\
 	parse_bytes.h 				\
 	parse_time.h 				\
 	parse_units.h				\
 	resolve.h 				\
 	roken-common.h 				\
 	rtbl.h 					\
-	xdbm.h					\
-	$(XHEADERS) 
+	xdbm.h
+
+if have_socket_wrapper
+libroken_la_SOURCES += socket_wrapper.c socket_wrapper.h
+dist_include_HEADERS += socket_wrapper.h
+endif
+
+build_HEADERZ = test-mem.h $(XHEADERS)
 
 nodist_include_HEADERS = roken.h
+rokenincludedir = $(includedir)/roken
+nodist_rokeninclude_HEADERS = $(XHEADERS)
 
-man_MANS = getarg.3
+man_MANS = getarg.3 parse_time.3 rtbl.3 ecalloc.3
 
 SUFFIXES += .hin
 .hin.h:
@@ -158,3 +185,10 @@ roken.h: make-roken$(EXEEXT)
 
 make-roken.c: roken.h.in roken.awk
 	$(AWK) -f $(srcdir)/roken.awk $(srcdir)/roken.h.in > make-roken.c
+
+EXTRA_DIST = \
+	roken.awk roken.h.in \
+	$(man_MANS) \
+	test-mem.h \
+	ndbm_wrap.c \
+	ndbm_wrap.h

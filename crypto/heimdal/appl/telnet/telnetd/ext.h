@@ -33,7 +33,7 @@
  *	@(#)ext.h	8.2 (Berkeley) 12/15/93
  */
 
-/* $Id: ext.h,v 1.23 2001/08/29 00:45:22 assar Exp $ */
+/* $Id: ext.h 15841 2005-08-08 13:34:26Z lha $ */
 
 #ifndef __EXT_H__
 #define __EXT_H__
@@ -57,7 +57,7 @@ extern const char *new_login;
 
 extern slcfun	slctab[NSLC + 1];	/* slc mapping table */
 
-extern char	*terminaltype;
+extern char	terminaltype[41];
 
 /*
  * I/O data buffers, pointers, and counters.
@@ -115,7 +115,7 @@ int tty_iscrnl (void);
 void tty_tspeed (int val);
 void tty_rspeed (int val);
 void getptyslave (void);
-int cleanopen (char *line);
+int cleanopen (char *);
 void startslave (const char *host, const char *, int autologin, char *autoname);
 void init_env (void);
 void start_login (const char *host, int autologin, char *name);
@@ -138,7 +138,7 @@ void ptyflush (void);
 char *nextitem (char *current);
 void netclear (void);
 void netflush (void);
-void writenet (unsigned char *ptr, int len);
+void writenet (const void *, size_t);
 void fatal (int f, char *msg);
 void fatalperror (int f, const char *msg);
 void fatalperror_errno (int f, const char *msg, int error);

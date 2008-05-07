@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2002, 2004 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -31,7 +31,7 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: der_locl.h,v 1.4.6.1 2004/02/09 17:54:05 lha Exp $ */
+/* $Id: der_locl.h 18608 2006-10-19 16:24:02Z lha $ */
 
 #ifndef __DER_LOCL_H__
 #define __DER_LOCL_H__
@@ -53,6 +53,7 @@
 #include <asn1_err.h>
 #include <der.h>
 
+time_t _der_timegm (struct tm *);
 size_t _heim_len_unsigned (unsigned);
 size_t _heim_len_int (int);
 

@@ -1,4 +1,4 @@
-dnl $Id: have-pragma-weak.m4,v 1.3.34.1 2004/04/01 07:27:33 joda Exp $
+dnl $Id: have-pragma-weak.m4 15435 2005-06-16 19:45:52Z lha $
 dnl
 AC_DEFUN([AC_HAVE_PRAGMA_WEAK], [
 if test "${enable_shared}" = "yes"; then
@@ -16,11 +16,11 @@ cat > conftest_bar.$ac_ext <<'EOF'
 #include "confdefs.h"
 extern int foo;
 
-int t() {
+int t(void) {
   return foo;
 }
 
-int main() {
+int main(int argc, char **argv) {
   return t();
 }
 EOF

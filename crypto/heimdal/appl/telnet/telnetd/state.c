@@ -33,7 +33,7 @@
 
 #include "telnetd.h"
 
-RCSID("$Id: state.c,v 1.14.12.1 2004/06/21 08:21:58 lha Exp $");
+RCSID("$Id: state.c 18110 2006-09-19 08:25:20Z lha $");
 
 unsigned char	doopt[] = { IAC, DO, '%', 'c', 0 };
 unsigned char	dont[] = { IAC, DONT, '%', 'c', 0 };
@@ -427,14 +427,14 @@ send_do(int option, int init)
 extern void auth_request(void);
 #endif
 #ifdef	ENCRYPTION
-extern void encrypt_send_support();
+extern void encrypt_send_support(void);
 #endif
 
 void
 willoption(int option)
 {
     int changeok = 0;
-    void (*func)() = 0;
+    void (*func)(void) = NULL;
 
     /*
      * process input from peer.
@@ -939,7 +939,7 @@ suboption(void)
     }  /* end of case TELOPT_TSPEED */
 
     case TELOPT_TTYPE: {		/* Yaaaay! */
-	static char terminalname[41];
+	char *p;
 
 	if (his_state_is_wont(TELOPT_TTYPE))	/* Ignore if option disabled */
 	    break;
@@ -949,9 +949,9 @@ suboption(void)
 	    return;		/* ??? XXX but, this is the most robust */
 	}
 
-	terminaltype = terminalname;
+	p = terminaltype;
 
-	while ((terminaltype < (terminalname + sizeof terminalname-1)) &&
+	while ((p < (terminaltype + sizeof terminaltype-1)) &&
 	       !SB_EOF()) {
 	    int c;
 
@@ -959,10 +959,9 @@ suboption(void)
 	    if (isupper(c)) {
 		c = tolower(c);
 	    }
-	    *terminaltype++ = c;    /* accumulate name */
+	    *p++ = c;    /* accumulate name */
 	}
-	*terminaltype = 0;
-	terminaltype = terminalname;
+	*p = 0;
 	break;
     }  /* end of case TELOPT_TTYPE */
 
@@ -1246,6 +1245,8 @@ suboption(void)
 	    encrypt_start(subpointer, SB_LEN());
 	    break;
 	case ENCRYPT_END:
+	    if (require_encryption)
+		fatal(net, "Output encryption is not possible to turn off");
 	    encrypt_end();
 	    break;
 	case ENCRYPT_REQSTART:
@@ -1258,6 +1259,8 @@ suboption(void)
 	     * if we have been able to get in the correct mode
 	     * anyhow.
 	     */
+	    if (require_encryption)
+		fatal(net, "Input encryption is not possible to turn off");
 	    encrypt_request_end();
 	    break;
 	case ENCRYPT_ENC_KEYID:

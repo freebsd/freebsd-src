@@ -31,7 +31,7 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: rcp_locl.h,v 1.3 2001/01/29 05:59:24 assar Exp $ */
+/* $Id: rcp_locl.h 15285 2005-05-29 18:24:43Z lha $ */
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
@@ -60,5 +60,8 @@
 
 #include "extern.h"
 
+#ifndef _PATH_CP
 #define	_PATH_CP	"/bin/cp"
-#define	_PATH_RSH	"/usr/bin/rsh"
+#endif
+#undef _PATH_RSH
+#define	_PATH_RSH	BINDIR "/rsh"

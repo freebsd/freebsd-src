@@ -33,7 +33,7 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: afslog.c,v 1.21.2.2 2003/08/25 11:43:51 lha Exp $");
+RCSID("$Id: afslog.c 16438 2006-01-03 09:27:54Z lha $");
 #endif
 #include <ctype.h>
 #ifdef KRB5
@@ -49,9 +49,6 @@ RCSID("$Id: afslog.c,v 1.21.2.2 2003/08/25 11:43:51 lha Exp $");
 
 static int help_flag;
 static int version_flag;
-#if 0
-static int create_user;
-#endif
 static getarg_strings cells;
 static char *realm;
 static getarg_strings files;
@@ -61,6 +58,8 @@ static int verbose;
 static int use_krb4 = 1;
 #endif
 #ifdef KRB5
+static char *client_string;
+static char *cache_string;
 static int use_krb5 = 1;
 #endif
 
@@ -70,13 +69,12 @@ struct getargs args[] = {
     { "realm",	'k', arg_string, &realm, "realm for afs cell", "realm" },
     { "unlog",	'u', arg_flag, &unlog_flag, "remove tokens" },
 #ifdef KRB4
-    { "v4",	 0, arg_negative_flag, &use_krb4, "use Kerberos 4" },
+    { "v4",	 0, arg_negative_flag, &use_krb4, "don't use Kerberos 4" },
 #endif
 #ifdef KRB5
-    { "v5",	 0, arg_negative_flag, &use_krb5, "use Kerberos 5" },
-#endif
-#if 0
-    { "create-user", 0, arg_flag, &create_user, "create user if not found" },
+    { "principal",'P',arg_string,&client_string,"principal to use","principal"},
+    { "cache",   0,  arg_string, &cache_string, "ccache to use", "cache"},
+    { "v5",	 0,  arg_negative_flag, &use_krb5, "don't use Kerberos 5" },
 #endif
     { "verbose",'v', arg_flag, &verbose },
     { "version", 0,  arg_flag, &version_flag },
@@ -130,43 +128,6 @@ expand_cell_name(const char *cell)
     }
     return cell;
 }
-
-#if 0
-static int
-createuser (char *cell)
-{
-    char cellbuf[64];
-    char name[ANAME_SZ];
-    char instance[INST_SZ];
-    char realm[REALM_SZ];
-    char cmd[1024];
-
-    if (cell == NULL) {
-	FILE *f;
-	int len;
-
-	f = fopen (_PATH_THISCELL, "r");
-	if (f == NULL)
-	    err (1, "open(%s)", _PATH_THISCELL);
-	if (fgets (cellbuf, sizeof(cellbuf), f) == NULL)
-	    err (1, "read cellname from %s", _PATH_THISCELL);
-	len = strlen(cellbuf);
-	if (cellbuf[len-1] == '\n')
-	    cellbuf[len-1] = '\0';
-	cell = cellbuf;
-    }
-
-    if(krb_get_default_principal(name, instance, realm))
-	errx (1, "Could not even figure out who you are");
-
-    snprintf (cmd, sizeof(cmd),
-	      "pts createuser %s%s%s@%s -cell %s",
-	      name, *instance ? "." : "", instance, strlwr(realm),
-	      cell);
-    DEBUG("Executing %s", cmd);
-    return system(cmd);
-}
-#endif
 
 static void
 usage(int ecode)
@@ -234,14 +195,14 @@ do_afslog(const char *cell)
 
 #ifdef KRB5
     if(context != NULL && id != NULL && use_krb5) {
-	k5ret = krb5_afslog(context, id, cell, NULL);
+	k5ret = krb5_afslog(context, id, cell, realm);
 	if(k5ret == 0)
 	    return 0;
     }
 #endif
 #if KRB4
     if (use_krb4) {
-	k4ret = krb_afslog(cell, NULL);
+	k4ret = krb_afslog(cell, realm);
 	if(k4ret == 0)
 	    return 0;
     }
@@ -297,11 +258,29 @@ main(int argc, char **argv)
     }
 #ifdef KRB5
     ret = krb5_init_context(&context);
-    if (ret)
+    if (ret) {
 	context = NULL;
-    else
-	if(krb5_cc_default(context, &id) != 0)
-	    id = NULL;
+    } else {
+	if (client_string) {
+	    krb5_principal client;
+
+	    ret = krb5_parse_name(context, client_string, &client);
+	    if (ret == 0)
+		ret = krb5_cc_cache_match(context, client, NULL, &id);
+	    if (ret)
+		id = NULL;
+	}
+	if (id == NULL && cache_string) {
+	    if(krb5_cc_resolve(context, cache_string, &id) != 0) {
+		krb5_warnx(context, "failed to open kerberos 5 cache '%s'",
+			   cache_string);
+		id = NULL;
+	    }
+	}
+	if (id == NULL)
+	    if(krb5_cc_default(context, &id) != 0)
+		id = NULL;
+    }
 #endif
 
     if (verbose)

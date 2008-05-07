@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: get_addrs.c,v 1.45 2003/01/25 15:19:49 lha Exp $");
+RCSID("$Id: get_addrs.c 13863 2004-05-25 21:46:46Z lha $");
 
 #ifdef __osf__
 /* hate */
@@ -268,7 +268,7 @@ get_addrs_int (krb5_context context, krb5_addresses *res, int flags)
  * Only include loopback address if there are no other.
  */
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_get_all_client_addrs (krb5_context context, krb5_addresses *res)
 {
     int flags = LOOP_IF_NONE | EXTRA_ADDRESSES;
@@ -284,7 +284,7 @@ krb5_get_all_client_addrs (krb5_context context, krb5_addresses *res)
  * If that fails, we return the address corresponding to `hostname'.
  */
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_get_all_server_addrs (krb5_context context, krb5_addresses *res)
 {
     return get_addrs_int (context, res, LOOP | SCAN_INTERFACES);

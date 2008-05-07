@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2002 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2007 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -41,7 +41,7 @@
 #include <fnmatch.h>
 #include "resolve.h"
 
-RCSID("$Id: principal.c,v 1.82.2.1 2003/08/15 14:30:07 lha Exp $");
+RCSID("$Id: principal.c 21741 2007-07-31 16:00:37Z lha $");
 
 #define princ_num_comp(P) ((P)->name.name_string.len)
 #define princ_type(P) ((P)->name.name_type)
@@ -49,7 +49,7 @@ RCSID("$Id: principal.c,v 1.82.2.1 2003/08/15 14:30:07 lha Exp $");
 #define princ_ncomp(P, N) ((P)->name.name_string.val[(N)])
 #define princ_realm(P) ((P)->realm)
 
-void
+void KRB5_LIB_FUNCTION
 krb5_free_principal(krb5_context context,
 		    krb5_principal p)
 {
@@ -59,23 +59,31 @@ krb5_free_principal(krb5_context context,
     }
 }
 
-int
+void KRB5_LIB_FUNCTION
+krb5_principal_set_type(krb5_context context,
+			krb5_principal principal,
+			int type)
+{
+    princ_type(principal) = type;
+}
+
+int KRB5_LIB_FUNCTION
 krb5_principal_get_type(krb5_context context,
-			krb5_principal principal)
+			krb5_const_principal principal)
 {
     return princ_type(principal);
 }
 
-const char *
+const char* KRB5_LIB_FUNCTION
 krb5_principal_get_realm(krb5_context context,
-			 krb5_principal principal)
+			 krb5_const_principal principal)
 {
     return princ_realm(principal);
 }			 
 
-const char *
+const char* KRB5_LIB_FUNCTION
 krb5_principal_get_comp_string(krb5_context context,
-			       krb5_principal principal,
+			       krb5_const_principal principal,
 			       unsigned int component)
 {
     if(component >= princ_num_comp(principal))
@@ -83,14 +91,15 @@ krb5_principal_get_comp_string(krb5_context context,
     return princ_ncomp(principal, component);
 }
 
-krb5_error_code
-krb5_parse_name(krb5_context context,
-		const char *name,
-		krb5_principal *principal)
+krb5_error_code KRB5_LIB_FUNCTION
+krb5_parse_name_flags(krb5_context context,
+		      const char *name,
+		      int flags,
+		      krb5_principal *principal)
 {
     krb5_error_code ret;
-    general_string *comp;
-    general_string realm;
+    heim_general_string *comp;
+    heim_general_string realm = NULL;
     int ncomp;
 
     const char *p;
@@ -101,19 +110,38 @@ krb5_parse_name(krb5_context context,
     int n;
     char c;
     int got_realm = 0;
+    int first_at = 1;
+    int enterprise = (flags & KRB5_PRINCIPAL_PARSE_ENTERPRISE);
   
-    /* count number of component */
+    *principal = NULL;
+
+#define RFLAGS (KRB5_PRINCIPAL_PARSE_NO_REALM|KRB5_PRINCIPAL_PARSE_MUST_REALM)
+
+    if ((flags & RFLAGS) == RFLAGS) {
+	krb5_set_error_string(context, "Can't require both realm and "
+			      "no realm at the same time");
+	return KRB5_ERR_NO_SERVICE;
+    }
+#undef RFLAGS
+
+    /* count number of component,
+     * enterprise names only have one component
+     */
     ncomp = 1;
-    for(p = name; *p; p++){
-	if(*p=='\\'){
-	    if(!p[1]) {
-		krb5_set_error_string (context,
-				       "trailing \\ in principal name");
-		return KRB5_PARSE_MALFORMED;
-	    }
-	    p++;
-	} else if(*p == '/')
-	    ncomp++;
+    if (!enterprise) {
+	for(p = name; *p; p++){
+	    if(*p=='\\'){
+		if(!p[1]) {
+		    krb5_set_error_string (context,
+					   "trailing \\ in principal name");
+		    return KRB5_PARSE_MALFORMED;
+		}
+		p++;
+	    } else if(*p == '/')
+		ncomp++;
+	    else if(*p == '@')
+		break;
+	}
     }
     comp = calloc(ncomp, sizeof(*comp));
     if (comp == NULL) {
@@ -146,7 +174,10 @@ krb5_parse_name(krb5_context context,
 		ret = KRB5_PARSE_MALFORMED;
 		goto exit;
 	    }
-	}else if(c == '/' || c == '@'){
+	}else if(enterprise && first_at) {
+	    if (c == '@')
+		first_at = 0;
+	}else if((c == '/' && !enterprise) || c == '@'){
 	    if(got_realm){
 		krb5_set_error_string (context,
 				       "part after realm in principal name");
@@ -177,6 +208,12 @@ krb5_parse_name(krb5_context context,
 	*q++ = c;
     }
     if(got_realm){
+	if (flags & KRB5_PRINCIPAL_PARSE_NO_REALM) {
+	    krb5_set_error_string (context, "realm found in 'short' principal "
+				   "expected to be without one");
+	    ret = KRB5_PARSE_MALFORMED;
+	    goto exit;
+	}
 	realm = malloc(q - start + 1);
 	if (realm == NULL) {
 	    krb5_set_error_string (context, "malloc: out of memory");
@@ -186,9 +223,18 @@ krb5_parse_name(krb5_context context,
 	memcpy(realm, start, q - start);
 	realm[q - start] = 0;
     }else{
-	ret = krb5_get_default_realm (context, &realm);
-	if (ret)
+	if (flags & KRB5_PRINCIPAL_PARSE_MUST_REALM) {
+	    krb5_set_error_string (context, "realm NOT found in principal "
+				   "expected to be with one");
+	    ret = KRB5_PARSE_MALFORMED;
 	    goto exit;
+	} else if (flags & KRB5_PRINCIPAL_PARSE_NO_REALM) {
+	    realm = NULL;
+	} else {
+	    ret = krb5_get_default_realm (context, &realm);
+	    if (ret)
+		goto exit;
+	}
 
 	comp[n] = malloc(q - start + 1);
 	if (comp[n] == NULL) {
@@ -206,7 +252,10 @@ krb5_parse_name(krb5_context context,
 	ret = ENOMEM;
 	goto exit;
     }
-    (*principal)->name.name_type = KRB5_NT_PRINCIPAL;
+    if (enterprise)
+	(*principal)->name.name_type = KRB5_NT_ENTERPRISE_PRINCIPAL;
+    else
+	(*principal)->name.name_type = KRB5_NT_PRINCIPAL;
     (*principal)->name.name_string.val = comp;
     princ_num_comp(*principal) = n;
     (*principal)->realm = realm;
@@ -217,29 +266,42 @@ exit:
 	free(comp[--n]);
     }
     free(comp);
+    free(realm);
     free(s);
     return ret;
 }
 
+krb5_error_code KRB5_LIB_FUNCTION
+krb5_parse_name(krb5_context context,
+		const char *name,
+		krb5_principal *principal)
+{
+    return krb5_parse_name_flags(context, name, 0, principal);
+}
+
 static const char quotable_chars[] = " \n\t\b\\/@";
 static const char replace_chars[] = " ntb\\/@";
+static const char nq_chars[] = "    \\/@";
 
 #define add_char(BASE, INDEX, LEN, C) do { if((INDEX) < (LEN)) (BASE)[(INDEX)++] = (C); }while(0);
 
 static size_t
-quote_string(const char *s, char *out, size_t index, size_t len)
+quote_string(const char *s, char *out, size_t idx, size_t len, int display)
 {
     const char *p, *q;
-    for(p = s; *p && index < len; p++){
-	if((q = strchr(quotable_chars, *p))){
-	    add_char(out, index, len, '\\');
-	    add_char(out, index, len, replace_chars[q - quotable_chars]);
+    for(p = s; *p && idx < len; p++){
+	q = strchr(quotable_chars, *p);
+	if (q && display) {
+	    add_char(out, idx, len, replace_chars[q - quotable_chars]);
+	} else if (q) {
+	    add_char(out, idx, len, '\\');
+	    add_char(out, idx, len, replace_chars[q - quotable_chars]);
 	}else
-	    add_char(out, index, len, *p);
+	    add_char(out, idx, len, *p);
     }
-    if(index < len)
-	out[index] = '\0';
-    return index;
+    if(idx < len)
+	out[idx] = '\0';
+    return idx;
 }
 
 
@@ -248,19 +310,31 @@ unparse_name_fixed(krb5_context context,
 		   krb5_const_principal principal,
 		   char *name,
 		   size_t len,
-		   krb5_boolean short_form)
+		   int flags)
 {
-    size_t index = 0;
+    size_t idx = 0;
     int i;
+    int short_form = (flags & KRB5_PRINCIPAL_UNPARSE_SHORT) != 0;
+    int no_realm = (flags & KRB5_PRINCIPAL_UNPARSE_NO_REALM) != 0;
+    int display = (flags & KRB5_PRINCIPAL_UNPARSE_DISPLAY) != 0;
+
+    if (!no_realm && princ_realm(principal) == NULL) {
+	krb5_set_error_string(context, "Realm missing from principal, "
+			      "can't unparse");
+	return ERANGE;
+    }
+
     for(i = 0; i < princ_num_comp(principal); i++){
 	if(i)
-	    add_char(name, index, len, '/');
-	index = quote_string(princ_ncomp(principal, i), name, index, len);
-	if(index == len)
+	    add_char(name, idx, len, '/');
+	idx = quote_string(princ_ncomp(principal, i), name, idx, len, display);
+	if(idx == len) {
+	    krb5_set_error_string(context, "Out of space printing principal");
 	    return ERANGE;
+	}
     } 
     /* add realm if different from default realm */
-    if(short_form) {
+    if(short_form && !no_realm) {
 	krb5_realm r;
 	krb5_error_code ret;
 	ret = krb5_get_default_realm(context, &r);
@@ -270,49 +344,66 @@ unparse_name_fixed(krb5_context context,
 	    short_form = 0;
 	free(r);
     }
-    if(!short_form) {
-	add_char(name, index, len, '@');
-	index = quote_string(princ_realm(principal), name, index, len);
-	if(index == len)
+    if(!short_form && !no_realm) {
+	add_char(name, idx, len, '@');
+	idx = quote_string(princ_realm(principal), name, idx, len, display);
+	if(idx == len) {
+	    krb5_set_error_string(context, 
+				  "Out of space printing realm of principal");
 	    return ERANGE;
+	}
     }
     return 0;
 }
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_unparse_name_fixed(krb5_context context,
 			krb5_const_principal principal,
 			char *name,
 			size_t len)
 {
-    return unparse_name_fixed(context, principal, name, len, FALSE);
+    return unparse_name_fixed(context, principal, name, len, 0);
 }
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_unparse_name_fixed_short(krb5_context context,
 			      krb5_const_principal principal,
 			      char *name,
 			      size_t len)
 {
-    return unparse_name_fixed(context, principal, name, len, TRUE);
+    return unparse_name_fixed(context, principal, name, len, 
+			      KRB5_PRINCIPAL_UNPARSE_SHORT);
+}
+
+krb5_error_code KRB5_LIB_FUNCTION
+krb5_unparse_name_fixed_flags(krb5_context context,
+			      krb5_const_principal principal,
+			      int flags,
+			      char *name,
+			      size_t len)
+{
+    return unparse_name_fixed(context, principal, name, len, flags);
 }
 
 static krb5_error_code
 unparse_name(krb5_context context,
 	     krb5_const_principal principal,
 	     char **name,
-	     krb5_boolean short_flag)
+	     int flags)
 {
     size_t len = 0, plen;
     int i;
     krb5_error_code ret;
     /* count length */
-    plen = strlen(princ_realm(principal));
-    if(strcspn(princ_realm(principal), quotable_chars) == plen)
-	len += plen;
-    else
-	len += 2*plen;
-    len++;
+    if (princ_realm(principal)) {
+	plen = strlen(princ_realm(principal));
+
+	if(strcspn(princ_realm(principal), quotable_chars) == plen)
+	    len += plen;
+	else
+	    len += 2*plen;
+	len++; /* '@' */
+    }
     for(i = 0; i < princ_num_comp(principal); i++){
 	plen = strlen(princ_ncomp(principal, i));
 	if(strcspn(princ_ncomp(principal, i), quotable_chars) == plen)
@@ -321,13 +412,13 @@ unparse_name(krb5_context context,
 	    len += 2*plen;
 	len++;
     }
-    len++;
+    len++; /* '\0' */
     *name = malloc(len);
     if(*name == NULL) {
 	krb5_set_error_string (context, "malloc: out of memory");
 	return ENOMEM;
     }
-    ret = unparse_name_fixed(context, principal, *name, len, short_flag);
+    ret = unparse_name_fixed(context, principal, *name, len, flags);
     if(ret) {
 	free(*name);
 	*name = NULL;
@@ -335,25 +426,34 @@ unparse_name(krb5_context context,
     return ret;
 }
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_unparse_name(krb5_context context,
 		  krb5_const_principal principal,
 		  char **name)
 {
-    return unparse_name(context, principal, name, FALSE);
+    return unparse_name(context, principal, name, 0);
 }
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
+krb5_unparse_name_flags(krb5_context context,
+			krb5_const_principal principal,
+			int flags,
+			char **name)
+{
+    return unparse_name(context, principal, name, flags);
+}
+
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_unparse_name_short(krb5_context context,
 			krb5_const_principal principal,
 			char **name)
 {
-    return unparse_name(context, principal, name, TRUE);
+    return unparse_name(context, principal, name, KRB5_PRINCIPAL_UNPARSE_SHORT);
 }
 
 #if 0 /* not implemented */
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_unparse_name_ext(krb5_context context,
 		      krb5_const_principal principal,
 		      char **name,
@@ -364,7 +464,7 @@ krb5_unparse_name_ext(krb5_context context,
 
 #endif
 
-krb5_realm*
+krb5_realm * KRB5_LIB_FUNCTION
 krb5_princ_realm(krb5_context context,
 		 krb5_principal principal)
 {
@@ -372,7 +472,7 @@ krb5_princ_realm(krb5_context context,
 }
 
 
-void
+void KRB5_LIB_FUNCTION
 krb5_princ_set_realm(krb5_context context,
 		     krb5_principal principal,
 		     krb5_realm *realm)
@@ -381,7 +481,7 @@ krb5_princ_set_realm(krb5_context context,
 }
 
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_build_principal(krb5_context context,
 		     krb5_principal *principal,
 		     int rlen,
@@ -401,7 +501,7 @@ append_component(krb5_context context, krb5_principal p,
 		 const char *comp,
 		 size_t comp_len)
 {
-    general_string *tmp;
+    heim_general_string *tmp;
     size_t len = princ_num_comp(p);
 
     tmp = realloc(princ_comp(p), (len + 1) * sizeof(*tmp));
@@ -477,7 +577,7 @@ build_principal(krb5_context context,
     return 0;
 }
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_make_principal(krb5_context context,
 		    krb5_principal *principal,
 		    krb5_const_realm realm,
@@ -500,7 +600,7 @@ krb5_make_principal(krb5_context context,
     return ret;
 }
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_build_principal_va(krb5_context context, 
 			krb5_principal *principal, 
 			int rlen,
@@ -510,7 +610,7 @@ krb5_build_principal_va(krb5_context context,
     return build_principal(context, principal, rlen, realm, va_princ, ap);
 }
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_build_principal_va_ext(krb5_context context, 
 			    krb5_principal *principal, 
 			    int rlen,
@@ -521,7 +621,7 @@ krb5_build_principal_va_ext(krb5_context context,
 }
 
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_build_principal_ext(krb5_context context,
 			 krb5_principal *principal,
 			 int rlen,
@@ -537,7 +637,7 @@ krb5_build_principal_ext(krb5_context context,
 }
 
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_copy_principal(krb5_context context,
 		    krb5_const_principal inprinc,
 		    krb5_principal *outprinc)
@@ -560,7 +660,7 @@ krb5_copy_principal(krb5_context context,
  * return TRUE iff princ1 == princ2 (without considering the realm)
  */
 
-krb5_boolean
+krb5_boolean KRB5_LIB_FUNCTION
 krb5_principal_compare_any_realm(krb5_context context,
 				 krb5_const_principal princ1,
 				 krb5_const_principal princ2)
@@ -579,7 +679,7 @@ krb5_principal_compare_any_realm(krb5_context context,
  * return TRUE iff princ1 == princ2
  */
 
-krb5_boolean
+krb5_boolean KRB5_LIB_FUNCTION
 krb5_principal_compare(krb5_context context,
 		       krb5_const_principal princ1,
 		       krb5_const_principal princ2)
@@ -593,7 +693,7 @@ krb5_principal_compare(krb5_context context,
  * return TRUE iff realm(princ1) == realm(princ2)
  */
 
-krb5_boolean
+krb5_boolean KRB5_LIB_FUNCTION
 krb5_realm_compare(krb5_context context,
 		   krb5_const_principal princ1,
 		   krb5_const_principal princ2)
@@ -605,7 +705,7 @@ krb5_realm_compare(krb5_context context,
  * return TRUE iff princ matches pattern
  */
 
-krb5_boolean
+krb5_boolean KRB5_LIB_FUNCTION
 krb5_principal_match(krb5_context context,
 		     krb5_const_principal princ,
 		     krb5_const_principal pattern)
@@ -623,7 +723,7 @@ krb5_principal_match(krb5_context context,
 }
 
 
-struct v4_name_convert {
+static struct v4_name_convert {
     const char *from;
     const char *to; 
 } default_v4_name_convert[] = {
@@ -686,14 +786,16 @@ get_name_conversion(krb5_context context, const char *realm, const char *name)
  * if `func', use that function for validating the conversion
  */
 
-krb5_error_code
-krb5_425_conv_principal_ext(krb5_context context,
-			    const char *name,
-			    const char *instance,
-			    const char *realm,
-			    krb5_boolean (*func)(krb5_context, krb5_principal),
-			    krb5_boolean resolve,
-			    krb5_principal *princ)
+krb5_error_code KRB5_LIB_FUNCTION
+krb5_425_conv_principal_ext2(krb5_context context,
+			     const char *name,
+			     const char *instance,
+			     const char *realm,
+			     krb5_boolean (*func)(krb5_context, 
+						  void *, krb5_principal),
+			     void *funcctx,
+			     krb5_boolean resolve,
+			     krb5_principal *princ)
 {
     const char *p;
     krb5_error_code ret;
@@ -702,7 +804,7 @@ krb5_425_conv_principal_ext(krb5_context context,
     char local_hostname[MAXHOSTNAMELEN];
 
     /* do the following: if the name is found in the
-       `v4_name_convert:host' part, is is assumed to be a `host' type
+       `v4_name_convert:host' part, is assumed to be a `host' type
        principal, and the instance is looked up in the
        `v4_instance_convert' part. if not found there the name is
        (optionally) looked up as a hostname, and if that doesn't yield
@@ -724,7 +826,7 @@ krb5_425_conv_principal_ext(krb5_context context,
     if(p){
 	instance = p;
 	ret = krb5_make_principal(context, &pr, realm, name, instance, NULL);
-	if(func == NULL || (*func)(context, pr)){
+	if(func == NULL || (*func)(context, funcctx, pr)){
 	    *princ = pr;
 	    return 0;
 	}
@@ -740,21 +842,24 @@ krb5_425_conv_principal_ext(krb5_context context,
 	struct dns_reply *r;
 
 	r = dns_lookup(instance, "aaaa");
-	if (r && r->head && r->head->type == T_AAAA) {
-	    inst = strdup(r->head->domain);
+	if (r) {
+	    if (r->head && r->head->type == T_AAAA) {
+		inst = strdup(r->head->domain);
+		passed = TRUE;
+	    }
 	    dns_free_data(r);
-	    passed = TRUE;
 	} else {
 	    r = dns_lookup(instance, "a");
-	    if(r && r->head && r->head->type == T_A) {
-		inst = strdup(r->head->domain);
+	    if (r) {
+		if(r->head && r->head->type == T_A) {
+		    inst = strdup(r->head->domain);
+		    passed = TRUE;
+		}
 		dns_free_data(r);
-		passed = TRUE;
 	    }
 	}
 #else
 	struct addrinfo hints, *ai;
-	int ret;
 	
 	memset (&hints, 0, sizeof(hints));
 	hints.ai_flags = AI_CANONNAME;
@@ -781,7 +886,7 @@ krb5_425_conv_principal_ext(krb5_context context,
 				      NULL);
 	    free (inst);
 	    if(ret == 0) {
-		if(func == NULL || (*func)(context, pr)){
+		if(func == NULL || (*func)(context, funcctx, pr)){
 		    *princ = pr;
 		    return 0;
 		}
@@ -793,7 +898,7 @@ krb5_425_conv_principal_ext(krb5_context context,
 	snprintf(host, sizeof(host), "%s.%s", instance, realm);
 	strlwr(host);
 	ret = krb5_make_principal(context, &pr, realm, name, host, NULL);
-	if((*func)(context, pr)){
+	if((*func)(context, funcctx, pr)){
 	    *princ = pr;
 	    return 0;
 	}
@@ -820,7 +925,7 @@ krb5_425_conv_principal_ext(krb5_context context,
 	for(d = domains; d && *d; d++){
 	    snprintf(host, sizeof(host), "%s.%s", instance, *d);
 	    ret = krb5_make_principal(context, &pr, realm, name, host, NULL);
-	    if(func == NULL || (*func)(context, pr)){
+	    if(func == NULL || (*func)(context, funcctx, pr)){
 		*princ = pr;
 		krb5_config_free_strings(domains);
 		return 0;
@@ -844,7 +949,7 @@ krb5_425_conv_principal_ext(krb5_context context,
     snprintf(host, sizeof(host), "%s.%s", instance, p);
 local_host:
     ret = krb5_make_principal(context, &pr, realm, name, host, NULL);
-    if(func == NULL || (*func)(context, pr)){
+    if(func == NULL || (*func)(context, funcctx, pr)){
 	*princ = pr;
 	return 0;
     }
@@ -870,7 +975,7 @@ no_host:
 	name = p;
     
     ret = krb5_make_principal(context, &pr, realm, name, instance, NULL);
-    if(func == NULL || (*func)(context, pr)){
+    if(func == NULL || (*func)(context, funcctx, pr)){
 	*princ = pr;
 	return 0;
     }
@@ -879,7 +984,35 @@ no_host:
     return HEIM_ERR_V4_PRINC_NO_CONV;
 }
 
-krb5_error_code
+static krb5_boolean
+convert_func(krb5_context conxtext, void *funcctx, krb5_principal principal)
+{
+    krb5_boolean (*func)(krb5_context, krb5_principal) = funcctx;
+    return (*func)(conxtext, principal);
+}
+
+krb5_error_code KRB5_LIB_FUNCTION
+krb5_425_conv_principal_ext(krb5_context context,
+			    const char *name,
+			    const char *instance,
+			    const char *realm,
+			    krb5_boolean (*func)(krb5_context, krb5_principal),
+			    krb5_boolean resolve,
+			    krb5_principal *principal)
+{
+    return krb5_425_conv_principal_ext2(context,
+					name,
+					instance,
+					realm,
+					func ? convert_func : NULL,
+					func,
+					resolve,
+					principal);
+}
+
+
+
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_425_conv_principal(krb5_context context,
 			const char *name,
 			const char *instance,
@@ -972,7 +1105,7 @@ name_convert(krb5_context context, const char *name, const char *realm,
  * three parameters.  They have to be 40 bytes each (ANAME_SZ).
  */
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_524_conv_principal(krb5_context context,
 			const krb5_principal principal,
 			char *name, 
@@ -1043,7 +1176,7 @@ krb5_524_conv_principal(krb5_context context,
  * Create a principal in `ret_princ' for the service `sname' running
  * on host `hostname'.  */
 			
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_sname_to_principal (krb5_context context,
 			 const char *hostname,
 			 const char *sname,
@@ -1084,4 +1217,38 @@ krb5_sname_to_principal (krb5_context context,
 	free(host);
     krb5_free_host_realm(context, realms);
     return ret;
+}
+
+static const struct {
+    const char *type;
+    int32_t value;
+} nametypes[] = {
+    { "UNKNOWN", KRB5_NT_UNKNOWN },
+    { "PRINCIPAL", KRB5_NT_PRINCIPAL },
+    { "SRV_INST", KRB5_NT_SRV_INST },
+    { "SRV_HST", KRB5_NT_SRV_HST },
+    { "SRV_XHST", KRB5_NT_SRV_XHST },
+    { "UID", KRB5_NT_UID },
+    { "X500_PRINCIPAL", KRB5_NT_X500_PRINCIPAL },
+    { "SMTP_NAME", KRB5_NT_SMTP_NAME },
+    { "ENTERPRISE_PRINCIPAL", KRB5_NT_ENTERPRISE_PRINCIPAL },
+    { "ENT_PRINCIPAL_AND_ID", KRB5_NT_ENT_PRINCIPAL_AND_ID },
+    { "MS_PRINCIPAL", KRB5_NT_MS_PRINCIPAL },
+    { "MS_PRINCIPAL_AND_ID", KRB5_NT_MS_PRINCIPAL_AND_ID },
+    { NULL }
+};
+
+krb5_error_code
+krb5_parse_nametype(krb5_context context, const char *str, int32_t *nametype)
+{
+    size_t i;
+    
+    for(i = 0; nametypes[i].type; i++) {
+	if (strcasecmp(nametypes[i].type, str) == 0) {
+	    *nametype = nametypes[i].value;
+	    return 0;
+	}
+    }
+    krb5_set_error_string(context, "Failed to find name type %s", str);
+    return KRB5_PARSE_MALFORMED;
 }

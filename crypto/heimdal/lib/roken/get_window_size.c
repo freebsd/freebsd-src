@@ -33,7 +33,7 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: get_window_size.c,v 1.9 1999/12/02 16:58:46 joda Exp $");
+RCSID("$Id: get_window_size.c 21005 2007-06-08 01:54:35Z lha $");
 #endif
 
 #include <stdlib.h>
@@ -58,9 +58,9 @@ RCSID("$Id: get_window_size.c,v 1.9 1999/12/02 16:58:46 joda Exp $");
 #include <termios.h>
 #endif
 
-#include <roken.h>
+#include "roken.h"
 
-int
+int ROKEN_LIB_FUNCTION
 get_window_size(int fd, struct winsize *wp)
 {
     int ret = -1;

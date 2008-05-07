@@ -33,10 +33,10 @@
 
 #include "kadm5_locl.h"
 
-RCSID("$Id: privs_c.c,v 1.4 2000/07/11 15:59:54 joda Exp $");
+RCSID("$Id: privs_c.c 17512 2006-05-08 13:43:17Z lha $");
 
 kadm5_ret_t
-kadm5_c_get_privs(void *server_handle, u_int32_t *privs)
+kadm5_c_get_privs(void *server_handle, uint32_t *privs)
 {
     kadm5_client_context *context = server_handle;
     kadm5_ret_t ret;
@@ -45,13 +45,17 @@ kadm5_c_get_privs(void *server_handle, u_int32_t *privs)
     int32_t tmp;
     krb5_data reply;
 
+    *privs = 0;
+
     ret = _kadm5_connect(server_handle);
     if(ret)
 	return ret;
 
     sp = krb5_storage_from_mem(buf, sizeof(buf));
-    if (sp == NULL)
+    if (sp == NULL) {
+	krb5_clear_error_string(context->context);
 	return ENOMEM;
+    }
     krb5_store_int32(sp, kadm_get_privs);
     ret = _kadm5_client_send(context, sp);
     krb5_storage_free(sp);
@@ -62,14 +66,15 @@ kadm5_c_get_privs(void *server_handle, u_int32_t *privs)
 	return ret;
     sp = krb5_storage_from_data(&reply);
     if (sp == NULL) {
+	krb5_clear_error_string(context->context);
 	krb5_data_free (&reply);
 	return ENOMEM;
     }
     krb5_ret_int32(sp, &tmp);
+    krb5_clear_error_string(context->context);
     ret = tmp;
     if(ret == 0){
-	krb5_ret_int32(sp, &tmp);
-	*privs = tmp;
+	krb5_ret_uint32(sp, privs);
     }
     krb5_storage_free(sp);
     krb5_data_free (&reply);

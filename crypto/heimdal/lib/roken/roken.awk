@@ -1,4 +1,4 @@
-# $Id: roken.awk,v 1.9 2003/03/04 10:37:26 lha Exp $
+# $Id: roken.awk 15409 2005-06-16 16:29:58Z lha $
 
 BEGIN {
 	print "#ifdef HAVE_CONFIG_H"
@@ -15,7 +15,7 @@ BEGIN {
 	print "puts(\"\");"
 }
 
-$1 == "\#ifdef" || $1 == "\#ifndef" || $1 == "\#if" || $1 == "\#else" || $1 == "\#elif" || $1 == "\#endif" || $1 == "#ifdef" || $1 == "#ifndef" || $1 == "#if" || $1 == "#else" || $1 == "#elif" || $1 == "#endif" {
+$1 == "#ifdef" || $1 == "#ifndef" || $1 == "#if" || $1 == "#else" || $1 == "#elif" || $1 == "#endif" {
 	print $0;
 	next
 }

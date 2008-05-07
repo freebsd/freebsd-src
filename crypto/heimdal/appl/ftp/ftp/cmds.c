@@ -36,7 +36,7 @@
  */
 
 #include "ftp_locl.h"
-RCSID("$Id: cmds.c,v 1.44 2001/08/05 06:39:14 assar Exp $");
+RCSID("$Id: cmds.c 15673 2005-07-19 18:19:33Z lha $");
 
 typedef void (*sighand)(int);
 
@@ -142,7 +142,7 @@ setpeer(int argc, char **argv)
 		if (autologin)
 			login(argv[1]);
 
-#if (defined(unix) || defined(__unix__) || defined(__unix) || defined(_AIX) || defined(_CRAY) || defined(__NetBSD__)) && NBBY == 8
+#if (defined(unix) || defined(__unix__) || defined(__unix) || defined(_AIX) || defined(_CRAY) || defined(__NetBSD__) || defined(__APPLE__)) && NBBY == 8
 /*
  * this ifdef is to keep someone form "porting" this to an incompatible
  * system and not checking this out. This way they have to think about it.
@@ -150,22 +150,23 @@ setpeer(int argc, char **argv)
 		overbose = verbose;
 		if (debug == 0)
 			verbose = -1;
-		if (command("SYST") == COMPLETE && overbose) {
-			char *cp, c;
-			cp = strchr(reply_string+4, ' ');
+		if (command("SYST") == COMPLETE && overbose && strlen(reply_string) > 4) {
+			char *cp, *p;
+
+			cp = strdup(reply_string + 4);
 			if (cp == NULL)
-				cp = strchr(reply_string+4, '\r');
-			if (cp) {
-				if (cp[-1] == '.')
-					cp--;
-				c = *cp;
-				*cp = '\0';
+			    errx(1, "strdup: out of memory");
+			p = strchr(cp, ' ');
+			if (p == NULL)
+				p = strchr(cp, '\r');
+			if (p) {
+				if (p[-1] == '.')
+					p--;
+				*p = '\0';
 			}
 
-			printf("Remote system type is %s.\n",
-				reply_string+4);
-			if (cp)
-				*cp = c;
+			printf("Remote system type is %s.\n", cp);
+			free(cp);
 		}
 		if (!strncmp(reply_string, "215 UNIX Type: L8", 17)) {
 			if (proxy)
@@ -573,28 +574,28 @@ reget(int argc, char **argv)
 void
 get(int argc, char **argv)
 {
-    char *mode;
+    char *filemode;
 
     if (restart_point) {
 	if (curtype == TYPE_I)
-	    mode = "r+wb";
+	    filemode = "r+wb";
 	else
-	    mode = "r+w";
+	    filemode = "r+w";
     } else {
 	if (curtype == TYPE_I)
-	    mode = "wb";
+	    filemode = "wb";
 	else
-	    mode = "w";
+	    filemode = "w";
     }
 
-    getit(argc, argv, 0, mode);
+    getit(argc, argv, 0, filemode);
 }
 
 /*
  * Receive one file.
  */
 int
-getit(int argc, char **argv, int restartit, char *mode)
+getit(int argc, char **argv, int restartit, char *filemode)
 {
 	int loc = 0;
 	int local_given = 1;
@@ -695,7 +696,7 @@ getit(int argc, char **argv, int restartit, char *mode)
 		}
 	}
 
-	recvrequest("RETR", argv[2], argv[1], mode,
+	recvrequest("RETR", argv[2], argv[1], filemode,
 		    argv[1] != oldargv1 || argv[2] != oldargv2, local_given);
 	restart_point = 0;
 	return (0);
@@ -736,7 +737,7 @@ mget(int argc, char **argv)
 		if (mflag && confirm(argv[0], cp)) {
 			tp = cp;
 			if (mcase) {
-				for (tp2 = tmpbuf; (ch = *tp++);)
+				for (tp2 = tmpbuf;(ch = (unsigned char)*tp++);)
 					*tp2++ = tolower(ch);
 				*tp2 = '\0';
 				tp = tmpbuf;
@@ -772,7 +773,7 @@ remglob(char **argv, int doswitch)
     static FILE *ftemp = NULL;
     static char **args;
     int oldverbose, oldhash;
-    char *cp, *mode;
+    char *cp, *filemode;
 
     if (!mflag) {
 	if (!doglob) {
@@ -807,8 +808,8 @@ remglob(char **argv, int doswitch)
 	if (doswitch) {
 	    pswitch(!proxy);
 	}
-	for (mode = "w"; *++argv != NULL; mode = "a")
-	    recvrequest ("NLST", temp, *argv, mode, 0, 0);
+	for (filemode = "w"; *++argv != NULL; filemode = "a")
+	    recvrequest ("NLST", temp, *argv, filemode, 0, 0);
 	if (doswitch) {
 	    pswitch(!proxy);
 	}
@@ -1187,7 +1188,7 @@ mls(int argc, char **argv)
 {
 	sighand oldintr;
 	int ointer, i;
-	char *cmd, mode[1], *dest;
+	char *cmd, filemode[2], *dest;
 
 	if (argc < 2 && !another(&argc, &argv, "remote-files"))
 		goto usage;
@@ -1210,9 +1211,10 @@ usage:
 	mflag = 1;
 	oldintr = signal(SIGINT, mabort);
 	setjmp(jabort);
+	filemode[1] = '\0';
 	for (i = 1; mflag && i < argc-1; ++i) {
-		*mode = (i == 1) ? 'w' : 'a';
-		recvrequest(cmd, dest, argv[i], mode, 0, 1);
+		*filemode = (i == 1) ? 'w' : 'a';
+		recvrequest(cmd, dest, argv[i], filemode, 0, 1);
 		if (!mflag && fromatty) {
 			ointer = interactive;
 			interactive = 1;
@@ -1235,8 +1237,8 @@ shell(int argc, char **argv)
 {
 	pid_t pid;
 	RETSIGTYPE (*old1)(int), (*old2)(int);
-	char shellnam[40], *shell, *namep; 
-	int status;
+	char shellnam[40], *shellpath, *namep; 
+	int waitstatus;
 
 	old1 = signal (SIGINT, SIG_IGN);
 	old2 = signal (SIGQUIT, SIG_IGN);
@@ -1245,32 +1247,32 @@ shell(int argc, char **argv)
 			close(pid);
 		signal(SIGINT, SIG_DFL);
 		signal(SIGQUIT, SIG_DFL);
-		shell = getenv("SHELL");
-		if (shell == NULL)
-			shell = _PATH_BSHELL;
-		namep = strrchr(shell,'/');
+		shellpath = getenv("SHELL");
+		if (shellpath == NULL)
+			shellpath = _PATH_BSHELL;
+		namep = strrchr(shellpath, '/');
 		if (namep == NULL)
-			namep = shell;
+			namep = shellpath;
 		snprintf (shellnam, sizeof(shellnam),
 			  "-%s", ++namep);
 		if (strcmp(namep, "sh") != 0)
 			shellnam[0] = '+';
 		if (debug) {
-			printf ("%s\n", shell);
+			printf ("%s\n", shellpath);
 			fflush (stdout);
 		}
 		if (argc > 1) {
-			execl(shell,shellnam,"-c",altarg,(char *)0);
+			execl(shellpath,shellnam,"-c",altarg,(char *)0);
 		}
 		else {
-			execl(shell,shellnam,(char *)0);
+			execl(shellpath,shellnam,(char *)0);
 		}
-		warn("%s", shell);
+		warn("%s", shellpath);
 		code = -1;
 		exit(1);
 	}
 	if (pid > 0)
-		while (waitpid(-1, &status, 0) != pid)
+		while (waitpid(-1, &waitstatus, 0) != pid)
 			;
 	signal(SIGINT, old1);
 	signal(SIGQUIT, old2);
@@ -1289,7 +1291,7 @@ shell(int argc, char **argv)
 void
 user(int argc, char **argv)
 {
-	char acct[80];
+	char acctstr[80];
 	int n, aflag = 0;
 	char tmp[256];
 
@@ -1303,7 +1305,7 @@ user(int argc, char **argv)
 	n = command("USER %s", argv[1]);
 	if (n == CONTINUE) {
 	    if (argc < 3 ) {
-		des_read_pw_string (tmp,
+		UI_UTIL_read_pw_string (tmp,
 				    sizeof(tmp),
 				    "Password: ", 0);
 		argv[2] = tmp;
@@ -1314,9 +1316,9 @@ user(int argc, char **argv)
 	if (n == CONTINUE) {
 		if (argc < 4) {
 			printf("Account: "); fflush(stdout);
-			fgets(acct, sizeof(acct) - 1, stdin);
-			acct[strlen(acct) - 1] = '\0';
-			argv[3] = acct; argc++;
+			fgets(acctstr, sizeof(acctstr) - 1, stdin);
+			acctstr[strcspn(acctstr, "\r\n")] = '\0';
+			argv[3] = acctstr; argc++;
 		}
 		n = command("ACCT %s", argv[3]);
 		aflag++;
@@ -1532,15 +1534,15 @@ disconnect(int argc, char **argv)
 int
 confirm(char *cmd, char *file)
 {
-	char line[BUFSIZ];
+	char buf[BUFSIZ];
 
 	if (!interactive)
 		return (1);
 	printf("%s %s? ", cmd, file);
 	fflush(stdout);
-	if (fgets(line, sizeof line, stdin) == NULL)
+	if (fgets(buf, sizeof buf, stdin) == NULL)
 		return (0);
-	return (*line == 'y' || *line == 'Y');
+	return (*buf == 'y' || *buf == 'Y');
 }
 
 void
@@ -1581,22 +1583,22 @@ globulize(char **cpp)
 void
 account(int argc, char **argv)
 {
-	char acct[50];
+	char acctstr[50];
 
 	if (argc > 1) {
 		++argv;
 		--argc;
-		strlcpy (acct, *argv, sizeof(acct));
+		strlcpy (acctstr, *argv, sizeof(acctstr));
 		while (argc > 1) {
 			--argc;
 			++argv;
-			strlcat(acct, *argv, sizeof(acct));
+			strlcat(acctstr, *argv, sizeof(acctstr));
 		}
 	}
 	else {
-	    des_read_pw_string(acct, sizeof(acct), "Account:", 0);
+	    UI_UTIL_read_pw_string(acctstr, sizeof(acctstr), "Account:", 0);
 	}
-	command("ACCT %s", acct);
+	command("ACCT %s", acctstr);
 }
 
 jmp_buf abortprox;
@@ -2124,4 +2126,18 @@ newer(int argc, char **argv)
 	if (getit(argc, argv, -1, curtype == TYPE_I ? "wb" : "w"))
 		printf("Local file \"%s\" is newer than remote file \"%s\"\n",
 			argv[2], argv[1]);
+}
+
+void
+klist(int argc, char **argv)
+{
+    int ret;
+    if(argc != 1){
+	printf("usage: %s\n", argv[0]);
+	code = -1;
+	return;
+    }
+    
+    ret = command("SITE KLIST");
+    code = (ret == COMPLETE);
 }

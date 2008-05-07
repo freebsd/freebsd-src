@@ -33,15 +33,15 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: verify_init.c,v 1.17 2002/08/20 14:47:59 joda Exp $");
+RCSID("$Id: verify_init.c 15555 2005-07-06 00:48:16Z lha $");
 
-void
+void KRB5_LIB_FUNCTION
 krb5_verify_init_creds_opt_init(krb5_verify_init_creds_opt *options)
 {
     memset (options, 0, sizeof(*options));
 }
 
-void
+void KRB5_LIB_FUNCTION
 krb5_verify_init_creds_opt_set_ap_req_nofail(krb5_verify_init_creds_opt *options,
 					     int ap_req_nofail)
 {
@@ -69,7 +69,7 @@ fail_verify_is_ok (krb5_context context,
 	return TRUE;
 }
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_verify_init_creds(krb5_context context,
 		       krb5_creds *creds,
 		       krb5_principal ap_req_server,
@@ -80,14 +80,12 @@ krb5_verify_init_creds(krb5_context context,
     krb5_error_code ret;
     krb5_data req;
     krb5_ccache local_ccache = NULL;
-    krb5_keytab_entry entry;
     krb5_creds *new_creds = NULL;
     krb5_auth_context auth_context = NULL;
     krb5_principal server = NULL;
     krb5_keytab keytab = NULL;
 
     krb5_data_zero (&req);
-    memset (&entry, 0, sizeof(entry));
 
     if (ap_req_server == NULL) {
 	char local_hostname[MAXHOSTNAMELEN];
@@ -182,7 +180,6 @@ cleanup:
     if (auth_context)
 	krb5_auth_con_free (context, auth_context);
     krb5_data_free (&req);
-    krb5_kt_free_entry (context, &entry);
     if (new_creds != NULL)
 	krb5_free_creds (context, new_creds);
     if (ap_req_server == NULL && server)

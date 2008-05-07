@@ -29,9 +29,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
 .\" SUCH DAMAGE. 
 .\" 
-.\" $Id: kgetcred.1,v 1.6 2003/02/16 21:10:24 lha Exp $
+.\" $Id: kgetcred.1 14090 2004-08-05 18:49:47Z lha $
 .\"
-.Dd May 14, 1999
+.Dd March 12, 2004
 .Dt KGETCRED 1
 .Os HEIMDAL
 .Sh NAME
@@ -39,10 +39,16 @@
 .Nd "get a ticket for a particular service"
 .Sh SYNOPSIS
 .Nm
+.Op Fl -canonicalize
+.Oo Fl c cache \*(Ba Xo
+.Fl -cache= Ns Ar cache
+.Xc
+.Oc
 .Oo Fl e Ar enctype \*(Ba Xo
 .Fl -enctype= Ns Ar enctype
 .Xc
 .Oc
+.Op Fl -no-transit-check
 .Op Fl -version
 .Op Fl -help
 .Ar service
@@ -56,10 +62,23 @@ ticket or of a special type.
 Supported options:
 .Bl -tag -width Ds
 .It Xo
+.Fl -canonicalize
+.Xc
+requests that the KDC canonicalize the principal.
+.It Xo
+.Fl c Ar cache ,
+.Fl -cache= Ns Ar cache
+.Xc
+the credential cache to use.
+.It Xo
 .Fl e Ar enctype ,
 .Fl -enctype= Ns Ar enctype
 .Xc
-encryption type to use
+encryption type to use.
+.It Xo
+.Fl -no-transit-check
+.Xc
+requests that the KDC doesn't do trasnit checking.
 .It Xo
 .Fl -version
 .Xc

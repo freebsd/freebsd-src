@@ -93,7 +93,7 @@ and will not be doing any other kerberos functions, then a NULL
 pointer may be specified, and the credential will be destroyed.
 
 If the client name is non-NULL, the initial ticket requested will be
-for that principal.  Otherwise, the principal will be the the username
+for that principal.  Otherwise, the principal will be the username
 specified by the USER environment variable, or if the USER environment
 variable is not set, the username corresponding to the real user id of
 the caller.

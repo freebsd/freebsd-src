@@ -33,7 +33,7 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: getaddrinfo.c,v 1.12 2001/08/17 13:06:57 joda Exp $");
+RCSID("$Id: getaddrinfo.c 15417 2005-06-16 17:49:29Z lha $");
 #endif
 
 #include "roken.h"
@@ -135,19 +135,19 @@ add_one (int port, int protocol, int socktype,
 static int
 const_v4 (struct addrinfo *a, void *data, int port)
 {
-    struct sockaddr_in *sin;
+    struct sockaddr_in *sin4;
     struct in_addr *addr = (struct in_addr *)data;
 
     a->ai_family  = PF_INET;
-    a->ai_addrlen = sizeof(*sin);
-    a->ai_addr    = malloc (sizeof(*sin));
+    a->ai_addrlen = sizeof(*sin4);
+    a->ai_addr    = malloc (sizeof(*sin4));
     if (a->ai_addr == NULL)
 	return EAI_MEMORY;
-    sin = (struct sockaddr_in *)a->ai_addr;
-    memset (sin, 0, sizeof(*sin));
-    sin->sin_family = AF_INET;
-    sin->sin_port   = port;
-    sin->sin_addr   = *addr;
+    sin4 = (struct sockaddr_in *)a->ai_addr;
+    memset (sin4, 0, sizeof(*sin4));
+    sin4->sin_family = AF_INET;
+    sin4->sin_port   = port;
+    sin4->sin_addr   = *addr;
     return 0;
 }
 
@@ -368,7 +368,7 @@ get_nodes (const char *nodename,
  * };
  */
 
-int
+int ROKEN_LIB_FUNCTION
 getaddrinfo(const char *nodename,
 	    const char *servname,
 	    const struct addrinfo *hints,

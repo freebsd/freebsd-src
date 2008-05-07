@@ -33,12 +33,12 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: sendmsg.c,v 1.4 1999/12/02 16:58:52 joda Exp $");
+RCSID("$Id: sendmsg.c 14773 2005-04-12 11:29:18Z lha $");
 #endif
 
 #include "roken.h"
 
-ssize_t
+ssize_t ROKEN_LIB_FUNCTION
 sendmsg(int s, const struct msghdr *msg, int flags)
 {
     ssize_t ret;

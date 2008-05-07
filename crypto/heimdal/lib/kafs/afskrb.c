@@ -33,7 +33,7 @@
 
 #include "kafs_locl.h"
 
-RCSID("$Id: afskrb.c,v 1.17 2003/04/14 08:32:11 lha Exp $");
+RCSID("$Id: afskrb.c 15342 2005-06-02 07:38:22Z lha $");
 
 #ifdef KRB4
 
@@ -42,7 +42,7 @@ struct krb_kafs_data {
 };
 
 static int
-get_cred(kafs_data *data, const char *name, const char *inst, 
+get_cred(struct kafs_data *data, const char *name, const char *inst, 
 	 const char *realm, uid_t uid, struct kafs_token *kt)
 {
     CREDENTIALS c;
@@ -60,7 +60,7 @@ get_cred(kafs_data *data, const char *name, const char *inst,
 }
 
 static int
-afslog_uid_int(kafs_data *data,
+afslog_uid_int(struct kafs_data *data,
 	       const char *cell,
 	       const char *realm_hint,
 	       uid_t uid,
@@ -93,7 +93,7 @@ afslog_uid_int(kafs_data *data,
 }
 
 static char *
-get_realm(kafs_data *data, const char *host)
+get_realm(struct kafs_data *data, const char *host)
 {
     char *r = krb_realmofhost(host);
     if(r != NULL)
@@ -106,7 +106,7 @@ int
 krb_afslog_uid_home(const char *cell, const char *realm_hint, uid_t uid,
 		    const char *homedir)
 {
-    kafs_data kd;
+    struct kafs_data kd;
 
     kd.name = "krb4";
     kd.afslog_uid = afslog_uid_int;
@@ -141,7 +141,7 @@ krb_afslog_home(const char *cell, const char *realm_hint, const char *homedir)
 int
 krb_realm_of_cell(const char *cell, char **realm)
 {
-    kafs_data kd;
+    struct kafs_data kd;
 
     kd.name = "krb4";
     kd.get_realm = get_realm;
@@ -168,6 +168,50 @@ kafs_settoken(const char *cell, uid_t uid, CREDENTIALS *c)
     ret = kafs_settoken_rxkad(cell, &kt.ct, kt.ticket, kt.ticket_len);
     free(kt.ticket);
     return ret;
+}
+
+#else /* KRB4 */
+
+#define KAFS_KRBET_KDC_SERVICE_EXP 39525378
+
+int
+krb_afslog_uid_home(const char *cell, const char *realm_hint, uid_t uid,
+		    const char *homedir)
+{
+    return KAFS_KRBET_KDC_SERVICE_EXP;
+}
+
+int
+krb_afslog_uid(const char *cell, const char *realm_hint, uid_t uid)
+{
+    return KAFS_KRBET_KDC_SERVICE_EXP;
+}
+
+int
+krb_afslog_home(const char *cell, const char *realm_hint, const char *homedir)
+{
+    return KAFS_KRBET_KDC_SERVICE_EXP;
+}
+
+int
+krb_afslog(const char *cell, const char *realm_hint)
+{
+    return KAFS_KRBET_KDC_SERVICE_EXP;
+}
+
+int
+krb_realm_of_cell(const char *cell, char **realm)
+{
+    *realm = NULL;
+    return KAFS_KRBET_KDC_SERVICE_EXP;
+}
+
+int kafs_settoken (const char*, uid_t, struct credentials *);
+
+int
+kafs_settoken(const char *cell, uid_t uid, struct credentials *c)
+{
+    return KAFS_KRBET_KDC_SERVICE_EXP;
 }
 
 #endif /* KRB4 */

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995 - 2000, 2002, 2004 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995 - 2000, 2002, 2004, 2005 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -33,7 +33,7 @@
 
 #include "kafs_locl.h"
 
-RCSID("$Id: afssys.c,v 1.69.2.2 2004/06/22 14:29:48 lha Exp $");
+RCSID("$Id: afssys.c 17050 2006-04-11 08:12:29Z lha $");
 
 struct procdata {
     unsigned long param4;
@@ -42,11 +42,25 @@ struct procdata {
     unsigned long param1;
     unsigned long syscall;
 };
-#define VIOC_SYSCALL _IOW('C', 1, void *)
+#define VIOC_SYSCALL_PROC _IOW('C', 1, void *)
+
+struct devdata {
+    unsigned long syscall;
+    unsigned long param1;
+    unsigned long param2;
+    unsigned long param3;
+    unsigned long param4;
+    unsigned long param5;
+    unsigned long param6;
+    unsigned long retval;
+};
+#define VIOC_SYSCALL_DEV _IOWR('C', 2, struct devdata)
+#define VIOC_SYSCALL_DEV_OPENAFS _IOWR('C', 1, struct devdata)
 
 
 int _kafs_debug; /* this should be done in a better way */
 
+#define UNKNOWN_ENTRY_POINT	(-1)
 #define NO_ENTRY_POINT		0
 #define SINGLE_ENTRY_POINT	1
 #define MULTIPLE_ENTRY_POINT	2
@@ -54,10 +68,12 @@ int _kafs_debug; /* this should be done in a better way */
 #define SINGLE_ENTRY_POINT3	4
 #define LINUX_PROC_POINT	5
 #define AIX_ENTRY_POINTS	6
-#define UNKNOWN_ENTRY_POINT	7
+#define MACOS_DEV_POINT		7
+
 static int afs_entry_point = UNKNOWN_ENTRY_POINT;
 static int afs_syscalls[2];
-static char *afs_procpath;
+static char *afs_ioctlpath;
+static unsigned long afs_ioctlnum;
 
 /* Magic to get AIX syscalls to work */
 #ifdef _AIX
@@ -112,6 +128,8 @@ try_aix(void)
  * there's a /etc/name_to_sysnum file.  
  */
 
+#if defined(AFS_SYSCALL) || defined(AFS_SYSCALL2) || defined(AFS_SYSCALL3)
+
 #define _PATH_ETC_NAME_TO_SYSNUM "/etc/name_to_sysnum"
 
 static int
@@ -143,32 +161,61 @@ map_syscall_name_to_number (const char *str, int *res)
     fclose (f);
     return -1;
 }
+#endif
 
 static int 
-try_proc(const char *path)
+try_ioctlpath(const char *path, unsigned long ioctlnum, int entrypoint)
 {
-    int fd;
+    int fd, ret, saved_errno;
+
     fd = open(path, O_RDWR);
     if (fd < 0)
 	return 1;
+    switch (entrypoint) {
+    case LINUX_PROC_POINT: {
+	struct procdata data = { 0, 0, 0, 0, AFSCALL_PIOCTL };
+	data.param2 = (unsigned long)VIOCGETTOK;
+	ret = ioctl(fd, ioctlnum, &data);
+	break;
+    }
+    case MACOS_DEV_POINT: {
+	struct devdata data = { AFSCALL_PIOCTL, 0, 0, 0, 0, 0, 0, 0 };
+	data.param2 = (unsigned long)VIOCGETTOK;
+	ret = ioctl(fd, ioctlnum, &data);
+	break;
+    }
+    default:
+	abort();
+    }
+    saved_errno = errno;
     close(fd);
-    afs_procpath = strdup(path);
-    if (afs_procpath == NULL)
+    /* 
+     * Be quite liberal in what error are ok, the first is the one
+     * that should trigger given that params is NULL.
+     */
+    if (ret && 
+	(saved_errno != EFAULT &&
+	 saved_errno != EDOM && 
+	 saved_errno != ENOTCONN))
 	return 1;
-    afs_entry_point = LINUX_PROC_POINT;
+    afs_ioctlnum = ioctlnum;
+    afs_ioctlpath = strdup(path);
+    if (afs_ioctlpath == NULL)
+	return 1;
+    afs_entry_point = entrypoint;
     return 0;
 }
 
 static int
-do_proc(struct procdata *data)
+do_ioctl(void *data)
 {
     int fd, ret, saved_errno;
-    fd = open(afs_procpath, O_RDWR);
+    fd = open(afs_ioctlpath, O_RDWR);
     if (fd < 0) {
 	errno = EINVAL;
 	return -1;
     }
-    ret = ioctl(fd, VIOC_SYSCALL, data);
+    ret = ioctl(fd, afs_ioctlnum, data);
     saved_errno = errno;
     close(fd);
     errno = saved_errno;
@@ -201,7 +248,22 @@ k_pioctl(char *a_path,
 	data.param2 = (unsigned long)o_opcode;
 	data.param3 = (unsigned long)a_paramsP;
 	data.param4 = (unsigned long)a_followSymlinks;
-	return do_proc(&data);
+	return do_ioctl(&data);
+    }
+    case MACOS_DEV_POINT: {
+	struct devdata data = { AFSCALL_PIOCTL, 0, 0, 0, 0, 0, 0, 0 };
+	int ret;
+	
+	data.param1 = (unsigned long)a_path;
+	data.param2 = (unsigned long)o_opcode;
+	data.param3 = (unsigned long)a_paramsP;
+	data.param4 = (unsigned long)a_followSymlinks;
+	
+	ret = do_ioctl(&data);
+	if (ret)
+	    return ret;
+	
+	return data.retval;
     }
 #ifdef _AIX
     case AIX_ENTRY_POINTS:
@@ -224,7 +286,7 @@ k_afs_cell_of_file(const char *path, char *cell, int len)
     parms.in_size = 0;
     parms.out = cell;
     parms.out_size = len;
-    return k_pioctl((char*)path, VIOC_FILE_CELL_NAME, &parms, 1);
+    return k_pioctl(rk_UNCONST(path), VIOC_FILE_CELL_NAME, &parms, 1);
 }
 
 int
@@ -252,8 +314,15 @@ k_setpag(void)
 #endif
     case LINUX_PROC_POINT: {
 	struct procdata data = { 0, 0, 0, 0, AFSCALL_SETPAG };
-	return do_proc(&data);
+	return do_ioctl(&data);
     }
+    case MACOS_DEV_POINT: {
+	struct devdata data = { AFSCALL_SETPAG, 0, 0, 0, 0, 0, 0, 0 };
+	int ret = do_ioctl(&data);
+	if (ret)
+	    return ret;
+	return data.retval;
+     }
 #ifdef _AIX
     case AIX_ENTRY_POINTS:
 	return Setpag();
@@ -339,8 +408,11 @@ k_hasafs(void)
 #if !defined(NO_AFS) && defined(SIGSYS)
     RETSIGTYPE (*saved_func)(int);
 #endif
-    int saved_errno;
-    char *env = getenv ("AFS_SYSCALL");
+    int saved_errno, ret;
+    char *env = NULL;
+
+    if (!issuid())
+	env = getenv ("AFS_SYSCALL");
   
     /*
      * Already checked presence of AFS syscalls?
@@ -360,6 +432,36 @@ k_hasafs(void)
 #ifdef SIGSYS
     saved_func = signal(SIGSYS, SIGSYS_handler);
 #endif
+    if (env && strstr(env, "..") == NULL) {
+
+	if (strncmp("/proc/", env, 6) == 0) {
+	    if (try_ioctlpath(env, VIOC_SYSCALL_PROC, LINUX_PROC_POINT) == 0)
+		goto done;
+	}
+	if (strncmp("/dev/", env, 5) == 0) {
+	    if (try_ioctlpath(env, VIOC_SYSCALL_DEV, MACOS_DEV_POINT) == 0)
+		goto done;
+	    if (try_ioctlpath(env,VIOC_SYSCALL_DEV_OPENAFS,MACOS_DEV_POINT) ==0)
+		goto done;
+	}
+    }
+
+    ret = try_ioctlpath("/proc/fs/openafs/afs_ioctl",
+			VIOC_SYSCALL_PROC, LINUX_PROC_POINT);
+    if (ret == 0)
+	goto done;
+    ret = try_ioctlpath("/proc/fs/nnpfs/afs_ioctl", 
+			VIOC_SYSCALL_PROC, LINUX_PROC_POINT);
+    if (ret == 0)
+	goto done;
+
+    ret = try_ioctlpath("/dev/openafs_ioctl", 
+			VIOC_SYSCALL_DEV_OPENAFS, MACOS_DEV_POINT);
+    if (ret == 0)
+	goto done;
+    ret = try_ioctlpath("/dev/nnpfs_ioctl", VIOC_SYSCALL_DEV, MACOS_DEV_POINT);
+    if (ret == 0)
+	goto done;
 
 #if defined(AFS_SYSCALL) || defined(AFS_SYSCALL2) || defined(AFS_SYSCALL3)
     {
@@ -442,12 +544,6 @@ k_hasafs(void)
 	goto done;
 #endif
 
-    if (try_proc("/proc/fs/openafs/afs_ioctl") == 0)
-	goto done;
-    if (try_proc("/proc/fs/nnpfs/afs_ioctl") == 0)
-	goto done;
-    if (env && try_proc(env) == 0)
-	goto done;
 
 done:
 #ifdef SIGSYS
@@ -456,4 +552,11 @@ done:
 #endif /* NO_AFS */
     errno = saved_errno;
     return afs_entry_point != NO_ENTRY_POINT;
+}
+
+int
+k_hasafs_recheck(void)
+{
+    afs_entry_point = UNKNOWN_ENTRY_POINT;
+    return k_hasafs();
 }

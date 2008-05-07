@@ -33,7 +33,7 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: parse_bytes-test.c,v 1.3 2001/09/04 09:56:00 assar Exp $");
+RCSID("$Id: parse_bytes-test.c 10655 2001-09-04 09:56:00Z assar $");
 #endif
 
 #include "roken.h"

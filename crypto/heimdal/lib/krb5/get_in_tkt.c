@@ -33,9 +33,9 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: get_in_tkt.c,v 1.107.2.1 2003/09/18 21:00:09 lha Exp $");
+RCSID("$Id: get_in_tkt.c 20226 2007-02-16 03:31:50Z lha $");
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_init_etype (krb5_context context,
 		 unsigned *len,
 		 krb5_enctype **val,
@@ -125,26 +125,27 @@ _krb5_extract_ticket(krb5_context context,
 		     krb5_key_usage key_usage,
 		     krb5_addresses *addrs,
 		     unsigned nonce,
-		     krb5_boolean allow_server_mismatch,
-		     krb5_boolean ignore_cname,
+		     unsigned flags,
 		     krb5_decrypt_proc decrypt_proc,
 		     krb5_const_pointer decryptarg)
 {
     krb5_error_code ret;
     krb5_principal tmp_principal;
     int tmp;
+    size_t len;
     time_t tmp_time;
     krb5_timestamp sec_now;
 
-    ret = principalname2krb5_principal (&tmp_principal,
-					rep->kdc_rep.cname,
-					rep->kdc_rep.crealm);
+    ret = _krb5_principalname2krb5_principal (context,
+					      &tmp_principal,
+					      rep->kdc_rep.cname,
+					      rep->kdc_rep.crealm);
     if (ret)
 	goto out;
 
     /* compare client */
 
-    if (!ignore_cname) {
+    if((flags & EXTRACT_TICKET_ALLOW_CNAME_MISMATCH) == 0){
 	tmp = krb5_principal_compare (context, tmp_principal, creds->client);
 	if (!tmp) {
 	    krb5_free_principal (context, tmp_principal);
@@ -159,25 +160,29 @@ _krb5_extract_ticket(krb5_context context,
 
     /* extract ticket */
     ASN1_MALLOC_ENCODE(Ticket, creds->ticket.data, creds->ticket.length, 
-		       &rep->kdc_rep.ticket, &creds->ticket.length, ret);
+		       &rep->kdc_rep.ticket, &len, ret);
     if(ret)
 	goto out;
+    if (creds->ticket.length != len)
+	krb5_abortx(context, "internal error in ASN.1 encoder");
     creds->second_ticket.length = 0;
     creds->second_ticket.data   = NULL;
 
     /* compare server */
 
-    ret = principalname2krb5_principal (&tmp_principal,
-					rep->kdc_rep.ticket.sname,
-					rep->kdc_rep.ticket.realm);
+    ret = _krb5_principalname2krb5_principal (context,
+					      &tmp_principal,
+					      rep->kdc_rep.ticket.sname,
+					      rep->kdc_rep.ticket.realm);
     if (ret)
 	goto out;
-    if(allow_server_mismatch){
+    if(flags & EXTRACT_TICKET_ALLOW_SERVER_MISMATCH){
 	krb5_free_principal(context, creds->server);
 	creds->server = tmp_principal;
 	tmp_principal = NULL;
-    }else{
-	tmp = krb5_principal_compare (context, tmp_principal, creds->server);
+    } else {
+	tmp = krb5_principal_compare (context, tmp_principal,
+				      creds->server);
 	krb5_free_principal (context, tmp_principal);
 	if (!tmp) {
 	    ret = KRB5KRB_AP_ERR_MODIFIED;
@@ -195,12 +200,19 @@ _krb5_extract_ticket(krb5_context context,
     if (ret)
 	goto out;
 
-#if 0
-    /* XXX should this decode be here, or in the decrypt_proc? */
-    ret = krb5_decode_keyblock(context, &rep->enc_part.key, 1);
-    if(ret)
-	goto out;
-#endif
+    /* verify names */
+    if(flags & EXTRACT_TICKET_MATCH_REALM){
+	const char *srealm = krb5_principal_get_realm(context, creds->server);
+	const char *crealm = krb5_principal_get_realm(context, creds->client);
+
+	if (strcmp(rep->enc_part.srealm, srealm) != 0 ||
+	    strcmp(rep->enc_part.srealm, crealm) != 0)
+	{
+	    ret = KRB5KRB_AP_ERR_MODIFIED;
+	    krb5_clear_error_string(context);
+	    goto out;
+	}
+    }
 
     /* compare nonces */
 
@@ -310,12 +322,11 @@ make_pa_enc_timestamp(krb5_context context, PA_DATA *pa,
     size_t len;
     EncryptedData encdata;
     krb5_error_code ret;
-    int32_t sec, usec;
+    int32_t usec;
     int usec2;
     krb5_crypto crypto;
     
-    krb5_us_timeofday (context, &sec, &usec);
-    p.patimestamp = sec;
+    krb5_us_timeofday (context, &p.patimestamp, &usec);
     usec2         = usec;
     p.pausec      = &usec2;
 
@@ -407,7 +418,7 @@ add_padata(krb5_context context,
 
 static krb5_error_code
 init_as_req (krb5_context context,
-	     krb5_kdc_flags opts,
+	     KDCOptions opts,
 	     krb5_creds *creds,
 	     const krb5_addresses *addrs,
 	     const krb5_enctype *etypes,
@@ -425,7 +436,7 @@ init_as_req (krb5_context context,
 
     a->pvno = 5;
     a->msg_type = krb_as_req;
-    a->req_body.kdc_options = opts.b;
+    a->req_body.kdc_options = opts;
     a->req_body.cname = malloc(sizeof(*a->req_body.cname));
     if (a->req_body.cname == NULL) {
 	ret = ENOMEM;
@@ -438,10 +449,10 @@ init_as_req (krb5_context context,
 	krb5_set_error_string(context, "malloc: out of memory");
 	goto fail;
     }
-    ret = krb5_principal2principalname (a->req_body.cname, creds->client);
+    ret = _krb5_principal2principalname (a->req_body.cname, creds->client);
     if (ret)
 	goto fail;
-    ret = krb5_principal2principalname (a->req_body.sname, creds->server);
+    ret = _krb5_principal2principalname (a->req_body.sname, creds->server);
     if (ret)
 	goto fail;
     ret = copy_Realm(&creds->client->realm, &a->req_body.realm);
@@ -516,19 +527,12 @@ init_as_req (krb5_context context,
 	    krb5_set_error_string(context, "malloc: out of memory");
 	    goto fail;
 	}
+	a->padata->val = NULL;
+	a->padata->len = 0;
 	for(i = 0; i < preauth->len; i++) {
 	    if(preauth->val[i].type == KRB5_PADATA_ENC_TIMESTAMP){
 		int j;
-		PA_DATA *tmp = realloc(a->padata->val, 
-				       (a->padata->len + 
-					preauth->val[i].info.len) * 
-				       sizeof(*a->padata->val));
-		if(tmp == NULL) {
-		    ret = ENOMEM;
-		    krb5_set_error_string(context, "malloc: out of memory");
-		    goto fail;
-		}
-		a->padata->val = tmp;
+
 		for(j = 0; j < preauth->val[i].info.len; j++) {
 		    krb5_salt *sp = &salt;
 		    if(preauth->val[i].info.val[j].salttype)
@@ -591,7 +595,7 @@ fail:
 static int
 set_ptypes(krb5_context context,
 	   KRB_ERROR *error, 
-	   krb5_preauthtype **ptypes,
+	   const krb5_preauthtype **ptypes,
 	   krb5_preauthdata **preauth)
 {
     static krb5_preauthdata preauth2;
@@ -630,7 +634,7 @@ set_ptypes(krb5_context context,
     return(1);
 }
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_get_in_cred(krb5_context context,
 		 krb5_flags options,
 		 const krb5_addresses *addrs,
@@ -652,14 +656,14 @@ krb5_get_in_cred(krb5_context context,
     krb5_salt salt;
     krb5_keyblock *key;
     size_t size;
-    krb5_kdc_flags opts;
+    KDCOptions opts;
     PA_DATA *pa;
     krb5_enctype etype;
     krb5_preauthdata *my_preauth = NULL;
     unsigned nonce;
     int done;
 
-    opts.i = options;
+    opts = int2KDCOptions(options);
 
     krb5_generate_random_block (&nonce, sizeof(nonce));
     nonce &= 0xffffffff;
@@ -680,6 +684,7 @@ krb5_get_in_cred(krb5_context context,
 	if (my_preauth) {
 	    free_ETYPE_INFO(&my_preauth->val[0].info);
 	    free (my_preauth->val);
+	    my_preauth = NULL;
 	}
 	if (ret)
 	    return ret;
@@ -737,14 +742,14 @@ krb5_get_in_cred(krb5_context context,
     pa = NULL;
     etype = rep.kdc_rep.enc_part.etype;
     if(rep.kdc_rep.padata){
-	int index = 0;
+	int i = 0;
 	pa = krb5_find_padata(rep.kdc_rep.padata->val, rep.kdc_rep.padata->len, 
-			      KRB5_PADATA_PW_SALT, &index);
+			      KRB5_PADATA_PW_SALT, &i);
 	if(pa == NULL) {
-	    index = 0;
+	    i = 0;
 	    pa = krb5_find_padata(rep.kdc_rep.padata->val, 
 				  rep.kdc_rep.padata->len, 
-				  KRB5_PADATA_AFS3_SALT, &index);
+				  KRB5_PADATA_AFS3_SALT, &i);
 	}
     }
     if(pa) {
@@ -764,18 +769,23 @@ krb5_get_in_cred(krb5_context context,
     if (ret)
 	goto out;
 	
-    ret = _krb5_extract_ticket(context, 
-			       &rep, 
-			       creds, 
-			       key, 
-			       keyseed, 
-			       KRB5_KU_AS_REP_ENC_PART,
-			       NULL, 
-			       nonce, 
-			       FALSE, 
-			       opts.b.request_anonymous,
-			       decrypt_proc, 
-			       decryptarg);
+    {
+	unsigned flags = 0;
+	if (opts.request_anonymous)
+	    flags |= EXTRACT_TICKET_ALLOW_SERVER_MISMATCH;
+
+	ret = _krb5_extract_ticket(context, 
+				   &rep, 
+				   creds, 
+				   key, 
+				   keyseed, 
+				   KRB5_KU_AS_REP_ENC_PART,
+				   NULL, 
+				   nonce, 
+				   flags,
+				   decrypt_proc, 
+				   decryptarg);
+    }
     memset (key->keyvalue.data, 0, key->keyvalue.length);
     krb5_free_keyblock_contents (context, key);
     free (key);
@@ -788,7 +798,7 @@ out:
     return ret;
 }
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_get_in_tkt(krb5_context context,
 		krb5_flags options,
 		const krb5_addresses *addrs,
@@ -803,12 +813,9 @@ krb5_get_in_tkt(krb5_context context,
 		krb5_kdc_rep *ret_as_reply)
 {
     krb5_error_code ret;
-    krb5_kdc_flags opts;
-    opts.i = 0;
-    opts.b = int2KDCOptions(options);
     
     ret = krb5_get_in_cred (context,
-			    opts.i,
+			    options,
 			    addrs,
 			    etypes,
 			    ptypes,

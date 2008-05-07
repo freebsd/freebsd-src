@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2002 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2006 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -32,8 +32,9 @@
  */
 
 #include "kadmin_locl.h"
+#include "kadmin-commands.h"
 
-RCSID("$Id: ank.c,v 1.25 2002/12/03 14:11:24 joda Exp $");
+RCSID("$Id: ank.c 16658 2006-01-25 12:29:46Z lha $");
 
 /*
  * fetch the default principal corresponding to `princ'
@@ -117,7 +118,7 @@ add_one_principal (const char *name,
     if(rand_key || key_data) {
 	princ.attributes |= KRB5_KDB_DISALLOW_ALL_TIX;
 	mask |= KADM5_ATTRIBUTES;
-	strlcpy (pwbuf, "hemlig", sizeof(pwbuf));
+	random_password (pwbuf, sizeof(pwbuf));
 	password = pwbuf;
     } else if (rand_password) {
 	random_password (pwbuf, sizeof(pwbuf));
@@ -129,10 +130,13 @@ add_one_principal (const char *name,
 	krb5_unparse_name(context, princ_ent, &princ_name);
 	asprintf (&prompt, "%s's Password: ", princ_name);
 	free (princ_name);
-	ret = des_read_pw_string (pwbuf, sizeof(pwbuf), prompt, 1);
+	ret = UI_UTIL_read_pw_string (pwbuf, sizeof(pwbuf), prompt, 1);
 	free (prompt);
-	if (ret)
+	if (ret) {
+	    krb5_set_error_string(context, "failed to verify password");
+	    ret = KRB5_LIBOS_BADPWDMATCH;
 	    goto out;
+	}
 	password = pwbuf;
     }
     
@@ -176,14 +180,14 @@ add_one_principal (const char *name,
 	char *princ_name;
 
 	krb5_unparse_name(context, princ_ent, &princ_name);
-	printf ("added %s with password `%s'\n", princ_name, password);
+	printf ("added %s with password \"%s\"\n", princ_name, password);
 	free (princ_name);
     }
 out:
     if (princ_ent)
 	krb5_free_principal (context, princ_ent);
     if(default_ent)
-	kadm5_free_principal_ent (context, default_ent);
+	kadm5_free_principal_ent (kadm_handle, default_ent);
     if (password != NULL)
 	memset (password, 0, strlen(password));
     return ret;
@@ -197,112 +201,58 @@ out:
  * the ank command
  */
 
-static struct getargs args[] = {
-    { "random-key",	'r',	arg_flag,	NULL, "set random key" },
-    { "random-password", 0,	arg_flag,	NULL, "set random password" },
-    { "password",	'p',	arg_string,	NULL, "princial's password" },
-    { "key",		0,	arg_string,	NULL, "DES-key in hex" },
-    { "max-ticket-life",  0,	arg_string,	NULL, "max ticket lifetime",
-      "lifetime"},
-    { "max-renewable-life",  0,	arg_string,	NULL,
-      "max renewable lifetime", "lifetime" },
-    { "attributes",	0,	arg_string,	NULL, "principal attributes",
-      "attributes"},
-    { "expiration-time",0,	arg_string,	NULL, "expiration time",
-      "time"},
-    { "pw-expiration-time", 0,  arg_string,	NULL,
-      "password expiration time", "time"},
-    { "use-defaults",	0,	arg_flag,	NULL, "use default values" }
-};
-
-static int num_args = sizeof(args) / sizeof(args[0]);
-
-static void
-usage(void)
-{
-    arg_printusage (args, num_args, "add", "principal...");
-}
-
 /*
  * Parse arguments and add all the principals.
  */
 
 int
-add_new_key(int argc, char **argv)
+add_new_key(struct add_options *opt, int argc, char **argv)
 {
-    char *password = NULL;
-    char *key = NULL;
-    int random_key = 0;
-    int random_password = 0;
-    int optind = 0;
-    krb5_error_code ret;
-    char *max_ticket_life	= NULL;
-    char *max_renewable_life	= NULL;
-    char *attributes		= NULL;
-    char *expiration		= NULL;
-    char *pw_expiration		= NULL;
-    int use_defaults = 0;
+    krb5_error_code ret = 0;
     int i;
     int num;
     krb5_key_data key_data[3];
     krb5_key_data *kdp = NULL;
 
-    args[0].value = &random_key;
-    args[1].value = &random_password;
-    args[2].value = &password;
-    args[3].value = &key;
-    args[4].value = &max_ticket_life;
-    args[5].value = &max_renewable_life;
-    args[6].value = &attributes;
-    args[7].value = &expiration;
-    args[8].value = &pw_expiration;
-    args[9].value = &use_defaults;
-    
-    if(getarg(args, num_args, argc, argv, &optind)) {
-	usage ();
-	return 0;
-    }
-    if(optind == argc) {
-	usage ();
-	return 0;
-    }
-
     num = 0;
-    if (random_key)
+    if (opt->random_key_flag)
 	++num;
-    if (random_password)
+    if (opt->random_password_flag)
 	++num;
-    if (password)
+    if (opt->password_string)
 	++num;
-    if (key)
+    if (opt->key_string)
 	++num;
 
     if (num > 1) {
-	printf ("give only one of "
+	fprintf (stderr, "give only one of "
 		"--random-key, --random-password, --password, --key\n");
-	return 0;
+	return 1;
     }
 
-    if (key) {
+    if (opt->key_string) {
 	const char *error;
 
-	if (parse_des_key (key, key_data, &error)) {
-	    printf ("failed parsing key `%s': %s\n", key, error);
-	    return 0;
+	if (parse_des_key (opt->key_string, key_data, &error)) {
+	    fprintf (stderr, "failed parsing key \"%s\": %s\n", 
+		     opt->key_string, error);
+	    return 1;
 	}
 	kdp = key_data;
     }
 
-    for (i = optind; i < argc; ++i) {
-	ret = add_one_principal (argv[i], random_key, random_password,
-				 use_defaults, 
-				 password,
+    for(i = 0; i < argc; i++) {
+	ret = add_one_principal (argv[i], 
+				 opt->random_key_flag, 
+				 opt->random_password_flag,
+				 opt->use_defaults_flag, 
+				 opt->password_string,
 				 kdp,
-				 max_ticket_life,
-				 max_renewable_life,
-				 attributes,
-				 expiration,
-				 pw_expiration);
+				 opt->max_ticket_life_string,
+				 opt->max_renewable_life_string,
+				 opt->attributes_string,
+				 opt->expiration_time_string,
+				 opt->pw_expiration_time_string);
 	if (ret) {
 	    krb5_warn (context, ret, "adding %s", argv[i]);
 	    break;
@@ -312,5 +262,5 @@ add_new_key(int argc, char **argv)
 	int16_t dummy = 3;
 	kadm5_free_key_data (kadm_handle, &dummy, key_data);
     }
-    return 0;
+    return ret != 0;
 }

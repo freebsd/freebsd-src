@@ -1,27 +1,27 @@
-dnl $Id: test-package.m4,v 1.12.4.1 2004/04/01 07:27:35 joda Exp $
+dnl $Id: test-package.m4 14166 2004-08-26 12:35:42Z joda $
 dnl
 dnl rk_TEST_PACKAGE(package,headers,libraries,extra libs,
 dnl			default locations, conditional, config-program)
 
 AC_DEFUN([rk_TEST_PACKAGE],[
 AC_ARG_WITH($1,
-	AC_HELP_STRING([--with-$1=dir],[use $1 in dir]))
+	AS_HELP_STRING([--with-$1=dir],[use $1 in dir]))
 AC_ARG_WITH($1-lib,
-	AC_HELP_STRING([--with-$1-lib=dir],[use $1 libraries in dir]),
+	AS_HELP_STRING([--with-$1-lib=dir],[use $1 libraries in dir]),
 [if test "$withval" = "yes" -o "$withval" = "no"; then
   AC_MSG_ERROR([No argument for --with-$1-lib])
 elif test "X$with_$1" = "X"; then
   with_$1=yes
 fi])
 AC_ARG_WITH($1-include,
-	AC_HELP_STRING([--with-$1-include=dir],[use $1 headers in dir]),
+	AS_HELP_STRING([--with-$1-include=dir],[use $1 headers in dir]),
 [if test "$withval" = "yes" -o "$withval" = "no"; then
   AC_MSG_ERROR([No argument for --with-$1-include])
 elif test "X$with_$1" = "X"; then
   with_$1=yes
 fi])
 AC_ARG_WITH($1-config,
-	AC_HELP_STRING([--with-$1-config=path],[config program for $1]))
+	AS_HELP_STRING([--with-$1-config=path],[config program for $1]))
 
 m4_ifval([$6],
 	m4_define([rk_pkgname], $6),
@@ -68,6 +68,14 @@ $1_cflags=
 $1_libs=
 
 case "$with_$1_config" in
+yes|no|""|"$7")
+	if test -f $with_$1/bin/$7 ; then
+		with_$1_config=$with_$1/bin/$7
+	fi
+	;;
+esac
+
+case "$with_$1_config" in
 yes|no|"")
 	;;
 *)
@@ -83,7 +91,7 @@ if test "$with_$1" != no; then
 	if test "$[]$1_cflags" -a "$[]$1_libs"; then
 		CFLAGS="$[]$1_cflags $save_CFLAGS"
 		LIBS="$[]$1_libs $save_LIBS"
-		AC_TRY_LINK([$2],,[
+		AC_LINK_IFELSE([AC_LANG_PROGRAM([[$2]],[[]])],[
 			INCLUDE_$1="$[]$1_cflags"
 			LIB_$1="$[]$1_libs"
 			AC_MSG_RESULT([from $with_$1_config])
@@ -93,11 +101,11 @@ if test "$with_$1" != no; then
 		ires= lres=
 		for i in $header_dirs; do
 			CFLAGS="-I$i $save_CFLAGS"
-			AC_TRY_COMPILE([$2],,ires=$i;break)
+			AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[$2]],[[]])],[ires=$i;break])
 		done
 		for i in $lib_dirs; do
 			LIBS="-L$i $3 $4 $save_LIBS"
-			AC_TRY_LINK([$2],,lres=$i;break)
+			AC_LINK_IFELSE([AC_LANG_PROGRAM([[$2]],[[]])],[lres=$i;break])
 		done
 		if test "$ires" -a "$lres" -a "$with_$1" != "no"; then
 			INCLUDE_$1="-I$ires"

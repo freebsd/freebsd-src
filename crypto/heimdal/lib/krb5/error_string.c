@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 2001, 2003, 2005 - 2006 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,28 +33,32 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: error_string.c,v 1.1 2001/05/06 23:07:22 assar Exp $");
+RCSID("$Id: error_string.c 22142 2007-12-04 16:56:02Z lha $");
 
 #undef __attribute__
 #define __attribute__(X)
 
-void
+void KRB5_LIB_FUNCTION
 krb5_free_error_string(krb5_context context, char *str)
 {
+    HEIMDAL_MUTEX_lock(context->mutex);
     if (str != context->error_buf)
 	free(str);
+    HEIMDAL_MUTEX_unlock(context->mutex);
 }
 
-void
+void KRB5_LIB_FUNCTION
 krb5_clear_error_string(krb5_context context)
 {
+    HEIMDAL_MUTEX_lock(context->mutex);
     if (context->error_string != NULL
 	&& context->error_string != context->error_buf)
 	free(context->error_string);
     context->error_string = NULL;
+    HEIMDAL_MUTEX_unlock(context->mutex);
 }
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_set_error_string(krb5_context context, const char *fmt, ...)
     __attribute__((format (printf, 2, 3)))
 {
@@ -67,29 +71,85 @@ krb5_set_error_string(krb5_context context, const char *fmt, ...)
     return ret;
 }
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_vset_error_string(krb5_context context, const char *fmt, va_list args)
     __attribute__ ((format (printf, 2, 0)))
 {
     krb5_clear_error_string(context);
+    HEIMDAL_MUTEX_lock(context->mutex);
     vasprintf(&context->error_string, fmt, args);
     if(context->error_string == NULL) {
 	vsnprintf (context->error_buf, sizeof(context->error_buf), fmt, args);
 	context->error_string = context->error_buf;
     }
+    HEIMDAL_MUTEX_unlock(context->mutex);
     return 0;
 }
 
-char*
+/**
+ * Return the error message in context. On error or no error string,
+ * the function returns NULL.
+ *
+ * @param context Kerberos 5 context
+ *
+ * @return an error string, needs to be freed with
+ * krb5_free_error_string(). The functions return NULL on error.
+ *
+ * @ingroup krb5_error
+ */
+
+char * KRB5_LIB_FUNCTION
 krb5_get_error_string(krb5_context context)
 {
-    char *ret = context->error_string;
-    context->error_string = NULL;
+    char *ret = NULL;
+
+    HEIMDAL_MUTEX_lock(context->mutex);
+    if (context->error_string)
+	ret = strdup(context->error_string);
+    HEIMDAL_MUTEX_unlock(context->mutex);
     return ret;
 }
 
-krb5_boolean
+krb5_boolean KRB5_LIB_FUNCTION
 krb5_have_error_string(krb5_context context)
 {
-    return context->error_string != NULL;
+    char *str;
+    HEIMDAL_MUTEX_lock(context->mutex);
+    str = context->error_string;
+    HEIMDAL_MUTEX_unlock(context->mutex);
+    return str != NULL;
 }
+
+/**
+ * Return the error message for `code' in context. On error the
+ * function returns NULL.
+ *
+ * @param context Kerberos 5 context
+ * @param code Error code related to the error
+ *
+ * @return an error string, needs to be freed with
+ * krb5_free_error_string(). The functions return NULL on error.
+ *
+ * @ingroup krb5_error
+ */
+
+char * KRB5_LIB_FUNCTION
+krb5_get_error_message(krb5_context context, krb5_error_code code)
+{
+    const char *cstr;
+    char *str;
+
+    str = krb5_get_error_string(context);
+    if (str)
+	return str;
+
+    cstr = krb5_get_err_text(context, code);
+    if (cstr)
+	return strdup(cstr);
+
+    if (asprintf(&str, "<unknown error: %d>", code) == -1)
+	return NULL;
+
+    return str;
+}
+

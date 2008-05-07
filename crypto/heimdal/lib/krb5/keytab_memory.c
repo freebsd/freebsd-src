@@ -33,26 +33,64 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: keytab_memory.c,v 1.5 2001/05/14 06:14:49 assar Exp $");
+RCSID("$Id: keytab_memory.c 16352 2005-12-05 18:39:46Z lha $");
 
 /* memory operations -------------------------------------------- */
 
 struct mkt_data {
     krb5_keytab_entry *entries;
     int num_entries;
+    char *name;
+    int refcount;
+    struct mkt_data *next;
 };
+
+/* this mutex protects mkt_head, ->refcount, and ->next 
+ * content is not protected (name is static and need no protection)
+ */
+static HEIMDAL_MUTEX mkt_mutex = HEIMDAL_MUTEX_INITIALIZER;
+static struct mkt_data *mkt_head;
+
 
 static krb5_error_code
 mkt_resolve(krb5_context context, const char *name, krb5_keytab id)
 {
     struct mkt_data *d;
-    d = malloc(sizeof(*d));
+
+    HEIMDAL_MUTEX_lock(&mkt_mutex);
+
+    for (d = mkt_head; d != NULL; d = d->next)
+	if (strcmp(d->name, name) == 0)
+	    break;
+    if (d) {
+	if (d->refcount < 1)
+	    krb5_abortx(context, "Double close on memory keytab, "
+			"refcount < 1 %d", d->refcount);
+	d->refcount++;
+	id->data = d;
+	HEIMDAL_MUTEX_unlock(&mkt_mutex);
+	return 0;
+    }
+
+    d = calloc(1, sizeof(*d));
     if(d == NULL) {
+	HEIMDAL_MUTEX_unlock(&mkt_mutex);
+	krb5_set_error_string (context, "malloc: out of memory");
+	return ENOMEM;
+    }
+    d->name = strdup(name);
+    if (d->name == NULL) {
+	HEIMDAL_MUTEX_unlock(&mkt_mutex);
+	free(d);
 	krb5_set_error_string (context, "malloc: out of memory");
 	return ENOMEM;
     }
     d->entries = NULL;
     d->num_entries = 0;
+    d->refcount = 1;
+    d->next = mkt_head;
+    mkt_head = d;
+    HEIMDAL_MUTEX_unlock(&mkt_mutex);
     id->data = d;
     return 0;
 }
@@ -60,8 +98,27 @@ mkt_resolve(krb5_context context, const char *name, krb5_keytab id)
 static krb5_error_code
 mkt_close(krb5_context context, krb5_keytab id)
 {
-    struct mkt_data *d = id->data;
+    struct mkt_data *d = id->data, **dp;
     int i;
+
+    HEIMDAL_MUTEX_lock(&mkt_mutex);
+    if (d->refcount < 1)
+	krb5_abortx(context, 
+		    "krb5 internal error, memory keytab refcount < 1 on close");
+
+    if (--d->refcount > 0) {
+	HEIMDAL_MUTEX_unlock(&mkt_mutex);
+	return 0;
+    }
+    for (dp = &mkt_head; *dp != NULL; dp = &(*dp)->next) {
+	if (*dp == d) {
+	    *dp = d->next;
+	    break;
+	}
+    }
+    HEIMDAL_MUTEX_unlock(&mkt_mutex);
+
+    free(d->name);
     for(i = 0; i < d->num_entries; i++)
 	krb5_kt_free_entry(context, &d->entries[i]);
     free(d->entries);
@@ -75,7 +132,8 @@ mkt_get_name(krb5_context context,
 	     char *name, 
 	     size_t namesize)
 {
-    strlcpy(name, "", namesize);
+    struct mkt_data *d = id->data;
+    strlcpy(name, d->name, namesize);
     return 0;
 }
 
@@ -133,7 +191,13 @@ mkt_remove_entry(krb5_context context,
 {
     struct mkt_data *d = id->data;
     krb5_keytab_entry *e, *end;
+    int found = 0;
     
+    if (d->num_entries == 0) {
+	krb5_clear_error_string(context);
+        return KRB5_KT_NOTFOUND;
+    }
+
     /* do this backwards to minimize copying */
     for(end = d->entries + d->num_entries, e = end - 1; e >= d->entries; e--) {
 	if(krb5_kt_compare(context, e, entry->principal, 
@@ -143,10 +207,15 @@ mkt_remove_entry(krb5_context context,
 	    memset(end - 1, 0, sizeof(*end));
 	    d->num_entries--;
 	    end--;
+	    found = 1;
 	}
     }
+    if (!found) {
+	krb5_clear_error_string (context);
+	return KRB5_KT_NOTFOUND;
+    }
     e = realloc(d->entries, d->num_entries * sizeof(*d->entries));
-    if(e != NULL)
+    if(e != NULL || d->num_entries == 0)
 	d->entries = e;
     return 0;
 }

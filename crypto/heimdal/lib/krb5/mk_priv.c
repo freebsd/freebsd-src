@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2002 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2003 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,103 +33,123 @@
 
 #include <krb5_locl.h>
 
-RCSID("$Id: mk_priv.c,v 1.31 2002/09/04 16:26:04 joda Exp $");
+RCSID("$Id: mk_priv.c 16680 2006-02-01 12:39:26Z lha $");
 
       
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_mk_priv(krb5_context context,
 	     krb5_auth_context auth_context,
 	     const krb5_data *userdata,
 	     krb5_data *outbuf,
-	     /*krb5_replay_data*/ void *outdata)
+	     krb5_replay_data *outdata)
 {
-  krb5_error_code ret;
-  KRB_PRIV s;
-  EncKrbPrivPart part;
-  u_char *buf;
-  size_t buf_size;
-  size_t len;
-  u_int32_t tmp_seq;
-  krb5_keyblock *key;
-  int32_t sec, usec;
-  KerberosTime sec2;
-  int usec2;
-  krb5_crypto crypto;
+    krb5_error_code ret;
+    KRB_PRIV s;
+    EncKrbPrivPart part;
+    u_char *buf = NULL;
+    size_t buf_size;
+    size_t len;
+    krb5_crypto crypto;
+    krb5_keyblock *key;
+    krb5_replay_data rdata;
 
-  if (auth_context->local_subkey)
-      key = auth_context->local_subkey;
-  else if (auth_context->remote_subkey)
-      key = auth_context->remote_subkey;
-  else
-      key = auth_context->keyblock;
+    if ((auth_context->flags & 
+	 (KRB5_AUTH_CONTEXT_RET_TIME | KRB5_AUTH_CONTEXT_RET_SEQUENCE)) &&
+	outdata == NULL)
+	return KRB5_RC_REQUIRED; /* XXX better error, MIT returns this */
 
-  krb5_us_timeofday (context, &sec, &usec);
+    if (auth_context->local_subkey)
+	key = auth_context->local_subkey;
+    else if (auth_context->remote_subkey)
+	key = auth_context->remote_subkey;
+    else
+	key = auth_context->keyblock;
 
-  part.user_data = *userdata;
-  sec2           = sec;
-  part.timestamp = &sec2;
-  usec2          = usec;
-  part.usec      = &usec2;
-  if (auth_context->flags & KRB5_AUTH_CONTEXT_DO_SEQUENCE) {
-    tmp_seq = auth_context->local_seqnumber;
-    part.seq_number = &tmp_seq;
-  } else {
-    part.seq_number = NULL;
-  }
+    memset(&rdata, 0, sizeof(rdata));
 
-  part.s_address = auth_context->local_address;
-  part.r_address = auth_context->remote_address;
+    part.user_data = *userdata;
 
-  krb5_data_zero (&s.enc_part.cipher);
+    krb5_us_timeofday (context, &rdata.timestamp, &rdata.usec);
 
-  ASN1_MALLOC_ENCODE(EncKrbPrivPart, buf, buf_size, &part, &len, ret);
-  if (ret)
-      goto fail;
+    if (auth_context->flags & KRB5_AUTH_CONTEXT_DO_TIME) {
+	part.timestamp = &rdata.timestamp;
+	part.usec      = &rdata.usec;
+    } else {
+	part.timestamp = NULL;
+	part.usec      = NULL;
+    }
 
-  s.pvno = 5;
-  s.msg_type = krb_priv;
-  s.enc_part.etype = key->keytype;
-  s.enc_part.kvno = NULL;
+    if (auth_context->flags & KRB5_AUTH_CONTEXT_RET_TIME) {
+	outdata->timestamp = rdata.timestamp;
+	outdata->usec = rdata.usec;
+    }
 
-  ret = krb5_crypto_init(context, key, 0, &crypto);
-  if (ret) {
-      free (buf);
-      return ret;
-  }
-  ret = krb5_encrypt (context, 
-		      crypto,
-		      KRB5_KU_KRB_PRIV,
-		      buf + buf_size - len, 
-		      len,
-		      &s.enc_part.cipher);
-  krb5_crypto_destroy(context, crypto);
-  if (ret) {
-      free(buf);
-      return ret;
-  }
-  free(buf);
+    if (auth_context->flags & KRB5_AUTH_CONTEXT_DO_SEQUENCE) {
+	rdata.seq = auth_context->local_seqnumber;
+	part.seq_number = &rdata.seq;
+    } else
+	part.seq_number = NULL;
+
+    if (auth_context->flags & KRB5_AUTH_CONTEXT_RET_SEQUENCE)
+	outdata->seq = auth_context->local_seqnumber;
+    
+    part.s_address = auth_context->local_address;
+    part.r_address = auth_context->remote_address;
+
+    krb5_data_zero (&s.enc_part.cipher);
+
+    ASN1_MALLOC_ENCODE(EncKrbPrivPart, buf, buf_size, &part, &len, ret);
+    if (ret)
+	goto fail;
+    if (buf_size != len)
+	krb5_abortx(context, "internal error in ASN.1 encoder");
+
+    s.pvno = 5;
+    s.msg_type = krb_priv;
+    s.enc_part.etype = key->keytype;
+    s.enc_part.kvno = NULL;
+
+    ret = krb5_crypto_init(context, key, 0, &crypto);
+    if (ret) {
+	free (buf);
+	return ret;
+    }
+    ret = krb5_encrypt (context, 
+			crypto,
+			KRB5_KU_KRB_PRIV,
+			buf + buf_size - len, 
+			len,
+			&s.enc_part.cipher);
+    krb5_crypto_destroy(context, crypto);
+    if (ret) {
+	free(buf);
+	return ret;
+    }
+    free(buf);
 
 
-  ASN1_MALLOC_ENCODE(KRB_PRIV, buf, buf_size, &s, &len, ret);
+    ASN1_MALLOC_ENCODE(KRB_PRIV, buf, buf_size, &s, &len, ret);
+    if (ret)
+	goto fail;
+    if (buf_size != len)
+	krb5_abortx(context, "internal error in ASN.1 encoder");
 
-  if(ret)
-      goto fail;
-  krb5_data_free (&s.enc_part.cipher);
+    krb5_data_free (&s.enc_part.cipher);
 
-  ret = krb5_data_copy(outbuf, buf + buf_size - len, len);
-  if (ret) {
-      krb5_set_error_string (context, "malloc: out of memory");
-      free(buf);
-      return ENOMEM;
-  }
-  free (buf);
-  if (auth_context->flags & KRB5_AUTH_CONTEXT_DO_SEQUENCE)
-      auth_context->local_seqnumber =
-	  (auth_context->local_seqnumber + 1) & 0xFFFFFFFF;
-  return 0;
+    ret = krb5_data_copy(outbuf, buf + buf_size - len, len);
+    if (ret) {
+	krb5_set_error_string (context, "malloc: out of memory");
+	free(buf);
+	return ENOMEM;
+    }
+    free (buf);
+    if (auth_context->flags & KRB5_AUTH_CONTEXT_DO_SEQUENCE)
+	auth_context->local_seqnumber =
+	    (auth_context->local_seqnumber + 1) & 0xFFFFFFFF;
+    return 0;
 
-fail:
-  free (buf);
-  krb5_data_free (&s.enc_part.cipher);
-  return ret;
+  fail:
+    free (buf);
+    krb5_data_free (&s.enc_part.cipher);
+    return ret;
 }

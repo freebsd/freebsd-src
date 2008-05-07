@@ -33,12 +33,11 @@
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
+#include "snprintf-test.h"
 #include "roken.h"
 #include <limits.h>
 
-#include "snprintf-test.h"
-
-RCSID("$Id: snprintf-test.c,v 1.5 2001/09/13 01:01:16 assar Exp $");
+RCSID("$Id: snprintf-test.c 21627 2007-07-17 10:53:17Z lha $");
 
 static int
 try (const char *format, ...)
@@ -51,6 +50,8 @@ try (const char *format, ...)
     ret = vsnprintf (buf1, sizeof(buf1), format, ap);
     if (ret >= sizeof(buf1))
 	errx (1, "increase buf and try again");
+    va_end (ap);
+    va_start (ap, format);
     vsprintf (buf2, format, ap);
     ret = strcmp (buf1, buf2);
     if (ret)
@@ -127,6 +128,9 @@ cmp_with_sprintf_long (void)
 }
 
 #ifdef HAVE_LONG_LONG
+
+/* XXX doesn't work as expected on lp64 platforms with sizeof(long
+ * long) == sizeof(long) */
 
 static int
 cmp_with_sprintf_long_long (void)
@@ -223,6 +227,32 @@ test_null (void)
     return snprintf (NULL, 0, "foo") != 3;
 }
 
+static int
+test_sizet (void)
+{
+    int tot = 0;
+    size_t sizet_values[] = { 0, 1, 2, 200, 4294967295u }; /* SIZE_MAX */
+    char *result[] = { "0", "1", "2", "200", "4294967295" };
+    int i;
+
+    for (i = 0; i < sizeof(sizet_values) / sizeof(sizet_values[0]); ++i) {
+#if 0
+	tot += try("%zu", sizet_values[i]);
+	tot += try("%zx", sizet_values[i]);
+	tot += try("%zX", sizet_values[i]);
+#else
+	char buf[256];
+	snprintf(buf, sizeof(buf), "%zu", sizet_values[i]);
+	if (strcmp(buf, result[i]) != 0) {
+	    printf("%s != %s", buf, result[i]);
+	    tot++;
+	}
+#endif
+    }
+    return tot;
+}
+
+
 int
 main (int argc, char **argv)
 {
@@ -234,5 +264,6 @@ main (int argc, char **argv)
     ret += cmp_with_sprintf_long_long ();
 #endif
     ret += test_null ();
+    ret += test_sizet ();
     return ret;
 }

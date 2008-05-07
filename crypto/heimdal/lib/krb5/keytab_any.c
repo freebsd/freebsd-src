@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: keytab_any.c,v 1.7 2002/10/21 13:36:59 joda Exp $");
+RCSID("$Id: keytab_any.c 17035 2006-04-10 09:20:13Z lha $");
 
 struct any_data {
     krb5_keytab kt;
@@ -162,23 +162,22 @@ any_next_entry (krb5_context context,
 	ret = krb5_kt_next_entry(context, ed->a->kt, entry, &ed->cursor);
 	if (ret == 0)
 	    return 0;
-	else if (ret == KRB5_KT_END) {
-	    ret2 = krb5_kt_end_seq_get (context, ed->a->kt, &ed->cursor);
-	    if (ret2)
-		return ret2;
-	    while ((ed->a = ed->a->next) != NULL) {
-		ret2 = krb5_kt_start_seq_get(context, ed->a->kt, &ed->cursor);
-		if (ret2 == 0)
-		    break;
-	    }
-	    if (ed->a == NULL) {
-		krb5_clear_error_string (context);
-		return KRB5_KT_END;
-	    }
-	} else
+	else if (ret != KRB5_KT_END)
 	    return ret;
-    } while (ret == KRB5_KT_END);
-    return ret;
+
+	ret2 = krb5_kt_end_seq_get (context, ed->a->kt, &ed->cursor);
+	if (ret2)
+	    return ret2;
+	while ((ed->a = ed->a->next) != NULL) {
+	    ret2 = krb5_kt_start_seq_get(context, ed->a->kt, &ed->cursor);
+	    if (ret2 == 0)
+		break;
+	}
+	if (ed->a == NULL) {
+	    krb5_clear_error_string (context);
+	    return KRB5_KT_END;
+	}
+    } while (1);
 }
 
 static krb5_error_code

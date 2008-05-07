@@ -1,4 +1,4 @@
-.\" Copyright (c) 1997, 1999, 2001 Kungliga Tekniska Högskolan
+.\" Copyright (c) 1997, 1999, 2001, 2004, 2006 Kungliga Tekniska Högskolan
 .\" (Royal Institute of Technology, Stockholm, Sweden). 
 .\" All rights reserved. 
 .\"
@@ -29,28 +29,35 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
 .\" SUCH DAMAGE. 
 .\" 
-.\" $Id: kdestroy.1,v 1.4 2003/02/16 21:10:23 lha Exp $
+.\" $Id: kdestroy.1 22071 2007-11-14 20:04:50Z lha $
 .\"
-.Dd August 27, 1997
+.Dd April 27, 2006
 .Dt KDESTROY 1
 .Os HEIMDAL
 .Sh NAME
 .Nm kdestroy
-.Nd destroy the current ticket file
+.Nd remove one credental or destroy the current ticket file
 .Sh SYNOPSIS
 .Nm
+.Bk -words
 .Op Fl c Ar cachefile
+.Op Fl -credential= Ns Ar principal
 .Op Fl -cache= Ns Ar cachefile
 .Op Fl -no-unlog
 .Op Fl -no-delete-v4
 .Op Fl -version
 .Op Fl -help
+.Ek
 .Sh DESCRIPTION
 .Nm
-remove the current set of tickets.
+remove one or the current set of tickets.
 .Pp
 Supported options:
 .Bl -tag -width Ds
+.It Fl credential= Ns Ar principal
+remove
+.Fa principal
+from the credential cache if it exists.
 .It Fl c Ar cachefile
 .It Fl cache= Ns Ar cachefile
 The cache file to remove.
