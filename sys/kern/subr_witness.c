@@ -98,6 +98,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
+#include <sys/sbuf.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 
@@ -124,6 +125,7 @@ __FBSDID("$FreeBSD$");
 
 #define WITNESS_COUNT 1024
 #define WITNESS_CHILDCOUNT (WITNESS_COUNT * 4)
+#define	WITNESS_SBUFSIZE	32768
 /*
  * XXX: This is somewhat bogus, as we assume here that at most 1024 threads
  * will hold LOCK_NCHILDREN * 2 locks.  We handle failure ok, and we should
@@ -214,7 +216,9 @@ static int	isitmydescendant(struct witness *parent, struct witness *child);
 static int	itismychild(struct witness *parent, struct witness *child);
 static void	removechild(struct witness *parent, struct witness *child);
 static int	sysctl_debug_witness_watch(SYSCTL_HANDLER_ARGS);
+static int	sysctl_debug_witness_graphs(SYSCTL_HANDLER_ARGS);
 static const char *fixup_filename(const char *file);
+static void	witness_addgraph(struct sbuf *sb, struct witness *w);
 static struct	witness *witness_get(void);
 static void	witness_free(struct witness *m);
 static struct	witness_child_list_entry *witness_child_get(void);
@@ -247,6 +251,8 @@ static int witness_watch = 1;
 TUNABLE_INT("debug.witness.watch", &witness_watch);
 SYSCTL_PROC(_debug_witness, OID_AUTO, watch, CTLFLAG_RW | CTLTYPE_INT, NULL, 0,
     sysctl_debug_witness_watch, "I", "witness is watching lock operations");
+SYSCTL_PROC(_debug_witness, OID_AUTO, graphs, CTLTYPE_STRING | CTLFLAG_RD,
+    NULL, 0, sysctl_debug_witness_graphs, "A", "Show locks relation graphs");
 
 #ifdef KDB
 /*
@@ -619,6 +625,39 @@ sysctl_debug_witness_watch(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
+static int
+sysctl_debug_witness_graphs(SYSCTL_HANDLER_ARGS)
+{
+	struct witness *w;
+	struct sbuf *sb;
+	int error;
+
+	KASSERT(witness_cold == 0, ("%s: witness is still cold", __func__));
+
+	sb = sbuf_new(NULL, NULL, WITNESS_SBUFSIZE, SBUF_FIXEDLEN);
+	if (sb == NULL)
+		return (ENOMEM);
+
+	mtx_lock_spin(&w_mtx);
+	STAILQ_FOREACH(w, &w_all, w_list)
+		w->w_displayed = 0;
+	STAILQ_FOREACH(w, &w_all, w_list)
+		witness_addgraph(sb, w);
+	mtx_unlock_spin(&w_mtx);
+
+	if (sbuf_overflowed(sb)) {
+		sbuf_delete(sb);
+		panic("%s: sbuf overflowed, bump the static buffer size\n",
+		    __func__);
+	}
+
+	sbuf_finish(sb);
+	error = SYSCTL_OUT(req, sbuf_data(sb), sbuf_len(sb) + 1);
+	sbuf_delete(sb);
+
+	return (error);
+}
+
 void
 witness_init(struct lock_object *lock)
 {
@@ -791,6 +830,25 @@ witness_display_list(void(*prnt)(const char *fmt, ...),
 	}
 }
 	
+static void
+witness_addgraph(struct sbuf *sb, struct witness *parent)
+{
+	struct witness_child_list_entry *wcl;
+	int i;
+
+	if (parent->w_displayed != 0 || parent->w_refcount == 0 ||
+	    parent->w_file == NULL)
+		return;
+
+	parent->w_displayed = 1;
+	for (wcl = parent->w_children; wcl != NULL; wcl = wcl->wcl_next)
+		for (i = 0; i < wcl->wcl_count; i++) {
+			sbuf_printf(sb, "\"%s\",\"%s\"\n", parent->w_name,
+			    wcl->wcl_children[i]->w_name);
+			witness_addgraph(sb, wcl->wcl_children[i]);
+		}
+}
+
 static void
 witness_display(void(*prnt)(const char *fmt, ...))
 {
