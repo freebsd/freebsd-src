@@ -69,7 +69,8 @@ zfs_filestat(struct vnode *vp, struct filestat *fsp)
 	void *znodeptr, *vnodeptr;
 	char *dataptr;
 	int *zphys_addr;
-	size_t len, size;
+	size_t len;
+	int size;
 
 	len = sizeof(size);
 	if (sysctlbyname("debug.sizeof.znode", &size, &len, NULL, 0) == -1) {
@@ -91,7 +92,7 @@ zfs_filestat(struct vnode *vp, struct filestat *fsp)
 	}
 
 	/* 
-	 * z_id field is stored in the third pointer. We therefor skip the two
+	 * z_id field is stored in the third pointer. We therefore skip the two
 	 * first bytes. 
 	 *
 	 * Pointer to the z_phys structure is the next last pointer. Therefore
