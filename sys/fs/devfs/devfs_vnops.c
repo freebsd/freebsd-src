@@ -364,13 +364,7 @@ devfs_close(struct vop_close_args *ap)
 	VOP_UNLOCK(vp, 0);
 	KASSERT(dev->si_refcount > 0,
 	    ("devfs_close() on un-referenced struct cdev *(%s)", devtoname(dev)));
-	if (!(dsw->d_flags & D_NEEDGIANT)) {
-		DROP_GIANT();
-		error = dsw->d_close(dev, ap->a_fflag, S_IFCHR, td);
-		PICKUP_GIANT();
-	} else {
-		error = dsw->d_close(dev, ap->a_fflag, S_IFCHR, td);
-	}
+	error = dsw->d_close(dev, ap->a_fflag, S_IFCHR, td);
 	dev_relthread(dev);
 	vn_lock(vp, vp_locked | LK_RETRY);
 	vdrop(vp);
@@ -772,19 +766,10 @@ devfs_open(struct vop_open_args *ap)
 
 	VOP_UNLOCK(vp, 0);
 
-	if(!(dsw->d_flags & D_NEEDGIANT)) {
-		DROP_GIANT();
-		if (dsw->d_fdopen != NULL)
-			error = dsw->d_fdopen(dev, ap->a_mode, td, fp);
-		else
-			error = dsw->d_open(dev, ap->a_mode, S_IFCHR, td);
-		PICKUP_GIANT();
-	} else {
-		if (dsw->d_fdopen != NULL)
-			error = dsw->d_fdopen(dev, ap->a_mode, td, fp);
-		else
-			error = dsw->d_open(dev, ap->a_mode, S_IFCHR, td);
-	}
+	if (dsw->d_fdopen != NULL)
+		error = dsw->d_fdopen(dev, ap->a_mode, td, fp);
+	else
+		error = dsw->d_open(dev, ap->a_mode, S_IFCHR, td);
 
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 
