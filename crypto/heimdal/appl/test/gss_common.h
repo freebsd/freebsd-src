@@ -31,7 +31,7 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: gss_common.h,v 1.5 1999/12/02 17:04:56 joda Exp $ */
+/* $Id: gss_common.h 14661 2005-03-19 03:13:14Z lha $ */
 
 void write_token (int sock, gss_buffer_t buf);
 void read_token (int sock, gss_buffer_t buf);
@@ -43,3 +43,7 @@ void gss_verr(int exitval, int status, const char *fmt, va_list ap)
 
 void gss_err(int exitval, int status, const char *fmt, ...)
     __attribute__ ((format (printf, 3, 4)));
+
+gss_OID select_mech(const char *);
+
+void print_gss_name(const char *, gss_name_t);

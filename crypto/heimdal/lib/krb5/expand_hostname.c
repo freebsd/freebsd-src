@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: expand_hostname.c,v 1.11 2001/09/18 09:35:47 joda Exp $");
+RCSID("$Id: expand_hostname.c 22229 2007-12-08 21:40:59Z lha $");
 
 static krb5_error_code
 copy_hostname(krb5_context context,
@@ -54,13 +54,16 @@ copy_hostname(krb5_context context,
  * allocated space returned in `new_hostname'.
  */
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_expand_hostname (krb5_context context,
 		      const char *orig_hostname,
 		      char **new_hostname)
 {
     struct addrinfo *ai, *a, hints;
     int error;
+
+    if ((context->flags & KRB5_CTX_F_DNS_CANONICALIZE_HOSTNAME) == 0)
+	return copy_hostname (context, orig_hostname, new_hostname);
 
     memset (&hints, 0, sizeof(hints));
     hints.ai_flags = AI_CANONNAME;
@@ -114,7 +117,7 @@ vanilla_hostname (krb5_context context,
  * allocated space in `host' and return realms in `realms'.
  */
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_expand_hostname_realms (krb5_context context,
 			     const char *orig_hostname,
 			     char **new_hostname,
@@ -123,6 +126,10 @@ krb5_expand_hostname_realms (krb5_context context,
     struct addrinfo *ai, *a, hints;
     int error;
     krb5_error_code ret = 0;
+
+    if ((context->flags & KRB5_CTX_F_DNS_CANONICALIZE_HOSTNAME) == 0)
+	return vanilla_hostname (context, orig_hostname, new_hostname,
+				 realms);
 
     memset (&hints, 0, sizeof(hints));
     hints.ai_flags = AI_CANONNAME;

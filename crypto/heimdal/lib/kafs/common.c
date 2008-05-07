@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2003 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2005 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "kafs_locl.h"
 
-RCSID("$Id: common.c,v 1.26.2.1 2003/04/23 18:03:20 lha Exp $");
+RCSID("$Id: common.c 15461 2005-06-16 22:52:33Z lha $");
 
 #define AUTH_SUPERUSER "afs"
 
@@ -200,12 +200,12 @@ dns_find_cell(const char *cell, char *dbserver, size_t len)
  * Try to find the cells we should try to klog to in "file".
  */
 static void
-find_cells(const char *file, char ***cells, int *index)
+find_cells(const char *file, char ***cells, int *idx)
 {
     FILE *f;
     char cell[64];
     int i;
-    int ind = *index;
+    int ind = *idx;
 
     f = fopen(file, "r");
     if (f == NULL)
@@ -235,14 +235,14 @@ find_cells(const char *file, char ***cells, int *index)
 	}
     }
     fclose(f);
-    *index = ind;
+    *idx = ind;
 }
 
 /*
  * Get tokens for all cells[]
  */
 static int
-afslog_cells(kafs_data *data, char **cells, int max, uid_t uid,
+afslog_cells(struct kafs_data *data, char **cells, int max, uid_t uid,
 	     const char *homedir)
 {
     int ret = 0;
@@ -256,38 +256,44 @@ afslog_cells(kafs_data *data, char **cells, int max, uid_t uid,
 }
 
 int
-_kafs_afslog_all_local_cells(kafs_data *data, uid_t uid, const char *homedir)
+_kafs_afslog_all_local_cells(struct kafs_data *data,
+			     uid_t uid, const char *homedir)
 {
     int ret;
     char **cells = NULL;
-    int index = 0;
+    int idx = 0;
 
     if (homedir == NULL)
 	homedir = getenv("HOME");
     if (homedir != NULL) {
 	char home[MaxPathLen];
 	snprintf(home, sizeof(home), "%s/.TheseCells", homedir);
-	find_cells(home, &cells, &index);
+	find_cells(home, &cells, &idx);
     }
-    find_cells(_PATH_THESECELLS, &cells, &index);
-    find_cells(_PATH_THISCELL, &cells, &index);
-    find_cells(_PATH_ARLA_THESECELLS, &cells, &index);
-    find_cells(_PATH_ARLA_THISCELL, &cells, &index);
-    find_cells(_PATH_OPENAFS_DEBIAN_THESECELLS, &cells, &index);
-    find_cells(_PATH_OPENAFS_DEBIAN_THISCELL, &cells, &index);
-    find_cells(_PATH_ARLA_DEBIAN_THESECELLS, &cells, &index);
-    find_cells(_PATH_ARLA_DEBIAN_THISCELL, &cells, &index);
+    find_cells(_PATH_THESECELLS, &cells, &idx);
+    find_cells(_PATH_THISCELL, &cells, &idx);
+    find_cells(_PATH_ARLA_THESECELLS, &cells, &idx);
+    find_cells(_PATH_ARLA_THISCELL, &cells, &idx);
+    find_cells(_PATH_OPENAFS_DEBIAN_THESECELLS, &cells, &idx);
+    find_cells(_PATH_OPENAFS_DEBIAN_THISCELL, &cells, &idx);
+    find_cells(_PATH_OPENAFS_MACOSX_THESECELLS, &cells, &idx);
+    find_cells(_PATH_OPENAFS_MACOSX_THISCELL, &cells, &idx);
+    find_cells(_PATH_ARLA_DEBIAN_THESECELLS, &cells, &idx);
+    find_cells(_PATH_ARLA_DEBIAN_THISCELL, &cells, &idx);
+    find_cells(_PATH_ARLA_OPENBSD_THESECELLS, &cells, &idx);
+    find_cells(_PATH_ARLA_OPENBSD_THISCELL, &cells, &idx);
     
-    ret = afslog_cells(data, cells, index, uid, homedir);
-    while(index > 0)
-	free(cells[--index]);
+    ret = afslog_cells(data, cells, idx, uid, homedir);
+    while(idx > 0)
+	free(cells[--idx]);
     free(cells);
     return ret;
 }
 
 
 static int
-file_find_cell(kafs_data *data, const char *cell, char **realm, int exact)
+file_find_cell(struct kafs_data *data, 
+	       const char *cell, char **realm, int exact)
 {
     FILE *F;
     char buf[1024];
@@ -297,6 +303,7 @@ file_find_cell(kafs_data *data, const char *cell, char **realm, int exact)
     if ((F = fopen(_PATH_CELLSERVDB, "r"))
 	|| (F = fopen(_PATH_ARLA_CELLSERVDB, "r"))
 	|| (F = fopen(_PATH_OPENAFS_DEBIAN_CELLSERVDB, "r"))
+	|| (F = fopen(_PATH_OPENAFS_MACOSX_CELLSERVDB, "r"))
 	|| (F = fopen(_PATH_ARLA_DEBIAN_CELLSERVDB, "r"))) {
 	while (fgets(buf, sizeof(buf), F)) {
 	    int cmp;
@@ -335,9 +342,9 @@ file_find_cell(kafs_data *data, const char *cell, char **realm, int exact)
     return ret;
 }
 
-/* Find the realm associated with cell. Do this by opening
-   /usr/vice/etc/CellServDB and getting the realm-of-host for the
-   first VL-server for the cell.
+/* Find the realm associated with cell. Do this by opening CellServDB
+   file and getting the realm-of-host for the first VL-server for the
+   cell.
 
    This does not work when the VL-server is living in one realm, but
    the cell it is serving is living in another realm.
@@ -346,7 +353,8 @@ file_find_cell(kafs_data *data, const char *cell, char **realm, int exact)
    */
 
 int
-_kafs_realm_of_cell(kafs_data *data, const char *cell, char **realm)
+_kafs_realm_of_cell(struct kafs_data *data,
+		    const char *cell, char **realm)
 {
     char buf[1024];
     int ret;
@@ -363,7 +371,7 @@ _kafs_realm_of_cell(kafs_data *data, const char *cell, char **realm)
 }
 
 static int
-_kafs_try_get_cred(kafs_data *data, const char *user, const char *cell,
+_kafs_try_get_cred(struct kafs_data *data, const char *user, const char *cell,
 		   const char *realm, uid_t uid, struct kafs_token *kt)
 {
     int ret;
@@ -383,7 +391,7 @@ _kafs_try_get_cred(kafs_data *data, const char *user, const char *cell,
 
 
 int
-_kafs_get_cred(kafs_data *data,
+_kafs_get_cred(struct kafs_data *data,
 	       const char *cell, 
 	       const char *realm_hint,
 	       const char *realm,
@@ -394,7 +402,7 @@ _kafs_get_cred(kafs_data *data,
     char *vl_realm;
     char CELL[64];
 
-    /* We're about to find the the realm that holds the key for afs in
+    /* We're about to find the realm that holds the key for afs in
      * the specified cell. The problem is that null-instance
      * afs-principals are common and that hitting the wrong realm might
      * yield the wrong afs key. The following assumptions were made.

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2006 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,74 +33,80 @@
 
 #include "kadm5_locl.h"
 
-RCSID("$Id: chpass_s.c,v 1.13.8.1 2003/12/30 15:59:58 lha Exp $");
+RCSID("$Id: chpass_s.c 20608 2007-05-08 07:11:48Z lha $");
 
 static kadm5_ret_t
 change(void *server_handle, 
        krb5_principal princ,
-       char *password,
+       const char *password,
        int cond)
 {
     kadm5_server_context *context = server_handle;
-    hdb_entry ent;
+    hdb_entry_ex ent;
     kadm5_ret_t ret;
     Key *keys;
     size_t num_keys;
     int cmp = 1;
 
-    ent.principal = princ;
-    ret = context->db->open(context->context, context->db, O_RDWR, 0);
+    memset(&ent, 0, sizeof(ent));
+    ret = context->db->hdb_open(context->context, context->db, O_RDWR, 0);
     if(ret)
 	return ret;
-    ret = context->db->fetch(context->context, context->db, 
-			     HDB_F_DECRYPT, &ent);
+    ret = context->db->hdb_fetch(context->context, context->db, princ,
+				 HDB_F_DECRYPT|HDB_F_GET_ANY, &ent);
     if(ret == HDB_ERR_NOENTRY)
 	goto out;
 
-    num_keys = ent.keys.len;
-    keys     = ent.keys.val;
+    num_keys = ent.entry.keys.len;
+    keys     = ent.entry.keys.val;
 
-    ent.keys.len = 0;
-    ent.keys.val = NULL;
+    ent.entry.keys.len = 0;
+    ent.entry.keys.val = NULL;
 
-    ret = _kadm5_set_keys(context, &ent, password);
+    ret = _kadm5_set_keys(context, &ent.entry, password);
     if(ret) {
-	_kadm5_free_keys (server_handle, num_keys, keys);
+	_kadm5_free_keys (context->context, num_keys, keys);
 	goto out2;
     }
+    ent.entry.kvno++;
     if (cond)
-	cmp = _kadm5_cmp_keys (ent.keys.val, ent.keys.len,
+	cmp = _kadm5_cmp_keys (ent.entry.keys.val, ent.entry.keys.len,
 			       keys, num_keys);
-    _kadm5_free_keys (server_handle, num_keys, keys);
+    _kadm5_free_keys (context->context, num_keys, keys);
 
     if (cmp == 0) {
 	krb5_set_error_string(context->context, "Password reuse forbidden");
 	ret = KADM5_PASS_REUSE;
- 	goto out2;
+	goto out2;
     }
-    ret = _kadm5_set_modifier(context, &ent);
+
+    ret = _kadm5_set_modifier(context, &ent.entry);
     if(ret)
 	goto out2;
 
-    ret = _kadm5_bump_pw_expire(context, &ent);
+    ret = _kadm5_bump_pw_expire(context, &ent.entry);
     if (ret)
 	goto out2;
 
-    ret = hdb_seal_keys(context->context, context->db, &ent);
+    ret = hdb_seal_keys(context->context, context->db, &ent.entry);
+    if (ret)
+	goto out2;
+
+    ret = context->db->hdb_store(context->context, context->db, 
+				 HDB_F_REPLACE, &ent);
     if (ret)
 	goto out2;
 
     kadm5_log_modify (context,
-		      &ent,
+		      &ent.entry,
 		      KADM5_PRINCIPAL | KADM5_MOD_NAME | KADM5_MOD_TIME |
-		      KADM5_KEY_DATA | KADM5_KVNO | KADM5_PW_EXPIRATION);
-    
-    ret = context->db->store(context->context, context->db, 
-			     HDB_F_REPLACE, &ent);
+		      KADM5_KEY_DATA | KADM5_KVNO | KADM5_PW_EXPIRATION |
+		      KADM5_TL_DATA);
+
 out2:
     hdb_free_entry(context->context, &ent);
 out:
-    context->db->close(context->context, context->db);
+    context->db->hdb_close(context->context, context->db);
     return _kadm5_error_code(ret);
 }
 
@@ -113,7 +119,7 @@ out:
 kadm5_ret_t
 kadm5_s_chpass_principal_cond(void *server_handle, 
 			      krb5_principal princ,
-			      char *password)
+			      const char *password)
 {
     return change (server_handle, princ, password, 1);
 }
@@ -125,7 +131,7 @@ kadm5_s_chpass_principal_cond(void *server_handle,
 kadm5_ret_t
 kadm5_s_chpass_principal(void *server_handle, 
 			 krb5_principal princ,
-			 char *password)
+			 const char *password)
 {
     return change (server_handle, princ, password, 0);
 }
@@ -141,39 +147,46 @@ kadm5_s_chpass_principal_with_key(void *server_handle,
 				  krb5_key_data *key_data)
 {
     kadm5_server_context *context = server_handle;
-    hdb_entry ent;
+    hdb_entry_ex ent;
     kadm5_ret_t ret;
-    ent.principal = princ;
-    ret = context->db->open(context->context, context->db, O_RDWR, 0);
+
+    memset(&ent, 0, sizeof(ent));
+    ret = context->db->hdb_open(context->context, context->db, O_RDWR, 0);
     if(ret)
 	return ret;
-    ret = context->db->fetch(context->context, context->db, 0, &ent);
+    ret = context->db->hdb_fetch(context->context, context->db, princ, 
+				 HDB_F_GET_ANY, &ent);
     if(ret == HDB_ERR_NOENTRY)
 	goto out;
-    ret = _kadm5_set_keys2(context, &ent, n_key_data, key_data);
+    ret = _kadm5_set_keys2(context, &ent.entry, n_key_data, key_data);
     if(ret)
 	goto out2;
-    ret = _kadm5_set_modifier(context, &ent);
+    ent.entry.kvno++;
+    ret = _kadm5_set_modifier(context, &ent.entry);
     if(ret)
 	goto out2;
-    ret = _kadm5_bump_pw_expire(context, &ent);
+    ret = _kadm5_bump_pw_expire(context, &ent.entry);
     if (ret)
 	goto out2;
 
-    ret = hdb_seal_keys(context->context, context->db, &ent);
+    ret = hdb_seal_keys(context->context, context->db, &ent.entry);
+    if (ret)
+	goto out2;
+
+    ret = context->db->hdb_store(context->context, context->db, 
+				 HDB_F_REPLACE, &ent);
     if (ret)
 	goto out2;
 
     kadm5_log_modify (context,
-		      &ent,
+		      &ent.entry,
 		      KADM5_PRINCIPAL | KADM5_MOD_NAME | KADM5_MOD_TIME |
-		      KADM5_KEY_DATA | KADM5_KVNO | KADM5_PW_EXPIRATION);
-    
-    ret = context->db->store(context->context, context->db, 
-			     HDB_F_REPLACE, &ent);
+		      KADM5_KEY_DATA | KADM5_KVNO | KADM5_PW_EXPIRATION |
+		      KADM5_TL_DATA);
+
 out2:
     hdb_free_entry(context->context, &ent);
 out:
-    context->db->close(context->context, context->db);
+    context->db->hdb_close(context->context, context->db);
     return _kadm5_error_code(ret);
 }

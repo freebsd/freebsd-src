@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2001, 2003 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2005 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,10 +33,10 @@
 
 #include "ktutil_locl.h"
 
-RCSID("$Id: change.c,v 1.5 2003/04/01 15:04:49 lha Exp $");
+RCSID("$Id: change.c 15578 2005-07-07 20:44:48Z lha $");
 
-static void
-change_entry (krb5_context context, krb5_keytab keytab,
+static krb5_error_code
+change_entry (krb5_keytab keytab,
 	      krb5_principal principal, krb5_kvno kvno,
 	      const char *realm, const char *admin_server, int server_port)
 {
@@ -51,19 +51,29 @@ change_entry (krb5_context context, krb5_keytab keytab,
     ret = krb5_unparse_name (context, principal, &client_name);
     if (ret) {
 	krb5_warn (context, ret, "krb5_unparse_name");
-	return;
+	return ret;
     }
 
     memset (&conf, 0, sizeof(conf));
 
-    if(realm)
-	conf.realm = (char *)realm;
-    else
-	conf.realm = *krb5_princ_realm (context, principal);
+    if(realm == NULL)
+	realm = krb5_principal_get_realm(context, principal);
+    conf.realm = strdup(realm);
+    if (conf.realm == NULL) {
+	free (client_name);
+	krb5_set_error_string(context, "malloc failed");
+	return ENOMEM;
+    }
     conf.mask |= KADM5_CONFIG_REALM;
     
     if (admin_server) {
-	conf.admin_server = (char *)admin_server;
+	conf.admin_server = strdup(admin_server);
+	if (conf.admin_server == NULL) {
+	    free(client_name);
+	    free(conf.realm);
+	    krb5_set_error_string(context, "malloc failed");
+	    return ENOMEM;
+	}	    
 	conf.mask |= KADM5_CONFIG_ADMIN_SERVER;
     }
 
@@ -78,17 +88,22 @@ change_entry (krb5_context context, krb5_keytab keytab,
 				    KADM5_ADMIN_SERVICE,
 				    &conf, 0, 0,
 				    &kadm_handle);
-    free (client_name);
+    free(conf.admin_server);
+    free(conf.realm);
     if (ret) {
-	krb5_warn (context, ret, "kadm5_c_init_with_skey_ctx");
-	return;
+	krb5_warn (context, ret,
+		   "kadm5_c_init_with_skey_ctx: %s:", client_name);
+	free (client_name);
+	return ret;
     }
     ret = kadm5_randkey_principal (kadm_handle, principal, &keys, &num_keys);
     kadm5_destroy (kadm_handle);
     if (ret) {
-	krb5_warn(context, ret, "kadm5_randkey_principal");
-	return;
+	krb5_warn(context, ret, "kadm5_randkey_principal: %s:", client_name);
+	free (client_name);
+	return ret;
     }
+    free (client_name);
     for (i = 0; i < num_keys; ++i) {
 	krb5_keytab_entry new_entry;
 
@@ -102,6 +117,7 @@ change_entry (krb5_context context, krb5_keytab keytab,
 	    krb5_warn (context, ret, "krb5_kt_add_entry");
 	krb5_free_keyblock_contents (context, &keys[i]);
     }
+    return ret;
 }
 
 /*
@@ -115,44 +131,15 @@ struct change_set {
 };
 
 int
-kt_change (int argc, char **argv)
+kt_change (struct change_options *opt, int argc, char **argv)
 {
     krb5_error_code ret;
     krb5_keytab keytab;
     krb5_kt_cursor cursor;
     krb5_keytab_entry entry;
-    char *realm = NULL;
-    char *admin_server = NULL;
-    int server_port = 0;
-    int help_flag = 0;
-    int optind = 0;
     int i, j, max;
     struct change_set *changeset;
-    
-    struct getargs args[] = {
-	{ "realm",	'r',	arg_string,   NULL, 
-	  "realm to use", "realm" 
-	},
-	{ "admin-server",	'a',	arg_string, NULL,
-	  "server to contact", "host" 
-	},
-	{ "server-port",	's',	arg_integer, NULL,
-	  "port to contact", "port number" 
-	},
-	{ "help",		'h',	arg_flag,    NULL }
-    };
-
-    args[0].value = &realm;
-    args[1].value = &admin_server;
-    args[2].value = &server_port;
-    args[3].value = &help_flag;
-
-    if(getarg(args, sizeof(args) / sizeof(args[0]), argc, argv, &optind)
-       || help_flag) {
-	arg_printusage(args, sizeof(args) / sizeof(args[0]), 
-		       "ktutil change", "principal...");
-	return 1;
-    }
+    int errors = 0;
     
     if((keytab = ktutil_open_keytab()) == NULL)
 	return 1;
@@ -163,7 +150,7 @@ kt_change (int argc, char **argv)
 
     ret = krb5_kt_start_seq_get(context, keytab, &cursor);
     if(ret){
-	krb5_warn(context, ret, "krb5_kt_start_seq_get %s", keytab_string);
+	krb5_warn(context, ret, "%s", keytab_string);
 	goto out;
     }
 
@@ -178,18 +165,20 @@ kt_change (int argc, char **argv)
 		break;
 	    }
 	}
-	if (i < j)
+	if (i < j) {
+	    krb5_kt_free_entry (context, &entry);
 	    continue;
+	}
 
-	if (optind == argc) {
+	if (argc == 0) {
 	    add = 1;
 	} else {
-	    for (i = optind; i < argc; ++i) {
+	    for (i = 0; i < argc; ++i) {
 		krb5_principal princ;
 
 		ret = krb5_parse_name (context, argv[i], &princ);
 		if (ret) {
-		    krb5_warn (context, ret, "krb5_parse_name %s", argv[i]);
+		    krb5_warn (context, ret, "%s", argv[i]);
 		    continue;
 		}
 		if (krb5_principal_compare (context, princ, entry.principal))
@@ -225,8 +214,10 @@ kt_change (int argc, char **argv)
 	}
 	krb5_kt_free_entry (context, &entry);
     }
+    krb5_kt_end_seq_get(context, keytab, &cursor);
 
     if (ret == KRB5_KT_END) {
+	ret = 0;
 	for (i = 0; i < j; i++) {
 	    if (verbose_flag) {
 		char *client_name;
@@ -241,17 +232,21 @@ kt_change (int argc, char **argv)
 		    free(client_name);
 		}
 	    }
-	    change_entry (context, keytab, 
-			  changeset[i].principal, changeset[i].kvno,
-			  realm, admin_server, server_port);
+	    ret = change_entry (keytab, 
+				changeset[i].principal, changeset[i].kvno,
+				opt->realm_string, 
+				opt->admin_server_string, 
+				opt->server_port_integer);
+	    if (ret != 0)
+		errors = 1;
 	}
-    }
+    } else
+	errors = 1;
     for (i = 0; i < j; i++)
 	krb5_free_principal (context, changeset[i].principal);
     free (changeset);
 
-    ret = krb5_kt_end_seq_get(context, keytab, &cursor);
  out:
     krb5_kt_close(context, keytab);
-    return 0;
+    return errors;
 }

@@ -31,7 +31,7 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: hprop.h,v 1.13 2001/01/26 15:54:19 joda Exp $ */
+/* $Id: hprop.h 16378 2005-12-12 12:40:12Z lha $ */
 
 #ifndef __HPROP_H__
 #define __HPROP_H__
@@ -53,13 +53,13 @@ struct prop_data{
 #define NEVERDATE ((1U << 31) - 1)
 #endif
 
-krb5_error_code v5_prop(krb5_context, HDB*, hdb_entry*, void*);
+krb5_error_code v5_prop(krb5_context, HDB*, hdb_entry_ex*, void*);
 int mit_prop_dump(void*, const char*);
 
 struct v4_principal {
     char name[64];
     char instance[64];
-    des_cblock key;
+    DES_cblock key;
     int kvno;
     int mkvno;
     time_t exp_date;

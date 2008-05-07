@@ -1,4 +1,4 @@
-dnl $Id: check-compile-et.m4,v 1.7.2.1 2003/08/15 14:40:42 lha Exp $
+dnl $Id: check-compile-et.m4 19252 2006-12-06 13:32:55Z lha $
 dnl
 dnl CHECK_COMPILE_ET
 AC_DEFUN([CHECK_COMPILE_ET], [
@@ -7,6 +7,7 @@ AC_CHECK_PROG(COMPILE_ET, compile_et, [compile_et])
 
 krb_cv_compile_et="no"
 krb_cv_com_err_need_r=""
+krb_cv_compile_et_cross=no
 if test "${COMPILE_ET}" = "compile_et"; then
 
 dnl We have compile_et.  Now let's see if it supports `prefix' and `index'.
@@ -27,24 +28,27 @@ if ${COMPILE_ET} conftest_et.et >/dev/null 2>&1; then
     CPPFLAGS="-I/usr/include/et ${CPPFLAGS}"
   fi
   dnl Check that the `prefix' and `index' directives were honored.
-  AC_TRY_RUN([
+  AC_RUN_IFELSE([
 #include <com_err.h>
 #include <string.h>
 #include "conftest_et.h"
-int main(){
+int main(int argc, char **argv){
 #ifndef ERROR_TABLE_BASE_conf
 #error compile_et does not handle error_table N M
 #endif
 return (CONFTEST_CODE2 - CONFTEST_CODE1) != 127;}
-  ], [krb_cv_compile_et="yes"],[CPPFLAGS="${save_CPPFLAGS}"])
+  ], [krb_cv_compile_et="yes"],[CPPFLAGS="${save_CPPFLAGS}"],
+  [krb_cv_compile_et="yes" krb_cv_compile_et_cross=yes] )
 fi
 AC_MSG_RESULT(${krb_cv_compile_et})
-if test "${krb_cv_compile_et}" = "yes"; then
-  AC_MSG_CHECKING(for if com_err needs to have a initialize_error_table_r)
-  AC_EGREP_CPP(initialize_error_table_r,[#include "conftest_et.c"],
-     [krb_cv_com_err_need_r="initialize_error_table_r(0,0,0,0);"])
+if test "${krb_cv_compile_et}" = "yes" -a "${krb_cv_compile_et_cross}" = no; then
+  AC_MSG_CHECKING([for if com_err generates a initialize_conf_error_table_r])
+  AC_EGREP_CPP([initialize_conf_error_table_r.*struct et_list],
+     [#include "conftest_et.h"],
+     [krb_cv_com_err_need_r="ok"])
   if test X"$krb_cv_com_err_need_r" = X ; then
     AC_MSG_RESULT(no)
+    krb_cv_compile_et=no
   else
     AC_MSG_RESULT(yes)
   fi
@@ -52,16 +56,18 @@ fi
 rm -fr conftest*
 fi
 
-if test "${krb_cv_compile_et}" = "yes"; then
+if test "${krb_cv_compile_et_cross}" = yes ; then
+  krb_cv_com_err="cross"
+elif test "${krb_cv_compile_et}" = "yes"; then
   dnl Since compile_et seems to work, let's check libcom_err
   krb_cv_save_LIBS="${LIBS}"
   LIBS="${LIBS} -lcom_err"
   AC_MSG_CHECKING(for com_err)
-  AC_TRY_LINK([#include <com_err.h>],[
+  AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <com_err.h>]],[[
     const char *p;
     p = error_message(0);
-    $krb_cv_com_err_need_r
-  ],[krb_cv_com_err="yes"],[krb_cv_com_err="no"; CPPFLAGS="${save_CPPFLAGS}"])
+    initialize_error_table_r(0,0,0,0);
+  ]])],[krb_cv_com_err="yes"],[krb_cv_com_err="no"; CPPFLAGS="${save_CPPFLAGS}"])
   AC_MSG_RESULT(${krb_cv_com_err})
   LIBS="${krb_cv_save_LIBS}"
 else
@@ -77,6 +83,14 @@ if test "${krb_cv_com_err}" = "yes"; then
     LIB_com_err_a=""
     LIB_com_err_so=""
     AC_MSG_NOTICE(Using the already-installed com_err)
+    localcomerr=no
+elif test "${krb_cv_com_err}" = "cross"; then
+    DIR_com_err="com_err"
+    LIB_com_err="\$(top_builddir)/lib/com_err/libcom_err.la"
+    LIB_com_err_a="\$(top_builddir)/lib/com_err/.libs/libcom_err.a"
+    LIB_com_err_so="\$(top_builddir)/lib/com_err/.libs/libcom_err.so"
+    AC_MSG_NOTICE(Using our own com_err with toolchain compile_et)
+    localcomerr=yes
 else
     COMPILE_ET="\$(top_builddir)/lib/com_err/compile_et"
     DIR_com_err="com_err"
@@ -84,7 +98,9 @@ else
     LIB_com_err_a="\$(top_builddir)/lib/com_err/.libs/libcom_err.a"
     LIB_com_err_so="\$(top_builddir)/lib/com_err/.libs/libcom_err.so"
     AC_MSG_NOTICE(Using our own com_err)
+    localcomerr=yes
 fi
+AM_CONDITIONAL(COM_ERR, test "$localcomerr" = yes)dnl
 AC_SUBST(DIR_com_err)
 AC_SUBST(LIB_com_err)
 AC_SUBST(LIB_com_err_a)

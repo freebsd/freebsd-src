@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
  * SUCH DAMAGE. 
  */
-/* $Id: ss.h,v 1.3 2000/05/25 00:15:21 assar Exp $ */
+/* $Id: ss.h 8294 2000-05-25 00:15:21Z assar $ */
 
 /* SS compatibility for SL */
 

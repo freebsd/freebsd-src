@@ -1,4 +1,4 @@
-# $Id: Makefile.am,v 1.5 2000/11/15 22:51:08 assar Exp $
+# $Id: Makefile.am 20466 2007-04-20 08:29:05Z lha $
 
 include $(top_srcdir)/Makefile.am.common
 
@@ -13,6 +13,8 @@ kf_SOURCES = kf.c kf_locl.h
 kfd_SOURCES = kfd.c kf_locl.h
 
 LDADD = $(top_builddir)/lib/krb5/libkrb5.la \
-	$(LIB_des) \
+	$(LIB_hcrypto) \
 	$(top_builddir)/lib/asn1/libasn1.la \
 	$(LIB_roken)
+
+EXTRA_DIST = $(man_MANS)

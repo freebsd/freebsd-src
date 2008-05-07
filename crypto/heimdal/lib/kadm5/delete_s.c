@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001, 2003, 2005 - 2006 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,40 +33,43 @@
 
 #include "kadm5_locl.h"
 
-RCSID("$Id: delete_s.c,v 1.9 2001/01/30 01:24:28 assar Exp $");
+RCSID("$Id: delete_s.c 20612 2007-05-08 07:13:45Z lha $");
 
 kadm5_ret_t
 kadm5_s_delete_principal(void *server_handle, krb5_principal princ)
 {
     kadm5_server_context *context = server_handle;
     kadm5_ret_t ret;
-    hdb_entry ent;
+    hdb_entry_ex ent;
 
-    ent.principal = princ;
-    ret = context->db->open(context->context, context->db, O_RDWR, 0);
+    memset(&ent, 0, sizeof(ent));
+    ret = context->db->hdb_open(context->context, context->db, O_RDWR, 0);
     if(ret) {
 	krb5_warn(context->context, ret, "opening database");
 	return ret;
     }
-    ret = context->db->fetch(context->context, context->db, 
-			     HDB_F_DECRYPT, &ent);
+    ret = context->db->hdb_fetch(context->context, context->db, princ,
+				 HDB_F_DECRYPT|HDB_F_GET_ANY, &ent);
     if(ret == HDB_ERR_NOENTRY)
-	goto out2;
-    if(ent.flags.immutable) {
-	ret = KADM5_PROTECT_PRINCIPAL;
 	goto out;
+    if(ent.entry.flags.immutable) {
+	ret = KADM5_PROTECT_PRINCIPAL;
+	goto out2;
     }
     
-    ret = hdb_seal_keys(context->context, context->db, &ent);
+    ret = hdb_seal_keys(context->context, context->db, &ent.entry);
     if (ret)
-	goto out;
+	goto out2;
+
+    ret = context->db->hdb_remove(context->context, context->db, princ);
+    if (ret)
+	goto out2;
 
     kadm5_log_delete (context, princ);
-    
-    ret = context->db->remove(context->context, context->db, &ent);
-out:
-    hdb_free_entry(context->context, &ent);
+
 out2:
-    context->db->close(context->context, context->db);
+    hdb_free_entry(context->context, &ent);
+out:
+    context->db->hdb_close(context->context, context->db);
     return _kadm5_error_code(ret);
 }

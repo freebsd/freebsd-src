@@ -33,7 +33,7 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: parse_bytes.c,v 1.4 2003/03/07 15:51:53 lha Exp $");
+RCSID("$Id: parse_bytes.c 14773 2005-04-12 11:29:18Z lha $");
 #endif
 
 #include <parse_units.h>
@@ -59,19 +59,19 @@ static struct units bytes_short_units[] = {
     { NULL, 0 }
 };
 
-int
+int ROKEN_LIB_FUNCTION
 parse_bytes (const char *s, const char *def_unit)
 {
     return parse_units (s, bytes_units, def_unit);
 }
 
-int
+int ROKEN_LIB_FUNCTION
 unparse_bytes (int t, char *s, size_t len)
 {
     return unparse_units (t, bytes_units, s, len);
 }
 
-int
+int ROKEN_LIB_FUNCTION
 unparse_bytes_short (int t, char *s, size_t len)
 {
     return unparse_units_approx (t, bytes_short_units, s, len);

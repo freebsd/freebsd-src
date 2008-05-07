@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2002 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2004 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: verify_user.c,v 1.17 2002/08/20 14:48:31 joda Exp $");
+RCSID("$Id: verify_user.c 19078 2006-11-20 18:12:41Z lha $");
 
 static krb5_error_code
 verify_common (krb5_context context,
@@ -78,7 +78,7 @@ verify_common (krb5_context context,
 	if(ccache == NULL)
 	    krb5_cc_close(context, id);
     }
-    krb5_free_creds_contents(context, &cred);
+    krb5_free_cred_contents(context, &cred);
     return ret;
 }
 
@@ -90,7 +90,7 @@ verify_common (krb5_context context,
  * As a side effect, fresh tickets are obtained and stored in `ccache'.
  */
 
-void
+void KRB5_LIB_FUNCTION
 krb5_verify_opt_init(krb5_verify_opt *opt)
 {
     memset(opt, 0, sizeof(*opt));
@@ -98,31 +98,49 @@ krb5_verify_opt_init(krb5_verify_opt *opt)
     opt->service = "host";
 }
 
-void
+int KRB5_LIB_FUNCTION
+krb5_verify_opt_alloc(krb5_context context, krb5_verify_opt **opt)
+{
+    *opt = calloc(1, sizeof(**opt));
+    if ((*opt) == NULL) {
+	krb5_set_error_string(context, "malloc: out of memory");
+	return ENOMEM;
+    }
+    krb5_verify_opt_init(*opt);
+    return 0;
+}
+
+void KRB5_LIB_FUNCTION
+krb5_verify_opt_free(krb5_verify_opt *opt)
+{
+    free(opt);
+}
+
+void KRB5_LIB_FUNCTION
 krb5_verify_opt_set_ccache(krb5_verify_opt *opt, krb5_ccache ccache)
 {
     opt->ccache = ccache;
 }
 
-void
+void KRB5_LIB_FUNCTION
 krb5_verify_opt_set_keytab(krb5_verify_opt *opt, krb5_keytab keytab)
 {
     opt->keytab = keytab;
 }
 
-void
+void KRB5_LIB_FUNCTION
 krb5_verify_opt_set_secure(krb5_verify_opt *opt, krb5_boolean secure)
 {
     opt->secure = secure;
 }
 
-void
+void KRB5_LIB_FUNCTION
 krb5_verify_opt_set_service(krb5_verify_opt *opt, const char *service)
 {
     opt->service = service;
 }
 
-void
+void KRB5_LIB_FUNCTION
 krb5_verify_opt_set_flags(krb5_verify_opt *opt, unsigned int flags)
 {
     opt->flags |= flags;
@@ -136,13 +154,15 @@ verify_user_opt_int(krb5_context context,
 
 {
     krb5_error_code ret;
-    krb5_get_init_creds_opt opt;
+    krb5_get_init_creds_opt *opt;
     krb5_creds cred;
 
-    krb5_get_init_creds_opt_init (&opt);
+    ret = krb5_get_init_creds_opt_alloc (context, &opt);
+    if (ret)
+	return ret;
     krb5_get_init_creds_opt_set_default_flags(context, NULL, 
-					      *krb5_princ_realm(context, principal), 
-					      &opt);
+					      krb5_principal_get_realm(context, principal), 
+					      opt);
     ret = krb5_get_init_creds_password (context,
 					&cred,
 					principal,
@@ -151,7 +171,8 @@ verify_user_opt_int(krb5_context context,
 					NULL,
 					0,
 					NULL,
-					&opt);
+					opt);
+    krb5_get_init_creds_opt_free(context, opt);
     if(ret)
 	return ret;
 #define OPT(V, D) ((vopt && (vopt->V)) ? (vopt->V) : (D))
@@ -161,7 +182,7 @@ verify_user_opt_int(krb5_context context,
 #undef OPT
 }
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_verify_user_opt(krb5_context context,
 		     krb5_principal principal,
 		     const char *password,
@@ -199,7 +220,7 @@ krb5_verify_user_opt(krb5_context context,
 
 /* compat function that calls above */
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_verify_user(krb5_context context, 
 		 krb5_principal principal,
 		 krb5_ccache ccache,
@@ -223,7 +244,7 @@ krb5_verify_user(krb5_context context,
  * ignored and all the local realms are tried.
  */
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_verify_user_lrealm(krb5_context context, 
 			krb5_principal principal,
 			krb5_ccache ccache,

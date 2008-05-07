@@ -33,9 +33,7 @@
 
 #include "der_locl.h"
 
-RCSID("$Id: timegm.c,v 1.7 1999/12/02 17:05:02 joda Exp $");
-
-#ifndef HAVE_TIMEGM
+RCSID("$Id: timegm.c 21366 2007-06-27 10:06:22Z lha $");
 
 static int
 is_leap(unsigned y)
@@ -44,14 +42,33 @@ is_leap(unsigned y)
     return (y % 4) == 0 && ((y % 100) != 0 || (y % 400) == 0);
 }
 
+/* 
+ * This is a simplifed version of timegm(3) that doesn't accept out of
+ * bound values that timegm(3) normally accepts but those are not
+ * valid in asn1 encodings.
+ */
+
 time_t
-timegm (struct tm *tm)
+_der_timegm (struct tm *tm)
 {
   static const unsigned ndays[2][12] ={
     {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31},
     {31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}};
   time_t res = 0;
   unsigned i;
+
+  if (tm->tm_year < 0) 
+      return -1;
+  if (tm->tm_mon < 0 || tm->tm_mon > 11) 
+      return -1;
+  if (tm->tm_mday < 1 || tm->tm_mday > ndays[is_leap(tm->tm_year)][tm->tm_mon])
+      return -1;
+  if (tm->tm_hour < 0 || tm->tm_hour > 23) 
+      return -1;
+  if (tm->tm_min < 0 || tm->tm_min > 59) 
+      return -1;
+  if (tm->tm_sec < 0 || tm->tm_sec > 59) 
+      return -1;
 
   for (i = 70; i < tm->tm_year; ++i)
     res += is_leap(i) ? 366 : 365;
@@ -67,5 +84,3 @@ timegm (struct tm *tm)
   res += tm->tm_sec;
   return res;
 }
-
-#endif /* HAVE_TIMEGM */

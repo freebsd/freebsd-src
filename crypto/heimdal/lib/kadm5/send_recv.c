@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2003 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2003, 2006 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "kadm5_locl.h"
 
-RCSID("$Id: send_recv.c,v 1.10 2003/04/16 17:58:59 lha Exp $");
+RCSID("$Id: send_recv.c 17311 2006-04-27 11:10:07Z lha $");
 
 kadm5_ret_t 
 _kadm5_client_send(kadm5_client_context *context, krb5_storage *sp)
@@ -47,8 +47,10 @@ _kadm5_client_send(kadm5_client_context *context, krb5_storage *sp)
 
     len = krb5_storage_seek(sp, 0, SEEK_CUR);
     ret = krb5_data_alloc(&msg, len);
-    if (ret)
+    if (ret) {
+	krb5_clear_error_string(context->context);
 	return ret;
+    }
     krb5_storage_seek(sp, 0, SEEK_SET);
     krb5_storage_read(sp, msg.data, msg.length);
     
@@ -59,11 +61,14 @@ _kadm5_client_send(kadm5_client_context *context, krb5_storage *sp)
     
     sock = krb5_storage_from_fd(context->sock);
     if(sock == NULL) {
+	krb5_clear_error_string(context->context);
 	krb5_data_free(&out);
 	return ENOMEM;
     }
     
     ret = krb5_store_data(sock, out);
+    if (ret)
+	krb5_clear_error_string(context->context);
     krb5_storage_free(sock);
     krb5_data_free(&out);
     return ret;
@@ -77,10 +82,13 @@ _kadm5_client_recv(kadm5_client_context *context, krb5_data *reply)
     krb5_storage *sock;
 
     sock = krb5_storage_from_fd(context->sock);
-    if(sock == NULL)
+    if(sock == NULL) {
+	krb5_clear_error_string(context->context);
 	return ENOMEM;
+    }
     ret = krb5_ret_data(sock, &data);
     krb5_storage_free(sock);
+    krb5_clear_error_string(context->context);
     if(ret == KRB5_CC_END)
 	return KADM5_RPC_ERROR;
     else if(ret)

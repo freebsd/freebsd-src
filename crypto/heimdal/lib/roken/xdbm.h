@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: xdbm.h,v 1.15 2002/05/17 16:02:22 joda Exp $ */
+/* $Id: xdbm.h 10986 2002-05-17 16:02:22Z joda $ */
 
 /* Generic *dbm include file */
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000 - 2002 Kungliga Tekniska Högskolan
+ * Copyright (c) 2000 - 2002, 2004 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -34,7 +34,7 @@
 #include "krb5_locl.h"
 #include <fnmatch.h>
 
-RCSID("$Id: acl.c,v 1.3 2002/04/18 16:16:24 joda Exp $");
+RCSID("$Id: acl.c 22119 2007-12-03 22:02:48Z lha $");
 
 struct acl_field {
     enum { acl_string, acl_fnmatch, acl_retval } type;
@@ -46,9 +46,24 @@ struct acl_field {
 };
 
 static void
-acl_free_list(struct acl_field *acl)
+free_retv(struct acl_field *acl)
+{
+    while(acl != NULL) {
+	if (acl->type == acl_retval) {
+	    if (*acl->u.retv)
+		free(*acl->u.retv);
+	    *acl->u.retv = NULL;
+	}
+	acl = acl->next;
+    }
+}
+
+static void
+acl_free_list(struct acl_field *acl, int retv)
 {
     struct acl_field *next;
+    if (retv)
+	free_retv(acl);
     while(acl != NULL) {
 	next = acl->next;
 	free(acl);
@@ -69,7 +84,7 @@ acl_parse_format(krb5_context context,
 	tmp = malloc(sizeof(*tmp));
 	if(tmp == NULL) {
 	    krb5_set_error_string(context, "malloc: out of memory");
-	    acl_free_list(acl);
+	    acl_free_list(acl, 0);
 	    return ENOMEM;
 	}
 	if(*p == 's') {
@@ -81,6 +96,13 @@ acl_parse_format(krb5_context context,
 	} else if(*p == 'r') {
 	    tmp->type = acl_retval;
 	    tmp->u.retv = va_arg(ap, char **);
+	    *tmp->u.retv = NULL;
+	} else {
+	    krb5_set_error_string(context, "acl_parse_format: "
+				  "unknown format specifier %c", *p);
+	    acl_free_list(acl, 0);
+	    free(tmp);
+	    return EINVAL;
 	}
 	tmp->next = NULL;
 	if(acl == NULL)
@@ -99,9 +121,9 @@ acl_match_field(krb5_context context,
 		struct acl_field *field)
 {
     if(field->type == acl_string) {
-	return !strcmp(string, field->u.cstr);
+	return !strcmp(field->u.cstr, string);
     } else if(field->type == acl_fnmatch) {
-	return !fnmatch(string, field->u.cstr, 0);
+	return !fnmatch(field->u.cstr, string, 0);
     } else if(field->type == acl_retval) {
 	*field->u.retv = strdup(string);
 	return TRUE;
@@ -115,19 +137,68 @@ acl_match_acl(krb5_context context,
 	      const char *string)
 {
     char buf[256];
-    for(;strsep_copy(&string, " \t", buf, sizeof(buf)) != -1; 
-	acl = acl->next) {
+    while(strsep_copy(&string, " \t", buf, sizeof(buf)) != -1) {
 	if(buf[0] == '\0')
 	    continue; /* skip ws */
+	if (acl == NULL)
+	    return FALSE;
 	if(!acl_match_field(context, buf, acl)) {
 	    return FALSE;
 	}
+	acl = acl->next;
     }
+    if (acl)
+	return FALSE;
     return TRUE;
 }
 
+/**
+ * krb5_acl_match_string matches ACL format against a string.
+ *
+ * The ACL format has three format specifiers: s, f, and r.  Each
+ * specifier will retrieve one argument from the variable arguments
+ * for either matching or storing data.  The input string is split up
+ * using " " (space) and "\t" (tab) as a delimiter; multiple and "\t"
+ * in a row are considered to be the same.
+ *
+ * List of format specifiers:
+ * - s Matches a string using strcmp(3) (case sensitive).
+ * - f Matches the string with fnmatch(3). Theflags
+ *     argument (the last argument) passed to the fnmatch function is 0.
+ * - r Returns a copy of the string in the char ** passed in; the copy
+ *     must be freed with free(3). There is no need to free(3) the
+ *     string on error: the function will clean up and set the pointer
+ *     to NULL.
+ *
+ * @param context Kerberos 5 context
+ * @param string string to match with
+ * @param format format to match
+ * @param ... parameter to format string
+ *
+ * @return Return an error code or 0.
+ *
+ *
+ * @code
+ * char *s;
+ * 
+ * ret = krb5_acl_match_string(context, "foo", "s", "foo");
+ * if (ret)
+ *     krb5_errx(context, 1, "acl didn't match");
+ * ret = krb5_acl_match_string(context, "foo foo baz/kaka",
+ *     "ss", "foo", &s, "foo/\\*");
+ * if (ret) {
+ *     // no need to free(s) on error
+ *     assert(s == NULL);
+ *     krb5_errx(context, 1, "acl didn't match");
+ * }
+ * free(s);
+ * @endcode
+ *
+ * @sa krb5_acl_match_file
+ * @ingroup krb5_support
+ */
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_acl_match_string(krb5_context context,
 		      const char *string,
 		      const char *format,
@@ -145,7 +216,7 @@ krb5_acl_match_string(krb5_context context,
 	return ret;
 
     found = acl_match_acl(context, acl, string);
-    acl_free_list(acl);
+    acl_free_list(acl, !found);
     if (found) {
 	return 0;
     } else {
@@ -154,7 +225,23 @@ krb5_acl_match_string(krb5_context context,
     }
 }
 	       
-krb5_error_code
+/**
+ * krb5_acl_match_file matches ACL format against each line in a file
+ * using krb5_acl_match_string(). Lines starting with # are treated
+ * like comments and ignored.
+ *
+ * @param context Kerberos 5 context.
+ * @param file file with acl listed in the file.
+ * @param format format to match.
+ * @param ... parameter to format string.
+ *
+ * @return Return an error code or 0.
+ *
+ * @sa krb5_acl_match_string
+ * @ingroup krb5_support
+ */
+
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_acl_match_file(krb5_context context,
 		    const char *file,
 		    const char *format,
@@ -192,10 +279,11 @@ krb5_acl_match_file(krb5_context context,
 	    found = TRUE;
 	    break;
 	}
+	free_retv(acl);
     }
 
     fclose(f);
-    acl_free_list(acl);
+    acl_free_list(acl, !found);
     if (found) {
 	return 0;
     } else {

@@ -1,4 +1,4 @@
-@c $Id: intro.texi,v 1.13 2003/03/15 13:42:16 lha Exp $
+@c $Id: intro.texi 22509 2008-01-23 18:28:01Z lha $
 
 @node Introduction, What is Kerberos?, Top, Top
 @c @node Introduction, What is Kerberos?, Top, Top
@@ -14,7 +14,8 @@ Heimdal is a free implementation of Kerberos 5. The goals are to:
 have an implementation that can be freely used by anyone
 @item
 be protocol compatible with existing implementations and, if not in
-conflict, with RFC 1510 (and any future updated RFC)
+conflict, with RFC 4120 (and any future updated RFC). RFC 4120
+replaced RFC 1510.
 @item
 be reasonably compatible with the M.I.T Kerberos V5 API
 @item
@@ -39,10 +40,7 @@ stuff
 a @code{libkrb5} library that should be possible to get to work with
 simple applications
 @item
-a GSS-API library that should have all the important functions for
-building applications
-@item
-Eric Young's @file{libdes}
+a GSS-API library
 @item
 @file{kinit}, @file{klist}, @file{kdestroy}
 @item
@@ -78,7 +76,7 @@ Kerberos V4 support in many of the applications.
 If you find bugs in this software, make sure it is a genuine bug and not
 just a part of the code that isn't implemented.
 
-Bug reports should be sent to @email{heimdal-bugs@@pdc.kth.se}. Please
+Bug reports should be sent to @email{heimdal-bugs@@h5l.org}. Please
 include information on what machine and operating system (including
 version) you are running, what you are trying to do, what happens, what
 you think should have happened, an example for us to repeat, the output

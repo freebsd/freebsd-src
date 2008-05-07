@@ -1,10 +1,10 @@
-dnl $Id: broken-getaddrinfo.m4,v 1.3.6.1 2004/04/01 07:27:32 joda Exp $
+dnl $Id: broken-getaddrinfo.m4 15401 2005-06-16 16:10:50Z lha $
 dnl
 dnl test if getaddrinfo can handle numeric services
 
 AC_DEFUN([rk_BROKEN_GETADDRINFO],[
 AC_CACHE_CHECK([if getaddrinfo handles numeric services], ac_cv_func_getaddrinfo_numserv,
-AC_TRY_RUN([[#include <stdio.h>
+AC_RUN_IFELSE([AC_LANG_SOURCE([[#include <stdio.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
@@ -19,6 +19,8 @@ main(int argc, char **argv)
 	hints.ai_family = PF_UNSPEC;
 	if(getaddrinfo(NULL, "17", &hints, &ai) != 0)
 		return 1;
+	if(getaddrinfo(NULL, "0", &hints, &ai) != 0)
+		return 1;
 	return 0;
 }
-]], ac_cv_func_getaddrinfo_numserv=yes, ac_cv_func_getaddrinfo_numserv=no))])
+]])],[ac_cv_func_getaddrinfo_numserv=yes],[ac_cv_func_getaddrinfo_numserv=no]))])

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2002 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2005 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -31,7 +31,7 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: login_locl.h,v 1.24 2002/08/12 15:09:15 joda Exp $ */
+/* $Id: login_locl.h 17302 2006-04-27 09:17:01Z lha $ */
 
 #ifndef __LOGIN_LOCL_H__
 #define __LOGIN_LOCL_H__
@@ -111,9 +111,6 @@
 #ifndef _PATH_DEV
 #define _PATH_DEV "/dev/"
 #endif
-#ifndef _PATH_NOLOGIN
-#define _PATH_NOLOGIN "/etc/nologin"
-#endif
 #ifndef _PATH_WTMP
 #ifdef WTMP_FILE
 #define _PATH_WTMP WTMP_FILE
@@ -137,13 +134,11 @@
 #define _PATH_LOGIN_CONF SYSCONFDIR "/login.conf"
 #endif /* _PATH_LOGIN_CONF */
 
-#ifndef _PATH_ETC_ENVIRONMENT
-#define _PATH_ETC_ENVIRONMENT SYSCONFDIR "/environment"
-#endif
-
 #ifndef _PATH_DEFPATH
 #define _PATH_DEFPATH "/usr/bin:/bin"
 #endif
+
+#include "loginpaths.h"
 
 struct spwd;
 

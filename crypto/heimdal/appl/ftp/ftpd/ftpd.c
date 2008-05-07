@@ -38,7 +38,7 @@
 #endif
 #include "getarg.h"
 
-RCSID("$Id: ftpd.c,v 1.166.2.3 2004/08/20 15:16:37 lha Exp $");
+RCSID("$Id: ftpd.c 21222 2007-06-20 10:11:14Z lha $");
 
 static char version[] = "Version 6.00";
 
@@ -138,9 +138,9 @@ static int	 handleoobcmd(void);
 static int	 checkuser (char *, char *);
 static int	 checkaccess (char *);
 static FILE	*dataconn (const char *, off_t, const char *);
-static void	 dolog (struct sockaddr *sa, int len);
+static void	 dolog (struct sockaddr *, int);
 static void	 end_login (void);
-static FILE	*getdatasock (const char *);
+static FILE	*getdatasock (const char *, int);
 static char	*gunique (char *);
 static RETSIGTYPE	 lostconn (int);
 static int	 receive_data (FILE *, FILE *);
@@ -280,10 +280,6 @@ main(int argc, char **argv)
 	krb_set_tkt_string(tkfile);
 #endif
     }
-#if defined(KRB4) || defined(KRB5)
-    if(k_hasafs())
-	k_setpag();
-#endif
 
     if(getarg(args, num_args, argc, argv, &optind))
 	usage(1);
@@ -595,14 +591,15 @@ user(char *name)
 	if (logging)
 	    strlcpy(curname, name, sizeof(curname));
 	if(sec_complete) {
-	    if(sec_userok(name) == 0)
+	    if(sec_userok(name) == 0) {
 		do_login(232, name);
-	    else
+		sec_session(name);
+	    } else
 		reply(530, "User %s access denied.", name);
 	} else {
+#ifdef OTP
 		char ss[256];
 
-#ifdef OTP
 		if (otp_challenge(&otp_ctx, name, ss, sizeof(ss)) == 0) {
 			reply(331, "Password %s for %s required.",
 			      ss, name);
@@ -613,9 +610,9 @@ user(char *name)
 		    reply(331, "Password required for %s.", name);
 		    askpasswd = 1;
 		} else {
-		    char *s;
-		    
 #ifdef OTP
+		    char *s;
+
 		    if ((s = otp_error (&otp_ctx)) != NULL)
 			lreply(530, "OTP: %s", s);
 #endif
@@ -727,6 +724,10 @@ int do_login(int code, char *passwd)
 	return -1;
     }
     initgroups(pw->pw_name, pw->pw_gid);
+#if defined(KRB4) || defined(KRB5)
+    if(k_hasafs())
+	k_setpag();
+#endif
 
     /* open wtmp before chroot */
     ftpd_logwtmp(ttyline, pw->pw_name, remotehost);
@@ -835,7 +836,8 @@ static void
 end_login(void)
 {
 
-	seteuid((uid_t)0);
+	if (seteuid((uid_t)0) < 0)
+		fatal("Failed to seteuid");
 	if (logged_in)
 		ftpd_logwtmp(ttyline, "", "");
 	pw = NULL;
@@ -933,9 +935,8 @@ pass(char *passwd)
 		    if (rval)
 			rval = unix_verify_user(pw->pw_name, passwd);
 		} else {
-		    char *s;
-		    
 #ifdef OTP
+		    char *s;
 		    if ((s = otp_error(&otp_ctx)) != NULL)
 			lreply(530, "OTP: %s", s);
 #endif
@@ -1023,9 +1024,10 @@ retrieve(const char *cmd, char *name)
 			*tail = c;
 			if (p->rev_cmd != NULL) {
 			    char *ext;
+			    int ret;
 
-			    asprintf(&ext, "%s%s", name, p->ext);
-			    if (ext != NULL) { 
+			    ret = asprintf(&ext, "%s%s", name, p->ext);
+			    if (ret != -1) {
   			        if (access(ext, R_OK) == 0) {
 				    snprintf (line, sizeof(line),
 					      p->rev_cmd, ext);
@@ -1107,17 +1109,17 @@ done:
 int 
 filename_check(char *filename)
 {
-    unsigned char *p;
+    char *p;
 
-    p = (unsigned char *)strrchr(filename, '/');
+    p = strrchr(filename, '/');
     if(p)
 	filename = p + 1;
 
     p = filename;
 
-    if(isalnum(*p)){
+    if(isalnum((unsigned char)*p)){
 	p++;
-	while(*p && (isalnum(*p) || strchr(good_chars, *p)))
+	while(*p && (isalnum((unsigned char)*p) || strchr(good_chars, (unsigned char)*p)))
 	    p++;
 	if(*p == '\0')
 	    return 0;
@@ -1208,14 +1210,15 @@ done:
 }
 
 static FILE *
-getdatasock(const char *mode)
+getdatasock(const char *mode, int domain)
 {
 	int s, t, tries;
 
 	if (data >= 0)
 		return (fdopen(data, mode));
-	seteuid(0);
-	s = socket(ctrl_addr->sa_family, SOCK_STREAM, 0);
+	if (seteuid(0) < 0)
+		fatal("Failed to seteuid");
+	s = socket(domain, SOCK_STREAM, 0);
 	if (s < 0)
 		goto bad;
 	socket_set_reuseaddr (s, 1);
@@ -1232,7 +1235,8 @@ getdatasock(const char *mode)
 			goto bad;
 		sleep(tries);
 	}
-	seteuid(pw->pw_uid);
+	if (seteuid(pw->pw_uid) < 0)
+		fatal("Failed to seteuid");
 #ifdef IPTOS_THROUGHPUT
 	socket_set_tos (s, IPTOS_THROUGHPUT);
 #endif
@@ -1240,7 +1244,8 @@ getdatasock(const char *mode)
 bad:
 	/* Return the real value of errno (close may change it) */
 	t = errno;
-	seteuid((uid_t)pw->pw_uid);
+	if (seteuid((uid_t)pw->pw_uid) < 0)
+		fatal("Failed to seteuid");
 	close(s);
 	errno = t;
 	return (NULL);
@@ -1271,7 +1276,7 @@ dataconn(const char *name, off_t size, const char *mode)
 {
 	char sizebuf[32];
 	FILE *file;
-	int retry = 0;
+	int domain, retry = 0;
 
 	file_size = size;
 	byte_count = 0;
@@ -1318,7 +1323,15 @@ dataconn(const char *name, off_t size, const char *mode)
 	if (usedefault)
 		data_dest = his_addr;
 	usedefault = 1;
-	file = getdatasock(mode);
+	/* 
+	 * Default to using the same socket type as the ctrl address,
+	 * unless we know the type of the data address.
+	 */
+	domain = data_dest->sa_family;
+	if (domain == PF_UNSPEC)
+	    domain = ctrl_addr->sa_family;
+
+	file = getdatasock(mode, domain);
 	if (file == NULL) {
 		char data_addr[256];
 
@@ -1625,7 +1638,7 @@ statcmd(void)
 	lreply(211, "%s FTP server (%s) status:", hostname, version);
 	printf("     %s\r\n", version);
 	printf("     Connected to %s", remotehost);
-	if (!isdigit(remotehost[0]))
+	if (!isdigit((unsigned char)remotehost[0]))
 		printf(" (%s)", inet_ntoa(his_addr.sin_addr));
 	printf("\r\n");
 	if (logged_in) {
@@ -1889,11 +1902,11 @@ dologout(int status)
     transflag = 0;
     urgflag = 0;
     if (logged_in) {
-	seteuid((uid_t)0);
-	ftpd_logwtmp(ttyline, "", "");
-#ifdef KRB4
+#if KRB4 || KRB5
 	cond_kdestroy();
 #endif
+	seteuid((uid_t)0); /* No need to check, we call exit() below */
+	ftpd_logwtmp(ttyline, "", "");
     }
     /* beware of flushing buffers after a SIGPIPE */
 #ifdef XXX
@@ -2006,12 +2019,15 @@ pasv(void)
 				     0);
 	socket_set_portrange(pdata, restricted_data_ports, 
 	    pasv_addr->sa_family); 
-	seteuid(0);
+	if (seteuid(0) < 0)
+		fatal("Failed to seteuid");
 	if (bind(pdata, pasv_addr, socket_sockaddr_size (pasv_addr)) < 0) {
-		seteuid(pw->pw_uid);
+		if (seteuid(pw->pw_uid) < 0)
+			fatal("Failed to seteuid");
 		goto pasv_error;
 	}
-	seteuid(pw->pw_uid);
+	if (seteuid(pw->pw_uid) < 0)
+		fatal("Failed to seteuid");
 	len = sizeof(pasv_addr_ss);
 	if (getsockname(pdata, pasv_addr, &len) < 0)
 		goto pasv_error;
@@ -2050,12 +2066,15 @@ epsv(char *proto)
 				     0);
 	socket_set_portrange(pdata, restricted_data_ports, 
 	    pasv_addr->sa_family); 
-	seteuid(0);
+	if (seteuid(0) < 0)
+		fatal("Failed to seteuid");
 	if (bind(pdata, pasv_addr, socket_sockaddr_size (pasv_addr)) < 0) {
-		seteuid(pw->pw_uid);
+		if (seteuid(pw->pw_uid))
+			fatal("Failed to seteuid");
 		goto pasv_error;
 	}
-	seteuid(pw->pw_uid);
+	if (seteuid(pw->pw_uid) < 0)
+		fatal("Failed to seteuid");
 	len = sizeof(pasv_addr_ss);
 	if (getsockname(pdata, pasv_addr, &len) < 0)
 		goto pasv_error;

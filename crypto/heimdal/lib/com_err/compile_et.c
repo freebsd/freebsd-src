@@ -35,7 +35,7 @@
 #include "compile_et.h"
 #include <getarg.h>
 
-RCSID("$Id: compile_et.c,v 1.16 2002/08/20 12:44:51 joda Exp $");
+RCSID("$Id: compile_et.c 15426 2005-06-16 19:21:42Z lha $");
 
 #include <roken.h>
 #include <err.h>
@@ -46,7 +46,7 @@ extern FILE *yyin;
 
 extern void yyparse(void);
 
-long base;
+long base_id;
 int number;
 char *prefix;
 char *id_str;
@@ -156,13 +156,13 @@ generate_h(void)
     fprintf(h_file, "typedef enum %s_error_number{\n", name);
 
     for(ec = codes; ec; ec = ec->next) {
-	fprintf(h_file, "\t%s = %ld%s\n", ec->name, base + ec->number, 
+	fprintf(h_file, "\t%s = %ld%s\n", ec->name, base_id + ec->number, 
 		(ec->next != NULL) ? "," : "");
     }
 
     fprintf(h_file, "} %s_error_number;\n", name);
     fprintf(h_file, "\n");
-    fprintf(h_file, "#define ERROR_TABLE_BASE_%s %ld\n", name, base);
+    fprintf(h_file, "#define ERROR_TABLE_BASE_%s %ld\n", name, base_id);
     fprintf(h_file, "\n");
     fprintf(h_file, "#endif /* %s */\n", fn);
 
@@ -196,10 +196,10 @@ int
 main(int argc, char **argv)
 {
     char *p;
-    int optind = 0;
+    int optidx = 0;
 
     setprogname(argv[0]);
-    if(getarg(args, num_args, argc, argv, &optind))
+    if(getarg(args, num_args, argc, argv, &optidx))
 	usage(1);
     if(help_flag)
 	usage(0);
@@ -208,9 +208,9 @@ main(int argc, char **argv)
 	exit(0);
     }
 
-    if(optind == argc) 
+    if(optidx == argc) 
 	usage(1);
-    filename = argv[optind];
+    filename = argv[optidx];
     yyin = fopen(filename, "r");
     if(yyin == NULL)
 	err(1, "%s", filename);
@@ -221,8 +221,7 @@ main(int argc, char **argv)
 	p++;
     else
 	p = filename;
-    strncpy(Basename, p, sizeof(Basename));
-    Basename[sizeof(Basename) - 1] = '\0';
+    strlcpy(Basename, p, sizeof(Basename));
     
     Basename[strcspn(Basename, ".")] = '\0';
     

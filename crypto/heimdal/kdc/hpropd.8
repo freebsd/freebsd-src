@@ -29,7 +29,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
 .\" SUCH DAMAGE. 
 .\" 
-.\" $Id: hpropd.8,v 1.11 2003/02/16 21:10:20 lha Exp $
+.\" $Id: hpropd.8 14381 2004-12-10 09:44:05Z lha $
 .\"
 .Dd August 27, 1997
 .Dt HPROPD 8
@@ -39,6 +39,7 @@
 .Nd receive a propagated database
 .Sh SYNOPSIS
 .Nm
+.Bk -words
 .Oo Fl d Ar file \*(Ba Xo
 .Fl -database= Ns Ar file
 .Xc
@@ -51,6 +52,7 @@
 .Xc
 .Oc
 .Op Fl 4 | Fl -v4dump
+.Ek
 .Sh DESCRIPTION
 .Nm
 receives a database sent by
@@ -65,7 +67,7 @@ if stdin is a socket and expects to receive the dumped database over
 stdin otherwise.
 If the database is sent over the network, it is authenticated and
 encrypted.
-Only connections from
+Only connections authenticated with the principal
 .Nm kadmin Ns / Ns Nm hprop
 are accepted.
 .Pp

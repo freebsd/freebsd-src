@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: telnet_locl.h,v 1.21 2001/12/20 20:39:52 joda Exp $ */
+/* $Id: telnet_locl.h 18776 2006-10-21 19:14:13Z lha $ */
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
@@ -59,21 +59,25 @@
 #include <unistd.h>
 #endif
 
-/* termios.h *must* be included before curses.h */
-#ifdef HAVE_TERMIOS_H
+/* termios.h *must* be included before curses.h, but not on Solaris 9,
+   at least, where we end up with
+   "/usr/include/term.h", line 1060: incomplete struct/union/enum termio: Ottyb
+*/
+#if defined HAVE_TERMIOS_H && !defined __sun
 #include <termios.h>
 #endif
 
-#if defined(SOCKS) && defined(HAVE_CURSES_H)
+#if defined(HAVE_CURSES_H)
 #include <curses.h>
+#ifdef HAVE_TERM_H
+#include <term.h>
+#endif
+#elif defined(HAVE_TERMCAP_H)
+#include <termcap.h>
 #endif
 
 #if defined(HAVE_SYS_TERMIO_H) && !defined(HAVE_TERMIOS_H)
 #include <sys/termio.h>
-#endif
-
-#if defined(HAVE_TERMCAP_H)
-#include <termcap.h>
 #endif
 
 #ifdef HAVE_FCNTL_H
@@ -153,10 +157,6 @@ struct ether_addr;
 #include <socks.h>
 #endif
 
-#include <err.h>
-#include <roken.h>
-/* krb.h? */
-
 #if	defined(AUTHENTICATION) || defined(ENCRYPTION)
 #include <libtelnet/auth.h>
 #include <libtelnet/encrypt.h>
@@ -168,6 +168,9 @@ struct ether_addr;
 #ifndef KLUDGELINEMODE
 #define KLUDGELINEMODE
 #endif
+
+#include <err.h>
+#include <roken.h>
 
 #include "ring.h"
 #include "externs.h"

@@ -1,17 +1,17 @@
-dnl $Id: broken-snprintf.m4,v 1.4.10.1 2004/04/01 07:27:32 joda Exp $
+dnl $Id: broken-snprintf.m4 15455 2005-06-16 21:03:43Z lha $
 dnl
 AC_DEFUN([AC_BROKEN_SNPRINTF], [
 AC_CACHE_CHECK(for working snprintf,ac_cv_func_snprintf_working,
 ac_cv_func_snprintf_working=yes
-AC_TRY_RUN([
+AC_RUN_IFELSE([AC_LANG_SOURCE([[
 #include <stdio.h>
 #include <string.h>
-int main()
+int main(int argc, char **argv)
 {
 	char foo[[3]];
 	snprintf(foo, 2, "12");
-	return strcmp(foo, "1");
-}],:,ac_cv_func_snprintf_working=no,:))
+	return strcmp(foo, "1") || snprintf(NULL, 0, "%d", 12) != 2;
+}]])],[:],[ac_cv_func_snprintf_working=no],[:]))
 
 if test "$ac_cv_func_snprintf_working" = yes; then
 	AC_DEFINE_UNQUOTED(HAVE_SNPRINTF, 1, [define if you have a working snprintf])
@@ -24,7 +24,7 @@ fi
 AC_DEFUN([AC_BROKEN_VSNPRINTF],[
 AC_CACHE_CHECK(for working vsnprintf,ac_cv_func_vsnprintf_working,
 ac_cv_func_vsnprintf_working=yes
-AC_TRY_RUN([
+AC_RUN_IFELSE([AC_LANG_SOURCE([[
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
@@ -39,11 +39,20 @@ int foo(int num, ...)
 	return strcmp(bar, "1");
 }
 
-
-int main()
+int bar(int num, int len, ...)
 {
-	return foo(0, "12");
-}],:,ac_cv_func_vsnprintf_working=no,:))
+	int r;
+	va_list arg;
+	va_start(arg, len);
+	r = vsnprintf(NULL, 0, "%s", arg);
+	va_end(arg);
+	return r != len;
+}
+
+int main(int argc, char **argv)
+{
+	return foo(0, "12") || bar(0, 2, "12");
+}]])],[:],[ac_cv_func_vsnprintf_working=no],[:]))
 
 if test "$ac_cv_func_vsnprintf_working" = yes; then
 	AC_DEFINE_UNQUOTED(HAVE_VSNPRINTF, 1, [define if you have a working vsnprintf])

@@ -1,4 +1,4 @@
-dnl $Id: mips-abi.m4,v 1.6.8.1 2004/04/01 07:27:34 joda Exp $
+dnl $Id: mips-abi.m4 14166 2004-08-26 12:35:42Z joda $
 dnl
 dnl
 dnl Check for MIPS/IRIX ABI flags. Sets $abi and $abilibdirext to some
@@ -6,7 +6,7 @@ dnl value.
 
 AC_DEFUN([AC_MIPS_ABI], [
 AC_ARG_WITH(mips_abi,
-	AC_HELP_STRING([--with-mips-abi=abi],[ABI to use for IRIX (32, n32, or 64)]))
+	AS_HELP_STRING([--with-mips-abi=abi],[ABI to use for IRIX (32, n32, or 64)]))
 
 case "$host_os" in
 irix*)
@@ -39,7 +39,7 @@ AC_MSG_CHECKING([if $CC supports the $abi option])
 AC_CACHE_VAL($ac_foo, [
 save_CFLAGS="$CFLAGS"
 CFLAGS="$CFLAGS $abi"
-AC_TRY_COMPILE(,int x;, eval $ac_foo=yes, eval $ac_foo=no)
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[]],[[int x;]])],[eval $ac_foo=yes], [eval $ac_foo=no])dnl
 CFLAGS="$save_CFLAGS"
 ])
 ac_res=`eval echo \\\$$ac_foo`
@@ -50,7 +50,7 @@ case $abi in
 	-mabi=32) 
 	save_CFLAGS="$CFLAGS"
 	CFLAGS="$CFLAGS -mabi=n32"
-	AC_TRY_COMPILE(,int x;, ac_res=yes, ac_res=no)
+	AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[]],[[int x;]])],[ac_res=yes],[ac_res=no])dnl
 	CLAGS="$save_CFLAGS"
 	if test $ac_res = yes; then
 		# New GCC

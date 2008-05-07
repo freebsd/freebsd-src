@@ -33,7 +33,7 @@
 
 #include "telnetd.h"
 
-RCSID("$Id: telnetd.c,v 1.69.6.1 2004/03/22 18:17:25 lha Exp $");
+RCSID("$Id: telnetd.c 21748 2007-07-31 18:57:20Z lha $");
 
 #ifdef _SC_CRAY_SECURE_SYS
 #include <sys/sysv.h>
@@ -51,20 +51,19 @@ struct	socksec ss;
 int	auth_level = 0;
 #endif
 
+#ifdef KRB5
+#define Authenticator k5_Authenticator
+#include <krb5.h>
+#undef Authenticator
+#endif
+
 extern	int utmp_len;
 int	registerd_host_only = 0;
-
-#undef NOERROR
-
-#ifdef	STREAMSPTY
-# include <stropts.h>
-# include <termios.h>
-#ifdef HAVE_SYS_UIO_H
-#include <sys/uio.h>
-#endif /* HAVE_SYS_UIO_H */
-#ifdef HAVE_SYS_STREAM_H
-#include <sys/stream.h>
+#ifdef ENCRYPTION
+int	require_encryption = 0;
 #endif
+
+#ifdef STREAMSPTY
 
 #ifdef _AIX
 #include <sys/termio.h>
@@ -120,7 +119,7 @@ int debug = 0;
 int keepalive = 1;
 char *progname;
 
-static void usage (void);
+static void usage (int error_code);
 
 /*
  * The string to pass to getopt().  We do it this way so
@@ -130,6 +129,9 @@ static void usage (void);
 char valid_opts[] = "Bd:hklnS:u:UL:y"
 #ifdef AUTHENTICATION
 		    "a:X:z"
+#endif
+#ifdef ENCRYPTION
+                     "e"
 #endif
 #ifdef DIAGNOSTICS
 		    "D:"
@@ -141,10 +143,6 @@ char valid_opts[] = "Bd:hklnS:u:UL:y"
 
 static void doit(struct sockaddr*, int);
 
-#ifdef ENCRYPTION
-extern int des_check_key;
-#endif
-
 int
 main(int argc, char **argv)
 {
@@ -155,9 +153,6 @@ main(int argc, char **argv)
     int ch;
 #if	defined(IPPROTO_IP) && defined(IP_TOS)
     int tos = -1;
-#endif
-#ifdef ENCRYPTION
-    des_check_key = 1;	/* Kludge for Mac NCSA telnet 2.6 /bg */
 #endif
     pfrontp = pbackp = ptyobuf;
     netip = netibuf;
@@ -182,6 +177,8 @@ main(int argc, char **argv)
 	print_version(NULL);
 	exit(0);
     }
+    if (argc == 2 && strcmp(argv[1], "--help") == 0)
+	usage(0);
 
     while ((ch = getopt(argc, argv, valid_opts)) != -1) {
 	switch(ch) {
@@ -223,7 +220,7 @@ main(int argc, char **argv)
 		debug++;
 		break;
 	    }
-	    usage();
+	    usage(1);
 	    /* NOTREACHED */
 	    break;
 
@@ -243,12 +240,17 @@ main(int argc, char **argv)
 	    } else if (!strcmp(optarg, "options")) {
 		diagnostic |= TD_OPTIONS;
 	    } else {
-		usage();
+		usage(1);
 		/* NOT REACHED */
 	    }
 	    break;
 #endif /* DIAGNOSTICS */
 
+#ifdef ENCRYPTION
+	case 'e':
+	    require_encryption = 1;
+	    break;
+#endif
 
 	case 'h':
 	    hostinfo = 0;
@@ -283,7 +285,7 @@ main(int argc, char **argv)
 		    lowpty = atoi(optarg);
 		if ((lowpty > highpty) || (lowpty < 0) ||
 		    (highpty > 32767)) {
-		    usage();
+		    usage(1);
 		    /* NOT REACHED */
 		}
 		break;
@@ -341,7 +343,7 @@ main(int argc, char **argv)
 	    fprintf(stderr, "telnetd: %c: unknown option\n", ch);
 	    /* FALLTHROUGH */
 	case '?':
-	    usage();
+	    usage(0);
 	    /* NOTREACHED */
 	}
     }
@@ -354,7 +356,7 @@ main(int argc, char **argv)
 	struct servent *sp;
 
 	if (argc > 1) {
-	    usage ();
+	    usage (1);
 	} else if (argc == 1) {
 	    sp = roken_getservbyname (*argv, "tcp");
 	    if (sp)
@@ -370,7 +372,7 @@ main(int argc, char **argv)
 	}
 	mini_inetd (port);
     } else if (argc > 0) {
-	usage();
+	usage(1);
 	/* NOT REACHED */
     }
 
@@ -463,9 +465,11 @@ main(int argc, char **argv)
 }  /* end of main */
 
 static void
-usage(void)
+usage(int exit_code)
 {
     fprintf(stderr, "Usage: telnetd");
+    fprintf(stderr, " [--help]");
+    fprintf(stderr, " [--version]");
 #ifdef	AUTHENTICATION
     fprintf(stderr, " [-a (debug|other|otp|user|valid|off|none)]\n\t");
 #endif
@@ -491,7 +495,7 @@ usage(void)
 #endif
     fprintf(stderr, " [-u utmp_hostname_length] [-U]");
     fprintf(stderr, " [port]\n");
-    exit(1);
+    exit(exit_code);
 }
 
 /*
@@ -549,6 +553,15 @@ getterminaltype(char *name, size_t name_sz)
      */
     if (his_state_is_will(TELOPT_ENCRYPT)) {
 	encrypt_wait();
+    }
+    if (require_encryption) {
+
+	while (encrypt_delay())
+	    if (telnet_spin())
+		fatal(net, "Failed while waiting for encryption");
+
+	if (!encrypt_is_encrypting())
+	    fatal(net, "Encryption required but not turned on by client");
     }
 #endif
     if (his_state_is_will(TELOPT_TSPEED)) {
@@ -636,7 +649,7 @@ getterminaltype(char *name, size_t name_sz)
 		     */
 		    _gettermname();
 		    if (strncmp(first, terminaltype, sizeof(first)) != 0)
-			strcpy(terminaltype, first);
+			strlcpy(terminaltype, first, sizeof(terminaltype));
 		    break;
 		}
 	    }
@@ -747,12 +760,21 @@ Please contact your net administrator");
 #endif
 
     init_env();
+
+    /* begin server processing */
+
+    /*
+     * Initialize the slc mapping table.
+     */
+
+    get_slc_defaults();
+
     /*
      * get terminal type.
      */
     *user_name = 0;
     level = getterminaltype(user_name, sizeof(user_name));
-    esetenv("TERM", terminaltype ? terminaltype : "network", 1);
+    esetenv("TERM", terminaltype[0] ? terminaltype : "network", 1);
 
 #ifdef _SC_CRAY_SECURE_SYS
     if (secflag) {
@@ -763,7 +785,6 @@ Please contact your net administrator");
     }
 #endif	/* _SC_CRAY_SECURE_SYS */
 
-    /* begin server processing */
     my_telnet(net, ourpty, remote_host_name, remote_utmp_name,
 	      level, user_name);
     /*NOTREACHED*/
@@ -779,9 +800,17 @@ show_issue(void)
     if(f == NULL)
 	f = fopen(SYSCONFDIR "/issue", "r");
     if(f){
-	while(fgets(buf, sizeof(buf)-2, f)){
-	    strcpy(buf + strcspn(buf, "\r\n"), "\r\n");
-	    writenet((unsigned char*)buf, strlen(buf));
+	while(fgets(buf, sizeof(buf), f) != NULL) {
+	    size_t len = strcspn(buf, "\r\n");
+	    if(len == strlen(buf)) {
+		/* there's no newline */
+		writenet(buf, len);
+	    } else {
+		/* replace newline with \r\n */
+		buf[len] = '\0';
+		writenet(buf, len);
+		writenet("\r\n", 2);
+	    }
 	}
 	fclose(f);
     }
@@ -801,11 +830,6 @@ my_telnet(int f, int p, const char *host, const char *utmp_host,
     int nfd;
     int startslave_called = 0;
     time_t timeout;
-
-    /*
-     * Initialize the slc mapping table.
-     */
-    get_slc_defaults();
 
     /*
      * Do some tests where it is desireable to wait for a response.

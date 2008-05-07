@@ -33,13 +33,13 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: vwarnx.c,v 1.10 2001/01/25 12:41:39 assar Exp $");
+RCSID("$Id: vwarnx.c 14773 2005-04-12 11:29:18Z lha $");
 #endif
 
 #include "roken.h"
 #include <err.h>
 
-void
+void ROKEN_LIB_FUNCTION
 vwarnx(const char *fmt, va_list ap)
 {
     warnerr(0, fmt, ap);

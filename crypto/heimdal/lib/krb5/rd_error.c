@@ -33,11 +33,11 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: rd_error.c,v 1.6 2001/05/15 06:35:10 assar Exp $");
+RCSID("$Id: rd_error.c 21057 2007-06-12 17:22:31Z lha $");
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_rd_error(krb5_context context,
-	      krb5_data *msg,
+	      const krb5_data *msg,
 	      KRB_ERROR *result)
 {
     
@@ -45,20 +45,23 @@ krb5_rd_error(krb5_context context,
     krb5_error_code ret;
 
     ret = decode_KRB_ERROR(msg->data, msg->length, result, &len);
-    if(ret)
+    if(ret) {
+	krb5_clear_error_string(context);
 	return ret;
+    }
     result->error_code += KRB5KDC_ERR_NONE;
     return 0;
 }
 
-void
+void KRB5_LIB_FUNCTION
 krb5_free_error_contents (krb5_context context,
 			  krb5_error *error)
 {
     free_KRB_ERROR(error);
+    memset(error, 0, sizeof(*error));
 }
 
-void
+void KRB5_LIB_FUNCTION
 krb5_free_error (krb5_context context,
 		 krb5_error *error)
 {
@@ -66,7 +69,7 @@ krb5_free_error (krb5_context context,
     free (error);
 }
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_error_from_rd_error(krb5_context context,
 			 const krb5_error *error,
 			 const krb5_creds *creds)

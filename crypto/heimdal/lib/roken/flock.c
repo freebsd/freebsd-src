@@ -36,14 +36,14 @@
 #endif
 
 #ifndef HAVE_FLOCK
-RCSID("$Id: flock.c,v 1.4 1999/12/02 16:58:46 joda Exp $");
+RCSID("$Id: flock.c 14773 2005-04-12 11:29:18Z lha $");
 
 #include "roken.h"
 
 
 #define OP_MASK (LOCK_SH | LOCK_EX | LOCK_UN)
 
-int
+int ROKEN_LIB_FUNCTION
 flock(int fd, int operation)
 {
 #if defined(HAVE_FCNTL) && defined(F_SETLK)

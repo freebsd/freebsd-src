@@ -38,9 +38,9 @@
 
 #ifndef HAVE_SWAB
 
-RCSID("$Id: swab.c,v 1.7 1999/12/02 16:58:53 joda Exp $");
+RCSID("$Id: swab.c 14773 2005-04-12 11:29:18Z lha $");
 
-void
+void ROKEN_LIB_FUNCTION
 swab (char *from, char *to, int nbytes)
 {
      while(nbytes >= 2) {

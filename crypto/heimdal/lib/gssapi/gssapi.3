@@ -1,4 +1,4 @@
-.\" Copyright (c) 2003 Kungliga Tekniska Högskolan
+.\" Copyright (c) 2003 - 2005 Kungliga Tekniska Högskolan
 .\" (Royal Institute of Technology, Stockholm, Sweden). 
 .\" All rights reserved. 
 .\"
@@ -29,9 +29,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
 .\" SUCH DAMAGE. 
 .\" 
-.\" $Id: gssapi.3,v 1.5.2.2 2003/04/30 09:56:26 lha Exp $
+.\" $Id: gssapi.3 22071 2007-11-14 20:04:50Z lha $
 .\"
-.Dd January 23, 2003
+.Dd April 20, 2005
 .Dt GSSAPI 3
 .Os
 .Sh NAME
@@ -45,6 +45,9 @@ provides security services to callers in a generic fashion,
 supportable with a range of underlying mechanisms and technologies and
 hence allowing source-level portability of applications to different
 environments.
+.Pp
+The GSS-API implementation in Heimdal implements the Kerberos 5 and
+the SPNEGO GSS-API security mechanisms.
 .Sh LIST OF FUNCTIONS
 These functions constitute the gssapi library,
 .Em libgssapi .
@@ -80,7 +83,11 @@ gss_inquire_cred.3
 gss_inquire_cred_by_mech.3
 gss_inquire_mechs_for_name.3
 gss_inquire_names_for_mech.3
+gss_krb5_ccache_name.3
+gss_krb5_compat_des3_mic.3
 gss_krb5_copy_ccache.3
+gss_krb5_extract_authz_data_from_sec_context.3
+gss_krb5_import_ccache.3
 gss_process_context_token.3
 gss_release_buffer.3
 gss_release_cred.3
@@ -106,15 +113,15 @@ implementations when using
 .Fn gss_get_mic
 /
 .Fn gss_verify_mic .
-Its possible to modify the behavior of the generator of the MIC with
+It is possible to modify the behavior of the generator of the MIC with
 the
 .Pa krb5.conf
 configuration file so that old clients/servers will still
 work.
 .Pp
 New clients/servers will try both the old and new MIC in Heimdal 0.6.
-In 0.7 it will check only if configured and the compatibility code
-will be removed in 0.8.
+In 0.7 it will check only if configured - the compatibility code will
+be removed in 0.8.
 .Pp
 Heimdal 0.6 still generates by default the broken GSS-API DES3 mic,
 this will change in 0.7 to generate correct des3 mic.
@@ -135,17 +142,29 @@ If a match for a entry is in both
 .Ar correct_des3_mic
 and
 .Nm [gssapi]
-.Ar correct_des3_mic ,
+.Ar broken_des3_mic ,
 the later will override.
 .Pp
 This config option modifies behaviour for both clients and servers.
 .Pp
-Example:
+Microsoft implemented SPNEGO to Windows2000, however, they manage to
+get it wrong, their implementation didn't fill in the MechListMIC in
+the reply token with the right content.
+There is a work around for this problem, but not all implementation
+support it.
+.Pp
+Heimdal defaults to correct SPNEGO when the the kerberos
+implementation uses CFX, or when it is configured by the user.
+To turn on compatibility with peers, use option
+.Nm [gssapi]
+.Ar require_mechlist_mic .
+.Sh EXAMPLES
 .Bd -literal -offset indent
 [gssapi]
 	broken_des3_mic = cvs/*@SU.SE
 	broken_des3_mic = host/*@E.KTH.SE
 	correct_des3_mic = host/*@SU.SE
+	require_mechlist_mic = host/*@SU.SE
 .Ed
 .Sh BUGS
 All of 0.5.x versions of

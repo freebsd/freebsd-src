@@ -33,19 +33,19 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: estrdup.c,v 1.3 2001/06/17 12:07:56 assar Exp $");
+RCSID("$Id: estrdup.c 21005 2007-06-08 01:54:35Z lha $");
 #endif
 
 #include <stdlib.h>
 #include <err.h>
 
-#include <roken.h>
+#include "roken.h"
 
 /*
  * Like strdup but never fails.
  */
 
-char *
+char * ROKEN_LIB_FUNCTION
 estrdup (const char *str)
 {
     char *tmp = strdup (str);

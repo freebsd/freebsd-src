@@ -1,6 +1,6 @@
-.\" $Id: login.1,v 1.1 2003/03/24 16:15:12 joda Exp $
+.\" $Id: login.1 14891 2005-04-22 15:49:25Z joda $
 .\" 
-.Dd March 24, 2003
+.Dd April 22, 2005
 .Dt LOGIN 1
 .Os HEIMDAL
 .Sh NAME
@@ -189,6 +189,10 @@ A comma separated list of text files that will be printed to the
 user's terminal before starting the shell. The string
 .Li welcome
 works similarly, but points to a single file.
+.It Li limits
+Points to a file containing ulimit settings for various users. Syntax
+is inspired by what pam_limits uses, and the default is
+.Pa /etc/security/limits.conf .
 .El
 .It Pa /etc/nologin
 If it exists, login is denied to all but root. The contents of this
@@ -213,8 +217,31 @@ A
 file could look like:
 .Bd -literal -offset indent
 default:\\
-	:motd=/etc/motd,/etc/motd.local:
+	:motd=/etc/motd,/etc/motd.local:\\
+	:limits=/etc/limits.conf:
 .Ed
+.Pp
+The
+.Pa limits.conf
+file consists of a table with four whitespace separated fields. First
+field is a username or a groupname (prefixed with
+.Sq @ ) , 
+or 
+.Sq * .
+Second field is
+.Sq soft ,
+.Sq hard ,
+or
+.Sq -
+(the last meaning both soft and hard).
+Third field is a limit name (such as
+.Sq cpu 
+or 
+.Sq core ) .
+Last field is the limit value (a number or
+.Sq - 
+for unlimited). In the case of data sizes, the value is in kilobytes,
+and cputime is in minutes.
 .Sh SEE ALSO
 .Xr su 1 ,
 .Xr login.access 5 ,

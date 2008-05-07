@@ -32,7 +32,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: store-test.c,v 1.1 2001/05/11 16:06:25 joda Exp $");
+RCSID("$Id: store-test.c 16344 2005-12-02 15:15:43Z lha $");
 
 static void
 print_data(unsigned char *data, size_t len)
@@ -106,10 +106,13 @@ main(int argc, char **argv)
     sp = krb5_storage_emem();
     krb5_make_principal(context, &principal, "TEST", "foobar", NULL);
     krb5_store_principal(sp, principal);
+    krb5_free_principal(context, principal);
     nerr += compare("Principal", sp, "\x0\x0\x0\x1"
 		    "\x0\x0\x0\x1"
 		    "\x0\x0\x0\x4TEST"
 		    "\x0\x0\x0\x6""foobar", 26);
     
+    krb5_free_context(context);
+
     return nerr ? 1 : 0;
 }

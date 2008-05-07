@@ -33,7 +33,7 @@
 
 #include "kadm5_locl.h"
 
-RCSID("$Id: error.c,v 1.3 1999/12/02 17:05:06 joda Exp $");
+RCSID("$Id: error.c 7464 1999-12-02 17:05:13Z joda $");
 
 kadm5_ret_t
 _kadm5_error_code(kadm5_ret_t code)

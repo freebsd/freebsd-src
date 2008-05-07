@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995 - 2000 Kungliga Tekniska Högskolan 
+ * Copyright (c) 1995 - 2004 Kungliga Tekniska Högskolan 
  * (Royal Institute of Technology, Stockholm, Sweden).  
  * All rights reserved.
  * 
@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: err.hin,v 1.16 2000/12/11 04:40:59 assar Exp $ */
+/* $Id: err.hin 14773 2005-04-12 11:29:18Z lha $ */
 
 #ifndef __ERR_H__
 #define __ERR_H__
@@ -42,27 +42,47 @@
 #include <string.h>
 #include <stdarg.h>
 
-extern const char *__progname;
-
 #if !defined(__GNUC__) && !defined(__attribute__)
 #define __attribute__(x)
 #endif
 
-void verr(int eval, const char *fmt, va_list ap)
+#ifndef ROKEN_LIB_FUNCTION
+#ifdef _WIN32
+#define ROKEN_LIB_FUNCTION _stdcall
+#else
+#define ROKEN_LIB_FUNCTION
+#endif
+#endif
+
+void ROKEN_LIB_FUNCTION
+verr(int eval, const char *fmt, va_list ap)
      __attribute__ ((noreturn, format (printf, 2, 0)));
-void err(int eval, const char *fmt, ...)
+
+void ROKEN_LIB_FUNCTION
+err(int eval, const char *fmt, ...)
      __attribute__ ((noreturn, format (printf, 2, 3)));
-void verrx(int eval, const char *fmt, va_list ap)
+
+void ROKEN_LIB_FUNCTION
+verrx(int eval, const char *fmt, va_list ap)
      __attribute__ ((noreturn, format (printf, 2, 0)));
-void errx(int eval, const char *fmt, ...)
+
+void ROKEN_LIB_FUNCTION
+errx(int eval, const char *fmt, ...)
      __attribute__ ((noreturn, format (printf, 2, 3)));
-void vwarn(const char *fmt, va_list ap)
+void ROKEN_LIB_FUNCTION
+vwarn(const char *fmt, va_list ap)
      __attribute__ ((format (printf, 1, 0)));
-void warn(const char *fmt, ...)
+
+void ROKEN_LIB_FUNCTION
+warn(const char *fmt, ...)
      __attribute__ ((format (printf, 1, 2)));
-void vwarnx(const char *fmt, va_list ap)
+
+void ROKEN_LIB_FUNCTION
+vwarnx(const char *fmt, va_list ap)
      __attribute__ ((format (printf, 1, 0)));
-void warnx(const char *fmt, ...)
+
+void ROKEN_LIB_FUNCTION
+warnx(const char *fmt, ...)
      __attribute__ ((format (printf, 1, 2)));
 
 #endif /* __ERR_H__ */

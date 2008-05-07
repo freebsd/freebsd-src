@@ -33,12 +33,12 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: err.c,v 1.6 1999/12/02 16:58:45 joda Exp $");
+RCSID("$Id: err.c 14773 2005-04-12 11:29:18Z lha $");
 #endif
 
 #include "err.h"
 
-void
+void ROKEN_LIB_FUNCTION
 err(int eval, const char *fmt, ...)
 {
   va_list ap;

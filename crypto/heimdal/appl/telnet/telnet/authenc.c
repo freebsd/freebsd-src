@@ -33,7 +33,7 @@
 
 #include "telnet_locl.h"
 
-RCSID("$Id: authenc.c,v 1.12 2001/12/20 20:39:51 joda Exp $");
+RCSID("$Id: authenc.c 12921 2003-09-25 15:45:51Z lha $");
 
 #if	defined(AUTHENTICATION) || defined(ENCRYPTION)
 int
@@ -62,13 +62,14 @@ net_encrypt(void)
 int
 telnet_spin(void)
 {
-    extern int scheduler_lockout_tty;
+    int ret = 0;
 
     scheduler_lockout_tty = 1;
-    Scheduler(0);
+    if (Scheduler(0) == -1)
+	ret = 1;
     scheduler_lockout_tty = 0;
     
-    return 0;
+    return ret;
 
 }
 

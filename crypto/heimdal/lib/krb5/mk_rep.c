@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2002 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2003 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,9 +33,9 @@
 
 #include <krb5_locl.h>
 
-RCSID("$Id: mk_rep.c,v 1.21 2002/12/19 13:30:36 joda Exp $");
+RCSID("$Id: mk_rep.c 13863 2004-05-25 21:46:46Z lha $");
 
-krb5_error_code
+krb5_error_code KRB5_LIB_FUNCTION
 krb5_mk_rep(krb5_context context,
 	    krb5_auth_context auth_context,
 	    krb5_data *outbuf)
@@ -55,14 +55,37 @@ krb5_mk_rep(krb5_context context,
 
     body.ctime = auth_context->authenticator->ctime;
     body.cusec = auth_context->authenticator->cusec;
-    body.subkey = NULL;
+    if (auth_context->flags & KRB5_AUTH_CONTEXT_USE_SUBKEY) {
+	if (auth_context->local_subkey == NULL) {
+	    ret = krb5_auth_con_generatelocalsubkey(context,
+						    auth_context,
+						    auth_context->keyblock);
+	    if(ret) {
+		krb5_set_error_string (context,
+				       "krb5_mk_rep: generating subkey");
+		free_EncAPRepPart(&body);
+		return ret;
+	    }
+	}
+	ret = krb5_copy_keyblock(context, auth_context->local_subkey,
+				 &body.subkey);
+	if (ret) {
+	    krb5_set_error_string (context,
+				   "krb5_copy_keyblock: out of memory");
+	    free_EncAPRepPart(&body);
+	    return ENOMEM;
+	}
+    } else
+	body.subkey = NULL;
     if (auth_context->flags & KRB5_AUTH_CONTEXT_DO_SEQUENCE) {
-	krb5_generate_seq_number (context,
-				  auth_context->keyblock,
-				  &auth_context->local_seqnumber);
-	body.seq_number = malloc (sizeof(*body.seq_number));
+	if(auth_context->local_seqnumber == 0) 
+	    krb5_generate_seq_number (context,
+				      auth_context->keyblock,
+				      &auth_context->local_seqnumber);
+	ALLOC(body.seq_number, 1);
 	if (body.seq_number == NULL) {
 	    krb5_set_error_string (context, "malloc: out of memory");
+	    free_EncAPRepPart(&body);
 	    return ENOMEM;
 	}
 	*(body.seq_number) = auth_context->local_seqnumber;
@@ -76,6 +99,8 @@ krb5_mk_rep(krb5_context context,
     free_EncAPRepPart (&body);
     if(ret)
 	return ret;
+    if (buf_size != len)
+	krb5_abortx(context, "internal error in ASN.1 encoder");
     ret = krb5_crypto_init(context, auth_context->keyblock, 
 			   0 /* ap.enc_part.etype */, &crypto);
     if (ret) {
@@ -94,6 +119,8 @@ krb5_mk_rep(krb5_context context,
 	return ret;
 
     ASN1_MALLOC_ENCODE(AP_REP, outbuf->data, outbuf->length, &ap, &len, ret);
+    if (ret == 0 && outbuf->length != len)
+	krb5_abortx(context, "internal error in ASN.1 encoder");
     free_AP_REP (&ap);
     return ret;
 }

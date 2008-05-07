@@ -1,8 +1,8 @@
-# $Id: Makefile.am,v 1.15.2.1 2003/05/08 10:31:48 lha Exp $
+# $Id: Makefile.am 22304 2007-12-14 12:18:18Z lha $
 
 include $(top_srcdir)/Makefile.am.common
 
-INCLUDES += $(INCLUDE_krb4)
+AM_CPPFLAGS += $(INCLUDE_krb4)
 
 WFLAGS += $(WFLAGS_NOIMPLICITINT)
 
@@ -21,7 +21,7 @@ L = \
 	$(top_builddir)/lib/krb5/.libs/libkrb5.a	\
 	$(top_builddir)/lib/asn1/.libs/libasn1.a	\
 	$(LIB_krb4)					\
-	$(LIB_des_a)					\
+	$(LIB_hcrypto_a)					\
 	$(LIB_com_err_a)				\
 	$(top_builddir)/lib/roken/.libs/libroken.a	\
 	$(LIB_getpwnam_r)				\
@@ -32,7 +32,7 @@ L_shared = \
 	$(top_builddir)/lib/krb5/.libs/libkrb5.so	\
 	$(top_builddir)/lib/asn1/.libs/libasn1.so	\
 	$(LIB_krb4)					\
-	$(LIB_des_so)					\
+	$(LIB_hcrypto_so)					\
 	$(LIB_com_err_so)				\
 	$(top_builddir)/lib/roken/.libs/libroken.so	\
 	$(LIB_getpwnam_r)				\
@@ -46,7 +46,7 @@ L = \
 	$(KAFS)						\
 	$(top_builddir)/lib/kadm/.libs/libkadm.a	\
 	$(top_builddir)/lib/krb/.libs/libkrb.a		\
-	$(LIB_des_a)		\
+	$(LIB_hcrypto_a)		\
 	$(top_builddir)/lib/com_err/.libs/libcom_err.a	\
 	$(top_builddir)/lib/roken/.libs/libroken.a	\
 	$(LIB_getpwnam_r)				\
@@ -56,7 +56,7 @@ L_shared = \
 	$(KAFS_S)					\
 	$(top_builddir)/lib/kadm/.libs/libkadm.so	\
 	$(top_builddir)/lib/krb/.libs/libkrb.so		\
-	$(LIB_des_so)		\
+	$(LIB_hcrypto_so)		\
 	$(top_builddir)/lib/com_err/.libs/libcom_err.so	\
 	$(top_builddir)/lib/roken/.libs/libroken.so	\
 	$(LIB_getpwnam_r)				\
@@ -66,14 +66,12 @@ MOD = libsia_krb4.so
 
 endif
 
-EXTRA_DIST = sia.c krb4_matrix.conf krb4+c2_matrix.conf \
-	krb5_matrix.conf krb5+c2_matrix.conf security.patch
-
 foodir = $(libdir)
 foo_DATA = $(MOD)
 
 LDFLAGS = @LDFLAGS@ -rpath $(libdir) -Wl,-hidden -Wl,-exported_symbol -Wl,siad_\* 
 
+SRCS = sia.c posix_getpw.c sia_locl.h
 OBJS = sia.o posix_getpw.o
 
 libsia_krb5.so: $(OBJS)
@@ -107,6 +105,12 @@ SUFFIXES += .c .o
 # XXX inline COMPILE since automake wont add it
 
 .c.o:
-	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
+	$(CC) $(DEFS) $(DEFAULT_AM_CPPFLAGS) $(INCLUDES) $(AM_CPPFLAGS) \
 	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) \
 	-c `test -f '$<' || echo '$(srcdir)/'`$<
+
+EXTRA_DIST = sia.c sia_locl.h posix_getpw.c \
+	krb4_matrix.conf krb4+c2_matrix.conf \
+	krb5_matrix.conf krb5+c2_matrix.conf \
+	security.patch \
+	make-rpath $(SRCS)

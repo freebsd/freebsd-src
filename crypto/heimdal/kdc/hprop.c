@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2002 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2005 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "hprop.h"
 
-RCSID("$Id: hprop.c,v 1.70 2002/09/04 18:19:41 joda Exp $");
+RCSID("$Id: hprop.c 21745 2007-07-31 16:11:25Z lha $");
 
 static int version_flag;
 static int help_flag;
@@ -93,28 +93,28 @@ open_socket(krb5_context context, const char *hostname, const char *port)
 }
 
 krb5_error_code
-v5_prop(krb5_context context, HDB *db, hdb_entry *entry, void *appdata)
+v5_prop(krb5_context context, HDB *db, hdb_entry_ex *entry, void *appdata)
 {
     krb5_error_code ret;
     struct prop_data *pd = appdata;
     krb5_data data;
 
     if(encrypt_flag) {
-	ret = hdb_seal_keys_mkey(context, entry, mkey5);
+	ret = hdb_seal_keys_mkey(context, &entry->entry, mkey5);
 	if (ret) {
 	    krb5_warn(context, ret, "hdb_seal_keys_mkey");
 	    return ret;
 	}
     }
     if(decrypt_flag) {
-	ret = hdb_unseal_keys_mkey(context, entry, mkey5);
+	ret = hdb_unseal_keys_mkey(context, &entry->entry, mkey5);
 	if (ret) {
 	    krb5_warn(context, ret, "hdb_unseal_keys_mkey");
 	    return ret;
 	}
     }	
 
-    ret = hdb_entry2value(context, entry, &data);
+    ret = hdb_entry2value(context, &entry->entry, &data);
     if(ret) {
 	krb5_warn(context, ret, "hdb_entry2value");
 	return ret;
@@ -129,88 +129,17 @@ v5_prop(krb5_context context, HDB *db, hdb_entry *entry, void *appdata)
     return ret;
 }
 
-#ifdef KRB4
-
-static char realm_buf[REALM_SZ];
-
-static int
-kdb_prop(void *arg, Principal *p)
-{
-    int ret;
-    struct v4_principal pr;
-
-    memset(&pr, 0, sizeof(pr));
-
-    if(p->attributes != 0) {
-	warnx("%s.%s has non-zero attributes - skipping", 
-	      p->name, p->instance);
-	    return 0;
-    }
-    strlcpy(pr.name, p->name, sizeof(pr.name));
-    strlcpy(pr.instance, p->instance, sizeof(pr.instance));
-
-    copy_to_key(&p->key_low, &p->key_high, pr.key);
-    pr.exp_date = p->exp_date;
-    pr.mod_date = p->mod_date;
-    strlcpy(pr.mod_name, p->mod_name, sizeof(pr.mod_name));
-    strlcpy(pr.mod_instance, p->mod_instance, sizeof(pr.mod_instance));
-    pr.max_life = p->max_life;
-    pr.mkvno = p->kdc_key_ver;
-    pr.kvno = p->key_version;
-    
-    ret = v4_prop(arg, &pr);
-    memset(&pr, 0, sizeof(pr));
-    return ret;
-}
-
-#endif /* KRB4 */
-
-#ifndef KRB4
-static time_t
-krb_life_to_time(time_t start, int life)
-{
-    static int lifetimes[] = {
-	  38400,   41055,   43894,   46929,   50174,   53643,   57352,   61318,
-	  65558,   70091,   74937,   80119,   85658,   91581,   97914,  104684,
-	 111922,  119661,  127935,  136781,  146239,  156350,  167161,  178720,
-	 191077,  204289,  218415,  233517,  249664,  266926,  285383,  305116,
-	 326213,  348769,  372885,  398668,  426234,  455705,  487215,  520904,
-	 556921,  595430,  636601,  680618,  727680,  777995,  831789,  889303,
-	 950794, 1016537, 1086825, 1161973, 1242318, 1328218, 1420057, 1518247,
-	1623226, 1735464, 1855462, 1983758, 2120925, 2267576, 2424367, 2592000
-    };
-
-#if 0
-    int i;
-    double q = exp((log(2592000.0) - log(38400.0)) / 63);
-    double x = 38400;
-    for(i = 0; i < 64; i++) {
-	lifetimes[i] = (int)x;
-	x *= q;
-    }
-#endif
-
-    if(life == 0xff)
-	return NEVERDATE;
-    if(life < 0x80)
-	return start + life * 5 * 60;
-    if(life > 0xbf)
-	life = 0xbf;
-    return start + lifetimes[life - 0x80];
-}
-#endif /* !KRB4 */
-
 int
 v4_prop(void *arg, struct v4_principal *p)
 {
     struct prop_data *pd = arg;
-    hdb_entry ent;
+    hdb_entry_ex ent;
     krb5_error_code ret;
 
     memset(&ent, 0, sizeof(ent));
 
     ret = krb5_425_conv_principal(pd->context, p->name, p->instance, v4_realm,
-				  &ent.principal);
+				  &ent.entry.principal);
     if(ret) {
 	krb5_warn(pd->context, ret,
 		  "krb5_425_conv_principal %s.%s@%s",
@@ -220,49 +149,55 @@ v4_prop(void *arg, struct v4_principal *p)
 
     if(verbose_flag) {
 	char *s;
-	krb5_unparse_name_short(pd->context, ent.principal, &s);
+	krb5_unparse_name_short(pd->context, ent.entry.principal, &s);
 	krb5_warnx(pd->context, "%s.%s -> %s", p->name, p->instance, s);
 	free(s);
     }
 
-    ent.kvno = p->kvno;
-    ent.keys.len = 3;
-    ent.keys.val = malloc(ent.keys.len * sizeof(*ent.keys.val));
+    ent.entry.kvno = p->kvno;
+    ent.entry.keys.len = 3;
+    ent.entry.keys.val = malloc(ent.entry.keys.len * sizeof(*ent.entry.keys.val));
+    if (ent.entry.keys.val == NULL)
+	krb5_errx(pd->context, ENOMEM, "malloc");
     if(p->mkvno != -1) {
-	ent.keys.val[0].mkvno = malloc (sizeof(*ent.keys.val[0].mkvno));
-	*(ent.keys.val[0].mkvno) = p->mkvno;
+	ent.entry.keys.val[0].mkvno = malloc (sizeof(*ent.entry.keys.val[0].mkvno));
+	if (ent.entry.keys.val[0].mkvno == NULL)
+	    krb5_errx(pd->context, ENOMEM, "malloc");
+	*(ent.entry.keys.val[0].mkvno) = p->mkvno;
     } else
-	ent.keys.val[0].mkvno = NULL;
-    ent.keys.val[0].salt = calloc(1, sizeof(*ent.keys.val[0].salt));
-    ent.keys.val[0].salt->type = KRB5_PADATA_PW_SALT;
-    ent.keys.val[0].key.keytype = ETYPE_DES_CBC_MD5;
-    krb5_data_alloc(&ent.keys.val[0].key.keyvalue, sizeof(des_cblock));
-    memcpy(ent.keys.val[0].key.keyvalue.data, p->key, 8);
+	ent.entry.keys.val[0].mkvno = NULL;
+    ent.entry.keys.val[0].salt = calloc(1, sizeof(*ent.entry.keys.val[0].salt));
+    if (ent.entry.keys.val[0].salt == NULL)
+	krb5_errx(pd->context, ENOMEM, "calloc");
+    ent.entry.keys.val[0].salt->type = KRB5_PADATA_PW_SALT;
+    ent.entry.keys.val[0].key.keytype = ETYPE_DES_CBC_MD5;
+    krb5_data_alloc(&ent.entry.keys.val[0].key.keyvalue, DES_KEY_SZ);
+    memcpy(ent.entry.keys.val[0].key.keyvalue.data, p->key, 8);
 
-    copy_Key(&ent.keys.val[0], &ent.keys.val[1]);
-    ent.keys.val[1].key.keytype = ETYPE_DES_CBC_MD4;
-    copy_Key(&ent.keys.val[0], &ent.keys.val[2]);
-    ent.keys.val[2].key.keytype = ETYPE_DES_CBC_CRC;
+    copy_Key(&ent.entry.keys.val[0], &ent.entry.keys.val[1]);
+    ent.entry.keys.val[1].key.keytype = ETYPE_DES_CBC_MD4;
+    copy_Key(&ent.entry.keys.val[0], &ent.entry.keys.val[2]);
+    ent.entry.keys.val[2].key.keytype = ETYPE_DES_CBC_CRC;
 
     {
-	int life = krb_life_to_time(0, p->max_life);
+	int life = _krb5_krb_life_to_time(0, p->max_life);
 	if(life == NEVERDATE){
-	    ent.max_life = NULL;
+	    ent.entry.max_life = NULL;
 	} else {
 	    /* clean up lifetime a bit */
 	    if(life > 86400)
 		life = (life + 86399) / 86400 * 86400;
 	    else if(life > 3600)
 		life = (life + 3599) / 3600 * 3600;
-	    ALLOC(ent.max_life);
-	    *ent.max_life = life;
+	    ALLOC(ent.entry.max_life);
+	    *ent.entry.max_life = life;
 	}
     }
 
-    ALLOC(ent.valid_end);
-    *ent.valid_end = p->exp_date;
+    ALLOC(ent.entry.valid_end);
+    *ent.entry.valid_end = p->exp_date;
 
-    ret = krb5_make_principal(pd->context, &ent.created_by.principal,
+    ret = krb5_make_principal(pd->context, &ent.entry.created_by.principal,
 			      v4_realm,
 			      "kadmin",
 			      "hprop",
@@ -272,44 +207,44 @@ v4_prop(void *arg, struct v4_principal *p)
 	ret = 0;
 	goto out;
     }
-    ent.created_by.time = time(NULL);
-    ALLOC(ent.modified_by);
+    ent.entry.created_by.time = time(NULL);
+    ALLOC(ent.entry.modified_by);
     ret = krb5_425_conv_principal(pd->context, p->mod_name, p->mod_instance, 
-				  v4_realm, &ent.modified_by->principal);
+				  v4_realm, &ent.entry.modified_by->principal);
     if(ret){
 	krb5_warn(pd->context, ret, "%s.%s@%s", p->name, p->instance, v4_realm);
-	ent.modified_by->principal = NULL;
+	ent.entry.modified_by->principal = NULL;
 	ret = 0;
 	goto out;
     }
-    ent.modified_by->time = p->mod_date;
+    ent.entry.modified_by->time = p->mod_date;
 
-    ent.flags.forwardable = 1;
-    ent.flags.renewable = 1;
-    ent.flags.proxiable = 1;
-    ent.flags.postdate = 1;
-    ent.flags.client = 1;
-    ent.flags.server = 1;
+    ent.entry.flags.forwardable = 1;
+    ent.entry.flags.renewable = 1;
+    ent.entry.flags.proxiable = 1;
+    ent.entry.flags.postdate = 1;
+    ent.entry.flags.client = 1;
+    ent.entry.flags.server = 1;
     
     /* special case password changing service */
     if(strcmp(p->name, "changepw") == 0 && 
        strcmp(p->instance, "kerberos") == 0) {
-	ent.flags.forwardable = 0;
-	ent.flags.renewable = 0;
-	ent.flags.proxiable = 0;
-	ent.flags.postdate = 0;
-	ent.flags.initial = 1;
-	ent.flags.change_pw = 1;
+	ent.entry.flags.forwardable = 0;
+	ent.entry.flags.renewable = 0;
+	ent.entry.flags.proxiable = 0;
+	ent.entry.flags.postdate = 0;
+	ent.entry.flags.initial = 1;
+	ent.entry.flags.change_pw = 1;
     }
 
     ret = v5_prop(pd->context, NULL, &ent, pd);
 
     if (strcmp (p->name, "krbtgt") == 0
 	&& strcmp (v4_realm, p->instance) != 0) {
-	krb5_free_principal (pd->context, ent.principal);
+	krb5_free_principal (pd->context, ent.entry.principal);
 	ret = krb5_425_conv_principal (pd->context, p->name,
 				       v4_realm, p->instance,
-				       &ent.principal);
+				       &ent.entry.principal);
 	if (ret == 0)
 	    ret = v5_prop (pd->context, NULL, &ent, pd);
     }
@@ -345,87 +280,96 @@ ka_convert(struct prop_data *pd, int fd, struct ka_entry *ent)
 {
     int32_t flags = ntohl(ent->flags);
     krb5_error_code ret;
-    hdb_entry hdb;
+    hdb_entry_ex hdb;
 
     if(!kaspecials_flag
        && (flags & KAFNORMAL) == 0) /* remove special entries */
 	return 0;
     memset(&hdb, 0, sizeof(hdb));
     ret = krb5_425_conv_principal(pd->context, ent->name, ent->instance, 
-				  v4_realm, &hdb.principal);
+				  v4_realm, &hdb.entry.principal);
     if(ret) {
 	krb5_warn(pd->context, ret,
 		  "krb5_425_conv_principal (%s.%s@%s)",
 		  ent->name, ent->instance, v4_realm);
 	return 0;
     }
-    hdb.kvno = ntohl(ent->kvno);
-    hdb.keys.len = 3;
-    hdb.keys.val = malloc(hdb.keys.len * sizeof(*hdb.keys.val));
-    hdb.keys.val[0].mkvno = NULL;
-    hdb.keys.val[0].salt = calloc(1, sizeof(*hdb.keys.val[0].salt));
+    hdb.entry.kvno = ntohl(ent->kvno);
+    hdb.entry.keys.len = 3;
+    hdb.entry.keys.val = 
+	malloc(hdb.entry.keys.len * sizeof(*hdb.entry.keys.val));
+    if (hdb.entry.keys.val == NULL)
+	krb5_errx(pd->context, ENOMEM, "malloc");
+    hdb.entry.keys.val[0].mkvno = NULL;
+    hdb.entry.keys.val[0].salt = calloc(1, sizeof(*hdb.entry.keys.val[0].salt));
+    if (hdb.entry.keys.val[0].salt == NULL)
+	krb5_errx(pd->context, ENOMEM, "calloc");
     if (ka_use_null_salt) {
-	hdb.keys.val[0].salt->type = hdb_pw_salt;
-	hdb.keys.val[0].salt->salt.data = NULL;
-	hdb.keys.val[0].salt->salt.length = 0;
+	hdb.entry.keys.val[0].salt->type = hdb_pw_salt;
+	hdb.entry.keys.val[0].salt->salt.data = NULL;
+	hdb.entry.keys.val[0].salt->salt.length = 0;
     } else {
-	hdb.keys.val[0].salt->type = hdb_afs3_salt;
-	hdb.keys.val[0].salt->salt.data = strdup(afs_cell);
-	hdb.keys.val[0].salt->salt.length = strlen(afs_cell);
+	hdb.entry.keys.val[0].salt->type = hdb_afs3_salt;
+	hdb.entry.keys.val[0].salt->salt.data = strdup(afs_cell);
+	if (hdb.entry.keys.val[0].salt->salt.data == NULL)
+	    krb5_errx(pd->context, ENOMEM, "strdup");
+	hdb.entry.keys.val[0].salt->salt.length = strlen(afs_cell);
     }
     
-    hdb.keys.val[0].key.keytype = ETYPE_DES_CBC_MD5;
-    krb5_data_copy(&hdb.keys.val[0].key.keyvalue, ent->key, sizeof(ent->key));
-    copy_Key(&hdb.keys.val[0], &hdb.keys.val[1]);
-    hdb.keys.val[1].key.keytype = ETYPE_DES_CBC_MD4;
-    copy_Key(&hdb.keys.val[0], &hdb.keys.val[2]);
-    hdb.keys.val[2].key.keytype = ETYPE_DES_CBC_CRC;
+    hdb.entry.keys.val[0].key.keytype = ETYPE_DES_CBC_MD5;
+    krb5_data_copy(&hdb.entry.keys.val[0].key.keyvalue,
+		   ent->key,
+		   sizeof(ent->key));
+    copy_Key(&hdb.entry.keys.val[0], &hdb.entry.keys.val[1]);
+    hdb.entry.keys.val[1].key.keytype = ETYPE_DES_CBC_MD4;
+    copy_Key(&hdb.entry.keys.val[0], &hdb.entry.keys.val[2]);
+    hdb.entry.keys.val[2].key.keytype = ETYPE_DES_CBC_CRC;
 
-    ALLOC(hdb.max_life);
-    *hdb.max_life = ntohl(ent->max_life);
+    ALLOC(hdb.entry.max_life);
+    *hdb.entry.max_life = ntohl(ent->max_life);
 
-    if(ntohl(ent->valid_end) != NEVERDATE && ntohl(ent->valid_end) != -1){
-	ALLOC(hdb.valid_end);
-	*hdb.valid_end = ntohl(ent->valid_end);
+    if(ntohl(ent->valid_end) != NEVERDATE && ntohl(ent->valid_end) != 0xffffffff) {
+	ALLOC(hdb.entry.valid_end);
+	*hdb.entry.valid_end = ntohl(ent->valid_end);
     }
     
     if (ntohl(ent->pw_change) != NEVERDATE && 
 	ent->pw_expire != 255 &&
 	ent->pw_expire != 0) {
-	ALLOC(hdb.pw_end);
-	*hdb.pw_end = ntohl(ent->pw_change)
+	ALLOC(hdb.entry.pw_end);
+	*hdb.entry.pw_end = ntohl(ent->pw_change)
 	    + 24 * 60 * 60 * ent->pw_expire;
     }
 
-    ret = krb5_make_principal(pd->context, &hdb.created_by.principal,
+    ret = krb5_make_principal(pd->context, &hdb.entry.created_by.principal,
 			      v4_realm,
 			      "kadmin",
 			      "hprop",
 			      NULL);
-    hdb.created_by.time = time(NULL);
+    hdb.entry.created_by.time = time(NULL);
 
     if(ent->mod_ptr){
 	struct ka_entry mod;
-	ALLOC(hdb.modified_by);
+	ALLOC(hdb.entry.modified_by);
 	read_block(pd->context, fd, ntohl(ent->mod_ptr), &mod, sizeof(mod));
 	
 	krb5_425_conv_principal(pd->context, mod.name, mod.instance, v4_realm, 
-				&hdb.modified_by->principal);
-	hdb.modified_by->time = ntohl(ent->mod_time);
+				&hdb.entry.modified_by->principal);
+	hdb.entry.modified_by->time = ntohl(ent->mod_time);
 	memset(&mod, 0, sizeof(mod));
     }
 
-    hdb.flags.forwardable = 1;
-    hdb.flags.renewable = 1;
-    hdb.flags.proxiable = 1;
-    hdb.flags.postdate = 1;
+    hdb.entry.flags.forwardable = 1;
+    hdb.entry.flags.renewable = 1;
+    hdb.entry.flags.proxiable = 1;
+    hdb.entry.flags.postdate = 1;
     /* XXX - AFS 3.4a creates krbtgt.REALMOFCELL as NOTGS+NOSEAL */
     if (strcmp(ent->name, "krbtgt") == 0 &&
 	(flags & (KAFNOTGS|KAFNOSEAL)) == (KAFNOTGS|KAFNOSEAL))
 	flags &= ~(KAFNOTGS|KAFNOSEAL);
 
-    hdb.flags.client = (flags & KAFNOTGS) == 0;
-    hdb.flags.server = (flags & KAFNOSEAL) == 0;
+    hdb.entry.flags.client = (flags & KAFNOTGS) == 0;
+    hdb.entry.flags.server = (flags & KAFNOSEAL) == 0;
 
     ret = v5_prop(pd->context, NULL, &hdb, pd);
     hdb_free_entry(pd->context, &hdb);
@@ -469,9 +413,6 @@ struct getargs args[] = {
       "heimdal"
       "|mit-dump"
       "|krb4-dump"
-#ifdef KRB4
-      "|krb4-db"
-#endif
       "|kaserver"
     },
       
@@ -503,7 +444,7 @@ get_creds(krb5_context context, krb5_ccache *cache)
     krb5_keytab keytab;
     krb5_principal client;
     krb5_error_code ret;
-    krb5_get_init_creds_opt init_opts;
+    krb5_get_init_creds_opt *init_opts;
     krb5_preauthtype preauth = KRB5_PADATA_ENC_TIMESTAMP;
     krb5_creds creds;
     
@@ -517,11 +458,14 @@ get_creds(krb5_context context, krb5_ccache *cache)
 			      "kadmin", HPROP_NAME, NULL);
     if(ret) krb5_err(context, 1, ret, "krb5_make_principal");
 
-    krb5_get_init_creds_opt_init(&init_opts);
-    krb5_get_init_creds_opt_set_preauth_list(&init_opts, &preauth, 1);
+    ret = krb5_get_init_creds_opt_alloc(context, &init_opts);
+    if(ret) krb5_err(context, 1, ret, "krb5_get_init_creds_opt_alloc");
+    krb5_get_init_creds_opt_set_preauth_list(init_opts, &preauth, 1);
 
-    ret = krb5_get_init_creds_keytab(context, &creds, client, keytab, 0, NULL, &init_opts);
+    ret = krb5_get_init_creds_keytab(context, &creds, client, keytab, 0, NULL, init_opts);
     if(ret) krb5_err(context, 1, ret, "krb5_get_init_creds");
+
+    krb5_get_init_creds_opt_free(context, init_opts);
     
     ret = krb5_kt_close(context, keytab);
     if(ret) krb5_err(context, 1, ret, "krb5_kt_close");
@@ -537,18 +481,17 @@ get_creds(krb5_context context, krb5_ccache *cache)
     ret = krb5_cc_store_cred(context, *cache, &creds);
     if(ret) krb5_err(context, 1, ret, "krb5_cc_store_cred");
 
-    krb5_free_creds_contents(context, &creds);
+    krb5_free_cred_contents(context, &creds);
 }
 
 enum hprop_source {
     HPROP_HEIMDAL = 1,
-    HPROP_KRB4_DB,
     HPROP_KRB4_DUMP,
     HPROP_KASERVER,
     HPROP_MIT_DUMP
 };
 
-#define IS_TYPE_V4(X) ((X) == HPROP_KRB4_DB || (X) == HPROP_KRB4_DUMP || (X) == HPROP_KASERVER)
+#define IS_TYPE_V4(X) ((X) == HPROP_KRB4_DUMP || (X) == HPROP_KASERVER)
 
 struct {
     int type;
@@ -556,9 +499,6 @@ struct {
 } types[] = {
     { HPROP_HEIMDAL,	"heimdal" },
     { HPROP_KRB4_DUMP,	"krb4-dump" },
-#ifdef KRB4
-    { HPROP_KRB4_DB,	"krb4-db" },
-#endif
     { HPROP_KASERVER, 	"kaserver" },
     { HPROP_MIT_DUMP,	"mit-dump" }
 };
@@ -574,9 +514,9 @@ parse_source_type(const char *s)
     return 0;
 }
 
-static void
+static int
 iterate (krb5_context context,
-	 const char *database,
+	 const char *database_name,
 	 HDB *db,
 	 int type,
 	 struct prop_data *pd)
@@ -585,38 +525,36 @@ iterate (krb5_context context,
 
     switch(type) {
     case HPROP_KRB4_DUMP:
-	ret = v4_prop_dump(pd, database);
-	break;
-#ifdef KRB4
-    case HPROP_KRB4_DB:
-	ret = kerb_db_iterate ((k_iter_proc_t)kdb_prop, pd);
+	ret = v4_prop_dump(pd, database_name);
 	if(ret)
-	    krb5_errx(context, 1, "kerb_db_iterate: %s", 
-		      krb_get_err_text(ret));
+	    krb5_warnx(context, "v4_prop_dump: %s", 
+		       krb5_get_err_text(context, ret));
 	break;
-#endif /* KRB4 */
     case HPROP_KASERVER:
-	ret = ka_dump(pd, database);
+	ret = ka_dump(pd, database_name);
 	if(ret)
-	    krb5_err(context, 1, ret, "ka_dump");
+	    krb5_warn(context, ret, "ka_dump");
 	break;
     case HPROP_MIT_DUMP:
-	ret = mit_prop_dump(pd, database);
+	ret = mit_prop_dump(pd, database_name);
 	if (ret)
-	    krb5_errx(context, 1, "mit_prop_dump: %s",
+	    krb5_warnx(context, "mit_prop_dump: %s",
 		      krb5_get_err_text(context, ret));
 	break;
     case HPROP_HEIMDAL:
 	ret = hdb_foreach(context, db, HDB_F_DECRYPT, v5_prop, pd);
 	if(ret)
-	    krb5_err(context, 1, ret, "hdb_foreach");
+	    krb5_warn(context, ret, "hdb_foreach");
 	break;
+    default:
+	krb5_errx(context, 1, "unknown prop type: %d", type);
     }
+    return ret;
 }
 
 static int
 dump_database (krb5_context context, int type,
-	       const char *database, HDB *db)
+	       const char *database_name, HDB *db)
 {
     krb5_error_code ret;
     struct prop_data pd;
@@ -626,7 +564,9 @@ dump_database (krb5_context context, int type,
     pd.auth_context = NULL;
     pd.sock         = STDOUT_FILENO;
 	
-    iterate (context, database, db, type, &pd);
+    ret = iterate (context, database_name, db, type, &pd);
+    if (ret)
+	krb5_errx(context, 1, "iterate failure");
     krb5_data_zero (&data);
     ret = krb5_write_message (context, &pd.sock, &data);
     if (ret)
@@ -637,23 +577,24 @@ dump_database (krb5_context context, int type,
 
 static int
 propagate_database (krb5_context context, int type,
-		    const char *database, 
+		    const char *database_name, 
 		    HDB *db, krb5_ccache ccache,
-		    int optind, int argc, char **argv)
+		    int optidx, int argc, char **argv)
 {
     krb5_principal server;
     krb5_error_code ret;
-    int i;
+    int i, failed = 0;
 
-    for(i = optind; i < argc; i++){
+    for(i = optidx; i < argc; i++){
 	krb5_auth_context auth_context;
 	int fd;
 	struct prop_data pd;
 	krb5_data data;
 
 	char *port, portstr[NI_MAXSERV];
-	
-	port = strchr(argv[i], ':');
+	char *host = argv[i];
+
+	port = strchr(host, ':');
 	if(port == NULL) {
 	    snprintf(portstr, sizeof(portstr), "%u", 
 		     ntohs(krb5_getportbyname (context, "hprop", "tcp", 
@@ -662,16 +603,18 @@ propagate_database (krb5_context context, int type,
 	} else
 	    *port++ = '\0';
 
-	fd = open_socket(context, argv[i], port);
+	fd = open_socket(context, host, port);
 	if(fd < 0) {
-	    krb5_warn (context, errno, "connect %s", argv[i]);
+	    failed++;
+	    krb5_warn (context, errno, "connect %s", host);
 	    continue;
 	}
 
 	ret = krb5_sname_to_principal(context, argv[i],
 				      HPROP_NAME, KRB5_NT_SRV_HST, &server);
 	if(ret) {
-	    krb5_warn(context, ret, "krb5_sname_to_principal(%s)", argv[i]);
+	    failed++;
+	    krb5_warn(context, ret, "krb5_sname_to_principal(%s)", host);
 	    close(fd);
 	    continue;
 	}
@@ -702,31 +645,45 @@ propagate_database (krb5_context context, int type,
 	krb5_free_principal(context, server);
 
 	if(ret) {
-	    krb5_warn(context, ret, "krb5_sendauth");
+	    failed++;
+	    krb5_warn(context, ret, "krb5_sendauth (%s)", host);
 	    close(fd);
-	    continue;
+	    goto next_host;
 	}
 	
 	pd.context      = context;
 	pd.auth_context = auth_context;
 	pd.sock         = fd;
 
-	iterate (context, database, db, type, &pd);
+	ret = iterate (context, database_name, db, type, &pd);
+	if (ret) {
+	    krb5_warnx(context, "iterate to host %s failed", host);
+	    failed++;
+	    goto next_host;
+	}
 
 	krb5_data_zero (&data);
 	ret = krb5_write_priv_message(context, auth_context, &fd, &data);
-	if(ret)
+	if(ret) {
 	    krb5_warn(context, ret, "krb5_write_priv_message");
+	    failed++;
+	    goto next_host;
+	}
 
 	ret = krb5_read_priv_message(context, auth_context, &fd, &data);
-	if(ret)
-	    krb5_warn(context, ret, "krb5_read_priv_message");
-	else
+	if(ret) {
+	    krb5_warn(context, ret, "krb5_read_priv_message: %s", host);
+	    failed++;
+	    goto next_host;
+	} else
 	    krb5_data_free (&data);
 	
+    next_host:
 	krb5_auth_con_free(context, auth_context);
 	close(fd);
     }
+    if (failed)
+	return 1;
     return 0;
 }
 
@@ -737,13 +694,13 @@ main(int argc, char **argv)
     krb5_context context;
     krb5_ccache ccache = NULL;
     HDB *db = NULL;
-    int optind = 0;
+    int optidx = 0;
 
-    int type = 0;
+    int type, exit_code;
 
     setprogname(argv[0]);
 
-    if(getarg(args, num_args, argc, argv, &optind))
+    if(getarg(args, num_args, argc, argv, &optidx))
 	usage(1);
 
     if(help_flag)
@@ -780,12 +737,10 @@ main(int argc, char **argv)
 		  "only one of `--encrypt' and `--decrypt' is meaningful");
 
     if(source_type != NULL) {
-	if(type != 0)
-	    krb5_errx(context, 1, "more than one database type specified");
 	type = parse_source_type(source_type);
 	if(type == 0)
 	    krb5_errx(context, 1, "unknown source type `%s'", source_type);
-    } else if(type == 0)
+    } else
 	type = HPROP_HEIMDAL;
 
     if(!to_stdout)
@@ -799,27 +754,11 @@ main(int argc, char **argv)
 	    krb5_errx(context, 1, "No master key file found");
     }
     
-#ifdef KRB4
-    if (IS_TYPE_V4(type)) {
-	int e;
-
-	if (v4_realm == NULL) {
-	    e = krb_get_lrealm(realm_buf, 1);
-	    if(e)
-		krb5_errx(context, 1, "krb_get_lrealm: %s",
-			  krb_get_err_text(e));
-	    v4_realm = realm_buf;
-	}
-    }
-#endif
+    if (IS_TYPE_V4(type) && v4_realm == NULL)
+	krb5_errx(context, 1, "Its a Kerberos 4 database "
+		  "but no realm configured");
 
     switch(type) {
-#ifdef KRB4
-    case HPROP_KRB4_DB:
-	if (database == NULL)
-	    krb5_errx(context, 1, "no database specified");
-	break;
-#endif
     case HPROP_KASERVER:
 	if (database == NULL)
 	    database = DEFAULT_DATABASE;
@@ -842,9 +781,9 @@ main(int argc, char **argv)
 	ret = hdb_create (context, &db, database);
 	if(ret)
 	    krb5_err(context, 1, ret, "hdb_create: %s", database);
-	ret = db->open(context, db, O_RDONLY, 0);
+	ret = db->hdb_open(context, db, O_RDONLY, 0);
 	if(ret)
-	    krb5_err(context, 1, ret, "db->open");
+	    krb5_err(context, 1, ret, "db->hdb_open");
 	break;
     default:
 	krb5_errx(context, 1, "unknown dump type `%d'", type);
@@ -852,17 +791,17 @@ main(int argc, char **argv)
     }
 
     if (to_stdout)
-	dump_database (context, type, database, db);
+	exit_code = dump_database (context, type, database, db);
     else
-	propagate_database (context, type, database, 
-			    db, ccache, optind, argc, argv);
+	exit_code = propagate_database (context, type, database, 
+					db, ccache, optidx, argc, argv);
 
     if(ccache != NULL)
 	krb5_cc_destroy(context, ccache);
 	
     if(db != NULL)
-	(*db->destroy)(context, db);
+	(*db->hdb_destroy)(context, db);
 
     krb5_free_context(context);
-    return 0;
+    return exit_code;
 }

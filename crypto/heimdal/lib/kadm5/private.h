@@ -31,23 +31,23 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: private.h,v 1.15 2002/08/16 20:57:44 joda Exp $ */
+/* $Id: private.h 22211 2007-12-07 19:27:27Z lha $ */
 
 #ifndef __kadm5_privatex_h__
 #define __kadm5_privatex_h__
 
 struct kadm_func {
-    kadm5_ret_t (*chpass_principal) (void *, krb5_principal, char*);
+    kadm5_ret_t (*chpass_principal) (void *, krb5_principal, const char*);
     kadm5_ret_t (*create_principal) (void*, kadm5_principal_ent_t, 
-				     u_int32_t, char*);
+				     uint32_t, const char*);
     kadm5_ret_t (*delete_principal) (void*, krb5_principal);
     kadm5_ret_t (*destroy) (void*);
     kadm5_ret_t (*flush) (void*);
     kadm5_ret_t (*get_principal) (void*, krb5_principal, 
-				  kadm5_principal_ent_t, u_int32_t);
+				  kadm5_principal_ent_t, uint32_t);
     kadm5_ret_t (*get_principals) (void*, const char*, char***, int*);
-    kadm5_ret_t (*get_privs) (void*, u_int32_t*);
-    kadm5_ret_t (*modify_principal) (void*, kadm5_principal_ent_t, u_int32_t);
+    kadm5_ret_t (*get_privs) (void*, uint32_t*);
+    kadm5_ret_t (*modify_principal) (void*, kadm5_principal_ent_t, uint32_t);
     kadm5_ret_t (*randkey_principal) (void*, krb5_principal, 
 				      krb5_keyblock**, int*);
     kadm5_ret_t (*rename_principal) (void*, krb5_principal, krb5_principal);
@@ -73,7 +73,7 @@ typedef struct kadm5_log_peer {
 typedef struct kadm5_log_context {
     char *log_file;
     int log_fd;
-    u_int32_t version;
+    uint32_t version;
     struct sockaddr_un socket_name;
     int socket_fd;
 } kadm5_log_context;
@@ -108,6 +108,20 @@ typedef struct kadm5_client_context {
     kadm5_config_params *realm_params;
 }kadm5_client_context;
 
+typedef struct kadm5_ad_context {
+    krb5_context context;
+    krb5_boolean my_context;
+    struct kadm_func funcs;
+    /* */
+    kadm5_config_params config;
+    krb5_principal caller;
+    krb5_ccache ccache;
+    char *client_name;
+    char *realm;
+    void *ldap_conn;
+    char *base_dn;
+} kadm5_ad_context;
+
 enum kadm_ops {
     kadm_get,
     kadm_delete,
@@ -124,8 +138,6 @@ enum kadm_ops {
 
 #define KADMIN_APPL_VERSION "KADM0.1"
 #define KADMIN_OLD_APPL_VERSION "KADM0.0"
-
-#define KADM5_LOG_SIGNAL HDB_DB_DIR "/signal"
 
 #include "kadm5-private.h"
 

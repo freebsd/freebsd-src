@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2005 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,18 +33,24 @@
 
 #include "der_locl.h"
 
-RCSID("$Id: der_length.c,v 1.12.6.2 2004/02/12 18:45:51 joda Exp $");
+RCSID("$Id: der_length.c 19539 2006-12-28 17:15:05Z lha $");
 
 size_t
 _heim_len_unsigned (unsigned val)
 {
-  size_t ret = 0;
+    size_t ret = 0;
+    int last_val_gt_128;
+    
+    do {
+	++ret;
+	last_val_gt_128 = (val >= 128);
+	val /= 256;
+    } while (val);
 
-  do {
-    ++ret;
-    val /= 256;
-  } while (val);
-  return ret;
+    if(last_val_gt_128)
+	ret++;
+
+    return ret;
 }
 
 size_t
@@ -75,7 +81,7 @@ _heim_len_int (int val)
 }
 
 static size_t
-len_oid (const oid *oid)
+len_oid (const heim_oid *oid)
 {
     size_t ret = 1;
     int n;
@@ -83,79 +89,144 @@ len_oid (const oid *oid)
     for (n = 2; n < oid->length; ++n) {
 	unsigned u = oid->components[n];
 
-	++ret;
-	u /= 128;
-	while (u > 0) {
+	do {
 	    ++ret;
 	    u /= 128;
-	}
+	} while(u > 0);
     }
     return ret;
 }
 
 size_t
-length_len (size_t len)
+der_length_len (size_t len)
 {
     if (len < 128)
 	return 1;
+    else {
+	int ret = 0;
+	do {
+	    ++ret;
+	    len /= 256;
+	} while (len);
+	return ret + 1;
+    }
+}
+
+size_t
+der_length_integer (const int *data)
+{
+    return _heim_len_int (*data);
+}
+
+size_t
+der_length_unsigned (const unsigned *data)
+{
+    return _heim_len_unsigned(*data);
+}
+
+size_t
+der_length_enumerated (const unsigned *data)
+{
+  return _heim_len_int (*data);
+}
+
+size_t
+der_length_general_string (const heim_general_string *data)
+{
+    return strlen(*data);
+}
+
+size_t
+der_length_utf8string (const heim_utf8_string *data)
+{
+    return strlen(*data);
+}
+
+size_t
+der_length_printable_string (const heim_printable_string *data)
+{
+    return strlen(*data);
+}
+
+size_t
+der_length_ia5_string (const heim_ia5_string *data)
+{
+    return strlen(*data);
+}
+
+size_t
+der_length_bmp_string (const heim_bmp_string *data)
+{
+    return data->length * 2;
+}
+
+size_t
+der_length_universal_string (const heim_universal_string *data)
+{
+    return data->length * 4;
+}
+
+size_t
+der_length_visible_string (const heim_visible_string *data)
+{
+    return strlen(*data);
+}
+
+size_t
+der_length_octet_string (const heim_octet_string *k)
+{
+    return k->length;
+}
+
+size_t
+der_length_heim_integer (const heim_integer *k)
+{
+    if (k->length == 0)
+	return 1;
+    if (k->negative)
+	return k->length + (((~(((unsigned char *)k->data)[0])) & 0x80) ? 0 : 1);
     else
-	return _heim_len_unsigned (len) + 1;
+	return k->length + ((((unsigned char *)k->data)[0] & 0x80) ? 1 : 0);
 }
 
 size_t
-length_integer (const int *data)
+der_length_oid (const heim_oid *k)
 {
-    size_t len = _heim_len_int (*data);
-
-  return 1 + length_len(len) + len;
+    return len_oid (k);
 }
 
 size_t
-length_unsigned (const unsigned *data)
+der_length_generalized_time (const time_t *t)
 {
-  size_t len = _heim_len_unsigned (*data);
+    heim_octet_string k;
+    size_t ret;
 
-  return 1 + length_len(len) + len;
+    _heim_time2generalizedtime (*t, &k, 1);
+    ret = k.length;
+    free(k.data);
+    return ret;
 }
 
 size_t
-length_enumerated (const unsigned *data)
+der_length_utctime (const time_t *t)
 {
-    size_t len = _heim_len_int (*data);
+    heim_octet_string k;
+    size_t ret;
 
-  return 1 + length_len(len) + len;
+    _heim_time2generalizedtime (*t, &k, 0);
+    ret = k.length;
+    free(k.data);
+    return ret;
 }
 
 size_t
-length_general_string (const general_string *data)
+der_length_boolean (const int *k)
 {
-  char *str = *data;
-  size_t len = strlen(str);
-  return 1 + length_len(len) + len;
+    return 1;
 }
 
 size_t
-length_octet_string (const octet_string *k)
+der_length_bit_string (const heim_bit_string *k)
 {
-  return 1 + length_len(k->length) + k->length;
-}
-
-size_t
-length_oid (const oid *k)
-{
-  size_t len = len_oid (k);
-
-  return 1 + length_len(len) + len;
-}
-
-size_t
-length_generalized_time (const time_t *t)
-{
-  octet_string k;
-  size_t ret;
-
-  time2generalizedtime (*t, &k);
-  ret = 1 + length_len(k.length) + k.length;
-  free (k.data);
-  return ret;
+    return (k->length + 7) / 8 + 1;
 }

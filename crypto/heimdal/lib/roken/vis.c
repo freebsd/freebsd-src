@@ -1,9 +1,36 @@
-/*	$NetBSD: vis.c,v 1.19 2000/01/22 22:42:45 mycroft Exp $	*/
+/*	$NetBSD: vis.c,v 1.4 2003/08/07 09:15:32 agc Exp $	*/
+
+/*-
+ * Copyright (c) 1989, 1993
+ *	The Regents of the University of California.  All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. Neither the name of the University nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
 
 /*-
  * Copyright (c) 1999 The NetBSD Foundation, Inc.
- * Copyright (c) 1989, 1993
- *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -38,16 +65,16 @@
 #if 1
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: vis.c,v 1.5 2001/09/03 05:37:23 assar Exp $");
+RCSID("$Id: vis.c 21005 2007-06-08 01:54:35Z lha $");
 #endif
-#include <roken.h>
+#include "roken.h"
 #ifndef _DIAGASSERT
 #define _DIAGASSERT(X)
 #endif
 #else
 #include <sys/cdefs.h>
 #if !defined(lint)
-__RCSID("$NetBSD: vis.c,v 1.19 2000/01/22 22:42:45 mycroft Exp $");
+__RCSID("$NetBSD: vis.c,v 1.4 2003/08/07 09:15:32 agc Exp $");
 #endif /* not lint */
 #endif
 
@@ -80,6 +107,20 @@ __weak_alias(vis,_vis)
 #else
 #define BELL '\007'
 #endif
+
+char ROKEN_LIB_FUNCTION
+	*rk_vis (char *, int, int, int);
+char ROKEN_LIB_FUNCTION
+	*rk_svis (char *, int, int, int, const char *);
+int ROKEN_LIB_FUNCTION
+	rk_strvis (char *, const char *, int);
+int ROKEN_LIB_FUNCTION
+	rk_strsvis (char *, const char *, int, const char *);
+int ROKEN_LIB_FUNCTION
+	rk_strvisx (char *, const char *, size_t, int);
+int ROKEN_LIB_FUNCTION
+	rk_strsvisx (char *, const char *, size_t, int, const char *);
+
 
 #define isoctal(c)	(((u_char)(c)) >= '0' && ((u_char)(c)) <= '7')
 #define iswhite(c)	(c == ' ' || c == '\t' || c == '\n')
@@ -181,9 +222,9 @@ do {									   \
  * svis - visually encode characters, also encoding the characters
  * 	  pointed to by `extra'
  */
-#ifndef HAVE_SVIS
-char *
-svis(char *dst, int c, int flag, int nextc, const char *extra)
+
+char * ROKEN_LIB_FUNCTION
+rk_svis(char *dst, int c, int flag, int nextc, const char *extra)
 {
 	_DIAGASSERT(dst != NULL);
 	_DIAGASSERT(extra != NULL);
@@ -192,7 +233,6 @@ svis(char *dst, int c, int flag, int nextc, const char *extra)
 	*dst = '\0';
 	return(dst);
 }
-#endif
 
 
 /*
@@ -210,9 +250,9 @@ svis(char *dst, int c, int flag, int nextc, const char *extra)
  *	Strsvisx encodes exactly len bytes from src into dst.
  *	This is useful for encoding a block of data.
  */
-#ifndef HAVE_STRSVIS
-int
-strsvis(char *dst, const char *src, int flag, const char *extra)
+
+int ROKEN_LIB_FUNCTION
+rk_strsvis(char *dst, const char *src, int flag, const char *extra)
 {
 	char c;
 	char *start;
@@ -226,12 +266,10 @@ strsvis(char *dst, const char *src, int flag, const char *extra)
 	*dst = '\0';
 	return (dst - start);
 }
-#endif
 
 
-#ifndef HAVE_STRVISX
-int
-strsvisx(char *dst, const char *src, size_t len, int flag, const char *extra)
+int ROKEN_LIB_FUNCTION
+rk_strsvisx(char *dst, const char *src, size_t len, int flag, const char *extra)
 {
 	char c;
 	char *start;
@@ -247,15 +285,13 @@ strsvisx(char *dst, const char *src, size_t len, int flag, const char *extra)
 	*dst = '\0';
 	return (dst - start);
 }
-#endif
 
 
 /*
  * vis - visually encode characters
  */
-#ifndef HAVE_VIS
-char *
-vis(char *dst, int c, int flag, int nextc)
+char * ROKEN_LIB_FUNCTION
+rk_vis(char *dst, int c, int flag, int nextc)
 {
 	char extra[MAXEXTRAS];
 
@@ -266,7 +302,6 @@ vis(char *dst, int c, int flag, int nextc)
 	*dst = '\0';
 	return (dst);
 }
-#endif
 
 
 /*
@@ -279,25 +314,22 @@ vis(char *dst, int c, int flag, int nextc)
  *	Strvisx encodes exactly len bytes from src into dst.
  *	This is useful for encoding a block of data.
  */
-#ifndef HAVE_STRVIS
-int
-strvis(char *dst, const char *src, int flag)
+
+int ROKEN_LIB_FUNCTION
+rk_strvis(char *dst, const char *src, int flag)
 {
 	char extra[MAXEXTRAS];
 
 	MAKEEXTRALIST(flag, extra);
-	return (strsvis(dst, src, flag, extra));
+	return (rk_strsvis(dst, src, flag, extra));
 }
-#endif
 
 
-#ifndef HAVE_STRVISX
-int
-strvisx(char *dst, const char *src, size_t len, int flag)
+int ROKEN_LIB_FUNCTION
+rk_strvisx(char *dst, const char *src, size_t len, int flag)
 {
 	char extra[MAXEXTRAS];
 
 	MAKEEXTRALIST(flag, extra);
-	return (strsvisx(dst, src, len, flag, extra));
+	return (rk_strsvisx(dst, src, len, flag, extra));
 }
-#endif

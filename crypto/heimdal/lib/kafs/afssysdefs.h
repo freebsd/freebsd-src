@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: afssysdefs.h,v 1.26 2003/02/08 22:55:55 assar Exp $ */
+/* $Id: afssysdefs.h 14102 2004-08-09 13:41:32Z lha $ */
 
 /*
  * This section is for machines using single entry point AFS syscalls!
@@ -89,6 +89,12 @@
 #define AFS_SYSCALL 210
 #endif
 #endif /* __FreeBSD__ */
+
+#ifdef __DragonFly__
+#ifndef AFS_SYSCALL
+#define AFS_SYSCALL 339
+#endif
+#endif
 
 #ifdef __OpenBSD__
 #define AFS_SYSCALL 208

@@ -33,12 +33,12 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: inet_pton.c,v 1.3 2000/07/27 04:56:13 assar Exp $");
+RCSID("$Id: inet_pton.c 21005 2007-06-08 01:54:35Z lha $");
 #endif
 
-#include <roken.h>
+#include "roken.h"
 
-int
+int ROKEN_LIB_FUNCTION
 inet_pton(int af, const char *src, void *dst)
 {
     if (af != AF_INET) {

@@ -3,7 +3,7 @@
 #
 # This might look like a com_err file, but is not
 #
-id "$Id: kadm5_err.et,v 1.5 2001/12/06 17:02:55 assar Exp $"
+id "$Id: kadm5_err.et 16683 2006-02-02 13:11:47Z lha $"
 
 error_table ovk kadm5
 
@@ -33,7 +33,7 @@ error_code BAD_MIN_PASS_LIFE,	"Password minimum life is greater than password ma
 error_code PASS_Q_TOOSHORT,	"Password is too short"
 error_code PASS_Q_CLASS,	"Password does not contain enough character classes"
 error_code PASS_Q_DICT,		"Password is in the password dictionary"
-error_code PASS_REUSE,		"Can't resuse password"
+error_code PASS_REUSE,		"Can't reuse password"
 error_code PASS_TOOSOON,	"Current password's minimum life has not expired"
 error_code POLICY_REF,		"Policy is in use"
 error_code INIT,		"Connection to server already initialized"
@@ -54,6 +54,6 @@ error_code BAD_CLIENT_PARAMS,	"Invalid configuration parameter for remote KADM5 
 error_code BAD_SERVER_PARAMS,	"Invalid configuration parameter for local KADM5 client."
 error_code AUTH_LIST,		"Operation requires `list' privilege"
 error_code AUTH_CHANGEPW,	"Operation requires `change-password' privilege"
-error_code BAD_TL_TYPE,		"Programmer error!  Invalid tagged data list element type"
+error_code BAD_TL_TYPE,		"Invalid tagged data list element type"
 error_code MISSING_CONF_PARAMS,	"Required parameters in kdc.conf missing"
 error_code BAD_SERVER_NAME,	"Bad krb5 admin server hostname"
