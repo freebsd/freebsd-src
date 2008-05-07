@@ -85,7 +85,7 @@ zfs_filestat(struct vnode *vp, struct filestat *fsp)
 
 	/* Since we have problems including vnode.h, we'll use the wrappers. */
 	vnodeptr = getvnodedata(vp);
-	if (!KVM_READ(vnodeptr, znodeptr, size)) {
+	if (!KVM_READ(vnodeptr, znodeptr, (size_t)size)) {
 		dprintf(stderr, "can't read znode at %p for pid %d\n",
 		    (void *)vnodeptr, Pid);
 		goto bad;
