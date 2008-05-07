@@ -42,6 +42,12 @@ gss_wrap_size_limit(OM_uint32 *minor_status,
 	struct _gss_context *ctx = (struct _gss_context *) context_handle;
 	struct _gss_mech_switch *m = ctx->gc_mech;
 
+	*max_input_size = 0;
+	if (ctx == NULL) {
+		*minor_status = 0;
+		return (GSS_S_NO_CONTEXT);
+	}
+
 	return (m->gm_wrap_size_limit(minor_status, ctx->gc_ctx,
 		    conf_req_flag, qop_req, req_output_size, max_input_size));
 }

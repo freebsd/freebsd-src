@@ -34,6 +34,7 @@
 #include "spnego/spnego_locl.h"
 
 RCSID("$Id: accept_sec_context.c 21461 2007-07-10 14:01:13Z lha $");
+/* $FreeBSD$ */
 
 static OM_uint32
 send_reject (OM_uint32 *minor_status,
@@ -376,6 +377,9 @@ select_mech(OM_uint32 *minor_status, MechType *mechType, int verify_p,
     char mechbuf[64];
     size_t mech_len;
     gss_OID_desc oid;
+    gss_OID oidp;
+    gss_OID_set mechs;
+    int i;
     OM_uint32 ret, junk;
 
     ret = der_put_oid ((unsigned char *)mechbuf + sizeof(mechbuf) - 1,
@@ -396,27 +400,29 @@ select_mech(OM_uint32 *minor_status, MechType *mechType, int verify_p,
     *minor_status = 0;
 
     /* Translate broken MS Kebreros OID */
-    if (gss_oid_equal(&oid, &_gss_spnego_mskrb_mechanism_oid_desc)) {
-	gssapi_mech_interface mech;
+    if (gss_oid_equal(&oid, &_gss_spnego_mskrb_mechanism_oid_desc))
+	    oidp = &_gss_spnego_krb5_mechanism_oid_desc;
+    else
+	    oidp = &oid;
 
-	mech = __gss_get_mechanism(&_gss_spnego_krb5_mechanism_oid_desc);
-	if (mech == NULL)
+
+    ret = gss_indicate_mechs(&junk, &mechs);
+    if (ret)
+	    return (ret);
+
+    for (i = 0; i < mechs->count; i++)
+	    if (gss_oid_equal(&mechs->elements[i], oidp))
+		    break;
+
+    if (i == mechs->count) {
+	    gss_release_oid_set(&junk, &mechs);
 	    return GSS_S_BAD_MECH;
-
-	ret = gss_duplicate_oid(minor_status,
-				&_gss_spnego_mskrb_mechanism_oid_desc,
-				mech_p);
-    } else {
-	gssapi_mech_interface mech;
-
-	mech = __gss_get_mechanism(&oid);
-	if (mech == NULL)
-	    return GSS_S_BAD_MECH;
-
-	ret = gss_duplicate_oid(minor_status,
-				&mech->gm_mech_oid,
-				mech_p);
     }
+    gss_release_oid_set(&junk, &mechs);
+
+    ret = gss_duplicate_oid(minor_status,
+			    &oid, /* possibly this should be oidp */
+			    mech_p);
 
     if (verify_p) {
 	gss_name_t name = GSS_C_NO_NAME;

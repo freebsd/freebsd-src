@@ -39,6 +39,7 @@ gss_inquire_names_for_mech(OM_uint32 *minor_status,
 	struct _gss_mech_switch *m = _gss_find_mech_switch(mechanism);
 
 	*minor_status = 0;
+	*name_types = GSS_C_NO_OID_SET;
 	if (!m)
 		return (GSS_S_BAD_MECH);
 
@@ -57,15 +58,15 @@ gss_inquire_names_for_mech(OM_uint32 *minor_status,
 		major_status = gss_add_oid_set_member(minor_status,
 		    GSS_C_NT_HOSTBASED_SERVICE, name_types);
 		if (major_status) {
-			OM_uint32 ms;
-			gss_release_oid_set(&ms, name_types);
+			OM_uint32 junk;
+			gss_release_oid_set(&junk, name_types);
 			return (major_status);
 		}
 		major_status = gss_add_oid_set_member(minor_status,
 		    GSS_C_NT_USER_NAME, name_types);
 		if (major_status) {
-			OM_uint32 ms;
-			gss_release_oid_set(&ms, name_types);
+			OM_uint32 junk;
+			gss_release_oid_set(&junk, name_types);
 			return (major_status);
 		}
 	}

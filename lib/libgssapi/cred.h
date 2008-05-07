@@ -37,7 +37,6 @@ struct _gss_mechanism_cred {
 SLIST_HEAD(_gss_mechanism_cred_list, _gss_mechanism_cred);
 
 struct _gss_cred {
-	gss_cred_usage_t gc_usage;
 	struct _gss_mechanism_cred_list gc_mc;
 };
 

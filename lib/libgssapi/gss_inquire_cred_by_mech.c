@@ -49,6 +49,14 @@ gss_inquire_cred_by_mech(OM_uint32 *minor_status,
 	struct _gss_name *name;
 
 	*minor_status = 0;
+	if (cred_name)
+		*cred_name = GSS_C_NO_NAME;
+	if (initiator_lifetime)
+		*initiator_lifetime = 0;
+	if (acceptor_lifetime)
+		*acceptor_lifetime = 0;
+	if (cred_usage)
+		*cred_usage = 0;
 
 	m = _gss_find_mech_switch(mech_type);
 	if (!m)
@@ -68,15 +76,21 @@ gss_inquire_cred_by_mech(OM_uint32 *minor_status,
 
 	major_status = m->gm_inquire_cred_by_mech(minor_status, mc, mech_type,
 	    &mn, initiator_lifetime, acceptor_lifetime, cred_usage);
-	if (major_status != GSS_S_COMPLETE)
+	if (major_status != GSS_S_COMPLETE) {
+		_gss_mg_error(m, major_status, *minor_status);
 		return (major_status);
-
-	name = _gss_make_name(m, mn);
-	if (!name) {
-		m->gm_release_name(minor_status, &mn);
-		return (GSS_S_NO_CRED);
 	}
 
-	*cred_name = (gss_name_t) name;
+	if (cred_name) {
+		name = _gss_make_name(m, mn);
+		if (!name) {
+			m->gm_release_name(minor_status, &mn);
+			return (GSS_S_NO_CRED);
+		}
+		*cred_name = (gss_name_t) name;
+	} else {
+		m->gm_release_name(minor_status, &mn);
+	}
+
 	return (GSS_S_COMPLETE);
 }

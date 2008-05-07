@@ -51,8 +51,11 @@ LIBGCC_PIC?=	${DESTDIR}${LIBDIR}/libgcc_pic.a
 LIBGEOM?=	${DESTDIR}${LIBDIR}/libgeom.a
 LIBGNUREGEX?=	${DESTDIR}${LIBDIR}/libgnuregex.a
 LIBGSSAPI?=	${DESTDIR}${LIBDIR}/libgssapi.a
+LIBGSSAPI_KRB5?= ${DESTDIR}${LIBDIR}/libgssapi_krb5.a
 LIBHDB?=	${DESTDIR}${LIBDIR}/libhdb.a
 LIBHISTORY?=	${DESTDIR}${LIBDIR}/libhistory.a
+LIBHEIMNTLM?=	${DESTDIR}${LIBDIR}/libheimntlm.a
+LIBHX509?=	${DESTDIR}${LIBDIR}/libhx509.a
 LIBIPSEC?=	${DESTDIR}${LIBDIR}/libipsec.a
 .if ${MK_IPX} != "no"
 LIBIPX?=	${DESTDIR}${LIBDIR}/libipx.a
@@ -100,9 +103,9 @@ LIBPAM?=	${DESTDIR}${LIBDIR}/libpam.a
 MINUSLPAM=	-lpam
 .if defined(LDFLAGS) && !empty(LDFLAGS:M-static)
 .if ${MK_KERBEROS} != "no"
-LIBPAM+=	${LIBKRB5} ${LIBASN1} ${LIBCRYPTO} ${LIBCRYPT} \
+LIBPAM+=	${LIBKRB5} ${LIBHX509} ${LIBASN1} ${LIBCRYPTO} ${LIBCRYPT} \
 		${LIBROKEN} ${LIBCOM_ERR}
-MINUSLPAM+=	-lkrb5 -lasn1 -lcrypto -lcrypt -lroken -lcom_err
+MINUSLPAM+=	-lkrb5 -lhx509 -lasn1 -lcrypto -lcrypt -lroken -lcom_err
 .endif
 LIBPAM+=	${LIBRADIUS} ${LIBTACPLUS} ${LIBCRYPT} \
 		${LIBUTIL} ${LIBOPIE} ${LIBMD}

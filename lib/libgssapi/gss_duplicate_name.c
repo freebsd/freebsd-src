@@ -44,11 +44,12 @@ OM_uint32 gss_duplicate_name(OM_uint32 *minor_status,
 	struct _gss_mechanism_name *mn;
 
 	*minor_status = 0;
+	*dest_name = GSS_C_NO_NAME;
 
 	/*
 	 * If this name has a value (i.e. it didn't come from
 	 * gss_canonicalize_name(), we re-import the thing. Otherwise,
-	 * we make an empty name to hold the MN copy.
+	 * we make a copy of the mechanism names.
 	 */
 	if (name->gn_value.value) {
 		major_status = gss_import_name(minor_status,
@@ -56,6 +57,12 @@ OM_uint32 gss_duplicate_name(OM_uint32 *minor_status,
 		if (major_status != GSS_S_COMPLETE)
 			return (major_status);
 		new_name = (struct _gss_name *) *dest_name;
+
+		SLIST_FOREACH(mn, &name->gn_mn, gmn_link) {
+			struct _gss_mechanism_name *mn2;
+			_gss_find_mn(minor_status, new_name, 
+			    mn->gmn_mech_oid, &mn2);
+		}
 	} else {
 		new_name = malloc(sizeof(struct _gss_name));
 		if (!new_name) {
@@ -63,17 +70,30 @@ OM_uint32 gss_duplicate_name(OM_uint32 *minor_status,
 			return (GSS_S_FAILURE);
 		}
 		memset(new_name, 0, sizeof(struct _gss_name));
-		SLIST_INIT(&name->gn_mn);
+		SLIST_INIT(&new_name->gn_mn);
 		*dest_name = (gss_name_t) new_name;
-	}
 
-	/*
-	 * Import the new name into any mechanisms listed in the
-	 * original name. We could probably get away with only doing
-	 * this if the original was canonical.
-	 */
-	SLIST_FOREACH(mn, &name->gn_mn, gmn_link) {
-		_gss_find_mn(new_name, mn->gmn_mech_oid);
+		SLIST_FOREACH(mn, &name->gn_mn, gmn_link) {
+			struct _gss_mechanism_name *new_mn;
+			
+			new_mn = malloc(sizeof(*new_mn));
+			if (!new_mn) {
+				*minor_status = ENOMEM;
+				return (GSS_S_FAILURE);
+			}
+			new_mn->gmn_mech = mn->gmn_mech;
+			new_mn->gmn_mech_oid = mn->gmn_mech_oid;
+			
+			major_status = 
+			    mn->gmn_mech->gm_duplicate_name(minor_status,
+				mn->gmn_name, &new_mn->gmn_name);
+			if (major_status != GSS_S_COMPLETE) {
+				free(new_mn);
+				continue;
+			}
+			SLIST_INSERT_HEAD(&new_name->gn_mn, new_mn, gmn_link);
+		}
+
 	}
 
 	return (GSS_S_COMPLETE);

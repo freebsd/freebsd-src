@@ -27,9 +27,11 @@
  */
 
 #include <gssapi/gssapi.h>
+#include <string.h>
 
 #include "mech_switch.h"
 #include "name.h"
+#include "utils.h"
 
 OM_uint32
 gss_compare_name(OM_uint32 *minor_status,
@@ -47,7 +49,7 @@ gss_compare_name(OM_uint32 *minor_status,
 	 */
 	if (name1->gn_value.value && name2->gn_value.value) {
 		*name_equal = 1;
-		if (!_gss_oid_equal(name1->gn_type, name2->gn_type)) {
+		if (!gss_oid_equal(&name1->gn_type, &name2->gn_type)) {
 			*name_equal = 0;
 		} else if (name1->gn_value.length != name2->gn_value.length ||
 		    memcmp(name1->gn_value.value, name1->gn_value.value,
@@ -59,8 +61,11 @@ gss_compare_name(OM_uint32 *minor_status,
 		struct _gss_mechanism_name *mn2;
 
 		SLIST_FOREACH(mn1, &name1->gn_mn, gmn_link) {
-			mn2 = _gss_find_mn(name2, mn1->gmn_mech_oid);
-			if (mn2) {
+			OM_uint32 major_status;
+
+			major_status = _gss_find_mn(minor_status, name2,
+						    mn1->gmn_mech_oid, &mn2);
+			if (major_status == GSS_S_COMPLETE) {
 				return (mn1->gmn_mech->gm_compare_name(
 						minor_status,
 						mn1->gmn_name,

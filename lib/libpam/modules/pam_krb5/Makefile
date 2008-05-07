@@ -32,7 +32,7 @@ CFLAGS+=-D_FREEFALL_CONFIG
 WARNS=	0
 .endif
 
-DPADD=	${LIBKRB5} ${LIBASN1} ${LIBROKEN} ${LIBCOM_ERR} ${LIBCRYPT} ${LIBCRYPTO}
-LDADD=	-lkrb5 -lasn1 -lroken -lcom_err -lcrypt -lcrypto
+DPADD=	${LIBKRB5} ${LIBHX509} ${LIBASN1} ${LIBROKEN} ${LIBCOM_ERR} ${LIBCRYPT} ${LIBCRYPTO}
+LDADD=	-lkrb5 -lhx509 -lasn1 -lroken -lcom_err -lcrypt -lcrypto
 
 .include <bsd.lib.mk>
