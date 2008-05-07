@@ -41,8 +41,8 @@ LDADD+=		-lmp -lcrypto -lcrypt ${MINUSLPAM}
 
 .if ${MK_KERBEROS_SUPPORT} != "no"
 CFLAGS+=	-DKRB5 -DFORWARD -Dnet_write=telnet_net_write
-DPADD+=		${LIBKRB5} ${LIBASN1} ${LIBROKEN} ${LIBCOM_ERR}
-LDADD+=		-lkrb5 -lasn1 -lroken -lcom_err
+DPADD+=		${LIBKRB5} ${LIBHX509} ${LIBASN1} ${LIBROKEN} ${LIBCOM_ERR}
+LDADD+=		-lkrb5 -lhx509 -lasn1 -lroken -lcom_err
 .endif
 .endif
 

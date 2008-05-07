@@ -51,6 +51,6 @@ gss_release_cred(OM_uint32 *minor_status, gss_cred_id_t *cred_handle)
 	free(cred);
 
 	*minor_status = 0;
-	*cred_handle = 0;
+	*cred_handle = GSS_C_NO_CREDENTIAL;
 	return (GSS_S_COMPLETE);
 }

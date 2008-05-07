@@ -27,6 +27,7 @@
  */
 
 #include <gssapi/gssapi.h>
+#include <ctype.h>
 #include <dlfcn.h>
 #include <errno.h>
 #include <stdio.h>
@@ -55,6 +56,9 @@ _gss_string_to_oid(const char* s, gss_OID oid)
 	int			byte_count;
 	const char		*p, *q;
 	char			*res;
+
+	oid->length = 0;
+	oid->elements = NULL;
 
 	/*
 	 * First figure out how many numbers in the oid, then
@@ -153,23 +157,23 @@ _gss_string_to_oid(const char* s, gss_OID oid)
 	return (0);
 }
 
-#define SYM(name)							\
-do {									\
-	m->gm_ ## name = dlsym(so, "gss_" #name);			\
-	if (!m->gm_ ## name) {						\
-		fprintf(stderr, "can't find symbol gss_" #name "\n");	\
-		goto bad;						\
-	}								\
+
+#define SYM(name)						\
+do {								\
+	snprintf(buf, sizeof(buf), "%s_%s",			\
+	    m->gm_name_prefix, #name);				\
+	m->gm_ ## name = dlsym(so, buf);			\
+	if (!m->gm_ ## name) {					\
+		fprintf(stderr, "can't find symbol %s\n", buf);	\
+		goto bad;					\
+	}							\
 } while (0)
 
-#define OPTSYM(name)							\
-do {									\
-	m->gm_ ## name = dlsym(so, "gss_" #name);			\
-} while (0)
-
-#define OPTSYM2(symname, ourname)					\
-do {									\
-	m->ourname = dlsym(so, #symname);			\
+#define OPTSYM(name)				\
+do {						\
+	snprintf(buf, sizeof(buf), "%s_%s",	\
+	    m->gm_name_prefix, #name);		\
+	m->gm_ ## name = dlsym(so, buf);	\
 } while (0)
 
 /*
@@ -185,8 +189,8 @@ _gss_load_mech(void)
 	char		*name, *oid, *lib, *kobj;
 	struct _gss_mech_switch *m;
 	int		count;
-	char		**pp;
 	void		*so;
+	const char	*(*prefix_fn)(void);
 
 	if (SLIST_FIRST(&_gss_mechs))
 		return;
@@ -232,6 +236,13 @@ _gss_load_mech(void)
 			continue;
 		}
 		
+		prefix_fn = (const char *(*)(void))
+			dlsym(so, "_gss_name_prefix");
+		if (prefix_fn)
+			m->gm_name_prefix = prefix_fn();
+		else
+			m->gm_name_prefix = "gss";
+
 		major_status = gss_add_oid_set_member(&minor_status,
 		    &m->gm_mech_oid, &_gss_mech_oids);
 		if (major_status) {
@@ -252,7 +263,7 @@ _gss_load_mech(void)
 		SYM(wrap);
 		SYM(unwrap);
 		SYM(display_status);
-		SYM(indicate_mechs);
+		OPTSYM(indicate_mechs);
 		SYM(compare_name);
 		SYM(display_name);
 		SYM(import_name);
@@ -269,10 +280,11 @@ _gss_load_mech(void)
 		SYM(inquire_mechs_for_name);
 		SYM(canonicalize_name);
 		SYM(duplicate_name);
-		OPTSYM2(gsskrb5_register_acceptor_identity,
-			gm_krb5_register_acceptor_identity);
-		OPTSYM(krb5_copy_ccache);
-		OPTSYM(krb5_compat_des3_mic);
+		OPTSYM(inquire_sec_context_by_oid);
+		OPTSYM(inquire_cred_by_oid);
+		OPTSYM(set_sec_context_option);
+		OPTSYM(set_cred_option);
+		OPTSYM(pseudo_random);
 
 		SLIST_INSERT_HEAD(&_gss_mechs, m, gm_link);
 		count++;
@@ -294,7 +306,7 @@ _gss_find_mech_switch(gss_OID mech)
 
 	_gss_load_mech();
 	SLIST_FOREACH(m, &_gss_mechs, gm_link) {
-		if (_gss_oid_equal(&m->gm_mech_oid, mech))
+		if (gss_oid_equal(&m->gm_mech_oid, mech))
 			return m;
 	}
 	return (0);

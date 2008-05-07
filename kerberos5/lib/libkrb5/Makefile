@@ -1,45 +1,76 @@
 # $FreeBSD$
 
 LIB=	krb5
+VERSION_MAP= ${KRB5DIR}/lib/krb5/version-script.map
 
 INCS=	heim_err.h \
+	heim_threads.h \
 	k524_err.h \
 	krb5-protos.h \
 	krb5-types.h \
 	krb5.h \
-	krb5_err.h
+	krb5_err.h \
+	krb5-v4compat.h \
+	krb_err.h
 
 MAN=	krb5.3 \
+	krb524_convert_creds_kdc.3 \
 	krb5_425_conv_principal.3 \
+	krb5_acl_match_file.3 \
 	krb5_address.3 \
 	krb5_aname_to_localname.3 \
 	krb5_appdefault.3 \
 	krb5_auth_context.3 \
-	krb5_build_principal.3 \
+	krb5_c_make_checksum.3 \
 	krb5_ccache.3 \
+	krb5_check_transited.3 \
+	krb5_compare_creds.3 \
 	krb5_config.3 \
 	krb5_context.3 \
 	krb5_create_checksum.3 \
+	krb5_creds.3 \
 	krb5_crypto_init.3 \
 	krb5_data.3 \
+	krb5_digest.3 \
+	krb5_eai_to_heim_errno.3 \
 	krb5_encrypt.3 \
-	krb5_free_addresses.3 \
-	krb5_free_principal.3 \
+	krb5_expand_hostname.3 \
+	krb5_find_padata.3 \
+	krb5_generate_random_block.3 \
 	krb5_get_all_client_addrs.3 \
+	krb5_get_credentials.3 \
+	krb5_get_creds.3 \
+	krb5_get_forwarded_creds.3 \
+	krb5_get_in_cred.3 \
+	krb5_get_init_creds.3 \
 	krb5_get_krbhst.3 \
+	krb5_getportbyname.3 \
 	krb5_init_context.3 \
+	krb5_is_thread_safe.3 \
+	krb5_keyblock.3 \
 	krb5_keytab.3 \
 	krb5_krbhst_init.3 \
 	krb5_kuserok.3 \
+	krb5_mk_req.3 \
+	krb5_mk_safe.3 \
 	krb5_openlog.3 \
 	krb5_parse_name.3 \
-	krb5_principal_get_realm.3 \
+	krb5_principal.3 \
+	krb5_rcache.3 \
+	krb5_rd_error.3 \
+	krb5_rd_safe.3 \
 	krb5_set_default_realm.3 \
-	krb5_sname_to_principal.3 \
+	krb5_set_password.3 \
+	krb5_storage.3 \
+	krb5_string_to_key.3 \
+	krb5_ticket.3 \
 	krb5_timeofday.3 \
 	krb5_unparse_name.3 \
+	krb5_verify_init_creds.3 \
 	krb5_verify_user.3 \
-	krb5_warn.3
+	krb5_warn.3 \
+	verify_krb5_conf.8
+
 MAN+=	krb5.conf.5
 MAN+=	kerberos.8
 
@@ -209,7 +240,8 @@ MLINKS=	krb5_425_conv_principal.3 krb5_425_conv_principal_ext.3 \
 	krb5_warn.3 krb5_vwarnx.3 \
 	krb5_warn.3 krb5_warnx.3
 
-SRCS=	acl.c \
+SRCS=	acache.c \
+	acl.c \
 	add_et_list.c \
 	addr_families.c \
 	aname_to_localname.c \
@@ -231,6 +263,7 @@ SRCS=	acl.c \
 	creds.c \
 	crypto.c \
 	data.c \
+	digest.c \
 	eai_to_heim_errno.c \
 	error_string.c \
 	expand_hostname.c \
@@ -250,12 +283,11 @@ SRCS=	acl.c \
 	get_in_tkt_with_keytab.c \
 	get_in_tkt_with_skey.c \
 	get_port.c \
-	heim_err.c \
-	heim_err.h \
+	heim_threads.h \
 	init_creds.c \
 	init_creds_pw.c \
-	k524_err.c \
-	k524_err.h \
+	kcm.c \
+	kcm.h \
 	keyblock.c \
 	keytab.c \
 	keytab_any.c \
@@ -263,8 +295,8 @@ SRCS=	acl.c \
 	keytab_keyfile.c \
 	keytab_krb4.c \
 	keytab_memory.c \
-	krb5_err.c \
-	krb5_err.h \
+	krb5_locl.h \
+	krb5-v4compat.h \
 	krbhst.c \
 	kuserok.c \
 	log.c \
@@ -276,10 +308,13 @@ SRCS=	acl.c \
 	mk_req.c \
 	mk_req_ext.c \
 	mk_safe.c \
+	mit_glue.c \
 	n-fold.c \
 	net_read.c \
 	net_write.c \
+	pac.c \
 	padata.c \
+	pkinit.c \
 	principal.c \
 	prog_setup.c \
 	prompter_posix.c \
@@ -297,20 +332,32 @@ SRCS=	acl.c \
 	set_default_realm.c \
 	sock_principal.c \
 	store.c \
+	store-int.h \
 	store_emem.c \
 	store_fd.c \
 	store_mem.c \
+	plugin.c \
 	ticket.c \
 	time.c \
 	transited.c \
+	v4_glue.c \
 	verify_init.c \
 	verify_user.c \
 	version.c \
 	warn.c \
 	write_message.c
 
+SRCS+=	heim_err.c \
+	heim_err.h \
+	k524_err.c \
+	k524_err.h \
+	krb5_err.c \
+	krb5_err.h \
+	krb_err.c \
+	krb_err.h
+
 CFLAGS+=-I${KRB5DIR}/lib/krb5 -I${KRB5DIR}/lib/asn1 -I${KRB5DIR}/lib/roken -I.
 
 .include <bsd.lib.mk>
 
-.PATH: ${KRB5DIR}/lib/krb5 ${.CURDIR}/../../include
+.PATH: ${KRB5DIR}/lib/krb5 ${KRB5DIR}/lib/asn1 ${.CURDIR}/../../include

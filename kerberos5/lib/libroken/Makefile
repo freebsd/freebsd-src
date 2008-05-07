@@ -1,13 +1,14 @@
 # $FreeBSD$
 
 LIB=	roken
-SHLIB_MAJOR=	9
 INCS=	roken.h roken-common.h
 
 SRCS=	base64.c \
 	bswap.c \
+	closefrom.c \
 	concat.c \
 	copyhostent.c \
+	dumpdata.c \
 	ecalloc.c \
 	emalloc.c \
 	environment.c \
@@ -21,6 +22,7 @@ SRCS=	base64.c \
 	getaddrinfo_hostspec.c \
 	getarg.c \
 	getnameinfo_verified.c \
+	hex.c \
 	hostent_find_fqdn.c \
 	issuid.c \
 	k_getpwnam.c \
@@ -43,6 +45,7 @@ SRCS=	base64.c \
 	strlwr.c \
 	strndup.c \
 	strnlen.c \
+	strpool.c \
 	strsep_copy.c \
 	strupr.c \
 	timeval.c \
