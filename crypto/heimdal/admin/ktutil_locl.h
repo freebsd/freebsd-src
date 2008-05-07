@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2004 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -32,7 +32,7 @@
  */
 
 /* 
- * $Id: ktutil_locl.h,v 1.18 2002/09/10 20:03:45 joda Exp $
+ * $Id: ktutil_locl.h 14799 2005-04-15 05:02:39Z lha $
  * $FreeBSD$
  */
 
@@ -62,6 +62,7 @@
 
 #include <sl.h>
 #include <getarg.h>
+#include <hex.h>
 
 extern krb5_context context;
 
@@ -70,15 +71,6 @@ extern char *keytab_string;
 
 krb5_keytab ktutil_open_keytab(void);
 
-int kt_add (int argc, char **argv);
-int kt_change (int argc, char **argv);
-int kt_copy (int argc, char **argv);
-int kt_get (int argc, char **argv);
-int kt_list(int argc, char **argv);
-int kt_purge(int argc, char **argv);
-int kt_remove(int argc, char **argv);
-int kt_rename(int argc, char **argv);
-int srvconv(int argc, char **argv);
-int srvcreate(int argc, char **argv);
+#include "ktutil-commands.h"
 
 #endif /* __KTUTIL_LOCL_H__ */

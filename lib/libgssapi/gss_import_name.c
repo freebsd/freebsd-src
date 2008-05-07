@@ -47,7 +47,6 @@ _gss_import_export_name(OM_uint32 *minor_status,
 	gss_OID_desc mech_oid;
 	struct _gss_mech_switch *m;
 	struct _gss_name *name;
-	struct _gss_mechanism_name *mn;
 	gss_name_t new_canonical_name;
 
 	*minor_status = 0;
@@ -126,6 +125,10 @@ _gss_import_export_name(OM_uint32 *minor_status,
 	 */
 	major_status = m->gm_import_name(minor_status,
 	    input_name_buffer, GSS_C_NT_EXPORT_NAME, &new_canonical_name);
+	if (major_status != GSS_S_COMPLETE) {
+		_gss_mg_error(m, major_status, *minor_status);
+		return (major_status);
+	}
 
 	/*
 	 * Now we make a new name and mark it as an MN.
@@ -152,9 +155,10 @@ gss_import_name(OM_uint32 *minor_status,
 	OM_uint32		major_status;
 	struct _gss_name	*name;
 
+	*output_name = GSS_C_NO_NAME;
+
 	if (input_name_buffer->length == 0) {
 		*minor_status = 0;
-		*output_name = 0;
 		return (GSS_S_BAD_NAME);
 	}
 
@@ -169,7 +173,7 @@ gss_import_name(OM_uint32 *minor_status,
 	 * the mechanism and then import it as an MN. See RFC 2743
 	 * section 3.2 for a description of the format.
 	 */
-	if (_gss_oid_equal(name_type, GSS_C_NT_EXPORT_NAME)) {
+	if (gss_oid_equal(name_type, GSS_C_NT_EXPORT_NAME)) {
 		return _gss_import_export_name(minor_status,
 		    input_name_buffer, output_name);
 	}
@@ -179,15 +183,14 @@ gss_import_name(OM_uint32 *minor_status,
 	 * should figure out the list of supported name types using
 	 * gss_inquire_names_for_mech.
 	 */
-	if (!_gss_oid_equal(name_type, GSS_C_NT_USER_NAME)
-	    && !_gss_oid_equal(name_type, GSS_C_NT_MACHINE_UID_NAME)
-	    && !_gss_oid_equal(name_type, GSS_C_NT_STRING_UID_NAME)
-	    && !_gss_oid_equal(name_type, GSS_C_NT_HOSTBASED_SERVICE_X)
-	    && !_gss_oid_equal(name_type, GSS_C_NT_HOSTBASED_SERVICE)
-	    && !_gss_oid_equal(name_type, GSS_C_NT_ANONYMOUS)
-	    && !_gss_oid_equal(name_type, GSS_KRB5_NT_PRINCIPAL_NAME)) {
+	if (!gss_oid_equal(name_type, GSS_C_NT_USER_NAME)
+	    && !gss_oid_equal(name_type, GSS_C_NT_MACHINE_UID_NAME)
+	    && !gss_oid_equal(name_type, GSS_C_NT_STRING_UID_NAME)
+	    && !gss_oid_equal(name_type, GSS_C_NT_HOSTBASED_SERVICE_X)
+	    && !gss_oid_equal(name_type, GSS_C_NT_HOSTBASED_SERVICE)
+	    && !gss_oid_equal(name_type, GSS_C_NT_ANONYMOUS)
+	    && !gss_oid_equal(name_type, GSS_KRB5_NT_PRINCIPAL_NAME)) {
 		*minor_status = 0;
-		*output_name = 0;
 		return (GSS_S_BAD_NAMETYPE);
 	}
 
@@ -209,7 +212,8 @@ gss_import_name(OM_uint32 *minor_status,
 	major_status = _gss_copy_buffer(minor_status,
 	    input_name_buffer, &name->gn_value);
 	if (major_status) {
-		gss_release_name(minor_status, (gss_name_t*) &name);
+		gss_name_t rname = (gss_name_t)name;
+		gss_release_name(minor_status, &rname);
 		return (GSS_S_FAILURE);
 	}
 

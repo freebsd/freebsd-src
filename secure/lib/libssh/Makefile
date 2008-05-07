@@ -34,8 +34,8 @@ LDADD=	-lz
 
 .if ${MK_KERBEROS_SUPPORT} != "no"
 CFLAGS+= -DGSSAPI -DHAVE_GSSAPI_GSSAPI_H=1 -DKRB5 -DHEIMDAL
-DPADD+=	${LIBGSSAPI} ${LIBKRB5} ${LIBASN1} ${LIBCOM_ERR} ${LIBMD} ${LIBROKEN}
-LDADD+=	-lgssapi -lkrb5 -lasn1 -lcom_err -lmd -lroken
+DPADD+=	${LIBGSSAPI} ${LIBKRB5} ${LIBHX509} ${LIBASN1} ${LIBCOM_ERR} ${LIBMD} ${LIBROKEN}
+LDADD+=	-lgssapi -lkrb5 -lhx509 -lasn1 -lcom_err -lmd -lroken
 .endif
 
 NO_LINT=

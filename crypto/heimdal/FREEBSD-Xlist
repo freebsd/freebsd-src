@@ -12,3 +12,6 @@ lib/des
 lib/editline
 lib/kdfs
 lib/otp
+lib/gssapi/mech
+lib/hcrypto
+ylwrap

@@ -31,6 +31,7 @@
  */
 
 /* $Id: spnego_locl.h 19411 2006-12-18 15:42:03Z lha $ */
+/* $FreeBSD$ */
 
 #ifndef SPNEGO_LOCL_H
 #define SPNEGO_LOCL_H
@@ -67,7 +68,6 @@
 #include <gssapi_mech.h>
 
 #include "spnego_asn1.h"
-#include "mech/utils.h"
 #include <der.h>
 
 #include <roken.h>

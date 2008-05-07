@@ -44,6 +44,8 @@ gss_inquire_mechs_for_name(OM_uint32 *minor_status,
 
 	*minor_status = 0;
 
+	_gss_load_mech();
+
 	major_status = gss_create_empty_oid_set(minor_status, mech_types);
 	if (major_status)
 		return (major_status);

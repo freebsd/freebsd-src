@@ -50,10 +50,17 @@ A shared library containing the implementation of this mechanism.
 A kernel module containing the implementation of this mechanism (not
 yet supported in FreeBSD).
 .It Library options (optional)
-Optionsal parameters interpreted by the mechanism. Library options
+Optional parameters interpreted by the mechanism. Library options
 must be enclosed in brackets ([ ]) to differentiate them from the
 optional kernel module entry.
 .El
+.Pp
+The first mechanism listed in
+.Pa "/etc/gss/mech"
+is the default mechanism.
+This mechanism will be used by
+.Xr gss_init_sec_context 3
+if the user doesn't specify a specific mechanism.
 .Pp
 The 
 .Pa "/etc/gss/qop"

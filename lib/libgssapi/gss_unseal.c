@@ -39,5 +39,5 @@ gss_unseal(OM_uint32 *minor_status,
 
 	return (gss_unwrap(minor_status,
 		    context_handle, input_message_buffer,
-		    output_message_buffer, conf_state, qop_state));
+		    output_message_buffer, conf_state, (gss_qop_t *)qop_state));
 }

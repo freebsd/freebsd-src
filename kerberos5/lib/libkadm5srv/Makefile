@@ -1,6 +1,7 @@
 # $FreeBSD$
 
 LIB=	kadm5srv
+VERSION_MAP= ${KRB5DIR}/lib/kadm5/version-script.map
 
 SRCS=	acl.c \
 	bump_pw_expire.c \

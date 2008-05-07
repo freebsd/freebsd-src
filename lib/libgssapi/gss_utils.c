@@ -34,7 +34,7 @@
 #include "utils.h"
 
 int
-_gss_oid_equal(const gss_OID oid1, const gss_OID oid2)
+gss_oid_equal(const gss_OID oid1, const gss_OID oid2)
 {
 
 	if (oid1 == oid2)
@@ -57,6 +57,7 @@ _gss_copy_oid(OM_uint32 *minor_status,
 	*minor_status = 0;
 	to_oid->elements = malloc(len);
 	if (!to_oid->elements) {
+		to_oid->length = 0;
 		*minor_status = ENOMEM;
 		return GSS_S_FAILURE;
 	}
@@ -76,6 +77,7 @@ _gss_copy_buffer(OM_uint32 *minor_status,
 	to_buf->value = malloc(len);
 	if (!to_buf->value) {
 		*minor_status = ENOMEM;
+		to_buf->length = 0;
 		return GSS_S_FAILURE;
 	}
 	to_buf->length = len;
