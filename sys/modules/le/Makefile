@@ -16,7 +16,7 @@ if_le_isa=	if_le_isa.c
 isa_if=		isa_if.h
 .endif
 
-.if ${MACHINE_ARCH} == "sparc64"
+.if ${MACHINE} == "sparc64"
 if_le_lebuffer=	if_le_lebuffer.c
 if_le_ledma=	if_le_ledma.c
 lebuffer_sbus=	lebuffer_sbus.c
