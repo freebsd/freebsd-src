@@ -65,7 +65,7 @@
 	((inr) & INTMAP_INR_MASK))
 
 /* counter-timer support. */
-void sparc64_counter_init(bus_space_tag_t tag, bus_space_handle_t handle,
-    bus_addr_t offset);
+void sparc64_counter_init(const char *name, bus_space_tag_t tag,
+    bus_space_handle_t handle, bus_addr_t offset);
 
 #endif	/* !_MACHINE_BUS_COMMON_H_ */
