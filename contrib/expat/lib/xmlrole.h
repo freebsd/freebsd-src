@@ -8,7 +8,7 @@
 #ifdef __VMS
 /*      0        1         2         3      0        1         2         3
         1234567890123456789012345678901     1234567890123456789012345678901 */
-#define XmlPrologStateInitExternalEntity    XmlPrologStateInitExternalEnt   
+#define XmlPrologStateInitExternalEntity    XmlPrologStateInitExternalEnt
 #endif
 
 #include "xmltok.h"
@@ -85,7 +85,7 @@ enum {
 };
 
 typedef struct prolog_state {
-  int (FASTCALL *handler) (struct prolog_state *state,
+  int (PTRCALL *handler) (struct prolog_state *state,
                           int tok,
                           const char *ptr,
                           const char *end,
