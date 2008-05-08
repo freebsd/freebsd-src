@@ -609,13 +609,6 @@ nexus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 		 */
 		membar(Sync);
 	}
-#if 0
-	/* Should not be needed. */
-	if (op & BUS_DMASYNC_POSTREAD) {
-		ecache_flush((vm_offset_t)map->buf,
-		    (vm_offset_t)map->buf + map->buflen - 1);
-	}
-#endif
 	if (op & BUS_DMASYNC_POSTWRITE) {
 		/* Nothing to do.  Handled by the bus controller. */
 	}
