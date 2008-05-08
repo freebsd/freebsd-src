@@ -213,7 +213,9 @@ ata_begin_transaction(struct ata_request *request)
     printf("ata_begin_transaction OOPS!!!\n");
 
 begin_finished:
-    ch->dma.unload(request);
+    if (ch->dma.unload) {
+        ch->dma.unload(request);
+    }
     return ATA_OP_FINISHED;
 
 begin_continue:
