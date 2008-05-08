@@ -25,8 +25,8 @@ dnl test. I believe this test will work, but I don't have a place with non-
 dnl GNU M4 to test it right now.
 define([expat_version], ifdef([__gnu__],
                               [esyscmd(conftools/get-version.sh lib/expat.h)],
-                              [1.95.x]))
-AC_INIT(expat, expat_version, expat-bugs@mail.libexpat.org)
+                              [2.0.x]))
+AC_INIT(expat, expat_version, expat-bugs@libexpat.org)
 undefine([expat_version])
 
 AC_CONFIG_SRCDIR(Makefile.in)
@@ -44,9 +44,9 @@ dnl
 dnl If the API changes incompatibly set LIBAGE back to 0
 dnl
 
-LIBCURRENT=4
-LIBREVISION=0
-LIBAGE=4
+LIBCURRENT=6
+LIBREVISION=2
+LIBAGE=5
 
 AC_CONFIG_HEADER(expat_config.h)
 
@@ -72,15 +72,15 @@ if test "$GCC" = yes ; then
     dnl
     OLDCFLAGS="$CFLAGS -Wall -Wmissing-prototypes -Wstrict-prototypes"
     CFLAGS="$OLDCFLAGS -fexceptions"
-    AC_MSG_CHECKING(whether gcc accepts -fexceptions)
-    AC_TRY_COMPILE(,(void)1,
+    AC_MSG_CHECKING(whether $CC accepts -fexceptions)
+    AC_TRY_LINK( , ,
                    AC_MSG_RESULT(yes),
                    AC_MSG_RESULT(no); CFLAGS="$OLDCFLAGS")
+    CXXFLAGS=`echo "$CFLAGS" | sed 's/ -Wmissing-prototypes -Wstrict-prototypes//'`
 fi
 
 dnl Checks for header files.
 AC_HEADER_STDC
-AC_CHECK_HEADERS(fcntl.h unistd.h)
 
 dnl Checks for typedefs, structures, and compiler characteristics.
 
@@ -89,12 +89,12 @@ dnl work in a cross compile.
 AC_C_BIGENDIAN_CROSS
 
 AC_C_CONST
-AC_TYPE_OFF_T
 AC_TYPE_SIZE_T
+AC_CHECK_FUNCS(memmove bcopy)
 
-dnl Checks for library functions.
-
-AC_FUNC_MEMCMP
+dnl Only needed for xmlwf:
+AC_CHECK_HEADERS(fcntl.h unistd.h)
+AC_TYPE_OFF_T
 AC_FUNC_MMAP
 
 if test "$ac_cv_func_mmap_fixed_mapped" = "yes"; then
@@ -104,9 +104,39 @@ else
 fi
 AC_SUBST(FILEMAP)
 
-AC_CHECK_FUNCS(memmove bcopy)
+dnl Needed for the test support code; this was found at
+dnl http://lists.gnu.org/archive/html/bug-autoconf/2002-07/msg00028.html
 
-dnl some basic configuration
+# AC_CPP_FUNC
+# ------------------ #
+# Checks to see if ANSI C99 CPP variable __func__ works.
+# If not, perhaps __FUNCTION__ works instead. 
+# If not, we'll just define __func__ to "". 
+AC_DEFUN([AC_CPP_FUNC],
+[AC_REQUIRE([AC_PROG_CC_STDC])dnl
+AC_CACHE_CHECK([for an ANSI C99-conforming __func__], ac_cv_cpp_func,
+[AC_COMPILE_IFELSE([AC_LANG_PROGRAM([],
+[[char *foo = __func__;]])],
+  [ac_cv_cpp_func=yes], 
+  [AC_COMPILE_IFELSE([AC_LANG_PROGRAM([],
+[[char *foo = __FUNCTION__;]])],
+  [ac_cv_cpp_func=__FUNCTION__], 
+  [ac_cv_cpp_func=no])])])
+if test $ac_cv_cpp_func = __FUNCTION__; then
+  AC_DEFINE(__func__,__FUNCTION__,
+            [Define to __FUNCTION__ or "" if `__func__' does not conform to 
+ANSI C.])
+elif test $ac_cv_cpp_func = no; then
+  AC_DEFINE(__func__,"",
+            [Define to __FUNCTION__ or "" if `__func__' does not conform to 
+ANSI C.])
+fi
+])# AC_CPP_FUNC
+
+AC_CPP_FUNC
+
+
+dnl Some basic configuration:
 AC_DEFINE([XML_NS], 1,
           [Define to make XML Namespaces functionality available.])
 AC_DEFINE([XML_DTD], 1,
