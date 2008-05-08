@@ -31,7 +31,7 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: lex.h,v 1.1 2000/06/22 00:42:52 assar Exp $ */
+/* $Id: lex.h 8451 2000-06-22 00:42:52Z assar $ */
 
 void error_message (const char *, ...)
 __attribute__ ((format (printf, 1, 2)));
