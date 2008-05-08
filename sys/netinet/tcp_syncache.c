@@ -567,10 +567,11 @@ syncache_chkrst(struct in_conninfo *inc, struct tcphdr *th)
 			    "connection attempt aborted by remote endpoint\n",
 			    s, __func__);
 		tcpstat.tcps_sc_reset++;
-	} else if ((s = tcp_log_addrs(inc, th, NULL, NULL))) {
-		log(LOG_DEBUG, "%s; %s: RST with invalid SEQ %u != IRS %u "
-		    "(+WND %u), segment ignored\n",
-		    s, __func__, th->th_seq, sc->sc_irs, sc->sc_wnd);
+	} else {
+		if ((s = tcp_log_addrs(inc, th, NULL, NULL)))
+			log(LOG_DEBUG, "%s; %s: RST with invalid SEQ %u != "
+			    "IRS %u (+WND %u), segment ignored\n",
+			    s, __func__, th->th_seq, sc->sc_irs, sc->sc_wnd);
 		tcpstat.tcps_badrst++;
 	}
 
