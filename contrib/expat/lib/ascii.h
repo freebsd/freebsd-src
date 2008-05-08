@@ -68,7 +68,7 @@
 #define ASCII_9 0x39
 
 #define ASCII_TAB 0x09
-#define ASCII_SPACE 0x20 
+#define ASCII_SPACE 0x20
 #define ASCII_EXCL 0x21
 #define ASCII_QUOT 0x22
 #define ASCII_AMP 0x26
@@ -83,3 +83,10 @@
 #define ASCII_LSQB 0x5B
 #define ASCII_RSQB 0x5D
 #define ASCII_UNDERSCORE 0x5F
+#define ASCII_LPAREN 0x28
+#define ASCII_RPAREN 0x29
+#define ASCII_FF 0x0C
+#define ASCII_SLASH 0x2F
+#define ASCII_HASH 0x23
+#define ASCII_PIPE 0x7C
+#define ASCII_COMMA 0x2C
