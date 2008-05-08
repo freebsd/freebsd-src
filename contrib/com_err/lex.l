@@ -44,7 +44,7 @@
 #include "parse.h"
 #include "lex.h"
 
-RCSID("$Id: lex.l,v 1.6 2000/06/22 00:42:52 assar Exp $");
+RCSID("$Id: lex.l 15143 2005-05-16 08:52:54Z lha $");
 
 static unsigned lineno = 1;
 static int getstring(void);
@@ -89,7 +89,7 @@ getstring(void)
     int i = 0;
     int c;
     int quote = 0;
-    while((c = input()) != EOF){
+    while(i < sizeof(x) - 1 && (c = input()) != EOF){
 	if(quote) {
 	    x[i++] = c;
 	    quote = 0;
@@ -110,6 +110,8 @@ getstring(void)
     }
     x[i] = '\0';
     yylval.string = strdup(x);
+    if (yylval.string == NULL)
+        err(1, "malloc");
     return STRING;
 }
 
