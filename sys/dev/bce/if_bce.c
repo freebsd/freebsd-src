@@ -776,7 +776,11 @@ bce_attach(device_t dev)
 	ifp->if_capenable    = ifp->if_capabilities;
 
 	/* Use standard mbuf sizes for buffer allocation. */
+#ifdef BCE_USE_SPLIT_HEADER
 	sc->rx_bd_mbuf_alloc_size = MHLEN;
+#else
+	sc->rx_bd_mbuf_alloc_size = MCLBYTES;;
+#endif
 	sc->pg_bd_mbuf_alloc_size = MCLBYTES;
 
 	ifp->if_snd.ifq_drv_maxlen = USABLE_TX_BD;
@@ -3804,7 +3808,11 @@ bce_get_rx_buf(struct bce_softc *sc, struct mbuf *m, u16 *prod,
 			goto bce_get_rx_buf_exit);
 
 		/* This is a new mbuf allocation. */
+#ifdef BCE_USE_SPLIT_HEADER
 		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
+#else
+		m_new = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+#endif
 		if (m_new == NULL) {
 			sc->mbuf_alloc_failed++;
 			rc = ENOBUFS;
