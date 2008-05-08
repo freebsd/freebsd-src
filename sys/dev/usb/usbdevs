@@ -1400,6 +1400,7 @@ product HP2 C500		0x6002	PhotoSmart C500
 
 /* HTC products */
 product HTC WINMOBILE		0x00ce	HTC USB Sync
+product HTC PPC6700MODEM	0x00cf	PPC6700 Modem
 product HTC SMARTPHONE		0x0a51	SmartPhone USB Sync
 
 /* HUAWEI products */
