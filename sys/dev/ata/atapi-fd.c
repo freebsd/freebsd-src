@@ -105,7 +105,7 @@ afd_attach(device_t dev)
     fdp->disk->d_ioctl = afd_ioctl;
     fdp->disk->d_name = "afd";
     fdp->disk->d_drv1 = dev;
-    fdp->disk->d_maxsize = ch->dma.max_iosize;
+    fdp->disk->d_maxsize = ch->dma.max_iosize ? ch->dma.max_iosize : DFLTPHYS;
     fdp->disk->d_unit = device_get_unit(dev);
     disk_create(fdp->disk, DISK_VERSION);
     return 0;
