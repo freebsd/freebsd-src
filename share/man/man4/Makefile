@@ -94,6 +94,7 @@ MAN=	aac.4 \
 	gem.4 \
 	geom.4 \
 	geom_fox.4 \
+	geom_linux_lvm.4 \
 	geom_uzip.4 \
 	gif.4 \
 	gre.4 \
