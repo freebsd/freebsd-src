@@ -4,7 +4,7 @@
 
 #include "codepage.h"
 
-#ifdef WIN32
+#if (defined(WIN32) || (defined(__WATCOMC__) && defined(__NT__)))
 #define STRICT 1
 #define WIN32_LEAN_AND_MEAN 1
 
@@ -20,12 +20,12 @@ codepageMap(int cp, int *map)
   for (i = 0; i < 256; i++)
     map[i] = -1;
   if (info.MaxCharSize > 1) {
-    for (i = 0; i < MAX_LEADBYTES; i++) {
+    for (i = 0; i < MAX_LEADBYTES; i+=2) {
       int j, lim;
       if (info.LeadByte[i] == 0 && info.LeadByte[i + 1] == 0)
         break;
       lim = info.LeadByte[i + 1];
-      for (j = info.LeadByte[i]; j < lim; j++)
+      for (j = info.LeadByte[i]; j <= lim; j++)
         map[j] = -2;
     }
   }

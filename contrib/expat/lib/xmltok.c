@@ -2,14 +2,23 @@
    See the file COPYING for copying permission.
 */
 
+#include <stddef.h>
+
 #ifdef COMPILED_FROM_DSP
 #include "winconfig.h"
 #elif defined(MACOS_CLASSIC)
 #include "macconfig.h"
+#elif defined(__amigaos4__)
+#include "amigaconfig.h"
+#elif defined(__WATCOMC__)
+#include "watcomconfig.h"
 #else
+#ifdef HAVE_EXPAT_CONFIG_H
 #include <expat_config.h>
+#endif
 #endif /* ndef COMPILED_FROM_DSP */
 
+#include "expat_external.h"
 #include "internal.h"
 #include "xmltok.h"
 #include "nametab.h"
@@ -112,19 +121,19 @@
     || \
     ((*p) == 0xF4 ? (p)[1] > 0x8F : ((p)[1] & 0xC0) == 0xC0)))
 
-static int FASTCALL
+static int PTRFASTCALL
 isNever(const ENCODING *enc, const char *p)
 {
   return 0;
 }
 
-static int FASTCALL
+static int PTRFASTCALL
 utf8_isName2(const ENCODING *enc, const char *p)
 {
   return UTF8_GET_NAMING2(namePages, (const unsigned char *)p);
 }
 
-static int FASTCALL
+static int PTRFASTCALL
 utf8_isName3(const ENCODING *enc, const char *p)
 {
   return UTF8_GET_NAMING3(namePages, (const unsigned char *)p);
@@ -132,13 +141,13 @@ utf8_isName3(const ENCODING *enc, const char *p)
 
 #define utf8_isName4 isNever
 
-static int FASTCALL
+static int PTRFASTCALL
 utf8_isNmstrt2(const ENCODING *enc, const char *p)
 {
   return UTF8_GET_NAMING2(nmstrtPages, (const unsigned char *)p);
 }
 
-static int FASTCALL
+static int PTRFASTCALL
 utf8_isNmstrt3(const ENCODING *enc, const char *p)
 {
   return UTF8_GET_NAMING3(nmstrtPages, (const unsigned char *)p);
@@ -146,19 +155,19 @@ utf8_isNmstrt3(const ENCODING *enc, const char *p)
 
 #define utf8_isNmstrt4 isNever
 
-static int FASTCALL
+static int PTRFASTCALL
 utf8_isInvalid2(const ENCODING *enc, const char *p)
 {
   return UTF8_INVALID2((const unsigned char *)p);
 }
 
-static int FASTCALL
+static int PTRFASTCALL
 utf8_isInvalid3(const ENCODING *enc, const char *p)
 {
   return UTF8_INVALID3((const unsigned char *)p);
 }
 
-static int FASTCALL
+static int PTRFASTCALL
 utf8_isInvalid4(const ENCODING *enc, const char *p)
 {
   return UTF8_INVALID4((const unsigned char *)p);
@@ -168,21 +177,21 @@ struct normal_encoding {
   ENCODING enc;
   unsigned char type[256];
 #ifdef XML_MIN_SIZE
-  int (FASTCALL *byteType)(const ENCODING *, const char *);
-  int (FASTCALL *isNameMin)(const ENCODING *, const char *);
-  int (FASTCALL *isNmstrtMin)(const ENCODING *, const char *);
-  int (FASTCALL *byteToAscii)(const ENCODING *, const char *);
-  int (FASTCALL *charMatches)(const ENCODING *, const char *, int);
+  int (PTRFASTCALL *byteType)(const ENCODING *, const char *);
+  int (PTRFASTCALL *isNameMin)(const ENCODING *, const char *);
+  int (PTRFASTCALL *isNmstrtMin)(const ENCODING *, const char *);
+  int (PTRFASTCALL *byteToAscii)(const ENCODING *, const char *);
+  int (PTRCALL *charMatches)(const ENCODING *, const char *, int);
 #endif /* XML_MIN_SIZE */
-  int (FASTCALL *isName2)(const ENCODING *, const char *);
-  int (FASTCALL *isName3)(const ENCODING *, const char *);
-  int (FASTCALL *isName4)(const ENCODING *, const char *);
-  int (FASTCALL *isNmstrt2)(const ENCODING *, const char *);
-  int (FASTCALL *isNmstrt3)(const ENCODING *, const char *);
-  int (FASTCALL *isNmstrt4)(const ENCODING *, const char *);
-  int (FASTCALL *isInvalid2)(const ENCODING *, const char *);
-  int (FASTCALL *isInvalid3)(const ENCODING *, const char *);
-  int (FASTCALL *isInvalid4)(const ENCODING *, const char *);
+  int (PTRFASTCALL *isName2)(const ENCODING *, const char *);
+  int (PTRFASTCALL *isName3)(const ENCODING *, const char *);
+  int (PTRFASTCALL *isName4)(const ENCODING *, const char *);
+  int (PTRFASTCALL *isNmstrt2)(const ENCODING *, const char *);
+  int (PTRFASTCALL *isNmstrt3)(const ENCODING *, const char *);
+  int (PTRFASTCALL *isNmstrt4)(const ENCODING *, const char *);
+  int (PTRFASTCALL *isInvalid2)(const ENCODING *, const char *);
+  int (PTRFASTCALL *isInvalid3)(const ENCODING *, const char *);
+  int (PTRFASTCALL *isInvalid4)(const ENCODING *, const char *);
 };
 
 #define AS_NORMAL_ENCODING(enc)   ((const struct normal_encoding *) (enc))
@@ -234,7 +243,7 @@ static int FASTCALL checkCharRefNumber(int);
   (((struct normal_encoding *)(enc))->type[(unsigned char)*(p)])
 
 #ifdef XML_MIN_SIZE
-static int FASTCALL
+static int PTRFASTCALL
 sb_byteType(const ENCODING *enc, const char *p)
 {
   return SB_BYTE_TYPE(enc, p);
@@ -248,7 +257,7 @@ sb_byteType(const ENCODING *enc, const char *p)
 #ifdef XML_MIN_SIZE
 #define BYTE_TO_ASCII(enc, p) \
  (AS_NORMAL_ENCODING(enc)->byteToAscii(enc, p))
-static int FASTCALL
+static int PTRFASTCALL
 sb_byteToAscii(const ENCODING *enc, const char *p)
 {
   return *p;
@@ -277,7 +286,7 @@ sb_byteToAscii(const ENCODING *enc, const char *p)
 #ifdef XML_MIN_SIZE
 #define CHAR_MATCHES(enc, p, c) \
  (AS_NORMAL_ENCODING(enc)->charMatches(enc, p, c))
-static int FASTCALL
+static int PTRCALL
 sb_charMatches(const ENCODING *enc, const char *p, int c)
 {
   return *p == c;
@@ -288,7 +297,9 @@ sb_charMatches(const ENCODING *enc, const char *p, int c)
 #endif
 
 #define PREFIX(ident) normal_ ## ident
+#define XML_TOK_IMPL_C
 #include "xmltok_impl.c"
+#undef XML_TOK_IMPL_C
 
 #undef MINBPC
 #undef BYTE_TYPE
@@ -307,7 +318,7 @@ enum {  /* UTF8_cvalN is value of masked first byte of N byte sequence */
   UTF8_cval4 = 0xf0
 };
 
-static void FASTCALL
+static void PTRCALL
 utf8_toUtf8(const ENCODING *enc,
             const char **fromP, const char *fromLim,
             char **toP, const char *toLim)
@@ -326,7 +337,7 @@ utf8_toUtf8(const ENCODING *enc,
   *toP = to;
 }
 
-static void FASTCALL
+static void PTRCALL
 utf8_toUtf16(const ENCODING *enc,
              const char **fromP, const char *fromLim,
              unsigned short **toP, const unsigned short *toLim)
@@ -414,7 +425,7 @@ static const struct normal_encoding internal_utf8_encoding = {
   STANDARD_VTABLE(sb_) NORMAL_VTABLE(utf8_)
 };
 
-static void FASTCALL
+static void PTRCALL
 latin1_toUtf8(const ENCODING *enc,
               const char **fromP, const char *fromLim,
               char **toP, const char *toLim)
@@ -439,7 +450,7 @@ latin1_toUtf8(const ENCODING *enc,
   }
 }
 
-static void FASTCALL
+static void PTRCALL
 latin1_toUtf16(const ENCODING *enc,
                const char **fromP, const char *fromLim,
                unsigned short **toP, const unsigned short *toLim)
@@ -472,7 +483,7 @@ static const struct normal_encoding latin1_encoding = {
   STANDARD_VTABLE(sb_)
 };
 
-static void FASTCALL
+static void PTRCALL
 ascii_toUtf8(const ENCODING *enc,
              const char **fromP, const char *fromLim,
              char **toP, const char *toLim)
@@ -505,7 +516,7 @@ static const struct normal_encoding ascii_encoding = {
   STANDARD_VTABLE(sb_)
 };
 
-static int FASTCALL
+static int PTRFASTCALL
 unicode_byte_type(char hi, char lo)
 {
   switch ((unsigned char)hi) {
@@ -525,7 +536,7 @@ unicode_byte_type(char hi, char lo)
 }
 
 #define DEFINE_UTF16_TO_UTF8(E) \
-static void  FASTCALL \
+static void  PTRCALL \
 E ## toUtf8(const ENCODING *enc, \
             const char **fromP, const char *fromLim, \
             char **toP, const char *toLim) \
@@ -588,7 +599,7 @@ E ## toUtf8(const ENCODING *enc, \
 }
 
 #define DEFINE_UTF16_TO_UTF16(E) \
-static void  FASTCALL \
+static void  PTRCALL \
 E ## toUtf16(const ENCODING *enc, \
              const char **fromP, const char *fromLim, \
              unsigned short **toP, const unsigned short *toLim) \
@@ -638,31 +649,31 @@ DEFINE_UTF16_TO_UTF16(big2_)
 
 #ifdef XML_MIN_SIZE
 
-static int FASTCALL
+static int PTRFASTCALL
 little2_byteType(const ENCODING *enc, const char *p)
 {
   return LITTLE2_BYTE_TYPE(enc, p);
 }
 
-static int FASTCALL
+static int PTRFASTCALL
 little2_byteToAscii(const ENCODING *enc, const char *p)
 {
   return LITTLE2_BYTE_TO_ASCII(enc, p);
 }
 
-static int FASTCALL
+static int PTRCALL
 little2_charMatches(const ENCODING *enc, const char *p, int c)
 {
   return LITTLE2_CHAR_MATCHES(enc, p, c);
 }
 
-static int FASTCALL
+static int PTRFASTCALL
 little2_isNameMin(const ENCODING *enc, const char *p)
 {
   return LITTLE2_IS_NAME_CHAR_MINBPC(enc, p);
 }
 
-static int FASTCALL
+static int PTRFASTCALL
 little2_isNmstrtMin(const ENCODING *enc, const char *p)
 {
   return LITTLE2_IS_NMSTRT_CHAR_MINBPC(enc, p);
@@ -678,14 +689,16 @@ little2_isNmstrtMin(const ENCODING *enc, const char *p)
 #define MINBPC(enc) 2
 /* CHAR_MATCHES is guaranteed to have MINBPC bytes available. */
 #define BYTE_TYPE(enc, p) LITTLE2_BYTE_TYPE(enc, p)
-#define BYTE_TO_ASCII(enc, p) LITTLE2_BYTE_TO_ASCII(enc, p) 
+#define BYTE_TO_ASCII(enc, p) LITTLE2_BYTE_TO_ASCII(enc, p)
 #define CHAR_MATCHES(enc, p, c) LITTLE2_CHAR_MATCHES(enc, p, c)
 #define IS_NAME_CHAR(enc, p, n) 0
 #define IS_NAME_CHAR_MINBPC(enc, p) LITTLE2_IS_NAME_CHAR_MINBPC(enc, p)
 #define IS_NMSTRT_CHAR(enc, p, n) (0)
 #define IS_NMSTRT_CHAR_MINBPC(enc, p) LITTLE2_IS_NMSTRT_CHAR_MINBPC(enc, p)
 
+#define XML_TOK_IMPL_C
 #include "xmltok_impl.c"
+#undef XML_TOK_IMPL_C
 
 #undef MINBPC
 #undef BYTE_TYPE
@@ -701,7 +714,7 @@ little2_isNmstrtMin(const ENCODING *enc, const char *p)
 
 #ifdef XML_NS
 
-static const struct normal_encoding little2_encoding_ns = { 
+static const struct normal_encoding little2_encoding_ns = {
   { VTABLE, 2, 0,
 #if BYTEORDER == 1234
     1
@@ -718,7 +731,7 @@ static const struct normal_encoding little2_encoding_ns = {
 
 #endif
 
-static const struct normal_encoding little2_encoding = { 
+static const struct normal_encoding little2_encoding = {
   { VTABLE, 2, 0,
 #if BYTEORDER == 1234
     1
@@ -739,7 +752,7 @@ static const struct normal_encoding little2_encoding = {
 
 #ifdef XML_NS
 
-static const struct normal_encoding internal_little2_encoding_ns = { 
+static const struct normal_encoding internal_little2_encoding_ns = {
   { VTABLE, 2, 0, 1 },
   {
 #include "iasciitab.h"
@@ -750,7 +763,7 @@ static const struct normal_encoding internal_little2_encoding_ns = {
 
 #endif
 
-static const struct normal_encoding internal_little2_encoding = { 
+static const struct normal_encoding internal_little2_encoding = {
   { VTABLE, 2, 0, 1 },
   {
 #define BT_COLON BT_NMSTRT
@@ -777,31 +790,31 @@ static const struct normal_encoding internal_little2_encoding = {
 
 #ifdef XML_MIN_SIZE
 
-static int FASTCALL
+static int PTRFASTCALL
 big2_byteType(const ENCODING *enc, const char *p)
 {
   return BIG2_BYTE_TYPE(enc, p);
 }
 
-static int FASTCALL
+static int PTRFASTCALL
 big2_byteToAscii(const ENCODING *enc, const char *p)
 {
   return BIG2_BYTE_TO_ASCII(enc, p);
 }
 
-static int FASTCALL
+static int PTRCALL
 big2_charMatches(const ENCODING *enc, const char *p, int c)
 {
   return BIG2_CHAR_MATCHES(enc, p, c);
 }
 
-static int FASTCALL
+static int PTRFASTCALL
 big2_isNameMin(const ENCODING *enc, const char *p)
 {
   return BIG2_IS_NAME_CHAR_MINBPC(enc, p);
 }
 
-static int FASTCALL
+static int PTRFASTCALL
 big2_isNmstrtMin(const ENCODING *enc, const char *p)
 {
   return BIG2_IS_NMSTRT_CHAR_MINBPC(enc, p);
@@ -817,14 +830,16 @@ big2_isNmstrtMin(const ENCODING *enc, const char *p)
 #define MINBPC(enc) 2
 /* CHAR_MATCHES is guaranteed to have MINBPC bytes available. */
 #define BYTE_TYPE(enc, p) BIG2_BYTE_TYPE(enc, p)
-#define BYTE_TO_ASCII(enc, p) BIG2_BYTE_TO_ASCII(enc, p) 
+#define BYTE_TO_ASCII(enc, p) BIG2_BYTE_TO_ASCII(enc, p)
 #define CHAR_MATCHES(enc, p, c) BIG2_CHAR_MATCHES(enc, p, c)
 #define IS_NAME_CHAR(enc, p, n) 0
 #define IS_NAME_CHAR_MINBPC(enc, p) BIG2_IS_NAME_CHAR_MINBPC(enc, p)
 #define IS_NMSTRT_CHAR(enc, p, n) (0)
 #define IS_NMSTRT_CHAR_MINBPC(enc, p) BIG2_IS_NMSTRT_CHAR_MINBPC(enc, p)
 
+#define XML_TOK_IMPL_C
 #include "xmltok_impl.c"
+#undef XML_TOK_IMPL_C
 
 #undef MINBPC
 #undef BYTE_TYPE
@@ -922,14 +937,14 @@ streqci(const char *s1, const char *s2)
   return 1;
 }
 
-static void FASTCALL
+static void PTRCALL
 initUpdatePosition(const ENCODING *enc, const char *ptr,
                    const char *end, POSITION *pos)
 {
   normal_updatePosition(&utf8_encoding.enc, ptr, end, pos);
 }
 
-static int FASTCALL
+static int
 toAscii(const ENCODING *enc, const char *ptr, const char *end)
 {
   char buf[1];
@@ -948,7 +963,7 @@ isSpace(int c)
   case 0x20:
   case 0xD:
   case 0xA:
-  case 0x9:     
+  case 0x9:
     return 1;
   }
   return 0;
@@ -957,7 +972,7 @@ isSpace(int c)
 /* Return 1 if there's just optional white space or there's an S
    followed by name=val.
 */
-static int FASTCALL
+static int
 parsePseudoAttribute(const ENCODING *enc,
                      const char *ptr,
                      const char *end,
@@ -1174,7 +1189,7 @@ checkCharRefNumber(int result)
   return result;
 }
 
-int
+int FASTCALL
 XmlUtf8Encode(int c, char *buf)
 {
   enum {
@@ -1211,7 +1226,7 @@ XmlUtf8Encode(int c, char *buf)
   return 0;
 }
 
-int
+int FASTCALL
 XmlUtf16Encode(int charNum, unsigned short *buf)
 {
   if (charNum < 0)
@@ -1231,7 +1246,7 @@ XmlUtf16Encode(int charNum, unsigned short *buf)
 
 struct unknown_encoding {
   struct normal_encoding normal;
-  int (*convert)(void *userData, const char *p);
+  CONVERTER convert;
   void *userData;
   unsigned short utf16[256];
   char utf8[256][4];
@@ -1245,7 +1260,7 @@ XmlSizeOfUnknownEncoding(void)
   return sizeof(struct unknown_encoding);
 }
 
-static int FASTCALL
+static int PTRFASTCALL
 unknown_isName(const ENCODING *enc, const char *p)
 {
   const struct unknown_encoding *uenc = AS_UNKNOWN_ENCODING(enc);
@@ -1255,7 +1270,7 @@ unknown_isName(const ENCODING *enc, const char *p)
   return UCS2_GET_NAMING(namePages, c >> 8, c & 0xFF);
 }
 
-static int FASTCALL
+static int PTRFASTCALL
 unknown_isNmstrt(const ENCODING *enc, const char *p)
 {
   const struct unknown_encoding *uenc = AS_UNKNOWN_ENCODING(enc);
@@ -1265,7 +1280,7 @@ unknown_isNmstrt(const ENCODING *enc, const char *p)
   return UCS2_GET_NAMING(nmstrtPages, c >> 8, c & 0xFF);
 }
 
-static int FASTCALL
+static int PTRFASTCALL
 unknown_isInvalid(const ENCODING *enc, const char *p)
 {
   const struct unknown_encoding *uenc = AS_UNKNOWN_ENCODING(enc);
@@ -1273,7 +1288,7 @@ unknown_isInvalid(const ENCODING *enc, const char *p)
   return (c & ~0xFFFF) || checkCharRefNumber(c) < 0;
 }
 
-static void FASTCALL
+static void PTRCALL
 unknown_toUtf8(const ENCODING *enc,
                const char **fromP, const char *fromLim,
                char **toP, const char *toLim)
@@ -1307,7 +1322,7 @@ unknown_toUtf8(const ENCODING *enc,
   }
 }
 
-static void FASTCALL
+static void PTRCALL
 unknown_toUtf16(const ENCODING *enc,
                 const char **fromP, const char *fromLim,
                 unsigned short **toP, const unsigned short *toLim)
@@ -1330,11 +1345,11 @@ unknown_toUtf16(const ENCODING *enc,
 ENCODING *
 XmlInitUnknownEncoding(void *mem,
                        int *table,
-                       int (*convert)(void *userData, const char *p),
+                       CONVERTER convert, 
                        void *userData)
 {
   int i;
-  struct unknown_encoding *e = mem;
+  struct unknown_encoding *e = (struct unknown_encoding *)mem;
   for (i = 0; i < (int)sizeof(struct normal_encoding); i++)
     ((char *)mem)[i] = ((char *)&latin1_encoding)[i];
   for (i = 0; i < 128; i++)
@@ -1446,7 +1461,7 @@ static const char KW_UTF_16LE[] = {
 static int FASTCALL
 getEncodingIndex(const char *name)
 {
-  static const char *encodingNames[] = {
+  static const char * const encodingNames[] = {
     KW_ISO_8859_1,
     KW_US_ASCII,
     KW_UTF_8,
@@ -1478,8 +1493,8 @@ getEncodingIndex(const char *name)
 */
 
 
-static int FASTCALL
-initScan(const ENCODING **encodingTable,
+static int
+initScan(const ENCODING * const *encodingTable,
          const INIT_ENCODING *enc,
          int state,
          const char *ptr,
@@ -1603,7 +1618,9 @@ initScan(const ENCODING **encodingTable,
 
 #define NS(x) x
 #define ns(x) x
+#define XML_TOK_NS_C
 #include "xmltok_ns.c"
+#undef XML_TOK_NS_C
 #undef NS
 #undef ns
 
@@ -1612,7 +1629,9 @@ initScan(const ENCODING **encodingTable,
 #define NS(x) x ## NS
 #define ns(x) x ## _ns
 
+#define XML_TOK_NS_C
 #include "xmltok_ns.c"
+#undef XML_TOK_NS_C
 
 #undef NS
 #undef ns
@@ -1620,7 +1639,7 @@ initScan(const ENCODING **encodingTable,
 ENCODING *
 XmlInitUnknownEncodingNS(void *mem,
                          int *table,
-                         int (*convert)(void *userData, const char *p),
+                         CONVERTER convert, 
                          void *userData)
 {
   ENCODING *enc = XmlInitUnknownEncoding(mem, table, convert, userData);

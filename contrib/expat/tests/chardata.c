@@ -1,10 +1,19 @@
-/*  chardata.c
- *
- *
- */
+/* Copyright (c) 1998-2003 Thai Open Source Software Center Ltd
+   See the file COPYING for copying permission.
+
+   chardata.c
+*/
+
+#ifdef HAVE_EXPAT_CONFIG_H
+#include <expat_config.h>
+#endif
+#ifdef HAVE_CHECK_H
+#include <check.h>
+#else
+#include "minicheck.h"
+#endif
 
 #include <assert.h>
-#include <check.h>
 #include <stdio.h>
 #include <string.h>
 

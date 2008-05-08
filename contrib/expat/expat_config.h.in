@@ -79,6 +79,9 @@
 /* Define to make XML Namespaces functionality available. */
 #undef XML_NS
 
+/* Define to __FUNCTION__ or "" if `__func__' does not conform to ANSI C. */
+#undef __func__
+
 /* Define to empty if `const' does not conform to ANSI C. */
 #undef const
 
