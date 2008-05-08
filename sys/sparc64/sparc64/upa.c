@@ -32,7 +32,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
-#include <sys/pcpu.h>
 #include <sys/resource.h>
 #include <sys/rman.h>
 
@@ -42,6 +41,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 #include <machine/bus_common.h>
+#include <machine/intr_machdep.h>
 #include <machine/resource.h>
 
 #define	UPA_NREG	3
