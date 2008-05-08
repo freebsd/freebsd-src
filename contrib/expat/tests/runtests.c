@@ -1,12 +1,31 @@
+/* Copyright (c) 1998, 1999, 2000 Thai Open Source Software Center Ltd
+   See the file COPYING for copying permission.
+
+   runtest.c : run the Expat test suite
+*/
+
+#ifdef HAVE_EXPAT_CONFIG_H
+#include <expat_config.h>
+#endif
+
 #include <assert.h>
-#include <check.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 
 #include "expat.h"
 #include "chardata.h"
+#include "minicheck.h"
 
+#if defined(__amigaos__) && defined(__USE_INLINE__)
+#include <proto/expat.h>
+#endif
+
+#ifdef XML_LARGE_SIZE
+#define XML_FMT_INT_MOD "ll"
+#else
+#define XML_FMT_INT_MOD "l"
+#endif
 
 static XML_Parser parser;
 
@@ -34,13 +53,16 @@ static void
 _xml_failure(XML_Parser parser, const char *file, int line)
 {
     char buffer[1024];
+    enum XML_Error err = XML_GetErrorCode(parser);
     sprintf(buffer,
-            "\n    %s (line %d, offset %d)\n    reported from %s, line %d",
-            XML_ErrorString(XML_GetErrorCode(parser)),
+            "    %d: %s (line %" XML_FMT_INT_MOD "u, offset %"\
+                XML_FMT_INT_MOD "u)\n    reported from %s, line %d\n",
+            err,
+            XML_ErrorString(err),
             XML_GetCurrentLineNumber(parser),
             XML_GetCurrentColumnNumber(parser),
             file, line);
-    fail(buffer);
+    _fail_unless(0, file, line, buffer);
 }
 
 #define xml_failure(parser) _xml_failure((parser), __FILE__, __LINE__)
@@ -49,8 +71,10 @@ static void
 _expect_failure(char *text, enum XML_Error errorCode, char *errorMessage,
                 char *file, int lineno)
 {
-    if (XML_Parse(parser, text, strlen(text), 1) == XML_STATUS_OK)
-        fail(errorMessage);
+    if (XML_Parse(parser, text, strlen(text), XML_TRUE) == XML_STATUS_OK)
+        /* Hackish use of _fail_unless() macro, but let's us report
+           the right filename and line number. */
+        _fail_unless(0, file, lineno, errorMessage);
     if (XML_GetErrorCode(parser) != errorCode)
         _xml_failure(parser, file, lineno);
 }
@@ -58,6 +82,70 @@ _expect_failure(char *text, enum XML_Error errorCode, char *errorMessage,
 #define expect_failure(text, errorCode, errorMessage) \
         _expect_failure((text), (errorCode), (errorMessage), \
                         __FILE__, __LINE__)
+
+/* Dummy handlers for when we need to set a handler to tickle a bug,
+   but it doesn't need to do anything.
+*/
+
+static void XMLCALL
+dummy_start_doctype_handler(void           *userData,
+                            const XML_Char *doctypeName,
+                            const XML_Char *sysid,
+                            const XML_Char *pubid,
+                            int            has_internal_subset)
+{}
+
+static void XMLCALL
+dummy_end_doctype_handler(void *userData)
+{}
+
+static void XMLCALL
+dummy_entity_decl_handler(void           *userData,
+                          const XML_Char *entityName,
+                          int            is_parameter_entity,
+                          const XML_Char *value,
+                          int            value_length,
+                          const XML_Char *base,
+                          const XML_Char *systemId,
+                          const XML_Char *publicId,
+                          const XML_Char *notationName)
+{}
+
+static void XMLCALL
+dummy_notation_decl_handler(void *userData,
+                            const XML_Char *notationName,
+                            const XML_Char *base,
+                            const XML_Char *systemId,
+                            const XML_Char *publicId)
+{}
+
+static void XMLCALL
+dummy_element_decl_handler(void *userData,
+                           const XML_Char *name,
+                           XML_Content *model)
+{}
+
+static void XMLCALL
+dummy_attlist_decl_handler(void           *userData,
+                           const XML_Char *elname,
+                           const XML_Char *attname,
+                           const XML_Char *att_type,
+                           const XML_Char *dflt,
+                           int            isrequired)
+{}
+
+static void XMLCALL
+dummy_comment_handler(void *userData, const XML_Char *data)
+{}
+
+static void XMLCALL
+dummy_pi_handler(void *userData, const XML_Char *target, const XML_Char *data)
+{}
+
+static void XMLCALL
+dummy_start_element(void *userData,
+                    const XML_Char *name, const XML_Char **atts)
+{}
 
 
 /*
@@ -69,7 +157,7 @@ START_TEST(test_nul_byte)
     char text[] = "<doc>\0</doc>";
 
     /* test that a NUL byte (in US-ASCII data) is an error */
-    if (XML_Parse(parser, text, sizeof(text) - 1, 1) == XML_STATUS_OK)
+    if (XML_Parse(parser, text, sizeof(text) - 1, XML_TRUE) == XML_STATUS_OK)
         fail("Parser did not report error on NUL-byte.");
     if (XML_GetErrorCode(parser) != XML_ERROR_INVALID_TOKEN)
         xml_failure(parser);
@@ -91,7 +179,7 @@ START_TEST(test_bom_utf8)
     /* This test is really just making sure we don't core on a UTF-8 BOM. */
     char *text = "\357\273\277<e/>";
 
-    if (XML_Parse(parser, text, strlen(text), 1) == XML_STATUS_ERROR)
+    if (XML_Parse(parser, text, strlen(text), XML_TRUE) == XML_STATUS_ERROR)
         xml_failure(parser);
 }
 END_TEST
@@ -100,7 +188,7 @@ START_TEST(test_bom_utf16_be)
 {
     char text[] = "\376\377\0<\0e\0/\0>";
 
-    if (XML_Parse(parser, text, sizeof(text) - 1, 1) == XML_STATUS_ERROR)
+    if (XML_Parse(parser, text, sizeof(text)-1, XML_TRUE) == XML_STATUS_ERROR)
         xml_failure(parser);
 }
 END_TEST
@@ -109,18 +197,18 @@ START_TEST(test_bom_utf16_le)
 {
     char text[] = "\377\376<\0e\0/\0>\0";
 
-    if (XML_Parse(parser, text, sizeof(text) - 1, 1) == XML_STATUS_ERROR)
+    if (XML_Parse(parser, text, sizeof(text)-1, XML_TRUE) == XML_STATUS_ERROR)
         xml_failure(parser);
 }
 END_TEST
 
-static void
+static void XMLCALL
 accumulate_characters(void *userData, const XML_Char *s, int len)
 {
     CharData_AppendXMLChars((CharData *)userData, s, len);
 }
 
-static void
+static void XMLCALL
 accumulate_attribute(void *userData, const XML_Char *name,
                      const XML_Char **atts)
 {
@@ -133,37 +221,45 @@ accumulate_attribute(void *userData, const XML_Char *name,
 
 
 static void
-run_character_check(XML_Char *text, XML_Char *expected)
+_run_character_check(XML_Char *text, XML_Char *expected,
+                     const char *file, int line)
 {
     CharData storage;
 
     CharData_Init(&storage);
     XML_SetUserData(parser, &storage);
     XML_SetCharacterDataHandler(parser, accumulate_characters);
-    if (XML_Parse(parser, text, strlen(text), 1) == XML_STATUS_ERROR)
-        xml_failure(parser);
+    if (XML_Parse(parser, text, strlen(text), XML_TRUE) == XML_STATUS_ERROR)
+        _xml_failure(parser, file, line);
     CharData_CheckXMLChars(&storage, expected);
 }
 
+#define run_character_check(text, expected) \
+        _run_character_check(text, expected, __FILE__, __LINE__)
+
 static void
-run_attribute_check(XML_Char *text, XML_Char *expected)
+_run_attribute_check(XML_Char *text, XML_Char *expected,
+                     const char *file, int line)
 {
     CharData storage;
 
     CharData_Init(&storage);
     XML_SetUserData(parser, &storage);
     XML_SetStartElementHandler(parser, accumulate_attribute);
-    if (XML_Parse(parser, text, strlen(text), 1) == XML_STATUS_ERROR)
-        xml_failure(parser);
+    if (XML_Parse(parser, text, strlen(text), XML_TRUE) == XML_STATUS_ERROR)
+        _xml_failure(parser, file, line);
     CharData_CheckXMLChars(&storage, expected);
 }
+
+#define run_attribute_check(text, expected) \
+        _run_attribute_check(text, expected, __FILE__, __LINE__)
 
 /* Regression test for SF bug #491986. */
 START_TEST(test_danish_latin1)
 {
     char *text =
         "<?xml version='1.0' encoding='iso-8859-1'?>\n"
-        "<e>Jørgen æøåÆØÅ</e>";
+        "<e>J\xF8rgen \xE6\xF8\xE5\xC6\xD8\xC5</e>";
     run_character_check(text,
              "J\xC3\xB8rgen \xC3\xA6\xC3\xB8\xC3\xA5\xC3\x86\xC3\x98\xC3\x85");
 }
@@ -234,7 +330,7 @@ START_TEST(test_illegal_utf8)
 
     for (i = 128; i <= 255; ++i) {
         sprintf(text, "<e>%ccd</e>", i);
-        if (XML_Parse(parser, text, strlen(text), 1) == XML_STATUS_OK) {
+        if (XML_Parse(parser, text, strlen(text), XML_TRUE) == XML_STATUS_OK) {
             sprintf(text,
                     "expected token error for '%c' (ordinal %d) in UTF-8 text",
                     i, i);
@@ -261,14 +357,14 @@ START_TEST(test_utf16)
         "\000<\000d\000o\000c\000 \000a\000=\000'\0001\0002\0003\000'"
         "\000>\000s\000o\000m\000e\000 \000t\000e\000x\000t\000<\000/"
         "\000d\000o\000c\000>";
-    if (XML_Parse(parser, text, sizeof(text) - 1, 1) == XML_STATUS_ERROR)
+    if (XML_Parse(parser, text, sizeof(text)-1, XML_TRUE) == XML_STATUS_ERROR)
         xml_failure(parser);
 }
 END_TEST
 
 START_TEST(test_utf16_le_epilog_newline)
 {
-    int first_chunk_bytes = 17;
+    unsigned int first_chunk_bytes = 17;
     char text[] = 
         "\xFF\xFE"                      /* BOM */
         "<\000e\000/\000>\000"          /* document element */
@@ -276,52 +372,176 @@ START_TEST(test_utf16_le_epilog_newline)
 
     if (first_chunk_bytes >= sizeof(text) - 1)
         fail("bad value of first_chunk_bytes");
-    if (XML_Parse(parser, text, first_chunk_bytes, 0) == XML_STATUS_ERROR)
+    if (  XML_Parse(parser, text, first_chunk_bytes, XML_FALSE)
+          == XML_STATUS_ERROR)
         xml_failure(parser);
     else {
         enum XML_Status rc;
         rc = XML_Parse(parser, text + first_chunk_bytes,
-                       sizeof(text) - first_chunk_bytes - 1, 1);
+                       sizeof(text) - first_chunk_bytes - 1, XML_TRUE);
         if (rc == XML_STATUS_ERROR)
             xml_failure(parser);
     }
 }
 END_TEST
 
-/* Regression test for SF bug #481609. */
+/* Regression test for SF bug #481609, #774028. */
 START_TEST(test_latin1_umlauts)
 {
     char *text =
         "<?xml version='1.0' encoding='iso-8859-1'?>\n"
-        "<e a='ä ö ü &#228; &#246; &#252; &#x00E4; &#x0F6; &#xFC;'\n"
-        "  >ä ö ü &#228; &#246; &#252; &#x00E4; &#x0F6; &#xFC;</e>";
+        "<e a='\xE4 \xF6 \xFC &#228; &#246; &#252; &#x00E4; &#x0F6; &#xFC; >'\n"
+        "  >\xE4 \xF6 \xFC &#228; &#246; &#252; &#x00E4; &#x0F6; &#xFC; ></e>";
     char *utf8 =
         "\xC3\xA4 \xC3\xB6 \xC3\xBC "
         "\xC3\xA4 \xC3\xB6 \xC3\xBC "
-        "\xC3\xA4 \xC3\xB6 \xC3\xBC";
+        "\xC3\xA4 \xC3\xB6 \xC3\xBC >";
     run_character_check(text, utf8);
     XML_ParserReset(parser, NULL);
     run_attribute_check(text, utf8);
 }
 END_TEST
 
-/* Regression test for SF bug #422239 (maybe).
-   It's not clear that this reproduces enough of the context
-   of the reported bug.
-*/
-START_TEST(test_line_count)
+/* Regression test #1 for SF bug #653180. */
+START_TEST(test_line_number_after_parse)
+{  
+    char *text =
+        "<tag>\n"
+        "\n"
+        "\n</tag>";
+    XML_Size lineno;
+
+    if (XML_Parse(parser, text, strlen(text), XML_FALSE) == XML_STATUS_ERROR)
+        xml_failure(parser);
+    lineno = XML_GetCurrentLineNumber(parser);
+    if (lineno != 4) {
+        char buffer[100];
+        sprintf(buffer, 
+            "expected 4 lines, saw %" XML_FMT_INT_MOD "u", lineno);
+        fail(buffer);
+    }
+}
+END_TEST
+
+/* Regression test #2 for SF bug #653180. */
+START_TEST(test_column_number_after_parse)
+{
+    char *text = "<tag></tag>";
+    XML_Size colno;
+
+    if (XML_Parse(parser, text, strlen(text), XML_FALSE) == XML_STATUS_ERROR)
+        xml_failure(parser);
+    colno = XML_GetCurrentColumnNumber(parser);
+    if (colno != 11) {
+        char buffer[100];
+        sprintf(buffer, 
+            "expected 11 columns, saw %" XML_FMT_INT_MOD "u", colno);
+        fail(buffer);
+    }
+}
+END_TEST
+
+static void XMLCALL
+start_element_event_handler2(void *userData, const XML_Char *name,
+			     const XML_Char **attr)
+{
+    CharData *storage = (CharData *) userData;
+    char buffer[100];
+
+    sprintf(buffer,
+        "<%s> at col:%" XML_FMT_INT_MOD "u line:%"\
+            XML_FMT_INT_MOD "u\n", name,
+	    XML_GetCurrentColumnNumber(parser),
+	    XML_GetCurrentLineNumber(parser));
+    CharData_AppendString(storage, buffer);
+}
+
+static void XMLCALL
+end_element_event_handler2(void *userData, const XML_Char *name)
+{
+    CharData *storage = (CharData *) userData;
+    char buffer[100];
+
+    sprintf(buffer,
+        "</%s> at col:%" XML_FMT_INT_MOD "u line:%"\
+            XML_FMT_INT_MOD "u\n", name,
+	    XML_GetCurrentColumnNumber(parser),
+	    XML_GetCurrentLineNumber(parser));
+    CharData_AppendString(storage, buffer);
+}
+
+/* Regression test #3 for SF bug #653180. */
+START_TEST(test_line_and_column_numbers_inside_handlers)
 {
     char *text =
-        "<e>\n"
-        "  <e/>\n"
-        "</e>";
-    int lineno;
-    if (XML_Parse(parser, text, strlen(text), 1) == XML_STATUS_ERROR)
+        "<a>\n"        /* Unix end-of-line */
+        "  <b>\r\n"    /* Windows end-of-line */
+        "    <c/>\r"   /* Mac OS end-of-line */
+        "  </b>\n"
+        "  <d>\n"
+        "    <f/>\n"
+        "  </d>\n"
+        "</a>";
+    char *expected =
+        "<a> at col:0 line:1\n"
+        "<b> at col:2 line:2\n"
+        "<c> at col:4 line:3\n"
+        "</c> at col:8 line:3\n"
+        "</b> at col:2 line:4\n"
+        "<d> at col:2 line:5\n"
+        "<f> at col:4 line:6\n"
+        "</f> at col:8 line:6\n"
+        "</d> at col:2 line:7\n"
+        "</a> at col:0 line:8\n";
+    CharData storage;
+
+    CharData_Init(&storage);
+    XML_SetUserData(parser, &storage);
+    XML_SetStartElementHandler(parser, start_element_event_handler2);
+    XML_SetEndElementHandler(parser, end_element_event_handler2);
+    if (XML_Parse(parser, text, strlen(text), XML_TRUE) == XML_STATUS_ERROR)
         xml_failure(parser);
+
+    CharData_CheckString(&storage, expected); 
+}
+END_TEST
+
+/* Regression test #4 for SF bug #653180. */
+START_TEST(test_line_number_after_error)
+{
+    char *text =
+        "<a>\n"
+        "  <b>\n"
+        "  </a>";  /* missing </b> */
+    XML_Size lineno;
+    if (XML_Parse(parser, text, strlen(text), XML_FALSE) != XML_STATUS_ERROR)
+        fail("Expected a parse error");
+
     lineno = XML_GetCurrentLineNumber(parser);
     if (lineno != 3) {
         char buffer[100];
-        sprintf(buffer, "expected 3 lines, saw %d", lineno);
+        sprintf(buffer, "expected 3 lines, saw %" XML_FMT_INT_MOD "u", lineno);
+        fail(buffer);
+    }
+}
+END_TEST
+    
+/* Regression test #5 for SF bug #653180. */
+START_TEST(test_column_number_after_error)
+{
+    char *text =
+        "<a>\n"
+        "  <b>\n"
+        "  </a>";  /* missing </b> */
+    XML_Size colno;
+    if (XML_Parse(parser, text, strlen(text), XML_FALSE) != XML_STATUS_ERROR)
+        fail("Expected a parse error");
+
+    colno = XML_GetCurrentColumnNumber(parser);
+    if (colno != 4) { 
+        char buffer[100];
+        sprintf(buffer, 
+            "expected 4 columns, saw %" XML_FMT_INT_MOD "u", colno);
         fail(buffer);
     }
 }
@@ -357,7 +577,7 @@ START_TEST(test_really_long_lines)
         "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-+"
         "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-+"
         "</e>";
-    if (XML_Parse(parser, text, strlen(text), 1) == XML_STATUS_ERROR)
+    if (XML_Parse(parser, text, strlen(text), XML_TRUE) == XML_STATUS_ERROR)
         xml_failure(parser);
 }
 END_TEST
@@ -367,7 +587,7 @@ END_TEST
  * Element event tests.
  */
 
-static void
+static void XMLCALL
 end_element_event_handler(void *userData, const XML_Char *name)
 {
     CharData *storage = (CharData *) userData;
@@ -384,7 +604,7 @@ START_TEST(test_end_element_events)
     CharData_Init(&storage);
     XML_SetUserData(parser, &storage);
     XML_SetEndElementHandler(parser, end_element_event_handler);
-    if (XML_Parse(parser, text, strlen(text), 1) == XML_STATUS_ERROR)
+    if (XML_Parse(parser, text, strlen(text), XML_TRUE) == XML_STATUS_ERROR)
         xml_failure(parser);
     CharData_CheckString(&storage, expected);
 }
@@ -457,7 +677,7 @@ testhelper_is_whitespace_normalized(void)
     assert(!is_whitespace_normalized("abc\t def", 1));
 }
 
-static void
+static void XMLCALL
 check_attr_contains_normalized_whitespace(void *userData,
                                           const XML_Char *name,
                                           const XML_Char **atts)
@@ -497,7 +717,7 @@ START_TEST(test_attr_whitespace_normalization)
 
     XML_SetStartElementHandler(parser,
                                check_attr_contains_normalized_whitespace);
-    if (XML_Parse(parser, text, strlen(text), 1) == XML_STATUS_ERROR)
+    if (XML_Parse(parser, text, strlen(text), XML_TRUE) == XML_STATUS_ERROR)
         xml_failure(parser);
 }
 END_TEST
@@ -518,19 +738,19 @@ START_TEST(test_xmldecl_misplaced)
 END_TEST
 
 /* Regression test for SF bug #584832. */
-static int
+static int XMLCALL
 UnknownEncodingHandler(void *data,const XML_Char *encoding,XML_Encoding *info)
 {
     if (strcmp(encoding,"unsupported-encoding") == 0) {
         int i;
         for (i = 0; i < 256; ++i)
             info->map[i] = i;
-        info->data=NULL;
-        info->convert=NULL;
-        info->release=NULL;
-        return 1;
+        info->data = NULL;
+        info->convert = NULL;
+        info->release = NULL;
+        return XML_STATUS_OK;
     }
-    return 0;
+    return XML_STATUS_ERROR;
 }
 
 START_TEST(test_unknown_encoding_internal_entity)
@@ -541,8 +761,51 @@ START_TEST(test_unknown_encoding_internal_entity)
         "<test a='&foo;'/>";
 
     XML_SetUnknownEncodingHandler(parser, UnknownEncodingHandler, NULL);
-    if (XML_Parse(parser, text, strlen(text), 1) == XML_STATUS_ERROR)
+    if (XML_Parse(parser, text, strlen(text), XML_TRUE) == XML_STATUS_ERROR)
         xml_failure(parser);
+}
+END_TEST
+
+/* Regression test for SF bug #620106. */
+static int XMLCALL
+external_entity_loader_set_encoding(XML_Parser parser,
+                                    const XML_Char *context,
+                                    const XML_Char *base,
+                                    const XML_Char *systemId,
+                                    const XML_Char *publicId)
+{
+    /* This text says it's an unsupported encoding, but it's really
+       UTF-8, which we tell Expat using XML_SetEncoding().
+    */
+    char *text =
+        "<?xml encoding='iso-8859-3'?>"
+        "\xC3\xA9";
+    XML_Parser extparser;
+
+    extparser = XML_ExternalEntityParserCreate(parser, context, NULL);
+    if (extparser == NULL)
+        fail("Could not create external entity parser.");
+    if (!XML_SetEncoding(extparser, "utf-8"))
+        fail("XML_SetEncoding() ignored for external entity");
+    if (  XML_Parse(extparser, text, strlen(text), XML_TRUE)
+          == XML_STATUS_ERROR) {
+        xml_failure(parser);
+        return 0;
+    }
+    return 1;
+}
+
+START_TEST(test_ext_entity_set_encoding)
+{
+    char *text =
+        "<!DOCTYPE doc [\n"
+        "  <!ENTITY en SYSTEM 'http://xml.libexpat.org/dummy.ent'>\n"
+        "]>\n"
+        "<doc>&en;</doc>";
+
+    XML_SetExternalEntityRefHandler(parser,
+                                    external_entity_loader_set_encoding);
+    run_character_check(text, "\xC3\xA9");
 }
 END_TEST
 
@@ -554,7 +817,7 @@ START_TEST(test_wfc_undeclared_entity_unread_external_subset) {
         "<!DOCTYPE doc SYSTEM 'foo'>\n"
         "<doc>&entity;</doc>";
 
-    if (XML_Parse(parser, text, strlen(text), 1) == XML_STATUS_ERROR)
+    if (XML_Parse(parser, text, strlen(text), XML_TRUE) == XML_STATUS_ERROR)
         xml_failure(parser);
 }
 END_TEST
@@ -584,7 +847,7 @@ START_TEST(test_wfc_undeclared_entity_standalone) {
 }
 END_TEST
 
-static int
+static int XMLCALL
 external_entity_loader(XML_Parser parser,
                        const XML_Char *context,
                        const XML_Char *base,
@@ -597,15 +860,36 @@ external_entity_loader(XML_Parser parser,
     extparser = XML_ExternalEntityParserCreate(parser, context, NULL);
     if (extparser == NULL)
         fail("Could not create external entity parser.");
-    if (XML_Parse(extparser, text, strlen(text), 1) == XML_STATUS_ERROR) {
+    if (  XML_Parse(extparser, text, strlen(text), XML_TRUE)
+          == XML_STATUS_ERROR) {
         xml_failure(parser);
-        return 0;
+        return XML_STATUS_ERROR;
     }
-    return 1;
+    return XML_STATUS_OK;
 }
 
 /* Test that an error is reported for unknown entities if we have read
-   an external subset.
+   an external subset, and standalone is true.
+*/
+START_TEST(test_wfc_undeclared_entity_with_external_subset_standalone) {
+    char *text =
+        "<?xml version='1.0' encoding='us-ascii' standalone='yes'?>\n"
+        "<!DOCTYPE doc SYSTEM 'foo'>\n"
+        "<doc>&entity;</doc>";
+    char *foo_text =
+        "<!ELEMENT doc (#PCDATA)*>";
+
+    XML_SetParamEntityParsing(parser, XML_PARAM_ENTITY_PARSING_ALWAYS);
+    XML_SetUserData(parser, foo_text);
+    XML_SetExternalEntityRefHandler(parser, external_entity_loader);
+    expect_failure(text,
+                   XML_ERROR_UNDEFINED_ENTITY,
+                   "Parser did not report undefined entity (external DTD).");
+}
+END_TEST
+
+/* Test that no error is reported for unknown entities if we have read
+   an external subset, and standalone is false.
 */
 START_TEST(test_wfc_undeclared_entity_with_external_subset) {
     char *text =
@@ -618,9 +902,8 @@ START_TEST(test_wfc_undeclared_entity_with_external_subset) {
     XML_SetParamEntityParsing(parser, XML_PARAM_ENTITY_PARSING_ALWAYS);
     XML_SetUserData(parser, foo_text);
     XML_SetExternalEntityRefHandler(parser, external_entity_loader);
-    expect_failure(text,
-                   XML_ERROR_UNDEFINED_ENTITY,
-                   "Parser did not report undefined entity with DTD.");
+    if (XML_Parse(parser, text, strlen(text), XML_TRUE) == XML_STATUS_ERROR)
+        xml_failure(parser);
 }
 END_TEST
 
@@ -635,6 +918,145 @@ START_TEST(test_wfc_no_recursive_entity_refs)
     expect_failure(text,
                    XML_ERROR_RECURSIVE_ENTITY_REF,
                    "Parser did not report recursive entity reference.");
+}
+END_TEST
+
+/* Regression test for SF bug #483514. */
+START_TEST(test_dtd_default_handling)
+{
+    char *text =
+        "<!DOCTYPE doc [\n"
+        "<!ENTITY e SYSTEM 'http://xml.libexpat.org/e'>\n"
+        "<!NOTATION n SYSTEM 'http://xml.libexpat.org/n'>\n"
+        "<!ELEMENT doc EMPTY>\n"
+        "<!ATTLIST doc a CDATA #IMPLIED>\n"
+        "<?pi in dtd?>\n"
+        "<!--comment in dtd-->\n"
+        "]><doc/>";
+
+    XML_SetDefaultHandler(parser, accumulate_characters);
+    XML_SetDoctypeDeclHandler(parser,
+                              dummy_start_doctype_handler,
+                              dummy_end_doctype_handler);
+    XML_SetEntityDeclHandler(parser, dummy_entity_decl_handler);
+    XML_SetNotationDeclHandler(parser, dummy_notation_decl_handler);
+    XML_SetElementDeclHandler(parser, dummy_element_decl_handler);
+    XML_SetAttlistDeclHandler(parser, dummy_attlist_decl_handler);
+    XML_SetProcessingInstructionHandler(parser, dummy_pi_handler);
+    XML_SetCommentHandler(parser, dummy_comment_handler);
+    run_character_check(text, "\n\n\n\n\n\n\n<doc/>");
+}
+END_TEST
+
+/* See related SF bug #673791.
+   When namespace processing is enabled, setting the namespace URI for
+   a prefix is not allowed; this test ensures that it *is* allowed
+   when namespace processing is not enabled.
+   (See Namespaces in XML, section 2.)
+*/
+START_TEST(test_empty_ns_without_namespaces)
+{
+    char *text =
+        "<doc xmlns:prefix='http://www.example.com/'>\n"
+        "  <e xmlns:prefix=''/>\n"
+        "</doc>";
+
+    if (XML_Parse(parser, text, strlen(text), XML_TRUE) == XML_STATUS_ERROR)
+        xml_failure(parser);
+}
+END_TEST
+
+/* Regression test for SF bug #824420.
+   Checks that an xmlns:prefix attribute set in an attribute's default
+   value isn't misinterpreted.
+*/
+START_TEST(test_ns_in_attribute_default_without_namespaces)
+{
+    char *text =
+        "<!DOCTYPE e:element [\n"
+        "  <!ATTLIST e:element\n"
+        "    xmlns:e CDATA 'http://example.com/'>\n"
+        "      ]>\n"
+        "<e:element/>";
+
+    if (XML_Parse(parser, text, strlen(text), XML_TRUE) == XML_STATUS_ERROR)
+        xml_failure(parser);
+}
+END_TEST
+
+static char *long_character_data_text =
+    "<?xml version='1.0' encoding='iso-8859-1'?><s>"
+    "012345678901234567890123456789012345678901234567890123456789"
+    "012345678901234567890123456789012345678901234567890123456789"
+    "012345678901234567890123456789012345678901234567890123456789"
+    "012345678901234567890123456789012345678901234567890123456789"
+    "012345678901234567890123456789012345678901234567890123456789"
+    "012345678901234567890123456789012345678901234567890123456789"
+    "012345678901234567890123456789012345678901234567890123456789"
+    "012345678901234567890123456789012345678901234567890123456789"
+    "012345678901234567890123456789012345678901234567890123456789"
+    "012345678901234567890123456789012345678901234567890123456789"
+    "012345678901234567890123456789012345678901234567890123456789"
+    "012345678901234567890123456789012345678901234567890123456789"
+    "012345678901234567890123456789012345678901234567890123456789"
+    "012345678901234567890123456789012345678901234567890123456789"
+    "012345678901234567890123456789012345678901234567890123456789"
+    "012345678901234567890123456789012345678901234567890123456789"
+    "012345678901234567890123456789012345678901234567890123456789"
+    "012345678901234567890123456789012345678901234567890123456789"
+    "012345678901234567890123456789012345678901234567890123456789"
+    "012345678901234567890123456789012345678901234567890123456789"
+    "</s>";
+
+static XML_Bool resumable = XML_FALSE;
+
+static void
+clearing_aborting_character_handler(void *userData,
+                                    const XML_Char *s, int len)
+{
+    XML_StopParser(parser, resumable);
+    XML_SetCharacterDataHandler(parser, NULL);
+}
+
+/* Regression test for SF bug #1515266: missing check of stopped
+   parser in doContext() 'for' loop. */
+START_TEST(test_stop_parser_between_char_data_calls)
+{
+    /* The sample data must be big enough that there are two calls to
+       the character data handler from within the inner "for" loop of
+       the XML_TOK_DATA_CHARS case in doContent(), and the character
+       handler must stop the parser and clear the character data
+       handler.
+    */
+    char *text = long_character_data_text;
+
+    XML_SetCharacterDataHandler(parser, clearing_aborting_character_handler);
+    resumable = XML_FALSE;
+    if (XML_Parse(parser, text, strlen(text), XML_TRUE) != XML_STATUS_ERROR)
+        xml_failure(parser);
+    if (XML_GetErrorCode(parser) != XML_ERROR_ABORTED)
+        xml_failure(parser);
+}
+END_TEST
+
+/* Regression test for SF bug #1515266: missing check of stopped
+   parser in doContext() 'for' loop. */
+START_TEST(test_suspend_parser_between_char_data_calls)
+{
+    /* The sample data must be big enough that there are two calls to
+       the character data handler from within the inner "for" loop of
+       the XML_TOK_DATA_CHARS case in doContent(), and the character
+       handler must stop the parser and clear the character data
+       handler.
+    */
+    char *text = long_character_data_text;
+
+    XML_SetCharacterDataHandler(parser, clearing_aborting_character_handler);
+    resumable = XML_TRUE;
+    if (XML_Parse(parser, text, strlen(text), XML_TRUE) != XML_STATUS_SUSPENDED)
+        xml_failure(parser);
+    if (XML_GetErrorCode(parser) != XML_ERROR_NONE)
+        xml_failure(parser);
 }
 END_TEST
 
@@ -662,7 +1084,7 @@ namespace_teardown(void)
    provided as the userData argument; the first is the expected
    element name, and the second is the expected attribute name.
 */
-static void
+static void XMLCALL
 triplet_start_checker(void *userData, const XML_Char *name,
                       const XML_Char **atts)
 {
@@ -682,7 +1104,7 @@ triplet_start_checker(void *userData, const XML_Char *name,
    the expected value.  The expected value is passed as the first element
    in an array of strings passed as the userData argument.
 */
-static void
+static void XMLCALL
 triplet_end_checker(void *userData, const XML_Char *name)
 {
     char **elemstr = (char **)userData;
@@ -702,15 +1124,15 @@ START_TEST(test_return_ns_triplet)
         "http://expat.sf.net/ e foo",
         "http://expat.sf.net/ a bar"
     };
-    XML_SetReturnNSTriplet(parser, 1);
+    XML_SetReturnNSTriplet(parser, XML_TRUE);
     XML_SetUserData(parser, elemstr);
     XML_SetElementHandler(parser, triplet_start_checker, triplet_end_checker);
-    if (XML_Parse(parser, text, strlen(text), 1) == XML_STATUS_ERROR)
+    if (XML_Parse(parser, text, strlen(text), XML_TRUE) == XML_STATUS_ERROR)
         xml_failure(parser);
 }
 END_TEST
 
-static void
+static void XMLCALL
 overwrite_start_checker(void *userData, const XML_Char *name,
                         const XML_Char **atts)
 {
@@ -725,7 +1147,7 @@ overwrite_start_checker(void *userData, const XML_Char *name,
     CharData_AppendString(storage, "\n");
 }
 
-static void
+static void XMLCALL
 overwrite_end_checker(void *userData, const XML_Char *name)
 {
     CharData *storage = (CharData *) userData;
@@ -742,7 +1164,7 @@ run_ns_tagname_overwrite_test(char *text, char *result)
     XML_SetUserData(parser, &storage);
     XML_SetElementHandler(parser,
                           overwrite_start_checker, overwrite_end_checker);
-    if (XML_Parse(parser, text, strlen(text), 1) == XML_STATUS_ERROR)
+    if (XML_Parse(parser, text, strlen(text), XML_TRUE) == XML_STATUS_ERROR)
         xml_failure(parser);
     CharData_CheckString(&storage, result);
 }
@@ -785,13 +1207,211 @@ START_TEST(test_ns_tagname_overwrite_triplet)
         "attribute http://xml.libexpat.org/ attr2 n\n"
         "end http://xml.libexpat.org/ g n\n"
         "end http://xml.libexpat.org/ e n\n";
-    XML_SetReturnNSTriplet(parser, 1);
+    XML_SetReturnNSTriplet(parser, XML_TRUE);
     run_ns_tagname_overwrite_test(text, result);
 }
 END_TEST
 
+
+/* Regression test for SF bug #620343. */
+static void XMLCALL
+start_element_fail(void *userData,
+                   const XML_Char *name, const XML_Char **atts)
+{
+    /* We should never get here. */
+    fail("should never reach start_element_fail()");
+}
+
+static void XMLCALL
+start_ns_clearing_start_element(void *userData,
+                                const XML_Char *prefix,
+                                const XML_Char *uri)
+{
+    XML_SetStartElementHandler((XML_Parser) userData, NULL);
+}
+
+START_TEST(test_start_ns_clears_start_element)
+{
+    /* This needs to use separate start/end tags; using the empty tag
+       syntax doesn't cause the problematic path through Expat to be
+       taken.
+    */
+    char *text = "<e xmlns='http://xml.libexpat.org/'></e>";
+
+    XML_SetStartElementHandler(parser, start_element_fail);
+    XML_SetStartNamespaceDeclHandler(parser, start_ns_clearing_start_element);
+    XML_UseParserAsHandlerArg(parser);
+    if (XML_Parse(parser, text, strlen(text), XML_TRUE) == XML_STATUS_ERROR)
+        xml_failure(parser);
+}
+END_TEST
+
+/* Regression test for SF bug #616863. */
+static int XMLCALL
+external_entity_handler(XML_Parser parser,
+                        const XML_Char *context,
+                        const XML_Char *base,
+                        const XML_Char *systemId,
+                        const XML_Char *publicId) 
+{
+    long callno = 1 + (long)XML_GetUserData(parser);
+    char *text;
+    XML_Parser p2;
+
+    if (callno == 1)
+        text = ("<!ELEMENT doc (e+)>\n"
+                "<!ATTLIST doc xmlns CDATA #IMPLIED>\n"
+                "<!ELEMENT e EMPTY>\n");
+    else
+        text = ("<?xml version='1.0' encoding='us-ascii'?>"
+                "<e/>");
+
+    XML_SetUserData(parser, (void *) callno);
+    p2 = XML_ExternalEntityParserCreate(parser, context, NULL);
+    if (XML_Parse(p2, text, strlen(text), XML_TRUE) == XML_STATUS_ERROR) {
+        xml_failure(p2);
+        return 0;
+    }
+    XML_ParserFree(p2);
+    return 1;
+}
+
+START_TEST(test_default_ns_from_ext_subset_and_ext_ge)
+{
+    char *text =
+        "<?xml version='1.0'?>\n"
+        "<!DOCTYPE doc SYSTEM 'http://xml.libexpat.org/doc.dtd' [\n"
+        "  <!ENTITY en SYSTEM 'http://xml.libexpat.org/entity.ent'>\n"
+        "]>\n"
+        "<doc xmlns='http://xml.libexpat.org/ns1'>\n"
+        "&en;\n"
+        "</doc>";
+
+    XML_SetParamEntityParsing(parser, XML_PARAM_ENTITY_PARSING_ALWAYS);
+    XML_SetExternalEntityRefHandler(parser, external_entity_handler);
+    /* We actually need to set this handler to tickle this bug. */
+    XML_SetStartElementHandler(parser, dummy_start_element);
+    XML_SetUserData(parser, NULL);
+    if (XML_Parse(parser, text, strlen(text), XML_TRUE) == XML_STATUS_ERROR)
+        xml_failure(parser);
+}
+END_TEST
+
+/* Regression test #1 for SF bug #673791. */
+START_TEST(test_ns_prefix_with_empty_uri_1)
+{
+    char *text =
+        "<doc xmlns:prefix='http://xml.libexpat.org/'>\n"
+        "  <e xmlns:prefix=''/>\n"
+        "</doc>";
+
+    expect_failure(text,
+                   XML_ERROR_UNDECLARING_PREFIX,
+                   "Did not report re-setting namespace"
+                   " URI with prefix to ''.");
+}
+END_TEST
+
+/* Regression test #2 for SF bug #673791. */
+START_TEST(test_ns_prefix_with_empty_uri_2)
+{
+    char *text =
+        "<?xml version='1.0'?>\n"
+        "<docelem xmlns:pre=''/>";
+
+    expect_failure(text,
+                   XML_ERROR_UNDECLARING_PREFIX,
+                   "Did not report setting namespace URI with prefix to ''.");
+}
+END_TEST
+
+/* Regression test #3 for SF bug #673791. */
+START_TEST(test_ns_prefix_with_empty_uri_3)
+{
+    char *text =
+        "<!DOCTYPE doc [\n"
+        "  <!ELEMENT doc EMPTY>\n"
+        "  <!ATTLIST doc\n"
+        "    xmlns:prefix CDATA ''>\n"
+        "]>\n"
+        "<doc/>";
+
+    expect_failure(text,
+                   XML_ERROR_UNDECLARING_PREFIX,
+                   "Didn't report attr default setting NS w/ prefix to ''.");
+}
+END_TEST
+
+/* Regression test #4 for SF bug #673791. */
+START_TEST(test_ns_prefix_with_empty_uri_4)
+{
+    char *text =
+        "<!DOCTYPE doc [\n"
+        "  <!ELEMENT prefix:doc EMPTY>\n"
+        "  <!ATTLIST prefix:doc\n"
+        "    xmlns:prefix CDATA 'http://xml.libexpat.org/'>\n"
+        "]>\n"
+        "<prefix:doc/>";
+    /* Packaged info expected by the end element handler;
+       the weird structuring lets us re-use the triplet_end_checker()
+       function also used for another test. */
+    char *elemstr[] = {
+        "http://xml.libexpat.org/ doc prefix"
+    };
+    XML_SetReturnNSTriplet(parser, XML_TRUE);
+    XML_SetUserData(parser, elemstr);
+    XML_SetEndElementHandler(parser, triplet_end_checker);
+    if (XML_Parse(parser, text, strlen(text), XML_TRUE) == XML_STATUS_ERROR)
+        xml_failure(parser);
+}
+END_TEST
+
+START_TEST(test_ns_default_with_empty_uri)
+{
+    char *text =
+        "<doc xmlns='http://xml.libexpat.org/'>\n"
+        "  <e xmlns=''/>\n"
+        "</doc>";
+    if (XML_Parse(parser, text, strlen(text), XML_TRUE) == XML_STATUS_ERROR)
+        xml_failure(parser);
+}
+END_TEST
+
+/* Regression test for SF bug #692964: two prefixes for one namespace. */
+START_TEST(test_ns_duplicate_attrs_diff_prefixes)
+{
+    char *text =
+        "<doc xmlns:a='http://xml.libexpat.org/a'\n"
+        "     xmlns:b='http://xml.libexpat.org/a'\n"
+        "     a:a='v' b:a='v' />";
+    expect_failure(text,
+                   XML_ERROR_DUPLICATE_ATTRIBUTE,
+                   "did not report multiple attributes with same URI+name");
+}
+END_TEST
+
+/* Regression test for SF bug #695401: unbound prefix. */
+START_TEST(test_ns_unbound_prefix_on_attribute)
+{
+    char *text = "<doc a:attr=''/>";
+    expect_failure(text,
+                   XML_ERROR_UNBOUND_PREFIX,
+                   "did not report unbound prefix on attribute");
+}
+END_TEST
+
+/* Regression test for SF bug #695401: unbound prefix. */
+START_TEST(test_ns_unbound_prefix_on_element)
+{
+    char *text = "<a:doc/>";
+    expect_failure(text,
+                   XML_ERROR_UNBOUND_PREFIX,
+                   "did not report unbound prefix on element");
+}
+END_TEST
+
 static Suite *
-make_basic_suite(void)
+make_suite(void)
 {
     Suite *s = suite_create("basic");
     TCase *tc_basic = tcase_create("basic tests");
@@ -816,7 +1436,11 @@ make_basic_suite(void)
     tcase_add_test(tc_basic, test_french_latin1);
     tcase_add_test(tc_basic, test_french_utf8);
     tcase_add_test(tc_basic, test_utf8_false_rejection);
-    tcase_add_test(tc_basic, test_line_count);
+    tcase_add_test(tc_basic, test_line_number_after_parse);
+    tcase_add_test(tc_basic, test_column_number_after_parse);
+    tcase_add_test(tc_basic, test_line_and_column_numbers_inside_handlers);
+    tcase_add_test(tc_basic, test_line_number_after_error);
+    tcase_add_test(tc_basic, test_column_number_after_error);
     tcase_add_test(tc_basic, test_really_long_lines);
     tcase_add_test(tc_basic, test_end_element_events);
     tcase_add_test(tc_basic, test_attr_whitespace_normalization);
@@ -827,7 +1451,15 @@ make_basic_suite(void)
     tcase_add_test(tc_basic, test_wfc_undeclared_entity_no_external_subset);
     tcase_add_test(tc_basic, test_wfc_undeclared_entity_standalone);
     tcase_add_test(tc_basic, test_wfc_undeclared_entity_with_external_subset);
+    tcase_add_test(tc_basic,
+                   test_wfc_undeclared_entity_with_external_subset_standalone);
     tcase_add_test(tc_basic, test_wfc_no_recursive_entity_refs);
+    tcase_add_test(tc_basic, test_ext_entity_set_encoding);
+    tcase_add_test(tc_basic, test_dtd_default_handling);
+    tcase_add_test(tc_basic, test_empty_ns_without_namespaces);
+    tcase_add_test(tc_basic, test_ns_in_attribute_default_without_namespaces);
+    tcase_add_test(tc_basic, test_stop_parser_between_char_data_calls);
+    tcase_add_test(tc_basic, test_suspend_parser_between_char_data_calls);
 
     suite_add_tcase(s, tc_namespace);
     tcase_add_checked_fixture(tc_namespace,
@@ -835,6 +1467,16 @@ make_basic_suite(void)
     tcase_add_test(tc_namespace, test_return_ns_triplet);
     tcase_add_test(tc_namespace, test_ns_tagname_overwrite);
     tcase_add_test(tc_namespace, test_ns_tagname_overwrite_triplet);
+    tcase_add_test(tc_namespace, test_start_ns_clears_start_element);
+    tcase_add_test(tc_namespace, test_default_ns_from_ext_subset_and_ext_ge);
+    tcase_add_test(tc_namespace, test_ns_prefix_with_empty_uri_1);
+    tcase_add_test(tc_namespace, test_ns_prefix_with_empty_uri_2);
+    tcase_add_test(tc_namespace, test_ns_prefix_with_empty_uri_3);
+    tcase_add_test(tc_namespace, test_ns_prefix_with_empty_uri_4);
+    tcase_add_test(tc_namespace, test_ns_default_with_empty_uri);
+    tcase_add_test(tc_namespace, test_ns_duplicate_attrs_diff_prefixes);
+    tcase_add_test(tc_namespace, test_ns_unbound_prefix_on_attribute);
+    tcase_add_test(tc_namespace, test_ns_unbound_prefix_on_element);
 
     return s;
 }
@@ -844,9 +1486,8 @@ int
 main(int argc, char *argv[])
 {
     int i, nf;
-    int forking = 0, forking_set = 0;
     int verbosity = CK_NORMAL;
-    Suite *s = make_basic_suite();
+    Suite *s = make_suite();
     SRunner *sr = srunner_create(s);
 
     /* run the tests for internal helper functions */
@@ -858,25 +1499,16 @@ main(int argc, char *argv[])
             verbosity = CK_VERBOSE;
         else if (strcmp(opt, "-q") == 0 || strcmp(opt, "--quiet") == 0)
             verbosity = CK_SILENT;
-        else if (strcmp(opt, "-f") == 0 || strcmp(opt, "--fork") == 0) {
-            forking = 1;
-            forking_set = 1;
-        }
-        else if (strcmp(opt, "-n") == 0 || strcmp(opt, "--no-fork") == 0) {
-            forking = 0;
-            forking_set = 1;
-        }
         else {
             fprintf(stderr, "runtests: unknown option '%s'\n", opt);
             return 2;
         }
     }
-    if (forking_set)
-        srunner_set_fork_status(sr, forking ? CK_FORK : CK_NOFORK);
+    if (verbosity != CK_SILENT)
+        printf("Expat version: %s\n", XML_ExpatVersion());
     srunner_run_all(sr, verbosity);
     nf = srunner_ntests_failed(sr);
     srunner_free(sr);
-    suite_free(s);
 
     return (nf == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
 }

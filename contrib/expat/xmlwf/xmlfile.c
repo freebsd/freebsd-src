@@ -7,18 +7,30 @@
 #include <stddef.h>
 #include <string.h>
 #include <fcntl.h>
+
 #ifdef COMPILED_FROM_DSP
 #include "winconfig.h"
-#else
-#include "expat_config.h"
-#endif
+#elif defined(MACOS_CLASSIC)
+#include "macconfig.h"
+#elif defined(__amigaos__)
+#include "amigaconfig.h"
+#elif defined(__WATCOMC__)
+#include "watcomconfig.h"
+#elif defined(HAVE_EXPAT_CONFIG_H)
+#include <expat_config.h>
+#endif /* ndef COMPILED_FROM_DSP */
+
 #include "expat.h"
 #include "xmlfile.h"
 #include "xmltchar.h"
 #include "filemap.h"
 
-#ifdef _MSC_VER
+#if (defined(_MSC_VER) || (defined(__WATCOMC__) && !defined(__LINUX__)))
 #include <io.h>
+#endif
+
+#if defined(__amigaos__) && defined(__USE_INLINE__)
+#include <proto/expat.h>
 #endif
 
 #ifdef HAVE_UNISTD_H
@@ -48,10 +60,10 @@ typedef struct {
 static void
 reportError(XML_Parser parser, const XML_Char *filename)
 {
-  int code = XML_GetErrorCode(parser);
+  enum XML_Error code = XML_GetErrorCode(parser);
   const XML_Char *message = XML_ErrorString(code);
   if (message)
-    ftprintf(stdout, T("%s:%d:%d: %s\n"),
+    ftprintf(stdout, T("%s:%" XML_FMT_INT_MOD "u:%" XML_FMT_INT_MOD "u: %s\n"),
              filename,
              XML_GetErrorLineNumber(parser),
              XML_GetErrorColumnNumber(parser),
@@ -59,14 +71,15 @@ reportError(XML_Parser parser, const XML_Char *filename)
   else
     ftprintf(stderr, T("%s: (unknown message %d)\n"), filename, code);
 }
-
+ 
+/* This implementation will give problems on files larger than INT_MAX. */
 static void
 processFile(const void *data, size_t size,
             const XML_Char *filename, void *args)
 {
   XML_Parser parser = ((PROCESS_ARGS *)args)->parser;
   int *retPtr = ((PROCESS_ARGS *)args)->retPtr;
-  if (XML_Parse(parser, data, size, 1) == XML_STATUS_ERROR) {
+  if (XML_Parse(parser, (const char *)data, (int)size, 1) == XML_STATUS_ERROR) {
     reportError(parser, filename);
     *retPtr = 0;
   }
@@ -74,7 +87,7 @@ processFile(const void *data, size_t size,
     *retPtr = 1;
 }
 
-#ifdef WIN32
+#if (defined(WIN32) || defined(__WATCOMC__))
 
 static int
 isAsciiLetter(XML_Char c)
@@ -92,7 +105,7 @@ resolveSystemId(const XML_Char *base, const XML_Char *systemId,
   *toFree = 0;
   if (!base
       || *systemId == T('/')
-#ifdef WIN32
+#if (defined(WIN32) || defined(__WATCOMC__))
       || *systemId == T('\\')
       || (isAsciiLetter(systemId[0]) && systemId[1] == T(':'))
 #endif
@@ -106,7 +119,7 @@ resolveSystemId(const XML_Char *base, const XML_Char *systemId,
   s = *toFree;
   if (tcsrchr(s, T('/')))
     s = tcsrchr(s, T('/')) + 1;
-#ifdef WIN32
+#if (defined(WIN32) || defined(__WATCOMC__))
   if (tcsrchr(s, T('\\')))
     s = tcsrchr(s, T('\\')) + 1;
 #endif
@@ -152,7 +165,7 @@ processStream(const XML_Char *filename, XML_Parser parser)
   }
   for (;;) {
     int nread;
-    char *buf = XML_GetBuffer(parser, READ_SIZE);
+    char *buf = (char *)XML_GetBuffer(parser, READ_SIZE);
     if (!buf) {
       if (filename != NULL)
         close(fd);
