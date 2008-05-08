@@ -142,7 +142,7 @@ ast_attach(device_t dev)
 		      UID_ROOT, GID_OPERATOR, 0640, "ast%d",
 		      device_get_unit(dev));
     device->si_drv1 = dev;
-    device->si_iosize_max = ch->dma.max_iosize;
+    device->si_iosize_max = ch->dma.max_iosize ? ch->dma.max_iosize : DFLTPHYS;
     stp->dev1 = device;
     device = make_dev(&ast_cdevsw, 2 * device_get_unit(dev) + 1,
 		      UID_ROOT, GID_OPERATOR, 0640, "nast%d",

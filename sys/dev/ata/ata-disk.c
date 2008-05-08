@@ -125,7 +125,7 @@ ad_attach(device_t dev)
     adp->disk->d_dump = ad_dump;
     adp->disk->d_name = "ad";
     adp->disk->d_drv1 = dev;
-    adp->disk->d_maxsize = ch->dma.max_iosize;
+    adp->disk->d_maxsize = ch->dma.max_iosize ? ch->dma.max_iosize : DFLTPHYS;
     adp->disk->d_sectorsize = DEV_BSIZE;
     adp->disk->d_mediasize = DEV_BSIZE * (off_t)adp->total_secs;
     adp->disk->d_fwsectors = adp->sectors;
