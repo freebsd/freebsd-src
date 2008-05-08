@@ -403,7 +403,7 @@ lib80211_regdomain_readconfig(struct regdata *rdp, const void *p, size_t len)
 	XML_SetElementHandler(parser, start_element, end_element);
 	XML_SetCharacterDataHandler(parser, char_data);
 	if (XML_Parse(parser, p, len, 1) != XML_STATUS_OK) {
-		warnx("%s: %s at line %d", __func__,
+		warnx("%s: %s at line %ld", __func__,
 		   XML_ErrorString(XML_GetErrorCode(parser)),
 		   XML_GetCurrentLineNumber(parser));
 		return -1;
