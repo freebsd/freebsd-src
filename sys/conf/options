@@ -85,6 +85,7 @@ GEOM_FOX	opt_geom.h
 GEOM_GATE	opt_geom.h
 GEOM_JOURNAL	opt_geom.h
 GEOM_LABEL	opt_geom.h
+GEOM_LINUX_LVM	opt_geom.h
 GEOM_MBR	opt_geom.h
 GEOM_MIRROR	opt_geom.h
 GEOM_MULTIPATH	opt_geom.h

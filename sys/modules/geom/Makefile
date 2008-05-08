@@ -10,6 +10,7 @@ SUBDIR=	geom_bde \
 	geom_gate \
 	geom_journal \
 	geom_label \
+	geom_linux_lvm \
 	geom_mbr \
 	geom_mirror \
 	geom_multipath \
