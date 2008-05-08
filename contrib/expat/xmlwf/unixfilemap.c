@@ -44,6 +44,13 @@ filemap(const char *name,
   }
 
   nbytes = sb.st_size;
+  /* mmap fails for zero length files */
+  if (nbytes == 0) {
+    static const char c = '\0';
+    processor(&c, 0, name, arg);
+    close(fd);
+    return 1;
+  }
   p = (void *)mmap((caddr_t)0, (size_t)nbytes, PROT_READ,
                    MAP_FILE|MAP_PRIVATE, fd, (off_t)0);
   if (p == (void *)-1) {

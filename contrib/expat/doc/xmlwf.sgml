@@ -79,14 +79,15 @@ manpage.1: manpage.sgml
     <title>DESCRIPTION</title>
 
     <para>
-	<command>&dhpackage;</command> uses the Expat library to determine
-	if an XML document is well-formed.  It is non-validating.
+	<command>&dhpackage;</command> uses the Expat library to
+	determine if an XML document is well-formed.  It is
+	non-validating.
 	</para>
 
 	<para>
-	If you do not specify any files on the command-line,
-	and you have a recent version of &dhpackage;, the input
-	file will be read from stdin.
+	If you do not specify any files on the command-line, and you
+	have a recent version of <command>&dhpackage;</command>, the
+	input file will be read from standard input.
 	</para>
 
   </refsect1>
@@ -103,7 +104,8 @@ manpage.1: manpage.sgml
       <listitem><para>
 	    The file begins with an XML declaration.  For instance,
 		<literal>&lt;?xml version="1.0" standalone="yes"?&gt;</literal>.
-		<emphasis>NOTE:</emphasis> &dhpackage; does not currently
+		<emphasis>NOTE:</emphasis>
+		<command>&dhpackage;</command> does not currently
 		check for a valid XML declaration.
       </para></listitem>
       <listitem><para>
@@ -128,8 +130,9 @@ manpage.1: manpage.sgml
 	<para>
 	  If the document has a DTD, and it strictly complies with that
 	  DTD, then the document is also considered <emphasis>valid</emphasis>.
-	  &dhpackage; is a non-validating parser -- it does not check the DTD.
-	  However, it does support external entities (see the -x option).
+	  <command>&dhpackage;</command> is a non-validating parser --
+	  it does not check the DTD.  However, it does support
+	  external entities (see the <option>-x</option> option).
 	</para>
   </refsect1>
 
@@ -138,7 +141,9 @@ manpage.1: manpage.sgml
 
 <para>
 When an option includes an argument, you may specify the argument either
-separate ("d output") or mashed ("-doutput").  &dhpackage; supports both.
+separately ("<option>-d</option> output") or concatenated with the
+option ("<option>-d</option>output").  <command>&dhpackage;</command>
+supports both.
 </para>
 
     <variablelist>
@@ -147,11 +152,11 @@ separate ("d output") or mashed ("-doutput").  &dhpackage; supports both.
         <term><option>-c</option></term>
         <listitem>
 		<para>
-  If the input file is well-formed and &dhpackage; doesn't
-  encounter any errors, the input file is simply copied to
+  If the input file is well-formed and <command>&dhpackage;</command>
+  doesn't encounter any errors, the input file is simply copied to
   the output directory unchanged.
-  This implies no namespaces (turns off -n) and
-  requires -d to specify an output file.
+  This implies no namespaces (turns off <option>-n</option>) and
+  requires <option>-d</option> to specify an output file.
   		</para>
         </listitem>
       </varlistentry>
@@ -162,17 +167,18 @@ separate ("d output") or mashed ("-doutput").  &dhpackage; supports both.
 		<para>
   Specifies a directory to contain transformed
   representations of the input files.
-  By default, -d outputs a canonical representation
+  By default, <option>-d</option> outputs a canonical representation
   (described below).
-  You can select different output formats using -c and -m.
+  You can select different output formats using <option>-c</option>
+  and <option>-m</option>.
 	  </para>
 	  <para>
   The output filenames will
   be exactly the same as the input filenames or "STDIN" if the input is
-  coming from STDIN.  Therefore, you must be careful that the
+  coming from standard input.  Therefore, you must be careful that the
   output file does not go into the same directory as the input
-  file.  Otherwise, &dhpackage; will delete the input file before
-  it generates the output file (just like running
+  file.  Otherwise, <command>&dhpackage;</command> will delete the
+  input file before it generates the output file (just like running
   <literal>cat &lt; file &gt; file</literal> in most shells).
 	  </para>
 	  <para> 
@@ -191,13 +197,13 @@ separate ("d output") or mashed ("-doutput").  &dhpackage; supports both.
         <listitem>
 		<para>
    Specifies the character encoding for the document, overriding
-   any document encoding declaration.  &dhpackage;
-   has four built-in encodings: 
+   any document encoding declaration.  <command>&dhpackage;</command>
+   supports four built-in encodings:
    	<literal>US-ASCII</literal>,
 	<literal>UTF-8</literal>,
 	<literal>UTF-16</literal>, and
-    <literal>ISO-8859-1</literal>.
-	Also see the -w option.
+	<literal>ISO-8859-1</literal>.
+   Also see the <option>-w</option> option.
 	   </para>
         </listitem>
       </varlistentry>
@@ -208,7 +214,7 @@ separate ("d output") or mashed ("-doutput").  &dhpackage; supports both.
 		<para>
   Outputs some strange sort of XML file that completely
   describes the the input file, including character postitions.
-  Requires -d to specify an output file.
+  Requires <option>-d</option> to specify an output file.
 	   </para>
         </listitem>
       </varlistentry>
@@ -218,7 +224,7 @@ separate ("d output") or mashed ("-doutput").  &dhpackage; supports both.
         <listitem>
 		<para>
   Turns on namespace processing.  (describe namespaces)
-  -c disables namespaces.
+  <option>-c</option> disables namespaces.
 	   </para>
         </listitem>
       </varlistentry>
@@ -231,9 +237,9 @@ separate ("d output") or mashed ("-doutput").  &dhpackage; supports both.
     entities.
 	 </para>
 	 <para>
-	Normally &dhpackage; never parses parameter entities.
-	-p tells it to always parse them.
-	-p implies -x.
+   Normally <command>&dhpackage;</command> never parses parameter
+   entities.  <option>-p</option> tells it to always parse them.
+   <option>-p</option> implies <option>-x</option>.
 	   </para>
         </listitem>
       </varlistentry>
@@ -242,11 +248,21 @@ separate ("d output") or mashed ("-doutput").  &dhpackage; supports both.
         <term><option>-r</option></term>
         <listitem>
 		<para>
-   Normally &dhpackage; memory-maps the XML file before parsing.
-   -r turns off memory-mapping and uses normal file IO calls instead.
+   Normally <command>&dhpackage;</command> memory-maps the XML file
+   before parsing; this can result in faster parsing on many
+   platforms.
+   <option>-r</option> turns off memory-mapping and uses normal file
+   IO calls instead.
    Of course, memory-mapping is automatically turned off
-   when reading from STDIN.
+   when reading from standard input.
 	   </para>
+		<para>
+   Use of memory-mapping can cause some platforms to report
+   substantially higher memory usage for
+   <command>&dhpackage;</command>, but this appears to be a matter of
+   the operating system reporting memory in a strange way; there is
+   not a leak in <command>&dhpackage;</command>.
+           </para>
         </listitem>
       </varlistentry>
 
@@ -269,7 +285,9 @@ separate ("d output") or mashed ("-doutput").  &dhpackage; supports both.
   but not perform any processing.
   This gives a fairly accurate idea of the raw speed of Expat itself
   without client overhead.
-   -t turns off most of the output options (-d, -m -c, ...).
+  <option>-t</option> turns off most of the output options
+  (<option>-d</option>, <option>-m</option>, <option>-c</option>,
+  ...).
 	   </para>
         </listitem>
       </varlistentry>
@@ -278,7 +296,9 @@ separate ("d output") or mashed ("-doutput").  &dhpackage; supports both.
         <term><option>-v</option></term>
         <listitem>
 		<para>
-  Prints the version of the Expat library being used, and then exits.
+  Prints the version of the Expat library being used, including some
+  information on the compile-time configuration of the library, and
+  then exits.
 	   </para>
         </listitem>
       </varlistentry>
@@ -287,11 +307,11 @@ separate ("d output") or mashed ("-doutput").  &dhpackage; supports both.
         <term><option>-w</option></term>
         <listitem>
 		<para>
-  Enables Windows code pages.
-  Normally, &dhpackage; will throw an error if it runs across
-  an encoding that it is not equipped to handle itself.  With
-  -w, &dhpackage; will try to use a Windows code page.  See
-  also -e.
+  Enables support for Windows code pages.
+  Normally, <command>&dhpackage;</command> will throw an error if it
+  runs across an encoding that it is not equipped to handle itself.  With
+  <option>-w</option>, &dhpackage; will try to use a Windows code
+  page.  See also <option>-e</option>.
 	   </para>
         </listitem>
       </varlistentry>
@@ -334,24 +354,34 @@ separate ("d output") or mashed ("-doutput").  &dhpackage; supports both.
         <term><option>--</option></term>
         <listitem>
 		<para>
-    For some reason, &dhpackage; specifically ignores "--"
-	anywhere it appears on the command line.
+    (Two hyphens.)
+    Terminates the list of options.  This is only needed if a filename
+    starts with a hyphen.  For example:
+	   </para>
+<literallayout>
+&dhpackage; -- -myfile.xml
+</literallayout>
+		<para>
+    will run <command>&dhpackage;</command> on the file
+    <filename>-myfile.xml</filename>.
 	   </para>
         </listitem>
       </varlistentry>
     </variablelist>
 
 	<para>
-	Older versions of &dhpackage; do not support reading from STDIN.
+    Older versions of <command>&dhpackage;</command> do not support
+    reading from standard input.
 	</para>
   </refsect1>
 
   <refsect1>
   <title>OUTPUT</title>
     <para>
-	If an input file is not well-formed, &dhpackage; outputs
-	a single line describing the problem to STDOUT.
-	If a file is well formed, &dhpackage; outputs nothing.
+	If an input file is not well-formed,
+	<command>&dhpackage;</command> prints a single line describing
+	the problem to standard output.  If a file is well formed,
+	<command>&dhpackage;</command> outputs nothing.
 	Note that the result code is <emphasis>not</emphasis> set.
 	</para>
   </refsect1>
@@ -361,24 +391,28 @@ separate ("d output") or mashed ("-doutput").  &dhpackage; supports both.
 	<para>
 	According to the W3C standard, an XML file without a
 	declaration at the beginning is not considered well-formed.
-	However, &dhpackage; allows this to pass.
+	However, <command>&dhpackage;</command> allows this to pass.
 	</para>
 	<para>
-	&dhpackage; returns a 0 - noerr result, even if the file is
-	not well-formed.  There is no good way for a program to use
-	xmlwf to quickly check a file -- it must parse xmlwf's STDOUT.
-	</para>
-    <para>
-    The errors should go to STDERR, not stdout.
-    </para>
-	<para>
-	There should be a way to get -d to send its output to STDOUT
-	rather than forcing the user to send it to a file.
+	<command>&dhpackage;</command> returns a 0 - noerr result,
+	even if the file is not well-formed.  There is no good way for
+	a program to use <command>&dhpackage;</command> to quickly
+	check a file -- it must parse <command>&dhpackage;</command>'s
+	standard output.
 	</para>
 	<para>
-	I have no idea why anyone would want to use the -d, -c
-	and -m options.  If someone could explain it to me, I'd
-	like to add this information to this manpage.
+	The errors should go to standard error, not standard output.
+	</para>
+	<para>
+	There should be a way to get <option>-d</option> to send its
+	output to standard output rather than forcing the user to send
+	it to a file.
+	</para>
+	<para>
+	I have no idea why anyone would want to use the
+	<option>-d</option>, <option>-c</option>, and
+	<option>-m</option> options.  If someone could explain it to
+	me, I'd like to add this information to this manpage.
 	</para>
   </refsect1>
 
@@ -392,7 +426,6 @@ http://www.hcrc.ed.ac.uk/~richard/xml-check.html
 http://www.stg.brown.edu/service/xmlvalid/
 http://www.scripting.com/frontier5/xml/code/xmlValidator.html
 http://www.xml.com/pub/a/tools/ruwf/check.html
-&nbsp;    (on a page with no less than 15 ads!  Shame!)
 </literallayout>
 
 		 </para>
