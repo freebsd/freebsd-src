@@ -140,6 +140,7 @@ static	d_kqfilter_t	bpfkqfilter;
 
 static struct cdevsw bpf_cdevsw = {
 	.d_version =	D_VERSION,
+	.d_flags =	D_TRACKCLOSE,
 	.d_open =	bpfopen,
 	.d_close =	bpfclose,
 	.d_read =	bpfread,
