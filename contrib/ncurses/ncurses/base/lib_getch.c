@@ -41,17 +41,19 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_getch.c,v 1.82 2008/01/19 21:07:30 tom Exp $")
+MODULE_ID("$Id: lib_getch.c,v 1.87 2008/05/03 22:42:10 tom Exp $")
 
 #include <fifo_defs.h>
 
 #if USE_REENTRANT
+#define GetEscdelay(sp) (sp)->_ESCDELAY
 NCURSES_EXPORT(int)
 NCURSES_PUBLIC_VAR(ESCDELAY) (void)
 {
-    return SP ? SP->_ESCDELAY : 1000;
+    return SP ? GetEscdelay(SP) : 1000;
 }
 #else
+#define GetEscdelay(sp) ESCDELAY
 NCURSES_EXPORT_VAR(int)
 ESCDELAY = 1000;		/* max interval betw. chars in funkeys, in millisecs */
 #endif
@@ -84,20 +86,20 @@ set_escdelay(int value)
  * Check for mouse activity, returning nonzero if we find any.
  */
 static int
-check_mouse_activity(int delay EVENTLIST_2nd(_nc_eventlist * evl))
+check_mouse_activity(SCREEN *sp, int delay EVENTLIST_2nd(_nc_eventlist * evl))
 {
     int rc;
 
 #if USE_SYSMOUSE
-    if ((SP->_mouse_type == M_SYSMOUSE)
-	&& (SP->_sysmouse_head < SP->_sysmouse_tail)) {
+    if ((sp->_mouse_type == M_SYSMOUSE)
+	&& (sp->_sysmouse_head < sp->_sysmouse_tail)) {
 	return 2;
     }
 #endif
-    rc = _nc_timed_wait(TWAIT_MASK, delay, (int *) 0 EVENTLIST_2nd(evl));
+    rc = _nc_timed_wait(sp, TWAIT_MASK, delay, (int *) 0 EVENTLIST_2nd(evl));
 #if USE_SYSMOUSE
-    if ((SP->_mouse_type == M_SYSMOUSE)
-	&& (SP->_sysmouse_head < SP->_sysmouse_tail)
+    if ((sp->_mouse_type == M_SYSMOUSE)
+	&& (sp->_sysmouse_head < sp->_sysmouse_tail)
 	&& (rc == 0)
 	&& (errno == EINTR)) {
 	rc |= 2;
@@ -107,9 +109,9 @@ check_mouse_activity(int delay EVENTLIST_2nd(_nc_eventlist * evl))
 }
 
 static NCURSES_INLINE int
-fifo_peek(void)
+fifo_peek(SCREEN *sp)
 {
-    int ch = SP->_fifo[peek];
+    int ch = sp->_fifo[peek];
     TR(TRACE_IEVENT, ("peeking at %d", peek));
 
     p_inc();
@@ -117,10 +119,10 @@ fifo_peek(void)
 }
 
 static NCURSES_INLINE int
-fifo_pull(void)
+fifo_pull(SCREEN *sp)
 {
     int ch;
-    ch = SP->_fifo[head];
+    ch = sp->_fifo[head];
     TR(TRACE_IEVENT, ("pulling %s from %d", _tracechar(ch), head));
 
     if (peek == head) {
@@ -131,7 +133,7 @@ fifo_pull(void)
 
 #ifdef TRACE
     if (USE_TRACEF(TRACE_IEVENT)) {
-	_nc_fifo_dump();
+	_nc_fifo_dump(sp);
 	_nc_unlock_global(tracef);
     }
 #endif
@@ -139,7 +141,7 @@ fifo_pull(void)
 }
 
 static NCURSES_INLINE int
-fifo_push(EVENTLIST_0th(_nc_eventlist * evl))
+fifo_push(SCREEN *sp EVENTLIST_2nd(_nc_eventlist * evl))
 {
     int n;
     int ch = 0;
@@ -157,47 +159,47 @@ fifo_push(EVENTLIST_0th(_nc_eventlist * evl))
 #ifdef NCURSES_WGETCH_EVENTS
     if (evl
 #if USE_GPM_SUPPORT || USE_EMX_MOUSE || USE_SYSMOUSE
-	|| (SP->_mouse_fd >= 0)
+	|| (sp->_mouse_fd >= 0)
 #endif
 	) {
-	mask = check_mouse_activity(-1 EVENTLIST_2nd(evl));
+	mask = check_mouse_activity(sp, -1 EVENTLIST_2nd(evl));
     } else
 	mask = 0;
 
     if (mask & 4) {
 	T(("fifo_push: ungetch KEY_EVENT"));
-	ungetch(KEY_EVENT);
+	_nc_ungetch(sp, KEY_EVENT);
 	return KEY_EVENT;
     }
 #elif USE_GPM_SUPPORT || USE_EMX_MOUSE || USE_SYSMOUSE
-    if (SP->_mouse_fd >= 0) {
-	mask = check_mouse_activity(-1 EVENTLIST_2nd(evl));
+    if (sp->_mouse_fd >= 0) {
+	mask = check_mouse_activity(sp, -1 EVENTLIST_2nd(evl));
     }
 #endif
 
 #if USE_GPM_SUPPORT || USE_EMX_MOUSE
-    if ((SP->_mouse_fd >= 0) && (mask & 2)) {
-	SP->_mouse_event(SP);
+    if ((sp->_mouse_fd >= 0) && (mask & 2)) {
+	sp->_mouse_event(sp);
 	ch = KEY_MOUSE;
 	n = 1;
     } else
 #endif
 #if USE_SYSMOUSE
-	if ((SP->_mouse_type == M_SYSMOUSE)
-	    && (SP->_sysmouse_head < SP->_sysmouse_tail)) {
-	SP->_mouse_event(SP);
+	if ((sp->_mouse_type == M_SYSMOUSE)
+	    && (sp->_sysmouse_head < sp->_sysmouse_tail)) {
+	sp->_mouse_event(sp);
 	ch = KEY_MOUSE;
 	n = 1;
-    } else if ((SP->_mouse_type == M_SYSMOUSE)
+    } else if ((sp->_mouse_type == M_SYSMOUSE)
 	       && (mask <= 0) && errno == EINTR) {
-	SP->_mouse_event(SP);
+	sp->_mouse_event(sp);
 	ch = KEY_MOUSE;
 	n = 1;
     } else
 #endif
     {				/* Can block... */
 	unsigned char c2 = 0;
-	n = read(SP->_ifd, &c2, 1);
+	n = read(sp->_ifd, &c2, 1);
 	ch = c2;
     }
 
@@ -216,20 +218,20 @@ fifo_push(EVENTLIST_0th(_nc_eventlist * evl))
 #endif
 
     if ((n == -1) || (n == 0)) {
-	TR(TRACE_IEVENT, ("read(%d,&ch,1)=%d, errno=%d", SP->_ifd, n, errno));
+	TR(TRACE_IEVENT, ("read(%d,&ch,1)=%d, errno=%d", sp->_ifd, n, errno));
 	ch = ERR;
     }
     TR(TRACE_IEVENT, ("read %d characters", n));
 
-    SP->_fifo[tail] = ch;
-    SP->_fifohold = 0;
+    sp->_fifo[tail] = ch;
+    sp->_fifohold = 0;
     if (head == -1)
 	head = peek = tail;
     t_inc();
     TR(TRACE_IEVENT, ("pushed %s at %d", _tracechar(ch), tail));
 #ifdef TRACE
     if (USE_TRACEF(TRACE_IEVENT)) {
-	_nc_fifo_dump();
+	_nc_fifo_dump(sp);
 	_nc_unlock_global(tracef);
     }
 #endif
@@ -237,14 +239,14 @@ fifo_push(EVENTLIST_0th(_nc_eventlist * evl))
 }
 
 static NCURSES_INLINE void
-fifo_clear(void)
+fifo_clear(SCREEN *sp)
 {
-    memset(SP->_fifo, 0, sizeof(SP->_fifo));
+    memset(sp->_fifo, 0, sizeof(sp->_fifo));
     head = -1;
     tail = peek = 0;
 }
 
-static int kgetch(EVENTLIST_0th(_nc_eventlist * evl));
+static int kgetch(SCREEN *EVENTLIST_2nd(_nc_eventlist * evl));
 
 #define wgetch_should_refresh(win) (\
 	(is_wintouched(win) || (win->_flags & _HASMOVED)) \
@@ -256,6 +258,7 @@ _nc_wgetch(WINDOW *win,
 	   int use_meta
 	   EVENTLIST_2nd(_nc_eventlist * evl))
 {
+    SCREEN *sp = SP;
     int ch;
 #ifdef NCURSES_WGETCH_EVENTS
     long event_delay = -1;
@@ -264,7 +267,7 @@ _nc_wgetch(WINDOW *win,
     T((T_CALLED("_nc_wgetch(%p)"), win));
 
     *result = 0;
-    if (win == 0 || SP == 0) {
+    if (win == 0 || sp == 0) {
 	returnCode(ERR);
     }
 
@@ -272,7 +275,7 @@ _nc_wgetch(WINDOW *win,
 	if (wgetch_should_refresh(win))
 	    wrefresh(win);
 
-	*result = fifo_pull();
+	*result = fifo_pull(sp);
 	returnCode(*result >= KEY_MIN ? KEY_CODE_YES : OK);
     }
 #ifdef NCURSES_WGETCH_EVENTS
@@ -287,26 +290,26 @@ _nc_wgetch(WINDOW *win,
      * the first character to return it.
      */
     if (head == -1 &&
-	!SP->_notty &&
-	!SP->_raw &&
-	!SP->_cbreak &&
-	!SP->_called_wgetch) {
-	char buf[MAXCOLUMNS], *sp;
+	!sp->_notty &&
+	!sp->_raw &&
+	!sp->_cbreak &&
+	!sp->_called_wgetch) {
+	char buf[MAXCOLUMNS], *bufp;
 	int rc;
 
 	TR(TRACE_IEVENT, ("filling queue in cooked mode"));
 
-	SP->_called_wgetch = TRUE;
+	sp->_called_wgetch = TRUE;
 	rc = wgetnstr(win, buf, MAXCOLUMNS);
-	SP->_called_wgetch = FALSE;
+	sp->_called_wgetch = FALSE;
 
 	/* ungetch in reverse order */
 #ifdef NCURSES_WGETCH_EVENTS
 	if (rc != KEY_EVENT)
 #endif
-	    ungetch('\n');
-	for (sp = buf + strlen(buf); sp > buf; sp--)
-	    ungetch(sp[-1]);
+	    _nc_ungetch(sp, '\n');
+	for (bufp = buf + strlen(buf); bufp > buf; bufp--)
+	    _nc_ungetch(sp, bufp[-1]);
 
 #ifdef NCURSES_WGETCH_EVENTS
 	/* Return it first */
@@ -314,24 +317,24 @@ _nc_wgetch(WINDOW *win,
 	    *result = rc;
 	} else
 #endif
-	    *result = fifo_pull();
+	    *result = fifo_pull(sp);
 	returnCode(*result >= KEY_MIN ? KEY_CODE_YES : OK);
     }
 
-    if (win->_use_keypad != SP->_keypad_on)
-	_nc_keypad(win->_use_keypad);
+    if (win->_use_keypad != sp->_keypad_on)
+	_nc_keypad(sp, win->_use_keypad);
 
     if (wgetch_should_refresh(win))
 	wrefresh(win);
 
-    if (!win->_notimeout && (win->_delay >= 0 || SP->_cbreak > 1)) {
+    if (!win->_notimeout && (win->_delay >= 0 || sp->_cbreak > 1)) {
 	if (head == -1) {	/* fifo is empty */
 	    int delay;
 	    int rc;
 
 	    TR(TRACE_IEVENT, ("timed delay in wgetch()"));
-	    if (SP->_cbreak > 1)
-		delay = (SP->_cbreak - 1) * 100;
+	    if (sp->_cbreak > 1)
+		delay = (sp->_cbreak - 1) * 100;
 	    else
 		delay = win->_delay;
 
@@ -342,7 +345,7 @@ _nc_wgetch(WINDOW *win,
 
 	    TR(TRACE_IEVENT, ("delay is %d milliseconds", delay));
 
-	    rc = check_mouse_activity(delay EVENTLIST_2nd(evl));
+	    rc = check_mouse_activity(sp, delay EVENTLIST_2nd(evl));
 
 #ifdef NCURSES_WGETCH_EVENTS
 	    if (rc & 4) {
@@ -372,23 +375,23 @@ _nc_wgetch(WINDOW *win,
 	int rc;
 
 	do {
-	    ch = kgetch(EVENTLIST_1st(evl));
+	    ch = kgetch(sp EVENTLIST_2nd(evl));
 	    if (ch == KEY_MOUSE) {
 		++runcount;
-		if (SP->_mouse_inline(SP))
+		if (sp->_mouse_inline(sp))
 		    break;
 	    }
-	    if (SP->_maxclick < 0)
+	    if (sp->_maxclick < 0)
 		break;
 	} while
 	    (ch == KEY_MOUSE
-	     && (((rc = check_mouse_activity(SP->_maxclick
+	     && (((rc = check_mouse_activity(sp, sp->_maxclick
 					     EVENTLIST_2nd(evl))) != 0
 		  && !(rc & 4))
-		 || !SP->_mouse_parse(runcount)));
+		 || !sp->_mouse_parse(runcount)));
 #ifdef NCURSES_WGETCH_EVENTS
 	if ((rc & 4) && !ch == KEY_EVENT) {
-	    ungetch(ch);
+	    _nc_ungetch(sp, ch);
 	    ch = KEY_EVENT;
 	}
 #endif
@@ -396,28 +399,28 @@ _nc_wgetch(WINDOW *win,
 #ifdef NCURSES_WGETCH_EVENTS
 	    /* mouse event sequence ended by an event, report event */
 	    if (ch == KEY_EVENT) {
-		ungetch(KEY_MOUSE);	/* FIXME This interrupts a gesture... */
+		_nc_ungetch(sp, KEY_MOUSE);	/* FIXME This interrupts a gesture... */
 	    } else
 #endif
 	    {
 		/* mouse event sequence ended by keystroke, store keystroke */
-		ungetch(ch);
+		_nc_ungetch(sp, ch);
 		ch = KEY_MOUSE;
 	    }
 	}
     } else {
 	if (head == -1)
-	    fifo_push(EVENTLIST_1st(evl));
-	ch = fifo_pull();
+	    fifo_push(sp EVENTLIST_2nd(evl));
+	ch = fifo_pull(sp);
     }
 
     if (ch == ERR) {
 #if USE_SIZECHANGE
-	if (_nc_handle_sigwinch(FALSE)) {
-	    _nc_update_screensize();
+	if (_nc_handle_sigwinch(sp)) {
+	    _nc_update_screensize(sp);
 	    /* resizeterm can push KEY_RESIZE */
 	    if (cooked_key_in_fifo()) {
-		*result = fifo_pull();
+		*result = fifo_pull(sp);
 		returnCode(*result >= KEY_MIN ? KEY_CODE_YES : OK);
 	    }
 	}
@@ -443,7 +446,7 @@ _nc_wgetch(WINDOW *win,
      * However, we provide the same visual result as Solaris, moving the
      * cursor to the left.
      */
-    if (SP->_echo && !(win->_flags & _ISPAD)) {
+    if (sp->_echo && !(win->_flags & _ISPAD)) {
 	chtype backup = (ch == KEY_BACKSPACE) ? '\b' : ch;
 	if (backup < KEY_MIN)
 	    wechochar(win, backup);
@@ -452,7 +455,7 @@ _nc_wgetch(WINDOW *win,
     /*
      * Simulate ICRNL mode
      */
-    if ((ch == '\r') && SP->_nl)
+    if ((ch == '\r') && sp->_nl)
 	ch = '\n';
 
     /* Strip 8th-bit if so desired.  We do this only for characters that
@@ -474,13 +477,14 @@ _nc_wgetch(WINDOW *win,
 NCURSES_EXPORT(int)
 wgetch_events(WINDOW *win, _nc_eventlist * evl)
 {
+    SCREEN *sp = SP;
     int code;
     unsigned long value;
 
     T((T_CALLED("wgetch_events(%p,%p)"), win, evl));
     code = _nc_wgetch(win,
 		      &value,
-		      SP->_use_meta
+		      sp->_use_meta
 		      EVENTLIST_2nd(evl));
     if (code != ERR)
 	code = value;
@@ -491,13 +495,14 @@ wgetch_events(WINDOW *win, _nc_eventlist * evl)
 NCURSES_EXPORT(int)
 wgetch(WINDOW *win)
 {
+    SCREEN *sp = SP;
     int code;
     unsigned long value;
 
     T((T_CALLED("wgetch(%p)"), win));
     code = _nc_wgetch(win,
 		      &value,
-		      (SP ? SP->_use_meta : 0)
+		      (sp ? sp->_use_meta : 0)
 		      EVENTLIST_2nd((_nc_eventlist *) 0));
     if (code != ERR)
 	code = value;
@@ -520,21 +525,21 @@ wgetch(WINDOW *win)
 */
 
 static int
-kgetch(EVENTLIST_0th(_nc_eventlist * evl))
+kgetch(SCREEN *sp EVENTLIST_2nd(_nc_eventlist * evl))
 {
     TRIES *ptr;
     int ch = 0;
-    int timeleft = ESCDELAY;
+    int timeleft = GetEscdelay(sp);
 
     TR(TRACE_IEVENT, ("kgetch() called"));
 
-    ptr = SP->_keytry;
+    ptr = sp->_keytry;
 
     for (;;) {
-	if (cooked_key_in_fifo() && SP->_fifo[head] >= KEY_MIN) {
+	if (cooked_key_in_fifo() && sp->_fifo[head] >= KEY_MIN) {
 	    break;
 	} else if (!raw_key_in_fifo()) {
-	    ch = fifo_push(EVENTLIST_1st(evl));
+	    ch = fifo_push(sp EVENTLIST_2nd(evl));
 	    if (ch == ERR) {
 		peek = head;	/* the keys stay uninterpreted */
 		return ERR;
@@ -542,12 +547,12 @@ kgetch(EVENTLIST_0th(_nc_eventlist * evl))
 #ifdef NCURSES_WGETCH_EVENTS
 	    else if (ch == KEY_EVENT) {
 		peek = head;	/* the keys stay uninterpreted */
-		return fifo_pull();	/* Remove KEY_EVENT from the queue */
+		return fifo_pull(sp);	/* Remove KEY_EVENT from the queue */
 	    }
 #endif
 	}
 
-	ch = fifo_peek();
+	ch = fifo_peek(sp);
 	if (ch >= KEY_MIN) {
 	    /* If not first in queue, somebody put this key there on purpose in
 	     * emergency.  Consider it higher priority than the unfinished
@@ -573,7 +578,7 @@ kgetch(EVENTLIST_0th(_nc_eventlist * evl))
 	if (ptr->value != 0) {	/* sequence terminated */
 	    TR(TRACE_IEVENT, ("end of sequence"));
 	    if (peek == tail)
-		fifo_clear();
+		fifo_clear(sp);
 	    else
 		head = peek;
 	    return (ptr->value);
@@ -585,7 +590,7 @@ kgetch(EVENTLIST_0th(_nc_eventlist * evl))
 	    int rc;
 
 	    TR(TRACE_IEVENT, ("waiting for rest of sequence"));
-	    rc = check_mouse_activity(timeleft EVENTLIST_2nd(evl));
+	    rc = check_mouse_activity(sp, timeleft EVENTLIST_2nd(evl));
 #ifdef NCURSES_WGETCH_EVENTS
 	    if (rc & 4) {
 		TR(TRACE_IEVENT, ("interrupted by a user event"));
@@ -600,7 +605,7 @@ kgetch(EVENTLIST_0th(_nc_eventlist * evl))
 	    }
 	}
     }
-    ch = fifo_pull();
+    ch = fifo_pull(sp);
     peek = head;
     return ch;
 }

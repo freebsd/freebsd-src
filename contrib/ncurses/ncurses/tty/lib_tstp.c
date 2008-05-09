@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -46,7 +46,7 @@
 #define _POSIX_SOURCE
 #endif
 
-MODULE_ID("$Id: lib_tstp.c,v 1.36 2007/04/21 19:51:29 tom Exp $")
+MODULE_ID("$Id: lib_tstp.c,v 1.37 2008/05/03 16:24:56 tom Exp $")
 
 #if defined(SIGTSTP) && (HAVE_SIGACTION || HAVE_SIGVEC)
 #define USE_SIGTSTP 1
@@ -252,19 +252,17 @@ cleanup(int sig)
 	if (signal(sig, SIG_IGN) != SIG_ERR)
 #endif
 	{
-	    SCREEN *scan = _nc_screen_chain;
-	    while (scan) {
-		if (SP != 0
-		    && SP->_ofp != 0
-		    && isatty(fileno(SP->_ofp))) {
-		    SP->_cleanup = TRUE;
-		    SP->_outch = _nc_outch;
+	    SCREEN *scan;
+	    for (each_screen(scan)) {
+		if (scan->_ofp != 0
+		    && isatty(fileno(scan->_ofp))) {
+		    scan->_cleanup = TRUE;
+		    scan->_outch = _nc_outch;
 		}
 		set_term(scan);
 		endwin();
 		if (SP)
 		    SP->_endwin = FALSE;	/* in case we have an atexit! */
-		scan = scan->_next_screen;
 	    }
 	}
     }

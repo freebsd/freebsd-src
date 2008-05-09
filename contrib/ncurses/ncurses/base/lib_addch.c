@@ -36,7 +36,7 @@
 #include <curses.priv.h>
 #include <ctype.h>
 
-MODULE_ID("$Id: lib_addch.c,v 1.108 2008/02/03 18:50:27 tom Exp $")
+MODULE_ID("$Id: lib_addch.c,v 1.111 2008/03/29 18:48:02 tom Exp $")
 
 static const NCURSES_CH_T blankchar = NewChar(BLANK_TEXT);
 
@@ -217,7 +217,9 @@ _nc_build_wch(WINDOW *win, ARG_CH_T ch)
 		       buffer,
 		       WINDOW_EXT(win, addch_used), &state)) > 0) {
 	attr_t attrs = AttrOf(CHDEREF(ch));
+	if_EXT_COLORS(int pair = GetPair(CHDEREF(ch)));
 	SetChar(CHDEREF(ch), result, attrs);
+	if_EXT_COLORS(SetPair(CHDEREF(ch), pair));
 	WINDOW_EXT(win, addch_used) = 0;
     } else if (len == -1) {
 	/*
@@ -474,6 +476,7 @@ waddch_nosync(WINDOW *win, const NCURSES_CH_T ch)
 	while (*s) {
 	    NCURSES_CH_T sch;
 	    SetChar(sch, *s++, AttrOf(ch));
+	    if_EXT_COLORS(SetPair(sch, GetPair(ch)));
 	    if (waddch_literal(win, sch) == ERR)
 		return ERR;
 	}

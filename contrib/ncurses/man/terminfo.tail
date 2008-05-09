@@ -1,4 +1,4 @@
-.\" $Id: terminfo.tail,v 1.48 2007/06/02 20:30:40 tom Exp $
+.\" $Id: terminfo.tail,v 1.49 2008/02/16 20:57:43 tom Exp $
 .\" Beginning of terminfo.tail file
 .\" This file is part of ncurses.
 .\" See "terminfo.head" for copyright.
@@ -325,7 +325,9 @@ The \fB%\fR encodings have the following meanings:
 outputs `%'
 .TP
 %\fI[[\fP:\fI]flags][width[.precision]][\fPdoxXs\fI]\fP
-as in \fBprintf\fP, flags are [-+#] and space
+as in \fBprintf\fP, flags are [-+#] and space.
+Use a `:' to allow the next character to be a `-' flag,
+avoiding interpreting "%-" as an operator.
 .TP
 %c
 print pop() like %c in \fBprintf\fP

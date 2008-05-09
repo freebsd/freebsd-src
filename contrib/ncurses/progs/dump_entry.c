@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -39,7 +39,7 @@
 #include "termsort.c"		/* this C file is generated */
 #include <parametrized.h>	/* so is this */
 
-MODULE_ID("$Id: dump_entry.c,v 1.81 2007/08/25 20:05:35 tom Exp $")
+MODULE_ID("$Id: dump_entry.c,v 1.82 2008/04/19 22:27:04 tom Exp $")
 
 #define INDENT			8
 #define DISCARD(string) string = ABSENT_STRING
@@ -539,6 +539,10 @@ fmt_complex(char *src, int level)
 	    params = FALSE;
 	    percent = FALSE;
 	    break;
+	case ' ':
+	    strncpy_DYN(&tmpbuf, "\\s", 2);
+	    ++src;
+	    continue;
 	default:
 	    percent = FALSE;
 	    break;

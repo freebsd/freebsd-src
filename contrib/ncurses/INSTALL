@@ -25,7 +25,7 @@
 -- sale, use or other dealings in this Software without prior written        --
 -- authorization.                                                            --
 -------------------------------------------------------------------------------
--- $Id: INSTALL,v 1.122 2007/12/01 19:37:47 tom Exp $
+-- $Id: INSTALL,v 1.124 2008/03/29 18:07:32 tom Exp $
 ---------------------------------------------------------------------
              How to install Ncurses/Terminfo on your system
 ---------------------------------------------------------------------
@@ -148,6 +148,9 @@ INSTALLATION PROCEDURE:
     version.  Building and running the wide-character code relies on a fairly
     recent implementation of libiconv.  We have built this configuration on
     Linux using libiconv, sometimes requiring libutf8.
+
+    If you configure using the --with-pthread option, a "t" is appended to
+    the library names (e.g., libncursest.a, libncursestw.a).
 
     If you do not specify any models, the normal and debug libraries will be
     configured.  Typing `configure' with no arguments is equivalent to:
@@ -512,7 +515,8 @@ SUMMARY OF CONFIGURE OPTIONS:
 
     --enable-reentrant
 	Compile experimental configuration which improves reentrant use of the
-	library by reducing global and static variables.
+	library by reducing global and static variables.  This option is also
+	set if --with-pthread is used.
 
     --enable-rpath
 	Use rpath option when generating shared libraries, and (with some
@@ -815,6 +819,11 @@ SUMMARY OF CONFIGURE OPTIONS:
     --with-profile
 	Generate profile-libraries These are named by adding "_p" to the root,
 	e.g., libncurses_p.a
+
+    --with-pthread
+	Link with POSIX threads, set --enable-reentrant.  The use_window() and
+	use_screen() functions will use mutex's, allowing rudimentary support
+	for multithreaded applications.
 
     --with-rcs-ids
 	Compile-in RCS identifiers.  Most of the C files have an identifier.
