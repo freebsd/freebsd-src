@@ -46,6 +46,7 @@
 #include <sys/time.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
+#include <sys/proc.h>
 #include <sys/protosw.h>
 #include <sys/conf.h>
 #include <machine/cpu.h>
@@ -155,6 +156,7 @@ gif_clone_create(ifc, unit, params)
 	struct gif_softc *sc;
 
 	sc = malloc(sizeof(struct gif_softc), M_GIF, M_WAITOK | M_ZERO);
+	sc->gif_fibnum = curthread->td_proc->p_fibnum;
 	GIF2IFP(sc) = if_alloc(IFT_GIF);
 	if (GIF2IFP(sc) == NULL) {
 		free(sc, M_GIF);
@@ -441,6 +443,7 @@ gif_output(ifp, m, dst, rt)
 	if (ifp->if_bridge)
 		af = AF_LINK;
 
+	M_SETFIB(m, sc->gif_fibnum);
 	/* inner AF-specific encapsulation */
 
 	/* XXX should we check if our outer source is legal? */

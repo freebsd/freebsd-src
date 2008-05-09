@@ -227,6 +227,10 @@ stdreply:	icmpelen = max(8, min(icmp_quotelen, oip->ip_len - oiphlen));
 	m_align(m, ICMP_MINLEN + icmplen);
 	m->m_len = ICMP_MINLEN + icmplen;
 
+	/* XXX MRT  make the outgoing packet use the same FIB
+	 * that was associated with the incoming packet
+	 */
+	M_SETFIB(m, M_GETFIB(n));
 	icp = mtod(m, struct icmp *);
 	icmpstat.icps_outhist[type]++;
 	icp->icmp_type = type;
@@ -295,6 +299,7 @@ icmp_input(struct mbuf *m, int off)
 	int icmplen = ip->ip_len;
 	int i, code;
 	void (*ctlfunc)(int, struct sockaddr *, void *);
+	int fibnum;
 
 	/*
 	 * Locate icmp structure in mbuf, and check
@@ -576,10 +581,12 @@ reflect:
 		}
 #endif
 		icmpsrc.sin_addr = icp->icmp_ip.ip_dst;
-		rtredirect((struct sockaddr *)&icmpsrc,
-		  (struct sockaddr *)&icmpdst,
-		  (struct sockaddr *)0, RTF_GATEWAY | RTF_HOST,
-		  (struct sockaddr *)&icmpgw);
+		for ( fibnum = 0; fibnum < rt_numfibs; fibnum++) {
+			in_rtredirect((struct sockaddr *)&icmpsrc,
+			  (struct sockaddr *)&icmpdst,
+			  (struct sockaddr *)0, RTF_GATEWAY | RTF_HOST,
+			  (struct sockaddr *)&icmpgw, fibnum);
+		}
 		pfctlinput(PRC_REDIRECT_HOST, (struct sockaddr *)&icmpsrc);
 #ifdef IPSEC
 		key_sa_routechange((struct sockaddr *)&icmpsrc);
@@ -693,7 +700,7 @@ icmp_reflect(struct mbuf *m)
 	 * When we don't have a route back to the packet source, stop here
 	 * and drop the packet.
 	 */
-	ia = ip_rtaddr(ip->ip_dst);
+	ia = ip_rtaddr(ip->ip_dst, M_GETFIB(m));
 	if (ia == NULL) {
 		m_freem(m);
 		icmpstat.icps_noroute++;

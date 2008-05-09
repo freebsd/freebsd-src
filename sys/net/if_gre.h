@@ -59,6 +59,7 @@ struct gre_softc {
 	LIST_ENTRY(gre_softc) sc_list;
 	int gre_unit;
 	int gre_flags;
+	u_int	gre_fibnum;	/* use this fib for envelopes */
 	struct in_addr g_src;	/* source address of gre packets */
 	struct in_addr g_dst;	/* destination address of gre packets */
 	struct route route;	/* routing entry that determines, where a

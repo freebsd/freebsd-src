@@ -1,6 +1,7 @@
-/*-
- * Copyright (c) 1982, 1986, 1993
+/*
+ * Copyright (c) 1989, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
+ * Copyright (c) 2008 Cisco Systems, All rights reserved
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -25,58 +26,78 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	@(#)domain.h	8.1 (Berkeley) 6/2/93
- * $FreeBSD$
+ * 
+ * setfib file skelaton taken from nice.c
  */
 
-#ifndef _SYS_DOMAIN_H_
-#define _SYS_DOMAIN_H_
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
-/*
- * Structure per communications domain.
- */
 
-/*
- * Forward structure declarations for function prototypes [sic].
- */
-struct	mbuf;
-struct	ifnet;
+#include <errno.h>
+#include <limits.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/sysctl.h>
 
-struct domain {
-	int	dom_family;		/* AF_xxx */
-	char	*dom_name;
-	void	(*dom_init)		/* initialize domain data structures */
-		(void);
-	int	(*dom_externalize)	/* externalize access rights */
-		(struct mbuf *, struct mbuf **);
-	void	(*dom_dispose)		/* dispose of internalized rights */
-		(struct mbuf *);
-	struct	protosw *dom_protosw, *dom_protoswNPROTOSW;
-	struct	domain *dom_next;
-	int	(*dom_rtattach)		/* initialize routing table */
-		(void **, int);
-	int	dom_rtoffset;		/* an arg to rtattach, in bits */
-		/* XXX MRT.
-		 * rtoffset May be 0 if the domain supplies its own rtattach(),
-		 * in which case, a 0 indicates it's being called from 
-		 * vfs_export.c (HACK)  Only for AF_INET{,6} at this time.
-		 * Temporary ABI compat hack.. fix post RELENG_7
-		 */
-	int	dom_maxrtkey;		/* for routing layer */
-	void	*(*dom_ifattach)(struct ifnet *);
-	void	(*dom_ifdetach)(struct ifnet *, void *);
-					/* af-dependent data on ifnet */
-};
+void usage(void);
 
-#ifdef _KERNEL
-extern int	domain_init_status;
-extern struct	domain *domains;
-extern void	net_add_domain(void *);
+int
+main(int argc, char *argv[])
+{
+	long fib = 0;
+	int ch;
+	char *ep;
+	int	numfibs;
+	int intsize = sizeof(int);
 
-#define DOMAIN_SET(name) \
-	SYSINIT(domain_ ## name, SI_SUB_PROTO_DOMAIN, SI_ORDER_SECOND, net_add_domain, & name ## domain)
+        if (sysctlbyname("net.fibs", &numfibs, &intsize, NULL, 0) == -1)
+		errx(1, "Multiple FIBS not supported");
+	if (argc < 2)
+		usage();
+	ep = argv[1];
+	/*
+	 * convert -N or N to -FN. (N is a number)
+	 */
+	if (ep[0]== '-' && isdigit((unsigned char)ep[1]))
+		ep++;
+	if (isdigit((unsigned char)*ep))
+               if (asprintf(&argv[1], "-F%s", ep) < 0)
+                        err(1, "asprintf");
 
-#endif
+	while ((ch = getopt(argc, argv, "F:")) != -1) {
+		switch (ch) {
+		case 'F':
+			errno = 0;
+			fib = strtol(optarg, &ep, 10);
+			if (ep == optarg || *ep != '\0' || errno ||
+			    fib < 0 || fib >= numfibs)
+				errx(1, "%s: invalid FIB (max %s)",
+				    optarg, numfibs - 1);
+			break;
+		default:
+			usage();
+		}
+	}
+	argc -= optind;
+	argv += optind;
 
-#endif
+	if (argc == 0)
+		usage();
+
+	errno = 0;
+	if (syscall(175, (int)fib))
+		warn("setfib");
+	execvp(*argv, argv);
+	err(errno == ENOENT ? 127 : 126, "%s", *argv);
+}
+
+void
+usage(void)
+{
+
+	(void)fprintf(stderr,
+	    "usage: setfib [-[F]]value command");
+	exit(1);
+}

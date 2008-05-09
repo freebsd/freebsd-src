@@ -255,7 +255,7 @@ different:
 }
 
 void
-rtalloc_mpath(struct route *ro, int hash)
+rtalloc_mpath_fib(struct route *ro, int hash, u_int fibnum)
 {
 	struct radix_node *rn0, *rn;
 	int n;
@@ -266,7 +266,7 @@ rtalloc_mpath(struct route *ro, int hash)
 	 */
 	if (ro->ro_rt && ro->ro_rt->rt_ifp && (ro->ro_rt->rt_flags & RTF_UP))
 		return;				 /* XXX */
-	ro->ro_rt = rtalloc1(&ro->ro_dst, 1, 0UL);
+	ro->ro_rt = rtalloc1_fib(&ro->ro_dst, 1, 0UL, fibnum);
 
 	/* if the route does not exist or it is not multipath, don't care */
 	if (ro->ro_rt == NULL)
