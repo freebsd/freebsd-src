@@ -41,11 +41,14 @@ __FBSDID("$FreeBSD$");
 #include <target.h>
 #include <gdbthread.h>
 #include <inferior.h>
+#include <objfiles.h>
 #include <regcache.h>
 #include <frame-unwind.h>
 #include <i386-tdep.h>
 
 #include "kgdb.h"
+
+static int ofs_fix;
 
 void
 kgdb_trgt_fetch_registers(int regno __unused)
@@ -72,6 +75,23 @@ void
 kgdb_trgt_store_registers(int regno __unused)
 {
 	fprintf_unfiltered(gdb_stderr, "XXX: %s\n", __func__);
+}
+
+void
+kgdb_trgt_new_objfile(struct objfile *objfile)
+{
+
+	/*
+	 * In revision 1.117 of i386/i386/exception.S trap handlers
+	 * were changed to pass trapframes by reference rather than
+	 * by value.  Detect this by seeing if the first instruction
+	 * at the 'calltrap' label is a "push %esp" which has the
+	 * opcode 0x54.
+	 */
+	if (kgdb_parse("((char *)calltrap)[0]") == 0x54)
+		ofs_fix = 4;
+	else
+		ofs_fix = 0;
 }
 
 struct kgdb_tss_cache {
@@ -285,8 +305,6 @@ kgdb_trgt_trapframe_prev_register(struct frame_info *next_frame,
 	char dummy_valuep[MAX_REGISTER_SIZE];
 	struct kgdb_frame_cache *cache;
 	int ofs, regsz;
-	static int ofs_fix = 0;
-	static int ofs_fixed = 0;
 
 	regsz = register_size(current_gdbarch, regnum);
 
@@ -298,18 +316,6 @@ kgdb_trgt_trapframe_prev_register(struct frame_info *next_frame,
 	*lvalp = not_lval;
 	*realnump = -1;
 
-	if (!ofs_fixed) {
-		/*
-		 * In revision 1.117 of i386/i386/exception.S trap handlers
-		 * were changed to pass trapframes by reference rather than
-		 * by value.  Detect this by seeing if the first instruction
-		 * at the 'calltrap' label is a "push %esp" which has the
-		 * opcode 0x54.
-		 */
-		if (kgdb_parse("((char *)calltrap)[0]") == 0x54)
-			ofs_fix = 4;
-		ofs_fixed = 1;
-	}
 	ofs = (regnum >= I386_EAX_REGNUM && regnum <= I386_FS_REGNUM)
 	    ? kgdb_trgt_frame_offset[regnum] + ofs_fix : -1;
 	if (ofs == -1)
