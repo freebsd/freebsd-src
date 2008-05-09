@@ -2435,6 +2435,11 @@ tcp_dropwithreset(struct mbuf *m, struct tcphdr *th, struct tcpcb *tp,
 #ifdef INET6
 	struct ip6_hdr *ip6;
 #endif
+
+	if (tp != NULL) {
+		INP_LOCK_ASSERT(tp->t_inpcb);
+	}
+
 	/* Don't bother if destination was broadcast/multicast. */
 	if ((th->th_flags & TH_RST) || m->m_flags & (M_BCAST|M_MCAST))
 		goto drop;
@@ -2584,6 +2589,8 @@ tcp_pulloutofband(struct socket *so, struct tcphdr *th, struct mbuf *m,
 			char *cp = mtod(m, caddr_t) + cnt;
 			struct tcpcb *tp = sototcpcb(so);
 
+			INP_LOCK_ASSERT(tp->t_inpcb);
+
 			tp->t_iobc = *cp;
 			tp->t_oobflags |= TCPOOB_HAVEDATA;
 			bcopy(cp+1, cp, (unsigned)(m->m_len - cnt - 1));
@@ -2728,6 +2735,8 @@ tcp_mss(struct tcpcb *tp, int offer)
 #else
 	const size_t min_protoh = sizeof(struct tcpiphdr);
 #endif
+
+	INP_LOCK_ASSERT(tp->t_inpcb);
 
 	/* Initialize. */
 #ifdef INET6
@@ -2996,6 +3005,8 @@ tcp_newreno_partial_ack(struct tcpcb *tp, struct tcphdr *th)
 {
 	tcp_seq onxt = tp->snd_nxt;
 	u_long  ocwnd = tp->snd_cwnd;
+
+	INP_LOCK_ASSERT(tp->t_inpcb);
 
 	tcp_timer_activate(tp, TT_REXMT, 0);
 	tp->t_rtttime = 0;
