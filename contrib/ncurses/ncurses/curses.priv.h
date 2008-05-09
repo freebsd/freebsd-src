@@ -34,7 +34,7 @@
 
 
 /*
- * $Id: curses.priv.h,v 1.357 2008/01/13 00:33:10 tom Exp $
+ * $Id: curses.priv.h,v 1.373 2008/05/03 23:30:35 tom Exp $
  *
  *	curses.priv.h
  *
@@ -312,8 +312,10 @@ color_t;
 #define TR_GLOBAL_MUTEX(name) TR_MUTEX(_nc_globals.mutex_##name)
 
 #ifdef USE_PTHREADS
+
 #if USE_REENTRANT
 #include <pthread.h>
+extern NCURSES_EXPORT(void) _nc_mutex_init(pthread_mutex_t *);
 extern NCURSES_EXPORT(int) _nc_mutex_lock(pthread_mutex_t *);
 extern NCURSES_EXPORT(int) _nc_mutex_trylock(pthread_mutex_t *);
 extern NCURSES_EXPORT(int) _nc_mutex_unlock(pthread_mutex_t *);
@@ -321,13 +323,22 @@ extern NCURSES_EXPORT(int) _nc_mutex_unlock(pthread_mutex_t *);
 #define _nc_try_global(name)    _nc_mutex_trylock(&_nc_globals.mutex_##name)
 #define _nc_unlock_global(name)	_nc_mutex_unlock(&_nc_globals.mutex_##name)
 
-extern NCURSES_EXPORT(void) _nc_lock_window(WINDOW *);
-extern NCURSES_EXPORT(void) _nc_unlock_window(WINDOW *);
+extern NCURSES_EXPORT(void) _nc_lock_window(const WINDOW *);
+extern NCURSES_EXPORT(void) _nc_unlock_window(const WINDOW *);
 
 #else
 #error POSIX threads requires --enable-reentrant option
 #endif
-#else
+
+#if HAVE_NANOSLEEP
+#undef HAVE_NANOSLEEP
+#define HAVE_NANOSLEEP 0	/* nanosleep suspends all threads */
+#endif
+
+#else /* !USE_PTHREADS */
+
+#define _nc_mutex_init(obj)	/* nothing */
+
 #define _nc_lock_global(name)	/* nothing */
 #define _nc_try_global(name)    0
 #define _nc_unlock_global(name)	/* nothing */
@@ -335,10 +346,15 @@ extern NCURSES_EXPORT(void) _nc_unlock_window(WINDOW *);
 #define _nc_lock_window(name)	(void) TRUE
 #define _nc_unlock_window(name)	/* nothing */
 
-#endif
+#endif /* USE_PTHREADS */
 
-#define _nc_lock_screen(name)	/* nothing */
-#define _nc_unlock_screen(name)	/* nothing */
+#if HAVE_GETTIMEOFDAY
+# define PRECISE_GETTIME 1
+# define TimeType struct timeval
+#else
+# define PRECISE_GETTIME 0
+# define TimeType time_t
+#endif
 
 /*
  * Definitions for color pairs
@@ -552,6 +568,9 @@ typedef struct {
 	int		tgetent_index;
 	long		tgetent_sequence;
 
+	WINDOWLIST	*_nc_windowlist;
+#define _nc_windows	_nc_globals._nc_windowlist
+
 #if USE_HOME_TERMINFO
 	char		*home_terminfo;
 #endif
@@ -583,11 +602,9 @@ typedef struct {
 	unsigned char	*tracetry_buf;
 	size_t		tracetry_used;
 
-#ifndef USE_TERMLIB
 	char		traceatr_color_buf[2][80];
 	int		traceatr_color_sel;
 	int		traceatr_color_last;
-#endif	/* USE_TERMLIB */
 
 #endif	/* TRACE */
 
@@ -607,7 +624,7 @@ extern NCURSES_EXPORT_VAR(NCURSES_GLOBALS) _nc_globals;
 #define N_RIPS 5
 
 /*
- * Global data which is swept up into a SCREEN when one is created.
+ * Global data which can be swept up into a SCREEN when one is created.
  * It may be modified before the next SCREEN is created.
  */
 typedef struct {
@@ -823,12 +840,6 @@ struct screen {
 	 * per screen basis.
 	 */
 	struct panelhook _panelHook;
-	/*
-	 * Linked-list of all windows, to support '_nc_resizeall()' and
-	 * '_nc_freeall()'
-	 */
-	WINDOWLIST	*_nc_sp_windows;
-#define _nc_windows SP->_nc_sp_windows
 
 	bool		_sig_winch;
 	SCREEN		*_next_screen;
@@ -852,7 +863,7 @@ struct screen {
 	int		_LINES;
 	int		_COLS;
 #ifdef TRACE
-	int		_outchars;
+	long		_outchars;
 	const char	*_tputs_trace;
 #endif
 #endif
@@ -1154,6 +1165,13 @@ extern NCURSES_EXPORT_VAR(SIG_ATOMIC_T) _nc_have_sigwinch;
 #endif
 
 /*
+ * Standardize/simplify common loops
+ */
+#define each_screen(p) p = _nc_screen_chain; p != 0; p = (p)->_next_screen
+#define each_window(p) p = _nc_windows; p != 0; p = (p)->next
+#define each_ripoff(p) p = ripoff_stack; (p - ripoff_stack) < N_RIPS; ++p
+
+/*
  * Prefixes for call/return points of library function traces.  We use these to
  * instrument the public functions so that the traces can be easily transformed
  * into regression scripts.
@@ -1221,7 +1239,7 @@ extern NCURSES_EXPORT(const char *)     _nc_retrace_cptr (const char *);
 extern NCURSES_EXPORT(int)              _nc_retrace_int (int);
 extern NCURSES_EXPORT(unsigned)         _nc_retrace_unsigned (unsigned);
 extern NCURSES_EXPORT(void *)           _nc_retrace_void_ptr (void *);
-extern NCURSES_EXPORT(void)             _nc_fifo_dump (void);
+extern NCURSES_EXPORT(void)             _nc_fifo_dump (SCREEN *);
 
 #if USE_REENTRANT
 NCURSES_WRAPPED_VAR(long, _nc_outchars);
@@ -1462,14 +1480,17 @@ extern NCURSES_EXPORT(char *) _nc_get_locale(void);
 extern NCURSES_EXPORT(int) _nc_unicode_locale(void);
 extern NCURSES_EXPORT(int) _nc_locale_breaks_acs(void);
 extern NCURSES_EXPORT(int) _nc_setupterm(NCURSES_CONST char *, int, int *, bool);
-extern NCURSES_EXPORT(void) _nc_get_screensize(int *, int *);
+extern NCURSES_EXPORT(void) _nc_get_screensize(SCREEN *, int *, int *);
 
 /* lib_tstp.c */
 #if USE_SIGWINCH
-extern NCURSES_EXPORT(int) _nc_handle_sigwinch(int);
+extern NCURSES_EXPORT(int) _nc_handle_sigwinch(SCREEN *);
 #else
 #define _nc_handle_sigwinch(a) /* nothing */
 #endif
+
+/* lib_ungetch.c */
+extern NCURSES_EXPORT(int) _nc_ungetch (SCREEN *, int);
 
 /* lib_wacs.c */
 #if USE_WIDEC_SUPPORT
@@ -1513,18 +1534,18 @@ extern NCURSES_EXPORT(int) _nc_access (const char *, int);
 extern NCURSES_EXPORT(int) _nc_baudrate (int);
 extern NCURSES_EXPORT(int) _nc_freewin (WINDOW *);
 extern NCURSES_EXPORT(int) _nc_getenv_num (const char *);
-extern NCURSES_EXPORT(int) _nc_keypad (bool);
+extern NCURSES_EXPORT(int) _nc_keypad (SCREEN *, bool);
 extern NCURSES_EXPORT(int) _nc_ospeed (int);
 extern NCURSES_EXPORT(int) _nc_outch (int);
 extern NCURSES_EXPORT(int) _nc_read_termcap_entry (const char *const, TERMTYPE *const);
 extern NCURSES_EXPORT(int) _nc_setupscreen (int, int, FILE *, bool, int);
-extern NCURSES_EXPORT(int) _nc_timed_wait(int, int, int * EVENTLIST_2nd(_nc_eventlist *));
+extern NCURSES_EXPORT(int) _nc_timed_wait(SCREEN *, int, int, int * EVENTLIST_2nd(_nc_eventlist *));
 extern NCURSES_EXPORT(void) _nc_do_color (short, short, bool, int (*)(int));
 extern NCURSES_EXPORT(void) _nc_flush (void);
 extern NCURSES_EXPORT(void) _nc_free_entry(ENTRY *, TERMTYPE *);
 extern NCURSES_EXPORT(void) _nc_freeall (void);
 extern NCURSES_EXPORT(void) _nc_hash_map (void);
-extern NCURSES_EXPORT(void) _nc_init_keytry (void);
+extern NCURSES_EXPORT(void) _nc_init_keytry (SCREEN *);
 extern NCURSES_EXPORT(void) _nc_keep_tic_dir (const char *);
 extern NCURSES_EXPORT(void) _nc_make_oldhash (int i);
 extern NCURSES_EXPORT(void) _nc_scroll_oldhash (int n, int top, int bot);
@@ -1556,7 +1577,7 @@ extern NCURSES_EXPORT(size_t) _nc_wcrtomb (char *, wchar_t, mbstate_t *);
 #endif
 
 #if USE_SIZECHANGE
-extern NCURSES_EXPORT(void) _nc_update_screensize (void);
+extern NCURSES_EXPORT(void) _nc_update_screensize (SCREEN *);
 #endif
 
 #if HAVE_RESIZETERM

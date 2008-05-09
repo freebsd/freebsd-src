@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1999-2005,2006 Free Software Foundation, Inc.              *
+ * Copyright (c) 1999-2006,2008 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -36,7 +36,7 @@
 
 #include <term_entry.h>
 
-MODULE_ID("$Id: init_keytry.c,v 1.10 2007/04/29 22:57:50 tom Exp $")
+MODULE_ID("$Id: init_keytry.c,v 1.11 2008/05/03 23:09:15 tom Exp $")
 
 /*
 **      _nc_init_keytry()
@@ -64,19 +64,19 @@ _nc_tinfo_fkeysf(void)
 #endif
 
 NCURSES_EXPORT(void)
-_nc_init_keytry(void)
+_nc_init_keytry(SCREEN *sp)
 {
     size_t n;
 
-    /* The SP->_keytry value is initialized in newterm(), where the SP
+    /* The sp->_keytry value is initialized in newterm(), where the sp
      * structure is created, because we can not tell where keypad() or
      * mouse_activate() (which will call keyok()) are first called.
      */
 
-    if (SP != 0) {
+    if (sp != 0) {
 	for (n = 0; _nc_tinfo_fkeys[n].code; n++) {
 	    if (_nc_tinfo_fkeys[n].offset < STRCOUNT) {
-		(void) _nc_add_to_try(&(SP->_keytry),
+		(void) _nc_add_to_try(&(sp->_keytry),
 				      CUR Strings[_nc_tinfo_fkeys[n].offset],
 				      _nc_tinfo_fkeys[n].code);
 	    }
@@ -88,7 +88,7 @@ _nc_init_keytry(void)
 	 * names.
 	 */
 	{
-	    TERMTYPE *tp = &(SP->_term->type);
+	    TERMTYPE *tp = &(sp->_term->type);
 	    for (n = STRCOUNT; n < NUM_STRINGS(tp); ++n) {
 		const char *name = ExtStrname(tp, n, strnames);
 		char *value = tp->Strings[n];
@@ -96,7 +96,7 @@ _nc_init_keytry(void)
 		    && *name == 'k'
 		    && value != 0
 		    && key_defined(value) == 0) {
-		    (void) _nc_add_to_try(&(SP->_keytry),
+		    (void) _nc_add_to_try(&(sp->_keytry),
 					  value,
 					  n - STRCOUNT + KEY_MAX);
 		}
@@ -104,7 +104,7 @@ _nc_init_keytry(void)
 	}
 #endif
 #ifdef TRACE
-	_nc_trace_tries(SP->_keytry);
+	_nc_trace_tries(sp->_keytry);
 #endif
     }
 }

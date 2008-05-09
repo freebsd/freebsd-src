@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2006,2008 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -36,7 +36,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_bkgd.c,v 1.35 2006/05/27 19:20:11 tom Exp $")
+MODULE_ID("$Id: lib_bkgd.c,v 1.36 2008/03/23 00:09:14 tom Exp $")
 
 /*
  * Set the window's background information.
@@ -70,7 +70,7 @@ wbkgrndset(WINDOW *win, const ARG_CH_T ch)
 
 	if (CharOf(CHDEREF(ch)) == L('\0')) {
 	    SetChar(win->_nc_bkgd, BLANK_TEXT, AttrOf(CHDEREF(ch)));
-	    SetPair(win->_nc_bkgd, GetPair(CHDEREF(ch)));
+	    if_EXT_COLORS(SetPair(win->_nc_bkgd, GetPair(CHDEREF(ch))));
 	} else {
 	    win->_nc_bkgd = CHDEREF(ch);
 	}

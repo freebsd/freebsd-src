@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -40,7 +40,7 @@
 extern int malloc_errfd;	/* FIXME */
 #endif
 
-MODULE_ID("$Id: lib_freeall.c,v 1.45 2007/12/22 23:29:37 tom Exp $")
+MODULE_ID("$Id: lib_freeall.c,v 1.46 2008/05/03 14:13:51 tom Exp $")
 
 /*
  * Free all ncurses data.  This is used for testing only (there's no practical
@@ -67,10 +67,10 @@ _nc_freeall(void)
 	    bool deleted = FALSE;
 
 	    /* Delete only windows that're not a parent */
-	    for (p = _nc_windows; p != 0; p = p->next) {
+	    for (each_window(p)) {
 		bool found = FALSE;
 
-		for (q = _nc_windows; q != 0; q = q->next) {
+		for (each_window(q)) {
 		    if ((p != q)
 			&& (q->win._flags & _SUBWIN)
 			&& (&(p->win) == q->win._parent)) {

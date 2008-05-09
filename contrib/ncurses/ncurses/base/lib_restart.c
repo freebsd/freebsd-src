@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -48,7 +48,7 @@
 
 #include <term.h>		/* lines, columns, cur_term */
 
-MODULE_ID("$Id: lib_restart.c,v 1.8 2007/10/13 19:59:47 tom Exp $")
+MODULE_ID("$Id: lib_restart.c,v 1.9 2008/05/03 22:43:52 tom Exp $")
 
 NCURSES_EXPORT(int)
 restartterm(NCURSES_CONST char *termp, int filenum, int *errret)
@@ -88,7 +88,7 @@ restartterm(NCURSES_CONST char *termp, int filenum, int *errret)
 	reset_prog_mode();
 
 #if USE_SIZECHANGE
-	_nc_update_screensize();
+	_nc_update_screensize(SP);
 #endif
 
 	result = OK;
