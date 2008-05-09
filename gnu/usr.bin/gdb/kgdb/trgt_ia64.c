@@ -135,6 +135,11 @@ kgdb_trgt_store_registers(int regno __unused)
 	fprintf_unfiltered(gdb_stderr, "XXX: %s\n", __func__);
 }
 
+void
+kgdb_trgt_new_objfile(struct objfile *objfile)
+{
+}
+
 struct kgdb_frame_cache {
 	CORE_ADDR	bsp;
 	CORE_ADDR	ip;
