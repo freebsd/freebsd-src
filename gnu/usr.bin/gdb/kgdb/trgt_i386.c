@@ -41,7 +41,6 @@ __FBSDID("$FreeBSD$");
 #include <target.h>
 #include <gdbthread.h>
 #include <inferior.h>
-#include <objfiles.h>
 #include <regcache.h>
 #include <frame-unwind.h>
 #include <i386-tdep.h>
