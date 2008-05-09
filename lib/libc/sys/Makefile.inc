@@ -88,7 +88,7 @@ MAN+=	sched_get_priority_max.2 sched_setparam.2 \
 	sched_setscheduler.2 sched_yield.2
 .endif
 MAN+=	sctp_generic_recvmsg.2 sctp_generic_sendmsg.2 sctp_peeloff.2 \
-	select.2 semctl.2 semget.2 semop.2 send.2 sendfile.2 \
+	select.2 semctl.2 semget.2 semop.2 send.2 setfib.2 sendfile.2 \
 	setgroups.2 setpgid.2 setregid.2 setresuid.2 setreuid.2 setsid.2 \
 	setuid.2 shmat.2 shmctl.2 shmget.2 shm_open.2 shutdown.2 \
 	sigaction.2 sigaltstack.2 sigpending.2 sigprocmask.2 sigqueue.2 \
