@@ -153,29 +153,29 @@ lo_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 }
 
 static int
-loop_modevent(module_t mod, int type, void *data) 
-{ 
+loop_modevent(module_t mod, int type, void *data)
+{
 
-	switch (type) { 
-	case MOD_LOAD: 
+	switch (type) {
+	case MOD_LOAD:
 		if_clone_attach(&lo_cloner);
-		break; 
+		break;
 
-	case MOD_UNLOAD: 
-		printf("loop module unload - not possible for this module type\n"); 
+	case MOD_UNLOAD:
+		printf("loop module unload - not possible for this module type\n");
 		return (EINVAL);
 
 	default:
 		return (EOPNOTSUPP);
-	} 
+	}
 	return (0);
-} 
+}
 
-static moduledata_t loop_mod = { 
-	"loop", 
-	loop_modevent, 
+static moduledata_t loop_mod = {
+	"loop",
+	loop_modevent,
 	0
-}; 
+};
 
 DECLARE_MODULE(loop, loop_mod, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY);
 
@@ -239,7 +239,7 @@ if_simloop(struct ifnet *ifp, struct mbuf *m, int af, int hlen)
 
 	/*
 	 * Let BPF see incoming packet in the following manner:
-	 *  - Emulated packet loopback for a simplex interface 
+	 *  - Emulated packet loopback for a simplex interface
 	 *    (net/if_ethersubr.c)
 	 *	-> passes it to ifp's BPF
 	 *  - IPv4/v6 multicast packet loopback (netinet(6)/ip(6)_output.c)
@@ -275,8 +275,8 @@ if_simloop(struct ifnet *ifp, struct mbuf *m, int af, int hlen)
 		 */
 		if (mtod(m, vm_offset_t) & 3) {
 			KASSERT(hlen >= 3, ("if_simloop: hlen too small"));
-			bcopy(m->m_data, 
-			    (char *)(mtod(m, vm_offset_t) 
+			bcopy(m->m_data,
+			    (char *)(mtod(m, vm_offset_t)
 				- (mtod(m, vm_offset_t) & 3)),
 			    m->m_len);
 			m->m_data -= (mtod(m,vm_offset_t) & 3);
