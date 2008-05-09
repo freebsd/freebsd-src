@@ -1708,7 +1708,8 @@ in6_ifinit(struct ifnet *ifp, struct in6_ifaddr *ia,
 			rtp = &rt;
 		}
 
-		error = rtrequest(RTM_ADD, (struct sockaddr *)&ia->ia_dstaddr,
+		error = rtrequest(RTM_ADD,
+		    (struct sockaddr *)&ia->ia_dstaddr,
 		    (struct sockaddr *)&ia->ia_addr,
 		    (struct sockaddr *)&ia->ia_prefixmask,
 		    ia->ia_flags | rtflags, rtp);

@@ -471,6 +471,10 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 		bcopy((caddr_t)th, (caddr_t)nth, sizeof(struct tcphdr));
 		flags = TH_ACK;
 	} else {
+		/*
+		 *  reuse the mbuf. 
+		 * XXX MRT We inherrit the FIB, which is lucky.
+		 */
 		m_freem(m->m_next);
 		m->m_next = NULL;
 		m->m_data = (caddr_t)ipgen;
@@ -1199,6 +1203,8 @@ tcp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 					    bzero(&inc, sizeof(inc));
 					    inc.inc_flags = 0;	/* IPv4 */
 					    inc.inc_faddr = faddr;
+					    inc.inc_fibnum =
+						inp->inp_inc.inc_fibnum;
 
 					    mtu = ntohs(icp->icmp_nextmtu);
 					    /*
@@ -1595,7 +1601,7 @@ tcp_maxmtu(struct in_conninfo *inc, int *flags)
 		dst->sin_family = AF_INET;
 		dst->sin_len = sizeof(*dst);
 		dst->sin_addr = inc->inc_faddr;
-		rtalloc_ign(&sro, RTF_CLONING);
+		in_rtalloc_ign(&sro, RTF_CLONING, inc->inc_fibnum);
 	}
 	if (sro.ro_rt != NULL) {
 		ifp = sro.ro_rt->rt_ifp;

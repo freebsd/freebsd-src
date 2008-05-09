@@ -1198,7 +1198,7 @@ ipproto_unregister(u_char ipproto)
  * return internet address info of interface to be used to get there.
  */
 struct in_ifaddr *
-ip_rtaddr(struct in_addr dst)
+ip_rtaddr(struct in_addr dst, u_int fibnum)
 {
 	struct route sro;
 	struct sockaddr_in *sin;
@@ -1209,7 +1209,7 @@ ip_rtaddr(struct in_addr dst)
 	sin->sin_family = AF_INET;
 	sin->sin_len = sizeof(*sin);
 	sin->sin_addr = dst;
-	rtalloc_ign(&sro, RTF_CLONING);
+	in_rtalloc_ign(&sro, RTF_CLONING, fibnum);
 
 	if (sro.ro_rt == NULL)
 		return (NULL);
@@ -1269,7 +1269,7 @@ ip_forward(struct mbuf *m, int srcrt)
 	}
 #endif
 
-	ia = ip_rtaddr(ip->ip_dst);
+	ia = ip_rtaddr(ip->ip_dst, M_GETFIB(m));
 	if (!srcrt && ia == NULL) {
 		icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_HOST, 0, 0);
 		return;
@@ -1334,7 +1334,7 @@ ip_forward(struct mbuf *m, int srcrt)
 		sin->sin_family = AF_INET;
 		sin->sin_len = sizeof(*sin);
 		sin->sin_addr = ip->ip_dst;
-		rtalloc_ign(&ro, RTF_CLONING);
+		in_rtalloc_ign(&ro, RTF_CLONING, M_GETFIB(m));
 
 		rt = ro.ro_rt;
 
@@ -1363,7 +1363,7 @@ ip_forward(struct mbuf *m, int srcrt)
 	 * the ICMP_UNREACH_NEEDFRAG "Next-Hop MTU" field described in RFC1191.
 	 */
 	bzero(&ro, sizeof(ro));
-	rtalloc_ign(&ro, RTF_CLONING);
+	rtalloc_ign_fib(&ro, RTF_CLONING, M_GETFIB(m));
 
 	error = ip_output(m, NULL, &ro, IP_FORWARDING, NULL, NULL);
 

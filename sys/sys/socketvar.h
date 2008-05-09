@@ -146,6 +146,7 @@ struct socket {
 		void	*so_accept_filter_arg;	/* saved filter args */
 		char	*so_accept_filter_str;	/* saved user args */
 	} *so_accf;
+	int so_fibnum;		/* routing domain for this socket */
 };
 
 #define SB_EMPTY_FIXUP(sb) do {						\

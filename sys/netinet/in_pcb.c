@@ -186,6 +186,7 @@ in_pcballoc(struct socket *so, struct inpcbinfo *pcbinfo)
 	bzero(inp, inp_zero_size);
 	inp->inp_pcbinfo = pcbinfo;
 	inp->inp_socket = so;
+	inp->inp_inc.inc_fibnum = so->so_fibnum;
 #ifdef MAC
 	error = mac_inpcb_init(inp, M_NOWAIT);
 	if (error != 0)
@@ -605,7 +606,7 @@ in_pcbconnect_setup(struct inpcb *inp, struct sockaddr *nam,
 		 * Find out route to destination
 		 */
 		if ((inp->inp_socket->so_options & SO_DONTROUTE) == 0)
-			ia = ip_rtaddr(faddr);
+			ia = ip_rtaddr(faddr, inp->inp_inc.inc_fibnum);
 		/*
 		 * If we found a route, use the address corresponding to
 		 * the outgoing interface.

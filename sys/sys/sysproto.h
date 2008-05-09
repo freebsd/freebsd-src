@@ -555,6 +555,9 @@ struct freebsd6_pwrite_args {
 	char pad_l_[PADL_(int)]; int pad; char pad_r_[PADR_(int)];
 	char offset_l_[PADL_(off_t)]; off_t offset; char offset_r_[PADR_(off_t)];
 };
+struct setfib_args {
+	char fibnum_l_[PADL_(int)]; int fibnum; char fibnum_r_[PADR_(int)];
+};
 struct ntp_adjtime_args {
 	char tp_l_[PADL_(struct timex *)]; struct timex * tp; char tp_r_[PADR_(struct timex *)];
 };
@@ -1744,6 +1747,7 @@ int	msgsys(struct thread *, struct msgsys_args *);
 int	shmsys(struct thread *, struct shmsys_args *);
 int	freebsd6_pread(struct thread *, struct freebsd6_pread_args *);
 int	freebsd6_pwrite(struct thread *, struct freebsd6_pwrite_args *);
+int	setfib(struct thread *, struct setfib_args *);
 int	ntp_adjtime(struct thread *, struct ntp_adjtime_args *);
 int	setgid(struct thread *, struct setgid_args *);
 int	setegid(struct thread *, struct setegid_args *);
@@ -2325,6 +2329,7 @@ int	freebsd4_sigreturn(struct thread *, struct freebsd4_sigreturn_args *);
 #define	SYS_AUE_shmsys	AUE_SHMSYS
 #define	SYS_AUE_freebsd6_pread	AUE_PREAD
 #define	SYS_AUE_freebsd6_pwrite	AUE_PWRITE
+#define	SYS_AUE_setfib	AUE_NULL
 #define	SYS_AUE_ntp_adjtime	AUE_NTP_ADJTIME
 #define	SYS_AUE_setgid	AUE_SETGID
 #define	SYS_AUE_setegid	AUE_SETEGID

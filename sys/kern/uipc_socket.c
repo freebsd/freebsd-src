@@ -122,6 +122,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/resourcevar.h>
+#include <net/route.h>
 #include <sys/signalvar.h>
 #include <sys/stat.h>
 #include <sys/sx.h>
@@ -360,6 +361,11 @@ socreate(int dom, struct socket **aso, int type, int proto,
 	TAILQ_INIT(&so->so_comp);
 	so->so_type = type;
 	so->so_cred = crhold(cred);
+	if ((prp->pr_domain->dom_family == PF_INET) ||
+	    (prp->pr_domain->dom_family == PF_ROUTE))
+		so->so_fibnum = td->td_proc->p_fibnum;
+	else
+		so->so_fibnum = 0;
 	so->so_proto = prp;
 #ifdef MAC
 	mac_socket_create(cred, so);
@@ -2027,6 +2033,20 @@ sosetopt(struct socket *so, struct sockopt *sopt)
 			SOCK_UNLOCK(so);
 			break;
 
+		case SO_SETFIB:
+			error = sooptcopyin(sopt, &optval, sizeof optval,
+					    sizeof optval);
+			if (optval < 1 || optval > rt_numfibs) {
+				error = EINVAL;
+				goto bad;
+			}
+			if ((so->so_proto->pr_domain->dom_family == PF_INET) ||
+			    (so->so_proto->pr_domain->dom_family == PF_ROUTE)) {
+				so->so_fibnum = optval;
+			} else {
+				so->so_fibnum = 0;
+			}
+			break;
 		case SO_SNDBUF:
 		case SO_RCVBUF:
 		case SO_SNDLOWAT:
