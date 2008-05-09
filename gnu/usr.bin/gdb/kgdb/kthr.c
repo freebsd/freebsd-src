@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <kvm.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include <defs.h>
 #include <frame-unwind.h>
@@ -212,17 +213,20 @@ kgdb_thr_select(struct kthr *kt)
 char *
 kgdb_thr_extra_thread_info(int tid)
 {
+	char comm[MAXCOMLEN + 1];
 	struct kthr *kt;
 	struct proc *p;
-	static char comm[MAXCOMLEN + 1];
+	static char buf[64];
 
 	kt = kgdb_thr_lookup_tid(tid);
 	if (kt == NULL)
-		return (NULL);
+		return (NULL);	
+	snprintf(buf, sizeof(buf), "PID=%d", kt->pid);
 	p = (struct proc *)kt->paddr;
 	if (kvm_read(kvm, (uintptr_t)&p->p_comm[0], &comm, sizeof(comm)) !=
 	    sizeof(comm))
-		return (NULL);
-
-	return (comm);
+		return (buf);
+	strlcat(buf, ": ", sizeof(buf));
+	strlcat(buf, comm, sizeof(buf));
+	return (buf);
 }
