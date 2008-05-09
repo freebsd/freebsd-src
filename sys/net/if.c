@@ -740,11 +740,14 @@ if_detach(struct ifnet *ifp)
 	 * to this interface...oh well...
 	 */
 	for (i = 1; i <= AF_MAX; i++) {
-		if ((rnh = rt_tables[i]) == NULL)
+	    int j;
+	    for (j = 0; j < rt_numfibs; j++) {
+		if ((rnh = rt_tables[j][i]) == NULL)
 			continue;
 		RADIX_NODE_HEAD_LOCK(rnh);
 		(void) rnh->rnh_walktree(rnh, if_rtdel, ifp);
 		RADIX_NODE_HEAD_UNLOCK(rnh);
+	    }
 	}
 
 	/* Announce that the interface is gone. */
@@ -1010,9 +1013,9 @@ if_rtdel(struct radix_node *rn, void *arg)
 		if ((rt->rt_flags & RTF_UP) == 0)
 			return (0);
 
-		err = rtrequest(RTM_DELETE, rt_key(rt), rt->rt_gateway,
+		err = rtrequest_fib(RTM_DELETE, rt_key(rt), rt->rt_gateway,
 				rt_mask(rt), rt->rt_flags,
-				(struct rtentry **) NULL);
+				(struct rtentry **) NULL, rt->rt_fibnum);
 		if (err) {
 			log(LOG_WARNING, "if_rtdel: error %d\n", err);
 		}

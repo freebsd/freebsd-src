@@ -161,12 +161,25 @@ vfs_hang_addrlist(struct mount *mp, struct netexport *nep,
 		 * Seems silly to initialize every AF when most are not used,
 		 * do so on demand here
 		 */
-		for (dom = domains; dom; dom = dom->dom_next)
+		for (dom = domains; dom; dom = dom->dom_next) {
+			KASSERT(((i == AF_INET) || (i == AF_INET6)), 
+			    ("unexpected protocol in vfs_hang_addrlist"));
 			if (dom->dom_family == i && dom->dom_rtattach) {
-				dom->dom_rtattach((void **) &nep->ne_rtable[i],
-				    dom->dom_rtoffset);
+				/*
+				 * XXX MRT 
+				 * The INET and INET6 domains know the
+				 * offset already. We don't need to send it
+				 * So we just use it as a flag to say that
+				 * we are or are not setting up a real routing
+				 * table. Only IP and IPV6 need have this
+				 * be 0 so all other protocols can stay the 
+				 * same (ABI compatible).
+				 */ 
+				dom->dom_rtattach(
+				    (void **) &nep->ne_rtable[i], 0);
 				break;
 			}
+		}
 		if ((rnh = nep->ne_rtable[i]) == NULL) {
 			error = ENOBUFS;
 			vfs_mount_error(mp, "%s %s %d",

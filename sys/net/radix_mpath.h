@@ -50,7 +50,8 @@ int rn_mpath_count(struct radix_node *);
 struct rtentry *rt_mpath_matchgate(struct rtentry *, struct sockaddr *);
 int rt_mpath_conflict(struct radix_node_head *, struct rtentry *,
     struct sockaddr *);
-void rtalloc_mpath(struct route *, int);
+void rtalloc_mpath_fib(struct route *, int, u_int);
+#define rtalloc_mpath(_route, _hash) rtalloc_mpath_fib((_route), (_hash), 0)
 struct radix_node *rn_mpath_lookup(void *, void *,
     struct radix_node_head *);
 int rt_mpath_deldup(struct rtentry *, struct rtentry *);

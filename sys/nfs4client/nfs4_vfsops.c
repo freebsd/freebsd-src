@@ -812,7 +812,8 @@ nfs4_do_setclientid(struct nfsmount *nmp, struct ucred *cred)
 #ifdef NFS4_USE_RPCCLNT
 	ro.ro_dst = *nmp->nm_rpcclnt.rc_name;
 #endif
-	rtalloc(&ro);
+/* XXX MRT NFS uses table 0 */
+	in_rtalloc(&ro, 0);
 	if (ro.ro_rt == NULL) {
 		error = EHOSTUNREACH;
 		goto nfsmout;

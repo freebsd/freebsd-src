@@ -123,7 +123,7 @@ ip_findroute(struct route *ro, struct in_addr dest, struct mbuf *m)
 	dst->sin_family = AF_INET;
 	dst->sin_len = sizeof(*dst);
 	dst->sin_addr.s_addr = dest.s_addr;
-	rtalloc_ign(ro, RTF_CLONING);
+	in_rtalloc_ign(ro, RTF_CLONING, M_GETFIB(m));
 
 	/*
 	 * Route there and interface still up?
