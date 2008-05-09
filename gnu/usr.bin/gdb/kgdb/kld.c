@@ -55,6 +55,8 @@ static CORE_ADDR off_address, off_filename, off_pathname, off_next;
 
 /* KVA of 'linker_path' which corresponds to the kern.module_path sysctl .*/
 static CORE_ADDR module_path_addr;
+static CORE_ADDR linker_files_addr;
+static CORE_ADDR kernel_file_addr;
 
 static struct target_so_ops kld_so_ops;
 
@@ -70,7 +72,6 @@ kld_ok (char *path)
 
 /*
  * Look for a matching file checking for debug suffixes before the raw file:
- * - filename + ".symbols" (e.g. foo.ko.symbols)
  * - filename + ".debug" (e.g. foo.ko.debug)
  * - filename (e.g. foo.ko)
  */
@@ -112,11 +113,14 @@ find_kld_path (char *filename, char *path, size_t path_size)
 	char *kernel_dir, *module_dir, *cp;
 	int error;
 
-	kernel_dir = dirname(kernel);
-	if (kernel_dir != NULL) {
-		snprintf(path, path_size, "%s/%s", kernel_dir, filename);
-		if (check_kld_path(path, path_size))
-			return (1);
+	if (exec_bfd) {
+		kernel_dir = dirname(bfd_get_filename(exec_bfd));
+		if (kernel_dir != NULL) {
+			snprintf(path, path_size, "%s/%s", kernel_dir,
+			    filename);
+			if (check_kld_path(path, path_size))
+				return (1);
+		}
 	}
 	if (module_path_addr != 0) {
 		target_read_string(module_path_addr, &module_path, PATH_MAX,
@@ -160,11 +164,12 @@ find_kld_address (char *arg, CORE_ADDR *address)
 	char *filename;
 	int error;
 
-	if (off_address == 0 || off_filename == 0 || off_next == 0)
+	if (linker_files_addr == 0 || off_address == 0 || off_filename == 0 ||
+	    off_next == 0)
 		return (0);
 
 	filename = basename(arg);
-	for (kld = kgdb_parse("linker_files.tqh_first"); kld != 0;
+	for (kld = read_pointer(linker_files_addr); kld != 0;
 	     kld = read_pointer(kld + off_next)) {
 		/* Try to read this linker file's filename. */
 		target_read_string(read_pointer(kld + off_filename),
@@ -256,11 +261,14 @@ load_kld (char *path, CORE_ADDR base_addr, int from_tty)
 	do_cleanups(cleanup);
 }
 
-void
+static void
 kgdb_add_kld_cmd (char *arg, int from_tty)
 {
 	char path[PATH_MAX];
 	CORE_ADDR base_addr;
+
+	if (!exec_bfd)
+		error("No kernel symbol file");
 
 	/* Try to open the raw path to handle absolute paths first. */
 	snprintf(path, sizeof(path), "%s", arg);
@@ -324,6 +332,10 @@ kld_current_sos (void)
 	char *path;
 	int error;
 
+	if (linker_files_addr == 0 || kernel_file_addr == 0 ||
+	    off_address == 0 || off_filename == 0 || off_next == 0)
+		return (NULL);
+
 	head = NULL;
 	prev = &head;
 
@@ -331,8 +343,8 @@ kld_current_sos (void)
 	 * Walk the list of linker files creating so_list entries for
 	 * each non-kernel file.
 	 */
-	kernel = kgdb_parse("linker_kernel_file");
-	for (kld = kgdb_parse("linker_files.tqh_first"); kld != 0;
+	kernel = read_pointer(kernel_file_addr);
+	for (kld = read_pointer(linker_files_addr); kld != 0;
 	     kld = read_pointer(kld + off_next)) {
 		/* Skip the main kernel file. */
 		if (kld == kernel)
@@ -429,6 +441,28 @@ kld_find_and_open_solib (char *solib, unsigned o_flags, char **temp_pathname)
 	return (fd);
 }
 
+void
+kld_new_objfile (struct objfile *objfile)
+{
+
+	if (!have_partial_symbols())
+		return;
+
+	/*
+	 * Compute offsets of relevant members in struct linker_file
+	 * and the addresses of global variables.  Don't warn about
+	 * kernels that don't have 'pathname' in the linker_file
+	 * struct since 6.x kernels don't have it.
+	 */
+	off_address = kgdb_parse("&((struct linker_file *)0)->address");
+	off_filename = kgdb_parse("&((struct linker_file *)0)->filename");
+	off_pathname = kgdb_parse_quiet("&((struct linker_file *)0)->pathname");
+	off_next = kgdb_parse("&((struct linker_file *)0)->link.tqe_next");
+	module_path_addr = kgdb_parse("linker_path");
+	linker_files_addr = kgdb_parse("&linker_files.tqh_first");
+	kernel_file_addr = kgdb_parse("&linker_kernel_file");
+}
+
 static int
 load_klds_stub (void *arg)
 {
@@ -438,19 +472,16 @@ load_klds_stub (void *arg)
 }
 
 void
-kgdb_kld_init (void)
+kld_init (void)
+{
+
+	catch_errors(load_klds_stub, NULL, NULL, RETURN_MASK_ALL);
+}
+
+void
+initialize_kld_target(void)
 {
 	struct cmd_list_element *c;
-
-	/* Compute offsets of relevant members in struct linker_file. */
-	off_address = kgdb_parse("&((struct linker_file *)0)->address");
-	off_filename = kgdb_parse("&((struct linker_file *)0)->filename");
-	off_pathname = kgdb_parse("&((struct linker_file *)0)->pathname");
-	off_next = kgdb_parse("&((struct linker_file *)0)->link.tqe_next");
-	if (off_address == 0 || off_filename == 0 || off_next == 0)
-		return;
-
-	module_path_addr = kgdb_parse("linker_path");
 
 	kld_so_ops.relocate_section_addresses = kld_relocate_section_addresses;
 	kld_so_ops.free_so = kld_free_so;
@@ -463,8 +494,6 @@ kgdb_kld_init (void)
 	kld_so_ops.find_and_open_solib = kld_find_and_open_solib;
 
 	current_target_so_ops = &kld_so_ops;
-
-	catch_errors(load_klds_stub, NULL, NULL, RETURN_MASK_ALL);
 
 	c = add_com("add-kld", class_files, kgdb_add_kld_cmd,
 	   "Usage: add-kld FILE\n\
