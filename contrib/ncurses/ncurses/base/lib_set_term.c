@@ -44,7 +44,7 @@
 #include <term.h>		/* cur_term */
 #include <tic.h>
 
-MODULE_ID("$Id: lib_set_term.c,v 1.103 2008/02/03 20:31:08 tom Exp $")
+MODULE_ID("$Id: lib_set_term.c,v 1.108 2008/05/03 22:42:43 tom Exp $")
 
 NCURSES_EXPORT(SCREEN *)
 set_term(SCREEN *screenp)
@@ -58,14 +58,25 @@ set_term(SCREEN *screenp)
     oldSP = SP;
     _nc_set_screen(screenp);
 
-    set_curterm(SP->_term);
+    if (SP != 0) {
+	set_curterm(SP->_term);
 #if !USE_REENTRANT
-    curscr = SP->_curscr;
-    newscr = SP->_newscr;
-    stdscr = SP->_stdscr;
-    COLORS = SP->_color_count;
-    COLOR_PAIRS = SP->_pair_count;
+	curscr = SP->_curscr;
+	newscr = SP->_newscr;
+	stdscr = SP->_stdscr;
+	COLORS = SP->_color_count;
+	COLOR_PAIRS = SP->_pair_count;
 #endif
+    } else {
+	set_curterm(0);
+#if !USE_REENTRANT
+	curscr = 0;
+	newscr = 0;
+	stdscr = 0;
+	COLORS = 0;
+	COLOR_PAIRS = 0;
+#endif
+    }
 
     _nc_unlock_global(set_SP);
 
@@ -83,90 +94,105 @@ _nc_free_keytry(TRIES * kt)
     }
 }
 
+static bool
+delink_screen(SCREEN *sp)
+{
+    SCREEN *last = 0;
+    SCREEN *temp;
+    bool result = FALSE;
+
+    for (each_screen(temp)) {
+	if (temp == sp) {
+	    if (last)
+		last = sp->_next_screen;
+	    else
+		_nc_screen_chain = sp->_next_screen;
+	    result = TRUE;
+	    break;
+	}
+	last = temp;
+    }
+    return result;
+}
+
 /*
  * Free the storage associated with the given SCREEN sp.
  */
 NCURSES_EXPORT(void)
 delscreen(SCREEN *sp)
 {
-    SCREEN **scan = &_nc_screen_chain;
     int i;
 
     T((T_CALLED("delscreen(%p)"), sp));
 
     _nc_lock_global(set_SP);
-    while (*scan) {
-	if (*scan == sp) {
-	    *scan = sp->_next_screen;
-	    break;
-	}
-	scan = &(*scan)->_next_screen;
-    }
+    if (delink_screen(sp)) {
 
-    (void) _nc_freewin(sp->_curscr);
-    (void) _nc_freewin(sp->_newscr);
-    (void) _nc_freewin(sp->_stdscr);
+	(void) _nc_freewin(sp->_curscr);
+	(void) _nc_freewin(sp->_newscr);
+	(void) _nc_freewin(sp->_stdscr);
 
-    if (sp->_slk != 0) {
-	if (sp->_slk->ent != 0) {
-	    for (i = 0; i < sp->_slk->labcnt; ++i) {
-		FreeIfNeeded(sp->_slk->ent[i].ent_text);
-		FreeIfNeeded(sp->_slk->ent[i].form_text);
+	if (sp->_slk != 0) {
+	    if (sp->_slk->ent != 0) {
+		for (i = 0; i < sp->_slk->labcnt; ++i) {
+		    FreeIfNeeded(sp->_slk->ent[i].ent_text);
+		    FreeIfNeeded(sp->_slk->ent[i].form_text);
+		}
+		free(sp->_slk->ent);
 	    }
-	    free(sp->_slk->ent);
+	    free(sp->_slk);
+	    sp->_slk = 0;
 	}
-	free(sp->_slk);
-	sp->_slk = 0;
-    }
 
-    _nc_free_keytry(sp->_keytry);
-    sp->_keytry = 0;
+	_nc_free_keytry(sp->_keytry);
+	sp->_keytry = 0;
 
-    _nc_free_keytry(sp->_key_ok);
-    sp->_key_ok = 0;
+	_nc_free_keytry(sp->_key_ok);
+	sp->_key_ok = 0;
 
-    FreeIfNeeded(sp->_current_attr);
+	FreeIfNeeded(sp->_current_attr);
 
-    FreeIfNeeded(sp->_color_table);
-    FreeIfNeeded(sp->_color_pairs);
+	FreeIfNeeded(sp->_color_table);
+	FreeIfNeeded(sp->_color_pairs);
 
-    FreeIfNeeded(sp->oldhash);
-    FreeIfNeeded(sp->newhash);
-    FreeIfNeeded(sp->hashtab);
+	FreeIfNeeded(sp->oldhash);
+	FreeIfNeeded(sp->newhash);
+	FreeIfNeeded(sp->hashtab);
 
-    FreeIfNeeded(sp->_acs_map);
-    FreeIfNeeded(sp->_screen_acs_map);
+	FreeIfNeeded(sp->_acs_map);
+	FreeIfNeeded(sp->_screen_acs_map);
 
-    del_curterm(sp->_term);
+	del_curterm(sp->_term);
 
-    /*
-     * If the associated output stream has been closed, we can discard the
-     * set-buffer.  Limit the error check to EBADF, since fflush may fail
-     * for other reasons than trying to operate upon a closed stream.
-     */
-    if (sp->_ofp != 0
-	&& sp->_setbuf != 0
-	&& fflush(sp->_ofp) != 0
-	&& errno == EBADF) {
-	free(sp->_setbuf);
-    }
+	/*
+	 * If the associated output stream has been closed, we can discard the
+	 * set-buffer.  Limit the error check to EBADF, since fflush may fail
+	 * for other reasons than trying to operate upon a closed stream.
+	 */
+	if (sp->_ofp != 0
+	    && sp->_setbuf != 0
+	    && fflush(sp->_ofp) != 0
+	    && errno == EBADF) {
+	    free(sp->_setbuf);
+	}
 
-    free(sp);
+	free(sp);
 
-    /*
-     * If this was the current screen, reset everything that the
-     * application might try to use (except cur_term, which may have
-     * multiple references in different screens).
-     */
-    if (sp == SP) {
+	/*
+	 * If this was the current screen, reset everything that the
+	 * application might try to use (except cur_term, which may have
+	 * multiple references in different screens).
+	 */
+	if (sp == SP) {
 #if !USE_REENTRANT
-	curscr = 0;
-	newscr = 0;
-	stdscr = 0;
-	COLORS = 0;
-	COLOR_PAIRS = 0;
+	    curscr = 0;
+	    newscr = 0;
+	    stdscr = 0;
+	    COLORS = 0;
+	    COLOR_PAIRS = 0;
 #endif
-	_nc_set_screen(0);
+	    _nc_set_screen(0);
+	}
     }
     _nc_unlock_global(set_SP);
 
@@ -254,7 +280,7 @@ _nc_setupscreen(int slines GCC_UNUSED,
     /*
      * We should always check the screensize, just in case.
      */
-    _nc_get_screensize(&slines, &scolumns);
+    _nc_get_screensize(SP, &slines, &scolumns);
     SET_LINES(slines);
     SET_COLS(scolumns);
     T((T_CREATE("screen %s %dx%d"), termname(), LINES, COLS));
@@ -511,8 +537,6 @@ _nc_setupscreen(int slines GCC_UNUSED,
 
     _nc_idcok = TRUE;
     _nc_idlok = FALSE;
-
-    _nc_windows = 0;		/* no windows yet */
 
     SP->oldhash = 0;
     SP->newhash = 0;

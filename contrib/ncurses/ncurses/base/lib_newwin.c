@@ -40,42 +40,39 @@
 */
 
 #include <curses.priv.h>
+#include <stddef.h>
 
-MODULE_ID("$Id: lib_newwin.c,v 1.44 2008/01/13 00:28:13 tom Exp $")
+MODULE_ID("$Id: lib_newwin.c,v 1.50 2008/05/03 16:36:39 tom Exp $")
 
-static WINDOW *
+#define window_is(name) ((sp)->_##name == win)
+
+#if USE_REENTRANT
+#define remove_window(name) \
+		sp->_##name = 0
+#else
+#define remove_window(name) \
+		sp->_##name = 0; \
+		if (win == name) \
+		    name = 0
+#endif
+
+static void
 remove_window_from_screen(WINDOW *win)
 {
-    SCREEN **scan = &_nc_screen_chain;
+    SCREEN *sp;
 
-    while (*scan) {
-	SCREEN *sp = *scan;
-	if (sp->_curscr == win) {
-	    sp->_curscr = 0;
-#if !USE_REENTRANT
-	    if (win == curscr)
-		curscr = 0;
-#endif
-	} else if (sp->_stdscr == win) {
-	    sp->_stdscr = 0;
-#if !USE_REENTRANT
-	    if (win == stdscr)
-		stdscr = 0;
-#endif
-	} else if (sp->_newscr == win) {
-	    sp->_newscr = 0;
-#if !USE_REENTRANT
-	    if (win == newscr)
-		newscr = 0;
-#endif
-	} else {
-	    scan = &(*scan)->_next_screen;
-	    continue;
+    for (each_screen(sp)) {
+	if (window_is(curscr)) {
+	    remove_window(curscr);
+	    break;
+	} else if (window_is(stdscr)) {
+	    remove_window(stdscr);
+	    break;
+	} else if (window_is(newscr)) {
+	    remove_window(newscr);
+	    break;
 	}
-	break;
     }
-
-    return 0;
 }
 
 NCURSES_EXPORT(int)
@@ -89,7 +86,8 @@ _nc_freewin(WINDOW *win)
 
     if (win != 0) {
 	if (_nc_try_global(windowlist) == 0) {
-	    for (p = _nc_windows, q = 0; p != 0; q = p, p = p->next) {
+	    q = 0;
+	    for (each_window(p)) {
 		if (&(p->win) == win) {
 		    remove_window_from_screen(win);
 		    if (q == 0)
@@ -108,6 +106,7 @@ _nc_freewin(WINDOW *win)
 		    T(("...deleted win=%p", win));
 		    break;
 		}
+		q = p;
 	    }
 	    _nc_unlock_global(windowlist);
 	}
@@ -230,14 +229,7 @@ _nc_makenew(int num_lines, int num_columns, int begy, int begx, int flags)
     if ((wp = typeCalloc(WINDOWLIST, 1)) == 0)
 	returnWin(0);
 
-#ifdef USE_PTHREADS
-    {
-	pthread_mutexattr_t recattr;
-	memset(&recattr, 0, sizeof(recattr));
-	pthread_mutexattr_settype(&recattr, PTHREAD_MUTEX_NORMAL);
-	pthread_mutex_init(&(wp->mutex_use_window), &recattr);
-    }
-#endif
+    _nc_mutex_init(&(wp->mutex_use_window));
 
     win = &(wp->win);
 

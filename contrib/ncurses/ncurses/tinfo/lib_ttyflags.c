@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -38,7 +38,7 @@
 #include <curses.priv.h>
 #include <term.h>		/* cur_term */
 
-MODULE_ID("$Id: lib_ttyflags.c,v 1.15 2007/05/26 18:54:25 tom Exp $")
+MODULE_ID("$Id: lib_ttyflags.c,v 1.16 2008/05/03 22:39:03 tom Exp $")
 
 NCURSES_EXPORT(int)
 _nc_get_tty_mode(TTY * buf)
@@ -147,7 +147,7 @@ reset_prog_mode(void)
 	if (_nc_set_tty_mode(&cur_term->Nttyb) == OK) {
 	    if (SP) {
 		if (SP->_keypad_on)
-		    _nc_keypad(TRUE);
+		    _nc_keypad(SP, TRUE);
 		NC_BUFFERED(TRUE);
 	    }
 	    returnCode(OK);
@@ -163,7 +163,7 @@ reset_shell_mode(void)
 
     if (cur_term != 0) {
 	if (SP) {
-	    _nc_keypad(FALSE);
+	    _nc_keypad(SP, FALSE);
 	    _nc_flush();
 	    NC_BUFFERED(FALSE);
 	}
