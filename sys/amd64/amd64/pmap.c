@@ -4469,3 +4469,26 @@ pmap_addr_hint(vm_object_t obj, vm_offset_t addr, vm_size_t size)
 	addr = (addr + (NBPDR - 1)) & ~(NBPDR - 1);
 	return addr;
 }
+
+/*
+ *	Increase the starting virtual address of the given mapping if a
+ *	different alignment might result in more superpage mappings.
+ */
+void
+pmap_align_superpage(vm_object_t object, vm_ooffset_t offset,
+    vm_offset_t *addr, vm_size_t size)
+{
+	vm_offset_t superpage_offset;
+
+	if (object != NULL && (object->flags & OBJ_COLORED) != 0)
+		offset += ptoa(object->pg_color);
+	superpage_offset = offset & PDRMASK;
+	if (size < superpage_offset ||
+	    size - superpage_offset < NBPDR ||
+	    (*addr & PDRMASK) == superpage_offset)
+		return;
+	if ((*addr & PDRMASK) < superpage_offset)
+		*addr = (*addr & ~PDRMASK) + superpage_offset;
+	else
+		*addr = ((*addr + PDRMASK) & ~PDRMASK) + superpage_offset;
+}
