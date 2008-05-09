@@ -25,7 +25,7 @@
 -- sale, use or other dealings in this Software without prior written        --
 -- authorization.                                                            --
 -------------------------------------------------------------------------------
--- $Id: NEWS,v 1.1206 2008/02/09 23:49:39 tom Exp $
+-- $Id: NEWS,v 1.1233 2008/05/03 23:14:39 tom Exp $
 -------------------------------------------------------------------------------
 
 This is a log of changes that ncurses has gone through since Zeyd started
@@ -44,6 +44,89 @@ See the AUTHORS file for the corresponding full names.
 
 Changes through 1.9.9e did not credit all contributions;
 it is not possible to add this information.
+
+20080503
+	+ modify screen.* terminfo entries using new screen+fkeys to fix
+	  overridden keys in screen.rxvt (Debian #478094) -TD
+	+ modify internal interfaces to reduce wgetch()'s dependency on the
+	  global SP.
+	+ simplify some loops with macros each_screen(), each_window() and
+	  each_ripoff().
+
+20080426
+	+ continue modifying test/ditto.c toward making it demonstrate
+	  multithreaded use_screen(), using fifos to pass data between screens.
+	+ fix typo in form.3x (report by Mike Gran).
+
+20080419
+	+ add screen.rxvt terminfo entry -TD
+	+ modify tic -f option to format spaces as \s to prevent them from
+	  being lost when that is read back in unformatted strings.
+	+ improve test/ditto.c, using a "talk"-style layout.
+
+20080412
+	+ change test/ditto.c to use openpty() and xterm.
+	+ add locks for copywin(), dupwin(), overlap(), overlay() on their
+	  window parameters.
+	+ add locks for initscr() and newterm() on updates to the SCREEN
+	  pointer.
+	+ finish table in curs_thread.3x manpage.
+
+20080405
+	+ begin table in curs_thread.3x manpage describing the scope of data
+	  used by each function (or symbol) for threading analysis.
+	+ add null-pointer checks to setsyx() and getsyx() (prompted by
+	  discussion by Martin v. Lowis and Jeroen Ruigrok van der Werven on
+	  python-dev2 mailing list).
+
+20080329
+	+ add null-pointer checks in set_term() and delscreen().
+	+ move _nc_windows into _nc_globals, since windows can be pads, which
+	  are not associated with a particular screen.
+	+ change use_screen() to pass the SCREEN* parameter rather than
+	  stdscr to the callback function.
+	+ force libtool to use tag for 'CC' in case it does not detect this,
+	  e.g., on aix when using CC=powerpc-ibm-aix5.3.0.0-gcc
+	  (report/patch by Michael Haubenwallner).
+	+ override OBJEXT to "lo" when building with libtool, to work on
+	  platforms such as AIX where libtool may use a different suffix for
+	  the object files than ".o" (report/patch by Michael Haubenwallner).
+	+ add configure --with-pthread option, for building with the POSIX
+	  thread library.
+
+20080322
+	+ fill in extended-color pair two more places in wbkgrndset() and
+	  waddch_nosync() (prompted by Sedeno's patch).
+	+ fill in extended-color pair in _nc_build_wch() to make colors work
+	  for wide-characters using extended-colors (patch by Alejandro R
+	  Sedeno).
+	+ add x/X toggles to ncurses.c C color test to test/demo
+	  wide-characters with extended-colors.
+	+ add a/A toggles to ncurses.c c/C color tests.
+	+ modify test/ditto.c to use use_screen().
+	+ finish modifying test/rain.c to demonstrate threads.
+
+20080308
+	+ start modifying test/rain.c for threading demo.
+	+ modify test/ncurses.c to make 'f' test accept the f/F/b/F/</> toggles
+	  that the 'F' accepts.
+	+ modify test/worm.c to show trail in reverse-video when other threads
+	  are working concurrently.
+	+ fix a deadlock from improper nesting of mutexes for windowlist and
+	  window.
+
+20080301
+	+ fixes from 20080223 resolved issue with mutexes; change to use
+	  recursive mutexes to fix memory leak in delwin() as called from
+	  _nc_free_and_exit().
+
+20080223
+	+ fix a size-difference in _nc_globals which caused hanging of mutex
+	  lock/unlock when termlib was built separately.
+
+20080216
+	+ avoid using nanosleep() in threaded configuration since that often
+	  is implemented to suspend the entire process.
 
 20080209
 	+ update test programs to build/work with various UNIX curses for

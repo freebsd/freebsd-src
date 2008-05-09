@@ -41,7 +41,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_data.c,v 1.39 2008/01/13 01:21:59 tom Exp $")
+MODULE_ID("$Id: lib_data.c,v 1.43 2008/03/29 21:16:49 tom Exp $")
 
 /*
  * OS/2's native linker complains if we don't initialize public data when
@@ -109,7 +109,7 @@ NCURSES_EXPORT_VAR(SCREEN *) SP = NULL; /* Some linkers require initialized data
 #define CHARS_0s { '\0' }
 
 #define TGETENT_0 { 0L, FALSE, NULL, NULL, NULL }
-#define TGETENT_0s { TGETENT_0, TGETENT_0, TGETENT_0, TGETENT_0 } 
+#define TGETENT_0s { TGETENT_0, TGETENT_0, TGETENT_0, TGETENT_0 }
 
 NCURSES_EXPORT_VAR(NCURSES_GLOBALS) _nc_globals = {
     0,				/* have_sigwinch */
@@ -139,6 +139,8 @@ NCURSES_EXPORT_VAR(NCURSES_GLOBALS) _nc_globals = {
     TGETENT_0s,			/* tgetent_cache */
     0,				/* tgetent_index */
     0,				/* tgetent_sequence */
+
+    0,				/* _nc_windowlist */
 
 #if USE_HOME_TERMINFO
     NULL,			/* home_terminfo */
@@ -171,11 +173,9 @@ NCURSES_EXPORT_VAR(NCURSES_GLOBALS) _nc_globals = {
     NULL,			/* tracetry_buf */
     0,				/* tracetry_used */
 
-#ifndef USE_TERMLIB
     { CHARS_0s, CHARS_0s },	/* traceatr_color_buf */
     0,				/* traceatr_color_sel */
     -1,				/* traceatr_color_last */
-#endif /* USE_TERMLIB */
 
 #endif /* TRACE */
 #ifdef USE_PTHREADS
@@ -236,21 +236,59 @@ NCURSES_EXPORT_VAR(NCURSES_PRESCREEN) _nc_prescreen = {
 
 /******************************************************************************/
 #ifdef USE_PTHREADS
-NCURSES_EXPORT(int)
-_nc_mutex_lock(pthread_mutex_t *obj)
+static void
+init_global_mutexes(void)
 {
+    static bool initialized = FALSE;
+
+    if (!initialized) {
+	initialized = TRUE;
+	_nc_mutex_init(&_nc_globals.mutex_set_SP);
+	_nc_mutex_init(&_nc_globals.mutex_use_screen);
+	_nc_mutex_init(&_nc_globals.mutex_use_window);
+	_nc_mutex_init(&_nc_globals.mutex_windowlist);
+	_nc_mutex_init(&_nc_globals.mutex_tst_tracef);
+	_nc_mutex_init(&_nc_globals.mutex_tracef);
+    }
+}
+
+/*
+ * Use recursive mutexes if we have them - they're part of Unix98.
+ * For the cases where we do not, _nc_mutex_trylock() is used to avoid a
+ * deadlock, at the expense of memory leaks and unexpected failures that
+ * may not be handled by typical clients.
+ *
+ * FIXME - need configure check for PTHREAD_MUTEX_RECURSIVE, define it to
+ * PTHREAD_MUTEX_NORMAL if not supported.
+ */
+NCURSES_EXPORT(void)
+_nc_mutex_init(pthread_mutex_t * obj)
+{
+    pthread_mutexattr_t recattr;
+
+    memset(&recattr, 0, sizeof(recattr));
+    pthread_mutexattr_settype(&recattr, PTHREAD_MUTEX_RECURSIVE);
+    pthread_mutex_init(obj, &recattr);
+}
+
+NCURSES_EXPORT(int)
+_nc_mutex_lock(pthread_mutex_t * obj)
+{
+    init_global_mutexes();
     return pthread_mutex_lock(obj);
 }
 
 NCURSES_EXPORT(int)
-_nc_mutex_trylock(pthread_mutex_t *obj)
+_nc_mutex_trylock(pthread_mutex_t * obj)
 {
+    init_global_mutexes();
     return pthread_mutex_trylock(obj);
 }
 
 NCURSES_EXPORT(int)
-_nc_mutex_unlock(pthread_mutex_t *obj)
+_nc_mutex_unlock(pthread_mutex_t * obj)
 {
+    init_global_mutexes();
     return pthread_mutex_unlock(obj);
 }
 #endif /* USE_PTHREADS */

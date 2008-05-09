@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -32,7 +32,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: wresize.c,v 1.27 2007/12/22 23:20:53 tom Exp $")
+MODULE_ID("$Id: wresize.c,v 1.28 2008/05/03 14:13:51 tom Exp $")
 
 static int
 cleanup_lines(struct ldat *data, int length)
@@ -56,7 +56,7 @@ repair_subwindows(WINDOW *cmp)
 
     _nc_lock_global(windowlist);
 
-    for (wp = _nc_windows; wp != 0; wp = wp->next) {
+    for (each_window(wp)) {
 	WINDOW *tst = &(wp->win);
 
 	if (tst->_parent == cmp) {

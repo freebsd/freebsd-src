@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -74,7 +74,7 @@
 #include <ctype.h>
 #include <term.h>
 
-MODULE_ID("$Id: tty_update.c,v 1.243 2007/10/13 20:03:32 tom Exp $")
+MODULE_ID("$Id: tty_update.c,v 1.245 2008/05/03 22:43:04 tom Exp $")
 
 /*
  * This define controls the line-breakout optimization.  Every once in a
@@ -645,7 +645,7 @@ doupdate(void)
 	SP->_fifohold--;
 
 #if USE_SIZECHANGE
-    if (SP->_endwin || _nc_handle_sigwinch(FALSE)) {
+    if (SP->_endwin || _nc_handle_sigwinch(SP)) {
 	/*
 	 * This is a transparent extension:  XSI does not address it,
 	 * and applications need not know that ncurses can do it.
@@ -654,7 +654,7 @@ doupdate(void)
 	 * (this can happen in an xterm, for example), and resize the
 	 * ncurses data structures accordingly.
 	 */
-	_nc_update_screensize();
+	_nc_update_screensize(SP);
     }
 #endif
 
