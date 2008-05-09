@@ -1984,3 +1984,13 @@ pmap_addr_hint(vm_object_t object, vm_offset_t va, vm_size_t size)
 
 	return (va);
 }
+
+/*
+ *	Increase the starting virtual address of the given mapping if a
+ *	different alignment might result in more superpage mappings.
+ */
+void
+pmap_align_superpage(vm_object_t object, vm_ooffset_t offset,
+    vm_offset_t *addr, vm_size_t size)
+{
+}
