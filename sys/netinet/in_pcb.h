@@ -101,7 +101,7 @@ struct in_endpoints {
 struct in_conninfo {
 	u_int8_t	inc_flags;
 	u_int8_t	inc_len;
-	u_int16_t	inc_pad;	/* XXX alignment for in_endpoints */
+	u_int16_t	inc_fibnum;	/* XXX was pad, 16 bits is plenty */
 	/* protocol dependent part */
 	struct	in_endpoints inc_ie;
 };

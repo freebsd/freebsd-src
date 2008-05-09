@@ -82,6 +82,10 @@ struct rt_metrics {
 #define	RTM_RTTUNIT	1000000	/* units for rtt, rttvar, as units per sec */
 #define	RTTTOPRHZ(r)	((r) / (RTM_RTTUNIT / PR_SLOWHZ))
 
+#define RT_MAXFIBS 16
+extern u_int rt_numfibs;	/* number fo usable routing tables */
+extern u_int tunnel_fib;	/* tunnels use these */
+extern u_int fwd_fib;		/* packets being forwarded use these routes */
 /*
  * XXX kernel function pointer `rt_output' is visible to applications.
  */
@@ -120,6 +124,7 @@ struct rtentry {
 	caddr_t	rt_llinfo;		/* pointer to link level info cache */
 	struct	rtentry *rt_gwroute;	/* implied entry for gatewayed routes */
 	struct	rtentry *rt_parent; 	/* cloning parent of this route */
+	u_int	rt_fibnum;		/* which FIB */
 #ifdef _KERNEL
 	/* XXX ugly, user apps use this definition but don't have a mtx def */
 	struct	mtx rt_mtx;		/* mutex for routing entry */
@@ -325,11 +330,10 @@ struct rt_addrinfo {
 		RTFREE_LOCKED(_rt);				\
 	} while (0)
 
-extern struct radix_node_head *rt_tables[AF_MAX+1];
+extern struct radix_node_head *rt_tables[RT_MAXFIBS][AF_MAX+1];
 
 struct ifmultiaddr;
 
-int	 rt_getifa(struct rt_addrinfo *);
 void	 rt_ieee80211msg(struct ifnet *, int, void *, size_t);
 void	 rt_ifannouncemsg(struct ifnet *, int);
 void	 rt_ifmsg(struct ifnet *);
@@ -350,11 +354,15 @@ int	 rt_setgate(struct rtentry *, struct sockaddr *, struct sockaddr *);
  *    RTFREE() uses an unlocked entry.
  */
 
+int	 rtexpunge(struct rtentry *);
+void	 rtfree(struct rtentry *);
+
+/* XXX MRT COMPAT VERSIONS THAT SET UNIVERSE to 0 */
+/* Thes are used by old code not yet converted to use multiple FIBS */
+int	 rt_getifa(struct rt_addrinfo *);
 void	 rtalloc_ign(struct route *ro, u_long ignflags);
 void	 rtalloc(struct route *ro); /* XXX deprecated, use rtalloc_ign(ro, 0) */
 struct rtentry *rtalloc1(struct sockaddr *, int, u_long);
-int	 rtexpunge(struct rtentry *);
-void	 rtfree(struct rtentry *);
 int	 rtinit(struct ifaddr *, int, int);
 int	 rtioctl(u_long, caddr_t);
 void	 rtredirect(struct sockaddr *, struct sockaddr *,
@@ -363,6 +371,25 @@ int	 rtrequest(int, struct sockaddr *,
 	    struct sockaddr *, struct sockaddr *, int, struct rtentry **);
 int	 rtrequest1(int, struct rt_addrinfo *, struct rtentry **);
 int	 rt_check(struct rtentry **, struct rtentry **, struct sockaddr *);
+
+/* defaults to "all" FIBs */
+int	 rtinit_fib(struct ifaddr *, int, int);
+
+/* XXX MRT NEW VERSIONS THAT USE FIBs
+ * For now the protocol indepedent versions are the same as the AF_INET ones
+ * but this will change.. 
+ */
+int	 rt_getifa_fib(struct rt_addrinfo *, u_int fibnum);
+void	 rtalloc_ign_fib(struct route *ro, u_long ignflags, u_int fibnum);
+void	 rtalloc_fib(struct route *ro, u_int fibnum);
+struct rtentry *rtalloc1_fib(struct sockaddr *, int, u_long, u_int);
+int	 rtioctl_fib(u_long, caddr_t, u_int);
+void	 rtredirect_fib(struct sockaddr *, struct sockaddr *,
+	    struct sockaddr *, int, struct sockaddr *, u_int);
+int	 rtrequest_fib(int, struct sockaddr *,
+	    struct sockaddr *, struct sockaddr *, int, struct rtentry **, u_int);
+int	 rtrequest1_fib(int, struct rt_addrinfo *, struct rtentry **, u_int);
+int	 rt_check_fib(struct rtentry **, struct rtentry **, struct sockaddr *, u_int);
 
 #include <sys/eventhandler.h>
 typedef void (*rtevent_arp_update_fn)(void *, struct rtentry *, uint8_t *, struct sockaddr *);

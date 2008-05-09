@@ -287,6 +287,7 @@ do { \
 	IN_NEXT_MULTI((step), (inm)); \
 } while(0)
 
+struct	rtentry;
 struct	route;
 struct	ip_moptions;
 
@@ -305,6 +306,21 @@ int	in_ifadown(struct ifaddr *ifa, int);
 void	in_ifscrub(struct ifnet *, struct in_ifaddr *);
 struct	mbuf	*ip_fastforward(struct mbuf *);
 
+/* XXX */
+void	 in_rtalloc_ign(struct route *ro, u_long ignflags, u_int fibnum);
+void	 in_rtalloc(struct route *ro, u_int fibnum);
+struct rtentry *in_rtalloc1(struct sockaddr *, int, u_long, u_int);
+void	 in_rtredirect(struct sockaddr *, struct sockaddr *,
+	    struct sockaddr *, int, struct sockaddr *, u_int);
+int	 in_rtrequest(int, struct sockaddr *,
+	    struct sockaddr *, struct sockaddr *, int, struct rtentry **, u_int);
+int	 in_rt_check(struct rtentry **, struct rtentry **, struct sockaddr *, u_int);
+
+#if 0
+int	 in_rt_getifa(struct rt_addrinfo *, u_int fibnum);
+int	 in_rtioctl(u_long, caddr_t, u_int);
+int	 in_rtrequest1(int, struct rt_addrinfo *, struct rtentry **, u_int);
+#endif
 #endif /* _KERNEL */
 
 /* INET6 stuff */

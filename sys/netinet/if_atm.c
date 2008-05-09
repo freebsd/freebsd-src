@@ -327,7 +327,7 @@ atmresolve(struct rtentry *rt, struct mbuf *m, struct sockaddr *dst,
 	}
 
 	if (rt == NULL) {
-		rt = RTALLOC1(dst, 0);
+		rt = RTALLOC1(dst, 0); /* link level on table 0 XXX MRT */
 		if (rt == NULL)
 			goto bad;	/* failed */
 		RT_REMREF(rt);		/* don't keep LL references */

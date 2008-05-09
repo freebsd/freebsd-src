@@ -230,10 +230,12 @@ again:
 		 */
 		if (ro->ro_rt == NULL)
 #ifdef RADIX_MPATH
-			rtalloc_mpath(ro,
-			    ntohl(ip->ip_src.s_addr ^ ip->ip_dst.s_addr));
+			rtalloc_mpath_fib(ro,
+			    ntohl(ip->ip_src.s_addr ^ ip->ip_dst.s_addr),
+			    inp ? inp->inp_inc.inc_fibnum : M_GETFIB(m));
 #else
-			rtalloc_ign(ro, 0);
+			in_rtalloc_ign(ro, 0,
+			    inp ? inp->inp_inc.inc_fibnum : M_GETFIB(m));
 #endif
 		if (ro->ro_rt == NULL) {
 			ipstat.ips_noroute++;

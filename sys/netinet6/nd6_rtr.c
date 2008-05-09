@@ -2019,7 +2019,8 @@ in6_init_address_ltimes(struct nd_prefix *new, struct in6_addrlifetime *lt6)
 void
 rt6_flush(struct in6_addr *gateway, struct ifnet *ifp)
 {
-	struct radix_node_head *rnh = rt_tables[AF_INET6];
+
+	struct radix_node_head *rnh = rt_tables[0][AF_INET6];
 	int s = splnet();
 
 	/* We'll care only link-local addresses */
