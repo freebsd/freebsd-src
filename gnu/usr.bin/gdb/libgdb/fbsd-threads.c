@@ -1375,8 +1375,9 @@ static void
 init_fbsd_core_ops (void)
 {
   fbsd_core_ops.to_shortname = "FreeBSD-core";
-  fbsd_core_ops.to_longname = "FreeBSD core thread.";
-  fbsd_core_ops.to_doc = "FreeBSD threads support for core files.";
+  fbsd_core_ops.to_longname = "FreeBSD multithreaded core dump file";
+  fbsd_core_ops.to_doc =
+    "Use a core file as a target.  Specify the filename of the core file.";
   fbsd_core_ops.to_open = fbsd_core_open;
   fbsd_core_ops.to_close = fbsd_core_close;
   fbsd_core_ops.to_attach = 0;
@@ -1506,9 +1507,17 @@ thread_db_load (void)
 
 int coreops_suppress_target = 1;
 
+/* similarly we allow this target to be completely skipped.  This is used
+   by kgdb which uses its own core target. */
+
+int fbsdcoreops_suppress_target;
+
 void
 _initialize_thread_db (void)
 {
+
+  if (fbsdcoreops_suppress_target)
+    return;
   init_fbsd_thread_ops ();
   init_fbsd_core_ops ();
 
