@@ -86,14 +86,23 @@ u_long	dflssiz;			/* initial stack size limit */
 u_long	maxssiz;			/* max stack size */
 u_long	sgrowsiz;			/* amount to grow stack */
 
-SYSCTL_INT(_kern, OID_AUTO, maxswzone, CTLFLAG_RD, &maxswzone, 0, "");
-SYSCTL_INT(_kern, OID_AUTO, maxbcache, CTLFLAG_RD, &maxbcache, 0, "");
-SYSCTL_ULONG(_kern, OID_AUTO, maxtsiz, CTLFLAG_RD, &maxtsiz, 0, "");
-SYSCTL_ULONG(_kern, OID_AUTO, dfldsiz, CTLFLAG_RD, &dfldsiz, 0, "");
-SYSCTL_ULONG(_kern, OID_AUTO, maxdsiz, CTLFLAG_RD, &maxdsiz, 0, "");
-SYSCTL_ULONG(_kern, OID_AUTO, dflssiz, CTLFLAG_RD, &dflssiz, 0, "");
-SYSCTL_ULONG(_kern, OID_AUTO, maxssiz, CTLFLAG_RD, &maxssiz, 0, "");
-SYSCTL_ULONG(_kern, OID_AUTO, sgrowsiz, CTLFLAG_RD, &sgrowsiz, 0, "");
+SYSCTL_INT(_kern, OID_AUTO, hz, CTLFLAG_RDTUN, &hz, 0, "ticks/second");
+SYSCTL_INT(_kern, OID_AUTO, maxswzone, CTLFLAG_RDTUN, &maxswzone, 0,
+    "max swmeta KVA storage");
+SYSCTL_INT(_kern, OID_AUTO, maxbcache, CTLFLAG_RDTUN, &maxbcache, 0,
+    "max buffer cache KVA storage");
+SYSCTL_ULONG(_kern, OID_AUTO, maxtsiz, CTLFLAG_RDTUN, &maxtsiz, 0,
+    "max text size");
+SYSCTL_ULONG(_kern, OID_AUTO, dfldsiz, CTLFLAG_RDTUN, &dfldsiz, 0,
+    "initial data size limit");
+SYSCTL_ULONG(_kern, OID_AUTO, maxdsiz, CTLFLAG_RDTUN, &maxdsiz, 0,
+    "max data size");
+SYSCTL_ULONG(_kern, OID_AUTO, dflssiz, CTLFLAG_RDTUN, &dflssiz, 0,
+    "initial stack size limit");
+SYSCTL_ULONG(_kern, OID_AUTO, maxssiz, CTLFLAG_RDTUN, &maxssiz, 0,
+    "max stack size");
+SYSCTL_ULONG(_kern, OID_AUTO, sgrowsiz, CTLFLAG_RDTUN, &sgrowsiz, 0,
+    "amount to grow stack");
 
 /*
  * These have to be allocated somewhere; allocating
