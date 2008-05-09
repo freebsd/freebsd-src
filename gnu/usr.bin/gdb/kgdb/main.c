@@ -37,7 +37,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/wait.h>
 #include <errno.h>
 #include <err.h>
-#include <fcntl.h>
 #include <inttypes.h>
 #include <kvm.h>
 #include <limits.h>
@@ -55,40 +54,29 @@ __FBSDID("$FreeBSD$");
 #include <interps.h>
 #include <cli-out.h>
 #include <main.h>
+#include <objfiles.h>
 #include <target.h>
 #include <top.h>
+#include <ui-file.h>
 #include <bfd.h>
 #include <gdbcore.h>
 #include <wrapper.h>
 
-extern void (*init_ui_hook)(char *);
-
 extern frame_unwind_sniffer_ftype *kgdb_sniffer_kluge;
 
-extern void symbol_file_add_main (char *args, int from_tty);
-
 #include "kgdb.h"
-
-kvm_t *kvm;
-static char kvm_err[_POSIX2_LINE_MAX];
 
 static int dumpnr;
 static int quiet;
 static int verbose;
 
 static char crashdir[PATH_MAX];
-char *kernel;
+static char *kernel;
 static char *remote;
 static char *vmcore;
+static struct ui_file *parse_gdberr;
 
 static void (*kgdb_new_objfile_chain)(struct objfile * objfile);
-
-static void
-kgdb_atexit(void)
-{
-	if (kvm != NULL)
-		kvm_close(kvm);
-}
 
 static void
 usage(void)
@@ -168,27 +156,42 @@ kernel_from_dumpnr(int nr)
 static void
 kgdb_new_objfile(struct objfile *objfile)
 {
-#if 0
-	printf("XXX: %s(%p)\n", __func__, objfile);
-	if (objfile != NULL) {
-		goto out;
-	}
+	static int once = 1;
 
-out:
-#endif
+	kld_new_objfile(objfile);
+	kgdb_trgt_new_objfile(objfile);
+
 	if (kgdb_new_objfile_chain != NULL)
 		kgdb_new_objfile_chain(objfile);
+
+	if (once && objfile != NULL && objfile == symfile_objfile) {
+		/*
+		 * The initial kernel has just been loaded.  Start the
+		 * remote target if we have one.
+		 */
+		once = 0;
+		if (remote != NULL)
+			push_remote_target (remote, 0);
+	}
 }
 
+/*
+ * Parse an expression and return its value.  If 'quiet' is true, then
+ * any error messages from the parser are masked.
+ */
 CORE_ADDR
-kgdb_parse(const char *exp)
+kgdb_parse_1(const char *exp, int quiet)
 {
+	struct ui_file *old_stderr;
 	struct cleanup *old_chain;
 	struct expression *expr;
 	struct value *val;
 	char *s;
 	CORE_ADDR n;
 
+	old_stderr = gdb_stderr;
+	if (quiet)
+		gdb_stderr = parse_gdberr;
 	n = 0;
 	s = xstrdup(exp);
 	old_chain = make_cleanup(xfree, s);
@@ -198,44 +201,18 @@ kgdb_parse(const char *exp)
 		    n = value_as_address(val);
 	}
 	do_cleanups(old_chain);
+	gdb_stderr = old_stderr;
 	return (n);
 }
 
 #define	MSGBUF_SEQ_TO_POS(size, seq)	((seq) % (size))
 
-static void
-kgdb_init_target(void)
+void
+kgdb_dmesg(void)
 {
 	CORE_ADDR bufp;
 	int size, rseq, wseq;
-	int kern_desc;
 	char c;
-
-	kern_desc = open(kernel, O_RDONLY);
-	if (kern_desc == -1)
-		errx(1, "couldn't open a kernel image");
-
-	kern_bfd = bfd_fdopenr(kernel, gnutarget, kern_desc);
-	if (kern_bfd == NULL) {
-		close(kern_desc);
-		errx(1, "\"%s\": can't open to probe ABI: %s.", kernel,
-			bfd_errmsg (bfd_get_error ()));
-	}
-	bfd_set_cacheable(kern_bfd, 1);
-
-	if (!bfd_check_format (kern_bfd, bfd_object)) {
-		bfd_close(kern_bfd);
-		errx(1, "\"%s\": not in executable format: %s", kernel,
-			bfd_errmsg(bfd_get_error()));
-        }
-
-	set_gdbarch_from_file (kern_bfd);
-
-	symbol_file_add_main (kernel, 0);
-	if (remote)
-		push_remote_target (remote, 0);
-	else
-		kgdb_target();
 
 	/*
 	 * Display the unread portion of the message buffer. This gives the
@@ -266,37 +243,54 @@ kgdb_init_target(void)
 }
 
 static void
-kgdb_interp_command_loop(void *data)
+kgdb_init(char *argv0 __unused)
 {
-	static int once = 0;
 
-	if (!once) {
-		once = 1;
-		kgdb_init_target();
-		print_stack_frame(get_selected_frame(),
-		    frame_relative_level(get_selected_frame()), 1);
+	parse_gdberr = mem_fileopen();
+	set_prompt("(kgdb) ");
+	initialize_kgdb_target();
+	initialize_kld_target();
+	kgdb_new_objfile_chain = target_new_objfile_hook;
+	target_new_objfile_hook = kgdb_new_objfile;
+}
+
+/*
+ * Remote targets can support any number of syntaxes and we want to
+ * support them all with one addition: we support specifying a device
+ * node for a serial device without the "/dev/" prefix.
+ *
+ * What we do is to stat(2) the existing remote target first.  If that
+ * fails, we try it with "/dev/" prepended.  If that succeeds we use
+ * the resulting path, otherwise we use the original target.  If
+ * either stat(2) succeeds make sure the file is either a character
+ * device or a FIFO.
+ */
+static void
+verify_remote(void)
+{
+	char path[PATH_MAX];
+	struct stat st;
+
+	if (stat(remote, &st) != 0) {
+		snprintf(path, sizeof(path), "/dev/%s", remote);
+		if (stat(path, &st) != 0)
+			return;
+		free(remote);
+		remote = strdup(path);
 	}
-	command_loop();
+	if (!S_ISCHR(st.st_mode) && !S_ISFIFO(st.st_mode))
+		errx(1, "%s: not a special file, FIFO or socket", remote);
 }
 
 static void
-kgdb_init(char *argv0 __unused)
+add_arg(struct captured_main_args *args, char *arg)
 {
-	static struct interp_procs procs = {
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		kgdb_interp_command_loop
-	};
-	struct interp *kgdb;
-	kgdb = interp_new("kgdb", NULL, cli_out_new(gdb_stdout), &procs);
-	interp_add(kgdb);
 
-	set_prompt("(kgdb) ");
-	kgdb_new_objfile_chain = target_new_objfile_hook;
-	target_new_objfile_hook = kgdb_new_objfile;
+	args->argc++;
+	args->argv = reallocf(args->argv, (args->argc + 1) * sizeof(char *));
+	if (args->argv == NULL)
+		err(1, "Out of memory building argument list");
+	args->argv[args->argc] = arg;
 }
 
 int
@@ -306,7 +300,7 @@ main(int argc, char *argv[])
 	struct stat st;
 	struct captured_main_args args;
 	char *s;
-	int a, ch, writecore;
+	int a, ch;
 
 	dumpnr = -1;
 
@@ -331,7 +325,11 @@ main(int argc, char *argv[])
 	}
 
 	quiet = 0;
-	writecore = 0;
+	memset (&args, 0, sizeof args);
+	args.use_windows = 0;
+	args.interpreter_p = INTERP_CONSOLE;
+	args.argv = malloc(sizeof(char *));
+	args.argv[0] = argv[0];
 
 	while ((ch = getopt(argc, argv, "ac:d:fn:qr:vw")) != -1) {
 		switch (ch) {
@@ -364,6 +362,7 @@ main(int argc, char *argv[])
 			break;
 		case 'q':
 			quiet = 1;
+			add_arg(&args, "-q");
 			break;
 		case 'r':	/* use given device for remote session. */
 			if (remote != NULL) {
@@ -378,7 +377,7 @@ main(int argc, char *argv[])
 			verbose++;
 			break;
 		case 'w':	/* core file is writeable. */
-			writecore = 1;
+			add_arg(&args, "--write");
 			break;
 		case '?':
 		default:
@@ -411,21 +410,8 @@ main(int argc, char *argv[])
 		if (!S_ISREG(st.st_mode))
 			errx(1, "%s: not a regular file", path);
 		vmcore = strdup(path);
-	} else if (remote != NULL && remote[0] != ':' && remote[0] != '|') {
-		if (stat(remote, &st) != 0) {
-			snprintf(path, sizeof(path), "/dev/%s", remote);
-			if (stat(path, &st) != 0) {
-				err(1, "%s", remote);
-				/* NOTREACHED */
-			}
-			free(remote);
-			remote = strdup(path);
-		}
-		if (!S_ISCHR(st.st_mode) && !S_ISFIFO(st.st_mode)) {
-			errx(1, "%s: not a special file, FIFO or socket",
-			    remote);
-			/* NOTREACHED */
-		}
+	} else if (remote != NULL) {
+		verify_remote();
 	} else if (argc > optind) {
 		if (vmcore == NULL)
 			vmcore = strdup(argv[optind++]);
@@ -445,17 +431,9 @@ main(int argc, char *argv[])
 			warnx("kernel image: %s", kernel);
 	}
 
-	/*
-	 * At this point we must either have a core file or have a kernel
-	 * with a remote target.
-	 */
+	/* A remote target requires an explicit kernel argument. */
 	if (remote != NULL && kernel == NULL) {
 		warnx("remote debugging requires a kernel");
-		usage();
-		/* NOTREACHED */
-	}
-	if (vmcore == NULL && remote == NULL) {
-		warnx("need a core file or a device for remote debugging");
 		usage();
 		/* NOTREACHED */
 	}
@@ -470,27 +448,16 @@ main(int argc, char *argv[])
 		if (verbose)
 			warnx("kernel image: %s", kernel);
 	}
+	add_arg(&args, kernel);
 
-	if (remote == NULL) {
-		kvm = kvm_openfiles(kernel, vmcore, NULL,
-		    writecore ? O_RDWR : O_RDONLY, kvm_err);
-		if (kvm == NULL)
-			errx(1, kvm_err);
-		atexit(kgdb_atexit);
-		kgdb_thr_init();
-	}
+	if (vmcore != NULL)
+		add_arg(&args, vmcore);
 
 	/* The libgdb code uses optind too. Reset it... */
 	optind = 0;
 
-	memset (&args, 0, sizeof args);
-	args.argv = argv;
-	args.argc = 1 + quiet;
-	if (quiet)
-		argv[1] = "-q";
-	argv[args.argc] = NULL;
-	args.use_windows = 0;
-	args.interpreter_p = "kgdb";
+	/* Terminate argv list. */
+	add_arg(&args, NULL);
 
 	init_ui_hook = kgdb_init;
 
