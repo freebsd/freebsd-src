@@ -1027,16 +1027,13 @@ scrub_opt	: NODF	{
 			scrub_opts.randomid = 1;
 		}
 		| RTABLE number				{
-#ifdef __FreeBSD__
-			yyerror("rtable id not supported in FreeBSD, yet");
-			YYERROR;
-#else
+#ifndef __FreeBSD__
 			if ($2 > RT_TABLEID_MAX || $2 < 0) {
 				yyerror("invalid rtable id");
 				YYERROR;
 			}
-			scrub_opts.rtableid = $2;
 #endif
+			scrub_opts.rtableid = $2;
 		}
 		;
 
@@ -1175,16 +1172,13 @@ antispoof_opt	: label	{
 			antispoof_opts.label = $1;
 		}
 		| RTABLE number				{
-#ifdef __FreeBSD__
-			yyerror("rtable id not supported in FreeBSD, yet");
-			YYERROR;
-#else
+#ifndef __FreeBSD__
 			if ($2 > RT_TABLEID_MAX || $2 < 0) {
 				yyerror("invalid rtable id");
 				YYERROR;
 			}
-			antispoof_opts.rtableid = $2;
 #endif
+			antispoof_opts.rtableid = $2;
 		}
 		;
 
@@ -2153,16 +2147,13 @@ filter_opt	: USER uids {
 			free($2);
 		}
 		| RTABLE number				{
-#ifdef __FreeBSD__
-			yyerror("rtable id not supported in FreeBSD, yet");
-			YYERROR;
-#else
+#ifndef __FreeBSD__
 			if ($2 > RT_TABLEID_MAX || $2 < 0) {
 				yyerror("invalid rtable id");
 				YYERROR;
 			}
-			filter_opts.rtableid = $2;
 #endif
+			filter_opts.rtableid = $2;
 		}
 		;
 
