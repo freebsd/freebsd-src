@@ -20,8 +20,8 @@ then imported by:
 The date in the tag can be obtained from contrib/ncurses/dist.mk.
 If the version is a snapshot,
 
-	cvs import -m 'Import ncurses 5.6-20080209 snapshot onto the vendor branch' \
-		src/contrib/ncurses NCURSES v5_6_20080209
+	cvs import -m 'Import ncurses 5.6-20080503 snapshot onto the vendor branch' \
+		src/contrib/ncurses NCURSES v5_6_20080503
 
 Remove files that are removed in this release in vendor branch (NCURSES)
 instead of HEAD.
