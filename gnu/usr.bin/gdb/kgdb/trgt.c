@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <command.h>
 #include <exec.h>
 #include <frame-unwind.h>
+#include <gdb.h>
 #include <gdbcore.h>
 #include <gdbthread.h>
 #include <inferior.h>
@@ -48,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <regcache.h>
 #include <solib.h>
 #include <target.h>
+#include <ui-out.h>
 
 #include "kgdb.h"
 
@@ -125,11 +127,11 @@ kgdb_trgt_open(char *filename, int from_tty)
 	init_thread_list();
 	kt = kgdb_thr_init();
 	while (kt != NULL) {
-		ti = add_thread(ptid_build(kt->pid, 0, kt->tid));
+		ti = add_thread(pid_to_ptid(kt->tid));
 		kt = kgdb_thr_next(kt);
 	}
 	if (curkthr != 0)
-		inferior_ptid = ptid_build(curkthr->pid, 0, curkthr->tid);
+		inferior_ptid = pid_to_ptid(curkthr->tid);
 
 	if (ontop) {
 		/* XXX: fetch registers? */
@@ -187,14 +189,8 @@ kgdb_trgt_detach(char *args, int from_tty)
 static char *
 kgdb_trgt_extra_thread_info(struct thread_info *ti)
 {
-	static char buf[64];
-	char *p, *s;
 
-	p = buf + snprintf(buf, sizeof(buf), "PID=%d", ptid_get_pid(ti->ptid));
-	s = kgdb_thr_extra_thread_info(ptid_get_tid(ti->ptid));
-	if (s != NULL)
-		snprintf(p, sizeof(buf) - (p - buf), ": %s", s);
-	return (buf);
+	return (kgdb_thr_extra_thread_info(ptid_get_pid(ti->ptid)));
 }
 
 static void
@@ -224,14 +220,14 @@ kgdb_trgt_pid_to_str(ptid_t ptid)
 {
 	static char buf[33];
 
-	snprintf(buf, sizeof(buf), "Thread %ld", ptid_get_tid(ptid));
+	snprintf(buf, sizeof(buf), "Thread %d", ptid_get_pid(ptid));
 	return (buf);
 }
 
 static int
 kgdb_trgt_thread_alive(ptid_t ptid)
 {
-	return (kgdb_thr_lookup_tid(ptid_get_tid(ptid)) != NULL);
+	return (kgdb_thr_lookup_tid(ptid_get_pid(ptid)) != NULL);
 }
 
 static int
@@ -260,16 +256,16 @@ kgdb_trgt_ignore_breakpoints(CORE_ADDR addr, char *contents)
 }
 
 static void
-kgdb_switch_to_thread(struct kthr *thr)
+kgdb_switch_to_thread(int tid)
 {
-	if (thr->tid == ptid_get_tid(inferior_ptid))
-		return;
+	char buf[16];
+	int thread_id;
 
-	inferior_ptid = ptid_build(thr->pid, 0, thr->tid);
-	flush_cached_frames ();
-	registers_changed ();
-	stop_pc = read_pc ();
-	select_frame (get_current_frame ());
+	thread_id = pid_to_thread_id(pid_to_ptid(tid));
+	if (thread_id == 0)
+		error ("invalid tid");
+	snprintf(buf, sizeof(buf), "%d", thread_id);
+	gdb_thread_select(uiout, buf);
 }
 
 static void
@@ -282,7 +278,7 @@ kgdb_set_proc_cmd (char *arg, int from_tty)
 		error_no_arg ("proc address for the new context");
 
 	if (kvm == NULL)
-		error ("no kernel core file");
+		error ("only supported for core file target");
 
 	addr = (CORE_ADDR) parse_and_eval_address (arg);
 
@@ -295,7 +291,7 @@ kgdb_set_proc_cmd (char *arg, int from_tty)
 		if (thr == NULL)
 			error("invalid proc address");
 	}
-	kgdb_switch_to_thread(thr);
+	kgdb_switch_to_thread(thr->tid);
 }
 
 static void
@@ -307,21 +303,15 @@ kgdb_set_tid_cmd (char *arg, int from_tty)
 	if (!arg)
 		error_no_arg ("TID or thread address for the new context");
 
-	if (kvm == NULL)
-		error ("no kernel core file");
-
 	addr = (CORE_ADDR) parse_and_eval_address (arg);
 
-	if (!INKERNEL (addr)) {
-		thr = kgdb_thr_lookup_tid((int)addr);
-		if (thr == NULL)
-			error ("invalid TID");
-	} else {
+	if (kvm != NULL && INKERNEL (addr)) {
 		thr = kgdb_thr_lookup_taddr(addr);
 		if (thr == NULL)
 			error("invalid thread address");
+		addr = thr->tid;
 	}
-	kgdb_switch_to_thread(thr);
+	kgdb_switch_to_thread(addr);
 }
 
 int fbsdcoreops_suppress_target = 1;
