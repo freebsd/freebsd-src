@@ -111,11 +111,17 @@ typedef union {
 
 static sa_u pt_u;
 
+int	fibnum;
 int	do_rtent = 0;
 struct	rtentry rtentry;
 struct	radix_node rnode;
 struct	radix_mask rmask;
-struct	radix_node_head *rt_tables[AF_MAX+1];
+struct  rtline  {
+	struct	radix_node_head *tables[AF_MAX+1]; /*xxx*/
+};
+struct	rtline *rt_tables;
+
+struct	radix_node_head *rt_tables_line[1][AF_MAX+1]; /*xxx*/
 
 int	NewTree = 0;
 
@@ -145,7 +151,16 @@ routepr(u_long rtree)
 {
 	struct radix_node_head *rnh, head;
 	int i;
+	int numfibs;
 
+	i = sizeof(int);
+	if (sysctlbyname("net.my_fibnum", &fibnum, &i, NULL, 0) == -1)
+		fibnum = 0;
+	if (sysctlbyname("net.fibs", &numfibs, &i, NULL, 0) == -1)
+		numfibs = 1;
+	rt_tables = calloc(numfibs, sizeof(struct rtline));
+	if (rt_tables == NULL)
+		err(EX_OSERR, "memory allocation failed");
 	/*
 	 * Since kernel & userland use different timebase
 	 * (time_uptime vs time_second) and we are reading kernel memory
@@ -164,10 +179,16 @@ routepr(u_long rtree)
 			return;
 		}
 
-		if (kget(rtree, rt_tables) != 0)
+		if (kread((u_long)(rtree), (char *)(rt_tables),
+		    (numfibs * sizeof(struct rtline))) != 0)
 			return;
 		for (i = 0; i <= AF_MAX; i++) {
-			if ((rnh = rt_tables[i]) == 0)
+			int tmpfib;
+			if (i != AF_INET)
+				tmpfib = 0;
+			else
+				tmpfib = fibnum;
+			if ((rnh = rt_tables[tmpfib].tables[i]) == 0)
 				continue;
 			if (kget(rnh, head) != 0)
 				continue;
