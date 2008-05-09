@@ -6,8 +6,8 @@
 # Report bugs and new terminal descriptions to
 #	bug-ncurses@gnu.org
 #
-#	$Revision: 1.326 $
-#	$Date: 2007/11/12 00:22:07 $
+#	$Revision: 1.328 $
+#	$Date: 2008/04/29 00:49:41 $
 #
 # The original header is preserved below for reference.  It is noted that there
 # is a "newer" version which differs in some cosmetic details (but actually
@@ -4359,13 +4359,20 @@ screen-256color-bce-s|GNU Screen with 256 colors, BCE, and status line,
 #       if the terminal is wide (132 cols or more)).  If even this
 #       entry cannot be found, "vt100" is used as a substitute.
 #
+# Notwithstanding the manpage, screen uses its own notion of the termcap
+# and some keys from "screen.<term>" are ignored.  Here is an entry which
+# covers those (tested with screen 4.00.02) -TD
+screen+fkeys|function-keys according to screen,
+	kend=\E[4~, kf1=\EOP, kf2=\EOQ, kf3=\EOR, kf4=\EOS, kfnd@,
+	khome=\E[1~, kslt@,
+#
 # Here are a few customized entries which are useful -TD
 #
 # Notes:
 # (a)	screen does not support invis.
 # (b)	screen's implementation of bw is incorrect according to tack.
 # (c)	screen appears to hardcode the strings for khome/kend, making it
-#	necessary to override the "use=" clause's values.
+#	necessary to override the "use=" clause's values (screen+fkeys).
 # (d)	screen sets $TERMCAP to a termcap-formatted copy of the 'screen' entry,
 #	which is NOT the same as the terminfo screen.<term>.
 # (e)	when screen finds one of these customized entries, it sets $TERM to
@@ -4377,24 +4384,29 @@ screen-256color-bce-s|GNU Screen with 256 colors, BCE, and status line,
 #	translation.  They are suppressed here to show what is tested by tack.
 screen.xterm-xfree86|screen.xterm-new|screen customized for modern xterm,
 	bce@, bw,
-	invis@, kIC@, kNXT@, kPRV@, kend=\E[4~, khome=\E[1~, meml@,
-	memu@,
+	invis@, kIC@, kNXT@, kPRV@, meml@, memu@,
 	sgr=%?%p9%t\E(0%e\E(B%;\E[0%?%p6%t;1%;%?%p2%t;4%;%?%p1%p3%|%t;7%;%?%p4%t;5%;m,
-	use=xterm-new,
+	use=screen+fkeys, use=xterm-new,
 # xterm-r6 does not really support khome/kend unless it is propped up by
 # the translations resource.
 screen.xterm-r6|screen customized for X11R6 xterm,
-	bw, use=xterm-r6,
+	bw, use=screen+fkeys, use=xterm-r6,
 # Color applications running in screen and TeraTerm do not play well together
 # on Solaris because Sun's curses implementation gets confused.
 screen.teraterm|disable ncv in teraterm,
 	ncv#127,
 	acsc=+\020\,\021-\030.^Y0\333`\004a\261f\370g\361h\260i\316j\331k\277l\332m\300n\305o~p\304q\304r\304s_t\303u\264v\301w\302x\263y\363z\362{\343|\330}\234~\376,
-	use=screen,
+	use=screen+fkeys, use=screen,
+# Other terminals
+screen.rxvt|screen in rxvt,
+	bw,
+	cvvis@, flash@, kcub1=\EOD, kcud1=\EOB, kcuf1=\EOC,
+	kcuu1=\EOA, use=screen+fkeys, use=vt100+enq,
+	use=rxvt+pcfkeys, use=vt220+keypad, use=screen,
 # fix the backspace key
 screen.linux|screen in linux console,
 	bw,
-	kbs=\177, kcbt@, use=screen,
+	kbs=\177, kcbt@, use=screen+fkeys, use=screen,
 
 screen-w|VT 100/ANSI X3.64 virtual terminal with 132 cols,
 	cols#132, use=screen,
@@ -21660,6 +21672,12 @@ v3220|LANPAR Vision II model 3220/3221/3222,
 #	* extend xterm+pccX entries to match xterm #230 -TD
 #	* add xterm+app, xterm+noapp, from xterm #230 -TD
 #	* add/use xterm+pce2 from xterm #230, in xterm+pcfkeys -TD
+#
+# 2008-04-19
+#	* add screen.rxvt -TD
+#
+# 2008-04-28
+#	* add screen+fkeys (prompted by Debian # 478094) -TD
 #
 # The following sets edit modes for GNU EMACS.
 # Local Variables:

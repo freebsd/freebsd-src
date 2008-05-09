@@ -53,7 +53,7 @@
 
 #include <term.h>		/* lines, columns, cur_term */
 
-MODULE_ID("$Id: lib_setup.c,v 1.102 2008/01/19 21:07:45 tom Exp $")
+MODULE_ID("$Id: lib_setup.c,v 1.105 2008/05/03 22:41:42 tom Exp $")
 
 /****************************************************************************
  *
@@ -154,23 +154,19 @@ set_tabsize(int value)
  * If we have a pending SIGWINCH, set the flag in each screen.
  */
 NCURSES_EXPORT(int)
-_nc_handle_sigwinch(int update)
+_nc_handle_sigwinch(SCREEN *sp)
 {
     SCREEN *scan;
-
-    (void) update;		/* no longer used */
 
     if (_nc_globals.have_sigwinch) {
 	_nc_globals.have_sigwinch = 0;
 
-	scan = _nc_screen_chain;
-	while (scan) {
+	for (each_screen(scan)) {
 	    scan->_sig_winch = TRUE;
-	    scan = scan->_next_screen;
 	}
     }
 
-    return (SP ? SP->_sig_winch : 0);
+    return (sp ? sp->_sig_winch : 0);
 }
 
 #endif
@@ -184,7 +180,7 @@ use_env(bool f)
 }
 
 NCURSES_EXPORT(void)
-_nc_get_screensize(int *linep, int *colp)
+_nc_get_screensize(SCREEN *sp, int *linep, int *colp)
 /* Obtain lines/columns values from the environment and/or terminfo entry */
 {
     int my_tabsize;
@@ -238,7 +234,7 @@ _nc_get_screensize(int *linep, int *colp)
 		 * environment variable.
 		 */
 		if (*linep <= 0)
-		    *linep = (SP != 0 && SP->_filtered) ? 1 : WINSIZE_ROWS(size);
+		    *linep = (sp != 0 && sp->_filtered) ? 1 : WINSIZE_ROWS(size);
 		if (*colp <= 0)
 		    *colp = WINSIZE_COLS(size);
 	    }
@@ -279,8 +275,8 @@ _nc_get_screensize(int *linep, int *colp)
 	my_tabsize = 8;
 
 #if USE_REENTRANT
-    if (SP != 0)
-	SP->_TABSIZE = my_tabsize;
+    if (sp != 0)
+	sp->_TABSIZE = my_tabsize;
 #else
     TABSIZE = my_tabsize;
 #endif
@@ -289,25 +285,25 @@ _nc_get_screensize(int *linep, int *colp)
 
 #if USE_SIZECHANGE
 NCURSES_EXPORT(void)
-_nc_update_screensize(void)
+_nc_update_screensize(SCREEN *sp)
 {
     int old_lines = lines;
     int new_lines;
     int old_cols = columns;
     int new_cols;
 
-    _nc_get_screensize(&new_lines, &new_cols);
+    _nc_get_screensize(sp, &new_lines, &new_cols);
 
     /*
      * See is_term_resized() and resizeterm().
      * We're doing it this way because those functions belong to the upper
      * ncurses library, while this resides in the lower terminfo library.
      */
-    if (SP != 0
-	&& SP->_resize != 0) {
+    if (sp != 0
+	&& sp->_resize != 0) {
 	if ((new_lines != old_lines) || (new_cols != old_cols))
-	    SP->_resize(new_lines, new_cols);
-	SP->_sig_winch = FALSE;
+	    sp->_resize(new_lines, new_cols);
+	sp->_sig_winch = FALSE;
     }
 }
 #endif
@@ -590,10 +586,11 @@ _nc_setupterm(NCURSES_CONST char *tname, int Filedes, int *errret, bool reuse)
      * We should always check the screensize, just in case.
      */
 #if USE_REENTRANT
-    _nc_get_screensize(SP ? &(SP->_LINES) : &(_nc_prescreen._LINES),
+    _nc_get_screensize(SP,
+		       SP ? &(SP->_LINES) : &(_nc_prescreen._LINES),
 		       SP ? &(SP->_COLS) : &(_nc_prescreen._COLS));
 #else
-    _nc_get_screensize(&LINES, &COLS);
+    _nc_get_screensize(SP, &LINES, &COLS);
 #endif
 
     if (errret)

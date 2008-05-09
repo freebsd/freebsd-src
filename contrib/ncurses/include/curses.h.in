@@ -32,7 +32,7 @@
  *     and: Thomas E. Dickey                        1996-on                 *
  ****************************************************************************/
 
-/* $Id: curses.h.in,v 1.183 2008/01/19 20:03:48 tom Exp $ */
+/* $Id: curses.h.in,v 1.186 2008/04/05 15:30:28 tom Exp $ */
 
 #ifndef __NCURSES_H
 #define __NCURSES_H
@@ -830,7 +830,8 @@ extern NCURSES_EXPORT(int) getpary (const WINDOW *);			/* generated */
 #if @NCURSES_EXT_FUNCS@
 #undef  NCURSES_EXT_FUNCS
 #define NCURSES_EXT_FUNCS @NCURSES_PATCH@
-typedef int (*NCURSES_CALLBACK)(WINDOW *, void *);
+typedef int (*NCURSES_WINDOW_CB)(WINDOW *, void *);
+typedef int (*NCURSES_SCREEN_CB)(SCREEN *, void *);
 extern NCURSES_EXPORT(bool) is_term_resized (int, int);
 extern NCURSES_EXPORT(char *) keybound (int, int);
 extern NCURSES_EXPORT(const char *) curses_version (void);
@@ -845,8 +846,8 @@ extern NCURSES_EXPORT(int) set_tabsize (int);
 extern NCURSES_EXPORT(int) use_default_colors (void);
 extern NCURSES_EXPORT(int) use_extended_names (bool);
 extern NCURSES_EXPORT(int) use_legacy_coding (int);
-extern NCURSES_EXPORT(int) use_screen (SCREEN *, NCURSES_CALLBACK, void *);
-extern NCURSES_EXPORT(int) use_window (WINDOW *, NCURSES_CALLBACK, void *);
+extern NCURSES_EXPORT(int) use_screen (SCREEN *, NCURSES_SCREEN_CB, void *);
+extern NCURSES_EXPORT(int) use_window (WINDOW *, NCURSES_WINDOW_CB, void *);
 extern NCURSES_EXPORT(int) wresize (WINDOW *, int, int);
 extern NCURSES_EXPORT(void) nofilter(void);
 
@@ -911,17 +912,21 @@ extern NCURSES_EXPORT(int) wgetscrreg (const WINDOW *, int *, int *); /* generat
 #define getmaxyx(win,y,x)	(y = getmaxy(win), x = getmaxx(win))
 #define getparyx(win,y,x)	(y = getpary(win), x = getparx(win))
 
-#define getsyx(y,x) do { if (is_leaveok(newscr)) \
-			    (y) = (x) = -1; \
-			 else \
-			     getyx(newscr,(y), (x)); \
+#define getsyx(y,x) do { if (newscr) { \
+			     if (is_leaveok(newscr)) \
+				(y) = (x) = -1; \
+			     else \
+				 getyx(newscr,(y), (x)); \
+			} \
 		    } while(0)
 
-#define setsyx(y,x) do { if ((y) == -1 && (x) == -1) \
-			    leaveok(newscr, TRUE); \
-			 else { \
-			    leaveok(newscr, FALSE); \
-			    wmove(newscr, (y), (x)); \
+#define setsyx(y,x) do { if (newscr) { \
+			    if ((y) == -1 && (x) == -1) \
+				leaveok(newscr, TRUE); \
+			    else { \
+				leaveok(newscr, FALSE); \
+				wmove(newscr, (y), (x)); \
+			    } \
 			} \
 		    } while(0)
 
@@ -1109,13 +1114,13 @@ extern NCURSES_EXPORT(int) wgetscrreg (const WINDOW *, int *, int *); /* generat
 #define wattr_set(win,a,p,opts)		((win)->_attrs = ((a) & ~A_COLOR), \
 					 (win)->_color = (p), \
 					 OK)
-#define wattr_get(win,a,p,opts)		((void)((a) != 0 && (*(a) = (win)->_attrs)), \
-					 (void)((p) != 0 && (*(p) = (win)->_color)), \
+#define wattr_get(win,a,p,opts)		((void)((a) != (void *)0 && (*(a) = (win)->_attrs)), \
+					 (void)((p) != (void *)0 && (*(p) = (win)->_color)), \
 					 OK)
 #else
 #define wattr_set(win,a,p,opts)		((win)->_attrs = (((a) & ~A_COLOR) | COLOR_PAIR(p)), OK)
-#define wattr_get(win,a,p,opts)		((void)((a) != 0 && (*(a) = (win)->_attrs)), \
-					 (void)((p) != 0 && (*(p) = PAIR_NUMBER((win)->_attrs))), \
+#define wattr_get(win,a,p,opts)		((void)((a) != (void *)0 && (*(a) = (win)->_attrs)), \
+					 (void)((p) != (void *)0 && (*(p) = PAIR_NUMBER((win)->_attrs))), \
 					 OK)
 #endif
 #endif /* NCURSES_OPAQUE */

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -46,7 +46,7 @@
 
 #include <ctype.h>
 
-MODULE_ID("$Id: lib_trace.c,v 1.65 2007/09/29 21:47:46 tom Exp $")
+MODULE_ID("$Id: lib_trace.c,v 1.66 2008/03/22 16:56:48 tom Exp $")
 
 NCURSES_EXPORT_VAR(unsigned) _nc_tracing = 0; /* always define this */
 
@@ -167,6 +167,18 @@ _nc_va_tracef(const char *fmt, va_list ap)
     if (doit != 0) {
 	if (TraceFP == 0)
 	    TraceFP = stderr;
+#ifdef USE_PTHREADS
+	/*
+	 * TRACE_ICALLS is "really" needed to show normal use with threaded
+	 * applications, since anything can be running during a napms(),
+	 * making it appear in the hierarchical trace as it other functions
+	 * are being called.
+	 *
+	 * Rather than add the complication of a per-thread stack, just
+	 * show the thread-id in each line of the trace.
+	 */
+	fprintf(TraceFP, "%#lx:", (long) pthread_self());
+#endif
 	if (before || after) {
 	    int n;
 	    for (n = 1; n < TraceLevel; n++)
