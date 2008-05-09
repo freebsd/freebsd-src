@@ -41,7 +41,7 @@
 #include <curses.priv.h>
 #include <term.h>
 
-MODULE_ID("$Id: resizeterm.c,v 1.30 2008/01/12 22:26:56 tom Exp $")
+MODULE_ID("$Id: resizeterm.c,v 1.32 2008/05/03 14:28:55 tom Exp $")
 
 #define stolen_lines (screen_lines - SP->_lines_avail)
 
@@ -69,7 +69,7 @@ show_window_sizes(const char *name)
     _nc_lock_global(windowlist);
     _tracef("%s resizing: %2d x %2d (%2d x %2d)", name, LINES, COLS,
 	    screen_lines, screen_columns);
-    for (wp = _nc_windows; wp != 0; wp = wp->next) {
+    for (each_window(wp)) {
 	_tracef("  window %p is %2ld x %2ld at %2ld,%2ld",
 		&(wp->win),
 		(long) wp->win._maxy + 1,
@@ -104,7 +104,7 @@ ripped_window(WINDOW *win)
     ripoff_t *rop;
 
     if (win != 0) {
-	for (rop = ripoff_stack; (rop - ripoff_stack) < N_RIPS; rop++) {
+	for (each_ripoff(rop)) {
 	    if (rop->win == win && rop->line != 0) {
 		result = rop;
 		break;
@@ -125,7 +125,7 @@ ripped_bottom(WINDOW *win)
     ripoff_t *rop;
 
     if (win != 0) {
-	for (rop = ripoff_stack; (rop - ripoff_stack) < N_RIPS; rop++) {
+	for (each_ripoff(rop)) {
 	    if (rop->line < 0) {
 		result -= rop->line;
 		if (rop->win == win) {
@@ -148,7 +148,7 @@ child_depth(WINDOW *cmp)
     if (cmp != 0) {
 	WINDOWLIST *wp;
 
-	for (wp = _nc_windows; wp != 0; wp = wp->next) {
+	for (each_window(wp)) {
 	    WINDOW *tst = &(wp->win);
 	    if (tst->_parent == cmp) {
 		depth = 1 + child_depth(tst);
@@ -251,7 +251,7 @@ decrease_size(int ToLines, int ToCols, int stolen EXTRA_DCLS)
 	found = FALSE;
 	TR(TRACE_UPDATE, ("decreasing size of windows to %dx%d, depth=%d",
 			  ToLines, ToCols, depth));
-	for (wp = _nc_windows; wp != 0; wp = wp->next) {
+	for (each_window(wp)) {
 	    WINDOW *win = &(wp->win);
 
 	    if (!(win->_flags & _ISPAD)) {
@@ -285,7 +285,7 @@ increase_size(int ToLines, int ToCols, int stolen EXTRA_DCLS)
 	found = FALSE;
 	TR(TRACE_UPDATE, ("increasing size of windows to %dx%d, depth=%d",
 			  ToLines, ToCols, depth));
-	for (wp = _nc_windows; wp != 0; wp = wp->next) {
+	for (each_window(wp)) {
 	    WINDOW *win = &(wp->win);
 
 	    if (!(win->_flags & _ISPAD)) {
@@ -428,7 +428,7 @@ resizeterm(int ToLines, int ToCols)
 	     * decide which to repaint, since without panels, ncurses does
 	     * not know which are really on top.
 	     */
-	    for (rop = ripoff_stack; (rop - ripoff_stack) < N_RIPS; rop++) {
+	    for (each_ripoff(rop)) {
 		if (rop->win != stdscr
 		    && rop->win != 0
 		    && rop->line < 0) {

@@ -1,5 +1,5 @@
 dnl***************************************************************************
-dnl Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
+dnl Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
 dnl                                                                          *
 dnl Permission is hereby granted, free of charge, to any person obtaining a  *
 dnl copy of this software and associated documentation files (the            *
@@ -28,7 +28,7 @@ dnl***************************************************************************
 dnl
 dnl Author: Thomas E. Dickey 1995-on
 dnl
-dnl $Id: aclocal.m4,v 1.442 2007/12/01 20:02:42 tom Exp $
+dnl $Id: aclocal.m4,v 1.447 2008/04/12 23:49:55 tom Exp $
 dnl Macros used in NCURSES auto-configuration script.
 dnl
 dnl These macros are maintained separately from NCURSES.  The copyright on
@@ -168,7 +168,7 @@ AC_SUBST(EXTRA_CPPFLAGS)
 
 ])dnl
 dnl ---------------------------------------------------------------------------
-dnl CF_ADD_INCDIR version: 8 updated: 2007/07/30 19:22:58
+dnl CF_ADD_INCDIR version: 9 updated: 2008/02/09 13:15:34
 dnl -------------
 dnl Add an include-directory to $CPPFLAGS.  Don't add /usr/include, since it's
 dnl redundant.  We don't normally need to add -I/usr/local/include for gcc,
@@ -210,7 +210,7 @@ if test -n "$1" ; then
 		fi
 
 		if test "$cf_have_incdir" = no ; then
-		  AC_VERBOSE(adding $cf_add_incdir to include-path)
+		  CF_VERBOSE(adding $cf_add_incdir to include-path)
 		  ifelse($2,,CPPFLAGS,$2)="-I$cf_add_incdir $ifelse($2,,CPPFLAGS,[$]$2)"
 
           cf_top_incdir=`echo $cf_add_incdir | sed -e 's%/include/.*$%/include%'`
@@ -225,7 +225,7 @@ if test -n "$1" ; then
 fi
 ])dnl
 dnl ---------------------------------------------------------------------------
-dnl CF_ADD_LIBDIR version: 5 updated: 2007/07/30 19:12:03
+dnl CF_ADD_LIBDIR version: 6 updated: 2008/02/09 13:15:34
 dnl -------------
 dnl	Adds to the library-path
 dnl
@@ -253,7 +253,7 @@ if test -n "$1" ; then
         done
       fi
       if test "$cf_have_libdir" = no ; then
-        AC_VERBOSE(adding $cf_add_libdir to library-path)
+        CF_VERBOSE(adding $cf_add_libdir to library-path)
         ifelse($2,,LDFLAGS,$2)="-L$cf_add_libdir $ifelse($2,,LDFLAGS,[$]$2)"
       fi
     fi
@@ -313,7 +313,7 @@ fi
 fi
 ])dnl
 dnl ---------------------------------------------------------------------------
-dnl CF_ANSI_CC_REQD version: 3 updated: 1997/09/06 13:40:44
+dnl CF_ANSI_CC_REQD version: 4 updated: 2008/03/23 14:48:54
 dnl ---------------
 dnl For programs that must use an ANSI compiler, obtain compiler options that
 dnl will make it recognize prototypes.  We'll do preprocessor checks in other
@@ -322,7 +322,7 @@ dnl the preprocessor.
 AC_DEFUN([CF_ANSI_CC_REQD],
 [AC_REQUIRE([CF_ANSI_CC_CHECK])
 if test "$cf_cv_ansi_cc" = "no"; then
-	AC_ERROR(
+	AC_MSG_ERROR(
 [Your compiler does not appear to recognize prototypes.
 You have the following choices:
 	a. adjust your compiler options
@@ -614,7 +614,7 @@ AC_MSG_RESULT($cf_cv_cgetent)
 test "$cf_cv_cgetent" = yes && AC_DEFINE(HAVE_BSD_CGETENT)
 ])dnl
 dnl ---------------------------------------------------------------------------
-dnl CF_CHECK_CACHE version: 10 updated: 2004/05/23 13:03:31
+dnl CF_CHECK_CACHE version: 11 updated: 2008/03/23 14:45:59
 dnl --------------
 dnl Check if we're accidentally using a cache from a different machine.
 dnl Derive the system name, as a check for reusing the autoconf cache.
@@ -645,7 +645,7 @@ test -n "$cf_cv_system_name" && AC_MSG_RESULT(Configuring for $cf_cv_system_name
 
 if test ".$system_name" != ".$cf_cv_system_name" ; then
 	AC_MSG_RESULT(Cached system name ($system_name) does not agree with actual ($cf_cv_system_name))
-	AC_ERROR("Please remove config.cache and try again.")
+	AC_MSG_ERROR("Please remove config.cache and try again.")
 fi
 ])dnl
 dnl ---------------------------------------------------------------------------
@@ -1057,6 +1057,34 @@ int main() {
 
 test "$cf_cv_func_nanosleep" = "yes" && AC_DEFINE(HAVE_NANOSLEEP)
 ])
+dnl ---------------------------------------------------------------------------
+dnl CF_FUNC_OPENPTY version: 2 updated: 2008/04/12 19:49:01
+dnl ---------------
+dnl Check for openpty() function, along with <pty.h> header.  It may need the
+dnl "util" library as well.
+AC_DEFUN([CF_FUNC_OPENPTY],
+[
+AC_CHECK_LIB(util,openpty,cf_cv_lib_util=yes,cf_cv_lib_util=no)
+AC_CACHE_CHECK(for openpty header,cf_cv_func_openpty,[
+    cf_save_LIBS="$LIBS"
+    test $cf_cv_lib_util = yes && LIBS="-lutil $LIBS"
+    for cf_header in pty.h libutil.h util.h
+    do
+    AC_TRY_LINK([
+#include <$cf_header>
+],[
+    int x = openpty((int *)0, (int *)0, (char *)0,
+                   (struct termios *)0, (struct winsize *)0);
+],[
+        cf_cv_func_openpty=$cf_header
+        break
+],[
+        cf_cv_func_openpty=no
+])
+    done
+    LIBS="$cf_save_LIBS"
+])
+])dnl
 dnl ---------------------------------------------------------------------------
 dnl CF_FUNC_POLL version: 4 updated: 2006/12/16 12:33:30
 dnl ------------
@@ -3445,7 +3473,7 @@ ifelse($1,,,[$1=$PATHSEP])
 	AC_SUBST(PATHSEP)
 ])dnl
 dnl ---------------------------------------------------------------------------
-dnl CF_PATH_SYNTAX version: 11 updated: 2006/09/02 08:55:46
+dnl CF_PATH_SYNTAX version: 12 updated: 2008/03/23 14:45:59
 dnl --------------
 dnl Check the argument to see that it looks like a pathname.  Rewrite it if it
 dnl begins with one of the prefix/exec_prefix variables, and then again if the
@@ -3477,7 +3505,7 @@ case ".[$]$1" in #(vi
   $1=`echo [$]$1 | sed -e s%NONE%$cf_path_syntax%`
   ;;
 *)
-  ifelse($2,,[AC_ERROR([expected a pathname, not \"[$]$1\"])],$2)
+  ifelse($2,,[AC_MSG_ERROR([expected a pathname, not \"[$]$1\"])],$2)
   ;;
 esac
 ])dnl
@@ -3894,7 +3922,7 @@ AC_MSG_RESULT(no)
 fi
 ])dnl
 dnl ---------------------------------------------------------------------------
-dnl CF_SHARED_OPTS version: 46 updated: 2007/02/24 18:58:09
+dnl CF_SHARED_OPTS version: 47 updated: 2008/03/23 14:48:54
 dnl --------------
 dnl --------------
 dnl Attempt to determine the appropriate CC/LD options for creating a shared
@@ -3940,7 +3968,7 @@ AC_DEFUN([CF_SHARED_OPTS],
 		cf_cv_shlib_version=$withval
 		;;
 	*)
-		AC_ERROR([option value must be one of: rel, abi, auto or no])
+		AC_MSG_ERROR([option value must be one of: rel, abi, auto or no])
 		;;
 	esac
 	],[cf_cv_shlib_version=auto])
@@ -4873,7 +4901,7 @@ if test "$with_dmalloc" = yes ; then
 fi
 ])dnl
 dnl ---------------------------------------------------------------------------
-dnl CF_WITH_GPM version: 6 updated: 2006/12/17 11:12:09
+dnl CF_WITH_GPM version: 7 updated: 2008/03/23 14:48:54
 dnl -----------
 dnl
 dnl The option parameter (if neither yes/no) is assumed to be the name of
@@ -4895,7 +4923,7 @@ if test "$with_gpm" != no ; then
 			AC_DEFINE(HAVE_LIBGPM)
 		else
 			AC_CHECK_LIB(gpm,Gpm_Open,[:],[
-				AC_ERROR(Cannot link with GPM library)
+				AC_MSG_ERROR(Cannot link with GPM library)
 		fi
 		with_gpm=yes
 		])
@@ -4906,7 +4934,7 @@ if test "$with_gpm" != no ; then
 fi
 ])
 dnl ---------------------------------------------------------------------------
-dnl CF_WITH_LIBTOOL version: 18 updated: 2007/04/08 20:02:38
+dnl CF_WITH_LIBTOOL version: 19 updated: 2008/03/29 15:46:43
 dnl ---------------
 dnl Provide a configure option to incorporate libtool.  Define several useful
 dnl symbols for the makefile rules.
@@ -5007,6 +5035,7 @@ ifdef([AC_PROG_LIBTOOL],[
 	case $cf_cv_libtool_version in
 	1.[[5-9]]*|[[2-9]]*)
 		LIBTOOL_CXX="$LIBTOOL --tag=CXX"
+		LIBTOOL="$LIBTOOL --tag=CC"
 		;;
 	*)
 		LIBTOOL_CXX="$LIBTOOL"
@@ -5098,6 +5127,32 @@ eval '$3="$cf_dst_path"'
 AC_SUBST($3)dnl
 
 ])dnl
+dnl ---------------------------------------------------------------------------
+dnl CF_WITH_PTHREAD version: 1 updated: 2008/03/29 13:42:21
+dnl ---------------
+dnl Check for POSIX thread library.
+AC_DEFUN([CF_WITH_PTHREAD],
+[
+AC_MSG_CHECKING(if you want to link with the pthread library)
+AC_ARG_WITH(pthread,
+    [  --with-pthread          use POSIX thread library],
+    [with_pthread=$withval],
+    [with_pthread=no])
+AC_MSG_RESULT($with_pthread)
+
+if test "$with_pthread" != no ; then
+    AC_CHECK_HEADER(pthread.h,[
+        AC_DEFINE(HAVE_PTHREADS_H)
+        AC_CHECK_LIB(pthread,pthread_create,[
+            LIBS="-lpthread $LIBS"
+            AC_DEFINE(HAVE_LIBPTHREADS)
+            with_pthread=yes
+        ],[
+            AC_MSG_ERROR(Cannot link with pthread library)
+        ])
+    ])
+fi
+])
 dnl ---------------------------------------------------------------------------
 dnl CF_WITH_REL_VERSION version: 1 updated: 2003/09/20 18:12:49
 dnl -------------------

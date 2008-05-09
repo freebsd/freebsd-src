@@ -48,7 +48,7 @@
 #include <term.h>		/* clear_screen, cup & friends, cur_term */
 #include <tic.h>
 
-MODULE_ID("$Id: lib_newterm.c,v 1.68 2008/01/12 20:24:40 tom Exp $")
+MODULE_ID("$Id: lib_newterm.c,v 1.69 2008/04/12 18:15:04 tom Exp $")
 
 #ifndef ONLCR			/* Allows compilation under the QNX 4.2 OS */
 #define ONLCR 0
@@ -123,17 +123,17 @@ newterm(NCURSES_CONST char *name, FILE *ofp, FILE *ifp)
 {
     int value;
     int errret;
-    int slk_format = _nc_globals.slk_format;
     SCREEN *current;
     SCREEN *result = 0;
 
     START_TRACE();
     T((T_CALLED("newterm(\"%s\",%p,%p)"), name, ofp, ifp));
 
+    _nc_lock_global(set_SP);
     /* this loads the capability entry, then sets LINES and COLS */
-    if (setupterm(name, fileno(ofp), &errret) == ERR) {
-	result = 0;
-    } else {
+    if (setupterm(name, fileno(ofp), &errret) != ERR) {
+	int slk_format = _nc_globals.slk_format;
+
 	/*
 	 * This actually allocates the screen structure, and saves the original
 	 * terminal settings.
@@ -143,11 +143,7 @@ newterm(NCURSES_CONST char *name, FILE *ofp, FILE *ifp)
 
 	/* allow user to set maximum escape delay from the environment */
 	if ((value = _nc_getenv_num("ESCDELAY")) >= 0) {
-#if USE_REENTRANT
-	    SP->_ESCDELAY = value;
-#else
-	    ESCDELAY = value;
-#endif
+	    set_escdelay(value);
 	}
 
 	if (_nc_setupscreen(LINES,
@@ -216,5 +212,6 @@ newterm(NCURSES_CONST char *name, FILE *ofp, FILE *ifp)
 	    result = SP;
 	}
     }
+    _nc_unlock_global(set_SP);
     returnSP(result);
 }

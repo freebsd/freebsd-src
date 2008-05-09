@@ -32,31 +32,29 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: use_window.c,v 1.3 2008/01/13 00:36:22 tom Exp $")
+MODULE_ID("$Id: use_window.c,v 1.7 2008/05/03 14:09:38 tom Exp $")
 
 #ifdef USE_PTHREADS
 NCURSES_EXPORT(void)
-_nc_lock_window(WINDOW *win)
+_nc_lock_window(const WINDOW *win)
 {
     WINDOWLIST *p;
 
     _nc_lock_global(windowlist);
-    for (p = _nc_windows; p != 0; p = p->next) {
+    for (each_window(p)) {
 	if (&(p->win) == win) {
 	    _nc_mutex_lock(&(p->mutex_use_window));
 	    break;
 	}
     }
-    _nc_unlock_global(windowlist);
 }
 
 NCURSES_EXPORT(void)
-_nc_unlock_window(WINDOW *win)
+_nc_unlock_window(const WINDOW *win)
 {
     WINDOWLIST *p;
 
-    _nc_lock_global(windowlist);
-    for (p = _nc_windows; p != 0; p = p->next) {
+    for (each_window(p)) {
 	if (&(p->win) == win) {
 	    _nc_mutex_unlock(&(p->mutex_use_window));
 	    break;
@@ -67,7 +65,7 @@ _nc_unlock_window(WINDOW *win)
 #endif
 
 NCURSES_EXPORT(int)
-use_window(WINDOW *win, NCURSES_CALLBACK func, void *data)
+use_window(WINDOW *win, NCURSES_WINDOW_CB func, void *data)
 {
     int code = OK;
 

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2007 Free Software Foundation, Inc.                        *
+ * Copyright (c) 2007,2008 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -32,10 +32,10 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: use_screen.c,v 1.2 2007/09/08 21:46:48 tom Exp $")
+MODULE_ID("$Id: use_screen.c,v 1.4 2008/03/29 21:19:58 tom Exp $")
 
 NCURSES_EXPORT(int)
-use_screen(SCREEN *screen, NCURSES_CALLBACK func, void *data)
+use_screen(SCREEN *screen, NCURSES_SCREEN_CB func, void *data)
 {
     SCREEN *save_SP;
     int code = OK;
@@ -50,7 +50,7 @@ use_screen(SCREEN *screen, NCURSES_CALLBACK func, void *data)
     save_SP = SP;
     set_term(screen);
 
-    code = func(screen->_stdscr, data);
+    code = func(screen, data);
 
     set_term(save_SP);
     _nc_unlock_global(use_screen);

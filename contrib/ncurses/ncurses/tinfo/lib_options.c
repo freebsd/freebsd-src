@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2006,2008 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -43,7 +43,7 @@
 
 #include <term.h>
 
-MODULE_ID("$Id: lib_options.c,v 1.50 2006/12/30 16:03:27 tom Exp $")
+MODULE_ID("$Id: lib_options.c,v 1.52 2008/05/03 23:09:20 tom Exp $")
 
 NCURSES_EXPORT(int)
 idlok(WINDOW *win, bool flag)
@@ -126,7 +126,7 @@ keypad(WINDOW *win, bool flag)
 
     if (win) {
 	win->_use_keypad = flag;
-	returnCode(_nc_keypad(flag));
+	returnCode(_nc_keypad(SP, flag));
     } else
 	returnCode(ERR);
 }
@@ -220,7 +220,7 @@ typeahead(int fd)
 
 #if NCURSES_EXT_FUNCS
 static int
-has_key_internal(int keycode, TRIES *tp)
+has_key_internal(int keycode, TRIES * tp)
 {
     if (tp == 0)
 	return (FALSE);
@@ -247,7 +247,7 @@ has_key(int keycode)
  * the terminal state _before_ switching modes.
  */
 NCURSES_EXPORT(int)
-_nc_keypad(bool flag)
+_nc_keypad(SCREEN *sp, bool flag)
 {
     if (flag && keypad_xmit) {
 	TPUTS_TRACE("keypad_xmit");
@@ -259,12 +259,12 @@ _nc_keypad(bool flag)
 	_nc_flush();
     }
 
-    if (SP != 0) {
-	if (flag && !SP->_tried) {
-	    _nc_init_keytry();
-	    SP->_tried = TRUE;
+    if (sp != 0) {
+	if (flag && !sp->_tried) {
+	    _nc_init_keytry(sp);
+	    sp->_tried = TRUE;
 	}
-	SP->_keypad_on = flag;
+	sp->_keypad_on = flag;
     }
     return (OK);
 }
