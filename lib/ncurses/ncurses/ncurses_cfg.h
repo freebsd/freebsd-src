@@ -144,7 +144,7 @@
 #define NCURSES_EXT_FUNCS 1
 #define NCURSES_NO_PADDING 1
 #define NCURSES_PATHSEP ':'
-#define NCURSES_VERSION_STRING "5.6.20080209"
+#define NCURSES_VERSION_STRING "5.6.20080503"
 #define NDEBUG 1
 #define RETSIGTYPE void
 #define SIG_ATOMIC_T volatile sig_atomic_t
