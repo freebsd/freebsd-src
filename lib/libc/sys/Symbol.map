@@ -348,6 +348,7 @@ FBSD_1.1 {
 	openat;
 	readlinkat;
 	renameat;
+	setfib;
 	symlinkat;
 	unlinkat;
 };
