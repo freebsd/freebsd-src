@@ -431,8 +431,7 @@ cf_get_method(device_t dev, struct cf_level *level)
 	for (n = 0; n < numdevs && curr_set->freq == CPUFREQ_VAL_UNKNOWN; n++) {
 		if (!device_is_attached(devs[n]))
 			continue;
-		error = CPUFREQ_DRV_GET(devs[n], &set);
-		if (error)
+		if (CPUFREQ_DRV_GET(devs[n], &set) != 0)
 			continue;
 		for (i = 0; i < count; i++) {
 			if (CPUFREQ_CMP(set.freq, levels[i].total_set.freq)) {
@@ -462,9 +461,10 @@ cf_get_method(device_t dev, struct cf_level *level)
 		if (CPUFREQ_CMP(rate, levels[i].total_set.freq)) {
 			sc->curr_level = levels[i];
 			CF_DEBUG("get estimated freq %d\n", curr_set->freq);
-			break;
+			goto out;
 		}
 	}
+	error = ENXIO;
 
 out:
 	if (error == 0)
