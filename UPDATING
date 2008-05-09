@@ -22,6 +22,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20080509:
+	I have checked in code to support multiple routing tables.
+	see the man pages setfib(1) and setfib(2).
+	This is a hopefully backwards compatible version,
+	but to make use of it you need to compile your kernel
+	with options ROUTETABLES=2 (or more up to 16).
+
 20080420:
 	The 802.11 wireless support was redone to enable multi-bss
 	operation on devices that are capable.  The underlying device
