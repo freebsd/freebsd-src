@@ -82,7 +82,6 @@ struct rt_metrics {
 #define	RTM_RTTUNIT	1000000	/* units for rtt, rttvar, as units per sec */
 #define	RTTTOPRHZ(r)	((r) / (RTM_RTTUNIT / PR_SLOWHZ))
 
-#define RT_MAXFIBS 16
 extern u_int rt_numfibs;	/* number fo usable routing tables */
 extern u_int tunnel_fib;	/* tunnels use these */
 extern u_int fwd_fib;		/* packets being forwarded use these routes */
@@ -330,7 +329,7 @@ struct rt_addrinfo {
 		RTFREE_LOCKED(_rt);				\
 	} while (0)
 
-extern struct radix_node_head *rt_tables[RT_MAXFIBS][AF_MAX+1];
+extern struct radix_node_head *rt_tables[][AF_MAX+1];
 
 struct ifmultiaddr;
 
