@@ -14,6 +14,11 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20080420: Symbol card support dropped
+OLD_FILES+=usr/include/dev/wi/spectrum24t_cf.h
+# 20080420: awi removal
+OLD_FILES+=usr/share/man/man4/awi.4.gz
+OLD_FILES+=usr/share/man/man4/if_awi.4.gz
 # 20080331: pkg_sign has been removed
 OLD_FILES+=usr/sbin/pkg_check
 OLD_FILES+=usr/sbin/pkg_sign
@@ -35,6 +40,10 @@ OLD_FILES+=usr/share/man/man2/kse_release.2.gz
 OLD_FILES+=usr/share/man/man2/kse_switchin.2.gz
 OLD_FILES+=usr/share/man/man2/kse_thr_interrupt.2.gz
 OLD_FILES+=usr/share/man/man2/kse_wakeup.2.gz
+.if ${TARGET_ARCH} == "amd64"
+OLD_FILES+=usr/lib32/libkse.so
+OLD_LIBS+=usr/lib32/libkse.so.3
+.endif
 # 20080220: geom_lvm rename to geom_linux_lvm
 OLD_FILES+=usr/share/man/man4/geom_lvm.4.gz
 # 20080126: oldcard.4 removal
