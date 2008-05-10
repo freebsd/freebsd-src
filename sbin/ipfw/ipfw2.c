@@ -4964,11 +4964,12 @@ chkarg:
 	case TOK_SETFIB:
 	    {
 		int numfibs;
+		size_t intsize = sizeof(int);
 
 		action->opcode = O_SETFIB;
  		NEED1("missing fib number");
  	        action->arg1 = strtoul(*av, NULL, 10);
-		if (sysctlbyname("net.fibs", &numfibs, &i, NULL, 0) == -1)
+		if (sysctlbyname("net.fibs", &numfibs, &intsize, NULL, 0) == -1)
 			errx(EX_DATAERR, "fibs not suported.\n");
 		if (action->arg1 >= numfibs)  /* Temporary */
 			errx(EX_DATAERR, "fib too large.\n");
