@@ -36,7 +36,7 @@
 .Sh SYNOPSIS
 .Nm nc
 .Bk -words
-.Op Fl 46DEdhklnoOrStUuvz
+.Op Fl 46DdEhklnOorStUuvz
 .Op Fl e Ar IPsec_policy
 .Op Fl i Ar interval
 .Op Fl P Ar proxy_username
@@ -100,10 +100,6 @@ to use IPv6 addresses only.
 Enable debugging on the socket.
 .It Fl d
 Do not attempt to read from stdin.
-.It Fl h
-Prints out
-.Nm
-help.
 .It Fl E
 Shortcut for
 .Qo
@@ -118,6 +114,10 @@ to be used using the syntax described in
 .Xr ipsec_set_policy 3 .
 This flag can be specified up to two times, as typically one policy for
 each direction is needed.
+.It Fl h
+Prints out
+.Nm
+help.
 .It Fl i Ar interval
 Specifies a delay time interval between lines of text sent and received.
 Also causes a delay time between connections to multiple ports.
@@ -146,7 +146,10 @@ option are ignored.
 .It Fl n
 Do not do any DNS or service lookups on any specified addresses,
 hostnames or ports.
-.\"
+.It Fl O
+Disables the use of TCP options on the socket, by setting the boolean
+TCP_NOOPT
+socket option.
 .It Fl o
 .Dq Once-only mode .
 By default,
@@ -156,10 +159,6 @@ but continues until the network side has been closed down.
 Specifying
 .Fl o
 will make it terminate on EOF as well.
-.It Fl o
-Disables the use of TCP options on the socket, by setting the boolean
-TCP_NOOPT
-socket option.
 .It Fl P Ar proxy_username
 Specifies a username to present to a proxy server that requires authentication.
 If no username is specified then authentication will not be attempted.
