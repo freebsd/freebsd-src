@@ -152,11 +152,12 @@ routepr(u_long rtree)
 	struct radix_node_head *rnh, head;
 	int i;
 	int numfibs;
+	size_t intsize;
 
-	i = sizeof(int);
-	if (sysctlbyname("net.my_fibnum", &fibnum, &i, NULL, 0) == -1)
+	intsize = sizeof(int);
+	if (sysctlbyname("net.my_fibnum", &fibnum, &intsize, NULL, 0) == -1)
 		fibnum = 0;
-	if (sysctlbyname("net.fibs", &numfibs, &i, NULL, 0) == -1)
+	if (sysctlbyname("net.fibs", &numfibs, &intsize, NULL, 0) == -1)
 		numfibs = 1;
 	rt_tables = calloc(numfibs, sizeof(struct rtline));
 	if (rt_tables == NULL)
