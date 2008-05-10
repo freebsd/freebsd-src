@@ -508,6 +508,9 @@ firewire_detach(device_t dev)
 		printf("firewire probe thread didn't die\n");
 	mtx_unlock(&fc->wait_lock);
 
+	if (fc->arq !=0 && fc->arq->maxq > 0)
+		fw_drain_txq(fc);
+
 	if ((err = fwdev_destroydev(sc)) != 0)
 		return err;
 
@@ -518,7 +521,7 @@ firewire_detach(device_t dev)
 	callout_stop(&fc->bmr_callout);
 	callout_stop(&fc->busprobe_callout);
 
-	/* XXX xfree_free and untimeout on all xfers */
+	/* XXX xfer_free and untimeout on all xfers */
 	for (fwdev = STAILQ_FIRST(&fc->devices); fwdev != NULL;
 							fwdev = fwdev_next) {
 		fwdev_next = STAILQ_NEXT(fwdev, link);

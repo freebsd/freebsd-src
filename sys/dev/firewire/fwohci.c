@@ -1758,9 +1758,6 @@ fwohci_stop(struct fwohci_softc *sc, device_t dev)
 		OWRITE(sc,  OHCI_ITCTLCLR(i), OHCI_CNTL_DMA_RUN);
 	}
 
-	if (sc->fc.arq !=0 && sc->fc.arq->maxq > 0)
-		fw_drain_txq(&sc->fc);
-
 #if 0 /* Let dcons(4) be accessed */  
 /* Stop interrupt */
 	OWRITE(sc, FWOHCI_INTMASKCLR,
