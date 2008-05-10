@@ -52,11 +52,7 @@ fdopen(fd, mode)
 	const char *mode;
 {
 	FILE *fp;
-	static int nofile;
 	int flags, oflags, fdflags, tmp;
-
-	if (nofile == 0)
-		nofile = getdtablesize();
 
 	/*
 	 * File descriptors are a full int, but _file is only a short.
