@@ -2182,10 +2182,11 @@ retry_space:
 	 * Send trailers. Wimp out and use writev(2).
 	 */
 	if (trl_uio != NULL) {
+		sbunlock(&so->so_snd);
 		error = kern_writev(td, uap->s, trl_uio);
-		if (error)
-			goto done;
-		sbytes += td->td_retval[0];
+		if (error == 0)
+			sbytes += td->td_retval[0];
+		goto out;
 	}
 
 done:
