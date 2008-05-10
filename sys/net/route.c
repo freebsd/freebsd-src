@@ -63,13 +63,13 @@
 #include <vm/uma.h>
 
 #ifndef ROUTETABLES
- #undef RT_MAXFIBS
  #define RT_NUMFIBS 1
  #define RT_MAXFIBS 1
 #else
  /* while we use 4 bits in the mbuf flags,
   * we are limited to 16
   */
+ #define RT_MAXFIBS 16
  #if ROUTETABLES > RT_MAXFIBS
   #define RT_NUMFIBS RT_MAXFIBS
   #error "ROUTETABLES defined too big"
@@ -150,7 +150,7 @@ route_init(void)
 	struct domain *dom;
 	int fam;
 
-	/* whack teh tunable ints into  line. */
+	/* whack the tunable ints into  line. */
 	if (rt_numfibs > RT_MAXFIBS)
 		rt_numfibs = RT_MAXFIBS;
 	if (rt_numfibs == 0)
