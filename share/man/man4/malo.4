@@ -31,12 +31,12 @@
 .\"
 .\" $FreeBSD$
 .\"/
-.Dd February 18 2008
+.Dd March 25, 2008
 .Dt MALO 4
 .Os
 .Sh NAME
 .Nm malo
-.Nd "Marvell Libertas IEEE 802.11b/g wireless network device"
+.Nd "Marvell Libertas IEEE 802.11b/g wireless network driver"
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following lines in your
@@ -57,9 +57,9 @@ wlan_load="YES"
 firmware_load="YES"
 .Ed
 .Pp
-In both cases, place the following lines in
+In both cases, place the following line in
 .Xr loader.conf 5
-to load the firmware modules:
+to load the firmware module:
 .Bd -literal -offset indent
 malofw_load="YES"
 .Ed
@@ -68,21 +68,26 @@ The
 .Nm
 driver provides support for Marvell Libertas 88W8335 based PCI
 network adapters.
-.Sh FILES
-The driver needs a firmware kernel module which is used when
-an interface is brought up.  This firmware files are comed from
+.Pp
+This driver requires firmware to be loaded before it will work.
+These firmware files are from the
 .Ox
 .Nm
 driver.
 .Pp
-A port package for the firmware can be found at:
+A package for the firmware which can be installed via
+.Xr pkg_add 1
+can be found at:
 .Bd -literal -offset indent
 http://weongyo.org/project/malo/malo-firmware-1.4.tar.gz
 .Ed
 .Pp
-You need to install this port package manually before
+This package must be installed before
 .Xr ifconfig 8
 will work.
+.Pp 
+For more information on configuring this device, see
+.Xr ifconfig 8 .
 .Sh HARDWARE
 The following cards are among those supported by the
 .Nm
@@ -95,7 +100,7 @@ Tenda TWL542P	88W8335	PCI	b/g
 U-Khan UW-2054i	88W8335	PCI	b/g
 .El
 .Sh EXAMPLES
-Join an existing BSS network (ie: connect to an access point):
+Join an existing BSS network (i.e., connect to an access point):
 .Pp
 .Dl "ifconfig malo0 inet 192.168.0.20 netmask 0xffffff00"
 .Pp
