@@ -164,6 +164,8 @@ static void ndis_stop		(struct ndis_softc *);
 static void ndis_watchdog	(struct ifnet *);
 static int ndis_ifmedia_upd	(struct ifnet *);
 static void ndis_ifmedia_sts	(struct ifnet *, struct ifmediareq *);
+static void ndis_auth		(void *, int);
+static void ndis_assoc		(void *, int);
 static int ndis_get_assoc	(struct ndis_softc *, ndis_wlan_bssid_ex **);
 static int ndis_probe_offload	(struct ndis_softc *);
 static int ndis_set_offload	(struct ndis_softc *);
@@ -715,6 +717,8 @@ ndis_attach(dev)
 		taskqueue_start_threads(&sc->ndis_tq, 1, PI_NET, "%s taskq",
 		    device_get_nameunit(dev));
 		TASK_INIT(&sc->ndis_scantask, 0, ndis_scan, sc);
+		TASK_INIT(&sc->ndis_authtask, 0, ndis_auth, sc);
+		TASK_INIT(&sc->ndis_assoctask, 0, ndis_assoc, sc);
 
 		ifp->if_ioctl = ndis_ioctl_80211;
 		ic->ic_ifp = ifp;
@@ -1004,8 +1008,11 @@ ndis_detach(dev)
 	} else
 		NDIS_UNLOCK(sc);
 
-	if (sc->ndis_80211)
+	if (sc->ndis_80211) {
 		taskqueue_drain(sc->ndis_tq, &sc->ndis_scantask);
+		taskqueue_drain(sc->ndis_tq, &sc->ndis_authtask);
+		taskqueue_drain(sc->ndis_tq, &sc->ndis_assoctask);
+	}
 
 	if (sc->ndis_tickitem != NULL)
 		IoFreeWorkItem(sc->ndis_tickitem);
@@ -2322,6 +2329,30 @@ ndis_setstate_80211(sc)
 }
 
 static void
+ndis_auth(void *arg, int npending)
+{
+	struct ndis_softc *sc = arg;
+	struct ifnet *ifp = sc->ifp;
+	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
+
+	vap->iv_state = IEEE80211_S_AUTH;
+	ndis_auth_and_assoc(sc, vap);
+}
+
+static void
+ndis_assoc(void *arg, int npending)
+{
+	struct ndis_softc *sc = arg;
+	struct ifnet *ifp = sc->ifp;
+	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
+
+	vap->iv_state = IEEE80211_S_ASSOC;
+	ndis_auth_and_assoc(sc, vap);
+}
+
+static void
 ndis_auth_and_assoc(sc, vap)
 	struct ndis_softc	*sc;
 	struct ieee80211vap	*vap;
@@ -2831,10 +2862,8 @@ ndis_ioctl_80211(ifp, command, data)
 	case SIOCSIFFLAGS:
 		/*NDIS_LOCK(sc);*/
 		if (ifp->if_flags & IFF_UP) {
-			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
+			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
 				ndis_init(sc);
-				ieee80211_start_all(ic);
-			}
 		} else {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 				ndis_stop(sc);
@@ -3179,16 +3208,15 @@ ndis_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	case IEEE80211_S_INIT:
 	case IEEE80211_S_SCAN:
 		return nvp->newstate(vap, nstate, arg);
-
 	case IEEE80211_S_ASSOC:
-		if (ostate != IEEE80211_S_AUTH)
-			ndis_auth_and_assoc(sc, vap);
+		if (ostate != IEEE80211_S_AUTH) {
+			taskqueue_enqueue(sc->ndis_tq, &sc->ndis_assoctask);
+			return EINPROGRESS;
+		}
 		break;
-
 	case IEEE80211_S_AUTH:
-		ndis_auth_and_assoc(sc, vap);
-		break;
-
+		taskqueue_enqueue(sc->ndis_tq, &sc->ndis_authtask);
+		return EINPROGRESS;
 	default:
 		break;
 	}
@@ -3256,6 +3284,7 @@ ndis_scan_results(struct ndis_softc *sc)
 	ndis_wlan_bssid_ex	*wb;
 	struct ieee80211_scanparams sp;
 	struct ieee80211_frame wh;
+	struct ieee80211_channel *saved_chan;
 	int i, j;
 	int error, len, rssi, noise, freq, chanflag;
 	static long rstamp;
@@ -3265,6 +3294,7 @@ ndis_scan_results(struct ndis_softc *sc)
 
 	ic = sc->ifp->if_l2com;
 	vap = TAILQ_FIRST(&ic->ic_vaps);
+	saved_chan = ic->ic_curchan;
 	noise = -96;
 
 	len = sizeof(uint32_t) + (sizeof(ndis_wlan_bssid_ex) * 16);
@@ -3325,6 +3355,10 @@ ndis_scan_results(struct ndis_softc *sc)
 		chanflag = ndis_nettype_chan(wb->nwbx_nettype);
 		freq = wb->nwbx_config.nc_dsconfig / 1000;
 		sp.chan = sp.bchan = ieee80211_mhz2ieee(freq, chanflag);
+		/* Hack ic->ic_curchan to be in sync with the scan result */
+		ic->ic_curchan = ieee80211_find_channel(ic, freq, chanflag);
+		if (ic->ic_curchan == NULL)
+			ic->ic_curchan = &ic->ic_channels[0];
 
 		/* Process extended info from AP */
 		if (wb->nwbx_len > sizeof(ndis_wlan_bssid)) {
@@ -3359,6 +3393,8 @@ done:
 		wb = (ndis_wlan_bssid_ex *)((char *)wb + wb->nwbx_len);
 	}
 	free(bl, M_DEVBUF);
+	/* Restore the channel after messing with it */
+	ic->ic_curchan = saved_chan;
 }
 
 static void
