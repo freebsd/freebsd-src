@@ -97,7 +97,12 @@ archive_write_new(void)
 	a->archive.magic = ARCHIVE_WRITE_MAGIC;
 	a->archive.state = ARCHIVE_STATE_NEW;
 	a->archive.vtable = archive_write_vtable();
-	a->bytes_per_block = ARCHIVE_DEFAULT_BYTES_PER_BLOCK;
+	/*
+	 * The value 10240 here matches the traditional tar default,
+	 * but is otherwise arbitrary.
+	 * TODO: Set the default block size from the format selected.
+	 */
+	a->bytes_per_block = 10240;
 	a->bytes_in_last_block = -1;	/* Default */
 
 	/* Initialize a block of nulls for padding purposes. */
