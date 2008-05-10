@@ -312,7 +312,7 @@ typedef struct  _ipfw_insn_log {
 
 /*
  * Data structures required by both ipfw(8) and ipfw(4) but not part of the
- * management API are protcted by IPFW_INTERNAL.
+ * management API are protected by IPFW_INTERNAL.
  */
 #ifdef IPFW_INTERNAL
 /* Server pool support (LSNAT). */
