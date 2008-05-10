@@ -65,15 +65,15 @@ archive_entry_strmode(struct archive_entry *entry)
 			bp[i+1] = '-';
 
 	if (mode & S_ISUID) {
-		if (mode & S_IXUSR) bp[3] = 's';
+		if (mode & 0100) bp[3] = 's';
 		else bp[3] = 'S';
 	}
 	if (mode & S_ISGID) {
-		if (mode & S_IXGRP) bp[6] = 's';
+		if (mode & 0010) bp[6] = 's';
 		else bp[6] = 'S';
 	}
 	if (mode & S_ISVTX) {
-		if (mode & S_IXOTH) bp[9] = 't';
+		if (mode & 0001) bp[9] = 't';
 		else bp[9] = 'T';
 	}
 	if (archive_entry_acl_count(entry, ARCHIVE_ENTRY_ACL_TYPE_ACCESS))
