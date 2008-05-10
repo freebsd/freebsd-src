@@ -63,7 +63,8 @@ void kmem_free(vm_map_t, vm_offset_t, vm_size_t);
 void kmem_free_wakeup(vm_map_t, vm_offset_t, vm_size_t);
 void kmem_init(vm_offset_t, vm_offset_t);
 vm_offset_t kmem_malloc(vm_map_t, vm_size_t, boolean_t);
-vm_map_t kmem_suballoc(vm_map_t, vm_offset_t *, vm_offset_t *, vm_size_t);
+vm_map_t kmem_suballoc(vm_map_t, vm_offset_t *, vm_offset_t *, vm_size_t,
+    boolean_t);
 void swapout_procs(int);
 int useracc(void *, int, int);
 int vm_fault(vm_map_t, vm_offset_t, vm_prot_t, int);
