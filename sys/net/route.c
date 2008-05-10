@@ -63,6 +63,7 @@
 #include <vm/uma.h>
 
 #ifndef ROUTETABLES
+ #undef RT_MAXFIBS
  #define RT_NUMFIBS 1
  #define RT_MAXFIBS 1
 #else
