@@ -2404,7 +2404,8 @@ ipw_init(void *priv)
 	ipw_init_locked(sc);
 	IPW_UNLOCK(sc);
 
-	ieee80211_start_all(ic);
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+		ieee80211_start_all(ic);		/* start all vap's */
 }
 
 static void
