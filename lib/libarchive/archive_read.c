@@ -64,25 +64,12 @@ struct archive *
 archive_read_new(void)
 {
 	struct archive_read *a;
-	unsigned char	*nulls;
 
 	a = (struct archive_read *)malloc(sizeof(*a));
 	if (a == NULL)
 		return (NULL);
 	memset(a, 0, sizeof(*a));
 	a->archive.magic = ARCHIVE_READ_MAGIC;
-	a->bytes_per_block = ARCHIVE_DEFAULT_BYTES_PER_BLOCK;
-
-	a->null_length = 1024;
-	nulls = (unsigned char *)malloc(a->null_length);
-	if (nulls == NULL) {
-		archive_set_error(&a->archive, ENOMEM,
-		    "Can't allocate archive object 'nulls' element");
-		free(a);
-		return (NULL);
-	}
-	memset(nulls, 0, a->null_length);
-	a->nulls = nulls;
 
 	a->archive.state = ARCHIVE_STATE_NEW;
 	a->entry = archive_entry_new();
@@ -660,8 +647,6 @@ archive_read_finish(struct archive *_a)
 			(a->formats[i].cleanup)(a);
 	}
 
-	/* Casting a pointer to int allows us to remove 'const.' */
-	free((void *)(uintptr_t)(const void *)a->nulls);
 	archive_string_free(&a->archive.error_string);
 	if (a->entry)
 		archive_entry_free(a->entry);
