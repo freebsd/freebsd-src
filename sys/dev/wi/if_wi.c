@@ -703,7 +703,8 @@ wi_init(void *arg)
 	wi_init_locked(sc);
 	WI_UNLOCK(sc);
 
-	ieee80211_start_all(ic);
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+		ieee80211_start_all(ic);		/* start all vap's */
 }
 
 static void
