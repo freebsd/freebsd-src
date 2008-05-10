@@ -325,6 +325,13 @@ long vmspace_wired_count(struct vmspace *vmspace);
 #define VM_FAULT_DIRTY 8		/* Dirty the page */
 
 /*
+ * The following "find_space" options are supported by vm_map_find()
+ */
+#define	VMFS_NO_SPACE		0	/* don't find; use the given range */
+#define	VMFS_ANY_SPACE		1	/* find a range with any alignment */
+#define	VMFS_ALIGNED_SPACE	2	/* find a superpage-aligned range */
+
+/*
  * vm_map_wire and vm_map_unwire option flags
  */
 #define VM_MAP_WIRE_SYSTEM	0	/* wiring in a kernel map */
@@ -337,7 +344,8 @@ long vmspace_wired_count(struct vmspace *vmspace);
 boolean_t vm_map_check_protection (vm_map_t, vm_offset_t, vm_offset_t, vm_prot_t);
 vm_map_t vm_map_create(pmap_t, vm_offset_t, vm_offset_t);
 int vm_map_delete (vm_map_t, vm_offset_t, vm_offset_t);
-int vm_map_find (vm_map_t, vm_object_t, vm_ooffset_t, vm_offset_t *, vm_size_t, boolean_t, vm_prot_t, vm_prot_t, int);
+int vm_map_find(vm_map_t, vm_object_t, vm_ooffset_t, vm_offset_t *, vm_size_t,
+    int, vm_prot_t, vm_prot_t, int);
 int vm_map_fixed(vm_map_t, vm_object_t, vm_ooffset_t, vm_offset_t, vm_size_t,
     vm_prot_t, vm_prot_t, int);
 int vm_map_findspace (vm_map_t, vm_offset_t, vm_size_t, vm_offset_t *);

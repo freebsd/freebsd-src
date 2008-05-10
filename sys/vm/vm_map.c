@@ -1200,7 +1200,7 @@ vm_map_fixed(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 int
 vm_map_find(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	    vm_offset_t *addr,	/* IN/OUT */
-	    vm_size_t length, boolean_t find_space, vm_prot_t prot,
+	    vm_size_t length, int find_space, vm_prot_t prot,
 	    vm_prot_t max, int cow)
 {
 	vm_offset_t start;
@@ -1208,15 +1208,20 @@ vm_map_find(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 
 	start = *addr;
 	vm_map_lock(map);
-	if (find_space) {
-		if (vm_map_findspace(map, start, length, addr)) {
-			vm_map_unlock(map);
-			return (KERN_NO_SPACE);
+	do {
+		if (find_space != VMFS_NO_SPACE) {
+			if (vm_map_findspace(map, start, length, addr)) {
+				vm_map_unlock(map);
+				return (KERN_NO_SPACE);
+			}
+			if (find_space == VMFS_ALIGNED_SPACE)
+				pmap_align_superpage(object, offset, addr,
+				    length);
+			start = *addr;
 		}
-		start = *addr;
-	}
-	result = vm_map_insert(map, object, offset,
-		start, start + length, prot, max, cow);
+		result = vm_map_insert(map, object, offset, start, start +
+		    length, prot, max, cow);
+	} while (result == KERN_NO_SPACE && find_space == VMFS_ALIGNED_SPACE);
 	vm_map_unlock(map);
 	return (result);
 }
