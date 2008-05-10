@@ -169,6 +169,7 @@ static int ndis_probe_offload	(struct ndis_softc *);
 static int ndis_set_offload	(struct ndis_softc *);
 static void ndis_getstate_80211	(struct ndis_softc *);
 static void ndis_setstate_80211	(struct ndis_softc *);
+static void ndis_auth_and_assoc	(struct ndis_softc *, struct ieee80211vap *);
 static int ndis_set_cipher	(struct ndis_softc *, int);
 static int ndis_set_wpa		(struct ndis_softc *, void *, int);
 static int ndis_add_key		(struct ieee80211vap *,
@@ -1960,6 +1961,10 @@ ndis_init(xsc)
 
 	/* Setup task offload. */
 	ndis_set_offload(sc);
+
+	if (sc->ndis_80211)
+		ndis_setstate_80211(sc);
+
 	NDIS_LOCK(sc);
 
 	sc->ndis_txidx = 0;
@@ -2200,20 +2205,14 @@ ndis_setstate_80211(sc)
 	struct ndis_softc	*sc;
 {
 	struct ieee80211com	*ic;
-	struct ieee80211vap	*vap;
-	struct ieee80211_node	*ni;
-	ndis_80211_ssid		ssid;
 	ndis_80211_macaddr	bssid;
 	ndis_80211_config	config;
-	ndis_80211_wep		wep;
-	int			i, rval = 0, len, error;
+	int			rval = 0, len;
 	uint32_t		arg;
 	struct ifnet		*ifp;
 
 	ifp = sc->ifp;
 	ic = ifp->if_l2com;
-	vap = TAILQ_FIRST(&ic->ic_vaps);
-	ni = vap->iv_bss;
 
 	if (!NDIS_INITIALIZED(sc)) {
 		DPRINTF(("%s: NDIS not initialized\n", __func__));
@@ -2229,7 +2228,7 @@ ndis_setstate_80211(sc)
 	/* Set network infrastructure mode. */
 
 	len = sizeof(arg);
-	if (vap->iv_opmode == IEEE80211_M_IBSS)
+	if (ic->ic_opmode == IEEE80211_M_IBSS)
 		arg = NDIS_80211_NET_INFRA_IBSS;
 	else
 		arg = NDIS_80211_NET_INFRA_BSS;
@@ -2238,18 +2237,6 @@ ndis_setstate_80211(sc)
 
 	if (rval)
 		device_printf (sc->ndis_dev, "set infra failed: %d\n", rval);
-
-	/* Set RTS threshold */
-
-	len = sizeof(arg);
-	arg = vap->iv_rtsthreshold;
-	ndis_set_info(sc, OID_802_11_RTS_THRESHOLD, &arg, &len);
-
-	/* Set fragmentation threshold */
-
-	len = sizeof(arg);
-	arg = vap->iv_fragthreshold;
-	ndis_set_info(sc, OID_802_11_FRAGMENTATION_THRESHOLD, &arg, &len);
 
 	/* Set power management */
 
@@ -2280,6 +2267,110 @@ ndis_setstate_80211(sc)
 	len = sizeof(arg);
 	arg = NDIS_80211_PRIVFILT_8021XWEP;
 	ndis_set_info(sc, OID_802_11_PRIVACY_FILTER, &arg, &len);
+
+	len = sizeof(config);
+	bzero((char *)&config, len);
+	config.nc_length = len;
+	config.nc_fhconfig.ncf_length = sizeof(ndis_80211_config_fh);
+	rval = ndis_get_info(sc, OID_802_11_CONFIGURATION, &config, &len); 
+
+	/*
+	 * Some drivers expect us to initialize these values, so
+	 * provide some defaults.
+	 */
+
+	if (config.nc_beaconperiod == 0)
+		config.nc_beaconperiod = 100;
+	if (config.nc_atimwin == 0)
+		config.nc_atimwin = 100;
+	if (config.nc_fhconfig.ncf_dwelltime == 0)
+		config.nc_fhconfig.ncf_dwelltime = 200;
+	if (rval == 0 && ic->ic_bsschan != IEEE80211_CHAN_ANYC) { 
+		int chan, chanflag;
+
+		chan = ieee80211_chan2ieee(ic, ic->ic_bsschan);
+		chanflag = config.nc_dsconfig > 2500000 ? IEEE80211_CHAN_2GHZ :
+		    IEEE80211_CHAN_5GHZ;
+		if (chan != ieee80211_mhz2ieee(config.nc_dsconfig / 1000, 0)) {
+			config.nc_dsconfig =
+				ic->ic_bsschan->ic_freq * 1000;
+			len = sizeof(config);
+			config.nc_length = len;
+			config.nc_fhconfig.ncf_length =
+			    sizeof(ndis_80211_config_fh);
+			DPRINTF(("Setting channel to %ukHz\n", config.nc_dsconfig));
+			rval = ndis_set_info(sc, OID_802_11_CONFIGURATION,
+			    &config, &len);
+			if (rval)
+				device_printf(sc->ndis_dev, "couldn't change "
+				    "DS config to %ukHz: %d\n",
+				    config.nc_dsconfig, rval);
+		}
+	} else if (rval)
+		device_printf(sc->ndis_dev, "couldn't retrieve "
+		    "channel info: %d\n", rval);
+
+	/* Set the BSSID to our value so the driver doesn't associate */
+	len = IEEE80211_ADDR_LEN;
+	bcopy(ic->ic_myaddr, bssid, len);
+	DPRINTF(("Setting BSSID to %6D\n", (uint8_t *)&bssid, ":"));
+	rval = ndis_set_info(sc, OID_802_11_BSSID, &bssid, &len);
+	if (rval)
+		device_printf(sc->ndis_dev,
+		    "setting BSSID failed: %d\n", rval);
+
+}
+
+static void
+ndis_auth_and_assoc(sc, vap)
+	struct ndis_softc	*sc;
+	struct ieee80211vap	*vap;
+{
+	struct ieee80211com	*ic;
+	struct ieee80211_node	*ni;
+	ndis_80211_ssid		ssid;
+	ndis_80211_macaddr	bssid;
+	ndis_80211_wep		wep;
+	int			i, rval = 0, len, error;
+	uint32_t		arg;
+	struct ifnet		*ifp;
+
+	ifp = sc->ifp;
+	ic = ifp->if_l2com;
+	ni = vap->iv_bss;
+
+	if (!NDIS_INITIALIZED(sc)) {
+		DPRINTF(("%s: NDIS not initialized\n", __func__));
+		return;
+	}
+
+	/* Initial setup */
+	ndis_setstate_80211(sc);
+
+	/* Set network infrastructure mode. */
+
+	len = sizeof(arg);
+	if (vap->iv_opmode == IEEE80211_M_IBSS)
+		arg = NDIS_80211_NET_INFRA_IBSS;
+	else
+		arg = NDIS_80211_NET_INFRA_BSS;
+
+	rval = ndis_set_info(sc, OID_802_11_INFRASTRUCTURE_MODE, &arg, &len);
+
+	if (rval)
+		device_printf (sc->ndis_dev, "set infra failed: %d\n", rval);
+
+	/* Set RTS threshold */
+
+	len = sizeof(arg);
+	arg = vap->iv_rtsthreshold;
+	ndis_set_info(sc, OID_802_11_RTS_THRESHOLD, &arg, &len);
+
+	/* Set fragmentation threshold */
+
+	len = sizeof(arg);
+	arg = vap->iv_fragthreshold;
+	ndis_set_info(sc, OID_802_11_FRAGMENTATION_THRESHOLD, &arg, &len);
 
 	/* Set WEP */
 
@@ -2393,49 +2484,6 @@ ndis_setstate_80211(sc)
 			    "set nettype failed: %d\n", rval);
 	}
 #endif
-
-	len = sizeof(config);
-	bzero((char *)&config, len);
-	config.nc_length = len;
-	config.nc_fhconfig.ncf_length = sizeof(ndis_80211_config_fh);
-	rval = ndis_get_info(sc, OID_802_11_CONFIGURATION, &config, &len); 
-
-	/*
-	 * Some drivers expect us to initialize these values, so
-	 * provide some defaults.
-	 */
-
-	if (config.nc_beaconperiod == 0)
-		config.nc_beaconperiod = 100;
-	if (config.nc_atimwin == 0)
-		config.nc_atimwin = 100;
-	if (config.nc_fhconfig.ncf_dwelltime == 0)
-		config.nc_fhconfig.ncf_dwelltime = 200;
-	if (rval == 0 && ic->ic_bsschan != IEEE80211_CHAN_ANYC) { 
-		int chan, chanflag;
-
-		chan = ieee80211_chan2ieee(ic, ic->ic_bsschan);
-		chanflag = config.nc_dsconfig > 2500000 ? IEEE80211_CHAN_2GHZ :
-		    IEEE80211_CHAN_5GHZ;
-		if (chan != ieee80211_mhz2ieee(config.nc_dsconfig / 1000, 0)) {
-			config.nc_dsconfig =
-				ic->ic_bsschan->ic_freq * 1000;
-			ni->ni_chan = ic->ic_bsschan;
-			len = sizeof(config);
-			config.nc_length = len;
-			config.nc_fhconfig.ncf_length =
-			    sizeof(ndis_80211_config_fh);
-			DPRINTF(("Setting channel to %ukHz\n", config.nc_dsconfig));
-			rval = ndis_set_info(sc, OID_802_11_CONFIGURATION,
-			    &config, &len);
-			if (rval)
-				device_printf(sc->ndis_dev, "couldn't change "
-				    "DS config to %ukHz: %d\n",
-				    config.nc_dsconfig, rval);
-		}
-	} else if (rval)
-		device_printf(sc->ndis_dev, "couldn't retrieve "
-		    "channel info: %d\n", rval);
 
 	/*
 	 * If the user selected a specific BSSID, try
@@ -3134,11 +3182,11 @@ ndis_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 
 	case IEEE80211_S_ASSOC:
 		if (ostate != IEEE80211_S_AUTH)
-			ndis_setstate_80211(sc);
+			ndis_auth_and_assoc(sc, vap);
 		break;
 
 	case IEEE80211_S_AUTH:
-		ndis_setstate_80211(sc);
+		ndis_auth_and_assoc(sc, vap);
 		break;
 
 	default:
