@@ -2471,7 +2471,8 @@ rt2661_init(void *priv)
 	rt2661_init_locked(sc);
 	RAL_UNLOCK(sc);
 
-	ieee80211_start_all(ic);
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+		ieee80211_start_all(ic);		/* start all vap's */
 }
 
 void
