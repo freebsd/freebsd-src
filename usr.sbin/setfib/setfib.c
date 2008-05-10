@@ -50,7 +50,7 @@ main(int argc, char *argv[])
 	int ch;
 	char *ep;
 	int	numfibs;
-	int intsize = sizeof(int);
+	size_t intsize = sizeof(int);
 
         if (sysctlbyname("net.fibs", &numfibs, &intsize, NULL, 0) == -1)
 		errx(1, "Multiple FIBS not supported");
