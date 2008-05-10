@@ -868,21 +868,22 @@ help(void)
 	usage(0);
 	fprintf(stderr, "\tCommand Summary:\n\
 	\t-4		Use IPv4\n\
-	\t-6            Use IPv6\n");
+	\t-6		Use IPv6\n\
+	\t-D		Enable the debug socket option\n\
+	\t-d		Detach from stdin\n");
 #ifdef IPSEC
 	fprintf(stderr, "\
-	\t-e policy     Use specified IPsec policy\n\
-	\t-E            Use IPsec ESP\n");
+	\t-E		Use IPsec ESP\n\
+	\t-e policy	Use specified IPsec policy\n");
 #endif
 	fprintf(stderr, "\
-	\t-D		Enable the debug socket option\n\
-	\t-d		Detach from stdin\n\
 	\t-h		This help text\n\
 	\t-i secs\t	Delay interval for lines sent, ports scanned\n\
 	\t-k		Keep inbound sockets open for multiple connects\n\
 	\t-l		Listen mode, for inbound connects\n\
 	\t-n		Suppress name/port resolutions\n\
 	\t-O		Disable TCP options\n\
+	\t-o		Terminate on EOF on input\n\
 	\t-P proxyuser\tUsername for proxy authentication\n\
 	\t-p port\t	Specify local port for remote connects\n\
 	\t-r		Randomize remote ports\n\
@@ -930,9 +931,9 @@ void
 usage(int ret)
 {
 #ifdef IPSEC
-	fprintf(stderr, "usage: nc [-46DEdhklnorStUuvz] [-e policy] [-i interval] [-P proxy_username] [-p source_port]\n");
+	fprintf(stderr, "usage: nc [-46DdEhklnOorStUuvz] [-e policy] [-i interval] [-P proxy_username] [-p source_port]\n");
 #else
-	fprintf(stderr, "usage: nc [-46DdhklnorStUuvz] [-i interval] [-P proxy_username] [-p source_port]\n");
+	fprintf(stderr, "usage: nc [-46DdhklnOorStUuvz] [-i interval] [-P proxy_username] [-p source_port]\n");
 #endif
 	fprintf(stderr, "\t  [-s source_ip_address] [-T ToS] [-w timeout] [-X proxy_protocol]\n");
 	fprintf(stderr, "\t  [-x proxy_address[:port]] [hostname] [port[s]]\n");
