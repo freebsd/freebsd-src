@@ -29,7 +29,7 @@
 .Os
 .Sh NAME
 .Nm setfib
-.Nd execute a utility with an altered default network view.
+.Nd execute a utility with an altered default network view
 .Sh SYNOPSIS
 .Nm
 .Op Fl F 
@@ -41,8 +41,9 @@ The
 .Nm
 utility runs
 .Ar utility
-with an different routing table. The table number
-.Dq fib
+with an different routing table.
+The table number
+.Dq Ar fib
 will be used by default for all sockets started by this
 process or descendents.
 .Sh ENVIRONMENT
@@ -83,7 +84,11 @@ or
 .Sh STANDARDS
 The
 .Nm
-utility is a FreeBSD specific extension, however many UNIX like systems
+utility is a
+.Fx
+specific extension, however many
+.Ux
+like systems
 have an equivalent function.
 .Sh HISTORY
 The
