@@ -1455,8 +1455,11 @@ kqueue_close(struct file *fp, struct thread *td)
 
 	for (i = 0; i < kq->kq_knlistsize; i++) {
 		while ((kn = SLIST_FIRST(&kq->kq_knlist[i])) != NULL) {
-			KASSERT((kn->kn_status & KN_INFLUX) == 0,
-			    ("KN_INFLUX set when not suppose to be"));
+			if ((kn->kn_status & KN_INFLUX) == KN_INFLUX) {
+				kq->kq_state |= KQ_FLUXWAIT;
+				msleep(kq, &kq->kq_lock, PSOCK, "kqclo1", 0);
+				continue;
+			}
 			kn->kn_status |= KN_INFLUX;
 			KQ_UNLOCK(kq);
 			if (!(kn->kn_status & KN_DETACHED))
@@ -1468,8 +1471,12 @@ kqueue_close(struct file *fp, struct thread *td)
 	if (kq->kq_knhashmask != 0) {
 		for (i = 0; i <= kq->kq_knhashmask; i++) {
 			while ((kn = SLIST_FIRST(&kq->kq_knhash[i])) != NULL) {
-				KASSERT((kn->kn_status & KN_INFLUX) == 0,
-				    ("KN_INFLUX set when not suppose to be"));
+				if ((kn->kn_status & KN_INFLUX) == KN_INFLUX) {
+					kq->kq_state |= KQ_FLUXWAIT;
+					msleep(kq, &kq->kq_lock, PSOCK,
+					       "kqclo2", 0);
+					continue;
+				}
 				kn->kn_status |= KN_INFLUX;
 				KQ_UNLOCK(kq);
 				if (!(kn->kn_status & KN_DETACHED))
