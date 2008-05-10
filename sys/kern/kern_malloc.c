@@ -594,7 +594,7 @@ kmeminit(void *dummy)
 	init_param3(vm_kmem_size / PAGE_SIZE);
 
 	kmem_map = kmem_suballoc(kernel_map, &kmembase, &kmemlimit,
-	    vm_kmem_size);
+	    vm_kmem_size, TRUE);
 	kmem_map->system_map = 1;
 
 #ifdef DEBUG_MEMGUARD
