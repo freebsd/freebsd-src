@@ -177,6 +177,8 @@ struct ndis_softc {
 
 	struct taskqueue	*ndis_tq;		/* private task queue */
 	struct task		ndis_scantask;
+	struct task		ndis_authtask;
+	struct task		ndis_assoctask;
 	int			(*ndis_newstate)(struct ieee80211com *,
 				    enum ieee80211_state, int);
 };
