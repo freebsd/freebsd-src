@@ -1745,6 +1745,8 @@ fwohci_stop(struct fwohci_softc *sc, device_t dev)
 {
 	u_int i;
 
+	fwohci_set_intr(&sc->fc, 0);
+
 /* Now stopping all DMA channel */
 	OWRITE(sc,  OHCI_ARQCTLCLR, OHCI_CNTL_DMA_RUN);
 	OWRITE(sc,  OHCI_ARSCTLCLR, OHCI_CNTL_DMA_RUN);
@@ -2601,10 +2603,13 @@ fwohci_add_rx_buf(struct fwohci_dbch *dbch, struct fwohcidb_tr *db_tr,
 
 	ir = &dbch->xferq;
 	if (ir->buf == NULL && (dbch->xferq.flag & FWXFERQ_EXTBUF) == 0) {
-		db_tr->buf = fwdma_malloc_size(dbch->dmat, &db_tr->dma_map,
-			ir->psize, &dbuf[0], BUS_DMA_NOWAIT);
-		if (db_tr->buf == NULL)
-			return(ENOMEM);
+		if (db_tr->buf == NULL) {
+			db_tr->buf = fwdma_malloc_size(dbch->dmat,
+			    &db_tr->dma_map, ir->psize, &dbuf[0],
+			    BUS_DMA_NOWAIT);
+			if (db_tr->buf == NULL)
+				return(ENOMEM);
+		}
 		db_tr->dbcnt = 1;
 		dsiz[0] = ir->psize;
 		bus_dmamap_sync(dbch->dmat, db_tr->dma_map,
