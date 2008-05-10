@@ -109,8 +109,8 @@ kmem_alloc_nofault(map, size)
 
 	size = round_page(size);
 	addr = vm_map_min(map);
-	result = vm_map_find(map, NULL, 0,
-	    &addr, size, TRUE, VM_PROT_ALL, VM_PROT_ALL, MAP_NOFAULT);
+	result = vm_map_find(map, NULL, 0, &addr, size, VMFS_ANY_SPACE,
+	    VM_PROT_ALL, VM_PROT_ALL, MAP_NOFAULT);
 	if (result != KERN_SUCCESS) {
 		return (0);
 	}
@@ -221,12 +221,11 @@ kmem_free(map, addr, size)
  *	parent		Map to take range from
  *	min, max	Returned endpoints of map
  *	size		Size of range to find
+ *	superpage_align	Request that min is superpage aligned
  */
 vm_map_t
-kmem_suballoc(parent, min, max, size)
-	vm_map_t parent;
-	vm_offset_t *min, *max;
-	vm_size_t size;
+kmem_suballoc(vm_map_t parent, vm_offset_t *min, vm_offset_t *max,
+    vm_size_t size, boolean_t superpage_align)
 {
 	int ret;
 	vm_map_t result;
@@ -234,8 +233,8 @@ kmem_suballoc(parent, min, max, size)
 	size = round_page(size);
 
 	*min = vm_map_min(parent);
-	ret = vm_map_find(parent, NULL, 0,
-	    min, size, TRUE, VM_PROT_ALL, VM_PROT_ALL, 0);
+	ret = vm_map_find(parent, NULL, 0, min, size, superpage_align ?
+	    VMFS_ALIGNED_SPACE : VMFS_ANY_SPACE, VM_PROT_ALL, VM_PROT_ALL, 0);
 	if (ret != KERN_SUCCESS)
 		panic("kmem_suballoc: bad status return of %d", ret);
 	*max = *min + size;
@@ -258,9 +257,6 @@ kmem_suballoc(parent, min, max, size)
  * 	This routine has its own private kernel submap (kmem_map) and object
  * 	(kmem_object).  This, combined with the fact that only malloc uses
  * 	this routine, ensures that we will never block in map or object waits.
- *
- * 	Note that this still only works in a uni-processor environment and
- * 	when called at splhigh().
  *
  * 	We don't worry about expanding the map (adding entries) since entries
  * 	for wired maps are statically allocated.
