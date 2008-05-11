@@ -233,10 +233,12 @@ systemHelpFile(char *file, char *buf)
     snprintf(buf, FILENAME_MAX, "/stand/help/%s.TXT", file);
     if (file_readable(buf)) 
 	return expand(buf);
-    snprintf(buf, FILENAME_MAX, "/usr/src/usr.sbin/sade/help/%s.hlp", file);
+    snprintf(buf, FILENAME_MAX, "/usr/src/usr.sbin/%s/help/%s.hlp", StartName,
+	file);
     if (file_readable(buf))
 	return buf;
-    snprintf(buf, FILENAME_MAX, "/usr/src/usr.sbin/sade/help/%s.TXT", file);
+    snprintf(buf, FILENAME_MAX, "/usr/src/usr.sbin/%s/help/%s.TXT", StartName,
+	file);
     if (file_readable(buf))
 	return buf;
     return NULL;
