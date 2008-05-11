@@ -80,7 +80,7 @@ struct ieee80211_tx_ampdu {
  * available and more streams are requested than available.
  */
 
-static void __inline
+static __inline void
 ieee80211_txampdu_update_pps(struct ieee80211_tx_ampdu *tap)
 {
 	/* NB: scale factor of 2 was picked heuristically */
@@ -91,7 +91,7 @@ ieee80211_txampdu_update_pps(struct ieee80211_tx_ampdu *tap)
 /*
  * Count a packet towards the pps estimate.
  */
-static void __inline
+static __inline void
 ieee80211_txampdu_count_packet(struct ieee80211_tx_ampdu *tap)
 {
 	/* XXX bound loop/do more crude estimate? */
@@ -113,7 +113,7 @@ ieee80211_txampdu_count_packet(struct ieee80211_tx_ampdu *tap)
  * date due to lack of traffic then we decay the estimate
  * to account for the idle time.
  */
-static int __inline
+static __inline int
 ieee80211_txampdu_getpps(struct ieee80211_tx_ampdu *tap)
 {
 	/* XXX bound loop/do more crude estimate? */
