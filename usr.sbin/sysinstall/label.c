@@ -1281,7 +1281,7 @@ diskLabel(Device *dev)
 	    if (!variable_cmp(DISK_LABELLED, "written")) {
 		msgConfirm("You've already written out your changes - if you\n"
 			   "wish to overwrite them, you'll have to restart\n"
-			   "sysinstall first.");
+			   "%s first.", StartName);
 	    }
 	    else if (!msgNoYes("WARNING:  This should only be used when modifying an EXISTING\n"
 			  "installation.  If you are installing FreeBSD for the first time\n"

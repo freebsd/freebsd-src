@@ -243,12 +243,12 @@ dump_variables(dialogMenuItem *unused)
     Variable *vp;
 
     if (isDebug())
-	msgDebug("Writing sysinstall variables to file..\n");
+	msgDebug("Writing %s variables to file..\n", StartName);
 
     fp = fopen("/etc/sysinstall.vars", "w");
     if (!fp) {
-	msgConfirm("Unable to write to /etc/sysinstall.vars: %s",
-		   strerror(errno));
+	msgConfirm("Unable to write to /etc/%s.vars: %s",
+		   StartName, strerror(errno));
 	return DITEM_FAILURE;
     }
 
