@@ -3027,11 +3027,8 @@ ieee80211_ioctl_set80211(struct ieee80211vap *vap, u_long cmd, struct ieee80211r
 		break;
 	case IEEE80211_IOC_DFS:
 		if (ireq->i_val) {
-#if 0
-			/* XXX no capability */
 			if ((vap->iv_caps & IEEE80211_C_DFS) == 0)
 				return EOPNOTSUPP;
-#endif
 			/* NB: DFS requires 11h support */
 			if ((vap->iv_flags & IEEE80211_F_DOTH) == 0)
 				return EINVAL;
