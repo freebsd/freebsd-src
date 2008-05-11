@@ -1283,6 +1283,18 @@ lf_setlock(struct lockf *state, struct lockf_entry *lock, struct vnode *vp,
 		}
 
 		/*
+		 * For flock type locks, we must first remove
+		 * any shared locks that we hold before we sleep
+		 * waiting for an exclusive lock.
+		 */
+		if ((lock->lf_flags & F_FLOCK) &&
+		    lock->lf_type == F_WRLCK) {
+			lock->lf_type = F_UNLCK;
+			lf_activate_lock(state, lock);
+			lock->lf_type = F_WRLCK;
+		}
+
+		/*
 		 * We are blocked. Create edges to each blocking lock,
 		 * checking for deadlock using the owner graph. For
 		 * simplicity, we run deadlock detection for all
@@ -1301,17 +1313,6 @@ lf_setlock(struct lockf *state, struct lockf_entry *lock, struct vnode *vp,
 			goto out;
 		}
 
-		/*
-		 * For flock type locks, we must first remove
-		 * any shared locks that we hold before we sleep
-		 * waiting for an exclusive lock.
-		 */
-		if ((lock->lf_flags & F_FLOCK) &&
-		    lock->lf_type == F_WRLCK) {
-			lock->lf_type = F_UNLCK;
-			lf_activate_lock(state, lock);
-			lock->lf_type = F_WRLCK;
-		}
 		/*
 		 * We have added edges to everything that blocks
 		 * us. Sleep until they all go away.
