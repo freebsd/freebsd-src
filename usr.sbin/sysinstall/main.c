@@ -41,6 +41,7 @@
 #include <sys/resource.h>
 
 const char *StartName;		/* Initial contents of argv[0] */
+const char *ProgName = "sysinstall";
 
 static void
 screech(int sig)

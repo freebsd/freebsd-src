@@ -365,11 +365,11 @@ systemHelpFile(char *file, char *buf)
     snprintf(buf, FILENAME_MAX, "/stand/help/%s.TXT", file);
     if (file_readable(buf)) 
 	return expand(buf);
-    snprintf(buf, FILENAME_MAX, "/usr/src/usr.sbin/%s/help/%s.hlp", StartName,
+    snprintf(buf, FILENAME_MAX, "/usr/src/usr.sbin/%s/help/%s.hlp", ProgName,
 	file);
     if (file_readable(buf))
 	return buf;
-    snprintf(buf, FILENAME_MAX, "/usr/src/usr.sbin/%s/help/%s.TXT", StartName,
+    snprintf(buf, FILENAME_MAX, "/usr/src/usr.sbin/%s/help/%s.TXT", ProgName,
 	file);
     if (file_readable(buf))
 	return buf;
