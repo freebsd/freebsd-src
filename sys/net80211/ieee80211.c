@@ -49,17 +49,17 @@ __FBSDID("$FreeBSD$");
 
 #include <net/bpf.h>
 
-const char *ieee80211_phymode_name[] = {
-	"auto",		/* IEEE80211_MODE_AUTO */
-	"11a",		/* IEEE80211_MODE_11A */
-	"11b",		/* IEEE80211_MODE_11B */
-	"11g",		/* IEEE80211_MODE_11G */
-	"FH",		/* IEEE80211_MODE_FH */
-	"turboA",	/* IEEE80211_MODE_TURBO_A */
-	"turboG",	/* IEEE80211_MODE_TURBO_G */
-	"sturboA",	/* IEEE80211_MODE_STURBO_A */
-	"11na",		/* IEEE80211_MODE_11NA */
-	"11ng",		/* IEEE80211_MODE_11NG */
+const char *ieee80211_phymode_name[IEEE80211_MODE_MAX] = {
+	[IEEE80211_MODE_AUTO]	  = "auto",
+	[IEEE80211_MODE_11A]	  = "11a",
+	[IEEE80211_MODE_11B]	  = "11b",
+	[IEEE80211_MODE_11G]	  = "11g",
+	[IEEE80211_MODE_FH]	  = "FH",
+	[IEEE80211_MODE_TURBO_A]  = "turboA",
+	[IEEE80211_MODE_TURBO_G]  = "turboG",
+	[IEEE80211_MODE_STURBO_A] = "sturboA",
+	[IEEE80211_MODE_11NA]	  = "11na",
+	[IEEE80211_MODE_11NG]	  = "11ng",
 };
 static const uint8_t ieee80211broadcastaddr[IEEE80211_ADDR_LEN] =
 	{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
