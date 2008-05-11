@@ -265,12 +265,12 @@ k8temp_sysctl(SYSCTL_HANDLER_ARGS)
 	case CORE0:
 		auxtemp[0] = k8temp_gettemp(dev, SENSOR0_CORE0);
 		auxtemp[1] = k8temp_gettemp(dev, SENSOR1_CORE0);
-		temp = max(auxtemp[0], auxtemp[1]);
+		temp = MAX(auxtemp[0], auxtemp[1]);
 		break;
 	case CORE1:
 		auxtemp[0] = k8temp_gettemp(dev, SENSOR0_CORE1);
 		auxtemp[1] = k8temp_gettemp(dev, SENSOR1_CORE1);
-		temp = max(auxtemp[0], auxtemp[1]);
+		temp = MAX(auxtemp[0], auxtemp[1]);
 		break;
 	default:
 		temp = k8temp_gettemp(dev, arg2);
