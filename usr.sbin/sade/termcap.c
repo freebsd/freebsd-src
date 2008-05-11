@@ -45,7 +45,7 @@ set_termcap(void)
     stat = ioctl(STDERR_FILENO, GIO_COLOR, &ColorDisplay);
 
 	if (isDebug())
-	    DebugFD = open("sysinstall.debug", O_WRONLY|O_CREAT|O_TRUNC, 0644);
+	    DebugFD = open("sade.debug", O_WRONLY|O_CREAT|O_TRUNC, 0644);
 	else
 	    DebugFD = -1;
 	if (DebugFD < 0)
