@@ -213,6 +213,35 @@ MLINKS=	krb5_425_conv_principal.3 krb5_425_conv_principal_ext.3 \
 	krb5_openlog.3 krb5_log_msg.3 \
 	krb5_openlog.3 krb5_vlog.3 \
 	krb5_openlog.3 krb5_vlog_msg.3 \
+	krb5_principal.3 krb5_get_default_principal.3 \
+	krb5_principal.3 krb5_build_principal.3 \
+	krb5_principal.3 krb5_build_principal_ext.3 \
+	krb5_principal.3 krb5_build_principal_va.3 \
+	krb5_principal.3 krb5_build_principal_va_ext.3 \
+	krb5_principal.3 krb5_copy_principal.3 \
+	krb5_principal.3 krb5_free_principal.3 \
+	krb5_principal.3 krb5_make_principal.3 \
+	krb5_principal.3 krb5_parse_name.3 \
+	krb5_principal.3 krb5_parse_name_flags.3 \
+	krb5_principal.3 krb5_parse_nametype.3 \
+	krb5_principal.3 krb5_princ_realm.3 \
+	krb5_principal.3 krb5_princ_set_realm.3 \
+	krb5_principal.3 krb5_principal_compare.3 \
+	krb5_principal.3 krb5_principal_compare_any_realm.3 \
+	krb5_principal.3 krb5_principal_get_comp_string.3 \
+	krb5_principal.3 krb5_principal_get_realm.3 \
+	krb5_principal.3 krb5_principal_get_type.3 \
+	krb5_principal.3 krb5_principal_match.3 \
+	krb5_principal.3 krb5_principal_set_type.3 \
+	krb5_principal.3 krb5_realm_compare.3 \
+	krb5_principal.3 krb5_sname_to_principal.3 \
+	krb5_principal.3 krb5_sock_to_principal.3 \
+	krb5_principal.3 krb5_unparse_name.3 \
+	krb5_principal.3 krb5_unparse_name_flags.3 \
+	krb5_principal.3 krb5_unparse_name_fixed.3 \
+	krb5_principal.3 krb5_unparse_name_fixed_flags.3 \
+	krb5_principal.3 krb5_unparse_name_fixed_short.3 \
+	krb5_principal.3 krb5_unparse_name_short.3 \
 	krb5_set_default_realm.3 krb5_free_host_realm.3 \
 	krb5_set_default_realm.3 krb5_get_default_realm.3 \
 	krb5_set_default_realm.3 krb5_get_default_realms.3 \
