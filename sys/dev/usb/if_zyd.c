@@ -2493,8 +2493,7 @@ zyd_init(void *priv)
 		return;
 
 	/* promiscuous mode */
-	(void)zyd_write32(sc, ZYD_MAC_SNIFFER,
-	    (ic->ic_opmode == IEEE80211_M_MONITOR) ? 1 : 0);
+	(void)zyd_write32(sc, ZYD_MAC_SNIFFER, 0);
 
 	/* multicast setup */
 	(void)zyd_set_multi(sc);
