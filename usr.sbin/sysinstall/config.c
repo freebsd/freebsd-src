@@ -187,8 +187,8 @@ configFstab(dialogMenuItem *self)
 	    return DITEM_SUCCESS;
 	else {
 	    msgConfirm("Attempting to rebuild your /etc/fstab file.  Warning: If you had\n"
-		       "any CD devices in use before running sysinstall then they may NOT\n"
-		       "be found by this run!");
+		       "any CD devices in use before running %s then they may NOT\n"
+		       "be found by this run!", StartName);
 	}
     }
 
