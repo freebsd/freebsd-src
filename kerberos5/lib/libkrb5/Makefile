@@ -128,10 +128,6 @@ MLINKS=	krb5_425_conv_principal.3 krb5_425_conv_principal_ext.3 \
 	krb5_auth_context.3 krb5_auth_setkeytype.3 \
 	krb5_auth_context.3 krb5_auth_setlocalseqnumber.3 \
 	krb5_auth_context.3 krb5_auth_setremoteseqnumber.3 \
-	krb5_build_principal.3 krb5_build_principal_ext.3 \
-	krb5_build_principal.3 krb5_build_principal_va.3 \
-	krb5_build_principal.3 krb5_build_principal_va_ext.3 \
-	krb5_build_principal.3 krb5_make_principal.3 \
 	krb5_ccache.3 krb5_cc_close.3 \
 	krb5_ccache.3 krb5_cc_copy_cache.3 \
 	krb5_ccache.3 krb5_cc_cursor.3 \
@@ -217,12 +213,10 @@ MLINKS=	krb5_425_conv_principal.3 krb5_425_conv_principal_ext.3 \
 	krb5_openlog.3 krb5_log_msg.3 \
 	krb5_openlog.3 krb5_vlog.3 \
 	krb5_openlog.3 krb5_vlog_msg.3 \
-	krb5_principal_get_realm.3 krb5_principal_get_comp_string.3 \
 	krb5_set_default_realm.3 krb5_free_host_realm.3 \
 	krb5_set_default_realm.3 krb5_get_default_realm.3 \
 	krb5_set_default_realm.3 krb5_get_default_realms.3 \
 	krb5_set_default_realm.3 krb5_get_host_realm.3 \
-	krb5_sname_to_principal.3 krb5_sock_to_principal.3 \
 	krb5_timeofday.3 krb5_us_timeofday.3 \
 	krb5_verify_user.3 krb5_verify_opt_init.3 \
 	krb5_verify_user.3 krb5_verify_opt_set_flags.3 \
