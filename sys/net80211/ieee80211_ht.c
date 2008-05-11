@@ -1651,9 +1651,6 @@ ieee80211_ampdu_request(struct ieee80211_node *ni,
 		| SM(IEEE80211_AGGR_BAWMAX, IEEE80211_BAPS_BUFSIZ)
 		;
 	args[2] = 0;	/* batimeout */
-	args[3] = SM(0, IEEE80211_BASEQ_START)
-		| SM(0, IEEE80211_BASEQ_FRAG)
-		;
 	/* NB: do first so there's no race against reply */
 	if (!ic->ic_addba_request(ni, tap, dialogtoken, args[1], args[2])) {
 		/* unable to setup state, don't make request */
@@ -1668,6 +1665,10 @@ ieee80211_ampdu_request(struct ieee80211_node *ni,
 		return 0;
 	}
 	tokens = dialogtoken;			/* allocate token */
+	/* NB: after calling ic_addba_request so driver can set seqstart */
+	args[3] = SM(tap->txa_seqstart, IEEE80211_BASEQ_START)
+		| SM(0, IEEE80211_BASEQ_FRAG)
+		;
 	return ic->ic_send_action(ni, IEEE80211_ACTION_CAT_BA,
 		IEEE80211_ACTION_BA_ADDBA_REQUEST, args);
 }
