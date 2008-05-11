@@ -1420,7 +1420,7 @@ rt2661_sendprot(struct rt2661_softc *sc, int ac,
 	ackrate = ieee80211_ack_rate(sc->sc_rates, rate);
 
 	isshort = (ic->ic_flags & IEEE80211_F_SHPREAMBLE) != 0;
-	dur = ieee80211_compute_duration(sc->sc_rates, pktlen, rate, isshort);
+	dur = ieee80211_compute_duration(sc->sc_rates, pktlen, rate, isshort)
 	    + ieee80211_ack_duration(sc->sc_rates, rate, isshort);
 	flags = RT2661_TX_MORE_FRAG;
 	if (prot == IEEE80211_PROT_RTSCTS) {
