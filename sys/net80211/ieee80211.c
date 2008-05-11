@@ -392,8 +392,9 @@ ieee80211_vap_setup(struct ieee80211com *ic, struct ieee80211vap *vap,
 	    (vap->iv_caps & IEEE80211_C_BGSCAN))
 		vap->iv_flags |= IEEE80211_F_BGSCAN;
 	vap->iv_flags |= IEEE80211_F_DOTH;	/* XXX out of caps, just ena */
-	/* XXX out of caps, just ena */
-	if (vap->iv_opmode == IEEE80211_M_HOSTAP)
+	/* NB: DFS support only makes sense for ap mode right now */
+	if (vap->iv_opmode == IEEE80211_M_HOSTAP &&
+	    (vap->iv_caps & IEEE80211_C_DFS))
 		vap->iv_flags_ext |= IEEE80211_FEXT_DFS;
 
 	vap->iv_des_chan = IEEE80211_CHAN_ANYC;		/* any channel is ok */
