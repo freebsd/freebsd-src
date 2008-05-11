@@ -1276,7 +1276,7 @@ diskLabel(Device *dev)
 	    if (!variable_cmp(DISK_LABELLED, "written")) {
 		msgConfirm("You've already written out your changes - if you\n"
 			   "wish to overwrite them, you'll have to restart\n"
-			   "sade first.");
+			   "%s first.", StartName);
 	    }
 	    else if (!msgNoYes("WARNING:  You are about to modify an EXISTING\n"
 			  "installation.\n\n"
