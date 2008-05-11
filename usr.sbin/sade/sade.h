@@ -278,6 +278,7 @@ extern DMenu		MenuMBRType;		/* Type of MBR to write on the disk		*/
 extern DMenu		MenuMain;       /* New main menu */
 extern DMenu    MenuDiskDevices;        /* Disk type devices                            */
 extern const char *	StartName;		/* Which name we were started as */
+extern const char *	ProgName;		/* Program's proper name */
 
 /* Important chunks. */
 extern Chunk *HomeChunk;
