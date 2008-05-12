@@ -110,6 +110,8 @@ intsmb_attach(device_t dev)
 	int error, rid, value;
 	char *str;
 
+	sc->dev = dev;
+
 	mtx_init(&sc->lock, device_get_nameunit(dev), "intsmb", MTX_DEF);
 
 	rid = PCI_BASE_ADDR_SMB;
@@ -410,7 +412,7 @@ intsmb_stop_poll(struct intsmb_softc *sc)
 			sc->isbusy = 0;
 			error = intsmb_error(status);
 			if (error == 0 && !(status & PIIX4_SMBHSTSTAT_INTR))
-				device_printf(sc->dev, "unknown cause why?");
+				device_printf(sc->dev, "unknown cause why?\n");
 			return (error);
 		}
 	}
