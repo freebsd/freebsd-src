@@ -140,10 +140,10 @@ uint16_t	ieee80211_compute_duration(const struct ieee80211_rate_table *,
 /*
  * Convert PLCP signal/rate field to 802.11 rate code (.5Mbits/s)
  */
-uint8_t		ieee80211_plcp2rate(uint8_t, int);
+uint8_t		ieee80211_plcp2rate(uint8_t, enum ieee80211_phytype);
 /*
  * Convert 802.11 rate code to PLCP signal.
  */
-uint8_t		ieee80211_rate2plcp(int);
+uint8_t		ieee80211_rate2plcp(int, enum ieee80211_phytype);
 #endif	/* _KERNEL */
 #endif	/* !_NET80211_IEEE80211_PHY_H_ */
