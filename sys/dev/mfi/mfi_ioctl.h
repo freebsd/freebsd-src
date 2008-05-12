@@ -98,7 +98,25 @@ struct mfi_linux_ioc_packet {
 #endif
 } __packed;
 
+struct mfi_ioc_passthru {
+	struct mfi_dcmd_frame	ioc_frame;
+	uint32_t		buf_size;
+	uint8_t			*buf;
+} __packed;
+
+#ifdef __amd64__
+struct mfi_ioc_passthru32 {
+	struct mfi_dcmd_frame	ioc_frame;
+	uint32_t		buf_size;
+	uint32_t		buf;
+} __packed;
+#endif
+
 #define MFIIO_STATS	_IOWR('Q', 101, union mfi_statrequest)
+#define MFIIO_PASSTHRU	_IOWR('C', 102, struct mfi_ioc_passthru)
+#ifdef __amd64__
+#define MFIIO_PASSTHRU32	_IOWR('C', 102, struct mfi_ioc_passthru32)
+#endif
 
 struct mfi_linux_ioc_aen {
 	uint16_t	laen_adapter_no;
