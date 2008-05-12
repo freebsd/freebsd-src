@@ -309,9 +309,9 @@ ieee80211_get_ratetable(struct ieee80211_channel *c)
  * XXX might be a candidate for inline
  */
 uint8_t
-ieee80211_plcp2rate(uint8_t plcp, int ofdm)
+ieee80211_plcp2rate(uint8_t plcp, enum ieee80211_phytype type)
 {
-	if (ofdm) {
+	if (type == IEEE80211_T_OFDM) {
 		static const uint8_t ofdm_plcp2rate[16] = {
 			[0xb]	= 12,
 			[0xf]	= 18,
@@ -323,7 +323,8 @@ ieee80211_plcp2rate(uint8_t plcp, int ofdm)
 			[0xc]	= 108
 		};
 		return ofdm_plcp2rate[plcp & 0xf];
-	} else {
+	}
+	if (type == IEEE80211_T_CCK) {
 		static const uint8_t cck_plcp2rate[16] = {
 			[0xa]	= 2,	/* 0x0a */
 			[0x4]	= 4,	/* 0x14 */
@@ -333,21 +334,17 @@ ieee80211_plcp2rate(uint8_t plcp, int ofdm)
 		};
 		return cck_plcp2rate[plcp & 0xf];
 	}
+	return 0;
 }
 
 /*
  * Covert 802.11 rate to PLCP signal.
  */
 uint8_t
-ieee80211_rate2plcp(int rate)
+ieee80211_rate2plcp(int rate, enum ieee80211_phytype type)
 {
+	/* XXX ignore type for now since rates are unique */
 	switch (rate) {
-	/* CCK rates (returned values are device-dependent) */
-	case 2:		return 0x0;
-	case 4:		return 0x1;
-	case 11:	return 0x2;
-	case 22:	return 0x3;
-
 	/* OFDM rates (cf IEEE Std 802.11a-1999, pp. 14 Table 80) */
 	case 12:	return 0xb;
 	case 18:	return 0xf;
@@ -357,9 +354,17 @@ ieee80211_rate2plcp(int rate)
 	case 72:	return 0xd;
 	case 96:	return 0x8;
 	case 108:	return 0xc;
+	/* CCK rates (IEEE Std 802.11b-1999 page 15, subclause 18.2.3.3) */
+	case 2:		return 10;
+	case 4:		return 20;
+	case 11:	return 55;
+	case 22:	return 110;
+	/* IEEE Std 802.11g-2003 page 19, subclause 19.3.2.1 */
+	case 44:	return 220;
 	}
-	return 0xff;		/* XXX unsupported/unknown rate */
+	return 0;		/* XXX unsupported/unknown rate */
 }
+
 /*
  * Compute the time to transmit a frame of length frameLen bytes
  * using the specified rate, phy, and short preamble setting.
