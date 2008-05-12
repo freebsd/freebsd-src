@@ -1238,7 +1238,8 @@ rt2560_decryption_intr(struct rt2560_softc *sc)
 			    htole64(((uint64_t)tsf_hi << 32) | tsf_lo);
 			tap->wr_flags = 0;
 			tap->wr_rate = ieee80211_plcp2rate(desc->rate,
-			    le32toh(desc->flags) & RT2560_RX_OFDM);
+			    (desc->flags & htole32(RT2560_RX_OFDM)) ?
+				IEEE80211_T_OFDM : IEEE80211_T_CCK);
 			tap->wr_antenna = sc->rx_ant;
 			tap->wr_antsignal = RT2560_RSSI(sc, desc->rssi);
 
@@ -1433,6 +1434,29 @@ rt2560_intr(void *arg)
 
 #define RT2560_TXRX_TURNAROUND	10	/* us */
 
+static uint8_t
+rt2560_plcp_signal(int rate)
+{
+	switch (rate) {
+	/* OFDM rates (cf IEEE Std 802.11a-1999, pp. 14 Table 80) */
+	case 12:	return 0xb;
+	case 18:	return 0xf;
+	case 24:	return 0xa;
+	case 36:	return 0xe;
+	case 48:	return 0x9;
+	case 72:	return 0xd;
+	case 96:	return 0x8;
+	case 108:	return 0xc;
+
+	/* CCK rates (NB: not IEEE std, device-specific) */
+	case 2:		return 0x0;
+	case 4:		return 0x1;
+	case 11:	return 0x2;
+	case 22:	return 0x3;
+	}
+	return 0xff;		/* XXX unsupported/unknown rate */
+}
+
 static void
 rt2560_setup_tx_desc(struct rt2560_softc *sc, struct rt2560_tx_desc *desc,
     uint32_t flags, int len, int rate, int encrypt, bus_addr_t physaddr)
@@ -1452,7 +1476,7 @@ rt2560_setup_tx_desc(struct rt2560_softc *sc, struct rt2560_tx_desc *desc,
 	    RT2560_LOGCWMAX(8));
 
 	/* setup PLCP fields */
-	desc->plcp_signal  = ieee80211_rate2plcp(rate);
+	desc->plcp_signal  = rt2560_plcp_signal(rate);
 	desc->plcp_service = 4;
 
 	len += IEEE80211_CRC_LEN;
