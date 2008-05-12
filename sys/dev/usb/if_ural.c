@@ -479,7 +479,8 @@ ural_attach(device_t self)
 
 	/* set device capabilities */
 	ic->ic_caps =
-	      IEEE80211_C_IBSS		/* IBSS mode supported */
+	      IEEE80211_C_STA		/* station mode supported */
+	    | IEEE80211_C_IBSS		/* IBSS mode supported */
 	    | IEEE80211_C_MONITOR	/* monitor mode supported */
 	    | IEEE80211_C_HOSTAP	/* HostAp mode supported */
 	    | IEEE80211_C_TXPMGT	/* tx power management */

@@ -331,7 +331,8 @@ wi_attach(device_t dev)
 	ic->ic_ifp = ifp;
 	ic->ic_phytype = IEEE80211_T_DS;
 	ic->ic_opmode = IEEE80211_M_STA;
-	ic->ic_caps = IEEE80211_C_PMGT
+	ic->ic_caps = IEEE80211_C_STA
+		    | IEEE80211_C_PMGT
 		    | IEEE80211_C_MONITOR
 		    ;
 

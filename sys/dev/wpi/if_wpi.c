@@ -623,7 +623,8 @@ wpi_attach(device_t dev)
 
 	/* set device capabilities */
 	ic->ic_caps =
-		  IEEE80211_C_MONITOR		/* monitor mode supported */
+		  IEEE80211_C_STA		/* station mode supported */
+		| IEEE80211_C_MONITOR		/* monitor mode supported */
 		| IEEE80211_C_TXPMGT		/* tx power management */
 		| IEEE80211_C_SHSLOT		/* short slot time supported */
 		| IEEE80211_C_SHPREAMBLE	/* short preamble supported */
