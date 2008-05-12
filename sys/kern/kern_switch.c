@@ -909,7 +909,7 @@ runq_choose(struct runq *rq)
 			ke2 = ke = TAILQ_FIRST(rqh);
 
 			while (count-- && ke2) {
-				if (ke->ke_thread->td_lastcpu == cpu) {
+				if (ke2->ke_thread->td_lastcpu == cpu) {
 					ke = ke2;
 					break;
 				}
