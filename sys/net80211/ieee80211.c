@@ -61,6 +61,16 @@ const char *ieee80211_phymode_name[IEEE80211_MODE_MAX] = {
 	[IEEE80211_MODE_11NA]	  = "11na",
 	[IEEE80211_MODE_11NG]	  = "11ng",
 };
+/* map ieee80211_opmode to the corresponding capability bit */
+const int ieee80211_opcap[IEEE80211_OPMODE_MAX] = {
+	[IEEE80211_M_IBSS]	= IEEE80211_C_IBSS,
+	[IEEE80211_M_WDS]	= IEEE80211_C_WDS,
+	[IEEE80211_M_STA]	= IEEE80211_C_STA,
+	[IEEE80211_M_AHDEMO]	= IEEE80211_C_AHDEMO,
+	[IEEE80211_M_HOSTAP]	= IEEE80211_C_HOSTAP,
+	[IEEE80211_M_MONITOR]	= IEEE80211_C_MONITOR,
+};
+
 static const uint8_t ieee80211broadcastaddr[IEEE80211_ADDR_LEN] =
 	{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
@@ -310,9 +320,6 @@ ieee80211_vap_setup(struct ieee80211com *ic, struct ieee80211vap *vap,
 	const uint8_t bssid[IEEE80211_ADDR_LEN],
 	const uint8_t macaddr[IEEE80211_ADDR_LEN])
 {
-#define	IEEE80211_C_OPMODE \
-	(IEEE80211_C_IBSS | IEEE80211_C_HOSTAP | IEEE80211_C_AHDEMO | \
-	 IEEE80211_C_MONITOR | IEEE80211_C_WDS)
 	struct ifnet *ifp;
 
 	ifp = if_alloc(IFT_ETHER);
@@ -341,26 +348,14 @@ ieee80211_vap_setup(struct ieee80211com *ic, struct ieee80211vap *vap,
 	vap->iv_caps = ic->ic_caps &~ IEEE80211_C_OPMODE;
 	vap->iv_htcaps = ic->ic_htcaps;
 	vap->iv_opmode = opmode;
+	vap->iv_caps |= ieee80211_opcap[opmode];
 	switch (opmode) {
 	case IEEE80211_M_STA:
 		/* auto-enable s/w beacon miss support */
 		if (flags & IEEE80211_CLONE_NOBEACONS)
 			vap->iv_flags_ext |= IEEE80211_FEXT_SWBMISS;
 		break;
-	case IEEE80211_M_IBSS:
-		vap->iv_caps |= IEEE80211_C_IBSS;
-		break;
-	case IEEE80211_M_AHDEMO:
-		vap->iv_caps |= IEEE80211_C_AHDEMO;
-		break;
-	case IEEE80211_M_HOSTAP:
-		vap->iv_caps |= IEEE80211_C_HOSTAP;
-		break;
-	case IEEE80211_M_MONITOR:
-		vap->iv_caps |= IEEE80211_C_MONITOR;
-		break;
 	case IEEE80211_M_WDS:
-		vap->iv_caps |= IEEE80211_C_WDS;
 		/*
 		 * WDS links must specify the bssid of the far end.
 		 * For legacy operation this is a static relationship.
@@ -391,7 +386,7 @@ ieee80211_vap_setup(struct ieee80211com *ic, struct ieee80211vap *vap,
 	if (vap->iv_opmode == IEEE80211_M_STA &&
 	    (vap->iv_caps & IEEE80211_C_BGSCAN))
 		vap->iv_flags |= IEEE80211_F_BGSCAN;
-	vap->iv_flags |= IEEE80211_F_DOTH;	/* XXX out of caps, just ena */
+	vap->iv_flags |= IEEE80211_F_DOTH;	/* XXX no cap, just ena */
 	/* NB: DFS support only makes sense for ap mode right now */
 	if (vap->iv_opmode == IEEE80211_M_HOSTAP &&
 	    (vap->iv_caps & IEEE80211_C_DFS))
@@ -418,7 +413,6 @@ ieee80211_vap_setup(struct ieee80211com *ic, struct ieee80211vap *vap,
 	ieee80211_regdomain_vattach(vap);
 
 	return 0;
-#undef IEEE80211_C_OPMODE
 }
 
 /*

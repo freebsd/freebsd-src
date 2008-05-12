@@ -493,6 +493,7 @@ MALLOC_DECLARE(M_80211_VAP);
 
 /* ic_caps/iv_caps: device driver capabilities */
 /* 0x2f available */
+#define	IEEE80211_C_STA		0x00000001	/* CAPABILITY: STA available */
 #define	IEEE80211_C_FF		0x00000040	/* CAPABILITY: ATH FF avail */
 #define	IEEE80211_C_TURBOP	0x00000080	/* CAPABILITY: ATH Turbo avail*/
 #define	IEEE80211_C_IBSS	0x00000100	/* CAPABILITY: IBSS available */
@@ -505,7 +506,7 @@ MALLOC_DECLARE(M_80211_VAP);
 #define	IEEE80211_C_SHPREAMBLE	0x00008000	/* CAPABILITY: short preamble */
 #define	IEEE80211_C_MONITOR	0x00010000	/* CAPABILITY: monitor mode */
 #define	IEEE80211_C_DFS		0x00020000	/* CAPABILITY: DFS/radar avail*/
-/* 0x20000 available */
+/* 0x7c0000 available */
 #define	IEEE80211_C_WPA1	0x00800000	/* CAPABILITY: WPA1 avail */
 #define	IEEE80211_C_WPA2	0x01000000	/* CAPABILITY: WPA2 avail */
 #define	IEEE80211_C_WPA		0x01800000	/* CAPABILITY: WPA1+WPA2 avail*/
@@ -516,6 +517,10 @@ MALLOC_DECLARE(M_80211_VAP);
 #define	IEEE80211_C_BGSCAN	0x20000000	/* CAPABILITY: bg scanning */
 #define	IEEE80211_C_TXFRAG	0x40000000	/* CAPABILITY: tx fragments */
 /* XXX protection/barker? */
+
+#define	IEEE80211_C_OPMODE \
+	(IEEE80211_C_STA | IEEE80211_C_IBSS | IEEE80211_C_HOSTAP | \
+	 IEEE80211_C_AHDEMO | IEEE80211_C_MONITOR | IEEE80211_C_WDS)
 
 /*
  * ic_htcaps/iv_htcaps: HT-specific device/driver capabilities

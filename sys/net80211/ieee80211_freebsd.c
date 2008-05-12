@@ -108,11 +108,22 @@ wlan_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	ifp = ifunit(cp.icp_parent);
 	if (ifp == NULL)
 		return ENXIO;
+	/* XXX move printfs to DIAGNOSTIC before release */
 	if (ifp->if_type != IFT_IEEE80211) {
 		if_printf(ifp, "%s: reject, not an 802.11 device\n", __func__);
+		return ENXIO;
+	}
+	if (cp.icp_opmode >= IEEE80211_OPMODE_MAX) {
+		if_printf(ifp, "%s: invalid opmode %d\n",
+		    __func__, cp.icp_opmode);
 		return EINVAL;
 	}
 	ic = ifp->if_l2com;
+	if ((ic->ic_caps & ieee80211_opcap[cp.icp_opmode]) == 0) {
+		if_printf(ifp, "%s mode not supported\n",
+		    ieee80211_opmode_name[cp.icp_opmode]);
+		return EOPNOTSUPP;
+	}
 	vap = ic->ic_vap_create(ic, ifc->ifc_name, unit,
 			cp.icp_opmode, cp.icp_flags, cp.icp_bssid,
 			cp.icp_flags & IEEE80211_CLONE_MACADDR ?

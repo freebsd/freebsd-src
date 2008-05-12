@@ -301,7 +301,8 @@ malo_attach(uint16_t devid, struct malo_softc *sc)
 	ic->ic_phytype = IEEE80211_T_OFDM;
 	ic->ic_opmode = IEEE80211_M_STA;
 	ic->ic_caps =
-	      IEEE80211_C_BGSCAN		/* capable of bg scanning */
+	      IEEE80211_C_STA			/* station mode supported */
+	    | IEEE80211_C_BGSCAN		/* capable of bg scanning */
 	    | IEEE80211_C_MONITOR		/* monitor mode */
 	    | IEEE80211_C_SHPREAMBLE		/* short preamble supported */
 	    | IEEE80211_C_SHSLOT		/* short slot time supported */
