@@ -122,6 +122,9 @@ struct uipaq_type {
 static const struct uipaq_type uipaq_devs[] = {
 	{{ USB_VENDOR_HP, USB_PRODUCT_HP_2215 }, 0 },
 	{{ USB_VENDOR_HP, USB_PRODUCT_HP_568J }, 0},
+	{{ USB_VENDOR_HTC, USB_PRODUCT_HTC_WINMOBILE }, 0},
+	{{ USB_VENDOR_HTC, USB_PRODUCT_HTC_PPC6700MODEM }, 0},
+	{{ USB_VENDOR_HTC, USB_PRODUCT_HTC_SMARTPHONE }, 0},
 	{{ USB_VENDOR_COMPAQ, USB_PRODUCT_COMPAQ_IPAQPOCKETPC } , 0},
 	{{ USB_VENDOR_CASIO, USB_PRODUCT_CASIO_BE300 } , 0},
 	{{ USB_VENDOR_SHARP, USB_PRODUCT_SHARP_WZERO3ES }, 0},
@@ -336,6 +339,8 @@ uipaq_detach(device_t self)
 
 	DPRINTF(("uipaq_detach: sc=%p flags=%d\n", sc, flags));
 	ucom->sc_dying = 1;
+
+	rv = ucom_detach(ucom);
 
 	return (rv);
 }
