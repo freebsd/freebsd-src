@@ -515,7 +515,8 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	ic->ic_phytype = IEEE80211_T_OFDM;
 	ic->ic_opmode = IEEE80211_M_STA;
 	ic->ic_caps =
-		  IEEE80211_C_IBSS		/* ibss, nee adhoc, mode */
+		  IEEE80211_C_STA		/* station mode */
+		| IEEE80211_C_IBSS		/* ibss, nee adhoc, mode */
 		| IEEE80211_C_HOSTAP		/* hostap mode */
 		| IEEE80211_C_MONITOR		/* monitor mode */
 		| IEEE80211_C_AHDEMO		/* adhoc demo mode */
