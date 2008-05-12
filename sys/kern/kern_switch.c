@@ -394,7 +394,7 @@ runq_choose_fuzz(struct runq *rq, int fuzz)
 			td2 = td = TAILQ_FIRST(rqh);
 
 			while (count-- && td2) {
-				if (td->td_lastcpu == cpu) {
+				if (td2->td_lastcpu == cpu) {
 					td = td2;
 					break;
 				}
