@@ -1987,7 +1987,8 @@ zyd_rx_data(struct zyd_softc *sc, const uint8_t *buf, uint16_t len)
 		if (stat->flags & ZYD_RX_DECRYPTERR)
 			tap->wr_flags |= IEEE80211_RADIOTAP_F_BADFCS;
 		tap->wr_rate = ieee80211_plcp2rate(plcp->signal,
-		    stat->flags & ZYD_RX_OFDM);
+		    (stat->flags & ZYD_RX_OFDM) ?
+			IEEE80211_T_OFDM : IEEE80211_T_CCK);
 		tap->wr_antsignal = stat->rssi + -95;
 		tap->wr_antnoise = -95;		/* XXX */
 		
@@ -2064,6 +2065,29 @@ skip:	/* setup a new transfer */
 	(void)usbd_transfer(xfer);
 }
 
+static uint8_t
+zyd_plcp_signal(int rate)
+{
+	switch (rate) {
+	/* OFDM rates (cf IEEE Std 802.11a-1999, pp. 14 Table 80) */
+	case 12:	return 0xb;
+	case 18:	return 0xf;
+	case 24:	return 0xa;
+	case 36:	return 0xe;
+	case 48:	return 0x9;
+	case 72:	return 0xd;
+	case 96:	return 0x8;
+	case 108:	return 0xc;
+
+	/* CCK rates (NB: not IEEE std, device-specific) */
+	case 2:		return 0x0;
+	case 4:		return 0x1;
+	case 11:	return 0x2;
+	case 22:	return 0x3;
+	}
+	return 0xff;		/* XXX unsupported/unknown rate */
+}
+
 static int
 zyd_tx_mgt(struct zyd_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 {
@@ -2124,7 +2148,7 @@ zyd_tx_mgt(struct zyd_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 	    (IEEE80211_FC0_TYPE_CTL | IEEE80211_FC0_SUBTYPE_PS_POLL))
 		desc->flags |= ZYD_TX_FLAG_TYPE(ZYD_TX_TYPE_PS_POLL);
 
-	desc->phy = ieee80211_rate2plcp(rate);
+	desc->phy = zyd_plcp_signal(rate);
 	if (ZYD_RATE_IS_OFDM(rate)) {
 		desc->phy |= ZYD_TX_PHY_OFDM;
 		if (IEEE80211_IS_CHAN_5GHZ(ic->ic_curchan))
@@ -2295,7 +2319,7 @@ zyd_tx_data(struct zyd_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 	    (IEEE80211_FC0_TYPE_CTL | IEEE80211_FC0_SUBTYPE_PS_POLL))
 		desc->flags |= ZYD_TX_FLAG_TYPE(ZYD_TX_TYPE_PS_POLL);
 
-	desc->phy = ieee80211_rate2plcp(rate);
+	desc->phy = zyd_plcp_signal(rate);
 	if (ZYD_RATE_IS_OFDM(rate)) {
 		desc->phy |= ZYD_TX_PHY_OFDM;
 		if (IEEE80211_IS_CHAN_5GHZ(ic->ic_curchan))
