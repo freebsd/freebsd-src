@@ -390,7 +390,8 @@ zyd_complete_attach(struct zyd_softc *sc)
 
 	/* set device capabilities */
 	ic->ic_caps =
-		  IEEE80211_C_MONITOR		/* monitor mode */
+		  IEEE80211_C_STA		/* station mode */
+		| IEEE80211_C_MONITOR		/* monitor mode */
 		| IEEE80211_C_SHPREAMBLE	/* short preamble supported */
 	        | IEEE80211_C_SHSLOT	/* short slot time supported */
 		| IEEE80211_C_BGSCAN		/* capable of bg scanning */

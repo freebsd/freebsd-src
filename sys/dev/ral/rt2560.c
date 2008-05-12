@@ -278,7 +278,8 @@ rt2560_attach(device_t dev, int id)
 
 	/* set device capabilities */
 	ic->ic_caps =
-		  IEEE80211_C_IBSS		/* ibss, nee adhoc, mode */
+		  IEEE80211_C_STA		/* station mode */
+		| IEEE80211_C_IBSS		/* ibss, nee adhoc, mode */
 		| IEEE80211_C_HOSTAP		/* hostap mode */
 		| IEEE80211_C_MONITOR		/* monitor mode */
 		| IEEE80211_C_AHDEMO		/* adhoc demo mode */

@@ -724,7 +724,7 @@ ndis_attach(dev)
 		ic->ic_ifp = ifp;
 		ic->ic_opmode = IEEE80211_M_STA;
 	        ic->ic_phytype = IEEE80211_T_DS;
-		ic->ic_caps = IEEE80211_C_IBSS;
+		ic->ic_caps = IEEE80211_C_STA | IEEE80211_C_IBSS;
 		setbit(ic->ic_modecaps, IEEE80211_MODE_AUTO);
 		len = 0;
 		r = ndis_get_info(sc, OID_802_11_NETWORK_TYPES_SUPPORTED,
