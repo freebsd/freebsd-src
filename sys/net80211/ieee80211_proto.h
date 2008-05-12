@@ -48,7 +48,7 @@ enum ieee80211_state {
 	((*(_ni)->ni_ic->ic_send_mgmt)(_ni, _type, _arg))
 
 extern	const char *ieee80211_mgt_subtype_name[];
-extern	const char *ieee80211_phymode_name[];
+extern	const char *ieee80211_phymode_name[IEEE80211_MODE_MAX];
 extern	const int ieee80211_opcap[IEEE80211_OPMODE_MAX];
 
 void	ieee80211_proto_attach(struct ieee80211com *);
