@@ -566,13 +566,10 @@ diskPartition(Device *dev)
 	    break;
 
 	case 'W':
-	    if (!msgNoYes("WARNING:  This should only be used when modifying an EXISTING\n"
-			       "installation.  If you are installing FreeBSD for the first time\n"
-			       "then you should simply type Q when you're finished here and your\n"
-			       "changes will be committed in one batch automatically at the end of\n"
-			       "these questions.  If you're adding a disk, you should NOT write\n"
-			       "from this screen, you should do it from the label editor.\n\n"
-			       "Are you absolutely sure you want to do this now?")) {
+	    if (!msgNoYes("WARNING:  You are about to modify an EXISTING installation.\n"
+			       "You should simply type Q when you are finished\n"
+			       "here and write to the disk from the label editor.\n\n"
+			       "Are you absolutely sure you want to continue?")) {
 		variable_set2(DISK_PARTITIONED, "yes", 0);
 
 #ifdef PC98
