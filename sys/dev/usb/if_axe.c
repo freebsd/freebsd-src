@@ -127,6 +127,7 @@ __FBSDID("$FreeBSD$");
 const struct axe_type axe_devs[] = {
         { { USB_VENDOR_ABOCOM, USB_PRODUCT_ABOCOM_UF200}, 0 },
         { { USB_VENDOR_ACERCM, USB_PRODUCT_ACERCM_EP1427X2}, 0 },
+        { { USB_VENDOR_APPLE, USB_PRODUCT_APPLE_ETHERNET}, AX772 },
         { { USB_VENDOR_ASIX, USB_PRODUCT_ASIX_AX88172}, 0 },
         { { USB_VENDOR_ASIX, USB_PRODUCT_ASIX_AX88772}, AX772 },
         { { USB_VENDOR_ASIX, USB_PRODUCT_ASIX_AX88178}, AX178 },
@@ -273,7 +274,7 @@ axe_miibus_readreg(device_t dev, int phy, int reg)
 		return(-1);
 	}
 
-	if (val)
+	if (val && val != 0xffff)
 		sc->axe_phyaddrs[0] = phy;
 
 	return (le16toh(val));
