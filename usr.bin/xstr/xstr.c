@@ -100,6 +100,7 @@ int
 main(int argc, char *argv[])
 {
 	int c;
+	int fdesc;
 
 	while ((c = getopt(argc, argv, "-cv")) != -1)
 		switch (c) {
@@ -122,8 +123,16 @@ main(int argc, char *argv[])
 		signal(SIGINT, onintr);
 	if (cflg || (argc == 0 && !readstd))
 		inithash();
-	else
-		strings = mktemp(strdup(_PATH_TMP));
+	else {
+		strings = strdup(_PATH_TMP);
+		if (strings == NULL)
+			err(1, "strdup() failed");
+		fdesc = mkstemp(strings);
+		if (fdesc == -1)
+			err(1, "Unable to create temporary file");
+		close(fdesc);
+	}
+
 	while (readstd || argc > 0) {
 		if (freopen("x.c", "w", stdout) == NULL)
 			err(1, "x.c");
