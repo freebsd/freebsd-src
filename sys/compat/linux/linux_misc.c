@@ -75,10 +75,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/swap_pager.h>
 
-#include <compat/linux/linux_sysproto.h>
-#include <compat/linux/linux_emul.h>
-#include <compat/linux/linux_misc.h>
-
 #ifdef COMPAT_LINUX32
 #include <machine/../linux32/linux.h>
 #include <machine/../linux32/linux32_proto.h>
@@ -91,6 +87,9 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_mib.h>
 #include <compat/linux/linux_signal.h>
 #include <compat/linux/linux_util.h>
+#include <compat/linux/linux_sysproto.h>
+#include <compat/linux/linux_emul.h>
+#include <compat/linux/linux_misc.h>
 
 #ifdef __i386__
 #include <machine/cputypes.h>
