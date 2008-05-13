@@ -71,7 +71,7 @@ main(int argc, char **argv)
 
 	altpath = NULL;
 	want_clear = 0;
-	while ((ch = getopt(argc, argv, "-iP:S:v")) != -1)
+	while ((ch = getopt(argc, argv, "-iP:S:u:v")) != -1)
 		switch(ch) {
 		case '-':
 		case 'i':
@@ -86,6 +86,13 @@ main(int argc, char **argv)
 			 * support for some simple substitutions"...
 			 */
 			split_spaces(optarg, &optind, &argc, &argv);
+			break;
+		case 'u':
+			if (env_verbosity)
+				fprintf(stderr, "#env unset:\t%s\n", optarg);
+			rtrn = unsetenv(optarg);
+			if (rtrn == -1)
+				err(EXIT_FAILURE, "unsetenv %s", optarg);
 			break;
 		case 'v':
 			env_verbosity++;
@@ -135,7 +142,7 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr,
-	    "usage: env [-iv] [-P utilpath] [-S string] [name=value ...]"
-	    " [utility [argument ...]]\n");
+	    "usage: env [-iv] [-P utilpath] [-S string] [-u name]\n"
+	    "           [name=value ...] [utility [argument ...]]\n");
 	exit(1);
 }
