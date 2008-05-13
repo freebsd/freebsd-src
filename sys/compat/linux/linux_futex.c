@@ -45,8 +45,11 @@ __KERNEL_RCSID(1, "$NetBSD: linux_futex.c,v 1.7 2006/07/24 19:01:49 manu Exp $")
 #include <sys/systm.h>
 #include <sys/proc.h>
 #include <sys/queue.h>
+#include <sys/imgact.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/priv.h>
+#include <sys/sched.h>
 #include <sys/sx.h>
 #include <sys/malloc.h>
 
@@ -57,6 +60,7 @@ __KERNEL_RCSID(1, "$NetBSD: linux_futex.c,v 1.7 2006/07/24 19:01:49 manu Exp $")
 #include <machine/../linux/linux.h>
 #include <machine/../linux/linux_proto.h>
 #endif
+#include <compat/linux/linux_emul.h>
 #include <compat/linux/linux_futex.h>
 
 struct futex;
@@ -532,4 +536,161 @@ futex_atomic_op(struct thread *td, int encoded_op, caddr_t uaddr)
 	default:
 		return (-ENOSYS);
 	}
+}
+
+int
+linux_set_robust_list(struct thread *td, struct linux_set_robust_list_args *args)
+{
+	struct linux_emuldata *em;
+
+#ifdef	DEBUG
+	if (ldebug(set_robust_list))
+		printf(ARGS(set_robust_list, ""));
+#endif
+	if (args->len != sizeof(struct linux_robust_list_head))
+		return (EINVAL);
+
+	em = em_find(td->td_proc, EMUL_DOLOCK);
+	em->robust_futexes = args->head;
+	EMUL_UNLOCK(&emul_lock);
+
+	return (0);	
+}
+
+int
+linux_get_robust_list(struct thread *td, struct linux_get_robust_list_args *args)
+{
+	struct linux_emuldata *em;
+	struct linux_robust_list_head *head;
+	l_size_t len = sizeof(struct linux_robust_list_head);
+	int error = 0;
+
+#ifdef	DEBUG
+	if (ldebug(get_robust_list))
+		printf(ARGS(get_robust_list, ""));
+#endif
+
+	if (!args->pid) {
+		em = em_find(td->td_proc, EMUL_DONTLOCK);
+		head = em->robust_futexes;		
+	} else {
+		struct proc *p;
+
+		p = pfind(args->pid);
+		if (p == NULL)
+			return (ESRCH);
+
+		em = em_find(p, EMUL_DONTLOCK);
+		/* XXX: ptrace? */
+		if (priv_check(td, PRIV_CRED_SETUID) || 
+		    priv_check(td, PRIV_CRED_SETEUID) ||
+		    p_candebug(td, p))
+			return (EPERM);
+		head = em->robust_futexes;
+		
+		PROC_UNLOCK(p);
+	}
+
+	error = copyout(&len, args->len, sizeof(l_size_t));
+	if (error)
+		return (EFAULT);
+
+	error = copyout(head, args->head, sizeof(struct linux_robust_list_head));
+
+	return (error);
+}
+
+static int
+handle_futex_death(void *uaddr, pid_t pid, int pi)
+{
+	int uval, nval, mval;
+	struct futex *f;
+
+retry:
+	if (copyin(uaddr, &uval, 4))
+		return (EFAULT);
+
+	if ((uval & FUTEX_TID_MASK) == pid) {
+		mval = (uval & FUTEX_WAITERS) | FUTEX_OWNER_DIED;
+		nval = casuword32(uaddr, uval, mval);
+
+		if (nval == -1)
+			return (EFAULT);
+
+		if (nval != uval)
+			goto retry;
+
+		if (!pi && (uval & FUTEX_WAITERS)) {
+			f = futex_get(uaddr, FUTEX_UNLOCKED);
+			futex_wake(f, 1, NULL, 0);
+		}
+	}
+
+	return (0);
+}
+
+static int
+fetch_robust_entry(struct linux_robust_list **entry,
+    struct linux_robust_list **head, int *pi)
+{
+	l_ulong uentry;
+
+	if (copyin((const void *)head, &uentry, sizeof(l_ulong)))
+		return (EFAULT);
+
+	*entry = (void *)(uentry & ~1UL);
+	*pi = uentry & 1;
+
+	return (0);
+}
+
+/* This walks the list of robust futexes releasing them. */
+void
+release_futexes(struct proc *p)
+{
+	struct linux_robust_list_head *head = NULL;
+	struct linux_robust_list *entry, *next_entry, *pending;
+	unsigned int limit = 2048, pi, next_pi, pip;
+	struct linux_emuldata *em;
+	l_ulong futex_offset;
+	int rc;
+
+	em = em_find(p, EMUL_DONTLOCK);
+	head = em->robust_futexes;
+
+	if (head == NULL)
+		return;
+
+	if (fetch_robust_entry(&entry, &head->list.next, &pi))
+		return;
+
+	if (copyin(&head->futex_offset, &futex_offset, sizeof(l_ulong)))
+		return;
+
+	if (fetch_robust_entry(&pending, &head->pending_list, &pip))
+		return;
+
+	while (entry != &head->list) {
+		rc = fetch_robust_entry(&next_entry, &entry->next, &next_pi);
+
+		if (entry != pending)
+			if (handle_futex_death((char *)entry + futex_offset,
+			    p->p_pid, pi))
+				return;
+
+		if (rc)
+			return;
+
+		entry = next_entry;
+		pi = next_pi;
+
+		if (!--limit)
+			break;
+
+		sched_relinquish(curthread);
+	}
+
+	if (pending)
+		handle_futex_death((char *) pending + futex_offset,
+		    p->p_pid, pip);
 }
