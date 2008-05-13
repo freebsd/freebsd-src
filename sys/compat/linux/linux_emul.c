@@ -44,9 +44,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysproto.h>
 #include <sys/unistd.h>
 
-#include <compat/linux/linux_emul.h>
-#include <compat/linux/linux_futex.h>
-
 #ifdef COMPAT_LINUX32
 #include <machine/../linux32/linux.h>
 #include <machine/../linux32/linux32_proto.h>
@@ -54,6 +51,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/../linux/linux.h>
 #include <machine/../linux/linux_proto.h>
 #endif
+
+#include <compat/linux/linux_emul.h>
+#include <compat/linux/linux_futex.h>
 
 struct sx	emul_shared_lock;
 struct mtx	emul_lock;
@@ -86,6 +86,7 @@ linux_proc_init(struct thread *td, pid_t child, int flags)
 		em = malloc(sizeof *em, M_LINUX, M_WAITOK | M_ZERO);
 		em->pid = child;
 		em->pdeath_signal = 0;
+		em->robust_futexes = NULL;
 		if (flags & LINUX_CLONE_THREAD) {
 			/* handled later in the code */
 		} else {
@@ -160,6 +161,8 @@ linux_proc_exit(void *arg __unused, struct proc *p)
 
 	if (__predict_true(p->p_sysent != &elf_linux_sysvec))
 		return;
+
+	release_futexes(p);
 
 	/* find the emuldata */
 	em = em_find(p, EMUL_DOLOCK);
