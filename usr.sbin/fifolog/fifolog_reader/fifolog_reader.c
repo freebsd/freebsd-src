@@ -33,6 +33,7 @@
 #include <time.h>
 #include <string.h>
 #include <stdlib.h>
+#include <sysexits.h>
 #include <regex.h>
 
 #include "libfifolog.h"
@@ -87,7 +88,7 @@ Usage(void)
 		"\t-t # format timestamps as %%Y%%m%%d%%H%%M%%S\n"
 		"\t-T <timestamp format>\n"
 	);
-	exit (2);
+	exit (EX_USAGE);
 }
 
 int
@@ -96,9 +97,6 @@ main(int argc, char * const *argv)
 	int ch, i;
 	off_t o;
 	struct fifolog_reader *fl;
-	const char *progname;
-
-	progname=argv[0];
 
 	time(&opt_E);
 	opt_o = "-";
@@ -149,13 +147,14 @@ main(int argc, char * const *argv)
 		}
 	}
 
+	if (argv[0] == NULL)
+		Usage();
+
 	fprintf(stderr, "From\t%jd %s", (intmax_t)opt_B, ctime(&opt_B));
 	fprintf(stderr, "To\t%jd %s", (intmax_t)opt_E, ctime(&opt_E));
 	if (opt_B >= opt_E)
 		errx(1, "Begin time not before End time");
 
-	if (argv[0] == NULL)
-		errx(1, "Usage: %s [options] fifolog", progname);
 	fl = fifolog_reader_open(argv[0]);
 	
 	if (!strcmp(opt_o, "-"))
