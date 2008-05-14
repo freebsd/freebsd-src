@@ -1830,16 +1830,10 @@ bge_dma_alloc(device_t dev)
 	/*
 	 * Allocate the parent bus DMA tag appropriate for PCI.
 	 */
-	error = bus_dma_tag_create(bus_get_dma_tag(sc->bge_dev), /* parent */
-			1, 0,			/* alignment, boundary */
-			BUS_SPACE_MAXADDR,	/* lowaddr */
-			BUS_SPACE_MAXADDR,	/* highaddr */
-			NULL, NULL,		/* filter, filterarg */
-			MAXBSIZE, BGE_NSEG_NEW,	/* maxsize, nsegments */
-			BUS_SPACE_MAXSIZE_32BIT, /* maxsegsize */
-			0,			/* flags */
-			NULL, NULL,		/* lockfunc, lockarg */
-			&sc->bge_cdata.bge_parent_tag);
+	error = bus_dma_tag_create(bus_get_dma_tag(sc->bge_dev),
+	    1, 0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR,	NULL,
+	    NULL, BUS_SPACE_MAXSIZE_32BIT, 0, BUS_SPACE_MAXSIZE_32BIT,
+	    0, NULL, NULL, &sc->bge_cdata.bge_parent_tag);
 
 	if (error != 0) {
 		device_printf(sc->bge_dev,
@@ -1848,7 +1842,7 @@ bge_dma_alloc(device_t dev)
 	}
 
 	/*
-	 * Create tag for RX mbufs.
+	 * Create tag for mbufs.
 	 */
 	error = bus_dma_tag_create(sc->bge_cdata.bge_parent_tag, 1,
 	    0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL,
