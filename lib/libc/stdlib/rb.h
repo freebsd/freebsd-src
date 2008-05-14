@@ -29,10 +29,21 @@
  *
  ******************************************************************************
  *
- * cpp macro implementation of left-leaning red-black trees.  All operations
- * are done non-recursively.  Parent pointers are not used, and color bits are
- * stored in the least significant bit of right-child pointers, thus making
- * node linkage as compact as is possible for red-black trees.
+ * cpp macro implementation of left-leaning red-black trees.
+ *
+ * Usage:
+ *
+ *   (Optional, see assert(3).)
+ *   #define NDEBUG
+ *
+ *   (Required.)
+ *   #include <assert.h>
+ *   #include <rb.h>
+ *   ...
+ *
+ * All operations are done non-recursively.  Parent pointers are not used, and
+ * color bits are stored in the least significant bit of right-child pointers,
+ * thus making node linkage as compact as is possible for red-black trees.
  *
  * Some macros use a comparison function pointer, which is expected to have the
  * following prototype:
@@ -53,11 +64,11 @@
  *
  ******************************************************************************/
 
+#ifndef RB_H_
+#define	RB_H_
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
-
-/* To disable assertions, #define NDEBUG before #include'ing rb.h. */
-#include <assert.h>
 
 /* Node structure. */
 #define	rb_node(a_type)							\
@@ -756,7 +767,7 @@ a_prefix##remove(a_tree_type *tree, a_type *node) {			\
  * effort.
  */
 
-#define	rb_foreach_begin(a_type, a_field, a_tree, a_var)	{	\
+#define	rb_foreach_begin(a_type, a_field, a_tree, a_var) {		\
     /* Compute the maximum possible tree depth (3X the black height). */\
     unsigned rbp_f_height;						\
     rbp_black_height(a_type, a_field, a_tree, rbp_f_height);		\
@@ -932,3 +943,5 @@ a_prefix##remove(a_tree_type *tree, a_type *node) {			\
 	}								\
     }									\
 }
+
+#endif /* RB_H_ */
