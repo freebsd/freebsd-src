@@ -46,7 +46,7 @@ ifn_start()
 	ifconfig_up ${ifn} && cfg=0
 	ipv4_up ${ifn} && cfg=0
 	ipx_up ${ifn} && cfg=0
-	childif_create ${ifn} && cfg=0
+	childif_create ${ifn}
 
 	if [ "$cfg" -eq 0 ]; then
 		ifconfig ${ifn}
@@ -71,7 +71,7 @@ ifn_stop()
 	ipv4_down ${ifn} && cfg=0
 	ifconfig_down ${ifn} && cfg=0
 	ifscript_down ${ifn} && cfg=0
-	childif_destroy ${ifn} && cfg=0
+	childif_destroy
 
 	if [ "$cfg" -eq 0 ]; then
 		echo -n " ${ifn}"
@@ -532,7 +532,7 @@ childif_create()
 		ifn_start $child
 	done
 
-	return 
+	return ${cfg}
 }
 
 # Destroy child interfaces.
