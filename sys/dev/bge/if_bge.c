@@ -325,6 +325,7 @@ static void bge_dma_map_addr(void *, bus_dma_segment_t *, int, int);
 static int bge_dma_alloc(device_t);
 static void bge_dma_free(struct bge_softc *);
 
+static int bge_get_eaddr_fw(struct bge_softc *sc, uint8_t ether_addr[]);
 static int bge_get_eaddr_mem(struct bge_softc *, uint8_t[]);
 static int bge_get_eaddr_nvram(struct bge_softc *, uint8_t[]);
 static int bge_get_eaddr_eeprom(struct bge_softc *, uint8_t[]);
@@ -374,7 +375,7 @@ static int bge_init_tx_ring(struct bge_softc *);
 static int bge_chipinit(struct bge_softc *);
 static int bge_blockinit(struct bge_softc *);
 
-static int bge_has_eeprom(struct bge_softc *);
+static int bge_has_eaddr(struct bge_softc *);
 static uint32_t bge_readmem_ind(struct bge_softc *, int);
 static void bge_writemem_ind(struct bge_softc *, int, int);
 static void bge_writembx(struct bge_softc *, int, int);
@@ -459,7 +460,7 @@ SYSCTL_INT(_hw_bge, OID_AUTO, allow_asf, CTLFLAG_RD, &bge_allow_asf, 0,
 #define	SPARC64_OFW_SUBVENDOR		"subsystem-vendor-id"
 
 static int
-bge_has_eeprom(struct bge_softc *sc)
+bge_has_eaddr(struct bge_softc *sc)
 {
 #ifdef __sparc64__
 	char buf[sizeof(SPARC64_BLADE_1500_PATH_BGE)];
@@ -471,7 +472,7 @@ bge_has_eeprom(struct bge_softc *sc)
 	/*
 	 * The on-board BGEs found in sun4u machines aren't fitted with
 	 * an EEPROM which means that we have to obtain the MAC address
-	 * via OFW and that some tests will always fail. We distinguish
+	 * via OFW and that some tests will always fail.  We distinguish
 	 * such BGEs by the subvendor ID, which also has to be obtained
 	 * from OFW instead of the PCI configuration space as the latter
 	 * indicates Broadcom as the subvendor of the netboot interface.
@@ -493,10 +494,6 @@ bge_has_eeprom(struct bge_softc *sc)
 			return (0);
 	}
 #endif
-
-	if (sc->bge_asicrev == BGE_ASICREV_BCM5906)
-		return (0);
-
 	return (1);
 }
 
@@ -763,8 +760,9 @@ bge_miibus_readreg(device_t dev, int phy, int reg)
 	}
 
 	if (i == BGE_TIMEOUT) {
-		device_printf(sc->bge_dev, "PHY read timed out "
-			  "(phy %d, reg %d, val 0x%08x)\n", phy, reg, val);
+		device_printf(sc->bge_dev,
+		    "PHY read timed out (phy %d, reg %d, val 0x%08x)\n",
+		    phy, reg, val);
 		val = 0;
 		goto done;
 	}
@@ -818,8 +816,8 @@ bge_miibus_writereg(device_t dev, int phy, int reg, int val)
 
 	if (i == BGE_TIMEOUT) {
 		device_printf(sc->bge_dev,
-			  "PHY write timed out (phy %d, reg %d, val %d)\n",
-			  phy, reg, val);
+		    "PHY write timed out (phy %d, reg %d, val %d)\n",
+		    phy, reg, val);
 		return (0);
 	}
 
@@ -1283,10 +1281,10 @@ bge_chipinit(struct bge_softc *sc)
 	/*
 	 * Check the 'ROM failed' bit on the RX CPU to see if
 	 * self-tests passed. Skip this check when there's no
-	 * EEPROM fitted, since in that case it will always
-	 * fail.
+	 * chip containing the Ethernet address fitted, since
+	 * in that case it will always fail.
 	 */
-	if ((sc->bge_flags & BGE_FLAG_EEPROM) &&
+	if ((sc->bge_flags & BGE_FLAG_EADDR) &&
 	    CSR_READ_4(sc, BGE_RXCPU_MODE) & BGE_RXCPUMODE_ROMFAIL) {
 		device_printf(sc->bge_dev, "RX CPU self-diagnostics failed!\n");
 		return (ENODEV);
@@ -2399,8 +2397,8 @@ bge_attach(device_t dev)
 	    sc->bge_chipid != BGE_CHIPID_BCM5705_A1)
 		sc->bge_flags |= BGE_FLAG_WIRESPEED;
 
-	if (bge_has_eeprom(sc))
-		sc->bge_flags |= BGE_FLAG_EEPROM;
+	if (bge_has_eaddr(sc))
+		sc->bge_flags |= BGE_FLAG_EADDR;
 
 	/* Save chipset family. */
 	switch (sc->bge_asicrev) {
@@ -2562,20 +2560,12 @@ bge_attach(device_t dev)
 		goto fail;
 	}
 
-#ifdef __sparc64__
-	if (((sc->bge_flags & BGE_FLAG_EEPROM) == 0) &&
-	    (sc->bge_asicrev != BGE_ASICREV_BCM5906))
-		OF_getetheraddr(dev, eaddr);
-	else
-#endif
-	{
-		error = bge_get_eaddr(sc, eaddr);
-		if (error) {
-			device_printf(sc->bge_dev,
-			    "failed to read station address\n");
-			error = ENXIO;
-			goto fail;
-		}
+	error = bge_get_eaddr(sc, eaddr);
+	if (error) {
+		device_printf(sc->bge_dev,
+		    "failed to read station address\n");
+		error = ENXIO;
+		goto fail;
 	}
 
 	/* 5705 limits RX return ring to 512 entries. */
@@ -2647,7 +2637,8 @@ bge_attach(device_t dev)
 	 */
 	if (bge_readmem_ind(sc, BGE_SOFTWARE_GENCOMM_SIG) == BGE_MAGIC_NUMBER)
 		hwcfg = bge_readmem_ind(sc, BGE_SOFTWARE_GENCOMM_NICCFG);
-	else if (sc->bge_flags & BGE_FLAG_EEPROM) {
+	else if ((sc->bge_flags & BGE_FLAG_EADDR) &&
+	    (sc->bge_asicrev != BGE_ASICREV_BCM5906)) {
 		if (bge_read_eeprom(sc, (caddr_t)&hwcfg, BGE_EE_HWCFG_OFFSET,
 		    sizeof(hwcfg))) {
 			device_printf(sc->bge_dev, "failed to read EEPROM\n");
@@ -2822,9 +2813,9 @@ static int
 bge_reset(struct bge_softc *sc)
 {
 	device_t dev;
-	uint32_t cachesize, command, pcistate, reset;
+	uint32_t cachesize, command, pcistate, reset, val;
 	void (*write_op)(struct bge_softc *, int, int);
-	int i, val = 0;
+	int i;
 
 	dev = sc->bge_dev;
 
@@ -2886,14 +2877,12 @@ bge_reset(struct bge_softc *sc)
 	write_op(sc, BGE_MISC_CFG, reset);
 
 	if (sc->bge_asicrev == BGE_ASICREV_BCM5906) {
-		uint32_t status, ctrl;
-
-		status = CSR_READ_4(sc, BGE_VCPU_STATUS);
+		val = CSR_READ_4(sc, BGE_VCPU_STATUS);
 		CSR_WRITE_4(sc, BGE_VCPU_STATUS,
-		    status | BGE_VCPU_STATUS_DRV_RESET);
-		ctrl = CSR_READ_4(sc, BGE_VCPU_EXT_CTRL);
+		    val | BGE_VCPU_STATUS_DRV_RESET);
+		val = CSR_READ_4(sc, BGE_VCPU_EXT_CTRL);
 		CSR_WRITE_4(sc, BGE_VCPU_EXT_CTRL,
-		    ctrl & ~BGE_VCPU_EXT_CTRL_HALT_CPU);
+		    val & ~BGE_VCPU_EXT_CTRL_HALT_CPU);
 	}
 
 	DELAY(1000);
@@ -2901,11 +2890,9 @@ bge_reset(struct bge_softc *sc)
 	/* XXX: Broadcom Linux driver. */
 	if (sc->bge_flags & BGE_FLAG_PCIE) {
 		if (sc->bge_chipid == BGE_CHIPID_BCM5750_A0) {
-			uint32_t v;
-
 			DELAY(500000); /* wait for link training to complete */
-			v = pci_read_config(dev, 0xC4, 4);
-			pci_write_config(dev, 0xC4, v | (1 << 15), 4);
+			val = pci_read_config(dev, 0xC4, 4);
+			pci_write_config(dev, 0xC4, val | (1 << 15), 4);
 		}
 		/*
 		 * Set PCIE max payload size to 128 bytes and clear error
@@ -2924,8 +2911,6 @@ bge_reset(struct bge_softc *sc)
 
 	/* Re-enable MSI, if neccesary, and enable the memory arbiter. */
 	if (BGE_IS_5714_FAMILY(sc)) {
-		uint32_t val;
-
 		/* This chip disables MSI on reset. */
 		if (sc->bge_flags & BGE_FLAG_MSI) {
 			val = pci_read_config(dev, BGE_PCI_MSI_CTL, 2);
@@ -2955,7 +2940,8 @@ bge_reset(struct bge_softc *sc)
 		/*
 		 * Poll until we see the 1's complement of the magic number.
 		 * This indicates that the firmware initialization is complete.
-		 * We expect this to fail if no EEPROM is fitted though.
+		 * We expect this to fail if no chip containing the Ethernet
+		 * address is fitted though.
 		 */
 		for (i = 0; i < BGE_TIMEOUT; i++) {
 			DELAY(10);
@@ -2964,7 +2950,7 @@ bge_reset(struct bge_softc *sc)
 				break;
 		}
 
-		if ((sc->bge_flags & BGE_FLAG_EEPROM) && i == BGE_TIMEOUT)
+		if ((sc->bge_flags & BGE_FLAG_EADDR) && i == BGE_TIMEOUT)
 			device_printf(sc->bge_dev, "firmware handshake timed out, "
 			    "found 0x%08x\n", val);
 	}
@@ -3005,20 +2991,16 @@ bge_reset(struct bge_softc *sc)
 	 */
 	if (sc->bge_asicrev == BGE_ASICREV_BCM5704 &&
 	    sc->bge_flags & BGE_FLAG_TBI) {
-		uint32_t serdescfg;
-
-		serdescfg = CSR_READ_4(sc, BGE_SERDES_CFG);
-		serdescfg = (serdescfg & ~0xFFF) | 0x880;
-		CSR_WRITE_4(sc, BGE_SERDES_CFG, serdescfg);
+		val = CSR_READ_4(sc, BGE_SERDES_CFG);
+		val = (val & ~0xFFF) | 0x880;
+		CSR_WRITE_4(sc, BGE_SERDES_CFG, val);
 	}
 
 	/* XXX: Broadcom Linux driver. */
 	if (sc->bge_flags & BGE_FLAG_PCIE &&
 	    sc->bge_chipid != BGE_CHIPID_BCM5750_A0) {
-		uint32_t v;
-
-		v = CSR_READ_4(sc, 0x7C00);
-		CSR_WRITE_4(sc, 0x7C00, v | (1 << 25));
+		val = CSR_READ_4(sc, 0x7C00);
+		CSR_WRITE_4(sc, 0x7C00, val | (1 << 25));
 	}
 	DELAY(10000);
 
@@ -4725,10 +4707,23 @@ bge_sysctl_mem_read(SYSCTL_HANDLER_ARGS)
 #endif
 
 static int
+bge_get_eaddr_fw(struct bge_softc *sc, uint8_t ether_addr[])
+{
+
+	if (sc->bge_flags & BGE_FLAG_EADDR)
+		return (1);
+
+#ifdef __sparc64__
+	OF_getetheraddr(sc->bge_dev, ether_addr);
+	return (0);
+#endif
+	return (1);
+}
+
+static int
 bge_get_eaddr_mem(struct bge_softc *sc, uint8_t ether_addr[])
 {
 	uint32_t mac_addr;
-	int ret = 1;
 
 	mac_addr = bge_readmem_ind(sc, 0x0c14);
 	if ((mac_addr >> 16) == 0x484b) {
@@ -4739,9 +4734,9 @@ bge_get_eaddr_mem(struct bge_softc *sc, uint8_t ether_addr[])
 		ether_addr[3] = (uint8_t)(mac_addr >> 16);
 		ether_addr[4] = (uint8_t)(mac_addr >> 8);
 		ether_addr[5] = (uint8_t)mac_addr;
-		ret = 0;
+		return (0);
 	}
-	return ret;
+	return (1);
 }
 
 static int
@@ -4752,17 +4747,19 @@ bge_get_eaddr_nvram(struct bge_softc *sc, uint8_t ether_addr[])
 	if (sc->bge_asicrev == BGE_ASICREV_BCM5906)
 		mac_offset = BGE_EE_MAC_OFFSET_5906;
 
-	return bge_read_nvram(sc, ether_addr, mac_offset + 2, ETHER_ADDR_LEN);
+	return (bge_read_nvram(sc, ether_addr, mac_offset + 2,
+	    ETHER_ADDR_LEN));
 }
 
 static int
 bge_get_eaddr_eeprom(struct bge_softc *sc, uint8_t ether_addr[])
 {
-	if (!(sc->bge_flags & BGE_FLAG_EEPROM))
-		return 1;
 
-	return bge_read_eeprom(sc, ether_addr, BGE_EE_MAC_OFFSET + 2,
-			       ETHER_ADDR_LEN);
+	if (sc->bge_asicrev == BGE_ASICREV_BCM5906)
+		return (1);
+
+	return (bge_read_eeprom(sc, ether_addr, BGE_EE_MAC_OFFSET + 2,
+	   ETHER_ADDR_LEN));
 }
 
 static int
@@ -4770,6 +4767,7 @@ bge_get_eaddr(struct bge_softc *sc, uint8_t eaddr[])
 {
 	static const bge_eaddr_fcn_t bge_eaddr_funcs[] = {
 		/* NOTE: Order is critical */
+		bge_get_eaddr_fw,
 		bge_get_eaddr_mem,
 		bge_get_eaddr_nvram,
 		bge_get_eaddr_eeprom,
