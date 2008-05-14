@@ -14,6 +14,8 @@
  * Austin, Texas  78712
  */
 
+/* $FreeBSD$ */
+
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
@@ -117,6 +119,24 @@ is_directory (path)
 
   return ((sb.st_mode & S_IFDIR) == S_IFDIR);
 
+}
+
+/*
+ * Is path a regular file?
+ */
+int
+is_file (path)
+     char *path;
+{
+  struct stat sb;
+  register int status;
+
+  status = stat (path, &sb);
+
+  if (status != 0)
+    return -1;
+
+  return ((sb.st_mode & S_IFREG) == S_IFREG);
 }
 
 /*
