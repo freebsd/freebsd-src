@@ -283,12 +283,12 @@ iommu_map_remq(struct iommu_state *is, bus_dmamap_t map)
  *	- create a private DVMA map.
  */
 void
-iommu_init(char *name, struct iommu_state *is, int tsbsize, u_int32_t iovabase,
-    int resvpg)
+iommu_init(const char *name, struct iommu_state *is, int tsbsize,
+    uint32_t iovabase, int resvpg)
 {
 	vm_size_t size;
 	vm_offset_t offs;
-	u_int64_t end;
+	uint64_t end;
 	int i;
 
 	/*
@@ -1177,7 +1177,7 @@ static void
 iommu_diag(struct iommu_state *is, vm_offset_t va)
 {
 	int i;
-	u_int64_t tag, data;
+	uint64_t data, tag;
 
 	IS_LOCK_ASSERT(is);
 	IOMMU_WRITE8(is, is_dva, 0, trunc_io_page(va));
