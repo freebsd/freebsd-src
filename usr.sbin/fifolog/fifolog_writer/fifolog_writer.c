@@ -28,6 +28,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <sysexits.h>
 #include <err.h>
 #include <unistd.h>
 #include <ctype.h>
@@ -37,6 +38,14 @@
 #include <zlib.h>
 
 #include "libfifolog.h"
+
+static void
+usage(void)
+{
+	fprintf(stderr, "fifolog_writer [-w write-rate] [-s sync-rate] "
+	    "[-z compression] file\n");
+	exit(EX_USAGE);
+}
 
 int
 main(int argc, char * const *argv)
@@ -62,19 +71,19 @@ main(int argc, char * const *argv)
 			z_opt = strtoul(optarg, NULL, 0);
 			break;
 		default:
-			errx(1, "Usage");
+			usage();
 		}
 	}
 	argc -= optind;
 	argv += optind;
 	if (argc != 1) 
-		errx(1, "Usage");
+		usage();
 
 	if (z_opt > 9)
-		errx(1, "Usage");
+		usage();
 
 	if (w_opt > s_opt)
-		errx(1, "Usage");
+		usage();
 
 	f = fifolog_write_new();
 	assert(f != NULL);

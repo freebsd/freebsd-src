@@ -27,6 +27,8 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
+#include <sysexits.h>
 #include <unistd.h>
 #include <err.h>
 #include <libutil.h>
@@ -35,6 +37,14 @@
 
 #define DEF_RECSIZE	512
 #define DEF_RECCNT	(24 * 60 * 60)
+
+static void
+usage(void)
+{
+	fprintf(stderr, "Usage: fifolog_create [-l record-size] "
+	    "[-r record-count] [-s size] file\n");
+	exit(EX_USAGE);
+}
 
 int
 main(int argc, char * const *argv)
@@ -63,13 +73,13 @@ main(int argc, char * const *argv)
 				err(1, "Couldn't parse -s argument");
 			break;
 		default:
-			errx(1, "Usage");
+			usage();
 		}
 	}
 	argc -= optind;
 	argv += optind;
 	if (argc != 1) 
-		errx(1, "Usage");
+		usage();
 
 	if (size != 0 && reccnt != 0 && recsize != 0) {		/* N N N */
 		if (size !=  reccnt * recsize) 
