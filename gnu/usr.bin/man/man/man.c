@@ -833,7 +833,7 @@ get_expander (file)
     return YCAT;
 #endif	/* YCAT */
 #ifdef ZCAT
-  if (*end == 'Z' || !strcmp(end, "gz"))
+  if (*end == 'Z' || !strcmp(end, "gz") || !strcmp(end, "bz2"))
     return ZCAT;
 #endif	/* ZCAT */
   return NULL;
