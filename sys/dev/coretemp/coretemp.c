@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2007 Rui Paulo <rpaulo@FreeBSD.org>
+ * Copyright (c) 2007, 2008 Rui Paulo <rpaulo@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -96,8 +96,8 @@ coretemp_identify(driver_t *driver, device_t parent)
 	if (device_find_child(parent, "coretemp", -1) != NULL)
 		return;
 
-	/* Check that CPUID is supported and the vendor is Intel.*/
-	if (cpu_high == 0 || strcmp(cpu_vendor, "GenuineIntel"))
+	/* Check that CPUID 0x06 is supported and the vendor is Intel.*/
+	if (cpu_high < 6 || strcmp(cpu_vendor, "GenuineIntel"))
 		return;
 	/*
 	 * CPUID 0x06 returns 1 if the processor has on-die thermal
