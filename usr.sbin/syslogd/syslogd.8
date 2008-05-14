@@ -28,7 +28,7 @@
 .\"     @(#)syslogd.8	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd April 13, 2005
+.Dd May 13, 2008
 .Dt SYSLOGD 8
 .Os
 .Sh NAME
@@ -36,7 +36,7 @@
 .Nd log systems messages
 .Sh SYNOPSIS
 .Nm
-.Op Fl 46ACcdknosuv
+.Op Fl 468ACcdknosuv
 .Op Fl a Ar allowed_peer
 .Op Fl b Ar bind_address
 .Op Fl f Ar config_file
@@ -60,6 +60,23 @@ to use IPv4 addresses only.
 Force
 .Nm
 to use IPv6 addresses only.
+.It Fl 8
+Tells
+.Nm
+not to interfere with 8-bit data.  Normally
+.Nm
+will replace C1 control characters
+.Pq ISO 8859 and Unicode characters
+with their
+.Dq M- Ns Em x
+equivalent.
+Note, this option does not change the way
+.Nm
+alters control characters
+.Pq see Xr iscntrl 3 .
+They will always be replaced with their
+.Dq ^ Ns Em x
+equivalent.
 .It Fl A
 Ordinarily,
 .Nm
