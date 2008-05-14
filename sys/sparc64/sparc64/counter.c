@@ -21,9 +21,10 @@
  * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
  * USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/bus.h>
@@ -53,7 +54,7 @@
 #define	CTR_LIMIT	0x08
 
 
-static unsigned int counter_get_timecount(struct timecounter *tc);
+static timecounter_get_t counter_get_timecount;
 
 struct ct_softc {
 	bus_space_tag_t		sc_tag;
@@ -63,21 +64,22 @@ struct ct_softc {
 
 
 /*
- * This is called from the psycho and sbus drivers. It does not directly attach
- * to the nexus because it shares register space with the bridge in question.
+ * This is called from the psycho and sbus drivers.  It does not directly
+ * attach to the nexus because it shares register space with the bridge in
+ * question.
  */
 void
-sparc64_counter_init(bus_space_tag_t tag, bus_space_handle_t handle,
-    bus_addr_t offset)
+sparc64_counter_init(const char *name, bus_space_tag_t tag,
+    bus_space_handle_t handle, bus_addr_t offset)
 {
 	struct timecounter *tc;
 	struct ct_softc *sc;
 
 	printf("initializing counter-timer\n");
 	/*
-	 * Turn off interrupts from both counters. Set the limit to the maximum
-	 * value (although that should not change anything with CTLR_INTEN and
-	 * CTLR_PERIODIC off).
+	 * Turn off interrupts from both counters.  Set the limit to the
+	 * maximum value (although that should not change anything with
+	 * CTLR_INTEN and CTLR_PERIODIC off).
 	 */
 	bus_space_write_8(tag, handle, offset + CTR_CT0 + CTR_LIMIT,
 	    COUNTER_MASK);
@@ -93,7 +95,7 @@ sparc64_counter_init(bus_space_tag_t tag, bus_space_handle_t handle,
 	tc->tc_poll_pps = NULL;
 	tc->tc_counter_mask = COUNTER_MASK;
 	tc->tc_frequency = COUNTER_FREQ;
-	tc->tc_name = "counter-timer";
+	tc->tc_name = strdup(name, M_DEVBUF);
 	tc->tc_priv = sc;
 	tc->tc_quality = COUNTER_QUALITY;
 	tc_init(tc);

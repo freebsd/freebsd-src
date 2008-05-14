@@ -353,7 +353,7 @@ psycho_attach(device_t dev)
 
 	/*
 	 * Match other Psycho's that are already configured against
-	 * the base physical address. This will be the same for a
+	 * the base physical address.  This will be the same for a
 	 * pair of devices that share register space.
 	 */
 	osc = NULL;
@@ -472,8 +472,8 @@ psycho_attach(device_t dev)
 	nrange = OF_getprop_alloc(node, "ranges", sizeof(*range),
 	    (void **)&range);
 	/*
-	 * Make sure that the expected ranges are present. The OFW_PCI_CS_MEM64
-	 * one is not currently used though.
+	 * Make sure that the expected ranges are present.  The
+	 * OFW_PCI_CS_MEM64 one is not currently used though.
 	 */
 	if (nrange != PSYCHO_NRANGE)
 		panic("%s: unsupported number of ranges", __func__);
@@ -518,7 +518,7 @@ psycho_attach(device_t dev)
 #ifdef PSYCHO_DEBUG
 			/*
 			 * Enable all interrupts and clear all interrupt
-			 * states. This aids the debugging of interrupt
+			 * states.  This aids the debugging of interrupt
 			 * routing problems.
 			 */
 			device_printf(dev,
@@ -579,7 +579,8 @@ psycho_attach(device_t dev)
 #endif /* PSYCHO_MAP_WAKEUP */
 
 			/* Initialize the counter-timer. */
-			sparc64_counter_init(rman_get_bustag(sc->sc_mem_res),
+			sparc64_counter_init(device_get_nameunit(dev),
+			    rman_get_bustag(sc->sc_mem_res),
 			    rman_get_bushandle(sc->sc_mem_res), PSR_TC0);
 		}
 
@@ -618,7 +619,7 @@ psycho_attach(device_t dev)
 
 	/*
 	 * Register a PCI bus error interrupt handler according to which
-	 * half this is. Hummingbird/Sabre don't have a PCI bus B error
+	 * half this is.  Hummingbird/Sabre don't have a PCI bus B error
 	 * interrupt but they are also only used for PCI bus A.
 	 */
 	psycho_set_intr(sc, 0, sc->sc_half == 0 ? PSR_PCIAERR_INT_MAP :
@@ -687,8 +688,8 @@ psycho_attach(device_t dev)
 	/*
 	 * On E250 the interrupt map entry for the EBus bridge is wrong,
 	 * causing incorrect interrupts to be assigned to some devices on
-	 * the EBus. Work around it by changing our copy of the interrupt
-	 * map mask to perform a full comparison of the INO. That way
+	 * the EBus.  Work around it by changing our copy of the interrupt
+	 * map mask to perform a full comparison of the INO.  That way
 	 * the interrupt map entry for the EBus bridge won't match at all
 	 * and the INOs specified in the "interrupts" properties of the
 	 * EBus devices will be used directly instead.
@@ -803,7 +804,7 @@ psycho_ue(void *arg)
 	/*
 	 * On the UltraSPARC-IIi/IIe, IOMMU misses/protection faults cause
 	 * the AFAR to be set to the physical address of the TTE entry that
-	 * was invalid/write protected. Call into the iommu code to have
+	 * was invalid/write protected.  Call into the IOMMU code to have
 	 * them decoded to virtual I/O addresses.
 	 */
 	if ((afsr & UEAFSR_P_DTE) != 0)
@@ -892,7 +893,6 @@ psycho_wakeup(void *arg)
 static void
 psycho_iommu_init(struct psycho_softc *sc, int tsbsize, uint32_t dvmabase)
 {
-	char *name;
 	struct iommu_state *is = sc->sc_is;
 
 	/* Punch in our copies. */
@@ -905,13 +905,7 @@ psycho_iommu_init(struct psycho_softc *sc, int tsbsize, uint32_t dvmabase)
 	is->is_dva = PSR_IOMMU_SVADIAG;
 	is->is_dtcmp = PSR_IOMMU_TLB_CMP_DIAG;
 
-	/* Give us a nice name... */
-	name = malloc(32, M_DEVBUF, M_NOWAIT);
-	if (name == NULL)
-		panic("%s: could not malloc iommu name", __func__);
-	snprintf(name, 32, "%s dvma", device_get_nameunit(sc->sc_dev));
-
-	iommu_init(name, is, tsbsize, dvmabase, 0);
+	iommu_init(device_get_nameunit(sc->sc_dev), is, tsbsize, dvmabase, 0);
 }
 
 static int
@@ -942,10 +936,10 @@ psycho_read_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
 	 * only allow their config space to be accessed using the
 	 * "native" width of the respective register being accessed
 	 * and return semi-random other content of their config space
-	 * otherwise. Given that the PCI specs don't say anything
+	 * otherwise.  Given that the PCI specs don't say anything
 	 * about such a (unusual) limitation and lots of stuff expects
 	 * to be able to access the contents of the config space at
-	 * any width we allow just that. We do this by using a copy
+	 * any width we allow just that.  We do this by using a copy
 	 * of the header of the bridge (the rest is all zero anyway)
 	 * read during attach (expect for PCIR_STATUS) in order to
 	 * simplify things.
@@ -1048,7 +1042,7 @@ psycho_route_interrupt(device_t bridge, device_t dev, int pin)
 	/*
 	 * If this is outside of the range for an intpin, it's likely a full
 	 * INO, and no mapping is required at all; this happens on the U30,
-	 * where there's no interrupt map at the Psycho node. Fortunately,
+	 * where there's no interrupt map at the Psycho node.  Fortunately,
 	 * there seem to be no INOs in the intpin range on this boxen, so
 	 * this easy heuristics will do.
 	 */
@@ -1056,7 +1050,7 @@ psycho_route_interrupt(device_t bridge, device_t dev, int pin)
 		return (pin);
 	/*
 	 * Guess the INO; we always assume that this is a non-OBIO
-	 * device, and that pin is a "real" intpin number. Determine
+	 * device, and that pin is a "real" intpin number.  Determine
 	 * the mapping register to be used by the slot number.
 	 * We only need to do this on E450s, it seems; here, the slot numbers
 	 * for bus A are one-based, while those for bus B seemingly have an
@@ -1157,7 +1151,7 @@ psycho_setup_intr(device_t dev, device_t child, struct resource *ires,
 	/*
 	 * The Sabre-APB-combination has a bug where it does not drain
 	 * DMA write data for devices behind additional PCI-PCI bridges
-	 * underneath the APB PCI-PCI bridge. The workaround is to do
+	 * underneath the APB PCI-PCI bridge.  The workaround is to do
 	 * a read on the farest PCI-PCI bridge followed by a read of the
 	 * PCI DMA write sync register of the Sabre.
 	 * XXX installing the wrapper for an affected device and the
@@ -1271,10 +1265,10 @@ psycho_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	if (type == SYS_RES_IRQ) {
 		/*
 		 * XXX: Don't accept blank ranges for now, only single
-		 * interrupts. The other case should not happen with the
-		 * MI PCI code...
+		 * interrupts.  The other case should not happen with
+		 * the MI PCI code...
 		 * XXX: This may return a resource that is out of the
-		 * range that was specified. Is this correct...?
+		 * range that was specified.  Is this correct...?
 		 */
 		if (start != end)
 			panic("%s: XXX: interrupt range", __func__);
