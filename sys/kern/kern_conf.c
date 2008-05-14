@@ -30,6 +30,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
 #include <sys/bio.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -526,6 +527,37 @@ unit2minor(int unit)
 	return ((unit & 0xff) | ((unit << 8) & ~0xffff));
 }
 
+static void
+notify(struct cdev *dev, const char *ev)
+{
+	static const char prefix[] = "cdev=";
+	char *data;
+	int namelen;
+
+	if (cold)
+		return;
+	namelen = strlen(dev->si_name);
+	data = malloc(namelen + sizeof(prefix), M_TEMP, M_WAITOK);
+	memcpy(data, prefix, sizeof(prefix) - 1);
+	memcpy(data + sizeof(prefix) - 1, dev->si_name, namelen + 1);
+	devctl_notify("DEVFS", "CDEV", ev, data);
+	free(data, M_TEMP);
+}
+
+static void
+notify_create(struct cdev *dev)
+{
+
+	notify(dev, "CREATE");
+}
+
+static void
+notify_destroy(struct cdev *dev)
+{
+
+	notify(dev, "DESTROY");
+}
+
 static struct cdev *
 newdev(struct cdevsw *csw, int y, struct cdev *si)
 {
@@ -706,6 +738,9 @@ make_dev_credv(int flags, struct cdevsw *devsw, int minornr,
 	devfs_create(dev);
 	clean_unrhdrl(devfs_inos);
 	dev_unlock_and_free();
+
+	notify_create(dev);
+
 	return (dev);
 }
 
@@ -794,6 +829,9 @@ make_dev_alias(struct cdev *pdev, const char *fmt, ...)
 	clean_unrhdrl(devfs_inos);
 	dev_unlock();
 	dev_depends(pdev, dev);
+
+	notify_create(dev);
+
 	return (dev);
 }
 
@@ -841,6 +879,10 @@ destroy_devl(struct cdev *dev)
 		/* Use unique dummy wait ident */
 		msleep(&csw, &devmtx, PRIBIO, "devdrn", hz / 10);
 	}
+
+	mtx_unlock(&devmtx);
+	notify_destroy(dev);
+	mtx_lock(&devmtx);
 
 	dev->si_drv1 = 0;
 	dev->si_drv2 = 0;
