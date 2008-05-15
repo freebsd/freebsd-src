@@ -89,6 +89,7 @@ typedef OM_object_identifier gss_OID_desc, *gss_OID;
  */
 
 typedef gss_uint32 OM_uint32;
+typedef uint64_t OM_uint64;
 
 typedef struct gss_OID_desc_struct {
   OM_uint32 length;
