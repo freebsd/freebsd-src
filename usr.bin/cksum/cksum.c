@@ -70,7 +70,7 @@ main(int argc, char **argv)
 	off_t len;
 	char *fn, *p;
 	int (*cfncn)(int, uint32_t *, off_t *);
-	void (*pfncn)(char *, u_int32_t, off_t);
+	void (*pfncn)(char *, uint32_t, off_t);
 
 	if ((p = rindex(argv[0], '/')) == NULL)
 		p = argv[0];
