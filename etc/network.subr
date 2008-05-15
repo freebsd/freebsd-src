@@ -768,6 +768,29 @@ list_net_interfaces()
 	return 0
 }
 
+# get_default_if -address_family
+#	Get the interface of the default route for the given address family.
+#	The -address_family argument must be suitable passing to route(8).
+#
+get_default_if()
+{
+	routeget="`route -n get $1 default 2>/dev/null`"
+	oldifs="$IFS"
+	IFS="
+"
+	defif=
+	for line in $routeget ; do
+		case $line in
+		*interface:*)
+			defif=${line##*: }
+			;;
+		esac
+	done
+	IFS=${oldifs}
+
+	echo $defif
+}
+
 hexdigit()
 {
 	if [ $1 -lt 10 ]; then
