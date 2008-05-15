@@ -83,6 +83,8 @@
 
 #ifdef _KERNEL
 
+#define	rw_recurse	lock_object.lo_data
+
 /* Very simple operations on rw_lock. */
 
 /* Try to obtain a write lock once. */

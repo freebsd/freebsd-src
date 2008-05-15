@@ -78,7 +78,6 @@ struct lock_class {
 #define	LO_SLEEPABLE	0x00100000	/* Lock may be held while sleeping. */
 #define	LO_UPGRADABLE	0x00200000	/* Lock may be upgraded/downgraded. */
 #define	LO_DUPOK	0x00400000	/* Don't check for duplicate acquires */
-#define	LO_ENROLLPEND	0x00800000	/* On the pending enroll list. */
 #define	LO_CLASSMASK	0x0f000000	/* Class index bitmask. */
 #define LO_NOPROFILE    0x10000000      /* Don't profile this lock */
 
@@ -201,7 +200,7 @@ void	lock_init(struct lock_object *, struct lock_class *,
 void	lock_destroy(struct lock_object *);
 void	spinlock_enter(void);
 void	spinlock_exit(void);
-void	witness_init(struct lock_object *);
+void	witness_init(struct lock_object *, const char *);
 void	witness_destroy(struct lock_object *);
 int	witness_defineorder(struct lock_object *, struct lock_object *);
 void	witness_checkorder(struct lock_object *, int, const char *, int);
@@ -225,8 +224,8 @@ const char *witness_file(struct lock_object *);
 #define	WARN_PANIC	0x02	/* Panic if check fails. */
 #define	WARN_SLEEPOK	0x04	/* Sleepable locks are exempt from check. */
 
-#define	WITNESS_INIT(lock)						\
-	witness_init((lock))
+#define	WITNESS_INIT(lock, type)					\
+	witness_init((lock), (type))
 
 #define WITNESS_DESTROY(lock)						\
 	witness_destroy(lock)
@@ -273,7 +272,7 @@ const char *witness_file(struct lock_object *);
 	witness_line(lock)
 
 #else	/* WITNESS */
-#define	WITNESS_INIT(lock)
+#define	WITNESS_INIT(lock, type)
 #define	WITNESS_DESTROY(lock)
 #define	WITNESS_DEFINEORDER(lock1, lock2)	0
 #define	WITNESS_CHECKORDER(lock, flags, file, line)

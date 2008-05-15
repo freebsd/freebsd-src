@@ -89,10 +89,9 @@ lock_init(struct lock_object *lock, struct lock_class *class, const char *name,
 
 	/* Initialize the lock object. */
 	lock->lo_name = name;
-	lock->lo_type = type != NULL ? type : name;
 	lock->lo_flags |= flags | LO_INITIALIZED;
 	LOCK_LOG_INIT(lock, 0);
-	WITNESS_INIT(lock);
+	WITNESS_INIT(lock, (type != NULL) ? type : name);
 }
 
 void
@@ -121,8 +120,6 @@ DB_SHOW_COMMAND(lock, db_show_lock)
 	class = LOCK_CLASS(lock);
 	db_printf(" class: %s\n", class->lc_name);
 	db_printf(" name: %s\n", lock->lo_name);
-	if (lock->lo_type && lock->lo_type != lock->lo_name)
-		db_printf(" type: %s\n", lock->lo_type);
 	class->lc_ddb_show(lock);
 }
 #endif

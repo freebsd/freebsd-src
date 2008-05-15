@@ -113,10 +113,6 @@ __FBSDID("$FreeBSD$");
 #define	KTR_WITNESS	0
 #endif
 
-/* Easier to stay with the old names. */
-#define	lo_list		lo_witness_data.lod_list
-#define	lo_witness	lo_witness_data.lod_witness
-
 #define	LI_RECURSEMASK	0x0000ffff	/* Recursion depth of lock instance. */
 #define	LI_EXCLUSIVE	0x00010000	/* Exclusive lock instance. */
 
@@ -126,6 +122,7 @@ __FBSDID("$FreeBSD$");
 #define WITNESS_COUNT 1024
 #define WITNESS_CHILDCOUNT (WITNESS_COUNT * 4)
 #define	WITNESS_SBUFSIZE	32768
+#define	WITNESS_PENDLIST	512
 /*
  * XXX: This is somewhat bogus, as we assume here that at most 1024 threads
  * will hold LOCK_NCHILDREN * 2 locks.  We handle failure ok, and we should
@@ -204,10 +201,15 @@ struct witness_order_list_entry {
 	struct	lock_class *w_class;
 };
 
+struct witness_pendhelp {
+	const char		*wh_type;
+	struct lock_object	*wh_lock;
+};
+
 #ifdef BLESSING
 static int	blessed(struct witness *, struct witness *);
 #endif
-static int	depart(struct witness *w);
+static void	depart(struct witness *w);
 static struct	witness *enroll(const char *description,
 				struct lock_class *lock_class);
 static int	insertchild(struct witness *parent, struct witness *child);
@@ -218,7 +220,7 @@ static void	removechild(struct witness *parent, struct witness *child);
 static int	sysctl_debug_witness_watch(SYSCTL_HANDLER_ARGS);
 static int	sysctl_debug_witness_graphs(SYSCTL_HANDLER_ARGS);
 static const char *fixup_filename(const char *file);
-static void	witness_addgraph(struct sbuf *sb, struct witness *w);
+static void	witness_addgraph(struct sbuf *sb, struct witness *parent);
 static struct	witness *witness_get(void);
 static void	witness_free(struct witness *m);
 static struct	witness_child_list_entry *witness_child_get(void);
@@ -296,6 +298,8 @@ static struct witness_list w_spin = STAILQ_HEAD_INITIALIZER(w_spin);
 static struct witness_list w_sleep = STAILQ_HEAD_INITIALIZER(w_sleep);
 static struct witness_child_list_entry *w_child_free = NULL;
 static struct lock_list_entry *w_lock_list_free = NULL;
+static struct witness_pendhelp pending_locks[WITNESS_PENDLIST];
+static u_int pending_cnt;
 
 static int w_free_cnt, w_spin_cnt, w_sleep_cnt, w_child_free_cnt, w_child_cnt;
 SYSCTL_INT(_debug_witness, OID_AUTO, free_cnt, CTLFLAG_RD, &w_free_cnt, 0, "");
@@ -525,13 +529,6 @@ static int blessed_count =
 #endif
 
 /*
- * List of locks initialized prior to witness being initialized whose
- * enrollment is currently deferred.
- */
-STAILQ_HEAD(, lock_object) pending_locks =
-    STAILQ_HEAD_INITIALIZER(pending_locks);
-
-/*
  * This global is set to 0 once it becomes safe to use the witness code.
  */
 static int witness_cold = 1;
@@ -591,13 +588,13 @@ witness_initialize(void *dummy __unused)
 	witness_spin_warn = 1;
 
 	/* Iterate through all locks and add them to witness. */
-	while (!STAILQ_EMPTY(&pending_locks)) {
-		lock = STAILQ_FIRST(&pending_locks);
-		STAILQ_REMOVE_HEAD(&pending_locks, lo_list);
+	for (i = 0; pending_locks[i].wh_lock != NULL; i++) {
+		lock = pending_locks[i].wh_lock;
 		KASSERT(lock->lo_flags & LO_WITNESS,
 		    ("%s: lock %s is on pending list but not LO_WITNESS",
 		    __func__, lock->lo_name));
-		lock->lo_witness = enroll(lock->lo_type, LOCK_CLASS(lock));
+		lock->lo_witness = enroll(pending_locks[i].wh_type,
+		    LOCK_CLASS(lock));
 	}
 
 	/* Mark the witness code as being ready for use. */
@@ -659,7 +656,7 @@ sysctl_debug_witness_graphs(SYSCTL_HANDLER_ARGS)
 }
 
 void
-witness_init(struct lock_object *lock)
+witness_init(struct lock_object *lock, const char *type)
 {
 	struct lock_class *class;
 
@@ -689,10 +686,13 @@ witness_init(struct lock_object *lock)
 	    (lock->lo_flags & LO_WITNESS) == 0)
 		lock->lo_witness = NULL;
 	else if (witness_cold) {
-		STAILQ_INSERT_TAIL(&pending_locks, lock, lo_list);
-		lock->lo_flags |= LO_ENROLLPEND;
+		pending_locks[pending_cnt].wh_lock = lock;
+		pending_locks[pending_cnt++].wh_type = type;
+		if (pending_cnt > WITNESS_PENDLIST)
+			panic("%s: pending locks list is too small, bump it\n",
+			    __func__);
 	} else
-		lock->lo_witness = enroll(lock->lo_type, class);
+		lock->lo_witness = enroll(type, class);
 }
 
 void
@@ -707,28 +707,15 @@ witness_destroy(struct lock_object *lock)
 		    class->lc_name, lock->lo_name);
 
 	/* XXX: need to verify that no one holds the lock */
-	if ((lock->lo_flags & (LO_WITNESS | LO_ENROLLPEND)) == LO_WITNESS &&
-	    lock->lo_witness != NULL) {
+	if ((lock->lo_flags & LO_WITNESS) && lock->lo_witness != NULL) {
 		w = lock->lo_witness;
 		mtx_lock_spin(&w_mtx);
 		MPASS(w->w_refcount > 0);
 		w->w_refcount--;
 
-		/*
-		 * Lock is already released if we have an allocation failure
-		 * and depart() fails.
-		 */
-		if (w->w_refcount != 0 || depart(w))
-			mtx_unlock_spin(&w_mtx);
-	}
-
-	/*
-	 * If this lock is destroyed before witness is up and running,
-	 * remove it from the pending list.
-	 */
-	if (lock->lo_flags & LO_ENROLLPEND) {
-		STAILQ_REMOVE(&pending_locks, lock, lock_object, lo_list);
-		lock->lo_flags &= ~LO_ENROLLPEND;
+		if (w->w_refcount == 0)
+			depart(w);
+		mtx_unlock_spin(&w_mtx);
 	}
 }
 
@@ -925,7 +912,7 @@ witness_defineorder(struct lock_object *lock1, struct lock_object *lock2)
 	
 	/* Try to add the new order. */
 	CTR3(KTR_WITNESS, "%s: adding %s as a child of %s", __func__,
-	    lock2->lo_type, lock1->lo_type);
+	    lock2->lo_witness->w_name, lock1->lo_witness->w_name);
 	if (!itismychild(lock1->lo_witness, lock2->lo_witness))
 		return (ENOMEM);
 	mtx_unlock_spin(&w_mtx);
@@ -1034,7 +1021,7 @@ witness_checkorder(struct lock_object *lock, int flags, const char *file,
 			return;
 		w->w_same_squawked = 1;
 		printf("acquiring duplicate lock of same type: \"%s\"\n", 
-			lock->lo_type);
+			w->w_name);
 		printf(" 1st %s @ %s:%d\n", lock1->li_lock->lo_name,
 		    lock1->li_file, lock1->li_line);
 		printf(" 2nd %s @ %s:%d\n", lock->lo_name, file, line);
@@ -1164,21 +1151,19 @@ witness_checkorder(struct lock_object *lock, int flags, const char *file,
 			if (i < 0) {
 				printf(" 1st %p %s (%s) @ %s:%d\n",
 				    lock1->li_lock, lock1->li_lock->lo_name,
-				    lock1->li_lock->lo_type, lock1->li_file,
-				    lock1->li_line);
+				    w1->w_name, lock1->li_file, lock1->li_line);
 				printf(" 2nd %p %s (%s) @ %s:%d\n", lock,
-				    lock->lo_name, lock->lo_type, file, line);
+				    lock->lo_name, w->w_name, file, line);
 			} else {
 				printf(" 1st %p %s (%s) @ %s:%d\n",
 				    lock2->li_lock, lock2->li_lock->lo_name,
-				    lock2->li_lock->lo_type, lock2->li_file,
-				    lock2->li_line);
+				    lock2->li_lock->lo_witness->w_name,
+				    lock2->li_file, lock2->li_line);
 				printf(" 2nd %p %s (%s) @ %s:%d\n",
 				    lock1->li_lock, lock1->li_lock->lo_name,
-				    lock1->li_lock->lo_type, lock1->li_file,
-				    lock1->li_line);
+				    w1->w_name, lock1->li_file, lock1->li_line);
 				printf(" 3rd %p %s (%s) @ %s:%d\n", lock,
-				    lock->lo_name, lock->lo_type, file, line);
+				    lock->lo_name, w->w_name, file, line);
 			}
 #ifdef KDB
 			goto debugger;
@@ -1198,7 +1183,7 @@ witness_checkorder(struct lock_object *lock, int flags, const char *file,
 	    !(lock1->li_lock == &Giant.lock_object &&
 	    (lock->lo_flags & LO_SLEEPABLE) != 0)) {
 		CTR3(KTR_WITNESS, "%s: adding %s as a child of %s", __func__,
-		    lock->lo_type, lock1->li_lock->lo_type);
+		    w->w_name, lock1->li_lock->lo_witness->w_name);
 		if (!itismychild(lock1->li_lock->lo_witness, w))
 			/* Witness is dead. */
 			return;
@@ -1533,8 +1518,10 @@ enroll(const char *description, struct lock_class *lock_class)
 			return (w);
 		}
 	}
-	if ((w = witness_get()) == NULL)
+	if ((w = witness_get()) == NULL) {
+		printf("WITNESS: unable to allocate a new witness object\n");
 		goto out;
+	}
 	w->w_name = description;
 	w->w_class = lock_class;
 	w->w_refcount = 1;
@@ -1567,7 +1554,7 @@ out:
 }
 
 /* Don't let the door bang you on the way out... */
-static int
+static void
 depart(struct witness *w)
 {
 	struct witness_child_list_entry *wcl, *nwcl;
@@ -1610,8 +1597,6 @@ depart(struct witness *w)
 	STAILQ_REMOVE(list, w, witness, w_typelist);
 	STAILQ_REMOVE(&w_all, w, witness, w_list);
 	witness_free(w);
-
-	return (1);
 }
 
 /*
@@ -1646,7 +1631,6 @@ insertchild(struct witness *parent, struct witness *child)
 static int
 itismychild(struct witness *parent, struct witness *child)
 {
-	struct witness_list *list;
 
 	MPASS(child != NULL && parent != NULL);
 	if ((parent->w_class->lc_flags & (LC_SLEEPLOCK | LC_SPINLOCK)) !=
@@ -1656,14 +1640,7 @@ itismychild(struct witness *parent, struct witness *child)
 		    __func__, parent->w_class->lc_name,
 		    child->w_class->lc_name);
 
-	if (!insertchild(parent, child))
-		return (0);
-
-	if (parent->w_class->lc_flags & LC_SLEEPLOCK)
-		list = &w_sleep;
-	else
-		list = &w_spin;
-	return (1);
+	return (insertchild(parent, child));
 }
 
 static void
@@ -1864,8 +1841,8 @@ witness_list_lock(struct lock_instance *instance)
 	lock = instance->li_lock;
 	printf("%s %s %s", (instance->li_flags & LI_EXCLUSIVE) != 0 ?
 	    "exclusive" : "shared", LOCK_CLASS(lock)->lc_name, lock->lo_name);
-	if (lock->lo_type != lock->lo_name)
-		printf(" (%s)", lock->lo_type);
+	if (lock->lo_witness->w_name != lock->lo_name)
+		printf(" (%s)", lock->lo_witness->w_name);
 	printf(" r = %d (%p) locked @ %s:%d\n",
 	    instance->li_flags & LI_RECURSEMASK, lock, instance->li_file,
 	    instance->li_line);
