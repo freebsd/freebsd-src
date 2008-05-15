@@ -372,6 +372,8 @@ SRCS=	acache.c \
 
 SRCS+=	heim_err.c \
 	heim_err.h \
+	hx509_err.c \
+	hx509_err.h \
 	k524_err.c \
 	k524_err.h \
 	krb5_err.c \
