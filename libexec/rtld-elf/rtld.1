@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 27, 2006
+.Dd May 15, 2008
 .Dt RTLD 1
 .Os
 .Sh NAME
@@ -174,7 +174,10 @@ The main program's name
 .Dq __progname ) .
 .It Li \&%A
 The value of the environment variable
-.Ev LD_TRACE_LOADED_OBJECTS_PROGNAME
+.Ev LD_TRACE_LOADED_OBJECTS_PROGNAME .
+Typically used to print both the names of programs and shared libraries
+being inspected using
+.Xr ldd 1 .
 .It Li %o
 The library name.
 .It Li %p
