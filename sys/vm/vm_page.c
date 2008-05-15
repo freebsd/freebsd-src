@@ -1063,7 +1063,7 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 			mtx_unlock(&vm_page_queue_free_mtx);
 			return (NULL);
 #if VM_NRESERVLEVEL > 0
-		} else if (object == NULL ||
+		} else if (object == NULL || object->type == OBJT_DEVICE ||
 		    (object->flags & OBJ_COLORED) == 0 ||
 		    (m = vm_reserv_alloc_page(object, pindex)) == NULL) {
 #else
