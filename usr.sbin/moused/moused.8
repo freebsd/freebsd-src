@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 12, 2004
+.Dd May 15, 2008
 .Dt MOUSED 8
 .Os
 .Sh NAME
@@ -43,7 +43,7 @@
 .Op Fl F Ar rate
 .Op Fl r Ar resolution
 .Op Fl S Ar baudrate
-.Op Fl VH Op Fl U Ar distance
+.Op Fl VH Op Fl U Ar distance Fl L Ar distance
 .Op Fl A Ar exp Ns Op , Ns Ar offset
 .Op Fl a Ar X Ns Op , Ns Ar Y
 .Op Fl C Ar threshold
@@ -139,6 +139,18 @@ simultaneously.
 The default timeout is 100 msec.
 .It Fl F Ar rate
 Set the report rate (reports/sec) of the device if supported.
+.It Fl L Ar distance
+When
+.Dq Virtual Scrolling
+is enabled, the
+.Fl L
+option can be used to set the
+.Ar distance
+(in pixels) that the mouse must move before a scroll event
+is generated.  This effectively controls the scrolling speed.
+The default
+.Ar distance
+is 2 pixels.
 .It Fl H
 Enable
 .Dq Horizontal Virtual Scrolling .
@@ -148,7 +160,9 @@ horizontal scrolling.
 Use the
 .Fl U
 option to set the distance the mouse must move before the scrolling mode is
-activated.
+activated and the
+.Fl L
+option to set the scrolling speed.
 This option may be used with or without the
 .Fl V
 option.
@@ -201,7 +215,9 @@ button down will cause motion to be interpreted as scrolling.
 Use the
 .Fl U
 option to set the distance the mouse must move before the scrolling mode is
-activated.
+activated and the
+.Fl L
+option to set the scrolling speed.
 .It Fl U Ar distance
 When
 .Dq Virtual Scrolling
