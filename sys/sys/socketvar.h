@@ -110,6 +110,8 @@ struct socket {
 		u_int	sb_cc;		/* (c/d) actual chars in buffer */
 		u_int	sb_hiwat;	/* (c/d) max actual char count */
 		u_int	sb_mbcnt;	/* (c/d) chars of mbufs used */
+		u_int   sb_mcnt;        /* (c/d) number of mbufs in buffer */
+		u_int   sb_ccnt;        /* (c/d) number of clusters in buffer */
 		u_int	sb_mbmax;	/* (c/d) max chars of mbufs to use */
 		u_int	sb_ctl;		/* (c/d) non-data chars in buffer */
 		int	sb_lowat;	/* (c/d) low water mark */
@@ -259,6 +261,8 @@ struct xsocket {
 		u_int	sb_cc;
 		u_int	sb_hiwat;
 		u_int	sb_mbcnt;
+		u_int   sb_mcnt;
+		u_int   sb_ccnt;
 		u_int	sb_mbmax;
 		int	sb_lowat;
 		int	sb_timeo;
@@ -320,8 +324,11 @@ struct xsocket {
 	if ((m)->m_type != MT_DATA && (m)->m_type != MT_OOBDATA) \
 		(sb)->sb_ctl += (m)->m_len; \
 	(sb)->sb_mbcnt += MSIZE; \
-	if ((m)->m_flags & M_EXT) \
+	(sb)->sb_mcnt += 1; \
+	if ((m)->m_flags & M_EXT) { \
 		(sb)->sb_mbcnt += (m)->m_ext.ext_size; \
+		(sb)->sb_ccnt += 1; \
+	} \
 }
 
 /* adjust counters in sb reflecting freeing of m */
@@ -330,8 +337,11 @@ struct xsocket {
 	if ((m)->m_type != MT_DATA && (m)->m_type != MT_OOBDATA) \
 		(sb)->sb_ctl -= (m)->m_len; \
 	(sb)->sb_mbcnt -= MSIZE; \
-	if ((m)->m_flags & M_EXT) \
+	(sb)->sb_mcnt -= 1; \
+	if ((m)->m_flags & M_EXT) { \
 		(sb)->sb_mbcnt -= (m)->m_ext.ext_size; \
+		(sb)->sb_ccnt -= 1; \
+	} \
 	if ((sb)->sb_sndptr == (m)) { \
 		(sb)->sb_sndptr = NULL; \
 		(sb)->sb_sndptroff = 0; \
