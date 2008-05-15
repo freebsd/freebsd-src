@@ -101,6 +101,7 @@ CTASSERT(((SX_ADAPTIVESPIN | SX_RECURSE) & LO_CLASSFLAGS) ==
  * Returns true if an exclusive lock is recursed.  It assumes
  * curthread currently has an exclusive lock.
  */
+#define	sx_recurse		lock_object.lo_data
 #define	sx_recursed(sx)		((sx)->sx_recurse != 0)
 
 static void	assert_sx(struct lock_object *lock, int what);
