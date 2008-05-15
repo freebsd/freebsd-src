@@ -26,6 +26,10 @@ dhclient_start()
 			if [ -n "$pids" ]; then
 				exit 0
 			fi
+		elif [ -e /var/run/dhclient.pid ]; then
+			if [ -n "`pgrep -F /var/run/dhclient.pid`" ]; then
+				exit 0
+			fi
 		fi
 	fi
 
