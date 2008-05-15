@@ -638,7 +638,13 @@ evalvar(char *p, int flag)
 		special = 1;
 	p = strchr(p, '=') + 1;
 again: /* jump here after setting a variable with ${var=text} */
-	if (special) {
+	if (varflags & VSLINENO) {
+		set = 1;
+		special = 0;
+		val = var;
+		p[-1] = '\0';	/* temporarily overwrite '=' to have \0
+				   terminated string */
+	} else if (special) {
 		set = varisset(var, varflags & VSNUL);
 		val = NULL;
 	} else {
@@ -768,6 +774,7 @@ record:
 	default:
 		abort();
 	}
+	p[-1] = '=';	/* recover overwritten '=' */
 
 	if (subtype != VSNORMAL) {	/* skip to end of alternative */
 		int nesting = 1;
