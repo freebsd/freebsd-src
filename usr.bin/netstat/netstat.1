@@ -49,7 +49,7 @@ depending on the options for the information presented.
 .It Xo
 .Bk -words
 .Nm
-.Op Fl AaLnSW
+.Op Fl AaLnSWx
 .Op Fl f Ar protocol_family | Fl p Ar protocol
 .Op Fl M Ar core
 .Op Fl N Ar system
@@ -85,6 +85,9 @@ is also present,
 show network addresses as numbers (as with
 .Fl n )
 but show ports symbolically.
+If
+.Fl x
+is present display full socket buffer statistics for each internet socket.
 .It Xo
 .Bk -words
 .Nm
@@ -454,6 +457,26 @@ remotely on the interface.
 .Pp
 For more information about these flags, please refer to
 .Xr bpf 4 .
+.Pp
+The
+.Fl x
+flag causes netstat to output all the information recorded about data
+stored in the socket buffers.  The fields are:
+.Bl -column ".Li R-MBUF"
+.It Li R-MBUF Ta Number of mbufs in the receive queue.
+.It Li S-MBUF Ta Number of mbufs in the send queue.
+.It Li R-CLUS Ta Number of clusters, of any type, in the recieve
+queue.
+.It Li S-CLUS Ta Number of clusters, of any type, in the send queue.
+.It Li R-HIWA Ta Receive buffer high water mark, in bytes.
+.It Li S-HIWA Ta Send buffer high water mark, in bytes.
+.It Li R-LOWA Ta Receive buffer low water mark, in bytes.
+.It Li S-LOWA Ta Send buffer low water mark, in bytes.
+.It Li R-BCNT Ta Receive buffer byte count.
+.It Li S-BCNT Ta Send buffer byte count.
+.It Li R-BMAX Ta Maximum bytes that can be used in the receive buffer.
+.It Li S-BMAX Ta Maximum bytes that can be used in the send buffer.
+.El
 .Sh SEE ALSO
 .Xr fstat 1 ,
 .Xr nfsstat 1 ,
