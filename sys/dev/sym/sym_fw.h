@@ -135,17 +135,17 @@ struct sym_hcb;
  *  Generic structure that defines a firmware.
  */ 
 struct sym_fw {
-	char	*name;		/* Name we want to print out	*/
-	u32	*a_base;	/* Pointer to script A template	*/
+	const char	*name;	/* Name we want to print out	*/
+	const u32	*a_base;/* Pointer to script A template	*/
 	int	a_size;		/* Size of script A		*/
-	struct	sym_fwa_ofs
+	const struct	sym_fwa_ofs
 		*a_ofs;		/* Useful offsets in script A	*/
-	u32	*b_base;	/* Pointer to script B template	*/
+	const u32	*b_base;/* Pointer to script B template	*/
 	int	b_size;		/* Size of script B		*/
-	struct	sym_fwb_ofs
+	const struct	sym_fwb_ofs
 		*b_ofs;		/* Useful offsets in script B	*/
 	/* Setup and patch methods for this firmware */
-	void	(*setup)(struct sym_hcb *, struct sym_fw *);
+	void	(*setup)(struct sym_hcb *, const struct sym_fw *);
 	void	(*patch)(struct sym_hcb *);
 };
 
@@ -155,8 +155,8 @@ struct sym_fw {
 #define SYM_FW_ENTRY(fw, name)					\
 {								\
 	name,							\
-	(u32 *) &fw##a_scr, sizeof(fw##a_scr), &fw##a_ofs,	\
-	(u32 *) &fw##b_scr, sizeof(fw##b_scr), &fw##b_ofs,	\
+	(const u32 *) &fw##a_scr, sizeof(fw##a_scr), &fw##a_ofs,\
+	(const u32 *) &fw##b_scr, sizeof(fw##b_scr), &fw##b_ofs,\
 	fw##_setup, fw##_patch					\
 }
 
