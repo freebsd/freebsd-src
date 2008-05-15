@@ -59,6 +59,7 @@
 #endif
 
 struct thread;
+#define	lk_recurse	lock_object.lo_data
 
 /*
  * Function prototipes.  Routines that start with an underscore are not part

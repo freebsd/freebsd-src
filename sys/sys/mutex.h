@@ -134,6 +134,8 @@ void	_thread_lock_flags(struct thread *, int, const char *, int);
 #define	thread_unlock(tdp)						\
        mtx_unlock_spin((tdp)->td_lock)
 
+#define	mtx_recurse	lock_object.lo_data
+
 /*
  * We define our machine-independent (unoptimized) mutex micro-operations
  * here, if they are not already defined in the machine-dependent mutex.h 
