@@ -245,6 +245,21 @@ send_packet(struct interface_info *interface, struct dhcp_packet *raw,
 	unsigned char buf[256];
 	struct iovec iov[2];
 	int result, bufp = 0;
+	int sock;
+
+	if (to->sin_addr.s_addr != INADDR_BROADCAST) {
+		note("SENDING DIRECT");
+		/* We know who the server is, send the packet via
+		   normal socket interface */
+
+		if ((sock = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP)) >= 0) {
+			result = sendto (sock, (char *)raw, len, 0,
+					 (struct sockaddr *)to, sizeof *to);
+			close(sock);
+			if (result > 0)
+				return result;
+			}
+		}
 
 	/* Assemble the headers... */
 	assemble_hw_header(interface, buf, &bufp, hto);
