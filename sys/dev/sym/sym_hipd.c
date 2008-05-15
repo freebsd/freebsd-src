@@ -804,7 +804,7 @@ static void sym_printl_hex (char *label, u_char *p, int n)
 /*
  *  Return a string for SCSI BUS mode.
  */
-static char *sym_scsi_bus_mode(int mode)
+static const char *sym_scsi_bus_mode(int mode)
 {
 	switch(mode) {
 	case SMODE_HVD:	return "HVD";
@@ -818,7 +818,7 @@ static char *sym_scsi_bus_mode(int mode)
  *  Some poor and bogus sync table that refers to Tekram NVRAM layout.
  */
 #ifdef SYM_CONF_NVRAM_SUPPORT
-static u_char Tekram_sync[16] =
+static const u_char Tekram_sync[16] =
 	{25,31,37,43, 50,62,75,125, 12,15,18,21, 6,7,9,10};
 #endif
 
@@ -1513,8 +1513,6 @@ struct sym_hcb {
 	 *  Chip and controller indentification.
 	 */
 	device_t device;
-	int	unit;
-	char	inst_name[8];
 
 	/*
 	 *  Initial value of some IO register bits.
@@ -1611,9 +1609,9 @@ struct sym_hcb {
 	 */
 	struct sym_fwa_ba fwa_bas;	/* Useful SCRIPTA bus addresses	*/
 	struct sym_fwb_ba fwb_bas;	/* Useful SCRIPTB bus addresses	*/
-	void		(*fw_setup)(hcb_p np, struct sym_fw *fw);
+	void		(*fw_setup)(hcb_p np, const struct sym_fw *fw);
 	void		(*fw_patch)(hcb_p np);
-	char		*fw_name;
+	const char	*fw_name;
 
 	/*
 	 *  General controller parameters and configuration.
@@ -1726,9 +1724,9 @@ struct sym_hcb {
 /*
  *  Return the name of the controller.
  */
-static __inline char *sym_name(hcb_p np)
+static __inline const char *sym_name(hcb_p np)
 {
-	return np->inst_name;
+	return device_get_nameunit(np->device);
 }
 
 /*--------------------------------------------------------------------------*/
@@ -1756,10 +1754,10 @@ static __inline char *sym_name(hcb_p np)
 #define	SYM_FWA_SCR		sym_fw1a_scr
 #define	SYM_FWB_SCR		sym_fw1b_scr
 #include <dev/sym/sym_fw1.h>
-struct sym_fwa_ofs sym_fw1a_ofs = {
+static const struct sym_fwa_ofs sym_fw1a_ofs = {
 	SYM_GEN_FW_A(struct SYM_FWA_SCR)
 };
-struct sym_fwb_ofs sym_fw1b_ofs = {
+static const struct sym_fwb_ofs sym_fw1b_ofs = {
 	SYM_GEN_FW_B(struct SYM_FWB_SCR)
 };
 #undef	SYM_FWA_SCR
@@ -1772,10 +1770,10 @@ struct sym_fwb_ofs sym_fw1b_ofs = {
 #define	SYM_FWA_SCR		sym_fw2a_scr
 #define	SYM_FWB_SCR		sym_fw2b_scr
 #include <dev/sym/sym_fw2.h>
-struct sym_fwa_ofs sym_fw2a_ofs = {
+static const struct sym_fwa_ofs sym_fw2a_ofs = {
 	SYM_GEN_FW_A(struct SYM_FWA_SCR)
 };
-struct sym_fwb_ofs sym_fw2b_ofs = {
+static const struct sym_fwb_ofs sym_fw2b_ofs = {
 	SYM_GEN_FW_B(struct SYM_FWB_SCR)
 	SYM_GEN_B(struct SYM_FWB_SCR, start64)
 	SYM_GEN_B(struct SYM_FWB_SCR, pm_handle)
@@ -1927,17 +1925,17 @@ sym_fw_fill_data (u32 *in, u32 *out)
  *  To be done for all firmwares.
  */
 static void
-sym_fw_setup_bus_addresses(hcb_p np, struct sym_fw *fw)
+sym_fw_setup_bus_addresses(hcb_p np, const struct sym_fw *fw)
 {
 	u32 *pa;
-	u_short *po;
+	const u_short *po;
 	int i;
 
 	/*
 	 *  Build the bus address table for script A
 	 *  from the script A offset table.
 	 */
-	po = (u_short *) fw->a_ofs;
+	po = (const u_short *) fw->a_ofs;
 	pa = (u32 *) &np->fwa_bas;
 	for (i = 0 ; i < sizeof(np->fwa_bas)/sizeof(u32) ; i++)
 		pa[i] = np->scripta_ba + po[i];
@@ -1945,7 +1943,7 @@ sym_fw_setup_bus_addresses(hcb_p np, struct sym_fw *fw)
 	/*
 	 *  Same for script B.
 	 */
-	po = (u_short *) fw->b_ofs;
+	po = (const u_short *) fw->b_ofs;
 	pa = (u32 *) &np->fwb_bas;
 	for (i = 0 ; i < sizeof(np->fwb_bas)/sizeof(u32) ; i++)
 		pa[i] = np->scriptb_ba + po[i];
@@ -1956,7 +1954,7 @@ sym_fw_setup_bus_addresses(hcb_p np, struct sym_fw *fw)
  *  Setup routine for firmware #1.
  */
 static void
-sym_fw1_setup(hcb_p np, struct sym_fw *fw)
+sym_fw1_setup(hcb_p np, const struct sym_fw *fw)
 {
 	struct sym_fw1a_scr *scripta0;
 	struct sym_fw1b_scr *scriptb0;
@@ -1980,7 +1978,7 @@ sym_fw1_setup(hcb_p np, struct sym_fw *fw)
  *  Setup routine for firmware #2.
  */
 static void
-sym_fw2_setup(hcb_p np, struct sym_fw *fw)
+sym_fw2_setup(hcb_p np, const struct sym_fw *fw)
 {
 	struct sym_fw2a_scr *scripta0;
 	struct sym_fw2b_scr *scriptb0;
@@ -2003,15 +2001,15 @@ sym_fw2_setup(hcb_p np, struct sym_fw *fw)
  *  Allocate firmware descriptors.
  */
 #ifdef	SYM_CONF_GENERIC_SUPPORT
-static struct sym_fw sym_fw1 = SYM_FW_ENTRY(sym_fw1, "NCR-generic");
+static const struct sym_fw sym_fw1 = SYM_FW_ENTRY(sym_fw1, "NCR-generic");
 #endif	/* SYM_CONF_GENERIC_SUPPORT */
-static struct sym_fw sym_fw2 = SYM_FW_ENTRY(sym_fw2, "LOAD/STORE-based");
+static const struct sym_fw sym_fw2 = SYM_FW_ENTRY(sym_fw2, "LOAD/STORE-based");
 
 /*
  *  Find the most appropriate firmware for a chip.
  */
-static struct sym_fw *
-sym_find_firmware(struct sym_pci_chip *chip)
+static const struct sym_fw *
+sym_find_firmware(const struct sym_pci_chip *chip)
 {
 	if (chip->features & FE_LDSTR)
 		return &sym_fw2;
@@ -2281,7 +2279,7 @@ static void sym_update_trans (hcb_p np, tcb_p tp, struct sym_trans *tip,
 static void sym_update_dflags(hcb_p np, u_char *flags,
 			      struct ccb_trans_settings *cts);
 
-static struct sym_pci_chip *sym_find_pci_chip (device_t dev);
+static const struct sym_pci_chip *sym_find_pci_chip (device_t dev);
 static int  sym_pci_probe (device_t dev);
 static int  sym_pci_attach (device_t dev);
 
@@ -2408,7 +2406,8 @@ static void sym_xpt_done2(hcb_p np, union ccb *ccb, int cam_status)
  *  calculations more simple.
  */
 #define _5M 5000000
-static u32 div_10M[] = {2*_5M, 3*_5M, 4*_5M, 6*_5M, 8*_5M, 12*_5M, 16*_5M};
+static const u32 div_10M[] =
+	{2*_5M, 3*_5M, 4*_5M, 6*_5M, 8*_5M, 12*_5M, 16*_5M};
 
 /*
  *  SYMBIOS chips allow burst lengths of 2, 4, 8, 16, 32, 64,
@@ -3988,9 +3987,11 @@ static void sym_intr(void *arg)
 	hcb_p np = arg;
 
 	SYM_LOCK();
+
 	if (DEBUG_FLAGS & DEBUG_TINY) printf ("[");
 	sym_intr1((hcb_p) arg);
 	if (DEBUG_FLAGS & DEBUG_TINY) printf ("]");
+
 	SYM_UNLOCK();
 }
 
@@ -4650,7 +4651,7 @@ sym_flush_comp_queue(hcb_p np, int cam_status)
 	SYM_QUEHEAD *qp;
 	ccb_p cp;
 
-	while ((qp = sym_remque_head(&np->comp_ccbq)) != 0) {
+	while ((qp = sym_remque_head(&np->comp_ccbq)) != NULL) {
 		union ccb *ccb;
 		cp = sym_que_entry(qp, struct sym_ccb, link_ccbq);
 		sym_insque_tail(&cp->link_ccbq, &np->busy_ccbq);
@@ -4874,7 +4875,7 @@ sym_clear_tasks(hcb_p np, int cam_status, int target, int lun, int task)
 	 *  the COMP queue and put back other ones into
 	 *  the BUSY queue.
 	 */
-	while ((qp = sym_remque_head(&qtmp)) != 0) {
+	while ((qp = sym_remque_head(&qtmp)) != NULL) {
 		union ccb *ccb;
 		cp = sym_que_entry(qp, struct sym_ccb, link_ccbq);
 		ccb = cp->cam_ccb;
@@ -8370,7 +8371,7 @@ MODULE_DEPEND(sym, cam, 1, 1, 1);
 MODULE_DEPEND(sym, pci, 1, 1, 1);
 
 
-static struct sym_pci_chip sym_pci_dev_table[] = {
+static const struct sym_pci_chip sym_pci_dev_table[] = {
  {PCI_ID_SYM53C810, 0x0f, "810", 4, 8, 4, 64,
  FE_ERL}
  ,
@@ -8459,10 +8460,10 @@ static struct sym_pci_chip sym_pci_dev_table[] = {
  *  Return a pointer to the chip entry if found,
  *  zero otherwise.
  */
-static struct sym_pci_chip *
+static const struct sym_pci_chip *
 sym_find_pci_chip(device_t dev)
 {
-	struct	sym_pci_chip *chip;
+	const struct	sym_pci_chip *chip;
 	int	i;
 	u_short	device_id;
 	u_char	revision;
@@ -8491,7 +8492,7 @@ sym_find_pci_chip(device_t dev)
 static int
 sym_pci_probe(device_t dev)
 {
-	struct	sym_pci_chip *chip;
+	const struct	sym_pci_chip *chip;
 
 	chip = sym_find_pci_chip(dev);
 	if (chip && sym_find_firmware(chip)) {
@@ -8508,12 +8509,12 @@ sym_pci_probe(device_t dev)
 static int
 sym_pci_attach(device_t dev)
 {
-	struct	sym_pci_chip *chip;
+	const struct	sym_pci_chip *chip;
 	u_short	command;
 	u_char	cachelnsz;
 	struct	sym_hcb *np = NULL;
 	struct	sym_nvram nvram;
-	struct	sym_fw *fw = NULL;
+	const struct	sym_fw *fw = NULL;
 	int 	i;
 	bus_dma_tag_t	bus_dmat;
 
@@ -8538,6 +8539,7 @@ sym_pci_attach(device_t dev)
 		np->bus_dmat = bus_dmat;
 	else
 		return (ENXIO);
+	device_set_softc(dev, np);
 
 	SYM_LOCK_INIT();
 
@@ -8547,7 +8549,6 @@ sym_pci_attach(device_t dev)
 	np->hcb_ba	 = vtobus(np);
 	np->verbose	 = bootverbose;
 	np->device	 = dev;
-	np->unit	 = device_get_unit(dev);
 	np->device_id	 = pci_get_device(dev);
 	np->revision_id  = pci_get_revid(dev);
 	np->features	 = chip->features;
@@ -8566,10 +8567,6 @@ sym_pci_attach(device_t dev)
 	if (!np->target)
 		goto attach_failed;
 #endif
-	/*
-	 * Edit its name.
-	 */
-	snprintf(np->inst_name, sizeof(np->inst_name), "sym%d", np->unit);
 
 	/*
 	 *  Initialize the CCB free and busy queues.
@@ -8922,7 +8919,7 @@ static void sym_pci_free(hcb_p np)
 	if (np->dqueue)
 		sym_mfree_dma(np->dqueue, sizeof(u32)*(MAX_QUEUE*2), "DQUEUE");
 
-	while ((qp = sym_remque_head(&np->free_ccbq)) != 0) {
+	while ((qp = sym_remque_head(&np->free_ccbq)) != NULL) {
 		cp = sym_que_entry(qp, struct sym_ccb, link_ccbq);
 		bus_dmamap_destroy(np->data_dmat, cp->dmamap);
 		sym_mfree_dma(cp->sns_bbuf, SYM_SNS_BBUF_LEN, "SNS_BBUF");
@@ -8963,6 +8960,7 @@ static void sym_pci_free(hcb_p np)
 		bus_dma_tag_destroy(np->data_dmat);
 	if (SYM_LOCK_INITIALIZED() != 0)
 		SYM_LOCK_DESTROY();
+	device_set_softc(np->device, NULL);
 	sym_mfree_dma(np, sizeof(*np), "HCB");
 }
 
@@ -8999,7 +8997,8 @@ static int sym_cam_attach(hcb_p np)
 	/*
 	 *  Construct our SIM entry.
 	 */
-	sim = cam_sim_alloc(sym_action, sym_poll, "sym", np, np->unit,
+	sim = cam_sim_alloc(sym_action, sym_poll, "sym", np,
+			device_get_unit(np->device),
 			&np->mtx, 1, SYM_SETUP_MAX_TAG, devq);
 	if (!sim)
 		goto fail;
@@ -9036,6 +9035,7 @@ static int sym_cam_attach(hcb_p np)
 	sym_init (np, 0);
 
 	SYM_UNLOCK();
+
 	return 1;
 fail:
 	if (sim)
@@ -9224,7 +9224,7 @@ static void sym_display_Symbios_nvram(hcb_p np, Symbios_nvram *nvram)
 /*
  *  Dump TEKRAM format NVRAM for debugging purpose.
  */
-static u_char Tekram_boot_delay[7] = {3, 5, 10, 20, 30, 60, 120};
+static const u_char Tekram_boot_delay[7] = {3, 5, 10, 20, 30, 60, 120};
 static void sym_display_Tekram_nvram(hcb_p np, Tekram_nvram *nvram)
 {
 	int i, tags, boot_delay;
