@@ -72,6 +72,12 @@ __FBSDID("$FreeBSD$");
  * Adrian Chadd <adrian@creative.net.au>
  */
 
+typedef enum {
+	IOT_NONE = 0x00,
+	IOT_READ = 0x01,
+	IOT_WRITE = 0x02
+} iot_t;
+
 static size_t
 disk_getsize(int fd)
 {
@@ -84,9 +90,19 @@ disk_getsize(int fd)
 	return mediasize;
 }
 
+iot_t
+choose_aio(iot_t iomask)
+{
+	/* choose a random read or write event, limited by the mask */
+	if (iomask == IOT_READ)
+		return IOT_READ;
+	else if (iomask == IOT_WRITE)
+		return IOT_WRITE;
+	return (random() & 0x01 ? IOT_READ : IOT_WRITE);
+}
 
 void
-set_aio(struct aiocb *a, int fd, off_t offset, int size, char *buf)
+set_aio(struct aiocb *a, iot_t iot, int fd, off_t offset, int size, char *buf)
 {
 	int r;
 	bzero(a, sizeof(*a));
@@ -94,9 +110,12 @@ set_aio(struct aiocb *a, int fd, off_t offset, int size, char *buf)
 	a->aio_nbytes = size;
 	a->aio_offset = offset;
 	a->aio_buf = buf;
-	r = aio_read(a);
+	if (iot == IOT_READ)
+		r = aio_read(a);
+	else
+		r = aio_write(a);
 	if (r != 0) {
-		perror("aio_read");
+		perror("set_aio");
 		exit(1);
 	}
 }
@@ -116,10 +135,11 @@ main(int argc, char *argv[])
 	int i, n;
         struct timeval st, et, rt;
         float f_rt;
+	iot_t iowhat;
 
 
-	if (argc < 5) {
-		printf("Usage: %s <file> <io size> <number of runs> <concurrency>\n", argv[0]);
+	if (argc < 6) {
+		printf("Usage: %s <file> <io size> <number of runs> <concurrency> <ro|wo|rw>\n", argv[0]);
 		exit(1);
 	}
 
@@ -127,14 +147,29 @@ main(int argc, char *argv[])
 	io_size = atoi(argv[2]);
 	nrun = atoi(argv[3]);
 	aio_len = atoi(argv[4]);
+	if (strcmp(argv[5], "ro") == 0) {
+		iowhat = IOT_READ;
+	} else if (strcmp(argv[5], "rw") == 0) {
+		iowhat = IOT_READ | IOT_WRITE;
+	} else if (strcmp(argv[5], "wo") == 0) {
+		iowhat = IOT_WRITE;
+	} else {
+		fprintf(stderr, "needs to be ro, rw, wo!\n");
+		exit(1);
+	}
 
 	/*
 	 * Random returns values between 0 and (2^32)-1; only good for 4 gig.
 	 * Lets instead treat random() as returning a block offset w/ block size
 	 * being "io_size", so we can handle > 4 gig files.
 	 */
+	if (iowhat == IOT_READ)
+		fd = open(fn, O_RDONLY | O_DIRECT);
+	else if (iowhat == IOT_WRITE)
+		fd = open(fn, O_WRONLY | O_DIRECT);
+	else
+		fd = open(fn, O_RDWR | O_DIRECT);
 
-	fd = open(fn, O_RDONLY | O_DIRECT);
 	if (fd < 0) {
 		perror("open");
 		exit(1);
@@ -151,7 +186,7 @@ main(int argc, char *argv[])
 		perror("unknown file type\n");
 		exit(1);
 	}
-	printf("File: %s; File size %ld bytes\n", fn, (long) file_size);
+	printf("File: %s; File size %qd bytes\n", fn, file_size);
 
 	aio = calloc(aio_len, sizeof(struct aiocb));
 	abuf = calloc(aio_len, sizeof(char *));
@@ -164,7 +199,7 @@ main(int argc, char *argv[])
 	for (i = 0; i < aio_len; i++) {
                 offset = random() % (file_size / io_size);
                 offset *= io_size;
-		set_aio(aio + i, fd, offset, io_size, abuf[i]);
+		set_aio(aio + i, choose_aio(iowhat), fd, offset, io_size, abuf[i]);
 	}
 
 	for (i = 0; i < nrun; i++) {
@@ -174,7 +209,7 @@ main(int argc, char *argv[])
 		assert(n >= 0);
                 offset = random() % (file_size / io_size);
                 offset *= io_size;
-		set_aio(aio + n, fd, offset, io_size, abuf[n]);
+		set_aio(aio + n, choose_aio(iowhat), fd, offset, io_size, abuf[n]);
 	}
 
         gettimeofday(&et, NULL);
