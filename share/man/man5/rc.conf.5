@@ -393,10 +393,10 @@ only.
 .It Va synchronous_dhclient
 .Pq Bt bool
 Set to
-.Dq Li NO
+.Dq Li YES
 to start
 .Xr dhclient 8
-only in response to interface events and not synchronously at startup.
+synchronously at startup.
 This behavior can be overridden on a per-interface basis by replacing
 the
 .Dq Li DHCP
@@ -406,6 +406,10 @@ variable with
 .Dq Li SYNCDHCP
 or
 .Dq Li NOSYNCDHCP .
+.It Va if_up_delay
+.Pq Vt int
+When set to a positive value, wait up to this long after configuring
+DHCP interfaces at startup to give the interfaces time to receive a lease.
 .It Va firewall_enable
 .Pq Vt bool
 Set to
