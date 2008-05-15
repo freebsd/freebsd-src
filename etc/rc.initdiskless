@@ -69,6 +69,10 @@
 # 		/conf/1.2.3.4/foo/remount contains "mount -o ro /dev/ad0s3",
 #		then /dev/ad0s3 will be be mounted on /conf/1.2.3.4/foo/
 #
+# /conf/T/M/remount_optional
+#		If this file exists, then failure to execute the mount
+#		command contained in /conf/T/M/remount is non-fatal.
+#
 # /conf/T/M/diskless_remount
 #		The contents of the file points to an NFS filesystem,
 #		possibly followed by mount_nfs options. If the server name
@@ -147,8 +151,12 @@ log() {
 #
 #	checks error code and drops into shell on failure.
 #	if shell exits, terminates script as well as /etc/rc.
+#	if remount_optional exists under the mountpoint, skip this check.
 #
 chkerr() {
+    lastitem () ( n=$(($# - 1)) ; shift $n ; echo $1 )
+    mountpoint="$(lastitem $2)"
+    [ -r $mountpoint/remount_optional ] && ( echo "$2 failed: ignoring due to remount_optional" ; return )
     case $1 in
     0)
 	;;
