@@ -142,6 +142,8 @@ sbtoxsockbuf(struct sockbuf *sb, struct xsockbuf *xsb)
 	xsb->sb_cc = sb->sb_cc;
 	xsb->sb_hiwat = sb->sb_hiwat;
 	xsb->sb_mbcnt = sb->sb_mbcnt;
+	xsb->sb_mcnt = sb->sb_mcnt;
+	xsb->sb_ccnt = sb->sb_ccnt;
 	xsb->sb_mbmax = sb->sb_mbmax;
 	xsb->sb_lowat = sb->sb_lowat;
 	xsb->sb_flags = sb->sb_flags;
@@ -405,13 +407,19 @@ protopr(u_long off, const char *name, int af1, int proto)
 			if (Lflag)
 				printf("%-5.5s %-14.14s %-22.22s\n",
 				    "Proto", "Listen", "Local Address");
+			printf((Aflag && !Wflag) ? 
+			       "%-5.5s %-6.6s %-6.6s  %-18.18s %-18.18s" :
+			       "%-5.5s %-6.6s %-6.6s  %-22.22s %-22.22s",
+			       "Proto", "Recv-Q", "Send-Q",
+			       "Local Address", "Foreign Address");
+			if (xflag)
+				printf("%-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %s\n",
+				       "R-MBUF", "S-MBUF", "R-CLUS", "S-CLUS",
+				       "R-HIWA", "S-HIWA", "R-LOWA", "S-LOWA", 
+				       "R-BCNT", "S-BCNT", "R-BMAX", "S-BMAX", 
+				       "(state)");
 			else
-				printf((Aflag && !Wflag) ?
-		"%-5.5s %-6.6s %-6.6s  %-18.18s %-18.18s %s\n" :
-		"%-5.5s %-6.6s %-6.6s  %-22.22s %-22.22s %s\n",
-				    "Proto", "Recv-Q", "Send-Q",
-				    "Local Address", "Foreign Address",
-				    "(state)");
+				printf("(state)\n");
 			first = 0;
 		}
 		if (Lflag && so->so_qlimit == 0)
@@ -438,7 +446,8 @@ protopr(u_long off, const char *name, int af1, int proto)
 			    so->so_incqlen, so->so_qlimit);
 			printf("%-14.14s ", buf1);
 		} else {
-			printf("%6u %6u  ", so->so_rcv.sb_cc, so->so_snd.sb_cc);
+			printf("%6u %6u ", 
+			       so->so_rcv.sb_cc, so->so_snd.sb_cc);
 		}
 		if (numeric_port) {
 			if (inp->inp_vflag & INP_IPV4) {
@@ -494,10 +503,29 @@ protopr(u_long off, const char *name, int af1, int proto)
 			} /* else nothing printed now */
 #endif /* INET6 */
 		}
+		if (xflag) {
+			if (Lflag)
+				printf("%21s %6u %6u %6u %6u %6u %6u %6u %6u %6u %6u %6u %6u ", 
+				       " ",
+				       so->so_rcv.sb_mcnt, so->so_snd.sb_mcnt,
+				       so->so_rcv.sb_ccnt, so->so_snd.sb_ccnt,
+				       so->so_rcv.sb_hiwat, so->so_snd.sb_hiwat,
+				       so->so_rcv.sb_lowat, so->so_snd.sb_lowat,
+				       so->so_rcv.sb_mbcnt, so->so_snd.sb_mbcnt,
+				       so->so_rcv.sb_mbmax, so->so_snd.sb_mbmax);
+			else
+				printf("%6u %6u %6u %6u %6u %6u %6u %6u %6u %6u %6u %6u ",
+				       so->so_rcv.sb_mcnt, so->so_snd.sb_mcnt,
+				       so->so_rcv.sb_ccnt, so->so_snd.sb_ccnt,
+				       so->so_rcv.sb_hiwat, so->so_snd.sb_hiwat,
+				       so->so_rcv.sb_lowat, so->so_snd.sb_lowat,
+				       so->so_rcv.sb_mbcnt, so->so_snd.sb_mbcnt,
+				       so->so_rcv.sb_mbmax, so->so_snd.sb_mbmax);
+		}
 		if (istcp && !Lflag) {
 			if (tp->t_state < 0 || tp->t_state >= TCP_NSTATES)
 				printf("%d", tp->t_state);
-                      else {
+			else {
 				printf("%s", tcpstates[tp->t_state]);
 #if defined(TF_NEEDSYN) && defined(TF_NEEDFIN)
 				/* Show T/TCP `hidden state' */
@@ -505,7 +533,7 @@ protopr(u_long off, const char *name, int af1, int proto)
 					putchar('*');
 #endif /* defined(TF_NEEDSYN) && defined(TF_NEEDFIN) */
 			}
-		}
+		} 		
 		putchar('\n');
 	}
 	if (xig != oxig && xig->xig_gen != oxig->xig_gen) {
