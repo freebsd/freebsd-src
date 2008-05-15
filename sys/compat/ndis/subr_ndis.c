@@ -1360,6 +1360,10 @@ NdisReadNetworkAddress(status, addr, addrlen, adapter)
 
 	block = (ndis_miniport_block *)adapter;
 	sc = device_get_softc(block->nmb_physdeviceobj->do_devext);
+	if (sc->ifp == NULL) {
+		*status = NDIS_STATUS_FAILURE;
+		return;
+	}
 
 #ifdef IFP2ENADDR
 	if (bcmp(IFP2ENADDR(sc->ifp), empty, ETHER_ADDR_LEN) == 0)
