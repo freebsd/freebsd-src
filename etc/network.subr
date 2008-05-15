@@ -71,7 +71,7 @@ ifn_stop()
 	ipv4_down ${ifn} && cfg=0
 	ifconfig_down ${ifn} && cfg=0
 	ifscript_down ${ifn} && cfg=0
-	childif_destroy
+	childif_destroy ${ifn}
 
 	if [ "$cfg" -eq 0 ]; then
 		echo -n " ${ifn}"
