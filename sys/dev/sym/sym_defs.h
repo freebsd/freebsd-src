@@ -90,7 +90,7 @@
 struct sym_pci_chip {
 	u_short	device_id;
 	unsigned short	revision_id;
-	char	*name;
+	const char *name;
 	u_char	burst_max;	/* log-base-2 of max burst */
 	u_char	offset_max;
 	u_char	nr_divisor;
