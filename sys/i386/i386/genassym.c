@@ -222,9 +222,6 @@ ASSYM(BC32SEL, GSEL(GBIOSCODE32_SEL, SEL_KPL));
 ASSYM(GPROC0_SEL, GPROC0_SEL);
 ASSYM(VM86_FRAMESIZE, sizeof(struct vm86frame));
 
-ASSYM(MTX_LOCK, offsetof(struct mtx, mtx_lock));
-ASSYM(MTX_RECURSECNT, offsetof(struct mtx, mtx_recurse));
-
 #ifdef PC98
 #include <machine/bus.h>
 
