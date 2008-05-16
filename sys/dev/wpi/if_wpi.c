@@ -188,6 +188,7 @@ static void	wpi_rx_intr(struct wpi_softc *, struct wpi_rx_desc *,
 		    struct wpi_rx_data *);
 static void	wpi_tx_intr(struct wpi_softc *, struct wpi_rx_desc *);
 static void	wpi_cmd_intr(struct wpi_softc *, struct wpi_rx_desc *);
+static void	wpi_bmiss(void *, int);
 static void	wpi_notif_intr(struct wpi_softc *);
 static void	wpi_intr(void *);
 static void	wpi_ops(void *, int);
@@ -516,6 +517,7 @@ wpi_attach(device_t dev)
 
 	/* Create the tasks that can be queued */
 	TASK_INIT(&sc->sc_opstask, 0, wpi_ops, sc);
+	TASK_INIT(&sc->sc_bmiss_task, 0, wpi_bmiss, sc);
 
 	WPI_LOCK_INIT(sc);
 	WPI_CMD_LOCK_INIT(sc);
@@ -1619,6 +1621,15 @@ wpi_cmd_intr(struct wpi_softc *sc, struct wpi_rx_desc *desc)
 }
 
 static void
+wpi_bmiss(void *arg, int npending)
+{
+	struct wpi_softc *sc = arg;
+	struct ieee80211com *ic = sc->sc_ifp->if_l2com;
+
+	ieee80211_beacon_miss(ic);
+}
+
+static void
 wpi_notif_intr(struct wpi_softc *sc)
 {
 	struct ifnet *ifp = sc->sc_ifp;
@@ -1723,7 +1734,8 @@ wpi_notif_intr(struct wpi_softc *sc)
 				DPRINTF(("Beacon miss: %u >= %u\n",
 					 le32toh(beacon->consecutive),
 					 vap->iv_bmissthreshold));
-				ieee80211_beacon_miss(ic);
+				taskqueue_enqueue(taskqueue_swi,
+				    &sc->sc_bmiss_task);
 			}
 			break;
 		}
@@ -3006,7 +3018,8 @@ wpi_rfkill_resume(struct wpi_softc *sc)
 	if (vap != NULL) {
 		if ((ic->ic_flags & IEEE80211_F_SCAN) == 0) {
 			if (vap->iv_opmode != IEEE80211_M_MONITOR) {
-				ieee80211_beacon_miss(ic);
+				taskqueue_enqueue(taskqueue_swi,
+				    &sc->sc_bmiss_task);
 				wpi_set_led(sc, WPI_LED_LINK, 0, 1);
 			} else
 				wpi_set_led(sc, WPI_LED_LINK, 5, 5);
