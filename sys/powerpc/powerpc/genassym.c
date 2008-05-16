@@ -98,7 +98,6 @@ ASSYM(TLBSAVE_BOOKE_R30, TLBSAVE_BOOKE_R30*4);
 ASSYM(TLBSAVE_BOOKE_R31, TLBSAVE_BOOKE_R31*4);
 
 ASSYM(MTX_LOCK, offsetof(struct mtx, mtx_lock));
-ASSYM(MTX_RECURSECNT, offsetof(struct mtx, mtx_recurse));
 
 #if defined(AIM)
 ASSYM(PM_KERNELSR, offsetof(struct pmap, pm_sr[KERNEL_SR]));
