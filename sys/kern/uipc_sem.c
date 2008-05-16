@@ -72,7 +72,8 @@ static void sem_free(struct ksem *ksnew);
 static int sem_perm(struct thread *td, struct ksem *ks);
 static void sem_enter(struct proc *p, struct ksem *ks);
 static int sem_leave(struct proc *p, struct ksem *ks);
-static void sem_exechook(void *arg, struct proc *p, struct image_params *imgp);
+static void sem_exechook(void *arg, struct proc *p,
+    struct image_params *imgp);
 static void sem_exithook(void *arg, struct proc *p);
 static void sem_forkhook(void *arg, struct proc *p1, struct proc *p2,
     int flags);
@@ -89,21 +90,22 @@ static int kern_sem_open(struct thread *td, int dir, const char *name,
 static int kern_sem_unlink(struct thread *td, const char *name);
 
 #ifndef SEM_MAX
-#define SEM_MAX	30
+#define	SEM_MAX	30
 #endif
 
-#define SEM_MAX_NAMELEN	14
+#define	SEM_MAX_NAMELEN	14
 
-#define SEM_TO_ID(x)	((intptr_t)(x))
-#define ID_TO_SEM(x)	id_to_sem(x)
+#define	SEM_TO_ID(x)	((intptr_t)(x))
+#define	ID_TO_SEM(x)	id_to_sem(x)
 
 /*
- * available semaphores go here, this includes sem_init and any semaphores
+ * Available semaphores go here, this includes sem_init and any semaphores
  * created via sem_open that have not yet been unlinked.
  */
 LIST_HEAD(, ksem) ksem_head = LIST_HEAD_INITIALIZER(&ksem_head);
+
 /*
- * semaphores still in use but have been sem_unlink()'d go here.
+ * Semaphores still in use but have been sem_unlink()'d go here.
  */
 LIST_HEAD(, ksem) ksem_deadhead = LIST_HEAD_INITIALIZER(&ksem_deadhead);
 
@@ -117,13 +119,12 @@ SYSCTL_INT(_p1003_1b, OID_AUTO, nsems, CTLFLAG_RD, &nsems, 0, "");
 static eventhandler_tag sem_exit_tag, sem_exec_tag, sem_fork_tag;
 
 #ifdef SEM_DEBUG
-#define DP(x)	printf x
+#define	DP(x)	printf x
 #else
-#define DP(x)
+#define	DP(x)
 #endif
 
-static __inline
-void
+static __inline void
 sem_ref(struct ksem *ks)
 {
 
@@ -132,8 +133,7 @@ sem_ref(struct ksem *ks)
 	DP(("sem_ref: ks = %p, ref = %d\n", ks, ks->ks_ref));
 }
 
-static __inline
-void
+static __inline void
 sem_rel(struct ksem *ks)
 {
 
@@ -142,8 +142,6 @@ sem_rel(struct ksem *ks)
 	if (--ks->ks_ref == 0)
 		sem_free(ks);
 }
-
-static __inline struct ksem *id_to_sem(semid_t id);
 
 static __inline
 struct ksem *
@@ -195,7 +193,8 @@ sem_create(struct thread *td, const char *name, struct ksem **ksret,
 			free(ret, M_SEM);
 			return (ENAMETOOLONG);
 		}
-		/* name must start with a '/' but not contain one. */
+
+		/* Name must start with a '/' but not contain one. */
 		if (*name != '/' || len < 2 || index(name + 1, '/') != NULL) {
 			free(ret, M_SEM);
 			return (EINVAL);
@@ -244,10 +243,8 @@ int ksem_init(struct thread *td, struct ksem_init_args *uap);
 int
 ksem_init(struct thread *td, struct ksem_init_args *uap)
 {
-	int error;
 
-	error = kern_sem_init(td, UIO_USERSPACE, uap->value, uap->idp);
-	return (error);
+	return (kern_sem_init(td, UIO_USERSPACE, uap->value, uap->idp));
 }
 
 static int
@@ -317,6 +314,7 @@ kern_sem_open(struct thread *td, int dir, const char *name, int oflag,
 	ksnew = NULL;
 	mtx_lock(&sem_lock);
 	ks = sem_lookup_byname(name);
+
 	/*
 	 * If we found it but O_EXCL is set, error.
 	 */
@@ -324,6 +322,7 @@ kern_sem_open(struct thread *td, int dir, const char *name, int oflag,
 		mtx_unlock(&sem_lock);
 		return (EEXIST);
 	}
+
 	/*
 	 * If we didn't find it...
 	 */
@@ -335,6 +334,7 @@ kern_sem_open(struct thread *td, int dir, const char *name, int oflag,
 			mtx_unlock(&sem_lock);
 			return (ENOENT);
 		}
+
 		/*
 		 * We may block during creation, so drop the lock.
 		 */
@@ -357,6 +357,7 @@ kern_sem_open(struct thread *td, int dir, const char *name, int oflag,
 			DP(("about to set! %d to %p\n", id, idp));
 			*idp = id;
 		}
+
 		/*
 		 * We need to make sure we haven't lost a race while
 		 * allocating during creation.
@@ -454,8 +455,6 @@ sem_free(struct ksem *ks)
 	free(ks, M_SEM);
 }
 
-static __inline struct kuser *sem_getuser(struct proc *p, struct ksem *ks);
-
 static __inline struct kuser *
 sem_getuser(struct proc *p, struct ksem *ks)
 {
@@ -495,9 +494,7 @@ sem_leave(struct proc *p, struct ksem *ks)
 }
 
 static void
-sem_enter(p, ks)
-	struct proc *p;
-	struct ksem *ks;
+sem_enter(struct proc *p, struct ksem *ks)
 {
 	struct kuser *ku, *k;
 
@@ -584,7 +581,10 @@ kern_sem_close(struct thread *td, semid_t id)
 	error = EINVAL;
 	mtx_lock(&sem_lock);
 	ks = ID_TO_SEM(id);
-	/* this is not a valid operation for unnamed sems */
+
+	/*
+	 * This is not a valid operation for unnamed sems.
+	 */
 	if (ks != NULL && ks->ks_name != NULL)
 		error = sem_leave(td->td_proc, ks);
 	mtx_unlock(&sem_lock);
@@ -661,7 +661,9 @@ ksem_timedwait(struct thread *td, struct ksem_timedwait_args *uap)
 	struct timespec *ts;
 	int error;
 
-	/* We allow a null timespec (wait forever). */
+	/*
+	 * We allow a null timespec (wait forever).
+	 */
 	if (uap->abstime == NULL)
 		ts = NULL;
 	else {
@@ -885,6 +887,7 @@ race_lost:
 		count = new_count;
 		goto race_lost;
 	}
+
 	/*
 	 * Given an array capable of storing an adequate number of semaphore
 	 * references, now walk the list of semaphores and acquire a new
@@ -914,6 +917,7 @@ race_lost:
 	}
 	mtx_unlock(&sem_lock);
 	KASSERT(i == count, ("sem_forkhook: i != count (%d, %d)", i, count));
+
 	/*
 	 * Now cause p2 to enter each of the referenced semaphores, then
 	 * release our temporary reference.  This is pretty inefficient.
@@ -965,12 +969,14 @@ sem_modload(struct module *module, int cmd, void *arg)
 		mtx_init(&sem_lock, "sem", "semaphore", MTX_DEF);
 		p31b_setcfg(CTL_P1003_1B_SEM_NSEMS_MAX, SEM_MAX);
 		p31b_setcfg(CTL_P1003_1B_SEM_VALUE_MAX, SEM_VALUE_MAX);
-		sem_exit_tag = EVENTHANDLER_REGISTER(process_exit, sem_exithook,
-		    NULL, EVENTHANDLER_PRI_ANY);
-		sem_exec_tag = EVENTHANDLER_REGISTER(process_exec, sem_exechook,
-		    NULL, EVENTHANDLER_PRI_ANY);
-		sem_fork_tag = EVENTHANDLER_REGISTER(process_fork, sem_forkhook, NULL, EVENTHANDLER_PRI_ANY);
+		sem_exit_tag = EVENTHANDLER_REGISTER(process_exit,
+		    sem_exithook, NULL, EVENTHANDLER_PRI_ANY);
+		sem_exec_tag = EVENTHANDLER_REGISTER(process_exec,
+		    sem_exechook, NULL, EVENTHANDLER_PRI_ANY);
+		sem_fork_tag = EVENTHANDLER_REGISTER(process_fork,
+		    sem_forkhook, NULL, EVENTHANDLER_PRI_ANY);
                 break;
+
         case MOD_UNLOAD:
 		if (nsems != 0) {
 			error = EOPNOTSUPP;
@@ -981,6 +987,7 @@ sem_modload(struct module *module, int cmd, void *arg)
 		EVENTHANDLER_DEREGISTER(process_fork, sem_fork_tag);
 		mtx_destroy(&sem_lock);
                 break;
+
         case MOD_SHUTDOWN:
                 break;
         default:
