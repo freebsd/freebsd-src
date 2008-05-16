@@ -351,6 +351,7 @@ ALTQ_PRIQ		opt_altq.h
 ALTQ_NOPCC		opt_altq.h
 ALTQ_DEBUG		opt_altq.h
 BOOTP			opt_bootp.h
+BOOTP_BLOCKSIZE		opt_bootp.h
 BOOTP_COMPAT		opt_bootp.h
 BOOTP_NFSROOT		opt_bootp.h
 BOOTP_NFSV3		opt_bootp.h
