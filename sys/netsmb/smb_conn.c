@@ -62,8 +62,8 @@ SYSCTL_NODE(_net, OID_AUTO, smb, CTLFLAG_RW, NULL, "SMB protocol");
 
 MALLOC_DEFINE(M_SMBCONN, "smb_conn", "SMB connection");
 
-static void smb_co_init(struct smb_connobj *cp, int level, char *objname,
-	struct thread *td);
+static void smb_co_init(struct smb_connobj *cp, int level, char *ilockname,
+    char *lockname, struct thread *td);
 static void smb_co_done(struct smb_connobj *cp);
 static int  smb_co_lockstatus(struct smb_connobj *cp, struct thread *td);
 
@@ -82,7 +82,7 @@ int
 smb_sm_init(void)
 {
 
-	smb_co_init(&smb_vclist, SMBL_SM, "smbsm", curthread);
+	smb_co_init(&smb_vclist, SMBL_SM, "smbsm ilock", "smbsm", curthread);
 	smb_co_unlock(&smb_vclist, 0, curthread);
 	return 0;
 }
@@ -227,11 +227,12 @@ out:
  * Common code for connection object
  */
 static void
-smb_co_init(struct smb_connobj *cp, int level, char *objname, struct thread *td)
+smb_co_init(struct smb_connobj *cp, int level, char *ilockname, char *lockname,
+    struct thread *td)
 {
 	SLIST_INIT(&cp->co_children);
-	smb_sl_init(&cp->co_interlock, objname);
-	lockinit(&cp->co_lock, PZERO, objname, 0, 0);
+	smb_sl_init(&cp->co_interlock, ilockname);
+	lockinit(&cp->co_lock, PZERO, lockname, 0, 0);
 	cp->co_level = level;
 	cp->co_usecount = 1;
 	if (smb_co_lock(cp, LK_EXCLUSIVE, td) != 0)
@@ -400,7 +401,7 @@ smb_vc_create(struct smb_vcspec *vcspec,
 		return EPERM;
 
 	vcp = smb_zmalloc(sizeof(*vcp), M_SMBCONN, M_WAITOK);
-	smb_co_init(VCTOCP(vcp), SMBL_VC, "smb_vc", td);
+	smb_co_init(VCTOCP(vcp), SMBL_VC, "smb_vc ilock", "smb_vc", td);
 	vcp->obj.co_free = smb_vc_free;
 	vcp->obj.co_gone = smb_vc_gone;
 	vcp->vc_number = smb_vcnext++;
@@ -718,7 +719,7 @@ smb_share_create(struct smb_vc *vcp, struct smb_sharespec *shspec,
 	if (gid == SMBM_ANY_GROUP)
 		gid = cred->cr_groups[0];
 	ssp = smb_zmalloc(sizeof(*ssp), M_SMBCONN, M_WAITOK);
-	smb_co_init(SSTOCP(ssp), SMBL_SHARE, "smbss", td);
+	smb_co_init(SSTOCP(ssp), SMBL_SHARE, "smbss ilock", "smbss", td);
 	ssp->obj.co_free = smb_share_free;
 	ssp->obj.co_gone = smb_share_gone;
 	smb_sl_init(&ssp->ss_stlock, "ssstlock");
