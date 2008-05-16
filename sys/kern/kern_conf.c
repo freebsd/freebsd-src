@@ -254,118 +254,162 @@ no_poll(struct cdev *dev __unused, int events, struct thread *td __unused)
 static int
 giant_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 {
+	struct cdevsw *dsw;
 	int retval;
 
+	dsw = dev_refthread(dev);
+	if (dsw == NULL)
+		return (ENXIO);
 	mtx_lock(&Giant);
-	retval = dev->si_devsw->d_gianttrick->
-	    d_open(dev, oflags, devtype, td);
+	retval = dsw->d_gianttrick->d_open(dev, oflags, devtype, td);
 	mtx_unlock(&Giant);
+	dev_relthread(dev);
 	return (retval);
 }
 
 static int
 giant_fdopen(struct cdev *dev, int oflags, struct thread *td, int fdidx)
 {
+	struct cdevsw *dsw;
 	int retval;
 
+	dsw = dev_refthread(dev);
+	if (dsw == NULL)
+		return (ENXIO);
 	mtx_lock(&Giant);
-	retval = dev->si_devsw->d_gianttrick->
-	    d_fdopen(dev, oflags, td, fdidx);
+	retval = dsw->d_gianttrick->d_fdopen(dev, oflags, td, fdidx);
 	mtx_unlock(&Giant);
+	dev_relthread(dev);
 	return (retval);
 }
 
 static int
 giant_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
 {
+	struct cdevsw *dsw;
 	int retval;
 
+	dsw = dev_refthread(dev);
+	if (dsw == NULL)
+		return (ENXIO);
 	mtx_lock(&Giant);
-	retval = dev->si_devsw->d_gianttrick->
-	    d_close(dev, fflag, devtype, td);
+	retval = dsw->d_gianttrick->d_close(dev, fflag, devtype, td);
 	mtx_unlock(&Giant);
+	dev_relthread(dev);
 	return (retval);
 }
 
 static void
 giant_strategy(struct bio *bp)
 {
+	struct cdevsw *dsw;
+	struct cdev *dev;
 
+	dev = bp->bio_dev;
+	dsw = dev_refthread(dev);
+	if (dsw == NULL) {
+		biofinish(bp, NULL, ENXIO);
+		return;
+	}
 	mtx_lock(&Giant);
-	bp->bio_dev->si_devsw->d_gianttrick->
-	    d_strategy(bp);
+	dsw->d_gianttrick->d_strategy(bp);
 	mtx_unlock(&Giant);
+	dev_relthread(dev);
 }
 
 static int
 giant_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 {
+	struct cdevsw *dsw;
 	int retval;
 
+	dsw = dev_refthread(dev);
+	if (dsw == NULL)
+		return (ENXIO);
 	mtx_lock(&Giant);
-	retval = dev->si_devsw->d_gianttrick->
-	    d_ioctl(dev, cmd, data, fflag, td);
+	retval = dsw->d_gianttrick->d_ioctl(dev, cmd, data, fflag, td);
 	mtx_unlock(&Giant);
+	dev_relthread(dev);
 	return (retval);
 }
   
 static int
 giant_read(struct cdev *dev, struct uio *uio, int ioflag)
 {
+	struct cdevsw *dsw;
 	int retval;
 
+	dsw = dev_refthread(dev);
+	if (dsw == NULL)
+		return (ENXIO);
 	mtx_lock(&Giant);
-	retval = dev->si_devsw->d_gianttrick->
-	    d_read(dev, uio, ioflag);
+	retval = dsw->d_gianttrick->d_read(dev, uio, ioflag);
 	mtx_unlock(&Giant);
+	dev_relthread(dev);
 	return (retval);
 }
 
 static int
 giant_write(struct cdev *dev, struct uio *uio, int ioflag)
 {
+	struct cdevsw *dsw;
 	int retval;
 
+	dsw = dev_refthread(dev);
+	if (dsw == NULL)
+		return (ENXIO);
 	mtx_lock(&Giant);
-	retval = dev->si_devsw->d_gianttrick->
-		d_write(dev, uio, ioflag);
+	retval = dsw->d_gianttrick->d_write(dev, uio, ioflag);
 	mtx_unlock(&Giant);
+	dev_relthread(dev);
 	return (retval);
 }
 
 static int
 giant_poll(struct cdev *dev, int events, struct thread *td)
 {
+	struct cdevsw *dsw;
 	int retval;
 
+	dsw = dev_refthread(dev);
+	if (dsw == NULL)
+		return (ENXIO);
 	mtx_lock(&Giant);
-	retval = dev->si_devsw->d_gianttrick->
-	    d_poll(dev, events, td);
+	retval = dsw->d_gianttrick->d_poll(dev, events, td);
 	mtx_unlock(&Giant);
+	dev_relthread(dev);
 	return (retval);
 }
 
 static int
 giant_kqfilter(struct cdev *dev, struct knote *kn)
 {
+	struct cdevsw *dsw;
 	int retval;
 
+	dsw = dev_refthread(dev);
+	if (dsw == NULL)
+		return (ENXIO);
 	mtx_lock(&Giant);
-	retval = dev->si_devsw->d_gianttrick->
-	    d_kqfilter(dev, kn);
+	retval = dsw->d_gianttrick->d_kqfilter(dev, kn);
 	mtx_unlock(&Giant);
+	dev_relthread(dev);
 	return (retval);
 }
 
 static int
 giant_mmap(struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr, int nprot)
 {
+	struct cdevsw *dsw;
 	int retval;
 
+	dsw = dev_refthread(dev);
+	if (dsw == NULL)
+		return (ENXIO);
 	mtx_lock(&Giant);
-	retval = dev->si_devsw->d_gianttrick->
-	    d_mmap(dev, offset, paddr, nprot);
+	retval = dsw->d_gianttrick->d_mmap(dev, offset, paddr, nprot);
 	mtx_unlock(&Giant);
+	dev_relthread(dev);
 	return (retval);
 }
 
