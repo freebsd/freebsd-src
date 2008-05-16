@@ -1204,7 +1204,7 @@ aue_init_body(struct aue_softc *sc)
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
-	callout_init(&sc->aue_tick_callout, 1);
+	callout_init(&sc->aue_tick_callout, CALLOUT_MPSAFE);
 	(void) callout_reset(&sc->aue_tick_callout, hz, aue_tick, sc);
 	return;
 }
