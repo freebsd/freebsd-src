@@ -222,6 +222,7 @@ struct wpi_softc {
 	struct task		sc_radioofftask;/* disable rf transmitter task*/
 	struct task		sc_opstask;	/* operation handling task */
 	struct task		sc_restarttask;	/* reset firmware task */
+	struct task		sc_bmiss_task;	/* beacon miss */
 
        /* Eeprom info */
 	uint8_t			cap;
