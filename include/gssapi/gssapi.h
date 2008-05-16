@@ -420,6 +420,8 @@ extern gss_OID GSS_KRB5_NT_STRING_UID_NAME;
 #define GSS_S_GAP_TOKEN \
 	 (1ul << (GSS_C_SUPPLEMENTARY_OFFSET + 4))
 
+__BEGIN_DECLS
+
 /*
  * Finally, function prototypes for the GSS-API routines.
  */
@@ -834,5 +836,7 @@ OM_uint32 gss_pseudo_random
 	       ssize_t,			/* amount of data required */
 	       gss_buffer_t		/* buffer for result */
 	      );
+
+__END_DECLS
 
 #endif /* _GSSAPI_GSSAPI_H_ */
