@@ -1,6 +1,6 @@
-/*******************************************************************************
+/******************************************************************************
 
-  Copyright (c) 2001-2007, Intel Corporation 
+  Copyright (c) 2001-2008, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -29,52 +29,54 @@
   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE.
 
-*******************************************************************************/
-/* $FreeBSD$ */
+******************************************************************************/
+/*$FreeBSD$*/
 
 #ifndef _IXGBE_COMMON_H_
 #define _IXGBE_COMMON_H_
 
 #include "ixgbe_type.h"
 
-s32 ixgbe_assign_func_pointers_generic(struct ixgbe_hw *hw);
+s32 ixgbe_init_ops_generic(struct ixgbe_hw *hw);
 s32 ixgbe_init_hw_generic(struct ixgbe_hw *hw);
 s32 ixgbe_start_hw_generic(struct ixgbe_hw *hw);
 s32 ixgbe_clear_hw_cntrs_generic(struct ixgbe_hw *hw);
+s32 ixgbe_read_pba_num_generic(struct ixgbe_hw *hw, u32 *pba_num);
 s32 ixgbe_get_mac_addr_generic(struct ixgbe_hw *hw, u8 *mac_addr);
 s32 ixgbe_get_bus_info_generic(struct ixgbe_hw *hw);
 s32 ixgbe_stop_adapter_generic(struct ixgbe_hw *hw);
 
 s32 ixgbe_led_on_generic(struct ixgbe_hw *hw, u32 index);
 s32 ixgbe_led_off_generic(struct ixgbe_hw *hw, u32 index);
-s32 ixgbe_blink_led_start_generic(struct ixgbe_hw *hw, u32 index);
-s32 ixgbe_blink_led_stop_generic(struct ixgbe_hw *hw, u32 index);
 
 s32 ixgbe_init_eeprom_params_generic(struct ixgbe_hw *hw);
 s32 ixgbe_write_eeprom_generic(struct ixgbe_hw *hw, u16 offset, u16 data);
 s32 ixgbe_read_eeprom_generic(struct ixgbe_hw *hw, u16 offset, u16 *data);
 s32 ixgbe_read_eeprom_bit_bang_generic(struct ixgbe_hw *hw, u16 offset,
-				       u16 *data);
+                                       u16 *data);
 s32 ixgbe_validate_eeprom_checksum_generic(struct ixgbe_hw *hw,
-					   u16 *checksum_val);
+                                           u16 *checksum_val);
 s32 ixgbe_update_eeprom_checksum_generic(struct ixgbe_hw *hw);
 
-s32 ixgbe_set_rar_generic(struct ixgbe_hw *hw, u32 index, u8 *addr,
-			  u32 vind, u32 enable_addr);
+s32 ixgbe_set_rar_generic(struct ixgbe_hw *hw, u32 index, u8 *addr, u32 vmdq,
+                          u32 enable_addr);
 s32 ixgbe_init_rx_addrs_generic(struct ixgbe_hw *hw);
 s32 ixgbe_update_mc_addr_list_generic(struct ixgbe_hw *hw, u8 *mc_addr_list,
-				      u32 mc_addr_count, u32 pad);
+                                      u32 mc_addr_count,
+                                      ixgbe_mc_addr_itr func);
+s32 ixgbe_update_uc_addr_list_generic(struct ixgbe_hw *hw, u8 *addr_list,
+                                      u32 addr_count, ixgbe_mc_addr_itr func);
 s32 ixgbe_enable_mc_generic(struct ixgbe_hw *hw);
 s32 ixgbe_disable_mc_generic(struct ixgbe_hw *hw);
 s32 ixgbe_clear_vfta_generic(struct ixgbe_hw *hw);
 s32 ixgbe_set_vfta_generic(struct ixgbe_hw *hw, u32 vlan,
-			   u32 vind, bool vlan_on);
-
-s32 ixgbe_setup_fc_generic(struct ixgbe_hw *hw, s32 packtetbuf_num);
+                           u32 vind, bool vlan_on);
 
 s32 ixgbe_validate_mac_addr(u8 *mac_addr);
 s32 ixgbe_acquire_swfw_sync(struct ixgbe_hw *hw, u16 mask);
 void ixgbe_release_swfw_sync(struct ixgbe_hw *hw, u16 mask);
 s32 ixgbe_disable_pcie_master(struct ixgbe_hw *hw);
 
+s32 ixgbe_read_analog_reg8_generic(struct ixgbe_hw *hw, u32 reg, u8 *val);
+s32 ixgbe_write_analog_reg8_generic(struct ixgbe_hw *hw, u32 reg, u8 val);
 #endif /* IXGBE_COMMON */

@@ -1,36 +1,36 @@
-/**************************************************************************
+/******************************************************************************
 
-Copyright (c) 2001-2007, Intel Corporation
-All rights reserved.
+  Copyright (c) 2001-2008, Intel Corporation 
+  All rights reserved.
+  
+  Redistribution and use in source and binary forms, with or without 
+  modification, are permitted provided that the following conditions are met:
+  
+   1. Redistributions of source code must retain the above copyright notice, 
+      this list of conditions and the following disclaimer.
+  
+   2. Redistributions in binary form must reproduce the above copyright 
+      notice, this list of conditions and the following disclaimer in the 
+      documentation and/or other materials provided with the distribution.
+  
+   3. Neither the name of the Intel Corporation nor the names of its 
+      contributors may be used to endorse or promote products derived from 
+      this software without specific prior written permission.
+  
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
+  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE 
+  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
+  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
+  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
+  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
+  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
+  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+  POSSIBILITY OF SUCH DAMAGE.
 
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
- 1. Redistributions of source code must retain the above copyright notice,
-    this list of conditions and the following disclaimer.
-
- 2. Redistributions in binary form must reproduce the above copyright
-    notice, this list of conditions and the following disclaimer in the
-    documentation and/or other materials provided with the distribution.
-
- 3. Neither the name of the Intel Corporation nor the names of its
-    contributors may be used to endorse or promote products derived from
-    this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
-LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-POSSIBILITY OF SUCH DAMAGE.
-
-***************************************************************************/
-/* $FreeBSD$ */
+******************************************************************************/
+/*$FreeBSD$*/
 
 #ifndef _IXGBE_H_
 #define _IXGBE_H_
@@ -80,8 +80,10 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <sys/sysctl.h>
 #include <sys/endian.h>
 #include <sys/taskqueue.h>
+#include <sys/pcpu.h>
 
 #include "ixgbe_api.h"
+#include "tcp_lro.h"
 
 /* Tunables */
 
@@ -157,7 +159,7 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #define MAX_NUM_MULTICAST_ADDRESSES     128
 #define IXGBE_MAX_SCATTER		100
-#define	IXGBE_MMBA			0x0010
+#define IXGBE_MSIX_BAR			3
 #define IXGBE_TSO_SIZE			65535
 #define IXGBE_TX_BUFFER_SIZE		((u32) 1514)
 #define IXGBE_RX_HDR_SIZE		((u32) 256)
@@ -184,6 +186,9 @@ POSSIBILITY OF SUCH DAMAGE.
 #define DEFAULT_ITR	1000000000/(MAX_IRQ_SEC * 256)
 #define LINK_ITR	1000000000/(1950 * 256)
 
+/* Used for auto RX queue configuration */
+extern int mp_ncpus;
+
 /*
  * ******************************************************************************
  * vendor_info_array
@@ -203,7 +208,6 @@ typedef struct _ixgbe_vendor_info_t {
 
 
 struct ixgbe_tx_buf {
-	int		next_eop;
 	struct mbuf	*m_head;
 	bus_dmamap_t	map;
 };
@@ -233,15 +237,27 @@ struct ixgbe_dma_alloc {
  */
 struct tx_ring {
         struct adapter		*adapter;
+	struct mtx		tx_mtx;
 	u32			me;
+	u32			msix;
+	u32			eims;
+	u32			watchdog_timer;
 	union ixgbe_adv_tx_desc	*tx_base;
+	volatile u32		tx_hwb;
 	struct ixgbe_dma_alloc	txdma;
-	uint32_t		next_avail_tx_desc;
-	uint32_t		next_tx_to_clean;
+	struct task     	tx_task;
+	struct taskqueue	*tq;
+	u32			next_avail_tx_desc;
+	u32			next_tx_to_clean;
 	struct ixgbe_tx_buf	*tx_buffers;
-	volatile uint16_t	tx_avail;
-	uint32_t		txd_cmd;
+	volatile u16		tx_avail;
+	u32			txd_cmd;
 	bus_dma_tag_t		txtag;
+	/* Soft Stats */
+	u32			no_tx_desc_avail;
+	u32			no_tx_desc_late;
+	u64			tx_irq;
+	u64			tx_packets;
 };
 
 
@@ -249,21 +265,28 @@ struct tx_ring {
  * The Receive ring, one per rx queue
  */
 struct rx_ring {
-        struct adapter			*adapter;
-	u32				me;
-	u32				payload;
-	union 	ixgbe_adv_rx_desc	*rx_base;
-	struct ixgbe_dma_alloc		rxdma;
-        unsigned int			last_cleaned;
-        unsigned int			next_to_check;
-	struct ixgbe_rx_buf		*rx_buffers;
-	bus_dma_tag_t			rxtag[2];
-	bus_dmamap_t			spare_map[2];
-	struct mbuf			*fmp;
-	struct mbuf			*lmp;
+        struct adapter		*adapter;
+	struct mtx		rx_mtx;
+	u32			me;
+	u32			msix;
+	u32			eims;
+	u32			payload;
+	struct task     	rx_task;
+	struct taskqueue	*tq;
+	union ixgbe_adv_rx_desc	*rx_base;
+	struct ixgbe_dma_alloc	rxdma;
+	struct lro_ctrl		lro;
+        unsigned int		last_cleaned;
+        unsigned int		next_to_check;
+	struct ixgbe_rx_buf	*rx_buffers;
+	bus_dma_tag_t		rxtag[2];
+	bus_dmamap_t		spare_map[2];
+	struct mbuf		*fmp;
+	struct mbuf		*lmp;
 	/* Soft stats */
-	u64				packet_count;
-	u64 				byte_count;
+	u64			rx_irq;
+	u64			packet_count;
+	u64 			byte_count;
 };
 
 /* Our adapter structure */
@@ -273,10 +296,10 @@ struct adapter {
 
 	/* FreeBSD operating-system-specific structures */
 	struct ixgbe_osdep	osdep;
-
 	struct device	*dev;
-	struct resource	*res_memory;
-	struct resource	*res_msix;
+
+	struct resource	*pci_mem;
+	struct resource	*msix_mem;
 
 	/*
 	 * Interrupt resources:
@@ -286,31 +309,30 @@ struct adapter {
 	void		*tag[IXGBE_MSGS];
 	struct resource *res[IXGBE_MSGS];
 	int		rid[IXGBE_MSGS];
+	u32		eims_mask;
 
 	struct ifmedia	media;
 	struct callout	timer;
-	int		watchdog_timer;
 	int		msix;
 	int		if_flags;
+
 	struct mtx	core_mtx;
-	struct mtx	tx_mtx;
+
 	/* Legacy Fast Intr handling */
 	struct task     link_task;
-	struct task     rxtx_task;
-	struct taskqueue *tq;
 	
 	/* Info about the board itself */
-	uint32_t       part_num;
-	boolean_t      link_active;
-	uint16_t       max_frame_size;
-	uint16_t       link_duplex;
-	uint32_t       tx_int_delay;
-	uint32_t       tx_abs_int_delay;
-	uint32_t       rx_int_delay;
-	uint32_t       rx_abs_int_delay;
+	u32		part_num;
+	bool		link_active;
+	u16		max_frame_size;
+	u32		link_speed;
+	u32		tx_int_delay;
+	u32		tx_abs_int_delay;
+	u32		rx_int_delay;
+	u32		rx_abs_int_delay;
 
 	/* Indicates the cluster size to use */
-	boolean_t	bigbufs;
+	bool		bigbufs;
 
 	/*
 	 * Transmit rings:
@@ -327,20 +349,35 @@ struct adapter {
 	struct rx_ring	*rx_rings;
 	int		num_rx_desc;
 	int		num_rx_queues;
-	uint32_t	rx_process_limit;
+	u32		rx_process_limit;
 
 	/* Misc stats maintained by the driver */
 	unsigned long   dropped_pkts;
 	unsigned long   mbuf_alloc_failed;
 	unsigned long   mbuf_cluster_failed;
-	unsigned long   no_tx_desc_avail1;
-	unsigned long   no_tx_desc_avail2;
 	unsigned long   no_tx_map_avail;
 	unsigned long   no_tx_dma_setup;
 	unsigned long   watchdog_events;
 	unsigned long   tso_tx;
+	unsigned long	linkvec;
+	unsigned long	link_irq;
 
 	struct ixgbe_hw_stats stats;
 };
+
+#define IXGBE_CORE_LOCK_INIT(_sc, _name) \
+        mtx_init(&(_sc)->core_mtx, _name, "IXGBE Core Lock", MTX_DEF)
+#define IXGBE_CORE_LOCK_DESTROY(_sc)      mtx_destroy(&(_sc)->core_mtx)
+#define IXGBE_TX_LOCK_DESTROY(_sc)                mtx_destroy(&(_sc)->tx_mtx)
+#define IXGBE_RX_LOCK_DESTROY(_sc)                mtx_destroy(&(_sc)->rx_mtx)
+#define IXGBE_CORE_LOCK(_sc)              mtx_lock(&(_sc)->core_mtx)
+#define IXGBE_TX_LOCK(_sc)                        mtx_lock(&(_sc)->tx_mtx)
+#define IXGBE_RX_LOCK(_sc)                        mtx_lock(&(_sc)->rx_mtx)
+#define IXGBE_CORE_UNLOCK(_sc)            mtx_unlock(&(_sc)->core_mtx)
+#define IXGBE_TX_UNLOCK(_sc)              mtx_unlock(&(_sc)->tx_mtx)
+#define IXGBE_RX_UNLOCK(_sc)              mtx_unlock(&(_sc)->rx_mtx)
+#define IXGBE_CORE_LOCK_ASSERT(_sc)       mtx_assert(&(_sc)->core_mtx, MA_OWNED)
+#define IXGBE_TX_LOCK_ASSERT(_sc)         mtx_assert(&(_sc)->tx_mtx, MA_OWNED)
+
 
 #endif /* _IXGBE_H_ */
