@@ -2374,6 +2374,7 @@ options 	BOOTP_NFSROOT	# NFS mount root filesystem using BOOTP info
 options 	BOOTP_NFSV3	# Use NFS v3 to NFS mount root
 options 	BOOTP_COMPAT	# Workaround for broken bootp daemons.
 options 	BOOTP_WIRED_TO=fxp0 # Use interface fxp0 for BOOTP
+options		BOOTP_BLOCKSIZE=8192 # Override NFS block size
 
 #
 # Add software watchdog routines.
