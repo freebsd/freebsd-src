@@ -1785,6 +1785,7 @@ product NETGEAR3 WPN111_NF	0x5f01	WPN111 (no firmware)
 /* Nikon products */
 product NIKON E990		0x0102	Digital Camera E990
 product NIKON LS40		0x4000	CoolScan LS40 ED
+product NIKON D300		0x041a  Digital Camera D300
 
 /* NovaTech Products */
 product NOVATECH NV902		0x9020	NovaTech NV-902W
