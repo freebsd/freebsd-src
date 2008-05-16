@@ -9,7 +9,7 @@
 #define _NET_ETHERNET_H_
 
 /*
- * Somce basic Ethernet constants.
+ * Some basic Ethernet constants.
  */
 #define	ETHER_ADDR_LEN		6	/* length of an Ethernet address */
 #define	ETHER_TYPE_LEN		2	/* length of the Ethernet type field */
@@ -129,14 +129,14 @@ CTASSERT(sizeof (struct ether_addr) == ETHER_ADDR_LEN);
 #define	ETHERTYPE_NBPVCD	0x3C00	/* 3Com NBP virtual circuit datagram (like XNS SPP) not registered */
 #define	ETHERTYPE_NBPSCD	0x3C01	/* 3Com NBP System control datagram not registered */
 #define	ETHERTYPE_NBPCREQ	0x3C02	/* 3Com NBP Connect request (virtual cct) not registered */
-#define	ETHERTYPE_NBPCRSP	0x3C03	/* 3Com NBP Connect repsonse not registered */
+#define	ETHERTYPE_NBPCRSP	0x3C03	/* 3Com NBP Connect response not registered */
 #define	ETHERTYPE_NBPCC		0x3C04	/* 3Com NBP Connect complete not registered */
 #define	ETHERTYPE_NBPCLREQ	0x3C05	/* 3Com NBP Close request (virtual cct) not registered */
 #define	ETHERTYPE_NBPCLRSP	0x3C06	/* 3Com NBP Close response not registered */
 #define	ETHERTYPE_NBPDG		0x3C07	/* 3Com NBP Datagram (like XNS IDP) not registered */
 #define	ETHERTYPE_NBPDGB	0x3C08	/* 3Com NBP Datagram broadcast not registered */
 #define	ETHERTYPE_NBPCLAIM	0x3C09	/* 3Com NBP Claim NetBIOS name not registered */
-#define	ETHERTYPE_NBPDLTE	0x3C0A	/* 3Com NBP Delete Netbios name not registered */
+#define	ETHERTYPE_NBPDLTE	0x3C0A	/* 3Com NBP Delete NetBIOS name not registered */
 #define	ETHERTYPE_NBPRAS	0x3C0B	/* 3Com NBP Remote adaptor status request not registered */
 #define	ETHERTYPE_NBPRAR	0x3C0C	/* 3Com NBP Remote adaptor response not registered */
 #define	ETHERTYPE_NBPRST	0x3C0D	/* 3Com NBP Reset not registered */
@@ -317,7 +317,7 @@ CTASSERT(sizeof (struct ether_addr) == ETHER_ADDR_LEN);
 #define	ETHERTYPE_SECUREDATA	0x876D	/* Secure Data (RFC1701) */
 #define	ETHERTYPE_FLOWCONTROL	0x8808	/* 802.3x flow control packet */
 #define	ETHERTYPE_SLOW		0x8809	/* 802.3ad link aggregation (LACP) */
-#define	ETHERTYPE_PPP		0x880B	/* PPP (obsolete by PPPOE) */
+#define	ETHERTYPE_PPP		0x880B	/* PPP (obsolete by PPPoE) */
 #define	ETHERTYPE_HITACHI	0x8820	/* Hitachi Cable (Optoelectronic Systems Laboratory) */
 #define	ETHERTYPE_MPLS		0x8847	/* MPLS Unicast */
 #define	ETHERTYPE_MPLS_MCAST	0x8848	/* MPLS Multicast */
