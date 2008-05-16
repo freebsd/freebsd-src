@@ -64,9 +64,10 @@ static const char rcsid[] =
 
 static int cpid = -1;
 
-#include "syscalls.h"
+#include "freebsd32_syscalls.h"
 
-static int nsyscalls = sizeof(syscallnames) / sizeof(syscallnames[0]);
+static int nsyscalls = sizeof(freebsd32_syscallnames) /
+    sizeof(freebsd32_syscallnames[0]);
 
 /*
  * This is what this particular file uses to keep track of a system call.
@@ -77,11 +78,12 @@ static int nsyscalls = sizeof(syscallnames) / sizeof(syscallnames[0]);
  * 'struct syscall' describes the system call; it may be NULL, however,
  * if we don't know about this particular system call yet.
  */
-static struct freebsd_syscall {
+static struct freebsd32_syscall {
 	struct syscall *sc;
 	const char *name;
 	int number;
 	unsigned long *args;
+	unsigned int *args32;
 	int nargs;	/* number of arguments -- *not* number of words! */
 	char **s_args;	/* the printable arguments */
 } fsc;
@@ -91,6 +93,9 @@ static __inline void
 clear_fsc(void) {
   if (fsc.args) {
     free(fsc.args);
+  }
+  if (fsc.args32) {
+    free(fsc.args32);
   }
   if (fsc.s_args) {
     int i;
@@ -110,11 +115,11 @@ clear_fsc(void) {
  */
 
 void
-i386_syscall_entry(struct trussinfo *trussinfo, int nargs) {
+amd64_fbsd32_syscall_entry(struct trussinfo *trussinfo, int nargs) {
   struct reg regs;
   int syscall_num;
   int i;
-  unsigned int parm_offset;
+  unsigned long parm_offset;
   struct syscall *sc = NULL;
   struct ptrace_io_desc iorequest;
   cpid = trussinfo->curthread->tid;
@@ -126,14 +131,14 @@ i386_syscall_entry(struct trussinfo *trussinfo, int nargs) {
     fprintf(trussinfo->outfile, "-- CANNOT READ REGISTERS --\n");
     return;
   }
-  parm_offset = regs.r_esp + sizeof(int);
+  parm_offset = regs.r_rsp + sizeof(int);
 
   /*
    * FreeBSD has two special kinds of system call redirctions --
    * SYS_syscall, and SYS___syscall.  The former is the old syscall()
    * routine, basicly; the latter is for quad-aligned arguments.
    */
-  syscall_num = regs.r_eax;
+  syscall_num = regs.r_rax;
   switch (syscall_num) {
   case SYS_syscall:
     syscall_num = ptrace(PT_READ_D, cpid, (caddr_t)parm_offset, 0);
@@ -147,7 +152,8 @@ i386_syscall_entry(struct trussinfo *trussinfo, int nargs) {
 
   fsc.number = syscall_num;
   fsc.name =
-    (syscall_num < 0 || syscall_num > nsyscalls) ? NULL : syscallnames[syscall_num];
+    (syscall_num < 0 || syscall_num > nsyscalls) ? NULL :
+      freebsd32_syscallnames[syscall_num];
   if (!fsc.name) {
     fprintf(trussinfo->outfile, "-- UNKNOWN SYSCALL %d --\n", syscall_num);
   }
@@ -163,14 +169,18 @@ i386_syscall_entry(struct trussinfo *trussinfo, int nargs) {
   if (nargs == 0)
     return;
 
-  fsc.args = malloc((1+nargs) * sizeof(unsigned long));
+  fsc.args32 = malloc((1+nargs) * sizeof(unsigned int));
   iorequest.piod_op = PIOD_READ_D;
   iorequest.piod_offs = (void *)parm_offset;
-  iorequest.piod_addr = fsc.args;
-  iorequest.piod_len = (1+nargs) * sizeof(unsigned long);
+  iorequest.piod_addr = fsc.args32;
+  iorequest.piod_len = (1+nargs) * sizeof(unsigned int);
   ptrace(PT_IO, cpid, (caddr_t)&iorequest, 0);
   if (iorequest.piod_len == 0)
     return;
+
+  fsc.args = malloc((1+nargs) * sizeof(unsigned long));
+  for (i = 0; i < nargs + 1; i++) 
+     fsc.args[i] = fsc.args32[i];
 
   if (fsc.name)
   	sc = get_syscall(fsc.name);
@@ -223,13 +233,13 @@ i386_syscall_entry(struct trussinfo *trussinfo, int nargs) {
 #endif
 
   if (fsc.name != NULL &&
-      (!strcmp(fsc.name, "execve") || !strcmp(fsc.name, "exit"))) {
+      (!strcmp(fsc.name, "freebsd32_execve") || !strcmp(fsc.name, "exit"))) {
 
     /* XXX
      * This could be done in a more general
      * manner but it still wouldn't be very pretty.
      */
-    if (!strcmp(fsc.name, "execve")) {
+    if (!strcmp(fsc.name, "freebsd32_execve")) {
         if ((trussinfo->flags & EXECVEARGS) == 0)
           if (fsc.s_args[1]) {
             free(fsc.s_args[1]);
@@ -255,7 +265,7 @@ i386_syscall_entry(struct trussinfo *trussinfo, int nargs) {
  */
 
 long
-i386_syscall_exit(struct trussinfo *trussinfo, int syscall_num __unused)
+amd64_fbsd32_syscall_exit(struct trussinfo *trussinfo, int syscall_num __unused)
 {
   struct reg regs;
   long retval;
@@ -273,8 +283,8 @@ i386_syscall_exit(struct trussinfo *trussinfo, int syscall_num __unused)
     return (-1);
   }
   
-  retval = regs.r_eax;
-  errorp = !!(regs.r_eflags & PSL_C);
+  retval = regs.r_rax;
+  errorp = !!(regs.r_rflags & PSL_C);
 
   /*
    * This code, while simpler than the initial versions I used, could
@@ -315,12 +325,12 @@ i386_syscall_exit(struct trussinfo *trussinfo, int syscall_num __unused)
   if (!errorp && fsc.nargs == 0 && fsc.name && strcmp(fsc.name, "pipe") == 0) {
       fsc.nargs = 1;
       fsc.s_args = malloc((1+fsc.nargs) * sizeof(char*));
-      asprintf(&fsc.s_args[0], "[%d,%d]", (int)retval, regs.r_edx);
+      asprintf(&fsc.s_args[0], "[%d,%d]", (int)retval, (int)regs.r_rdx);
       retval = 0;
   }
 
   if (fsc.name != NULL &&
-      (!strcmp(fsc.name, "execve") || !strcmp(fsc.name, "exit"))) {
+      (!strcmp(fsc.name, "freebsd32_execve") || !strcmp(fsc.name, "exit"))) {
 	trussinfo->curthread->in_syscall = 1;
   }
 

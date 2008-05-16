@@ -61,10 +61,10 @@ static const char rcsid[] =
 
 static int cpid = -1;
 
-#include "linux_syscalls.h"
+#include "linux32_syscalls.h"
 
 static int nsyscalls =
-	sizeof(linux_syscallnames) / sizeof(linux_syscallnames[0]);
+	sizeof(linux32_syscallnames) / sizeof(linux32_syscallnames[0]);
 
 /*
  * This is what this particular file uses to keep track of a system call.
@@ -105,7 +105,7 @@ clear_fsc(void) {
  */
 
 void
-i386_linux_syscall_entry(struct trussinfo *trussinfo, int nargs) {
+amd64_linux32_syscall_entry(struct trussinfo *trussinfo, int nargs) {
   struct reg regs;
   int syscall_num;
   int i;
@@ -120,11 +120,11 @@ i386_linux_syscall_entry(struct trussinfo *trussinfo, int nargs) {
     fprintf(trussinfo->outfile, "-- CANNOT READ REGISTERS --\n");
     return;
   } 
-  syscall_num = regs.r_eax;
+  syscall_num = regs.r_rax;
 
   fsc.number = syscall_num;
   fsc.name =
-    (syscall_num < 0 || syscall_num > nsyscalls) ? NULL : linux_syscallnames[syscall_num];
+    (syscall_num < 0 || syscall_num > nsyscalls) ? NULL : linux32_syscallnames[syscall_num];
   if (!fsc.name) {
     fprintf(trussinfo->outfile, "-- UNKNOWN SYSCALL %d --\n", syscall_num);
   }
@@ -147,11 +147,11 @@ i386_linux_syscall_entry(struct trussinfo *trussinfo, int nargs) {
    * that have more than five arguments?
    */
 
-  fsc.args[0] = regs.r_ebx;
-  fsc.args[1] = regs.r_ecx;
-  fsc.args[2] = regs.r_edx;
-  fsc.args[3] = regs.r_esi;
-  fsc.args[4] = regs.r_edi;
+  fsc.args[0] = regs.r_rbx;
+  fsc.args[1] = regs.r_rcx;
+  fsc.args[2] = regs.r_rdx;
+  fsc.args[3] = regs.r_rsi;
+  fsc.args[4] = regs.r_rdi;
 
   sc = get_syscall(fsc.name);
   if (sc) {
@@ -242,7 +242,7 @@ const int bsd_to_linux_errno[] = {
 };
 
 long
-i386_linux_syscall_exit(struct trussinfo *trussinfo, int syscall_num __unused)
+amd64_linux32_syscall_exit(struct trussinfo *trussinfo, int syscall_num __unused)
 {
   struct reg regs;
   long retval;
@@ -260,8 +260,8 @@ i386_linux_syscall_exit(struct trussinfo *trussinfo, int syscall_num __unused)
     return (-1);
   }
 
-  retval = regs.r_eax;
-  errorp = !!(regs.r_eflags & PSL_C);
+  retval = regs.r_rax;
+  errorp = !!(regs.r_rflags & PSL_C);
 
   /*
    * This code, while simpler than the initial versions I used, could
