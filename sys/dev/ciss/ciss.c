@@ -2738,12 +2738,6 @@ ciss_cam_action_io(struct cam_sim *sim, struct ccb_scsiio *csio)
 
     debug(2, "XPT_SCSI_IO %d:%d:%d", bus, target, csio->ccb_h.target_lun);
 
-    /* firmware does not support commands > 10 bytes */
-    if (csio->cdb_len > 12/*CISS_CDB_BUFFER_SIZE*/) {
-	debug(3, "  command too large (%d > %d)", csio->cdb_len, CISS_CDB_BUFFER_SIZE);
-	csio->ccb_h.status = CAM_REQ_CMP_ERR;
-    }
-
     /* check that the CDB pointer is not to a physical address */
     if ((csio->ccb_h.flags & CAM_CDB_POINTER) && (csio->ccb_h.flags & CAM_CDB_PHYS)) {
 	debug(3, "  CDB pointer is to physical address");
