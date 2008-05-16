@@ -209,6 +209,11 @@ struct bootpc_globalcontext {
 #define DHCP_REQUEST  3
 #define DHCP_ACK      5
 
+/* NFS read/write block size */
+#ifndef BOOTP_BLOCKSIZE
+#define	BOOTP_BLOCKSIZE	8192
+#endif
+
 static char bootp_cookie[128];
 SYSCTL_STRING(_kern, OID_AUTO, bootp_cookie, CTLFLAG_RD,
 	bootp_cookie, 0, "Cookie (T134) supplied by bootp server");
@@ -1234,8 +1239,8 @@ static void
 mountopts(struct nfs_args *args, char *p)
 {
 	args->version = NFS_ARGSVERSION;
-	args->rsize = 8192;
-	args->wsize = 8192;
+	args->rsize = BOOTP_BLOCKSIZE;
+	args->wsize = BOOTP_BLOCKSIZE;
 	args->flags = NFSMNT_RSIZE | NFSMNT_WSIZE | NFSMNT_RESVPORT;
 	args->sotype = SOCK_DGRAM;
 	if (p != NULL)
