@@ -44,9 +44,16 @@
 
 #include <net/pfkeyv2.h>
 #include <netipsec/keydb.h>
-#include <netipsec/ipsec_osdep.h>
 
 #ifdef _KERNEL
+
+#define	IPSEC_SPLASSERT_SOFTNET(_m)	/* XXX-BZ remove me */
+#define	IPSEC_ASSERT(_c,_m) KASSERT(_c, _m)
+
+#define	IPSEC_IS_PRIVILEGED_SO(_so) \
+	((_so)->so_cred != NULL && \
+	 priv_check_cred((_so)->so_cred, PRIV_NETINET_IPSEC, 0) \
+	 == 0)
 
 /*
  * Security Policy Index
