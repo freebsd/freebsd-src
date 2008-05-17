@@ -193,6 +193,8 @@ unionfs_rem_cached_vdir(struct unionfs_node *unp, struct vnode *dvp)
 
 	VI_LOCK(dvp);
 	LIST_REMOVE(unp, un_hash);
+	unp->un_hash.le_next = NULL;
+	unp->un_hash.le_prev = NULL;
 	VI_UNLOCK(dvp);
 }
 
@@ -332,7 +334,9 @@ void
 unionfs_noderem(struct vnode *vp, struct thread *td)
 {
 	int		vfslocked;
-	struct unionfs_node *unp;
+	int		count;
+	struct unionfs_node *unp, *unp_t1, *unp_t2;
+	struct unionfs_node_hashhead *hd;
 	struct unionfs_node_status *unsp, *unsp_tmp;
 	struct vnode   *lvp;
 	struct vnode   *uvp;
@@ -358,7 +362,7 @@ unionfs_noderem(struct vnode *vp, struct thread *td)
 		VOP_UNLOCK(uvp, 0, td);
 	vp->v_object = NULL;
 
-	if (unp->un_path != NULL && dvp != NULLVP && vp->v_type == VDIR)
+	if (dvp != NULLVP && unp->un_hash.le_prev != NULL)
 		unionfs_rem_cached_vdir(unp, dvp);
 
 	if (lvp != NULLVP) {
@@ -382,8 +386,17 @@ unionfs_noderem(struct vnode *vp, struct thread *td)
 		unp->un_path = NULL;
 	}
 
-	if (unp->un_hashtbl != NULL)
+	if (unp->un_hashtbl != NULL) {
+		for (count = 0; count <= unp->un_hashmask; count++) {
+			hd = unp->un_hashtbl + count;
+			LIST_FOREACH_SAFE(unp_t1, hd, un_hash, unp_t2) {
+				LIST_REMOVE(unp_t1, un_hash);
+				unp_t1->un_hash.le_next = NULL;
+				unp_t1->un_hash.le_prev = NULL;
+			}
+		}
 		hashdestroy(unp->un_hashtbl, M_UNIONFSHASH, unp->un_hashmask);
+	}
 
 	LIST_FOREACH_SAFE(unsp, &(unp->un_unshead), uns_list, unsp_tmp) {
 		LIST_REMOVE(unsp, uns_list);
