@@ -815,11 +815,9 @@ ffs_mountfs(devvp, mp, td)
 	(void) ufs_extattr_autostart(mp, td);
 #endif /* !UFS_EXTATTR_AUTOSTART */
 #endif /* !UFS_EXTATTR */
-#ifndef QUOTA
 	MNT_ILOCK(mp);
 	mp->mnt_kern_flag |= MNTK_MPSAFE;
 	MNT_IUNLOCK(mp);
-#endif
 	return (0);
 out:
 	if (bp)
@@ -1022,8 +1020,6 @@ ffs_flushfiles(mp, flags, td)
 		if (error)
 			return (error);
 		for (i = 0; i < MAXQUOTAS; i++) {
-			if (ump->um_quotas[i] == NULLVP)
-				continue;
 			quotaoff(td, mp, i);
 		}
 		/*
