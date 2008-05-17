@@ -2924,16 +2924,16 @@ out:
 ************************************************************************/
 
 uma_zone_t			ng_qzone;
+uma_zone_t			ng_qdzone;
 static int			maxalloc = 4096;/* limit the damage of a leak */
 static int			maxdata = 512;	/* limit the damage of a DoS */
-static int			useddata = 0;
 
 TUNABLE_INT("net.graph.maxalloc", &maxalloc);
 SYSCTL_INT(_net_graph, OID_AUTO, maxalloc, CTLFLAG_RDTUN, &maxalloc,
-    0, "Maximum number of queue items to allocate");
+    0, "Maximum number of non-data queue items to allocate");
 TUNABLE_INT("net.graph.maxdata", &maxdata);
-SYSCTL_INT(_net_graph, OID_AUTO, maxdata, CTLFLAG_RW | CTLFLAG_TUN, &maxdata,
-    0, "Maximum number of queue data items to allocate");
+SYSCTL_INT(_net_graph, OID_AUTO, maxdata, CTLFLAG_RDTUN, &maxdata,
+    0, "Maximum number of data queue items to allocate");
 
 #ifdef	NETGRAPH_DEBUG
 static TAILQ_HEAD(, ng_item) ng_itemlist = TAILQ_HEAD_INITIALIZER(ng_itemlist);
@@ -2948,23 +2948,25 @@ static int			allocated;	/* number of items malloc'd */
  * an interrupt.
  */
 static __inline item_p
-ng_getqblk(int flags)
+ng_alloc_item(int type, int flags)
 {
-	item_p item = NULL;
-	int wait;
+	item_p item;
 
-	wait = (flags & NG_WAITOK) ? M_WAITOK : M_NOWAIT;
+	KASSERT(((type & ~NGQF_TYPE) == 0),
+	    ("%s: incorrect item type: %d", __func__, type));
 
-	item = uma_zalloc(ng_qzone, wait | M_ZERO);
+	item = uma_zalloc((type == NGQF_DATA)?ng_qdzone:ng_qzone,
+	    ((flags & NG_WAITOK) ? M_WAITOK : M_NOWAIT) | M_ZERO);
 
-#ifdef	NETGRAPH_DEBUG
 	if (item) {
-			mtx_lock(&ngq_mtx);
-			TAILQ_INSERT_TAIL(&ng_itemlist, item, all);
-			allocated++;
-			mtx_unlock(&ngq_mtx);
-	}
+		item->el_flags = type;
+#ifdef	NETGRAPH_DEBUG
+		mtx_lock(&ngq_mtx);
+		TAILQ_INSERT_TAIL(&ng_itemlist, item, all);
+		allocated++;
+		mtx_unlock(&ngq_mtx);
 #endif
+	}
 
 	return (item);
 }
@@ -2984,7 +2986,6 @@ ng_free_item(item_p item)
 	 */
 	switch (item->el_flags & NGQF_TYPE) {
 	case NGQF_DATA:
-		atomic_subtract_int(&useddata, 1);
 		/* If we have an mbuf still attached.. */
 		NG_FREE_M(_NGI_M(item));
 		break;
@@ -3010,7 +3011,39 @@ ng_free_item(item_p item)
 	allocated--;
 	mtx_unlock(&ngq_mtx);
 #endif
-	uma_zfree(ng_qzone, item);
+	uma_zfree(((item->el_flags & NGQF_TYPE) == NGQF_DATA)?
+	    ng_qdzone:ng_qzone, item);
+}
+
+/*
+ * Change type of the queue entry.
+ * Possibly reallocates it from another UMA zone.
+ */
+static __inline item_p
+ng_realloc_item(item_p pitem, int type, int flags)
+{
+	item_p item;
+	int from, to;
+
+	KASSERT((pitem != NULL), ("%s: can't reallocate NULL", __func__));
+	KASSERT(((type & ~NGQF_TYPE) == 0),
+	    ("%s: incorrect item type: %d", __func__, type));
+
+	from = ((pitem->el_flags & NGQF_TYPE) == NGQF_DATA);
+	to = (type == NGQF_DATA);
+	if (from != to) {
+		/* If reallocation is required do it and copy item. */
+		if ((item = ng_alloc_item(type, flags)) == NULL) {
+			ng_free_item(pitem);
+			return (NULL);
+		}
+		*item = *pitem;
+		ng_free_item(pitem);
+	} else
+		item = pitem;
+	item->el_flags = (item->el_flags & ~NGQF_TYPE) | type;
+
+	return (item);
 }
 
 /************************************************************************
@@ -3111,6 +3144,9 @@ ngb_mod_event(module_t mod, int event, void *data)
 		ng_qzone = uma_zcreate("NetGraph items", sizeof(struct ng_item),
 		    NULL, NULL, NULL, NULL, UMA_ALIGN_CACHE, 0);
 		uma_zone_set_max(ng_qzone, maxalloc);
+		ng_qdzone = uma_zcreate("NetGraph data items", sizeof(struct ng_item),
+		    NULL, NULL, NULL, NULL, UMA_ALIGN_CACHE, 0);
+		uma_zone_set_max(ng_qdzone, maxdata);
 		netisr_register(NETISR_NETGRAPH, (netisr_t *)ngintr, NULL,
 		    NETISR_MPSAFE);
 		break;
@@ -3407,17 +3443,12 @@ ng_package_data(struct mbuf *m, int flags)
 {
 	item_p item;
 
-	if (atomic_fetchadd_int(&useddata, 1) >= maxdata) {
-		atomic_subtract_int(&useddata, 1);
-		NG_FREE_M(m);
-		return (NULL);
-	}
-	if ((item = ng_getqblk(flags)) == NULL) {
+	if ((item = ng_alloc_item(NGQF_DATA, flags)) == NULL) {
 		NG_FREE_M(m);
 		return (NULL);
 	}
 	ITEM_DEBUG_CHECKS;
-	item->el_flags = NGQF_DATA | NGQF_READER;
+	item->el_flags |= NGQF_READER;
 	NGI_M(item) = m;
 	return (item);
 }
@@ -3434,16 +3465,16 @@ ng_package_msg(struct ng_mesg *msg, int flags)
 {
 	item_p item;
 
-	if ((item = ng_getqblk(flags)) == NULL) {
+	if ((item = ng_alloc_item(NGQF_MESG, flags)) == NULL) {
 		NG_FREE_MSG(msg);
 		return (NULL);
 	}
 	ITEM_DEBUG_CHECKS;
 	/* Messages items count as writers unless explicitly exempted. */
 	if (msg->header.cmd & NGM_READONLY)
-		item->el_flags = NGQF_MESG | NGQF_READER;
+		item->el_flags |= NGQF_READER;
 	else
-		item->el_flags = NGQF_MESG | NGQF_WRITER;
+		item->el_flags |= NGQF_WRITER;
 	/*
 	 * Set the current lasthook into the queue item
 	 */
@@ -3568,13 +3599,13 @@ ng_package_msg_self(node_p here, hook_p hook, struct ng_mesg *msg)
 	 * If there is a HOOK argument, then use that in preference
 	 * to the address.
 	 */
-	if ((item = ng_getqblk(NG_NOFLAGS)) == NULL) {
+	if ((item = ng_alloc_item(NGQF_MESG, NG_NOFLAGS)) == NULL) {
 		NG_FREE_MSG(msg);
 		return (NULL);
 	}
 
 	/* Fill out the contents */
-	item->el_flags = NGQF_MESG | NGQF_WRITER;
+	item->el_flags |= NGQF_WRITER;
 	NG_NODE_REF(here);
 	NGI_SET_NODE(item, here);
 	if (hook) {
@@ -3603,10 +3634,10 @@ ng_send_fn1(node_p node, hook_p hook, ng_item_fn *fn, void * arg1, int arg2,
 {
 	item_p item;
 
-	if ((item = ng_getqblk(flags)) == NULL) {
+	if ((item = ng_alloc_item(NGQF_FN, flags)) == NULL) {
 		return (ENOMEM);
 	}
-	item->el_flags = NGQF_FN | NGQF_WRITER;
+	item->el_flags |= NGQF_WRITER;
 	NG_NODE_REF(node); /* and one for the item */
 	NGI_SET_NODE(item, node);
 	if (hook) {
@@ -3641,15 +3672,16 @@ ng_send_fn2(node_p node, hook_p hook, item_p pitem, ng_item_fn2 *fn, void *arg1,
 	 * if we can't use supplied one.
 	 */
 	if (pitem == NULL || (flags & NG_REUSE_ITEM) == 0) {
-		if ((item = ng_getqblk(flags)) == NULL)
+		if ((item = ng_alloc_item(NGQF_FN2, flags)) == NULL)
 			return (ENOMEM);
+		if (pitem != NULL)
+			item->apply = pitem->apply;
 	} else {
-		if ((pitem->el_flags & NGQF_TYPE) == NGQF_DATA)
-			atomic_subtract_int(&useddata, 1);
-		item = pitem;
+		if ((item = ng_realloc_item(pitem, NGQF_FN2, flags)) == NULL)
+			return (ENOMEM);
 	}
 
-	item->el_flags = NGQF_FN2 | NGQF_WRITER;
+	item->el_flags = (item->el_flags & ~NGQF_RW) | NGQF_WRITER;
 	NG_NODE_REF(node); /* and one for the item */
 	NGI_SET_NODE(item, node);
 	if (hook) {
@@ -3659,8 +3691,6 @@ ng_send_fn2(node_p node, hook_p hook, item_p pitem, ng_item_fn2 *fn, void *arg1,
 	NGI_FN2(item) = fn;
 	NGI_ARG1(item) = arg1;
 	NGI_ARG2(item) = arg2;
-	if (pitem != NULL && (flags & NG_REUSE_ITEM) == 0)
-		item->apply = pitem->apply;
 	return(ng_snd_item(item, flags));
 }
 
@@ -3682,10 +3712,10 @@ ng_callout(struct callout *c, node_p node, hook_p hook, int ticks,
 {
 	item_p item, oitem;
 
-	if ((item = ng_getqblk(NG_NOFLAGS)) == NULL)
+	if ((item = ng_alloc_item(NGQF_FN, NG_NOFLAGS)) == NULL)
 		return (ENOMEM);
 
-	item->el_flags = NGQF_FN | NGQF_WRITER;
+	item->el_flags |= NGQF_WRITER;
 	NG_NODE_REF(node);		/* and one for the item */
 	NGI_SET_NODE(item, node);
 	if (hook) {
