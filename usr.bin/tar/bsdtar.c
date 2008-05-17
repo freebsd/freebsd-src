@@ -142,6 +142,7 @@ enum {
 	OPTION_FORMAT,
 	OPTION_HELP,
 	OPTION_INCLUDE,
+	OPTION_KEEP_NEWER_FILES,
 	OPTION_NEWER_CTIME,
 	OPTION_NEWER_CTIME_THAN,
 	OPTION_NEWER_MTIME,
@@ -190,6 +191,7 @@ static const struct option tar_longopts[] = {
 	{ "include",            required_argument, NULL, OPTION_INCLUDE },
 	{ "interactive",        no_argument,       NULL, 'w' },
 	{ "insecure",           no_argument,       NULL, 'P' },
+	{ "keep-newer-files",   no_argument,       NULL, OPTION_KEEP_NEWER_FILES },
 	{ "keep-old-files",     no_argument,       NULL, 'k' },
 	{ "list",               no_argument,       NULL, 't' },
 	{ "modification-time",  no_argument,       NULL, 'm' },
@@ -391,6 +393,9 @@ main(int argc, char **argv)
 			break;
 		case 'k': /* GNU tar */
 			bsdtar->extract_flags |= ARCHIVE_EXTRACT_NO_OVERWRITE;
+			break;
+		case OPTION_KEEP_NEWER_FILES: /* GNU tar */
+			bsdtar->extract_flags |= ARCHIVE_EXTRACT_NO_OVERWRITE_NEWER;
 			break;
 		case 'L': /* BSD convention */
 			bsdtar->symlink_mode = 'L';
