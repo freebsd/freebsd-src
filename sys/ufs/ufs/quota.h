@@ -170,6 +170,23 @@ struct dquot {
 #define	DQREF(dq)	(dq)->dq_cnt++
 #endif
 
+#define	DQI_LOCK(dq)	mtx_lock(&(dq)->dq_lock)
+#define	DQI_UNLOCK(dq)	mtx_unlock(&(dq)->dq_lock)
+
+#define	DQI_WAIT(dq, prio, msg) do {		\
+	while ((dq)->dq_flags & DQ_LOCK) {	\
+		(dq)->dq_flags |= DQ_WANT;	\
+		(void) msleep((dq),		\
+		    &(dq)->dq_lock, (prio), (msg), 0); \
+	}					\
+} while (0)
+
+#define	DQI_WAKEUP(dq) do {			\
+	if ((dq)->dq_flags & DQ_WANT)		\
+		wakeup((dq));			\
+	(dq)->dq_flags &= ~(DQ_WANT|DQ_LOCK);	\
+} while (0)
+
 struct inode;
 struct mount;
 struct thread;

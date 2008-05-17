@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_ffs_broken_fixme.h"
 #include "opt_ufs.h"
+#include "opt_quota.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -723,6 +724,13 @@ ufs_direnter(dvp, tvp, dirp, cnp, newdirbp)
 		flags = BA_CLRBUF;
 		if (!DOINGSOFTDEP(dvp) && !DOINGASYNC(dvp))
 			flags |= IO_SYNC;
+#ifdef QUOTA
+		if ((error = getinoquota(dp)) != 0) {
+			if (DOINGSOFTDEP(dvp) && newdirbp != NULL)
+				bdwrite(newdirbp);
+			return (error);
+		}
+#endif
 		if ((error = UFS_BALLOC(dvp, (off_t)dp->i_offset, DIRBLKSIZ,
 		    cr, flags, &bp)) != 0) {
 			if (DOINGSOFTDEP(dvp) && newdirbp != NULL)

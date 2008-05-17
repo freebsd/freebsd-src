@@ -726,11 +726,7 @@ softdep_flush(void)
 
 	for (;;) {	
 		kthread_suspend_check(softdepproc);
-#ifdef QUOTA
-		mtx_lock(&Giant);
-#else
 		vfslocked = VFS_LOCK_GIANT((struct mount *)NULL);
-#endif
 		ACQUIRE_LOCK(&lk);
 		/*
 		 * If requested, try removing inode or removal dependencies.
@@ -746,11 +742,7 @@ softdep_flush(void)
 			wakeup_one(&proc_waiting);
 		}
 		FREE_LOCK(&lk);
-#ifdef QUOTA
-		mtx_unlock(&Giant);
-#else
 		VFS_UNLOCK_GIANT(vfslocked);
-#endif
 		remaining = 0;
 		mtx_lock(&mountlist_mtx);
 		for (mp = TAILQ_FIRST(&mountlist); mp != NULL; mp = nmp)  {
