@@ -111,7 +111,6 @@ static int	ifconf(u_long, caddr_t);
 static void	if_freemulti(struct ifmultiaddr *);
 static void	if_grow(void);
 static void	if_init(void *);
-static void	if_check(void *);
 static void	if_qflush(struct ifaltq *);
 static void	if_route(struct ifnet *, int flag, int fam);
 static int	if_setflag(struct ifnet *, int, int, int *, int);
@@ -155,7 +154,7 @@ static struct filterops netdev_filtops =
  * System initialization
  */
 SYSINIT(interfaces, SI_SUB_INIT_IF, SI_ORDER_FIRST, if_init, NULL);
-SYSINIT(interface_check, SI_SUB_PROTO_IF, SI_ORDER_FIRST, if_check, NULL);
+SYSINIT(interface_check, SI_SUB_PROTO_IF, SI_ORDER_FIRST, if_slowtimo, NULL);
 
 MALLOC_DEFINE(M_IFNET, "ifnet", "interface internals");
 MALLOC_DEFINE(M_IFADDR, "ifaddr", "interface address");
@@ -318,32 +317,6 @@ if_grow(void)
 		free((caddr_t)ifindex_table, M_IFNET);
 	}
 	ifindex_table = e;
-}
-
-/* ARGSUSED*/
-static void
-if_check(void *dummy __unused)
-{
-	struct ifnet *ifp;
-	int s;
-
-	s = splimp();
-	IFNET_RLOCK();	/* could sleep on rare error; mostly okay XXX */
-	TAILQ_FOREACH(ifp, &ifnet, if_link) {
-		if (ifp->if_snd.ifq_maxlen == 0) {
-			if_printf(ifp, "XXX: driver didn't set ifq_maxlen\n");
-			ifp->if_snd.ifq_maxlen = ifqmaxlen;
-		}
-		if (!mtx_initialized(&ifp->if_snd.ifq_mtx)) {
-			if_printf(ifp,
-			    "XXX: driver didn't initialize queue mtx\n");
-			mtx_init(&ifp->if_snd.ifq_mtx, "unknown",
-			    MTX_NETWORK_LOCK, MTX_DEF);
-		}
-	}
-	IFNET_RUNLOCK();
-	splx(s);
-	if_slowtimo(0);
 }
 
 /*
@@ -525,6 +498,15 @@ if_attach(struct ifnet *ifp)
 	ifa->ifa_refcnt = 1;
 	TAILQ_INSERT_HEAD(&ifp->if_addrhead, ifa, ifa_link);
 	ifp->if_broadcastaddr = NULL; /* reliably crash if used uninitialized */
+
+	/*
+	 * XXX: why do we warn about this? We're correcting it and most
+	 * drivers just set the value the way we do.
+	 */
+	if (ifp->if_snd.ifq_maxlen == 0) {
+		if_printf(ifp, "XXX: driver didn't set ifq_maxlen\n");
+		ifp->if_snd.ifq_maxlen = ifqmaxlen;
+	}
 	ifp->if_snd.altq_type = 0;
 	ifp->if_snd.altq_disc = NULL;
 	ifp->if_snd.altq_flags &= ALTQF_CANTCHANGE;
