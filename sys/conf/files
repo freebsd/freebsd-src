@@ -1615,6 +1615,7 @@ kern/kern_cpu.c			standard
 kern/kern_cpuset.c		standard
 kern/kern_context.c		standard
 kern/kern_descrip.c		standard
+kern/kern_dtrace.c		optional kdtrace_hooks
 kern/kern_environment.c		standard
 kern/kern_event.c		standard
 kern/kern_exec.c		standard
@@ -1645,6 +1646,7 @@ kern/kern_prot.c		standard
 kern/kern_resource.c		standard
 kern/kern_rmlock.c		standard
 kern/kern_rwlock.c		standard
+kern/kern_sdt.c			optional kdtrace_hooks
 kern/kern_sema.c		standard
 kern/kern_shutdown.c		standard
 kern/kern_sig.c			standard
@@ -1711,7 +1713,7 @@ kern/sys_generic.c		standard
 kern/sys_pipe.c			standard
 kern/sys_process.c		standard
 kern/sys_socket.c		standard
-kern/syscalls.c			optional witness | invariants
+kern/syscalls.c			optional witness | invariants | kdtrace_hooks
 kern/sysv_ipc.c			standard
 kern/sysv_msg.c			optional sysvmsg
 kern/sysv_sem.c			optional sysvsem
@@ -1848,7 +1850,8 @@ net/rtsock.c			standard
 net/slcompress.c		optional netgraph_vjc | ppp | sl | sppp | \
 					 netgraph_sppp
 net/zlib.c			optional crypto | geom_uzip | ipsec | \
-					 mxge | ppp_deflate | netgraph_deflate
+					 mxge | ppp_deflate | netgraph_deflate | \
+					 ddb_ctf
 net80211/ieee80211.c		optional wlan
 net80211/ieee80211_acl.c	optional wlan_acl
 net80211/ieee80211_adhoc.c	optional wlan
