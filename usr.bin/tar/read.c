@@ -82,7 +82,21 @@ tar_mode_t(struct bsdtar *bsdtar)
 void
 tar_mode_x(struct bsdtar *bsdtar)
 {
+	/* We want to catch SIGINFO and SIGUSR1. */
+	siginfo_init(bsdtar);
+
 	read_archive(bsdtar, 'x');
+
+	/* Restore old SIGINFO + SIGUSR1 handlers. */
+	siginfo_done(bsdtar);
+}
+
+static void
+progress_func(void * cookie)
+{
+	struct bsdtar * bsdtar = cookie;
+
+	siginfo_printinfo(bsdtar, 0);
 }
 
 /*
@@ -118,6 +132,12 @@ read_archive(struct bsdtar *bsdtar, char mode)
 		    archive_error_string(a));
 
 	do_chdir(bsdtar);
+
+	if (mode == 'x') {
+		/* Set an extract callback so that we can handle SIGINFO. */
+		archive_read_extract_set_progress_callback(a, progress_func,
+		    bsdtar);
+	}
 
 	if (mode == 'x' && bsdtar->option_chroot) {
 #if HAVE_CHROOT
@@ -238,6 +258,12 @@ read_archive(struct bsdtar *bsdtar, char mode)
 				    archive_entry_pathname(entry));
 				fflush(stderr);
 			}
+
+			/* Tell the SIGINFO-handler code what we're doing. */
+			siginfo_setinfo(bsdtar, "extracting",
+			    archive_entry_pathname(entry), 0);
+			siginfo_printinfo(bsdtar, 0);
+
 			if (bsdtar->option_stdout)
 				r = archive_read_data_into_fd(a, 1);
 			else
