@@ -531,6 +531,8 @@ g_new_provider_event(void *arg, int flag)
 		return;
 	pp = arg;
 	G_VALID_PROVIDER(pp);
+	KASSERT(!(pp->flags & G_PF_WITHER),
+	    ("g_new_provider_event but withered"));
 	LIST_FOREACH(mp, &g_classes, class) {
 		if (mp->taste == NULL)
 			continue;
@@ -620,7 +622,7 @@ g_destroy_provider(struct g_provider *pp)
 	    ("g_destroy_provider but attached"));
 	KASSERT (pp->acr == 0, ("g_destroy_provider with acr"));
 	KASSERT (pp->acw == 0, ("g_destroy_provider with acw"));
-	KASSERT (pp->acw == 0, ("g_destroy_provider with ace"));
+	KASSERT (pp->ace == 0, ("g_destroy_provider with ace"));
 	g_cancel_event(pp);
 	LIST_REMOVE(pp, provider);
 	gp = pp->geom;
