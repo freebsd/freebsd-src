@@ -70,29 +70,6 @@ network_start()
 	# Configure the interface(s).
 	network_common ifn_start
 
-	if [ -z "$cmdifn" ]; then
-		dhcp_interfaces=`list_net_interfaces dhcp`
-		if [ -n "${dhcp_interfaces}" ]; then
-			delay=${if_up_delay}
-			while [ ${delay} -gt 0 ]; do
-				defif=`get_default_if -inet`
-				if [ -n "${defif}" ]; then
-					if [ ${delay} -ne ${if_up_delay} ]; then
-						echo "($defif)"
-					fi
-					break
-				fi
-				if [ ${delay} -eq ${if_up_delay} ]; then
-					echo -n "Waiting for an interface to come up: "
-				else
-					echo -n .
-				fi
-				sleep 1
-				delay=`expr $delay - 1`
-			done
-		fi
-	fi
-
 	if [ -f /etc/rc.d/ipfilter ] ; then
 		# Resync ipfilter
 		/etc/rc.d/ipfilter quietresync
