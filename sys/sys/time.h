@@ -312,8 +312,6 @@ int	ratecheck(struct timeval *, const struct timeval *);
 void	timevaladd(struct timeval *t1, const struct timeval *t2);
 void	timevalsub(struct timeval *t1, const struct timeval *t2);
 int	tvtohz(struct timeval *tv);
-uint64_t	dtrace_gethrtime(void);
-uint64_t	dtrace_gethrestime(void);
 #else /* !_KERNEL */
 #include <time.h>
 
