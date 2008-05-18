@@ -132,7 +132,6 @@ void		 pmap_zero_page_area(vm_page_t, int off, int size);
 void		 pmap_zero_page_idle(vm_page_t);
 int		 pmap_mincore(pmap_t pmap, vm_offset_t addr);
 void		 pmap_activate(struct thread *td);
-vm_offset_t	 pmap_addr_hint(vm_object_t obj, vm_offset_t addr, vm_size_t size);
 
 #define	pmap_resident_count(pm)	((pm)->pm_stats.resident_count)
 #define	pmap_wired_count(pm)	((pm)->pm_stats.wired_count)

@@ -2838,19 +2838,6 @@ pmap_activate(struct thread *td)
 	critical_exit();
 }
 
-/* TBD */
-
-vm_offset_t
-pmap_addr_hint(vm_object_t obj, vm_offset_t addr, vm_size_t size)
-{
-
-	if ((obj == NULL) || (size < NBSEG) || (obj->type != OBJT_DEVICE)) {
-		return addr;
-	}
-	addr = (addr + (NBSEG - 1)) & ~(NBSEG - 1);
-	return addr;
-}
-
 /*
  *	Increase the starting virtual address of the given mapping if a
  *	different alignment might result in more superpage mappings.
@@ -2859,6 +2846,20 @@ void
 pmap_align_superpage(vm_object_t object, vm_ooffset_t offset,
     vm_offset_t *addr, vm_size_t size)
 {
+	vm_offset_t superpage_offset;
+
+	if (size < NBSEG)
+		return;
+	if (object != NULL && (object->flags & OBJ_COLORED) != 0)
+		offset += ptoa(object->pg_color);
+	superpage_offset = offset & SEGOFSET;
+	if (size - ((NBSEG - superpage_offset) & SEGOFSET) < NBSEG ||
+	    (*addr & SEGOFSET) == superpage_offset)
+		return;
+	if ((*addr & SEGOFSET) < superpage_offset)
+		*addr = (*addr & ~SEGOFSET) + superpage_offset;
+	else
+		*addr = ((*addr + SEGOFSET) & ~SEGOFSET) + superpage_offset;
 }
 
 int pmap_pid_dump(int pid);
