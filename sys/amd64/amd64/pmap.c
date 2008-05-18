@@ -4458,18 +4458,6 @@ if (oldpmap)	/* XXX FIXME */
 	critical_exit();
 }
 
-vm_offset_t
-pmap_addr_hint(vm_object_t obj, vm_offset_t addr, vm_size_t size)
-{
-
-	if ((obj == NULL) || (size < NBPDR) || (obj->type != OBJT_DEVICE)) {
-		return addr;
-	}
-
-	addr = (addr + (NBPDR - 1)) & ~(NBPDR - 1);
-	return addr;
-}
-
 /*
  *	Increase the starting virtual address of the given mapping if a
  *	different alignment might result in more superpage mappings.
