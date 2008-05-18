@@ -50,6 +50,7 @@ TWA_FLASH_FIRMWARE	opt_twa.h
 DDB
 DDB_CAPTURE_DEFAULTBUFSIZE	opt_ddb.h
 DDB_CAPTURE_MAXBUFSIZE	opt_ddb.h
+DDB_CTF		opt_ddb.h
 DDB_NUMSYM	opt_ddb.h
 GDB
 KDB		opt_global.h
@@ -105,6 +106,7 @@ GEOM_UZIP	opt_geom.h
 GEOM_VIRSTOR	opt_geom.h
 GEOM_VOL	opt_geom.h
 GEOM_ZERO	opt_geom.h
+KDTRACE_HOOKS	opt_kdtrace.h
 KSTACK_MAX_PAGES
 KSTACK_PAGES
 KTRACE
