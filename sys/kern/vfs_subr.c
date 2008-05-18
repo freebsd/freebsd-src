@@ -2715,6 +2715,8 @@ DB_SHOW_COMMAND(mount, db_show_mount)
 			    mp->mnt_stat.f_mntfromname,
 			    mp->mnt_stat.f_mntonname,
 			    mp->mnt_stat.f_fstypename);
+			if (db_pager_quit)
+				break;
 		}
 		db_printf("\nMore info: show mount <addr>\n");
 		return;
@@ -2844,8 +2846,11 @@ DB_SHOW_COMMAND(mount, db_show_mount)
 	db_printf("\n");
 
 	TAILQ_FOREACH(vp, &mp->mnt_nvnodelist, v_nmntvnodes) {
-		if (vp->v_type != VMARKER)
+		if (vp->v_type != VMARKER) {
 			vn_printf(vp, "vnode ");
+			if (db_pager_quit)
+				break;
+		}
 	}
 }
 #endif	/* DDB */
