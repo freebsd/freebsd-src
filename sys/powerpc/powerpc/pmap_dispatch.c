@@ -297,12 +297,6 @@ pmap_deactivate(struct thread *td)
 	MMU_DEACTIVATE(mmu_obj, td);
 }
 
-vm_offset_t
-pmap_addr_hint(vm_object_t obj, vm_offset_t addr, vm_size_t size)
-{
-	return (MMU_ADDR_HINT(mmu_obj, obj, addr, size));
-}
-
 /*
  *	Increase the starting virtual address of the given mapping if a
  *	different alignment might result in more superpage mappings.
@@ -311,6 +305,8 @@ void
 pmap_align_superpage(vm_object_t object, vm_ooffset_t offset,
     vm_offset_t *addr, vm_size_t size)
 {
+
+	MMU_ALIGN_SUPERPAGE(mmu_obj, object, offset, addr, size);
 }
 
 

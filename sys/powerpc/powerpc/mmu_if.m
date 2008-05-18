@@ -100,10 +100,10 @@ CODE {
 		return;
 	}
 
-	static vm_offset_t mmu_null_addr_hint(mmu_t mmu, vm_object_t object,
-	    vm_offset_t va, vm_size_t size)
+	static void mmu_null_align_superpage(mmu_t mmu, vm_object_t object,
+	    vm_ooffset_t offset, vm_offset_t *addr, vm_size_t size)
 	{
-		return (va);
+		return;
 	}
 };
 
@@ -659,15 +659,17 @@ METHOD void deactivate {
  * return the given tentative start address.
  *
  * @param _obj		VM backing object
+ * @param _offset	starting offset with the VM object
  * @param _addr		initial guess at virtual address
  * @param _size		size of virtual address range
  */
-METHOD vm_offset_t addr_hint {
+METHOD void align_superpage {
 	mmu_t		_mmu;
 	vm_object_t	_obj;
-	vm_offset_t	_addr;
+	vm_ooffset_t	_offset;
+	vm_offset_t	*_addr;
 	vm_size_t	_size;
-} DEFAULT mmu_null_addr_hint;
+} DEFAULT mmu_null_align_superpage;
 
 
 
