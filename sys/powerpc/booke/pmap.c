@@ -269,7 +269,6 @@ static struct ptbl_buf *ptbl_bufs;
 /*
  * Kernel MMU interface
  */
-static vm_offset_t	mmu_booke_addr_hint(mmu_t, vm_object_t, vm_offset_t, vm_size_t);
 static void		mmu_booke_change_wiring(mmu_t, pmap_t, vm_offset_t, boolean_t);
 static void		mmu_booke_clear_modify(mmu_t, vm_page_t);
 static void		mmu_booke_clear_reference(mmu_t, vm_page_t);
@@ -323,7 +322,6 @@ static boolean_t	mmu_booke_page_executable(mmu_t, vm_page_t);
 
 static mmu_method_t mmu_booke_methods[] = {
 	/* pmap dispatcher interface */
-	MMUMETHOD(mmu_addr_hint,	mmu_booke_addr_hint),
 	MMUMETHOD(mmu_change_wiring,	mmu_booke_change_wiring),
 	MMUMETHOD(mmu_clear_modify,	mmu_booke_clear_modify),
 	MMUMETHOD(mmu_clear_reference,	mmu_booke_clear_reference),
@@ -2318,14 +2316,6 @@ mmu_booke_mincore(mmu_t mmu, pmap_t pmap, vm_offset_t addr)
 
 	TODO;
 	return (0);
-}
-
-static vm_offset_t
-mmu_booke_addr_hint(mmu_t mmu, vm_object_t object, vm_offset_t va,
-    vm_size_t size)
-{
-
-	return (va);
 }
 
 /**************************************************************************/

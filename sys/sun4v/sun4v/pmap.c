@@ -424,12 +424,6 @@ pmap_activate(struct thread *td)
 	critical_exit();
 }
 
-vm_offset_t 
-pmap_addr_hint(vm_object_t object, vm_offset_t va, vm_size_t size)
-{
-	return (va);
-}
-
 /*
  *	Increase the starting virtual address of the given mapping if a
  *	different alignment might result in more superpage mappings.
