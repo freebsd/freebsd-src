@@ -174,6 +174,9 @@ tar_mode_c(struct bsdtar *bsdtar)
 	if (*bsdtar->argv == NULL && bsdtar->names_from_file == NULL)
 		bsdtar_errc(bsdtar, 1, 0, "no files or directories specified");
 
+	/* We want to catch SIGINFO and SIGUSR1. */
+	siginfo_init(bsdtar);
+
 	a = archive_write_new();
 
 	/* Support any format that the library supports. */
@@ -242,6 +245,9 @@ tar_mode_c(struct bsdtar *bsdtar)
 	}
 
 	archive_write_finish(a);
+
+	/* Restore old SIGINFO + SIGUSR1 handlers. */
+	siginfo_done(bsdtar);
 }
 
 /*
@@ -574,6 +580,10 @@ append_archive(struct bsdtar *bsdtar, struct archive *a, struct archive *ina)
 		if (bsdtar->verbose)
 			safe_fprintf(stderr, "a %s",
 			    archive_entry_pathname(in_entry));
+		siginfo_setinfo(bsdtar, "copying",
+		    archive_entry_pathname(in_entry),
+		    archive_entry_size(in_entry));
+		siginfo_printinfo(bsdtar, 0);
 
 		e = archive_write_header(a, in_entry);
 		if (e != ARCHIVE_OK) {
@@ -606,14 +616,18 @@ copy_file_data(struct bsdtar *bsdtar, struct archive *a, struct archive *ina)
 	char	buff[64*1024];
 	ssize_t	bytes_read;
 	ssize_t	bytes_written;
+	off_t	progress = 0;
 
 	bytes_read = archive_read_data(ina, buff, sizeof(buff));
 	while (bytes_read > 0) {
+		siginfo_printinfo(bsdtar, progress);
+
 		bytes_written = archive_write_data(a, buff, bytes_read);
 		if (bytes_written < bytes_read) {
 			bsdtar_warnc(bsdtar, 0, "%s", archive_error_string(a));
 			return (-1);
 		}
+		progress += bytes_written;
 		bytes_read = archive_read_data(ina, buff, sizeof(buff));
 	}
 
@@ -881,6 +895,13 @@ write_entry(struct bsdtar *bsdtar, struct archive *a, const struct stat *st,
 	if (!S_ISREG(st->st_mode))
 		archive_entry_set_size(entry, 0);
 
+	/* Record what we're doing, for the benefit of SIGINFO / SIGUSR1. */
+	siginfo_setinfo(bsdtar, "adding", archive_entry_pathname(entry),
+	    archive_entry_size(entry));
+
+	/* Handle SIGINFO / SIGUSR1 request if one was made. */
+	siginfo_printinfo(bsdtar, 0);
+
 	e = archive_write_header(a, entry);
 	if (e != ARCHIVE_OK) {
 		if (!bsdtar->verbose)
@@ -923,12 +944,15 @@ write_file_data(struct bsdtar *bsdtar, struct archive *a, int fd)
 	char	buff[64*1024];
 	ssize_t	bytes_read;
 	ssize_t	bytes_written;
+	off_t	progress = 0;
 
 	/* XXX TODO: Allocate buffer on heap and store pointer to
 	 * it in bsdtar structure; arrange cleanup as well. XXX */
 
 	bytes_read = read(fd, buff, sizeof(buff));
 	while (bytes_read > 0) {
+		siginfo_printinfo(bsdtar, progress);
+
 		bytes_written = archive_write_data(a, buff, bytes_read);
 		if (bytes_written < 0) {
 			/* Write failed; this is bad */
@@ -941,6 +965,7 @@ write_file_data(struct bsdtar *bsdtar, struct archive *a, int fd)
 			    "Truncated write; file may have grown while being archived.");
 			return (0);
 		}
+		progress += bytes_written;
 		bytes_read = read(fd, buff, sizeof(buff));
 	}
 	return 0;
