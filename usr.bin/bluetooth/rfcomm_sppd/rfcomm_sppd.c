@@ -1,6 +1,8 @@
 /*
  * rfcomm_sppd.c
- *
+ */
+
+/*-
  * Copyright (c) 2003 Maksim Yevmenkin <m_evmenkin@yahoo.com>
  * All rights reserved.
  *
@@ -172,7 +174,7 @@ main(int argc, char *argv[])
 
 	/* Open TTYs */
 	if (tty == NULL) {
-		if (background || doserver)
+		if (background)
 			usage();
 
 		amaster = STDIN_FILENO;
@@ -189,30 +191,33 @@ main(int argc, char *argv[])
 	if (doserver) {
 		struct sockaddr_rfcomm	 ma;
 		bdaddr_t		 bt_addr_any;
-		sdp_lan_profile_t	 lan;
+		sdp_sp_profile_t	 sp;
 		void			*ss;
 		uint32_t		 sdp_handle;
 		int			 acceptsock, aaddrlen;
 
-		if (channel == 0) {
-			/* XXX: should check if selected channel is unused */
-			channel = (getpid() % 30) + 1;
-		}
 		acceptsock = socket(PF_BLUETOOTH, SOCK_STREAM,
-		    BLUETOOTH_PROTO_RFCOMM);
+					BLUETOOTH_PROTO_RFCOMM);
 		if (acceptsock < 0)
 			err(1, "Could not create socket");
+
+		memcpy(&bt_addr_any, NG_HCI_BDADDR_ANY, sizeof(bt_addr_any));
 
 		memset(&ma, 0, sizeof(ma));
 		ma.rfcomm_len = sizeof(ma);
 		ma.rfcomm_family = AF_BLUETOOTH;
+		memcpy(&ma.rfcomm_bdaddr, &bt_addr_any, sizeof(bt_addr_any));
 		ma.rfcomm_channel = channel;
 
 		if (bind(acceptsock, (struct sockaddr *)&ma, sizeof(ma)) < 0)
-			err(1, "Could not bind socket -- channel %d in use?",
-			    channel);
+			err(1, "Could not bind socket on channel %d", channel);
 		if (listen(acceptsock, 10) != 0)
 			err(1, "Could not listen on socket");
+
+		aaddrlen = sizeof(ma);
+		if (getsockname(acceptsock, (struct sockaddr *)&ma, &aaddrlen) < 0)
+			err(1, "Could not get socket name");
+		channel = ma.rfcomm_channel;
 
 		ss = sdp_open_local(NULL);
 		if (ss == NULL)
@@ -220,12 +225,12 @@ main(int argc, char *argv[])
 		if (sdp_error(ss) != 0)
 			errx(1, "Unable to open local SDP session. %s (%d)",
 			    strerror(sdp_error(ss)), sdp_error(ss));
-		memset(&lan, 0, sizeof(lan));
-		lan.server_channel = channel;
+		memset(&sp, 0, sizeof(sp));
+		sp.server_channel = channel;
 
-		memcpy(&bt_addr_any, NG_HCI_BDADDR_ANY, sizeof(bt_addr_any));
-		if (sdp_register_service(ss, service, &bt_addr_any,
-		    (void *)&lan, sizeof(lan), &sdp_handle) != 0) {
+		if (sdp_register_service(ss, SDP_SERVICE_CLASS_SERIAL_PORT,
+				&bt_addr_any, (void *)&sp, sizeof(sp),
+				&sdp_handle) != 0) {
 			errx(1, "Unable to register LAN service with "
 			    "local SDP daemon. %s (%d)",
 			    strerror(sdp_error(ss)), sdp_error(ss));
@@ -505,7 +510,7 @@ usage(void)
 "\t-a address Peer address (required in client mode)\n" \
 "\t-b         Run in background\n" \
 "\t-c channel RFCOMM channel to connect to or listen on\n" \
-"\t-t tty     TTY name (required in background or server mode)\n" \
+"\t-t tty     TTY name (required in background mode)\n" \
 "\t-S         Server mode\n" \
 "\t-h         Display this message\n", SPPD_IDENT);
 	exit(255);
