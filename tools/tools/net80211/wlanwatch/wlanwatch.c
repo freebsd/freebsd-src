@@ -272,7 +272,6 @@ pmsg_addrs(char *cp, int addrs)
 			cp += SA_SIZE(sa);
 		}
 	putchar('\n');
-	fflush(stdout);
 }
 
 static const char *
@@ -317,6 +316,7 @@ print_rtmsg(struct rt_msghdr *rtm, int msglen)
 		}
 		bprintf(stdout, ifm->ifm_flags, ifnetflags);
 		pmsg_addrs((char *)(ifm + 1), ifm->ifm_addrs);
+		fflush(stdout);
 		break;
 	case RTM_IFANNOUNCE:
 		ifan = (struct if_announcemsghdr *)rtm;
@@ -334,6 +334,7 @@ print_rtmsg(struct rt_msghdr *rtm, int msglen)
 			break;
 		}
 		printf("\n");
+		fflush(stdout);
 		break;
 	case RTM_IEEE80211:
 #define	V(type)	((struct type *)(&ifan[1]))
@@ -449,6 +450,7 @@ print_rtmsg(struct rt_msghdr *rtm, int msglen)
 			break;
 		}
 		printf("\n");
+		fflush(stdout);
 		break;
 #undef V
 	}
