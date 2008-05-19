@@ -29,6 +29,7 @@
  */
 /*-
  * Copyright (c) 2002 Jake Burkholder.
+ * Copyright (c) 2007 Marius Strobl <marius@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -91,6 +92,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/ver.h>
 
 static ih_func_t cpu_ipi_ast;
+static ih_func_t cpu_ipi_preempt;
 static ih_func_t cpu_ipi_stop;
 
 /*
@@ -250,6 +252,7 @@ cpu_mp_start(void)
 	intr_setup(PIL_RENDEZVOUS, (ih_func_t *)smp_rendezvous_action,
 	    -1, NULL, NULL);
 	intr_setup(PIL_STOP, cpu_ipi_stop, -1, NULL, NULL);
+	intr_setup(PIL_PREEMPT, cpu_ipi_preempt, -1, NULL, NULL);
 
 	cpuid_to_mid[curcpu] = PCPU_GET(mid);
 
@@ -430,6 +433,20 @@ cpu_ipi_stop(struct trapframe *tf)
 	atomic_clear_rel_int(&started_cpus, PCPU_GET(cpumask));
 	atomic_clear_rel_int(&stopped_cpus, PCPU_GET(cpumask));
 	CTR2(KTR_SMP, "%s: restarted %d", __func__, curcpu);
+}
+
+static void
+cpu_ipi_preempt(struct trapframe *tf)
+{
+	struct thread *td;
+
+	td = curthread;
+	thread_lock(td);
+	if (td->td_critnest > 1)
+		td->td_owepreempt = 1;
+	else
+		mi_switch(SW_INVOL | SW_PREEMPT, NULL);
+	thread_unlock(td);
 }
 
 static void
