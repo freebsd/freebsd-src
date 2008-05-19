@@ -122,8 +122,6 @@ static pcib_write_config_t psycho_write_config;
 static pcib_route_interrupt_t psycho_route_interrupt;
 static ofw_pci_intr_pending_t psycho_intr_pending;
 static ofw_bus_get_node_t psycho_get_node;
-static ofw_pci_alloc_busno_t psycho_alloc_busno;
-static ofw_pci_adjust_busrange_t psycho_adjust_busrange;
 
 static device_method_t psycho_methods[] = {
 	/* Device interface */
@@ -155,8 +153,6 @@ static device_method_t psycho_methods[] = {
 
 	/* ofw_pci interface */
 	DEVMETHOD(ofw_pci_intr_pending,	psycho_intr_pending),
-	DEVMETHOD(ofw_pci_alloc_busno,	psycho_alloc_busno),
-	DEVMETHOD(ofw_pci_adjust_busrange,	psycho_adjust_busrange),
 
 	{ 0, 0 }
 };
@@ -169,8 +165,6 @@ DRIVER_MODULE(psycho, nexus, psycho_driver, psycho_devclass, 0, 0);
 
 static SLIST_HEAD(, psycho_softc) psycho_softcs =
     SLIST_HEAD_INITIALIZER(psycho_softcs);
-
-static uint8_t psycho_pci_bus_cnt;
 
 static const struct intr_controller psycho_ic = {
 	psycho_intr_enable,
@@ -304,7 +298,7 @@ psycho_attach(device_t dev)
 	bus_addr_t intrclr, intrmap;
 	uint64_t csr, dr;
 	phandle_t child, node;
-	uint32_t dvmabase, psycho_br[2];
+	uint32_t dvmabase, prop_array[2];
 	int32_t rev;
 	u_int ver;
 	int i, n, nrange, rid;
@@ -637,18 +631,19 @@ psycho_attach(device_t dev)
 	sc->sc_pci_dmat->dt_cookie = sc->sc_is;
 	sc->sc_pci_dmat->dt_mt = &iommu_dma_methods;
 
-	/*
-	 * Get the bus range from the firmware; it is used solely for obtaining
-	 * the inital bus number, and cannot be trusted on all machines.
-	 */
-	n = OF_getprop(node, "bus-range", (void *)psycho_br, sizeof(psycho_br));
+	n = OF_getprop(node, "bus-range", (void *)prop_array,
+	    sizeof(prop_array));
 	if (n == -1)
 		panic("%s: could not get bus-range", __func__);
-	if (n != sizeof(psycho_br))
+	if (n != sizeof(prop_array))
 		panic("%s: broken bus-range (%d)", __func__, n);
+	if (bootverbose)
+		device_printf(dev, "bus range %u to %u; PCI bus %d\n",
+		    prop_array[0], prop_array[1], prop_array[0]);
+	sc->sc_pci_secbus = prop_array[0];
 
 	/* Clear PCI status error bits. */
-	PCIB_WRITE_CONFIG(dev, psycho_br[0], PCS_DEVICE, PCS_FUNC,
+	PCIB_WRITE_CONFIG(dev, sc->sc_pci_secbus, PCS_DEVICE, PCS_FUNC,
 	    PCIR_STATUS, PCIM_STATUS_PERR | PCIM_STATUS_RMABORT |
 	    PCIM_STATUS_RTABORT | PCIM_STATUS_STABORT |
 	    PCIM_STATUS_PERRREPORT, 2);
@@ -657,22 +652,8 @@ psycho_attach(device_t dev)
 	 * Set the latency timer register as this isn't always done by the
 	 * firmware.
 	 */
-	PCIB_WRITE_CONFIG(dev, psycho_br[0], PCS_DEVICE, PCS_FUNC,
+	PCIB_WRITE_CONFIG(dev, sc->sc_pci_secbus, PCS_DEVICE, PCS_FUNC,
 	    PCIR_LATTIMER, 64, 1);
-
-	sc->sc_pci_secbus = sc->sc_pci_subbus = psycho_alloc_busno(dev);
-	/*
-	 * Program the bus range registers.
-	 * NOTE: for the Psycho, the second write changes the bus number the
-	 * Psycho itself uses for it's configuration space, so these
-	 * writes must be kept in this order!
-	 * The Hummingbird/Sabre always uses bus 0, but there only can be one
-	 * Hummingbird/Sabre per machine.
-	 */
-	PCIB_WRITE_CONFIG(dev, psycho_br[0], PCS_DEVICE, PCS_FUNC, PCSR_SUBBUS,
-	    sc->sc_pci_subbus, 1);
-	PCIB_WRITE_CONFIG(dev, psycho_br[0], PCS_DEVICE, PCS_FUNC, PCSR_SECBUS,
-	    sc->sc_pci_secbus, 1);
 
 	for (n = PCIR_VENDOR; n < PCIR_STATUS; n += sizeof(uint16_t))
 		le16enc(&sc->sc_pci_hpbcfg[n], bus_space_read_2(
@@ -699,7 +680,7 @@ psycho_attach(device_t dev)
 		*(ofw_pci_intr_t *)(&sc->sc_pci_iinfo.opi_imapmsk[
 		    sc->sc_pci_iinfo.opi_addrc]) = INTMAP_INO_MASK;
 
-	device_add_child(dev, "pci", sc->sc_pci_secbus);
+	device_add_child(dev, "pci", -1);
 	return (bus_generic_attach(dev));
 }
 
@@ -1072,7 +1053,7 @@ psycho_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 	sc = device_get_softc(dev);
 	switch (which) {
 	case PCIB_IVAR_DOMAIN:
-		*result = 0;
+		*result = device_get_unit(dev);
 		return (0);
 	case PCIB_IVAR_BUS:
 		*result = sc->sc_pci_secbus;
@@ -1397,34 +1378,6 @@ psycho_get_node(device_t bus, device_t dev)
 	sc = device_get_softc(bus);
 	/* We only have one child, the PCI bus, which needs our own node. */
 	return (sc->sc_node);
-}
-
-static int
-psycho_alloc_busno(device_t dev)
-{
-
-	if (psycho_pci_bus_cnt == PCI_BUSMAX)
-		panic("%s: out of PCI bus numbers", __func__);
-	return (psycho_pci_bus_cnt++);
-}
-
-static void
-psycho_adjust_busrange(device_t dev, u_int subbus)
-{
-	struct psycho_softc *sc;
-
-	sc = device_get_softc(dev);
-	/* If necessary, adjust the subordinate bus number register. */
-	if (subbus > sc->sc_pci_subbus) {
-#ifdef PSYCHO_DEBUG
-		device_printf(dev,
-		    "adjusting subordinate bus number from %d to %d\n",
-		    sc->sc_pci_subbus, subbus);
-#endif
-		sc->sc_pci_subbus = subbus;
-		PCIB_WRITE_CONFIG(dev, sc->sc_pci_secbus, PCS_DEVICE, PCS_FUNC,
-		    PCSR_SUBBUS, subbus, 1);
-	}
 }
 
 static bus_space_tag_t
