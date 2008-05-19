@@ -51,6 +51,7 @@ $FreeBSD$
 
 oui ALTIMA			0x0010a9	Altima Communications
 oui AMD				0x00001a	Advanced Micro Devices
+oui ATHEROS			0x001374	Atheros Communications
 oui BROADCOM			0x001018	Broadcom Corporation
 oui BROADCOM2			0x000af7	Broadcom Corporation
 oui CICADA			0x0003F1	Cicada Semiconductor
@@ -112,6 +113,9 @@ model xxALTIMA ACXXX		0x0001 ACXXX 10/100 media interface
 model AMD 79c973phy		0x0036 Am79c973 internal PHY
 model AMD 79c978		0x0039 Am79c978 HomePNA PHY
 model xxAMD 79C873		0x0000 Am79C873/DM9101 10/100 media interface
+
+/* Atheros Communications/Attansic PHYs. */
+model ATHEROS F1		0x0001 Atheros F1 10/100/1000 PHY
 
 /* Broadcom Corp. PHYs. */
 model BROADCOM 3C905B		0x0012 3c905B 10/100 internal PHY
