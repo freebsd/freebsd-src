@@ -91,7 +91,7 @@ int	em_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version:
  *********************************************************************/
-char em_driver_version[] = "6.9.0";
+char em_driver_version[] = "6.9.2";
 
 
 /*********************************************************************
@@ -192,6 +192,7 @@ static em_vendor_info_t em_vendor_info_array[] =
 	{ 0x8086, E1000_DEV_ID_ICH9_IFE,	PCI_ANY_ID, PCI_ANY_ID, 0},
 	{ 0x8086, E1000_DEV_ID_ICH9_IFE_GT,	PCI_ANY_ID, PCI_ANY_ID, 0},
 	{ 0x8086, E1000_DEV_ID_ICH9_IFE_G,	PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_ICH9_BM,		PCI_ANY_ID, PCI_ANY_ID, 0},
 	{ 0x8086, E1000_DEV_ID_82574L,		PCI_ANY_ID, PCI_ANY_ID, 0},
 	{ 0x8086, E1000_DEV_ID_ICH10_D_BM_LM,	PCI_ANY_ID, PCI_ANY_ID, 0},
 	{ 0x8086, E1000_DEV_ID_ICH10_D_BM_LF,	PCI_ANY_ID, PCI_ANY_ID, 0},
@@ -2847,7 +2848,11 @@ em_allocate_msix(struct adapter *adapter)
 
 	/* First slot to RX */
 	if ((error = bus_setup_intr(dev, adapter->res[0],
+#if __FreeBSD_version > 700000
 	    INTR_TYPE_NET | INTR_MPSAFE, NULL, em_msix_rx, adapter,
+#else /* 6.X */
+	    INTR_TYPE_NET | INTR_MPSAFE, em_msix_rx, adapter,
+#endif
 	    &adapter->tag[0])) != 0) {
 		device_printf(dev, "Failed to register RX handler");
 		return (error);
@@ -2855,7 +2860,11 @@ em_allocate_msix(struct adapter *adapter)
 
 	/* Next TX */
 	if ((error = bus_setup_intr(dev, adapter->res[1],
+#if __FreeBSD_version > 700000
 	    INTR_TYPE_NET | INTR_MPSAFE, NULL, em_msix_tx, adapter,
+#else /* 6.X */
+	    INTR_TYPE_NET | INTR_MPSAFE, em_msix_tx, adapter,
+#endif
 	    &adapter->tag[1])) != 0) {
 		device_printf(dev, "Failed to register TX handler");
 		return (error);
@@ -2863,7 +2872,11 @@ em_allocate_msix(struct adapter *adapter)
 
 	/* And Link */
 	if ((error = bus_setup_intr(dev, adapter->res[2],
+#if __FreeBSD_version > 700000
 	    INTR_TYPE_NET | INTR_MPSAFE, NULL, em_msix_link, adapter,
+#else /* 6.X */
+	    INTR_TYPE_NET | INTR_MPSAFE, em_msix_link, adapter,
+#endif
 	    &adapter->tag[2])) != 0) {
 		device_printf(dev, "Failed to register TX handler");
 		return (error);
