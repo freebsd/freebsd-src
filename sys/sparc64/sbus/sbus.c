@@ -308,10 +308,10 @@ sbus_attach(device_t dev)
 	device_t cdev;
 	bus_addr_t phys;
 	bus_size_t size;
-	char *name, *cname;
+	char *cname;
 	phandle_t child, node;
 	u_int64_t mr;
-	int intr, clock, rid, vec, i;
+	int i, intr, clock, rid, vec;
 
 	sc = device_get_softc(dev);
 	node = nexus_get_node(dev);
@@ -407,18 +407,12 @@ sbus_attach(device_t dev)
 	sc->sc_is.is_sb[0] = SBR_STRBUF;
 	sc->sc_is.is_sb[1] = 0;
 
-	/* give us a nice name.. */
-	name = (char *)malloc(32, M_DEVBUF, M_NOWAIT);
-	if (name == NULL)
-		panic("%s: cannot malloc iommu name", __func__);
-	snprintf(name, 32, "%s dvma", device_get_name(dev));
-
 	/*
 	 * Note: the SBus IOMMU ignores the high bits of an address, so a NULL
 	 * DMA pointer will be translated by the first page of the IOTSB.
 	 * To detect bugs we'll allocate and ignore the first entry.
 	 */
-	iommu_init(name, &sc->sc_is, 3, -1, 1);
+	iommu_init(device_get_nameunit(dev), &sc->sc_is, 3, -1, 1);
 
 	/* Create the DMA tag. */
 	sc->sc_dmatag = nexus_get_dmatag(dev);
@@ -454,7 +448,8 @@ sbus_attach(device_t dev)
 	SYSIO_WRITE8(sc, SBR_POWER_INT_MAP, INTMAP_ENABLE(mr, PCPU_GET(mid)));
 
 	/* Initialize the counter-timer. */
-	sparc64_counter_init(sc->sc_bustag, sc->sc_bushandle, SBR_TC0);
+	sparc64_counter_init(device_get_nameunit(dev), sc->sc_bustag,
+	    sc->sc_bushandle, SBR_TC0);
 
 	/*
 	 * Loop through ROM children, fixing any relative addresses
@@ -799,7 +794,7 @@ sbus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		bh = toffs = tend = 0;
 		schild = child;
 		while (device_get_parent(schild) != bus)
-			schild = device_get_parent(child);
+			schild = device_get_parent(schild);
 		slot = sbus_get_slot(schild);
 		for (i = 0; i < sc->sc_nrange; i++) {
 			if (sc->sc_rd[i].rd_slot != slot ||

@@ -31,7 +31,7 @@
  */
 
 #ifndef _MACHINE_IOMMUVAR_H_
-#define _MACHINE_IOMMUVAR_H_
+#define	_MACHINE_IOMMUVAR_H_
 
 #define	IO_PAGE_SIZE		PAGE_SIZE_8K
 #define	IO_PAGE_MASK		PAGE_MASK_8K
@@ -54,7 +54,7 @@
  */
 struct iommu_state {
 	int			is_tsbsize;	/* (r) 0 = 8K, ... */
-	u_int64_t		is_dvmabase;	/* (r) */
+	uint64_t		is_dvmabase;	/* (r) */
 	int64_t			is_cr;		/* (r) Control reg value */
 
 	vm_paddr_t		is_flushpa[2];	/* (r) */
@@ -89,10 +89,11 @@ struct iommu_state {
 	STAILQ_ENTRY(iommu_state)	is_link;	/* (r) */
 };
 
-/* interfaces for PCI/SBUS code */
-void iommu_init(char *, struct iommu_state *, int, u_int32_t, int);
-void iommu_reset(struct iommu_state *);
-void iommu_decode_fault(struct iommu_state *, vm_offset_t);
+/* interfaces for PCI/SBus code */
+void iommu_init(const char *name, struct iommu_state *is, int tsbsize,
+    uint32_t iovabase, int resvpg);
+void iommu_reset(struct iommu_state *is);
+void iommu_decode_fault(struct iommu_state *is, vm_offset_t phys);
 
 extern struct bus_dma_methods iommu_dma_methods;
 
