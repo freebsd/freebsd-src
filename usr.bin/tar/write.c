@@ -932,8 +932,7 @@ abort:
 	if (fd >= 0)
 		close(fd);
 
-	if (entry != NULL)
-		archive_entry_free(entry);
+	archive_entry_free(entry);
 }
 
 
