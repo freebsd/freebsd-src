@@ -67,7 +67,7 @@ db_copy_in(DB **mdb, const char *dbname, const char *uname, BTREEINFO *bti,
 	if (iflag)
 		return (0);
 
-	if ((ddb = dbopen(dbname, O_RDONLY, 0, DB_BTREE, NULL)) == NULL) {
+	if ((ddb = dbopen(dbname, O_RDONLY, 0, DB_BTREE, bti)) == NULL) {
 		if (errno == ENOENT)
 			return (0);
 		warn("retrieving %s summary", uname);
@@ -89,7 +89,7 @@ db_copy_in(DB **mdb, const char *dbname, const char *uname, BTREEINFO *bti,
 		goto closeout;
 	} else if (rv == 0) {	/* It's there; verify version. */
 		if (data.size != sizeof(version)) {
-			warnx("invalid version size %d in %s",
+			warnx("invalid version size %zd in %s",
 			    data.size, uname);
 			error = -1;
 			goto closeout;
