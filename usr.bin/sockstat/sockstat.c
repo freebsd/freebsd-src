@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 static int	 opt_4;		/* Show IPv4 sockets */
 static int	 opt_6;		/* Show IPv6 sockets */
 static int	 opt_c;		/* Show connected sockets */
+static int	 opt_L;		/* Don't show IPv4 or IPv6 loopback sockets */
 static int	 opt_l;		/* Show listening sockets */
 static int	 opt_u;		/* Show Unix domain sockets */
 static int	 opt_v;		/* Verbose mode */
@@ -342,9 +343,20 @@ gather_inet(int proto)
 			if ((inp->inp_fport == 0 && !opt_l) ||
 			    (inp->inp_fport != 0 && !opt_c))
 				continue;
+#define __IN_IS_ADDR_LOOPBACK(pina) \
+	((ntohl((pina)->s_addr) >> IN_CLASSA_NSHIFT) == IN_LOOPBACKNET)
+			if (opt_L &&
+			    (__IN_IS_ADDR_LOOPBACK(&inp->inp_faddr) ||
+			     __IN_IS_ADDR_LOOPBACK(&inp->inp_laddr)))
+				continue;
+#undef __IN_IS_ADDR_LOOPBACK
 		} else if (inp->inp_vflag & INP_IPV6) {
 			if ((inp->in6p_fport == 0 && !opt_l) ||
 			    (inp->in6p_fport != 0 && !opt_c))
+				continue;
+			if (opt_L &&
+			    (IN6_IS_ADDR_LOOPBACK(&inp->in6p_faddr) ||
+			     IN6_IS_ADDR_LOOPBACK(&inp->in6p_laddr)))
 				continue;
 		} else {
 			if (opt_v)
@@ -679,7 +691,7 @@ main(int argc, char *argv[])
 	int protos_defined = -1;
 	int o, i;
 
-	while ((o = getopt(argc, argv, "46clp:P:uv")) != -1)
+	while ((o = getopt(argc, argv, "46cLlp:P:uv")) != -1)
 		switch (o) {
 		case '4':
 			opt_4 = 1;
@@ -689,6 +701,9 @@ main(int argc, char *argv[])
 			break;
 		case 'c':
 			opt_c = 1;
+			break;
+		case 'L':
+			opt_L = 1;
 			break;
 		case 'l':
 			opt_l = 1;
