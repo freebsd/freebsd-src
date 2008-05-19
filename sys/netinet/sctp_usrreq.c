@@ -1089,10 +1089,12 @@ skip_unlock:
 static uint32_t
 sctp_fill_user_address(struct sockaddr_storage *ss, struct sockaddr *sa)
 {
+#ifdef INET6
 	struct sockaddr_in6 lsa6;
 
 	sa = (struct sockaddr *)sctp_recover_scope((struct sockaddr_in6 *)sa,
 	    &lsa6);
+#endif
 	memcpy(ss, sa, sa->sa_len);
 	return (0);
 }
@@ -1166,72 +1168,101 @@ sctp_fill_up_addresses_vrf(struct sctp_inpcb *inp,
 						continue;
 					}
 				}
-				if ((sctp_ifa->address.sa.sa_family == AF_INET) &&
-				    (ipv4_addr_legal)) {
-					struct sockaddr_in *sin;
+				switch (sctp_ifa->address.sa.sa_family) {
+				case AF_INET:
+					if (ipv4_addr_legal) {
+						struct sockaddr_in *sin;
 
-					sin = (struct sockaddr_in *)&sctp_ifa->address.sa;
-					if (sin->sin_addr.s_addr == 0) {
-						/*
-						 * we skip unspecifed
-						 * addresses
-						 */
-						continue;
-					}
-					if ((ipv4_local_scope == 0) &&
-					    (IN4_ISPRIVATE_ADDRESS(&sin->sin_addr))) {
-						continue;
-					}
-					if (inp->sctp_flags & SCTP_PCB_FLAGS_NEEDS_MAPPED_V4) {
-						in6_sin_2_v4mapsin6(sin, (struct sockaddr_in6 *)sas);
-						((struct sockaddr_in6 *)sas)->sin6_port = inp->sctp_lport;
-						sas = (struct sockaddr_storage *)((caddr_t)sas + sizeof(struct sockaddr_in6));
-						actual += sizeof(struct sockaddr_in6);
-					} else {
-						memcpy(sas, sin, sizeof(*sin));
-						((struct sockaddr_in *)sas)->sin_port = inp->sctp_lport;
-						sas = (struct sockaddr_storage *)((caddr_t)sas + sizeof(*sin));
-						actual += sizeof(*sin);
-					}
-					if (actual >= limit) {
-						return (actual);
-					}
-				} else if ((sctp_ifa->address.sa.sa_family == AF_INET6) &&
-				    (ipv6_addr_legal)) {
-					struct sockaddr_in6 *sin6;
-
-					sin6 = (struct sockaddr_in6 *)&sctp_ifa->address.sa;
-					if (IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr)) {
-						/*
-						 * we skip unspecifed
-						 * addresses
-						 */
-						continue;
-					}
-					if (IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr)) {
-						if (local_scope == 0)
+						sin = (struct sockaddr_in *)&sctp_ifa->address.sa;
+						if (sin->sin_addr.s_addr == 0) {
+							/*
+							 * we skip
+							 * unspecifed
+							 * addresses
+							 */
 							continue;
-						if (sin6->sin6_scope_id == 0) {
-							if (sa6_recoverscope(sin6) != 0)
-								/*
-								 * bad link
-								 * local
-								 * address
-								 */
-								continue;
 						}
-					}
-					if ((site_scope == 0) &&
-					    (IN6_IS_ADDR_SITELOCAL(&sin6->sin6_addr))) {
+						if ((ipv4_local_scope == 0) &&
+						    (IN4_ISPRIVATE_ADDRESS(&sin->sin_addr))) {
+							continue;
+						}
+#ifdef INET6
+						if (sctp_is_feature_on(inp, SCTP_PCB_FLAGS_NEEDS_MAPPED_V4)) {
+							in6_sin_2_v4mapsin6(sin, (struct sockaddr_in6 *)sas);
+							((struct sockaddr_in6 *)sas)->sin6_port = inp->sctp_lport;
+							sas = (struct sockaddr_storage *)((caddr_t)sas + sizeof(struct sockaddr_in6));
+							actual += sizeof(struct sockaddr_in6);
+						} else {
+#endif
+							memcpy(sas, sin, sizeof(*sin));
+							((struct sockaddr_in *)sas)->sin_port = inp->sctp_lport;
+							sas = (struct sockaddr_storage *)((caddr_t)sas + sizeof(*sin));
+							actual += sizeof(*sin);
+#ifdef INET6
+						}
+#endif
+						if (actual >= limit) {
+							return (actual);
+						}
+					} else {
 						continue;
 					}
-					memcpy(sas, sin6, sizeof(*sin6));
-					((struct sockaddr_in6 *)sas)->sin6_port = inp->sctp_lport;
-					sas = (struct sockaddr_storage *)((caddr_t)sas + sizeof(*sin6));
-					actual += sizeof(*sin6);
-					if (actual >= limit) {
-						return (actual);
+					break;
+#ifdef INET6
+				case AF_INET6:
+					if (ipv6_addr_legal) {
+						struct sockaddr_in6 *sin6;
+
+						sin6 = (struct sockaddr_in6 *)&sctp_ifa->address.sa;
+						if (IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr)) {
+							/*
+							 * we skip
+							 * unspecifed
+							 * addresses
+							 */
+							continue;
+						}
+						if (IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr)) {
+							if (local_scope == 0)
+								continue;
+							if (sin6->sin6_scope_id == 0) {
+								if (sa6_recoverscope(sin6) != 0)
+									/*
+									 * 
+									 * bad
+									 * 
+									 * li
+									 * nk
+									 * 
+									 * loc
+									 * al
+									 * 
+									 * add
+									 * re
+									 * ss
+									 * */
+									continue;
+							}
+						}
+						if ((site_scope == 0) &&
+						    (IN6_IS_ADDR_SITELOCAL(&sin6->sin6_addr))) {
+							continue;
+						}
+						memcpy(sas, sin6, sizeof(*sin6));
+						((struct sockaddr_in6 *)sas)->sin6_port = inp->sctp_lport;
+						sas = (struct sockaddr_storage *)((caddr_t)sas + sizeof(*sin6));
+						actual += sizeof(*sin6);
+						if (actual >= limit) {
+							return (actual);
+						}
+					} else {
+						continue;
 					}
+					break;
+#endif
+				default:
+					/* TSNH */
+					break;
 				}
 			}
 		}
@@ -1303,7 +1334,7 @@ sctp_count_max_addresses_vrf(struct sctp_inpcb *inp, uint32_t vrf_id)
 			LIST_FOREACH(sctp_ifa, &sctp_ifn->ifalist, next_ifa) {
 				/* Count them if they are the right type */
 				if (sctp_ifa->address.sa.sa_family == AF_INET) {
-					if (inp->sctp_flags & SCTP_PCB_FLAGS_NEEDS_MAPPED_V4)
+					if (sctp_is_feature_on(inp, SCTP_PCB_FLAGS_NEEDS_MAPPED_V4))
 						cnt += sizeof(struct sockaddr_in6);
 					else
 						cnt += sizeof(struct sockaddr_in);
@@ -1317,7 +1348,7 @@ sctp_count_max_addresses_vrf(struct sctp_inpcb *inp, uint32_t vrf_id)
 
 		LIST_FOREACH(laddr, &inp->sctp_addr_list, sctp_nxt_addr) {
 			if (laddr->ifa->address.sa.sa_family == AF_INET) {
-				if (inp->sctp_flags & SCTP_PCB_FLAGS_NEEDS_MAPPED_V4)
+				if (sctp_is_feature_on(inp, SCTP_PCB_FLAGS_NEEDS_MAPPED_V4))
 					cnt += sizeof(struct sockaddr_in6);
 				else
 					cnt += sizeof(struct sockaddr_in);
@@ -1972,7 +2003,7 @@ flags_out:
 				size = 0;
 				/* Count the sizes */
 				TAILQ_FOREACH(net, &stcb->asoc.nets, sctp_next) {
-					if ((stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_NEEDS_MAPPED_V4) ||
+					if ((sctp_is_feature_on(inp, SCTP_PCB_FLAGS_NEEDS_MAPPED_V4)) ||
 					    (((struct sockaddr *)&net->ro._l_addr)->sa_family == AF_INET6)) {
 						size += sizeof(struct sockaddr_in6);
 					} else if (((struct sockaddr *)&net->ro._l_addr)->sa_family == AF_INET) {
@@ -2011,7 +2042,7 @@ flags_out:
 				sas = (struct sockaddr_storage *)&saddr->addr[0];
 
 				TAILQ_FOREACH(net, &stcb->asoc.nets, sctp_next) {
-					if ((stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_NEEDS_MAPPED_V4) ||
+					if ((sctp_is_feature_on(inp, SCTP_PCB_FLAGS_NEEDS_MAPPED_V4)) ||
 					    (((struct sockaddr *)&net->ro._l_addr)->sa_family == AF_INET6)) {
 						cpsz = sizeof(struct sockaddr_in6);
 					} else if (((struct sockaddr *)&net->ro._l_addr)->sa_family == AF_INET) {
@@ -2024,14 +2055,18 @@ flags_out:
 						/* not enough room. */
 						break;
 					}
-					if ((stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_NEEDS_MAPPED_V4) &&
+#ifdef INET6
+					if ((sctp_is_feature_on(inp, SCTP_PCB_FLAGS_NEEDS_MAPPED_V4)) &&
 					    (((struct sockaddr *)&net->ro._l_addr)->sa_family == AF_INET)) {
 						/* Must map the address */
 						in6_sin_2_v4mapsin6((struct sockaddr_in *)&net->ro._l_addr,
 						    (struct sockaddr_in6 *)sas);
 					} else {
+#endif
 						memcpy(sas, &net->ro._l_addr, cpsz);
+#ifdef INET6
 					}
+#endif
 					((struct sockaddr_in *)sas)->sin_port = stcb->rport;
 
 					sas = (struct sockaddr_storage *)((caddr_t)sas + cpsz);
@@ -4213,8 +4248,10 @@ sctp_accept(struct socket *so, struct sockaddr **addr)
 	struct sctp_inpcb *inp;
 	union sctp_sockstore store;
 
+#ifdef INET6
 	int error;
 
+#endif
 	inp = (struct sctp_inpcb *)so->so_pcb;
 
 	if (inp == 0) {
@@ -4242,29 +4279,41 @@ sctp_accept(struct socket *so, struct sockaddr **addr)
 	SCTP_INP_RUNLOCK(inp);
 	store = stcb->asoc.primary_destination->ro._l_addr;
 	SCTP_TCB_UNLOCK(stcb);
-	if (store.sa.sa_family == AF_INET) {
-		struct sockaddr_in *sin;
+	switch (store.sa.sa_family) {
+	case AF_INET:
+		{
+			struct sockaddr_in *sin;
 
-		SCTP_MALLOC_SONAME(sin, struct sockaddr_in *, sizeof *sin);
-		sin->sin_family = AF_INET;
-		sin->sin_len = sizeof(*sin);
-		sin->sin_port = ((struct sockaddr_in *)&store)->sin_port;
-		sin->sin_addr = ((struct sockaddr_in *)&store)->sin_addr;
-		*addr = (struct sockaddr *)sin;
-	} else {
-		struct sockaddr_in6 *sin6;
-
-		SCTP_MALLOC_SONAME(sin6, struct sockaddr_in6 *, sizeof *sin6);
-		sin6->sin6_family = AF_INET6;
-		sin6->sin6_len = sizeof(*sin6);
-		sin6->sin6_port = ((struct sockaddr_in6 *)&store)->sin6_port;
-
-		sin6->sin6_addr = ((struct sockaddr_in6 *)&store)->sin6_addr;
-		if ((error = sa6_recoverscope(sin6)) != 0) {
-			SCTP_FREE_SONAME(sin6);
-			return (error);
+			SCTP_MALLOC_SONAME(sin, struct sockaddr_in *, sizeof *sin);
+			sin->sin_family = AF_INET;
+			sin->sin_len = sizeof(*sin);
+			sin->sin_port = ((struct sockaddr_in *)&store)->sin_port;
+			sin->sin_addr = ((struct sockaddr_in *)&store)->sin_addr;
+			*addr = (struct sockaddr *)sin;
+			break;
 		}
-		*addr = (struct sockaddr *)sin6;
+#ifdef INET6
+	case AF_INET6:
+		{
+			struct sockaddr_in6 *sin6;
+
+			SCTP_MALLOC_SONAME(sin6, struct sockaddr_in6 *, sizeof *sin6);
+			sin6->sin6_family = AF_INET6;
+			sin6->sin6_len = sizeof(*sin6);
+			sin6->sin6_port = ((struct sockaddr_in6 *)&store)->sin6_port;
+
+			sin6->sin6_addr = ((struct sockaddr_in6 *)&store)->sin6_addr;
+			if ((error = sa6_recoverscope(sin6)) != 0) {
+				SCTP_FREE_SONAME(sin6);
+				return (error);
+			}
+			*addr = (struct sockaddr *)sin6;
+			break;
+		}
+#endif
+	default:
+		/* TSNH */
+		break;
 	}
 	/* Wake any delayed sleep action */
 	if (inp->sctp_flags & SCTP_PCB_FLAGS_DONT_WAKE) {
