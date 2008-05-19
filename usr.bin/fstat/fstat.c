@@ -348,7 +348,8 @@ dofiles(struct kinfo_proc *kp)
 	/*
 	 * current working directory vnode
 	 */
-	vtrans(filed.fd_cdir, CDIR, FREAD);
+	if (filed.fd_cdir)
+		vtrans(filed.fd_cdir, CDIR, FREAD);
 	/*
 	 * jail root, if any.
 	 */
