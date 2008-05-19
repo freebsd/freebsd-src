@@ -32,7 +32,7 @@
 .Nd "set/query 802.11 wireless debugging messages"
 .Sh SYNOPSIS
 .Nm
-.Op Fl i Ar ifnet
+.Op Fl d | Fl i Ar ifnet
 .Op Fl flag|+flag Ar ...
 .Sh DESCRIPTION
 The
@@ -46,6 +46,10 @@ Running
 without any options will display the current messages
 enabled for the specified network interface
 (by default, ``ath0').
+The default debugging level for new interfaces can be set
+by specifying the
+.Ar -d
+option.
 When run as the super-user
 .Nm
 can be used to enable and/or disable debugging messages.

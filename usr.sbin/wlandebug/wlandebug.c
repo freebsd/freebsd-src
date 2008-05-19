@@ -149,7 +149,7 @@ usage(void)
 {
 	int i;
 
-	fprintf(stderr, "usage: %s [-i device] [flags]\n", progname);
+	fprintf(stderr, "usage: %s [-d | -i device] [flags]\n", progname);
 	fprintf(stderr, "where flags are:\n");
 	for (i = 0; i < N(flags); i++)
 		printf("%s\n", flags[i].name);
@@ -160,11 +160,18 @@ static void
 setoid(char oid[], size_t oidlen, const char *wlan)
 {
 #ifdef __linux__
-	snprintf(oid, oidlen, "net.%s.debug", wlan);
+	if (wlan)
+		snprintf(oid, oidlen, "net.%s.debug", wlan);
 #elif __FreeBSD__
-	snprintf(oid, oidlen, "net.wlan.%s.debug", wlan+4);
+	if (wlan)
+		snprintf(oid, oidlen, "net.wlan.%s.debug", wlan+4);
+	else
+		snprintf(oid, oidlen, "net.wlan.debug");
 #elif __NetBSD__
-	snprintf(oid, oidlen, "net.link.ieee80211.%s.debug", wlan+4);
+	if (wlan)
+		snprintf(oid, oidlen, "net.link.ieee80211.%s.debug", wlan+4);
+	else
+		snprintf(oid, oidlen, "net.link.ieee80211.debug");
 #else
 #error "No support for this system"
 #endif
@@ -183,7 +190,10 @@ main(int argc, char *argv[])
 	progname = argv[0];
 	setoid(oid, sizeof(oid), "wlan0");
 	if (argc > 1) {
-		if (strcmp(argv[1], "-i") == 0) {
+		if (strcmp(argv[1], "-d") == 0) {
+			setoid(oid, sizeof(oid), NULL);
+			argc -= 1, argv += 1;
+		} else if (strcmp(argv[1], "-i") == 0) {
 			if (argc < 2)
 				errx(1, "missing interface name for -i option");
 			if (strncmp(argv[2], "wlan", 4) != 0)
