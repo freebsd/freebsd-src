@@ -472,6 +472,7 @@ __attribute__((packed));
 #define SCTP_PCB_FLAGS_NO_FRAGMENT	0x00100000
 #define SCTP_PCB_FLAGS_EXPLICIT_EOR     0x00400000
 #define SCTP_PCB_FLAGS_NEEDS_MAPPED_V4	0x00800000
+#define SCTP_PCB_FLAGS_MULTIPLE_ASCONFS	0x01000000
 
 /*-
  * mobility_features parameters (by micchie).Note
