@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD$");
  * Open the given provider and at least check if this is a block device.
  */
 int
-g_open(const char *name, int write)
+g_open(const char *name, int dowrite)
 {
 	char path[MAXPATHLEN];
 	int fd;
@@ -56,7 +56,7 @@ g_open(const char *name, int write)
 	else
 		snprintf(path, sizeof(path), "%s%s", _PATH_DEV, name);
 
-	fd = open(path, write ? O_RDWR : O_RDONLY);
+	fd = open(path, dowrite ? O_RDWR : O_RDONLY);
 	if (fd == -1)
 		return (-1);
 	/* Let try to get sectorsize, which will prove it is a GEOM provider. */
@@ -183,7 +183,7 @@ g_get_name(const char *ident, char *name, size_t size)
  * Find provider name by the given ID.
  */
 int
-g_open_by_ident(const char *ident, int write, char *name, size_t size)
+g_open_by_ident(const char *ident, int dowrite, char *name, size_t size)
 {
 	char lident[DISK_IDENT_SIZE];
 	struct gmesh mesh;
@@ -204,7 +204,7 @@ g_open_by_ident(const char *ident, int write, char *name, size_t size)
 	LIST_FOREACH(mp, &mesh.lg_class, lg_class) {
 		LIST_FOREACH(gp, &mp->lg_geom, lg_geom) {
 			LIST_FOREACH(pp, &gp->lg_provider, lg_provider) {
-				fd = g_open(pp->lg_name, write);
+				fd = g_open(pp->lg_name, dowrite);
 				if (fd == -1)
 					continue;
 				if (g_get_ident(fd, lident,
