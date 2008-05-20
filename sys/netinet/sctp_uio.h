@@ -507,6 +507,7 @@ struct sctp_authkey {
 
 /* SCTP_HMAC_IDENT */
 struct sctp_hmacalgo {
+	uint32_t shmac_number_of_idents;
 	uint16_t shmac_idents[0];
 };
 
