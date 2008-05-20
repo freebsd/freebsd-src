@@ -309,22 +309,22 @@ struct opacket {
 u_char	packet[512];		/* last inbound (icmp) packet */
 struct opacket	*outpacket;	/* last output (udp) packet */
 
-int	main __P((int, char *[]));
-int	wait_for_reply __P((int, struct msghdr *));
+int	main(int, char *[]);
+int	wait_for_reply(int, struct msghdr *);
 #ifdef IPSEC
 #ifdef IPSEC_POLICY_IPSEC
-int	setpolicy __P((int so, char *policy));
+int	setpolicy(int so, char *policy);
 #endif
 #endif
-void	send_probe __P((int, u_long));
-struct udphdr *get_udphdr __P((struct ip6_hdr *, u_char *));
-int	get_hoplim __P((struct msghdr *));
-double	deltaT __P((struct timeval *, struct timeval *));
-char	*pr_type __P((int));
-int	packet_ok __P((struct msghdr *, int, int));
-void	print __P((struct msghdr *, int));
-const char *inetname __P((struct sockaddr *));
-void	usage __P((void));
+void	send_probe(int, u_long);
+void	*get_uphdr(struct ip6_hdr *, u_char *);
+int	get_hoplim(struct msghdr *);
+double	deltaT(struct timeval *, struct timeval *);
+char	*pr_type(int);
+int	packet_ok(struct msghdr *, int, int);
+void	print(struct msghdr *, int);
+const char *inetname(struct sockaddr *);
+void	usage(void);
 
 int rcvsock;			/* receive (icmp) socket file descriptor */
 int sndsock;			/* send (udp) socket file descriptor */
@@ -357,7 +357,7 @@ int options;			/* socket options */
 int verbose;
 int waittime = 5;		/* time to wait for response (in seconds) */
 int nflag;			/* print addresses numerically */
-int useicmp;
+int useproto = IPPROTO_UDP;	/* protocol to use to send packet */
 int lflag;			/* print both numerical address & hostname */
 
 int
@@ -381,13 +381,6 @@ main(argc, argv)
 	if ((rcvsock = socket(AF_INET6, SOCK_RAW, IPPROTO_ICMPV6)) < 0) {
 		perror("socket(ICMPv6)");
 		exit(5);
-	}
-
-	/* revoke privs */
-	uid = getuid();
-	if (setresuid(uid, uid, uid) == -1) {
-		perror("setresuid");
-		exit(1);
 	}
 
 	size = sizeof(i);
@@ -418,7 +411,7 @@ main(argc, argv)
 
 	seq = 0;
 
-	while ((ch = getopt(argc, argv, "df:g:Ilm:np:q:rs:w:v")) != -1)
+	while ((ch = getopt(argc, argv, "df:g:Ilm:nNp:q:rs:Uvw:")) != -1)
 		switch (ch) {
 		case 'd':
 			options |= SO_DEBUG;
@@ -470,7 +463,7 @@ main(argc, argv)
 			freehostent(hp);
 			break;
 		case 'I':
-			useicmp++;
+			useproto = IPPROTO_ICMPV6;
 			ident = htons(getpid() & 0xffff); /* same as ping6 */
 			break;
 		case 'l':
@@ -488,6 +481,9 @@ main(argc, argv)
 			break;
 		case 'n':
 			nflag++;
+			break;
+		case 'N':
+			useproto = IPPROTO_NONE;
 			break;
 		case 'p':
 			ep = NULL;
@@ -532,6 +528,9 @@ main(argc, argv)
 		case 'v':
 			verbose++;
 			break;
+		case 'U':
+			useproto = IPPROTO_UDP;
+			break;
 		case 'w':
 			ep = NULL;
 			errno = 0;
@@ -553,11 +552,43 @@ main(argc, argv)
 	argc -= optind;
 	argv += optind;
 
+	/*
+	 * Open socket to send probe packets.
+	 */
+	switch (useproto) {
+	case IPPROTO_ICMPV6:
+		sndsock = rcvsock;
+		break;
+	case IPPROTO_UDP:
+		if ((sndsock = socket(AF_INET6, SOCK_DGRAM, 0)) < 0) {
+			perror("socket(SOCK_DGRAM)");
+			exit(5);
+		}
+		break;
+	case IPPROTO_NONE:
+        	if ((sndsock = socket(AF_INET6, SOCK_RAW, IPPROTO_NONE)) < 0) {
+			perror("socket(SOCK_RAW)");
+			exit(5);
+		}
+		break;
+	default:
+		fprintf(stderr, "traceroute6: unknown probe protocol %d",
+		    useproto);
+		exit(5);
+	}
 	if (max_hops < first_hop) {
 		fprintf(stderr,
 		    "traceroute6: max hoplimit must be larger than first hoplimit.\n");
 		exit(1);
 	}
+
+	/* revoke privs */
+	uid = getuid();
+	if (setresuid(uid, uid, uid) == -1) {
+		perror("setresuid");
+		exit(1);
+	}
+
 
 	if (argc < 1 || argc > 2)
 		usage();
@@ -608,10 +639,22 @@ main(argc, argv)
 			exit(1);
 		}
 	}
-	if (useicmp)
+	switch (useproto) {
+	case IPPROTO_ICMPV6:
 		minlen = ICMP6ECHOLEN + sizeof(struct tv32);
-	else
+		break;
+	case IPPROTO_UDP:
 		minlen = sizeof(struct opacket);
+		break;
+	case IPPROTO_NONE:
+		minlen = 0;
+		datalen = 0;
+		break;
+	default:
+		fprintf(stderr, "traceroute6: unknown probe protocol %d.\n",
+		    useproto);
+		exit(1);
+	}
 	if (datalen < minlen)
 		datalen = minlen;
 	else if (datalen >= MAXPACKET) {
@@ -682,21 +725,10 @@ main(argc, argv)
 #endif /*IPSEC_POLICY_IPSEC*/
 #endif /*IPSEC*/
 
-	/*
-	 * Send UDP or ICMP
-	 */
-	if (useicmp) {
-		sndsock = rcvsock;
-	} else {
-		if ((sndsock = socket(AF_INET6, SOCK_DGRAM, 0)) < 0) {
-			perror("socket(SOCK_DGRAM)");
-			exit(5);
-		}
-	}
 #ifdef SO_SNDBUF
 	i = datalen;
 	if (setsockopt(sndsock, SOL_SOCKET, SO_SNDBUF, (char *)&i,
-	    sizeof(i)) < 0) {
+	    sizeof(i)) < 0 && useproto != IPPROTO_NONE) {
 		perror("setsockopt(SO_SNDBUF)");
 		exit(6);
 	}
@@ -873,6 +905,8 @@ main(argc, argv)
 				if ((i = packet_ok(&rcvmhdr, cc, seq))) {
 					if (!IN6_ARE_ADDR_EQUAL(&Rcv.sin6_addr,
 					    &lastaddr)) {
+						if (probe > 0)
+							fputs("\n   ", stdout);
 						print(&rcvmhdr, cc);
 						lastaddr = Rcv.sin6_addr;
 					}
@@ -984,6 +1018,8 @@ send_probe(seq, hops)
 	int seq;
 	u_long hops;
 {
+	struct icmp6_hdr *icp;
+	struct opacket *op;
 	struct timeval tv;
 	struct tv32 tv32;
 	int i;
@@ -999,8 +1035,9 @@ send_probe(seq, hops)
 	tv32.tv32_sec = htonl(tv.tv_sec);
 	tv32.tv32_usec = htonl(tv.tv_usec);
 
-	if (useicmp) {
-		struct icmp6_hdr *icp = (struct icmp6_hdr *)outpacket;
+	switch (useproto) {
+	case IPPROTO_ICMPV6:
+		icp = (struct icmp6_hdr *)outpacket;
 
 		icp->icmp6_type = ICMP6_ECHO_REQUEST;
 		icp->icmp6_code = 0;
@@ -1009,12 +1046,20 @@ send_probe(seq, hops)
 		icp->icmp6_seq = htons(seq);
 		bcopy(&tv32, ((u_int8_t *)outpacket + ICMP6ECHOLEN),
 		    sizeof(tv32));
-	} else {
-		struct opacket *op = outpacket;
+		break;
+	case IPPROTO_UDP:
+		op = outpacket;
 
 		op->seq = seq;
 		op->hops = hops;
 		bcopy(&tv32, &op->tv, sizeof tv32);
+		break;
+	case IPPROTO_NONE:
+		/* No space for anything. No harm as seq/tv32 are decorative. */
+		break;
+	default:
+		fprintf(stderr, "Unknown probe protocol %d.\n", useproto);
+		exit(1);
 	}
 
 	i = sendto(sndsock, (char *)outpacket, datalen, 0,
@@ -1194,23 +1239,34 @@ packet_ok(mhdr, cc, seq)
 	if ((type == ICMP6_TIME_EXCEEDED && code == ICMP6_TIME_EXCEED_TRANSIT)
 	    || type == ICMP6_DST_UNREACH) {
 		struct ip6_hdr *hip;
-		struct udphdr *up;
+		void *up;
 
 		hip = (struct ip6_hdr *)(icp + 1);
-		if ((up = get_udphdr(hip, (u_char *)(buf + cc))) == NULL) {
+		if ((up = get_uphdr(hip, (u_char *)(buf + cc))) == NULL) {
 			if (verbose)
 				warnx("failed to get upper layer header");
 			return(0);
 		}
-		if (useicmp &&
-		    ((struct icmp6_hdr *)up)->icmp6_id == ident &&
-		    ((struct icmp6_hdr *)up)->icmp6_seq == htons(seq))
-			return (type == ICMP6_TIME_EXCEEDED ? -1 : code + 1);
-		else if (!useicmp &&
-		    up->uh_sport == htons(srcport) &&
-		    up->uh_dport == htons(port + seq))
-			return (type == ICMP6_TIME_EXCEEDED ? -1 : code + 1);
-	} else if (useicmp && type == ICMP6_ECHO_REPLY) {
+		switch (useproto) {
+		case IPPROTO_ICMPV6:
+			if (((struct icmp6_hdr *)up)->icmp6_id == ident &&
+			    ((struct icmp6_hdr *)up)->icmp6_seq == htons(seq))
+				return (type == ICMP6_TIME_EXCEEDED ?
+				    -1 : code + 1);
+			break;
+		case IPPROTO_UDP:
+			if (((struct udphdr *)up)->uh_sport == htons(srcport) &&
+			    ((struct udphdr *)up)->uh_dport == htons(port + seq))
+				return (type == ICMP6_TIME_EXCEEDED ?
+				    -1 : code + 1);
+			break;
+		case IPPROTO_NONE:
+			return (type == ICMP6_TIME_EXCEEDED ?  -1 : code + 1);
+		default:
+			fprintf(stderr, "Unknown probe proto %d.\n", useproto);
+			break;
+		}
+	} else if (useproto == IPPROTO_ICMPV6 && type == ICMP6_ECHO_REPLY) {
 		if (icp->icmp6_id == ident &&
 		    icp->icmp6_seq == htons(seq))
 			return (ICMP6_DST_UNREACH_NOPORT + 1);
@@ -1248,29 +1304,32 @@ packet_ok(mhdr, cc, seq)
 /*
  * Increment pointer until find the UDP or ICMP header.
  */
-struct udphdr *
-get_udphdr(ip6, lim)
+void *
+get_uphdr(ip6, lim)
 	struct ip6_hdr *ip6;
 	u_char *lim;
 {
 	u_char *cp = (u_char *)ip6, nh;
 	int hlen;
+	static u_char none_hdr[1]; /* Fake pointer for IPPROTO_NONE. */
 
-	if (cp + sizeof(*ip6) >= lim)
+	if (cp + sizeof(*ip6) > lim)
 		return(NULL);
 
 	nh = ip6->ip6_nxt;
 	cp += sizeof(struct ip6_hdr);
 
-	while (lim - cp >= 8) {
+	while (lim - cp >= (nh == IPPROTO_NONE ? 0 : 8)) {
 		switch (nh) {
 		case IPPROTO_ESP:
 		case IPPROTO_TCP:
 			return(NULL);
 		case IPPROTO_ICMPV6:
-			return(useicmp ? (struct udphdr *)cp : NULL);
+			return(useproto == nh ? cp : NULL);
 		case IPPROTO_UDP:
-			return(useicmp ? NULL : (struct udphdr *)cp);
+			return(useproto == nh ? cp : NULL);
+		case IPPROTO_NONE:
+			return(useproto == nh ? none_hdr : NULL);
 		case IPPROTO_FRAGMENT:
 			hlen = sizeof(struct ip6_frag);
 			nh = ((struct ip6_frag *)cp)->ip6f_nxt;
@@ -1367,7 +1426,7 @@ usage()
 {
 
 	fprintf(stderr,
-"usage: traceroute6 [-dIlnrv] [-f firsthop] [-g gateway] [-m hoplimit]\n"
+"usage: traceroute6 [-dIlnNrUv] [-f firsthop] [-g gateway] [-m hoplimit]\n"
 "       [-p port] [-q probes] [-s src] [-w waittime] target [datalen]\n");
 	exit(1);
 }
