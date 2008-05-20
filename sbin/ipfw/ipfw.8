@@ -1937,6 +1937,13 @@ or 20s of queue on a 30Kbit/s pipe.
 Even worse effects can result if you get packets from an
 interface with a much larger MTU, e.g.\& the loopback interface
 with its 16KB packets.
+The
+.Xr sysctl 8
+variables
+.Em net.inet.ip.dummynet.pipe_byte_limit
+and
+.Em net.inet.ip.dummynet.pipe_slot_limit
+control the maximum lengths that can be specified.
 .Pp
 .It Cm red | gred Ar w_q Ns / Ns Ar min_th Ns / Ns Ar max_th Ns / Ns Ar max_p
 Make use of the RED (Random Early Detection) queue management algorithm.
@@ -2092,6 +2099,13 @@ will be expired even when
 .It Em net.inet.ip.dummynet.red_max_pkt_size : No 1500
 Parameters used in the computations of the drop probability
 for the RED algorithm.
+.It Va net.inet.ip.dummynet.pipe_byte_limit : No 1048576
+.It Va net.inet.ip.dummynet.pipe_slot_limit : No 100
+The maximum queue size that can be specified in bytes or packets.
+These limits prevent accidental exhaustion of resources such as mbufs.
+If you raise these limits,
+you should make sure the system is configured so that sufficient resources
+are available.
 .It Em net.inet.ip.fw.autoinc_step : No 100
 Delta between rule numbers when auto-generating them.
 The value must be in the range 1..1000.
