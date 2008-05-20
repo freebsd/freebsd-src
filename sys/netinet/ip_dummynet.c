@@ -98,6 +98,9 @@ static long searches, search_steps ;
 static int pipe_expire = 1 ;   /* expire queue if empty */
 static int dn_max_ratio = 16 ; /* max queues/buckets ratio */
 
+static long pipe_slot_limit = 100; /* Foot shooting limit for pipe queues. */
+static long pipe_byte_limit = 1024 * 1024;
+
 static int red_lookup_depth = 256;	/* RED - default lookup table depth */
 static int red_avg_pkt_size = 512;      /* RED - default medium packet size */
 static int red_max_pkt_size = 1500;     /* RED - default max packet size */
@@ -198,6 +201,10 @@ SYSCTL_ULONG(_net_inet_ip_dummynet, OID_AUTO, io_pkt_fast,
 SYSCTL_ULONG(_net_inet_ip_dummynet, OID_AUTO, io_pkt_drop,
     CTLFLAG_RD, &io_pkt_drop, 0,
     "Number of packets dropped by dummynet.");
+SYSCTL_LONG(_net_inet_ip_dummynet, OID_AUTO, pipe_slot_limit,
+    CTLFLAG_RW, &pipe_slot_limit, 0, "Upper limit in slots for pipe queue.");
+SYSCTL_LONG(_net_inet_ip_dummynet, OID_AUTO, pipe_byte_limit,
+    CTLFLAG_RW, &pipe_byte_limit, 0, "Upper limit in bytes for pipe queue.");
 #endif
 
 #ifdef DUMMYNET_DEBUG
@@ -1725,12 +1732,12 @@ set_fs_parms(struct dn_flow_set *x, struct dn_flow_set *src)
 	x->plr = src->plr;
 	x->flow_mask = src->flow_mask;
 	if (x->flags_fs & DN_QSIZE_IS_BYTES) {
-		if (x->qsize > 1024 * 1024)
+		if (x->qsize > pipe_byte_limit)
 			x->qsize = 1024 * 1024;
 	} else {
 		if (x->qsize == 0)
 			x->qsize = 50;
-		if (x->qsize > 100)
+		if (x->qsize > pipe_slot_limit)
 			x->qsize = 50;
 	}
 	/* Configuring RED. */

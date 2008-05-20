@@ -3485,11 +3485,25 @@ end_mask:
 			errx(EX_DATAERR, "weight must be <= 100");
 	}
 	if (p.fs.flags_fs & DN_QSIZE_IS_BYTES) {
-		if (p.fs.qsize > 1024*1024)
-			errx(EX_DATAERR, "queue size must be < 1MB");
+		size_t len;
+		long limit;
+
+		len = sizeof(limit);
+		if (sysctlbyname("net.inet.ip.dummynet.pipe_byte_limit",
+			&limit, &len, NULL, 0) == -1)
+			limit = 1024*1024;
+		if (p.fs.qsize > limit)
+			errx(EX_DATAERR, "queue size must be < %ldB", limit);
 	} else {
-		if (p.fs.qsize > 100)
-			errx(EX_DATAERR, "2 <= queue size <= 100");
+		size_t len;
+		long limit;
+
+		len = sizeof(limit);
+		if (sysctlbyname("net.inet.ip.dummynet.pipe_slot_limit",
+			&limit, &len, NULL, 0) == -1)
+			limit = 100;
+		if (p.fs.qsize > limit)
+			errx(EX_DATAERR, "2 <= queue size <= %ld", limit);
 	}
 	if (p.fs.flags_fs & DN_IS_RED) {
 		size_t len;
@@ -3507,7 +3521,6 @@ end_mask:
 		len = sizeof(int);
 		if (sysctlbyname("net.inet.ip.dummynet.red_lookup_depth",
 			&lookup_depth, &len, NULL, 0) == -1)
-
 		    errx(1, "sysctlbyname(\"%s\")",
 			"net.inet.ip.dummynet.red_lookup_depth");
 		if (lookup_depth == 0)
