@@ -45,7 +45,10 @@ __FBSDID("$FreeBSD$");
 #include <netinet/sctp_output.h>
 #include <netinet/sctp_timer.h>
 #include <netinet/sctp_bsd_addr.h>
+#include <netinet/udp.h>
 
+
+void sctp_pcb_finish(void);
 
 struct sctp_epinfo sctppcbinfo;
 
@@ -53,16 +56,19 @@ struct sctp_epinfo sctppcbinfo;
 /* "scopeless" replacement IN6_ARE_ADDR_EQUAL */
 #ifdef INET6
 int
-SCTP6_ARE_ADDR_EQUAL(struct in6_addr *a, struct in6_addr *b)
+SCTP6_ARE_ADDR_EQUAL(struct sockaddr_in6 *a, struct sockaddr_in6 *b)
 {
-	struct in6_addr tmp_a, tmp_b;
+	struct sockaddr_in6 tmp_a, tmp_b;
 
-	/* use a copy of a and b */
-	tmp_a = *a;
-	tmp_b = *b;
-	in6_clearscope(&tmp_a);
-	in6_clearscope(&tmp_b);
-	return (IN6_ARE_ADDR_EQUAL(&tmp_a, &tmp_b));
+	memcpy(&tmp_a, a, sizeof(struct sockaddr_in6));
+	if (sa6_embedscope(&tmp_a, ip6_use_defzone) != 0) {
+		return 0;
+	}
+	memcpy(&tmp_b, b, sizeof(struct sockaddr_in6));
+	if (sa6_embedscope(&tmp_b, ip6_use_defzone) != 0) {
+		return 0;
+	}
+	return (IN6_ARE_ADDR_EQUAL(&tmp_a.sin6_addr, &tmp_b.sin6_addr));
 }
 
 #endif
@@ -916,8 +922,8 @@ sctp_tcb_special_locate(struct sctp_inpcb **inp_p, struct sockaddr *from,
 						    to;
 						intf_addr6 = &laddr->ifa->address.sin6;
 
-						if (SCTP6_ARE_ADDR_EQUAL(&sin6->sin6_addr,
-						    &intf_addr6->sin6_addr)) {
+						if (SCTP6_ARE_ADDR_EQUAL(sin6,
+						    intf_addr6)) {
 							match = 1;
 							break;
 						}
@@ -990,8 +996,8 @@ sctp_tcb_special_locate(struct sctp_inpcb **inp_p, struct sockaddr *from,
 
 					sin6 = (struct sockaddr_in6 *)&net->ro._l_addr;
 					rsin6 = (struct sockaddr_in6 *)from;
-					if (SCTP6_ARE_ADDR_EQUAL(&sin6->sin6_addr,
-					    &rsin6->sin6_addr)) {
+					if (SCTP6_ARE_ADDR_EQUAL(sin6,
+					    rsin6)) {
 						/* found it */
 						if (netp != NULL) {
 							*netp = net;
@@ -1147,8 +1153,8 @@ sctp_findassociation_ep_addr(struct sctp_inpcb **inp_p, struct sockaddr *remote,
 
 						sin6 = (struct sockaddr_in6 *)&net->ro._l_addr;
 						rsin6 = (struct sockaddr_in6 *)remote;
-						if (SCTP6_ARE_ADDR_EQUAL(&sin6->sin6_addr,
-						    &rsin6->sin6_addr)) {
+						if (SCTP6_ARE_ADDR_EQUAL(sin6,
+						    rsin6)) {
 							/* found it */
 							if (netp != NULL) {
 								*netp = net;
@@ -1245,8 +1251,8 @@ sctp_findassociation_ep_addr(struct sctp_inpcb **inp_p, struct sockaddr *remote,
 						sin6 = (struct sockaddr_in6 *)
 						    &net->ro._l_addr;
 						rsin6 = (struct sockaddr_in6 *)remote;
-						if (SCTP6_ARE_ADDR_EQUAL(&sin6->sin6_addr,
-						    &rsin6->sin6_addr)) {
+						if (SCTP6_ARE_ADDR_EQUAL(sin6,
+						    rsin6)) {
 							/* found it */
 							if (netp != NULL) {
 								*netp = net;
@@ -1536,8 +1542,8 @@ sctp_endpoint_probe(struct sockaddr *nam, struct sctppcbhead *head,
 #ifdef INET6
 				case AF_INET6:
 					intf_addr6 = &laddr->ifa->address.sin6;
-					if (SCTP6_ARE_ADDR_EQUAL(&sin6->sin6_addr,
-					    &intf_addr6->sin6_addr)) {
+					if (SCTP6_ARE_ADDR_EQUAL(sin6,
+					    intf_addr6)) {
 						SCTP_INP_RUNLOCK(inp);
 						return (inp);
 					}
@@ -2775,6 +2781,11 @@ sctp_inpcb_bind(struct socket *so, struct sockaddr *addr,
 			sctp_feature_on(inp, SCTP_PCB_FLAGS_DO_ASCONF);
 			sctp_feature_on(inp, SCTP_PCB_FLAGS_AUTO_ASCONF);
 		}
+		if (sctp_multiple_asconfs == 0) {
+			sctp_feature_off(inp, SCTP_PCB_FLAGS_MULTIPLE_ASCONFS);
+		} else {
+			sctp_feature_on(inp, SCTP_PCB_FLAGS_MULTIPLE_ASCONFS);
+		}
 		/*
 		 * set the automatic mobility_base from kernel flag (by
 		 * micchie)
@@ -3506,6 +3517,7 @@ sctp_add_remote_addr(struct sctp_tcb *stcb, struct sockaddr *newaddr,
 				addr_inscope = 0;
 			}
 		}
+#ifdef INET6
 	} else if (newaddr->sa_family == AF_INET6) {
 		struct sockaddr_in6 *sin6;
 
@@ -3553,6 +3565,7 @@ sctp_add_remote_addr(struct sctp_tcb *stcb, struct sockaddr *newaddr,
 				addr_inscope = 0;
 			}
 		}
+#endif
 	} else {
 		/* not supported family type */
 		return (-1);
@@ -3599,6 +3612,11 @@ sctp_add_remote_addr(struct sctp_tcb *stcb, struct sockaddr *newaddr,
 	stcb->asoc.numnets++;
 	*(&net->ref_count) = 1;
 	net->tos_flowlabel = 0;
+	if (sctp_udp_tunneling_for_client_enable) {
+		net->port = htons(sctp_udp_tunneling_port);
+	} else {
+		net->port = 0;
+	}
 #ifdef INET
 	if (newaddr->sa_family == AF_INET)
 		net->tos_flowlabel = stcb->asoc.default_tos;
@@ -3625,14 +3643,6 @@ sctp_add_remote_addr(struct sctp_tcb *stcb, struct sockaddr *newaddr,
 #endif
 	SCTP_RTALLOC((sctp_route_t *) & net->ro, stcb->asoc.vrf_id);
 
-#ifdef INET6
-	if (newaddr->sa_family == AF_INET6) {
-		struct sockaddr_in6 *sin6;
-
-		sin6 = (struct sockaddr_in6 *)&net->ro._l_addr;
-		(void)sa6_recoverscope(sin6);
-	}
-#endif
 	if (SCTP_ROUTE_HAS_VALID_IFN(&net->ro)) {
 		/* Get source address */
 		net->ro._s_addr = sctp_source_address_selection(stcb->sctp_ep,
@@ -3684,6 +3694,17 @@ sctp_add_remote_addr(struct sctp_tcb *stcb, struct sockaddr *newaddr,
 		}
 	} else {
 		net->mtu = stcb->asoc.smallest_mtu;
+	}
+#ifdef INET6
+	if (newaddr->sa_family == AF_INET6) {
+		struct sockaddr_in6 *sin6;
+
+		sin6 = (struct sockaddr_in6 *)&net->ro._l_addr;
+		(void)sa6_recoverscope(sin6);
+	}
+#endif
+	if (net->port) {
+		net->mtu -= sizeof(struct udphdr);
 	}
 	if (stcb->asoc.smallest_mtu > net->mtu) {
 #ifdef SCTP_PRINT_FOR_B_AND_M
@@ -4004,7 +4025,7 @@ sctp_remove_net(struct sctp_tcb *stcb, struct sctp_nets *net)
 			SCTPDBG(SCTP_DEBUG_ASCONF1, "remove_net: primary dst is deleting\n");
 			if (asoc->deleted_primary != NULL) {
 				SCTPDBG(SCTP_DEBUG_ASCONF1, "remove_net: deleted primary may be already stored\n");
-				goto leave;
+				goto out;
 			}
 			asoc->deleted_primary = net;
 			atomic_add_int(&net->ref_count, 1);
@@ -4015,7 +4036,7 @@ sctp_remove_net(struct sctp_tcb *stcb, struct sctp_nets *net)
 			sctp_timer_start(SCTP_TIMER_TYPE_PRIM_DELETED,
 			    stcb->sctp_ep, stcb, NULL);
 		}
-leave:
+out:
 		/* Try to find a confirmed primary */
 		asoc->primary_destination = sctp_find_alternate_net(stcb, lnet, 0);
 	}
@@ -4622,6 +4643,30 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 /*
   if(ccnt) {
   printf("Freed %d from ctrl_queue\n", ccnt);
+  ccnt = 0;
+  }
+*/
+
+	/* ASCONF queue MAY not be empty */
+	if (!TAILQ_EMPTY(&asoc->asconf_send_queue)) {
+		chk = TAILQ_FIRST(&asoc->asconf_send_queue);
+		while (chk) {
+			TAILQ_REMOVE(&asoc->asconf_send_queue, chk, sctp_next);
+			if (chk->data) {
+				sctp_m_freem(chk->data);
+				chk->data = NULL;
+			}
+			ccnt++;
+			sctp_free_remote_addr(chk->whoTo);
+			SCTP_ZONE_FREE(sctppcbinfo.ipi_zone_chunk, chk);
+			SCTP_DECR_CHK_COUNT();
+			/* sa_ignore FREED_MEMORY */
+			chk = TAILQ_FIRST(&asoc->asconf_send_queue);
+		}
+	}
+/*
+  if(ccnt) {
+  printf("Freed %d from asconf_queue\n", ccnt);
   ccnt = 0;
   }
 */
@@ -5239,6 +5284,10 @@ sctp_pcb_init()
 	    sizeof(struct sctp_stream_queue_pending),
 	    (sctp_max_number_of_assoc * sctp_chunkscale));
 
+	SCTP_ZONE_INIT(sctppcbinfo.ipi_zone_asconf, "sctp_asconf",
+	    sizeof(struct sctp_asconf),
+	    (sctp_max_number_of_assoc * sctp_chunkscale));
+
 	SCTP_ZONE_INIT(sctppcbinfo.ipi_zone_asconf_ack, "sctp_asconf_ack",
 	    sizeof(struct sctp_asconf_ack),
 	    (sctp_max_number_of_assoc * sctp_chunkscale));
@@ -5296,6 +5345,73 @@ sctp_pcb_init()
 	 */
 	sctp_init_vrf_list(SCTP_DEFAULT_VRF);
 
+}
+
+/*
+ * Assumes that the sctppcbinfo lock is NOT held.
+ */
+void
+sctp_pcb_finish(void)
+{
+	struct sctp_vrflist *vrf_bucket;
+	struct sctp_vrf *vrf;
+	struct sctp_ifn *ifn;
+	struct sctp_ifa *ifa;
+
+	/* FIXME MT */
+	/*
+	 * free the vrf/ifn/ifa lists and hashes (be sure address monitor is
+	 * destroyed first).
+	 */
+	vrf_bucket = &sctppcbinfo.sctp_vrfhash[(SCTP_DEFAULT_VRFID & sctppcbinfo.hashvrfmark)];
+	vrf = LIST_FIRST(vrf_bucket);
+	while (vrf) {
+		ifn = LIST_FIRST(&vrf->ifnlist);
+		while (ifn) {
+			ifa = LIST_FIRST(&ifn->ifalist);
+			while (ifa) {
+				/* free the ifa */
+				LIST_REMOVE(ifa, next_bucket);
+				LIST_REMOVE(ifa, next_ifa);
+				SCTP_FREE(ifa, SCTP_M_IFA);
+				ifa = LIST_FIRST(&ifn->ifalist);
+			}
+			/* free the ifn */
+			LIST_REMOVE(ifn, next_bucket);
+			LIST_REMOVE(ifn, next_ifn);
+			SCTP_FREE(ifn, SCTP_M_IFN);
+			ifn = LIST_FIRST(&vrf->ifnlist);
+		}
+		SCTP_HASH_FREE(vrf->vrf_addr_hash, vrf->vrf_addr_hashmark);
+		/* free the vrf */
+		LIST_REMOVE(vrf, next_vrf);
+		SCTP_FREE(vrf, SCTP_M_VRF);
+		vrf = LIST_FIRST(vrf_bucket);
+	}
+	/* free the vrf hashes */
+	SCTP_HASH_FREE(sctppcbinfo.sctp_vrfhash, sctppcbinfo.hashvrfmark);
+	SCTP_HASH_FREE(sctppcbinfo.vrf_ifn_hash, sctppcbinfo.vrf_ifn_hashmark);
+
+	/* free the locks and mutexes */
+#ifdef SCTP_PACKET_LOGGING
+	SCTP_IP_PKTLOG_DESTROY();
+
+#endif
+	SCTP_IPI_ITERATOR_WQ_DESTROY();
+	SCTP_IPI_ADDR_DESTROY();
+	SCTP_ITERATOR_LOCK_DESTROY();
+	SCTP_STATLOG_DESTROY();
+	SCTP_INP_INFO_LOCK_DESTROY();
+
+	SCTP_ZONE_DESTROY(sctppcbinfo.ipi_zone_ep);
+	SCTP_ZONE_DESTROY(sctppcbinfo.ipi_zone_asoc);
+	SCTP_ZONE_DESTROY(sctppcbinfo.ipi_zone_laddr);
+	SCTP_ZONE_DESTROY(sctppcbinfo.ipi_zone_net);
+	SCTP_ZONE_DESTROY(sctppcbinfo.ipi_zone_chunk);
+	SCTP_ZONE_DESTROY(sctppcbinfo.ipi_zone_readq);
+	SCTP_ZONE_DESTROY(sctppcbinfo.ipi_zone_strmoq);
+	SCTP_ZONE_DESTROY(sctppcbinfo.ipi_zone_asconf);
+	SCTP_ZONE_DESTROY(sctppcbinfo.ipi_zone_asconf_ack);
 }
 
 

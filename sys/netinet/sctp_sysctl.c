@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 uint32_t sctp_sendspace = SCTPCTL_MAXDGRAM_DEFAULT;
 uint32_t sctp_recvspace = SCTPCTL_RECVSPACE_DEFAULT;
 uint32_t sctp_auto_asconf = SCTPCTL_AUTOASCONF_DEFAULT;
+uint32_t sctp_multiple_asconfs = SCTPCTL_MULTIPLEASCONFS_DEFAULT;
 uint32_t sctp_ecn_enable = SCTPCTL_ECN_ENABLE_DEFAULT;
 uint32_t sctp_ecn_nonce = SCTPCTL_ECN_NONCE_DEFAULT;
 uint32_t sctp_strict_sacks = SCTPCTL_STRICT_SACKS_DEFAULT;
@@ -102,6 +103,9 @@ uint32_t sctp_mobility_fasthandoff = SCTPCTL_MOBILITY_FASTHANDOFF_DEFAULT;
 struct sctp_log sctp_log;
 
 #endif
+uint32_t sctp_udp_tunneling_for_client_enable = SCTPCTL_UDP_TUNNELING_FOR_CLIENT_ENABLE_DEFAULT;
+uint32_t sctp_udp_tunneling_port = SCTPCTL_UDP_TUNNELING_PORT_DEFAULT;
+
 #ifdef SCTP_DEBUG
 uint32_t sctp_debug_on = SCTPCTL_DEBUG_DEFAULT;
 
@@ -493,9 +497,33 @@ sctp_assoclist(SYSCTL_HANDLER_ARGS)
 	return error;
 }
 
+
+
 #define RANGECHK(var, min, max) \
 	if ((var) < (min)) { (var) = (min); } \
 	else if ((var) > (max)) { (var) = (max); }
+
+static int
+sysctl_sctp_udp_tunneling_check(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+	uint32_t old_sctp_udp_tunneling_port;
+
+	old_sctp_udp_tunneling_port = sctp_udp_tunneling_port;
+	error = sysctl_handle_int(oidp, oidp->oid_arg1, oidp->oid_arg2, req);
+	if (error == 0) {
+		RANGECHK(sctp_udp_tunneling_port, SCTPCTL_UDP_TUNNELING_PORT_MIN, SCTPCTL_UDP_TUNNELING_PORT_MAX);
+		if (old_sctp_udp_tunneling_port) {
+			sctp_over_udp_stop();
+		}
+		if (sctp_udp_tunneling_port) {
+			if (sctp_over_udp_start()) {
+				sctp_udp_tunneling_port = 0;
+			}
+		}
+	}
+	return (error);
+}
 
 static int
 sysctl_sctp_check(SYSCTL_HANDLER_ARGS)
@@ -565,6 +593,7 @@ sysctl_sctp_check(SYSCTL_HANDLER_ARGS)
 #if defined(__FreeBSD__) || defined(SCTP_APPLE_MOBILITY_FASTHANDOFF)
 		RANGECHK(sctp_mobility_fasthandoff, SCTPCTL_MOBILITY_FASTHANDOFF_MIN, SCTPCTL_MOBILITY_FASTHANDOFF_MAX);
 #endif
+		RANGECHK(sctp_udp_tunneling_for_client_enable, SCTPCTL_UDP_TUNNELING_FOR_CLIENT_ENABLE_MIN, SCTPCTL_UDP_TUNNELING_FOR_CLIENT_ENABLE_MAX);
 #ifdef SCTP_DEBUG
 		RANGECHK(sctp_debug_on, SCTPCTL_DEBUG_MIN, SCTPCTL_DEBUG_MAX);
 #endif
@@ -807,6 +836,14 @@ SYSCTL_STRUCT(_net_inet_sctp, OID_AUTO, log, CTLFLAG_RD,
     &sctp_log, sctp_log,
     "SCTP logging (struct sctp_log)");
 #endif
+
+SYSCTL_PROC(_net_inet_sctp, OID_AUTO, udp_tunneling_for_client_enable, CTLTYPE_INT | CTLFLAG_RW,
+    &sctp_udp_tunneling_for_client_enable, 0, sysctl_sctp_check, "IU",
+    SCTPCTL_UDP_TUNNELING_FOR_CLIENT_ENABLE_DESC);
+
+SYSCTL_PROC(_net_inet_sctp, OID_AUTO, udp_tunneling_port, CTLTYPE_INT | CTLFLAG_RW,
+    &sctp_udp_tunneling_port, 0, sysctl_sctp_udp_tunneling_check, "IU",
+    SCTPCTL_UDP_TUNNELING_PORT_DESC);
 
 #ifdef SCTP_DEBUG
 SYSCTL_PROC(_net_inet_sctp, OID_AUTO, debug, CTLTYPE_INT | CTLFLAG_RW,
