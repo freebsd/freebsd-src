@@ -78,6 +78,7 @@ __FBSDID("$FreeBSD$");
 #define DFLT_CLICKTHRESHOLD	 500	/* 0.5 second */
 #define DFLT_BUTTON2TIMEOUT	 100	/* 0.1 second */
 #define DFLT_SCROLLTHRESHOLD	   3	/* 3 pixels */
+#define DFLT_SCROLLSPEED	   2	/* 2 pixels */
 
 /* Abort 3-button emulation delay after this many movement events. */
 #define BUTTON2_MAXMOVE	3
@@ -418,6 +419,7 @@ static struct rodentparam {
     float remainx;		/* Remainder on X and Y axis, respectively... */
     float remainy;		/*    ... to compensate for rounding errors. */
     int scrollthreshold;	/* Movement distance before virtual scrolling */
+    int scrollspeed;		/* Movement distance to rate of scrolling */
 } rodent = {
     .flags = 0,
     .portname = NULL,
@@ -441,6 +443,7 @@ static struct rodentparam {
     .remainx = 0.0,
     .remainy = 0.0,
     .scrollthreshold = DFLT_SCROLLTHRESHOLD,
+    .scrollspeed = DFLT_SCROLLSPEED,
 };
 
 /* button status */
@@ -574,7 +577,7 @@ main(int argc, char *argv[])
     for (i = 0; i < MOUSE_MAXBUTTON; ++i)
 	mstate[i] = &bstate[i];
 
-    while ((c = getopt(argc, argv, "3A:C:DE:F:HI:PRS:T:VU:a:cdfhi:l:m:p:r:st:w:z:")) != -1)
+    while ((c = getopt(argc, argv, "3A:C:DE:F:HI:L:PRS:T:VU:a:cdfhi:l:m:p:r:st:w:z:")) != -1)
 	switch(c) {
 
 	case '3':
@@ -758,6 +761,14 @@ main(int argc, char *argv[])
 		
 	case 'I':
 	    pidfile = optarg;
+	    break;
+
+	case 'L':
+	    rodent.scrollspeed = atoi(optarg);
+	    if (rodent.scrollspeed < 0) {
+		warnx("invalid argument `%s'", optarg);
+		usage();
+	    }
 	    break;
 
 	case 'P':
@@ -1121,6 +1132,7 @@ moused(void)
 		if (action0.button == MOUSE_BUTTON2DOWN) {
 		    if (scroll_state == SCROLL_NOTSCROLLING) {
 			scroll_state = SCROLL_PREPARE;
+			scroll_movement = hscroll_movement = 0;
 			debug("PREPARING TO SCROLL");
 		    }
 		    debug("[BUTTON2] flags:%08x buttons:%08x obuttons:%08x",
@@ -1182,21 +1194,36 @@ moused(void)
 		 * the stick/trackpoint/nipple, scroll!
 		 */
 		if (scroll_state == SCROLL_PREPARE) {
-		    /* Ok, Set we're really scrolling now.... */
-		    if (action2.dy || action2.dx)
-			scroll_state = SCROLL_SCROLLING;
-		}
-		if (scroll_state == SCROLL_SCROLLING) {
+			/* Middle button down, waiting for movement threshold */
+			if (action2.dy || action2.dx) {
+				if (rodent.flags & VirtualScroll) {
+					scroll_movement += action2.dy;
+					if (scroll_movement < -rodent.scrollthreshold) {
+						scroll_state = SCROLL_SCROLLING;
+					} else if (scroll_movement > rodent.scrollthreshold) {
+						scroll_state = SCROLL_SCROLLING;
+					}
+				}
+				if (rodent.flags & HVirtualScroll) {
+					hscroll_movement += action2.dx;
+					if (hscroll_movement < -rodent.scrollthreshold) {
+						scroll_state = SCROLL_SCROLLING;
+					} else if (hscroll_movement > rodent.scrollthreshold) {
+						scroll_state = SCROLL_SCROLLING;
+					}
+				}
+				if (scroll_state == SCROLL_SCROLLING) scroll_movement = hscroll_movement = 0;
+			}
+		} else if (scroll_state == SCROLL_SCROLLING) {
 			 if (rodent.flags & VirtualScroll) {
 				 scroll_movement += action2.dy;
 				 debug("SCROLL: %d", scroll_movement);
-
-			    if (scroll_movement < -rodent.scrollthreshold) {
+			    if (scroll_movement < -rodent.scrollspeed) {
 				/* Scroll down */
 				action2.dz = -1;
 				scroll_movement = 0;
 			    }
-			    else if (scroll_movement > rodent.scrollthreshold) {
+			    else if (scroll_movement > rodent.scrollspeed) {
 				/* Scroll up */
 				action2.dz = 1;
 				scroll_movement = 0;
@@ -1206,11 +1233,11 @@ moused(void)
 				 hscroll_movement += action2.dx;
 				 debug("HORIZONTAL SCROLL: %d", hscroll_movement);
 
-				 if (hscroll_movement < -rodent.scrollthreshold) {
+				 if (hscroll_movement < -rodent.scrollspeed) {
 					 action2.dz = -2;
 					 hscroll_movement = 0;
 				 }
-				 else if (hscroll_movement > rodent.scrollthreshold) {
+				 else if (hscroll_movement > rodent.scrollspeed) {
 					 action2.dz = 2;
 					 hscroll_movement = 0;
 				 }
