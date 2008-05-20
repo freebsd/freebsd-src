@@ -453,6 +453,8 @@ usb_event_thread(void *arg)
 	wakeup(sc);
 
 	DPRINTF(("usb_event_thread: exit\n"));
+	while (mtx_owned(&Giant))
+		mtx_unlock(&Giant);
 	kproc_exit(0);
 }
 
@@ -490,6 +492,8 @@ usb_task_thread(void *arg)
 	wakeup(&taskq->taskcreated);
 
 	DPRINTF(("usb_event_thread: exit\n"));
+	while (mtx_owned(&Giant))
+		mtx_unlock(&Giant);
 	kproc_exit(0);
 }
 
