@@ -102,7 +102,7 @@ sctp_pcbinfo_cleanup(void)
 }
 
 
-static void
+void
 sctp_pathmtu_adjustment(struct sctp_inpcb *inp,
     struct sctp_tcb *stcb,
     struct sctp_nets *net,

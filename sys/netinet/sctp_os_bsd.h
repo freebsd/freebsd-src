@@ -202,6 +202,7 @@ MALLOC_DECLARE(SCTP_M_SOCKOPT);
 #define	SCTP_INIT_VRF_TABLEID(vrf)
 
 #define SCTP_IFN_IS_IFT_LOOP(ifn) ((ifn)->ifn_type == IFT_LOOP)
+#define SCTP_ROUTE_IS_REAL_LOOP(ro) ((ro)->ro_rt && (ro)->ro_rt->rt_ifa && (ro)->ro_rt->rt_ifa->ifa_ifp && (ro)->ro_rt->rt_ifa->ifa_ifp->if_type == IFT_LOOP)
 
 /*
  * Access to IFN's to help with src-addr-selection
@@ -234,6 +235,7 @@ MALLOC_DECLARE(SCTP_M_SOCKOPT);
  * zone allocation functions
  */
 #include <vm/uma.h>
+
 /* SCTP_ZONE_INIT: initialize the zone */
 typedef struct uma_zone *sctp_zone_t;
 
@@ -244,6 +246,8 @@ typedef struct uma_zone *sctp_zone_t;
 	uma_zone_set_max(zone, number); \
 }
 
+#define SCTP_ZONE_DESTROY(zone) uma_zdestroy(zone)
+
 /* SCTP_ZONE_GET: allocate element from the zone */
 #define SCTP_ZONE_GET(zone, type) \
 	(type *)uma_zalloc(zone, M_NOWAIT);
@@ -251,6 +255,7 @@ typedef struct uma_zone *sctp_zone_t;
 /* SCTP_ZONE_FREE: free element from the zone */
 #define SCTP_ZONE_FREE(zone, element) \
 	uma_zfree(zone, element);
+
 #define SCTP_HASH_INIT(size, hashmark) hashinit_flags(size, M_PCB, hashmark, HASH_NOWAIT)
 #define SCTP_HASH_FREE(table, hashmark) hashdestroy(table, M_PCB, hashmark)
 
@@ -261,6 +266,7 @@ typedef struct uma_zone *sctp_zone_t;
  */
 #include <sys/callout.h>
 typedef struct callout sctp_os_timer_t;
+
 
 #define SCTP_OS_TIMER_INIT(tmr)	callout_init(tmr, 1)
 #define SCTP_OS_TIMER_START	callout_reset
