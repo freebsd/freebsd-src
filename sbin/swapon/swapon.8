@@ -28,7 +28,7 @@
 .\"     @(#)swapon.8	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd December 28, 2002
+.Dd April 29, 2008
 .Dt SWAPON 8
 .Os
 .Sh NAME
@@ -38,7 +38,7 @@
 .Nm swapon Fl a | Ar
 .Nm swapoff Fl a | Ar
 .Nm swapctl
-.Op Fl AhklsU
+.Op Fl AghklmsU
 .Oo
 .Fl a Ar
 |
@@ -130,9 +130,13 @@ The
 utility has the following options for listing swap:
 .Bl -tag -width indent
 .It Fl h
-Output values in megabytes.
+Output values in human-readable form.
+.It Fl g
+Output values in gigabytes.
 .It Fl k
 Output values in kilobytes.
+.It Fl m
+Output values in megabytes.
 .It Fl l
 List the devices making up system swap.
 .It Fl s
