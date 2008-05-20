@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <libutil.h>
 
 static void usage(void);
 static int swap_on_off(char *name, int ignoreebusy);
@@ -79,7 +80,7 @@ main(int argc, char **argv)
 	orig_prog = which_prog;
 	
 	doall = 0;
-	while ((ch = getopt(argc, argv, "AadlhksU")) != -1) {
+	while ((ch = getopt(argc, argv, "AadghklmsU")) != -1) {
 		switch(ch) {
 		case 'A':
 			if (which_prog == SWAPCTL) {
@@ -101,17 +102,23 @@ main(int argc, char **argv)
 			else
 				usage();
 			break;
-		case 's':
-			sflag = 1;
+		case 'g':
+			hflag = 'G';
+			break;
+		case 'h':
+			hflag = 'H';
+			break;
+		case 'k':
+			hflag = 'K';
 			break;
 		case 'l':
 			lflag = 1;
 			break;
-		case 'h':
+		case 'm':
 			hflag = 'M';
 			break;
-		case 'k':
-			hflag = 'K';
+		case 's':
+			sflag = 1;
 			break;
 		case 'U':
 			if (which_prog == SWAPCTL) {
@@ -199,10 +206,26 @@ usage(void)
 	    fprintf(stderr, "-a | file ...\n");
 	    break;
 	case SWAPCTL:
-	    fprintf(stderr, "[-AhklsU] [-a file ... | -d file ...]\n");
+	    fprintf(stderr, "[-AghklmsU] [-a file ... | -d file ...]\n");
 	    break;
 	}
 	exit(1);
+}
+
+static void
+sizetobuf(char *buf, size_t bufsize, int hflag, long long val, int hlen,
+    long blocksize)
+{
+
+	if (hflag == 'H') {
+		char tmp[16];
+
+		humanize_number(tmp, 5, (int64_t)val, "", HN_AUTOSCALE,
+		    HN_B | HN_NOSPACE | HN_DECIMAL);
+		snprintf(buf, bufsize, "%*s", hlen, tmp);
+	} else {
+		snprintf(buf, bufsize, "%*lld", hlen, val / blocksize);
+	}
 }
 
 static void
@@ -216,19 +239,33 @@ swaplist(int lflag, int sflag, int hflag)
 	long long used = 0;
 	long long tmp_total;
 	long long tmp_used;
+	char buf[32];
 	
 	pagesize = getpagesize();
 	switch(hflag) {
+	case 'G':
+	    blocksize = 1024 * 1024 * 1024;
+	    strlcpy(buf, "1GB-blocks", sizeof(buf));
+	    hlen = 10;
+	    break;
+	case 'H':
+	    blocksize = -1;
+	    strlcpy(buf, "Bytes", sizeof(buf));
+	    hlen = 10;
+	    break;
 	case 'K':
 	    blocksize = 1024;
+	    strlcpy(buf, "1kB-blocks", sizeof(buf));
 	    hlen = 10;
 	    break;
 	case 'M':
 	    blocksize = 1024 * 1024;
+	    strlcpy(buf, "1MB-blocks", sizeof(buf));
 	    hlen = 10;
 	    break;
 	default:
 	    getbsize(&hlen, &blocksize);
+	    snprintf(buf, sizeof(buf), "%ld-blocks", blocksize);
 	    break;
 	}
 	
@@ -237,8 +274,6 @@ swaplist(int lflag, int sflag, int hflag)
 		err(1, "sysctlnametomib()");
 	
 	if (lflag) {
-		char buf[32];
-		snprintf(buf, sizeof(buf), "%ld-blocks", blocksize);
 		printf("%-13s %*s %*s\n",
 		    "Device:", 
 		    hlen, buf,
@@ -253,24 +288,28 @@ swaplist(int lflag, int sflag, int hflag)
 		if (xsw.xsw_version != XSWDEV_VERSION)
 			errx(1, "xswdev version mismatch");
 		
-		tmp_total = (long long)xsw.xsw_nblks * pagesize / blocksize;
-		tmp_used  = (long long)xsw.xsw_used * pagesize / blocksize;
+		tmp_total = (long long)xsw.xsw_nblks * pagesize;
+		tmp_used  = (long long)xsw.xsw_used * pagesize;
 		total += tmp_total;
 		used  += tmp_used;
 		if (lflag) {
-			printf("/dev/%-8s %*lld %*lld\n", 
-			    devname(xsw.xsw_dev, S_IFCHR),
-			    hlen, tmp_total,
-			    hlen, tmp_used);
+			sizetobuf(buf, sizeof(buf), hflag, tmp_total, hlen,
+			    blocksize);
+			printf("/dev/%-8s %s ", devname(xsw.xsw_dev, S_IFCHR),
+			    buf);
+			sizetobuf(buf, sizeof(buf), hflag, tmp_used, hlen,
+			    blocksize);
+			printf("%s\n", buf);
 		}
 	}
 	if (errno != ENOENT)
 		err(1, "sysctl()");
 	
 	if (sflag) {
-		printf("Total:        %*lld %*lld\n",
-		       hlen, total,
-		       hlen, used);
+		sizetobuf(buf, sizeof(buf), hflag, total, hlen, blocksize);
+		printf("Total:        %s ", buf);
+		sizetobuf(buf, sizeof(buf), hflag, used, hlen, blocksize);
+		printf("%s\n", buf);
 	}
 }
 
