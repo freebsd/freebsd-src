@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2007 Juniper Networks, Inc.
  * Copyright (c) 2004 Marcel Moolenaar
  * All rights reserved.
  *
