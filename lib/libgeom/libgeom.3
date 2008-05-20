@@ -92,7 +92,7 @@
 .Fn gctl_dump "struct gctl_req *req" "FILE *f"
 .Ss "Utility Functions"
 .Ft int
-.Fn g_open "const char *name" "int write"
+.Fn g_open "const char *name" "int dowrite"
 .Ft int
 .Fn g_close "int fd"
 .Ft off_t
@@ -108,7 +108,7 @@
 .Ft int
 .Fn g_get_name "const char *ident" "char *name" "size_t size"
 .Ft int
-.Fn g_open_by_ident "const char *ident" "int write" "char *name" "size_t size"
+.Fn g_open_by_ident "const char *ident" "int dowrite" "char *name" "size_t size"
 .Sh DESCRIPTION
 The
 .Nm geom
@@ -271,7 +271,7 @@ The
 function opens the given provider and returns file descriptor number, which can
 be used with other functions.
 The
-.Fa write
+.Fa dowrite
 argument indicates if operations that modify the provider (like
 .Fn g_flush
 or
