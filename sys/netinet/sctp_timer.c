@@ -173,6 +173,11 @@ sctp_audit_retranmission_queue(struct sctp_association *asoc)
 			sctp_ucount_incr(asoc->sent_queue_retran_cnt);
 		}
 	}
+	TAILQ_FOREACH(chk, &asoc->asconf_send_queue, sctp_next) {
+		if (chk->sent == SCTP_DATAGRAM_RESEND) {
+			sctp_ucount_incr(asoc->sent_queue_retran_cnt);
+		}
+	}
 	SCTPDBG(SCTP_DEBUG_TIMER4, "Audit completes retran:%d onqueue:%d\n",
 	    asoc->sent_queue_retran_cnt,
 	    asoc->sent_queue_cnt);
@@ -1314,10 +1319,10 @@ sctp_asconf_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
     struct sctp_nets *net)
 {
 	struct sctp_nets *alt;
-	struct sctp_tmit_chunk *asconf, *chk;
+	struct sctp_tmit_chunk *asconf, *chk, *nchk;
 
 	/* is this a first send, or a retransmission? */
-	if (stcb->asoc.asconf_sent == 0) {
+	if (TAILQ_EMPTY(&stcb->asoc.asconf_send_queue)) {
 		/* compose a new ASCONF chunk and send it */
 		sctp_send_asconf(stcb, net, SCTP_ADDR_NOT_LOCKED);
 	} else {
@@ -1326,12 +1331,7 @@ sctp_asconf_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		 */
 
 		/* find the existing ASCONF */
-		TAILQ_FOREACH(asconf, &stcb->asoc.control_send_queue,
-		    sctp_next) {
-			if (asconf->rec.chunk_id.id == SCTP_ASCONF) {
-				break;
-			}
-		}
+		asconf = TAILQ_FIRST(&stcb->asoc.asconf_send_queue);
 		if (asconf == NULL) {
 			return (0);
 		}
@@ -1359,10 +1359,11 @@ sctp_asconf_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		 */
 		sctp_backoff_on_timeout(stcb, asconf->whoTo, 1, 0);
 		alt = sctp_find_alternate_net(stcb, asconf->whoTo, 0);
-		sctp_free_remote_addr(asconf->whoTo);
-		asconf->whoTo = alt;
-		atomic_add_int(&alt->ref_count, 1);
-
+		if (asconf->whoTo != alt) {
+			sctp_free_remote_addr(asconf->whoTo);
+			asconf->whoTo = alt;
+			atomic_add_int(&alt->ref_count, 1);
+		}
 		/* See if an ECN Echo is also stranded */
 		TAILQ_FOREACH(chk, &stcb->asoc.control_send_queue, sctp_next) {
 			if ((chk->whoTo == net) &&
@@ -1376,17 +1377,32 @@ sctp_asconf_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 				atomic_add_int(&alt->ref_count, 1);
 			}
 		}
+		for (chk = asconf; chk; chk = nchk) {
+			nchk = TAILQ_NEXT(chk, sctp_next);
+			if (chk->whoTo != alt) {
+				sctp_free_remote_addr(chk->whoTo);
+				chk->whoTo = alt;
+				atomic_add_int(&alt->ref_count, 1);
+			}
+			if (asconf->sent != SCTP_DATAGRAM_RESEND && chk->sent != SCTP_DATAGRAM_UNSENT)
+				sctp_ucount_incr(stcb->asoc.sent_queue_retran_cnt);
+			chk->sent = SCTP_DATAGRAM_RESEND;
+		}
 		if (net->dest_state & SCTP_ADDR_NOT_REACHABLE) {
 			/*
 			 * If the address went un-reachable, we need to move
 			 * to the alternate for ALL chunks in queue
 			 */
 			sctp_move_all_chunks_to_alt(stcb, net, alt);
+			net = alt;
 		}
 		/* mark the retran info */
 		if (asconf->sent != SCTP_DATAGRAM_RESEND)
 			sctp_ucount_incr(stcb->asoc.sent_queue_retran_cnt);
 		asconf->sent = SCTP_DATAGRAM_RESEND;
+
+		/* send another ASCONF if any and we can do */
+		sctp_send_asconf(stcb, alt, SCTP_ADDR_NOT_LOCKED);
 	}
 	return (0);
 }
@@ -1677,16 +1693,11 @@ sctp_pathmtu_timer(struct sctp_inpcb *inp,
     struct sctp_tcb *stcb,
     struct sctp_nets *net)
 {
-	uint32_t next_mtu;
+	uint32_t next_mtu, mtu;
 
-	/* restart the timer in any case */
 	next_mtu = sctp_getnext_mtu(inp, net->mtu);
-	if (next_mtu <= net->mtu) {
-		/* nothing to do */
-		return;
-	} {
-		uint32_t mtu;
 
+	if ((next_mtu > net->mtu) && (net->port == 0)) {
 		if ((net->src_addr_selected == 0) ||
 		    (net->ro._s_addr == NULL) ||
 		    (net->ro._s_addr->localifa_flags & SCTP_BEING_DELETED)) {
@@ -1695,10 +1706,26 @@ sctp_pathmtu_timer(struct sctp_inpcb *inp,
 				net->ro._s_addr = NULL;
 				net->src_addr_selected = 0;
 			} else if (net->ro._s_addr == NULL) {
+#if defined(INET6) && defined(SCTP_EMBEDDED_V6_SCOPE)
+				if (net->ro._l_addr.sa.sa_family == AF_INET6) {
+					struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)&net->ro._l_addr;
+
+					/* KAME hack: embed scopeid */
+					(void)sa6_embedscope(sin6, ip6_use_defzone);
+				}
+#endif
+
 				net->ro._s_addr = sctp_source_address_selection(inp,
 				    stcb,
 				    (sctp_route_t *) & net->ro,
 				    net, 0, stcb->asoc.vrf_id);
+#if defined(INET6) && defined(SCTP_EMBEDDED_V6_SCOPE)
+				if (net->ro._l_addr.sa.sa_family == AF_INET6) {
+					struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)&net->ro._l_addr;
+
+					(void)sa6_recoverscope(sin6);
+				}
+#endif				/* INET6 */
 			}
 			if (net->ro._s_addr)
 				net->src_addr_selected = 1;

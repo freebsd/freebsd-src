@@ -49,13 +49,10 @@ sctp_set_initial_cc_param(struct sctp_tcb *stcb, struct sctp_nets *net)
 {
 	/*
 	 * We take the max of the burst limit times a MTU or the
-	 * INITIAL_CWND. We then limit this to 4 MTU's of sending.
+	 * INITIAL_CWND. We then limit this to 4 MTU's of sending. cwnd must
+	 * be at least 2 MTU.
 	 */
 	net->cwnd = min((net->mtu * 4), max((2 * net->mtu), SCTP_INITIAL_CWND));
-	/* we always get at LEAST 2 MTU's */
-	if (net->cwnd < (2 * net->mtu)) {
-		net->cwnd = 2 * net->mtu;
-	}
 	net->ssthresh = stcb->asoc.peers_rwnd;
 
 	if (sctp_logging_level & (SCTP_CWND_MONITOR_ENABLE | SCTP_CWND_LOGGING_ENABLE)) {
@@ -277,8 +274,7 @@ sctp_cwnd_update_after_sack(struct sctp_tcb *stcb,
 			/* If the cumulative ack moved we can proceed */
 			if (net->cwnd <= net->ssthresh) {
 				/* We are in slow start */
-				if (net->flight_size + net->net_ack >=
-				    net->cwnd) {
+				if (net->flight_size + net->net_ack >= net->cwnd) {
 					if (net->net_ack > (net->mtu * sctp_L2_abc_variable)) {
 						net->cwnd += (net->mtu * sctp_L2_abc_variable);
 						if (sctp_logging_level & SCTP_CWND_MONITOR_ENABLE) {
@@ -293,10 +289,6 @@ sctp_cwnd_update_after_sack(struct sctp_tcb *stcb,
 						}
 					}
 				} else {
-					unsigned int dif;
-
-					dif = net->cwnd - (net->flight_size +
-					    net->net_ack);
 					if (sctp_logging_level & SCTP_CWND_LOGGING_ENABLE) {
 						sctp_log_cwnd(stcb, net, net->net_ack,
 						    SCTP_CWND_LOG_NOADV_SS);
@@ -307,8 +299,7 @@ sctp_cwnd_update_after_sack(struct sctp_tcb *stcb,
 				/*
 				 * Add to pba
 				 */
-				net->partial_bytes_acked +=
-				    net->net_ack;
+				net->partial_bytes_acked += net->net_ack;
 
 				if ((net->flight_size + net->net_ack >= net->cwnd) &&
 				    (net->partial_bytes_acked >= net->cwnd)) {
@@ -352,23 +343,182 @@ skip_cwnd_update:
 }
 
 void
-sctp_cwnd_update_after_timeout(struct sctp_tcb *stcb,
-    struct sctp_nets *net)
+sctp_cwnd_update_after_timeout(struct sctp_tcb *stcb, struct sctp_nets *net)
 {
 	int old_cwnd = net->cwnd;
 
-	net->ssthresh = net->cwnd >> 1;
-	if (net->ssthresh < (net->mtu << 1)) {
-		net->ssthresh = (net->mtu << 1);
-	}
+	net->ssthresh = max(net->cwnd / 2, 2 * net->mtu);
 	net->cwnd = net->mtu;
-	/* floor of 1 mtu */
-	if (net->cwnd < net->mtu)
-		net->cwnd = net->mtu;
+	net->partial_bytes_acked = 0;
+
 	if (sctp_logging_level & SCTP_CWND_MONITOR_ENABLE) {
 		sctp_log_cwnd(stcb, net, net->cwnd - old_cwnd, SCTP_CWND_LOG_FROM_RTX);
 	}
-	net->partial_bytes_acked = 0;
+}
+
+void
+sctp_cwnd_update_after_ecn_echo(struct sctp_tcb *stcb, struct sctp_nets *net)
+{
+	int old_cwnd = net->cwnd;
+
+	SCTP_STAT_INCR(sctps_ecnereducedcwnd);
+	net->ssthresh = net->cwnd / 2;
+	if (net->ssthresh < net->mtu) {
+		net->ssthresh = net->mtu;
+		/* here back off the timer as well, to slow us down */
+		net->RTO <<= 1;
+	}
+	net->cwnd = net->ssthresh;
+	if (sctp_logging_level & SCTP_CWND_MONITOR_ENABLE) {
+		sctp_log_cwnd(stcb, net, (net->cwnd - old_cwnd), SCTP_CWND_LOG_FROM_SAT);
+	}
+}
+
+void
+sctp_cwnd_update_after_packet_dropped(struct sctp_tcb *stcb,
+    struct sctp_nets *net, struct sctp_pktdrop_chunk *cp,
+    uint32_t * bottle_bw, uint32_t * on_queue)
+{
+	uint32_t bw_avail;
+	int rtt, incr;
+	int old_cwnd = net->cwnd;
+
+	/* need real RTT for this calc */
+	rtt = ((net->lastsa >> 2) + net->lastsv) >> 1;
+	/* get bottle neck bw */
+	*bottle_bw = ntohl(cp->bottle_bw);
+	/* and whats on queue */
+	*on_queue = ntohl(cp->current_onq);
+	/*
+	 * adjust the on-queue if our flight is more it could be that the
+	 * router has not yet gotten data "in-flight" to it
+	 */
+	if (*on_queue < net->flight_size)
+		*on_queue = net->flight_size;
+	/* calculate the available space */
+	bw_avail = (*bottle_bw * rtt) / 1000;
+	if (bw_avail > *bottle_bw) {
+		/*
+		 * Cap the growth to no more than the bottle neck. This can
+		 * happen as RTT slides up due to queues. It also means if
+		 * you have more than a 1 second RTT with a empty queue you
+		 * will be limited to the bottle_bw per second no matter if
+		 * other points have 1/2 the RTT and you could get more
+		 * out...
+		 */
+		bw_avail = *bottle_bw;
+	}
+	if (*on_queue > bw_avail) {
+		/*
+		 * No room for anything else don't allow anything else to be
+		 * "added to the fire".
+		 */
+		int seg_inflight, seg_onqueue, my_portion;
+
+		net->partial_bytes_acked = 0;
+
+		/* how much are we over queue size? */
+		incr = *on_queue - bw_avail;
+		if (stcb->asoc.seen_a_sack_this_pkt) {
+			/*
+			 * undo any cwnd adjustment that the sack might have
+			 * made
+			 */
+			net->cwnd = net->prev_cwnd;
+		}
+		/* Now how much of that is mine? */
+		seg_inflight = net->flight_size / net->mtu;
+		seg_onqueue = *on_queue / net->mtu;
+		my_portion = (incr * seg_inflight) / seg_onqueue;
+
+		/* Have I made an adjustment already */
+		if (net->cwnd > net->flight_size) {
+			/*
+			 * for this flight I made an adjustment we need to
+			 * decrease the portion by a share our previous
+			 * adjustment.
+			 */
+			int diff_adj;
+
+			diff_adj = net->cwnd - net->flight_size;
+			if (diff_adj > my_portion)
+				my_portion = 0;
+			else
+				my_portion -= diff_adj;
+		}
+		/*
+		 * back down to the previous cwnd (assume we have had a sack
+		 * before this packet). minus what ever portion of the
+		 * overage is my fault.
+		 */
+		net->cwnd -= my_portion;
+
+		/* we will NOT back down more than 1 MTU */
+		if (net->cwnd <= net->mtu) {
+			net->cwnd = net->mtu;
+		}
+		/* force into CA */
+		net->ssthresh = net->cwnd - 1;
+	} else {
+		/*
+		 * Take 1/4 of the space left or max burst up .. whichever
+		 * is less.
+		 */
+		incr = min((bw_avail - *on_queue) >> 2,
+		    stcb->asoc.max_burst * net->mtu);
+		net->cwnd += incr;
+	}
+	if (net->cwnd > bw_avail) {
+		/* We can't exceed the pipe size */
+		net->cwnd = bw_avail;
+	}
+	if (net->cwnd < net->mtu) {
+		/* We always have 1 MTU */
+		net->cwnd = net->mtu;
+	}
+	if (net->cwnd - old_cwnd != 0) {
+		/* log only changes */
+		if (sctp_logging_level & SCTP_CWND_MONITOR_ENABLE) {
+			sctp_log_cwnd(stcb, net, (net->cwnd - old_cwnd),
+			    SCTP_CWND_LOG_FROM_SAT);
+		}
+	}
+}
+
+void
+sctp_cwnd_update_after_output(struct sctp_tcb *stcb,
+    struct sctp_nets *net, int burst_limit)
+{
+	int old_cwnd = net->cwnd;
+
+	if (net->ssthresh < net->cwnd)
+		net->ssthresh = net->cwnd;
+	net->cwnd = (net->flight_size + (burst_limit * net->mtu));
+
+	if (sctp_logging_level & SCTP_CWND_MONITOR_ENABLE) {
+		sctp_log_cwnd(stcb, net, (net->cwnd - old_cwnd), SCTP_CWND_LOG_FROM_BRST);
+	}
+}
+
+void
+sctp_cwnd_update_after_fr_timer(struct sctp_inpcb *inp,
+    struct sctp_tcb *stcb, struct sctp_nets *net)
+{
+	int old_cwnd = net->cwnd;
+
+	sctp_chunk_output(inp, stcb, SCTP_OUTPUT_FROM_EARLY_FR_TMR, SCTP_SO_NOT_LOCKED);
+	/*
+	 * make a small adjustment to cwnd and force to CA.
+	 */
+	if (net->cwnd > net->mtu)
+		/* drop down one MTU after sending */
+		net->cwnd -= net->mtu;
+	if (net->cwnd < net->ssthresh)
+		/* still in SS move to CA */
+		net->ssthresh = net->cwnd - 1;
+	if (sctp_logging_level & SCTP_CWND_MONITOR_ENABLE) {
+		sctp_log_cwnd(stcb, net, (old_cwnd - net->cwnd), SCTP_CWND_LOG_FROM_FR);
+	}
 }
 
 struct sctp_hs_raise_drop {
@@ -741,16 +891,11 @@ sctp_hs_cwnd_update_after_sack(struct sctp_tcb *stcb,
 			/* If the cumulative ack moved we can proceed */
 			if (net->cwnd <= net->ssthresh) {
 				/* We are in slow start */
-				if (net->flight_size + net->net_ack >=
-				    net->cwnd) {
+				if (net->flight_size + net->net_ack >= net->cwnd) {
 
 					sctp_hs_cwnd_increase(stcb, net);
 
 				} else {
-					unsigned int dif;
-
-					dif = net->cwnd - (net->flight_size +
-					    net->net_ack);
 					if (sctp_logging_level & SCTP_CWND_LOGGING_ENABLE) {
 						sctp_log_cwnd(stcb, net, net->net_ack,
 						    SCTP_CWND_LOG_NOADV_SS);
@@ -758,50 +903,20 @@ sctp_hs_cwnd_update_after_sack(struct sctp_tcb *stcb,
 				}
 			} else {
 				/* We are in congestion avoidance */
-				if (net->flight_size + net->net_ack >=
-				    net->cwnd) {
-					/*
-					 * add to pba only if we had a
-					 * cwnd's worth (or so) in flight OR
-					 * the burst limit was applied.
-					 */
-					net->partial_bytes_acked +=
-					    net->net_ack;
-
-					/*
-					 * Do we need to increase (if pba is
-					 * > cwnd)?
-					 */
-					if (net->partial_bytes_acked >=
-					    net->cwnd) {
-						if (net->cwnd <
-						    net->partial_bytes_acked) {
-							net->partial_bytes_acked -=
-							    net->cwnd;
-						} else {
-							net->partial_bytes_acked =
-							    0;
-						}
-						net->cwnd += net->mtu;
-						if (sctp_logging_level & SCTP_CWND_MONITOR_ENABLE) {
-							sctp_log_cwnd(stcb, net, net->mtu,
-							    SCTP_CWND_LOG_FROM_CA);
-						}
-					} else {
-						if (sctp_logging_level & SCTP_CWND_LOGGING_ENABLE) {
-							sctp_log_cwnd(stcb, net, net->net_ack,
-							    SCTP_CWND_LOG_NOADV_CA);
-						}
+				net->partial_bytes_acked += net->net_ack;
+				if ((net->flight_size + net->net_ack >= net->cwnd) &&
+				    (net->partial_bytes_acked >= net->cwnd)) {
+					net->partial_bytes_acked -= net->cwnd;
+					net->cwnd += net->mtu;
+					if (sctp_logging_level & SCTP_CWND_MONITOR_ENABLE) {
+						sctp_log_cwnd(stcb, net, net->mtu,
+						    SCTP_CWND_LOG_FROM_CA);
 					}
 				} else {
-					unsigned int dif;
-
 					if (sctp_logging_level & SCTP_CWND_LOGGING_ENABLE) {
 						sctp_log_cwnd(stcb, net, net->net_ack,
 						    SCTP_CWND_LOG_NOADV_CA);
 					}
-					dif = net->cwnd - (net->flight_size +
-					    net->net_ack);
 				}
 			}
 		} else {
@@ -830,176 +945,6 @@ skip_cwnd_update:
 	}
 }
 
-void
-sctp_cwnd_update_after_ecn_echo(struct sctp_tcb *stcb,
-    struct sctp_nets *net)
-{
-	int old_cwnd;
-
-	old_cwnd = net->cwnd;
-
-	SCTP_STAT_INCR(sctps_ecnereducedcwnd);
-	net->ssthresh = net->cwnd / 2;
-	if (net->ssthresh < net->mtu) {
-		net->ssthresh = net->mtu;
-		/* here back off the timer as well, to slow us down */
-		net->RTO <<= 1;
-	}
-	net->cwnd = net->ssthresh;
-	if (sctp_logging_level & SCTP_CWND_MONITOR_ENABLE) {
-		sctp_log_cwnd(stcb, net, (net->cwnd - old_cwnd), SCTP_CWND_LOG_FROM_SAT);
-	}
-}
-
-void
-sctp_cwnd_update_after_packet_dropped(struct sctp_tcb *stcb,
-    struct sctp_nets *net, struct sctp_pktdrop_chunk *cp,
-    uint32_t * bottle_bw, uint32_t * on_queue)
-{
-	uint32_t bw_avail;
-	int rtt, incr;
-	int old_cwnd = net->cwnd;
-
-	/* need real RTT for this calc */
-	rtt = ((net->lastsa >> 2) + net->lastsv) >> 1;
-	/* get bottle neck bw */
-	*bottle_bw = ntohl(cp->bottle_bw);
-	/* and whats on queue */
-	*on_queue = ntohl(cp->current_onq);
-	/*
-	 * adjust the on-queue if our flight is more it could be that the
-	 * router has not yet gotten data "in-flight" to it
-	 */
-	if (*on_queue < net->flight_size)
-		*on_queue = net->flight_size;
-	/* calculate the available space */
-	bw_avail = (*bottle_bw * rtt) / 1000;
-	if (bw_avail > *bottle_bw) {
-		/*
-		 * Cap the growth to no more than the bottle neck. This can
-		 * happen as RTT slides up due to queues. It also means if
-		 * you have more than a 1 second RTT with a empty queue you
-		 * will be limited to the bottle_bw per second no matter if
-		 * other points have 1/2 the RTT and you could get more
-		 * out...
-		 */
-		bw_avail = *bottle_bw;
-	}
-	if (*on_queue > bw_avail) {
-		/*
-		 * No room for anything else don't allow anything else to be
-		 * "added to the fire".
-		 */
-		int seg_inflight, seg_onqueue, my_portion;
-
-		net->partial_bytes_acked = 0;
-
-		/* how much are we over queue size? */
-		incr = *on_queue - bw_avail;
-		if (stcb->asoc.seen_a_sack_this_pkt) {
-			/*
-			 * undo any cwnd adjustment that the sack might have
-			 * made
-			 */
-			net->cwnd = net->prev_cwnd;
-		}
-		/* Now how much of that is mine? */
-		seg_inflight = net->flight_size / net->mtu;
-		seg_onqueue = *on_queue / net->mtu;
-		my_portion = (incr * seg_inflight) / seg_onqueue;
-
-		/* Have I made an adjustment already */
-		if (net->cwnd > net->flight_size) {
-			/*
-			 * for this flight I made an adjustment we need to
-			 * decrease the portion by a share our previous
-			 * adjustment.
-			 */
-			int diff_adj;
-
-			diff_adj = net->cwnd - net->flight_size;
-			if (diff_adj > my_portion)
-				my_portion = 0;
-			else
-				my_portion -= diff_adj;
-		}
-		/*
-		 * back down to the previous cwnd (assume we have had a sack
-		 * before this packet). minus what ever portion of the
-		 * overage is my fault.
-		 */
-		net->cwnd -= my_portion;
-
-		/* we will NOT back down more than 1 MTU */
-		if (net->cwnd <= net->mtu) {
-			net->cwnd = net->mtu;
-		}
-		/* force into CA */
-		net->ssthresh = net->cwnd - 1;
-	} else {
-		/*
-		 * Take 1/4 of the space left or max burst up .. whichever
-		 * is less.
-		 */
-		incr = min((bw_avail - *on_queue) >> 2,
-		    stcb->asoc.max_burst * net->mtu);
-		net->cwnd += incr;
-	}
-	if (net->cwnd > bw_avail) {
-		/* We can't exceed the pipe size */
-		net->cwnd = bw_avail;
-	}
-	if (net->cwnd < net->mtu) {
-		/* We always have 1 MTU */
-		net->cwnd = net->mtu;
-	}
-	if (net->cwnd - old_cwnd != 0) {
-		/* log only changes */
-		if (sctp_logging_level & SCTP_CWND_MONITOR_ENABLE) {
-			sctp_log_cwnd(stcb, net, (net->cwnd - old_cwnd),
-			    SCTP_CWND_LOG_FROM_SAT);
-		}
-	}
-}
-
-void
-sctp_cwnd_update_after_output(struct sctp_tcb *stcb,
-    struct sctp_nets *net, int burst_limit)
-{
-	int old_cwnd;
-
-	if (net->ssthresh < net->cwnd)
-		net->ssthresh = net->cwnd;
-	old_cwnd = net->cwnd;
-	net->cwnd = (net->flight_size + (burst_limit * net->mtu));
-
-	if (sctp_logging_level & SCTP_CWND_MONITOR_ENABLE) {
-		sctp_log_cwnd(stcb, net, (net->cwnd - old_cwnd), SCTP_CWND_LOG_FROM_BRST);
-	}
-}
-
-void
-sctp_cwnd_update_after_fr_timer(struct sctp_inpcb *inp,
-    struct sctp_tcb *stcb, struct sctp_nets *net)
-{
-	int old_cwnd;
-
-	old_cwnd = net->cwnd;
-
-	sctp_chunk_output(inp, stcb, SCTP_OUTPUT_FROM_EARLY_FR_TMR, SCTP_SO_NOT_LOCKED);
-	/*
-	 * make a small adjustment to cwnd and force to CA.
-	 */
-	if (net->cwnd > net->mtu)
-		/* drop down one MTU after sending */
-		net->cwnd -= net->mtu;
-	if (net->cwnd < net->ssthresh)
-		/* still in SS move to CA */
-		net->ssthresh = net->cwnd - 1;
-	if (sctp_logging_level & SCTP_CWND_MONITOR_ENABLE) {
-		sctp_log_cwnd(stcb, net, (old_cwnd - net->cwnd), SCTP_CWND_LOG_FROM_FR);
-	}
-}
 
 /*
  * H-TCP congestion control. The algorithm is detailed in:
@@ -1220,10 +1165,6 @@ htcp_cong_avoid(struct sctp_tcb *stcb, struct sctp_nets *net)
 				}
 			}
 		} else {
-			unsigned int dif;
-
-			dif = net->cwnd - (net->flight_size +
-			    net->net_ack);
 			if (sctp_logging_level & SCTP_CWND_LOGGING_ENABLE) {
 				sctp_log_cwnd(stcb, net, net->net_ack,
 				    SCTP_CWND_LOG_NOADV_SS);
@@ -1289,10 +1230,6 @@ sctp_htcp_set_initial_cc_param(struct sctp_tcb *stcb, struct sctp_nets *net)
 	 * INITIAL_CWND. We then limit this to 4 MTU's of sending.
 	 */
 	net->cwnd = min((net->mtu * 4), max((2 * net->mtu), SCTP_INITIAL_CWND));
-	/* we always get at LEAST 2 MTU's */
-	if (net->cwnd < (2 * net->mtu)) {
-		net->cwnd = 2 * net->mtu;
-	}
 	net->ssthresh = stcb->asoc.peers_rwnd;
 	htcp_init(stcb, net);
 
@@ -1549,13 +1486,10 @@ sctp_htcp_cwnd_update_after_timeout(struct sctp_tcb *stcb,
 	htcp_reset(&net->htcp_ca);
 	net->ssthresh = htcp_recalc_ssthresh(stcb, net);
 	net->cwnd = net->mtu;
-	/* floor of 1 mtu */
-	if (net->cwnd < net->mtu)
-		net->cwnd = net->mtu;
+	net->partial_bytes_acked = 0;
 	if (sctp_logging_level & SCTP_CWND_MONITOR_ENABLE) {
 		sctp_log_cwnd(stcb, net, net->cwnd - old_cwnd, SCTP_CWND_LOG_FROM_RTX);
 	}
-	net->partial_bytes_acked = 0;
 }
 
 void

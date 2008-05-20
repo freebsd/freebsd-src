@@ -956,6 +956,7 @@ sctp_init_asoc(struct sctp_inpcb *m, struct sctp_tcb *stcb,
 	asoc->assoc_id = asoc->my_vtag;
 	asoc->asconf_seq_out = asoc->str_reset_seq_out = asoc->init_seq_number = asoc->sending_seq =
 	    sctp_select_initial_TSN(&m->sctp_ep);
+	asoc->asconf_seq_out_acked = asoc->asconf_seq_out - 1;
 	/* we are optimisitic here */
 	asoc->peer_supports_pktdrop = 1;
 
@@ -1151,6 +1152,7 @@ sctp_init_asoc(struct sctp_inpcb *m, struct sctp_tcb *stcb,
 	TAILQ_INIT(&asoc->free_chunks);
 	TAILQ_INIT(&asoc->out_wheel);
 	TAILQ_INIT(&asoc->control_send_queue);
+	TAILQ_INIT(&asoc->asconf_send_queue);
 	TAILQ_INIT(&asoc->send_queue);
 	TAILQ_INIT(&asoc->sent_queue);
 	TAILQ_INIT(&asoc->reasmqueue);
@@ -3792,7 +3794,7 @@ sctp_abort_notification(struct sctp_tcb *stcb, int error, int so_locked
 void
 sctp_abort_association(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
     struct mbuf *m, int iphlen, struct sctphdr *sh, struct mbuf *op_err,
-    uint32_t vrf_id)
+    uint32_t vrf_id, uint16_t port)
 {
 	uint32_t vtag;
 
@@ -3810,7 +3812,7 @@ sctp_abort_association(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		vrf_id = stcb->asoc.vrf_id;
 		stcb->asoc.state |= SCTP_STATE_WAS_ABORTED;
 	}
-	sctp_send_abort(m, iphlen, sh, vtag, op_err, vrf_id);
+	sctp_send_abort(m, iphlen, sh, vtag, op_err, vrf_id, port);
 	if (stcb != NULL) {
 		/* Ok, now lets free it */
 #if defined (__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
@@ -3967,7 +3969,7 @@ sctp_abort_an_association(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 
 void
 sctp_handle_ootb(struct mbuf *m, int iphlen, int offset, struct sctphdr *sh,
-    struct sctp_inpcb *inp, struct mbuf *op_err, uint32_t vrf_id)
+    struct sctp_inpcb *inp, struct mbuf *op_err, uint32_t vrf_id, uint16_t port)
 {
 	struct sctp_chunkhdr *ch, chunk_buf;
 	unsigned int chk_length;
@@ -4005,7 +4007,7 @@ sctp_handle_ootb(struct mbuf *m, int iphlen, int offset, struct sctphdr *sh,
 			 */
 			return;
 		case SCTP_SHUTDOWN_ACK:
-			sctp_send_shutdown_complete2(m, iphlen, sh, vrf_id);
+			sctp_send_shutdown_complete2(m, iphlen, sh, vrf_id, port);
 			return;
 		default:
 			break;
@@ -4014,7 +4016,7 @@ sctp_handle_ootb(struct mbuf *m, int iphlen, int offset, struct sctphdr *sh,
 		ch = (struct sctp_chunkhdr *)sctp_m_getptr(m, offset,
 		    sizeof(*ch), (uint8_t *) & chunk_buf);
 	}
-	sctp_send_abort(m, iphlen, sh, 0, op_err, vrf_id);
+	sctp_send_abort(m, iphlen, sh, 0, op_err, vrf_id, port);
 }
 
 /*
@@ -4140,8 +4142,8 @@ sctp_cmpaddr(struct sockaddr *sa1, struct sockaddr *sa2)
 
 			sin6_1 = (struct sockaddr_in6 *)sa1;
 			sin6_2 = (struct sockaddr_in6 *)sa2;
-			return (SCTP6_ARE_ADDR_EQUAL(&sin6_1->sin6_addr,
-			    &sin6_2->sin6_addr));
+			return (SCTP6_ARE_ADDR_EQUAL(sin6_1,
+			    sin6_2));
 		}
 #endif
 	case AF_INET:
@@ -4776,8 +4778,8 @@ sctp_find_ifa_in_ep(struct sctp_inpcb *inp, struct sockaddr *addr,
 		}
 #ifdef INET6
 		if (addr->sa_family == AF_INET6) {
-			if (SCTP6_ARE_ADDR_EQUAL(&((struct sockaddr_in6 *)addr)->sin6_addr,
-			    &laddr->ifa->address.sin6.sin6_addr)) {
+			if (SCTP6_ARE_ADDR_EQUAL((struct sockaddr_in6 *)addr,
+			    &laddr->ifa->address.sin6)) {
 				/* found him. */
 				if (holds_lock == 0) {
 					SCTP_INP_RUNLOCK(inp);
@@ -4866,8 +4868,8 @@ sctp_find_ifa_by_addr(struct sockaddr *addr, uint32_t vrf_id, int holds_lock)
 		}
 #ifdef INET6
 		if (addr->sa_family == AF_INET6) {
-			if (SCTP6_ARE_ADDR_EQUAL(&((struct sockaddr_in6 *)addr)->sin6_addr,
-			    &sctp_ifap->address.sin6.sin6_addr)) {
+			if (SCTP6_ARE_ADDR_EQUAL((struct sockaddr_in6 *)addr,
+			    &sctp_ifap->address.sin6)) {
 				/* found him. */
 				if (holds_lock == 0)
 					SCTP_IPI_ADDR_RUNLOCK();
@@ -6605,3 +6607,19 @@ sctp_log_trace(uint32_t subsys, const char *str SCTP_UNUSED, uint32_t a, uint32_
 }
 
 #endif
+/* We will need to add support
+ * to bind the ports and such here
+ * so we can do UDP tunneling. In
+ * the mean-time, we return error
+ */
+
+void 
+sctp_over_udp_stop(void)
+{
+	return;
+}
+int 
+sctp_over_udp_start(void)
+{
+	return (-1);
+}
