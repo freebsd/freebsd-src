@@ -102,7 +102,15 @@ sctp_handle_init(struct mbuf *m, int iphlen, int offset, struct sctphdr *sh,
 		    inp->sctp_socket->so_qlimit);
 		/*
 		 * FIX ME ?? What about TCP model and we have a
-		 * match/restart case?
+		 * match/restart case? Actually no fix is needed. the lookup
+		 * will always find the existing assoc so stcb would not be
+		 * NULL. It may be questionable to do this since we COULD
+		 * just send back the INIT-ACK and hope that the app did
+		 * accept()'s by the time the COOKIE was sent. But there is
+		 * a price to pay for COOKIE generation and I don't want to
+		 * pay it on the chance that the app will actually do some
+		 * accepts(). The App just looses and should NOT be in this
+		 * state :-)
 		 */
 		sctp_abort_association(inp, stcb, m, iphlen, sh, op_err,
 		    vrf_id);
