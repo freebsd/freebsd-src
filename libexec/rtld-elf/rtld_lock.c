@@ -171,7 +171,7 @@ thread_mask_clear(int mask)
 	lockinfo.thread_clr_flag(mask);
 }
 
-#define	RTLD_LOCK_CNT	2
+#define	RTLD_LOCK_CNT	3
 struct rtld_lock {
 	void	*handle;
 	int	 mask;
@@ -179,6 +179,7 @@ struct rtld_lock {
 
 rtld_lock_t	rtld_bind_lock = &rtld_locks[0];
 rtld_lock_t	rtld_libc_lock = &rtld_locks[1];
+rtld_lock_t	rtld_phdr_lock = &rtld_locks[2];
 
 int
 rlock_acquire(rtld_lock_t lock)

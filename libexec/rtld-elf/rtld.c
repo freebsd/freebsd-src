@@ -2098,9 +2098,10 @@ dl_iterate_phdr(__dl_iterate_hdr_callback callback, void *param)
 {
     struct dl_phdr_info phdr_info;
     const Obj_Entry *obj;
-    int error, lockstate;
+    int error, bind_lockstate, phdr_lockstate;
 
-    lockstate = rlock_acquire(rtld_bind_lock);
+    phdr_lockstate = wlock_acquire(rtld_phdr_lock);
+    bind_lockstate = rlock_acquire(rtld_bind_lock);
 
     error = 0;
 
@@ -2119,7 +2120,8 @@ dl_iterate_phdr(__dl_iterate_hdr_callback callback, void *param)
 		break;
 
     }
-    rlock_release(rtld_bind_lock, lockstate);
+    rlock_release(rtld_bind_lock, bind_lockstate);
+    wlock_release(rtld_phdr_lock, phdr_lockstate);
 
     return (error);
 }
