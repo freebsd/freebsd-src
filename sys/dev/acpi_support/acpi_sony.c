@@ -68,6 +68,7 @@ static struct acpi_sony_name_list
 #endif
 	{ "wdp", "GWDP", NULL, "?????"},
 	{ "cdp", "GCDP", "CDPW", "CD Power"},  /*shares [\GL03]&0x8 flag*/
+	{ "azp", "GAZP", "AZPW", "Audio Power"}, 
 	{ NULL, NULL, NULL }
 };
 
