@@ -198,15 +198,14 @@ vnode_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 
 	vp = (struct vnode *) handle;
 
-	ASSERT_VOP_ELOCKED(vp, "vnode_pager_alloc");
-
 	/*
 	 * If the object is being terminated, wait for it to
 	 * go away.
 	 */
+retry:
 	while ((object = vp->v_object) != NULL) {
 		VM_OBJECT_LOCK(object);
-		if ((object->flags & OBJ_DEAD) == 0)
+		if ((object->flags & OBJ_DEAD) == 0) 
 			break;
 		vm_object_set_flag(object, OBJ_DISCONNECTWNT);
 		msleep(object, VM_OBJECT_MTX(object), PDROP | PVM, "vadead", 0);
@@ -217,7 +216,7 @@ vnode_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 
 	if (object == NULL) {
 		/*
-		 * And an object of the appropriate size
+		 * Add an object of the appropriate size
 		 */
 		object = vm_object_allocate(OBJT_VNODE, OFF_TO_IDX(round_page(size)));
 
@@ -226,11 +225,20 @@ vnode_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 		object->handle = handle;
 		if (VFS_NEEDSGIANT(vp->v_mount))
 			vm_object_set_flag(object, OBJ_NEEDGIANT);
+		VM_OBJECT_LOCK(object);
+		if ( vp->v_object != NULL) {
+			/*
+			 * Object has been created while we were sleeping
+			 */
+			VM_OBJECT_UNLOCK(object);
+			vm_object_destroy(object);
+			goto retry;
+		}
 		vp->v_object = object;
-	} else {
+	} else
 		object->ref_count++;
-		VM_OBJECT_UNLOCK(object);
-	}
+
+	VM_OBJECT_UNLOCK(object);
 	vref(vp);
 	return (object);
 }
