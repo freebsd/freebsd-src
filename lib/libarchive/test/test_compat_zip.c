@@ -29,14 +29,14 @@ __FBSDID("$FreeBSD$");
 static void
 test_compat_zip_1(void)
 {
-	char name[1024];
+	char name[] = "test_compat_zip_1.zip";
 	struct archive_entry *ae;
 	struct archive *a;
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_compression_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
-	sprintf(name, "%s/test_compat_zip_1.zip", refdir);
+	extract_reference_file(name);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, name, 10240));
 
 	/* Read first entry. */
