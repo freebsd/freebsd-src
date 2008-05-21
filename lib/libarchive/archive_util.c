@@ -38,29 +38,71 @@ __FBSDID("$FreeBSD$");
 
 #include "archive.h"
 #include "archive_private.h"
+#include "archive_string.h"
 
+#if ARCHIVE_VERSION_NUMBER < 3000000
+/* These disappear in libarchive 3.0 */
+/* Deprecated. */
 int
 archive_api_feature(void)
 {
 	return (ARCHIVE_API_FEATURE);
 }
 
+/* Deprecated. */
 int
 archive_api_version(void)
 {
 	return (ARCHIVE_API_VERSION);
 }
 
+/* Deprecated synonym for archive_version_number() */
 int
 archive_version_stamp(void)
 {
-	return (ARCHIVE_VERSION_STAMP);
+	return (archive_version_number());
 }
 
+/* Deprecated synonym for archive_version_string() */
 const char *
 archive_version(void)
 {
-	return (ARCHIVE_LIBRARY_VERSION);
+	return (archive_version_string());
+}
+#endif
+
+int
+archive_version_number(void)
+{
+	return (ARCHIVE_VERSION_NUMBER);
+}
+
+/*
+ * Format a version string of the form "libarchive x.y.z", where x, y,
+ * z are the correct parts of the version ID from
+ * archive_version_number().
+ *
+ * I used to do all of this at build time in shell scripts but that
+ * proved to be a portability headache.
+ */
+
+const char *
+archive_version_string(void)
+{
+	static char buff[128];
+	struct archive_string as;
+	int n;
+
+	if (buff[0] == '\0') {
+		n = archive_version_number();
+		memset(&as, 0, sizeof(as));
+		archive_string_sprintf(&as, "libarchive %d.%d.%d",
+		    n / 1000000, (n / 1000) % 1000, n % 1000);
+		strncpy(buff, as.s, sizeof(buff));
+		buff[sizeof(buff) - 1] = '\0';
+		archive_string_free(&as);
+	}
+	return (buff);
 }
 
 int

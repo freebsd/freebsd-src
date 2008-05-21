@@ -207,6 +207,8 @@ aes_get_mbs(struct aes *aes)
 static const wchar_t *
 aes_get_wcs(struct aes *aes)
 {
+	int r;
+
 	if (aes->aes_wcs == NULL && aes->aes_mbs == NULL)
 		return NULL;
 	if (aes->aes_wcs == NULL && aes->aes_mbs != NULL) {
@@ -221,8 +223,13 @@ aes_get_wcs(struct aes *aes)
 		aes->aes_wcs = aes->aes_wcs_alloc;
 		if (aes->aes_wcs == NULL)
 			__archive_errx(1, "No memory for aes_get_wcs()");
-		mbstowcs(aes->aes_wcs_alloc, aes->aes_mbs, wcs_length);
+		r = mbstowcs(aes->aes_wcs_alloc, aes->aes_mbs, wcs_length);
 		aes->aes_wcs_alloc[wcs_length] = 0;
+		if (r == -1) {
+			/* Conversion failed, don't lie to our clients. */
+			free(aes->aes_wcs_alloc);
+			aes->aes_wcs = aes->aes_wcs_alloc = NULL;
+		}
 	}
 	return (aes->aes_wcs);
 }
@@ -307,6 +314,8 @@ aes_copy_wcs_len(struct aes *aes, const wchar_t *wcs, size_t len)
 struct archive_entry *
 archive_entry_clear(struct archive_entry *entry)
 {
+	if (entry == NULL)
+		return (NULL);
 	aes_clean(&entry->ae_fflags_text);
 	aes_clean(&entry->ae_gname);
 	aes_clean(&entry->ae_hardlink);
@@ -752,6 +761,28 @@ archive_entry_set_link(struct archive_entry *entry, const char *target)
 		aes_set_mbs(&entry->ae_hardlink, target);
 }
 
+/* Set symlink if symlink is already set, else set hardlink. */
+void
+archive_entry_copy_link(struct archive_entry *entry, const char *target)
+{
+	if (entry->ae_symlink.aes_mbs != NULL ||
+	    entry->ae_symlink.aes_wcs != NULL)
+		aes_copy_mbs(&entry->ae_symlink, target);
+	else
+		aes_copy_mbs(&entry->ae_hardlink, target);
+}
+
+/* Set symlink if symlink is already set, else set hardlink. */
+void
+archive_entry_copy_link_w(struct archive_entry *entry, const wchar_t *target)
+{
+	if (entry->ae_symlink.aes_mbs != NULL ||
+	    entry->ae_symlink.aes_wcs != NULL)
+		aes_copy_wcs(&entry->ae_symlink, target);
+	else
+		aes_copy_wcs(&entry->ae_hardlink, target);
+}
+
 void
 archive_entry_set_mode(struct archive_entry *entry, mode_t m)
 {
@@ -1124,6 +1155,11 @@ archive_entry_acl_next(struct archive_entry *entry, int want_type, int *type,
 		entry->acl_p = entry->acl_p->next;
 	if (entry->acl_p == NULL) {
 		entry->acl_state = 0;
+		*type = 0;
+		*permset = 0;
+		*tag = 0;
+		*id = -1;
+		*name = NULL;
 		return (ARCHIVE_EOF); /* End of ACL entries. */
 	}
 	*type = entry->acl_p->type;
@@ -1143,7 +1179,7 @@ const wchar_t *
 archive_entry_acl_text_w(struct archive_entry *entry, int flags)
 {
 	int count;
-	int length;
+	size_t length;
 	const wchar_t *wname;
 	const wchar_t *prefix;
 	wchar_t separator;
@@ -1505,7 +1541,7 @@ archive_entry_xattr_next(struct archive_entry * entry,
 		return (ARCHIVE_OK);
 	} else {
 		*name = NULL;
-		*name = NULL;
+		*value = NULL;
 		*size = (size_t)0;
 		return (ARCHIVE_WARN);
 	}

@@ -76,12 +76,18 @@ struct mtree {
 	struct mtree_entry	*this_entry;
 	struct archive_string	 current_dir;
 	struct archive_string	 contents_name;
+
+	off_t			 cur_size, cur_offset;
 };
 
 static int	cleanup(struct archive_read *);
 static int	mtree_bid(struct archive_read *);
+static int	parse_file(struct archive_read *, struct archive_entry *,
+		    struct mtree *, struct mtree_entry *);
 static void	parse_escapes(char *, struct mtree_entry *);
-static int	parse_setting(struct archive_read *, struct mtree *,
+static int	parse_line(struct archive_read *, struct archive_entry *,
+		    struct mtree *, struct mtree_entry *);
+static int	parse_keyword(struct archive_read *, struct mtree *,
 		    struct archive_entry *, char *, char *);
 static int	read_data(struct archive_read *a,
 		    const void **buff, size_t *size, off_t *offset);
@@ -252,14 +258,16 @@ read_mtree(struct archive_read *a, struct mtree *mtree)
 	}
 }
 
+/*
+ * Read in the entire mtree file into memory on the first request.
+ * Then use the next unused file to satisfy each header request.
+ */
 static int
 read_header(struct archive_read *a, struct archive_entry *entry)
 {
-	struct stat st;
 	struct mtree *mtree;
-	struct mtree_entry *mentry, *mentry2;
-	char *p, *q;
-	int r = ARCHIVE_OK, r1;
+	char *p;
+	int r;
 
 	mtree = (struct mtree *)(a->format->data);
 
@@ -278,16 +286,10 @@ read_header(struct archive_read *a, struct archive_entry *entry)
 	a->archive.archive_format_name = mtree->archive_format_name;
 
 	for (;;) {
-		mentry = mtree->this_entry;
-		if (mentry == NULL) {
-			mtree->this_entry = NULL;
+		if (mtree->this_entry == NULL)
 			return (ARCHIVE_EOF);
-		}
-		mtree->this_entry = mentry->next;
-		if (mentry->used)
-			continue;
-		mentry->used = 1;
-		if (strcmp(mentry->name, "..") == 0) {
+		if (strcmp(mtree->this_entry->name, "..") == 0) {
+			mtree->this_entry->used = 1;
 			if (archive_strlen(&mtree->current_dir) > 0) {
 				/* Roll back current path. */
 				p = mtree->current_dir.s
@@ -299,116 +301,164 @@ read_header(struct archive_read *a, struct archive_entry *entry)
 				mtree->current_dir.length
 				    = p - mtree->current_dir.s + 1;
 			}
-			continue;
 		}
-
-		mtree->filetype = AE_IFREG;
-
-		/* Parse options. */
-		p = mentry->option_start;
-		while (p < mentry->option_end) {
-			q = p + strlen(p);
-			r1 = parse_setting(a, mtree, entry, p, q);
-			if (r1 != ARCHIVE_OK)
-				r = r1;
-			p = q + 1;
+		if (!mtree->this_entry->used) {
+			r = parse_file(a, entry, mtree, mtree->this_entry);
+			return (r);
 		}
-
-		if (mentry->full) {
-			archive_entry_copy_pathname(entry, mentry->name);
-			/*
-			 * "Full" entries are allowed to have multiple
-			 * lines and those lines aren't required to be
-			 * adjacent.  We don't support multiple lines
-			 * for "relative" entries nor do we make any
-			 * attempt to merge data from separate
-			 * "relative" and "full" entries.  (Merging
-			 * "relative" and "full" entries would require
-			 * dealing with pathname canonicalization,
-			 * which is a very tricky subject.)
-			 */
-			mentry2 = mentry->next;
-			while (mentry2 != NULL) {
-				if (mentry2->full
-				    && !mentry2->used
-				    && strcmp(mentry->name, mentry2->name) == 0) {
-					/*
-					 * Add those options as well;
-					 * later lines override
-					 * earlier ones.
-					 */
-					p = mentry2->option_start;
-					while (p < mentry2->option_end) {
-						q = p + strlen(p);
-						r1 = parse_setting(a, mtree, entry, p, q);
-						if (r1 != ARCHIVE_OK)
-							r = r1;
-						p = q + 1;
-					}
-					mentry2->used = 1;
-				}
-				mentry2 = mentry2->next;
-			}
-		} else {
-			/*
-			 * Relative entries require us to construct
-			 * the full path and possibly update the
-			 * current directory.
-			 */
-			size_t n = archive_strlen(&mtree->current_dir);
-			if (n > 0)
-				archive_strcat(&mtree->current_dir, "/");
-			archive_strcat(&mtree->current_dir, mentry->name);
-			archive_entry_copy_pathname(entry, mtree->current_dir.s);
-			if (archive_entry_filetype(entry) != AE_IFDIR)
-				mtree->current_dir.length = n;
-		}
-
-		/*
-		 * Try to open and stat the file to get the real size.
-		 * It would be nice to avoid this here so that getting
-		 * a listing of an mtree wouldn't require opening
-		 * every referenced contents file.  But then we
-		 * wouldn't know the actual contents size, so I don't
-		 * see a really viable way around this.  (Also, we may
-		 * want to someday pull other unspecified info from
-		 * the contents file on disk.)
-		 */
-		if (archive_strlen(&mtree->contents_name) > 0) {
-			mtree->fd = open(mtree->contents_name.s,
-			    O_RDONLY | O_BINARY);
-			if (mtree->fd < 0) {
-				archive_set_error(&a->archive, errno,
-				    "Can't open content=\"%s\"",
-				    mtree->contents_name.s);
-				r = ARCHIVE_WARN;
-			}
-		} else {
-			/* If the specified path opens, use it. */
-			mtree->fd = open(mtree->current_dir.s,
-			    O_RDONLY | O_BINARY);
-			/* But don't fail if it's not there. */
-		}
-
-		/*
-		 * If there is a contents file on disk, use that size;
-		 * otherwise leave it as-is (it might have been set from
-		 * the mtree size= keyword).
-		 */
-		if (mtree->fd >= 0) {
-			fstat(mtree->fd, &st);
-			archive_entry_set_size(entry, st.st_size);
-		}
-
-		return r;
+		mtree->this_entry = mtree->this_entry->next;
 	}
 }
 
+/*
+ * A single file can have multiple lines contribute specifications.
+ * Parse as many lines as necessary, then pull additional information
+ * from a backing file on disk as necessary.
+ */
 static int
-parse_setting(struct archive_read *a, struct mtree *mtree, struct archive_entry *entry, char *key, char *end)
+parse_file(struct archive_read *a, struct archive_entry *entry,
+    struct mtree *mtree, struct mtree_entry *mentry)
+{
+	struct stat st;
+	struct mtree_entry *mp;
+	int r = ARCHIVE_OK, r1;
+
+	mentry->used = 1;
+
+	/* Initialize reasonable defaults. */
+	mtree->filetype = AE_IFREG;
+	archive_entry_set_size(entry, 0);
+
+	/* Parse options from this line. */
+	r = parse_line(a, entry, mtree, mentry);
+
+	if (mentry->full) {
+		archive_entry_copy_pathname(entry, mentry->name);
+		/*
+		 * "Full" entries are allowed to have multiple lines
+		 * and those lines aren't required to be adjacent.  We
+		 * don't support multiple lines for "relative" entries
+		 * nor do we make any attempt to merge data from
+		 * separate "relative" and "full" entries.  (Merging
+		 * "relative" and "full" entries would require dealing
+		 * with pathname canonicalization, which is a very
+		 * tricky subject.)
+		 */
+		for (mp = mentry->next; mp != NULL; mp = mp->next) {
+			if (mp->full && !mp->used
+			    && strcmp(mentry->name, mp->name) == 0) {
+				/* Later lines override earlier ones. */
+				mp->used = 1;
+				r1 = parse_line(a, entry, mtree, mp);
+				if (r1 < r)
+					r = r1;
+			}
+		}
+	} else {
+		/*
+		 * Relative entries require us to construct
+		 * the full path and possibly update the
+		 * current directory.
+		 */
+		size_t n = archive_strlen(&mtree->current_dir);
+		if (n > 0)
+			archive_strcat(&mtree->current_dir, "/");
+		archive_strcat(&mtree->current_dir, mentry->name);
+		archive_entry_copy_pathname(entry, mtree->current_dir.s);
+		if (archive_entry_filetype(entry) != AE_IFDIR)
+			mtree->current_dir.length = n;
+	}
+
+	/*
+	 * Try to open and stat the file to get the real size
+	 * and other file info.  It would be nice to avoid
+	 * this here so that getting a listing of an mtree
+	 * wouldn't require opening every referenced contents
+	 * file.  But then we wouldn't know the actual
+	 * contents size, so I don't see a really viable way
+	 * around this.  (Also, we may want to someday pull
+	 * other unspecified info from the contents file on
+	 * disk.)
+	 */
+	mtree->fd = -1;
+	if (archive_strlen(&mtree->contents_name) > 0) {
+		mtree->fd = open(mtree->contents_name.s,
+		    O_RDONLY | O_BINARY);
+		if (mtree->fd < 0) {
+			archive_set_error(&a->archive, errno,
+			    "Can't open content=\"%s\"",
+			    mtree->contents_name.s);
+			r = ARCHIVE_WARN;
+		}
+	} else if (archive_entry_filetype(entry) == AE_IFREG) {
+		mtree->fd = open(archive_entry_pathname(entry),
+		    O_RDONLY | O_BINARY);
+	}
+
+	/*
+	 * If there is a contents file on disk, use that size;
+	 * otherwise leave it as-is (it might have been set from
+	 * the mtree size= keyword).
+	 */
+	if (mtree->fd >= 0) {
+		if (fstat(mtree->fd, &st) != 0) {
+			archive_set_error(&a->archive, errno,
+			    "could not stat %s",
+			    archive_entry_pathname(entry));
+			r = ARCHIVE_WARN;
+			/* If we can't stat it, don't keep it open. */
+			close(mtree->fd);
+			mtree->fd = -1;
+		} else if ((st.st_mode & S_IFMT) != S_IFREG) {
+			archive_set_error(&a->archive, errno,
+			    "%s is not a regular file",
+			    archive_entry_pathname(entry));
+			r = ARCHIVE_WARN;
+			/* Don't hold a non-regular file open. */
+			close(mtree->fd);
+			mtree->fd = -1;
+		} else {
+			archive_entry_set_size(entry, st.st_size);
+			archive_entry_set_ino(entry, st.st_ino);
+			archive_entry_set_dev(entry, st.st_dev);
+			archive_entry_set_nlink(entry, st.st_nlink);
+		}
+	}
+	mtree->cur_size = archive_entry_size(entry);
+	mtree->offset = 0;
+
+	return r;
+}
+
+/*
+ * Each line contains a sequence of keywords.
+ */
+static int
+parse_line(struct archive_read *a, struct archive_entry *entry,
+    struct mtree *mtree, struct mtree_entry *mp)
+{
+	char *p, *q;
+	int r = ARCHIVE_OK, r1;
+
+	p = mp->option_start;
+	while (p < mp->option_end) {
+		q = p + strlen(p);
+		r1 = parse_keyword(a, mtree, entry, p, q);
+		if (r1 < r)
+			r = r1;
+		p = q + 1;
+	}
+	return (r);
+}
+
+/*
+ * Parse a single keyword and its value.
+ */
+static int
+parse_keyword(struct archive_read *a, struct mtree *mtree,
+    struct archive_entry *entry, char *key, char *end)
 {
 	char *val;
-
 
 	if (end == key)
 		return (ARCHIVE_OK);
@@ -427,7 +477,8 @@ parse_setting(struct archive_read *a, struct mtree *mtree, struct archive_entry 
 
 	switch (key[0]) {
 	case 'c':
-		if (strcmp(key, "content") == 0) {
+		if (strcmp(key, "content") == 0
+		    || strcmp(key, "contents") == 0) {
 			parse_escapes(val, NULL);
 			archive_strcpy(&mtree->contents_name, val);
 			break;
@@ -441,6 +492,11 @@ parse_setting(struct archive_read *a, struct mtree *mtree, struct archive_entry 
 			archive_entry_copy_gname(entry, val);
 			break;
 		}
+	case 'l':
+		if (strcmp(key, "link") == 0) {
+			archive_entry_set_link(entry, val);
+			break;
+		}
 	case 'm':
 		if (strcmp(key, "mode") == 0) {
 			if (val[0] == '0') {
@@ -450,6 +506,11 @@ parse_setting(struct archive_read *a, struct mtree *mtree, struct archive_entry 
 				archive_set_error(&a->archive,
 				    ARCHIVE_ERRNO_FILE_FORMAT,
 				    "Symbolic mode \"%s\" unsupported", val);
+			break;
+		}
+	case 's':
+		if (strcmp(key, "size") == 0) {
+			archive_entry_set_size(entry, mtree_atol10(&val));
 			break;
 		}
 	case 't':
@@ -517,6 +578,7 @@ parse_setting(struct archive_read *a, struct mtree *mtree, struct archive_entry 
 static int
 read_data(struct archive_read *a, const void **buff, size_t *size, off_t *offset)
 {
+	size_t bytes_to_read;
 	ssize_t bytes_read;
 	struct mtree *mtree;
 
@@ -538,7 +600,11 @@ read_data(struct archive_read *a, const void **buff, size_t *size, off_t *offset
 
 	*buff = mtree->buff;
 	*offset = mtree->offset;
-	bytes_read = read(mtree->fd, mtree->buff, mtree->buffsize);
+	if ((off_t)mtree->buffsize > mtree->cur_size - mtree->offset)
+		bytes_to_read = mtree->cur_size - mtree->offset;
+	else
+		bytes_to_read = mtree->buffsize;
+	bytes_read = read(mtree->fd, mtree->buff, bytes_to_read);
 	if (bytes_read < 0) {
 		archive_set_error(&a->archive, errno, "Can't read");
 		return (ARCHIVE_WARN);
@@ -548,7 +614,7 @@ read_data(struct archive_read *a, const void **buff, size_t *size, off_t *offset
 		return (ARCHIVE_EOF);
 	}
 	mtree->offset += bytes_read;
-	*size = (size_t)bytes_read;
+	*size = bytes_read;
 	return (ARCHIVE_OK);
 }
 

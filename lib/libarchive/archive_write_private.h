@@ -82,13 +82,6 @@ struct archive_write {
 	} compressor;
 
 	/*
-	 * Again, write support is considerably simpler because there's
-	 * no need for an auction.
-	 */
-	int		  archive_format;
-	const char	 *archive_format_name;
-
-	/*
 	 * Pointers to format-specific functions for writing.  They're
 	 * initialized by archive_write_set_format_XXX() calls.
 	 */
