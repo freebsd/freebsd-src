@@ -39,6 +39,13 @@
 
 struct devfs_dirent;
 
+struct cdev_privdata {
+	struct file		*cdpd_fp;
+	void			*cdpd_data;
+	void			(*cdpd_dtr)(void *);
+	LIST_ENTRY(cdev_privdata) cdpd_list;
+};
+
 struct cdev_priv {
 	struct cdev		cdp_c;
 	TAILQ_ENTRY(cdev_priv)	cdp_list;
@@ -57,17 +64,21 @@ struct cdev_priv {
 	TAILQ_ENTRY(cdev_priv)	cdp_dtr_list;
 	void			(*cdp_dtr_cb)(void *);
 	void			*cdp_dtr_cb_arg;
+
+	LIST_HEAD(, cdev_privdata) cdp_fdpriv;
 };
 
 struct cdev *devfs_alloc(void);
 void devfs_free(struct cdev *);
 void devfs_create(struct cdev *dev);
 void devfs_destroy(struct cdev *dev);
+void devfs_destroy_cdevpriv(struct cdev_privdata *p);
 
 extern struct unrhdr *devfs_inos;
 extern struct mtx devmtx;
 extern struct mtx devfs_de_interlock;
 extern struct sx clone_drain_lock;
+extern struct mtx cdevpriv_mtx;
 extern TAILQ_HEAD(cdev_priv_list, cdev_priv) cdevp_list;
 
 #endif /* _KERNEL */
