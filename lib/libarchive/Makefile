@@ -81,6 +81,7 @@ SRCS=	archive.h					\
 	archive_write_open_filename.c			\
 	archive_write_open_memory.c			\
 	archive_write_set_compression_bzip2.c		\
+	archive_write_set_compression_compress.c	\
 	archive_write_set_compression_gzip.c		\
 	archive_write_set_compression_none.c		\
 	archive_write_set_compression_program.c		\
@@ -120,6 +121,8 @@ MLINKS+=	archive_entry.3 archive_entry_copy_fflags_text_w.3
 MLINKS+=	archive_entry.3 archive_entry_copy_gname.3
 MLINKS+=	archive_entry.3 archive_entry_copy_gname_w.3
 MLINKS+=	archive_entry.3 archive_entry_copy_hardlink_w.3
+MLINKS+=	archive_entry.3 archive_entry_copy_link.3
+MLINKS+=	archive_entry.3 archive_entry_copy_link_w.3
 MLINKS+=	archive_entry.3 archive_entry_copy_pathname_w.3
 MLINKS+=	archive_entry.3 archive_entry_copy_stat.3
 MLINKS+=	archive_entry.3 archive_entry_copy_symlink_w.3
@@ -211,6 +214,7 @@ MLINKS+=	archive_util.3 archive_error_string.3
 MLINKS+=	archive_util.3 archive_format.3
 MLINKS+=	archive_util.3 archive_format_name.3
 MLINKS+=	archive_util.3 archive_set_error.3
+MLINKS+=	archive_write.3 archive_write_close.3
 MLINKS+=	archive_write.3 archive_write_data.3
 MLINKS+=	archive_write.3 archive_write_finish.3
 MLINKS+=	archive_write.3 archive_write_finish_entry.3
