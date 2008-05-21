@@ -45,6 +45,8 @@
 .Nm archive_entry_copy_gname_w ,
 .Nm archive_entry_copy_hardlink ,
 .Nm archive_entry_copy_hardlink_w ,
+.Nm archive_entry_copy_link ,
+.Nm archive_entry_copy_link_w ,
 .Nm archive_entry_copy_pathname_w ,
 .Nm archive_entry_copy_stat ,
 .Nm archive_entry_copy_symlink ,
@@ -101,17 +103,47 @@
 .Sh SYNOPSIS
 .In archive_entry.h
 .Ft void
-.Fn archive_entry_acl_add_entry "struct archive_entry *" "int type" "int permset" "int tag" "int qual" "const char *name"
+.Fo archive_entry_acl_add_entry
+.Fa "struct archive_entry *"
+.Fa "int type"
+.Fa "int permset"
+.Fa "int tag"
+.Fa "int qual"
+.Fa "const char *name"
+.Fc
 .Ft void
-.Fn archive_entry_acl_add_entry_w "struct archive_entry *" "int type" "int permset" "int tag" "int qual" "const wchar_t *name"
+.Fo archive_entry_acl_add_entry_w
+.Fa "struct archive_entry *"
+.Fa "int type"
+.Fa "int permset"
+.Fa "int tag"
+.Fa "int qual"
+.Fa "const wchar_t *name"
+.Fc
 .Ft void
 .Fn archive_entry_acl_clear "struct archive_entry *"
 .Ft int
 .Fn archive_entry_acl_count "struct archive_entry *" "int type"
 .Ft int
-.Fn archive_entry_acl_next "struct archive_entry *" "int want_type" "int *type" "int *permset" "int *tag" "int *qual" "const char **name"
+.Fo archive_entry_acl_next
+.Fa "struct archive_entry *"
+.Fa "int want_type"
+.Fa "int *type"
+.Fa "int *permset"
+.Fa "int *tag"
+.Fa "int *qual"
+.Fa "const char **name"
+.Fc
 .Ft int
-.Fn archive_entry_acl_next_w "struct archive_entry *" "int want_type" "int *type" "int *permset" "int *tag" "int *qual" "const wchar_t **name"
+.Fo archive_entry_acl_next_w
+.Fa "struct archive_entry *"
+.Fa "int want_type"
+.Fa "int *type"
+.Fa "int *permset"
+.Fa "int *tag"
+.Fa "int *qual"
+.Fa "const wchar_t **name"
+.Fc
 .Ft int
 .Fn archive_entry_acl_reset "struct archive_entry *" "int want_type"
 .Ft const wchar_t *
@@ -155,7 +187,11 @@
 .Ft mode_t
 .Fn archive_entry_filetype "struct archive_entry *"
 .Ft void
-.Fn archive_entry_fflags "struct archive_entry *" "unsigned long *set" "unsigned long *clear"
+.Fo archive_entry_fflags
+.Fa "struct archive_entry *"
+.Fa "unsigned long *set"
+.Fa "unsigned long *clear"
+.Fc
 .Ft const char *
 .Fn archive_entry_fflags_text "struct archive_entry *"
 .Ft void
@@ -195,7 +231,11 @@
 .Ft void
 .Fn archive_entry_set_filetype "struct archive_entry *" "unsigned int"
 .Ft void
-.Fn archive_entry_set_fflags "struct archive_entry *" "unsigned long set" "unsigned long clear"
+.Fo archive_entry_set_fflags
+.Fa "struct archive_entry *"
+.Fa "unsigned long set"
+.Fa "unsigned long clear"
+.Fc
 .Ft void
 .Fn archive_entry_set_gid "struct archive_entry *" "gid_t"
 .Ft void
