@@ -242,7 +242,7 @@ audit_record_write(struct vnode *vp, struct ucred *cred, void *data,
 	 */
 	if (audit_in_failure) {
 		if (audit_q_len == 0 && audit_pre_q_len == 0) {
-			VOP_LOCK(vp, LK_DRAIN | LK_INTERLOCK);
+			VOP_LOCK(vp, LK_EXCLUSIVE | LK_RETRY);
 			(void)VOP_FSYNC(vp, MNT_WAIT, curthread);
 			VOP_UNLOCK(vp, 0);
 			panic("Audit store overflow; record queue drained.");
