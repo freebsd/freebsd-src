@@ -459,7 +459,6 @@ restart:
 done:
 	cv_broadcast(&scp->th_cv);
 	mtx_unlock(&scp->seq_lock);
-	mtx_lock(&Giant);
 	SEQ_DEBUG(2, printf("seq_eventthread finished\n"));
 	kproc_exit(0);
 }
