@@ -231,6 +231,7 @@ struct thread {
 	u_long		td_profil_addr;	/* (k) Temporary addr until AST. */
 	u_int		td_profil_ticks; /* (k) Temporary ticks until AST. */
 	char		td_name[MAXCOMLEN + 1];	/* (*) Thread name. */
+	struct file	*td_fpop;	/* (k) file referencing cdev under op */
 #define	td_endzero td_base_pri
 
 /* Copied during fork1() or thread_sched_upcall(). */
