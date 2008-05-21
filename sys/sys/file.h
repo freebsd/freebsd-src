@@ -104,6 +104,7 @@ struct fileops {
  * Below is the list of locks that protects members in struct file.
  *
  * (f) protected with mtx_lock(mtx_pool_find(fp))
+ * (d) cdevpriv_mtx
  * none	not locked
  */
 
@@ -121,6 +122,7 @@ struct file {
 	 */
 	int		f_seqcount;	/* Count of sequential accesses. */
 	off_t		f_nextoff;	/* next expected read/write offset. */
+	struct cdev_privdata *f_cdevpriv; /* (d) Private data for the cdev. */
 	/*
 	 *  DFLAG_SEEKABLE specific fields
 	 */
