@@ -119,9 +119,7 @@ DEFINE_TEST(test_write_format_ar)
 	assertA(0 == archive_read_next_header(a, &ae));
 	assertEqualInt(0, archive_entry_mtime(ae));
 	assertEqualString("//", archive_entry_pathname(ae));
-	assertEqualInt(strlen(strtab), archive_entry_size(ae));
-	assertEqualIntA(a, strlen(strtab), archive_read_data(a, buff2, 100));
-	assert(0 == memcmp(buff2, strtab, strlen(strtab)));
+	assertEqualInt(0, archive_entry_size(ae));
 
 	assertA(0 == archive_read_next_header(a, &ae));
 	assert(1 == archive_entry_mtime(ae));

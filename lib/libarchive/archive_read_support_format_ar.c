@@ -83,8 +83,7 @@ static int	archive_read_format_ar_read_header(struct archive_read *a,
 		    struct archive_entry *e);
 static uint64_t	ar_atol8(const char *p, unsigned char_cnt);
 static uint64_t	ar_atol10(const char *p, unsigned char_cnt);
-static int	ar_parse_gnu_filename_table(struct archive_read *, struct ar *,
-		    const void *, size_t);
+static int	ar_parse_gnu_filename_table(struct archive_read *a);
 static int	ar_parse_common_header(struct ar *ar, struct archive_entry *,
 		    const char *h);
 
@@ -167,8 +166,8 @@ archive_read_format_ar_read_header(struct archive_read *a,
 	struct ar *ar;
 	uint64_t number; /* Used to hold parsed numbers before validation. */
 	ssize_t bytes_read;
-	size_t bsd_name_length, entry_size;
-	char *p;
+	size_t bsd_name_length, entry_size, s;
+	char *p, *st;
 	const void *b;
 	const char *h;
 	int r;
@@ -277,22 +276,42 @@ archive_read_format_ar_read_header(struct archive_read *a,
 			return (ARCHIVE_FATAL);
 		}
 		entry_size = (size_t)number;
+		if (entry_size == 0) {
+			archive_set_error(&a->archive, EINVAL,
+			    "Invalid string table");
+			return (ARCHIVE_WARN);
+		}
+		if (ar->strtab != NULL) {
+			archive_set_error(&a->archive, EINVAL,
+			    "More than one string tables exist");
+			return (ARCHIVE_WARN);
+		}
+
 		/* Read the filename table into memory. */
-		bytes_read = (a->decompressor->read_ahead)(a, &b, entry_size);
-		if (bytes_read <= 0)
-			return (ARCHIVE_FATAL);
-		if ((size_t)bytes_read < entry_size) {
-			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-			    "Truncated input file");
+		st = malloc(entry_size);
+		if (st == NULL) {
+			archive_set_error(&a->archive, ENOMEM,
+			    "Can't allocate filename table buffer");
 			return (ARCHIVE_FATAL);
 		}
-		/*
-		 * Don't consume the contents, so the client will
-		 * also get a shot at reading it.
-		 */
+		ar->strtab = st;
+		ar->strtab_size = entry_size;
+		for (s = entry_size; s > 0; s -= bytes_read) {
+			bytes_read = (a->decompressor->read_ahead)(a, &b, s);
+			if (bytes_read <= 0)
+				return (ARCHIVE_FATAL);
+			if (bytes_read > (ssize_t)s)
+				bytes_read = s;
+			memcpy(st, b, bytes_read);
+			st += bytes_read;
+			(a->decompressor->consume)(a, bytes_read);
+		}
+		/* All contents are consumed. */
+		ar->entry_bytes_remaining = 0;
+		archive_entry_set_size(entry, ar->entry_bytes_remaining);
 
 		/* Parse the filename table. */
-		return (ar_parse_gnu_filename_table(a, ar, b, entry_size));
+		return (ar_parse_gnu_filename_table(a));
 	}
 
 	/*
@@ -492,31 +511,15 @@ archive_read_format_ar_skip(struct archive_read *a)
 }
 
 static int
-ar_parse_gnu_filename_table(struct archive_read *a, struct ar *ar,
-    const void *h, size_t size)
+ar_parse_gnu_filename_table(struct archive_read *a)
 {
+	struct ar *ar;
 	char *p;
+	size_t size;
 
-	if (ar->strtab != NULL) {
-		archive_set_error(&a->archive, EINVAL,
-		    "More than one string tables exist");
-		return (ARCHIVE_WARN);
-	}
+	ar = (struct ar*)(a->format->data);
+	size = ar->strtab_size;
 
-	if (size == 0) {
-		archive_set_error(&a->archive, EINVAL, "Invalid string table");
-		return (ARCHIVE_WARN);
-	}
-
-	ar->strtab_size = size;
-	ar->strtab = malloc(size);
-	if (ar->strtab == NULL) {
-		archive_set_error(&a->archive, ENOMEM,
-		    "Can't allocate string table buffer");
-		return (ARCHIVE_FATAL);
-	}
-
-	(void)memcpy(ar->strtab, h, size);
 	for (p = ar->strtab; p < ar->strtab + size - 1; ++p) {
 		if (*p == '/') {
 			*p++ = '\0';
