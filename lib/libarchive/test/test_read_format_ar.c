@@ -75,9 +75,7 @@ DEFINE_TEST(test_read_format_ar)
 	assertEqualInt(0, archive_entry_mtime(ae));
 	assertEqualInt(0, archive_entry_uid(ae));
 	assertEqualInt(0, archive_entry_gid(ae));
-	assertEqualInt(40, archive_entry_size(ae));
-	assertEqualIntA(a, 40, archive_read_data(a, buff, 50));
-	assert(0 == memcmp(buff, "yyytttsssaaafff.o/\nhhhhjjjjkkkkllll.o/\n\n", 40));
+	assertEqualInt(0, archive_entry_size(ae));
 
 	/* First Entry */
 	assertA(0 == archive_read_next_header(a, &ae));
