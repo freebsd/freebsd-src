@@ -7,17 +7,6 @@ LA_SRCDIR=${.CURDIR}/..
 # Get a list of all libarchive source files
 LA_SRCS!=make -f ${LA_SRCDIR}/Makefile -V SRCS
 
-TESTFILES= \
-	test_compat_gtar_1.tgz					\
-	test_compat_tar_hardlink_1.tar				\
-	test_compat_zip_1.zip					\
-	test_read_format_gtar_sparse_1_13.tgz			\
-	test_read_format_gtar_sparse_1_17.tgz			\
-	test_read_format_gtar_sparse_1_17_posix00.tgz		\
-	test_read_format_gtar_sparse_1_17_posix01.tgz		\
-	test_read_format_gtar_sparse_1_17_posix10.tgz		\
-	test_read_format_gtar_sparse_1_17_posix10_modified.tar
-
 TESTS= \
 	test_acl_basic.c			\
 	test_acl_pax.c				\
@@ -29,6 +18,7 @@ TESTS= \
 	test_empty_write.c			\
 	test_entry.c				\
 	test_entry_strmode.c			\
+	test_pax_filename_encoding.c		\
 	test_read_compress_program.c		\
 	test_read_data_large.c			\
 	test_read_extract.c			\
@@ -59,6 +49,7 @@ TESTS= \
 	test_tar_filenames.c			\
 	test_tar_large.c			\
 	test_write_compress_program.c		\
+	test_write_compress.c			\
 	test_write_disk.c			\
 	test_write_disk_hardlink.c		\
 	test_write_disk_perms.c			\
@@ -104,13 +95,8 @@ CFLAGS+= -I/usr/local/include -DUSE_DMALLOC
 WARNS=6
 
 # Build libarchive_test and run it.
-check test: libarchive_test ${TESTFILES}
-	./libarchive_test
-
-.for f in ${TESTFILES}
-${f}: ${f}.uu
-	uudecode -p ${.CURDIR}/${f}.uu >${f}
-.endfor
+check test: libarchive_test
+	./libarchive_test -k -r ${.CURDIR}
 
 INCS=archive.h list.h
 
@@ -123,7 +109,7 @@ archive.h: ${LA_SRCDIR}/archive.h.in ${LA_SRCDIR}/Makefile
 list.h: ${TESTS} Makefile
 	(cd ${.CURDIR}; cat ${TESTS}) | grep DEFINE_TEST > list.h
 
-CLEANFILES += *.out *.o *.core *~ list.h archive.h ${TESTFILES}
+CLEANFILES += *.out *.o *.core *~ list.h archive.h
 
 cleantest:
 	-chmod -R +w /tmp/libarchive_test.*
