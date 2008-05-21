@@ -57,7 +57,12 @@
 .Ft const char *
 .Fn archive_format_name "struct archive *"
 .Ft void
-.Fn archive_set_error "struct archive *" "int error_code" "const char *fmt" "..."
+.Fo archive_set_error
+.Fa "struct archive *"
+.Fa "int error_code"
+.Fa "const char *fmt"
+.Fa "..."
+.Fc
 .Sh DESCRIPTION
 These functions provide access to various information about the
 .Tn struct archive
