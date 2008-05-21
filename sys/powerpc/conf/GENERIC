@@ -30,7 +30,7 @@ makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 options 	POWERMAC		#NewWorld Apple PowerMacs
 options 	PSIM			#GDB PSIM ppc simulator
 
-options		SCHED_ULE		#ULE scheduler
+options 	SCHED_ULE		#ULE scheduler
 options 	INET			#InterNETworking
 options 	INET6			#IPv6 communications protocols
 options 	SCTP			#Stream Control Transmission Protocol
@@ -95,8 +95,8 @@ device		pass		# Passthrough device (direct SCSI access)
 # syscons is the default console driver, resembling an SCO console
 device		sc
 device		kbdmux
-options		SC_OFWFB	# OFW frame buffer
-options		SC_DFLT_FONT	# compile font in
+options 	SC_OFWFB	# OFW frame buffer
+options 	SC_DFLT_FONT	# compile font in
 makeoptions	SC_DFLT_FONT=cp437
 
 # Serial (COM) ports
