@@ -169,7 +169,6 @@ MAN=	accept_filter.9 \
 	physio.9 \
 	pmap.9 \
 	pmap_activate.9 \
-	pmap_addr_hint.9 \
 	pmap_change_wiring.9 \
 	pmap_clear_modify.9 \
 	pmap_copy.9 \
