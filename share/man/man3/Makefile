@@ -63,6 +63,7 @@ MLINKS+=	queue.3 LIST_EMPTY.3 \
 		queue.3 SLIST_NEXT.3 \
 		queue.3 SLIST_REMOVE.3 \
 		queue.3 SLIST_REMOVE_HEAD.3 \
+		queue.3 SLIST_REMOVE_NEXT.3 \
 		queue.3 STAILQ_CONCAT.3 \
 		queue.3 STAILQ_EMPTY.3 \
 		queue.3 STAILQ_ENTRY.3 \
@@ -79,6 +80,7 @@ MLINKS+=	queue.3 LIST_EMPTY.3 \
 		queue.3 STAILQ_NEXT.3 \
 		queue.3 STAILQ_REMOVE.3 \
 		queue.3 STAILQ_REMOVE_HEAD.3 \
+		queue.3 STAILQ_REMOVE_NEXT.3 \
 		queue.3 TAILQ_CONCAT.3 \
 		queue.3 TAILQ_EMPTY.3 \
 		queue.3 TAILQ_ENTRY.3 \
