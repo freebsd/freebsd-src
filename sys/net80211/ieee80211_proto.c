@@ -1323,8 +1323,25 @@ void
 ieee80211_swbmiss(void *arg)
 {
 	struct ieee80211vap *vap = arg;
+	struct ieee80211com *ic = vap->iv_ic;
 
-	if (vap->iv_swbmiss_count == 0) {
+	/* XXX sleep state? */
+	KASSERT(vap->iv_state == IEEE80211_S_RUN,
+	    ("wrong state %d", vap->iv_state));
+
+	if (ic->ic_flags & IEEE80211_F_SCAN) {
+		/*
+		 * If scanning just ignore and reset state.  If we get a
+		 * bmiss after coming out of scan because we haven't had
+		 * time to receive a beacon then we should probe the AP
+		 * before posting a real bmiss (unless iv_bmiss_max has
+		 * been artifiically lowered).  A cleaner solution might
+		 * be to disable the timer on scan start/end but to handle
+		 * case of multiple sta vap's we'd need to disable the
+		 * timers of all affected vap's.
+		 */
+		vap->iv_swbmiss_count = 0;
+	} else if (vap->iv_swbmiss_count == 0) {
 		if (vap->iv_bmiss != NULL)
 			vap->iv_bmiss(vap);
 		if (vap->iv_bmiss_count == 0)	/* don't re-arm timer */
