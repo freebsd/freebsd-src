@@ -27,7 +27,9 @@
 #ifndef	_CTF_H
 #define	_CTF_H
 
+#if defined(sun)
 #pragma ident	"%Z%%M%	%I%	%E% SMI"
+#endif
 
 #include <sys/types.h>
 
