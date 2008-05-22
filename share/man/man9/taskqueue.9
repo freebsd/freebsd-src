@@ -54,7 +54,7 @@ struct task {
 };
 .Ed
 .Ft struct taskqueue *
-.Fn taskqueue_create "const char *name" "int mflags" "taskqueue_enqueue_fn enqueue" "void *context" "struct proc **"
+.Fn taskqueue_create "const char *name" "int mflags" "taskqueue_enqueue_fn enqueue" "void *context"
 .Ft void
 .Fn taskqueue_free "struct taskqueue *queue"
 .Ft struct taskqueue *
@@ -216,9 +216,6 @@ allowing any further initialisation to be performed
 The
 .Fn TASKQUEUE_DEFINE_THREAD
 macro defines a new taskqueue with its own kernel thread to serve tasks.
-The variable
-.Vt struct proc *taskqueue_name_proc
-is defined which contains the kernel thread serving the tasks.
 The variable
 .Vt struct taskqueue *taskqueue_name
 is used to enqueue tasks onto the queue.
