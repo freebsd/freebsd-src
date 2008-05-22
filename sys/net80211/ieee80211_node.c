@@ -1311,14 +1311,29 @@ ieee80211_add_neighbor(struct ieee80211vap *vap,
 	((wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK) == IEEE80211_FC0_SUBTYPE_PS_POLL)
 #define	IS_BAR(wh) \
 	((wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK) == IEEE80211_FC0_SUBTYPE_BAR)
+#define	IS_PROBEREQ(wh) \
+	((wh->i_fc[0] & (IEEE80211_FC0_TYPE_MASK|IEEE80211_FC0_SUBTYPE_MASK)) \
+	    == (IEEE80211_FC0_TYPE_MGT | IEEE80211_FC0_SUBTYPE_PROBE_REQ))
+#define	IS_BCAST_PROBEREQ(wh) \
+	(IS_PROBEREQ(wh) && IEEE80211_IS_MULTICAST( \
+	    ((const struct ieee80211_frame *)(wh))->i_addr3))
+
+static __inline struct ieee80211_node *
+_find_rxnode(struct ieee80211_node_table *nt,
+    const struct ieee80211_frame_min *wh)
+{
+	/* XXX 4-address frames? */
+	if (IS_CTL(wh) && !IS_PSPOLL(wh) && !IS_BAR(wh) /*&& !IS_RTS(ah)*/)
+		return ieee80211_find_node_locked(nt, wh->i_addr1);
+	if (IS_BCAST_PROBEREQ(wh))
+		return NULL;		/* spam bcast probe req to all vap's */
+	return ieee80211_find_node_locked(nt, wh->i_addr2);
+}
 
 /*
  * Locate the node for sender, track state, and then pass the
- * (referenced) node up to the 802.11 layer for its use.  We
- * are required to pass some node so we fall back to ic_bss
- * when this frame is from an unknown sender.  The 802.11 layer
- * knows this means the sender wasn't in the node table and
- * acts accordingly. 
+ * (referenced) node up to the 802.11 layer for its use.  Note
+ * we can return NULL if the sender is not in the table.
  */
 struct ieee80211_node *
 #ifdef IEEE80211_DEBUG_REFCNT
@@ -1332,13 +1347,9 @@ ieee80211_find_rxnode(struct ieee80211com *ic,
 	struct ieee80211_node_table *nt;
 	struct ieee80211_node *ni;
 
-	/* XXX 4-address frames? */
 	nt = &ic->ic_sta;
 	IEEE80211_NODE_LOCK(nt);
-	if (IS_CTL(wh) && !IS_PSPOLL(wh) && !IS_BAR(wh) /*&& !IS_RTS(ah)*/)
-		ni = ieee80211_find_node_locked(nt, wh->i_addr1);
-	else
-		ni = ieee80211_find_node_locked(nt, wh->i_addr2);
+	ni = _find_rxnode(nt, wh);
 	IEEE80211_NODE_UNLOCK(nt);
 
 	return ni;
@@ -1372,10 +1383,7 @@ ieee80211_find_rxnode_withkey(struct ieee80211com *ic,
 	else
 		ni = NULL;
 	if (ni == NULL) {
-		if (IS_CTL(wh) && !IS_PSPOLL(wh) && !IS_BAR(wh) /*&& !IS_RTS(ah)*/)
-			ni = ieee80211_find_node_locked(nt, wh->i_addr1);
-		else
-			ni = ieee80211_find_node_locked(nt, wh->i_addr2);
+		ni = _find_rxnode(nt, wh);
 		if (ni != NULL && nt->nt_keyixmap != NULL) {
 			/*
 			 * If the station has a unicast key cache slot
@@ -1393,12 +1401,18 @@ ieee80211_find_rxnode_withkey(struct ieee80211com *ic,
 				nt->nt_keyixmap[keyix] = ieee80211_ref_node(ni);
 			}
 		}
-	} else
-		ieee80211_ref_node(ni);
+	} else {
+		if (IS_BCAST_PROBEREQ(wh))
+			ni = NULL;	/* spam bcast probe req to all vap's */
+		else
+			ieee80211_ref_node(ni);
+	}
 	IEEE80211_NODE_UNLOCK(nt);
 
 	return ni;
 }
+#undef IS_BCAST_PROBEREQ
+#undef IS_PROBEREQ
 #undef IS_BAR
 #undef IS_PSPOLL
 #undef IS_CTL
