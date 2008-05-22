@@ -20,7 +20,7 @@
  */
 
 /*
- * Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
@@ -390,7 +390,7 @@ fasttrap_pid_cleanup(void)
 
 /*
  * This is called from cfork() via dtrace_fasttrap_fork(). The child
- * process's address space is a (roughly) a copy of the parent process's so
+ * process's address space is (roughly) a copy of the parent process's so
  * we have to remove all the instrumentation we had previously enabled in the
  * parent.
  */
@@ -437,6 +437,15 @@ fasttrap_fork(proc_t *p, proc_t *cp)
 			    tp->ftt_proc->ftpc_acount != 0) {
 				int ret = fasttrap_tracepoint_remove(cp, tp);
 				ASSERT(ret == 0);
+
+				/*
+				 * The count of active providers can only be
+				 * decremented (i.e. to zero) during exec,
+				 * exit, and removal of a meta provider so it
+				 * should be impossible to drop the count
+				 * mid-fork.
+				 */
+				ASSERT(tp->ftt_proc->ftpc_acount != 0);
 			}
 		}
 		mutex_exit(&bucket->ftb_mtx);
@@ -517,6 +526,12 @@ fasttrap_tracepoint_enable(proc_t *p, fasttrap_probe_t *probe, uint_t index)
 again:
 	mutex_enter(&bucket->ftb_mtx);
 	for (tp = bucket->ftb_data; tp != NULL; tp = tp->ftt_next) {
+		/*
+		 * Note that it's safe to access the active count on the
+		 * associated proc structure because we know that at least one
+		 * provider (this one) will still be around throughout this
+		 * operation.
+		 */
 		if (tp->ftt_pid != pid || tp->ftt_pc != pc ||
 		    tp->ftt_proc->ftpc_acount == 0)
 			continue;
@@ -1157,6 +1172,7 @@ fasttrap_proc_lookup(pid_t pid)
 			mutex_exit(&bucket->ftb_mtx);
 			fprc->ftpc_rcount++;
 			atomic_add_64(&fprc->ftpc_acount, 1);
+			ASSERT(fprc->ftpc_acount <= fprc->ftpc_rcount);
 			mutex_exit(&fprc->ftpc_mtx);
 
 			return (fprc);
@@ -1186,6 +1202,7 @@ fasttrap_proc_lookup(pid_t pid)
 			mutex_exit(&bucket->ftb_mtx);
 			fprc->ftpc_rcount++;
 			atomic_add_64(&fprc->ftpc_acount, 1);
+			ASSERT(fprc->ftpc_acount <= fprc->ftpc_rcount);
 			mutex_exit(&fprc->ftpc_mtx);
 
 			kmem_free(new_fprc, sizeof (fasttrap_proc_t));
@@ -1212,6 +1229,7 @@ fasttrap_proc_release(fasttrap_proc_t *proc)
 	mutex_enter(&proc->ftpc_mtx);
 
 	ASSERT(proc->ftpc_rcount != 0);
+	ASSERT(proc->ftpc_acount <= proc->ftpc_rcount);
 
 	if (--proc->ftpc_rcount != 0) {
 		mutex_exit(&proc->ftpc_mtx);
@@ -1390,6 +1408,16 @@ fasttrap_provider_free(fasttrap_provider_t *provider)
 	ASSERT(provider->ftp_ccount == 0);
 	ASSERT(provider->ftp_mcount == 0);
 
+	/*
+	 * If this provider hasn't been retired, we need to explicitly drop the
+	 * count of active providers on the associated process structure.
+	 */
+	if (!provider->ftp_retired) {
+		atomic_add_64(&provider->ftp_proc->ftpc_acount, -1);
+		ASSERT(provider->ftp_proc->ftpc_acount <
+		    provider->ftp_proc->ftpc_rcount);
+	}
+
 	fasttrap_proc_release(provider->ftp_proc);
 
 	kmem_free(provider, sizeof (fasttrap_provider_t));
@@ -1461,6 +1489,8 @@ fasttrap_provider_retire(pid_t pid, const char *name, int mprov)
 	 * table.
 	 */
 	atomic_add_64(&fp->ftp_proc->ftpc_acount, -1);
+	ASSERT(fp->ftp_proc->ftpc_acount < fp->ftp_proc->ftpc_rcount);
+
 	fp->ftp_retired = 1;
 	fp->ftp_marked = 1;
 	provid = fp->ftp_provid;
@@ -2014,6 +2044,13 @@ err:
 			    tp->ftt_proc->ftpc_acount != 0)
 				break;
 
+			/*
+			 * The count of active providers can only be
+			 * decremented (i.e. to zero) during exec, exit, and
+			 * removal of a meta provider so it should be
+			 * impossible to drop the count during this operation().
+			 */
+			ASSERT(tp->ftt_proc->ftpc_acount != 0);
 			tp = tp->ftt_next;
 		}
 

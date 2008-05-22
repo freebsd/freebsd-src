@@ -45,6 +45,14 @@ extern "C" {
  */
 
 #include <sys/dtrace.h>
+#if !defined(sun)
+#ifdef __sparcv9
+typedef uint32_t		pc_t;
+#else
+typedef uintptr_t		pc_t;
+#endif
+typedef	u_long			greg_t;
+#endif
 
 /*
  * DTrace Implementation Constants and Typedefs
@@ -114,13 +122,13 @@ struct dtrace_probe {
 typedef int dtrace_probekey_f(const char *, const char *, int);
 
 typedef struct dtrace_probekey {
-	const char *dtpk_prov;			/* provider name to match */
+	char *dtpk_prov;			/* provider name to match */
 	dtrace_probekey_f *dtpk_pmatch;		/* provider matching function */
-	const char *dtpk_mod;			/* module name to match */
+	char *dtpk_mod;				/* module name to match */
 	dtrace_probekey_f *dtpk_mmatch;		/* module matching function */
-	const char *dtpk_func;			/* func name to match */
+	char *dtpk_func;			/* func name to match */
 	dtrace_probekey_f *dtpk_fmatch;		/* func matching function */
-	const char *dtpk_name;			/* name to match */
+	char *dtpk_name;			/* name to match */
 	dtrace_probekey_f *dtpk_nmatch;		/* name matching function */
 	dtrace_id_t dtpk_id;			/* identifier to match */
 } dtrace_probekey_t;
@@ -1099,7 +1107,11 @@ typedef struct dtrace_cred {
  * dtrace_state structure.
  */
 struct dtrace_state {
+#if defined(sun)
 	dev_t dts_dev;				/* device */
+#else
+	struct cdev *dts_dev;			/* device */
+#endif
 	int dts_necbs;				/* total number of ECBs */
 	dtrace_ecb_t **dts_ecbs;		/* array of ECBs */
 	dtrace_epid_t dts_epid;			/* next EPID to allocate */
@@ -1113,7 +1125,11 @@ struct dtrace_state {
 	int dts_nspeculations;			/* number of speculations */
 	int dts_naggregations;			/* number of aggregations */
 	dtrace_aggregation_t **dts_aggregations; /* aggregation array */
+#if defined(sun)
 	vmem_t *dts_aggid_arena;		/* arena for aggregation IDs */
+#else
+	struct unrhdr *dts_aggid_arena;		/* arena for aggregation IDs */
+#endif
 	uint64_t dts_errors;			/* total number of errors */
 	uint32_t dts_speculations_busy;		/* number of spec. busy */
 	uint32_t dts_speculations_unavail;	/* number of spec unavail */
@@ -1238,7 +1254,7 @@ extern greg_t dtrace_getfp(void);
 extern int dtrace_getipl(void);
 extern uintptr_t dtrace_caller(int);
 extern uint32_t dtrace_cas32(uint32_t *, uint32_t, uint32_t);
-extern void *dtrace_casptr(void *, void *, void *);
+extern void *dtrace_casptr(volatile void *, volatile void *, volatile void *);
 extern void dtrace_copyin(uintptr_t, uintptr_t, size_t, volatile uint16_t *);
 extern void dtrace_copyinstr(uintptr_t, uintptr_t, size_t, volatile uint16_t *);
 extern void dtrace_copyout(uintptr_t, uintptr_t, size_t, volatile uint16_t *);
@@ -1259,7 +1275,9 @@ extern void dtrace_probe_error(dtrace_state_t *, dtrace_epid_t, int, int,
     int, uintptr_t);
 extern int dtrace_assfail(const char *, const char *, int);
 extern int dtrace_attached(void);
-extern hrtime_t dtrace_gethrestime();
+#if defined(sun)
+extern hrtime_t dtrace_gethrestime(void);
+#endif
 
 #ifdef __sparc
 extern void dtrace_flush_windows(void);
