@@ -35,6 +35,10 @@ NO_WERROR=
 
 .if defined(DEBUG_FLAGS)
 CFLAGS+= ${DEBUG_FLAGS}
+
+.if !defined(NO_CTF) && (${DEBUG_FLAGS:M-g} != "")
+CTFFLAGS+= -g
+.endif
 .endif
 
 .if !defined(DEBUG_FLAGS)
@@ -64,9 +68,15 @@ PO_FLAG=-pg
 
 .c.po:
 	${CC} ${PO_FLAG} ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
+.if defined(CTFCONVERT)
+	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
+.endif
 
 .c.So:
 	${CC} ${PICFLAG} -DPIC ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
+.if defined(CTFCONVERT)
+	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
+.endif
 
 .cc.po .C.po .cpp.po .cxx.po:
 	${CXX} ${PO_FLAG} ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
@@ -76,31 +86,58 @@ PO_FLAG=-pg
 
 .f.po:
 	${FC} -pg ${FFLAGS} -o ${.TARGET} -c ${.IMPSRC}
+.if defined(CTFCONVERT)
+	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
+.endif
 
 .f.So:
 	${FC} ${PICFLAG} -DPIC ${FFLAGS} -o ${.TARGET} -c ${.IMPSRC}
+.if defined(CTFCONVERT)
+	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
+.endif
 
 .m.po:
 	${OBJC} ${OBJCFLAGS} -pg -c ${.IMPSRC} -o ${.TARGET}
+.if defined(CTFCONVERT)
+	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
+.endif
 
 .m.So:
 	${OBJC} ${PICFLAG} -DPIC ${OBJCFLAGS} -c ${.IMPSRC} -o ${.TARGET}
+.if defined(CTFCONVERT)
+	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
+.endif
 
 .s.po .s.So:
 	${AS} ${AFLAGS} -o ${.TARGET} ${.IMPSRC}
+.if defined(CTFCONVERT)
+	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
+.endif
 
 .asm.po:
 	${CC} -x assembler-with-cpp -DPROF ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
+.if defined(CTFCONVERT)
+	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
+.endif
 
 .asm.So:
 	${CC} -x assembler-with-cpp ${PICFLAG} -DPIC ${CFLAGS} \
 	    -c ${.IMPSRC} -o ${.TARGET}
+.if defined(CTFCONVERT)
+	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
+.endif
 
 .S.po:
 	${CC} -DPROF ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
+.if defined(CTFCONVERT)
+	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
+.endif
 
 .S.So:
 	${CC} ${PICFLAG} -DPIC ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
+.if defined(CTFCONVERT)
+	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
+.endif
 
 all: objwarn
 
@@ -170,6 +207,9 @@ ${SHLIB_NAME}: ${SOBJS}
 	@${CC} ${LDFLAGS} -shared -Wl,-x \
 	    -o ${.TARGET} -Wl,-soname,${SONAME} \
 	    `NM='${NM}' lorder ${SOBJS} | tsort -q` ${LDADD}
+.endif
+.if defined(CTFMERGE)
+	${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${SOBJS}
 .endif
 .endif
 
