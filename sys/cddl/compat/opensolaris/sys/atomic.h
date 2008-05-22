@@ -32,6 +32,10 @@
 #include <sys/types.h>
 #include <machine/atomic.h>
 
+#define	casptr(_a, _b, _c)	\
+	atomic_cmpset_ptr((volatile uintptr_t *)(_a), (uintptr_t)(_b), (uintptr_t) (_c))
+#define cas32	atomic_cmpset_32
+
 #ifndef __LP64__
 extern void atomic_add_64(volatile uint64_t *target, int64_t delta);
 extern void *atomic_cas_ptr(volatile void *target, void *cmp,  void *newval);
