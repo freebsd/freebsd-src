@@ -1725,7 +1725,8 @@ options 	BREAK_TO_DEBUGGER	# A BREAK on a serial console goes to
 
 # Solaris implements a new BREAK which is initiated by a character
 # sequence CR ~ ^b which is similar to a familiar pattern used on
-# Sun servers by the Remote Console.
+# Sun servers by the Remote Console.  There are FreeBSD extentions:
+# CR ~ ^p requests force panic and CR ~ ^r requests a clean reboot.
 options 	ALT_BREAK_TO_DEBUGGER
 
 # Serial Communications Controller
