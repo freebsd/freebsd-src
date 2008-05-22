@@ -30,6 +30,7 @@ static const char rcsid[] =
 #ifdef __FreeBSD__
 #include <locale.h>
 #include <langinfo.h>
+#include <libgen.h>
 #endif
 #include <stdio.h>
 #include <string.h>
@@ -70,6 +71,7 @@ extern char *sprintf ();
 extern char **glob_filename ();
 extern int is_newer ();
 extern int is_directory ();
+extern int is_file ();
 extern int do_system_command ();
 
 char *prognam;
@@ -87,6 +89,7 @@ static int apropos;
 static int whatis;
 static int findall;
 static int print_where;
+static char *ultimate_source ();
 
 #ifdef __FreeBSD__
 static char *locale, *locale_opts, *locale_nroff, *locale_codeset;
@@ -201,6 +204,11 @@ main (argc, argv)
 	do_whatis (nextarg);
 	status = (status ? 0 : 1); /* reverts status, see below */
       }
+      else if (strchr (nextarg, '/') != NULL && is_file (nextarg) == 1)
+	{
+	  format_and_display (NULL, ultimate_source(nextarg, dirname(nextarg)),
+			      NULL);
+	}
       else
 	{
 	  status = man (nextarg);
@@ -825,7 +833,7 @@ get_expander (file)
     return YCAT;
 #endif	/* YCAT */
 #ifdef ZCAT
-  if (*end == 'Z' || !strcmp(end, "gz"))
+  if (*end == 'Z' || !strcmp(end, "gz") || !strcmp(end, "bz2"))
     return ZCAT;
 #endif	/* ZCAT */
   return NULL;
@@ -1409,13 +1417,15 @@ format_and_display (path, man_file, cat_file)
   if (access (man_file, R_OK) != 0)
     return 0;
 
-  if (troff)
+  if (troff || path == NULL)
     {
       roff_command = make_roff_command (man_file);
       if (roff_command == NULL)
 	return 0;
-      else
+      if (troff)
 	snprintf (command, sizeof(command), "(cd %s ; %s)", path, roff_command);
+      else
+	snprintf (command, sizeof(command), "%s | %s", roff_command, pager);
 
       found = do_system_command (command);
     }
