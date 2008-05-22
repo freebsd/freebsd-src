@@ -48,6 +48,7 @@
 .Nm SLIST_INSERT_HEAD ,
 .Nm SLIST_NEXT ,
 .Nm SLIST_REMOVE_HEAD ,
+.Nm SLIST_REMOVE_NEXT ,
 .Nm SLIST_REMOVE ,
 .Nm STAILQ_CONCAT ,
 .Nm STAILQ_EMPTY ,
@@ -64,6 +65,7 @@
 .Nm STAILQ_LAST ,
 .Nm STAILQ_NEXT ,
 .Nm STAILQ_REMOVE_HEAD ,
+.Nm STAILQ_REMOVE_NEXT ,
 .Nm STAILQ_REMOVE ,
 .Nm LIST_EMPTY ,
 .Nm LIST_ENTRY ,
@@ -114,6 +116,7 @@ lists and tail queues
 .Fn SLIST_INSERT_HEAD "SLIST_HEAD *head" "TYPE *elm" "SLIST_ENTRY NAME"
 .Fn SLIST_NEXT "TYPE *elm" "SLIST_ENTRY NAME"
 .Fn SLIST_REMOVE_HEAD "SLIST_HEAD *head" "SLIST_ENTRY NAME"
+.Fn SLIST_REMOVE_NEXT "SLIST_HEAD *head" "TYPE *elm" "SLIST_ENTRY NAME"
 .Fn SLIST_REMOVE "SLIST_HEAD *head" "TYPE *elm" "TYPE" "SLIST_ENTRY NAME"
 .\"
 .Fn STAILQ_CONCAT "STAILQ_HEAD *head1" "STAILQ_HEAD *head2"
@@ -131,6 +134,7 @@ lists and tail queues
 .Fn STAILQ_LAST "STAILQ_HEAD *head" "TYPE" "STAILQ_ENTRY NAME"
 .Fn STAILQ_NEXT "TYPE *elm" "STAILQ_ENTRY NAME"
 .Fn STAILQ_REMOVE_HEAD "STAILQ_HEAD *head" "STAILQ_ENTRY NAME"
+.Fn STAILQ_REMOVE_NEXT "STAILQ_HEAD *head" "TYPE *elm" "STAILQ_ENTRY NAME"
 .Fn STAILQ_REMOVE "STAILQ_HEAD *head" "TYPE *elm" "TYPE" "STAILQ_ENTRY NAME"
 .\"
 .Fn LIST_EMPTY "LIST_HEAD *head"
@@ -387,6 +391,14 @@ this macro instead of the generic
 macro.
 .Pp
 The macro
+.Nm SLIST_REMOVE_NEXT
+removes the element after
+.Fa elm
+from the list. Unlike
+.Fa SLIST_REMOVE ,
+this macro does not traverse the entire list.
+.Pp
+The macro
 .Nm SLIST_REMOVE
 removes the element
 .Fa elm
@@ -559,6 +571,14 @@ elements being removed from the head of the tail queue should
 use this macro explicitly rather than the generic
 .Fa STAILQ_REMOVE
 macro.
+.Pp
+The macro
+.Nm STAILQ_REMOVE_NEXT
+removes the element after
+.Fa elm
+from the tail queue. Unlike
+.Fa STAILQ_REMOVE ,
+this macro does not traverse the entire tail queue.
 .Pp
 The macro
 .Nm STAILQ_REMOVE
