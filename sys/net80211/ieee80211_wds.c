@@ -403,8 +403,6 @@ wds_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	if (ostate != IEEE80211_S_SCAN)
 		ieee80211_cancel_scan(vap);	/* background scan */
 	ni = vap->iv_bss;			/* NB: no reference held */
-	if (vap->iv_flags_ext & IEEE80211_FEXT_SWBMISS)
-		callout_stop(&vap->iv_swbmiss);
 	error = 0;
 	switch (nstate) {
 	case IEEE80211_S_INIT:
