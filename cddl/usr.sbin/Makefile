@@ -2,7 +2,8 @@
 
 .include <bsd.own.mk>
 
-SUBDIR=	${_zdb}
+SUBDIR=	dtrace \
+	${_zdb}
 
 .if ${MK_ZFS} != "no"
 .if ${MK_LIBTHR} != "no"
