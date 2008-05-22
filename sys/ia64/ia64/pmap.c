@@ -439,7 +439,7 @@ pmap_bootstrap()
 		pte[i].chain = (uintptr_t)(pmap_vhpt_bucket + i);
 		/* Stolen memory is zeroed! */
 		mtx_init(&pmap_vhpt_bucket[i].mutex, "VHPT bucket lock", NULL,
-		    MTX_SPIN);
+		    MTX_NOWITNESS | MTX_SPIN);
 	}
 
 	for (i = 1; i < MAXCPU; i++) {
