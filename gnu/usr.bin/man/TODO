@@ -1,3 +1,5 @@
+$FreeBSD$
+
 Things that would be nice but aren't really necessary:
 
 0.  Update the documentation.
@@ -105,7 +107,7 @@ XX  I've been using your man(1) package for a while now and I ran into
     file names used by Motif.  Maybe there's a better way to handle
     this?
 
-15. Add ability to run man on a local file
+XX  Add ability to run man on a local file
 
 16. Handle per-tree tmac macros
     
