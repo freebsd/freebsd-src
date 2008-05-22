@@ -1424,6 +1424,9 @@ gethead(struct s_spcl *buf)
 			buf->c_ddate = _time32_to_time(buf->c_old_ddate);
 			buf->c_atime = _time32_to_time(buf->c_old_atime);
 			buf->c_mtime = _time32_to_time(buf->c_old_mtime);
+			buf->c_birthtime = 0;
+			buf->c_birthtimensec = 0;
+			buf->c_extsize = 0;
 		}
 		break;
 
