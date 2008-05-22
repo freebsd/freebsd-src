@@ -49,10 +49,22 @@ extern "C" {
 #include <sys/types.h>
 #include <sys/modctl.h>
 #include <sys/processor.h>
+#if defined(sun)
 #include <sys/systm.h>
+#else
+#include <sys/param.h>
+#include <sys/linker.h>
+#include <sys/ioccom.h>
+#include <sys/ucred.h>
+typedef int model_t;
+#endif
 #include <sys/ctf_api.h>
 #include <sys/cyclic.h>
+#if defined(sun)
 #include <sys/int_limits.h>
+#else
+#include <sys/stdint.h>
+#endif
 
 /*
  * DTrace Universal Constants and Typedefs
@@ -237,6 +249,7 @@ typedef enum dtrace_probespec {
 #define	DIF_VAR_UID		0x011e	/* process user ID */
 #define	DIF_VAR_GID		0x011f	/* process group ID */
 #define	DIF_VAR_ERRNO		0x0120	/* thread errno */
+#define	DIF_VAR_EXECARGS	0x0121	/* process arguments */
 
 #define	DIF_SUBR_RAND			0
 #define	DIF_SUBR_MUTEX_OWNED		1
@@ -282,8 +295,13 @@ typedef enum dtrace_probespec {
 #define	DIF_SUBR_INET_NTOP		41
 #define	DIF_SUBR_INET_NTOA		42
 #define	DIF_SUBR_INET_NTOA6		43
+#define	DIF_SUBR_MEMREF			44
+#define	DIF_SUBR_TYPEREF		45
+#define	DIF_SUBR_SX_SHARED_HELD		46
+#define	DIF_SUBR_SX_EXCLUSIVE_HELD	47
+#define	DIF_SUBR_SX_ISEXCLUSIVE		48
 
-#define	DIF_SUBR_MAX			43	/* max subroutine value */
+#define	DIF_SUBR_MAX			48	/* max subroutine value */
 
 typedef uint32_t dif_instr_t;
 
@@ -392,6 +410,8 @@ typedef struct dtrace_difv {
 #define	DTRACEACT_PRINTF		3	/* printf() action */
 #define	DTRACEACT_PRINTA		4	/* printa() action */
 #define	DTRACEACT_LIBACT		5	/* library-controlled action */
+#define	DTRACEACT_PRINTM		6	/* printm() action */
+#define	DTRACEACT_PRINTT		7	/* printt() action */
 
 #define	DTRACEACT_PROC			0x0100
 #define	DTRACEACT_USTACK		(DTRACEACT_PROC + 1)
@@ -497,7 +517,7 @@ typedef struct dtrace_difv {
 	((((uint64_t)(y)) << 32) | ((x) & UINT32_MAX))
 
 #ifndef _LP64
-#ifndef _LITTLE_ENDIAN
+#if BYTE_ORDER == _BIG_ENDIAN
 #define	DTRACE_PTR(type, name)	uint32_t name##pad; type *name
 #else
 #define	DTRACE_PTR(type, name)	type *name; uint32_t name##pad
@@ -607,7 +627,7 @@ typedef struct dof_hdr {
 #define	DOF_ENCODE_LSB	1
 #define	DOF_ENCODE_MSB	2
 
-#ifdef _BIG_ENDIAN
+#if BYTE_ORDER == _BIG_ENDIAN
 #define	DOF_ENCODE_NATIVE	DOF_ENCODE_MSB
 #else
 #define	DOF_ENCODE_NATIVE	DOF_ENCODE_LSB
@@ -1171,6 +1191,7 @@ typedef struct dtrace_providerdesc {
  * pseudodevice driver.  These ioctls comprise the user-kernel interface to
  * DTrace.
  */
+#if defined(sun)
 #define	DTRACEIOC		(('d' << 24) | ('t' << 16) | ('r' << 8))
 #define	DTRACEIOC_PROVIDER	(DTRACEIOC | 1)		/* provider query */
 #define	DTRACEIOC_PROBES	(DTRACEIOC | 2)		/* probe query */
@@ -1188,6 +1209,44 @@ typedef struct dtrace_providerdesc {
 #define	DTRACEIOC_FORMAT	(DTRACEIOC | 16)	/* get format str */
 #define	DTRACEIOC_DOFGET	(DTRACEIOC | 17)	/* get DOF */
 #define	DTRACEIOC_REPLICATE	(DTRACEIOC | 18)	/* replicate enab */
+#else
+#define	DTRACEIOC_PROVIDER	_IOWR('x',1,dtrace_providerdesc_t)
+							/* provider query */
+#define	DTRACEIOC_PROBES	_IOWR('x',2,dtrace_probedesc_t)
+							/* probe query */
+#define	DTRACEIOC_BUFSNAP	_IOW('x',4,dtrace_bufdesc_t *)	
+							/* snapshot buffer */
+#define	DTRACEIOC_PROBEMATCH	_IOWR('x',5,dtrace_probedesc_t)
+							/* match probes */
+typedef struct {
+	void	*dof;		/* DOF userland address written to driver. */
+	int	n_matched;	/* # matches returned by driver. */
+} dtrace_enable_io_t;
+#define	DTRACEIOC_ENABLE	_IOWR('x',6,dtrace_enable_io_t)
+							/* enable probes */
+#define	DTRACEIOC_AGGSNAP	_IOW('x',7,dtrace_bufdesc_t *)
+							/* snapshot agg. */
+#define	DTRACEIOC_EPROBE	_IOW('x',8,dtrace_eprobedesc_t)
+							/* get eprobe desc. */
+#define	DTRACEIOC_PROBEARG	_IOWR('x',9,dtrace_argdesc_t)
+							/* get probe arg */
+#define	DTRACEIOC_CONF		_IOR('x',10,dtrace_conf_t)
+							/* get config. */
+#define	DTRACEIOC_STATUS	_IOR('x',11,dtrace_status_t)
+							/* get status */
+#define	DTRACEIOC_GO		_IOR('x',12,processorid_t)
+							/* start tracing */
+#define	DTRACEIOC_STOP		_IOWR('x',13,processorid_t)
+							/* stop tracing */
+#define	DTRACEIOC_AGGDESC	_IOW('x',15,dtrace_aggdesc_t *)	
+							/* get agg. desc. */
+#define	DTRACEIOC_FORMAT	_IOWR('x',16,dtrace_fmtdesc_t)	
+							/* get format str */
+#define	DTRACEIOC_DOFGET	_IOW('x',17,dof_hdr_t *)
+							/* get DOF */
+#define	DTRACEIOC_REPLICATE	_IOW('x',18,dtrace_repldesc_t)	
+							/* replicate enab */
+#endif
 
 /*
  * DTrace Helpers
@@ -1350,7 +1409,7 @@ typedef struct dof_helper {
  *   DTrace routines, including dtrace_probe_create(), dtrace_probe_lookup(),
  *   and dtrace_probe_arg().
  *
- * 1.3  void dtps_provide_module(void *arg, struct modctl *mp)
+ * 1.3  void dtps_provide_module(void *arg, modctl_t *mp)
  *
  * 1.3.1  Overview
  *
@@ -1955,8 +2014,8 @@ typedef struct dof_helper {
  *   routines.
  */
 typedef struct dtrace_pops {
-	void (*dtps_provide)(void *arg, const dtrace_probedesc_t *spec);
-	void (*dtps_provide_module)(void *arg, struct modctl *mp);
+	void (*dtps_provide)(void *arg, dtrace_probedesc_t *spec);
+	void (*dtps_provide_module)(void *arg, modctl_t *mp);
 	void (*dtps_enable)(void *arg, dtrace_id_t id, void *parg);
 	void (*dtps_disable)(void *arg, dtrace_id_t id, void *parg);
 	void (*dtps_suspend)(void *arg, dtrace_id_t id, void *parg);
@@ -1976,8 +2035,8 @@ extern int dtrace_register(const char *, const dtrace_pattr_t *, uint32_t,
 extern int dtrace_unregister(dtrace_provider_id_t);
 extern int dtrace_condense(dtrace_provider_id_t);
 extern void dtrace_invalidate(dtrace_provider_id_t);
-extern dtrace_id_t dtrace_probe_lookup(dtrace_provider_id_t, const char *,
-    const char *, const char *);
+extern dtrace_id_t dtrace_probe_lookup(dtrace_provider_id_t, char *,
+    char *, char *);
 extern dtrace_id_t dtrace_probe_create(dtrace_provider_id_t, const char *,
     const char *, const char *, int, void *);
 extern void *dtrace_probe_arg(dtrace_provider_id_t, dtrace_id_t);
@@ -2150,7 +2209,9 @@ typedef enum dtrace_vtime_state {
 	DTRACE_VTIME_ACTIVE_TNF		/* DTrace virtual time _and_ TNF */
 } dtrace_vtime_state_t;
 
+#if defined(sun)
 extern dtrace_vtime_state_t dtrace_vtime_active;
+#endif
 extern void dtrace_vtime_switch(kthread_t *next);
 extern void dtrace_vtime_enable_tnf(void);
 extern void dtrace_vtime_disable_tnf(void);
@@ -2159,12 +2220,14 @@ extern void dtrace_vtime_disable(void);
 
 struct regs;
 
+#if defined(sun)
 extern int (*dtrace_pid_probe_ptr)(struct regs *);
 extern int (*dtrace_return_probe_ptr)(struct regs *);
 extern void (*dtrace_fasttrap_fork_ptr)(proc_t *, proc_t *);
 extern void (*dtrace_fasttrap_exec_ptr)(proc_t *);
 extern void (*dtrace_fasttrap_exit_ptr)(proc_t *);
 extern void dtrace_fasttrap_fork(proc_t *, proc_t *);
+#endif
 
 typedef uintptr_t dtrace_icookie_t;
 typedef void (*dtrace_xcall_t)(void *);
@@ -2176,18 +2239,22 @@ extern void dtrace_membar_producer(void);
 extern void dtrace_membar_consumer(void);
 
 extern void (*dtrace_cpu_init)(processorid_t);
-extern void (*dtrace_modload)(struct modctl *);
-extern void (*dtrace_modunload)(struct modctl *);
-extern void (*dtrace_helpers_cleanup)();
+extern void (*dtrace_modload)(modctl_t *);
+extern void (*dtrace_modunload)(modctl_t *);
+extern void (*dtrace_helpers_cleanup)(void);
 extern void (*dtrace_helpers_fork)(proc_t *parent, proc_t *child);
-extern void (*dtrace_cpustart_init)();
-extern void (*dtrace_cpustart_fini)();
+extern void (*dtrace_cpustart_init)(void);
+extern void (*dtrace_cpustart_fini)(void);
 
-extern void (*dtrace_debugger_init)();
-extern void (*dtrace_debugger_fini)();
+extern void (*dtrace_debugger_init)(void);
+extern void (*dtrace_debugger_fini)(void);
 extern dtrace_cacheid_t dtrace_predcache_id;
 
+#if defined(sun)
 extern hrtime_t dtrace_gethrtime(void);
+#else
+void dtrace_debug_printf(const char *, ...) __printflike(1, 2);
+#endif
 extern void dtrace_sync(void);
 extern void dtrace_toxic_ranges(void (*)(uintptr_t, uintptr_t));
 extern void dtrace_xcall(processorid_t, dtrace_xcall_t, void *);
@@ -2213,13 +2280,13 @@ extern void dtrace_getfsr(uint64_t *);
 #endif
 
 #define	DTRACE_CPUFLAG_ISSET(flag) \
-	(cpu_core[CPU->cpu_id].cpuc_dtrace_flags & (flag))
+	(cpu_core[curcpu].cpuc_dtrace_flags & (flag))
 
 #define	DTRACE_CPUFLAG_SET(flag) \
-	(cpu_core[CPU->cpu_id].cpuc_dtrace_flags |= (flag))
+	(cpu_core[curcpu].cpuc_dtrace_flags |= (flag))
 
 #define	DTRACE_CPUFLAG_CLEAR(flag) \
-	(cpu_core[CPU->cpu_id].cpuc_dtrace_flags &= ~(flag))
+	(cpu_core[curcpu].cpuc_dtrace_flags &= ~(flag))
 
 #endif /* _KERNEL */
 
