@@ -32,8 +32,6 @@
 
 #include_next <sys/pcpu.h>
 
-typedef struct pcpu	cpu_t;
-
-#define	cpu_id		pc_cpuid
+typedef struct pcpu	pcpu_t;
 
 #endif
