@@ -525,7 +525,8 @@ gv_new_plex(int max, char *token[])
 				break;
 			}
 			p->state = gv_plexstatei(token[j]);
-		} else if (!strcmp(token[j], "vol")) {
+		} else if (!strcmp(token[j], "vol") ||
+			    !strcmp(token[j], "volume")) {
 			j++;
 			if (j >= max) {
 				errors++;
