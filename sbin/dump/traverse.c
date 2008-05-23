@@ -75,7 +75,13 @@ union dinode {
 
 static	int dirindir(ino_t ino, ufs2_daddr_t blkno, int level, long *size,
     long *tapesize, int nodump, ino_t maxino);
-static	void dmpindir(ino_t ino, ufs2_daddr_t blk, int level, off_t *size);
+static	void dmpindir(union dinode *dp, ino_t ino, ufs2_daddr_t blk, int level,
+    off_t *size);
+static	void ufs1_blksout(ufs1_daddr_t *blkp, int frags, ino_t ino);
+static	void ufs2_blksout(union dinode *dp, ufs2_daddr_t *blkp, int frags,
+    ino_t ino, int last);
+static	int appendextdata(union dinode *dp);
+static	void writeextdata(union dinode *dp, ino_t ino, int added);
 static	int searchdir(ino_t ino, ufs2_daddr_t blkno, long size, long filesize,
     long *tapesize, int nodump, ino_t maxino);
 static	long blockest(union dinode *dp);
@@ -450,7 +456,7 @@ searchdir(
 void
 dumpino(union dinode *dp, ino_t ino)
 {
-	int ind_level, cnt;
+	int ind_level, cnt, last, added;
 	off_t size;
 	char buf[TP_BSIZE];
 
@@ -470,6 +476,7 @@ dumpino(union dinode *dp, ino_t ino)
 	if (sblock->fs_magic == FS_UFS1_MAGIC) {
 		spcl.c_mode = dp->dp1.di_mode;
 		spcl.c_size = dp->dp1.di_size;
+		spcl.c_extsize = 0;
 		spcl.c_atime = _time32_to_time(dp->dp1.di_atime);
 		spcl.c_atimensec = dp->dp1.di_atimensec;
 		spcl.c_mtime = _time32_to_time(dp->dp1.di_mtime);
@@ -483,6 +490,7 @@ dumpino(union dinode *dp, ino_t ino)
 	} else {
 		spcl.c_mode = dp->dp2.di_mode;
 		spcl.c_size = dp->dp2.di_size;
+		spcl.c_extsize = dp->dp2.di_extsize;
 		spcl.c_atime = _time64_to_time(dp->dp2.di_atime);
 		spcl.c_atimensec = dp->dp2.di_atimensec;
 		spcl.c_mtime = _time64_to_time(dp->dp2.di_mtime);
@@ -512,6 +520,7 @@ dumpino(union dinode *dp, ino_t ino)
 		    DIP(dp, di_size) < sblock->fs_maxsymlinklen) {
 			spcl.c_addr[0] = 1;
 			spcl.c_count = 1;
+			added = appendextdata(dp);
 			writeheader(ino);
 			if (sblock->fs_magic == FS_UFS1_MAGIC)
 				memmove(buf, (caddr_t)dp->dp1.di_db,
@@ -521,6 +530,7 @@ dumpino(union dinode *dp, ino_t ino)
 				    (u_long)DIP(dp, di_size));
 			buf[DIP(dp, di_size)] = '\0';
 			writerec(buf, 0);
+			writeextdata(dp, ino, added);
 			return;
 		}
 		/* FALLTHROUGH */
@@ -535,7 +545,9 @@ dumpino(union dinode *dp, ino_t ino)
 	case S_IFSOCK:
 	case S_IFCHR:
 	case S_IFBLK:
+		added = appendextdata(dp);
 		writeheader(ino);
+		writeextdata(dp, ino, added);
 		return;
 
 	default:
@@ -543,18 +555,21 @@ dumpino(union dinode *dp, ino_t ino)
 		    DIP(dp, di_mode) & IFMT);
 		return;
 	}
-	if (DIP(dp, di_size) > NDADDR * sblock->fs_bsize)
+	if (DIP(dp, di_size) > NDADDR * sblock->fs_bsize) {
 		cnt = NDADDR * sblock->fs_frag;
-	else
+		last = 0;
+	} else {
 		cnt = howmany(DIP(dp, di_size), sblock->fs_fsize);
+		last = 1;
+	}
 	if (sblock->fs_magic == FS_UFS1_MAGIC)
 		ufs1_blksout(&dp->dp1.di_db[0], cnt, ino);
 	else
-		ufs2_blksout(&dp->dp2.di_db[0], cnt, ino);
+		ufs2_blksout(dp, &dp->dp2.di_db[0], cnt, ino, last);
 	if ((size = DIP(dp, di_size) - NDADDR * sblock->fs_bsize) <= 0)
 		return;
 	for (ind_level = 0; ind_level < NIADDR; ind_level++) {
-		dmpindir(ino, DIP(dp, di_ib[ind_level]), ind_level, &size);
+		dmpindir(dp, ino, DIP(dp, di_ib[ind_level]), ind_level, &size);
 		if (size <= 0)
 			return;
 	}
@@ -564,13 +579,14 @@ dumpino(union dinode *dp, ino_t ino)
  * Read indirect blocks, and pass the data blocks to be dumped.
  */
 static void
-dmpindir(ino_t ino, ufs2_daddr_t blk, int ind_level, off_t *size)
+dmpindir(union dinode *dp, ino_t ino, ufs2_daddr_t blk, int ind_level,
+	off_t *size)
 {
 	union {
 		ufs1_daddr_t ufs1[MAXBSIZE / sizeof(ufs1_daddr_t)];
 		ufs2_daddr_t ufs2[MAXBSIZE / sizeof(ufs2_daddr_t)];
 	} idblk;
-	int i, cnt;
+	int i, cnt, last;
 
 	if (blk != 0)
 		bread(fsbtodb(sblock, blk), (char *)&idblk,
@@ -578,23 +594,26 @@ dmpindir(ino_t ino, ufs2_daddr_t blk, int ind_level, off_t *size)
 	else
 		memset(&idblk, 0, sblock->fs_bsize);
 	if (ind_level <= 0) {
-		if (*size < NINDIR(sblock) * sblock->fs_bsize)
-			cnt = howmany(*size, sblock->fs_fsize);
-		else
+		if (*size > NINDIR(sblock) * sblock->fs_bsize) {
 			cnt = NINDIR(sblock) * sblock->fs_frag;
+			last = 0;
+		} else {
+			cnt = howmany(*size, sblock->fs_fsize);
+			last = 1;
+		}
 		*size -= NINDIR(sblock) * sblock->fs_bsize;
 		if (sblock->fs_magic == FS_UFS1_MAGIC)
 			ufs1_blksout(idblk.ufs1, cnt, ino);
 		else
-			ufs2_blksout(idblk.ufs2, cnt, ino);
+			ufs2_blksout(dp, idblk.ufs2, cnt, ino, last);
 		return;
 	}
 	ind_level--;
 	for (i = 0; i < NINDIR(sblock); i++) {
 		if (sblock->fs_magic == FS_UFS1_MAGIC)
-			dmpindir(ino, idblk.ufs1[i], ind_level, size);
+			dmpindir(dp, ino, idblk.ufs1[i], ind_level, size);
 		else
-			dmpindir(ino, idblk.ufs2[i], ind_level, size);
+			dmpindir(dp, ino, idblk.ufs2[i], ind_level, size);
 		if (*size <= 0)
 			return;
 	}
@@ -603,7 +622,7 @@ dmpindir(ino_t ino, ufs2_daddr_t blk, int ind_level, off_t *size)
 /*
  * Collect up the data into tape record sized buffers and output them.
  */
-void
+static void
 ufs1_blksout(ufs1_daddr_t *blkp, int frags, ino_t ino)
 {
 	ufs1_daddr_t *bp;
@@ -638,13 +657,25 @@ ufs1_blksout(ufs1_daddr_t *blkp, int frags, ino_t ino)
 /*
  * Collect up the data into tape record sized buffers and output them.
  */
-void
-ufs2_blksout(ufs2_daddr_t *blkp, int frags, ino_t ino)
+static void
+ufs2_blksout(union dinode *dp, ufs2_daddr_t *blkp, int frags, ino_t ino,
+	int last)
 {
 	ufs2_daddr_t *bp;
-	int i, j, count, blks, tbperdb;
+	int i, j, count, resid, blks, tbperdb, added;
+	static int writingextdata = 0;
 
+	/*
+	 * Calculate the number of TP_BSIZE blocks to be dumped.
+	 * For filesystems with a fragment size bigger than TP_BSIZE,
+	 * only part of the final fragment may need to be dumped.
+	 */
 	blks = howmany(frags * sblock->fs_fsize, TP_BSIZE);
+	if (last) {
+		resid = howmany(fragoff(sblock, dp->dp2.di_size), TP_BSIZE);
+		if (resid > 0)
+			blks -= howmany(sblock->fs_fsize, TP_BSIZE) - resid;
+	}
 	tbperdb = sblock->fs_bsize >> tp_bshift;
 	for (i = 0; i < blks; i += TP_NINDIR) {
 		if (i + TP_NINDIR > blks)
@@ -657,6 +688,8 @@ ufs2_blksout(ufs2_daddr_t *blkp, int frags, ino_t ino)
 			else
 				spcl.c_addr[j - i] = 0;
 		spcl.c_count = count - i;
+		if (last && count == blks && !writingextdata)
+			added = appendextdata(dp);
 		writeheader(ino);
 		bp = &blkp[i / tbperdb];
 		for (j = i; j < count; j += tbperdb, bp++)
@@ -667,7 +700,122 @@ ufs2_blksout(ufs2_daddr_t *blkp, int frags, ino_t ino)
 					dumpblock(*bp, (count - j) * TP_BSIZE);
 			}
 		spcl.c_type = TS_ADDR;
+		spcl.c_count = 0;
+		if (last && count == blks && !writingextdata) {
+			writingextdata = 1;
+			writeextdata(dp, ino, added);
+			writingextdata = 0;
+		}
 	}
+}
+
+/*
+ * If there is room in the current block for the extended attributes
+ * as well as the file data, update the header to reflect the added
+ * attribute data at the end. Attributes are placed at the end so that
+ * old versions of restore will correctly restore the file and simply
+ * discard the extra data at the end that it does not understand.
+ * The attribute data is dumped following the file data by the
+ * writeextdata() function (below).
+ */
+static int
+appendextdata(union dinode *dp)
+{
+	int i, blks, tbperdb;
+
+	/*
+	 * If no extended attributes, there is nothing to do.
+	 */
+	if (spcl.c_extsize == 0)
+		return (0);
+	/*
+	 * If there is not enough room at the end of this block
+	 * to add the extended attributes, then rather than putting
+	 * part of them here, we simply push them entirely into a
+	 * new block rather than putting some here and some later.
+	 */
+	if (spcl.c_extsize > NXADDR * sblock->fs_bsize)
+		blks = howmany(NXADDR * sblock->fs_bsize, TP_BSIZE);
+	else
+		blks = howmany(spcl.c_extsize, TP_BSIZE);
+	if (spcl.c_count + blks > TP_NINDIR)
+		return (0);
+	/*
+	 * Update the block map in the header to indicate the added
+	 * extended attribute. They will be appended after the file
+	 * data by the writeextdata() routine.
+	 */
+	tbperdb = sblock->fs_bsize >> tp_bshift;
+	for (i = 0; i < blks; i++)
+		if (&dp->dp2.di_extb[i / tbperdb] != 0)
+				spcl.c_addr[spcl.c_count + i] = 1;
+			else
+				spcl.c_addr[spcl.c_count + i] = 0;
+	spcl.c_count += blks;
+	return (blks);
+}
+
+/*
+ * Dump the extended attribute data. If there was room in the file
+ * header, then all we need to do is output the data blocks. If there
+ * was not room in the file header, then an additional TS_ADDR header
+ * is created to hold the attribute data.
+ */
+static void
+writeextdata(union dinode *dp, ino_t ino, int added)
+{
+	int i, frags, blks, tbperdb, last;
+	ufs2_daddr_t *bp;
+	off_t size;
+
+	/*
+	 * If no extended attributes, there is nothing to do.
+	 */
+	if (spcl.c_extsize == 0)
+		return;
+	/*
+	 * If there was no room in the file block for the attributes,
+	 * dump them out in a new block, otherwise just dump the data.
+	 */
+	if (added == 0) {
+		if (spcl.c_extsize > NXADDR * sblock->fs_bsize) {
+			frags = NXADDR * sblock->fs_frag;
+			last = 0;
+		} else {
+			frags = howmany(spcl.c_extsize, sblock->fs_fsize);
+			last = 1;
+		}
+		ufs2_blksout(dp, &dp->dp2.di_extb[0], frags, ino, last);
+	} else {
+		if (spcl.c_extsize > NXADDR * sblock->fs_bsize)
+			blks = howmany(NXADDR * sblock->fs_bsize, TP_BSIZE);
+		else
+			blks = howmany(spcl.c_extsize, TP_BSIZE);
+		tbperdb = sblock->fs_bsize >> tp_bshift;
+		for (i = 0; i < blks; i += tbperdb) {
+			bp = &dp->dp2.di_extb[i / tbperdb];
+			if (*bp != 0) {
+				if (i + tbperdb <= blks)
+					dumpblock(*bp, (int)sblock->fs_bsize);
+				else
+					dumpblock(*bp, (blks - i) * TP_BSIZE);
+			}
+		}
+
+	}
+	/*
+	 * If an indirect block is added for extended attributes, then
+	 * di_exti below should be changed to the structure element
+	 * that references the extended attribute indirect block. This
+	 * definition is here only to make it compile without complaint.
+	 */
+#define di_exti di_spare[0]
+	/*
+	 * If the extended attributes fall into an indirect block,
+	 * dump it as well.
+	 */
+	if ((size = spcl.c_extsize - NXADDR * sblock->fs_bsize) > 0)
+		dmpindir(dp, ino, dp->dp2.di_exti, 0, &size);
 }
 
 /*
