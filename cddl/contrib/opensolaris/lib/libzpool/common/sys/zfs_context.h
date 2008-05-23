@@ -61,7 +61,6 @@ extern "C" {
 #include <time.h>
 #include <math.h>
 #include <umem.h>
-#include <vmem.h>
 #include <fsshare.h>
 #include <sys/note.h>
 #include <sys/types.h>
