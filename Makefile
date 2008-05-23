@@ -290,12 +290,14 @@ KERNCONFS:=	${KERNCONFS:S/^NOTES$/LINT/}
 universe: universe_${target}
 .ORDER: universe_prologue universe_${target} universe_epilogue
 universe_${target}:
+.if !defined(MAKE_JUST_KERNELS)
 	@echo ">> ${target} started on `LC_ALL=C date`"
 	-cd ${.CURDIR} && ${MAKE} ${JFLAG} buildworld \
 	    TARGET=${target} \
 	    __MAKE_CONF=/dev/null \
 	    > _.${target}.buildworld 2>&1
 	@echo ">> ${target} buildworld completed on `LC_ALL=C date`"
+.endif
 .if exists(${.CURDIR}/sys/${target}/conf/NOTES)
 	-cd ${.CURDIR}/sys/${target}/conf && ${MAKE} LINT \
 	    > ${.CURDIR}/_.${target}.makeLINT 2>&1
