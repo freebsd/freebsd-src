@@ -83,6 +83,8 @@ struct ex_types {
 #endif
 #ifdef __amd64__
 	{ "FreeBSD ELF64", amd64_syscall_entry, amd64_syscall_exit },
+	{ "FreeBSD ELF32", amd64_fbsd32_syscall_entry, amd64_fbsd32_syscall_exit },
+	{ "Linux ELF32", amd64_linux32_syscall_entry, amd64_linux32_syscall_exit },
 #endif
 #ifdef __i386__
 	{ "FreeBSD a.out", i386_syscall_entry, i386_syscall_exit },
