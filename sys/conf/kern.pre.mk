@@ -33,6 +33,8 @@ _MINUS_O=	-O2
 . endif
 . if ${MACHINE_ARCH} == "amd64"
 COPTFLAGS?=-O2 -frename-registers -pipe
+. elif ${MACHINE_ARCH} == "sparc64"
+COPTFLAGS?=-pipe
 . else
 COPTFLAGS?=${_MINUS_O} -pipe
 . endif
@@ -81,6 +83,9 @@ INCLUDES+= -I$S/dev/twa
 # ...  and XFS
 INCLUDES+= -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs
 
+# ...  and OpenSolaris
+INCLUDES+= -I$S/contrib/opensolaris/compat
+
 .endif
 
 CFLAGS=	${COPTFLAGS} ${C_DIALECT} ${DEBUG} ${CWARNFLAGS}
@@ -124,6 +129,12 @@ NORMAL_C_NOWERROR= ${CC} -c ${CFLAGS} ${PROF} ${.IMPSRC}
 NORMAL_M= ${AWK} -f $S/tools/makeobjops.awk ${.IMPSRC} -c ; \
 	  ${CC} -c ${CFLAGS} ${WERROR} ${PROF} ${.PREFIX}.c
 
+.if defined(CTFCONVERT)
+NORMAL_CTFCONVERT= ${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
+.else
+NORMAL_CTFCONVERT=
+.endif
+
 NORMAL_LINT=	${LINT} ${LINTFLAGS} ${CFLAGS:M-[DIU]*} ${.IMPSRC}
 
 GEN_CFILES= $S/$M/$M/genassym.c ${MFILES:T:S/.m$/.c/}
@@ -132,6 +143,10 @@ SYSTEM_DEP= Makefile ${SYSTEM_OBJS}
 SYSTEM_OBJS= locore.o ${MDOBJS} ${OBJS}
 SYSTEM_OBJS+= ${SYSTEM_CFILES:.c=.o}
 SYSTEM_OBJS+= hack.So
+.if defined(CTFMERGE)
+SYSTEM_CTFMERGE= ${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${SYSTEM_OBJS} vers.o
+LD+= -g
+.endif
 SYSTEM_LD= @${LD} -Bdynamic -T ${LDSCRIPT} \
 	-warn-common -export-dynamic -dynamic-linker /red/herring \
 	-o ${.TARGET} -X ${SYSTEM_OBJS} vers.o
