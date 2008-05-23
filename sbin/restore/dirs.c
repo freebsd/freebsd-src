@@ -139,7 +139,7 @@ extractdirs(int genmode)
 	vprintf(stdout, "Extract directories from tape\n");
 	if ((tmpdir = getenv("TMPDIR")) == NULL || tmpdir[0] == '\0')
 		tmpdir = _PATH_TMP;
-	(void) sprintf(dirfile, "%s/rstdir%d", tmpdir, dumpdate);
+	(void) sprintf(dirfile, "%s/rstdir%ld", tmpdir, dumpdate);
 	if (command != 'r' && command != 'R') {
 		(void *) strcat(dirfile, "-XXXXXX");
 		fd = mkstemp(dirfile);
@@ -152,7 +152,7 @@ extractdirs(int genmode)
 		done(1);
 	}
 	if (genmode != 0) {
-		(void) sprintf(modefile, "%s/rstmode%d", tmpdir, dumpdate);
+		(void) sprintf(modefile, "%s/rstmode%ld", tmpdir, dumpdate);
 		if (command != 'r' && command != 'R') {
 			(void *) strcat(modefile, "-XXXXXX");
 			fd = mkstemp(modefile);
@@ -566,7 +566,7 @@ setdirmodes(int flags)
 	if ((tmpdir = getenv("TMPDIR")) == NULL || tmpdir[0] == '\0')
 		tmpdir = _PATH_TMP;
 	if (command == 'r' || command == 'R')
-		(void) sprintf(modefile, "%s/rstmode%d", tmpdir, dumpdate);
+		(void) sprintf(modefile, "%s/rstmode%ld", tmpdir, dumpdate);
 	if (modefile[0] == '#') {
 		panic("modefile not defined\n");
 		fprintf(stderr, "directory mode, owner, and times not set\n");
