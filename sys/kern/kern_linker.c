@@ -648,6 +648,12 @@ linker_file_unload(linker_file_t file, int flags)
 	return (0);
 }
 
+int
+linker_ctf_get(linker_file_t file, linker_ctf_t *lc)
+{
+	return (LINKER_CTF_GET(file, lc));
+}
+
 static int
 linker_file_add_dependency(linker_file_t file, linker_file_t dep)
 {
@@ -696,7 +702,7 @@ linker_file_lookup_set(linker_file_t file, const char *name,
  */
 int
 linker_file_function_listall(linker_file_t lf,
-    int (*callback_func)(linker_file_t, linker_symval_t *, void *), void *arg)
+    linker_function_nameval_callback_t callback_func, void *arg)
 {
 	return (LINKER_EACH_FUNCTION_NAMEVAL(lf, callback_func, arg));
 }
