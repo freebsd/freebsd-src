@@ -27,6 +27,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_ddb.h"
 #include "opt_gdb.h"
 #include "opt_mac.h"
 
@@ -61,6 +62,10 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_map.h>
 
 #include <sys/link_elf.h>
+
+#ifdef DDB_CTF
+#include <net/zlib.h>
+#endif
 
 #include "linker_if.h"
 
@@ -98,10 +103,17 @@ typedef struct elf_file {
     long		ddbstrcnt;	/* number of bytes in string table */
     caddr_t		symbase;	/* malloc'ed symbold base */
     caddr_t		strbase;	/* malloc'ed string base */
+    caddr_t		ctftab;		/* CTF table */
+    long		ctfcnt;		/* number of bytes in CTF table */
+    caddr_t		ctfoff;		/* CTF offset table */
+    caddr_t		typoff;		/* Type offset table */
+    long		typlen;		/* Number of type entries. */
 #ifdef GDB
     struct link_map	gdb;		/* hooks for gdb */
 #endif
 } *elf_file_t;
+
+#include <kern/kern_ctf.c>
 
 static int	link_elf_link_common_finish(linker_file_t);
 static int	link_elf_link_preload(linker_class_t cls,
@@ -121,6 +133,9 @@ static int	link_elf_lookup_set(linker_file_t, const char *,
 static int	link_elf_each_function_name(linker_file_t,
 				int (*)(const char *, void *),
 				void *);
+static int	link_elf_each_function_nameval(linker_file_t,
+				linker_function_nameval_callback_t,
+				void *);
 static void	link_elf_reloc_local(linker_file_t);
 static Elf_Addr	elf_lookup(linker_file_t lf, Elf_Size symidx, int deps);
 
@@ -134,6 +149,8 @@ static kobj_method_t link_elf_methods[] = {
     KOBJMETHOD(linker_link_preload_finish, link_elf_link_preload_finish),
     KOBJMETHOD(linker_lookup_set,	link_elf_lookup_set),
     KOBJMETHOD(linker_each_function_name, link_elf_each_function_name),
+    KOBJMETHOD(linker_each_function_nameval, link_elf_each_function_nameval),
+    KOBJMETHOD(linker_ctf_get,          link_elf_ctf_get),
     { 0, 0 }
 };
 
@@ -910,6 +927,12 @@ link_elf_unload_file(linker_file_t file)
 	free(ef->symbase, M_LINKER);
     if (ef->strbase)
 	free(ef->strbase, M_LINKER);
+    if (ef->ctftab)
+	free(ef->ctftab, M_LINKER);
+    if (ef->ctfoff)
+	free(ef->ctfoff, M_LINKER);
+    if (ef->typoff)
+	free(ef->typoff, M_LINKER);
 }
 
 static void
@@ -1225,6 +1248,30 @@ link_elf_each_function_name(linker_file_t file,
 	}
     }
     return (0);
+}
+
+static int
+link_elf_each_function_nameval(linker_file_t file,
+    linker_function_nameval_callback_t callback, void *opaque)
+{
+	linker_symval_t symval;
+	elf_file_t ef = (elf_file_t)file;
+	const Elf_Sym* symp;
+	int i, error;
+
+	/* Exhaustive search */
+	for (i = 0, symp = ef->ddbsymtab; i < ef->ddbsymcnt; i++, symp++) {
+		if (symp->st_value != 0 &&
+		    ELF_ST_TYPE(symp->st_info) == STT_FUNC) {
+			error = link_elf_symbol_values(file, (c_linker_sym_t) symp, &symval);
+			if (error)
+				return (error);
+			error = callback(file, i, &symval, opaque);
+			if (error)
+				return (error);
+		}
+	}
+	return (0);
 }
 
 #ifdef __ia64__

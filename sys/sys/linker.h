@@ -59,7 +59,7 @@ typedef struct linker_symval {
     size_t		size;
 } linker_symval_t;
 
-typedef int (*linker_function_nameval_callback_t)(linker_file_t, linker_symval_t *, void *);
+typedef int (*linker_function_nameval_callback_t)(linker_file_t, int, linker_symval_t *, void *);
 
 struct common_symbol {
     STAILQ_ENTRY(common_symbol) link;
@@ -158,8 +158,8 @@ int linker_file_lookup_set(linker_file_t _file, const char *_name,
 /*
  * List all functions in a file.
  */
-int linker_file_function_listall(linker_file_t, int (*)(linker_file_t,
-    linker_symval_t *, void *), void *);
+int linker_file_function_listall(linker_file_t, 
+				 linker_function_nameval_callback_t, void *);
 
 /*
  * Functions soley for use by the linker class handlers.
@@ -266,6 +266,20 @@ int	elf_reloc(linker_file_t _lf, Elf_Addr base, const void *_rel, int _type, elf
 int	elf_reloc_local(linker_file_t _lf, Elf_Addr base, const void *_rel, int _type, elf_lookup_fn _lu);
 const Elf_Sym *elf_get_sym(linker_file_t _lf, Elf_Size _symidx);
 const char *elf_get_symname(linker_file_t _lf, Elf_Size _symidx);
+
+typedef struct linker_ctf {
+	const uint8_t 	*ctftab;	/* Decompressed CTF data. */
+	int 		ctfcnt;		/* Number of CTF data bytes. */
+	const Elf_Sym	*symtab;	/* Ptr to the symbol table. */
+	int		nsym;		/* Number of symbols. */
+	const char	*strtab;	/* Ptr to the string table. */
+	int 		strcnt;		/* Number of string bytes. */
+	uint32_t	**ctfoffp;	/* Ptr to array of obj/fnc offsets. */
+	uint32_t	**typoffp;	/* Ptr to array of type offsets. */
+	long		*typlenp;	/* Ptr to number of type data entries. */
+} linker_ctf_t;
+
+int	linker_ctf_get(linker_file_t, linker_ctf_t *);
 
 int elf_cpu_load_file(linker_file_t);
 int elf_cpu_unload_file(linker_file_t);
