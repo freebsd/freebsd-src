@@ -10,6 +10,7 @@
 #	-DNO_KERNELDEPEND do not run ${MAKE} depend in ${MAKE} buildkernel
 #	-DNO_PORTSUPDATE do not update ports in ${MAKE} update
 #	-DNO_DOCUPDATE do not update doc in ${MAKE} update
+#	-DNO_CTF do not run the DTrace CTF conversion tools on built objects
 #	LOCAL_DIRS="list of dirs" to add additional dirs to the SUBDIR list
 #	TARGET="machine" to crossbuild world for a different machine type
 
@@ -42,6 +43,8 @@ SUBDIR+=games
 .endif
 .if ${MK_CDDL} != "no"
 SUBDIR+=cddl
+.else
+NO_CTF=1
 .endif
 SUBDIR+=gnu include
 .if ${MK_KERBEROS} != "no"
@@ -100,6 +103,11 @@ OSRELDATE!=	awk '/^\#define[[:space:]]*__FreeBSD_version/ { print $$3 }' \
 .else
 OSRELDATE=	0
 .endif
+.endif
+
+.if !defined(VERSION)
+VERSION!=	uname -srp
+VERSION+=	${OSRELDATE}
 .endif
 
 # Guess machine architecture from machine type, and vice versa.
@@ -211,6 +219,7 @@ CROSSENV+=	AR=gnu-ar RANLIB=gnu-ranlib
 BMAKEENV=	INSTALL="sh ${.CURDIR}/tools/install.sh" \
 		PATH=${BPATH}:${PATH} \
 		WORLDTMP=${WORLDTMP} \
+		VERSION="${VERSION}" \
 		MAKEFLAGS="-m ${.CURDIR}/tools/build/mk ${.MAKEFLAGS}"
 BMAKE=		MAKEOBJDIRPREFIX=${WORLDTMP} \
 		${BMAKEENV} ${MAKE} -f Makefile.inc1 \
@@ -218,14 +227,15 @@ BMAKE=		MAKEOBJDIRPREFIX=${WORLDTMP} \
 		BOOTSTRAPPING=${OSRELDATE} \
 		-DWITHOUT_HTML -DWITHOUT_INFO -DNO_LINT -DWITHOUT_MAN \
 		-DWITHOUT_NLS -DNO_PIC -DWITHOUT_PROFILE -DNO_SHARED \
-		-DNO_CPU_CFLAGS -DNO_WARNS
+		-DNO_CPU_CFLAGS -DNO_WARNS -DNO_CTF
 
 # build-tools stage
 TMAKE=		MAKEOBJDIRPREFIX=${OBJTREE} \
 		${BMAKEENV} ${MAKE} -f Makefile.inc1 \
 		TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
 		DESTDIR= \
-		BOOTSTRAPPING=${OSRELDATE} -DNO_LINT -DNO_CPU_CFLAGS -DNO_WARNS
+		BOOTSTRAPPING=${OSRELDATE} -DNO_LINT -DNO_CPU_CFLAGS \
+		-DNO_WARNS -DNO_CTF
 
 # cross-tools stage
 XMAKE=		TOOLS_PREFIX=${WORLDTMP} ${BMAKE} \
@@ -235,8 +245,12 @@ XMAKE=		TOOLS_PREFIX=${WORLDTMP} ${BMAKE} \
 # world stage
 WMAKEENV=	${CROSSENV} \
 		_SHLIBDIRPREFIX=${WORLDTMP} \
+		VERSION="${VERSION}" \
 		INSTALL="sh ${.CURDIR}/tools/install.sh" \
 		PATH=${TMPPATH}
+.if ${MK_CDDL} == "no" || defined(NO_CTF)
+WMAKEENV+=	NO_CTF=1
+.endif
 WMAKE=		${WMAKEENV} ${MAKE} -f Makefile.inc1 DESTDIR=${WORLDTMP}
 
 .if ${TARGET_ARCH} == "amd64"
@@ -256,6 +270,7 @@ LIB32FLAGS=	-m32 -march=${LIB32CPUTYPE} -mfancy-math-387 -DCOMPAT_32BIT \
 # Yes, the flags are redundant.
 LIB32WMAKEENV=	MAKEOBJDIRPREFIX=${OBJTREE}/lib32 \
 		_SHLIBDIRPREFIX=${LIB32TMP} \
+		VERSION="${VERSION}" \
 		MACHINE=i386 \
 		MACHINE_ARCH=i386 \
 		INSTALL="sh ${.CURDIR}/tools/install.sh" \
@@ -270,7 +285,7 @@ LIB32WMAKEENV=	MAKEOBJDIRPREFIX=${OBJTREE}/lib32 \
 
 LIB32WMAKE=	${LIB32WMAKEENV} ${MAKE} -DNO_CPU_CFLAGS -DCOMPAT_32BIT \
 		-DWITHOUT_BIND -DWITHOUT_MAN -DWITHOUT_NLS -DWITHOUT_INFO \
-		-DWITHOUT_HTML DESTDIR=${LIB32TMP}
+		-DWITHOUT_HTML -DNO_CTF DESTDIR=${LIB32TMP}
 LIB32IMAKE=	${LIB32WMAKE:NINSTALL=*:NDESTDIR=*} -DNO_INCS
 .endif
 
@@ -471,10 +486,15 @@ build32:
 distribute32 install32:
 .if make(distribute32)
 	mkdir -p ${DISTDIR}/${DISTRIBUTION}/usr/lib32	# XXX add to mtree
+	mkdir -p ${DISTDIR}/${DISTRIBUTION}/usr/lib32/dtrace	# XXX add to mtree
 .else
 	mkdir -p ${DESTDIR}/usr/lib32			# XXX add to mtree
+	mkdir -p ${DESTDIR}/usr/lib32/dtrace		# XXX add to mtree
 .endif
 	cd ${.CURDIR}/lib; ${LIB32IMAKE} ${.TARGET:S/32$//}
+.if ${MK_CDDL} != "no"
+	cd ${.CURDIR}/cddl/lib; ${LIB32IMAKE} ${.TARGET:S/32$//}
+.endif
 	cd ${.CURDIR}/gnu/lib; ${LIB32IMAKE} ${.TARGET:S/32$//}
 .if ${MK_CRYPT} != "no"
 	cd ${.CURDIR}/secure/lib; ${LIB32IMAKE} ${.TARGET:S/32$//}
@@ -740,13 +760,14 @@ buildkernel:
 	@echo "--------------------------------------------------------------"
 	cd ${KRNLOBJDIR}/${_kernel}; \
 	    MAKESRCPATH=${KERNSRCDIR}/dev/aic7xxx/aicasm \
-	    ${MAKE} -DNO_CPU_CFLAGS -f ${KERNSRCDIR}/dev/aic7xxx/aicasm/Makefile
+	    ${MAKE} -DNO_CPU_CFLAGS -DNO_CTF \
+	    -f ${KERNSRCDIR}/dev/aic7xxx/aicasm/Makefile
 # XXX - Gratuitously builds aicasm in the ``makeoptions NO_MODULES'' case.
 .if !defined(MODULES_WITH_WORLD) && !defined(NO_MODULES) && exists(${KERNSRCDIR}/modules)
 .for target in obj depend all
 	cd ${KERNSRCDIR}/modules/aic7xxx/aicasm; \
 	    MAKEOBJDIRPREFIX=${KRNLOBJDIR}/${_kernel}/modules \
-	    ${MAKE} -DNO_CPU_CFLAGS ${target}
+	    ${MAKE} -DNO_CPU_CFLAGS -DNO_CTF ${target}
 .endfor
 .endif
 .if !defined(NO_KERNELDEPEND)
@@ -892,8 +913,14 @@ _gensnmptree=	usr.sbin/bsnmpd/gensnmptree
 _crunchgen=	usr.sbin/crunch/crunchgen
 .endif
 
+.if ${MK_CDDL} != "no"
+_dtrace_tools= cddl/usr.bin/sgsmsg cddl/lib/libctf lib/libelf \
+    lib/libdwarf cddl/usr.bin/ctfconvert cddl/usr.bin/ctfmerge
+.endif
+
 bootstrap-tools:
 .for _tool in \
+    ${_dtrace_tools} \
     ${_strfile} \
     ${_gperf} \
     ${_groff} \
@@ -1038,15 +1065,16 @@ gnu/lib/libgcc__L: lib/libc__L
 _prebuild_libs=	${_kerberos5_lib_libasn1} ${_kerberos5_lib_libkrb5} \
 		${_kerberos5_lib_libhx509} ${_kerberos5_lib_libroken} \
 		${_kerberos5_lib_libheimntlm} ${_kerberos5_lib_libgssapi_krb5} \
-		lib/libbz2 lib/libcom_err lib/libcrypt lib/libexpat \
-		${_lib_libgssapi} ${_lib_libipx} \
+		lib/libbz2 lib/libcom_err lib/libcrypt lib/libelf \
+		lib/libexpat \
+		${_lib_cddl} ${_lib_libgssapi} ${_lib_libipx} \
 		lib/libkiconv lib/libkvm lib/libmd \
 		lib/ncurses/ncurses lib/ncurses/ncursesw \
 		lib/libopie lib/libpam ${_lib_libthr} \
 		lib/libradius lib/libsbuf lib/libtacplus lib/libutil \
 		${_lib_libypclnt} lib/libz lib/msun \
 		${_secure_lib_libcrypto} ${_secure_lib_libssh} \
-		${_secure_lib_libssl}
+		${_secure_lib_libssl} lib/libdwarf lib/libproc
 
 .if ${MK_LIBTHR} != "no"
 _lib_libthr=	lib/libthr
