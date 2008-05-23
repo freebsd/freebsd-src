@@ -43,6 +43,10 @@ extern long alpha_syscall_exit(struct trussinfo *, int);
 #ifdef __amd64__
 extern void amd64_syscall_entry(struct trussinfo *, int);
 extern long amd64_syscall_exit(struct trussinfo *, int);
+extern void amd64_linux32_syscall_entry(struct trussinfo *, int);
+extern long amd64_linux32_syscall_exit(struct trussinfo *, int);
+extern void amd64_fbsd32_syscall_entry(struct trussinfo *, int);
+extern long amd64_fbsd32_syscall_exit(struct trussinfo *, int);
 #endif
 #ifdef __i386__
 extern void i386_syscall_entry(struct trussinfo *, int);
