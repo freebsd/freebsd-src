@@ -96,6 +96,15 @@ METHOD void unload {
 };
 
 #
+# Load CTF data if necessary and if there is a .SUNW_ctf section
+# in the ELF file, returning info in the linker CTF structure.
+#
+METHOD int ctf_get {
+	linker_file_t	file;
+	linker_ctf_t	*lc;
+};
+
+#
 # Load a file, returning the new linker_file_t in *result.  If
 # the class does not recognise the file type, zero should be
 # returned, without modifying *result.  If the file is
