@@ -32,8 +32,9 @@ S=	../../..
 .include "$S/conf/kern.pre.mk"
 
 DDB_ENABLED!=	grep DDB opt_ddb.h || true
+DTR_ENABLED!=	grep KDTRACE_FRAME opt_kdtrace.h || true
 HWPMC_ENABLED!=	grep HWPMC opt_hwpmc_hooks.h || true
-.if !empty(DDB_ENABLED) || !empty(HWPMC_ENABLED)
+.if !empty(DDB_ENABLED) || !empty(DTR_ENABLED) || !empty(HWPMC_ENABLED)
 CFLAGS+=	-fno-omit-frame-pointer
 .endif
 
