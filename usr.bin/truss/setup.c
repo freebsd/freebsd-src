@@ -121,6 +121,7 @@ setup_and_wait(char *command[])
 				err(5, "cannot open1 %s", buf);
 		}
 		if (ioctl(fd, PIOCWAIT, &pfs) == -1) {
+			close(fd);
 			if (loop >= 0)
 				continue;
 			else
@@ -129,7 +130,7 @@ setup_and_wait(char *command[])
 		if (pfs.why == S_EXIT) {
 			warnx("process exited before exec'ing");
 			ioctl(fd, PIOCCONT, 0);
-			wait(0);
+			wait(NULL);
 			exit(7);
 		} else
 			break;
