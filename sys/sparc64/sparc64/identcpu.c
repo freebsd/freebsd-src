@@ -29,19 +29,6 @@ SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD,
 
 int cpu_impl;
 
-void setPQL2(int *const size, int *const ways);
-
-void
-setPQL2(int *const size, int *const ways)
-{
-#ifdef SUN4V
-/* XXX hardcoding is lame */
-	*size = 3*1024;
-	*ways = 12;
-#endif
-	return;
-}
-
 void
 cpu_identify(u_long vers, u_int freq, u_int id)
 {
