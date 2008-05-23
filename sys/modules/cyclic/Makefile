@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../cddl/cyclic
+.PATH: ${.CURDIR}/../../cddl/dev/cyclic
 
 KMOD=		cyclic
 SRCS=		cyclic.c
@@ -10,7 +10,7 @@ SRCS+=		vnode_if.h
 CFLAGS+=	-I${.CURDIR}/../../cddl/compat/opensolaris		\
 		-I${.CURDIR}/../../cddl/contrib/opensolaris/uts/common	\
 		-I${.CURDIR}/../..					\
-		-I${.CURDIR}/../../cddl/cyclic/${MACHINE_ARCH}
+		-I${.CURDIR}/../../cddl/dev/cyclic/${MACHINE_ARCH}
 
 CFLAGS+=	-DDEBUG=1
 
