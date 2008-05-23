@@ -117,13 +117,14 @@ main(int argc, char *argv[])
 	if (TP_BSIZE / DEV_BSIZE == 0 || TP_BSIZE % DEV_BSIZE != 0)
 		quit("TP_BSIZE must be a multiple of DEV_BSIZE\n");
 	level = '0';
+	rsync_friendly = 0;
 
 	if (argc < 2)
 		usage();
 
 	obsolete(&argc, &argv);
 	while ((ch = getopt(argc, argv,
-	    "0123456789aB:b:C:cD:d:f:h:LnP:Ss:T:uWw")) != -1)
+	    "0123456789aB:b:C:cD:d:f:h:LnP:RrSs:T:uWw")) != -1)
 		switch (ch) {
 		/* dump level */
 		case '0': case '1': case '2': case '3': case '4':
@@ -189,6 +190,16 @@ main(int argc, char *argv[])
 			popenout = optarg;
 			break;
 
+		case 'r': /* store slightly less data to be friendly to rsync */
+			if (rsync_friendly < 1)
+				rsync_friendly = 1;
+			break;
+
+		case 'R': /* store even less data to be friendlier to rsync */
+			if (rsync_friendly < 2)
+				rsync_friendly = 2;
+			break;
+
 		case 'S':               /* exit after estimating # of tapes */
 			just_estimate = 1;
 			break;
@@ -234,6 +245,11 @@ main(int argc, char *argv[])
 		while (argc--)
 			(void)fprintf(stderr, " %s", *argv++);
 		(void)fprintf(stderr, "\n");
+		exit(X_STARTUP);
+	}
+	if (rsync_friendly && (level>'0')) {
+		(void)fprintf(stderr, "%s %s\n", "rsync friendly options",
+		    "can be used only with level 0 dumps.");
 		exit(X_STARTUP);
 	}
 	if (Tflag && uflag) {
@@ -384,7 +400,11 @@ main(int argc, char *argv[])
 	(void)gethostname(spcl.c_host, NAMELEN);
 	spcl.c_level = level - '0';
 	spcl.c_type = TS_TAPE;
-
+	if (rsync_friendly) {
+		/* don't store real dump times */
+		spcl.c_date = 0;
+		spcl.c_ddate = 0;
+	}
 	if (spcl.c_date == 0) {
 		tmsg = "the epoch\n";
 	} else {
@@ -393,7 +413,7 @@ main(int argc, char *argv[])
 	}
 	msg("Date of this level %c dump: %s", level, tmsg);
 
-	if (!Tflag)
+	if (!Tflag && (!rsync_friendly))
 	        getdumptime();		/* /etc/dumpdates snarfed */
 	if (spcl.c_ddate == 0) {
 		tmsg = "the epoch\n";
