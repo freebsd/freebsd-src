@@ -54,7 +54,8 @@ void		 freeentry(struct entry *);
 void		 freename(char *);
 int	 	 genliteraldir(char *, ino_t);
 char		*gentempname(struct entry *);
-void		 getfile(void (*)(char *, long), void (*)(char *, long));
+void		 getfile(void (*)(char *, long), void (*)(char *, long),
+			void (*)(char *, long));
 void		 getvol(long);
 void		 initsymtable(char *);
 int	 	 inodetype(ino_t);
@@ -86,6 +87,7 @@ struct direct	*rst_readdir(RST_DIR *);
 void		 rst_closedir(void *);
 void	 	 runcmdshell(void);
 char		*savename(char *);
+void		 set_extattr_file(char *, void *, int);
 void	 	 setdirmodes(int);
 void		 setinput(char *, int);
 void		 setup(void);
