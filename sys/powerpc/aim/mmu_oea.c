@@ -655,6 +655,10 @@ pmap_cpu_bootstrap(volatile uint32_t *trcp, int ap)
 
 	trcp[0] = 0x1006;
 	trcp[1] = sdr;
+
+	tlbia();
+
+	trcp[0] = 0x1007;
 }
 
 void
@@ -895,7 +899,6 @@ moea_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 	kernel_pmap->pm_active = ~0;
 
 	pmap_cpu_bootstrap(trace, 0);
-	tlbia();
 
 	pmap_bootstrapped++;
 
