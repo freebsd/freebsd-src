@@ -138,10 +138,10 @@ interrupt(struct trapframe *tf)
 	u_int vector;
 	int count;
 	uint8_t inta;
+
 	ia64_set_fpsr(IA64_FPSR_DEFAULT);
 
 	td = curthread;
-	atomic_add_int(&td->td_intr_nesting_level, 1);
 
 	vector = tf->tf_special.ifa;
 
@@ -195,7 +195,7 @@ interrupt(struct trapframe *tf)
 				adjust_ticks++;
 			count++;
 		}
-		ia64_set_itm(itc + ia64_clock_reload - adj);
+		ia64_set_itm(ia64_get_itc() + ia64_clock_reload - adj);
 		if (count > 0) {
 			adjust_lost += count - 1;
 			if (delta > (ia64_clock_reload >> 3)) {
@@ -229,7 +229,9 @@ interrupt(struct trapframe *tf)
 	} else if (vector == ipi_vector[IPI_RENDEZVOUS]) {
 		rdvs[PCPU_GET(cpuid)]++;
 		CTR1(KTR_SMP, "IPI_RENDEZVOUS, cpuid=%d", PCPU_GET(cpuid));
+		enable_intr();
 		smp_rendezvous_action();
+		disable_intr();
 	} else if (vector == ipi_vector[IPI_STOP]) {
 		cpumask_t mybit = PCPU_GET(cpumask);
 
@@ -244,11 +246,17 @@ interrupt(struct trapframe *tf)
 		mp_ipi_test++;
 	} else if (vector == ipi_vector[IPI_PREEMPT]) {
 		CTR1(KTR_SMP, "IPI_PREEMPT, cpuid=%d", PCPU_GET(cpuid));
+		__asm __volatile("mov cr.eoi = r0;; srlz.d");
+		enable_intr();
 		sched_preempt(curthread);
+		disable_intr();
+		goto stray;
 #endif
 	} else {
 		ints[PCPU_GET(cpuid)]++;
+		atomic_add_int(&td->td_intr_nesting_level, 1);
 		ia64_dispatch_intr(tf, vector);
+		atomic_subtract_int(&td->td_intr_nesting_level, 1);
 	}
 
 	__asm __volatile("mov cr.eoi = r0;; srlz.d");
@@ -257,8 +265,6 @@ interrupt(struct trapframe *tf)
 		goto next;
 
 stray:
-	atomic_subtract_int(&td->td_intr_nesting_level, 1);
-
 	if (TRAPF_USERMODE(tf)) {
 		enable_intr();
 		userret(td, tf);
