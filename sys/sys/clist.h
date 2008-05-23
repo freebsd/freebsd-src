@@ -33,6 +33,19 @@
 #ifndef _SYS_CLIST_H_
 #define _SYS_CLIST_H_
 
+/*
+ * Clists are character lists, which is a variable length linked list
+ * of cblocks, with a count of the number of characters in the list.
+ */
+struct clist {
+	int	c_cc;		/* Number of characters in the clist. */
+	int	c_cbcount;	/* Number of cblocks. */
+	int	c_cbmax;	/* Max # cblocks allowed for this clist. */
+	int	c_cbreserved;	/* # cblocks reserved for this clist. */
+	char	*c_cf;		/* Pointer to the first cblock. */
+	char	*c_cl;		/* Pointer to the last cblock. */
+};
+
 struct cblock {
 	struct cblock *c_next;			/* next cblock in queue */
 	unsigned char c_quote[CBQSIZE];		/* quoted characters */
@@ -40,8 +53,18 @@ struct cblock {
 };
 
 #ifdef _KERNEL
-extern	struct cblock *cfree;
 extern	int cfreecount;
+
+int	 b_to_q(char *cp, int cc, struct clist *q);
+void	 catq(struct clist *from, struct clist *to);
+void	 clist_alloc_cblocks(struct clist *q, int ccmax, int ccres);
+void	 clist_free_cblocks(struct clist *q);
+int	 getc(struct clist *q);
+void	 ndflush(struct clist *q, int cc);
+char	*nextc(struct clist *q, char *cp, int *c);
+int	 putc(int c, struct clist *q);
+int	 q_to_b(struct clist *q, char *cp, int cc);
+int	 unputc(struct clist *q);
 #endif
 
 #endif

@@ -46,24 +46,12 @@
 #ifndef _SYS_TTY_H_
 #define	_SYS_TTY_H_
 
+#include <sys/clist.h>
 #include <sys/termios.h>
 #include <sys/queue.h>
 #include <sys/selinfo.h>
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
-
-/*
- * Clists are character lists, which is a variable length linked list
- * of cblocks, with a count of the number of characters in the list.
- */
-struct clist {
-	int	c_cc;		/* Number of characters in the clist. */
-	int	c_cbcount;	/* Number of cblocks. */
-	int	c_cbmax;	/* Max # cblocks allowed for this clist. */
-	int	c_cbreserved;	/* # cblocks reserved for this clist. */
-	char	*c_cf;		/* Pointer to the first cblock. */
-	char	*c_cl;		/* Pointer to the last cblock. */
-};
 
 struct tty;
 struct pps_state;
@@ -313,25 +301,12 @@ MALLOC_DECLARE(M_TTYS);
 #define	ISINIT(dev)	(minor(dev) & MINOR_INIT)
 #define	ISLOCK(dev)	(minor(dev) & MINOR_LOCK)
 
-extern	struct msgbuf consmsgbuf; /* Message buffer for constty. */
-extern	struct tty *constty;	/* Temporary virtual console. */
 extern long tk_cancc;
 extern long tk_nin;
 extern long tk_nout;
 extern long tk_rawcc;
 
-int	 b_to_q(char *cp, int cc, struct clist *q);
-void	 catq(struct clist *from, struct clist *to);
-void	 clist_alloc_cblocks(struct clist *q, int ccmax, int ccres);
-void	 clist_free_cblocks(struct clist *q);
-void	 constty_set(struct tty *tp);
-void	 constty_clear(void);
-int	 getc(struct clist *q);
-void	 ndflush(struct clist *q, int cc);
-char	*nextc(struct clist *q, char *cp, int *c);
 void	 nottystop(struct tty *tp, int rw);
-int	 putc(int c, struct clist *q);
-int	 q_to_b(struct clist *q, char *cp, int cc);
 void	 termioschars(struct termios *t);
 int	 tputchar(int c, struct tty *tp);
 int	 ttcompat(struct tty *tp, u_long com, caddr_t data, int flag);
@@ -367,7 +342,6 @@ int	 ttyref(struct tty *tp);
 int	 ttyrel(struct tty *tp);
 int	 ttysleep(struct tty *tp, void *chan, int pri, char *wmesg, int timo);
 int	 ttywait(struct tty *tp);
-int	 unputc(struct clist *q);
 
 static __inline int
 tt_open(struct tty *t, struct cdev *c)
