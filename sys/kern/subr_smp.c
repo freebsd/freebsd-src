@@ -73,6 +73,9 @@ u_int mp_maxid;
 
 SYSCTL_NODE(_kern, OID_AUTO, smp, CTLFLAG_RD, NULL, "Kernel SMP");
 
+SYSCTL_INT(_kern_smp, OID_AUTO, maxid, CTLFLAG_RD, &mp_maxid, 0,
+    "Max CPU ID.");
+
 SYSCTL_INT(_kern_smp, OID_AUTO, maxcpus, CTLFLAG_RD, &mp_maxcpus, 0,
     "Max number of CPUs that the system was compiled for.");
 
@@ -108,6 +111,7 @@ SYSCTL_INT(_kern_smp, OID_AUTO, forward_roundrobin_enabled, CTLFLAG_RW,
 	   "Forwarding of roundrobin to all other CPUs");
 
 /* Variables needed for SMP rendezvous. */
+static volatile cpumask_t smp_rv_cpumask;
 static void (*volatile smp_rv_setup_func)(void *arg);
 static void (*volatile smp_rv_action_func)(void *arg);
 static void (*volatile smp_rv_teardown_func)(void *arg);
@@ -290,14 +294,6 @@ restart_cpus(cpumask_t map)
 	return 1;
 }
 
-void
-smp_no_rendevous_barrier(void *dummy)
-{
-#ifdef SMP
-	KASSERT((!smp_started),("smp_no_rendevous called and smp is started"));
-#endif
-}
-
 /*
  * All-CPU rendezvous.  CPUs are signalled, all execute the setup function 
  * (if specified), rendezvous, execute the action function (if specified),
@@ -310,14 +306,20 @@ smp_no_rendevous_barrier(void *dummy)
 void
 smp_rendezvous_action(void)
 {
+	cpumask_t map = smp_rv_cpumask;
+	int i, ncpus = 0;
 	void* local_func_arg = smp_rv_func_arg;
 	void (*local_setup_func)(void*)   = smp_rv_setup_func;
 	void (*local_action_func)(void*)   = smp_rv_action_func;
 	void (*local_teardown_func)(void*) = smp_rv_teardown_func;
 
+	for (i = 0; i < MAXCPU; i++)
+		if (((1 << i) & map) != 0 && pcpu_find(i) != NULL)
+			ncpus++;
+
 	/* Ensure we have up-to-date values. */
 	atomic_add_acq_int(&smp_rv_waiters[0], 1);
-	while (smp_rv_waiters[0] < mp_ncpus)
+	while (smp_rv_waiters[0] < ncpus)
 		cpu_spinwait();
 
 	/* setup function */
@@ -327,7 +329,7 @@ smp_rendezvous_action(void)
 
 		/* spin on entry rendezvous */
 		atomic_add_int(&smp_rv_waiters[1], 1);
-		while (smp_rv_waiters[1] < mp_ncpus)
+		while (smp_rv_waiters[1] < ncpus)
                 	cpu_spinwait();
 	}
 
@@ -339,7 +341,7 @@ smp_rendezvous_action(void)
 	atomic_add_int(&smp_rv_waiters[2], 1);
 	if (local_teardown_func == smp_no_rendevous_barrier)
                 return;
-	while (smp_rv_waiters[2] < mp_ncpus)
+	while (smp_rv_waiters[2] < ncpus)
 		cpu_spinwait();
 
 	/* teardown function */
@@ -348,11 +350,13 @@ smp_rendezvous_action(void)
 }
 
 void
-smp_rendezvous(void (* setup_func)(void *), 
-	       void (* action_func)(void *),
-	       void (* teardown_func)(void *),
-	       void *arg)
+smp_rendezvous_cpus(cpumask_t map,
+	void (* setup_func)(void *), 
+	void (* action_func)(void *),
+	void (* teardown_func)(void *),
+	void *arg)
 {
+	int i, ncpus = 0;
 
 	if (!smp_started) {
 		if (setup_func != NULL)
@@ -363,11 +367,16 @@ smp_rendezvous(void (* setup_func)(void *),
 			teardown_func(arg);
 		return;
 	}
+
+	for (i = 0; i < MAXCPU; i++)
+		if (((1 << i) & map) != 0 && pcpu_find(i) != NULL)
+			ncpus++;
 		
 	/* obtain rendezvous lock */
 	mtx_lock_spin(&smp_ipi_mtx);
 
 	/* set static function pointers */
+	smp_rv_cpumask = map;
 	smp_rv_setup_func = setup_func;
 	smp_rv_action_func = action_func;
 	smp_rv_teardown_func = teardown_func;
@@ -377,17 +386,27 @@ smp_rendezvous(void (* setup_func)(void *),
 	atomic_store_rel_int(&smp_rv_waiters[0], 0);
 
 	/* signal other processors, which will enter the IPI with interrupts off */
-	ipi_all_but_self(IPI_RENDEZVOUS);
+	ipi_selected(map & ~(1 << curcpu), IPI_RENDEZVOUS);
 
-	/* call executor function */
-	smp_rendezvous_action();
+	/* Check if the current CPU is in the map */
+	if ((map & (1 << curcpu)) != 0)
+		smp_rendezvous_action();
 
 	if (teardown_func == smp_no_rendevous_barrier)
-		while (atomic_load_acq_int(&smp_rv_waiters[2]) < mp_ncpus)
+		while (atomic_load_acq_int(&smp_rv_waiters[2]) < ncpus)
 			cpu_spinwait();
 
 	/* release lock */
 	mtx_unlock_spin(&smp_ipi_mtx);
+}
+
+void
+smp_rendezvous(void (* setup_func)(void *), 
+	       void (* action_func)(void *),
+	       void (* teardown_func)(void *),
+	       void *arg)
+{
+	smp_rendezvous_cpus(all_cpus, setup_func, action_func, teardown_func, arg);
 }
 
 static struct cpu_group group[MAXCPU];
@@ -566,6 +585,21 @@ smp_topo_find(struct cpu_group *top, int cpu)
 #else /* !SMP */
 
 void
+smp_rendezvous_cpus(cpumask_t map,
+	void (*setup_func)(void *), 
+	void (*action_func)(void *),
+	void (*teardown_func)(void *),
+	void *arg)
+{
+	if (setup_func != NULL)
+		setup_func(arg);
+	if (action_func != NULL)
+		action_func(arg);
+	if (teardown_func != NULL)
+		teardown_func(arg);
+}
+
+void
 smp_rendezvous(void (*setup_func)(void *), 
 	       void (*action_func)(void *),
 	       void (*teardown_func)(void *),
@@ -595,3 +629,11 @@ mp_setvariables_for_up(void *dummy)
 SYSINIT(cpu_mp_setvariables, SI_SUB_TUNABLES, SI_ORDER_FIRST,
     mp_setvariables_for_up, NULL);
 #endif /* SMP */
+
+void
+smp_no_rendevous_barrier(void *dummy)
+{
+#ifdef SMP
+	KASSERT((!smp_started),("smp_no_rendevous called and smp is started"));
+#endif
+}
