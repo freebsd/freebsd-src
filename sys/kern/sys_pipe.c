@@ -1566,13 +1566,8 @@ filt_pipedetach(struct knote *kn)
 	struct pipe *cpipe = (struct pipe *)kn->kn_fp->f_data;
 
 	PIPE_LOCK(cpipe);
-	if (kn->kn_filter == EVFILT_WRITE) {
-		if (!cpipe->pipe_peer->pipe_present) {
-			PIPE_UNLOCK(cpipe);
-			return;
-		}
+	if (kn->kn_filter == EVFILT_WRITE)
 		cpipe = cpipe->pipe_peer;
-	}
 	knlist_remove(&cpipe->pipe_sel.si_note, kn, 1);
 	PIPE_UNLOCK(cpipe);
 }
