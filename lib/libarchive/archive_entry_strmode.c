@@ -39,7 +39,6 @@ __FBSDID("$FreeBSD$");
 const char *
 archive_entry_strmode(struct archive_entry *entry)
 {
-	static const char *perms = "?rwxrwxrwx ";
 	static const mode_t permbits[] =
 	    { 0400, 0200, 0100, 0040, 0020, 0010, 0004, 0002, 0001 };
 	char *bp = entry->strmode;
@@ -47,7 +46,7 @@ archive_entry_strmode(struct archive_entry *entry)
 	int i;
 
 	/* Fill in a default string, then selectively override. */
-	strcpy(bp, perms);
+	strcpy(bp, "?rwxrwxrwx ");
 
 	mode = archive_entry_mode(entry);
 	switch (archive_entry_filetype(entry)) {
