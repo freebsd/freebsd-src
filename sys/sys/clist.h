@@ -33,6 +33,8 @@
 #ifndef _SYS_CLIST_H_
 #define _SYS_CLIST_H_
 
+#include <sys/param.h>
+
 /*
  * Clists are character lists, which is a variable length linked list
  * of cblocks, with a count of the number of characters in the list.
