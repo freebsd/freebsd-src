@@ -38,7 +38,7 @@
 .Nd file system backup
 .Sh SYNOPSIS
 .Nm
-.Op Fl 0123456789acLnSu
+.Op Fl 0123456789acLnrRSu
 .Op Fl B Ar records
 .Op Fl b Ar blocksize
 .Op Fl C Ar cachesize
@@ -258,6 +258,27 @@ notify all operators in the group
 .Dq operator
 by means similar to a
 .Xr wall 1 .
+.It Fl r
+Be rsync-friendly.
+Normally dump stores the date of the current
+and prior dump in numerous places throughout the dump.
+These scattered changes significantly slow down rsync or
+another incremental file transfer program when they are
+used to update a remote copy of a level 0 dump,
+since the date changes for each dump.
+This option sets both dates to the epoch, permitting
+rsync to be much more efficient when transferring a dump file.
+.It Fl R
+Be even more rsync-friendly.
+This option disables the storage of the actual inode access time
+(storing it instead as the inode's modified time).
+This option permits rsync to be even more efficient
+when transferring dumps generated from filesystems with numerous files
+which are not changing other than their access times.
+The
+.Fl R
+option also sets
+.Fl r .
 .It Fl S
 Display an estimate of the backup size and the number of
 tapes required, and exit without actually performing the dump.
