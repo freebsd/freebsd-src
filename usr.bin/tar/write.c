@@ -1100,8 +1100,7 @@ lookup_hardlink(struct bsdtar *bsdtar, struct archive_entry *entry,
 					le->previous->next = le->next;
 				if (le->next != NULL)
 					le->next->previous = le->previous;
-				if (le->name != NULL)
-					free(le->name);
+				free(le->name);
 				if (links_cache->buckets[hash] == le)
 					links_cache->buckets[hash] = le->next;
 				links_cache->number_entries--;
