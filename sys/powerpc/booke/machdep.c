@@ -186,14 +186,6 @@ void print_kernel_section_addr(void);
 void dump_bootinfo(void);
 void dump_kenv(void);
 void e500_init(u_int32_t, u_int32_t, void *);
-void setPQL2(int *const size, int *const ways);
-
-void
-setPQL2(int *const size, int *const ways)
-{
-
-	return;
-}
 
 static void
 cpu_e500_startup(void *dummy)
