@@ -270,11 +270,12 @@ tty_gettp(struct cdev *dev)
 	struct cdevsw *csw;
 
 	csw = dev_refthread(dev);
-	KASSERT(csw != NULL, ("No cdevsw in ttycode (%s)", devtoname(dev)));
+	if (csw == NULL)
+		return (NULL);
 	KASSERT(csw->d_flags & D_TTY,
 	    ("non D_TTY (%s) in tty code", devtoname(dev)));
-	dev_relthread(dev);
 	tp = dev->si_tty;
+	dev_relthread(dev);
 	KASSERT(tp != NULL,
 	    ("no tty pointer on (%s) in tty code", devtoname(dev)));
 	return (tp);
@@ -1325,7 +1326,7 @@ ttykqfilter(struct cdev *dev, struct knote *kn)
 	int s;
 
 	tp = tty_gettp(dev);
-	if (tp->t_state & TS_GONE)
+	if (tp == NULL || (tp->t_state & TS_GONE))
 		return (ENODEV);
 
 	switch (kn->kn_filter) {
@@ -3255,7 +3256,7 @@ ttyread(struct cdev *dev, struct uio *uio, int flag)
 
 	tp = tty_gettp(dev);
 
-	if (tp->t_state & TS_GONE)
+	if (tp == NULL || (tp->t_state & TS_GONE))
 		return (ENODEV);
 	return (ttyld_read(tp, uio, flag));
 }
@@ -3267,7 +3268,7 @@ ttywrite(struct cdev *dev, struct uio *uio, int flag)
 
 	tp = tty_gettp(dev);
 
-	if (tp->t_state & TS_GONE)
+	if (tp == NULL || (tp->t_state & TS_GONE))
 		return (ENODEV);
 	return (ttyld_write(tp, uio, flag));
 }
