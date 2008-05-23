@@ -42,6 +42,8 @@ __FBSDID("$FreeBSD$");
 static void clist_init(void *);
 SYSINIT(clist, SI_SUB_CLIST, SI_ORDER_FIRST, clist_init, NULL);
 
+static MALLOC_DEFINE(M_CLIST, "clist", "clist queue blocks");
+
 static struct cblock *cfreelist = 0;
 int cfreecount = 0;
 static int cslushcount;
@@ -133,11 +135,11 @@ cblock_alloc_cblocks(number)
 	struct cblock *cbp;
 
 	for (i = 0; i < number; ++i) {
-		cbp = malloc(sizeof *cbp, M_TTYS, M_NOWAIT);
+		cbp = malloc(sizeof *cbp, M_CLIST, M_NOWAIT);
 		if (cbp == NULL) {
 			printf(
 "cblock_alloc_cblocks: M_NOWAIT malloc failed, trying M_WAITOK\n");
-			cbp = malloc(sizeof *cbp, M_TTYS, M_WAITOK);
+			cbp = malloc(sizeof *cbp, M_CLIST, M_WAITOK);
 		}
 		/*
 		 * Freed cblocks have zero quotes and garbage elsewhere.
@@ -192,7 +194,7 @@ cblock_free_cblocks(number)
 	int i;
 
 	for (i = 0; i < number; ++i)
-		free(cblock_alloc(), M_TTYS);
+		free(cblock_alloc(), M_CLIST);
 	ctotcount -= number;
 }
 

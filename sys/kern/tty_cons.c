@@ -66,6 +66,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/clock.h>
 
+static MALLOC_DEFINE(M_TTYCONS, "tty console", "tty console handling");
+
 static	d_open_t	cnopen;
 static	d_close_t	cnclose;
 static	d_read_t	cnread;
@@ -673,7 +675,7 @@ constty_set(struct tty *tp)
 	KASSERT(tp != NULL, ("constty_set: NULL tp"));
 	if (consbuf == NULL) {
 		size = consmsgbuf_size;
-		consbuf = malloc(size, M_TTYS, M_WAITOK);
+		consbuf = malloc(size, M_TTYCONS, M_WAITOK);
 		msgbuf_init(&consmsgbuf, consbuf, size);
 		callout_init(&conscallout, 0);
 	}
@@ -695,7 +697,7 @@ constty_clear(void)
 	callout_stop(&conscallout);
 	while ((c = msgbuf_getchar(&consmsgbuf)) != -1)
 		cnputc(c);
-	free(consbuf, M_TTYS);
+	free(consbuf, M_TTYCONS);
 	consbuf = NULL;
 }
 

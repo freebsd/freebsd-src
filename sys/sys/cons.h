@@ -39,6 +39,8 @@
 #define	_MACHINE_CONS_H_
 
 struct consdev;
+struct tty;
+
 typedef	void	cn_probe_t(struct consdev *);
 typedef	void	cn_init_t(struct consdev *);
 typedef	void	cn_term_t(struct consdev *);
@@ -80,6 +82,9 @@ struct consdev {
 
 #ifdef _KERNEL
 
+extern	struct msgbuf consmsgbuf; /* Message buffer for constty. */
+extern	struct tty *constty;	/* Temporary virtual console. */
+
 #define CONS_DRIVER(name, probe, init, term, getc, checkc, putc, dbctl)	\
 	static struct consdev name##_consdev = {			\
 		probe, init, term, getc, checkc, putc			\
@@ -108,6 +113,8 @@ int	cngetc(void);
 void	cnputc(int);
 void	cnputs(char *);
 int	cnunavailable(void);
+void	constty_set(struct tty *tp);
+void	constty_clear(void);
 
 #endif /* _KERNEL */
 
