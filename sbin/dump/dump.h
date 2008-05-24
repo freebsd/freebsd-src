@@ -59,8 +59,8 @@ char	*tape;		/* name of the tape file */
 char	*popenout;	/* popen(3) per-"tape" command */
 char	*dumpdates;	/* name of the file containing dump date information*/
 char	*temp;		/* name of the file for doing rewrite of dumpdates */
-char	lastlevel;	/* dump level of previous dump */
-char	level;		/* dump level of this dump */
+int	lastlevel;	/* dump level of previous dump */
+int	level;		/* dump level of this dump */
 int	uflag;		/* update flag */
 int	diskfd;		/* disk file descriptor */
 int	tapefd;		/* tape file descriptor */
@@ -159,7 +159,7 @@ struct	fstab *fstabsearch(const char *key); /* search fs_file and fs_spec */
  */
 struct dumpdates {
 	char	dd_name[NAME_MAX+3];
-	char	dd_level;
+	int	dd_level;
 	time_t	dd_ddate;
 };
 int	nddates;		/* number of records (might be zero) */
@@ -170,6 +170,10 @@ void	putdumptime(void);
 #define	ITITERATE(i, ddp) \
     	if (ddatev != NULL) \
 		for (ddp = ddatev[i = 0]; i < nddates; ddp = ddatev[++i])
+
+#define	DUMPOUTFMT	"%-32s %d %s"		/* for printf */
+						/* name, level, ctime(date) */
+#define	DUMPINFMT	"%32s %d %[^\n]\n"	/* inverse for scanf */
 
 void	sig(int signo);
 
