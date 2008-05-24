@@ -85,18 +85,30 @@ fdesc_mount(struct mount *mp, struct thread *td)
 	if (mp->mnt_flag & (MNT_UPDATE | MNT_ROOTFS))
 		return (EOPNOTSUPP);
 
-	error = fdesc_allocvp(Froot, FD_ROOT, mp, &rvp, td);
-	if (error)
-		return (error);
-
 	MALLOC(fmp, struct fdescmount *, sizeof(struct fdescmount),
 				M_FDESCMNT, M_WAITOK);	/* XXX */
+
+	/*
+	 * We need to initialize a few bits of our local mount point struct to
+	 * avoid confusion in allocvp.
+	 */
+	mp->mnt_data = (qaddr_t) fmp;
+	fmp->flags = 0;
+	error = fdesc_allocvp(Froot, -1, FD_ROOT, mp, &rvp, td);
+	if (error) {
+		free(fmp, M_FDESCMNT);
+		mp->mnt_data = 0;
+		return (error);
+	}
 	rvp->v_type = VDIR;
 	rvp->v_vflag |= VV_ROOT;
 	fmp->f_root = rvp;
+	VOP_UNLOCK(rvp, 0);
 	/* XXX -- don't mark as local to work around fts() problems */
 	/*mp->mnt_flag |= MNT_LOCAL;*/
-	mp->mnt_data =  fmp;
+	MNT_ILOCK(mp);
+	mp->mnt_kern_flag |= MNTK_MPSAFE;
+	MNT_IUNLOCK(mp);
 	vfs_getnewfsid(mp);
 
 	vfs_mountedfrom(mp, "fdescfs");
@@ -109,11 +121,19 @@ fdesc_unmount(mp, mntflags, td)
 	int mntflags;
 	struct thread *td;
 {
+	struct fdescmount *fmp;
+	caddr_t data;
 	int error;
 	int flags = 0;
 
-	if (mntflags & MNT_FORCE)
+	fmp = (struct fdescmount *)mp->mnt_data;
+	if (mntflags & MNT_FORCE) {
+		/* The hash mutex protects the private mount flags. */
+		mtx_lock(&fdesc_hashmtx);
+		fmp->flags |= FMNT_UNMOUNTF;
+		mtx_unlock(&fdesc_hashmtx);
 		flags |= FORCECLOSE;
+	}
 
 	/*
 	 * Clear out buffer cache.  I don't think we
@@ -127,10 +147,14 @@ fdesc_unmount(mp, mntflags, td)
 		return (error);
 
 	/*
-	 * Finally, throw away the fdescmount structure
+	 * Finally, throw away the fdescmount structure. Hold the hashmtx to
+	 * protect the fdescmount structure.
 	 */
-	free(mp->mnt_data, M_FDESCMNT);	/* XXX */
+	mtx_lock(&fdesc_hashmtx);
+	data = mp->mnt_data;
 	mp->mnt_data = 0;
+	mtx_unlock(&fdesc_hashmtx);
+	free(data, M_FDESCMNT);	/* XXX */
 
 	return (0);
 }
@@ -148,8 +172,7 @@ fdesc_root(mp, flags, vpp, td)
 	 * Return locked reference to root.
 	 */
 	vp = VFSTOFDESC(mp)->f_root;
-	VREF(vp);
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+	vget(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	*vpp = vp;
 	return (0);
 }
@@ -208,6 +231,7 @@ static struct vfsops fdesc_vfsops = {
 	.vfs_mount =		fdesc_mount,
 	.vfs_root =		fdesc_root,
 	.vfs_statfs =		fdesc_statfs,
+	.vfs_uninit =		fdesc_uninit,
 	.vfs_unmount =		fdesc_unmount,
 };
 
