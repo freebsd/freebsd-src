@@ -132,11 +132,11 @@ getdumptime(void)
 
 	fname = disk;
 #ifdef FDEBUG
-	msg("Looking for name %s in dumpdates = %s for level = %c\n",
+	msg("Looking for name %s in dumpdates = %s for level = %d\n",
 		fname, dumpdates, level);
 #endif
 	spcl.c_ddate = 0;
-	lastlevel = '0';
+	lastlevel = 0;
 
 	initdumptimes();
 	/*
@@ -213,7 +213,7 @@ putdumptime(void)
 		time_t t = _time64_to_time(spcl.c_date);
 		tmsg = ctime(&t);
 	}
-	msg("level %c dump on %s", level, tmsg);
+	msg("level %d dump on %s", level, tmsg);
 }
 
 static void
@@ -241,7 +241,7 @@ getrecord(FILE *df, struct dumpdates *ddatep)
 			dumpdates, recno);
 
 #ifdef FDEBUG
-	msg("getrecord: %s %c %s", ddatep->dd_name, ddatep->dd_level,
+	msg("getrecord: %s %d %s", ddatep->dd_name, ddatep->dd_level,
 	    ddatep->dd_ddate == 0 ? "the epoch\n" : ctime(&ddatep->dd_ddate));
 #endif
 	return(0);

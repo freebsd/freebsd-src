@@ -134,13 +134,4 @@ union u_spcl {
 #define TS_CLRI 	6	/* map of inodes deleted since last dump */
 #define TS_END  	5	/* end of volume marker */
 
-/*
- * flag values
- */
-/* None at the moment */
-
-#define	DUMPOUTFMT	"%-32s %c %s"		/* for printf */
-						/* name, level, ctime(date) */
-#define	DUMPINFMT	"%32s %c %[^\n]\n"	/* inverse for scanf */
-
 #endif /* !_DUMPRESTORE_H_ */
