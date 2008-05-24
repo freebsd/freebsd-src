@@ -573,13 +573,6 @@ munmap(td, uap)
 	if (addr < vm_map_min(map) || addr + size > vm_map_max(map))
 		return (EINVAL);
 	vm_map_lock(map);
-	/*
-	 * Make sure entire range is allocated.
-	 */
-	if (!vm_map_check_protection(map, addr, addr + size, VM_PROT_NONE)) {
-		vm_map_unlock(map);
-		return (EINVAL);
-	}
 #ifdef HWPMC_HOOKS
 	/*
 	 * Inform hwpmc if the address range being unmapped contains
