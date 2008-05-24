@@ -116,7 +116,7 @@ main(int argc, char *argv[])
 	temp = _PATH_DTMP;
 	if (TP_BSIZE / DEV_BSIZE == 0 || TP_BSIZE % DEV_BSIZE != 0)
 		quit("TP_BSIZE must be a multiple of DEV_BSIZE\n");
-	level = '0';
+	level = 0;
 	rsync_friendly = 0;
 
 	if (argc < 2)
@@ -129,7 +129,7 @@ main(int argc, char *argv[])
 		/* dump level */
 		case '0': case '1': case '2': case '3': case '4':
 		case '5': case '6': case '7': case '8': case '9':
-			level = ch;
+			level = 10 * level + ch - '0';
 			break;
 
 		case 'a':		/* `auto-size', Write to EOM. */
@@ -216,7 +216,7 @@ main(int argc, char *argv[])
 				exit(X_STARTUP);
 			}
 			Tflag = 1;
-			lastlevel = '?';
+			lastlevel = -1;
 			break;
 
 		case 'u':		/* update /etc/dumpdates */
@@ -247,7 +247,7 @@ main(int argc, char *argv[])
 		(void)fprintf(stderr, "\n");
 		exit(X_STARTUP);
 	}
-	if (rsync_friendly && (level>'0')) {
+	if (rsync_friendly && (level > 0)) {
 		(void)fprintf(stderr, "%s %s\n", "rsync friendly options",
 		    "can be used only with level 0 dumps.");
 		exit(X_STARTUP);
@@ -398,7 +398,7 @@ main(int argc, char *argv[])
 
 	(void)strcpy(spcl.c_label, "none");
 	(void)gethostname(spcl.c_host, NAMELEN);
-	spcl.c_level = level - '0';
+	spcl.c_level = level;
 	spcl.c_type = TS_TAPE;
 	if (rsync_friendly) {
 		/* don't store real dump times */
@@ -411,7 +411,7 @@ main(int argc, char *argv[])
 		time_t t = _time64_to_time(spcl.c_date);
 		tmsg = ctime(&t);
 	}
-	msg("Date of this level %c dump: %s", level, tmsg);
+	msg("Date of this level %d dump: %s", level, tmsg);
 
 	if (!Tflag && (!rsync_friendly))
 	        getdumptime();		/* /etc/dumpdates snarfed */
@@ -421,7 +421,10 @@ main(int argc, char *argv[])
 		time_t t = _time64_to_time(spcl.c_ddate);
 		tmsg = ctime(&t);
 	}
- 	msg("Date of last level %c dump: %s", lastlevel, tmsg);
+	if (lastlevel < 0)
+		msg("Date of last (level unknown) dump: %s", tmsg);
+	else
+		msg("Date of last level %d dump: %s", lastlevel, tmsg);
 
 	msg("Dumping %s%s ", snapdump ? "snapshot of ": "", disk);
 	if (dt != NULL)
