@@ -38,6 +38,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_compat.h"
+#include "opt_kdtrace.h"
 #include "opt_ktrace.h"
 
 #include <sys/param.h>
@@ -59,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/posix4.h>
 #include <sys/pioctl.h>
 #include <sys/resourcevar.h>
+#include <sys/sdt.h>
 #include <sys/sbuf.h>
 #include <sys/sleepqueue.h>
 #include <sys/smp.h>
@@ -81,6 +83,19 @@ __FBSDID("$FreeBSD$");
 #include <security/audit/audit.h>
 
 #define	ONSIG	32		/* NSIG for osig* syscalls.  XXX. */
+
+SDT_PROVIDER_DECLARE(proc);
+SDT_PROBE_DEFINE(proc, kernel, , signal_send);
+SDT_PROBE_ARGTYPE(proc, kernel, , signal_send, 0, "struct thread *");
+SDT_PROBE_ARGTYPE(proc, kernel, , signal_send, 1, "struct proc *");
+SDT_PROBE_ARGTYPE(proc, kernel, , signal_send, 2, "int");
+SDT_PROBE_DEFINE(proc, kernel, , signal_clear);
+SDT_PROBE_ARGTYPE(proc, kernel, , signal_clear, 0, "int");
+SDT_PROBE_ARGTYPE(proc, kernel, , signal_clear, 1, "ksiginfo_t *");
+SDT_PROBE_DEFINE(proc, kernel, , signal_discard);
+SDT_PROBE_ARGTYPE(proc, kernel, , signal_discard, 0, "struct thread *");
+SDT_PROBE_ARGTYPE(proc, kernel, , signal_discard, 1, "struct proc *");
+SDT_PROBE_ARGTYPE(proc, kernel, , signal_discard, 2, "int");
 
 static int	coredump(struct thread *);
 static char	*expand_name(const char *, uid_t, pid_t);
@@ -1236,6 +1251,9 @@ out:
 		ksiginfo_init(ksi);
 		sigqueue_get(&td->td_sigqueue, sig, ksi);
 		ksi->ksi_signo = sig;
+
+		SDT_PROBE(proc, kernel, , signal_clear, sig, ksi, 0, 0, 0);
+		
 		if (ksi->ksi_code == SI_TIMER)
 			itimer_accept(p, ksi->ksi_timerid, ksi);
 		error = 0;
@@ -1976,6 +1994,8 @@ tdsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 		sigqueue = &td->td_sigqueue;
 	}
 
+	SDT_PROBE(proc, kernel, , signal_send, td, p, sig, 0, 0 );
+
 	/*
 	 * If the signal is being ignored,
 	 * then we forget about it immediately.
@@ -1985,6 +2005,8 @@ tdsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 	 */
 	mtx_lock(&ps->ps_mtx);
 	if (SIGISMEMBER(ps->ps_sigignore, sig)) {
+		SDT_PROBE(proc, kernel, , signal_discard, ps, td, sig, 0, 0 );
+
 		mtx_unlock(&ps->ps_mtx);
 		if (ksi && (ksi->ksi_flags & KSI_INS))
 			ksiginfo_tryfree(ksi);

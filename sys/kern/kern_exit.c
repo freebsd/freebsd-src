@@ -38,6 +38,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_compat.h"
+#include "opt_kdtrace.h"
 #include "opt_ktrace.h"
 #include "opt_mac.h"
 
@@ -65,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ptrace.h>
 #include <sys/acct.h>		/* for acct_process() function prototype */
 #include <sys/filedesc.h>
+#include <sys/sdt.h>
 #include <sys/shm.h>
 #include <sys/sem.h>
 #ifdef KTRACE
@@ -81,6 +83,15 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_map.h>
 #include <vm/vm_page.h>
 #include <vm/uma.h>
+
+#ifdef KDTRACE_HOOKS
+#include <sys/dtrace_bsd.h>
+dtrace_execexit_func_t	dtrace_fasttrap_exit;
+#endif
+
+SDT_PROVIDER_DECLARE(proc);
+SDT_PROBE_DEFINE(proc, kernel, , exit);
+SDT_PROBE_ARGTYPE(proc, kernel, , exit, 0, "int");
 
 /* Required to be non-static for SysVR4 emulator */
 MALLOC_DEFINE(M_ZOMBIE, "zombie", "zombie proc status");
@@ -443,10 +454,29 @@ exit1(struct thread *td, int rv)
 	PROC_LOCK(p);
 	p->p_xstat = rv;
 	p->p_xthread = td;
+
+#ifdef KDTRACE_HOOKS
+	/*
+	 * Tell the DTrace fasttrap provider about the exit if it
+	 * has declared an interest.
+	 */
+	if (dtrace_fasttrap_exit)
+		dtrace_fasttrap_exit(p);
+#endif
+
 	/*
 	 * Notify interested parties of our demise.
 	 */
 	KNOTE_LOCKED(&p->p_klist, NOTE_EXIT);
+
+#ifdef KDTRACE_HOOKS
+	int reason = CLD_EXITED;
+	if (WCOREDUMP(rv))
+		reason = CLD_DUMPED;
+	else if (WIFSIGNALED(rv))
+		reason = CLD_KILLED;
+	SDT_PROBE(proc, kernel, , exit, reason, 0, 0, 0, 0);
+#endif
 
 	/*
 	 * Just delete all entries in the p_klist. At this point we won't

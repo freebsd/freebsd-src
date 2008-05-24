@@ -37,6 +37,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_kdtrace.h"
 #include "opt_ktrace.h"
 #include "opt_mac.h"
 
@@ -63,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ktr.h>
 #include <sys/ktrace.h>
 #include <sys/unistd.h>	
+#include <sys/sdt.h>
 #include <sys/sx.h>
 #include <sys/signalvar.h>
 
@@ -75,6 +77,16 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 #include <vm/uma.h>
 
+#ifdef KDTRACE_HOOKS
+#include <sys/dtrace_bsd.h>
+dtrace_fork_func_t	dtrace_fasttrap_fork;
+#endif
+
+SDT_PROVIDER_DECLARE(proc);
+SDT_PROBE_DEFINE(proc, kernel, , create);
+SDT_PROBE_ARGTYPE(proc, kernel, , create, 0, "struct proc *");
+SDT_PROBE_ARGTYPE(proc, kernel, , create, 1, "struct proc *");
+SDT_PROBE_ARGTYPE(proc, kernel, , create, 2, "int");
 
 #ifndef _SYS_SYSPROTO_H_
 struct fork_args {
@@ -626,6 +638,15 @@ again:
 		p2->p_pfsflags = p1->p_pfsflags;
 	}
 
+#ifdef KDTRACE_HOOKS
+	/*
+	 * Tell the DTrace fasttrap provider about the new process
+	 * if it has registered an interest.
+	 */
+	if (dtrace_fasttrap_fork)
+		dtrace_fasttrap_fork(p1, p2);
+#endif
+
 	/*
 	 * This begins the section where we must prevent the parent
 	 * from being swapped.
@@ -714,6 +735,8 @@ again:
 	KNOTE_LOCKED(&p1->p_klist, NOTE_FORK | p2->p_pid);
 
 	PROC_UNLOCK(p1);
+
+	SDT_PROBE(proc, kernel, , create, p2, p1, flags, 0, 0);
 
 	/*
 	 * Preserve synchronization semantics of vfork.  If waiting for
