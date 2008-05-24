@@ -162,27 +162,6 @@ ffs_mount(struct mount *mp, struct thread *td)
 	if (vfs_getopt(mp->mnt_optnew, "acls", NULL, NULL) == 0)
 		mntorflags |= MNT_ACLS;
 
-	if (vfs_getopt(mp->mnt_optnew, "async", NULL, NULL) == 0)
-		mntorflags |= MNT_ASYNC;
-
-	if (vfs_getopt(mp->mnt_optnew, "force", NULL, NULL) == 0)
-		mntorflags |= MNT_FORCE;
-
-	if (vfs_getopt(mp->mnt_optnew, "multilabel", NULL, NULL) == 0)
-		mntorflags |= MNT_MULTILABEL;
-
-	if (vfs_getopt(mp->mnt_optnew, "noasync", NULL, NULL) == 0)
-		mntandnotflags |= MNT_ASYNC;
-
-	if (vfs_getopt(mp->mnt_optnew, "noatime", NULL, NULL) == 0)
-		mntorflags |= MNT_NOATIME;
-
-	if (vfs_getopt(mp->mnt_optnew, "noclusterr", NULL, NULL) == 0)
-		mntorflags |= MNT_NOCLUSTERR;
-
-	if (vfs_getopt(mp->mnt_optnew, "noclusterw", NULL, NULL) == 0)
-		mntorflags |= MNT_NOCLUSTERW;
-
 	if (vfs_getopt(mp->mnt_optnew, "snapshot", NULL, NULL) == 0)
 		mntorflags |= MNT_SNAPSHOT;
 
