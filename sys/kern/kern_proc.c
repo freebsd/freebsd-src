@@ -33,6 +33,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
+#include "opt_kdtrace.h"
 #include "opt_ktrace.h"
 #include "opt_kstack_pages.h"
 #include "opt_stack.h"
@@ -55,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/filedesc.h>
 #include <sys/tty.h>
 #include <sys/signalvar.h>
+#include <sys/sdt.h>
 #include <sys/sx.h>
 #include <sys/user.h>
 #include <sys/jail.h>
@@ -75,6 +77,35 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_map.h>
 #include <vm/vm_object.h>
 #include <vm/uma.h>
+
+SDT_PROVIDER_DEFINE(proc);
+SDT_PROBE_DEFINE(proc, kernel, ctor, entry);
+SDT_PROBE_ARGTYPE(proc, kernel, ctor, entry, 0, "struct proc *");
+SDT_PROBE_ARGTYPE(proc, kernel, ctor, entry, 1, "int");
+SDT_PROBE_ARGTYPE(proc, kernel, ctor, entry, 2, "void *");
+SDT_PROBE_ARGTYPE(proc, kernel, ctor, entry, 3, "int");
+SDT_PROBE_DEFINE(proc, kernel, ctor, return);
+SDT_PROBE_ARGTYPE(proc, kernel, ctor, return, 0, "struct proc *");
+SDT_PROBE_ARGTYPE(proc, kernel, ctor, return, 1, "int");
+SDT_PROBE_ARGTYPE(proc, kernel, ctor, return, 2, "void *");
+SDT_PROBE_ARGTYPE(proc, kernel, ctor, return, 3, "int");
+SDT_PROBE_DEFINE(proc, kernel, dtor, entry);
+SDT_PROBE_ARGTYPE(proc, kernel, dtor, entry, 0, "struct proc *");
+SDT_PROBE_ARGTYPE(proc, kernel, dtor, entry, 1, "int");
+SDT_PROBE_ARGTYPE(proc, kernel, dtor, entry, 2, "void *");
+SDT_PROBE_ARGTYPE(proc, kernel, dtor, entry, 3, "struct thread *");
+SDT_PROBE_DEFINE(proc, kernel, dtor, return);
+SDT_PROBE_ARGTYPE(proc, kernel, dtor, return, 0, "struct proc *");
+SDT_PROBE_ARGTYPE(proc, kernel, dtor, return, 1, "int");
+SDT_PROBE_ARGTYPE(proc, kernel, dtor, return, 2, "void *");
+SDT_PROBE_DEFINE(proc, kernel, init, entry);
+SDT_PROBE_ARGTYPE(proc, kernel, init, entry, 0, "struct proc *");
+SDT_PROBE_ARGTYPE(proc, kernel, init, entry, 1, "int");
+SDT_PROBE_ARGTYPE(proc, kernel, init, entry, 2, "int");
+SDT_PROBE_DEFINE(proc, kernel, init, return);
+SDT_PROBE_ARGTYPE(proc, kernel, init, return, 0, "struct proc *");
+SDT_PROBE_ARGTYPE(proc, kernel, init, return, 1, "int");
+SDT_PROBE_ARGTYPE(proc, kernel, init, return, 2, "int");
 
 MALLOC_DEFINE(M_PGRP, "pgrp", "process group header");
 MALLOC_DEFINE(M_SESSION, "session", "session header");
@@ -142,7 +173,9 @@ proc_ctor(void *mem, int size, void *arg, int flags)
 	struct proc *p;
 
 	p = (struct proc *)mem;
+	SDT_PROBE(proc, kernel, ctor , entry, p, size, arg, flags, 0);
 	EVENTHANDLER_INVOKE(process_ctor, p);
+	SDT_PROBE(proc, kernel, ctor , return, p, size, arg, flags, 0);
 	return (0);
 }
 
@@ -158,6 +191,7 @@ proc_dtor(void *mem, int size, void *arg)
 	/* INVARIANTS checks go here */
 	p = (struct proc *)mem;
 	td = FIRST_THREAD_IN_PROC(p);
+	SDT_PROBE(proc, kernel, dtor, entry, p, size, arg, td, 0);
 	if (td != NULL) {
 #ifdef INVARIANTS
 		KASSERT((p->p_numthreads == 1),
@@ -175,6 +209,7 @@ proc_dtor(void *mem, int size, void *arg)
 	EVENTHANDLER_INVOKE(process_dtor, p);
 	if (p->p_ksi != NULL)
 		KASSERT(! KSI_ONQ(p->p_ksi), ("SIGCHLD queue"));
+	SDT_PROBE(proc, kernel, dtor, return, p, size, arg, 0, 0);
 }
 
 /*
@@ -186,6 +221,7 @@ proc_init(void *mem, int size, int flags)
 	struct proc *p;
 
 	p = (struct proc *)mem;
+	SDT_PROBE(proc, kernel, init, entry, p, size, flags, 0, 0);
 	p->p_sched = (struct p_sched *)&p[1];
 	bzero(&p->p_mtx, sizeof(struct mtx));
 	mtx_init(&p->p_mtx, "process lock", NULL, MTX_DEF | MTX_DUPOK);
@@ -193,6 +229,7 @@ proc_init(void *mem, int size, int flags)
 	TAILQ_INIT(&p->p_threads);	     /* all threads in proc */
 	EVENTHANDLER_INVOKE(process_init, p);
 	p->p_stats = pstats_alloc();
+	SDT_PROBE(proc, kernel, init, return, p, size, flags, 0, 0);
 	return (0);
 }
 
