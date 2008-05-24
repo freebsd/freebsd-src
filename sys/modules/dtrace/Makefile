@@ -12,8 +12,7 @@ SUBDIR=		dtmalloc	\
 		systrace
 
 .if ${MACHINE_ARCH} == "amd64"
-SUBDIR+=	fasttrap	\
-		fbt
+SUBDIR+=	fbt
 .elif ${MACHINE_ARCH} == "i386"
 SUBDIR+=	fbt
 .endif
