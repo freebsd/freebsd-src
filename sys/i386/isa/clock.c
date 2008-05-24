@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_apic.h"
 #include "opt_clock.h"
+#include "opt_kdtrace.h"
 #include "opt_isa.h"
 #include "opt_mca.h"
 #include "opt_xbox.h"
@@ -77,6 +78,10 @@ __FBSDID("$FreeBSD$");
 
 #ifdef DEV_MCA
 #include <i386/bios/mca_machdep.h>
+#endif
+
+#ifdef KDTRACE_HOOKS
+#include <sys/dtrace_bsd.h>
 #endif
 
 #define	TIMER_DIV(x) ((i8254_freq + (x) / 2) / (x))
@@ -138,6 +143,18 @@ clkintr(struct trapframe *frame)
 		mtx_unlock_spin(&clock_lock);
 	}
 	KASSERT(!using_lapic_timer, ("clk interrupt enabled with lapic timer"));
+
+#ifdef KDTRACE_HOOKS
+	/*
+	 * If the DTrace hooks are configured and a callback function
+	 * has been registered, then call it to process the high speed
+	 * timers.
+	 */
+	int cpu = PCPU_GET(cpuid);
+	if (lapic_cyclic_clock_func[cpu] != NULL)
+		(*lapic_cyclic_clock_func[cpu])(frame);
+#endif
+
 	hardclock(TRAPF_USERMODE(frame), TRAPF_PC(frame));
 #ifdef DEV_MCA
 	/* Reset clock interrupt by asserting bit 7 of port 0x61 */
