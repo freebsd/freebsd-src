@@ -162,8 +162,15 @@ ffs_mount(struct mount *mp, struct thread *td)
 	if (vfs_getopt(mp->mnt_optnew, "acls", NULL, NULL) == 0)
 		mntorflags |= MNT_ACLS;
 
-	if (vfs_getopt(mp->mnt_optnew, "snapshot", NULL, NULL) == 0)
+	if (vfs_getopt(mp->mnt_optnew, "snapshot", NULL, NULL) == 0) {
 		mntorflags |= MNT_SNAPSHOT;
+		/*
+		 * Once we have set the MNT_SNAPSHOT flag, do not
+		 * persist "snapshot" in the options list.
+		 */
+		vfs_deleteopt(mp->mnt_optnew, "snapshot");
+		vfs_deleteopt(mp->mnt_opt, "snapshot");
+	}
 
 	MNT_ILOCK(mp);
 	mp->mnt_flag = (mp->mnt_flag | mntorflags) & ~mntandnotflags;
