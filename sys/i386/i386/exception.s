@@ -36,6 +36,7 @@
 
 #include "opt_apic.h"
 #include "opt_hwpmc_hooks.h"
+#include "opt_kdtrace.h"
 #include "opt_npx.h"
 
 #include <machine/asmacros.h>
@@ -45,7 +46,23 @@
 #include "assym.s"
 
 #define	SEL_RPL_MASK	0x0003
+#define GSEL_KPL	0x0020	/* GSEL(GCODE_SEL, SEL_KPL) */
 
+#ifdef KDTRACE_HOOKS
+	.bss
+	.globl	dtrace_invop_jump_addr
+	.align	4
+	.type	dtrace_invop_jump_addr, @object
+        .size	dtrace_invop_jump_addr, 4
+dtrace_invop_jump_addr:
+	.zero	4
+	.globl	dtrace_invop_calltrap_addr
+	.align	4
+	.type	dtrace_invop_calltrap_addr, @object
+        .size	dtrace_invop_calltrap_addr, 4
+dtrace_invop_calltrap_addr:
+	.zero	8
+#endif
 	.text
 #ifdef HWPMC_HOOKS
 	ENTRY(start_exceptions)
@@ -95,8 +112,6 @@ IDTVEC(ofl)
 	pushl $0; TRAP(T_OFLOW)
 IDTVEC(bnd)
 	pushl $0; TRAP(T_BOUND)
-IDTVEC(ill)
-	pushl $0; TRAP(T_PRIVINFLT)
 IDTVEC(dna)
 	pushl $0; TRAP(T_DNA)
 IDTVEC(fpusegm)
@@ -151,6 +166,43 @@ calltrap:
 	 */
 	MEXITCOUNT
 	jmp	doreti
+
+/*
+ * Privileged instruction fault.
+ */
+	SUPERALIGN_TEXT
+IDTVEC(ill)
+	/* Check if there is no DTrace hook registered. */
+	cmpl	$0,dtrace_invop_jump_addr
+	je	norm_ill
+
+	/* Check if this is a user fault. */
+	cmpl	$GSEL_KPL, 4(%esp)	/* Check the code segment. */
+              
+	/* If so, just handle it as a normal trap. */
+	jne	norm_ill
+              
+	/*
+	 * This is a kernel instruction fault that might have been caused
+	 * by a DTrace provider.
+	 */
+	pushal				/* Push all registers onto the stack. */
+
+	/*
+	 * Set our jump address for the jump back in the event that
+	 * the exception wasn't caused by DTrace at all.
+	 */
+	movl	$norm_ill, dtrace_invop_calltrap_addr
+
+	/* Jump to the code hooked in by DTrace. */
+	jmpl	*dtrace_invop_jump_addr
+
+	/*
+	 * Process the instruction fault in the normal way.
+	 */
+norm_ill:
+	pushl $0
+	TRAP(T_PRIVINFLT)
 
 /*
  * SYSCALL CALL GATE (old entry point for a.out binaries)
