@@ -1031,22 +1031,26 @@ ip6_unknown_opt(u_int8_t *optp, struct mbuf *m, int off)
 
 /*
  * Create the "control" list for this pcb.
- * The function will not modify mbuf chain at all.
+ * These functions will not modify mbuf chain at all.
  *
- * with KAME mbuf chain restriction:
+ * With KAME mbuf chain restriction:
  * The routine will be called from upper layer handlers like tcp6_input().
  * Thus the routine assumes that the caller (tcp6_input) have already
  * called IP6_EXTHDR_CHECK() and all the extension headers are located in the
  * very first mbuf on the mbuf chain.
+ *
+ * ip6_savecontrol_v4 will handle those options that are possible to be
+ * set on a v4-mapped socket.
+ * ip6_savecontrol will directly call ip6_savecontrol_v4 to handle those
+ * options and handle the v6-only ones itself.
  */
-void
-ip6_savecontrol(struct inpcb *in6p, struct mbuf *m, struct mbuf **mp)
+int
+ip6_savecontrol_v4(struct inpcb *inp, struct mbuf *m, struct mbuf **mp)
 {
-#define IS2292(x, y)	((in6p->in6p_flags & IN6P_RFC2292) ? (x) : (y))
 	struct ip6_hdr *ip6 = mtod(m, struct ip6_hdr *);
 
 #ifdef SO_TIMESTAMP
-	if ((in6p->in6p_socket->so_options & SO_TIMESTAMP) != 0) {
+	if ((inp->inp_socket->so_options & SO_TIMESTAMP) != 0) {
 		struct timeval tv;
 
 		microtime(&tv);
@@ -1058,10 +1062,11 @@ ip6_savecontrol(struct inpcb *in6p, struct mbuf *m, struct mbuf **mp)
 #endif
 
 	if ((ip6->ip6_vfc & IPV6_VERSION_MASK) != IPV6_VERSION)
-		return;
+		return (1);
 
+#define IS2292(inp, x, y)	(((inp)->inp_flags & IN6P_RFC2292) ? (x) : (y))
 	/* RFC 2292 sec. 5 */
-	if ((in6p->in6p_flags & IN6P_PKTINFO) != 0) {
+	if ((inp->inp_flags & IN6P_PKTINFO) != 0) {
 		struct in6_pktinfo pi6;
 
 		bcopy(&ip6->ip6_dst, &pi6.ipi6_addr, sizeof(struct in6_addr));
@@ -1071,19 +1076,31 @@ ip6_savecontrol(struct inpcb *in6p, struct mbuf *m, struct mbuf **mp)
 
 		*mp = sbcreatecontrol((caddr_t) &pi6,
 		    sizeof(struct in6_pktinfo),
-		    IS2292(IPV6_2292PKTINFO, IPV6_PKTINFO), IPPROTO_IPV6);
+		    IS2292(inp, IPV6_2292PKTINFO, IPV6_PKTINFO), IPPROTO_IPV6);
 		if (*mp)
 			mp = &(*mp)->m_next;
 	}
 
-	if ((in6p->in6p_flags & IN6P_HOPLIMIT) != 0) {
+	if ((inp->inp_flags & IN6P_HOPLIMIT) != 0) {
 		int hlim = ip6->ip6_hlim & 0xff;
 
 		*mp = sbcreatecontrol((caddr_t) &hlim, sizeof(int),
-		    IS2292(IPV6_2292HOPLIMIT, IPV6_HOPLIMIT), IPPROTO_IPV6);
+		    IS2292(inp, IPV6_2292HOPLIMIT, IPV6_HOPLIMIT),
+		    IPPROTO_IPV6);
 		if (*mp)
 			mp = &(*mp)->m_next;
 	}
+
+	return (0);
+}
+
+void
+ip6_savecontrol(struct inpcb *in6p, struct mbuf *m, struct mbuf **mp)
+{
+	struct ip6_hdr *ip6 = mtod(m, struct ip6_hdr *);
+
+	if (ip6_savecontrol_v4(in6p, m, mp) != 0)
+		return;
 
 	if ((in6p->in6p_flags & IN6P_TCLASS) != 0) {
 		u_int32_t flowinfo;
@@ -1148,7 +1165,7 @@ ip6_savecontrol(struct inpcb *in6p, struct mbuf *m, struct mbuf **mp)
 			 * Note: this constraint is removed in RFC3542
 			 */
 			*mp = sbcreatecontrol((caddr_t)hbh, hbhlen,
-			    IS2292(IPV6_2292HOPOPTS, IPV6_HOPOPTS),
+			    IS2292(in6p, IPV6_2292HOPOPTS, IPV6_HOPOPTS),
 			    IPPROTO_IPV6);
 			if (*mp)
 				mp = &(*mp)->m_next;
@@ -1223,7 +1240,8 @@ ip6_savecontrol(struct inpcb *in6p, struct mbuf *m, struct mbuf **mp)
 					break;
 
 				*mp = sbcreatecontrol((caddr_t)ip6e, elen,
-				    IS2292(IPV6_2292DSTOPTS, IPV6_DSTOPTS),
+				    IS2292(in6p,
+					IPV6_2292DSTOPTS, IPV6_DSTOPTS),
 				    IPPROTO_IPV6);
 				if (*mp)
 					mp = &(*mp)->m_next;
@@ -1233,7 +1251,7 @@ ip6_savecontrol(struct inpcb *in6p, struct mbuf *m, struct mbuf **mp)
 					break;
 
 				*mp = sbcreatecontrol((caddr_t)ip6e, elen,
-				    IS2292(IPV6_2292RTHDR, IPV6_RTHDR),
+				    IS2292(in6p, IPV6_2292RTHDR, IPV6_RTHDR),
 				    IPPROTO_IPV6);
 				if (*mp)
 					mp = &(*mp)->m_next;
@@ -1268,9 +1286,8 @@ ip6_savecontrol(struct inpcb *in6p, struct mbuf *m, struct mbuf **mp)
 	  loopend:
 		;
 	}
-
-#undef IS2292
 }
+#undef IS2292
 
 void
 ip6_notify_pmtu(struct inpcb *in6p, struct sockaddr_in6 *dst, u_int32_t *mtu)
