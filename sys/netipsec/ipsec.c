@@ -1675,8 +1675,6 @@ ipsec_chkreplay(seq, sav)
 	u_int32_t wsizeb;	/* constant: bits of window size */
 	int frlast;		/* constant: last frame */
 
-	IPSEC_SPLASSERT_SOFTNET(__func__);
-
 	IPSEC_ASSERT(sav != NULL, ("Null SA"));
 	IPSEC_ASSERT(sav->replay != NULL, ("Null replay state"));
 
@@ -1734,8 +1732,6 @@ ipsec_updatereplay(seq, sav)
 	int fr;
 	u_int32_t wsizeb;	/* constant: bits of window size */
 	int frlast;		/* constant: last frame */
-
-	IPSEC_SPLASSERT_SOFTNET(__func__);
 
 	IPSEC_ASSERT(sav != NULL, ("Null SA"));
 	IPSEC_ASSERT(sav->replay != NULL, ("Null replay state"));

@@ -561,8 +561,6 @@ ah_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	struct cryptodesc *crda;
 	struct cryptop *crp;
 
-	IPSEC_SPLASSERT_SOFTNET(__func__);
-
 	IPSEC_ASSERT(sav != NULL, ("null SA"));
 	IPSEC_ASSERT(sav->key_auth != NULL, ("null authentication key"));
 	IPSEC_ASSERT(sav->tdb_authalgxform != NULL,
@@ -894,8 +892,6 @@ ah_output(
 	int error, rplen, authsize, maxpacketsize, roff;
 	u_int8_t prot;
 	struct newah *ah;
-
-	IPSEC_SPLASSERT_SOFTNET(__func__);
 
 	sav = isr->sav;
 	IPSEC_ASSERT(sav != NULL, ("null SA"));

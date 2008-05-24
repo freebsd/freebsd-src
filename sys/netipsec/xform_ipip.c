@@ -418,8 +418,6 @@ ipip_output(
 	struct ip6_hdr *ip6, *ip6o;
 #endif /* INET6 */
 
-	IPSEC_SPLASSERT_SOFTNET(__func__);
-
 	sav = isr->sav;
 	IPSEC_ASSERT(sav != NULL, ("null SA"));
 	IPSEC_ASSERT(sav->sah != NULL, ("null SAH"));

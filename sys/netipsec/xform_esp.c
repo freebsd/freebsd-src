@@ -277,8 +277,6 @@ esp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	struct cryptodesc *crde;
 	struct cryptop *crp;
 
-	IPSEC_SPLASSERT_SOFTNET(__func__);
-
 	IPSEC_ASSERT(sav != NULL, ("null SA"));
 	IPSEC_ASSERT(sav->tdb_encalgxform != NULL, ("null encoding xform"));
 	IPSEC_ASSERT((skip&3) == 0 && (m->m_pkthdr.len&3) == 0,
@@ -666,8 +664,6 @@ esp_output(
 
 	struct cryptodesc *crde = NULL, *crda = NULL;
 	struct cryptop *crp;
-
-	IPSEC_SPLASSERT_SOFTNET(__func__);
 
 	sav = isr->sav;
 	IPSEC_ASSERT(sav != NULL, ("null SA"));
