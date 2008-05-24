@@ -57,6 +57,7 @@ josef [label="Josef El-Rayes\njosef@FreeBSD.org\n2004/01/15"]
 keramida [label="Giorgos Keramidas\nkeramida@FreeBSD.org\n2001/10/12"]
 loader [label="Fukang Chen\nloader@FreeBSD.org\n2007/07/30"]
 linimon [label="Mark Linimon\nlinimon@FreeBSD.org\n2004/03/31"]
+manolis [label="Manolis Kiagias\nmanolis@FreeBSD.org\n2008/05/24"]
 marck [label="Dmitry Morozovsky\nmarck@FreeBSD.org\n2004/08/10"]
 miwi [label="Martin Wilke\nmiwi@FreeBSD.org\n2007/10/26"]
 murray [label="Murray Stokely\nmurray@FreeBSD.org\n2000/04/05"]
@@ -88,6 +89,7 @@ delphij -> chinsan
 delphij -> loader
 
 gabor -> pgj
+gabor -> manolis
 
 jesusr -> jcamou
 
