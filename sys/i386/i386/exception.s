@@ -112,6 +112,10 @@ IDTVEC(ofl)
 	pushl $0; TRAP(T_OFLOW)
 IDTVEC(bnd)
 	pushl $0; TRAP(T_BOUND)
+#ifndef KDTRACE_HOOKS
+IDTVEC(ill)
+	pushl $0; TRAP(T_PRIVINFLT)
+#endif
 IDTVEC(dna)
 	pushl $0; TRAP(T_DNA)
 IDTVEC(fpusegm)
@@ -170,6 +174,7 @@ calltrap:
 /*
  * Privileged instruction fault.
  */
+#ifdef KDTRACE_HOOKS
 	SUPERALIGN_TEXT
 IDTVEC(ill)
 	/* Check if there is no DTrace hook registered. */
@@ -203,6 +208,7 @@ IDTVEC(ill)
 norm_ill:
 	pushl $0
 	TRAP(T_PRIVINFLT)
+#endif
 
 /*
  * SYSCALL CALL GATE (old entry point for a.out binaries)
