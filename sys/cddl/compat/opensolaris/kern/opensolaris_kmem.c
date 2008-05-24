@@ -200,7 +200,6 @@ kmem_cache_free(kmem_cache_t *cache, void *buf)
 }
 
 #ifdef _KERNEL
-extern void zone_drain(uma_zone_t zone);
 void
 kmem_cache_reap_now(kmem_cache_t *cache)
 {
