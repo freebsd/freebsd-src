@@ -1144,7 +1144,7 @@ kqueue_scan(struct kqueue *kq, int maxevents, struct kevent_copyops *k_ops,
 	struct kevent *kevp;
 	struct timeval atv, rtv, ttv;
 	struct knote *kn, *marker;
-	int count, timeout, nkev, error;
+	int count, timeout, nkev, error, influx;
 	int haskqglobal;
 
 	count = maxevents;
@@ -1214,6 +1214,7 @@ start:
 	}
 
 	TAILQ_INSERT_TAIL(&kq->kq_head, marker, kn_tqe);
+	influx = 0;
 	while (count) {
 		KQ_OWNED(kq);
 		kn = TAILQ_FIRST(&kq->kq_head);
@@ -1221,6 +1222,11 @@ start:
 		if ((kn->kn_status == KN_MARKER && kn != marker) ||
 		    (kn->kn_status & KN_INFLUX) == KN_INFLUX) {
 			kq->kq_state |= KQ_FLUXWAIT;
+			if (influx) {
+				influx = 0;
+				KQ_FLUX_WAKEUP(kq);
+			}
+
 			error = msleep(kq, &kq->kq_lock, PSOCK,
 			    "kqflxwt", 0);
 			continue;
@@ -1269,6 +1275,7 @@ start:
 				    ~(KN_QUEUED | KN_ACTIVE | KN_INFLUX);
 				kq->kq_count--;
 				KN_LIST_UNLOCK(kn);
+				influx = 1;
 				continue;
 			}
 			*kevp = kn->kn_kevent;
@@ -1284,6 +1291,7 @@ start:
 			
 			kn->kn_status &= ~(KN_INFLUX);
 			KN_LIST_UNLOCK(kn);
+			influx = 1;
 		}
 
 		/* we are returning a copy to the user */
@@ -1292,6 +1300,7 @@ start:
 		count--;
 
 		if (nkev == KQ_NEVENTS) {
+			influx = 0;
 			KQ_UNLOCK_FLUX(kq);
 			error = k_ops->k_copyout(k_ops->arg, keva, nkev);
 			nkev = 0;
