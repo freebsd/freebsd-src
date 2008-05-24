@@ -91,8 +91,6 @@ ipsec_process_done(struct mbuf *m, struct ipsecrequest *isr)
 	struct secasindex *saidx;
 	int error;
 
-	IPSEC_SPLASSERT_SOFTNET(__func__);
-
 	IPSEC_ASSERT(m != NULL, ("null mbuf"));
 	IPSEC_ASSERT(isr != NULL, ("null ISR"));
 	sav = isr->sav;
@@ -205,7 +203,6 @@ ipsec_nextisr(
 			    isr->saidx.proto == IPPROTO_AH ? (y)++ : (z)++)
 	struct secasvar *sav;
 
-	IPSEC_SPLASSERT_SOFTNET(__func__);
 	IPSECREQUEST_LOCK_ASSERT(isr);
 
 	IPSEC_ASSERT(af == AF_INET || af == AF_INET6,

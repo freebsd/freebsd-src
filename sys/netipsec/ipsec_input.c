@@ -288,8 +288,6 @@ ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav,
 #endif
 #endif
 
-	IPSEC_SPLASSERT_SOFTNET(__func__);
-
 	IPSEC_ASSERT(m != NULL, ("null mbuf"));
 	IPSEC_ASSERT(sav != NULL, ("null SA"));
 	IPSEC_ASSERT(sav->sah != NULL, ("null SAH"));
