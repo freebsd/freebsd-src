@@ -47,7 +47,6 @@
 
 #ifdef _KERNEL
 
-#define	IPSEC_SPLASSERT_SOFTNET(_m)	/* XXX-BZ remove me */
 #define	IPSEC_ASSERT(_c,_m) KASSERT(_c, _m)
 
 #define	IPSEC_IS_PRIVILEGED_SO(_so) \

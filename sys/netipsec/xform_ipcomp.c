@@ -141,8 +141,6 @@ ipcomp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	struct cryptop *crp;
 	int hlen = IPCOMP_HLENGTH;
 
-	IPSEC_SPLASSERT_SOFTNET(__func__);
-
 	/* Get crypto descriptors */
 	crp = crypto_getreq(1);
 	if (crp == NULL) {
@@ -337,8 +335,6 @@ ipcomp_output(
 	struct tdb_crypto *tc;
 	struct mbuf *mo;
 	struct ipcomp *ipcomp;
-
-	IPSEC_SPLASSERT_SOFTNET(__func__);
 
 	sav = isr->sav;
 	IPSEC_ASSERT(sav != NULL, ("null SA"));
