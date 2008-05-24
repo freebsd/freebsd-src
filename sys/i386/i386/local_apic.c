@@ -35,6 +35,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_hwpmc_hooks.h"
+#include "opt_kdtrace.h"
 
 #include "opt_ddb.h"
 
@@ -63,6 +64,11 @@ __FBSDID("$FreeBSD$");
 #ifdef DDB
 #include <sys/interrupt.h>
 #include <ddb/ddb.h>
+#endif
+
+#ifdef KDTRACE_HOOKS
+#include <sys/dtrace_bsd.h>
+cyclic_clock_func_t	lapic_cyclic_clock_func[MAXCPU];
 #endif
 
 /* Sanity checks on IDT vectors. */
@@ -669,6 +675,17 @@ lapic_handle_timer(struct trapframe *frame)
 	la = &lapics[PCPU_GET(apic_id)];
 	(*la->la_timer_count)++;
 	critical_enter();
+
+#ifdef KDTRACE_HOOKS
+	/*
+	 * If the DTrace hooks are configured and a callback function
+	 * has been registered, then call it to process the high speed
+	 * timers.
+	 */
+	int cpu = PCPU_GET(cpuid);
+	if (lapic_cyclic_clock_func[cpu] != NULL)
+		(*lapic_cyclic_clock_func[cpu])(frame);
+#endif
 
 	/* Fire hardclock at hz. */
 	la->la_hard_ticks += hz;
