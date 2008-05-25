@@ -42,7 +42,7 @@ static kmem_cache_t *reference_cache;
 static kmem_cache_t *reference_history_cache;
 
 void
-refcount_init(void)
+refcount_sysinit(void)
 {
 	reference_cache = kmem_cache_create("reference_cache",
 	    sizeof (reference_t), 0, NULL, NULL, NULL, NULL, NULL, 0);
