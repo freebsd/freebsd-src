@@ -39,6 +39,7 @@
 #include <sys/unistd.h>
 #else
 #include <sys/queue.h>
+#include <sys/refcount.h>
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
 
@@ -116,7 +117,7 @@ struct file {
 	short		f_type;		/* descriptor type */
 	short     	f_vnread_flags; /* (f) Sleep lock for f_offset */
 	volatile u_int	f_flag;		/* see fcntl.h */
-	volatile int 	f_count;	/* reference count */
+	volatile u_int 	f_count;	/* reference count */
 	/*
 	 *  DTYPE_VNODE specific fields.
 	 */
@@ -196,9 +197,10 @@ int fgetvp_write(struct thread *td, int fd, struct vnode **vpp);
 int fgetsock(struct thread *td, int fd, struct socket **spp, u_int *fflagp);
 void fputsock(struct socket *sp);
 
-#define	fhold(fp)	atomic_add_int(&(fp)->f_count, 1)
+#define	fhold(fp)							\
+	(refcount_acquire(&(fp)->f_count))
 #define	fdrop(fp, td)							\
-	(atomic_fetchadd_int(&(fp)->f_count, -1) <= 1 ? _fdrop((fp), (td)) : 0)
+	(refcount_release(&(fp)->f_count) ? _fdrop((fp), (td)) : 0)
 
 static __inline fo_rdwr_t	fo_read;
 static __inline fo_rdwr_t	fo_write;
