@@ -46,7 +46,7 @@
 #include "assym.s"
 
 #define	SEL_RPL_MASK	0x0003
-#define GSEL_KPL	0x0020	/* GSEL(GCODE_SEL, SEL_KPL) */
+#define	GSEL_KPL	0x0020	/* GSEL(GCODE_SEL, SEL_KPL) */
 
 #ifdef KDTRACE_HOOKS
 	.bss
