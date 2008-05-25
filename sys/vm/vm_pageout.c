@@ -206,6 +206,8 @@ SYSCTL_INT(_vm, OID_AUTO, pageout_lock_miss,
 int vm_pageout_page_count = VM_PAGEOUT_PAGE_COUNT;
 
 int vm_page_max_wired;		/* XXX max # of wired pages system-wide */
+SYSCTL_INT(_vm, OID_AUTO, max_wired,
+	CTLFLAG_RW, &vm_page_max_wired, 0, "System-wide limit to wired page count");
 
 #if !defined(NO_SWAPPING)
 static void vm_pageout_map_deactivate_pages(vm_map_t, long);
