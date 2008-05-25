@@ -197,7 +197,6 @@ MAN=	aac.4 \
 	ng_atm.4 \
 	ngatmbase.4 \
 	ng_atmllc.4 \
-	ng_atmpif.4 \
 	ng_bluetooth.4 \
 	ng_bpf.4 \
 	ng_bridge.4 \

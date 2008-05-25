@@ -40,7 +40,6 @@ LDIRS=	bsm cam geom net net80211 netatalk netgraph netinet netinet6 \
 	netipsec ${_netipx} netnatm ${_netncp} netsmb \
 	nfs nfsclient nfsserver \
 	pccard sys vm
-#LDIRS+=	netatm
 
 LSUBDIRS=	cam/scsi \
 	dev/acpica dev/an dev/bktr dev/firewire dev/hwpmc \
@@ -57,7 +56,6 @@ LSUBDIRS=	cam/scsi \
 	security/mac_biba security/mac_bsdextended security/mac_lomac \
 	security/mac_mls security/mac_partition \
 	ufs/ffs ufs/ufs
-#LSUBDIRS+=	netatm/ipatm netatm/sigpvc netatm/spans netatm/uni
 
 LSUBSUBDIRS=	dev/mpt/mpilib
 

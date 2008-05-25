@@ -34,9 +34,6 @@ LDIRS=	BSD_daemon \
 	startslip \
 	sunrpc
 
-# Disabled in 7.0 as netatm is not MPSAFE.
-#LDIRS+=	atm
-
 XFILES=	BSD_daemon/FreeBSD.pfa \
 	BSD_daemon/README \
 	BSD_daemon/beastie.eps \
@@ -238,17 +235,6 @@ XFILES=	BSD_daemon/FreeBSD.pfa \
 	sunrpc/sort/rsort.c \
 	sunrpc/sort/sort.x \
 	sunrpc/sort/sort_proc.c
-
-# Disabled in 7.0 as netatm is not MPSAFE.
-#XFILES+=	atm/NOTES \
-#	atm/README \
-#	atm/Startup \
-#	atm/atm-config.sh \
-#	atm/atm-sockets.txt \
-#	atm/cpcs-design.txt \
-#	atm/fore-microcode.txt \
-#	atm/sscf-design.txt \
-#	atm/sscop-design.txt
 
 BINDIR= ${SHAREDIR}/examples
 
