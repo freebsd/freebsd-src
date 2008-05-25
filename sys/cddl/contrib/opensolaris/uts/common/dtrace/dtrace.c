@@ -3277,11 +3277,13 @@ dtrace_dif_subr(uint_t subr, uint_t rd, uint64_t *regs,
 		/* XXX - need to use dtrace_canload() and dtrace_loadptr() */ 
 		m.mx = tupregs[0].dttk_value;
 
+#ifdef DOODAD
 		if (LO_CLASSINDEX(&(m.mi->lock_object)) < 2) { 
 			regs[rd] = !(m.mi->mtx_lock & MTX_UNOWNED);
 		} else {	
 			regs[rd] = !(m.mi->mtx_lock & SX_UNLOCKED);
 		}
+#endif
 		break;
 
 	case DIF_SUBR_MUTEX_OWNER:
