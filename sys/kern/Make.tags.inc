@@ -41,7 +41,6 @@ COMM=	${SYS}/dev/advansys/*.[ch] \
 	${SYS}/kern/*.[ch] \
 	${SYS}/net/*.[ch] \
 	${SYS}/netatalk/*.[ch] \
-	${SYS}/netatm/*.[ch] \
 	${SYS}/netinet/*.[ch] \
 	${SYS}/netinet6/*.[ch] \
 	${SYS}/netipsec/*.[ch] \
@@ -60,7 +59,6 @@ COMMDIR1= ${SYS}/conf \
 	${SYS}/kern \
 	${SYS}/net \
 	${SYS}/netatalk \
-	${SYS}/netatm \
 	${SYS}/netinet \
 	${SYS}/netinet6 \
 	${SYS}/netipsec \
