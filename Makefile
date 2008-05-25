@@ -275,7 +275,7 @@ make: .PHONY
 # existing system is.
 #
 .if make(universe)
-TARGETS?=amd64 arm i386 ia64 pc98 powerpc sparc64
+TARGETS?=amd64 arm i386 ia64 pc98 powerpc sparc64 sun4v
 
 universe: universe_prologue
 universe_prologue:
