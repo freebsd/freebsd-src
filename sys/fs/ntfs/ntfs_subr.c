@@ -407,7 +407,7 @@ ntfs_ntlookup(
 	VREF(ip->i_devvp);
 
 	/* init lock and lock the newborn ntnode */
-	lockinit(&ip->i_lock, PINOD, "ntnode", 0, LK_EXCLUSIVE);
+	lockinit(&ip->i_lock, PINOD, "ntnode", 0, 0);
 	mtx_init(&ip->i_interlock, "ntnode interlock", NULL, MTX_DEF);
 	ntfs_ntget(ip);
 
