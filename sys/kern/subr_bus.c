@@ -504,7 +504,7 @@ devpoll(struct cdev *dev, int events, d_thread_t *td)
 boolean_t
 devctl_process_running(void)
 {
-	return (devsoftc.async_proc != NULL);
+	return (devsoftc.inuse == 1);
 }
 
 /**
