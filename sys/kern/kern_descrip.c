@@ -1449,9 +1449,9 @@ falloc(struct thread *td, struct file **resultfp, int *resultfd)
 	 * descriptor to the list of open files at that point, otherwise
 	 * put it at the front of the list of open files.
 	 */
-	fp->f_count = 1;
+	refcount_init(&fp->f_count, 1);
 	if (resultfp)
-		fp->f_count++;
+		fhold(fp);
 	fp->f_cred = crhold(td->td_ucred);
 	fp->f_ops = &badfileops;
 	fp->f_data = NULL;
