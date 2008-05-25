@@ -9,7 +9,7 @@ SUBDIR=	boot
 
 # Directories to include in cscope name file and TAGS.
 CSCOPEDIRS=	boot bsm cam compat conf contrib crypto ddb dev fs gdb geom \
-		gnu i4b isa kern libkern modules net net80211 netatalk netatm \
+		gnu i4b isa kern libkern modules net net80211 netatalk \
 		netgraph netinet netinet6 netipsec netipx netnatm netncp \
 		netsmb nfs nfs4client nfsclient nfsserver opencrypto pccard \
 		pci rpc security sys ufs vm ${ARCHDIR}
