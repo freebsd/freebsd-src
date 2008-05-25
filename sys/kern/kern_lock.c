@@ -163,7 +163,7 @@ sleeplk(struct lock *lk, u_int flags, struct lock_object *ilk,
 	int catch, error;
 
 	class = (flags & LK_INTERLOCK) ? LOCK_CLASS(ilk) : NULL;
-	catch = (pri) ? (pri & PCATCH) : 0;
+	catch = pri & PCATCH;
 	pri &= PRIMASK;
 	error = 0;
 
