@@ -16,7 +16,7 @@ FILES=	DAEMON FILESYSTEMS LOGIN NETWORKING SERVERS \
 	hostapd hostid hostname \
 	idmapd inetd initrandom \
 	ip6addrctl ip6fw ipfilter ipfs ipfw ipmon \
-	ipnat ipsec ipxrouted isdnd \
+	ipnat ipsec ipxrouted \
 	jail \
 	kadmind kerberos kernel keyserv kldxref kpasswdd \
 	ldconfig local localpkg lockd lpd \

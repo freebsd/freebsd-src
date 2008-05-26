@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 9, 2008
+.Dd May 25, 2008
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -3530,75 +3530,6 @@ to be used within a jail.
 If set to
 .Dq Li YES ,
 allow applications within a jail to use System V IPC.
-.\" ----- ISDN settings ---------------------------------
-.It Va isdn_enable
-.Pq Vt bool
-Set to
-.Dq Li NO
-by default.
-When set to
-.Dq Li YES ,
-starts the
-.Xr isdnd 8
-daemon
-at system boot time.
-.It Va isdn_flags
-.Pq Vt str
-Set to
-.Dq Fl d Ns Cm n Fl d Ns Li 0x1f9
-by default.
-Additional flags to pass to
-.Xr isdnd 8
-(but see
-.Va isdn_fsdev
-and
-.Va isdn_ttype
-for certain tunable parameters).
-.It Va isdn_ttype
-.Pq Vt str
-Set to
-.Dq Li cons25
-by default.
-The terminal type of the output device when
-.Xr isdnd 8
-operates in full-screen mode.
-.It Va isdn_screenflags
-.Pq Vt str
-Set to
-.Dq Li NO
-by default.
-The video mode for full-screen mode (only for
-.Xr syscons 4
-console driver, see
-.Xr vidcontrol 1
-for valid modes).
-.It Va isdn_fsdev
-.Pq Vt str
-Set to
-.Dq Li NO
-by default.
-The output device for
-.Xr isdnd 8
-in full-screen mode (or
-.Dq Li NO
-for daemon mode).
-.It Va isdn_trace
-.Pq Vt bool
-Set to
-.Dq Li NO
-by default.
-When set to
-.Dq Li YES ,
-enables the ISDN protocol trace utility
-.Xr isdntrace 8
-at system boot time.
-.It Va isdn_traceflags
-.Pq Vt str
-Set to
-.Dq Fl f Pa /var/tmp/isdntrace0
-by default.
-Flags for
-.Xr isdntrace 8 .
 .\" -----------------------------------------------------
 .It Va harvest_interrupt
 .Pq Vt bool
@@ -4061,8 +3992,6 @@ Default
 .Xr ipf 8 ,
 .Xr ipfw 8 ,
 .Xr ipnat 8 ,
-.Xr isdnd 8 ,
-.Xr isdntrace 8 ,
 .Xr jail 8 ,
 .Xr kldxref 8 ,
 .Xr lpd 8 ,

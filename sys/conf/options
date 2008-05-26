@@ -743,14 +743,6 @@ DCONS_POLL_HZ		opt_dcons.h
 DCONS_FORCE_CONSOLE	opt_dcons.h
 DCONS_FORCE_GDB		opt_dcons.h
 
-# Static unit counts
-NI4BTRC			opt_i4b.h
-NI4BRBCH		opt_i4b.h
-NI4BTEL			opt_i4b.h
-#XXXBZ#NI4BIPR			opt_i4b.h
-#XXXBZ#NI4BING			opt_i4b.h
-#XXXBZ#NI4BISPPP		opt_i4b.h
-
 # VFS options
 LOOKUP_SHARED		opt_vfs.h
 

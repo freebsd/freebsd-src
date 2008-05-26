@@ -4,7 +4,7 @@
 #
 
 # PROVIDE: ppp
-# REQUIRE: netif isdnd
+# REQUIRE: netif
 # KEYWORD: nojail
 
 . /etc/rc.subr

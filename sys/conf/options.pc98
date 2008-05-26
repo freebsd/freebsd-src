@@ -77,19 +77,6 @@ SPIGOT_UNSECURE		opt_spigot.h
 # Enables NETGRAPH support for Cronyx adapters
 NETGRAPH_CRONYX		opt_ng_cronyx.h
 
-# -------------------------------
-# isdn4bsd: passive PCI cards
-# -------------------------------
-ELSA_QS1PCI		opt_i4b.h
-# -------------------------------
-# isdn4bsd: misc options
-# -------------------------------
-# temporary workaround for SMP machines
-I4B_SMP_WORKAROUND	opt_i4b.h
-# enable VJ compression code for ipr i/f
-#XXXBZ#IPR_VJ			opt_i4b.h
-#XXXBZ#IPR_LOG			opt_i4b.h
-
 # ct driver options
 CT_BUS_WEIGHT		opt_ct.h
 CT_USE_RELOCATE_OFFSET	opt_ct.h

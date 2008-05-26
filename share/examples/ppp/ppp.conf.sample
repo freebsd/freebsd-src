@@ -672,8 +672,6 @@ callback-server-client-decides:
 #  It's worth increasing your MTU and MRU slightly in multi-link mode to
 #  prevent full packets from being fragmented.
 #
-#  See ppp.conf.isdn for an example of how to do multi-link isdn.
-#
 #  You can now ``dial'' specific links, or even dial all links at the
 #  same time.  The `dial' command may also be prefixed with a specific
 #  link that should do the dialing.

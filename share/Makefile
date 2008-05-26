@@ -9,7 +9,6 @@ SUBDIR=	${_colldef} \
 	${_dict} \
 	${_doc} \
 	${_examples} \
-	${_isdn} \
 	${_man} \
 	${_me} \
 	misc \
@@ -50,10 +49,6 @@ _me=		me
 
 .if ${MK_EXAMPLES} != "no"
 _examples=	examples
-.endif
-
-.if ${MK_I4B} != "no"
-_isdn=		isdn
 .endif
 
 .if ${MK_DICT} != "no"

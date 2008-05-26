@@ -127,9 +127,6 @@ distribution:
 	    ${BSM_ETC_RESTRICTED_FILES} ${BSM_ETC_DIR}
 	cd ${.CURDIR}; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 0500 \
 	    ${BSM_ETC_EXEC_FILES} ${BSM_ETC_DIR}
-.if ${MK_I4B} != "no"
-	${_+_}cd ${.CURDIR}/isdn; ${MAKE} install
-.endif
 .if ${MK_BIND_MTREE} != "no"
 	@if [ ! -e ${DESTDIR}/etc/namedb ]; then \
 		set -x; \
