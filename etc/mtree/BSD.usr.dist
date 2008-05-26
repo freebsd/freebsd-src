@@ -221,14 +221,6 @@
             ..
             iscsi
             ..
-            isdn
-                contrib
-                ..
-                i4brunppp
-                ..
-                v21
-                ..
-            ..
             kld
                 cdev
                     module
@@ -343,8 +335,6 @@
             ..
         ..
         info
-        ..
-        isdn
         ..
         locale
             UTF-8

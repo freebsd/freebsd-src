@@ -62,7 +62,6 @@ SUBDIR=	ac \
 	getfmac \
 	getpmac \
 	gstat \
-	${_i4b} \
 	ifmcstat \
 	inetd \
 	iostat \
@@ -301,9 +300,6 @@ _apm=		apm
 _apmd=		apmd
 _asf=		asf
 _btxld=		btxld
-.if ${MK_I4B} != "no"
-_i4b=		i4b
-.endif
 _kgmon=		kgmon
 _kgzip=		kgzip
 _lptcontrol=	lptcontrol
