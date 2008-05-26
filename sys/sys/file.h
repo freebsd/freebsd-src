@@ -97,7 +97,9 @@ struct fileops {
 
 #define DFLAG_PASSABLE	0x01	/* may be passed via unix sockets. */
 #define DFLAG_SEEKABLE	0x02	/* seekable / nonsequential */
+#endif /* _KERNEL */
 
+#if defined(_KERNEL) || defined(_WANT_FILE)
 /*
  * Kernel descriptor table.
  * One entry for each open kernel vnode and socket.
@@ -137,7 +139,7 @@ struct file {
 #define	FOFFSET_LOCKED       0x1
 #define	FOFFSET_LOCK_WAITING 0x2		 
 
-#endif /* _KERNEL */
+#endif /* _KERNEL || _WANT_FILE */
 
 /*
  * Userland version of struct file, for sysctl
