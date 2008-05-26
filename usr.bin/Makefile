@@ -43,6 +43,7 @@ SUBDIR=	alias \
 	comm \
 	compile_et \
 	compress \
+	cpio \
 	cpuset \
 	csplit \
 	${_csup} \
