@@ -805,7 +805,7 @@ cpuset_getaffinity(struct thread *td, struct cpuset_getaffinity_args *uap)
 	size_t size;
 
 	if (uap->cpusetsize < sizeof(cpuset_t) ||
-	    uap->cpusetsize * NBBY > CPU_MAXSIZE)
+	    uap->cpusetsize > CPU_MAXSIZE / NBBY)
 		return (ERANGE);
 	size = uap->cpusetsize;
 	mask = malloc(size, M_TEMP, M_WAITOK | M_ZERO);
@@ -892,7 +892,7 @@ cpuset_setaffinity(struct thread *td, struct cpuset_setaffinity_args *uap)
 	int error;
 
 	if (uap->cpusetsize < sizeof(cpuset_t) ||
-	    uap->cpusetsize * NBBY > CPU_MAXSIZE)
+	    uap->cpusetsize > CPU_MAXSIZE / NBBY)
 		return (ERANGE);
 	mask = malloc(uap->cpusetsize, M_TEMP, M_WAITOK | M_ZERO);
 	error = copyin(uap->mask, mask, uap->cpusetsize);
