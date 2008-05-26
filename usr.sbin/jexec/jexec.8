@@ -34,14 +34,19 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl u Ar username | Fl U Ar username
-.Ar jid command ...
+.Op Ar jid | Ar hostname | Ar ip-number
+.Ar command ...
 .Sh DESCRIPTION
 The
 .Nm
 utility executes
 .Ar command
 inside the jail identified by
-.Ar jid .
+.Ar jid 
+or
+.Ar hostname 
+or
+.Ar ip-number .
 .Pp
 The following options are available:
 .Bl -tag -width indent
