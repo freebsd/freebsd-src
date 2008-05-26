@@ -376,7 +376,6 @@ ata_ioctl(struct cdev *dev, u_long cmd, caddr_t data,
 	    !(device = devclass_get_device(ata_devclass, *value)))
 	    return ENXIO;
 	error = ata_reinit(device);
-	ata_start(device);
 	break;
 
     case IOCATAATTACH:
