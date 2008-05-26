@@ -28,16 +28,22 @@
 
 #include <sys/param.h>
 #include <sys/jail.h>
+#include <sys/sysctl.h>
+
+#include <arpa/inet.h>
 
 #include <err.h>
 #include <errno.h>
+#include <limits.h>
 #include <login_cap.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <pwd.h>
 #include <unistd.h>
+#include <string.h>
 
 static void	usage(void);
+int	addr2jid(const char *addr);
 
 #define GET_USER_INFO do {						\
 	pwd = getpwnam(username);					\
@@ -91,7 +97,8 @@ main(int argc, char *argv[])
 		GET_USER_INFO;
 	jid = (int)strtol(argv[0], NULL, 10);
 	if (jail_attach(jid) == -1)
-		err(1, "jail_attach(): %d", jid);
+		if (jail_attach(addr2jid(argv[0])) == -1)
+			errx(1, "jail_attach(): Cant convert %s to jid", argv[0]);
 	if (chdir("/") == -1)
 		err(1, "chdir(): /");
 	if (username != NULL) {
@@ -117,6 +124,50 @@ usage(void)
 
 	fprintf(stderr, "%s%s\n",
 		"usage: jexec [-u username | -U username]",
-		" jid command ...");
+		" [jid | hostname | ip-number] command ...");
 	exit(1); 
+}
+
+int 
+addr2jid(const char *addr)
+{
+	struct xprison *sxp, *xp;
+	struct in_addr in;
+	size_t i, len, slen;
+
+	if (sysctlbyname("security.jail.list", NULL, &len, NULL, 0) == -1)
+		err(1, "sysctlbyname(): security.jail.list");
+	for (i = 0; i < 4; i++) {
+		if (len <= 0)
+			err(1, "sysctlbyname(): len <=0");
+		sxp = xp = malloc(len);
+		if (sxp == NULL)
+			err(1, "malloc()");
+		if (sysctlbyname("security.jail.list", xp, &len, NULL, 0) == -1) {
+			if (errno == ENOMEM) {
+				free(sxp);
+				sxp = NULL;
+				continue;
+			}
+			err(1, "sysctlbyname(): security.jail.list");
+		}
+		break;
+	}
+	if (sxp == NULL)
+		err(1, "sysctlbyname(): security.jail.list");
+	if (len < sizeof(*xp) || len % sizeof(*xp) ||
+	    xp->pr_version != XPRISON_VERSION)
+		errx(1, "Kernel and userland out of sync");
+	slen = strlen(addr);
+	for (i = 0; i < len / sizeof(*xp); i++) {
+		in.s_addr = ntohl(xp->pr_ip);
+		if ((strncmp(inet_ntoa(in), addr, slen) == 0) ||
+		    (strncmp(xp->pr_host, addr, slen) == 0)) {
+			free(sxp);
+			return (xp->pr_id);
+		}
+		xp++;
+	}
+	free(sxp);
+	return 0;
 }
