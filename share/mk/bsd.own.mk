@@ -229,7 +229,6 @@ WITHOUT_${var}=
     GPIB \
     GROFF \
     HTML \
-    I4B \
     INET6 \
     INFO \
     IPFILTER \
@@ -316,7 +315,6 @@ WITH_IDEA=
     GPIB \
     GROFF \
     HTML \
-    I4B \
     INET6 \
     INFO \
     INSTALLLIB \

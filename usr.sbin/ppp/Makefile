@@ -15,7 +15,6 @@ WARNS?=	3
 CFLAGS+=-DRELEASE_CRUNCH
 PPP_NO_ATM=
 PPP_NO_DES=
-PPP_NO_I4B=
 PPP_NO_KLDLOAD=
 PPP_NO_NAT=
 PPP_NO_PAM=
@@ -25,9 +24,6 @@ PPP_NO_SUID=
 
 .if ${MK_ATM} == "no"
 PPP_NO_ATM=
-.endif
-.if ${MK_I4B} == "no"
-PPP_NO_I4B=
 .endif
 .if ${MK_PAM_SUPPORT} == "no"
 PPP_NO_PAM=
@@ -99,12 +95,6 @@ CFLAGS+=-DNORADIUS
 SRCS+=	radius.c
 LDADD+=	-lradius
 DPADD+= ${LIBRADIUS}
-.endif
-
-.if defined(PPP_NO_I4B) || ${MACHINE_ARCH} != "i386"
-CFLAGS+=-DNOI4B
-.else
-SRCS+=	i4b.c
 .endif
 
 .if defined(PPP_NO_NETGRAPH)
