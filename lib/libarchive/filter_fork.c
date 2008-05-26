@@ -25,6 +25,9 @@
 
 #include "archive_platform.h"
 
+/* This capability is only available on POSIX systems. */
+#if defined(HAVE_PIPE) && defined(HAVE_VFORK) && defined(HAVE_FCNTL)
+
 __FBSDID("$FreeBSD$");
 
 #if defined(HAVE_POLL)
@@ -137,3 +140,5 @@ __archive_check_child(int in, int out)
 	sleep(1);
 #endif
 }
+
+#endif /* defined(HAVE_PIPE) && defined(HAVE_VFORK) && defined(HAVE_FCNTL) */

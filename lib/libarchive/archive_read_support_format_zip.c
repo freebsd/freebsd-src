@@ -162,11 +162,9 @@ archive_read_support_format_zip(struct archive *_a)
 static int
 archive_read_format_zip_bid(struct archive_read *a)
 {
-	int bid = 0;
 	const char *p;
-
-	if (a->archive.archive_format == ARCHIVE_FORMAT_ZIP)
-		bid += 1;
+	const void *buff;
+	size_t bytes_avail;
 
 	if ((p = __archive_read_ahead(a, 4)) == NULL)
 		return (-1);
@@ -184,7 +182,102 @@ archive_read_format_zip_bid(struct archive_read *a)
 		    || (p[2] == '0' && p[3] == '0'))
 			return (30);
 	}
+
+	/*
+	 * Attempt to handle self-extracting archives
+	 * by noting a PE header and searching forward
+	 * up to 64k for a 'PK\003\004' marker.
+	 */
+	if (p[0] == 'M' && p[1] == 'Z') {
+		/*
+		 * TODO: Additional checks that this really is a PE
+		 * file before we invoke the 128k lookahead below.
+		 * No point in allocating a bigger lookahead buffer
+		 * if we don't need to.
+		 */
+		/*
+		 * TODO: Of course, the compression layer lookahead
+		 * buffers aren't dynamically sized yet; they should be.
+		 */
+		bytes_avail = (a->decompressor->read_ahead)(a, &buff, 128*1024);
+		p = (const char *)buff;
+
+		/*
+		 * TODO: Optimize by jumping forward based on values
+		 * in the PE header.  Note that we don't need to be
+		 * exact, but we mustn't skip too far.  The search
+		 * below will compensate if we undershoot.  Skipping
+		 * will also reduce the chance of false positives
+		 * (which is not really all that high to begin with,
+		 * so maybe skipping isn't really necessary).
+		 */
+
+		while (p < bytes_avail + (const char *)buff) {
+			if (p[0] == 'P' && p[1] == 'K' /* "PK" signature */
+			    && p[2] == 3 && p[3] == 4 /* File entry */
+			    && p[8] == 8 /* compression == deflate */
+			    && p[9] == 0 /* High byte of compression */
+				)
+			{
+				return (30);
+			}
+			++p;
+		}
+	}
+
 	return (0);
+}
+
+/*
+ * Search forward for a "PK\003\004" file header.  This handles the
+ * case of self-extracting archives, where there is an executable
+ * prepended to the ZIP archive.
+ */
+static int
+skip_sfx(struct archive_read *a)
+{
+	const void *h;
+	const char *p, *q;
+	size_t skip, bytes;
+
+	/*
+	 * TODO: We should be able to skip forward by a bunch
+	 * by lifting some values from the PE header.  We don't
+	 * need to be exact (we're still going to search forward
+	 * to find the header), but it will speed things up and
+	 * reduce the chance of a false positive.
+	 */
+	for (;;) {
+		bytes = (a->decompressor->read_ahead)(a, &h, 4096);
+		if (bytes < 4)
+			return (ARCHIVE_FATAL);
+		p = h;
+		q = p + bytes;
+
+		/*
+		 * Scan ahead until we find something that looks
+		 * like the zip header.
+		 */
+		while (p + 4 < q) {
+			switch (p[3]) {
+			case '\004':
+				/* TODO: Additional verification here. */
+				if (memcmp("PK\003\004", p, 4) == 0) {
+					skip = p - (const char *)h;
+					(a->decompressor->consume)(a, skip);
+					return (ARCHIVE_OK);
+				}
+				p += 4;
+				break;
+			case '\003': p += 1; break;
+			case 'K': p += 2; break;
+			case 'P': p += 3; break;
+			default: p += 4; break;
+			}
+		}
+		skip = p - (const char *)h;
+		(a->decompressor->consume)(a, skip);
+	}
 }
 
 static int
@@ -194,6 +287,7 @@ archive_read_format_zip_read_header(struct archive_read *a,
 	const void *h;
 	const char *signature;
 	struct zip *zip;
+	int r = ARCHIVE_OK, r1;
 
 	a->archive.archive_format = ARCHIVE_FORMAT_ZIP;
 	if (a->archive.archive_format_name == NULL)
@@ -209,6 +303,16 @@ archive_read_format_zip_read_header(struct archive_read *a,
 		return (ARCHIVE_FATAL);
 
 	signature = (const char *)h;
+	if (signature[0] == 'M' && signature[1] == 'Z') {
+		/* This is an executable?  Must be self-extracting... */
+		r = skip_sfx(a);
+		if (r < ARCHIVE_WARN)
+			return (r);
+		if ((h = __archive_read_ahead(a, 4)) == NULL)
+			return (ARCHIVE_FATAL);
+		signature = (const char *)h;
+	}
+
 	if (signature[0] != 'P' || signature[1] != 'K') {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Bad ZIP file");
@@ -239,7 +343,10 @@ archive_read_format_zip_read_header(struct archive_read *a,
 
 	if (signature[2] == '\003' && signature[3] == '\004') {
 		/* Regular file entry. */
-		return (zip_read_file_header(a, entry, zip));
+		r1 = zip_read_file_header(a, entry, zip);
+		if (r1 != ARCHIVE_OK)
+			return (r1);
+		return (r);
 	}
 
 	if (signature[2] == '\005' && signature[3] == '\006') {

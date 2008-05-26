@@ -195,7 +195,7 @@ static int
 archive_write_ustar_header(struct archive_write *a, struct archive_entry *entry)
 {
 	char buff[512];
-	int ret;
+	int ret, ret2;
 	struct ustar *ustar;
 
 	ustar = (struct ustar *)a->format_data;
@@ -206,7 +206,7 @@ archive_write_ustar_header(struct archive_write *a, struct archive_entry *entry)
 	    !(archive_entry_filetype(entry) == AE_IFREG))
 		archive_entry_set_size(entry, 0);
 
-	if (AE_IFDIR == archive_entry_mode(entry)) {
+	if (AE_IFDIR == archive_entry_filetype(entry)) {
 		const char *p;
 		char *t;
 		/*
@@ -229,15 +229,17 @@ archive_write_ustar_header(struct archive_write *a, struct archive_entry *entry)
 	}
 
 	ret = __archive_write_format_header_ustar(a, buff, entry, -1, 1);
-	if (ret != ARCHIVE_OK)
+	if (ret < ARCHIVE_WARN)
 		return (ret);
-	ret = (a->compressor.write)(a, buff, 512);
-	if (ret != ARCHIVE_OK)
-		return (ret);
+	ret2 = (a->compressor.write)(a, buff, 512);
+	if (ret2 < ARCHIVE_WARN)
+		return (ret2);
+	if (ret2 < ret)
+		ret = ret2;
 
 	ustar->entry_bytes_remaining = archive_entry_size(entry);
 	ustar->entry_padding = 0x1ff & (-(int64_t)ustar->entry_bytes_remaining);
-	return (ARCHIVE_OK);
+	return (ret);
 }
 
 /*
@@ -282,27 +284,33 @@ __archive_write_format_header_ustar(struct archive_write *a, char h[512],
 		/* Store in two pieces, splitting at a '/'. */
 		p = strchr(pp + strlen(pp) - USTAR_name_size - 1, '/');
 		/*
-		 * If the separator we found is the first '/', find
-		 * the next one.  (This is a pathological case that
-		 * occurs for paths of exactly 101 bytes that start with
-		 * '/'; it occurs because the separating '/' is not
-		 * stored explicitly and the reconstruction assumes that
-		 * an empty prefix means there is no '/' separator.)
+		 * Look for the next '/' if we chose the first character
+		 * as the separator.  (ustar format doesn't permit
+		 * an empty prefix.)
 		 */
 		if (p == pp)
 			p = strchr(p + 1, '/');
-		/*
-		 * If there is no path separator, or the prefix or
-		 * remaining name are too large, return an error.
-		 */
+		/* Fail if the name won't fit. */
 		if (!p) {
+			/* No separator. */
 			archive_set_error(&a->archive, ENAMETOOLONG,
 			    "Pathname too long");
-			ret = ARCHIVE_WARN;
+			ret = ARCHIVE_FAILED;
+		} else if (p[1] == '\0') {
+			/*
+			 * The only feasible separator is a final '/';
+			 * this would result in a non-empty prefix and
+			 * an empty name, which POSIX doesn't
+			 * explicity forbid, but it just feels wrong.
+			 */
+			archive_set_error(&a->archive, ENAMETOOLONG,
+			    "Pathname too long");
+			ret = ARCHIVE_FAILED;
 		} else if (p  > pp + USTAR_prefix_size) {
+			/* Prefix is too long. */
 			archive_set_error(&a->archive, ENAMETOOLONG,
 			    "Pathname too long");
-			ret = ARCHIVE_WARN;
+			ret = ARCHIVE_FAILED;
 		} else {
 			/* Copy prefix and remainder to appropriate places */
 			memcpy(h + USTAR_prefix_offset, pp, p - pp);
@@ -320,7 +328,7 @@ __archive_write_format_header_ustar(struct archive_write *a, char h[512],
 		if (copy_length > USTAR_linkname_size) {
 			archive_set_error(&a->archive, ENAMETOOLONG,
 			    "Link contents too long");
-			ret = ARCHIVE_WARN;
+			ret = ARCHIVE_FAILED;
 			copy_length = USTAR_linkname_size;
 		}
 		memcpy(h + USTAR_linkname_offset, p, copy_length);
@@ -332,7 +340,7 @@ __archive_write_format_header_ustar(struct archive_write *a, char h[512],
 		if (copy_length > USTAR_uname_size) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "Username too long");
-			ret = ARCHIVE_WARN;
+			ret = ARCHIVE_FAILED;
 			copy_length = USTAR_uname_size;
 		}
 		memcpy(h + USTAR_uname_offset, p, copy_length);
@@ -344,7 +352,7 @@ __archive_write_format_header_ustar(struct archive_write *a, char h[512],
 		if (strlen(p) > USTAR_gname_size) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "Group name too long");
-			ret = ARCHIVE_WARN;
+			ret = ARCHIVE_FAILED;
 			copy_length = USTAR_gname_size;
 		}
 		memcpy(h + USTAR_gname_offset, p, copy_length);
@@ -352,28 +360,28 @@ __archive_write_format_header_ustar(struct archive_write *a, char h[512],
 
 	if (format_number(archive_entry_mode(entry) & 07777, h + USTAR_mode_offset, USTAR_mode_size, USTAR_mode_max_size, strict)) {
 		archive_set_error(&a->archive, ERANGE, "Numeric mode too large");
-		ret = ARCHIVE_WARN;
+		ret = ARCHIVE_FAILED;
 	}
 
 	if (format_number(archive_entry_uid(entry), h + USTAR_uid_offset, USTAR_uid_size, USTAR_uid_max_size, strict)) {
 		archive_set_error(&a->archive, ERANGE, "Numeric user ID too large");
-		ret = ARCHIVE_WARN;
+		ret = ARCHIVE_FAILED;
 	}
 
 	if (format_number(archive_entry_gid(entry), h + USTAR_gid_offset, USTAR_gid_size, USTAR_gid_max_size, strict)) {
 		archive_set_error(&a->archive, ERANGE, "Numeric group ID too large");
-		ret = ARCHIVE_WARN;
+		ret = ARCHIVE_FAILED;
 	}
 
 	if (format_number(archive_entry_size(entry), h + USTAR_size_offset, USTAR_size_size, USTAR_size_max_size, strict)) {
 		archive_set_error(&a->archive, ERANGE, "File size out of range");
-		ret = ARCHIVE_WARN;
+		ret = ARCHIVE_FAILED;
 	}
 
 	if (format_number(archive_entry_mtime(entry), h + USTAR_mtime_offset, USTAR_mtime_size, USTAR_mtime_max_size, strict)) {
 		archive_set_error(&a->archive, ERANGE,
 		    "File modification time too large");
-		ret = ARCHIVE_WARN;
+		ret = ARCHIVE_FAILED;
 	}
 
 	if (archive_entry_filetype(entry) == AE_IFBLK
@@ -382,14 +390,14 @@ __archive_write_format_header_ustar(struct archive_write *a, char h[512],
 			USTAR_rdevmajor_size, USTAR_rdevmajor_max_size, strict)) {
 			archive_set_error(&a->archive, ERANGE,
 			    "Major device number too large");
-			ret = ARCHIVE_WARN;
+			ret = ARCHIVE_FAILED;
 		}
 
 		if (format_number(archive_entry_rdevminor(entry), h + USTAR_rdevminor_offset,
 			USTAR_rdevminor_size, USTAR_rdevminor_max_size, strict)) {
 			archive_set_error(&a->archive, ERANGE,
 			    "Minor device number too large");
-			ret = ARCHIVE_WARN;
+			ret = ARCHIVE_FAILED;
 		}
 	}
 
@@ -409,7 +417,7 @@ __archive_write_format_header_ustar(struct archive_write *a, char h[512],
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 			    "tar format cannot archive this (mode=0%lo)",
 			    (unsigned long)archive_entry_mode(entry));
-			ret = ARCHIVE_WARN;
+			ret = ARCHIVE_FAILED;
 		}
 	}
 

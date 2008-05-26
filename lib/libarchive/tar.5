@@ -221,7 +221,7 @@ field with several new type values:
 .Bl -tag -width indent -compact
 .It Dq 0
 Regular file.
-NULL should be treated as a synonym, for compatibility purposes.
+NUL should be treated as a synonym, for compatibility purposes.
 .It Dq 1
 Hard link.
 .It Dq 2
@@ -258,7 +258,7 @@ by readers.
 .It Va magic
 Contains the magic value
 .Dq ustar
-followed by a NULL byte to indicate that this is a POSIX standard archive.
+followed by a NUL byte to indicate that this is a POSIX standard archive.
 Full compliance requires the uname and gname fields be properly set.
 .It Va version
 Version.
@@ -285,7 +285,7 @@ character to the regular name field to obtain the full pathname.
 .El
 .Pp
 Note that all unused bytes must be set to
-.Dv NULL .
+.Dv NUL .
 .Pp
 Field termination is specified slightly differently by POSIX
 than by previous implementations.
@@ -295,14 +295,14 @@ The
 and
 .Va gname
 fields must have a trailing
-.Dv NULL .
+.Dv NUL .
 The
 .Va pathname ,
 .Va linkname ,
 and
 .Va prefix
 fields must have a trailing
-.Dv NULL
+.Dv NUL
 unless they fill the entire field.
 (In particular, it is possible to store a 256-character pathname if it
 happens to have a
@@ -310,7 +310,7 @@ happens to have a
 as the 156th character.)
 POSIX requires numeric fields to be zero-padded in the front, and allows
 them to be terminated with either space or
-.Dv NULL
+.Dv NUL
 characters.
 .Pp
 Currently, most tar implementations comply with the ustar

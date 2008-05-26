@@ -18,6 +18,7 @@ TESTS= \
 	test_empty_write.c			\
 	test_entry.c				\
 	test_entry_strmode.c			\
+	test_link_resolver.c			\
 	test_pax_filename_encoding.c		\
 	test_read_compress_program.c		\
 	test_read_data_large.c			\
@@ -38,6 +39,7 @@ TESTS= \
 	test_read_format_mtree.c		\
 	test_read_format_pax_bz2.c		\
 	test_read_format_tar.c			\
+	test_read_format_tar_empty_filename.c	\
 	test_read_format_tbz.c			\
 	test_read_format_tgz.c			\
 	test_read_format_tz.c			\
@@ -48,6 +50,7 @@ TESTS= \
 	test_read_truncated.c			\
 	test_tar_filenames.c			\
 	test_tar_large.c			\
+	test_ustar_filenames.c			\
 	test_write_compress_program.c		\
 	test_write_compress.c			\
 	test_write_disk.c			\
@@ -61,6 +64,7 @@ TESTS= \
 	test_write_format_cpio_empty.c		\
 	test_write_format_shar_empty.c		\
 	test_write_format_tar.c			\
+	test_write_format_tar_ustar.c		\
 	test_write_format_tar_empty.c		\
 	test_write_open_memory.c
 
@@ -68,11 +72,9 @@ TESTS= \
 # Build the test program using all libarchive sources + the test sources.
 SRCS= ${LA_SRCS}				\
 	${TESTS}				\
-	list.h					\
+	${.OBJDIR}/list.h			\
 	main.c					\
 	read_open_memory.c
-
-CLEANFILES+= list.h archive.h
 
 NO_MAN=yes
 
@@ -82,12 +84,7 @@ DPADD=${LIBBZ2} ${LIBZ}
 CFLAGS+= -DPLATFORM_CONFIG_H=\"config_freebsd.h\"
 LDADD= -lz -lbz2
 CFLAGS+= -static -g
-CFLAGS+= -I${.OBJDIR}
-CFLAGS+= -I${.CURDIR}
 CFLAGS+= -I${LA_SRCDIR}
-# Without this, libarchive source files find archive.h in LA_SRCDIR,
-# which may not be the same as archive.h in the test dir.
-CFLAGS+= -I-
 
 # Uncomment to link against dmalloc
 LDADD+= -L/usr/local/lib -ldmalloc
@@ -96,20 +93,13 @@ WARNS=6
 
 # Build libarchive_test and run it.
 check test: libarchive_test
-	./libarchive_test -k -r ${.CURDIR}
-
-INCS=archive.h list.h
-
-# Build archive.h, but in our .OBJDIR, not libarchive's
-# This keeps libarchive_test and libarchive builds completely separate.
-archive.h: ${LA_SRCDIR}/archive.h.in ${LA_SRCDIR}/Makefile
-	cd ${LA_SRCDIR} && unset MAKEOBJDIRPREFIX && MAKEOBJDIR=${.OBJDIR} make archive.h
+	./libarchive_test -v -r ${.CURDIR}
 
 # list.h is just a list of all tests, as indicated by DEFINE_TEST macro lines
-list.h: ${TESTS} Makefile
+${.OBJDIR}/list.h: ${TESTS} Makefile
 	(cd ${.CURDIR}; cat ${TESTS}) | grep DEFINE_TEST > list.h
 
-CLEANFILES += *.out *.o *.core *~ list.h archive.h
+CLEANFILES += *.out *.o *.core *~ list.h
 
 cleantest:
 	-chmod -R +w /tmp/libarchive_test.*
