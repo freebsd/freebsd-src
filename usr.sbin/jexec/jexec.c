@@ -98,7 +98,7 @@ main(int argc, char *argv[])
 	jid = (int)strtol(argv[0], NULL, 10);
 	if (jail_attach(jid) == -1)
 		if (jail_attach(addr2jid(argv[0])) == -1)
-			errx(1, "jail_attach(): Cant convert %s to jid", argv[0]);
+			errx(1, "jail_attach(): Cannot convert %s to jid", argv[0]);
 	if (chdir("/") == -1)
 		err(1, "chdir(): /");
 	if (username != NULL) {

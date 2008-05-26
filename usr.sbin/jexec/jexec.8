@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 19, 2006
+.Dd May 26, 2008
 .Dt JEXEC 8
 .Os
 .Sh NAME
@@ -59,6 +59,10 @@ The user name from jailed environment as whom the
 .Ar command
 should run.
 .El
+.Sh "CAUTIONS"
+Only jid is guaranteed to uniquely identify a jail.
+For hostname or ip-number to work here unambiguousness of one or both
+of them have to be assured beforehand.
 .Sh SEE ALSO
 .Xr jail_attach 2 ,
 .Xr jail 8 ,
