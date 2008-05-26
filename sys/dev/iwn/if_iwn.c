@@ -138,6 +138,7 @@ uint8_t		iwn_plcp_signal(int);
 int		iwn_tx_data(struct iwn_softc *, struct mbuf *,
 		    struct ieee80211_node *, struct iwn_tx_ring *);
 void		iwn_start(struct ifnet *);
+void		iwn_start_locked(struct ifnet *);
 static int	iwn_raw_xmit(struct ieee80211_node *, struct mbuf *,
 		    const struct ieee80211_bpf_params *);
 static void	iwn_watchdog(struct iwn_softc *);
@@ -1627,7 +1628,7 @@ iwn_tx_intr(struct iwn_softc *sc, struct iwn_rx_desc *desc)
 
 	sc->sc_tx_timer = 0;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-	iwn_start(ifp);
+	iwn_start_locked(ifp);
 }
 
 void
@@ -2092,10 +2093,22 @@ void
 iwn_start(struct ifnet *ifp)
 {
 	struct iwn_softc *sc = ifp->if_softc;
+
+	IWN_LOCK(sc);
+	iwn_start_locked(ifp);
+	IWN_UNLOCK(sc);
+}
+
+void
+iwn_start_locked(struct ifnet *ifp)
+{
+	struct iwn_softc *sc = ifp->if_softc;
 	struct ieee80211_node *ni;
 	struct iwn_tx_ring *txq;
 	struct mbuf *m;
 	int pri;
+
+	IWN_LOCK_ASSERT(sc);
 
 	for (;;) {
 		IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
@@ -2110,7 +2123,6 @@ iwn_start(struct ifnet *ifp)
 			ieee80211_free_node(ni);
 			continue;
 		}
-		IWN_LOCK(sc);
 		if (txq->queued >= IWN_TX_RING_COUNT - 8) {
 			/* XXX not right */
 			/* ring is nearly full, stop flow */
@@ -2122,7 +2134,6 @@ iwn_start(struct ifnet *ifp)
 			IWN_UNLOCK(sc);
 			break;
 		}
-		IWN_UNLOCK(sc);
 	}
 }
 
