@@ -28,6 +28,7 @@ __FBSDID("$FreeBSD$");
 DEFINE_TEST(test_archive_api_feature)
 {
 	char buff[128];
+	const char *p;
 
 	/* This is the (hopefully) final versioning API. */
 	assertEqualInt(ARCHIVE_VERSION_NUMBER, archive_version_number());
@@ -35,7 +36,17 @@ DEFINE_TEST(test_archive_api_feature)
 	    archive_version_number() / 1000000,
 	    (archive_version_number() / 1000) % 1000,
 	    archive_version_number() % 1000);
-	assertEqualString(buff, archive_version_string());
+	failure("Version string is: %s, computed is: %s",
+	    archive_version_string(), buff);
+	assert(memcmp(buff, archive_version_string(), strlen(buff)) == 0);
+	if (strlen(buff) < strlen(archive_version_string())) {
+		p = archive_version_string() + strlen(buff);
+		failure("Version string is: %s", archive_version_string());
+		assert(*p == 'a' || *p == 'b' || *p == 'c' || *p == 'd');
+		++p;
+		failure("Version string is: %s", archive_version_string());
+		assert(*p == '\0');
+	}
 
 /* This is all scheduled to disappear in libarchive 3.0 */
 #if ARCHIVE_VERSION_NUMBER < 3000000
