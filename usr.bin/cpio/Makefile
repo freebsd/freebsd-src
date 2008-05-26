@@ -6,10 +6,13 @@ SRCS=	cpio.c cmdline.c err.c matching.c pathmatch.c
 WARNS?=	6
 DPADD=	${LIBARCHIVE} ${LIBZ} ${LIBBZ2}
 CFLAGS+= -DBSDCPIO_VERSION_STRING=\"${BSDCPIO_VERSION_STRING}\"
-CFLAGS+= -DPLATFORM_CONFIG_H=\"config_freebsd.h\" -O0 -g
+CFLAGS+= -DPLATFORM_CONFIG_H=\"config_freebsd.h\"
 LDADD+=	-larchive -lz -lbz2
+
+.if defined(WITH_BSDCPIO)
 SYMLINKS=bsdcpio ${BINDIR}/cpio
 MLINKS= bsdcpio.1 cpio.1
+.endif
 
 .PHONY: check test
 
