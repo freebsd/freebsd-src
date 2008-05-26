@@ -595,8 +595,11 @@ add_entry(struct iso9660 *iso9660, struct file_info *file)
 		struct file_info **new_pending_files;
 		int new_size = iso9660->pending_files_allocated * 2;
 
-		if (new_size < 1024)
+		if (iso9660->pending_files_allocated < 1024)
 			new_size = 1024;
+		/* Overflow might keep us from growing the list. */
+		if (new_size <= iso9660->pending_files_allocated)
+			__archive_errx(1, "Out of memory");
 		new_pending_files = (struct file_info **)malloc(new_size * sizeof(new_pending_files[0]));
 		if (new_pending_files == NULL)
 			__archive_errx(1, "Out of memory");
@@ -908,6 +911,11 @@ fprintf(stderr, " *** Discarding CE data.\n");
 			file->ce_size = 0;
 		}
 
+		/* Don't waste time seeking for zero-length bodies. */
+		if (file->size == 0) {
+			file->offset = iso9660->current_position;
+		}
+
 		/* If CE exists, find and read it now. */
 		if (file->ce_offset > 0)
 			offset = file->ce_offset;
@@ -1041,51 +1049,22 @@ isodate17(const unsigned char *v)
 	return (time_from_tm(&tm));
 }
 
-/*
- * timegm() converts a struct tm to a time_t, except it isn't standard,
- * so I provide my own function here that (ideally) is just a wrapper
- * for timegm().
- */
 static time_t
 time_from_tm(struct tm *t)
 {
 #if HAVE_TIMEGM
+	/* Use platform timegm() if available. */
 	return (timegm(t));
-#elif HAVE_STRUCT_TM_TM_GMTOFF
-	/*
-	 * Unfortunately, timegm() isn't standard.  The standard
-	 * mktime() function is a close match, except that it uses
-	 * local timezone instead of GMT.  You can compensate for
-	 * this by adding the timezone and DST offsets back in, at
-	 * the cost of two calls to mktime().
-	 */
-	mktime(t); /* Normalize the time and get the TZ offset. */
-	t->tm_sec += t->tm_gmtoff; /* Try to adjust for the timezone and DST.*/
-	if (t->tm_isdst)
-		t->tm_hour -= 1;
-	return (mktime(t)); /* Re-convert. */
-#elif defined(HAVE_SETENV) && defined(HAVE_UNSETENV) && defined(HAVE_TZSET)
-	/* No timegm() and no tm_gmtoff, let's try forcing mktime() to UTC. */
-	time_t ret;
-	char *tz;
-
-	/* Reset the timezone, remember the old one. */
-	tz = getenv("TZ");
-	setenv("TZ", "UTC 0", 1);
-	tzset();
-
-	ret = mktime(t);
-
-	/* Restore the previous timezone. */
-	if (tz)
-	    setenv("TZ", tz, 1);
-	else
-	    unsetenv("TZ");
-	tzset();
-	return ret;
 #else
-	/* <sigh> We have no choice but to use localtime instead of UTC. */
-	return (mktime(t));
+	/* Else use direct calculation using POSIX assumptions. */
+	/* First, fix up tm_yday based on the year/month/day. */
+	mktime(t);
+	/* Then we can compute timegm() from first principles. */
+	return (t->tm_sec + t->tm_min * 60 + t->tm_hour * 3600
+	    + t->tm_yday * 86400 + (t->tm_year - 70) * 31536000
+	    + ((t->tm_year - 69) / 4) * 86400 -
+	    ((t->tm_year - 1) / 100) * 86400
+	    + ((t->tm_year + 299) / 400) * 86400);
 #endif
 }
 

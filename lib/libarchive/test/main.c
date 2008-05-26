@@ -63,10 +63,14 @@ extern char *optarg;
 extern int optind;
 #endif
 
-/* Default is to crash and try to force a core dump on failure. */
-static int dump_on_failure = 1;
+/* Enable core dump on failure. */
+static int dump_on_failure = 0;
+/* Default is to remove temp dirs for successful tests. */
+static int keep_temp_files = 0;
 /* Default is to print some basic information about each test. */
 static int quiet_flag = 0;
+/* Default is to summarize repeated failures. */
+static int verbose = 0;
 /* Cumulative count of component failures. */
 static int failures = 0;
 /* Cumulative count of skipped component tests. */
@@ -242,7 +246,7 @@ test_assert(const char *file, int line, int value, const char *condition, void *
 		return (value);
 	}
 	failures ++;
-	if (previous_failures(file, line))
+	if (!verbose && previous_failures(file, line))
 		return (value);
 	fprintf(stderr, "%s:%d: Assertion failed\n", file, line);
 	fprintf(stderr, "   Condition: %s\n", condition);
@@ -261,7 +265,7 @@ test_assert_equal_int(const char *file, int line,
 		return (1);
 	}
 	failures ++;
-	if (previous_failures(file, line))
+	if (!verbose && previous_failures(file, line))
 		return (0);
 	fprintf(stderr, "%s:%d: Assertion failed: Ints not equal\n",
 	    file, line);
@@ -269,6 +273,30 @@ test_assert_equal_int(const char *file, int line,
 	fprintf(stderr, "      %s=%d\n", e2, v2);
 	report_failure(extra);
 	return (0);
+}
+
+static void strdump(const char *p)
+{
+	if (p == NULL) {
+		fprintf(stderr, "(null)");
+		return;
+	}
+	fprintf(stderr, "\"");
+	while (*p != '\0') {
+		unsigned int c = 0xff & *p++;
+		switch (c) {
+		case '\a': fprintf(stderr, "\a"); break;
+		case '\b': fprintf(stderr, "\b"); break;
+		case '\n': fprintf(stderr, "\n"); break;
+		case '\r': fprintf(stderr, "\r"); break;
+		default:
+			if (c >= 32 && c < 127)
+				fprintf(stderr, "%c", c);
+			else
+				fprintf(stderr, "\\x%02X", c);
+		}
+	}
+	fprintf(stderr, "\"");
 }
 
 /* assertEqualString() displays the values of the two strings. */
@@ -289,14 +317,39 @@ test_assert_equal_string(const char *file, int line,
 		return (1);
 	}
 	failures ++;
-	if (previous_failures(file, line))
+	if (!verbose && previous_failures(file, line))
 		return (0);
 	fprintf(stderr, "%s:%d: Assertion failed: Strings not equal\n",
 	    file, line);
-	fprintf(stderr, "      %s = \"%s\"\n", e1, v1);
-	fprintf(stderr, "      %s = \"%s\"\n", e2, v2);
+	fprintf(stderr, "      %s = ", e1);
+	strdump(v1);
+	fprintf(stderr, " (length %d)\n", v1 == NULL ? 0 : strlen(v1));
+	fprintf(stderr, "      %s = ", e2);
+	strdump(v2);
+	fprintf(stderr, " (length %d)\n", v2 == NULL ? 0 : strlen(v2));
 	report_failure(extra);
 	return (0);
+}
+
+static void wcsdump(const wchar_t *w)
+{
+	if (w == NULL) {
+		fprintf(stderr, "(null)");
+		return;
+	}
+	fprintf(stderr, "\"");
+	while (*w != L'\0') {
+		unsigned int c = *w++;
+		if (c >= 32 && c < 127)
+			fprintf(stderr, "%c", c);
+		else if (c < 256)
+			fprintf(stderr, "\\x%02X", c);
+		else if (c < 0x10000)
+			fprintf(stderr, "\\u%04X", c);
+		else
+			fprintf(stderr, "\\U%08X", c);
+	}
+	fprintf(stderr, "\"");
 }
 
 /* assertEqualWString() displays the values of the two strings. */
@@ -307,17 +360,31 @@ test_assert_equal_wstring(const char *file, int line,
     void *extra)
 {
 	++assertions;
-	if (wcscmp(v1, v2) == 0) {
+	if (v1 == NULL) {
+		if (v2 == NULL) {
+			msg[0] = '\0';
+			return (1);
+		}
+	} else if (v2 == NULL) {
+		if (v1 == NULL) {
+			msg[0] = '\0';
+			return (1);
+		}
+	} else if (wcscmp(v1, v2) == 0) {
 		msg[0] = '\0';
 		return (1);
 	}
 	failures ++;
-	if (previous_failures(file, line))
+	if (!verbose && previous_failures(file, line))
 		return (0);
 	fprintf(stderr, "%s:%d: Assertion failed: Unicode strings not equal\n",
 	    file, line);
-	fwprintf(stderr, L"      %s = \"%ls\"\n", e1, v1);
-	fwprintf(stderr, L"      %s = \"%ls\"\n", e2, v2);
+	fprintf(stderr, "      %s = ", e1);
+	wcsdump(v1);
+	fprintf(stderr, "\n");
+	fprintf(stderr, "      %s = ", e2);
+	wcsdump(v2);
+	fprintf(stderr, "\n");
 	report_failure(extra);
 	return (0);
 }
@@ -378,7 +445,7 @@ test_assert_equal_mem(const char *file, int line,
 		return (1);
 	}
 	failures ++;
-	if (previous_failures(file, line))
+	if (!verbose && previous_failures(file, line))
 		return (0);
 	fprintf(stderr, "%s:%d: Assertion failed: memory not equal\n",
 	    file, line);
@@ -410,12 +477,13 @@ test_assert_empty_file(const char *f1fmt, ...)
 	if (stat(f1, &st) != 0) {
 		fprintf(stderr, "%s:%d: Could not stat: %s\n", test_filename, test_line, f1);
 		report_failure(NULL);
+		return (0);
 	}
 	if (st.st_size == 0)
 		return (1);
 
 	failures ++;
-	if (previous_failures(test_filename, test_line))
+	if (!verbose && previous_failures(test_filename, test_line))
 		return (0);
 
 	fprintf(stderr, "%s:%d: File not empty: %s\n", test_filename, test_line, f1);
@@ -462,7 +530,7 @@ test_assert_equal_file(const char *f1, const char *f2pattern, ...)
 			break;
 	}
 	failures ++;
-	if (previous_failures(test_filename, test_line))
+	if (!verbose && previous_failures(test_filename, test_line))
 		return (0);
 	fprintf(stderr, "%s:%d: Files are not identical\n",
 	    test_filename, test_line);
@@ -633,6 +701,12 @@ static int test_run(int i, const char *tmpdir)
 	(*tests[i].func)();
 	/* Summarize the results of this test. */
 	summarize();
+	/* If there were no failures, we can remove the work dir. */
+	if (failures == failures_before) {
+		if (!keep_temp_files && chdir(tmpdir) == 0) {
+			systemf("rm -rf %s", tests[i].name);
+		}
+	}
 	/* Return appropriate status. */
 	return (failures == failures_before ? 0 : 1);
 }
@@ -646,8 +720,9 @@ static void usage(const char *program)
 	printf("Default is to run all tests.\n");
 	printf("Otherwise, specify the numbers of the tests you wish to run.\n");
 	printf("Options:\n");
-	printf("  -k  Keep running after failures.\n");
-	printf("      Default: Core dump after any failure.\n");
+	printf("  -d  Dump core after any failure, for debugging.\n");
+	printf("  -k  Keep all temp files.\n");
+	printf("      Default: temp files for successful tests deleted.\n");
 #ifdef PROGRAM
 	printf("  -p <path>  Path to executable to be tested.\n");
 	printf("      Default: path taken from " ENVBASE " environment variable.\n");
@@ -655,6 +730,7 @@ static void usage(const char *program)
 	printf("  -q  Quiet.\n");
 	printf("  -r <dir>   Path to dir containing reference files.\n");
 	printf("      Default: Current directory.\n");
+	printf("  -v  Verbose.\n");
 	printf("Available tests:\n");
 	for (i = 0; i < limit; i++)
 		printf("  %d: %s\n", i, tests[i].name);
@@ -747,9 +823,9 @@ int main(int argc, char **argv)
 	testprog = getenv(ENVBASE);
 #endif
 
-	/* Allow -k to be controlled through the environment. */
-	if (getenv(ENVBASE "_KEEP_GOING") != NULL)
-		dump_on_failure = 0;
+	/* Allow -d to be controlled through the environment. */
+	if (getenv(ENVBASE "_DEBUG") != NULL)
+		dump_on_failure = 1;
 
 	/* Get the directory holding test files from environment. */
 	refdir = getenv(ENVBASE "_TEST_FILES");
@@ -757,10 +833,13 @@ int main(int argc, char **argv)
 	/*
 	 * Parse options.
 	 */
-	while ((opt = getopt(argc, argv, "kp:qr:")) != -1) {
+	while ((opt = getopt(argc, argv, "dkp:qr:v")) != -1) {
 		switch (opt) {
+		case 'd':
+			dump_on_failure = 1;
+			break;
 		case 'k':
-			dump_on_failure = 0;
+			keep_temp_files = 1;
 			break;
 		case 'p':
 #ifdef PROGRAM
@@ -774,6 +853,9 @@ int main(int argc, char **argv)
 			break;
 		case 'r':
 			refdir = optarg;
+			break;
+		case 'v':
+			verbose = 1;
 			break;
 		case '?':
 		default:
@@ -823,6 +905,7 @@ int main(int argc, char **argv)
 			--p;
 			*p = '\0';
 		}
+		systemf("rm %s/refdir", tmpdir);
 	}
 
 	/*
@@ -877,6 +960,10 @@ int main(int argc, char **argv)
 	}
 
 	free(refdir_alloc);
+
+	/* If the final tmpdir is empty, we can remove it. */
+	/* This should be the usual case when all tests succeed. */
+	rmdir(tmpdir);
 
 	return (tests_failed);
 }

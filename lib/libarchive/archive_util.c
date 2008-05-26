@@ -77,32 +77,10 @@ archive_version_number(void)
 	return (ARCHIVE_VERSION_NUMBER);
 }
 
-/*
- * Format a version string of the form "libarchive x.y.z", where x, y,
- * z are the correct parts of the version ID from
- * archive_version_number().
- *
- * I used to do all of this at build time in shell scripts but that
- * proved to be a portability headache.
- */
-
 const char *
 archive_version_string(void)
 {
-	static char buff[128];
-	struct archive_string as;
-	int n;
-
-	if (buff[0] == '\0') {
-		n = archive_version_number();
-		memset(&as, 0, sizeof(as));
-		archive_string_sprintf(&as, "libarchive %d.%d.%d",
-		    n / 1000000, (n / 1000) % 1000, n % 1000);
-		strncpy(buff, as.s, sizeof(buff));
-		buff[sizeof(buff) - 1] = '\0';
-		archive_string_free(&as);
-	}
-	return (buff);
+	return (ARCHIVE_VERSION_STRING);
 }
 
 int

@@ -142,12 +142,15 @@ archive_write_ar_header(struct archive_write *a, struct archive_entry *entry)
 	struct ar_w *ar;
 	const char *pathname;
 	const char *filename;
+	int64_t size;
 
 	ret = 0;
 	append_fn = 0;
 	ar = (struct ar_w *)a->format_data;
 	ar->is_strtab = 0;
 	filename = NULL;
+	size = archive_entry_size(entry);
+
 
 	/*
 	 * Reject files with empty name.
@@ -285,8 +288,7 @@ archive_write_ar_header(struct archive_write *a, struct archive_entry *entry)
 				return (ARCHIVE_WARN);
 			}
 			append_fn = 1;
-			archive_entry_set_size(entry,
-			    archive_entry_size(entry) + strlen(filename));
+			size += strlen(filename);
 		}
 	}
 
@@ -322,8 +324,7 @@ stat:
 	}
 
 size:
-	if (format_decimal(archive_entry_size(entry), buff + AR_size_offset,
-	    AR_size_size)) {
+	if (format_decimal(size, buff + AR_size_offset, AR_size_size)) {
 		archive_set_error(&a->archive, ERANGE,
 		    "File size out of range");
 		return (ARCHIVE_WARN);
@@ -333,7 +334,7 @@ size:
 	if (ret != ARCHIVE_OK)
 		return (ret);
 
-	ar->entry_bytes_remaining = archive_entry_size(entry);
+	ar->entry_bytes_remaining = size;
 	ar->entry_padding = ar->entry_bytes_remaining % 2;
 
 	if (append_fn > 0) {
