@@ -46,9 +46,8 @@ static char sccsid[] = "@(#)kvm_file.c	8.1 (Berkeley) 6/4/93";
 #include <sys/param.h>
 #include <sys/user.h>
 #include <sys/proc.h>
-#define _KERNEL
+#define	_WANT_FILE	/* make file.h give us 'struct file' */
 #include <sys/file.h>
-#undef _KERNEL
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 #include <nlist.h>
