@@ -65,6 +65,7 @@ struct bsdtar {
 	char		  option_no_owner; /* -o */
 	char		  option_no_subdirs; /* -n */
 	char		  option_null; /* --null */
+	char		  option_numeric_owner; /* --numeric-owner */
 	char		  option_stdout; /* -O */
 	char		  option_totals; /* --totals */
 	char		  option_unlink_first; /* -U */
@@ -90,13 +91,14 @@ struct bsdtar {
 	 * Data for various subsystems.  Full definitions are located in
 	 * the file where they are used.
 	 */
+	struct archive_entry_linkresolver *resolver;
 	struct archive_dir	*archive_dir;	/* for write.c */
 	struct name_cache	*gname_cache;	/* for write.c */
-	struct links_cache	*links_cache;	/* for write.c */
 	struct matching		*matching;	/* for matching.c */
 	struct security		*security;	/* for read.c */
 	struct name_cache	*uname_cache;	/* for write.c */
 	struct siginfo_data	*siginfo;	/* for siginfo.c */
+	struct substitution	*substitution;	/* for subst.c */
 };
 
 void	bsdtar_errc(struct bsdtar *, int _eval, int _code,
@@ -126,6 +128,12 @@ void	tar_mode_t(struct bsdtar *bsdtar);
 void	tar_mode_u(struct bsdtar *bsdtar);
 void	tar_mode_x(struct bsdtar *bsdtar);
 int	unmatched_inclusions(struct bsdtar *bsdtar);
+int	unmatched_inclusions_warn(struct bsdtar *bsdtar, const char *msg);
 void	usage(struct bsdtar *);
 int	yes(const char *fmt, ...);
 
+#if HAVE_REGEX_H
+void	add_substitution(struct bsdtar *, const char *);
+int	apply_substitution(struct bsdtar *, const char *, char **, int);
+void	cleanup_substitution(struct bsdtar *);
+#endif
