@@ -118,6 +118,25 @@ DEFINE_TEST(test_option_T)
 	assertFileExists("test2/d1/d2/f4");
 	assertFileNotExists("test2/d1/d2/f5");
 
+	assertEqualInt(0, mkdir("test4", 0755));
+	assertEqualInt(0, mkdir("test4_out", 0755));
+	assertEqualInt(0, mkdir("test4_out2", 0755));
+	assertEqualInt(0, mkdir("test4/d1", 0755));
+	assertEqualInt(1, touch("test4/d1/foo"));
+
+	systemf("%s -cf - -s /foo/bar/ test4/d1/foo | %s -xf - -C test4_out",
+	    testprog, testprog);
+	assertEmptyFile("test4_out/test4/d1/bar");
+	systemf("%s -cf - -s /d1/d2/ test4/d1/foo | %s -xf - -C test4_out",
+	    testprog, testprog);
+	assertEmptyFile("test4_out/test4/d2/foo");
+	systemf("%s -cf - -s ,test4/d1/foo,, test4/d1/foo | %s -tvf - > test4.lst",
+	    testprog, testprog);
+	assertEmptyFile("test4.lst");
+	systemf("%s -cf - test4/d1/foo | %s -xf - -s /foo/bar/ -C test4_out2",
+	    testprog, testprog);
+	assertEmptyFile("test4_out2/test4/d1/bar");
+
 	/* TODO: Include some use of -C directory-changing within the filelist. */
 	/* I'm pretty sure -C within the filelist is broken on extract. */
 }

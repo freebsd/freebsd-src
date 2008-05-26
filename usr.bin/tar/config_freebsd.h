@@ -77,6 +77,7 @@
 #endif
 #define	HAVE_PATHS_H 1
 #define	HAVE_PWD_H 1
+#define	HAVE_REGEX_H 1
 #define	HAVE_SETLOCALE 1
 #define	HAVE_STDARG_H 1
 #define	HAVE_STDINT_H 1

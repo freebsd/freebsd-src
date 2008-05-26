@@ -178,7 +178,7 @@ yes(const char *fmt, ...)
 	fprintf(stderr, " (y/N)? ");
 	fflush(stderr);
 
-	l = read(2, buff, sizeof(buff));
+	l = read(2, buff, sizeof(buff) - 1);
 	if (l <= 0)
 		return (0);
 	buff[l] = 0;
@@ -215,7 +215,7 @@ process_lines(struct bsdtar *bsdtar, const char *pathname,
 {
 	FILE *f;
 	char *buff, *buff_end, *line_start, *line_end, *p;
-	size_t buff_length, bytes_read, bytes_wanted;
+	size_t buff_length, new_buff_length, bytes_read, bytes_wanted;
 	int separator;
 	int ret;
 
@@ -262,7 +262,12 @@ process_lines(struct bsdtar *bsdtar, const char *pathname,
 			line_start = buff;
 		} else {
 			/* Line is too big; enlarge the buffer. */
-			p = realloc(buff, buff_length *= 2);
+			new_buff_length = buff_length * 2;
+			if (new_buff_length <= buff_length)
+				bsdtar_errc(bsdtar, 1, ENOMEM,
+				    "Line too long in %s", pathname);
+			buff_length = new_buff_length;
+			p = realloc(buff, buff_length);
 			if (p == NULL)
 				bsdtar_errc(bsdtar, 1, ENOMEM,
 				    "Line too long in %s", pathname);
@@ -351,10 +356,51 @@ int
 edit_pathname(struct bsdtar *bsdtar, struct archive_entry *entry)
 {
 	const char *name = archive_entry_pathname(entry);
+#if HAVE_REGEX_H
+	char *subst_name;
+#endif
+	int r;
+
+#if HAVE_REGEX_H
+	r = apply_substitution(bsdtar, name, &subst_name, 0);
+	if (r == -1) {
+		bsdtar_warnc(bsdtar, 0, "Invalid substituion, skipping entry");
+		return 1;
+	}
+	if (r == 1) {
+		archive_entry_copy_pathname(entry, subst_name);
+		free(subst_name);
+		if (*subst_name == '\0')
+			return -1;
+		name = archive_entry_pathname(entry);
+	}
+
+	if (archive_entry_hardlink(entry)) {
+		r = apply_substitution(bsdtar, archive_entry_hardlink(entry), &subst_name, 1);
+		if (r == -1) {
+			bsdtar_warnc(bsdtar, 0, "Invalid substituion, skipping entry");
+			return 1;
+		}
+		if (r == 1) {
+			archive_entry_copy_hardlink(entry, subst_name);
+			free(subst_name);
+		}
+	}
+	if (archive_entry_symlink(entry) != NULL) {
+		r = apply_substitution(bsdtar, archive_entry_symlink(entry), &subst_name, 1);
+		if (r == -1) {
+			bsdtar_warnc(bsdtar, 0, "Invalid substituion, skipping entry");
+			return 1;
+		}
+		if (r == 1) {
+			archive_entry_copy_symlink(entry, subst_name);
+			free(subst_name);
+		}
+	}
+#endif
 
 	/* Strip leading dir names as per --strip-components option. */
-	if (bsdtar->strip_components > 0) {
-		int r = bsdtar->strip_components;
+	if ((r = bsdtar->strip_components) > 0) {
 		const char *p = name;
 
 		while (r > 0) {
@@ -368,6 +414,10 @@ edit_pathname(struct bsdtar *bsdtar, struct archive_entry *entry)
 				return (1);
 			}
 		}
+		while (*name == '/')
+			++name;
+		if (*name == '\0')
+			return (1);
 	}
 
 	/* Strip redundant leading '/' characters. */

@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 13, 2004
+.Dd May 15, 2008
 .Dt BSDTAR 1
 .Os
 .Sh NAME
@@ -278,6 +278,10 @@ This is often used to read filenames output by the
 .Fl print0
 option to
 .Xr find 1 .
+.It Fl -numeric-owner
+(x mode only)
+Ignore symbolic user and group names when restoring archives to disk,
+only numeric uid and gid values will be obeyed.
 .It Fl O
 (x, t modes only)
 In extract (-x) mode, files will be written to standard out rather than
@@ -294,7 +298,7 @@ is specified, and the program is being run by the root user.
 In this case, the file modes and flags from
 the archive will be restored, but ACLs or owner information in
 the archive will be discarded.
-.Pp
+.It Fl o
 (c, r, u mode)
 A synonym for
 .Fl -format Ar ustar
@@ -335,12 +339,34 @@ By default, the archive is always read to the very end, since
 there can be multiple entries with the same name and, by convention,
 later entries overwrite earlier entries.
 This option is provided as a performance optimization.
+.It Fl S
+(x mode only)
+Extract files as sparse files.
+For every block on disk, check first if it contains only NULL bytes and seek
+over it otherwise.
+This works similiar to the conv=sparse option of dd.
 .It Fl -strip-components Ar count ( Fl W Cm strip-components Ns = Ns Ar count )
 (x and t mode only)
 Remove the specified number of leading path elements.
 Pathnames with fewer elements will be silently skipped.
 Note that the pathname is edited after checking inclusion/exclusion patterns
 but before security checks.
+.It Fl s Ar pattern
+Modify file or archive member names according to
+.Pa pattern .
+The pattern has the format /old/new/[gps].
+old is a basic regular expression.
+If it doesn't apply, the pattern is skipped.
+new is the replacement string of the matched part.
+~ is substituted with the match, \1 to \9 with the content of
+the corresponding captured group.
+The optional trailing g specifies that matching should continue
+after the matched part and stopped on the first unmatched pattern.
+The optional trailing s specifies that the pattern applies to the value
+of symbolic links.
+The optional trailing p specifies that after a successful substitution
+the original path name and the new path name should be printed to
+standard error.
 .It Fl T Ar filename
 In x or t mode,
 .Nm
@@ -511,6 +537,16 @@ Finally, it will switch to the
 directory and add
 .Pa foo2
 to the output archive.
+.Pp
+An input file in
+.Xr mtree 5
+format can be used to create an output archive with arbitrary ownership,
+permissions, or names that differ from existing data on disk:
+.Pp
+.Dl $ cat input.mtree
+.Dl usr/bin uid=0 gid=0 mode=0755 type=dir
+.Dl usr/bin/ls uid=0 gid=0 mode=0755 type=file content=myls
+.Dl $ tar -cvf output.tar @input.mtree
 .Pp
 The
 .Fl -newer
