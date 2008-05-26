@@ -18,5 +18,3 @@ $(.OBJDIR)/dev_pci/dev_pci.tag:	$(.OBJDIR)/pci_if.h \
 				$(.OBJDIR)/pcib_if.h \
 				$(.OBJDIR)/bus_if.h
 
-$(.OBJDIR)/i4b/i4b.tag: $(.OBJDIR)/dev_pci/dev_pci.tag
-

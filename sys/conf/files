@@ -1511,62 +1511,6 @@ gnu/fs/reiserfs/reiserfs_stree.c	optional reiserfs
 gnu/fs/reiserfs/reiserfs_vfsops.c	optional reiserfs
 gnu/fs/reiserfs/reiserfs_vnops.c	optional reiserfs
 #
-# isdn4bsd device drivers
-#
-i4b/driver/i4b_trace.c		optional i4btrc
-i4b/driver/i4b_rbch.c		optional i4brbch
-i4b/driver/i4b_tel.c		optional i4btel
-#XXXBZ#i4b/driver/i4b_ipr.c		optional i4bipr
-net/slcompress.c		optional i4bipr | i4bisppp
-i4b/driver/i4b_ctl.c		optional i4bctl
-#XXXBZ#i4b/driver/i4b_ing.c		optional i4bing
-#XXXBZ#i4b/driver/i4b_isppp.c		optional i4bisppp
-#
-# isdn4bsd CAPI driver
-#
-i4b/capi/capi_l4if.c		optional i4bcapi
-i4b/capi/capi_llif.c		optional i4bcapi
-i4b/capi/capi_msgs.c		optional i4bcapi
-#
-# isdn4bsd AVM B1/T1 CAPI driver
-#
-i4b/capi/iavc/iavc_pci.c	optional iavc i4bcapi pci
-i4b/capi/iavc/iavc_isa.c	optional iavc i4bcapi isa
-i4b/capi/iavc/iavc_lli.c	optional iavc i4bcapi
-i4b/capi/iavc/iavc_card.c	optional iavc i4bcapi
-#
-# isdn4bsd support
-#
-i4b/layer2/i4b_mbuf.c		optional i4btrc
-#
-# isdn4bsd Q.921 handler
-#
-i4b/layer2/i4b_l2.c		optional i4bq921
-i4b/layer2/i4b_l2fsm.c		optional i4bq921
-i4b/layer2/i4b_uframe.c		optional i4bq921
-i4b/layer2/i4b_tei.c		optional i4bq921
-i4b/layer2/i4b_sframe.c		optional i4bq921
-i4b/layer2/i4b_iframe.c		optional i4bq921
-i4b/layer2/i4b_l2timer.c	optional i4bq921
-i4b/layer2/i4b_util.c		optional i4bq921
-i4b/layer2/i4b_lme.c		optional i4bq921
-#
-# isdn4bsd Q.931 handler
-#
-i4b/layer3/i4b_q931.c		optional i4bq931
-i4b/layer3/i4b_l3fsm.c		optional i4bq931
-i4b/layer3/i4b_l3timer.c	optional i4bq931
-i4b/layer3/i4b_l2if.c		optional i4bq931
-i4b/layer3/i4b_l4if.c		optional i4bq931
-i4b/layer3/i4b_q932fac.c	optional i4bq931
-#
-# isdn4bsd control device driver, interface to isdnd
-#
-i4b/layer4/i4b_i4bdrv.c		optional i4b
-i4b/layer4/i4b_l4.c		optional i4b
-i4b/layer4/i4b_l4mgmt.c		optional i4b
-i4b/layer4/i4b_l4timer.c	optional i4b
-#
 isa/isa_if.m			standard
 isa/isa_common.c		optional isa
 isa/isahint.c			optional isa
@@ -1814,8 +1758,8 @@ net/if_media.c			standard
 net/if_mib.c			standard
 net/if_ppp.c			optional ppp
 net/if_sl.c			optional sl
-net/if_spppfr.c			optional i4bisppp | sppp | netgraph_sppp
-net/if_spppsubr.c		optional i4bisppp | sppp | netgraph_sppp
+net/if_spppfr.c			optional sppp | netgraph_sppp
+net/if_spppsubr.c		optional sppp | netgraph_sppp
 net/if_stf.c			optional stf
 net/if_tun.c			optional tun
 net/if_tap.c			optional tap

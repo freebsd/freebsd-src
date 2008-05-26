@@ -36,7 +36,7 @@
 .\" $Whistle: netgraph.4,v 1.7 1999/01/28 23:54:52 julian Exp $
 .\" $FreeBSD$
 .\"
-.Dd July 1, 2004
+.Dd May 25, 2008
 .Dt NETGRAPH 4
 .Os
 .Sh NAME
@@ -689,19 +689,6 @@ The message may have travelled from
 .Dq Li Frame1:
 to B
 as a synchronous reply, saving time and cycles.
-.Pp
-A similar graph might be used to represent multi-link PPP running
-over an ISDN line:
-.Bd -literal
-[ type BRI ](B1)<--->(link1)[ type MPP  ]
-[  "ISDN1" ](B2)<--->(link2)[ (no name) ]
-[          ](D) <-+
-                  |
- +----------------+
- |
- +->(switch)[ type Q.921 ](term1)<---->(datalink)[ type Q.931 ]
-            [ (no name)  ]                       [ (no name)  ]
-.Ed
 .Ss Netgraph Structures
 Structures are defined in
 .In netgraph/netgraph.h

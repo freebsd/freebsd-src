@@ -22,6 +22,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20080525:
+	ISDN4BSD (I4B) was removed from the src tree. You may need to
+	update a your kernel configuration and remove relevant entries.
+
 20080509:
 	I have checked in code to support multiple routing tables.
 	see the man pages setfib(1) and setfib(2).
