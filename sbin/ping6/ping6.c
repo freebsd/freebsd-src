@@ -1074,6 +1074,9 @@ main(argc, argv)
 
 		/* signal handling */
 		if (seenalrm) {
+			/* last packet sent, timeout reached? */
+			if (npackets && ntransmitted >= npackets)
+				break;
 			retransmit();
 			seenalrm = 0;
 			continue;
@@ -1173,7 +1176,7 @@ main(argc, argv)
 			break;
 	}
 	summary();
-	exit(nreceived == 0);
+	exit(nreceived == 0 ? 2 : 0);
 }
 
 void
@@ -1224,7 +1227,7 @@ retransmit()
 	itimer.it_interval.tv_usec = 0;
 	itimer.it_value.tv_usec = 0;
 
-	(void)signal(SIGALRM, onint);
+	(void)signal(SIGALRM, onsignal);
 	(void)setitimer(ITIMER_REAL, &itimer, NULL);
 }
 
