@@ -2941,8 +2941,10 @@ loop:
 				BUF_UNLOCK(bp);
 				goto loop;
 			}
-			if (error == ENOLCK)
+			if (error == ENOLCK) {
+				error = 0;
 				goto loop;
+			}
 			if (nfs_sigintr(nmp, NULL, td)) {
 				error = EINTR;
 				goto done;

@@ -2693,8 +2693,10 @@ loop:
 			    BO_MTX(bo), "nfsfsync", slpflag, slptimeo);
 			if (error == 0)
 				panic("nfs4_fsync: inconsistent lock");
-			if (error == ENOLCK)
+			if (error == ENOLCK) {
+				error = 0;
 				goto loop;
+			}
 			if (nfs4_sigintr(nmp, NULL, td)) {
 				error = EINTR;
 				goto done;
