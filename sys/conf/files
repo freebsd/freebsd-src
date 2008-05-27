@@ -844,6 +844,7 @@ dev/ixgbe/ixgbe_common.c	optional ixgbe \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
 dev/ixgbe/ixgbe_82598.c		optional ixgbe \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
+dev/jme/if_jme.c		optional jme pci
 dev/joy/joy.c			optional joy
 dev/joy/joy_isa.c		optional joy isa
 dev/joy/joy_pccard.c		optional joy pccard
