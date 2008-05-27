@@ -140,6 +140,7 @@ SUBDIR=	${_3dfx} \
 	${_iwn} \
 	${_iwnfw} \
 	${_ixgb} \
+	jme \
 	joy \
 	${_k8temp} \
 	kbdmux \
