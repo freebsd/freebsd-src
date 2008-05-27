@@ -121,6 +121,7 @@ static struct _devname {
     NETWORK("ipw",	"Intel PRO/Wireless 2100 IEEE 802.11 adapter"),
     NETWORK("iwi",	"Intel PRO/Wireless 2200BG/2225BG/2915ABG adapter"),
     NETWORK("ixgb",	"Intel(R) PRO/10Gb Ethernet card"),
+    NETWORK("jme",	"JMicron JMC250 Gigabit/JMC260 Fast Ethernet"),
     NETWORK("kue",	"Kawasaki LSI USB Ethernet adapter"),
     NETWORK("le",	"AMD Am7900 LANCE or Am79C9xx PCnet Ethernet adapter"),
     NETWORK("lge",	"Level 1 LXT1001 Gigabit Ethernet card"),
