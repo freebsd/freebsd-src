@@ -1608,6 +1608,7 @@ kern/subr_acl_posix1e.c		standard
 kern/subr_autoconf.c		standard
 kern/subr_blist.c		standard
 kern/subr_bus.c			standard
+kern/subr_clist.c		standard
 kern/subr_clock.c		standard
 kern/subr_devstat.c		standard
 kern/subr_disk.c		standard
@@ -1655,7 +1656,6 @@ kern/tty_conf.c			standard
 kern/tty_cons.c			standard
 kern/tty_pts.c			optional pty
 kern/tty_pty.c			optional pty
-kern/tty_subr.c			standard
 kern/tty_tty.c			standard
 kern/uipc_accf.c		optional inet
 kern/uipc_cow.c			optional zero_copy_sockets
