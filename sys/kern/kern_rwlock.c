@@ -651,8 +651,11 @@ _rw_wlock_hard(struct rwlock *rw, uintptr_t tid, const char *file, int line)
 		}
 #endif
 		/*
-		 * If the lock was released while waiting for the turnstile
-		 * chain lock retry.
+		 * Check for the waiters flags about this rwlock.
+		 * If the lock was released, without maintain any pending
+		 * waiters queue, simply try to acquire it.
+		 * If a pending waiters queue is present, claim the lock
+		 * ownership and maintain the pending queue.
 		 */
 		x = v & (RW_LOCK_WAITERS | RW_LOCK_WRITE_SPINNER);
 		if ((v & ~x) == RW_UNLOCKED) {
