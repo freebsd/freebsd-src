@@ -74,7 +74,6 @@ cvs		peter	Heads-up appreciated, try not to break it.
 ncurses		peter	Heads-up appreciated, try not to break it.
 nvi		peter	Try not to break it.
 libz		peter	Try not to break it.
-pppd/chat	peter	Try not to break it.
 groff		ru	Recommends pre-commit review.
 share/mk	ru	This is a vital component of the build system, so I
 			offer a pre-commit review for anything non-trivial.
