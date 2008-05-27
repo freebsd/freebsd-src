@@ -2362,7 +2362,7 @@ url_decode(const char *in)
 	if (out == NULL)
 		return (NULL);
 	for (s = in, d = out; *s != '\0'; ) {
-		if (*s == '%') {
+		if (s[0] == '%' && s[1] != '\0' && s[2] != '\0') {
 			/* Try to convert % escape */
 			int digit1 = tohex(s[1]);
 			int digit2 = tohex(s[2]);
