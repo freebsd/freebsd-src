@@ -128,6 +128,26 @@ OLD_DIRS+=usr/share/examples/isdn/v21
 OLD_DIRS+=usr/share/examples/isdn
 OLD_FILES+=usr/share/examples/ppp/isdnd.rc
 OLD_FILES+=usr/share/examples/ppp/ppp.conf.isdn
+# 20080525: ng_atmpif removed
+OLD_FILES+=usr/include/netgraph/atm/ng_atmpif.h
+OLD_FILES+=usr/share/man/man4/ng_atmpif.4.gz
+# 20080522: pmap_addr_hint removed
+OLD_FILES+=usr/share/man/man9/pmap_addr_hint.9.gz
+# 20080517: ipsec_osdep.h removed
+OLD_FILES+=usr/include/netipsec/ipsec_osdep.h
+# 20080507: heimdal 1.1 import
+OLD_LIBS+=usr/lib/libasn1.so.9
+OLD_LIBS+=usr/lib/libgssapi.so.9
+OLD_LIBS+=usr/lib/libgssapi_krb5.so.9
+OLD_LIBS+=usr/lib/libhdb.so.9
+OLD_LIBS+=usr/lib/libkadm5clnt.so.9
+OLD_LIBS+=usr/lib/libkadm5srv.so.9
+OLD_LIBS+=usr/lib/libkafs5.so.9
+OLD_LIBS+=usr/lib/libkrb5.so.9
+OLD_LIBS+=usr/lib/libroken.so.9
+.if ${TARGET_ARCH} == "amd64"
+OLD_LIBS+=usr/lib32/libgssapi.so.9
+.endif
 # 20080420: Symbol card support dropped
 OLD_FILES+=usr/include/dev/wi/spectrum24t_cf.h
 # 20080420: awi removal
