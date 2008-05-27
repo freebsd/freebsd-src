@@ -239,6 +239,6 @@ usage()
 "                  [-t template] [-X excludefile]",
 "                  [-D displayfile] [-m mtreefile] [-o originpath]",
 "                  -c comment -d description -f packlist pkg-filename",
-"       pkg_create [-EGYNRhvxy] -b pkg-name [pkg-filename]");
+"       pkg_create [-EGYNRhnvxy] -b pkg-name [pkg-filename]");
     exit(1);
 }
