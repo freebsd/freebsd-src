@@ -230,7 +230,7 @@ OLD_FILES+=usr/include/machine/interruptvar.h
 .endif
 # 20070801: fast_ipsec.4 gone
 OLD_FILES+=usr/share/man/man4/fast_ipsec.4.gz
-# 20070715: netatm temporarily disconnected
+# 20070715: netatm temporarily disconnected (removed 20080525)
 OLD_FILES+=rescue/atm
 OLD_FILES+=rescue/fore_dnld
 OLD_FILES+=rescue/ilmid
@@ -318,7 +318,7 @@ OLD_FILES+=usr/include/machine/i4b_rbch_ioctl.h
 OLD_FILES+=usr/include/machine/i4b_tel_ioctl.h
 OLD_FILES+=usr/include/machine/i4b_trace.h
 .endif
-# 20070704: I4B 'modules' temporary disconnected
+# 20070704: I4B 'modules' temporary disconnected (removed 20080525)
 .if ${TARGET_ARCH} == "i386"
 OLD_FILES+=usr/share/man/man4/i4bing.4.gz
 OLD_FILES+=usr/share/man/man4/i4bipr.4.gz
