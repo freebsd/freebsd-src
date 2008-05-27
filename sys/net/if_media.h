@@ -340,7 +340,6 @@ struct ifmedia_description {
 	{ IFM_1000_LX,	"1000baseLX" },					\
 	{ IFM_1000_CX,	"1000baseCX" },					\
 	{ IFM_1000_T,	"1000baseTX" },					\
-	{ IFM_1000_T,	"1000baseT" },					\
 	{ IFM_HPNA_1,	"homePNA" },					\
 	{ IFM_10G_LR,	"10Gbase-LR" },					\
 	{ IFM_10G_SR,	"10Gbase-SR" },					\
@@ -365,6 +364,7 @@ struct ifmedia_description {
 	{ IFM_1000_SX,	"1000SX" },					\
 	{ IFM_1000_LX,	"1000LX" },					\
 	{ IFM_1000_CX,	"1000CX" },					\
+	{ IFM_1000_T,	"1000baseT" },					\
 	{ IFM_1000_T,	"1000TX" },					\
 	{ IFM_1000_T,	"1000T" },					\
 	{ IFM_2500_SX,	"2500SX" },					\
