@@ -34,6 +34,10 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 
+#ifndef REG_BASIC
+#define	REG_BASIC 0
+#endif
+
 struct subst_rule {
 	struct subst_rule *next;
 	regex_t re;
