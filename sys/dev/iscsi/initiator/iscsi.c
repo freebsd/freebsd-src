@@ -808,3 +808,4 @@ moduledata_t iscsi_mod = {
 };
 
 DECLARE_MODULE(iscsi, iscsi_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE);
+MODULE_DEPEND(iscsi, cam, 1, 1, 1);
