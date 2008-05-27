@@ -16,7 +16,7 @@ __FBSDID("$FreeBSD$");
 #include "lib.h"
 #include "create.h"
 
-static char Options[] = "EGYNORhjvxyzf:p:P:C:c:d:i:I:k:K:r:t:X:D:m:s:S:o:b:";
+static char Options[] = "EGYNnORhjvxyzf:p:P:C:c:d:i:I:k:K:r:t:X:D:m:s:S:o:b:";
 
 match_t	MatchType	= MATCH_GLOB;
 char	*Prefix		= NULL;
@@ -41,6 +41,7 @@ char	PlayPen[FILENAME_MAX];
 int	Dereference	= FALSE;
 int	PlistOnly	= FALSE;
 int	Recursive	= FALSE;
+int	Regenerate	= TRUE;
 #if defined(__FreeBSD_version) && __FreeBSD_version >= 500039
 enum zipper	Zipper  = BZIP2;
 #else
@@ -192,6 +193,10 @@ main(int argc, char **argv)
 	    Recursive = TRUE;
 	    break;
 
+	case 'n':
+		Regenerate = FALSE;
+		break;
+
 	case '?':
 	default:
 	    usage();
@@ -228,7 +233,7 @@ static void
 usage()
 {
     fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
-"usage: pkg_create [-YNOhjvyz] [-C conflicts] [-P pkgs] [-p prefix]",
+"usage: pkg_create [-YNOhjnvyz] [-C conflicts] [-P pkgs] [-p prefix]",
 "                  [-i iscript] [-I piscript] [-k dscript] [-K pdscript]",
 "                  [-r rscript] [-s srcdir] [-S basedir]",
 "                  [-t template] [-X excludefile]",
