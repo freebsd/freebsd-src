@@ -59,6 +59,7 @@ __BEGIN_DECLS
 void	*memccpy(void * __restrict, const void * __restrict, int, size_t);
 #endif
 void	*memchr(const void *, int, size_t) __pure;
+void	*memrchr(const void *, int, size_t) __pure;
 int	 memcmp(const void *, const void *, size_t) __pure;
 void	*memcpy(void * __restrict, const void * __restrict, size_t);
 #if __BSD_VISIBLE
