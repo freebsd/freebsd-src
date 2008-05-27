@@ -8,7 +8,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 19, 2008
+.Dd May 27, 2008
 .Dt MIIBUS 4
 .Os
 .Sh NAME
@@ -67,6 +67,8 @@ Intel EtherExpress PRO/100B
 Sun ERI, Sun GEM and Apple GMAC Ethernet
 .It Xr hme 4
 Sun HME Ethernet
+.It Xr jme 4
+JMicron JMC250 Gigabit/JMC260 Fast Ethernet
 .It Xr lge 4
 Level 1 LXT1001 NetCellerator Gigabit Ethernet
 .It Xr msk 4
@@ -132,6 +134,7 @@ but as a result are not well behaved newbus device drivers.
 .Xr fxp 4 ,
 .Xr gem 4 ,
 .Xr hme 4 ,
+.Xr jme 4 ,
 .Xr lge 4 ,
 .Xr msk 4 ,
 .Xr netintro 4 ,
