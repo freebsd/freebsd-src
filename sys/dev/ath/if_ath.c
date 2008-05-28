@@ -4638,6 +4638,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 	flags = HAL_TXDESC_CLRDMASK;		/* XXX needed for crypto errs */
 	ismrr = 0;				/* default no multi-rate retry*/
 	pri = M_WME_GETAC(m0);			/* honor classification */
+	/* XXX use txparams instead of fixed values */
 	/*
 	 * Calculate Atheros packet type from IEEE80211 packet header,
 	 * setup for rate calculations, and select h/w transmit queue.
@@ -4673,8 +4674,8 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 		atype = HAL_PKT_TYPE_NORMAL;		/* default */
 		/*
 		 * Data frames: multicast frames go out at a fixed rate,
-		 * otherwise consult the rate control module for the
-		 * rate to use.
+		 * EAPOL frames use the mgmt frame rate; otherwise consult
+		 * the rate control module for the rate to use.
 		 */
 		if (ismcast) {
 			rix = an->an_mcastrix;
@@ -4682,6 +4683,13 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 			if (shortPreamble)
 				txrate |= rt->info[rix].shortPreamble;
 			try0 = 1;
+		} else if (m0->m_flags & M_EAPOL) {
+			/* XXX? maybe always use long preamble? */
+			rix = an->an_mgmtrix;
+			txrate = rt->info[rix].rateCode;
+			if (shortPreamble)
+				txrate |= rt->info[rix].shortPreamble;
+			try0 = ATH_TXMAXTRY;	/* XXX?too many? */
 		} else {
 			ath_rate_findrate(sc, an, shortPreamble, pktlen,
 				&rix, &try0, &txrate);
