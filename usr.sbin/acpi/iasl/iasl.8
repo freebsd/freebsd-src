@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 7, 2003
+.Dd May 20, 2008
 .Dt IASL 8
 .Os
 .Sh NAME
@@ -35,7 +35,7 @@
 .Nd Intel ACPI compiler/decompiler
 .Sh SYNOPSIS
 .Nm
-.Op Fl cefghl
+.Op Fl 2cefghl
 .Op Fl b Ar type
 .Op Fl d Ar file
 .Op Fl dc Ar file
@@ -57,6 +57,7 @@
 .Op Fl vr
 .Op Fl vs
 .Op Fl x Ar level
+.Op Fl w Ar level
 .Ar input-file
 .Sh DESCRIPTION
 The
@@ -68,7 +69,7 @@ Major features of
 include:
 .Bl -bullet -offset indent
 .It
-Full support for the ACPI 2.0b Specification including ASL grammar
+Full support for the ACPI 3.0b Specification including ASL grammar
 elements and operators.
 .It
 Extensive compiler syntax and semantic error checking, especially in
@@ -82,6 +83,8 @@ intermixed source, several types of AML files, and error messages.
 .El
 .Sh OPTIONS
 .Bl -tag -width indent
+.It Fl 2
+Emit ACPI 2.0 compatible ASL code.
 .It Fl b Sm Cm p | t | b Sm
 Create compiler debug/trace file
 .Pq Pa *.txt .
@@ -154,6 +157,8 @@ Disable remarks.
 Disable signon.
 .It Fl x Ar level
 Set debug level for trace output.
+.It Fl w Ar level
+Set warning level.
 .El
 .Sh SEE ALSO
 .Xr acpi 4 ,
