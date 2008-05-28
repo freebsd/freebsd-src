@@ -92,6 +92,7 @@ struct ieee80211_key {
 	uint64_t	wk_keytsc;	/* key transmit sequence counter */
 	const struct ieee80211_cipher *wk_cipher;
 	void		*wk_private;	/* private cipher state */
+	uint8_t		wk_macaddr[IEEE80211_ADDR_LEN];
 };
 #define	IEEE80211_KEY_COMMON 		/* common flags passed in by apps */\
 	(IEEE80211_KEY_XMIT | IEEE80211_KEY_RECV | IEEE80211_KEY_GROUP)
@@ -144,9 +145,7 @@ int	ieee80211_crypto_newkey(struct ieee80211vap *,
 		int cipher, int flags, struct ieee80211_key *);
 int	ieee80211_crypto_delkey(struct ieee80211vap *,
 		struct ieee80211_key *);
-int	ieee80211_crypto_setkey(struct ieee80211vap *,
-		struct ieee80211_key *,
-		const uint8_t macaddr[IEEE80211_ADDR_LEN]);
+int	ieee80211_crypto_setkey(struct ieee80211vap *, struct ieee80211_key *);
 void	ieee80211_crypto_delglobalkeys(struct ieee80211vap *);
 
 /*

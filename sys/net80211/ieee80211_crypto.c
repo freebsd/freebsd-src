@@ -130,10 +130,9 @@ dev_key_delete(struct ieee80211vap *vap,
 }
 
 static __inline int
-dev_key_set(struct ieee80211vap *vap, const struct ieee80211_key *key,
-	const uint8_t mac[IEEE80211_ADDR_LEN])
+dev_key_set(struct ieee80211vap *vap, const struct ieee80211_key *key)
 {
-	return vap->iv_key_set(vap, key, mac);
+	return vap->iv_key_set(vap, key, key->wk_macaddr);
 }
 
 /*
@@ -480,8 +479,7 @@ ieee80211_crypto_delglobalkeys(struct ieee80211vap *vap)
  *	ieee80211_key_update_end(vap);
  */
 int
-ieee80211_crypto_setkey(struct ieee80211vap *vap, struct ieee80211_key *key,
-		const uint8_t macaddr[IEEE80211_ADDR_LEN])
+ieee80211_crypto_setkey(struct ieee80211vap *vap, struct ieee80211_key *key)
 {
 	const struct ieee80211_cipher *cip = key->wk_cipher;
 
@@ -490,7 +488,7 @@ ieee80211_crypto_setkey(struct ieee80211vap *vap, struct ieee80211_key *key,
 	IEEE80211_DPRINTF(vap, IEEE80211_MSG_CRYPTO,
 	    "%s: %s keyix %u flags 0x%x mac %s rsc %ju tsc %ju len %u\n",
 	    __func__, cip->ic_name, key->wk_keyix,
-	    key->wk_flags, ether_sprintf(macaddr),
+	    key->wk_flags, ether_sprintf(key->wk_macaddr),
 	    key->wk_keyrsc[IEEE80211_NONQOS_TID], key->wk_keytsc,
 	    key->wk_keylen);
 
@@ -513,7 +511,7 @@ ieee80211_crypto_setkey(struct ieee80211vap *vap, struct ieee80211_key *key,
 		vap->iv_stats.is_crypto_setkey_nokey++;
 		return 0;
 	}
-	return dev_key_set(vap, key, macaddr);
+	return dev_key_set(vap, key);
 }
 
 /*
