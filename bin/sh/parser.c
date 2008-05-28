@@ -1188,6 +1188,7 @@ parsesub: {
 	int bracketed_name = 0; /* used to handle ${[0-9]*} variables */
 	int i;
 	int linno;
+	int length;
 
 	c = pgetc();
 	if (c != '(' && c != '{' && (is_eof(c) || !is_name(c)) &&
@@ -1220,12 +1221,14 @@ parsesub: {
 				subtype = 0;
 		}
 		if (!is_eof(c) && is_name(c)) {
-			p = out;
+			length = 0;
 			do {
 				STPUTC(c, out);
 				c = pgetc();
+				length++;
 			} while (!is_eof(c) && is_in_name(c));
-			if (out - p == 6 && strncmp(p, "LINENO", 6) == 0) {
+			if (length == 6 &&
+			    strncmp(out - length, "LINENO", length) == 0) {
 				/* Replace the variable name with the
 				 * current line number. */
 				linno = plinno;
