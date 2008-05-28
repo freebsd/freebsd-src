@@ -196,7 +196,7 @@ tkip_encap(struct ieee80211_key *k, struct mbuf *m, uint8_t keyid)
 	/*
 	 * Finally, do software encrypt if neeed.
 	 */
-	if (k->wk_flags & IEEE80211_KEY_SWCRYPT) {
+	if (k->wk_flags & IEEE80211_KEY_SWENCRYPT) {
 		if (!tkip_encrypt(ctx, k, m, hdrlen))
 			return 0;
 		/* NB: tkip_encrypt handles wk_keytsc */
@@ -214,7 +214,7 @@ tkip_enmic(struct ieee80211_key *k, struct mbuf *m, int force)
 {
 	struct tkip_ctx *ctx = k->wk_private;
 
-	if (force || (k->wk_flags & IEEE80211_KEY_SWMIC)) {
+	if (force || (k->wk_flags & IEEE80211_KEY_SWENMIC)) {
 		struct ieee80211_frame *wh = mtod(m, struct ieee80211_frame *);
 		struct ieee80211vap *vap = ctx->tc_vap;
 		struct ieee80211com *ic = vap->iv_ic;
@@ -302,7 +302,7 @@ tkip_decap(struct ieee80211_key *k, struct mbuf *m, int hdrlen)
 	 * If so we just strip the header; otherwise we need to
 	 * handle the decrypt in software.
 	 */
-	if ((k->wk_flags & IEEE80211_KEY_SWCRYPT) &&
+	if ((k->wk_flags & IEEE80211_KEY_SWDECRYPT) &&
 	    !tkip_decrypt(ctx, k, m, hdrlen))
 		return 0;
 
@@ -327,7 +327,7 @@ tkip_demic(struct ieee80211_key *k, struct mbuf *m, int force)
 	uint8_t tid;
 
 	wh = mtod(m, struct ieee80211_frame *);
-	if (force || (k->wk_flags & IEEE80211_KEY_SWMIC)) {
+	if ((k->wk_flags & IEEE80211_KEY_SWDEMIC) || force) {
 		struct ieee80211vap *vap = ctx->tc_vap;
 		int hdrlen = ieee80211_hdrspace(vap->iv_ic, wh);
 		u8 mic[IEEE80211_WEP_MICLEN];
