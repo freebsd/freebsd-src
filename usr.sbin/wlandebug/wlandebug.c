@@ -34,6 +34,7 @@
  * (default interface is wlan.0).
  */
 #include <sys/types.h>
+#include <sys/sysctl.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -126,17 +127,6 @@ getflag(const char *name, int len)
 	return 0;
 }
 
-static const char *
-getflagname(u_int flag)
-{
-	int i;
-
-	for (i = 0; i < N(flags); i++)
-		if (flags[i].bit == flag)
-			return flags[i].name;
-	return "???";
-}
-
 static void
 usage(void)
 {
@@ -162,7 +152,7 @@ setoid(char oid[], size_t oidlen, const char *wlan)
 		snprintf(oid, oidlen, "net.wlan.debug");
 #elif __NetBSD__
 	if (wlan)
-		snprintf(oid, oidlen, "net.link.ieee80211.%s.debug", wlan+4);
+		snprintf(oid, oidlen, "net.link.ieee80211.%s.debug", wlan);
 	else
 		snprintf(oid, oidlen, "net.link.ieee80211.debug");
 #else
@@ -175,9 +165,9 @@ main(int argc, char *argv[])
 {
 	const char *cp, *tp;
 	const char *sep;
-	int op, i, unit;
+	int op, i;
 	u_int32_t debug, ndebug;
-	size_t debuglen, parentlen;
+	size_t debuglen;
 	char oid[256];
 
 	progname = argv[0];
