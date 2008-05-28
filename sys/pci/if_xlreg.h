@@ -593,7 +593,6 @@ struct xl_softc {
 	const struct xl_type	*xl_info;	/* 3Com adapter info */
 	bus_dma_tag_t		xl_mtag;
 	bus_dmamap_t		xl_tmpmap;	/* spare DMA map */
-	u_int8_t		xl_unit;	/* interface number */
 	u_int8_t		xl_type;
 	u_int32_t		xl_xcvr;
 	u_int16_t		xl_media;
