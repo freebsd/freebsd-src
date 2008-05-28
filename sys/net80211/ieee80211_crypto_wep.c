@@ -186,7 +186,7 @@ wep_encap(struct ieee80211_key *k, struct mbuf *m, uint8_t keyid)
 	/*
 	 * Finally, do software encrypt if neeed.
 	 */
-	if ((k->wk_flags & IEEE80211_KEY_SWCRYPT) &&
+	if ((k->wk_flags & IEEE80211_KEY_SWENCRYPT) &&
 	    !wep_encrypt(k, m, hdrlen))
 		return 0;
 
@@ -222,7 +222,7 @@ wep_decap(struct ieee80211_key *k, struct mbuf *m, int hdrlen)
 	 * If so we just strip the header; otherwise we need to
 	 * handle the decrypt in software.
 	 */
-	if ((k->wk_flags & IEEE80211_KEY_SWCRYPT) &&
+	if ((k->wk_flags & IEEE80211_KEY_SWDECRYPT) &&
 	    !wep_decrypt(k, m, hdrlen)) {
 		IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_CRYPTO, wh->i_addr2,
 		    "%s", "WEP ICV mismatch on decrypt");

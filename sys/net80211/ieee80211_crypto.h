@@ -78,8 +78,10 @@ struct ieee80211_key {
 #define	IEEE80211_KEY_XMIT	0x01	/* key used for xmit */
 #define	IEEE80211_KEY_RECV	0x02	/* key used for recv */
 #define	IEEE80211_KEY_GROUP	0x04	/* key used for WPA group operation */
-#define	IEEE80211_KEY_SWCRYPT	0x10	/* host-based encrypt/decrypt */
-#define	IEEE80211_KEY_SWMIC	0x20	/* host-based enmic/demic */
+#define	IEEE80211_KEY_SWENCRYPT	0x10	/* host-based encrypt */
+#define	IEEE80211_KEY_SWDECRYPT	0x20	/* host-based decrypt */
+#define	IEEE80211_KEY_SWENMIC	0x40	/* host-based enmic */
+#define	IEEE80211_KEY_SWDEMIC	0x80	/* host-based demic */
 	ieee80211_keyix	wk_keyix;	/* h/w key index */
 	ieee80211_keyix	wk_rxkeyix;	/* optional h/w rx key index */
 	uint8_t		wk_key[IEEE80211_KEYBUF_SIZE+IEEE80211_MICBUF_SIZE];
@@ -93,6 +95,10 @@ struct ieee80211_key {
 };
 #define	IEEE80211_KEY_COMMON 		/* common flags passed in by apps */\
 	(IEEE80211_KEY_XMIT | IEEE80211_KEY_RECV | IEEE80211_KEY_GROUP)
+
+#define	IEEE80211_KEY_SWCRYPT \
+	(IEEE80211_KEY_SWENCRYPT | IEEE80211_KEY_SWDECRYPT)
+#define	IEEE80211_KEY_SWMIC	(IEEE80211_KEY_SWENMIC | IEEE80211_KEY_SWDEMIC)
 
 #define	IEEE80211_KEYIX_NONE	((ieee80211_keyix) -1)
 
