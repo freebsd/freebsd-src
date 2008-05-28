@@ -551,7 +551,7 @@ ieee80211_check_scan(struct ieee80211vap *vap, int flags,
 	struct ieee80211com *ic = vap->iv_ic;
 	struct ieee80211_scan_state *ss = ic->ic_scan;
 	const struct ieee80211_scanner *scan;
-	int checkscanlist = 0, result;
+	int result;
 
 	scan = ieee80211_scanner_get(vap->iv_opmode);
 	if (scan == NULL) {
@@ -595,8 +595,8 @@ ieee80211_check_scan(struct ieee80211vap *vap, int flags,
 			flags |= IEEE80211_SCAN_NOSSID;
 		}
 		if ((ic->ic_flags & IEEE80211_F_SCAN) == 0 &&
-		     (flags & IEEE80211_SCAN_FLUSH) == 0 &&
-		     time_before(ticks, ic->ic_lastscan + vap->iv_scanvalid)) {
+		    (flags & IEEE80211_SCAN_FLUSH) == 0 &&
+		    time_before(ticks, ic->ic_lastscan + vap->iv_scanvalid)) {
 			/*
 			 * We're not currently scanning and the cache is
 			 * deemed hot enough to consult.  Lock out others
@@ -607,21 +607,19 @@ ieee80211_check_scan(struct ieee80211vap *vap, int flags,
 			 */
 			SCAN_PRIVATE(ss)->ss_iflags |= ISCAN_DISCARD;
 			ic->ic_flags |= IEEE80211_F_SCAN;
-			/* NB: need to use supplied flags in check below */
+
+			/* NB: need to use supplied flags in check */
 			ss->ss_flags = flags & 0xff;
-			checkscanlist = 1;
-		}
-	}
-	if (checkscanlist) {
-		if (ss->ss_ops->scan_end(ss, vap)) {
-			/* found an ap, just clear the flag */
+			result = ss->ss_ops->scan_end(ss, vap);
+
 			ic->ic_flags &= ~IEEE80211_F_SCAN;
-			ieee80211_notify_scan_done(vap);
-			IEEE80211_UNLOCK(ic);
-			return 1;
+			SCAN_PRIVATE(ss)->ss_iflags &= ~ISCAN_DISCARD;
+			if (result) {
+				ieee80211_notify_scan_done(vap);
+				IEEE80211_UNLOCK(ic);
+				return 1;
+			}
 		}
-		/* no ap, clear the flag before starting a scan */
-		ic->ic_flags &= ~IEEE80211_F_SCAN;
 	}
 	result = start_scan_locked(scan, vap, flags, duration,
 	    mindwell, maxdwell, nssid, ssids);
