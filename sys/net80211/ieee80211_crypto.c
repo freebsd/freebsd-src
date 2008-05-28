@@ -609,3 +609,46 @@ ieee80211_crypto_decap(struct ieee80211_node *ni, struct mbuf *m, int hdrlen)
 #undef IEEE80211_WEP_MINLEN
 #undef IEEE80211_WEP_HDRLEN
 }
+
+static void
+load_ucastkey(void *arg, struct ieee80211_node *ni)
+{
+	struct ieee80211vap *vap = ni->ni_vap;
+	struct ieee80211_key *k;
+
+	if (vap->iv_state != IEEE80211_S_RUN)
+		return;
+	k = &ni->ni_ucastkey;
+	if (k->wk_keyix != IEEE80211_KEYIX_NONE)
+		dev_key_set(vap, k);
+}
+
+/*
+ * Re-load all keys known to the 802.11 layer that may
+ * have hardware state backing them.  This is used by
+ * drivers on resume to push keys down into the device.
+ */
+void
+ieee80211_crypto_reload_keys(struct ieee80211com *ic)
+{
+	struct ieee80211vap *vap;
+	int i;
+
+	/*
+	 * Keys in the global key table of each vap.
+	 */
+	/* NB: used only during resume so don't lock for now */
+	TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next) {
+		if (vap->iv_state != IEEE80211_S_RUN)
+			continue;
+		for (i = 0; i < IEEE80211_WEP_NKID; i++) {
+			const struct ieee80211_key *k = &vap->iv_nw_keys[i];
+			if (k->wk_keyix != IEEE80211_KEYIX_NONE)
+				dev_key_set(vap, k);
+		}
+	}
+	/*
+	 * Unicast keys.
+	 */
+	ieee80211_iterate_nodes(&ic->ic_sta, load_ucastkey, NULL);
+}

@@ -147,6 +147,7 @@ int	ieee80211_crypto_delkey(struct ieee80211vap *,
 		struct ieee80211_key *);
 int	ieee80211_crypto_setkey(struct ieee80211vap *, struct ieee80211_key *);
 void	ieee80211_crypto_delglobalkeys(struct ieee80211vap *);
+void	ieee80211_crypto_reload_keys(struct ieee80211com *);
 
 /*
  * Template for a supported cipher.  Ciphers register with the
