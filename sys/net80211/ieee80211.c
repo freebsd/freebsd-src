@@ -220,7 +220,7 @@ ieee80211_ifattach(struct ieee80211com *ic)
 
 	KASSERT(ifp->if_type == IFT_IEEE80211, ("if_type %d", ifp->if_type));
 
-	IEEE80211_LOCK_INIT(ic, "ieee80211com");
+	IEEE80211_LOCK_INIT(ic, ifp->if_xname);
 	TAILQ_INIT(&ic->ic_vaps);
 	/*
 	 * Fill in 802.11 available channel set, mark all

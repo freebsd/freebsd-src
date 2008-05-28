@@ -102,7 +102,7 @@ ieee80211_scan_attach(struct ieee80211com *ic)
 		ic->ic_scan = NULL;
 		return;
 	}
-	callout_init_mtx(&ss->ss_scan_timer, &ic->ic_comlock, 0);
+	callout_init_mtx(&ss->ss_scan_timer, IEEE80211_LOCK_OBJ(ic), 0);
 	ic->ic_scan = &ss->base;
 
 	ic->ic_scan_curchan = scan_curchan;

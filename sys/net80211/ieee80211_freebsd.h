@@ -36,15 +36,21 @@
 /*
  * Common state locking definitions.
  */
-typedef struct mtx ieee80211_com_lock_t;
-#define	IEEE80211_LOCK_INIT(_ic, _name) \
-	mtx_init(&(_ic)->ic_comlock, _name, "802.11 com lock", \
-	    MTX_DEF | MTX_RECURSE)
-#define	IEEE80211_LOCK_DESTROY(_ic) mtx_destroy(&(_ic)->ic_comlock)
-#define	IEEE80211_LOCK(_ic)	   mtx_lock(&(_ic)->ic_comlock)
-#define	IEEE80211_UNLOCK(_ic)	   mtx_unlock(&(_ic)->ic_comlock)
+typedef struct {
+	char		name[16];		/* e.g. "ath0_com_lock" */
+	struct mtx	mtx;
+} ieee80211_com_lock_t;
+#define	IEEE80211_LOCK_INIT(_ic, _name) do {				\
+	ieee80211_com_lock_t *cl = &(_ic)->ic_comlock;			\
+	snprintf(cl->name, sizeof(cl->name), "%s_com_lock", _name);	\
+	mtx_init(&cl->mtx, cl->name, NULL, MTX_DEF | MTX_RECURSE);	\
+} while (0)
+#define	IEEE80211_LOCK_OBJ(_ic)	(&(_ic)->ic_comlock.mtx)
+#define	IEEE80211_LOCK_DESTROY(_ic) mtx_destroy(IEEE80211_LOCK_OBJ(_ic))
+#define	IEEE80211_LOCK(_ic)	   mtx_lock(IEEE80211_LOCK_OBJ(_ic))
+#define	IEEE80211_UNLOCK(_ic)	   mtx_unlock(IEEE80211_LOCK_OBJ(_ic))
 #define	IEEE80211_LOCK_ASSERT(_ic) \
-	mtx_assert(&(_ic)->ic_comlock, MA_OWNED)
+	mtx_assert(IEEE80211_LOCK_OBJ(_ic), MA_OWNED)
 
 /*
  * Node locking definitions.
@@ -56,18 +62,19 @@ typedef struct {
 #define	IEEE80211_NODE_LOCK_INIT(_nt, _name) do {			\
 	ieee80211_node_lock_t *nl = &(_nt)->nt_nodelock;		\
 	snprintf(nl->name, sizeof(nl->name), "%s_node_lock", _name);	\
-	mtx_init(&nl->mtx, NULL, nl->name, MTX_DEF | MTX_RECURSE);	\
+	mtx_init(&nl->mtx, nl->name, NULL, MTX_DEF | MTX_RECURSE);	\
 } while (0)
+#define	IEEE80211_NODE_LOCK_OBJ(_nt)	(&(_nt)->nt_nodelock.mtx)
 #define	IEEE80211_NODE_LOCK_DESTROY(_nt) \
-	mtx_destroy(&(_nt)->nt_nodelock.mtx)
+	mtx_destroy(IEEE80211_NODE_LOCK_OBJ(_nt))
 #define	IEEE80211_NODE_LOCK(_nt) \
-	mtx_lock(&(_nt)->nt_nodelock.mtx)
+	mtx_lock(IEEE80211_NODE_LOCK_OBJ(_nt))
 #define	IEEE80211_NODE_IS_LOCKED(_nt) \
-	mtx_owned(&(_nt)->nt_nodelock.mtx)
+	mtx_owned(IEEE80211_NODE_LOCK_OBJ(_nt))
 #define	IEEE80211_NODE_UNLOCK(_nt) \
-	mtx_unlock(&(_nt)->nt_nodelock.mtx)
+	mtx_unlock(IEEE80211_NODE_LOCK_OBJ(_nt))
 #define	IEEE80211_NODE_LOCK_ASSERT(_nt)	\
-	mtx_assert(&(_nt)->nt_nodelock.mtx, MA_OWNED)
+	mtx_assert(IEEE80211_NODE_LOCK_OBJ(_nt), MA_OWNED)
 
 /*
  * Node table iteration locking definitions; this protects the
@@ -81,14 +88,15 @@ typedef struct {
 #define	IEEE80211_NODE_ITERATE_LOCK_INIT(_nt, _name) do {		\
 	ieee80211_scan_lock_t *sl = &(_nt)->nt_scanlock;		\
 	snprintf(sl->name, sizeof(sl->name), "%s_scan_lock", _name);	\
-	mtx_init(&sl->mtx, NULL, sl->name, MTX_DEF);			\
+	mtx_init(&sl->mtx, sl->name, NULL, MTX_DEF);			\
 } while (0)
+#define	IEEE80211_NODE_ITERATE_LOCK_OBJ(_nt)	(&(_nt)->nt_scanlock.mtx)
 #define	IEEE80211_NODE_ITERATE_LOCK_DESTROY(_nt) \
-	mtx_destroy(&(_nt)->nt_scanlock.mtx)
+	mtx_destroy(IEEE80211_NODE_ITERATE_LOCK_OBJ(_nt))
 #define	IEEE80211_NODE_ITERATE_LOCK(_nt) \
-	mtx_lock(&(_nt)->nt_scanlock.mtx)
+	mtx_lock(IEEE80211_NODE_ITERATE_LOCK_OBJ(_nt))
 #define	IEEE80211_NODE_ITERATE_UNLOCK(_nt) \
-	mtx_unlock(&(_nt)->nt_scanlock.mtx)
+	mtx_unlock(IEEE80211_NODE_ITERATE_LOCK_OBJ(_nt))
 
 #define	_AGEQ_ENQUEUE(_ifq, _m, _qlen, _age) do {		\
 	(_m)->m_nextpkt = NULL;					\
