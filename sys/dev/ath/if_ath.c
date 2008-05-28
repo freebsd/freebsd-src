@@ -682,13 +682,15 @@ ath_detach(struct ath_softc *sc)
 	DPRINTF(sc, ATH_DEBUG_ANY, "%s: if_flags %x\n",
 		__func__, ifp->if_flags);
 
-	ath_stop(ifp);
-	bpfdetach(ifp);
 	/* 
 	 * NB: the order of these is important:
+	 * o stop the chip so no more interrupts will fire
 	 * o call the 802.11 layer before detaching the hal to
 	 *   insure callbacks into the driver to delete global
 	 *   key cache entries can be handled
+	 * o free the taskqueue which drains any pending tasks
+	 * o reclaim the bpf tap now that we know nothing will use
+	 *   it (e.g. rx processing from the task q thread)
 	 * o reclaim the tx queue data structures after calling
 	 *   the 802.11 layer as we'll get called back to reclaim
 	 *   node state and potentially want to use them
@@ -696,16 +698,18 @@ ath_detach(struct ath_softc *sc)
 	 *   it last
 	 * Other than that, it's straightforward...
 	 */
+	ath_stop(ifp);
 	ieee80211_ifdetach(ifp->if_l2com);
+	taskqueue_free(sc->sc_tq);
+	bpfdetach(ifp);
 #ifdef ATH_TX99_DIAG
 	if (sc->sc_tx99 != NULL)
 		sc->sc_tx99->detach(sc->sc_tx99);
 #endif
-	taskqueue_free(sc->sc_tq);
 	ath_rate_detach(sc->sc_rc);
 	ath_desc_free(sc);
 	ath_tx_cleanup(sc);
-	ath_hal_detach(sc->sc_ah);
+	ath_hal_detach(sc->sc_ah);	/* NB: sets chip in full sleep */
 	if_free(ifp);
 
 	return 0;
