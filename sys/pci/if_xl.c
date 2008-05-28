@@ -1327,7 +1327,6 @@ xl_attach(device_t dev)
 		goto fail;
 	}
 
-	sc->xl_unit = unit;
 	callout_init_mtx(&sc->xl_stat_callout, &sc->xl_mtx, 0);
 	TASK_INIT(&sc->xl_task, 0, xl_rxeof_task, sc);
 
