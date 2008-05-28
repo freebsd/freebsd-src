@@ -210,6 +210,7 @@ nfsrv3_access(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	nfsdbprintf(("%s %d\n", __FILE__, __LINE__));
 	if (!v3)
 		panic("nfsrv3_access: v3 proc called on a v2 connection");
+	vfslocked = 0;
 	fhp = &nfh.fh_generic;
 	nfsm_srvmtofh(fhp);
 	tl = nfsm_dissect_nonblock(u_int32_t *, NFSX_UNSIGNED);
@@ -1285,6 +1286,7 @@ nfsrv_writegather(struct nfsrv_descript **ndp, struct nfssvc_sock *slp,
 	i = 0;
 	len = 0;
 #endif
+	vfslocked = 0;
 	*mrq = NULL;
 	if (*ndp) {
 	    nfsd = *ndp;
@@ -4132,6 +4134,7 @@ nfsrv_pathconf(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	nfsdbprintf(("%s %d\n", __FILE__, __LINE__));
 	if (!v3)
 		panic("nfsrv_pathconf: v3 proc called on a v2 connection");
+	vfslocked = 0;
 	fhp = &nfh.fh_generic;
 	nfsm_srvmtofh(fhp);
 	error = nfsrv_fhtovp(fhp, 1, &vp, &vfslocked, cred, slp,
