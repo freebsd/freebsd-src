@@ -1010,7 +1010,6 @@ ieee80211_tmp_node(struct ieee80211vap *vap,
 		ieee80211_node_initref(ni);		/* mark referenced */
 		/* NB: required by ieee80211_fix_rate */
 		ieee80211_node_set_chan(ni, vap->iv_bss->ni_chan);
-		ni->ni_txpower = vap->iv_bss->ni_txpower;
 		ieee80211_crypto_resetkey(vap, &ni->ni_ucastkey,
 			IEEE80211_KEYIX_NONE);
 		/* XXX optimize away */
@@ -1036,7 +1035,6 @@ ieee80211_dup_bss(struct ieee80211vap *vap,
 		 * Inherit from iv_bss.
 		 */
 		ni->ni_authmode = vap->iv_bss->ni_authmode;
-		ni->ni_txpower = vap->iv_bss->ni_txpower;
 		ni->ni_vlan = vap->iv_bss->ni_vlan;	/* XXX?? */
 		IEEE80211_ADDR_COPY(ni->ni_bssid, vap->iv_bss->ni_bssid);
 		ieee80211_node_set_chan(ni, vap->iv_bss->ni_chan);
@@ -1067,7 +1065,6 @@ ieee80211_node_create_wds(struct ieee80211vap *vap,
 		 * Inherit any manually configured settings.
 		 */
 		ni->ni_authmode = vap->iv_bss->ni_authmode;
-		ni->ni_txpower = vap->iv_bss->ni_txpower;
 		ni->ni_vlan = vap->iv_bss->ni_vlan;
 		ieee80211_node_set_chan(ni, chan);
 		/* NB: propagate ssid so available to WPA supplicant */
