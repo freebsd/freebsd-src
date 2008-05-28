@@ -156,6 +156,12 @@ __FBSDID("$FreeBSD$");
 #include <dev/cnw/if_cnwioctl.h>
 #include <dev/cnw/if_cnwreg.h>
 
+/*
+ * Let these be patchable variables, initialized from macros that can
+ * be set in the kernel config file. Someone with lots of spare time
+ * could probably write a nice Netwave configuration program to do
+ * this a little bit more elegantly :-).
+ */
 #ifndef CNW_DOMAIN
 #define CNW_DOMAIN	0x100
 #endif
@@ -166,8 +172,23 @@ int cnw_domain = (int)CNW_DOMAIN;		/* Domain */
 #endif
 int cnw_skey = CNW_SCRAMBLEKEY;			/* Scramble key */
 
+/*
+ * The card appears to work much better when we only allow one packet
+ * "in the air" at a time.  This is done by not allowing another packet
+ * on the card, even if there is room.  Turning this off will allow the
+ * driver to stuff packets on the card as soon as a transmit buffer is
+ * available.  This does increase the number of collisions, though.
+ * We can que a second packet if there are transmit buffers available,
+ * but we do not actually send the packet until the last packet has
+ * been written.
+ */
 #define ONE_AT_A_TIME
 
+/*
+ * Netwave cards choke if we try to use io memory address >= 0x400.
+ * Even though, CIS tuple does not talk about this.
+ * Use memory mapped access.
+ */
 #ifndef MEMORY_MAPPED
 #define MEMORY_MAPPED
 #endif
