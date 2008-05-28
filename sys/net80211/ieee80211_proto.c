@@ -1261,6 +1261,46 @@ ieee80211_stop_all(struct ieee80211com *ic)
 }
 
 /*
+ * Stop all vap's running on a device and arrange
+ * for those that were running to be resumed.
+ */
+void
+ieee80211_suspend_all(struct ieee80211com *ic)
+{
+	struct ieee80211vap *vap;
+
+	IEEE80211_LOCK(ic);
+	TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next) {
+		struct ifnet *ifp = vap->iv_ifp;
+		if (IFNET_IS_UP_RUNNING(ifp)) {	/* NB: avoid recursion */
+			vap->iv_flags_ext |= IEEE80211_FEXT_RESUME;
+			ieee80211_stop_locked(vap);
+		}
+	}
+	IEEE80211_UNLOCK(ic);
+}
+
+/*
+ * Start all vap's marked for resume.
+ */
+void
+ieee80211_resume_all(struct ieee80211com *ic)
+{
+	struct ieee80211vap *vap;
+
+	IEEE80211_LOCK(ic);
+	TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next) {
+		struct ifnet *ifp = vap->iv_ifp;
+		if (!IFNET_IS_UP_RUNNING(ifp) &&
+		    (vap->iv_flags_ext & IEEE80211_FEXT_RESUME)) {
+			vap->iv_flags_ext &= ~IEEE80211_FEXT_RESUME;
+			ieee80211_start_locked(vap);
+		}
+	}
+	IEEE80211_UNLOCK(ic);
+}
+
+/*
  * Switch between turbo and non-turbo operating modes.
  * Use the specified channel flags to locate the new
  * channel, update 802.11 state, and then call back into
