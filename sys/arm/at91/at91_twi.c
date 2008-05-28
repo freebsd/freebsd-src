@@ -192,7 +192,7 @@ at91_twi_deactivate(device_t dev)
 	sc->intrhand = 0;
 	bus_generic_detach(sc->dev);
 	if (sc->mem_res)
-		bus_release_resource(dev, SYS_RES_IOPORT,
+		bus_release_resource(dev, SYS_RES_MEMORY,
 		    rman_get_rid(sc->mem_res), sc->mem_res);
 	sc->mem_res = 0;
 	if (sc->irq_res)
