@@ -91,10 +91,11 @@ static MALLOC_DEFINE(M_SIGIO, "sigio", "sigio structures");
 static uma_zone_t file_zone;
 
 
-/* How to treat 'new' parameter when allocating a fd for do_dup(). */
-enum dup_type { DUP_VARIABLE, DUP_FIXED };
+/* Flags for do_dup() */
+#define DUP_FIXED	0x1	/* Force fixed allocation */
+#define DUP_FCNTL	0x2	/* fcntl()-style errors */
 
-static int do_dup(struct thread *td, enum dup_type type, int old, int new,
+static int do_dup(struct thread *td, int flags, int old, int new,
     register_t *retval);
 static int	fd_first_free(struct filedesc *, int, int);
 static int	fd_last_used(struct filedesc *, int, int);
@@ -302,7 +303,7 @@ int
 dup(struct thread *td, struct dup_args *uap)
 {
 
-	return (do_dup(td, DUP_VARIABLE, (int)uap->fd, 0, td->td_retval));
+	return (do_dup(td, 0, (int)uap->fd, 0, td->td_retval));
 }
 
 /*
@@ -405,7 +406,6 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 	struct proc *p;
 	char *pop;
 	struct vnode *vp;
-	u_int newmin;
 	int error, flg, tmp;
 	int vfslocked;
 
@@ -417,23 +417,8 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 
 	switch (cmd) {
 	case F_DUPFD:
-		FILEDESC_SLOCK(fdp);
-		if ((fp = fdtofp(fd, fdp)) == NULL) {
-			FILEDESC_SUNLOCK(fdp);
-			error = EBADF;
-			break;
-		}
-		FILEDESC_SUNLOCK(fdp);
-		newmin = arg;
-		PROC_LOCK(p);
-		if (newmin >= lim_cur(p, RLIMIT_NOFILE) ||
-		    newmin >= maxfilesperproc) {
-			PROC_UNLOCK(p);
-			error = EINVAL;
-			break;
-		}
-		PROC_UNLOCK(p);
-		error = do_dup(td, DUP_VARIABLE, fd, newmin, td->td_retval);
+		tmp = arg;
+		error = do_dup(td, DUP_FCNTL, fd, tmp, td->td_retval);
 		break;
 
 	case F_DUP2FD:
@@ -700,7 +685,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
  * Common code for dup, dup2, fcntl(F_DUPFD) and fcntl(F_DUP2FD).
  */
 static int
-do_dup(struct thread *td, enum dup_type type, int old, int new,
+do_dup(struct thread *td, int flags, int old, int new,
     register_t *retval)
 {
 	struct filedesc *fdp;
@@ -709,30 +694,30 @@ do_dup(struct thread *td, enum dup_type type, int old, int new,
 	struct file *delfp;
 	int error, holdleaders, maxfd;
 
-	KASSERT((type == DUP_VARIABLE || type == DUP_FIXED),
-	    ("invalid dup type %d", type));
-
 	p = td->td_proc;
 	fdp = p->p_fd;
 
 	/*
 	 * Verify we have a valid descriptor to dup from and possibly to
-	 * dup to.
+	 * dup to. Unlike dup() and dup2(), fcntl()'s F_DUPFD should
+	 * return EINVAL when the new descriptor is out of bounds.
 	 */
-	if (old < 0 || new < 0)
+	if (old < 0)
 		return (EBADF);
+	if (new < 0)
+		return (flags & DUP_FCNTL ? EINVAL : EBADF);
 	PROC_LOCK(p);
 	maxfd = min((int)lim_cur(p, RLIMIT_NOFILE), maxfilesperproc);
 	PROC_UNLOCK(p);
 	if (new >= maxfd)
-		return (EMFILE);
+		return (flags & DUP_FCNTL ? EINVAL : EMFILE);
 
 	FILEDESC_XLOCK(fdp);
 	if (old >= fdp->fd_nfiles || fdp->fd_ofiles[old] == NULL) {
 		FILEDESC_XUNLOCK(fdp);
 		return (EBADF);
 	}
-	if (type == DUP_FIXED && old == new) {
+	if (flags & DUP_FIXED && old == new) {
 		*retval = new;
 		FILEDESC_XUNLOCK(fdp);
 		return (0);
@@ -747,7 +732,7 @@ do_dup(struct thread *td, enum dup_type type, int old, int new,
 	 * lock may be temporarily dropped in the process, we have to look
 	 * out for a race.
 	 */
-	if (type == DUP_FIXED) {
+	if (flags & DUP_FIXED) {
 		if (new >= fdp->fd_nfiles)
 			fdgrowtable(fdp, new + 1);
 		if (fdp->fd_ofiles[new] == NULL)
