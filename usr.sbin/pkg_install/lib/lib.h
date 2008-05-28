@@ -105,7 +105,7 @@
  * Version of the package tools - increase only when some
  * functionality used by bsd.port.mk is changed, added or removed
  */
-#define PKG_INSTALL_VERSION	20040629
+#define PKG_INSTALL_VERSION	20080528
 
 #define PKG_WRAPCONF_FNAME	"/var/db/pkg_install.conf"
 #define main(argc, argv)	real_main(argc, argv)
