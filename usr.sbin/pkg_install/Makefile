@@ -10,7 +10,7 @@ CP=	/bin/cp
 RM=	/bin/rm
 TAR=	/usr/bin/tar
 
-DATE!=	date +%Y%m%d
+DATE!=	grep PKG_INSTALL_VERSION ${.CURDIR}/lib/lib.h | sed 's|.*[ 	]||'
 
 distfile: clean
 	@(cd ${.CURDIR}/..; \
