@@ -129,7 +129,7 @@ ccmp_setkey(struct ieee80211_key *k)
 			__func__, k->wk_keylen, 128/NBBY);
 		return 0;
 	}
-	if (k->wk_flags & IEEE80211_KEY_SWCRYPT)
+	if (k->wk_flags & IEEE80211_KEY_SWENCRYPT)
 		rijndael_set_key(&ctx->cc_aes, k->wk_key, k->wk_keylen*NBBY);
 	return 1;
 }
@@ -170,7 +170,7 @@ ccmp_encap(struct ieee80211_key *k, struct mbuf *m, uint8_t keyid)
 	/*
 	 * Finally, do software encrypt if neeed.
 	 */
-	if ((k->wk_flags & IEEE80211_KEY_SWCRYPT) &&
+	if ((k->wk_flags & IEEE80211_KEY_SWENCRYPT) &&
 	    !ccmp_encrypt(k, m, hdrlen))
 		return 0;
 
@@ -242,7 +242,7 @@ ccmp_decap(struct ieee80211_key *k, struct mbuf *m, int hdrlen)
 	 * latter we leave the header in place for use in the
 	 * decryption work.
 	 */
-	if ((k->wk_flags & IEEE80211_KEY_SWCRYPT) &&
+	if ((k->wk_flags & IEEE80211_KEY_SWDECRYPT) &&
 	    !ccmp_decrypt(k, pn, m, hdrlen))
 		return 0;
 

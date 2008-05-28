@@ -717,7 +717,7 @@ ieee80211_mbuf_adjust(struct ieee80211vap *vap, int hdrsize,
 		 * a writable mbuf chain.
 		 * XXX handle SWMIC specially
 		 */
-		if (key->wk_flags & (IEEE80211_KEY_SWCRYPT|IEEE80211_KEY_SWMIC)) {
+		if (key->wk_flags & (IEEE80211_KEY_SWENCRYPT|IEEE80211_KEY_SWENMIC)) {
 			m = m_unshare(m, M_NOWAIT);
 			if (m == NULL) {
 				IEEE80211_DPRINTF(vap, IEEE80211_MSG_OUTPUT,
