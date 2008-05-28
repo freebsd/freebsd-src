@@ -265,6 +265,8 @@ void	ieee80211_start_all(struct ieee80211com *);
 void	ieee80211_stop_locked(struct ieee80211vap *);
 void	ieee80211_stop(struct ieee80211vap *);
 void	ieee80211_stop_all(struct ieee80211com *);
+void	ieee80211_suspend_all(struct ieee80211com *);
+void	ieee80211_resume_all(struct ieee80211com *);
 void	ieee80211_dturbo_switch(struct ieee80211vap *, int newflags);
 void	ieee80211_swbmiss(void *arg);
 void	ieee80211_beacon_miss(struct ieee80211com *);
