@@ -2108,6 +2108,9 @@ mfi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
 	struct mfi_softc *sc;
 	union mfi_statrequest *ms;
 	struct mfi_ioc_packet *ioc;
+#ifdef __amd64__
+	struct mfi_ioc_packet32 *ioc32;
+#endif
 	struct mfi_ioc_aen *aen;
 	struct mfi_command *cm = NULL;
 	uint32_t context;
@@ -2165,6 +2168,9 @@ mfi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
 		break;
 	}
 	case MFI_CMD:
+#ifdef __amd64__
+	case MFI_CMD32:
+#endif
 		{
 		devclass_t devclass;
 		ioc = (struct mfi_ioc_packet *)arg;
@@ -2222,9 +2228,27 @@ mfi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
 		temp = data;
 		if (cm->cm_flags & MFI_CMD_DATAOUT) {
 			for (i = 0; i < ioc->mfi_sge_count; i++) {
+#ifdef __amd64__
+				if (cmd == MFI_CMD) {
+					/* Native */
+					error = copyin(ioc->mfi_sgl[i].iov_base,
+					       temp,
+					       ioc->mfi_sgl[i].iov_len);
+				} else {
+					void *temp_convert;
+					/* 32bit */
+					ioc32 = (struct mfi_ioc_packet32 *)ioc;
+					temp_convert =
+					    PTRIN(ioc32->mfi_sgl[i].iov_base);
+					error = copyin(temp_convert,
+					       temp,
+					       ioc32->mfi_sgl[i].iov_len);
+				}
+#else
 				error = copyin(ioc->mfi_sgl[i].iov_base,
 				       temp,
 				       ioc->mfi_sgl[i].iov_len);
+#endif
 				if (error != 0) {
 					device_printf(sc->mfi_dev,
 					    "Copy in failed\n");
@@ -2257,9 +2281,27 @@ mfi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
 		temp = data;
 		if (cm->cm_flags & MFI_CMD_DATAIN) {
 			for (i = 0; i < ioc->mfi_sge_count; i++) {
+#ifdef __amd64__
+				if (cmd == MFI_CMD) {
+					/* Native */
+					error = copyout(temp,
+						ioc->mfi_sgl[i].iov_base,
+						ioc->mfi_sgl[i].iov_len);
+				} else {
+					void *temp_convert;
+					/* 32bit */
+					ioc32 = (struct mfi_ioc_packet32 *)ioc;
+					temp_convert =
+					    PTRIN(ioc32->mfi_sgl[i].iov_base);
+					error = copyout(temp,
+						temp_convert,
+						ioc32->mfi_sgl[i].iov_len);
+				}
+#else
 				error = copyout(temp,
 					ioc->mfi_sgl[i].iov_base,
 					ioc->mfi_sgl[i].iov_len);
+#endif
 				if (error != 0) {
 					device_printf(sc->mfi_dev,
 					    "Copy out failed\n");
