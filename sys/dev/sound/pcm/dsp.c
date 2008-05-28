@@ -661,7 +661,14 @@ dsp_close(struct cdev *i_dev, int flags, int mode, struct thread *td)
 			 * process.
 			 */
 			(void)snd_clone_release(i_dev);
+
+			/*
+			 * destroy_dev() might sleep, so release pcm lock
+			 * here and rely on pcm cv serialization.
+			 */
+			pcm_unlock(d);
 			(void)snd_clone_unref(i_dev);
+			pcm_lock(d);
 		}
 		PCM_RELEASE(d);
 	}
