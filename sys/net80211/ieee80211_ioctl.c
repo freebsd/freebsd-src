@@ -1135,8 +1135,9 @@ ieee80211_ioctl_setkey(struct ieee80211vap *vap, struct ieee80211req *ireq)
 		wk->wk_keytsc = 0;			/* new key, reset */
 		memset(wk->wk_key, 0, sizeof(wk->wk_key));
 		memcpy(wk->wk_key, ik.ik_keydata, ik.ik_keylen);
-		if (!ieee80211_crypto_setkey(vap, wk,
-		    ni != NULL ? ni->ni_macaddr : ik.ik_macaddr))
+		IEEE80211_ADDR_COPY(wk->wk_macaddr,
+		    ni != NULL ?  ni->ni_macaddr : ik.ik_macaddr);
+		if (!ieee80211_crypto_setkey(vap, wk))
 			error = EIO;
 		else if ((ik.ik_flags & IEEE80211_KEY_DEFAULT))
 			vap->iv_def_txkey = kid;
@@ -2502,7 +2503,8 @@ ieee80211_ioctl_set80211(struct ieee80211vap *vap, u_long cmd, struct ieee80211r
 		    IEEE80211_KEY_XMIT | IEEE80211_KEY_RECV, k)) {
 			k->wk_keylen = ireq->i_len;
 			memcpy(k->wk_key, tmpkey, sizeof(tmpkey));
-			if  (!ieee80211_crypto_setkey(vap, k, vap->iv_myaddr))
+			IEEE80211_ADDR_COPY(k->wk_macaddr, vap->iv_myaddr);
+			if  (!ieee80211_crypto_setkey(vap, k))
 				error = EINVAL;
 		} else
 			error = EINVAL;
