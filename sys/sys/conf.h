@@ -223,8 +223,6 @@ struct cdevsw {
 
 #define NUMCDEVSW 256
 
-#define MAXMINOR	0xffff00ffU
-
 struct module;
 
 struct devsw_module_data {
