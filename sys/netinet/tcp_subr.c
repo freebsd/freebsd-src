@@ -946,7 +946,7 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 	INP_INFO_RLOCK(&tcbinfo);
 	for (inp = LIST_FIRST(tcbinfo.ipi_listhead), i = 0; inp != NULL && i
 	    < n; inp = LIST_NEXT(inp, inp_list)) {
-		INP_WLOCK(inp);
+		INP_RLOCK(inp);
 		if (inp->inp_gencnt <= gencnt) {
 			/*
 			 * XXX: This use of cr_cansee(), introduced with
@@ -965,7 +965,7 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 			if (error == 0)
 				inp_list[i++] = inp;
 		}
-		INP_WUNLOCK(inp);
+		INP_RUNLOCK(inp);
 	}
 	INP_INFO_RUNLOCK(&tcbinfo);
 	n = i;
@@ -973,7 +973,7 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 	error = 0;
 	for (i = 0; i < n; i++) {
 		inp = inp_list[i];
-		INP_WLOCK(inp);
+		INP_RLOCK(inp);
 		if (inp->inp_gencnt <= gencnt) {
 			struct xtcpcb xt;
 			void *inp_ppcb;
@@ -997,10 +997,10 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 				xt.xt_socket.xso_protocol = IPPROTO_TCP;
 			}
 			xt.xt_inp.inp_gencnt = inp->inp_gencnt;
-			INP_WUNLOCK(inp);
+			INP_RUNLOCK(inp);
 			error = SYSCTL_OUT(req, &xt, sizeof xt);
 		} else
-			INP_WUNLOCK(inp);
+			INP_RUNLOCK(inp);
 	
 	}
 	if (!error) {
@@ -1042,23 +1042,21 @@ tcp_getcred(SYSCTL_HANDLER_ARGS)
 	INP_INFO_RLOCK(&tcbinfo);
 	inp = in_pcblookup_hash(&tcbinfo, addrs[1].sin_addr, addrs[1].sin_port,
 	    addrs[0].sin_addr, addrs[0].sin_port, 0, NULL);
-	if (inp == NULL) {
+	if (inp != NULL) {
+		INP_RLOCK(inp);
+		INP_INFO_RUNLOCK(&tcbinfo);
+		if (inp->inp_socket == NULL)
+			error = ENOENT;
+		if (error == 0)
+			error = cr_canseesocket(req->td->td_ucred,
+			    inp->inp_socket);
+		if (error == 0)
+			cru2x(inp->inp_socket->so_cred, &xuc);
+		INP_RUNLOCK(inp);
+	} else {
+		INP_INFO_RUNLOCK(&tcbinfo);
 		error = ENOENT;
-		goto outunlocked;
 	}
-	INP_WLOCK(inp);
-	if (inp->inp_socket == NULL) {
-		error = ENOENT;
-		goto out;
-	}
-	error = cr_canseesocket(req->td->td_ucred, inp->inp_socket);
-	if (error)
-		goto out;
-	cru2x(inp->inp_socket->so_cred, &xuc);
-out:
-	INP_WUNLOCK(inp);
-outunlocked:
-	INP_INFO_RUNLOCK(&tcbinfo);
 	if (error == 0)
 		error = SYSCTL_OUT(req, &xuc, sizeof(struct xucred));
 	return (error);
@@ -1106,23 +1104,21 @@ tcp6_getcred(SYSCTL_HANDLER_ARGS)
 		inp = in6_pcblookup_hash(&tcbinfo,
 			&addrs[1].sin6_addr, addrs[1].sin6_port,
 			&addrs[0].sin6_addr, addrs[0].sin6_port, 0, NULL);
-	if (inp == NULL) {
+	if (inp != NULL) {
+		INP_RLOCK(inp);
+		INP_INFO_RUNLOCK(&tcbinfo);
+		if (inp->inp_socket == NULL)
+			error = ENOENT;
+		if (error == 0)
+			error = cr_canseesocket(req->td->td_ucred,
+			    inp->inp_socket);
+		if (error == 0)
+			cru2x(inp->inp_socket->so_cred, &xuc);
+		INP_RUNLOCK(inp);
+	} else {
+		INP_INFO_RUNLOCK(&tcbinfo);
 		error = ENOENT;
-		goto outunlocked;
 	}
-	INP_WLOCK(inp);
-	if (inp->inp_socket == NULL) {
-		error = ENOENT;
-		goto out;
-	}
-	error = cr_canseesocket(req->td->td_ucred, inp->inp_socket);
-	if (error)
-		goto out;
-	cru2x(inp->inp_socket->so_cred, &xuc);
-out:
-	INP_WUNLOCK(inp);
-outunlocked:
-	INP_INFO_RUNLOCK(&tcbinfo);
 	if (error == 0)
 		error = SYSCTL_OUT(req, &xuc, sizeof(struct xucred));
 	return (error);
