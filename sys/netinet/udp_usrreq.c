@@ -669,11 +669,11 @@ udp_pcblist(SYSCTL_HANDLER_ARGS)
 	INP_INFO_RLOCK(&udbinfo);
 	for (inp = LIST_FIRST(udbinfo.ipi_listhead), i = 0; inp && i < n;
 	     inp = LIST_NEXT(inp, inp_list)) {
-		INP_WLOCK(inp);
+		INP_RLOCK(inp);
 		if (inp->inp_gencnt <= gencnt &&
 		    cr_canseesocket(req->td->td_ucred, inp->inp_socket) == 0)
 			inp_list[i++] = inp;
-		INP_WUNLOCK(inp);
+		INP_RUNLOCK(inp);
 	}
 	INP_INFO_RUNLOCK(&udbinfo);
 	n = i;
@@ -681,7 +681,7 @@ udp_pcblist(SYSCTL_HANDLER_ARGS)
 	error = 0;
 	for (i = 0; i < n; i++) {
 		inp = inp_list[i];
-		INP_WLOCK(inp);
+		INP_RLOCK(inp);
 		if (inp->inp_gencnt <= gencnt) {
 			struct xinpcb xi;
 			bzero(&xi, sizeof(xi));
@@ -691,10 +691,10 @@ udp_pcblist(SYSCTL_HANDLER_ARGS)
 			if (inp->inp_socket)
 				sotoxsocket(inp->inp_socket, &xi.xi_socket);
 			xi.xi_inp.inp_gencnt = inp->inp_gencnt;
-			INP_WUNLOCK(inp);
+			INP_RUNLOCK(inp);
 			error = SYSCTL_OUT(req, &xi, sizeof xi);
 		} else
-			INP_WUNLOCK(inp);
+			INP_RUNLOCK(inp);
 	}
 	if (!error) {
 		/*
@@ -734,16 +734,21 @@ udp_getcred(SYSCTL_HANDLER_ARGS)
 	INP_INFO_RLOCK(&udbinfo);
 	inp = in_pcblookup_hash(&udbinfo, addrs[1].sin_addr, addrs[1].sin_port,
 				addrs[0].sin_addr, addrs[0].sin_port, 1, NULL);
-	if (inp == NULL || inp->inp_socket == NULL) {
+	if (inp != NULL) {
+		INP_RLOCK(inp);
+		INP_INFO_RUNLOCK(&udbinfo);
+		if (inp->inp_socket == NULL)
+			error = ENOENT;
+		if (error == 0)
+			error = cr_canseesocket(req->td->td_ucred,
+			    inp->inp_socket);
+		if (error == 0)
+			cru2x(inp->inp_socket->so_cred, &xuc);
+		INP_RUNLOCK(inp);
+	} else {
+		INP_INFO_RUNLOCK(&udbinfo);
 		error = ENOENT;
-		goto out;
 	}
-	error = cr_canseesocket(req->td->td_ucred, inp->inp_socket);
-	if (error)
-		goto out;
-	cru2x(inp->inp_socket->so_cred, &xuc);
-out:
-	INP_INFO_RUNLOCK(&udbinfo);
 	if (error == 0)
 		error = SYSCTL_OUT(req, &xuc, sizeof(struct xucred));
 	return (error);
