@@ -3866,7 +3866,10 @@ static int
 ath_rx_tap(struct ifnet *ifp, struct mbuf *m,
 	const struct ath_rx_status *rs, u_int64_t tsf, int16_t nf)
 {
-#define	CHANNEL_HT	(CHANNEL_HT20|CHANNEL_HT40PLUS|CHANNEL_HT40MINUS)
+#define	CHAN_HT		htole32(CHANNEL_HT20|CHANNEL_HT40PLUS|CHANNEL_HT40MINUS)
+#define	CHAN_HT20	htole32(IEEE80211_CHAN_HT20)
+#define	CHAN_HT40U	htole32(IEEE80211_CHAN_HT40U)
+#define	CHAN_HT40D	htole32(IEEE80211_CHAN_HT40D)
 	struct ath_softc *sc = ifp->if_softc;
 	u_int8_t rix;
 
@@ -3883,23 +3886,16 @@ ath_rx_tap(struct ifnet *ifp, struct mbuf *m,
 	sc->sc_rx_th.wr_rate = sc->sc_hwmap[rix].ieeerate;
 	sc->sc_rx_th.wr_flags = sc->sc_hwmap[rix].rxflags;
 #if HAL_ABI_VERSION >= 0x07050400
-	if (sc->sc_curchan.channelFlags & CHANNEL_HT) {
-		/*
-		 * For HT operation we must specify the channel
-		 * attributes for each packet since they vary.
-		 * We deduce this by from HT40 bit in the rx
-		 * status and the MCS/legacy rate bit.
-		 */
-		sc->sc_rx_th.wr_chan_flags &= ~IEEE80211_CHAN_HT;
-		if (sc->sc_rx_th.wr_rate & 0x80) {	/* HT rate */
-			/* XXX 40U/40D */
-			sc->sc_rx_th.wr_chan_flags |=
-			    (rs->rs_flags & HAL_RX_2040) ?
-				IEEE80211_CHAN_HT40U : IEEE80211_CHAN_HT20;
-			if ((rs->rs_flags & HAL_RX_GI) == 0)
-				sc->sc_rx_th.wr_flags |=
-				    IEEE80211_RADIOTAP_F_SHORTGI;
-		}
+	sc->sc_rx_th.wr_chan_flags &= ~CHAN_HT;
+	if (sc->sc_rx_th.wr_rate & 0x80) {		/* HT rate */
+		if ((rs->rs_flags & HAL_RX_2040) == 0)
+			sc->sc_rx_th.wr_chan_flags |= CHAN_HT20;
+		else if (sc->sc_curchan.channelFlags & CHANNEL_HT40PLUS)
+			sc->sc_rx_th.wr_chan_flags |= CHAN_HT40U;
+		else
+			sc->sc_rx_th.wr_chan_flags |= CHAN_HT40D;
+		if ((rs->rs_flags & HAL_RX_GI) == 0)
+			sc->sc_rx_th.wr_flags |= IEEE80211_RADIOTAP_F_SHORTGI;
 	}
 #endif
 	sc->sc_rx_th.wr_tsf = htole64(ath_extend_tsf(rs->rs_tstamp, tsf));
@@ -3913,7 +3909,10 @@ ath_rx_tap(struct ifnet *ifp, struct mbuf *m,
 	bpf_mtap2(ifp->if_bpf, &sc->sc_rx_th, sc->sc_rx_th_len, m);
 
 	return 1;
-#undef CHANNEL_HT
+#undef CHAN_HT20
+#undef CHAN_HT40U
+#undef CHAN_HT40D
+#undef CHAN_HT
 }
 
 static void
