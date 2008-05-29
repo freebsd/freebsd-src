@@ -277,7 +277,7 @@ upd7210attach(struct upd7210 *u)
 	struct cdev *dev;
 
 	if (units == NULL)
-		units = new_unrhdr(0, minor2unit(MAXMINOR), NULL);
+		units = new_unrhdr(0, INT_MAX, NULL);
 	u->unit = alloc_unr(units);
 	mtx_init(&u->mutex, "gpib", NULL, MTX_DEF);
 	u->cdev = make_dev(&gpib_l_cdevsw, u->unit,
