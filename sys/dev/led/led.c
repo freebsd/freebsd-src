@@ -15,6 +15,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
+#include <sys/limits.h>
 #include <sys/malloc.h>
 #include <sys/ctype.h>
 #include <sys/sbuf.h>
@@ -298,7 +299,7 @@ static void
 led_drvinit(void *unused)
 {
 
-	led_unit = new_unrhdr(0, minor2unit(MAXMINOR), NULL);
+	led_unit = new_unrhdr(0, INT_MAX, NULL);
 	mtx_init(&led_mtx, "LED mtx", NULL, MTX_DEF);
 	sx_init(&led_sx, "LED sx");
 	callout_init(&led_ch, CALLOUT_MPSAFE);
