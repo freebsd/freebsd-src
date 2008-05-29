@@ -596,10 +596,8 @@ update_window:
 		} else
 			spxstat.spxs_rcvpackafterwin++;
 		if (si->si_cc & SPX_OB) {
-			if (SSEQ_GT(si->si_seq, cb->s_alo + 60)) {
-				m_freem(dtom(si));
-				return (0);
-			} /* else queue this packet; */
+			if (SSEQ_GT(si->si_seq, cb->s_alo + 60))
+				return (1); /* else queue this packet; */
 		} else {
 #ifdef BROKEN
 			/*
@@ -615,8 +613,7 @@ update_window:
 				       would crash system*/
 #endif
 			spx_istat.notyet++;
-			m_freem(dtom(si));
-			return (0);
+			return (1);
 		}
 	}
 
