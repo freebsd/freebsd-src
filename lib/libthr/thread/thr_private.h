@@ -118,7 +118,6 @@ struct pthread_mutex {
 	struct umutex			m_lock;
 	enum pthread_mutextype		m_type;
 	struct pthread			*m_owner;
-	int				m_flags;
 	int				m_count;
 	int				m_refcount;
 	int				m_spinloops;
@@ -129,18 +128,10 @@ struct pthread_mutex {
 	TAILQ_ENTRY(pthread_mutex)	m_qe;
 };
 
-/*
- * Flags for mutexes. 
- */
-#define MUTEX_FLAGS_PRIVATE	0x01
-#define MUTEX_FLAGS_INITED	0x02
-#define MUTEX_FLAGS_BUSY	0x04
-
 struct pthread_mutex_attr {
 	enum pthread_mutextype	m_type;
 	int			m_protocol;
 	int			m_ceiling;
-	int			m_flags;
 };
 
 #define PTHREAD_MUTEXATTR_STATIC_INITIALIZER \
@@ -619,7 +610,6 @@ int	_mutex_cv_lock(pthread_mutex_t *, int count) __hidden;
 int	_mutex_cv_unlock(pthread_mutex_t *, int *count) __hidden;
 int	_mutex_reinit(pthread_mutex_t *) __hidden;
 void	_mutex_fork(struct pthread *curthread) __hidden;
-void	_mutex_unlock_private(struct pthread *) __hidden;
 void	_libpthread_init(struct pthread *) __hidden;
 struct pthread *_thr_alloc(struct pthread *) __hidden;
 void	_thread_exit(const char *, int, const char *) __hidden __dead2;
