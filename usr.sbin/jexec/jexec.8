@@ -34,7 +34,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl u Ar username | Fl U Ar username
-.Op Ar jid | Ar hostname | Ar ip-number
+.Op Fl h Ar hostname | Fl h Ar ip-number | Ar jid
 .Ar command ...
 .Sh DESCRIPTION
 The
@@ -42,11 +42,11 @@ The
 utility executes
 .Ar command
 inside the jail identified by
-.Ar jid 
-or
 .Ar hostname 
 or
-.Ar ip-number .
+.Ar ip-number 
+or
+.Ar jid .
 .Pp
 The following options are available:
 .Bl -tag -width indent
@@ -61,8 +61,7 @@ should run.
 .El
 .Sh "CAUTIONS"
 Only jid is guaranteed to uniquely identify a jail.
-For hostname or ip-number to work here unambiguousness of one or both
-of them have to be assured beforehand.
+Hostname or ip-number only work here if matched to one unique jail.
 .Sh SEE ALSO
 .Xr jail_attach 2 ,
 .Xr jail 8 ,
