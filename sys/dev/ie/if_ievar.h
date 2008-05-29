@@ -22,7 +22,6 @@ struct ie_softc {
 	void	 (*ie_chan_attn) (struct ie_softc *);
 	enum	 ie_hardware hard_type;
 	int	 hard_vers;
-	int	 unit;
 	u_char	 enaddr[6];
 
 	device_t		dev;
