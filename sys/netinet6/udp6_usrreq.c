@@ -449,20 +449,21 @@ udp6_getcred(SYSCTL_HANDLER_ARGS)
 	inp = in6_pcblookup_hash(&udbinfo, &addrs[1].sin6_addr,
 	    addrs[1].sin6_port, &addrs[0].sin6_addr, addrs[0].sin6_port, 1,
 	    NULL);
-	if (inp == NULL) {
+	if (inp != NULL) {
+		INP_RLOCK(inp);
 		INP_INFO_RUNLOCK(&udbinfo);
-		return (ENOENT);
-	}
-	INP_RLOCK(inp);
-	if (inp->inp_socket == NULL) {
+		if (inp->inp_socket == NULL)
+			error = ENOENT;
+		if (error == 0)
+			error = cr_canseesocket(req->td->td_ucred,
+			    inp->inp_socket);
+		if (error == 0)
+			cru2x(inp->inp_socket->so_cred, &xuc);
+		INP_RUNLOCK(inp);
+	} else {
+		INP_INFO_RUNLOCK(&udbinfo);
 		error = ENOENT;
-		goto out;
 	}
-	error = cr_canseesocket(req->td->td_ucred, inp->inp_socket);
-	if (error)
-		goto out;
-	cru2x(inp->inp_socket->so_cred, &xuc);
-out:
 	INP_RUNLOCK(inp);
 	INP_INFO_RUNLOCK(&udbinfo);
 	if (error == 0)
