@@ -501,7 +501,7 @@ minor(struct cdev *x)
 {
 	if (x == NULL)
 		return NODEV;
-	return(x->si_drv0 & MAXMINOR);
+	return (x->si_drv0);
 }
 
 int
@@ -510,23 +510,21 @@ dev2unit(struct cdev *x)
 
 	if (x == NULL)
 		return NODEV;
-	return (minor2unit(minor(x)));
+	return (x->si_drv0);
 }
 
 u_int
 minor2unit(u_int _minor)
 {
 
-	KASSERT((_minor & ~MAXMINOR) == 0, ("Illegal minor %x", _minor));
-	return ((_minor & 0xff) | ((_minor >> 8) & 0xffff00));
+	return (_minor);
 }
 
 int
 unit2minor(int unit)
 {
 
-	KASSERT(unit <= 0xffffff, ("Invalid unit (%d) in unit2minor", unit));
-	return ((unit & 0xff) | ((unit << 8) & ~0xffff));
+	return (unit);
 }
 
 static void
@@ -580,16 +578,18 @@ newdev(struct cdevsw *csw, int y, struct cdev *si)
 	return (si);
 }
 
+#define UMINORMASK	0xffff00ffU
+
 int
 uminor(dev_t dev)
 {
-	return (dev & MAXMINOR);
+	return (dev & UMINORMASK);
 }
 
 int
 umajor(dev_t dev)
 {
-	return ((dev & ~MAXMINOR) >> 8);
+	return ((dev & ~UMINORMASK) >> 8);
 }
 
 static void
@@ -696,9 +696,6 @@ make_dev_credv(int flags, struct cdevsw *devsw, int minornr,
 {
 	struct cdev *dev;
 	int i;
-
-	KASSERT((minornr & ~MAXMINOR) == 0,
-	    ("Invalid minor (0x%x) in make_dev", minornr));
 
 	dev = devfs_alloc();
 	dev_lock();

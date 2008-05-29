@@ -88,7 +88,7 @@ static void
 g_dev_init(struct g_class *mp)
 {
 
-	unithdr = new_unrhdr(0, minor2unit(MAXMINOR), NULL);
+	unithdr = new_unrhdr(0, INT_MAX, NULL);
 }
 
 void
