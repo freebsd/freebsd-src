@@ -273,7 +273,6 @@ ie_attach(device_t dev)
 	}
 
 	sc->dev = dev;
-	sc->unit = device_get_unit(dev);
 
 	/*
 	 * based on the amount of memory we have, allocate our tx and rx
@@ -366,7 +365,7 @@ loop:
 #ifdef DEBUG
 		in_ierint++;
 		if (ie_debug & IED_RINT)
-			printf("ie%d: rint\n", sc->unit);
+			if_printf(ifp, "rint\n");
 #endif
 		ierint(sc);
 #ifdef DEBUG
@@ -377,7 +376,7 @@ loop:
 #ifdef DEBUG
 		in_ietint++;
 		if (ie_debug & IED_TINT)
-			printf("ie%d: tint\n", sc->unit);
+			if_printf(ifp, "tint\n");
 #endif
 		ietint(sc);
 #ifdef DEBUG
@@ -387,13 +386,13 @@ loop:
 	if (status & IE_ST_RNR) {
 #ifdef DEBUG
 		if (ie_debug & IED_RNR)
-			printf("ie%d: rnr\n", sc->unit);
+			if_printf(ifp, "rnr\n");
 #endif
 		iernr(sc);
 	}
 #ifdef DEBUG
 	if ((status & IE_ST_ALLDONE) && (ie_debug & IED_CNA))
-		printf("ie%d: cna\n", sc->unit);
+		if_printf(ifp, "cna\n");
 #endif
 
 	if ((status = sc->scb->ie_status) & IE_ST_WHENCE)
@@ -462,35 +461,36 @@ ierint(struct ie_softc *sc)
 static int
 ietint(struct ie_softc *sc)
 {
+	struct ifnet *ifp = sc->ifp;
 	int	status;
 	int	i;
 
-	sc->ifp->if_timer = 0;
-	sc->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	ifp->if_timer = 0;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	for (i = 0; i < sc->xmit_count; i++) {
 		status = sc->xmit_cmds[i]->ie_xmit_status;
 
 		if (status & IE_XS_LATECOLL) {
-			printf("ie%d: late collision\n", sc->unit);
-			sc->ifp->if_collisions++;
-			sc->ifp->if_oerrors++;
+			if_printf(ifp, "late collision\n");
+			ifp->if_collisions++;
+			ifp->if_oerrors++;
 		} else if (status & IE_XS_NOCARRIER) {
-			printf("ie%d: no carrier\n", sc->unit);
-			sc->ifp->if_oerrors++;
+			if_printf(ifp, "no carrier\n");
+			ifp->if_oerrors++;
 		} else if (status & IE_XS_LOSTCTS) {
-			printf("ie%d: lost CTS\n", sc->unit);
-			sc->ifp->if_oerrors++;
+			if_printf(ifp, "lost CTS\n");
+			ifp->if_oerrors++;
 		} else if (status & IE_XS_UNDERRUN) {
-			printf("ie%d: DMA underrun\n", sc->unit);
-			sc->ifp->if_oerrors++;
+			if_printf(ifp, "DMA underrun\n");
+			ifp->if_oerrors++;
 		} else if (status & IE_XS_EXCMAX) {
-			printf("ie%d: too many collisions\n", sc->unit);
-			sc->ifp->if_collisions += 16;
-			sc->ifp->if_oerrors++;
+			if_printf(ifp, "too many collisions\n");
+			ifp->if_collisions += 16;
+			ifp->if_oerrors++;
 		} else {
-			sc->ifp->if_opackets++;
-			sc->ifp->if_collisions += status & IE_XS_MAXCOLL;
+			ifp->if_opackets++;
+			ifp->if_collisions += status & IE_XS_MAXCOLL;
 		}
 	}
 	sc->xmit_count = 0;
@@ -507,7 +507,7 @@ ietint(struct ie_softc *sc)
 	/* Wish I knew why this seems to be necessary... */
 	sc->xmit_cmds[0]->ie_xmit_status |= IE_STAT_COMPL;
 
-	iestart(sc->ifp);
+	iestart(ifp);
 	return (0);		/* shouldn't be necessary */
 }
 
@@ -632,8 +632,8 @@ ie_packet_len(struct ie_softc *sc)
 			print_rbd(sc->rbuffs[sc->rbhead]);
 #endif
 			log(LOG_ERR,
-			    "ie%d: receive descriptors out of sync at %d\n",
-			    sc->unit, sc->rbhead);
+			    "%s: receive descriptors out of sync at %d\n",
+			    sc->ifp->if_xname, sc->rbhead);
 			iereset(sc);
 			return (-1);
 		}
@@ -673,7 +673,7 @@ ieget(struct ie_softc *sc, struct mbuf **mp)
 	/*
 	 * Snarf the Ethernet header.
 	 */
-	bcopy((caddr_t)sc->cbuffs[sc->rbhead], &eh, sizeof(struct ether_header));
+	bcopy(sc->cbuffs[sc->rbhead], &eh, sizeof(struct ether_header));
 	/* ignore cast-qual warning here */
 
 	/*
@@ -863,7 +863,7 @@ ie_readframe(struct ie_softc *sc, int	num/* frame number to read */)
 #ifdef DEBUG
 	eh = mtod(m, struct ether_header *);
 	if (ie_debug & IED_READFRAME) {
-		printf("ie%d: frame from ether %6D type %x\n", sc->unit,
+		if_printf(ifp, "frame from ether %6D type %x\n",
 		       eh->ether_shost, ":", (unsigned) eh->ether_type);
 	}
 	if (ntohs(eh->ether_type) > ETHERTYPE_TRAIL
@@ -894,8 +894,8 @@ ie_drop_packet_buffer(struct ie_softc *sc)
 #ifdef DEBUG
 			print_rbd(sc->rbuffs[sc->rbhead]);
 #endif
-			log(LOG_ERR, "ie%d: receive descriptors out of sync at %d\n",
-			    sc->unit, sc->rbhead);
+			log(LOG_ERR, "%s: receive descriptors out of sync at %d\n",
+			    sc->ifp->if_xname, sc->rbhead);
 			iereset(sc);
 			return;
 		}
@@ -1234,28 +1234,29 @@ sl_read_ether(struct ie_softc *sc, unsigned char *addr)
 static void
 iereset(struct ie_softc *sc)
 {
+	struct ifnet *ifp = sc->ifp;
 	int	s = splimp();
 
-	printf("ie%d: reset\n", sc->unit);
-	sc->ifp->if_flags &= ~IFF_UP;
-	ieioctl(sc->ifp, SIOCSIFFLAGS, 0);
+	if_printf(ifp, "reset\n");
+	ifp->if_flags &= ~IFF_UP;
+	ieioctl(ifp, SIOCSIFFLAGS, 0);
 
 	/*
 	 * Stop i82586 dead in its tracks.
 	 */
 	if (command_and_wait(sc, IE_RU_ABORT | IE_CU_ABORT, 0, 0))
-		printf("ie%d: abort commands timed out\n", sc->unit);
+		if_printf(ifp, "abort commands timed out\n");
 
 	if (command_and_wait(sc, IE_RU_DISABLE | IE_CU_STOP, 0, 0))
-		printf("ie%d: disable commands timed out\n", sc->unit);
+		if_printf(ifp, "disable commands timed out\n");
 
 #ifdef notdef
 	if (!check_ie_present(sc))
 		panic("ie disappeared!");
 #endif
 
-	sc->ifp->if_flags |= IFF_UP;
-	ieioctl(sc->ifp, SIOCSIFFLAGS, 0);
+	ifp->if_flags |= IFF_UP;
+	ieioctl(ifp, SIOCSIFFLAGS, 0);
 
 	splx(s);
 	return;
@@ -1355,15 +1356,15 @@ run_tdr(struct ie_softc *sc, volatile struct ie_tdr_cmd *cmd)
 		return;
 
 	if (result & IE_TDR_XCVR) {
-		printf("ie%d: transceiver problem\n", sc->unit);
+		if_printf(sc->ifp, "transceiver problem\n");
 	} else if (result & IE_TDR_OPEN) {
-		printf("ie%d: TDR detected an open %d clocks away\n", sc->unit,
+		if_printf(sc->ifp, "TDR detected an open %d clocks away\n",
 		       result & IE_TDR_TIME);
 	} else if (result & IE_TDR_SHORT) {
-		printf("ie%d: TDR detected a short %d clocks away\n", sc->unit,
+		if_printf(sc->ifp, "TDR detected a short %d clocks away\n",
 		       result & IE_TDR_TIME);
 	} else {
-		printf("ie%d: TDR returned unknown status %x\n", sc->unit, result);
+		if_printf(sc->ifp, "TDR returned unknown status %x\n", result);
 	}
 }
 
@@ -1474,7 +1475,7 @@ mc_setup(struct ie_softc *sc)
 	sc->scb->ie_command_list = MK_16(MEM(sc), cmd);
 	if (command_and_wait(sc, IE_CU_START, cmd, IE_STAT_COMPL)
 	    || !(cmd->com.ie_cmd_status & IE_STAT_OK)) {
-		printf("ie%d: multicast address setup command failed\n", sc->unit);
+		if_printf(sc->ifp, "multicast address setup command failed\n");
 		return (0);
 	}
 	return (1);
@@ -1493,10 +1494,10 @@ ieinit(xsc)
 	void *xsc;
 {
 	struct ie_softc *sc = xsc;
+	struct ifnet *ifp = sc->ifp;
 	volatile struct ie_sys_ctl_block *scb = sc->scb;
 	caddr_t ptr;
 	int	i;
-	int	unit = sc->unit;
 
 	ptr = Alignvol((volatile char *) scb + sizeof *scb);
 
@@ -1516,7 +1517,7 @@ ieinit(xsc)
 
 		if (command_and_wait(sc, IE_CU_START, cmd, IE_STAT_COMPL)
 		 || !(cmd->com.ie_cmd_status & IE_STAT_OK)) {
-			printf("ie%d: configure command failed\n", unit);
+			if_printf(ifp, "configure command failed\n");
 			return;
 		}
 	}
@@ -1530,13 +1531,13 @@ ieinit(xsc)
 		cmd->com.ie_cmd_cmd = IE_CMD_IASETUP | IE_CMD_LAST;
 		cmd->com.ie_cmd_link = 0xffff;
 
-		bcopy((volatile char *)IF_LLADDR(sc->ifp),
+		bcopy((volatile char *)IF_LLADDR(ifp),
 		      (volatile char *)&cmd->ie_address, sizeof cmd->ie_address);
 		scb->ie_command_list = MK_16(MEM(sc), cmd);
 		if (command_and_wait(sc, IE_CU_START, cmd, IE_STAT_COMPL)
 		    || !(cmd->com.ie_cmd_status & IE_STAT_OK)) {
-			printf("ie%d: individual address "
-			       "setup command failed\n", sc->unit);
+			if_printf(ifp, "individual address "
+			       "setup command failed\n");
 			return;
 		}
 	}
@@ -1601,9 +1602,9 @@ ieinit(xsc)
 		ee16_interrupt_enable(sc);
 		ee16_chan_attn(sc);
 	}
-	sc->ifp->if_drv_flags |= IFF_DRV_RUNNING;	/* tell higher levels
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;	/* tell higher levels
 							 * we're here */
-	sc->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	start_receiver(sc);
 
