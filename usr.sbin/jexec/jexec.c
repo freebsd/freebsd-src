@@ -43,7 +43,7 @@
 #include <string.h>
 
 static void	usage(void);
-int	addr2jid(const char *addr);
+static int	addr2jid(const char *addr);
 
 #define GET_USER_INFO do {						\
 	pwd = getpwnam(username);					\
@@ -68,12 +68,12 @@ main(int argc, char *argv[])
 	login_cap_t *lcap = NULL;
 	struct passwd *pwd = NULL;
 	gid_t groups[NGROUPS];
-	int ch, ngroups, uflag, Uflag;
+	int ch, ngroups, uflag, Uflag, hflag;
 	char *username;
-	ch = uflag = Uflag = 0;
+	ch = uflag = Uflag = hflag = 0;
 	username = NULL;
 
-	while ((ch = getopt(argc, argv, "u:U:")) != -1) {
+	while ((ch = getopt(argc, argv, "u:U:h")) != -1) {
 		switch (ch) {
 		case 'u':
 			username = optarg;
@@ -82,6 +82,9 @@ main(int argc, char *argv[])
 		case 'U':
 			username = optarg;
 			Uflag = 1;
+			break;
+		case 'h':
+			hflag = 1;
 			break;
 		default:
 			usage();
@@ -95,10 +98,13 @@ main(int argc, char *argv[])
 		usage();
 	if (uflag)
 		GET_USER_INFO;
-	jid = (int)strtol(argv[0], NULL, 10);
-	if (jail_attach(jid) == -1)
-		if (jail_attach(addr2jid(argv[0])) == -1)
+	if (hflag) {
+		if ((jid = addr2jid(argv[0])) == 0)
 			errx(1, "jail_attach(): Cannot convert %s to jid", argv[0]);
+	} else
+		jid = (int)strtol(argv[0], NULL, 10);
+	if (jail_attach(jid) == -1)
+		err(1, "jail_attach(): %d", jid);
 	if (chdir("/") == -1)
 		err(1, "chdir(): /");
 	if (username != NULL) {
@@ -124,16 +130,18 @@ usage(void)
 
 	fprintf(stderr, "%s%s\n",
 		"usage: jexec [-u username | -U username]",
-		" [jid | hostname | ip-number] command ...");
+		" [-h hostname | -h ip-number | jid] command ...");
 	exit(1); 
 }
 
-int 
+static int 
 addr2jid(const char *addr)
 {
 	struct xprison *sxp, *xp;
 	struct in_addr in;
-	size_t i, len, slen;
+	size_t i, len;
+	int jid, cnt;
+	jid = cnt = 0;
 
 	if (sysctlbyname("security.jail.list", NULL, &len, NULL, 0) == -1)
 		err(1, "sysctlbyname(): security.jail.list");
@@ -158,16 +166,18 @@ addr2jid(const char *addr)
 	if (len < sizeof(*xp) || len % sizeof(*xp) ||
 	    xp->pr_version != XPRISON_VERSION)
 		errx(1, "Kernel and userland out of sync");
-	slen = strlen(addr);
 	for (i = 0; i < len / sizeof(*xp); i++) {
 		in.s_addr = ntohl(xp->pr_ip);
-		if ((strncmp(inet_ntoa(in), addr, slen) == 0) ||
-		    (strncmp(xp->pr_host, addr, slen) == 0)) {
-			free(sxp);
-			return (xp->pr_id);
+		if ((strcmp(inet_ntoa(in), addr) == 0) ||
+		    (strcmp(xp->pr_host, addr) == 0)) {
+			jid = xp->pr_id;
+			cnt++;
 		}
 		xp++;
 	}
 	free(sxp);
-	return 0;
+	if (cnt == 1)
+		return (jid);
+	else
+		return(0);
 }
