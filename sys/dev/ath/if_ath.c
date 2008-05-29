@@ -138,6 +138,8 @@ static void	ath_fatal_proc(void *, int);
 static void	ath_rxorn_proc(void *, int);
 static void	ath_bmiss_vap(struct ieee80211vap *);
 static void	ath_bmiss_proc(void *, int);
+static int	ath_keyset(struct ath_softc *, const struct ieee80211_key *,
+			struct ieee80211_node *);
 static int	ath_key_alloc(struct ieee80211vap *,
 			const struct ieee80211_key *,
 			ieee80211_keyix *, ieee80211_keyix *);
@@ -1056,29 +1058,69 @@ void
 ath_suspend(struct ath_softc *sc)
 {
 	struct ifnet *ifp = sc->sc_ifp;
+	struct ieee80211com *ic = ifp->if_l2com;
 
 	DPRINTF(sc, ATH_DEBUG_ANY, "%s: if_flags %x\n",
 		__func__, ifp->if_flags);
 
-	ath_stop(ifp);
+	sc->sc_resume_up = (ifp->if_flags & IFF_UP) != 0;
+	if (ic->ic_opmode == IEEE80211_M_STA)
+		ath_stop(ifp);
+	else
+		ieee80211_suspend_all(ic);
+	/*
+	 * NB: don't worry about putting the chip in low power
+	 * mode; pci will power off our socket on suspend and
+	 * cardbus detaches the device.
+	 */
+}
+
+/*
+ * Reset the key cache since some parts do not reset the
+ * contents on resume.  First we clear all entries, then
+ * re-load keys that the 802.11 layer assumes are setup
+ * in h/w.
+ */
+static void
+ath_reset_keycache(struct ath_softc *sc)
+{
+	struct ifnet *ifp = sc->sc_ifp;
+	struct ieee80211com *ic = ifp->if_l2com;
+	struct ath_hal *ah = sc->sc_ah;
+	int i;
+
+	for (i = 0; i < sc->sc_keymax; i++)
+		ath_hal_keyreset(ah, i);
+	ieee80211_crypto_reload_keys(ic);
 }
 
 void
 ath_resume(struct ath_softc *sc)
 {
 	struct ifnet *ifp = sc->sc_ifp;
+	struct ieee80211com *ic = ifp->if_l2com;
+	struct ath_hal *ah = sc->sc_ah;
+	HAL_STATUS status;
 
 	DPRINTF(sc, ATH_DEBUG_ANY, "%s: if_flags %x\n",
 		__func__, ifp->if_flags);
 
-	if (ifp->if_flags & IFF_UP) {
-		ath_init(sc);
-		if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-			ath_start(ifp);
+	/*
+	 * Must reset the chip before we reload the
+	 * keycache as we were powered down on suspend.
+	 */
+	ath_hal_reset(ah, sc->sc_opmode, &sc->sc_curchan, AH_FALSE, &status);
+	ath_reset_keycache(sc);
+	if (sc->sc_resume_up) {
+		if (ic->ic_opmode == IEEE80211_M_STA) {
+			ath_init(sc);
+			ieee80211_beacon_miss(ic);
+		} else
+			ieee80211_resume_all(ic);
 	}
 	if (sc->sc_softled) {
-		ath_hal_gpioCfgOutput(sc->sc_ah, sc->sc_ledpin);
-		ath_hal_gpioset(sc->sc_ah, sc->sc_ledpin, !sc->sc_ledon);
+		ath_hal_gpioCfgOutput(ah, sc->sc_ledpin);
+		ath_hal_gpioset(ah, sc->sc_ledpin, !sc->sc_ledon);
 	}
 }
 
@@ -1091,6 +1133,7 @@ ath_shutdown(struct ath_softc *sc)
 		__func__, ifp->if_flags);
 
 	ath_stop(ifp);
+	/* NB: no point powering down chip as we're about to reboot */
 }
 
 /*
@@ -1468,18 +1511,6 @@ ath_stop(struct ifnet *ifp)
 
 	ATH_LOCK(sc);
 	ath_stop_locked(ifp);
-	if (!sc->sc_invalid) {
-		/*
-		 * Set the chip in full sleep mode.  Note that we are
-		 * careful to do this only when bringing the interface
-		 * completely to a stop.  When the chip is in this state
-		 * it must be carefully woken up or references to
-		 * registers in the PCI clock domain may freeze the bus
-		 * (and system).  This varies by chip and is mostly an
-		 * issue with newer parts that go to sleep more quickly.
-		 */
-		ath_hal_setpower(sc->sc_ah, HAL_PM_FULL_SLEEP);
-	}
 	ATH_UNLOCK(sc);
 }
 
@@ -2155,7 +2186,6 @@ ath_keyset_tkip(struct ath_softc *sc, const struct ieee80211_key *k,
  */
 static int
 ath_keyset(struct ath_softc *sc, const struct ieee80211_key *k,
-	const u_int8_t mac0[IEEE80211_ADDR_LEN],
 	struct ieee80211_node *bss)
 {
 #define	N(a)	(sizeof(a)/sizeof(a[0]))
@@ -2199,7 +2229,7 @@ ath_keyset(struct ath_softc *sc, const struct ieee80211_key *k,
 		gmac[0] |= 0x80;
 		mac = gmac;
 	} else
-		mac = mac0;
+		mac = k->wk_macaddr;
 
 	if (hk.kv_type == HAL_CIPHER_TKIP &&
 	    (k->wk_flags & IEEE80211_KEY_SWMIC) == 0) {
@@ -2458,7 +2488,7 @@ ath_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k,
 {
 	struct ath_softc *sc = vap->iv_ic->ic_ifp->if_softc;
 
-	return ath_keyset(sc, k, mac, vap->iv_bss);
+	return ath_keyset(sc, k, vap->iv_bss);
 }
 
 /*
@@ -5780,8 +5810,9 @@ ath_setup_stationkey(struct ieee80211_node *ni)
 		/* XXX locking? */
 		ni->ni_ucastkey.wk_keyix = keyix;
 		ni->ni_ucastkey.wk_rxkeyix = rxkeyix;
+		IEEE80211_ADDR_COPY(ni->ni_ucastkey.wk_macaddr, ni->ni_macaddr);
 		/* NB: this will create a pass-thru key entry */
-		ath_keyset(sc, &ni->ni_ucastkey, ni->ni_macaddr, vap->iv_bss);
+		ath_keyset(sc, &ni->ni_ucastkey, vap->iv_bss);
 	}
 }
 
@@ -6315,8 +6346,14 @@ ath_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			 */
 			if (!sc->sc_invalid)
 				ath_init(sc);	/* XXX lose error */
-		} else
+		} else {
 			ath_stop_locked(ifp);
+#ifdef notyet
+			/* XXX must wakeup in places like ath_vap_delete */
+			if (!sc->sc_invalid)
+				ath_hal_setpower(sc->sc_ah, HAL_PM_FULL_SLEEP);
+#endif
+		}
 		ATH_UNLOCK(sc);
 		break;
 	case SIOCGIFMEDIA:

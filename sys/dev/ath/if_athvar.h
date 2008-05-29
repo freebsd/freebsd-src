@@ -245,7 +245,8 @@ struct ath_softc {
 				sc_beacons  : 1,/* beacons running */
 				sc_swbmiss  : 1,/* sta mode using sw bmiss */
 				sc_stagbeacons:1,/* use staggered beacons */
-				sc_wmetkipmic:1;/* can do WME+TKIP MIC */
+				sc_wmetkipmic:1,/* can do WME+TKIP MIC */
+				sc_resume_up: 1;/* on resume, start all vaps */
 	uint32_t		sc_eerd;	/* regdomain from EEPROM */
 	uint32_t		sc_eecc;	/* country code from EEPROM */
 						/* rate tables */
