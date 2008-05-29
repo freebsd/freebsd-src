@@ -89,8 +89,7 @@ struct pthread_attr _pthread_attr_default = {
 struct pthread_mutex_attr _pthread_mutexattr_default = {
 	.m_type = PTHREAD_MUTEX_DEFAULT,
 	.m_protocol = PTHREAD_PRIO_NONE,
-	.m_ceiling = 0,
-	.m_flags = 0
+	.m_ceiling = 0
 };
 
 /* Default condition variable attributes: */
