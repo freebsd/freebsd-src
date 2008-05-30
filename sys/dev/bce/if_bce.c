@@ -779,7 +779,7 @@ bce_attach(device_t dev)
 #ifdef BCE_USE_SPLIT_HEADER
 	sc->rx_bd_mbuf_alloc_size = MHLEN;
 #else
-	sc->rx_bd_mbuf_alloc_size = MCLBYTES;;
+	sc->rx_bd_mbuf_alloc_size = MCLBYTES;
 #endif
 	sc->pg_bd_mbuf_alloc_size = MCLBYTES;
 
