@@ -57,7 +57,7 @@
 #define	SNEC_NREGS	6
 
 /* bank memory size */
-#define	SNEC_NMEMS	(NBPG * 2)
+#define	SNEC_NMEMS	(PAGE_SIZE * 2)
 /* how many bank */
 #define	SNEC_NBANK	0x10
 /* internal buffer size */
