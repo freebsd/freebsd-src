@@ -258,7 +258,12 @@ ns8250_init(struct uart_bas *bas, int baudrate, int databits, int stopbits,
 	ns8250_param(bas, baudrate, databits, stopbits, parity);
 
 	/* Disable all interrupt sources. */
-	ier = uart_getreg(bas, REG_IER) & 0xf0;
+	/*
+	 * We use 0xe0 instead of 0xf0 as the mask because the XScale PXA
+	 * UARTs split the receive time-out interrupt bit out separately as
+	 * 0x10.  This gets handled by ier_mask and ier_rxbits below.
+	 */
+	ier = uart_getreg(bas, REG_IER) & 0xe0;
 	uart_setreg(bas, REG_IER, ier);
 	uart_barrier(bas);
 
@@ -332,6 +337,9 @@ struct ns8250_softc {
 	uint8_t		fcr;
 	uint8_t		ier;
 	uint8_t		mcr;
+	
+	uint8_t		ier_mask;
+	uint8_t		ier_rxbits;
 };
 
 static int ns8250_bus_attach(struct uart_softc *);
@@ -400,6 +408,19 @@ ns8250_bus_attach(struct uart_softc *sc)
 			ns8250->fcr |= FCR_RX_MEDH;
 	} else 
 		ns8250->fcr |= FCR_RX_MEDH;
+	
+	/* Get IER mask */
+	ivar = 0xf0;
+	resource_int_value("uart", device_get_unit(sc->sc_dev), "ier_mask",
+	    &ivar);
+	ns8250->ier_mask = (uint8_t)(ivar & 0xff);
+	
+	/* Get IER RX interrupt bits */
+	ivar = IER_EMSC | IER_ERLS | IER_ERXRDY;
+	resource_int_value("uart", device_get_unit(sc->sc_dev), "ier_rxbits",
+	    &ivar);
+	ns8250->ier_rxbits = (uint8_t)(ivar & 0xff);
+	
 	uart_setreg(bas, REG_FCR, ns8250->fcr);
 	uart_barrier(bas);
 	ns8250_bus_flush(sc, UART_FLUSH_RECEIVER|UART_FLUSH_TRANSMITTER);
@@ -411,21 +432,24 @@ ns8250_bus_attach(struct uart_softc *sc)
 	ns8250_bus_getsig(sc);
 
 	ns8250_clrint(bas);
-	ns8250->ier = uart_getreg(bas, REG_IER) & 0xf0;
-	ns8250->ier |= IER_EMSC | IER_ERLS | IER_ERXRDY;
+	ns8250->ier = uart_getreg(bas, REG_IER) & ns8250->ier_mask;
+	ns8250->ier |= ns8250->ier_rxbits;
 	uart_setreg(bas, REG_IER, ns8250->ier);
 	uart_barrier(bas);
+	
 	return (0);
 }
 
 static int
 ns8250_bus_detach(struct uart_softc *sc)
 {
+	struct ns8250_softc *ns8250;
 	struct uart_bas *bas;
 	u_char ier;
 
+	ns8250 = (struct ns8250_softc *)sc;
 	bas = &sc->sc_bas;
-	ier = uart_getreg(bas, REG_IER) & 0xf0;
+	ier = uart_getreg(bas, REG_IER) & ns8250->ier_mask;
 	uart_setreg(bas, REG_IER, ier);
 	uart_barrier(bas);
 	ns8250_clrint(bas);
@@ -597,10 +621,12 @@ ns8250_bus_param(struct uart_softc *sc, int baudrate, int databits,
 static int
 ns8250_bus_probe(struct uart_softc *sc)
 {
+	struct ns8250_softc *ns8250;
 	struct uart_bas *bas;
 	int count, delay, error, limit;
 	uint8_t lsr, mcr, ier;
 
+	ns8250 = (struct ns8250_softc *)sc;
 	bas = &sc->sc_bas;
 
 	error = ns8250_probe(bas);
@@ -683,7 +709,7 @@ ns8250_bus_probe(struct uart_softc *sc)
 		    --limit)
 			DELAY(delay);
 		if (limit == 0) {
-			ier = uart_getreg(bas, REG_IER) & 0xf0;
+			ier = uart_getreg(bas, REG_IER) & ns8250->ier_mask;
 			uart_setreg(bas, REG_IER, ier);
 			uart_setreg(bas, REG_MCR, mcr);
 			uart_setreg(bas, REG_FCR, 0);
