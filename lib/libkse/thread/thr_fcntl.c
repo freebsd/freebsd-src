@@ -37,6 +37,7 @@
 #include "thr_private.h"
 
 int __fcntl(int fd, int cmd,...);
+extern int __fcntl_compat(int fd, int cmd,...);
 
 __weak_reference(__fcntl, fcntl);
 
@@ -68,7 +69,7 @@ __fcntl(int fd, int cmd,...)
 		ret = __sys_fcntl(fd, cmd);
 		break;
 	default:
-		ret = __sys_fcntl(fd, cmd, va_arg(ap, void *));
+		ret = __fcntl_compat(fd, cmd, va_arg(ap, void *));
 	}
 	va_end(ap);
 

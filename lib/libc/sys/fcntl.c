@@ -34,10 +34,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/syscall.h>
 #include "libc_private.h"
 
-__weak_reference(__fcntl, fcntl);
+__weak_reference(__fcntl_compat, fcntl);
 
 int
-__fcntl(int fd, int cmd, ...)
+__fcntl_compat(int fd, int cmd, ...)
 {
 	va_list args;
 	long arg;
