@@ -225,6 +225,8 @@ dev_relthread(struct cdev *dev)
 
 	mtx_assert(&devmtx, MA_NOTOWNED);
 	dev_lock();
+	KASSERT(dev->si_threadcount > 0,
+	    ("%s threadcount is wrong", dev->si_name));
 	dev->si_threadcount--;
 	dev_unlock();
 }
