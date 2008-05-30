@@ -178,6 +178,7 @@ struct nlm_host {
 	int		nh_state;	 /* (s) last seen NSM state of host */
 	enum nlm_host_state nh_monstate; /* (s) local NSM monitoring state */
 	time_t		nh_idle_timeout; /* (s) Time at which host is idle */
+	time_t		nh_rpc_create_time; /* (s) Time we create RPC client */
 	struct sysctl_ctx_list nh_sysctl; /* (c) vfs.nlm.sysid nodes */
 	struct nlm_async_lock_list nh_pending; /* (l) pending async locks */
 	struct nlm_async_lock_list nh_finished; /* (l) finished async locks */
@@ -953,6 +954,21 @@ nlm_host_get_rpc(struct nlm_host *host)
 {
 	struct timeval zero;
 
+	/*
+ 	 * We can't hold onto RPC handles for too long - the async
+	 * call/reply protocol used by some NLM clients makes it hard
+	 * to tell when they change port numbers (e.g. after a
+	 * reboot). Note that if a client reboots while it isn't
+	 * holding any locks, it won't bother to notify us. We
+	 * expire the RPC handles after two minutes.
+	 */
+	if (host->nh_rpc && time_uptime > host->nh_rpc_create_time + 2*60) {
+		CLIENT *client;
+		client = host->nh_rpc;
+		host->nh_rpc = NULL;
+		CLNT_DESTROY(client);
+	}
+
 	if (host->nh_rpc)
 		return (host->nh_rpc);
 
@@ -968,12 +984,7 @@ nlm_host_get_rpc(struct nlm_host *host)
 		zero.tv_usec = 0;
 		CLNT_CONTROL(host->nh_rpc, CLSET_TIMEOUT, &zero);
 
-		/*
-		 * Monitor the host - if it reboots, the address of
-		 * its NSM might change so we must discard our RPC
-		 * handle.
-		 */
-		nlm_host_monitor(host, 0);
+		host->nh_rpc_create_time = time_uptime;
 	}
 
 	return (host->nh_rpc);
