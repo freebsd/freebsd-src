@@ -1591,8 +1591,9 @@ ntoskrnl_waittest(obj, increment)
 		}
 
 		if (satisfied == TRUE)
-			cv_broadcastpri(&we->we_cv, w->wb_oldpri -
-			    (increment * 4));
+			cv_broadcastpri(&we->we_cv,
+			    (w->wb_oldpri - (increment * 4)) > PRI_MIN_KERN ?
+			    w->wb_oldpri - (increment * 4) : PRI_MIN_KERN);
 
 		e = e->nle_flink;
 	}
@@ -3384,8 +3385,9 @@ KeSetEvent(kevent, increment, kwait)
 			}
 		} else {
 			w->wb_awakened |= TRUE;
-			cv_broadcastpri(&we->we_cv, w->wb_oldpri -
-			    (increment * 4));
+			cv_broadcastpri(&we->we_cv,
+			    (w->wb_oldpri - (increment * 4)) > PRI_MIN_KERN ?
+			    w->wb_oldpri - (increment * 4) : PRI_MIN_KERN);
 		}
 	}
 
