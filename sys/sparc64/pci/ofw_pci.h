@@ -38,8 +38,6 @@
 
 typedef uint32_t ofw_pci_intr_t;
 
-#include "ofw_pci_if.h"
-
 /* PCI range child spaces. XXX: are these MI? */
 #define	OFW_PCI_CS_CONFIG	0x00
 #define	OFW_PCI_CS_IO	0x01
