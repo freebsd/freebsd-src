@@ -188,7 +188,6 @@ devfs_allocv(struct devfs_dirent *de, struct mount *mp, struct vnode **vpp, stru
 		sx_xunlock(&dmp->dm_lock);
 		return (ENOENT);
 	}
- loop:
 	DEVFS_DE_HOLD(de);
 	DEVFS_DMP_HOLD(dmp);
 	mtx_lock(&devfs_de_interlock);
@@ -204,8 +203,10 @@ devfs_allocv(struct devfs_dirent *de, struct mount *mp, struct vnode **vpp, stru
 				vput(vp);
 			return (ENOENT);
 		}
-		else if (error)
-			goto loop;
+		else if (error) {
+			sx_xunlock(&dmp->dm_lock);
+			return (error);
+		}
 		sx_xunlock(&dmp->dm_lock);
 		*vpp = vp;
 		return (0);
