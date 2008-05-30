@@ -996,15 +996,18 @@ ndis_detach(dev)
 	sc = device_get_softc(dev);
 	NDIS_LOCK(sc);
 	ifp = sc->ifp;
-	ifp->if_flags &= ~IFF_UP;
+	if (ifp != NULL)
+		ifp->if_flags &= ~IFF_UP;
 
 	if (device_is_attached(dev)) {
 		NDIS_UNLOCK(sc);
 		ndis_stop(sc);
-		if (sc->ndis_80211)
-			ieee80211_ifdetach(ifp->if_l2com);
-		else
-			ether_ifdetach(ifp);
+		if (ifp != NULL) {
+			if (sc->ndis_80211)
+				ieee80211_ifdetach(ifp->if_l2com);
+			else
+				ether_ifdetach(ifp);
+		}
 	} else
 		NDIS_UNLOCK(sc);
 
