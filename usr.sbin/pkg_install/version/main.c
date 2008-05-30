@@ -21,11 +21,12 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "lib.h"
-#include "version.h"
+
+#include <getopt.h>
 #include <err.h>
 
-static char Options[] = "dIhl:L:qs:XtTO:ov";
+#include "lib.h"
+#include "version.h"
 
 char	*LimitChars = NULL;
 char	*PreventChars = NULL;
@@ -36,6 +37,21 @@ Boolean UseINDEXOnly = FALSE;
 Boolean ShowOrigin = FALSE;
 
 static void usage(void);
+
+static char opts[] = "dIhl:L:qs:XtTO:ov";
+static struct option longopts[] = {
+	{ "extended",	no_argument,		NULL,		'X' },
+	{ "help",	no_argument,		NULL,		'h' },
+	{ "match",	required_argument,	NULL,		's' },
+	{ "no-status",	required_argument,	NULL,		'L' },
+	{ "origin",	required_argument,	NULL,		'O' },
+	{ "quiet",	no_argument,		NULL,		'q' },
+	{ "show-origin",no_argument,		NULL,		'o' },
+	{ "status",	required_argument,	NULL,		'l' },
+	{ "index-only",	no_argument,		NULL,		'I' },
+	{ "verbose",	no_argument,		NULL,		'v' },
+	{ NULL,		0,			NULL,		0 }
+};
 
 int
 main(int argc, char **argv)
@@ -51,7 +67,7 @@ main(int argc, char **argv)
 	cmp = version_match(argv[3], argv[2]);
 	exit(cmp == 1 ? 0 : 1);
     }
-    else while ((ch = getopt(argc, argv, Options)) != -1) {
+    else while ((ch = getopt_long(argc, argv, opts, longopts, NULL)) != -1) {
 	switch(ch) {
 	case 'v':
 	    Verbose++;
@@ -98,7 +114,6 @@ main(int argc, char **argv)
 	    break;
 
 	case 'h':
-	case '?':
 	default:
 	    usage();
 	    break;

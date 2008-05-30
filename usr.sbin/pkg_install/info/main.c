@@ -22,11 +22,11 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "lib.h"
-#include "info.h"
+#include <getopt.h>
 #include <err.h>
 
-static char Options[] = "abcdDe:EfgGhiIjkKl:LmoO:pPqQrRst:vVW:xX";
+#include "lib.h"
+#include "info.h"
 
 int	Flags		= 0;
 match_t	MatchType	= MATCH_GLOB;
@@ -40,6 +40,25 @@ Boolean KeepPackage	= FALSE;
 struct which_head *whead;
 
 static void usage(void);
+
+static char opts[] = "abcdDe:EfgGhiIjkKl:LmoO:pPqQrRst:vVW:xX";
+static struct option longopts[] = {
+	{ "all",	no_argument,		NULL,		'a' },
+	{ "blocksize",	no_argument,		NULL,		'b' },
+	{ "exist",	required_argument,	NULL,		'X' },
+	{ "exists",	required_argument,	NULL,		'X' },
+	{ "extended",	no_argument,		NULL,		'e' },
+	{ "help",	no_argument,		NULL,		'h' },
+	{ "keep",	no_argument,		NULL,		'K' },
+	{ "no-glob",	no_argument,		NULL,		'G' },
+	{ "origin",	required_argument,	NULL,		'O' },
+	{ "quiet",	no_argument,		NULL,		'q' },
+	{ "regex",	no_argument,		NULL,		'x' },
+	{ "template",	required_argument,	NULL,		't' },
+	{ "verbose",	no_argument,		NULL,		'v' },
+	{ "version",	no_argument,		NULL,		'P' },
+	{ "which",	required_argument,	NULL,		'W' },
+};
 
 int
 main(int argc, char **argv)
@@ -58,7 +77,7 @@ main(int argc, char **argv)
 	MatchType = MATCH_ALL;
 	Flags = SHOW_INDEX;
     }
-    else while ((ch = getopt(argc, argv, Options)) != -1) {
+    else while ((ch = getopt_long(argc, argv, opts, longopts, NULL)) != -1) {
 	switch(ch) {
 	case 'a':
 	    MatchType = MATCH_ALL;
@@ -209,7 +228,6 @@ main(int argc, char **argv)
 	    break;
 
 	case 'h':
-	case '?':
 	default:
 	    usage();
 	    break;

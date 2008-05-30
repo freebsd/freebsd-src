@@ -12,11 +12,11 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <getopt.h>
 #include <err.h>
+
 #include "lib.h"
 #include "create.h"
-
-static char Options[] = "EGYNnORhjvxyzf:p:P:C:c:d:i:I:k:K:r:t:X:D:m:s:S:o:b:";
 
 match_t	MatchType	= MATCH_GLOB;
 char	*Prefix		= NULL;
@@ -42,6 +42,7 @@ int	Dereference	= FALSE;
 int	PlistOnly	= FALSE;
 int	Recursive	= FALSE;
 int	Regenerate	= TRUE;
+int	Help		= FALSE;
 #if defined(__FreeBSD_version) && __FreeBSD_version >= 500039
 enum zipper	Zipper  = BZIP2;
 #else
@@ -51,6 +52,24 @@ enum zipper	Zipper  = GZIP;
 
 static void usage(void);
 
+static char opts[] = "EGYNnORhjvxyzf:p:P:C:c:d:i:I:k:K:r:t:X:D:m:s:S:o:b:";
+static struct option longopts[] = {
+	{ "backup",	required_argument,	NULL,		'b' },
+	{ "extended",	no_argument,		NULL,		'E' },
+	{ "help",	no_argument,		&Help,		TRUE },
+	{ "no",		no_argument,		NULL,		'N' },
+	{ "no-glob",	no_argument,		NULL,		'G' },
+	{ "origin",	required_argument,	NULL,		'o' },
+	{ "plist-only",	no_argument,		NULL,		'O' },
+	{ "prefix",	required_argument,	NULL,		'p' },
+	{ "recursive",	no_argument,		NULL,		'R' },
+	{ "regex",	no_argument,		NULL,		'x' },
+	{ "template",	required_argument,	NULL,		't' },
+	{ "verbose",	no_argument,		NULL,		'v' },
+	{ "yes",	no_argument,		NULL,		'Y' },
+	{ NULL,		0,			NULL,		0 },
+};
+
 int
 main(int argc, char **argv)
 {
@@ -58,7 +77,7 @@ main(int argc, char **argv)
     char **pkgs, **start, *tmp;
 
     pkgs = start = argv;
-    while ((ch = getopt(argc, argv, Options)) != -1)
+    while ((ch = getopt_long(argc, argv, opts, longopts, NULL)) != -1)
 	switch(ch) {
 	case 'v':
 	    Verbose++;
@@ -193,11 +212,11 @@ main(int argc, char **argv)
 	    Recursive = TRUE;
 	    break;
 
-	case 'n':
-		Regenerate = FALSE;
-		break;
+	case 0:
+	    if (Help)
+		usage();
+	    break;
 
-	case '?':
 	default:
 	    usage();
 	    break;

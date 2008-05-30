@@ -15,7 +15,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 29, 2007
+.Dd May 30, 2008
 .Dt PKG_ADD 1
 .Os
 .Sh NAME
@@ -81,31 +81,31 @@ working directory,
 .Nm
 will search them in each directory named by
 .Ev PKG_PATH .
-.It Fl v
+.It Fl v , -verbose
 Turn on verbose output.
-.It Fl K
+.It Fl K , -keep
 Keep any downloaded package in
 .Ev PKGDIR
 if it is defined or in current directory by default.
-.It Fl i
+.It Fl i , -no-deps
 Install the package without fetching and installing
 dependencies.
-.It Fl I
+.It Fl I , -no-scripts
 If any installation scripts (pre-install or post-install) exist for a given
 package, do not execute them.
-.It Fl n
+.It Fl n , -dry-run
 Do not actually install a package, just report the steps that
 would be taken if it was.
-.It Fl R
+.It Fl R , -no-record
 Do not record the installation of a package.
 This means
 that you cannot deinstall it later, so only use this option if
 you know what you are doing!
-.It Fl r
+.It Fl r , -remote
 Use the remote fetching feature.
 This will determine the appropriate
 objformat and release and then fetch and install the package.
-.It Fl f
+.It Fl f , -force
 Force installation to proceed even if prerequisite packages are not
 installed or the requirements script fails.
 Although
@@ -114,7 +114,7 @@ will still try to find and auto-install missing prerequisite packages,
 a failure to find one will not be fatal.
 .It Fl F
 Already installed packages are not an error.
-.It Fl p Ar prefix
+.It Fl p , -prefix Ar prefix
 Set
 .Ar prefix
 as the directory in which to extract files from a package.
@@ -162,7 +162,7 @@ flag on the command line, it overrides its effect, causing
 to use the given
 .Ar prefix
 recursively.
-.It Fl t Ar template
+.It Fl t , -template Ar template
 Use
 .Ar template
 as the input to
@@ -185,7 +185,7 @@ You can get a performance boost by setting the staging area
 to reside on the same disk partition as target directories for package
 file installation; often this is
 .Pa /usr .
-.It Fl M
+.It Fl M , -master
 Run in
 .Cm MASTER
 mode.
@@ -207,7 +207,7 @@ When used in conjunction with
 .Cm SLAVE
 mode, it allows you to make radical changes to the package structure
 before acting on its contents.
-.It Fl S
+.It Fl S , -slave
 Run in
 .Cm SLAVE
 mode.
@@ -223,7 +223,7 @@ in the staging area, the location of which is read as a string
 from stdin.
 The complete packing list is also read from stdin,
 and the contents then acted on as normal.
-.It Fl C Ar chrootdir
+.It Fl C , -chroot Ar chrootdir
 Before doing any operations,
 .Xr chroot 2
 to the
