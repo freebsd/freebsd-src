@@ -70,9 +70,6 @@
 #include <sys/socket.h>
 #include <sys/syslog.h>
 #include <sys/errno.h>
-#if defined(NRND) && NRND > 0
-#include <sys/rnd.h>
-#endif
 
 #include <net/ethernet.h>
 #include <net/if.h>
@@ -88,43 +85,35 @@
 #include <dev/snc/dp83932reg.h>
 #include <dev/snc/dp83932var.h>
 
-hide void	sncwatchdog(struct ifnet *);
-hide void	sncinit(void *);
-hide int	sncstop(struct snc_softc *sc);
-hide int	sncioctl(struct ifnet *ifp, u_long cmd, caddr_t data);
-hide void	sncstart(struct ifnet *ifp);
-hide void	sncreset(struct snc_softc *sc);
+static void	sncwatchdog(struct ifnet *);
+static void	sncinit(void *);
+static int	sncstop(struct snc_softc *sc);
+static int	sncioctl(struct ifnet *ifp, u_long cmd, caddr_t data);
+static void	sncstart(struct ifnet *ifp);
+static void	sncreset(struct snc_softc *sc);
 
-hide void	caminitialise(struct snc_softc *);
-hide void	camentry(struct snc_softc *, int, u_char *ea);
-hide void	camprogram(struct snc_softc *);
-hide void	initialise_tda(struct snc_softc *);
-hide void	initialise_rda(struct snc_softc *);
-hide void	initialise_rra(struct snc_softc *);
+static void	caminitialise(struct snc_softc *);
+static void	camentry(struct snc_softc *, int, u_char *ea);
+static void	camprogram(struct snc_softc *);
+static void	initialise_tda(struct snc_softc *);
+static void	initialise_rda(struct snc_softc *);
+static void	initialise_rra(struct snc_softc *);
 #ifdef SNCDEBUG
-hide void	camdump(struct snc_softc *sc);
+static void	camdump(struct snc_softc *sc);
 #endif
 
-hide void	sonictxint(struct snc_softc *);
-hide void	sonicrxint(struct snc_softc *);
+static void	sonictxint(struct snc_softc *);
+static void	sonicrxint(struct snc_softc *);
 
-hide u_int	sonicput(struct snc_softc *sc, struct mbuf *m0, int mtd_next);
-hide int	sonic_read(struct snc_softc *, u_int32_t, int);
-hide struct mbuf *sonic_get(struct snc_softc *, u_int32_t, int);
+static u_int	sonicput(struct snc_softc *sc, struct mbuf *m0, int mtd_next);
+static int	sonic_read(struct snc_softc *, u_int32_t, int);
+static struct mbuf *sonic_get(struct snc_softc *, u_int32_t, int);
 
 int	snc_enable(struct snc_softc *);
 void	snc_disable(struct snc_softc *);
 
 int	snc_mediachange(struct ifnet *);
 void	snc_mediastatus(struct ifnet *, struct ifmediareq *);
-
-#ifdef NetBSD
-#if NetBSD <= 199714
-struct cfdriver snc_cd = {
-	NULL, "snc", DV_IFNET
-};
-#endif
-#endif
 
 #undef assert
 #undef _assert
@@ -201,11 +190,6 @@ sncconfig(sc, media, nmedia, defmedia, myea)
 	}
 
 	ether_ifattach(ifp, myea);
-
-#if defined(NRND) && NRND > 0
-	rnd_attach_source(&sc->rnd_source, device_get_nameunit(sc->sc_dev),
-	    RND_TYPE_NET, 0);
-#endif
 }
 
 void
@@ -251,7 +235,7 @@ snc_mediastatus(ifp, ifmr)
 }
 
 
-hide int
+static int
 sncioctl(ifp, cmd, data)
 	struct ifnet *ifp;
 	u_long cmd;
@@ -259,7 +243,7 @@ sncioctl(ifp, cmd, data)
 {
 	struct ifreq *ifr;
 	struct snc_softc *sc = ifp->if_softc;
-	int	s = splhardnet(), err = 0;
+	int	s = splimp(), err = 0;
 	int	temp;
 
 	switch (cmd) {
@@ -322,7 +306,7 @@ sncioctl(ifp, cmd, data)
 /*
  * Encapsulate a packet of type family for the local net.
  */
-hide void
+static void
 sncstart(ifp)
 	struct ifnet *ifp;
 {
@@ -384,7 +368,7 @@ outloop:
  * reset and restart the SONIC.  Called in case of fatal
  * hardware/software errors.
  */
-hide void
+static void
 sncreset(sc)
 	struct snc_softc *sc;
 {
@@ -392,7 +376,7 @@ sncreset(sc)
 	sncinit(sc);
 }
 
-hide void
+static void
 sncinit(xsc)
 	void *xsc;
 {
@@ -404,7 +388,7 @@ sncinit(xsc)
 		/* already running */
 		return;
 
-	s = splhardnet();
+	s = splimp();
 
 	NIC_PUT(sc, SNCR_CR, CR_RST);	/* DCR only accessable in reset mode! */
 
@@ -464,12 +448,12 @@ sncinit(xsc)
  * Called on final close of device, or if sncinit() fails
  * part way through.
  */
-hide int
+static int
 sncstop(sc)
 	struct snc_softc *sc;
 {
 	struct mtd *mtd;
-	int	s = splhardnet();
+	int	s = splimp();
 
 	/* stick chip in reset */
 	NIC_PUT(sc, SNCR_CR, CR_RST);
@@ -498,7 +482,7 @@ sncstop(sc)
  * In all cases we just reset the chip, and any retransmission
  * will be handled by higher level protocol timeouts.
  */
-hide void
+static void
 sncwatchdog(ifp)
 	struct ifnet *ifp;
 {
@@ -524,7 +508,7 @@ sncwatchdog(ifp)
 /*
  * stuff packet into sonic (at splnet)
  */
-hide u_int
+static u_int
 sonicput(sc, m0, mtd_next)
 	struct snc_softc *sc;
 	struct mbuf *m0;
@@ -615,7 +599,7 @@ sonicput(sc, m0, mtd_next)
 /*
  * CAM support
  */
-hide void
+static void
 caminitialise(sc)
 	struct snc_softc *sc;
 {
@@ -639,7 +623,7 @@ caminitialise(sc)
 #endif
 }
 
-hide void
+static void
 camentry(sc, entry, ea)
 	int entry;
 	u_char *ea;
@@ -656,7 +640,7 @@ camentry(sc, entry, ea)
 	    (SRO(sc, v_cda, CDA_ENABLE) | (1 << entry)));
 }
 
-hide void
+static void
 camprogram(sc)
 	struct snc_softc *sc;
 {
@@ -718,7 +702,7 @@ camprogram(sc)
 }
 
 #ifdef SNCDEBUG
-hide void
+static void
 camdump(sc)
 	struct snc_softc *sc;
 {
@@ -744,7 +728,7 @@ camdump(sc)
 }
 #endif
 
-hide void
+static void
 initialise_tda(sc)
 	struct snc_softc *sc;
 {
@@ -766,7 +750,7 @@ initialise_tda(sc)
 	NIC_PUT(sc, SNCR_CTDA, LOWER(sc->mtda[0].mtd_vtxp));
 }
 
-hide void
+static void
 initialise_rda(sc)
 	struct snc_softc *sc;
 {
@@ -795,7 +779,7 @@ initialise_rda(sc)
 	wbflush();
 }
 
-hide void
+static void
 initialise_rra(sc)
 	struct snc_softc *sc;
 {
@@ -820,8 +804,8 @@ initialise_rra(sc)
 		v = SONIC_GETDMA(sc->rbuf[i]);
 		SWO(sc, sc->v_rra[i], RXRSRC_PTRHI, UPPER(v));
 		SWO(sc, sc->v_rra[i], RXRSRC_PTRLO, LOWER(v));
-		SWO(sc, sc->v_rra[i], RXRSRC_WCHI, UPPER(NBPG/2));
-		SWO(sc, sc->v_rra[i], RXRSRC_WCLO, LOWER(NBPG/2));
+		SWO(sc, sc->v_rra[i], RXRSRC_WCHI, UPPER(PAGE_SIZE/2));
+		SWO(sc, sc->v_rra[i], RXRSRC_WCLO, LOWER(PAGE_SIZE/2));
 	}
 	sc->sc_rramark = NRBA;
 	NIC_PUT(sc, SNCR_RWP, LOWER(sc->v_rra[sc->sc_rramark]));
@@ -889,11 +873,6 @@ sncintr(arg)
 #endif
 		}
 		sncstart(sc->sc_ifp);
-
-#if defined(NRND) && NRND > 0
-		if (isr)
-			rnd_add_uint32(&sc->rnd_source, isr);
-#endif
 	}
 	return;
 }
@@ -901,7 +880,7 @@ sncintr(arg)
 /*
  * Transmit interrupt routine
  */
-hide void
+static void
 sonictxint(sc)
 	struct snc_softc *sc;
 {
@@ -978,7 +957,7 @@ sonictxint(sc)
 /*
  * Receive interrupt routine
  */
-hide void
+static void
 sonicrxint(sc)
 	struct snc_softc *sc;
 {
@@ -1002,9 +981,9 @@ sonicrxint(sc)
 		 */
 		len = SRO(sc, rda, RXPKT_BYTEC) - FCSSIZE;
 		if (status & RCR_PRX) {
-			/* XXX: Does PGOFSET require? */
+			/* XXX: Does PAGE_MASK require? */
 			u_int32_t pkt =
-			    sc->rbuf[orra & RBAMASK] + (rxpkt_ptr & PGOFSET);
+			    sc->rbuf[orra & RBAMASK] + (rxpkt_ptr & PAGE_MASK);
 			if (sonic_read(sc, pkt, len))
 				sc->sc_ifp->if_ipackets++;
 			else
@@ -1072,7 +1051,7 @@ sonicrxint(sc)
  * sonic_read -- pull packet off interface and forward to
  * appropriate protocol handler
  */
-hide int
+static int
 sonic_read(sc, pkt, len)
 	struct snc_softc *sc;
 	u_int32_t pkt;
@@ -1117,7 +1096,7 @@ sonic_read(sc, pkt, len)
 /*
  * munge the received packet into an mbuf chain
  */
-hide struct mbuf *
+static struct mbuf *
 sonic_get(sc, pkt, datalen)
 	struct snc_softc *sc;
 	u_int32_t pkt;

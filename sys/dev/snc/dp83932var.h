@@ -23,31 +23,6 @@
  * (64 * 16 bits) Microwire Serial EEPROM.
  */
 
-/* borrow from arch/mac68k/dev/if_mcvar.h for debug. */
-#ifdef DDB
-#define	integrate
-#define hide
-#else
-#define	integrate	static __inline
-#define hide		static
-#endif
-
-/* NetBSD Emulation */
-#ifdef __NetBSD__
-#define	splhardnet	splnet
-#endif
-#ifdef __FreeBSD__
-#define	splhardnet	splimp
-#ifndef NBPG
-#define NBPG PAGE_SIZE
-#endif
-#ifndef PGOFSET
-#define PGOFSET PAGE_MASK
-#endif
-typedef unsigned long ulong;
-#define delay(x) DELAY(x)
-#endif
-
 /*
  * Vendor types
  */
@@ -225,10 +200,6 @@ typedef struct snc_softc {
 
 	void	*sc_sh;		/* shutdownhook cookie */
 	int	gone;
-
-#if defined(NRND) && NRND > 0
-	rndsource_element_t	rnd_source;
-#endif
 } snc_softc_t;
 
 /*
