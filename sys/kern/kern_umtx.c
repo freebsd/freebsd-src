@@ -58,12 +58,12 @@ __FBSDID("$FreeBSD$");
 #include <compat/freebsd32/freebsd32_proto.h>
 #endif
 
-#define TYPE_SIMPLE_LOCK	0
-#define TYPE_SIMPLE_WAIT	1
-#define TYPE_NORMAL_UMUTEX	2
-#define TYPE_PI_UMUTEX		3
-#define TYPE_PP_UMUTEX		4
-#define TYPE_CV			5	
+#define TYPE_SIMPLE_WAIT	0
+#define TYPE_CV			1
+#define TYPE_SIMPLE_LOCK	2
+#define TYPE_NORMAL_UMUTEX	3
+#define TYPE_PI_UMUTEX		4
+#define TYPE_PP_UMUTEX		5
 #define TYPE_RWLOCK		6
 
 /* Key to represent a unique userland synchronous object */
@@ -191,7 +191,7 @@ struct umtxq_chain {
 #define BUSY_SPINS		200
 
 static uma_zone_t		umtx_pi_zone;
-static struct umtxq_chain	umtxq_chains[UMTX_CHAINS];
+static struct umtxq_chain	umtxq_chains[2][UMTX_CHAINS];
 static MALLOC_DEFINE(M_UMTX, "umtx", "UMTX queue memory");
 static int			umtx_pi_allocated;
 
@@ -232,18 +232,20 @@ static struct mtx umtx_lock;
 static void
 umtxq_sysinit(void *arg __unused)
 {
-	int i;
+	int i, j;
 
 	umtx_pi_zone = uma_zcreate("umtx pi", sizeof(struct umtx_pi),
 		NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
-	for (i = 0; i < UMTX_CHAINS; ++i) {
-		mtx_init(&umtxq_chains[i].uc_lock, "umtxql", NULL,
-			 MTX_DEF | MTX_DUPOK);
-		TAILQ_INIT(&umtxq_chains[i].uc_queue[0]);
-		TAILQ_INIT(&umtxq_chains[i].uc_queue[1]);
-		TAILQ_INIT(&umtxq_chains[i].uc_pi_list);
-		umtxq_chains[i].uc_busy = 0;
-		umtxq_chains[i].uc_waiters = 0;
+	for (i = 0; i < 2; ++i) {
+		for (j = 0; j < UMTX_CHAINS; ++j) {
+			mtx_init(&umtxq_chains[i][j].uc_lock, "umtxql", NULL,
+				 MTX_DEF | MTX_DUPOK);
+			TAILQ_INIT(&umtxq_chains[i][j].uc_queue[0]);
+			TAILQ_INIT(&umtxq_chains[i][j].uc_queue[1]);
+			TAILQ_INIT(&umtxq_chains[i][j].uc_pi_list);
+			umtxq_chains[i][j].uc_busy = 0;
+			umtxq_chains[i][j].uc_waiters = 0;
+		}
 	}
 	mtx_init(&umtx_lock, "umtx lock", NULL, MTX_SPIN);
 	EVENTHANDLER_REGISTER(process_exec, umtx_exec_hook, NULL,
@@ -285,7 +287,9 @@ umtx_key_match(const struct umtx_key *k1, const struct umtx_key *k2)
 static inline struct umtxq_chain *
 umtxq_getchain(struct umtx_key *key)
 {
-	return (&umtxq_chains[key->hash]);
+	if (key->type <= TYPE_CV)
+		return (&umtxq_chains[1][key->hash]);
+	return (&umtxq_chains[0][key->hash]);
 }
 
 /*
