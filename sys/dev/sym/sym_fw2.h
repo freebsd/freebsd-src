@@ -210,7 +210,7 @@ struct SYM_FWB_SCR {
 	u32 snoopend		[  2];
 };
 
-static struct SYM_FWA_SCR SYM_FWA_SCR = {
+static const struct SYM_FWA_SCR SYM_FWA_SCR = {
 /*--------------------------< START >----------------------------*/ {
 	/*
 	 *  Switch the LED on.
@@ -1195,7 +1195,7 @@ static struct SYM_FWA_SCR SYM_FWA_SCR = {
 }/*-------------------------<>-----------------------------------*/
 };
 
-static struct SYM_FWB_SCR SYM_FWB_SCR = {
+static const struct SYM_FWB_SCR SYM_FWB_SCR = {
 /*--------------------------< START64 >--------------------------*/ {
 	/*
 	 *  SCRIPT entry point for the 895A, 896 and 1010.
