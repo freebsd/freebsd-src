@@ -365,7 +365,7 @@ loop:
 #ifdef DEBUG
 		in_ierint++;
 		if (ie_debug & IED_RINT)
-			if_printf(ifp, "rint\n");
+			if_printf(sc->ifp, "rint\n");
 #endif
 		ierint(sc);
 #ifdef DEBUG
@@ -376,7 +376,7 @@ loop:
 #ifdef DEBUG
 		in_ietint++;
 		if (ie_debug & IED_TINT)
-			if_printf(ifp, "tint\n");
+			if_printf(sc->ifp, "tint\n");
 #endif
 		ietint(sc);
 #ifdef DEBUG
@@ -386,13 +386,13 @@ loop:
 	if (status & IE_ST_RNR) {
 #ifdef DEBUG
 		if (ie_debug & IED_RNR)
-			if_printf(ifp, "rnr\n");
+			if_printf(sc->ifp, "rnr\n");
 #endif
 		iernr(sc);
 	}
 #ifdef DEBUG
 	if ((status & IE_ST_ALLDONE) && (ie_debug & IED_CNA))
-		if_printf(ifp, "cna\n");
+		if_printf(sc->ifp, "cna\n");
 #endif
 
 	if ((status = sc->scb->ie_status) & IE_ST_WHENCE)
