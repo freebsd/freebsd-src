@@ -68,7 +68,8 @@ struct intr_request {
 struct intr_controller {
 	void	(*ic_enable)(void *);
 	void	(*ic_disable)(void *);
-	void	(*ic_eoi)(void *);
+	void	(*ic_assign)(void *);
+	void	(*ic_clear)(void *);
 };
 
 struct intr_vector {
@@ -87,6 +88,9 @@ struct intr_vector {
 extern ih_func_t *intr_handlers[];
 extern struct intr_vector intr_vectors[];
 
+#ifdef SMP
+void	intr_add_cpu(u_int cpu);
+#endif
 void	intr_setup(int level, ih_func_t *ihf, int pri, iv_func_t *ivf,
 	    void *iva);
 void	intr_init1(void);
