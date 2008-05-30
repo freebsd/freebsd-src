@@ -56,10 +56,13 @@
 #define	INTSLOT(x)		(((x) >> 3) & 0x7)
 #define	INTPRI(x)		((x) & 0x7)
 #define	INTINO(x)		((x) & INTMAP_INO_MASK)
-#define	INTMAP_ENABLE(mr, mid) \
-	(((mr) & ~INTMAP_TID_MASK) | ((mid) << INTMAP_TID_SHIFT) | INTMAP_V)
-#define	INTMAP_VEC(ign, inr) \
-	(((ign) << INTMAP_IGN_SHIFT) | (inr))
+#define	INTMAP_ENABLE(mr, mid)						\
+	(INTMAP_TID((mr), (mid)) | INTMAP_V)
+#define	INTMAP_TID(mr, mid)						\
+	(((mr) & ~INTMAP_TID_MASK) | ((mid) << INTMAP_TID_SHIFT))
+#define	INTMAP_VEC(ign, inr)						\
+	((((ign) << INTMAP_IGN_SHIFT) & INTMAP_IGN_MASK) |		\
+	((inr) & INTMAP_INR_MASK))
 
 /* counter-timer support. */
 void sparc64_counter_init(const char *name, bus_space_tag_t tag,

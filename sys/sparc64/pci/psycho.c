@@ -87,7 +87,8 @@ static int psycho_find_intrmap(struct psycho_softc *, u_int, bus_addr_t *,
 static driver_filter_t psycho_dmasync;
 static void psycho_intr_enable(void *);
 static void psycho_intr_disable(void *);
-static void psycho_intr_eoi(void *);
+static void psycho_intr_assign(void *);
+static void psycho_intr_clear(void *);
 static bus_space_tag_t psycho_alloc_bus_tag(struct psycho_softc *, int);
 
 /* Interrupt handlers */
@@ -169,7 +170,8 @@ static SLIST_HEAD(, psycho_softc) psycho_softcs =
 static const struct intr_controller psycho_ic = {
 	psycho_intr_enable,
 	psycho_intr_disable,
-	psycho_intr_eoi
+	psycho_intr_assign,
+	psycho_intr_clear
 };
 
 struct psycho_icarg {
@@ -1093,7 +1095,17 @@ psycho_intr_disable(void *arg)
 }
 
 static void
-psycho_intr_eoi(void *arg)
+psycho_intr_assign(void *arg)
+{
+	struct intr_vector *iv = arg;
+	struct psycho_icarg *pica = iv->iv_icarg;
+
+	PSYCHO_WRITE8(pica->pica_sc, pica->pica_map, INTMAP_TID(
+	    PSYCHO_READ8(pica->pica_sc, pica->pica_map), iv->iv_mid));
+}
+
+static void
+psycho_intr_clear(void *arg)
 {
 	struct intr_vector *iv = arg;
 	struct psycho_icarg *pica = iv->iv_icarg;
