@@ -10,7 +10,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 2, 2007
+.Dd May 30, 2008
 .Dt PKG_UPDATING 1
 .Os
 .Sh NAME
@@ -18,6 +18,7 @@
 .Nd a utility for displaying UPDATING entries of software packages
 .Sh SYNOPSIS
 .Nm
+.Op Fl h
 .Op Fl d Ar date
 .Op Fl f Ar file
 .Op Ar pkg-name ...
@@ -32,10 +33,15 @@ The following command line options are supported:
 .Bl -tag -width indent
 .It Ar pkg-name ...
 UPDATING entries for the named packages are displayed.
-.It Fl d Ar date
-Only entries newer than this date are shown. Use a YYYYMMDD date format.
-.It Fl f Ar UPDATING file
-Defines a alternative location of the UPDATING file.
+.It Fl d , -date Ar date
+Only entries newer than
+.Ar date
+are shown. Use a YYYYMMDD date format.
+.It Fl f , -file Ar file 
+Defines a alternative location of the UPDATING
+.Ar file .
+.It Fl h , -help
+Print help message.
 .El
 .Sh EXAMPLES
 .Bl -tag -width indent

@@ -24,11 +24,11 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <getopt.h>
 #include <err.h>
+
 #include "lib.h"
 #include "delete.h"
-
-static char Options[] = "adDfGhinp:rvxX";
 
 char	*Prefix		= NULL;
 Boolean	CleanDirs	= FALSE;
@@ -38,6 +38,25 @@ Boolean	Recursive	= FALSE;
 match_t	MatchType	= MATCH_GLOB;
 
 static void usage(void);
+
+static char opts[] = "adDfGhinp:rvxX";
+static struct option longopts[] = {
+	{ "all",	no_argument,		NULL,		'a' },
+	{ "clean-dirs",	no_argument,		NULL,		'd' },
+	{ "dry-run",	no_argument,		NULL,		'n' },
+	{ "extended",	no_argument,		NULL,		'X' },
+	{ "force",	no_argument,		NULL,		'f' },
+	{ "help",	no_argument,		NULL,		'h' },
+	{ "interactive",no_argument,		NULL,		'i' },
+	{ "prefix",	required_argument,	NULL,		'p' },
+	{ "recursive",	no_argument,		NULL,		'r' },
+	{ "regex",	no_argument,		NULL,		'x' },
+	{ "no-glob",	no_argument,		NULL,		'G' },
+	{ "no-script",	no_argument,		NULL,		'D' },
+	{ "no-scripts",	no_argument,		NULL,		'D' },
+	{ "verbose",	no_argument,		NULL,		'v' },
+	{ NULL,		0,			NULL,		0 },
+};
 
 int
 main(int argc, char **argv)
@@ -49,7 +68,7 @@ main(int argc, char **argv)
     struct stat stat_s;
 
     pkgs = start = argv;
-    while ((ch = getopt(argc, argv, Options)) != -1)
+    while ((ch = getopt_long(argc, argv, opts, longopts, NULL)) != -1)
 	switch(ch) {
 	case 'v':
 	    Verbose++;
@@ -101,7 +120,6 @@ main(int argc, char **argv)
 	    break;
 
 	case 'h':
-	case '?':
 	default:
 	    usage();
 	    break;
