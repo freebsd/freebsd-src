@@ -56,15 +56,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if_arp.h>
 #include <net/if_media.h>
 
-#ifdef INET
-#include <netinet/in.h>
-#include <netinet/in_systm.h>
-#include <netinet/in_var.h>
-#include <netinet/ip.h>
-#include <netinet/if_inarp.h>
-#endif
-
-
 #include <sys/bus.h>
 #include <machine/bus.h>
 
@@ -73,7 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/snc/if_sncreg.h>
 #include <dev/snc/dp83932subr.h>
 
-integrate u_int16_t snc_nec16_select_bank
+static __inline u_int16_t snc_nec16_select_bank
 	(struct snc_softc *, u_int32_t, u_int32_t);
 
 /*
@@ -131,27 +122,27 @@ sncsetup(sc, lladdr)
 
 	p = SOALIGN(sc, p);
 
-	if ((p - pp) > NBPG) {
+	if ((p - pp) > PAGE_SIZE) {
 		device_printf (sc->sc_dev, "sizeof RRA (%ld) + CDA (%ld) +"
-		    "TDA (%ld) > NBPG (%d). Punt!\n",
-		    (ulong)sc->v_cda - (ulong)sc->v_rra[0],
-		    (ulong)sc->mtda[0].mtd_vtxp - (ulong)sc->v_cda,
-		    (ulong)p - (ulong)sc->mtda[0].mtd_vtxp,
-		    NBPG);
+		    "TDA (%ld) > PAGE_SIZE (%d). Punt!\n",
+		    (u_long)sc->v_cda - (u_long)sc->v_rra[0],
+		    (u_long)sc->mtda[0].mtd_vtxp - (u_long)sc->v_cda,
+		    (u_long)p - (u_long)sc->mtda[0].mtd_vtxp,
+		    PAGE_SIZE);
 		return(1);
 	}
 
-	p = pp + NBPG;
+	p = pp + PAGE_SIZE;
 	pp = p;
 
-	sc->sc_nrda = NBPG / RXPKT_SIZE(sc);
+	sc->sc_nrda = PAGE_SIZE / RXPKT_SIZE(sc);
 	sc->v_rda = SONIC_GETDMA(p);
 
-	p = pp + NBPG;
+	p = pp + PAGE_SIZE;
 
 	for (i = 0; i < NRBA; i++) {
 		sc->rbuf[i] = p;
-		p += NBPG;
+		p += PAGE_SIZE;
 	}
 
 	pp = p;
@@ -161,10 +152,10 @@ sncsetup(sc, lladdr)
 
 		mtdp->mtd_vbuf = SONIC_GETDMA(p);
 		offset += TXBSIZE;
-		if (offset < NBPG) {
+		if (offset < PAGE_SIZE) {
 			p += TXBSIZE;
 		} else {
-			p = pp + NBPG;
+			p = pp + PAGE_SIZE;
 			pp = p;
 			offset = TXBSIZE;
 		}
@@ -396,7 +387,7 @@ snc_nec16_detectsubr(iot, ioh, memt, memh, irq, maddr, type)
 	/* select SONIC register SNCR_CR */
 	bus_space_write_1(iot, ioh, SNEC_ADDR, SNCR_CR);
 	bus_space_write_2(iot, ioh, SNEC_CTRL, CR_RXDIS | CR_STP | CR_RST);
-	delay(400);
+	DELAY(400);
 
 	cr = bus_space_read_2(iot, ioh, SNEC_CTRL);
 	if (cr != (CR_RXDIS | CR_STP | CR_RST)) {
@@ -535,7 +526,7 @@ snc_nec16_nic_put(sc, reg, val)
  * select memory bank and map
  * where exists specified (internal buffer memory) offset.
  */
-integrate u_int16_t
+static __inline u_int16_t
 snc_nec16_select_bank(sc, base, offset)
 	struct snc_softc *sc;
 	u_int32_t base;
@@ -757,61 +748,61 @@ snc_nec16_read_eeprom(iot, ioh, data)
 		bus_space_write_1(iot, ioh, SNEC_ADDR, SNECR_EEP);
 
 		bus_space_write_1(iot, ioh, SNEC_CTRLB, 0x00);
-		delay(SNEC_EEP_DELAY);
+		DELAY(SNEC_EEP_DELAY);
 
 		/* Start EEPROM access. */
 		bus_space_write_1(iot, ioh, SNEC_CTRLB, SNECR_EEP_CS);
-		delay(SNEC_EEP_DELAY);
+		DELAY(SNEC_EEP_DELAY);
 
 		bus_space_write_1(iot, ioh, SNEC_CTRLB,
 		    SNECR_EEP_CS | SNECR_EEP_SK);
-		delay(SNEC_EEP_DELAY);
+		DELAY(SNEC_EEP_DELAY);
 
 		bus_space_write_1(iot, ioh, SNEC_CTRLB,
 		    SNECR_EEP_CS | SNECR_EEP_DI);
-		delay(SNEC_EEP_DELAY);
+		DELAY(SNEC_EEP_DELAY);
 
 		bus_space_write_1(iot, ioh, SNEC_CTRLB,
 		    SNECR_EEP_CS | SNECR_EEP_SK | SNECR_EEP_DI);
-		delay(SNEC_EEP_DELAY);
+		DELAY(SNEC_EEP_DELAY);
 
 		bus_space_write_1(iot, ioh, SNEC_CTRLB,
 		    SNECR_EEP_CS | SNECR_EEP_DI);
-		delay(SNEC_EEP_DELAY);
+		DELAY(SNEC_EEP_DELAY);
 
 		bus_space_write_1(iot, ioh, SNEC_CTRLB,
 		    SNECR_EEP_CS | SNECR_EEP_SK | SNECR_EEP_DI);
-		delay(SNEC_EEP_DELAY);
+		DELAY(SNEC_EEP_DELAY);
 
 		bus_space_write_1(iot, ioh, SNEC_CTRLB, SNECR_EEP_CS);
-		delay(SNEC_EEP_DELAY);
+		DELAY(SNEC_EEP_DELAY);
 
 		bus_space_write_1(iot, ioh, SNEC_CTRLB,
 		    SNECR_EEP_CS | SNECR_EEP_SK);
-		delay(SNEC_EEP_DELAY);
+		DELAY(SNEC_EEP_DELAY);
 
 		/* Pass the iteration count to the chip. */
 		for (bit = 0x20; bit != 0x00; bit >>= 1) {
 			bus_space_write_1(iot, ioh, SNEC_CTRLB, SNECR_EEP_CS |
 			    ((n & bit) ? SNECR_EEP_DI : 0x00));
-			delay(SNEC_EEP_DELAY);
+			DELAY(SNEC_EEP_DELAY);
 
 			bus_space_write_1(iot, ioh, SNEC_CTRLB,
 			    SNECR_EEP_CS | SNECR_EEP_SK |
 			    ((n & bit) ? SNECR_EEP_DI : 0x00));
-			delay(SNEC_EEP_DELAY);
+			DELAY(SNEC_EEP_DELAY);
 		}
 
 		bus_space_write_1(iot, ioh, SNEC_CTRLB, SNECR_EEP_CS);
 		(void) bus_space_read_1(iot, ioh, SNEC_CTRLB);	/* ACK */
-		delay(SNEC_EEP_DELAY);
+		DELAY(SNEC_EEP_DELAY);
 
 		/* Read a byte. */
 		val = 0;
 		for (bit = 0x80; bit != 0x00; bit >>= 1) {
 			bus_space_write_1(iot, ioh, SNEC_CTRLB,
 			    SNECR_EEP_CS | SNECR_EEP_SK);
-			delay(SNEC_EEP_DELAY);
+			DELAY(SNEC_EEP_DELAY);
 
 			bus_space_write_1(iot, ioh, SNEC_CTRLB, SNECR_EEP_CS);
 
@@ -825,7 +816,7 @@ snc_nec16_read_eeprom(iot, ioh, data)
 		for (bit = 0x80; bit != 0x00; bit >>= 1) {
 			bus_space_write_1(iot, ioh, SNEC_CTRLB,
 			    SNECR_EEP_CS | SNECR_EEP_SK);
-			delay(SNEC_EEP_DELAY);
+			DELAY(SNEC_EEP_DELAY);
 
 			bus_space_write_1(iot, ioh, SNEC_CTRLB, SNECR_EEP_CS);
 
@@ -835,7 +826,7 @@ snc_nec16_read_eeprom(iot, ioh, data)
 		*data++ = val;
 
 		bus_space_write_1(iot, ioh, SNEC_CTRLB, 0x00);
-		delay(SNEC_EEP_DELAY);
+		DELAY(SNEC_EEP_DELAY);
 	}
 
 #ifdef	SNCDEBUG
@@ -871,7 +862,7 @@ snc_nec16_dump_reg(iot, ioh)
 	for (n = 0; n < SNC_NREGS; n++) {
 		/* select required SONIC register */
 		bus_space_write_1(iot, ioh, SNEC_ADDR, n);
-		delay(10);
+		DELAY(10);
 		val = bus_space_read_2(iot, ioh, SNEC_CTRL);
 		if ((n % 0x10) == 0)
 			printf("\n%04x ", val);
@@ -884,7 +875,7 @@ snc_nec16_dump_reg(iot, ioh)
 	for (n = SNECR_MEMBS; n <= SNECR_IDENT; n += 2) {
 		/* select required SONIC register */
 		bus_space_write_1(iot, ioh, SNEC_ADDR, n);
-		delay(10);
+		DELAY(10);
 		val = (u_int16_t) bus_space_read_1(iot, ioh, SNEC_CTRLB);
 		printf("%04x ", val);
 	}
