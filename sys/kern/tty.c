@@ -3051,9 +3051,10 @@ ttyfree(struct tty *tp)
 	ttygone(tp);
 	unit = tp->t_devunit;
 	dev = tp->t_mdev;
+	dev->si_tty = NULL;
 	tp->t_dev = NULL;
-	ttyrel(tp);
 	destroy_dev(dev);
+	ttyrel(tp);
 	free_unr(tty_unit, unit);
 }
 
@@ -3070,6 +3071,8 @@ sysctl_kern_ttys(SYSCTL_HANDLER_ARGS)
 	if (tp != NULL)
 		ttyref(tp);
 	while (tp != NULL) {
+		if (tp->t_state & TS_GONE)
+			goto nexttp;
 		bzero(&xt, sizeof xt);
 		xt.xt_size = sizeof xt;
 #define XT_COPY(field) xt.xt_##field = tp->t_##field
@@ -3118,7 +3121,7 @@ sysctl_kern_ttys(SYSCTL_HANDLER_ARGS)
 			return (error);
 		}
 		mtx_lock(&tty_list_mutex);
-		tp2 = TAILQ_NEXT(tp, t_list);
+nexttp:		tp2 = TAILQ_NEXT(tp, t_list);
 		if (tp2 != NULL)
 			ttyref(tp2);
 		mtx_unlock(&tty_list_mutex);
