@@ -38,10 +38,7 @@ __weak_reference(_pthread_once, pthread_once);
 #define ONCE_NEVER_DONE		PTHREAD_NEEDS_INIT
 #define ONCE_DONE		PTHREAD_DONE_INIT
 #define	ONCE_IN_PROGRESS	0x02
-#define	ONCE_MASK		0x03
-
-static pthread_mutex_t		_thr_once_lock = PTHREAD_MUTEX_INITIALIZER;
-static pthread_cond_t		_thr_once_cv = PTHREAD_COND_INITIALIZER;
+#define ONCE_WAIT		0x03
 
 /*
  * POSIX:
@@ -55,47 +52,46 @@ once_cancel_handler(void *arg)
 {
 	pthread_once_t *once_control = arg;
 
-	_pthread_mutex_lock(&_thr_once_lock);
-	once_control->state = ONCE_NEVER_DONE;
-	_pthread_mutex_unlock(&_thr_once_lock);
-	_pthread_cond_broadcast(&_thr_once_cv);
+	if (atomic_cmpset_rel_int(&once_control->state, ONCE_IN_PROGRESS, ONCE_NEVER_DONE))
+		return;
+	atomic_store_rel_int(&once_control->state, ONCE_NEVER_DONE);
+	_thr_umtx_wake(&once_control->state, INT_MAX, 0);
 }
 
 int
 _pthread_once(pthread_once_t *once_control, void (*init_routine) (void))
 {
 	struct pthread *curthread;
-	int wakeup = 0;
+	int state;
 
-	if (once_control->state == ONCE_DONE)
+	for (;;) {
+		state = once_control->state;
+		if (state == ONCE_DONE)
+			return (0);
+		if (state == ONCE_NEVER_DONE) {
+			if (atomic_cmpset_acq_int(&once_control->state, state, ONCE_IN_PROGRESS))
+				break;
+		} else if (state == ONCE_IN_PROGRESS) {
+			if (atomic_cmpset_acq_int(&once_control->state, state, ONCE_WAIT))
+				_thr_umtx_wait_uint(&once_control->state, ONCE_WAIT, NULL, 0);
+		} else if (state == ONCE_WAIT) {
+			_thr_umtx_wait_uint(&once_control->state, state, NULL, 0);
+		} else
+			return (EINVAL);
+        }
+
+	curthread = _get_curthread();
+	THR_CLEANUP_PUSH(curthread, once_cancel_handler, once_control);
+	init_routine();
+	THR_CLEANUP_POP(curthread, 0);
+	if (atomic_cmpset_rel_int(&once_control->state, ONCE_IN_PROGRESS, ONCE_DONE))
 		return (0);
-	_pthread_mutex_lock(&_thr_once_lock);
-	while (*(volatile int *)&(once_control->state) == ONCE_IN_PROGRESS)
-		_pthread_cond_wait(&_thr_once_cv, &_thr_once_lock);
-	/*
-	 * If previous thread was canceled, then the state still
-	 * could be ONCE_NEVER_DONE, we need to check it again.
-	 */
-	if (*(volatile int *)&(once_control->state) == ONCE_NEVER_DONE) {
-		once_control->state = ONCE_IN_PROGRESS;
-		_pthread_mutex_unlock(&_thr_once_lock);
-		curthread = _get_curthread();
-		THR_CLEANUP_PUSH(curthread, once_cancel_handler, once_control);
-		init_routine();
-		THR_CLEANUP_POP(curthread, 0);
-		_pthread_mutex_lock(&_thr_once_lock);
-		once_control->state = ONCE_DONE;
-		wakeup = 1;
-	}
-	_pthread_mutex_unlock(&_thr_once_lock);
-	if (wakeup)
-		_pthread_cond_broadcast(&_thr_once_cv);
+	atomic_store_rel_int(&once_control->state, ONCE_DONE);
+	_thr_umtx_wake(&once_control->state, INT_MAX, 0);
 	return (0);
 }
 
 void
 _thr_once_init()
 {
-	_thr_once_lock = PTHREAD_MUTEX_INITIALIZER;
-	_thr_once_cv = PTHREAD_COND_INITIALIZER;
 }
