@@ -4,7 +4,7 @@
  *
  * Copyright (C) 1990, 1992 Specialix International,
  * Copyright (C) 1993, Andy Rutter <andy@acronym.co.uk>
- * Copyright (C) 1995, Peter Wemm <peter@haywire.dialix.com>
+ * Copyright (C) 1995, Peter Wemm
  *
  * Derived from:	SunOS 4.x version
  *
