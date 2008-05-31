@@ -6,6 +6,7 @@
 SUBDIR=		dtmalloc	\
 		dtrace		\
 		dtraceall	\
+		dtrace_test	\
 		profile		\
 		prototype	\
 		sdt		\
