@@ -208,6 +208,8 @@
       <para role="merged">The &man.cmx.4; driver, a driver for Omnikey CardMan 4040
         PCMCIA smartcard readers, has been added.</para>
 
+      <para>The &man.syscons.4; driver now supports Colemak keyboard layout.</para>
+
       <para role="merged">The &man.uslcom.4; driver, a driver for Silicon
         Laboratories CP2101/CP2102-based USB serial adapters, has been
         imported from OpenBSD.</para>
@@ -227,6 +229,10 @@
 	  to support adapters up to the 82575, as well as new
 	  client/desktop adapters.  A new igb driver
 	  will support new server adapters.</para>
+
+	<para>The &man.jme.4; driver has been added to provide support
+	  for PCIe network adapters based on JMicron JMC250 Gigabit
+	  Ethernet and JMC260 Fast Ethernet controllers.</para>
 
 	<para>The &man.malo.4; driver has been added to provide
 	  support for Marvell Libertas 88W8335 based PCI network
@@ -262,6 +268,10 @@
         be enabled by setting
         the <varname>net.bpf.zerocopy_enable</varname> sysctl
         variable to <literal>1</literal>.</para>
+
+      <para>ISDN4BSD(I4B), <filename>netatm</filename>, and all
+        related subsystems have been removed due to lack of
+        multi-processor support.</para>
 
       <para role="merged">A bug in TCP options padding, where the wrong padding
         bytes were used, has been fixed.</para>
@@ -320,6 +330,11 @@
       supports a <option>-a</option> flag, which is equivalent to
       specifying the <option>-RrP</option> flags.</para>
 
+    <para>BSD-licensed version of &man.cpio.1; based on
+      <filename>libarchive</filename>, has replaced the GNU cpio.
+      Note that the GNU cpio is still installed as
+      <filename>gcpio</filename>.</para>
+
     <para>The &man.env.1; program now supports <option>-u
       <replaceable>name</replaceable></option>
       which will completely unset the given variable
@@ -332,6 +347,10 @@
       of primaries that were present in GNU find but not &os;
       &man.find.1;.</para>
 
+    <para>&man.jexec.8; now supports <option>-h
+      <replaceable>hostname</replaceable></option> option to specify the
+      jail where the command will be executed.</para>
+
     <para>&man.kgdb.1; now supports a new <command>add-kld</command>
       command to make it easier to debug crash dumps with kernel
       modules.</para>
@@ -342,6 +361,11 @@
 
     <para>&man.nc.1; now supports a <option>-O</option> switch to
       disable the use of TCP options.</para>
+
+    <para>The &man.ping6.8; utility now returns <literal>2</literal>
+      when the packet transmission was successful but no responses
+      were received (this is the same behavior as &man.ping.8;).
+      It returned a non-zero value before this change.</para>
 
     <para>The &man.procstat.1; utility has been added to display
       detailed information about processes.</para>
@@ -356,6 +380,17 @@
     <para>The &man.tar.1; utility now supports a <option>-Z</option>
       flag to enable &man.compress.1;-style
       compression/decompression.</para>
+
+    <para>The &man.tar.1; utility now supports a
+      <option>--numeric-owner</option> flag to ignore user/group names
+      on create and extract.</para>
+
+    <para>The &man.tar.1; utility now supports an
+      <option>-S</option> flag to sparsify files on extraction.</para>
+
+    <para>The &man.tar.1; utility now supports a <option>-s</option>
+      flag to substitute filenames based on the specified regular
+      expression.</para>
 
     <para>The &man.tcgetsid.3; library function has been added to
       return the process group ID for the session leader for the
@@ -426,6 +461,13 @@
 
   <sect2 id="ports">
     <title>Ports/Packages Collection Infrastructure</title>
+
+    <para>The &man.pkg.create.1; utility now supports
+      <option>-n</option>.  When this option is specified and a
+      package tarball exists, it will not be overwritten.  This is
+      useful when multiple packages are saved with several consecutive
+      runs of &man.pkg.create.1; with the <option>-Rb</option>
+      options.</para>
 
     <para>The pkg_sign and pkg_check utilities for cryptographically
       signing &os; packages have been removed.  They were only useful
