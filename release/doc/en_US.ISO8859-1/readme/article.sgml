@@ -23,6 +23,7 @@
       <year>2005</year>
       <year>2006</year>
       <year>2007</year>
+      <year>2008</year>
       <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
     </copyright>
 
@@ -58,8 +59,8 @@
 	Intel Itanium Processor based computers (&arch.ia64;),
 	NEC PC-9801/9821 series PCs and compatibles (&arch.pc98;),
 	and &ultrasparc; machines (&arch.sparc64;).  Versions
-	for the &powerpc; (&arch.powerpc;), and &mips; (mips)
-	architectures are currently under
+	for the &arm; (&arch.arm;), &mips; (&arch.mips;), and
+	&powerpc; (&arch.powerpc;) architectures are currently under
 	development as well.  &os; works with a wide variety of
 	peripherals and configurations and can be used for everything
 	from software development to games to Internet Service
