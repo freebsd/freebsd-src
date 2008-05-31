@@ -73,7 +73,6 @@ pkill		gad	Heads-up appreciated.
 ps		gad	I am working on a number of changes to this.  Would
 			like advance notice of major changes planned to it.
 cvs		peter	Heads-up appreciated, try not to break it.
-ncurses		peter	Heads-up appreciated, try not to break it.
 nvi		peter	Try not to break it.
 libz		peter	Try not to break it.
 pppd/chat	peter	Try not to break it.
