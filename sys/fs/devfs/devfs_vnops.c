@@ -1264,9 +1264,8 @@ devfs_setattr(struct vop_setattr_args *ap)
 	else
 		gid = vap->va_gid;
 	if (uid != de->de_uid || gid != de->de_gid) {
-		if (ap->a_cred != NOCRED &&
-		    (ap->a_cred->cr_uid != de->de_uid || uid != de->de_uid ||
-		    (gid != de->de_gid && !groupmember(gid, ap->a_cred)))) {
+		if ((ap->a_cred->cr_uid != de->de_uid) || uid != de->de_uid ||
+		    (gid != de->de_gid && !groupmember(gid, ap->a_cred))) {
 			error = priv_check(ap->a_td, PRIV_VFS_CHOWN);
 			if (error)
 				return (error);
@@ -1277,7 +1276,7 @@ devfs_setattr(struct vop_setattr_args *ap)
 	}
 
 	if (vap->va_mode != (mode_t)VNOVAL) {
-		if (ap->a_cred != NOCRED && ap->a_cred->cr_uid != de->de_uid) {
+		if (ap->a_cred->cr_uid != de->de_uid) {
 			error = priv_check(ap->a_td, PRIV_VFS_ADMIN);
 			if (error)
 				return (error);
