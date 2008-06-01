@@ -60,7 +60,7 @@
 #endif
 
 /* Sizes of input and output link tables */
-#define LINK_TABLE_OUT_SIZE         101
+#define LINK_TABLE_OUT_SIZE        4001
 #define LINK_TABLE_IN_SIZE         4001
 
 struct proxy_entry;
@@ -109,8 +109,6 @@ struct libalias {
 	int		lastCleanupTime;	/* Last time
 						 * IncrementalCleanup()  */
 	/* was called                      */
-
-	int		houseKeepingResidual;	/* used by HouseKeeping()          */
 
 	int		deleteAllLinks;	/* If equal to zero, DeleteLink()  */
 	/* will not remove permanent links */
