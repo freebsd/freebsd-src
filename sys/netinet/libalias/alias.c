@@ -1092,13 +1092,13 @@ saved and recalled when a header fragment is seen.
 
 /* Local prototypes */
 static int	FragmentIn(struct libalias *la, struct in_addr ip_src, 
-		    struct in_addr *ip_dst, u_char ip_p, u_short *ip_sum);		    
+		    struct in_addr *ip_dst, u_short ip_id, u_short *ip_sum);		    
 static int	FragmentOut(struct libalias *, struct in_addr *ip_src, 
 		    u_short *ip_sum);
 
 static int
 FragmentIn(struct libalias *la, struct in_addr ip_src, struct in_addr *ip_dst,
-    u_char ip_id, u_short *ip_sum)
+    u_short ip_id, u_short *ip_sum)
 {
 	struct alias_link *lnk;
 
