@@ -17,6 +17,8 @@
  * information: Portions Copyright [yyyy] [name of copyright owner]
  *
  * CDDL HEADER END
+ *
+ * $FreeBSD$
  */
 
 /*
@@ -1137,8 +1139,13 @@ struct dtrace_state {
 	uint32_t dts_dblerrors;			/* errors in ERROR probes */
 	uint32_t dts_reserve;			/* space reserved for END */
 	hrtime_t dts_laststatus;		/* time of last status */
+#if defined(sun)
 	cyclic_id_t dts_cleaner;		/* cleaning cyclic */
 	cyclic_id_t dts_deadman;		/* deadman cyclic */
+#else
+	struct callout dts_cleaner;		/* Cleaning callout. */
+	struct callout dts_deadman;		/* Deadman callout. */
+#endif
 	hrtime_t dts_alive;			/* time last alive */
 	char dts_speculates;			/* boolean: has speculations */
 	char dts_destructive;			/* boolean: has dest. actions */
