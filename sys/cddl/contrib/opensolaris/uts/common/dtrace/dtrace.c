@@ -17,6 +17,8 @@
  * information: Portions Copyright [yyyy] [name of copyright owner]
  *
  * CDDL HEADER END
+ *
+ * $FreeBSD$
  */
 
 /*
@@ -111,6 +113,7 @@
 
 /* FreeBSD includes: */
 #if !defined(sun)
+#include <sys/callout.h>
 #include <sys/ctype.h>
 #include <sys/limits.h>
 #include <sys/kdb.h>
@@ -11400,13 +11403,23 @@ dtrace_enabling_matchall(void)
 	mutex_enter(&dtrace_lock);
 
 	/*
-	 * Because we can be called after dtrace_detach() has been called, we
-	 * cannot assert that there are retained enablings.  We can safely
-	 * load from dtrace_retained, however:  the taskq_destroy() at the
-	 * end of dtrace_detach() will block pending our completion.
+	 * Iterate over all retained enablings to see if any probes match
+	 * against them.  We only perform this operation on enablings for which
+	 * we have sufficient permissions by virtue of being in the global zone
+	 * or in the same zone as the DTrace client.  Because we can be called
+	 * after dtrace_detach() has been called, we cannot assert that there
+	 * are retained enablings.  We can safely load from dtrace_retained,
+	 * however:  the taskq_destroy() at the end of dtrace_detach() will
+	 * block pending our completion.
 	 */
-	for (enab = dtrace_retained; enab != NULL; enab = enab->dten_next)
-		(void) dtrace_enabling_match(enab, NULL);
+	for (enab = dtrace_retained; enab != NULL; enab = enab->dten_next) {
+#if defined(sun)
+		cred_t *cr = enab->dten_vstate->dtvs_state->dts_cred.dcr_cred;
+
+		if (INGLOBALZONE(curproc) || getzoneid() == crgetzoneid(cr))
+#endif
+			(void) dtrace_enabling_match(enab, NULL);
+	}
 
 	mutex_exit(&dtrace_lock);
 	mutex_exit(&cpu_lock);
@@ -12680,6 +12693,7 @@ dtrace_vstate_fini(dtrace_vstate_t *vstate)
 	}
 }
 
+#if defined(sun)
 static void
 dtrace_state_clean(dtrace_state_t *state)
 {
@@ -12696,10 +12710,6 @@ dtrace_state_deadman(dtrace_state_t *state)
 	hrtime_t now;
 
 	dtrace_sync();
-
-#if !defined(sun)
-	dtrace_debug_output();
-#endif
 
 	now = dtrace_gethrtime();
 
@@ -12720,6 +12730,56 @@ dtrace_state_deadman(dtrace_state_t *state)
 	dtrace_membar_producer();
 	state->dts_alive = now;
 }
+#else
+static void
+dtrace_state_clean(void *arg)
+{
+	dtrace_state_t *state = arg;
+	dtrace_optval_t *opt = state->dts_options;
+
+	if (state->dts_activity == DTRACE_ACTIVITY_INACTIVE)
+		return;
+
+	dtrace_dynvar_clean(&state->dts_vstate.dtvs_dynvars);
+	dtrace_speculation_clean(state);
+
+	callout_reset(&state->dts_cleaner, hz * opt[DTRACEOPT_CLEANRATE] / NANOSEC,
+	    dtrace_state_clean, state);
+}
+
+static void
+dtrace_state_deadman(void *arg)
+{
+	dtrace_state_t *state = arg;
+	hrtime_t now;
+
+	dtrace_sync();
+
+	dtrace_debug_output();
+
+	now = dtrace_gethrtime();
+
+	if (state != dtrace_anon.dta_state &&
+	    now - state->dts_laststatus >= dtrace_deadman_user)
+		return;
+
+	/*
+	 * We must be sure that dts_alive never appears to be less than the
+	 * value upon entry to dtrace_state_deadman(), and because we lack a
+	 * dtrace_cas64(), we cannot store to it atomically.  We thus instead
+	 * store INT64_MAX to it, followed by a memory barrier, followed by
+	 * the new value.  This assures that dts_alive never appears to be
+	 * less than its true value, regardless of the order in which the
+	 * stores to the underlying storage are issued.
+	 */
+	state->dts_alive = INT64_MAX;
+	dtrace_membar_producer();
+	state->dts_alive = now;
+
+	callout_reset(&state->dts_deadman, hz * dtrace_deadman_interval / NANOSEC,
+	    dtrace_state_deadman, state);
+}
+#endif
 
 static dtrace_state_t *
 #if defined(sun)
@@ -12793,8 +12853,14 @@ dtrace_state_create(struct cdev *dev)
 	 */
 	state->dts_buffer = kmem_zalloc(bufsize, KM_SLEEP);
 	state->dts_aggbuffer = kmem_zalloc(bufsize, KM_SLEEP);
+
+#if defined(sun)
 	state->dts_cleaner = CYCLIC_NONE;
 	state->dts_deadman = CYCLIC_NONE;
+#else
+	callout_init(&state->dts_cleaner, CALLOUT_MPSAFE);
+	callout_init(&state->dts_deadman, CALLOUT_MPSAFE);
+#endif
 	state->dts_vstate.dtvs_state = state;
 
 	for (i = 0; i < DTRACEOPT_MAX; i++)
@@ -13076,8 +13142,10 @@ dtrace_state_go(dtrace_state_t *state, processorid_t *cpu)
 	dtrace_optval_t *opt = state->dts_options, sz, nspec;
 	dtrace_speculation_t *spec;
 	dtrace_buffer_t *buf;
+#if defined(sun)
 	cyc_handler_t hdlr;
 	cyc_time_t when;
+#endif
 	int rval = 0, i, bufsize = NCPU * sizeof (dtrace_buffer_t);
 	dtrace_icookie_t cookie;
 
@@ -13255,11 +13323,11 @@ dtrace_state_go(dtrace_state_t *state, processorid_t *cpu)
 	if (opt[DTRACEOPT_CLEANRATE] > dtrace_cleanrate_max)
 		opt[DTRACEOPT_CLEANRATE] = dtrace_cleanrate_max;
 
+	state->dts_alive = state->dts_laststatus = dtrace_gethrtime();
+#if defined(sun)
 	hdlr.cyh_func = (cyc_func_t)dtrace_state_clean;
 	hdlr.cyh_arg = state;
-#if defined(sun)
 	hdlr.cyh_level = CY_LOW_LEVEL;
-#endif
 
 	when.cyt_when = 0;
 	when.cyt_interval = opt[DTRACEOPT_CLEANRATE];
@@ -13268,15 +13336,18 @@ dtrace_state_go(dtrace_state_t *state, processorid_t *cpu)
 
 	hdlr.cyh_func = (cyc_func_t)dtrace_state_deadman;
 	hdlr.cyh_arg = state;
-#if defined(sun)
 	hdlr.cyh_level = CY_LOW_LEVEL;
-#endif
 
 	when.cyt_when = 0;
 	when.cyt_interval = dtrace_deadman_interval;
 
-	state->dts_alive = state->dts_laststatus = dtrace_gethrtime();
 	state->dts_deadman = cyclic_add(&hdlr, &when);
+#else
+	callout_reset(&state->dts_cleaner, hz * opt[DTRACEOPT_CLEANRATE] / NANOSEC,
+	    dtrace_state_clean, state);
+	callout_reset(&state->dts_deadman, hz * dtrace_deadman_interval / NANOSEC,
+	    dtrace_state_deadman, state);
+#endif
 
 	state->dts_activity = DTRACE_ACTIVITY_WARMUP;
 
@@ -13537,11 +13608,16 @@ dtrace_state_destroy(dtrace_state_t *state)
 	for (i = 0; i < nspec; i++)
 		dtrace_buffer_free(spec[i].dtsp_buffer);
 
+#if defined(sun)
 	if (state->dts_cleaner != CYCLIC_NONE)
 		cyclic_remove(state->dts_cleaner);
 
 	if (state->dts_deadman != CYCLIC_NONE)
 		cyclic_remove(state->dts_deadman);
+#else
+	callout_stop(&state->dts_cleaner);
+	callout_stop(&state->dts_deadman);
+#endif
 
 	dtrace_dstate_fini(&vstate->dtvs_dynvars);
 	dtrace_vstate_fini(vstate);
