@@ -898,7 +898,7 @@ pccard_parse_cis_tuple(const struct pccard_tuple *tuple, void *arg)
 		break;
 	case CISTPL_CFTABLE_ENTRY:
 		{
-			int idx, i, j;
+			int idx, i;
 			u_int reg, reg2;
 			u_int intface, def, num;
 			u_int power, timing, iospace, irq, memspace, misc;
@@ -906,8 +906,7 @@ pccard_parse_cis_tuple(const struct pccard_tuple *tuple, void *arg)
 
 			idx = 0;
 
-			reg = pccard_tuple_read_1(tuple, idx);
-			idx++;
+			reg = pccard_tuple_read_1(tuple, idx++);
 			intface = reg & PCCARD_TPCE_INDX_INTFACE;
 			def = reg & PCCARD_TPCE_INDX_DEFAULT;
 			num = reg & PCCARD_TPCE_INDX_NUM_MASK;
@@ -983,8 +982,7 @@ pccard_parse_cis_tuple(const struct pccard_tuple *tuple, void *arg)
 			}
 
 			if (intface) {
-				reg = pccard_tuple_read_1(tuple, idx);
-				idx++;
+				reg = pccard_tuple_read_1(tuple, idx++);
 				cfe->flags &= ~(PCCARD_CFE_MWAIT_REQUIRED
 				    | PCCARD_CFE_RDYBSY_ACTIVE
 				    | PCCARD_CFE_WP_ACTIVE
@@ -999,8 +997,7 @@ pccard_parse_cis_tuple(const struct pccard_tuple *tuple, void *arg)
 					cfe->flags |= PCCARD_CFE_BVD_ACTIVE;
 				cfe->iftype = reg & PCCARD_TPCE_IF_IFTYPE;
 			}
-			reg = pccard_tuple_read_1(tuple, idx);
-			idx++;
+			reg = pccard_tuple_read_1(tuple, idx++);
 
 			power = reg & PCCARD_TPCE_FS_POWER_MASK;
 			timing = reg & PCCARD_TPCE_FS_TIMING;
@@ -1013,30 +1010,26 @@ pccard_parse_cis_tuple(const struct pccard_tuple *tuple, void *arg)
 				/* skip over power, don't save */
 				/* for each parameter selection byte */
 				for (i = 0; i < power; i++) {
-					reg = pccard_tuple_read_1(tuple, idx);
-					idx++;
-					/* for each bit */
-					for (j = 0; j < 7; j++) {
-						/* if the bit is set */
-						if ((reg >> j) & 0x01) {
-							/* skip over bytes */
-							do {
-								reg2 = pccard_tuple_read_1(tuple, idx);
-								idx++;
-								/*
-								 * until
-								 * non-extensi
-								 * on byte
-								 */
-							} while (reg2 & 0x80);
-						}
+					reg = pccard_tuple_read_1(tuple, idx++);
+					for (; reg; reg >>= 1)
+					{
+						/* set bit -> read */
+						if ((reg & 1) == 0)
+							continue;
+						/* skip over bytes */
+						do {
+							reg2 = pccard_tuple_read_1(tuple, idx++);
+							/*
+							 * until non-extension
+							 * byte
+							 */
+						} while (reg2 & 0x80);
 					}
 				}
 			}
 			if (timing) {
 				/* skip over timing, don't save */
-				reg = pccard_tuple_read_1(tuple, idx);
-				idx++;
+				reg = pccard_tuple_read_1(tuple, idx++);
 
 				if ((reg & PCCARD_TPCE_TD_RESERVED_MASK) !=
 				    PCCARD_TPCE_TD_RESERVED_MASK)
@@ -1054,8 +1047,7 @@ pccard_parse_cis_tuple(const struct pccard_tuple *tuple, void *arg)
 					goto abort_cfe;
 				}
 
-				reg = pccard_tuple_read_1(tuple, idx);
-				idx++;
+				reg = pccard_tuple_read_1(tuple, idx++);
 				cfe->flags &=
 				    ~(PCCARD_CFE_IO8 | PCCARD_CFE_IO16);
 				if (reg & PCCARD_TPCE_IO_BUSWIDTH_8BIT)
@@ -1066,9 +1058,7 @@ pccard_parse_cis_tuple(const struct pccard_tuple *tuple, void *arg)
 				    reg & PCCARD_TPCE_IO_IOADDRLINES_MASK;
 
 				if (reg & PCCARD_TPCE_IO_HASRANGE) {
-					reg = pccard_tuple_read_1(tuple, idx);
-					idx++;
-
+					reg = pccard_tuple_read_1(tuple, idx++);
 					cfe->num_iospace = 1 + (reg &
 					    PCCARD_TPCE_IO_RANGE_COUNT);
 
@@ -1085,8 +1075,7 @@ pccard_parse_cis_tuple(const struct pccard_tuple *tuple, void *arg)
 						switch (reg & PCCARD_TPCE_IO_RANGE_ADDRSIZE_MASK) {
 						case PCCARD_TPCE_IO_RANGE_ADDRSIZE_ONE:
 							cfe->iospace[i].start =
-								pccard_tuple_read_1(tuple, idx);
-							idx++;
+								pccard_tuple_read_1(tuple, idx++);
 							break;
 						case PCCARD_TPCE_IO_RANGE_ADDRSIZE_TWO:
 							cfe->iospace[i].start =
@@ -1103,8 +1092,7 @@ pccard_parse_cis_tuple(const struct pccard_tuple *tuple, void *arg)
 							PCCARD_TPCE_IO_RANGE_LENGTHSIZE_MASK) {
 						case PCCARD_TPCE_IO_RANGE_LENGTHSIZE_ONE:
 							cfe->iospace[i].length =
-								pccard_tuple_read_1(tuple, idx);
-							idx++;
+								pccard_tuple_read_1(tuple, idx++);
 							break;
 						case PCCARD_TPCE_IO_RANGE_LENGTHSIZE_TWO:
 							cfe->iospace[i].length =
@@ -1132,8 +1120,7 @@ pccard_parse_cis_tuple(const struct pccard_tuple *tuple, void *arg)
 					goto abort_cfe;
 				}
 
-				reg = pccard_tuple_read_1(tuple, idx);
-				idx++;
+				reg = pccard_tuple_read_1(tuple, idx++);
 				cfe->flags &= ~(PCCARD_CFE_IRQSHARE
 				    | PCCARD_CFE_IRQPULSE
 				    | PCCARD_CFE_IRQLEVEL);
@@ -1186,12 +1173,9 @@ pccard_parse_cis_tuple(const struct pccard_tuple *tuple, void *arg)
 					int cardaddrsize;
 					int hostaddrsize;
 
-					reg = pccard_tuple_read_1(tuple, idx);
-					idx++;
-
+					reg = pccard_tuple_read_1(tuple, idx++);
 					cfe->num_memspace = (reg &
 					    PCCARD_TPCE_MS_COUNT) + 1;
-
 					if (cfe->num_memspace >
 					    (sizeof(cfe->memspace) /
 					     sizeof(cfe->memspace[0]))) {
@@ -1255,8 +1239,7 @@ pccard_parse_cis_tuple(const struct pccard_tuple *tuple, void *arg)
 					goto abort_cfe;
 				}
 
-				reg = pccard_tuple_read_1(tuple, idx);
-				idx++;
+				reg = pccard_tuple_read_1(tuple, idx++);
 				cfe->flags &= ~(PCCARD_CFE_POWERDOWN
 				    | PCCARD_CFE_READONLY
 				    | PCCARD_CFE_AUDIO);
@@ -1269,8 +1252,7 @@ pccard_parse_cis_tuple(const struct pccard_tuple *tuple, void *arg)
 				cfe->maxtwins = reg & PCCARD_TPCE_MI_MAXTWINS;
 
 				while (reg & PCCARD_TPCE_MI_EXT) {
-					reg = pccard_tuple_read_1(tuple, idx);
-					idx++;
+					reg = pccard_tuple_read_1(tuple, idx++);
 				}
 			}
 			/* skip all the subtuples */
