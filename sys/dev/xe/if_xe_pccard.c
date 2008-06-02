@@ -46,7 +46,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if_media.h>
 #include <net/if_mib.h>
 
-
 #include <dev/xe/if_xereg.h>
 #include <dev/xe/if_xevar.h>
 
@@ -308,6 +307,7 @@ xe_pccard_attach(device_t dev)
 	}
 	if ((err = xe_attach(dev))) {
 		device_printf(dev, "xe_attach() failed! (%d)\n", err);
+		xe_deactivate(dev);
 		return (err);
 	}
 	return (0);
@@ -326,10 +326,14 @@ xe_pccard_detach(device_t dev)
 
 	DEVPRINTF(2, (dev, "pccard_detach\n"));
 
-	sc->ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+	XE_LOCK(sc);
+	xe_stop(sc);
+	XE_UNLOCK(sc);
+	callout_drain(&sc->media_timer);
+	callout_drain(&sc->wdog_timer);
 	ether_ifdetach(sc->ifp);
 	xe_deactivate(dev);
-	if_free(sc->ifp);
+	mtx_destroy(&sc->lock);
 	return (0);
 }
 
