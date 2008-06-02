@@ -342,6 +342,7 @@ main(int argc, char **argv)
 	}
 
 	if (kernel_lockd) {
+		init_nsm();
 		client_pid = client_request();
 
 		/*
