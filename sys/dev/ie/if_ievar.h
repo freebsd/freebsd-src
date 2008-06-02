@@ -67,9 +67,15 @@ struct ie_softc {
 	int	 mcast_count;
 
 	u_short	 irq_encoded;	/* encoded interrupt on IEE16 */
+
+	struct mtx	lock;
 };
 #define PORT(sc)	sc->port
 #define MEM(sc)		sc->iomem
+
+#define	IE_LOCK(sc)		mtx_lock(&(sc)->lock)
+#define	IE_UNLOCK(sc)		mtx_unlock(&(sc)->lock)
+#define	IE_ASSERT_LOCKED(sc)	mtx_assert(&(sc)->lock, MA_OWNED)
 
 void            ie_intr			(void *);
 int		ie_alloc_resources	(device_t);
