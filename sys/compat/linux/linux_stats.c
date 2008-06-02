@@ -178,19 +178,8 @@ linux_newstat(struct thread *td, struct linux_newstat_args *args)
 #endif
 
 	error = kern_stat(td, path, UIO_SYSSPACE, &buf);
-	if (!error) {
-		if (strlen(path) > strlen("/dev/pts/") &&
-		    !strncmp(path, "/dev/pts/", strlen("/dev/pts/")) &&
-		    path[9] >= '0' && path[9] <= '9') {
-			/*
-			 * Linux checks major and minors of the slave device
-			 * to make sure it's a pty device, so let's make him
-			 * believe it is.
-			 */
-			buf.st_rdev = (136 << 8);
-		} else
-			translate_path_major_minor(td, path, &buf);
-	}
+	if (!error)
+		translate_path_major_minor(td, path, &buf);
 	LFREEPATH(path);
 	if (error)
 		return (error);
@@ -528,19 +517,8 @@ linux_stat64(struct thread *td, struct linux_stat64_args *args)
 #endif
 
 	error = kern_stat(td, filename, UIO_SYSSPACE, &buf);
-	if (!error) {
-		if (strlen(filename) > strlen("/dev/pts/") &&
-		    !strncmp(filename, "/dev/pts/", strlen("/dev/pts/")) &&
-		    filename[9] >= '0' && filename[9] <= '9') {
-			/*
-			 * Linux checks major and minors of the slave device
-			 * to make sure it's a pty deivce, so let's make him
-			 * believe it is.
-			 */
-			buf.st_rdev = (136 << 8);
-		} else
-			translate_path_major_minor(td, filename, &buf);
-	}
+	if (!error)
+		translate_path_major_minor(td, filename, &buf);
 	LFREEPATH(filename);
 	if (error)
 		return (error);
