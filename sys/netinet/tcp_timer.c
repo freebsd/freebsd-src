@@ -313,7 +313,7 @@ tcp_timer_keep(void *xtp)
 			tcp_respond(tp, t_template->tt_ipgen,
 				    &t_template->tt_t, (struct mbuf *)NULL,
 				    tp->rcv_nxt, tp->snd_una - 1, 0);
-			(void) m_free(dtom(t_template));
+			free(t_template, M_TEMP);
 		}
 		callout_reset(&tp->t_timers->tt_keep, tcp_keepintvl, tcp_timer_keep, tp);
 	} else
