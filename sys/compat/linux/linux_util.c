@@ -130,6 +130,22 @@ linux_driver_get_major_minor(char *node, int *major, int *minor)
 
 	if (node == NULL || major == NULL || minor == NULL)
 		return 1;
+
+	if (strlen(node) > strlen("pts/") &&
+	    strncmp(node, "pts/", strlen("pts/")) == 0) {
+		unsigned long devno;
+
+		/*
+		 * Linux checks major and minors of the slave device
+		 * to make sure it's a pty device, so let's make him
+		 * believe it is.
+		 */
+		devno = strtoul(node + strlen("pts/"), NULL, 10);
+		*major = 136 + (devno / 256);
+		*minor = devno % 256;
+		return 0;
+	}
+
 	TAILQ_FOREACH(de, &devices, list) {
 		if (strcmp(node, de->entry.bsd_device_name) == 0) {
 			*major = de->entry.linux_major;
