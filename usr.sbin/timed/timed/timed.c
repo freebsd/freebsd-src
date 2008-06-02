@@ -134,7 +134,7 @@ main(argc, argv)
 	struct nets *nt;
 	struct sockaddr_in server;
 	u_short port;
-	char c;
+	int c;
 
 #ifdef lint
 	ntip = NULL;
