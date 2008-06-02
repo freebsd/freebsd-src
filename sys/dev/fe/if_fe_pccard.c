@@ -175,11 +175,15 @@ fe_pccard_detach(device_t dev)
 	struct fe_softc *sc = device_get_softc(dev);
 	struct ifnet *ifp = sc->ifp;
 
+	FE_LOCK(sc);
 	fe_stop(sc);
+	FE_UNLOCK(sc);
+	callout_drain(&sc->timer);
 	ether_ifdetach(ifp);
 	bus_teardown_intr(dev, sc->irq_res, sc->irq_handle);
 	if_free(ifp);
 	fe_release_resource(dev);
+	mtx_destroy(&sc->lock);
 
 	return 0;
 }

@@ -71,6 +71,7 @@ __FBSDID("$FreeBSD$");
  */
 
 #include <sys/param.h>
+#include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
@@ -135,10 +136,12 @@ static struct fe_filter const fe_filter_all     = { FE_FILTER_ALL };
 
 /* Standard driver entry points.  These can be static.  */
 static void		fe_init		(void *);
+static void		fe_init_locked	(struct fe_softc *);
 static driver_intr_t	fe_intr;
 static int		fe_ioctl	(struct ifnet *, u_long, caddr_t);
 static void		fe_start	(struct ifnet *);
-static void		fe_watchdog	(struct ifnet *);
+static void		fe_start_locked	(struct ifnet *);
+static void		fe_watchdog	(void *);
 static int		fe_medchange	(struct ifnet *);
 static void		fe_medstat	(struct ifnet *, struct ifmediareq *);
 
@@ -737,16 +740,13 @@ fe_attach (device_t dev)
 	ifp = sc->ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL) {
 		device_printf(dev, "can not ifalloc\n");
+		fe_release_resource(dev);
 		return (ENOSPC);
 	}
 
-	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET,
-			       NULL, fe_intr, sc, &sc->irq_handle);
-	if (error) {
-		if_free(ifp);
-		fe_release_resource(dev);
-		return ENXIO;
-	}
+	mtx_init(&sc->lock, device_get_nameunit(dev), MTX_NETWORK_LOCK,
+	    MTX_DEF);
+	callout_init_mtx(&sc->timer, &sc->lock, 0);
 
 	/*
 	 * Initialize ifnet structure
@@ -755,7 +755,6 @@ fe_attach (device_t dev)
 	if_initname(sc->ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_start    = fe_start;
 	ifp->if_ioctl    = fe_ioctl;
-	ifp->if_watchdog = fe_watchdog;
 	ifp->if_init     = fe_init;
 	ifp->if_linkmib  = &sc->mibdata;
 	ifp->if_linkmiblen = sizeof (sc->mibdata);
@@ -767,8 +766,7 @@ fe_attach (device_t dev)
 	/*
 	 * Set fixed interface flags.
 	 */
- 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST |
-	    IFF_NEEDSGIANT;
+ 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 
 #if 1
 	/*
@@ -830,9 +828,21 @@ fe_attach (device_t dev)
 #endif
 
 	/* Attach and stop the interface. */
-	ether_ifattach(sc->ifp, sc->enaddr);
+	FE_LOCK(sc);
 	fe_stop(sc);
-  
+	FE_UNLOCK(sc);
+	ether_ifattach(sc->ifp, sc->enaddr);
+
+	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET | INTR_MPSAFE,
+			       NULL, fe_intr, sc, &sc->irq_handle);
+	if (error) {
+		ether_ifdetach(ifp);
+		mtx_destroy(&sc->lock);
+		if_free(ifp);
+		fe_release_resource(dev);
+		return ENXIO;
+	}
+
   	/* Print additional info when attached.  */
  	device_printf(dev, "type %s%s\n", sc->typestr,
 		      (sc->proto_dlcr4 & FE_D4_DSC) ? ", full duplex" : "");
@@ -942,7 +952,7 @@ fe_reset (struct fe_softc *sc)
 	/* Put the interface into known initial state.  */
 	fe_stop(sc);
 	if (sc->ifp->if_flags & IFF_UP)
-		fe_init(sc);
+		fe_init_locked(sc);
 }
 
 /*
@@ -954,9 +964,8 @@ fe_reset (struct fe_softc *sc)
 void
 fe_stop (struct fe_softc *sc)
 {
-	int s;
 
-	s = splimp();
+	FE_ASSERT_LOCKED(sc);
 
 	/* Disable interrupts.  */
 	fe_outb(sc, FE_DLCR2, 0x00);
@@ -978,7 +987,7 @@ fe_stop (struct fe_softc *sc)
 
 	/* Reset transmitter variables and interface flags.  */
 	sc->ifp->if_drv_flags &= ~(IFF_DRV_OACTIVE | IFF_DRV_RUNNING);
-	sc->ifp->if_timer = 0;
+	callout_stop(&sc->timer);
 	sc->txb_free = sc->txb_size;
 	sc->txb_count = 0;
 	sc->txb_sched = 0;
@@ -989,8 +998,6 @@ fe_stop (struct fe_softc *sc)
 	/* Call a device-specific hook.  */
 	if (sc->stop)
 		sc->stop(sc);
-
-	(void) splx(s);
 }
 
 /*
@@ -998,16 +1005,18 @@ fe_stop (struct fe_softc *sc)
  * generate an interrupt after a transmit has been started on it.
  */
 static void
-fe_watchdog ( struct ifnet *ifp )
+fe_watchdog (void *arg)
 {
-	struct fe_softc *sc = ifp->if_softc;
+	struct fe_softc *sc = arg;
+
+	FE_ASSERT_LOCKED(sc);
 
 	/* A "debug" message.  */
-	if_printf(ifp, "transmission timeout (%d+%d)%s\n",
+	if_printf(sc->ifp, "transmission timeout (%d+%d)%s\n",
 	       sc->txb_sched, sc->txb_count,
-	       (ifp->if_flags & IFF_UP) ? "" : " when down");
+	       (sc->ifp->if_flags & IFF_UP) ? "" : " when down");
 	if (sc->ifp->if_opackets == 0 && sc->ifp->if_ipackets == 0)
-		if_printf(ifp, "wrong IRQ setting in config?\n");
+		if_printf(sc->ifp, "wrong IRQ setting in config?\n");
 	fe_reset(sc);
 }
 
@@ -1018,10 +1027,17 @@ static void
 fe_init (void * xsc)
 {
 	struct fe_softc *sc = xsc;
-	int s;
+
+	FE_LOCK(sc);
+	fe_init_locked(sc);
+	FE_UNLOCK(sc);
+}
+
+static void
+fe_init_locked (struct fe_softc *sc)
+{
 
 	/* Start initializing 86960.  */
-	s = splimp();
 
 	/* Call a hook before we start initializing the chip.  */
 	if (sc->init)
@@ -1128,10 +1144,8 @@ fe_init (void * xsc)
            the interface keeping it idle.  The upper layer will soon
            start the interface anyway, and there are no significant
            delay.  */
-	fe_start(sc->ifp);
+	fe_start_locked(sc->ifp);
 #endif
-
-	(void) splx(s);
 }
 
 /*
@@ -1145,7 +1159,7 @@ fe_xmit (struct fe_softc *sc)
 	 * We use longer timeout for multiple packet transmission.
 	 * I'm not sure this timer value is appropriate.  FIXME.
 	 */
-	sc->ifp->if_timer = 1 + sc->txb_count;
+	callout_reset(&sc->timer, (1 + sc->txb_count) * hz, fe_watchdog, sc);
 
 	/* Update txb variables.  */
 	sc->txb_sched = sc->txb_count;
@@ -1159,15 +1173,22 @@ fe_xmit (struct fe_softc *sc)
 
 /*
  * Start output on interface.
- * We make two assumptions here:
- *  1) that the current priority is set to splimp _before_ this code
- *     is called *and* is returned to the appropriate priority after
- *     return
- *  2) that the IFF_DRV_OACTIVE flag is checked before this code is called
+ * We make one assumption here:
+ *  1) that the IFF_DRV_OACTIVE flag is checked before this code is called
  *     (i.e. that the output part of the interface is idle)
  */
 static void
 fe_start (struct ifnet *ifp)
+{
+	struct fe_softc *sc = ifp->if_softc;
+
+	FE_LOCK(sc);
+	fe_start_locked(ifp);
+	FE_UNLOCK(sc);
+}
+
+static void
+fe_start_locked (struct ifnet *ifp)
 {
 	struct fe_softc *sc = ifp->if_softc;
 	struct mbuf *m;
@@ -1534,7 +1555,7 @@ fe_tint (struct fe_softc * sc, u_char tstat)
 		 * Reset output active flag and watchdog timer.
 		 */
 		sc->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-		sc->ifp->if_timer = 0;
+		callout_stop(&sc->timer);
 
 		/*
 		 * If more data is ready to transmit in the buffer, start
@@ -1685,6 +1706,8 @@ fe_intr (void *arg)
 	u_char tstat, rstat;
 	int loop_count = FE_MAX_LOOP;
 
+	FE_LOCK(sc);
+
 	/* Loop until there are no more new interrupt conditions.  */
 	while (loop_count-- > 0) {
 		/*
@@ -1692,8 +1715,10 @@ fe_intr (void *arg)
 		 */
 		tstat = fe_inb(sc, FE_DLCR0) & FE_TMASK;
 		rstat = fe_inb(sc, FE_DLCR1) & FE_RMASK;
-		if (tstat == 0 && rstat == 0)
+		if (tstat == 0 && rstat == 0) {
+			FE_UNLOCK(sc);
 			return;
+		}
 
 		/*
 		 * Reset the conditions we are acknowledging.
@@ -1741,8 +1766,9 @@ fe_intr (void *arg)
 		 * interrupt when the transmission buffer is full.
 		 */
 		if ((sc->ifp->if_drv_flags & IFF_DRV_OACTIVE) == 0)
-			fe_start(sc->ifp);
+			fe_start_locked(sc->ifp);
 	}
+	FE_UNLOCK(sc);
 
 	if_printf(sc->ifp, "too many loops\n");
 }
@@ -1756,9 +1782,7 @@ fe_ioctl (struct ifnet * ifp, u_long command, caddr_t data)
 {
 	struct fe_softc *sc = ifp->if_softc;
 	struct ifreq *ifr = (struct ifreq *)data;
-	int s, error = 0;
-
-	s = splimp();
+	int error = 0;
 
 	switch (command) {
 
@@ -1767,9 +1791,10 @@ fe_ioctl (struct ifnet * ifp, u_long command, caddr_t data)
 		 * Switch interface state between "running" and
 		 * "stopped", reflecting the UP flag.
 		 */
+		FE_LOCK(sc);
 		if (sc->ifp->if_flags & IFF_UP) {
 			if ((sc->ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
-				fe_init(sc);
+				fe_init_locked(sc);
 		} else {
 			if ((sc->ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
 				fe_stop(sc);
@@ -1780,6 +1805,7 @@ fe_ioctl (struct ifnet * ifp, u_long command, caddr_t data)
 		 * so reprogram the multicast filter and/or receive mode.
 		 */
 		fe_setmode(sc);
+		FE_UNLOCK(sc);
 
 		/* Done.  */
 		break;
@@ -1790,7 +1816,9 @@ fe_ioctl (struct ifnet * ifp, u_long command, caddr_t data)
 		 * Multicast list has changed; set the hardware filter
 		 * accordingly.
 		 */
+		FE_LOCK(sc);
 		fe_setmode(sc);
+		FE_UNLOCK(sc);
 		break;
 
 	  case SIOCSIFMEDIA:
@@ -1805,7 +1833,6 @@ fe_ioctl (struct ifnet * ifp, u_long command, caddr_t data)
 		break;
 	}
 
-	(void) splx(s);
 	return (error);
 }
 
@@ -1820,6 +1847,8 @@ fe_get_packet (struct fe_softc * sc, u_short len)
 	struct ifnet *ifp = sc->ifp;
 	struct ether_header *eh;
 	struct mbuf *m;
+
+	FE_ASSERT_LOCKED(sc);
 
 	/*
 	 * NFS wants the data be aligned to the word (4 byte)
@@ -1890,7 +1919,9 @@ fe_get_packet (struct fe_softc * sc, u_short len)
 	}
 
 	/* Feed the packet to upper layer.  */
+	FE_UNLOCK(sc);
 	(*ifp->if_input)(ifp, m);
+	FE_LOCK(sc);
 	return 0;
 }
 
@@ -2164,7 +2195,7 @@ fe_setmode (struct fe_softc *sc)
 /*
  * Load a new multicast address filter into MARs.
  *
- * The caller must have splimp'ed before fe_loadmar.
+ * The caller must have acquired the softc lock before fe_loadmar.
  * This function starts the DLC upon return.  So it can be called only
  * when the chip is working, i.e., from the driver's point of view, when
  * a device is RUNNING.  (I mistook the point in previous versions.)
@@ -2223,9 +2254,11 @@ fe_medchange (struct ifnet *ifp)
 	   until the transmission buffer being empty?  Changing the
 	   media when we are sending a frame will cause two garbages
 	   on wires, one on old media and another on new.  FIXME */
+	FE_LOCK(sc);
 	if (sc->ifp->if_flags & IFF_UP) {
 		if (sc->msel) sc->msel(sc);
 	}
+	FE_UNLOCK(sc);
 
 	return 0;
 }
