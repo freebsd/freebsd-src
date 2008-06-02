@@ -117,6 +117,8 @@ struct fe_softc {
 	int defmedia;		/* default media  */
 	void (* msel)(struct fe_softc *); /* media selector.  */
 
+	struct mtx		lock;
+	struct callout		timer;
 };
 
 struct fe_simple_probe_struct {
@@ -125,6 +127,9 @@ struct fe_simple_probe_struct {
 	u_char bits;	/* Values to be compared against.  */
 };
 
+#define	FE_LOCK(sc)		mtx_lock(&(sc)->lock)
+#define	FE_UNLOCK(sc)		mtx_unlock(&(sc)->lock)
+#define	FE_ASSERT_LOCKED(sc)	mtx_assert(&(sc)->lock, MA_OWNED)
 
 extern	devclass_t fe_devclass;
 
