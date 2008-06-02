@@ -161,9 +161,11 @@ static int	ie_debug = IED_RNR;
 struct ie_softc;
 
 static void	ieinit			(void *);
+static void	ieinit_locked		(struct ie_softc *);
 static void	ie_stop			(struct ie_softc *);
 static int	ieioctl			(struct ifnet *, u_long, caddr_t);
 static void	iestart			(struct ifnet *);
+static void	iestart_locked		(struct ifnet *);
 
 static __inline void
 		ee16_interrupt_enable	(struct ie_softc *);
@@ -179,7 +181,6 @@ static void	iereset			(struct ie_softc *);
 static void	ie_readframe		(struct ie_softc *, int);
 static void	ie_drop_packet_buffer	(struct ie_softc *);
 static void	find_ie_mem_size	(struct ie_softc *);
-static void	chan_attn_timeout	(void *);
 static int	command_and_wait	(struct ie_softc *,
 					 int, void volatile *, int);
 static void	run_tdr			(struct ie_softc *,
@@ -263,7 +264,7 @@ ie_attach(device_t dev)
 	struct ie_softc *       sc;
 	struct ifnet *          ifp;
 	size_t                  allocsize;
-	int                     factor;
+	int                     error, factor;
 
 	sc = device_get_softc(dev);
 	ifp = sc->ifp = if_alloc(IFT_ETHER);
@@ -273,6 +274,8 @@ ie_attach(device_t dev)
 	}
 
 	sc->dev = dev;
+	mtx_init(&sc->lock, device_get_nameunit(dev), MTX_NETWORK_LOCK,
+	    MTX_DEF);
 
 	/*
 	 * based on the amount of memory we have, allocate our tx and rx
@@ -294,7 +297,7 @@ ie_attach(device_t dev)
 								     M_DEVBUF,
 								   M_NOWAIT);
 	if (sc->rframes == NULL) {
-		if_free(ifp);
+		mtx_destroy(&sc->lock);
 		return (ENXIO);
 	}
 	sc->rbuffs =
@@ -313,8 +316,7 @@ ie_attach(device_t dev)
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_mtu = ETHERMTU;
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST |
-	    IFF_NEEDSGIANT;
+	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_start = iestart;
 	ifp->if_ioctl = ieioctl;
 	ifp->if_init = ieinit;
@@ -325,6 +327,15 @@ ie_attach(device_t dev)
 				      sc, SHUTDOWN_PRI_DEFAULT);
 
 	ether_ifattach(ifp, sc->enaddr);
+
+	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET | INTR_MPSAFE,
+				NULL, ie_intr, sc, &sc->irq_ih);
+	if (error) {
+		device_printf(dev, "Unable to register interrupt handler\n"); 
+		mtx_destroy(&sc->lock);
+		return (error);
+	}
+
 	return (0);
 }
 
@@ -344,6 +355,8 @@ ie_intr(void *xsc)
 {
 	struct ie_softc *sc = (struct ie_softc *)xsc;
 	u_short status;
+
+	IE_LOCK(sc);
 
 	/* Clear the interrupt latch on the 3C507. */
 	if (sc->hard_type == IE_3C507
@@ -405,7 +418,7 @@ loop:
 	/* enable interrupts on the EE16. */
 	if (sc->hard_type == IE_EE16)
 		outb(PORT(sc) + IEE16_IRQ, sc->irq_encoded | IEE16_IRQ_ENABLE);
-
+	IE_UNLOCK(sc);
 }
 
 /*
@@ -465,7 +478,6 @@ ietint(struct ie_softc *sc)
 	int	status;
 	int	i;
 
-	ifp->if_timer = 0;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	for (i = 0; i < sc->xmit_count; i++) {
@@ -507,7 +519,7 @@ ietint(struct ie_softc *sc)
 	/* Wish I knew why this seems to be necessary... */
 	sc->xmit_cmds[0]->ie_xmit_status |= IE_STAT_COMPL;
 
-	iestart(ifp);
+	iestart_locked(ifp);
 	return (0);		/* shouldn't be necessary */
 }
 
@@ -877,7 +889,9 @@ ie_readframe(struct ie_softc *sc, int	num/* frame number to read */)
 	/*
 	 * Finally pass this packet up to higher layers.
 	 */
+	IE_UNLOCK(sc);
 	(*ifp->if_input)(ifp, m);
+	IE_LOCK(sc);
 }
 
 static void
@@ -915,6 +929,16 @@ ie_drop_packet_buffer(struct ie_softc *sc)
  */
 static void
 iestart(struct ifnet *ifp)
+{
+	struct	 ie_softc *sc = ifp->if_softc;
+
+	IE_LOCK(sc);
+	iestart_locked(ifp);
+	IE_UNLOCK(sc);
+}
+
+static void
+iestart_locked(struct ifnet *ifp)
 {
 	struct	 ie_softc *sc = ifp->if_softc;
 	struct	 mbuf *m0, *m;
@@ -1000,9 +1024,6 @@ check_ie_present(struct ie_softc *sc)
 	volatile struct ie_int_sys_conf_ptr *iscp;
 	volatile struct ie_sys_ctl_block *scb;
 	u_long	realbase;
-	int	s;
-
-	s = splimp();
 
 	realbase = (uintptr_t) sc->iomembot + sc->iosize  - (1 << 24);
 
@@ -1035,7 +1056,6 @@ check_ie_present(struct ie_softc *sc)
 	DELAY(100);		/* wait a while... */
 
 	if (iscp->ie_busy) {
-		splx(s);
 		return (0);
 	}
 	/*
@@ -1059,7 +1079,6 @@ check_ie_present(struct ie_softc *sc)
 	DELAY(100);
 
 	if (iscp->ie_busy) {
-		splx(s);
 		return (0);
 	}
 	sc->iomem = (caddr_t) (uintptr_t) realbase;
@@ -1071,7 +1090,6 @@ check_ie_present(struct ie_softc *sc)
 	 * Acknowledge any interrupts we may have caused...
 	 */
 	ie_ack(sc, IE_ST_WHENCE);
-	splx(s);
 
 	return (1);
 }
@@ -1235,11 +1253,9 @@ static void
 iereset(struct ie_softc *sc)
 {
 	struct ifnet *ifp = sc->ifp;
-	int	s = splimp();
 
 	if_printf(ifp, "reset\n");
-	ifp->if_flags &= ~IFF_UP;
-	ieioctl(ifp, SIOCSIFFLAGS, 0);
+	ie_stop(sc);
 
 	/*
 	 * Stop i82586 dead in its tracks.
@@ -1255,20 +1271,10 @@ iereset(struct ie_softc *sc)
 		panic("ie disappeared!");
 #endif
 
-	ifp->if_flags |= IFF_UP;
-	ieioctl(ifp, SIOCSIFFLAGS, 0);
+	if (ifp->if_flags & IFF_UP)
+		ieinit_locked(sc);
 
-	splx(s);
 	return;
-}
-
-/*
- * This is called if we time out.
- */
-static void
-chan_attn_timeout(void *rock)
-{
-	*(int *) rock = 1;
 }
 
 /*
@@ -1284,38 +1290,30 @@ static int
 command_and_wait(struct ie_softc *sc, int cmd, volatile void *pcmd, int mask)
 {
 	volatile struct ie_cmd_common *cc = pcmd;
-	volatile int timedout = 0;
-	struct	 callout_handle ch;
+	int i;
 
 	sc->scb->ie_command = (u_short) cmd;
 
 	if (IE_ACTION_COMMAND(cmd) && pcmd) {
 		(*sc->ie_chan_attn) (sc);
-
-		/*
-		 * According to the packet driver, the minimum timeout
-		 * should be .369 seconds, which we round up to .37.
-		 */
-		ch = timeout(chan_attn_timeout, (caddr_t)&timedout,
-			     37 * hz / 100);
-		/* ignore cast-qual */
-
+		
 		/*
 		 * Now spin-lock waiting for status.  This is not a very
 		 * nice thing to do, but I haven't figured out how, or
 		 * indeed if, we can put the process waiting for action to
 		 * sleep.  (We may be getting called through some other
 		 * timeout running in the kernel.)
+		 *
+		 * According to the packet driver, the minimum timeout
+		 * should be .369 seconds, which we round up to .37.
 		 */
-		while (1) {
-			if ((cc->ie_cmd_status & mask) || timedout)
-				break;
+		for (i = 0; i < 370; i++) {
+			if (cc->ie_cmd_status & mask)
+				return (0);
+			DELAY(1000);
 		}
 
-		untimeout(chan_attn_timeout, (caddr_t)&timedout, ch);
-		/* ignore cast-qual */
-
-		return (timedout);
+		return (1);
 	} else {
 
 		/*
@@ -1371,14 +1369,11 @@ run_tdr(struct ie_softc *sc, volatile struct ie_tdr_cmd *cmd)
 static void
 start_receiver(struct ie_softc *sc)
 {
-	int	s = splimp();
 
 	sc->scb->ie_recv_list = MK_16(MEM(sc), sc->rframes[0]);
 	command_and_wait(sc, IE_RU_START, 0, 0);
 
 	ie_ack(sc, IE_ST_WHENCE);
-
-	splx(s);
 }
 
 /*
@@ -1455,7 +1450,6 @@ setup_rfa(struct ie_softc *sc, v_caddr_t ptr)
 
 /*
  * Run the multicast setup command.
- * Call at splimp().
  */
 static int
 mc_setup(struct ie_softc *sc)
@@ -1486,14 +1480,21 @@ mc_setup(struct ie_softc *sc)
  * and adds to it all the other structures we need to operate the adapter.
  * This includes executing the CONFIGURE, IA-SETUP, and MC-SETUP commands,
  * starting the receiver unit, and clearing interrupts.
- *
- * THIS ROUTINE MUST BE CALLED AT splimp() OR HIGHER.
  */
 static void
 ieinit(xsc)
 	void *xsc;
 {
 	struct ie_softc *sc = xsc;
+
+	IE_LOCK(sc);
+	ieinit_locked(sc);
+	IE_UNLOCK(sc);
+}
+
+static void
+ieinit_locked(struct ie_softc *sc)
+{
 	struct ifnet *ifp = sc->ifp;
 	volatile struct ie_sys_ctl_block *scb = sc->scb;
 	caddr_t ptr;
@@ -1614,16 +1615,17 @@ ieinit(xsc)
 static void
 ie_stop(struct ie_softc *sc)
 {
+	struct ifnet *ifp = sc->ifp;
+
+	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 	command_and_wait(sc, IE_RU_DISABLE, 0, 0);
 }
 
 static int
 ieioctl(struct ifnet *ifp, u_long command, caddr_t data)
 {
-	int	s, error = 0;
+	int	error = 0;
 	struct	 ie_softc *sc = ifp->if_softc;
-
-	s = splimp();
 
 	switch (command) {
 	case SIOCSIFFLAGS:
@@ -1632,9 +1634,9 @@ ieioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		 * mode, so we must turn on promiscuous mode and do the
 		 * filtering manually.
 		 */
+		IE_LOCK(sc);
 		if ((ifp->if_flags & IFF_UP) == 0 &&
 		    (ifp->if_drv_flags & IFF_DRV_RUNNING)) {
-			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			ie_stop(sc);
 		} else if ((ifp->if_flags & IFF_UP) &&
 			   (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
@@ -1647,6 +1649,7 @@ ieioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			    ifp->if_flags & (IFF_PROMISC | IFF_ALLMULTI);
 			ieinit(sc);
 		}
+		IE_UNLOCK(sc);
 		break;
 
 	case SIOCADDMULTI:
@@ -1655,7 +1658,9 @@ ieioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		 * Update multicast listeners
 		 */
 		/* reset multicast filtering */
+		IE_LOCK(sc);
 		ie_mc_reset(sc);
+		IE_UNLOCK(sc);
 		error = 0;
 		break;
 
@@ -1664,7 +1669,6 @@ ieioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		break;
 	}
 
-	splx(s);
 	return (error);
 }
 
@@ -1685,7 +1689,8 @@ ie_mc_reset(struct ie_softc *sc)
 		/* XXX - this is broken... */
 		if (sc->mcast_count >= MAXMCAST) {
 			sc->ifp->if_flags |= IFF_ALLMULTI;
-			ieioctl(sc->ifp, SIOCSIFFLAGS, (void *) 0);
+			if (sc->ifp->if_flags & IFF_UP)
+				ieinit_locked(sc);
 			goto setflag;
 		}
 		bcopy(LLADDR((struct sockaddr_dl *) ifma->ifma_addr),
@@ -1769,6 +1774,8 @@ ie_release_resources (device_t dev)
 
 	if (sc->irq_ih)
 		bus_teardown_intr(dev, sc->irq_res, sc->irq_ih);
+	if (sc->rframes)
+		free(sc->rframes, M_DEVBUF);
 	if (sc->io_res)
 		bus_release_resource(dev, SYS_RES_IOPORT,
 				     sc->io_rid, sc->io_res);
@@ -1793,13 +1800,15 @@ ie_detach (device_t dev)
 	sc = device_get_softc(dev);
 	ifp = sc->ifp;
 
+	IE_LOCK(sc);
 	if (sc->hard_type == IE_EE16)
 		ee16_shutdown(sc, 0);
 
 	ie_stop(sc);
-	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+	IE_UNLOCK(sc);
 	ether_ifdetach(ifp);
 	ie_release_resources(dev);
+	mtx_destroy(&sc->lock);
 
 	return (0);
 }
