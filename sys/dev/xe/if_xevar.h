@@ -35,7 +35,9 @@
 struct xe_softc {
   struct ifmedia ifmedia;
   struct ifmib_iso_8802_3 mibdata;
-  struct callout_handle chand;
+  struct callout media_timer;
+  struct callout wdog_timer;
+  struct mtx lock;
   struct ifnet *ifp;
   struct ifmedia *ifm;
   u_char enaddr[6];
@@ -68,6 +70,10 @@ struct xe_softc {
   u_char gone;		/* 1 = Card bailed out */
 };
 
+#define	XE_LOCK(sc)		mtx_lock(&(sc)->lock)
+#define	XE_UNLOCK(sc)		mtx_unlock(&(sc)->lock)
+#define	XE_ASSERT_LOCKED(sc)	mtx_assert(&(sc)->lock, MA_OWNED)
+
 /*
  * For accessing card registers
  */
@@ -88,5 +94,6 @@ struct xe_softc {
 int xe_attach(device_t dev);
 int xe_activate(device_t dev);
 void xe_deactivate(device_t dev);
+void xe_stop(struct xe_softc *scp);
 
 #endif /* DEV_XE_IF_XEVAR_H */

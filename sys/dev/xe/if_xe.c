@@ -147,14 +147,16 @@ struct xe_mii_frame {
  * Prototypes start here
  */
 static void      xe_init		(void *xscp);
+static void      xe_init_locked		(struct xe_softc *scp);
 static void      xe_start		(struct ifnet *ifp);
+static void      xe_start_locked		(struct ifnet *ifp);
 static int       xe_ioctl		(struct ifnet *ifp, u_long command, caddr_t data);
-static void      xe_watchdog		(struct ifnet *ifp);
+static void      xe_watchdog		(void *arg);
+static void      xe_intr		(void *xscp);
 static int       xe_media_change	(struct ifnet *ifp);
 static void      xe_media_status	(struct ifnet *ifp, struct ifmediareq *mrp);
 static timeout_t xe_setmedia;
 static void      xe_reset		(struct xe_softc *scp);
-static void      xe_stop		(struct xe_softc *scp);
 static void      xe_enable_intr		(struct xe_softc *scp);
 static void      xe_disable_intr	(struct xe_softc *scp);
 static void      xe_set_multicast	(struct xe_softc *scp);
@@ -221,6 +223,7 @@ int
 xe_attach (device_t dev)
 {
   struct xe_softc *scp = device_get_softc(dev);
+  int err;
 
   DEVPRINTF(2, (dev, "attach\n"));
 
@@ -231,25 +234,24 @@ xe_attach (device_t dev)
     return ENOSPC;
   scp->ifm = &scp->ifmedia;
   scp->autoneg_status = XE_AUTONEG_NONE;
+  mtx_init(&scp->lock, device_get_nameunit(dev), MTX_NETWORK_LOCK, MTX_DEF);
+  callout_init_mtx(&scp->wdog_timer, &scp->lock, 0);
 
   /* Initialise the ifnet structure */
   scp->ifp->if_softc = scp;
   if_initname(scp->ifp, device_get_name(dev), device_get_unit(dev));
-  scp->ifp->if_timer = 0;
-  scp->ifp->if_flags = (IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST |
-    IFF_NEEDSGIANT);
+  scp->ifp->if_flags = (IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
   scp->ifp->if_linkmib = &scp->mibdata;
   scp->ifp->if_linkmiblen = sizeof scp->mibdata;
   scp->ifp->if_start = xe_start;
   scp->ifp->if_ioctl = xe_ioctl;
-  scp->ifp->if_watchdog = xe_watchdog;
   scp->ifp->if_init = xe_init;
   scp->ifp->if_baudrate = 100000000;
   scp->ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
 
   /* Initialise the ifmedia structure */
   ifmedia_init(scp->ifm, 0, xe_media_change, xe_media_status);
-  callout_handle_init(&scp->chand);
+  callout_init_mtx(&scp->media_timer, &scp->lock, 0);
 
   /* Add supported media types */
   if (scp->mohawk) {
@@ -266,7 +268,9 @@ xe_attach (device_t dev)
   ifmedia_set(scp->ifm, IFM_ETHER|IFM_AUTO);
 
   /* Get the hardware into a known state */
+  XE_LOCK(scp);
   xe_reset(scp);
+  XE_UNLOCK(scp);
 
   /* Get hardware version numbers */
   XE_SELECT_PAGE(4);
@@ -295,6 +299,14 @@ xe_attach (device_t dev)
   /* Attach the interface */
   ether_ifattach(scp->ifp, scp->enaddr);
 
+  err = bus_setup_intr(dev, scp->irq_res, INTR_TYPE_NET | INTR_MPSAFE, NULL, 
+      xe_intr, scp, &scp->intrhand);
+  if (err) {
+	  ether_ifdetach(scp->ifp);
+	  mtx_destroy(&scp->lock);
+	  return err;
+  }
+
   /* Done */
   return 0;
 }
@@ -308,14 +320,19 @@ xe_attach (device_t dev)
 static void
 xe_init(void *xscp) {
   struct xe_softc *scp = xscp;
+
+  XE_LOCK(scp);
+  xe_init_locked(scp);
+  XE_UNLOCK(scp);
+}
+
+static void
+xe_init_locked(struct xe_softc *scp) {
   unsigned i;
-  int s;
 
   if (scp->autoneg_status != XE_AUTONEG_NONE) return;
 
   DEVPRINTF(2, (scp->dev, "init\n"));
-
-  s = splimp();
 
   /* Reset transmitter flags */
   scp->tx_queued = 0;
@@ -323,7 +340,7 @@ xe_init(void *xscp) {
   scp->tx_timeouts = 0;
   scp->tx_thres = 64;
   scp->tx_min = ETHER_MIN_LEN - ETHER_CRC_LEN;
-  scp->ifp->if_timer = 0;
+  callout_stop(&scp->wdog_timer);
 
   /* Soft reset the card */
   XE_SELECT_PAGE(0);
@@ -413,8 +430,6 @@ xe_init(void *xscp) {
   /* Enable output */
   scp->ifp->if_drv_flags |= IFF_DRV_RUNNING;
   scp->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-
-  (void)splx(s);
 }
 
 
@@ -426,6 +441,15 @@ xe_init(void *xscp) {
  */
 static void
 xe_start(struct ifnet *ifp) {
+  struct xe_softc *scp = ifp->if_softc;
+
+  XE_LOCK(scp);
+  xe_start_locked(ifp);
+  XE_UNLOCK(scp);
+}
+
+static void
+xe_start_locked(struct ifnet *ifp) {
   struct xe_softc *scp = ifp->if_softc;
   struct mbuf *mbp;
 
@@ -466,7 +490,7 @@ xe_start(struct ifnet *ifp) {
     BPF_MTAP(ifp, mbp);
 
     /* In case we don't hear from the card again... */
-    ifp->if_timer = 5;
+    callout_reset(&scp->wdog_timer, hz * 5, xe_watchdog, scp);
     scp->tx_queued++;
 
     m_freem(mbp);
@@ -480,12 +504,10 @@ xe_start(struct ifnet *ifp) {
 static int
 xe_ioctl (register struct ifnet *ifp, u_long command, caddr_t data) {
   struct xe_softc *scp;
-  int s, error;
+  int error;
 
   scp = ifp->if_softc;
   error = 0;
-
-  s = splimp();
 
   switch (command) {
 
@@ -495,17 +517,22 @@ xe_ioctl (register struct ifnet *ifp, u_long command, caddr_t data) {
      * If the interface is marked up and stopped, then start it.  If it is
      * marked down and running, then stop it.
      */
+    XE_LOCK(scp);
     if (ifp->if_flags & IFF_UP) {
       if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 	xe_reset(scp);
-	xe_init(scp);
+	xe_init_locked(scp);
       }
     }
     else {
       if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 	xe_stop(scp);
     }
-    /* FALL THROUGH  (handle changes to PROMISC/ALLMULTI flags) */
+    /* handle changes to PROMISC/ALLMULTI flags */
+    xe_set_multicast(scp);
+    XE_UNLOCK(scp);
+    error = 0;
+    break;
 
   case SIOCADDMULTI:
   case SIOCDELMULTI:
@@ -514,7 +541,9 @@ xe_ioctl (register struct ifnet *ifp, u_long command, caddr_t data) {
      * Multicast list has (maybe) changed; set the hardware filters
      * accordingly.
      */
+    XE_LOCK(scp);
     xe_set_multicast(scp);
+    XE_UNLOCK(scp);
     error = 0;
     break;
 
@@ -531,8 +560,6 @@ xe_ioctl (register struct ifnet *ifp, u_long command, caddr_t data) {
     DEVPRINTF(3, (scp->dev, "ioctl: bounce to ether_ioctl\n"));
     error = ether_ioctl(ifp, command, data);
   }
-
-  (void)splx(s);
 
   return error;
 }
@@ -564,6 +591,7 @@ xe_intr(void *xscp)
   u_int8_t psr, isr, esr, rsr, rst0, txst0, txst1, coll;
 
   ifp = scp->ifp;
+  XE_LOCK(scp);
 
   /* Disable interrupts */
   if (scp->mohawk)
@@ -629,7 +657,7 @@ xe_intr(void *xscp)
 	  scp->mibdata.dot3StatsCollFrequencies[coll-1]++;
 	}
       }
-      ifp->if_timer = 0;
+      callout_stop(&scp->wdog_timer);
       ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
     }
 
@@ -787,7 +815,9 @@ xe_intr(void *xscp)
 	/* Deliver packet to upper layers */
 	mbp->m_pkthdr.rcvif = ifp;
 	mbp->m_pkthdr.len = mbp->m_len = len;
+	XE_UNLOCK(scp);
 	(*ifp->if_input)(ifp, mbp);
+	XE_LOCK(scp);
 	ifp->if_ipackets++;
       }
 
@@ -817,6 +847,7 @@ xe_intr(void *xscp)
   /* Re-enable interrupts */
   XE_OUTB(XE_CR, XE_CR_ENABLE_INTR);
 
+  XE_UNLOCK(scp);
   return;
 }
 
@@ -828,15 +859,16 @@ xe_intr(void *xscp)
  * card.
  */
 static void
-xe_watchdog(struct ifnet *ifp) {
-  struct xe_softc *scp = ifp->if_softc;
+xe_watchdog(void *arg) {
+  struct xe_softc *scp = arg;
 
   device_printf(scp->dev, "watchdog timeout: resetting card\n");
+  XE_ASSERT_LOCKED(scp);
   scp->tx_timeouts++;
-  ifp->if_oerrors += scp->tx_queued;
+  scp->ifp->if_oerrors += scp->tx_queued;
   xe_stop(scp);
   xe_reset(scp);
-  xe_init(scp);
+  xe_init_locked(scp);
 }
 
 
@@ -849,17 +881,23 @@ xe_media_change(struct ifnet *ifp) {
 
   DEVPRINTF(2, (scp->dev, "media_change\n"));
 
-  if (IFM_TYPE(scp->ifm->ifm_media) != IFM_ETHER)
+  XE_LOCK(scp);
+  if (IFM_TYPE(scp->ifm->ifm_media) != IFM_ETHER) {
+    XE_UNLOCK(scp);
     return(EINVAL);
+  }
 
   /*
    * Some card/media combos aren't always possible -- filter those out here.
    */
   if ((IFM_SUBTYPE(scp->ifm->ifm_media) == IFM_AUTO ||
-       IFM_SUBTYPE(scp->ifm->ifm_media) == IFM_100_TX) && !scp->phy_ok)
+       IFM_SUBTYPE(scp->ifm->ifm_media) == IFM_100_TX) && !scp->phy_ok) {
+    XE_UNLOCK(scp);
     return (EINVAL);
+  }
 
   xe_setmedia(scp);
+  XE_UNLOCK(scp);
 
   return 0;
 }
@@ -875,8 +913,10 @@ xe_media_status(struct ifnet *ifp, struct ifmediareq *mrp) {
   DEVPRINTF(3, (scp->dev, "media_status\n"));
 
   /* XXX - This is clearly wrong.  Will fix once I have CE2 working */
+  XE_LOCK(scp);
   mrp->ifm_status = IFM_AVALID | IFM_ACTIVE;
   mrp->ifm_active = ((struct xe_softc *)ifp->if_softc)->media;
+  XE_UNLOCK(scp);
 
   return;
 }
@@ -891,8 +931,10 @@ static void xe_setmedia(void *xscp) {
 
   DEVPRINTF(2, (scp->dev, "setmedia\n"));
 
+  XE_ASSERT_LOCKED(scp);
+
   /* Cancel any pending timeout */
-  untimeout(xe_setmedia, scp, scp->chand);
+  callout_stop(&scp->media_timer);
   xe_disable_intr(scp);
 
   /* Select media */
@@ -941,7 +983,7 @@ static void xe_setmedia(void *xscp) {
 
     case XE_AUTONEG_WAITING:
       if (scp->tx_queued != 0) {
-	scp->chand = timeout(xe_setmedia, scp, hz/2);
+	callout_reset(&scp->media_timer, hz/2, xe_setmedia, scp);
 	return;
       }
       if (scp->phy_ok) {
@@ -956,7 +998,7 @@ static void xe_setmedia(void *xscp) {
 	bmcr |= PHY_BMCR_AUTONEGENBL|PHY_BMCR_AUTONEGRSTR;
 	xe_phy_writereg(scp, PHY_BMCR, bmcr);
 	scp->autoneg_status = XE_AUTONEG_STARTED;
- 	scp->chand = timeout(xe_setmedia, scp, hz * 7/2);
+	callout_reset(&scp->media_timer, hz * 7/2, xe_setmedia, scp);
 	return;
       }
       else {
@@ -1010,7 +1052,7 @@ static void xe_setmedia(void *xscp) {
 	if (scp->phy_ok) {
 	  xe_phy_writereg(scp, PHY_BMCR, PHY_BMCR_SPEEDSEL);
 	  scp->autoneg_status = XE_AUTONEG_100TX;
-	  scp->chand = timeout(xe_setmedia, scp, hz * 3);
+	  callout_reset(&scp->media_timer, hz * 3, xe_setmedia, scp);
 	  return;
 	}
 	else {
@@ -1130,7 +1172,7 @@ static void xe_setmedia(void *xscp) {
   /* Restart output? */
   xe_enable_intr(scp);
   scp->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-  xe_start(scp->ifp);
+  xe_start_locked(scp->ifp);
 }
 
 
@@ -1139,11 +1181,10 @@ static void xe_setmedia(void *xscp) {
  */
 static void
 xe_reset(struct xe_softc *scp) {
-  int s;
 
   DEVPRINTF(2, (scp->dev, "reset\n"));
 
-  s = splimp();
+  XE_ASSERT_LOCKED(scp);
 
   /* Power down */
   XE_SELECT_PAGE(4);
@@ -1158,8 +1199,6 @@ xe_reset(struct xe_softc *scp) {
 
   DELAY(40000);
   XE_SELECT_PAGE(0);
-
-  (void)splx(s);
 }
 
 
@@ -1168,13 +1207,12 @@ xe_reset(struct xe_softc *scp) {
  * assume means just shutting down the transceiver and Ethernet logic.  This
  * requires a _hard_ reset to recover from, as we need to power up again.
  */
-static void
+void
 xe_stop(struct xe_softc *scp) {
-  int s;
 
   DEVPRINTF(2, (scp->dev, "stop\n"));
 
-  s = splimp();
+  XE_ASSERT_LOCKED(scp);
 
   /*
    * Shut off interrupts.
@@ -1202,9 +1240,8 @@ xe_stop(struct xe_softc *scp) {
    */
   scp->ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
   scp->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-  scp->ifp->if_timer = 0;
-
-  (void)splx(s);
+  callout_stop(&scp->wdog_timer);
+  callout_stop(&scp->media_timer);
 }
 
 
@@ -1602,9 +1639,9 @@ xe_mii_send(struct xe_softc *scp, u_int32_t bits, int cnt) {
  */
 static int
 xe_mii_readreg(struct xe_softc *scp, struct xe_mii_frame *frame) {
-  int i, ack, s;
+  int i, ack;
 
-  s = splimp();
+  XE_ASSERT_LOCKED(scp);
 
   /*
    * Set up frame for RX.
@@ -1681,8 +1718,6 @@ fail:
   XE_MII_SET(XE_MII_CLK);
   DELAY(1);
 
-  splx(s);
-
   if (ack)
     return(1);
   return(0);
@@ -1694,9 +1729,8 @@ fail:
  */
 static int
 xe_mii_writereg(struct xe_softc *scp, struct xe_mii_frame *frame) {
-  int s;
 
-  s = splimp();
+  XE_ASSERT_LOCKED(scp);
 
   /*
    * Set up frame for TX.
@@ -1731,8 +1765,6 @@ xe_mii_writereg(struct xe_softc *scp, struct xe_mii_frame *frame) {
    * Turn off xmit.
    */
   XE_MII_CLR(XE_MII_DIR);
-
-  splx(s);
 
   return(0);
 }
@@ -1778,9 +1810,7 @@ xe_phy_writereg(struct xe_softc *scp, u_int16_t reg, u_int16_t data) {
  */
 static void
 xe_mii_dump(struct xe_softc *scp) {
-  int i, s;
-
-  s = splimp();
+  int i;
 
   device_printf(scp->dev, "MII registers: ");
   for (i = 0; i < 2; i++) {
@@ -1790,16 +1820,12 @@ xe_mii_dump(struct xe_softc *scp) {
     printf(" %d:%04x", i, xe_phy_readreg(scp, i));
   }
   printf("\n");
-
-  (void)splx(s);
 }
 
 #if 0
 void
 xe_reg_dump(struct xe_softc *scp) {
-  int page, i, s;
-
-  s = splimp();
+  int page, i;
 
   device_printf(scp->dev, "Common registers: ");
   for (i = 0; i < 8; i++) {
@@ -1829,8 +1855,6 @@ xe_reg_dump(struct xe_softc *scp) {
     }
     printf("\n");
   }
-
-  (void)splx(s);
 }
 #endif
 
@@ -1838,7 +1862,7 @@ int
 xe_activate(device_t dev)
 {
 	struct xe_softc *sc = device_get_softc(dev);
-	int start, err, i;
+	int start, i;
 
 	DEVPRINTF(2, (dev, "activate\n"));
 
@@ -1925,11 +1949,6 @@ xe_activate(device_t dev)
 		xe_deactivate(dev);
 		return ENOMEM;
 	}
-	if ((err = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET, NULL, 
-	    xe_intr, sc, &sc->intrhand)) != 0) {
-		xe_deactivate(dev);
-		return err;
-	}
 
 	sc->bst = rman_get_bustag(sc->port_res);
 	sc->bsh = rman_get_bushandle(sc->port_res);
@@ -1942,8 +1961,6 @@ xe_deactivate(device_t dev)
 	struct xe_softc *sc = device_get_softc(dev);
 	
 	DEVPRINTF(2, (dev, "deactivate\n"));
-	xe_disable_intr(sc);
-
 	if (sc->intrhand)
 		bus_teardown_intr(dev, sc->irq_res, sc->intrhand);
 	sc->intrhand = 0;
@@ -1959,5 +1976,8 @@ xe_deactivate(device_t dev)
 		bus_release_resource(dev, SYS_RES_IRQ, sc->irq_rid, 
 		    sc->irq_res);
 	sc->irq_res = 0;
+	if (sc->ifp)
+		if_free(sc->ifp);
+	sc->ifp = 0;
 	return;
 }
