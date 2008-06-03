@@ -210,6 +210,8 @@ static const struct ubsa_product {
 	uint16_t	vendor;
 	uint16_t	product;
 } ubsa_products [] = {
+	/* AnyData ADU-500A */
+	{ USB_VENDOR_ANYDATA, USB_PRODUCT_ANYDATA_ADU_500A },
 	/* AnyData ADU-E100A/H */
 	{ USB_VENDOR_ANYDATA, USB_PRODUCT_ANYDATA_ADU_E100X },
 	/* Axesstel MV100H */
