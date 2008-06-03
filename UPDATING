@@ -22,7 +22,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
-20080606:
+20080603:
 	The version that Linuxulator emulates was changed from 2.4.2
 	to 2.6.16. If you experience any problems with Linux binaries
 	please try to set sysctl compat.linux.osrelease to 2.4.2 and 
