@@ -453,22 +453,22 @@ cs_cs89x0_probe(device_t dev)
 					irq = 2;
 					break;
 				default:
-					error=EINVAL;
+					error = EINVAL;
+					break;
 			}
 		} else {
-			if (irq > CS8920_NO_INTS) {
+			if (irq > CS8920_NO_INTS && !(sc->flags & CS_NO_IRQ))
 				error = EINVAL;
-			}
 		}
 	}
 
-	if (!error) {
-		if (!(sc->flags & CS_NO_IRQ))
-			cs_writereg(sc, pp_isaint, irq);
-	} else {
+	if (error) {
 	       	device_printf(dev, "Unknown or invalid irq\n");
-		return (ENXIO);
+		return (error);
 	}
+
+	if (!(sc->flags & CS_NO_IRQ))
+		cs_writereg(sc, pp_isaint, irq);
 
 	/*
 	 * Temporary disabled
