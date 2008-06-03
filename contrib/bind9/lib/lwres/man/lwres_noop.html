@@ -1,5 +1,5 @@
 <!--
- - Copyright (C) 2004, 2005 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004, 2005, 2007 Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000, 2001 Internet Software Consortium.
  - 
  - Permission to use, copy, modify, and distribute this software for any
@@ -14,15 +14,15 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: lwres_noop.html,v 1.7.2.1.4.11 2006/06/29 13:02:31 marka Exp $ -->
+<!-- $Id: lwres_noop.html,v 1.7.2.1.4.14 2007/01/30 00:11:48 marka Exp $ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
 <title>lwres_noop</title>
-<meta name="generator" content="DocBook XSL Stylesheets V1.70.1">
+<meta name="generator" content="DocBook XSL Stylesheets V1.71.1">
 </head>
 <body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="refentry" lang="en">
-<a name="id2482688"></a><div class="titlepage"></div>
+<a name="id2476275"></a><div class="titlepage"></div>
 <div class="refnamediv">
 <h2>Name</h2>
 <p>lwres_nooprequest_render, lwres_noopresponse_render, lwres_nooprequest_parse, lwres_noopresponse_parse, lwres_noopresponse_free, lwres_nooprequest_free &#8212; lightweight resolver no-op message handling</p>
@@ -37,11 +37,6 @@
 <td><code class="funcdef">
 lwres_result_t
 <b class="fsfunc">lwres_nooprequest_render</b>(</code></td>
-<td> </td>
-<td>, </td>
-</tr>
-<tr>
-<td> </td>
 <td> </td>
 <td>, </td>
 </tr>
@@ -83,11 +78,6 @@ lwres_result_t
 <tr>
 <td> </td>
 <td> </td>
-<td>, </td>
-</tr>
-<tr>
-<td> </td>
-<td> </td>
 <td>
 <code>)</code>;</td>
 </tr>
@@ -97,11 +87,6 @@ lwres_result_t
 <td><code class="funcdef">
 lwres_result_t
 <b class="fsfunc">lwres_nooprequest_parse</b>(</code></td>
-<td> </td>
-<td>, </td>
-</tr>
-<tr>
-<td> </td>
 <td> </td>
 <td>, </td>
 </tr>
@@ -143,11 +128,6 @@ lwres_result_t
 <tr>
 <td> </td>
 <td> </td>
-<td>, </td>
-</tr>
-<tr>
-<td> </td>
-<td> </td>
 <td>
 <code>)</code>;</td>
 </tr>
@@ -157,11 +137,6 @@ lwres_result_t
 <td><code class="funcdef">
 void
 <b class="fsfunc">lwres_noopresponse_free</b>(</code></td>
-<td> </td>
-<td>, </td>
-</tr>
-<tr>
-<td> </td>
 <td> </td>
 <td>, </td>
 </tr>
@@ -183,11 +158,6 @@ void
 <tr>
 <td> </td>
 <td> </td>
-<td>, </td>
-</tr>
-<tr>
-<td> </td>
-<td> </td>
 <td>
 <code>)</code>;</td>
 </tr>
@@ -195,7 +165,7 @@ void
 </div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2549528"></a><h2>DESCRIPTION</h2>
+<a name="id2543469"></a><h2>DESCRIPTION</h2>
 <p>
 These are low-level routines for creating and parsing
 lightweight resolver no-op request and response messages.
@@ -276,7 +246,7 @@ structures referenced via <em class="parameter"><code>structp</code></em>.
 </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2549797"></a><h2>RETURN VALUES</h2>
+<a name="id2543602"></a><h2>RETURN VALUES</h2>
 <p>
 The no-op opcode functions
 <code class="function">lwres_nooprequest_render()</code>,
@@ -315,7 +285,7 @@ indicate that the packet is not a response to an earlier query.
 </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2549861"></a><h2>SEE ALSO</h2>
+<a name="id2543666"></a><h2>SEE ALSO</h2>
 <p>
 <span class="citerefentry"><span class="refentrytitle">lwres_packet</span>(3
 )</span>

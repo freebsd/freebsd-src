@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: name.c,v 1.127.2.7.2.16 2006/03/02 00:37:20 marka Exp $ */
+/* $Id: name.c,v 1.127.2.7.2.17 2006/12/07 07:02:45 marka Exp $ */
 
 #include <config.h>
 
@@ -1573,7 +1573,7 @@ dns_name_fromwire(dns_name_t *name, isc_buffer_t *source,
 {
 	unsigned char *cdata, *ndata;
 	unsigned int cused; /* Bytes of compressed name data used */
-	unsigned int hops,  nused, labels, n, nmax;
+	unsigned int nused, labels, n, nmax;
 	unsigned int current, new_current, biggest_pointer;
 	isc_boolean_t done;
 	fw_state state = fw_start;
@@ -1581,10 +1581,12 @@ dns_name_fromwire(dns_name_t *name, isc_buffer_t *source,
 	unsigned char *offsets;
 	dns_offsets_t odata;
 	isc_boolean_t downcase;
+	isc_boolean_t seen_pointer;
 
 	/*
 	 * Copy the possibly-compressed name at source into target,
-	 * decompressing it.
+	 * decompressing it.  Loop prevention is performed by checking
+	 * the new pointer against biggest_pointer.
 	 */
 
 	REQUIRE(VALID_NAME(name));
@@ -1618,11 +1620,11 @@ dns_name_fromwire(dns_name_t *name, isc_buffer_t *source,
 	 * Set up.
 	 */
 	labels = 0;
-	hops = 0;
 	done = ISC_FALSE;
 
 	ndata = isc_buffer_used(target);
 	nused = 0;
+	seen_pointer = ISC_FALSE;
 
 	/*
 	 * Find the maximum number of uncompressed target name
@@ -1648,7 +1650,7 @@ dns_name_fromwire(dns_name_t *name, isc_buffer_t *source,
 	while (current < source->active && !done) {
 		c = *cdata++;
 		current++;
-		if (hops == 0)
+		if (!seen_pointer)
 			cused++;
 
 		switch (state) {
@@ -1704,11 +1706,8 @@ dns_name_fromwire(dns_name_t *name, isc_buffer_t *source,
 				return (DNS_R_BADPOINTER);
 			biggest_pointer = new_current;
 			current = new_current;
-			cdata = (unsigned char *)source->base +
-				current;
-			hops++;
-			if (hops > DNS_POINTER_MAXHOPS)
-				return (DNS_R_TOOMANYHOPS);
+			cdata = (unsigned char *)source->base + current;
+			seen_pointer = ISC_TRUE;
 			state = fw_start;
 			break;
 		default:
@@ -1744,7 +1743,6 @@ dns_name_fromwire(dns_name_t *name, isc_buffer_t *source,
 		 * big enough buffer.
 		 */
 		return (ISC_R_NOSPACE);
-
 }
 
 isc_result_t

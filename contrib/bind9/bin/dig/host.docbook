@@ -1,11 +1,11 @@
-<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.0//EN"
-               "http://www.oasis-open.org/docbook/xml/4.0/docbookx.dtd"
+<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.2//EN"
+               "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
 	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
- - Copyright (C) 2000-2002  Internet Software Consortium.
+ - Copyright (C) 2004, 2005, 2007  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2000-2003  Internet Software Consortium.
  -
- - Permission to use, copy, modify, and distribute this software for any
+ - Permission to use, copy, modify, and/or distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
  - copyright notice and this permission notice appear in all copies.
  -
@@ -18,7 +18,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: host.docbook,v 1.2.2.2.4.7 2005/05/13 01:22:32 marka Exp $ -->
+<!-- $Id: host.docbook,v 1.2.2.2.4.12 2007/08/28 07:19:07 tbox Exp $ -->
 
 <refentry>
 
@@ -36,12 +36,14 @@
     <copyright>
       <year>2004</year>
       <year>2005</year>
+      <year>2007</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
     <copyright>
       <year>2000</year>
       <year>2001</year>
       <year>2002</year>
+      <year>2003</year>
       <holder>Internet Software Consortium.</holder>
     </copyright>
   </docinfo>
@@ -160,7 +162,7 @@ desired &mdash; bit in the query which <command>host</command> makes.
 This should mean that the name server receiving the query will not
 attempt to resolve <parameter>name</parameter>.  The
 <option>-r</option> option enables <command>host</command> to mimic
-the behaviour of a name server by making non-recursive queries and
+the behavior of a name server by making non-recursive queries and
 expecting to receive answers to those queries that are usually
 referrals to other name servers.
 </para>
@@ -180,7 +182,7 @@ use IPv4 query transport.  The <option>-6</option> option forces
 
 <para>
 The <option>-t</option> option is used to select the query type.
-<parameter>type</parameter> can be any recognised query type: CNAME,
+<parameter>type</parameter> can be any recognized query type: CNAME,
 NS, SOA, SIG, KEY, AXFR, etc.  When no query type is specified,
 <command>host</command> automatically selects an appropriate query
 type.  By default it looks for A records, but if the

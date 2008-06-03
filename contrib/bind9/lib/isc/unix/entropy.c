@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: entropy.c,v 1.60.2.3.8.14 2006/03/02 23:29:17 marka Exp $ */
+/* $Id: entropy.c,v 1.60.2.3.8.15 2006/12/07 04:52:50 marka Exp $ */
 
 /*
  * This is the system depenedent part of the ISC entropy API.
@@ -486,8 +486,6 @@ isc_entropy_createfilesource(isc_entropy_t *ent, const char *fname) {
 
 	LOCK(&ent->lock);
 
-	source = NULL;
-
 	if (stat(fname, &_stat) < 0) {
 		ret = isc__errno2result(errno);
 		goto errout;
@@ -589,9 +587,6 @@ isc_entropy_createfilesource(isc_entropy_t *ent, const char *fname) {
 	(void)close(fd);
 
  errout:
-	if (source != NULL)
-		isc_mem_put(ent->mctx, source, sizeof(isc_entropysource_t));
-
 	UNLOCK(&ent->lock);
 
 	return (ret);

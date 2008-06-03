@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2001-2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,12 +15,11 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: check.c,v 1.37.6.34 2006/03/02 00:37:20 marka Exp $ */
+/* $Id: check.c,v 1.37.6.39 2007/12/14 01:28:26 marka Exp $ */
 
 #include <config.h>
 
 #include <stdlib.h>
-#include <string.h>
 
 #include <isc/buffer.h>
 #include <isc/log.h>
@@ -30,6 +29,7 @@
 #include <isc/region.h>
 #include <isc/result.h>
 #include <isc/sockaddr.h>
+#include <isc/string.h>
 #include <isc/symtab.h>
 #include <isc/util.h>
 
@@ -490,6 +490,7 @@ check_options(const cfg_obj_t *options, isc_log_t *logctx, isc_mem_t *mctx) {
 				cfg_obj_log(obj, logctx, ISC_LOG_ERROR,
 					    "bad domain name '%s'", dlv);
 				result = tresult;
+				continue;
 			}
 			if (symtab != NULL) {
 				tresult = nameexist(obj, dlv, 1, symtab,
@@ -817,18 +818,18 @@ check_zoneconf(const cfg_obj_t *zconfig, const cfg_obj_t *config,
 	isc_buffer_add(&b, strlen(zname));
 	tresult = dns_name_fromtext(dns_fixedname_name(&fixedname), &b,
 				   dns_rootname, ISC_TRUE, NULL);
-	if (result != ISC_R_SUCCESS) {
+	if (tresult != ISC_R_SUCCESS) {
 		cfg_obj_log(zconfig, logctx, ISC_LOG_ERROR,
 			    "zone '%s': is not a valid name", zname);
-		tresult = ISC_R_FAILURE;
+		result = ISC_R_FAILURE;
 	} else {
 		char namebuf[DNS_NAME_FORMATSIZE];
 
 		dns_name_format(dns_fixedname_name(&fixedname),
 				namebuf, sizeof(namebuf));
 		tresult = nameexist(zconfig, namebuf, ztype == HINTZONE ? 1 : 2,
-				   symtab, "zone '%s': already exists "
-				   "previous definition: %s:%u", logctx, mctx);
+				    symtab, "zone '%s': already exists "
+				    "previous definition: %s:%u", logctx, mctx);
 		if (tresult != ISC_R_SUCCESS)
 			result = tresult;
 	}
@@ -1318,7 +1319,7 @@ bind9_check_namedconf(const cfg_obj_t *config, isc_log_t *logctx,
 					    "previous definition: %s:%u",
 					    key, file, line);
 				result = tresult;
-			} else if (result != ISC_R_SUCCESS) {
+			} else if (tresult != ISC_R_SUCCESS) {
 				result = tresult;
 			} else if ((strcasecmp(key, "_bind") == 0 &&
 				    vclass == dns_rdataclass_ch) ||

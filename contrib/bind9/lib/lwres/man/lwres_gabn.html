@@ -1,5 +1,5 @@
 <!--
- - Copyright (C) 2004, 2005 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004, 2005, 2007 Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000, 2001 Internet Software Consortium.
  - 
  - Permission to use, copy, modify, and distribute this software for any
@@ -14,15 +14,15 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: lwres_gabn.html,v 1.6.2.1.4.11 2006/06/29 13:02:31 marka Exp $ -->
+<!-- $Id: lwres_gabn.html,v 1.6.2.1.4.14 2007/01/30 00:11:48 marka Exp $ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
 <title>lwres_gabn</title>
-<meta name="generator" content="DocBook XSL Stylesheets V1.70.1">
+<meta name="generator" content="DocBook XSL Stylesheets V1.71.1">
 </head>
 <body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="refentry" lang="en">
-<a name="id2482688"></a><div class="titlepage"></div>
+<a name="id2476275"></a><div class="titlepage"></div>
 <div class="refnamediv">
 <h2>Name</h2>
 <p>lwres_gabnrequest_render, lwres_gabnresponse_render, lwres_gabnrequest_parse, lwres_gabnresponse_parse, lwres_gabnresponse_free, lwres_gabnrequest_free &#8212; lightweight resolver getaddrbyname message handling</p>
@@ -36,11 +36,6 @@
 <td><code class="funcdef">
 lwres_result_t
 <b class="fsfunc">lwres_gabnrequest_render</b>(</code></td>
-<td> </td>
-<td>, </td>
-</tr>
-<tr>
-<td> </td>
 <td> </td>
 <td>, </td>
 </tr>
@@ -82,11 +77,6 @@ lwres_result_t
 <tr>
 <td> </td>
 <td> </td>
-<td>, </td>
-</tr>
-<tr>
-<td> </td>
-<td> </td>
 <td>
 <code>)</code>;</td>
 </tr>
@@ -96,11 +86,6 @@ lwres_result_t
 <td><code class="funcdef">
 lwres_result_t
 <b class="fsfunc">lwres_gabnrequest_parse</b>(</code></td>
-<td> </td>
-<td>, </td>
-</tr>
-<tr>
-<td> </td>
 <td> </td>
 <td>, </td>
 </tr>
@@ -142,11 +127,6 @@ lwres_result_t
 <tr>
 <td> </td>
 <td> </td>
-<td>, </td>
-</tr>
-<tr>
-<td> </td>
-<td> </td>
 <td>
 <code>)</code>;</td>
 </tr>
@@ -156,11 +136,6 @@ lwres_result_t
 <td><code class="funcdef">
 void
 <b class="fsfunc">lwres_gabnresponse_free</b>(</code></td>
-<td> </td>
-<td>, </td>
-</tr>
-<tr>
-<td> </td>
 <td> </td>
 <td>, </td>
 </tr>
@@ -182,11 +157,6 @@ void
 <tr>
 <td> </td>
 <td> </td>
-<td>, </td>
-</tr>
-<tr>
-<td> </td>
-<td> </td>
 <td>
 <code>)</code>;</td>
 </tr>
@@ -194,7 +164,7 @@ void
 </div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2549528"></a><h2>DESCRIPTION</h2>
+<a name="id2543469"></a><h2>DESCRIPTION</h2>
 <p>
 These are low-level routines for creating and parsing
 lightweight resolver name-to-address lookup request and 
@@ -309,7 +279,7 @@ structures is also discarded.
 </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2549720"></a><h2>RETURN VALUES</h2>
+<a name="id2543593"></a><h2>RETURN VALUES</h2>
 <p>
 The getaddrbyname opcode functions
 <code class="function">lwres_gabnrequest_render()</code>, 
@@ -347,7 +317,7 @@ indicate that the packet is not a response to an earlier query.
 </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2549853"></a><h2>SEE ALSO</h2>
+<a name="id2543658"></a><h2>SEE ALSO</h2>
 <p>
 <span class="citerefentry"><span class="refentrytitle">lwres_packet</span>(3
 )</span>

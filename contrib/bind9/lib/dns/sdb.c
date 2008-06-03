@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2006-2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001, 2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: sdb.c,v 1.35.12.8 2004/07/22 04:01:58 marka Exp $ */
+/* $Id: sdb.c,v 1.35.12.16 2008/01/17 23:45:28 tbox Exp $ */
 
 #include <config.h>
 
@@ -119,6 +119,10 @@ typedef struct sdb_rdatasetiter {
 /* This is a reasonable value */
 #define SDB_DEFAULT_TTL		(60 * 60 * 24)
 
+#ifdef __COVERITY__
+#define MAYBE_LOCK(sdb) LOCK(&sdb->implementation->driverlock)
+#define MAYBE_UNLOCK(sdb) UNLOCK(&sdb->implementation->driverlock)
+#else
 #define MAYBE_LOCK(sdb)							\
 	do {								\
 		unsigned int flags = sdb->implementation->flags;	\
@@ -132,6 +136,7 @@ typedef struct sdb_rdatasetiter {
 		if ((flags & DNS_SDBFLAG_THREADSAFE) == 0)		\
 			UNLOCK(&sdb->implementation->driverlock);	\
 	} while (0)
+#endif
 
 static int dummy;
 
@@ -306,7 +311,7 @@ dns_sdb_putrdata(dns_sdblookup_t *lookup, dns_rdatatype_t typeval, dns_ttl_t ttl
 		ISC_LIST_INIT(rdatalist->rdata);
 		ISC_LINK_INIT(rdatalist, link);
 		ISC_LIST_APPEND(lookup->lists, rdatalist, link);
-	} else 
+	} else
 		if (rdatalist->ttl != ttl)
 			return (DNS_R_BADTTL);
 
@@ -333,7 +338,7 @@ dns_sdb_putrdata(dns_sdblookup_t *lookup, dns_rdatatype_t typeval, dns_ttl_t ttl
 		isc_mem_put(mctx, rdata, sizeof(dns_rdata_t));
 	return (result);
 }
-	
+
 
 isc_result_t
 dns_sdb_putrr(dns_sdblookup_t *lookup, const char *type, dns_ttl_t ttl,
@@ -376,7 +381,7 @@ dns_sdb_putrr(dns_sdblookup_t *lookup, const char *type, dns_ttl_t ttl,
 
 	datalen = strlen(data);
 	size = initial_size(datalen);
-	for (;;) {
+	do {
 		isc_buffer_init(&b, data, datalen);
 		isc_buffer_add(&b, datalen);
 		result = isc_lex_openbuffer(lex, &b);
@@ -625,7 +630,7 @@ newversion(dns_db_t *db, dns_dbversion_t **versionp) {
 }
 
 static void
-attachversion(dns_db_t *db, dns_dbversion_t *source, 
+attachversion(dns_db_t *db, dns_dbversion_t *source,
 	      dns_dbversion_t **targetp)
 {
 	REQUIRE(source != NULL && source == (void *) &dummy);
@@ -782,7 +787,7 @@ findnode(dns_db_t *db, dns_name_t *name, isc_boolean_t create,
 			return (result);
 		}
 	}
-	
+
 	*nodep = node;
 	return (ISC_R_SUCCESS);
 }
@@ -930,7 +935,8 @@ find(dns_db_t *db, dns_name_t *name, dns_dbversion_t *version,
 
 		xresult = dns_name_copy(xname, foundname, NULL);
 		if (xresult != ISC_R_SUCCESS) {
-			destroynode(node);
+			if (node != NULL)
+				destroynode(node);
 			if (dns_rdataset_isassociated(rdataset))
 				dns_rdataset_disassociate(rdataset);
 			return (DNS_R_BADDB);
@@ -1109,7 +1115,7 @@ allrdatasets(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 	sdb_rdatasetiter_t *iterator;
 
 	REQUIRE(version == NULL || version == &dummy);
-	
+
 	UNUSED(version);
 	UNUSED(now);
 

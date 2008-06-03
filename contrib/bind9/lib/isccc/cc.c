@@ -1,5 +1,5 @@
 /*
- * Portions Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Portions Copyright (C) 2004, 2006  Internet Systems Consortium, Inc. ("ISC")
  * Portions Copyright (C) 2001-2003  Internet Software Consortium.
  * Portions Copyright (C) 2001  Nominum, Inc.
  *
@@ -16,7 +16,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: cc.c,v 1.4.2.3.2.5 2004/08/28 06:25:23 marka Exp $ */
+/* $Id: cc.c,v 1.4.2.3.2.7 2006/12/07 23:57:57 marka Exp $ */
 
 #include <config.h>
 
@@ -466,12 +466,21 @@ createmessage(isc_uint32_t version, const char *from, const char *to,
 	result = ISC_R_NOMEMORY;
 
 	_ctrl = isccc_alist_create();
+	if (_ctrl == NULL)
+		goto bad;
+	if (isccc_alist_define(alist, "_ctrl", _ctrl) == NULL) {
+		isccc_sexpr_free(&_ctrl);
+		goto bad;
+	}
+
 	_data = isccc_alist_create();
-	if (_ctrl == NULL || _data == NULL)
+	if (_data == NULL)
 		goto bad;
-	if (isccc_alist_define(alist, "_ctrl", _ctrl) == NULL ||
-	    isccc_alist_define(alist, "_data", _data) == NULL)
+	if (isccc_alist_define(alist, "_data", _data) == NULL) {
+		isccc_sexpr_free(&_data);
 		goto bad;
+	}
+
 	if (isccc_cc_defineuint32(_ctrl, "_ser", serial) == NULL ||
 	    isccc_cc_defineuint32(_ctrl, "_tim", now) == NULL ||
 	    (want_expires &&
