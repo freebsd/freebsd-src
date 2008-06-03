@@ -17,7 +17,8 @@ distfile: clean
 		${CP} -r pkg_install pkg_install-${DATE}; \
 		${TAR} -czf pkg_install/pkg_install-${DATE}.tar.gz \
 			--exclude .#* --exclude *~ --exclude CVS \
-			--exclude pkg_install-*.tar.gz pkg_install-${DATE}; \
+			--exclude .svn --exclude pkg_install-*.tar.gz \
+			pkg_install-${DATE}; \
 		${RM} -rf pkg_install-${DATE})
 		
 	
