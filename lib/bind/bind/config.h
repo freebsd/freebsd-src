@@ -14,6 +14,8 @@
 /* #undef POSIX_GETPWNAM_R */
 /* #undef POSIX_GETGRGID_R */
 /* #undef POSIX_GETGRNAM_R */
+#define HAVE_MEMMOVE
+#define HAVE_MEMCHR
 
 /* #undef NEED_SETGROUPENT */
 /* #undef NEED_GETGROUPLIST */
