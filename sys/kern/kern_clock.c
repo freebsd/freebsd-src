@@ -82,17 +82,17 @@ extern void hardclock_device_poll(void);
 static void initclocks(void *dummy);
 SYSINIT(clocks, SI_SUB_CLOCKS, SI_ORDER_FIRST, initclocks, NULL)
 
+long cp_time[CPUSTATES];
+
 static int
 sysctl_kern_cp_time(SYSCTL_HANDLER_ARGS)
 {
 	int error;
-	long cp_time[CPUSTATES];
 #ifdef SCTL_MASK32
 	int i;
 	unsigned int cp_time32[CPUSTATES];
 #endif
 
-	read_cpu_time(cp_time);
 #ifdef SCTL_MASK32
 	if (req->flags & SCTL_MASK32) {
 		if (!req->oldptr)
@@ -472,12 +472,13 @@ statclock(frame)
 	struct thread *td;
 	struct proc *p;
 	long rss;
-	long *cp_time;
+	long *pcp_time;
 
 	td = curthread;
 	p = td->td_proc;
 
-	cp_time = (long *)PCPU_PTR(cp_time);
+	mtx_lock_spin_flags(&sched_lock, MTX_QUIET);
+	pcp_time = (long *)PCPU_PTR(cp_time);
 	if (CLKF_USERMODE(frame)) {
 		/*
 		 * Charge the time as appropriate.
@@ -485,10 +486,13 @@ statclock(frame)
 		if (p->p_flag & P_SA)
 			thread_statclock(1);
 		p->p_rux.rux_uticks++;
-		if (p->p_nice > NZERO)
+		if (p->p_nice > NZERO) {
 			cp_time[CP_NICE]++;
-		else
+			pcp_time[CP_NICE]++;
+		} else {
 			cp_time[CP_USER]++;
+			pcp_time[CP_USER]++;
+		}
 	} else {
 		/*
 		 * Came from kernel mode, so we were:
@@ -506,21 +510,24 @@ statclock(frame)
 		    td->td_intr_nesting_level >= 2) {
 			p->p_rux.rux_iticks++;
 			cp_time[CP_INTR]++;
+			pcp_time[CP_INTR]++;
 		} else {
 			if (p->p_flag & P_SA)
 				thread_statclock(0);
 			td->td_sticks++;
 			p->p_rux.rux_sticks++;
-			if (td != PCPU_GET(idlethread))
+			if (td != PCPU_GET(idlethread)) {
 				cp_time[CP_SYS]++;
-			else
+				pcp_time[CP_SYS]++;
+			} else {
 				cp_time[CP_IDLE]++;
+				pcp_time[CP_IDLE]++;
+			}
 		}
 	}
 	CTR4(KTR_SCHED, "statclock: %p(%s) prio %d stathz %d",
 	    td, td->td_proc->p_comm, td->td_priority, (stathz)?stathz:hz);
 
-	mtx_lock_spin_flags(&sched_lock, MTX_QUIET);
 	sched_clock(td);
 
 	/* Update resource usage integrals and maximums. */
