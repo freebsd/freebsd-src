@@ -28,24 +28,26 @@ initrandom_start()
 
 	if [ \! -z "${soft_random_generator}" ] ; then
 
-		if checkyesno harvest_interrupt; then
-			if [ -w /dev/random ]; then
+		if [ -w /dev/random ]; then
+			if checkyesno harvest_interrupt; then
 				${SYSCTL_W} kern.random.sys.harvest.interrupt=1 >/dev/null
 				echo -n ' interrupts'
+			else
+				${SYSCTL_W} kern.random.sys.harvest.interrupt=0 >/dev/null
 			fi
-		fi
 
-		if checkyesno harvest_ethernet; then
-			if [ -w /dev/random ]; then
+			if checkyesno harvest_ethernet; then
 				${SYSCTL_W} kern.random.sys.harvest.ethernet=1 >/dev/null
 				echo -n ' ethernet'
+			else
+				${SYSCTL_W} kern.random.sys.harvest.ethernet=0 >/dev/null
 			fi
-		fi
 
-		if checkyesno harvest_p_to_p; then
-			if [ -w /dev/random ]; then
-			${SYSCTL_W} kern.random.sys.harvest.point_to_point=1 >/dev/null
+			if checkyesno harvest_p_to_p; then
+				${SYSCTL_W} kern.random.sys.harvest.point_to_point=1 >/dev/null
 				echo -n ' point_to_point'
+			else
+				${SYSCTL_W} kern.random.sys.harvest.point_to_point=0 >/dev/null
 			fi
 		fi
 
