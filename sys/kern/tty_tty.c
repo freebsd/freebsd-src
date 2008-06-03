@@ -43,7 +43,6 @@ static struct cdevsw ctty_cdevsw = {
 	.d_version =	D_VERSION,
 	.d_open =	cttyopen,
 	.d_name =	"ctty",
-	.d_flags =	D_TTY | D_NEEDGIANT,
 };
 
 static struct cdev *ctty;
@@ -65,7 +64,6 @@ ctty_clone(void *arg, struct ucred *cred, char *name, int namelen,
 	if (strcmp(name, "tty"))
 		return;
 	sx_sunlock(&clone_drain_lock);
-	mtx_lock(&Giant);
 	sx_slock(&proctree_lock);
 	sx_slock(&clone_drain_lock);
 	dev_lock();
@@ -82,7 +80,6 @@ ctty_clone(void *arg, struct ucred *cred, char *name, int namelen,
 	dev_refl(*dev);
 	dev_unlock();
 	sx_sunlock(&proctree_lock);
-	mtx_unlock(&Giant);
 }
 
 static void
