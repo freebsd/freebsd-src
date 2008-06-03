@@ -76,12 +76,14 @@ ce.iso2.kbd:en:Central European ISO-8859-2
 ce.iso2.kbd:de:Zentral Europäisch ISO-8859-2
 ce.iso2.kbd:es:Centroeuropeo ISO-8859-2
 
-cz.iso2.kbd:en:Czech ISO-8859-2
-cz.iso2.kbd:de:Tschechisch ISO-8859-2
-cz.iso2.kbd:es:Checo ISO-8859-2
+colemak.iso15.acc.kbd:en:Colemak ergonomic alternative
 
 cs.latin2.qwertz.kbd:en:Czech ISO-8859-2 (QWERTZ, accent keys)
 cs.latin2.qwertz.kbd:es:Checo ISO-8859-2 (QWERTZ, con acentos)
+
+cz.iso2.kbd:en:Czech ISO-8859-2
+cz.iso2.kbd:de:Tschechisch ISO-8859-2
+cz.iso2.kbd:es:Checo ISO-8859-2
 
 danish.iso.kbd:en:Danish ISO-8859-1
 danish.iso.kbd:da:Dansk ISO-8859-1
