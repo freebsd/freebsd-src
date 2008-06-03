@@ -7,6 +7,7 @@
 # Defaults
 size=1024
 number=100
+base=""
 group=""
 interface="cxgb0"
 remote="ssh"
@@ -15,7 +16,7 @@ gap=1000
 
 # Arguments are s (size), g (group), n (number), and c (command) followed
 # by a set of hostnames.
-args=`getopt s:g:n:c:i: $*`
+args=`getopt s:g:n:c:i:b: $*`
 if [ $? != 0 ]
 then
     echo 'Usage: mctest_run -s size -g group -n number -c remote command host1 host2 hostN'
@@ -42,6 +43,9 @@ do
       -i)
 	  interface=$3;
 	  shift 2;;
+      -b) 
+	  base=$3;
+	  shift 2;;
       --)
 	  shift; break;;
       esac
@@ -56,7 +60,7 @@ now=`date "+%Y%m%d%H%M"`
 for host in $*
 do
   output=$host\_$interface\_$size\_$number\.$now
-  $remote $host $command -r -M $# -m $current -n $number -s $size -i $interface > $output &
+  $remote $host $command -r -M $# -b $base -g $group -m $current -n $number -s $size -i $interface > $output &
   sleep 1
   current=`expr $current + 1 `;
 done
@@ -64,4 +68,4 @@ done
 #
 # Start the source/collector on this machine
 #
-$command -M $# -n $number -s $size -i le1 -t $gap > `uname -n`\_$size\_$number\.$now
+$command -M $# -b $base -g $group -n $number -s $size -i $interface -t $gap > `uname -n`\_$size\_$number\.$now
