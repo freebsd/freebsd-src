@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
- * Copyright (C) 2000-2002  Internet Software Consortium.
+ * Copyright (C) 2004, 2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2000-2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,12 +15,11 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: check-tool.c,v 1.4.12.7 2004/11/30 01:15:40 marka Exp $ */
+/* $Id: check-tool.c,v 1.4.12.11 2007/09/13 05:18:07 each Exp $ */
 
 #include <config.h>
 
 #include <stdio.h>
-#include <string.h>
 
 #include "check-tool.h"
 #include <isc/util.h>
@@ -29,6 +28,7 @@
 #include <isc/log.h>
 #include <isc/region.h>
 #include <isc/stdio.h>
+#include <isc/string.h>
 #include <isc/types.h>
 
 #include <dns/fixedname.h>

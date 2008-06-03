@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dig.h,v 1.71.2.6.2.14 2006/12/07 01:26:33 marka Exp $ */
+/* $Id: dig.h,v 1.71.2.6.2.18 2007/08/28 07:19:07 tbox Exp $ */
 
 #ifndef DIG_H
 #define DIG_H
@@ -116,6 +116,8 @@ struct dig_lookup {
 		section_additional,
 		servfail_stops,
 		new_search,
+		need_search,
+		done_as_is,
 		besteffort,
 		dnssec;
 #ifdef DIG_SIGCHASE
@@ -280,6 +282,9 @@ check_result(isc_result_t result, const char *msg);
 
 void
 setup_lookup(dig_lookup_t *lookup);
+
+void
+destroy_lookup(dig_lookup_t *lookup);
 
 void
 do_lookup(dig_lookup_t *lookup);

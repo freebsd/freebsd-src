@@ -1,11 +1,11 @@
-<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.0//EN"
-               "http://www.oasis-open.org/docbook/xml/4.0/docbookx.dtd"
+<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.2//EN"
+               "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
 	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003  Internet Software Consortium.
  -
- - Permission to use, copy, modify, and distribute this software for any
+ - Permission to use, copy, modify, and/or distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
  - copyright notice and this permission notice appear in all copies.
  -
@@ -18,7 +18,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- File: $Id: Bv9ARM-book.xml,v 1.155.2.27.2.74 2006/11/14 22:38:53 sra Exp $ -->
+<!-- File: $Id: Bv9ARM-book.xml,v 1.155.2.27.2.88 2008/01/18 23:45:32 tbox Exp $ -->
 
 <book>
 <title>BIND 9 Administrator Reference Manual</title>
@@ -28,6 +28,8 @@
       <year>2004</year>
       <year>2005</year>
       <year>2006</year>
+      <year>2007</year>
+      <year>2008</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
     <copyright>
@@ -79,8 +81,8 @@
     </emphasis>addresses security considerations, and
     <emphasis>Section 8</emphasis> contains troubleshooting help. The
     main body of the document is followed by several
-    <emphasis>Appendices</emphasis> which contain useful reference
-    information, such as a <emphasis>Bibliography</emphasis> and
+    <emphasis>appendices</emphasis> which contain useful reference
+    information, such as a <emphasis>bibliography</emphasis> and
     historic information related to <acronym>BIND</acronym> and the Domain Name
     System.</para>
   </sect1>
@@ -148,7 +150,7 @@ describe:</emphasis></para></entry>
 </tgroup></informaltable></para></sect1>
 <sect1><title>The Domain Name System (<acronym>DNS</acronym>)</title>
 <para>The purpose of this document is to explain the installation
-and upkeep of the <acronym>BIND</acronym> software package, and we
+and upkeep of the <acronym>BIND</acronym> (Berkeley Internet Name Domain) software package, and we
 begin by reviewing the fundamentals of the Domain Name System
 (<acronym>DNS</acronym>) as they relate to <acronym>BIND</acronym>.
 </para>
@@ -516,7 +518,8 @@ zone "eng.example.com" {
 <title>Load Balancing</title>
 
 <para>A primitive form of load balancing can be achieved in
-the <acronym>DNS</acronym> by using multiple A records for one name.</para>
+the <acronym>DNS</acronym> by using multiple records
+(such as multiple A records) for one name.</para>
 
 <para>For example, if you have three WWW servers with network addresses
 of 10.0.0.1, 10.0.0.2 and 10.0.0.3, a set of records such as the
@@ -636,6 +639,8 @@ can be extended with the use of options.</para>
         <arg>-t <replaceable>type</replaceable></arg>
         <arg>-W <replaceable>timeout</replaceable></arg>
         <arg>-R <replaceable>retries</replaceable></arg>
+	<arg>-4</arg>
+	<arg>-6</arg>
         <arg choice="plain"><replaceable>hostname</replaceable></arg>
         <arg><replaceable>server</replaceable></arg>
 </cmdsynopsis>
@@ -719,6 +724,11 @@ of a server.</para>
               <para>The remote name daemon control
               (<command>rndc</command>) program allows the system
               administrator to control the operation of a name server.
+	      Since <acronym>BIND</acronym> 9.2, <command>rndc</command>
+	      supports all the commands of the BIND 8 <command>ndc</command>
+	      utility except <command>ndc start</command> and
+	      <command>ndc restart</command>, which were also
+	      not supported in <command>ndc</command>'s channel mode.
               If you run <command>rndc</command> without any options
               it will display a usage message as follows:</para>
               <cmdsynopsis label="Usage">
@@ -1121,7 +1131,8 @@ to allow internal networks that are behind filters or in RFC 1918
 space (reserved IP space, as documented in RFC 1918) to resolve DNS
 on the Internet. Split DNS can also be used to allow mail from outside
 back in to the internal network.</para>
-<para>Here is an example of a split DNS setup:</para>
+     <sect2>
+      <title>Example split DNS setup</title>
 <para>Let's say a company named <emphasis>Example, Inc.</emphasis>
 (<literal>example.com</literal>)
 has several corporate sites that have an internal network with reserved
@@ -1292,6 +1303,7 @@ nameserver 172.16.72.2
 nameserver 172.16.72.3
 nameserver 172.16.72.4
 </programlisting>
+    </sect2>
 </sect1>
 <sect1 id="tsig"><title>TSIG</title>
 <para>This is a short guide to setting up Transaction SIGnatures
@@ -1417,7 +1429,7 @@ allow-update { key host1-host2. ;};
       outside of the allowed range, the response will be signed with
       the TSIG extended error code set to BADTIME, and the time values
       will be adjusted so that the response can be successfully
-      verified. In any of these cases, the message's rcode is set to
+      verified. In any of these cases, the message's rcode (response code) is set to
       NOTAUTH (not authenticated).</para>
 
     </sect2>
@@ -1476,7 +1488,7 @@ allow-update { key host1-host2. ;};
 
     <para>Cryptographic authentication of DNS information is possible
     through the DNS Security (<emphasis>DNSSEC-bis</emphasis>)
-    extensions, defined in RFC 4033, RFC4034 and RFC4035.  This
+    extensions, defined in RFC 4033, RFC4034, and RFC4035.  This
     section describes the creation and use of DNSSEC signed
     zones.</para>
 
@@ -1525,7 +1537,7 @@ allow-update { key host1-host2. ;};
       <para>Two output files will be produced:
       <filename>Kchild.example.+005+12345.key</filename> and
       <filename>Kchild.example.+005+12345.private</filename> (where
-      12345 is an example of a key tag).  The key file names contain
+      12345 is an example of a key tag).  The key filenames contain
       the key name (<filename>child.example.</filename>), algorithm (3
       is DSA, 1 is RSAMD5, 5 is RSASHA1, etc.), and the key tag (12345 in this case).
       The private key (in the <filename>.private</filename> file) is
@@ -1570,7 +1582,7 @@ allow-update { key host1-host2. ;};
 
       <para><command>dnssec-signzone</command> will also produce a
       keyset and dsset files and optionally a dlvset file.  These
-      are used to provide the parent zone administators with the
+      are used to provide the parent zone administrators with the
       <literal>DNSKEYs</literal> (or their corresponding <literal>DS</literal>
       records) that are the secure entry point to the zone.</para>
 
@@ -1857,7 +1869,7 @@ ambiguity, and need to be disambiguated.</para></entry>
 <row rowsep = "0">
 <entry colname = "1"><para><varname>ip_port</varname></para></entry>
 <entry colname = "2"><para>An IP port <varname>number</varname>.
-<varname>number</varname> is limited to 0 through 65535, with values
+The <varname>number</varname> is limited to 0 through 65535, with values
 below 1024 typically restricted to use by processes running as root.
 In some cases, an asterisk (`*') character can be used as a placeholder to
 select a random high-numbered port.</para></entry>
@@ -1996,7 +2008,7 @@ other 1.2.3.* hosts fall through.</para>
 <title>Comment Syntax</title>
 
 <para>The <acronym>BIND</acronym> 9 comment syntax allows for comments to appear
-anywhere that white space may appear in a <acronym>BIND</acronym> configuration
+anywhere that whitespace may appear in a <acronym>BIND</acronym> configuration
 file. To appeal to programmers of all kinds, they can be written
 in the C, C++, or shell/perl style.</para>
 
@@ -2010,7 +2022,7 @@ in the C, C++, or shell/perl style.</para>
       </sect3>
       <sect3>
         <title>Definition and Usage</title>
-<para>Comments may appear anywhere that white space may appear in
+<para>Comments may appear anywhere that whitespace may appear in
 a <acronym>BIND</acronym> configuration file.</para>
 <para>C-style comments start with the two characters /* (slash,
 star) and end with */ (star, slash). Because they are completely
@@ -2305,7 +2317,7 @@ statement: <command>controls { };</command>.
     </sect2>
     <sect2>
       <title><command>include</command> Statement Grammar</title>
-      <programlisting>include <replaceable>filename</replaceable>;</programlisting>
+      <programlisting><command>include</command> <replaceable>filename</replaceable>;</programlisting>
     </sect2>
     <sect2>
       <title><command>include</command> Statement Definition and Usage</title>
@@ -2321,7 +2333,7 @@ statement: <command>controls { };</command>.
     </sect2>
     <sect2>
       <title><command>key</command> Statement Grammar</title>
-<programlisting>key <replaceable>key_id</replaceable> {
+<programlisting><command>key</command> <replaceable>key_id</replaceable> {
     algorithm <replaceable>string</replaceable>;
     secret <replaceable>string</replaceable>;
 };
@@ -2765,7 +2777,7 @@ statement in the <filename>named.conf</filename> file:</para>
 
 <para>The <command>lwres</command> statement configures the name
 server to also act as a lightweight resolver server. (See
-<xref linkend="lwresd"/>.)  There may be be multiple
+<xref linkend="lwresd"/>.)  There may be multiple
 <command>lwres</command> statements configuring
 lightweight resolver servers with different properties.</para>
 
@@ -2809,7 +2821,7 @@ to be easily used by multiple stub and slave zones.</para>
 <para>This is the grammar of the <command>options</command>
 statement in the <filename>named.conf</filename> file:</para>
 
-<programlisting>options {
+<programlisting><command>options</command> {
     <optional> version <replaceable>version_string</replaceable>; </optional>
     <optional> hostname <replaceable>hostname_string</replaceable>; </optional>
     <optional> server-id <replaceable>server_id_string</replaceable>; </optional>
@@ -2822,6 +2834,7 @@ statement in the <filename>named.conf</filename> file:</para>
     <optional> dump-file <replaceable>path_name</replaceable>; </optional>
     <optional> memstatistics-file <replaceable>path_name</replaceable>; </optional>
     <optional> pid-file <replaceable>path_name</replaceable>; </optional>
+    <optional> recursing-file <replaceable>path_name</replaceable>; </optional>
     <optional> statistics-file <replaceable>path_name</replaceable>; </optional>
     <optional> zone-statistics <replaceable>yes_or_no</replaceable>; </optional>
     <optional> auth-nxdomain <replaceable>yes_or_no</replaceable>; </optional>
@@ -2994,11 +3007,24 @@ the database to when instructed to do so with
 <command>rndc dumpdb</command>.
 If not specified, the default is <filename>named_dump.db</filename>.</para>
 </listitem></varlistentry>
-<varlistentry><term><command>memstatistics-file</command></term>
-<listitem><para>The pathname of the file the server writes memory
-usage statistics to on exit. If not specified,
-the default is <filename>named.memstats</filename>.</para>
-</listitem></varlistentry>
+
+	  <varlistentry>
+	    <term><command>memstatistics-file</command></term>
+	    <listitem>
+	      <para>
+		The pathname of the file the server writes memory
+		usage statistics to on exit.  If specified the
+		statistics will be written to the file on exit.
+	      </para>
+	      <para>
+		In <acronym>BIND</acronym> 9.5 and later this will
+		default to <filename>named.memstats</filename>.
+		<acronym>BIND</acronym> 9.5 will also introduce
+		<command>memstatistics</command> to control the
+		writing.
+	      </para>
+	    </listitem>
+	  </varlistentry>
 
 <varlistentry><term><command>pid-file</command></term>
 <listitem><para>The pathname of the file the server writes its process ID
@@ -3007,9 +3033,21 @@ The pid-file is used by programs that want to send signals to the running
 name server. Specifying <command>pid-file none</command> disables the
 use of a PID file &mdash; no file will be written and any
 existing one will be removed.  Note that <command>none</command>
-is a keyword, not a file name, and therefore is not enclosed in
+is a keyword, not a filename, and therefore is not enclosed in
 double quotes.</para>
 </listitem></varlistentry>
+
+	    <varlistentry>
+	      <term><command>recursing-file</command></term>
+	      <listitem>
+		<para>
+		  The pathname of the file the server dumps
+		  the queries that are currently recursing when instructed
+		  to do so with <command>rndc recursing</command>.
+		  If not specified, the default is <filename>named.recursing</filename>.
+		</para>
+	      </listitem>
+	    </varlistentry>
 
 <varlistentry><term><command>statistics-file</command></term>
 <listitem><para>The pathname of the file the server appends statistics
@@ -3318,7 +3356,7 @@ in the <command>statistics-file</command>.  See also <xref linkend="statsfile"/>
 
 <varlistentry><term><command>use-ixfr</command></term>
 <listitem><para><emphasis>This option is obsolete</emphasis>.
-If you need to disable IXFR to a particular server or servers see
+If you need to disable IXFR to a particular server or servers, see
 the information on the <command>provide-ixfr</command> option
 in <xref linkend="server_statement_definition_and_usage"/>. See also
 <xref linkend="incremental_zone_transfers"/>.
@@ -3491,7 +3529,7 @@ and RFC 821 as modified by RFC 1123.
 MX records.  It also applies to the domain names in the RDATA of NS, SOA and MX
 records.  It also applies to the RDATA of PTR records where the owner name
 indicated that it is a reverse lookup of a hostname (the owner name ends in
-IN-ADDR.ARPA, IP6.ARPA, IP6.INT).
+IN-ADDR.ARPA, IP6.ARPA, or IP6.INT).
 </para>
 </listitem></varlistentry>
 
@@ -4086,7 +4124,7 @@ stop listening on interfaces that have gone away.</para>
 every <command>statistics-interval</command> minutes. The default is 
 60. The maximum value is 28 days (40320 minutes).
 If set to 0, no statistics will be logged.</para><note>
-<simpara>Not yet implemented in <acronym>BIND</acronym>9.</simpara></note>
+<simpara>Not yet implemented in <acronym>BIND</acronym> 9.</simpara></note>
 </listitem></varlistentry>
 
 </variablelist>
@@ -4330,7 +4368,7 @@ and clamp the SOA refresh and retry times to the specified values.
 <command>edns-udp-size</command> sets the advertised EDNS UDP buffer
 size in bytes.  Valid values are 512 to 4096 bytes (values outside this range will be
 silently adjusted).  The default value is 4096.  The usual reason for
-setting edns-udp-size to a non-default value it to get UDP answers to
+setting edns-udp-size to a non-default value is to get UDP answers to
 pass through broken firewalls that block fragmented packets and/or
 block UDP packets that are greater than 512 bytes.
 </para></listitem></varlistentry>
@@ -4480,7 +4518,7 @@ to be incremented, and may additionally cause the
 <sect2 id="server_statement_grammar">
 <title><command>server</command> Statement Grammar</title>
 
-<programlisting>server <replaceable>ip_addr</replaceable> {
+<programlisting><command>server</command> <replaceable>ip_addr</replaceable> {
     <optional> bogus <replaceable>yes_or_no</replaceable> ; </optional>
     <optional> provide-ixfr <replaceable>yes_or_no</replaceable> ; </optional>
     <optional> request-ixfr <replaceable>yes_or_no</replaceable> ; </optional>
@@ -4586,7 +4624,7 @@ For more details, see the description of
 </sect2>
 
 <sect2><title><command>trusted-keys</command> Statement Grammar</title>
-<programlisting>trusted-keys {
+<programlisting><command>trusted-keys</command> {
     <replaceable>string</replaceable> <replaceable>number</replaceable> <replaceable>number</replaceable> <replaceable>number</replaceable> <replaceable>string</replaceable> ;
     <optional> <replaceable>string</replaceable> <replaceable>number</replaceable> <replaceable>number</replaceable> <replaceable>number</replaceable> <replaceable>string</replaceable> ; <optional>...</optional></optional>
 };
@@ -4626,7 +4664,7 @@ For more details, see the description of
 
 <sect2 id="view_statement_grammar">
 <title><command>view</command> Statement Grammar</title>
-<programlisting>view <replaceable>view_name</replaceable> 
+<programlisting><command>view</command> <replaceable>view_name</replaceable> 
       <optional><replaceable>class</replaceable></optional> {
       match-clients { <replaceable>address_match_list</replaceable> } ;
       match-destinations { <replaceable>address_match_list</replaceable> } ;
@@ -4722,7 +4760,7 @@ view "external" {
 </sect2>
 <sect2 id="zone_statement_grammar"><title><command>zone</command>
 Statement Grammar</title>
-<programlisting>zone <replaceable>zone_name</replaceable> <optional><replaceable>class</replaceable></optional> { 
+<programlisting><command>zone</command> <replaceable>zone_name</replaceable> <optional><replaceable>class</replaceable></optional> { 
     type master;
     <optional> allow-query { <replaceable>address_match_list</replaceable> } ; </optional>
     <optional> allow-transfer { <replaceable>address_match_list</replaceable> } ; </optional>
@@ -4870,7 +4908,7 @@ and reloaded from this file on a server restart. Use of a file is
 recommended, since it often speeds server startup and eliminates
 a needless waste of bandwidth. Note that for large numbers (in the
 tens or hundreds of thousands) of zones per server, it is best to
-use a two-level naming scheme for zone file names. For example,
+use a two-level naming scheme for zone filenames. For example,
 a slave server for the zone <literal>example.com</literal> might place
 the zone contents into a file called
 <filename>ex/example.com</filename> where <filename>ex/</filename> is
@@ -4958,7 +4996,7 @@ used to share information about various systems databases, such
 as users, groups, printers and so on. The keyword 
 <literal>HS</literal> is
 a synonym for hesiod.</para>
-<para>Another MIT development is CHAOSnet, a LAN protocol created
+<para>Another MIT development is Chaosnet, a LAN protocol created
 in the mid-1970s. Zone data for it can be specified with the <literal>CHAOS</literal> class.</para></sect3>
 <sect3>
 
@@ -5225,7 +5263,7 @@ shared secret is the same as the identity of the key used to authenticate the
 TKEY exchange.  When the <replaceable>identity</replaceable> field specifies a
 wildcard name, it is subject to DNS wildcard expansion, so the rule will apply
 to multiple identities.  The <replaceable>identity</replaceable> field must
-contain a fully qualified domain name.</para>
+contain a fully-qualified domain name.</para>
 
 <para>The <replaceable>nametype</replaceable> field has 4 values:
 <varname>name</varname>, <varname>subdomain</varname>,
@@ -5270,7 +5308,7 @@ specified as <constant>*</constant> in this case.</para></entry>
 </tgroup></informaltable>
 
 <para>In all cases, the <replaceable>name</replaceable> field must
-specify a fully qualified domain name.</para>
+specify a fully-qualified domain name.</para>
 
 <para>If no types are explicitly specified, this rule matches all types except
 SIG, NS, SOA, and NXT. Types may be specified by name, including
@@ -5514,7 +5552,7 @@ are currently valid in the DNS:</para><informaltable colsep = "0"
 <row rowsep = "0">
 <entry colname = "1"><para>CH</para></entry>
 <entry colname = "2"><para>
-CHAOSnet, a LAN protocol created at MIT in the mid-1970s.
+Chaosnet, a LAN protocol created at MIT in the mid-1970s.
 Rarely used for its historical purpose, but reused for BIND's
 built-in server information zones, e.g.,
 <literal>version.bind</literal>.
@@ -5776,7 +5814,7 @@ in the <optional>example.com</optional> domain:</para>
 </tgroup></informaltable>
       <note>
 <para>The <command>$ORIGIN</command> lines in the examples
-are for providing context to the examples only-they do not necessarily
+are for providing context to the examples only &mdash; they do not necessarily
 appear in the actual usage. They are only used here to indicate
 that the example is relative to the listed origin.</para></note></sect2>
 <sect2><title>Other Zone File Directives</title>
@@ -5855,16 +5893,16 @@ or start-stop/step. If the first form is used, then step is set to
       </row>
         <row rowsep = "0">
           <entry colname = "1"><para><command>lhs</command></para></entry>
-          <entry colname = "2"><para><command>lhs</command> describes the
+          <entry colname = "2"><para>This describes the
 owner name of the resource records to be created. Any single
 <command>$</command> (dollar sign) symbols
 within the <command>lhs</command> side are replaced by the iterator
 value.
-To get a $ in the output you need to escape the <command>$</command>
+To get a $ in the output, you need to escape the <command>$</command>
 using a backslash <command>\</command>,
 e.g. <command>\$</command>. The <command>$</command> may optionally be followed
 by modifiers which change the offset from the iterator, field width and base. 
-Modifiers are introduced by a <command>{</command> immediately following the
+Modifiers are introduced by a <command>{</command> (left brace) immediately following the
 <command>$</command> as <command>${offset[,width[,base]]}</command>.
 For example, <command>${-20,3,d}</command> which subtracts 20 from the current value,
 prints the result as a decimal in a zero-padded field of width 3.  Available
@@ -5900,7 +5938,7 @@ PTR, CNAME, DNAME, A, AAAA and NS.</para></entry>
         </row>
         <row rowsep = "0">
           <entry colname = "1"><para><command>rhs</command></para></entry>
-          <entry colname = "2"><para>A domain name. It is processed
+          <entry colname = "2"><para><command>rhs</command> is a domain name. It is processed
 similarly to lhs.</para></entry>
         </row>
       </tbody>
@@ -5954,7 +5992,7 @@ unless recursion has been previously disabled.</para>
 <para>For more information on how to use ACLs to protect your server,
 see the <emphasis>AUSCERT</emphasis> advisory at
 <ulink url="ftp://ftp.auscert.org.au/pub/auscert/advisory/AL-1999.004.dns_dos">ftp://ftp.auscert.org.au/pub/auscert/advisory/AL-1999.004.dns_dos</ulink></para></sect1>
-<sect1><title><command>chroot</command> and <command>setuid</command> (for
+<sect1><title><command>Chroot</command> and <command>Setuid</command> (for
 UNIX servers)</title>
 <para>On UNIX servers, it is possible to run <acronym>BIND</acronym> in a <emphasis>chrooted</emphasis> environment
 (using the <command>chroot()</command> function) by specifying the "<option>-t</option>"
@@ -5981,7 +6019,7 @@ like <command>directory</command> and <command>pid-file</command> to account
 for this.
 </para>
 <para>
-Unlike with earlier versions of BIND, you will typically
+Unlike with earlier versions of BIND, you typically will
 <emphasis>not</emphasis> need to compile <command>named</command>
 statically nor install shared libraries under the new root.
 However, depending on your operating system, you may need
@@ -6054,16 +6092,18 @@ all.</para>
   <sect1>
     <title>Incrementing and Changing the Serial Number</title>
 
-    <para>Zone serial numbers are just numbers-they aren't date
-    related.  A lot of people set them to a number that represents a
-    date, usually of the form YYYYMMDDRR. A number of people have been
-    testing these numbers for Y2K compliance and have set the number
-    to the year 2000 to see if it will work. They then try to restore
-    the old serial number. This will cause problems because serial
-    numbers are used to indicate that a zone has been updated. If the
-    serial number on the slave server is lower than the serial number
-    on the master, the slave server will attempt to update its copy of
-    the zone.</para>
+	<para>
+	  Zone serial numbers are just numbers &mdash; they aren't
+	  date related.  A lot of people set them to a number that
+	  represents a date, usually of the form YYYYMMDDRR.
+	  Occasionally they will make a mistake and set them to a
+	  "date in the future" then try to correct them by setting
+	  them to the "current date".  This causes problems because
+	  serial numbers are used to indicate that a zone has been
+	  updated.  If the serial number on the slave server is
+	  lower than the serial number on the master, the slave
+	  server will attempt to update its copy of the zone.
+	</para>
 
     <para>Setting the serial number to a lower number on the master
     server than the slave server means that the slave will not perform
@@ -6137,7 +6177,7 @@ employee on loan to the CSRG, worked on <acronym>BIND</acronym> for 2 years, fro
 to 1987. Many other people also contributed to <acronym>BIND</acronym> development
 during that time: Doug Kingston, Craig Partridge, Smoot Carl-Mitchell,
 Mike Muuss, Jim Bloom and Mike Schwartz. <acronym>BIND</acronym> maintenance was subsequently
-handled by Mike Karels and O. Kure.</para>
+handled by Mike Karels and &#216;ivind Kure.</para>
       <para><acronym>BIND</acronym> versions 4.9 and 4.9.1 were released by Digital Equipment
 Corporation (now Compaq Computer Corporation). Paul Vixie, then
 a DEC employee, became <acronym>BIND</acronym>'s primary caretaker. He was assisted
@@ -6145,13 +6185,27 @@ by Phil Almquist, Robert Elz, Alan Barrett, Paul Albitz, Bryan Beecher, Andrew
 Partan, Andy Cherenson, Tom Limoncelli, Berthold Paffrath, Fuat
 Baran, Anant Kumar, Art Harkin, Win Treese, Don Lewis, Christophe
 Wolfhugel, and others.</para>
-      <para><acronym>BIND</acronym> version 4.9.2 was sponsored by Vixie Enterprises. Paul
+      <para>In 1994, <acronym>BIND</acronym> version 4.9.2 was sponsored by Vixie Enterprises. Paul
 Vixie became <acronym>BIND</acronym>'s principal architect/programmer.</para>
       <para><acronym>BIND</acronym> versions from 4.9.3 onward have been developed and maintained
 by the Internet Software Consortium with support being provided
-by ISC's sponsors. As co-architects/programmers, Bob Halley and
+by ISC's sponsors.
+      </para>
+      <para>As co-architects/programmers, Bob Halley and
 Paul Vixie released the first production-ready version of <acronym>BIND</acronym> version
 8 in May 1997.</para>
+	<para>
+	  BIND version 9 was released in September 2000 and is a
+	  major rewrite of nearly all aspects of the underlying
+	  BIND architecture.
+	  </para>
+	  <para>
+	  BIND version 4 is officially deprecated and BIND version
+	  8 development is considered maintenance-only in favor
+	  of BIND version 9. No additional development is done
+	  on BIND version 4 or BIND version 8 other than for
+	  security-related patches.
+	</para>
       <para><acronym>BIND</acronym> development work is made possible today by the sponsorship
 of several corporations, and by the tireless work efforts of numerous
 individuals.</para>
@@ -6168,7 +6222,8 @@ scalable Internet routing. There are three types of addresses: <emphasis>Unicast
 an identifier for a single interface; <emphasis>Anycast</emphasis>,
 an identifier for a set of interfaces; and <emphasis>Multicast</emphasis>,
 an identifier for a set of interfaces. Here we describe the global
-Unicast address scheme. For more information, see RFC 2374.</para>
+Unicast address scheme. For more information, see RFC 3587,
+"Global Unicast Address Format."</para>
 <para>The aggregatable global Unicast address format is as follows:</para>
 <informaltable colsep = "0" rowsep = "0"><tgroup cols = "6"
     colsep = "0" rowsep = "0" tgroupstyle = "1Level-table">

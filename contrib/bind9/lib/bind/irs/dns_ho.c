@@ -52,7 +52,7 @@
 /* BIND Id: gethnamaddr.c,v 8.15 1996/05/22 04:56:30 vixie Exp $ */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: dns_ho.c,v 1.5.2.7.4.8 2006/03/10 00:17:21 marka Exp $";
+static const char rcsid[] = "$Id: dns_ho.c,v 1.5.2.7.4.9 2006/12/07 04:00:08 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /* Imports. */
@@ -941,7 +941,7 @@ gethostans(struct irs_ho *this,
 			bp = (char *)(((u_long)bp + (sizeof(align) - 1)) &
 				      ~(sizeof(align) - 1));
 			/* Avoid overflows. */
-			if (bp + n >= &pvt->hostbuf[sizeof pvt->hostbuf]) {
+			if (bp + n > &pvt->hostbuf[sizeof(pvt->hostbuf) - 1]) {
 				had_error++;
 				continue;
 			}
@@ -1051,7 +1051,7 @@ add_hostent(struct pvt *pvt, char *bp, char **hap, struct addrinfo *ai)
 	bp = (char *)(((u_long)bp + (sizeof(align) - 1)) &
 		      ~(sizeof(align) - 1));
 	/* Avoid overflows. */
-	if (bp + addrlen >= &pvt->hostbuf[sizeof pvt->hostbuf])
+	if (bp + addrlen > &pvt->hostbuf[sizeof(pvt->hostbuf) - 1])
 		return(-1);
 	if (hap >= &pvt->h_addr_ptrs[MAXADDRS-1])
 		return(0); /* fail, but not treat it as an error. */

@@ -1,9 +1,9 @@
 /*
- * Portions Copyright (C) 2004, 2006  Internet Systems Consortium, Inc. ("ISC")
+ * Portions Copyright (C) 2004, 2006, 2007  Internet Systems Consortium, Inc. ("ISC")
  * Portions Copyright (C) 1999-2003  Internet Software Consortium.
  * Portions Copyright (C) 1995-2000 by Network Associates, Inc.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -18,7 +18,7 @@
 
 /*
  * Principal Author: Brian Wellington
- * $Id: openssl_link.c,v 1.1.4.3 2006/05/23 23:51:03 marka Exp $
+ * $Id: openssl_link.c,v 1.1.4.6 2007/08/28 07:19:13 tbox Exp $
  */
 #ifdef OPENSSL
 
@@ -171,6 +171,7 @@ dst__openssl_init() {
 	mem_free(rm);
 #endif
  cleanup_mutexinit:
+	CRYPTO_set_locking_callback(NULL);
 	DESTROYMUTEXBLOCK(locks, nlocks);
  cleanup_mutexalloc:
 	mem_free(locks);
@@ -186,12 +187,13 @@ dst__openssl_destroy() {
 		e = NULL;
 	}
 #endif
+	if (rm != NULL)
+		mem_free(rm);
 	if (locks != NULL) {
+		CRYPTO_set_locking_callback(NULL);
 		DESTROYMUTEXBLOCK(locks, nlocks);
 		mem_free(locks);
 	}
-	if (rm != NULL)
-		mem_free(rm);
 }
 
 isc_result_t

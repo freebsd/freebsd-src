@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: ctl_srvr.c,v 1.3.2.1.4.3 2004/03/17 01:13:35 marka Exp $";
+static const char rcsid[] = "$Id: ctl_srvr.c,v 1.3.2.1.4.4 2006/12/07 04:52:50 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -564,7 +564,7 @@ static void
 ctl_readable(evContext lev, void *uap, int fd, int evmask) {
 	static const char me[] = "ctl_readable";
 	struct ctl_sess *sess = uap;
-	struct ctl_sctx *ctx = sess->ctx;
+	struct ctl_sctx *ctx;
 	char *eos, tmp[MAX_NTOP];
 	ssize_t n;
 
@@ -572,6 +572,8 @@ ctl_readable(evContext lev, void *uap, int fd, int evmask) {
 	REQUIRE(fd >= 0);
 	REQUIRE(evmask == EV_READ);
 	REQUIRE(sess->state == reading || sess->state == reading_data);
+
+	ctx = sess->ctx;
 	evTouchIdleTimer(lev, sess->rdtiID);
 	if (!allocated_p(sess->inbuf) &&
 	    ctl_bufget(&sess->inbuf, ctx->logger) < 0) {

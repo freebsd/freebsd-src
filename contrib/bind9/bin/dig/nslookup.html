@@ -1,5 +1,5 @@
 <!--
- - Copyright (C) 2004-2006 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2007 Internet Systems Consortium, Inc. ("ISC")
  - 
  - Permission to use, copy, modify, and distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
@@ -13,15 +13,15 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: nslookup.html,v 1.1.6.12 2006/06/29 13:02:30 marka Exp $ -->
+<!-- $Id: nslookup.html,v 1.1.6.18 2007/05/16 06:10:54 marka Exp $ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
 <title>nslookup</title>
-<meta name="generator" content="DocBook XSL Stylesheets V1.70.1">
+<meta name="generator" content="DocBook XSL Stylesheets V1.71.1">
 </head>
 <body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="refentry" lang="en">
-<a name="id2482694"></a><div class="titlepage"></div>
+<a name="id2476276"></a><div class="titlepage"></div>
 <div class="refnamediv">
 <h2>Name</h2>
 <p>nslookup &#8212; query Internet name servers interactively</p>
@@ -31,7 +31,7 @@
 <div class="cmdsynopsis"><p><code class="command">nslookup</code>  [<code class="option">-option</code>] [name | -] [server]</p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2549404"></a><h2>DESCRIPTION</h2>
+<a name="id2543346"></a><h2>DESCRIPTION</h2>
 <p>
 <span><strong class="command">Nslookup</strong></span>
 is a program to query Internet domain name servers.  <span><strong class="command">Nslookup</strong></span>
@@ -43,7 +43,7 @@ domain.
 </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2549421"></a><h2>ARGUMENTS</h2>
+<a name="id2543363"></a><h2>ARGUMENTS</h2>
 <p>
 Interactive mode is entered in the following cases:
 </p>
@@ -75,9 +75,9 @@ nslookup -query=hinfo  -timeout=10
 </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2549464"></a><h2>INTERACTIVE COMMANDS</h2>
+<a name="id2543405"></a><h2>INTERACTIVE COMMANDS</h2>
 <div class="variablelist"><dl>
-<dt><span class="term">host [<span class="optional">server</span>]</span></dt>
+<dt><span class="term"><code class="constant">host</code> [<span class="optional">server</span>]</span></dt>
 <dd>
 <p>
 Look up information for host using the current default server or
@@ -151,9 +151,8 @@ the lookups.  Valid keywords are:
 <dt><span class="term"><code class="constant"><em class="replaceable"><code>[<span class="optional">no</span>]</code></em>debug</code></span></dt>
 <dd>
 <p>
-  Turn debugging mode on.  A lot more information is
-  printed about the packet sent to the server and the
-  resulting answer.
+		    Turn on or off the display of the full response packet and
+		    any intermediate response packets when searching.
   </p>
 <p>
   (Default = nodebug; abbreviation = [<span class="optional">no</span>]deb)
@@ -162,9 +161,8 @@ the lookups.  Valid keywords are:
 <dt><span class="term"><code class="constant"><em class="replaceable"><code>[<span class="optional">no</span>]</code></em>d2</code></span></dt>
 <dd>
 <p>
-  Turn debugging mode on.  A lot more information is
-  printed about the packet sent to the server and the
-  resulting answer.
+		    Turn debugging mode on or off.  This displays more about
+		    what nslookup is doing.
   </p>
 <p>
   (Default = nod2)
@@ -241,13 +239,13 @@ the lookups.  Valid keywords are:
 </dl></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2549990"></a><h2>FILES</h2>
+<a name="id2543797"></a><h2>FILES</h2>
 <p>
 <code class="filename">/etc/resolv.conf</code>
 </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2550003"></a><h2>SEE ALSO</h2>
+<a name="id2543810"></a><h2>SEE ALSO</h2>
 <p>
 <span class="citerefentry"><span class="refentrytitle">dig</span>(1)</span>,
 <span class="citerefentry"><span class="refentrytitle">host</span>(1)</span>,
@@ -255,7 +253,7 @@ the lookups.  Valid keywords are:
 </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2550038"></a><h2>Author</h2>
+<a name="id2543845"></a><h2>Author</h2>
 <p>
 Andrew Cherenson
 </p>

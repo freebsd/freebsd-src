@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1997-2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: mem.c,v 1.98.2.7.2.7 2005/03/17 03:58:32 marka Exp $ */
+/* $Id: mem.c,v 1.98.2.7.2.12 2007/11/26 23:45:51 tbox Exp $ */
 
 #include <config.h>
 
@@ -191,7 +191,7 @@ struct isc_mempool {
 		if ((isc_mem_debugging & (ISC_MEM_DEBUGTRACE | \
 					  ISC_MEM_DEBUGRECORD)) != 0 && \
 		     b != NULL) \
-		         add_trace_entry(a, b, c, d, e); \
+			 add_trace_entry(a, b, c, d, e); \
 	} while (0)
 #define DELETE_TRACE(a, b, c, d, e)	delete_trace_entry(a, b, c, d, e)
 
@@ -313,7 +313,7 @@ delete_trace_entry(isc_mem_t *mctx, const void *ptr, unsigned int size,
 static inline size_t
 rmsize(size_t size) {
 	/*
- 	 * round down to ALIGNMENT_SIZE
+	 * round down to ALIGNMENT_SIZE
 	 */
 	return (size & (~(ALIGNMENT_SIZE - 1)));
 }
@@ -859,7 +859,7 @@ destroy(isc_mem_t *ctx) {
 				     dl != NULL;
 				     dl = ISC_LIST_HEAD(ctx->debuglist[i])) {
 					ISC_LIST_UNLINK(ctx->debuglist[i],
-						 	dl, link);
+							dl, link);
 					free(dl);
 				}
 		}
@@ -884,7 +884,8 @@ destroy(isc_mem_t *ctx) {
 	for (i = 0; i < ctx->basic_table_count; i++)
 		(ctx->memfree)(ctx->arg, ctx->basic_table[i]);
 	(ctx->memfree)(ctx->arg, ctx->freelists);
-	(ctx->memfree)(ctx->arg, ctx->basic_table);
+	if (ctx->basic_table != NULL)
+		(ctx->memfree)(ctx->arg, ctx->basic_table);
 #endif /* ISC_MEM_USE_INTERNAL_MALLOC */
 
 	ondest = ctx->ondestroy;
@@ -1105,7 +1106,7 @@ print_active(isc_mem_t *mctx, FILE *out) {
 					    "memory allocations:\n"));
 		found = ISC_FALSE;
 		format = isc_msgcat_get(isc_msgcat, ISC_MSGSET_MEM,
-				        ISC_MSG_PTRFILELINE,
+					ISC_MSG_PTRFILELINE,
 					"\tptr %p size %u file %s line %u\n");
 		for (i = 0; i <= mctx->max_size; i++) {
 			dl = ISC_LIST_HEAD(mctx->debuglist[i]);
@@ -1354,19 +1355,30 @@ isc_mem_inuse(isc_mem_t *ctx) {
 
 void
 isc_mem_setwater(isc_mem_t *ctx, isc_mem_water_t water, void *water_arg,
-                 size_t hiwater, size_t lowater)
+		 size_t hiwater, size_t lowater)
 {
+	isc_boolean_t callwater = ISC_FALSE;
+	isc_mem_water_t oldwater;
+	void *oldwater_arg;
+
 	REQUIRE(VALID_CONTEXT(ctx));
 	REQUIRE(hiwater >= lowater);
 
 	LOCK(&ctx->lock);
+	oldwater = ctx->water;
+	oldwater_arg = ctx->water_arg;
 	if (water == NULL) {
+		callwater = ctx->hi_called;
 		ctx->water = NULL;
 		ctx->water_arg = NULL;
 		ctx->hi_water = 0;
 		ctx->lo_water = 0;
 		ctx->hi_called = ISC_FALSE;
 	} else {
+		if (ctx->hi_called &&
+		    (ctx->water != water || ctx->water_arg != water_arg ||
+		     ctx->inuse < lowater || lowater == 0U))
+			callwater = ISC_TRUE;
 		ctx->water = water;
 		ctx->water_arg = water_arg;
 		ctx->hi_water = hiwater;
@@ -1374,6 +1386,9 @@ isc_mem_setwater(isc_mem_t *ctx, isc_mem_water_t water, void *water_arg,
 		ctx->hi_called = ISC_FALSE;
 	}
 	UNLOCK(&ctx->lock);
+
+	if (callwater && oldwater != NULL)
+		(oldwater)(oldwater_arg, ISC_MEM_LOWATER);
 }
 
 /*

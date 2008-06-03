@@ -1,5 +1,5 @@
 <!--
- - Copyright (C) 2004, 2005 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004, 2005, 2007 Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000, 2001, 2003 Internet Software Consortium.
  - 
  - Permission to use, copy, modify, and distribute this software for any
@@ -14,15 +14,15 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: lwres_context.html,v 1.5.2.2.2.12 2006/06/29 13:02:31 marka Exp $ -->
+<!-- $Id: lwres_context.html,v 1.5.2.2.2.15 2007/01/30 00:11:48 marka Exp $ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
 <title>lwres_context</title>
-<meta name="generator" content="DocBook XSL Stylesheets V1.70.1">
+<meta name="generator" content="DocBook XSL Stylesheets V1.71.1">
 </head>
 <body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="refentry" lang="en">
-<a name="id2482688"></a><div class="titlepage"></div>
+<a name="id2476275"></a><div class="titlepage"></div>
 <div class="refnamediv">
 <h2>Name</h2>
 <p>lwres_context_create, lwres_context_destroy, lwres_context_nextserial, lwres_context_initserial, lwres_context_freemem, lwres_context_allocmem, lwres_context_sendrecv &#8212; lightweight resolver context management</p>
@@ -52,31 +52,18 @@ lwres_result_t
 <tr>
 <td> </td>
 <td> </td>
-<td>, </td>
-</tr>
-<tr>
-<td> </td>
-<td> </td>
 <td>
 <code>)</code>;</td>
 </tr>
 </table>
-<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em">
-<tr>
+<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em"><tr>
 <td><code class="funcdef">
 lwres_result_t
 <b class="fsfunc">lwres_context_destroy</b>(</code></td>
 <td> </td>
 <td>
 <code>)</code>;</td>
-</tr>
-<tr>
-<td> </td>
-<td> </td>
-<td>
-<code>)</code>;</td>
-</tr>
-</table>
+</tr></table>
 <table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em">
 <tr>
 <td><code class="funcdef">
@@ -88,41 +75,23 @@ void
 <tr>
 <td> </td>
 <td> </td>
-<td>, </td>
-</tr>
-<tr>
-<td> </td>
-<td> </td>
 <td>
 <code>)</code>;</td>
 </tr>
 </table>
-<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em">
-<tr>
+<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em"><tr>
 <td><code class="funcdef">
 lwres_uint32_t
 <b class="fsfunc">lwres_context_nextserial</b>(</code></td>
 <td> </td>
 <td>
 <code>)</code>;</td>
-</tr>
-<tr>
-<td> </td>
-<td> </td>
-<td>
-<code>)</code>;</td>
-</tr>
-</table>
+</tr></table>
 <table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em">
 <tr>
 <td><code class="funcdef">
 void
 <b class="fsfunc">lwres_context_freemem</b>(</code></td>
-<td> </td>
-<td>, </td>
-</tr>
-<tr>
-<td> </td>
 <td> </td>
 <td>, </td>
 </tr>
@@ -143,11 +112,6 @@ void
 <td><code class="funcdef">
 void
 <b class="fsfunc">lwres_context_allocmem</b>(</code></td>
-<td> </td>
-<td>, </td>
-</tr>
-<tr>
-<td> </td>
 <td> </td>
 <td>, </td>
 </tr>
@@ -189,11 +153,6 @@ void *
 <tr>
 <td> </td>
 <td> </td>
-<td>, </td>
-</tr>
-<tr>
-<td> </td>
-<td> </td>
 <td>
 <code>)</code>;</td>
 </tr>
@@ -201,7 +160,7 @@ void *
 </div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2549540"></a><h2>DESCRIPTION</h2>
+<a name="id2543481"></a><h2>DESCRIPTION</h2>
 <p>
 <code class="function">lwres_context_create()</code>
 creates a
@@ -331,7 +290,7 @@ returned in
 </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2549789"></a><h2>RETURN VALUES</h2>
+<a name="id2543662"></a><h2>RETURN VALUES</h2>
 <p>
 <code class="function">lwres_context_create()</code>
 returns
@@ -362,7 +321,7 @@ times out waiting for a response.
 </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2549841"></a><h2>SEE ALSO</h2>
+<a name="id2543714"></a><h2>SEE ALSO</h2>
 <p>
 <span class="citerefentry"><span class="refentrytitle">lwres_conf_init</span>(3)</span>,
 

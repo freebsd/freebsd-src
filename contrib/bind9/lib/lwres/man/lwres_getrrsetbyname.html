@@ -1,5 +1,5 @@
 <!--
- - Copyright (C) 2004, 2005 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004, 2005, 2007 Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000, 2001 Internet Software Consortium.
  - 
  - Permission to use, copy, modify, and distribute this software for any
@@ -14,15 +14,15 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: lwres_getrrsetbyname.html,v 1.5.2.1.4.11 2006/06/29 13:02:31 marka Exp $ -->
+<!-- $Id: lwres_getrrsetbyname.html,v 1.5.2.1.4.14 2007/01/30 00:11:48 marka Exp $ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
 <title>lwres_getrrsetbyname</title>
-<meta name="generator" content="DocBook XSL Stylesheets V1.70.1">
+<meta name="generator" content="DocBook XSL Stylesheets V1.71.1">
 </head>
 <body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="refentry" lang="en">
-<a name="id2482688"></a><div class="titlepage"></div>
+<a name="id2476275"></a><div class="titlepage"></div>
 <div class="refnamediv">
 <h2>Name</h2>
 <p>lwres_getrrsetbyname, lwres_freerrset &#8212; retrieve DNS records</p>
@@ -57,31 +57,18 @@ int
 <tr>
 <td> </td>
 <td> </td>
-<td>, </td>
-</tr>
-<tr>
-<td> </td>
-<td> </td>
 <td>
 <code>)</code>;</td>
 </tr>
 </table>
-<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0">
-<tr>
+<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0"><tr>
 <td><code class="funcdef">
 void
 <b class="fsfunc">lwres_freerrset</b>(</code></td>
 <td> </td>
 <td>
 <code>)</code>;</td>
-</tr>
-<tr>
-<td> </td>
-<td> </td>
-<td>
-<code>)</code>;</td>
-</tr>
-</table>
+</tr></table>
 </div>
 <p>
 The following structures are used:
@@ -108,7 +95,7 @@ struct  rrsetinfo {
 </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2549443"></a><h2>DESCRIPTION</h2>
+<a name="id2543384"></a><h2>DESCRIPTION</h2>
 <p>
 <code class="function">lwres_getrrsetbyname()</code>
 gets a set of resource records associated with a
@@ -185,7 +172,7 @@ created by a call to
 </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2549623"></a><h2>RETURN VALUES</h2>
+<a name="id2543496"></a><h2>RETURN VALUES</h2>
 <p>
 <code class="function">lwres_getrrsetbyname()</code>
 returns zero on success, and one of the following error
@@ -221,7 +208,7 @@ other failure
 </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2549697"></a><h2>SEE ALSO</h2>
+<a name="id2543570"></a><h2>SEE ALSO</h2>
 <p>
 <span class="citerefentry"><span class="refentrytitle">lwres</span>(3)</span>.
 </p>

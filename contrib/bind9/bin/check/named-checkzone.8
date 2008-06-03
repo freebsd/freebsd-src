@@ -1,5 +1,5 @@
-.\" Copyright (C) 2004-2006 Internet Systems Consortium, Inc. ("ISC")
-.\" Copyright (C) 2000-2002 Internet Software Consortium.
+.\" Copyright (C) 2004-2007 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2000-2003 Internet Software Consortium.
 .\" 
 .\" Permission to use, copy, modify, and distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
@@ -13,13 +13,13 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id: named-checkzone.8,v 1.11.2.1.8.11 2006/10/05 02:50:17 marka Exp $
+.\" $Id: named-checkzone.8,v 1.11.2.1.8.16 2007/06/20 02:26:23 marka Exp $
 .\"
 .hy 0
 .ad l
 .\"     Title: named\-checkzone
 .\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.70.1 <http://docbook.sf.net/>
+.\" Generator: DocBook XSL Stylesheets v1.71.1 <http://docbook.sf.net/>
 .\"      Date: June 13, 2000
 .\"    Manual: BIND9
 .\"    Source: BIND9
@@ -43,25 +43,36 @@ does when loading a zone. This makes
 \fBnamed\-checkzone\fR
 useful for checking zone files before configuring them into a name server.
 .SH "OPTIONS"
-.TP 3n
+.PP
 \-d
+.RS 4
 Enable debugging.
-.TP 3n
+.RE
+.PP
 \-q
+.RS 4
 Quiet mode \- exit code only.
-.TP 3n
+.RE
+.PP
 \-v
+.RS 4
 Print the version of the
 \fBnamed\-checkzone\fR
 program and exit.
-.TP 3n
+.RE
+.PP
 \-j
+.RS 4
 When loading the zone file read the journal if it exists.
-.TP 3n
+.RE
+.PP
 \-c \fIclass\fR
+.RS 4
 Specify the class of the zone. If not specified "IN" is assumed.
-.TP 3n
+.RE
+.PP
 \-k \fImode\fR
+.RS 4
 Perform
 \fB"check\-names"\fR
 checks with the specified failure mode. Possible modes are
@@ -69,37 +80,52 @@ checks with the specified failure mode. Possible modes are
 \fB"warn"\fR
 (default) and
 \fB"ignore"\fR.
-.TP 3n
+.RE
+.PP
 \-n \fImode\fR
+.RS 4
 Specify whether NS records should be checked to see if they are addresses. Possible modes are
 \fB"fail"\fR,
 \fB"warn"\fR
 (default) and
 \fB"ignore"\fR.
-.TP 3n
+.RE
+.PP
 \-o \fIfilename\fR
+.RS 4
 Write zone output to
 \fIfilename\fR.
-.TP 3n
+.RE
+.PP
 \-t \fIdirectory\fR
-chroot to
+.RS 4
+Chroot to
 \fIdirectory\fR
 so that include directives in the configuration file are processed as if run by a similarly chrooted named.
-.TP 3n
+.RE
+.PP
 \-w \fIdirectory\fR
+.RS 4
 chdir to
 \fIdirectory\fR
 so that relative filenames in master file $INCLUDE directives work. This is similar to the directory clause in
 \fInamed.conf\fR.
-.TP 3n
+.RE
+.PP
 \-D
+.RS 4
 Dump zone file in canonical format.
-.TP 3n
+.RE
+.PP
 zonename
+.RS 4
 The domain name of the zone being checked.
-.TP 3n
+.RE
+.PP
 filename
+.RS 4
 The name of the zone file.
+.RE
 .SH "RETURN VALUES"
 .PP
 \fBnamed\-checkzone\fR
@@ -107,10 +133,14 @@ returns an exit status of 1 if errors were detected and 0 otherwise.
 .SH "SEE ALSO"
 .PP
 \fBnamed\fR(8),
+\fBnamed\-checkconf\fR(8),
 RFC 1035,
 BIND 9 Administrator Reference Manual.
 .SH "AUTHOR"
 .PP
 Internet Systems Consortium
 .SH "COPYRIGHT"
-Copyright \(co 2004\-2006 Internet Systems Consortium, Inc. ("ISC")
+Copyright \(co 2004\-2007 Internet Systems Consortium, Inc. ("ISC")
+.br
+Copyright \(co 2000\-2003 Internet Software Consortium.
+.br

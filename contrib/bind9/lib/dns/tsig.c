@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
- * Copyright (C) 1999-2002  Internet Software Consortium.
+ * Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 1999-2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -16,7 +16,7 @@
  */
 
 /*
- * $Id: tsig.c,v 1.112.2.3.8.10 2006/05/02 04:21:42 marka Exp $
+ * $Id: tsig.c,v 1.112.2.3.8.17 2008/01/24 13:06:47 marka Exp $
  */
 
 #include <config.h>
@@ -137,6 +137,7 @@ dns_tsigkey_createfromkey(dns_name_t *name, dns_name_t *algorithm,
 	REQUIRE(name != NULL);
 	REQUIRE(algorithm != NULL);
 	REQUIRE(mctx != NULL);
+	REQUIRE(key != NULL || ring != NULL);
 
 	tkey = (dns_tsigkey_t *) isc_mem_get(mctx, sizeof(dns_tsigkey_t));
 	if (tkey == NULL)
@@ -219,7 +220,8 @@ dns_tsigkey_createfromkey(dns_name_t *name, dns_name_t *algorithm,
 	tkey->generated = generated;
 	tkey->inception = inception;
 	tkey->expire = expire;
-	tkey->mctx = mctx;
+	tkey->mctx = NULL;
+	isc_mem_attach(mctx, &tkey->mctx);
 
 	tkey->magic = TSIG_MAGIC;
 
@@ -314,7 +316,7 @@ tsigkey_free(dns_tsigkey_t *key) {
 		isc_mem_put(key->mctx, key->creator, sizeof(dns_name_t));
 	}
 	isc_refcount_destroy(&key->refs);
-	isc_mem_put(key->mctx, key, sizeof(dns_tsigkey_t));
+	isc_mem_putanddetach(&key->mctx, key, sizeof(dns_tsigkey_t));
 }
 
 void
@@ -1187,6 +1189,7 @@ dns_tsigkeyring_create(isc_mem_t *mctx, dns_tsig_keyring_t **ringp) {
 
 	result = isc_rwlock_init(&ring->lock, 0, 0);
 	if (result != ISC_R_SUCCESS) {
+		isc_mem_put(mctx, ring, sizeof(dns_tsig_keyring_t));
 		UNEXPECTED_ERROR(__FILE__, __LINE__,
 				 "isc_rwlock_init() failed: %s",
 				 isc_result_totext(result));
@@ -1201,7 +1204,8 @@ dns_tsigkeyring_create(isc_mem_t *mctx, dns_tsig_keyring_t **ringp) {
 		return (result);
 	}
 
-	ring->mctx = mctx;
+	ring->mctx = NULL;
+	isc_mem_attach(mctx, &ring->mctx);
 
 	*ringp = ring;
 	return (ISC_R_SUCCESS);
@@ -1219,5 +1223,5 @@ dns_tsigkeyring_destroy(dns_tsig_keyring_t **ringp) {
 
 	dns_rbt_destroy(&ring->keys);
 	isc_rwlock_destroy(&ring->lock);
-	isc_mem_put(ring->mctx, ring, sizeof(dns_tsig_keyring_t));
+	isc_mem_putanddetach(&ring->mctx, ring, sizeof(dns_tsig_keyring_t));
 }

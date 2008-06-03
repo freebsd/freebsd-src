@@ -1,11 +1,11 @@
-<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.0//EN"
-               "http://www.oasis-open.org/docbook/xml/4.0/docbookx.dtd"
+<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.2//EN"
+               "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
 	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003  Internet Software Consortium.
  -
- - Permission to use, copy, modify, and distribute this software for any
+ - Permission to use, copy, modify, and/or distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
  - copyright notice and this permission notice appear in all copies.
  -
@@ -18,7 +18,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: nsupdate.docbook,v 1.8.2.3.2.10 2005/05/12 21:36:03 sra Exp $ -->
+<!-- $Id: nsupdate.docbook,v 1.8.2.3.2.16 2007/08/28 07:19:08 tbox Exp $ -->
 
 <refentry>
 <refentryinfo>
@@ -34,6 +34,8 @@
     <copyright>
       <year>2004</year>
       <year>2005</year>
+      <year>2006</year>
+      <year>2007</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
     <copyright>
@@ -111,7 +113,7 @@ HMAC-MD5, which is defined in RFC 2104.
 Once other algorithms are defined for TSIG, applications will need to
 ensure they select the appropriate algorithm as well as the key when
 authenticating each other.
-For instance suitable
+For instance, suitable
 <type>key</type>
 and
 <type>server</type>
@@ -183,16 +185,16 @@ option makes
 use a TCP connection.
 This may be preferable when a batch of update requests is made.
 </para>
-<para>The <option>-t</option> option sets the maximum time a update request can
+<para>The <option>-t</option> option sets the maximum time an update request can
 take before it is aborted.  The default is 300 seconds.  Zero can be used
 to disable the timeout.
 </para>
 <para>The <option>-u</option> option sets the UDP retry interval.  The default is
-3 seconds.  If zero the interval will be computed from the timeout interval
+3 seconds.  If zero, the interval will be computed from the timeout interval
 and number of UDP retries.
 </para>
 <para>The <option>-r</option> option sets the number of UDP retries. The default is
-3.  If zero only one update request will be made.
+3.  If zero, only one update request will be made.
 </para>
 </refsect1>
 
@@ -225,11 +227,9 @@ name server.
 The command formats and their meaning are as follows:
 <variablelist>
 <varlistentry><term>
-<cmdsynopsis>
 <command>server</command>
 <arg choice="req">servername</arg>
 <arg choice="opt">port</arg>
-</cmdsynopsis>
 </term>
 <listitem>
 <para>
@@ -251,11 +251,9 @@ used.
 </varlistentry>
 
 <varlistentry><term>
-<cmdsynopsis>
 <command>local</command>
 <arg choice="req">address</arg>
 <arg choice="opt">port</arg>
-</cmdsynopsis>
 </term>
 <listitem>
 <para>
@@ -273,10 +271,8 @@ If no port number is specified, the system will assign one.
 </varlistentry>
 
 <varlistentry><term>
-<cmdsynopsis>
 <command>zone</command>
 <arg choice="req">zonename</arg>
-</cmdsynopsis>
 </term>
 <listitem>
 <para>
@@ -292,30 +288,26 @@ will attempt determine the correct zone to update based on the rest of the input
 </varlistentry>
 
 <varlistentry><term>
-<cmdsynopsis>
 <command>class</command>
 <arg choice="req">classname</arg>
-</cmdsynopsis>
 </term>
 <listitem>
 <para>
 Specify the default class.
-If no <parameter>class</parameter> is specified the default class is
+If no <parameter>class</parameter> is specified, the default class is
 <parameter>IN</parameter>.
 </para>
 </listitem>
 </varlistentry>
 
 <varlistentry><term>
-<cmdsynopsis>
 <command>key</command>
 <arg choice="req">name</arg>
 <arg choice="req">secret</arg>
-</cmdsynopsis>
 </term>
 <listitem>
 <para>
-Specifies that all updates are to be TSIG signed using the
+Specifies that all updates are to be TSIG-signed using the
 <parameter>keyname</parameter> <parameter>keysecret</parameter> pair.
 The <command>key</command> command
 overrides any key specified on the command line via
@@ -325,10 +317,8 @@ overrides any key specified on the command line via
 </varlistentry>
 
 <varlistentry><term>
-<cmdsynopsis>
 <command>prereq nxdomain</command>
 <arg choice="req">domain-name</arg>
-</cmdsynopsis>
 </term>
 <listitem>
 <para>
@@ -340,10 +330,8 @@ Requires that no resource record of any type exists with name
 
 
 <varlistentry><term>
-<cmdsynopsis>
 <command>prereq yxdomain</command>
 <arg choice="req">domain-name</arg>
-</cmdsynopsis>
 </term>
 <listitem>
 <para>
@@ -355,12 +343,10 @@ exists (has as at least one resource record, of any type).
 </varlistentry>
 
 <varlistentry><term>
-<cmdsynopsis>
 <command>prereq nxrrset</command>
 <arg choice="req">domain-name</arg>
 <arg choice="opt">class</arg>
 <arg choice="req">type</arg>
-</cmdsynopsis>
 </term>
 <listitem>
 <para>
@@ -378,12 +364,10 @@ is omitted, IN (internet) is assumed.
 
 
 <varlistentry><term>
-<cmdsynopsis>
 <command>prereq yxrrset</command>
 <arg choice="req">domain-name</arg>
 <arg choice="opt">class</arg>
 <arg choice="req">type</arg>
-</cmdsynopsis>
 </term>
 <listitem>
 <para>
@@ -401,13 +385,11 @@ is omitted, IN (internet) is assumed.
 </varlistentry>
 
 <varlistentry><term>
-<cmdsynopsis>
 <command>prereq yxrrset</command>
 <arg choice="req">domain-name</arg>
 <arg choice="opt">class</arg>
 <arg choice="req">type</arg>
 <arg choice="req" rep="repeat">data</arg>
-</cmdsynopsis>
 </term>
 <listitem>
 <para>
@@ -435,13 +417,11 @@ RDATA.
 </varlistentry>
 
 <varlistentry><term>
-<cmdsynopsis>
 <command>update delete</command>
 <arg choice="req">domain-name</arg>
 <arg choice="opt">ttl</arg>
 <arg choice="opt">class</arg>
 <arg choice="opt">type <arg choice="opt" rep="repeat">data</arg></arg>
-</cmdsynopsis>
 </term>
 <listitem>
 <para>
@@ -462,14 +442,12 @@ is ignored, and is only allowed for compatibility.
 </varlistentry>
 
 <varlistentry><term>
-<cmdsynopsis>
 <command>update add</command>
 <arg choice="req">domain-name</arg>
 <arg choice="req">ttl</arg>
 <arg choice="opt">class</arg>
 <arg choice="req">type</arg>
 <arg choice="req" rep="repeat">data</arg>
-</cmdsynopsis>
 </term>
 <listitem>
 <para>
@@ -483,9 +461,7 @@ and
 </varlistentry>
 
 <varlistentry><term>
-<cmdsynopsis>
 <command>show</command>
-</cmdsynopsis>
 </term>
 <listitem>
 <para>
@@ -496,9 +472,7 @@ updates specified since the last send.
 </varlistentry>
 
 <varlistentry><term>
-<cmdsynopsis>
 <command>send</command>
-</cmdsynopsis>
 </term>
 <listitem>
 <para>
@@ -508,9 +482,7 @@ Sends the current message.  This is equivalent to entering a blank line.
 </varlistentry>
 
 <varlistentry><term>
-<cmdsynopsis>
 <command>answer</command>
-</cmdsynopsis>
 </term>
 <listitem>
 <para>
@@ -552,10 +524,10 @@ master name server for
 Any A records for
 <type>oldhost.example.com</type>
 are deleted.
-and an A record for
+And an A record for
 <type>newhost.example.com</type>
-it IP address 172.16.1.1 is added.
-The newly-added record has a 1 day TTL (86400 seconds)
+with IP address 172.16.1.1 is added.
+The newly-added record has a 1 day TTL (86400 seconds).
 <programlisting>
 # nsupdate
 > prereq nxdomain nickname.example.com

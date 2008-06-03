@@ -1,11 +1,11 @@
-<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.0//EN"
-               "http://www.oasis-open.org/docbook/xml/4.0/docbookx.dtd"
+<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.2//EN"
+               "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
 	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003  Internet Software Consortium.
  -
- - Permission to use, copy, modify, and distribute this software for any
+ - Permission to use, copy, modify, and/or distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
  - copyright notice and this permission notice appear in all copies.
  -
@@ -18,7 +18,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: dig.docbook,v 1.4.2.7.4.12 2005/08/30 00:50:29 marka Exp $ -->
+<!-- $Id: dig.docbook,v 1.4.2.7.4.20 2007/08/28 07:19:07 tbox Exp $ -->
 
 <refentry>
 
@@ -36,6 +36,8 @@
     <copyright>
       <year>2004</year>
       <year>2005</year>
+      <year>2006</year>
+      <year>2007</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
     <copyright>
@@ -101,7 +103,7 @@ Although <command>dig</command> is normally used with command-line
 arguments, it also has a batch mode of operation for reading lookup
 requests from a file.  A brief summary of its command-line arguments
 and options is printed when the <option>-h</option> option is given.
-Unlike earlier versions, the BIND9 implementation of
+Unlike earlier versions, the BIND 9 implementation of
 <command>dig</command> allows multiple lookups to be issued from the
 command line.
 </para>
@@ -122,6 +124,13 @@ It is possible to set per-user defaults for <command>dig</command> via
 <filename>${HOME}/.digrc</filename>.  This file is read and any options in it
 are applied before the command line arguments.
 </para>
+
+     <para>
+       The IN and CH class names overlap with the IN and CH top level
+       domains names.  Either use the <option>-t</option> and
+       <option>-c</option> options to specify the type and class or
+       use "IN." and "CH." when looking up these top level domains.
+     </para>
 
 </refsect1>
 
@@ -179,14 +188,14 @@ may be specified by appending "#&lt;port&gt;"
 <para>
 The default query class (IN for internet) is overridden by the
 <option>-c</option> option.  <parameter>class</parameter> is any valid
-class, such as HS for Hesiod records or CH for CHAOSNET records.
+class, such as HS for Hesiod records or CH for Chaosnet records.
 </para>
 
 <para>
 The <option>-f</option> option makes <command>dig </command> operate
 in batch mode by reading a list of lookup requests to process from the
 file <parameter>filename</parameter>.  The file contains a number of
-queries, one per line.  Each entry in the file should be organised in
+queries, one per line.  Each entry in the file should be organized in
 the same way they would be presented as queries to
 <command>dig</command> using the command-line interface.
 </para>
@@ -209,7 +218,7 @@ use IPv4 query transport.  The <option>-6</option> option forces
 <para>
 The <option>-t</option> option sets the query type to
 <parameter>type</parameter>.  It can be any valid query type which is
-supported in BIND9.  The default query type "A", unless the
+supported in BIND 9.  The default query type is "A", unless the
 <option>-x</option> option is supplied to indicate a reverse lookup.
 A zone transfer can be requested by specifying a type of AXFR.  When
 an incremental zone transfer (IXFR) is required,
@@ -220,7 +229,7 @@ since the serial number in the zone's SOA record was
 </para>
 
 <para>
-Reverse lookups - mapping addresses to names - are simplified by the
+Reverse lookups &mdash; mapping addresses to names &mdash; are simplified by the
 <option>-x</option> option.  <parameter>addr</parameter> is an IPv4
 address in dotted-decimal notation, or a colon-delimited IPv6 address.
 When this option is used, there is no need to provide the
@@ -283,7 +292,7 @@ The query options are:
 <varlistentry><term><option>+[no]tcp</option></term>
 <listitem><para>
 Use [do not use] TCP when querying name servers.  The default
-behaviour is to use UDP unless an AXFR or IXFR query is requested, in
+behavior is to use UDP unless an AXFR or IXFR query is requested, in
 which case a TCP connection is used.
 </para></listitem></varlistentry>
 
@@ -384,7 +393,7 @@ resolve the lookup.
 
 <varlistentry><term><option>+[no]cmd</option></term>
 <listitem><para>
-toggles the printing of the initial comment in the output identifying
+Toggles the printing of the initial comment in the output identifying
 the version of <command>dig</command> and the query options that have
 been applied.  This comment is printed by default.
 </para></listitem></varlistentry>
@@ -412,7 +421,7 @@ print comments.
 <varlistentry><term><option>+[no]stats</option></term>
 <listitem><para>
 This query option toggles the printing of statistics: when the query
-was made, the size of the reply and so on.  The default behaviour is
+was made, the size of the reply and so on.  The default behavior is
 to print the query statistics.
 </para></listitem></varlistentry>
 
@@ -455,7 +464,7 @@ Set or clear all display flags.
 <listitem><para>
 
 Sets the timeout for a query to
-<parameter>T</parameter> seconds.  The default time out is 5 seconds.
+<parameter>T</parameter> seconds.  The default timeout is 5 seconds.
 An attempt to set <parameter>T</parameter> to less than 1 will result
 in a query timeout of 1 second being applied.
 </para></listitem></varlistentry>
@@ -509,7 +518,7 @@ of the <command>dig</command> output.
 <listitem><para>
 Do not try the next server if you receive a SERVFAIL.  The default is
 to not try the next server which is the reverse of normal stub resolver
-behaviour.
+behavior.
 </para></listitem></varlistentry>
 
 <varlistentry><term><option>+[no]besteffort</option></term>
@@ -551,7 +560,7 @@ Chase DNSSEC signature chains.  Requires dig be compiled with
 
 <varlistentry><term><option>+[no]topdown</option></term>
 <listitem><para>
-When chasing DNSSEC signature chains perform a top down validation.
+When chasing DNSSEC signature chains perform a top-down validation.
 Requires dig be compiled with -DDIG_SIGCHASE.
 </para></listitem></varlistentry>
 

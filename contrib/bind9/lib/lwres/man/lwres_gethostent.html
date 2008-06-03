@@ -1,5 +1,5 @@
 <!--
- - Copyright (C) 2004, 2005 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004, 2005, 2007 Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2001 Internet Software Consortium.
  - 
  - Permission to use, copy, modify, and distribute this software for any
@@ -14,15 +14,15 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: lwres_gethostent.html,v 1.8.2.1.4.10 2006/06/29 13:02:31 marka Exp $ -->
+<!-- $Id: lwres_gethostent.html,v 1.8.2.1.4.13 2007/01/30 00:11:48 marka Exp $ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
 <title>lwres_gethostent</title>
-<meta name="generator" content="DocBook XSL Stylesheets V1.70.1">
+<meta name="generator" content="DocBook XSL Stylesheets V1.71.1">
 </head>
 <body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="refentry" lang="en">
-<a name="id2482688"></a><div class="titlepage"></div>
+<a name="id2476275"></a><div class="titlepage"></div>
 <div class="refnamediv">
 <h2>Name</h2>
 <p>lwres_gethostbyname, lwres_gethostbyname2, lwres_gethostbyaddr, lwres_gethostent, lwres_sethostent, lwres_endhostent, lwres_gethostbyname_r, lwres_gethostbyaddr_r, lwres_gethostent_r, lwres_sethostent_r, lwres_endhostent_r &#8212; lightweight resolver get network host entry</p>
@@ -31,32 +31,19 @@
 <h2>Synopsis</h2>
 <div class="funcsynopsis">
 <pre class="funcsynopsisinfo">#include &lt;lwres/netdb.h&gt;</pre>
-<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em">
-<tr>
+<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em"><tr>
 <td><code class="funcdef">
 struct hostent *
 <b class="fsfunc">lwres_gethostbyname</b>(</code></td>
 <td> </td>
 <td>
 <code>)</code>;</td>
-</tr>
-<tr>
-<td> </td>
-<td> </td>
-<td>
-<code>)</code>;</td>
-</tr>
-</table>
+</tr></table>
 <table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em">
 <tr>
 <td><code class="funcdef">
 struct hostent *
 <b class="fsfunc">lwres_gethostbyname2</b>(</code></td>
-<td> </td>
-<td>, </td>
-</tr>
-<tr>
-<td> </td>
 <td> </td>
 <td>, </td>
 </tr>
@@ -83,34 +70,39 @@ struct hostent *
 <tr>
 <td> </td>
 <td> </td>
-<td>, </td>
-</tr>
-<tr>
-<td> </td>
-<td> </td>
 <td>
 <code>)</code>;</td>
 </tr>
 </table>
-<p><code class="funcdef">
+<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em"><tr>
+<td><code class="funcdef">
 struct hostent *
-<b class="fsfunc">lwres_gethostent</b>(</code>void<code>)</code>;</p>
-<p><code class="funcdef">
+<b class="fsfunc">lwres_gethostent</b>(</code></td>
+<td> </td>
+<td>
+<code>)</code>;</td>
+</tr></table>
+<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em"><tr>
+<td><code class="funcdef">
 void
-<b class="fsfunc">lwres_sethostent</b>(</code>int stayopen<code>)</code>;</p>
-<p><code class="funcdef">
+<b class="fsfunc">lwres_sethostent</b>(</code></td>
+<td> </td>
+<td>
+<code>)</code>;</td>
+</tr></table>
+<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em"><tr>
+<td><code class="funcdef">
 void
-<b class="fsfunc">lwres_endhostent</b>(</code>void<code>)</code>;</p>
+<b class="fsfunc">lwres_endhostent</b>(</code></td>
+<td> </td>
+<td>
+<code>)</code>;</td>
+</tr></table>
 <table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em">
 <tr>
 <td><code class="funcdef">
 struct hostent *
 <b class="fsfunc">lwres_gethostbyname_r</b>(</code></td>
-<td> </td>
-<td>, </td>
-</tr>
-<tr>
-<td> </td>
 <td> </td>
 <td>, </td>
 </tr>
@@ -172,11 +164,6 @@ struct hostent  *
 <tr>
 <td> </td>
 <td> </td>
-<td>, </td>
-</tr>
-<tr>
-<td> </td>
-<td> </td>
 <td>
 <code>)</code>;</td>
 </tr>
@@ -202,25 +189,30 @@ struct hostent  *
 <tr>
 <td> </td>
 <td> </td>
-<td>, </td>
-</tr>
-<tr>
-<td> </td>
-<td> </td>
 <td>
 <code>)</code>;</td>
 </tr>
 </table>
-<p><code class="funcdef">
+<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em"><tr>
+<td><code class="funcdef">
 void
-<b class="fsfunc">lwres_sethostent_r</b>(</code>int stayopen<code>)</code>;</p>
-<p><code class="funcdef">
+<b class="fsfunc">lwres_sethostent_r</b>(</code></td>
+<td> </td>
+<td>
+<code>)</code>;</td>
+</tr></table>
+<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0"><tr>
+<td><code class="funcdef">
 void
-<b class="fsfunc">lwres_endhostent_r</b>(</code>void<code>)</code>;</p>
+<b class="fsfunc">lwres_endhostent_r</b>(</code></td>
+<td> </td>
+<td>
+<code>)</code>;</td>
+</tr></table>
 </div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2549606"></a><h2>DESCRIPTION</h2>
+<a name="id2543547"></a><h2>DESCRIPTION</h2>
 <p>
 These functions provide hostname-to-address and
 address-to-hostname lookups by means of the lightweight resolver.
@@ -357,7 +349,7 @@ calls to <code class="function">lwres_gethostbyaddr_r()</code> return
 </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2550013"></a><h2>RETURN VALUES</h2>
+<a name="id2543886"></a><h2>RETURN VALUES</h2>
 <p>
 The functions
 <code class="function">lwres_gethostbyname()</code>,
@@ -424,7 +416,7 @@ hostent</span>.  If <em class="parameter"><code>buf</code></em> was too small, b
 </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2550173"></a><h2>SEE ALSO</h2>
+<a name="id2544046"></a><h2>SEE ALSO</h2>
 <p>
 <span class="citerefentry"><span class="refentrytitle">gethostent</span>(3)</span>,
 
@@ -435,7 +427,7 @@ hostent</span>.  If <em class="parameter"><code>buf</code></em> was too small, b
 </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2550209"></a><h2>BUGS</h2>
+<a name="id2544082"></a><h2>BUGS</h2>
 <p>
 <code class="function">lwres_gethostbyname()</code>,
 <code class="function">lwres_gethostbyname2()</code>,
