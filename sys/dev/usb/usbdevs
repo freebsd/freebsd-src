@@ -1093,6 +1093,7 @@ product DELL PORT		0x0058	Port Replicator
 product DELL AIO926		0x5115	Photo AIO Printer 926
 product DELL BC02		0x8000	BC02 Bluetooth USB Adapter
 product DELL TM350		0x8103	TrueMobile 350 Bluetooth USB Adapter
+product DELL U740		0x8135	Dell U740 CDMA
 
 /* Delorme Paublishing products */
 product DELORME EARTHMATE	0x0100	Earthmate GPS
