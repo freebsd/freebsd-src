@@ -269,6 +269,9 @@ SYSINIT(audit_init, SI_SUB_AUDIT, SI_ORDER_FIRST, audit_init, NULL);
  * Drain the audit queue and close the log at shutdown.  Note that this can
  * be called both from the system shutdown path and also from audit
  * configuration syscalls, so 'arg' and 'howto' are ignored.
+ *
+ * XXXRW: In FreeBSD 7.x and 8.x, this fails to wait for the record queue to
+ * drain before returning, which could lead to lost records on shutdown.
  */
 void
 audit_shutdown(void *arg, int howto)
