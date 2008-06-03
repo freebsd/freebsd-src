@@ -181,6 +181,8 @@ struct ndis_softc {
 	struct task		ndis_assoctask;
 	int			(*ndis_newstate)(struct ieee80211com *,
 				    enum ieee80211_state, int);
+	int			ndis_tx_timer;
+	int			ndis_hang_timer;
 };
 
 #define NDIS_LOCK(_sc)		KeAcquireSpinLock(&(_sc)->ndis_spinlock, \
