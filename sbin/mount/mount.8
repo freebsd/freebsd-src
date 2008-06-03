@@ -526,11 +526,13 @@ directions to be possible for all users is 0111 (execute for all).
 Use of the
 .Nm
 is preferred over the use of the file system specific
-.Pa mount_XXX
+.Pa mount_ Ns Sy XXX
 commands.
-In particular, the
-.Pa mountd
-gets a SIGHUP signal, that causes an update of the export list,  
+In particular,
+.Xr mountd 8
+gets a
+.Dv SIGHUP
+signal (that causes an update of the export list)
 only when the file system is mounted via
 .Nm .
 .Sh HISTORY
