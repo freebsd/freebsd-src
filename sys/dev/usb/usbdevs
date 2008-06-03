@@ -829,6 +829,7 @@ product ANCHOR EZLINK		0x2720	EZLINK
 
 /* AnyData products */
 product ANYDATA ADU_E100X	0x6501	CDMA 2000 1xRTT/EV-DO USB Modem
+product ANYDATA ADU_500A	0x6502	CDMA 2000 EV-DO USB Modem
 
 /* AOX, Inc. products */
 product AOX USB101		0x0008	Ethernet
