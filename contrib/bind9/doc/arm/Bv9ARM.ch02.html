@@ -1,5 +1,5 @@
 <!--
- - Copyright (C) 2004-2006 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2008 Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003 Internet Software Consortium.
  - 
  - Permission to use, copy, modify, and distribute this software for any
@@ -14,15 +14,15 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: Bv9ARM.ch02.html,v 1.10.2.1.8.12 2006/06/29 13:02:31 marka Exp $ -->
+<!-- $Id: Bv9ARM.ch02.html,v 1.10.2.1.8.16 2008/01/19 01:52:13 marka Exp $ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
 <title>Chapter 2. BIND Resource Requirements</title>
-<meta name="generator" content="DocBook XSL Stylesheets V1.70.1">
+<meta name="generator" content="DocBook XSL Stylesheets V1.71.1">
 <link rel="start" href="Bv9ARM.html" title="BIND 9 Administrator Reference Manual">
 <link rel="up" href="Bv9ARM.html" title="BIND 9 Administrator Reference Manual">
-<link rel="prev" href="Bv9ARM.ch01.html" title="Chapter 1. Introduction ">
+<link rel="prev" href="Bv9ARM.ch01.html" title="Chapter 1. Introduction">
 <link rel="next" href="Bv9ARM.ch03.html" title="Chapter 3. Name Server Configuration">
 </head>
 <body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF">
@@ -45,16 +45,16 @@
 <div class="toc">
 <p><b>Table of Contents</b></p>
 <dl>
-<dt><span class="sect1"><a href="Bv9ARM.ch02.html#id2570868">Hardware requirements</a></span></dt>
-<dt><span class="sect1"><a href="Bv9ARM.ch02.html#id2570892">CPU Requirements</a></span></dt>
-<dt><span class="sect1"><a href="Bv9ARM.ch02.html#id2570903">Memory Requirements</a></span></dt>
-<dt><span class="sect1"><a href="Bv9ARM.ch02.html#id2570918">Name Server Intensive Environment Issues</a></span></dt>
-<dt><span class="sect1"><a href="Bv9ARM.ch02.html#id2570995">Supported Operating Systems</a></span></dt>
+<dt><span class="sect1"><a href="Bv9ARM.ch02.html#id2565313">Hardware requirements</a></span></dt>
+<dt><span class="sect1"><a href="Bv9ARM.ch02.html#id2565405">CPU Requirements</a></span></dt>
+<dt><span class="sect1"><a href="Bv9ARM.ch02.html#id2565416">Memory Requirements</a></span></dt>
+<dt><span class="sect1"><a href="Bv9ARM.ch02.html#id2565431">Name Server Intensive Environment Issues</a></span></dt>
+<dt><span class="sect1"><a href="Bv9ARM.ch02.html#id2565440">Supported Operating Systems</a></span></dt>
 </dl>
 </div>
 <div class="sect1" lang="en">
 <div class="titlepage"><div><div><h2 class="title" style="clear: both">
-<a name="id2570868"></a>Hardware requirements</h2></div></div></div>
+<a name="id2565313"></a>Hardware requirements</h2></div></div></div>
 <p><acronym class="acronym">DNS</acronym> hardware requirements have traditionally been quite modest.
 For many installations, servers that have been pensioned off from
 active duty have performed admirably as <acronym class="acronym">DNS</acronym> servers.</p>
@@ -66,7 +66,7 @@ multiprocessor systems for installations that need it.</p>
 </div>
 <div class="sect1" lang="en">
 <div class="titlepage"><div><div><h2 class="title" style="clear: both">
-<a name="id2570892"></a>CPU Requirements</h2></div></div></div>
+<a name="id2565405"></a>CPU Requirements</h2></div></div></div>
 <p>CPU requirements for <acronym class="acronym">BIND</acronym> 9 range from i486-class machines
 for serving of static zones without caching, to enterprise-class
 machines if you intend to process many dynamic updates and DNSSEC
@@ -74,7 +74,7 @@ signed zones, serving many thousands of queries per second.</p>
 </div>
 <div class="sect1" lang="en">
 <div class="titlepage"><div><div><h2 class="title" style="clear: both">
-<a name="id2570903"></a>Memory Requirements</h2></div></div></div>
+<a name="id2565416"></a>Memory Requirements</h2></div></div></div>
 <p>The memory of the server has to be large enough to fit the
 cache and zones loaded off disk.  The <span><strong class="command">max-cache-size</strong></span>
 option can be used to limit the amount of memory used by the cache,
@@ -88,7 +88,7 @@ fast as they are being inserted.</p>
 </div>
 <div class="sect1" lang="en">
 <div class="titlepage"><div><div><h2 class="title" style="clear: both">
-<a name="id2570918"></a>Name Server Intensive Environment Issues</h2></div></div></div>
+<a name="id2565431"></a>Name Server Intensive Environment Issues</h2></div></div></div>
 <p>For name server intensive environments, there are two alternative
 configurations that may be used. The first is where clients and
 any second-level internal name servers query a main name server, which
@@ -102,7 +102,7 @@ as none of the name servers share their cached data.</p>
 </div>
 <div class="sect1" lang="en">
 <div class="titlepage"><div><div><h2 class="title" style="clear: both">
-<a name="id2570995"></a>Supported Operating Systems</h2></div></div></div>
+<a name="id2565440"></a>Supported Operating Systems</h2></div></div></div>
 <p>ISC <acronym class="acronym">BIND</acronym> 9 compiles and runs on a large number
 of Unix-like operating system and on Windows NT / 2000.  For an up-to-date
 list of supported systems, see the README file in the top level directory

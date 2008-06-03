@@ -1,5 +1,5 @@
 <!--
- - Copyright (C) 2004, 2005 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2007 Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003 Internet Software Consortium.
  - 
  - Permission to use, copy, modify, and distribute this software for any
@@ -14,15 +14,15 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: nsupdate.html,v 1.9.2.3.2.15 2006/06/29 13:02:30 marka Exp $ -->
+<!-- $Id: nsupdate.html,v 1.9.2.3.2.20 2007/05/09 03:32:36 marka Exp $ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
 <title>nsupdate</title>
-<meta name="generator" content="DocBook XSL Stylesheets V1.70.1">
+<meta name="generator" content="DocBook XSL Stylesheets V1.71.1">
 </head>
 <body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="refentry" lang="en">
-<a name="id2482688"></a><div class="titlepage"></div>
+<a name="id2476275"></a><div class="titlepage"></div>
 <div class="refnamediv">
 <h2>Name</h2>
 <p>nsupdate &#8212; Dynamic DNS update utility</p>
@@ -32,7 +32,7 @@
 <div class="cmdsynopsis"><p><code class="command">nsupdate</code>  [<code class="option">-d</code>] [[<code class="option">-y <em class="replaceable"><code>keyname:secret</code></em></code>] |  [<code class="option">-k <em class="replaceable"><code>keyfile</code></em></code>]] [<code class="option">-t <em class="replaceable"><code>timeout</code></em></code>] [<code class="option">-u <em class="replaceable"><code>udptimeout</code></em></code>] [<code class="option">-r <em class="replaceable"><code>udpretries</code></em></code>] [<code class="option">-v</code>] [filename]</p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2549461"></a><h2>DESCRIPTION</h2>
+<a name="id2543405"></a><h2>DESCRIPTION</h2>
 <p>
 <span><strong class="command">nsupdate</strong></span>
 is used to submit Dynamic DNS Update requests as defined in RFC2136
@@ -77,7 +77,7 @@ HMAC-MD5, which is defined in RFC 2104.
 Once other algorithms are defined for TSIG, applications will need to
 ensure they select the appropriate algorithm as well as the key when
 authenticating each other.
-For instance suitable
+For instance, suitable
 <span class="type">key</span>
 and
 <span class="type">server</span>
@@ -147,20 +147,20 @@ option makes
 use a TCP connection.
 This may be preferable when a batch of update requests is made.
 </p>
-<p>The <code class="option">-t</code> option sets the maximum time a update request can
+<p>The <code class="option">-t</code> option sets the maximum time an update request can
 take before it is aborted.  The default is 300 seconds.  Zero can be used
 to disable the timeout.
 </p>
 <p>The <code class="option">-u</code> option sets the UDP retry interval.  The default is
-3 seconds.  If zero the interval will be computed from the timeout interval
+3 seconds.  If zero, the interval will be computed from the timeout interval
 and number of UDP retries.
 </p>
 <p>The <code class="option">-r</code> option sets the number of UDP retries. The default is
-3.  If zero only one update request will be made.
+3.  If zero, only one update request will be made.
 </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2549686"></a><h2>INPUT FORMAT</h2>
+<a name="id2543562"></a><h2>INPUT FORMAT</h2>
 <p>
 <span><strong class="command">nsupdate</strong></span>
 reads input from
@@ -189,7 +189,9 @@ The command formats and their meaning are as follows:
 </p>
 <div class="variablelist"><dl>
 <dt><span class="term">
-<div class="cmdsynopsis"><p><code class="command">server</code>  {servername} [port]</p></div>
+<span><strong class="command">server</strong></span>
+ {servername}
+ [port]
 </span></dt>
 <dd><p>
 Sends all dynamic update requests to the name server
@@ -207,7 +209,9 @@ If no port number is specified, the default DNS port number of 53 is
 used.
 </p></dd>
 <dt><span class="term">
-<div class="cmdsynopsis"><p><code class="command">local</code>  {address} [port]</p></div>
+<span><strong class="command">local</strong></span>
+ {address}
+ [port]
 </span></dt>
 <dd><p>
 Sends all dynamic update requests using the local
@@ -221,7 +225,8 @@ can additionally be used to make requests come from a specific port.
 If no port number is specified, the system will assign one.
 </p></dd>
 <dt><span class="term">
-<div class="cmdsynopsis"><p><code class="command">zone</code>  {zonename}</p></div>
+<span><strong class="command">zone</strong></span>
+ {zonename}
 </span></dt>
 <dd><p>
 Specifies that all updates are to be made to the zone
@@ -233,32 +238,37 @@ statement is provided,
 will attempt determine the correct zone to update based on the rest of the input.
 </p></dd>
 <dt><span class="term">
-<div class="cmdsynopsis"><p><code class="command">class</code>  {classname}</p></div>
+<span><strong class="command">class</strong></span>
+ {classname}
 </span></dt>
 <dd><p>
 Specify the default class.
-If no <em class="parameter"><code>class</code></em> is specified the default class is
+If no <em class="parameter"><code>class</code></em> is specified, the default class is
 <em class="parameter"><code>IN</code></em>.
 </p></dd>
 <dt><span class="term">
-<div class="cmdsynopsis"><p><code class="command">key</code>  {name} {secret}</p></div>
+<span><strong class="command">key</strong></span>
+ {name}
+ {secret}
 </span></dt>
 <dd><p>
-Specifies that all updates are to be TSIG signed using the
+Specifies that all updates are to be TSIG-signed using the
 <em class="parameter"><code>keyname</code></em> <em class="parameter"><code>keysecret</code></em> pair.
 The <span><strong class="command">key</strong></span> command
 overrides any key specified on the command line via
 <code class="option">-y</code> or <code class="option">-k</code>.
 </p></dd>
 <dt><span class="term">
-<div class="cmdsynopsis"><p><code class="command">prereq nxdomain</code>  {domain-name}</p></div>
+<span><strong class="command">prereq nxdomain</strong></span>
+ {domain-name}
 </span></dt>
 <dd><p>
 Requires that no resource record of any type exists with name
 <em class="parameter"><code>domain-name</code></em>.
 </p></dd>
 <dt><span class="term">
-<div class="cmdsynopsis"><p><code class="command">prereq yxdomain</code>  {domain-name}</p></div>
+<span><strong class="command">prereq yxdomain</strong></span>
+ {domain-name}
 </span></dt>
 <dd><p>
 Requires that
@@ -266,7 +276,10 @@ Requires that
 exists (has as at least one resource record, of any type).
 </p></dd>
 <dt><span class="term">
-<div class="cmdsynopsis"><p><code class="command">prereq nxrrset</code>  {domain-name} [class] {type}</p></div>
+<span><strong class="command">prereq nxrrset</strong></span>
+ {domain-name}
+ [class]
+ {type}
 </span></dt>
 <dd><p>
 Requires that no resource record exists of the specified
@@ -279,7 +292,10 @@ If
 is omitted, IN (internet) is assumed.
 </p></dd>
 <dt><span class="term">
-<div class="cmdsynopsis"><p><code class="command">prereq yxrrset</code>  {domain-name} [class] {type}</p></div>
+<span><strong class="command">prereq yxrrset</strong></span>
+ {domain-name}
+ [class]
+ {type}
 </span></dt>
 <dd><p>
 This requires that a resource record of the specified
@@ -293,7 +309,11 @@ If
 is omitted, IN (internet) is assumed.
 </p></dd>
 <dt><span class="term">
-<div class="cmdsynopsis"><p><code class="command">prereq yxrrset</code>  {domain-name} [class] {type} {data...}</p></div>
+<span><strong class="command">prereq yxrrset</strong></span>
+ {domain-name}
+ [class]
+ {type}
+ {data...}
 </span></dt>
 <dd><p>
 The
@@ -317,7 +337,11 @@ are written in the standard text representation of the resource record's
 RDATA.
 </p></dd>
 <dt><span class="term">
-<div class="cmdsynopsis"><p><code class="command">update delete</code>  {domain-name} [ttl] [class] [type [data...]]</p></div>
+<span><strong class="command">update delete</strong></span>
+ {domain-name}
+ [ttl]
+ [class]
+ [type [data...]]
 </span></dt>
 <dd><p>
 Deletes any resource records named
@@ -334,7 +358,12 @@ is not supplied.  The
 is ignored, and is only allowed for compatibility.
 </p></dd>
 <dt><span class="term">
-<div class="cmdsynopsis"><p><code class="command">update add</code>  {domain-name} {ttl} [class] {type} {data...}</p></div>
+<span><strong class="command">update add</strong></span>
+ {domain-name}
+ {ttl}
+ [class]
+ {type}
+ {data...}
 </span></dt>
 <dd><p>
 Adds a new resource record with the specified
@@ -344,20 +373,20 @@ and
 <em class="parameter"><code>data</code></em>.
 </p></dd>
 <dt><span class="term">
-<div class="cmdsynopsis"><p><code class="command">show</code> </p></div>
+<span><strong class="command">show</strong></span>
 </span></dt>
 <dd><p>
 Displays the current message, containing all of the prerequisites and
 updates specified since the last send.
 </p></dd>
 <dt><span class="term">
-<div class="cmdsynopsis"><p><code class="command">send</code> </p></div>
+<span><strong class="command">send</strong></span>
 </span></dt>
 <dd><p>
 Sends the current message.  This is equivalent to entering a blank line.
 </p></dd>
 <dt><span class="term">
-<div class="cmdsynopsis"><p><code class="command">answer</code> </p></div>
+<span><strong class="command">answer</strong></span>
 </span></dt>
 <dd><p>
 Displays the answer.
@@ -370,7 +399,7 @@ Lines beginning with a semicolon are comments and are ignored.
 </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2550382"></a><h2>EXAMPLES</h2>
+<a name="id2544279"></a><h2>EXAMPLES</h2>
 <p>
 The examples below show how
 <span><strong class="command">nsupdate</strong></span>
@@ -395,10 +424,10 @@ master name server for
 Any A records for
 <span class="type">oldhost.example.com</span>
 are deleted.
-and an A record for
+And an A record for
 <span class="type">newhost.example.com</span>
-it IP address 172.16.1.1 is added.
-The newly-added record has a 1 day TTL (86400 seconds)
+with IP address 172.16.1.1 is added.
+The newly-added record has a 1 day TTL (86400 seconds).
 </p>
 <pre class="programlisting">
 # nsupdate
@@ -423,7 +452,7 @@ RRSIG, DNSKEY and NSEC records.)
 </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2550426"></a><h2>FILES</h2>
+<a name="id2544323"></a><h2>FILES</h2>
 <div class="variablelist"><dl>
 <dt><span class="term"><code class="constant">/etc/resolv.conf</code></span></dt>
 <dd><p>
@@ -442,7 +471,7 @@ base-64 encoding of HMAC-MD5 key created by
 </dl></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2549061"></a><h2>SEE ALSO</h2>
+<a name="id2544459"></a><h2>SEE ALSO</h2>
 <p>
 <span class="citerefentry"><span class="refentrytitle">RFC2136</span></span>,
 <span class="citerefentry"><span class="refentrytitle">RFC3007</span></span>,
@@ -456,7 +485,7 @@ base-64 encoding of HMAC-MD5 key created by
 </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2549132"></a><h2>BUGS</h2>
+<a name="id2544531"></a><h2>BUGS</h2>
 <p>
 The TSIG key is redundantly stored in two separate files.
 This is a consequence of nsupdate using the DST library

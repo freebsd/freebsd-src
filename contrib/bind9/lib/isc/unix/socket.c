@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: socket.c,v 1.207.2.19.2.26 2006/05/19 02:53:36 marka Exp $ */
+/* $Id: socket.c,v 1.207.2.19.2.35 2008/01/27 02:06:07 marka Exp $ */
 
 #include <config.h>
 
@@ -42,6 +42,7 @@
 #include <isc/msgs.h>
 #include <isc/mutex.h>
 #include <isc/net.h>
+#include <isc/once.h>
 #include <isc/platform.h>
 #include <isc/print.h>
 #include <isc/region.h>
@@ -56,6 +57,10 @@
 #ifndef ISC_PLATFORM_USETHREADS
 #include "socket_p.h"
 #endif /* ISC_PLATFORM_USETHREADS */
+
+#if defined(SO_BSDCOMPAT) && defined(__linux__)
+#include <sys/utsname.h>
+#endif
 
 /*
  * Some systems define the socket length argument as an int, some as size_t,
@@ -400,7 +405,7 @@ select_readmsg(isc_socketmgr_t *mgr, int *fd, int *msg) {
 					   "read() failed "
 					   "during watcher poke: %s"),
 			    strbuf);
-		
+
 		return;
 	}
 	INSIST(cc == sizeof(buf));
@@ -505,7 +510,7 @@ cmsg_space(ISC_SOCKADDR_LEN_T len) {
 		return ((char *)cmsgp - (char *)msg.msg_control);
 	else
 		return (0);
-#endif	
+#endif
 }
 #endif /* USE_CMSG */
 
@@ -579,7 +584,7 @@ process_cmsg(isc_socket_t *sock, struct msghdr *msg, isc_socketevent_t *dev) {
 				   "interface received on ifindex %u",
 				   dev->pktinfo.ipi6_ifindex);
 			if (IN6_IS_ADDR_MULTICAST(&pktinfop->ipi6_addr))
-				dev->attributes |= ISC_SOCKEVENTATTR_MULTICAST;				
+				dev->attributes |= ISC_SOCKEVENTATTR_MULTICAST;
 			goto next;
 		}
 #endif
@@ -951,7 +956,7 @@ doio_recv(isc_socket_t *sock, isc_socketevent_t *dev) {
 			isc__strerror(recv_errno, strbuf, sizeof(strbuf));
 			socket_log(sock, NULL, IOEVENT,
 				   isc_msgcat, ISC_MSGSET_SOCKET,
-				   ISC_MSG_DOIORECV, 
+				   ISC_MSG_DOIORECV,
 				  "doio_recv: recvmsg(%d) %d bytes, err %d/%s",
 				   sock->fd, cc, recv_errno, strbuf);
 		}
@@ -999,7 +1004,7 @@ doio_recv(isc_socket_t *sock, isc_socketevent_t *dev) {
 			if (isc_log_wouldlog(isc_lctx, IOEVENT_LEVEL)) {
 				socket_log(sock, &dev->address, IOEVENT,
 					   isc_msgcat, ISC_MSGSET_SOCKET,
-					   ISC_MSG_ZEROPORT, 
+					   ISC_MSG_ZEROPORT,
 					   "dropping source port zero packet");
 			}
 			return (DOIO_SOFT);
@@ -1368,7 +1373,45 @@ free_socket(isc_socket_t **socketp) {
 	*socketp = NULL;
 }
 
+#ifdef SO_BSDCOMPAT
 /*
+ * This really should not be necessary to do.  Having to workout
+ * which kernel version we are on at run time so that we don't cause
+ * the kernel to issue a warning about us using a deprecated socket option.
+ * Such warnings should *never* be on by default in production kernels.
+ *
+ * We can't do this a build time because executables are moved between
+ * machines and hence kernels.
+ *
+ * We can't just not set SO_BSDCOMAT because some kernels require it.
+ */
+
+static isc_once_t         bsdcompat_once = ISC_ONCE_INIT;
+isc_boolean_t bsdcompat = ISC_TRUE;
+
+static void
+clear_bsdcompat(void) {
+#ifdef __linux__
+	 struct utsname buf;
+	 char *endp;
+	 long int major;
+	 long int minor;
+
+	 uname(&buf);    /* Can only fail if buf is bad in Linux. */
+
+	 /* Paranoia in parsing can be increased, but we trust uname(). */
+	 major = strtol(buf.release, &endp, 10);
+	 if (*endp == '.') {
+		minor = strtol(endp+1, &endp, 10);
+		if ((major > 2) || ((major == 2) && (minor >= 4))) {
+			bsdcompat = ISC_FALSE;
+		}
+	 }
+#endif /* __linux __ */
+}
+#endif
+
+/*%
  * Create a new 'type' socket managed by 'manager'.  Events
  * will be posted to 'task' and when dispatched 'action' will be
  * called with 'arg' as the arg value.  The new socket is returned
@@ -1385,6 +1428,7 @@ isc_socket_create(isc_socketmgr_t *manager, int pf, isc_sockettype_t type,
 #endif
 	char strbuf[ISC_STRERRORSIZE];
 	const char *err = "socket";
+	int tries = 0;
 
 	REQUIRE(VALID_MANAGER(manager));
 	REQUIRE(socketp != NULL && *socketp == NULL);
@@ -1394,6 +1438,7 @@ isc_socket_create(isc_socketmgr_t *manager, int pf, isc_sockettype_t type,
 		return (ret);
 
 	sock->pf = pf;
+ again:
 	switch (type) {
 	case isc_sockettype_udp:
 		sock->fd = socket(pf, SOCK_DGRAM, IPPROTO_UDP);
@@ -1402,6 +1447,8 @@ isc_socket_create(isc_socketmgr_t *manager, int pf, isc_sockettype_t type,
 		sock->fd = socket(pf, SOCK_STREAM, IPPROTO_TCP);
 		break;
 	}
+	if (sock->fd == -1 && errno == EINTR && tries++ < 42)
+		goto again;
 
 #ifdef F_DUPFD
 	/*
@@ -1428,7 +1475,7 @@ isc_socket_create(isc_socketmgr_t *manager, int pf, isc_sockettype_t type,
 		free_socket(&sock);
 		return (ISC_R_NORESOURCES);
 	}
-	
+
 	if (sock->fd < 0) {
 		free_socket(&sock);
 
@@ -1468,11 +1515,27 @@ isc_socket_create(isc_socketmgr_t *manager, int pf, isc_sockettype_t type,
 	}
 
 #ifdef SO_BSDCOMPAT
-	if (setsockopt(sock->fd, SOL_SOCKET, SO_BSDCOMPAT,
-		       (void *)&on, sizeof(on)) < 0) {
+	RUNTIME_CHECK(isc_once_do(&bsdcompat_once,
+				  clear_bsdcompat) == ISC_R_SUCCESS);
+	if (bsdcompat && setsockopt(sock->fd, SOL_SOCKET, SO_BSDCOMPAT,
+				    (void *)&on, sizeof(on)) < 0) {
 		isc__strerror(errno, strbuf, sizeof(strbuf));
 		UNEXPECTED_ERROR(__FILE__, __LINE__,
 				 "setsockopt(%d, SO_BSDCOMPAT) %s: %s",
+				 sock->fd,
+				 isc_msgcat_get(isc_msgcat, ISC_MSGSET_GENERAL,
+						ISC_MSG_FAILED, "failed"),
+				 strbuf);
+		/* Press on... */
+	}
+#endif
+
+#ifdef SO_NOSIGPIPE
+	if (setsockopt(sock->fd, SOL_SOCKET, SO_NOSIGPIPE,
+		       (void *)&on, sizeof(on)) < 0) {
+		isc__strerror(errno, strbuf, sizeof(strbuf));
+		UNEXPECTED_ERROR(__FILE__, __LINE__,
+				 "setsockopt(%d, SO_NOSIGPIPE) %s: %s",
 				 sock->fd,
 				 isc_msgcat_get(isc_msgcat, ISC_MSGSET_GENERAL,
 						ISC_MSG_FAILED, "failed"),
@@ -1491,7 +1554,7 @@ isc_socket_create(isc_socketmgr_t *manager, int pf, isc_sockettype_t type,
 			isc__strerror(errno, strbuf, sizeof(strbuf));
 			UNEXPECTED_ERROR(__FILE__, __LINE__,
 					 "setsockopt(%d, SO_TIMESTAMP) %s: %s",
-					 sock->fd, 
+					 sock->fd,
 					 isc_msgcat_get(isc_msgcat,
 							ISC_MSGSET_GENERAL,
 							ISC_MSG_FAILED,
@@ -1513,7 +1576,7 @@ isc_socket_create(isc_socketmgr_t *manager, int pf, isc_sockettype_t type,
 		}
 #ifdef ISC_PLATFORM_HAVEIN6PKTINFO
 #ifdef IPV6_RECVPKTINFO
-		/* 2292bis */
+		/* RFC 3542 */
 		if ((pf == AF_INET6)
 		    && (setsockopt(sock->fd, IPPROTO_IPV6, IPV6_RECVPKTINFO,
 				   (void *)&on, sizeof(on)) < 0)) {
@@ -1528,7 +1591,7 @@ isc_socket_create(isc_socketmgr_t *manager, int pf, isc_sockettype_t type,
 					 strbuf);
 		}
 #else
-		/* 2292 */
+		/* RFC 2292 */
 		if ((pf == AF_INET6)
 		    && (setsockopt(sock->fd, IPPROTO_IPV6, IPV6_PKTINFO,
 				   (void *)&on, sizeof(on)) < 0)) {
@@ -1544,7 +1607,7 @@ isc_socket_create(isc_socketmgr_t *manager, int pf, isc_sockettype_t type,
 		}
 #endif /* IPV6_RECVPKTINFO */
 #endif /* ISC_PLATFORM_HAVEIN6PKTINFO */
-#ifdef IPV6_USE_MIN_MTU        /*2292bis, not too common yet*/
+#ifdef IPV6_USE_MIN_MTU        /* RFC 3542, not too common yet*/
 		/* use minimum MTU */
 		if (pf == AF_INET6) {
 			(void)setsockopt(sock->fd, IPPROTO_IPV6,
@@ -1851,7 +1914,7 @@ internal_accept(isc_task_t *me, isc_event_t *ev) {
 	 */
 
 	addrlen = sizeof(dev->newsocket->address.type);
-	memset(&dev->newsocket->address.type.sa, 0, addrlen);
+	memset(&dev->newsocket->address.type, 0, addrlen);
 	fd = accept(sock->fd, &dev->newsocket->address.type.sa,
 		    (void *)&addrlen);
 
@@ -1919,7 +1982,7 @@ internal_accept(isc_task_t *me, isc_event_t *ev) {
 			UNEXPECTED_ERROR(__FILE__, __LINE__,
 					 "internal_accept(): "
 					 "accept() returned peer address "
-					 "family %u (expected %u)", 
+					 "family %u (expected %u)",
 					 dev->newsocket->address.
 					 type.sa.sa_family,
 					 sock->pf);
@@ -1992,7 +2055,7 @@ internal_accept(isc_task_t *me, isc_event_t *ev) {
 		dev->newsocket->references--;
 		free_socket(&dev->newsocket);
 	}
-	
+
 	/*
 	 * Fill in the done event details and send it off.
 	 */

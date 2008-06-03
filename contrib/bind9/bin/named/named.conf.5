@@ -1,4 +1,4 @@
-.\" Copyright (C) 2004-2006 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2004-2007 Internet Systems Consortium, Inc. ("ISC")
 .\" 
 .\" Permission to use, copy, modify, and distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
@@ -12,13 +12,13 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id: named.conf.5,v 1.1.4.10 2006/09/13 02:56:20 marka Exp $
+.\" $Id: named.conf.5,v 1.1.4.14 2007/06/20 02:26:23 marka Exp $
 .\"
 .hy 0
 .ad l
 .\"     Title: \fInamed.conf\fR
 .\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.70.1 <http://docbook.sf.net/>
+.\" Generator: DocBook XSL Stylesheets v1.71.1 <http://docbook.sf.net/>
 .\"      Date: Aug 13, 2004
 .\"    Manual: BIND9
 .\"    Source: BIND9
@@ -46,14 +46,14 @@ C++ style: // to end of line
 Unix style: # to end of line
 .SH "ACL"
 .sp
-.RS 3n
+.RS 4
 .nf
 acl \fIstring\fR { \fIaddress_match_element\fR; ... };
 .fi
 .RE
 .SH "KEY"
 .sp
-.RS 3n
+.RS 4
 .nf
 key \fIdomain_name\fR {
 	algorithm \fIstring\fR;
@@ -63,7 +63,7 @@ key \fIdomain_name\fR {
 .RE
 .SH "MASTERS"
 .sp
-.RS 3n
+.RS 4
 .nf
 masters \fIstring\fR [ port \fIinteger\fR ] {
 	( \fImasters\fR | \fIipv4_address\fR [port \fIinteger\fR] |
@@ -73,7 +73,7 @@ masters \fIstring\fR [ port \fIinteger\fR ] {
 .RE
 .SH "SERVER"
 .sp
-.RS 3n
+.RS 4
 .nf
 server ( \fIipv4_address\fR | \fIipv6_address\fR ) {
 	bogus \fIboolean\fR;
@@ -93,7 +93,7 @@ server ( \fIipv4_address\fR | \fIipv6_address\fR ) {
 .RE
 .SH "TRUSTED\-KEYS"
 .sp
-.RS 3n
+.RS 4
 .nf
 trusted\-keys {
 	\fIdomain_name\fR \fIflags\fR \fIprotocol\fR \fIalgorithm\fR \fIkey\fR; ... 
@@ -102,7 +102,7 @@ trusted\-keys {
 .RE
 .SH "CONTROLS"
 .sp
-.RS 3n
+.RS 4
 .nf
 controls {
 	inet ( \fIipv4_address\fR | \fIipv6_address\fR | * )
@@ -115,7 +115,7 @@ controls {
 .RE
 .SH "LOGGING"
 .sp
-.RS 3n
+.RS 4
 .nf
 logging {
 	channel \fIstring\fR {
@@ -134,7 +134,7 @@ logging {
 .RE
 .SH "LWRES"
 .sp
-.RS 3n
+.RS 4
 .nf
 lwres {
 	listen\-on [ port \fIinteger\fR ] {
@@ -148,7 +148,7 @@ lwres {
 .RE
 .SH "OPTIONS"
 .sp
-.RS 3n
+.RS 4
 .nf
 options {
 	avoid\-v4\-udp\-ports { \fIport\fR; ... };
@@ -284,7 +284,7 @@ options {
 .RE
 .SH "VIEW"
 .sp
-.RS 3n
+.RS 4
 .nf
 view \fIstring\fR \fIoptional_class\fR {
 	match\-clients { \fIaddress_match_element\fR; ... };
@@ -389,7 +389,7 @@ view \fIstring\fR \fIoptional_class\fR {
 .RE
 .SH "ZONE"
 .sp
-.RS 3n
+.RS 4
 .nf
 zone \fIstring\fR \fIoptional_class\fR {
 	type ( master | slave | stub | hint |
@@ -460,7 +460,9 @@ zone \fIstring\fR \fIoptional_class\fR {
 .SH "SEE ALSO"
 .PP
 \fBnamed\fR(8),
+\fBnamed\-checkconf\fR(8),
 \fBrndc\fR(8),
-\fBBIND 9 Administrator Reference Manual\fR().
+BIND 9 Administrator Reference Manual
 .SH "COPYRIGHT"
-Copyright \(co 2004\-2006 Internet Systems Consortium, Inc. ("ISC")
+Copyright \(co 2004\-2007 Internet Systems Consortium, Inc. ("ISC")
+.br

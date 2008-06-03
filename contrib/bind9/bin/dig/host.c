@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: host.c,v 1.76.2.5.2.16 2006/05/23 04:43:47 marka Exp $ */
+/* $Id: host.c,v 1.76.2.5.2.19 2007/08/28 07:19:07 tbox Exp $ */
 
 #include <config.h>
 #include <limits.h>
@@ -410,8 +410,10 @@ printmessage(dig_query_t *query, dns_message_t *msg, isc_boolean_t headers) {
 	if (msg->rcode != 0) {
 		char namestr[DNS_NAME_FORMATSIZE];
 		dns_name_format(query->lookup->name, namestr, sizeof(namestr));
-		printf("Host %s not found: %d(%s)\n", namestr,
-		       msg->rcode, rcodetext[msg->rcode]);
+		printf("Host %s not found: %d(%s)\n",
+		       (msg->rcode != dns_rcode_nxdomain) ? namestr :
+		       query->lookup->textname, msg->rcode,
+		       rcodetext[msg->rcode]);
 		return (ISC_R_SUCCESS);
 	}
 

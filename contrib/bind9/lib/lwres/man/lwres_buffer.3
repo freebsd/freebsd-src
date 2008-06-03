@@ -1,4 +1,4 @@
-.\" Copyright (C) 2004, 2005 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2004, 2005, 2007 Internet Systems Consortium, Inc. ("ISC")
 .\" Copyright (C) 2000, 2001 Internet Software Consortium.
 .\" 
 .\" Permission to use, copy, modify, and distribute this software for any
@@ -13,13 +13,13 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id: lwres_buffer.3,v 1.12.2.1.8.6 2006/06/29 13:02:31 marka Exp $
+.\" $Id: lwres_buffer.3,v 1.12.2.1.8.8 2007/01/30 00:11:48 marka Exp $
 .\"
 .hy 0
 .ad l
 .\"     Title: lwres_buffer
 .\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.70.1 <http://docbook.sf.net/>
+.\" Generator: DocBook XSL Stylesheets v1.71.1 <http://docbook.sf.net/>
 .\"      Date: Jun 30, 2000
 .\"    Manual: BIND9
 .\"    Source: BIND9
@@ -93,7 +93,7 @@ The
 is an (optional) subregion of the remaining region. It extends from the current offset to an offset in the remaining region. Initially, the active region is empty. If the current offset advances beyond the chosen offset, the active region will also be empty.
 .PP
 .sp
-.RS 3n
+.RS 4
 .nf
    /\-\-\-\-\-\-\-\-\-\-\-\-entire length\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\\\\
    /\-\-\-\-\- used region \-\-\-\-\-\\\\/\-\- available \-\-\\\\
@@ -217,4 +217,7 @@ bytes of memory from
 to
 \fIbase\fR.
 .SH "COPYRIGHT"
-Copyright \(co 2004, 2005 Internet Systems Consortium, Inc. ("ISC")
+Copyright \(co 2004, 2005, 2007 Internet Systems Consortium, Inc. ("ISC")
+.br
+Copyright \(co 2000, 2001 Internet Software Consortium.
+.br

@@ -1,11 +1,11 @@
-<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.0//EN"
-               "http://www.oasis-open.org/docbook/xml/4.0/docbookx.dtd"
+<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.2//EN"
+               "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
 	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004, 2005, 2007  Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000, 2001  Internet Software Consortium.
  -
- - Permission to use, copy, modify, and distribute this software for any
+ - Permission to use, copy, modify, and/or distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
  - copyright notice and this permission notice appear in all copies.
  -
@@ -18,7 +18,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: rndc.docbook,v 1.7.206.4 2005/05/12 21:36:05 sra Exp $ -->
+<!-- $Id: rndc.docbook,v 1.7.206.11 2007/12/14 20:56:36 marka Exp $ -->
 
 <refentry>
   <refentryinfo>
@@ -35,6 +35,7 @@
     <copyright>
       <year>2004</year>
       <year>2005</year>
+      <year>2007</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
     <copyright>
@@ -77,7 +78,7 @@
         <command>rndc</command> communicates with the name server
 	over a TCP connection, sending commands authenticated with
 	digital signatures.  In the current versions of
-	<command>rndc</command> and <command>named</command> named
+      <command>rndc</command> and <command>named</command>,
         the only supported authentication algorithm is HMAC-MD5,
 	which uses a shared secret on each end of the connection.
 	This provides TSIG-style authentication for the command
@@ -124,14 +125,13 @@
       <varlistentry>
         <term>-s <replaceable class="parameter">server</replaceable></term>
 	<listitem>
-	  <para>
-	       <replaceable class="parameter">server</replaceable> is
-	       the name or address of the server which matches a
-	       server statement in the configuration file for
-	       <command>rndc</command>.  If no server is supplied on the
-	       command line, the host named by the default-server clause
-	       in the option statement of the configuration file will be
-	       used.
+	  <para><replaceable class="parameter">server</replaceable> is
+	      the name or address of the server which matches a
+	      server statement in the configuration file for
+	      <command>rndc</command>.  If no server is supplied on the
+	      command line, the host named by the default-server clause
+	      in the options statement of the <command>rndc</command>
+	    configuration file will be used.
 	  </para>
 	</listitem>
       </varlistentry>
@@ -157,15 +157,15 @@
       </varlistentry>
 
       <varlistentry>
-        <term>-y <replaceable class="parameter">keyid</replaceable></term>
+        <term>-y <replaceable class="parameter">key_id</replaceable></term>
 	<listitem>
 	  <para>
-	       Use the key <replaceable class="parameter">keyid</replaceable>
+	       Use the key <replaceable class="parameter">key_id</replaceable>
 	       from the configuration file.
-	       <replaceable class="parameter">keyid</replaceable> must be
+	       <replaceable class="parameter">key_id</replaceable> must be
 	       known by named with the same algorithm and secret string
 	       in order for control message validation to succeed.
-	       If no <replaceable class="parameter">keyid</replaceable>
+	       If no <replaceable class="parameter">key_id</replaceable>
 	       is specified, <command>rndc</command> will first look
 	       for a key clause in the server statement of the server
 	       being used, or if no server statement is present for that
@@ -211,13 +211,17 @@
 	<manvolnum>5</manvolnum>
       </citerefentry>,
       <citerefentry>
+	<refentrytitle>rndc-confgen</refentrytitle>
+	<manvolnum>8</manvolnum>
+      </citerefentry>,
+      <citerefentry>
         <refentrytitle>named</refentrytitle>
 	<manvolnum>8</manvolnum>
       </citerefentry>,
       <citerefentry>
         <refentrytitle>named.conf</refentrytitle>
 	<manvolnum>5</manvolnum>
-      </citerefentry>
+      </citerefentry>,
       <citerefentry>
         <refentrytitle>ndc</refentrytitle>
 	<manvolnum>8</manvolnum>

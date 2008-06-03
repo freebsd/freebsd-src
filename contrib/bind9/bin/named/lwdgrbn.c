@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lwdgrbn.c,v 1.11.208.5 2006/01/04 23:50:19 marka Exp $ */
+/* $Id: lwdgrbn.c,v 1.11.208.6 2006/12/07 04:52:50 marka Exp $ */
 
 #include <config.h>
 
@@ -183,8 +183,6 @@ iterate_node(lwres_grbnresponse_t *grbn, dns_db_t *db, dns_dbnode_t *node,
 		isc_mem_put(mctx, oldlens, oldsize * sizeof(*oldlens));
 	if (newrdatas != NULL)
 		isc_mem_put(mctx, newrdatas, used * sizeof(*oldrdatas));
-	if (newlens != NULL)
-		isc_mem_put(mctx, newlens, used * sizeof(*oldlens));
 	return (result);
 }
 

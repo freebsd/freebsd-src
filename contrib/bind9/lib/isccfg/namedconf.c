@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006, 2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2002, 2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: namedconf.c,v 1.21.44.34 2006/03/02 00:37:20 marka Exp $ */
+/* $Id: namedconf.c,v 1.21.44.36 2008/01/24 23:45:28 tbox Exp $ */
 
 #include <config.h>
 
@@ -34,7 +34,7 @@
 
 /* Check a return value. */
 #define CHECK(op) 						\
-     	do { result = (op); 					\
+	do { result = (op); 					\
 		if (result != ISC_R_SUCCESS) goto cleanup; 	\
 	} while (0)
 
@@ -216,7 +216,7 @@ static cfg_type_t cfg_type_pubkey = {
  * Note that the old parser allows quotes around the RR type names.
  */
 static cfg_type_t cfg_type_rrtypelist = {
- 	"rrtypelist", cfg_parse_spacelist, cfg_print_spacelist, cfg_doc_terminal,
+	"rrtypelist", cfg_parse_spacelist, cfg_print_spacelist, cfg_doc_terminal,
 	&cfg_rep_list, &cfg_type_astring
 };
 
@@ -238,7 +238,7 @@ static cfg_type_t cfg_type_matchtype = {
  */
 static cfg_tuplefielddef_t grant_fields[] = {
 	{ "mode", &cfg_type_mode, 0 },
-	{ "identity", &cfg_type_astring, 0 }, /* domain name */ 
+	{ "identity", &cfg_type_astring, 0 }, /* domain name */
 	{ "matchtype", &cfg_type_matchtype, 0 },
 	{ "name", &cfg_type_astring, 0 }, /* domain name */
 	{ "types", &cfg_type_rrtypelist, 0 },
@@ -332,7 +332,7 @@ static cfg_tuplefielddef_t rrsetorderingelement_fields[] = {
 	{ "class", &cfg_type_optional_wild_class, 0 },
 	{ "type", &cfg_type_optional_wild_type, 0 },
 	{ "name", &cfg_type_optional_wild_name, 0 },
-	{ "order", &cfg_type_ustring, 0 }, /* must be literal "order" */ 
+	{ "order", &cfg_type_ustring, 0 }, /* must be literal "order" */
 	{ "ordering", &cfg_type_ustring, 0 },
 	{ NULL, NULL, 0 }
 };
@@ -516,7 +516,7 @@ static cfg_type_t cfg_type_serverid = {
 static isc_result_t
 parse_port(cfg_parser_t *pctx, const cfg_type_t *type, cfg_obj_t **ret) {
 	isc_result_t result;
-	
+
 	UNUSED(type);
 
 	CHECK(cfg_parse_uint32(pctx, NULL, ret));
@@ -650,9 +650,9 @@ static cfg_type_t cfg_type_disablealgorithm = {
 };
 
 static cfg_tuplefielddef_t mustbesecure_fields[] = {
-        { "name", &cfg_type_astring, 0 },
-        { "value", &cfg_type_boolean, 0 },
-        { NULL, NULL, 0 }
+	{ "name", &cfg_type_astring, 0 },
+	{ "value", &cfg_type_boolean, 0 },
+	{ NULL, NULL, 0 }
 };
 
 static cfg_type_t cfg_type_mustbesecure = {
@@ -1066,7 +1066,7 @@ static isc_result_t
 parse_maybe_optional_keyvalue(cfg_parser_t *pctx, const cfg_type_t *type,
 			      isc_boolean_t optional, cfg_obj_t **ret)
 {
-        isc_result_t result;
+	isc_result_t result;
 	cfg_obj_t *obj = NULL;
 	const keyword_type_t *kw = type->of;
 
@@ -1095,7 +1095,7 @@ static isc_result_t
 parse_enum_or_other(cfg_parser_t *pctx, const cfg_type_t *enumtype,
 		    const cfg_type_t *othertype, cfg_obj_t **ret)
 {
-        isc_result_t result;
+	isc_result_t result;
 	CHECK(cfg_peektoken(pctx, 0));
 	if (pctx->token.type == isc_tokentype_string &&
 	    cfg_is_enum(TOKEN_STRING(pctx), enumtype->of)) {
@@ -1170,7 +1170,7 @@ parse_notify_type(cfg_parser_t *pctx, const cfg_type_t *type, cfg_obj_t **ret) {
 }
 static cfg_type_t cfg_type_notifytype = {
 	"notifytype", parse_notify_type, cfg_print_ustring, doc_enum_or_other,
- 	&cfg_rep_string, notify_enums,
+	&cfg_rep_string, notify_enums,
 };
 
 static keyword_type_t key_kw = { "key", &cfg_type_astring };
@@ -1274,7 +1274,6 @@ parse_querysource(cfg_parser_t *pctx, int flags, cfg_obj_t **ret) {
 
 	port = 0;
 
-	CHECK(cfg_create_obj(pctx, &cfg_type_querysource, &obj));
 	for (;;) {
 		CHECK(cfg_peektoken(pctx, 0));
 		if (pctx->token.type == isc_tokentype_string) {
@@ -1282,7 +1281,7 @@ parse_querysource(cfg_parser_t *pctx, int flags, cfg_obj_t **ret) {
 				       "address") == 0)
 			{
 				/* read "address" */
-				CHECK(cfg_gettoken(pctx, 0)); 
+				CHECK(cfg_gettoken(pctx, 0));
 				CHECK(cfg_parse_rawaddr(pctx,
 						flags | CFG_ADDR_WILDOK,
 							&netaddr));
@@ -1290,7 +1289,7 @@ parse_querysource(cfg_parser_t *pctx, int flags, cfg_obj_t **ret) {
 			} else if (strcasecmp(TOKEN_STRING(pctx), "port") == 0)
 			{
 				/* read "port" */
-				CHECK(cfg_gettoken(pctx, 0)); 
+				CHECK(cfg_gettoken(pctx, 0));
 				CHECK(cfg_parse_rawport(pctx,
 							CFG_ADDR_WILDOK,
 							&port));
@@ -1309,6 +1308,7 @@ parse_querysource(cfg_parser_t *pctx, int flags, cfg_obj_t **ret) {
 		return (ISC_R_UNEXPECTEDTOKEN);
 	}
 
+	CHECK(cfg_create_obj(pctx, &cfg_type_querysource, &obj));
 	isc_sockaddr_fromnetaddr(&obj->value.sockaddr, &netaddr, port);
 	*ret = obj;
 	return (ISC_R_SUCCESS);
@@ -1356,7 +1356,7 @@ static cfg_type_t cfg_type_querysource = {
 
 static isc_result_t
 parse_addrmatchelt(cfg_parser_t *pctx, const cfg_type_t *type, cfg_obj_t **ret) {
-        isc_result_t result;
+	isc_result_t result;
 	UNUSED(type);
 
 	CHECK(cfg_peektoken(pctx, CFG_LEXOPT_QSTRING));
@@ -1580,9 +1580,9 @@ static isc_result_t
 parse_logfile(cfg_parser_t *pctx, const cfg_type_t *type, cfg_obj_t **ret) {
 	isc_result_t result;
 	cfg_obj_t *obj = NULL;
-	const cfg_tuplefielddef_t *fields = type->of;	
+	const cfg_tuplefielddef_t *fields = type->of;
 
-	CHECK(cfg_create_tuple(pctx, type, &obj));	
+	CHECK(cfg_create_tuple(pctx, type, &obj));
 
 	/* Parse the mandatory "file" field */
 	CHECK(cfg_parse_obj(pctx, fields[0].type, &obj->value.tuple[0]));
@@ -1591,7 +1591,7 @@ parse_logfile(cfg_parser_t *pctx, const cfg_type_t *type, cfg_obj_t **ret) {
 	for (;;) {
 		CHECK(cfg_peektoken(pctx, 0));
 		if (pctx->token.type == isc_tokentype_string) {
-			CHECK(cfg_gettoken(pctx, 0));		
+			CHECK(cfg_gettoken(pctx, 0));
 			if (strcasecmp(TOKEN_STRING(pctx),
 				       "versions") == 0 &&
 			    obj->value.tuple[1] == NULL) {
@@ -1620,7 +1620,7 @@ parse_logfile(cfg_parser_t *pctx, const cfg_type_t *type, cfg_obj_t **ret) {
 	return (ISC_R_SUCCESS);
 
  cleanup:
-	CLEANUP_OBJ(obj);	
+	CLEANUP_OBJ(obj);
 	return (result);
 }
 
@@ -1799,7 +1799,7 @@ static isc_result_t
 parse_sockaddrnameport(cfg_parser_t *pctx, const cfg_type_t *type,
 		       cfg_obj_t **ret)
 {
-        isc_result_t result;
+	isc_result_t result;
 	cfg_obj_t *obj = NULL;
 	UNUSED(type);
 
@@ -1810,9 +1810,9 @@ parse_sockaddrnameport(cfg_parser_t *pctx, const cfg_type_t *type,
 			CHECK(cfg_parse_sockaddr(pctx, &cfg_type_sockaddr, ret));
 		else {
 			const cfg_tuplefielddef_t *fields =
-						   cfg_type_nameport.of;	
+						   cfg_type_nameport.of;
 			CHECK(cfg_create_tuple(pctx, &cfg_type_nameport,
-					       &obj));	
+					       &obj));
 			CHECK(cfg_parse_obj(pctx, fields[0].type,
 					    &obj->value.tuple[0]));
 			CHECK(cfg_parse_obj(pctx, fields[1].type,
@@ -1826,7 +1826,7 @@ parse_sockaddrnameport(cfg_parser_t *pctx, const cfg_type_t *type,
 		return (ISC_R_UNEXPECTEDTOKEN);
 	}
  cleanup:
-	CLEANUP_OBJ(obj);	
+	CLEANUP_OBJ(obj);
 	return (result);
 }
 
@@ -1881,7 +1881,7 @@ static isc_result_t
 parse_masterselement(cfg_parser_t *pctx, const cfg_type_t *type,
 		     cfg_obj_t **ret)
 {
-        isc_result_t result;
+	isc_result_t result;
 	cfg_obj_t *obj = NULL;
 	UNUSED(type);
 
@@ -1898,7 +1898,7 @@ parse_masterselement(cfg_parser_t *pctx, const cfg_type_t *type,
 		return (ISC_R_UNEXPECTEDTOKEN);
 	}
  cleanup:
-	CLEANUP_OBJ(obj);	
+	CLEANUP_OBJ(obj);
 	return (result);
 }
 

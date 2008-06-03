@@ -1,4 +1,4 @@
-.\" Copyright (C) 2004, 2005 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2004, 2005, 2007 Internet Systems Consortium, Inc. ("ISC")
 .\" Copyright (C) 2000, 2001 Internet Software Consortium.
 .\" 
 .\" Permission to use, copy, modify, and distribute this software for any
@@ -13,13 +13,13 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id: lwres_noop.3,v 1.14.2.1.8.6 2006/06/29 13:02:31 marka Exp $
+.\" $Id: lwres_noop.3,v 1.14.2.1.8.8 2007/01/30 00:11:48 marka Exp $
 .\"
 .hy 0
 .ad l
 .\"     Title: lwres_noop
 .\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.70.1 <http://docbook.sf.net/>
+.\" Generator: DocBook XSL Stylesheets v1.71.1 <http://docbook.sf.net/>
 .\"      Date: Jun 30, 2000
 .\"    Manual: BIND9
 .\"    Source: BIND9
@@ -64,7 +64,7 @@ to the canonical format. This is complemented by a parse function which converts
 These structures are defined in
 \fIlwres/lwres.h\fR. They are shown below.
 .sp
-.RS 3n
+.RS 4
 .nf
 #define LWRES_OPCODE_NOOP       0x00000000U
 typedef struct {
@@ -164,4 +164,7 @@ indicate that the packet is not a response to an earlier query.
 .PP
 \fBlwres_packet\fR(3 )
 .SH "COPYRIGHT"
-Copyright \(co 2004, 2005 Internet Systems Consortium, Inc. ("ISC")
+Copyright \(co 2004, 2005, 2007 Internet Systems Consortium, Inc. ("ISC")
+.br
+Copyright \(co 2000, 2001 Internet Software Consortium.
+.br

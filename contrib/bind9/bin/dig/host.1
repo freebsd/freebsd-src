@@ -1,5 +1,5 @@
-.\" Copyright (C) 2004, 2005 Internet Systems Consortium, Inc. ("ISC")
-.\" Copyright (C) 2000-2002 Internet Software Consortium.
+.\" Copyright (C) 2004, 2005, 2007 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2000-2003 Internet Software Consortium.
 .\" 
 .\" Permission to use, copy, modify, and distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
@@ -13,13 +13,13 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id: host.1,v 1.11.2.1.4.8 2006/06/29 13:02:30 marka Exp $
+.\" $Id: host.1,v 1.11.2.1.4.12 2007/05/09 03:32:36 marka Exp $
 .\"
 .hy 0
 .ad l
 .\"     Title: host
 .\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.70.1 <http://docbook.sf.net/>
+.\" Generator: DocBook XSL Stylesheets v1.71.1 <http://docbook.sf.net/>
 .\"      Date: Jun 30, 2000
 .\"    Manual: BIND9
 .\"    Source: BIND9
@@ -130,7 +130,7 @@ makes. This should mean that the name server receiving the query will not attemp
 \fB\-r\fR
 option enables
 \fBhost\fR
-to mimic the behaviour of a name server by making non\-recursive queries and expecting to receive answers to those queries that are usually referrals to other name servers.
+to mimic the behavior of a name server by making non\-recursive queries and expecting to receive answers to those queries that are usually referrals to other name servers.
 .PP
 By default
 \fBhost\fR
@@ -152,7 +152,7 @@ The
 \fB\-t\fR
 option is used to select the query type.
 \fItype\fR
-can be any recognised query type: CNAME, NS, SOA, SIG, KEY, AXFR, etc. When no query type is specified,
+can be any recognized query type: CNAME, NS, SOA, SIG, KEY, AXFR, etc. When no query type is specified,
 \fBhost\fR
 automatically selects an appropriate query type. By default it looks for A records, but if the
 \fB\-C\fR
@@ -187,4 +187,7 @@ will effectively wait forever for a reply. The time to wait for a response will 
 \fBdig\fR(1),
 \fBnamed\fR(8).
 .SH "COPYRIGHT"
-Copyright \(co 2004, 2005 Internet Systems Consortium, Inc. ("ISC")
+Copyright \(co 2004, 2005, 2007 Internet Systems Consortium, Inc. ("ISC")
+.br
+Copyright \(co 2000\-2003 Internet Software Consortium.
+.br

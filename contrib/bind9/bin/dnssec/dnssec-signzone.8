@@ -1,4 +1,4 @@
-.\" Copyright (C) 2004, 2005 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2004, 2005, 2007 Internet Systems Consortium, Inc. ("ISC")
 .\" Copyright (C) 2000-2003 Internet Software Consortium.
 .\" 
 .\" Permission to use, copy, modify, and distribute this software for any
@@ -13,13 +13,13 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id: dnssec-signzone.8,v 1.23.2.1.4.11 2006/06/29 13:02:30 marka Exp $
+.\" $Id: dnssec-signzone.8,v 1.23.2.1.4.14 2007/05/09 03:32:36 marka Exp $
 .\"
 .hy 0
 .ad l
 .\"     Title: dnssec\-signzone
 .\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.70.1 <http://docbook.sf.net/>
+.\" Generator: DocBook XSL Stylesheets v1.71.1 <http://docbook.sf.net/>
 .\"      Date: June 30, 2000
 .\"    Manual: BIND9
 .\"    Source: BIND9
@@ -41,51 +41,72 @@ signs a zone. It generates NSEC and RRSIG records and produces a signed version 
 \fIkeyset\fR
 file for each child zone.
 .SH "OPTIONS"
-.TP 3n
+.PP
 \-a
+.RS 4
 Verify all generated signatures.
-.TP 3n
+.RE
+.PP
 \-c \fIclass\fR
+.RS 4
 Specifies the DNS class of the zone.
-.TP 3n
+.RE
+.PP
 \-k \fIkey\fR
+.RS 4
 Treat specified key as a key signing key ignoring any key flags. This option may be specified multiple times.
-.TP 3n
+.RE
+.PP
 \-l \fIdomain\fR
+.RS 4
 Generate a DLV set in addition to the key (DNSKEY) and DS sets. The domain is appended to the name of the records.
-.TP 3n
+.RE
+.PP
 \-d \fIdirectory\fR
+.RS 4
 Look for
 \fIkeyset\fR
 files in
 \fBdirectory\fR
 as the directory
-.TP 3n
+.RE
+.PP
 \-g
+.RS 4
 Generate DS records for child zones from keyset files. Existing DS records will be removed.
-.TP 3n
+.RE
+.PP
 \-s \fIstart\-time\fR
+.RS 4
 Specify the date and time when the generated RRSIG records become valid. This can be either an absolute or relative time. An absolute start time is indicated by a number in YYYYMMDDHHMMSS notation; 20000530144500 denotes 14:45:00 UTC on May 30th, 2000. A relative start time is indicated by +N, which is N seconds from the current time. If no
 \fBstart\-time\fR
 is specified, the current time minus 1 hour (to allow for clock skew) is used.
-.TP 3n
+.RE
+.PP
 \-e \fIend\-time\fR
+.RS 4
 Specify the date and time when the generated RRSIG records expire. As with
 \fBstart\-time\fR, an absolute time is indicated in YYYYMMDDHHMMSS notation. A time relative to the start time is indicated with +N, which is N seconds from the start time. A time relative to the current time is indicated with now+N. If no
 \fBend\-time\fR
 is specified, 30 days from the start time is used as a default.
-.TP 3n
+.RE
+.PP
 \-f \fIoutput\-file\fR
+.RS 4
 The name of the output file containing the signed zone. The default is to append
 \fI.signed\fR
-to the input file.
-.TP 3n
+to the input filename.
+.RE
+.PP
 \-h
+.RS 4
 Prints a short summary of the options and arguments to
 \fBdnssec\-signzone\fR.
-.TP 3n
+.RE
+.PP
 \-i \fIinterval\fR
-When a previously signed zone is passed as input, records may be resigned. The
+.RS 4
+When a previously\-signed zone is passed as input, records may be resigned. The
 \fBinterval\fR
 option specifies the cycle interval as an offset from the current time (in seconds). If a RRSIG record expires after the cycle interval, it is retained. Otherwise, it is considered to be expiring soon, and it will be replaced.
 .sp
@@ -96,17 +117,25 @@ or
 are specified,
 \fBdnssec\-signzone\fR
 generates signatures that are valid for 30 days, with a cycle interval of 7.5 days. Therefore, if any existing RRSIG records are due to expire in less than 7.5 days, they would be replaced.
-.TP 3n
+.RE
+.PP
 \-n \fIncpus\fR
+.RS 4
 Specifies the number of threads to use. By default, one thread is started for each detected CPU.
-.TP 3n
+.RE
+.PP
 \-o \fIorigin\fR
+.RS 4
 The zone origin. If not specified, the name of the zone file is assumed to be the origin.
-.TP 3n
+.RE
+.PP
 \-p
+.RS 4
 Use pseudo\-random data when signing the zone. This is faster, but less secure, than using real random data. This option may be useful when signing large zones or when the entropy source is limited.
-.TP 3n
+.RE
+.PP
 \-r \fIrandomdev\fR
+.RS 4
 Specifies the source of randomness. If the operating system does not provide a
 \fI/dev/random\fR
 or equivalent device, the default source of randomness is keyboard input.
@@ -114,42 +143,68 @@ or equivalent device, the default source of randomness is keyboard input.
 specifies the name of a character device or file containing random data to be used instead of the default. The special value
 \fIkeyboard\fR
 indicates that keyboard input should be used.
-.TP 3n
+.RE
+.PP
 \-t
+.RS 4
 Print statistics at completion.
-.TP 3n
+.RE
+.PP
 \-v \fIlevel\fR
+.RS 4
 Sets the debugging level.
-.TP 3n
+.RE
+.PP
 \-z
+.RS 4
 Ignore KSK flag on key when determining what to sign.
-.TP 3n
+.RE
+.PP
 zonefile
+.RS 4
 The file containing the zone to be signed.
-.TP 3n
+.RE
+.PP
 key
-The keys used to sign the zone. If no keys are specified, the default all zone keys that have private key files in the current directory.
+.RS 4
+Specify which keys should be used to sign the zone. If no keys are specified, then the zone will be examined for DNSKEY records at the zone apex. If these are found and there are matching private keys, in the current directory, then these will be used for signing.
+.RE
 .SH "EXAMPLE"
 .PP
 The following command signs the
 \fBexample.com\fR
-zone with the DSA key generated in the
+zone with the DSA key generated by
 \fBdnssec\-keygen\fR
-man page. The zone's keys must be in the zone. If there are
+(Kexample.com.+003+17247). The zone's keys must be in the master file (\fIdb.example.com\fR). This invocation looks for
 \fIkeyset\fR
-files associated with child zones, they must be in the current directory.
-\fBexample.com\fR, the following command would be issued:
+files, in the current directory, so that DS records can be generated from them (\fB\-g\fR).
+.sp
+.RS 4
+.nf
+% dnssec\-signzone \-g \-o example.com db.example.com \\
+Kexample.com.+003+17247
+db.example.com.signed
+%
+.fi
+.RE
 .PP
-\fBdnssec\-signzone \-o example.com db.example.com Kexample.com.+003+26160\fR
-.PP
-The command would print a string of the form:
-.PP
-In this example,
+In the above example,
 \fBdnssec\-signzone\fR
 creates the file
 \fIdb.example.com.signed\fR. This file should be referenced in a zone statement in a
 \fInamed.conf\fR
 file.
+.PP
+This example re\-signs a previously signed zone with default parameters. The private keys are assumed to be in the current directory.
+.sp
+.RS 4
+.nf
+% cp db.example.com.signed db.example.com
+% dnssec\-signzone \-o example.com db.example.com
+db.example.com.signed
+%
+.fi
+.RE
 .SH "SEE ALSO"
 .PP
 \fBdnssec\-keygen\fR(8),
@@ -159,4 +214,7 @@ RFC 2535.
 .PP
 Internet Systems Consortium
 .SH "COPYRIGHT"
-Copyright \(co 2004, 2005 Internet Systems Consortium, Inc. ("ISC")
+Copyright \(co 2004, 2005, 2007 Internet Systems Consortium, Inc. ("ISC")
+.br
+Copyright \(co 2000\-2003 Internet Software Consortium.
+.br

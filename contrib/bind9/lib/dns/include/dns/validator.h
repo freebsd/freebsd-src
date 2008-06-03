@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: validator.h,v 1.18.12.11.6.1 2007/01/11 04:51:39 marka Exp $ */
+/* $Id: validator.h,v 1.18.12.15 2007/09/19 03:41:33 marka Exp $ */
 
 #ifndef DNS_VALIDATOR_H
 #define DNS_VALIDATOR_H 1
@@ -81,11 +81,24 @@ typedef struct dns_validatorevent {
 	ISC_EVENT_COMMON(struct dns_validatorevent);
 	dns_validator_t *		validator;
 	isc_result_t			result;
+	/*
+	 * Name and type of the response to be validated.
+	 */
 	dns_name_t *			name;
 	dns_rdatatype_t			type;
+	/*
+	 * Rdata and RRSIG (if any) for positive responses.
+	 */
 	dns_rdataset_t *		rdataset;
 	dns_rdataset_t *		sigrdataset;
+	/*
+	 * The full response.  Required for negative responses.
+	 * Also required for positive wildcard responses.
+	 */
 	dns_message_t *			message;
+	/*
+	 * Proofs to be cached.
+	 */
 	dns_name_t *			proofs[3];
 } dns_validatorevent_t;
 

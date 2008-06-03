@@ -1,9 +1,9 @@
 /*
- * Portions Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
- * Portions Copyright (C) 2001  Internet Software Consortium.
+ * Portions Copyright (C) 2004, 2007  Internet Systems Consortium, Inc. ("ISC")
+ * Portions Copyright (C) 2001, 2003  Internet Software Consortium.
  * Portions Copyright (C) 2001  Nominum, Inc.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -16,7 +16,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lib.h,v 1.2.12.3 2004/03/08 09:05:05 marka Exp $ */
+/* $Id: lib.h,v 1.2.12.6 2007/08/28 07:19:17 tbox Exp $ */
 
 #ifndef ISCCC_LIB_H
 #define ISCCC_LIB_H 1
