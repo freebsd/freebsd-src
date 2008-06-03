@@ -38,6 +38,13 @@
 #define USE_IFNAMELINKID 1
 #define PORT_NONBLOCK O_NONBLOCK
 
+#ifndef _POSIX_PATH_MAX
+#define _POSIX_PATH_MAX 255
+#endif
+#ifndef PATH_MAX
+#define PATH_MAX _POSIX_PATH_MAX
+#endif
+
 /*
  * We need to know the IPv6 address family number even on IPv4-only systems.
  * Note that this is NOT a protocol constant, and that if the system has its
