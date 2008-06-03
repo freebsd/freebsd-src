@@ -37,6 +37,7 @@ struct xe_softc {
   struct ifmib_iso_8802_3 mibdata;
   struct callout media_timer;
   struct callout wdog_timer;
+  int tx_timeout;
   struct mtx lock;
   struct ifnet *ifp;
   struct ifmedia *ifm;

@@ -247,7 +247,7 @@ xe_attach (device_t dev)
   scp->ifp->if_ioctl = xe_ioctl;
   scp->ifp->if_init = xe_init;
   scp->ifp->if_baudrate = 100000000;
-  scp->ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
+  IFQ_SET_MAXLEN(&scp->ifp->if_snd, IFQ_MAXLEN);
 
   /* Initialise the ifmedia structure */
   ifmedia_init(scp->ifm, 0, xe_media_change, xe_media_status);
@@ -340,7 +340,7 @@ xe_init_locked(struct xe_softc *scp) {
   scp->tx_timeouts = 0;
   scp->tx_thres = 64;
   scp->tx_min = ETHER_MIN_LEN - ETHER_CRC_LEN;
-  callout_stop(&scp->wdog_timer);
+  scp->tx_timeout = 0;
 
   /* Soft reset the card */
   XE_SELECT_PAGE(0);
@@ -430,6 +430,7 @@ xe_init_locked(struct xe_softc *scp) {
   /* Enable output */
   scp->ifp->if_drv_flags |= IFF_DRV_RUNNING;
   scp->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+  callout_reset(&scp->wdog_timer, hz, xe_watchdog, scp);
 }
 
 
@@ -490,7 +491,7 @@ xe_start_locked(struct ifnet *ifp) {
     BPF_MTAP(ifp, mbp);
 
     /* In case we don't hear from the card again... */
-    callout_reset(&scp->wdog_timer, hz * 5, xe_watchdog, scp);
+    scp->tx_timeout = 5;
     scp->tx_queued++;
 
     m_freem(mbp);
@@ -657,7 +658,7 @@ xe_intr(void *xscp)
 	  scp->mibdata.dot3StatsCollFrequencies[coll-1]++;
 	}
       }
-      callout_stop(&scp->wdog_timer);
+      scp->tx_timeout = 0;
       ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
     }
 
@@ -862,13 +863,17 @@ static void
 xe_watchdog(void *arg) {
   struct xe_softc *scp = arg;
 
-  device_printf(scp->dev, "watchdog timeout: resetting card\n");
   XE_ASSERT_LOCKED(scp);
-  scp->tx_timeouts++;
-  scp->ifp->if_oerrors += scp->tx_queued;
-  xe_stop(scp);
-  xe_reset(scp);
-  xe_init_locked(scp);
+
+  if (scp->tx_timeout && --scp->tx_timeout == 0) {
+    device_printf(scp->dev, "watchdog timeout: resetting card\n");
+    scp->tx_timeouts++;
+    scp->ifp->if_oerrors += scp->tx_queued;
+    xe_stop(scp);
+    xe_reset(scp);
+    xe_init_locked(scp);
+    callout_reset(&scp->wdog_timer, hz, xe_watchdog, scp);
+  }
 }
 
 
@@ -1240,6 +1245,7 @@ xe_stop(struct xe_softc *scp) {
    */
   scp->ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
   scp->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+  scp->tx_timeout = 0;
   callout_stop(&scp->wdog_timer);
   callout_stop(&scp->media_timer);
 }
