@@ -92,7 +92,7 @@ void usage(string message)
 // @return 0 for 0K, -1 for error, sets errno
 //
 int sink(char *interface, struct in_addr *group, int pkt_size, int number,
-	 int clients, int client) {
+	 int clients, int client, short base_port) {
 
     
     int sock, backchan;
@@ -181,7 +181,7 @@ int sink(char *interface, struct in_addr *group, int pkt_size, int number,
 	 * the sender. 
 	 */
 	if (n % clients == client) {
-		recvd.sin_port = htons(SERVER_PORT + client);
+		recvd.sin_port = htons(base_port + client);
 		if (sendto(backchan, packet, pkt_size, 0, 
 			   (struct sockaddr *)&recvd, sizeof(recvd)) < 0) {
 		    perror("sendto failed");
@@ -249,7 +249,7 @@ void* server(void *passed) {
     bzero(&addr, sizeof(addr));
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = INADDR_ANY;
-    addr.sin_port = htons(SERVER_PORT + args->client);
+    addr.sin_port = htons(args->client);
     addr.sin_len = sizeof(addr);
 
     if (bind(sock, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
@@ -295,7 +295,7 @@ void* server(void *passed) {
 // @return 0 for OK, -1 for error, sets errno
 //
 int source(char *interface, struct in_addr *group, int pkt_size, 
-	   int number, int gap, int clients) {
+	   int number, int gap, int clients, short base_port) {
 
     int sock;
     struct sockaddr_in addr;
@@ -367,7 +367,7 @@ int source(char *interface, struct in_addr *group, int pkt_size,
         args[i].pkt_size = pkt_size;
         args[i].packets = received[i];
         args[i].number = number / clients;
-	args[i].client = i;
+	args[i].client = base_port + i;
 	if (pthread_create(&thread[i], NULL, server, &args[i]) < 0) {
 	    perror("failed to create server thread");
 	    return -1;
@@ -440,11 +440,12 @@ int main(int argc, char**argv)
 	bool server = false;	///< are we on he receiving end of multicast
 	int client = 0;		///< for receivers which client are we
 	int clients = 1;	///< for senders how many clients are there
+	short base_port = SERVER_PORT; ///< to have multiple copies running at once
 	
-	if (argc < 2 || argc > 14)
+	if (argc < 2 || argc > 16)
 		usage();
 	
-	while ((ch = getopt(argc, argv, "M:m:g:i:n:s:t:rh")) != -1) {
+	while ((ch = getopt(argc, argv, "M:m:g:i:n:s:t:b:rh")) != -1) {
 		switch (ch) {
 		case 'g':
 			group = new (struct in_addr );
@@ -482,6 +483,9 @@ int main(int argc, char**argv)
 		case 'M':
 			clients = atoi(optarg);
 			break;
+		case 'b':
+			base_port = atoi(optarg);
+			break;
 		case 'h':
 			usage(string("Help\n"));
 			break;
@@ -491,11 +495,13 @@ int main(int argc, char**argv)
 	if (server) {
 	    if (clients <= 0 || client < 0)
 		usage("must specify client (-m) and number of clients (-M)");
-	    sink(interface, group, pkt_size, number, clients, client);
+	    sink(interface, group, pkt_size, number, clients, client,
+		 base_port);
 	} else {
 	    if (clients <= 0)
 		usage("must specify number of clients (-M)");
-	    source(interface, group, pkt_size, number, gap, clients);
+	    source(interface, group, pkt_size, number, gap, clients, 
+		   base_port);
 	}
 	
 }
