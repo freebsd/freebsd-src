@@ -161,7 +161,6 @@ static void ndis_scan_curchan	(struct ieee80211_scan_state *, unsigned long);
 static void ndis_scan_mindwell	(struct ieee80211_scan_state *);
 static void ndis_init		(void *);
 static void ndis_stop		(struct ndis_softc *);
-static void ndis_watchdog	(struct ifnet *);
 static int ndis_ifmedia_upd	(struct ifnet *);
 static void ndis_ifmedia_sts	(struct ifnet *, struct ifmediareq *);
 static void ndis_auth		(void *, int);
@@ -537,6 +536,7 @@ ndis_attach(dev)
 	KeInitializeSpinLock(&sc->ndis_spinlock);
 	KeInitializeSpinLock(&sc->ndis_rxlock);
 	InitializeListHead(&sc->ndis_shlist);
+	callout_init(&sc->ndis_stat_callout, CALLOUT_MPSAFE);
 
 	if (sc->ndis_iftype == PCMCIABus) {
 		error = ndis_alloc_amem(sc);
@@ -695,7 +695,6 @@ ndis_attach(dev)
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = ndis_ioctl;
 	ifp->if_start = ndis_start;
-	ifp->if_watchdog = ndis_watchdog;
 	ifp->if_init = ndis_init;
 	ifp->if_baudrate = 10000000;
 	IFQ_SET_MAXLEN(&ifp->if_snd, 50);
@@ -1543,7 +1542,7 @@ ndis_txeof(adapter, packet, status)
 	else
 		ifp->if_oerrors++;
 
-	ifp->if_timer = 0;
+	sc->ndis_tx_timer = 0;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	NDIS_UNLOCK(sc);
@@ -1645,14 +1644,29 @@ ndis_tick(xsc)
 	struct ndis_softc	*sc;
 
 	sc = xsc;
+	NDIS_LOCK(sc);
 
-	IoQueueWorkItem(sc->ndis_tickitem,
-	    (io_workitem_func)ndis_ticktask_wrap,
-	    WORKQUEUE_CRITICAL, sc);
-	callout_reset(&sc->ndis_stat_callout,
-	    hz * sc->ndis_block->nmb_checkforhangsecs, ndis_tick, sc);
+	if (sc->ndis_hang_timer && --sc->ndis_hang_timer == 0) {
+		IoQueueWorkItem(sc->ndis_tickitem,
+		    (io_workitem_func)ndis_ticktask_wrap,
+		    WORKQUEUE_CRITICAL, sc);
+		sc->ndis_hang_timer = sc->ndis_block->nmb_checkforhangsecs;
+	}
 
-	return;
+	if (sc->ndis_tx_timer && --sc->ndis_tx_timer == 0) {
+		sc->ifp->if_oerrors++;
+		device_printf(sc->ndis_dev, "watchdog timeout\n");
+
+		IoQueueWorkItem(sc->ndis_resetitem,
+		    (io_workitem_func)ndis_resettask_wrap,
+		    WORKQUEUE_CRITICAL, sc);
+		IoQueueWorkItem(sc->ndis_startitem,
+		    (io_workitem_func)ndis_starttask_wrap,
+		    WORKQUEUE_CRITICAL, sc->ifp);
+	}
+
+	callout_reset(&sc->ndis_stat_callout, hz, ndis_tick, sc);
+	NDIS_UNLOCK(sc);
 }
 
 static void
@@ -1891,7 +1905,7 @@ ndis_start(ifp)
 	/*
 	 * Set a timeout in case the chip goes out to lunch.
 	 */
-	ifp->if_timer = 5;
+	sc->ndis_tx_timer = 5;
 
 	NDIS_UNLOCK(sc);
 
@@ -1985,11 +1999,7 @@ ndis_init(xsc)
 
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-
-	NDIS_UNLOCK(sc);
-
-	/* XXX force handling */
-	ieee80211_start_all(ic);		/* start all vap's */
+	sc->ndis_tx_timer = 0;
 
 	/*
 	 * Some drivers don't set this value. The NDIS spec says
@@ -1997,15 +2007,15 @@ ndis_init(xsc)
 	 * seconds." We use 3 seconds, because it seems for some
 	 * drivers, exactly 2 seconds is too fast.
 	 */
-
 	if (sc->ndis_block->nmb_checkforhangsecs == 0)
 		sc->ndis_block->nmb_checkforhangsecs = 3;
 
-	callout_init(&sc->ndis_stat_callout, CALLOUT_MPSAFE);
-	callout_reset(&sc->ndis_stat_callout,
-	    hz * sc->ndis_block->nmb_checkforhangsecs, ndis_tick, sc);
+	sc->ndis_hang_timer = sc->ndis_block->nmb_checkforhangsecs;
+	callout_reset(&sc->ndis_stat_callout, hz, ndis_tick, sc);
+	NDIS_UNLOCK(sc);
 
-	return;
+	/* XXX force handling */
+	ieee80211_start_all(ic);		/* start all vap's */
 }
 
 /*
@@ -3115,29 +3125,6 @@ ndis_resettask(d, arg)
 	return;
 }
 
-static void
-ndis_watchdog(ifp)
-	struct ifnet		*ifp;
-{
-	struct ndis_softc		*sc;
-
-	sc = ifp->if_softc;
-
-	NDIS_LOCK(sc);
-	ifp->if_oerrors++;
-	device_printf(sc->ndis_dev, "watchdog timeout\n");
-	NDIS_UNLOCK(sc);
-
-	IoQueueWorkItem(sc->ndis_resetitem,
-	    (io_workitem_func)ndis_resettask_wrap,
-	    WORKQUEUE_CRITICAL, sc);
-	IoQueueWorkItem(sc->ndis_startitem,
-	    (io_workitem_func)ndis_starttask_wrap,
-	    WORKQUEUE_CRITICAL, ifp);
-
-	return;
-}
-
 /*
  * Stop the adapter and free any mbufs allocated to the
  * RX and TX lists.
@@ -3153,7 +3140,7 @@ ndis_stop(sc)
 	callout_drain(&sc->ndis_stat_callout);
 
 	NDIS_LOCK(sc);
-	ifp->if_timer = 0;
+	sc->ndis_tx_timer = 0;
 	sc->ndis_link = 0;
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 	NDIS_UNLOCK(sc);
