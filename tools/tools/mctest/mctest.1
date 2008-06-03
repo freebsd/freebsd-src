@@ -33,6 +33,8 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl i Ar interface
+.Op Fl g Ar group
+.Op Fl b Ar base port
 .Op Fl n Ar number
 .Op Fl s Ar size
 .Op Fl t Ar inter-packet gap
@@ -57,6 +59,10 @@ The options are as follows:
 .Bl -tag -width ".Fl d Ar argument"
 .It Fl i Ar interface
 Network interface, which can be found with ifconfig(1).
+.It Fl i Ar group
+Multicast group
+.It Fl i Ar base port
+Port on which to listen
 .It Fl s Ar size
 Packet size in bytes.
 .It Fl n Ar number
