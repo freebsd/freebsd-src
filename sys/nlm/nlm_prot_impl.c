@@ -694,7 +694,6 @@ nlm_check_idle(void)
 			if (lf_countlocks(host->nh_sysid) > 0) {
 				host->nh_idle_timeout =
 					time_uptime + NLM_IDLE_TIMEOUT;
-				mtx_lock(&nlm_global_lock);
 				continue;
 			}
 			nlm_host_unmonitor(host);
