@@ -23,6 +23,9 @@ SRCS+=		context.c gai_strerror.c getaddrinfo.c gethost.c \
 
 CFLAGS+=	-I${SRCDIR}/unix/include -I${SRCDIR}/include
 CFLAGS+=	-I${.CURDIR}
+CFLAGS+=	-I${BIND_DIR}/lib/isc/include
+CFLAGS+=	-I${BIND_DIR}/lib/isc/unix/include
+CFLAGS+=	-I${LIB_BIND_DIR}/isc
 
 .if defined(WITH_BIND_LIBS)
 MAN=		lwres.3 lwres_buffer.3 lwres_config.3 lwres_context.3 \
