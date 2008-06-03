@@ -237,19 +237,12 @@ pattern_match(match_t MatchType, char *pattern, const char *pkgname)
  * Synopsis is similar to matchinstalled(), but use origin
  * as a key for matching packages.
  */
-char **
-matchbyorigin(const char *origin, int *retval)
+char ***
+matchallbyorigin(const char **origins, int *retval)
 {
-    char **installed;
-    int i;
-    static struct store *store = NULL;
-
-    store = storecreate(store);
-    if (store == NULL) {
-	if (retval != NULL)
-	    *retval = 1;
-	return NULL;
-    }
+    char **installed, **allorigins = NULL;
+    char ***matches = NULL;
+    int i, j;
 
     if (retval != NULL)
 	*retval = 0;
@@ -258,10 +251,14 @@ matchbyorigin(const char *origin, int *retval)
     if (installed == NULL)
 	return NULL;
 
+    /* Gather origins for all installed packages */
     for (i = 0; installed[i] != NULL; i++) {
 	FILE *fp;
-	char *cp, tmp[PATH_MAX];
+	char *buf, *cp, tmp[PATH_MAX];
 	int cmd;
+
+	allorigins = realloc(allorigins, (i + 1) * sizeof(*allorigins));
+	allorigins[i] = NULL;
 
 	snprintf(tmp, PATH_MAX, "%s/%s", LOG_DIR, installed[i]);
 	/*
@@ -290,8 +287,8 @@ matchbyorigin(const char *origin, int *retval)
 		continue;
 	    cmd = plist_cmd(tmp + 1, &cp);
 	    if (cmd == PLIST_ORIGIN) {
-		if (csh_match(origin, cp, FNM_PATHNAME) == 0)
-		    storeappend(store, installed[i]);
+		asprintf(&buf, "%s", cp);
+		allorigins[i] = buf;
 		break;
 	    }
 	}
@@ -300,10 +297,54 @@ matchbyorigin(const char *origin, int *retval)
 	fclose(fp);
     }
 
-    if (store->used == 0)
+    /* Resolve origins into package names, retaining the sequence */
+    for (i = 0; origins[i] != NULL; i++) {
+	matches = realloc(matches, (i + 1) * sizeof(*matches));
+	struct store *store = NULL;
+	store = storecreate(store);
+
+	for (j = 0; installed[j] != NULL; j++) {
+	    if (allorigins[j]) {
+		if (csh_match(origins[i], allorigins[j], FNM_PATHNAME) == 0) {
+		    storeappend(store, installed[j]);
+		}
+	    }
+	}
+	if (store->used == 0)
+	    matches[i] = NULL;
+	else
+	    matches[i] = store->store;
+    }
+
+    if (allorigins) {
+	for (i = 0; installed[i] != NULL; i++)
+	    if (allorigins[i])
+		free(allorigins[i]);
+	free(allorigins);
+    }
+
+    return matches;
+}
+
+/*
+ * Synopsis is similar to matchinstalled(), but use origin
+ * as a key for matching packages.
+ */
+char **
+matchbyorigin(const char *origin, int *retval)
+{
+   const char *origins[2];
+   char ***tmp;
+
+   origins[0] = origin;
+   origins[1] = NULL;
+
+   tmp = matchallbyorigin(origins, retval);
+   if (tmp && tmp[0]) {
+	return tmp[0];
+   } else {
 	return NULL;
-    else
-	return store->store;
+   }
 }
 
 /*

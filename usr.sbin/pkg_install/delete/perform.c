@@ -122,12 +122,12 @@ static int
 pkg_do(char *pkg)
 {
     FILE *cfile;
-    char *deporigin, **depnames, home[FILENAME_MAX];
+    char *deporigin, **deporigins = NULL, **depnames = NULL, ***depmatches, home[FILENAME_MAX];
     PackingList p;
     int i, len;
     int isinstalled;
     /* support for separate pre/post install scripts */
-    int new_m = 0;
+    int new_m = 0, dep_count = 0;
     const char *pre_script = DEINSTALL_FNAME;
     const char *post_script, *pre_arg, *post_arg;
     struct reqr_by_entry *rb_entry;
@@ -275,15 +275,34 @@ pkg_do(char *pkg)
 	    printf(".\n");
 	}
 	if (!Fake) {
-	    depnames = (deporigin != NULL) ? matchbyorigin(deporigin, NULL) :
-					     NULL;
-	    if (depnames == NULL) {
-		depnames = alloca(sizeof(*depnames) * 2);
-		depnames[0] = p->name;
-		depnames[1] = NULL;
+	    if (deporigin) {
+		deporigins = realloc(deporigins, (dep_count + 2) * sizeof(*deporigins));
+		depnames = realloc(depnames, (dep_count + 1) * sizeof(*depnames));
+		deporigins[dep_count] = deporigin;
+		deporigins[dep_count + 1] = NULL;
+		depnames[dep_count] = p->name;
+		dep_count++;
+	    } else {
+		undepend(p->name, pkg);
 	    }
-	    for (i = 0; depnames[i] != NULL; i++)
-		undepend(depnames[i], pkg);
+	}
+    }
+
+    if (dep_count > 0) {
+	/* Undepend all the dependencies at once */
+	depmatches = matchallbyorigin((const char **)deporigins, NULL);
+	free(deporigins);
+	if (depmatches) {
+	    for (i = 0; i < dep_count; i++) {
+		if (depmatches[i]) {
+		    char **tmp = depmatches[i];
+		    int j;
+		    for (j = 0; tmp[j] != NULL; j++)
+			undepend(tmp[j], pkg);
+		} else if (depnames[i]) {
+		    undepend(depnames[i], pkg);
+		}
+	    }
 	}
     }
 
