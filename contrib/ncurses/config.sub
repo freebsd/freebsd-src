@@ -1,10 +1,10 @@
 #! /bin/sh
 # Configuration validation subroutine script.
 #   Copyright (C) 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-#   2000, 2001, 2002, 2003, 2004, 2005, 2006 Free Software Foundation,
-#   Inc.
+#   2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008
+#   Free Software Foundation, Inc.
 
-timestamp='2006-08-14'
+timestamp='2008-03-08'
 
 # This file is (in principle) common to ALL GNU software.
 # The presence of a machine in this file suggests that SOME GNU software
@@ -72,8 +72,8 @@ Report bugs and patches to <config-patches@gnu.org>."
 version="\
 GNU config.sub ($timestamp)
 
-Copyright (C) 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005
-Free Software Foundation, Inc.
+Copyright (C) 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001,
+2002, 2003, 2004, 2005, 2006, 2007, 2008 Free Software Foundation, Inc.
 
 This is free software; see the source for copying conditions.  There is NO
 warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE."
@@ -245,17 +245,19 @@ case $basic_machine in
 	| bfin \
 	| c4x | clipper \
 	| d10v | d30v | dlx | dsp16xx \
-	| fr30 | frv \
+	| fido | fr30 | frv \
 	| h8300 | h8500 | hppa | hppa1.[01] | hppa2.0 | hppa2.0[nw] | hppa64 \
 	| i370 | i860 | i960 | ia64 \
 	| ip2k | iq2000 \
 	| m32c | m32r | m32rle | m68000 | m68k | m88k \
-	| maxq | mb | microblaze | mcore \
+	| maxq | mb | microblaze | mcore | mep \
 	| mips | mipsbe | mipseb | mipsel | mipsle \
 	| mips16 \
 	| mips64 | mips64el \
-	| mips64vr | mips64vrel \
+	| mips64octeon | mips64octeonel \
 	| mips64orion | mips64orionel \
+	| mips64r5900 | mips64r5900el \
+	| mips64vr | mips64vrel \
 	| mips64vr4100 | mips64vr4100el \
 	| mips64vr4300 | mips64vr4300el \
 	| mips64vr5000 | mips64vr5000el \
@@ -276,6 +278,7 @@ case $basic_machine in
 	| pdp10 | pdp11 | pj | pjl \
 	| powerpc | powerpc64 | powerpc64le | powerpcle | ppcbe \
 	| pyramid \
+	| score \
 	| sh | sh[1234] | sh[24]a | sh[23]e | sh[34]eb | sheb | shbe | shle | sh[1234]le | sh3ele \
 	| sh64 | sh64le \
 	| sparc | sparc64 | sparc64b | sparc64v | sparc86x | sparclet | sparclite \
@@ -303,8 +306,8 @@ case $basic_machine in
 	# because (1) that's what they normally are, and
 	# (2) the word "unknown" tends to confuse beginning users.
 	i*86 | x86_64)
-	  basic_machine=$basic_machine-pc
-	  ;;
+		basic_machine=$basic_machine-pc
+		;;
 	# Object if more than one company name word.
 	*-*-*)
 		echo Invalid configuration \`$1\': machine \`$basic_machine\' not recognized 1>&2
@@ -323,19 +326,21 @@ case $basic_machine in
 	| clipper-* | craynv-* | cydra-* \
 	| d10v-* | d30v-* | dlx-* \
 	| elxsi-* \
-	| f30[01]-* | f700-* | fr30-* | frv-* | fx80-* \
+	| f30[01]-* | f700-* | fido-* | fr30-* | frv-* | fx80-* \
 	| h8300-* | h8500-* \
 	| hppa-* | hppa1.[01]-* | hppa2.0-* | hppa2.0[nw]-* | hppa64-* \
 	| i*86-* | i860-* | i960-* | ia64-* \
 	| ip2k-* | iq2000-* \
-	| m32c-* | m32r-* | m32rle-* \
+	| m32c- | m32r-* | m32rle-* \
 	| m68000-* | m680[012346]0-* | m68360-* | m683?2-* | m68k-* \
 	| m88110-* | m88k-* | maxq-* | mcore-* \
 	| mips-* | mipsbe-* | mipseb-* | mipsel-* | mipsle-* \
 	| mips16-* \
 	| mips64-* | mips64el-* \
-	| mips64vr-* | mips64vrel-* \
+	| mips64octeon-* | mips64octeonel-* \
 	| mips64orion-* | mips64orionel-* \
+	| mips64r5900-* | mips64r5900el-* \
+	| mips64vr-* | mips64vrel-* \
 	| mips64vr4100-* | mips64vr4100el-* \
 	| mips64vr4300-* | mips64vr4300el-* \
 	| mips64vr5000-* | mips64vr5000el-* \
@@ -363,14 +368,18 @@ case $basic_machine in
 	| sparclite-* \
 	| sparcv8-* | sparcv9-* | sparcv9b-* | sparcv9v-* | strongarm-* | sv1-* | sx?-* \
 	| tahoe-* | thumb-* \
-	| tic30-* | tic4x-* | tic54x-* | tic55x-* | tic6x-* | tic80-* \
+	| tic30-* | tic4x-* | tic54x-* | tic55x-* | tic6x-* | tic80-* | tile-* \
 	| tron-* \
 	| v850-* | v850e-* | vax-* \
 	| we32k-* \
 	| x86-* | x86_64-* | xc16x-* | xps100-* | xscale-* | xscalee[bl]-* \
-	| xstormy16-* | xtensa-* \
+	| xstormy16-* | xtensa*-* \
 	| ymp-* \
 	| z8k-*)
+		;;
+	# Recognize the basic CPU types without company name, with glob match.
+	xtensa*)
+		basic_machine=$basic_machine-unknown
 		;;
 	# Recognize the various machine names and aliases which stand
 	# for a CPU type and a company and sometimes even an OS.
@@ -388,7 +397,7 @@ case $basic_machine in
 		basic_machine=a29k-amd
 		os=-udi
 		;;
-    	abacus)
+	abacus)
 		basic_machine=abacus-unknown
 		;;
 	adobe68k)
@@ -442,6 +451,14 @@ case $basic_machine in
 		basic_machine=ns32k-sequent
 		os=-dynix
 		;;
+	blackfin)
+		basic_machine=bfin-unknown
+		os=-linux
+		;;
+	blackfin-*)
+		basic_machine=bfin-`echo $basic_machine | sed 's/^[^-]*-//'`
+		os=-linux
+		;;
 	c90)
 		basic_machine=c90-cray
 		os=-unicos
@@ -474,8 +491,8 @@ case $basic_machine in
 		basic_machine=craynv-cray
 		os=-unicosmp
 		;;
-	cr16c)
-		basic_machine=cr16c-unknown
+	cr16)
+		basic_machine=cr16-unknown
 		os=-elf
 		;;
 	crds | unos)
@@ -667,6 +684,14 @@ case $basic_machine in
 		basic_machine=m68k-isi
 		os=-sysv
 		;;
+	m68knommu)
+		basic_machine=m68k-unknown
+		os=-linux
+		;;
+	m68knommu-*)
+		basic_machine=m68k-`echo $basic_machine | sed 's/^[^-]*-//'`
+		os=-linux
+		;;
 	m88k-omron*)
 		basic_machine=m88k-omron
 		;;
@@ -681,6 +706,10 @@ case $basic_machine in
 	mingw32)
 		basic_machine=i386-pc
 		os=-mingw32
+		;;
+	mingw32ce)
+		basic_machine=arm-unknown
+		os=-mingw32ce
 		;;
 	miniframe)
 		basic_machine=m68000-convergent
@@ -808,6 +837,14 @@ case $basic_machine in
 		basic_machine=i860-intel
 		os=-osf
 		;;
+	parisc)
+		basic_machine=hppa-unknown
+		os=-linux
+		;;
+	parisc-*)
+		basic_machine=hppa-`echo $basic_machine | sed 's/^[^-]*-//'`
+		os=-linux
+		;;
 	pbd)
 		basic_machine=sparc-tti
 		;;
@@ -924,6 +961,9 @@ case $basic_machine in
 		basic_machine=sh-hitachi
 		os=-hms
 		;;
+	sh5el)
+		basic_machine=sh5le-unknown
+		;;
 	sh64)
 		basic_machine=sh64-unknown
 		;;
@@ -1012,6 +1052,10 @@ case $basic_machine in
 	tic6x | c6x*)
 		basic_machine=tic6x-unknown
 		os=-coff
+		;;
+	tile*)
+		basic_machine=tile-unknown
+		os=-linux-gnu
 		;;
 	tx39)
 		basic_machine=mipstx39-unknown
@@ -1173,8 +1217,8 @@ esac
 if [ x"$os" != x"" ]
 then
 case $os in
-        # First match some system type aliases
-        # that might get confused with valid system types.
+	# First match some system type aliases
+	# that might get confused with valid system types.
 	# -solaris* is a basic system type, with this one exception.
 	-solaris1 | -solaris1.*)
 		os=`echo $os | sed -e 's|solaris1|sunos4|'`
@@ -1218,7 +1262,7 @@ case $os in
 	      | -os2* | -vos* | -palmos* | -uclinux* | -nucleus* \
 	      | -morphos* | -superux* | -rtmk* | -rtmk-nova* | -windiss* \
 	      | -powermax* | -dnix* | -nx6 | -nx7 | -sei* | -dragonfly* \
-	      | -skyos* | -haiku* | -rdos* | -toppers*)
+	      | -skyos* | -haiku* | -rdos* | -toppers* | -drops*)
 	# Remember, each alternative MUST END IN *, to match a version number.
 		;;
 	-qnx*)
@@ -1257,7 +1301,7 @@ case $os in
 	-opened*)
 		os=-openedition
 		;;
-        -os400*)
+	-os400*)
 		os=-os400
 		;;
 	-wince*)
@@ -1306,7 +1350,7 @@ case $os in
 	-sinix*)
 		os=-sysv4
 		;;
-        -tpf*)
+	-tpf*)
 		os=-tpf
 		;;
 	-triton*)
@@ -1370,7 +1414,10 @@ else
 # system, and we'll never get to this point.
 
 case $basic_machine in
-        spu-*)
+	score-*)
+		os=-elf
+		;;
+	spu-*)
 		os=-elf
 		;;
 	*-acorn)
@@ -1382,8 +1429,8 @@ case $basic_machine in
 	arm*-semi)
 		os=-aout
 		;;
-        c4x-* | tic4x-*)
-        	os=-coff
+	c4x-* | tic4x-*)
+		os=-coff
 		;;
 	# This must come before the *-dec entry.
 	pdp10-*)
@@ -1410,6 +1457,9 @@ case $basic_machine in
 	m68*-cisco)
 		os=-aout
 		;;
+	mep-*)
+		os=-elf
+		;;
 	mips*-cisco)
 		os=-elf
 		;;
@@ -1434,7 +1484,7 @@ case $basic_machine in
 	*-ibm)
 		os=-aix
 		;;
-    	*-knuth)
+	*-knuth)
 		os=-mmixware
 		;;
 	*-wec)

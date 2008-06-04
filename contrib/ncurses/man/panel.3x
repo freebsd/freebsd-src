@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998-2003,2006 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: panel.3x,v 1.12 2006/05/13 15:35:45 tom Exp $
+.\" $Id: panel.3x,v 1.14 2007/05/12 20:45:20 tom Exp $
 .TH panel 3X ""
 .ds n 5
 .ds d @TERMINFO@
@@ -84,13 +84,13 @@ Panel routines are a functional layer added to \fBcurses\fR(3X), make only
 high-level curses calls, and work anywhere terminfo curses does.
 .SH FUNCTIONS
 .TP
-\fBnew_panel(win)\fR
+.B new_panel(win)
 allocates  a  \fBPANEL\fR structure, associates it with
 \fBwin\fR, places the panel on the top of the stack  (causes  it
 to  be  displayed above any other panel) and returns a
 pointer to the new panel.
 .TP
-\fBvoid update_panels()\fR
+.B update_panels()
 refreshes the virtual screen to reflect the relations between the
 panels in the stack, but does not call doupdate() to refresh the
 physical screen.  Use this function and not wrefresh or wnoutrefresh.
@@ -98,52 +98,57 @@ update_panels() may be called more than once before a call to
 doupdate(), but doupdate() is the function responsible for updating
 the physical screen.
 .TP
-\fBdel_panel(pan)\fR
+.B del_panel(pan)
 removes the given panel from the  stack and deallocates the
 \fBPANEL\fR structure (but not its associated window).
 .TP
-\fBhide_panel(pan)\fR
+.B hide_panel(pan)
 removes the given panel from the panel stack and thus hides it from
 view. The \fBPANEL\fR structure is not lost, merely removed from the stack.
 .TP
-\fBshow_panel(pan)\fR
+.B panel_hidden(pan)
+returns TRUE if the panel is in the panel stack,
+FALSE if it is not.
+If the panel is a null pointer, return ERR.
+.TP
+.B show_panel(pan)
 makes a hidden panel visible by placing it on top of the panels in the
 panel stack. See COMPATIBILITY below.
 .TP
-\fBtop_panel(pan)\fR
+.B top_panel(pan)
 puts the given visible panel on top of all panels in the stack.  See
 COMPATIBILITY below.
 .TP
-\fBbottom_panel(pan)\fR
+.B bottom_panel(pan)
 puts panel at the bottom of all panels.
 .TP
-\fBmove_panel(pan,starty,startx)\fR
+.B move_panel(pan,starty,startx)
 moves the given panel window so that its upper-left corner is at
 \fBstarty\fR, \fBstartx\fR.  It does not change the position of the
 panel in the stack.  Be sure to use this function, not \fBmvwin()\fR,
 to move a panel window.
 .TP
-\fBreplace_panel(pan,window)\fR
+.B replace_panel(pan,window)
 replaces the current window of panel with \fBwindow\fR (useful, for
 example if you want to resize a panel; if you're using \fBncurses\fR,
 you can call \fBreplace_panel\fR on the output of \fBwresize\fR(3X)).
 It does not change the position of the panel in the stack.
 .TP
-\fBpanel_above(pan)\fR
+.B panel_above(pan)
 returns a pointer to the panel above pan.  If the panel argument is
 \fB(PANEL *)0\fR, it returns a pointer to the bottom panel in the stack.
 .TP
-\fBpanel_below(pan)\fR
+.B panel_below(pan)
 returns a pointer to the panel just below pan.  If the panel argument
 is \fB(PANEL *)0\fR, it returns a pointer to the top panel in the stack.
 .TP
-\fBset_panel_userptr(pan,ptr)\fR
+.B set_panel_userptr(pan,ptr)
 sets the panel's user pointer.
 .TP
-\fBpanel_userptr(pan)\fR
+.B panel_userptr(pan)
 returns the user pointer for a given panel.
 .TP
-\fBpanel_window(pan)\fR
+.B panel_window(pan)
 returns a pointer to the window of the given panel.
 .SH DIAGNOSTICS
 Each routine that returns a pointer returns \fBNULL\fR if an error

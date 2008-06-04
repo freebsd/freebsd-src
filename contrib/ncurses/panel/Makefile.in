@@ -1,6 +1,6 @@
-# $Id: Makefile.in,v 1.47 2006/10/14 20:40:36 tom Exp $
+# $Id: Makefile.in,v 1.52 2007/04/28 14:56:11 tom Exp $
 ##############################################################################
-# Copyright (c) 1998-2003,2006 Free Software Foundation, Inc.                #
+# Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -27,7 +27,7 @@
 # authorization.                                                             #
 ##############################################################################
 #
-# Author: Thomas E. Dickey 1996-2002
+# Author: Thomas E. Dickey 1996-on
 #
 # Makefile for panels source code.
 #
@@ -92,7 +92,7 @@ CFLAGS_SHARED	= $(CCFLAGS) @CC_SHARED_OPTS@
 
 CFLAGS_DEFAULT	= $(CFLAGS_@DFT_UPR_MODEL@)
 
-LINK		= $(LIBTOOL_LINK) $(CC)
+LINK		= $(LIBTOOL_LINK)
 LDFLAGS		= @LDFLAGS@ @LD_MODEL@ @LIBS@
 
 SHLIB_DIRS	= -L../lib
@@ -107,8 +107,6 @@ ABI_VERSION	= @cf_cv_abi_version@
 
 RANLIB		= @LIB_PREP@
 
-IMPORT_LIB	= @IMPORT_LIB@
-SHARED_LIB	= @SHARED_LIB@
 LIBRARIES	= @LIBS_TO_MAKE@
 
 LINT		= @LINT@
@@ -127,7 +125,7 @@ sources:	$(AUTO_SRC)
 
 $(DESTDIR)$(bindir) \
 $(DESTDIR)$(libdir) :
-	sh $(srcdir)/../mkinstalldirs $@
+	sh $(srcdir)/../mkdirs.sh $@
 
 # make a copy to simplify include-paths while still keeping panel's include
 # file in this directory.

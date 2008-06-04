@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -44,7 +44,7 @@
 #include <dump_entry.h>
 #include <transform.h>
 
-MODULE_ID("$Id: tic.c,v 1.131 2006/12/02 22:13:17 tom Exp $")
+MODULE_ID("$Id: tic.c,v 1.133 2007/07/21 17:45:59 tom Exp $")
 
 const char *_nc_progname = "tic";
 
@@ -353,11 +353,24 @@ open_input(const char *filename)
     return fp;
 }
 
+#if NO_LEAKS
+static void
+free_namelist(char **src)
+{
+    if (src != 0) {
+	int n;
+	for (n = 0; src[n] != 0; ++n)
+	    free(src[n]);
+	free(src);
+    }
+}
+#endif
+
 /* Parse the "-e" option-value into a list of names */
-static const char **
+static char **
 make_namelist(char *src)
 {
-    const char **dst = 0;
+    char **dst = 0;
 
     char *s, *base;
     unsigned pass, n, nn;
@@ -374,11 +387,13 @@ make_namelist(char *src)
 		if ((s = stripped(buffer)) != 0) {
 		    if (dst != 0)
 			dst[nn] = s;
+		    else
+			free(s);
 		    nn++;
 		}
 	    }
 	    if (pass == 1) {
-		dst = typeCalloc(const char *, nn + 1);
+		dst = typeCalloc(char *, nn + 1);
 		rewind(fp);
 	    }
 	}
@@ -401,10 +416,10 @@ make_namelist(char *src)
 		    break;
 	    }
 	    if (pass == 1)
-		dst = typeCalloc(const char *, nn + 1);
+		dst = typeCalloc(char *, nn + 1);
 	}
     }
-    if (showsummary) {
+    if (showsummary && (dst != 0)) {
 	fprintf(log_fp, "Entries that will be compiled:\n");
 	for (n = 0; dst[n] != 0; n++)
 	    fprintf(log_fp, "%u:%s\n", n + 1, dst[n]);
@@ -413,7 +428,7 @@ make_namelist(char *src)
 }
 
 static bool
-matches(const char **needle, const char *haystack)
+matches(char **needle, const char *haystack)
 /* does entry in needle list match |-separated field in haystack? */
 {
     bool code = FALSE;
@@ -468,7 +483,7 @@ main(int argc, char *argv[])
     bool limited = TRUE;
     char *tversion = (char *) NULL;
     const char *source_file = "terminfo";
-    const char **namelst = 0;
+    char **namelst = 0;
     char *outdir = (char *) NULL;
     bool check_only = FALSE;
     bool suppress_untranslatable = FALSE;
@@ -495,7 +510,7 @@ main(int argc, char *argv[])
      * be optional.
      */
     while ((this_opt = getopt(argc, argv,
-			      "0123456789CILNR:TUVace:fGgo:rstvwx")) != EOF) {
+			      "0123456789CILNR:TUVace:fGgo:rstvwx")) != -1) {
 	if (isdigit(this_opt)) {
 	    switch (last_opt) {
 	    case 'v':
@@ -784,6 +799,9 @@ main(int argc, char *argv[])
 	else
 	    fprintf(log_fp, "No entries written\n");
     }
+#if NO_LEAKS
+    free_namelist(namelst);
+#endif
     cleanup();
     ExitProgram(EXIT_SUCCESS);
 }

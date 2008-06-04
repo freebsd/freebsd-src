@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2004,2006 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -44,7 +44,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_addstr.c,v 1.46 2006/05/27 19:22:19 tom Exp $")
+MODULE_ID("$Id: lib_addstr.c,v 1.48 2007/10/13 19:56:57 tom Exp $")
 
 NCURSES_EXPORT(int)
 waddnstr(WINDOW *win, const char *astr, int n)
@@ -80,8 +80,7 @@ waddnstr(WINDOW *win, const char *astr, int n)
 NCURSES_EXPORT(int)
 waddchnstr(WINDOW *win, const chtype *astr, int n)
 {
-    NCURSES_SIZE_T y = win->_cury;
-    NCURSES_SIZE_T x = win->_curx;
+    NCURSES_SIZE_T y, x;
     int code = OK;
     int i;
     struct ldat *line;
@@ -91,6 +90,8 @@ waddchnstr(WINDOW *win, const chtype *astr, int n)
     if (!win)
 	returnCode(ERR);
 
+    y = win->_cury;
+    x = win->_curx;
     if (n < 0) {
 	const chtype *str;
 	n = 0;
@@ -128,8 +129,8 @@ NCURSES_EXPORT(int)
 wadd_wchnstr(WINDOW *win, const cchar_t *astr, int n)
 {
     static const NCURSES_CH_T blank = NewChar(BLANK_TEXT);
-    NCURSES_SIZE_T y = win->_cury;
-    NCURSES_SIZE_T x = win->_curx;
+    NCURSES_SIZE_T y;
+    NCURSES_SIZE_T x;
     int code = OK;
     struct ldat *line;
     int i, j, start, len, end;
@@ -139,6 +140,8 @@ wadd_wchnstr(WINDOW *win, const cchar_t *astr, int n)
     if (!win)
 	returnCode(ERR);
 
+    y = win->_cury;
+    x = win->_curx;
     if (n < 0) {
 	n = _nc_wchstrlen(astr);
     }

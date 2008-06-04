@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -48,7 +48,7 @@
 #include <tic.h>
 #include <term_entry.h>
 
-MODULE_ID("$Id: parse_entry.c,v 1.63 2006/06/17 17:57:50 tom Exp $")
+MODULE_ID("$Id: parse_entry.c,v 1.65 2007/08/11 16:19:02 tom Exp $")
 
 #ifdef LINT
 static short const parametrized[] =
@@ -283,7 +283,7 @@ _nc_parse_entry(struct entry *entryp, int literal, bool silent)
 	} else {
 	    /* normal token lookup */
 	    entry_ptr = _nc_find_entry(_nc_curr_token.tk_name,
-				       _nc_syntax ? _nc_cap_hash_table : _nc_info_hash_table);
+				       _nc_get_hash_table(_nc_syntax));
 
 	    /*
 	     * Our kluge to handle aliasing.  The reason it's done
@@ -300,7 +300,7 @@ _nc_parse_entry(struct entry *entryp, int literal, bool silent)
 		    if (entryp->nuses != 0) {
 			BAD_TC_USAGE
 		    }
-		    for (ap = _nc_capalias_table; ap->from; ap++)
+		    for (ap = _nc_get_alias_table(TRUE); ap->from; ap++)
 			if (strcmp(ap->from, _nc_curr_token.tk_name) == 0) {
 			    if (ap->to == (char *) 0) {
 				_nc_warning("%s (%s termcap extension) ignored",
@@ -308,14 +308,15 @@ _nc_parse_entry(struct entry *entryp, int literal, bool silent)
 				goto nexttok;
 			    }
 
-			    entry_ptr = _nc_find_entry(ap->to, _nc_cap_hash_table);
+			    entry_ptr = _nc_find_entry(ap->to,
+						       _nc_get_hash_table(TRUE));
 			    if (entry_ptr && !silent)
 				_nc_warning("%s (%s termcap extension) aliased to %s",
 					    ap->from, ap->source, ap->to);
 			    break;
 			}
 		} else {	/* if (_nc_syntax == SYN_TERMINFO) */
-		    for (ap = _nc_infoalias_table; ap->from; ap++)
+		    for (ap = _nc_get_alias_table(FALSE); ap->from; ap++)
 			if (strcmp(ap->from, _nc_curr_token.tk_name) == 0) {
 			    if (ap->to == (char *) 0) {
 				_nc_warning("%s (%s terminfo extension) ignored",
@@ -323,7 +324,8 @@ _nc_parse_entry(struct entry *entryp, int literal, bool silent)
 				goto nexttok;
 			    }
 
-			    entry_ptr = _nc_find_entry(ap->to, _nc_info_hash_table);
+			    entry_ptr = _nc_find_entry(ap->to,
+						       _nc_get_hash_table(FALSE));
 			    if (entry_ptr && !silent)
 				_nc_warning("%s (%s terminfo extension) aliased to %s",
 					    ap->from, ap->source, ap->to);
@@ -796,8 +798,8 @@ postprocess_termcap(TERMTYPE *tp, bool has_base)
 
 	    /* now we know we found a match in ko_table, so... */
 
-	    from_ptr = _nc_find_entry(ap->from, _nc_cap_hash_table);
-	    to_ptr = _nc_find_entry(ap->to, _nc_info_hash_table);
+	    from_ptr = _nc_find_entry(ap->from, _nc_get_hash_table(TRUE));
+	    to_ptr = _nc_find_entry(ap->to, _nc_get_hash_table(FALSE));
 
 	    if (!from_ptr || !to_ptr)	/* should never happen! */
 		_nc_err_abort("ko translation table is invalid, I give up");

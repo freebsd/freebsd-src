@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2006 Free Software Foundation, Inc.                        *
+ * Copyright (c) 2006,2007 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
  ****************************************************************************/
 
 /****************************************************************************
- *  Author: Thomas E. Dickey                     2006                       *
+ *  Author: Thomas E. Dickey                                                *
  ****************************************************************************/
 
 /*
@@ -38,10 +38,11 @@
 
 #include <tic.h>
 
-MODULE_ID("$Id: db_iterator.c,v 1.5 2006/12/16 19:06:42 tom Exp $")
+MODULE_ID("$Id: db_iterator.c,v 1.6 2007/04/22 00:00:26 tom Exp $")
 
-static bool have_tic_directory = FALSE;
-static bool keep_tic_directory = FALSE;
+#define HaveTicDirectory _nc_globals.have_tic_directory
+#define KeepTicDirectory _nc_globals.keep_tic_directory
+#define TicDirectory     _nc_globals.tic_directory
 
 /*
  * Record the "official" location of the terminfo directory, according to
@@ -50,19 +51,17 @@ static bool keep_tic_directory = FALSE;
 NCURSES_EXPORT(const char *)
 _nc_tic_dir(const char *path)
 {
-    static const char *result = TERMINFO;
-
-    if (!keep_tic_directory) {
+    if (!KeepTicDirectory) {
 	if (path != 0) {
-	    result = path;
-	    have_tic_directory = TRUE;
-	} else if (!have_tic_directory && use_terminfo_vars()) {
+	    TicDirectory = path;
+	    HaveTicDirectory = TRUE;
+	} else if (!HaveTicDirectory && use_terminfo_vars()) {
 	    char *envp;
 	    if ((envp = getenv("TERMINFO")) != 0)
 		return _nc_tic_dir(envp);
 	}
     }
-    return result;
+    return TicDirectory;
 }
 
 /*
@@ -74,16 +73,15 @@ NCURSES_EXPORT(void)
 _nc_keep_tic_dir(const char *path)
 {
     _nc_tic_dir(path);
-    keep_tic_directory = TRUE;
+    KeepTicDirectory = TRUE;
 }
 
 /*
  * Process the list of :-separated directories, looking for the terminal type.
  * We don't use strtok because it does not show us empty tokens.
  */
-
-static char *this_db_list = 0;
-static int size_db_list;
+#define ThisDbList	_nc_globals.dbi_list
+#define ThisDbSize	_nc_globals.dbi_size
 
 /*
  * Cleanup.
@@ -91,10 +89,10 @@ static int size_db_list;
 NCURSES_EXPORT(void)
 _nc_last_db(void)
 {
-    if (this_db_list != 0) {
-	FreeAndNull(this_db_list);
+    if (ThisDbList != 0) {
+	FreeAndNull(ThisDbList);
     }
-    size_db_list = 0;
+    ThisDbSize = 0;
 }
 
 /* The TERMINFO_DIRS value, if defined by the configure script, begins with a
@@ -104,14 +102,14 @@ static const char *
 next_list_item(const char *source, int *offset)
 {
     if (source != 0) {
-	FreeIfNeeded(this_db_list);
-	this_db_list = strdup(source);
-	size_db_list = strlen(source);
+	FreeIfNeeded(ThisDbList);
+	ThisDbList = strdup(source);
+	ThisDbSize = strlen(source);
     }
 
-    if (this_db_list != 0 && size_db_list && *offset < size_db_list) {
+    if (ThisDbList != 0 && ThisDbSize && *offset < ThisDbSize) {
 	static char system_db[] = TERMINFO;
-	char *result = this_db_list + *offset;
+	char *result = ThisDbList + *offset;
 	char *marker = strchr(result, NCURSES_PATHSEP);
 
 	/*
@@ -124,9 +122,9 @@ next_list_item(const char *source, int *offset)
 	    marker = result + *offset;
 	} else {
 	    *marker++ = 0;
-	    *offset = marker - this_db_list;
+	    *offset = marker - ThisDbList;
 	}
-	if (*result == 0 && result != (this_db_list + size_db_list))
+	if (*result == 0 && result != (ThisDbList + ThisDbSize))
 	    result = system_db;
 	return result;
     }
@@ -153,7 +151,7 @@ _nc_next_db(DBDIRS * state, int *offset)
 
 	switch (*state) {
 	case dbdTIC:
-	    if (have_tic_directory)
+	    if (HaveTicDirectory)
 		result = _nc_tic_dir(0);
 	    break;
 #if USE_DATABASE
