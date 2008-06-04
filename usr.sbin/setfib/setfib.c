@@ -98,6 +98,6 @@ usage(void)
 {
 
 	(void)fprintf(stderr,
-	    "usage: setfib [-[F]]value command");
+	    "usage: setfib [-[F]]value command\n");
 	exit(1);
 }
