@@ -26,8 +26,8 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: term.5,v 1.17 2006/12/03 01:08:16 tom Exp $
-.TH TERM 5
+.\" $Id: term.5,v 1.19 2006/12/24 18:12:38 tom Exp $
+.TH term 5
 .ds n 5
 .ds d @TERMINFO@
 .SH NAME
@@ -74,7 +74,7 @@ An 8 or more bit byte is assumed, but no assumptions about byte ordering
 or sign extension are made.
 .PP
 The compiled file is created with the
-.I tic
+.B @TIC@
 program, and read by the routine
 .IR setupterm .
 The file is divided into six parts:

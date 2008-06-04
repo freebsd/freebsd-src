@@ -26,8 +26,8 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: tic.1m,v 1.43 2006/05/13 15:14:01 tom Exp $
-.TH tic 1M ""
+.\" $Id: tic.1m,v 1.44 2006/12/24 17:59:11 tom Exp $
+.TH @TIC@ 1M ""
 .ds n 5
 .ds d @TERMINFO@
 .SH NAME
@@ -92,7 +92,7 @@ Otherwise these are ignored.
 .TP
 \fB-C\fR
 Force source translation to termcap format.  Note: this differs from the \fB-C\fR
-option of \fIinfocmp\fR(1M) in that it does not merely translate capability
+option of \fB@INFOCMP@\fR(1M) in that it does not merely translate capability
 names, but also translates terminfo strings to termcap format.  Capabilities
 that are not translatable are left in the entry under their terminfo names
 but commented out with two preceding dots.

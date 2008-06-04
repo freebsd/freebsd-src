@@ -1,11 +1,11 @@
-.\" $Id: terminfo.tail,v 1.44 2006/04/01 22:47:01 tom Exp $
+.\" $Id: terminfo.tail,v 1.49 2008/02/16 20:57:43 tom Exp $
 .\" Beginning of terminfo.tail file
 .\" This file is part of ncurses.
 .\" See "terminfo.head" for copyright.
 .ps +1
-..
+.
 .SS A Sample Entry
-..
+.
 The following entry, describing an ANSI-standard terminal, is representative
 of what a \fBterminfo\fR entry for a modern terminal typically looks like.
 .PP
@@ -297,7 +297,7 @@ while the Lear Siegler \s-1ADM-3\s0 is described as
 Cursor addressing and other strings requiring parameters
 in the terminal are described by a
 parameterized string capability, with
-.IR printf (3S)
+.IR printf (3)
 like escapes \fB%x\fR in it.
 For example, to address the cursor, the
 .B cup
@@ -325,7 +325,9 @@ The \fB%\fR encodings have the following meanings:
 outputs `%'
 .TP
 %\fI[[\fP:\fI]flags][width[.precision]][\fPdoxXs\fI]\fP
-as in \fBprintf\fP, flags are [-+#] and space
+as in \fBprintf\fP, flags are [-+#] and space.
+Use a `:' to allow the next character to be a `-' flag,
+avoiding interpreting "%-" as an operator.
 .TP
 %c
 print pop() like %c in \fBprintf\fP
@@ -395,7 +397,7 @@ It is possible to form else-if's a la Algol 68:
 .IP
 where c\di\u are conditions, b\di\u are bodies.
 .IP
-Use the \fB-f\fP option of \fBtic\fP or \fBinfocmp\fP to see
+Use the \fB-f\fP option of \fBtic\fP or \fB@INFOCMP@\fP to see
 the structure of if-the-else's.
 Some strings, e.g., \fBsgr\fP can be very complicated when written
 on one line.
@@ -993,7 +995,7 @@ with the rest of the terminfo description.
 They are normally sent to the terminal, by the
 .I init
 option of the
-.IR tput
+.IR @TPUT@
 program, each time the user logs in.
 They will be printed in the following order:
 .RS
@@ -1578,7 +1580,7 @@ and the application has only allocated a 1k buffer,
 *
 and the termcap library (like the one in BSD/OS 1.1 and GNU) reads
 the whole entry into the buffer, no matter what its length, to see
-if it's the entry it wants,
+if it is the entry it wants,
 .TP 5
 *
 and \fBtgetent()\fP is searching for a terminal type that either is the
@@ -1599,19 +1601,19 @@ here but will return incorrect data for the terminal.
 .PP
 The "after tc expansion" length will have a similar effect to the
 above, but only for people who actually set TERM to that terminal
-type, since \fBtgetent()\fP only does "tc" expansion once it's found the
+type, since \fBtgetent()\fP only does "tc" expansion once it is found the
 terminal type it was looking for, not while searching.
 .PP
 In summary, a termcap entry that is longer than 1023 bytes can cause,
 on various combinations of termcap libraries and applications, a core
 dump, warnings, or incorrect operation.
-If it's too long even before
+If it is too long even before
 "tc" expansion, it will have this effect even for users of some other
 terminal types and users whose TERM variable does not have a termcap
 entry.
 .PP
 When in -C (translate to termcap) mode, the \fBncurses\fR implementation of
-\fBtic\fR(1) issues warning messages when the pre-tc length of a termcap
+\fB@TIC@\fR(1M) issues warning messages when the pre-tc length of a termcap
 translation is too long.
 The -c (check) option also checks resolved (after tc
 expansion) lengths.
@@ -1688,7 +1690,7 @@ files containing terminal descriptions
 \fB@TIC@\fR(1M),
 \fB@INFOCMP@\fR(1M),
 \fBcurses\fR(3X),
-\fBprintf\fR(3S),
+\fBprintf\fR(3),
 \fBterm\fR(\*n).
 .SH AUTHORS
 Zeyd M. Ben-Halim, Eric S. Raymond, Thomas E. Dickey.

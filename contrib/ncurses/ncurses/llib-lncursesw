@@ -1066,6 +1066,11 @@ int	wstandend(
 		WINDOW	*z)
 		{ return(*(int *)0); }
 
+#undef getattrs
+int	getattrs(
+		const WINDOW *z)
+		{ return(*(int *)0); }
+
 #undef getcurx
 int	getcurx(
 		const WINDOW *z)
@@ -1104,6 +1109,68 @@ int	getparx(
 #undef getpary
 int	getpary(
 		const WINDOW *z)
+		{ return(*(int *)0); }
+
+#undef wgetparent
+WINDOW	*wgetparent(
+		const WINDOW *z)
+		{ return(*(WINDOW **)0); }
+
+#undef is_cleared
+NCURSES_BOOL is_cleared(
+		const WINDOW *z)
+		{ return(*(NCURSES_BOOL *)0); }
+
+#undef is_idcok
+NCURSES_BOOL is_idcok(
+		const WINDOW *z)
+		{ return(*(NCURSES_BOOL *)0); }
+
+#undef is_idlok
+NCURSES_BOOL is_idlok(
+		const WINDOW *z)
+		{ return(*(NCURSES_BOOL *)0); }
+
+#undef is_immedok
+NCURSES_BOOL is_immedok(
+		const WINDOW *z)
+		{ return(*(NCURSES_BOOL *)0); }
+
+#undef is_keypad
+NCURSES_BOOL is_keypad(
+		const WINDOW *z)
+		{ return(*(NCURSES_BOOL *)0); }
+
+#undef is_leaveok
+NCURSES_BOOL is_leaveok(
+		const WINDOW *z)
+		{ return(*(NCURSES_BOOL *)0); }
+
+#undef is_nodelay
+NCURSES_BOOL is_nodelay(
+		const WINDOW *z)
+		{ return(*(NCURSES_BOOL *)0); }
+
+#undef is_notimeout
+NCURSES_BOOL is_notimeout(
+		const WINDOW *z)
+		{ return(*(NCURSES_BOOL *)0); }
+
+#undef is_scrollok
+NCURSES_BOOL is_scrollok(
+		const WINDOW *z)
+		{ return(*(NCURSES_BOOL *)0); }
+
+#undef is_syncok
+NCURSES_BOOL is_syncok(
+		const WINDOW *z)
+		{ return(*(NCURSES_BOOL *)0); }
+
+#undef wgetscrreg
+int	wgetscrreg(
+		const WINDOW *a1, 
+		int	*a2, 
+		int	*z)
 		{ return(*(int *)0); }
 
 #undef add_wch
@@ -2529,14 +2596,6 @@ int	getcchar(
 		void	*opts)
 		{ return(*(int *)0); }
 
-/* ./widechar/lib_get_wch.c */
-
-#undef wget_wch
-int	wget_wch(
-		WINDOW	*win, 
-		wint_t	*result)
-		{ return(*(int *)0); }
-
 /* ./widechar/lib_erasewchar.c */
 
 #undef erasewchar
@@ -2547,6 +2606,14 @@ int	erasewchar(
 #undef killwchar
 int	killwchar(
 		wchar_t	*wch)
+		{ return(*(int *)0); }
+
+/* ./widechar/lib_get_wch.c */
+
+#undef wget_wch
+int	wget_wch(
+		WINDOW	*win, 
+		wint_t	*result)
 		{ return(*(int *)0); }
 
 /* ./widechar/lib_get_wstr.c */
@@ -2613,6 +2680,13 @@ int	winwstr(
 		WINDOW	*win, 
 		wchar_t	*wstr)
 		{ return(*(int *)0); }
+
+/* ./widechar/lib_key_name.c */
+
+#undef key_name
+char	*key_name(
+		wchar_t	c)
+		{ return(*(char **)0); }
 
 /* ./widechar/lib_pecho_wchar.c */
 
@@ -2832,40 +2906,11 @@ int	_nc_env_access(void)
 /* ./tinfo/add_tries.c */
 
 #undef _nc_add_to_try
-void	_nc_add_to_try(
-		struct tries **tree, 
+int	_nc_add_to_try(
+		TRIES	**tree, 
 		const char *str, 
 		unsigned code)
-		{ /* void */ }
-
-/* ./tinfo/alloc_entry.c */
-
-#undef _nc_init_entry
-void	_nc_init_entry(
-		TERMTYPE *const tp)
-		{ /* void */ }
-
-#undef _nc_copy_entry
-ENTRY	*_nc_copy_entry(
-		ENTRY	*oldp)
-		{ return(*(ENTRY **)0); }
-
-#undef _nc_save_str
-char	*_nc_save_str(
-		const char *const string)
-		{ return(*(char **)0); }
-
-#undef _nc_wrap_entry
-void	_nc_wrap_entry(
-		ENTRY	*const ep, 
-		NCURSES_BOOL copy_strings)
-		{ /* void */ }
-
-#undef _nc_merge_entry
-void	_nc_merge_entry(
-		TERMTYPE *const to, 
-		TERMTYPE *const from)
-		{ /* void */ }
+		{ return(*(int *)0); }
 
 /* ./tinfo/alloc_ttype.c */
 
@@ -2881,22 +2926,6 @@ void	_nc_copy_termtype(
 		TERMTYPE *src)
 		{ /* void */ }
 
-/* ./tinfo/captoinfo.c */
-
-#undef _nc_captoinfo
-char	*_nc_captoinfo(
-		const char *cap, 
-		const char *s, 
-		int const parameterized)
-		{ return(*(char **)0); }
-
-#undef _nc_infotocap
-char	*_nc_infotocap(
-		const char *cap, 
-		const char *str, 
-		int const parameterized)
-		{ return(*(char **)0); }
-
 /* ./codes.c */
 
 #undef boolcodes
@@ -2906,31 +2935,7 @@ char	*const numcodes[] = {0};
 #undef strcodes
 char	*const strcodes[] = {0};
 
-/* ./comp_captab.c */
-
-#include <ncurses_cfg.h>
-
-#undef _nc_info_hash_table
-const struct name_table_entry *const _nc_info_hash_table[995] = {0};
-#undef _nc_cap_hash_table
-const struct name_table_entry *const _nc_cap_hash_table[995] = {0};
-#undef _nc_capalias_table
-const struct alias _nc_capalias_table[] = {0};
-#undef _nc_infoalias_table
-const struct alias _nc_infoalias_table[] = {0};
-
-#undef _nc_get_table
-const struct name_table_entry *_nc_get_table(
-		NCURSES_BOOL termcap)
-		{ return(*(const struct name_table_entry **)0); }
-
-#undef _nc_get_hash_table
-const struct name_table_entry *const *_nc_get_hash_table(
-		NCURSES_BOOL termcap)
-		{ return(*(const struct name_table_entry **)0); }
-
 /* ./tinfo/comp_error.c */
-
 #undef _nc_suppress_warnings
 NCURSES_BOOL _nc_suppress_warnings;
 #undef _nc_curr_line
@@ -2975,134 +2980,6 @@ void	_nc_syserr_abort(
 		...)
 		{ /* void */ }
 
-/* ./tinfo/comp_expand.c */
-
-#undef _nc_tic_expand
-char	*_nc_tic_expand(
-		const char *srcp, 
-		NCURSES_BOOL tic_format, 
-		int	numbers)
-		{ return(*(char **)0); }
-
-/* ./tinfo/comp_hash.c */
-
-#include <hashsize.h>
-
-#undef _nc_find_entry
-struct name_table_entry const *_nc_find_entry(
-		const char *string, 
-		const struct name_table_entry *const *hash_table)
-		{ return(*(struct name_table_entry const **)0); }
-
-#undef _nc_find_type_entry
-struct name_table_entry const *_nc_find_type_entry(
-		const char *string, 
-		int	type, 
-		const struct name_table_entry *table)
-		{ return(*(struct name_table_entry const **)0); }
-
-/* ./tinfo/comp_parse.c */
-
-#undef _nc_check_termtype2
-void	(*_nc_check_termtype2)(
-		TERMTYPE *p1, 
-		NCURSES_BOOL p2);
-#undef _nc_check_termtype
-void	(*_nc_check_termtype)(
-		TERMTYPE *p1);
-#undef _nc_head
-ENTRY	*_nc_head;
-#undef _nc_tail
-ENTRY	*_nc_tail;
-
-#undef _nc_free_entries
-void	_nc_free_entries(
-		ENTRY	*headp)
-		{ /* void */ }
-
-#undef _nc_delink_entry
-ENTRY	*_nc_delink_entry(
-		ENTRY	*headp, 
-		TERMTYPE *tterm)
-		{ return(*(ENTRY **)0); }
-
-#undef _nc_free_entry
-void	_nc_free_entry(
-		ENTRY	*headp, 
-		TERMTYPE *tterm)
-		{ /* void */ }
-
-#undef _nc_entry_match
-NCURSES_BOOL _nc_entry_match(
-		char	*n1, 
-		char	*n2)
-		{ return(*(NCURSES_BOOL *)0); }
-
-#undef _nc_read_entry_source
-void	_nc_read_entry_source(
-		FILE	*fp, 
-		char	*buf, 
-		int	literal, 
-		NCURSES_BOOL silent, 
-		NCURSES_BOOL (*hook)(
-		ENTRY	*p1))
-		{ /* void */ }
-
-#undef _nc_resolve_uses2
-int	_nc_resolve_uses2(
-		NCURSES_BOOL fullresolve, 
-		NCURSES_BOOL literal)
-		{ return(*(int *)0); }
-
-#undef _nc_resolve_uses
-int	_nc_resolve_uses(
-		NCURSES_BOOL fullresolve)
-		{ return(*(int *)0); }
-
-/* ./tinfo/comp_scan.c */
-
-#undef _nc_syntax
-int	_nc_syntax;
-#undef _nc_curr_file_pos
-long	_nc_curr_file_pos;
-#undef _nc_comment_start
-long	_nc_comment_start;
-#undef _nc_comment_end
-long	_nc_comment_end;
-#undef _nc_start_line
-long	_nc_start_line;
-#undef _nc_curr_token
-struct token _nc_curr_token;
-#undef _nc_disable_period
-NCURSES_BOOL _nc_disable_period;
-
-#undef _nc_reset_input
-void	_nc_reset_input(
-		FILE	*fp, 
-		char	*buf)
-		{ /* void */ }
-
-#undef _nc_get_token
-int	_nc_get_token(
-		NCURSES_BOOL silent)
-		{ return(*(int *)0); }
-
-#undef _nc_trans_string
-int	_nc_trans_string(
-		char	*ptr, 
-		char	*last)
-		{ return(*(int *)0); }
-
-#undef _nc_push_token
-void	_nc_push_token(
-		int	tokclass)
-		{ /* void */ }
-
-#undef _nc_panic_mode
-void	_nc_panic_mode(
-		char	ch)
-		{ /* void */ }
-
 /* ./tinfo/db_iterator.c */
 
 #undef _nc_tic_dir
@@ -3138,6 +3015,34 @@ void	*_nc_doalloc(
 		void	*oldp, 
 		size_t	amount)
 		{ return(*(void **)0); }
+
+/* ./tinfo/entries.c */
+
+#undef _nc_head
+ENTRY	*_nc_head;
+#undef _nc_tail
+ENTRY	*_nc_tail;
+
+#undef _nc_free_entry
+void	_nc_free_entry(
+		ENTRY	*headp, 
+		TERMTYPE *tterm)
+		{ /* void */ }
+
+#undef _nc_free_entries
+void	_nc_free_entries(
+		ENTRY	*headp)
+		{ /* void */ }
+
+#undef _nc_delink_entry
+ENTRY	*_nc_delink_entry(
+		ENTRY	*headp, 
+		TERMTYPE *tterm)
+		{ return(*(ENTRY **)0); }
+
+#undef _nc_leaks_tinfo
+void	_nc_leaks_tinfo(void)
+		{ /* void */ }
 
 /* ./fallback.c */
 
@@ -3181,7 +3086,7 @@ char	*_nc_home_terminfo(void)
 #include <init_keytry.h>
 
 #undef _nc_tinfo_fkeys
-struct tinfo_fkeys _nc_tinfo_fkeys[];
+const struct tinfo_fkeys _nc_tinfo_fkeys[] = {0};
 
 #endif
 
@@ -3248,6 +3153,10 @@ WINDOW	*newscr;
 SCREEN	*_nc_screen_chain;
 #undef SP
 SCREEN	*SP;
+#undef _nc_globals
+NCURSES_GLOBALS _nc_globals;
+#undef _nc_prescreen
+NCURSES_PRESCREEN _nc_prescreen;
 
 /* ./tinfo/lib_has_cap.c */
 
@@ -3275,17 +3184,11 @@ int	flushinp(void)
 
 /* ./lib_keyname.c */
 
-#undef _nc_key_names
-const struct kn _nc_key_names[] = {0};
+struct kn { short offset; int code; };
 
 #undef keyname
 char	*keyname(
 		int	c)
-		{ return(*(char **)0); }
-
-#undef key_name
-char	*key_name(
-		wchar_t	c)
 		{ return(*(char **)0); }
 
 /* ./tinfo/lib_longname.c */
@@ -3421,12 +3324,18 @@ int	TABSIZE;
 
 #undef _nc_handle_sigwinch
 int	_nc_handle_sigwinch(
-		int	enable)
+		int	update)
 		{ return(*(int *)0); }
 
 #undef use_env
 void	use_env(
 		NCURSES_BOOL f)
+		{ /* void */ }
+
+#undef _nc_get_screensize
+void	_nc_get_screensize(
+		int	*linep, 
+		int	*colp)
 		{ /* void */ }
 
 #undef _nc_update_screensize
@@ -3528,14 +3437,6 @@ char	*tigetstr(
 		{ return(*(char **)0); }
 
 /* ./tinfo/lib_tparm.c */
-
-typedef struct {
-    union {
- int num;
- char *str;
-    } data;
-    NCURSES_BOOL num_type;
-} stack_frame;
 
 #undef _nc_tparm_err
 int	_nc_tparm_err;
@@ -3802,26 +3703,6 @@ char	*const strnames[] = {0};
 #undef strfnames
 char	*const strfnames[] = {0};
 
-/* ./tinfo/parse_entry.c */
-
-#undef _nc_parse_entry
-int	_nc_parse_entry(
-		struct entry *entryp, 
-		int	literal, 
-		NCURSES_BOOL silent)
-		{ return(*(int *)0); }
-
-#undef _nc_capcmp
-int	_nc_capcmp(
-		const char *s, 
-		const char *t)
-		{ return(*(int *)0); }
-
-typedef struct {
-    const char *from;
-    const char *to;
-} assoc;
-
 /* ./tinfo/read_entry.c */
 
 #include <hashed_db.h>
@@ -3899,11 +3780,6 @@ NCURSES_BOOL _nc_safe_strcpy(
 
 /* ./trace/trace_buf.c */
 
-typedef struct {
-    char *text;
-    size_t size;
-} LIST;
-
 #undef _nc_trace_buf
 char	*_nc_trace_buf(
 		int	bufnum, 
@@ -3920,14 +3796,14 @@ char	*_nc_trace_bufcat(
 
 #undef _nc_trace_tries
 void	_nc_trace_tries(
-		struct tries *tree)
+		TRIES	*tree)
 		{ /* void */ }
 
 /* ./base/tries.c */
 
 #undef _nc_expand_try
 char	*_nc_expand_try(
-		struct tries *tree, 
+		TRIES	*tree, 
 		unsigned code, 
 		int	*count, 
 		size_t	len)
@@ -3935,13 +3811,13 @@ char	*_nc_expand_try(
 
 #undef _nc_remove_key
 int	_nc_remove_key(
-		struct tries **tree, 
+		TRIES	**tree, 
 		unsigned code)
 		{ return(*(int *)0); }
 
 #undef _nc_remove_string
 int	_nc_remove_string(
-		struct tries **tree, 
+		TRIES	**tree, 
 		const char *string)
 		{ return(*(int *)0); }
 
@@ -4012,6 +3888,195 @@ const char *_nc_viscbuf(
 		const cchar_t *buf, 
 		int	len)
 		{ return(*(const char **)0); }
+
+/* ./tinfo/alloc_entry.c */
+
+#undef _nc_init_entry
+void	_nc_init_entry(
+		TERMTYPE *const tp)
+		{ /* void */ }
+
+#undef _nc_copy_entry
+ENTRY	*_nc_copy_entry(
+		ENTRY	*oldp)
+		{ return(*(ENTRY **)0); }
+
+#undef _nc_save_str
+char	*_nc_save_str(
+		const char *const string)
+		{ return(*(char **)0); }
+
+#undef _nc_wrap_entry
+void	_nc_wrap_entry(
+		ENTRY	*const ep, 
+		NCURSES_BOOL copy_strings)
+		{ /* void */ }
+
+#undef _nc_merge_entry
+void	_nc_merge_entry(
+		TERMTYPE *const to, 
+		TERMTYPE *const from)
+		{ /* void */ }
+
+/* ./tinfo/captoinfo.c */
+
+#undef _nc_captoinfo
+char	*_nc_captoinfo(
+		const char *cap, 
+		const char *s, 
+		int const parameterized)
+		{ return(*(char **)0); }
+
+#undef _nc_infotocap
+char	*_nc_infotocap(
+		const char *cap, 
+		const char *str, 
+		int const parameterized)
+		{ return(*(char **)0); }
+
+/* ./comp_captab.c */
+
+#include <hashsize.h>
+
+#undef _nc_get_table
+const struct name_table_entry *_nc_get_table(
+		NCURSES_BOOL termcap)
+		{ return(*(const struct name_table_entry **)0); }
+
+#undef _nc_get_hash_table
+const short *_nc_get_hash_table(
+		NCURSES_BOOL termcap)
+		{ return(*(const short **)0); }
+
+#undef _nc_get_alias_table
+const struct alias *_nc_get_alias_table(
+		NCURSES_BOOL termcap)
+		{ return(*(const struct alias **)0); }
+
+/* ./tinfo/comp_expand.c */
+
+#undef _nc_tic_expand
+char	*_nc_tic_expand(
+		const char *srcp, 
+		NCURSES_BOOL tic_format, 
+		int	numbers)
+		{ return(*(char **)0); }
+
+/* ./tinfo/comp_hash.c */
+
+#undef _nc_find_entry
+struct name_table_entry const *_nc_find_entry(
+		const char *string, 
+		const short *hash_table)
+		{ return(*(struct name_table_entry const **)0); }
+
+#undef _nc_find_type_entry
+struct name_table_entry const *_nc_find_type_entry(
+		const char *string, 
+		int	type, 
+		const struct name_table_entry *table)
+		{ return(*(struct name_table_entry const **)0); }
+
+/* ./tinfo/comp_parse.c */
+
+#undef _nc_check_termtype2
+void	(*_nc_check_termtype2)(
+		TERMTYPE *p1, 
+		NCURSES_BOOL p2);
+#undef _nc_check_termtype
+void	(*_nc_check_termtype)(
+		TERMTYPE *p1);
+
+#undef _nc_entry_match
+NCURSES_BOOL _nc_entry_match(
+		char	*n1, 
+		char	*n2)
+		{ return(*(NCURSES_BOOL *)0); }
+
+#undef _nc_read_entry_source
+void	_nc_read_entry_source(
+		FILE	*fp, 
+		char	*buf, 
+		int	literal, 
+		NCURSES_BOOL silent, 
+		NCURSES_BOOL (*hook)(
+		ENTRY	*p1))
+		{ /* void */ }
+
+#undef _nc_resolve_uses2
+int	_nc_resolve_uses2(
+		NCURSES_BOOL fullresolve, 
+		NCURSES_BOOL literal)
+		{ return(*(int *)0); }
+
+#undef _nc_resolve_uses
+int	_nc_resolve_uses(
+		NCURSES_BOOL fullresolve)
+		{ return(*(int *)0); }
+
+/* ./tinfo/comp_scan.c */
+
+#undef _nc_syntax
+int	_nc_syntax;
+#undef _nc_curr_file_pos
+long	_nc_curr_file_pos;
+#undef _nc_comment_start
+long	_nc_comment_start;
+#undef _nc_comment_end
+long	_nc_comment_end;
+#undef _nc_start_line
+long	_nc_start_line;
+#undef _nc_curr_token
+struct token _nc_curr_token;
+#undef _nc_disable_period
+NCURSES_BOOL _nc_disable_period;
+
+#undef _nc_reset_input
+void	_nc_reset_input(
+		FILE	*fp, 
+		char	*buf)
+		{ /* void */ }
+
+#undef _nc_get_token
+int	_nc_get_token(
+		NCURSES_BOOL silent)
+		{ return(*(int *)0); }
+
+#undef _nc_trans_string
+int	_nc_trans_string(
+		char	*ptr, 
+		char	*last)
+		{ return(*(int *)0); }
+
+#undef _nc_push_token
+void	_nc_push_token(
+		int	tokclass)
+		{ /* void */ }
+
+#undef _nc_panic_mode
+void	_nc_panic_mode(
+		char	ch)
+		{ /* void */ }
+
+/* ./tinfo/parse_entry.c */
+
+#undef _nc_parse_entry
+int	_nc_parse_entry(
+		struct entry *entryp, 
+		int	literal, 
+		NCURSES_BOOL silent)
+		{ return(*(int *)0); }
+
+#undef _nc_capcmp
+int	_nc_capcmp(
+		const char *s, 
+		const char *t)
+		{ return(*(int *)0); }
+
+typedef struct {
+    const char *from;
+    const char *to;
+} assoc;
 
 /* ./tinfo/write_entry.c */
 

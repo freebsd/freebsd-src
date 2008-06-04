@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2002-2003,2004 Free Software Foundation, Inc.              *
+ * Copyright (c) 2002-2004,2007 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -39,26 +39,30 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_unget_wch.c,v 1.7 2004/12/05 01:21:31 tom Exp $")
+MODULE_ID("$Id: lib_unget_wch.c,v 1.9 2007/11/25 00:57:00 tom Exp $")
 
-#ifdef linux
 /*
- * glibc's wcrtomb() function is broken - does not return the proper value
- * when target is null (noted for glibc 2.3.2).  This is a workaround.
+ * Wrapper for wcrtomb() which obtains the length needed for the given
+ * wide-character 'source'.
  */
 NCURSES_EXPORT(size_t)
 _nc_wcrtomb(char *target, wchar_t source, mbstate_t * state)
 {
+    int result;
+
     if (target == 0) {
 	wchar_t temp[2];
 	const wchar_t *tempp = temp;
 	temp[0] = source;
 	temp[1] = 0;
-	return wcsrtombs(NULL, &tempp, 0, state);
+	result = wcsrtombs(NULL, &tempp, 0, state);
+    } else {
+	result = wcrtomb(target, source, state);
     }
-    return wcrtomb(target, source, state);
+    if (!isEILSEQ(result) && (result == 0))
+	result = 1;
+    return result;
 }
-#endif
 
 NCURSES_EXPORT(int)
 unget_wch(const wchar_t wch)

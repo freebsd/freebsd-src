@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2002,2006 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -40,46 +40,46 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_overlay.c,v 1.22 2006/10/14 20:43:31 tom Exp $")
+MODULE_ID("$Id: lib_overlay.c,v 1.25 2008/04/12 17:21:59 tom Exp $")
 
 static int
-overlap(const WINDOW *const s, WINDOW *const d, int const flag)
+overlap(const WINDOW *const src, WINDOW *const dst, int const flag)
 {
+    int rc = ERR;
     int sx1, sy1, sx2, sy2;
     int dx1, dy1, dx2, dy2;
     int sminrow, smincol;
     int dminrow, dmincol;
     int dmaxrow, dmaxcol;
 
-    T((T_CALLED("overlap(%p,%p,%d)"), s, d, flag));
+    T((T_CALLED("overlap(%p,%p,%d)"), src, dst, flag));
 
-    if (s == 0 || d == 0) {
-	returnCode(ERR);
-    } else {
+    if (src != 0 && dst != 0) {
+	_nc_lock_window(src);
+	_nc_lock_window(dst);
+
 	T(("src : begy %ld, begx %ld, maxy %ld, maxx %ld",
-	   (long) s->_begy,
-	   (long) s->_begx,
-	   (long) s->_maxy,
-	   (long) s->_maxx));
+	   (long) src->_begy,
+	   (long) src->_begx,
+	   (long) src->_maxy,
+	   (long) src->_maxx));
 	T(("dst : begy %ld, begx %ld, maxy %ld, maxx %ld",
-	   (long) d->_begy,
-	   (long) d->_begx,
-	   (long) d->_maxy,
-	   (long) d->_maxx));
+	   (long) dst->_begy,
+	   (long) dst->_begx,
+	   (long) dst->_maxy,
+	   (long) dst->_maxx));
 
-	sx1 = s->_begx;
-	sy1 = s->_begy;
-	sx2 = sx1 + s->_maxx;
-	sy2 = sy1 + s->_maxy;
+	sx1 = src->_begx;
+	sy1 = src->_begy;
+	sx2 = sx1 + src->_maxx;
+	sy2 = sy1 + src->_maxy;
 
-	dx1 = d->_begx;
-	dy1 = d->_begy;
-	dx2 = dx1 + d->_maxx;
-	dy2 = dy1 + d->_maxy;
+	dx1 = dst->_begx;
+	dy1 = dst->_begy;
+	dx2 = dx1 + dst->_maxx;
+	dy2 = dy1 + dst->_maxy;
 
-	if (dx2 < sx1 || dx1 > sx2 || dy2 < sy1 || dy1 > sy2) {
-	    returnCode(ERR);	/* No intersection */
-	} else {
+	if (dx2 >= sx1 && dx1 <= sx2 && dy2 >= sy1 && dy1 <= sy2) {
 	    sminrow = max(sy1, dy1) - sy1;
 	    smincol = max(sx1, dx1) - sx1;
 	    dminrow = max(sy1, dy1) - dy1;
@@ -87,13 +87,16 @@ overlap(const WINDOW *const s, WINDOW *const d, int const flag)
 	    dmaxrow = min(sy2, dy2) - dy1;
 	    dmaxcol = min(sx2, dx2) - dx1;
 
-	    returnCode(copywin(s, d,
-			       sminrow, smincol,
-			       dminrow, dmincol,
-			       dmaxrow, dmaxcol,
-			       flag));
+	    rc = copywin(src, dst,
+			 sminrow, smincol,
+			 dminrow, dmincol,
+			 dmaxrow, dmaxcol,
+			 flag);
 	}
+	_nc_unlock_window(dst);
+	_nc_unlock_window(src);
     }
+    returnCode(rc);
 }
 
 /*
@@ -137,54 +140,72 @@ copywin(const WINDOW *src, WINDOW *dst,
 	int dmaxrow, int dmaxcol,
 	int over)
 {
+    int rc = ERR;
     int sx, sy, dx, dy;
     bool touched;
-    attr_t bk = AttrOf(dst->_nc_bkgd);
-    attr_t mask = ~(attr_t) ((bk & A_COLOR) ? A_COLOR : 0);
+    attr_t bk;
+    attr_t mask;
 
     T((T_CALLED("copywin(%p, %p, %d, %d, %d, %d, %d, %d, %d)"),
        src, dst, sminrow, smincol, dminrow, dmincol, dmaxrow, dmaxcol, over));
 
-    if (!src || !dst)
-	returnCode(ERR);
+    if (src && dst) {
 
-    /* make sure rectangle exists in source */
-    if ((sminrow + dmaxrow - dminrow) > (src->_maxy + 1) ||
-	(smincol + dmaxcol - dmincol) > (src->_maxx + 1)) {
-	returnCode(ERR);
-    }
+	_nc_lock_window(src);
+	_nc_lock_window(dst);
 
-    T(("rectangle exists in source"));
+	bk = AttrOf(dst->_nc_bkgd);
+	mask = ~(attr_t) ((bk & A_COLOR) ? A_COLOR : 0);
 
-    /* make sure rectangle fits in destination */
-    if (dmaxrow > dst->_maxy || dmaxcol > dst->_maxx) {
-	returnCode(ERR);
-    }
+	/* make sure rectangle exists in source */
+	if ((sminrow + dmaxrow - dminrow) <= (src->_maxy + 1) &&
+	    (smincol + dmaxcol - dmincol) <= (src->_maxx + 1)) {
 
-    T(("rectangle fits in destination"));
+	    T(("rectangle exists in source"));
 
-    for (dy = dminrow, sy = sminrow; dy <= dmaxrow; sy++, dy++) {
-	touched = FALSE;
-	for (dx = dmincol, sx = smincol; dx <= dmaxcol; sx++, dx++) {
-	    if (over) {
-		if ((CharOf(src->_line[sy].text[sx]) != L(' ')) &&
-		    (!CharEq(dst->_line[dy].text[dx], src->_line[sy].text[sx]))) {
-		    dst->_line[dy].text[dx] = src->_line[sy].text[sx];
-		    SetAttr(dst->_line[dy].text[dx],
-			    (AttrOf(src->_line[sy].text[sx]) & mask) | bk);
-		    touched = TRUE;
+	    /* make sure rectangle fits in destination */
+	    if (dmaxrow <= dst->_maxy && dmaxcol <= dst->_maxx) {
+
+		T(("rectangle fits in destination"));
+
+		for (dy = dminrow, sy = sminrow;
+		     dy <= dmaxrow;
+		     sy++, dy++) {
+
+		    touched = FALSE;
+		    for (dx = dmincol, sx = smincol;
+			 dx <= dmaxcol;
+			 sx++, dx++) {
+			if (over) {
+			    if ((CharOf(src->_line[sy].text[sx]) != L(' ')) &&
+				(!CharEq(dst->_line[dy].text[dx],
+					 src->_line[sy].text[sx]))) {
+				dst->_line[dy].text[dx] =
+				    src->_line[sy].text[sx];
+				SetAttr(dst->_line[dy].text[dx],
+					((AttrOf(src->_line[sy].text[sx]) &
+					  mask) | bk));
+				touched = TRUE;
+			    }
+			} else {
+			    if (!CharEq(dst->_line[dy].text[dx],
+					src->_line[sy].text[sx])) {
+				dst->_line[dy].text[dx] =
+				    src->_line[sy].text[sx];
+				touched = TRUE;
+			    }
+			}
+		    }
+		    if (touched) {
+			touchline(dst, dminrow, (dmaxrow - dminrow + 1));
+		    }
 		}
-	    } else {
-		if (!CharEq(dst->_line[dy].text[dx], src->_line[sy].text[sx])) {
-		    dst->_line[dy].text[dx] = src->_line[sy].text[sx];
-		    touched = TRUE;
-		}
+		T(("finished copywin"));
+		rc = OK;
 	    }
 	}
-	if (touched) {
-	    touchline(dst, dminrow, (dmaxrow - dminrow + 1));
-	}
+	_nc_unlock_window(dst);
+	_nc_unlock_window(src);
     }
-    T(("finished copywin"));
-    returnCode(OK);
+    returnCode(rc);
 }

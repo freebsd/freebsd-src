@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2001,2006 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,6 +29,8 @@
 /****************************************************************************
  *  Author: Zeyd M. Ben-Halim <zmbenhal@netcom.com> 1992,1995               *
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
+ *     and: Juergen Pfeifer                         1996-1999               *
+ *     and: Thomas E. Dickey                        1996-on                 *
  ****************************************************************************/
 
 /*
@@ -38,24 +40,27 @@
  */
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_slkclear.c,v 1.9 2006/05/27 19:21:19 tom Exp $")
+MODULE_ID("$Id: lib_slkclear.c,v 1.10 2007/12/29 17:51:47 tom Exp $")
 
 NCURSES_EXPORT(int)
 slk_clear(void)
 {
+    int rc = ERR;
+
     T((T_CALLED("slk_clear()")));
 
-    if (SP == NULL || SP->_slk == NULL)
-	returnCode(ERR);
-    SP->_slk->hidden = TRUE;
-    /* For simulated SLK's it's looks much more natural to
-       inherit those attributes from the standard screen */
-    SP->_slk->win->_nc_bkgd = stdscr->_nc_bkgd;
-    WINDOW_ATTRS(SP->_slk->win) = WINDOW_ATTRS(stdscr);
-    if (SP->_slk->win == stdscr) {
-	returnCode(OK);
-    } else {
-	werase(SP->_slk->win);
-	returnCode(wrefresh(SP->_slk->win));
+    if (SP != NULL && SP->_slk != NULL) {
+	SP->_slk->hidden = TRUE;
+	/* For simulated SLK's it looks much more natural to
+	   inherit those attributes from the standard screen */
+	SP->_slk->win->_nc_bkgd = stdscr->_nc_bkgd;
+	WINDOW_ATTRS(SP->_slk->win) = WINDOW_ATTRS(stdscr);
+	if (SP->_slk->win == stdscr) {
+	    rc = OK;
+	} else {
+	    werase(SP->_slk->win);
+	    rc = wrefresh(SP->_slk->win);
+	}
     }
+    returnCode(rc);
 }

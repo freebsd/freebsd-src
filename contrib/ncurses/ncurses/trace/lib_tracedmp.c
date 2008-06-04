@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -39,15 +39,16 @@
 #include <curses.priv.h>
 #include <ctype.h>
 
-MODULE_ID("$Id: lib_tracedmp.c,v 1.27 2006/10/14 20:43:31 tom Exp $")
+MODULE_ID("$Id: lib_tracedmp.c,v 1.29 2007/06/30 23:01:19 tom Exp $")
 
 #ifdef TRACE
+
+#define my_buffer _nc_globals.tracedmp_buf
+#define my_length _nc_globals.tracedmp_used
+
 NCURSES_EXPORT(void)
 _tracedump(const char *name, WINDOW *win)
 {
-    static char *buf = 0;
-    static size_t used = 0;
-
     int i, j, n, width;
 
     /* compute narrowest possible display width */
@@ -66,13 +67,13 @@ _tracedump(const char *name, WINDOW *win)
     }
     if (width < win->_maxx)
 	++width;
-    if (++width + 1 > (int) used) {
-	used = 2 * (width + 1);
-	buf = typeRealloc(char, used, buf);
+    if (++width + 1 > (int) my_length) {
+	my_length = 2 * (width + 1);
+	my_buffer = typeRealloc(char, my_length, my_buffer);
     }
 
     for (n = 0; n <= win->_maxy; ++n) {
-	char *ep = buf;
+	char *ep = my_buffer;
 	bool haveattrs, havecolors;
 
 	/*
@@ -99,6 +100,30 @@ _tracedump(const char *name, WINDOW *win)
 		(long) win->_line[n].lastchar,
 		ep);
 
+	/* if there are multi-column characters on the line, print them now */
+	if_WIDEC({
+	    bool multicolumn = FALSE;
+	    for (j = 0; j < width; ++j)
+		if (WidecExt(win->_line[n].text[j]) != 0) {
+		    multicolumn = TRUE;
+		    break;
+		}
+	    if (multicolumn) {
+		ep = my_buffer;
+		for (j = 0; j < width; ++j) {
+		    int test = WidecExt(win->_line[n].text[j]);
+		    if (test) {
+			ep[j] = test + '0';
+		    } else {
+			ep[j] = ' ';
+		    }
+		}
+		ep[j] = '\0';
+		_tracef("%*s[%2d]%*s='%s'", (int) strlen(name),
+			"widec", n, 8, " ", my_buffer);
+	    }
+	});
+
 	/* dump A_COLOR part, will screw up if there are more than 96 */
 	havecolors = FALSE;
 	for (j = 0; j < width; ++j)
@@ -107,7 +132,7 @@ _tracedump(const char *name, WINDOW *win)
 		break;
 	    }
 	if (havecolors) {
-	    ep = buf;
+	    ep = my_buffer;
 	    for (j = 0; j < width; ++j) {
 		int pair = GetPair(win->_line[n].text[j]);
 		if (pair >= 52)
@@ -123,7 +148,7 @@ _tracedump(const char *name, WINDOW *win)
 	    }
 	    ep[j] = '\0';
 	    _tracef("%*s[%2d]%*s='%s'", (int) strlen(name),
-		    "colors", n, 8, " ", buf);
+		    "colors", n, 8, " ", my_buffer);
 	}
 
 	for (i = 0; i < 4; ++i) {
@@ -137,20 +162,20 @@ _tracedump(const char *name, WINDOW *win)
 		    break;
 		}
 	    if (haveattrs) {
-		ep = buf;
+		ep = my_buffer;
 		for (j = 0; j < width; ++j)
 		    ep[j] = hex[(AttrOf(win->_line[n].text[j]) & mask) >>
 				((i + 4) * 4)];
 		ep[j] = '\0';
 		_tracef("%*s%d[%2d]%*s='%s'", (int) strlen(name) -
-			1, "attrs", i, n, 8, " ", buf);
+			1, "attrs", i, n, 8, " ", my_buffer);
 	    }
 	}
     }
 #if NO_LEAKS
-    free(buf);
-    buf = 0;
-    used = 0;
+    free(my_buffer);
+    my_buffer = 0;
+    my_length = 0;
 #endif
 }
 

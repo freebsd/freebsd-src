@@ -27,16 +27,16 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: infotocap.1m,v 1.6 2006/05/13 15:35:45 tom Exp $
-.TH infotocap 1M ""
+.\" $Id: infotocap.1m,v 1.8 2006/12/24 20:13:56 tom Exp $
+.TH @INFOTOCAP@ 1M ""
 .ds n 5
 .ds d @TERMINFO@
 .SH NAME
-\fBinfotocap\fR - convert a \fIterminfo\fR description into a \fItermcap\fR description
+\fB@INFOTOCAP@\fR - convert a \fIterminfo\fR description into a \fItermcap\fR description
 .SH SYNOPSIS
-\fBinfotocap\fR [\fB-v\fR\fIn\fR \fIwidth\fR]  [\fB-V\fR] [\fB-1\fR] [\fB-w\fR \fIwidth\fR] \fIfile\fR . . .
+\fB@INFOTOCAP@\fR [\fB-v\fR\fIn\fR \fIwidth\fR]  [\fB-V\fR] [\fB-1\fR] [\fB-w\fR \fIwidth\fR] \fIfile\fR . . .
 .SH DESCRIPTION
-\fBinfotocap\fR looks in \fIfile\fR for \fBterminfo\fR descriptions.  For each
+\fB@INFOTOCAP@\fR looks in \fIfile\fR for \fBterminfo\fR descriptions.  For each
 one found, an equivalent \fBtermcap\fR description is written to standard
 output.  Terminfo \fBuse\fR capabilities are translated directly to termcap
 \fBtc\fR capabilities.
@@ -59,12 +59,12 @@ change the output to \fIwidth\fR characters.
 \*d
 Compiled terminal description database.
 .SH NOTES
-This utility is actually a link to \fItic\fR(1M), running in \fI-C\fR mode.
-You can use other \fItic\fR options such as \fB-f\fR and  \fB-x\fR.
+This utility is actually a link to \fI@TIC@\fR, running in \fI-C\fR mode.
+You can use other \fI@TIC@\fR options such as \fB-f\fR and  \fB-x\fR.
 .SH SEE ALSO
 \fBcurses\fR(3X),
-\fBtic\fR(1M),
-\fBinfocmp\fR(1M),
+\fB@TIC@\fR(1M),
+\fB@INFOCMP@\fR(1M),
 \fBterminfo\fR(\*n)
 .PP
 This describes \fBncurses\fR

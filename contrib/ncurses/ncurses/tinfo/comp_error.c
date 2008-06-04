@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2002,2005 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2005,2007 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -41,36 +41,36 @@
 
 #include <tic.h>
 
-MODULE_ID("$Id: comp_error.c,v 1.30 2005/11/26 15:28:47 tom Exp $")
+MODULE_ID("$Id: comp_error.c,v 1.31 2007/04/21 23:38:32 tom Exp $")
 
 NCURSES_EXPORT_VAR(bool) _nc_suppress_warnings = FALSE;
 NCURSES_EXPORT_VAR(int) _nc_curr_line = 0; /* current line # in input */
 NCURSES_EXPORT_VAR(int) _nc_curr_col = 0; /* current column # in input */
 
-static const char *sourcename;
-static char *termtype;
+#define SourceName	_nc_globals.comp_sourcename
+#define TermType	_nc_globals.comp_termtype
 
 NCURSES_EXPORT(const char *)
 _nc_get_source(void)
 {
-    return sourcename;
+    return SourceName;
 }
 
 NCURSES_EXPORT(void)
 _nc_set_source(const char *const name)
 {
-    sourcename = name;
+    SourceName = name;
 }
 
 NCURSES_EXPORT(void)
 _nc_set_type(const char *const name)
 {
-    if (termtype == 0)
-	termtype = typeMalloc(char, MAX_NAME_SIZE + 1);
-    if (termtype != 0) {
-	termtype[0] = '\0';
+    if (TermType == 0)
+	TermType = typeMalloc(char, MAX_NAME_SIZE + 1);
+    if (TermType != 0) {
+	TermType[0] = '\0';
 	if (name)
-	    strncat(termtype, name, MAX_NAME_SIZE);
+	    strncat(TermType, name, MAX_NAME_SIZE);
     }
 }
 
@@ -78,25 +78,25 @@ NCURSES_EXPORT(void)
 _nc_get_type(char *name)
 {
 #if NO_LEAKS
-    if (name == 0 && termtype != 0) {
-	FreeAndNull(termtype);
+    if (name == 0 && TermType != 0) {
+	FreeAndNull(TermType);
 	return;
     }
 #endif
     if (name != 0)
-	strcpy(name, termtype != 0 ? termtype : "");
+	strcpy(name, TermType != 0 ? TermType : "");
 }
 
 static NCURSES_INLINE void
 where_is_problem(void)
 {
-    fprintf(stderr, "\"%s\"", sourcename);
+    fprintf(stderr, "\"%s\"", SourceName ? SourceName : "?");
     if (_nc_curr_line >= 0)
 	fprintf(stderr, ", line %d", _nc_curr_line);
     if (_nc_curr_col >= 0)
 	fprintf(stderr, ", col %d", _nc_curr_col);
-    if (termtype != 0 && termtype[0] != '\0')
-	fprintf(stderr, ", terminal '%s'", termtype);
+    if (TermType != 0 && TermType[0] != '\0')
+	fprintf(stderr, ", terminal '%s'", TermType);
     fputc(':', stderr);
     fputc(' ', stderr);
 }

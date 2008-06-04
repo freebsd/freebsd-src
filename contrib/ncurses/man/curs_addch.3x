@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_addch.3x,v 1.25 2006/12/02 17:02:22 tom Exp $
+.\" $Id: curs_addch.3x,v 1.27 2007/06/02 20:40:07 tom Exp $
 .TH curs_addch 3X ""
 .SH NAME
 \fBaddch\fR, \fBwaddch\fR, \fBmvaddch\fR, \fBmvwaddch\fR,
@@ -87,7 +87,7 @@ their equivalents.
 .SS Line Graphics
 The following variables may be used to add line drawing characters to the
 screen with routines of the \fBaddch\fR family.  The default character listed
-below is used if the \fBacsc\fR capability doesn't define a terminal-specific
+below is used if the \fBacsc\fR capability does not define a terminal-specific
 replacement for it.
 The names are taken from VT100 nomenclature.
 .PP
@@ -168,7 +168,7 @@ This is true of other implementations, but is not documented.
 \fBcurs_inch\fR(3X),
 \fBcurs_outopts\fR(3X),
 \fBcurs_refresh\fR(3X),
-\fBputc\fR(3S).
+\fBputc\fR(3).
 .PP
 Comparable functions in the wide-character (ncursesw) library are
 described in

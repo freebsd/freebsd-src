@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2001-2005,2006 Free Software Foundation, Inc.              *
+ * Copyright (c) 2001-2006,2007 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -42,11 +42,16 @@
 #include <tic.h>
 #include <ctype.h>
 
-MODULE_ID("$Id: visbuf.c,v 1.21 2006/12/02 21:20:28 tom Exp $")
+MODULE_ID("$Id: visbuf.c,v 1.26 2007/06/09 17:21:53 tom Exp $")
 
-static const char d_quote[] = {D_QUOTE, 0};
-static const char l_brace[] = {L_BRACE, 0};
-static const char r_brace[] = {R_BRACE, 0};
+#define NormalLen(len) (unsigned) ((len + 1) * 4)
+#define WideLen(len)   (unsigned) ((len + 1) * 4 * MB_CUR_MAX)
+
+#ifdef TRACE
+static const char d_quote[] = StringOf(D_QUOTE);
+static const char l_brace[] = StringOf(L_BRACE);
+static const char r_brace[] = StringOf(R_BRACE);
+#endif
 
 static char *
 _nc_vischar(char *tp, unsigned c)
@@ -68,6 +73,10 @@ _nc_vischar(char *tp, unsigned c)
     } else if (c == '\033') {
 	*tp++ = '\\';
 	*tp++ = 'e';
+    } else if (UChar(c) == 0x7f) {
+	*tp++ = '\\';
+	*tp++ = '^';
+	*tp++ = '?';
     } else if (is7bits(c) && iscntrl(UChar(c))) {
 	*tp++ = '\\';
 	*tp++ = '^';
@@ -96,11 +105,11 @@ _nc_visbuf2n(int bufnum, const char *buf, int len)
 	len = strlen(buf);
 
 #ifdef TRACE
-    tp = vbuf = _nc_trace_buf(bufnum, (unsigned) (len * 4) + 5);
+    tp = vbuf = _nc_trace_buf(bufnum, NormalLen(len));
 #else
     {
-	static char *mybuf[2];
-	mybuf[bufnum] = typeRealloc(char, (unsigned) (len * 4) + 5, mybuf[bufnum]);
+	static char *mybuf[4];
+	mybuf[bufnum] = typeRealloc(char, NormalLen(len), mybuf[bufnum]);
 	tp = vbuf = mybuf[bufnum];
     }
 #endif
@@ -161,11 +170,11 @@ _nc_viswbuf2n(int bufnum, const wchar_t *buf, int len)
 	len = wcslen(buf);
 
 #ifdef TRACE
-    tp = vbuf = _nc_trace_buf(bufnum, (unsigned) (len * 4) + 5);
+    tp = vbuf = _nc_trace_buf(bufnum, WideLen(len));
 #else
     {
 	static char *mybuf[2];
-	mybuf[bufnum] = typeRealloc(char, (unsigned) (len * 4) + 5, mybuf[bufnum]);
+	mybuf[bufnum] = typeRealloc(char, WideLen(len), mybuf[bufnum]);
 	tp = vbuf = mybuf[bufnum];
     }
 #endif
@@ -259,7 +268,8 @@ _nc_viscbuf2(int bufnum, const NCURSES_CH_T * buf, int len)
 	result = _nc_trace_bufcat(bufnum, l_brace);
 	result = _nc_trace_bufcat(bufnum, d_quote);
 	for (j = first; j <= last; ++j) {
-	    if ((found = _nc_altcharset_name(attr, (chtype) CharOf(buf[j]))) != 0) {
+	    found = _nc_altcharset_name(attr, (chtype) CharOf(buf[j]));
+	    if (found != 0) {
 		result = _nc_trace_bufcat(bufnum, found);
 		attr &= ~A_ALTCHARSET;
 	    } else

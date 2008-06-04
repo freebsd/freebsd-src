@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_util.3x,v 1.21 2006/08/26 14:17:48 tom Exp $
+.\" $Id: curs_util.3x,v 1.25 2007/05/26 21:44:42 tom Exp $
 .TH curs_util 3X ""
 .na
 .hy 0
@@ -49,7 +49,7 @@
 .sp
 \fBchar *unctrl(chtype c);\fR
 .br
-\fBchar *wunctrl(cchar_t *c);\fR
+\fBwchar_t *wunctrl(cchar_t *c);\fR
 .br
 \fBchar *keyname(int c);\fR
 .br
@@ -146,6 +146,29 @@ returns an error if the associated \fBfwrite\fP calls return an error.
 The XSI Curses standard, Issue 4 describes these functions.
 It states that \fBunctrl\fR and \fBwunctrl\fR will return a null pointer if
 unsuccessful, but does not define any error conditions.
+This implementation checks for three cases:
+.RS
+.TP 5
+-
+the parameter is a 7-bit US-ASCII code.
+This is the case that X/Open Curses documented.
+.TP 5
+-
+the parameter is in the range 128-159, i.e., a C1 control code.
+If \fBuse_legacy_coding\fP has been called with a \fB2\fP parameter,
+\fBunctrl\fP returns the parameter, i.e., a one-character string with
+the parameter as the first character.
+Otherwise, it returns ``~@'', ``~A'', etc., analogous to ``^@'', ``^A'', C0 controls.
+.IP
+X/Open Curses does not document whether \fBunctrl\fP can be called before
+initializing curses.
+This implementation permits that,
+and returns the ``~@'', etc., values in that case.
+.TP 5
+-
+parameter values outside the 0 to 255 range.
+\fBunctrl\fP returns a null pointer.
+.RE
 .PP
 The SVr4 documentation describes the action of \fBfilter\fR only in the vaguest
 terms.  The description here is adapted from the XSI Curses standard (which
@@ -157,12 +180,23 @@ showing C1 controls from the upper-128 codes with a `~' prefix rather than `^'.
 Other implementations have different conventions.
 For example, they may show both sets of control characters with `^',
 and strip the parameter to 7 bits.
-Or they may ignore C1 controls and treat all of the upper-1280 codes as
+Or they may ignore C1 controls and treat all of the upper-128 codes as
 printable.
 This implementation uses 8 bits but does not modify the string to reflect
 locale.
 The \fBuse_legacy_coding\fP function allows the caller to
 change the output of \fBunctrl\fP.
+.PP
+Likewise, the \fBmeta\fP function allows the caller to change the
+output of \fBkeyname\fP, i.e.,
+it determines whether to use the `M-' prefix
+for ``meta'' keys (codes in the range 128 to 255).
+Both \fBuse_legacy_coding\fP and \fBmeta\fP succeed only after
+curses is initialized. 
+X/Open Curses does not document the treatment of codes 128 to 159.
+When treating them as ``meta'' keys
+(or if \fBkeyname\fP is called before initializing curses),
+this implementation returns strings ``M-^@'', ``M-^A'', etc.
 .PP
 The \fBkeyname\fP function may return the names of user-defined
 string capabilities which are defined in the terminfo entry via the \fB-x\fP
@@ -178,11 +212,12 @@ It was not supported on Version 7, BSD or System V implementations.
 It is recommended that any code depending on ncurses extensions
 be conditioned using NCURSES_VERSION.
 .SH SEE ALSO
-\fBuse_legacy_coding\fR(3),
+\fBlegacy_coding\fR(3X),
 \fBcurses\fR(3X),
 \fBcurs_initscr\fR(3X),
 \fBcurs_kernel\fR(3X),
-\fBcurs_scr_dump\fR(3X).
+\fBcurs_scr_dump\fR(3X),
+\fBlegacy_coding\fR(3X).
 .\"#
 .\"# The following sets edit modes for GNU EMACS
 .\"# Local Variables:

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2002-2005,2006 Free Software Foundation, Inc.              *
+ * Copyright (c) 2002-2006,2007 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -40,7 +40,7 @@
 #include <curses.priv.h>
 #include <ctype.h>
 
-MODULE_ID("$Id: lib_get_wch.c,v 1.13 2006/06/03 17:27:57 tom Exp $")
+MODULE_ID("$Id: lib_get_wch.c,v 1.14 2007/05/12 19:03:16 tom Exp $")
 
 #if HAVE_MBTOWC && HAVE_MBLEN
 #define reset_mbytes(state) mblen(NULL, 0), mbtowc(NULL, NULL, 0)
@@ -77,7 +77,7 @@ wget_wch(WINDOW *win, wint_t *result)
      * _nc_wgetch(), while we want to return a wide character or KEY_xxx code.
      */
     for (;;) {
-	T(("reading %d of %d", count + 1, sizeof(buffer)));
+	T(("reading %d of %d", (int) count + 1, (int) sizeof(buffer)));
 	code = _nc_wgetch(win, &value, TRUE EVENTLIST_2nd((_nc_eventlist *) 0));
 	if (code == ERR) {
 	    break;
