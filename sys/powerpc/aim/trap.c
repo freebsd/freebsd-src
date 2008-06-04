@@ -300,6 +300,7 @@ printtrap(u_int vector, struct trapframe *frame, int isfatal, int user)
 	}
 	printf("   srr0            = 0x%x\n", frame->srr0);
 	printf("   srr1            = 0x%x\n", frame->srr1);
+	printf("   lr              = 0x%x\n", frame->lr);
 	printf("   curthread       = %p\n", curthread);
 	if (curthread != NULL)
 		printf("          pid = %d, comm = %s\n",
