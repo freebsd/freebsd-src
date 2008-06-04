@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_slk.3x,v 1.15 2006/02/25 21:49:19 tom Exp $
+.\" $Id: curs_slk.3x,v 1.16 2007/06/02 20:40:07 tom Exp $
 .TH curs_slk 3X ""
 .na
 .hy 0
@@ -95,7 +95,7 @@ labels of up to eight characters each. In addition to this, the ncurses
 implementation supports a mode where it simulates 12 labels of up to five
 characters each. This is most common for todays PC like enduser devices.
 Please note that ncurses simulates this mode by taking over up to two lines at
-the bottom of the screen, it doesn't try to use any hardware support for this
+the bottom of the screen, it does not try to use any hardware support for this
 mode.
 .PP
 The \fBslk_init\fR routine must be called before \fBinitscr\fR or \fBnewterm\fR

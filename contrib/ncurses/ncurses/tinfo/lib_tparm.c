@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -43,7 +43,7 @@
 #include <term.h>
 #include <tic.h>
 
-MODULE_ID("$Id: lib_tparm.c,v 1.71 2006/11/26 01:12:56 tom Exp $")
+MODULE_ID("$Id: lib_tparm.c,v 1.74 2007/09/29 20:37:13 tom Exp $")
 
 /*
  *	char *
@@ -105,43 +105,20 @@ MODULE_ID("$Id: lib_tparm.c,v 1.71 2006/11/26 01:12:56 tom Exp $")
  *	resulting in x mod y, not the reverse.
  */
 
-#define STACKSIZE	20
-
-typedef struct {
-    union {
-	int num;
-	char *str;
-    } data;
-    bool num_type;
-} stack_frame;
-
 NCURSES_EXPORT_VAR(int) _nc_tparm_err = 0;
 
-static stack_frame stack[STACKSIZE];
-static int stack_ptr;
-static const char *tparam_base = "";
-
-#ifdef TRACE
-static const char *tname;
-#endif /* TRACE */
-
-static char *out_buff;
-static size_t out_size;
-static size_t out_used;
-
-static char *fmt_buff;
-static size_t fmt_size;
+#define TPS(var) _nc_prescreen.tparm_state.var
 
 #if NO_LEAKS
 NCURSES_EXPORT(void)
 _nc_free_tparm(void)
 {
-    if (out_buff != 0) {
-	FreeAndNull(out_buff);
-	out_size = 0;
-	out_used = 0;
-	FreeAndNull(fmt_buff);
-	fmt_size = 0;
+    if (TPS(out_buff) != 0) {
+	FreeAndNull(TPS(out_buff));
+	TPS(out_size) = 0;
+	TPS(out_used) = 0;
+	FreeAndNull(TPS(fmt_buff));
+	TPS(fmt_size) = 0;
     }
 }
 #endif
@@ -149,11 +126,11 @@ _nc_free_tparm(void)
 static NCURSES_INLINE void
 get_space(size_t need)
 {
-    need += out_used;
-    if (need > out_size) {
-	out_size = need * 2;
-	out_buff = typeRealloc(char, out_size, out_buff);
-	if (out_buff == 0)
+    need += TPS(out_used);
+    if (need > TPS(out_size)) {
+	TPS(out_size) = need * 2;
+	TPS(out_buff) = typeRealloc(char, TPS(out_size), TPS(out_buff));
+	if (TPS(out_buff) == 0)
 	    _nc_err_abort(MSG_NO_MEMORY);
     }
 }
@@ -167,8 +144,8 @@ save_text(const char *fmt, const char *s, int len)
 
     get_space(s_len + 1);
 
-    (void) sprintf(out_buff + out_used, fmt, s);
-    out_used += strlen(out_buff + out_used);
+    (void) sprintf(TPS(out_buff) + TPS(out_used), fmt, s);
+    TPS(out_used) += strlen(TPS(out_buff) + TPS(out_used));
 }
 
 static NCURSES_INLINE void
@@ -179,8 +156,8 @@ save_number(const char *fmt, int number, int len)
 
     get_space((unsigned) len + 1);
 
-    (void) sprintf(out_buff + out_used, fmt, number);
-    out_used += strlen(out_buff + out_used);
+    (void) sprintf(TPS(out_buff) + TPS(out_used), fmt, number);
+    TPS(out_used) += strlen(TPS(out_buff) + TPS(out_used));
 }
 
 static NCURSES_INLINE void
@@ -189,18 +166,18 @@ save_char(int c)
     if (c == 0)
 	c = 0200;
     get_space(1);
-    out_buff[out_used++] = c;
+    TPS(out_buff)[TPS(out_used)++] = c;
 }
 
 static NCURSES_INLINE void
 npush(int x)
 {
-    if (stack_ptr < STACKSIZE) {
-	stack[stack_ptr].num_type = TRUE;
-	stack[stack_ptr].data.num = x;
-	stack_ptr++;
+    if (TPS(stack_ptr) < STACKSIZE) {
+	TPS(stack)[TPS(stack_ptr)].num_type = TRUE;
+	TPS(stack)[TPS(stack_ptr)].data.num = x;
+	TPS(stack_ptr)++;
     } else {
-	DEBUG(2, ("npush: stack overflow: %s", _nc_visbuf(tparam_base)));
+	DEBUG(2, ("npush: stack overflow: %s", _nc_visbuf(TPS(tparam_base))));
 	_nc_tparm_err++;
     }
 }
@@ -209,12 +186,12 @@ static NCURSES_INLINE int
 npop(void)
 {
     int result = 0;
-    if (stack_ptr > 0) {
-	stack_ptr--;
-	if (stack[stack_ptr].num_type)
-	    result = stack[stack_ptr].data.num;
+    if (TPS(stack_ptr) > 0) {
+	TPS(stack_ptr)--;
+	if (TPS(stack)[TPS(stack_ptr)].num_type)
+	    result = TPS(stack)[TPS(stack_ptr)].data.num;
     } else {
-	DEBUG(2, ("npop: stack underflow: %s", _nc_visbuf(tparam_base)));
+	DEBUG(2, ("npop: stack underflow: %s", _nc_visbuf(TPS(tparam_base))));
 	_nc_tparm_err++;
     }
     return result;
@@ -223,12 +200,12 @@ npop(void)
 static NCURSES_INLINE void
 spush(char *x)
 {
-    if (stack_ptr < STACKSIZE) {
-	stack[stack_ptr].num_type = FALSE;
-	stack[stack_ptr].data.str = x;
-	stack_ptr++;
+    if (TPS(stack_ptr) < STACKSIZE) {
+	TPS(stack)[TPS(stack_ptr)].num_type = FALSE;
+	TPS(stack)[TPS(stack_ptr)].data.str = x;
+	TPS(stack_ptr)++;
     } else {
-	DEBUG(2, ("spush: stack overflow: %s", _nc_visbuf(tparam_base)));
+	DEBUG(2, ("spush: stack overflow: %s", _nc_visbuf(TPS(tparam_base))));
 	_nc_tparm_err++;
     }
 }
@@ -238,12 +215,13 @@ spop(void)
 {
     static char dummy[] = "";	/* avoid const-cast */
     char *result = dummy;
-    if (stack_ptr > 0) {
-	stack_ptr--;
-	if (!stack[stack_ptr].num_type && stack[stack_ptr].data.str != 0)
-	    result = stack[stack_ptr].data.str;
+    if (TPS(stack_ptr) > 0) {
+	TPS(stack_ptr)--;
+	if (!TPS(stack)[TPS(stack_ptr)].num_type
+	    && TPS(stack)[TPS(stack_ptr)].data.str != 0)
+	    result = TPS(stack)[TPS(stack_ptr)].data.str;
     } else {
-	DEBUG(2, ("spop: stack underflow: %s", _nc_visbuf(tparam_base)));
+	DEBUG(2, ("spop: stack underflow: %s", _nc_visbuf(TPS(tparam_base))));
 	_nc_tparm_err++;
     }
     return result;
@@ -369,10 +347,11 @@ _nc_tparm_analyze(const char *string, char *p_is_s[NUM_PARM], int *popcount)
     if (cp == 0)
 	return 0;
 
-    if ((len2 = strlen(cp)) > fmt_size) {
-	fmt_size = len2 + fmt_size + 2;
-	if ((fmt_buff = typeRealloc(char, fmt_size, fmt_buff)) == 0)
-	      return 0;
+    if ((len2 = strlen(cp)) > TPS(fmt_size)) {
+	TPS(fmt_size) = len2 + TPS(fmt_size) + 2;
+	TPS(fmt_buff) = typeRealloc(char, TPS(fmt_size), TPS(fmt_buff));
+	if (TPS(fmt_buff) == 0)
+	    return 0;
     }
 
     memset(p_is_s, 0, sizeof(p_is_s[0]) * NUM_PARM);
@@ -381,7 +360,7 @@ _nc_tparm_analyze(const char *string, char *p_is_s[NUM_PARM], int *popcount)
     while ((cp - string) < (int) len2) {
 	if (*cp == '%') {
 	    cp++;
-	    cp = parse_format(cp, fmt_buff, &len);
+	    cp = parse_format(cp, TPS(fmt_buff), &len);
 	    switch (*cp) {
 	    default:
 		break;
@@ -474,7 +453,6 @@ _nc_tparm_analyze(const char *string, char *p_is_s[NUM_PARM], int *popcount)
 static NCURSES_INLINE char *
 tparam_internal(const char *string, va_list ap)
 {
-#define NUM_VARS 26
     char *p_is_s[NUM_PARM];
     TPARM_ARG param[NUM_PARM];
     int popcount;
@@ -485,13 +463,11 @@ tparam_internal(const char *string, va_list ap)
     int i;
     const char *cp = string;
     size_t len2;
-    static int dynamic_var[NUM_VARS];
-    static int static_vars[NUM_VARS];
 
     if (cp == NULL)
 	return NULL;
 
-    out_used = 0;
+    TPS(out_used) = 0;
     len2 = strlen(cp);
 
     /*
@@ -500,7 +476,7 @@ tparam_internal(const char *string, va_list ap)
      * variable-length argument list.
      */
     number = _nc_tparm_analyze(cp, p_is_s, &popcount);
-    if (fmt_buff == 0)
+    if (TPS(fmt_buff) == 0)
 	return NULL;
 
     for (i = 0; i < max(popcount, number); i++) {
@@ -525,22 +501,23 @@ tparam_internal(const char *string, va_list ap)
      * the expansion of (for example) \E[%d;%dH work correctly in termcap
      * style, which means tparam() will expand termcap strings OK.
      */
-    stack_ptr = 0;
+    TPS(stack_ptr) = 0;
     if (popcount == 0) {
 	popcount = number;
 	for (i = number - 1; i >= 0; i--)
 	    npush(param[i]);
     }
 #ifdef TRACE
-    if (_nc_tracing & TRACE_CALLS) {
+    if (USE_TRACEF(TRACE_CALLS)) {
 	for (i = 0; i < popcount; i++) {
 	    if (p_is_s[i] != 0)
 		save_text(", %s", _nc_visbuf(p_is_s[i]), 0);
 	    else
 		save_number(", %d", param[i], 0);
 	}
-	_tracef(T_CALLED("%s(%s%s)"), tname, _nc_visbuf(cp), out_buff);
-	out_used = 0;
+	_tracef(T_CALLED("%s(%s%s)"), TPS(tname), _nc_visbuf(cp), TPS(out_buff));
+	TPS(out_used) = 0;
+	_nc_unlock_global(tracef);
     }
 #endif /* TRACE */
 
@@ -548,8 +525,8 @@ tparam_internal(const char *string, va_list ap)
 	if (*cp != '%') {
 	    save_char(UChar(*cp));
 	} else {
-	    tparam_base = cp++;
-	    cp = parse_format(cp, fmt_buff, &len);
+	    TPS(tparam_base) = cp++;
+	    cp = parse_format(cp, TPS(fmt_buff), &len);
 	    switch (*cp) {
 	    default:
 		break;
@@ -561,7 +538,7 @@ tparam_internal(const char *string, va_list ap)
 	    case 'o':		/* FALLTHRU */
 	    case 'x':		/* FALLTHRU */
 	    case 'X':		/* FALLTHRU */
-		save_number(fmt_buff, npop(), len);
+		save_number(TPS(fmt_buff), npop(), len);
 		break;
 
 	    case 'c':		/* FALLTHRU */
@@ -573,7 +550,7 @@ tparam_internal(const char *string, va_list ap)
 		break;
 
 	    case 's':
-		save_text(fmt_buff, spop(), len);
+		save_text(TPS(fmt_buff), spop(), len);
 		break;
 
 	    case 'p':
@@ -591,10 +568,10 @@ tparam_internal(const char *string, va_list ap)
 		cp++;
 		if (isUPPER(*cp)) {
 		    i = (UChar(*cp) - 'A');
-		    static_vars[i] = npop();
+		    TPS(static_vars)[i] = npop();
 		} else if (isLOWER(*cp)) {
 		    i = (UChar(*cp) - 'a');
-		    dynamic_var[i] = npop();
+		    TPS(dynamic_var)[i] = npop();
 		}
 		break;
 
@@ -602,10 +579,10 @@ tparam_internal(const char *string, va_list ap)
 		cp++;
 		if (isUPPER(*cp)) {
 		    i = (UChar(*cp) - 'A');
-		    npush(static_vars[i]);
+		    npush(TPS(static_vars)[i]);
 		} else if (isLOWER(*cp)) {
 		    i = (UChar(*cp) - 'a');
-		    npush(dynamic_var[i]);
+		    npush(TPS(dynamic_var)[i]);
 		}
 		break;
 
@@ -768,10 +745,10 @@ tparam_internal(const char *string, va_list ap)
     }				/* endwhile (*cp) */
 
     get_space(1);
-    out_buff[out_used] = '\0';
+    TPS(out_buff)[TPS(out_used)] = '\0';
 
-    T((T_RETURN("%s"), _nc_visbuf(out_buff)));
-    return (out_buff);
+    T((T_RETURN("%s"), _nc_visbuf(TPS(out_buff))));
+    return (TPS(out_buff));
 }
 
 #if NCURSES_TPARM_VARARGS
@@ -789,7 +766,7 @@ tparm_varargs(NCURSES_CONST char *string,...)
     _nc_tparm_err = 0;
     va_start(ap, string);
 #ifdef TRACE
-    tname = "tparm";
+    TPS(tname) = "tparm";
 #endif /* TRACE */
     result = tparam_internal(string, ap);
     va_end(ap);

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2003,2005 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2005,2007 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -50,7 +50,7 @@
 #define DEBUG(level, params)	/*nothing */
 #endif
 
-MODULE_ID("$Id: comp_hash.c,v 1.28 2005/08/20 19:58:18 tom Exp $")
+MODULE_ID("$Id: comp_hash.c,v 1.33 2007/08/18 21:42:25 tom Exp $")
 
 static int hash_function(const char *);
 
@@ -71,21 +71,24 @@ static int hash_function(const char *);
 
 static void
 _nc_make_hash_table(struct name_table_entry *table,
-		    struct name_table_entry **hash_table)
+		    short *hash_table)
 {
     int i;
     int hashvalue;
     int collisions = 0;
 
+    for (i = 0; i < HASHTABSIZE; i++) {
+	hash_table[i] = -1;
+    }
     for (i = 0; i < CAPTABSIZE; i++) {
 	hashvalue = hash_function(table[i].nte_name);
 
-	if (hash_table[hashvalue] != (struct name_table_entry *) 0)
+	if (hash_table[hashvalue] >= 0)
 	    collisions++;
 
 	if (hash_table[hashvalue] != 0)
-	    table[i].nte_link = (short) (hash_table[hashvalue] - table);
-	hash_table[hashvalue] = &table[i];
+	    table[i].nte_link = hash_table[hashvalue];
+	hash_table[hashvalue] = i;
     }
 
     DEBUG(4, ("Hash table complete: %d collisions out of %d entries",
@@ -130,18 +133,21 @@ hash_function(const char *string)
 #ifndef MAIN_PROGRAM
 NCURSES_EXPORT(struct name_table_entry const *)
 _nc_find_entry(const char *string,
-	       const struct name_table_entry *const *hash_table)
+	       const short *hash_table)
 {
     int hashvalue;
-    struct name_table_entry const *ptr;
+    struct name_table_entry const *ptr = 0;
+    struct name_table_entry const *real_table;
 
     hashvalue = hash_function(string);
 
-    if ((ptr = hash_table[hashvalue]) != 0) {
+    if (hash_table[hashvalue] >= 0) {
+	real_table = _nc_get_table(hash_table != _nc_get_hash_table(FALSE));
+	ptr = real_table + hash_table[hashvalue];
 	while (strcmp(ptr->nte_name, string) != 0) {
 	    if (ptr->nte_link < 0)
 		return 0;
-	    ptr = ptr->nte_link + hash_table[HASHTABSIZE];
+	    ptr = real_table + (ptr->nte_link + hash_table[HASHTABSIZE]);
 	}
     }
 
@@ -231,10 +237,10 @@ main(int argc, char **argv)
 {
     struct name_table_entry *name_table = typeCalloc(struct
 						     name_table_entry, CAPTABSIZE);
-    struct name_table_entry **hash_table = typeCalloc(struct name_table_entry
-						      *, HASHTABSIZE);
+    short *hash_table = typeCalloc(short, HASHTABSIZE);
     const char *root_name = "";
     int column = 0;
+    int bigstring = 0;
     int n;
     char buffer[BUFSIZ];
 
@@ -248,11 +254,12 @@ main(int argc, char **argv)
     /* The first argument is the column-number (starting with 0).
      * The second is the root name of the tables to generate.
      */
-    if (argc <= 2
+    if (argc <= 3
 	|| (column = atoi(argv[1])) <= 0
 	|| (column >= MAX_COLUMNS)
-	|| *(root_name = argv[2]) == 0) {
-	fprintf(stderr, "usage: make_hash column root_name\n");
+	|| *(root_name = argv[2]) == 0
+	|| (bigstring = atoi(argv[3])) < 0) {
+	fprintf(stderr, "usage: make_hash column root_name bigstring\n");
 	exit(EXIT_FAILURE);
     }
 
@@ -288,36 +295,64 @@ main(int argc, char **argv)
     /*
      * Write the compiled tables to standard output
      */
-    printf("static struct name_table_entry const _nc_%s_table[] =\n",
-	   root_name);
-    printf("{\n");
-    for (n = 0; n < CAPTABSIZE; n++) {
-	sprintf(buffer, "\"%s\"",
-		name_table[n].nte_name);
-	printf("\t{ %15s,\t%10s,\t%3d, %3d }%c\n",
-	       buffer,
-	       typenames[name_table[n].nte_type],
-	       name_table[n].nte_index,
-	       name_table[n].nte_link,
-	       n < CAPTABSIZE - 1 ? ',' : ' ');
-    }
-    printf("};\n\n");
+    if (bigstring) {
+	int len = 0;
+	int nxt;
 
-    printf("const struct name_table_entry * const _nc_%s_hash_table[%d] =\n",
+	printf("static const char %s_names_text[] = \\\n", root_name);
+	for (n = 0; n < CAPTABSIZE; n++) {
+	    nxt = strlen(name_table[n].nte_name) + 5;
+	    if (nxt + len > 72) {
+		printf("\\\n");
+		len = 0;
+	    }
+	    printf("\"%s\\0\" ", name_table[n].nte_name);
+	    len += nxt;
+	}
+	printf(";\n\n");
+
+	len = 0;
+	printf("static name_table_data const %s_names_data[] =\n",
+	       root_name);
+	printf("{\n");
+	for (n = 0; n < CAPTABSIZE; n++) {
+	    printf("\t{ %15d,\t%10s,\t%3d, %3d }%c\n",
+		   len,
+		   typenames[name_table[n].nte_type],
+		   name_table[n].nte_index,
+		   name_table[n].nte_link,
+		   n < CAPTABSIZE - 1 ? ',' : ' ');
+	    len += strlen(name_table[n].nte_name) + 1;
+	}
+	printf("};\n\n");
+	printf("static struct name_table_entry *_nc_%s_table = 0;\n\n", root_name);
+    } else {
+
+	printf("static struct name_table_entry %s _nc_%s_table[] =\n",
+	       bigstring ? "" : "const",
+	       root_name);
+	printf("{\n");
+	for (n = 0; n < CAPTABSIZE; n++) {
+	    sprintf(buffer, "\"%s\"",
+		    name_table[n].nte_name);
+	    printf("\t{ %15s,\t%10s,\t%3d, %3d }%c\n",
+		   buffer,
+		   typenames[name_table[n].nte_type],
+		   name_table[n].nte_index,
+		   name_table[n].nte_link,
+		   n < CAPTABSIZE - 1 ? ',' : ' ');
+	}
+	printf("};\n\n");
+    }
+
+    printf("static const short _nc_%s_hash_table[%d] =\n",
 	   root_name,
 	   HASHTABSIZE + 1);
     printf("{\n");
     for (n = 0; n < HASHTABSIZE; n++) {
-	if (hash_table[n] != 0) {
-	    sprintf(buffer, "_nc_%s_table + %3ld",
-		    root_name,
-		    (long) (hash_table[n] - name_table));
-	} else {
-	    strcpy(buffer, "0");
-	}
-	printf("\t%s,\n", buffer);
+	printf("\t%3d,\n", hash_table[n]);
     }
-    printf("\t_nc_%s_table\t/* base-of-table */\n", root_name);
+    printf("\t0\t/* base-of-table */\n");
     printf("};\n\n");
 
     printf("#if (BOOLCOUNT!=%d)||(NUMCOUNT!=%d)||(STRCOUNT!=%d)\n",

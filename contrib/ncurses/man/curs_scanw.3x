@@ -26,7 +26,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_scanw.3x,v 1.13 2006/02/25 21:42:22 tom Exp $
+.\" $Id: curs_scanw.3x,v 1.14 2006/12/24 16:05:49 tom Exp $
 .TH curs_scanw 3X ""
 .SH NAME
 \fBscanw\fR,
@@ -50,7 +50,7 @@
 \fBint vwscanw(WINDOW *win, char *fmt, va_list varglist);\fR
 .SH DESCRIPTION
 The \fBscanw\fR, \fBwscanw\fR and \fBmvscanw\fR routines are analogous to
-\fBscanf\fR [see \fBscanf\fR(3S)].  The effect of these routines is as though
+\fBscanf\fR [see \fBscanf\fR(3)].  The effect of these routines is as though
 \fBwgetstr\fR were called on the window, and the resulting line used as input
 for \fBsscanf\fR(3).  Fields which do not map to a variable in the \fIfmt\fR
 field are lost.
@@ -88,7 +88,7 @@ since the OK value (zero) is likely to be misleading.
 One possible way to get useful results would be to use a "%n" conversion
 at the end of the format string to ensure that something was processed.
 .SH SEE ALSO
-\fBcurses\fR(3X), \fBcurs_getstr\fR(3X), \fBcurs_printw\fR(3X), \fBscanf\fR(3S)
+\fBcurses\fR(3X), \fBcurs_getstr\fR(3X), \fBcurs_printw\fR(3X), \fBscanf\fR(3)
 .\"#
 .\"# The following sets edit modes for GNU EMACS
 .\"# Local Variables:
