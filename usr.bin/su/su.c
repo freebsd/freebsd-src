@@ -168,6 +168,7 @@ main(int argc, char *argv[])
 	u_int		setwhat;
 	char		*username, *class, shellbuf[MAXPATHLEN];
 	const char	*p, *user, *shell, *mytty, **nargv;
+	const void	*v;
 	struct sigaction sa, sa_int, sa_quit, sa_pipe;
 	int temp, fds[2];
 #ifdef USE_BSM_AUDIT
@@ -316,9 +317,9 @@ main(int argc, char *argv[])
 	if (audit_submit(AUE_su, auid, 0, 0, "successful authentication"))
 		errx(1, "Permission denied");
 #endif
-	retcode = pam_get_item(pamh, PAM_USER, (const void **)&p);
+	retcode = pam_get_item(pamh, PAM_USER, &v);
 	if (retcode == PAM_SUCCESS)
-		user = p;
+		user = v;
 	else
 		syslog(LOG_ERR, "pam_get_item(PAM_USER): %s",
 		    pam_strerror(pamh, retcode));
