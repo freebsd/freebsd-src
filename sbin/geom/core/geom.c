@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD$");
 
 #include "misc/subr.h"
 
-#ifdef RESCUE
+#ifdef STATIC_GEOM_CLASSES
 extern uint32_t gpart_version;
 extern struct g_command gpart_class_commands[];
 extern uint32_t glabel_version;
@@ -472,7 +472,7 @@ run_command(int argc, char *argv[])
 	exit(EXIT_SUCCESS);
 }
 
-#ifndef RESCUE
+#ifndef STATIC_GEOM_CLASSES
 static const char *
 library_path(void)
 {
@@ -551,7 +551,7 @@ load_library(void)
 		exit(EXIT_FAILURE);
 	}
 }
-#endif	/* !RESCUE */
+#endif	/* !STATIC_GEOM_CLASSES */
 
 /*
  * Class name should be all capital letters.
@@ -600,7 +600,7 @@ get_class(int *argc, char ***argv)
 		errx(EXIT_FAILURE, "Invalid utility name.");
 	}
 
-#ifndef RESCUE
+#ifndef STATIC_GEOM_CLASSES
 	load_library();
 #else
 	if (!strcasecmp(class_name, "part")) {
@@ -611,7 +611,7 @@ get_class(int *argc, char ***argv)
 		class_commands = glabel_class_commands;
 	} else
 		errx(EXIT_FAILURE, "Invalid class name.");
-#endif /* !RESCUE */
+#endif /* !STATIC_GEOM_CLASSES */
 
 	set_class_name();
 	if (*argc < 1)
