@@ -1025,7 +1025,7 @@ pfq_refresh(void)
 			memcpy(&e->altq, &pa.altq, sizeof(struct pf_altq));
 			e->index = pa.altq.qid;
 			pfq_table_count = i;
-			TAILQ_INSERT_TAIL(&pfq_table, e, link);
+			INSERT_OBJECT_INT_LINK_INDEX(e, &pfq_table, link, index);
 		}
 	}
 	
