@@ -153,6 +153,9 @@ static void      xe_start_locked		(struct ifnet *ifp);
 static int       xe_ioctl		(struct ifnet *ifp, u_long command, caddr_t data);
 static void      xe_watchdog		(void *arg);
 static void      xe_intr		(void *xscp);
+static void      xe_txintr		(struct xe_softc *scp, u_int8_t txst1);
+static void      xe_macintr		(struct xe_softc *scp, u_int8_t rst0, uint8_t txst0, uint8_t txst1);
+static void      xe_rxintr		(struct xe_softc *scp, u_int8_t rst0);
 static int       xe_media_change	(struct ifnet *ifp);
 static void      xe_media_status	(struct ifnet *ifp, struct ifmediareq *mrp);
 static timeout_t xe_setmedia;
@@ -585,46 +588,12 @@ xe_ioctl (register struct ifnet *ifp, u_long command, caddr_t data) {
  * how to do memory-mapped I/O :)
  */
 static void
-xe_intr(void *xscp) 
+xe_txintr(struct xe_softc *scp, u_int8_t txst1)
 {
-  struct xe_softc *scp = (struct xe_softc *) xscp;
-  struct ifnet *ifp;
-  u_int8_t psr, isr, esr, rsr, rst0, txst0, txst1, coll;
+      struct ifnet *ifp;
+      u_int8_t tpr, sent, coll;
 
-  ifp = scp->ifp;
-  XE_LOCK(scp);
-
-  /* Disable interrupts */
-  if (scp->mohawk)
-    XE_OUTB(XE_CR, 0);
-
-  /* Cache current register page */
-  psr = XE_INB(XE_PR);
-
-  /* Read ISR to see what caused this interrupt */
-  while ((isr = XE_INB(XE_ISR)) != 0) {
-
-    /* 0xff might mean the card is no longer around */
-    if (isr == 0xff) {
-      DEVPRINTF(3, (scp->dev, "intr: interrupt received for missing card?\n"));
-      break;
-    }
-
-    /* Read other status registers */
-    XE_SELECT_PAGE(0x40);
-    rst0 = XE_INB(XE_RST0);
-    XE_OUTB(XE_RST0, 0);
-    txst0 = XE_INB(XE_TXST0);
-    txst1 = XE_INB(XE_TXST1);
-    coll = txst1 & XE_TXST1_RETRY_COUNT;
-    XE_OUTB(XE_TXST0, 0);
-    XE_OUTB(XE_TXST1, 0);
-    XE_SELECT_PAGE(0);
-
-    DEVPRINTF(3, (scp->dev, "intr: ISR=0x%02x, RST=0x%02x, TXT=0x%02x%02x, COLL=0x%01x\n", isr, rst0, txst1, txst0, coll));
-
-    if (isr & XE_ISR_TX_PACKET) {
-      u_int8_t tpr, sent;
+      ifp = scp->ifp;
 
       /* Update packet count, accounting for rollover */
       tpr = XE_INB(XE_TPR);
@@ -632,6 +601,7 @@ xe_intr(void *xscp)
 
       /* Update statistics if we actually sent anything */
       if (sent > 0) {
+	coll = txst1 & XE_TXST1_RETRY_COUNT;
 	scp->tx_tpr = tpr;
 	scp->tx_queued -= sent;
 	ifp->if_opackets += sent;
@@ -660,10 +630,15 @@ xe_intr(void *xscp)
       }
       scp->tx_timeout = 0;
       ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-    }
+}
 
-    /* Handle most MAC interrupts */
-    if (isr & XE_ISR_MAC_INTR) {
+/* Handle most MAC interrupts */
+static void
+xe_macintr(struct xe_softc *scp, u_int8_t rst0, uint8_t txst0, uint8_t txst1)
+{
+      struct ifnet *ifp;
+
+      ifp = scp->ifp;
 
 #if 0
       /* Carrier sense lost -- only in 10Mbit HDX mode */
@@ -722,7 +697,15 @@ xe_intr(void *xscp)
 	ifp->if_ierrors++;
 	scp->mibdata.dot3StatsFCSErrors++;
       }
-    }
+}
+
+static void
+xe_rxintr(struct xe_softc *scp, u_int8_t rst0)
+{
+    struct ifnet *ifp;
+    u_int8_t esr, rsr;
+
+    ifp = scp->ifp;
 
     /* Handle received packet(s) */
     while ((esr = XE_INB(XE_ESR)) & XE_ESR_FULL_PACKET_RX) {
@@ -806,11 +789,11 @@ xe_intr(void *xscp)
 	    }
 	  }
 	  else
-	    bus_space_read_multi_2(scp->bst, scp->bsh, XE_EDP, 
+	    bus_read_multi_2(scp->port_res, XE_EDP, 
 				   (u_int16_t *) ehp, (len + 1) >> 1);
 	}
 	else
-	  bus_space_read_multi_2(scp->bst, scp->bsh, XE_EDP, 
+	  bus_read_multi_2(scp->port_res, XE_EDP, 
 				 (u_int16_t *) ehp, (len + 1) >> 1);
 
 	/* Deliver packet to upper layers */
@@ -840,6 +823,53 @@ xe_intr(void *xscp)
       scp->mibdata.dot3StatsInternalMacReceiveErrors++;
       XE_OUTB(XE_CR, XE_CR_CLEAR_OVERRUN);
     }
+}
+
+static void
+xe_intr(void *xscp) 
+{
+  struct xe_softc *scp = (struct xe_softc *) xscp;
+  struct ifnet *ifp;
+  u_int8_t psr, isr, rst0, txst0, txst1;
+
+  ifp = scp->ifp;
+  XE_LOCK(scp);
+
+  /* Disable interrupts */
+  if (scp->mohawk)
+    XE_OUTB(XE_CR, 0);
+
+  /* Cache current register page */
+  psr = XE_INB(XE_PR);
+
+  /* Read ISR to see what caused this interrupt */
+  while ((isr = XE_INB(XE_ISR)) != 0) {
+
+    /* 0xff might mean the card is no longer around */
+    if (isr == 0xff) {
+      DEVPRINTF(3, (scp->dev, "intr: interrupt received for missing card?\n"));
+      break;
+    }
+
+    /* Read other status registers */
+    XE_SELECT_PAGE(0x40);
+    rst0 = XE_INB(XE_RST0);
+    XE_OUTB(XE_RST0, 0);
+    txst0 = XE_INB(XE_TXST0);
+    txst1 = XE_INB(XE_TXST1);
+    XE_OUTB(XE_TXST0, 0);
+    XE_OUTB(XE_TXST1, 0);
+    XE_SELECT_PAGE(0);
+
+    DEVPRINTF(3, (scp->dev, "intr: ISR=0x%02x, RST=0x%02x, TXT=0x%02x%02x\n", isr, rst0, txst1, txst0));
+
+    if (isr & XE_ISR_TX_PACKET)
+      xe_txintr(scp, txst1);
+
+    if (isr & XE_ISR_MAC_INTR)
+      xe_macintr(scp, rst0, txst0, txst1);
+
+    xe_rxintr(scp, rst0);
   }
 
   /* Restore saved page */
@@ -1513,7 +1543,7 @@ xe_pio_write_packet(struct xe_softc *scp, struct mbuf *mbp) {
 	wantbyte = 0;
       }
       if (len > 1) {		/* Output contiguous words */
-	bus_space_write_multi_2(scp->bst, scp->bsh, XE_EDP, (u_int16_t *) data,
+	bus_write_multi_2(scp->port_res, XE_EDP, (u_int16_t *) data,
 				len >> 1);
 	data += len & ~1;
 	len &= 1;
@@ -1956,8 +1986,6 @@ xe_activate(device_t dev)
 		return ENOMEM;
 	}
 
-	sc->bst = rman_get_bustag(sc->port_res);
-	sc->bsh = rman_get_bushandle(sc->port_res);
 	return (0);
 }
 
