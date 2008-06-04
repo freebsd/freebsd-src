@@ -45,8 +45,6 @@ struct xe_softc {
   const char *card_type;/* Card model name */
   const char *vendor;	/* Card manufacturer */
   device_t dev;		/* Device */
-  bus_space_tag_t bst;	/* Bus space tag for card */
-  bus_space_handle_t bsh; /* Bus space handle for card */
   void *intrhand;
   struct resource *irq_res;
   int irq_rid;
@@ -78,19 +76,11 @@ struct xe_softc {
 /*
  * For accessing card registers
  */
-#define XE_INB(r)         bus_space_read_1(scp->bst, scp->bsh, (r))
-#define XE_INW(r)         bus_space_read_2(scp->bst, scp->bsh, (r))
-#define XE_OUTB(r, b)     bus_space_write_1(scp->bst, scp->bsh, (r), (b))
-#define XE_OUTW(r, w)     bus_space_write_2(scp->bst, scp->bsh, (r), (w))
+#define XE_INB(r)         bus_read_1(scp->port_res, (r))
+#define XE_INW(r)         bus_read_2(scp->port_res, (r))
+#define XE_OUTB(r, b)     bus_write_1(scp->port_res, (r), (b))
+#define XE_OUTW(r, w)     bus_write_2(scp->port_res, (r), (w))
 #define XE_SELECT_PAGE(p) XE_OUTB(XE_PR, (p))
-
-/*
- * Horrid stuff for accessing CIS tuples
- */
-#define CISTPL_BUFSIZE		512
-#define CISTPL_TYPE(tpl)	bus_space_read_1(bst, bsh, tpl + 0)
-#define CISTPL_LEN(tpl)		bus_space_read_1(bst, bsh, tpl + 2)
-#define CISTPL_DATA(tpl,pos)	bus_space_read_1(bst, bsh, tpl+ 4 + ((pos)<<1))
 
 int xe_attach(device_t dev);
 int xe_activate(device_t dev);
