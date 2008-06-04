@@ -315,6 +315,10 @@ mac_init_syncache(struct label **label)
 	 * allocation failures back to the syncache code.
 	 */
 	MAC_CHECK(init_syncache_label, *label, M_NOWAIT);
+	if (error) {
+		MAC_PERFORM(destroy_syncache_label, *label);
+		mac_labelzone_free(*label);
+	}
 	return (error);
 }
 
