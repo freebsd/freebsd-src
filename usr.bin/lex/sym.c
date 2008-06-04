@@ -35,7 +35,7 @@ __FBSDID("$FreeBSD$");
 
 /* declare functions that have forward references */
 
-int hashfunct PROTO((register char[], int));
+int hashfunct PROTO((char[], int));
 
 
 struct hash_entry *ndtbl[NAME_TABLE_HASH_SIZE];
@@ -51,16 +51,16 @@ struct hash_entry *findsym();
  */
 
 int addsym( sym, str_def, int_def, table, table_size )
-register char sym[];
+char sym[];
 char *str_def;
 int int_def;
 hash_table table;
 int table_size;
 	{
 	int hash_val = hashfunct( sym, table_size );
-	register struct hash_entry *sym_entry = table[hash_val];
-	register struct hash_entry *new_entry;
-	register struct hash_entry *successor;
+	struct hash_entry *sym_entry = table[hash_val];
+	struct hash_entry *new_entry;
+	struct hash_entry *successor;
 
 	while ( sym_entry )
 		{
@@ -130,7 +130,7 @@ Char ccltxt[];
 /* findsym - find symbol in symbol table */
 
 struct hash_entry *findsym( sym, table, table_size )
-register char sym[];
+char sym[];
 hash_table table;
 int table_size;
 	{
@@ -139,7 +139,7 @@ int table_size;
 		(struct hash_entry *) 0, (struct hash_entry *) 0,
 		(char *) 0, (char *) 0, 0,
 		} ;
-	register struct hash_entry *sym_entry =
+	struct hash_entry *sym_entry =
 		table[hashfunct( sym, table_size )];
 
 	while ( sym_entry )
@@ -156,11 +156,11 @@ int table_size;
 /* hashfunct - compute the hash value for "str" and hash size "hash_size" */
 
 int hashfunct( str, hash_size )
-register char str[];
+char str[];
 int hash_size;
 	{
-	register int hashval;
-	register int locstr;
+	int hashval;
+	int locstr;
 
 	hashval = 0;
 	locstr = 0;
