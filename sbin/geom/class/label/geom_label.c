@@ -40,7 +40,7 @@ __FBSDID("$FreeBSD$");
 #include "core/geom.h"
 #include "misc/subr.h"
 
-#ifdef RESCUE
+#ifdef STATIC_GEOM_CLASSES
 #define PUBSYM(x)	glabel_##x
 #else
 #define PUBSYM(x)	x
