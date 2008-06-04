@@ -63,7 +63,7 @@ static char C_state_decl[] =
 
 void do_indent()
 	{
-	register int i = indent_level * 8;
+	int i = indent_level * 8;
 
 	while ( i >= 8 )
 		{
@@ -133,7 +133,7 @@ void gen_bu_action()
 
 void genctbl()
 	{
-	register int i;
+	int i;
 	int end_of_buffer_action = num_rules + 1;
 
 	/* Table of verify for transition and offset to next state. */
@@ -229,7 +229,7 @@ void genctbl()
 
 void genecs()
 	{
-	register int i, j;
+	int i, j;
 	int numrows;
 
 	out_str_dec( C_int_decl, "yy_ec", csize );
@@ -412,7 +412,7 @@ void gen_find_action()
 
 void genftbl()
 	{
-	register int i;
+	int i;
 	int end_of_buffer_action = num_rules + 1;
 
 	out_str_dec( long_align ? C_long_decl : C_short_decl,
@@ -422,7 +422,7 @@ void genftbl()
 
 	for ( i = 1; i <= lastdfa; ++i )
 		{
-		register int anum = dfaacc[i].dfaacc_state;
+		int anum = dfaacc[i].dfaacc_state;
 
 		mkdata( anum );
 
@@ -447,7 +447,7 @@ void genftbl()
 void gen_next_compressed_state( char_map )
 char *char_map;
 	{
-	indent_put2s( "register YY_CHAR yy_c = %s;", char_map );
+	indent_put2s( "YY_CHAR yy_c = %s;", char_map );
 
 	/* Save the backing-up info \before/ computing the next state
 	 * because we always compute one more state than needed - we
@@ -534,8 +534,8 @@ void gen_next_match()
 		{
 		indent_puts( "{" );	/* } for vi */
 		indent_puts(
-		"register yyconst struct yy_trans_info *yy_trans_info;\n" );
-		indent_puts( "register YY_CHAR yy_c;\n" );
+		"yyconst struct yy_trans_info *yy_trans_info;\n" );
+		indent_puts( "YY_CHAR yy_c;\n" );
 		indent_put2s( "for ( yy_c = %s;", char_map );
 		indent_puts(
 	"      (yy_trans_info = &yy_current_state[(unsigned int) yy_c])->" );
@@ -676,7 +676,7 @@ void gen_NUL_trans()
 		/* We're going to need yy_cp lying around for the call
 		 * below to gen_backing_up().
 		 */
-		indent_puts( "register char *yy_cp = yy_c_buf_p;" );
+		indent_puts( "char *yy_cp = yy_c_buf_p;" );
 
 	outc( '\n' );
 
@@ -698,10 +698,10 @@ void gen_NUL_trans()
 	else if ( fullspd )
 		{
 		do_indent();
-		out_dec( "register int yy_c = %d;\n", NUL_ec );
+		out_dec( "int yy_c = %d;\n", NUL_ec );
 
 		indent_puts(
-		"register yyconst struct yy_trans_info *yy_trans_info;\n" );
+		"yyconst struct yy_trans_info *yy_trans_info;\n" );
 		indent_puts(
 		"yy_trans_info = &yy_current_state[(unsigned int) yy_c];" );
 		indent_puts( "yy_current_state += yy_trans_info->yy_nxt;" );
@@ -959,7 +959,7 @@ void gentabs()
 
 	for ( i = 1; i <= lastdfa; ++i )
 		{
-		register int d = def[i];
+		int d = def[i];
 
 		if ( base[i] == JAMSTATE )
 			base[i] = jambase;
@@ -1060,7 +1060,7 @@ char str[];
 
 void make_tables()
 	{
-	register int i;
+	int i;
 	int did_eof_rule = false;
 
 	skelout();
