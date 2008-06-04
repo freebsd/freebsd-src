@@ -1979,6 +1979,14 @@ product RALINK RT2573_2		0x9021	RT2501USB Wireless Adapter
 /* Green House and CompUSA OEM this part */
 product REALTEK USBKR100	0x8150	USBKR100 USB Ethernet
 
+/* Ricoh products */
+product RICOH VGPVCC2		0x1830	VGP-VCC2 Camera
+product RICOH VGPVCC3		0x1832	VGP-VCC3 Camera
+product RICOH VGPVCC2_2		0x1833	VGP-VCC2 Camera
+product RICOH VGPVCC2_3		0x1834	VGP-VCC2 Camera
+product RICOH VGPVCC7		0x183a	VGP-VCC7 Camera
+product RICOH VGPVCC8		0x183b	VGP-VCC8 Camera
+
 /* Roland products */
 product ROLAND UM1		0x0009	UM-1 MIDI I/F
 product ROLAND UM880N		0x0014	EDIROL UM-880 MIDI I/F (native)
