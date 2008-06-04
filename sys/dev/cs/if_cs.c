@@ -119,6 +119,16 @@ static int	cs_recv_delay = 570;
 TUNABLE_INT("hw.cs.recv_delay", &cs_recv_delay);
 SYSCTL_INT(_hw_cs, OID_AUTO, recv_delay, CTLFLAG_RW, &cs_recv_delay, 570, "");
 
+static int cs8900_eeint2irq[16] = {
+	 10,  11,  12,   5, 255, 255, 255, 255,
+	255, 255, 255, 255, 255, 255, 255, 255 
+};
+
+static int cs8900_irq2eeint[16] = {
+	255, 255, 255, 255, 255,   3, 255, 255,
+	255,   0,   1,   2, 255, 255, 255, 255
+};
+
 static int
 get_eeprom_data(struct cs_softc *sc, int off, int len, uint16_t *buffer)
 {
@@ -348,7 +358,7 @@ cs_cs89x0_probe(device_t dev)
 
 	sc->chip_type = chip_type;
 
-	if(chip_type==CS8900) {
+	if (chip_type == CS8900) {
 		pp_isaint = PP_CS8900_ISAINT;
 		pp_isadma = PP_CS8900_ISADMA;
 		sc->send_cmd = TX_CS8900_AFTER_ALL;
@@ -366,7 +376,7 @@ cs_cs89x0_probe(device_t dev)
 	sc->isa_config   = 0;
 
 	/*
-	 * If no interrupt specified (or "?"), use what the board tells us.
+	 * If no interrupt specified, use what the board tells us.
 	 */
 	error = bus_get_resource(dev, SYS_RES_IRQ, 0, &irq, &junk);
 
@@ -375,91 +385,53 @@ cs_cs89x0_probe(device_t dev)
 	 */
 	if((cs_readreg(sc, PP_SelfST) & EEPROM_PRESENT) == 0) {
 		device_printf(dev, "No EEPROM, assuming defaults.\n");
+	} else if (get_eeprom_data(sc,START_EEPROM_DATA,CHKSUM_LEN, eeprom_buff)<0) {
+		device_printf(dev, "EEPROM read failed, assuming defaults.\n");
+	} else if (get_eeprom_cksum(START_EEPROM_DATA,CHKSUM_LEN, eeprom_buff)<0) {
+		device_printf(dev, "EEPROM cheksum bad, assuming defaults.\n");
 	} else {
-		if (get_eeprom_data(sc,START_EEPROM_DATA,CHKSUM_LEN, eeprom_buff)<0) {
-			device_printf(dev, "EEPROM read failed, "
-				"assuming defaults.\n");
-		} else {
-			if (get_eeprom_cksum(START_EEPROM_DATA,CHKSUM_LEN, eeprom_buff)<0) {
-				device_printf(dev, "EEPROM cheksum bad, "
-					"assuming defaults.\n");
+		sc->auto_neg_cnf = eeprom_buff[AUTO_NEG_CNF_OFFSET/2];
+		sc->adapter_cnf = eeprom_buff[ADAPTER_CNF_OFFSET/2];
+		sc->isa_config = eeprom_buff[ISA_CNF_OFFSET/2];
+		for (i=0; i<ETHER_ADDR_LEN/2; i++) {
+			sc->enaddr[i*2] = eeprom_buff[i];
+			sc->enaddr[i*2+1] = eeprom_buff[i] >> 8;
+		}
+		/*
+		 * If no interrupt specified, use what the
+		 * board tells us.
+		 */
+		if (error) {
+			irq = sc->isa_config & INT_NO_MASK;
+			error = 0;
+			if (chip_type == CS8900) {
+				irq = cs8900_eeint2irq[irq];
 			} else {
-				sc->auto_neg_cnf =
-				    eeprom_buff[AUTO_NEG_CNF_OFFSET/2];
-				sc->adapter_cnf =
-				    eeprom_buff[ADAPTER_CNF_OFFSET/2];
-				sc->isa_config =
-				    eeprom_buff[ISA_CNF_OFFSET/2];
-    
-				for (i=0; i<ETHER_ADDR_LEN/2; i++) {
-					sc->enaddr[i*2]=
-					    eeprom_buff[i];
-					sc->enaddr[i*2+1]=
-					    eeprom_buff[i] >> 8;
-				}
-
-				/*
-				 * If no interrupt specified,
-				 * use what the board tells us.
-				 */
-				if (error) {
-					irq = sc->isa_config & INT_NO_MASK;
-					error = 0;
-					if (chip_type==CS8900) {
-						switch(irq) {
-						case 0:
-							irq=10;
-							break;
-						case 1:
-							irq=11;
-							break;
-						case 2:
-							irq=12;
-							break;
-						case 3:
-							irq=5;
-							break;
-						 default:
-							device_printf(dev, "invalid irq in EEPROM.\n");
-							error=EINVAL;
-						}
-					} else {
-						if (irq>CS8920_NO_INTS) {
-							device_printf(dev, "invalid irq in EEPROM.\n");
-							error=EINVAL;
-						}
-					}
-					if (!error)
-						bus_set_resource(dev, SYS_RES_IRQ, 0,
-								irq, 1);
-				}
+				if (irq > CS8920_NO_INTS)
+					irq = 255;
 			}
+			if (irq == 255) {
+				device_printf(dev, "invalid irq in EEPROM.\n");
+				error = EINVAL;
+			}
+			if (!error)
+				bus_set_resource(dev, SYS_RES_IRQ, 0,
+				    irq, 1);
 		}
 	}
 
-	if (!error) {
+	if (!error && !(sc->flags & CS_NO_IRQ)) {
 		if (chip_type == CS8900) {
-			switch(irq) {
-				case  5:
-					irq = 3;
-					break;
-				case 10:
-					irq = 0;
-					break;
-				case 11:
-					irq = 1;
-					break;
-				case 12:
-					irq = 2;
-					break;
-				default:
-					error = EINVAL;
-					break;
-			}
+			if (irq >= 0 || irq < 16)
+				irq = cs8900_irq2eeint[irq];
+			else
+				irq = 255;
 		} else {
-			if (irq > CS8920_NO_INTS && !(sc->flags & CS_NO_IRQ))
-				error = EINVAL;
+			if (irq > CS8920_NO_INTS)
+				irq = 255;
 		}
+		if (irq == 255)
+			error = EINVAL;
 	}
 
 	if (error) {
@@ -483,8 +455,8 @@ cs_cs89x0_probe(device_t dev)
 
 	if (bootverbose)
 		 device_printf(dev, "CS89%c0%s rev %c media%s%s%s\n",
-			chip_type==CS8900 ? '0' : '2',
-			chip_type==CS8920M ? "M" : "",
+			chip_type == CS8900 ? '0' : '2',
+			chip_type == CS8920M ? "M" : "",
 			chip_revision,
 			(sc->adapter_cnf & A_CNF_10B_T) ? " TP"  : "",
 			(sc->adapter_cnf & A_CNF_AUI)   ? " AUI" : "",
@@ -1261,7 +1233,7 @@ cs_mediastatus(struct ifnet *ifp, struct ifmediareq *ifmr)
 static int
 cs_mediaset(struct cs_softc *sc, int media)
 {
-	int error;
+	int error = 0;
 
 	/* Stop the receiver & transmitter */
 	cs_writereg(sc, PP_LineCTL, cs_readreg(sc, PP_LineCTL) &
@@ -1280,8 +1252,7 @@ cs_mediaset(struct cs_softc *sc, int media)
 			error = enable_aui(sc);
 		break;
 	case IFM_10_T:
-		if ((error=enable_tp(sc)) != 0)
-			break;
+		enable_tp(sc);
 		if (media & IFM_FDX)
 			cs_duplex_full(sc);
 		else if (media & IFM_HDX)
