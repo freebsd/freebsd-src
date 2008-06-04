@@ -902,8 +902,8 @@ xe_watchdog(void *arg) {
     xe_stop(scp);
     xe_reset(scp);
     xe_init_locked(scp);
-    callout_reset(&scp->wdog_timer, hz, xe_watchdog, scp);
   }
+  callout_reset(&scp->wdog_timer, hz, xe_watchdog, scp);
 }
 
 
