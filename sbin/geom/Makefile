@@ -10,7 +10,7 @@
 PROG=	geom
 SRCS=	geom.c geom_label.c geom_part.c subr.c
 
-CFLAGS+=-I${.CURDIR} -I${.CURDIR}/core
+CFLAGS+=-I${.CURDIR} -I${.CURDIR}/core -DSTATIC_GEOM_CLASSES
 
 DPADD=	${LIBGEOM} ${LIBSBUF} ${LIBBSDXML} ${LIBUTIL}
 LDADD=	-lgeom -lsbuf -lbsdxml -lutil
