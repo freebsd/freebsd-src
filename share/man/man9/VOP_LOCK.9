@@ -87,6 +87,10 @@ Do not sleep to wait for lock.
 Sleep, then return failure.
 .It Dv LK_CANRECURSE
 Allow recursive exclusive lock.
+.It Dv LK_NOWITNESS
+Instruct
+.Xr witness 4
+to ignore this instance.
 .El
 .Pp
 The lock type may be
