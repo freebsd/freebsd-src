@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.if defined(RESCUE)
+.if defined(RESCUE) || defined(RELEASE_CRUNCH)
 
 .PATH:	${.CURDIR}/class/part \
 	${.CURDIR}/class/label \
