@@ -1,0 +1,48 @@
+#!/bin/sh
+#
+# Wait for the default route to be up
+#
+# $FreeBSD$
+#
+
+# PROVIDE: defaultroute
+# REQUIRE: devd netif network_ipv6
+# KEYWORD: nojail
+
+. /etc/rc.subr
+. /etc/network.subr
+
+name="defaultroute"
+start_cmd="defaultroute_start"
+stop_cmd=":"
+
+defaultroute_start()
+{
+	# Return without waiting if we don't have dhcp interfaces.
+	# Once we can test that the link is actually up, we should
+	# remove this test and always wait.
+	dhcp_interfaces=`list_net_interfaces dhcp`
+	[ -z "`list_net_interfaces dhcp`" ] && return
+
+	# Wait for a default route
+	delay=${if_up_delay}
+	while [ ${delay} -gt 0 ]; do
+		defif=`get_default_if -inet`
+		if [ -n "${defif}" ]; then
+			if [ ${delay} -ne ${if_up_delay} ]; then
+				echo "($defif)"
+			fi
+			break
+		fi
+		if [ ${delay} -eq ${if_up_delay} ]; then
+			echo -n "Waiting ${delay}s for an interface to come up: "
+		else
+			echo -n .
+		fi
+		sleep 1
+		delay=`expr $delay - 1`
+	done
+}
+
+load_rc_config $name
+run_rc_command "$1"
