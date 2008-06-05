@@ -320,7 +320,7 @@ ie_attach(device_t dev)
 	ifp->if_start = iestart;
 	ifp->if_ioctl = ieioctl;
 	ifp->if_init = ieinit;
-	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
+	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
 
 	if (sc->hard_type == IE_EE16)
 		EVENTHANDLER_REGISTER(shutdown_post_sync, ee16_shutdown,
@@ -1642,12 +1642,12 @@ ieioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			   (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
 			sc->promisc =
 			    ifp->if_flags & (IFF_PROMISC | IFF_ALLMULTI);
-			ieinit(sc);
+			ieinit_locked(sc);
 		} else if (sc->promisc ^
 			   (ifp->if_flags & (IFF_PROMISC | IFF_ALLMULTI))) {
 			sc->promisc =
 			    ifp->if_flags & (IFF_PROMISC | IFF_ALLMULTI);
-			ieinit(sc);
+			ieinit_locked(sc);
 		}
 		IE_UNLOCK(sc);
 		break;
