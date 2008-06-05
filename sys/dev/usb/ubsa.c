@@ -240,6 +240,8 @@ static const struct ubsa_product {
 	{ USB_VENDOR_OPTION, USB_PRODUCT_OPTION_GT3GQUAD },
 	/* Option GlobeTrotter 3G+ */
 	{ USB_VENDOR_OPTION, USB_PRODUCT_OPTION_GT3GPLUS },
+	/* Option GlobeTrotter Max 3.6 */
+	{ USB_VENDOR_OPTION, USB_PRODUCT_OPTION_GTMAX36 },
 	/* Huawei Mobile */
 	{ USB_VENDOR_HUAWEI, USB_PRODUCT_HUAWEI_MOBILE },
 	/* Qualcomm, Inc. ZTE CDMA */
