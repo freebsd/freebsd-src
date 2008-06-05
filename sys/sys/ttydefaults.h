@@ -56,25 +56,32 @@
 /*
  * Control Character Defaults
  */
-#define	CTRL(x)	(x&037)
-#define	CEOF		CTRL('d')
+/*
+ * XXX: A lot of code uses lowercase characters, but control-character
+ * conversion is actually only valid when applied to uppercase
+ * characters. We just treat lowercase characters as if they were
+ * inserted as uppercase.
+ */
+#define	CTRL(x) ((x) >= 'a' && (x) <= 'z' ? \
+	((x) - 'a' + 1) : (((x) - 'A' + 1) & 0x7f))
+#define	CEOF		CTRL('D')
 #define	CEOL		0xff		/* XXX avoid _POSIX_VDISABLE */
-#define	CERASE		0177
-#define	CERASE2		CTRL('h')
-#define	CINTR		CTRL('c')
-#define	CSTATUS		CTRL('t')
-#define	CKILL		CTRL('u')
+#define	CERASE		CTRL('?')
+#define	CERASE2		CTRL('H')
+#define	CINTR		CTRL('C')
+#define	CSTATUS		CTRL('T')
+#define	CKILL		CTRL('U')
 #define	CMIN		1
-#define	CQUIT		034		/* FS, ^\ */
-#define	CSUSP		CTRL('z')
+#define	CQUIT		CTRL('\\')
+#define	CSUSP		CTRL('Z')
 #define	CTIME		0
-#define	CDSUSP		CTRL('y')
-#define	CSTART		CTRL('q')
-#define	CSTOP		CTRL('s')
-#define	CLNEXT		CTRL('v')
-#define	CDISCARD 	CTRL('o')
-#define	CWERASE 	CTRL('w')
-#define	CREPRINT 	CTRL('r')
+#define	CDSUSP		CTRL('Y')
+#define	CSTART		CTRL('Q')
+#define	CSTOP		CTRL('S')
+#define	CLNEXT		CTRL('V')
+#define	CDISCARD 	CTRL('O')
+#define	CWERASE 	CTRL('W')
+#define	CREPRINT 	CTRL('R')
 #define	CEOT		CEOF
 /* compat */
 #define	CBRK		CEOL
