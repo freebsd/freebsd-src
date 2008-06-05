@@ -73,11 +73,13 @@ __FBSDID("$FreeBSD$");
 #endif
 
 static void	cs_init(void *);
+static void	cs_init_locked(struct cs_softc *);
 static int	cs_ioctl(struct ifnet *, u_long, caddr_t);
 static void	cs_start(struct ifnet *);
+static void	cs_start_locked(struct ifnet *);
 static void	cs_stop(struct cs_softc *);
 static void	cs_reset(struct cs_softc *);
-static void	cs_watchdog(struct ifnet *);
+static void	cs_watchdog(void *);
 
 static int	cs_mediachange(struct ifnet *);
 static void	cs_mediastatus(struct ifnet *, struct ifmediareq *);
@@ -461,7 +463,8 @@ cs_cs89x0_probe(device_t dev)
 /*
  * Allocate a port resource with the given resource id.
  */
-int cs_alloc_port(device_t dev, int rid, int size)
+int
+cs_alloc_port(device_t dev, int rid, int size)
 {
 	struct cs_softc *sc = device_get_softc(dev);
 	struct resource *res;
@@ -479,7 +482,8 @@ int cs_alloc_port(device_t dev, int rid, int size)
 /*
  * Allocate a memory resource with the given resource id.
  */
-int cs_alloc_memory(device_t dev, int rid, int size)
+int
+cs_alloc_memory(device_t dev, int rid, int size)
 {
 	struct cs_softc *sc = device_get_softc(dev);
 	struct resource *res;
@@ -497,7 +501,8 @@ int cs_alloc_memory(device_t dev, int rid, int size)
 /*
  * Allocate an irq resource with the given resource id.
  */
-int cs_alloc_irq(device_t dev, int rid, int flags)
+int
+cs_alloc_irq(device_t dev, int rid, int flags)
 {
 	struct cs_softc *sc = device_get_softc(dev);
 	struct resource *res;
@@ -514,7 +519,8 @@ int cs_alloc_irq(device_t dev, int rid, int flags)
 /*
  * Release all resources
  */
-void cs_release_resources(device_t dev)
+void
+cs_release_resources(device_t dev)
 {
 	struct cs_softc *sc = device_get_softc(dev);
 
@@ -541,7 +547,7 @@ void cs_release_resources(device_t dev)
 int
 cs_attach(device_t dev)
 {
-	int media=0;
+	int error, media=0;
 	struct cs_softc *sc = device_get_softc(dev);;
 	struct ifnet *ifp;
 
@@ -550,18 +556,24 @@ cs_attach(device_t dev)
 	ifp = sc->ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL) {
 		device_printf(dev, "can not if_alloc()\n");
-		return (0);
+		cs_release_resources(dev);
+		return (ENOMEM);
 	}
 
-	cs_stop( sc );
+	mtx_init(&sc->lock, device_get_nameunit(dev), MTX_NETWORK_LOCK,
+	    MTX_DEF);
+	callout_init_mtx(&sc->timer, &sc->lock, 0);
+
+	CS_LOCK(sc);
+	cs_stop(sc);
+	CS_UNLOCK(sc);
 
 	ifp->if_softc=sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_start=cs_start;
 	ifp->if_ioctl=cs_ioctl;
-	ifp->if_watchdog=cs_watchdog;
 	ifp->if_init=cs_init;
-	ifp->if_snd.ifq_maxlen= IFQ_MAXLEN;
+	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
 	/*
 	 *  MIB DATA
 	 */
@@ -570,8 +582,7 @@ cs_attach(device_t dev)
 	ifp->if_linkmiblen=sizeof sc->mibdata;
 	*/
 
-	ifp->if_flags=(IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST |
-	    IFF_NEEDSGIANT);
+	ifp->if_flags=(IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
 
 	/*
 	 * this code still in progress (DMA support)
@@ -592,7 +603,10 @@ cs_attach(device_t dev)
 	sc->buffer=malloc(ETHER_MAX_LEN-ETHER_CRC_LEN,M_DEVBUF,M_NOWAIT);
 	if (sc->buffer == NULL) {
 		device_printf(sc->dev, "Couldn't allocate memory for NIC\n");
-		return(0);
+		if_free(ifp);
+		mtx_destroy(&sc->lock);
+		cs_release_resources(dev);
+		return(ENOMEM);
 	}
 
 	/*
@@ -643,6 +657,17 @@ cs_attach(device_t dev)
 
 	ether_ifattach(ifp, sc->enaddr);
 
+  	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET | INTR_MPSAFE,
+	    NULL, csintr, sc, &sc->irq_handle);
+	if (error) {
+		ether_ifdetach(ifp);
+		free(sc->buffer, M_DEVBUF);
+		if_free(ifp);
+		mtx_destroy(&sc->lock);
+		cs_release_resources(dev);
+		return (error);
+	}
+
 	return (0);
 }
 
@@ -655,11 +680,16 @@ cs_detach(device_t dev)
 	sc = device_get_softc(dev);
 	ifp = sc->ifp;
 
+	CS_LOCK(sc);
 	cs_stop(sc);
-	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+	CS_UNLOCK(sc);
+	callout_drain(&sc->timer);
 	ether_ifdetach(ifp);
+	bus_teardown_intr(dev, sc->irq_res, sc->irq_handle);
 	cs_release_resources(dev);
+	free(sc->buffer, M_DEVBUF);
 	if_free(ifp);
+	mtx_destroy(&sc->lock);
 	return (0);
 }
 
@@ -670,17 +700,24 @@ static void
 cs_init(void *xsc)
 {
 	struct cs_softc *sc=(struct cs_softc *)xsc;
+
+	CS_LOCK(sc);
+	cs_init_locked(sc);
+	CS_UNLOCK(sc);
+}
+
+static void
+cs_init_locked(struct cs_softc *sc)
+{
 	struct ifnet *ifp = sc->ifp;
-	int i, s, rx_cfg;
+	int i, rx_cfg;
 
 	/*
-	 * reset whatchdog timer
+	 * reset watchdog timer
 	 */
-	ifp->if_timer=0;
+	sc->tx_timeout = 0;
 	sc->buf_len = 0;
 	
-	s=splimp();
-
 	/*
 	 * Hardware initialization of cs
 	 */
@@ -732,13 +769,12 @@ cs_init(void *xsc)
 	 */
 	sc->ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	sc->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	callout_reset(&sc->timer, hz, cs_watchdog, sc);
 
 	/*
 	 * Start sending process
 	 */
-	cs_start(ifp);
-
-	(void) splx(s);
+	cs_start_locked(ifp);
 }
 
 /*
@@ -828,6 +864,7 @@ csintr(void *arg)
 	device_printf(sc->dev, "Interrupt.\n");
 #endif
 
+	CS_LOCK(sc);
 	while ((status=cs_inw(sc, ISQ_PORT))) {
 
 #ifdef CS_DEBUG
@@ -845,18 +882,18 @@ csintr(void *arg)
 			else
 				ifp->if_oerrors++;
 			ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-			ifp->if_timer = 0;
+			sc->tx_timeout = 0;
 			break;
 
 		case ISQ_BUFFER_EVENT:
 			if (status & READY_FOR_TX) {
 				ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-				ifp->if_timer = 0;
+				sc->tx_timeout = 0;
 			}
 
 			if (status & TX_UNDERRUN) {
 				ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-				ifp->if_timer = 0;
+				sc->tx_timeout = 0;
 				ifp->if_oerrors++;
 			}
 			break;
@@ -872,8 +909,9 @@ csintr(void *arg)
 	}
 
 	if (!(ifp->if_drv_flags & IFF_DRV_OACTIVE)) {
-		cs_start(ifp);
+		cs_start_locked(ifp);
 	}
+	CS_UNLOCK(sc);
 }
 
 /*
@@ -918,11 +956,19 @@ cs_xmit_buf( struct cs_softc *sc )
 static void
 cs_start(struct ifnet *ifp)
 {
-	int s, length;
-	struct mbuf *m, *mp;
 	struct cs_softc *sc = ifp->if_softc;
 
-	s = splimp();
+	CS_LOCK(sc);
+	cs_start_locked(ifp);
+	CS_UNLOCK(sc);
+}
+
+static void
+cs_start_locked(struct ifnet *ifp)
+{
+	int length;
+	struct mbuf *m, *mp;
+	struct cs_softc *sc = ifp->if_softc;
 
 	for (;;) {
 		if (sc->buf_len)
@@ -931,7 +977,6 @@ cs_start(struct ifnet *ifp)
 			IF_DEQUEUE( &ifp->if_snd, m );
 
 			if (m==NULL) {
-				(void) splx(s);
 				return;
 			}
 
@@ -963,8 +1008,7 @@ cs_start(struct ifnet *ifp)
 		 * and return.
 		 */
 		if (!(cs_readreg(sc, PP_BusST) & READY_FOR_TX_NOW)) {
-			ifp->if_timer = sc->buf_len;
-			(void) splx(s);
+			sc->tx_timeout = sc->buf_len;
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			return;
 		}
@@ -976,9 +1020,8 @@ cs_start(struct ifnet *ifp)
 		 * from board again. (I don't know about correct
 		 * value for this timeout)
 		 */
-		ifp->if_timer = length;
+		sc->tx_timeout = length;
 
-		(void) splx(s);
 		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 		return;
 	}
@@ -990,17 +1033,16 @@ cs_start(struct ifnet *ifp)
 static void
 cs_stop(struct cs_softc *sc)
 {
-	int s = splimp();
 
+	CS_ASSERT_LOCKED(sc);
 	cs_writereg(sc, PP_RxCFG, 0);
 	cs_writereg(sc, PP_TxCFG, 0);
 	cs_writereg(sc, PP_BufCFG, 0);
 	cs_writereg(sc, PP_BusCTL, 0);
 
 	sc->ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
-	sc->ifp->if_timer = 0;
-
-	(void) splx(s);
+	sc->tx_timeout = 0;
+	callout_stop(&sc->timer);
 }
 
 /*
@@ -1009,8 +1051,10 @@ cs_stop(struct cs_softc *sc)
 static void
 cs_reset(struct cs_softc *sc)
 {
+
+	CS_ASSERT_LOCKED(sc);
 	cs_stop(sc);
-	cs_init(sc);
+	cs_init_locked(sc);
 }
 
 static uint16_t
@@ -1096,13 +1140,11 @@ cs_ioctl(register struct ifnet *ifp, u_long command, caddr_t data)
 {
 	struct cs_softc *sc=ifp->if_softc;
 	struct ifreq *ifr = (struct ifreq *)data;
-	int s,error=0;
+	int error=0;
 
 #ifdef CS_DEBUG
 	if_printf(ifp, "%s command=%lx\n", __func__, command);
 #endif
-
-	s=splimp();
 
 	switch (command) {
 	case SIOCSIFFLAGS:
@@ -1110,15 +1152,16 @@ cs_ioctl(register struct ifnet *ifp, u_long command, caddr_t data)
 		 * Switch interface state between "running" and
 		 * "stopped", reflecting the UP flag.
 		 */
+		CS_LOCK(sc);
 		if (sc->ifp->if_flags & IFF_UP) {
 			if ((sc->ifp->if_drv_flags & IFF_DRV_RUNNING)==0) {
-				cs_init(sc);
+				cs_init_locked(sc);
 			}
 		} else {
 			if ((sc->ifp->if_drv_flags & IFF_DRV_RUNNING)!=0) {
 				cs_stop(sc);
 			}
-		}
+		}		
 		/*
 		 * Promiscuous and/or multicast flags may have changed,
 		 * so reprogram the multicast filter and/or receive mode.
@@ -1126,6 +1169,7 @@ cs_ioctl(register struct ifnet *ifp, u_long command, caddr_t data)
 		 * See note about multicasts in cs_setmode
 		 */
 		cs_setmode(sc);
+		CS_UNLOCK(sc);
 		break;
 
 	case SIOCADDMULTI:
@@ -1136,7 +1180,9 @@ cs_ioctl(register struct ifnet *ifp, u_long command, caddr_t data)
 	     *
 	     * See note about multicasts in cs_setmode
 	     */
+	    CS_LOCK(sc);
 	    cs_setmode(sc);
+	    CS_UNLOCK(sc);
 	    error = 0;
 	    break;
 
@@ -1150,7 +1196,6 @@ cs_ioctl(register struct ifnet *ifp, u_long command, caddr_t data)
 		break;
 	}
 
-	(void) splx(s);
 	return (error);
 }
 
@@ -1159,18 +1204,23 @@ cs_ioctl(register struct ifnet *ifp, u_long command, caddr_t data)
  * generate an interrupt after a transmit has been started on it.
  */
 static void
-cs_watchdog(struct ifnet *ifp)
+cs_watchdog(void *arg)
 {
-	struct cs_softc *sc = ifp->if_softc;
+	struct cs_softc *sc = arg;
+	struct ifnet *ifp = sc->ifp;
 
-	ifp->if_oerrors++;
-	log(LOG_ERR, "%s: device timeout\n", ifp->if_xname);
+	CS_ASSERT_LOCKED(sc);
+	if (sc->tx_timeout && --sc->tx_timeout == 0) {
+		ifp->if_oerrors++;
+		log(LOG_ERR, "%s: device timeout\n", ifp->if_xname);
 
-	/* Reset the interface */
-	if (ifp->if_flags & IFF_UP)
-		cs_reset(sc);
-	else
-		cs_stop(sc);
+		/* Reset the interface */
+		if (ifp->if_flags & IFF_UP)
+			cs_reset(sc);
+		else
+			cs_stop(sc);
+	}
+	callout_reset(&sc->timer, hz, cs_watchdog, sc);
 }
 
 static int
@@ -1178,11 +1228,15 @@ cs_mediachange(struct ifnet *ifp)
 {
 	struct cs_softc *sc = ifp->if_softc;
 	struct ifmedia *ifm = &sc->media;
+	int error;
 
 	if (IFM_TYPE(ifm->ifm_media) != IFM_ETHER)
 		return (EINVAL);
 
-	return (cs_mediaset(sc, ifm->ifm_media));
+	CS_LOCK(sc);
+	error = cs_mediaset(sc, ifm->ifm_media);
+	CS_UNLOCK(sc);
+	return (error);
 }
 
 static void
@@ -1191,6 +1245,7 @@ cs_mediastatus(struct ifnet *ifp, struct ifmediareq *ifmr)
 	int line_status;
 	struct cs_softc *sc = ifp->if_softc;
 
+	CS_LOCK(sc);
 	ifmr->ifm_active = IFM_ETHER;
 	line_status = cs_readreg(sc, PP_LineST);
 	if (line_status & TENBASET_ON) {
@@ -1215,6 +1270,7 @@ cs_mediastatus(struct ifnet *ifp, struct ifmediareq *ifmr)
 				ifmr->ifm_active |= IFM_10_5;
 		}
 	}
+	CS_UNLOCK(sc);
 }
 
 static int

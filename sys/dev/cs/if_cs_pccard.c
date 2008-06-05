@@ -90,10 +90,6 @@ cs_pccard_attach(device_t dev)
 	error = cs_alloc_irq(dev, sc->irq_rid, 0);
 	if (error != 0)
 		goto bad;
-	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET,
-	    NULL, csintr, sc, &sc->irq_handle);
-	if (error != 0)
-		goto bad;
 
 	return (cs_attach(dev));
 bad:
