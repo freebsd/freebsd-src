@@ -34,7 +34,9 @@ keywords_may_change (aflag, vers)
 	    aflag
 	    /* ...and...  */
 	    && (/* ...there used to be a tag which subs in Name keys...  */
-		(vers->entdata->tag && !isdigit (vers->entdata->tag[0]))
+		(vers->entdata->tag && !isdigit (vers->entdata->tag[0])
+		    && vers->tag && !isdigit (vers->tag[0])
+		    && strcmp (vers->entdata->tag, vers->tag))
 		/* ...or there used to be a keyword mode which may be
 		 * changed by -A...
 		 */
