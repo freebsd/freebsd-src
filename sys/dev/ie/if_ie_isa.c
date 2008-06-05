@@ -802,11 +802,13 @@ static device_method_t ie_isa_3C507_methods[] = {
 	DEVMETHOD(device_detach,	ie_detach),
 	{ 0, 0 }
 };
+
 static driver_t ie_isa_3C507_driver = {
 	"ie",
 	ie_isa_3C507_methods,
 	sizeof(struct ie_softc), 
 };
+
 DRIVER_MODULE(ie_3C507, isa, ie_isa_3C507_driver, ie_devclass, ie_modevent, 0);
 MODULE_DEPEND(ie_3C507, elink, 1, 1, 1);
 
@@ -817,12 +819,14 @@ static device_method_t ie_isa_ee16_methods[] = {
 	DEVMETHOD(device_detach,	ie_detach),
 	{ 0, 0 }
 };
+
 static driver_t ie_isa_ee16_driver = {
 	"ie",
 	ie_isa_ee16_methods,
 	sizeof(struct ie_softc), 
 };
-DRIVER_MODULE(ie_EE16, isa, ie_isa_ee16_driver, ie_devclass, ie_modevent, 0);
+
+DRIVER_MODULE(ie, isa, ie_isa_ee16_driver, ie_devclass, ie_modevent, 0);
 
 static device_method_t ie_isa_sl_methods[] = {
 	DEVMETHOD(device_probe,		ie_isa_sl_probe),
@@ -830,11 +834,13 @@ static device_method_t ie_isa_sl_methods[] = {
 	DEVMETHOD(device_detach,	ie_detach),
 	{ 0, 0 }
 };
+
 static driver_t ie_isa_sl_driver = {
 	"ie",
 	ie_isa_sl_methods,
 	sizeof(struct ie_softc), 
 };
+
 DRIVER_MODULE(ie_SL, isa, ie_isa_sl_driver, ie_devclass, ie_modevent, 0);
 
 static int
