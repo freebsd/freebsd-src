@@ -37,9 +37,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/tty.h>	/* TIOCOUTQ */
 #include <sys/uio.h>
 #include <sysexits.h>
+#include <termios.h>
 #include <time.h>
 #include <unistd.h>
 #include <utmp.h>
