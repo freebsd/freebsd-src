@@ -90,7 +90,6 @@ static int
 cs_isa_attach(device_t dev)
 {
         struct cs_softc *sc = device_get_softc(dev);
-        int error;
         
 	cs_alloc_port(dev, 0, CS_89x0_IO_PORTS);
 	/* XXX mem appears to not be used at all */
@@ -98,13 +97,6 @@ cs_isa_attach(device_t dev)
                 cs_alloc_memory(dev, sc->mem_rid, sc->mem_used);
         cs_alloc_irq(dev, sc->irq_rid, 0);
                 
-        error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET,
-	    NULL, csintr, sc, &sc->irq_handle);
-        if (error) {
-                cs_release_resources(dev);
-                return (error);
-        }              
-
         return (cs_attach(dev));
 }
 

@@ -69,7 +69,14 @@ struct cs_softc {
 
 	unsigned char *buffer;
 	int buf_len;
+	struct mtx lock;
+	struct callout timer;
+	int	tx_timeout;
 };
+
+#define	CS_LOCK(sc)		mtx_lock(&(sc)->lock)
+#define	CS_UNLOCK(sc)		mtx_unlock(&(sc)->lock)
+#define	CS_ASSERT_LOCKED(sc)	mtx_assert(&(sc)->lock, MA_OWNED)
 
 int	cs_alloc_port(device_t dev, int rid, int size);
 int	cs_alloc_memory(device_t dev, int rid, int size);
