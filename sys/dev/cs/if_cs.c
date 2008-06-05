@@ -194,7 +194,6 @@ control_dc_dc(struct cs_softc *sc, int on_not_off)
 	else
 		self_control &= ~HCB1;
 	cs_writereg(sc, PP_SelfCTL, self_control);
-
 	DELAY(500000);
 }
 
@@ -215,7 +214,6 @@ cs_duplex_auto(struct cs_softc *sc)
 		}
 		DELAY(1000);
 	}
-	DELAY(1000000);
 	return (error);
 }
 
@@ -225,13 +223,6 @@ enable_tp(struct cs_softc *sc)
 
 	cs_writereg(sc, PP_LineCTL, sc->line_ctl & ~AUI_ONLY);
 	control_dc_dc(sc, 0);
-	DELAY( 150000 );
-
-	if ((cs_readreg(sc, PP_LineST) & LINK_OK)==0) {
-		device_printf(sc->dev, "failed to enable TP\n");
-		return (EINVAL);
-	}
-
 	return (0);
 }
 
@@ -288,10 +279,8 @@ enable_aui(struct cs_softc *sc)
 	cs_writereg(sc, PP_LineCTL,
 	    (sc->line_ctl & ~AUTO_AUI_10BASET) | AUI_ONLY);
 
-	if (!send_test_pkt(sc)) {
-		device_printf(sc->dev, "failed to enable AUI\n");
+	if (!send_test_pkt(sc))
 		return (EINVAL);
-	}
 	return (0);
 }
 
@@ -306,10 +295,8 @@ enable_bnc(struct cs_softc *sc)
 	cs_writereg(sc, PP_LineCTL,
 	    (sc->line_ctl & ~AUTO_AUI_10BASET) | AUI_ONLY);
 
-	if (!send_test_pkt(sc)) {
-		device_printf(sc->dev, "failed to enable BNC\n");
+	if (!send_test_pkt(sc))
 		return (EINVAL);
-	}
 	return (0);
 }
 
@@ -1246,10 +1233,12 @@ cs_mediaset(struct cs_softc *sc, int media)
 	switch (IFM_SUBTYPE(media)) {
 	default:
 	case IFM_AUTO:
-		if ((error=enable_tp(sc))==0)
-			error = cs_duplex_auto(sc);
-		else if ((error=enable_bnc(sc)) != 0)
-			error = enable_aui(sc);
+		/*
+		 * This chip makes it a little hard to support this, so treat
+		 * it as IFM_10_T, auto duplex.
+		 */
+		enable_tp(sc);
+		cs_duplex_auto(sc);
 		break;
 	case IFM_10_T:
 		enable_tp(sc);
