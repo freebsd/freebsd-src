@@ -91,6 +91,7 @@
 #include "thr_private.h"
 
 extern int __creat(const char *, mode_t);
+extern int __fcntl_compat(int, int,...);
 extern int __pause(void);
 extern int __pselect(int count, fd_set *rfds, fd_set *wfds, fd_set *efds,
 		const struct timespec *timo, const sigset_t *mask);
@@ -209,7 +210,7 @@ __fcntl(int fd, int cmd,...)
 		ret = __sys_fcntl(fd, cmd);
 		break;
 	default:
-		ret = __sys_fcntl(fd, cmd, va_arg(ap, void *));
+		ret = __fcntl_compat(fd, cmd, va_arg(ap, void *));
 	}
 	va_end(ap);
 
