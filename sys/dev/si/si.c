@@ -83,7 +83,9 @@ static const char si_copyright1[] =  "@(#) Copyright (C) Specialix International
  */
 
 #define	POLL		/* turn on poller to scan for lost interrupts */
+#if 0
 #define REALPOLL	/* on each poll, scan for work regardless */
+#endif
 #define POLLHZ	(hz/10)	/* 10 times per second */
 #define SI_I_HIGH_WATER	(TTYHOG - 2 * SI_BUFFERSIZE)
 #define INT_COUNT 25000		/* max of 125 ints per second */
@@ -166,7 +168,6 @@ static struct speedtab chartimes[] = {
 	{ B115200,	11520, },
 	{ -1,		-1 },
 };
-static volatile int in_intr = 0;	/* Inside interrupt handler? */
 
 #ifdef POLL
 static int si_pollrate;			/* in addition to irq */
@@ -193,6 +194,34 @@ static const char *si_type[] = {
 	"SXPCI",
 	"SXISA",
 };
+
+#ifdef SI_DEBUG
+static char *
+si_cmdname(int cmd)
+{
+	static char buf[32];
+
+	switch (cmd) {
+	case IDLE_OPEN:		return("IDLE_OPEN");
+	case LOPEN:		return("LOPEN");
+	case MOPEN:		return("MOPEN");
+	case MPEND:		return("MPEND");
+	case CONFIG:		return("CONFIG");
+	case CLOSE:		return("CLOSE");
+	case SBREAK:		return("SBREAK");
+	case EBREAK:		return("EBREAK");
+	case IDLE_CLOSE:	return("IDLE_CLOSE");
+	case IDLE_BREAK:	return("IDLE_BREAK");
+	case FCLOSE:		return("FCLOSE");
+	case RESUME:		return("RESUME");
+	case WFLUSH:		return("WFLUSH");
+	case RFLUSH:		return("RFLUSH");
+	default:
+		sprintf(buf, "?cmd:0x%x?", cmd);
+		return (buf);
+	}
+}
+#endif
 
 /*
  * We have to make an 8 bit version of bcopy, since some cards can't
@@ -594,6 +623,7 @@ static	int
 siopen(struct tty *tp, struct cdev *dev)
 {
 
+	mtx_assert(&Giant, MA_OWNED);
 #ifdef	POLL
 	/*
 	 * We've now got a device, so start the poller.
@@ -611,8 +641,9 @@ siclose(struct tty *tp)
 {
 	struct si_port *pp;
 
+	mtx_assert(&Giant, MA_OWNED);
 	pp = tp->t_sc;
-	(void) si_command(pp, FCLOSE, SI_NOWAIT);
+	(void) si_command(pp, FCLOSE, SI_WAIT);
 }
 
 static void
@@ -620,6 +651,7 @@ sibreak(struct tty *tp, int sig)
 {
 	struct si_port *pp;
 
+	mtx_assert(&Giant, MA_OWNED);
 	pp = tp->t_sc;
 	if (sig)
 		si_command(pp, SBREAK, SI_WAIT);
@@ -645,6 +677,7 @@ si_Sioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *t
 
 	DPRINT((0, DBG_ENTRY|DBG_IOCTL, "si_Sioctl(%s,%lx,%x,%x)\n",
 		devtoname(dev), cmd, data, flag));
+	mtx_assert(&Giant, MA_OWNED);
 
 #if 1
 	DPRINT((0, DBG_IOCTL, "TCSI_PORT=%x\n", TCSI_PORT));
@@ -786,6 +819,7 @@ siparam(struct tty *tp, struct termios *t)
 	BYTE val;
 
 	DPRINT((pp, DBG_ENTRY|DBG_PARAM, "siparam(%x,%x)\n", tp, t));
+	mtx_assert(&Giant, MA_OWNED);
 	cflag = t->c_cflag;
 	iflag = t->c_iflag;
 	oflag = t->c_oflag;
@@ -954,6 +988,7 @@ simodem(struct tty *tp, int sigon, int sigoff)
 
 	pp = tp->t_sc;
 	DPRINT((pp, DBG_ENTRY|DBG_MODEM, "simodem(%x,%x)\n", sigon, sigoff));
+	mtx_assert(&Giant, MA_OWNED);
 	ccbp = pp->sp_ccb;		/* Find channel address */
 	if (sigon == 0 && sigoff == 0) {
 		x = ccbp->hi_ip;
@@ -988,6 +1023,7 @@ static void
 si_modem_state(struct si_port *pp, struct tty *tp, int hi_ip)
 {
 							/* if a modem dev */
+	mtx_assert(&Giant, MA_OWNED);
 	if (hi_ip & IP_DCD) {
 		if (!(pp->sp_last_hi_ip & IP_DCD)) {
 			DPRINT((pp, DBG_INTR, "modem carr on t_line %d\n",
@@ -1023,8 +1059,7 @@ si_poll(void *nothing)
 
 	DPRINT((0, DBG_POLL, "si_poll()\n"));
 	oldspl = spltty();
-	if (in_intr)
-		goto out;
+	mtx_assert(&Giant, MA_OWNED);
 	lost = 0;
 	for (i = 0; i < si_numunits; i++) {
 		sc = devclass_get_softc(si_devclass, i);
@@ -1061,7 +1096,6 @@ si_poll(void *nothing)
 	}
 	if (lost || si_realpoll)
 		si_intr(NULL);	/* call intr with fake vector */
-out:
 	splx(oldspl);
 
 	timeout(si_poll, (caddr_t)0L, si_pollrate);
@@ -1090,11 +1124,9 @@ si_intr(void *arg)
 	BYTE c;
 
 	sc = arg;
+	mtx_assert(&Giant, MA_OWNED);
 
 	DPRINT((0, arg == NULL ? DBG_POLL:DBG_INTR, "si_intr\n"));
-	if (in_intr)
-		return;
-	in_intr = 1;
 
 	/*
 	 * When we get an int we poll all the channels and do ALL pending
@@ -1163,30 +1195,30 @@ si_intr(void *arg)
 			 */
 			if (ccbp->hi_stat != pp->sp_pend) {
 				DPRINT((pp, DBG_INTR,
-					"si_intr hi_stat = 0x%x, pend = %d\n",
-					ccbp->hi_stat, pp->sp_pend));
+					"si_intr hi_stat = %s, pend = %s\n",
+					si_cmdname(ccbp->hi_stat),
+					si_cmdname(pp->sp_pend)));
 				switch(pp->sp_pend) {
 				case LOPEN:
 				case MPEND:
 				case MOPEN:
+				case FCLOSE:
 				case CONFIG:
 				case SBREAK:
 				case EBREAK:
-					pp->sp_pend = ccbp->hi_stat;
-						/* sleeping in si_command */
+					/* sleeping in si_command */
+					DPRINT((pp, DBG_INTR, "do wakeup\n"));
 					wakeup(&pp->sp_state);
 					break;
-				default:
-					pp->sp_pend = ccbp->hi_stat;
 				}
+				pp->sp_pend = ccbp->hi_stat;
 			}
 
 			/*
 			 * Continue on if it's closed
 			 */
-			if (ccbp->hi_stat == IDLE_CLOSE) {
+			if (ccbp->hi_stat == IDLE_CLOSE)
 				continue;
-			}
 
 			/*
 			 * Do modem state change if not a local device
@@ -1206,9 +1238,8 @@ si_intr(void *arg)
 			 * Do input break processing
 			 */
 			if (ccbp->hi_state & ST_BREAK) {
-				if (isopen) {
+				if (isopen)
 				    ttyld_rint(tp, TTY_BI);
-				}
 				ccbp->hi_state &= ~ST_BREAK;   /* A Bit iffy this */
 				DPRINT((pp, DBG_INTR, "si_intr break\n"));
 			}
@@ -1222,7 +1253,7 @@ si_intr(void *arg)
 			 * if the user cannot get an interrupt signal through.
 			 */
 
-	more_rx:	/* XXX Sorry. the nesting was driving me bats! :-( */
+	more_rx:
 
 			if (!isopen) {
 				ccbp->hi_rxopos = ccbp->hi_rxipos;
@@ -1234,9 +1265,8 @@ si_intr(void *arg)
 			 * the incoming buffers and let the auto flow control
 			 * assert..
 			 */
-			if (tp->t_state & TS_TBLOCK) {
+			if (tp->t_state & TS_TBLOCK)
 				goto end_rx;
-			}
 
 			/*
 			 * Process read characters if not skipped above
@@ -1244,9 +1274,8 @@ si_intr(void *arg)
 			op = ccbp->hi_rxopos;
 			ip = ccbp->hi_rxipos;
 			c = ip - op;
-			if (c == 0) {
+			if (c == 0)
 				goto end_rx;
-			}
 
 			n = c & 0xff;
 			if (n > 250)
@@ -1264,7 +1293,6 @@ si_intr(void *arg)
 			 */
 			if (n <= SI_BUFFERSIZE - op) {
 
-				DPRINT((pp, DBG_INTR, "\tsingle copy\n"));
 				z = ccbp->hi_rxbuf + op;
 				si_vbcopy(z, si_rxbuf, n);
 
@@ -1272,12 +1300,9 @@ si_intr(void *arg)
 			} else {
 				x = SI_BUFFERSIZE - op;
 
-				DPRINT((pp, DBG_INTR, "\tdouble part 1 %d\n", x));
 				z = ccbp->hi_rxbuf + op;
 				si_vbcopy(z, si_rxbuf, x);
 
-				DPRINT((pp, DBG_INTR, "\tdouble part 2 %d\n",
-					n - x));
 				z = ccbp->hi_rxbuf;
 				si_vbcopy(z, si_rxbuf + x, n - x);
 
@@ -1336,15 +1361,13 @@ si_intr(void *arg)
 				 */
 				for(x = 0; x < n; x++) {
 					i = si_rxbuf[x];
-					if (ttyld_rint(tp, i)
-					     == -1) {
+					if (ttyld_rint(tp, i) == -1)
 						pp->sp_delta_overflows++;
-					}
 				}
 			}
 			goto more_rx;	/* try for more until RXbuf is empty */
 
-	end_rx:		/* XXX: Again, sorry about the gotos.. :-) */
+	end_rx:
 
 			/*
 			 * Do TX stuff
@@ -1354,7 +1377,6 @@ si_intr(void *arg)
 		} /* end of for (all ports on this controller) */
 	} /* end of for (all controllers) */
 
-	in_intr = 0;
 	DPRINT((0, arg == NULL ? DBG_POLL:DBG_INTR, "end si_intr\n"));
 }
 
@@ -1376,9 +1398,10 @@ si_start(struct tty *tp)
 	struct clist *qp;
 	BYTE ipos;
 	int nchar;
-	int oldspl, count, n, amount, buffer_full;
+	int oldspl, count, n, amount;
 
 	oldspl = spltty();
+	mtx_assert(&Giant, MA_OWNED);
 
 	qp = &tp->t_outq;
 	pp = tp->t_sc;
@@ -1390,17 +1413,14 @@ si_start(struct tty *tp)
 	if (tp->t_state & (TS_TIMEOUT|TS_TTSTOP))
 		goto out;
 
-	buffer_full = 0;
 	ccbp = pp->sp_ccb;
 
 	count = (int)ccbp->hi_txipos - (int)ccbp->hi_txopos;
 	DPRINT((pp, DBG_START, "count %d\n", (BYTE)count));
 
 	while ((nchar = qp->c_cc) > 0) {
-		if ((BYTE)count >= 255) {
-			buffer_full++;
+		if ((BYTE)count >= 255)
 			break;
-		}
 		amount = min(nchar, (255 - (BYTE)count));
 		ipos = (unsigned int)ccbp->hi_txipos;
 		n = q_to_b(&tp->t_outq, si_txbuf, amount);
@@ -1417,11 +1437,10 @@ si_start(struct tty *tp)
 		count = (int)ccbp->hi_txipos - (int)ccbp->hi_txopos;
 	}
 
-	if (count != 0 && nchar == 0) {
+	if (count != 0 && nchar == 0)
 		tp->t_state |= TS_BUSY;
-	} else {
+	else
 		tp->t_state &= ~TS_BUSY;
-	}
 
 	/* wakeup time? */
 	ttwwakeup(tp);
@@ -1429,8 +1448,7 @@ si_start(struct tty *tp)
 	DPRINT((pp, DBG_START, "count %d, nchar %d, tp->t_state 0x%x\n",
 		(BYTE)count, nchar, tp->t_state));
 
-	if (tp->t_state & TS_BUSY)
-	{
+	if (tp->t_state & TS_BUSY) {
 		int time;
 
 		time = ttspeedtab(tp->t_ospeed, chartimes);
@@ -1446,12 +1464,10 @@ si_start(struct tty *tp)
 			time = hz/10;
 		}
 
-		if ((pp->sp_state & (SS_LSTART|SS_INLSTART)) == SS_LSTART) {
+		if ((pp->sp_state & SS_LSTART) != 0)
 			untimeout(si_lstart, (caddr_t)pp, pp->lstart_ch);
-		} else {
-			pp->sp_state |= SS_LSTART;
-		}
 		DPRINT((pp, DBG_START, "arming lstart, time=%d\n", time));
+		pp->sp_state |= SS_LSTART;
 		pp->lstart_ch = timeout(si_lstart, (caddr_t)pp, time);
 	}
 
@@ -1477,16 +1493,14 @@ si_lstart(void *arg)
 		pp, pp->sp_state));
 
 	oldspl = spltty();
+	mtx_assert(&Giant, MA_OWNED);
+	pp->sp_state &= ~SS_LSTART;
 	tp = pp->sp_tty;
 
-	if ((tp->t_state & TS_ISOPEN) == 0 ||
-	    (pp->sp_state & SS_LSTART) == 0) {
+	if ((tp->t_state & TS_ISOPEN) == 0) {
 		splx(oldspl);
 		return;
 	}
-	pp->sp_state &= ~SS_LSTART;
-	pp->sp_state |= SS_INLSTART;
-
 
 	/* deal with the process exit case */
 	ttwwakeup(tp);
@@ -1494,7 +1508,6 @@ si_lstart(void *arg)
 	/* nudge protocols - eg: ppp */
 	ttyld_start(tp);
 
-	pp->sp_state &= ~SS_INLSTART;
 	splx(oldspl);
 }
 
@@ -1507,6 +1520,7 @@ si_stop(struct tty *tp, int rw)
 	volatile struct si_channel *ccbp;
 	struct si_port *pp;
 
+	mtx_assert(&Giant, MA_OWNED);
 	pp = tp->t_sc;
 	ccbp = pp->sp_ccb;
 
@@ -1544,10 +1558,12 @@ si_command(struct si_port *pp, int cmd, int waitflag)
 	volatile struct si_channel *ccbp = pp->sp_ccb;
 	int x;
 
-	DPRINT((pp, DBG_ENTRY|DBG_PARAM, "si_command(%x,%x,%d): hi_stat 0x%x\n",
-		pp, cmd, waitflag, ccbp->hi_stat));
+	DPRINT((pp, DBG_ENTRY|DBG_PARAM, "si_command(%x,%s,%d): hi_stat %s, sp_pend: %s\n",
+		pp, si_cmdname(cmd), waitflag, si_cmdname(ccbp->hi_stat),
+		si_cmdname(pp->sp_pend)));
 
 	oldspl = spltty();		/* Keep others out */
+	mtx_assert(&Giant, MA_OWNED);
 
 	/* wait until it's finished what it was doing.. */
 	/* XXX: sits in IDLE_BREAK until something disturbs it or break
@@ -1556,14 +1572,12 @@ si_command(struct si_port *pp, int cmd, int waitflag)
 			x != IDLE_CLOSE &&
 			x != IDLE_BREAK &&
 			x != cmd) {
-		if (in_intr) {			/* Prevent sleep in intr */
-			DPRINT((pp, DBG_PARAM,
-				"cmd intr collision - completing %d\trequested %d\n",
-				x, cmd));
-			splx(oldspl);
-			return;
-		} else if (ttysleep(pp->sp_tty, (caddr_t)&pp->sp_state, TTIPRI|PCATCH,
-				"sicmd1", 1)) {
+		if (ttysleep(pp->sp_tty, (caddr_t)&pp->sp_state, TTIPRI|PCATCH,
+				"sicmd1", hz/4)) {
+			DPRINT((pp, DBG_PARAM, "sicmd1 timeout: hi_stat (%s)\n",
+				si_cmdname(ccbp->hi_stat)));
+			/* This is very very bad.  The card has crashed. */
+			/* XXX the driver breaks at this point */
 			splx(oldspl);
 			return;
 		}
@@ -1575,9 +1589,11 @@ si_command(struct si_port *pp, int cmd, int waitflag)
 	case LOPEN:
 	case MPEND:
 	case MOPEN:
+	case FCLOSE:
 	case CONFIG:
 	case SBREAK:
 	case EBREAK:
+		DPRINT((pp, DBG_PARAM, "si_command: sp_pend %s\n", si_cmdname(pp->sp_pend)));
 		wakeup(&pp->sp_state);
 		break;
 	default:
@@ -1588,14 +1604,9 @@ si_command(struct si_port *pp, int cmd, int waitflag)
 	ccbp->hi_stat = cmd;		/* Post it */
 
 	if (waitflag) {
-		if (in_intr) {		/* If in interrupt handler */
-			DPRINT((pp, DBG_PARAM,
-				"attempt to sleep in si_intr - cmd req %d\n",
-				cmd));
-			splx(oldspl);
-			return;
-		} else while(ccbp->hi_stat != IDLE_OPEN &&
-			     ccbp->hi_stat != IDLE_BREAK) {
+		while((x = ccbp->hi_stat) != IDLE_OPEN &&
+			     x != IDLE_CLOSE &&
+			     x != IDLE_BREAK) {
 			if (ttysleep(pp->sp_tty, (caddr_t)&pp->sp_state, TTIPRI|PCATCH,
 			    "sicmd2", 0))
 				break;
