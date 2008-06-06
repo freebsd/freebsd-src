@@ -189,14 +189,12 @@ ichsmb_pci_attach(device_t dev)
 	    &sc->io_rid, 0, ~0, 16, RF_ACTIVE);
 	if (sc->io_res == NULL)
 		sc->io_res = bus_alloc_resource(dev, SYS_RES_IOPORT,
-		    &sc->io_rid, 0, ~0, 32, RF_ACTIVE);
+		    &sc->io_rid, 0ul, ~0ul, 32, RF_ACTIVE);
 	if (sc->io_res == NULL) {
 		device_printf(dev, "can't map I/O\n");
 		error = ENXIO;
 		goto fail;
 	}
-	sc->io_bst = rman_get_bustag(sc->io_res);
-	sc->io_bsh = rman_get_bushandle(sc->io_res);
 
 	/* Allocate interrupt */
 	sc->irq_rid = 0;
