@@ -50,11 +50,7 @@ struct cs_softc {
 	struct ifmedia media;		/* Media information */
 
 	int     port_rid;		/* resource id for port range */
-	int     port_used;		/* nonzero if ports used */
 	struct resource* port_res;	/* resource for port range */
-	int     mem_rid;  		/* resource id for memory range */
-	int     mem_used;  		/* nonzero if memory used */
-	struct resource* mem_res;	/* resource for memory range */
 	int     irq_rid;		/* resource id for irq */
 	struct resource* irq_res;	/* resource for irq */
 	void*   irq_handle;		/* handle for irq handler */
