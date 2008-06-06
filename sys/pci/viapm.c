@@ -73,9 +73,9 @@ static int viapm_debug = 0;
 #define	VIA_CX700_PMU_ID	0x83241106
 
 #define VIAPM_INB(port) \
-	((u_char)bus_space_read_1(viapm->st, viapm->sh, port))
+	((u_char)bus_read_1(viapm->iores, port))
 #define VIAPM_OUTB(port,val) \
-	(bus_space_write_1(viapm->st, viapm->sh, port, (u_char)(val)))
+	(bus_write_1(viapm->iores, port, (u_char)(val)))
 
 #define VIAPM_TYP_UNKNOWN	0
 #define VIAPM_TYP_586B_3040E	1
@@ -91,8 +91,6 @@ static int viapm_debug = 0;
 struct viapm_softc {
 	int type;
 	u_int32_t base;
-        bus_space_tag_t st;
-        bus_space_handle_t sh;
 	int iorid;
 	int irqrid;
 	struct resource *iores;
@@ -347,8 +345,6 @@ viapm_pro_attach(device_t dev)
 		device_printf(dev, "could not allocate bus space\n");
 		goto error;
 	}
-	viapm->st = rman_get_bustag(viapm->iores);
-	viapm->sh = rman_get_bushandle(viapm->iores);
 
 #ifdef notyet
 	/* force irq 9 */
@@ -363,7 +359,7 @@ viapm_pro_attach(device_t dev)
 		goto error;
 	}
 
-	if (bus_setup_intr(dev, viapm->irqres, INTR_TYPE_MISC,
+	if (bus_setup_intr(dev, viapm->irqres, INTR_TYPE_MISC | INTR_MPSAFE,
 			(driver_intr_t *) viasmb_intr, viapm, &viapm->irqih)) {
 		device_printf(dev, "could not setup irq\n");
 		goto error;
@@ -423,8 +419,6 @@ viapm_586b_attach(device_t dev)
 		device_printf(dev, "could not allocate bus resource\n");
 		goto error;
 	}
-	viapm->st = rman_get_bustag(viapm->iores);
-	viapm->sh = rman_get_bushandle(viapm->iores);
 
 	VIAPM_OUTB(GPIO_DIR, VIAPM_INB(GPIO_DIR) | VIAPM_SCL | VIAPM_SDA);
 

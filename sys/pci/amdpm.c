@@ -123,8 +123,6 @@ struct amdpm_softc {
 	int base;
 	int rid;
 	struct resource *res;
-	bus_space_tag_t smbst;
-	bus_space_handle_t smbsh;
 	device_t smbus;
 	struct mtx lock;
 };
@@ -134,13 +132,13 @@ struct amdpm_softc {
 #define	AMDPM_LOCK_ASSERT(amdpm)	mtx_assert(&(amdpm)->lock, MA_OWNED)
 
 #define AMDPM_SMBINB(amdpm,register) \
-	(bus_space_read_1(amdpm->smbst, amdpm->smbsh, register))
+	(bus_read_1(amdpm->res, register))
 #define AMDPM_SMBOUTB(amdpm,register,value) \
-	(bus_space_write_1(amdpm->smbst, amdpm->smbsh, register, value))
+	(bus_write_1(amdpm->res, register, value))
 #define AMDPM_SMBINW(amdpm,register) \
-	(bus_space_read_2(amdpm->smbst, amdpm->smbsh, register))
+	(bus_read_2(amdpm->res, register))
 #define AMDPM_SMBOUTW(amdpm,register,value) \
-	(bus_space_write_2(amdpm->smbst, amdpm->smbsh, register, value))
+	(bus_write_2(amdpm->res, register, value))
 
 static int	amdpm_detach(device_t dev);
 
@@ -213,8 +211,6 @@ amdpm_attach(device_t dev)
 		return (ENXIO);
 	}	     
 
-	amdpm_sc->smbst = rman_get_bustag(amdpm_sc->res);
-	amdpm_sc->smbsh = rman_get_bushandle(amdpm_sc->res);
 	mtx_init(&amdpm_sc->lock, device_get_nameunit(dev), "amdpm", MTX_DEF);
 
 	/* Allocate a new smbus device */

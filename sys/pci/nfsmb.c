@@ -111,8 +111,6 @@ static int nfsmb_debug = 0;
 struct nfsmb_softc {
 	int rid;
 	struct resource *res;
-	bus_space_tag_t smbst;
-	bus_space_handle_t smbsh;
 	device_t smbus;
 	device_t subdev;
 	struct mtx lock;
@@ -123,9 +121,9 @@ struct nfsmb_softc {
 #define	NFSMB_LOCK_ASSERT(nfsmb)	mtx_assert(&(nfsmb)->lock, MA_OWNED)
 
 #define	NFSMB_SMBINB(nfsmb, register)					\
-	(bus_space_read_1(nfsmb->smbst, nfsmb->smbsh, register))
+	(bus_read_1(nfsmb->res, register))
 #define	NFSMB_SMBOUTB(nfsmb, register, value) \
-	(bus_space_write_1(nfsmb->smbst, nfsmb->smbsh, register, value))
+	(bus_write_1(nfsmb->res, register, value))
 
 static int	nfsmb_detach(device_t dev);
 static int	nfsmbsub_detach(device_t dev);
@@ -188,8 +186,6 @@ nfsmbsub_attach(device_t dev)
 			return (ENXIO);
 		}
 	}
-	nfsmbsub_sc->smbst = rman_get_bustag(nfsmbsub_sc->res);
-	nfsmbsub_sc->smbsh = rman_get_bushandle(nfsmbsub_sc->res);
 	mtx_init(&nfsmbsub_sc->lock, device_get_nameunit(dev), "nfsmb",
 	    MTX_DEF);
 
@@ -226,8 +222,6 @@ nfsmb_attach(device_t dev)
 		}
 	}
 
-	nfsmb_sc->smbst = rman_get_bustag(nfsmb_sc->res);
-	nfsmb_sc->smbsh = rman_get_bushandle(nfsmb_sc->res);
 	mtx_init(&nfsmb_sc->lock, device_get_nameunit(dev), "nfsmb", MTX_DEF);
 
 	/* Allocate a new smbus device */
