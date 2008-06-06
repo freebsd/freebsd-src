@@ -884,7 +884,7 @@ SetAliasAddressFromIfName(const char *ifn)
 		err(1, "iflist-sysctl-estimate");
 	if ((buf = malloc(needed)) == NULL)
 		errx(1, "malloc failed");
-	if (sysctl(mib, 6, buf, &needed, NULL, 0) == -1)
+	if (sysctl(mib, 6, buf, &needed, NULL, 0) == -1 && errno != ENOMEM)
 		err(1, "iflist-sysctl-get");
 	lim = buf + needed;
 /*
