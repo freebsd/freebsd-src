@@ -901,6 +901,7 @@ dev/mii/rlphy.c			optional miibus | rlphy
 dev/mii/rlswitch.c		optional rlswitch
 # XXX rue only?
 dev/mii/ruephy.c		optional miibus | ruephy
+dev/mii/smcphy.c		optional miibus | smcphy
 dev/mii/tdkphy.c		optional miibus | tdkphy
 dev/mii/tlphy.c			optional miibus | tlphy
 dev/mii/ukphy.c			optional miibus | mii
@@ -1104,6 +1105,7 @@ dev/smbus/smb.c			optional smb
 dev/smbus/smbconf.c		optional smbus
 dev/smbus/smbus.c		optional smbus
 dev/smbus/smbus_if.m		optional smbus
+dev/smc/if_smc.c		optional smc
 dev/sn/if_sn.c			optional sn
 dev/sn/if_sn_isa.c		optional sn isa
 dev/sn/if_sn_pccard.c		optional sn pccard

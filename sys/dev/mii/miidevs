@@ -67,6 +67,7 @@ oui QUALSEMI			0x006051	Quality Semiconductor
 oui REALTEK			0x000020	RealTek Semicondctor
 oui SEEQ			0x00a07d	Seeq
 oui SIS				0x00e006	Silicon Integrated Systems
+oui SMSC			0x0005be	SMSC
 oui TDK				0x00c039	TDK
 oui TI				0x080028	Texas Instruments
 oui VITESSE			0x0001c1	Vitesse Semiconductor
@@ -208,6 +209,9 @@ model xxSEEQ 84220		0x0004 Seeq 84220 10/100 media interface
 
 /* Silicon Integrated Systems PHYs */
 model xxSIS 900			0x0000 SiS 900 10/100 media interface
+
+/* SMSC PHYs */
+model SMSC LAN83C183		0x0004 SMSC LAN83C183 10/100 media interface
 
 /* TDK */
 model TDK 78Q2120		0x0014 TDK 78Q2120 media interface
