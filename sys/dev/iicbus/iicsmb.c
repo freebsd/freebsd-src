@@ -46,12 +46,13 @@
  */
 
 #include <sys/param.h>
-#include <sys/kernel.h>
-#include <sys/systm.h>
-#include <sys/module.h>
 #include <sys/bus.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/module.h>
+#include <sys/mutex.h>
+#include <sys/systm.h>
 #include <sys/uio.h>
-
 
 #include <dev/iicbus/iiconf.h>
 #include <dev/iicbus/iicbus.h>
@@ -257,12 +258,16 @@ iicsmb_callback(device_t dev, int index, void *data)
 	case SMB_REQUEST_BUS:
 		/* request underlying iicbus */
 		how = *(int *)data;
+		mtx_lock(&Giant);
 		error = iicbus_request_bus(parent, dev, how);
+		mtx_unlock(&Giant);
 		break;
 
 	case SMB_RELEASE_BUS:
 		/* release underlying iicbus */
+		mtx_lock(&Giant);
 		error = iicbus_release_bus(parent, dev);
+		mtx_unlock(&Giant);
 		break;
 
 	default:
@@ -278,6 +283,7 @@ iicsmb_quick(device_t dev, u_char slave, int how)
 	device_t parent = device_get_parent(dev);
 	int error;
 
+	mtx_lock(&Giant);
 	switch (how) {
 	case SMB_QWRITE:
 		error = iicbus_start(parent, slave & ~LSB, IICBUS_TIMEOUT);
@@ -294,7 +300,8 @@ iicsmb_quick(device_t dev, u_char slave, int how)
 
 	if (!error)
 		error = iicbus_stop(parent);
-
+	mtx_unlock(&Giant);
+		
 	return (error);
 }
 
@@ -304,6 +311,7 @@ iicsmb_sendb(device_t dev, u_char slave, char byte)
 	device_t parent = device_get_parent(dev);
 	int error, sent;
 
+	mtx_lock(&Giant);
 	error = iicbus_start(parent, slave & ~LSB, IICBUS_TIMEOUT);
 
 	if (!error) {
@@ -311,6 +319,7 @@ iicsmb_sendb(device_t dev, u_char slave, char byte)
 
 		iicbus_stop(parent);
 	}
+	mtx_unlock(&Giant);
 
 	return (error);
 }
@@ -321,6 +330,7 @@ iicsmb_recvb(device_t dev, u_char slave, char *byte)
 	device_t parent = device_get_parent(dev);
 	int error, read;
 
+	mtx_lock(&Giant);
 	error = iicbus_start(parent, slave | LSB, 0);
 
 	if (!error) {
@@ -328,6 +338,7 @@ iicsmb_recvb(device_t dev, u_char slave, char *byte)
 
 		iicbus_stop(parent);
 	}
+	mtx_unlock(&Giant);
 
 	return (error);
 }
@@ -338,6 +349,7 @@ iicsmb_writeb(device_t dev, u_char slave, char cmd, char byte)
 	device_t parent = device_get_parent(dev);
 	int error, sent;
 
+	mtx_lock(&Giant);
 	error = iicbus_start(parent, slave & ~LSB, 0);
 
 	if (!error) {
@@ -346,6 +358,7 @@ iicsmb_writeb(device_t dev, u_char slave, char cmd, char byte)
 
 		iicbus_stop(parent);
 	}
+	mtx_unlock(&Giant);
 
 	return (error);
 }
@@ -359,6 +372,7 @@ iicsmb_writew(device_t dev, u_char slave, char cmd, short word)
 	char low = (char)(word & 0xff);
 	char high = (char)((word & 0xff00) >> 8);
 
+	mtx_lock(&Giant);
 	error = iicbus_start(parent, slave & ~LSB, 0);
 
 	if (!error) {
@@ -368,6 +382,7 @@ iicsmb_writew(device_t dev, u_char slave, char cmd, short word)
 
 		iicbus_stop(parent);
 	}
+	mtx_unlock(&Giant);
 
 	return (error);
 }
@@ -378,8 +393,11 @@ iicsmb_readb(device_t dev, u_char slave, char cmd, char *byte)
 	device_t parent = device_get_parent(dev);
 	int error, sent, read;
 
-	if ((error = iicbus_start(parent, slave & ~LSB, IICBUS_TIMEOUT)))
+	mtx_lock(&Giant);
+	if ((error = iicbus_start(parent, slave & ~LSB, IICBUS_TIMEOUT))) {
+		mtx_unlock(&Giant);
 		return (error);
+	}
 
 	if ((error = iicbus_write(parent, &cmd, 1, &sent, IICBUS_TIMEOUT)))
 		goto error;
@@ -392,6 +410,7 @@ iicsmb_readb(device_t dev, u_char slave, char cmd, char *byte)
 
 error:
 	iicbus_stop(parent);
+	mtx_unlock(&Giant);
 	return (error);
 }
 
@@ -405,8 +424,11 @@ iicsmb_readw(device_t dev, u_char slave, char cmd, short *word)
 	int error, sent, read;
 	char buf[2];
 
-	if ((error = iicbus_start(parent, slave & ~LSB, IICBUS_TIMEOUT)))
+	mtx_lock(&Giant);
+	if ((error = iicbus_start(parent, slave & ~LSB, IICBUS_TIMEOUT))) {
+		mtx_unlock(&Giant);
 		return (error);
+	}
 
 	if ((error = iicbus_write(parent, &cmd, 1, &sent, IICBUS_TIMEOUT)))
 		goto error;
@@ -422,6 +444,7 @@ iicsmb_readw(device_t dev, u_char slave, char cmd, short *word)
 
 error:
 	iicbus_stop(parent);
+	mtx_unlock(&Giant);
 	return (error);
 }
 
@@ -432,8 +455,11 @@ iicsmb_pcall(device_t dev, u_char slave, char cmd, short sdata, short *rdata)
 	int error, sent, read;
 	char buf[2];
 
-	if ((error = iicbus_start(parent, slave & ~LSB, IICBUS_TIMEOUT)))
+	mtx_lock(&Giant);
+	if ((error = iicbus_start(parent, slave & ~LSB, IICBUS_TIMEOUT))) {
+		mtx_unlock(&Giant);
 		return (error);
+	}
 
 	if ((error = iicbus_write(parent, &cmd, 1, &sent, IICBUS_TIMEOUT)))
 		goto error;
@@ -456,6 +482,7 @@ iicsmb_pcall(device_t dev, u_char slave, char cmd, short sdata, short *rdata)
 
 error:
 	iicbus_stop(parent);
+	mtx_unlock(&Giant);
 	return (error);
 }
 
@@ -465,6 +492,7 @@ iicsmb_bwrite(device_t dev, u_char slave, char cmd, u_char count, char *buf)
 	device_t parent = device_get_parent(dev);
 	int error, sent;
 
+	mtx_lock(&Giant);
 	if ((error = iicbus_start(parent, slave & ~LSB, IICBUS_TIMEOUT)))
 		goto error;
 
@@ -478,6 +506,7 @@ iicsmb_bwrite(device_t dev, u_char slave, char cmd, u_char count, char *buf)
 		goto error;
 
 error:
+	mtx_unlock(&Giant);
 	return (error);
 }
 
@@ -487,8 +516,11 @@ iicsmb_bread(device_t dev, u_char slave, char cmd, u_char *count, char *buf)
 	device_t parent = device_get_parent(dev);
 	int error, sent, read;
 
-	if ((error = iicbus_start(parent, slave & ~LSB, IICBUS_TIMEOUT)))
+	mtx_lock(&Giant);
+	if ((error = iicbus_start(parent, slave & ~LSB, IICBUS_TIMEOUT))) {
+		mtx_unlock(&Giant);
 		return (error);
+	}
 
 	if ((error = iicbus_write(parent, &cmd, 1, &sent, IICBUS_TIMEOUT)))
 		goto error;
@@ -503,6 +535,7 @@ iicsmb_bread(device_t dev, u_char slave, char cmd, u_char *count, char *buf)
 
 error:
 	iicbus_stop(parent);
+	mtx_unlock(&Giant);
 	return (error);
 }
 
