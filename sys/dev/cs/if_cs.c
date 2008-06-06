@@ -105,12 +105,6 @@ driver_intr_t	csintr;
 /* sysctl vars */
 SYSCTL_NODE(_hw, OID_AUTO, cs, CTLFLAG_RD, 0, "cs device parameters");
 
-int	cs_debug = 0;
-TUNABLE_INT("hw.cs.debug", &cs_debug);
-SYSCTL_INT(_hw_cs, OID_AUTO, debug, CTLFLAG_RW,
-    &cs_debug, 0,
-  "cs debug");
-
 int	cs_ignore_cksum_failure = 0;
 TUNABLE_INT("hw.cs.ignore_checksum_failure", &cs_ignore_cksum_failure);
 SYSCTL_INT(_hw_cs, OID_AUTO, ignore_checksum_failure, CTLFLAG_RW,
@@ -137,9 +131,8 @@ get_eeprom_data(struct cs_softc *sc, int off, int len, uint16_t *buffer)
 	int i;
 
 #ifdef CS_DEBUG
-	device_printf(sc->sc_dev, "EEPROM data from %x for %x:\n", off, len);
+	device_printf(sc->dev, "EEPROM data from %x for %x:\n", off, len);
 #endif
-
 	for (i=0; i < len; i++) {
 		if (wait_eeprom_ready(sc) < 0)
 			return (-1);
@@ -177,8 +170,26 @@ get_eeprom_cksum(int off, int len, uint16_t *buffer)
 static int
 wait_eeprom_ready(struct cs_softc *sc)
 {
-	DELAY(30000);	/* XXX should we do some checks here ? */
-	return (0);
+	int i;
+
+	/*
+	 * From the CS8900A datasheet, section 3.5.2:
+	 * "Before issuing any command to the EEPROM, the host must wait
+	 * for the SIBUSY bit (Register 16, SelfST, bit 8) to clear.  After
+	 * each command has been issued, the host must wait again for SIBUSY
+	 * to clear."
+	 *
+	 * Before we issue the command, we should be !busy, so that will
+	 * be fast.  The datasheet suggests that clock out from the part
+	 * per word will be on the order of 25us, which is consistant with
+	 * the 1MHz serial clock and 16bits...  We should never hit 100,
+	 * let alone 30,000 here.  The original code did an unconditional
+	 * 30ms DELAY here.  Bad Kharma.
+	 */
+	for (i = 0; i < 30000; i++)	/* 30ms max */
+		if (!(cs_readreg(sc, PP_SelfST) & SI_BUSY))
+			return (0);
+	return (1);
 }
 
 static void
@@ -256,6 +267,7 @@ cs_cs89x0_probe(device_t dev)
 	uint16_t eeprom_buff[CHKSUM_LEN];
 	int chip_type, pp_isaint, pp_isadma;
 
+	sc->dev = dev;
 	error = cs_alloc_port(dev, 0, CS_89x0_IO_PORTS);
 	if (error)
 		return (error);
