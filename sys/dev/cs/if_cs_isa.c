@@ -48,8 +48,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/cs/if_csvar.h>
 #include <dev/cs/if_csreg.h>
 
-static int		cs_isa_probe	(device_t);
-static int		cs_isa_attach	(device_t);
+static int		cs_isa_probe(device_t);
+static int		cs_isa_attach(device_t);
 
 static struct isa_pnp_id cs_ids[] = {
 	{ 0x4060630e, NULL },		/* CSC6040 */
@@ -72,11 +72,9 @@ cs_isa_probe(device_t dev)
 	if (error == ENXIO)
                 goto end;
 
-        /* If we had some other problem. */
-        if (!(error == 0 || error == ENOENT))
-                goto end;
-
-	error = cs_cs89x0_probe(dev);
+        /* If we've matched, or there's no PNP ID, probe chip */
+	if (error == 0 || error == ENOENT)
+		error = cs_cs89x0_probe(dev);
 end:
 	/* Make sure IRQ is assigned for probe message and available */
 	if (error == 0)
