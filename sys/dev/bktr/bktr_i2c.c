@@ -128,18 +128,22 @@ int bti2c_smb_callback(device_t dev, int index, void *data)
 	switch (index) {
 	case SMB_REQUEST_BUS:
 		/* XXX test & set */
+		mtx_lock(&Giant);
 		if (!sc->bus_owned) {
 			sc->bus_owned = 1;
 		} else
 			error = EWOULDBLOCK;
+		mtx_unlock(&Giant);
 		break;
 
 	case SMB_RELEASE_BUS:
 		/* XXX test & set */
+		mtx_lock(&Giant);
 		if (sc->bus_owned) {
 			sc->bus_owned = 0;
 		} else
 			error = EINVAL;
+		mtx_unlock(&Giant);
 		break;
 
 	default:
@@ -161,18 +165,22 @@ int bti2c_iic_callback(device_t dev, int index, caddr_t *data)
 	switch (index) {
 	case IIC_REQUEST_BUS:
 		/* XXX test & set */
+		mtx_lock(&Giant);
 		if (!sc->bus_owned) {
 			sc->bus_owned = 1;
 		} else
 			error = EWOULDBLOCK;
+		mtx_unlock(&Giant);
 		break;
 
 	case IIC_RELEASE_BUS:
 		/* XXX test & set */
+		mtx_lock(&Giant);
 		if (sc->bus_owned) {
 			sc->bus_owned = 0;
 		} else
 			error = EINVAL;
+		mtx_unlock(&Giant);
 		break;
 
 	default:
@@ -184,8 +192,10 @@ int bti2c_iic_callback(device_t dev, int index, caddr_t *data)
 
 int bti2c_iic_reset(device_t dev, u_char speed, u_char addr, u_char * oldaddr)
 {
+	mtx_lock(&Giant);
 	if (oldaddr)
 		*oldaddr = 0;			/* XXX */
+	mtx_unlock(&Giant);
 
 	return (IIC_ENOADDR);
 }
@@ -195,12 +205,14 @@ void bti2c_iic_setsda(device_t dev, int val)
 	struct bktr_softc *sc  = (struct bktr_softc *)device_get_softc(dev);
 	int clock;
 
+	mtx_lock(&Giant);
 	clock = INL(sc, BKTR_I2C_DATA_CTL) & 0x2;
 
 	if (val)
 		OUTL(sc, BKTR_I2C_DATA_CTL, clock | 1);
 	else
 		OUTL(sc, BKTR_I2C_DATA_CTL, clock);
+	mtx_unlock(&Giant);
 
 	return;
 }
@@ -210,12 +222,14 @@ void bti2c_iic_setscl(device_t dev, int val)
 	struct bktr_softc *sc  = (struct bktr_softc *)device_get_softc(dev);
 	int data;
 
+	mtx_lock(&Giant);
 	data = INL(sc, BKTR_I2C_DATA_CTL) & 0x1;
 
 	if (val)
 		OUTL(sc, BKTR_I2C_DATA_CTL, 0x2 | data);
 	else
 		OUTL(sc, BKTR_I2C_DATA_CTL, data);
+	mtx_unlock(&Giant);
 
 	return;
 }
@@ -224,8 +238,12 @@ int
 bti2c_iic_getsda(device_t dev)
 {
 	struct bktr_softc *sc  = (struct bktr_softc *)device_get_softc(dev);
+	int retval;
 
-	return (INL(sc,BKTR_I2C_DATA_CTL) & 0x1);
+	mtx_lock(&Giant);
+	retval = INL(sc,BKTR_I2C_DATA_CTL) & 0x1;
+	mtx_unlock(&Giant);
+	return (retval);
 }
 
 int
@@ -238,6 +256,8 @@ static int
 bti2c_write(struct bktr_softc *sc, u_long data)
 {
 	u_long		x;
+
+	mtx_lock(&Giant);
 
 	/* clear status bits */
 	OUTL(sc, BKTR_INT_STAT, (BT848_INT_RACK | BT848_INT_I2CDONE));
@@ -257,9 +277,11 @@ bti2c_write(struct bktr_softc *sc, u_long data)
 	if ( !x || !( INL(sc, BKTR_INT_STAT) & BT848_INT_RACK) ) {
 		BTI2C_DEBUG(printf("%c%c", (!x)?'+':'-',
 			(!( INL(sc, BKTR_INT_STAT) & BT848_INT_RACK))?'+':'-'));
+		mtx_unlock(&Giant);
 		return (SMB_ENOACK);
 	}
 	BTI2C_DEBUG(printf("+"));
+	mtx_unlock(&Giant);
 
 	/* return OK */
 	return( 0 );
@@ -305,6 +327,7 @@ bti2c_smb_readb(device_t dev, u_char slave, char cmd, char *byte)
 	struct bktr_softc *sc  = (struct bktr_softc *)device_get_softc(dev);
 	u_long		x;
 
+	mtx_lock(&Giant);
 	/* clear status bits */
 	OUTL(sc,BKTR_INT_STAT, (BT848_INT_RACK | BT848_INT_I2CDONE));
 
@@ -322,11 +345,13 @@ bti2c_smb_readb(device_t dev, u_char slave, char cmd, char *byte)
 	if ( !x || !(INL(sc,BKTR_INT_STAT) & BT848_INT_RACK) ) {
 		BTI2C_DEBUG(printf("r%c%c", (!x)?'+':'-',
 			(!( INL(sc,BKTR_INT_STAT) & BT848_INT_RACK))?'+':'-'));
+		mtx_unlock(&Giant);
 		return (SMB_ENOACK);
 	}
 
 	*byte = (char)((INL(sc,BKTR_I2C_DATA_CTL) >> 8) & 0xff);
 	BTI2C_DEBUG(printf("r%x+", *byte));
+	mtx_unlock(&Giant);
 
 	return (0);
 }
