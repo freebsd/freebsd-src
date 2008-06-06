@@ -110,8 +110,6 @@ static int amdsmb_debug = 0;
 struct amdsmb_softc {
 	int rid;
 	struct resource *res;
-	bus_space_tag_t smbst;
-	bus_space_handle_t smbsh;
 	device_t smbus;
 	struct mtx lock;
 };
@@ -121,9 +119,9 @@ struct amdsmb_softc {
 #define	AMDSMB_LOCK_ASSERT(amdsmb)	mtx_assert(&(amdsmb)->lock, MA_OWNED)
 
 #define	AMDSMB_ECINB(amdsmb, register)					\
-	(bus_space_read_1(amdsmb->smbst, amdsmb->smbsh, register))
+	(bus_read_1(amdsmb->res, register))
 #define	AMDSMB_ECOUTB(amdsmb, register, value) \
-	(bus_space_write_1(amdsmb->smbst, amdsmb->smbsh, register, value))
+	(bus_write_1(amdsmb->res, register, value))
 
 static int	amdsmb_detach(device_t dev);
 
@@ -163,8 +161,6 @@ amdsmb_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	amdsmb_sc->smbst = rman_get_bustag(amdsmb_sc->res);
-	amdsmb_sc->smbsh = rman_get_bushandle(amdsmb_sc->res);
 	mtx_init(&amdsmb_sc->lock, device_get_nameunit(dev), "amdsmb", MTX_DEF);
 
 	/* Allocate a new smbus device */
