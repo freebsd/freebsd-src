@@ -48,16 +48,11 @@
 #define BUFSIZE 1024
 
 struct smb_softc {
-
+	device_t sc_dev;
 	int sc_count;			/* >0 if device opened */
 	struct cdev *sc_devnode;
+	struct mtx sc_lock;
 };
-
-#define IIC_SOFTC(unit) \
-	((struct smb_softc *)devclass_get_softc(smb_devclass, (unit)))
-
-#define IIC_DEVICE(unit) \
-	(devclass_get_device(smb_devclass, (unit)))
 
 static void smb_identify(driver_t *driver, device_t parent);
 static int smb_probe(device_t);
@@ -91,7 +86,7 @@ static	d_ioctl_t	smbioctl;
 
 static struct cdevsw smb_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_flags =	D_NEEDGIANT,
+	.d_flags =	D_TRACKCLOSE,
 	.d_open =	smbopen,
 	.d_close =	smbclose,
 	.d_ioctl =	smbioctl,
@@ -117,16 +112,13 @@ smb_probe(device_t dev)
 static int
 smb_attach(device_t dev)
 {
-	struct smb_softc *sc = (struct smb_softc *)device_get_softc(dev);
+	struct smb_softc *sc = device_get_softc(dev);
 
-	if (!sc)
-		return (ENOMEM);
-
-	bzero(sc, sizeof(struct smb_softc *));
-
+	sc->sc_dev = dev;
 	sc->sc_devnode = make_dev(&smb_cdevsw, device_get_unit(dev),
-			UID_ROOT, GID_WHEEL,
-			0600, "smb%d", device_get_unit(dev));
+	    UID_ROOT, GID_WHEEL, 0600, "smb%d", device_get_unit(dev));
+	sc->sc_devnode->si_drv1 = sc;
+	mtx_init(&sc->sc_lock, device_get_nameunit(dev), NULL, MTX_DEF);
 
 	return (0);
 }
@@ -138,22 +130,24 @@ smb_detach(device_t dev)
 
 	if (sc->sc_devnode)
 		destroy_dev(sc->sc_devnode);
+	mtx_destroy(&sc->sc_lock);
 
 	return (0);
 }
 
 static int
-smbopen (struct cdev *dev, int flags, int fmt, struct thread *td)
+smbopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
-	struct smb_softc *sc = IIC_SOFTC(minor(dev));
+	struct smb_softc *sc = dev->si_drv1;
 
-	if (sc == NULL)
-		return (ENXIO);
-
-	if (sc->sc_count != 0)
+	mtx_lock(&sc->sc_lock);
+	if (sc->sc_count != 0) {
+		mtx_unlock(&sc->sc_lock);
 		return (EBUSY);
+	}
 
 	sc->sc_count++;
+	mtx_unlock(&sc->sc_lock);
 
 	return (0);
 }
@@ -161,16 +155,12 @@ smbopen (struct cdev *dev, int flags, int fmt, struct thread *td)
 static int
 smbclose(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
-	struct smb_softc *sc = IIC_SOFTC(minor(dev));
+	struct smb_softc *sc = dev->si_drv1;
 
-	if (sc == NULL)
-		return (ENXIO);
-
-	if (sc->sc_count == 0)
-		/* This is not supposed to happen. */
-		return (0);
-
+	mtx_lock(&sc->sc_lock);
+	KASSERT(sc->sc_count == 1, ("device not busy"));
 	sc->sc_count--;
+	mtx_unlock(&sc->sc_lock);
 
 	return (0);
 }
@@ -181,17 +171,12 @@ smbioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags, struct thread *t
 	char buf[SMB_MAXBLOCKSIZE];
 	device_t parent;
 	struct smbcmd *s = (struct smbcmd *)data;
-	struct smb_softc *sc = IIC_SOFTC(minor(dev));
-	device_t smbdev = IIC_DEVICE(minor(dev));
+	struct smb_softc *sc = dev->si_drv1;
+	device_t smbdev = sc->sc_dev;
 	int error;
 	short w;
 	u_char count;
 	char c;
-
-	if (sc == NULL)
-		return (ENXIO);
-	if (s == NULL)
-		return (EINVAL);
 
 	parent = device_get_parent(smbdev);
 
