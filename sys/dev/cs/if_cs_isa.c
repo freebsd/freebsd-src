@@ -78,7 +78,7 @@ cs_isa_probe(device_t dev)
 end:
 	/* Make sure IRQ is assigned for probe message and available */
 	if (error == 0)
-                error = cs_alloc_irq(dev, 0, 0);
+                error = cs_alloc_irq(dev, 0);
 
         cs_release_resources(dev);
         return (error);
@@ -90,7 +90,7 @@ cs_isa_attach(device_t dev)
         struct cs_softc *sc = device_get_softc(dev);
         
 	cs_alloc_port(dev, 0, CS_89x0_IO_PORTS);
-        cs_alloc_irq(dev, sc->irq_rid, 0);
+        cs_alloc_irq(dev, sc->irq_rid);
                 
         return (cs_attach(dev));
 }
