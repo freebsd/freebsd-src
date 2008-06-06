@@ -171,6 +171,9 @@ case ${firewall_type} in
 	mask="255.255.255.0"
 	ip="192.0.2.1"
 
+	# Allow limited broadcast traffic from my own net.
+	${fwcmd} add pass all from ${net}:${mask} to 255.255.255.255
+
 	# Allow any traffic to or from my own net.
 	${fwcmd} add pass all from ${ip} to ${net}:${mask}
 	${fwcmd} add pass all from ${net}:${mask} to ${ip}
