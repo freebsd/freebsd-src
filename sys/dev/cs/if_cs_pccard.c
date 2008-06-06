@@ -58,7 +58,6 @@ static int
 cs_pccard_probe(device_t dev)
 {
 	const struct pccard_product *pp;
-	int		error;
 	uint32_t	fcn = PCCARD_FUNCTION_UNSPEC;
 
 	/* Make sure we're a network function */
