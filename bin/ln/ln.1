@@ -32,7 +32,7 @@
 .\"	@(#)ln.1	8.2 (Berkeley) 12/30/93
 .\" $FreeBSD$
 .\"
-.Dd February 14, 2006
+.Dd June 6, 2008
 .Dt LN 1
 .Os
 .Sh NAME
@@ -42,13 +42,13 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl s Op Fl F
-.Op Fl f | i
+.Op Fl f | iw
 .Op Fl hnv
 .Ar source_file
 .Op Ar target_file
 .Nm
 .Op Fl s Op Fl F
-.Op Fl f | i
+.Op Fl f | iw
 .Op Fl hnv
 .Ar source_file ...
 .Ar target_dir
@@ -79,6 +79,8 @@ then unlink it so that the link may occur.
 .Fl f
 option overrides any previous
 .Fl i
+and
+.Fl w
 options.)
 .It Fl F
 If the target file already exists and is a directory, then remove it
@@ -134,6 +136,8 @@ Create a symbolic link.
 Cause
 .Nm
 to be verbose, showing files as they are processed.
+.It Fl w
+Warn if the source of a symbolic link does not currently exist.
 .El
 .Pp
 By default,
@@ -194,9 +198,10 @@ operation using the two passed arguments.
 The
 .Fl h ,
 .Fl i ,
-.Fl n
-and
+.Fl n ,
 .Fl v
+and
+.Fl w
 options are non-standard and their use in scripts is not recommended.
 They are provided solely for compatibility with other
 .Nm
