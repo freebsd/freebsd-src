@@ -183,10 +183,10 @@ wait_eeprom_ready(struct cs_softc *sc)
 	 * be fast.  The datasheet suggests that clock out from the part
 	 * per word will be on the order of 25us, which is consistant with
 	 * the 1MHz serial clock and 16bits...  We should never hit 100,
-	 * let alone 30,000 here.  The original code did an unconditional
-	 * 30ms DELAY here.  Bad Kharma.
+	 * let alone 15,000 here.  The original code did an unconditional
+	 * 30ms DELAY here.  Bad Kharma.  cs_readreg takes ~2us.
 	 */
-	for (i = 0; i < 30000; i++)	/* 30ms max */
+	for (i = 0; i < 15000; i++)	/* 30ms max */
 		if (!(cs_readreg(sc, PP_SelfST) & SI_BUSY))
 			return (0);
 	return (1);
