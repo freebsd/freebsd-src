@@ -286,10 +286,8 @@ struct si_port {
 	int		sp_state;
 	int		sp_delta_overflows;
 	struct callout_handle lstart_ch;/* For canceling our timeout */
-#ifdef	SI_DEBUG
 	int		sp_debug;	/* debug mask */
 	char		sp_name[5];
-#endif
 };
 
 /* sp_state */
@@ -302,7 +300,7 @@ struct si_port {
 /*			0x0040	-- 	 				*/
 /*			0x0080	-- 	 				*/
 #define SS_LSTART	0x0100	/* lstart timeout pending		*/
-#define SS_INLSTART	0x0200	/* running an lstart induced t_oproc	*/
+/*			0x0200	--					*/
 /*			0x0400	--					*/
 /*			0x0800	--					*/
 
