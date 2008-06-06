@@ -58,6 +58,8 @@ int	hflag;				/* Check new name for symlink first. */
 int	iflag;				/* Interactive mode. */
 int	sflag;				/* Symbolic, not hard, link. */
 int	vflag;				/* Verbose output. */
+int	wflag;				/* Warn if symlink target does not
+					 * exist, and -f is not enabled. */
 					/* System link call. */
 int (*linkf)(const char *, const char *);
 char	linkch;
@@ -92,7 +94,7 @@ main(int argc, char *argv[])
 		exit(linkit(argv[0], argv[1], 0));
 	}
 
-	while ((ch = getopt(argc, argv, "Ffhinsv")) != -1)
+	while ((ch = getopt(argc, argv, "Ffhinsvw")) != -1)
 		switch (ch) {
 		case 'F':
 			Fflag = 1;
@@ -100,6 +102,7 @@ main(int argc, char *argv[])
 		case 'f':
 			fflag = 1;
 			iflag = 0;
+			wflag = 0;
 			break;
 		case 'h':
 		case 'n':
@@ -115,6 +118,9 @@ main(int argc, char *argv[])
 		case 'v':
 			vflag = 1;
 			break;
+		case 'w':
+			wflag = 1;
+			break;
 		case '?':
 		default:
 			usage();
@@ -127,8 +133,10 @@ main(int argc, char *argv[])
 	linkch = sflag ? '-' : '=';
 	if (sflag == 0)
 		Fflag = 0;
-	if (Fflag == 1 && iflag == 0)
+	if (Fflag == 1 && iflag == 0) {
 		fflag = 1;
+		wflag = 0;		/* Implied when fflag != 0 */
+	}
 
 	switch(argc) {
 	case 0:
@@ -167,6 +175,7 @@ linkit(const char *source, const char *target, int isdir)
 	const char *p;
 	int ch, exists, first;
 	char path[PATH_MAX];
+	char wbuf[PATH_MAX];
 
 	if (!sflag) {
 		/* If source doesn't exist, quit now. */
@@ -203,6 +212,32 @@ linkit(const char *source, const char *target, int isdir)
 	}
 
 	exists = !lstat(target, &sb);
+	/*
+	 * If the link source doesn't exist, and a symbolic link was
+	 * requested, and -w was specified, give a warning.
+	 */
+	if (sflag && wflag) {
+		if (*source == '/') {
+			/* Absolute link source. */
+			if (stat(source, &sb) != 0)
+				 warn("warning: %s inaccessible", source);
+		} else {
+			/*
+			 * Relative symlink source.  Try to construct the
+			 * absolute path of the source, by appending `source'
+			 * to the parent directory of the target.
+			 */
+			p = strrchr(target, '/');
+			if (p != NULL)
+				p++;
+			else
+				p = target;
+			(void)snprintf(wbuf, sizeof(wbuf), "%.*s%s",
+			    (p - target), target, source);
+			if (stat(wbuf, &sb) != 0)
+				warn("warning: %s", source);
+		}
+	}
 	/*
 	 * If the file exists, then unlink it forcibly if -f was specified
 	 * and interactively if -i was specified.
