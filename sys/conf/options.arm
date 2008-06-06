@@ -14,6 +14,7 @@ CPU_XSCALE_80219	opt_global.h
 CPU_XSCALE_80321	opt_global.h
 CPU_XSCALE_81342	opt_global.h
 CPU_XSCALE_IXP425	opt_global.h
+CPU_XSCALE_PXA2X0	opt_global.h
 FLASHADDR		opt_global.h
 KERNPHYSADDR		opt_global.h
 KERNVIRTADDR		opt_global.h

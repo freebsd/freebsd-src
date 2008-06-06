@@ -41,6 +41,9 @@
 
 #ifdef CPU_XSCALE_81342
 #define NIRQ		128
+#elif defined(CPU_XSCALE_PXA2X0)
+#include <arm/xscale/pxa/pxareg.h>
+#define	NIRQ		IRQ_GPIO_MAX
 #elif defined(CPU_ARM9)
 #define NIRQ		64
 #else
