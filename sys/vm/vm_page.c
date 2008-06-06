@@ -1741,6 +1741,13 @@ vm_page_dontneed(vm_page_t m)
 		return;
 	}
 
+	/*
+	 * Clear any references to the page.  Otherwise, the page daemon will
+	 * immediately reactivate the page.
+	 */
+	vm_page_flag_clear(m, PG_REFERENCED);
+	pmap_clear_reference(m);
+
 	if (m->dirty == 0 && pmap_is_modified(m))
 		vm_page_dirty(m);
 
