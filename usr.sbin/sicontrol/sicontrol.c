@@ -76,6 +76,7 @@ struct lv {
 static int alldev = 0;
 
 void ccb_stat(int, char **);
+void port_stat(int, char **);
 void debug(int, char **);
 void dostat(void);
 int getnum(char *);
@@ -101,6 +102,7 @@ struct opt {
 	{"nport",		nport},
 	{"mstate",		mstate},
 	{"ccbstat",		ccb_stat},
+	{"portstat",		port_stat},
 	{"ttystat",		tty_stat},
 	{0,			0}
 };
@@ -118,9 +120,10 @@ struct stat_list {
 #define	U_NPORT		3
 #define	U_MSTATE	4
 #define	U_STAT_CCB	5
-#define	U_STAT_TTY	6
+#define	U_STAT_PORT	6
+#define	U_STAT_TTY	7
 
-#define	U_MAX		7
+#define	U_MAX		8
 #define	U_ALL		-1
 char *usage[] = {
 	"debug [[add|del|set debug_levels] | [off]]\n",
@@ -129,6 +132,7 @@ char *usage[] = {
 	"nport\n",
 	"mstate\n",
 	"ccbstat\n",
+	"portstat\n",
 	"ttystat\n",
 	0
 };
@@ -150,22 +154,14 @@ main(int argc, char **argv)
 		alldev = 1;
 	} else {
 		sidev_t dev;
-		struct stat st;
+		int n;
+		int card, port;
 
-		if (strchr(Devname, '/') == NULL) {
-			char *acp = malloc(6 + strlen(Devname));
-			strcpy(acp, _PATH_DEV);
-			strcat(acp, Devname);
-			Devname = acp;
-		}
-		if (stat(Devname, &st) < 0)
-			errx(1, "can't stat %s", Devname);
-#if 0
-		dev.sid_card = SI_CARD(minor(st.st_rdev));
-		dev.sid_port = SI_PORT(minor(st.st_rdev));
-#else
-		errx(1, "Sorry, code missing to parse device name into card/port");
-#endif
+		n = sscanf(Devname, "%d:%d", &card, &port);
+		if (n != 2)
+			errx(1, "Devname must be in form card:port.  eg: 0:7");
+		dev.sid_card = card;
+		dev.sid_port = port;
 		tc.tc_dev = dev;
 	}
 	ctlfd = opencontrol();
@@ -409,6 +405,169 @@ nport(int ac, char **av)
 	printf("SLXOS: total of %d ports\n", ports);
 }
 
+const char *s_stat(int stat)
+{
+	switch (stat) {
+	case IDLE_OPEN:	return "IDLE_OPEN";
+	case LOPEN:	return "LOPEN";
+	case MOPEN:	return "MOPEN";
+	case MPEND:	return "MPEND";
+	case CONFIG:	return "CONFIG";
+	case CLOSE:	return "CLOSE";
+	case SBREAK:	return "SBREAK";
+	case EBREAK:	return "EBREAK";
+	case IDLE_CLOSE:return "IDLE_CLOSE";
+	case IDLE_BREAK:return "IDLE_BREAK";
+	case FCLOSE:	return "FCLOSE";
+	case RESUME:	return "RESUME";
+	case WFLUSH:	return "WFLUSH";
+	case RFLUSH:	return "RFLUSH";
+	default: return "??";
+	}
+}
+const char *s_mr1(int mr1)
+{
+	static char msg[200];
+
+	sprintf(msg, "%dbit, %s, parity:[", 5 + (mr1 & MR1_8_BITS), mr1 & MR1_ODD ? "odd" : "even");
+	if (mr1 & MR1_WITH)
+		strcat(msg, "with;");
+	if (mr1 & MR1_FORCE)
+		strcat(msg, "force;");
+	if (mr1 & MR1_NONE)
+		strcat(msg, "none;");
+	if (mr1 & MR1_SPECIAL)
+		strcat(msg, "special;");
+	strcpy(msg + strlen(msg) - 1, "]");
+	sprintf(msg + strlen(msg), ", err: %s", mr1 & MR1_BLOCK ? "block" : "none");
+	sprintf(msg + strlen(msg), ", cts: %s", mr1 & MR1_CTSCONT ? "auto" : "none");
+	return (msg);
+}
+const char *s_mr2(int mr2)
+{
+	static char msg[200];
+
+	switch (mr2 & 0xf) {
+	case MR2_1_STOP: strcpy(msg, "1stop"); break;
+	case MR2_2_STOP: strcpy(msg, "2stop"); break;
+	default: sprintf(msg, "??stop (0x%x)", mr2 & 0xf); break;
+	}
+	if (mr2 & MR2_RTSCONT)	strcat(msg, ", rtscont");
+	if (mr2 & MR2_CTSCONT)	strcat(msg, ", ctscont");
+	switch (mr2 & 0xc0) {
+	case MR2_NORMAL: strcat(msg, ", mode:normal"); break;
+	case MR2_AUTO: strcat(msg, ", mode:auto"); break;
+	case MR2_LOCAL: strcat(msg, ", mode:local"); break;
+	case MR2_REMOTE: strcat(msg, ", mode:remote"); break;
+	}
+	return (msg);
+}
+const char *s_clk(int clk)
+{
+	switch (clk & 0xf) {
+	case 0x0: return "75";
+	case 0x1: return "110/115200";
+	case 0x2: return "38400";
+	case 0x3: return "150";
+	case 0x4: return "300";
+	case 0x5: return "600";
+	case 0x6: return "1200";
+	case 0x7: return "2000";
+	case 0x8: return "2400";
+	case 0x9: return "4800";
+	case 0xa: return "7200";
+	case 0xb: return "9600";
+	case 0xc: return "19200";
+	case 0xd: return "57600";
+	case 0xe: return "?0xe";
+	case 0xf: return "?0xf";
+	}
+	return ("gcc sucks");
+}
+const char *s_op(int op)
+{
+	static char msg[200];
+	
+	sprintf(msg, "cts:%s", (op & OP_CTS) ? "on" : "off");
+	sprintf(msg + strlen(msg), ", dsr:%s", (op & OP_DSR) ? "on" : "off");
+	return (msg);
+}
+
+const char *s_ip(int ip)
+{
+	static char msg[200];
+	
+	sprintf(msg, "rts:%s", (ip & IP_RTS) ? "on" : "off");
+	sprintf(msg + strlen(msg), ", dcd:%s", (ip & IP_DCD) ? "on" : "off");
+	sprintf(msg + strlen(msg), ", dtr:%s", (ip & IP_DTR) ? "on" : "off");
+	sprintf(msg + strlen(msg), ", ri:%s", (ip & IP_RI) ? "on" : "off");
+	return (msg);
+}
+
+const char *s_state(int state)
+{
+	return (state & ST_BREAK ? "break:on" : "break:off");
+}
+
+const char *s_prtcl(int pr)
+{
+	static char msg[200];
+
+	sprintf(msg, "tx xon any:%s", (pr & SP_TANY) ? "on" : "off");
+	sprintf(msg + strlen(msg), ", tx xon/xoff:%s", (pr & SP_TXEN) ? "on" : "off");
+	sprintf(msg + strlen(msg), ", cooking:%s", (pr & SP_CEN) ? "on" : "off");
+	sprintf(msg + strlen(msg), ", rx xon/xoff:%s", (pr & SP_RXEN) ? "on" : "off");
+	sprintf(msg + strlen(msg), ", dcd/dsr check:%s", (pr & SP_DCEN) ? "on" : "off");
+	sprintf(msg + strlen(msg), ", parity check:%s", (pr & SP_PAEN) ? "on" : "off");
+	return (msg);
+}
+const char *s_break(int br)
+{
+	static char msg[200];
+
+	sprintf(msg, "ignore rx brk:%s", (br & BR_IGN) ? "on" : "off");
+	sprintf(msg + strlen(msg), ", brk interrupt:%s", (br & BR_INT) ? "on" : "off");
+	sprintf(msg + strlen(msg), ", parmrking:%s", (br & BR_PARMRK) ? "on" : "off");
+	sprintf(msg + strlen(msg), ", parign:%s", (br & BR_PARIGN) ? "on" : "off");
+	return (msg);
+}
+
+const char *
+s_xstat(int xs)
+{
+	static char msg[200];
+
+	msg[0] = 0;
+	/* MTA definitions, not TA */
+	if (xs & 0x01) strcat(msg, "TION ");	/* Tx interrupts on (MTA only) */
+	if (xs & 0x02) strcat(msg, "RTSEN ");	/* RTS FLOW enabled (MTA only) */
+	if (xs & 0x04) strcat(msg, "RTSLOW ");	/* XOFF received (TA only) */
+	if (xs & 0x08) strcat(msg, "RXEN ");	/* Rx XON/XOFF enabled */
+	if (xs & 0x10) strcat(msg, "ANYXO ");	/* XOFF pending/sent or RTS dropped */
+	if (xs & 0x20) strcat(msg, "RXSE ");	/* Rx XOFF sent */
+	if (xs & 0x40) strcat(msg, "NPEND ");	/* Rx XON pending or XOFF pending */
+	if (xs & 0x40) strcat(msg, "FPEND ");	/* Rx XOFF pending */
+	return (msg);
+}
+
+const char *
+s_cstat(int cs)
+{
+	static char msg[200];
+
+	msg[0] = 0;
+	/* MTA definitions, not TA */
+	if (cs & 0x01) strcat(msg, "TEMR ");	/* Tx empty requested (MTA only) */
+	if (cs & 0x02) strcat(msg, "TEMA ");	/* Tx empty acked (MTA only) */
+	if (cs & 0x04) strcat(msg, "EN ");	/* Cooking enabled (on MTA means port is also || */
+	if (cs & 0x08) strcat(msg, "HIGH ");	/* Buffer previously hit high water */
+	if (cs & 0x10) strcat(msg, "CTSEN ");	/* CTS automatic flow-control enabled */
+	if (cs & 0x20) strcat(msg, "DCDEN ");	/* DCD/DTR checking enabled */
+	if (cs & 0x40) strcat(msg, "BREAK ");	/* Break detected */
+	if (cs & 0x80) strcat(msg, "RTSEN ");	/* RTS automatic flow control enabled (MTA only) */
+	return (msg);
+}
+
 void
 ccb_stat(int ac, char **av)
 {
@@ -427,31 +586,31 @@ ccb_stat(int ac, char **av)
 							/* WORD	module - address of module struct */
 	printf("\tuart_type 0x%x\n", CCB.type);		/* BYTE type - Uart type */
 							/* BYTE	fill - */
-	printf("\tx_status 0x%x\n", CCB.x_status);	/* BYTE	x_status - XON / XOFF status */
-	printf("\tc_status 0x%x\n", CCB.c_status);	/* BYTE	c_status - cooking status */
+	printf("\tx_status 0x%x %s\n", CCB.x_status, s_xstat(CCB.x_status));	/* BYTE	x_status - XON / XOFF status */
+	printf("\tc_status 0x%x %s\n", CCB.c_status, s_cstat(CCB.c_status));	/* BYTE	c_status - cooking status */
 	printf("\thi_rxipos 0x%x\n", CCB.hi_rxipos);	/* BYTE	hi_rxipos - stuff into rx buff */
 	printf("\thi_rxopos 0x%x\n", CCB.hi_rxopos);	/* BYTE	hi_rxopos - stuff out of rx buffer */
 	printf("\thi_txopos 0x%x\n", CCB.hi_txopos);	/* BYTE	hi_txopos - Stuff into tx ptr */
 	printf("\thi_txipos 0x%x\n", CCB.hi_txipos);	/* BYTE	hi_txipos - ditto out */
-	printf("\thi_stat 0x%x\n", CCB.hi_stat);		/* BYTE	hi_stat - Command register */
+	printf("\thi_stat 0x%x %s\n", CCB.hi_stat, s_stat(CCB.hi_stat));/* BYTE	hi_stat - Command register */
 	printf("\tdsr_bit 0x%x\n", CCB.dsr_bit);		/* BYTE	dsr_bit - Magic bit for DSR */
 	printf("\ttxon 0x%x\n", CCB.txon);		/* BYTE	txon - TX XON char */
 	printf("\ttxoff 0x%x\n", CCB.txoff);		/* BYTE	txoff - ditto XOFF */
 	printf("\trxon 0x%x\n", CCB.rxon);		/* BYTE	rxon - RX XON char */
 	printf("\trxoff 0x%x\n", CCB.rxoff);		/* BYTE	rxoff - ditto XOFF */
-	printf("\thi_mr1 0x%x\n", CCB.hi_mr1);		/* BYTE	hi_mr1 - mode 1 image */
-	printf("\thi_mr2 0x%x\n", CCB.hi_mr2);		/* BYTE	hi_mr2 - mode 2 image */
-        printf("\thi_csr 0x%x\n", CCB.hi_csr);		/* BYTE	hi_csr - clock register */
-	printf("\thi_op 0x%x\n", CCB.hi_op);		/* BYTE	hi_op - Op control */
-	printf("\thi_ip 0x%x\n", CCB.hi_ip);		/* BYTE	hi_ip - Input pins */
-	printf("\thi_state 0x%x\n", CCB.hi_state);	/* BYTE	hi_state - status */
-	printf("\thi_prtcl 0x%x\n", CCB.hi_prtcl);	/* BYTE	hi_prtcl - Protocol */
+	printf("\thi_mr1 0x%x %s\n", CCB.hi_mr1, s_mr1(CCB.hi_mr1));		/* BYTE	hi_mr1 - mode 1 image */
+	printf("\thi_mr2 0x%x %s\n", CCB.hi_mr2, s_mr2(CCB.hi_mr2));		/* BYTE	hi_mr2 - mode 2 image */
+        printf("\thi_csr 0x%x in:%s out:%s\n", CCB.hi_csr, s_clk(CCB.hi_csr >> 4), s_clk(CCB.hi_csr));		/* BYTE	hi_csr - clock register */
+	printf("\thi_op 0x%x %s\n", CCB.hi_op, s_op(CCB.hi_op));		/* BYTE	hi_op - Op control */
+	printf("\thi_ip 0x%x %s\n", CCB.hi_ip, s_ip(CCB.hi_ip));		/* BYTE	hi_ip - Input pins */
+	printf("\thi_state 0x%x %s\n", CCB.hi_state, s_state(CCB.hi_state));	/* BYTE	hi_state - status */
+	printf("\thi_prtcl 0x%x %s\n", CCB.hi_prtcl, s_prtcl(CCB.hi_prtcl));	/* BYTE	hi_prtcl - Protocol */
 	printf("\thi_txon 0x%x\n", CCB.hi_txon);		/* BYTE	hi_txon - host copy tx xon stuff */
 	printf("\thi_txoff 0x%x\n", CCB.hi_txoff);	/* BYTE	hi_txoff - */
 	printf("\thi_rxon 0x%x\n", CCB.hi_rxon);		/* BYTE	hi_rxon - */
 	printf("\thi_rxoff 0x%x\n", CCB.hi_rxoff);	/* BYTE	hi_rxoff - */
 	printf("\tclose_prev 0x%x\n", CCB.close_prev);	/* BYTE	close_prev - Was channel previously closed */
-	printf("\thi_break 0x%x\n", CCB.hi_break);	/* BYTE	hi_break - host copy break process */
+	printf("\thi_break 0x%x %s\n", CCB.hi_break, s_break(CCB.hi_break));	/* BYTE	hi_break - host copy break process */
 	printf("\tbreak_state 0x%x\n", CCB.break_state);	/* BYTE	break_state - local copy ditto */
 	printf("\thi_mask 0x%x\n", CCB.hi_mask);		/* BYTE	hi_mask - Mask for CS7 etc. */
 	printf("\tmask_z280 0x%x\n", CCB.mask_z280);	/* BYTE	mask_z280 - Z280's copy */
@@ -461,6 +620,64 @@ ccb_stat(int ac, char **av)
 							/* BYTE	res1[0xA0] - */
 }
 
+const char *sp_state(int st)
+{
+
+	if (st & SS_LSTART)
+		return("lstart ");
+	else
+		return("");
+}
+
+void
+port_stat(int ac, char **av)
+{
+	struct si_pstat sip;
+#define	PRT	sip.tc_siport
+
+	if (ac != 0)
+		prusage(U_STAT_PORT, 1);
+	sip.tc_dev = tc.tc_dev;
+	if (ioctl(ctlfd, TCSI_PORT, &sip) < 0)
+		err(1, "TCSI_PORT on %s", Devname);
+	printf("%s: ", Devname);
+
+	printf("\tsp_pend 0x%x %s\n", PRT.sp_pend, s_stat(PRT.sp_pend));
+	printf("\tsp_last_hi_ip 0x%x %s\n", PRT.sp_last_hi_ip, s_ip(PRT.sp_last_hi_ip));
+	printf("\tsp_state 0x%x %s\n", PRT.sp_state, sp_state(PRT.sp_state));
+	printf("\tsp_delta_overflows 0x%d\n", PRT.sp_delta_overflows);
+}
+
+const char *pt_state(int ts)
+{
+	static char buf[200];
+
+	buf[0] = 0;
+	if (ts & TS_SO_OLOWAT)	strcat(buf, "TS_SO_OLOWAT ");
+	if (ts & TS_ASYNC)	strcat(buf, "TS_ASYNC ");
+	if (ts & TS_BUSY)	strcat(buf, "TS_BUSY ");
+	if (ts & TS_CARR_ON)	strcat(buf, "TS_CARR_ON ");
+	if (ts & TS_FLUSH)	strcat(buf, "TS_FLUSH ");
+	if (ts & TS_ISOPEN)	strcat(buf, "TS_ISOPEN ");
+	if (ts & TS_TBLOCK)	strcat(buf, "TS_TBLOCK ");
+	if (ts & TS_TIMEOUT)	strcat(buf, "TS_TIMEOUT ");
+	if (ts & TS_TTSTOP)	strcat(buf, "TS_TTSTOP ");
+	if (ts & TS_XCLUDE)	strcat(buf, "TS_XCLUDE ");
+	if (ts & TS_BKSL)	strcat(buf, "TS_BKSL ");
+	if (ts & TS_CNTTB)	strcat(buf, "TS_CNTTB ");
+	if (ts & TS_ERASE)	strcat(buf, "TS_ERASE ");
+	if (ts & TS_TYPEN)	strcat(buf, "TS_TYPEN ");
+	if (ts & TS_CAN_BYPASS_L_RINT) strcat(buf, "TS_CAN_BYPASS_L_RINT ");
+	if (ts & TS_CONNECTED)	strcat(buf, "TS_CONNECTED ");
+	if (ts & TS_SNOOP)	strcat(buf, "TS_SNOOP ");
+	if (ts & TS_SO_OCOMPLETE) strcat(buf, "TS_OCOMPLETE ");
+	if (ts & TS_ZOMBIE)	strcat(buf, "TS_ZOMBIE ");
+	if (ts & TS_CAR_OFLOW)	strcat(buf, "TS_CAR_OFLOW ");
+	if (ts & TS_DTR_WAIT)	strcat(buf, "TS_DTR_WAIT ");
+	if (ts & TS_GONE)	strcat(buf, "TS_GONE ");
+	if (ts & TS_CALLOUT)	strcat(buf, "TS_CALLOUT ");
+	return (buf);
+}
 void
 tty_stat(int ac, char **av)
 {
@@ -474,21 +691,20 @@ tty_stat(int ac, char **av)
 		err(1, "TCSI_TTY on %s", Devname);
 	printf("%s: ", Devname);
 
-	printf("\tt_outq.c_cc %d.\n", TTY.t_outq.c_cc);	/* struct clist t_outq */
-	printf("\tt_dev 0x%x\n", TTY.t_dev);		/* dev_t t_dev */
+	printf("\tt_outq.c_cc %d\n", TTY.t_outq.c_cc);	/* struct clist t_outq */
 	printf("\tt_flags 0x%x\n", TTY.t_flags);	/* int	t_flags */
-	printf("\tt_state 0x%x\n", TTY.t_state);	/* int	t_state */
-	printf("\tt_ihiwat %d.\n", TTY.t_ihiwat);	/* int	t_ihiwat */
-	printf("\tt_ilowat %d.\n", TTY.t_ilowat);	/* int	t_ilowat */
-	printf("\tt_ohiwat %d.\n", TTY.t_ohiwat);	/* int	t_ohiwat */
-	printf("\tt_olowat %d.\n", TTY.t_olowat);	/* int	t_olowat */
+	printf("\tt_state 0x%x %s\n", TTY.t_state, pt_state(TTY.t_state));	/* int	t_state */
+	printf("\tt_ihiwat %d\n", TTY.t_ihiwat);	/* int	t_ihiwat */
+	printf("\tt_ilowat %d\n", TTY.t_ilowat);	/* int	t_ilowat */
+	printf("\tt_ohiwat %d\n", TTY.t_ohiwat);	/* int	t_ohiwat */
+	printf("\tt_olowat %d\n", TTY.t_olowat);	/* int	t_olowat */
 	printf("\tt_iflag 0x%x\n", TTY.t_iflag);	/* t_iflag */
 	printf("\tt_oflag 0x%x\n", TTY.t_oflag);	/* t_oflag */
 	printf("\tt_cflag 0x%x\n", TTY.t_cflag);	/* t_cflag */
 	printf("\tt_lflag 0x%x\n", TTY.t_lflag);	/* t_lflag */
 	printf("\tt_cc %p\n", (void *)TTY.t_cc);	/* t_cc */
-	printf("\tt_termios.c_ispeed 0x%x\n", TTY.t_termios.c_ispeed);	/* t_termios.c_ispeed */
-	printf("\tt_termios.c_ospeed 0x%x\n", TTY.t_termios.c_ospeed);	/* t_termios.c_ospeed */
+	printf("\tt_termios.c_ispeed %d\n", TTY.t_termios.c_ispeed);	/* t_termios.c_ispeed */
+	printf("\tt_termios.c_ospeed %d\n", TTY.t_termios.c_ospeed);	/* t_termios.c_ospeed */
 }
 
 int
