@@ -94,13 +94,13 @@ static int	get_eeprom_data(struct cs_softc *sc, int, int, uint16_t *);
 static int	get_eeprom_cksum(int, int, uint16_t *);
 static int	wait_eeprom_ready( struct cs_softc *);
 static void	control_dc_dc( struct cs_softc *, int );
-static int	send_test_pkt( struct cs_softc * );
 static int	enable_tp(struct cs_softc *);
 static int	enable_aui(struct cs_softc *);
 static int	enable_bnc(struct cs_softc *);
 static int      cs_duplex_auto(struct cs_softc *);
 
 devclass_t cs_devclass;
+driver_intr_t	csintr;
 
 /* sysctl vars */
 SYSCTL_NODE(_hw, OID_AUTO, cs, CTLFLAG_RD, 0, "cs device parameters");
@@ -203,7 +203,7 @@ cs_duplex_auto(struct cs_softc *sc)
 	cs_writereg(sc, PP_AutoNegCTL,
 	    RE_NEG_NOW | ALLOW_FDX | AUTO_NEG_ENABLE);
 	for (i=0; cs_readreg(sc, PP_AutoNegST) & AUTO_NEG_BUSY; i++) {
-		if (i > 40000) {
+		if (i > 4000) {
 			device_printf(sc->dev,
 			    "full/half duplex auto negotiation timeout\n");
 			error = ETIMEDOUT;
@@ -223,77 +223,23 @@ enable_tp(struct cs_softc *sc)
 	return (0);
 }
 
-/*
- * XXX This was rewritten from Linux driver without any tests.
- */
-static int
-send_test_pkt(struct cs_softc *sc)
-{
-	char test_packet[] = { 0,0,0,0,0,0, 0,0,0,0,0,0,
-				0, 46,  /* A 46 in network order */
-				0, 0,   /* DSAP=0 & SSAP=0 fields */
-				0xf3, 0 /* Control (Test Req + P bit set) */ };
-	int i;
-	u_char ether_address_backup[ETHER_ADDR_LEN];
-
-	for (i = 0; i < ETHER_ADDR_LEN; i++)
-		ether_address_backup[i] = sc->enaddr[i];
-
-	cs_writereg(sc, PP_LineCTL, cs_readreg(sc, PP_LineCTL) | SERIAL_TX_ON);
-	bcopy(test_packet, sc->enaddr, ETHER_ADDR_LEN);
-	bcopy(test_packet+ETHER_ADDR_LEN, 
-	    sc->enaddr, ETHER_ADDR_LEN);
-	cs_outw(sc, TX_CMD_PORT, sc->send_cmd);
-	cs_outw(sc, TX_LEN_PORT, sizeof(test_packet));
-
-	/* Wait for chip to allocate memory */
-	DELAY(50000);
-	if (!(cs_readreg(sc, PP_BusST) & READY_FOR_TX_NOW)) {
-		for (i = 0; i < ETHER_ADDR_LEN; i++)
-			sc->enaddr[i] = ether_address_backup[i];
-		return (0);
-	}
-
-	outsw(sc->nic_addr + TX_FRAME_PORT, test_packet, sizeof(test_packet));
-
-	DELAY(30000);
-
-	for (i = 0; i < ETHER_ADDR_LEN; i++)
-		sc->enaddr[i] = ether_address_backup[i];
-	if ((cs_readreg(sc, PP_TxEvent) & TX_SEND_OK_BITS) == TX_OK)
-		return (1);
-	return (0);
-}
-
-/*
- * XXX This was rewritten from Linux driver without any tests.
- */
 static int
 enable_aui(struct cs_softc *sc)
 {
 
-	control_dc_dc(sc, 0);
 	cs_writereg(sc, PP_LineCTL,
 	    (sc->line_ctl & ~AUTO_AUI_10BASET) | AUI_ONLY);
-
-	if (!send_test_pkt(sc))
-		return (EINVAL);
+	control_dc_dc(sc, 0);
 	return (0);
 }
 
-/*
- * XXX This was rewritten from Linux driver without any tests.
- */
 static int
 enable_bnc(struct cs_softc *sc)
 {
 
-	control_dc_dc(sc, 1);
 	cs_writereg(sc, PP_LineCTL,
 	    (sc->line_ctl & ~AUTO_AUI_10BASET) | AUI_ONLY);
-
-	if (!send_test_pkt(sc))
-		return (EINVAL);
+	control_dc_dc(sc, 1);
 	return (0);
 }
 
@@ -474,32 +420,15 @@ cs_alloc_port(device_t dev, int rid, int size)
 }
 
 /*
- * Allocate a memory resource with the given resource id.
- */
-int
-cs_alloc_memory(device_t dev, int rid, int size)
-{
-	struct cs_softc *sc = device_get_softc(dev);
-	struct resource *res;
-
-	res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
-	    0ul, ~0ul, size, RF_ACTIVE);
-	if (res == NULL)
-		return (ENOENT);
-	return (0);
-}
-
-/*
  * Allocate an irq resource with the given resource id.
  */
 int
-cs_alloc_irq(device_t dev, int rid, int flags)
+cs_alloc_irq(device_t dev, int rid)
 {
 	struct cs_softc *sc = device_get_softc(dev);
 	struct resource *res;
 
-	res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
-	    (RF_ACTIVE | flags));
+	res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, RF_ACTIVE);
 	if (res == NULL)
 		return (ENOENT);
 	sc->irq_rid = rid;
@@ -560,13 +489,6 @@ cs_attach(device_t dev)
 	ifp->if_ioctl=cs_ioctl;
 	ifp->if_init=cs_init;
 	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
-	/*
-	 *  MIB DATA
-	 */
-	/*
-	ifp->if_linkmib=&sc->mibdata;
-	ifp->if_linkmiblen=sizeof sc->mibdata;
-	*/
 
 	ifp->if_flags=(IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
 
