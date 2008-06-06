@@ -63,7 +63,7 @@ static struct isa_pnp_id cs_ids[] = {
 static int
 cs_isa_probe(device_t dev)
 {
-	int error = 0;
+	int error;
 
 	/* Check isapnp ids */
 	error = ISA_PNP_PROBE(device_get_parent(dev), dev, cs_ids);
@@ -101,9 +101,7 @@ static device_method_t cs_isa_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		cs_isa_probe),
 	DEVMETHOD(device_attach,	cs_isa_attach),
-#ifdef CS_HAS_DETACH
 	DEVMETHOD(device_detach,	cs_detach),
-#endif
 
 	{ 0, 0 }
 };
