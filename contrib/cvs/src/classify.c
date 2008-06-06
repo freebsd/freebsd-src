@@ -41,6 +41,7 @@ keywords_may_change (aflag, vers)
 		 * changed by -A...
 		 */
 		|| (strlen (vers->entdata->options)
+		    && strcmp (vers->entdata->options, vers->options)
 		    && strcmp (vers->entdata->options, "-kkv")
 		    && strcmp (vers->entdata->options, "-kb"))))
 	/* ...or...  */
