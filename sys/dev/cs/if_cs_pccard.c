@@ -62,9 +62,7 @@ cs_pccard_probe(device_t dev)
 	uint32_t	fcn = PCCARD_FUNCTION_UNSPEC;
 
 	/* Make sure we're a network function */
-	error = pccard_get_function(dev, &fcn);
-	if (error != 0)
-		return (error);
+	pccard_get_function(dev, &fcn);
 	if (fcn != PCCARD_FUNCTION_NETWORK)
 		return (ENXIO);
 
