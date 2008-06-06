@@ -84,7 +84,7 @@ cs_pccard_attach(device_t dev)
 	error = cs_cs89x0_probe(dev);
 	if (error != 0)
 		return (error);
-	error = cs_alloc_irq(dev, sc->irq_rid, 0);
+	error = cs_alloc_irq(dev, sc->irq_rid);
 	if (error != 0)
 		goto bad;
 
