@@ -47,4 +47,7 @@ intmax_t gctl_get_intmax(struct gctl_req *req, const char *pfmt, ...) __printfli
 const char *gctl_get_ascii(struct gctl_req *req, const char *pfmt, ...) __printflike(2, 3);
 int gctl_change_param(struct gctl_req *req, const char *name, int len,
     const void *value);
+int gctl_delete_param(struct gctl_req *req, const char *name);
+int gctl_has_param(struct gctl_req *req, const char *name);
+
 #endif	/* !_SUBR_H_ */
