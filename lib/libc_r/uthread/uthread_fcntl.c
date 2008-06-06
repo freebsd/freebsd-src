@@ -36,6 +36,8 @@
 
 __weak_reference(__fcntl, fcntl);
 
+extern int __fcntl_compat(int fd, int cmd, ...);
+
 int
 _fcntl(int fd, int cmd,...)
 {
@@ -124,7 +126,7 @@ _fcntl(int fd, int cmd,...)
 			break;
 		default:
 			/* Might want to make va_arg use a union */
-			ret = __sys_fcntl(fd, cmd, va_arg(ap, void *));
+			ret = __fcntl_compat(fd, cmd, va_arg(ap, void *));
 			break;
 		}
 
