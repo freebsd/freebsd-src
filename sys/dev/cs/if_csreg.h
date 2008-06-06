@@ -518,9 +518,6 @@
 #define CS_DUPLEX_FULL		1
 #define CS_DUPLEX_HALF		2
 
-/* Device name */
-#define CS_NAME			"cs"
-
 /*
  * It would appear that for pccards (well, the IBM EtherJet PCMCIA card) that
  * are connected to card bus bridges there's a problem.  For reading the

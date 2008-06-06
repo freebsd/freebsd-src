@@ -137,7 +137,7 @@ get_eeprom_data(struct cs_softc *sc, int off, int len, uint16_t *buffer)
 	int i;
 
 #ifdef CS_DEBUG
-	printf(CS_NAME":EEPROM data from %x for %x:\n", off, len);
+	device_printf(sc->sc_dev, "EEPROM data from %x for %x:\n", off, len);
 #endif
 
 	for (i=0; i < len; i++) {
@@ -150,8 +150,7 @@ get_eeprom_data(struct cs_softc *sc, int off, int len, uint16_t *buffer)
 		buffer[i] = cs_readreg(sc, PP_EEData);
 
 #ifdef CS_DEBUG
-		printf("%02x %02x ",(unsigned char)buffer[i],
-		    (unsigned char)buffer[i] >> 8);
+		printf("%04x ",buffer[i]);
 #endif
 	}
 
@@ -170,12 +169,8 @@ get_eeprom_cksum(int off, int len, uint16_t *buffer)
 	for (i = 0; i < len; i++)
 		cksum += buffer[i];
 	cksum &= 0xffff;
-	if (cksum==0)
+	if (cksum == 0 || cs_ignore_cksum_failure)
 		return (0);
-	if (cs_ignore_cksum_failure) {
-		printf(CS_NAME": checksum mismatch, ignoring\n");
-		return (0);
-	}
 	return (-1);
 }
 
@@ -475,7 +470,6 @@ cs_alloc_port(device_t dev, int rid, int size)
 		return (ENOENT);
 	sc->port_rid = rid;
 	sc->port_res = res;
-	sc->port_used = size;
 	return (0);
 }
 
@@ -492,9 +486,6 @@ cs_alloc_memory(device_t dev, int rid, int size)
 	    0ul, ~0ul, size, RF_ACTIVE);
 	if (res == NULL)
 		return (ENOENT);
-	sc->mem_rid = rid;
-	sc->mem_res = res;
-	sc->mem_used = size;
 	return (0);
 }
 
@@ -528,11 +519,6 @@ cs_release_resources(device_t dev)
 		bus_release_resource(dev, SYS_RES_IOPORT,
 		    sc->port_rid, sc->port_res);
 		sc->port_res = 0;
-	}
-	if (sc->mem_res) {
-		bus_release_resource(dev, SYS_RES_MEMORY,
-		    sc->mem_rid, sc->mem_res);
-		sc->mem_res = 0;
 	}
 	if (sc->irq_res) {
 		bus_release_resource(dev, SYS_RES_IRQ,
