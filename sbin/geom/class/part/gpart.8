@@ -1,4 +1,4 @@
-.\" Copyright (c) 2007 Marcel Moolenaar
+.\" Copyright (c) 2007, 2008 Marcel Moolenaar
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Oct 20, 2007
+.Dd Jun 5, 2008
 .Dt GPART 8
 .Os
 .Sh NAME
@@ -36,16 +36,24 @@ place one or more of the following
 lines in your kernel configuration file:
 .Bd -ragged -offset indent
 .Cd "options GEOM_PART_APM"
+.Cd "options GEOM_PART_BSD"
 .Cd "options GEOM_PART_GPT"
 .Cd "options GEOM_PART_MBR"
+.Cd "options GEOM_PART_PC98"
+.Cd "options GEOM_PART_VTOC8"
 .Ed
 .Pp
 The GEOM_PART_APM option adds support for the Apple Partition Map (APM)
 found on Apple Macintosh computers.
+The GEOM_PART_BSD option adds support for the traditional BSD disklabel.
 The GEOM_PART_GPT option adds support for the GUID Partition Table (GPT)
 found on Intel Itanium computers and Intel-based Macintosh computers.
 The GEOM_PART_MBR option adds support for the Master Boot Record (MBR)
 found on PCs and used on many removable media.
+The GEOM_PART_PC98 option adds support for the MBR variant as used on
+NEC PC-98 computers.
+The GEOM_PART_VTOC8 option adds support for Sun's SMI VTOC8 label as
+found on UltraSPARC-based computers.
 .Pp
 Usage of the
 .Xr gpart 8
@@ -59,6 +67,12 @@ utility:
 .Fl t Ar type
 .Op Fl i Ar index
 .Op Fl l Ar label
+.Op Fl f Ar flags
+.Ar geom
+.\" ==== BOOTCODE ====
+.Nm
+.Cm bootcode
+.Fl b Ar bootcode
 .Op Fl f Ar flags
 .Ar geom
 .\" ==== COMMIT ====
@@ -122,7 +136,7 @@ option.
 Partition types are discussed in the section entitled "Partition Types".
 .Pp
 Addition options include:
-.Bl -tag -width ".Fl w Ar wwwwwww"
+.Bl -tag -width ".Fl w Ar wwwwwwww"
 .It Fl i Ar index
 The index in the partition table at which the new partition is to be
 placed. The index determines the name of the device special file used
@@ -136,6 +150,21 @@ Additional operational flags.
 See the section entitled "Operational flags" below for a discussion
 about its use.
 .El
+.\" ==== BOOTCODE ====
+.It Cm bootcode
+Install bootstrap code into the partitioning scheme's metadata on
+.Ar geom .
+Not all partitioning schemes have bootstrap code, so this command
+is scheme-specific in nature.
+For the GPT scheme, bootstrap code is supported but it is the boostrap
+code that's installed in the protective MBR.
+The
+.Fl b Ar bootcode
+option specifies a file that contains the bootstrap code.
+The contents and size of the file are determined by the partitioning
+scheme.
+For the MBR scheme, it's a 512 byte file of which the first 446 bytes
+are installed as bootstrap code.
 .\" ==== COMMIT ====
 .It Cm commit
 Commit any pending changes for geom
