@@ -1482,21 +1482,30 @@ ieee80211_find_txnode(struct ieee80211vap *vap,
 static void
 _ieee80211_free_node(struct ieee80211_node *ni)
 {
-	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211_node_table *nt = ni->ni_table;
 
+	/*
+	 * NB: careful about referencing the vap as it may be
+	 * gone if the last reference was held by a driver.
+	 * We know the com will always be present so it's safe
+	 * to use ni_ic below to reclaim resources.
+	 */
+#if 0
 	IEEE80211_DPRINTF(vap, IEEE80211_MSG_NODE,
 		"%s %p<%s> in %s table\n", __func__, ni,
 		ether_sprintf(ni->ni_macaddr),
 		nt != NULL ? nt->nt_name : "<gone>");
-
-	if (vap->iv_aid_bitmap != NULL)
-		IEEE80211_AID_CLR(vap, ni->ni_associd);
+#endif
+	if (ni->ni_associd != 0) {
+		struct ieee80211vap *vap = ni->ni_vap;
+		if (vap->iv_aid_bitmap != NULL)
+			IEEE80211_AID_CLR(vap, ni->ni_associd);
+	}
 	if (nt != NULL) {
 		TAILQ_REMOVE(&nt->nt_node, ni, ni_list);
 		LIST_REMOVE(ni, ni_hash);
 	}
-	vap->iv_ic->ic_node_free(ni);
+	ni->ni_ic->ic_node_free(ni);
 }
 
 void
@@ -1551,9 +1560,8 @@ ieee80211_free_node(struct ieee80211_node *ni)
 int
 ieee80211_node_delucastkey(struct ieee80211_node *ni)
 {
-	struct ieee80211vap *vap = ni->ni_vap;
-	/* XXX is ni_table safe? */
-	struct ieee80211_node_table *nt = &ni->ni_ic->ic_sta;
+	struct ieee80211com *ic = ni->ni_ic;
+	struct ieee80211_node_table *nt = &ic->ic_sta;
 	struct ieee80211_node *nikey;
 	ieee80211_keyix keyix;
 	int isowned, status;
@@ -1573,20 +1581,23 @@ ieee80211_node_delucastkey(struct ieee80211_node *ni)
 	isowned = IEEE80211_NODE_IS_LOCKED(nt);
 	if (!isowned)
 		IEEE80211_NODE_LOCK(nt);
-	keyix = ni->ni_ucastkey.wk_rxkeyix;
-	status = ieee80211_crypto_delkey(vap, &ni->ni_ucastkey);
-	if (nt->nt_keyixmap != NULL && keyix < nt->nt_keyixmax) {
-		nikey = nt->nt_keyixmap[keyix];
-		nt->nt_keyixmap[keyix] = NULL;;
-	} else
-		nikey = NULL;
+	nikey = NULL;
+	status = 1;		/* NB: success */
+	if (!IEEE80211_KEY_UNDEFINED(&ni->ni_ucastkey)) {
+		keyix = ni->ni_ucastkey.wk_rxkeyix;
+		status = ieee80211_crypto_delkey(ni->ni_vap, &ni->ni_ucastkey);
+		if (nt->nt_keyixmap != NULL && keyix < nt->nt_keyixmax) {
+			nikey = nt->nt_keyixmap[keyix];
+			nt->nt_keyixmap[keyix] = NULL;;
+		}
+	}
 	if (!isowned)
 		IEEE80211_NODE_UNLOCK(nt);
 
 	if (nikey != NULL) {
 		KASSERT(nikey == ni,
 			("key map out of sync, ni %p nikey %p", ni, nikey));
-		IEEE80211_DPRINTF(vap, IEEE80211_MSG_NODE,
+		IEEE80211_DPRINTF(ni->ni_vap, IEEE80211_MSG_NODE,
 			"%s: delete key map entry %p<%s> refcnt %d\n",
 			__func__, ni, ether_sprintf(ni->ni_macaddr),
 			ieee80211_node_refcnt(ni)-1);
