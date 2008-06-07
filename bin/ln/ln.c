@@ -233,7 +233,7 @@ linkit(const char *source, const char *target, int isdir)
 			else
 				p = target;
 			(void)snprintf(wbuf, sizeof(wbuf), "%.*s%s",
-			    (p - target), target, source);
+			    (int)(p - target), target, source);
 			if (stat(wbuf, &sb) != 0)
 				warn("warning: %s", source);
 		}
