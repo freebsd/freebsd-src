@@ -227,7 +227,8 @@ struct ieee80211com {
 	/* new station association callback/notification */
 	void			(*ic_newassoc)(struct ieee80211_node *, int);
 	/* node state management */
-	struct ieee80211_node*	(*ic_node_alloc)(struct ieee80211_node_table *);
+	struct ieee80211_node*	(*ic_node_alloc)(struct ieee80211vap *,
+				    const uint8_t [IEEE80211_ADDR_LEN]);
 	void			(*ic_node_free)(struct ieee80211_node *);
 	void			(*ic_node_cleanup)(struct ieee80211_node *);
 	void			(*ic_node_age)(struct ieee80211_node *);

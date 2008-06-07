@@ -156,7 +156,8 @@ static void		ural_write_multi(struct ural_softc *, uint16_t, void *,
 static void		ural_bbp_write(struct ural_softc *, uint8_t, uint8_t);
 static uint8_t		ural_bbp_read(struct ural_softc *, uint8_t);
 static void		ural_rf_write(struct ural_softc *, uint8_t, uint32_t);
-static struct ieee80211_node *ural_node_alloc(struct ieee80211_node_table *);
+static struct ieee80211_node *ural_node_alloc(struct ieee80211vap *,
+			    const uint8_t mac[IEEE80211_ADDR_LEN]);
 static void		ural_newassoc(struct ieee80211_node *, int);
 static void		ural_scan_start(struct ieee80211com *);
 static void		ural_scan_end(struct ieee80211com *);
@@ -1759,7 +1760,8 @@ ural_rf_write(struct ural_softc *sc, uint8_t reg, uint32_t val)
 
 /* ARGUSED */
 static struct ieee80211_node *
-ural_node_alloc(struct ieee80211_node_table *nt __unused)
+ural_node_alloc(struct ieee80211vap *vap __unused,
+	const uint8_t mac[IEEE80211_ADDR_LEN] __unused)
 {
 	struct ural_node *un;
 

@@ -67,7 +67,8 @@ __FBSDID("$FreeBSD$");
 
 static int ieee80211_sta_join1(struct ieee80211_node *);
 
-static struct ieee80211_node *node_alloc(struct ieee80211_node_table *);
+static struct ieee80211_node *node_alloc(struct ieee80211vap *,
+	const uint8_t [IEEE80211_ADDR_LEN]);
 static void node_cleanup(struct ieee80211_node *);
 static void node_free(struct ieee80211_node *);
 static void node_age(struct ieee80211_node *);
@@ -723,7 +724,7 @@ ieee80211_node_deauth(struct ieee80211_node *ni, int reason)
 }
 
 static struct ieee80211_node *
-node_alloc(struct ieee80211_node_table *nt)
+node_alloc(struct ieee80211vap *vap, const uint8_t macaddr[IEEE80211_ADDR_LEN])
 {
 	struct ieee80211_node *ni;
 
@@ -948,7 +949,7 @@ ieee80211_alloc_node(struct ieee80211_node_table *nt,
 	struct ieee80211_node *ni;
 	int hash;
 
-	ni = ic->ic_node_alloc(nt);
+	ni = ic->ic_node_alloc(vap, macaddr);
 	if (ni == NULL) {
 		vap->iv_stats.is_rx_nodealloc++;
 		return NULL;
@@ -996,7 +997,7 @@ ieee80211_tmp_node(struct ieee80211vap *vap,
 	struct ieee80211com *ic = vap->iv_ic;
 	struct ieee80211_node *ni;
 
-	ni = ic->ic_node_alloc(&ic->ic_sta);
+	ni = ic->ic_node_alloc(vap, macaddr);
 	if (ni != NULL) {
 		IEEE80211_DPRINTF(vap, IEEE80211_MSG_NODE,
 			"%s %p<%s>\n", __func__, ni, ether_sprintf(macaddr));
