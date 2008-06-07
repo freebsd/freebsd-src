@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Jun 5, 2008
+.Dd Jun 6, 2008
 .Dt GPART 8
 .Os
 .Sh NAME
@@ -72,7 +72,8 @@ utility:
 .\" ==== BOOTCODE ====
 .Nm
 .Cm bootcode
-.Fl b Ar bootcode
+.Op Fl b Ar bootcode
+.Op Fl p Ar partcode Fl i Ar index
 .Op Fl f Ar flags
 .Ar geom
 .\" ==== COMMIT ====
@@ -152,12 +153,19 @@ about its use.
 .El
 .\" ==== BOOTCODE ====
 .It Cm bootcode
-Install bootstrap code into the partitioning scheme's metadata on
-.Ar geom .
-Not all partitioning schemes have bootstrap code, so this command
-is scheme-specific in nature.
-For the GPT scheme, bootstrap code is supported but it is the boostrap
-code that's installed in the protective MBR.
+Embed bootstrap code into the partitioning scheme's metadata on the
+.Ar geom
+(using
+.Fl b Ar bootcode )
+or write bootstrap code into a partition (using
+.Fl p Ar partcode
+and
+.Fl i Ar index ) .
+Not all partitioning schemes have embedded bootstrap code, so the
+.Fl b Ar bootcode
+option is scheme-specific in nature.
+For the GPT scheme, embedded bootstrap code is supported.
+The bootstrap code is embedded in the protective MBR rather than the GPT.
 The
 .Fl b Ar bootcode
 option specifies a file that contains the bootstrap code.
@@ -165,6 +173,14 @@ The contents and size of the file are determined by the partitioning
 scheme.
 For the MBR scheme, it's a 512 byte file of which the first 446 bytes
 are installed as bootstrap code.
+The
+.Fl p Ar partcode
+option specifies a file that contains the bootstrap code intended to be
+written to a partition.
+The partition is specified by the
+.Fl i Ar index
+option.
+The size of the file must be smaller than the size of the partition.
 .\" ==== COMMIT ====
 .It Cm commit
 Commit any pending changes for geom
