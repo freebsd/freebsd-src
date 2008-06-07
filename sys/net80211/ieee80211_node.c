@@ -2177,8 +2177,7 @@ ieee80211_node_join(struct ieee80211_node *ni, int resp)
 				break;
 		}
 		if (aid >= vap->iv_max_aid) {
-			IEEE80211_SEND_MGMT(ni, resp,
-			    IEEE80211_REASON_ASSOC_TOOMANY);
+			IEEE80211_SEND_MGMT(ni, resp, IEEE80211_STATUS_TOOMANY);
 			ieee80211_node_leave(ni);
 			return;
 		}
