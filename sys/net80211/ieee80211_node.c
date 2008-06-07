@@ -2088,8 +2088,8 @@ ieee80211_dump_nodes(struct ieee80211_node_table *nt)
 		(ieee80211_iter_func *) ieee80211_dump_node, nt);
 }
 
-void
-ieee80211_notify_erp(struct ieee80211com *ic)
+static void
+ieee80211_notify_erp_locked(struct ieee80211com *ic)
 {
 	struct ieee80211vap *vap;
 
@@ -2098,6 +2098,14 @@ ieee80211_notify_erp(struct ieee80211com *ic)
 	TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next)
 		if (vap->iv_opmode == IEEE80211_M_HOSTAP)
 			ieee80211_beacon_notify(vap, IEEE80211_BEACON_ERP);
+}
+
+void
+ieee80211_notify_erp(struct ieee80211com *ic)
+{
+	IEEE80211_LOCK(ic);
+	ieee80211_notify_erp_locked(ic);
+	IEEE80211_UNLOCK(ic);
 }
 
 /*
@@ -2162,7 +2170,7 @@ ieee80211_node_join_11g(struct ieee80211_node *ni)
 			IEEE80211_DPRINTF(ni->ni_vap, IEEE80211_MSG_ASSOC,
 			    "%s: enable use of protection\n", __func__);
 			ic->ic_flags |= IEEE80211_F_USEPROT;
-			ieee80211_notify_erp(ic);
+			ieee80211_notify_erp_locked(ic);
 		}
 	} else
 		ni->ni_flags |= IEEE80211_NODE_ERP;
@@ -2251,7 +2259,7 @@ disable_protection(struct ieee80211com *ic)
 		ic->ic_flags |= IEEE80211_F_SHPREAMBLE;
 		ic->ic_flags &= ~IEEE80211_F_USEBARKER;
 	}
-	ieee80211_notify_erp(ic);
+	ieee80211_notify_erp_locked(ic);
 }
 
 /*
