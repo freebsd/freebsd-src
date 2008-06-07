@@ -195,7 +195,8 @@ static int		rum_prepare_beacon(struct rum_softc *,
 			    struct ieee80211vap *);
 static int		rum_raw_xmit(struct ieee80211_node *, struct mbuf *,
 			    const struct ieee80211_bpf_params *);
-static struct ieee80211_node *rum_node_alloc(struct ieee80211_node_table *);
+static struct ieee80211_node *rum_node_alloc(struct ieee80211vap *,
+			    const uint8_t mac[IEEE80211_ADDR_LEN]);
 static void		rum_newassoc(struct ieee80211_node *, int);
 static void		rum_scan_start(struct ieee80211com *);
 static void		rum_scan_end(struct ieee80211com *);
@@ -2394,7 +2395,8 @@ rum_amrr_update(usbd_xfer_handle xfer, usbd_private_handle priv,
 
 /* ARGUSED */
 static struct ieee80211_node *
-rum_node_alloc(struct ieee80211_node_table *nt __unused)
+rum_node_alloc(struct ieee80211vap *vap __unused,
+	const uint8_t mac[IEEE80211_ADDR_LEN] __unused)
 {
 	struct rum_node *rn;
 

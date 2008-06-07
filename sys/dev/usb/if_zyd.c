@@ -163,7 +163,8 @@ static int	zyd_alloc_tx_list(struct zyd_softc *);
 static void	zyd_free_tx_list(struct zyd_softc *);
 static int	zyd_alloc_rx_list(struct zyd_softc *);
 static void	zyd_free_rx_list(struct zyd_softc *);
-static struct	ieee80211_node *zyd_node_alloc(struct ieee80211_node_table *);
+static struct ieee80211_node *zyd_node_alloc(struct ieee80211vap *,
+			    const uint8_t mac[IEEE80211_ADDR_LEN]);
 static void	zyd_task(void *);
 static int	zyd_newstate(struct ieee80211vap *, enum ieee80211_state, int);
 static int	zyd_cmd(struct zyd_softc *, uint16_t, const void *, int,
@@ -698,7 +699,8 @@ zyd_free_rx_list(struct zyd_softc *sc)
 
 /* ARGUSED */
 static struct ieee80211_node *
-zyd_node_alloc(struct ieee80211_node_table *nt __unused)
+zyd_node_alloc(struct ieee80211vap *vap __unused,
+	const uint8_t mac[IEEE80211_ADDR_LEN] __unused)
 {
 	struct zyd_node *zn;
 

@@ -170,7 +170,8 @@ static int	wpi_alloc_tx_ring(struct wpi_softc *, struct wpi_tx_ring *,
 		    int, int);
 static void	wpi_reset_tx_ring(struct wpi_softc *, struct wpi_tx_ring *);
 static void	wpi_free_tx_ring(struct wpi_softc *, struct wpi_tx_ring *);
-static struct	ieee80211_node *wpi_node_alloc(struct ieee80211_node_table *);
+static struct ieee80211_node *wpi_node_alloc(struct ieee80211vap *,
+			    const uint8_t mac[IEEE80211_ADDR_LEN]);
 static int	wpi_newstate(struct ieee80211vap *, enum ieee80211_state, int);
 static void	wpi_mem_lock(struct wpi_softc *);
 static void	wpi_mem_unlock(struct wpi_softc *);
@@ -1246,7 +1247,8 @@ wpi_resume(device_t dev)
 
 /* ARGSUSED */
 static struct ieee80211_node *
-wpi_node_alloc(struct ieee80211_node_table *ic)
+wpi_node_alloc(struct ieee80211vap *vap __unused,
+	const uint8_t mac[IEEE80211_ADDR_LEN] __unused)
 {
 	struct wpi_node *wn;
 

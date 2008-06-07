@@ -147,7 +147,8 @@ static int	iwi_alloc_rx_ring(struct iwi_softc *, struct iwi_rx_ring *,
 		    int);
 static void	iwi_reset_rx_ring(struct iwi_softc *, struct iwi_rx_ring *);
 static void	iwi_free_rx_ring(struct iwi_softc *, struct iwi_rx_ring *);
-static struct	ieee80211_node *iwi_node_alloc(struct ieee80211_node_table *);
+static struct ieee80211_node *iwi_node_alloc(struct ieee80211vap *,
+		    const uint8_t [IEEE80211_ADDR_LEN]);
 static void	iwi_node_free(struct ieee80211_node *);
 static void	iwi_media_status(struct ifnet *, struct ifmediareq *);
 static int	iwi_newstate(struct ieee80211vap *, enum ieee80211_state, int);
@@ -903,14 +904,14 @@ iwi_resume(device_t dev)
 }
 
 static struct ieee80211_node *
-iwi_node_alloc(struct ieee80211_node_table *nt)
+iwi_node_alloc(struct ieee80211vap *vap, const uint8_t mac[IEEE80211_ADDR_LEN])
 {
 	struct iwi_node *in;
 
 	in = malloc(sizeof (struct iwi_node), M_80211_NODE, M_NOWAIT | M_ZERO);
 	if (in == NULL)
 		return NULL;
-
+	/* XXX assign sta table entry for adhoc */
 	in->in_station = -1;
 
 	return &in->in_node;
