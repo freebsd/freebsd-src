@@ -169,7 +169,8 @@ static void	ath_descdma_cleanup(struct ath_softc *sc,
 			struct ath_descdma *, ath_bufhead *);
 static int	ath_desc_alloc(struct ath_softc *);
 static void	ath_desc_free(struct ath_softc *);
-static struct ieee80211_node *ath_node_alloc(struct ieee80211_node_table *);
+static struct ieee80211_node *ath_node_alloc(struct ieee80211vap *,
+			const uint8_t [IEEE80211_ADDR_LEN]);
 static void	ath_node_free(struct ieee80211_node *);
 static void	ath_node_getsignal(const struct ieee80211_node *,
 			int8_t *, int8_t *);
@@ -3659,9 +3660,9 @@ ath_desc_free(struct ath_softc *sc)
 }
 
 static struct ieee80211_node *
-ath_node_alloc(struct ieee80211_node_table *nt)
+ath_node_alloc(struct ieee80211vap *vap, const uint8_t mac[IEEE80211_ADDR_LEN])
 {
-	struct ieee80211com *ic = nt->nt_ic;
+	struct ieee80211com *ic = vap->iv_ic;
 	struct ath_softc *sc = ic->ic_ifp->if_softc;
 	const size_t space = sizeof(struct ath_node) + sc->sc_rc->arc_space;
 	struct ath_node *an;
