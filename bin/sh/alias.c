@@ -40,7 +40,6 @@ __FBSDID("$FreeBSD$");
 
 #include <stdlib.h>
 #include "shell.h"
-#include "input.h"
 #include "output.h"
 #include "error.h"
 #include "memalloc.h"
