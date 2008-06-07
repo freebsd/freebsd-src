@@ -249,7 +249,7 @@ fsread(ino_t inode, void *buf, size_t nbyte)
 		} else if (lbn < NDADDR + NINDIR(fs)) {
 			n = INDIRPERVBLK(fs);
 			addr = DIP(di_ib[0]);
-			u = (u_int)(lbn - NDADDR) / n * DBPERVBLK;
+			u = (u_int)(lbn - NDADDR) / (n * DBPERVBLK);
 			vbaddr = fsbtodb(fs, addr) + u;
 			if (indmap != vbaddr) {
 				if (dskread(indbuf, vbaddr, DBPERVBLK))
