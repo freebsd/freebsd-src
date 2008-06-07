@@ -104,8 +104,8 @@ static void		rt2560_reset_rx_ring(struct rt2560_softc *,
 			    struct rt2560_rx_ring *);
 static void		rt2560_free_rx_ring(struct rt2560_softc *,
 			    struct rt2560_rx_ring *);
-static struct		ieee80211_node *rt2560_node_alloc(
-			    struct ieee80211_node_table *);
+static struct ieee80211_node *rt2560_node_alloc(struct ieee80211vap *,
+			    const uint8_t [IEEE80211_ADDR_LEN]);
 static void		rt2560_newassoc(struct ieee80211_node *, int);
 static int		rt2560_newstate(struct ieee80211vap *,
 			    enum ieee80211_state, int);
@@ -767,7 +767,8 @@ rt2560_free_rx_ring(struct rt2560_softc *sc, struct rt2560_rx_ring *ring)
 }
 
 static struct ieee80211_node *
-rt2560_node_alloc(struct ieee80211_node_table *nt)
+rt2560_node_alloc(struct ieee80211vap *vap,
+	const uint8_t mac[IEEE80211_ADDR_LEN])
 {
 	struct rt2560_node *rn;
 

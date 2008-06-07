@@ -103,7 +103,8 @@ int		iwn_alloc_tx_ring(struct iwn_softc *, struct iwn_tx_ring *,
 		    int);
 void		iwn_reset_tx_ring(struct iwn_softc *, struct iwn_tx_ring *);
 void		iwn_free_tx_ring(struct iwn_softc *, struct iwn_tx_ring *);
-struct		ieee80211_node *iwn_node_alloc(struct ieee80211_node_table *);
+static struct ieee80211_node *iwn_node_alloc(struct ieee80211vap *,
+		    const uint8_t [IEEE80211_ADDR_LEN]);
 void		iwn_newassoc(struct ieee80211_node *, int);
 int		iwn_media_change(struct ifnet *);
 int		iwn_newstate(struct ieee80211vap *, enum ieee80211_state, int);
@@ -941,7 +942,7 @@ iwn_free_tx_ring(struct iwn_softc *sc, struct iwn_tx_ring *ring)
 }
 
 struct ieee80211_node *
-iwn_node_alloc(struct ieee80211_node_table *ic)
+iwn_node_alloc(struct ieee80211vap *vap, const uint8_t mac[IEEE80211_ADDR_LEN])
 {
 	return malloc(sizeof (struct iwn_node), M_80211_NODE,M_NOWAIT | M_ZERO);
 }
