@@ -111,3 +111,13 @@ nodevice	cdce
 nodevice	cue
 nodevice	kue
 nodevice	rue
+nodevice       uark
+nodevice       ubsa
+nodevice       ubser
+nodevice       ucom
+nodevice       uftdi
+nodevice       uipaq
+nodevice       uplcom
+nodevice       uslcom
+nodevice       uvisor
+nodevice       uvscom
