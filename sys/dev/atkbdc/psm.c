@@ -367,6 +367,8 @@ static struct {
 	  0x08, MOUSE_4D_PACKETSIZE, enable_4dmouse },
 	{ MOUSE_MODEL_4DPLUS,		/* A4 Tech 4D+ Mouse */
 	  0xc8, MOUSE_4DPLUS_PACKETSIZE, enable_4dplus },
+	{ MOUSE_MODEL_SYNAPTICS,	/* Synaptics Touchpad */
+	  0xc0, MOUSE_SYNAPTICS_PACKETSIZE, enable_synaptics },
 	{ MOUSE_MODEL_INTELLI,		/* Microsoft IntelliMouse */
 	  0x08, MOUSE_PS2INTELLI_PACKETSIZE, enable_msintelli },
 	{ MOUSE_MODEL_GLIDEPOINT,	/* ALPS GlidePoint */
@@ -375,8 +377,6 @@ static struct {
 	  0x80, MOUSE_PS2_PACKETSIZE, enable_kmouse },
 	{ MOUSE_MODEL_VERSAPAD,		/* Interlink electronics VersaPad */
 	  0xe8, MOUSE_PS2VERSA_PACKETSIZE, enable_versapad },
-	{ MOUSE_MODEL_SYNAPTICS,	/* Synaptics Touchpad */
-	  0xc0, MOUSE_SYNAPTICS_PACKETSIZE, enable_synaptics },
 	{ MOUSE_MODEL_GENERIC,
 	  0xc0, MOUSE_PS2_PACKETSIZE, NULL },
 };
