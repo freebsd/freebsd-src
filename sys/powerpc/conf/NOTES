@@ -24,6 +24,7 @@ options		SC_OFWFB		# OFW frame buffer
 # Standard busses
 device		pci
 
+device		bm		# Apple BMAC (Big Mac Ethernet)
 device		ofwd		# Open Firmware disks
 
 

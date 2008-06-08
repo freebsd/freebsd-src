@@ -1735,7 +1735,6 @@ device		miibus
 #	BCM570x family of controllers, including the 3Com 3c996-T,
 #	the Netgear GA302T, the SysKonnect SK-9D21 and SK-9D41, and
 #	the embedded gigE NICs on Dell PowerEdge 2550 servers.
-# bm:	Apple BMAC (Big Mac Ethernet).
 # cm:	Arcnet SMC COM90c26 / SMC COM90c56
 #	(and SMC COM90c66 in '56 compatibility mode) adapters.
 # cnw:  Xircom CNW/Netware Airsurfer PC Card adapter
@@ -1874,7 +1873,6 @@ device		age		# Attansic/Atheros L1 Gigabit Ethernet
 device		bce		# Broadcom BCM5706/BCM5708 Gigabit Ethernet
 device		bfe		# Broadcom BCM440x 10/100 Ethernet
 device		bge		# Broadcom BCM570xx Gigabit Ethernet
-device		bm		# Apple BMAC (Big Mac Ethernet)
 device		cxgb		# Chelsio T3 10 Gigabit Ethernet
 device		cxgb_t3fw	# Chelsio T3 10 Gigabit Ethernet firmware
 device		dc		# DEC/Intel 21143 and various workalikes
