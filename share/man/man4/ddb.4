@@ -60,19 +60,45 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 28, 2008
+.Dd June 08, 2008
 .Dt DDB 4
 .Os
 .Sh NAME
 .Nm ddb
 .Nd interactive kernel debugger
 .Sh SYNOPSIS
+In order to enable kernel debugging facilities include:
+.Bd -ragged -offset indent
 .Cd options KDB
 .Cd options DDB
+.Ed
 .Pp
 To prevent activation of the debugger on kernel
 .Xr panic 9 :
+.Bd -ragged -offset indent
 .Cd options KDB_UNATTENDED
+.Ed
+.Pp
+In order to print a stack trace of the current thread on the console
+for a panic:
+.Bd -ragged -offset indent
+.Cd options KDB_TRACE
+.Ed
+.Pp
+To print the numerical value of symbols in addition to the symbolic
+representation, define:
+.Bd -ragged -offset indent
+.Cd options DDB_NUMSYM
+.Ed
+.Pp
+To enable the
+.Xr gdb 1
+backend, so that remote debugging with
+.Xr kgdb 1
+is possible, include:
+.Bd -ragged -offset indent
+.Cd options GDB
+.Ed
 .Sh DESCRIPTION
 The
 .Nm
@@ -335,12 +361,12 @@ or adding conditions to it.
 .Pp
 If the
 .Cm u
-modifier is specified, this command sets a break point in user space
-address.
+modifier is specified, this command sets a break point in user
+address space.
 Without the
 .Cm u
-option, the address is considered in the kernel
-space, and wrong space address is rejected with an error message.
+option, the address is considered to be in the kernel
+space, and a wrong space address is rejected with an error message.
 This modifier can be used only if it is supported by machine dependent
 routines.
 .Pp
@@ -500,6 +526,7 @@ does not always recover from touching bad memory.
 The optional
 .Ar count
 argument limits the search.
+.\"
 .Pp
 .It Ic show Cm all procs Ns Op Li / Ns Cm m
 .It Ic ps Ns Op Li / Ns Cm m
@@ -510,35 +537,197 @@ target process is not in the main memory at that time.
 The
 .Cm m
 modifier will alter the display to show VM map
-addresses for the process and not show other info.
+addresses for the process and not show other information.
+.\"
 .Pp
-.It Ic show Cm registers Ns Op Li / Ns Cm u
-Display the register set.
-If the
-.Cm u
-modifier is specified, it displays user registers instead of
-kernel or currently saved one.
+.It Ic show Cm allchains
+Show the same information like "show lockchain" does, but
+for every thread in the system.
+.\"
 .Pp
-.Sy Warning :
-The support of the
-.Cm u
-modifier depends on the machine.
-If not supported, incorrect information will be displayed.
+.It Ic show Cm alllocks
+Show all locks that are currently held.
+.\"
 .Pp
-.It Ic show Cm sysregs
-Show system registers (e.g.,
-.Li cr0-4
-on i386.)
-Not present on some platforms.
+.It Ic show Cm allpcpu
+The same as "show pcpu", but for every CPU present in the system.
+.\"
+.Pp
+.It Ic show Cm allrman
+Show information related with resource management, including
+interrupt request lines, DMA request lines, I/O ports and I/O memory
+addresses.
+.\"
+.Pp
+.It Ic show Cm apic
+Dump data about APIC IDT vector mappings.
+.\"
+.Pp
+.It Ic show Cm breaks
+Show breakpoints set with the "break" command.
+.\"
+.Pp
+.It Ic show Cm buffer
+Show buffer structure of
+.Vt struct buf
+type.
+Such a structure is used within the
+.Fx
+kernel for the I/O subsystem
+implementation.
+For an exact interpretation of the output, please see the
+.Pa buf.h
+header file.
+.\"
+.Pp
+.It Ic show Cm cbstat
+Show brief information about the TTY subsystem.
+.\"
+.Pp
+.It Ic show Cm cyrixreg
+Show registers specific to the Cyrix processor.
+.\"
+.Pp
+.It Ic show Cm domain Ar addr
+Print protocol domain structure
+.Vt struct domain
+at address
+.Ar addr .
+See the
+.Pa domain.h
+header file for more details on the exact meaning of the structure fields.
+.\"
+.Pp
+.It Ic show Cm file Ar addr
+Show information about the file structure
+.Vt struct file
+present at address
+.Ar addr .
+.\"
+.Pp
+.It Ic show Cm files
+Show information about every file structure in the system.
+.\"
+.Pp
+.It Ic show Cm freepages
+Show the number of physical pages in each of the free lists.
+.\"
 .Pp
 .It Ic show Cm geom Op Ar addr
 If the
 .Ar addr
 argument is not given, displays the entire GEOM topology.
-If the
+If
 .Ar addr
-is given, displays details about the given GEOM object (class, geom, provider
-or consumer).
+is given, displays details about the given GEOM object (class, geom,
+provider or consumer).
+.\"
+.Pp
+.It Ic show Cm idt
+Show IDT layout.
+The first column specifies the IDT vector.
+The second one is the name of the interrupt/trap handler.
+Those functions are machine dependent.
+.\"
+.Pp
+.It Ic show Cm inpcb Ar addr
+Show information on IP Control Block
+.Vt struct in_pcb
+present at
+.Ar addr .
+.\"
+.Pp
+.It Ic show Cm intr
+Dump information about interrupt handlers.
+.\"
+.Pp
+.It Ic show Cm intrcnt
+Dump the interrupt statistics.
+.\"
+.Pp
+.It Ic show Cm irqs
+Show interrupt lines and their respective kernel threads.
+.\"
+.Pp
+.It Ic show Cm lapic
+Show information from the local APIC registers for this CPU.
+.\"
+.Pp
+.It Ic show Cm lock Ar addr
+Show lock structure.
+The output format is as follows:
+.Bl -tag -offset 0 -width "flags"
+.It Ic class:
+Class of the lock.
+Possible types include
+.Xr mutex 9 ,
+.Xr rmlock 9 ,
+.Xr rwlock 9 ,
+.Xr sx 9 .
+.It Ic name:
+Name of the lock.
+.It Ic flags:
+Flags passed to the lock initialization function.
+For exact possibilities see manual pages of possible lock types.
+.It Ic state:
+Current state of a lock.
+As well as
+.Ic flags
+it's lock-specific.
+.It Ic owner:
+Lock owner.
+.El
+.\"
+.Pp
+.It Ic show Cm lockchain Ar addr
+Show all threads a particular thread at address
+.Ar addr
+is waiting on based on non-sleepable and non-spin locks.
+.\"
+.Pp
+.It Ic show Cm lockedbufs
+Show the same information as "show buf", but for every locked
+.Vt struct buf
+object.
+.\"
+.Pp
+.It Ic show Cm lockedvnods
+List all locked vnodes in the system.
+.\"
+.Pp
+.It Ic show Cm locks
+Prints all locks that are currently acquired.
+.\"
+.Pp
+.It Ic show Cm locktree
+.\"
+.Pp
+.It Ic show Cm malloc
+Prints
+.Xr malloc 9
+memory allocator statistics.
+The output format is as follows:
+.Pp
+.Bl -tag -compact -offset indent -width "Requests"
+.It Ic Type
+Specifies a type of memory.
+It is the same as a description string used while defining the
+given memory type with
+.Xr MALLOC_DECLARE 9 .
+.It Ic InUse
+Number of memory allocations of the given type, for which
+.Xr free 9
+has not been called yet.
+.It Ic MemUse
+Total memory consumed by the given allocation type.
+.It Ic Requests
+Number of memory allocation requests for the given
+memory type.
+.El
+.Pp
+The same information can be gathered in userspace with
+.Dq Nm vmstat Fl m .
+.\"
 .Pp
 .It Ic show Cm map Ns Oo Li / Ns Cm f Oc Ar addr
 Prints the VM map at
@@ -547,6 +736,24 @@ If the
 .Cm f
 modifier is specified the
 complete map is printed.
+.\"
+.Pp
+.It Ic show Cm msgbuf
+Print the system's message buffer.
+It is the same output as in the
+.Dq Nm dmesg
+case.
+It is useful if you got a kernel panic, attached a serial cable
+to the machine and want to get the boot messages from before the
+system hang.
+.\"
+.It Ic show Cm mount
+Displays short info about all currently mounted file systems.
+.Pp
+.It Ic show Cm mount Ar addr
+Displays details about the given mount point.
+.Pp
+.\"
 .Pp
 .It Ic show Cm object Ns Oo Li / Ns Cm f Oc Ar addr
 Prints the VM object at
@@ -555,18 +762,255 @@ If the
 .Cm f
 option is specified the
 complete object is printed.
+.\"
 .Pp
-.It Ic show Cm vnode Ar addr
-Displays details about the given vnode.
+.It Ic show Cm page
+Show statistics on VM pages.
+.\"
 .Pp
-.It Ic show Cm mount
-Displays short info about all currently mounted file systems.
+.It Ic show Cm pageq
+Show statistics on VM page queues.
+.\"
 .Pp
-.It Ic show Cm mount Ar addr
-Displays details about the given mount point.
+.It Ic show Cm pciregs
+Print PCI bus registers.
+The same information can be gathered in userspace by running
+.Dq Nm pciconf Fl lv .
+.\"
+.Pp
+.It Ic show Cm pcpu
+Print current processor state.
+The output format is as follows:
+.Pp
+.Bl -tag -compact -offset indent -width "spin locks held:"
+.It Ic cpuid
+Processor identifier.
+.It Ic curthread
+Thread pointer, process identifier and the name of the process.
+.It Ic curpcb
+Control block pointer.
+.It Ic fpcurthread
+FPU thread pointer.
+.It Ic idlethread
+Idle thread pointer.
+.It Ic APIC ID
+CPU identifier coming from APIC.
+.It Ic currentldt
+LDT pointer.
+.It Ic spin locks held
+Names of spin locks held.
+.El
+.\"
+.Pp
+.It Ic show Cm pgrpdump
+Dump process groups present within the system.
+.\"
+.Pp
+.It Ic show Cm proc Op Ar addr
+If no
+.Op Ar addr
+is specified, print information about the current process.
+Otherwise, show information about the process at address
+.Ar addr .
+.\"
+.Pp
+.It Ic show Cm procvm
+Show process virtual memory layout.
+.\"
+.Pp
+.It Ic show Cm protosw Ar addr
+Print protocol switch structure
+.Vt struct protosw
+at address
+.Ar addr .
+.\"
+.Pp
+.It Ic show Cm registers Ns Op Li / Ns Cm u
+Display the register set.
+If the
+.Cm u
+modifier is specified, it displays user registers instead of
+kernel registers or the currently saved one.
+.Pp
+.Sy Warning :
+The support of the
+.Cm u
+modifier depends on the machine.
+If not supported, incorrect information will be displayed.
+.\"
+.Pp
+.It Ic show Cm rman Ar addr
+Show resource manager object
+.Vt struct rman
+at address
+.Ar addr .
+Addresses of particular pointers can be gathered with "show allrman"
+command.
+.\"
+.Pp
+.It Ic show Cm rtc
+Show real time clock value.
+Useful for long debugging sessions.
+.\"
+.Pp
+.It Ic show Cm sleepchain
+Show all the threads a particular thread is waiting on based on
+sleepable locks.
+.\"
+.Pp
+.It Ic show Cm sleepq
+.It Ic show Cm sleepqueue
+Both commands provide the same funcitonality.
+They show sleepqueue
+.Vt struct sleepqueue
+structure.
+Sleepqueues are used within the
+.Fx
+kernel to implement sleepable
+synchronization primitives (thread holding a lock might sleep or
+be contexted switched), which at the time of writing are:
+.Xr condvar 9 ,
+.Xr sx 9
+and standard
+.Xr msleep 9
+interface.
+.\"
+.Pp
+.It Ic show Cm sockbuf Ar addr
+.It Ic show Cm socket Ar addr
+Those commands print
+.Vt struct sockbuf
+and
+.Vt struct socket
+objects placed at
+.Ar addr .
+Output consists of all values present in structures mentioned.
+For exact interpretation and more details, visit
+.Pa socket.h
+header file.
+.\"
+.Pp
+.It Ic show Cm sysregs
+Show system registers (e.g.,
+.Li cr0-4
+on i386.)
+Not present on some platforms.
+.\"
+.Pp
+.It Ic show Cm tcpcb Ar addr
+Print TCP control block
+.Vt struct tcpcb
+lying at address
+.Ar addr .
+For exact interpretation of output, visit
+.Pa tcp.h
+header file.
+.\"
+.Pp
+.It Ic show Cm thread Op Ar addr
+If no
+.Ar addr
+is specified, show detailed information about current thread.
+Otherwise, information about thread at
+.Ar addr
+is printed.
+.\"
+.Pp
+.It Ic show Cm threads
+Show all threads within the system.
+Output format is as follows:
+.Pp
+.Bl -tag -width "PPID" -compact -offset indent -width "Second column"
+.It Ic First column
+Thread identifier (TID)
+.It Ic Second column
+Thread structure address
+.It Ic Third column
+Backtrace.
+.El
+.\"
+.Pp
+.It Ic show Cm turnstile Ar addr
+Show turnstile
+.Vt struct turnstile
+structure at address
+.Ar addr .
+Turnstiles are structures used within the
+.Fx
+kernel to implement
+synchronization primitives which, while holding a specific type of lock, cannot
+sleep or context switch to another thread.
+Currently, those are:
+.Xr mutex 9 ,
+.Xr rwlock 9 ,
+.Xr rmlock 9 .
+.\"
+.Pp
+.It Ic show Cm uma
+Show UMA allocator statistics.
+Output consists five columns:
+.Pp
+.Bl -tag -compact -offset indent -width "Requests"
+.It Cm "Zone"
+Name of the UMA zone.
+The same string that was passed to
+.Xr uma_zcreate 9
+as a first argument.
+.It Cm "Size"
+Size of a given memory object (slab).
+.It Cm "Used"
+Number of slabs being currently used.
+.It Cm "Free"
+Number of free slabs within the UMA zone.
+.It Cm "Requests"
+Number of allocations requests to the given zone.
+.El
+.Pp
+The very same information might be gathered in the userspace
+with the help of
+.Dq Nm vmstat Fl z
+.\"
+.Pp
+.It Ic show Cm unpcb Ar addr
+Shows UNIX domain socket private control block
+.Vt struct unpcb
+present at the address
+.Ar addr
+.\"
+.Pp
+.It Ic show Cm vmochk
+Prints, whether the internal VM objects are in a map somewhere
+and none have zero ref counts.
+.\"
+.Pp
+.It Ic show Cm vmopag
+This is supposed to show physical addresses consumed by a
+VM object.
+Currently, it is not possible to use this command when
+.Xr witness 9
+is compiled in the kernel.
+.\"
+.Pp
+.It Ic show Cm vnode Op Ar addr
+Prints vnode 
+.Vt struct vnode
+structure lying at
+.Op Ar addr .
+For the exact interpretation of the output, look at the
+.Pa vnode.h
+header file.
+.\"
 .Pp
 .It Ic show Cm watches
 Displays all watchpoints.
+Shows watchpoints set with "watch" command.
+.\"
+.Pp
+.It Ic show Cm witness
+Shows information about lock acquisition coming from the
+.Xr witness 9
+subsystem.
+.\"
 .Pp
 .It Ic gdb
 Toggles between remote GDB and DDB mode.
@@ -909,6 +1353,23 @@ The NMI allows one to break into the debugger on a wedged machine to
 diagnose problems.
 Other bus' bridge chipsets may be able to generate NMI using bus specific
 methods.
+.Sh FILES
+Header files mention in this manual page can be found below
+.Pa /usr/include
+directory.
+.Pp
+.Bl -dash -compact
+.It
+.Pa buf.h
+.It
+.Pa domain.h
+.It
+.Pa in_pcb.h
+.It
+.Pa socket
+.It
+.Pa vnode.h
+.El
 .Sh SEE ALSO
 .Xr gdb 1 ,
 .Xr kgdb 1 ,
@@ -921,7 +1382,8 @@ methods.
 .Xr witness 4 ,
 .Xr ddb 8 ,
 .Xr sysctl 8 ,
-.Xr panic 9
+.Xr panic 9 ,
+.Xr witness 9
 .Sh HISTORY
 The
 .Nm
