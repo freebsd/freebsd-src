@@ -782,7 +782,7 @@ string		:  string CHAR
 
 void build_eof_action()
 	{
-	register int i;
+	int i;
 	char action_text[MAXLINE];
 
 	for ( i = 1; i <= scon_stk_ptr; ++i )
