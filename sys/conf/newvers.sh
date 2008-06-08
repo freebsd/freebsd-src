@@ -87,8 +87,17 @@ touch version
 v=`cat version` u=${USER:-root} d=`pwd` h=${HOSTNAME:-`hostname`} t=`date`
 i=`${MAKE:-make} -V KERN_IDENT`
 
-if [ -d ../../.svn ] ; then
-	svn=" @`cd ../.. && svnversion`"
+for dir in /bin /usr/bin /usr/local/bin; do
+	if [ -x "${dir}/svnversion" ]; then
+		svnversion=${dir}/svnversion
+		SRCDIR=${d##*obj}
+		SRCDIR=${SRCDIR%%/sys/*}
+		break
+	fi
+done
+
+if [ -n "$svnversion" -a -d "${SRCDIR}/.svn" ] ; then
+	svn=" @`cd $SRCDIR && $svnversion`"
 else
 	svn=""
 fi
