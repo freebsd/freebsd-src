@@ -32,8 +32,8 @@
  */
 
 /*
- * Taught to send *real* morse by Lyndon Nerenberg (VE7TCP/VE6BBM)
- * <lyndon@orthanc.com>
+ * Taught to send *real* morse by Lyndon Nerenberg (VE6BBM)
+ * <lyndon@orthanc.ca>
  */
 
 #ifndef lint
@@ -483,7 +483,8 @@ show(const char *s)
 		printf(" %s\n", s);
 	} else {
 		for (; *s; ++s)
-			printf(" %s", *s == '.' ? "dit" : "dah");
+			printf(" %s", *s == '.' ? *(s + 1) == '\0' ? "dit" :
+			    "di" : "dah");
 		printf("\n");
 	}
 }
