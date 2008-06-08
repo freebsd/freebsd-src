@@ -576,7 +576,7 @@ Such a structure is used within the
 kernel for the I/O subsystem
 implementation.
 For an exact interpretation of the output, please see the
-.Pa buf.h
+.Pa sys/buf.h
 header file.
 .\"
 .Pp
@@ -594,7 +594,7 @@ Print protocol domain structure
 at address
 .Ar addr .
 See the
-.Pa domain.h
+.Pa sys/domain.h
 header file for more details on the exact meaning of the structure fields.
 .\"
 .Pp
@@ -886,7 +886,7 @@ objects placed at
 .Ar addr .
 Output consists of all values present in structures mentioned.
 For exact interpretation and more details, visit
-.Pa socket.h
+.Pa sys/socket.h
 header file.
 .\"
 .Pp
@@ -903,7 +903,7 @@ Print TCP control block
 lying at address
 .Ar addr .
 For exact interpretation of output, visit
-.Pa tcp.h
+.Pa netinet/tcp.h
 header file.
 .\"
 .Pp
@@ -997,7 +997,7 @@ Prints vnode
 structure lying at
 .Op Ar addr .
 For the exact interpretation of the output, look at the
-.Pa vnode.h
+.Pa sys/vnode.h
 header file.
 .\"
 .Pp
@@ -1360,15 +1360,15 @@ directory.
 .Pp
 .Bl -dash -compact
 .It
-.Pa buf.h
+.Pa sys/buf.h
 .It
-.Pa domain.h
+.Pa sys/domain.h
 .It
-.Pa in_pcb.h
+.Pa netinet/in_pcb.h
 .It
-.Pa socket
+.Pa sys/socket.h
 .It
-.Pa vnode.h
+.Pa sys/vnode.h
 .El
 .Sh SEE ALSO
 .Xr gdb 1 ,
