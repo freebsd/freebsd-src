@@ -121,7 +121,7 @@ typedef pt_entry_t *pd_entry_t;
 #define	vad_to_pfn64(x)	((quad_t)(x) >> PTE_SHIFT) & PTE_FRAME)
 #define	pfn_to_vad(x)	(((x) & PTE_FRAME) << PTE_SHIFT)
 
-/* User viritual to pte offset in page table */
+/* User virtual to pte offset in page table */
 #define	vad_to_pte_offset(adr)	(((adr) >> PGSHIFT) & (NPTEPG -1))
 
 #define	mips_pg_v(entry)	((entry) & PTE_V)

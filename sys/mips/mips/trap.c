@@ -140,7 +140,7 @@ void (*machExceptionTable[]) (void)= {
 	MipsKernGenException,	/* coprocessor unusable */
 	MipsKernGenException,	/* arithmetic overflow */
 	MipsKernGenException,	/* trap exception */
-	MipsKernGenException,	/* viritual coherence exception inst */
+	MipsKernGenException,	/* virtual coherence exception inst */
 	MipsKernGenException,	/* floating point exception */
 	MipsKernGenException,	/* reserved */
 	MipsKernGenException,	/* reserved */
@@ -157,7 +157,7 @@ void (*machExceptionTable[]) (void)= {
 	MipsKernGenException,	/* reserved */
 	MipsKernGenException,	/* reserved */
 	MipsKernGenException,	/* reserved */
-	MipsKernGenException,	/* viritual coherence exception data */
+	MipsKernGenException,	/* virtual coherence exception data */
 /*
  * The user exception handlers.
  */
@@ -210,7 +210,7 @@ char *trap_type[] = {
 	"coprocessor unusable",
 	"arithmetic overflow",
 	"trap",
-	"viritual coherency instruction",
+	"virtual coherency instruction",
 	"floating point",
 	"reserved 16",
 	"reserved 17",
@@ -227,7 +227,7 @@ char *trap_type[] = {
 	"reserved 28",
 	"reserved 29",
 	"reserved 30",
-	"viritual coherency data",
+	"virtual coherency data",
 };
 
 #if !defined(SMP) && (defined(DDB) || defined(DEBUG))
