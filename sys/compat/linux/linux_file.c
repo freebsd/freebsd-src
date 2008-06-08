@@ -289,7 +289,7 @@ linux_readdir(struct thread *td, struct linux_readdir_args *args)
  */
 
 struct l_dirent {
-	l_long		d_ino;
+	l_ulong		d_ino;
 	l_off_t		d_off;
 	l_ushort	d_reclen;
 	char		d_name[LINUX_NAME_MAX + 1];
@@ -446,7 +446,7 @@ again:
 
 		if (justone) {
 			/* readdir(2) case. */
-			linux_dirent.d_ino = (l_long)bdp->d_fileno;
+			linux_dirent.d_ino = bdp->d_fileno;
 			linux_dirent.d_off = (l_off_t)linuxreclen;
 			linux_dirent.d_reclen = (l_ushort)bdp->d_namlen;
 			strcpy(linux_dirent.d_name, bdp->d_name);
