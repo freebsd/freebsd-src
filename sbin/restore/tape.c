@@ -582,7 +582,9 @@ extractfile(char *name)
 	ctimep[1].tv_sec = curfile.birthtime_sec;
 	ctimep[1].tv_usec = curfile.birthtime_nsec / 1000;
 	extsize = curfile.extsize;
-	uid = curfile.uid;
+	uid = getuid();
+	if (uid == 0)
+		uid = curfile.uid;
 	gid = curfile.gid;
 	mode = curfile.mode;
 	flags = curfile.file_flags;
@@ -1377,8 +1379,6 @@ gethead(struct s_spcl *buf)
 	}
 	if (checksum((int *)buf) == FAIL)
 		return (FAIL);
-	if (_time64_to_time(buf->c_date) != dumpdate)
-		fprintf(stderr, "Header with wrong dumpdate.\n");
 	if (Bcvt) {
 		swabst((u_char *)"8l4s1q8l2q17l", (u_char *)buf);
 		swabst((u_char *)"l",(u_char *) &buf->c_level);
@@ -1393,28 +1393,25 @@ gethead(struct s_spcl *buf)
 		/*
 		 * Have to patch up missing information in bit map headers
 		 */
-		buf->c_inumber = 0;
 		buf->c_size = buf->c_count * TP_BSIZE;
 		if (buf->c_count > TP_NINDIR)
 			readmapflag = 1;
 		else 
 			for (i = 0; i < buf->c_count; i++)
 				buf->c_addr[i]++;
-		break;
+		/* FALL THROUGH */
 
 	case TS_TAPE:
-		if (buf->c_magic == NFS_MAGIC) {
-			if ((buf->c_flags & NFS_DR_NEWINODEFMT) == 0)
-				oldinofmt = 1;
-			buf->c_date = _time32_to_time(buf->c_old_date);
-			buf->c_ddate = _time32_to_time(buf->c_old_ddate);
-			buf->c_tapea = buf->c_old_tapea;
-			buf->c_firstrec = buf->c_old_firstrec;
-		}
+		if (buf->c_magic == NFS_MAGIC &&
+		    (buf->c_flags & NFS_DR_NEWINODEFMT) == 0)
+			oldinofmt = 1;
+		/* FALL THROUGH */
+
 	case TS_END:
 		buf->c_inumber = 0;
-		break;
+		/* FALL THROUGH */
 
+	case TS_ADDR:
 	case TS_INODE:
 		/*
 		 * For old dump tapes, have to copy up old fields to
@@ -1427,16 +1424,18 @@ gethead(struct s_spcl *buf)
 			buf->c_ddate = _time32_to_time(buf->c_old_ddate);
 			buf->c_atime = _time32_to_time(buf->c_old_atime);
 			buf->c_mtime = _time32_to_time(buf->c_old_mtime);
+			buf->c_birthtime = 0;
+			buf->c_birthtimensec = 0;
+			buf->c_extsize = 0;
 		}
-		break;
-
-	case TS_ADDR:
 		break;
 
 	default:
 		panic("gethead: unknown inode type %d\n", buf->c_type);
 		break;
 	}
+	if (dumpdate != 0 && _time64_to_time(buf->c_date) != dumpdate)
+		fprintf(stderr, "Header with wrong dumpdate.\n");
 	/*
 	 * If we're restoring a filesystem with the old (FreeBSD 1)
 	 * format inodes, copy the uid/gid to the new location
