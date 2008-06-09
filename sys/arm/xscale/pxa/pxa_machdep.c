@@ -78,7 +78,6 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
-#include <vm/vm.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
@@ -109,11 +108,7 @@ __FBSDID("$FreeBSD$");
 /* Define various stack sizes in pages */
 #define IRQ_STACK_SIZE	1
 #define ABT_STACK_SIZE	1
-#ifdef IPKDB
-#define UND_STACK_SIZE	2
-#else
 #define UND_STACK_SIZE	1
-#endif
 
 extern u_int data_abort_handler_address;
 extern u_int prefetch_abort_handler_address;
@@ -122,8 +117,6 @@ extern u_int undefined_handler_address;
 struct pv_addr kernel_pt_table[NUM_KERNEL_PTS];
 
 extern void *_end;
-
-extern vm_offset_t sa1_cache_clean_addr;
 
 extern int *end;
 
@@ -145,7 +138,6 @@ struct pv_addr abtstack;
 struct pv_addr kernelstack;
 struct pv_addr minidataclean;
 
-void enable_mmu(vm_offset_t);
 static struct trapframe proc0_tf;
 
 static void	pxa_probe_sdram(bus_space_tag_t, bus_space_handle_t,
@@ -169,13 +161,7 @@ static const struct pmap_devmap pxa_devmap[] = {
 
 #define SDRAM_START 0xa0000000
 
-#ifdef DDB
-extern vm_offset_t ksym_start, ksym_end;
-#endif
-
 extern vm_offset_t xscale_cache_clean_addr;
-
-extern void boot_putc(int);
 
 void *
 initarm(void *arg, void *arg2)
@@ -188,58 +174,15 @@ initarm(void *arg, void *arg2)
 	vm_offset_t afterkern;
 	vm_offset_t freemem_after;
 	vm_offset_t lastaddr;
-#ifdef DDB
-	vm_offset_t zstart = 0, zend = 0;
-#endif
 	int i, j;
-	uint32_t fake_preload[35];
 	uint32_t memsize[PXA2X0_SDRAM_BANKS], memstart[PXA2X0_SDRAM_BANKS];
 
-	i = 0;
-	j = 0;
-	boothowto |= RB_SERIAL | RB_SINGLE;
-	bootverbose = 1;
-
 	set_cpufuncs();
-	fake_preload[i++] = MODINFO_NAME;
-	fake_preload[i++] = strlen("elf kernel") + 1;
-	strcpy((char*)&fake_preload[i++], "elf kernel");
-	i += 2;
-	fake_preload[i++] = MODINFO_TYPE;
-	fake_preload[i++] = strlen("elf kernel") + 1;
-	strcpy((char*)&fake_preload[i++], "elf kernel");
-	i += 2;
-	fake_preload[i++] = MODINFO_ADDR;
-	fake_preload[i++] = sizeof(vm_offset_t);
-	fake_preload[i++] = KERNBASE + 0x00200000;
-	fake_preload[i++] = MODINFO_SIZE;
-	fake_preload[i++] = sizeof(uint32_t);
-	fake_preload[i++] = (uint32_t)&end - KERNBASE - 0x00200000;
-#ifdef DDB
-	if (*(uint32_t *)KERNVIRTADDR == MAGIC_TRAMP_NUMBER) {
-		fake_preload[i++] = MODINFO_METADATA|MODINFOMD_SSYM;
-		fake_preload[i++] = sizeof(vm_offset_t);
-		fake_preload[i++] = *(uint32_t *)(KERNVIRTADDR + 4);
-		fake_preload[i++] = MODINFO_METADATA|MODINFOMD_ESYM;
-		fake_preload[i++] = sizeof(vm_offset_t);
-		fake_preload[i++] = *(uint32_t *)(KERNVIRTADDR + 8);
-		lastaddr = *(uint32_t *)(KERNVIRTADDR + 8);
-		zend = lastaddr;
-		zstart = *(uint32_t *)(KERNVIRTADDR + 4);
-		ksym_start = zstart;
-		ksym_end = zend;
-	} else
-#endif
-		lastaddr = (vm_offset_t)&end;
 
-	fake_preload[i++] = 0;
-	fake_preload[i] = 0;
-	preload_metadata = (void *)fake_preload;
-
+	lastaddr = fake_preload_metadata();
 	pcpu_init(pcpup, 0, sizeof(struct pcpu));
 	PCPU_SET(curthread, &thread0);
 
-#define KERNEL_TEXT_BASE (KERNBASE + 0x00200000)
 	freemempos = 0xa0200000;
 	/* Define a macro to simplify memory allocation */
 #define	valloc_pages(var, np)			\
