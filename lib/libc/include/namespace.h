@@ -114,8 +114,6 @@
 #define		pthread_barrierattr_init	_pthread_barrierattr_init
 #define		pthread_barrierattr_setpshared	_pthread_barrierattr_setpshared
 #define		pthread_cancel			_pthread_cancel
-#define		pthread_cleanup_pop		_pthread_cleanup_pop
-#define		pthread_cleanup_push		_pthread_cleanup_push
 #define		pthread_cond_broadcast		_pthread_cond_broadcast
 #define		pthread_cond_destroy		_pthread_cond_destroy
 #define		pthread_cond_init		_pthread_cond_init
