@@ -369,9 +369,11 @@ edit_pathname(struct bsdtar *bsdtar, struct archive_entry *entry)
 	}
 	if (r == 1) {
 		archive_entry_copy_pathname(entry, subst_name);
-		free(subst_name);
-		if (*subst_name == '\0')
+		if (*subst_name == '\0') {
+			free(subst_name);
 			return -1;
+		} else
+			free(subst_name);
 		name = archive_entry_pathname(entry);
 	}
 
