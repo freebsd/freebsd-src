@@ -393,6 +393,8 @@ FBSDprivate_1.0 {
 };
 
 FBSD_1.1 {
+	__pthread_cleanup_pop_imp;
+	__pthread_cleanup_push_imp;
 	pthread_attr_getaffinity_np;
 	pthread_attr_setaffinity_np;
 	pthread_getaffinity_np;
