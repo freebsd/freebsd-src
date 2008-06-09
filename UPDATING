@@ -22,6 +22,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20080609:
+	The gpt(8) utility has been removed. Use gpart(8) to partition
+	disks instead.
+
 20080603:
 	The version that Linuxulator emulates was changed from 2.4.2
 	to 2.6.16. If you experience any problems with Linux binaries
