@@ -33,8 +33,6 @@ _MINUS_O=	-O2
 . endif
 . if ${MACHINE_ARCH} == "amd64"
 COPTFLAGS?=-O2 -frename-registers -pipe
-. elif ${MACHINE_ARCH} == "sparc64"
-COPTFLAGS?=-pipe
 . else
 COPTFLAGS?=${_MINUS_O} -pipe
 . endif
