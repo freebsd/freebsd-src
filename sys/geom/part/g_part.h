@@ -56,8 +56,9 @@ struct g_part_scheme {
 	size_t		gps_entrysz;
 	int		gps_minent;
 	int		gps_maxent;
+	int		gps_bootcodesz;
+	TAILQ_ENTRY(g_part_scheme) scheme_list;
 };
-#define	G_PART_SCHEME_DECLARE(s)	DATA_SET(g_part_scheme_set, s)
 
 struct g_part_entry {
 	LIST_ENTRY(g_part_entry) gpe_entry;
@@ -134,6 +135,7 @@ struct g_part_entry *g_part_new_entry(struct g_part_table *, int, quad_t,
 #define	G_PART_PARM_START	0x0200
 #define	G_PART_PARM_TYPE	0x0400
 #define	G_PART_PARM_VERSION	0x0800
+#define	G_PART_PARM_BOOTCODE	0x1000
 
 struct g_part_parms {
 	unsigned int	gpp_parms;
@@ -148,8 +150,24 @@ struct g_part_parms {
 	quad_t		gpp_start;
 	const char	*gpp_type;
 	unsigned int	gpp_version;
+	const void	*gpp_codeptr;
+	unsigned int	gpp_codesize;
 };
 
 void g_part_geometry_heads(off_t, u_int, off_t *, u_int *);
+
+int g_part_modevent(module_t, int, struct g_part_scheme *);
+
+#define	G_PART_SCHEME_DECLARE(name)				\
+    static int name##_modevent(module_t mod, int tp, void *d)	\
+    {								\
+	return (g_part_modevent(mod, tp, d));			\
+    }								\
+    static moduledata_t name##_mod = {				\
+	#name,							\
+	name##_modevent,					\
+	&name##_scheme						\
+    };								\
+    DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS, SI_ORDER_ANY)
 
 #endif /* !_GEOM_PART_H_ */

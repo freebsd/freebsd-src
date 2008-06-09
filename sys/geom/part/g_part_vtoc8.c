@@ -55,6 +55,8 @@ static int g_part_vtoc8_add(struct g_part_table *, struct g_part_entry *,
     struct g_part_parms *);
 static int g_part_vtoc8_create(struct g_part_table *, struct g_part_parms *);
 static int g_part_vtoc8_destroy(struct g_part_table *, struct g_part_parms *);
+static int g_part_vtoc8_dumpconf(struct g_part_table *, struct g_part_entry *,
+    struct sbuf *, const char *);
 static int g_part_vtoc8_dumpto(struct g_part_table *, struct g_part_entry *);
 static int g_part_vtoc8_modify(struct g_part_table *, struct g_part_entry *,  
     struct g_part_parms *);
@@ -70,6 +72,7 @@ static kobj_method_t g_part_vtoc8_methods[] = {
 	KOBJMETHOD(g_part_add,		g_part_vtoc8_add),
 	KOBJMETHOD(g_part_create,	g_part_vtoc8_create),
 	KOBJMETHOD(g_part_destroy,	g_part_vtoc8_destroy),
+	KOBJMETHOD(g_part_dumpconf,	g_part_vtoc8_dumpconf),
 	KOBJMETHOD(g_part_dumpto,	g_part_vtoc8_dumpto),
 	KOBJMETHOD(g_part_modify,	g_part_vtoc8_modify),
 	KOBJMETHOD(g_part_name,		g_part_vtoc8_name),
@@ -88,7 +91,7 @@ static struct g_part_scheme g_part_vtoc8_scheme = {
 	.gps_minent = VTOC8_NPARTS,
 	.gps_maxent = VTOC8_NPARTS,
 };
-G_PART_SCHEME_DECLARE(g_part_vtoc8_scheme);
+G_PART_SCHEME_DECLARE(g_part_vtoc8);
 
 static int
 vtoc8_parse_type(const char *type, uint16_t *tag)
@@ -232,6 +235,22 @@ g_part_vtoc8_destroy(struct g_part_table *basetable, struct g_part_parms *gpp)
 
 	/* Wipe the first sector to clear the partitioning. */
 	basetable->gpt_smhead |= 1;
+	return (0);
+}
+
+static int
+g_part_vtoc8_dumpconf(struct g_part_table *basetable,
+    struct g_part_entry *entry, struct sbuf *sb, const char *indent)
+{
+	struct g_part_vtoc8_table *table;
+
+	if (indent != NULL)
+		return (0);
+
+	table = (struct g_part_vtoc8_table *)basetable;
+	sbuf_printf(sb, " xs SUN sc %u hd %u alt %u",
+	    be16dec(&table->vtoc.nsecs), be16dec(&table->vtoc.nheads),
+	    be16dec(&table->vtoc.altcyls));
 	return (0);
 }
 
