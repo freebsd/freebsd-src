@@ -668,7 +668,7 @@ ate_intr(void *xsc)
 		ATE_LOCK(sc);
 		/* XXX TSR register should be cleared */
 		if (sc->sent_mbuf[0]) {
-			bus_dmamap_sync(sc->rxtag, sc->tx_map[0],
+			bus_dmamap_sync(sc->mtag, sc->tx_map[0],
 			    BUS_DMASYNC_POSTWRITE);
 			m_freem(sc->sent_mbuf[0]);
 			ifp->if_opackets++;
@@ -676,7 +676,7 @@ ate_intr(void *xsc)
 		}
 		if (sc->sent_mbuf[1]) {
 			if (RD4(sc, ETH_TSR) & ETH_TSR_IDLE) {
-				bus_dmamap_sync(sc->rxtag, sc->tx_map[1],
+				bus_dmamap_sync(sc->mtag, sc->tx_map[1],
 				    BUS_DMASYNC_POSTWRITE);
 				m_freem(sc->sent_mbuf[1]);
 				ifp->if_opackets++;
