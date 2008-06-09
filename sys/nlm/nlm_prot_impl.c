@@ -694,6 +694,7 @@ nlm_check_idle(void)
 			if (lf_countlocks(host->nh_sysid) > 0) {
 				host->nh_idle_timeout =
 					time_uptime + NLM_IDLE_TIMEOUT;
+				mtx_lock(&nlm_global_lock);
 				continue;
 			}
 			nlm_host_unmonitor(host);
@@ -885,14 +886,6 @@ nlm_host_monitor(struct nlm_host *host, int state)
 	sm_stat_res smstat;
 	struct timeval timo;
 	enum clnt_stat stat;
-
-	if (host->nh_state && state && host->nh_state != state) {
-		/*
-		 * The host rebooted without telling us. Trash its
-		 * locks.
-		 */
-		nlm_host_notify(host, state, FALSE);
-	}
 
 	if (state && !host->nh_state) {
 		/*
@@ -1491,6 +1484,15 @@ nlm_do_lock(nlm4_lockargs *argp, nlm4_res *result, struct svc_req *rqstp,
 	if (nlm_debug_level >= 3)
 		printf("nlm_do_lock(): caller_name = %s (sysid = %d)\n",
 		    host->nh_caller_name, host->nh_sysid);
+
+	if (monitor && host->nh_state && argp->state
+	    && host->nh_state != argp->state) {
+		/*
+		 * The host rebooted without telling us. Trash its
+		 * locks.
+		 */
+		nlm_host_notify(host, argp->state, FALSE);
+	}
 
 	nlm_free_finished_locks(host);
 	sysid = host->nh_sysid;
