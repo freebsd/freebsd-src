@@ -40,6 +40,7 @@
  */
 extern int	bflag;		/* set input block size */
 extern int	dflag;		/* print out debugging info */
+extern int	Dflag;		/* degraded mode - try hard to get stuff back */
 extern int	hflag;		/* restore heirarchies */
 extern int	mflag;		/* restore by name instead of inode number */
 extern int	Nflag;		/* do not write the disk */
