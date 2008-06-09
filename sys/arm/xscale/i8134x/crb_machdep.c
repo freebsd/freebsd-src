@@ -77,7 +77,6 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
-#include <vm/vm.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
@@ -120,7 +119,6 @@ extern u_int prefetch_abort_handler_address;
 extern u_int undefined_handler_address;
 
 struct pv_addr kernel_pt_table[NUM_KERNEL_PTS];
-extern vm_offset_t sa1_cache_clean_addr;
 extern int *end;
 
 struct pcpu __pcpu;
