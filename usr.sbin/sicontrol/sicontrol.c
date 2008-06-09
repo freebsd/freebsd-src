@@ -89,7 +89,6 @@ int opencontrol(void);
 void prlevels(int);
 void prusage(int, int);
 void rxint(int, char **);
-void tty_stat(int, char **);
 void txint(int, char **);
 
 struct opt {
@@ -103,7 +102,6 @@ struct opt {
 	{"mstate",		mstate},
 	{"ccbstat",		ccb_stat},
 	{"portstat",		port_stat},
-	{"ttystat",		tty_stat},
 	{0,			0}
 };
 
@@ -121,9 +119,8 @@ struct stat_list {
 #define	U_MSTATE	4
 #define	U_STAT_CCB	5
 #define	U_STAT_PORT	6
-#define	U_STAT_TTY	7
 
-#define	U_MAX		8
+#define	U_MAX		7
 #define	U_ALL		-1
 char *usage[] = {
 	"debug [[add|del|set debug_levels] | [off]]\n",
@@ -133,7 +130,6 @@ char *usage[] = {
 	"mstate\n",
 	"ccbstat\n",
 	"portstat\n",
-	"ttystat\n",
 	0
 };
 
@@ -646,65 +642,6 @@ port_stat(int ac, char **av)
 	printf("\tsp_last_hi_ip 0x%x %s\n", PRT.sp_last_hi_ip, s_ip(PRT.sp_last_hi_ip));
 	printf("\tsp_state 0x%x %s\n", PRT.sp_state, sp_state(PRT.sp_state));
 	printf("\tsp_delta_overflows 0x%d\n", PRT.sp_delta_overflows);
-}
-
-const char *pt_state(int ts)
-{
-	static char buf[200];
-
-	buf[0] = 0;
-	if (ts & TS_SO_OLOWAT)	strcat(buf, "TS_SO_OLOWAT ");
-	if (ts & TS_ASYNC)	strcat(buf, "TS_ASYNC ");
-	if (ts & TS_BUSY)	strcat(buf, "TS_BUSY ");
-	if (ts & TS_CARR_ON)	strcat(buf, "TS_CARR_ON ");
-	if (ts & TS_FLUSH)	strcat(buf, "TS_FLUSH ");
-	if (ts & TS_ISOPEN)	strcat(buf, "TS_ISOPEN ");
-	if (ts & TS_TBLOCK)	strcat(buf, "TS_TBLOCK ");
-	if (ts & TS_TIMEOUT)	strcat(buf, "TS_TIMEOUT ");
-	if (ts & TS_TTSTOP)	strcat(buf, "TS_TTSTOP ");
-	if (ts & TS_XCLUDE)	strcat(buf, "TS_XCLUDE ");
-	if (ts & TS_BKSL)	strcat(buf, "TS_BKSL ");
-	if (ts & TS_CNTTB)	strcat(buf, "TS_CNTTB ");
-	if (ts & TS_ERASE)	strcat(buf, "TS_ERASE ");
-	if (ts & TS_TYPEN)	strcat(buf, "TS_TYPEN ");
-	if (ts & TS_CAN_BYPASS_L_RINT) strcat(buf, "TS_CAN_BYPASS_L_RINT ");
-	if (ts & TS_CONNECTED)	strcat(buf, "TS_CONNECTED ");
-	if (ts & TS_SNOOP)	strcat(buf, "TS_SNOOP ");
-	if (ts & TS_SO_OCOMPLETE) strcat(buf, "TS_OCOMPLETE ");
-	if (ts & TS_ZOMBIE)	strcat(buf, "TS_ZOMBIE ");
-	if (ts & TS_CAR_OFLOW)	strcat(buf, "TS_CAR_OFLOW ");
-	if (ts & TS_DTR_WAIT)	strcat(buf, "TS_DTR_WAIT ");
-	if (ts & TS_GONE)	strcat(buf, "TS_GONE ");
-	if (ts & TS_CALLOUT)	strcat(buf, "TS_CALLOUT ");
-	return (buf);
-}
-void
-tty_stat(int ac, char **av)
-{
-	struct si_pstat sip;
-#define	TTY	sip.tc_tty
-
-	if (ac != 0)
-		prusage(U_STAT_TTY, 1);
-	sip.tc_dev = tc.tc_dev;
-	if (ioctl(ctlfd, TCSI_TTY, &sip) < 0)
-		err(1, "TCSI_TTY on %s", Devname);
-	printf("%s: ", Devname);
-
-	printf("\tt_outq.c_cc %d\n", TTY.t_outq.c_cc);	/* struct clist t_outq */
-	printf("\tt_flags 0x%x\n", TTY.t_flags);	/* int	t_flags */
-	printf("\tt_state 0x%x %s\n", TTY.t_state, pt_state(TTY.t_state));	/* int	t_state */
-	printf("\tt_ihiwat %d\n", TTY.t_ihiwat);	/* int	t_ihiwat */
-	printf("\tt_ilowat %d\n", TTY.t_ilowat);	/* int	t_ilowat */
-	printf("\tt_ohiwat %d\n", TTY.t_ohiwat);	/* int	t_ohiwat */
-	printf("\tt_olowat %d\n", TTY.t_olowat);	/* int	t_olowat */
-	printf("\tt_iflag 0x%x\n", TTY.t_iflag);	/* t_iflag */
-	printf("\tt_oflag 0x%x\n", TTY.t_oflag);	/* t_oflag */
-	printf("\tt_cflag 0x%x\n", TTY.t_cflag);	/* t_cflag */
-	printf("\tt_lflag 0x%x\n", TTY.t_lflag);	/* t_lflag */
-	printf("\tt_cc %p\n", (void *)TTY.t_cc);	/* t_cc */
-	printf("\tt_termios.c_ispeed %d\n", TTY.t_termios.c_ispeed);	/* t_termios.c_ispeed */
-	printf("\tt_termios.c_ospeed %d\n", TTY.t_termios.c_ospeed);	/* t_termios.c_ospeed */
 }
 
 int
