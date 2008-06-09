@@ -682,7 +682,6 @@ si_Sioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *t
 #if 1
 	DPRINT((0, DBG_IOCTL, "TCSI_PORT=%x\n", TCSI_PORT));
 	DPRINT((0, DBG_IOCTL, "TCSI_CCB=%x\n", TCSI_CCB));
-	DPRINT((0, DBG_IOCTL, "TCSI_TTY=%x\n", TCSI_TTY));
 #endif
 
 	oldspl = spltty();	/* better safe than sorry */
@@ -787,10 +786,6 @@ si_Sioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *t
 	case TCSI_CCB:
 		SUCHECK;
 		si_vbcopy(xpp->sp_ccb, &sps->tc_ccb, sizeof(sps->tc_ccb));
-		break;
-	case TCSI_TTY:
-		SUCHECK;
-		si_bcopy(xpp->sp_tty, &sps->tc_tty, sizeof(sps->tc_tty));
 		break;
 	default:
 		error = EINVAL;
