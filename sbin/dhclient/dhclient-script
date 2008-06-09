@@ -260,7 +260,7 @@ exit_with_hooks() {
 # commands that are available prior to /usr being mounted.
 is_default_interface()
 {
-	routeget="`route get -inet default`"
+	routeget="`route -n get -inet default`"
 	oldifs="$IFS"
 	IFS="
 "
