@@ -176,10 +176,10 @@ struct pthread_spinlock {
  * Cleanup definitions.
  */
 struct pthread_cleanup {
-	struct pthread_cleanup	*next;
-	void			(*routine)(void *args);
+	struct pthread_cleanup	*prev;
+	void			(*routine)(void *);
 	void			*routine_arg;
-	int			onstack;
+	int			onheap;
 };
 
 #define	THR_CLEANUP_PUSH(td, func, arg) {		\
@@ -187,12 +187,12 @@ struct pthread_cleanup {
 							\
 	__cup.routine = func;				\
 	__cup.routine_arg = arg;			\
-	__cup.onstack = 1;				\
-	__cup.next = (td)->cleanup;			\
+	__cup.onheap = 0;				\
+	__cup.prev = (td)->cleanup;			\
 	(td)->cleanup = &__cup;
 
 #define	THR_CLEANUP_POP(td, exec)			\
-	(td)->cleanup = __cup.next;			\
+	(td)->cleanup = __cup.prev;			\
 	if ((exec) != 0)				\
 		__cup.routine(__cup.routine_arg);	\
 }
@@ -660,6 +660,9 @@ int	_schedparam_to_rtp(int policy, const struct sched_param *param,
 void	_thread_bp_create(void);
 void	_thread_bp_death(void);
 int	_sched_yield(void);
+
+void	_pthread_cleanup_push(void (*)(void *), void *);
+void	_pthread_cleanup_pop(int);
 
 /* #include <fcntl.h> */
 #ifdef  _SYS_FCNTL_H_

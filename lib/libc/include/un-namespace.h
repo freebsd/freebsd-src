@@ -95,8 +95,6 @@
 #undef		pthread_barrierattr_init
 #undef		pthread_barrierattr_setpshared
 #undef		pthread_cancel
-#undef		pthread_cleanup_pop
-#undef		pthread_cleanup_push
 #undef		pthread_cond_broadcast
 #undef		pthread_cond_destroy
 #undef		pthread_cond_init

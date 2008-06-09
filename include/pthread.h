@@ -135,6 +135,10 @@ enum pthread_mutextype {
 
 #define PTHREAD_MUTEX_DEFAULT		PTHREAD_MUTEX_ERRORCHECK
 
+struct _pthread_cleanup_info {
+	__uintptr_t	pthread_cleanup_pad[8];
+};
+
 /*
  * Thread function prototype definitions:
  */
@@ -162,8 +166,19 @@ int		pthread_barrierattr_getpshared(const pthread_barrierattr_t *,
 			int *);
 int		pthread_barrierattr_init(pthread_barrierattr_t *);
 int		pthread_barrierattr_setpshared(pthread_barrierattr_t *, int);
-void		pthread_cleanup_pop(int);
-void		pthread_cleanup_push(void (*) (void *), void *);
+
+#define		pthread_cleanup_push(cleanup_routine, cleanup_arg)		\
+		{								\
+			struct _pthread_cleanup_info __cleanup_info__;		\
+			__pthread_cleanup_push_imp(cleanup_routine, cleanup_arg,\
+				&__cleanup_info__);				\
+			{
+
+#define		pthread_cleanup_pop(execute)					\
+			}							\
+			__pthread_cleanup_pop_imp(execute);			\
+		}
+
 int		pthread_condattr_destroy(pthread_condattr_t *);
 int		pthread_condattr_getclock(const pthread_condattr_t *,
 			clockid_t *);
@@ -268,6 +283,10 @@ int		pthread_setschedparam(pthread_t, int,
 			const struct sched_param *);
 int		pthread_getconcurrency(void);
 int		pthread_setconcurrency(int);
+
+void		__pthread_cleanup_push_imp(void (*)(void *), void *,
+			struct _pthread_cleanup_info *);
+void		__pthread_cleanup_pop_imp(int);
 __END_DECLS
 
 #endif
