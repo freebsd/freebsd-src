@@ -34,7 +34,6 @@ SUBDIR=	adjkerntz \
 	gbde \
 	geom \
 	ggate \
-	gpt \
 	growfs \
 	gvinum \
 	idmapd \
