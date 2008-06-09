@@ -60,6 +60,8 @@ static int g_part_bsd_add(struct g_part_table *, struct g_part_entry *,
     struct g_part_parms *);
 static int g_part_bsd_create(struct g_part_table *, struct g_part_parms *);
 static int g_part_bsd_destroy(struct g_part_table *, struct g_part_parms *);
+static int g_part_bsd_dumpconf(struct g_part_table *, struct g_part_entry *,
+    struct sbuf *, const char *);
 static int g_part_bsd_dumpto(struct g_part_table *, struct g_part_entry *);
 static int g_part_bsd_modify(struct g_part_table *, struct g_part_entry *,  
     struct g_part_parms *);
@@ -75,6 +77,7 @@ static kobj_method_t g_part_bsd_methods[] = {
 	KOBJMETHOD(g_part_add,		g_part_bsd_add),
 	KOBJMETHOD(g_part_create,	g_part_bsd_create),
 	KOBJMETHOD(g_part_destroy,	g_part_bsd_destroy),
+	KOBJMETHOD(g_part_dumpconf,	g_part_bsd_dumpconf),
 	KOBJMETHOD(g_part_dumpto,	g_part_bsd_dumpto),
 	KOBJMETHOD(g_part_modify,	g_part_bsd_modify),
 	KOBJMETHOD(g_part_name,		g_part_bsd_name),
@@ -93,7 +96,7 @@ static struct g_part_scheme g_part_bsd_scheme = {
 	.gps_minent = 8,
 	.gps_maxent = 20,
 };
-G_PART_SCHEME_DECLARE(g_part_bsd_scheme);
+G_PART_SCHEME_DECLARE(g_part_bsd);
 
 static int
 bsd_parse_type(const char *type, uint8_t *fstype)
@@ -210,6 +213,20 @@ g_part_bsd_destroy(struct g_part_table *basetable, struct g_part_parms *gpp)
 
 	/* Wipe the second sector to clear the partitioning. */
 	basetable->gpt_smhead |= 2;
+	return (0);
+}
+
+static int
+g_part_bsd_dumpconf(struct g_part_table *table, struct g_part_entry *baseentry, 
+    struct sbuf *sb, const char *indent)
+{
+	struct g_part_bsd_entry *entry;
+
+	if (indent != NULL)
+		return (0);
+
+	entry = (struct g_part_bsd_entry *)baseentry;
+	sbuf_printf(sb, " xs BSD xt %u", entry->part.p_fstype);
 	return (0);
 }
 

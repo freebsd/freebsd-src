@@ -47,6 +47,12 @@ METHOD int add {
 	struct g_part_parms *gpp;
 };
 
+# bootcode() - scheme specific processing for the bootcode verb.
+METHOD int bootcode {
+	struct g_part_table *table;
+	struct g_part_parms *gpp;
+};
+
 # create() - scheme specific processing for the create verb.
 METHOD int create {
 	struct g_part_table *table;
