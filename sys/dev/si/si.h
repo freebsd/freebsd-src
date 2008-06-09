@@ -385,7 +385,6 @@ struct si_pstat {
 /* Various stats and monitoring hooks per tty device */
 #define	TCSI_PORT	_IOWR('S', 125, struct si_pstat) /* get si_port */
 #define	TCSI_CCB	_IOWR('S', 126, struct si_pstat) /* get si_ccb */
-#define	TCSI_TTY	_IOWR('S', 127, struct si_pstat) /* get tty struct */
 
 #define	IOCTL_MAX	127
 
