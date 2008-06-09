@@ -14,6 +14,9 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20080609: gpt(8) removed
+OLD_FILES+=sbin/gpt
+OLD_FILES+=usr/share/man/man8/gpt.8.gz
 # 20080525: I4B removed
 OLD_FILES+=etc/isdn/answer
 OLD_FILES+=etc/isdn/isdntel
