@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 17, 2000
+.Dd June 9, 2008
 .Dt RCORDER 8
 .Os
 .Sh NAME
@@ -152,6 +152,25 @@ processing the stated condition.
 A set of files has a circular dependency which was detected while
 processing the stated file.
 .El
+.Sh BUGS
+The
+.Dq Li REQUIRE
+keyword is misleading:
+It doesn't describe which daemons have to be running before a script
+will be started.
+It describes which scripts must be placed before it in
+the dependency ordering.
+For example,
+if your script has a
+.Dq Li REQUIRE
+on
+.Dq Li named ,
+it means the script must be placed after the 
+.Dq Li named
+script in the dependency ordering,
+not necessarily that it requires
+.Xr named 8
+to be started or enabled.
 .Sh SEE ALSO
 .Xr rc 8
 .Sh HISTORY
