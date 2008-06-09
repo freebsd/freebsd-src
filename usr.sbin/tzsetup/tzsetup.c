@@ -107,9 +107,8 @@ continent_country_menu(dialogMenuItem *continent)
 	int menulen;
 
 	/* Short cut -- if there's only one country, don't post a menu. */
-	if (contp->nitems == 1) {
-		return set_zone_menu(&contp->menu[0]);
-	}
+	if (contp->nitems == 1)
+		return (contp->menu[0].fire(&contp->menu[0]));
 
 	/* It's amazing how much good grammar really matters... */
 	if (!isocean)
