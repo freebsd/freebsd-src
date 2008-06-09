@@ -255,6 +255,7 @@ vfs_export(struct mount *mp, struct export_args *argp)
 
 	nep = mp->mnt_export;
 	error = 0;
+	lockmgr(&mp->mnt_explock, LK_EXCLUSIVE, NULL);
 	if (argp->ex_flags & MNT_DELEXPORT) {
 		if (nep == NULL) {
 			error = ENOENT;
@@ -294,6 +295,7 @@ vfs_export(struct mount *mp, struct export_args *argp)
 	}
 
 out:
+	lockmgr(&mp->mnt_explock, LK_RELEASE, NULL);
 	/*
 	 * Once we have executed the vfs_export() command, we do
 	 * not want to keep the "export" option around in the
@@ -443,7 +445,9 @@ vfs_stdcheckexp(struct mount *mp, struct sockaddr *nam, int *extflagsp,
 {
 	struct netcred *np;
 
+	lockmgr(&mp->mnt_explock, LK_SHARED, NULL);
 	np = vfs_export_lookup(mp, nam);
+	lockmgr(&mp->mnt_explock, LK_RELEASE, NULL);
 	if (np == NULL)
 		return (EACCES);
 	*extflagsp = np->netc_exflags;
