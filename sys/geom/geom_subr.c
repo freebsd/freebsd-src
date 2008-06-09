@@ -253,7 +253,7 @@ static void
 g_retaste_event(void *arg, int flag)
 {
 	struct g_class *cp, *mp;
-	struct g_geom *gp;
+	struct g_geom *gp, *gp2;
 	struct g_hh00 *hh;
 	struct g_provider *pp;
 
@@ -277,6 +277,12 @@ g_retaste_event(void *arg, int flag)
 			LIST_FOREACH(pp, &gp->provider, provider) {
 				if (pp->acr || pp->acw || pp->ace)
 					continue;
+				LIST_FOREACH(gp2, &mp->geom, geom) {
+					if (!strcmp(pp->name, gp2->name))
+						break;
+				}
+				if (gp2 != NULL)
+					g_wither_geom(gp2, ENXIO);
 				mp->taste(mp, pp, 0);
 				g_topology_assert();
 			}
