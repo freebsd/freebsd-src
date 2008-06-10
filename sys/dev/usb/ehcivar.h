@@ -154,7 +154,6 @@ typedef struct ehci_softc {
 
 	struct lock sc_doorbell_lock;
 
-	struct callout sc_tmo_pcd;
 	struct callout sc_tmo_intrlist;
 
 	char sc_dying;
