@@ -53,9 +53,7 @@ static const char rcsid[] =
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <kvm.h>
 #include <limits.h>
-#include <nlist.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -76,17 +74,8 @@ static const char rcsid[] =
 #undef if_collisions
 #include <rpcsvc/rstat.h>
 
-struct nlist nl[] = {
-#define	X_CPTIME	0
-	{ "_cp_time" },
-#define	X_CNT		1
-	{ "_cnt" },
-	{ "" },
-};
-
 int haveadisk(void);
 void updatexfers(int, int *);
-void setup(void);
 int stats_service(void);
 
 extern int from_inetd;
@@ -101,7 +90,6 @@ union {
 
 void updatestat();
 static int stat_is_init = 0;
-static kvm_t *kd;
 
 static int	cp_time_xlat[RSTAT_CPUSTATES] = { CP_USER, CP_NICE, CP_SYS,
 							CP_IDLE };
@@ -116,7 +104,6 @@ void
 stat_init(void)
 {
     stat_is_init = 1;
-    setup();
     alarm(0);
     updatestat();
     (void) signal(SIGALRM, updatestat);
@@ -194,7 +181,6 @@ updatestat(void)
 #ifdef DEBUG
                 fprintf(stderr, "about to closedown\n");
 #endif
-		kvm_close(kd);
                 if (from_inetd)
                         exit(0);
                 else {
@@ -213,9 +199,9 @@ updatestat(void)
 	}
 	hz = clockrate.hz;
 
-	if (kvm_read(kd, (long)nl[X_CPTIME].n_value, (char *)bsd_cp_time, sizeof(bsd_cp_time))
-	    != sizeof(bsd_cp_time)) {
-		syslog(LOG_ERR, "rstat: can't read cp_time from kmem");
+	len = sizeof(bsd_cp_time);
+	if (sysctlbyname("kern.cp_time", bsd_cp_time, &len, 0, 0) < 0) {
+		syslog(LOG_ERR, "sysctl(kern.cp_time): %m");
 		exit(1);
 	}
 	for(i = 0; i < RSTAT_CPUSTATES ; i++)
@@ -244,20 +230,23 @@ updatestat(void)
 	    stats_all.s1.cp_time[1], stats_all.s1.cp_time[2], stats_all.s1.cp_time[3]);
 #endif
 
-	/* XXX - should use sysctl */
- 	if (kvm_read(kd, (long)nl[X_CNT].n_value, (char *)&cnt, sizeof cnt) != sizeof cnt) {
-		syslog(LOG_ERR, "rstat: can't read cnt from kmem");
-		exit(1);
-	}
-	stats_all.s1.v_pgpgin = cnt.v_vnodepgsin;
-	stats_all.s1.v_pgpgout = cnt.v_vnodepgsout;
-	stats_all.s1.v_pswpin = cnt.v_swappgsin;
-	stats_all.s1.v_pswpout = cnt.v_swappgsout;
-	stats_all.s1.v_intr = cnt.v_intr;
+#define	FETCH_CNT(stat, cnt) do {					\
+	len = sizeof((stat));						\
+	if (sysctlbyname("vm.stats." #cnt , &(stat), &len, 0, 0) < 0) { \
+		syslog(LOG_ERR, "sysctl(vm.stats." #cnt "): %m"); \
+		exit(1);						\
+	}								\
+} while (0)
+
+	FETCH_CNT(stats_all.s1.v_pgpgin, vm.v_vnodepgsin);
+	FETCH_CNT(stats_all.s1.v_pgpgout, vm.v_vnodepgsout);
+	FETCH_CNT(stats_all.s1.v_pswpin, vm.v_swappgsin);
+	FETCH_CNT(stats_all.s1.v_pswpout, vm.v_swappgsout);
+	FETCH_CNT(stats_all.s1.v_intr, sys.v_intr);
+	FETCH_CNT(stats_all.s2.v_swtch, sys.v_swtch);
 	gettimeofday(&tm, (struct timezone *) 0);
 	stats_all.s1.v_intr -= hz*(tm.tv_sec - btm.tv_sec) +
 	    hz*(tm.tv_usec - btm.tv_usec)/1000000;
-	stats_all.s2.v_swtch = cnt.v_swtch;
 
 	/* update disk transfers */
 	updatexfers(RSTAT_DK_NDRIVE, stats_all.s1.dk_xfer);
@@ -301,24 +290,6 @@ updatestat(void)
 	gettimeofday((struct timeval *)&stats_all.s3.curtime,
 		(struct timezone *) 0);
 	alarm(1);
-}
-
-void
-setup()
-{
-	char errbuf[_POSIX2_LINE_MAX];
-
-	int en;
-
-	if ((kd = kvm_openfiles(NULL, NULL, NULL, O_RDONLY, errbuf)) == NULL) {
-		syslog(LOG_ERR, "rpc.rstatd, %s", errbuf);
-		exit(1);
-	}
-
-	if ((en = kvm_nlist(kd, nl)) != 0) {
-		syslog(LOG_ERR, "rstatd: Can't get namelist. %d", en);
-		exit (1);
-        }
 }
 
 /*
