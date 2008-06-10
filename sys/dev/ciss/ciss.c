@@ -290,6 +290,11 @@ static struct
     { 0x103C, 0x323A, CISS_BOARD_SA5,	"HP Smart Array" },
     { 0x103C, 0x323B, CISS_BOARD_SA5,	"HP Smart Array" },
     { 0x103C, 0x323C, CISS_BOARD_SA5,	"HP Smart Array" },
+    { 0x103C, 0x3241, CISS_BOARD_SA5,	"HP Smart Array P212" },
+    { 0x103C, 0x3243, CISS_BOARD_SA5,	"HP Smart Array P410" },
+    { 0x103C, 0x3245, CISS_BOARD_SA5,	"HP Smart Array P410i" },
+    { 0x103C, 0x3247, CISS_BOARD_SA5,	"HP Smart Array P411" },
+    { 0x103C, 0x3249, CISS_BOARD_SA5,	"HP Smart Array P812" },
     { 0, 0, 0, NULL }
 };
 
