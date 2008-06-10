@@ -23,7 +23,7 @@
 .\" [jkh] Took John's changes back and made some additional extensions for
 .\" better integration with FreeBSD's new ports collection.
 .\"
-.Dd November 8, 2005
+.Dd May 30, 2008
 .Dt PKG_CREATE 1
 .Os
 .Sh NAME
@@ -31,7 +31,7 @@
 .Nd a utility for creating software package distributions
 .Sh SYNOPSIS
 .Nm
-.Op Fl YNOhjvyz
+.Op Fl YNOhjnvyz
 .Op Fl C Ar conflicts
 .Op Fl P Ar pkgs
 .Op Fl p Ar prefix
@@ -52,7 +52,7 @@
 .Fl f Ar packlist
 .Ar pkg-filename
 .Nm
-.Op Fl EGYNRhvxy
+.Op Fl EGYNRhnvxy
 .Fl b Ar pkg-name
 .Op Ar pkg-filename
 .Sh DESCRIPTION
@@ -103,11 +103,11 @@ Fetch long description for package from file
 or, if preceded by
 .Cm - ,
 the argument itself.
-.It Fl Y
+.It Fl Y , -yes
 Assume a default answer of `Yes' for any questions asked.
-.It Fl N
+.It Fl N , -no
 Assume a default answer of `No' for any questions asked.
-.It Fl O
+.It Fl O , -plist-only
 Go into a `packing list Only' mode.
 This is a custom hack for the
 .Fx
@@ -115,7 +115,7 @@ This is a custom hack for the
 and is used to do `fake pkg_add' operations when a port is installed.
 In such cases, it is necessary to know what the final, adjusted packing
 list will look like.
-.It Fl v
+.It Fl v , -verbose
 Turn on verbose output.
 .It Fl h
 Force tar to follow symbolic links, so that the files they point to
@@ -179,7 +179,7 @@ recorded into the packing list along with the
 using
 .Cm @comment
 directive.
-.It Fl p Ar prefix
+.It Fl p , -prefix Ar prefix
 Set
 .Ar prefix
 as the initial directory
@@ -243,7 +243,7 @@ during package creation.
 will be prefixed to all
 .Cm @cwd
 during package creation.
-.It Fl t Ar template
+.It Fl t , -template Ar template
 Use
 .Ar template
 as the input to
@@ -296,7 +296,7 @@ where
 is the name of the first directory named by a
 .Cm @cwd
 directive.
-.It Fl o Ar originpath
+.It Fl o , -origin Ar originpath
 Record an
 .Ar originpath ,
 as location of the port from which package has been created in the
@@ -325,7 +325,7 @@ Compatibility synonym for
 Use
 .Xr gzip 1
 utility to compress package tarball.
-.It Fl b Ar pkg-name
+.It Fl b , -backup Ar pkg-name
 Create package file from a locally installed package named
 .Ar pkg-name .
 If the
@@ -334,22 +334,40 @@ is not specified, then resulting archive will be created in the
 current directory and named
 .Ar pkg-name
 with an appropriate extraction suffix applied.
-.It Fl R
+.It Fl R , -recursive
 When creating package file from a locally installed package
 also create package files for all packages required by
 .Ar pkg-name .
 Resulting archive(s) will be created in the current directory
 and named using name of the respective package with appropriate
 extraction suffix applied.
-.It Fl x
+.It Fl x , -regex
 Use basic regular expressions for
 .Ar pkg-name .
-.It Fl E
+.It Fl E , -extended
 Use extended (modern) regular expressions for
 .Ar pkg-name .
-.It Fl G
+.It Fl G , -no-glob
 Use exact matching for
 .Ar pkg-name .
+.It Fl n
+Run in
+.Dq no clobber
+mode.
+If a package tarball exists, the
+.Nm
+utility will not overwrite it.
+This is useful, for example, when multiple packages are saved with
+several consecutive runs of
+.Nm
+with the
+.Fl Rb
+options.
+Saving common dependencies multiple times would do a lot of duplicate
+work in this case.
+The
+.Fl n
+option avoids repackaging common dependencies multiple times.
 .El
 .Sh PACKING LIST DETAILS
 The
