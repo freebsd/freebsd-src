@@ -21,13 +21,13 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <err.h>
 #include <sys/param.h>
 #include <sys/utsname.h>
+#include <err.h>
+#include <getopt.h>
+
 #include "lib.h"
 #include "add.h"
-
-static char Options[] = "hviIRfFnrp:P:SMt:C:K";
 
 char	*Prefix		= NULL;
 Boolean	PrefixRecursive	= FALSE;
@@ -95,6 +95,25 @@ int getosreldate(void);
 
 static void usage(void);
 
+static char opts[] = "hviIRfFnrp:P:SMt:C:K";
+static struct option longopts[] = {
+	{ "chroot",	required_argument,	NULL,		'C' },
+	{ "dry-run",	no_argument,		NULL,		'n' },
+	{ "force",	no_argument,		NULL,		'f' },
+	{ "help",	no_argument,		NULL,		'h' },
+	{ "keep",	no_argument,		NULL,		'K' },
+	{ "master",	no_argument,		NULL,		'M' },
+	{ "no-deps",	no_argument,		NULL,		'i' },
+	{ "no-record",	no_argument,		NULL,		'R' },
+	{ "no-script",	no_argument,		NULL,		'I' },
+	{ "prefix",	required_argument,	NULL,		'p' },
+	{ "remote",	no_argument,		NULL,		'r' },
+	{ "template",	required_argument,	NULL,		't' },
+	{ "slave",	no_argument,		NULL,		'S' },
+	{ "verbose",	no_argument,		NULL,		'v' },
+	{ NULL,		0,			NULL,		0 }
+};
+
 int
 main(int argc, char **argv)
 {
@@ -110,7 +129,7 @@ main(int argc, char **argv)
 	PkgAddCmd = argv[0];
 
     start = argv;
-    while ((ch = getopt(argc, argv, Options)) != -1) {
+    while ((ch = getopt_long(argc, argv, opts, longopts, NULL)) != -1) {
 	switch(ch) {
 	case 'v':
 	    Verbose++;
@@ -170,12 +189,12 @@ main(int argc, char **argv)
 	case 'C':
 	    Chroot = optarg;
 	    break;
+
 	case 'i':
 	    IgnoreDeps = TRUE;
 	    break;
 
 	case 'h':
-	case '?':
 	default:
 	    usage();
 	    break;
