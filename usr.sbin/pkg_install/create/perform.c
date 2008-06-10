@@ -28,6 +28,8 @@ __FBSDID("$FreeBSD$");
 #include <libgen.h>
 #include <signal.h>
 #include <stdlib.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <sys/syslimits.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -336,6 +338,7 @@ pkg_perform(char **pkgs)
 static void
 make_dist(const char *homedir, const char *pkg, const char *suff, Package *plist)
 {
+    struct stat sb;
     char tball[FILENAME_MAX];
     PackingList p;
     int ret;
@@ -354,6 +357,16 @@ make_dist(const char *homedir, const char *pkg, const char *suff, Package *plist
 	snprintf(tball, FILENAME_MAX, "%s.%s", pkg, suff);
     else
 	snprintf(tball, FILENAME_MAX, "%s/%s.%s", homedir, pkg, suff);
+
+    /*
+     * If the package tarball exists already, and we are running in `no
+     * clobber' mode, skip this package.
+     */
+    if (stat(tball, &sb) == 0 && Regenerate == FALSE) {
+	if (Verbose)
+	    printf("Skipping package '%s'.  It already exists.\n", tball);
+	return;
+    }
 
     args[nargs++] = "-c";
     args[nargs++] = "-f";
