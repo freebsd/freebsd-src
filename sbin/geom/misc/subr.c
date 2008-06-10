@@ -414,3 +414,47 @@ gctl_change_param(struct gctl_req *req, const char *name, int len,
 	}
 	return (ENOENT);
 }
+
+int
+gctl_delete_param(struct gctl_req *req, const char *name)
+{
+	struct gctl_req_arg *ap;
+	unsigned int i;
+
+	if (req == NULL || req->error != NULL)
+		return (EDOOFUS);
+
+	i = 0;
+	while (i < req->narg) {
+		ap = &req->arg[i];
+		if (strcmp(ap->name, name) == 0)
+			break;
+		i++;
+	}
+	if (i == req->narg)
+		return (ENOENT);
+
+	req->narg--;
+	while (i < req->narg) {
+		req->arg[i] = req->arg[i + 1];
+		i++;
+	}
+	return (0);
+}
+
+int
+gctl_has_param(struct gctl_req *req, const char *name)
+{
+	struct gctl_req_arg *ap;
+	unsigned int i;
+
+	if (req == NULL || req->error != NULL)
+		return (0);
+
+	for (i = 0; i < req->narg; i++) {
+		ap = &req->arg[i];
+		if (strcmp(ap->name, name) == 0)
+			return (1);
+	}
+	return (0);
+}
