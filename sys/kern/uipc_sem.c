@@ -221,14 +221,13 @@ sem_create(struct thread *td, const char *name, struct ksem **ksret,
 		sem_enter(td->td_proc, ret);
 	*ksret = ret;
 	mtx_lock(&sem_lock);
-	if (nsems >= p31b_getcfg(CTL_P1003_1B_SEM_NSEMS_MAX)) {
+	nsems++;
+	if (nsems > p31b_getcfg(CTL_P1003_1B_SEM_NSEMS_MAX)) {
 		sem_leave(td->td_proc, ret);
 		sem_free(ret);
 		error = ENFILE;
-	} else {
-		nsems++;
+	} else
 		error = 0;
-	}
 	mtx_unlock(&sem_lock);
 	return (error);
 }
