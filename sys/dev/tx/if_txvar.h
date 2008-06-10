@@ -76,12 +76,11 @@ typedef struct {
 
 	device_t		miibus;
 	device_t		dev;
-	struct callout_handle	stat_ch;
+	struct callout		timer;
+	struct mtx		lock;
+	int			tx_timeout;
 
-	u_int32_t		unit;
 	void			*sc_ih;
-	bus_space_tag_t		sc_st;
-	bus_space_handle_t	sc_sh;
 	bus_dma_tag_t		mtag;
 	bus_dma_tag_t		rtag;
 	bus_dmamap_t		rmap;
@@ -118,6 +117,10 @@ typedef struct {
 	void 			*pool;
 } epic_softc_t;
 
+#define	EPIC_LOCK(sc)		mtx_lock(&(sc)->lock)
+#define	EPIC_UNLOCK(sc)		mtx_unlock(&(sc)->lock)
+#define	EPIC_ASSERT_LOCKED(sc)	mtx_assert(&(sc)->lock, MA_OWNED)
+
 struct epic_type {
 	u_int16_t	ven_id;
 	u_int16_t	dev_id;
@@ -125,17 +128,17 @@ struct epic_type {
 };
 
 #define CSR_WRITE_4(sc, reg, val) 					\
-	bus_space_write_4((sc)->sc_st, (sc)->sc_sh, (reg), (val))
+	bus_write_4((sc)->res, (reg), (val))
 #define CSR_WRITE_2(sc, reg, val) 					\
-	bus_space_write_2((sc)->sc_st, (sc)->sc_sh, (reg), (val))
+	bus_write_2((sc)->res, (reg), (val))
 #define CSR_WRITE_1(sc, reg, val) 					\
-	bus_space_write_1((sc)->sc_st, (sc)->sc_sh, (reg), (val))
+	bus_write_1((sc)->res, (reg), (val))
 #define CSR_READ_4(sc, reg) 						\
-	bus_space_read_4((sc)->sc_st, (sc)->sc_sh, (reg))
+	bus_read_4((sc)->res, (reg))
 #define CSR_READ_2(sc, reg) 						\
-	bus_space_read_2((sc)->sc_st, (sc)->sc_sh, (reg))
+	bus_read_2((sc)->res, (reg))
 #define CSR_READ_1(sc, reg) 						\
-	bus_space_read_1((sc)->sc_st, (sc)->sc_sh, (reg))
+	bus_read_1((sc)->res, (reg))
 
 #define	PHY_READ_2(sc, phy, reg)					\
 	epic_read_phy_reg((sc), (phy), (reg))
