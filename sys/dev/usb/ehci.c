@@ -191,8 +191,6 @@ static void		ehci_noop(usbd_pipe_handle pipe);
 
 static int		ehci_str(usb_string_descriptor_t *, int, char *);
 static void		ehci_pcd(ehci_softc_t *, usbd_xfer_handle);
-static void		ehci_pcd_able(ehci_softc_t *, int);
-static void		ehci_pcd_enable(void *);
 static void		ehci_disown(ehci_softc_t *, int, int);
 
 static ehci_soft_qh_t  *ehci_alloc_sqh(ehci_softc_t *);
@@ -499,7 +497,6 @@ ehci_init(ehci_softc_t *sc)
 	sc->sc_async_head = sqh;
 	EOWRITE4(sc, EHCI_ASYNCLISTADDR, sqh->physaddr | EHCI_LINK_QH);
 
-	callout_init(&sc->sc_tmo_pcd, 0);
 	callout_init(&sc->sc_tmo_intrlist, 0);
 
 	lockinit(&sc->sc_doorbell_lock, PZERO, "ehcidb", 0, 0);
@@ -611,13 +608,6 @@ ehci_intr1(ehci_softc_t *sc)
 	}
 	if (eintrs & EHCI_STS_PCD) {
 		ehci_pcd(sc, sc->sc_intrxfer);
-		/*
-		 * Disable PCD interrupt for now, because it will be
-		 * on until the port has been reset.
-		 */
-		ehci_pcd_able(sc, 0);
-		/* Do not allow RHSC interrupts > 1 per second */
-                callout_reset(&sc->sc_tmo_pcd, hz, ehci_pcd_enable, sc);
 		eintrs &= ~EHCI_STS_PCD;
 	}
 
@@ -632,25 +622,6 @@ ehci_intr1(ehci_softc_t *sc)
 	}
 
 	return (1);
-}
-
-void
-ehci_pcd_able(ehci_softc_t *sc, int on)
-{
-	DPRINTFN(4, ("ehci_pcd_able: on=%d\n", on));
-	if (on)
-		sc->sc_eintrs |= EHCI_STS_PCD;
-	else
-		sc->sc_eintrs &= ~EHCI_STS_PCD;
-	EOWRITE4(sc, EHCI_USBINTR, sc->sc_eintrs);
-}
-
-void
-ehci_pcd_enable(void *v_sc)
-{
-	ehci_softc_t *sc = v_sc;
-
-	ehci_pcd_able(sc, 1);
 }
 
 /*
@@ -971,7 +942,6 @@ ehci_detach(struct ehci_softc *sc, int flags)
 	EOWRITE4(sc, EHCI_USBINTR, sc->sc_eintrs);
 	(void) ehci_hcreset(sc);
 	callout_stop(&sc->sc_tmo_intrlist);
-	callout_stop(&sc->sc_tmo_pcd);
 
 #if defined(__NetBSD__) || defined(__OpenBSD__)
 	if (sc->sc_powerhook != NULL)
@@ -1922,21 +1892,6 @@ ehci_root_ctrl_start(usbd_xfer_handle xfer)
 			err = USBD_IOERROR;
 			goto ret;
 		}
-#if 0
-		switch(value) {
-		case UHF_C_PORT_CONNECTION:
-		case UHF_C_PORT_ENABLE:
-		case UHF_C_PORT_SUSPEND:
-		case UHF_C_PORT_OVER_CURRENT:
-		case UHF_C_PORT_RESET:
-			/* Enable RHSC interrupt if condition is cleared. */
-			if ((OREAD4(sc, port) >> 16) == 0)
-				ehci_pcd_able(sc, 1);
-			break;
-		default:
-			break;
-		}
-#endif
 		break;
 	case C(UR_GET_DESCRIPTOR, UT_READ_CLASS_DEVICE):
 		if ((value & 0xff) != 0) {
