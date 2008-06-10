@@ -86,9 +86,10 @@ static int epic_ifioctl(struct ifnet *, u_long, caddr_t);
 static void epic_intr(void *);
 static void epic_tx_underrun(epic_softc_t *);
 static void epic_ifstart(struct ifnet *);
-static void epic_ifwatchdog(struct ifnet *);
-static void epic_stats_update(epic_softc_t *);
+static void epic_ifstart_locked(struct ifnet *);
+static void epic_timer(void *);
 static void epic_init(void *);
+static void epic_init_locked(epic_softc_t *);
 static void epic_stop(epic_softc_t *);
 static void epic_rx_done(epic_softc_t *);
 static void epic_tx_done(epic_softc_t *);
@@ -116,6 +117,7 @@ static void epic_miibus_statchg(device_t);
 static void epic_miibus_mediainit(device_t);
 
 static int epic_ifmedia_upd(struct ifnet *);
+static int epic_ifmedia_upd_locked(struct ifnet *);
 static void epic_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 
 static int epic_probe(device_t);
@@ -219,18 +221,16 @@ epic_attach(device_t dev)
 {
 	struct ifnet *ifp;
 	epic_softc_t *sc;
-	int unit, error;
-	int i, s, rid, tmp;
+	int error;
+	int i, rid, tmp;
 	u_char eaddr[6];
 
-	s = splimp();
-
 	sc = device_get_softc(dev);
-	unit = device_get_unit(dev);
 
 	/* Preinitialize softc structure. */
-	sc->unit = unit;
 	sc->dev = dev;
+	mtx_init(&sc->lock, device_get_nameunit(dev), MTX_NETWORK_LOCK,
+	    MTX_DEF);
 
 	/* Fill ifnet structure. */
 	ifp = sc->ifp = if_alloc(IFT_ETHER);
@@ -241,13 +241,11 @@ epic_attach(device_t dev)
 	}
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_softc = sc;
-	ifp->if_flags = IFF_BROADCAST|IFF_SIMPLEX|IFF_MULTICAST|IFF_NEEDSGIANT;
+	ifp->if_flags = IFF_BROADCAST|IFF_SIMPLEX|IFF_MULTICAST;
 	ifp->if_ioctl = epic_ifioctl;
 	ifp->if_start = epic_ifstart;
-	ifp->if_watchdog = epic_ifwatchdog;
 	ifp->if_init = epic_init;
-	ifp->if_timer = 0;
-	ifp->if_snd.ifq_maxlen = TX_RING_SIZE - 1;
+	IFQ_SET_MAXLEN(&ifp->if_snd, TX_RING_SIZE - 1);
 
 	/* Enable busmastering. */
 	pci_enable_busmaster(dev);
@@ -259,9 +257,6 @@ epic_attach(device_t dev)
 		error = ENXIO;
 		goto fail;
 	}
-
-	sc->sc_st = rman_get_bustag(sc->res);
-	sc->sc_sh = rman_get_bushandle(sc->res);
 
 	/* Allocate interrupt. */
 	rid = 0;
@@ -276,7 +271,7 @@ epic_attach(device_t dev)
 	/* Allocate DMA tags. */
 	error = bus_dma_tag_create(NULL, 4, 0, BUS_SPACE_MAXADDR_32BIT,
 	    BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES * EPIC_MAX_FRAGS,
-	    EPIC_MAX_FRAGS, MCLBYTES, 0, busdma_lock_mutex, &Giant, &sc->mtag);
+	    EPIC_MAX_FRAGS, MCLBYTES, 0, NULL, NULL, &sc->mtag);
 	if (error) {
 		device_printf(dev, "couldn't allocate dma tag\n");
 		goto fail;
@@ -285,8 +280,8 @@ epic_attach(device_t dev)
 	error = bus_dma_tag_create(NULL, 4, 0, BUS_SPACE_MAXADDR_32BIT,
 	    BUS_SPACE_MAXADDR, NULL, NULL,
 	    sizeof(struct epic_rx_desc) * RX_RING_SIZE,
-	    1, sizeof(struct epic_rx_desc) * RX_RING_SIZE, 0, busdma_lock_mutex,
-	    &Giant, &sc->rtag);
+	    1, sizeof(struct epic_rx_desc) * RX_RING_SIZE, 0, NULL,
+	    NULL, &sc->rtag);
 	if (error) {
 		device_printf(dev, "couldn't allocate dma tag\n");
 		goto fail;
@@ -296,7 +291,7 @@ epic_attach(device_t dev)
 	    BUS_SPACE_MAXADDR, NULL, NULL,
 	    sizeof(struct epic_tx_desc) * TX_RING_SIZE,
 	    1, sizeof(struct epic_tx_desc) * TX_RING_SIZE, 0,
-	    busdma_lock_mutex, &Giant, &sc->ttag);
+	    NULL, NULL, &sc->ttag);
 	if (error) {
 		device_printf(dev, "couldn't allocate dma tag\n");
 		goto fail;
@@ -306,7 +301,7 @@ epic_attach(device_t dev)
 	    BUS_SPACE_MAXADDR, NULL, NULL,
 	    sizeof(struct epic_frag_list) * TX_RING_SIZE,
 	    1, sizeof(struct epic_frag_list) * TX_RING_SIZE, 0,
-	    busdma_lock_mutex, &Giant, &sc->ftag);
+	    NULL, NULL, &sc->ftag);
 	if (error) {
 		device_printf(dev, "couldn't allocate dma tag\n");
 		goto fail;
@@ -414,24 +409,23 @@ epic_attach(device_t dev)
 	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
 	ifp->if_capabilities |= IFCAP_VLAN_MTU;
 	ifp->if_capenable |= IFCAP_VLAN_MTU;
-	callout_handle_init(&sc->stat_ch);
-
-	/* Activate our interrupt handler. */
-	error = bus_setup_intr(dev, sc->irq, INTR_TYPE_NET,
-	    NULL, epic_intr, sc, &sc->sc_ih);
-	if (error) {
-		device_printf(dev, "couldn't set up irq\n");
-		goto fail;
-	}
+	callout_init_mtx(&sc->timer, &sc->lock, 0);
 
 	/* Attach to OS's managers. */
 	ether_ifattach(ifp, eaddr);
 
-	splx(s);
+	/* Activate our interrupt handler. */
+	error = bus_setup_intr(dev, sc->irq, INTR_TYPE_NET | INTR_MPSAFE,
+	    NULL, epic_intr, sc, &sc->sc_ih);
+	if (error) {
+		device_printf(dev, "couldn't set up irq\n");
+		ether_ifdetach(ifp);
+		goto fail;
+	}
+
 	return (0);
 fail:
 	epic_release(sc);
-	splx(s);
 	return (error);
 }
 
@@ -471,6 +465,7 @@ epic_release(epic_softc_t *sc)
 		bus_dma_tag_destroy(sc->ttag);
 	if (sc->rtag)
 		bus_dma_tag_destroy(sc->rtag);
+	mtx_destroy(&sc->lock);
 }
 
 /*
@@ -481,23 +476,21 @@ epic_detach(device_t dev)
 {
 	struct ifnet *ifp;
 	epic_softc_t *sc;
-	int s;
-
-	s = splimp();
 
 	sc = device_get_softc(dev);
 	ifp = sc->ifp;
 
-	ether_ifdetach(ifp);
-
+	EPIC_LOCK(sc);
 	epic_stop(sc);
+	EPIC_UNLOCK(sc);
+	callout_drain(&sc->timer);
+	ether_ifdetach(ifp);
+	bus_teardown_intr(dev, sc->irq, sc->sc_ih);
 
 	bus_generic_detach(dev);
 	device_delete_child(dev, sc->miibus);
 
-	bus_teardown_intr(dev, sc->irq, sc->sc_ih);
 	epic_release(sc);
-	splx(s);
 	return (0);
 }
 
@@ -515,7 +508,9 @@ epic_shutdown(device_t dev)
 
 	sc = device_get_softc(dev);
 
+	EPIC_LOCK(sc);
 	epic_stop(sc);
+	EPIC_UNLOCK(sc);
 }
 
 /*
@@ -527,9 +522,7 @@ epic_ifioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	epic_softc_t *sc = ifp->if_softc;
 	struct mii_data	*mii;
 	struct ifreq *ifr = (struct ifreq *) data;
-	int x, error = 0;
-
-	x = splimp();
+	int error = 0;
 
 	switch (command) {
 	case SIOCSIFMTU:
@@ -542,12 +535,14 @@ epic_ifioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		 * data bytes per ethernet packet (transmitter hangs
 		 * up if more data is sent).
 		 */
+		EPIC_LOCK(sc);
 		if (ifr->ifr_mtu + ifp->if_hdrlen <= EPIC_MAX_MTU) {
 			ifp->if_mtu = ifr->ifr_mtu;
 			epic_stop(sc);
-			epic_init(sc);
+			epic_init_locked(sc);
 		} else
 			error = EINVAL;
+		EPIC_UNLOCK(sc);
 		break;
 
 	case SIOCSIFFLAGS:
@@ -555,14 +550,17 @@ epic_ifioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		 * If the interface is marked up and stopped, then start it.
 		 * If it is marked down and running, then stop it.
 		 */
+		EPIC_LOCK(sc);
 		if (ifp->if_flags & IFF_UP) {
 			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
-				epic_init(sc);
+				epic_init_locked(sc);
+				EPIC_UNLOCK(sc);
 				break;
 			}
 		} else {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 				epic_stop(sc);
+				EPIC_UNLOCK(sc);
 				break;
 			}
 		}
@@ -572,11 +570,14 @@ epic_ifioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		epic_set_mc_table(sc);
 		epic_set_rx_mode(sc);
 		epic_start_activity(sc);
+		EPIC_UNLOCK(sc);
 		break;
 
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
+		EPIC_LOCK(sc);
 		epic_set_mc_table(sc);
+		EPIC_UNLOCK(sc);
 		error = 0;
 		break;
 
@@ -590,7 +591,6 @@ epic_ifioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		error = ether_ioctl(ifp, command, data);
 		break;
 	}
-	splx(x);
 	return (error);
 }
 
@@ -636,6 +636,16 @@ epic_dma_map_rxbuf(void *arg, bus_dma_segment_t *segs, int nseg,
  */
 static void
 epic_ifstart(struct ifnet * ifp)
+{
+	epic_softc_t *sc = ifp->if_softc;
+
+	EPIC_LOCK(sc);
+	epic_ifstart_locked(ifp);
+	EPIC_UNLOCK(sc);
+}
+
+static void
+epic_ifstart_locked(struct ifnet * ifp)
 {
 	epic_softc_t *sc = ifp->if_softc;
 	struct epic_tx_buffer *buf;
@@ -702,7 +712,7 @@ epic_ifstart(struct ifnet * ifp)
 		CSR_WRITE_4(sc, COMMAND, COMMAND_TXQUEUED);
 
 		/* Set watchdog timer. */
-		ifp->if_timer = 8;
+		sc->tx_timeout = 8;
 
 		BPF_MTAP(ifp, m0);
 	}
@@ -781,7 +791,9 @@ epic_rx_done(epic_softc_t *sc)
 		m->m_pkthdr.len = m->m_len = len;
 
 		/* Give mbuf to OS. */
+		EPIC_UNLOCK(sc);
 		(*ifp->if_input)(ifp, m);
+		EPIC_LOCK(sc);
 
 		/* Successfuly received frame */
 		ifp->if_ipackets++;
@@ -854,6 +866,7 @@ epic_intr(void *arg)
 
     sc = arg;
     i = 4;
+    EPIC_LOCK(sc);
     while (i-- && ((status = CSR_READ_4(sc, INTSTAT)) & INTSTAT_INT_ACTV)) {
 	CSR_WRITE_4(sc, INTSTAT, status);
 
@@ -875,7 +888,7 @@ epic_intr(void *arg)
 	if (status & (INTSTAT_TXC|INTSTAT_TCC|INTSTAT_TQE)) {
 	    epic_tx_done(sc);
 	    if (sc->ifp->if_snd.ifq_head != NULL)
-		    epic_ifstart(sc->ifp);
+		    epic_ifstart_locked(sc->ifp);
 	}
 
 	/* Check for rare errors */
@@ -890,7 +903,7 @@ epic_intr(void *arg)
 		    (status & INTSTAT_DPE) ? "DPE" : "");
 
 		epic_stop(sc);
-		epic_init(sc);
+		epic_init_locked(sc);
 	    	break;
 	    }
 
@@ -910,7 +923,8 @@ epic_intr(void *arg)
 
     /* If no packets are pending, then no timeouts. */
     if (sc->pending_txs == 0)
-	    sc->ifp->if_timer = 0;
+	    sc->tx_timeout = 0;
+    EPIC_UNLOCK(sc);
 }
 
 /*
@@ -944,60 +958,48 @@ epic_tx_underrun(epic_softc_t *sc)
 }
 
 /*
- * Synopsis: This one is called if packets wasn't transmitted
- * during timeout. Try to deallocate transmitted packets, and
- * if success continue to work.
+ * This function is called once a second when the interface is running
+ * and performs two functions.  First, it provides a timer for the mii
+ * to help with autonegotiation.  Second, it checks for transmit
+ * timeouts.
  */
 static void
-epic_ifwatchdog(struct ifnet *ifp)
+epic_timer(void *arg)
 {
-	epic_softc_t *sc;
-	int x;
+	epic_softc_t *sc = arg;
+	struct mii_data *mii;
+	struct ifnet *ifp;
 
-	x = splimp();
-	sc = ifp->if_softc;
+	ifp = sc->ifp;
+	EPIC_ASSERT_LOCKED(sc);
+	if (sc->tx_timeout && --sc->tx_timeout == 0) {
+		device_printf(sc->dev, "device timeout %d packets\n",
+		    sc->pending_txs);
 
-	device_printf(sc->dev, "device timeout %d packets\n", sc->pending_txs);
+		/* Try to finish queued packets. */
+		epic_tx_done(sc);
 
-	/* Try to finish queued packets. */
-	epic_tx_done(sc);
+		/* If not successful. */
+		if (sc->pending_txs > 0) {
+			ifp->if_oerrors += sc->pending_txs;
 
-	/* If not successful. */
-	if (sc->pending_txs > 0) {
-		ifp->if_oerrors += sc->pending_txs;
+			/* Reinitialize board. */
+			device_printf(sc->dev, "reinitialization\n");
+			epic_stop(sc);
+			epic_init_locked(sc);
+		} else
+			device_printf(sc->dev,
+			    "seems we can continue normaly\n");
 
-		/* Reinitialize board. */
-		device_printf(sc->dev, "reinitialization\n");
-		epic_stop(sc);
-		epic_init(sc);
-	} else
-		device_printf(sc->dev, "seems we can continue normaly\n");
-
-	/* Start output. */
-	if (ifp->if_snd.ifq_head)
-		epic_ifstart(ifp);
-
-	splx(x);
-}
-
-/*
- * Despite the name of this function, it doesn't update statistics, it only
- * helps in autonegotiation process.
- */
-static void
-epic_stats_update(epic_softc_t * sc)
-{
-	struct mii_data * mii;
-	int s;
-
-	s = splimp();
+		/* Start output. */
+		if (ifp->if_snd.ifq_head)
+			epic_ifstart_locked(ifp);
+	}
 
 	mii = device_get_softc(sc->miibus);
 	mii_tick(mii);
 
-	sc->stat_ch = timeout((timeout_t *)epic_stats_update, sc, hz);
-
-	splx(s);
+	callout_reset(&sc->timer, hz, epic_timer, sc);
 }
 
 /*
@@ -1005,6 +1007,19 @@ epic_stats_update(epic_softc_t * sc)
  */
 static int
 epic_ifmedia_upd(struct ifnet *ifp)
+{
+	epic_softc_t *sc;
+	int error;
+
+	sc = ifp->if_softc;
+	EPIC_LOCK(sc);
+	error = epic_ifmedia_upd_locked(ifp);
+	EPIC_UNLOCK(sc);
+	return (error);
+}
+	
+static int
+epic_ifmedia_upd_locked(struct ifnet *ifp)
 {
 	epic_softc_t *sc;
 	struct mii_data *mii;
@@ -1138,12 +1153,14 @@ epic_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 
 	sc = ifp->if_softc;
 	mii = device_get_softc(sc->miibus);
+	EPIC_LOCK(sc);
 	ifm = &mii->mii_media;
 
 	/* Nothing should be selected if interface is down. */
 	if ((ifp->if_flags & IFF_UP) == 0) {
 		ifmr->ifm_active = IFM_NONE;
 		ifmr->ifm_status = 0;
+		EPIC_UNLOCK(sc);
 		return;
 	}
 
@@ -1154,6 +1171,7 @@ epic_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 	/* Simply copy media info. */
 	ifmr->ifm_active = mii->mii_media_active;
 	ifmr->ifm_status = mii->mii_media_status;
+	EPIC_UNLOCK(sc);
 }
 
 /*
@@ -1231,14 +1249,20 @@ static void
 epic_init(void *xsc)
 {
 	epic_softc_t *sc = xsc;
-	struct ifnet *ifp = sc->ifp;
-	int s, i;
 
-	s = splimp();
+	EPIC_LOCK(sc);
+	epic_init_locked(sc);
+	EPIC_UNLOCK(sc);
+}
+
+static void
+epic_init_locked(epic_softc_t *sc)
+{
+	struct ifnet *ifp = sc->ifp;
+	int i;
 
 	/* If interface is already running, then we need not do anything. */
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-		splx(s);
 		return;
 	}
 
@@ -1304,11 +1328,9 @@ epic_init(void *xsc)
 	epic_start_activity(sc);
 
 	/* Set appropriate media */
-	epic_ifmedia_upd(ifp);
+	epic_ifmedia_upd_locked(ifp);
 
-	sc->stat_ch = timeout((timeout_t *)epic_stats_update, sc, hz);
-
-	splx(s);
+	callout_reset(&sc->timer, hz, epic_timer, sc);
 }
 
 /*
@@ -1377,11 +1399,7 @@ epic_set_mc_table(epic_softc_t *sc)
 	filter[3] = 0;
 
 	IF_ADDR_LOCK(ifp);
-#if __FreeBSD_version < 500000
-	LIST_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-#else
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-#endif
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 		h = ether_crc32_be(LLADDR((struct sockaddr_dl *)
@@ -1530,13 +1548,11 @@ epic_queue_last_packet(epic_softc_t *sc)
 static void
 epic_stop(epic_softc_t *sc)
 {
-	int s;
 
-	s = splimp();
+	EPIC_ASSERT_LOCKED(sc);
 
-	sc->ifp->if_timer = 0;
-
-	untimeout((timeout_t *)epic_stats_update, sc, sc->stat_ch);
+	sc->tx_timeout = 0;
+	callout_stop(&sc->timer);
 
 	/* Disable interrupts */
 	CSR_WRITE_4(sc, INTMASK, 0);
@@ -1552,10 +1568,8 @@ epic_stop(epic_softc_t *sc)
 	/* Make chip go to bed */
 	CSR_WRITE_4(sc, GENCTL, GENCTL_POWER_DOWN);
 
-	/* Mark as stoped */
-	sc->ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
-
-	splx(s);
+	/* Mark as stopped */
+	sc->ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 }
 
 /*
