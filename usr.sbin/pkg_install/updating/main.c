@@ -13,6 +13,7 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <limits.h>
 #include <sysexits.h>
+#include <getopt.h>
 
 #include "lib.h"
 #include "pathnames.h"
@@ -23,6 +24,14 @@ typedef struct installedport {
 } INSTALLEDPORT;
 
 int usage(void);
+
+static char opts[] = "d:f:h";
+static struct option longopts[] = {
+	{ "date",	required_argument,	NULL,		'd' },
+	{ "file",	required_argument,	NULL,		'f' },
+	{ "help",	no_argument,		NULL,		'h' },
+	{ NULL,		0,			NULL,		0 },
+};
 
 /*
  * Parse /usr/port/UPDATING for corresponding entries. If no argument is
@@ -74,7 +83,7 @@ main(int argc, char *argv[])
 	DIR *dir;
 	FILE *fd;
 
-	while ((ch = getopt(argc, argv, "f:d:")) != -1) {
+	while ((ch = getopt_long(argc, argv, opts, longopts, NULL)) != -1) {
 		switch (ch) {
 			case 'd':
 				dflag = 1;
@@ -83,7 +92,7 @@ main(int argc, char *argv[])
 			case 'f':
 				updatingfile = optarg;
 				break;
-			case '?':
+			case 'h':
 			default:
 				usage();
 		}
@@ -247,7 +256,7 @@ int
 usage(void)
 {
 	fprintf(stderr,
-		"usage: pkg_updating [-d YYYYMMDD] [-f file] [portname ...]\n");
+		"usage: pkg_updating [-h] [-d YYYYMMDD] [-f file] [portname ...]\n");
 	exit(EX_USAGE);
 }
 

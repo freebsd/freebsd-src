@@ -17,7 +17,7 @@
 .\"     @(#)pkg_delete.1
 .\" $FreeBSD$
 .\"
-.Dd June 29, 2004
+.Dd May 30, 2008
 .Dt PKG_DELETE 1
 .Os
 .Sh NAME
@@ -72,20 +72,20 @@ The following command line options are supported:
 .Bl -tag -width indent
 .It Ar pkg-name ...
 The named packages are deinstalled.
-.It Fl a
+.It Fl a , -all
 Unconditionally delete all currently installed packages.
-.It Fl i
+.It Fl i , -interactive
 Request confirmation before attempting to delete each package,
 regardless whether or not the standard input device is a
 terminal.
-.It Fl v
+.It Fl v , -verbose
 Turn on verbose output.
-.It Fl D
+.It Fl D , -no-script , -no-scripts
 If a deinstallation script exists for a given package, do not execute it.
-.It Fl n
+.It Fl n , -dry-run
 Do not actually deinstall a package, just report the steps that
 would be taken if it were.
-.It Fl p Ar prefix
+.It Fl p , -prefix Ar prefix
 Set
 .Ar prefix
 as the directory in which to delete files from any installed packages
@@ -93,7 +93,7 @@ which do not explicitly set theirs.
 For most packages, the prefix will
 be set automatically to the installed location by
 .Xr pkg_add 1 .
-.It Fl d
+.It Fl d , -clean-dirs
 Remove empty directories created by file cleanup.
 By default, only
 files/directories explicitly listed in a package's contents (either as
@@ -104,17 +104,17 @@ This option tells
 .Nm
 to also remove any directories that were emptied as a result of removing
 the package.
-.It Fl f
+.It Fl f , -force
 Force removal of the package, even if a dependency is recorded or the
 deinstall or require script fails.
-.It Fl G
+.It Fl G , -no-glob
 Do not try to expand shell glob patterns in the
 .Ar pkg-name
 when selecting packages to be deleted (by default
 .Nm
 automatically expands shell glob patterns in the
 .Ar pkg-name ) .
-.It Fl x
+.It Fl x , -regex
 Treat the
 .Ar pkg-name
 as a regular expression and delete all packages whose names match
@@ -124,13 +124,13 @@ provided, in that case
 .Nm
 deletes all packages that match at least one
 regular expression from the list.
-.It Fl X
+.It Fl X , -extended
 Like
 .Fl x ,
 but treats the
 .Ar pkg-name
 as an extended regular expression.
-.It Fl r
+.It Fl r , -recursive
 Recursive removal.
 In addition to specified packages, delete all
 packages that depend on those packages as well.
