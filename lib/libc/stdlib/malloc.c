@@ -1296,8 +1296,10 @@ base_alloc(size_t size)
 	malloc_mutex_lock(&base_mtx);
 	/* Make sure there's enough space for the allocation. */
 	if ((uintptr_t)base_next_addr + csize > (uintptr_t)base_past_addr) {
-		if (base_pages_alloc(csize))
+		if (base_pages_alloc(csize)) {
+			malloc_mutex_unlock(&base_mtx);
 			return (NULL);
+		}
 	}
 	/* Allocate. */
 	ret = base_next_addr;
@@ -2684,10 +2686,12 @@ arena_bin_nonfull_run_get(arena_t *arena, arena_bin_t *bin)
 	/* Initialize run internals. */
 	run->bin = bin;
 
-	for (i = 0; i < bin->regs_mask_nelms; i++)
+	for (i = 0; i < bin->regs_mask_nelms - 1; i++)
 		run->regs_mask[i] = UINT_MAX;
 	remainder = bin->nregs & ((1U << (SIZEOF_INT_2POW + 3)) - 1);
-	if (remainder != 0) {
+	if (remainder == 0)
+		run->regs_mask[i] = UINT_MAX;
+	else {
 		/* The last element has spare bits that need to be unset. */
 		run->regs_mask[i] = (UINT_MAX >> ((1U << (SIZEOF_INT_2POW + 3))
 		    - remainder));
