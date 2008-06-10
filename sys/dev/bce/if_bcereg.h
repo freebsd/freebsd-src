@@ -132,6 +132,8 @@
 /****************************************************************************/
 /* Debugging macros and definitions.                                        */
 /****************************************************************************/
+/* #define BCE_DEBUG 1 */
+
 #define BCE_CP_LOAD 			0x00000001
 #define BCE_CP_SEND		 		0x00000002
 #define BCE_CP_RECV				0x00000004
@@ -466,7 +468,7 @@ struct flash_spec {
  * running and there won't be any firmware-driver synchronization during a
  * driver reset. 
  */
-#define FW_ACK_TIME_OUT_MS                  100
+#define FW_ACK_TIME_OUT_MS                  1000
 
 
 #define BCE_DRV_RESET_SIGNATURE				0x00000000
@@ -4924,7 +4926,6 @@ struct fw_info {
 #define BCE_MAX_JUMBO_ETHER_MTU			9018
 #define BCE_MAX_JUMBO_ETHER_MTU_VLAN 	9022
 
-// #define BCE_MAX_MTU		ETHER_MAX_LEN_JUMBO + ETHER_VLAN_ENCAP_LEN	/* 9022 */
 
 /****************************************************************************/
 /* BCE Device State Data Structure                                          */
@@ -5048,6 +5049,8 @@ struct bce_softc
 	/* Frame size and mbuf allocation size for RX frames. */
 	u32					max_frame_size;
 	int					rx_bd_mbuf_alloc_size;
+	int					rx_bd_mbuf_data_len;
+	int					rx_bd_mbuf_align_pad;
 	int					pg_bd_mbuf_alloc_size;
 
 	/* Receive mode settings (i.e promiscuous, multicast, etc.). */
