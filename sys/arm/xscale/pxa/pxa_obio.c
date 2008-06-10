@@ -183,6 +183,12 @@ pxa_setup_intr(device_t dev, device_t child, struct resource *irq, int flags,
 }
 
 static int
+pxa_teardown_intr(device_t dev, device_t child, struct resource *ires,
+    void *cookie)
+{
+	return (BUS_TEARDOWN_INTR(device_get_parent(dev), child, ires, cookie));}
+
+static int
 pxa_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 {
 	struct	obio_device *od;
@@ -313,19 +319,20 @@ pxa_activate_resource(device_t dev, device_t child, int type, int rid,
 }
 
 static device_method_t pxa_methods[] = {
-	DEVMETHOD(device_identify, pxa_identify),
-	DEVMETHOD(device_probe, pxa_probe),
-	DEVMETHOD(device_attach, pxa_attach),
+	DEVMETHOD(device_identify,	pxa_identify),
+	DEVMETHOD(device_probe,		pxa_probe),
+	DEVMETHOD(device_attach,	pxa_attach),
 
-	DEVMETHOD(bus_print_child, pxa_print_child),
+	DEVMETHOD(bus_print_child,	pxa_print_child),
 
-	DEVMETHOD(bus_read_ivar, pxa_read_ivar),
-	DEVMETHOD(bus_setup_intr, pxa_setup_intr),
+	DEVMETHOD(bus_read_ivar,	pxa_read_ivar),
+	DEVMETHOD(bus_setup_intr,	pxa_setup_intr),
+	DEVMETHOD(bus_teardown_intr,	pxa_teardown_intr),
 
-	DEVMETHOD(bus_get_resource_list, pxa_get_resource_list),
-	DEVMETHOD(bus_alloc_resource, pxa_alloc_resource),
-	DEVMETHOD(bus_release_resource, pxa_release_resource),
-	DEVMETHOD(bus_activate_resource, pxa_activate_resource),
+	DEVMETHOD(bus_get_resource_list,	pxa_get_resource_list),
+	DEVMETHOD(bus_alloc_resource,		pxa_alloc_resource),
+	DEVMETHOD(bus_release_resource,		pxa_release_resource),
+	DEVMETHOD(bus_activate_resource,	pxa_activate_resource),
 
 	{0, 0}
 };
