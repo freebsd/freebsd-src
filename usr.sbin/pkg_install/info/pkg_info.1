@@ -17,7 +17,7 @@
 .\"     @(#)pkg_info.1
 .\" $FreeBSD$
 .\"
-.Dd January 9, 2006
+.Dd May 30, 2008
 .Dt PKG_INFO 1
 .Os
 .Sh NAME
@@ -25,7 +25,7 @@
 .Nd a utility for displaying information on software packages
 .Sh SYNOPSIS
 .Nm
-.Op Fl bcdDEfgGiIjkKLmopPqQrRsvVxX
+.Op Fl bcdDEfghGiIjkKLmopPqQrRsvVxX
 .Op Fl e Ar package
 .Op Fl l Ar prefix
 .Op Fl t Ar template
@@ -67,9 +67,9 @@ For example,
 will match versions 20030723 and later of the
 .Pa portupgrade
 package.
-.It Fl a
+.It Fl a , -all
 Show all currently installed packages.
-.It Fl b
+.It Fl b , -blocksize
 Use the
 .Ev BLOCKSIZE
 environment variable for output even when the
@@ -77,11 +77,13 @@ environment variable for output even when the
 or
 .Fl Q
 flag is present.
-.It Fl v
+.It Fl h , -help
+Print help message.
+.It Fl v , -verbose
 Turn on verbose output.
 .It Fl p
 Show the installation prefix for each package.
-.It Fl q
+.It Fl q , -quiet
 Be
 .Dq quiet
 in emitting report headers and such, just dump the
@@ -110,7 +112,7 @@ precedence over all other package formatting options.
 Show the requirements script (if any) for each package.
 .It Fl k
 Show the de-install script (if any) for each package.
-.It Fl K
+.It Fl K , -keep
 Keep any downloaded package in
 .Ev PKGDIR
 if it is defined or in current directory by default.
@@ -139,14 +141,14 @@ This path is the directory name in the
 .Fx
 .Em "Ports Collection"
 of the underlying port from which the package was generated.
-.It Fl G
+.It Fl G , -no-glob
 Do not try to expand shell glob patterns in the
 .Ar pkg-name
 when selecting packages to be displayed (by default
 .Nm
 automatically expands shell glob patterns in the
 .Ar pkg-name ) .
-.It Fl W Ar filename
+.It Fl W , -which Ar filename
 For the specified
 .Ar filename
 argument show which package it belongs to.
@@ -156,10 +158,10 @@ directories specified in the environment variable
 .Ev PATH
 are searched using
 .Xr which 1 .
-.It Fl O Ar origin
+.It Fl O , -origin Ar origin
 List all packages having the specified
 .Ar origin .
-.It Fl x
+.It Fl x , -regex
 Treat the
 .Ar pkg-name
 as a regular expression and display information only for packages
@@ -169,13 +171,13 @@ expressions could be provided, in that case
 .Nm
 displays information about all packages that match at least one
 regular expression from the list.
-.It Fl X
+.It Fl X , -extended
 Like
 .Fl x ,
 but treats the
 .Ar pkg-name
 as an extended regular expression.
-.It Fl e Ar package
+.It Fl e , -exists Ar package
 If the package identified by
 .Ar package
 is currently installed, return 0, otherwise return 1.
@@ -198,7 +200,7 @@ necessarily want the output intermingled in such a way that they cannot
 organize it.
 This lets you add a special token to the start of
 each field.
-.It Fl t Ar template
+.It Fl t , -template Ar template
 Use
 .Ar template
 as the argument to
@@ -226,7 +228,7 @@ indeed to overflow it.
 .Ed
 .It Fl V
 Show revision number of the packing list format.
-.It Fl P
+.It Fl P , -version
 Show revision number of package tools.
 .El
 .Sh TECHNICAL DETAILS
