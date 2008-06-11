@@ -39,7 +39,7 @@
   * Virtual address space layout:
   * -----------------------------
   * 0x0000_0000 - 0xbfff_efff	: user process
-  * 0xc000_0000 - 0xc1ff_ffff	: kerel reserved
+  * 0xc000_0000 - 0xc1ff_ffff	: kernel reserved
   *   0xc000_0000 - kernelend	: kernel code &data
   *   0xc1ff_c000 - 0xc200_0000	: kstack0
   * 0xc200_0000 - 0xffef_ffff	: KVA
