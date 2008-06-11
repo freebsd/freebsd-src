@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2006 Benno Rice.  All rights reserved.
+ * Copyright (c) 2008 Benno Rice.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -35,10 +35,6 @@ struct smc_softc {
 	u_int			smc_chip;
 	u_int			smc_rev;
 	u_int			smc_mask;
-
-	/* Bus space glue */
-	bus_space_tag_t		smc_bst;
-	bus_space_handle_t	smc_bsh;
 
 	/* Resources */
 	int			smc_usemem;

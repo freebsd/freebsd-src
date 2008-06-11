@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2006 Benno Rice.  All rights reserved.
+ * Copyright (c) 2008 Benno Rice.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -117,7 +117,7 @@ static __inline void
 smc_select_bank(struct smc_softc *sc, uint16_t bank)
 {
 
-	bus_space_write_2(sc->smc_bst, sc->smc_bsh, BSR, bank & BSR_BANK_MASK);
+	bus_write_2(sc->smc_reg, BSR, bank & BSR_BANK_MASK);
 }
 
 /* Never call this when not in bank 2. */
@@ -125,10 +125,10 @@ static __inline void
 smc_mmu_wait(struct smc_softc *sc)
 {
 
-	KASSERT((bus_space_read_2(sc->smc_bst, sc->smc_bsh, BSR) &
+	KASSERT((bus_read_2(sc->smc_reg, BSR) &
 	    BSR_BANK_MASK) == 2, ("%s: smc_mmu_wait called when not in bank 2",
 	    device_get_nameunit(sc->smc_dev)));
-	while (bus_space_read_2(sc->smc_bst, sc->smc_bsh, MMUCR) & MMUCR_BUSY)
+	while (bus_read_2(sc->smc_reg, MMUCR) & MMUCR_BUSY)
 		;
 }
 
@@ -136,28 +136,28 @@ static __inline uint8_t
 smc_read_1(struct smc_softc *sc, bus_addr_t offset)
 {
 
-	return (bus_space_read_1(sc->smc_bst, sc->smc_bsh, offset));
+	return (bus_read_1(sc->smc_reg, offset));
 }
 
 static __inline void
 smc_write_1(struct smc_softc *sc, bus_addr_t offset, uint8_t val)
 {
 
-	bus_space_write_1(sc->smc_bst, sc->smc_bsh, offset, val);
+	bus_write_1(sc->smc_reg, offset, val);
 }
 
 static __inline uint16_t
 smc_read_2(struct smc_softc *sc, bus_addr_t offset)
 {
 
-	return (bus_space_read_2(sc->smc_bst, sc->smc_bsh, offset));
+	return (bus_read_2(sc->smc_reg, offset));
 }
 
 static __inline void
 smc_write_2(struct smc_softc *sc, bus_addr_t offset, uint16_t val)
 {
 
-	bus_space_write_2(sc->smc_bst, sc->smc_bsh, offset, val);
+	bus_write_2(sc->smc_reg, offset, val);
 }
 
 static __inline void
@@ -165,7 +165,7 @@ smc_read_multi_2(struct smc_softc *sc, bus_addr_t offset, uint16_t *datap,
     bus_size_t count)
 {
 
-	bus_space_read_multi_2(sc->smc_bst, sc->smc_bsh, offset, datap, count);
+	bus_read_multi_2(sc->smc_reg, offset, datap, count);
 }
 
 static __inline void
@@ -173,7 +173,7 @@ smc_write_multi_2(struct smc_softc *sc, bus_addr_t offset, uint16_t *datap,
     bus_size_t count)
 {
 
-	bus_space_write_multi_2(sc->smc_bst, sc->smc_bsh, offset, datap, count);
+	bus_write_multi_2(sc->smc_reg, offset, datap, count);
 }
 
 int
@@ -183,8 +183,6 @@ smc_probe(device_t dev)
 	uint16_t		val;
 	struct smc_softc	*sc;
 	struct resource		*reg;
-	bus_space_tag_t		bst;
-	bus_space_handle_t	bsh;
 
 	sc = device_get_softc(dev);
 	rid = 0;
@@ -202,11 +200,8 @@ smc_probe(device_t dev)
 		return (ENXIO);
 	}
 
-	bst = rman_get_bustag(reg);
-	bsh = rman_get_bushandle(reg);
-
 	/* Check for the identification value in the BSR. */
-	val = bus_space_read_2(bst, bsh, BSR);
+	val = bus_read_2(reg, BSR);
 	if ((val & BSR_IDENTIFY_MASK) != BSR_IDENTIFY) {
 		if (bootverbose)
 			device_printf(dev, "identification value not in BSR\n");
@@ -218,8 +213,8 @@ smc_probe(device_t dev)
 	 * Try switching banks and make sure we still get the identification
 	 * value.
 	 */
-	bus_space_write_2(bst, bsh, BSR, 0);
-	val = bus_space_read_2(bst, bsh, BSR);
+	bus_write_2(reg, BSR, 0);
+	val = bus_read_2(reg, BSR);
 	if ((val & BSR_IDENTIFY_MASK) != BSR_IDENTIFY) {
 		if (bootverbose)
 			device_printf(dev,
@@ -230,8 +225,8 @@ smc_probe(device_t dev)
 
 #if 0
 	/* Check the BAR. */
-	bus_space_write_2(bst, bsh, BSR, 1);
-	val = bus_space_read_2(bst, bsh, BAR);
+	bus_write_2(reg, BSR, 1);
+	val = bus_read_2(reg, BAR);
 	val = BAR_ADDRESS(val);
 	if (rman_get_start(reg) != val) {
 		if (bootverbose)
@@ -244,8 +239,8 @@ smc_probe(device_t dev)
 #endif
 
 	/* Compare REV against known chip revisions. */
-	bus_space_write_2(bst, bsh, BSR, 3);
-	val = bus_space_read_2(bst, bsh, REV);
+	bus_write_2(reg, BSR, 3);
+	val = bus_read_2(reg, REV);
 	val = (val & REV_CHIP_MASK) >> REV_CHIP_SHIFT;
 	if (smc_chip_ids[val] == NULL) {
 		if (bootverbose)
@@ -304,9 +299,6 @@ smc_attach(device_t dev)
 		error = ENXIO;
 		goto done;
 	}
-
-	sc->smc_bst = rman_get_bustag(sc->smc_reg);
-	sc->smc_bsh = rman_get_bushandle(sc->smc_reg);
 
 	SMC_LOCK(sc);
 	smc_reset(sc);
