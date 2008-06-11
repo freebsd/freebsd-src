@@ -963,7 +963,7 @@ hme_load_txmbuf(struct hme_softc *sc, struct mbuf **m0)
 	error = bus_dmamap_load_mbuf_sg(sc->sc_tdmatag, htx->htx_dmamap,
 	    *m0, segs, &nsegs, 0);
 	if (error == EFBIG) {
-		m = m_collapse(*m0, M_DONTWAIT, HME_NTXSEGS);
+		m = m_defrag(*m0, M_DONTWAIT);
 		if (m == NULL) {
 			m_freem(*m0);
 			*m0 = NULL;
