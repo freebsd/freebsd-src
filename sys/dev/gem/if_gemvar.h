@@ -115,7 +115,11 @@ struct gem_softc {
 	int		sc_wdog_timer;	/* watchdog timer */
 
 	void		*sc_ih;
-	struct resource *sc_res[2];
+	struct resource *sc_res[3];
+#define	GEM_RES_INTR		0
+#define	GEM_RES_BANK1		1
+#define	GEM_RES_BANK2		2
+
 	bus_dma_tag_t	sc_pdmatag;	/* parent bus DMA tag */
 	bus_dma_tag_t	sc_rdmatag;	/* RX bus DMA tag */
 	bus_dma_tag_t	sc_tdmatag;	/* TX bus DMA tag */
@@ -175,6 +179,43 @@ struct gem_softc {
 	int		sc_ifflags;
 	int		sc_csum_features;
 };
+
+#define	GEM_BANKN_BARRIER(n, sc, offs, len, flags)			\
+	bus_barrier((sc)->sc_res[(n)], (offs), (len), (flags))
+#define	GEM_BANK1_BARRIER(sc, offs, len, flags)				\
+	GEM_BANKN_BARRIER(GEM_RES_BANK1, (sc), (offs), (len), (flags))
+#define	GEM_BANK2_BARRIER(sc, offs, len, flags)				\
+	GEM_BANKN_BARRIER(GEM_RES_BANK2, (sc), (offs), (len), (flags))
+
+#define	GEM_BANKN_READ_M(n, m, sc, offs)				\
+	bus_read_ ## m((sc)->sc_res[(n)], (offs))
+#define	GEM_BANK1_READ_1(sc, offs)					\
+	GEM_BANKN_READ_M(GEM_RES_BANK1, 1, (sc), (offs))
+#define	GEM_BANK1_READ_2(sc, offs)					\
+	GEM_BANKN_READ_M(GEM_RES_BANK1, 2, (sc), (offs))
+#define	GEM_BANK1_READ_4(sc, offs)					\
+	GEM_BANKN_READ_M(GEM_RES_BANK1, 4, (sc), (offs))
+#define	GEM_BANK2_READ_1(sc, offs)					\
+	GEM_BANKN_READ_M(GEM_RES_BANK2, 1, (sc), (offs))
+#define	GEM_BANK2_READ_2(sc, offs)					\
+	GEM_BANKN_READ_M(GEM_RES_BANK2, 2, (sc), (offs))
+#define	GEM_BANK2_READ_4(sc, offs)					\
+	GEM_BANKN_READ_M(GEM_RES_BANK2, 4, (sc), (offs))
+
+#define	GEM_BANKN_WRITE_M(n, m, sc, offs, v)				\
+	bus_write_ ## m((sc)->sc_res[n], (offs), (v))
+#define	GEM_BANK1_WRITE_1(sc, offs, v)					\
+	GEM_BANKN_WRITE_M(GEM_RES_BANK1, 1, (sc), (offs), (v))
+#define	GEM_BANK1_WRITE_2(sc, offs, v)					\
+	GEM_BANKN_WRITE_M(GEM_RES_BANK1, 2, (sc), (offs), (v))
+#define	GEM_BANK1_WRITE_4(sc, offs, v)					\
+	GEM_BANKN_WRITE_M(GEM_RES_BANK1, 4, (sc), (offs), (v))
+#define	GEM_BANK2_WRITE_1(sc, offs, v)					\
+	GEM_BANKN_WRITE_M(GEM_RES_BANK2, 1, (sc), (offs), (v))
+#define	GEM_BANK2_WRITE_2(sc, offs, v)					\
+	GEM_BANKN_WRITE_M(GEM_RES_BANK2, 2, (sc), (offs), (v))
+#define	GEM_BANK2_WRITE_4(sc, offs, v)					\
+	GEM_BANKN_WRITE_M(GEM_RES_BANK2, 4, (sc), (offs), (v))
 
 /* XXX this should be handled by bus_dma(9). */
 #define	GEM_DMA_READ(sc, v)						\
