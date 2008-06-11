@@ -533,7 +533,8 @@ ndis_attach(dev)
 
 	sc = device_get_softc(dev);
 
-	KeInitializeSpinLock(&sc->ndis_spinlock);
+	mtx_init(&sc->ndis_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
+	    MTX_DEF);
 	KeInitializeSpinLock(&sc->ndis_rxlock);
 	InitializeListHead(&sc->ndis_shlist);
 	callout_init(&sc->ndis_stat_callout, CALLOUT_MPSAFE);
@@ -1644,7 +1645,6 @@ ndis_tick(xsc)
 	struct ndis_softc	*sc;
 
 	sc = xsc;
-	NDIS_LOCK(sc);
 
 	if (sc->ndis_hang_timer && --sc->ndis_hang_timer == 0) {
 		IoQueueWorkItem(sc->ndis_tickitem,
@@ -1666,7 +1666,6 @@ ndis_tick(xsc)
 	}
 
 	callout_reset(&sc->ndis_stat_callout, hz, ndis_tick, sc);
-	NDIS_UNLOCK(sc);
 }
 
 static void
