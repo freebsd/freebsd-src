@@ -71,7 +71,7 @@ struct cdev {
 	gid_t		si_gid;
 	mode_t		si_mode;
 	struct ucred	*si_cred;	/* cached clone-time credential */
-	u_int		si_drv0;
+	int		si_drv0;
 	int		si_refcount;
 	LIST_ENTRY(cdev)	si_list;
 	LIST_ENTRY(cdev)	si_clone;
@@ -171,6 +171,7 @@ typedef int dumper_t(
 #define D_MMAP_ANON	0x00100000	/* special treatment in vm_mmap.c */
 #define D_PSEUDO	0x00200000	/* make_dev() can return NULL */
 #define D_NEEDGIANT	0x00400000	/* driver want Giant */
+#define	D_NEEDMINOR	0x00800000	/* driver uses clone_create() */
 
 /*
  * Version numbers.

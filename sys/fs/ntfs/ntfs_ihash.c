@@ -52,7 +52,7 @@ MALLOC_DEFINE(M_NTFSNTHASH, "ntfs_nthash", "NTFS ntnode hash tables");
  */
 static LIST_HEAD(nthashhead, ntnode) *ntfs_nthashtbl;
 static u_long	ntfs_nthash;		/* size of hash table - 1 */
-#define	NTNOHASH(device, inum)	(&ntfs_nthashtbl[(minor(device) + (inum)) & ntfs_nthash])
+#define	NTNOHASH(inum)	(&ntfs_nthashtbl[(inum) & ntfs_nthash])
 static struct mtx ntfs_nthash_mtx;
 struct lock ntfs_hashlock;
 
@@ -90,7 +90,7 @@ ntfs_nthashlookup(dev, inum)
 	struct ntnode *ip;
 
 	mtx_lock(&ntfs_nthash_mtx);
-	LIST_FOREACH(ip, NTNOHASH(dev, inum), i_hash)
+	LIST_FOREACH(ip, NTNOHASH(inum), i_hash)
 		if (inum == ip->i_number && dev == ip->i_dev)
 			break;
 	mtx_unlock(&ntfs_nthash_mtx);
@@ -108,7 +108,7 @@ ntfs_nthashins(ip)
 	struct nthashhead *ipp;
 
 	mtx_lock(&ntfs_nthash_mtx);
-	ipp = NTNOHASH(ip->i_dev, ip->i_number);
+	ipp = NTNOHASH(ip->i_number);
 	LIST_INSERT_HEAD(ipp, ip, i_hash);
 	ip->i_flag |= IN_HASHED;
 	mtx_unlock(&ntfs_nthash_mtx);

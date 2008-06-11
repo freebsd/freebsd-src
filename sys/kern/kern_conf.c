@@ -566,10 +566,13 @@ newdev(struct cdevsw *csw, int y, struct cdev *si)
 
 	mtx_assert(&devmtx, MA_OWNED);
 	udev = y;
-	LIST_FOREACH(si2, &csw->d_devs, si_list) {
-		if (si2->si_drv0 == udev) {
-			dev_free_devlocked(si);
-			return (si2);
+	if (csw->d_flags & D_NEEDMINOR) {
+		/* We may want to return an existing device */
+		LIST_FOREACH(si2, &csw->d_devs, si_list) {
+			if (si2->si_drv0 == udev) {
+				dev_free_devlocked(si);
+				return (si2);
+			}
 		}
 	}
 	si->si_drv0 = udev;
@@ -1016,6 +1019,8 @@ clone_create(struct clonedevs **cdp, struct cdevsw *csw, int *up, struct cdev **
 	    ("Illegal extra bits (0x%x) in clone_create", extra));
 	KASSERT(*up <= CLONE_UNITMASK,
 	    ("Too high unit (0x%x) in clone_create", *up));
+	KASSERT(csw->d_flags & D_NEEDMINOR,
+	    ("clone_create() on cdevsw without minor numbers"));
 
 
 	/*

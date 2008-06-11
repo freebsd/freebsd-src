@@ -16445,6 +16445,7 @@ void dtrace_invop_uninit(void);
 
 static struct cdevsw dtrace_cdevsw = {
 	.d_version	= D_VERSION,
+	.d_flags	= D_NEEDMINOR,
 	.d_close	= dtrace_close,
 	.d_ioctl	= dtrace_ioctl,
 	.d_open		= dtrace_open,
