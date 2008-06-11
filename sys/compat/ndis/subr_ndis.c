@@ -1018,7 +1018,7 @@ NdisWriteErrorLogEntry(ndis_handle adapter, ndis_error_code code,
 	sc = device_get_softc(dev);
 	ifp = sc->ifp;
 
-	if (ifp->if_flags & IFF_DEBUG) {
+	if (ifp != NULL && ifp->if_flags & IFF_DEBUG) {
 		error = pe_get_message((vm_offset_t)drv->dro_driverstart,
 		    code, &str, &i, &flags);
 		if (error == 0) {
@@ -1036,7 +1036,7 @@ NdisWriteErrorLogEntry(ndis_handle adapter, ndis_error_code code,
 	device_printf (dev, "NDIS ERROR: %x (%s)\n", code,
 	    str == NULL ? "unknown error" : str);
 
-	if (ifp->if_flags & IFF_DEBUG) {
+	if (ifp != NULL && ifp->if_flags & IFF_DEBUG) {
 		device_printf (dev, "NDIS NUMERRORS: %x\n", numerrors);
 		va_start(ap, numerrors);
 		for (i = 0; i < numerrors; i++)
