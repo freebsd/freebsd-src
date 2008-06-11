@@ -611,7 +611,6 @@ static int
 ata_pcichannel_attach(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
-    struct ata_channel *ch = device_get_softc(dev);
     int error;
 
     if (ctlr->dmainit)
@@ -620,11 +619,7 @@ ata_pcichannel_attach(device_t dev)
     if ((error = ctlr->allocate(dev)))
 	return error;
 
-    if ((error = ata_attach(dev)))
-	return error;
-
-    ch->dma.alloc(dev);
-    return 0;
+    return ata_attach(dev);
 }
 
 static int
