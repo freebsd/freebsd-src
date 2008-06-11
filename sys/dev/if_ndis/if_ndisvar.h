@@ -129,7 +129,7 @@ struct ndis_softc {
 	struct resource		*ndis_res_cm;	/* common mem (pccard) */
 	struct resource_list	ndis_rl;
 	int			ndis_rescnt;
-	kspin_lock		ndis_spinlock;
+	struct mtx		ndis_mtx;
 	uint8_t			ndis_irql;
 	device_t		ndis_dev;
 	int			ndis_unit;
@@ -185,7 +185,5 @@ struct ndis_softc {
 	int			ndis_hang_timer;
 };
 
-#define NDIS_LOCK(_sc)		KeAcquireSpinLock(&(_sc)->ndis_spinlock, \
-				    &(_sc)->ndis_irql);
-#define NDIS_UNLOCK(_sc)	KeReleaseSpinLock(&(_sc)->ndis_spinlock, \
-				    (_sc)->ndis_irql);
+#define NDIS_LOCK(_sc)		mtx_lock(&(_sc)->ndis_mtx)
+#define NDIS_UNLOCK(_sc)	mtx_unlock(&(_sc)->ndis_mtx)
