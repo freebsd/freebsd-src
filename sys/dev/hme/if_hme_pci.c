@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2000 Matthew R. Green
+ * Copyright (c) 2007 Marius Strobl <marius@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -72,11 +73,7 @@ __FBSDID("$FreeBSD$");
 struct hme_pci_softc {
 	struct	hme_softc	hsc_hme;	/* HME device */
 	struct	resource	*hsc_sres;
-	int			hsc_srid;
 	struct	resource	*hsc_ires;
-	int			hsc_irid;
-	bus_space_tag_t		hsc_memt;
-	bus_space_handle_t	hsc_memh;
 	void			*hsc_ih;
 };
 
@@ -127,7 +124,7 @@ hme_pci_probe(device_t dev)
 {
 
 	if (pci_get_vendor(dev) == PCI_VENDOR_SUN &&
-	    pci_get_device(dev) ==  PCI_PRODUCT_SUN_HMENETWORK) {
+	    pci_get_device(dev) == PCI_PRODUCT_SUN_HMENETWORK) {
 		device_set_desc(dev, "Sun HME 10/100 Ethernet");
 		return (BUS_PROBE_DEFAULT);
 	}
@@ -137,44 +134,27 @@ hme_pci_probe(device_t dev)
 int
 hme_pci_attach(device_t dev)
 {
-	struct hme_pci_softc *hsc = device_get_softc(dev);
-	struct hme_softc *sc = &hsc->hsc_hme;
-	int error = 0;
+	struct hme_pci_softc *hsc;
+	struct hme_softc *sc;
+	bus_space_tag_t	memt;
+	bus_space_handle_t memh;
+	int i, error = 0;
 #if !(defined(__powerpc__) || defined(__sparc64__))
 	device_t *children, ebus_dev;
 	struct resource *ebus_rres;
-	bus_space_handle_t romh;
-	bus_space_tag_t romt;
-	int dataoff, ebus_rrid, slot, vpdoff;
-	int i, nchildren;
-	uint8_t buf[32];
-	static const uint8_t promhdr[] = { 0x55, 0xaa };
-#define	PROMHDR_PTR_DATA	0x18
-	static const uint8_t promdat[] = {
-		0x50, 0x43, 0x49, 0x52,	/* "PCIR" */
-		PCI_VENDOR_SUN & 0xff, PCI_VENDOR_SUN >> 8,
-		PCI_PRODUCT_SUN_HMENETWORK & 0xff,
-		PCI_PRODUCT_SUN_HMENETWORK >> 8
-	};
-#define	PROMDATA_PTR_VPD	0x08
-	struct pci_vpd {
-		 uint8_t	vpd_key0;
-		 uint8_t	vpd_key1;
-		 uint8_t	vpd_len;
-	} *vpd;
-#define	PCI_VPDRES_ISLARGE(x)			((x) & 0x80)
-#define	PCI_VPDRES_LARGE_NAME(x)		((x) & 0x7f)
-#define	PCI_VPDRES_TYPE_VPD			0x10	/* large */
+	int j, slot;
 #endif
 
 	pci_enable_busmaster(dev);
 	/*
 	 * Some Sun HMEs do have their intpin register bogusly set to 0,
-	 * although it should be 1. correct that.
+	 * although it should be 1.  Correct that.
 	 */
 	if (pci_get_intpin(dev) == 0)
 		pci_set_intpin(dev, 1);
 
+	hsc = device_get_softc(dev);
+	sc = &hsc->hsc_hme;
 	sc->sc_dev = dev;
 	sc->sc_flags |= HME_PCI;
 	mtx_init(&sc->sc_lock, device_get_nameunit(dev), MTX_NETWORK_LOCK,
@@ -190,36 +170,31 @@ hme_pci_attach(device_t dev)
 	 *	bank 4: HME MIF registers:	+0x7000
 	 *
 	 */
-	hsc->hsc_srid = PCIR_BAR(0);
-	hsc->hsc_sres = bus_alloc_resource_any(dev, SYS_RES_MEMORY, 
-	    &hsc->hsc_srid, RF_ACTIVE);
+	i = PCIR_BAR(0);
+	hsc->hsc_sres = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
+	    &i, RF_ACTIVE);
 	if (hsc->hsc_sres == NULL) {
 		device_printf(dev, "could not map device registers\n");
 		error = ENXIO;
 		goto fail_mtx;
 	}
-	hsc->hsc_irid = 0;
-	hsc->hsc_ires = bus_alloc_resource_any(dev, SYS_RES_IRQ, 
-	    &hsc->hsc_irid, RF_SHAREABLE | RF_ACTIVE);
+	i = 0;
+	hsc->hsc_ires = bus_alloc_resource_any(dev, SYS_RES_IRQ,
+	    &i, RF_SHAREABLE | RF_ACTIVE);
 	if (hsc->hsc_ires == NULL) {
 		device_printf(dev, "could not allocate interrupt\n");
 		error = ENXIO;
 		goto fail_sres;
 	}
-	hsc->hsc_memt = rman_get_bustag(hsc->hsc_sres);
-	hsc->hsc_memh = rman_get_bushandle(hsc->hsc_sres);
+	memt = rman_get_bustag(hsc->hsc_sres);
+	memh = rman_get_bushandle(hsc->hsc_sres);
 	sc->sc_sebt = sc->sc_etxt = sc->sc_erxt = sc->sc_mact = sc->sc_mift =
-	    hsc->hsc_memt;
-	bus_space_subregion(hsc->hsc_memt, hsc->hsc_memh, 0x0000, 0x1000,
-	    &sc->sc_sebh);
-	bus_space_subregion(hsc->hsc_memt, hsc->hsc_memh, 0x2000, 0x1000,
-	    &sc->sc_etxh);
-	bus_space_subregion(hsc->hsc_memt, hsc->hsc_memh, 0x4000, 0x1000,
-	    &sc->sc_erxh);
-	bus_space_subregion(hsc->hsc_memt, hsc->hsc_memh, 0x6000, 0x1000,
-	    &sc->sc_mach);
-	bus_space_subregion(hsc->hsc_memt, hsc->hsc_memh, 0x7000, 0x1000,
-	    &sc->sc_mifh);
+	    memt;
+	bus_space_subregion(memt, memh, 0x0000, 0x1000, &sc->sc_sebh);
+	bus_space_subregion(memt, memh, 0x2000, 0x1000, &sc->sc_etxh);
+	bus_space_subregion(memt, memh, 0x4000, 0x1000, &sc->sc_erxh);
+	bus_space_subregion(memt, memh, 0x6000, 0x1000, &sc->sc_mach);
+	bus_space_subregion(memt, memh, 0x7000, 0x1000, &sc->sc_mifh);
 
 #if defined(__powerpc__) || defined(__sparc64__)
 	OF_getetheraddr(dev, sc->sc_enaddr);
@@ -238,25 +213,53 @@ hme_pci_attach(device_t dev)
 	 * chapter 2 describes the data structure.
 	 *
 	 * We don't have a MI EBus driver since no EBus device exists
-	 * (besides the FCode PROM) on add-on HME boards. The ``no driver
+	 * (besides the FCode PROM) on add-on HME boards.  The ``no driver
 	 * attached'' message for function 0 therefore is what is expected.
 	 */
 
+#define	PCI_ROMHDR_SIZE			0x1c
+#define	PCI_ROMHDR_SIG			0x00
+#define	PCI_ROMHDR_SIG_MAGIC		0xaa55		/* little endian */
+#define	PCI_ROMHDR_PTR_DATA		0x18
+#define	PCI_ROM_SIZE			0x18
+#define	PCI_ROM_SIG			0x00
+#define	PCI_ROM_SIG_MAGIC		0x52494350	/* "PCIR", endian */
+							/* reversed */
+#define	PCI_ROM_VENDOR			0x04
+#define	PCI_ROM_DEVICE			0x06
+#define	PCI_ROM_PTR_VPD			0x08
+#define	PCI_VPDRES_BYTE0		0x00
+#define	PCI_VPDRES_ISLARGE(x)		((x) & 0x80)
+#define	PCI_VPDRES_LARGE_NAME(x)	((x) & 0x7f)
+#define	PCI_VPDRES_TYPE_VPD		0x10		/* large */
+#define	PCI_VPDRES_LARGE_LEN_LSB	0x01
+#define	PCI_VPDRES_LARGE_LEN_MSB	0x02
+#define	PCI_VPDRES_LARGE_DATA		0x03
+#define	PCI_VPD_SIZE			0x03
+#define	PCI_VPD_KEY0			0x00
+#define	PCI_VPD_KEY1			0x01
+#define	PCI_VPD_LEN			0x02
+#define	PCI_VPD_DATA			0x03
+
+#define	HME_ROM_READ_N(n, offs)	bus_space_read_ ## n (memt, memh, (offs))
+#define	HME_ROM_READ_1(offs)	HME_ROM_READ_N(1, (offs))
+#define	HME_ROM_READ_2(offs)	HME_ROM_READ_N(2, (offs))
+#define	HME_ROM_READ_4(offs)	HME_ROM_READ_N(4, (offs))
+
 	/* Search accompanying EBus bridge. */
 	slot = pci_get_slot(dev);
-	if (device_get_children(device_get_parent(dev), &children,
-	    &nchildren) != 0) {
+	if (device_get_children(device_get_parent(dev), &children, &i) != 0) {
 		device_printf(dev, "could not get children\n");
 		error = ENXIO;
 		goto fail_sres;
 	}
 	ebus_dev = NULL;
-	for (i = 0; i < nchildren; i++) {
-		if (pci_get_class(children[i]) == PCIC_BRIDGE &&
-		    pci_get_vendor(children[i]) == PCI_VENDOR_SUN &&
-		    pci_get_device(children[i]) ==  PCI_PRODUCT_SUN_EBUS &&
-		    pci_get_slot(children[i]) == slot) {
-			ebus_dev = children[i];
+	for (j = 0; j < i; j++) {
+		if (pci_get_class(children[j]) == PCIC_BRIDGE &&
+		    pci_get_vendor(children[j]) == PCI_VENDOR_SUN &&
+		    pci_get_device(children[j]) == PCI_PRODUCT_SUN_EBUS &&
+		    pci_get_slot(children[j]) == slot) {
+			ebus_dev = children[j];
 			break;
 		}
 	}
@@ -267,33 +270,30 @@ hme_pci_attach(device_t dev)
 	}
 
 	/* Map EBus bridge PROM registers. */
-#define	PCI_EBUS2_BOOTROM	0x10
-	ebus_rrid = PCI_EBUS2_BOOTROM;
+	i = PCIR_BAR(0);
 	if ((ebus_rres = bus_alloc_resource_any(ebus_dev, SYS_RES_MEMORY,
-	    &ebus_rrid, RF_ACTIVE)) == NULL) {
+	    &i, RF_ACTIVE)) == NULL) {
 		device_printf(dev, "could not map PROM registers\n");
 		error = ENXIO;
 		goto fail_children;
 	}
-	romt = rman_get_bustag(ebus_rres);
-	romh = rman_get_bushandle(ebus_rres);
+	memt = rman_get_bustag(ebus_rres);
+	memh = rman_get_bushandle(ebus_rres);
 
-	/* Read PCI expansion PROM header. */
-	bus_space_read_region_1(romt, romh, 0, buf, sizeof(buf));
-	if (memcmp(buf, promhdr, sizeof(promhdr)) != 0 ||
-	    (dataoff = (buf[PROMHDR_PTR_DATA] |
-	    (buf[PROMHDR_PTR_DATA + 1] << 8))) < 0x1c) {
-		device_printf(dev, "unexpected PCI expansion PROM header\n");
+	/* Read PCI Expansion ROM header. */
+	if (HME_ROM_READ_2(PCI_ROMHDR_SIG) != PCI_ROMHDR_SIG_MAGIC ||
+	    (i = HME_ROM_READ_2(PCI_ROMHDR_PTR_DATA)) < PCI_ROMHDR_SIZE) {
+		device_printf(dev, "unexpected PCI Expansion ROM header\n");
 		error = ENXIO;
 		goto fail_rres;
 	}
 
-	/* Read PCI expansion PROM data. */
-	bus_space_read_region_1(romt, romh, dataoff, buf, sizeof(buf));
-	if (memcmp(buf, promdat, sizeof(promdat)) != 0 ||
-	    (vpdoff = (buf[PROMDATA_PTR_VPD] |
-	    (buf[PROMDATA_PTR_VPD + 1] << 8))) < 0x1c) {
-		device_printf(dev, "unexpected PCI expansion PROM data\n");
+	/* Read PCI Expansion ROM data. */
+	if (HME_ROM_READ_4(i + PCI_ROM_SIG) != PCI_ROM_SIG_MAGIC ||
+	    HME_ROM_READ_2(i + PCI_ROM_VENDOR) != pci_get_vendor(dev) ||
+	    HME_ROM_READ_2(i + PCI_ROM_DEVICE) != pci_get_device(dev) ||
+	    (j = HME_ROM_READ_2(i + PCI_ROM_PTR_VPD)) < i + PCI_ROM_SIZE) {
+		device_printf(dev, "unexpected PCI Expansion ROM data\n");
 		error = ENXIO;
 		goto fail_rres;
 	}
@@ -301,39 +301,45 @@ hme_pci_attach(device_t dev)
 	/*
 	 * Read PCI VPD.
 	 * SUNW,hme cards have a single large resource VPD-R tag
-	 * containing one NA. SUNW,qfe cards have four large resource
+	 * containing one NA.  SUNW,qfe cards have four large resource
 	 * VPD-R tags containing one NA each (all four HME chips share
 	 * the same PROM).
 	 * The VPD used on both cards is not in PCI 2.2 standard format
-	 * however. The length in the resource header is in big endian
+	 * however.  The length in the resource header is in big endian
 	 * and the end tag is non-standard (0x79) and followed by an
-	 * all-zero "checksum" byte. Sun calls this a "Fresh Choice
+	 * all-zero "checksum" byte.  Sun calls this a "Fresh Choice
 	 * Ethernet" VPD...
 	 */
 	/* Look at the end tag to determine whether this is a VPD with 4 NAs. */
-	if (bus_space_read_1(romt, romh,
-	    vpdoff + 3 + sizeof(struct pci_vpd) + ETHER_ADDR_LEN) != 0x79 &&
-	    bus_space_read_1(romt, romh,
-	    vpdoff + 4 * (3 + sizeof(struct pci_vpd) + ETHER_ADDR_LEN)) == 0x79)
+	if (HME_ROM_READ_1(j + PCI_VPDRES_LARGE_DATA + PCI_VPD_SIZE +
+	    ETHER_ADDR_LEN) != 0x79 &&
+	    HME_ROM_READ_1(j + 4 * (PCI_VPDRES_LARGE_DATA + PCI_VPD_SIZE +
+	    ETHER_ADDR_LEN)) == 0x79)
 		/* Use the Nth NA for the Nth HME on this SUNW,qfe. */
-		vpdoff += slot * (3 + sizeof(struct pci_vpd) + ETHER_ADDR_LEN);
-	bus_space_read_region_1(romt, romh, vpdoff, buf, sizeof(buf));
-	vpd = (void *)(buf + 3);
-	if (PCI_VPDRES_ISLARGE(buf[0]) == 0 ||
-	    PCI_VPDRES_LARGE_NAME(buf[0]) != PCI_VPDRES_TYPE_VPD ||
-	    (buf[1] << 8 | buf[2]) != sizeof(struct pci_vpd) + ETHER_ADDR_LEN ||
-	    vpd->vpd_key0 != 0x4e /* N */ ||
-	    vpd->vpd_key1 != 0x41 /* A */ ||
-	    vpd->vpd_len != ETHER_ADDR_LEN) {
+		j += slot * (PCI_VPDRES_LARGE_DATA + PCI_VPD_SIZE +
+		    ETHER_ADDR_LEN);
+	if (PCI_VPDRES_ISLARGE(HME_ROM_READ_1(j + PCI_VPDRES_BYTE0)) == 0 ||
+	    PCI_VPDRES_LARGE_NAME(HME_ROM_READ_1(j + PCI_VPDRES_BYTE0)) !=
+	    PCI_VPDRES_TYPE_VPD ||
+	    (HME_ROM_READ_1(j + PCI_VPDRES_LARGE_LEN_LSB) << 8 |
+	    HME_ROM_READ_1(j + PCI_VPDRES_LARGE_LEN_MSB)) !=
+	    PCI_VPD_SIZE + ETHER_ADDR_LEN ||
+	    HME_ROM_READ_1(j + PCI_VPDRES_LARGE_DATA + PCI_VPD_KEY0) !=
+	    0x4e /* N */ ||
+	    HME_ROM_READ_1(j + PCI_VPDRES_LARGE_DATA + PCI_VPD_KEY1) !=
+	    0x41 /* A */ ||
+	    HME_ROM_READ_1(j + PCI_VPDRES_LARGE_DATA + PCI_VPD_LEN) !=
+	    ETHER_ADDR_LEN) {
 		device_printf(dev, "unexpected PCI VPD\n");
 		error = ENXIO;
 		goto fail_rres;
 	}
-	bcopy(buf + 3 + sizeof(struct pci_vpd), sc->sc_enaddr,
-	    ETHER_ADDR_LEN);
+	bus_space_read_region_1(memt, memh, j + PCI_VPDRES_LARGE_DATA +
+	    PCI_VPD_DATA, sc->sc_enaddr, ETHER_ADDR_LEN);
 
 fail_rres:
-	bus_release_resource(ebus_dev, SYS_RES_MEMORY, ebus_rrid, ebus_rres);
+	bus_release_resource(ebus_dev, SYS_RES_MEMORY,
+	    rman_get_rid(ebus_rres), ebus_rres);
 fail_children:
 	free(children, M_TEMP);
 	if (error != 0)
@@ -359,9 +365,11 @@ fail_children:
 	return (0);
 
 fail_ires:
-	bus_release_resource(dev, SYS_RES_IRQ, hsc->hsc_irid, hsc->hsc_ires);
+	bus_release_resource(dev, SYS_RES_IRQ,
+	    rman_get_rid(hsc->hsc_ires), hsc->hsc_ires);
 fail_sres:
-	bus_release_resource(dev, SYS_RES_MEMORY, hsc->hsc_srid, hsc->hsc_sres);
+	bus_release_resource(dev, SYS_RES_MEMORY,
+	    rman_get_rid(hsc->hsc_sres), hsc->hsc_sres);
 fail_mtx:
 	mtx_destroy(&sc->sc_lock);
 	return (error);
@@ -370,13 +378,17 @@ fail_mtx:
 static int
 hme_pci_detach(device_t dev)
 {
-	struct hme_pci_softc *hsc = device_get_softc(dev);
-	struct hme_softc *sc = &hsc->hsc_hme;
+	struct hme_pci_softc *hsc;
+	struct hme_softc *sc;
 
+	hsc = device_get_softc(dev);
+	sc = &hsc->hsc_hme;
 	bus_teardown_intr(dev, hsc->hsc_ires, hsc->hsc_ih);
 	hme_detach(sc);
-	bus_release_resource(dev, SYS_RES_IRQ, hsc->hsc_irid, hsc->hsc_ires);
-	bus_release_resource(dev, SYS_RES_MEMORY, hsc->hsc_srid, hsc->hsc_sres);
+	bus_release_resource(dev, SYS_RES_IRQ,
+	    rman_get_rid(hsc->hsc_ires), hsc->hsc_ires);
+	bus_release_resource(dev, SYS_RES_MEMORY,
+	    rman_get_rid(hsc->hsc_sres), hsc->hsc_sres);
 	mtx_destroy(&sc->sc_lock);
 	return (0);
 }
@@ -384,19 +396,19 @@ hme_pci_detach(device_t dev)
 static int
 hme_pci_suspend(device_t dev)
 {
-	struct hme_pci_softc *hsc = device_get_softc(dev);
-	struct hme_softc *sc = &hsc->hsc_hme;
+	struct hme_pci_softc *hsc;
 
-	hme_suspend(sc);
+	hsc = device_get_softc(dev);
+	hme_suspend(&hsc->hsc_hme);
 	return (0);
 }
 
 static int
 hme_pci_resume(device_t dev)
 {
-	struct hme_pci_softc *hsc = device_get_softc(dev);
-	struct hme_softc *sc = &hsc->hsc_hme;
+	struct hme_pci_softc *hsc;
 
-	hme_resume(sc);
+	hsc = device_get_softc(dev);
+	hme_resume(&hsc->hsc_hme);
 	return (0);
 }
