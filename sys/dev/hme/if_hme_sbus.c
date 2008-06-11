@@ -260,8 +260,8 @@ hme_sbus_attach(device_t dev)
 	else
 		 sc->sc_burst = 0;
 
-	sc->sc_pci = 0;	/* XXX: should all be done in bus_dma. */
 	sc->sc_dev = dev;
+	sc->sc_flags = 0;
 
 	if ((error = hme_config(sc)) != 0) {
 		device_printf(dev, "could not be configured\n");

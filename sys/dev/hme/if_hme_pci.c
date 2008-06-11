@@ -175,8 +175,8 @@ hme_pci_attach(device_t dev)
 	if (pci_get_intpin(dev) == 0)
 		pci_set_intpin(dev, 1);
 
-	sc->sc_pci = 1;
 	sc->sc_dev = dev;
+	sc->sc_flags |= HME_PCI;
 	mtx_init(&sc->sc_lock, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF);
 
@@ -190,7 +190,7 @@ hme_pci_attach(device_t dev)
 	 *	bank 4: HME MIF registers:	+0x7000
 	 *
 	 */
-	hsc->hsc_srid = PCI_HME_BASEADDR;
+	hsc->hsc_srid = PCIR_BAR(0);
 	hsc->hsc_sres = bus_alloc_resource_any(dev, SYS_RES_MEMORY, 
 	    &hsc->hsc_srid, RF_ACTIVE);
 	if (hsc->hsc_sres == NULL) {
