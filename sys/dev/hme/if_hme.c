@@ -34,7 +34,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- *	from: NetBSD: hme.c,v 1.35 2003/02/27 14:58:22 pk Exp
+ *	from: NetBSD: hme.c,v 1.45 2005/02/18 00:22:11 heas Exp
  */
 
 #include <sys/cdefs.h>
@@ -61,7 +61,9 @@ __FBSDID("$FreeBSD$");
  * can be reactivated by setting special link option link0 with ifconfig(8).
  */
 #define HME_CSUM_FEATURES	(CSUM_TCP)
+#if 0
 #define HMEDEBUG
+#endif
 #define	KTR_HME		KTR_CT2		/* XXX */
 
 #include <sys/param.h>
@@ -99,6 +101,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/hme/if_hmereg.h>
 #include <dev/hme/if_hmevar.h>
 
+CTASSERT(powerof2(HME_NRXDESC) && HME_NRXDESC >= 32 && HME_NRXDESC <= 256);
+CTASSERT(HME_NTXDESC % 16 == 0 && HME_NTXDESC >= 16 && HME_NTXDESC <= 256);
+
 static void	hme_start(struct ifnet *);
 static void	hme_start_locked(struct ifnet *);
 static void	hme_stop(struct hme_softc *);
@@ -123,7 +128,6 @@ static void	hme_read(struct hme_softc *, int, int, u_int32_t);
 static void	hme_eint(struct hme_softc *, u_int);
 static void	hme_rint(struct hme_softc *);
 static void	hme_tint(struct hme_softc *);
-static void	hme_txcksum(struct mbuf *, u_int32_t *);
 static void	hme_rxcksum(struct mbuf *, u_int32_t);
 
 static void	hme_cdma_callback(void *, bus_dma_segment_t *, int, int);
@@ -141,17 +145,30 @@ MODULE_DEPEND(hme, miibus, 1, 1, 1);
 #define	HME_SPC_WRITE_4(spc, sc, offs, v) \
 	bus_space_write_4((sc)->sc_ ## spc ## t, (sc)->sc_ ## spc ## h, \
 	    (offs), (v))
+#define	HME_SPC_BARRIER(spc, sc, offs, l, f) \
+	bus_space_barrier((sc)->sc_ ## spc ## t, (sc)->sc_ ## spc ## h, \
+	    (offs), (l), (f))
 
 #define	HME_SEB_READ_4(sc, offs)	HME_SPC_READ_4(seb, (sc), (offs))
 #define	HME_SEB_WRITE_4(sc, offs, v)	HME_SPC_WRITE_4(seb, (sc), (offs), (v))
+#define	HME_SEB_BARRIER(sc, offs, l, f) \
+	HME_SPC_BARRIER(seb, (sc), (offs), (l), (f))
 #define	HME_ERX_READ_4(sc, offs)	HME_SPC_READ_4(erx, (sc), (offs))
 #define	HME_ERX_WRITE_4(sc, offs, v)	HME_SPC_WRITE_4(erx, (sc), (offs), (v))
+#define	HME_ERX_BARRIER(sc, offs, l, f) \
+	HME_SPC_BARRIER(erx, (sc), (offs), (l), (f))
 #define	HME_ETX_READ_4(sc, offs)	HME_SPC_READ_4(etx, (sc), (offs))
 #define	HME_ETX_WRITE_4(sc, offs, v)	HME_SPC_WRITE_4(etx, (sc), (offs), (v))
+#define	HME_ETX_BARRIER(sc, offs, l, f) \
+	HME_SPC_BARRIER(etx, (sc), (offs), (l), (f))
 #define	HME_MAC_READ_4(sc, offs)	HME_SPC_READ_4(mac, (sc), (offs))
 #define	HME_MAC_WRITE_4(sc, offs, v)	HME_SPC_WRITE_4(mac, (sc), (offs), (v))
+#define	HME_MAC_BARRIER(sc, offs, l, f) \
+	HME_SPC_BARRIER(mac, (sc), (offs), (l), (f))
 #define	HME_MIF_READ_4(sc, offs)	HME_SPC_READ_4(mif, (sc), (offs))
 #define	HME_MIF_WRITE_4(sc, offs, v)	HME_SPC_WRITE_4(mif, (sc), (offs), (v))
+#define	HME_MIF_BARRIER(sc, offs, l, f) \
+	HME_SPC_BARRIER(mif, (sc), (offs), (l), (f))
 
 #define	HME_MAXERR	5
 #define	HME_WHINE(dev, ...) do {					\
@@ -205,55 +222,52 @@ hme_config(struct hme_softc *sc)
 	hme_stop(sc);
 	HME_UNLOCK(sc);
 
+	error = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev), 1, 0,
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
+	    BUS_SPACE_MAXSIZE_32BIT, 0, BUS_SPACE_MAXSIZE_32BIT, 0,
+	    NULL, NULL, &sc->sc_pdmatag);
+	if (error)
+		goto fail_ifnet;
+
 	/*
-	 * Allocate DMA capable memory
+	 * Create control, RX and TX mbuf DMA tags.
 	 * Buffer descriptors must be aligned on a 2048 byte boundary;
 	 * take this into account when calculating the size. Note that
 	 * the maximum number of descriptors (256) occupies 2048 bytes,
 	 * so we allocate that much regardless of HME_N*DESC.
 	 */
-	size =	4096;
-
-	error = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev), 1, 0,
-	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, size,
-	    HME_NTXDESC + HME_NRXDESC + 1, BUS_SPACE_MAXSIZE_32BIT, 0,
-	    NULL, NULL, &sc->sc_pdmatag);
-	if (error)
-		goto fail_ifnet;
-
+	size = 4096;
 	error = bus_dma_tag_create(sc->sc_pdmatag, 2048, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, size,
-	    1, BUS_SPACE_MAXSIZE_32BIT, 0, busdma_lock_mutex,
-	    &sc->sc_lock, &sc->sc_cdmatag);
+	    1, size, 0, busdma_lock_mutex, &sc->sc_lock, &sc->sc_cdmatag);
 	if (error)
 		goto fail_ptag;
 
 	error = bus_dma_tag_create(sc->sc_pdmatag, max(0x10, sc->sc_burst), 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES,
-	    HME_NRXDESC, BUS_SPACE_MAXSIZE_32BIT, BUS_DMA_ALLOCNOW,
-	    NULL, NULL, &sc->sc_rdmatag);
+	    1, MCLBYTES, BUS_DMA_ALLOCNOW, NULL, NULL, &sc->sc_rdmatag);
 	if (error)
 		goto fail_ctag;
 
 	error = bus_dma_tag_create(sc->sc_pdmatag, max(0x10, sc->sc_burst), 0,
-	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES,
-	    HME_NTXDESC, BUS_SPACE_MAXSIZE_32BIT, BUS_DMA_ALLOCNOW,
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
+	    MCLBYTES * HME_NTXSEGS, HME_NTXSEGS, MCLBYTES, BUS_DMA_ALLOCNOW,
 	    NULL, NULL, &sc->sc_tdmatag);
 	if (error)
 		goto fail_rtag;
 
-	/* Allocate control/TX DMA buffer */
+	/* Allocate the control DMA buffer. */
 	error = bus_dmamem_alloc(sc->sc_cdmatag, (void **)&sc->sc_rb.rb_membase,
-	    0, &sc->sc_cdmamap);
+	    BUS_DMA_WAITOK | BUS_DMA_COHERENT | BUS_DMA_ZERO, &sc->sc_cdmamap);
 	if (error != 0) {
 		device_printf(sc->sc_dev, "DMA buffer alloc error %d\n", error);
 		goto fail_ttag;
 	}
 
-	/* Load the buffer */
+	/* Load the control DMA buffer. */
 	sc->sc_rb.rb_dmabase = 0;
 	if ((error = bus_dmamap_load(sc->sc_cdmatag, sc->sc_cdmamap,
-	     sc->sc_rb.rb_membase, size, hme_cdma_callback, sc, 0)) != 0 ||
+	    sc->sc_rb.rb_membase, size, hme_cdma_callback, sc, 0)) != 0 ||
 	    sc->sc_rb.rb_dmabase == 0) {
 		device_printf(sc->sc_dev, "DMA buffer map load error %d\n",
 		    error);
@@ -397,8 +411,8 @@ hme_detach(struct hme_softc *sc)
 		bus_dmamap_destroy(sc->sc_rdmatag,
 		    sc->sc_rb.rb_rxdesc[i].hrx_dmamap);
 	}
-	bus_dmamap_sync(sc->sc_cdmatag, sc->sc_cdmamap, BUS_DMASYNC_POSTREAD);
-	bus_dmamap_sync(sc->sc_cdmatag, sc->sc_cdmamap, BUS_DMASYNC_POSTWRITE);
+	bus_dmamap_sync(sc->sc_cdmatag, sc->sc_cdmamap,
+	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
 	bus_dmamap_unload(sc->sc_cdmatag, sc->sc_cdmamap);
 	bus_dmamem_free(sc->sc_cdmatag, sc->sc_rb.rb_membase, sc->sc_cdmamap);
 	bus_dma_tag_destroy(sc->sc_tdmatag);
@@ -434,7 +448,8 @@ hme_cdma_callback(void *xsc, bus_dma_segment_t *segs, int nsegs, int error)
 
 	if (error != 0)
 		return;
-	KASSERT(nsegs == 1, ("hme_cdma_callback: bad dma segment count"));
+	KASSERT(nsegs == 1,
+	    ("%s: too many DMA segments (%d)", __func__, nsegs));
 	sc->sc_rb.rb_dmabase = segs[0].ds_addr;
 }
 
@@ -481,6 +496,7 @@ hme_stop(struct hme_softc *sc)
 	callout_stop(&sc->sc_tick_ch);
 	sc->sc_wdog_timer = 0;
 	sc->sc_ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
+	sc->sc_flags &= ~HME_LINK;
 
 	/* Mask all interrupts */
 	HME_SEB_WRITE_4(sc, HME_SEBI_IMASK, 0xffffffff);
@@ -488,7 +504,8 @@ hme_stop(struct hme_softc *sc)
 	/* Reset transmitter and receiver */
 	HME_SEB_WRITE_4(sc, HME_SEBI_RESET, HME_SEB_RESET_ETX |
 	    HME_SEB_RESET_ERX);
-
+	HME_SEB_BARRIER(sc, HME_SEBI_RESET, 4,
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 	for (n = 0; n < 20; n++) {
 		v = HME_SEB_READ_4(sc, HME_SEBI_RESET);
 		if ((v & (HME_SEB_RESET_ETX | HME_SEB_RESET_ERX)) == 0)
@@ -511,8 +528,9 @@ hme_discard_rxbuf(struct hme_softc *sc, int ix)
 	 * Dropped a packet, reinitialize the descriptor and turn the
 	 * ownership back to the hardware.
 	 */
-	HME_XD_SETFLAGS(sc->sc_pci, sc->sc_rb.rb_rxd, ix, HME_XD_OWN |
-	    HME_XD_ENCODE_RSIZE(HME_DESC_RXLEN(sc, &sc->sc_rb.rb_rxdesc[ix])));
+	HME_XD_SETFLAGS(sc->sc_flags & HME_PCI, sc->sc_rb.rb_rxd,
+	    ix, HME_XD_OWN | HME_XD_ENCODE_RSIZE(HME_DESC_RXLEN(sc,
+	    &sc->sc_rb.rb_rxdesc[ix])));
 }
 
 static int
@@ -558,8 +576,9 @@ hme_add_rxbuf(struct hme_softc *sc, unsigned int ri, int keepold)
 		m_freem(m);
 		return (ENOBUFS);
 	}
-	/* If nsegs is wrong then the stack is corrupt */
-	KASSERT(nsegs == 1, ("Too many segments returned!"));
+	/* If nsegs is wrong then the stack is corrupt. */
+	KASSERT(nsegs == 1,
+	    ("%s: too many DMA segments (%d)", __func__, nsegs));
 	if (unmap) {
 		bus_dmamap_sync(sc->sc_rdmatag, rd->hrx_dmamap,
 		    BUS_DMASYNC_POSTREAD);
@@ -569,10 +588,11 @@ hme_add_rxbuf(struct hme_softc *sc, unsigned int ri, int keepold)
 	rd->hrx_dmamap = sc->sc_rb.rb_spare_dmamap;
 	sc->sc_rb.rb_spare_dmamap = map;
 	bus_dmamap_sync(sc->sc_rdmatag, rd->hrx_dmamap, BUS_DMASYNC_PREREAD);
-	HME_XD_SETADDR(sc->sc_pci, sc->sc_rb.rb_rxd, ri, segs[0].ds_addr);
+	HME_XD_SETADDR(sc->sc_flags & HME_PCI, sc->sc_rb.rb_rxd, ri,
+	    segs[0].ds_addr);
 	rd->hrx_m = m;
-	HME_XD_SETFLAGS(sc->sc_pci, sc->sc_rb.rb_rxd, ri, HME_XD_OWN |
-	    HME_XD_ENCODE_RSIZE(HME_DESC_RXLEN(sc, rd)));
+	HME_XD_SETFLAGS(sc->sc_flags & HME_PCI, sc->sc_rb.rb_rxd, ri,
+	    HME_XD_OWN | HME_XD_ENCODE_RSIZE(HME_DESC_RXLEN(sc, rd)));
 	return (0);
 }
 
@@ -596,7 +616,10 @@ hme_meminit(struct hme_softc *sc)
 	hr->rb_txddma = dma;
 	p += HME_NTXDESC * HME_XD_SIZE;
 	dma += HME_NTXDESC * HME_XD_SIZE;
-	/* We have reserved descriptor space until the next 2048 byte boundary.*/
+	/*
+	 * We have reserved descriptor space until the next 2048 byte
+	 * boundary.
+	 */
 	dma = (bus_addr_t)roundup((u_long)dma, 2048);
 	p = (caddr_t)roundup((u_long)p, 2048);
 
@@ -615,8 +638,8 @@ hme_meminit(struct hme_softc *sc)
 	 * Initialize transmit buffer descriptors
 	 */
 	for (i = 0; i < HME_NTXDESC; i++) {
-		HME_XD_SETADDR(sc->sc_pci, hr->rb_txd, i, 0);
-		HME_XD_SETFLAGS(sc->sc_pci, hr->rb_txd, i, 0);
+		HME_XD_SETADDR(sc->sc_flags & HME_PCI, hr->rb_txd, i, 0);
+		HME_XD_SETFLAGS(sc->sc_flags & HME_PCI, hr->rb_txd, i, 0);
 	}
 
 	STAILQ_INIT(&sc->sc_rb.rb_txfreeq);
@@ -642,8 +665,8 @@ hme_meminit(struct hme_softc *sc)
 			return (error);
 	}
 
-	bus_dmamap_sync(sc->sc_cdmatag, sc->sc_cdmamap, BUS_DMASYNC_PREREAD);
-	bus_dmamap_sync(sc->sc_cdmatag, sc->sc_cdmamap, BUS_DMASYNC_PREWRITE);
+	bus_dmamap_sync(sc->sc_cdmatag, sc->sc_cdmamap,
+	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
 	hr->rb_tdhead = hr->rb_tdtail = 0;
 	hr->rb_td_nbusy = 0;
@@ -668,6 +691,8 @@ hme_mac_bitflip(struct hme_softc *sc, u_int32_t reg, u_int32_t val,
 	val &= ~clr;
 	val |= set;
 	HME_MAC_WRITE_4(sc, reg, val);
+	HME_MAC_BARRIER(sc, reg, 4,
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 	if (clr == 0 && set == 0)
 		return (1);	/* just write, no bits to wait for */
 	do {
@@ -738,7 +763,7 @@ hme_init_locked(struct hme_softc *sc)
 	HME_MAC_WRITE_4(sc, HME_MACI_TXSIZE, HME_MAX_FRAMESIZE);
 
 	/* Load station MAC address */
-	ea = IF_LLADDR(sc->sc_ifp);
+	ea = IF_LLADDR(ifp);
 	HME_MAC_WRITE_4(sc, HME_MACI_MACADDR0, (ea[0] << 8) | ea[1]);
 	HME_MAC_WRITE_4(sc, HME_MACI_MACADDR1, (ea[2] << 8) | ea[3]);
 	HME_MAC_WRITE_4(sc, HME_MACI_MACADDR2, (ea[4] << 8) | ea[5]);
@@ -793,8 +818,8 @@ hme_init_locked(struct hme_softc *sc)
 	 * Don't know this comes from hardware bug or driver's DMAing
 	 * scheme.
 	 *
-	 * if (sc->sc_pci == 0)
- 	 *	v |= HME_SEB_CFG_64BIT;
+	 * if (sc->sc_flags & HME_PCI == 0)
+	 *	v |= HME_SEB_CFG_64BIT;
 	 */
 	HME_SEB_WRITE_4(sc, HME_SEBI_CFG, v);
 
@@ -875,83 +900,70 @@ hme_init_locked(struct hme_softc *sc)
 	    HME_MAC_READ_4(sc, HME_MACI_TXCFG));
 #endif
 
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+
 	/* Set the current media. */
 	hme_mediachange_locked(sc);
 
 	/* Start the one second timer. */
 	sc->sc_wdog_timer = 0;
 	callout_reset(&sc->sc_tick_ch, hz, hme_tick, sc);
-
-	ifp->if_drv_flags |= IFF_DRV_RUNNING;
-	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-	hme_start_locked(ifp);
-}
-
-/* TX TCP/UDP checksum */
-static void
-hme_txcksum(struct mbuf *m, u_int32_t *cflags)
-{
-	struct ip *ip;
-	u_int32_t offset, offset2;
-	caddr_t p;
-
-	for(; m && m->m_len == 0; m = m->m_next)
-		;
-	if (m == NULL || m->m_len < ETHER_HDR_LEN) {
-		printf("hme_txcksum: m_len < ETHER_HDR_LEN\n");
-		return; /* checksum will be corrupted */
-	}
-	if (m->m_len < ETHER_HDR_LEN + sizeof(u_int32_t)) {
-		if (m->m_len != ETHER_HDR_LEN) {
-			printf("hme_txcksum: m_len != ETHER_HDR_LEN\n");
-			return;	/* checksum will be corrupted */
-		}
-		/* XXX */
-		for(m = m->m_next; m && m->m_len == 0; m = m->m_next)
-			;
-		if (m == NULL)
-			return; /* checksum will be corrupted */
-		ip = mtod(m, struct ip *);
-	} else {
-		p = mtod(m, caddr_t);
-		p += ETHER_HDR_LEN;
-		ip = (struct ip *)p;
-	}
-	offset2 = m->m_pkthdr.csum_data;
-	offset = (ip->ip_hl << 2) + ETHER_HDR_LEN;
-	*cflags = offset << HME_XD_TXCKSUM_SSHIFT;
-	*cflags |= ((offset + offset2) << HME_XD_TXCKSUM_OSHIFT); 
-	*cflags |= HME_XD_TXCKSUM;
 }
 
 /*
- * Routine to dma map an mbuf chain, set up the descriptor rings accordingly and
- * start the transmission.
- * Returns 0 on success, -1 if there were not enough free descriptors to map
- * the packet, or an errno otherwise.
+ * Routine to DMA map an mbuf chain, set up the descriptor rings
+ * accordingly and start the transmission.
+ * Returns 0 on success, -1 if there were not enough free descriptors
+ * to map the packet, or an errno otherwise.
  *
- * XXX: this relies on the fact that segments returned by bus_dmamap_load_mbuf()
- * are readable from the nearest burst boundary on (i.e. potentially before
- * ds_addr) to the first boundary beyond the end. This is usually a safe
- * assumption to make, but is not documented.
+ * XXX: this relies on the fact that segments returned by
+ * bus_dmamap_load_mbuf_sg() are readable from the nearest burst
+ * boundary on (i.e. potentially before ds_addr) to the first
+ * boundary beyond the end.  This is usually a safe assumption to
+ * make, but is not documented.
  */
 static int
 hme_load_txmbuf(struct hme_softc *sc, struct mbuf **m0)
 {
+	bus_dma_segment_t segs[HME_NTXSEGS];
 	struct hme_txdesc *htx;
+	struct ip *ip;
+	struct mbuf *m;
 	caddr_t txd;
-	int i, pci, si, ri, nseg;
-	u_int32_t flags, cflags = 0;
-	int error = 0;
+	int error, i, nsegs, pci, ri, si;
+	uint32_t cflags, flags;
 
 	if ((htx = STAILQ_FIRST(&sc->sc_rb.rb_txfreeq)) == NULL)
-		return (-1);
-	error = bus_dmamap_load_mbuf_sg(sc->sc_tdmatag, htx->htx_dmamap,
-	    *m0, sc->sc_rb.rb_txsegs, &nseg, 0);
-	if (error == EFBIG) {
-		struct mbuf *m;
+		return (ENOBUFS);
 
-		m = m_defrag(*m0, M_DONTWAIT);
+	cflags = 0;
+	if (((*m0)->m_pkthdr.csum_flags & sc->sc_csum_features) != 0) {
+		if (M_WRITABLE(*m0) == 0) {
+			m = m_dup(*m0, M_DONTWAIT);
+			m_freem(*m0);
+			*m0 = m;
+			if (m == NULL)
+				return (ENOBUFS);
+		}
+		i = sizeof(struct ether_header);
+		m = m_pullup(*m0, i + sizeof(struct ip));
+		if (m == NULL) {
+			*m0 = NULL;
+			return (ENOBUFS);
+		}
+		ip = (struct ip *)(mtod(m, caddr_t) + i);
+		i += (ip->ip_hl << 2);
+		cflags = i << HME_XD_TXCKSUM_SSHIFT |
+		    ((i + m->m_pkthdr.csum_data) << HME_XD_TXCKSUM_OSHIFT) |
+		    HME_XD_TXCKSUM;
+		*m0 = m;
+	}
+
+	error = bus_dmamap_load_mbuf_sg(sc->sc_tdmatag, htx->htx_dmamap,
+	    *m0, segs, &nsegs, 0);
+	if (error == EFBIG) {
+		m = m_collapse(*m0, M_DONTWAIT, HME_NTXSEGS);
 		if (m == NULL) {
 			m_freem(*m0);
 			*m0 = NULL;
@@ -959,7 +971,7 @@ hme_load_txmbuf(struct hme_softc *sc, struct mbuf **m0)
 		}
 		*m0 = m;
 		error = bus_dmamap_load_mbuf_sg(sc->sc_tdmatag, htx->htx_dmamap,
-		    *m0, sc->sc_rb.rb_txsegs, &nseg, 0);
+		    *m0, segs, &nsegs, 0);
 		if (error != 0) {
 			m_freem(*m0);
 			*m0 = NULL;
@@ -967,35 +979,36 @@ hme_load_txmbuf(struct hme_softc *sc, struct mbuf **m0)
 		}
 	} else if (error != 0)
 		return (error);
-	if (nseg == 0) {
+	/* If nsegs is wrong then the stack is corrupt. */
+	KASSERT(nsegs <= HME_NTXSEGS,
+	    ("%s: too many DMA segments (%d)", __func__, nsegs));
+	if (nsegs == 0) {
 		m_freem(*m0);
 		*m0 = NULL;
 		return (EIO);
 	}
-	if (sc->sc_rb.rb_td_nbusy + nseg >= HME_NTXDESC) {
+	if (sc->sc_rb.rb_td_nbusy + nsegs >= HME_NTXDESC) {
 		bus_dmamap_unload(sc->sc_tdmatag, htx->htx_dmamap);
-		/* retry with m_defrag(9)? */
-		return (-2);
+		/* Retry with m_collapse(9)? */
+		return (ENOBUFS);
 	}
-	if (((*m0)->m_pkthdr.csum_flags & sc->sc_csum_features) != 0)
-		hme_txcksum(*m0, &cflags);
 	bus_dmamap_sync(sc->sc_tdmatag, htx->htx_dmamap, BUS_DMASYNC_PREWRITE);
 
 	si = ri = sc->sc_rb.rb_tdhead;
 	txd = sc->sc_rb.rb_txd;
-	pci = sc->sc_pci;
+	pci = sc->sc_flags & HME_PCI;
 	CTR2(KTR_HME, "hme_load_mbuf: next desc is %d (%#x)", ri,
 	    HME_XD_GETFLAGS(pci, txd, ri));
-	for (i = 0; i < nseg; i++) {
+	for (i = 0; i < nsegs; i++) {
 		/* Fill the ring entry. */
-		flags = HME_XD_ENCODE_TSIZE(sc->sc_rb.rb_txsegs[i].ds_len);
+		flags = HME_XD_ENCODE_TSIZE(segs[i].ds_len);
 		if (i == 0)
 			flags |= HME_XD_SOP | cflags;
 		else
 			flags |= HME_XD_OWN | cflags;
 		CTR3(KTR_HME, "hme_load_mbuf: activating ri %d, si %d (%#x)",
 		    ri, si, flags);
-		HME_XD_SETADDR(pci, txd, ri, sc->sc_rb.rb_txsegs[i].ds_addr);
+		HME_XD_SETADDR(pci, txd, ri, segs[i].ds_addr);
 		HME_XD_SETFLAGS(pci, txd, ri, flags);
 		sc->sc_rb.rb_td_nbusy++;
 		htx->htx_lastdesc = ri;
@@ -1094,7 +1107,7 @@ hme_start_locked(struct ifnet *ifp)
 	int error, enq = 0;
 
 	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
-	    IFF_DRV_RUNNING)
+	    IFF_DRV_RUNNING || (sc->sc_flags & HME_LINK) == 0)
 		return;
 
 	for (; !IFQ_DRV_IS_EMPTY(&ifp->if_snd) &&
@@ -1117,7 +1130,7 @@ hme_start_locked(struct ifnet *ifp)
 
 	if (enq > 0) {
 		bus_dmamap_sync(sc->sc_cdmatag, sc->sc_cdmamap,
-		    BUS_DMASYNC_PREWRITE);
+		    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 		sc->sc_wdog_timer = 5;
 	}
 }
@@ -1143,7 +1156,7 @@ hme_tint(struct hme_softc *sc)
 			break;
 		}
 
-		txflags = HME_XD_GETFLAGS(sc->sc_pci, txd, ri);
+		txflags = HME_XD_GETFLAGS(sc->sc_flags & HME_PCI, txd, ri);
 		CTR2(KTR_HME, "hme_tint: index %d, flags %#x", ri, txflags);
 
 		if ((txflags & HME_XD_OWN) != 0)
@@ -1158,8 +1171,8 @@ hme_tint(struct hme_softc *sc)
 			continue;
 
 		KASSERT(htx->htx_lastdesc == ri,
-		    ("hme_tint: ring indices skewed: %d != %d!",
-		     htx->htx_lastdesc, ri));
+		    ("%s: ring indices skewed: %d != %d!",
+		    __func__, htx->htx_lastdesc, ri));
 		bus_dmamap_sync(sc->sc_tdmatag, htx->htx_dmamap,
 		    BUS_DMASYNC_POSTWRITE);
 		bus_dmamap_unload(sc->sc_tdmatag, htx->htx_dmamap);
@@ -1176,13 +1189,11 @@ hme_tint(struct hme_softc *sc)
 	/* Update ring */
 	sc->sc_rb.rb_tdtail = ri;
 
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
-	    !IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		hme_start_locked(ifp);
+	hme_start_locked(ifp);
 }
 
 /*
- * RX TCP/UDP checksum 
+ * RX TCP/UDP checksum
  */
 static void
 hme_rxcksum(struct mbuf *m, u_int32_t flags)
@@ -1263,7 +1274,7 @@ hme_rint(struct hme_softc *sc)
 	 */
 	bus_dmamap_sync(sc->sc_cdmatag, sc->sc_cdmamap, BUS_DMASYNC_POSTREAD);
 	for (ri = sc->sc_rb.rb_rdtail;; ri = (ri + 1) % HME_NRXDESC) {
-		flags = HME_XD_GETFLAGS(sc->sc_pci, xdr, ri);
+		flags = HME_XD_GETFLAGS(sc->sc_flags & HME_PCI, xdr, ri);
 		CTR2(KTR_HME, "hme_rint: index %d, flags %#x", ri, flags);
 		if ((flags & HME_XD_OWN) != 0)
 			break;
@@ -1281,7 +1292,7 @@ hme_rint(struct hme_softc *sc)
 	}
 	if (progress) {
 		bus_dmamap_sync(sc->sc_cdmatag, sc->sc_cdmamap,
-		    BUS_DMASYNC_PREWRITE);
+		    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 	}
 	sc->sc_rb.rb_rdtail = ri;
 }
@@ -1319,34 +1330,37 @@ hme_intr(void *v)
 	if ((status & HME_SEB_STAT_ALL_ERRORS) != 0)
 		hme_eint(sc, status);
 
-	if ((status & (HME_SEB_STAT_TXALL | HME_SEB_STAT_HOSTTOTX)) != 0)
-		hme_tint(sc);
-
 	if ((status & HME_SEB_STAT_RXTOHOST) != 0)
 		hme_rint(sc);
+
+	if ((status & (HME_SEB_STAT_TXALL | HME_SEB_STAT_HOSTTOTX)) != 0)
+		hme_tint(sc);
 	HME_UNLOCK(sc);
 }
 
 static int
 hme_watchdog(struct hme_softc *sc)
 {
-#ifdef HMEDEBUG
-	u_int32_t status;
-#endif
+	struct ifnet *ifp = sc->sc_ifp;
 
 	HME_LOCK_ASSERT(sc, MA_OWNED);
+
 #ifdef HMEDEBUG
-	status = HME_SEB_READ_4(sc, HME_SEBI_STAT);
-	CTR1(KTR_HME, "hme_watchdog: status %x", (u_int)status);
+	CTR1(KTR_HME, "hme_watchdog: status %x",
+	    (u_int)HME_SEB_READ_4(sc, HME_SEBI_STAT));
 #endif
 
 	if (sc->sc_wdog_timer == 0 || --sc->sc_wdog_timer != 0)
 		return (0);
 
-	device_printf(sc->sc_dev, "device timeout\n");
-	++sc->sc_ifp->if_oerrors;
+	if ((sc->sc_flags & HME_LINK) != 0)
+		device_printf(sc->sc_dev, "device timeout\n");
+	else if (bootverbose)
+		device_printf(sc->sc_dev, "device timeout (no link)\n");
+	++ifp->if_oerrors;
 
 	hme_init_locked(sc);
+	hme_start_locked(ifp);
 	return (EJUSTRETURN);
 }
 
@@ -1411,6 +1425,8 @@ hme_mii_readreg(device_t dev, int phy, int reg)
 	    (reg << HME_MIF_FO_REGAD_SHIFT);
 
 	HME_MIF_WRITE_4(sc, HME_MIFI_FO, v);
+	HME_MIF_BARRIER(sc, HME_MIFI_FO, 4,
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 	for (n = 0; n < 100; n++) {
 		DELAY(1);
 		v = HME_MIF_READ_4(sc, HME_MIFI_FO);
@@ -1451,6 +1467,8 @@ hme_mii_writereg(device_t dev, int phy, int reg, int val)
 	    (val & HME_MIF_FO_DATA);
 
 	HME_MIF_WRITE_4(sc, HME_MIFI_FO, v);
+	HME_MIF_BARRIER(sc, HME_MIFI_FO, 4,
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 	for (n = 0; n < 100; n++) {
 		DELAY(1);
 		v = HME_MIF_READ_4(sc, HME_MIFI_FO);
@@ -1466,26 +1484,46 @@ void
 hme_mii_statchg(device_t dev)
 {
 	struct hme_softc *sc;
-	u_int32_t v;
+	uint32_t rxcfg, txcfg;
 
 	sc = device_get_softc(dev);
 
 #ifdef HMEDEBUG
-	if (sc->sc_debug)
+	if ((sc->sc_ifp->if_flags & IFF_DEBUG) != 0)
 		device_printf(sc->sc_dev, "hme_mii_statchg: status change\n");
 #endif
 
-	/* Set the MAC Full Duplex bit appropriately */
-	v = HME_MAC_READ_4(sc, HME_MACI_TXCFG);
-	if (!hme_mac_bitflip(sc, HME_MACI_TXCFG, v, HME_MAC_TXCFG_ENABLE, 0))
-		return;
-	if ((IFM_OPTIONS(sc->sc_mii->mii_media_active) & IFM_FDX) != 0)
-		v |= HME_MAC_TXCFG_FULLDPLX;
+	if ((sc->sc_mii->mii_media_status & IFM_ACTIVE) != 0 &&
+	    IFM_SUBTYPE(sc->sc_mii->mii_media_active) != IFM_NONE)
+		sc->sc_flags |= HME_LINK;
 	else
-		v &= ~HME_MAC_TXCFG_FULLDPLX;
-	HME_MAC_WRITE_4(sc, HME_MACI_TXCFG, v);
-	if (!hme_mac_bitflip(sc, HME_MACI_TXCFG, v, 0, HME_MAC_TXCFG_ENABLE))
-		return;
+		sc->sc_flags &= ~HME_LINK;
+
+	txcfg = HME_MAC_READ_4(sc, HME_MACI_TXCFG);
+	if (!hme_mac_bitflip(sc, HME_MACI_TXCFG, txcfg,
+	    HME_MAC_TXCFG_ENABLE, 0))
+		device_printf(sc->sc_dev, "cannot disable TX MAC\n");
+	rxcfg = HME_MAC_READ_4(sc, HME_MACI_RXCFG);
+	if (!hme_mac_bitflip(sc, HME_MACI_RXCFG, rxcfg,
+	    HME_MAC_RXCFG_ENABLE, 0))
+		device_printf(sc->sc_dev, "cannot disable RX MAC\n");
+
+	/* Set the MAC Full Duplex bit appropriately. */
+	if ((IFM_OPTIONS(sc->sc_mii->mii_media_active) & IFM_FDX) != 0)
+		txcfg |= HME_MAC_TXCFG_FULLDPLX;
+	else
+		txcfg &= ~HME_MAC_TXCFG_FULLDPLX;
+	HME_MAC_WRITE_4(sc, HME_MACI_TXCFG, txcfg);
+
+	if ((sc->sc_ifp->if_drv_flags & IFF_DRV_RUNNING) != 0 &&
+	    (sc->sc_flags & HME_LINK) != 0) {
+		if (!hme_mac_bitflip(sc, HME_MACI_TXCFG, txcfg, 0,
+		    HME_MAC_TXCFG_ENABLE))
+			device_printf(sc->sc_dev, "cannot enable TX MAC\n");
+		if (!hme_mac_bitflip(sc, HME_MACI_RXCFG, rxcfg, 0,
+		    HME_MAC_RXCFG_ENABLE))
+			device_printf(sc->sc_dev, "cannot enable RX MAC\n");
+	}
 }
 
 static int
@@ -1506,8 +1544,9 @@ hme_mediachange_locked(struct hme_softc *sc)
 	struct mii_softc *child;
 
 	HME_LOCK_ASSERT(sc, MA_OWNED);
+
 #ifdef HMEDEBUG
-	if (sc->sc_debug)
+	if ((sc->sc_ifp->if_flags & IFF_DEBUG) != 0)
 		device_printf(sc->sc_dev, "hme_mediachange_locked");
 #endif
 
@@ -1558,36 +1597,22 @@ hme_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	switch (cmd) {
 	case SIOCSIFFLAGS:
 		HME_LOCK(sc);
-		if ((ifp->if_flags & IFF_UP) == 0 &&
-		    (ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
-			/*
-			 * If interface is marked down and it is running, then
-			 * stop it.
-			 */
+		if ((ifp->if_flags & IFF_UP) != 0) {
+			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0 &&
+			    ((ifp->if_flags ^ sc->sc_ifflags) &
+			    (IFF_ALLMULTI | IFF_PROMISC)) != 0)
+				hme_setladrf(sc, 1);
+			else
+				hme_init_locked(sc);
+		} else if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
 			hme_stop(sc);
-		} else if ((ifp->if_flags & IFF_UP) != 0 &&
-		    	   (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
-			/*
-			 * If interface is marked up and it is stopped, then
-			 * start it.
-			 */
-			hme_init_locked(sc);
-		} else if ((ifp->if_flags & IFF_UP) != 0) {
-			/*
-			 * Reset the interface to pick up changes in any other
-			 * flags that affect hardware registers.
-			 */
-			hme_init_locked(sc);
-		}
 		if ((ifp->if_flags & IFF_LINK0) != 0)
 			sc->sc_csum_features |= CSUM_UDP;
 		else
 			sc->sc_csum_features &= ~CSUM_UDP;
 		if ((ifp->if_capenable & IFCAP_TXCSUM) != 0)
 			ifp->if_hwassist = sc->sc_csum_features;
-#ifdef HMEDEBUG
-		sc->sc_debug = (ifp->if_flags & IFF_DEBUG) != 0 ? 1 : 0;
-#endif
+		sc->sc_ifflags = ifp->if_flags;
 		HME_UNLOCK(sc);
 		break;
 
@@ -1632,11 +1657,18 @@ hme_setladrf(struct hme_softc *sc, int reenable)
 	u_int32_t macc;
 
 	HME_LOCK_ASSERT(sc, MA_OWNED);
-	/* Clear hash table */
+	/* Clear the hash table. */
 	hash[3] = hash[2] = hash[1] = hash[0] = 0;
 
-	/* Get current RX configuration */
+	/* Get the current RX configuration. */
 	macc = HME_MAC_READ_4(sc, HME_MACI_RXCFG);
+
+	/*
+	 * Turn off promiscuous mode, promiscuous group mode (all multicast),
+	 * and hash filter.  Depending on the case, the right bit will be
+	 * enabled.
+	 */
+	macc &= ~(HME_MAC_RXCFG_PGRP | HME_MAC_RXCFG_PMISC);
 
 	/*
 	 * Disable the receiver while changing it's state as the documentation
@@ -1644,14 +1676,15 @@ hme_setladrf(struct hme_softc *sc, int reenable)
 	 * We then must wait until the bit clears in the register. This should
 	 * take at most 3.5ms.
 	 */
-	if (!hme_mac_bitflip(sc, HME_MACI_RXCFG, macc, HME_MAC_RXCFG_ENABLE, 0))
-		return;
+	if (!hme_mac_bitflip(sc, HME_MACI_RXCFG, macc,
+	    HME_MAC_RXCFG_ENABLE, 0))
+		device_printf(sc->sc_dev, "cannot disable RX MAC\n");
 	/* Disable the hash filter before writing to the filter registers. */
 	if (!hme_mac_bitflip(sc, HME_MACI_RXCFG, macc,
 	    HME_MAC_RXCFG_HENABLE, 0))
-		return;
+		device_printf(sc->sc_dev, "cannot disable hash filter\n");
 
-	/* make RXMAC really SIMPLEX */
+	/* Make the RX MAC really SIMPLEX. */
 	macc |= HME_MAC_RXCFG_ME;
 	if (reenable)
 		macc |= HME_MAC_RXCFG_ENABLE;
@@ -1659,15 +1692,14 @@ hme_setladrf(struct hme_softc *sc, int reenable)
 		macc &= ~HME_MAC_RXCFG_ENABLE;
 
 	if ((ifp->if_flags & IFF_PROMISC) != 0) {
-		/* Turn on promiscuous mode; turn off the hash filter */
 		macc |= HME_MAC_RXCFG_PMISC;
-		macc &= ~HME_MAC_RXCFG_HENABLE;
-		ifp->if_flags |= IFF_ALLMULTI;
+		goto chipit;
+	}
+	if ((ifp->if_flags & IFF_ALLMULTI) != 0) {
+		macc |= HME_MAC_RXCFG_PGRP;
 		goto chipit;
 	}
 
-	/* Turn off promiscuous mode; turn on the hash filter */
-	macc &= ~HME_MAC_RXCFG_PMISC;
 	macc |= HME_MAC_RXCFG_HENABLE;
 
 	/*
@@ -1678,8 +1710,8 @@ hme_setladrf(struct hme_softc *sc, int reenable)
 	 * the word.
 	 */
 
-	IF_ADDR_LOCK(sc->sc_ifp);
-	TAILQ_FOREACH(inm, &sc->sc_ifp->if_multiaddrs, ifma_link) {
+	IF_ADDR_LOCK(ifp);
+	TAILQ_FOREACH(inm, &ifp->if_multiaddrs, ifma_link) {
 		if (inm->ifma_addr->sa_family != AF_LINK)
 			continue;
 		crc = ether_crc32_le(LLADDR((struct sockaddr_dl *)
@@ -1691,9 +1723,7 @@ hme_setladrf(struct hme_softc *sc, int reenable)
 		/* Set the corresponding bit in the filter. */
 		hash[crc >> 4] |= 1 << (crc & 0xf);
 	}
-	IF_ADDR_UNLOCK(sc->sc_ifp);
-
-	ifp->if_flags &= ~IFF_ALLMULTI;
+	IF_ADDR_UNLOCK(ifp);
 
 chipit:
 	/* Now load the hash table into the chip */
@@ -1701,7 +1731,8 @@ chipit:
 	HME_MAC_WRITE_4(sc, HME_MACI_HASHTAB1, hash[1]);
 	HME_MAC_WRITE_4(sc, HME_MACI_HASHTAB2, hash[2]);
 	HME_MAC_WRITE_4(sc, HME_MACI_HASHTAB3, hash[3]);
-	hme_mac_bitflip(sc, HME_MACI_RXCFG, macc, 0,
+	if (!hme_mac_bitflip(sc, HME_MACI_RXCFG, macc, 0,
 	    macc & (HME_MAC_RXCFG_ENABLE | HME_MAC_RXCFG_HENABLE |
-	    HME_MAC_RXCFG_ME));
+	    HME_MAC_RXCFG_ME)))
+		device_printf(sc->sc_dev, "cannot configure RX MAC\n");
 }
