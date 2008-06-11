@@ -68,7 +68,7 @@ static struct cdevsw nmdm_cdevsw = {
 	.d_open =	nmdmopen,
 	.d_close =	nmdmclose,
 	.d_name =	"nmdn",
-	.d_flags =	D_TTY | D_PSEUDO | D_NEEDGIANT,
+	.d_flags =	D_TTY | D_PSEUDO | D_NEEDGIANT | D_NEEDMINOR,
 };
 
 #define BUFSIZ 		100		/* Chunk size iomoved to/from user */
