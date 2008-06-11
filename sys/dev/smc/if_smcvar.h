@@ -46,6 +46,7 @@ struct smc_softc {
 
 	/* Tasks */
 	struct taskqueue	*smc_tq;
+	struct task		smc_intr;
 	struct task		smc_rx;
 	struct task		smc_tx;
 	struct mbuf		*smc_pending;
@@ -64,13 +65,6 @@ struct smc_softc {
 				    bus_addr_t, uint8_t *, bus_size_t);
 	void			*smc_read_arg;
 };
-
-#define	SMC_LOCK(sc)		mtx_lock_spin(&(sc)->smc_mtx)
-#define	SMC_UNLOCK(sc)		mtx_unlock_spin(&(sc)->smc_mtx)
-#define	SMC_ASSERT_LOCKED(sc)	mtx_assert(&(sc)->smc_mtx, MA_OWNED)
-
-#define	SMC_RX_PRIORITY		0
-#define	SMC_TX_PRIORITY		10
 
 int	smc_probe(device_t);
 int	smc_attach(device_t);

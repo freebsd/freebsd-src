@@ -76,6 +76,14 @@ __FBSDID("$FreeBSD$");
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
 
+#define	SMC_LOCK(sc)		mtx_lock(&(sc)->smc_mtx)
+#define	SMC_UNLOCK(sc)		mtx_unlock(&(sc)->smc_mtx)
+#define	SMC_ASSERT_LOCKED(sc)	mtx_assert(&(sc)->smc_mtx, MA_OWNED)
+
+#define	SMC_INTR_PRIORITY	0
+#define	SMC_RX_PRIORITY		5
+#define	SMC_TX_PRIORITY		10
+
 devclass_t	smc_devclass;
 
 static const char *smc_chip_ids[16] = {
@@ -104,6 +112,7 @@ static void	smc_mii_tick(void *);
 static void	smc_mii_mediachg(struct smc_softc *);
 static int	smc_mii_mediaioctl(struct smc_softc *, struct ifreq *, u_long);
 
+static void	smc_task_intr(void *, int);
 static void	smc_task_rx(void *, int);
 static void	smc_task_tx(void *, int);
 
@@ -279,7 +288,7 @@ smc_attach(device_t dev)
 		goto done;
 	}
 
-	mtx_init(&sc->smc_mtx, device_get_nameunit(dev), NULL, MTX_SPIN);
+	mtx_init(&sc->smc_mtx, device_get_nameunit(dev), NULL, MTX_DEF);
 
 	type = SYS_RES_IOPORT;
 	if (sc->smc_usemem)
@@ -348,6 +357,7 @@ smc_attach(device_t dev)
 	ether_ifattach(ifp, eaddr);
 
 	/* Set up taskqueue */
+	TASK_INIT(&sc->smc_intr, SMC_INTR_PRIORITY, smc_task_intr, ifp);
 	TASK_INIT(&sc->smc_rx, SMC_RX_PRIORITY, smc_task_rx, ifp);
 	TASK_INIT(&sc->smc_tx, SMC_TX_PRIORITY, smc_task_tx, ifp);
 	sc->smc_tq = taskqueue_create_fast("smc_taskq", M_NOWAIT,
@@ -361,7 +371,7 @@ smc_attach(device_t dev)
 
 	/* Wire up interrupt */
 	error = bus_setup_intr(dev, sc->smc_irq,
-	    INTR_TYPE_NET|INTR_MPSAFE, smc_intr, NULL, ifp, &sc->smc_ih);
+	    INTR_TYPE_NET|INTR_MPSAFE, smc_intr, NULL, sc, &sc->smc_ih);
 	if (error != 0)
 		goto done;
 
@@ -380,9 +390,6 @@ smc_detach(device_t dev)
 	sc = device_get_softc(dev);
 
 	callout_stop(&sc->smc_watchdog);
-
-	if (mtx_initialized(&sc->smc_mtx))
-		SMC_LOCK(sc);
 
 #ifdef DEVICE_POLLING
 	if (sc->smc_ifp->if_capenable & IFCAP_POLLING)
@@ -453,9 +460,7 @@ smc_start_locked(struct ifnet *ifp)
 	/*
 	 * Grab the next packet.  If it's too big, drop it.
 	 */
-	SMC_UNLOCK(sc);
 	IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
-	SMC_LOCK(sc);
 	len = m_length(m, NULL);
 	len += (len & 1);
 	if (len > ETHER_MAX_LEN - ETHER_CRC_LEN) {
@@ -595,7 +600,7 @@ smc_task_tx(void *context, int pending)
 	 */
 	smc_mmu_wait(sc);
 	smc_write_2(sc, MMUCR, MMUCR_CMD_ENQUEUE);
-	callout_reset(&sc->smc_watchdog, hz * 2, smc_watchdog, ifp);
+	callout_reset(&sc->smc_watchdog, hz * 2, smc_watchdog, sc);
 
 	/*
 	 * Finish up.
@@ -743,7 +748,7 @@ smc_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	SMC_UNLOCK(sc);
 
 	if (cmd == POLL_AND_CHECK_STATUS)
-		smc_intr(ifp);
+		taskqueue_enqueue_fast(sc->smc_tq, &sc->smc_intr);
 }
 #endif
 
@@ -751,9 +756,20 @@ static int
 smc_intr(void *context)
 {
 	struct smc_softc	*sc;
+	
+	sc = (struct smc_softc *)context;
+	taskqueue_enqueue_fast(sc->smc_tq, &sc->smc_intr);
+	return (FILTER_HANDLED);
+}
+
+static void
+smc_task_intr(void *context, int pending)
+{
+	struct smc_softc	*sc;
 	struct ifnet		*ifp;
 	u_int			status, packet, counter, tcr;
 
+	(void)pending;
 	ifp = (struct ifnet *)context;
 	sc = ifp->if_softc;
 
@@ -863,8 +879,6 @@ smc_intr(void *context)
 		smc_write_1(sc, MSK, sc->smc_mask);
 
 	SMC_UNLOCK(sc);
-	
-	return (FILTER_HANDLED);
 }
 
 static u_int
@@ -1207,11 +1221,11 @@ smc_stop(struct smc_softc *sc)
 static void
 smc_watchdog(void *arg)
 {
-	struct ifnet	*ifp;
+	struct smc_softc	*sc;
 	
-	ifp = (struct ifnet *)arg;
-	if_printf(ifp, "watchdog timeout\n");
-	smc_intr(ifp);
+	sc = (struct smc_softc *)arg;
+	device_printf(sc->smc_dev, "watchdog timeout\n");
+	taskqueue_enqueue_fast(sc->smc_tq, &sc->smc_intr);
 }
 
 static void
