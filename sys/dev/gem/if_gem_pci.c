@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/resource.h>
@@ -134,8 +135,8 @@ gem_pci_probe(device_t dev)
 }
 
 static struct resource_spec gem_pci_res_spec[] = {
-	{ SYS_RES_MEMORY, PCIR_BAR(0), RF_ACTIVE },
-	{ SYS_RES_IRQ, 0, RF_SHAREABLE | RF_ACTIVE },
+	{ SYS_RES_IRQ, 0, RF_SHAREABLE | RF_ACTIVE },	/* GEM_RES_INTR */
+	{ SYS_RES_MEMORY, PCIR_BAR(0), RF_ACTIVE },	/* GEM_RES_BANK1 */
 	{ -1, 0 }
 };
 
@@ -181,6 +182,24 @@ gem_pci_attach(device_t dev)
 
 	GEM_LOCK_INIT(sc, device_get_nameunit(dev));
 
+	/*
+	 * Derive GEM_RES_BANK2 from GEM_RES_BANK1.  This seemed cleaner
+	 * with the old way of using copies of the bus tag and handle in
+	 * the softc along with bus_space_*()...
+	 */
+	sc->sc_res[GEM_RES_BANK2] = malloc(sizeof(*sc->sc_res[GEM_RES_BANK2]),
+	    M_DEVBUF, M_NOWAIT | M_ZERO);
+	if (sc->sc_res[GEM_RES_BANK2] == NULL) {
+		device_printf(dev, "failed to allocate bank2 resource\n");
+		goto fail;
+	}
+	rman_set_bustag(sc->sc_res[GEM_RES_BANK2],
+	    rman_get_bustag(sc->sc_res[GEM_RES_BANK1]));
+	bus_space_subregion(rman_get_bustag(sc->sc_res[GEM_RES_BANK1]),
+	    rman_get_bushandle(sc->sc_res[GEM_RES_BANK1]),
+	    GEM_PCI_BANK2_OFFSET, GEM_PCI_BANK2_SIZE,
+	    &sc->sc_res[GEM_RES_BANK2]->r_bushandle);
+
 #if defined(__powerpc__) || defined(__sparc64__)
 	OF_getetheraddr(dev, sc->sc_enaddr);
 #else
@@ -216,11 +235,12 @@ gem_pci_attach(device_t dev)
 #define	PCI_VPD_LEN			0x02
 #define	PCI_VPD_DATA			0x03
 
-#define	GEM_ROM_READ_N(n, sc, offs)					\
-	bus_read_ ## n ((sc)->sc_res[0], GEM_PCI_ROM_OFFSET + (offs))
-#define	GEM_ROM_READ_1(sc, offs)	GEM_ROM_READ_N(1, (sc), (offs))
-#define	GEM_ROM_READ_2(sc, offs)	GEM_ROM_READ_N(2, (sc), (offs))
-#define	GEM_ROM_READ_4(sc, offs)	GEM_ROM_READ_N(4, (sc), (offs))
+#define	GEM_ROM_READ_1(sc, offs)					\
+    GEM_BANK1_READ_1((sc), GEM_PCI_ROM_OFFSET + (offs))
+#define	GEM_ROM_READ_2(sc, offs)					\
+    GEM_BANK1_READ_2((sc), GEM_PCI_ROM_OFFSET + (offs))
+#define	GEM_ROM_READ_4(sc, offs)					\
+    GEM_BANK1_READ_4((sc), GEM_PCI_ROM_OFFSET + (offs))
 
 	/* Read PCI Expansion ROM header. */
 	if (GEM_ROM_READ_2(sc, PCI_ROMHDR_SIG) != PCI_ROMHDR_SIG_MAGIC ||
@@ -252,8 +272,7 @@ gem_pci_attach(device_t dev)
 	if (PCI_VPDRES_ISLARGE(GEM_ROM_READ_1(sc,
 	    j + PCI_VPDRES_BYTE0)) == 0 ||
 	    PCI_VPDRES_LARGE_NAME(GEM_ROM_READ_1(sc,
-	    j + PCI_VPDRES_BYTE0)) !=
-	    PCI_VPDRES_TYPE_VPD ||
+	    j + PCI_VPDRES_BYTE0)) != PCI_VPDRES_TYPE_VPD ||
 	    (GEM_ROM_READ_1(sc, j + PCI_VPDRES_LARGE_LEN_LSB) << 8 |
 	    GEM_ROM_READ_1(sc, j + PCI_VPDRES_LARGE_LEN_MSB)) !=
 	    PCI_VPD_SIZE + ETHER_ADDR_LEN ||
@@ -268,9 +287,9 @@ gem_pci_attach(device_t dev)
 		device_printf(dev, "unexpected PCI VPD\n");
 		goto fail;
 	}
-	bus_read_region_1(sc->sc_res[0], GEM_PCI_ROM_OFFSET + j +
-	    PCI_VPDRES_LARGE_DATA + PCI_VPD_DATA, sc->sc_enaddr,
-	    ETHER_ADDR_LEN);
+	bus_read_region_1(sc->sc_res[GEM_RES_BANK1],
+	    GEM_PCI_ROM_OFFSET + j + PCI_VPDRES_LARGE_DATA + PCI_VPD_DATA,
+	    sc->sc_enaddr, ETHER_ADDR_LEN);
 #endif
 
 	if (gem_attach(sc) != 0) {
@@ -278,8 +297,8 @@ gem_pci_attach(device_t dev)
 		goto fail;
 	}
 
-	if (bus_setup_intr(dev, sc->sc_res[1], INTR_TYPE_NET | INTR_MPSAFE,
-	    NULL, gem_intr, sc, &sc->sc_ih) != 0) {
+	if (bus_setup_intr(dev, sc->sc_res[GEM_RES_INTR], INTR_TYPE_NET |
+	    INTR_MPSAFE, NULL, gem_intr, sc, &sc->sc_ih) != 0) {
 		device_printf(dev, "failed to set up interrupt\n");
 		gem_detach(sc);
 		goto fail;
@@ -287,6 +306,8 @@ gem_pci_attach(device_t dev)
 	return (0);
 
  fail:
+	if (sc->sc_res[GEM_RES_BANK2] != NULL)
+		free(sc->sc_res[GEM_RES_BANK2], M_DEVBUF);
 	GEM_LOCK_DESTROY(sc);
 	bus_release_resources(dev, gem_pci_res_spec, sc->sc_res);
 	return (ENXIO);
@@ -298,8 +319,9 @@ gem_pci_detach(device_t dev)
 	struct gem_softc *sc;
 
 	sc = device_get_softc(dev);
-	bus_teardown_intr(dev, sc->sc_res[1], sc->sc_ih);
+	bus_teardown_intr(dev, sc->sc_res[GEM_RES_INTR], sc->sc_ih);
 	gem_detach(sc);
+	free(sc->sc_res[GEM_RES_BANK2], M_DEVBUF);
 	GEM_LOCK_DESTROY(sc);
 	bus_release_resources(dev, gem_pci_res_spec, sc->sc_res);
 	return (0);
