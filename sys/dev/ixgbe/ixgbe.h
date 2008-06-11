@@ -63,6 +63,7 @@
 #include <netinet/ip.h>
 #include <netinet/ip6.h>
 #include <netinet/tcp.h>
+#include <netinet/tcp_lro.h>
 #include <netinet/udp.h>
 
 #include <machine/in_cksum.h>
@@ -83,7 +84,6 @@
 #include <sys/pcpu.h>
 
 #include "ixgbe_api.h"
-#include "tcp_lro.h"
 
 /* Tunables */
 
