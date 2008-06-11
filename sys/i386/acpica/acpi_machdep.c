@@ -84,7 +84,7 @@ static struct filterops	apm_readfiltops =
 
 static struct cdevsw apm_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_flags =	D_TRACKCLOSE,
+	.d_flags =	D_TRACKCLOSE | D_NEEDMINOR,
 	.d_open =	apmopen,
 	.d_close =	apmclose,
 	.d_write =	apmwrite,
