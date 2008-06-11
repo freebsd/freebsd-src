@@ -129,6 +129,10 @@ ata_attach(device_t dev)
     ATA_RESET(dev);
     ATA_LOCKING(dev, ATA_LF_UNLOCK);
 
+    /* allocate DMA resources if DMA HW present*/
+    if (ch->dma.alloc)
+	ch->dma.alloc(dev);
+
     /* setup interrupt delivery */
     rid = ATA_IRQ_RID;
     ch->r_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
