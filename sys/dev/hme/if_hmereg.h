@@ -312,7 +312,5 @@
 #define HME_XD_DECODE_TSIZE(flags)	\
 	(((flags) & HME_XD_TXLENMSK) >> 0)
 
-#define PCI_HME_BASEADDR	0x10
-
 #define	HME_MINRXALIGN		0x10
 #define	HME_RXOFFS		2
