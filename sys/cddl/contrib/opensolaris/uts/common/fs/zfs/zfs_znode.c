@@ -17,6 +17,8 @@
  * information: Portions Copyright [yyyy] [name of copyright owner]
  *
  * CDDL HEADER END
+ *
+ * $FreeBSD$
  */
 /*
  * Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
@@ -279,12 +281,6 @@ zfs_init_fs(zfsvfs_t *zfsvfs, znode_t **zpp, cred_t *cr)
 #ifndef	MAXMIN64
 #define	MAXMIN64	0xffffffffUL
 #endif
-#ifndef major
-#define	major(x)	((int)(((u_int)(x) >> 8)&0xff))	/* major number */
-#endif
-#ifndef minor
-#define	minor(x)	((int)((x)&0xffff00ff))		/* minor number */
-#endif
 
 /*
  * Create special expldev for ZFS private use.
@@ -297,7 +293,7 @@ zfs_init_fs(zfsvfs_t *zfsvfs, znode_t **zpp, cred_t *cr)
 static uint64_t
 zfs_expldev(dev_t dev)
 {
-	return (((uint64_t)major(dev) << NBITSMINOR64) | minor(dev));
+	return (((uint64_t)umajor(dev) << NBITSMINOR64) | uminor(dev));
 }
 /*
  * Special cmpldev for ZFS private use.

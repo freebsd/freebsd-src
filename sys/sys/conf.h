@@ -273,12 +273,14 @@ struct cdev *make_dev_credf(int _flags,
 		struct ucred *_cr, uid_t _uid, gid_t _gid, int _mode,
 		const char *_fmt, ...) __printflike(8, 9);
 struct cdev *make_dev_alias(struct cdev *_pdev, const char *_fmt, ...) __printflike(2, 3);
-int	dev2unit(struct cdev *_dev);
 void	dev_lock(void);
 void	dev_unlock(void);
-int	unit2minor(int _unit);
-u_int	minor2unit(u_int _minor);
 void	setconf(void);
+
+#define	dev2unit(d)	((d) ? (d)->si_drv0 : NODEV)
+#define	minor(d)	((d) ? (d)->si_drv0 : NODEV)
+#define	unit2minor(u)	(u)
+#define	minor2unit(m)	(m)
 
 typedef	void (*cdevpriv_dtr_t)(void *data);
 int	devfs_get_cdevpriv(void **datap);
