@@ -160,7 +160,7 @@ grackle_attach(device_t dev)
 	phandle_t	node;
 	u_int32_t	busrange[2];
 	struct		grackle_range *rp, *io, *mem[2];
-	int		nmem, i;
+	int		nmem, i, error;
 
 	node = nexus_get_node(dev);
 	sc = device_get_softc(dev);
@@ -220,8 +220,7 @@ grackle_attach(device_t dev)
 	if (rman_init(&sc->sc_io_rman) != 0 ||
 	    rman_manage_region(&sc->sc_io_rman, io->pci_lo,
 	    io->pci_lo + io->size_lo) != 0) {
-		device_printf(dev, "failed to set up io range management\n");
-		return (ENXIO);
+		panic("grackle_attach: failed to set up I/O rman");
 	}
 
 	if (nmem == 0) {
@@ -230,17 +229,18 @@ grackle_attach(device_t dev)
 	}
 	sc->sc_mem_rman.rm_type = RMAN_ARRAY;
 	sc->sc_mem_rman.rm_descr = "Grackle PCI Memory";
-	if (rman_init(&sc->sc_mem_rman) != 0) {
-		device_printf(dev,
-		    "failed to init mem range resources\n");
-		return (ENXIO);
+	error = rman_init(&sc->sc_mem_rman);
+	if (error) {
+		device_printf(dev, "rman_init() failed. error = %d\n", error);
+		return (error);
 	}
 	for (i = 0; i < nmem; i++) {
-		if (rman_manage_region(&sc->sc_mem_rman, mem[i]->pci_lo,
-		    mem[i]->pci_lo + mem[i]->size_lo) != 0) {
-			device_printf(dev,
-			    "failed to set up memory range management\n");
-			return (ENXIO);
+		error = rman_manage_region(&sc->sc_mem_rman, mem[i]->pci_lo,
+		    mem[i]->pci_lo + mem[i]->size_lo);
+		if (error) {
+			device_printf(dev, 
+			    "rman_manage_region() failed. error = %d\n", error);
+			return (error);
 		}
 	}
 
