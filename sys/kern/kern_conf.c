@@ -492,41 +492,6 @@ giant_mmap(struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr, int nprot)
 }
 
 
-/*
- * struct cdev * and u_dev_t primitives
- */
-
-int
-minor(struct cdev *x)
-{
-	if (x == NULL)
-		return NODEV;
-	return (x->si_drv0);
-}
-
-int
-dev2unit(struct cdev *x)
-{
-
-	if (x == NULL)
-		return NODEV;
-	return (x->si_drv0);
-}
-
-u_int
-minor2unit(u_int _minor)
-{
-
-	return (_minor);
-}
-
-int
-unit2minor(int unit)
-{
-
-	return (unit);
-}
-
 static void
 notify(struct cdev *dev, const char *ev)
 {
