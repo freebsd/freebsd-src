@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 18, 2007
+.Dd June 12, 2008
 .Dt TMPFS 5
 .Os
 .Sh NAME
@@ -54,6 +54,22 @@ driver will permit the
 kernel to access
 .Tn tmpfs
 file systems.
+.Sh OPTIONS
+The following options are available when
+mounting
+.Nm
+file systems:
+.Bl -tag -width indent
+.It Cm gid
+root group id.
+.It Cm uid
+root user id.
+.It Cm mode
+permissions in octal format.
+.It Cm inodes
+maximum number of inodes.
+.It Cm size
+maximum size (in bytes) for the file system.
 .Sh EXAMPLES
 To mount a
 .Nm
