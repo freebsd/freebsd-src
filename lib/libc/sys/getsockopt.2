@@ -28,7 +28,7 @@
 .\"     @(#)getsockopt.2	8.4 (Berkeley) 5/2/95
 .\" $FreeBSD$
 .\"
-.Dd March 8, 2007
+.Dd June 13, 2008
 .Dt GETSOCKOPT 2
 .Os
 .Sh NAME
@@ -169,6 +169,16 @@ for the socket
 .It Dv SO_TYPE Ta "get the type of the socket (get only)"
 .It Dv SO_ERROR Ta "get and clear error on the socket (get only)"
 .It Dv SO_SETFIB Ta "set the associated FIB (routing table) for the socket (set only)"
+.El
+.Pp
+The following options are recognized in
+.Fx :
+.Bl -column SO_LISTENINCQLEN -offset indent
+.It Dv SO_LABEL Ta "get MAC label of the socket (get only)"
+.It Dv SO_PEERLABEL Ta "get socket's peer's MAC label (get only)"
+.It Dv SO_LISTENQLIMIT Ta "get backlog limit of the socket (get only)"
+.It Dv SO_LISTENQLEN Ta "get complete queue length of the socket (get only)"
+.It Dv SO_LISTENINCQLEN Ta "get incomplete queue length of the socket (get only)"
 .El
 .Pp
 .Dv SO_DEBUG
@@ -415,7 +425,6 @@ and for
      cmsg_type = SCM_BINTIME;
 .Ed
 .Pp
-Finally,
 .Dv SO_ACCEPTCONN ,
 .Dv SO_TYPE
 and
@@ -436,6 +445,23 @@ returns any pending error on the socket and clears
 the error status.
 It may be used to check for asynchronous errors on connected
 datagram sockets or for other asynchronous errors.
+.Pp
+Finally,
+.Dv SO_LABEL
+returns the MAC label of the socket.
+.Dv SO_PEERLABEL
+returns the MAC label of the socket's peer.
+Note that your kernel must be compiled with MAC support.
+See
+.Xr mac 3
+for more information.
+.Dv SO_LISTENQLIMIT
+returns the maximal number of queued connections, as set by
+.Xr listen 2 .
+.Dv SO_LISTENQLEN
+returns the number of unaccepted complete connections.
+.Dv SO_LISTENINCQLEN
+returns the number of unaccepted incomplete connections.
 .Sh RETURN VALUES
 .Rv -std
 .Sh ERRORS
@@ -471,6 +497,7 @@ on a non-listening socket was attempted.
 .Xr recvmsg 2 ,
 .Xr socket 2 ,
 .Xr getprotoent 3 ,
+.Xr mac 3 ,
 .Xr sysctl 3 ,
 .Xr protocols 5 ,
 .Xr sysctl 8 ,
