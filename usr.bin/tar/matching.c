@@ -157,7 +157,7 @@ excluded(struct bsdtar *bsdtar, const char *pathname)
 			 */
 			if (match->matches == 0) {
 				match->matches++;
-				matching->inclusions_unmatched_count++;
+				matching->inclusions_unmatched_count--;
 				return (0);
 			}
 			/*
