@@ -225,20 +225,21 @@ retry:
 		object->handle = handle;
 		if (VFS_NEEDSGIANT(vp->v_mount))
 			vm_object_set_flag(object, OBJ_NEEDGIANT);
-		VM_OBJECT_LOCK(object);
-		if ( vp->v_object != NULL) {
+		VI_LOCK(vp);
+		if (vp->v_object != NULL) {
 			/*
 			 * Object has been created while we were sleeping
 			 */
-			VM_OBJECT_UNLOCK(object);
+			VI_UNLOCK(vp);
 			vm_object_destroy(object);
 			goto retry;
 		}
 		vp->v_object = object;
-	} else
+		VI_UNLOCK(vp);
+	} else {
 		object->ref_count++;
-
-	VM_OBJECT_UNLOCK(object);
+		VM_OBJECT_UNLOCK(object);
+	}
 	vref(vp);
 	return (object);
 }
