@@ -83,6 +83,9 @@ struct g_part_gpt_entry {
 	struct gpt_ent		ent;
 };
 
+static void g_gpt_printf_utf16(struct sbuf *, uint16_t *, size_t);
+static void g_gpt_utf8_to_utf16(const uint8_t *, uint16_t *, size_t);
+
 static int g_part_gpt_add(struct g_part_table *, struct g_part_entry *,
     struct g_part_parms *);
 static int g_part_gpt_bootcode(struct g_part_table *, struct g_part_parms *);
@@ -225,7 +228,6 @@ gpt_read_tbl(struct g_part_gpt_table *table, struct g_consumer *cp,
 	char *buf, *p;
 	unsigned int idx, sectors, tblsz;
 	int error;
-	uint16_t ch;
 
 	pp = cp->provider;
 	table->lba[elt] = hdr->hdr_lba_table;
@@ -256,8 +258,8 @@ gpt_read_tbl(struct g_part_gpt_table *table, struct g_consumer *cp,
 		ent->ent_lba_start = le64dec(p + 32);
 		ent->ent_lba_end = le64dec(p + 40);
 		ent->ent_attr = le64dec(p + 48);
-		for (ch = 0; ch < sizeof(ent->ent_name)/2; ch++)
-			ent->ent_name[ch] = le16dec(p + 56 + ch * 2);
+		/* Keep UTF-16 in little-endian. */
+		bcopy(p + 56, ent->ent_name, sizeof(ent->ent_name));
 	}
 
 	g_free(buf);
@@ -356,7 +358,9 @@ g_part_gpt_add(struct g_part_table *basetable, struct g_part_entry *baseentry,
 		entry->ent.ent_attr = 0;
 		bzero(entry->ent.ent_name, sizeof(entry->ent.ent_name));
 	}
-	/* XXX label */
+	if (gpp->gpp_parms & G_PART_PARM_LABEL)
+		g_gpt_utf8_to_utf16(gpp->gpp_label, entry->ent.ent_name,
+		    sizeof(entry->ent.ent_name));
 	return (0);
 }
 
@@ -445,7 +449,10 @@ g_part_gpt_dumpconf(struct g_part_table *table, struct g_part_entry *baseentry,
 		sbuf_printf_uuid(sb, &entry->ent.ent_type);
 	} else if (entry != NULL) {
 		/* confxml: partition entry information */
-		// sbuf_printf(sb, "%s<label>%s</label>\n", indent, NULL);
+		sbuf_printf(sb, "%s<label>", indent);
+		g_gpt_printf_utf16(sb, entry->ent.ent_name,
+		    sizeof(entry->ent.ent_name) >> 1);
+		sbuf_printf(sb, "</label>\n");
 		sbuf_printf(sb, "%s<rawtype>", indent);
 		sbuf_printf_uuid(sb, &entry->ent.ent_type);
 		sbuf_printf(sb, "</rawtype>\n");
@@ -478,7 +485,9 @@ g_part_gpt_modify(struct g_part_table *basetable,
 		if (error)
 			return (error);
 	}
-	/* XXX label */
+	if (gpp->gpp_parms & G_PART_PARM_LABEL)
+		g_gpt_utf8_to_utf16(gpp->gpp_label, entry->ent.ent_name,
+		    sizeof(entry->ent.ent_name));
 	return (0);
 }
 
@@ -777,15 +786,14 @@ g_part_gpt_write(struct g_part_table *basetable, struct g_consumer *cp)
 	return (error);
 }
 
-#if 0
 static void
-g_gpt_to_utf8(struct sbuf *sb, uint16_t *str, size_t len)
+g_gpt_printf_utf16(struct sbuf *sb, uint16_t *str, size_t len)
 {
 	u_int bo;
 	uint32_t ch;
 	uint16_t c;
 
-	bo = BYTE_ORDER;
+	bo = LITTLE_ENDIAN;	/* GPT is little-endian */
 	while (len > 0 && *str != 0) {
 		ch = (bo == BIG_ENDIAN) ? be16toh(*str) : le16toh(*str);
 		str++, len--;
@@ -807,6 +815,7 @@ g_gpt_to_utf8(struct sbuf *sb, uint16_t *str, size_t len)
 		} else if (ch == 0xfeff) /* BOM (U+FEFF) unswapped. */
 			continue;
 
+		/* Write the Unicode character in UTF-8 */
 		if (ch < 0x80)
 			sbuf_printf(sb, "%c", ch);
 		else if (ch < 0x800)
@@ -821,4 +830,71 @@ g_gpt_to_utf8(struct sbuf *sb, uint16_t *str, size_t len)
 			    0x80 | ((ch >> 6) & 0x3f), 0x80 | (ch & 0x3f));
 	}
 }
-#endif
+
+static void
+g_gpt_utf8_to_utf16(const uint8_t *s8, uint16_t *s16, size_t s16len)
+{
+	size_t s16idx, s8idx;
+	uint32_t utfchar;
+	unsigned int c, utfbytes;
+
+	s8idx = s16idx = 0;
+	utfchar = 0;
+	utfbytes = 0;
+	bzero(s16, s16len << 1);
+	while (s8[s8idx] != 0 && s16idx < s16len) {
+		c = s8[s8idx++];
+		if ((c & 0xc0) != 0x80) {
+			/* Initial characters. */
+			if (utfbytes != 0) {
+				/* Incomplete encoding of previous char. */
+				s16[s16idx++] = htole16(0xfffd);
+			}
+			if ((c & 0xf8) == 0xf0) {
+				utfchar = c & 0x07;
+				utfbytes = 3;
+			} else if ((c & 0xf0) == 0xe0) {
+				utfchar = c & 0x0f;
+				utfbytes = 2;
+			} else if ((c & 0xe0) == 0xc0) {
+				utfchar = c & 0x1f;
+				utfbytes = 1;
+			} else {
+				utfchar = c & 0x7f;
+				utfbytes = 0;
+			}
+		} else {
+			/* Followup characters. */
+			if (utfbytes > 0) {
+				utfchar = (utfchar << 6) + (c & 0x3f);
+				utfbytes--;
+			} else if (utfbytes == 0)
+				utfbytes = ~0;
+		}
+		/*
+		 * Write the complete Unicode character as UTF-16 when we
+		 * have all the UTF-8 charactars collected.
+		 */
+		if (utfbytes == 0) {
+			/*
+			 * If we need to write 2 UTF-16 characters, but
+			 * we only have room for 1, then we truncate the
+			 * string by writing a 0 instead.
+			 */
+			if (utfchar >= 0x10000 && s16idx < s16len - 1) {
+				s16[s16idx++] =
+				    htole16(0xd800 | ((utfchar >> 10) - 0x40));
+				s16[s16idx++] =
+				    htole16(0xdc00 | (utfchar & 0x3ff));
+			} else
+				s16[s16idx++] = (utfchar >= 0x10000) ? 0 :
+				    htole16(utfchar);
+		}
+	}
+	/*
+	 * If our input string was truncated, append an invalid encoding
+	 * character to the output string.
+	 */
+	if (utfbytes != 0 && s16idx < s16len)
+		s16[s16idx++] = htole16(0xfffd);
+}
