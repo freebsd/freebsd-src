@@ -2759,8 +2759,8 @@ retry:
 
 /*
  * Tries to promote the 512, contiguous 4KB page mappings that are within a
- * single page table page to a single 2MB page mapping.  For promotion to
- * occur, two conditions must be met: (1) the 4KB page mappings must map
+ * single page table page (PTP) to a single 2MB page mapping.  For promotion
+ * to occur, two conditions must be met: (1) the 4KB page mappings must map
  * aligned, contiguous physical memory and (2) the 4KB page mappings must have
  * identical characteristics. 
  */
@@ -2774,23 +2774,39 @@ pmap_promote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va)
 	vm_page_t mpte;
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
+
+	/*
+	 * Examine the first PTE in the specified PTP.  Abort if this PTE is
+	 * either invalid, unused, or does not map the first 4KB physical page
+	 * within a 2MB page. 
+	 */
 	firstpte = (pt_entry_t *)PHYS_TO_DMAP(*pde & PG_FRAME);
+setpde:
 	newpde = *firstpte;
-	if ((newpde & (PG_A | PG_V)) != (PG_A | PG_V)) {
+	if ((newpde & ((PG_FRAME & PDRMASK) | PG_A | PG_V)) != (PG_A | PG_V)) {
 		pmap_pde_p_failures++;
 		CTR2(KTR_PMAP, "pmap_promote_pde: failure for va %#lx"
 		    " in pmap %p", va, pmap);
 		return;
 	}
-	if ((newpde & (PG_M | PG_RW)) == PG_RW)
+	if ((newpde & (PG_M | PG_RW)) == PG_RW) {
+		/*
+		 * When PG_M is already clear, PG_RW can be cleared without
+		 * a TLB invalidation.
+		 */
+		if (!atomic_cmpset_long(firstpte, newpde, newpde & ~PG_RW))
+			goto setpde;
 		newpde &= ~PG_RW;
+	}
 
-	/* 
-	 * Check all the ptes before promotion
+	/*
+	 * Examine each of the other PTEs in the specified PTP.  Abort if this
+	 * PTE maps an unexpected physical page or does not have identical
+	 * characteristics to the first PTE.
 	 */
-	pa = newpde & PG_PS_FRAME;
-	for (pte = firstpte; pte < firstpte + NPTEPG; pte++) {
-retry:
+	pa = (newpde & PG_PS_FRAME) + NBPDR - PAGE_SIZE;
+	for (pte = firstpte + NPTEPG - 1; pte > firstpte; pte--) {
+setpte:
 		oldpte = *pte;
 		if ((oldpte & PG_FRAME) != pa) {
 			pmap_pde_p_failures++;
@@ -2804,7 +2820,7 @@ retry:
 			 * without a TLB invalidation.
 			 */
 			if (!atomic_cmpset_long(pte, oldpte, oldpte & ~PG_RW))
-				goto retry;
+				goto setpte;
 			oldpte &= ~PG_RW;
 			oldpteva = (oldpte & PG_FRAME & PDRMASK) |
 			    (va & ~PDRMASK);
@@ -2817,7 +2833,7 @@ retry:
 			    " in pmap %p", va, pmap);
 			return;
 		}
-		pa += PAGE_SIZE;
+		pa -= PAGE_SIZE;
 	}
 
 	/*
