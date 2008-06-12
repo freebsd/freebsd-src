@@ -37,6 +37,9 @@ struct apm_ddr {
 	uint32_t	ddr_blkcount;
 };
 
+#define	APM_ENT_NAMELEN		32
+#define	APM_ENT_TYPELEN		32
+
 /* Partition Map Entry Record. */
 struct apm_ent {
 	uint16_t	ent_sig;
@@ -45,8 +48,8 @@ struct apm_ent {
 	uint32_t	ent_pmblkcnt;
 	uint32_t	ent_start;
 	uint32_t	ent_size;
-	char		ent_name[32];
-	char		ent_type[32];
+	char		ent_name[APM_ENT_NAMELEN];
+	char		ent_type[APM_ENT_TYPELEN];
 };
 
 #define	APM_ENT_TYPE_SELF		"Apple_partition_map"
