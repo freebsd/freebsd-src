@@ -267,7 +267,7 @@ macio_attach(device_t dev)
 	phandle_t  subchild;
         device_t cdev;
         u_int reg[3];
-	int quirks;
+	int error, quirks;
 
 	sc = device_get_softc(dev);
 	root = sc->sc_node = OF_finddevice("mac-io");
@@ -285,12 +285,17 @@ macio_attach(device_t dev)
 
 	sc->sc_mem_rman.rm_type = RMAN_ARRAY;
 	sc->sc_mem_rman.rm_descr = "MacIO Device Memory";
-	if (rman_init(&sc->sc_mem_rman) != 0) {
-		device_printf(dev,
-			      "failed to init mem range resources\n");
-		return (ENXIO);
+	error = rman_init(&sc->sc_mem_rman);
+	if (error) {
+		device_printf(dev, "rman_init() failed. error = %d\n", error);
+		return (error);
 	}
-	rman_manage_region(&sc->sc_mem_rman, 0, sc->sc_size);	
+	error = rman_manage_region(&sc->sc_mem_rman, 0, sc->sc_size);	
+	if (error) {
+		device_printf(dev,
+		    "rman_manage_region() failed. error = %d\n", error);
+		return (error);
+	}
 
 	/*
 	 * Iterate through the sub-devices
