@@ -164,13 +164,6 @@ ex_pccard_attach(device_t dev)
 		goto bad;
 	}
 
-	error = bus_setup_intr(dev, sc->irq, INTR_TYPE_NET,
-	    NULL, ex_intr, (void *)sc, &sc->ih);
-	if (error) {
-		device_printf(dev, "bus_setup_intr() failed!\n");
-		goto bad;
-	}
-
 	return(0);
 bad:
 	ex_release_resources(dev);

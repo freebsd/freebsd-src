@@ -126,7 +126,6 @@ ex_isa_identify(driver_t *driver, device_t parent)
 	int		tmp;
 	const char *	desc;
 	struct ex_softc sc;
-	struct resource *res;
 	int		rid;
 
 	if (bootverbose)
@@ -134,16 +133,15 @@ ex_isa_identify(driver_t *driver, device_t parent)
 
 	for (ioport = 0x200; ioport < 0x3a0; ioport += 0x10) {
 		rid = 0;
-		res = bus_alloc_resource(parent, SYS_RES_IOPORT, &rid,
+		sc.ioport = bus_alloc_resource(parent, SYS_RES_IOPORT, &rid,
 		    ioport, ioport, 0x10, RF_ACTIVE);
-		if (res == NULL)
+		if (sc.ioport == NULL)
 			continue;
-		sc.bst = rman_get_bustag(res);
-		sc.bsh = rman_get_bushandle(res);
 
 		/* No board found at address */
 		if (!ex_look_for_card(&sc)) {
-			bus_release_resource(parent, SYS_RES_IOPORT, rid, res);
+			bus_release_resource(parent, SYS_RES_IOPORT, rid,
+			    sc.ioport);
 			continue;
 		}
 
@@ -157,7 +155,8 @@ ex_isa_identify(driver_t *driver, device_t parent)
 			DELAY(500);
 			if (bootverbose)
 				printf("ex: card at 0x%03lx in PnP mode!\n", (unsigned long)ioport);
-			bus_release_resource(parent, SYS_RES_IOPORT, rid, res);
+			bus_release_resource(parent, SYS_RES_IOPORT, rid,
+			    sc.ioport);
 			continue;
 		}
 
@@ -179,7 +178,7 @@ ex_isa_identify(driver_t *driver, device_t parent)
 			desc = "Intel Pro/10";
 		}
 
-		bus_release_resource(parent, SYS_RES_IOPORT, rid, res);
+		bus_release_resource(parent, SYS_RES_IOPORT, rid, sc.ioport);
 		child = BUS_ADD_CHILD(parent, ISA_ORDER_SPECULATIVE, "ex", -1);
 		device_set_desc_copy(child, desc);
 		device_set_driver(child, driver);
@@ -310,13 +309,6 @@ ex_isa_attach(device_t dev)
 
 	if ((error = ex_attach(dev)) != 0) {
 		device_printf(dev, "ex_attach() failed!\n");
-		goto bad;
-	}
-
-	error = bus_setup_intr(dev, sc->irq, INTR_TYPE_NET,
-				NULL, ex_intr, (void *)sc, &sc->ih);
-	if (error) {
-		device_printf(dev, "bus_setup_intr() failed!\n");
 		goto bad;
 	}
 
