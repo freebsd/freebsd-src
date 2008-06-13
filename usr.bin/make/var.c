@@ -1232,6 +1232,41 @@ SortIncreasing(const void *l, const void *r)
 }
 
 /**
+ * Remove adjacent duplicate words.
+ *
+ * Results:
+ *	A string containing the resulting words.
+ */
+static char *
+VarUniq(const char *str)
+{
+	ArgArray	aa;
+	Buffer		*buf;		    /* Buffer for new string */
+	int		i, j;
+
+	buf = Buf_Init(0);
+	brk_string(&aa, str, FALSE);
+
+	if (aa.argc > 2) {
+		for (j = 1, i = 2; i < aa.argc; i++) {
+			if (strcmp(aa.argv[i], aa.argv[j]) != 0 && (++j != i))
+				aa.argv[j] = aa.argv[i];
+		}
+		aa.argc = j + 1;
+	}
+
+	for (i = 1; i < aa.argc; i++) {
+		Buf_AddBytes(buf, strlen(aa.argv[i]), (Byte *)aa.argv[i]);
+		if (i != aa.argc - 1)
+			Buf_AddByte(buf, ' ');
+	}
+	Buf_AddByte(buf, '\0');
+
+	ArgArray_Done(&aa);
+	return (Buf_Peel(buf));
+}
+
+/**
  * Pass through the tstr looking for 1) escaped delimiters,
  * '$'s and backslashes (place the escaped character in
  * uninterpreted) and 2) unescaped $'s that aren't before
@@ -1681,6 +1716,7 @@ Var_Quote(const char *str)
  *		the invocation.
  *	:U	Converts variable to upper-case.
  *	:L	Converts variable to lower-case.
+ *	:u	("uniq") Remove adjacent duplicate words.
  *
  * XXXHB update this comment or remove it and point to the man page.
  */
@@ -1791,6 +1827,10 @@ ParseModifier(VarParser *vp, char startc, Var *v, Boolean *freeResult)
 				break;
 			case 'R':
 				newStr = VarModify(value, VarRoot, NULL);
+				vp->ptr++;
+				break;
+			case 'u':
+				newStr = VarUniq(value);
 				vp->ptr++;
 				break;
 			default:
