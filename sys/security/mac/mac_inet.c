@@ -117,11 +117,11 @@ mac_ipq_label_alloc(int flag)
 }
 
 int
-mac_ipq_init(struct ipq *ipq, int flag)
+mac_ipq_init(struct ipq *q, int flag)
 {
 
-	ipq->ipq_label = mac_ipq_label_alloc(flag);
-	if (ipq->ipq_label == NULL)
+	q->ipq_label = mac_ipq_label_alloc(flag);
+	if (q->ipq_label == NULL)
 		return (ENOMEM);
 	return (0);
 }
@@ -151,11 +151,11 @@ mac_ipq_label_free(struct label *label)
 }
 
 void
-mac_ipq_destroy(struct ipq *ipq)
+mac_ipq_destroy(struct ipq *q)
 {
 
-	mac_ipq_label_free(ipq->ipq_label);
-	ipq->ipq_label = NULL;
+	mac_ipq_label_free(q->ipq_label);
+	q->ipq_label = NULL;
 }
 
 void
@@ -166,13 +166,13 @@ mac_inpcb_create(struct socket *so, struct inpcb *inp)
 }
 
 void
-mac_ipq_reassemble(struct ipq *ipq, struct mbuf *m)
+mac_ipq_reassemble(struct ipq *q, struct mbuf *m)
 {
 	struct label *label;
 
 	label = mac_mbuf_to_label(m);
 
-	MAC_PERFORM(ipq_reassemble, ipq, ipq->ipq_label, m, label);
+	MAC_PERFORM(ipq_reassemble, q, q->ipq_label, m, label);
 }
 
 void
@@ -187,13 +187,13 @@ mac_netinet_fragment(struct mbuf *m, struct mbuf *frag)
 }
 
 void
-mac_ipq_create(struct mbuf *m, struct ipq *ipq)
+mac_ipq_create(struct mbuf *m, struct ipq *q)
 {
 	struct label *label;
 
 	label = mac_mbuf_to_label(m);
 
-	MAC_PERFORM(ipq_create, m, label, ipq, ipq->ipq_label);
+	MAC_PERFORM(ipq_create, m, label, q, q->ipq_label);
 }
 
 void
@@ -208,7 +208,7 @@ mac_inpcb_create_mbuf(struct inpcb *inp, struct mbuf *m)
 }
 
 int
-mac_ipq_match(struct mbuf *m, struct ipq *ipq)
+mac_ipq_match(struct mbuf *m, struct ipq *q)
 {
 	struct label *label;
 	int result;
@@ -216,7 +216,7 @@ mac_ipq_match(struct mbuf *m, struct ipq *ipq)
 	label = mac_mbuf_to_label(m);
 
 	result = 1;
-	MAC_BOOLEAN(ipq_match, &&, m, label, ipq, ipq->ipq_label);
+	MAC_BOOLEAN(ipq_match, &&, m, label, q, q->ipq_label);
 
 	return (result);
 }
@@ -278,13 +278,13 @@ mac_netinet_tcp_reply(struct mbuf *m)
 }
 
 void
-mac_ipq_update(struct mbuf *m, struct ipq *ipq)
+mac_ipq_update(struct mbuf *m, struct ipq *q)
 {
 	struct label *label;
 
 	label = mac_mbuf_to_label(m);
 
-	MAC_PERFORM(ipq_update, m, label, ipq, ipq->ipq_label);
+	MAC_PERFORM(ipq_update, m, label, q, q->ipq_label);
 }
 
 int

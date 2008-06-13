@@ -137,12 +137,12 @@ void	mac_inpcb_destroy(struct inpcb *);
 int	mac_inpcb_init(struct inpcb *, int);
 void	mac_inpcb_sosetlabel(struct socket *so, struct inpcb *inp);
 
-void	mac_ipq_create(struct mbuf *m, struct ipq *ipq);
-void	mac_ipq_destroy(struct ipq *);
-int	mac_ipq_init(struct ipq *, int);
-int	mac_ipq_match(struct mbuf *m, struct ipq *ipq);
-void	mac_ipq_reassemble(struct ipq *ipq, struct mbuf *m);
-void	mac_ipq_update(struct mbuf *m, struct ipq *ipq);
+void	mac_ipq_create(struct mbuf *m, struct ipq *q);
+void	mac_ipq_destroy(struct ipq *q);
+int	mac_ipq_init(struct ipq *q, int);
+int	mac_ipq_match(struct mbuf *m, struct ipq *q);
+void	mac_ipq_reassemble(struct ipq *q, struct mbuf *m);
+void	mac_ipq_update(struct mbuf *m, struct ipq *q);
 
 int	mac_kenv_check_dump(struct ucred *cred);
 int	mac_kenv_check_get(struct ucred *cred, char *name);

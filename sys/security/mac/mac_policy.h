@@ -199,16 +199,15 @@ typedef void	(*mpo_inpcb_sosetlabel_t)(struct socket *so,
 		    struct label *inplabel);
 
 typedef void	(*mpo_ipq_create_t)(struct mbuf *m, struct label *mlabel,
-		    struct ipq *ipq, struct label *ipqlabel);
+		    struct ipq *q, struct label *qlabel);
 typedef void	(*mpo_ipq_destroy_label_t)(struct label *label);
 typedef int	(*mpo_ipq_init_label_t)(struct label *label, int flag);
 typedef int	(*mpo_ipq_match_t)(struct mbuf *m, struct label *mlabel,
-		    struct ipq *ipq, struct label *ipqlabel);
-typedef void	(*mpo_ipq_reassemble)(struct ipq *ipq,
-		    struct label *ipqlabel, struct mbuf *m,
-		    struct label *mlabel);
+		    struct ipq *q, struct label *qlabel);
+typedef void	(*mpo_ipq_reassemble)(struct ipq *q, struct label *qlabel,
+		    struct mbuf *m, struct label *mlabel);
 typedef void	(*mpo_ipq_update_t)(struct mbuf *m, struct label *mlabel,
-		    struct ipq *ipq, struct label *ipqlabel);
+		    struct ipq *q, struct label *qlabel);
 
 typedef int	(*mpo_kenv_check_dump_t)(struct ucred *cred);
 typedef int	(*mpo_kenv_check_get_t)(struct ucred *cred, char *name);

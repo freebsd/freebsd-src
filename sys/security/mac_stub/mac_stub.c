@@ -307,30 +307,30 @@ stub_inpcb_sosetlabel(struct socket *so, struct label *solabel,
 }
 
 static void
-stub_ipq_create(struct mbuf *m, struct label *mlabel, struct ipq *ipq,
-    struct label *ipqlabel)
+stub_ipq_create(struct mbuf *m, struct label *mlabel, struct ipq *q,
+    struct label *qlabel)
 {
 
 }
 
 static int
-stub_ipq_match(struct mbuf *m, struct label *mlabel, struct ipq *ipq,
-    struct label *ipqlabel)
+stub_ipq_match(struct mbuf *m, struct label *mlabel, struct ipq *q,
+    struct label *qlabel)
 {
 
 	return (1);
 }
 
 static void
-stub_ipq_reassemble(struct ipq *ipq, struct label *ipqlabel,
-    struct mbuf *m, struct label *mlabel)
+stub_ipq_reassemble(struct ipq *q, struct label *qlabel, struct mbuf *m,
+    struct label *mlabel)
 {
 
 }
 
 static void
-stub_ipq_update(struct mbuf *m, struct label *mlabel, struct ipq *ipq,
-    struct label *ipqlabel)
+stub_ipq_update(struct mbuf *m, struct label *mlabel, struct ipq *q,
+    struct label *qlabel)
 {
 
 }
