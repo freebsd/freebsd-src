@@ -279,10 +279,6 @@ smc_attach(device_t dev)
 	error = 0;
 
 	sc->smc_dev = dev;
-	sc->smc_shutdown = 0;
-
-	/* Set up watchdog callout. */
-	callout_init(&sc->smc_watchdog, 1);
 
 	ifp = sc->smc_ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL) {
@@ -291,6 +287,9 @@ smc_attach(device_t dev)
 	}
 
 	mtx_init(&sc->smc_mtx, device_get_nameunit(dev), NULL, MTX_DEF);
+
+	/* Set up watchdog callout. */
+	callout_init_mtx(&sc->smc_watchdog, &sc->smc_mtx, 0);
 
 	type = SYS_RES_IOPORT;
 	if (sc->smc_usemem)
@@ -322,7 +321,8 @@ smc_attach(device_t dev)
 	if (bootverbose)
 		device_printf(dev, "revision %x\n", sc->smc_rev);
 
-	callout_init(&sc->smc_mii_tick_ch, 1);
+	callout_init_mtx(&sc->smc_mii_tick_ch, &sc->smc_mtx,
+	    CALLOUT_RETURNUNLOCKED);
 	if (sc->smc_chip >= REV_CHIP_91110FD) {
 		mii_phy_probe(dev, &sc->smc_miibus, smc_mii_ifmedia_upd,
 		    smc_mii_ifmedia_sts);
@@ -391,18 +391,9 @@ smc_detach(device_t dev)
 
 	sc = device_get_softc(dev);
 	SMC_LOCK(sc);
-	sc->smc_shutdown = 1;
 	smc_stop(sc);
 	SMC_UNLOCK(sc);
-	
-	if (sc->smc_tq != NULL) {
-		taskqueue_drain(sc->smc_tq, &sc->smc_intr);
-		taskqueue_drain(sc->smc_tq, &sc->smc_rx);
-		taskqueue_drain(sc->smc_tq, &sc->smc_tx);
-		taskqueue_free(sc->smc_tq);
-		sc->smc_tq = NULL;
-	}
-	
+
 #ifdef DEVICE_POLLING
 	if (sc->smc_ifp->if_capenable & IFCAP_POLLING)
 		ether_poll_deregister(sc->smc_ifp);
@@ -411,13 +402,21 @@ smc_detach(device_t dev)
 	if (sc->smc_ih != NULL)
 		bus_teardown_intr(sc->smc_dev, sc->smc_irq, sc->smc_ih);
 
+	if (sc->smc_tq != NULL) {
+		taskqueue_drain(sc->smc_tq, &sc->smc_intr);
+		taskqueue_drain(sc->smc_tq, &sc->smc_rx);
+		taskqueue_drain(sc->smc_tq, &sc->smc_tx);
+		taskqueue_free(sc->smc_tq);
+		sc->smc_tq = NULL;
+	}
+	
+
 	if (sc->smc_ifp != NULL) {
 		ether_ifdetach(sc->smc_ifp);
 		if_free(sc->smc_ifp);
 	}
 
 	if (sc->smc_miibus != NULL) {
-		callout_stop(&sc->smc_mii_tick_ch);
 		device_delete_child(sc->smc_dev, sc->smc_miibus);
 		bus_generic_detach(sc->smc_dev);
 	}
@@ -540,10 +539,6 @@ smc_task_tx(void *context, int pending)
 	sc = ifp->if_softc;
 
 	SMC_LOCK(sc);
-	if (sc->smc_shutdown == 1) {
-		SMC_UNLOCK(sc);
-		return;
-	}
 	
 	if (sc->smc_pending == NULL) {
 		SMC_UNLOCK(sc);
@@ -647,10 +642,6 @@ smc_task_rx(void *context, int pending)
 	mhead = mtail = NULL;
 
 	SMC_LOCK(sc);
-	if (sc->smc_shutdown == 1) {
-		SMC_UNLOCK(sc);
-		return;
-	}
 
 	packet = smc_read_1(sc, FIFO_RX);
 	while ((packet & FIFO_EMPTY) == 0) {
@@ -792,10 +783,6 @@ smc_task_intr(void *context, int pending)
 	sc = ifp->if_softc;
 
 	SMC_LOCK(sc);
-	if (sc->smc_shutdown == 1) {
-		SMC_UNLOCK(sc);
-		return;
-	}
 	
 	smc_select_bank(sc, 2);
 
@@ -1104,6 +1091,8 @@ smc_mii_tick(void *context)
 	if (sc->smc_miibus == NULL)
 		return;
 
+	SMC_UNLOCK(sc);
+
 	mii_tick(device_get_softc(sc->smc_miibus));
 	callout_reset(&sc->smc_mii_tick_ch, hz, smc_mii_tick, sc);
 }
@@ -1216,9 +1205,10 @@ smc_stop(struct smc_softc *sc)
 	SMC_ASSERT_LOCKED(sc);
 
 	/*
-	 * Turn off watchdog.
+	 * Turn off callouts.
 	 */
 	callout_stop(&sc->smc_watchdog);
+	callout_stop(&sc->smc_mii_tick_ch);
 
 	/*
 	 * Mask all interrupts.
@@ -1247,12 +1237,6 @@ smc_watchdog(void *arg)
 	struct smc_softc	*sc;
 	
 	sc = (struct smc_softc *)arg;
-	SMC_LOCK(sc);
-	if (sc->smc_shutdown == 1) {
-		SMC_UNLOCK(sc);
-		return;
-	}
-	SMC_UNLOCK(sc);
 	device_printf(sc->smc_dev, "watchdog timeout\n");
 	taskqueue_enqueue_fast(sc->smc_tq, &sc->smc_intr);
 }
