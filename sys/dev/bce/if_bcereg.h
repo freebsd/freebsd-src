@@ -32,6 +32,10 @@
 #ifndef	_BCE_H_DEFINED
 #define _BCE_H_DEFINED
 
+#ifdef HAVE_KERNEL_OPTION_HEADERS
+#include "opt_device_polling.h"
+#endif
+
 #include <sys/param.h>
 #include <sys/endian.h>
 #include <sys/systm.h>
@@ -128,11 +132,165 @@
 	"\02b1"					\
 	"\01b0"
 
+/* MII Control Register 0x0 */
+#define BCE_BMCR_PRINTFB	\
+	"\020"					\
+	"\20Reset"				\
+	"\17Loopback"			\
+	"\16Spd0"				\
+	"\15AnegEna"			\
+	"\14PwrDn"				\
+	"\13Isolate"			\
+	"\12RstrtAneg"			\
+	"\11FD"					\
+	"\10CollTst"			\
+	"\07Spd1"				\
+	"\06Rsrvd"				\
+	"\05Rsrvd"				\
+	"\04Rsrvd"				\
+	"\03Rsrvd"				\
+	"\02Rsrvd"				\
+	"\01Rsrvd"
+
+/* MII Status Register 0x1 */
+#define BCE_BMSR_PRINTFB	\
+	"\020"					\
+	"\20Cap100T4"			\
+	"\17Cap100XFD"			\
+	"\16Cap100XHD"			\
+	"\15Cap10FD"			\
+	"\14Cap10HD"			\
+	"\13Cap100T2FD"			\
+	"\12Cap100T2HD"			\
+	"\11ExtStsPrsnt"		\
+	"\10Rsrvd"				\
+	"\07PrmblSupp"			\
+	"\06AnegCmpl"			\
+	"\05RemFaultDet"		\
+	"\04AnegCap"			\
+	"\03LnkUp"				\
+	"\02JabberDet"			\
+	"\01ExtCapSupp"
+
+/* MII Autoneg Advertisement Register 0x4 */
+#define BCE_ANAR_PRINTFB	\
+	"\020"					\
+	"\20AdvNxtPg"			\
+	"\17Rsrvd"				\
+	"\16AdvRemFault"		\
+	"\15Rsrvd"				\
+	"\14AdvAsymPause"		\
+	"\13AdvPause"			\
+	"\12Adv100T4"			\
+	"\11Adv100FD"			\
+	"\10Adv100HD"			\
+	"\07Adv10FD"			\
+	"\06Adv10HD"			\
+	"\05Rsrvd"				\
+	"\04Rsrvd"				\
+	"\03Rsrvd"				\
+	"\02Rsrvd"				\
+	"\01Adv802.3"
+
+/* MII Autoneg Link Partner Ability Register 0x5 */
+#define BCE_ANLPAR_PRINTFB	\
+	"\020"					\
+	"\20CapNxtPg"			\
+	"\17Ack"				\
+	"\16CapRemFault"	 	\
+	"\15Rsrvd"				\
+	"\14CapAsymPause"		\
+	"\13CapPause"			\
+	"\12Cap100T4"			\
+	"\11Cap100FD"			\
+	"\10Cap100HD"			\
+	"\07Cap10FD"			\
+	"\06Cap10HD"			\
+	"\05Rsrvd"				\
+	"\04Rsrvd"				\
+	"\03Rsrvd"				\
+	"\02Rsrvd"				\
+	"\01Cap802.3"
+
+/* 1000Base-T Control Register 0x09 */
+#define BCE_1000CTL_PRINTFB	\
+	"\020"					\
+	"\20Test3"				\
+	"\17Test2"				\
+	"\16Test1"				\
+	"\15MasterSlave"		\
+	"\14ForceMaster"		\
+	"\13SwitchDev" 			\
+	"\12Adv1000TFD"			\
+	"\11Adv1000THD"			\
+	"\10Rsrvd"				\
+	"\07Rsrvd"				\
+	"\06Rsrvd"				\
+	"\05Rsrvd"				\
+	"\04Rsrvd"				\
+	"\03Rsrvd"				\
+	"\02Rsrvd"				\
+	"\01Rsrvd"
+
+/* MII 1000Base-T Status Register 0x0a */
+#define BCE_1000STS_PRINTFB	\
+	"\020"					\
+	"\20MstrSlvFault"		\
+	"\17Master"				\
+	"\16LclRcvrOk"			\
+	"\15RemRcvrOk"			\
+	"\14Cap1000FD"			\
+	"\13Cpa1000HD"			\
+	"\12Rsrvd"				\
+	"\11Rsrvd"
+
+/* MII Extended Status Register 0x0f */
+#define BCE_EXTSTS_PRINTFB	\
+	"\020"					\
+	"\20b15"				\
+	"\17b14"				\
+	"\16b13"				\
+	"\15b12"				\
+	"\14Rsrvd"				\
+	"\13Rsrvd"				\
+	"\12Rsrvd"				\
+	"\11Rsrvd"				\
+	"\10Rsrvd"				\
+	"\07Rsrvd"				\
+	"\06Rsrvd" 				\
+	"\05Rsrvd"				\
+	"\04Rsrvd"				\
+	"\03Rsrvd"				\
+	"\02Rsrvd"				\
+	"\01Rsrvd"
+
+/* MII Autoneg Link Partner Ability Register 0x19 */
+#define BCE_AUXSTS_PRINTFB	\
+	"\020"					\
+	"\20AnegCmpl"			\
+	"\17AnegCmplAck"		\
+	"\16AnegAckDet"			\
+	"\15AnegAblDet"			\
+	"\14AnegNextPgWait"		\
+	"\13HCD"				\
+	"\12HCD" 				\
+	"\11HCD" 				\
+	"\10PrlDetFault"		\
+	"\07RemFault"			\
+	"\06PgRcvd"				\
+	"\05LnkPrtnrAnegAbl"	\
+	"\04LnkPrtnrNPAbl"		\
+	"\03LnkUp"				\
+	"\02EnaPauseRcv"		\
+	"\01EnaPausXmit"
+
+/* Remove before release. */
+/* #define BCE_DEBUG 1 */
+/* #define BCE_NVRAM_WRITE_SUPPORT */
 
 /****************************************************************************/
 /* Debugging macros and definitions.                                        */
 /****************************************************************************/
-/* #define BCE_DEBUG 1 */
 
 #define BCE_CP_LOAD 			0x00000001
 #define BCE_CP_SEND		 		0x00000002
@@ -143,6 +301,8 @@
 #define BCE_CP_PHY				0x00000040
 #define BCE_CP_NVRAM			0x00000080
 #define BCE_CP_FIRMWARE			0x00000100
+#define BCE_CP_CTX				0x00000200
+#define BCE_CP_REG				0x00000400
 #define BCE_CP_MISC				0x00400000
 #define BCE_CP_SPECIAL			0x00800000
 #define BCE_CP_ALL				0x00FFFFFF
@@ -153,70 +313,95 @@
 #define BCE_LEVEL_WARN			0x01000000
 #define BCE_LEVEL_INFO			0x02000000
 #define BCE_LEVEL_VERBOSE		0x03000000
-#define BCE_LEVEL_EXCESSIVE		0x04000000
+#define BCE_LEVEL_EXTREME		0x04000000
+#define BCE_LEVEL_INSANE		0x05000000
 
 #define BCE_LEVEL_MASK			0xFF000000
 
 #define BCE_WARN_LOAD			(BCE_CP_LOAD | BCE_LEVEL_WARN)
 #define BCE_INFO_LOAD			(BCE_CP_LOAD | BCE_LEVEL_INFO)
 #define BCE_VERBOSE_LOAD		(BCE_CP_LOAD | BCE_LEVEL_VERBOSE)
-#define BCE_EXCESSIVE_LOAD		(BCE_CP_LOAD | BCE_LEVEL_EXCESSIVE)
+#define BCE_EXTREME_LOAD		(BCE_CP_LOAD | BCE_LEVEL_EXTREME)
+#define BCE_INSANE_LOAD			(BCE_CP_LOAD | BCE_LEVEL_INSANE)
 
 #define BCE_WARN_SEND			(BCE_CP_SEND | BCE_LEVEL_WARN)
 #define BCE_INFO_SEND			(BCE_CP_SEND | BCE_LEVEL_INFO)
 #define BCE_VERBOSE_SEND		(BCE_CP_SEND | BCE_LEVEL_VERBOSE)
-#define BCE_EXCESSIVE_SEND		(BCE_CP_SEND | BCE_LEVEL_EXCESSIVE)
+#define BCE_EXTREME_SEND		(BCE_CP_SEND | BCE_LEVEL_EXTREME)
+#define BCE_INSANE_SEND			(BCE_CP_SEND | BCE_LEVEL_INSANE)
 
 #define BCE_WARN_RECV			(BCE_CP_RECV | BCE_LEVEL_WARN)
 #define BCE_INFO_RECV			(BCE_CP_RECV | BCE_LEVEL_INFO)
 #define BCE_VERBOSE_RECV		(BCE_CP_RECV | BCE_LEVEL_VERBOSE)
-#define BCE_EXCESSIVE_RECV		(BCE_CP_RECV | BCE_LEVEL_EXCESSIVE)
+#define BCE_EXTREME_RECV		(BCE_CP_RECV | BCE_LEVEL_EXTREME)
+#define BCE_INSANE_RECV			(BCE_CP_RECV | BCE_LEVEL_INSANE)
 
 #define BCE_WARN_INTR			(BCE_CP_INTR | BCE_LEVEL_WARN)
 #define BCE_INFO_INTR			(BCE_CP_INTR | BCE_LEVEL_INFO)
 #define BCE_VERBOSE_INTR		(BCE_CP_INTR | BCE_LEVEL_VERBOSE)
-#define BCE_EXCESSIVE_INTR		(BCE_CP_INTR | BCE_LEVEL_EXCESSIVE)
+#define BCE_EXTREME_INTR		(BCE_CP_INTR | BCE_LEVEL_EXTREME)
+#define BCE_INSANE_INTR			(BCE_CP_INTR | BCE_LEVEL_INSANE)
 
 #define BCE_WARN_UNLOAD			(BCE_CP_UNLOAD | BCE_LEVEL_WARN)
 #define BCE_INFO_UNLOAD			(BCE_CP_UNLOAD | BCE_LEVEL_INFO)
 #define BCE_VERBOSE_UNLOAD		(BCE_CP_UNLOAD | BCE_LEVEL_VERBOSE)
-#define BCE_EXCESSIVE_UNLOAD	(BCE_CP_UNLOAD | BCE_LEVEL_EXCESSIVE)
+#define BCE_EXTREME_UNLOAD		(BCE_CP_UNLOAD | BCE_LEVEL_EXTREME)
+#define BCE_INSANE_UNLOAD		(BCE_CP_UNLOAD | BCE_LEVEL_INSANE)
 
 #define BCE_WARN_RESET			(BCE_CP_RESET | BCE_LEVEL_WARN)
 #define BCE_INFO_RESET			(BCE_CP_RESET | BCE_LEVEL_INFO)
 #define BCE_VERBOSE_RESET		(BCE_CP_RESET | BCE_LEVEL_VERBOSE)
-#define BCE_EXCESSIVE_RESET		(BCE_CP_RESET | BCE_LEVEL_EXCESSIVE)
+#define BCE_EXTREME_RESET		(BCE_CP_RESET | BCE_LEVEL_EXTREME)
+#define BCE_INSANE_RESET		(BCE_CP_RESET | BCE_LEVEL_INSANE)
 
 #define BCE_WARN_PHY			(BCE_CP_PHY | BCE_LEVEL_WARN)
 #define BCE_INFO_PHY			(BCE_CP_PHY | BCE_LEVEL_INFO)
 #define BCE_VERBOSE_PHY			(BCE_CP_PHY | BCE_LEVEL_VERBOSE)
-#define BCE_EXCESSIVE_PHY		(BCE_CP_PHY | BCE_LEVEL_EXCESSIVE)
+#define BCE_EXTREME_PHY			(BCE_CP_PHY | BCE_LEVEL_EXTREME)
+#define BCE_INSANE_PHY			(BCE_CP_PHY | BCE_LEVEL_INSANE)
 
 #define BCE_WARN_NVRAM			(BCE_CP_NVRAM | BCE_LEVEL_WARN)
 #define BCE_INFO_NVRAM			(BCE_CP_NVRAM | BCE_LEVEL_INFO)
 #define BCE_VERBOSE_NVRAM		(BCE_CP_NVRAM | BCE_LEVEL_VERBOSE)
-#define BCE_EXCESSIVE_NVRAM		(BCE_CP_NVRAM | BCE_LEVEL_EXCESSIVE)
+#define BCE_EXTREME_NVRAM		(BCE_CP_NVRAM | BCE_LEVEL_EXTREME)
+#define BCE_INSANE_NVRAM		(BCE_CP_NVRAM | BCE_LEVEL_INSANE)
 
 #define BCE_WARN_FIRMWARE		(BCE_CP_FIRMWARE | BCE_LEVEL_WARN)
 #define BCE_INFO_FIRMWARE		(BCE_CP_FIRMWARE | BCE_LEVEL_INFO)
-#define BCE_VERBOSE_FIRMWARE		(BCE_CP_FIRMWARE | BCE_LEVEL_VERBOSE)
-#define BCE_EXCESSIVE_FIRMWARE		(BCE_CP_FIRMWARE | BCE_LEVEL_EXCESSIVE)
+#define BCE_VERBOSE_FIRMWARE	(BCE_CP_FIRMWARE | BCE_LEVEL_VERBOSE)
+#define BCE_EXTREME_FIRMWARE	(BCE_CP_FIRMWARE | BCE_LEVEL_EXTREME)
+#define BCE_INSANE_FIRMWARE		(BCE_CP_FIRMWARE | BCE_LEVEL_INSANE)
+
+#define BCE_WARN_CTX			(BCE_CP_CTX | BCE_LEVEL_WARN)
+#define BCE_INFO_CTX			(BCE_CP_CTX | BCE_LEVEL_INFO)
+#define BCE_VERBOSE_CTX			(BCE_CP_CTX | BCE_LEVEL_VERBOSE)
+#define BCE_EXTREME_CTX			(BCE_CP_CTX | BCE_LEVEL_EXTREME)
+#define BCE_INSANE_CTX			(BCE_CP_CTX | BCE_LEVEL_INSANE)
+
+#define BCE_WARN_REG			(BCE_CP_REG | BCE_LEVEL_WARN)
+#define BCE_INFO_REG			(BCE_CP_REG | BCE_LEVEL_INFO)
+#define BCE_VERBOSE_REG			(BCE_CP_REG | BCE_LEVEL_VERBOSE)
+#define BCE_EXTREME_REG			(BCE_CP_REG | BCE_LEVEL_EXTREME)
+#define BCE_INSANE_REG			(BCE_CP_REG | BCE_LEVEL_INSANE)
 
 #define BCE_WARN_MISC			(BCE_CP_MISC | BCE_LEVEL_WARN)
 #define BCE_INFO_MISC			(BCE_CP_MISC | BCE_LEVEL_INFO)
 #define BCE_VERBOSE_MISC		(BCE_CP_MISC | BCE_LEVEL_VERBOSE)
-#define BCE_EXCESSIVE_MISC		(BCE_CP_MISC | BCE_LEVEL_EXCESSIVE)
+#define BCE_EXTREME_MISC		(BCE_CP_MISC | BCE_LEVEL_EXTREME)
+#define BCE_INSANE_MISC			(BCE_CP_MISC | BCE_LEVEL_INSANE)
 
 #define BCE_WARN_SPECIAL		(BCE_CP_SPECIAL | BCE_LEVEL_WARN)
 #define BCE_INFO_SPECIAL		(BCE_CP_SPECIAL | BCE_LEVEL_INFO)
 #define BCE_VERBOSE_SPECIAL		(BCE_CP_SPECIAL | BCE_LEVEL_VERBOSE)
-#define BCE_EXCESSIVE_SPECIAL		(BCE_CP_SPECIAL | BCE_LEVEL_EXCESSIVE)
+#define BCE_EXTREME_SPECIAL		(BCE_CP_SPECIAL | BCE_LEVEL_EXTREME)
+#define BCE_INSANE_SPECIAL		(BCE_CP_SPECIAL | BCE_LEVEL_INSANE)
 
 #define BCE_FATAL				(BCE_CP_ALL | BCE_LEVEL_FATAL)
 #define BCE_WARN				(BCE_CP_ALL | BCE_LEVEL_WARN)
 #define BCE_INFO				(BCE_CP_ALL | BCE_LEVEL_INFO)
 #define BCE_VERBOSE				(BCE_CP_ALL | BCE_LEVEL_VERBOSE)
-#define BCE_EXCESSIVE			(BCE_CP_ALL | BCE_LEVEL_EXCESSIVE)
+#define BCE_EXTREME				(BCE_CP_ALL | BCE_LEVEL_EXTREME)
+#define BCE_INSANE				(BCE_CP_ALL | BCE_LEVEL_INSANE)
 
 #define BCE_CODE_PATH(cp)		((cp & BCE_CP_MASK) & bce_debug)
 #define BCE_MSG_LEVEL(lv)		((lv & BCE_LEVEL_MASK) <= (bce_debug & BCE_LEVEL_MASK))
@@ -224,8 +409,8 @@
 
 #ifdef BCE_DEBUG
 
-/* 
- * Calculate the time delta between two reads 
+/*
+ * Calculate the time delta between two reads
  * of the 25MHz free running clock.
  */
 #define BCE_TIME_DELTA(start, end)	(start > end ? (start - end) : \
@@ -262,10 +447,41 @@
 	}
 
 /* Runs a particular command based on a condition. */
-#define DBRUNIF(cond, args...)	\
-	if (cond) {					\
-		args;					\
+#define DBRUNIF(cond, args...)									\
+	if (cond) {													\
+		args;													\
 	}
+
+/* Announces function entry. */
+#if 0
+#define DBENTER(cond)								 			\
+	u32 start_time = REG_RD(sc, BCE_TIMER_25MHZ_FREE_RUN);		\
+	u32 end_time;										  		\
+	DBPRINT(sc, (cond), "%s(enter)\n", __FUNCTION__);
+#endif
+
+#define DBENTER(cond)									  		\
+	DBPRINT(sc, (cond), "%s(enter)\n", __FUNCTION__)
+
+/* Announces function exit. */
+#if 0
+#define DBEXIT(cond, val)								  		\
+	end_time = REG_RD(sc, BCE_TIMER_25MHZ_FREE_RUN);	  		\
+	val += (u64) BCE_TIME_DELTA(start_time, end_time);			\
+	DBPRINT(sc, (cond), "%s(exit)\n", __FUNCTION__);
+#endif
+
+#define DBEXIT(cond)											\
+	DBPRINT(sc, (cond), "%s(exit)\n", __FUNCTION__)
+
+/* Temporarily override the debug level. */
+#define DBPUSH(cond)											\
+	u32 bce_debug_temp = bce_debug;								\
+	bce_debug |= cond;
+
+/* Restore the previously overriden debug level. */
+#define DBPOP()							\
+	bce_debug = bce_debug_temp;
 
 /* Needed for random() function which is only used in debugging. */
 #include <sys/random.h>
@@ -280,6 +496,45 @@
 #define DB_OR_RANDOMTRUE(defects)   || (random() < defects)
 #define DB_AND_RANDOMTRUE(defects)  && (random() < defects)
 
+#define DB_PRINT_PHY_REG(reg, val)											\
+	switch(reg) {															\
+		case 0x00: DBPRINT(sc, BCE_INSANE_PHY,								\
+			"%s(): phy = %d, reg = 0x%04X (BMCR   ), val = 0x%b\n",			\
+			__FUNCTION__, phy, (u16) reg & 0xffff, (u16) val & 0xffff,		\
+			BCE_BMCR_PRINTFB); break;										\
+		case 0x01: DBPRINT(sc, BCE_INSANE_PHY,								\
+			"%s(): phy = %d, reg = 0x%04X (BMSR   ), val = 0x%b\n",			\
+			__FUNCTION__, phy, (u16) reg & 0xffff, (u16) val & 0xffff,		\
+			BCE_BMSR_PRINTFB); break;										\
+		case 0x04: DBPRINT(sc, BCE_INSANE_PHY,								\
+			"%s(): phy = %d, reg = 0x%04X (ANAR   ), val = 0x%b\n",			\
+			__FUNCTION__, phy, (u16) reg & 0xffff, (u16) val & 0xffff,		\
+			BCE_ANAR_PRINTFB); break;										\
+		case 0x05: DBPRINT(sc, BCE_INSANE_PHY,								\
+			"%s(): phy = %d, reg = 0x%04X (ANLPAR ), val = 0x%b\n",			\
+			__FUNCTION__, phy, (u16) reg & 0xffff, (u16) val & 0xffff,		\
+			BCE_ANLPAR_PRINTFB); break;										\
+		case 0x09: DBPRINT(sc, BCE_INSANE_PHY,								\
+			"%s(): phy = %d, reg = 0x%04X (1000CTL), val = 0x%b\n",			\
+			__FUNCTION__, phy, (u16) reg & 0xffff, (u16) val & 0xffff,		\
+			BCE_1000CTL_PRINTFB); break;									\
+		case 0x0a: DBPRINT(sc, BCE_INSANE_PHY,								\
+			"%s(): phy = %d, reg = 0x%04X (1000STS), val = 0x%b\n",			\
+			__FUNCTION__, phy, (u16) reg & 0xffff, (u16) val & 0xffff,		\
+			BCE_1000STS_PRINTFB); break;									\
+		case 0x0f: DBPRINT(sc, BCE_INSANE_PHY,								\
+			"%s(): phy = %d, reg = 0x%04X (EXTSTS ), val = 0x%b\n",			\
+			__FUNCTION__, phy, (u16) reg & 0xffff, (u16) val & 0xffff,		\
+			BCE_EXTSTS_PRINTFB); break;										\
+		case 0x19: DBPRINT(sc, BCE_INSANE_PHY,								\
+			"%s(): phy = %d, reg = 0x%04X (AUXSTS ), val = 0x%b\n",			\
+			__FUNCTION__, phy, (u16) reg & 0xffff, (u16) val & 0xffff,		\
+			BCE_AUXSTS_PRINTFB); break;										\
+		default: DBPRINT(sc, BCE_INSANE_PHY,								\
+			"%s(): phy = %d, reg = 0x%04X, val = 0x%04X\n",					\
+			__FUNCTION__, phy, (u16) reg & 0xffff, (u16) val & 0xffff);		\
+	}
+
 #else
 
 #define DBPRINT(level, format, args...)
@@ -288,12 +543,17 @@
 #define DBRUNLV(level, args...)
 #define DBRUNCP(cp, args...)
 #define DBRUNIF(cond, args...)
+#define DBENTER(cond)
+#define DBEXIT(cond)
+#define DBPUSH(cond)
+#define DBPOP()
 #define DB_RANDOMFALSE(defects)
 #define DB_OR_RANDOMFALSE(percent)
 #define DB_AND_RANDOMFALSE(percent)
 #define DB_RANDOMTRUE(defects)
 #define DB_OR_RANDOMTRUE(percent)
 #define DB_AND_RANDOMTRUE(percent)
+#define DB_PRINT_PHY_REG(reg, val)
 
 #endif /* BCE_DEBUG */
 
@@ -306,6 +566,9 @@
 #define BRCM_DEVICEID_BCM5706S		0x16AA
 #define BRCM_DEVICEID_BCM5708		0x164C
 #define BRCM_DEVICEID_BCM5708S		0x16AC
+#define BRCM_DEVICEID_BCM5709		0x1639
+#define BRCM_DEVICEID_BCM5709S		0x163A
+#define BRCM_DEVICEID_BCM5716		0x1654
 
 #define HP_VENDORID					0x103C
 
@@ -316,6 +579,8 @@
 #define BCE_CHIP_NUM(sc)			(((sc)->bce_chipid) & 0xffff0000)
 #define BCE_CHIP_NUM_5706			0x57060000
 #define BCE_CHIP_NUM_5708			0x57080000
+#define BCE_CHIP_NUM_5709			0x57090000
+#define BCE_CHIP_NUM_5716			0x57160000
 
 #define BCE_CHIP_REV(sc)			(((sc)->bce_chipid) & 0x0000f000)
 #define BCE_CHIP_REV_Ax				0x00000000
@@ -334,6 +599,13 @@
 #define BCE_CHIP_ID_5708_B0			0x57081000
 #define BCE_CHIP_ID_5708_B1			0x57081010
 #define BCE_CHIP_ID_5708_B2			0x57081020
+#define BCE_CHIP_ID_5709_A0			0x57090000
+#define BCE_CHIP_ID_5709_A1			0x57090010
+#define BCE_CHIP_ID_5709_B0			0x57091000
+#define BCE_CHIP_ID_5709_B1			0x57091010
+#define BCE_CHIP_ID_5709_B2			0x57091020
+#define BCE_CHIP_ID_5709_C0			0x57092000
+#define BCE_CHIP_ID_5716_C0			0x57162000
 
 #define BCE_CHIP_BOND_ID(sc)		(((sc)->bce_chipid) & 0xf)
 
@@ -423,6 +695,11 @@ struct bce_type {
 #define ST_MICRO_FLASH_PAGE_SIZE		256
 #define ST_MICRO_FLASH_BASE_TOTAL_SIZE	65536
 
+#define BCM5709_FLASH_PAGE_BITS			8
+#define BCM5709_FLASH_PHY_PAGE_SIZE		(1 << BCM5709_FLASH_PAGE_BITS)
+#define BCM5709_FLASH_BYTE_ADDR_MASK	(BCM5709_FLASH_PHY_PAGE_SIZE-1)
+#define BCM5709_FLASH_PAGE_SIZE			256
+
 #define NVRAM_TIMEOUT_COUNT				30000
 #define BCE_FLASHDESC_MAX				64
 
@@ -439,7 +716,10 @@ struct flash_spec {
 	u32 config2;
 	u32 config3;
 	u32 write1;
-	u32 buffered;
+#define BCE_NV_BUFFERED		0x00000001
+#define BCE_NV_TRANSLATE	0x00000002
+#define BCE_NV_WREN			0x00000004
+	u32 flags;
 	u32 page_bits;
 	u32 page_size;
 	u32 addr_mask;
@@ -454,19 +734,19 @@ struct flash_spec {
 /* information which can be accessed by the driver.                         */
 /****************************************************************************/
 
-/* 
+/*
  * This value (in milliseconds) determines the frequency of the driver
  * issuing the PULSE message code.  The firmware monitors this periodic
- * pulse to determine when to switch to an OS-absent mode. 
+ * pulse to determine when to switch to an OS-absent mode.
  */
 #define DRV_PULSE_PERIOD_MS                 250
 
-/* 
+/*
  * This value (in milliseconds) determines how long the driver should
  * wait for an acknowledgement from the firmware before timing out.  Once
  * the firmware has timed out, the driver will assume there is no firmware
  * running and there won't be any firmware-driver synchronization during a
- * driver reset. 
+ * driver reset.
  */
 #define FW_ACK_TIME_OUT_MS                  1000
 
@@ -789,9 +1069,16 @@ struct flash_spec {
 #define	BCE_UNLOCK(_sc)				mtx_unlock(&(_sc)->bce_mtx)
 #define	BCE_LOCK_DESTROY(_sc)		mtx_destroy(&(_sc)->bce_mtx)
 
-#define REG_WR(sc, reg, val)		bus_space_write_4(sc->bce_btag, sc->bce_bhandle, reg, val)
-#define REG_WR16(sc, reg, val)		bus_space_write_2(sc->bce_btag, sc->bce_bhandle, reg, val)
-#define REG_RD(sc, reg)				bus_space_read_4(sc->bce_btag, sc->bce_bhandle, reg)
+#ifdef BCE_DEBUG
+#define REG_WR(sc, offset, val)		bce_reg_wr(sc, offset, val)
+#define REG_WR16(sc, offset, val)	bce_reg_wr16(sc, offset, val)
+#define REG_RD(sc, offset)			bce_reg_rd(sc, offset)
+#else
+#define REG_WR(sc, offset, val)		bus_space_write_4(sc->bce_btag, sc->bce_bhandle, offset, val)
+#define REG_WR16(sc, offset, val)	bus_space_write_2(sc->bce_btag, sc->bce_bhandle, offset, val)
+#define REG_RD(sc, offset)		 	bus_space_read_4(sc->bce_btag, sc->bce_bhandle, offset)
+#endif
+
 #define REG_RD_IND(sc, offset)		bce_reg_rd_ind(sc, offset)
 #define REG_WR_IND(sc, offset, val)	bce_reg_wr_ind(sc, offset, val)
 #define CTX_WR(sc, cid_addr, offset, val)	bce_ctx_wr(sc, cid_addr, offset, val)
@@ -810,11 +1097,6 @@ struct flash_spec {
 #define BCE_ADDR_HI(y)			(0)
 #endif
 
-
-/*
- * The following data structures are generated from RTL code.
- * Do not modify any values below this line.
- */
 
 /****************************************************************************/
 /* Do not modify any of the following data structures, they are generated   */
@@ -1122,6 +1404,7 @@ struct l2_fhdr {
 #define BCE_L2CTX_TYPE_TYPE_EMPTY		(0<<28)
 #define BCE_L2CTX_TYPE_TYPE_L2			(1<<28)
 
+#define BCE_L2CTX_TYPE_XI				0x00000080
 #define BCE_L2CTX_TX_HOST_BIDX	 		0x00000088
 #define BCE_L2CTX_EST_NBD				0x00000088
 #define BCE_L2CTX_CMD_TYPE				0x00000088
@@ -1139,6 +1422,10 @@ struct l2_fhdr {
 #define BCE_L2CTX_TXP_BOFF				0x000000a8
 #define BCE_L2CTX_TXP_BIDX				0x000000a8
 #define BCE_L2CTX_TXP_BSEQ				0x000000ac
+
+#define BCE_L2CTX_CMD_TYPE_XI			0x00000240
+#define BCE_L2CTX_TBDR_BHADDR_HI_XI		0x00000258
+#define BCE_L2CTX_TBDR_BHADDR_LO_XI		0x0000025c
 
 
 /*
@@ -1438,126 +1725,176 @@ struct l2_fhdr {
  *  misc_reg definition
  *  offset: 0x800
  */
-#define BCE_MISC_COMMAND				0x00000800
-#define BCE_MISC_COMMAND_ENABLE_ALL			 (1L<<0)
-#define BCE_MISC_COMMAND_DISABLE_ALL			 (1L<<1)
-#define BCE_MISC_COMMAND_CORE_RESET			 (1L<<4)
-#define BCE_MISC_COMMAND_HARD_RESET			 (1L<<5)
-#define BCE_MISC_COMMAND_PAR_ERROR			 (1L<<8)
-#define BCE_MISC_COMMAND_PAR_ERR_RAM			 (0x7fL<<16)
+#define BCE_MISC_COMMAND						0x00000800
+#define BCE_MISC_COMMAND_ENABLE_ALL				(1L<<0)
+#define BCE_MISC_COMMAND_DISABLE_ALL			(1L<<1)
+#define BCE_MISC_COMMAND_SW_RESET				(1L<<4)
+#define BCE_MISC_COMMAND_POR_RESET				(1L<<5)
+#define BCE_MISC_COMMAND_HD_RESET				(1L<<6)
+#define BCE_MISC_COMMAND_CMN_SW_RESET			(1L<<7)
+#define BCE_MISC_COMMAND_PAR_ERROR				(1L<<8)
+#define BCE_MISC_COMMAND_CS16_ERR				(1L<<9)
+#define BCE_MISC_COMMAND_CS16_ERR_LOC			(0xfL<<12)
+#define BCE_MISC_COMMAND_PAR_ERR_RAM			(0x7fL<<16)
+#define BCE_MISC_COMMAND_POWERDOWN_EVENT		(1L<<23)
+#define BCE_MISC_COMMAND_SW_SHUTDOWN			(1L<<24)
+#define BCE_MISC_COMMAND_SHUTDOWN_EN			(1L<<25)
+#define BCE_MISC_COMMAND_DINTEG_ATTN_EN			(1L<<26)
+#define BCE_MISC_COMMAND_PCIE_LINK_IN_L23		(1L<<27)
+#define BCE_MISC_COMMAND_PCIE_DIS				(1L<<28)
 
-#define BCE_MISC_CFG					0x00000804
-#define BCE_MISC_CFG_PCI_GRC_TMOUT			 (1L<<0)
-#define BCE_MISC_CFG_NVM_WR_EN				 (0x3L<<1)
-#define BCE_MISC_CFG_NVM_WR_EN_PROTECT			 (0L<<1)
-#define BCE_MISC_CFG_NVM_WR_EN_PCI			 (1L<<1)
-#define BCE_MISC_CFG_NVM_WR_EN_ALLOW			 (2L<<1)
-#define BCE_MISC_CFG_NVM_WR_EN_ALLOW2			 (3L<<1)
-#define BCE_MISC_CFG_BIST_EN				 (1L<<3)
-#define BCE_MISC_CFG_CK25_OUT_ALT_SRC			 (1L<<4)
-#define BCE_MISC_CFG_BYPASS_BSCAN			 (1L<<5)
-#define BCE_MISC_CFG_BYPASS_EJTAG			 (1L<<6)
-#define BCE_MISC_CFG_CLK_CTL_OVERRIDE			 (1L<<7)
-#define BCE_MISC_CFG_LEDMODE				 (0x3L<<8)
-#define BCE_MISC_CFG_LEDMODE_MAC			 (0L<<8)
-#define BCE_MISC_CFG_LEDMODE_GPHY1			 (1L<<8)
-#define BCE_MISC_CFG_LEDMODE_GPHY2			 (2L<<8)
+#define BCE_MISC_CFG							0x00000804
+#define BCE_MISC_CFG_GRC_TMOUT					(1L<<0)
+#define BCE_MISC_CFG_NVM_WR_EN					(0x3L<<1)
+#define BCE_MISC_CFG_NVM_WR_EN_PROTECT			(0L<<1)
+#define BCE_MISC_CFG_NVM_WR_EN_PCI				(1L<<1)
+#define BCE_MISC_CFG_NVM_WR_EN_ALLOW			(2L<<1)
+#define BCE_MISC_CFG_NVM_WR_EN_ALLOW2			(3L<<1)
+#define BCE_MISC_CFG_BIST_EN					(1L<<3)
+#define BCE_MISC_CFG_CK25_OUT_ALT_SRC			(1L<<4)
+#define BCE_MISC_CFG_RESERVED5_TE				(1L<<5)
+#define BCE_MISC_CFG_RESERVED6_TE				(1L<<6)
+#define BCE_MISC_CFG_CLK_CTL_OVERRIDE			(1L<<7)
+#define BCE_MISC_CFG_LEDMODE					(0x7L<<8)
+#define BCE_MISC_CFG_LEDMODE_MAC				(0L<<8)
+#define BCE_MISC_CFG_LEDMODE_PHY1_TE			(1L<<8)
+#define BCE_MISC_CFG_LEDMODE_PHY2_TE			(2L<<8)
+#define BCE_MISC_CFG_LEDMODE_PHY3_TE			(3L<<8)
+#define BCE_MISC_CFG_LEDMODE_PHY4_TE			(4L<<8)
+#define BCE_MISC_CFG_LEDMODE_PHY5_TE			(5L<<8)
+#define BCE_MISC_CFG_LEDMODE_PHY6_TE			(6L<<8)
+#define BCE_MISC_CFG_LEDMODE_PHY7_TE			(7L<<8)
+#define BCE_MISC_CFG_MCP_GRC_TMOUT_TE			(1L<<11)
+#define BCE_MISC_CFG_DBU_GRC_TMOUT_TE			(1L<<12)
+#define BCE_MISC_CFG_LEDMODE_XI					(0xfL<<8)
+#define BCE_MISC_CFG_LEDMODE_MAC_XI				(0L<<8)
+#define BCE_MISC_CFG_LEDMODE_PHY1_XI			(1L<<8)
+#define BCE_MISC_CFG_LEDMODE_PHY2_XI			(2L<<8)
+#define BCE_MISC_CFG_LEDMODE_PHY3_XI			(3L<<8)
+#define BCE_MISC_CFG_LEDMODE_MAC2_XI			(4L<<8)
+#define BCE_MISC_CFG_LEDMODE_PHY4_XI			(5L<<8)
+#define BCE_MISC_CFG_LEDMODE_PHY5_XI			(6L<<8)
+#define BCE_MISC_CFG_LEDMODE_PHY6_XI			(7L<<8)
+#define BCE_MISC_CFG_LEDMODE_MAC3_XI			(8L<<8)
+#define BCE_MISC_CFG_LEDMODE_PHY7_XI			(9L<<8)
+#define BCE_MISC_CFG_LEDMODE_PHY8_XI			(10L<<8)
+#define BCE_MISC_CFG_LEDMODE_PHY9_XI			(11L<<8)
+#define BCE_MISC_CFG_LEDMODE_MAC4_XI			(12L<<8)
+#define BCE_MISC_CFG_LEDMODE_PHY10_XI			(13L<<8)
+#define BCE_MISC_CFG_LEDMODE_PHY11_XI			(14L<<8)
+#define BCE_MISC_CFG_LEDMODE_UNUSED_XI			(15L<<8)
+#define BCE_MISC_CFG_PORT_SELECT_XI				(1L<<13)
+#define BCE_MISC_CFG_PARITY_MODE_XI				(1L<<14)
 
-#define BCE_MISC_ID					0x00000808
-#define BCE_MISC_ID_BOND_ID				 (0xfL<<0)
-#define BCE_MISC_ID_CHIP_METAL				 (0xffL<<4)
-#define BCE_MISC_ID_CHIP_REV				 (0xfL<<12)
-#define BCE_MISC_ID_CHIP_NUM				 (0xffffL<<16)
+#define BCE_MISC_ID								0x00000808
+#define BCE_MISC_ID_BOND_ID						(0xfL<<0)
+#define BCE_MISC_ID_BOND_ID_X					(0L<<0)
+#define BCE_MISC_ID_BOND_ID_C					(3L<<0)
+#define BCE_MISC_ID_BOND_ID_S					(12L<<0)
+#define BCE_MISC_ID_CHIP_METAL					(0xffL<<4)
+#define BCE_MISC_ID_CHIP_REV					(0xfL<<12)
+#define BCE_MISC_ID_CHIP_NUM					(0xffffL<<16)
 
-#define BCE_MISC_ENABLE_STATUS_BITS			0x0000080c
+#define BCE_MISC_ENABLE_STATUS_BITS				0x0000080c
 #define BCE_MISC_ENABLE_STATUS_BITS_TX_SCHEDULER_ENABLE	 (1L<<0)
 #define BCE_MISC_ENABLE_STATUS_BITS_TX_BD_READ_ENABLE	 (1L<<1)
 #define BCE_MISC_ENABLE_STATUS_BITS_TX_BD_CACHE_ENABLE	 (1L<<2)
 #define BCE_MISC_ENABLE_STATUS_BITS_TX_PROCESSOR_ENABLE	 (1L<<3)
-#define BCE_MISC_ENABLE_STATUS_BITS_TX_DMA_ENABLE	 (1L<<4)
+#define BCE_MISC_ENABLE_STATUS_BITS_TX_DMA_ENABLE		 (1L<<4)
 #define BCE_MISC_ENABLE_STATUS_BITS_TX_PATCHUP_ENABLE	 (1L<<5)
 #define BCE_MISC_ENABLE_STATUS_BITS_TX_PAYLOAD_Q_ENABLE	 (1L<<6)
 #define BCE_MISC_ENABLE_STATUS_BITS_TX_HEADER_Q_ENABLE	 (1L<<7)
 #define BCE_MISC_ENABLE_STATUS_BITS_TX_ASSEMBLER_ENABLE	 (1L<<8)
-#define BCE_MISC_ENABLE_STATUS_BITS_EMAC_ENABLE	 (1L<<9)
-#define BCE_MISC_ENABLE_STATUS_BITS_RX_PARSER_MAC_ENABLE	 (1L<<10)
+#define BCE_MISC_ENABLE_STATUS_BITS_EMAC_ENABLE			 (1L<<9)
+#define BCE_MISC_ENABLE_STATUS_BITS_RX_PARSER_MAC_ENABLE (1L<<10)
 #define BCE_MISC_ENABLE_STATUS_BITS_RX_PARSER_CATCHUP_ENABLE	 (1L<<11)
-#define BCE_MISC_ENABLE_STATUS_BITS_RX_MBUF_ENABLE	 (1L<<12)
-#define BCE_MISC_ENABLE_STATUS_BITS_RX_LOOKUP_ENABLE	 (1L<<13)
-#define BCE_MISC_ENABLE_STATUS_BITS_RX_PROCESSOR_ENABLE	 (1L<<14)
-#define BCE_MISC_ENABLE_STATUS_BITS_RX_V2P_ENABLE	 (1L<<15)
-#define BCE_MISC_ENABLE_STATUS_BITS_RX_BD_CACHE_ENABLE	 (1L<<16)
-#define BCE_MISC_ENABLE_STATUS_BITS_RX_DMA_ENABLE	 (1L<<17)
-#define BCE_MISC_ENABLE_STATUS_BITS_COMPLETION_ENABLE	 (1L<<18)
+#define BCE_MISC_ENABLE_STATUS_BITS_RX_MBUF_ENABLE		(1L<<12)
+#define BCE_MISC_ENABLE_STATUS_BITS_RX_LOOKUP_ENABLE	(1L<<13)
+#define BCE_MISC_ENABLE_STATUS_BITS_RX_PROCESSOR_ENABLE	(1L<<14)
+#define BCE_MISC_ENABLE_STATUS_BITS_RX_V2P_ENABLE		(1L<<15)
+#define BCE_MISC_ENABLE_STATUS_BITS_RX_BD_CACHE_ENABLE	(1L<<16)
+#define BCE_MISC_ENABLE_STATUS_BITS_RX_DMA_ENABLE		(1L<<17)
+#define BCE_MISC_ENABLE_STATUS_BITS_COMPLETION_ENABLE	(1L<<18)
 #define BCE_MISC_ENABLE_STATUS_BITS_HOST_COALESCE_ENABLE	 (1L<<19)
 #define BCE_MISC_ENABLE_STATUS_BITS_MAILBOX_QUEUE_ENABLE	 (1L<<20)
-#define BCE_MISC_ENABLE_STATUS_BITS_CONTEXT_ENABLE	 (1L<<21)
+#define BCE_MISC_ENABLE_STATUS_BITS_CONTEXT_ENABLE		(1L<<21)
 #define BCE_MISC_ENABLE_STATUS_BITS_CMD_SCHEDULER_ENABLE	 (1L<<22)
 #define BCE_MISC_ENABLE_STATUS_BITS_CMD_PROCESSOR_ENABLE	 (1L<<23)
 #define BCE_MISC_ENABLE_STATUS_BITS_MGMT_PROCESSOR_ENABLE	 (1L<<24)
-#define BCE_MISC_ENABLE_STATUS_BITS_TIMER_ENABLE	 (1L<<25)
-#define BCE_MISC_ENABLE_STATUS_BITS_DMA_ENGINE_ENABLE	 (1L<<26)
-#define BCE_MISC_ENABLE_STATUS_BITS_UMP_ENABLE		 (1L<<27)
+#define BCE_MISC_ENABLE_STATUS_BITS_TIMER_ENABLE		(1L<<25)
+#define BCE_MISC_ENABLE_STATUS_BITS_DMA_ENGINE_ENABLE	(1L<<26)
+#define BCE_MISC_ENABLE_STATUS_BITS_UMP_ENABLE			(1L<<27)
+#define BCE_MISC_ENABLE_STATUS_BITS_RV2P_CMD_SCHEDULER_ENABLE	 (1L<<28)
+#define BCE_MISC_ENABLE_STATUS_BITS_RSVD_FUTURE_ENABLE	(0x7L<<29)
 
-#define BCE_MISC_ENABLE_SET_BITS			0x00000810
-#define BCE_MISC_ENABLE_SET_BITS_TX_SCHEDULER_ENABLE	 (1L<<0)
-#define BCE_MISC_ENABLE_SET_BITS_TX_BD_READ_ENABLE	 (1L<<1)
-#define BCE_MISC_ENABLE_SET_BITS_TX_BD_CACHE_ENABLE	 (1L<<2)
-#define BCE_MISC_ENABLE_SET_BITS_TX_PROCESSOR_ENABLE	 (1L<<3)
-#define BCE_MISC_ENABLE_SET_BITS_TX_DMA_ENABLE		 (1L<<4)
-#define BCE_MISC_ENABLE_SET_BITS_TX_PATCHUP_ENABLE	 (1L<<5)
-#define BCE_MISC_ENABLE_SET_BITS_TX_PAYLOAD_Q_ENABLE	 (1L<<6)
-#define BCE_MISC_ENABLE_SET_BITS_TX_HEADER_Q_ENABLE	 (1L<<7)
-#define BCE_MISC_ENABLE_SET_BITS_TX_ASSEMBLER_ENABLE	 (1L<<8)
-#define BCE_MISC_ENABLE_SET_BITS_EMAC_ENABLE		 (1L<<9)
-#define BCE_MISC_ENABLE_SET_BITS_RX_PARSER_MAC_ENABLE	 (1L<<10)
-#define BCE_MISC_ENABLE_SET_BITS_RX_PARSER_CATCHUP_ENABLE	 (1L<<11)
-#define BCE_MISC_ENABLE_SET_BITS_RX_MBUF_ENABLE	 (1L<<12)
-#define BCE_MISC_ENABLE_SET_BITS_RX_LOOKUP_ENABLE	 (1L<<13)
-#define BCE_MISC_ENABLE_SET_BITS_RX_PROCESSOR_ENABLE	 (1L<<14)
-#define BCE_MISC_ENABLE_SET_BITS_RX_V2P_ENABLE		 (1L<<15)
-#define BCE_MISC_ENABLE_SET_BITS_RX_BD_CACHE_ENABLE	 (1L<<16)
-#define BCE_MISC_ENABLE_SET_BITS_RX_DMA_ENABLE		 (1L<<17)
-#define BCE_MISC_ENABLE_SET_BITS_COMPLETION_ENABLE	 (1L<<18)
-#define BCE_MISC_ENABLE_SET_BITS_HOST_COALESCE_ENABLE	 (1L<<19)
-#define BCE_MISC_ENABLE_SET_BITS_MAILBOX_QUEUE_ENABLE	 (1L<<20)
-#define BCE_MISC_ENABLE_SET_BITS_CONTEXT_ENABLE	 (1L<<21)
-#define BCE_MISC_ENABLE_SET_BITS_CMD_SCHEDULER_ENABLE	 (1L<<22)
-#define BCE_MISC_ENABLE_SET_BITS_CMD_PROCESSOR_ENABLE	 (1L<<23)
-#define BCE_MISC_ENABLE_SET_BITS_MGMT_PROCESSOR_ENABLE	 (1L<<24)
-#define BCE_MISC_ENABLE_SET_BITS_TIMER_ENABLE		 (1L<<25)
-#define BCE_MISC_ENABLE_SET_BITS_DMA_ENGINE_ENABLE	 (1L<<26)
-#define BCE_MISC_ENABLE_SET_BITS_UMP_ENABLE		 (1L<<27)
+#define BCE_MISC_ENABLE_SET_BITS						0x00000810
+#define BCE_MISC_ENABLE_SET_BITS_TX_SCHEDULER_ENABLE	(1L<<0)
+#define BCE_MISC_ENABLE_SET_BITS_TX_BD_READ_ENABLE		(1L<<1)
+#define BCE_MISC_ENABLE_SET_BITS_TX_BD_CACHE_ENABLE		(1L<<2)
+#define BCE_MISC_ENABLE_SET_BITS_TX_PROCESSOR_ENABLE	(1L<<3)
+#define BCE_MISC_ENABLE_SET_BITS_TX_DMA_ENABLE			(1L<<4)
+#define BCE_MISC_ENABLE_SET_BITS_TX_PATCHUP_ENABLE		(1L<<5)
+#define BCE_MISC_ENABLE_SET_BITS_TX_PAYLOAD_Q_ENABLE	(1L<<6)
+#define BCE_MISC_ENABLE_SET_BITS_TX_HEADER_Q_ENABLE		(1L<<7)
+#define BCE_MISC_ENABLE_SET_BITS_TX_ASSEMBLER_ENABLE	(1L<<8)
+#define BCE_MISC_ENABLE_SET_BITS_EMAC_ENABLE			(1L<<9)
+#define BCE_MISC_ENABLE_SET_BITS_RX_PARSER_MAC_ENABLE	(1L<<10)
+#define BCE_MISC_ENABLE_SET_BITS_RX_PARSER_CATCHUP_ENABLE	(1L<<11)
+#define BCE_MISC_ENABLE_SET_BITS_RX_MBUF_ENABLE			(1L<<12)
+#define BCE_MISC_ENABLE_SET_BITS_RX_LOOKUP_ENABLE		(1L<<13)
+#define BCE_MISC_ENABLE_SET_BITS_RX_PROCESSOR_ENABLE	(1L<<14)
+#define BCE_MISC_ENABLE_SET_BITS_RX_V2P_ENABLE			(1L<<15)
+#define BCE_MISC_ENABLE_SET_BITS_RX_BD_CACHE_ENABLE		(1L<<16)
+#define BCE_MISC_ENABLE_SET_BITS_RX_DMA_ENABLE			(1L<<17)
+#define BCE_MISC_ENABLE_SET_BITS_COMPLETION_ENABLE		(1L<<18)
+#define BCE_MISC_ENABLE_SET_BITS_HOST_COALESCE_ENABLE	(1L<<19)
+#define BCE_MISC_ENABLE_SET_BITS_MAILBOX_QUEUE_ENABLE	(1L<<20)
+#define BCE_MISC_ENABLE_SET_BITS_CONTEXT_ENABLE			(1L<<21)
+#define BCE_MISC_ENABLE_SET_BITS_CMD_SCHEDULER_ENABLE	(1L<<22)
+#define BCE_MISC_ENABLE_SET_BITS_CMD_PROCESSOR_ENABLE	(1L<<23)
+#define BCE_MISC_ENABLE_SET_BITS_MGMT_PROCESSOR_ENABLE	(1L<<24)
+#define BCE_MISC_ENABLE_SET_BITS_TIMER_ENABLE			(1L<<25)
+#define BCE_MISC_ENABLE_SET_BITS_DMA_ENGINE_ENABLE		(1L<<26)
+#define BCE_MISC_ENABLE_SET_BITS_UMP_ENABLE				(1L<<27)
+#define BCE_MISC_ENABLE_SET_BITS_RV2P_CMD_SCHEDULER_ENABLE	(1L<<28)
+#define BCE_MISC_ENABLE_SET_BITS_RSVD_FUTURE_ENABLE		(0x7L<<29)
 
-#define BCE_MISC_ENABLE_CLR_BITS			0x00000814
-#define BCE_MISC_ENABLE_CLR_BITS_TX_SCHEDULER_ENABLE	 (1L<<0)
-#define BCE_MISC_ENABLE_CLR_BITS_TX_BD_READ_ENABLE	 (1L<<1)
-#define BCE_MISC_ENABLE_CLR_BITS_TX_BD_CACHE_ENABLE	 (1L<<2)
-#define BCE_MISC_ENABLE_CLR_BITS_TX_PROCESSOR_ENABLE	 (1L<<3)
-#define BCE_MISC_ENABLE_CLR_BITS_TX_DMA_ENABLE		 (1L<<4)
-#define BCE_MISC_ENABLE_CLR_BITS_TX_PATCHUP_ENABLE	 (1L<<5)
-#define BCE_MISC_ENABLE_CLR_BITS_TX_PAYLOAD_Q_ENABLE	 (1L<<6)
-#define BCE_MISC_ENABLE_CLR_BITS_TX_HEADER_Q_ENABLE	 (1L<<7)
-#define BCE_MISC_ENABLE_CLR_BITS_TX_ASSEMBLER_ENABLE	 (1L<<8)
-#define BCE_MISC_ENABLE_CLR_BITS_EMAC_ENABLE		 (1L<<9)
-#define BCE_MISC_ENABLE_CLR_BITS_RX_PARSER_MAC_ENABLE	 (1L<<10)
-#define BCE_MISC_ENABLE_CLR_BITS_RX_PARSER_CATCHUP_ENABLE	 (1L<<11)
-#define BCE_MISC_ENABLE_CLR_BITS_RX_MBUF_ENABLE	 (1L<<12)
-#define BCE_MISC_ENABLE_CLR_BITS_RX_LOOKUP_ENABLE	 (1L<<13)
-#define BCE_MISC_ENABLE_CLR_BITS_RX_PROCESSOR_ENABLE	 (1L<<14)
-#define BCE_MISC_ENABLE_CLR_BITS_RX_V2P_ENABLE		 (1L<<15)
-#define BCE_MISC_ENABLE_CLR_BITS_RX_BD_CACHE_ENABLE	 (1L<<16)
-#define BCE_MISC_ENABLE_CLR_BITS_RX_DMA_ENABLE		 (1L<<17)
-#define BCE_MISC_ENABLE_CLR_BITS_COMPLETION_ENABLE	 (1L<<18)
-#define BCE_MISC_ENABLE_CLR_BITS_HOST_COALESCE_ENABLE	 (1L<<19)
-#define BCE_MISC_ENABLE_CLR_BITS_MAILBOX_QUEUE_ENABLE	 (1L<<20)
-#define BCE_MISC_ENABLE_CLR_BITS_CONTEXT_ENABLE	 (1L<<21)
-#define BCE_MISC_ENABLE_CLR_BITS_CMD_SCHEDULER_ENABLE	 (1L<<22)
-#define BCE_MISC_ENABLE_CLR_BITS_CMD_PROCESSOR_ENABLE	 (1L<<23)
-#define BCE_MISC_ENABLE_CLR_BITS_MGMT_PROCESSOR_ENABLE	 (1L<<24)
-#define BCE_MISC_ENABLE_CLR_BITS_TIMER_ENABLE		 (1L<<25)
-#define BCE_MISC_ENABLE_CLR_BITS_DMA_ENGINE_ENABLE	 (1L<<26)
-#define BCE_MISC_ENABLE_CLR_BITS_UMP_ENABLE		 (1L<<27)
+#define BCE_MISC_ENABLE_DEFAULT							0x05ffffff
+#define BCE_MISC_ENABLE_DEFAULT_XI			  			0x17ffffff
+
+#define BCE_MISC_ENABLE_CLR_BITS						0x00000814
+#define BCE_MISC_ENABLE_CLR_BITS_TX_SCHEDULER_ENABLE	(1L<<0)
+#define BCE_MISC_ENABLE_CLR_BITS_TX_BD_READ_ENABLE		(1L<<1)
+#define BCE_MISC_ENABLE_CLR_BITS_TX_BD_CACHE_ENABLE		(1L<<2)
+#define BCE_MISC_ENABLE_CLR_BITS_TX_PROCESSOR_ENABLE	(1L<<3)
+#define BCE_MISC_ENABLE_CLR_BITS_TX_DMA_ENABLE			(1L<<4)
+#define BCE_MISC_ENABLE_CLR_BITS_TX_PATCHUP_ENABLE		(1L<<5)
+#define BCE_MISC_ENABLE_CLR_BITS_TX_PAYLOAD_Q_ENABLE	(1L<<6)
+#define BCE_MISC_ENABLE_CLR_BITS_TX_HEADER_Q_ENABLE		(1L<<7)
+#define BCE_MISC_ENABLE_CLR_BITS_TX_ASSEMBLER_ENABLE	(1L<<8)
+#define BCE_MISC_ENABLE_CLR_BITS_EMAC_ENABLE			(1L<<9)
+#define BCE_MISC_ENABLE_CLR_BITS_RX_PARSER_MAC_ENABLE	(1L<<10)
+#define BCE_MISC_ENABLE_CLR_BITS_RX_PARSER_CATCHUP_ENABLE	(1L<<11)
+#define BCE_MISC_ENABLE_CLR_BITS_RX_MBUF_ENABLE			(1L<<12)
+#define BCE_MISC_ENABLE_CLR_BITS_RX_LOOKUP_ENABLE		(1L<<13)
+#define BCE_MISC_ENABLE_CLR_BITS_RX_PROCESSOR_ENABLE	(1L<<14)
+#define BCE_MISC_ENABLE_CLR_BITS_RX_V2P_ENABLE			(1L<<15)
+#define BCE_MISC_ENABLE_CLR_BITS_RX_BD_CACHE_ENABLE		(1L<<16)
+#define BCE_MISC_ENABLE_CLR_BITS_RX_DMA_ENABLE			(1L<<17)
+#define BCE_MISC_ENABLE_CLR_BITS_COMPLETION_ENABLE		(1L<<18)
+#define BCE_MISC_ENABLE_CLR_BITS_HOST_COALESCE_ENABLE	(1L<<19)
+#define BCE_MISC_ENABLE_CLR_BITS_MAILBOX_QUEUE_ENABLE	(1L<<20)
+#define BCE_MISC_ENABLE_CLR_BITS_CONTEXT_ENABLE			(1L<<21)
+#define BCE_MISC_ENABLE_CLR_BITS_CMD_SCHEDULER_ENABLE	(1L<<22)
+#define BCE_MISC_ENABLE_CLR_BITS_CMD_PROCESSOR_ENABLE	(1L<<23)
+#define BCE_MISC_ENABLE_CLR_BITS_MGMT_PROCESSOR_ENABLE	(1L<<24)
+#define BCE_MISC_ENABLE_CLR_BITS_TIMER_ENABLE			(1L<<25)
+#define BCE_MISC_ENABLE_CLR_BITS_DMA_ENGINE_ENABLE		(1L<<26)
+#define BCE_MISC_ENABLE_CLR_BITS_UMP_ENABLE				(1L<<27)
+#define BCE_MISC_ENABLE_CLR_BITS_RV2P_CMD_SCHEDULER_ENABLE	(1L<<28)
+#define BCE_MISC_ENABLE_CLR_BITS_RSVD_FUTURE_ENABLE		(0x7L<<29)
+
+#define BCE_MISC_ENABLE_CLR_DEFAULT						0x17ffffff
 
 #define BCE_MISC_CLOCK_CONTROL_BITS			0x00000818
 #define BCE_MISC_CLOCK_CONTROL_BITS_PCI_CLK_SPD_DET	 (0xfL<<0)
@@ -1577,30 +1914,41 @@ struct l2_fhdr {
 #define BCE_MISC_CLOCK_CONTROL_BITS_CORE_CLK_ALT_SRC_12	 (1L<<8)
 #define BCE_MISC_CLOCK_CONTROL_BITS_CORE_CLK_ALT_SRC_6	 (2L<<8)
 #define BCE_MISC_CLOCK_CONTROL_BITS_CORE_CLK_ALT_SRC_62	 (4L<<8)
-#define BCE_MISC_CLOCK_CONTROL_BITS_PLAY_DEAD		 (1L<<11)
+#define BCE_MISC_CLOCK_CONTROL_BITS_RESERVED0_XI	 (0x7L<<8)
+#define BCE_MISC_CLOCK_CONTROL_BITS_MIN_POWER		 (1L<<11)
 #define BCE_MISC_CLOCK_CONTROL_BITS_CORE_CLK_PLL_SPEED	 (0xfL<<12)
 #define BCE_MISC_CLOCK_CONTROL_BITS_CORE_CLK_PLL_SPEED_100	 (0L<<12)
 #define BCE_MISC_CLOCK_CONTROL_BITS_CORE_CLK_PLL_SPEED_80	 (1L<<12)
 #define BCE_MISC_CLOCK_CONTROL_BITS_CORE_CLK_PLL_SPEED_50	 (2L<<12)
 #define BCE_MISC_CLOCK_CONTROL_BITS_CORE_CLK_PLL_SPEED_40	 (4L<<12)
 #define BCE_MISC_CLOCK_CONTROL_BITS_CORE_CLK_PLL_SPEED_25	 (8L<<12)
+#define BCE_MISC_CLOCK_CONTROL_BITS_RESERVED1_XI	 (0xfL<<12)
 #define BCE_MISC_CLOCK_CONTROL_BITS_CORE_CLK_PLL_STOP	 (1L<<16)
-#define BCE_MISC_CLOCK_CONTROL_BITS_PCI_PLL_STOP	 (1L<<17)
-#define BCE_MISC_CLOCK_CONTROL_BITS_RESERVED_18	 (1L<<18)
-#define BCE_MISC_CLOCK_CONTROL_BITS_USE_SPD_DET	 (1L<<19)
-#define BCE_MISC_CLOCK_CONTROL_BITS_RESERVED		 (0xfffL<<20)
+#define BCE_MISC_CLOCK_CONTROL_BITS_RESERVED_17_TE	 (1L<<17)
+#define BCE_MISC_CLOCK_CONTROL_BITS_RESERVED_18_TE	 (1L<<18)
+#define BCE_MISC_CLOCK_CONTROL_BITS_RESERVED_19_TE	 (1L<<19)
+#define BCE_MISC_CLOCK_CONTROL_BITS_RESERVED_TE	 (0xfffL<<20)
+#define BCE_MISC_CLOCK_CONTROL_BITS_CORE_CLK_ALT_MGMT_XI	 (1L<<17)
+#define BCE_MISC_CLOCK_CONTROL_BITS_RESERVED2_XI	 (0x3fL<<18)
+#define BCE_MISC_CLOCK_CONTROL_BITS_CORE_CLK_PLL_VCO_XI	 (0x7L<<24)
+#define BCE_MISC_CLOCK_CONTROL_BITS_RESERVED3_XI	 (1L<<27)
+#define BCE_MISC_CLOCK_CONTROL_BITS_CORE_CLK_PLL_SPEED_XI	 (0xfL<<28)
 
-#define BCE_MISC_GPIO					0x0000081c
-#define BCE_MISC_GPIO_VALUE				 (0xffL<<0)
-#define BCE_MISC_GPIO_SET				 (0xffL<<8)
-#define BCE_MISC_GPIO_CLR				 (0xffL<<16)
-#define BCE_MISC_GPIO_FLOAT				 (0xffL<<24)
+#define BCE_MISC_SPIO					0x0000081c
+#define BCE_MISC_SPIO_VALUE				 (0xffL<<0)
+#define BCE_MISC_SPIO_SET				 (0xffL<<8)
+#define BCE_MISC_SPIO_CLR				 (0xffL<<16)
+#define BCE_MISC_SPIO_FLOAT				 (0xffL<<24)
 
-#define BCE_MISC_GPIO_INT				0x00000820
-#define BCE_MISC_GPIO_INT_INT_STATE			 (0xfL<<0)
-#define BCE_MISC_GPIO_INT_OLD_VALUE			 (0xfL<<8)
-#define BCE_MISC_GPIO_INT_OLD_SET			 (0xfL<<16)
-#define BCE_MISC_GPIO_INT_OLD_CLR			 (0xfL<<24)
+#define BCE_MISC_SPIO_INT				0x00000820
+#define BCE_MISC_SPIO_INT_INT_STATE_TE			 (0xfL<<0)
+#define BCE_MISC_SPIO_INT_OLD_VALUE_TE			 (0xfL<<8)
+#define BCE_MISC_SPIO_INT_OLD_SET_TE			 (0xfL<<16)
+#define BCE_MISC_SPIO_INT_OLD_CLR_TE			 (0xfL<<24)
+#define BCE_MISC_SPIO_INT_INT_STATE_XI			 (0xffL<<0)
+#define BCE_MISC_SPIO_INT_OLD_VALUE_XI			 (0xffL<<8)
+#define BCE_MISC_SPIO_INT_OLD_SET_XI			 (0xffL<<16)
+#define BCE_MISC_SPIO_INT_OLD_CLR_XI			 (0xffL<<24)
 
 #define BCE_MISC_CONFIG_LFSR				0x00000824
 #define BCE_MISC_CONFIG_LFSR_DIV			 (0xffffL<<0)
@@ -1634,6 +1982,8 @@ struct l2_fhdr {
 #define BCE_MISC_LFSR_MASK_BITS_TIMER_ENABLE		 (1L<<25)
 #define BCE_MISC_LFSR_MASK_BITS_DMA_ENGINE_ENABLE	 (1L<<26)
 #define BCE_MISC_LFSR_MASK_BITS_UMP_ENABLE		 (1L<<27)
+#define BCE_MISC_LFSR_MASK_BITS_RV2P_CMD_SCHEDULER_ENABLE	 (1L<<28)
+#define BCE_MISC_LFSR_MASK_BITS_RSVD_FUTURE_ENABLE	 (0x7L<<29)
 
 #define BCE_MISC_ARB_REQ0				0x0000082c
 #define BCE_MISC_ARB_REQ1				0x00000830
@@ -1690,22 +2040,12 @@ struct l2_fhdr {
 #define BCE_MISC_ARB_GNT3_30				 (0x7L<<24)
 #define BCE_MISC_ARB_GNT3_31				 (0x7L<<28)
 
-#define BCE_MISC_PRBS_CONTROL				0x00000878
-#define BCE_MISC_PRBS_CONTROL_EN			 (1L<<0)
-#define BCE_MISC_PRBS_CONTROL_RSTB			 (1L<<1)
-#define BCE_MISC_PRBS_CONTROL_INV			 (1L<<2)
-#define BCE_MISC_PRBS_CONTROL_ERR_CLR			 (1L<<3)
-#define BCE_MISC_PRBS_CONTROL_ORDER			 (0x3L<<4)
-#define BCE_MISC_PRBS_CONTROL_ORDER_7TH		 (0L<<4)
-#define BCE_MISC_PRBS_CONTROL_ORDER_15TH		 (1L<<4)
-#define BCE_MISC_PRBS_CONTROL_ORDER_23RD		 (2L<<4)
-#define BCE_MISC_PRBS_CONTROL_ORDER_31ST		 (3L<<4)
+#define BCE_MISC_RESERVED1				0x00000878
+#define BCE_MISC_RESERVED1_MISC_RESERVED1_VALUE	 (0x3fL<<0)
 
-#define BCE_MISC_PRBS_STATUS				0x0000087c
-#define BCE_MISC_PRBS_STATUS_LOCK			 (1L<<0)
-#define BCE_MISC_PRBS_STATUS_STKY			 (1L<<1)
-#define BCE_MISC_PRBS_STATUS_ERRORS			 (0x3fffL<<2)
-#define BCE_MISC_PRBS_STATUS_STATE			 (0xfL<<16)
+#define BCE_MISC_RESERVED2				0x0000087c
+#define BCE_MISC_RESERVED2_PCIE_DIS			 (1L<<0)
+#define BCE_MISC_RESERVED2_LINK_IN_L23			 (1L<<1)
 
 #define BCE_MISC_SM_ASF_CONTROL			0x00000880
 #define BCE_MISC_SM_ASF_CONTROL_ASF_RST		 (1L<<0)
@@ -1716,13 +2056,15 @@ struct l2_fhdr {
 #define BCE_MISC_SM_ASF_CONTROL_PL_TO			 (1L<<5)
 #define BCE_MISC_SM_ASF_CONTROL_RT_TO			 (1L<<6)
 #define BCE_MISC_SM_ASF_CONTROL_SMB_EVENT		 (1L<<7)
-#define BCE_MISC_SM_ASF_CONTROL_RES			 (0xfL<<8)
+#define BCE_MISC_SM_ASF_CONTROL_STRETCH_EN		 (1L<<8)
+#define BCE_MISC_SM_ASF_CONTROL_STRETCH_PULSE		 (1L<<9)
+#define BCE_MISC_SM_ASF_CONTROL_RES			 (0x3L<<10)
 #define BCE_MISC_SM_ASF_CONTROL_SMB_EN			 (1L<<12)
 #define BCE_MISC_SM_ASF_CONTROL_SMB_BB_EN		 (1L<<13)
 #define BCE_MISC_SM_ASF_CONTROL_SMB_NO_ADDR_FILT	 (1L<<14)
 #define BCE_MISC_SM_ASF_CONTROL_SMB_AUTOREAD		 (1L<<15)
-#define BCE_MISC_SM_ASF_CONTROL_NIC_SMB_ADDR1		 (0x3fL<<16)
-#define BCE_MISC_SM_ASF_CONTROL_NIC_SMB_ADDR2		 (0x3fL<<24)
+#define BCE_MISC_SM_ASF_CONTROL_NIC_SMB_ADDR1		 (0x7fL<<16)
+#define BCE_MISC_SM_ASF_CONTROL_NIC_SMB_ADDR2		 (0x7fL<<23)
 #define BCE_MISC_SM_ASF_CONTROL_EN_NIC_SMB_ADDR_0	 (1L<<30)
 #define BCE_MISC_SM_ASF_CONTROL_SMB_EARLY_ATTN		 (1L<<31)
 
@@ -1750,13 +2092,13 @@ struct l2_fhdr {
 #define BCE_MISC_SMB_OUT_SMB_OUT_STATUS		 (0xfL<<20)
 #define BCE_MISC_SMB_OUT_SMB_OUT_STATUS_OK		 (0L<<20)
 #define BCE_MISC_SMB_OUT_SMB_OUT_STATUS_FIRST_NACK	 (1L<<20)
-#define BCE_MISC_SMB_OUT_SMB_OUT_STATUS_SUB_NACK	 (9L<<20)
 #define BCE_MISC_SMB_OUT_SMB_OUT_STATUS_UFLOW		 (2L<<20)
 #define BCE_MISC_SMB_OUT_SMB_OUT_STATUS_STOP		 (3L<<20)
 #define BCE_MISC_SMB_OUT_SMB_OUT_STATUS_TIMEOUT	 (4L<<20)
 #define BCE_MISC_SMB_OUT_SMB_OUT_STATUS_FIRST_LOST	 (5L<<20)
+#define BCE_MISC_SMB_OUT_SMB_OUT_STATUS_BADACK		 (6L<<20)
+#define BCE_MISC_SMB_OUT_SMB_OUT_STATUS_SUB_NACK	 (9L<<20)
 #define BCE_MISC_SMB_OUT_SMB_OUT_STATUS_SUB_LOST	 (0xdL<<20)
-#define BCE_MISC_SMB_OUT_SMB_OUT_STATUS_BADACK		 (0x6L<<20)
 #define BCE_MISC_SMB_OUT_SMB_OUT_SLAVEMODE		 (1L<<24)
 #define BCE_MISC_SMB_OUT_SMB_OUT_DAT_EN		 (1L<<25)
 #define BCE_MISC_SMB_OUT_SMB_OUT_DAT_IN		 (1L<<26)
@@ -1814,6 +2156,38 @@ struct l2_fhdr {
 #define BCE_MISC_PERR_ENA0_RDE_MISC_RPC		 (1L<<29)
 #define BCE_MISC_PERR_ENA0_RDE_MISC_RPM		 (1L<<30)
 #define BCE_MISC_PERR_ENA0_RV2P_MISC_CB0REGS		 (1L<<31)
+#define BCE_MISC_PERR_ENA0_COM_DMAE_PERR_EN_XI		 (1L<<0)
+#define BCE_MISC_PERR_ENA0_CP_DMAE_PERR_EN_XI		 (1L<<1)
+#define BCE_MISC_PERR_ENA0_RPM_ACPIBEMEM_PERR_EN_XI	 (1L<<2)
+#define BCE_MISC_PERR_ENA0_CTX_USAGE_CNT_PERR_EN_XI	 (1L<<3)
+#define BCE_MISC_PERR_ENA0_CTX_PGTBL_PERR_EN_XI	 (1L<<4)
+#define BCE_MISC_PERR_ENA0_CTX_CACHE_PERR_EN_XI	 (1L<<5)
+#define BCE_MISC_PERR_ENA0_CTX_MIRROR_PERR_EN_XI	 (1L<<6)
+#define BCE_MISC_PERR_ENA0_COM_CTXC_PERR_EN_XI		 (1L<<7)
+#define BCE_MISC_PERR_ENA0_COM_SCPAD_PERR_EN_XI	 (1L<<8)
+#define BCE_MISC_PERR_ENA0_CP_CTXC_PERR_EN_XI		 (1L<<9)
+#define BCE_MISC_PERR_ENA0_CP_SCPAD_PERR_EN_XI		 (1L<<10)
+#define BCE_MISC_PERR_ENA0_RXP_RBUFC_PERR_EN_XI	 (1L<<11)
+#define BCE_MISC_PERR_ENA0_RXP_CTXC_PERR_EN_XI		 (1L<<12)
+#define BCE_MISC_PERR_ENA0_RXP_SCPAD_PERR_EN_XI	 (1L<<13)
+#define BCE_MISC_PERR_ENA0_TPAT_SCPAD_PERR_EN_XI	 (1L<<14)
+#define BCE_MISC_PERR_ENA0_TXP_CTXC_PERR_EN_XI		 (1L<<15)
+#define BCE_MISC_PERR_ENA0_TXP_SCPAD_PERR_EN_XI	 (1L<<16)
+#define BCE_MISC_PERR_ENA0_CS_TMEM_PERR_EN_XI		 (1L<<17)
+#define BCE_MISC_PERR_ENA0_MQ_CTX_PERR_EN_XI		 (1L<<18)
+#define BCE_MISC_PERR_ENA0_RPM_DFIFOMEM_PERR_EN_XI	 (1L<<19)
+#define BCE_MISC_PERR_ENA0_RPC_DFIFOMEM_PERR_EN_XI	 (1L<<20)
+#define BCE_MISC_PERR_ENA0_RBUF_PTRMEM_PERR_EN_XI	 (1L<<21)
+#define BCE_MISC_PERR_ENA0_RBUF_DATAMEM_PERR_EN_XI	 (1L<<22)
+#define BCE_MISC_PERR_ENA0_RV2P_P2IRAM_PERR_EN_XI	 (1L<<23)
+#define BCE_MISC_PERR_ENA0_RV2P_P1IRAM_PERR_EN_XI	 (1L<<24)
+#define BCE_MISC_PERR_ENA0_RV2P_CB1REGS_PERR_EN_XI	 (1L<<25)
+#define BCE_MISC_PERR_ENA0_RV2P_CB0REGS_PERR_EN_XI	 (1L<<26)
+#define BCE_MISC_PERR_ENA0_TPBUF_PERR_EN_XI		 (1L<<27)
+#define BCE_MISC_PERR_ENA0_THBUF_PERR_EN_XI		 (1L<<28)
+#define BCE_MISC_PERR_ENA0_TDMA_PERR_EN_XI		 (1L<<29)
+#define BCE_MISC_PERR_ENA0_TBDC_PERR_EN_XI		 (1L<<30)
+#define BCE_MISC_PERR_ENA0_TSCH_LR_PERR_EN_XI		 (1L<<31)
 
 #define BCE_MISC_PERR_ENA1				0x000008a8
 #define BCE_MISC_PERR_ENA1_RV2P_MISC_CB1REGS		 (1L<<0)
@@ -1848,6 +2222,35 @@ struct l2_fhdr {
 #define BCE_MISC_PERR_ENA1_RXPQ_MISC			 (1L<<29)
 #define BCE_MISC_PERR_ENA1_RXPCQ_MISC			 (1L<<30)
 #define BCE_MISC_PERR_ENA1_RLUPQ_MISC			 (1L<<31)
+#define BCE_MISC_PERR_ENA1_RBDC_PERR_EN_XI		 (1L<<0)
+#define BCE_MISC_PERR_ENA1_RDMA_DFIFO_PERR_EN_XI	 (1L<<2)
+#define BCE_MISC_PERR_ENA1_HC_STATS_PERR_EN_XI		 (1L<<3)
+#define BCE_MISC_PERR_ENA1_HC_MSIX_PERR_EN_XI		 (1L<<4)
+#define BCE_MISC_PERR_ENA1_HC_PRODUCSTB_PERR_EN_XI	 (1L<<5)
+#define BCE_MISC_PERR_ENA1_HC_CONSUMSTB_PERR_EN_XI	 (1L<<6)
+#define BCE_MISC_PERR_ENA1_TPATQ_PERR_EN_XI		 (1L<<7)
+#define BCE_MISC_PERR_ENA1_MCPQ_PERR_EN_XI		 (1L<<8)
+#define BCE_MISC_PERR_ENA1_TDMAQ_PERR_EN_XI		 (1L<<9)
+#define BCE_MISC_PERR_ENA1_TXPQ_PERR_EN_XI		 (1L<<10)
+#define BCE_MISC_PERR_ENA1_COMTQ_PERR_EN_XI		 (1L<<11)
+#define BCE_MISC_PERR_ENA1_COMQ_PERR_EN_XI		 (1L<<12)
+#define BCE_MISC_PERR_ENA1_RLUPQ_PERR_EN_XI		 (1L<<13)
+#define BCE_MISC_PERR_ENA1_RXPQ_PERR_EN_XI		 (1L<<14)
+#define BCE_MISC_PERR_ENA1_RV2PPQ_PERR_EN_XI		 (1L<<15)
+#define BCE_MISC_PERR_ENA1_RDMAQ_PERR_EN_XI		 (1L<<16)
+#define BCE_MISC_PERR_ENA1_TASQ_PERR_EN_XI		 (1L<<17)
+#define BCE_MISC_PERR_ENA1_TBDRQ_PERR_EN_XI		 (1L<<18)
+#define BCE_MISC_PERR_ENA1_TSCHQ_PERR_EN_XI		 (1L<<19)
+#define BCE_MISC_PERR_ENA1_COMXQ_PERR_EN_XI		 (1L<<20)
+#define BCE_MISC_PERR_ENA1_RXPCQ_PERR_EN_XI		 (1L<<21)
+#define BCE_MISC_PERR_ENA1_RV2PTQ_PERR_EN_XI		 (1L<<22)
+#define BCE_MISC_PERR_ENA1_RV2PMQ_PERR_EN_XI		 (1L<<23)
+#define BCE_MISC_PERR_ENA1_CPQ_PERR_EN_XI		 (1L<<24)
+#define BCE_MISC_PERR_ENA1_CSQ_PERR_EN_XI		 (1L<<25)
+#define BCE_MISC_PERR_ENA1_RLUP_CID_PERR_EN_XI		 (1L<<26)
+#define BCE_MISC_PERR_ENA1_RV2PCS_TMEM_PERR_EN_XI	 (1L<<27)
+#define BCE_MISC_PERR_ENA1_RV2PCSQ_PERR_EN_XI		 (1L<<28)
+#define BCE_MISC_PERR_ENA1_MQ_IDX_PERR_EN_XI		 (1L<<29)
 
 #define BCE_MISC_PERR_ENA2				0x000008ac
 #define BCE_MISC_PERR_ENA2_COMQ_MISC			 (1L<<0)
@@ -1859,125 +2262,499 @@ struct l2_fhdr {
 #define BCE_MISC_PERR_ENA2_TDMAQ_MISC			 (1L<<6)
 #define BCE_MISC_PERR_ENA2_TPATQ_MISC			 (1L<<7)
 #define BCE_MISC_PERR_ENA2_TASQ_MISC			 (1L<<8)
+#define BCE_MISC_PERR_ENA2_TGT_FIFO_PERR_EN_XI		 (1L<<0)
+#define BCE_MISC_PERR_ENA2_UMP_TX_PERR_EN_XI		 (1L<<1)
+#define BCE_MISC_PERR_ENA2_UMP_RX_PERR_EN_XI		 (1L<<2)
+#define BCE_MISC_PERR_ENA2_MCP_ROM_PERR_EN_XI		 (1L<<3)
+#define BCE_MISC_PERR_ENA2_MCP_SCPAD_PERR_EN_XI	 (1L<<4)
+#define BCE_MISC_PERR_ENA2_HB_MEM_PERR_EN_XI		 (1L<<5)
+#define BCE_MISC_PERR_ENA2_PCIE_REPLAY_PERR_EN_XI	 (1L<<6)
 
 #define BCE_MISC_DEBUG_VECTOR_SEL			0x000008b0
 #define BCE_MISC_DEBUG_VECTOR_SEL_0			 (0xfffL<<0)
 #define BCE_MISC_DEBUG_VECTOR_SEL_1			 (0xfffL<<12)
+#define BCE_MISC_DEBUG_VECTOR_SEL_1_XI			 (0xfffL<<15)
 
 #define BCE_MISC_VREG_CONTROL				0x000008b4
 #define BCE_MISC_VREG_CONTROL_1_2			 (0xfL<<0)
+#define BCE_MISC_VREG_CONTROL_1_0_MAIN_XI		 (0xfL<<0)
+#define BCE_MISC_VREG_CONTROL_1_0_MAIN_PLUS14_XI	 (0L<<0)
+#define BCE_MISC_VREG_CONTROL_1_0_MAIN_PLUS12_XI	 (1L<<0)
+#define BCE_MISC_VREG_CONTROL_1_0_MAIN_PLUS10_XI	 (2L<<0)
+#define BCE_MISC_VREG_CONTROL_1_0_MAIN_PLUS8_XI	 (3L<<0)
+#define BCE_MISC_VREG_CONTROL_1_0_MAIN_PLUS6_XI	 (4L<<0)
+#define BCE_MISC_VREG_CONTROL_1_0_MAIN_PLUS4_XI	 (5L<<0)
+#define BCE_MISC_VREG_CONTROL_1_0_MAIN_PLUS2_XI	 (6L<<0)
+#define BCE_MISC_VREG_CONTROL_1_0_MAIN_NOM_XI		 (7L<<0)
+#define BCE_MISC_VREG_CONTROL_1_0_MAIN_MINUS2_XI	 (8L<<0)
+#define BCE_MISC_VREG_CONTROL_1_0_MAIN_MINUS4_XI	 (9L<<0)
+#define BCE_MISC_VREG_CONTROL_1_0_MAIN_MINUS6_XI	 (10L<<0)
+#define BCE_MISC_VREG_CONTROL_1_0_MAIN_MINUS8_XI	 (11L<<0)
+#define BCE_MISC_VREG_CONTROL_1_0_MAIN_MINUS10_XI	 (12L<<0)
+#define BCE_MISC_VREG_CONTROL_1_0_MAIN_MINUS12_XI	 (13L<<0)
+#define BCE_MISC_VREG_CONTROL_1_0_MAIN_MINUS14_XI	 (14L<<0)
+#define BCE_MISC_VREG_CONTROL_1_0_MAIN_MINUS16_XI	 (15L<<0)
 #define BCE_MISC_VREG_CONTROL_2_5			 (0xfL<<4)
+#define BCE_MISC_VREG_CONTROL_2_5_PLUS14		 (0L<<4)
+#define BCE_MISC_VREG_CONTROL_2_5_PLUS12		 (1L<<4)
+#define BCE_MISC_VREG_CONTROL_2_5_PLUS10		 (2L<<4)
+#define BCE_MISC_VREG_CONTROL_2_5_PLUS8		 (3L<<4)
+#define BCE_MISC_VREG_CONTROL_2_5_PLUS6		 (4L<<4)
+#define BCE_MISC_VREG_CONTROL_2_5_PLUS4		 (5L<<4)
+#define BCE_MISC_VREG_CONTROL_2_5_PLUS2		 (6L<<4)
+#define BCE_MISC_VREG_CONTROL_2_5_NOM			 (7L<<4)
+#define BCE_MISC_VREG_CONTROL_2_5_MINUS2		 (8L<<4)
+#define BCE_MISC_VREG_CONTROL_2_5_MINUS4		 (9L<<4)
+#define BCE_MISC_VREG_CONTROL_2_5_MINUS6		 (10L<<4)
+#define BCE_MISC_VREG_CONTROL_2_5_MINUS8		 (11L<<4)
+#define BCE_MISC_VREG_CONTROL_2_5_MINUS10		 (12L<<4)
+#define BCE_MISC_VREG_CONTROL_2_5_MINUS12		 (13L<<4)
+#define BCE_MISC_VREG_CONTROL_2_5_MINUS14		 (14L<<4)
+#define BCE_MISC_VREG_CONTROL_2_5_MINUS16		 (15L<<4)
+#define BCE_MISC_VREG_CONTROL_1_0_MGMT			 (0xfL<<8)
+#define BCE_MISC_VREG_CONTROL_1_0_MGMT_PLUS14		 (0L<<8)
+#define BCE_MISC_VREG_CONTROL_1_0_MGMT_PLUS12		 (1L<<8)
+#define BCE_MISC_VREG_CONTROL_1_0_MGMT_PLUS10		 (2L<<8)
+#define BCE_MISC_VREG_CONTROL_1_0_MGMT_PLUS8		 (3L<<8)
+#define BCE_MISC_VREG_CONTROL_1_0_MGMT_PLUS6		 (4L<<8)
+#define BCE_MISC_VREG_CONTROL_1_0_MGMT_PLUS4		 (5L<<8)
+#define BCE_MISC_VREG_CONTROL_1_0_MGMT_PLUS2		 (6L<<8)
+#define BCE_MISC_VREG_CONTROL_1_0_MGMT_NOM		 (7L<<8)
+#define BCE_MISC_VREG_CONTROL_1_0_MGMT_MINUS2		 (8L<<8)
+#define BCE_MISC_VREG_CONTROL_1_0_MGMT_MINUS4		 (9L<<8)
+#define BCE_MISC_VREG_CONTROL_1_0_MGMT_MINUS6		 (10L<<8)
+#define BCE_MISC_VREG_CONTROL_1_0_MGMT_MINUS8		 (11L<<8)
+#define BCE_MISC_VREG_CONTROL_1_0_MGMT_MINUS10		 (12L<<8)
+#define BCE_MISC_VREG_CONTROL_1_0_MGMT_MINUS12		 (13L<<8)
+#define BCE_MISC_VREG_CONTROL_1_0_MGMT_MINUS14		 (14L<<8)
+#define BCE_MISC_VREG_CONTROL_1_0_MGMT_MINUS16		 (15L<<8)
 
 #define BCE_MISC_FINAL_CLK_CTL_VAL			0x000008b8
 #define BCE_MISC_FINAL_CLK_CTL_VAL_MISC_FINAL_CLK_CTL_VAL	 (0x3ffffffL<<6)
 
-#define BCE_MISC_UNUSED0				0x000008bc
+#define BCE_MISC_GP_HW_CTL0				0x000008bc
+#define BCE_MISC_GP_HW_CTL0_TX_DRIVE			 (1L<<0)
+#define BCE_MISC_GP_HW_CTL0_RMII_MODE			 (1L<<1)
+#define BCE_MISC_GP_HW_CTL0_RMII_CRSDV_SEL		 (1L<<2)
+#define BCE_MISC_GP_HW_CTL0_RVMII_MODE			 (1L<<3)
+#define BCE_MISC_GP_HW_CTL0_FLASH_SAMP_SCLK_NEGEDGE_TE	 (1L<<4)
+#define BCE_MISC_GP_HW_CTL0_HIDDEN_REVISION_ID_TE	 (1L<<5)
+#define BCE_MISC_GP_HW_CTL0_HC_CNTL_TMOUT_CTR_RST_TE	 (1L<<6)
+#define BCE_MISC_GP_HW_CTL0_RESERVED1_XI		 (0x7L<<4)
+#define BCE_MISC_GP_HW_CTL0_ENA_CORE_RST_ON_MAIN_PWR_GOING_AWAY	 (1L<<7)
+#define BCE_MISC_GP_HW_CTL0_ENA_SEL_VAUX_B_IN_L2_TE	 (1L<<8)
+#define BCE_MISC_GP_HW_CTL0_GRC_BNK_FREE_FIX_TE	 (1L<<9)
+#define BCE_MISC_GP_HW_CTL0_LED_ACT_SEL_TE		 (1L<<10)
+#define BCE_MISC_GP_HW_CTL0_RESERVED2_XI		 (0x7L<<8)
+#define BCE_MISC_GP_HW_CTL0_UP1_DEF0			 (1L<<11)
+#define BCE_MISC_GP_HW_CTL0_FIBER_MODE_DIS_DEF		 (1L<<12)
+#define BCE_MISC_GP_HW_CTL0_FORCE2500_DEF		 (1L<<13)
+#define BCE_MISC_GP_HW_CTL0_AUTODETECT_DIS_DEF		 (1L<<14)
+#define BCE_MISC_GP_HW_CTL0_PARALLEL_DETECT_DEF	 (1L<<15)
+#define BCE_MISC_GP_HW_CTL0_OSCCTRL_DAI		 (0xfL<<16)
+#define BCE_MISC_GP_HW_CTL0_OSCCTRL_DAI_3MA		 (0L<<16)
+#define BCE_MISC_GP_HW_CTL0_OSCCTRL_DAI_2P5MA		 (1L<<16)
+#define BCE_MISC_GP_HW_CTL0_OSCCTRL_DAI_2P0MA		 (3L<<16)
+#define BCE_MISC_GP_HW_CTL0_OSCCTRL_DAI_1P5MA		 (5L<<16)
+#define BCE_MISC_GP_HW_CTL0_OSCCTRL_DAI_1P0MA		 (7L<<16)
+#define BCE_MISC_GP_HW_CTL0_OSCCTRL_DAI_PWRDN		 (15L<<16)
+#define BCE_MISC_GP_HW_CTL0_OSCCTRL_PRE2DIS		 (1L<<20)
+#define BCE_MISC_GP_HW_CTL0_OSCCTRL_PRE1DIS		 (1L<<21)
+#define BCE_MISC_GP_HW_CTL0_OSCCTRL_CTAT		 (0x3L<<22)
+#define BCE_MISC_GP_HW_CTL0_OSCCTRL_CTAT_M6P		 (0L<<22)
+#define BCE_MISC_GP_HW_CTL0_OSCCTRL_CTAT_M0P		 (1L<<22)
+#define BCE_MISC_GP_HW_CTL0_OSCCTRL_CTAT_P0P		 (2L<<22)
+#define BCE_MISC_GP_HW_CTL0_OSCCTRL_CTAT_P6P		 (3L<<22)
+#define BCE_MISC_GP_HW_CTL0_OSCCTRL_PTAT		 (0x3L<<24)
+#define BCE_MISC_GP_HW_CTL0_OSCCTRL_PTAT_M6P		 (0L<<24)
+#define BCE_MISC_GP_HW_CTL0_OSCCTRL_PTAT_M0P		 (1L<<24)
+#define BCE_MISC_GP_HW_CTL0_OSCCTRL_PTAT_P0P		 (2L<<24)
+#define BCE_MISC_GP_HW_CTL0_OSCCTRL_PTAT_P6P		 (3L<<24)
+#define BCE_MISC_GP_HW_CTL0_OSCCTRL_IAMP_ADJ		 (0x3L<<26)
+#define BCE_MISC_GP_HW_CTL0_OSCCTRL_IAMP_ADJ_240UA	 (0L<<26)
+#define BCE_MISC_GP_HW_CTL0_OSCCTRL_IAMP_ADJ_160UA	 (1L<<26)
+#define BCE_MISC_GP_HW_CTL0_OSCCTRL_IAMP_ADJ_400UA	 (2L<<26)
+#define BCE_MISC_GP_HW_CTL0_OSCCTRL_IAMP_ADJ_320UA	 (3L<<26)
+#define BCE_MISC_GP_HW_CTL0_OSCCTRL_ICBUF_ADJ		 (0x3L<<28)
+#define BCE_MISC_GP_HW_CTL0_OSCCTRL_ICBUF_ADJ_240UA	 (0L<<28)
+#define BCE_MISC_GP_HW_CTL0_OSCCTRL_ICBUF_ADJ_160UA	 (1L<<28)
+#define BCE_MISC_GP_HW_CTL0_OSCCTRL_ICBUF_ADJ_400UA	 (2L<<28)
+#define BCE_MISC_GP_HW_CTL0_OSCCTRL_ICBUF_ADJ_320UA	 (3L<<28)
+#define BCE_MISC_GP_HW_CTL0_OSCCTRL_XTAL_ADJ		 (0x3L<<30)
+#define BCE_MISC_GP_HW_CTL0_OSCCTRL_XTAL_ADJ_1P57	 (0L<<30)
+#define BCE_MISC_GP_HW_CTL0_OSCCTRL_XTAL_ADJ_1P45	 (1L<<30)
+#define BCE_MISC_GP_HW_CTL0_OSCCTRL_XTAL_ADJ_1P62	 (2L<<30)
+#define BCE_MISC_GP_HW_CTL0_OSCCTRL_XTAL_ADJ_1P66	 (3L<<30)
 
+#define BCE_MISC_GP_HW_CTL1				0x000008c0
+#define BCE_MISC_GP_HW_CTL1_1_ATTN_BTN_PRSNT_TE	 (1L<<0)
+#define BCE_MISC_GP_HW_CTL1_1_ATTN_IND_PRSNT_TE	 (1L<<1)
+#define BCE_MISC_GP_HW_CTL1_1_PWR_IND_PRSNT_TE		 (1L<<2)
+#define BCE_MISC_GP_HW_CTL1_0_PCIE_LOOPBACK_TE		 (1L<<3)
+#define BCE_MISC_GP_HW_CTL1_RESERVED_SOFT_XI		 (0xffffL<<0)
+#define BCE_MISC_GP_HW_CTL1_RESERVED_HARD_XI		 (0xffffL<<16)
 
-/*
- *  nvm_reg definition
- *  offset: 0x6400
- */
-#define BCE_NVM_COMMAND				0x00006400
-#define BCE_NVM_COMMAND_RST				 (1L<<0)
-#define BCE_NVM_COMMAND_DONE				 (1L<<3)
-#define BCE_NVM_COMMAND_DOIT				 (1L<<4)
-#define BCE_NVM_COMMAND_WR				 (1L<<5)
-#define BCE_NVM_COMMAND_ERASE				 (1L<<6)
-#define BCE_NVM_COMMAND_FIRST				 (1L<<7)
-#define BCE_NVM_COMMAND_LAST				 (1L<<8)
-#define BCE_NVM_COMMAND_WREN				 (1L<<16)
-#define BCE_NVM_COMMAND_WRDI				 (1L<<17)
-#define BCE_NVM_COMMAND_EWSR				 (1L<<18)
-#define BCE_NVM_COMMAND_WRSR				 (1L<<19)
+#define BCE_MISC_NEW_HW_CTL				0x000008c4
+#define BCE_MISC_NEW_HW_CTL_MAIN_POR_BYPASS		 (1L<<0)
+#define BCE_MISC_NEW_HW_CTL_RINGOSC_ENABLE		 (1L<<1)
+#define BCE_MISC_NEW_HW_CTL_RINGOSC_SEL0		 (1L<<2)
+#define BCE_MISC_NEW_HW_CTL_RINGOSC_SEL1		 (1L<<3)
+#define BCE_MISC_NEW_HW_CTL_RESERVED_SHARED		 (0xfffL<<4)
+#define BCE_MISC_NEW_HW_CTL_RESERVED_SPLIT		 (0xffffL<<16)
 
-#define BCE_NVM_STATUS					0x00006404
-#define BCE_NVM_STATUS_PI_FSM_STATE			 (0xfL<<0)
-#define BCE_NVM_STATUS_EE_FSM_STATE			 (0xfL<<4)
-#define BCE_NVM_STATUS_EQ_FSM_STATE			 (0xfL<<8)
+#define BCE_MISC_NEW_CORE_CTL				0x000008c8
+#define BCE_MISC_NEW_CORE_CTL_LINK_HOLDOFF_SUCCESS	 (1L<<0)
+#define BCE_MISC_NEW_CORE_CTL_LINK_HOLDOFF_REQ		 (1L<<1)
+#define BCE_MISC_NEW_CORE_CTL_DMA_ENABLE		 (1L<<16)
+#define BCE_MISC_NEW_CORE_CTL_RESERVED_CMN		 (0x3fffL<<2)
+#define BCE_MISC_NEW_CORE_CTL_RESERVED_TC		 (0xffffL<<16)
 
-#define BCE_NVM_WRITE					0x00006408
-#define BCE_NVM_WRITE_NVM_WRITE_VALUE			 (0xffffffffL<<0)
-#define BCE_NVM_WRITE_NVM_WRITE_VALUE_BIT_BANG		 (0L<<0)
-#define BCE_NVM_WRITE_NVM_WRITE_VALUE_EECLK		 (1L<<0)
-#define BCE_NVM_WRITE_NVM_WRITE_VALUE_EEDATA		 (2L<<0)
-#define BCE_NVM_WRITE_NVM_WRITE_VALUE_SCLK		 (4L<<0)
-#define BCE_NVM_WRITE_NVM_WRITE_VALUE_CS_B		 (8L<<0)
-#define BCE_NVM_WRITE_NVM_WRITE_VALUE_SO		 (16L<<0)
-#define BCE_NVM_WRITE_NVM_WRITE_VALUE_SI		 (32L<<0)
+#define BCE_MISC_ECO_HW_CTL				0x000008cc
+#define BCE_MISC_ECO_HW_CTL_LARGE_GRC_TMOUT_EN		 (1L<<0)
+#define BCE_MISC_ECO_HW_CTL_RESERVED_SOFT		 (0x7fffL<<1)
+#define BCE_MISC_ECO_HW_CTL_RESERVED_HARD		 (0xffffL<<16)
 
-#define BCE_NVM_ADDR					0x0000640c
-#define BCE_NVM_ADDR_NVM_ADDR_VALUE			 (0xffffffL<<0)
-#define BCE_NVM_ADDR_NVM_ADDR_VALUE_BIT_BANG		 (0L<<0)
-#define BCE_NVM_ADDR_NVM_ADDR_VALUE_EECLK		 (1L<<0)
-#define BCE_NVM_ADDR_NVM_ADDR_VALUE_EEDATA		 (2L<<0)
-#define BCE_NVM_ADDR_NVM_ADDR_VALUE_SCLK		 (4L<<0)
-#define BCE_NVM_ADDR_NVM_ADDR_VALUE_CS_B		 (8L<<0)
-#define BCE_NVM_ADDR_NVM_ADDR_VALUE_SO			 (16L<<0)
-#define BCE_NVM_ADDR_NVM_ADDR_VALUE_SI			 (32L<<0)
+#define BCE_MISC_ECO_CORE_CTL				0x000008d0
+#define BCE_MISC_ECO_CORE_CTL_RESERVED_SOFT		 (0xffffL<<0)
+#define BCE_MISC_ECO_CORE_CTL_RESERVED_HARD		 (0xffffL<<16)
 
-#define BCE_NVM_READ					0x00006410
-#define BCE_NVM_READ_NVM_READ_VALUE			 (0xffffffffL<<0)
-#define BCE_NVM_READ_NVM_READ_VALUE_BIT_BANG		 (0L<<0)
-#define BCE_NVM_READ_NVM_READ_VALUE_EECLK		 (1L<<0)
-#define BCE_NVM_READ_NVM_READ_VALUE_EEDATA		 (2L<<0)
-#define BCE_NVM_READ_NVM_READ_VALUE_SCLK		 (4L<<0)
-#define BCE_NVM_READ_NVM_READ_VALUE_CS_B		 (8L<<0)
-#define BCE_NVM_READ_NVM_READ_VALUE_SO			 (16L<<0)
-#define BCE_NVM_READ_NVM_READ_VALUE_SI			 (32L<<0)
+#define BCE_MISC_PPIO					0x000008d4
+#define BCE_MISC_PPIO_VALUE				 (0xfL<<0)
+#define BCE_MISC_PPIO_SET				 (0xfL<<8)
+#define BCE_MISC_PPIO_CLR				 (0xfL<<16)
+#define BCE_MISC_PPIO_FLOAT				 (0xfL<<24)
 
-#define BCE_NVM_CFG1					0x00006414
-#define BCE_NVM_CFG1_FLASH_MODE			 (1L<<0)
-#define BCE_NVM_CFG1_BUFFER_MODE			 (1L<<1)
-#define BCE_NVM_CFG1_PASS_MODE				 (1L<<2)
-#define BCE_NVM_CFG1_BITBANG_MODE			 (1L<<3)
-#define BCE_NVM_CFG1_STATUS_BIT			 (0x7L<<4)
-#define BCE_NVM_CFG1_STATUS_BIT_FLASH_RDY		 (0L<<4)
-#define BCE_NVM_CFG1_STATUS_BIT_BUFFER_RDY		 (7L<<4)
-#define BCE_NVM_CFG1_SPI_CLK_DIV			 (0xfL<<7)
-#define BCE_NVM_CFG1_SEE_CLK_DIV			 (0x7ffL<<11)
-#define BCE_NVM_CFG1_PROTECT_MODE			 (1L<<24)
-#define BCE_NVM_CFG1_FLASH_SIZE			 (1L<<25)
-#define BCE_NVM_CFG1_COMPAT_BYPASSS			 (1L<<31)
+#define BCE_MISC_PPIO_INT				0x000008d8
+#define BCE_MISC_PPIO_INT_INT_STATE			 (0xfL<<0)
+#define BCE_MISC_PPIO_INT_OLD_VALUE			 (0xfL<<8)
+#define BCE_MISC_PPIO_INT_OLD_SET			 (0xfL<<16)
+#define BCE_MISC_PPIO_INT_OLD_CLR			 (0xfL<<24)
 
-#define BCE_NVM_CFG2					0x00006418
-#define BCE_NVM_CFG2_ERASE_CMD				 (0xffL<<0)
-#define BCE_NVM_CFG2_DUMMY				 (0xffL<<8)
-#define BCE_NVM_CFG2_STATUS_CMD			 (0xffL<<16)
+#define BCE_MISC_RESET_NUMS				0x000008dc
+#define BCE_MISC_RESET_NUMS_NUM_HARD_RESETS		 (0x7L<<0)
+#define BCE_MISC_RESET_NUMS_NUM_PCIE_RESETS		 (0x7L<<4)
+#define BCE_MISC_RESET_NUMS_NUM_PERSTB_RESETS		 (0x7L<<8)
+#define BCE_MISC_RESET_NUMS_NUM_CMN_RESETS		 (0x7L<<12)
+#define BCE_MISC_RESET_NUMS_NUM_PORT_RESETS		 (0x7L<<16)
 
-#define BCE_NVM_CFG3					0x0000641c
-#define BCE_NVM_CFG3_BUFFER_RD_CMD			 (0xffL<<0)
-#define BCE_NVM_CFG3_WRITE_CMD				 (0xffL<<8)
-#define BCE_NVM_CFG3_BUFFER_WRITE_CMD			 (0xffL<<16)
-#define BCE_NVM_CFG3_READ_CMD				 (0xffL<<24)
+#define BCE_MISC_CS16_ERR				0x000008e0
+#define BCE_MISC_CS16_ERR_ENA_PCI			 (1L<<0)
+#define BCE_MISC_CS16_ERR_ENA_RDMA			 (1L<<1)
+#define BCE_MISC_CS16_ERR_ENA_TDMA			 (1L<<2)
+#define BCE_MISC_CS16_ERR_ENA_EMAC			 (1L<<3)
+#define BCE_MISC_CS16_ERR_ENA_CTX			 (1L<<4)
+#define BCE_MISC_CS16_ERR_ENA_TBDR			 (1L<<5)
+#define BCE_MISC_CS16_ERR_ENA_RBDC			 (1L<<6)
+#define BCE_MISC_CS16_ERR_ENA_COM			 (1L<<7)
+#define BCE_MISC_CS16_ERR_ENA_CP			 (1L<<8)
+#define BCE_MISC_CS16_ERR_STA_PCI			 (1L<<16)
+#define BCE_MISC_CS16_ERR_STA_RDMA			 (1L<<17)
+#define BCE_MISC_CS16_ERR_STA_TDMA			 (1L<<18)
+#define BCE_MISC_CS16_ERR_STA_EMAC			 (1L<<19)
+#define BCE_MISC_CS16_ERR_STA_CTX			 (1L<<20)
+#define BCE_MISC_CS16_ERR_STA_TBDR			 (1L<<21)
+#define BCE_MISC_CS16_ERR_STA_RBDC			 (1L<<22)
+#define BCE_MISC_CS16_ERR_STA_COM			 (1L<<23)
+#define BCE_MISC_CS16_ERR_STA_CP			 (1L<<24)
 
-#define BCE_NVM_SW_ARB					0x00006420
-#define BCE_NVM_SW_ARB_ARB_REQ_SET0			 (1L<<0)
-#define BCE_NVM_SW_ARB_ARB_REQ_SET1			 (1L<<1)
-#define BCE_NVM_SW_ARB_ARB_REQ_SET2			 (1L<<2)
-#define BCE_NVM_SW_ARB_ARB_REQ_SET3			 (1L<<3)
-#define BCE_NVM_SW_ARB_ARB_REQ_CLR0			 (1L<<4)
-#define BCE_NVM_SW_ARB_ARB_REQ_CLR1			 (1L<<5)
-#define BCE_NVM_SW_ARB_ARB_REQ_CLR2			 (1L<<6)
-#define BCE_NVM_SW_ARB_ARB_REQ_CLR3			 (1L<<7)
-#define BCE_NVM_SW_ARB_ARB_ARB0			 (1L<<8)
-#define BCE_NVM_SW_ARB_ARB_ARB1			 (1L<<9)
-#define BCE_NVM_SW_ARB_ARB_ARB2			 (1L<<10)
-#define BCE_NVM_SW_ARB_ARB_ARB3			 (1L<<11)
-#define BCE_NVM_SW_ARB_REQ0				 (1L<<12)
-#define BCE_NVM_SW_ARB_REQ1				 (1L<<13)
-#define BCE_NVM_SW_ARB_REQ2				 (1L<<14)
-#define BCE_NVM_SW_ARB_REQ3				 (1L<<15)
+#define BCE_MISC_SPIO_EVENT				0x000008e4
+#define BCE_MISC_SPIO_EVENT_ENABLE			 (0xffL<<0)
 
-#define BCE_NVM_ACCESS_ENABLE				0x00006424
-#define BCE_NVM_ACCESS_ENABLE_EN			 (1L<<0)
-#define BCE_NVM_ACCESS_ENABLE_WR_EN			 (1L<<1)
+#define BCE_MISC_PPIO_EVENT				0x000008e8
+#define BCE_MISC_PPIO_EVENT_ENABLE			 (0xfL<<0)
 
-#define BCE_NVM_WRITE1					0x00006428
-#define BCE_NVM_WRITE1_WREN_CMD			 (0xffL<<0)
-#define BCE_NVM_WRITE1_WRDI_CMD			 (0xffL<<8)
-#define BCE_NVM_WRITE1_SR_DATA				 (0xffL<<16)
+#define BCE_MISC_DUAL_MEDIA_CTRL			0x000008ec
+#define BCE_MISC_DUAL_MEDIA_CTRL_BOND_ID		 (0xffL<<0)
+#define BCE_MISC_DUAL_MEDIA_CTRL_BOND_ID_X		 (0L<<0)
+#define BCE_MISC_DUAL_MEDIA_CTRL_BOND_ID_C		 (3L<<0)
+#define BCE_MISC_DUAL_MEDIA_CTRL_BOND_ID_S		 (12L<<0)
+#define BCE_MISC_DUAL_MEDIA_CTRL_PHY_CTRL_STRAP	 (0x7L<<8)
+#define BCE_MISC_DUAL_MEDIA_CTRL_PORT_SWAP_PIN		 (1L<<11)
+#define BCE_MISC_DUAL_MEDIA_CTRL_SERDES1_SIGDET	 (1L<<12)
+#define BCE_MISC_DUAL_MEDIA_CTRL_SERDES0_SIGDET	 (1L<<13)
+#define BCE_MISC_DUAL_MEDIA_CTRL_PHY1_SIGDET		 (1L<<14)
+#define BCE_MISC_DUAL_MEDIA_CTRL_PHY0_SIGDET		 (1L<<15)
+#define BCE_MISC_DUAL_MEDIA_CTRL_LCPLL_RST		 (1L<<16)
+#define BCE_MISC_DUAL_MEDIA_CTRL_SERDES1_RST		 (1L<<17)
+#define BCE_MISC_DUAL_MEDIA_CTRL_SERDES0_RST		 (1L<<18)
+#define BCE_MISC_DUAL_MEDIA_CTRL_PHY1_RST		 (1L<<19)
+#define BCE_MISC_DUAL_MEDIA_CTRL_PHY0_RST		 (1L<<20)
+#define BCE_MISC_DUAL_MEDIA_CTRL_PHY_CTRL		 (0x7L<<21)
+#define BCE_MISC_DUAL_MEDIA_CTRL_PORT_SWAP		 (1L<<24)
+#define BCE_MISC_DUAL_MEDIA_CTRL_STRAP_OVERRIDE	 (1L<<25)
+#define BCE_MISC_DUAL_MEDIA_CTRL_PHY_SERDES_IDDQ	 (0xfL<<26)
+#define BCE_MISC_DUAL_MEDIA_CTRL_PHY_SERDES_IDDQ_SER1_IDDQ	 (1L<<26)
+#define BCE_MISC_DUAL_MEDIA_CTRL_PHY_SERDES_IDDQ_SER0_IDDQ	 (2L<<26)
+#define BCE_MISC_DUAL_MEDIA_CTRL_PHY_SERDES_IDDQ_PHY1_IDDQ	 (4L<<26)
+#define BCE_MISC_DUAL_MEDIA_CTRL_PHY_SERDES_IDDQ_PHY0_IDDQ	 (8L<<26)
 
+#define BCE_MISC_OTP_CMD1				0x000008f0
+#define BCE_MISC_OTP_CMD1_FMODE			 (0x7L<<0)
+#define BCE_MISC_OTP_CMD1_FMODE_IDLE			 (0L<<0)
+#define BCE_MISC_OTP_CMD1_FMODE_WRITE			 (1L<<0)
+#define BCE_MISC_OTP_CMD1_FMODE_INIT			 (2L<<0)
+#define BCE_MISC_OTP_CMD1_FMODE_SET			 (3L<<0)
+#define BCE_MISC_OTP_CMD1_FMODE_RST			 (4L<<0)
+#define BCE_MISC_OTP_CMD1_FMODE_VERIFY			 (5L<<0)
+#define BCE_MISC_OTP_CMD1_FMODE_RESERVED0		 (6L<<0)
+#define BCE_MISC_OTP_CMD1_FMODE_RESERVED1		 (7L<<0)
+#define BCE_MISC_OTP_CMD1_USEPINS			 (1L<<8)
+#define BCE_MISC_OTP_CMD1_PROGSEL			 (1L<<9)
+#define BCE_MISC_OTP_CMD1_PROGSTART			 (1L<<10)
+#define BCE_MISC_OTP_CMD1_PCOUNT			 (0x7L<<16)
+#define BCE_MISC_OTP_CMD1_PBYP				 (1L<<19)
+#define BCE_MISC_OTP_CMD1_VSEL				 (0xfL<<20)
+#define BCE_MISC_OTP_CMD1_TM				 (0x7L<<27)
+#define BCE_MISC_OTP_CMD1_SADBYP			 (1L<<30)
+#define BCE_MISC_OTP_CMD1_DEBUG			 (1L<<31)
+
+#define BCE_MISC_OTP_CMD2				0x000008f4
+#define BCE_MISC_OTP_CMD2_OTP_ROM_ADDR			 (0x3ffL<<0)
+#define BCE_MISC_OTP_CMD2_DOSEL			 (0x7fL<<16)
+#define BCE_MISC_OTP_CMD2_DOSEL_0			 (0L<<16)
+#define BCE_MISC_OTP_CMD2_DOSEL_1			 (1L<<16)
+#define BCE_MISC_OTP_CMD2_DOSEL_127			 (127L<<16)
+
+#define BCE_MISC_OTP_STATUS				0x000008f8
+#define BCE_MISC_OTP_STATUS_DATA			 (0xffL<<0)
+#define BCE_MISC_OTP_STATUS_VALID			 (1L<<8)
+#define BCE_MISC_OTP_STATUS_BUSY			 (1L<<9)
+#define BCE_MISC_OTP_STATUS_BUSYSM			 (1L<<10)
+#define BCE_MISC_OTP_STATUS_DONE			 (1L<<11)
+
+#define BCE_MISC_OTP_SHIFT1_CMD			0x000008fc
+#define BCE_MISC_OTP_SHIFT1_CMD_RESET_MODE_N		 (1L<<0)
+#define BCE_MISC_OTP_SHIFT1_CMD_SHIFT_DONE		 (1L<<1)
+#define BCE_MISC_OTP_SHIFT1_CMD_SHIFT_START		 (1L<<2)
+#define BCE_MISC_OTP_SHIFT1_CMD_LOAD_DATA		 (1L<<3)
+#define BCE_MISC_OTP_SHIFT1_CMD_SHIFT_SELECT		 (0x1fL<<8)
+
+#define BCE_MISC_OTP_SHIFT1_DATA			0x00000900
+#define BCE_MISC_OTP_SHIFT2_CMD			0x00000904
+#define BCE_MISC_OTP_SHIFT2_CMD_RESET_MODE_N		 (1L<<0)
+#define BCE_MISC_OTP_SHIFT2_CMD_SHIFT_DONE		 (1L<<1)
+#define BCE_MISC_OTP_SHIFT2_CMD_SHIFT_START		 (1L<<2)
+#define BCE_MISC_OTP_SHIFT2_CMD_LOAD_DATA		 (1L<<3)
+#define BCE_MISC_OTP_SHIFT2_CMD_SHIFT_SELECT		 (0x1fL<<8)
+
+#define BCE_MISC_OTP_SHIFT2_DATA			0x00000908
+#define BCE_MISC_BIST_CS0				0x0000090c
+#define BCE_MISC_BIST_CS0_MBIST_EN			 (1L<<0)
+#define BCE_MISC_BIST_CS0_BIST_SETUP			 (0x3L<<1)
+#define BCE_MISC_BIST_CS0_MBIST_ASYNC_RESET		 (1L<<3)
+#define BCE_MISC_BIST_CS0_MBIST_DONE			 (1L<<8)
+#define BCE_MISC_BIST_CS0_MBIST_GO			 (1L<<9)
+#define BCE_MISC_BIST_CS0_BIST_OVERRIDE		 (1L<<31)
+
+#define BCE_MISC_BIST_MEMSTATUS0			0x00000910
+#define BCE_MISC_BIST_CS1				0x00000914
+#define BCE_MISC_BIST_CS1_MBIST_EN			 (1L<<0)
+#define BCE_MISC_BIST_CS1_BIST_SETUP			 (0x3L<<1)
+#define BCE_MISC_BIST_CS1_MBIST_ASYNC_RESET		 (1L<<3)
+#define BCE_MISC_BIST_CS1_MBIST_DONE			 (1L<<8)
+#define BCE_MISC_BIST_CS1_MBIST_GO			 (1L<<9)
+
+#define BCE_MISC_BIST_MEMSTATUS1			0x00000918
+#define BCE_MISC_BIST_CS2				0x0000091c
+#define BCE_MISC_BIST_CS2_MBIST_EN			 (1L<<0)
+#define BCE_MISC_BIST_CS2_BIST_SETUP			 (0x3L<<1)
+#define BCE_MISC_BIST_CS2_MBIST_ASYNC_RESET		 (1L<<3)
+#define BCE_MISC_BIST_CS2_MBIST_DONE			 (1L<<8)
+#define BCE_MISC_BIST_CS2_MBIST_GO			 (1L<<9)
+
+#define BCE_MISC_BIST_MEMSTATUS2			0x00000920
+#define BCE_MISC_BIST_CS3				0x00000924
+#define BCE_MISC_BIST_CS3_MBIST_EN			 (1L<<0)
+#define BCE_MISC_BIST_CS3_BIST_SETUP			 (0x3L<<1)
+#define BCE_MISC_BIST_CS3_MBIST_ASYNC_RESET		 (1L<<3)
+#define BCE_MISC_BIST_CS3_MBIST_DONE			 (1L<<8)
+#define BCE_MISC_BIST_CS3_MBIST_GO			 (1L<<9)
+
+#define BCE_MISC_BIST_MEMSTATUS3			0x00000928
+#define BCE_MISC_BIST_CS4				0x0000092c
+#define BCE_MISC_BIST_CS4_MBIST_EN			 (1L<<0)
+#define BCE_MISC_BIST_CS4_BIST_SETUP			 (0x3L<<1)
+#define BCE_MISC_BIST_CS4_MBIST_ASYNC_RESET		 (1L<<3)
+#define BCE_MISC_BIST_CS4_MBIST_DONE			 (1L<<8)
+#define BCE_MISC_BIST_CS4_MBIST_GO			 (1L<<9)
+
+#define BCE_MISC_BIST_MEMSTATUS4			0x00000930
+#define BCE_MISC_BIST_CS5				0x00000934
+#define BCE_MISC_BIST_CS5_MBIST_EN			 (1L<<0)
+#define BCE_MISC_BIST_CS5_BIST_SETUP			 (0x3L<<1)
+#define BCE_MISC_BIST_CS5_MBIST_ASYNC_RESET		 (1L<<3)
+#define BCE_MISC_BIST_CS5_MBIST_DONE			 (1L<<8)
+#define BCE_MISC_BIST_CS5_MBIST_GO			 (1L<<9)
+
+#define BCE_MISC_BIST_MEMSTATUS5			0x00000938
+#define BCE_MISC_MEM_TM0				0x0000093c
+#define BCE_MISC_MEM_TM0_PCIE_REPLAY_TM		 (0xfL<<0)
+#define BCE_MISC_MEM_TM0_MCP_SCPAD			 (0xfL<<8)
+#define BCE_MISC_MEM_TM0_UMP_TM			 (0xffL<<16)
+#define BCE_MISC_MEM_TM0_HB_MEM_TM			 (0xfL<<24)
+
+#define BCE_MISC_USPLL_CTRL				0x00000940
+#define BCE_MISC_USPLL_CTRL_PH_DET_DIS			 (1L<<0)
+#define BCE_MISC_USPLL_CTRL_FREQ_DET_DIS		 (1L<<1)
+#define BCE_MISC_USPLL_CTRL_LCPX			 (0x3fL<<2)
+#define BCE_MISC_USPLL_CTRL_RX				 (0x3L<<8)
+#define BCE_MISC_USPLL_CTRL_VC_EN			 (1L<<10)
+#define BCE_MISC_USPLL_CTRL_VCO_MG			 (0x3L<<11)
+#define BCE_MISC_USPLL_CTRL_KVCO_XF			 (0x7L<<13)
+#define BCE_MISC_USPLL_CTRL_KVCO_XS			 (0x7L<<16)
+#define BCE_MISC_USPLL_CTRL_TESTD_EN			 (1L<<19)
+#define BCE_MISC_USPLL_CTRL_TESTD_SEL			 (0x7L<<20)
+#define BCE_MISC_USPLL_CTRL_TESTA_EN			 (1L<<23)
+#define BCE_MISC_USPLL_CTRL_TESTA_SEL			 (0x3L<<24)
+#define BCE_MISC_USPLL_CTRL_ATTEN_FREF			 (1L<<26)
+#define BCE_MISC_USPLL_CTRL_DIGITAL_RST		 (1L<<27)
+#define BCE_MISC_USPLL_CTRL_ANALOG_RST			 (1L<<28)
+#define BCE_MISC_USPLL_CTRL_LOCK			 (1L<<29)
+
+#define BCE_MISC_PERR_STATUS0				0x00000944
+#define BCE_MISC_PERR_STATUS0_COM_DMAE_PERR		 (1L<<0)
+#define BCE_MISC_PERR_STATUS0_CP_DMAE_PERR		 (1L<<1)
+#define BCE_MISC_PERR_STATUS0_RPM_ACPIBEMEM_PERR	 (1L<<2)
+#define BCE_MISC_PERR_STATUS0_CTX_USAGE_CNT_PERR	 (1L<<3)
+#define BCE_MISC_PERR_STATUS0_CTX_PGTBL_PERR		 (1L<<4)
+#define BCE_MISC_PERR_STATUS0_CTX_CACHE_PERR		 (1L<<5)
+#define BCE_MISC_PERR_STATUS0_CTX_MIRROR_PERR		 (1L<<6)
+#define BCE_MISC_PERR_STATUS0_COM_CTXC_PERR		 (1L<<7)
+#define BCE_MISC_PERR_STATUS0_COM_SCPAD_PERR		 (1L<<8)
+#define BCE_MISC_PERR_STATUS0_CP_CTXC_PERR		 (1L<<9)
+#define BCE_MISC_PERR_STATUS0_CP_SCPAD_PERR		 (1L<<10)
+#define BCE_MISC_PERR_STATUS0_RXP_RBUFC_PERR		 (1L<<11)
+#define BCE_MISC_PERR_STATUS0_RXP_CTXC_PERR		 (1L<<12)
+#define BCE_MISC_PERR_STATUS0_RXP_SCPAD_PERR		 (1L<<13)
+#define BCE_MISC_PERR_STATUS0_TPAT_SCPAD_PERR		 (1L<<14)
+#define BCE_MISC_PERR_STATUS0_TXP_CTXC_PERR		 (1L<<15)
+#define BCE_MISC_PERR_STATUS0_TXP_SCPAD_PERR		 (1L<<16)
+#define BCE_MISC_PERR_STATUS0_CS_TMEM_PERR		 (1L<<17)
+#define BCE_MISC_PERR_STATUS0_MQ_CTX_PERR		 (1L<<18)
+#define BCE_MISC_PERR_STATUS0_RPM_DFIFOMEM_PERR	 (1L<<19)
+#define BCE_MISC_PERR_STATUS0_RPC_DFIFOMEM_PERR	 (1L<<20)
+#define BCE_MISC_PERR_STATUS0_RBUF_PTRMEM_PERR		 (1L<<21)
+#define BCE_MISC_PERR_STATUS0_RBUF_DATAMEM_PERR	 (1L<<22)
+#define BCE_MISC_PERR_STATUS0_RV2P_P2IRAM_PERR		 (1L<<23)
+#define BCE_MISC_PERR_STATUS0_RV2P_P1IRAM_PERR		 (1L<<24)
+#define BCE_MISC_PERR_STATUS0_RV2P_CB1REGS_PERR	 (1L<<25)
+#define BCE_MISC_PERR_STATUS0_RV2P_CB0REGS_PERR	 (1L<<26)
+#define BCE_MISC_PERR_STATUS0_TPBUF_PERR		 (1L<<27)
+#define BCE_MISC_PERR_STATUS0_THBUF_PERR		 (1L<<28)
+#define BCE_MISC_PERR_STATUS0_TDMA_PERR		 (1L<<29)
+#define BCE_MISC_PERR_STATUS0_TBDC_PERR		 (1L<<30)
+#define BCE_MISC_PERR_STATUS0_TSCH_LR_PERR		 (1L<<31)
+
+#define BCE_MISC_PERR_STATUS1				0x00000948
+#define BCE_MISC_PERR_STATUS1_RBDC_PERR		 (1L<<0)
+#define BCE_MISC_PERR_STATUS1_RDMA_DFIFO_PERR		 (1L<<2)
+#define BCE_MISC_PERR_STATUS1_HC_STATS_PERR		 (1L<<3)
+#define BCE_MISC_PERR_STATUS1_HC_MSIX_PERR		 (1L<<4)
+#define BCE_MISC_PERR_STATUS1_HC_PRODUCSTB_PERR	 (1L<<5)
+#define BCE_MISC_PERR_STATUS1_HC_CONSUMSTB_PERR	 (1L<<6)
+#define BCE_MISC_PERR_STATUS1_TPATQ_PERR		 (1L<<7)
+#define BCE_MISC_PERR_STATUS1_MCPQ_PERR		 (1L<<8)
+#define BCE_MISC_PERR_STATUS1_TDMAQ_PERR		 (1L<<9)
+#define BCE_MISC_PERR_STATUS1_TXPQ_PERR		 (1L<<10)
+#define BCE_MISC_PERR_STATUS1_COMTQ_PERR		 (1L<<11)
+#define BCE_MISC_PERR_STATUS1_COMQ_PERR		 (1L<<12)
+#define BCE_MISC_PERR_STATUS1_RLUPQ_PERR		 (1L<<13)
+#define BCE_MISC_PERR_STATUS1_RXPQ_PERR		 (1L<<14)
+#define BCE_MISC_PERR_STATUS1_RV2PPQ_PERR		 (1L<<15)
+#define BCE_MISC_PERR_STATUS1_RDMAQ_PERR		 (1L<<16)
+#define BCE_MISC_PERR_STATUS1_TASQ_PERR		 (1L<<17)
+#define BCE_MISC_PERR_STATUS1_TBDRQ_PERR		 (1L<<18)
+#define BCE_MISC_PERR_STATUS1_TSCHQ_PERR		 (1L<<19)
+#define BCE_MISC_PERR_STATUS1_COMXQ_PERR		 (1L<<20)
+#define BCE_MISC_PERR_STATUS1_RXPCQ_PERR		 (1L<<21)
+#define BCE_MISC_PERR_STATUS1_RV2PTQ_PERR		 (1L<<22)
+#define BCE_MISC_PERR_STATUS1_RV2PMQ_PERR		 (1L<<23)
+#define BCE_MISC_PERR_STATUS1_CPQ_PERR			 (1L<<24)
+#define BCE_MISC_PERR_STATUS1_CSQ_PERR			 (1L<<25)
+#define BCE_MISC_PERR_STATUS1_RLUP_CID_PERR		 (1L<<26)
+#define BCE_MISC_PERR_STATUS1_RV2PCS_TMEM_PERR		 (1L<<27)
+#define BCE_MISC_PERR_STATUS1_RV2PCSQ_PERR		 (1L<<28)
+#define BCE_MISC_PERR_STATUS1_MQ_IDX_PERR		 (1L<<29)
+
+#define BCE_MISC_PERR_STATUS2				0x0000094c
+#define BCE_MISC_PERR_STATUS2_TGT_FIFO_PERR		 (1L<<0)
+#define BCE_MISC_PERR_STATUS2_UMP_TX_PERR		 (1L<<1)
+#define BCE_MISC_PERR_STATUS2_UMP_RX_PERR		 (1L<<2)
+#define BCE_MISC_PERR_STATUS2_MCP_ROM_PERR		 (1L<<3)
+#define BCE_MISC_PERR_STATUS2_MCP_SCPAD_PERR		 (1L<<4)
+#define BCE_MISC_PERR_STATUS2_HB_MEM_PERR		 (1L<<5)
+#define BCE_MISC_PERR_STATUS2_PCIE_REPLAY_PERR		 (1L<<6)
+
+#define BCE_MISC_LCPLL_CTRL0				0x00000950
+#define BCE_MISC_LCPLL_CTRL0_OAC			 (0x7L<<0)
+#define BCE_MISC_LCPLL_CTRL0_OAC_NEGTWENTY		 (0L<<0)
+#define BCE_MISC_LCPLL_CTRL0_OAC_ZERO			 (1L<<0)
+#define BCE_MISC_LCPLL_CTRL0_OAC_TWENTY		 (3L<<0)
+#define BCE_MISC_LCPLL_CTRL0_OAC_FORTY			 (7L<<0)
+#define BCE_MISC_LCPLL_CTRL0_ICP_CTRL			 (0x7L<<3)
+#define BCE_MISC_LCPLL_CTRL0_ICP_CTRL_360		 (0L<<3)
+#define BCE_MISC_LCPLL_CTRL0_ICP_CTRL_480		 (1L<<3)
+#define BCE_MISC_LCPLL_CTRL0_ICP_CTRL_600		 (3L<<3)
+#define BCE_MISC_LCPLL_CTRL0_ICP_CTRL_720		 (7L<<3)
+#define BCE_MISC_LCPLL_CTRL0_BIAS_CTRL			 (0x3L<<6)
+#define BCE_MISC_LCPLL_CTRL0_PLL_OBSERVE		 (0x7L<<8)
+#define BCE_MISC_LCPLL_CTRL0_VTH_CTRL			 (0x3L<<11)
+#define BCE_MISC_LCPLL_CTRL0_VTH_CTRL_0		 (0L<<11)
+#define BCE_MISC_LCPLL_CTRL0_VTH_CTRL_1		 (1L<<11)
+#define BCE_MISC_LCPLL_CTRL0_VTH_CTRL_2		 (2L<<11)
+#define BCE_MISC_LCPLL_CTRL0_PLLSEQSTART		 (1L<<13)
+#define BCE_MISC_LCPLL_CTRL0_RESERVED			 (1L<<14)
+#define BCE_MISC_LCPLL_CTRL0_CAPRETRY_EN		 (1L<<15)
+#define BCE_MISC_LCPLL_CTRL0_FREQMONITOR_EN		 (1L<<16)
+#define BCE_MISC_LCPLL_CTRL0_FREQDETRESTART_EN		 (1L<<17)
+#define BCE_MISC_LCPLL_CTRL0_FREQDETRETRY_EN		 (1L<<18)
+#define BCE_MISC_LCPLL_CTRL0_PLLFORCEFDONE_EN		 (1L<<19)
+#define BCE_MISC_LCPLL_CTRL0_PLLFORCEFDONE		 (1L<<20)
+#define BCE_MISC_LCPLL_CTRL0_PLLFORCEFPASS		 (1L<<21)
+#define BCE_MISC_LCPLL_CTRL0_PLLFORCECAPDONE_EN	 (1L<<22)
+#define BCE_MISC_LCPLL_CTRL0_PLLFORCECAPDONE		 (1L<<23)
+#define BCE_MISC_LCPLL_CTRL0_PLLFORCECAPPASS_EN	 (1L<<24)
+#define BCE_MISC_LCPLL_CTRL0_PLLFORCECAPPASS		 (1L<<25)
+#define BCE_MISC_LCPLL_CTRL0_CAPRESTART		 (1L<<26)
+#define BCE_MISC_LCPLL_CTRL0_CAPSELECTM_EN		 (1L<<27)
+
+#define BCE_MISC_LCPLL_CTRL1				0x00000954
+#define BCE_MISC_LCPLL_CTRL1_CAPSELECTM		 (0x1fL<<0)
+#define BCE_MISC_LCPLL_CTRL1_CAPFORCESLOWDOWN_EN	 (1L<<5)
+#define BCE_MISC_LCPLL_CTRL1_CAPFORCESLOWDOWN		 (1L<<6)
+#define BCE_MISC_LCPLL_CTRL1_SLOWDN_XOR		 (1L<<7)
+
+#define BCE_MISC_LCPLL_STATUS				0x00000958
+#define BCE_MISC_LCPLL_STATUS_FREQDONE_SM		 (1L<<0)
+#define BCE_MISC_LCPLL_STATUS_FREQPASS_SM		 (1L<<1)
+#define BCE_MISC_LCPLL_STATUS_PLLSEQDONE		 (1L<<2)
+#define BCE_MISC_LCPLL_STATUS_PLLSEQPASS		 (1L<<3)
+#define BCE_MISC_LCPLL_STATUS_PLLSTATE			 (0x7L<<4)
+#define BCE_MISC_LCPLL_STATUS_CAPSTATE			 (0x7L<<7)
+#define BCE_MISC_LCPLL_STATUS_CAPSELECT		 (0x1fL<<10)
+#define BCE_MISC_LCPLL_STATUS_SLOWDN_INDICATOR		 (1L<<15)
+#define BCE_MISC_LCPLL_STATUS_SLOWDN_INDICATOR_0	 (0L<<15)
+#define BCE_MISC_LCPLL_STATUS_SLOWDN_INDICATOR_1	 (1L<<15)
+
+#define BCE_MISC_OSCFUNDS_CTRL				0x0000095c
+#define BCE_MISC_OSCFUNDS_CTRL_FREQ_MON		 (1L<<5)
+#define BCE_MISC_OSCFUNDS_CTRL_FREQ_MON_OFF		 (0L<<5)
+#define BCE_MISC_OSCFUNDS_CTRL_FREQ_MON_ON		 (1L<<5)
+#define BCE_MISC_OSCFUNDS_CTRL_XTAL_ADJCM		 (0x3L<<6)
+#define BCE_MISC_OSCFUNDS_CTRL_XTAL_ADJCM_0		 (0L<<6)
+#define BCE_MISC_OSCFUNDS_CTRL_XTAL_ADJCM_1		 (1L<<6)
+#define BCE_MISC_OSCFUNDS_CTRL_XTAL_ADJCM_2		 (2L<<6)
+#define BCE_MISC_OSCFUNDS_CTRL_XTAL_ADJCM_3		 (3L<<6)
+#define BCE_MISC_OSCFUNDS_CTRL_ICBUF_ADJ		 (0x3L<<8)
+#define BCE_MISC_OSCFUNDS_CTRL_ICBUF_ADJ_0		 (0L<<8)
+#define BCE_MISC_OSCFUNDS_CTRL_ICBUF_ADJ_1		 (1L<<8)
+#define BCE_MISC_OSCFUNDS_CTRL_ICBUF_ADJ_2		 (2L<<8)
+#define BCE_MISC_OSCFUNDS_CTRL_ICBUF_ADJ_3		 (3L<<8)
+#define BCE_MISC_OSCFUNDS_CTRL_IAMP_ADJ		 (0x3L<<10)
+#define BCE_MISC_OSCFUNDS_CTRL_IAMP_ADJ_0		 (0L<<10)
+#define BCE_MISC_OSCFUNDS_CTRL_IAMP_ADJ_1		 (1L<<10)
+#define BCE_MISC_OSCFUNDS_CTRL_IAMP_ADJ_2		 (2L<<10)
+#define BCE_MISC_OSCFUNDS_CTRL_IAMP_ADJ_3		 (3L<<10)
 
 
 /*
@@ -2193,66 +2970,185 @@ struct l2_fhdr {
  *  context_reg definition
  *  offset: 0x1000
  */
-#define BCE_CTX_COMMAND				0x00001000
-#define BCE_CTX_COMMAND_ENABLED			 (1L<<0)
+#define BCE_CTX_COMMAND									0x00001000
+#define BCE_CTX_COMMAND_ENABLED							(1L<<0)
+#define BCE_CTX_COMMAND_DISABLE_USAGE_CNT				(1L<<1)
+#define BCE_CTX_COMMAND_DISABLE_PLRU					(1L<<2)
+#define BCE_CTX_COMMAND_DISABLE_COMBINE_READ			(1L<<3)
+#define BCE_CTX_COMMAND_FLUSH_AHEAD						(0x1fL<<8)
+#define BCE_CTX_COMMAND_MEM_INIT						(1L<<13)
+#define BCE_CTX_COMMAND_PAGE_SIZE						(0xfL<<16)
+#define BCE_CTX_COMMAND_PAGE_SIZE_256					(0L<<16)
+#define BCE_CTX_COMMAND_PAGE_SIZE_512					(1L<<16)
+#define BCE_CTX_COMMAND_PAGE_SIZE_1K					(2L<<16)
+#define BCE_CTX_COMMAND_PAGE_SIZE_2K					(3L<<16)
+#define BCE_CTX_COMMAND_PAGE_SIZE_4K					(4L<<16)
+#define BCE_CTX_COMMAND_PAGE_SIZE_8K					(5L<<16)
+#define BCE_CTX_COMMAND_PAGE_SIZE_16K					(6L<<16)
+#define BCE_CTX_COMMAND_PAGE_SIZE_32K					(7L<<16)
+#define BCE_CTX_COMMAND_PAGE_SIZE_64K					(8L<<16)
+#define BCE_CTX_COMMAND_PAGE_SIZE_128K					(9L<<16)
+#define BCE_CTX_COMMAND_PAGE_SIZE_256K					(10L<<16)
+#define BCE_CTX_COMMAND_PAGE_SIZE_512K					(11L<<16)
+#define BCE_CTX_COMMAND_PAGE_SIZE_1M					(12L<<16)
 
-#define BCE_CTX_STATUS					0x00001004
-#define BCE_CTX_STATUS_LOCK_WAIT			 (1L<<0)
-#define BCE_CTX_STATUS_READ_STAT			 (1L<<16)
-#define BCE_CTX_STATUS_WRITE_STAT			 (1L<<17)
-#define BCE_CTX_STATUS_ACC_STALL_STAT			 (1L<<18)
-#define BCE_CTX_STATUS_LOCK_STALL_STAT			 (1L<<19)
+#define BCE_CTX_STATUS									0x00001004
+#define BCE_CTX_STATUS_LOCK_WAIT						(1L<<0)
+#define BCE_CTX_STATUS_READ_STAT						(1L<<16)
+#define BCE_CTX_STATUS_WRITE_STAT						(1L<<17)
+#define BCE_CTX_STATUS_ACC_STALL_STAT					(1L<<18)
+#define BCE_CTX_STATUS_LOCK_STALL_STAT					(1L<<19)
+#define BCE_CTX_STATUS_EXT_READ_STAT					(1L<<20)
+#define BCE_CTX_STATUS_EXT_WRITE_STAT					(1L<<21)
+#define BCE_CTX_STATUS_MISS_STAT						(1L<<22)
+#define BCE_CTX_STATUS_HIT_STAT							(1L<<23)
+#define BCE_CTX_STATUS_DEAD_LOCK						(1L<<24)
+#define BCE_CTX_STATUS_USAGE_CNT_ERR					(1L<<25)
+#define BCE_CTX_STATUS_INVALID_PAGE						(1L<<26)
 
-#define BCE_CTX_VIRT_ADDR				0x00001008
-#define BCE_CTX_VIRT_ADDR_VIRT_ADDR			 (0x7fffL<<6)
+#define BCE_CTX_VIRT_ADDR								0x00001008
+#define BCE_CTX_VIRT_ADDR_VIRT_ADDR						(0x7fffL<<6)
 
-#define BCE_CTX_PAGE_TBL				0x0000100c
-#define BCE_CTX_PAGE_TBL_PAGE_TBL			 (0x3fffL<<6)
+#define BCE_CTX_PAGE_TBL								0x0000100c
+#define BCE_CTX_PAGE_TBL_PAGE_TBL						(0x3fffL<<6)
 
-#define BCE_CTX_DATA_ADR				0x00001010
-#define BCE_CTX_DATA_ADR_DATA_ADR			 (0x7ffffL<<2)
+#define BCE_CTX_DATA_ADR								0x00001010
+#define BCE_CTX_DATA_ADR_DATA_ADR						(0x7ffffL<<2)
 
-#define BCE_CTX_DATA					0x00001014
-#define BCE_CTX_LOCK					0x00001018
-#define BCE_CTX_LOCK_TYPE				 (0x7L<<0)
-#define BCE_CTX_LOCK_TYPE_LOCK_TYPE_VOID		 (0x0L<<0)
-#define BCE_CTX_LOCK_TYPE_LOCK_TYPE_COMPLETE		 (0x7L<<0)
-#define BCE_CTX_LOCK_TYPE_LOCK_TYPE_PROTOCOL		 (0x1L<<0)
-#define BCE_CTX_LOCK_TYPE_LOCK_TYPE_TX			 (0x2L<<0)
-#define BCE_CTX_LOCK_TYPE_LOCK_TYPE_TIMER		 (0x4L<<0)
-#define BCE_CTX_LOCK_CID_VALUE				 (0x3fffL<<7)
-#define BCE_CTX_LOCK_GRANTED				 (1L<<26)
-#define BCE_CTX_LOCK_MODE				 (0x7L<<27)
-#define BCE_CTX_LOCK_MODE_UNLOCK			 (0x0L<<27)
-#define BCE_CTX_LOCK_MODE_IMMEDIATE			 (0x1L<<27)
-#define BCE_CTX_LOCK_MODE_SURE				 (0x2L<<27)
-#define BCE_CTX_LOCK_STATUS				 (1L<<30)
-#define BCE_CTX_LOCK_REQ				 (1L<<31)
+#define BCE_CTX_DATA									0x00001014
+#define BCE_CTX_LOCK									0x00001018
+#define BCE_CTX_LOCK_TYPE								(0x7L<<0)
+#define BCE_CTX_LOCK_TYPE_LOCK_TYPE_VOID				(0x0L<<0)
+#define BCE_CTX_LOCK_TYPE_LOCK_TYPE_PROTOCOL			(0x1L<<0)
+#define BCE_CTX_LOCK_TYPE_LOCK_TYPE_TX					(0x2L<<0)
+#define BCE_CTX_LOCK_TYPE_LOCK_TYPE_TIMER				(0x4L<<0)
+#define BCE_CTX_LOCK_TYPE_LOCK_TYPE_COMPLETE			(0x7L<<0)
+#define BCE_CTX_LOCK_TYPE_VOID_XI						(0L<<0)
+#define BCE_CTX_LOCK_TYPE_PROTOCOL_XI					(1L<<0)
+#define BCE_CTX_LOCK_TYPE_TX_XI							(2L<<0)
+#define BCE_CTX_LOCK_TYPE_TIMER_XI						(4L<<0)
+#define BCE_CTX_LOCK_TYPE_COMPLETE_XI					(7L<<0)
+#define BCE_CTX_LOCK_CID_VALUE							(0x3fffL<<7)
+#define BCE_CTX_LOCK_GRANTED							(1L<<26)
+#define BCE_CTX_LOCK_MODE								(0x7L<<27)
+#define BCE_CTX_LOCK_MODE_UNLOCK						(0x0L<<27)
+#define BCE_CTX_LOCK_MODE_IMMEDIATE						(0x1L<<27)
+#define BCE_CTX_LOCK_MODE_SURE							(0x2L<<27)
+#define BCE_CTX_LOCK_STATUS								(1L<<30)
+#define BCE_CTX_LOCK_REQ								(1L<<31)
 
-#define BCE_CTX_ACCESS_STATUS				0x00001040
-#define BCE_CTX_ACCESS_STATUS_MASTERENCODED		 (0xfL<<0)
-#define BCE_CTX_ACCESS_STATUS_ACCESSMEMORYSM		 (0x3L<<10)
-#define BCE_CTX_ACCESS_STATUS_PAGETABLEINITSM		 (0x3L<<12)
-#define BCE_CTX_ACCESS_STATUS_ACCESSMEMORYINITSM	 (0x3L<<14)
-#define BCE_CTX_ACCESS_STATUS_QUALIFIED_REQUEST	 (0x7ffL<<17)
+#define BCE_CTX_CTX_CTRL								0x0000101c
+#define BCE_CTX_CTX_CTRL_CTX_ADDR						(0x7ffffL<<2)
+#define BCE_CTX_CTX_CTRL_MOD_USAGE_CNT					(0x3L<<21)
+#define BCE_CTX_CTX_CTRL_NO_RAM_ACC						(1L<<23)
+#define BCE_CTX_CTX_CTRL_PREFETCH_SIZE					(0x3L<<24)
+#define BCE_CTX_CTX_CTRL_ATTR							(1L<<26)
+#define BCE_CTX_CTX_CTRL_WRITE_REQ						(1L<<30)
+#define BCE_CTX_CTX_CTRL_READ_REQ						(1L<<31)
 
-#define BCE_CTX_DBG_LOCK_STATUS			0x00001044
-#define BCE_CTX_DBG_LOCK_STATUS_SM			 (0x3ffL<<0)
-#define BCE_CTX_DBG_LOCK_STATUS_MATCH			 (0x3ffL<<22)
+#define BCE_CTX_CTX_DATA								0x00001020
+#define BCE_CTX_ACCESS_STATUS							0x00001040
+#define BCE_CTX_ACCESS_STATUS_MASTERENCODED				(0xfL<<0)
+#define BCE_CTX_ACCESS_STATUS_ACCESSMEMORYSM			(0x3L<<10)
+#define BCE_CTX_ACCESS_STATUS_PAGETABLEINITSM			(0x3L<<12)
+#define BCE_CTX_ACCESS_STATUS_ACCESSMEMORYINITSM		(0x3L<<14)
+#define BCE_CTX_ACCESS_STATUS_QUALIFIED_REQUEST			(0x7ffL<<17)
+#define BCE_CTX_ACCESS_STATUS_CAMMASTERENCODED_XI		(0x1fL<<0)
+#define BCE_CTX_ACCESS_STATUS_CACHEMASTERENCODED_XI		(0x1fL<<5)
+#define BCE_CTX_ACCESS_STATUS_REQUEST_XI				(0x3fffffL<<10)
 
-#define BCE_CTX_CHNL_LOCK_STATUS_0			0x00001080
-#define BCE_CTX_CHNL_LOCK_STATUS_0_CID			 (0x3fffL<<0)
-#define BCE_CTX_CHNL_LOCK_STATUS_0_TYPE		 (0x3L<<14)
-#define BCE_CTX_CHNL_LOCK_STATUS_0_MODE		 (1L<<16)
+#define BCE_CTX_DBG_LOCK_STATUS							0x00001044
+#define BCE_CTX_DBG_LOCK_STATUS_SM						(0x3ffL<<0)
+#define BCE_CTX_DBG_LOCK_STATUS_MATCH					(0x3ffL<<22)
 
-#define BCE_CTX_CHNL_LOCK_STATUS_1			0x00001084
-#define BCE_CTX_CHNL_LOCK_STATUS_2			0x00001088
-#define BCE_CTX_CHNL_LOCK_STATUS_3			0x0000108c
-#define BCE_CTX_CHNL_LOCK_STATUS_4			0x00001090
-#define BCE_CTX_CHNL_LOCK_STATUS_5			0x00001094
-#define BCE_CTX_CHNL_LOCK_STATUS_6			0x00001098
-#define BCE_CTX_CHNL_LOCK_STATUS_7			0x0000109c
-#define BCE_CTX_CHNL_LOCK_STATUS_8			0x000010a0
+#define BCE_CTX_CACHE_CTRL_STATUS						0x00001048
+#define BCE_CTX_CACHE_CTRL_STATUS_RFIFO_OVERFLOW		(1L<<0)
+#define BCE_CTX_CACHE_CTRL_STATUS_INVALID_READ_COMP		(1L<<1)
+#define BCE_CTX_CACHE_CTRL_STATUS_FLUSH_START			(1L<<6)
+#define BCE_CTX_CACHE_CTRL_STATUS_FREE_ENTRY_CNT		(0x3fL<<7)
+#define BCE_CTX_CACHE_CTRL_STATUS_CACHE_ENTRY_NEEDED	(0x3fL<<13)
+#define BCE_CTX_CACHE_CTRL_STATUS_RD_CHAN0_ACTIVE		(1L<<19)
+#define BCE_CTX_CACHE_CTRL_STATUS_RD_CHAN1_ACTIVE		(1L<<20)
+#define BCE_CTX_CACHE_CTRL_STATUS_RD_CHAN2_ACTIVE		(1L<<21)
+#define BCE_CTX_CACHE_CTRL_STATUS_RD_CHAN3_ACTIVE		(1L<<22)
+#define BCE_CTX_CACHE_CTRL_STATUS_RD_CHAN4_ACTIVE		(1L<<23)
+#define BCE_CTX_CACHE_CTRL_STATUS_RD_CHAN5_ACTIVE		(1L<<24)
+#define BCE_CTX_CACHE_CTRL_STATUS_RD_CHAN6_ACTIVE		(1L<<25)
+#define BCE_CTX_CACHE_CTRL_STATUS_RD_CHAN7_ACTIVE		(1L<<26)
+#define BCE_CTX_CACHE_CTRL_STATUS_RD_CHAN8_ACTIVE		(1L<<27)
+#define BCE_CTX_CACHE_CTRL_STATUS_RD_CHAN9_ACTIVE		(1L<<28)
+#define BCE_CTX_CACHE_CTRL_STATUS_RD_CHAN10_ACTIVE		(1L<<29)
+
+#define BCE_CTX_CACHE_CTRL_SM_STATUS					0x0000104c
+#define BCE_CTX_CACHE_CTRL_SM_STATUS_CS_DWC				(0x7L<<0)
+#define BCE_CTX_CACHE_CTRL_SM_STATUS_CS_WFIFOC			(0x7L<<3)
+#define BCE_CTX_CACHE_CTRL_SM_STATUS_CS_RTAGC			(0x7L<<6)
+#define BCE_CTX_CACHE_CTRL_SM_STATUS_CS_RFIFOC			(0x7L<<9)
+#define BCE_CTX_CACHE_CTRL_SM_STATUS_INVALID_BLK_ADDR	(0x7fffL<<16)
+
+#define BCE_CTX_CACHE_STATUS							0x00001050
+#define BCE_CTX_CACHE_STATUS_HELD_ENTRIES				(0x3ffL<<0)
+#define BCE_CTX_CACHE_STATUS_MAX_HELD_ENTRIES			(0x3ffL<<16)
+
+#define BCE_CTX_DMA_STATUS								0x00001054
+#define BCE_CTX_DMA_STATUS_RD_CHAN0_STATUS				(0x3L<<0)
+#define BCE_CTX_DMA_STATUS_RD_CHAN1_STATUS				(0x3L<<2)
+#define BCE_CTX_DMA_STATUS_RD_CHAN2_STATUS				(0x3L<<4)
+#define BCE_CTX_DMA_STATUS_RD_CHAN3_STATUS				(0x3L<<6)
+#define BCE_CTX_DMA_STATUS_RD_CHAN4_STATUS				(0x3L<<8)
+#define BCE_CTX_DMA_STATUS_RD_CHAN5_STATUS				(0x3L<<10)
+#define BCE_CTX_DMA_STATUS_RD_CHAN6_STATUS				(0x3L<<12)
+#define BCE_CTX_DMA_STATUS_RD_CHAN7_STATUS				(0x3L<<14)
+#define BCE_CTX_DMA_STATUS_RD_CHAN8_STATUS				(0x3L<<16)
+#define BCE_CTX_DMA_STATUS_RD_CHAN9_STATUS				(0x3L<<18)
+#define BCE_CTX_DMA_STATUS_RD_CHAN10_STATUS				(0x3L<<20)
+
+#define BCE_CTX_REP_STATUS								0x00001058
+#define BCE_CTX_REP_STATUS_ERROR_ENTRY					(0x3ffL<<0)
+#define BCE_CTX_REP_STATUS_ERROR_CLIENT_ID				(0x1fL<<10)
+#define BCE_CTX_REP_STATUS_USAGE_CNT_MAX_ERR			(1L<<16)
+#define BCE_CTX_REP_STATUS_USAGE_CNT_MIN_ERR			(1L<<17)
+#define BCE_CTX_REP_STATUS_USAGE_CNT_MISS_ERR			(1L<<18)
+
+#define BCE_CTX_CKSUM_ERROR_STATUS						0x0000105c
+#define BCE_CTX_CKSUM_ERROR_STATUS_CALCULATED			(0xffffL<<0)
+#define BCE_CTX_CKSUM_ERROR_STATUS_EXPECTED				(0xffffL<<16)
+
+#define BCE_CTX_CHNL_LOCK_STATUS_0						0x00001080
+#define BCE_CTX_CHNL_LOCK_STATUS_0_CID					(0x3fffL<<0)
+#define BCE_CTX_CHNL_LOCK_STATUS_0_TYPE					(0x3L<<14)
+#define BCE_CTX_CHNL_LOCK_STATUS_0_MODE					(1L<<16)
+#define BCE_CTX_CHNL_LOCK_STATUS_0_MODE_XI				(1L<<14)
+#define BCE_CTX_CHNL_LOCK_STATUS_0_TYPE_XI				(0x7L<<15)
+
+#define BCE_CTX_CHNL_LOCK_STATUS_1						0x00001084
+#define BCE_CTX_CHNL_LOCK_STATUS_2						0x00001088
+#define BCE_CTX_CHNL_LOCK_STATUS_3						0x0000108c
+#define BCE_CTX_CHNL_LOCK_STATUS_4						0x00001090
+#define BCE_CTX_CHNL_LOCK_STATUS_5						0x00001094
+#define BCE_CTX_CHNL_LOCK_STATUS_6						0x00001098
+#define BCE_CTX_CHNL_LOCK_STATUS_7						0x0000109c
+#define BCE_CTX_CHNL_LOCK_STATUS_8						0x000010a0
+#define BCE_CTX_CHNL_LOCK_STATUS_9						0x000010a4
+
+#define BCE_CTX_CACHE_DATA								0x000010c4
+#define BCE_CTX_HOST_PAGE_TBL_CTRL						0x000010c8
+#define BCE_CTX_HOST_PAGE_TBL_CTRL_PAGE_TBL_ADDR		(0x1ffL<<0)
+#define BCE_CTX_HOST_PAGE_TBL_CTRL_WRITE_REQ			(1L<<30)
+#define BCE_CTX_HOST_PAGE_TBL_CTRL_READ_REQ				(1L<<31)
+
+#define BCE_CTX_HOST_PAGE_TBL_DATA0						0x000010cc
+#define BCE_CTX_HOST_PAGE_TBL_DATA0_VALID				(1L<<0)
+#define BCE_CTX_HOST_PAGE_TBL_DATA0_VALUE				(0xffffffL<<8)
+
+#define BCE_CTX_HOST_PAGE_TBL_DATA1						0x000010d0
+#define BCE_CTX_CAM_CTRL								0x000010d4
+#define BCE_CTX_CAM_CTRL_CAM_ADDR						(0x3ffL<<0)
+#define BCE_CTX_CAM_CTRL_RESET							(1L<<27)
+#define BCE_CTX_CAM_CTRL_INVALIDATE						(1L<<28)
+#define BCE_CTX_CAM_CTRL_SEARCH							(1L<<29)
+#define BCE_CTX_CAM_CTRL_WRITE_REQ						(1L<<30)
+#define BCE_CTX_CAM_CTRL_READ_REQ						(1L<<31)
 
 
 /*
@@ -3124,6 +4020,15 @@ struct l2_fhdr {
 #define BCE_RLUP_FTQ_CTL_CUR_DEPTH			(0x3ffL<<22)
 
 
+/*
+ *  rv2pcsr_reg definition
+ *  offset: 0x2400
+ */
+#define BCE_RV2PCSR_FTQ_CMD					0x000027f8
+#define BCE_RV2PCSR_FTQ_CTL					0x000027fc
+#define BCE_RV2PCSR_FTQ_CTL_MAX_DEPTH		(0x3ffL<<12)
+#define BCE_RV2PCSR_FTQ_CTL_CUR_DEPTH		(0x3ffL<<22)
+
 
 /*
  *  rdma_reg definition
@@ -3372,187 +4277,217 @@ struct l2_fhdr {
 #define BCE_RV2P_MFTQ_CTL_CUR_DEPTH			 (0x3ffL<<22)
 
 
-
 /*
  *  mq_reg definition
  *  offset: 0x3c00
  */
-#define BCE_MQ_COMMAND					0x00003c00
-#define BCE_MQ_COMMAND_ENABLED				 (1L<<0)
-#define BCE_MQ_COMMAND_OVERFLOW			 (1L<<4)
-#define BCE_MQ_COMMAND_WR_ERROR			 (1L<<5)
-#define BCE_MQ_COMMAND_RD_ERROR			 (1L<<6)
+#define BCE_MQ_COMMAND								0x00003c00
+#define BCE_MQ_COMMAND_ENABLED						(1L<<0)
+#define BCE_MQ_COMMAND_INIT							(1L<<1)
+#define BCE_MQ_COMMAND_OVERFLOW						(1L<<4)
+#define BCE_MQ_COMMAND_WR_ERROR						(1L<<5)
+#define BCE_MQ_COMMAND_RD_ERROR						(1L<<6)
+#define BCE_MQ_COMMAND_IDB_CFG_ERROR				(1L<<7)
+#define BCE_MQ_COMMAND_IDB_OVERFLOW					(1L<<10)
+#define BCE_MQ_COMMAND_NO_BIN_ERROR					(1L<<11)
+#define BCE_MQ_COMMAND_NO_MAP_ERROR					(1L<<12)
 
-#define BCE_MQ_STATUS					0x00003c04
-#define BCE_MQ_STATUS_CTX_ACCESS_STAT			 (1L<<16)
-#define BCE_MQ_STATUS_CTX_ACCESS64_STAT		 (1L<<17)
-#define BCE_MQ_STATUS_PCI_STALL_STAT			 (1L<<18)
+#define BCE_MQ_STATUS								0x00003c04
+#define BCE_MQ_STATUS_CTX_ACCESS_STAT				(1L<<16)
+#define BCE_MQ_STATUS_CTX_ACCESS64_STAT				(1L<<17)
+#define BCE_MQ_STATUS_PCI_STALL_STAT				(1L<<18)
+#define BCE_MQ_STATUS_IDB_OFLOW_STAT				(1L<<19)
 
-#define BCE_MQ_CONFIG					0x00003c08
-#define BCE_MQ_CONFIG_TX_HIGH_PRI			 (1L<<0)
-#define BCE_MQ_CONFIG_HALT_DIS				 (1L<<1)
-#define BCE_MQ_CONFIG_KNL_BYP_BLK_SIZE			 (0x7L<<4)
-#define BCE_MQ_CONFIG_KNL_BYP_BLK_SIZE_256		 (0L<<4)
-#define BCE_MQ_CONFIG_KNL_BYP_BLK_SIZE_512		 (1L<<4)
-#define BCE_MQ_CONFIG_KNL_BYP_BLK_SIZE_1K		 (2L<<4)
-#define BCE_MQ_CONFIG_KNL_BYP_BLK_SIZE_2K		 (3L<<4)
-#define BCE_MQ_CONFIG_KNL_BYP_BLK_SIZE_4K		 (4L<<4)
-#define BCE_MQ_CONFIG_MAX_DEPTH			 (0x7fL<<8)
-#define BCE_MQ_CONFIG_CUR_DEPTH			 (0x7fL<<20)
+#define BCE_MQ_CONFIG								0x00003c08
+#define BCE_MQ_CONFIG_TX_HIGH_PRI					(1L<<0)
+#define BCE_MQ_CONFIG_HALT_DIS						(1L<<1)
+#define BCE_MQ_CONFIG_BIN_MQ_MODE					(1L<<2)
+#define BCE_MQ_CONFIG_DIS_IDB_DROP					(1L<<3)
+#define BCE_MQ_CONFIG_KNL_BYP_BLK_SIZE				(0x7L<<4)
+#define BCE_MQ_CONFIG_KNL_BYP_BLK_SIZE_256			(0L<<4)
+#define BCE_MQ_CONFIG_KNL_BYP_BLK_SIZE_512			(1L<<4)
+#define BCE_MQ_CONFIG_KNL_BYP_BLK_SIZE_1K			(2L<<4)
+#define BCE_MQ_CONFIG_KNL_BYP_BLK_SIZE_2K			(3L<<4)
+#define BCE_MQ_CONFIG_KNL_BYP_BLK_SIZE_4K			(4L<<4)
+#define BCE_MQ_CONFIG_MAX_DEPTH						(0x7fL<<8)
+#define BCE_MQ_CONFIG_CUR_DEPTH						(0x7fL<<20)
 
-#define BCE_MQ_ENQUEUE1				0x00003c0c
-#define BCE_MQ_ENQUEUE1_OFFSET				 (0x3fL<<2)
-#define BCE_MQ_ENQUEUE1_CID				 (0x3fffL<<8)
-#define BCE_MQ_ENQUEUE1_BYTE_MASK			 (0xfL<<24)
-#define BCE_MQ_ENQUEUE1_KNL_MODE			 (1L<<28)
+#define BCE_MQ_ENQUEUE1								0x00003c0c
+#define BCE_MQ_ENQUEUE1_OFFSET						(0x3fL<<2)
+#define BCE_MQ_ENQUEUE1_CID							(0x3fffL<<8)
+#define BCE_MQ_ENQUEUE1_BYTE_MASK					(0xfL<<24)
+#define BCE_MQ_ENQUEUE1_KNL_MODE					(1L<<28)
 
-#define BCE_MQ_ENQUEUE2				0x00003c10
-#define BCE_MQ_BAD_WR_ADDR				0x00003c14
-#define BCE_MQ_BAD_RD_ADDR				0x00003c18
-#define BCE_MQ_KNL_BYP_WIND_START			0x00003c1c
-#define BCE_MQ_KNL_BYP_WIND_START_VALUE		 (0xfffffL<<12)
+#define BCE_MQ_ENQUEUE2								0x00003c10
+#define BCE_MQ_BAD_WR_ADDR							0x00003c14
+#define BCE_MQ_BAD_RD_ADDR							0x00003c18
+#define BCE_MQ_KNL_BYP_WIND_START					0x00003c1c
+#define BCE_MQ_KNL_BYP_WIND_START_VALUE				(0xfffffL<<12)
 
-#define BCE_MQ_KNL_WIND_END				0x00003c20
-#define BCE_MQ_KNL_WIND_END_VALUE			 (0xffffffL<<8)
+#define BCE_MQ_KNL_WIND_END							0x00003c20
+#define BCE_MQ_KNL_WIND_END_VALUE					(0xffffffL<<8)
 
-#define BCE_MQ_KNL_WRITE_MASK1				0x00003c24
-#define BCE_MQ_KNL_TX_MASK1				0x00003c28
-#define BCE_MQ_KNL_CMD_MASK1				0x00003c2c
-#define BCE_MQ_KNL_COND_ENQUEUE_MASK1			0x00003c30
-#define BCE_MQ_KNL_RX_V2P_MASK1			0x00003c34
-#define BCE_MQ_KNL_WRITE_MASK2				0x00003c38
-#define BCE_MQ_KNL_TX_MASK2				0x00003c3c
-#define BCE_MQ_KNL_CMD_MASK2				0x00003c40
-#define BCE_MQ_KNL_COND_ENQUEUE_MASK2			0x00003c44
-#define BCE_MQ_KNL_RX_V2P_MASK2			0x00003c48
-#define BCE_MQ_KNL_BYP_WRITE_MASK1			0x00003c4c
-#define BCE_MQ_KNL_BYP_TX_MASK1			0x00003c50
-#define BCE_MQ_KNL_BYP_CMD_MASK1			0x00003c54
-#define BCE_MQ_KNL_BYP_COND_ENQUEUE_MASK1		0x00003c58
-#define BCE_MQ_KNL_BYP_RX_V2P_MASK1			0x00003c5c
-#define BCE_MQ_KNL_BYP_WRITE_MASK2			0x00003c60
-#define BCE_MQ_KNL_BYP_TX_MASK2			0x00003c64
-#define BCE_MQ_KNL_BYP_CMD_MASK2			0x00003c68
-#define BCE_MQ_KNL_BYP_COND_ENQUEUE_MASK2		0x00003c6c
-#define BCE_MQ_KNL_BYP_RX_V2P_MASK2			0x00003c70
-#define BCE_MQ_MEM_WR_ADDR				0x00003c74
-#define BCE_MQ_MEM_WR_ADDR_VALUE			 (0x3fL<<0)
+#define BCE_MQ_KNL_WRITE_MASK1						0x00003c24
+#define BCE_MQ_KNL_TX_MASK1							0x00003c28
+#define BCE_MQ_KNL_CMD_MASK1						0x00003c2c
+#define BCE_MQ_KNL_COND_ENQUEUE_MASK1				0x00003c30
+#define BCE_MQ_KNL_RX_V2P_MASK1						0x00003c34
+#define BCE_MQ_KNL_WRITE_MASK2						0x00003c38
+#define BCE_MQ_KNL_TX_MASK2							0x00003c3c
+#define BCE_MQ_KNL_CMD_MASK2						0x00003c40
+#define BCE_MQ_KNL_COND_ENQUEUE_MASK2				0x00003c44
+#define BCE_MQ_KNL_RX_V2P_MASK2						0x00003c48
+#define BCE_MQ_KNL_BYP_WRITE_MASK1					0x00003c4c
+#define BCE_MQ_KNL_BYP_TX_MASK1						0x00003c50
+#define BCE_MQ_KNL_BYP_CMD_MASK1					0x00003c54
+#define BCE_MQ_KNL_BYP_COND_ENQUEUE_MASK1			0x00003c58
+#define BCE_MQ_KNL_BYP_RX_V2P_MASK1					0x00003c5c
+#define BCE_MQ_KNL_BYP_WRITE_MASK2					0x00003c60
+#define BCE_MQ_KNL_BYP_TX_MASK2						0x00003c64
+#define BCE_MQ_KNL_BYP_CMD_MASK2					0x00003c68
+#define BCE_MQ_KNL_BYP_COND_ENQUEUE_MASK2			0x00003c6c
+#define BCE_MQ_KNL_BYP_RX_V2P_MASK2					0x00003c70
+#define BCE_MQ_MEM_WR_ADDR							0x00003c74
+#define BCE_MQ_MEM_WR_ADDR_VALUE					(0x3fL<<0)
 
-#define BCE_MQ_MEM_WR_DATA0				0x00003c78
-#define BCE_MQ_MEM_WR_DATA0_VALUE			 (0xffffffffL<<0)
+#define BCE_MQ_MEM_WR_DATA0							0x00003c78
+#define BCE_MQ_MEM_WR_DATA0_VALUE					(0xffffffffL<<0)
 
-#define BCE_MQ_MEM_WR_DATA1				0x00003c7c
-#define BCE_MQ_MEM_WR_DATA1_VALUE			 (0xffffffffL<<0)
+#define BCE_MQ_MEM_WR_DATA1							0x00003c7c
+#define BCE_MQ_MEM_WR_DATA1_VALUE					(0xffffffffL<<0)
 
-#define BCE_MQ_MEM_WR_DATA2				0x00003c80
-#define BCE_MQ_MEM_WR_DATA2_VALUE			 (0x3fffffffL<<0)
+#define BCE_MQ_MEM_WR_DATA2							0x00003c80
+#define BCE_MQ_MEM_WR_DATA2_VALUE					(0x3fffffffL<<0)
+#define BCE_MQ_MEM_WR_DATA2_VALUE_XI				(0x7fffffffL<<0)
 
-#define BCE_MQ_MEM_RD_ADDR				0x00003c84
-#define BCE_MQ_MEM_RD_ADDR_VALUE			 (0x3fL<<0)
+#define BCE_MQ_MEM_RD_ADDR							0x00003c84
+#define BCE_MQ_MEM_RD_ADDR_VALUE					(0x3fL<<0)
 
-#define BCE_MQ_MEM_RD_DATA0				0x00003c88
-#define BCE_MQ_MEM_RD_DATA0_VALUE			 (0xffffffffL<<0)
+#define BCE_MQ_MEM_RD_DATA0							0x00003c88
+#define BCE_MQ_MEM_RD_DATA0_VALUE					(0xffffffffL<<0)
 
-#define BCE_MQ_MEM_RD_DATA1				0x00003c8c
-#define BCE_MQ_MEM_RD_DATA1_VALUE			 (0xffffffffL<<0)
+#define BCE_MQ_MEM_RD_DATA1							0x00003c8c
+#define BCE_MQ_MEM_RD_DATA1_VALUE					(0xffffffffL<<0)
 
-#define BCE_MQ_MEM_RD_DATA2				0x00003c90
-#define BCE_MQ_MEM_RD_DATA2_VALUE			 (0x3fffffffL<<0)
+#define BCE_MQ_MEM_RD_DATA2							0x00003c90
+#define BCE_MQ_MEM_RD_DATA2_VALUE					(0x3fffffffL<<0)
+#define BCE_MQ_MEM_RD_DATA2_VALUE_XI				(0x7fffffffL<<0)
+
+#define BCE_MQ_CONFIG2								0x00003d00
+#define BCE_MQ_CONFIG2_CONT_SZ						(0x7L<<4)
+#define BCE_MQ_CONFIG2_FIRST_L4L5					(0x1fL<<8)
+
+#define BCE_MQ_MAP_L2_3								0x00003d2c
+#define BCE_MQ_MAP_L2_3_MQ_OFFSET					(0xffL<<0)
+#define BCE_MQ_MAP_L2_3_SZ							(0x3L<<8)
+#define BCE_MQ_MAP_L2_3_CTX_OFFSET					(0x2ffL<<10)
+#define BCE_MQ_MAP_L2_3_BIN_OFFSET					(0x7L<<23)
+#define BCE_MQ_MAP_L2_3_ARM							(0x3L<<26)
+#define BCE_MQ_MAP_L2_3_ENA							(0x1L<<31)
+#define BCE_MQ_MAP_L2_3_DEFAULT						0x82004646
+
+#define BCE_MQ_MAP_L2_5								0x00003d34
+#define BCE_MQ_MAP_L2_5_MQ_OFFSET					(0xffL<<0)
+#define BCE_MQ_MAP_L2_5_SZ							(0x3L<<8)
+#define BCE_MQ_MAP_L2_5_CTX_OFFSET					(0x2ffL<<10)
+#define BCE_MQ_MAP_L2_5_BIN_OFFSET					(0x7L<<23)
+#define BCE_MQ_MAP_L2_5_ARM							(0x3L<<26)
+#define BCE_MQ_MAP_L2_5_ENA							(0x1L<<31)
+#define BCE_MQ_MAP_L2_5_DEFAULT						0x83000b08
 
 
 /*
  *  csch_reg definition
  *  offset: 0x4000
  */
-#define BCE_CSCH_COMMAND				0x00004000
-#define BCE_CSCH_CH_FTQ_CMD				0x000043f8
-#define BCE_CSCH_CH_FTQ_CTL				0x000043fc
-#define BCE_CSCH_CH_FTQ_CTL_MAX_DEPTH	(0x3ffL<<12)
-#define BCE_CSCH_CH_FTQ_CTL_CUR_DEPTH	(0x3ffL<<22)
+#define BCE_CSCH_COMMAND							0x00004000
+#define BCE_CSCH_CH_FTQ_CMD							0x000043f8
+#define BCE_CSCH_CH_FTQ_CTL							0x000043fc
+#define BCE_CSCH_CH_FTQ_CTL_MAX_DEPTH				(0x3ffL<<12)
+#define BCE_CSCH_CH_FTQ_CTL_CUR_DEPTH				(0x3ffL<<22)
 
 
 /*
  *  tbdr_reg definition
  *  offset: 0x5000
  */
-#define BCE_TBDR_COMMAND				0x00005000
-#define BCE_TBDR_COMMAND_ENABLE			 (1L<<0)
-#define BCE_TBDR_COMMAND_SOFT_RST			 (1L<<1)
-#define BCE_TBDR_COMMAND_MSTR_ABORT			 (1L<<4)
+#define BCE_TBDR_COMMAND							0x00005000
+#define BCE_TBDR_COMMAND_ENABLE						(1L<<0)
+#define BCE_TBDR_COMMAND_SOFT_RST					(1L<<1)
+#define BCE_TBDR_COMMAND_MSTR_ABORT					(1L<<4)
 
-#define BCE_TBDR_STATUS				0x00005004
-#define BCE_TBDR_STATUS_DMA_WAIT			 (1L<<0)
-#define BCE_TBDR_STATUS_FTQ_WAIT			 (1L<<1)
-#define BCE_TBDR_STATUS_FIFO_OVERFLOW			 (1L<<2)
-#define BCE_TBDR_STATUS_FIFO_UNDERFLOW			 (1L<<3)
-#define BCE_TBDR_STATUS_SEARCHMISS_ERROR		 (1L<<4)
-#define BCE_TBDR_STATUS_FTQ_ENTRY_CNT			 (1L<<5)
-#define BCE_TBDR_STATUS_BURST_CNT			 (1L<<6)
+#define BCE_TBDR_STATUS								0x00005004
+#define BCE_TBDR_STATUS_DMA_WAIT					(1L<<0)
+#define BCE_TBDR_STATUS_FTQ_WAIT					(1L<<1)
+#define BCE_TBDR_STATUS_FIFO_OVERFLOW				(1L<<2)
+#define BCE_TBDR_STATUS_FIFO_UNDERFLOW				(1L<<3)
+#define BCE_TBDR_STATUS_SEARCHMISS_ERROR			(1L<<4)
+#define BCE_TBDR_STATUS_FTQ_ENTRY_CNT				(1L<<5)
+#define BCE_TBDR_STATUS_BURST_CNT					(1L<<6)
 
-#define BCE_TBDR_CONFIG				0x00005008
-#define BCE_TBDR_CONFIG_MAX_BDS			 (0xffL<<0)
-#define BCE_TBDR_CONFIG_SWAP_MODE			 (1L<<8)
-#define BCE_TBDR_CONFIG_PRIORITY			 (1L<<9)
-#define BCE_TBDR_CONFIG_CACHE_NEXT_PAGE_PTRS		 (1L<<10)
-#define BCE_TBDR_CONFIG_PAGE_SIZE			 (0xfL<<24)
-#define BCE_TBDR_CONFIG_PAGE_SIZE_256			 (0L<<24)
-#define BCE_TBDR_CONFIG_PAGE_SIZE_512			 (1L<<24)
-#define BCE_TBDR_CONFIG_PAGE_SIZE_1K			 (2L<<24)
-#define BCE_TBDR_CONFIG_PAGE_SIZE_2K			 (3L<<24)
-#define BCE_TBDR_CONFIG_PAGE_SIZE_4K			 (4L<<24)
-#define BCE_TBDR_CONFIG_PAGE_SIZE_8K			 (5L<<24)
-#define BCE_TBDR_CONFIG_PAGE_SIZE_16K			 (6L<<24)
-#define BCE_TBDR_CONFIG_PAGE_SIZE_32K			 (7L<<24)
-#define BCE_TBDR_CONFIG_PAGE_SIZE_64K			 (8L<<24)
-#define BCE_TBDR_CONFIG_PAGE_SIZE_128K			 (9L<<24)
-#define BCE_TBDR_CONFIG_PAGE_SIZE_256K			 (10L<<24)
-#define BCE_TBDR_CONFIG_PAGE_SIZE_512K			 (11L<<24)
-#define BCE_TBDR_CONFIG_PAGE_SIZE_1M			 (12L<<24)
+#define BCE_TBDR_CONFIG								0x00005008
+#define BCE_TBDR_CONFIG_MAX_BDS						(0xffL<<0)
+#define BCE_TBDR_CONFIG_SWAP_MODE					(1L<<8)
+#define BCE_TBDR_CONFIG_PRIORITY					(1L<<9)
+#define BCE_TBDR_CONFIG_CACHE_NEXT_PAGE_PTRS		(1L<<10)
+#define BCE_TBDR_CONFIG_PAGE_SIZE			 		(0xfL<<24)
+#define BCE_TBDR_CONFIG_PAGE_SIZE_256				(0L<<24)
+#define BCE_TBDR_CONFIG_PAGE_SIZE_512				(1L<<24)
+#define BCE_TBDR_CONFIG_PAGE_SIZE_1K				(2L<<24)
+#define BCE_TBDR_CONFIG_PAGE_SIZE_2K				(3L<<24)
+#define BCE_TBDR_CONFIG_PAGE_SIZE_4K				(4L<<24)
+#define BCE_TBDR_CONFIG_PAGE_SIZE_8K				(5L<<24)
+#define BCE_TBDR_CONFIG_PAGE_SIZE_16K				(6L<<24)
+#define BCE_TBDR_CONFIG_PAGE_SIZE_32K				(7L<<24)
+#define BCE_TBDR_CONFIG_PAGE_SIZE_64K				(8L<<24)
+#define BCE_TBDR_CONFIG_PAGE_SIZE_128K				(9L<<24)
+#define BCE_TBDR_CONFIG_PAGE_SIZE_256K				(10L<<24)
+#define BCE_TBDR_CONFIG_PAGE_SIZE_512K				(11L<<24)
+#define BCE_TBDR_CONFIG_PAGE_SIZE_1M				(12L<<24)
 
-#define BCE_TBDR_DEBUG_VECT_PEEK			0x0000500c
-#define BCE_TBDR_DEBUG_VECT_PEEK_1_VALUE		 (0x7ffL<<0)
-#define BCE_TBDR_DEBUG_VECT_PEEK_1_PEEK_EN		 (1L<<11)
-#define BCE_TBDR_DEBUG_VECT_PEEK_1_SEL			 (0xfL<<12)
-#define BCE_TBDR_DEBUG_VECT_PEEK_2_VALUE		 (0x7ffL<<16)
-#define BCE_TBDR_DEBUG_VECT_PEEK_2_PEEK_EN		 (1L<<27)
-#define BCE_TBDR_DEBUG_VECT_PEEK_2_SEL			 (0xfL<<28)
+#define BCE_TBDR_DEBUG_VECT_PEEK					0x0000500c
+#define BCE_TBDR_DEBUG_VECT_PEEK_1_VALUE			(0x7ffL<<0)
+#define BCE_TBDR_DEBUG_VECT_PEEK_1_PEEK_EN			(1L<<11)
+#define BCE_TBDR_DEBUG_VECT_PEEK_1_SEL				(0xfL<<12)
+#define BCE_TBDR_DEBUG_VECT_PEEK_2_VALUE			(0x7ffL<<16)
+#define BCE_TBDR_DEBUG_VECT_PEEK_2_PEEK_EN			(1L<<27)
+#define BCE_TBDR_DEBUG_VECT_PEEK_2_SEL				(0xfL<<28)
 
-#define BCE_TBDR_FTQ_DATA				0x000053c0
-#define BCE_TBDR_FTQ_CMD				0x000053f8
-#define BCE_TBDR_FTQ_CMD_OFFSET			 (0x3ffL<<0)
-#define BCE_TBDR_FTQ_CMD_WR_TOP			 (1L<<10)
-#define BCE_TBDR_FTQ_CMD_WR_TOP_0			 (0L<<10)
-#define BCE_TBDR_FTQ_CMD_WR_TOP_1			 (1L<<10)
-#define BCE_TBDR_FTQ_CMD_SFT_RESET			 (1L<<25)
-#define BCE_TBDR_FTQ_CMD_RD_DATA			 (1L<<26)
-#define BCE_TBDR_FTQ_CMD_ADD_INTERVEN			 (1L<<27)
-#define BCE_TBDR_FTQ_CMD_ADD_DATA			 (1L<<28)
-#define BCE_TBDR_FTQ_CMD_INTERVENE_CLR			 (1L<<29)
-#define BCE_TBDR_FTQ_CMD_POP				 (1L<<30)
-#define BCE_TBDR_FTQ_CMD_BUSY				 (1L<<31)
+#define BCE_TBDR_FTQ_DATA							0x000053c0
+#define BCE_TBDR_FTQ_CMD							0x000053f8
+#define BCE_TBDR_FTQ_CMD_OFFSET						(0x3ffL<<0)
+#define BCE_TBDR_FTQ_CMD_WR_TOP						(1L<<10)
+#define BCE_TBDR_FTQ_CMD_WR_TOP_0					(0L<<10)
+#define BCE_TBDR_FTQ_CMD_WR_TOP_1					(1L<<10)
+#define BCE_TBDR_FTQ_CMD_SFT_RESET					(1L<<25)
+#define BCE_TBDR_FTQ_CMD_RD_DATA					(1L<<26)
+#define BCE_TBDR_FTQ_CMD_ADD_INTERVEN				(1L<<27)
+#define BCE_TBDR_FTQ_CMD_ADD_DATA					(1L<<28)
+#define BCE_TBDR_FTQ_CMD_INTERVENE_CLR				(1L<<29)
+#define BCE_TBDR_FTQ_CMD_POP						(1L<<30)
+#define BCE_TBDR_FTQ_CMD_BUSY						(1L<<31)
 
-#define BCE_TBDR_FTQ_CTL				0x000053fc
-#define BCE_TBDR_FTQ_CTL_INTERVENE			 (1L<<0)
-#define BCE_TBDR_FTQ_CTL_OVERFLOW			 (1L<<1)
-#define BCE_TBDR_FTQ_CTL_FORCE_INTERVENE		 (1L<<2)
-#define BCE_TBDR_FTQ_CTL_MAX_DEPTH			 (0x3ffL<<12)
-#define BCE_TBDR_FTQ_CTL_CUR_DEPTH			 (0x3ffL<<22)
-
+#define BCE_TBDR_FTQ_CTL							0x000053fc
+#define BCE_TBDR_FTQ_CTL_INTERVENE					(1L<<0)
+#define BCE_TBDR_FTQ_CTL_OVERFLOW					(1L<<1)
+#define BCE_TBDR_FTQ_CTL_FORCE_INTERVENE			(1L<<2)
+#define BCE_TBDR_FTQ_CTL_MAX_DEPTH					(0x3ffL<<12)
+#define BCE_TBDR_FTQ_CTL_CUR_DEPTH					(0x3ffL<<22)
 
 
 /*
  *  tdma_reg definition
  *  offset: 0x5c00
  */
-#define BCE_TDMA_COMMAND				0x00005c00
-#define BCE_TDMA_COMMAND_ENABLED			 (1L<<0)
-#define BCE_TDMA_COMMAND_MASTER_ABORT			 (1L<<4)
-#define BCE_TDMA_COMMAND_BAD_L2_LENGTH_ABORT		 (1L<<7)
+#define BCE_TDMA_COMMAND							0x00005c00
+#define BCE_TDMA_COMMAND_ENABLED					(1L<<0)
+#define BCE_TDMA_COMMAND_MASTER_ABORT				(1L<<4)
+#define BCE_TDMA_COMMAND_BAD_L2_LENGTH_ABORT		(1L<<7)
 
-#define BCE_TDMA_STATUS				0x00005c04
-#define BCE_TDMA_STATUS_DMA_WAIT			 (1L<<0)
-#define BCE_TDMA_STATUS_PAYLOAD_WAIT			 (1L<<1)
-#define BCE_TDMA_STATUS_PATCH_FTQ_WAIT			 (1L<<2)
+#define BCE_TDMA_STATUS								0x00005c04
+#define BCE_TDMA_STATUS_DMA_WAIT					(1L<<0)
+#define BCE_TDMA_STATUS_PAYLOAD_WAIT				(1L<<1)
+#define BCE_TDMA_STATUS_PATCH_FTQ_WAIT				(1L<<2)
 #define BCE_TDMA_STATUS_LOCK_WAIT			 (1L<<3)
 #define BCE_TDMA_STATUS_FTQ_ENTRY_CNT			 (1L<<16)
 #define BCE_TDMA_STATUS_BURST_CNT			 (1L<<17)
@@ -3630,6 +4565,110 @@ struct l2_fhdr {
 #define BCE_TDMA_FTQ_CTL_CUR_DEPTH			 (0x3ffL<<22)
 
 
+/*
+ *  nvm_reg definition
+ *  offset: 0x6400
+ */
+#define BCE_NVM_COMMAND				0x00006400
+#define BCE_NVM_COMMAND_RST				 (1L<<0)
+#define BCE_NVM_COMMAND_DONE				 (1L<<3)
+#define BCE_NVM_COMMAND_DOIT				 (1L<<4)
+#define BCE_NVM_COMMAND_WR				 (1L<<5)
+#define BCE_NVM_COMMAND_ERASE				 (1L<<6)
+#define BCE_NVM_COMMAND_FIRST				 (1L<<7)
+#define BCE_NVM_COMMAND_LAST				 (1L<<8)
+#define BCE_NVM_COMMAND_WREN				 (1L<<16)
+#define BCE_NVM_COMMAND_WRDI				 (1L<<17)
+#define BCE_NVM_COMMAND_EWSR				 (1L<<18)
+#define BCE_NVM_COMMAND_WRSR				 (1L<<19)
+
+#define BCE_NVM_STATUS					0x00006404
+#define BCE_NVM_STATUS_PI_FSM_STATE			 (0xfL<<0)
+#define BCE_NVM_STATUS_EE_FSM_STATE			 (0xfL<<4)
+#define BCE_NVM_STATUS_EQ_FSM_STATE			 (0xfL<<8)
+
+#define BCE_NVM_WRITE					0x00006408
+#define BCE_NVM_WRITE_NVM_WRITE_VALUE			 (0xffffffffL<<0)
+#define BCE_NVM_WRITE_NVM_WRITE_VALUE_BIT_BANG		 (0L<<0)
+#define BCE_NVM_WRITE_NVM_WRITE_VALUE_EECLK		 (1L<<0)
+#define BCE_NVM_WRITE_NVM_WRITE_VALUE_EEDATA		 (2L<<0)
+#define BCE_NVM_WRITE_NVM_WRITE_VALUE_SCLK		 (4L<<0)
+#define BCE_NVM_WRITE_NVM_WRITE_VALUE_CS_B		 (8L<<0)
+#define BCE_NVM_WRITE_NVM_WRITE_VALUE_SO		 (16L<<0)
+#define BCE_NVM_WRITE_NVM_WRITE_VALUE_SI		 (32L<<0)
+
+#define BCE_NVM_ADDR					0x0000640c
+#define BCE_NVM_ADDR_NVM_ADDR_VALUE			 (0xffffffL<<0)
+#define BCE_NVM_ADDR_NVM_ADDR_VALUE_BIT_BANG		 (0L<<0)
+#define BCE_NVM_ADDR_NVM_ADDR_VALUE_EECLK		 (1L<<0)
+#define BCE_NVM_ADDR_NVM_ADDR_VALUE_EEDATA		 (2L<<0)
+#define BCE_NVM_ADDR_NVM_ADDR_VALUE_SCLK		 (4L<<0)
+#define BCE_NVM_ADDR_NVM_ADDR_VALUE_CS_B		 (8L<<0)
+#define BCE_NVM_ADDR_NVM_ADDR_VALUE_SO			 (16L<<0)
+#define BCE_NVM_ADDR_NVM_ADDR_VALUE_SI			 (32L<<0)
+
+#define BCE_NVM_READ					0x00006410
+#define BCE_NVM_READ_NVM_READ_VALUE			 (0xffffffffL<<0)
+#define BCE_NVM_READ_NVM_READ_VALUE_BIT_BANG		 (0L<<0)
+#define BCE_NVM_READ_NVM_READ_VALUE_EECLK		 (1L<<0)
+#define BCE_NVM_READ_NVM_READ_VALUE_EEDATA		 (2L<<0)
+#define BCE_NVM_READ_NVM_READ_VALUE_SCLK		 (4L<<0)
+#define BCE_NVM_READ_NVM_READ_VALUE_CS_B		 (8L<<0)
+#define BCE_NVM_READ_NVM_READ_VALUE_SO			 (16L<<0)
+#define BCE_NVM_READ_NVM_READ_VALUE_SI			 (32L<<0)
+
+#define BCE_NVM_CFG1					0x00006414
+#define BCE_NVM_CFG1_FLASH_MODE			 (1L<<0)
+#define BCE_NVM_CFG1_BUFFER_MODE			 (1L<<1)
+#define BCE_NVM_CFG1_PASS_MODE				 (1L<<2)
+#define BCE_NVM_CFG1_BITBANG_MODE			 (1L<<3)
+#define BCE_NVM_CFG1_STATUS_BIT			 (0x7L<<4)
+#define BCE_NVM_CFG1_STATUS_BIT_FLASH_RDY		 (0L<<4)
+#define BCE_NVM_CFG1_STATUS_BIT_BUFFER_RDY		 (7L<<4)
+#define BCE_NVM_CFG1_SPI_CLK_DIV			 (0xfL<<7)
+#define BCE_NVM_CFG1_SEE_CLK_DIV			 (0x7ffL<<11)
+#define BCE_NVM_CFG1_PROTECT_MODE			 (1L<<24)
+#define BCE_NVM_CFG1_FLASH_SIZE			 (1L<<25)
+#define BCE_NVM_CFG1_COMPAT_BYPASSS			 (1L<<31)
+
+#define BCE_NVM_CFG2					0x00006418
+#define BCE_NVM_CFG2_ERASE_CMD				 (0xffL<<0)
+#define BCE_NVM_CFG2_DUMMY				 (0xffL<<8)
+#define BCE_NVM_CFG2_STATUS_CMD			 (0xffL<<16)
+
+#define BCE_NVM_CFG3					0x0000641c
+#define BCE_NVM_CFG3_BUFFER_RD_CMD			 (0xffL<<0)
+#define BCE_NVM_CFG3_WRITE_CMD				 (0xffL<<8)
+#define BCE_NVM_CFG3_BUFFER_WRITE_CMD			 (0xffL<<16)
+#define BCE_NVM_CFG3_READ_CMD				 (0xffL<<24)
+
+#define BCE_NVM_SW_ARB					0x00006420
+#define BCE_NVM_SW_ARB_ARB_REQ_SET0			 (1L<<0)
+#define BCE_NVM_SW_ARB_ARB_REQ_SET1			 (1L<<1)
+#define BCE_NVM_SW_ARB_ARB_REQ_SET2			 (1L<<2)
+#define BCE_NVM_SW_ARB_ARB_REQ_SET3			 (1L<<3)
+#define BCE_NVM_SW_ARB_ARB_REQ_CLR0			 (1L<<4)
+#define BCE_NVM_SW_ARB_ARB_REQ_CLR1			 (1L<<5)
+#define BCE_NVM_SW_ARB_ARB_REQ_CLR2			 (1L<<6)
+#define BCE_NVM_SW_ARB_ARB_REQ_CLR3			 (1L<<7)
+#define BCE_NVM_SW_ARB_ARB_ARB0			 (1L<<8)
+#define BCE_NVM_SW_ARB_ARB_ARB1			 (1L<<9)
+#define BCE_NVM_SW_ARB_ARB_ARB2			 (1L<<10)
+#define BCE_NVM_SW_ARB_ARB_ARB3			 (1L<<11)
+#define BCE_NVM_SW_ARB_REQ0				 (1L<<12)
+#define BCE_NVM_SW_ARB_REQ1				 (1L<<13)
+#define BCE_NVM_SW_ARB_REQ2				 (1L<<14)
+#define BCE_NVM_SW_ARB_REQ3				 (1L<<15)
+
+#define BCE_NVM_ACCESS_ENABLE				0x00006424
+#define BCE_NVM_ACCESS_ENABLE_EN			 (1L<<0)
+#define BCE_NVM_ACCESS_ENABLE_WR_EN			 (1L<<1)
+
+#define BCE_NVM_WRITE1					0x00006428
+#define BCE_NVM_WRITE1_WREN_CMD			 (0xffL<<0)
+#define BCE_NVM_WRITE1_WRDI_CMD			 (0xffL<<8)
+#define BCE_NVM_WRITE1_SR_DATA				 (0xffL<<16)
+
 
 /*
  *  hc_reg definition
@@ -3647,6 +4686,8 @@ struct l2_fhdr {
 #define BCE_HC_COMMAND_FORCE_INT_LOW			 (2L<<19)
 #define BCE_HC_COMMAND_FORCE_INT_FREE			 (3L<<19)
 #define BCE_HC_COMMAND_CLR_STAT_NOW			 (1L<<21)
+#define BCE_HC_COMMAND_MAIN_PWR_INT			 (1L<<22)
+#define BCE_HC_COMMAND_COAL_ON_NEXT_EVENT		 (1L<<27)
 
 #define BCE_HC_STATUS					0x00006804
 #define BCE_HC_STATUS_MASTER_ABORT			 (1L<<0)
@@ -3669,6 +4710,23 @@ struct l2_fhdr {
 #define BCE_HC_CONFIG_STATISTIC_PRIORITY		 (1L<<5)
 #define BCE_HC_CONFIG_STATUS_PRIORITY			 (1L<<6)
 #define BCE_HC_CONFIG_STAT_MEM_ADDR			 (0xffL<<8)
+#define BCE_HC_CONFIG_PER_MODE				 (1L<<16)
+#define BCE_HC_CONFIG_ONE_SHOT				 (1L<<17)
+#define BCE_HC_CONFIG_USE_INT_PARAM			 (1L<<18)
+#define BCE_HC_CONFIG_SET_MASK_AT_RD			 (1L<<19)
+#define BCE_HC_CONFIG_PER_COLLECT_LIMIT		 (0xfL<<20)
+#define BCE_HC_CONFIG_SB_ADDR_INC			 (0x7L<<24)
+#define BCE_HC_CONFIG_SB_ADDR_INC_64B			 (0L<<24)
+#define BCE_HC_CONFIG_SB_ADDR_INC_128B			 (1L<<24)
+#define BCE_HC_CONFIG_SB_ADDR_INC_256B			 (2L<<24)
+#define BCE_HC_CONFIG_SB_ADDR_INC_512B			 (3L<<24)
+#define BCE_HC_CONFIG_SB_ADDR_INC_1024B		 (4L<<24)
+#define BCE_HC_CONFIG_SB_ADDR_INC_2048B		 (5L<<24)
+#define BCE_HC_CONFIG_SB_ADDR_INC_4096B		 (6L<<24)
+#define BCE_HC_CONFIG_SB_ADDR_INC_8192B		 (7L<<24)
+#define BCE_HC_CONFIG_GEN_STAT_AVG_INTR		 (1L<<29)
+#define BCE_HC_CONFIG_UNMASK_ALL			 (1L<<30)
+#define BCE_HC_CONFIG_TX_SEL				 (1L<<31)
 
 #define BCE_HC_ATTN_BITS_ENABLE			0x0000680c
 #define BCE_HC_STATUS_ADDR_L				0x00006810
@@ -3705,12 +4763,17 @@ struct l2_fhdr {
 
 #define BCE_HC_PERIODIC_TICKS				0x0000683c
 #define BCE_HC_PERIODIC_TICKS_HC_PERIODIC_TICKS	 (0xffffL<<0)
+#define BCE_HC_PERIODIC_TICKS_HC_INT_PERIODIC_TICKS	 (0xffffL<<16)
 
 #define BCE_HC_STAT_COLLECT_TICKS			0x00006840
 #define BCE_HC_STAT_COLLECT_TICKS_HC_STAT_COLL_TICKS	 (0xffL<<4)
 
 #define BCE_HC_STATS_TICKS				0x00006844
 #define BCE_HC_STATS_TICKS_HC_STAT_TICKS		 (0xffffL<<8)
+
+#define BCE_HC_STATS_INTERRUPT_STATUS			0x00006848
+#define BCE_HC_STATS_INTERRUPT_STATUS_SB_STATUS	 (0x1ffL<<0)
+#define BCE_HC_STATS_INTERRUPT_STATUS_INT_STATUS	 (0x1ffL<<16)
 
 #define BCE_HC_STAT_MEM_DATA				0x0000684c
 #define BCE_HC_STAT_GEN_SEL_0				0x00006850
@@ -3840,24 +4903,108 @@ struct l2_fhdr {
 #define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_1		 (0x7fL<<8)
 #define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_2		 (0x7fL<<16)
 #define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_3		 (0x7fL<<24)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_XI		 (0xffL<<0)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_UMP_RX_FRAME_DROP_XI	 (52L<<0)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_UNUSED_S0_XI	 (57L<<0)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_UNUSED_S1_XI	 (58L<<0)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_UNUSED_S2_XI	 (85L<<0)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_UNUSED_S3_XI	 (86L<<0)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_UNUSED_S4_XI	 (87L<<0)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_UNUSED_S5_XI	 (88L<<0)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_UNUSED_S6_XI	 (89L<<0)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_UNUSED_S7_XI	 (90L<<0)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_UNUSED_S8_XI	 (91L<<0)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_UNUSED_S9_XI	 (92L<<0)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_UNUSED_S10_XI	 (93L<<0)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_MQ_IDB_OFLOW_XI	 (94L<<0)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_CTX_BLK_RD_CNT_XI	 (123L<<0)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_CTX_BLK_WR_CNT_XI	 (124L<<0)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_CTX_HITS_XI	 (125L<<0)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_CTX_MISSES_XI	 (126L<<0)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_HC_NUM_STATUS_BLOCKS_VEC1_XI	 (128L<<0)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_HC_NUM_INT_GEN_VEC1_XI	 (129L<<0)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_HC_NUM_INT_MBOX_WR_VEC1_XI	 (130L<<0)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_HC_CORE_CLKS_TO_HW_INTACK_VEC1_XI	 (131L<<0)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_HC_CORE_CLKS_TO_SW_INTACK_VEC1_XI	 (132L<<0)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_HC_CORE_CLKS_DURING_SW_INTACK_VEC1_XI	 (133L<<0)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_HC_NUM_STATUS_BLOCKS_VEC2_XI	 (134L<<0)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_HC_NUM_INT_GEN_VEC2_XI	 (135L<<0)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_HC_NUM_INT_MBOX_WR_VEC2_XI	 (136L<<0)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_HC_CORE_CLKS_TO_HW_INTACK_VEC2_XI	 (137L<<0)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_HC_CORE_CLKS_TO_SW_INTACK_VEC2_XI	 (138L<<0)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_HC_CORE_CLKS_DURING_SW_INTACK_VEC2_XI	 (139L<<0)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_HC_NUM_STATUS_BLOCKS_VEC3_XI	 (140L<<0)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_HC_NUM_INT_GEN_VEC3_XI	 (141L<<0)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_HC_NUM_INT_MBOX_WR_VEC3_XI	 (142L<<0)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_HC_CORE_CLKS_TO_HW_INTACK_VEC3_XI	 (143L<<0)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_HC_CORE_CLKS_TO_SW_INTACK_VEC3_XI	 (144L<<0)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_HC_CORE_CLKS_DURING_SW_INTACK_VEC3_XI	 (145L<<0)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_HC_NUM_STATUS_BLOCKS_VEC4_XI	 (146L<<0)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_HC_NUM_INT_GEN_VEC4_XI	 (147L<<0)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_HC_NUM_INT_MBOX_WR_VEC4_XI	 (148L<<0)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_HC_CORE_CLKS_TO_HW_INTACK_VEC4_XI	 (149L<<0)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_HC_CORE_CLKS_TO_SW_INTACK_VEC4_XI	 (150L<<0)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_HC_CORE_CLKS_DURING_SW_INTACK_VEC4_XI	 (151L<<0)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_HC_NUM_STATUS_BLOCKS_VEC5_XI	 (152L<<0)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_HC_NUM_INT_GEN_VEC5_XI	 (153L<<0)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_HC_NUM_INT_MBOX_WR_VEC5_XI	 (154L<<0)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_HC_CORE_CLKS_TO_HW_INTACK_VEC5_XI	 (155L<<0)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_HC_CORE_CLKS_TO_SW_INTACK_VEC5_XI	 (156L<<0)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_HC_CORE_CLKS_DURING_SW_INTACK_VEC5_XI	 (157L<<0)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_HC_NUM_STATUS_BLOCKS_VEC6_XI	 (158L<<0)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_HC_NUM_INT_GEN_VEC6_XI	 (159L<<0)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_HC_NUM_INT_MBOX_WR_VEC6_XI	 (160L<<0)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_HC_CORE_CLKS_TO_HW_INTACK_VEC6_XI	 (161L<<0)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_HC_CORE_CLKS_TO_SW_INTACK_VEC6_XI	 (162L<<0)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_HC_CORE_CLKS_DURING_SW_INTACK_VEC6_XI	 (163L<<0)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_HC_NUM_STATUS_BLOCKS_VEC7_XI	 (164L<<0)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_HC_NUM_INT_GEN_VEC7_XI	 (165L<<0)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_HC_NUM_INT_MBOX_WR_VEC7_XI	 (166L<<0)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_HC_CORE_CLKS_TO_HW_INTACK_VEC7_XI	 (167L<<0)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_HC_CORE_CLKS_TO_SW_INTACK_VEC7_XI	 (168L<<0)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_HC_CORE_CLKS_DURING_SW_INTACK_VEC7_XI	 (169L<<0)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_HC_NUM_STATUS_BLOCKS_VEC8_XI	 (170L<<0)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_HC_NUM_INT_GEN_VEC8_XI	 (171L<<0)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_HC_NUM_INT_MBOX_WR_VEC8_XI	 (172L<<0)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_HC_CORE_CLKS_TO_HW_INTACK_VEC8_XI	 (173L<<0)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_HC_CORE_CLKS_TO_SW_INTACK_VEC8_XI	 (174L<<0)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_HC_CORE_CLKS_DURING_SW_INTACK_VEC8_XI	 (175L<<0)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_RV2PCS_CMD_CNT_XI	 (176L<<0)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_RV2PCS_SLOT_CNT_XI	 (177L<<0)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_RV2PCSQ_VALID_CNT_XI	 (178L<<0)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_1_XI		 (0xffL<<8)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_2_XI		 (0xffL<<16)
+#define BCE_HC_STAT_GEN_SEL_0_GEN_SEL_3_XI		 (0xffL<<24)
 
 #define BCE_HC_STAT_GEN_SEL_1				0x00006854
 #define BCE_HC_STAT_GEN_SEL_1_GEN_SEL_4		 (0x7fL<<0)
 #define BCE_HC_STAT_GEN_SEL_1_GEN_SEL_5		 (0x7fL<<8)
 #define BCE_HC_STAT_GEN_SEL_1_GEN_SEL_6		 (0x7fL<<16)
 #define BCE_HC_STAT_GEN_SEL_1_GEN_SEL_7		 (0x7fL<<24)
+#define BCE_HC_STAT_GEN_SEL_1_GEN_SEL_4_XI		 (0xffL<<0)
+#define BCE_HC_STAT_GEN_SEL_1_GEN_SEL_5_XI		 (0xffL<<8)
+#define BCE_HC_STAT_GEN_SEL_1_GEN_SEL_6_XI		 (0xffL<<16)
+#define BCE_HC_STAT_GEN_SEL_1_GEN_SEL_7_XI		 (0xffL<<24)
 
 #define BCE_HC_STAT_GEN_SEL_2				0x00006858
 #define BCE_HC_STAT_GEN_SEL_2_GEN_SEL_8		 (0x7fL<<0)
 #define BCE_HC_STAT_GEN_SEL_2_GEN_SEL_9		 (0x7fL<<8)
 #define BCE_HC_STAT_GEN_SEL_2_GEN_SEL_10		 (0x7fL<<16)
 #define BCE_HC_STAT_GEN_SEL_2_GEN_SEL_11		 (0x7fL<<24)
+#define BCE_HC_STAT_GEN_SEL_2_GEN_SEL_8_XI		 (0xffL<<0)
+#define BCE_HC_STAT_GEN_SEL_2_GEN_SEL_9_XI		 (0xffL<<8)
+#define BCE_HC_STAT_GEN_SEL_2_GEN_SEL_10_XI		 (0xffL<<16)
+#define BCE_HC_STAT_GEN_SEL_2_GEN_SEL_11_XI		 (0xffL<<24)
 
 #define BCE_HC_STAT_GEN_SEL_3				0x0000685c
 #define BCE_HC_STAT_GEN_SEL_3_GEN_SEL_12		 (0x7fL<<0)
 #define BCE_HC_STAT_GEN_SEL_3_GEN_SEL_13		 (0x7fL<<8)
 #define BCE_HC_STAT_GEN_SEL_3_GEN_SEL_14		 (0x7fL<<16)
 #define BCE_HC_STAT_GEN_SEL_3_GEN_SEL_15		 (0x7fL<<24)
+#define BCE_HC_STAT_GEN_SEL_3_GEN_SEL_12_XI		 (0xffL<<0)
+#define BCE_HC_STAT_GEN_SEL_3_GEN_SEL_13_XI		 (0xffL<<8)
+#define BCE_HC_STAT_GEN_SEL_3_GEN_SEL_14_XI		 (0xffL<<16)
+#define BCE_HC_STAT_GEN_SEL_3_GEN_SEL_15_XI		 (0xffL<<24)
 
 #define BCE_HC_STAT_GEN_STAT0				0x00006888
 #define BCE_HC_STAT_GEN_STAT1				0x0000688c
@@ -3891,6 +5038,7 @@ struct l2_fhdr {
 #define BCE_HC_STAT_GEN_STAT_AC13			0x000068fc
 #define BCE_HC_STAT_GEN_STAT_AC14			0x00006900
 #define BCE_HC_STAT_GEN_STAT_AC15			0x00006904
+#define BCE_HC_STAT_GEN_STAT_AC			0x000068c8
 #define BCE_HC_VIS					0x00006908
 #define BCE_HC_VIS_STAT_BUILD_STATE			 (0xfL<<0)
 #define BCE_HC_VIS_STAT_BUILD_STATE_IDLE		 (0L<<0)
@@ -3961,6 +5109,349 @@ struct l2_fhdr {
 #define BCE_HC_DEBUG_VECT_PEEK_2_PEEK_EN		 (1L<<27)
 #define BCE_HC_DEBUG_VECT_PEEK_2_SEL			 (0xfL<<28)
 
+#define BCE_HC_COALESCE_NOW				0x00006914
+#define BCE_HC_COALESCE_NOW_COAL_NOW			 (0x1ffL<<1)
+#define BCE_HC_COALESCE_NOW_COAL_NOW_WO_INT		 (0x1ffL<<11)
+#define BCE_HC_COALESCE_NOW_COAL_ON_NXT_EVENT		 (0x1ffL<<21)
+
+#define BCE_HC_MSIX_BIT_VECTOR				0x00006918
+#define BCE_HC_MSIX_BIT_VECTOR_VAL			 (0x1ffL<<0)
+
+#define BCE_HC_SB_CONFIG_1				0x00006a00
+#define BCE_HC_SB_CONFIG_1_RX_TMR_MODE			 (1L<<1)
+#define BCE_HC_SB_CONFIG_1_TX_TMR_MODE			 (1L<<2)
+#define BCE_HC_SB_CONFIG_1_COM_TMR_MODE		 (1L<<3)
+#define BCE_HC_SB_CONFIG_1_CMD_TMR_MODE		 (1L<<4)
+#define BCE_HC_SB_CONFIG_1_PER_MODE			 (1L<<16)
+#define BCE_HC_SB_CONFIG_1_ONE_SHOT			 (1L<<17)
+#define BCE_HC_SB_CONFIG_1_USE_INT_PARAM		 (1L<<18)
+#define BCE_HC_SB_CONFIG_1_PER_COLLECT_LIMIT		 (0xfL<<20)
+
+#define BCE_HC_TX_QUICK_CONS_TRIP_1			0x00006a04
+#define BCE_HC_TX_QUICK_CONS_TRIP_1_VALUE		 (0xffL<<0)
+#define BCE_HC_TX_QUICK_CONS_TRIP_1_INT		 (0xffL<<16)
+
+#define BCE_HC_COMP_PROD_TRIP_1			0x00006a08
+#define BCE_HC_COMP_PROD_TRIP_1_VALUE			 (0xffL<<0)
+#define BCE_HC_COMP_PROD_TRIP_1_INT			 (0xffL<<16)
+
+#define BCE_HC_RX_QUICK_CONS_TRIP_1			0x00006a0c
+#define BCE_HC_RX_QUICK_CONS_TRIP_1_VALUE		 (0xffL<<0)
+#define BCE_HC_RX_QUICK_CONS_TRIP_1_INT		 (0xffL<<16)
+
+#define BCE_HC_RX_TICKS_1				0x00006a10
+#define BCE_HC_RX_TICKS_1_VALUE			 (0x3ffL<<0)
+#define BCE_HC_RX_TICKS_1_INT				 (0x3ffL<<16)
+
+#define BCE_HC_TX_TICKS_1				0x00006a14
+#define BCE_HC_TX_TICKS_1_VALUE			 (0x3ffL<<0)
+#define BCE_HC_TX_TICKS_1_INT				 (0x3ffL<<16)
+
+#define BCE_HC_COM_TICKS_1				0x00006a18
+#define BCE_HC_COM_TICKS_1_VALUE			 (0x3ffL<<0)
+#define BCE_HC_COM_TICKS_1_INT				 (0x3ffL<<16)
+
+#define BCE_HC_CMD_TICKS_1				0x00006a1c
+#define BCE_HC_CMD_TICKS_1_VALUE			 (0x3ffL<<0)
+#define BCE_HC_CMD_TICKS_1_INT				 (0x3ffL<<16)
+
+#define BCE_HC_PERIODIC_TICKS_1			0x00006a20
+#define BCE_HC_PERIODIC_TICKS_1_HC_PERIODIC_TICKS	 (0xffffL<<0)
+#define BCE_HC_PERIODIC_TICKS_1_HC_INT_PERIODIC_TICKS	 (0xffffL<<16)
+
+#define BCE_HC_SB_CONFIG_2				0x00006a24
+#define BCE_HC_SB_CONFIG_2_RX_TMR_MODE			 (1L<<1)
+#define BCE_HC_SB_CONFIG_2_TX_TMR_MODE			 (1L<<2)
+#define BCE_HC_SB_CONFIG_2_COM_TMR_MODE		 (1L<<3)
+#define BCE_HC_SB_CONFIG_2_CMD_TMR_MODE		 (1L<<4)
+#define BCE_HC_SB_CONFIG_2_PER_MODE			 (1L<<16)
+#define BCE_HC_SB_CONFIG_2_ONE_SHOT			 (1L<<17)
+#define BCE_HC_SB_CONFIG_2_USE_INT_PARAM		 (1L<<18)
+#define BCE_HC_SB_CONFIG_2_PER_COLLECT_LIMIT		 (0xfL<<20)
+
+#define BCE_HC_TX_QUICK_CONS_TRIP_2			0x00006a28
+#define BCE_HC_TX_QUICK_CONS_TRIP_2_VALUE		 (0xffL<<0)
+#define BCE_HC_TX_QUICK_CONS_TRIP_2_INT		 (0xffL<<16)
+
+#define BCE_HC_COMP_PROD_TRIP_2			0x00006a2c
+#define BCE_HC_COMP_PROD_TRIP_2_VALUE			 (0xffL<<0)
+#define BCE_HC_COMP_PROD_TRIP_2_INT			 (0xffL<<16)
+
+#define BCE_HC_RX_QUICK_CONS_TRIP_2			0x00006a30
+#define BCE_HC_RX_QUICK_CONS_TRIP_2_VALUE		 (0xffL<<0)
+#define BCE_HC_RX_QUICK_CONS_TRIP_2_INT		 (0xffL<<16)
+
+#define BCE_HC_RX_TICKS_2				0x00006a34
+#define BCE_HC_RX_TICKS_2_VALUE			 (0x3ffL<<0)
+#define BCE_HC_RX_TICKS_2_INT				 (0x3ffL<<16)
+
+#define BCE_HC_TX_TICKS_2				0x00006a38
+#define BCE_HC_TX_TICKS_2_VALUE			 (0x3ffL<<0)
+#define BCE_HC_TX_TICKS_2_INT				 (0x3ffL<<16)
+
+#define BCE_HC_COM_TICKS_2				0x00006a3c
+#define BCE_HC_COM_TICKS_2_VALUE			 (0x3ffL<<0)
+#define BCE_HC_COM_TICKS_2_INT				 (0x3ffL<<16)
+
+#define BCE_HC_CMD_TICKS_2				0x00006a40
+#define BCE_HC_CMD_TICKS_2_VALUE			 (0x3ffL<<0)
+#define BCE_HC_CMD_TICKS_2_INT				 (0x3ffL<<16)
+
+#define BCE_HC_PERIODIC_TICKS_2			0x00006a44
+#define BCE_HC_PERIODIC_TICKS_2_HC_PERIODIC_TICKS	 (0xffffL<<0)
+#define BCE_HC_PERIODIC_TICKS_2_HC_INT_PERIODIC_TICKS	 (0xffffL<<16)
+
+#define BCE_HC_SB_CONFIG_3				0x00006a48
+#define BCE_HC_SB_CONFIG_3_RX_TMR_MODE			 (1L<<1)
+#define BCE_HC_SB_CONFIG_3_TX_TMR_MODE			 (1L<<2)
+#define BCE_HC_SB_CONFIG_3_COM_TMR_MODE		 (1L<<3)
+#define BCE_HC_SB_CONFIG_3_CMD_TMR_MODE		 (1L<<4)
+#define BCE_HC_SB_CONFIG_3_PER_MODE			 (1L<<16)
+#define BCE_HC_SB_CONFIG_3_ONE_SHOT			 (1L<<17)
+#define BCE_HC_SB_CONFIG_3_USE_INT_PARAM		 (1L<<18)
+#define BCE_HC_SB_CONFIG_3_PER_COLLECT_LIMIT		 (0xfL<<20)
+
+#define BCE_HC_TX_QUICK_CONS_TRIP_3			0x00006a4c
+#define BCE_HC_TX_QUICK_CONS_TRIP_3_VALUE		 (0xffL<<0)
+#define BCE_HC_TX_QUICK_CONS_TRIP_3_INT		 (0xffL<<16)
+
+#define BCE_HC_COMP_PROD_TRIP_3			0x00006a50
+#define BCE_HC_COMP_PROD_TRIP_3_VALUE			 (0xffL<<0)
+#define BCE_HC_COMP_PROD_TRIP_3_INT			 (0xffL<<16)
+
+#define BCE_HC_RX_QUICK_CONS_TRIP_3			0x00006a54
+#define BCE_HC_RX_QUICK_CONS_TRIP_3_VALUE		 (0xffL<<0)
+#define BCE_HC_RX_QUICK_CONS_TRIP_3_INT		 (0xffL<<16)
+
+#define BCE_HC_RX_TICKS_3				0x00006a58
+#define BCE_HC_RX_TICKS_3_VALUE			 (0x3ffL<<0)
+#define BCE_HC_RX_TICKS_3_INT				 (0x3ffL<<16)
+
+#define BCE_HC_TX_TICKS_3				0x00006a5c
+#define BCE_HC_TX_TICKS_3_VALUE			 (0x3ffL<<0)
+#define BCE_HC_TX_TICKS_3_INT				 (0x3ffL<<16)
+
+#define BCE_HC_COM_TICKS_3				0x00006a60
+#define BCE_HC_COM_TICKS_3_VALUE			 (0x3ffL<<0)
+#define BCE_HC_COM_TICKS_3_INT				 (0x3ffL<<16)
+
+#define BCE_HC_CMD_TICKS_3				0x00006a64
+#define BCE_HC_CMD_TICKS_3_VALUE			 (0x3ffL<<0)
+#define BCE_HC_CMD_TICKS_3_INT				 (0x3ffL<<16)
+
+#define BCE_HC_PERIODIC_TICKS_3			0x00006a68
+#define BCE_HC_PERIODIC_TICKS_3_HC_PERIODIC_TICKS	 (0xffffL<<0)
+#define BCE_HC_PERIODIC_TICKS_3_HC_INT_PERIODIC_TICKS	 (0xffffL<<16)
+
+#define BCE_HC_SB_CONFIG_4				0x00006a6c
+#define BCE_HC_SB_CONFIG_4_RX_TMR_MODE			 (1L<<1)
+#define BCE_HC_SB_CONFIG_4_TX_TMR_MODE			 (1L<<2)
+#define BCE_HC_SB_CONFIG_4_COM_TMR_MODE		 (1L<<3)
+#define BCE_HC_SB_CONFIG_4_CMD_TMR_MODE		 (1L<<4)
+#define BCE_HC_SB_CONFIG_4_PER_MODE			 (1L<<16)
+#define BCE_HC_SB_CONFIG_4_ONE_SHOT			 (1L<<17)
+#define BCE_HC_SB_CONFIG_4_USE_INT_PARAM		 (1L<<18)
+#define BCE_HC_SB_CONFIG_4_PER_COLLECT_LIMIT		 (0xfL<<20)
+
+#define BCE_HC_TX_QUICK_CONS_TRIP_4			0x00006a70
+#define BCE_HC_TX_QUICK_CONS_TRIP_4_VALUE		 (0xffL<<0)
+#define BCE_HC_TX_QUICK_CONS_TRIP_4_INT		 (0xffL<<16)
+
+#define BCE_HC_COMP_PROD_TRIP_4			0x00006a74
+#define BCE_HC_COMP_PROD_TRIP_4_VALUE			 (0xffL<<0)
+#define BCE_HC_COMP_PROD_TRIP_4_INT			 (0xffL<<16)
+
+#define BCE_HC_RX_QUICK_CONS_TRIP_4			0x00006a78
+#define BCE_HC_RX_QUICK_CONS_TRIP_4_VALUE		 (0xffL<<0)
+#define BCE_HC_RX_QUICK_CONS_TRIP_4_INT		 (0xffL<<16)
+
+#define BCE_HC_RX_TICKS_4				0x00006a7c
+#define BCE_HC_RX_TICKS_4_VALUE			 (0x3ffL<<0)
+#define BCE_HC_RX_TICKS_4_INT				 (0x3ffL<<16)
+
+#define BCE_HC_TX_TICKS_4				0x00006a80
+#define BCE_HC_TX_TICKS_4_VALUE			 (0x3ffL<<0)
+#define BCE_HC_TX_TICKS_4_INT				 (0x3ffL<<16)
+
+#define BCE_HC_COM_TICKS_4				0x00006a84
+#define BCE_HC_COM_TICKS_4_VALUE			 (0x3ffL<<0)
+#define BCE_HC_COM_TICKS_4_INT				 (0x3ffL<<16)
+
+#define BCE_HC_CMD_TICKS_4				0x00006a88
+#define BCE_HC_CMD_TICKS_4_VALUE			 (0x3ffL<<0)
+#define BCE_HC_CMD_TICKS_4_INT				 (0x3ffL<<16)
+
+#define BCE_HC_PERIODIC_TICKS_4			0x00006a8c
+#define BCE_HC_PERIODIC_TICKS_4_HC_PERIODIC_TICKS	 (0xffffL<<0)
+#define BCE_HC_PERIODIC_TICKS_4_HC_INT_PERIODIC_TICKS	 (0xffffL<<16)
+
+#define BCE_HC_SB_CONFIG_5				0x00006a90
+#define BCE_HC_SB_CONFIG_5_RX_TMR_MODE			 (1L<<1)
+#define BCE_HC_SB_CONFIG_5_TX_TMR_MODE			 (1L<<2)
+#define BCE_HC_SB_CONFIG_5_COM_TMR_MODE		 (1L<<3)
+#define BCE_HC_SB_CONFIG_5_CMD_TMR_MODE		 (1L<<4)
+#define BCE_HC_SB_CONFIG_5_PER_MODE			 (1L<<16)
+#define BCE_HC_SB_CONFIG_5_ONE_SHOT			 (1L<<17)
+#define BCE_HC_SB_CONFIG_5_USE_INT_PARAM		 (1L<<18)
+#define BCE_HC_SB_CONFIG_5_PER_COLLECT_LIMIT		 (0xfL<<20)
+
+#define BCE_HC_TX_QUICK_CONS_TRIP_5			0x00006a94
+#define BCE_HC_TX_QUICK_CONS_TRIP_5_VALUE		 (0xffL<<0)
+#define BCE_HC_TX_QUICK_CONS_TRIP_5_INT		 (0xffL<<16)
+
+#define BCE_HC_COMP_PROD_TRIP_5			0x00006a98
+#define BCE_HC_COMP_PROD_TRIP_5_VALUE			 (0xffL<<0)
+#define BCE_HC_COMP_PROD_TRIP_5_INT			 (0xffL<<16)
+
+#define BCE_HC_RX_QUICK_CONS_TRIP_5			0x00006a9c
+#define BCE_HC_RX_QUICK_CONS_TRIP_5_VALUE		 (0xffL<<0)
+#define BCE_HC_RX_QUICK_CONS_TRIP_5_INT		 (0xffL<<16)
+
+#define BCE_HC_RX_TICKS_5				0x00006aa0
+#define BCE_HC_RX_TICKS_5_VALUE			 (0x3ffL<<0)
+#define BCE_HC_RX_TICKS_5_INT				 (0x3ffL<<16)
+
+#define BCE_HC_TX_TICKS_5				0x00006aa4
+#define BCE_HC_TX_TICKS_5_VALUE			 (0x3ffL<<0)
+#define BCE_HC_TX_TICKS_5_INT				 (0x3ffL<<16)
+
+#define BCE_HC_COM_TICKS_5				0x00006aa8
+#define BCE_HC_COM_TICKS_5_VALUE			 (0x3ffL<<0)
+#define BCE_HC_COM_TICKS_5_INT				 (0x3ffL<<16)
+
+#define BCE_HC_CMD_TICKS_5				0x00006aac
+#define BCE_HC_CMD_TICKS_5_VALUE			 (0x3ffL<<0)
+#define BCE_HC_CMD_TICKS_5_INT				 (0x3ffL<<16)
+
+#define BCE_HC_PERIODIC_TICKS_5			0x00006ab0
+#define BCE_HC_PERIODIC_TICKS_5_HC_PERIODIC_TICKS	 (0xffffL<<0)
+#define BCE_HC_PERIODIC_TICKS_5_HC_INT_PERIODIC_TICKS	 (0xffffL<<16)
+
+#define BCE_HC_SB_CONFIG_6				0x00006ab4
+#define BCE_HC_SB_CONFIG_6_RX_TMR_MODE			 (1L<<1)
+#define BCE_HC_SB_CONFIG_6_TX_TMR_MODE			 (1L<<2)
+#define BCE_HC_SB_CONFIG_6_COM_TMR_MODE		 (1L<<3)
+#define BCE_HC_SB_CONFIG_6_CMD_TMR_MODE		 (1L<<4)
+#define BCE_HC_SB_CONFIG_6_PER_MODE			 (1L<<16)
+#define BCE_HC_SB_CONFIG_6_ONE_SHOT			 (1L<<17)
+#define BCE_HC_SB_CONFIG_6_USE_INT_PARAM		 (1L<<18)
+#define BCE_HC_SB_CONFIG_6_PER_COLLECT_LIMIT		 (0xfL<<20)
+
+#define BCE_HC_TX_QUICK_CONS_TRIP_6			0x00006ab8
+#define BCE_HC_TX_QUICK_CONS_TRIP_6_VALUE		 (0xffL<<0)
+#define BCE_HC_TX_QUICK_CONS_TRIP_6_INT		 (0xffL<<16)
+
+#define BCE_HC_COMP_PROD_TRIP_6			0x00006abc
+#define BCE_HC_COMP_PROD_TRIP_6_VALUE			 (0xffL<<0)
+#define BCE_HC_COMP_PROD_TRIP_6_INT			 (0xffL<<16)
+
+#define BCE_HC_RX_QUICK_CONS_TRIP_6			0x00006ac0
+#define BCE_HC_RX_QUICK_CONS_TRIP_6_VALUE		 (0xffL<<0)
+#define BCE_HC_RX_QUICK_CONS_TRIP_6_INT		 (0xffL<<16)
+
+#define BCE_HC_RX_TICKS_6				0x00006ac4
+#define BCE_HC_RX_TICKS_6_VALUE			 (0x3ffL<<0)
+#define BCE_HC_RX_TICKS_6_INT				 (0x3ffL<<16)
+
+#define BCE_HC_TX_TICKS_6				0x00006ac8
+#define BCE_HC_TX_TICKS_6_VALUE			 (0x3ffL<<0)
+#define BCE_HC_TX_TICKS_6_INT				 (0x3ffL<<16)
+
+#define BCE_HC_COM_TICKS_6				0x00006acc
+#define BCE_HC_COM_TICKS_6_VALUE			 (0x3ffL<<0)
+#define BCE_HC_COM_TICKS_6_INT				 (0x3ffL<<16)
+
+#define BCE_HC_CMD_TICKS_6				0x00006ad0
+#define BCE_HC_CMD_TICKS_6_VALUE			 (0x3ffL<<0)
+#define BCE_HC_CMD_TICKS_6_INT				 (0x3ffL<<16)
+
+#define BCE_HC_PERIODIC_TICKS_6			0x00006ad4
+#define BCE_HC_PERIODIC_TICKS_6_HC_PERIODIC_TICKS	 (0xffffL<<0)
+#define BCE_HC_PERIODIC_TICKS_6_HC_INT_PERIODIC_TICKS	 (0xffffL<<16)
+
+#define BCE_HC_SB_CONFIG_7				0x00006ad8
+#define BCE_HC_SB_CONFIG_7_RX_TMR_MODE			 (1L<<1)
+#define BCE_HC_SB_CONFIG_7_TX_TMR_MODE			 (1L<<2)
+#define BCE_HC_SB_CONFIG_7_COM_TMR_MODE		 (1L<<3)
+#define BCE_HC_SB_CONFIG_7_CMD_TMR_MODE		 (1L<<4)
+#define BCE_HC_SB_CONFIG_7_PER_MODE			 (1L<<16)
+#define BCE_HC_SB_CONFIG_7_ONE_SHOT			 (1L<<17)
+#define BCE_HC_SB_CONFIG_7_USE_INT_PARAM		 (1L<<18)
+#define BCE_HC_SB_CONFIG_7_PER_COLLECT_LIMIT		 (0xfL<<20)
+
+#define BCE_HC_TX_QUICK_CONS_TRIP_7			0x00006adc
+#define BCE_HC_TX_QUICK_CONS_TRIP_7_VALUE		 (0xffL<<0)
+#define BCE_HC_TX_QUICK_CONS_TRIP_7_INT		 (0xffL<<16)
+
+#define BCE_HC_COMP_PROD_TRIP_7			0x00006ae0
+#define BCE_HC_COMP_PROD_TRIP_7_VALUE			 (0xffL<<0)
+#define BCE_HC_COMP_PROD_TRIP_7_INT			 (0xffL<<16)
+
+#define BCE_HC_RX_QUICK_CONS_TRIP_7			0x00006ae4
+#define BCE_HC_RX_QUICK_CONS_TRIP_7_VALUE		 (0xffL<<0)
+#define BCE_HC_RX_QUICK_CONS_TRIP_7_INT		 (0xffL<<16)
+
+#define BCE_HC_RX_TICKS_7				0x00006ae8
+#define BCE_HC_RX_TICKS_7_VALUE			 (0x3ffL<<0)
+#define BCE_HC_RX_TICKS_7_INT				 (0x3ffL<<16)
+
+#define BCE_HC_TX_TICKS_7				0x00006aec
+#define BCE_HC_TX_TICKS_7_VALUE			 (0x3ffL<<0)
+#define BCE_HC_TX_TICKS_7_INT				 (0x3ffL<<16)
+
+#define BCE_HC_COM_TICKS_7				0x00006af0
+#define BCE_HC_COM_TICKS_7_VALUE			 (0x3ffL<<0)
+#define BCE_HC_COM_TICKS_7_INT				 (0x3ffL<<16)
+
+#define BCE_HC_CMD_TICKS_7				0x00006af4
+#define BCE_HC_CMD_TICKS_7_VALUE			 (0x3ffL<<0)
+#define BCE_HC_CMD_TICKS_7_INT				 (0x3ffL<<16)
+
+#define BCE_HC_PERIODIC_TICKS_7			0x00006af8
+#define BCE_HC_PERIODIC_TICKS_7_HC_PERIODIC_TICKS	 (0xffffL<<0)
+#define BCE_HC_PERIODIC_TICKS_7_HC_INT_PERIODIC_TICKS	 (0xffffL<<16)
+
+#define BCE_HC_SB_CONFIG_8				0x00006afc
+#define BCE_HC_SB_CONFIG_8_RX_TMR_MODE			 (1L<<1)
+#define BCE_HC_SB_CONFIG_8_TX_TMR_MODE			 (1L<<2)
+#define BCE_HC_SB_CONFIG_8_COM_TMR_MODE		 (1L<<3)
+#define BCE_HC_SB_CONFIG_8_CMD_TMR_MODE		 (1L<<4)
+#define BCE_HC_SB_CONFIG_8_PER_MODE			 (1L<<16)
+#define BCE_HC_SB_CONFIG_8_ONE_SHOT			 (1L<<17)
+#define BCE_HC_SB_CONFIG_8_USE_INT_PARAM		 (1L<<18)
+#define BCE_HC_SB_CONFIG_8_PER_COLLECT_LIMIT		 (0xfL<<20)
+
+#define BCE_HC_TX_QUICK_CONS_TRIP_8			0x00006b00
+#define BCE_HC_TX_QUICK_CONS_TRIP_8_VALUE		 (0xffL<<0)
+#define BCE_HC_TX_QUICK_CONS_TRIP_8_INT		 (0xffL<<16)
+
+#define BCE_HC_COMP_PROD_TRIP_8			0x00006b04
+#define BCE_HC_COMP_PROD_TRIP_8_VALUE			 (0xffL<<0)
+#define BCE_HC_COMP_PROD_TRIP_8_INT			 (0xffL<<16)
+
+#define BCE_HC_RX_QUICK_CONS_TRIP_8			0x00006b08
+#define BCE_HC_RX_QUICK_CONS_TRIP_8_VALUE		 (0xffL<<0)
+#define BCE_HC_RX_QUICK_CONS_TRIP_8_INT		 (0xffL<<16)
+
+#define BCE_HC_RX_TICKS_8				0x00006b0c
+#define BCE_HC_RX_TICKS_8_VALUE			 (0x3ffL<<0)
+#define BCE_HC_RX_TICKS_8_INT				 (0x3ffL<<16)
+
+#define BCE_HC_TX_TICKS_8				0x00006b10
+#define BCE_HC_TX_TICKS_8_VALUE			 (0x3ffL<<0)
+#define BCE_HC_TX_TICKS_8_INT				 (0x3ffL<<16)
+
+#define BCE_HC_COM_TICKS_8				0x00006b14
+#define BCE_HC_COM_TICKS_8_VALUE			 (0x3ffL<<0)
+#define BCE_HC_COM_TICKS_8_INT				 (0x3ffL<<16)
+
+#define BCE_HC_CMD_TICKS_8				0x00006b18
+#define BCE_HC_CMD_TICKS_8_VALUE			 (0x3ffL<<0)
+#define BCE_HC_CMD_TICKS_8_INT				 (0x3ffL<<16)
+
+#define BCE_HC_PERIODIC_TICKS_8			0x00006b1c
+#define BCE_HC_PERIODIC_TICKS_8_HC_PERIODIC_TICKS	 (0xffffL<<0)
+#define BCE_HC_PERIODIC_TICKS_8_HC_INT_PERIODIC_TICKS	 (0xffffL<<16)
 
 
 /*
@@ -4018,20 +5509,6 @@ struct l2_fhdr {
 #define BCE_TXP_CPU_HW_BREAKPOINT			0x00045034
 #define BCE_TXP_CPU_HW_BREAKPOINT_DISABLE		 (1L<<0)
 #define BCE_TXP_CPU_HW_BREAKPOINT_ADDRESS		 (0x3fffffffL<<2)
-
-#define BCE_TXP_CPU_DEBUG_VECT_PEEK			0x00045038
-#define BCE_TXP_CPU_DEBUG_VECT_PEEK_1_VALUE		 (0x7ffL<<0)
-#define BCE_TXP_CPU_DEBUG_VECT_PEEK_1_PEEK_EN		 (1L<<11)
-#define BCE_TXP_CPU_DEBUG_VECT_PEEK_1_SEL		 (0xfL<<12)
-#define BCE_TXP_CPU_DEBUG_VECT_PEEK_2_VALUE		 (0x7ffL<<16)
-#define BCE_TXP_CPU_DEBUG_VECT_PEEK_2_PEEK_EN		 (1L<<27)
-#define BCE_TXP_CPU_DEBUG_VECT_PEEK_2_SEL		 (0xfL<<28)
-
-#define BCE_TXP_CPU_LAST_BRANCH_ADDR			0x00045048
-#define BCE_TXP_CPU_LAST_BRANCH_ADDR_TYPE		 (1L<<1)
-#define BCE_TXP_CPU_LAST_BRANCH_ADDR_TYPE_JUMP		 (0L<<1)
-#define BCE_TXP_CPU_LAST_BRANCH_ADDR_TYPE_BRANCH	 (1L<<1)
-#define BCE_TXP_CPU_LAST_BRANCH_ADDR_LBA		 (0x3fffffffL<<2)
 
 #define BCE_TXP_CPU_REG_FILE				0x00045200
 #define BCE_TXP_FTQ_DATA				0x000453c0
@@ -4113,21 +5590,6 @@ struct l2_fhdr {
 #define BCE_TPAT_CPU_HW_BREAKPOINT			0x00085034
 #define BCE_TPAT_CPU_HW_BREAKPOINT_DISABLE		 (1L<<0)
 #define BCE_TPAT_CPU_HW_BREAKPOINT_ADDRESS		 (0x3fffffffL<<2)
-
-#define BCE_TPAT_CPU_DEBUG_VECT_PEEK			0x00085038
-#define BCE_TPAT_CPU_DEBUG_VECT_PEEK_1_VALUE		 (0x7ffL<<0)
-#define BCE_TPAT_CPU_DEBUG_VECT_PEEK_1_PEEK_EN		 (1L<<11)
-#define BCE_TPAT_CPU_DEBUG_VECT_PEEK_1_SEL		 (0xfL<<12)
-#define BCE_TPAT_CPU_DEBUG_VECT_PEEK_2_VALUE		 (0x7ffL<<16)
-#define BCE_TPAT_CPU_DEBUG_VECT_PEEK_2_PEEK_EN		 (1L<<27)
-#define BCE_TPAT_CPU_DEBUG_VECT_PEEK_2_SEL		 (0xfL<<28)
-
-#define BCE_TPAT_CPU_LAST_BRANCH_ADDR			0x00085048
-#define BCE_TPAT_CPU_LAST_BRANCH_ADDR_TYPE		 (1L<<1)
-#define BCE_TPAT_CPU_LAST_BRANCH_ADDR_TYPE_JUMP	 (0L<<1)
-#define BCE_TPAT_CPU_LAST_BRANCH_ADDR_TYPE_BRANCH	 (1L<<1)
-#define BCE_TPAT_CPU_LAST_BRANCH_ADDR_LBA		 (0x3fffffffL<<2)
-
 #define BCE_TPAT_CPU_REG_FILE				0x00085200
 #define BCE_TPAT_FTQ_DATA				0x000853c0
 #define BCE_TPAT_FTQ_CMD				0x000853f8
@@ -4208,20 +5670,6 @@ struct l2_fhdr {
 #define BCE_RXP_CPU_HW_BREAKPOINT			0x000c5034
 #define BCE_RXP_CPU_HW_BREAKPOINT_DISABLE		 (1L<<0)
 #define BCE_RXP_CPU_HW_BREAKPOINT_ADDRESS		 (0x3fffffffL<<2)
-
-#define BCE_RXP_CPU_DEBUG_VECT_PEEK			0x000c5038
-#define BCE_RXP_CPU_DEBUG_VECT_PEEK_1_VALUE		 (0x7ffL<<0)
-#define BCE_RXP_CPU_DEBUG_VECT_PEEK_1_PEEK_EN		 (1L<<11)
-#define BCE_RXP_CPU_DEBUG_VECT_PEEK_1_SEL		 (0xfL<<12)
-#define BCE_RXP_CPU_DEBUG_VECT_PEEK_2_VALUE		 (0x7ffL<<16)
-#define BCE_RXP_CPU_DEBUG_VECT_PEEK_2_PEEK_EN		 (1L<<27)
-#define BCE_RXP_CPU_DEBUG_VECT_PEEK_2_SEL		 (0xfL<<28)
-
-#define BCE_RXP_CPU_LAST_BRANCH_ADDR			0x000c5048
-#define BCE_RXP_CPU_LAST_BRANCH_ADDR_TYPE		 (1L<<1)
-#define BCE_RXP_CPU_LAST_BRANCH_ADDR_TYPE_JUMP		 (0L<<1)
-#define BCE_RXP_CPU_LAST_BRANCH_ADDR_TYPE_BRANCH	 (1L<<1)
-#define BCE_RXP_CPU_LAST_BRANCH_ADDR_LBA		 (0x3fffffffL<<2)
 
 #define BCE_RXP_CPU_REG_FILE				0x000c5200
 #define BCE_RXP_CFTQ_DATA				0x000c5380
@@ -4324,20 +5772,6 @@ struct l2_fhdr {
 #define BCE_COM_CPU_HW_BREAKPOINT			0x00105034
 #define BCE_COM_CPU_HW_BREAKPOINT_DISABLE		 (1L<<0)
 #define BCE_COM_CPU_HW_BREAKPOINT_ADDRESS		 (0x3fffffffL<<2)
-
-#define BCE_COM_CPU_DEBUG_VECT_PEEK			0x00105038
-#define BCE_COM_CPU_DEBUG_VECT_PEEK_1_VALUE		 (0x7ffL<<0)
-#define BCE_COM_CPU_DEBUG_VECT_PEEK_1_PEEK_EN		 (1L<<11)
-#define BCE_COM_CPU_DEBUG_VECT_PEEK_1_SEL		 (0xfL<<12)
-#define BCE_COM_CPU_DEBUG_VECT_PEEK_2_VALUE		 (0x7ffL<<16)
-#define BCE_COM_CPU_DEBUG_VECT_PEEK_2_PEEK_EN		 (1L<<27)
-#define BCE_COM_CPU_DEBUG_VECT_PEEK_2_SEL		 (0xfL<<28)
-
-#define BCE_COM_CPU_LAST_BRANCH_ADDR			0x00105048
-#define BCE_COM_CPU_LAST_BRANCH_ADDR_TYPE		 (1L<<1)
-#define BCE_COM_CPU_LAST_BRANCH_ADDR_TYPE_JUMP		 (0L<<1)
-#define BCE_COM_CPU_LAST_BRANCH_ADDR_TYPE_BRANCH	 (1L<<1)
-#define BCE_COM_CPU_LAST_BRANCH_ADDR_LBA		 (0x3fffffffL<<2)
 
 #define BCE_COM_CPU_REG_FILE				0x00105200
 #define BCE_COM_COMXQ_FTQ_DATA				0x00105340
@@ -4462,20 +5896,6 @@ struct l2_fhdr {
 #define BCE_CP_CPU_HW_BREAKPOINT_DISABLE		 (1L<<0)
 #define BCE_CP_CPU_HW_BREAKPOINT_ADDRESS		 (0x3fffffffL<<2)
 
-#define BCE_CP_CPU_DEBUG_VECT_PEEK			0x00185038
-#define BCE_CP_CPU_DEBUG_VECT_PEEK_1_VALUE		 (0x7ffL<<0)
-#define BCE_CP_CPU_DEBUG_VECT_PEEK_1_PEEK_EN		 (1L<<11)
-#define BCE_CP_CPU_DEBUG_VECT_PEEK_1_SEL		 (0xfL<<12)
-#define BCE_CP_CPU_DEBUG_VECT_PEEK_2_VALUE		 (0x7ffL<<16)
-#define BCE_CP_CPU_DEBUG_VECT_PEEK_2_PEEK_EN		 (1L<<27)
-#define BCE_CP_CPU_DEBUG_VECT_PEEK_2_SEL		 (0xfL<<28)
-
-#define BCE_CP_CPU_LAST_BRANCH_ADDR			0x00185048
-#define BCE_CP_CPU_LAST_BRANCH_ADDR_TYPE		 (1L<<1)
-#define BCE_CP_CPU_LAST_BRANCH_ADDR_TYPE_JUMP		 (0L<<1)
-#define BCE_CP_CPU_LAST_BRANCH_ADDR_TYPE_BRANCH	 (1L<<1)
-#define BCE_CP_CPU_LAST_BRANCH_ADDR_LBA		 (0x3fffffffL<<2)
-
 #define BCE_CP_CPU_REG_FILE				0x00185200
 #define BCE_CP_CPQ_FTQ_DATA				0x001853c0
 #define BCE_CP_CPQ_FTQ_CMD				0x001853f8
@@ -4567,20 +5987,6 @@ struct l2_fhdr {
 #define BCE_MCP_CPU_HW_BREAKPOINT_DISABLE		 (1L<<0)
 #define BCE_MCP_CPU_HW_BREAKPOINT_ADDRESS		 (0x3fffffffL<<2)
 
-#define BCE_MCP_CPU_DEBUG_VECT_PEEK			0x00145038
-#define BCE_MCP_CPU_DEBUG_VECT_PEEK_1_VALUE		 (0x7ffL<<0)
-#define BCE_MCP_CPU_DEBUG_VECT_PEEK_1_PEEK_EN		 (1L<<11)
-#define BCE_MCP_CPU_DEBUG_VECT_PEEK_1_SEL		 (0xfL<<12)
-#define BCE_MCP_CPU_DEBUG_VECT_PEEK_2_VALUE		 (0x7ffL<<16)
-#define BCE_MCP_CPU_DEBUG_VECT_PEEK_2_PEEK_EN		 (1L<<27)
-#define BCE_MCP_CPU_DEBUG_VECT_PEEK_2_SEL		 (0xfL<<28)
-
-#define BCE_MCP_CPU_LAST_BRANCH_ADDR			0x00145048
-#define BCE_MCP_CPU_LAST_BRANCH_ADDR_TYPE		 (1L<<1)
-#define BCE_MCP_CPU_LAST_BRANCH_ADDR_TYPE_JUMP		 (0L<<1)
-#define BCE_MCP_CPU_LAST_BRANCH_ADDR_TYPE_BRANCH	 (1L<<1)
-#define BCE_MCP_CPU_LAST_BRANCH_ADDR_LBA		 (0x3fffffffL<<2)
-
 #define BCE_MCP_CPU_REG_FILE				0x00145200
 #define BCE_MCP_MCPQ_FTQ_DATA				0x001453c0
 #define BCE_MCP_MCPQ_FTQ_CMD				0x001453f8
@@ -4628,12 +6034,12 @@ struct l2_fhdr {
 /* firmware.                                                                */
 /****************************************************************************/
 
-/* 
+/*
  * Perfect match control register.
- * 0 = Default.  All received unicst packets matching MAC address 
+ * 0 = Default.  All received unicst packets matching MAC address
  *     BCE_EMAC_MAC_MATCH[0:1,8:9,10:11,12:13,14:15] are sent to receive queue
  *     0, all other perfect match registers are reserved.
- * 1 = All received unicast packets matching MAC address 
+ * 1 = All received unicast packets matching MAC address
  *     BCE_EMAC_MAC_MATCH[0:1] are mapped to receive queue 0,
  *     BCE_EMAC_MAC_MATCH[2:3] is mapped to receive queue 1, etc.
  * 2 = All received unicast packets matching any BCE_EMAC_MAC_MATCH[] register
@@ -4646,7 +6052,7 @@ struct l2_fhdr {
  * were dropped because there were no buffers available in the
  * receive chain.
  */
-#define BCE_COM_NO_BUFFERS		0x120084	
+#define BCE_COM_NO_BUFFERS		0x120084
 /****************************************************************************/
 /* End firmware definitions.                                                */
 /****************************************************************************/
@@ -4714,14 +6120,14 @@ struct l2_fhdr {
 
 /* Use the natural page size of the host CPU. */
 /* XXX: This has only been tested on amd64/i386 systems using 4KB pages. */
-#define BCM_PAGE_BITS	PAGE_SHIFT	
+#define BCM_PAGE_BITS	PAGE_SHIFT
 #define BCM_PAGE_SIZE	PAGE_SIZE
 #define BCM_PAGE_MASK	(BCM_PAGE_SIZE - 1)
 #define BCM_PAGES(x)	((((x) + BCM_PAGE_SIZE - 1) & BCM_PAGE_MASK) >> BCM_PAGE_BITS)
 
-/* 
- * Page count must remain a power of 2 for all 
- * of the math to work correctly. 
+/*
+ * Page count must remain a power of 2 for all
+ * of the math to work correctly.
  */
 #define TX_PAGES	2
 #define TOTAL_TX_BD_PER_PAGE  (BCM_PAGE_SIZE / sizeof(struct tx_bd))
@@ -4739,9 +6145,9 @@ struct l2_fhdr {
 #define TX_PAGE(x) (((x) & ~USABLE_TX_BD_PER_PAGE) >> (BCM_PAGE_BITS - 4))
 #define TX_IDX(x) ((x) & USABLE_TX_BD_PER_PAGE)
 
-/* 
- * Page count must remain a power of 2 for all 
- * of the math to work correctly. 
+/*
+ * Page count must remain a power of 2 for all
+ * of the math to work correctly.
  */
 #define RX_PAGES	2
 #define TOTAL_RX_BD_PER_PAGE  (BCM_PAGE_SIZE / sizeof(struct rx_bd))
@@ -4803,9 +6209,6 @@ struct l2_fhdr {
 
 #define TX_CID		16
 #define RX_CID		0
-
-#define MB_TX_CID_ADDR	MB_GET_CID_ADDR(TX_CID)
-#define MB_RX_CID_ADDR	MB_GET_CID_ADDR(RX_CID)
 
 /****************************************************************************/
 /* BCE Processor Firmwware Load Definitions                                 */
@@ -4926,6 +6329,7 @@ struct fw_info {
 #define BCE_MAX_JUMBO_ETHER_MTU			9018
 #define BCE_MAX_JUMBO_ETHER_MTU_VLAN 	9022
 
+// #define BCE_MAX_MTU		ETHER_MAX_LEN_JUMBO + ETHER_VLAN_ENCAP_LEN	/* 9022 */
 
 /****************************************************************************/
 /* BCE Device State Data Structure                                          */
@@ -4950,7 +6354,12 @@ struct bce_softc
 	vm_offset_t			bce_vhandle;		/* Device virtual memory handle */
 	struct resource		*bce_res_irq;		/* IRQ Resource Handle */
 	struct mtx			bce_mtx;			/* Mutex */
-	void				*bce_intrhand;		/* Interrupt handler */
+
+	/* Interrupt handler. */
+	driver_intr_t		*bce_intr;
+	void				*bce_intrhand;
+	int					bce_irq_rid;
+	int					bce_msi_count;
 
 	/* ASIC Chip ID. */
 	u32					bce_chipid;
@@ -4964,6 +6373,16 @@ struct bce_softc
 #define BCE_USING_DAC_FLAG			0x00000010
 #define BCE_USING_MSI_FLAG 			0x00000020
 #define BCE_MFW_ENABLE_FLAG			0x00000040
+#define BCE_ONE_SHOT_MSI_FLAG		0x00000080
+#define BCE_USING_MSIX_FLAG			0x00000100
+#define BCE_PCIE_FLAG				0x00000200
+
+	/* Controller capability flags. */
+	u32								bce_cap_flags;
+#define BCE_MSI_CAPABLE_FLAG		0x00000001
+#define BCE_MSIX_CAPABLE_FLAG		0x00000002
+#define BCE_PCIE_CAPABLE_FLAG		0x00000004
+#define BCE_PCIX_CAPABLE_FLAG		0x00000008
 
 	/* PHY specific flags. */
 	u32					bce_phy_flags;
@@ -4981,6 +6400,8 @@ struct bce_softc
 
 	bus_addr_t			max_bus_addr;
 	u16					bus_speed_mhz;		/* PCI bus speed */
+	u16					link_width;			/* PCIe link width */
+	u16					link_speed;			/* PCIe link speed */
 	struct flash_spec	*bce_flash_info;	/* Flash NVRAM settings */
 	u32					bce_flash_size;		/* Flash NVRAM size */
 	u32					bce_shmem_base;		/* Shared Memory base address */
@@ -5029,7 +6450,7 @@ struct bce_softc
 
 	/* The device handle for the MII bus child device. */
 	device_t			bce_miibus;
-													 
+
 	/* Driver maintained TX chain pointers and byte counter. */
 	u16					rx_prod;
 	u16					rx_cons;
@@ -5084,8 +6505,8 @@ struct bce_softc
 	/* H/W maintained status block. */
 	bus_dma_tag_t		status_tag;
 	bus_dmamap_t		status_map;
-	struct status_block	*status_block;				/* virtual address */
-	bus_addr_t			status_block_paddr;			/* Physical address */
+	struct status_block	*status_block;			/* Virtual address */
+	bus_addr_t			status_block_paddr;		/* Physical address */
 
 	/* Driver maintained status block values. */
 	u16					last_status_idx;
@@ -5097,6 +6518,14 @@ struct bce_softc
 	bus_dmamap_t		stats_map;
 	struct statistics_block *stats_block;		/* Virtual address */
 	bus_addr_t			stats_block_paddr;		/* Physical address */
+
+	/* H/W maintained context block. */
+	int					ctx_pages;
+	bus_dma_tag_t		ctx_tag;
+	/* DRC - Fix hard coded value. */
+	bus_dmamap_t		ctx_map[4];
+	void				*ctx_block[4];			/* Virtual address */
+	bus_addr_t			ctx_paddr[4];			/* Physical address */
 
 	/* Bus tag for RX/TX mbufs. */
 	bus_dma_tag_t		rx_mbuf_tag;
@@ -5189,7 +6618,7 @@ struct bce_softc
 	/* TX DMA mapping failure counter. */
 	u32 tx_dma_map_failures;
 
-	u64 rx_intr_time;
+	u32	hc_command;
 
 #ifdef BCE_DEBUG
 	/* Track the number of enqueued mbufs. */
@@ -5204,6 +6633,7 @@ struct bce_softc
 	u32 tx_interrupts;
 
 	/* Track interrupt time (25MHz clock). */
+	u64 rx_intr_time;
 	u64 tx_intr_time;
 
 	u32	rx_low_watermark;			/* Lowest number of rx_bd's free. */
@@ -5216,8 +6646,8 @@ struct bce_softc
 	u32	tx_full_count;				/* Number of times the TX chain was full. */
 
 	/* Simulated mbuf allocation failure counter. */
-	u32	debug_mbuf_sim_alloc_failed;	
-	
+	u32	debug_mbuf_sim_alloc_failed;
+
 	u32 l2fhdr_status_errors;
 	u32 unexpected_attentions;
 	u32	lost_status_block_updates;
