@@ -2768,9 +2768,8 @@ static void
 pmap_promote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va)
 {
 	pd_entry_t newpde;
-	pt_entry_t *firstpte, oldpte, *pte;
+	pt_entry_t *firstpte, oldpte, pa, *pte;
 	vm_offset_t oldpteva;
-	vm_paddr_t pa;
 	vm_page_t mpte;
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
@@ -2801,14 +2800,14 @@ setpde:
 
 	/*
 	 * Examine each of the other PTEs in the specified PTP.  Abort if this
-	 * PTE maps an unexpected physical page or does not have identical
+	 * PTE maps an unexpected 4KB physical page or does not have identical
 	 * characteristics to the first PTE.
 	 */
-	pa = (newpde & PG_PS_FRAME) + NBPDR - PAGE_SIZE;
+	pa = (newpde & (PG_PS_FRAME | PG_A | PG_V)) + NBPDR - PAGE_SIZE;
 	for (pte = firstpte + NPTEPG - 1; pte > firstpte; pte--) {
 setpte:
 		oldpte = *pte;
-		if ((oldpte & PG_FRAME) != pa) {
+		if ((oldpte & (PG_FRAME | PG_A | PG_V)) != pa) {
 			pmap_pde_p_failures++;
 			CTR2(KTR_PMAP, "pmap_promote_pde: failure for va %#lx"
 			    " in pmap %p", va, pmap);
