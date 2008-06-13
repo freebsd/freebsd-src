@@ -106,6 +106,8 @@ static void	mfi_complete(struct mfi_softc *, struct mfi_command *);
 static int	mfi_abort(struct mfi_softc *, struct mfi_command *);
 static int	mfi_linux_ioctl_int(struct cdev *, u_long, caddr_t, int, d_thread_t *);
 static void	mfi_timeout(void *);
+static int	mfi_user_command(struct mfi_softc *,
+		    struct mfi_ioc_passthru *);
 static void 	mfi_enable_intr_xscale(struct mfi_softc *sc);
 static void 	mfi_enable_intr_ppc(struct mfi_softc *sc);
 static int32_t 	mfi_read_fw_status_xscale(struct mfi_softc *sc);
@@ -125,6 +127,11 @@ static int	mfi_event_class = MFI_EVT_CLASS_INFO;
 TUNABLE_INT("hw.mfi.event_class", &mfi_event_class);
 SYSCTL_INT(_hw_mfi, OID_AUTO, event_class, CTLFLAG_RW, &mfi_event_class,
           0, "event message class");
+
+static int	mfi_max_cmds = 128;
+TUNABLE_INT("hw.mfi.max_cmds", &mfi_max_cmds);
+SYSCTL_INT(_hw_mfi, OID_AUTO, max_cmds, CTLFLAG_RD, &mfi_max_cmds,
+	   0, "Max commands");
 
 /* Management interface */
 static d_open_t		mfi_open;
@@ -535,7 +542,11 @@ mfi_alloc_commands(struct mfi_softc *sc)
 	 * XXX Should we allocate all the commands up front, or allocate on
 	 * demand later like 'aac' does?
 	 */
-	ncmds = sc->mfi_max_fw_cmds;
+	ncmds = MIN(mfi_max_cmds, sc->mfi_max_fw_cmds);
+	if (bootverbose)
+		device_printf(sc->mfi_dev, "Max fw cmds= %d, sizing driver "
+		   "pool to %d\n", sc->mfi_max_fw_cmds, ncmds);
+
 	sc->mfi_commands = malloc(sizeof(struct mfi_command) * ncmds, M_MFIBUF,
 	    M_WAITOK | M_ZERO);
 
@@ -774,16 +785,12 @@ mfi_aen_setup(struct mfi_softc *sc, uint32_t seq_start)
 				free(log_state, M_MFIBUF);
 			return (error);
 		}
-		/*
-		 * Don't run them yet since we can't parse them.
-		 * We can indirectly get the contents from
-		 * the AEN mechanism via setting it lower then
-		 * current.  The firmware will iterate through them.
-		 */
+		/* The message log is a circular buffer */
 		for (seq = log_state->shutdown_seq_num;
-		     seq <= log_state->newest_seq_num; seq++) {
+		     seq != log_state->newest_seq_num; seq++) {
 			mfi_get_entry(sc, seq);
 		}
+		mfi_get_entry(sc, seq);
 	} else
 		seq = seq_start;
 	mfi_aen_register(sc, seq, class_locale.word);
@@ -2022,17 +2029,99 @@ mfi_check_command_post(struct mfi_softc *sc, struct mfi_command *cm)
 }
 
 static int
+mfi_user_command(struct mfi_softc *sc, struct mfi_ioc_passthru *ioc)
+{
+	struct mfi_command *cm;
+	struct mfi_dcmd_frame *dcmd;
+	void *ioc_buf = NULL;
+	uint32_t context;
+	int error = 0, locked;
+
+
+	if (ioc->buf_size > 0) {
+		ioc_buf = malloc(ioc->buf_size, M_MFIBUF, M_WAITOK);
+		if (ioc_buf == NULL) {
+			return (ENOMEM);
+		}
+		error = copyin(ioc->buf, ioc_buf, ioc->buf_size);
+		if (error) {
+			device_printf(sc->mfi_dev, "failed to copyin\n");
+			free(ioc_buf, M_MFIBUF);
+			return (error);
+		}
+	}
+
+	locked = mfi_config_lock(sc, ioc->ioc_frame.opcode);
+
+	mtx_lock(&sc->mfi_io_lock);
+	while ((cm = mfi_dequeue_free(sc)) == NULL)
+		msleep(mfi_user_command, &sc->mfi_io_lock, 0, "mfiioc", hz);
+
+	/* Save context for later */
+	context = cm->cm_frame->header.context;
+
+	dcmd = &cm->cm_frame->dcmd;
+	bcopy(&ioc->ioc_frame, dcmd, sizeof(struct mfi_dcmd_frame));
+
+	cm->cm_sg = &dcmd->sgl;
+	cm->cm_total_frame_size = MFI_DCMD_FRAME_SIZE;
+	cm->cm_data = ioc_buf;
+	cm->cm_len = ioc->buf_size;
+
+	/* restore context */
+	cm->cm_frame->header.context = context;
+
+	/* Cheat since we don't know if we're writing or reading */
+	cm->cm_flags = MFI_CMD_DATAIN | MFI_CMD_DATAOUT;
+
+	error = mfi_check_command_pre(sc, cm);
+	if (error)
+		goto out;
+
+	error = mfi_wait_command(sc, cm);
+	if (error) {
+		device_printf(sc->mfi_dev, "ioctl failed %d\n", error);
+		goto out;
+	}
+	bcopy(dcmd, &ioc->ioc_frame, sizeof(struct mfi_dcmd_frame));
+	mfi_check_command_post(sc, cm);
+out:
+	mfi_release_command(cm);
+	mtx_unlock(&sc->mfi_io_lock);
+	mfi_config_unlock(sc, locked);
+	if (ioc->buf_size > 0)
+		error = copyout(ioc_buf, ioc->buf, ioc->buf_size);
+	if (ioc_buf)
+		free(ioc_buf, M_MFIBUF);
+	return (error);
+}
+
+#ifdef __amd64__
+#define	PTRIN(p)		((void *)(uintptr_t)(p))
+#else
+#define	PTRIN(p)		(p)
+#endif
+
+static int
 mfi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
 {
 	struct mfi_softc *sc;
 	union mfi_statrequest *ms;
 	struct mfi_ioc_packet *ioc;
+#ifdef __amd64__
+	struct mfi_ioc_packet32 *ioc32;
+#endif
 	struct mfi_ioc_aen *aen;
 	struct mfi_command *cm = NULL;
 	uint32_t context;
 	uint8_t *sense_ptr;
 	uint8_t *data = NULL, *temp;
 	int i;
+	struct mfi_ioc_passthru *iop = (struct mfi_ioc_passthru *)arg;
+#ifdef __amd64__
+	struct mfi_ioc_passthru32 *iop32 = (struct mfi_ioc_passthru32 *)arg;
+	struct mfi_ioc_passthru iop_swab;
+#endif
 	int error, locked;
 
 	sc = dev->si_drv1;
@@ -2079,8 +2168,19 @@ mfi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
 		break;
 	}
 	case MFI_CMD:
+#ifdef __amd64__
+	case MFI_CMD32:
+#endif
+		{
+		devclass_t devclass;
 		ioc = (struct mfi_ioc_packet *)arg;
+		int adapter;
 
+		adapter = ioc->mfi_adapter_no;
+		if (device_get_unit(sc->mfi_dev) == 0 && adapter != 0) {
+			devclass = devclass_find("mfi");
+			sc = devclass_get_softc(devclass, adapter);
+		}
 		mtx_lock(&sc->mfi_io_lock);
 		if ((cm = mfi_dequeue_free(sc)) == NULL) {
 			mtx_unlock(&sc->mfi_io_lock);
@@ -2128,9 +2228,27 @@ mfi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
 		temp = data;
 		if (cm->cm_flags & MFI_CMD_DATAOUT) {
 			for (i = 0; i < ioc->mfi_sge_count; i++) {
+#ifdef __amd64__
+				if (cmd == MFI_CMD) {
+					/* Native */
+					error = copyin(ioc->mfi_sgl[i].iov_base,
+					       temp,
+					       ioc->mfi_sgl[i].iov_len);
+				} else {
+					void *temp_convert;
+					/* 32bit */
+					ioc32 = (struct mfi_ioc_packet32 *)ioc;
+					temp_convert =
+					    PTRIN(ioc32->mfi_sgl[i].iov_base);
+					error = copyin(temp_convert,
+					       temp,
+					       ioc32->mfi_sgl[i].iov_len);
+				}
+#else
 				error = copyin(ioc->mfi_sgl[i].iov_base,
 				       temp,
 				       ioc->mfi_sgl[i].iov_len);
+#endif
 				if (error != 0) {
 					device_printf(sc->mfi_dev,
 					    "Copy in failed\n");
@@ -2163,9 +2281,27 @@ mfi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
 		temp = data;
 		if (cm->cm_flags & MFI_CMD_DATAIN) {
 			for (i = 0; i < ioc->mfi_sge_count; i++) {
+#ifdef __amd64__
+				if (cmd == MFI_CMD) {
+					/* Native */
+					error = copyout(temp,
+						ioc->mfi_sgl[i].iov_base,
+						ioc->mfi_sgl[i].iov_len);
+				} else {
+					void *temp_convert;
+					/* 32bit */
+					ioc32 = (struct mfi_ioc_packet32 *)ioc;
+					temp_convert =
+					    PTRIN(ioc32->mfi_sgl[i].iov_base);
+					error = copyout(temp,
+						temp_convert,
+						ioc32->mfi_sgl[i].iov_len);
+				}
+#else
 				error = copyout(temp,
 					ioc->mfi_sgl[i].iov_base,
 					ioc->mfi_sgl[i].iov_len);
+#endif
 				if (error != 0) {
 					device_printf(sc->mfi_dev,
 					    "Copy out failed\n");
@@ -2200,6 +2336,7 @@ out:
 		}
 
 		break;
+		}
 	case MFI_SET_AEN:
 		aen = (struct mfi_ioc_aen *)arg;
 		error = mfi_aen_register(sc, aen->aen_seq_num,
@@ -2248,6 +2385,21 @@ out:
 			    cmd, arg, flag, td));
 			break;
 		}
+#ifdef __amd64__
+	case MFIIO_PASSTHRU32:
+		iop_swab.ioc_frame	= iop32->ioc_frame;
+		iop_swab.buf_size	= iop32->buf_size;
+		iop_swab.buf		= PTRIN(iop32->buf);
+		iop			= &iop_swab;
+		/* FALLTHROUGH */
+#endif
+	case MFIIO_PASSTHRU:
+		error = mfi_user_command(sc, iop);
+#ifdef __amd64__
+		if (cmd == MFIIO_PASSTHRU32)
+			iop32->ioc_frame = iop_swab.ioc_frame;
+#endif
+		break;
 	default:
 		device_printf(sc->mfi_dev, "IOCTL 0x%lx not handled\n", cmd);
 		error = ENOENT;
@@ -2268,7 +2420,6 @@ mfi_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_threa
 	uint8_t *sense_ptr;
 	uint32_t context;
 	uint8_t *data = NULL, *temp;
-	void *temp_convert;
 	int i;
 	int error, locked;
 
@@ -2327,9 +2478,7 @@ mfi_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_threa
 		temp = data;
 		if (cm->cm_flags & MFI_CMD_DATAOUT) {
 			for (i = 0; i < l_ioc.lioc_sge_count; i++) {
-				temp_convert =
-				    (void *)(uintptr_t)l_ioc.lioc_sgl[i].iov_base;
-				error = copyin(temp_convert,
+				error = copyin(PTRIN(l_ioc.lioc_sgl[i].iov_base),
 				       temp,
 				       l_ioc.lioc_sgl[i].iov_len);
 				if (error != 0) {
@@ -2364,10 +2513,8 @@ mfi_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_threa
 		temp = data;
 		if (cm->cm_flags & MFI_CMD_DATAIN) {
 			for (i = 0; i < l_ioc.lioc_sge_count; i++) {
-				temp_convert =
-				    (void *)(uintptr_t)l_ioc.lioc_sgl[i].iov_base;
 				error = copyout(temp,
-					temp_convert,
+					PTRIN(l_ioc.lioc_sgl[i].iov_base),
 					l_ioc.lioc_sgl[i].iov_len);
 				if (error != 0) {
 					device_printf(sc->mfi_dev,
