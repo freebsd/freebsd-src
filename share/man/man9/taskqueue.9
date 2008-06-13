@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 19, 2005
+.Dd June 10, 2008
 .Dt TASKQUEUE 9
 .Os
 .Sh NAME
@@ -55,6 +55,8 @@ struct task {
 .Ed
 .Ft struct taskqueue *
 .Fn taskqueue_create "const char *name" "int mflags" "taskqueue_enqueue_fn enqueue" "void *context"
+.Ft struct taskqueue *
+.Fn taskqueue_create_fast "const char *name" "int mflags" "taskqueue_enqueue_fn enqueue" "void *context"
 .Ft void
 .Fn taskqueue_free "struct taskqueue *queue"
 .Ft struct taskqueue *
@@ -72,7 +74,9 @@ struct task {
 .Fn TASK_INIT "struct task *task" "int priority" "task_fn_t *func" "void *context"
 .Fn TASKQUEUE_DECLARE "name"
 .Fn TASKQUEUE_DEFINE "name" "taskqueue_enqueue_fn enqueue" "void *context" "init"
+.Fn TASKQUEUE_FAST_DEFINE "name" "taskqueue_enqueue_fn enqueue" "void *context" "init"
 .Fn TASKQUEUE_DEFINE_THREAD "name"
+.Fn TASKQUEUE_FAST_DEFINE_THREAD "name"
 .Sh DESCRIPTION
 These functions provide a simple interface for asynchronous execution
 of code.
@@ -102,6 +106,10 @@ thread).
 The memory location where the thread identity is recorded is used
 to signal the service thread(s) to terminate--when this value is set to
 zero and the thread is signaled it will terminate.
+If the queue is intended for use in fast interrupt handlers 
+.Fn taskqueue_create_fast 
+should be used in place of
+.Fn taskqueue_create .
 .Pp
 The function
 .Fn taskqueue_free
@@ -188,11 +196,13 @@ are simply copied into the task structure fields and the
 .Va ta_pending
 field is cleared.
 .Pp
-Three macros
+Five macros
 .Fn TASKQUEUE_DECLARE "name" ,
 .Fn TASKQUEUE_DEFINE "name" "enqueue" "context" "init" ,
+.Fn TASKQUEUE_FAST_DEFINE "name" "enqueue" "context" "init" ,
 and
 .Fn TASKQUEUE_DEFINE_THREAD "name"
+.Fn TASKQUEUE_FAST_DEFINE_THREAD "name"
 are used to declare a reference to a global queue, to define the
 implementation of the queue, and declare a queue that uses its own thread.
 The
@@ -219,6 +229,16 @@ macro defines a new taskqueue with its own kernel thread to serve tasks.
 The variable
 .Vt struct taskqueue *taskqueue_name
 is used to enqueue tasks onto the queue.
+.Pp
+.Fn TASKQUEUE_FAST_DEFINE
+and 
+.Fn TASKQUEUE_FAST_DEFINE_THREAD
+act just like 
+.Fn TASKQUEUE_DEFINE
+and
+.Fn TASKQUEUE_DEFINE_THREAD
+respectively but taskqueue is created with
+.Fn taskqueue_create_fast .
 .Ss Predefined Task Queues
 The system provides four global taskqueues,
 .Va taskqueue_fast ,
@@ -295,6 +315,3 @@ There is a similar facility called tqueue in the Linux kernel.
 .Sh AUTHORS
 This manual page was written by
 .An Doug Rabson .
-.Sh BUGS
-There is no
-.Fn taskqueue_create_fast .
