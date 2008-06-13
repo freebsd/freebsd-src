@@ -553,11 +553,11 @@ test_inpcb_sosetlabel(struct socket *so, struct label *solabel,
 COUNTER_DECL(ipq_create);
 static void
 test_ipq_create(struct mbuf *fragment, struct label *fragmentlabel,
-    struct ipq *ipq, struct label *ipqlabel)
+    struct ipq *q, struct label *qlabel)
 {
 
 	LABEL_CHECK(fragmentlabel, MAGIC_MBUF);
-	LABEL_CHECK(ipqlabel, MAGIC_IPQ);
+	LABEL_CHECK(qlabel, MAGIC_IPQ);
 	COUNTER_INC(ipq_create);
 }
 
@@ -588,11 +588,11 @@ test_ipq_init_label(struct label *label, int flag)
 COUNTER_DECL(ipq_match);
 static int
 test_ipq_match(struct mbuf *fragment, struct label *fragmentlabel,
-    struct ipq *ipq, struct label *ipqlabel)
+    struct ipq *q, struct label *qlabel)
 {
 
 	LABEL_CHECK(fragmentlabel, MAGIC_MBUF);
-	LABEL_CHECK(ipqlabel, MAGIC_IPQ);
+	LABEL_CHECK(qlabel, MAGIC_IPQ);
 	COUNTER_INC(ipq_match);
 
 	return (1);
@@ -600,23 +600,23 @@ test_ipq_match(struct mbuf *fragment, struct label *fragmentlabel,
 
 COUNTER_DECL(ipq_reassemble);
 static void
-test_ipq_reassemble(struct ipq *ipq, struct label *ipqlabel, struct mbuf *m,
+test_ipq_reassemble(struct ipq *q, struct label *qlabel, struct mbuf *m,
    struct label *mlabel)
 {
 
-	LABEL_CHECK(ipqlabel, MAGIC_IPQ);
+	LABEL_CHECK(qlabel, MAGIC_IPQ);
 	LABEL_CHECK(mlabel, MAGIC_MBUF);
 	COUNTER_INC(ipq_reassemble);
 }
 
 COUNTER_DECL(ipq_update);
 static void
-test_ipq_update(struct mbuf *m, struct label *mlabel, struct ipq *ipq,
-    struct label *ipqlabel)
+test_ipq_update(struct mbuf *m, struct label *mlabel, struct ipq *q,
+    struct label *qlabel)
 {
 
 	LABEL_CHECK(mlabel, MAGIC_MBUF);
-	LABEL_CHECK(ipqlabel, MAGIC_IPQ);
+	LABEL_CHECK(qlabel, MAGIC_IPQ);
 	COUNTER_INC(ipq_update);
 }
 
