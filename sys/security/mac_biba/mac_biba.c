@@ -1155,36 +1155,36 @@ biba_inpcb_sosetlabel(struct socket *so, struct label *solabel,
 }
 
 static void
-biba_ipq_create(struct mbuf *m, struct label *mlabel, struct ipq *ipq,
-    struct label *ipqlabel)
+biba_ipq_create(struct mbuf *m, struct label *mlabel, struct ipq *q,
+    struct label *qlabel)
 {
 	struct mac_biba *source, *dest;
 
 	source = SLOT(mlabel);
-	dest = SLOT(ipqlabel);
+	dest = SLOT(qlabel);
 
 	biba_copy_effective(source, dest);
 }
 
 static int
-biba_ipq_match(struct mbuf *m, struct label *mlabel, struct ipq *ipq,
-    struct label *ipqlabel)
+biba_ipq_match(struct mbuf *m, struct label *mlabel, struct ipq *q,
+    struct label *qlabel)
 {
 	struct mac_biba *a, *b;
 
-	a = SLOT(ipqlabel);
+	a = SLOT(qlabel);
 	b = SLOT(mlabel);
 
 	return (biba_equal_effective(a, b));
 }
 
 static void
-biba_ipq_reassemble(struct ipq *ipq, struct label *ipqlabel, struct mbuf *m,
+biba_ipq_reassemble(struct ipq *q, struct label *qlabel, struct mbuf *m,
     struct label *mlabel)
 {
 	struct mac_biba *source, *dest;
 
-	source = SLOT(ipqlabel);
+	source = SLOT(qlabel);
 	dest = SLOT(mlabel);
 
 	/* Just use the head, since we require them all to match. */
@@ -1192,8 +1192,8 @@ biba_ipq_reassemble(struct ipq *ipq, struct label *ipqlabel, struct mbuf *m,
 }
 
 static void
-biba_ipq_update(struct mbuf *m, struct label *mlabel, struct ipq *ipq,
-    struct label *ipqlabel)
+biba_ipq_update(struct mbuf *m, struct label *mlabel, struct ipq *q,
+    struct label *qlabel)
 {
 
 	/* NOOP: we only accept matching labels, so no need to update */
