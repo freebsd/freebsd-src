@@ -35,7 +35,6 @@ struct smc_softc {
 	u_int			smc_chip;
 	u_int			smc_rev;
 	u_int			smc_mask;
-	u_int			smc_shutdown;
 
 	/* Resources */
 	int			smc_usemem;
