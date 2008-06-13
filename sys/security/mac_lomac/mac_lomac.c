@@ -1283,36 +1283,36 @@ lomac_inpcb_sosetlabel(struct socket *so, struct label *solabel,
 }
 
 static void
-lomac_ipq_create(struct mbuf *m, struct label *mlabel, struct ipq *ipq,
-    struct label *ipqlabel)
+lomac_ipq_create(struct mbuf *m, struct label *mlabel, struct ipq *q,
+    struct label *qlabel)
 {
 	struct mac_lomac *source, *dest;
 
 	source = SLOT(mlabel);
-	dest = SLOT(ipqlabel);
+	dest = SLOT(qlabel);
 
 	lomac_copy_single(source, dest);
 }
 
 static int
-lomac_ipq_match(struct mbuf *m, struct label *mlabel, struct ipq *ipq,
-    struct label *ipqlabel)
+lomac_ipq_match(struct mbuf *m, struct label *mlabel, struct ipq *q,
+    struct label *qlabel)
 {
 	struct mac_lomac *a, *b;
 
-	a = SLOT(ipqlabel);
+	a = SLOT(qlabel);
 	b = SLOT(mlabel);
 
 	return (lomac_equal_single(a, b));
 }
 
 static void
-lomac_ipq_reassemble(struct ipq *ipq, struct label *ipqlabel,
-    struct mbuf *m, struct label *mlabel)
+lomac_ipq_reassemble(struct ipq *q, struct label *qlabel, struct mbuf *m,
+    struct label *mlabel)
 {
 	struct mac_lomac *source, *dest;
 
-	source = SLOT(ipqlabel);
+	source = SLOT(qlabel);
 	dest = SLOT(mlabel);
 
 	/* Just use the head, since we require them all to match. */
@@ -1320,8 +1320,8 @@ lomac_ipq_reassemble(struct ipq *ipq, struct label *ipqlabel,
 }
 
 static void
-lomac_ipq_update(struct mbuf *m, struct label *mlabel, struct ipq *ipq,
-    struct label *ipqlabel)
+lomac_ipq_update(struct mbuf *m, struct label *mlabel, struct ipq *q,
+    struct label *qlabel)
 {
 
 	/* NOOP: we only accept matching labels, so no need to update */
