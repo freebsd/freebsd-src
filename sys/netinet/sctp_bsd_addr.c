@@ -48,7 +48,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/sctp_indata.h>
 #include <sys/unistd.h>
 
-
 /* Declare all of our malloc named types */
 
 /* Note to Michael/Peter for mac-os,
@@ -85,17 +84,17 @@ MALLOC_DEFINE(SCTP_M_SOCKOPT, "sctp_socko", "sctp socket option");
 void
 sctp_wakeup_iterator(void)
 {
-	wakeup(&sctppcbinfo.iterator_running);
+	wakeup(&SCTP_BASE_INFO(iterator_running));
 }
 
 static void
 sctp_iterator_thread(void *v)
 {
 	SCTP_IPI_ITERATOR_WQ_LOCK();
-	sctppcbinfo.iterator_running = 0;
+	SCTP_BASE_INFO(iterator_running) = 0;
 	while (1) {
-		msleep(&sctppcbinfo.iterator_running,
-		    &sctppcbinfo.ipi_iterator_wq_mtx,
+		msleep(&SCTP_BASE_INFO(iterator_running),
+		    &SCTP_BASE_INFO(ipi_iterator_wq_mtx),
 		    0, "waiting_for_work", 0);
 		sctp_iterator_worker();
 	}
@@ -108,7 +107,7 @@ sctp_startup_iterator(void)
 
 	ret = kproc_create(sctp_iterator_thread,
 	    (void *)NULL,
-	    &sctppcbinfo.thread_proc,
+	    &SCTP_BASE_INFO(thread_proc),
 	    RFPROC,
 	    SCTP_KTHREAD_PAGES,
 	    SCTP_KTRHEAD_NAME);
@@ -172,6 +171,7 @@ sctp_is_desired_interface_type(struct ifaddr *ifa)
 	case IFT_PPP:
 	case IFT_LOOP:
 	case IFT_SLIP:
+	case IFT_GIF:
 	case IFT_IP:
 	case IFT_IPOVERCDLC:
 	case IFT_IPOVERCLAW:
@@ -184,6 +184,7 @@ sctp_is_desired_interface_type(struct ifaddr *ifa)
 
 	return (result);
 }
+
 
 static void
 sctp_init_ifns_for_vrf(int vrfid)
@@ -204,20 +205,16 @@ sctp_init_ifns_for_vrf(int vrfid)
 			if (ifa->ifa_addr == NULL) {
 				continue;
 			}
-			if ((ifa->ifa_addr->sa_family != AF_INET) &&
-			    (ifa->ifa_addr->sa_family != AF_INET6)
-			    ) {
+			if ((ifa->ifa_addr->sa_family != AF_INET) && (ifa->ifa_addr->sa_family != AF_INET6)) {
 				/* non inet/inet6 skip */
 				continue;
 			}
 			if (ifa->ifa_addr->sa_family == AF_INET6) {
-				ifa6 = (struct in6_ifaddr *)ifa;
-				ifa_flags = ifa6->ia6_flags;
 				if (IN6_IS_ADDR_UNSPECIFIED(&((struct sockaddr_in6 *)ifa->ifa_addr)->sin6_addr)) {
 					/* skip unspecifed addresses */
 					continue;
 				}
-			} else if (ifa->ifa_addr->sa_family == AF_INET) {
+			} else {
 				if (((struct sockaddr_in *)ifa->ifa_addr)->sin_addr.s_addr == 0) {
 					continue;
 				}
@@ -226,26 +223,23 @@ sctp_init_ifns_for_vrf(int vrfid)
 				/* non desired type */
 				continue;
 			}
-			if ((ifa->ifa_addr->sa_family == AF_INET6) ||
-			    (ifa->ifa_addr->sa_family == AF_INET)) {
-				if (ifa->ifa_addr->sa_family == AF_INET6) {
-					ifa6 = (struct in6_ifaddr *)ifa;
-					ifa_flags = ifa6->ia6_flags;
-				} else {
-					ifa_flags = 0;
-				}
-				sctp_ifa = sctp_add_addr_to_vrf(vrfid,
-				    (void *)ifn,
-				    ifn->if_index,
-				    ifn->if_type,
-				    ifn->if_xname,
-				    (void *)ifa,
-				    ifa->ifa_addr,
-				    ifa_flags, 0
-				    );
-				if (sctp_ifa) {
-					sctp_ifa->localifa_flags &= ~SCTP_ADDR_DEFER_USE;
-				}
+			if (ifa->ifa_addr->sa_family == AF_INET6) {
+				ifa6 = (struct in6_ifaddr *)ifa;
+				ifa_flags = ifa6->ia6_flags;
+			} else {
+				ifa_flags = 0;
+			}
+			sctp_ifa = sctp_add_addr_to_vrf(vrfid,
+			    (void *)ifn,
+			    ifn->if_index,
+			    ifn->if_type,
+			    ifn->if_xname,
+			    (void *)ifa,
+			    ifa->ifa_addr,
+			    ifa_flags,
+			    0);
+			if (sctp_ifa) {
+				sctp_ifa->localifa_flags &= ~SCTP_ADDR_DEFER_USE;
 			}
 		}
 	}
@@ -269,24 +263,20 @@ sctp_init_vrf_list(int vrfid)
 	sctp_init_ifns_for_vrf(vrfid);
 }
 
-static uint8_t first_time = 0;
-
-
 void
 sctp_addr_change(struct ifaddr *ifa, int cmd)
 {
 	struct sctp_ifa *ifap = NULL;
 	uint32_t ifa_flags = 0;
-	struct in6_ifaddr *ifa6;
 
 	/*
 	 * BSD only has one VRF, if this changes we will need to hook in the
 	 * right things here to get the id to pass to the address managment
 	 * routine.
 	 */
-	if (first_time == 0) {
+	if (SCTP_BASE_VAR(first_time) == 0) {
 		/* Special test to see if my ::1 will showup with this */
-		first_time = 1;
+		SCTP_BASE_VAR(first_time) = 1;
 		sctp_init_ifns_for_vrf(SCTP_DEFAULT_VRFID);
 	}
 	if ((cmd != RTM_ADD) && (cmd != RTM_DELETE)) {
@@ -296,24 +286,22 @@ sctp_addr_change(struct ifaddr *ifa, int cmd)
 	if (ifa->ifa_addr == NULL) {
 		return;
 	}
-	if ((ifa->ifa_addr->sa_family != AF_INET) &&
-	    (ifa->ifa_addr->sa_family != AF_INET6)
-	    ) {
+	if ((ifa->ifa_addr->sa_family != AF_INET) && (ifa->ifa_addr->sa_family != AF_INET6)) {
 		/* non inet/inet6 skip */
 		return;
 	}
 	if (ifa->ifa_addr->sa_family == AF_INET6) {
-		ifa6 = (struct in6_ifaddr *)ifa;
-		ifa_flags = ifa6->ia6_flags;
+		ifa_flags = ((struct in6_ifaddr *)ifa)->ia6_flags;
 		if (IN6_IS_ADDR_UNSPECIFIED(&((struct sockaddr_in6 *)ifa->ifa_addr)->sin6_addr)) {
 			/* skip unspecifed addresses */
 			return;
 		}
-	} else if (ifa->ifa_addr->sa_family == AF_INET) {
+	} else {
 		if (((struct sockaddr_in *)ifa->ifa_addr)->sin_addr.s_addr == 0) {
 			return;
 		}
 	}
+
 	if (sctp_is_desired_interface_type(ifa) == 0) {
 		/* non desired type */
 		return;
@@ -323,7 +311,7 @@ sctp_addr_change(struct ifaddr *ifa, int cmd)
 		    ifa->ifa_ifp->if_index, ifa->ifa_ifp->if_type,
 		    ifa->ifa_ifp->if_xname,
 		    (void *)ifa, ifa->ifa_addr, ifa_flags, 1);
-	} else if (cmd == RTM_DELETE) {
+	} else {
 
 		sctp_del_addr_from_vrf(SCTP_DEFAULT_VRFID, ifa->ifa_addr,
 		    ifa->ifa_ifp->if_index,
@@ -333,6 +321,21 @@ sctp_addr_change(struct ifaddr *ifa, int cmd)
 		 * We don't bump refcount here so when it completes the
 		 * final delete will happen.
 		 */
+	}
+}
+
+void
+     sctp_add_or_del_interfaces(int (*pred) (struct ifnet *), int add){
+	struct ifnet *ifn;
+	struct ifaddr *ifa;
+
+	TAILQ_FOREACH(ifn, &ifnet, if_list) {
+		if (!(*pred) (ifn)) {
+			continue;
+		}
+		TAILQ_FOREACH(ifa, &ifn->if_addrlist, ifa_list) {
+			sctp_addr_change(ifa, add ? RTM_ADD : RTM_DELETE);
+		}
 	}
 }
 
@@ -368,7 +371,7 @@ sctp_get_mbuf_for_msg(unsigned int space_needed, int want_header,
 		SCTP_BUF_NEXT(m) = NULL;
 	}
 #ifdef SCTP_MBUF_LOGGING
-	if (sctp_logging_level & SCTP_MBUF_LOGGING_ENABLE) {
+	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_MBUF_LOGGING_ENABLE) {
 		if (SCTP_BUF_IS_EXTENDED(m)) {
 			sctp_log_mb(m, SCTP_MBUF_IALLOC);
 		}
@@ -379,12 +382,6 @@ sctp_get_mbuf_for_msg(unsigned int space_needed, int want_header,
 
 
 #ifdef SCTP_PACKET_LOGGING
-
-int packet_log_writers = 0;
-int packet_log_end = 0;
-uint8_t packet_log_buffer[SCTP_PACKET_LOG_SIZE];
-
-
 void
 sctp_packet_log(struct mbuf *m, int length)
 {
@@ -406,40 +403,40 @@ sctp_packet_log(struct mbuf *m, int length)
 		/* Can't log this packet I have not a buffer big enough */
 		return;
 	}
-	if (length < (SCTP_MIN_V4_OVERHEAD + sizeof(struct sctp_cookie_ack_chunk))) {
+	if (length < (int)(SCTP_MIN_V4_OVERHEAD + sizeof(struct sctp_cookie_ack_chunk))) {
 		return;
 	}
-	atomic_add_int(&packet_log_writers, 1);
+	atomic_add_int(&SCTP_BASE_VAR(packet_log_writers), 1);
 try_again:
-	if (packet_log_writers > SCTP_PKTLOG_WRITERS_NEED_LOCK) {
+	if (SCTP_BASE_VAR(packet_log_writers) > SCTP_PKTLOG_WRITERS_NEED_LOCK) {
 		SCTP_IP_PKTLOG_LOCK();
 		grabbed_lock = 1;
 again_locked:
-		value = packet_log_end;
-		newval = packet_log_end + total_len;
+		value = SCTP_BASE_VAR(packet_log_end);
+		newval = SCTP_BASE_VAR(packet_log_end) + total_len;
 		if (newval >= SCTP_PACKET_LOG_SIZE) {
 			/* we wrapped */
 			thisbegin = 0;
 			thisend = total_len;
 		} else {
-			thisbegin = packet_log_end;
+			thisbegin = SCTP_BASE_VAR(packet_log_end);
 			thisend = newval;
 		}
-		if (!(atomic_cmpset_int(&packet_log_end, value, thisend))) {
+		if (!(atomic_cmpset_int(&SCTP_BASE_VAR(packet_log_end), value, thisend))) {
 			goto again_locked;
 		}
 	} else {
-		value = packet_log_end;
-		newval = packet_log_end + total_len;
+		value = SCTP_BASE_VAR(packet_log_end);
+		newval = SCTP_BASE_VAR(packet_log_end) + total_len;
 		if (newval >= SCTP_PACKET_LOG_SIZE) {
 			/* we wrapped */
 			thisbegin = 0;
 			thisend = total_len;
 		} else {
-			thisbegin = packet_log_end;
+			thisbegin = SCTP_BASE_VAR(packet_log_end);
 			thisend = newval;
 		}
-		if (!(atomic_cmpset_int(&packet_log_end, value, thisend))) {
+		if (!(atomic_cmpset_int(&SCTP_BASE_VAR(packet_log_end), value, thisend))) {
 			goto try_again;
 		}
 	}
@@ -448,14 +445,14 @@ again_locked:
 		printf("Insanity stops a log thisbegin:%d thisend:%d writers:%d lock:%d end:%d\n",
 		    thisbegin,
 		    thisend,
-		    packet_log_writers,
+		    SCTP_BASE_VAR(packet_log_writers),
 		    grabbed_lock,
-		    packet_log_end);
-		packet_log_end = 0;
+		    SCTP_BASE_VAR(packet_log_end));
+		SCTP_BASE_VAR(packet_log_end) = 0;
 		goto no_log;
 
 	}
-	lenat = (int *)&packet_log_buffer[thisbegin];
+	lenat = (int *)&SCTP_BASE_VAR(packet_log_buffer)[thisbegin];
 	*lenat = total_len;
 	lenat++;
 	*lenat = value;
@@ -465,7 +462,7 @@ again_locked:
 	*tick_tock = sctp_get_tick_count();
 	copyto = (void *)lenat;
 	thisone = thisend - sizeof(int);
-	lenat = (int *)&packet_log_buffer[thisone];
+	lenat = (int *)&SCTP_BASE_VAR(packet_log_buffer)[thisone];
 	*lenat = thisbegin;
 	if (grabbed_lock) {
 		SCTP_IP_PKTLOG_UNLOCK();
@@ -476,7 +473,7 @@ no_log:
 	if (grabbed_lock) {
 		SCTP_IP_PKTLOG_UNLOCK();
 	}
-	atomic_subtract_int(&packet_log_writers, 1);
+	atomic_subtract_int(&SCTP_BASE_VAR(packet_log_writers), 1);
 }
 
 
@@ -492,14 +489,14 @@ sctp_copy_out_packet_log(uint8_t * target, int length)
 	int did_delay = 0;
 
 	tocopy = length;
-	if (length < (2 * sizeof(int))) {
+	if (length < (int)(2 * sizeof(int))) {
 		/* not enough room */
 		return (0);
 	}
 	if (SCTP_PKTLOG_WRITERS_NEED_LOCK) {
-		atomic_add_int(&packet_log_writers, SCTP_PKTLOG_WRITERS_NEED_LOCK);
+		atomic_add_int(&SCTP_BASE_VAR(packet_log_writers), SCTP_PKTLOG_WRITERS_NEED_LOCK);
 again:
-		if ((did_delay == 0) && (packet_log_writers != SCTP_PKTLOG_WRITERS_NEED_LOCK)) {
+		if ((did_delay == 0) && (SCTP_BASE_VAR(packet_log_writers) != SCTP_PKTLOG_WRITERS_NEED_LOCK)) {
 			/*
 			 * we delay here for just a moment hoping the
 			 * writer(s) that were present when we entered will
@@ -515,12 +512,12 @@ again:
 	}
 	SCTP_IP_PKTLOG_LOCK();
 	lenat = (int *)target;
-	*lenat = packet_log_end;
+	*lenat = SCTP_BASE_VAR(packet_log_end);
 	lenat++;
 	this_copy = min((length - sizeof(int)), SCTP_PACKET_LOG_SIZE);
-	memcpy((void *)lenat, (void *)packet_log_buffer, this_copy);
+	memcpy((void *)lenat, (void *)SCTP_BASE_VAR(packet_log_buffer), this_copy);
 	if (SCTP_PKTLOG_WRITERS_NEED_LOCK) {
-		atomic_subtract_int(&packet_log_writers,
+		atomic_subtract_int(&SCTP_BASE_VAR(packet_log_writers),
 		    SCTP_PKTLOG_WRITERS_NEED_LOCK);
 	}
 	SCTP_IP_PKTLOG_UNLOCK();

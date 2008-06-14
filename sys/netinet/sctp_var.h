@@ -73,24 +73,24 @@ extern struct pr_usrreqs sctp_usrreqs;
  */
 
 #define sctp_free_a_readq(_stcb, _readq) { \
-	SCTP_ZONE_FREE(sctppcbinfo.ipi_zone_readq, (_readq)); \
+	SCTP_ZONE_FREE(SCTP_BASE_INFO(ipi_zone_readq), (_readq)); \
 	SCTP_DECR_READQ_COUNT(); \
 }
 
 #define sctp_alloc_a_readq(_stcb, _readq) { \
-	(_readq) = SCTP_ZONE_GET(sctppcbinfo.ipi_zone_readq, struct sctp_queued_to_read); \
+	(_readq) = SCTP_ZONE_GET(SCTP_BASE_INFO(ipi_zone_readq), struct sctp_queued_to_read); \
 	if ((_readq)) { \
  	     SCTP_INCR_READQ_COUNT(); \
 	} \
 }
 
 #define sctp_free_a_strmoq(_stcb, _strmoq) { \
-	SCTP_ZONE_FREE(sctppcbinfo.ipi_zone_strmoq, (_strmoq)); \
+	SCTP_ZONE_FREE(SCTP_BASE_INFO(ipi_zone_strmoq), (_strmoq)); \
 	SCTP_DECR_STRMOQ_COUNT(); \
 }
 
 #define sctp_alloc_a_strmoq(_stcb, _strmoq) { \
-	(_strmoq) = SCTP_ZONE_GET(sctppcbinfo.ipi_zone_strmoq, struct sctp_stream_queue_pending); \
+	(_strmoq) = SCTP_ZONE_GET(SCTP_BASE_INFO(ipi_zone_strmoq), struct sctp_stream_queue_pending); \
 	if ((_strmoq)) { \
 		SCTP_INCR_STRMOQ_COUNT(); \
  	} \
@@ -104,24 +104,24 @@ extern struct pr_usrreqs sctp_usrreqs;
                   sctp_free_remote_addr((_chk)->whoTo); \
                   (_chk)->whoTo = NULL; \
           } \
-          if (((_stcb)->asoc.free_chunk_cnt > sctp_asoc_free_resc_limit) || \
-               (sctppcbinfo.ipi_free_chunks > sctp_system_free_resc_limit)) { \
-	 	SCTP_ZONE_FREE(sctppcbinfo.ipi_zone_chunk, (_chk)); \
+          if (((_stcb)->asoc.free_chunk_cnt > SCTP_BASE_SYSCTL(sctp_asoc_free_resc_limit)) || \
+               (SCTP_BASE_INFO(ipi_free_chunks) > SCTP_BASE_SYSCTL(sctp_system_free_resc_limit))) { \
+	 	SCTP_ZONE_FREE(SCTP_BASE_INFO(ipi_zone_chunk), (_chk)); \
 	 	SCTP_DECR_CHK_COUNT(); \
 	  } else { \
 	 	TAILQ_INSERT_TAIL(&(_stcb)->asoc.free_chunks, (_chk), sctp_next); \
 	 	(_stcb)->asoc.free_chunk_cnt++; \
-	 	atomic_add_int(&sctppcbinfo.ipi_free_chunks, 1); \
+	 	atomic_add_int(&SCTP_BASE_INFO(ipi_free_chunks), 1); \
           } \
         } else { \
-		SCTP_ZONE_FREE(sctppcbinfo.ipi_zone_chunk, (_chk)); \
+		SCTP_ZONE_FREE(SCTP_BASE_INFO(ipi_zone_chunk), (_chk)); \
 		SCTP_DECR_CHK_COUNT(); \
 	} \
 }
 
 #define sctp_alloc_a_chunk(_stcb, _chk) { \
 	if (TAILQ_EMPTY(&(_stcb)->asoc.free_chunks))  { \
-		(_chk) = SCTP_ZONE_GET(sctppcbinfo.ipi_zone_chunk, struct sctp_tmit_chunk); \
+		(_chk) = SCTP_ZONE_GET(SCTP_BASE_INFO(ipi_zone_chunk), struct sctp_tmit_chunk); \
 		if ((_chk)) { \
 			SCTP_INCR_CHK_COUNT(); \
                         (_chk)->whoTo = NULL; \
@@ -129,7 +129,7 @@ extern struct pr_usrreqs sctp_usrreqs;
 	} else { \
 		(_chk) = TAILQ_FIRST(&(_stcb)->asoc.free_chunks); \
 		TAILQ_REMOVE(&(_stcb)->asoc.free_chunks, (_chk), sctp_next); \
-		atomic_subtract_int(&sctppcbinfo.ipi_free_chunks, 1); \
+		atomic_subtract_int(&SCTP_BASE_INFO(ipi_free_chunks), 1); \
                 SCTP_STAT_INCR(sctps_cached_chk); \
 		(_stcb)->asoc.free_chunk_cnt--; \
 	} \
@@ -153,7 +153,7 @@ extern struct pr_usrreqs sctp_usrreqs;
 			} \
                         (__net)->src_addr_selected = 0; \
 			(__net)->dest_state = SCTP_ADDR_NOT_REACHABLE; \
-			SCTP_ZONE_FREE(sctppcbinfo.ipi_zone_net, (__net)); \
+			SCTP_ZONE_FREE(SCTP_BASE_INFO(ipi_zone_net), (__net)); \
 			SCTP_DECR_RADDR_COUNT(); \
 		} \
 	} \
@@ -306,6 +306,7 @@ void sctp_pathmtu_adjustment __P((struct sctp_inpcb *, struct sctp_tcb *, struct
 void sctp_drain __P((void));
 void sctp_init __P((void));
 
+void sctp_finish(void);
 
 void sctp_pcbinfo_cleanup(void);
 int sctp_flush(struct socket *, int);
