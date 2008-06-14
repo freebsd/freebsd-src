@@ -69,14 +69,3 @@ struct ttysize {
 #include <sys/sockio.h>
 
 #endif /* !_SYS_IOCTL_H_ */
-
-/*
- * Keep outside _SYS_IOCTL_H_
- * Compatibility with old terminal driver
- *
- * Source level -> #define USE_OLD_TTY
- * Kernel level -> options COMPAT_43TTY
- */
-#if defined(USE_OLD_TTY) || defined(COMPAT_43TTY)
-#include <sys/ioctl_compat.h>
-#endif
