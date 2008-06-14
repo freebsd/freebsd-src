@@ -212,7 +212,7 @@ sctp_get_peeloff(struct socket *head, sctp_assoc_t assoc_id, int *error)
 	/* We remove it right away */
 
 #ifdef SCTP_LOCK_LOGGING
-	if (sctp_logging_level & SCTP_LOCK_LOGGING_ENABLE) {
+	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_LOCK_LOGGING_ENABLE) {
 		sctp_log_lock(inp, (struct sctp_tcb *)NULL, SCTP_LOG_LOCK_SOCK);
 	}
 #endif

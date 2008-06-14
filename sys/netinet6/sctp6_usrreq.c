@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/sctp_input.h>
 #include <netinet/sctp_output.h>
 #include <netinet/sctp_bsd_addr.h>
+#include <netinet/udp.h>
 
 #ifdef IPSEC
 #include <netipsec/ipsec.h>
@@ -79,6 +80,7 @@ sctp6_input(struct mbuf **i_pak, int *offp, int proto)
 	struct sctp_tcb *stcb = NULL;
 	int pkt_len = 0;
 	int off = *offp;
+	uint16_t port = 0;
 
 	/* get the VRF and table id's */
 	if (SCTP_GET_PKT_VRFID(*i_pak, vrf_id)) {
@@ -125,7 +127,7 @@ sctp6_input(struct mbuf **i_pak, int *offp, int proto)
 	if (sh->dest_port == 0)
 		goto bad;
 	check = sh->checksum;	/* save incoming checksum */
-	if ((check == 0) && (sctp_no_csum_on_loopback) &&
+	if ((check == 0) && (SCTP_BASE_SYSCTL(sctp_no_csum_on_loopback)) &&
 	    (IN6_ARE_ADDR_EQUAL(&ip6->ip6_src, &ip6->ip6_dst))) {
 		goto sctp_skip_csum;
 	}
@@ -136,6 +138,12 @@ sctp6_input(struct mbuf **i_pak, int *offp, int proto)
 		    calc_check, check, m, mlen, iphlen);
 		stcb = sctp_findassociation_addr(m, iphlen, offset - sizeof(*ch),
 		    sh, ch, &in6p, &net, vrf_id);
+		if ((net) && (port)) {
+			if (net->port == 0) {
+				sctp_pathmtu_adjustment(in6p, stcb, net, net->mtu - sizeof(struct udphdr));
+			}
+			net->port = port;
+		}
 		/* in6p's ref-count increased && stcb locked */
 		if ((in6p) && (stcb)) {
 			sctp_send_packet_dropped(stcb, net, m, iphlen, 1);
@@ -157,6 +165,12 @@ sctp_skip_csum:
 	 */
 	stcb = sctp_findassociation_addr(m, iphlen, offset - sizeof(*ch),
 	    sh, ch, &in6p, &net, vrf_id);
+	if ((net) && (port)) {
+		if (net->port == 0) {
+			sctp_pathmtu_adjustment(in6p, stcb, net, net->mtu - sizeof(struct udphdr));
+		}
+		net->port = port;
+	}
 	/* in6p's ref-count increased */
 	if (in6p == NULL) {
 		struct sctp_init_chunk *init_chk, chunk_buf;
@@ -177,14 +191,14 @@ sctp_skip_csum:
 				sh->v_tag = 0;
 		}
 		if (ch->chunk_type == SCTP_SHUTDOWN_ACK) {
-			sctp_send_shutdown_complete2(m, iphlen, sh, vrf_id, 0);
+			sctp_send_shutdown_complete2(m, iphlen, sh, vrf_id, port);
 			goto bad;
 		}
 		if (ch->chunk_type == SCTP_SHUTDOWN_COMPLETE) {
 			goto bad;
 		}
 		if (ch->chunk_type != SCTP_ABORT_ASSOCIATION)
-			sctp_send_abort(m, iphlen, sh, 0, NULL, vrf_id, 0);
+			sctp_send_abort(m, iphlen, sh, 0, NULL, vrf_id, port);
 		goto bad;
 	} else if (stcb == NULL) {
 		refcount_up = 1;
@@ -212,7 +226,7 @@ sctp_skip_csum:
 
 	/* sa_ignore NO_NULL_CHK */
 	sctp_common_input_processing(&m, iphlen, offset, length, sh, ch,
-	    in6p, stcb, net, ecn_bits, vrf_id, 0);
+	    in6p, stcb, net, ecn_bits, vrf_id, port);
 	/* inp's ref-count reduced && stcb unlocked */
 	/* XXX this stuff below gets moved to appropriate parts later... */
 	if (m)
@@ -384,7 +398,7 @@ sctp6_notify(struct sctp_inpcb *inp,
 			 * PF state.
 			 */
 			/* Stop any running T3 timers here? */
-			if (sctp_cmt_on_off && sctp_cmt_pf) {
+			if (SCTP_BASE_SYSCTL(sctp_cmt_on_off) && SCTP_BASE_SYSCTL(sctp_cmt_pf)) {
 				net->dest_state &= ~SCTP_ADDR_PF;
 				SCTPDBG(SCTP_DEBUG_TIMER4, "Destination %p moved from PF to unreachable.\n",
 				    net);
@@ -644,7 +658,7 @@ sctp6_attach(struct socket *so, int proto, struct thread *p)
 		return EINVAL;
 	}
 	if (so->so_snd.sb_hiwat == 0 || so->so_rcv.sb_hiwat == 0) {
-		error = SCTP_SORESERVE(so, sctp_sendspace, sctp_recvspace);
+		error = SCTP_SORESERVE(so, SCTP_BASE_SYSCTL(sctp_sendspace), SCTP_BASE_SYSCTL(sctp_recvspace));
 		if (error)
 			return error;
 	}
