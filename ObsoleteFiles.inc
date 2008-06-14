@@ -14,6 +14,11 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20080614: sgtty removed
+OLD_FILES+=usr/include/sys/ttychars.h
+OLD_FILES+=usr/include/sys/ttydev.h
+OLD_FILES+=usr/share/man/man3/gtty.3.gz
+OLD_FILES+=usr/share/man/man3/stty.3.gz
 # 20080609: gpt(8) removed
 OLD_FILES+=sbin/gpt
 OLD_FILES+=usr/share/man/man8/gpt.8.gz
