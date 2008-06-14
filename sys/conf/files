@@ -1817,7 +1817,7 @@ net80211/ieee80211_xauth.c	optional wlan_xauth
 netatalk/aarp.c			optional netatalk
 netatalk/at_control.c		optional netatalk
 netatalk/at_proto.c		optional netatalk
-netatalk/at_rmx.c		optional netatalkdebug
+netatalk/at_rmx.c		optional netatalk
 netatalk/ddp_input.c		optional netatalk
 netatalk/ddp_output.c		optional netatalk
 netatalk/ddp_pcb.c		optional netatalk
