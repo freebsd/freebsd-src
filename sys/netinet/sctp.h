@@ -37,6 +37,9 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 
+
+#define SCTP_PACKED __attribute__((packed))
+
 /*
  * SCTP protocol - RFC2960.
  */
@@ -46,27 +49,25 @@ struct sctphdr {
 	uint32_t v_tag;		/* verification tag of packet */
 	uint32_t checksum;	/* Adler32 C-Sum */
 	/* chunks follow... */
-} 
-
-__attribute__((packed));
+}       SCTP_PACKED;
 
 /*
  * SCTP Chunks
  */
-	struct sctp_chunkhdr {
-		uint8_t chunk_type;	/* chunk type */
-		uint8_t chunk_flags;	/* chunk flags */
-		uint16_t chunk_length;	/* chunk length */
-		/* optional params follow */
-	}             __attribute__((packed));
+struct sctp_chunkhdr {
+	uint8_t chunk_type;	/* chunk type */
+	uint8_t chunk_flags;	/* chunk flags */
+	uint16_t chunk_length;	/* chunk length */
+	/* optional params follow */
+}             SCTP_PACKED;
 
 /*
  * SCTP chunk parameters
  */
-	struct sctp_paramhdr {
-		uint16_t param_type;	/* parameter type */
-		uint16_t param_length;	/* parameter length */
-	}             __attribute__((packed));
+struct sctp_paramhdr {
+	uint16_t param_type;	/* parameter type */
+	uint16_t param_length;	/* parameter length */
+}             SCTP_PACKED;
 
 /*
  * user socket options: socket API defined
@@ -303,49 +304,42 @@ __attribute__((packed));
 /*
  * error cause parameters (user visisble)
  */
-	struct sctp_error_cause {
-		uint16_t code;
-		uint16_t length;
-		/* optional cause-specific info may follow */
-	}                __attribute__((packed));
+struct sctp_error_cause {
+	uint16_t code;
+	uint16_t length;
+	/* optional cause-specific info may follow */
+}                SCTP_PACKED;
 
-	struct sctp_error_invalid_stream {
-		struct sctp_error_cause cause;	/* code=SCTP_ERROR_INVALID_STRE
-						 * AM */
-		uint16_t stream_id;	/* stream id of the DATA in error */
-		uint16_t reserved;
-	}                         __attribute__((packed));
+struct sctp_error_invalid_stream {
+	struct sctp_error_cause cause;	/* code=SCTP_ERROR_INVALID_STREAM */
+	uint16_t stream_id;	/* stream id of the DATA in error */
+	uint16_t reserved;
+}                         SCTP_PACKED;
 
-	struct sctp_error_missing_param {
-		struct sctp_error_cause cause;	/* code=SCTP_ERROR_MISSING_PARA
-						 * M */
-		uint32_t num_missing_params;	/* number of missing
-						 * parameters */
-		/* uint16_t param_type's follow */
-	}                        __attribute__((packed));
+struct sctp_error_missing_param {
+	struct sctp_error_cause cause;	/* code=SCTP_ERROR_MISSING_PARAM */
+	uint32_t num_missing_params;	/* number of missing parameters */
+	/* uint16_t param_type's follow */
+}                        SCTP_PACKED;
 
-	struct sctp_error_stale_cookie {
-		struct sctp_error_cause cause;	/* code=SCTP_ERROR_STALE_COOKIE
-						 *  */
-		uint32_t stale_time;	/* time in usec of staleness */
-	}                       __attribute__((packed));
+struct sctp_error_stale_cookie {
+	struct sctp_error_cause cause;	/* code=SCTP_ERROR_STALE_COOKIE */
+	uint32_t stale_time;	/* time in usec of staleness */
+}                       SCTP_PACKED;
 
-	struct sctp_error_out_of_resource {
-		struct sctp_error_cause cause;	/* code=SCTP_ERROR_OUT_OF_RESOU
-						 * RCES */
-	}                          __attribute__((packed));
+struct sctp_error_out_of_resource {
+	struct sctp_error_cause cause;	/* code=SCTP_ERROR_OUT_OF_RESOURCES */
+}                          SCTP_PACKED;
 
-	struct sctp_error_unresolv_addr {
-		struct sctp_error_cause cause;	/* code=SCTP_ERROR_UNRESOLVABLE
-						 * _ADDR */
+struct sctp_error_unresolv_addr {
+	struct sctp_error_cause cause;	/* code=SCTP_ERROR_UNRESOLVABLE_ADDR */
 
-	}                        __attribute__((packed));
+}                        SCTP_PACKED;
 
-	struct sctp_error_unrecognized_chunk {
-		struct sctp_error_cause cause;	/* code=SCTP_ERROR_UNRECOG_CHUN
-						 * K */
-		struct sctp_chunkhdr ch;	/* header from chunk in error */
-	}                             __attribute__((packed));
+struct sctp_error_unrecognized_chunk {
+	struct sctp_error_cause cause;	/* code=SCTP_ERROR_UNRECOG_CHUNK */
+	struct sctp_chunkhdr ch;/* header from chunk in error */
+}                             SCTP_PACKED;
 
 /*
  * Main SCTP chunk types we place these here so natd and f/w's in user land
@@ -401,18 +395,18 @@ __attribute__((packed));
 					 * in sat */
 
 /* Data Chuck Specific Flags */
-#define SCTP_DATA_FRAG_MASK	0x03
-#define SCTP_DATA_MIDDLE_FRAG	0x00
-#define SCTP_DATA_LAST_FRAG	0x01
-#define SCTP_DATA_FIRST_FRAG	0x02
-#define SCTP_DATA_NOT_FRAG	0x03
-#define SCTP_DATA_UNORDERED	0x04
-
+#define SCTP_DATA_FRAG_MASK        0x03
+#define SCTP_DATA_MIDDLE_FRAG      0x00
+#define SCTP_DATA_LAST_FRAG        0x01
+#define SCTP_DATA_FIRST_FRAG       0x02
+#define SCTP_DATA_NOT_FRAG         0x03
+#define SCTP_DATA_UNORDERED        0x04
+#define SCTP_DATA_SACK_IMMEDIATELY 0x08
 /* ECN Nonce: SACK Chunk Specific Flags */
-#define SCTP_SACK_NONCE_SUM     0x01
+#define SCTP_SACK_NONCE_SUM        0x01
 
 /* CMT DAC algorithm SACK flag */
-#define SCTP_SACK_CMT_DAC       0x80
+#define SCTP_SACK_CMT_DAC          0x80
 
 /*
  * PCB flags (in sctp_flags bitmask).
@@ -540,5 +534,7 @@ __attribute__((packed));
 #define SCTP_LOG_AT_SEND_2_OUTQ             0x08000000
 
 
+
+#undef SCTP_PACKED
 
 #endif				/* !_NETINET_SCTP_H_ */

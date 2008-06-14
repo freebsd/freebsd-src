@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/sctp.h>
 #include <netinet/sctp_constants.h>
 
+#define SCTP_PACKED __attribute__((packed))
 
 /*
  * Parameter structures
@@ -581,4 +582,5 @@ struct sctp_auth_invalid_hmac {
 #define SCTP_MIN_V4_OVERHEAD (sizeof(struct ip) + \
 			      sizeof(struct sctphdr))
 
+#undef SCTP_PACKED
 #endif				/* !__sctp_header_h__ */
