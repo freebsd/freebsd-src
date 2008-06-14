@@ -132,6 +132,11 @@ MALLOC_DECLARE(SCTP_M_SOCKOPT);
 #define SCTP_CTR6 CTR6
 #endif
 
+#define SCTP_BASE_INFO(__m) system_base_info.sctppcbinfo.__m
+#define SCTP_BASE_STATS system_base_info.sctpstat
+#define SCTP_BASE_STAT(__m)     system_base_info.sctpstat.__m
+#define SCTP_BASE_SYSCTL(__m) system_base_info.sctpsysctl.__m
+#define SCTP_BASE_VAR(__m) system_base_info.__m
 
 /*
  *
@@ -143,7 +148,7 @@ MALLOC_DECLARE(SCTP_M_SOCKOPT);
 #define SCTPDBG(level, params...)					\
 {									\
     do {								\
-	if (sctp_debug_on & level ) {					\
+	if (SCTP_BASE_SYSCTL(sctp_debug_on) & level ) {			\
 	    printf(params);						\
 	}								\
     } while (0);							\
@@ -151,7 +156,7 @@ MALLOC_DECLARE(SCTP_M_SOCKOPT);
 #define SCTPDBG_ADDR(level, addr)					\
 {									\
     do {								\
-	if (sctp_debug_on & level ) {					\
+	if (SCTP_BASE_SYSCTL(sctp_debug_on) & level ) {			\
 	    sctp_print_address(addr);					\
 	}								\
     } while (0);							\
@@ -159,7 +164,7 @@ MALLOC_DECLARE(SCTP_M_SOCKOPT);
 #define SCTPDBG_PKT(level, iph, sh)					\
 {									\
     do {								\
-	    if (sctp_debug_on & level) {				\
+	    if (SCTP_BASE_SYSCTL(sctp_debug_on) & level) {		\
 		    sctp_print_address_pkt(iph, sh);			\
 	    }								\
     } while (0);							\
@@ -278,8 +283,6 @@ typedef struct callout sctp_os_timer_t;
 
 #define sctp_get_tick_count() (ticks)
 
-/* The packed define for 64 bit platforms */
-#define SCTP_PACKED __attribute__((packed))
 #define SCTP_UNUSED __attribute__((unused))
 
 /*
@@ -350,6 +353,10 @@ typedef struct callout sctp_os_timer_t;
 #define SCTP_GET_HEADER_FOR_OUTPUT(o_pak) 0
 #define SCTP_RELEASE_HEADER(m)
 #define SCTP_RELEASE_PKT(m)	sctp_m_freem(m)
+#define SCTP_ENABLE_UDP_CSUM(m) do { \
+					m->m_pkthdr.csum_flags = CSUM_UDP; \
+					m->m_pkthdr.csum_data = offsetof(struct udphdr, uh_sum); \
+				} while (0)
 
 #define SCTP_GET_PKT_VRFID(m, vrf_id)  ((vrf_id = SCTP_DEFAULT_VRFID) != SCTP_DEFAULT_VRFID)
 
@@ -405,7 +412,7 @@ typedef struct callout sctp_os_timer_t;
 typedef struct route sctp_route_t;
 typedef struct rtentry sctp_rtentry_t;
 
-#define SCTP_RTALLOC(ro, vrf_id) in_rtalloc_ign((struct route *)ro, 0UL, vrf_id)
+#define SCTP_RTALLOC(ro, vrf_id) rtalloc_ign((struct route *)ro, 0UL)
 
 /* Future zero copy wakeup/send  function */
 #define SCTP_ZERO_COPY_EVENT(inp, so)

@@ -264,7 +264,7 @@ sctp_process_asconf_add_ip(struct mbuf *m, struct sctp_asconf_paramhdr *aph,
 	}			/* end switch */
 
 	/* if 0.0.0.0/::0, add the source address instead */
-	if (zero_address && sctp_nat_friendly) {
+	if (zero_address && SCTP_BASE_SYSCTL(sctp_nat_friendly)) {
 		sa = (struct sockaddr *)&sa_source;
 		sctp_asconf_get_source_ip(m, sa);
 		SCTPDBG(SCTP_DEBUG_ASCONF1,
@@ -416,7 +416,7 @@ sctp_process_asconf_delete_ip(struct mbuf *m, struct sctp_asconf_paramhdr *aph,
 		return m_reply;
 	}
 	/* if deleting 0.0.0.0/::0, delete all addresses except src addr */
-	if (zero_address && sctp_nat_friendly) {
+	if (zero_address && SCTP_BASE_SYSCTL(sctp_nat_friendly)) {
 		result = sctp_asconf_del_remote_addrs_except(stcb,
 		    (struct sockaddr *)&sa_source);
 
@@ -534,7 +534,7 @@ sctp_process_asconf_set_primary(struct mbuf *m,
 	}
 
 	/* if 0.0.0.0/::0, use the source address instead */
-	if (zero_address && sctp_nat_friendly) {
+	if (zero_address && SCTP_BASE_SYSCTL(sctp_nat_friendly)) {
 		sa = (struct sockaddr *)&sa_source;
 		sctp_asconf_get_source_ip(m, sa);
 		SCTPDBG(SCTP_DEBUG_ASCONF1,
@@ -667,7 +667,7 @@ sctp_handle_asconf(struct mbuf *m, unsigned int offset,
 			if (ack->data != NULL) {
 				sctp_m_freem(ack->data);
 			}
-			SCTP_ZONE_FREE(sctppcbinfo.ipi_zone_asconf_ack, ack);
+			SCTP_ZONE_FREE(SCTP_BASE_INFO(ipi_zone_asconf_ack), ack);
 			ack = ack_next;
 		}
 	}
@@ -814,7 +814,7 @@ sctp_handle_asconf(struct mbuf *m, unsigned int offset,
 send_reply:
 	ack_cp->ch.chunk_length = htons(ack_cp->ch.chunk_length);
 	/* save the ASCONF-ACK reply */
-	ack = SCTP_ZONE_GET(sctppcbinfo.ipi_zone_asconf_ack,
+	ack = SCTP_ZONE_GET(SCTP_BASE_INFO(ipi_zone_asconf_ack),
 	    struct sctp_asconf_ack);
 	if (ack == NULL) {
 		sctp_m_freem(m_ack);
@@ -1392,7 +1392,7 @@ sctp_asconf_queue_mgmt(struct sctp_tcb *stcb, struct sctp_ifa *ifa,
 
 	TAILQ_INSERT_TAIL(&stcb->asoc.asconf_queue, aa, next);
 #ifdef SCTP_DEBUG
-	if (sctp_debug_on && SCTP_DEBUG_ASCONF2) {
+	if (SCTP_BASE_SYSCTL(sctp_debug_on) && SCTP_DEBUG_ASCONF2) {
 		if (type == SCTP_ADD_IP_ADDRESS) {
 			SCTP_PRINTF("asconf_queue_mgmt: inserted asconf ADD_IP_ADDRESS: ");
 			SCTPDBG_ADDR(SCTP_DEBUG_ASCONF2, sa);
@@ -1479,7 +1479,7 @@ sctp_asconf_queue_add(struct sctp_tcb *stcb, struct sctp_ifa *ifa,
 			net->error_count = 0;
 		}
 		stcb->asoc.overall_error_count = 0;
-		if (sctp_logging_level & SCTP_THRESHOLD_LOGGING) {
+		if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_THRESHOLD_LOGGING) {
 			sctp_misc_ints(SCTP_THRESHOLD_CLEAR,
 			    stcb->asoc.overall_error_count,
 			    0,
@@ -2336,7 +2336,7 @@ sctp_asconf_iterator_end(void *ptr, uint32_t val)
 			ifa->localifa_flags &= ~SCTP_ADDR_DEFER_USE;
 		}
 		sctp_free_ifa(ifa);
-		SCTP_ZONE_FREE(sctppcbinfo.ipi_zone_laddr, l);
+		SCTP_ZONE_FREE(SCTP_BASE_INFO(ipi_zone_laddr), l);
 		SCTP_DECR_LADDR_COUNT();
 		l = l_next;
 	}
@@ -2392,7 +2392,7 @@ sctp_set_primary_ip_address(struct sctp_ifa *ifa)
 	struct sctp_inpcb *inp;
 
 	/* go through all our PCB's */
-	LIST_FOREACH(inp, &sctppcbinfo.listhead, sctp_list) {
+	LIST_FOREACH(inp, &SCTP_BASE_INFO(listhead), sctp_list) {
 		struct sctp_tcb *stcb;
 
 		/* process for all associations for this endpoint */
@@ -3188,7 +3188,7 @@ sctp_addr_mgmt_ep_sa(struct sctp_inpcb *inp, struct sockaddr *sa,
 			SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_ASCONF, ENOMEM);
 			return (ENOMEM);
 		}
-		wi = SCTP_ZONE_GET(sctppcbinfo.ipi_zone_laddr,
+		wi = SCTP_ZONE_GET(SCTP_BASE_INFO(ipi_zone_laddr),
 		    struct sctp_laddr);
 		if (wi == NULL) {
 			SCTP_FREE(asc, SCTP_M_ASC_IT);
@@ -3203,7 +3203,7 @@ sctp_addr_mgmt_ep_sa(struct sctp_inpcb *inp, struct sockaddr *sa,
 			if (inp->laddr_count < 2) {
 				/* can't delete the last local address */
 				SCTP_FREE(asc, SCTP_M_ASC_IT);
-				SCTP_ZONE_FREE(sctppcbinfo.ipi_zone_laddr, wi);
+				SCTP_ZONE_FREE(SCTP_BASE_INFO(ipi_zone_laddr), wi);
 				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_ASCONF, EINVAL);
 				return (EINVAL);
 			}

@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/sctp_os.h>
 #include <netinet/sctp.h>
 #include <netinet/sctp_constants.h>
+#include <netinet/sctp_sysctl.h>
 
 LIST_HEAD(sctppcbhead, sctp_inpcb);
 LIST_HEAD(sctpasochead, sctp_tcb);
@@ -139,6 +140,7 @@ struct sctp_tagblock {
 	struct sctp_timewait vtag_block[SCTP_NUMBER_IN_VTAG_BLOCK];
 };
 
+
 struct sctp_epinfo {
 	struct sctpasochead *sctp_asochash;
 	u_long hashasocmark;
@@ -235,6 +237,23 @@ struct sctp_epinfo {
 #endif
 	struct sctp_timer addr_wq_timer;
 
+};
+
+
+struct sctp_base_info {
+	/*
+	 * All static structures that anchor the system must be here.
+	 */
+	struct sctp_epinfo sctppcbinfo;
+	struct sctpstat sctpstat;
+	struct sctp_sysctl sctpsysctl;
+	uint8_t first_time;
+	char sctp_pcb_initialized;
+#if defined(SCTP_PACKET_LOGGING)
+	int packet_log_writers;
+	int packet_log_end;
+	uint8_t packet_log_buffer[SCTP_PACKET_LOG_SIZE];
+#endif
 };
 
 /*-
@@ -433,7 +452,11 @@ struct sctp_tcb {
 
 #if defined(_KERNEL)
 
-extern struct sctp_epinfo sctppcbinfo;
+/* Attention Julian, this is the extern that
+ * goes with the base info. sctp_pcb.c has
+ * the real definition.
+ */
+extern struct sctp_base_info system_base_info;
 
 #ifdef INET6
 int SCTP6_ARE_ADDR_EQUAL(struct sockaddr_in6 *a, struct sockaddr_in6 *b);
@@ -556,6 +579,7 @@ int sctp_del_remote_addr(struct sctp_tcb *, struct sockaddr *);
 
 void sctp_pcb_init(void);
 
+void sctp_pcb_finish(void);
 
 void sctp_add_local_addr_restricted(struct sctp_tcb *, struct sctp_ifa *);
 void sctp_del_local_addr_restricted(struct sctp_tcb *, struct sctp_ifa *);
