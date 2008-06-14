@@ -38,12 +38,7 @@
 #ifndef _SYS_IOCTL_COMPAT_H_
 #define	_SYS_IOCTL_COMPAT_H_
 
-#include <sys/ttychars.h>
-#include <sys/ttydev.h>
-
-#ifdef USE_OLD_TTY
-#warning "Old BSD tty API used and depends on COMPAT_43TTY. Use termios.h instead"
-#endif
+#ifdef _KERNEL
 
 struct tchars {
 	char	t_intrc;	/* interrupt */
@@ -77,15 +72,8 @@ struct sgttyb {
 };
 #endif
 
-#ifdef USE_OLD_TTY
-# undef  TIOCGETD
-# define TIOCGETD	_IOR('t', 0, int)	/* get line discipline */
-# undef  TIOCSETD
-# define TIOCSETD	_IOW('t', 1, int)	/* set line discipline */
-#else
-# define OTIOCGETD	_IOR('t', 0, int)	/* get line discipline */
-# define OTIOCSETD	_IOW('t', 1, int)	/* set line discipline */
-#endif
+#define	OTIOCGETD	_IOR('t', 0, int)	/* get line discipline */
+#define	OTIOCSETD	_IOW('t', 1, int)	/* set line discipline */
 #define	TIOCHPCL	_IO('t', 2)		/* hang up on last close */
 #define	TIOCGETP	_IOR('t', 8,struct sgttyb)/* get parameters -- gtty */
 #define	TIOCSETP	_IOW('t', 9,struct sgttyb)/* set parameters -- stty */
@@ -161,6 +149,10 @@ struct sgttyb {
 #define	TIOCSLTC	_IOW('t',117,struct ltchars)/* set local special chars*/
 #define	TIOCGLTC	_IOR('t',116,struct ltchars)/* get local special chars*/
 #define OTIOCCONS	_IO('t', 98)	/* for hp300 -- sans int arg */
+
+#endif /* _KERNEL */
+
+/* XXX publish these so stty(1) can still report them */
 #define	OTTYDISC	0
 #define	NETLDISC	1
 #define	NTTYDISC	2

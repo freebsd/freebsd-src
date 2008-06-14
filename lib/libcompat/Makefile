@@ -12,12 +12,11 @@ NO_PIC=
 
 # compat 4.1 sources
 # XXX MISSING:	tell.c
-SRCS+=	ascftime.c cftime.c ftime.c getpw.c gtty.c stty.c
+SRCS+=	ascftime.c cftime.c ftime.c getpw.c
 
-MAN+=	4.1/ftime.3 4.1/getpw.3 4.1/stty.3
+MAN+=	4.1/ftime.3 4.1/getpw.3
 MAN+=	4.1/cftime.3
 
-MLINKS+=stty.3 gtty.3
 MLINKS+=cftime.3 ascftime.3
 
 # compat 4.3 sources
