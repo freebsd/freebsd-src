@@ -663,7 +663,8 @@ parse_file(struct archive_read *a, struct archive_entry *entry,
 				*use_next = 1;
 			}
 			/* Don't hold a non-regular file open. */
-			close(mtree->fd);
+			if (mtree->fd >= 0)
+				close(mtree->fd);
 			mtree->fd = -1;
 			st = NULL;
 			return r;
