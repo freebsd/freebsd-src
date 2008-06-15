@@ -225,6 +225,8 @@ static void ntoskrnl_thrfunc(void *);
 static ndis_status PsCreateSystemThread(ndis_handle *,
 	uint32_t, void *, ndis_handle, void *, void *, void *);
 static ndis_status PsTerminateSystemThread(ndis_status);
+static ndis_status IoGetDeviceObjectPointer(unicode_string *,
+	uint32_t, void *, device_object *);
 static ndis_status IoGetDeviceProperty(device_object *, uint32_t,
 	uint32_t, void *, uint32_t *);
 static void KeInitializeMutex(kmutant *, uint32_t);
@@ -3235,6 +3237,16 @@ IoIsWdmVersionAvailable(major, minor)
 }
 
 static ndis_status
+IoGetDeviceObjectPointer(name, reqaccess, fileobj, devobj)
+	unicode_string		*name;
+	uint32_t		reqaccess;
+	void			*fileobj;
+	device_object		*devobj;
+{
+	return(STATUS_SUCCESS);
+}
+
+static ndis_status
 IoGetDeviceProperty(devobj, regprop, buflen, prop, reslen)
 	device_object		*devobj;
 	uint32_t		regprop;
@@ -4391,6 +4403,7 @@ image_patch_table ntoskrnl_functbl[] = {
 	IMPORT_SFUNC(MmUnmapIoSpace, 2),
 	IMPORT_SFUNC(KeInitializeSpinLock, 1),
 	IMPORT_SFUNC(IoIsWdmVersionAvailable, 2),
+	IMPORT_SFUNC(IoGetDeviceObjectPointer, 4),
 	IMPORT_SFUNC(IoGetDeviceProperty, 5),
 	IMPORT_SFUNC(IoAllocateWorkItem, 1),
 	IMPORT_SFUNC(IoFreeWorkItem, 1),
