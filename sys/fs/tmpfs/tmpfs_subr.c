@@ -391,11 +391,8 @@ loop:
 
 	vnode_pager_setsize(vp, node->tn_size);
 	error = insmntque(vp, mp);
-	if (error) {
-		vgone(vp);
-		vput(vp);
+	if (error)
 		vp = NULL;
-	}
 
 unlock:
 	TMPFS_NODE_LOCK(node);
