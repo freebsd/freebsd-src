@@ -181,6 +181,9 @@ archive_entry_linkify(struct archive_entry_linkresolver *res,
 	/* If it has only one link, then we're done. */
 	if (archive_entry_nlink(*e) == 1)
 		return;
+	/* Directories never have hardlinks. */
+	if (archive_entry_filetype(*e) == AE_IFDIR)
+		return;
 
 	switch (res->strategy) {
 	case ARCHIVE_ENTRY_LINKIFY_LIKE_TAR:
