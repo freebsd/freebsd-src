@@ -27,12 +27,12 @@
  * Various utility routines useful for test programs.
  * Each test program is linked against this file.
  */
+#include "test.h"
+
 #include <errno.h>
 #include <locale.h>
 #include <stdarg.h>
 #include <time.h>
-
-#include "test.h"
 
 /*
  * This same file is used pretty much verbatim for all test harnesses.
@@ -540,6 +540,48 @@ test_assert_equal_file(const char *f1, const char *f2pattern, ...)
 	return (0);
 }
 
+int
+test_assert_file_exists(const char *fpattern, ...)
+{
+	char f[1024];
+	va_list ap;
+
+	va_start(ap, fpattern);
+	vsprintf(f, fpattern, ap);
+	va_end(ap);
+
+	if (!access(f, F_OK))
+		return (1);
+	if (!previous_failures(test_filename, test_line)) {
+		fprintf(stderr, "%s:%d: File doesn't exist\n",
+		    test_filename, test_line);
+		fprintf(stderr, "  file=\"%s\"\n", f);
+		report_failure(test_extra);
+	}
+	return (0);
+}
+
+int
+test_assert_file_not_exists(const char *fpattern, ...)
+{
+	char f[1024];
+	va_list ap;
+
+	va_start(ap, fpattern);
+	vsprintf(f, fpattern, ap);
+	va_end(ap);
+
+	if (access(f, F_OK))
+		return (1);
+	if (!previous_failures(test_filename, test_line)) {
+		fprintf(stderr, "%s:%d: File exists and shouldn't\n",
+		    test_filename, test_line);
+		fprintf(stderr, "  file=\"%s\"\n", f);
+		report_failure(test_extra);
+	}
+	return (0);
+}
+
 /* assertFileContents() asserts the contents of a file. */
 int
 test_assert_file_contents(const void *buff, int s, const char *fpattern, ...)
@@ -669,8 +711,11 @@ static int test_run(int i, const char *tmpdir)
 {
 	int failures_before = failures;
 
-	if (!quiet_flag)
+	if (!quiet_flag) {
 		printf("%d: %s\n", i, tests[i].name);
+		fflush(stdout);
+	}
+
 	/*
 	 * Always explicitly chdir() in case the last test moved us to
 	 * a strange place.
