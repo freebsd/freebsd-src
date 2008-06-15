@@ -275,7 +275,7 @@ __archive_strappend_w_mbs(struct archive_string *as, const wchar_t *w)
  * format.  So please don't replace this with a call to the
  * standard mbtowc() function!
  */
-static size_t
+static int
 my_mbtowc_utf8(wchar_t *pwc, const char *s, size_t n)
 {
         int ch;
@@ -285,7 +285,7 @@ my_mbtowc_utf8(wchar_t *pwc, const char *s, size_t n)
                 return (0);
 	/* If length argument is zero, don't look at the first character. */
 	if (n <= 0)
-		return ((size_t)-2);
+		return (-1);
 
         /*
 	 * Decode 1-4 bytes depending on the value of the first byte.
@@ -300,16 +300,16 @@ my_mbtowc_utf8(wchar_t *pwc, const char *s, size_t n)
         }
 	if ((ch & 0xe0) == 0xc0) {
 		if (n < 2)
-			return ((size_t)-2);
-		if ((s[1] & 0xc0) != 0x80) return (size_t)-1;
+			return (-1);
+		if ((s[1] & 0xc0) != 0x80) return (-1);
                 *pwc = ((ch & 0x1f) << 6) | (s[1] & 0x3f);
 		return (2);
         }
 	if ((ch & 0xf0) == 0xe0) {
 		if (n < 3)
-			return ((size_t)-2);
-		if ((s[1] & 0xc0) != 0x80) return (size_t)-1;
-		if ((s[2] & 0xc0) != 0x80) return (size_t)-1;
+			return (-1);
+		if ((s[1] & 0xc0) != 0x80) return (-1);
+		if ((s[2] & 0xc0) != 0x80) return (-1);
                 *pwc = ((ch & 0x0f) << 12)
 		    | ((s[1] & 0x3f) << 6)
 		    | (s[2] & 0x3f);
@@ -317,10 +317,10 @@ my_mbtowc_utf8(wchar_t *pwc, const char *s, size_t n)
         }
 	if ((ch & 0xf8) == 0xf0) {
 		if (n < 4)
-			return ((size_t)-2);
-		if ((s[1] & 0xc0) != 0x80) return (size_t)-1;
-		if ((s[2] & 0xc0) != 0x80) return (size_t)-1;
-		if ((s[3] & 0xc0) != 0x80) return (size_t)-1;
+			return (-1);
+		if ((s[1] & 0xc0) != 0x80) return (-1);
+		if ((s[2] & 0xc0) != 0x80) return (-1);
+		if ((s[3] & 0xc0) != 0x80) return (-1);
                 *pwc = ((ch & 0x07) << 18)
 		    | ((s[1] & 0x3f) << 12)
 		    | ((s[2] & 0x3f) << 6)
@@ -328,7 +328,7 @@ my_mbtowc_utf8(wchar_t *pwc, const char *s, size_t n)
 		return (4);
         }
 	/* Invalid first byte. */
-	return ((size_t)-1);
+	return (-1);
 }
 
 /*
@@ -340,7 +340,7 @@ __archive_string_utf8_w(struct archive_string *as)
 {
 	wchar_t *ws, *dest;
 	const char *src;
-	size_t n;
+	int n;
 	int err;
 
 	ws = (wchar_t *)malloc((as->length + 1) * sizeof(wchar_t));
@@ -353,7 +353,7 @@ __archive_string_utf8_w(struct archive_string *as)
 		n = my_mbtowc_utf8(dest, src, 8);
 		if (n == 0)
 			break;
-		if (n == (size_t)-1 || n == (size_t)-2) {
+		if (n < 0) {
 			free(ws);
 			return (NULL);
 		}
