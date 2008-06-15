@@ -5330,6 +5330,7 @@ sctp_pcb_init()
 
 #if defined(SCTP_USE_THREAD_BASED_ITERATOR)
 	SCTP_BASE_INFO(iterator_running) = 0;
+	SCTP_BASE_INFO(threads_must_exit) = 0;
 	sctp_startup_iterator();
 #endif
 
@@ -5357,6 +5358,11 @@ sctp_pcb_finish(void)
 	int i;
 
 	/* FIXME MT */
+	SCTP_BASE_INFO(threads_must_exit) = 1;
+#if defined(SCTP_USE_THREAD_BASED_ITERATOR)
+	/* Wake the thread up so it will exit now */
+	sctp_wakeup_iterator();
+#endif
 	/*
 	 * free the vrf/ifn/ifa lists and hashes (be sure address monitor is
 	 * destroyed first).
@@ -5428,6 +5434,16 @@ sctp_pcb_finish(void)
 	SCTP_ZONE_DESTROY(SCTP_BASE_INFO(ipi_zone_strmoq));
 	SCTP_ZONE_DESTROY(SCTP_BASE_INFO(ipi_zone_asconf));
 	SCTP_ZONE_DESTROY(SCTP_BASE_INFO(ipi_zone_asconf_ack));
+	/* Get rid of other stuff to */
+	if (SCTP_BASE_INFO(sctp_asochash) != NULL)
+		SCTP_HASH_FREE(SCTP_BASE_INFO(sctp_asochash), SCTP_BASE_INFO(hashasocmark));
+	if (SCTP_BASE_INFO(sctp_ephash) != NULL)
+		SCTP_HASH_FREE(SCTP_BASE_INFO(sctp_ephash), SCTP_BASE_INFO(hashmark));
+	if (SCTP_BASE_INFO(sctp_tcpephash) != NULL)
+		SCTP_HASH_FREE(SCTP_BASE_INFO(sctp_tcpephash), SCTP_BASE_INFO(hashtcpmark));
+	if (SCTP_BASE_INFO(sctp_restarthash) != NULL)
+		SCTP_HASH_FREE(SCTP_BASE_INFO(sctp_restarthash), SCTP_BASE_INFO(hashrestartmark));
+
 }
 
 
