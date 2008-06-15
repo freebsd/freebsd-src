@@ -564,8 +564,8 @@ archive_read_format_zip_read_data(struct archive_read *a,
 			 */
 			r = ARCHIVE_FATAL;
 		} else {
-			/* We know compressed size; just skip it. */
-			archive_read_format_zip_read_data_skip(a);
+			/* We can't decompress this entry, but we will
+			 * be able to skip() it and try the next entry. */
 			r = ARCHIVE_WARN;
 		}
 		break;
@@ -746,6 +746,10 @@ archive_read_format_zip_read_data_skip(struct archive_read *a)
 	off_t bytes_skipped;
 
 	zip = (struct zip *)(a->format->data);
+
+	/* If we've already read to end of data, we're done. */
+	if (zip->end_of_entry_cleanup)
+		return (ARCHIVE_OK);
 
 	/*
 	 * If the length is at the end, we have no choice but
