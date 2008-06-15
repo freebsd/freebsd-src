@@ -199,7 +199,7 @@ my_wctomb_utf8(char *p, wchar_t wc)
 	 * Awkward point:  UTF-8 <-> wchar_t conversions
 	 * can actually fail.
 	 */
-	return ((size_t)-1);
+	return (-1);
 }
 
 static int
