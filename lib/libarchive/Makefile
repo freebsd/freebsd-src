@@ -16,16 +16,8 @@ WARNS?=	6
 # Headers to be installed in /usr/include
 INCS=	archive.h archive_entry.h
 
-# For now, archive.h is the same as archive.h.in.
-archive.h:     archive.h.in
-	cat ${.CURDIR}/archive.h.in > archive.h
-
-# archive.h needs to be cleaned
-CLEANFILES+=	archive.h
-
 # Sources to be compiled.
-SRCS=	archive.h					\
-	archive_check_magic.c				\
+SRCS=	archive_check_magic.c				\
 	archive_entry.c					\
 	archive_entry_copy_stat.c			\
 	archive_entry_stat.c				\
