@@ -177,7 +177,7 @@ struct sctp_epinfo {
 	struct sctpladdr addr_wq;
 
 	struct sctpiterators iteratorhead;
-
+	int threads_must_exit;
 	/* ep zone info */
 	sctp_zone_t ipi_zone_ep;
 	sctp_zone_t ipi_zone_asoc;

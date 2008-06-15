@@ -308,7 +308,6 @@ void sctp_init __P((void));
 
 void sctp_finish(void);
 
-void sctp_pcbinfo_cleanup(void);
 int sctp_flush(struct socket *, int);
 int sctp_shutdown __P((struct socket *));
 void sctp_notify 
