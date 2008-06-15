@@ -73,7 +73,6 @@ TESTS= \
 SRCS= ${LA_SRCS}				\
 	${TESTS}				\
 	${.OBJDIR}/list.h			\
-	${.OBJDIR}/archive.h			\
 	main.c					\
 	read_open_memory.c
 
@@ -95,11 +94,6 @@ WARNS=6
 # Build libarchive_test and run it.
 check test: libarchive_test
 	./libarchive_test -v -r ${.CURDIR}
-
-# Build archive.h, but in our .OBJDIR, not libarchive's
-# This keeps libarchive_test and libarchive builds completely separate.
-${.OBJDIR}/archive.h: ${LA_SRCDIR}/archive.h.in ${LA_SRCDIR}/Makefile
-	cd ${LA_SRCDIR} && unset MAKEOBJDIRPREFIX && MAKEOBJDIR=${.OBJDIR} make archive.h
 
 # list.h is just a list of all tests, as indicated by DEFINE_TEST macro lines
 ${.OBJDIR}/list.h: ${TESTS} Makefile
