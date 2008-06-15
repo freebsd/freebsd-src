@@ -206,7 +206,7 @@ static int
 my_wcstombs(struct archive_string *as, const wchar_t *w,
     int (*func)(char *, wchar_t))
 {
-	size_t n;
+	int n;
 	char *p;
 	char buff[256];
 
@@ -227,7 +227,7 @@ my_wcstombs(struct archive_string *as, const wchar_t *w,
 			p = buff;
 		}
 		n = (*func)(p, *w++);
-		if (n == (size_t)-1)
+		if (n == -1)
 			return (-1);
 		p += n;
 	}
