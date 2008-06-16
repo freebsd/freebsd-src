@@ -125,7 +125,6 @@ devfs_alloc(void)
 	cdp->cdp_maxdirent = 0;
 
 	cdev = &cdp->cdp_c;
-	cdev->si_priv = cdp;
 
 	cdev->si_name = cdev->__si_namebuf;
 	LIST_INIT(&cdev->si_children);
@@ -137,7 +136,7 @@ devfs_free(struct cdev *cdev)
 {
 	struct cdev_priv *cdp;
 
-	cdp = cdev->si_priv;
+	cdp = cdev2priv(cdev);
 	if (cdev->si_cred != NULL)
 		crfree(cdev->si_cred);
 	if (cdp->cdp_inode > 0)
@@ -510,7 +509,7 @@ devfs_create(struct cdev *dev)
 	struct cdev_priv *cdp;
 
 	mtx_assert(&devmtx, MA_OWNED);
-	cdp = dev->si_priv;
+	cdp = cdev2priv(dev);
 	cdp->cdp_flags |= CDP_ACTIVE;
 	cdp->cdp_inode = alloc_unrl(devfs_inos);
 	dev_refl(dev);
@@ -524,7 +523,7 @@ devfs_destroy(struct cdev *dev)
 	struct cdev_priv *cdp;
 
 	mtx_assert(&devmtx, MA_OWNED);
-	cdp = dev->si_priv;
+	cdp = cdev2priv(dev);
 	cdp->cdp_flags &= ~CDP_ACTIVE;
 	devfs_generation++;
 }

@@ -53,7 +53,7 @@ struct cdevsw;
 struct file;
 
 struct cdev {
-	struct cdev_priv	*si_priv;
+	void		*__si_reserved;
 	u_int		si_flags;
 #define SI_ALIAS	0x0002	/* carrier of alias name */
 #define SI_NAMED	0x0004	/* make_dev{_alias} has been called */
