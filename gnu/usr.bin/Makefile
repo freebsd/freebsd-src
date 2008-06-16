@@ -5,7 +5,7 @@
 SUBDIR= bc \
 	${_binutils} \
 	${_cc} \
-	cpio \
+	${_cpio} \
 	${_cvs} \
 	dc \
 	dialog \
@@ -13,7 +13,7 @@ SUBDIR= bc \
 	diff3 \
 	${_gdb} \
 	${_gperf} \
-	grep \
+	${_grep} \
 	${_groff} \
 	${_man} \
 	patch \
@@ -30,8 +30,16 @@ _groff=		groff
 .endif
 .endif
 
+.if ${MK_GNU_CPIO} == "yes"
+_cpio=		cpio
+.endif
+
 .if ${MK_CVS} != "no"
 _cvs=		cvs
+.endif
+
+.if ${MK_GNU_GREP} != "no"
+_grep=		grep
 .endif
 
 .if ${MK_MAN} != "no"
