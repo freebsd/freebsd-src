@@ -287,6 +287,7 @@ WITH_IDEA=
     ATM \
     AUDIT \
     AUTHPF \
+    BSD_CPIO \
     BIND \
     BIND_DNSSEC \
     BIND_ETC \
@@ -312,6 +313,7 @@ WITH_IDEA=
     GCOV \
     GDB \
     GNU \
+    GNU_GREP \
     GPIB \
     GROFF \
     HTML \
@@ -374,6 +376,7 @@ MK_${var}:=	yes
 #
 .for var in \
     BIND_LIBS \
+    GNU_CPIO \
     HESIOD \
     IDEA
 .if defined(WITH_${var}) && defined(WITHOUT_${var})
