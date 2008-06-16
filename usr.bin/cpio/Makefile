@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 PROG=	bsdcpio
 BSDCPIO_VERSION_STRING=0.9.11b
 SRCS=	cpio.c cmdline.c err.c matching.c pathmatch.c
