@@ -32,18 +32,16 @@ __FBSDID("$FreeBSD$");
 #include "bootstrap.h"
 #include "libi386.h"
 
+static int	bios_seconds(void);
+
 /*
- * Return the time in seconds since the beginning of the day.
- *
- * If we pass midnight, don't wrap back to 0.
+ * Return the BIOS time-of-day value.
  *
  * XXX uses undocumented BCD support from libstand.
  */
-
-time_t
-time(time_t *t)
+static int
+bios_seconds(void)
 {
-    static time_t	lasttime, now;
     int			hr, minute, sec;
     
     v86.ctl = 0;
@@ -55,7 +53,33 @@ time(time_t *t)
     minute = bcd2bin(v86.ecx & 0xff);		/* minute in %cl */
     sec = bcd2bin((v86.edx & 0xff00) >> 8);	/* second in %dh */
     
-    now = hr * 3600 + minute * 60 + sec;
+    return (hr * 3600 + minute * 60 + sec);
+}
+
+/*
+ * Return the time in seconds since the beginning of the day.
+ *
+ * Some BIOSes (notably qemu) don't correctly read the RTC
+ * registers in an atomic way, sometimes returning bogus values.
+ * Therefore we "debounce" the reading by accepting it only when
+ * we got two identical values in succession.
+ *
+ * If we pass midnight, don't wrap back to 0.
+ */
+time_t
+time(time_t *t)
+{
+    static time_t lasttime;
+    time_t now, check;
+    int try;
+
+    try = 0;
+    check = bios_seconds();
+    do {
+	now = check;
+	check = bios_seconds();
+    } while (now != check && ++try < 1000);
+
     if (now < lasttime)
 	now += 24 * 3600;
     lasttime = now;
