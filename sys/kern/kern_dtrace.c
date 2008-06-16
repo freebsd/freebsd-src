@@ -106,15 +106,3 @@ init_dtrace(void *dummy __unused)
 }
 
 SYSINIT(kdtrace, SI_SUB_KDTRACE, SI_ORDER_FIRST, init_dtrace, NULL);
-
-#ifndef KDB
-/*
- * This is a stub for the kernel debugger for the DTrace actions to call
- * when the kernel has been built without KDB.
- */
-void
-kdb_enter(const char *why, const char *msg)
-{
-	printf("Cannot enter kernel debugger - No KDB in kernel.\n%s - %s\n", why, msg);
-}
-#endif
