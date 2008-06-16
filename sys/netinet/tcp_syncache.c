@@ -1618,7 +1618,7 @@ syncookie_lookup(struct in_conninfo *inc, struct syncache_head *sch,
 	 * The secret wasn't updated for the lifetime of a syncookie,
 	 * so this SYN-ACK/ACK is either too old (replay) or totally bogus.
 	 */
-	if (sch->sch_reseed < time_uptime) {
+	if (sch->sch_reseed + SYNCOOKIE_LIFETIME < time_uptime) {
 		return (NULL);
 	}
 
