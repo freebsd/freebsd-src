@@ -305,4 +305,11 @@ __END_DECLS
 #define ctodb(db)			/* calculates pages to devblks */ \
 	((db) << (PAGE_SHIFT - DEV_BSHIFT))
 
+/*
+ * Given the pointer x to the member m of the struct s, return
+ * a pointer to the containing structure.
+ */
+#define	member2struct(s, m, x)						\
+	((struct s *)(void *)((char *)(x) - offsetof(struct s, m)))
+
 #endif	/* _SYS_PARAM_H_ */
