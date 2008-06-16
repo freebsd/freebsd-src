@@ -12,6 +12,9 @@
  * 
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include "cvs.h"
 
 static void sticky_ck PROTO ((struct file_info *finfo, int aflag,
