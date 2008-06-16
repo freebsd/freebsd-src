@@ -144,6 +144,8 @@ static struct rl_type rl_devs[] = {
 		"RealTek 8129 10/100BaseTX" },
 	{ RT_VENDORID, RT_DEVICEID_8139, RL_8139,
 		"RealTek 8139 10/100BaseTX" },
+	{ RT_VENDORID, RT_DEVICEID_8139D, RL_8139,
+		"RealTek 8139 10/100BaseTX" },
 	{ RT_VENDORID, RT_DEVICEID_8138, RL_8139,
 		"RealTek 8139 10/100BaseTX CardBus" },
 	{ RT_VENDORID, RT_DEVICEID_8100, RL_8139,
