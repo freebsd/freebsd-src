@@ -62,9 +62,7 @@ CFLAGS+=-I${.OBJDIR} -I${.CURDIR} -I${CPIODIR}/lib -DHAVE_CONFIG_H \
 gcpio.1: ${CPIODIR}/doc/cpio.1
 	cat ${CPIODIR}/doc/cpio.1 >gcpio.1
 
-.if !defined(WITH_BSDCPIO)
 SYMLINKS=gcpio ${BINDIR}/cpio
 MLINKS=gcpio.1 cpio.1
-.endif
 
 .include <bsd.prog.mk>
