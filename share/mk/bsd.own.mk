@@ -287,7 +287,6 @@ WITH_IDEA=
     ATM \
     AUDIT \
     AUTHPF \
-    BSD_CPIO \
     BIND \
     BIND_DNSSEC \
     BIND_ETC \
@@ -297,6 +296,7 @@ WITH_IDEA=
     BIND_UTILS \
     BLUETOOTH \
     BOOT \
+    BSD_CPIO \
     BZIP2 \
     CALENDAR \
     CDDL \
