@@ -344,7 +344,7 @@ pkg_do(char *pkg)
 			if (!Force)
 			    ++code;
 		    }
-		    else if (vsystem("(pwd; /bin/cat +CONTENTS) | %s %s %s -S", PkgAddCmd, Verbose ? "-v" : "", PrefixRecursive ? prefixArg : "")) {
+		    else if (vsystem("(pwd; /bin/cat +CONTENTS) | %s %s %s %s -S", PkgAddCmd, Verbose ? "-v" : "", PrefixRecursive ? prefixArg : "", KeepPackage ? "-K" : "")) {
 			warnx("pkg_add of dependency '%s' failed%s",
 				p->name, Force ? " (proceeding anyway)" : "!");
 			if (!Force)
