@@ -43,11 +43,7 @@ int	PlistOnly	= FALSE;
 int	Recursive	= FALSE;
 int	Regenerate	= TRUE;
 int	Help		= FALSE;
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 500039
 enum zipper	Zipper  = BZIP2;
-#else
-enum zipper	Zipper  = GZIP;
-#endif
 
 
 static void usage(void);
