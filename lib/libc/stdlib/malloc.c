@@ -70,9 +70,9 @@
  *   |                           |    8 kB |
  *   |                           |   12 kB |
  *   |                           |     ... |
- *   |                           | 1004 kB |
  *   |                           | 1008 kB |
  *   |                           | 1012 kB |
+ *   |                           | 1016 kB |
  *   |=====================================|
  *   | Huge                      |    1 MB |
  *   |                           |    2 MB |
@@ -142,7 +142,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/sysctl.h>
-#include <sys/tree.h>
 #include <sys/uio.h>
 #include <sys/ktrace.h> /* Must come after several other sys/ includes. */
 
@@ -174,6 +173,8 @@ __FBSDID("$FreeBSD$");
 #  endif
 #endif
 #include <assert.h>
+
+#include "rb.h"
 
 #ifdef MALLOC_DEBUG
    /* Disable inlining to make debugging easier. */
@@ -209,6 +210,11 @@ __FBSDID("$FreeBSD$");
 #  define CPU_SPINWAIT		__asm__ volatile("pause")
 #endif
 #ifdef __arm__
+#  define QUANTUM_2POW_MIN	3
+#  define SIZEOF_PTR_2POW	2
+#  define NO_TLS
+#endif
+#ifdef __mips__
 #  define QUANTUM_2POW_MIN	3
 #  define SIZEOF_PTR_2POW	2
 #  define NO_TLS
@@ -439,10 +445,10 @@ struct chunk_stats_s {
 typedef struct extent_node_s extent_node_t;
 struct extent_node_s {
 	/* Linkage for the size/address-ordered tree. */
-	RB_ENTRY(extent_node_s) link_szad;
+	rb_node(extent_node_t) link_szad;
 
 	/* Linkage for the address-ordered tree. */
-	RB_ENTRY(extent_node_s) link_ad;
+	rb_node(extent_node_t) link_ad;
 
 	/* Pointer to the extent that this tree node is responsible for. */
 	void	*addr;
@@ -450,10 +456,7 @@ struct extent_node_s {
 	/* Total region size. */
 	size_t	size;
 };
-typedef struct extent_tree_szad_s extent_tree_szad_t;
-RB_HEAD(extent_tree_szad_s, extent_node_s);
-typedef struct extent_tree_ad_s extent_tree_ad_t;
-RB_HEAD(extent_tree_ad_s, extent_node_s);
+typedef rb_tree(extent_node_t) extent_tree_t;
 
 /******************************************************************************/
 /*
@@ -479,8 +482,11 @@ struct arena_chunk_s {
 	/* Arena that owns the chunk. */
 	arena_t		*arena;
 
-	/* Linkage for the arena's chunk tree. */
-	RB_ENTRY(arena_chunk_s) link;
+	/* Linkage for the arena's chunks_all tree. */
+	rb_node(arena_chunk_t) link_all;
+
+	/* Linkage for the arena's chunks_dirty tree. */
+	rb_node(arena_chunk_t) link_dirty;
 
 	/*
 	 * Number of pages in use.  This is maintained in order to make
@@ -495,7 +501,7 @@ struct arena_chunk_s {
 	 * Tree of extent nodes that are embedded in the arena chunk header
 	 * page(s).  These nodes are used by arena_chunk_node_alloc().
 	 */
-	extent_tree_ad_t nodes;
+	extent_tree_t	nodes;
 	extent_node_t	*nodes_past;
 
 	/*
@@ -505,13 +511,12 @@ struct arena_chunk_s {
 	 */
 	arena_chunk_map_t map[1]; /* Dynamically sized. */
 };
-typedef struct arena_chunk_tree_s arena_chunk_tree_t;
-RB_HEAD(arena_chunk_tree_s, arena_chunk_s);
+typedef rb_tree(arena_chunk_t) arena_chunk_tree_t;
 
 typedef struct arena_run_s arena_run_t;
 struct arena_run_s {
 	/* Linkage for run trees. */
-	RB_ENTRY(arena_run_s) link;
+	rb_node(arena_run_t) link;
 
 #ifdef MALLOC_DEBUG
 	uint32_t	magic;
@@ -530,8 +535,7 @@ struct arena_run_s {
 	/* Bitmask of in-use regions (0: in use, 1: free). */
 	unsigned	regs_mask[1]; /* Dynamically sized. */
 };
-typedef struct arena_run_tree_s arena_run_tree_t;
-RB_HEAD(arena_run_tree_s, arena_run_s);
+typedef rb_tree(arena_run_t) arena_run_tree_t;
 
 struct arena_bin_s {
 	/*
@@ -583,15 +587,25 @@ struct arena_s {
 	arena_stats_t		stats;
 #endif
 
+	/* Tree of all chunks this arena manages. */
+	arena_chunk_tree_t	chunks_all;
+
 	/*
-	 * Tree of chunks this arena manages.
+	 * Tree of dirty-page-containing chunks this arena manages.  This tree
+	 * is maintained in addition to chunks_all in order to make
+	 * deallocation O(lg d), where 'd' is the size of chunks_dirty.
+	 *
+	 * Without this tree, deallocation would be O(a), where 'a' is the size
+	 * of chunks_all.  Since dirty pages are purged in descending memory
+	 * order, it would not be difficult to trigger something approaching
+	 * worst case behavior with a series of large deallocations.
 	 */
-	arena_chunk_tree_t	chunks;
+	arena_chunk_tree_t	chunks_dirty;
 
 	/*
 	 * In order to avoid rapid chunk allocation/deallocation when an arena
 	 * oscillates right on the cusp of needing a new chunk, cache the most
-	 * recently freed chunk.  The spare is left in the arena's chunk tree
+	 * recently freed chunk.  The spare is left in the arena's chunk trees
 	 * until it is deleted.
 	 *
 	 * There is one spare chunk per arena, rather than one spare total, in
@@ -613,11 +627,11 @@ struct arena_s {
 	 * using one set of nodes, since one is needed for first-best-fit run
 	 * allocation, and the other is needed for coalescing.
 	 */
-	extent_tree_szad_t	runs_avail_szad;
-	extent_tree_ad_t	runs_avail_ad;
+	extent_tree_t		runs_avail_szad;
+	extent_tree_t		runs_avail_ad;
 
 	/* Tree of this arena's allocated (in-use) runs. */
-	extent_tree_ad_t	runs_alloced_ad;
+	extent_tree_t		runs_alloced_ad;
 
 #ifdef MALLOC_BALANCE
 	/*
@@ -694,7 +708,7 @@ static size_t		arena_maxclass; /* Max size class for arenas. */
 static malloc_mutex_t	huge_mtx;
 
 /* Tree of chunks that are stand-alone huge allocations. */
-static extent_tree_ad_t	huge;
+static extent_tree_t	huge;
 
 #ifdef MALLOC_DSS
 /*
@@ -715,8 +729,8 @@ static void		*dss_max;
  * address space.  Depending on function, different tree orderings are needed,
  * which is why there are two trees with the same contents.
  */
-static extent_tree_szad_t dss_chunks_szad;
-static extent_tree_ad_t	dss_chunks_ad;
+static extent_tree_t	dss_chunks_szad;
+static extent_tree_t	dss_chunks_ad;
 #endif
 
 #ifdef MALLOC_STATS
@@ -1282,8 +1296,10 @@ base_alloc(size_t size)
 	malloc_mutex_lock(&base_mtx);
 	/* Make sure there's enough space for the allocation. */
 	if ((uintptr_t)base_next_addr + csize > (uintptr_t)base_past_addr) {
-		if (base_pages_alloc(csize))
+		if (base_pages_alloc(csize)) {
+			malloc_mutex_unlock(&base_mtx);
 			return (NULL);
+		}
 	}
 	/* Allocate. */
 	ret = base_next_addr;
@@ -1431,9 +1447,9 @@ extent_szad_comp(extent_node_t *a, extent_node_t *b)
 	return (ret);
 }
 
-/* Generate red-black tree code for size/address-ordered extents. */
-RB_GENERATE_STATIC(extent_tree_szad_s, extent_node_s, link_szad,
-    extent_szad_comp)
+/* Wrap red-black tree macros in functions. */
+rb_wrap(__unused static, extent_tree_szad_, extent_tree_t, extent_node_t,
+    link_szad, extent_szad_comp)
 
 static inline int
 extent_ad_comp(extent_node_t *a, extent_node_t *b)
@@ -1444,8 +1460,9 @@ extent_ad_comp(extent_node_t *a, extent_node_t *b)
 	return ((a_addr > b_addr) - (a_addr < b_addr));
 }
 
-/* Generate red-black tree code for address-ordered extents. */
-RB_GENERATE_STATIC(extent_tree_ad_s, extent_node_s, link_ad, extent_ad_comp)
+/* Wrap red-black tree macros in functions. */
+rb_wrap(__unused static, extent_tree_ad_, extent_tree_t, extent_node_t, link_ad,
+    extent_ad_comp)
 
 /*
  * End extent tree code.
@@ -1511,6 +1528,13 @@ static void *
 chunk_alloc_dss(size_t size)
 {
 
+	/*
+	 * sbrk() uses a signed increment argument, so take care not to
+	 * interpret a huge allocation request as a negative increment.
+	 */
+	if ((intptr_t)size < 0)
+		return (NULL);
+
 	malloc_mutex_lock(&dss_mtx);
 	if (dss_prev != (void *)-1) {
 		intptr_t incr;
@@ -1561,14 +1585,14 @@ chunk_recycle_dss(size_t size, bool zero)
 	key.addr = NULL;
 	key.size = size;
 	malloc_mutex_lock(&dss_mtx);
-	node = RB_NFIND(extent_tree_szad_s, &dss_chunks_szad, &key);
+	node = extent_tree_szad_nsearch(&dss_chunks_szad, &key);
 	if (node != NULL) {
 		void *ret = node->addr;
 
 		/* Remove node from the tree. */
-		RB_REMOVE(extent_tree_szad_s, &dss_chunks_szad, node);
+		extent_tree_szad_remove(&dss_chunks_szad, node);
 		if (node->size == size) {
-			RB_REMOVE(extent_tree_ad_s, &dss_chunks_ad, node);
+			extent_tree_ad_remove(&dss_chunks_ad, node);
 			base_node_dealloc(node);
 		} else {
 			/*
@@ -1579,7 +1603,7 @@ chunk_recycle_dss(size_t size, bool zero)
 			assert(node->size > size);
 			node->addr = (void *)((uintptr_t)node->addr + size);
 			node->size -= size;
-			RB_INSERT(extent_tree_szad_s, &dss_chunks_szad, node);
+			extent_tree_szad_insert(&dss_chunks_szad, node);
 		}
 		malloc_mutex_unlock(&dss_mtx);
 
@@ -1719,7 +1743,7 @@ chunk_dealloc_dss_record(void *chunk, size_t size)
 	extent_node_t *node, *prev, key;
 
 	key.addr = (void *)((uintptr_t)chunk + size);
-	node = RB_NFIND(extent_tree_ad_s, &dss_chunks_ad, &key);
+	node = extent_tree_ad_nsearch(&dss_chunks_ad, &key);
 	/* Try to coalesce forward. */
 	if (node != NULL && node->addr == key.addr) {
 		/*
@@ -1727,10 +1751,10 @@ chunk_dealloc_dss_record(void *chunk, size_t size)
 		 * not change the position within dss_chunks_ad, so only
 		 * remove/insert from/into dss_chunks_szad.
 		 */
-		RB_REMOVE(extent_tree_szad_s, &dss_chunks_szad, node);
+		extent_tree_szad_remove(&dss_chunks_szad, node);
 		node->addr = chunk;
 		node->size += size;
-		RB_INSERT(extent_tree_szad_s, &dss_chunks_szad, node);
+		extent_tree_szad_insert(&dss_chunks_szad, node);
 	} else {
 		/*
 		 * Coalescing forward failed, so insert a new node.  Drop
@@ -1744,12 +1768,12 @@ chunk_dealloc_dss_record(void *chunk, size_t size)
 			return (NULL);
 		node->addr = chunk;
 		node->size = size;
-		RB_INSERT(extent_tree_ad_s, &dss_chunks_ad, node);
-		RB_INSERT(extent_tree_szad_s, &dss_chunks_szad, node);
+		extent_tree_ad_insert(&dss_chunks_ad, node);
+		extent_tree_szad_insert(&dss_chunks_szad, node);
 	}
 
 	/* Try to coalesce backward. */
-	prev = RB_PREV(extent_tree_ad_s, &dss_chunks_ad, node);
+	prev = extent_tree_ad_prev(&dss_chunks_ad, node);
 	if (prev != NULL && (void *)((uintptr_t)prev->addr + prev->size) ==
 	    chunk) {
 		/*
@@ -1757,13 +1781,13 @@ chunk_dealloc_dss_record(void *chunk, size_t size)
 		 * not change the position within dss_chunks_ad, so only
 		 * remove/insert node from/into dss_chunks_szad.
 		 */
-		RB_REMOVE(extent_tree_szad_s, &dss_chunks_szad, prev);
-		RB_REMOVE(extent_tree_ad_s, &dss_chunks_ad, prev);
+		extent_tree_szad_remove(&dss_chunks_szad, prev);
+		extent_tree_ad_remove(&dss_chunks_ad, prev);
 
-		RB_REMOVE(extent_tree_szad_s, &dss_chunks_szad, node);
+		extent_tree_szad_remove(&dss_chunks_szad, node);
 		node->addr = prev->addr;
 		node->size += prev->size;
-		RB_INSERT(extent_tree_szad_s, &dss_chunks_szad, node);
+		extent_tree_szad_insert(&dss_chunks_szad, node);
 
 		base_node_dealloc(prev);
 	}
@@ -1803,10 +1827,8 @@ chunk_dealloc_dss(void *chunk, size_t size)
 			dss_max = (void *)((intptr_t)dss_prev - (intptr_t)size);
 
 			if (node != NULL) {
-				RB_REMOVE(extent_tree_szad_s, &dss_chunks_szad,
-				    node);
-				RB_REMOVE(extent_tree_ad_s, &dss_chunks_ad,
-				    node);
+				extent_tree_szad_remove(&dss_chunks_szad, node);
+				extent_tree_ad_remove(&dss_chunks_ad, node);
 				base_node_dealloc(node);
 			}
 			malloc_mutex_unlock(&dss_mtx);
@@ -1991,8 +2013,11 @@ arena_chunk_comp(arena_chunk_t *a, arena_chunk_t *b)
 	return ((a_chunk > b_chunk) - (a_chunk < b_chunk));
 }
 
-/* Generate red-black tree code for arena chunks. */
-RB_GENERATE_STATIC(arena_chunk_tree_s, arena_chunk_s, link, arena_chunk_comp)
+/* Wrap red-black tree macros in functions. */
+rb_wrap(__unused static, arena_chunk_tree_all_, arena_chunk_tree_t,
+    arena_chunk_t, link_all, arena_chunk_comp)
+rb_wrap(__unused static, arena_chunk_tree_dirty_, arena_chunk_tree_t,
+    arena_chunk_t, link_dirty, arena_chunk_comp)
 
 static inline int
 arena_run_comp(arena_run_t *a, arena_run_t *b)
@@ -2006,17 +2031,18 @@ arena_run_comp(arena_run_t *a, arena_run_t *b)
 	return ((a_run > b_run) - (a_run < b_run));
 }
 
-/* Generate red-black tree code for arena runs. */
-RB_GENERATE_STATIC(arena_run_tree_s, arena_run_s, link, arena_run_comp)
+/* Wrap red-black tree macros in functions. */
+rb_wrap(__unused static, arena_run_tree_, arena_run_tree_t, arena_run_t, link,
+    arena_run_comp)
 
 static extent_node_t *
 arena_chunk_node_alloc(arena_chunk_t *chunk)
 {
 	extent_node_t *ret;
 
-	ret = RB_MIN(extent_tree_ad_s, &chunk->nodes);
+	ret = extent_tree_ad_first(&chunk->nodes);
 	if (ret != NULL)
-		RB_REMOVE(extent_tree_ad_s, &chunk->nodes, ret);
+		extent_tree_ad_remove(&chunk->nodes, ret);
 	else {
 		ret = chunk->nodes_past;
 		chunk->nodes_past = (extent_node_t *)
@@ -2034,7 +2060,7 @@ arena_chunk_node_dealloc(arena_chunk_t *chunk, extent_node_t *node)
 {
 
 	node->addr = (void *)node;
-	RB_INSERT(extent_tree_ad_s, &chunk->nodes, node);
+	extent_tree_ad_insert(&chunk->nodes, node);
 }
 
 static inline void *
@@ -2205,18 +2231,19 @@ arena_run_split(arena_t *arena, arena_run_t *run, size_t size, bool small,
     bool zero)
 {
 	arena_chunk_t *chunk;
-	size_t run_ind, total_pages, need_pages, rem_pages, i;
+	size_t old_ndirty, run_ind, total_pages, need_pages, rem_pages, i;
 	extent_node_t *nodeA, *nodeB, key;
 
 	/* Insert a node into runs_alloced_ad for the first part of the run. */
 	chunk = (arena_chunk_t *)CHUNK_ADDR2BASE(run);
+	old_ndirty = chunk->ndirty;
 	nodeA = arena_chunk_node_alloc(chunk);
 	nodeA->addr = run;
 	nodeA->size = size;
-	RB_INSERT(extent_tree_ad_s, &arena->runs_alloced_ad, nodeA);
+	extent_tree_ad_insert(&arena->runs_alloced_ad, nodeA);
 
 	key.addr = run;
-	nodeB = RB_FIND(extent_tree_ad_s, &arena->runs_avail_ad, &key);
+	nodeB = extent_tree_ad_search(&arena->runs_avail_ad, &key);
 	assert(nodeB != NULL);
 
 	run_ind = (unsigned)(((uintptr_t)run - (uintptr_t)chunk)
@@ -2253,7 +2280,7 @@ arena_run_split(arena_t *arena, arena_run_t *run, size_t size, bool small,
 	}
 
 	/* Keep track of trailing unused pages for later use. */
-	RB_REMOVE(extent_tree_szad_s, &arena->runs_avail_szad, nodeB);
+	extent_tree_szad_remove(&arena->runs_avail_szad, nodeB);
 	if (rem_pages > 0) {
 		/*
 		 * Update nodeB in runs_avail_*.  Its position within
@@ -2261,14 +2288,16 @@ arena_run_split(arena_t *arena, arena_run_t *run, size_t size, bool small,
 		 */
 		nodeB->addr = (void *)((uintptr_t)nodeB->addr + size);
 		nodeB->size -= size;
-		RB_INSERT(extent_tree_szad_s, &arena->runs_avail_szad, nodeB);
+		extent_tree_szad_insert(&arena->runs_avail_szad, nodeB);
 	} else {
 		/* Remove nodeB from runs_avail_*. */
-		RB_REMOVE(extent_tree_ad_s, &arena->runs_avail_ad, nodeB);
+		extent_tree_ad_remove(&arena->runs_avail_ad, nodeB);
 		arena_chunk_node_dealloc(chunk, nodeB);
 	}
 
 	chunk->pages_used += need_pages;
+	if (chunk->ndirty == 0 && old_ndirty > 0)
+		arena_chunk_tree_dirty_remove(&arena->chunks_dirty, chunk);
 }
 
 static arena_chunk_t *
@@ -2290,7 +2319,7 @@ arena_chunk_alloc(arena_t *arena)
 
 		chunk->arena = arena;
 
-		RB_INSERT(arena_chunk_tree_s, &arena->chunks, chunk);
+		arena_chunk_tree_all_insert(&arena->chunks_all, chunk);
 
 		/*
 		 * Claim that no pages are in use, since the header is merely
@@ -2310,7 +2339,7 @@ arena_chunk_alloc(arena_t *arena)
 		    arena_chunk_header_npages));
 
 		/* Initialize the tree of unused extent nodes. */
-		RB_INIT(&chunk->nodes);
+		extent_tree_ad_new(&chunk->nodes);
 		chunk->nodes_past = (extent_node_t *)QUANTUM_CEILING(
 		    (uintptr_t)&chunk->map[chunk_npages]);
 	}
@@ -2320,8 +2349,8 @@ arena_chunk_alloc(arena_t *arena)
 	node->addr = (void *)((uintptr_t)chunk + (arena_chunk_header_npages <<
 	    pagesize_2pow));
 	node->size = chunksize - (arena_chunk_header_npages << pagesize_2pow);
-	RB_INSERT(extent_tree_szad_s, &arena->runs_avail_szad, node);
-	RB_INSERT(extent_tree_ad_s, &arena->runs_avail_ad, node);
+	extent_tree_szad_insert(&arena->runs_avail_szad, node);
+	extent_tree_ad_insert(&arena->runs_avail_ad, node);
 
 	return (chunk);
 }
@@ -2332,9 +2361,13 @@ arena_chunk_dealloc(arena_t *arena, arena_chunk_t *chunk)
 	extent_node_t *node, key;
 
 	if (arena->spare != NULL) {
-		RB_REMOVE(arena_chunk_tree_s, &chunk->arena->chunks,
+		arena_chunk_tree_all_remove(&chunk->arena->chunks_all,
 		    arena->spare);
-		arena->ndirty -= arena->spare->ndirty;
+		if (arena->spare->ndirty > 0) {
+			arena_chunk_tree_dirty_remove(
+			    &chunk->arena->chunks_dirty, arena->spare);
+			arena->ndirty -= arena->spare->ndirty;
+		}
 		chunk_dealloc((void *)arena->spare, chunksize);
 #ifdef MALLOC_STATS
 		arena->stats.mapped -= chunksize;
@@ -2344,15 +2377,15 @@ arena_chunk_dealloc(arena_t *arena, arena_chunk_t *chunk)
 	/*
 	 * Remove run from the runs trees, regardless of whether this chunk
 	 * will be cached, so that the arena does not use it.  Dirty page
-	 * flushing only uses the chunks tree, so leaving this chunk in that
-	 * tree is sufficient for that purpose.
+	 * flushing only uses the chunks_dirty tree, so leaving this chunk in
+	 * the chunks_* trees is sufficient for that purpose.
 	 */
 	key.addr = (void *)((uintptr_t)chunk + (arena_chunk_header_npages <<
 	    pagesize_2pow));
-	node = RB_FIND(extent_tree_ad_s, &arena->runs_avail_ad, &key);
+	node = extent_tree_ad_search(&arena->runs_avail_ad, &key);
 	assert(node != NULL);
-	RB_REMOVE(extent_tree_szad_s, &arena->runs_avail_szad, node);
-	RB_REMOVE(extent_tree_ad_s, &arena->runs_avail_ad, node);
+	extent_tree_szad_remove(&arena->runs_avail_szad, node);
+	extent_tree_ad_remove(&arena->runs_avail_ad, node);
 	arena_chunk_node_dealloc(chunk, node);
 
 	arena->spare = chunk;
@@ -2372,7 +2405,7 @@ arena_run_alloc(arena_t *arena, size_t size, bool small, bool zero)
 	/* Search the arena's chunks for the lowest best fit. */
 	key.addr = NULL;
 	key.size = size;
-	node = RB_NFIND(extent_tree_szad_s, &arena->runs_avail_szad, &key);
+	node = extent_tree_szad_nsearch(&arena->runs_avail_szad, &key);
 	if (node != NULL) {
 		run = (arena_run_t *)node->addr;
 		arena_run_split(arena, run, size, small, zero);
@@ -2396,13 +2429,21 @@ static void
 arena_purge(arena_t *arena)
 {
 	arena_chunk_t *chunk;
+	size_t i, npages;
 #ifdef MALLOC_DEBUG
 	size_t ndirty;
 
 	ndirty = 0;
-	RB_FOREACH(chunk, arena_chunk_tree_s, &arena->chunks) {
+	rb_foreach_begin(arena_chunk_t, link_all, &arena->chunks_all, chunk) {
 		ndirty += chunk->ndirty;
-	}
+	} rb_foreach_end(arena_chunk_t, link_all, &arena->chunks_all, chunk)
+	assert(ndirty == arena->ndirty);
+
+	ndirty = 0;
+	rb_foreach_begin(arena_chunk_t, link_dirty, &arena->chunks_dirty,
+	    chunk) {
+		ndirty += chunk->ndirty;
+	} rb_foreach_end(arena_chunk_t, link_dirty, &arena->chunks_dirty, chunk)
 	assert(ndirty == arena->ndirty);
 #endif
 	assert(arena->ndirty > opt_dirty_max);
@@ -2413,45 +2454,46 @@ arena_purge(arena_t *arena)
 
 	/*
 	 * Iterate downward through chunks until enough dirty memory has been
+	 * purged.  Terminate as soon as possible in order to minimize the
+	 * number of system calls, even if a chunk has only been partially
 	 * purged.
 	 */
-	RB_FOREACH_REVERSE(chunk, arena_chunk_tree_s, &arena->chunks) {
-		if (chunk->ndirty > 0) {
-			size_t i;
+	while (arena->ndirty > (opt_dirty_max >> 1)) {
+		chunk = arena_chunk_tree_dirty_last(&arena->chunks_dirty);
+		assert(chunk != NULL);
 
-			for (i = chunk_npages - 1; i >=
-			    arena_chunk_header_npages; i--) {
-				if (chunk->map[i] & CHUNK_MAP_DIRTY) {
-					size_t npages;
+		for (i = chunk_npages - 1; chunk->ndirty > 0; i--) {
+			assert(i >= arena_chunk_header_npages);
 
-					chunk->map[i] = (CHUNK_MAP_LARGE |
-					    CHUNK_MAP_POS_MASK);
-					chunk->ndirty--;
-					arena->ndirty--;
-					/* Find adjacent dirty run(s). */
-					for (npages = 1; i >
-					    arena_chunk_header_npages &&
-					    (chunk->map[i - 1] &
-					    CHUNK_MAP_DIRTY); npages++) {
-						i--;
-						chunk->map[i] = (CHUNK_MAP_LARGE
-						    | CHUNK_MAP_POS_MASK);
-						chunk->ndirty--;
-						arena->ndirty--;
-					}
-
-					madvise((void *)((uintptr_t)chunk + (i
-					    << pagesize_2pow)), pagesize *
-					    npages, MADV_FREE);
-#ifdef MALLOC_STATS
-					arena->stats.nmadvise++;
-					arena->stats.purged += npages;
-#endif
-					if (arena->ndirty <= (opt_dirty_max >>
-					    1))
-						return;
+			if (chunk->map[i] & CHUNK_MAP_DIRTY) {
+				chunk->map[i] = (CHUNK_MAP_LARGE |
+				    CHUNK_MAP_POS_MASK);
+				/* Find adjacent dirty run(s). */
+				for (npages = 1; i > arena_chunk_header_npages
+				    && (chunk->map[i - 1] & CHUNK_MAP_DIRTY);
+				    npages++) {
+					i--;
+					chunk->map[i] = (CHUNK_MAP_LARGE
+					    | CHUNK_MAP_POS_MASK);
 				}
+				chunk->ndirty -= npages;
+				arena->ndirty -= npages;
+
+				madvise((void *)((uintptr_t)chunk + (i <<
+				    pagesize_2pow)), pagesize * npages,
+				    MADV_FREE);
+#ifdef MALLOC_STATS
+				arena->stats.nmadvise++;
+				arena->stats.purged += npages;
+#endif
+				if (arena->ndirty <= (opt_dirty_max >> 1))
+					break;
 			}
+		}
+
+		if (chunk->ndirty == 0) {
+			arena_chunk_tree_dirty_remove(&arena->chunks_dirty,
+			    chunk);
 		}
 	}
 }
@@ -2465,9 +2507,9 @@ arena_run_dalloc(arena_t *arena, arena_run_t *run, bool dirty)
 
 	/* Remove run from runs_alloced_ad. */
 	key.addr = run;
-	nodeB = RB_FIND(extent_tree_ad_s, &arena->runs_alloced_ad, &key);
+	nodeB = extent_tree_ad_search(&arena->runs_alloced_ad, &key);
 	assert(nodeB != NULL);
-	RB_REMOVE(extent_tree_ad_s, &arena->runs_alloced_ad, nodeB);
+	extent_tree_ad_remove(&arena->runs_alloced_ad, nodeB);
 	size = nodeB->size;
 
 	chunk = (arena_chunk_t *)CHUNK_ADDR2BASE(run);
@@ -2487,9 +2529,14 @@ arena_run_dalloc(arena_t *arena, arena_run_t *run, bool dirty)
 			assert((chunk->map[run_ind + i] & CHUNK_MAP_DIRTY) ==
 			    0);
 			chunk->map[run_ind + i] |= CHUNK_MAP_DIRTY;
-			chunk->ndirty++;
-			arena->ndirty++;
 		}
+
+		if (chunk->ndirty == 0) {
+			arena_chunk_tree_dirty_insert(&arena->chunks_dirty,
+			    chunk);
+		}
+		chunk->ndirty += run_pages;
+		arena->ndirty += run_pages;
 	}
 #ifdef MALLOC_DEBUG
 	/* Set map elements to a bogus value in order to aid error detection. */
@@ -2505,29 +2552,29 @@ arena_run_dalloc(arena_t *arena, arena_run_t *run, bool dirty)
 
 	/* Try to coalesce forward. */
 	key.addr = (void *)((uintptr_t)run + size);
-	nodeC = RB_NFIND(extent_tree_ad_s, &arena->runs_avail_ad, &key);
+	nodeC = extent_tree_ad_nsearch(&arena->runs_avail_ad, &key);
 	if (nodeC != NULL && nodeC->addr == key.addr) {
 		/*
 		 * Coalesce forward.  This does not change the position within
 		 * runs_avail_ad, so only remove/insert from/into
 		 * runs_avail_szad.
 		 */
-		RB_REMOVE(extent_tree_szad_s, &arena->runs_avail_szad, nodeC);
+		extent_tree_szad_remove(&arena->runs_avail_szad, nodeC);
 		nodeC->addr = (void *)run;
 		nodeC->size += size;
-		RB_INSERT(extent_tree_szad_s, &arena->runs_avail_szad, nodeC);
+		extent_tree_szad_insert(&arena->runs_avail_szad, nodeC);
 		arena_chunk_node_dealloc(chunk, nodeB);
 		nodeB = nodeC;
 	} else {
 		/*
 		 * Coalescing forward failed, so insert nodeB into runs_avail_*.
 		 */
-		RB_INSERT(extent_tree_szad_s, &arena->runs_avail_szad, nodeB);
-		RB_INSERT(extent_tree_ad_s, &arena->runs_avail_ad, nodeB);
+		extent_tree_szad_insert(&arena->runs_avail_szad, nodeB);
+		extent_tree_ad_insert(&arena->runs_avail_ad, nodeB);
 	}
 
 	/* Try to coalesce backward. */
-	nodeA = RB_PREV(extent_tree_ad_s, &arena->runs_avail_ad, nodeB);
+	nodeA = extent_tree_ad_prev(&arena->runs_avail_ad, nodeB);
 	if (nodeA != NULL && (void *)((uintptr_t)nodeA->addr + nodeA->size) ==
 	    (void *)run) {
 		/*
@@ -2535,13 +2582,13 @@ arena_run_dalloc(arena_t *arena, arena_run_t *run, bool dirty)
 		 * position within runs_avail_ad, so only remove/insert
 		 * from/into runs_avail_szad.
 		 */
-		RB_REMOVE(extent_tree_szad_s, &arena->runs_avail_szad, nodeA);
-		RB_REMOVE(extent_tree_ad_s, &arena->runs_avail_ad, nodeA);
+		extent_tree_szad_remove(&arena->runs_avail_szad, nodeA);
+		extent_tree_ad_remove(&arena->runs_avail_ad, nodeA);
 
-		RB_REMOVE(extent_tree_szad_s, &arena->runs_avail_szad, nodeB);
+		extent_tree_szad_remove(&arena->runs_avail_szad, nodeB);
 		nodeB->addr = nodeA->addr;
 		nodeB->size += nodeA->size;
-		RB_INSERT(extent_tree_szad_s, &arena->runs_avail_szad, nodeB);
+		extent_tree_szad_insert(&arena->runs_avail_szad, nodeB);
 
 		arena_chunk_node_dealloc(chunk, nodeA);
 	}
@@ -2579,7 +2626,7 @@ arena_run_trim_head(arena_t *arena, arena_chunk_t *chunk, extent_node_t *nodeB,
 	nodeA = arena_chunk_node_alloc(chunk);
 	nodeA->addr = (void *)run;
 	nodeA->size = oldsize - newsize;
-	RB_INSERT(extent_tree_ad_s, &arena->runs_alloced_ad, nodeA);
+	extent_tree_ad_insert(&arena->runs_alloced_ad, nodeA);
 
 	arena_run_dalloc(arena, (arena_run_t *)run, false);
 }
@@ -2607,7 +2654,7 @@ arena_run_trim_tail(arena_t *arena, arena_chunk_t *chunk, extent_node_t *nodeA,
 	nodeB = arena_chunk_node_alloc(chunk);
 	nodeB->addr = (void *)((uintptr_t)run + newsize);
 	nodeB->size = oldsize - newsize;
-	RB_INSERT(extent_tree_ad_s, &arena->runs_alloced_ad, nodeB);
+	extent_tree_ad_insert(&arena->runs_alloced_ad, nodeB);
 
 	arena_run_dalloc(arena, (arena_run_t *)((uintptr_t)run + newsize),
 	    dirty);
@@ -2620,9 +2667,10 @@ arena_bin_nonfull_run_get(arena_t *arena, arena_bin_t *bin)
 	unsigned i, remainder;
 
 	/* Look for a usable run. */
-	if ((run = RB_MIN(arena_run_tree_s, &bin->runs)) != NULL) {
+	run = arena_run_tree_first(&bin->runs);
+	if (run != NULL) {
 		/* run is guaranteed to have available space. */
-		RB_REMOVE(arena_run_tree_s, &bin->runs, run);
+		arena_run_tree_remove(&bin->runs, run);
 #ifdef MALLOC_STATS
 		bin->stats.reruns++;
 #endif
@@ -2638,10 +2686,12 @@ arena_bin_nonfull_run_get(arena_t *arena, arena_bin_t *bin)
 	/* Initialize run internals. */
 	run->bin = bin;
 
-	for (i = 0; i < bin->regs_mask_nelms; i++)
+	for (i = 0; i < bin->regs_mask_nelms - 1; i++)
 		run->regs_mask[i] = UINT_MAX;
 	remainder = bin->nregs & ((1U << (SIZEOF_INT_2POW + 3)) - 1);
-	if (remainder != 0) {
+	if (remainder == 0)
+		run->regs_mask[i] = UINT_MAX;
+	else {
 		/* The last element has spare bits that need to be unset. */
 		run->regs_mask[i] = (UINT_MAX >> ((1U << (SIZEOF_INT_2POW + 3))
 		    - remainder));
@@ -2991,7 +3041,7 @@ arena_palloc(arena_t *arena, size_t alignment, size_t size, size_t alloc_size)
 		 * does not change.
 		 */
 		key.addr = ret;
-		node = RB_FIND(extent_tree_ad_s, &arena->runs_alloced_ad, &key);
+		node = extent_tree_ad_search(&arena->runs_alloced_ad, &key);
 		assert(node != NULL);
 
 		arena_run_trim_tail(arena, chunk, node, ret, alloc_size, size,
@@ -3004,7 +3054,7 @@ arena_palloc(arena_t *arena, size_t alignment, size_t size, size_t alloc_size)
 		 * does not change.
 		 */
 		key.addr = ret;
-		node = RB_FIND(extent_tree_ad_s, &arena->runs_alloced_ad, &key);
+		node = extent_tree_ad_search(&arena->runs_alloced_ad, &key);
 		assert(node != NULL);
 
 		leadsize = alignment - offset;
@@ -3164,7 +3214,7 @@ arena_salloc(const void *ptr)
 		arena = chunk->arena;
 		malloc_spin_lock(&arena->lock);
 		key.addr = (void *)ptr;
-		node = RB_FIND(extent_tree_ad_s, &arena->runs_alloced_ad, &key);
+		node = extent_tree_ad_search(&arena->runs_alloced_ad, &key);
 		assert(node != NULL);
 		ret = node->size;
 		malloc_spin_unlock(&arena->lock);
@@ -3196,7 +3246,7 @@ isalloc(const void *ptr)
 
 		/* Extract from tree of huge allocations. */
 		key.addr = __DECONST(void *, ptr);
-		node = RB_FIND(extent_tree_ad_s, &huge, &key);
+		node = extent_tree_ad_search(&huge, &key);
 		assert(node != NULL);
 
 		ret = node->size;
@@ -3238,7 +3288,7 @@ arena_dalloc_small(arena_t *arena, arena_chunk_t *chunk, void *ptr,
 			 * run only contains one region, then it never gets
 			 * inserted into the non-full runs tree.
 			 */
-			RB_REMOVE(arena_run_tree_s, &bin->runs, run);
+			arena_run_tree_remove(&bin->runs, run);
 		}
 #ifdef MALLOC_DEBUG
 		run->magic = 0;
@@ -3258,12 +3308,11 @@ arena_dalloc_small(arena_t *arena, arena_chunk_t *chunk, void *ptr,
 			/* Switch runcur. */
 			if (bin->runcur->nfree > 0) {
 				/* Insert runcur. */
-				RB_INSERT(arena_run_tree_s, &bin->runs,
-				    bin->runcur);
+				arena_run_tree_insert(&bin->runs, bin->runcur);
 			}
 			bin->runcur = run;
 		} else
-			RB_INSERT(arena_run_tree_s, &bin->runs, run);
+			arena_run_tree_insert(&bin->runs, run);
 	}
 #ifdef MALLOC_STATS
 	arena->stats.allocated_small -= size;
@@ -3285,8 +3334,7 @@ arena_dalloc_large(arena_t *arena, arena_chunk_t *chunk, void *ptr)
 		size_t size;
 
 		key.addr = ptr;
-		node = RB_FIND(extent_tree_ad_s,
-		    &arena->runs_alloced_ad, &key);
+		node = extent_tree_ad_search(&arena->runs_alloced_ad, &key);
 		assert(node != NULL);
 		size = node->size;
 #ifdef MALLOC_STATS
@@ -3362,7 +3410,7 @@ arena_ralloc_large_shrink(arena_t *arena, arena_chunk_t *chunk, void *ptr,
 #else
 	malloc_spin_lock(&arena->lock);
 #endif
-	node = RB_FIND(extent_tree_ad_s, &arena->runs_alloced_ad, &key);
+	node = extent_tree_ad_search(&arena->runs_alloced_ad, &key);
 	assert(node != NULL);
 	arena_run_trim_tail(arena, chunk, node, (arena_run_t *)ptr, oldsize,
 	    size, true);
@@ -3386,7 +3434,7 @@ arena_ralloc_large_grow(arena_t *arena, arena_chunk_t *chunk, void *ptr,
 #else
 	malloc_spin_lock(&arena->lock);
 #endif
-	nodeC = RB_FIND(extent_tree_ad_s, &arena->runs_avail_ad, &key);
+	nodeC = extent_tree_ad_search(&arena->runs_avail_ad, &key);
 	if (nodeC != NULL && oldsize + nodeC->size >= size) {
 		extent_node_t *nodeA, *nodeB;
 
@@ -3401,18 +3449,16 @@ arena_ralloc_large_grow(arena_t *arena, arena_chunk_t *chunk, void *ptr,
 		    oldsize, false, false);
 
 		key.addr = ptr;
-		nodeA = RB_FIND(extent_tree_ad_s, &arena->runs_alloced_ad,
-		    &key);
+		nodeA = extent_tree_ad_search(&arena->runs_alloced_ad, &key);
 		assert(nodeA != NULL);
 
 		key.addr = (void *)((uintptr_t)ptr + oldsize);
-		nodeB = RB_FIND(extent_tree_ad_s, &arena->runs_alloced_ad,
-		    &key);
+		nodeB = extent_tree_ad_search(&arena->runs_alloced_ad, &key);
 		assert(nodeB != NULL);
 
 		nodeA->size += nodeB->size;
 
-		RB_REMOVE(extent_tree_ad_s, &arena->runs_alloced_ad, nodeB);
+		extent_tree_ad_remove(&arena->runs_alloced_ad, nodeB);
 		arena_chunk_node_dealloc(chunk, nodeB);
 
 #ifdef MALLOC_STATS
@@ -3552,14 +3598,15 @@ arena_new(arena_t *arena)
 #endif
 
 	/* Initialize chunks. */
-	RB_INIT(&arena->chunks);
+	arena_chunk_tree_all_new(&arena->chunks_all);
+	arena_chunk_tree_dirty_new(&arena->chunks_dirty);
 	arena->spare = NULL;
 
 	arena->ndirty = 0;
 
-	RB_INIT(&arena->runs_avail_szad);
-	RB_INIT(&arena->runs_avail_ad);
-	RB_INIT(&arena->runs_alloced_ad);
+	extent_tree_szad_new(&arena->runs_avail_szad);
+	extent_tree_ad_new(&arena->runs_avail_ad);
+	extent_tree_ad_new(&arena->runs_alloced_ad);
 
 #ifdef MALLOC_BALANCE
 	arena->contention = 0;
@@ -3572,7 +3619,7 @@ arena_new(arena_t *arena)
 	for (i = 0; i < ntbins; i++) {
 		bin = &arena->bins[i];
 		bin->runcur = NULL;
-		RB_INIT(&bin->runs);
+		arena_run_tree_new(&bin->runs);
 
 		bin->reg_size = (1U << (TINY_MIN_2POW + i));
 
@@ -3587,7 +3634,7 @@ arena_new(arena_t *arena)
 	for (; i < ntbins + nqbins; i++) {
 		bin = &arena->bins[i];
 		bin->runcur = NULL;
-		RB_INIT(&bin->runs);
+		arena_run_tree_new(&bin->runs);
 
 		bin->reg_size = quantum * (i - ntbins + 1);
 
@@ -3603,7 +3650,7 @@ arena_new(arena_t *arena)
 	for (; i < ntbins + nqbins + nsbins; i++) {
 		bin = &arena->bins[i];
 		bin->runcur = NULL;
-		RB_INIT(&bin->runs);
+		arena_run_tree_new(&bin->runs);
 
 		bin->reg_size = (small_max << (i - (ntbins + nqbins) + 1));
 
@@ -3689,7 +3736,7 @@ huge_malloc(size_t size, bool zero)
 	node->size = csize;
 
 	malloc_mutex_lock(&huge_mtx);
-	RB_INSERT(extent_tree_ad_s, &huge, node);
+	extent_tree_ad_insert(&huge, node);
 #ifdef MALLOC_STATS
 	huge_nmalloc++;
 	huge_allocated += csize;
@@ -3771,7 +3818,7 @@ huge_palloc(size_t alignment, size_t size)
 	node->size = chunk_size;
 
 	malloc_mutex_lock(&huge_mtx);
-	RB_INSERT(extent_tree_ad_s, &huge, node);
+	extent_tree_ad_insert(&huge, node);
 #ifdef MALLOC_STATS
 	huge_nmalloc++;
 	huge_allocated += chunk_size;
@@ -3829,10 +3876,10 @@ huge_dalloc(void *ptr)
 
 	/* Extract from tree of huge allocations. */
 	key.addr = ptr;
-	node = RB_FIND(extent_tree_ad_s, &huge, &key);
+	node = extent_tree_ad_search(&huge, &key);
 	assert(node != NULL);
 	assert(node->addr == ptr);
-	RB_REMOVE(extent_tree_ad_s, &huge, node);
+	extent_tree_ad_remove(&huge, node);
 
 #ifdef MALLOC_STATS
 	huge_ndalloc++;
@@ -4337,14 +4384,14 @@ MALLOC_OUT:
 
 	/* Initialize chunks data. */
 	malloc_mutex_init(&huge_mtx);
-	RB_INIT(&huge);
+	extent_tree_ad_new(&huge);
 #ifdef MALLOC_DSS
 	malloc_mutex_init(&dss_mtx);
 	dss_base = sbrk(0);
 	dss_prev = dss_base;
 	dss_max = dss_base;
-	RB_INIT(&dss_chunks_szad);
-	RB_INIT(&dss_chunks_ad);
+	extent_tree_szad_new(&dss_chunks_szad);
+	extent_tree_ad_new(&dss_chunks_ad);
 #endif
 #ifdef MALLOC_STATS
 	huge_nmalloc = 0;
