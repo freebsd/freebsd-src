@@ -115,7 +115,7 @@ dev_free_devlocked(struct cdev *cdev)
 	struct cdev_priv *cdp;
 
 	mtx_assert(&devmtx, MA_OWNED);
-	cdp = cdev->si_priv;
+	cdp = cdev2priv(cdev);
 	TAILQ_INSERT_HEAD(&cdevp_free_list, cdp, cdp_list);
 }
 
@@ -187,7 +187,7 @@ dev_refthread(struct cdev *dev)
 	dev_lock();
 	csw = dev->si_devsw;
 	if (csw != NULL) {
-		cdp = dev->si_priv;
+		cdp = cdev2priv(dev);
 		if ((cdp->cdp_flags & CDP_SCHED_DTR) == 0)
 			dev->si_threadcount++;
 		else
@@ -208,7 +208,7 @@ devvn_refthread(struct vnode *vp, struct cdev **devp)
 	dev_lock();
 	*devp = vp->v_rdev;
 	if (*devp != NULL) {
-		cdp = (*devp)->si_priv;
+		cdp = cdev2priv(*devp);
 		if ((cdp->cdp_flags & CDP_SCHED_DTR) == 0) {
 			csw = (*devp)->si_devsw;
 			if (csw != NULL)
@@ -851,7 +851,7 @@ destroy_devl(struct cdev *dev)
 	dev_unlock();
 	notify_destroy(dev);
 	mtx_lock(&cdevpriv_mtx);
-	LIST_FOREACH_SAFE(p, &dev->si_priv->cdp_fdpriv, cdpd_list, p1) {
+	LIST_FOREACH_SAFE(p, &cdev2priv(dev)->cdp_fdpriv, cdpd_list, p1) {
 		devfs_destroy_cdevpriv(p);
 		mtx_lock(&cdevpriv_mtx);
 	}
@@ -1071,7 +1071,7 @@ clone_cleanup(struct clonedevs **cdp)
 		KASSERT(dev->si_flags & SI_CLONELIST,
 		    ("Dev %p(%s) should be on clonelist", dev, dev->si_name));
 		dev->si_flags &= ~SI_CLONELIST;
-		cp = dev->si_priv;
+		cp = cdev2priv(dev);
 		if (!(cp->cdp_flags & CDP_SCHED_DTR)) {
 			cp->cdp_flags |= CDP_SCHED_DTR;
 			KASSERT(dev->si_flags & SI_NAMED,
@@ -1125,7 +1125,7 @@ destroy_dev_sched_cbl(struct cdev *dev, void (*cb)(void *), void *arg)
 	struct cdev_priv *cp;
 
 	mtx_assert(&devmtx, MA_OWNED);
-	cp = dev->si_priv;
+	cp = cdev2priv(dev);
 	if (cp->cdp_flags & CDP_SCHED_DTR) {
 		dev_unlock();
 		return (0);

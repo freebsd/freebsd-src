@@ -97,6 +97,7 @@ __FBSDID("$FreeBSD$");
 #include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stddef.h>
 #include <string.h>
 #include <unistd.h>
 #include <netdb.h>
@@ -895,10 +896,8 @@ dev_t
 dev2udev(struct cdev *dev)
 {
 	struct cdev_priv priv;
-	struct cdev si;
 
-	if (KVM_READ(dev, &si, sizeof si) &&
-	    KVM_READ(si.si_priv, &priv, sizeof priv)) {
+	if (KVM_READ(cdev2priv(dev), &priv, sizeof priv)) {
 		return ((dev_t)priv.cdp_inode);
 	} else {
 		dprintf(stderr, "can't convert cdev *%p to a dev_t\n", dev);
