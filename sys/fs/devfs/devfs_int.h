@@ -68,6 +68,8 @@ struct cdev_priv {
 	LIST_HEAD(, cdev_privdata) cdp_fdpriv;
 };
 
+#define	cdev2priv(c)	member2struct(cdev_priv, cdp_c, c)
+
 struct cdev *devfs_alloc(void);
 void devfs_free(struct cdev *);
 void devfs_create(struct cdev *dev);
