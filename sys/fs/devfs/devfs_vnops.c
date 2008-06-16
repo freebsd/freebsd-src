@@ -132,7 +132,7 @@ devfs_set_cdevpriv(void *priv, cdevpriv_dtr_t priv_dtr)
 	fp = curthread->td_fpop;
 	if (fp == NULL)
 		return (ENOENT);
-	cdp = ((struct cdev *)fp->f_data)->si_priv;
+	cdp = cdev2priv((struct cdev *)fp->f_data);
 	p = malloc(sizeof(struct cdev_privdata), M_CDEVPDATA, M_WAITOK);
 	p->cdpd_data = priv;
 	p->cdpd_dtr = priv_dtr;
@@ -541,7 +541,7 @@ devfs_getattr(struct vop_getattr_args *ap)
 		fix(dev->si_ctime);
 		vap->va_ctime = dev->si_ctime;
 
-		vap->va_rdev = dev->si_priv->cdp_inode;
+		vap->va_rdev = cdev2priv(dev)->cdp_inode;
 	}
 	vap->va_gen = 0;
 	vap->va_flags = 0;
@@ -742,7 +742,7 @@ devfs_lookupx(struct vop_lookup_args *ap, int *dm_unlock)
 		}
 
 		dev_lock();
-		dde = &cdev->si_priv->cdp_dirents[dmp->dm_idx];
+		dde = &cdev2priv(cdev)->cdp_dirents[dmp->dm_idx];
 		if (dde != NULL && *dde != NULL)
 			de = *dde;
 		dev_unlock();
@@ -1141,7 +1141,7 @@ devfs_revoke(struct vop_revoke_args *ap)
 	KASSERT((ap->a_flags & REVOKEALL) != 0, ("devfs_revoke !REVOKEALL"));
 
 	dev = vp->v_rdev;
-	cdp = dev->si_priv;
+	cdp = cdev2priv(dev);
  
 	dev_lock();
 	cdp->cdp_inuse++;
@@ -1419,7 +1419,7 @@ dev2udev(struct cdev *x)
 {
 	if (x == NULL)
 		return (NODEV);
-	return (x->si_priv->cdp_inode);
+	return (cdev2priv(x)->cdp_inode);
 }
 
 static struct fileops devfs_ops_f = {
