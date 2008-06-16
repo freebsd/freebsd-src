@@ -308,11 +308,7 @@ pkg_do(char *pkg)
 
 		    ext = strrchr(pkg_fullname, '.');
 		    if (ext == NULL)
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 500039
 			ext = ".tbz";
-#else
-			ext = ".tgz";
-#endif
 		    snprintf(path, FILENAME_MAX, "%s/%s%s", getenv("_TOP"), p->name, ext);
 		    if (fexists(path))
 			cp = path;
