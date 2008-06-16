@@ -43,7 +43,7 @@ SUBDIR=	alias \
 	comm \
 	compile_et \
 	compress \
-	cpio \
+	${_cpio} \
 	cpuset \
 	csplit \
 	${_csup} \
@@ -255,6 +255,10 @@ _nsupdate=	nsupdate
 
 .if ${MK_BLUETOOTH} != "no"
 _bluetooth=	bluetooth
+.endif
+
+.if ${MK_BSD_CPIO} != "no"
+_cpio=		cpio
 .endif
 
 .if ${MK_CALENDAR} != "no"

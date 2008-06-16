@@ -9,7 +9,7 @@ CFLAGS+= -DBSDCPIO_VERSION_STRING=\"${BSDCPIO_VERSION_STRING}\"
 CFLAGS+= -DPLATFORM_CONFIG_H=\"config_freebsd.h\"
 LDADD+=	-larchive -lz -lbz2
 
-.if defined(WITH_BSDCPIO)
+.if ${MK_GNU_CPIO} != "yes"
 SYMLINKS=bsdcpio ${BINDIR}/cpio
 MLINKS= bsdcpio.1 cpio.1
 .endif
