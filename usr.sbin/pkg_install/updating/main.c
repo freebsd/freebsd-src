@@ -175,6 +175,8 @@ main(int argc, char *argv[])
 							if((curr = (INSTALLEDPORT *)
 								malloc(sizeof(INSTALLEDPORT))) == NULL)
 								(void)exit(EXIT_FAILURE);
+							if (pname[strlen(pname) - 1] == '\n')
+								pname[strlen(pname) - 1] = '\0';
 							strlcpy (curr->name, pname, strlen(pname)+1);
 							curr->next = head;
 							head = curr;
