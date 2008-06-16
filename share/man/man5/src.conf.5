@@ -174,6 +174,10 @@ Set to not build Bluetooth related kernel modules, programs and libraries.
 .It Va WITHOUT_BOOT
 .\" from FreeBSD: head/tools/build/options/WITHOUT_BOOT 156932 2006-03-21 07:50:50Z ru
 Set to not build the boot blocks and loader.
+.It Va WITHOUT_BSD_CPIO
+.\" from FreeBSD: head/tools/build/options/WITHOUT_BSD_CPIO 179813 2008-06-16 05:48:15Z dougb
+Set to not build the BSD licensed version of cpio based on
+.Xr libarchive 3 .
 .It Va WITHOUT_BZIP2
 .\" from FreeBSD: head/tools/build/options/WITHOUT_BZIP2 174550 2007-12-12 16:43:17Z ru
 Set to not build contributed bzip2 software as a part of the base system.
@@ -281,6 +285,16 @@ When set, it also enforces the following options:
 .It
 .Va WITHOUT_GNU_SUPPORT
 .El
+.It Va WITH_GNU_CPIO
+.\" from FreeBSD: head/tools/build/options/WITH_GNU_CPIO 179813 2008-06-16 05:48:15Z dougb
+Set to build GNU cpio as a part of the base system,
+and symlink
+.Pa /usr/bin/cpio
+to this version.
+(This will override the symlink to the BSD version.)
+.It Va WITHOUT_GNU_GREP
+.\" from FreeBSD: head/tools/build/options/WITHOUT_GNU_GREP 179813 2008-06-16 05:48:15Z dougb
+Set to not build GNU grep as a part of the base system.
 .It Va WITHOUT_GNU_SUPPORT
 .\" from FreeBSD: head/tools/build/options/WITHOUT_GNU_SUPPORT 156932 2006-03-21 07:50:50Z ru
 Set to build some programs without optional GNU support.
