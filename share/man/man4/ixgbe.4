@@ -31,23 +31,32 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 3, 2008
+.Dd June 11, 2008
 .Dt IXGBE 4
 .Os
 .Sh NAME
 .Nm ixgbe
-.Nd "10 Gigabit Ethernet driver for the FreeBSD operating system"
+.Nd "Intel(R) 10Gb Ethernet driver for the FreeBSD operating system"
 .Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
 .Cd "device ixgbe"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_ixgbe_load="YES"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm
 driver provides support for PCI 10Gb Ethernet adapters based on
 the Intel 82598EB Intel(R) Network Connections.
 The driver supports Jumbo Frames, MSIX, TSO, and RSS.
-For a list of supported adapters, see the
-.Pa README
-included with the driver.
 .Pp
 For questions related to hardware requirements,
 refer to the documentation supplied with your Intel 10GbE adapter.
@@ -61,8 +70,8 @@ utility configures the adapter to receive and transmit Jumbo Frames.
 The maximum MTU size for Jumbo Frames is 16114.
 .Pp
 This driver version supports VLANs.
-For information on enabling VLANs, see the
-.Pa README .
+For information on enabling VLANs, see
+.Xr ifconfig 8 .
 .Sh HARDWARE
 The
 .Nm
@@ -73,9 +82,9 @@ driver supports the following cards:
 Intel(R) 10 Gigabit XF SR/AF Dual Port Server Adapter 
 .It
 Intel(R) 10 Gigabit XF SR/LR Server Adapter
-.IT
+.It
 Intel(R) 82598EB 10 Gigabit AF Network Connection
-.IT
+.It
 Intel(R) 82598EB 10 Gigabit AT CX4 Network Connection                  
 .El
 .Sh DIAGNOSTICS
@@ -89,10 +98,6 @@ The device has stopped responding to the network, or there is a problem with
 the network connection (cable).
 .El
 .Sh SUPPORT
-For additional information regarding building and installation,
-see the
-.Pa README
-included with the driver.
 For general information and support,
 go to the Intel support website at:
 .Pa http://support.intel.com .
@@ -103,7 +108,6 @@ issue to
 .Aq freebsdnic@mailbox.intel.com .
 .Sh SEE ALSO
 .Xr arp 4 ,
-.Xr gx 4 ,
 .Xr netintro 4 ,
 .Xr ng_ether 4 ,
 .Xr polling 4 ,
