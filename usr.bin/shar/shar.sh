@@ -72,7 +72,6 @@ do
 		echo "mkdir -p $i > /dev/null 2>&1"
 	else
 		md5sum=`echo -n $i | md5`
-		eofmarker="END-of-$md5sum"
 		echo "echo x - $i"
 		echo "sed 's/^X//' >$i << '$md5sum'"
 		sed 's/^/X/' $i || exit
