@@ -394,6 +394,13 @@ smc_detach(device_t dev)
 	smc_stop(sc);
 	SMC_UNLOCK(sc);
 
+	if (sc->smc_ifp != NULL) {
+		ether_ifdetach(sc->smc_ifp);
+	}
+	
+	callout_drain(&sc->smc_watchdog);
+	callout_drain(&sc->smc_mii_tick_ch);
+	
 #ifdef DEVICE_POLLING
 	if (sc->smc_ifp->if_capenable & IFCAP_POLLING)
 		ether_poll_deregister(sc->smc_ifp);
@@ -409,10 +416,8 @@ smc_detach(device_t dev)
 		taskqueue_free(sc->smc_tq);
 		sc->smc_tq = NULL;
 	}
-	
 
 	if (sc->smc_ifp != NULL) {
-		ether_ifdetach(sc->smc_ifp);
 		if_free(sc->smc_ifp);
 	}
 
