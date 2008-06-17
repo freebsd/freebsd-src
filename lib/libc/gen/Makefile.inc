@@ -21,7 +21,7 @@ SRCS+=  __getosreldate.c __xuname.c \
 	initgroups.c isatty.c isinf.c isnan.c jrand48.c lcong48.c \
 	lockf.c lrand48.c mrand48.c nftw.c nice.c \
 	nlist.c nrand48.c opendir.c \
-	pause.c pmadvise.c popen.c pselect.c \
+	pause.c pmadvise.c popen.c posix_spawn.c pselect.c \
 	psignal.c pw_scan.c pwcache.c \
 	raise.c readdir.c readpassphrase.c rewinddir.c \
 	scandir.c seed48.c seekdir.c sem.c semctl.c \
@@ -81,7 +81,7 @@ MLINKS+=err.3 err_set_exit.3 err.3 err_set_file.3 err.3 errc.3 err.3 errx.3 \
 	err.3 verr.3 err.3 verrc.3 err.3 verrx.3 err.3 vwarn.3 err.3 vwarnc.3 \
 	err.3 vwarnx.3 err.3 warnc.3 err.3 warn.3 err.3 warnx.3
 MLINKS+=exec.3 execl.3 exec.3 execle.3 exec.3 execlp.3 exec.3 exect.3 \
-	exec.3 execv.3 exec.3 execvp.3 exec.3 execvP.3
+	exec.3 execv.3 exec.3 execvP.3 exec.3 execvp.3 exec.3 execvpe.3
 MLINKS+=fpclassify.3 finite.3 fpclassify.3 finitef.3 \
 	fpclassify.3 isfinite.3 fpclassify.3 isinf.3 fpclassify.3 isnan.3 \
 	fpclassify.3 isnormal.3
