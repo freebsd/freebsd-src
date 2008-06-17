@@ -350,11 +350,7 @@ unpack(const char *pkg, const char *flist)
 	}
     }
     else
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 500039
 	comp = "-j";
-#else
-	comp = "-z";
-#endif
     if (vsystem("/usr/bin/tar -xp %s -f '%s' %s", comp, pkg, flist ? flist : "")) {
 	warnx("tar extract of %s failed!", pkg);
 	return 1;

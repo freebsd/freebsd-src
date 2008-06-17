@@ -72,11 +72,7 @@ fileGetURL(const char *base, const char *spec, int keep_package)
 		*(cp + 1) = '\0';
 		strcat(cp, "All/");
 		strcat(cp, spec);
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 500039
 		strcat(cp, ".tbz");
-#else
-		strcat(cp, ".tgz");
-#endif
 	    }
 	    else
 		return NULL;
@@ -88,11 +84,7 @@ fileGetURL(const char *base, const char *spec, int keep_package)
 	     */
 	    strcpy(fname, hint);
 	    strcat(fname, spec);
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 500039
 	    strcat(fname, ".tbz");
-#else
-	    strcat(fname, ".tgz");
-#endif
 	}
     }
     else
@@ -141,11 +133,7 @@ fileGetURL(const char *base, const char *spec, int keep_package)
 	for (fd = getdtablesize() - 1; fd >= 3; --fd)
 	    close(fd);
 	execl("/usr/bin/tar", "tar",
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 500039
 	    Verbose ? "-xpjvf" : "-xpjf",
-#else
-	    Verbose ? "-xpzvf" : "-xpzf",
-#endif
 	    "-", (char *)0);
 	_exit(2);
     }
