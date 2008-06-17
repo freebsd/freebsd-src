@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2008 Ed Schouten <ed@80386.nl>
+ * Copyright (c) 2008 Ed Schouten <ed@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
