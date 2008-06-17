@@ -73,7 +73,7 @@ __FBSDID("$FreeBSD$");
  */
 #define _PATH_PTCHOWN	"/usr/libexec/pt_chown"
 
-int
+static int
 __use_pts(void)
 {
 	int use_pts;
