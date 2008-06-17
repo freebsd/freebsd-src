@@ -140,20 +140,15 @@ execv(name, argv)
 int
 execvp(const char *name, char * const *argv)
 {
-	const char *path;
-
-	/* Get the path we're searching. */
-	if ((path = getenv("PATH")) == NULL)
-		path = _PATH_DEFPATH;
-
-	return (execvP(name, path, argv));
+	return (execvpe(name, argv, environ));
 }
 
-int
-execvP(name, path, argv)
+static int
+execvPe(name, path, argv, envp)
 	const char *name;
 	const char *path;
 	char * const *argv;
+	char * const *envp;
 {
 	char **memp;
 	int cnt, lp, ln;
@@ -268,4 +263,22 @@ retry:		(void)_execve(bp, argv, environ);
 		errno = ENOENT;
 done:
 	return (-1);
+}
+
+int
+execvP(const char *name, const char *path, char * const argv[])
+{
+	return execvPe(name, path, argv, environ);
+}
+
+int
+execvpe(const char *name, char * const argv[], char * const envp[])
+{
+	const char *path;
+
+	/* Get the path we're searching. */
+	if ((path = getenv("PATH")) == NULL)
+		path = _PATH_DEFPATH;
+
+	return (execvPe(name, path, argv, envp));
 }
