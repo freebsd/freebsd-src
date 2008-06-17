@@ -332,7 +332,8 @@ posix_spawn_file_actions_adddup2(posix_spawn_file_actions_t *fa,
 	return (0);
 }
 
-int posix_spawn_file_actions_addclose(posix_spawn_file_actions_t *fa,
+int
+posix_spawn_file_actions_addclose(posix_spawn_file_actions_t *fa,
     int fildes)
 {
 	posix_spawn_file_actions_entry_t *fae;
