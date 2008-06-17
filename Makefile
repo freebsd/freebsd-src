@@ -294,7 +294,7 @@ universe_${target}:
 	@echo ">> ${target} started on `LC_ALL=C date`"
 	-cd ${.CURDIR} && ${MAKE} ${JFLAG} buildworld \
 	    TARGET=${target} \
-	    __MAKE_CONF=/dev/null \
+	    __MAKE_CONF=/dev/null SRCCONF=/dev/null \
 	    > _.${target}.buildworld 2>&1
 	@echo ">> ${target} buildworld completed on `LC_ALL=C date`"
 .endif
@@ -306,7 +306,7 @@ universe_${target}:
 	-cd ${.CURDIR} && ${MAKE} ${JFLAG} buildkernel \
 	    TARGET=${target} \
 	    KERNCONF=${kernel} \
-	    __MAKE_CONF=/dev/null \
+	    __MAKE_CONF=/dev/null SRCCONF=/dev/null \
 	    > _.${target}.${kernel} 2>&1
 .endfor
 	@echo ">> ${target} completed on `LC_ALL=C date`"
