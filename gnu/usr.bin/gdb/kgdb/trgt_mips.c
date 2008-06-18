@@ -54,7 +54,7 @@ kgdb_trgt_fetch_registers(int regno __unused)
 	struct kthr *kt;
 	struct pcb pcb;
 
-	kt = kgdb_thr_lookup_tid(ptid_get_tid(inferior_ptid));
+	kt = kgdb_thr_lookup_tid(ptid_get_pid(inferior_ptid));
 	if (kt == NULL)
 		return;
 	if (kvm_read(kvm, kt->pcb, &pcb, sizeof(pcb)) != sizeof(pcb)) {
@@ -80,6 +80,11 @@ kgdb_trgt_store_registers(int regno __unused)
 {
 
 	fprintf_unfiltered(gdb_stderr, "XXX: %s\n", __func__);
+}
+
+void
+kgdb_trgt_new_objfile(struct objfile *objfile)
+{
 }
 
 struct kgdb_frame_cache {
