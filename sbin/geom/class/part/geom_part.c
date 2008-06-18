@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2007 Marcel Moolenaar
+ * Copyright (c) 2007, 2008 Marcel Moolenaar
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -108,6 +108,13 @@ struct g_command PUBSYM(class_commands)[] = {
 		G_OPT_SENTINEL },
 	  "geom", NULL
 	},
+	{ "set", 0, NULL, {
+		{ 'a', "attrib", NULL, G_TYPE_STRING },
+		{ 'i', index_param, NULL, G_TYPE_STRING },
+		{ 'f', "flags", flags, G_TYPE_STRING },
+		G_OPT_SENTINEL },
+	  "geom", NULL
+	},
 	{ "show", 0, gpart_show, {
 		{ 'l', "show_label", NULL, G_TYPE_BOOL },
 		{ 'r', "show_rawtype", NULL, G_TYPE_BOOL },
@@ -115,6 +122,13 @@ struct g_command PUBSYM(class_commands)[] = {
 	  NULL, "[-lr] [geom ...]"
 	},
 	{ "undo", 0, NULL, G_NULL_OPTS, "geom", NULL },
+	{ "unset", 0, NULL, {
+		{ 'a', "attrib", NULL, G_TYPE_STRING },
+		{ 'i', index_param, NULL, G_TYPE_STRING },
+		{ 'f', "flags", flags, G_TYPE_STRING },
+		G_OPT_SENTINEL },
+	  "geom", NULL
+        },
 	G_CMD_SENTINEL
 };
 
@@ -206,6 +220,19 @@ fmtsize(long double rawsz)
 	return (buf);
 }
 
+static const char *
+fmtattrib(struct gprovider *pp)
+{
+	static char buf[64];
+	const char *val;
+
+	val = find_provcfg(pp, "attrib");
+	if (val == NULL)
+		return ("");
+	snprintf(buf, sizeof(buf), " [%s] ", val);
+	return (buf);
+}
+
 static void
 gpart_show_geom(struct ggeom *gp, const char *element)
 {
@@ -244,10 +271,10 @@ gpart_show_geom(struct ggeom *gp, const char *element)
 			    wname, "",
 			    fmtsize((sector - first) * secsz));
 		}
-		printf("  %*llu  %*llu  %*d  %s  (%s)\n",
+		printf("  %*llu  %*llu  %*d  %s %s (%s)\n",
 		    wblocks, sector, wblocks, end - sector,
-		    wname, idx,
-		    find_provcfg(pp, element), fmtsize(pp->lg_mediasize));
+		    wname, idx, find_provcfg(pp, element),
+		    fmtattrib(pp), fmtsize(pp->lg_mediasize));
 		first = end;
 	}
 	if (first <= last) {
