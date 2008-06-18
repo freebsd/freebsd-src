@@ -1,5 +1,5 @@
 #-
-# Copyright (c) 2006, 2007 Marcel Moolenaar
+# Copyright (c) 2006-2008 Marcel Moolenaar
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -106,6 +106,14 @@ METHOD int probe {
 METHOD int read {
 	struct g_part_table *table;
 	struct g_consumer *cp;
+};
+
+# setunset() - set or unset partition entry attributes.
+METHOD int setunset {
+	struct g_part_table *table;
+	struct g_part_entry *entry;
+	const char *attrib;
+	unsigned int set;
 };
 
 # type() - return a string representation of the partition type.
