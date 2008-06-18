@@ -463,8 +463,10 @@ also parser definitions also
 
 : digit?
   line_pointer c@ >r
+  r@ [char] - =
   r@ [char] 0 >=
   r> [char] 9 <= and
+  or
 ;
 
 : quote?
