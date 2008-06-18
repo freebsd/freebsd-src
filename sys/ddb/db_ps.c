@@ -292,6 +292,7 @@ dumpthread(volatile struct proc *p, volatile struct thread *td, int all)
 DB_SHOW_COMMAND(thread, db_show_thread)
 {
 	struct thread *td;
+	struct lock_object *lock;
 	boolean_t comma;
 
 	/* Determine which thread to examine. */
@@ -299,6 +300,7 @@ DB_SHOW_COMMAND(thread, db_show_thread)
 		td = db_lookup_thread(addr, FALSE);
 	else
 		td = kdb_thread;
+	lock = (struct lock_object *)td->td_lock;
 
 	db_printf("Thread %d at %p:\n", td->td_tid, td);
 	db_printf(" proc (pid %d): %p\n", td->td_proc->p_pid, td->td_proc);
@@ -365,6 +367,7 @@ DB_SHOW_COMMAND(thread, db_show_thread)
 		db_printf(" wmesg: %s  wchan: %p\n", td->td_wmesg,
 		    td->td_wchan);
 	db_printf(" priority: %d\n", td->td_priority);
+	db_printf(" container lock: %s (%p)\n", lock->lo_name, lock);
 }
 
 DB_SHOW_COMMAND(proc, db_show_proc)
