@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Jun 6, 2008
+.Dd Jun 17, 2008
 .Dt GPART 8
 .Os
 .Sh NAME
@@ -106,6 +106,13 @@ utility:
 .Op Fl t Ar type
 .Op Fl f Ar flags
 .Ar geom
+.\" ==== SET ====
+.Nm
+.Cm set
+.Fl a Ar attrib
+.Fl i Ar index
+.Op Fl f Ar flags
+.Ar geom
 .\" ==== SHOW ====
 .Nm
 .Cm show
@@ -113,6 +120,13 @@ utility:
 .\" ==== UNDO ====
 .Nm
 .Cm undo
+.Ar geom
+.\" ==== UNSET ====
+.Nm
+.Cm unset 
+.Fl a Ar attrib
+.Fl i Ar index
+.Op Fl f Ar flags
 .Ar geom
 .\"
 .Sh DESCRIPTION
@@ -181,6 +195,14 @@ The partition is specified by the
 .Fl i Ar index
 option.
 The size of the file must be smaller than the size of the partition.
+.Pp
+Addition options include:
+.Bl -tag -width ".Fl w Ar wwwwwww"
+.It Fl f Ar flags
+Additional operational flags.
+See the section entitled "Operational flags" below for a discussion
+about its use.
+.El
 .\" ==== COMMIT ====
 .It Cm commit
 Commit any pending changes for geom
@@ -275,6 +297,17 @@ Additional operational flags.
 See the section entitled "Operational flags" below for a discussion
 about its use.
 .El
+.\" ==== SET ====
+.It Cm set
+Set the named attribute on the partition entry.
+.Pp
+Addition options include:
+.Bl -tag -width ".Fl w Ar wwwwwww"
+.It Fl f Ar flags
+Additional operational flags.
+See the section entitled "Operational flags" below for a discussion
+about its use.
+.El
 .\" ==== SHOW ====
 .It Cm show
 Show the current partition information of the specified geoms
@@ -285,7 +318,19 @@ Revert any pending changes.
 This action is the opposite of the
 .Cm commit
 action and can be used to undo any changes that have not been committed.
+.\" ==== UNSET ====
+.It Cm unset
+Clear the named attribute on the partition entry.
+.Pp
+Addition options include:
+.Bl -tag -width ".Fl w Ar wwwwwww"
+.It Fl f Ar flags
+Additional operational flags.
+See the section entitled "Operational flags" below for a discussion
+about its use.
 .El
+.El
+.\"
 .Sh PARTITION TYPES
 The
 .Nm
@@ -312,6 +357,9 @@ This is a legacy partition type and should not be used for the APM
 or GPT schemes.
 The scheme-specific types are "!165" for MBR, "!FreeBSD" for APM, and
 "!516e7cb4-6ecf-11d6-8ff8-00022d09712b" for GPT.
+.It freebsd-boot
+A FreeBSD partition dedicated to bootstrap code.
+The scheme-specific type is "!83bd6b9d-7f41-11dc-be0b-001560b84f0f" for GPT.
 .It freebsd-swap
 A FreeBSD partition dedicated to swap space.
 The scheme-specific types are "!FreeBSD-swap" for APM, and
@@ -324,6 +372,10 @@ the scheme-specific types are "!FreeBSD-UFS" for APM, and
 A FreeBSD partition that contains a Vinum volume.
 The scheme-specific types are "!FreeBSD-Vinum" for APM, and
 "!516e7cb8-6ecf-11d6-8ff8-00022d09712b" for GPT.
+.It freebsd-zfs
+A FreeBSD partition that contains a ZFS volume.
+The scheme-specific types are "!FreeBSD-ZFS" for APM, and
+"!516e7cba-6ecf-11d6-8ff8-00022d09712b" for GPT.
 .It mbr
 A partition that is sub-partitioned by a master boot record (MBR).
 This type is known as "!024dee41-33e7-11d3-9d69-0008c781f39f" by GPT.
@@ -360,11 +412,5 @@ The
 .Nm
 utility appeared in
 .Fx 7.0 .
-.Sh BUGS
-The MBR partitioning scheme cannot yet be used to create a bootable
-MBR. 
-.Pp
-Support for the PC98 or Sun partitioning schemes is not yet present.
-The BSD disklabel is also not supported yet.
 .Sh AUTHORS
 .An Marcel Moolenaar Aq marcel@FreeBSD.org
