@@ -5,6 +5,7 @@ NO_MAN=
 
 SRCS=	get_window_size.c \
 	getarg.c \
+	roken.h \
 	slc-gram.y \
 	slc-lex.l \
 	slc.h \
