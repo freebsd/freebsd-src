@@ -785,6 +785,7 @@ dev/mfi/mfi_linux.c		optional mfi compat_linux
 dev/mfi/mfi_cam.c		optional mfip scbus
 dev/mii/acphy.c			optional miibus | acphy
 dev/mii/amphy.c			optional miibus | amphy
+dev/mii/atphy.c			optional miibus | atphy
 dev/mii/bmtphy.c		optional miibus | bmtphy
 dev/mii/brgphy.c		optional miibus | brgphy
 dev/mii/ciphy.c			optional miibus | ciphy
