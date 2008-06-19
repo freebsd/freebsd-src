@@ -24,7 +24,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/taskqueue.h>
 #include <sys/fcntl.h>
 #include <sys/jail.h>
-#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/sx.h>
@@ -80,13 +79,11 @@ SYSCTL_INT(_security_jail, OID_AUTO, mount_allowed, CTLFLAG_RW,
     &jail_mount_allowed, 0,
     "Processes in jail can mount/unmount jail-friendly file systems");
 
-/* allprison and prisoncount are protected by allprison_lock. */
+/* allprison, lastprid, and prisoncount are protected by allprison_lock. */
+struct	prisonlist allprison;
 struct	sx allprison_lock;
-SX_SYSINIT(allprison_lock, &allprison_lock, "allprison");
-struct	prisonlist allprison = LIST_HEAD_INITIALIZER(allprison);
+int	lastprid = 0;
 int	prisoncount = 0;
-/* Prison number allocation */
-static struct unrhdr *prison_numpool;
 
 /*
  * List of jail services. Protected by allprison_lock.
@@ -112,7 +109,8 @@ static void
 init_prison(void *data __unused)
 {
 
-	prison_numpool = new_unrhdr(1, INT_MAX, NULL);
+	sx_init(&allprison_lock, "allprison");
+	LIST_INIT(&allprison);
 }
 
 SYSINIT(prison, SI_SUB_INTRINSIC, SI_ORDER_ANY, init_prison, NULL);
@@ -126,11 +124,11 @@ int
 jail(struct thread *td, struct jail_args *uap)
 {
 	struct nameidata nd;
-	struct prison *pr;
+	struct prison *pr, *tpr;
 	struct prison_service *psrv;
 	struct jail j;
 	struct jail_attach_args jaa;
-	int vfslocked, error, prid;
+	int vfslocked, error, tryprid;
 
 	error = copyin(uap->jail, &j, sizeof(j));
 	if (error)
@@ -138,15 +136,9 @@ jail(struct thread *td, struct jail_args *uap)
 	if (j.version != 0)
 		return (EINVAL);
 
-	/* Allocate prison number */
-	prid = alloc_unr(prison_numpool);
-	if (prid == -1)
-		return (EAGAIN);
-
 	MALLOC(pr, struct prison *, sizeof(*pr), M_PRISON, M_WAITOK | M_ZERO);
 	mtx_init(&pr->pr_mtx, "jail mutex", NULL, MTX_DEF);
 	pr->pr_ref = 1;
-	pr->pr_id = jaa.jid = prid;
 	error = copyinstr(j.path, &pr->pr_path, sizeof(pr->pr_path), 0);
 	if (error)
 		goto e_killmtx;
@@ -173,8 +165,24 @@ jail(struct thread *td, struct jail_args *uap)
 		    M_PRISON, M_ZERO | M_WAITOK);
 	}
 
-	/* Add prison to allprison list. */
+	/* Determine next pr_id and add prison to allprison list. */
 	sx_xlock(&allprison_lock);
+	tryprid = lastprid + 1;
+	if (tryprid == JAIL_MAX)
+		tryprid = 1;
+next:
+	LIST_FOREACH(tpr, &allprison, pr_list) {
+		if (tpr->pr_id == tryprid) {
+			tryprid++;
+			if (tryprid == JAIL_MAX) {
+				sx_xunlock(&allprison_lock);
+				error = EAGAIN;
+				goto e_dropvnref;
+			}
+			goto next;
+		}
+	}
+	pr->pr_id = jaa.jid = lastprid = tryprid;
 	LIST_INSERT_HEAD(&allprison, pr, pr_list);
 	prisoncount++;
 	sx_downgrade(&allprison_lock);
@@ -206,7 +214,6 @@ e_dropvnref:
 	VFS_UNLOCK_GIANT(vfslocked);
 e_killmtx:
 	mtx_destroy(&pr->pr_mtx);
-	free_unr(prison_numpool, pr->pr_id);
 	FREE(pr, M_PRISON);
 	return (error);
 }
@@ -340,7 +347,6 @@ prison_complete(void *context, int pending)
 	mtx_destroy(&pr->pr_mtx);
 	if (pr->pr_linux != NULL)
 		FREE(pr->pr_linux, M_PRISON);
-	free_unr(prison_numpool, pr->pr_id);
 	FREE(pr, M_PRISON);
 }
 
