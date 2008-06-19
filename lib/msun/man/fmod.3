@@ -28,12 +28,13 @@
 .\"     from: @(#)fmod.3	5.1 (Berkeley) 5/2/91
 .\" $FreeBSD$
 .\"
-.Dd May 2, 1991
+.Dd June 19, 2008
 .Dt FMOD 3
 .Os
 .Sh NAME
 .Nm fmod ,
-.Nm fmodf
+.Nm fmodf ,
+.Nm fmodl
 .Nd floating-point remainder functions
 .Sh LIBRARY
 .Lb libm
@@ -43,41 +44,44 @@
 .Fn fmod "double x" "double y"
 .Ft float
 .Fn fmodf "float x" "float y"
+.Ft long double
+.Fn fmodl "long double x" "long double y"
 .Sh DESCRIPTION
 The
-.Fn fmod
-and the
-.Fn fmodf
+.Fn fmod ,
+.Fn fmodf ,
+and
+.Fn fmodl
 functions compute the floating-point remainder of
 .Fa x Ns / Fa y .
 .Sh RETURN VALUES
-The
-.Fn fmod
-and the
-.Fn fmodf
+If
+.Fa y
+is non-zero, the
+.Fn fmod ,
+.Fn fmodf ,
+and
+.Fn fmodl
 functions return the value
 .Sm off
 .Fa x - Em i * Fa y ,
 .Sm on
 for some integer
-.Em i
-such that, if
-.Fa y
-is non-zero, the result has the same sign as
+.Em i ,
+such that the result has the same sign as
 .Fa x
 and magnitude less than the magnitude of
 .Fa y .
 If
 .Fa y
-is zero, whether a domain error occurs or the
-.Fn fmod
-and the
-.Fn fmodf
-function returns zero is implementation-defined.
+is zero, a \*(Na is produced.
 .Sh SEE ALSO
 .Xr math 3
 .Sh STANDARDS
 The
-.Fn fmod
-function conforms to
-.St -isoC .
+.Fn fmod ,
+.Fn fmodf ,
+and
+.Fn fmodl
+functions conform to
+.St -isoC-99 .

@@ -208,4 +208,5 @@ FBSD_1.1 {
 	csqrtl;
 	remquol;
 	remainderl;
+	fmodl;
 };
