@@ -1141,7 +1141,7 @@ dc_setfilt_21143(struct dc_softc *sc)
 static void
 dc_setfilt_admtek(struct dc_softc *sc)
 {
-	uint32_t eaddr[(ETHER_ADDR_LEN+3)/4];
+	uint8_t eaddr[ETHER_ADDR_LEN];
 	struct ifnet *ifp;
 	struct ifmultiaddr *ifma;
 	int h = 0;
@@ -1151,8 +1151,9 @@ dc_setfilt_admtek(struct dc_softc *sc)
 
 	/* Init our MAC address. */
 	bcopy(IF_LLADDR(sc->dc_ifp), eaddr, ETHER_ADDR_LEN);
-	CSR_WRITE_4(sc, DC_AL_PAR0, eaddr[0]);
-	CSR_WRITE_4(sc, DC_AL_PAR1, eaddr[1]);
+	CSR_WRITE_4(sc, DC_AL_PAR0, eaddr[3] << 24 | eaddr[2] << 16 |
+	    eaddr[1] << 8 | eaddr[0]);
+	CSR_WRITE_4(sc, DC_AL_PAR1, eaddr[5] << 8 | eaddr[4]);
 
 	/* If we want promiscuous mode, set the allframes bit. */
 	if (ifp->if_flags & IFF_PROMISC)
@@ -1812,7 +1813,7 @@ dc_attach(device_t dev)
 	u_int32_t command;
 	struct dc_softc *sc;
 	struct ifnet *ifp;
-	u_int32_t revision;
+	u_int32_t reg, revision;
 	int error = 0, rid, mac_offset;
 	int i;
 	u_int8_t *mac;
@@ -2052,8 +2053,15 @@ dc_attach(device_t dev)
 		break;
 	case DC_TYPE_AL981:
 	case DC_TYPE_AN985:
-		eaddr[0] = CSR_READ_4(sc, DC_AL_PAR0);
-		eaddr[1] = CSR_READ_4(sc, DC_AL_PAR1);
+		reg = CSR_READ_4(sc, DC_AL_PAR0);
+		mac = (uint8_t *)&eaddr[0];
+		mac[0] = (reg >> 0) & 0xff;
+		mac[1] = (reg >> 8) & 0xff;
+		mac[2] = (reg >> 16) & 0xff;
+		mac[3] = (reg >> 24) & 0xff;
+		reg = CSR_READ_4(sc, DC_AL_PAR1);
+		mac[4] = (reg >> 0) & 0xff;
+		mac[5] = (reg >> 8) & 0xff;
 		break;
 	case DC_TYPE_CONEXANT:
 		bcopy(sc->dc_srom + DC_CONEXANT_EE_NODEADDR, &eaddr,
