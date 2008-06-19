@@ -612,29 +612,29 @@ run_rc_command()
 		fi
 	fi
 
-					# if ${rcvar} is set, and $1 is not
-					# "rcvar", then run
-					#	checkyesno ${rcvar}
-					# and return if that failed
-					#
-	if [ -n "${rcvar}" -a "$rc_arg" != "rcvar" ]; then
-		if ! checkyesno ${rcvar}; then
-			if [ -n "${rc_quiet}" ]; then
-				return 0
-			fi
-			echo -n "Cannot '${rc_arg}' $name. Set ${rcvar} to "
-			echo -n "YES in /etc/rc.conf or use 'one${rc_arg}' "
-			echo "instead of '${rc_arg}'."
-			return 0
-		fi
-	fi
-
 	eval $_pidcmd			# determine the pid if necessary
 
 	for _elem in $_keywords; do
 		if [ "$_elem" != "$rc_arg" ]; then
 			continue
 		fi
+					# if ${rcvar} is set, and $1 is not
+					# "rcvar", then run
+					#	checkyesno ${rcvar}
+					# and return if that failed
+					#
+		if [ -n "${rcvar}" -a "$rc_arg" != "rcvar" ]; then
+			if ! checkyesno ${rcvar}; then
+				if [ -n "${rc_quiet}" ]; then
+					return 0
+				fi
+				echo -n "Cannot '${rc_arg}' $name. Set ${rcvar} to "
+				echo -n "YES in /etc/rc.conf or use 'one${rc_arg}' "
+				echo "instead of '${rc_arg}'."
+				return 0
+			fi
+		fi
+
 					# if there's a custom ${XXX_cmd},
 					# run that instead of the default
 					#
