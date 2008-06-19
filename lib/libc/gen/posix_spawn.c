@@ -92,27 +92,6 @@ process_spawnattr(const posix_spawnattr_t sa)
 	 * are mentioned.
 	 */
 
-	/* Set signal masks/defaults */
-	if (sa->sa_flags & POSIX_SPAWN_SETSIGMASK) {
-		_sigprocmask(SIG_SETMASK, &sa->sa_sigmask, NULL);
-	}
-
-	if (sa->sa_flags & POSIX_SPAWN_SETSIGDEF) {
-		for (i = 1; i <= _SIG_MAXSIG; i++) {
-			if (sigismember(&sa->sa_sigdefault, i))
-				if (_sigaction(i, &sigact, NULL) != 0)
-					return (errno);
-		}
-	}
-
-	/* Reset user ID's */
-	if (sa->sa_flags & POSIX_SPAWN_RESETIDS) {
-		if (setegid(getgid()) != 0)
-			return (errno);
-		if (seteuid(getuid()) != 0)
-			return (errno);
-	}
-
 	/* Set process group */
 	if (sa->sa_flags & POSIX_SPAWN_SETPGROUP) {
 		if (setpgid(0, sa->sa_pgroup) != 0)
@@ -128,6 +107,28 @@ process_spawnattr(const posix_spawnattr_t sa)
 		if (sched_setparam(0, &sa->sa_schedparam) != 0)
 			return (errno);
 	}
+
+	/* Reset user ID's */
+	if (sa->sa_flags & POSIX_SPAWN_RESETIDS) {
+		if (setegid(getgid()) != 0)
+			return (errno);
+		if (seteuid(getuid()) != 0)
+			return (errno);
+	}
+
+	/* Set signal masks/defaults */
+	if (sa->sa_flags & POSIX_SPAWN_SETSIGMASK) {
+		_sigprocmask(SIG_SETMASK, &sa->sa_sigmask, NULL);
+	}
+
+	if (sa->sa_flags & POSIX_SPAWN_SETSIGDEF) {
+		for (i = 1; i <= _SIG_MAXSIG; i++) {
+			if (sigismember(&sa->sa_sigdefault, i))
+				if (_sigaction(i, &sigact, NULL) != 0)
+					return (errno);
+		}
+	}
+
 	return (0);
 }
 
