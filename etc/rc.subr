@@ -942,6 +942,10 @@ load_rc_config()
 		debug "Sourcing /etc/rc.conf.d/${_name}"
 		. /etc/rc.conf.d/"$_name"
 	fi
+
+	# Old variable names support
+	#
+	[ -n "$enable_quotas" ] && quota_enable="$enable_quotas"
 }
   
 #

@@ -13,7 +13,7 @@
 . /etc/rc.subr
 
 name="quota"
-rcvar="enable_quotas"
+rcvar=`set_rcvar`
 start_cmd="quota_start"
 stop_cmd="/usr/sbin/quotaoff ${quotaoff_flags}"
 
