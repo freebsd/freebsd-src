@@ -79,7 +79,7 @@ SYMBOL_MAPS=	${SYM_MAPS}
 COMMON_SRCS+=	s_copysignl.c s_fabsl.c s_llrintl.c s_lrintl.c s_modfl.c
 .if ${LDBL_PREC} != 53
 # If long double != double use these; otherwise, we alias the double versions.
-COMMON_SRCS+=	e_hypotl.c e_remainderl.c e_sqrtl.c \
+COMMON_SRCS+=	e_fmodl.c e_hypotl.c e_remainderl.c e_sqrtl.c \
 	k_cosl.c k_sinl.c k_tanl.c \
 	s_ceill.c s_cosl.c s_csqrtl.c s_exp2l.c s_floorl.c s_fmal.c \
 	s_frexpl.c s_logbl.c s_nanl.c s_nextafterl.c s_nexttoward.c \
@@ -145,7 +145,7 @@ MLINKS+=floor.3 floorf.3 floor.3 floorl.3
 MLINKS+=fma.3 fmaf.3 fma.3 fmal.3
 MLINKS+=fmax.3 fmaxf.3 fmax.3 fmaxl.3 \
 	fmax.3 fmin.3 fmax.3 fminf.3 fmax.3 fminl.3
-MLINKS+=fmod.3 fmodf.3
+MLINKS+=fmod.3 fmodf.3 fmod.3 fmodl.3
 MLINKS+=hypot.3 cabs.3 hypot.3 cabsf.3 hypot.3 cabsl.3 \
 	hypot.3 hypotf.3 hypot.3 hypotl.3
 MLINKS+=ieee_test.3 scalb.3 ieee_test.3 scalbf.3
