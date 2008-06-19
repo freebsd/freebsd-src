@@ -63,13 +63,16 @@ typedef struct __posix_spawn_file_actions	*posix_spawn_file_actions_t;
 __BEGIN_DECLS
 /*
  * Spawn routines
+ *
+ * XXX both arrays should be __restrict, but this does not work when GCC
+ * is invoked with -std=c99.
  */
 int posix_spawn(pid_t * __restrict, const char * __restrict,
     const posix_spawn_file_actions_t *, const posix_spawnattr_t * __restrict,
-    char * const [__restrict], char * const [__restrict]);
+    char * const [], char * const []);
 int posix_spawnp(pid_t * __restrict, const char * __restrict,
     const posix_spawn_file_actions_t *, const posix_spawnattr_t * __restrict,
-    char * const [__restrict], char * const [__restrict]);
+    char * const [], char * const []);
 
 /*
  * File descriptor actions
