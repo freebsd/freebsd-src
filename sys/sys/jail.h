@@ -41,6 +41,8 @@ int jail_attach(int);
 #include <sys/_mutex.h>
 #include <sys/_task.h>
 
+#define JAIL_MAX	999999
+
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_PRISON);
 #endif
