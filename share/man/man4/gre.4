@@ -36,7 +36,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 9, 2002
+.Dd June 20, 2008
 .Dt GRE 4
 .Os
 .Sh NAME
@@ -167,6 +167,12 @@ internal route search for the remote tunnel endpoint, see the
 section below.
 .It Dv GREGPROTO
 Query operation mode.
+.It Dv GRESKEY
+Set the GRE key used for outgoing packets.
+A value of 0 disables the key option.
+.It Dv GREGKEY
+Get the GRE key currently used for outgoing packets.
+0 means no outgoing key.
 .El
 .Pp
 Note that the IP addresses of the tunnel endpoints may be the same as the
@@ -264,6 +270,7 @@ section below) may (and probably should) be set.
 The MTU of
 .Nm
 interfaces is set to 1476 by default, to match the value used by Cisco routers.
+If grekey is set this is lowered to 1472.
 This may not be an optimal value, depending on the link between the two tunnel
 endpoints.
 It can be adjusted via
@@ -332,4 +339,9 @@ over the
 .Nm
 interface itself.
 .Pp
-The GRE RFCs are not yet fully implemented (no GRE options).
+The current implementation uses the key only for outgoing packets.
+Incomming packets with a different key or without a key will be treated as if they
+would belong to this interface.
+.Pp
+RFC1701 is not fully supported, however all unsupported features have been
+deprecated in RFC2784. 

@@ -51,6 +51,7 @@ static const char rcsid[] =
 
 #include <net/ethernet.h>
 #include <net/if.h>
+#include <net/if_gre.h>
 #include <net/if_var.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
@@ -749,6 +750,18 @@ setifmtu(const char *val, int dummy __unused, int s,
 }
 
 static void
+setifgrekey(const char *val, int dummy __unused, int s, 
+    const struct afswtch *afp)
+{
+	uint32_t grekey = atol(val);
+
+	strncpy(ifr.ifr_name, name, sizeof (ifr.ifr_name));
+	ifr.ifr_data = (caddr_t)&grekey;
+	if (ioctl(s, GRESKEY, (caddr_t)&ifr) < 0)
+		warn("ioctl (set grekey)");
+}
+
+static void
 setifname(const char *val, int dummy __unused, int s, 
     const struct afswtch *afp)
 {
@@ -862,6 +875,12 @@ status(const struct afswtch *afp, const struct sockaddr_dl *sdl,
 	strncpy(ifs.ifs_name, name, sizeof ifs.ifs_name);
 	if (ioctl(s, SIOCGIFSTATUS, &ifs) == 0) 
 		printf("%s", ifs.ascii);
+
+	int grekey = 0;
+	ifr.ifr_data = (caddr_t)&grekey;
+	if (ioctl(s, GREGKEY, &ifr) == 0)
+		if (grekey != 0)
+			printf("\tgrekey: %d\n", grekey);
 
 	close(s);
 	return;
@@ -1034,6 +1053,7 @@ static struct cmd basic_cmds[] = {
 	DEF_CMD("noicmp",	IFF_LINK1,	setifflags),
 	DEF_CMD_ARG("mtu",			setifmtu),
 	DEF_CMD_ARG("name",			setifname),
+	DEF_CMD_ARG("grekey",			setifgrekey),
 };
 
 static __constructor void
