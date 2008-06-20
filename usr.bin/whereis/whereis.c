@@ -329,9 +329,28 @@ defaults(void)
 		if ((dir = opendir(PATH_PORTS)) == NULL)
 			err(EX_OSERR, "opendir" PATH_PORTS ")");
 		while ((dirp = readdir(dir)) != NULL) {
+			/*
+			 * Not everything below PATH_PORTS is of
+			 * interest.  First, all dot files and
+			 * directories (e. g. .snap) can be ignored.
+			 * Also, all subdirectories starting with a
+			 * capital letter are not going to be
+			 * examined, as they are used for internal
+			 * purposes (Mk, Tools, ...).  This also
+			 * matches a possible CVS subdirectory.
+			 * Finally, the distfiles subdirectory is also
+			 * special, and should not be considered to
+			 * avoid false matches.
+			 */
 			if (dirp->d_name[0] == '.' ||
-			    strcmp(dirp->d_name, "CVS") == 0)
-				/* ignore dot entries and CVS subdir */
+			    /*
+			     * isupper() not used on purpose: the
+			     * check is supposed to default to the C
+			     * locale instead of the current user's
+			     * locale.
+			     */
+			    (dirp->d_name[0] >= 'A' && dirp->d_name[0] <= 'Z') ||
+			    strcmp(dirp->d_name, "distfiles") == 0)
 				continue;
 			if ((b = malloc(sizeof PATH_PORTS + 1 + dirp->d_namlen))
 			    == NULL)
