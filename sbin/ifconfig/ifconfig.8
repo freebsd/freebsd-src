@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd April 11, 2008
+.Dd June 20, 2008
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -2009,6 +2009,16 @@ interfaces previously configured with
 Another name for the
 .Fl tunnel
 parameter.
+.El
+.Pp
+The following parameters are specific to GRE tunnel interfaces,
+.Xr gre 4 :
+.Bl -tag -width indent
+.It Cm grekey Ar key
+Configure the GRE key to be used for outgoing packets.
+Note that
+.Xr gre 4 will always accept GRE packets with invalid or absent keys.
+This command will result in a four byte MTU reduction on the interface.
 .El
 .Pp
 The following parameters are specific to

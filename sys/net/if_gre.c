@@ -204,6 +204,7 @@ gre_clone_create(ifc, unit, params)
 	sc->called = 0;
 	sc->gre_fibnum = curthread->td_proc->p_fibnum;
 	sc->wccp_ver = WCCP_V1;
+	sc->key = 0;
 	if_attach(GRE2IFP(sc));
 	bpfattach(GRE2IFP(sc), DLT_NULL, sizeof(u_int32_t));
 	mtx_lock(&gre_mtx);
@@ -383,7 +384,12 @@ gre_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 			error = EAFNOSUPPORT;
 			goto end;
 		}
-		M_PREPEND(m, sizeof(struct greip), M_DONTWAIT);
+			
+		/* Reserve space for GRE header + optional GRE key */
+		int hdrlen = sizeof(struct greip);
+		if (sc->key)
+			hdrlen += sizeof(uint32_t);
+		M_PREPEND(m, hdrlen, M_DONTWAIT);
 	} else {
 		_IF_DROP(&ifp->if_snd);
 		m_freem(m);
@@ -401,9 +407,18 @@ gre_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 
 	gh = mtod(m, struct greip *);
 	if (sc->g_proto == IPPROTO_GRE) {
-		/* we don't have any GRE flags for now */
+		uint32_t *options = gh->gi_options;
+
 		memset((void *)gh, 0, sizeof(struct greip));
 		gh->gi_ptype = htons(etype);
+		gh->gi_flags = 0;
+
+		/* Add key option */
+		if (sc->key)
+		{
+			gh->gi_flags |= htons(GRE_KP);
+			*(options++) = htonl(sc->key);
+		}
 	}
 
 	gh->gi_pr = sc->g_proto;
@@ -444,10 +459,12 @@ gre_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	int s;
 	struct sockaddr_in si;
 	struct sockaddr *sa = NULL;
-	int error;
+	int error, adj;
 	struct sockaddr_in sp, sm, dp, dm;
+	uint32_t key;
 
 	error = 0;
+	adj = 0;
 
 	s = splnet();
 	switch (cmd) {
@@ -722,6 +739,30 @@ gre_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		si.sin_addr.s_addr = sc->g_dst.s_addr;
 		bcopy(&si, &ifr->ifr_addr, sizeof(ifr->ifr_addr));
 		break;
+	case GRESKEY:
+		error = priv_check(curthread, PRIV_NET_GRE);
+		if (error)
+			break;
+		error = copyin(ifr->ifr_data, &key, sizeof(key));
+		if (error)
+			break;
+		/* adjust MTU for option header */
+		if (key == 0 && sc->key != 0)		/* clear */
+			adj += sizeof(key);
+		else if (key != 0 && sc->key == 0)	/* set */
+			adj -= sizeof(key);
+
+		if (ifp->if_mtu + adj < 576) {
+			error = EINVAL;
+			break;
+		}
+		ifp->if_mtu += adj;
+		sc->key = key;
+		break;
+	case GREGKEY:
+		error = copyout(&sc->key, ifr->ifr_data, sizeof(sc->key));
+		break;
+
 	default:
 		error = EINVAL;
 		break;
