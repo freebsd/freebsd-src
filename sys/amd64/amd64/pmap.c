@@ -1673,7 +1673,7 @@ pmap_release(pmap_t pmap)
 static int
 kvm_size(SYSCTL_HANDLER_ARGS)
 {
-	unsigned long ksize = VM_MAX_KERNEL_ADDRESS - KERNBASE;
+	unsigned long ksize = VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS;
 
 	return sysctl_handle_long(oidp, &ksize, 0, req);
 }
@@ -1703,7 +1703,7 @@ pmap_growkernel(vm_offset_t addr)
 
 	mtx_assert(&kernel_map->system_mtx, MA_OWNED);
 	if (kernel_vm_end == 0) {
-		kernel_vm_end = KERNBASE;
+		kernel_vm_end = VM_MIN_KERNEL_ADDRESS;
 		nkpt = 0;
 		while ((*pmap_pde(kernel_pmap, kernel_vm_end) & PG_V) != 0) {
 			kernel_vm_end = (kernel_vm_end + PAGE_SIZE * NPTEPG) & ~(PAGE_SIZE * NPTEPG - 1);
