@@ -83,6 +83,7 @@ SUBDIR=	${_3dfx} \
 	${_em} \
 	en \
 	${_ep} \
+	${_et} \
 	${_ex} \
 	${_exca} \
 	${_ext2fs} \
@@ -396,6 +397,7 @@ _ed=		ed
 _elink=		elink
 _em=		em
 _ep=		ep
+_et=		et
 _exca=		exca
 _ext2fs=	ext2fs
 _fe=		fe
@@ -528,6 +530,7 @@ _drm=		drm
 _dtrace=	dtrace
 .endif
 _ed=		ed
+_et=		et
 _em=		em
 _exca=		exca
 _ext2fs=	ext2fs
