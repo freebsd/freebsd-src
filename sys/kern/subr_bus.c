@@ -2324,7 +2324,7 @@ device_set_driver(device_t dev, driver_t *driver)
 }
 
 /**
- * @brief Probe a device and attach a driver if possible
+ * @brief Probe a device, and return this status.
  *
  * This function is the core of the device autoconfiguration
  * system. Its purpose is to select a suitable driver for a device and
@@ -2348,23 +2348,24 @@ device_set_driver(device_t dev, driver_t *driver)
  * @retval ENXIO	no driver was found
  * @retval ENOMEM	memory allocation failure
  * @retval non-zero	some other unix error code
+ * @retval -1		Device already attached
  */
 int
-device_probe_and_attach(device_t dev)
+device_probe(device_t dev)
 {
 	int error;
 
 	GIANT_REQUIRED;
 
 	if (dev->state >= DS_ALIVE && (dev->flags & DF_REBID) == 0)
-		return (0);
+		return (-1);
 
 	if (!(dev->flags & DF_ENABLED)) {
 		if (bootverbose && device_get_name(dev) != NULL) {
 			device_print_prettyname(dev);
 			printf("not probed (disabled)\n");
 		}
-		return (0);
+		return (-1);
 	}
 	if ((error = device_probe_child(dev->parent, dev)) != 0) {
 		if (!(dev->flags & DF_DONENOMATCH)) {
@@ -2374,9 +2375,27 @@ device_probe_and_attach(device_t dev)
 		}
 		return (error);
 	}
-	error = device_attach(dev);
+	return (0);
+}
 
-	return (error);
+/**
+ * @brief Probe a device and attach a driver if possible
+ *
+ * calls device_probe() and attaches if that was successful.
+ */
+int
+device_probe_and_attach(device_t dev)
+{
+	int error;
+
+	GIANT_REQUIRED;
+
+	error = device_probe(dev);
+	if (error == -1)
+		return (0);
+	else if (error != 0)
+		return (error);
+	return (device_attach(dev));
 }
 
 /**

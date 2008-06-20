@@ -414,6 +414,7 @@ int	device_is_enabled(device_t dev);
 int	device_is_quiet(device_t dev);
 int	device_print_prettyname(device_t dev);
 int	device_printf(device_t dev, const char *, ...) __printflike(2, 3);
+int	device_probe(device_t dev);
 int	device_probe_and_attach(device_t dev);
 int	device_probe_child(device_t bus, device_t dev);
 int	device_quiesce(device_t dev);
