@@ -93,7 +93,7 @@ atomicity.cc:	${ATOMICITY_H}
 CLEANFILES+=	atomicity.cc
 
 INCSGROUPS=	BITSHDRS BKWHDRS EXTHDRS BASEHDRS BASEXHDRS STDHDRS \
-		TARGETHDRS THRHDRS DEBUGHDRS TR1HDRS PBHDRS0
+		TARGETHDRS THRHDRS DEBUGHDRS TR1HDRS PBHDRS0 PBHDRS1
 CXXINCLUDEDIR=	${INCLUDEDIR}/c++/4.2
 
 STDHDRS=	std_algorithm.h std_bitset.h std_complex.h std_deque.h \
@@ -207,6 +207,20 @@ PBHDRS0 = \
 	trie_policy.hpp
 PBHDRS0:=	${PBHDRS0:S;^;${SRCDIR}/include/ext/pb_ds/;}
 PBHDRS0DIR=	${CXXINCLUDEDIR}/ext/pb_ds
+
+PBHDRS1 = \
+	basic_types.hpp \
+	cond_dealtor.hpp \
+	constructors_destructor_fn_imps.hpp \
+	container_base_dispatch.hpp \
+	map_debug_base.hpp \
+	priority_queue_base_dispatch.hpp \
+	standard_policies.hpp \
+	tree_trace_base.hpp \
+	type_utils.hpp \
+	types_traits.hpp
+PBHDRS1:=	${PBHDRS1:S;^;${SRCDIR}/include/ext/pb_ds/detail/;}
+PBHDRS1DIR=	${CXXINCLUDEDIR}/ext/pb_ds/detail
 
 PBHDRS+= \
 	basic_tree_policy/basic_tree_policy_base.hpp \
