@@ -605,7 +605,7 @@ trap_pfault(frame, usermode)
 	vm_offset_t eva = frame->tf_addr;
 
 	va = trunc_page(eva);
-	if (va >= KERNBASE) {
+	if (va >= VM_MIN_KERNEL_ADDRESS) {
 		/*
 		 * Don't allow user-mode faults in kernel address space.
 		 */
