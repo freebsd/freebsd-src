@@ -1876,6 +1876,7 @@ device		bge		# Broadcom BCM570xx Gigabit Ethernet
 device		cxgb		# Chelsio T3 10 Gigabit Ethernet
 device		cxgb_t3fw	# Chelsio T3 10 Gigabit Ethernet firmware
 device		dc		# DEC/Intel 21143 and various workalikes
+device		et		# Agere ET1310 10/100/Gigabit Ethernet
 device		fxp		# Intel EtherExpress PRO/100B (82557, 82558)
 hint.fxp.0.prefer_iomap="0"
 device		gem		# Apple GMAC/Sun ERI/Sun GEM
