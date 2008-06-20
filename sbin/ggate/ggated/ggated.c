@@ -211,10 +211,10 @@ line_parse(char *line, unsigned lineno)
 
 	ex = malloc(sizeof(*ex));
 	if (ex == NULL)
-		g_gate_xlog("No enough memory.");
+		g_gate_xlog("Not enough memory.");
 	ex->e_path = strdup(path);
 	if (ex->e_path == NULL)
-		g_gate_xlog("No enough memory.");
+		g_gate_xlog("Not enough memory.");
 
 	/* Made 'and' here. */
 	ex->e_ip = (ip & mask);
