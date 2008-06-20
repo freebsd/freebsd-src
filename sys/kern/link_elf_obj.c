@@ -664,6 +664,13 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 		goto out;
 	}
 	ef->address = (caddr_t) vm_map_min(kernel_map);
+
+	/*
+	 * In order to satisfy amd64's architectural requirements on the
+	 * location of code and data in the kernel's address space, request a
+	 * mapping that is above the kernel.  
+	 */
+	mapbase = KERNBASE;
 	error = vm_map_find(kernel_map, ef->object, 0, &mapbase,
 	    round_page(mapsize), TRUE, VM_PROT_ALL, VM_PROT_ALL, FALSE);
 	if (error) {
