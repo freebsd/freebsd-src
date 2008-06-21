@@ -294,7 +294,7 @@ void
 vm_init2(void)
 {
 	uma_zone_set_obj(kmapentzone, &kmapentobj, lmin(cnt.v_page_count,
-	    (VM_MAX_KERNEL_ADDRESS - KERNBASE) / PAGE_SIZE) / 8 +
+	    (VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS) / PAGE_SIZE) / 8 +
 	     maxproc * 2 + maxfiles);
 	vmspace_zone = uma_zcreate("VMSPACE", sizeof(struct vmspace), NULL,
 #ifdef INVARIANTS
