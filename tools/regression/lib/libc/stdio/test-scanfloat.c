@@ -49,8 +49,9 @@ main(int argc, char *argv[])
 	long double ld = 0.0;
 	double d = 0.0;
 	float f = 0.0;
+	char *endp;
 
-	printf("1..3\n");
+	printf("1..4\n");
 
 	buf[0] = '\0';
 	assert(setlocale(LC_NUMERIC, ""));
@@ -273,6 +274,15 @@ main(int argc, char *argv[])
 	assert(d == 0x1.234568p-1050);
 
 	printf("ok 3 - scanfloat\n");
+
+	/*
+	 * Tests specific to strtod().
+	 */
+
+	assert(strtod("0xy", &endp) == 0);
+	assert(strcmp("xy", endp) == 0);
+
+	printf("ok 4 - scanfloat\n");
 
 	return (0);
 }
