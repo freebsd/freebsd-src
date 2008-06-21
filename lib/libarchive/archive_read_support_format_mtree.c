@@ -1020,7 +1020,7 @@ skip(struct archive_read *a)
 }
 
 /*
- * Since parsing octal escapes always makes strings shorter,
+ * Since parsing backslash sequences always makes strings shorter,
  * we can always do this conversion in-place.
  */
 static void
@@ -1041,13 +1041,57 @@ parse_escapes(char *src, struct mtree_entry *mentry)
 		if (c == '/' && mentry != NULL)
 			mentry->full = 1;
 		if (c == '\\') {
-			if (src[0] >= '0' && src[0] <= '3'
-			    && src[1] >= '0' && src[1] <= '7'
-			    && src[2] >= '0' && src[2] <= '7') {
-				c = (src[0] - '0') << 6;
-				c |= (src[1] - '0') << 3;
-				c |= (src[2] - '0');
-				src += 3;
+			switch (src[0]) {
+			case '0':
+				if (src[1] < '0' || src[1] > '7') {
+					c = 0;
+					++src;
+					break;
+				}
+				/* FALLTHROUGH */
+			case '1':
+			case '2':
+			case '3':
+				if (src[1] >= '0' && src[1] <= '7' &&
+				    src[2] >= '0' && src[2] <= '7') {
+					c = (src[0] - '0') << 6;
+					c |= (src[1] - '0') << 3;
+					c |= (src[2] - '0');
+					src += 3;
+				}
+				break;
+			case 'a':
+				c = '\a';
+				++src;
+				break;
+			case 'b':
+				c = '\b';
+				++src;
+				break;
+			case 'f':
+				c = '\f';
+				++src;
+				break;
+			case 'n':
+				c = '\n';
+				++src;
+				break;
+			case 'r':
+				c = '\r';
+				++src;
+				break;
+			case 's':
+				c = ' ';
+				++src;
+				break;
+			case 't':
+				c = '\t';
+				++src;
+				break;
+			case 'v':
+				c = '\v';
+				++src;
+				break;
 			}
 		}
 		*dest++ = c;
@@ -1190,6 +1234,7 @@ readline(struct archive_read *a, struct mtree *mtree, char **start, ssize_t limi
 	const void *t;
 	const char *s;
 	void *p;
+	char *u;
 
 	/* Accumulate line in a line buffer. */
 	for (;;) {
@@ -1222,10 +1267,32 @@ readline(struct archive_read *a, struct mtree *mtree, char **start, ssize_t limi
 		total_size += bytes_read;
 		/* Null terminate. */
 		mtree->line.s[total_size] = '\0';
-		/* If we found '\n', clean up and return. */
-		if (p != NULL) {
-			*start = mtree->line.s;
-			return (total_size);
+		/* If we found an unescaped '\n', clean up and return. */
+		if (p == NULL)
+			continue;
+		for (u = mtree->line.s; *u; ++u) {
+			if (u[0] == '\n') {
+				*start = mtree->line.s;
+				return total_size;
+			}
+			if (u[0] == '#') {
+				if (p == NULL)
+					break;
+				*start = mtree->line.s;
+				return total_size;
+			}
+			if (u[0] != '\\')
+				continue;
+			if (u[1] == '\\') {
+				++u;
+				continue;
+			}
+			if (u[1] == '\n') {
+				memmove(u, u + 1,
+				    total_size - (u - mtree->line.s) + 1);
+				--total_size;
+				continue;    
+			}
 		}
 	}
 }
