@@ -41,7 +41,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 28, 2007
+.Dd June 21, 2008
 .Dt MDCONFIG 8
 .Os
 .Sh NAME
@@ -65,6 +65,7 @@
 .Nm
 .Fl l
 .Op Fl n
+.Op Fl v
 .Op Fl u Ar unit
 .Sh DESCRIPTION
 The
@@ -119,6 +120,9 @@ List configured devices.
 If given with
 .Fl u ,
 display details about that particular device.
+If
+.Fl v
+option specified, show all details.
 .It Fl n
 When printing md device names, print only the unit number without the
 md prefix.
