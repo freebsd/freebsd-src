@@ -66,7 +66,7 @@ struct option {
  */
 
 
-static const char *cpio_opts = "AaBC:F:O:cdE:f:H:hijLlmopR:rtuvW:yZz";
+static const char *cpio_opts = "0AaBC:F:O:cdE:f:H:hijLlmopR:rtuvW:yZz";
 
 /*
  * On systems that lack getopt_long, long options can be specified
@@ -91,6 +91,7 @@ static const struct option cpio_longopts[] = {
 	{ "link",		no_argument,	   NULL, 'l' },
 	{ "list",		no_argument,	   NULL, 't' },
 	{ "make-directories",	no_argument,	   NULL, 'd' },
+	{ "null",		no_argument,	   NULL, '0' },
 	{ "owner",		required_argument, NULL, 'R' },
 	{ "pass-through",	no_argument,	   NULL, 'p' },
 	{ "preserve-modification-time", no_argument, NULL, 'm' },
