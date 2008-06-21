@@ -10,7 +10,7 @@ top \- display and update information about the top cpu processes
 .SH SYNOPSIS
 .B top
 [
-.B \-abCHIijnqStuv
+.B \-abCHIijnPqStuv
 ] [
 .BI \-d count
 ] [
@@ -118,6 +118,9 @@ Display either 'cpu' or 'io' statistics.  Default is 'cpu'.
 .B \-n
 Use \*(lqnon-interactive\*(rq mode.  This is identical to \*(lqbatch\*(rq
 mode.
+.TP
+.B \-P
+Display per-cpu CPU usage statistics.
 .TP
 .B \-q
 Renice
