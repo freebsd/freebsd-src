@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 25, 2008
+.Dd June 21, 2008
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -3017,7 +3017,7 @@ is set.
 If crash dumps are enabled, these are the flags to pass to the
 .Xr savecore 8
 utility.
-.It Va enable_quotas
+.It Va quota_enable
 .Pq Vt bool
 Set to
 .Dq Li YES
@@ -3038,7 +3038,7 @@ command.
 .It Va quotacheck_flags
 .Pq Vt str
 If
-.Va enable_quotas
+.Va quota_enable
 is set to
 .Dq Li YES ,
 and
@@ -3055,7 +3055,7 @@ which checks quotas for all file systems with quotas enabled in
 .It Va quotaon_flags
 .Pq Vt str
 If
-.Va enable_quotas
+.Va quota_enable
 is set to
 .Dq Li YES ,
 these are the flags to pass to the
@@ -3068,7 +3068,7 @@ which enables quotas for all file systems with quotas enabled in
 .It Va quotaoff_flags
 .Pq Vt str
 If
-.Va enable_quotas
+.Va quota_enable
 is set to
 .Dq Li YES ,
 these are the flags to pass to the
