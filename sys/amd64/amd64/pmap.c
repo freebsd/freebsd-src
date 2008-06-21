@@ -441,8 +441,10 @@ create_pagetables(vm_paddr_t *firstaddr)
 	/* Read-only from zero to physfree */
 	/* XXX not fully used, underneath 2M pages */
 	for (i = 0; (i << PAGE_SHIFT) < *firstaddr; i++) {
-		((pt_entry_t *)KPTphys)[i] = i << PAGE_SHIFT;
-		((pt_entry_t *)KPTphys)[i] |= PG_RW | PG_V | PG_G;
+		((pt_entry_t *)KPTphys)[(KERNBASE - VM_MIN_KERNEL_ADDRESS) /
+		    PAGE_SIZE + i] = i << PAGE_SHIFT;
+		((pt_entry_t *)KPTphys)[(KERNBASE - VM_MIN_KERNEL_ADDRESS) /
+		    PAGE_SIZE + i] |= PG_RW | PG_V | PG_G;
 	}
 
 	/* Now map the page tables at their location within PTmap */
@@ -454,8 +456,10 @@ create_pagetables(vm_paddr_t *firstaddr)
 	/* Map from zero to end of allocations under 2M pages */
 	/* This replaces some of the KPTphys entries above */
 	for (i = 0; (i << PDRSHIFT) < *firstaddr; i++) {
-		((pd_entry_t *)KPDphys)[i] = i << PDRSHIFT;
-		((pd_entry_t *)KPDphys)[i] |= PG_RW | PG_V | PG_PS | PG_G;
+		((pd_entry_t *)KPDphys)[(KERNBASE - VM_MIN_KERNEL_ADDRESS) /
+		    NBPDR + i] = i << PDRSHIFT;
+		((pd_entry_t *)KPDphys)[(KERNBASE - VM_MIN_KERNEL_ADDRESS) /
+		    NBPDR + i] |= PG_RW | PG_V | PG_PS | PG_G;
 	}
 
 	/* And connect up the PD to the PDP */
