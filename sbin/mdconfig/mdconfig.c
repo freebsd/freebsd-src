@@ -59,7 +59,7 @@ usage()
 "                [-s size] [-S sectorsize] [-u unit]\n"
 "                [-x sectors/track] [-y heads/cyl]\n"
 "       mdconfig -d -u unit\n"
-"       mdconfig -l [-n] [-u unit]\n");
+"       mdconfig -l [-v] [-n] [-u unit]\n");
 	fprintf(stderr, "\t\ttype = {malloc, preload, vnode, swap}\n");
 	fprintf(stderr, "\t\toption = {cluster, compress, reserve}\n");
 	fprintf(stderr, "\t\tsize = %%d (512 byte blocks), %%db (B),\n");
@@ -71,7 +71,7 @@ usage()
 int
 main(int argc, char **argv)
 {
-	int ch, fd, i;
+	int ch, fd, i, vflag;
 	char *p;
 	int cmdline = 0;
 	char *mdunit;
@@ -80,9 +80,10 @@ main(int argc, char **argv)
 	mdio.md_file = malloc(PATH_MAX);
 	if (mdio.md_file == NULL)
 		err(1, "could not allocate memory");
+	vflag = 0;
 	bzero(mdio.md_file, PATH_MAX);
 	for (;;) {
-		ch = getopt(argc, argv, "ab:df:lno:s:S:t:u:x:y:");
+		ch = getopt(argc, argv, "ab:df:lno:s:S:t:u:vx:y:");
 		if (ch == -1)
 			break;
 		switch (ch) {
@@ -237,6 +238,11 @@ main(int argc, char **argv)
 			mdunit = optarg;
 			mdio.md_options &= ~MD_AUTOUNIT;
 			break;
+		case 'v':
+			if (cmdline != 3)
+				usage();
+			vflag = OPT_VERBOSE;
+			break;
 		case 'x':
 			if (cmdline != 2)
 				usage();
@@ -282,7 +288,7 @@ main(int argc, char **argv)
 			 * Listing all devices. This is why we pass NULL
 			 * together with OPT_LIST.
 			 */
-			md_list(NULL, OPT_LIST);
+			md_list(NULL, OPT_LIST | vflag);
 		} else {
 			return (md_query(mdunit));
 		}
@@ -373,13 +379,13 @@ md_list(char *units, int opt)
 				}
 			}
 			opt |= OPT_DONE;
-			if (opt & OPT_LIST)
+			if ((opt & OPT_LIST) && !(opt & OPT_VERBOSE))
 				printf(" ");
 			else
 				printf("\n");
 		}
 	}
-	if ((opt & OPT_LIST) && (opt & OPT_DONE))
+	if ((opt & OPT_LIST) && (opt & OPT_DONE) && !(opt & OPT_VERBOSE))
 		printf("\n");
 	/* XXX: Check if it's enough to clean everything. */
 	geom_stats_snapshot_free(sq);
