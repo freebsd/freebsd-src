@@ -113,8 +113,11 @@ gethex( CONST char **sp, FPI *fpi, Long *exp, Bigint **bp, int sign)
 		e += e1;
 	  }
 	*sp = (char*)s;
-	if (zret)
-		return havedig ? STRTOG_Zero : STRTOG_NoNumber;
+	if (zret) {
+		if (!havedig)
+			*sp = s0 - 1;
+		return STRTOG_Zero;
+		}
 	n = s1 - s0 - 1;
 	for(k = 0; n > 7; n >>= 1)
 		k++;
