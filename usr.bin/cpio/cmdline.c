@@ -82,12 +82,20 @@ static const char *cpio_opts = "AaBC:F:O:cdE:f:H:hijLlmopR:rtuvW:yZz";
  * sorted, as the -W logic below relies on it.
  */
 static const struct option cpio_longopts[] = {
+	{ "create",		no_argument,	   NULL, 'o' },
+	{ "extract",		no_argument,       NULL, 'i' },
 	{ "file",		required_argument, NULL, 'F' },
 	{ "format",             required_argument, NULL, 'H' },
 	{ "help",		no_argument,	   NULL, 'h' },
 	{ "insecure",		no_argument,	   NULL, OPTION_INSECURE },
+	{ "link",		no_argument,	   NULL, 'l' },
+	{ "list",		no_argument,	   NULL, 't' },
+	{ "make-directories",	no_argument,	   NULL, 'd' },
 	{ "owner",		required_argument, NULL, 'R' },
+	{ "pass-through",	no_argument,	   NULL, 'p' },
+	{ "preserve-modification-time", no_argument, NULL, 'm' },
 	{ "quiet",		no_argument,	   NULL, OPTION_QUIET },
+	{ "unconditional",	no_argument,	   NULL, 'u' },
 	{ "verbose",            no_argument,       NULL, 'v' },
 	{ "version",            no_argument,       NULL, OPTION_VERSION },
 	{ NULL, 0, NULL, 0 }
