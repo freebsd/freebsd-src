@@ -532,7 +532,7 @@ aio_init_aioinfo(struct proc *p)
 		uma_zfree(kaio_zone, ki);
 	}
 
-	while (num_aio_procs < target_aio_procs)
+	while (num_aio_procs < MIN(target_aio_procs, max_aio_procs))
 		aio_newproc(NULL);
 }
 
