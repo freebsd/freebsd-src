@@ -107,7 +107,16 @@ include(struct cpio *cpio, const char *pattern)
 int
 include_from_file(struct cpio *cpio, const char *pathname)
 {
-	return (process_lines(cpio, pathname, &include));
+	struct line_reader *lr;
+	const char *p;
+	int ret = 0;
+
+	lr = process_lines_init(pathname, '\n');
+	while ((p = process_lines_next(lr)) != NULL)
+		if (include(cpio, p) != 0)
+			ret = -1;
+	process_lines_free(lr);
+	return (ret);
 }
 
 static void

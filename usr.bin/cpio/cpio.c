@@ -101,6 +101,7 @@ main(int argc, char *argv[])
 	cpio->gid_override = -1;
 	cpio->argv = argv;
 	cpio->argc = argc;
+	cpio->line_separator = '\n';
 	cpio->mode = '\0';
 	cpio->verbose = 0;
 	cpio->compress = '\0';
@@ -116,6 +117,9 @@ main(int argc, char *argv[])
 
 	while ((opt = cpio_getopt(cpio)) != -1) {
 		switch (opt) {
+		case '0': /* GNU convention: --null, -0 */
+			cpio->line_separator = '\0';
+			break;
 		case 'A': /* NetBSD/OpenBSD */
 			cpio->option_append = 1;
 			break;
@@ -341,8 +345,10 @@ version(void)
 static void
 mode_out(struct cpio *cpio)
 {
-	struct archive_entry *entry, *spare;
 	unsigned long blocks;
+	struct archive_entry *entry, *spare;
+	struct line_reader *lr;
+	const char *p;
 	int r;
 
 	if (cpio->option_append)
@@ -375,7 +381,10 @@ mode_out(struct cpio *cpio)
 	r = archive_write_open_file(cpio->archive, cpio->filename);
 	if (r != ARCHIVE_OK)
 		cpio_errc(1, 0, archive_error_string(cpio->archive));
-	process_lines(cpio, "-", file_to_archive);
+	lr = process_lines_init("-", cpio->line_separator);
+	while ((p = process_lines_next(lr)) != NULL)
+		file_to_archive(cpio, p);
+	process_lines_free(lr);
 
 	/*
 	 * The hardlink detection may have queued up a couple of entries
@@ -793,6 +802,8 @@ mode_list(struct cpio *cpio)
 static void
 mode_pass(struct cpio *cpio, const char *destdir)
 {
+	struct line_reader *lr;
+	const char *p;
 	int r;
 
 	/* Ensure target dir has a trailing '/' to simplify path surgery. */
@@ -809,7 +820,10 @@ mode_pass(struct cpio *cpio, const char *destdir)
 		cpio_errc(1, 0, archive_error_string(cpio->archive));
 	cpio->linkresolver = archive_entry_linkresolver_new();
 	archive_write_disk_set_standard_lookup(cpio->archive);
-	process_lines(cpio, "-", file_to_archive);
+	lr = process_lines_init("-", cpio->line_separator);
+	while ((p = process_lines_next(lr)) != NULL)
+		file_to_archive(cpio, p);
+	process_lines_free(lr);
 
 	archive_entry_linkresolver_free(cpio->linkresolver);
 	r = archive_write_close(cpio->archive);
@@ -868,79 +882,119 @@ cpio_rename(const char *name)
  * terminated with newlines.
  *
  * This uses a self-sizing buffer to handle arbitrarily-long lines.
- * If the "process" function returns non-zero for any line, this
- * function will return non-zero after attempting to process all
- * remaining lines.
  */
-int
-process_lines(struct cpio *cpio, const char *pathname,
-    int (*process)(struct cpio *, const char *))
-{
+struct line_reader {
 	FILE *f;
 	char *buff, *buff_end, *line_start, *line_end, *p;
-	size_t buff_length, bytes_read, bytes_wanted;
+	char *pathname;
+	size_t buff_length;
 	int separator;
 	int ret;
+};
 
-	separator = cpio->option_null ? '\0' : '\n';
-	ret = 0;
+struct line_reader *
+process_lines_init(const char *pathname, char separator)
+{
+	struct line_reader *lr;
+
+	lr = calloc(1, sizeof(*lr));
+	if (lr == NULL)
+		cpio_errc(1, ENOMEM, "Can't open %s", pathname);
+
+	lr->separator = separator;
+	lr->pathname = strdup(pathname);
 
 	if (strcmp(pathname, "-") == 0)
-		f = stdin;
+		lr->f = stdin;
 	else
-		f = fopen(pathname, "r");
-	if (f == NULL)
+		lr->f = fopen(pathname, "r");
+	if (lr->f == NULL)
 		cpio_errc(1, errno, "Couldn't open %s", pathname);
-	buff_length = 8192;
-	buff = malloc(buff_length);
-	if (buff == NULL)
+	lr->buff_length = 8192;
+	lr->buff = malloc(lr->buff_length);
+	if (lr->buff == NULL)
 		cpio_errc(1, ENOMEM, "Can't read %s", pathname);
-	line_start = line_end = buff_end = buff;
+	lr->line_start = lr->line_end = lr->buff_end = lr->buff;
+
+	return (lr);
+}
+
+const char *
+process_lines_next(struct line_reader *lr)
+{
+	size_t bytes_wanted, bytes_read, new_buff_size;
+	char *line_start, *p;
+
 	for (;;) {
-		/* Get some more data into the buffer. */
-		bytes_wanted = buff + buff_length - buff_end;
-		bytes_read = fread(buff_end, 1, bytes_wanted, f);
-		buff_end += bytes_read;
-		/* Process all complete lines in the buffer. */
-		while (line_end < buff_end) {
-			if (*line_end == separator) {
-				*line_end = '\0';
-				if ((*process)(cpio, line_start) != 0)
-					ret = -1;
-				line_start = line_end + 1;
-				line_end = line_start;
+		/* If there's a line in the buffer, return it immediately. */
+		while (lr->line_end < lr->buff_end) {
+			if (*lr->line_end == lr->separator) {
+				*lr->line_end = '\0';
+				line_start = lr->line_start;
+				lr->line_start = lr->line_end + 1;
+				lr->line_end = lr->line_start;
+				return (line_start);
 			} else
-				line_end++;
+				lr->line_end++;
 		}
-		if (feof(f))
-			break;
-		if (ferror(f))
-			cpio_errc(1, errno, "Can't read %s", pathname);
-		if (line_start > buff) {
+
+		/* If we're at end-of-file, process the final data. */
+		if (lr->f == NULL) {
+			/* If there's more text, return one last line. */
+			if (lr->line_end > lr->line_start) {
+				*lr->line_end = '\0';
+				line_start = lr->line_start;
+				lr->line_start = lr->line_end + 1;
+				lr->line_end = lr->line_start;
+				return (line_start);
+			}
+			/* Otherwise, we're done. */
+			return (NULL);
+		}
+
+		/* Buffer only has part of a line. */
+		if (lr->line_start > lr->buff) {
 			/* Move a leftover fractional line to the beginning. */
-			memmove(buff, line_start, buff_end - line_start);
-			buff_end -= line_start - buff;
-			line_end -= line_start - buff;
-			line_start = buff;
+			memmove(lr->buff, lr->line_start,
+			    lr->buff_end - lr->line_start);
+			lr->buff_end -= lr->line_start - lr->buff;
+			lr->line_end -= lr->line_start - lr->buff;
+			lr->line_start = lr->buff;
 		} else {
 			/* Line is too big; enlarge the buffer. */
-			p = realloc(buff, buff_length *= 2);
+			new_buff_size = lr->buff_length * 2;
+			if (new_buff_size <= lr->buff_length)
+				cpio_errc(1, ENOMEM,
+				    "Line too long in %s", lr->pathname);
+			lr->buff_length = new_buff_size;
+			p = realloc(lr->buff, new_buff_size);
 			if (p == NULL)
 				cpio_errc(1, ENOMEM,
-				    "Line too long in %s", pathname);
-			buff_end = p + (buff_end - buff);
-			line_end = p + (line_end - buff);
-			line_start = buff = p;
+				    "Line too long in %s", lr->pathname);
+			lr->buff_end = p + (lr->buff_end - lr->buff);
+			lr->line_end = p + (lr->line_end - lr->buff);
+			lr->line_start = lr->buff = p;
+		}
+
+		/* Get some more data into the buffer. */
+		bytes_wanted = lr->buff + lr->buff_length - lr->buff_end;
+		bytes_read = fread(lr->buff_end, 1, bytes_wanted, lr->f);
+		lr->buff_end += bytes_read;
+
+		if (ferror(lr->f))
+			cpio_errc(1, errno, "Can't read %s", lr->pathname);
+		if (feof(lr->f)) {
+			if (lr->f != stdin)
+				fclose(lr->f);
+			lr->f = NULL;
 		}
 	}
-	/* At end-of-file, handle the final line. */
-	if (line_end > line_start) {
-		*line_end = '\0';
-		if ((*process)(cpio, line_start) != 0)
-			ret = -1;
-	}
-	free(buff);
-	if (f != stdin)
-		fclose(f);
-	return (ret);
+}
+
+void
+process_lines_free(struct line_reader *lr)
+{
+	free(lr->buff);
+	free(lr->pathname);
+	free(lr);
 }
