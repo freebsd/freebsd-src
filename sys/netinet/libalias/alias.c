@@ -271,7 +271,7 @@ static int	ProtoAliasOut(struct libalias *la, struct in_addr *ip_src,
 		    int create);
 
 static int	UdpAliasIn(struct libalias *, struct ip *);
-static int	UdpAliasOut(struct libalias *, struct ip *, int create);
+static int	UdpAliasOut(struct libalias *, struct ip *, int, int create);
 
 static int	TcpAliasIn(struct libalias *, struct ip *);
 static int	TcpAliasOut(struct libalias *, struct ip *, int, int create);
@@ -717,19 +717,18 @@ UdpAliasIn(struct libalias *la, struct ip *pip)
 	struct alias_link *lnk;
 
 	LIBALIAS_LOCK_ASSERT(la);
-/* Return if proxy-only mode is enabled */
-	if (la->packetAliasMode & PKT_ALIAS_PROXY_ONLY)
-		return (PKT_ALIAS_OK);
 
 	ud = (struct udphdr *)ip_next(pip);
 
 	lnk = FindUdpTcpIn(la, pip->ip_src, pip->ip_dst,
 	    ud->uh_sport, ud->uh_dport,
-	    IPPROTO_UDP, 1);
+	    IPPROTO_UDP, !(la->packetAliasMode & PKT_ALIAS_PROXY_ONLY));
 	if (lnk != NULL) {
 		struct in_addr alias_address;
 		struct in_addr original_address;
+		struct in_addr proxy_address;
 		u_short alias_port;
+		u_short proxy_port;
 		int accumulate;
 		int r = 0, error;
 		struct alias_data ad = {
@@ -744,8 +743,10 @@ UdpAliasIn(struct libalias *la, struct ip *pip)
 
 		alias_address = GetAliasAddress(lnk);
 		original_address = GetOriginalAddress(lnk);
+		proxy_address = GetProxyAddress(lnk);
 		alias_port = ud->uh_dport;
 		ud->uh_dport = GetOriginalPort(lnk);
+		proxy_port = GetProxyPort(lnk);
 
 		/* Walk out chain. */		
 		error = find_handler(IN, UDP, la, pip, &ad);
@@ -757,8 +758,32 @@ UdpAliasIn(struct libalias *la, struct ip *pip)
 			accumulate -= ud->uh_dport;
 			accumulate += twowords(&alias_address);
 			accumulate -= twowords(&original_address);
+
+/* If this is a proxy packet, modify checksum because of source change.*/
+        		if (proxy_port != 0) {
+		                accumulate += ud->uh_sport;
+		                accumulate -= proxy_port;
+	                }
+
+	                if (proxy_address.s_addr != 0) {
+				accumulate += twowords(&pip->ip_src);
+				accumulate -= twowords(&proxy_address);
+	                }
+
 			ADJUST_CHECKSUM(accumulate, ud->uh_sum);
 		}
+/* XXX: Could the two if's below be concatenated to one ? */
+/* Restore source port and/or address in case of proxying*/
+
+    		if (proxy_port != 0)
+        		ud->uh_sport = proxy_port;
+
+    		if (proxy_address.s_addr != 0) {
+        		DifferentialChecksum(&pip->ip_sum,
+                	    &proxy_address, &pip->ip_src, 2);
+	        	pip->ip_src = proxy_address;
+    		}
+
 /* Restore original IP address */
 		DifferentialChecksum(&pip->ip_sum,
 		    &original_address, &pip->ip_dst, 2);
@@ -776,19 +801,50 @@ UdpAliasIn(struct libalias *la, struct ip *pip)
 }
 
 static int
-UdpAliasOut(struct libalias *la, struct ip *pip, int create)
+UdpAliasOut(struct libalias *la, struct ip *pip, int maxpacketsize, int create)
 {
 	struct udphdr *ud;
 	struct alias_link *lnk;
+	struct in_addr dest_address;
+	struct in_addr proxy_server_address;
+	u_short dest_port;
+	u_short proxy_server_port;
+	int proxy_type;
 	int error;
 
 	LIBALIAS_LOCK_ASSERT(la);
-/* Return if proxy-only mode is enabled */
-	if (la->packetAliasMode & PKT_ALIAS_PROXY_ONLY)
+
+/* Return if proxy-only mode is enabled and not proxyrule found.*/
+	ud = (struct udphdr *)ip_next(pip);
+	proxy_type = ProxyCheck(la, &proxy_server_address, 
+		&proxy_server_port, pip->ip_src, pip->ip_dst, 
+		ud->uh_dport, pip->ip_p);
+	if (proxy_type == 0 && (la->packetAliasMode & PKT_ALIAS_PROXY_ONLY))
 		return (PKT_ALIAS_OK);
 
-	ud = (struct udphdr *)ip_next(pip);
+/* If this is a transparent proxy, save original destination,
+ * then alter the destination and adjust checksums */
+	dest_port = ud->uh_dport;
+	dest_address = pip->ip_dst;
 
+	if (proxy_type != 0) {
+	        int accumulate;
+
+		accumulate = twowords(&pip->ip_dst);
+		accumulate -= twowords(&proxy_server_address);
+
+	        ADJUST_CHECKSUM(accumulate, pip->ip_sum);
+
+		if (ud->uh_sum != 0) {
+			accumulate = twowords(&pip->ip_dst);
+			accumulate -= twowords(&proxy_server_address);
+    			accumulate += ud->uh_dport;
+	        	accumulate -= proxy_server_port;
+	    		ADJUST_CHECKSUM(accumulate, ud->uh_sum);
+		}
+	        pip->ip_dst = proxy_server_address;
+	        ud->uh_dport = proxy_server_port;
+	}
 	lnk = FindUdpTcpOut(la, pip->ip_src, pip->ip_dst,
 	    ud->uh_sport, ud->uh_dport,
 	    IPPROTO_UDP, create);
@@ -804,6 +860,16 @@ UdpAliasOut(struct libalias *la, struct ip *pip, int create)
 			.dport = &ud->uh_dport,
 			.maxpktsize = 0
 		};
+
+/* Save original destination address, if this is a proxy packet.
+ * Also modify packet to include destination encoding.  This may
+ * change the size of IP header. */
+		if (proxy_type != 0) {
+	                SetProxyPort(lnk, dest_port);
+	                SetProxyAddress(lnk, dest_address);
+	                ProxyModify(la, lnk, pip, maxpacketsize, proxy_type);
+	                ud = (struct udphdr *)ip_next(pip);
+	        }
 
 		alias_address = GetAliasAddress(lnk);
 		alias_port = GetAliasPort(lnk);
@@ -1409,7 +1475,7 @@ LibAliasOutLocked(struct libalias *la, char *ptr,	/* valid IP packet */
 			iresult = IcmpAliasOut(la, pip, create);
 			break;
 		case IPPROTO_UDP:
-			iresult = UdpAliasOut(la, pip, create);
+			iresult = UdpAliasOut(la, pip, maxpacketsize, create);
 			break;
 			case IPPROTO_TCP:
 			iresult = TcpAliasOut(la, pip, maxpacketsize, create);
