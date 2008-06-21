@@ -537,14 +537,28 @@ entry_to_archive(struct cpio *cpio, struct archive_entry *entry)
 	 * Obviously, this only gets invoked in pass mode.
 	 */
 	if (cpio->option_link) {
-		/* Note: link(2) doesn't create parent directories. */
-		archive_entry_set_hardlink(entry, srcpath);
-		r = archive_write_header(cpio->archive, entry);
+		struct archive_entry *t;
+		/* Save the original entry in case we need it later. */
+		t = archive_entry_clone(entry);
+		if (t == NULL)
+			cpio_errc(1, ENOMEM, "Can't create link");
+		/* Note: link(2) doesn't create parent directories,
+		 * so we use archive_write_header() instead. */
+		archive_entry_set_hardlink(t, srcpath);
+		r = archive_write_header(cpio->archive, t);
+		archive_entry_free(t);
 		if (r != ARCHIVE_OK)
 			cpio_warnc(archive_errno(cpio->archive),
 			    archive_error_string(cpio->archive));
 		if (r == ARCHIVE_FATAL)
 			exit(1);
+#ifdef EXDEV
+		if (r != ARCHIVE_OK && archive_errno(cpio->archive) == EXDEV) {
+			/* Cross-device link:  Just fall through and use
+			 * the original entry to copy the file over. */
+			cpio_warnc(0, "Copying file instead");
+		} else
+#endif
 		return (0);
 	}
 
