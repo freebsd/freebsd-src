@@ -53,12 +53,12 @@ struct cpio {
 	int		  extract_flags; /* Flags for extract operation */
 	char		  symlink_mode; /* H or L, per BSD conventions */
 	const char	 *compress_program;
+	char		  line_separator; /* --null ? '\0' : '\n' */
 	int		  option_append; /* -A, only relevant for -o */
 	int		  option_atime_restore; /* -a */
 	int		  option_follow_links; /* -L */
 	int		  option_link; /* -l */
 	int		  option_list; /* -t */
-	int		  option_null; /* -0 --null */
 	int		  option_rename; /* -r */
 	char		 *destdir;
 	size_t		  pass_destpath_alloc;
@@ -98,9 +98,13 @@ enum {
 	OPTION_VERSION
 };
 
+struct line_reader;
+
+struct line_reader *process_lines_init(const char *, char separator);
+const char *process_lines_next(struct line_reader *);
+void	process_lines_free(struct line_reader *);
+
 int	cpio_getopt(struct cpio *cpio);
-int	process_lines(struct cpio *cpio, const char *pathname,
-		    int (*process)(struct cpio *, const char *));
 int	include_from_file(struct cpio *, const char *);
 
 #endif
