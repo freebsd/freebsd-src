@@ -1351,7 +1351,7 @@ cleanup_pathname(struct archive_write_disk *a)
 	if (*src == '\0') {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 		    "Invalid empty pathname");
-		return (ARCHIVE_WARN);
+		return (ARCHIVE_FAILED);
 	}
 
 	/* Skip leading '/'. */
@@ -1382,7 +1382,7 @@ cleanup_pathname(struct archive_write_disk *a)
 						archive_set_error(&a->archive,
 						    ARCHIVE_ERRNO_MISC,
 						    "Path contains '..'");
-						return (ARCHIVE_WARN);
+						return (ARCHIVE_FAILED);
 					}
 					lastdotdot = 1;
 				} else
@@ -1421,7 +1421,7 @@ cleanup_pathname(struct archive_write_disk *a)
 		archive_set_error(&a->archive,
 		    ARCHIVE_ERRNO_MISC,
 		    "Path contains trailing '..'");
-		return (ARCHIVE_WARN);
+		return (ARCHIVE_FAILED);
 	}
 	if (dest == a->name) {
 		/*
