@@ -1564,7 +1564,7 @@ static void Usage ()
 
 void SetupPortRedirect (const char* parms)
 {
-	char		buf[128];
+	char		*buf;
 	char*		ptr;
 	char*		serverPool;
 	struct in_addr	localAddr;
@@ -1583,7 +1583,9 @@ void SetupPortRedirect (const char* parms)
 	int             i;
 	struct alias_link *aliaslink = NULL;
 
-	strlcpy (buf, parms, sizeof(buf));
+	buf = strdup (parms);
+	if (!buf)
+		errx (1, "redirect_port: strdup() failed");
 /*
  * Extract protocol.
  */
@@ -1700,12 +1702,14 @@ void SetupPortRedirect (const char* parms)
 			ptr = strtok(NULL, ",");
 		}
 	}
+	
+	free (buf);
 }
 
 void
 SetupProtoRedirect(const char* parms)
 {
-	char		buf[128];
+	char		*buf;
 	char*		ptr;
 	struct in_addr	localAddr;
 	struct in_addr	publicAddr;
@@ -1714,7 +1718,9 @@ SetupProtoRedirect(const char* parms)
 	char*		protoName;
 	struct protoent *protoent;
 
-	strlcpy (buf, parms, sizeof(buf));
+	buf = strdup (parms);
+	if (!buf)
+		errx (1, "redirect_port: strdup() failed");
 /*
  * Extract protocol.
  */
@@ -1756,11 +1762,13 @@ SetupProtoRedirect(const char* parms)
  */
 	(void)LibAliasRedirectProto(mla, localAddr, remoteAddr, publicAddr,
 				       proto);
+
+	free (buf);
 }
 
 void SetupAddressRedirect (const char* parms)
 {
-	char		buf[128];
+	char		*buf;
 	char*		ptr;
 	char*		separator;
 	struct in_addr	localAddr;
@@ -1768,7 +1776,9 @@ void SetupAddressRedirect (const char* parms)
 	char*		serverPool;
 	struct alias_link *aliaslink;
 
-	strlcpy (buf, parms, sizeof(buf));
+	buf = strdup (parms);
+	if (!buf)
+		errx (1, "redirect_port: strdup() failed");
 /*
  * Extract local address.
  */
@@ -1805,6 +1815,8 @@ void SetupAddressRedirect (const char* parms)
 			ptr = strtok(NULL, ",");
 		}
 	}
+
+	free (buf);
 }
 
 void StrToAddr (const char* str, struct in_addr* addr)
