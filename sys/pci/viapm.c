@@ -70,6 +70,7 @@ static int viapm_debug = 0;
 #define VIA_8233_PMU_ID		0x30741106
 #define	VIA_8233A_PMU_ID	0x31471106
 #define	VIA_8235_PMU_ID		0x31771106
+#define	VIA_8237_PMU_ID		0x32271106
 #define	VIA_CX700_PMU_ID	0x83241106
 
 #define VIAPM_INB(port) \
@@ -281,6 +282,12 @@ viapm_pro_probe(device_t dev)
 
 	case VIA_8235_PMU_ID:
 		desc = "VIA VT8235 Power Management Unit";
+		viapm->type = VIAPM_TYP_UNKNOWN;
+		base_cfgreg = VIAPM_8233_BASE;
+		goto viapro;
+
+	case VIA_8237_PMU_ID:
+		desc = "VIA VT8237 Power Management Unit";
 		viapm->type = VIAPM_TYP_UNKNOWN;
 		base_cfgreg = VIAPM_8233_BASE;
 		goto viapro;
