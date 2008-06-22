@@ -147,6 +147,8 @@ static	const char*		pidName;
 static	int			routeSock;
 static	int			globalPort;
 static	int			divertGlobal;
+static	int			exitDelay;
+
 
 int main (int argc, char** argv)
 {
@@ -174,6 +176,7 @@ int main (int argc, char** argv)
 	icmpSock 		= -1;
 	fdMax	 		= -1;
 	divertGlobal		= -1;
+	exitDelay		= EXIT_DELAY;
 
 	ParseArgs (argc, argv);
 /*
@@ -347,7 +350,10 @@ int main (int argc, char** argv)
  */
 	siginterrupt(SIGTERM, 1);
 	siginterrupt(SIGHUP, 1);
-	signal (SIGTERM, InitiateShutdown);
+	if (exitDelay)
+		signal(SIGTERM, InitiateShutdown);
+	else
+		signal(SIGTERM, Shutdown);
 	signal (SIGHUP, RefreshAddr);
 /*
  * Set alias address if it has been given.
@@ -984,7 +990,7 @@ static void InitiateShutdown (int sig __unused)
  */
 	siginterrupt(SIGALRM, 1);
 	signal (SIGALRM, Shutdown);
-	alarm (10);
+	ualarm(exitDelay*1000, 1000);
 }
 
 static void Shutdown (int sig __unused)
@@ -1019,7 +1025,8 @@ enum Option {
 	PunchFW,
 	SkinnyPort,
 	LogIpfwDenied,
-	PidFile
+	PidFile,
+	ExitDelay
 };
 
 enum Param {
@@ -1277,6 +1284,13 @@ static struct OptionInfo optionTable[] = {
 		"name of aliasing engine instance",
 		"instance",
 		NULL },
+	{ ExitDelay,
+		0,
+		Numeric,
+		"ms",
+		"delay in ms before daemon exit after signal",
+		"exit_delay",
+		NULL },
 };
 	
 static void ParseOption (const char* option, const char* parms)
@@ -1478,6 +1492,11 @@ static void ParseOption (const char* option, const char* parms)
 		break;
 	case Instance:
 		NewInstance(strValue);
+		break;
+	case ExitDelay:
+		if (numValue < 0 || numValue > MAX_EXIT_DELAY)
+			errx(1, "Incorrect exit delay: %d", numValue);	
+		exitDelay = numValue;
 		break;
 	}
 }
