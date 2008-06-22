@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.POSIX:
+
 .include "../Makefile.inc"
 
 .PATH:	${CVSDIR}/contrib
@@ -20,12 +22,12 @@ CLEANFILES+=	$(SCRIPTS)
 .SUFFIXES: .sh .pl .in
 
 .sh:
-	cp $< $@
+	cp ${.IMPSRC} ${.TARGET}
 
 .pl:
-	sed -e 's,xPERL_PATHx,$(PERLPATH),' $< > $@
+	sed -e 's,xPERL_PATHx,$(PERLPATH),' ${.IMPSRC} > ${.TARGET}
 
 .in:
-	sed -e 's,@CSH@,/bin/csh,' -e 's,@PERL@,$(PERLPATH),' $< > $@
+	sed -e 's,@CSH@,/bin/csh,' -e 's,@PERL@,$(PERLPATH),' ${.IMPSRC} > ${.TARGET}
 
 .include <bsd.prog.mk>
