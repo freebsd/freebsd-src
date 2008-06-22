@@ -1,5 +1,5 @@
 .\" $FreeBSD$
-.Dd February 4, 2008
+.Dd June 23, 2008
 .Dt NATD 8
 .Os
 .Sh NAME
@@ -36,6 +36,7 @@
 .Op Fl skinny_port Ar port
 .Op Fl log_ipfw_denied
 .Op Fl pid_file | P Ar pidfile
+.Op Fl exit_delay | P Ar ms
 .Ek
 .Sh DESCRIPTION
 The
@@ -557,6 +558,10 @@ This is the default with
 Specify an alternate file in which to store the process ID.
 The default is
 .Pa /var/run/natd.pid .
+.It Fl exit_delay Ar ms
+Specify delay in ms before daemon exit after signal.
+The default is
+.Pa 10000 .
 .El
 .Sh RUNNING NATD
 The following steps are necessary before attempting to run
