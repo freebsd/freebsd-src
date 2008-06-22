@@ -36,9 +36,15 @@ mountcritremote_start()
 {
 	# Mount nfs filesystems.
 	#
-	echo -n 'Mounting NFS file systems:'
-	mount -a -t nfs
-	echo '.'
+	case "`/sbin/mount -d -a -t nfs`" in
+	'')
+		;;
+	*)
+		echo -n 'Mounting NFS file systems:'
+		mount -a -t nfs
+		echo '.'
+		;;
+	esac
 
 	# Mount other network filesystems if present in /etc/fstab.
 	case ${extra_netfs_types} in
