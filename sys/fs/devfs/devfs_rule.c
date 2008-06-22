@@ -735,15 +735,15 @@ devfs_ruleset_use(devfs_rsnum rsnum, struct devfs_mount *dm)
 {
 	struct devfs_ruleset *cds, *ds;
 
-	ds = devfs_ruleset_bynum(rsnum);
-	if (ds == NULL)
-		ds = devfs_ruleset_create(rsnum);
 	if (dm->dm_ruleset != 0) {
 		cds = devfs_ruleset_bynum(dm->dm_ruleset);
 		--cds->ds_refcount;
 		devfs_ruleset_reap(cds);
 	}
 
+	ds = devfs_ruleset_bynum(rsnum);
+	if (ds == NULL)
+		ds = devfs_ruleset_create(rsnum);
 	/* These should probably be made atomic somehow. */
 	++ds->ds_refcount;
 	dm->dm_ruleset = rsnum;
