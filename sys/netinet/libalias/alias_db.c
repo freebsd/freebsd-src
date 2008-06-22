@@ -819,8 +819,12 @@ CleanupAliasData(struct libalias *la)
 
 	LIBALIAS_LOCK_ASSERT(la);
 	for (i = 0; i < LINK_TABLE_OUT_SIZE; i++) {
-		while ((lnk = LIST_FIRST(&la->linkTableOut[i])) != NULL)
+		lnk = LIST_FIRST(&la->linkTableOut[i]);
+		while (lnk != NULL) {
+			struct alias_link *link_next = LIST_NEXT(lnk, list_out);
 			DeleteLink(lnk);
+			lnk = link_next;
+		}
 	}
 
 	la->cleanupIndex = 0;
