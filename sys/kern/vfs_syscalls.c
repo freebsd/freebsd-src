@@ -1264,6 +1264,10 @@ kern_mknodat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 	case S_IFWHT:
 		error = priv_check(td, PRIV_VFS_MKNOD_WHT);
 		break;
+	case S_IFIFO:
+		if (dev == 0)
+			return (kern_mkfifoat(td, fd, path, pathseg, mode));
+		/* FALLTHROUGH */
 	default:
 		error = EINVAL;
 		break;
