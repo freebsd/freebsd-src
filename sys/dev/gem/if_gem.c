@@ -127,8 +127,6 @@ static void	gem_start_locked(struct ifnet *ifp);
 static void	gem_stop(struct ifnet *ifp, int disable);
 static void	gem_tick(void *arg);
 static void	gem_tint(struct gem_softc *sc);
-static __inline void gem_txcksum(struct gem_softc *sc, struct mbuf *m,
-		    uint64_t *cflags);
 static int	gem_watchdog(struct gem_softc *sc);
 
 devclass_t gem_devclass;
@@ -422,8 +420,7 @@ gem_detach(struct gem_softc *sc)
 		if (sc->sc_txsoft[i].txs_dmamap != NULL)
 			bus_dmamap_destroy(sc->sc_tdmatag,
 			    sc->sc_txsoft[i].txs_dmamap);
-	GEM_CDSYNC(sc, BUS_DMASYNC_POSTREAD);
-	GEM_CDSYNC(sc, BUS_DMASYNC_POSTWRITE);
+	GEM_CDSYNC(sc, BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
 	bus_dmamap_unload(sc->sc_cdmatag, sc->sc_cddmamap);
 	bus_dmamem_free(sc->sc_cdmatag, sc->sc_control_data,
 	    sc->sc_cddmamap);
@@ -457,55 +454,6 @@ gem_resume(struct gem_softc *sc)
 	if (ifp->if_flags & IFF_UP)
 		gem_init_locked(sc);
 	GEM_UNLOCK(sc);
-}
-
-static __inline void
-gem_txcksum(struct gem_softc *sc, struct mbuf *m, uint64_t *cflags)
-{
-	char *p;
-	struct ip *ip;
-	struct mbuf *m0;
-	uint64_t offset, offset2;
-
-	m0 = m;
-	offset = sizeof(struct ip) + ETHER_HDR_LEN;
-	for(; m && m->m_len == 0; m = m->m_next)
-		;
-	if (m == NULL || m->m_len < ETHER_HDR_LEN) {
-		device_printf(sc->sc_dev, "%s: m_len < ETHER_HDR_LEN\n",
-		    __func__);
-		/* Checksum will be corrupted. */
-		m = m0;
-		goto sendit;
-	}
-	if (m->m_len < ETHER_HDR_LEN + sizeof(uint32_t)) {
-		if (m->m_len != ETHER_HDR_LEN) {
-			device_printf(sc->sc_dev,
-			    "%s: m_len != ETHER_HDR_LEN\n", __func__);
-			/* Checksum will be corrupted. */
-			m = m0;
-			goto sendit;
-		}
-		for(m = m->m_next; m && m->m_len == 0; m = m->m_next)
-			;
-		if (m == NULL) {
-			/* Checksum will be corrupted. */
-			m = m0;
-			goto sendit;
-		}
-		ip = mtod(m, struct ip *);
-	} else {
-		p = mtod(m, uint8_t *);
-		p += ETHER_HDR_LEN;
-		ip = (struct ip *)p;
-	}
-	offset = (ip->ip_hl << 2) + ETHER_HDR_LEN;
-
- sendit:
-	offset2 = m->m_pkthdr.csum_data;
-	*cflags = offset << GEM_TD_CXSUM_STARTSHFT;
-	*cflags |= ((offset + offset2) << GEM_TD_CXSUM_STUFFSHFT);
-	*cflags |= GEM_TD_CXSUM_ENABLE;
 }
 
 static __inline void
@@ -645,7 +593,8 @@ gem_reset(sc)
 
 	/* Do a full reset. */
 	GEM_BANK2_WRITE_4(sc, GEM_RESET, GEM_RESET_RX | GEM_RESET_TX);
-	GEM_BANK2_BARRIER(sc, GEM_RESET, 4, BUS_SPACE_BARRIER_WRITE);
+	GEM_BANK2_BARRIER(sc, GEM_RESET, 4,
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 	if (!GEM_BANK2_BITWAIT(sc, GEM_RESET, GEM_RESET_RX | GEM_RESET_TX, 0))
 		device_printf(sc->sc_dev, "cannot reset device\n");
 }
@@ -725,13 +674,15 @@ gem_reset_rx(struct gem_softc *sc)
 	 */
 	gem_disable_rx(sc);
 	GEM_BANK1_WRITE_4(sc, GEM_RX_CONFIG, 0);
-	GEM_BANK1_BARRIER(sc, GEM_RX_CONFIG, 4, BUS_SPACE_BARRIER_WRITE);
+	GEM_BANK1_BARRIER(sc, GEM_RX_CONFIG, 4,
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 	if (!GEM_BANK1_BITWAIT(sc, GEM_RX_CONFIG, GEM_RX_CONFIG_RXDMA_EN, 0))
 		device_printf(sc->sc_dev, "cannot disable RX DMA\n");
 
 	/* Finally, reset the ERX. */
 	GEM_BANK2_WRITE_4(sc, GEM_RESET, GEM_RESET_RX);
-	GEM_BANK2_BARRIER(sc, GEM_RESET, 4, BUS_SPACE_BARRIER_WRITE);
+	GEM_BANK2_BARRIER(sc, GEM_RESET, 4,
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 	if (!GEM_BANK2_BITWAIT(sc, GEM_RESET, GEM_RESET_RX | GEM_RESET_TX,
 	    0)) {
 		device_printf(sc->sc_dev, "cannot reset receiver\n");
@@ -758,8 +709,7 @@ gem_reset_rxdma(struct gem_softc *sc)
 		if (sc->sc_rxsoft[i].rxs_mbuf != NULL)
 			GEM_UPDATE_RXDESC(sc, i);
 	sc->sc_rxptr = 0;
-	GEM_CDSYNC(sc, BUS_DMASYNC_PREWRITE);
-	GEM_CDSYNC(sc, BUS_DMASYNC_PREREAD);
+	GEM_CDSYNC(sc, BUS_DMASYNC_PREWRITE | BUS_DMASYNC_PREREAD);
 
 	/* NOTE: we use only 32-bit DMA addresses here. */
 	GEM_BANK1_WRITE_4(sc, GEM_RX_RING_PTR_HI, 0);
@@ -794,13 +744,15 @@ gem_reset_tx(struct gem_softc *sc)
 	 */
 	gem_disable_tx(sc);
 	GEM_BANK1_WRITE_4(sc, GEM_TX_CONFIG, 0);
-	GEM_BANK1_BARRIER(sc, GEM_TX_CONFIG, 4, BUS_SPACE_BARRIER_WRITE);
+	GEM_BANK1_BARRIER(sc, GEM_TX_CONFIG, 4,
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 	if (!GEM_BANK1_BITWAIT(sc, GEM_TX_CONFIG, GEM_TX_CONFIG_TXDMA_EN, 0))
 		device_printf(sc->sc_dev, "cannot disable TX DMA\n");
 
 	/* Finally, reset the ETX. */
 	GEM_BANK2_WRITE_4(sc, GEM_RESET, GEM_RESET_TX);
-	GEM_BANK2_BARRIER(sc, GEM_RESET, 4, BUS_SPACE_BARRIER_WRITE);
+	GEM_BANK2_BARRIER(sc, GEM_RESET, 4,
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 	if (!GEM_BANK2_BITWAIT(sc, GEM_RESET, GEM_RESET_RX | GEM_RESET_TX,
 	    0)) {
 		device_printf(sc->sc_dev, "cannot reset transmitter\n");
@@ -815,7 +767,8 @@ gem_disable_rx(struct gem_softc *sc)
 
 	GEM_BANK1_WRITE_4(sc, GEM_MAC_RX_CONFIG,
 	    GEM_BANK1_READ_4(sc, GEM_MAC_RX_CONFIG) & ~GEM_MAC_RX_ENABLE);
-	GEM_BANK1_BARRIER(sc, GEM_MAC_RX_CONFIG, 4, BUS_SPACE_BARRIER_WRITE);
+	GEM_BANK1_BARRIER(sc, GEM_MAC_RX_CONFIG, 4,
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 	return (GEM_BANK1_BITWAIT(sc, GEM_MAC_RX_CONFIG, GEM_MAC_RX_ENABLE,
 	    0));
 }
@@ -826,7 +779,8 @@ gem_disable_tx(struct gem_softc *sc)
 
 	GEM_BANK1_WRITE_4(sc, GEM_MAC_TX_CONFIG,
 	    GEM_BANK1_READ_4(sc, GEM_MAC_TX_CONFIG) & ~GEM_MAC_TX_ENABLE);
-	GEM_BANK1_BARRIER(sc, GEM_MAC_TX_CONFIG, 4, BUS_SPACE_BARRIER_WRITE);
+	GEM_BANK1_BARRIER(sc, GEM_MAC_TX_CONFIG, 4,
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 	return (GEM_BANK1_BITWAIT(sc, GEM_MAC_TX_CONFIG, GEM_MAC_TX_ENABLE,
 	    0));
 }
@@ -871,8 +825,7 @@ gem_meminit(sc)
 			GEM_INIT_RXDESC(sc, i);
 	}
 	sc->sc_rxptr = 0;
-	GEM_CDSYNC(sc, BUS_DMASYNC_PREWRITE);
-	GEM_CDSYNC(sc, BUS_DMASYNC_PREREAD);
+	GEM_CDSYNC(sc, BUS_DMASYNC_PREWRITE | BUS_DMASYNC_PREREAD);
 
 	return (0);
 }
@@ -940,7 +893,7 @@ gem_init_locked(struct gem_softc *sc)
 	 */
 
 	/* step 1 & 2.  Reset the Ethernet Channel. */
-	gem_stop(sc->sc_ifp, 0);
+	gem_stop(ifp, 0);
 	gem_reset(sc);
 #ifdef GEM_DEBUG
 	CTR2(KTR_GEM, "%s: %s: restarting", device_get_name(sc->sc_dev),
@@ -997,9 +950,9 @@ gem_init_locked(struct gem_softc *sc)
 
 	/* Enable DMA. */
 	v = gem_ringsize(GEM_NTXDESC /* XXX */);
-	GEM_BANK1_WRITE_4(sc, GEM_TX_CONFIG,
-	    v | GEM_TX_CONFIG_TXDMA_EN |
-	    ((0x400 << 10) & GEM_TX_CONFIG_TXFIFO_TH));
+	v |= ((sc->sc_variant == GEM_SUN_ERI ? 0x100 : 0x4ff) << 10) &
+	    GEM_TX_CONFIG_TXFIFO_TH;
+	GEM_BANK1_WRITE_4(sc, GEM_TX_CONFIG, v | GEM_TX_CONFIG_TXDMA_EN);
 
 	/* step 10.  ERX Configuration */
 
@@ -1029,12 +982,23 @@ gem_init_locked(struct gem_softc *sc)
 
 	/* step 12.  RX_MAC Configuration Register */
 	v = GEM_BANK1_READ_4(sc, GEM_MAC_RX_CONFIG);
-	v |= GEM_MAC_RX_STRIP_CRC;
+	v |= GEM_MAC_RX_ENABLE | GEM_MAC_RX_STRIP_CRC;
 	GEM_BANK1_WRITE_4(sc, GEM_MAC_RX_CONFIG, 0);
-	GEM_BANK1_BARRIER(sc, GEM_MAC_RX_CONFIG, 4, BUS_SPACE_BARRIER_WRITE);
+	GEM_BANK1_BARRIER(sc, GEM_MAC_RX_CONFIG, 4,
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 	if (!GEM_BANK1_BITWAIT(sc, GEM_MAC_RX_CONFIG, GEM_MAC_RX_ENABLE, 0))
-		device_printf(sc->sc_dev, "cannot disable RX MAC\n");
+		device_printf(sc->sc_dev, "cannot configure RX MAC\n");
 	GEM_BANK1_WRITE_4(sc, GEM_MAC_RX_CONFIG, v);
+
+	/* step 13. TX_MAC Configuration Register */
+	v = GEM_BANK1_READ_4(sc, GEM_MAC_TX_CONFIG);
+	v |= GEM_MAC_TX_ENABLE;
+	GEM_BANK1_WRITE_4(sc, GEM_MAC_TX_CONFIG, 0);
+	GEM_BANK1_BARRIER(sc, GEM_MAC_TX_CONFIG, 4,
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
+	if (!GEM_BANK1_BITWAIT(sc, GEM_MAC_TX_CONFIG, GEM_MAC_TX_ENABLE, 0))
+		device_printf(sc->sc_dev, "cannot configure TX MAC\n");
+	GEM_BANK1_WRITE_4(sc, GEM_MAC_TX_CONFIG, v);
 
 	/* step 14.  Issue Transmit Pending command. */
 
@@ -1043,9 +1007,7 @@ gem_init_locked(struct gem_softc *sc)
 
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-	sc->sc_ifflags = ifp->if_flags;
 
-	sc->sc_flags &= ~GEM_LINK;
 	mii_mediachg(sc->sc_mii);
 
 	/* Start the one second timer. */
@@ -1058,15 +1020,40 @@ gem_load_txmbuf(struct gem_softc *sc, struct mbuf **m_head)
 {
 	bus_dma_segment_t txsegs[GEM_NTXSEGS];
 	struct gem_txsoft *txs;
+	struct ip *ip;
 	struct mbuf *m;
 	uint64_t cflags, flags;
-	int error, nexttx, nsegs, seg;
+	int error, nexttx, nsegs, offset, seg;
 
 	/* Get a work queue entry. */
 	if ((txs = STAILQ_FIRST(&sc->sc_txfreeq)) == NULL) {
 		/* Ran out of descriptors. */
 		return (ENOBUFS);
 	}
+
+	cflags = 0;
+	if (((*m_head)->m_pkthdr.csum_flags & sc->sc_csum_features) != 0) {
+		if (M_WRITABLE(*m_head) == 0) {
+			m = m_dup(*m_head, M_DONTWAIT);
+			m_freem(*m_head);
+			*m_head = m;
+			if (m == NULL)
+				return (ENOBUFS);
+		}
+		offset = sizeof(struct ether_header);
+		m = m_pullup(*m_head, offset + sizeof(struct ip));
+		if (m == NULL) {
+			*m_head = NULL;
+			return (ENOBUFS);
+		}
+		ip = (struct ip *)(mtod(m, caddr_t) + offset);
+		offset += (ip->ip_hl << 2);
+		cflags = offset << GEM_TD_CXSUM_STARTSHFT |
+		    ((offset + m->m_pkthdr.csum_data) <<
+		    GEM_TD_CXSUM_STUFFSHFT) | GEM_TD_CXSUM_ENABLE;
+		*m_head = m;
+	}
+
 	error = bus_dmamap_load_mbuf_sg(sc->sc_tdmatag, txs->txs_dmamap,
 	    *m_head, txsegs, &nsegs, BUS_DMA_NOWAIT);
 	if (error == EFBIG) {
@@ -1107,10 +1094,6 @@ gem_load_txmbuf(struct gem_softc *sc, struct mbuf **m_head)
 		bus_dmamap_unload(sc->sc_tdmatag, txs->txs_dmamap);
 		return (ENOBUFS);
 	}
-
-	flags = cflags = 0;
-	if (((*m_head)->m_pkthdr.csum_flags & sc->sc_csum_features) != 0)
-		gem_txcksum(sc, *m_head, &cflags);
 
 	txs->txs_ndescs = nsegs;
 	txs->txs_firstdesc = sc->sc_txnext;
@@ -1302,7 +1285,7 @@ gem_start_locked(struct ifnet *ifp)
 		CTR3(KTR_GEM, "%s: %s: kicking TX %d",
 		    device_get_name(sc->sc_dev), __func__, sc->sc_txnext);
 #endif
-		GEM_CDSYNC(sc, BUS_DMASYNC_PREWRITE);
+		GEM_CDSYNC(sc, BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 		GEM_BANK1_WRITE_4(sc, GEM_TX_KICK, sc->sc_txnext);
 
 		BPF_MTAP(ifp, m);
@@ -1426,9 +1409,7 @@ gem_tint(struct gem_softc *sc)
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 		sc->sc_wdog_timer = STAILQ_EMPTY(&sc->sc_txdirtyq) ? 0 : 5;
 
-		if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
-		    !IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-			gem_start_locked(ifp);
+		gem_start_locked(ifp);
 	}
 
 #ifdef GEM_DEBUG
@@ -1538,7 +1519,8 @@ gem_rint(struct gem_softc *sc)
 		 */
 		sc->sc_rxptr = GEM_NEXTRX(sc->sc_rxptr);
 		if ((sc->sc_rxptr % 4) == 0) {
-			GEM_CDSYNC(sc, BUS_DMASYNC_PREWRITE);
+			GEM_CDSYNC(sc,
+			    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 			GEM_BANK1_WRITE_4(sc, GEM_RX_KICK,
 			    (sc->sc_rxptr + GEM_NRXDESC - 4) &
 			    GEM_NRXDESC_MASK);
@@ -1713,6 +1695,7 @@ gem_intr(void *v)
 static int
 gem_watchdog(struct gem_softc *sc)
 {
+	struct ifnet *ifp = sc->sc_ifp;
 
 	GEM_LOCK_ASSERT(sc, MA_OWNED);
 
@@ -1736,10 +1719,11 @@ gem_watchdog(struct gem_softc *sc)
 		device_printf(sc->sc_dev, "device timeout\n");
 	else if (bootverbose)
 		device_printf(sc->sc_dev, "device timeout (no link)\n");
-	++sc->sc_ifp->if_oerrors;
+	++ifp->if_oerrors;
 
 	/* Try to get more packets going. */
 	gem_init_locked(sc);
+	gem_start_locked(ifp);
 	return (EJUSTRETURN);
 }
 
@@ -1814,6 +1798,8 @@ gem_mii_readreg(device_t dev, int phy, int reg)
 	    (reg << GEM_MIF_REG_SHIFT);
 
 	GEM_BANK1_WRITE_4(sc, GEM_MIF_FRAME, v);
+	GEM_BANK1_BARRIER(sc, GEM_MIF_FRAME, 4,
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 	for (n = 0; n < 100; n++) {
 		DELAY(1);
 		v = GEM_BANK1_READ_4(sc, GEM_MIF_FRAME);
@@ -1842,12 +1828,21 @@ gem_mii_writereg(device_t dev, int phy, int reg, int val)
 
 	if ((sc->sc_flags & GEM_SERDES) != 0) {
 		switch (reg) {
-		case MII_BMCR:
-			reg = GEM_MII_CONTROL;
-			break;
 		case MII_BMSR:
 			reg = GEM_MII_STATUS;
 			break;
+		case MII_BMCR:
+			reg = GEM_MII_CONTROL;
+			if ((val & GEM_MII_CONTROL_RESET) == 0)
+				break;
+			GEM_BANK1_WRITE_4(sc, GEM_MII_CONTROL, val);
+			GEM_BANK1_BARRIER(sc, GEM_MII_CONTROL, 4,
+			    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
+			if (!GEM_BANK1_BITWAIT(sc, GEM_MII_CONTROL,
+			    GEM_MII_CONTROL_RESET, 0))
+				device_printf(sc->sc_dev,
+				    "cannot reset PCS\n");
+			/* FALLTHROUGH */
 		case MII_ANAR:
 			GEM_BANK1_WRITE_4(sc, GEM_MII_CONFIG, 0);
 			GEM_BANK1_BARRIER(sc, GEM_MII_CONFIG, 4,
@@ -1877,6 +1872,8 @@ gem_mii_writereg(device_t dev, int phy, int reg, int val)
 	    (val & GEM_MIF_FRAME_DATA);
 
 	GEM_BANK1_WRITE_4(sc, GEM_MIF_FRAME, v);
+	GEM_BANK1_BARRIER(sc, GEM_MIF_FRAME, 4,
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 	for (n = 0; n < 100; n++) {
 		DELAY(1);
 		v = GEM_BANK1_READ_4(sc, GEM_MIF_FRAME);
@@ -1937,12 +1934,14 @@ gem_mii_statchg(device_t dev)
 		txcfg |= GEM_MAC_TX_CARR_EXTEND;
 	}
 	GEM_BANK1_WRITE_4(sc, GEM_MAC_TX_CONFIG, 0);
-	GEM_BANK1_BARRIER(sc, GEM_MAC_TX_CONFIG, 4, BUS_SPACE_BARRIER_WRITE);
+	GEM_BANK1_BARRIER(sc, GEM_MAC_TX_CONFIG, 4,
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 	if (!GEM_BANK1_BITWAIT(sc, GEM_MAC_TX_CONFIG, GEM_MAC_TX_ENABLE, 0))
 		device_printf(sc->sc_dev, "cannot disable TX MAC\n");
 	GEM_BANK1_WRITE_4(sc, GEM_MAC_TX_CONFIG, txcfg);
 	GEM_BANK1_WRITE_4(sc, GEM_MAC_RX_CONFIG, 0);
-	GEM_BANK1_BARRIER(sc, GEM_MAC_RX_CONFIG, 4, BUS_SPACE_BARRIER_WRITE);
+	GEM_BANK1_BARRIER(sc, GEM_MAC_RX_CONFIG, 4,
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 	if (!GEM_BANK1_BITWAIT(sc, GEM_MAC_RX_CONFIG, GEM_MAC_RX_ENABLE, 0))
 		device_printf(sc->sc_dev, "cannot disable RX MAC\n");
 	GEM_BANK1_WRITE_4(sc, GEM_MAC_RX_CONFIG, rxcfg);
@@ -2110,7 +2109,8 @@ gem_setladrf(struct gem_softc *sc)
 	    GEM_MAC_RX_PROMISC_GRP);
 
 	GEM_BANK1_WRITE_4(sc, GEM_MAC_RX_CONFIG, v);
-	GEM_BANK1_BARRIER(sc, GEM_MAC_RX_CONFIG, 4, BUS_SPACE_BARRIER_WRITE);
+	GEM_BANK1_BARRIER(sc, GEM_MAC_RX_CONFIG, 4,
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 	if (!GEM_BANK1_BITWAIT(sc, GEM_MAC_RX_CONFIG, GEM_MAC_RX_HASH_FILTER,
 	    0))
 		device_printf(sc->sc_dev, "cannot disable RX hash filter\n");
