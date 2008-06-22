@@ -339,7 +339,7 @@ parse_mode(char *arg, int *mode, int ch)
 		*mode = MODE_MIN;
 	else if (strcmp(arg, "maximum") == 0 || strcmp(arg, "max") == 0)
 		*mode = MODE_MAX;
-	else if (strcmp(arg, "adaptive") == 0)
+	else if (strcmp(arg, "adaptive") == 0 || strcmp(arg, "adp") == 0)
 		*mode = MODE_ADAPTIVE;
 	else
 		errx(1, "bad option: -%c %s", (char)ch, optarg);
