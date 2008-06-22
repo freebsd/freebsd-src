@@ -16,15 +16,21 @@ stop_cmd="pkg_stop"
 
 pkg_start()
 {
+	local initdone
+
 	# For each dir in $local_startup, search for init scripts matching *.sh
 	#
 	case ${local_startup} in
 	[Nn][Oo] | '')
 		;;
 	*)
-		echo -n 'Local package initialization:'
+		initdone=
 		find_local_scripts_old
 		for script in ${zlist} ${slist}; do
+			if [ -z "${initdone}" -a -f "${script}" ]; then
+				echo -n 'Local package initialization:'
+				initdone=yes
+			fi
 			if [ -x "${script}" ]; then
 				(set -T
 				trap 'exit 1' 2
@@ -33,20 +39,26 @@ pkg_start()
 				echo -n " (skipping ${script}, not executable)"
 			fi
 		done
-		echo '.'
+		[ -n "${initdone}" ] && echo '.'
 		;;
 	esac
 }
 
 pkg_stop()
 {
+	local initdone
+
 	case ${local_startup} in
 	[Nn][Oo] | '')
 		;;
 	*)
-		echo -n 'Shutting down daemon processes:'
+		initdone=
 		find_local_scripts_old
 		for script in `reverse_list ${slist} ${zlist}`; do
+			if [ -z "${initdone}" -a -f "${script}" ]; then
+				echo -n 'Shutting down daemon processes:'
+				initdone=yes
+			fi
 			if [ -x "${script}" ]; then
 				if [ `sysctl -n debug.bootverbose` -eq 1 ]; then
 					echo "==>" ${script}
@@ -56,7 +68,7 @@ pkg_stop()
 				${script} stop)
 			fi
 		done
-		echo '.'
+		[ -n "${initdone}" ] && echo '.'
 		;;
 	esac
 }
