@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005 Robert N. M. Watson
+ * Copyright (c) 2005-2008 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,7 +42,8 @@
  * a fifo in it and check that the following properties are present, as
  * specified in IEEE Std 1003.1, 2004 Edition:
  *
- * - When mkfifo() is called, on success, a fifo is created.
+ * - When mkfifo() or mknod(S_IFIFO) is called, on success, a fifo is
+ *   created.
  *
  * - On an error, no fifo is created. (XXX: Not tested)
  *
@@ -84,75 +85,99 @@ atexit_temp_dir(void)
 }
 
 /*
- * Basic creation tests: verify that mkfifo() creates a fifo, that the time
- * stamps on the directory are updated, that if we try twice we get EEXIST,
- * and that we can unlink it.
+ * Basic creation tests: verify that mkfifo(2) (or mknod(2)) creates a fifo,
+ * that the time stamps on the directory are updated, that if we try twice we
+ * get EEXIST, and that we can unlink it.
  */
 static void
-fifo_create_test(void)
+fifo_create_test(int use_mkfifo)
 {
 	struct stat old_dirsb, dirsb, fifosb;
+	const char *testname;
 	char path[PATH_MAX];
 	int error;
+
+	if (use_mkfifo)
+		testname = "mkfifo";
+	else
+		testname = "mknod";
 
 	/*
 	 * Sleep to make sure that the time stamp on the directory will be
 	 * updated.
 	 */
-	sleep(2);
-
 	if (stat(temp_dir, &old_dirsb) < 0)
-		err(-1, "basic_create_test: stat: %s", temp_dir);
+		err(-1, "basic_create_test: %s: stat: %s", testname,
+		    temp_dir);
+
+	sleep(2);
 
 	snprintf(path, PATH_MAX, "%s/testfifo", temp_dir);
 
-	if (mkfifo(path, 0600) < 0)
-		err(-1, "basic_create_test: mkfifo: %s", path);
+	if (use_mkfifo) {
+		if (mkfifo(path, 0600) < 0)
+			err(-1, "basic_create_test: %s: %s", testname, path);
+	} else {
+		if (mknod(path, S_IFIFO | 0600, 0) < 0)
+			err(-1, "basic_create_test: %s: %s", testname, path);
+	}
 
 	if (stat(path, &fifosb) < 0) {
 		error = errno;
 		(void)unlink(path);
 		errno = error;
-		err(-1, "basic_create_test: stat: %s", path);
+		err(-1, "basic_create_test: %s: stat: %s", testname, path);
 	}
 
 	if (!(S_ISFIFO(fifosb.st_mode))) {
 		(void)unlink(path);
-		errx(-1, "basic_create_test: mkfifo produced non-fifo");
+		errx(-1, "basic_create_test: %s produced non-fifo",
+		    testname);
 	}
 
-	if (mkfifo(path, 0600) == 0)
-		errx(-1, "basic_create_test: dup mkfifo succeeded");
+	if (use_mkfifo) {
+		if (mkfifo(path, 0600) == 0)
+			errx(-1, "basic_create_test: dup %s succeeded",
+			    testname);
+	} else {
+		if (mknod(path, S_IFIFO | 0600, 0) == 0)
+			errx(-1, "basic_create_test: dup %s succeeded",
+			    testname);
+	}
 
 	if (errno != EEXIST)
-		err(-1, "basic_create_test: dup mkfifo unexpected error");
+		err(-1, "basic_create_test: dup %s unexpected error",
+		    testname);
 
 	if (stat(temp_dir, &dirsb) < 0) {
 		error = errno;
 		(void)unlink(path);
 		errno = error;
-		err(-1, "basic_create_test: stat: %s", temp_dir);
+		err(-1, "basic_create_test: %s: stat: %s", testname,
+		    temp_dir);
 	}
 
 	if (old_dirsb.st_ctime == dirsb.st_ctime) {
 		(void)unlink(path);
-		errx(-1, "basic_create_test: old_dirsb.st_ctime == "
-		    "dirsb.st_ctime");
+		errx(-1, "basic_create_test: %s: old_dirsb.st_ctime == "
+		    "dirsb.st_ctime", testname);
 	}
 
 	if (old_dirsb.st_mtime == dirsb.st_mtime) {
 		(void)unlink(path);
-		errx(-1, "basic_create_test: old_dirsb.st_mtime == "
-		    "dirsb.st_mtime");
+		errx(-1, "basic_create_test: %s: old_dirsb.st_mtime == "
+		    "dirsb.st_mtime", testname);
 	}
 
 	if (unlink(path) < 0)
-		err(-1, "basic_create_test: unlink: %s", path);
+		err(-1, "basic_create_test: %s: unlink: %s", testname, path);
 
 	if (stat(path, &fifosb) == 0)
-		errx(-1, "basic_create_test: unlink failed to unlink");
+		errx(-1, "basic_create_test: %s: unlink failed to unlink",
+		    testname);
 	if (errno != ENOENT)
-		err(-1, "basic_create_test: unlink unexpected error");
+		err(-1, "basic_create_test: %s: unlink unexpected error",
+		    testname);
 }
 
 /*
@@ -176,13 +201,19 @@ static const int permission_test_count = sizeof(permission_test) /
     sizeof(struct permission_test);
 
 static void
-fifo_permission_test(void)
+fifo_permission_test(int use_mkfifo)
 {
 	const struct permission_test *ptp;
 	mode_t __unused old_umask;
 	char path[PATH_MAX];
+	const char *testname;
 	struct stat sb;
 	int error, i;
+
+	if (use_mkfifo)
+		testname = "mkfifo";
+	else
+		testname = "mknod";
 
 	snprintf(path, PATH_MAX, "%s/testfifo", temp_dir);
 	old_umask = umask(0022);
@@ -190,26 +221,36 @@ fifo_permission_test(void)
 		ptp = &permission_test[i];
 
 		umask(ptp->pt_umask);
-		if (mkfifo(path, ptp->pt_reqmode) < 0)
-			err(-1, "fifo_permission_test: %08o %08o %08o\n",
-			    ptp->pt_umask, ptp->pt_reqmode, ptp->pt_mode);
+		if (use_mkfifo) {
+			if (mkfifo(path, ptp->pt_reqmode) < 0)
+				err(-1, "fifo_permission_test: %s: %08o "
+				    "%08o %08o\n", testname, ptp->pt_umask,
+				    ptp->pt_reqmode, ptp->pt_mode);
+		} else {
+			if (mknod(path, S_IFIFO | ptp->pt_reqmode, 0) < 0)
+				err(-1, "fifo_permission_test: %s: %08o "
+				    "%08o %08o\n", testname, ptp->pt_umask,
+				    ptp->pt_reqmode, ptp->pt_mode);
+		}
 
 		if (stat(path, &sb) < 0) {
 			error = errno;
 			(void)unlink(path);
 			errno = error;
-			err(-1, "fifo_permission_test: %s", path);
+			err(-1, "fifo_permission_test: %s: %s", testname,
+			    path);
 		}
 
 		if (sb.st_mode != ptp->pt_mode) {
 			(void)unlink(path);
-			errx(-1, "fifo_permission_test: %08o %08o %08o "
-			    "got %08o", ptp->pt_umask, ptp->pt_reqmode,
-			    ptp->pt_mode, sb.st_mode);
+			errx(-1, "fifo_permission_test: %s: %08o %08o %08o "
+			    "got %08o", testname, ptp->pt_umask,
+			    ptp->pt_reqmode, ptp->pt_mode, sb.st_mode);
 		}
 
 		if (unlink(path) < 0)
-			err(-1, "fifo_permission_test: unlink: %s", path);
+			err(-1, "fifo_permission_test: %s: unlink: %s",
+			    testname, path);
 	}
 	umask(old_umask);
 }
@@ -217,6 +258,7 @@ fifo_permission_test(void)
 int
 main(int argc, char *argv[])
 {
+	int i;
 
 	if (geteuid() != 0)
 		errx(-1, "must be run as root");
@@ -229,9 +271,15 @@ main(int argc, char *argv[])
 	if (chdir(temp_dir) < 0)
 		err(-1, "chdir");
 
-	fifo_create_test();
-
-	fifo_permission_test();
+	/*
+	 * Run each test twice, once with mknod(2) and a second time with
+	 * mkfifo(2).  Historically, BSD has not allowed mknod(2) to be used
+	 * to create fifos, but the Single UNIX Specification requires it.
+	 */
+	for (i = 0; i < 2; i++) {
+		fifo_create_test(i);
+		fifo_permission_test(i);
+	}
 
 	return (0);
 }
