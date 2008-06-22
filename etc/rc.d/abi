@@ -45,13 +45,19 @@ svr4_start()
 
 abi_start()
 {
-	echo -n 'Additional ABI support:'
+	local _echostop
+
+	_echostop=
+	if checkyesno sysvipc_enable || checkyesno linux_enable || checkyesno svr4_enable; then
+		echo -n 'Additional ABI support:'
+		_echostop=yes
+	fi
 
 	checkyesno sysvipc_enable && sysv_start
 	checkyesno linux_enable && linux_start
 	checkyesno svr4_enable && svr4_start
 
-	echo '.'
+	[ -n "${_echostop}" ] && echo '.'
 }
 
 load_rc_config $name
