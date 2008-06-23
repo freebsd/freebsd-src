@@ -673,11 +673,14 @@ run_rc_command()
 				return 1
 			fi
 
-			_run_rc_precmd || return 1
+			if ! _run_rc_precmd; then
+				warn "failed precmd routine for ${name}"
+				return 1
+			fi
 
 					# setup the full command to run
 					#
-			echo "Starting ${name}."
+			[ -z "${rc_quiet}" ] && echo "Starting ${name}."
 			if [ -n "$_chroot" ]; then
 				_doit="\
 ${_nice:+nice -n $_nice }\
@@ -700,7 +703,10 @@ $command $rc_flags $command_args"
 
 					# run the full command
 					#
-			_run_rc_doit "$_doit" || return 1
+			if ! _run_rc_doit "$_doit"; then
+				warn "failed to start ${name}"
+				return 1
+			fi
 
 					# finally, run postcmd
 					#
