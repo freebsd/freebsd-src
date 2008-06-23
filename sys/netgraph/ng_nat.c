@@ -704,14 +704,14 @@ ng_nat_rcvdata(hook_p hook, item_p item )
 	    ("ng_nat: ip_len != m_pkthdr.len"));
 
 	if (hook == priv->in) {
-		rval = LibAliasIn(priv->lib, c, MCLBYTES);
+		rval = LibAliasIn(priv->lib, c, m->m_len + M_TRAILINGSPACE(m));
 		if (rval != PKT_ALIAS_OK &&
 		    rval != PKT_ALIAS_FOUND_HEADER_FRAGMENT) {
 			NG_FREE_ITEM(item);
 			return (EINVAL);
 		}
 	} else if (hook == priv->out) {
-		rval = LibAliasOut(priv->lib, c, MCLBYTES);
+		rval = LibAliasOut(priv->lib, c, m->m_len + M_TRAILINGSPACE(m));
 		if (rval != PKT_ALIAS_OK) {
 			NG_FREE_ITEM(item);
 			return (EINVAL);
