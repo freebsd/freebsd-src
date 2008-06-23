@@ -48,10 +48,6 @@ ifn_start()
 	ipx_up ${ifn} && cfg=0
 	childif_create ${ifn}
 
-	if [ "$cfg" -eq 0 ]; then
-		ifconfig ${ifn}
-	fi
-
 	return $cfg
 }
 
@@ -72,10 +68,6 @@ ifn_stop()
 	ifconfig_down ${ifn} && cfg=0
 	ifscript_down ${ifn} && cfg=0
 	childif_destroy ${ifn}
-
-	if [ "$cfg" -eq 0 ]; then
-		echo -n " ${ifn}"
-	fi
 
 	return $cfg
 }
