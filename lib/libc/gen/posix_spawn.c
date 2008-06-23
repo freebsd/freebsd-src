@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 #include "un-namespace.h"
+#include "libc_private.h"
 
 extern char **environ;
 
@@ -212,7 +213,7 @@ do_posix_spawn(pid_t *pid, const char *path,
 				_exit(127);
 		}
 		if (use_env_path)
-			execvpe(path, argv, envp != NULL ? envp : environ);
+			_execvpe(path, argv, envp != NULL ? envp : environ);
 		else
 			_execve(path, argv, envp != NULL ? envp : environ);
 		error = errno;

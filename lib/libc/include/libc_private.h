@@ -195,4 +195,7 @@ extern void *	__sys_freebsd6_mmap(void *, __size_t, int, int, int, int, __off_t)
 /* Without back-compat translation */
 extern int	__sys_fcntl(int, int, ...);
 
+/* execve() with PATH processing to implement posix_spawnp() */
+int _execvpe(const char *, char * const *, char * const *);
+
 #endif /* _LIBC_PRIVATE_H_ */
