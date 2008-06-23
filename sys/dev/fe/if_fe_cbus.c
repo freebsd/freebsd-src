@@ -33,7 +33,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
-#include <machine/resource.h>
 
 #include <net/ethernet.h>
 #include <net/if.h>
@@ -269,8 +268,6 @@ fe98_alloc_port(device_t dev, int type)
 	sc->type = type;
 	sc->port_used = size;
 	sc->port_res = res;
-	sc->iot = rman_get_bustag(res);
-	sc->ioh = rman_get_bushandle(res);
 	return (0);
 }
 
