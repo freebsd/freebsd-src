@@ -80,7 +80,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
-#include <machine/resource.h>
 
 #include <net/ethernet.h>
 #include <net/if.h>
@@ -767,21 +766,7 @@ fe_attach (device_t dev)
 	 * Set fixed interface flags.
 	 */
  	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
-
-#if 1
-	/*
-	 * Set maximum size of output queue, if it has not been set.
-	 * It is done here as this driver may be started after the
-	 * system initialization (i.e., the interface is PCMCIA.)
-	 *
-	 * I'm not sure this is really necessary, but, even if it is,
-	 * it should be done somewhere else, e.g., in if_attach(),
-	 * since it must be a common workaround for all network drivers.
-	 * FIXME.
-	 */
-	if (ifp->if_snd.ifq_maxlen == 0)
-		ifp->if_snd.ifq_maxlen = ifqmaxlen;
-#endif
+	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
 
 #if FE_SINGLE_TRANSMISSION
 	/* Override txb config to allocate minimum.  */
@@ -899,8 +884,6 @@ fe_alloc_port(device_t dev, int size)
 	if (res) {
 		sc->port_used = size;
 		sc->port_res = res;
-		sc->iot = rman_get_bustag(res);
-		sc->ioh = rman_get_bushandle(res);
 		return (0);
 	}
 
@@ -987,6 +970,7 @@ fe_stop (struct fe_softc *sc)
 
 	/* Reset transmitter variables and interface flags.  */
 	sc->ifp->if_drv_flags &= ~(IFF_DRV_OACTIVE | IFF_DRV_RUNNING);
+	sc->tx_timeout = 0;
 	callout_stop(&sc->timer);
 	sc->txb_free = sc->txb_size;
 	sc->txb_count = 0;
@@ -1011,13 +995,16 @@ fe_watchdog (void *arg)
 
 	FE_ASSERT_LOCKED(sc);
 
-	/* A "debug" message.  */
-	if_printf(sc->ifp, "transmission timeout (%d+%d)%s\n",
-	       sc->txb_sched, sc->txb_count,
-	       (sc->ifp->if_flags & IFF_UP) ? "" : " when down");
-	if (sc->ifp->if_opackets == 0 && sc->ifp->if_ipackets == 0)
-		if_printf(sc->ifp, "wrong IRQ setting in config?\n");
-	fe_reset(sc);
+	if (sc->tx_timeout && --sc->tx_timeout == 0) {
+		/* A "debug" message.  */
+		if_printf(sc->ifp, "transmission timeout (%d+%d)%s\n",
+		    sc->txb_sched, sc->txb_count,
+		    (sc->ifp->if_flags & IFF_UP) ? "" : " when down");
+		if (sc->ifp->if_opackets == 0 && sc->ifp->if_ipackets == 0)
+			if_printf(sc->ifp, "wrong IRQ setting in config?\n");
+		fe_reset(sc);
+	}
+	callout_reset(&sc->timer, hz, fe_watchdog, sc);
 }
 
 /*
@@ -1128,6 +1115,7 @@ fe_init_locked (struct fe_softc *sc)
 
 	/* Set 'running' flag, because we are now running.   */
 	sc->ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	callout_reset(&sc->timer, hz, fe_watchdog, sc);
 
 	/*
 	 * At this point, the interface is running properly,
@@ -1159,7 +1147,7 @@ fe_xmit (struct fe_softc *sc)
 	 * We use longer timeout for multiple packet transmission.
 	 * I'm not sure this timer value is appropriate.  FIXME.
 	 */
-	callout_reset(&sc->timer, (1 + sc->txb_count) * hz, fe_watchdog, sc);
+	sc->tx_timeout = 1 + sc->txb_count;
 
 	/* Update txb variables.  */
 	sc->txb_sched = sc->txb_count;
@@ -1555,7 +1543,7 @@ fe_tint (struct fe_softc * sc, u_char tstat)
 		 * Reset output active flag and watchdog timer.
 		 */
 		sc->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-		callout_stop(&sc->timer);
+		sc->tx_timeout = 0;
 
 		/*
 		 * If more data is ready to transmit in the buffer, start

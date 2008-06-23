@@ -76,8 +76,6 @@ struct fe_softc {
 	int			type;
 	int			port_used;
 	struct resource *	port_res;
-	bus_space_tag_t		iot;
-	bus_space_handle_t	ioh;
 	struct resource *	irq_res;
 	void *			irq_handle;
 
@@ -119,6 +117,7 @@ struct fe_softc {
 
 	struct mtx		lock;
 	struct callout		timer;
+	int			tx_timeout;
 };
 
 struct fe_simple_probe_struct {
@@ -154,31 +153,31 @@ void	fe_init_ubn(struct fe_softc *);
 
 
 #define	fe_inb(sc, port) \
-	bus_space_read_1((sc)->iot, (sc)->ioh, (port))
+	bus_read_1((sc)->port_res, (port))
 
 #define	fe_outb(sc, port, value) \
-	bus_space_write_1((sc)->iot, (sc)->ioh, (port), (value))
+	bus_write_1((sc)->port_res, (port), (value))
 
 #define	fe_inw(sc, port) \
-	bus_space_read_2((sc)->iot, (sc)->ioh, (port))
+	bus_read_2((sc)->port_res, (port))
 
 #define	fe_outw(sc, port, value) \
-	bus_space_write_2((sc)->iot, (sc)->ioh, (port), (value))
+	bus_write_2((sc)->port_res, (port), (value))
 
 #define	fe_insb(sc, port, addr, count) \
-	bus_space_read_multi_1((sc)->iot, (sc)->ioh, (port), (addr), (count))
+	bus_read_multi_1((sc)->port_res, (port), (addr), (count))
 
 #define	fe_outsb(sc, port, addr, count) \
-	bus_space_write_multi_1((sc)->iot, (sc)->ioh, (port), (addr), (count))
+	bus_write_multi_1((sc)->port_res, (port), (addr), (count))
 
 #define	fe_insw(sc, port, addr, count) \
-	bus_space_read_multi_2((sc)->iot, (sc)->ioh, (port), (addr), (count))
+	bus_read_multi_2((sc)->port_res, (port), (addr), (count))
 
 #define	fe_outsw(sc, port, addr, count) \
-	bus_space_write_multi_2((sc)->iot, (sc)->ioh, (port), (addr), (count))
+	bus_write_multi_2((sc)->port_res, (port), (addr), (count))
 
 #define fe_inblk(sc, port, addr, count) \
-	bus_space_read_region_1((sc)->iot, (sc)->ioh, (port), (addr), (count))
+	bus_read_region_1((sc)->port_res, (port), (addr), (count))
 
 #define fe_outblk(sc, port, addr, count) \
-	bus_space_write_region_1((sc)->iot, (sc)->ioh, (port), (addr), (count))
+	bus_write_region_1((sc)->port_res, (port), (addr), (count))
