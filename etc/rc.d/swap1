@@ -10,7 +10,7 @@
 . /etc/rc.subr
 
 name="swap1"
-start_cmd='swapon -a'
+start_cmd='swapon -aq'
 stop_cmd=':'
 
 load_rc_config swap
