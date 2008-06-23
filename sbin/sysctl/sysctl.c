@@ -59,7 +59,7 @@ static const char rcsid[] =
 #include <unistd.h>
 
 static int	aflag, bflag, dflag, eflag, hflag, Nflag, nflag, oflag;
-static int	qflag, xflag;
+static int	qflag, xflag, warncount;
 
 static int	oidfmt(int *, int, char *, u_int *);
 static void	parse(char *);
@@ -146,9 +146,11 @@ main(int argc, char **argv)
 		exit(sysctl_all(0, 0));
 	if (argc == 0)
 		usage();
+
+	warncount = 0;
 	while (argc-- > 0)
 		parse(*argv++);
-	exit(0);
+	exit(warncount);
 }
 
 /*
@@ -304,6 +306,7 @@ parse(char *string)
 					string);
 			default:
 				warn("%s", string);
+				warncount++;
 				return;
 			}
 		}
