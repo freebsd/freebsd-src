@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 
 #include <stdarg.h>
 #include "un-namespace.h"
+#include "libc_private.h"
 
 extern char **environ;
 
@@ -140,7 +141,7 @@ execv(name, argv)
 int
 execvp(const char *name, char * const *argv)
 {
-	return (execvpe(name, argv, environ));
+	return (_execvpe(name, argv, environ));
 }
 
 static int
@@ -272,7 +273,7 @@ execvP(const char *name, const char *path, char * const argv[])
 }
 
 int
-execvpe(const char *name, char * const argv[], char * const envp[])
+_execvpe(const char *name, char * const argv[], char * const envp[])
 {
 	const char *path;
 
