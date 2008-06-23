@@ -523,14 +523,6 @@ stub_pipe_relabel(struct ucred *cred, struct pipepair *pp,
 }
 
 static int
-stub_posixsem_check_destroy(struct ucred *cred, struct ksem *ks,
-    struct label *kslabel)
-{
-
-	return (0);
-}
-
-static int
 stub_posixsem_check_getvalue(struct ucred *cred, struct ksem *ks,
     struct label *kslabel)
 {
@@ -1587,7 +1579,6 @@ static struct mac_policy_ops stub_ops =
 	.mpo_pipe_internalize_label = stub_internalize_label,
 	.mpo_pipe_relabel = stub_pipe_relabel,
 
-	.mpo_posixsem_check_destroy = stub_posixsem_check_destroy,
 	.mpo_posixsem_check_getvalue = stub_posixsem_check_getvalue,
 	.mpo_posixsem_check_open = stub_posixsem_check_open,
 	.mpo_posixsem_check_post = stub_posixsem_check_post,

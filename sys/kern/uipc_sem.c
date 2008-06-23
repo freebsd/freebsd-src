@@ -807,11 +807,6 @@ ksem_destroy(struct thread *td, struct ksem_destroy_args *uap)
 		error = EINVAL;
 		goto err;
 	}
-#ifdef MAC
-	error = mac_posixsem_check_destroy(td->td_ucred, ks);
-	if (error)
-		goto err;
-#endif
 	if (ks->ks_waiters != 0) {
 		error = EBUSY;
 		goto err;
