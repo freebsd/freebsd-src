@@ -28,15 +28,15 @@
 .\"     @(#)swapon.8	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd April 29, 2008
+.Dd June 23, 2008
 .Dt SWAPON 8
 .Os
 .Sh NAME
 .Nm swapon , swapoff , swapctl
 .Nd "specify devices for paging and swapping"
 .Sh SYNOPSIS
-.Nm swapon Fl a | Ar
-.Nm swapoff Fl a | Ar
+.Nm swapon Fl aq | Ar
+.Nm swapoff Fl aq | Ar
 .Nm swapctl
 .Op Fl AghklmsU
 .Oo
@@ -69,6 +69,10 @@ option is used, all swap devices in
 will be added, unless their
 .Dq noauto
 option is also set.
+If the
+.Fl q
+option is used informational messages will not be
+written to standard output when a swap device is added.
 .Pp
 The
 .Nm swapoff
@@ -80,6 +84,10 @@ option is used, all swap devices in
 will be removed, unless their
 .Dq noauto
 option is also set.
+If the
+.Fl q
+option is used informational messages will not be
+written to standard output when a swap device is removed.
 Note that
 .Nm swapoff
 will fail and refuse to remove a swap device if there is insufficient
