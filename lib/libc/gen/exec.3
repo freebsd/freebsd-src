@@ -38,7 +38,6 @@
 .Nm exect ,
 .Nm execv ,
 .Nm execvp ,
-.Nm execvpe ,
 .Nm execvP
 .Nd execute a file
 .Sh LIBRARY
@@ -64,8 +63,6 @@
 .Fn execv "const char *path" "char *const argv[]"
 .Ft int
 .Fn execvp "const char *file" "char *const argv[]"
-.Ft int
-.Fn execvpe "const char *file" "char *const argv[]" "char *const envp[]"
 .Ft int
 .Fn execvP "const char *file" "const char *search_path" "char *const argv[]"
 .Sh DESCRIPTION
@@ -121,10 +118,9 @@ be terminated by a
 pointer.
 .Pp
 The
-.Fn execle ,
-.Fn exect
+.Fn execle
 and
-.Fn execvpe
+.Fn exect
 functions also specify the environment of the executed process by following
 the
 .Dv NULL
@@ -146,7 +142,6 @@ Some of these functions have special semantics.
 The functions
 .Fn execlp ,
 .Fn execvp ,
-.Fn execvpe ,
 and
 .Fn execvP
 will duplicate the actions of the shell in searching for an executable file
@@ -157,7 +152,6 @@ For
 .Fn execlp
 and
 .Fn execvp ,
-.Fn execvpe ,
 search path is the path specified in the environment by
 .Dq Ev PATH
 variable.
@@ -283,8 +277,7 @@ The
 .Fn execl ,
 .Fn execle ,
 .Fn execlp ,
-.Fn execvp ,
-.Fn execvpe
+.Fn execvp
 and
 .Fn execvP
 functions
@@ -326,7 +319,3 @@ The
 .Fn execvP
 function first appeared in
 .Fx 5.2 .
-The
-.Fn execvpe
-function first appeared in
-.Fx 8.0 .
