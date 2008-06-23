@@ -50,7 +50,11 @@ sysctl_set ()
 	esac
 
 	# Set the desired value
-	[ -n "${value}" ] && sysctl ${node}=${value}
+	if [ -n "${value}" ]; then
+		if ! sysctl ${node}=${value} > /dev/null 2>&1; then
+			warn "unable to set ${node}=${value}"
+		fi
+	fi
 }
 
 if [ $# -ne 1 ]; then

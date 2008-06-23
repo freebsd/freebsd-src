@@ -18,7 +18,10 @@ stop_cmd=":"
 auto_linklocal_start()
 {
 	if ! checkyesno ipv6_enable && ${SYSCTL} net.inet6 > /dev/null 2>&1; then
-		${SYSCTL_W} net.inet6.ip6.auto_linklocal=0
+		if ! ${SYSCTL_W} net.inet6.ip6.auto_linklocal=0 >/dev/null 2>&1; then
+			warn "failed to set sysctl(8)"
+			return 1
+		fi
 		laddr=`network6_getladdr lo0`
 		if [ -z "${laddr}" ]; then
 			ifconfig lo0 inet6 fe80::1 prefixlen 64
