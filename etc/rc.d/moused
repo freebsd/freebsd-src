@@ -51,7 +51,7 @@ moused_start()
 		mytype="$moused_type"
 	fi
 
-	echo -n "Starting ${ms} moused:"
+	[ -z "${rc_quiet}" ] && echo -n "Starting ${ms} moused."
 	/usr/sbin/moused ${myflags} -p ${myport} -t ${mytype} ${pidarg}
 
 	mousechar_arg=
@@ -59,7 +59,6 @@ moused_start()
 	[Nn][Oo] | '')
 		;;
 	*)
-		echo -n ' mousechar_start'
 		mousechar_arg="-M ${mousechar_start}"
 		;;
 	esac
@@ -67,7 +66,6 @@ moused_start()
 	for ttyv in /dev/ttyv* ; do
 		vidcontrol < ${ttyv} ${mousechar_arg} -m on
 	done
-	echo '.'
 }
 
 run_rc_command $*
