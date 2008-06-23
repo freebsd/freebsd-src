@@ -91,16 +91,6 @@ mac_posixsem_create(struct ucred *cred, struct ksem *ks)
 }
 
 int
-mac_posixsem_check_destroy(struct ucred *cred, struct ksem *ks)
-{
-	int error;
-
-	MAC_CHECK(posixsem_check_destroy, cred, ks, ks->ks_label);
-
-	return (error);
-}
-
-int
 mac_posixsem_check_open(struct ucred *cred, struct ksem *ks)
 {
 	int error;
