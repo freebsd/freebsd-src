@@ -3334,7 +3334,6 @@ static struct mac_policy_ops mac_biba_ops =
 	.mpo_pipe_internalize_label = biba_internalize_label,
 	.mpo_pipe_relabel = biba_pipe_relabel,
 
-	.mpo_posixsem_check_destroy = biba_posixsem_check_write,
 	.mpo_posixsem_check_getvalue = biba_posixsem_check_rdonly,
 	.mpo_posixsem_check_open = biba_posixsem_check_write,
 	.mpo_posixsem_check_post = biba_posixsem_check_write,

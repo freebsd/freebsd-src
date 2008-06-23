@@ -2957,7 +2957,6 @@ static struct mac_policy_ops mls_ops =
 	.mpo_pipe_internalize_label = mls_internalize_label,
 	.mpo_pipe_relabel = mls_pipe_relabel,
 
-	.mpo_posixsem_check_destroy = mls_posixsem_check_write,
 	.mpo_posixsem_check_getvalue = mls_posixsem_check_rdonly,
 	.mpo_posixsem_check_open = mls_posixsem_check_write,
 	.mpo_posixsem_check_post = mls_posixsem_check_write,
