@@ -318,11 +318,12 @@ ipfw_nat(struct ip_fw_args *args, struct cfg_nat *t, struct mbuf *m)
 	c = mtod(mcl, char *);
 	if (args->oif == NULL)
 		retval = LibAliasIn(t->lib, c, 
-				    MCLBYTES);
+			mcl->m_len + M_TRAILINGSPACE(mcl));
 	else
 		retval = LibAliasOut(t->lib, c, 
-				     MCLBYTES);
-	if (retval != PKT_ALIAS_OK) {
+			mcl->m_len + M_TRAILINGSPACE(mcl));
+	if (retval != PKT_ALIAS_OK &&
+	    retval != PKT_ALIAS_FOUND_HEADER_FRAGMENT) {
 		/* XXX - should i add some logging? */
 		m_free(mcl);
 	badnat:
