@@ -1649,29 +1649,49 @@ LibAliasUnLoadAllModule(void)
  * m_megapullup() - this function is a big hack.
  * Thankfully, it's only used in ng_nat and ipfw+nat.
  *
- * It allocates an mbuf with cluster and copies the whole chain into cluster,
- * so that it is all contiguous and the whole packet can be accessed via a
- * plain (char *) pointer.  This is required, because libalias doesn't know
- * how to handle mbuf chains.
+ * It allocates an mbuf with cluster and copies the specified part of the chain
+ * into cluster, so that it is all contiguous and can be accessed via a plain
+ * (char *) pointer. This is required, because libalias doesn't know how to
+ * handle mbuf chains.
  *
- * On success, m_megapullup returns an mbuf with cluster containing the input
- * packet, on failure NULL.  In both cases, the input packet is consumed.
+ * On success, m_megapullup returns an mbuf (possibly with cluster) containing
+ * the input packet, on failure NULL. The input packet is always consumed.
  */
 struct mbuf *
 m_megapullup(struct mbuf *m, int len) {
 	struct mbuf *mcl;
-	caddr_t cp;
 	
-	if (len > MCLBYTES)
+	if (len > m->m_pkthdr.len)
 		goto bad;
 	
-	if ((mcl = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR)) == NULL)
+	/* Do not reallocate packet if it is sequentional,
+	 * writable and has some extra space for expansion.
+	 * XXX: Constant 100bytes is completely empirical. */
+#define	RESERVE 100
+	if (m->m_next == NULL && M_WRITABLE(m) && M_TRAILINGSPACE(m) >= RESERVE)
+		return (m);
+
+	if (len <= MCLBYTES - RESERVE) {
+		mcl = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	} else if (len < MJUM16BYTES) {
+		int size;
+		if (len <= MJUMPAGESIZE - RESERVE) {
+			size = MJUMPAGESIZE;
+		} else if (len <= MJUM9BYTES - RESERVE) {
+			size = MJUM9BYTES;
+		} else {
+			size = MJUM16BYTES;
+		};
+		mcl = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR, size);
+	} else {
+		goto bad;
+	}
+	if (mcl == NULL)
 		goto bad;
  
-	cp = mtod(mcl, caddr_t);
-	m_copydata(m, 0, len, cp);
 	m_move_pkthdr(mcl, m);
-	mcl->m_len = mcl->m_pkthdr.len;
+	m_copydata(m, 0, len, mtod(mcl, caddr_t));
+	mcl->m_len = mcl->m_pkthdr.len = len;
 	m_freem(m);
  
 	return (mcl);
