@@ -288,8 +288,6 @@ typedef int	(*mpo_pipe_internalize_label_t)(struct label *label,
 typedef void	(*mpo_pipe_relabel_t)(struct ucred *cred, struct pipepair *pp,
 		    struct label *oldlabel, struct label *newlabel);
 
-typedef int	(*mpo_posixsem_check_destroy_t)(struct ucred *cred,
-		    struct ksem *ks, struct label *kslabel);
 typedef int	(*mpo_posixsem_check_getvalue_t)(struct ucred *cred,
 		    struct ksem *ks, struct label *kslabel);
 typedef int	(*mpo_posixsem_check_open_t)(struct ucred *cred,
@@ -741,7 +739,6 @@ struct mac_policy_ops {
 	mpo_pipe_internalize_label_t		mpo_pipe_internalize_label;
 	mpo_pipe_relabel_t			mpo_pipe_relabel;
 
-	mpo_posixsem_check_destroy_t		mpo_posixsem_check_destroy;
 	mpo_posixsem_check_getvalue_t		mpo_posixsem_check_getvalue;
 	mpo_posixsem_check_open_t		mpo_posixsem_check_open;
 	mpo_posixsem_check_post_t		mpo_posixsem_check_post;

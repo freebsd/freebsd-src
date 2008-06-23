@@ -1010,19 +1010,6 @@ test_pipe_relabel(struct ucred *cred, struct pipepair *pp,
 	COUNTER_INC(pipe_relabel);
 }
 
-COUNTER_DECL(posixsem_check_destroy);
-static int
-test_posixsem_check_destroy(struct ucred *cred, struct ksem *ks,
-    struct label *kslabel)
-{
-
-	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
-	LABEL_CHECK(kslabel, MAGIC_POSIX_SEM);
-	COUNTER_INC(posixsem_check_destroy);
-
-	return (0);
-}
-
 COUNTER_DECL(posixsem_check_getvalue);
 static int
 test_posixsem_check_getvalue(struct ucred *cred, struct ksem *ks,
@@ -2886,7 +2873,6 @@ static struct mac_policy_ops test_ops =
 	.mpo_pipe_internalize_label = test_pipe_internalize_label,
 	.mpo_pipe_relabel = test_pipe_relabel,
 
-	.mpo_posixsem_check_destroy = test_posixsem_check_destroy,
 	.mpo_posixsem_check_getvalue = test_posixsem_check_getvalue,
 	.mpo_posixsem_check_open = test_posixsem_check_open,
 	.mpo_posixsem_check_post = test_posixsem_check_post,
