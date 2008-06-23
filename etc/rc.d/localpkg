@@ -56,7 +56,7 @@ pkg_stop()
 		find_local_scripts_old
 		for script in `reverse_list ${slist} ${zlist}`; do
 			if [ -z "${initdone}" -a -f "${script}" ]; then
-				echo -n 'Shutting down daemon processes:'
+				echo -n 'Shutting down local packages:'
 				initdone=yes
 			fi
 			if [ -x "${script}" ]; then
