@@ -9,9 +9,17 @@
 
 . /etc/rc.subr
 
+_netoptions_initdone=
+netoptions_init()
+{
+	if [ -z "${_netoptions_initdone}" ]; then
+		echo -n 'Additional TCP/IP options:'
+		_netoptions_initdone=yes
+	fi
+}
+
 load_rc_config 'XXX'
 
-echo -n 'Additional IP options:'
 case ${log_in_vain} in
 [Nn][Oo] | '')
 	log_in_vain=0
@@ -22,12 +30,14 @@ case ${log_in_vain} in
 [0-9]*)
 	;;
 *)
+	netoptions_init
 	echo " invalid log_in_vain setting: ${log_in_vain}"
 	log_in_vain=0
 	;;
 esac
 
 [ "${log_in_vain}" -ne 0 ] && (
+	netoptions_init
 	echo -n " log_in_vain=${log_in_vain}"
 	sysctl net.inet.tcp.log_in_vain="${log_in_vain}" >/dev/null
 	sysctl net.inet.udp.log_in_vain="${log_in_vain}" >/dev/null
@@ -37,6 +47,7 @@ case ${tcp_extensions} in
 [Yy][Ee][Ss] | '')
 	;;
 *)
+	netoptions_init
 	echo -n ' tcp extensions=NO'
 	sysctl net.inet.tcp.rfc1323=0 >/dev/null
 	;;
@@ -44,6 +55,7 @@ esac
 
 case ${tcp_keepalive} in
 [Nn][Oo])
+	netoptions_init
 	echo -n ' TCP keepalive=NO'
 	sysctl net.inet.tcp.always_keepalive=0 >/dev/null
 	;;
@@ -51,6 +63,7 @@ esac
 
 case ${tcp_drop_synfin} in
 [Yy][Ee][Ss])
+	netoptions_init
 	echo -n ' drop SYN+FIN packets=YES'
 	sysctl net.inet.tcp.drop_synfin=1 >/dev/null
 	;;
@@ -60,6 +73,7 @@ case ${ip_portrange_first} in
 [Nn][Oo] | '')
 	;;
 *)
+	netoptions_init
 	echo -n " ip_portrange_first=$ip_portrange_first"
 	sysctl net.inet.ip.portrange.first=$ip_portrange_first >/dev/null
 	;;
@@ -69,9 +83,10 @@ case ${ip_portrange_last} in
 [Nn][Oo] | '')
 	;;
 *)
+	netoptions_init
 	echo -n " ip_portrange_last=$ip_portrange_last"
 	sysctl net.inet.ip.portrange.last=$ip_portrange_last >/dev/null
 	;;
 esac
 
-echo '.'
+[ -n "${_netoptions_initdone}" ] && echo '.'
