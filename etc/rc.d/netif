@@ -85,11 +85,8 @@ network_stop()
 	#
 	cmdifn=$*
 
-	echo -n "Stopping network:"
-
 	# Deconfigure the interface(s)
 	network_common ifn_stop
-	echo '.'
 }
 
 # network_common routine
@@ -98,7 +95,7 @@ network_stop()
 #	an interface and then calls $routine.
 network_common()
 {
-	local _cooked_list _fail _func
+	local _cooked_list _fail _func _ok _str
 
 	_func=
 
@@ -123,11 +120,30 @@ network_common()
 	fi
 
 	_fail=
+	_ok=
 	for ifn in ${_cooked_list}; do
-		if ! ${_func} ${ifn} $2; then
+		if ${_func} ${ifn} $2; then
+			_ok="${_ok} ${ifn}"
+		else
 			_fail="${_fail} ${ifn}"
 		fi
 	done
+
+	_str=
+	if [ -n "${_ok}" ]; then
+		case ${_func} in
+		ifn_start)
+			_str='Starting'
+			;;
+		ifn_stop)
+			_str='Stopping'
+			;;
+		esac
+		echo "${_str} Network:${_ok}."
+		if [ -z "${rc_quiet}" ]; then
+			/sbin/ifconfig ${_ok}
+		fi
+	fi
 
 	debug "The following interfaces were not configured: $_fail"
 }
