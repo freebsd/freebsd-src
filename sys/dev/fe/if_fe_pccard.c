@@ -32,7 +32,6 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/bus.h>
 #include <machine/bus.h>
-#include <machine/resource.h>
 #include <sys/rman.h>
 
 #include <net/ethernet.h>
