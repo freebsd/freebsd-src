@@ -57,7 +57,7 @@ savecore_prestart()
 
 savecore_start()
 {
-	echo "Checking for core dump on ${dumpdev}..."
+	[ -z "${rc_quiet}" ] && echo "Checking for core dump on ${dumpdev}..."
 	savecore ${savecore_flags} ${DUMPDIR} ${dumpdev}
 }
 

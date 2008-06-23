@@ -36,7 +36,7 @@ ldconfig_start()
 				_LDC="${_LDC} ${i}"
 			fi
 		done
-		echo 'ELF ldconfig path:' ${_LDC}
+		[ -z "${rc_quiet}" ] && echo 'ELF ldconfig path:' ${_LDC}
 		${ldconfig} -elf ${_ins} ${_LDC}
 
 		case `sysctl -n hw.machine_arch` in
@@ -55,7 +55,8 @@ ldconfig_start()
 					_LDC="${_LDC} ${i}"
 				fi
 			done
-			echo '32-bit compatibility ldconfig path:' ${_LDC}
+			[ -z "${rc_quiet}" ] &&
+			    echo '32-bit compatibility ldconfig path:' ${_LDC}
 			${ldconfig} -32 -m ${_ins} ${_LDC}
 			;;
 		esac
@@ -71,7 +72,8 @@ ldconfig_start()
 					_LDC="${_LDC} ${i}"
 				fi
 			done
-			echo 'a.out ldconfig path:' ${_LDC}
+			[ -z "${rc_quiet}" ] &&
+			    echo 'a.out ldconfig path:' ${_LDC}
 			${ldconfig} -aout ${_ins} ${_LDC}
 			;;
 		esac
