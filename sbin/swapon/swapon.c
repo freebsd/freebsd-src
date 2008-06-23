@@ -69,7 +69,7 @@ main(int argc, char **argv)
 	char *ptr;
 	int stat;
 	int ch, doall;
-	int sflag = 0, lflag = 0, hflag = 0;
+	int sflag = 0, lflag = 0, hflag = 0, qflag = 0;
 
 	if ((ptr = strrchr(argv[0], '/')) == NULL)
 		ptr = argv[0];
@@ -80,7 +80,7 @@ main(int argc, char **argv)
 	orig_prog = which_prog;
 	
 	doall = 0;
-	while ((ch = getopt(argc, argv, "AadghklmsU")) != -1) {
+	while ((ch = getopt(argc, argv, "AadghklmqsU")) != -1) {
 		switch(ch) {
 		case 'A':
 			if (which_prog == SWAPCTL) {
@@ -117,6 +117,10 @@ main(int argc, char **argv)
 		case 'm':
 			hflag = 'M';
 			break;
+		case 'q':
+			if (which_prog == SWAPON || which_prog == SWAPOFF)
+				qflag = 1;
+			break;
 		case 's':
 			sflag = 1;
 			break;
@@ -146,9 +150,12 @@ main(int argc, char **argv)
 				if (swap_on_off(fsp->fs_spec, 1)) {
 					stat = 1;
 				} else {
-					printf("%s: %sing %s as swap device\n",
-					    getprogname(), which_prog == SWAPOFF ? "remov" : "add",
-					    fsp->fs_spec);
+					if (!qflag) {
+						printf("%s: %sing %s as swap device\n",
+						    getprogname(),
+						    which_prog == SWAPOFF ? "remov" : "add",
+						    fsp->fs_spec);
+					}
 				}
 			}
 		}
@@ -203,7 +210,7 @@ usage(void)
 	switch(orig_prog) {
 	case SWAPON:
 	case SWAPOFF:
-	    fprintf(stderr, "-a | file ...\n");
+	    fprintf(stderr, "-aq | file ...\n");
 	    break;
 	case SWAPCTL:
 	    fprintf(stderr, "[-AghklmsU] [-a file ... | -d file ...]\n");
