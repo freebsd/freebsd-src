@@ -59,11 +59,20 @@ static_start()
 	fi
 }
 
+_ropts_initdone=
+ropts_init()
+{
+	if [ -z "${_ropts_initdone}" ]; then
+		echo -n 'Additional routing options:'
+		_ropts_initdone=yes
+	fi
+}
+
 options_start()
 {
-	echo -n 'Additional routing options:'
 	case ${icmp_bmcastecho} in
 	[Yy][Ee][Ss])
+		ropts_init
 		echo -n ' broadcast ping responses=YES'
 		sysctl net.inet.icmp.bmcastecho=1 >/dev/null
 		;;
@@ -71,6 +80,7 @@ options_start()
 
 	case ${icmp_drop_redirect} in
 	[Yy][Ee][Ss])
+		ropts_init
 		echo -n ' ignore ICMP redirect=YES'
 		sysctl net.inet.icmp.drop_redirect=1 >/dev/null
 		;;
@@ -78,6 +88,7 @@ options_start()
 
 	case ${icmp_log_redirect} in
 	[Yy][Ee][Ss])
+		ropts_init
 		echo -n ' log ICMP redirect=YES'
 		sysctl net.inet.icmp.log_redirect=1 >/dev/null
 		;;
@@ -85,6 +96,7 @@ options_start()
 
 	case ${gateway_enable} in
 	[Yy][Ee][Ss])
+		ropts_init
 		echo -n ' IP gateway=YES'
 		sysctl net.inet.ip.forwarding=1 >/dev/null
 		;;
@@ -92,6 +104,7 @@ options_start()
 
 	case ${forward_sourceroute} in
 	[Yy][Ee][Ss])
+		ropts_init
 		echo -n ' do source routing=YES'
 		sysctl net.inet.ip.sourceroute=1 >/dev/null
 		;;
@@ -99,6 +112,7 @@ options_start()
 
 	case ${accept_sourceroute} in
 	[Yy][Ee][Ss])
+		ropts_init
 		echo -n ' accept source routing=YES'
 		sysctl net.inet.ip.accept_sourceroute=1 >/dev/null
 		;;
@@ -106,6 +120,7 @@ options_start()
 
 	case ${ipxgateway_enable} in
 	[Yy][Ee][Ss])
+		ropts_init
 		echo -n ' IPX gateway=YES'
 		sysctl net.ipx.ipx.ipxforwarding=1 >/dev/null
 		;;
@@ -113,12 +128,13 @@ options_start()
 
 	case ${arpproxy_all} in
 	[Yy][Ee][Ss])
+		ropts_init
 		echo -n ' ARP proxyall=YES'
 		sysctl net.link.ether.inet.proxyall=1 >/dev/null
 		;;
 	esac
 
-	echo '.'
+	 [ -n "${_ropts_initdone}" ] && echo '.'
 }
 
 load_rc_config $name
