@@ -666,9 +666,12 @@ set80211channel(const char *val, int d, int s, const struct afswtch *rafp)
 	memset(&chan, 0, sizeof(chan));
 	if (!isanyarg(val)) {
 		int v, flags;
+		char *ep;
 
 		getchaninfo(s);
-		v = atoi(val);
+		v = strtol(val, &ep, 10);
+		if (val[0] == '\0' || ep[0] != '\0' || errno == ERANGE)
+			errx(1, "invalid channel number");
 		flags = getchannelflags(val, v);
 		if (v > 255) {		/* treat as frequency */
 			mapfreq(&chan, v, flags);
