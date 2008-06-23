@@ -108,6 +108,7 @@ __FBSDID("$FreeBSD$");
 #ifdef WPI_DEBUG
 #define DPRINTF(x)	do { if (wpi_debug != 0) printf x; } while (0)
 #define DPRINTFN(n, x)	do { if (wpi_debug & n) printf x; } while (0)
+#define	WPI_DEBUG_SET	(wpi_debug != 0)
 
 enum {
 	WPI_DEBUG_UNUSED	= 0x00000001,   /* Unused */
@@ -125,12 +126,14 @@ enum {
 	WPI_DEBUG_ANY		= 0xffffffff
 };
 
-int wpi_debug = 0;
+static int wpi_debug = 1;
 SYSCTL_INT(_debug, OID_AUTO, wpi, CTLFLAG_RW, &wpi_debug, 0, "wpi debug level");
+TUNABLE_INT("debug.wpi", &wpi_debug);
 
 #else
 #define DPRINTF(x)
 #define DPRINTFN(n, x)
+#define WPI_DEBUG_SET	0
 #endif
 
 struct wpi_ident {
@@ -239,7 +242,9 @@ static void	wpi_calib_timeout(void *);
 static void	wpi_power_calibration(struct wpi_softc *, int);
 static int	wpi_get_power_index(struct wpi_softc *,
 		    struct wpi_power_group *, struct ieee80211_channel *, int);
+#ifdef WPI_DEBUG
 static const char *wpi_cmd_str(int);
+#endif
 static int wpi_probe(device_t);
 static int wpi_attach(device_t);
 static int wpi_detach(device_t);
@@ -491,7 +496,7 @@ wpi_attach(device_t dev)
 
 	sc->sc_dev = dev;
 
-	if (bootverbose || wpi_debug)
+	if (bootverbose || WPI_DEBUG_SET)
 	    device_printf(sc->sc_dev,"Driver Revision %s\n", VERSION);
 
 	/*
@@ -578,7 +583,7 @@ wpi_attach(device_t dev)
 
 	wpi_mem_lock(sc);
 	tmp = wpi_mem_read(sc, WPI_MEM_PCIDEV);
-	if (bootverbose || wpi_debug)
+	if (bootverbose || WPI_DEBUG_SET)
 	    device_printf(sc->sc_dev, "Hardware Revision (0x%X)\n", tmp);
 
 	wpi_mem_unlock(sc);
@@ -647,7 +652,7 @@ wpi_attach(device_t dev)
 	 */
 	wpi_read_eeprom(sc);
 
-	if (bootverbose || wpi_debug) {
+	if (bootverbose || WPI_DEBUG_SET) {
 	    device_printf(sc->sc_dev, "Regulatory Domain: %.4s\n", sc->domain);
 	    device_printf(sc->sc_dev, "Hardware Type: %c\n",
 			  sc->type > 1 ? 'B': '?');
@@ -1053,7 +1058,7 @@ wpi_reset_rx_ring(struct wpi_softc *sc, struct wpi_rx_ring *ring)
 	wpi_mem_unlock(sc);
 
 #ifdef WPI_DEBUG
-	if (ntries == 100)
+	if (ntries == 100 && wpi_debug > 0)
 		device_printf(sc->sc_dev, "timeout resetting Rx ring\n");
 #endif
 
@@ -1159,7 +1164,7 @@ wpi_reset_tx_ring(struct wpi_softc *sc, struct wpi_tx_ring *ring)
 		DELAY(10);
 	}
 #ifdef WPI_DEBUG
-	if (ntries == 100)
+	if (ntries == 100 && wpi_debug > 0)
 		device_printf(sc->sc_dev, "timeout resetting Tx ring %d\n",
 		    ring->qid);
 #endif
@@ -1703,8 +1708,10 @@ wpi_notif_intr(struct wpi_softc *sc)
 		}
 		case WPI_START_SCAN:
 		{
+#ifdef WPI_DEBUG
 			struct wpi_start_scan *scan =
 				(struct wpi_start_scan *)(desc + 1);
+#endif
 
 			DPRINTFN(WPI_DEBUG_SCANNING,
 				 ("scanning channel %d status %x\n",
@@ -1713,8 +1720,10 @@ wpi_notif_intr(struct wpi_softc *sc)
 		}
 		case WPI_STOP_SCAN:
 		{
+#ifdef WPI_DEBUG
 			struct wpi_stop_scan *scan =
 				(struct wpi_stop_scan *)(desc + 1);
+#endif
 			struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 
 			DPRINTFN(WPI_DEBUG_SCANNING,
@@ -2604,12 +2613,14 @@ wpi_scan(struct wpi_softc *sc)
 		hdr->scan_essids[i].esslen = MIN(ss->ss_ssid[i].len, 32);
 		memcpy(hdr->scan_essids[i].essid, ss->ss_ssid[i].ssid,
 		    hdr->scan_essids[i].esslen);
+#ifdef WPI_DEBUG
 		if (wpi_debug & WPI_DEBUG_SCANNING) {
 			printf("Scanning Essid: ");
 			ieee80211_print_essid(hdr->scan_essids[i].essid,
 			    hdr->scan_essids[i].esslen);
 			printf("\n");
 		}
+#endif
 	}
 
 	/*
@@ -3292,7 +3303,8 @@ wpi_read_eeprom_channels(struct wpi_softc *sc, int n)
 	struct ieee80211com *ic = ifp->if_l2com;
 	const struct wpi_chan_band *band = &wpi_bands[n];
 	struct wpi_eeprom_chan channels[WPI_MAX_CHAN_PER_BAND];
-	int chan, i, offset, passive;
+	struct ieee80211_channel *c;
+	int chan, i, passive;
 
 	wpi_read_prom_data(sc, band->addr, channels,
 	    band->nchan * sizeof (struct wpi_eeprom_chan));
@@ -3307,7 +3319,7 @@ wpi_read_eeprom_channels(struct wpi_softc *sc, int n)
 
 		passive = 0;
 		chan = band->chan[i];
-		offset = ic->ic_nchans;
+		c = &ic->ic_channels[ic->ic_nchans++];
 
 		/* is active scan allowed on this channel? */
 		if (!(channels[i].flags & WPI_EEPROM_CHAN_ACTIVE)) {
@@ -3315,16 +3327,16 @@ wpi_read_eeprom_channels(struct wpi_softc *sc, int n)
 		}
 
 		if (n == 0) {	/* 2GHz band */
-			ic->ic_channels[offset].ic_ieee = chan;
-			ic->ic_channels[offset].ic_freq =
-			ieee80211_ieee2mhz(chan, IEEE80211_CHAN_2GHZ);
-			ic->ic_channels[offset].ic_flags = IEEE80211_CHAN_B | passive;
-			offset++;
-			ic->ic_channels[offset].ic_ieee = chan;
-			ic->ic_channels[offset].ic_freq =
-			ieee80211_ieee2mhz(chan, IEEE80211_CHAN_2GHZ);
-			ic->ic_channels[offset].ic_flags = IEEE80211_CHAN_G | passive;
-			offset++;
+			c->ic_ieee = chan;
+			c->ic_freq = ieee80211_ieee2mhz(chan,
+			    IEEE80211_CHAN_2GHZ);
+			c->ic_flags = IEEE80211_CHAN_B | passive;
+
+			c = &ic->ic_channels[ic->ic_nchans++];
+			c->ic_ieee = chan;
+			c->ic_freq = ieee80211_ieee2mhz(chan,
+			    IEEE80211_CHAN_2GHZ);
+			c->ic_flags = IEEE80211_CHAN_G | passive;
 
 		} else {	/* 5GHz band */
 			/*
@@ -3337,17 +3349,14 @@ wpi_read_eeprom_channels(struct wpi_softc *sc, int n)
 			if (chan <= 14)
 				continue;
 
-			ic->ic_channels[offset].ic_ieee = chan;
-			ic->ic_channels[offset].ic_freq =
-			ieee80211_ieee2mhz(chan, IEEE80211_CHAN_5GHZ);
-			ic->ic_channels[offset].ic_flags = IEEE80211_CHAN_A | passive;
-			offset++;
+			c->ic_ieee = chan;
+			c->ic_freq = ieee80211_ieee2mhz(chan,
+			    IEEE80211_CHAN_5GHZ);
+			c->ic_flags = IEEE80211_CHAN_A | passive;
 		}
 
 		/* save maximum allowed power for this channel */
 		sc->maxpwr[chan] = channels[i].maxpwr;
-
-		ic->ic_nchans = offset;
 
 #if 0
 		// XXX We can probably use this an get rid of maxpwr - ben 20070617
@@ -3356,8 +3365,11 @@ wpi_read_eeprom_channels(struct wpi_softc *sc, int n)
 		//ic->ic_channels[chan].ic_maxregtxpower...
 #endif
 
-		DPRINTF(("adding chan %d flags=0x%x maxpwr=%d, offset %d\n",
-			    chan, channels[i].flags, sc->maxpwr[chan], offset));
+		DPRINTF(("adding chan %d (%dMHz) flags=0x%x maxpwr=%d"
+		    " passive=%d, offset %d\n", chan, c->ic_freq,
+		    channels[i].flags, sc->maxpwr[chan],
+		    (c->ic_flags & IEEE80211_CHAN_PASSIVE) != 0,
+		    ic->ic_nchans));
 	}
 }
 
