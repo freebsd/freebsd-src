@@ -22,13 +22,13 @@ motd_start()
 	#	Must be done *before* interactive logins are possible
 	#	to prevent possible race conditions.
 	#
-	echo -n 'Updating motd'
+	[ -z "${rc_quiet}" ] && echo -n 'Updating motd:'
 	if [ ! -f /etc/motd ]; then
 		install -c -o root -g wheel -m ${PERMS} /dev/null /etc/motd
 	fi
 
 	if [ ! -w /etc/motd ]; then
-		echo ' ... /etc/motd is not writable, update failed.'
+		echo ' /etc/motd is not writable, update failed.'
 		return
 	fi
 
@@ -42,7 +42,7 @@ motd_start()
 	}
 	rm -f $T
 
-	echo .
+	[ -z "${rc_quiet}" ] && echo .
 }
 
 load_rc_config $name
