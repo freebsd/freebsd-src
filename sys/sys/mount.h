@@ -177,6 +177,7 @@ struct mount {
 	int		mnt_secondary_accwrites;/* (i) secondary wr. starts */
 #define	mnt_endzero	mnt_gjprovider
 	char		*mnt_gjprovider;	/* gjournal provider name */
+	struct lock	mnt_explock;		/* vfs_export walkers lock */
 };
 
 struct vnode *__mnt_vnode_next(struct vnode **mvp, struct mount *mp);
