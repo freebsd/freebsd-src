@@ -45,6 +45,16 @@ stop_cmd=":"
 kbddev=/dev/ttyv0
 viddev=/dev/ttyv0
 
+_sc_config="syscons"
+_sc_initdone=
+sc_init()
+{
+	if [ -z "${_sc_initdone}" ]; then
+		echo -n "Configuring ${_sc_config}:"
+		_sc_initdone=yes
+	fi
+}
+
 # helper
 syscons_configure_keyboard()
 {
@@ -54,6 +64,7 @@ syscons_configure_keyboard()
 	[Nn][Oo] | '')
 		;;
 	*)
+		sc_init
 		echo -n ' keymap';	kbdcontrol < ${kbddev} -l ${keymap}
 		;;
 	esac
@@ -64,6 +75,7 @@ syscons_configure_keyboard()
 	[Nn][Oo] | '')
 		;;
 	*)
+		sc_init
 		echo -n ' keyrate';	kbdcontrol < ${kbddev} -r ${keyrate}
 		;;
 	esac
@@ -74,6 +86,7 @@ syscons_configure_keyboard()
 	[Nn][Oo] | '')
 		;;
 	*)
+		sc_init
 		echo -n ' keybell';	kbdcontrol < ${kbddev} -b ${keybell}
 		;;
 	esac
@@ -84,6 +97,7 @@ syscons_configure_keyboard()
 	[Nn][Oo] | '')
 		;;
 	*)
+		sc_init
 		echo -n ' keychange'
 		set - ${keychange}
 		while [ $# -gt 0 ]; do
@@ -96,6 +110,7 @@ syscons_configure_keyboard()
 	# set this keyboard mode for all virtual terminals
 	#
 	if [ -n "${allscreens_kbdflags}" ]; then
+		sc_init
 		echo -n ' allscreens_kbd'
 		for ttyv in /dev/ttyv*; do
 			kbdcontrol ${allscreens_kbdflags} < ${ttyv} > ${ttyv} 2>&1
@@ -117,9 +132,17 @@ syscons_setkeyboard()
 		kbdcontrol -k ${kbd} < ${kbddev} > /dev/null 2>&1
 	fi
 
-	echo -n 'Configuring keyboard:'
+	_sc_config="keyboard"
 	syscons_configure_keyboard
-	echo '.'
+
+	# Terminate keyboard configuration line and reset global variables.
+	#
+	if [ -n "${_sc_initdone}" ]; then
+		echo '.'
+		_sc_config="syscons"
+		_sc_initdone=
+	fi
+
 }
 
 syscons_precmd()
@@ -133,12 +156,10 @@ syscons_precmd()
 
 syscons_start()
 {
-	echo -n 'Configuring syscons:'
-
 	# keyboard
 	#
 	if [ -n "${keyboard}" ]; then
-		echo -n ' keyboard';	syscons_setkeyboard ${keyboard}
+		syscons_setkeyboard ${keyboard}
 	fi
 
 	syscons_configure_keyboard
@@ -149,6 +170,7 @@ syscons_start()
 	[Nn][Oo] | '')
 		;;
 	*)
+		sc_init
 		echo -n ' cursor';	vidcontrol < ${viddev} -c ${cursor}
 		;;
 	esac
@@ -159,6 +181,7 @@ syscons_start()
 	[Nn][Oo] | '')
 		;;
 	*)
+		sc_init
 		echo -n ' scrnmap';	vidcontrol < ${viddev} -l ${scrnmap}
 		;;
 	esac
@@ -169,6 +192,7 @@ syscons_start()
 	[Nn][Oo] | '')
 		;;
 	*)
+		sc_init
 		echo -n ' font8x16';	vidcontrol < ${viddev} -f 8x16 ${font8x16}
 		;;
 	esac
@@ -179,6 +203,7 @@ syscons_start()
 	[Nn][Oo] | '')
 		;;
 	*)
+		sc_init
 		echo -n ' font8x14';	vidcontrol < ${viddev} -f 8x14 ${font8x14}
 		;;
 	esac
@@ -189,6 +214,7 @@ syscons_start()
 	[Nn][Oo] | '')
 		;;
 	*)
+		sc_init
 		echo -n ' font8x8';	vidcontrol < ${viddev} -f 8x8 ${font8x8}
 		;;
 	esac
@@ -199,6 +225,7 @@ syscons_start()
 	[Nn][Oo] | '')
 		;;
 	*)
+		sc_init
 		echo -n ' blanktime';	vidcontrol < ${viddev} -t ${blanktime}
 		;;
 	esac
@@ -209,6 +236,7 @@ syscons_start()
 	[Nn][Oo] | '')
 		;;
 	*)
+		sc_init
 		echo -n ' screensaver'
 		for i in `kldstat | awk '$5 ~ "_saver\.ko$" { print $5 }'`; do
 			kldunload ${i}
@@ -220,13 +248,14 @@ syscons_start()
 	# set this mode for all virtual screens
 	#
 	if [ -n "${allscreens_flags}" ]; then
+		sc_init
 		echo -n ' allscreens'
 		for ttyv in /dev/ttyv*; do
 			vidcontrol ${allscreens_flags} < ${ttyv} > ${ttyv} 2>&1
 		done
 	fi
 
-	echo '.'
+	[ -n "${_sc_initdone}" ] && echo '.'
 }
 
 load_rc_config $name
