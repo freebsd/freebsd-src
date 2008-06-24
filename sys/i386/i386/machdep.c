@@ -194,6 +194,10 @@ static void freebsd4_sendsig(sig_t catcher, int sig, sigset_t *mask,
 long Maxmem = 0;
 long realmem = 0;
 
+#ifdef PAE
+FEATURE(pae, "Physical Address Extensions");
+#endif
+
 #define PHYSMAP_SIZE	(2 * 16)
 
 vm_paddr_t phys_avail[PHYSMAP_SIZE + 2];
