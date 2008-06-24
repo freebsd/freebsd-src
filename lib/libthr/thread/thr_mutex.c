@@ -93,6 +93,8 @@ static int	mutex_self_trylock(pthread_mutex_t);
 static int	mutex_self_lock(pthread_mutex_t,
 				const struct timespec *abstime);
 static int	mutex_unlock_common(pthread_mutex_t *);
+static int	mutex_lock_sleep(struct pthread *, pthread_mutex_t,
+				const struct timespec *);
 
 __weak_reference(__pthread_mutex_init, pthread_mutex_init);
 __strong_reference(__pthread_mutex_init, _pthread_mutex_init);
@@ -346,25 +348,24 @@ __pthread_mutex_trylock(pthread_mutex_t *mutex)
 }
 
 static int
-mutex_lock_sleep(struct pthread *curthread, pthread_mutex_t m,
-	const struct timespec * abstime)
+mutex_lock_sleep(struct pthread *curthread, struct pthread_mutex *m,
+	const struct timespec *abstime)
 {
-	struct  timespec ts, ts2;
-	uint32_t	id;
-	int	ret;
+	uint32_t	id, owner;
 	int	count;
+	int	ret;
+
+	if (m->m_owner == curthread)
+		return mutex_self_lock(m, abstime);
 
 	id = TID(curthread);
-	if (__predict_false(m->m_owner == curthread))
-		return  mutex_self_lock(m, abstime);
-
 	/*
 	 * For adaptive mutexes, spin for a bit in the expectation
 	 * that if the application requests this mutex type then
 	 * the lock is likely to be released quickly and it is
 	 * faster than entering the kernel
 	 */
-	if (m->m_lock.m_flags & UMUTEX_PRIO_PROTECT)
+	if (m->m_lock.m_flags & (UMUTEX_PRIO_PROTECT | UMUTEX_PRIO_INHERIT))
 		goto sleep_in_kernel;
 
 	if (!_thr_is_smp)
@@ -372,10 +373,12 @@ mutex_lock_sleep(struct pthread *curthread, pthread_mutex_t m,
 
 	count = m->m_spinloops;
 	while (count--) {
-		if (m->m_lock.m_owner == UMUTEX_UNOWNED) {
-			ret = _thr_umutex_trylock2(&m->m_lock, id);
-			if (ret == 0)
+		owner = m->m_lock.m_owner;
+		if ((owner & ~UMUTEX_CONTESTED) == 0) {
+			if (atomic_cmpset_acq_32(&m->m_lock.m_owner, owner, id|owner)) {
+				ret = 0;
 				goto done;
+			}
 		}
 		CPU_SPINWAIT;
 	}
@@ -384,49 +387,43 @@ yield_loop:
 	count = m->m_yieldloops;
 	while (count--) {
 		_sched_yield();
-		ret = _thr_umutex_trylock2(&m->m_lock, id);
-		if (ret == 0)
-			goto done;
+		owner = m->m_lock.m_owner;
+		if ((owner & ~UMUTEX_CONTESTED) == 0) {
+			if (atomic_cmpset_acq_32(&m->m_lock.m_owner, owner, id|owner)) {
+				ret = 0;
+				goto done;
+			}
+		}
 	}
 
 sleep_in_kernel:
 	if (abstime == NULL) {
-		ret = __thr_umutex_lock(&m->m_lock);
+		ret = __thr_umutex_lock(&m->m_lock, id);
 	} else if (__predict_false(
-		   abstime->tv_sec < 0 || abstime->tv_nsec < 0 ||
+		   abstime->tv_nsec < 0 ||
 		   abstime->tv_nsec >= 1000000000)) {
 		ret = EINVAL;
 	} else {
-		clock_gettime(CLOCK_REALTIME, &ts);
-		TIMESPEC_SUB(&ts2, abstime, &ts);
-		ret = __thr_umutex_timedlock(&m->m_lock, &ts2);
-		/*
-		 * Timed out wait is not restarted if
-		 * it was interrupted, not worth to do it.
-		 */
-		if (ret == EINTR)
-			ret = ETIMEDOUT;
+		ret = __thr_umutex_timedlock(&m->m_lock, id, abstime);
 	}
 done:
 	if (ret == 0)
 		ENQUEUE_MUTEX(curthread, m);
+
 	return (ret);
 }
 
 static inline int
 mutex_lock_common(struct pthread *curthread, struct pthread_mutex *m,
-	const struct timespec * abstime)
+	const struct timespec *abstime)
 {
-	uint32_t	id;
-	int	ret;
 
-	id = TID(curthread);
-	ret = _thr_umutex_trylock2(&m->m_lock, id);
-	if (ret == 0)
+	if (_thr_umutex_trylock2(&m->m_lock, TID(curthread)) == 0) {
 		ENQUEUE_MUTEX(curthread, m);
-	else
-		ret = mutex_lock_sleep(curthread, m, abstime);
-	return (ret);
+		return (0);
+	}
+	
+	return (mutex_lock_sleep(curthread, m, abstime));
 }
 
 int
@@ -450,6 +447,7 @@ __pthread_mutex_lock(pthread_mutex_t *mutex)
 			return (ret);
 		m = *mutex;
 	}
+
 	return (mutex_lock_common(curthread, m, NULL));
 }
 
