@@ -162,7 +162,7 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, int *mem)
 				ADDib(sizeof(int), ECX);
 				CMPoqd(-12, RBP, ECX);
 				JLEb(5);
-				ZERO_EAX();
+				ZEROrd(EAX);
 				POP(RBX);
 				LEAVE_RET();
 				MOVobd(RBX, RSI, EAX);
@@ -170,7 +170,7 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, int *mem)
 				break;
 
 			case BPF_LD|BPF_H|BPF_ABS:
-				ZERO_EAX();
+				ZEROrd(EAX);
 				MOVid(ins->k, ECX);
 				MOVrd(ECX, ESI);
 				ADDib(sizeof(short), ECX);
@@ -183,7 +183,7 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, int *mem)
 				break;
 
 			case BPF_LD|BPF_B|BPF_ABS:
-				ZERO_EAX();
+				ZEROrd(EAX);
 				MOVid(ins->k, ECX);
 				CMPoqd(-12, RBP, ECX);
 				JLEb(3);
@@ -207,7 +207,7 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, int *mem)
 				ADDib(sizeof(int), ECX);
 				CMPoqd(-12, RBP, ECX);
 				JLEb(5);
-				ZERO_EAX();
+				ZEROrd(EAX);
 				POP(RBX);
 				LEAVE_RET();
 				MOVobd(RBX, RSI, EAX);
@@ -215,7 +215,7 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, int *mem)
 				break;
 
 			case BPF_LD|BPF_H|BPF_IND:
-				ZERO_EAX();
+				ZEROrd(EAX);
 				MOVid(ins->k, ECX);
 				ADDrd(EDX, ECX);
 				MOVrd(ECX, ESI);
@@ -229,7 +229,7 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, int *mem)
 				break;
 
 			case BPF_LD|BPF_B|BPF_IND:
-				ZERO_EAX();
+				ZEROrd(EAX);
 				MOVid(ins->k, ECX);
 				ADDrd(EDX, ECX);
 				CMPoqd(-12, RBP, ECX);
@@ -243,10 +243,10 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, int *mem)
 				MOVid(ins->k, ECX);
 				CMPoqd(-12, RBP, ECX);
 				JLEb(5);
-				ZERO_EAX();
+				ZEROrd(EAX);
 				POP(RBX);
 				LEAVE_RET();
-				ZERO_EDX();
+				ZEROrd(EDX);
 				MOVobb(RBX, RCX, DL);
 				ANDib(0xf, DL);
 				SHLib(2, EDX);
@@ -378,11 +378,11 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, int *mem)
 			case BPF_ALU|BPF_DIV|BPF_X:
 				CMPid(0, EDX);
 				JNEb(5);
-				ZERO_EAX();
+				ZEROrd(EAX);
 				POP(RBX);
 				LEAVE_RET();
 				MOVrd(EDX, ECX);
-				ZERO_EDX();
+				ZEROrd(EDX);
 				DIVrd(ECX);
 				MOVrd(ECX, EDX);
 				break;
@@ -422,7 +422,7 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, int *mem)
 
 			case BPF_ALU|BPF_DIV|BPF_K:
 				MOVrd(EDX, ECX);
-				ZERO_EDX();
+				ZEROrd(EDX);
 				MOVid(ins->k, ESI);
 				DIVrd(ESI);
 				MOVrd(ECX, EDX);
