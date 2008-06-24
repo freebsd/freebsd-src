@@ -213,13 +213,17 @@ _mtx_unlock_flags(struct mtx *m, int opts, const char *file, int line)
 void
 _mtx_lock_spin_flags(struct mtx *m, int opts, const char *file, int line)
 {
-	
+
 	MPASS(curthread != NULL);
 	KASSERT(m->mtx_lock != MTX_DESTROYED,
 	    ("mtx_lock_spin() of destroyed mutex @ %s:%d", file, line));
 	KASSERT(LOCK_CLASS(&m->lock_object) == &lock_class_mtx_spin,
 	    ("mtx_lock_spin() of sleep mutex %s @ %s:%d",
 	    m->lock_object.lo_name, file, line));
+	if (mtx_owned(m))
+		KASSERT((m->lock_object.lo_flags & LO_RECURSABLE) != 0,
+	    ("mtx_lock_spin: recursed on non-recursive mutex %s @ %s:%d\n",
+		    m->lock_object.lo_name, file, line));
 	WITNESS_CHECKORDER(&m->lock_object, opts | LOP_NEWORDER | LOP_EXCLUSIVE,
 	    file, line);
 	_get_spin_lock(m, curthread, opts, file, line);
@@ -509,6 +513,10 @@ retry:
 		KASSERT(LOCK_CLASS(&m->lock_object) == &lock_class_mtx_spin,
 		    ("thread_lock() of sleep mutex %s @ %s:%d",
 		    m->lock_object.lo_name, file, line));
+		if (mtx_owned(m))
+			KASSERT((m->lock_object.lo_flags & LO_RECURSABLE) != 0,
+	    ("thread_lock: recursed on non-recursive mutex %s @ %s:%d\n",
+			    m->lock_object.lo_name, file, line));
 		WITNESS_CHECKORDER(&m->lock_object,
 		    opts | LOP_NEWORDER | LOP_EXCLUSIVE, file, line);
 		while (!_obtain_lock(m, tid)) {
