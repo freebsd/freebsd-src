@@ -101,7 +101,9 @@ struct urwlock {
 #define	UMTX_OP_RW_UNLOCK	14
 #define	UMTX_OP_WAIT_UINT_PRIVATE	15
 #define	UMTX_OP_WAKE_PRIVATE		16
-#define	UMTX_OP_MAX		17
+#define	UMTX_OP_MUTEX_WAIT		17
+#define	UMTX_OP_MUTEX_WAKE		18
+#define	UMTX_OP_MAX		19
 
 /* flags for UMTX_OP_CV_WAIT */
 #define UMTX_CHECK_UNPARKING	0x01
