@@ -182,6 +182,7 @@ main(int argc, char *argv[])
 			break;
 		case 'p': /* POSIX 1997 */
 			cpio->mode = opt;
+			cpio->extract_flags &= ~ARCHIVE_EXTRACT_SECURE_NODOTDOT;
 			break;
 		case OPTION_QUIET: /* GNU cpio */
 			cpio->quiet = 1;
