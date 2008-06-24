@@ -34,10 +34,10 @@
 
 #define DEFAULT_UMUTEX	{0,0, {0,0},{0,0,0,0}}
 
-int __thr_umutex_lock(struct umutex *mtx) __hidden;
-int __thr_umutex_timedlock(struct umutex *mtx,
+int __thr_umutex_lock(struct umutex *mtx, uint32_t id) __hidden;
+int __thr_umutex_timedlock(struct umutex *mtx, uint32_t id,
 	const struct timespec *timeout) __hidden;
-int __thr_umutex_unlock(struct umutex *mtx) __hidden;
+int __thr_umutex_unlock(struct umutex *mtx, uint32_t id) __hidden;
 int __thr_umutex_trylock(struct umutex *mtx) __hidden;
 int __thr_umutex_set_ceiling(struct umutex *mtx, uint32_t ceiling,
 	uint32_t *oldceiling) __hidden;
@@ -71,26 +71,30 @@ _thr_umutex_trylock(struct umutex *mtx, uint32_t id)
 static inline int
 _thr_umutex_trylock2(struct umutex *mtx, uint32_t id)
 {
-    if (atomic_cmpset_acq_32(&mtx->m_owner, UMUTEX_UNOWNED, id))
+    if (atomic_cmpset_acq_32(&mtx->m_owner, UMUTEX_UNOWNED, id) != 0)
 	return (0);
+    if ((uint32_t)mtx->m_owner == UMUTEX_CONTESTED &&
+        __predict_true((mtx->m_flags & (UMUTEX_PRIO_PROTECT | UMUTEX_PRIO_INHERIT)) == 0))
+    	if (atomic_cmpset_acq_32(&mtx->m_owner, UMUTEX_CONTESTED, id | UMUTEX_CONTESTED))
+		return (0);
     return (EBUSY);
 }
 
 static inline int
 _thr_umutex_lock(struct umutex *mtx, uint32_t id)
 {
-    if (atomic_cmpset_acq_32(&mtx->m_owner, UMUTEX_UNOWNED, id))
+    if (_thr_umutex_trylock2(mtx, id) == 0)
 	return (0);
-    return (__thr_umutex_lock(mtx));
+    return (__thr_umutex_lock(mtx, id));
 }
 
 static inline int
 _thr_umutex_timedlock(struct umutex *mtx, uint32_t id,
 	const struct timespec *timeout)
 {
-    if (atomic_cmpset_acq_32(&mtx->m_owner, UMUTEX_UNOWNED, id))
+    if (_thr_umutex_trylock2(mtx, id) == 0)
 	return (0);
-    return (__thr_umutex_timedlock(mtx, timeout));
+    return (__thr_umutex_timedlock(mtx, id, timeout));
 }
 
 static inline int
@@ -98,7 +102,7 @@ _thr_umutex_unlock(struct umutex *mtx, uint32_t id)
 {
     if (atomic_cmpset_rel_32(&mtx->m_owner, id, UMUTEX_UNOWNED))
 	return (0);
-    return (__thr_umutex_unlock(mtx));
+    return (__thr_umutex_unlock(mtx, id));
 }
 
 static inline int
