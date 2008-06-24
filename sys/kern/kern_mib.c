@@ -38,6 +38,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_compat.h"
 #include "opt_posix.h"
 
 #include <sys/param.h>
@@ -303,6 +304,14 @@ u_long hostid;
 SYSCTL_ULONG(_kern, KERN_HOSTID, hostid, CTLFLAG_RW, &hostid, 0, "Host ID");
 
 SYSCTL_NODE(_kern, OID_AUTO, features, CTLFLAG_RD, 0, "Kernel Features");
+
+#ifdef COMPAT_FREEBSD4
+FEATURE(compat_freebsd4, "Compatible with FreeBSD 4");
+#endif
+
+#ifdef COMPAT_FREEBSD5
+FEATURE(compat_freebsd5, "Compatible with FreeBSD 5");
+#endif
 
 /*
  * This is really cheating.  These actually live in the libc, something
