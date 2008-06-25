@@ -2,7 +2,7 @@
 
 .include <bsd.own.mk>
 
-SUBDIR= csu libgcc libgcov libdialog libgomp libregex libreadline
+SUBDIR= csu libgcc libgcov libdialog libgomp libregex libreadline libssp
 
 # libsupc++ uses libstdc++ headers, although 'make includes' should
 # have taken care of that already.
@@ -12,10 +12,6 @@ SUBDIR+= libstdc++ libsupc++
 
 .if ${MK_OBJC} != "no"
 SUBDIR+= libobjc
-.endif
-
-.if ${MK_SSP} != "no"
-SUBDIR+= libssp
 .endif
 
 .include <bsd.subdir.mk>

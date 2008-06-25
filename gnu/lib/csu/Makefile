@@ -19,6 +19,7 @@ CFLAGS+=	-I${GCCLIB}/include -I${GCCDIR}/config -I${GCCDIR} -I. \
 		-I${CCDIR}/cc_tools
 CRTS_CFLAGS=	-DCRTSTUFFS_O -DSHARED ${PICFLAG}
 MKDEP=		-DCRT_BEGIN
+WITHOUT_SSP=
 
 .if ${MACHINE_ARCH} == "ia64"
 BEGINSRC=	crtbegin.asm

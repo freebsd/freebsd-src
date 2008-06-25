@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+WITHOUT_SSP=
+
 .include <bsd.own.mk>
 
 LIB=		ia64

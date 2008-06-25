@@ -1,6 +1,7 @@
 # $FreeBSD$
 
 NO_MAN=
+WITHOUT_SSP=
 
 .include <bsd.own.mk>
 

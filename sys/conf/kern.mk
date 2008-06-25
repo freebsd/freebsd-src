@@ -106,3 +106,10 @@ CFLAGS+=	-ffreestanding
 .if ${CC} == "icc"
 CFLAGS+=	-restrict
 .endif
+
+#
+# GCC SSP support.
+#
+.if ${MK_SSP} != "no" && ${CC} != "icc" && ${MACHINE_ARCH} != "ia64"
+CFLAGS+=	-fstack-protector
+.endif
