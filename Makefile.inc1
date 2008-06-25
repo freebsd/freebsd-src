@@ -225,6 +225,7 @@ BMAKE=		MAKEOBJDIRPREFIX=${WORLDTMP} \
 		${BMAKEENV} ${MAKE} -f Makefile.inc1 \
 		DESTDIR= \
 		BOOTSTRAPPING=${OSRELDATE} \
+		-DWITHOUT_SSP \
 		-DWITHOUT_HTML -DWITHOUT_INFO -DNO_LINT -DWITHOUT_MAN \
 		-DWITHOUT_NLS -DNO_PIC -DWITHOUT_PROFILE -DNO_SHARED \
 		-DNO_CPU_CFLAGS -DNO_WARNS -DNO_CTF
@@ -235,7 +236,7 @@ TMAKE=		MAKEOBJDIRPREFIX=${OBJTREE} \
 		TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
 		DESTDIR= \
 		BOOTSTRAPPING=${OSRELDATE} -DNO_LINT -DNO_CPU_CFLAGS \
-		-DNO_WARNS -DNO_CTF
+		-DNO_WARNS -DNO_CTF -DWITHOUT_SSP
 
 # cross-tools stage
 XMAKE=		TOOLS_PREFIX=${WORLDTMP} ${BMAKE} \
@@ -452,7 +453,7 @@ build32:
 .if ${MK_KERBEROS} != "no"
 .for _t in obj depend all
 	cd ${.CURDIR}/kerberos5/tools; \
-	    MAKEOBJDIRPREFIX=${OBJTREE}/lib32 ${MAKE} DESTDIR= ${_t}
+	    MAKEOBJDIRPREFIX=${OBJTREE}/lib32 ${MAKE} -DWITHOUT_SSP DESTDIR= ${_t}
 .endfor
 .endif
 .for _t in obj includes
@@ -474,7 +475,7 @@ build32:
 .endfor
 .for _dir in lib/ncurses/ncurses lib/ncurses/ncursesw lib/libmagic
 	cd ${.CURDIR}/${_dir}; \
-	    MAKEOBJDIRPREFIX=${OBJTREE}/lib32 ${MAKE} DESTDIR= build-tools
+	    MAKEOBJDIRPREFIX=${OBJTREE}/lib32 ${MAKE} -DWITHOUT_SSP DESTDIR= build-tools
 .endfor
 	cd ${.CURDIR}; \
 	    ${LIB32WMAKE} -f Makefile.inc1 libraries
@@ -760,14 +761,14 @@ buildkernel:
 	@echo "--------------------------------------------------------------"
 	cd ${KRNLOBJDIR}/${_kernel}; \
 	    MAKESRCPATH=${KERNSRCDIR}/dev/aic7xxx/aicasm \
-	    ${MAKE} -DNO_CPU_CFLAGS -DNO_CTF \
+	    ${MAKE} -DWITHOUT_SSP -DNO_CPU_CFLAGS -DNO_CTF \
 	    -f ${KERNSRCDIR}/dev/aic7xxx/aicasm/Makefile
 # XXX - Gratuitously builds aicasm in the ``makeoptions NO_MODULES'' case.
 .if !defined(MODULES_WITH_WORLD) && !defined(NO_MODULES) && exists(${KERNSRCDIR}/modules)
 .for target in obj depend all
 	cd ${KERNSRCDIR}/modules/aic7xxx/aicasm; \
 	    MAKEOBJDIRPREFIX=${KRNLOBJDIR}/${_kernel}/modules \
-	    ${MAKE} -DNO_CPU_CFLAGS -DNO_CTF ${target}
+	    ${MAKE} -DWITHOUT_SSP -DNO_CPU_CFLAGS -DNO_CTF ${target}
 .endfor
 .endif
 .if !defined(NO_KERNELDEPEND)

@@ -19,3 +19,5 @@ BTXDIR=		${.CURDIR}/../btx
 BTXLDR=		${BTXDIR}/btxldr/btxldr
 BTXKERN=	${BTXDIR}/btx/btx
 BTXCRT=		${BTXDIR}/lib/crt0.o
+
+.include "../Makefile.inc"
