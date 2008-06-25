@@ -495,14 +495,15 @@ populate_floppy_fs() {		# OK
     else
 	excl=""
     fi
-    (cd ${PICO_TREE}/floppy.tree ; tar -cf - --exclude CVS ${excl} . ) | \
+    (cd ${PICO_TREE}/floppy.tree ; tar -cf - --exclude CVS --exclude .svn \
+    		${excl} . ) | \
 		(cd ${dst} ; tar x${o_tarv}f - )
     log "Copied from generic floppy-tree `echo; ls -laR ${dst}`"
 
     srcdir=${MY_TREE}/floppy.tree
     if [ -d ${srcdir} ] ; then
 	log "update with type-specific files:"
-	(cd ${srcdir} ; tar -cf - --exclude CVS . ) | \
+	(cd ${srcdir} ; tar -cf - --exclude CVS --exclude .svn . ) | \
 	    (cd ${dst} ; tar x${o_tarv}f - )
 	log "Copied from type floppy-tree `echo; ls -laR ${dst}`"
     else
@@ -510,7 +511,7 @@ populate_floppy_fs() {		# OK
     fi
     if [ -d ${srcdir}.${SITE} ] ; then
 	log "Update with site-specific (${SITE}) files:"
-	(cd ${srcdir}.${SITE} ; tar -cf - --exclude CVS . ) | \
+	(cd ${srcdir}.${SITE} ; tar -cf - --exclude CVS --exclude .svn . ) | \
 	    (cd ${dst} ; tar x${o_tarv}f - )
 	log "Copied from site floppy-tree `echo; ls -laR ${dst}`"
     else
@@ -593,7 +594,7 @@ populate_mfs_tree() {
     for MFS_TREE in ${PICO_TREE}/mfs_tree ${MY_TREE}/mfs_tree ; do
 	if [ -d ${MFS_TREE} ] ; then
 	    log "Copy ${MFS_TREE} ..."
-	    (cd ${MFS_TREE} ; tar -cf - --exclude CVS . ) | \
+	    (cd ${MFS_TREE} ; tar -cf - --exclude CVS --exclude .svn . ) | \
 		    (cd ${dst} ; tar x${o_tarv}f - )
 	fi
     done

@@ -122,3 +122,9 @@ libkern.${MACHINE_ARCH}:: ${KMSRCS}
 
 # Disable warnings in contributed sources.
 CWARNFLAGS:=	${.IMPSRC:Ngdtoa_*.c:C/^.+$/${CWARNFLAGS}/}
+# XXX For now, we don't allow libc to be compiled with
+# -fstack-protector-all because it breaks rtld.  We may want to make a librtld
+# in the future to circumvent this.
+SSP_CFLAGS:=	${SSP_CFLAGS:S/^-fstack-protector-all$/-fstack-protector/}
+# Disable stack protection for SSP symbols.
+SSP_CFLAGS:=	${.IMPSRC:N*/stack_protector.c:C/^.+$/${SSP_CFLAGS}/}

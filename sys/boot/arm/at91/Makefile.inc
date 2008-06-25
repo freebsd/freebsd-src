@@ -53,3 +53,5 @@ MK_FPGA:=no
 .endif
 
 .endif
+
+.include "../Makefile.inc"
