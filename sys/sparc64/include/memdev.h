@@ -26,7 +26,6 @@
  * $FreeBSD$
  */
 
-#define CDEV_MAJOR	2
 #define	CDEV_MINOR_MEM	0
 #define	CDEV_MINOR_KMEM	1
 
