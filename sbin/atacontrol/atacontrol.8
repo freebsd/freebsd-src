@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 28, 2007
+.Dd June 25, 2008
 .Dt ATACONTROL 8
 .Os
 .Sh NAME
@@ -198,6 +198,10 @@ Show detailed info about the device on
 Set or report timeout after which the
 .Ar device 
 will be spun down.
+To arm the timeout the device needs at least one more request after
+setting the timeout.
+To disable spindown, set the timeout to zero.
+No further actions are needed in this case.
 .It Ic info
 Show info about the attached devices on the
 .Ar channel .
@@ -333,6 +337,23 @@ Issue the command:
 .Pp
 Now a status command will show the array rebuilding.
 .Pp
+To spin down a disk after 30 minutes run
+.Pp
+.Dl "atacontrol spindown ad6 1800"
+.Dl "dd if=/dev/ad6 of=/dev/null count=1"
+.Pp
+While any IO on the disk will arm the timer, using
+.Xr dd 1
+on the raw device will work in all cases, as when the disk is not
+opened at all.
+You can check the current setting with
+.Pp
+.Dl "atacontrol spindown ad6"
+.Pp
+You should not set a spindown timeout on a disk with
+.Pa /
+or syslog logging on it as the disk will be worn out spinning down and
+up all the time.
 .Sh SEE ALSO
 .Xr ata 4
 .Sh HISTORY
