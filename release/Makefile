@@ -680,7 +680,7 @@ release.6:
 	@rm -rf ${RD}/dists/ports/ports*
 	@mkdir -p ${RD}/dists/ports
 	@echo rolling ports/ports tarball
-	@tar --exclude CVS --exclude 'ports/distfiles/*' \
+	@tar --exclude CVS --exclude .svn --exclude 'ports/distfiles/*' \
 	  -czf ${RD}/dists/ports/ports.tgz -C /usr ports
 	@cp ${.CURDIR}/scripts/ports-install.sh ${RD}/dists/ports/install.sh
 	@(cd ${RD}/dists/ports; \
@@ -779,7 +779,8 @@ release.8:
 .if ${TARGET} == "i386" || ${TARGET_ARCH} == "amd64"
 	@cp ${RD}/trees/base/boot/mbr ${RD}/mfsfd/boot
 .endif
-	@tar --exclude CVS -cf - -C ${.CURDIR}/../usr.sbin/sysinstall help | \
+	@tar --exclude CVS --exclude .svn -cf - \
+		-C ${.CURDIR}/../usr.sbin/sysinstall help | \
 		tar xf - -C ${RD}/mfsfd/stand
 	@mkdir -p ${RD}/mfsroot
 	sh -e ${DOFS_SH} ${RD}/mfsroot/mfsroot ${RD} ${MNT} \
@@ -1098,7 +1099,7 @@ doTARBALL:
 	@( cd ${SD} && \
 		tn=`echo ${TN} | tr 'A-Z' 'a-z'` && \
 		echo rolling ${TD}/$$tn tarball &&\
-		tar --exclude CVS --exclude obj --exclude BOOTMFS -cf - ${ARG} | \
+		tar --exclude CVS --exclude .svn --exclude obj --exclude BOOTMFS -cf - ${ARG} | \
 		${ZIPNSPLIT} ${RD}/dists/${TD}/$$tn. && \
 		sh ${.CURDIR}/scripts/info.sh ${RD}/dists/${TD}/$$tn \
 		    > ${RD}/dists/${TD}/$$tn.inf && \

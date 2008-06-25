@@ -2,6 +2,8 @@
 # $FreeBSD$
 #
 
+WITHOUT_SSP=
+
 .include <bsd.own.mk>
 
 # Certain library entries have hard-coded references to

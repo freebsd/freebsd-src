@@ -10,6 +10,7 @@ LIB=		ssp
 SHLIB_MAJOR=	0
 SHLIBDIR?=	/lib
 NO_PROFILE=
+WITHOUT_SSP=
 
 SRCS=	ssp.c gets-chk.c memcpy-chk.c memmove-chk.c mempcpy-chk.c \
 	memset-chk.c snprintf-chk.c sprintf-chk.c stpcpy-chk.c \
