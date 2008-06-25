@@ -63,7 +63,7 @@
 
 #include <sys/cdefs.h>
 
-#define in_cksum(m, len)	in_cksum_skip(m, len, 0)
+#define	in_cksum(m, len)	in_cksum_skip(m, len, 0)
 
 static __inline void
 in_cksum_update(struct ip *ip)
@@ -79,7 +79,7 @@ in_addword(u_short sum, u_short b)
 {
 	u_long __ret, __tmp;
 
-	__asm(
+	__asm __volatile(
 	    "sll %2, 16, %0\n"
 	    "sll %3, 16, %1\n"
 	    "addcc %0, %1, %0\n"
@@ -93,8 +93,8 @@ static __inline u_short
 in_pseudo(u_int sum, u_int b, u_int c)
 {
 	u_long __tmp;
-		    
-	__asm(
+
+	__asm __volatile(
 	    "addcc %0, %3, %0\n"
 	    "addccc %0, %4, %0\n"
 	    "addc %0, 0, %0\n"
@@ -121,11 +121,11 @@ in_cksum_hdr(struct ip *ip)
 	 * a generic implementation for both in_cksum_skip and in_cksum_hdr
 	 * should not be too much more expensive.
 	 */
-#define __LD_ADD(addr, tmp, sum, offs, mod) \
-    "lduw [" #addr " + " #offs "], " #tmp "\n" \
+#define	__LD_ADD(addr, tmp, sum, offs, mod)				\
+    "lduw [" #addr " + " #offs "], " #tmp "\n"				\
     "add" # mod " " #sum ", " #tmp ", " #sum "\n"
 
-	__asm(
+	__asm __volatile(
 	    "and %5, 3, %3\n"
 	    "andn %5, 3, %1\n"
 	    "brz,pt %3, 0f\n"
