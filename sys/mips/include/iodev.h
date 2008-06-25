@@ -26,8 +26,5 @@
  * $FreeBSD$
  */
 
-#define CDEV_MAJOR	2
-#define CDEV_MINOR_IO	14
-
 d_open_t	ioopen;
 d_close_t	ioclose;
