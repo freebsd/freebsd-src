@@ -35,5 +35,3 @@ d_ioctl_t	memioctl;
 d_mmap_t	memmmap;
 
 void		dev_mem_md_init(void);
-
-MALLOC_DECLARE(M_MEMDEV);
