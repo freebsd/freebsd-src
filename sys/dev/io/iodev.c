@@ -66,7 +66,7 @@ io_modevent(module_t mod __unused, int type, void *data __unused)
 	case MOD_LOAD:
 		if (bootverbose)
 			printf("io: <I/O>\n");
-		iodev = make_dev(&io_cdevsw, CDEV_MINOR_IO,
+		iodev = make_dev(&io_cdevsw, 0,
 			UID_ROOT, GID_WHEEL, 0600, "io");
 		break;
 
