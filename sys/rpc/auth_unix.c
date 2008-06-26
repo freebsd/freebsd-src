@@ -50,9 +50,11 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/hash.h>
+#include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
-#include <sys/mutex.h>
+#include <sys/sx.h>
 #include <sys/ucred.h>
 
 #include <rpc/types.h>
@@ -81,13 +83,38 @@ static struct auth_ops authunix_ops = {
  * This struct is pointed to by the ah_private field of an auth_handle.
  */
 struct audata {
+	TAILQ_ENTRY(audata)	au_link;
+	TAILQ_ENTRY(audata)	au_alllink;
+	int			au_refs;
+	struct xucred		au_xcred;
 	struct opaque_auth	au_origcred;	/* original credentials */
 	struct opaque_auth	au_shcred;	/* short hand cred */
 	u_long			au_shfaults;	/* short hand cache faults */
 	char			au_marshed[MAX_AUTH_BYTES];
 	u_int			au_mpos;	/* xdr pos at end of marshed */
+	AUTH			*au_auth;	/* link back to AUTH */
 };
+TAILQ_HEAD(audata_list, audata);
 #define	AUTH_PRIVATE(auth)	((struct audata *)auth->ah_private)
+
+#define AUTH_UNIX_HASH_SIZE	16
+#define AUTH_UNIX_MAX		256
+static struct audata_list auth_unix_cache[AUTH_UNIX_HASH_SIZE];
+static struct audata_list auth_unix_all;
+static struct sx auth_unix_lock;
+static int auth_unix_count;
+
+static void
+authunix_init(void *dummy)
+{
+	int i;
+
+	for (i = 0; i < AUTH_UNIX_HASH_SIZE; i++)
+		TAILQ_INIT(&auth_unix_cache[i]);
+	TAILQ_INIT(&auth_unix_all);
+	sx_init(&auth_unix_lock, "auth_unix_lock");
+}
+SYSINIT(authunix_init, SI_SUB_KMEM, SI_ORDER_ANY, authunix_init, NULL);
 
 /*
  * Create a unix style authenticator.
@@ -96,38 +123,70 @@ struct audata {
 AUTH *
 authunix_create(struct ucred *cred)
 {
+	uint32_t h, th;
 	struct xucred xcr;
 	char mymem[MAX_AUTH_BYTES];
 	XDR xdrs;
 	AUTH *auth;
-	struct audata *au;
+	struct audata *au, *tau;
 	struct timeval now;
 	uint32_t time;
 	int len;
+
+	if (auth_unix_count > AUTH_UNIX_MAX) {
+		while (auth_unix_count > AUTH_UNIX_MAX) {
+			sx_xlock(&auth_unix_lock);
+			tau = TAILQ_FIRST(&auth_unix_all);
+			th = HASHSTEP(HASHINIT, tau->au_xcred.cr_uid)
+				% AUTH_UNIX_HASH_SIZE;
+			TAILQ_REMOVE(&auth_unix_cache[th], tau, au_link);
+			TAILQ_REMOVE(&auth_unix_all, tau, au_alllink);
+			auth_unix_count--;
+			sx_xunlock(&auth_unix_lock);
+			AUTH_DESTROY(tau->au_auth);
+		}
+	}
+
+	/*
+	 * Hash the uid to see if we already have an AUTH with this cred.
+	 */
+	h = HASHSTEP(HASHINIT, cred->cr_uid) % AUTH_UNIX_HASH_SIZE;
+	cru2x(cred, &xcr);
+again:
+	sx_slock(&auth_unix_lock);
+	TAILQ_FOREACH(au, &auth_unix_cache[h], au_link) {
+		if (!memcmp(&xcr, &au->au_xcred, sizeof(xcr))) {
+			if (sx_try_upgrade(&auth_unix_lock)) {
+				/*
+				 * Keep auth_unix_all LRU sorted.
+				 */
+				TAILQ_REMOVE(&auth_unix_all, au, au_alllink);
+				TAILQ_INSERT_TAIL(&auth_unix_all, au,
+				    au_alllink);
+				au->au_refs++;
+				sx_xunlock(&auth_unix_lock);
+				return (au->au_auth);
+			} else {
+				sx_sunlock(&auth_unix_lock);
+				goto again;
+			}
+		}
+	}
 
 	/*
 	 * Allocate and set up auth handle
 	 */
 	au = NULL;
 	auth = mem_alloc(sizeof(*auth));
-#ifndef _KERNEL
-	if (auth == NULL) {
-		printf("authunix_create: out of memory");
-		goto cleanup_authunix_create;
-	}
-#endif
 	au = mem_alloc(sizeof(*au));
-#ifndef _KERNEL
-	if (au == NULL) {
-		printf("authunix_create: out of memory");
-		goto cleanup_authunix_create;
-	}
-#endif
 	auth->ah_ops = &authunix_ops;
 	auth->ah_private = (caddr_t)au;
 	auth->ah_verf = au->au_shcred = _null_auth;
+	au->au_refs = 1;
+	au->au_xcred = xcr;
 	au->au_shfaults = 0;
 	au->au_origcred.oa_base = NULL;
+	au->au_auth = auth;
 
 	getmicrotime(&now);
 	time = now.tv_sec;
@@ -141,14 +200,7 @@ authunix_create(struct ucred *cred)
 		panic("authunix_create: failed to encode creds");
 	au->au_origcred.oa_length = len = XDR_GETPOS(&xdrs);
 	au->au_origcred.oa_flavor = AUTH_UNIX;
-#ifdef _KERNEL
 	au->au_origcred.oa_base = mem_alloc((u_int) len);
-#else
-	if ((au->au_origcred.oa_base = mem_alloc((u_int) len)) == NULL) {
-		printf("authunix_create: out of memory");
-		goto cleanup_authunix_create;
-	}
-#endif
 	memcpy(au->au_origcred.oa_base, mymem, (size_t)len);
 
 	/*
@@ -156,18 +208,19 @@ authunix_create(struct ucred *cred)
 	 */
 	auth->ah_cred = au->au_origcred;
 	marshal_new_auth(auth);
-	return (auth);
-#ifndef _KERNEL
- cleanup_authunix_create:
-	if (auth)
-		mem_free(auth, sizeof(*auth));
-	if (au) {
-		if (au->au_origcred.oa_base)
-			mem_free(au->au_origcred.oa_base, (u_int)len);
-		mem_free(au, sizeof(*au));
+
+	if (sx_try_upgrade(&auth_unix_lock)) {
+		auth_unix_count++;
+		TAILQ_INSERT_TAIL(&auth_unix_cache[h], au, au_link);
+		TAILQ_INSERT_TAIL(&auth_unix_all, au, au_alllink);
+		au->au_refs++;	/* one for the cache, one for user */
+		sx_xunlock(&auth_unix_lock);
+		return (auth);
+	} else {
+		sx_sunlock(&auth_unix_lock);
+		AUTH_DESTROY(auth);
+		goto again;
 	}
-	return (NULL);
-#endif
 }
 
 /*
@@ -262,8 +315,18 @@ static void
 authunix_destroy(AUTH *auth)
 {
 	struct audata *au;
+	int refs;
 
 	au = AUTH_PRIVATE(auth);
+
+	sx_xlock(&auth_unix_lock);
+	au->au_refs--;
+	refs = au->au_refs;
+	sx_xunlock(&auth_unix_lock);
+
+	if (refs > 0)
+		return;
+
 	mem_free(au->au_origcred.oa_base, au->au_origcred.oa_length);
 
 	if (au->au_shcred.oa_base != NULL)

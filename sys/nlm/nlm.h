@@ -36,7 +36,17 @@
 MALLOC_DECLARE(M_NLM);
 #endif
 
+/*
+ * This value is added to host system IDs when recording NFS client
+ * locks in the local lock manager.
+ */
+#define NLM_SYSID_CLIENT	0x1000000
+
 struct nlm_host;
+struct vnode;
+
+extern struct timeval nlm_zero_tv;
+extern int nlm_nsm_state;
 
 /*
  * Copy a struct netobj.
@@ -47,21 +57,37 @@ extern void nlm_copy_netobj(struct netobj *dst, struct netobj *src,
 /*
  * Search for an existing NLM host that matches the given name
  * (typically the caller_name element of an nlm4_lock).  If none is
- * found, create a new host. If 'rqstp' is non-NULL, record the remote
+ * found, create a new host. If 'addr' is non-NULL, record the remote
  * address of the host so that we can call it back for async
- * responses.
+ * responses. If 'vers' is greater than zero then record the NLM
+ * program version to use to communicate with this client. The host
+ * reference count is incremented - the caller must call
+ * nlm_host_release when it has finished using it.
  */
 extern struct nlm_host *nlm_find_host_by_name(const char *name,
-    struct svc_req *rqstp);
+    const struct sockaddr *addr, rpcvers_t vers);
 
 /*
  * Search for an existing NLM host that matches the given remote
  * address. If none is found, create a new host with the requested
  * address and remember 'vers' as the NLM protocol version to use for
- * that host.
+ * that host. The host reference count is incremented - the caller
+ * must call nlm_host_release when it has finished using it.
  */
 extern struct nlm_host *nlm_find_host_by_addr(const struct sockaddr *addr,
     int vers);
+
+/*
+ * Register this NLM host with the local NSM so that we can be
+ * notified if it reboots.
+ */
+extern void nlm_host_monitor(struct nlm_host *host, int state);
+
+/*
+ * Decrement the host reference count, freeing resources if the
+ * reference count reaches zero.
+ */
+extern void nlm_host_release(struct nlm_host *host);
 
 /*
  * Return an RPC client handle that can be used to talk to the NLM
@@ -70,38 +96,101 @@ extern struct nlm_host *nlm_find_host_by_addr(const struct sockaddr *addr,
 extern CLIENT *nlm_host_get_rpc(struct nlm_host *host);
 
 /*
+ * Return the system ID for a host.
+ */
+extern int nlm_host_get_sysid(struct nlm_host *host);
+
+/*
+ * Return the remote NSM state value for a host.
+ */
+extern int nlm_host_get_state(struct nlm_host *host);
+
+/*
+ * When sending a blocking lock request, we need to track the request
+ * in our waiting lock list. We add an entry to the waiting list
+ * before we send the lock RPC so that we can cope with a granted
+ * message arriving at any time. Call this function before sending the
+ * lock rpc. If the lock succeeds, call nlm_deregister_wait_lock with
+ * the handle this function returns, otherwise nlm_wait_lock. Both
+ * will remove the entry from the waiting list.
+ */
+extern void *nlm_register_wait_lock(struct nlm4_lock *lock, struct vnode *vp);
+
+/*
+ * Deregister a blocking lock request. Call this if the lock succeeded
+ * without blocking.
+ */
+extern void nlm_deregister_wait_lock(void *handle);
+
+/*
+ * Wait for a granted callback for a blocked lock request, waiting at
+ * most timo ticks. If no granted message is received within the
+ * timeout, return EWOULDBLOCK. If a signal interrupted the wait,
+ * return EINTR - the caller must arrange to send a cancellation to
+ * the server. In both cases, the request is removed from the waiting
+ * list.
+ */
+extern int nlm_wait_lock(void *handle, int timo);
+
+/*
+ * Cancel any pending waits for this vnode - called on forcible unmounts.
+ */
+extern void nlm_cancel_wait(struct vnode *vp);
+
+/*
  * Called when a host restarts.
  */
 extern void nlm_sm_notify(nlm_sm_status *argp);
 
 /*
- * Implementation for lock testing RPCs. Returns the NLM host that
- * matches the RPC arguments.
+ * Implementation for lock testing RPCs. If the request was handled
+ * successfully and rpcp is non-NULL, *rpcp is set to an RPC client
+ * handle which can be used to send an async rpc reply. Returns zero
+ * if the request was handled, or a suitable unix error code
+ * otherwise.
  */
-extern struct nlm_host *nlm_do_test(nlm4_testargs *argp,
-    nlm4_testres *result, struct svc_req *rqstp);
+extern int nlm_do_test(nlm4_testargs *argp, nlm4_testres *result,
+    struct svc_req *rqstp, CLIENT **rpcp);
 
 /*
- * Implementation for lock setting RPCs. Returns the NLM host that
- * matches the RPC arguments. If monitor is TRUE, set up an NSM
- * monitor for this host.
+ * Implementation for lock setting RPCs. If the request was handled
+ * successfully and rpcp is non-NULL, *rpcp is set to an RPC client
+ * handle which can be used to send an async rpc reply. Returns zero
+ * if the request was handled, or a suitable unix error code
+ * otherwise.
  */
-extern struct nlm_host *nlm_do_lock(nlm4_lockargs *argp,
-    nlm4_res *result, struct svc_req *rqstp, bool_t monitor); 
+extern int nlm_do_lock(nlm4_lockargs *argp, nlm4_res *result,
+    struct svc_req *rqstp, bool_t monitor, CLIENT **rpcp); 
 
 /*
- * Implementation for cancelling a pending lock request. Returns the
- * NLM host that matches the RPC arguments.
+ * Implementation for cancelling a pending lock request. If the
+ * request was handled successfully and rpcp is non-NULL, *rpcp is set
+ * to an RPC client handle which can be used to send an async rpc
+ * reply. Returns zero if the request was handled, or a suitable unix
+ * error code otherwise.
  */
-extern struct nlm_host *nlm_do_cancel(nlm4_cancargs *argp,
-    nlm4_res *result, struct svc_req *rqstp);
+extern int nlm_do_cancel(nlm4_cancargs *argp, nlm4_res *result,
+    struct svc_req *rqstp, CLIENT **rpcp);
 
 /*
- * Implementation for unlocking RPCs. Returns the NLM host that
- * matches the RPC arguments.
+ * Implementation for unlocking RPCs. If the request was handled
+ * successfully and rpcp is non-NULL, *rpcp is set to an RPC client
+ * handle which can be used to send an async rpc reply. Returns zero
+ * if the request was handled, or a suitable unix error code
+ * otherwise.
  */
-extern struct nlm_host *nlm_do_unlock(nlm4_unlockargs *argp,
-    nlm4_res *result, struct svc_req *rqstp);
+extern int nlm_do_unlock(nlm4_unlockargs *argp, nlm4_res *result,
+    struct svc_req *rqstp, CLIENT **rpcp);
+
+/*
+ * Implementation for granted RPCs. If the request was handled
+ * successfully and rpcp is non-NULL, *rpcp is set to an RPC client
+ * handle which can be used to send an async rpc reply. Returns zero
+ * if the request was handled, or a suitable unix error code
+ * otherwise.
+ */
+extern int nlm_do_granted(nlm4_testargs *argp, nlm4_res *result,
+    struct svc_req *rqstp, CLIENT **rpcp);
 
 /*
  * Free all locks associated with the hostname argp->name.
@@ -109,10 +198,17 @@ extern struct nlm_host *nlm_do_unlock(nlm4_unlockargs *argp,
 extern void nlm_do_free_all(nlm4_notify *argp);
 
 /*
- * Find an RPC transport that can be used to communicate with the
- * userland part of lockd.
+ * Recover client lock state after a server reboot.
  */
-extern CLIENT *nlm_user_lockd(void);
+extern void nlm_client_recovery(struct nlm_host *);
+
+/*
+ * Interface from NFS client code to the NLM.
+ */
+struct vop_advlock_args;
+struct vop_reclaim_args;
+extern int nlm_advlock(struct vop_advlock_args *ap);
+extern int nlm_reclaim(struct vop_reclaim_args *ap);
 
 #endif
 
