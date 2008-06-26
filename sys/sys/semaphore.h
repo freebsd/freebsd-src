@@ -37,12 +37,14 @@
 #ifndef _SEMAPHORE_H_
 #define _SEMAPHORE_H_
 
+#include <machine/_limits.h>
+
 /* Opaque type definition. */
 struct sem;
 typedef	struct sem *	sem_t;
 
 #define	SEM_FAILED	((sem_t *)0)
-#define	SEM_VALUE_MAX	(~0U)		/* Equivalent to UINT_MAX. */
+#define	SEM_VALUE_MAX	__INT_MAX
 
 #ifndef _KERNEL
 #include <sys/cdefs.h>
