@@ -1112,6 +1112,7 @@ test_posixshm_check_mmap(struct ucred *cred, struct shmfd *shmfd,
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
 	LABEL_CHECK(shmfdlabel, MAGIC_POSIX_SHM);
+	COUNTER_INC(posixshm_check_mmap);
 	return (0);
 }
 
@@ -1123,6 +1124,7 @@ test_posixshm_check_open(struct ucred *cred, struct shmfd *shmfd,
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
 	LABEL_CHECK(shmfdlabel, MAGIC_POSIX_SHM);
+	COUNTER_INC(posixshm_check_open);
 	return (0);
 }
 
@@ -1135,6 +1137,7 @@ test_posixshm_check_stat(struct ucred *active_cred,
 	LABEL_CHECK(active_cred->cr_label, MAGIC_CRED);
 	LABEL_CHECK(file_cred->cr_label, MAGIC_CRED);
 	LABEL_CHECK(shmfdlabel, MAGIC_POSIX_SHM);
+	COUNTER_INC(posixshm_check_stat);
 	return (0);
 }
 
@@ -1147,6 +1150,7 @@ test_posixshm_check_truncate(struct ucred *active_cred,
 	LABEL_CHECK(active_cred->cr_label, MAGIC_CRED);
 	LABEL_CHECK(file_cred->cr_label, MAGIC_CRED);
 	LABEL_CHECK(shmfdlabel, MAGIC_POSIX_SHM);
+	COUNTER_INC(posixshm_check_truncate);
 	return (0);
 }
 
@@ -1158,6 +1162,7 @@ test_posixshm_check_unlink(struct ucred *cred, struct shmfd *shmfd,
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
 	LABEL_CHECK(shmfdlabel, MAGIC_POSIX_SHM);
+	COUNTER_INC(posixshm_check_unlink);
 	return (0);
 }
 
