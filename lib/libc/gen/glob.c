@@ -143,7 +143,7 @@ static int	 compare(const void *, const void *);
 static int	 g_Ctoc(const Char *, char *, size_t);
 static int	 g_lstat(Char *, struct stat *, glob_t *);
 static DIR	*g_opendir(Char *, glob_t *);
-static Char	*g_strchr(Char *, wchar_t);
+static const Char *g_strchr(const Char *, wchar_t);
 #ifdef notdef
 static Char	*g_strcat(Char *, const Char *);
 #endif
@@ -246,7 +246,7 @@ globexp1(const Char *pattern, glob_t *pglob, size_t *limit)
 	if (pattern[0] == LBRACE && pattern[1] == RBRACE && pattern[2] == EOS)
 		return glob0(pattern, pglob, limit);
 
-	while ((ptr = (const Char *) g_strchr((Char *) ptr, LBRACE)) != NULL)
+	while ((ptr = g_strchr(ptr, LBRACE)) != NULL)
 		if (!globexp2(ptr, pattern, pglob, &rv, limit))
 			return rv;
 
@@ -449,7 +449,7 @@ glob0(const Char *pattern, glob_t *pglob, size_t *limit)
 			if (c == NOT)
 				++qpatnext;
 			if (*qpatnext == EOS ||
-			    g_strchr((Char *) qpatnext+1, RBRACKET) == NULL) {
+			    g_strchr(qpatnext+1, RBRACKET) == NULL) {
 				*bufnext++ = LBRACKET;
 				if (c == NOT)
 					--qpatnext;
@@ -859,8 +859,8 @@ g_stat(Char *fn, struct stat *sb, glob_t *pglob)
 	return(stat(buf, sb));
 }
 
-static Char *
-g_strchr(Char *str, wchar_t ch)
+static const Char *
+g_strchr(const Char *str, wchar_t ch)
 {
 
 	do {
