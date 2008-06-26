@@ -68,7 +68,12 @@ xdr_authunix_parms(XDR *xdrs, uint32_t *time, struct xucred *cred)
 	uint32_t junk;
 
 	if (xdrs->x_op == XDR_ENCODE) {
+		/*
+		 * Restrict name length to 255 according to RFC 1057.
+		 */
 		namelen = strlen(hostname);
+		if (namelen > 255)
+			namelen = 255;
 	} else {
 		namelen = 0;
 	}

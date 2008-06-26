@@ -40,6 +40,7 @@
 #include <sys/_lock.h>
 #include <sys/_sx.h>
 
+struct flock;
 struct vop_advlock_args;
 struct vop_advlockasync_args;
 
@@ -118,9 +119,13 @@ struct lockf {
 };
 LIST_HEAD(lockf_list, lockf);
 
+typedef int lf_iterator(struct vnode *, struct flock *, void *);
+
 int	 lf_advlock(struct vop_advlock_args *, struct lockf **, u_quad_t);
 int	 lf_advlockasync(struct vop_advlockasync_args *, struct lockf **, u_quad_t);
 void	 lf_purgelocks(struct vnode *vp, struct lockf **statep);
+int	 lf_iteratelocks_sysid(int sysid, lf_iterator *, void *);
+int	 lf_iteratelocks_vnode(struct vnode *vp, lf_iterator *, void *);
 int	 lf_countlocks(int sysid);
 void	 lf_clearremotesys(int sysid);
 
