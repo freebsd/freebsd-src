@@ -692,8 +692,6 @@ vfs_donmount(struct thread *td, int fsflags, struct uio *fsoptions)
 			opt->name = strdup("ro", M_MOUNT);
 			fsflags |= MNT_RDONLY;
 		}
-		else if (strcmp(opt->name, "snapshot") == 0)
-			fsflags |= MNT_SNAPSHOT;
 		else if (strcmp(opt->name, "suiddir") == 0)
 			fsflags |= MNT_SUIDDIR;
 		else if (strcmp(opt->name, "sync") == 0)
