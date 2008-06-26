@@ -546,6 +546,8 @@ entry_to_archive(struct cpio *cpio, struct archive_entry *entry)
 		/* Note: link(2) doesn't create parent directories,
 		 * so we use archive_write_header() instead. */
 		archive_entry_set_hardlink(t, srcpath);
+		/* This is a straight link that carries no data. */
+		archive_entry_set_size(t, 0);
 		r = archive_write_header(cpio->archive, t);
 		archive_entry_free(t);
 		if (r != ARCHIVE_OK)
