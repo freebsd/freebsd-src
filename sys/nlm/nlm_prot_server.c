@@ -232,7 +232,6 @@ nlm_test_msg_1_svc(struct nlm_testargs *argp, void *result, struct svc_req *rqst
 	nlm4_testargs args4;
 	nlm4_testres res4;
 	nlm_testres res;
-	struct nlm_host *host;
 	CLIENT *rpc;
 	char dummy;
 
@@ -240,7 +239,8 @@ nlm_test_msg_1_svc(struct nlm_testargs *argp, void *result, struct svc_req *rqst
 	args4.exclusive = argp->exclusive;
 	nlm_convert_to_nlm4_lock(&args4.alock, &argp->alock);
 
-	host = nlm_do_test(&args4, &res4, rqstp);
+	if (nlm_do_test(&args4, &res4, rqstp, &rpc))
+		return (FALSE);
 
 	res.cookie = res4.cookie;
 	res.stat.stat = nlm_convert_to_nlm_stats(res4.stat.stat);
@@ -249,9 +249,10 @@ nlm_test_msg_1_svc(struct nlm_testargs *argp, void *result, struct svc_req *rqst
 			&res.stat.nlm_testrply_u.holder,
 			&res4.stat.nlm4_testrply_u.holder);
 
-	rpc = nlm_host_get_rpc(host);
-	if (rpc)
-		nlm_test_res_1(&res, &dummy, rpc);
+	if (rpc) {
+		nlm_test_res_1(&res, &dummy, rpc, NULL, nlm_zero_tv);
+		CLNT_RELEASE(rpc);
+	}
 	xdr_free((xdrproc_t) xdr_nlm_testres, &res);
 
 	return (FALSE);
@@ -263,7 +264,6 @@ nlm_lock_msg_1_svc(struct nlm_lockargs *argp, void *result, struct svc_req *rqst
 	nlm4_lockargs args4;
 	nlm4_res res4;
 	nlm_res res;
-	struct nlm_host *host;
 	CLIENT *rpc;
 	char dummy;
 
@@ -274,13 +274,15 @@ nlm_lock_msg_1_svc(struct nlm_lockargs *argp, void *result, struct svc_req *rqst
 	args4.reclaim = argp->reclaim;
 	args4.state = argp->state;
 
-	host = nlm_do_lock(&args4, &res4, rqstp, TRUE);
+	if (nlm_do_lock(&args4, &res4, rqstp, TRUE, &rpc))
+		return (FALSE);
 
 	nlm_convert_to_nlm_res(&res, &res4);
 
-	rpc = nlm_host_get_rpc(host);
-	if (rpc)
-		nlm_lock_res_1(&res, &dummy, rpc);
+	if (rpc) {
+		nlm_lock_res_1(&res, &dummy, rpc, NULL, nlm_zero_tv);
+		CLNT_RELEASE(rpc);
+	}
 	xdr_free((xdrproc_t) xdr_nlm_res, &res);
 
 	return (FALSE);
@@ -292,7 +294,6 @@ nlm_cancel_msg_1_svc(struct nlm_cancargs *argp, void *result, struct svc_req *rq
 	nlm4_cancargs args4;
 	nlm4_res res4;
 	nlm_res res;
-	struct nlm_host *host;
 	CLIENT *rpc;
 	char dummy;
 
@@ -301,13 +302,15 @@ nlm_cancel_msg_1_svc(struct nlm_cancargs *argp, void *result, struct svc_req *rq
 	args4.exclusive = argp->exclusive;
 	nlm_convert_to_nlm4_lock(&args4.alock, &argp->alock);
 
-	host = nlm_do_cancel(&args4, &res4, rqstp);
+	if (nlm_do_cancel(&args4, &res4, rqstp, &rpc))
+		return (FALSE);
 
 	nlm_convert_to_nlm_res(&res, &res4);
 
-	rpc = nlm_host_get_rpc(host);
-	if (rpc)
-		nlm_cancel_res_1(&res, &dummy, rpc);
+	if (rpc) {
+		nlm_cancel_res_1(&res, &dummy, rpc, NULL, nlm_zero_tv);
+		CLNT_RELEASE(rpc);
+	}
 	xdr_free((xdrproc_t) xdr_nlm_res, &res);
 
 	return (FALSE);
@@ -319,20 +322,21 @@ nlm_unlock_msg_1_svc(struct nlm_unlockargs *argp, void *result, struct svc_req *
 	nlm4_unlockargs args4;
 	nlm4_res res4;
 	nlm_res res;
-	struct nlm_host *host;
 	CLIENT *rpc;
 	char dummy;
 
 	args4.cookie = argp->cookie;
 	nlm_convert_to_nlm4_lock(&args4.alock, &argp->alock);
 
-	host = nlm_do_unlock(&args4, &res4, rqstp);
+	if (nlm_do_unlock(&args4, &res4, rqstp, &rpc))
+		return (FALSE);
 
 	nlm_convert_to_nlm_res(&res, &res4);
 
-	rpc = nlm_host_get_rpc(host);
-	if (rpc)
-		nlm_unlock_res_1(&res, &dummy, rpc);
+	if (rpc) {
+		nlm_unlock_res_1(&res, &dummy, rpc, NULL, nlm_zero_tv);
+		CLNT_RELEASE(rpc);
+	}
 	xdr_free((xdrproc_t) xdr_nlm_res, &res);
 
 	return (FALSE);
@@ -344,7 +348,6 @@ nlm_granted_msg_1_svc(struct nlm_testargs *argp, void *result, struct svc_req *r
 	nlm4_testargs args4;
 	nlm4_res res4;
 	nlm_res res;
-	struct nlm_host *host;
 	CLIENT *rpc;
 	char dummy;
 
@@ -352,20 +355,15 @@ nlm_granted_msg_1_svc(struct nlm_testargs *argp, void *result, struct svc_req *r
 	args4.exclusive = argp->exclusive;
 	nlm_convert_to_nlm4_lock(&args4.alock, &argp->alock);
 
-	/*
-	 * We make a synchronous call to userland and send the reply
-	 * back async.
-	 */
-	nlm4_granted_4_svc(&args4, &res4, rqstp);
+	if (nlm_do_granted(&args4, &res4, rqstp, &rpc))
+		return (FALSE);
 
 	nlm_convert_to_nlm_res(&res, &res4);
 
-	host = nlm_find_host_by_addr(
-		(struct sockaddr *) rqstp->rq_xprt->xp_rtaddr.buf,
-		rqstp->rq_vers);
-	rpc = nlm_host_get_rpc(host);
-	if (rpc)
-		nlm_granted_res_1(&res, &dummy, rpc);
+	if (rpc) {
+		nlm_granted_res_1(&res, &dummy, rpc, NULL, nlm_zero_tv);
+		CLNT_RELEASE(rpc);
+	}
 	xdr_free((xdrproc_t) xdr_nlm_res, &res);
 
 	return (FALSE);
@@ -515,7 +513,7 @@ bool_t
 nlm4_test_4_svc(nlm4_testargs *argp, nlm4_testres *result, struct svc_req *rqstp)
 {
 
-	nlm_do_test(argp, result, rqstp);
+	nlm_do_test(argp, result, rqstp, NULL);
 	return (TRUE);
 }
 
@@ -523,7 +521,7 @@ bool_t
 nlm4_lock_4_svc(nlm4_lockargs *argp, nlm4_res *result, struct svc_req *rqstp)
 {
 
-	nlm_do_lock(argp, result, rqstp, TRUE);
+	nlm_do_lock(argp, result, rqstp, TRUE, NULL);
 	return (TRUE);
 }
 
@@ -531,7 +529,7 @@ bool_t
 nlm4_cancel_4_svc(nlm4_cancargs *argp, nlm4_res *result, struct svc_req *rqstp)
 {
 
-	nlm_do_cancel(argp, result, rqstp);
+	nlm_do_cancel(argp, result, rqstp, NULL);
 	return (TRUE);
 }
 
@@ -539,35 +537,15 @@ bool_t
 nlm4_unlock_4_svc(nlm4_unlockargs *argp, nlm4_res *result, struct svc_req *rqstp)
 {
 
-	nlm_do_unlock(argp, result, rqstp);
+	nlm_do_unlock(argp, result, rqstp, NULL);
 	return (TRUE);
 }
 
 bool_t
 nlm4_granted_4_svc(nlm4_testargs *argp, nlm4_res *result, struct svc_req *rqstp)
 {
-	CLIENT* lockd;
-	struct timeval tv;
 
-	memset(result, 0, sizeof(*result));
-	nlm_copy_netobj(&result->cookie, &argp->cookie, M_RPC);
-
-	/*
-	 * Set a non-zero timeout to give the userland a chance to reply.
-	 */
-	lockd = nlm_user_lockd();
-	if (!lockd) {
-		result->stat.stat = nlm4_failed;
-		return (TRUE);
-	}
-	tv.tv_sec = 20;
-	tv.tv_usec = 0;
-	CLNT_CONTROL(lockd, CLSET_TIMEOUT, &tv);
-	nlm4_granted_4(argp, result, lockd);
-	tv.tv_sec = 0;
-	tv.tv_usec = 0;
-	CLNT_CONTROL(lockd, CLSET_TIMEOUT, &tv);
-
+	nlm_do_granted(argp, result, rqstp, NULL);
 	return (TRUE);
 }
 
@@ -575,14 +553,15 @@ bool_t
 nlm4_test_msg_4_svc(nlm4_testargs *argp, void *result, struct svc_req *rqstp)
 {
 	nlm4_testres res4;
-	struct nlm_host *host;
 	CLIENT *rpc;
 	char dummy;
 
-	host = nlm_do_test(argp, &res4, rqstp);
-	rpc = nlm_host_get_rpc(host);
-	if (rpc)
-		nlm4_test_res_4(&res4, &dummy, rpc);
+	if (nlm_do_test(argp, &res4, rqstp, &rpc))
+		return (FALSE);
+	if (rpc) {
+		nlm4_test_res_4(&res4, &dummy, rpc, NULL, nlm_zero_tv);
+		CLNT_RELEASE(rpc);
+	}
 	xdr_free((xdrproc_t) xdr_nlm4_testres, &res4);
 
 	return (FALSE);
@@ -592,14 +571,15 @@ bool_t
 nlm4_lock_msg_4_svc(nlm4_lockargs *argp, void *result, struct svc_req *rqstp)
 {
 	nlm4_res res4;
-	struct nlm_host *host;
 	CLIENT *rpc;
 	char dummy;
 
-	host = nlm_do_lock(argp, &res4, rqstp, TRUE);
-	rpc = nlm_host_get_rpc(host);
-	if (rpc)
-		nlm4_lock_res_4(&res4, &dummy, rpc);
+	if (nlm_do_lock(argp, &res4, rqstp, TRUE, &rpc))
+		return (FALSE);
+	if (rpc) {
+		nlm4_lock_res_4(&res4, &dummy, rpc, NULL, nlm_zero_tv);
+		CLNT_RELEASE(rpc);
+	}
 	xdr_free((xdrproc_t) xdr_nlm4_res, &res4);
 
 	return (FALSE);
@@ -609,14 +589,15 @@ bool_t
 nlm4_cancel_msg_4_svc(nlm4_cancargs *argp, void *result, struct svc_req *rqstp)
 {
 	nlm4_res res4;
-	struct nlm_host *host;
 	CLIENT *rpc;
 	char dummy;
 
-	host = nlm_do_cancel(argp, &res4, rqstp);
-	rpc = nlm_host_get_rpc(host);
-	if (rpc)
-		nlm4_cancel_res_4(&res4, &dummy, rpc);
+	if (nlm_do_cancel(argp, &res4, rqstp, &rpc))
+		return (FALSE);
+	if (rpc) {
+		nlm4_cancel_res_4(&res4, &dummy, rpc, NULL, nlm_zero_tv);
+		CLNT_RELEASE(rpc);
+	}
 	xdr_free((xdrproc_t) xdr_nlm4_res, &res4);
 
 	return (FALSE);
@@ -626,14 +607,14 @@ bool_t
 nlm4_unlock_msg_4_svc(nlm4_unlockargs *argp, void *result, struct svc_req *rqstp)
 {
 	nlm4_res res4;
-	struct nlm_host *host;
 	CLIENT *rpc;
 	char dummy;
 
-	host = nlm_do_unlock(argp, &res4, rqstp);
-	rpc = nlm_host_get_rpc(host);
-	if (rpc)
-		nlm4_unlock_res_4(&res4, &dummy, rpc);
+	if (nlm_do_unlock(argp, &res4, rqstp, &rpc))
+	if (rpc) {
+		nlm4_unlock_res_4(&res4, &dummy, rpc, NULL, nlm_zero_tv);
+		CLNT_RELEASE(rpc);
+	}
 	xdr_free((xdrproc_t) xdr_nlm4_res, &res4);
 
 	return (FALSE);
@@ -642,23 +623,16 @@ nlm4_unlock_msg_4_svc(nlm4_unlockargs *argp, void *result, struct svc_req *rqstp
 bool_t
 nlm4_granted_msg_4_svc(nlm4_testargs *argp, void *result, struct svc_req *rqstp)
 {
-	struct nlm_host *host;
-	CLIENT *rpc;
 	nlm4_res res4;
+	CLIENT *rpc;
 	char dummy;
 
-	/*
-	 * We make a synchronous call to userland and send the reply
-	 * back async.
-	 */
-	nlm4_granted_4_svc(argp, &res4, rqstp);
-
-	host = nlm_find_host_by_addr(
-		(struct sockaddr *) rqstp->rq_xprt->xp_rtaddr.buf,
-		rqstp->rq_vers);
-	rpc = nlm_host_get_rpc(host);
-	if (rpc)
-		nlm4_granted_res_4(&res4, &dummy, rpc);
+	if (nlm_do_granted(argp, &res4, rqstp, &rpc))
+		return (FALSE);
+	if (rpc) {
+		nlm4_granted_res_4(&res4, &dummy, rpc, NULL, nlm_zero_tv);
+		CLNT_RELEASE(rpc);
+	}
 	xdr_free((xdrproc_t) xdr_nlm4_res, &res4);
 
 	return (FALSE);
@@ -667,11 +641,6 @@ nlm4_granted_msg_4_svc(nlm4_testargs *argp, void *result, struct svc_req *rqstp)
 bool_t
 nlm4_test_res_4_svc(nlm4_testres *argp, void *result, struct svc_req *rqstp)
 {
-	CLIENT* lockd;
-
-	lockd = nlm_user_lockd();
-	if (lockd)
-		nlm4_test_res_4(argp, result, lockd);
 
 	return (FALSE);
 }
@@ -679,11 +648,6 @@ nlm4_test_res_4_svc(nlm4_testres *argp, void *result, struct svc_req *rqstp)
 bool_t
 nlm4_lock_res_4_svc(nlm4_res *argp, void *result, struct svc_req *rqstp)
 {
-	CLIENT* lockd;
-
-	lockd = nlm_user_lockd();
-	if (lockd)
-		nlm4_lock_res_4(argp, result, lockd);
 
 	return (FALSE);
 }
@@ -691,11 +655,6 @@ nlm4_lock_res_4_svc(nlm4_res *argp, void *result, struct svc_req *rqstp)
 bool_t
 nlm4_cancel_res_4_svc(nlm4_res *argp, void *result, struct svc_req *rqstp)
 {
-	CLIENT* lockd;
-
-	lockd = nlm_user_lockd();
-	if (lockd)
-		nlm4_cancel_res_4(argp, result, lockd);
 
 	return (FALSE);
 }
@@ -703,11 +662,6 @@ nlm4_cancel_res_4_svc(nlm4_res *argp, void *result, struct svc_req *rqstp)
 bool_t
 nlm4_unlock_res_4_svc(nlm4_res *argp, void *result, struct svc_req *rqstp)
 {
-	CLIENT* lockd;
-
-	lockd = nlm_user_lockd();
-	if (lockd)
-		nlm4_unlock_res_4(argp, result, lockd);
 
 	return (FALSE);
 }
@@ -741,7 +695,7 @@ bool_t
 nlm4_nm_lock_4_svc(nlm4_lockargs *argp, nlm4_res *result, struct svc_req *rqstp)
 {
 
-	nlm_do_lock(argp, result, rqstp, FALSE);
+	nlm_do_lock(argp, result, rqstp, FALSE, NULL);
 	return (TRUE);
 }
 

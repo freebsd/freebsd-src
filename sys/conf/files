@@ -2059,6 +2059,7 @@ nfsserver/nfs_srvsock.c		optional nfsserver
 nfsserver/nfs_srvcache.c	optional nfsserver
 nfsserver/nfs_srvsubs.c		optional nfsserver
 nfsserver/nfs_syscalls.c	optional nfsserver
+nlm/nlm_advlock.c		optional nfslockd
 nlm/nlm_prot_clnt.c		optional nfslockd
 nlm/nlm_prot_impl.c		optional nfslockd
 nlm/nlm_prot_server.c		optional nfslockd

@@ -93,6 +93,7 @@
 #define	NFSSTA_SNDLOCK		0x01000000  /* Send socket lock */
 #define	NFSSTA_WANTSND		0x02000000  /* Want above */
 #define	NFSSTA_TIMEO		0x10000000  /* Experiencing a timeout */
+#define	NFSSTA_LOCKTIMEO	0x20000000  /* Experiencing a lockd timeout */
 
 
 /*
