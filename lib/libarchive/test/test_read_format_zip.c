@@ -25,26 +25,9 @@
 #include "test.h"
 __FBSDID("$FreeBSD$");
 
-static unsigned char archive[] = {
-'P','K',3,4,10,0,0,0,0,0,'Y','f',179,'6',0,0,0,0,0,0,0,0,0,0,0,0,4,0,21,0,
-'d','i','r','/','U','T',9,0,3,25,'U','O','F',25,'U','O','F','U','x',4,0,232,
-3,232,3,'P','K',3,4,20,0,0,0,8,0,'o','f',179,'6',':','7','f','=',10,0,0,0,
-18,0,0,0,5,0,21,0,'f','i','l','e','1','U','T',9,0,3,'A','U','O','F',172,'[',
-'O','F','U','x',4,0,232,3,232,3,203,'H',205,201,201,231,202,'@','"',1,'P',
-'K',3,4,20,0,0,0,8,0,'Z','j',179,'6',':','7','f','=',10,0,0,0,18,0,0,0,5,
-0,21,0,'f','i','l','e','2','U','T',9,0,3,172,'[','O','F',172,'[','O','F',
-'U','x',4,0,232,3,232,3,203,'H',205,201,201,231,202,'@','"',1,'P','K',1,2,
-23,3,10,0,0,0,0,0,'Y','f',179,'6',0,0,0,0,0,0,0,0,0,0,0,0,4,0,13,0,0,0,0,
-0,0,0,16,0,237,'A',0,0,0,0,'d','i','r','/','U','T',5,0,3,25,'U','O','F','U',
-'x',0,0,'P','K',1,2,23,3,20,0,0,0,8,0,'o','f',179,'6',':','7','f','=',10,
-0,0,0,18,0,0,0,5,0,13,0,0,0,0,0,1,0,0,0,164,129,'7',0,0,0,'f','i','l','e',
-'1','U','T',5,0,3,'A','U','O','F','U','x',0,0,'P','K',1,2,23,3,20,0,0,0,8,
-0,'Z','j',179,'6',':','7','f','=',10,0,0,0,18,0,0,0,5,0,13,0,0,0,0,0,1,0,
-0,0,164,129,'y',0,0,0,'f','i','l','e','2','U','T',5,0,3,172,'[','O','F','U',
-'x',0,0,'P','K',5,6,0,0,0,0,3,0,3,0,191,0,0,0,187,0,0,0,0,0};
-
 DEFINE_TEST(test_read_format_zip)
 {
+	const char *refname = "test_read_format_zip.zip";
 	struct archive_entry *ae;
 	struct archive *a;
 	char *buff[128];
@@ -52,10 +35,11 @@ DEFINE_TEST(test_read_format_zip)
 	size_t s;
 	off_t o;
 
+	extract_reference_file(refname);
 	assert((a = archive_read_new()) != NULL);
 	assertA(0 == archive_read_support_compression_all(a));
 	assertA(0 == archive_read_support_format_all(a));
-	assertA(0 == archive_read_open_memory(a, archive, sizeof(archive)));
+	assertA(0 == archive_read_open_filename(a, refname, 10240));
 	assertA(0 == archive_read_next_header(a, &ae));
 	assertEqualString("dir/", archive_entry_pathname(ae));
 	assertEqualInt(1179604249, archive_entry_mtime(ae));
