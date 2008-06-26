@@ -756,6 +756,9 @@ disk_thread(void *arg)
 		error = pthread_mutex_unlock(&outqueue_mtx);
 		assert(error == 0);
 	}
+
+	/* NOTREACHED */
+	return (NULL);
 }
 
 static void *
@@ -810,6 +813,9 @@ send_thread(void *arg)
 		}
 		free(req);
 	}
+
+	/* NOTREACHED */
+	return (NULL);
 }
 
 static void
