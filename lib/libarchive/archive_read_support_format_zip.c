@@ -53,6 +53,9 @@ struct zip {
 	int64_t			entry_compressed_bytes_read;
 	int64_t			entry_uncompressed_bytes_read;
 
+	/* Running CRC32 of the decompressed data */
+	unsigned long		entry_crc32;
+
 	unsigned		version;
 	unsigned		system;
 	unsigned		flags;
@@ -70,7 +73,7 @@ struct zip {
 	char			end_of_entry;
 	char			end_of_entry_cleanup;
 
-	long			crc32;
+	unsigned long		crc32;
 	ssize_t			filename_length;
 	ssize_t			extra_length;
 	int64_t			uncompressed_size;
@@ -299,6 +302,7 @@ archive_read_format_zip_read_header(struct archive_read *a,
 	zip->end_of_entry_cleanup = 0;
 	zip->entry_uncompressed_bytes_read = 0;
 	zip->entry_compressed_bytes_read = 0;
+	zip->entry_crc32 = crc32(0, NULL, 0);
 	if ((h = __archive_read_ahead(a, 4)) == NULL)
 		return (ARCHIVE_FATAL);
 
@@ -523,14 +527,12 @@ archive_read_format_zip_read_data(struct archive_read *a,
 				    "ZIP uncompressed data is wrong size");
 				return (ARCHIVE_WARN);
 			}
-/* TODO: Compute CRC. */
-/*
-			if (zip->crc32 != zip->entry_crc32_calculated) {
+			/* Check computed CRC against header */
+			if (zip->crc32 != zip->entry_crc32) {
 				archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 				    "ZIP data CRC error");
 				return (ARCHIVE_WARN);
 			}
-*/
 			/* End-of-entry cleanup done. */
 			zip->end_of_entry_cleanup = 1;
 		}
@@ -569,6 +571,11 @@ archive_read_format_zip_read_data(struct archive_read *a,
 			r = ARCHIVE_WARN;
 		}
 		break;
+	}
+	/* Update checksum */
+	if (r == ARCHIVE_OK && *size) {
+		zip->entry_crc32 =
+		    crc32(zip->entry_crc32, *buff, *size);
 	}
 	return (r);
 }
