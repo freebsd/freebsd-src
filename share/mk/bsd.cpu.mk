@@ -64,10 +64,10 @@ CPUTYPE = nocona
 # after /etc/make.conf so it can react to the local value of CPUTYPE
 # defined therein.  Consult:
 #	http://gcc.gnu.org/onlinedocs/gcc/DEC-Alpha-Options.html
-#	http://gcc.gnu.org/onlinedocs/gcc/IA-64-Options.html
-#	http://gcc.gnu.org/onlinedocs/gcc/RS-6000-and-PowerPC-Options.html
+#	http://gcc.gnu.org/onlinedocs/gcc/IA_002d64-Options.html
+#	http://gcc.gnu.org/onlinedocs/gcc/RS_002f6000-and-PowerPC-Options.html
 #	http://gcc.gnu.org/onlinedocs/gcc/SPARC-Options.html
-#	http://gcc.gnu.org/onlinedocs/gcc/i386-and-x86-64-Options.html
+#	http://gcc.gnu.org/onlinedocs/gcc/i386-and-x86_002d64-Options.html
 
 . if ${MACHINE_ARCH} == "i386"
 .  if ${CPUTYPE} == "crusoe"
