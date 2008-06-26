@@ -157,7 +157,7 @@ oquota(td, uap)
 #endif
 #ifndef _SYS_SYSPROTO_H_
 struct uname_args {
-        struct utsname  *name;
+	struct utsname  *name;
 };
 #endif
 /* ARGSUSED */
@@ -235,15 +235,15 @@ done2:
 
 #ifndef _SYS_SYSPROTO_H_
 struct getdomainname_args {
-        char    *domainname;
-        int     len;
+	char    *domainname;
+	int     len;
 };
 #endif
 /* ARGSUSED */
 int
 getdomainname(td, uap)
-        struct thread *td;
-        struct getdomainname_args *uap;
+	struct thread *td;
+	struct getdomainname_args *uap;
 {
 	int domainnamelen;
 	int error;
@@ -259,30 +259,30 @@ getdomainname(td, uap)
 
 #ifndef _SYS_SYSPROTO_H_
 struct setdomainname_args {
-        char    *domainname;
-        int     len;
+	char    *domainname;
+	int     len;
 };
 #endif
 /* ARGSUSED */
 int
 setdomainname(td, uap)
-        struct thread *td;
-        struct setdomainname_args *uap;
+	struct thread *td;
+	struct setdomainname_args *uap;
 {
-        int error, domainnamelen;
+	int error, domainnamelen;
 
 	error = priv_check(td, PRIV_SETDOMAINNAME);
 	if (error)
 		return (error);
 	mtx_lock(&Giant);
-        if ((u_int)uap->len > sizeof (domainname) - 1) {
+	if ((u_int)uap->len > sizeof (domainname) - 1) {
 		error = EINVAL;
 		goto done2;
 	}
-        domainnamelen = uap->len;
-        error = copyin(uap->domainname, domainname, uap->len);
-        domainname[domainnamelen] = 0;
+	domainnamelen = uap->len;
+	error = copyin(uap->domainname, domainname, uap->len);
+	domainname[domainnamelen] = 0;
 done2:
 	mtx_unlock(&Giant);
-        return (error);
+	return (error);
 }
