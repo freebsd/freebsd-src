@@ -227,6 +227,7 @@ typedef	__pid_t		pid_t;
 #define	F_FLOCK		0x020	 	/* Use flock(2) semantics for lock */
 #define	F_POSIX		0x040	 	/* Use POSIX semantics for lock */
 #define	F_REMOTE	0x080		/* Lock owner is remote NFS client */
+#define F_NOINTR	0x100		/* Ignore signals when waiting */
 #endif
 
 /*

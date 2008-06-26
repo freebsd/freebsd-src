@@ -1354,7 +1354,8 @@ lf_setlock(struct lockf *state, struct lockf_entry *lock, struct vnode *vp,
 	priority = PLOCK;
 	if (lock->lf_type == F_WRLCK)
 		priority += 4;
-	priority |= PCATCH;
+	if (!(lock->lf_flags & F_NOINTR))
+		priority |= PCATCH;
 	/*
 	 * Scan lock list for this file looking for locks that would block us.
 	 */
@@ -1814,27 +1815,26 @@ lf_split(struct lockf *state, struct lockf_entry *lock1,
 	lf_insert_lock(state, splitlock);
 }
 
-struct clearlock {
-	STAILQ_ENTRY(clearlock) link;
+struct lockdesc {
+	STAILQ_ENTRY(lockdesc) link;
 	struct vnode *vp;
 	struct flock fl;
 };
-STAILQ_HEAD(clearlocklist, clearlock);
+STAILQ_HEAD(lockdesclist, lockdesc);
 
-void
-lf_clearremotesys(int sysid)
+int
+lf_iteratelocks_sysid(int sysid, lf_iterator *fn, void *arg)
 {
 	struct lockf *ls;
 	struct lockf_entry *lf;
-	struct clearlock *cl;
-	struct clearlocklist locks;
-
-	KASSERT(sysid != 0, ("Can't clear local locks with F_UNLCKSYS"));
+	struct lockdesc *ldesc;
+	struct lockdesclist locks;
+	int error;
 
 	/*
 	 * In order to keep the locking simple, we iterate over the
 	 * active lock lists to build a list of locks that need
-	 * releasing. We then call VOP_ADVLOCK for each one in turn.
+	 * releasing. We then call the iterator for each one in turn.
 	 *
 	 * We take an extra reference to the vnode for the duration to
 	 * make sure it doesn't go away before we are finished.
@@ -1847,32 +1847,116 @@ lf_clearremotesys(int sysid)
 			if (lf->lf_owner->lo_sysid != sysid)
 				continue;
 
-			cl = malloc(sizeof(struct clearlock), M_LOCKF,
+			ldesc = malloc(sizeof(struct lockdesc), M_LOCKF,
 			    M_WAITOK);
-			cl->vp = lf->lf_vnode;
-			vref(cl->vp);
-			cl->fl.l_start = lf->lf_start;
+			ldesc->vp = lf->lf_vnode;
+			vref(ldesc->vp);
+			ldesc->fl.l_start = lf->lf_start;
 			if (lf->lf_end == OFF_MAX)
-				cl->fl.l_len = 0;
+				ldesc->fl.l_len = 0;
 			else
-				cl->fl.l_len =
+				ldesc->fl.l_len =
 					lf->lf_end - lf->lf_start + 1;
-			cl->fl.l_whence = SEEK_SET;
-			cl->fl.l_type = F_UNLCK;
-			cl->fl.l_pid = lf->lf_owner->lo_pid;
-			cl->fl.l_sysid = sysid;
-			STAILQ_INSERT_TAIL(&locks, cl, link);
+			ldesc->fl.l_whence = SEEK_SET;
+			ldesc->fl.l_type = F_UNLCK;
+			ldesc->fl.l_pid = lf->lf_owner->lo_pid;
+			ldesc->fl.l_sysid = sysid;
+			STAILQ_INSERT_TAIL(&locks, ldesc, link);
 		}
 		sx_xunlock(&ls->ls_lock);
 	}
 	sx_xunlock(&lf_lock_states_lock);
 
-	while ((cl = STAILQ_FIRST(&locks)) != NULL) {
+	/*
+	 * Call the iterator function for each lock in turn. If the
+	 * iterator returns an error code, just free the rest of the
+	 * lockdesc structures.
+	 */
+	error = 0;
+	while ((ldesc = STAILQ_FIRST(&locks)) != NULL) {
 		STAILQ_REMOVE_HEAD(&locks, link);
-		VOP_ADVLOCK(cl->vp, 0, F_UNLCK, &cl->fl, F_REMOTE);
-		vrele(cl->vp);
-		free(cl, M_LOCKF);
+		if (!error)
+			error = fn(ldesc->vp, &ldesc->fl, arg);
+		vrele(ldesc->vp);
+		free(ldesc, M_LOCKF);
 	}
+
+	return (error);
+}
+
+int
+lf_iteratelocks_vnode(struct vnode *vp, lf_iterator *fn, void *arg)
+{
+	struct lockf *ls;
+	struct lockf_entry *lf;
+	struct lockdesc *ldesc;
+	struct lockdesclist locks;
+	int error;
+
+	/*
+	 * In order to keep the locking simple, we iterate over the
+	 * active lock lists to build a list of locks that need
+	 * releasing. We then call the iterator for each one in turn.
+	 *
+	 * We take an extra reference to the vnode for the duration to
+	 * make sure it doesn't go away before we are finished.
+	 */
+	STAILQ_INIT(&locks);
+	ls = vp->v_lockf;
+	if (!ls)
+		return (0);
+
+	sx_xlock(&ls->ls_lock);
+	LIST_FOREACH(lf, &ls->ls_active, lf_link) {
+		ldesc = malloc(sizeof(struct lockdesc), M_LOCKF,
+		    M_WAITOK);
+		ldesc->vp = lf->lf_vnode;
+		vref(ldesc->vp);
+		ldesc->fl.l_start = lf->lf_start;
+		if (lf->lf_end == OFF_MAX)
+			ldesc->fl.l_len = 0;
+		else
+			ldesc->fl.l_len =
+				lf->lf_end - lf->lf_start + 1;
+		ldesc->fl.l_whence = SEEK_SET;
+		ldesc->fl.l_type = F_UNLCK;
+		ldesc->fl.l_pid = lf->lf_owner->lo_pid;
+		ldesc->fl.l_sysid = lf->lf_owner->lo_sysid;
+		STAILQ_INSERT_TAIL(&locks, ldesc, link);
+	}
+	sx_xunlock(&ls->ls_lock);
+
+	/*
+	 * Call the iterator function for each lock in turn. If the
+	 * iterator returns an error code, just free the rest of the
+	 * lockdesc structures.
+	 */
+	error = 0;
+	while ((ldesc = STAILQ_FIRST(&locks)) != NULL) {
+		STAILQ_REMOVE_HEAD(&locks, link);
+		if (!error)
+			error = fn(ldesc->vp, &ldesc->fl, arg);
+		vrele(ldesc->vp);
+		free(ldesc, M_LOCKF);
+	}
+
+	return (error);
+}
+
+static int
+lf_clearremotesys_iterator(struct vnode *vp, struct flock *fl, void *arg)
+{
+
+	VOP_ADVLOCK(vp, 0, F_UNLCK, fl, F_REMOTE);
+	return (0);
+}
+
+void
+lf_clearremotesys(int sysid)
+{
+
+	KASSERT(sysid != 0, ("Can't clear local locks with F_UNLCKSYS"));
+	lf_iteratelocks_sysid(sysid, lf_clearremotesys_iterator, NULL);
 }
 
 int
