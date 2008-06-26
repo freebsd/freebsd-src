@@ -51,17 +51,18 @@ DEFINE_TEST(test_read_format_zip)
 	assertEqualString("file1", archive_entry_pathname(ae));
 	assertEqualInt(1179604289, archive_entry_mtime(ae));
 	assertEqualInt(18, archive_entry_size(ae));
-	assertEqualInt(18, archive_read_data(a, buff, 18));
+	assertEqualInt(18, archive_read_data(a, buff, 19));
 	assert(0 == memcmp(buff, "hello\nhello\nhello\n", 18));
 	assertA(0 == archive_read_next_header(a, &ae));
 	assertEqualString("file2", archive_entry_pathname(ae));
 	assertEqualInt(1179605932, archive_entry_mtime(ae));
 	assertEqualInt(18, archive_entry_size(ae));
-	assertEqualInt(18, archive_read_data(a, buff, 18));
+	assertEqualInt(ARCHIVE_WARN, archive_read_data(a, buff, 19));
 	assert(0 == memcmp(buff, "hello\nhello\nhello\n", 18));
 	assertA(archive_compression(a) == ARCHIVE_COMPRESSION_NONE);
 	assertA(archive_format(a) == ARCHIVE_FORMAT_ZIP);
 	assert(0 == archive_read_close(a));
+
 #if ARCHIVE_API_VERSION > 1
 	assert(0 == archive_read_finish(a));
 #else
