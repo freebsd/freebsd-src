@@ -7,7 +7,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/libkern.h>
 
-#if defined(__SSP__) || defined(__SSP_ALL__)
 long __stack_chk_guard[8] = {};
 void __stack_chk_fail(void);
 
@@ -31,5 +30,3 @@ __stack_chk_init(void *dummy __unused)
 }
 /* SI_SUB_EVENTHANDLER is right after SI_SUB_LOCK used by arc4rand() init. */
 SYSINIT(stack_chk, SI_SUB_EVENTHANDLER, SI_ORDER_ANY, __stack_chk_init, NULL);
-
-#endif
