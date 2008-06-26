@@ -12,7 +12,6 @@ CFLAGS=		-Os -mrtd \
 		-fno-unit-at-a-time \
 		-D_KERNEL -DBOOTWAIT=${BOOTWAIT} -DTIMEOUT=${TIMEOUT}
 CFLAGS+=	-DBOOTSEG=${BOOTSEG} -DBOOTSTACK=${BOOTSTACK}
-CFLAGS+=	${CWARNFLAGS}
 CFLAGS+=	-I${.CURDIR}/../../.. -I.
 
 # By default, if a serial port is going to be used as console, use COM1
@@ -110,5 +109,5 @@ i386:
 
 CLEANFILES+=	machine i386
 
-.include "${.CURDIR}/../../../conf/kern.mk"
+CWARNFLAGS!=	${MAKE} -f bsd.own.mk -f ${.CURDIR}/../../../conf/kern.mk -V CWARNFLAGS
 .include <bsd.prog.mk>
