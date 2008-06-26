@@ -115,7 +115,7 @@ run_tests(void)
 {
 	struct regression_test **testp;
 
-	printf("1..%d\n", SET_COUNT(regression_tests_set));
+	printf("1..%td\n", SET_COUNT(regression_tests_set));
 	test_index = 1;
 	SET_FOREACH(testp, regression_tests_set) {
 		test_acknowleged = 0;
