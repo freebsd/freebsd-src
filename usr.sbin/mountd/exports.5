@@ -61,7 +61,9 @@ last line with a backslash
 A host may be specified only once for each local file system on the
 server and there may be only one default entry for each server
 file system that applies to all other hosts.
-The latter exports the file system to the ``world'' and should
+The latter exports the file system to the
+.Dq world
+and should
 be used only when the file system contains public information.
 .Pp
 In a mount entry,
@@ -80,7 +82,11 @@ including regular files if the
 option is used on
 .Xr mountd 8 .
 The pathnames must not have any symbolic links in them and should not have
-any "." or ".." components.
+any
+.Dq .
+or
+.Dq ..
+components.
 Mount points for a file system may appear on multiple lines each with
 different sets of hosts and export options.
 .Pp
@@ -209,8 +215,12 @@ below).
 The third component of a line specifies the host set to which the line applies.
 The set may be specified in three ways.
 The first way is to list the host name(s) separated by white space.
-(Standard Internet ``dot'' addresses may be used in place of names.)
-The second way is to specify a ``netgroup'' as defined in the netgroup file (see
+(Standard Internet
+.Dq dot
+addresses may be used in place of names.)
+The second way is to specify a
+.Dq netgroup
+as defined in the netgroup file (see
 .Xr netgroup 5 ) .
 The third way is to specify an Internet subnetwork using a network and
 network mask that is defined as the set of all hosts with addresses within
@@ -221,18 +231,27 @@ large number of clients within an administrative subnet.
 .Pp
 The first two cases are specified by simply listing the name(s) separated
 by whitespace.
-All names are checked to see if they are ``netgroup'' names
+All names are checked to see if they are
+.Dq netgroup
+names
 first and are assumed to be hostnames otherwise.
 Using the full domain specification for a hostname can normally
 circumvent the problem of a host that has the same name as a netgroup.
 The third case is specified by the flag
 .Sm off
-.Fl network No = Sy netname
+.Fl network No = Sy netname Op No / Ar prefixlength
 .Sm on
 and optionally
 .Sm off
 .Fl mask No = Sy netmask .
 .Sm on
+The netmask may be specified either by attaching a
+.Ar prefixlength
+to the
+.Fl network
+option, or by using a separate
+.Fl mask
+option.
 If the mask is not specified, it will default to the mask for that network
 class (A, B or C; see
 .Xr inet 4 ) .
@@ -240,13 +259,19 @@ See the
 .Sx EXAMPLES
 section below.
 .Pp
+Scoped IPv6 address must carry scope identifier as documented in
+.Xr inet6 4 .
+For example,
+.Dq fe80::%ne2/10
+is used to specify fe80::/10 on ne2 interface.
+.Pp
 The
 .Xr mountd 8
 utility can be made to re-read the
 .Nm
 file by sending it a hangup signal as follows:
 .Bd -literal -offset indent
-kill -s HUP `cat /var/run/mountd.pid`
+/etc/rc.d/mountd reload
 .Ed
 .Pp
 After sending the
@@ -269,6 +294,8 @@ the default remote mount-point file
 /usr -maproot=daemon grumpy.cis.uoguelph.ca 131.104.48.16
 /usr -ro -mapall=nobody
 /u -maproot=bin: -network 131.104.48 -mask 255.255.255.0
+/a -network 192.168.0/24
+/a -network 3ffe:1ce1:1:fe80::/64
 /u2 -maproot=root friends
 /u2 -alldirs -network cis-net -mask cis-mask
 /cdrom -alldirs,quiet,ro -network 192.168.33.0 -mask 255.255.255.0
@@ -288,27 +315,53 @@ is exported to hosts
 where friends is specified in the netgroup file
 with users mapped to their remote credentials and
 root mapped to uid 0 and group 10.
-It is exported read-write and the hosts in ``friends'' can mount either /usr
-or /usr/local.
+It is exported read-write and the hosts in
+.Dq friends
+can mount either
+.Pa /usr
+or
+.Pa /usr/local .
 It is exported to
 .Em 131.104.48.16
 and
 .Em grumpy.cis.uoguelph.ca
 with users mapped to their remote credentials and
-root mapped to the user and groups associated with ``daemon'';
+root mapped to the user and groups associated with
+.Dq daemon ;
 it is exported to the rest of the world as read-only with
-all users mapped to the user and groups associated with ``nobody''.
+all users mapped to the user and groups associated with
+.Dq nobody .
 .Pp
 .Pa /u
 is exported to all hosts on the subnetwork
 .Em 131.104.48
-with root mapped to the uid for ``bin'' and with no group access.
+with root mapped to the uid for
+.Dq bin
+and with no group access.
 .Pp
 .Pa /u2
-is exported to the hosts in ``friends'' with root mapped to uid and groups
-associated with ``root'';
-it is exported to all hosts on network ``cis-net'' allowing mounts at any
+is exported to the hosts in
+.Dq friends
+with root mapped to uid and groups
+associated with
+.Dq root ;
+it is exported to all hosts on network
+.Dq cis-net
+allowing mounts at any
 directory within /u2.
+.Pp
+.Pa /a
+is exported to the network 192.168.0.0, with a netmask of 255.255.255.0.
+However, the netmask length in the entry for /a is not specified through
+a -mask option, but through the /prefix notation.
+.Pp
+.Pa /a
+is also exported to the IPv6 network 3ffe:1ce1:1:fe80:: address, using
+the upper 64 bits as the prefix.
+Note that, unlike with IPv4 network addresses, the specified network
+address must be complete, and not just contain the upper bits.
+With IPv6 addresses, the -mask option must not
+be used.
 .Pp
 The file system rooted at
 .Pa /cdrom
