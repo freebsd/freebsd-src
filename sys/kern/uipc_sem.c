@@ -38,85 +38,46 @@ __FBSDID("$FreeBSD$");
 #include "opt_posix.h"
 
 #include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/sysproto.h>
-#include <sys/eventhandler.h>
+#include <sys/condvar.h>
+#include <sys/fcntl.h>
+#include <sys/file.h>
+#include <sys/filedesc.h>
+#include <sys/fnv_hash.h>
 #include <sys/kernel.h>
 #include <sys/ksem.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/posix4.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
-#include <sys/module.h>
-#include <sys/condvar.h>
-#include <sys/sem.h>
-#include <sys/uio.h>
 #include <sys/semaphore.h>
-#include <sys/syscall.h>
-#include <sys/stat.h>
-#include <sys/sysent.h>
-#include <sys/sysctl.h>
-#include <sys/time.h>
-#include <sys/malloc.h>
-#include <sys/fcntl.h>
 #include <sys/_semaphore.h>
+#include <sys/stat.h>
+#include <sys/syscall.h>
+#include <sys/syscallsubr.h>
+#include <sys/sysctl.h>
+#include <sys/sysent.h>
+#include <sys/sysproto.h>
+#include <sys/systm.h>
+#include <sys/sx.h>
+#include <sys/vnode.h>
 
 #include <security/mac/mac_framework.h>
 
-static int sem_count_proc(struct proc *p);
-static struct ksem *sem_lookup_byname(const char *name);
-static int sem_create(struct thread *td, const char *name,
-    struct ksem **ksret, mode_t mode, unsigned int value);
-static void sem_free(struct ksem *ksnew);
-static int sem_perm(struct thread *td, struct ksem *ks);
-static void sem_enter(struct proc *p, struct ksem *ks);
-static int sem_leave(struct proc *p, struct ksem *ks);
-static void sem_exechook(void *arg, struct proc *p,
-    struct image_params *imgp);
-static void sem_exithook(void *arg, struct proc *p);
-static void sem_forkhook(void *arg, struct proc *p1, struct proc *p2,
-    int flags);
-static int sem_hasopen(struct thread *td, struct ksem *ks);
-
-static int kern_sem_close(struct thread *td, semid_t id);
-static int kern_sem_post(struct thread *td, semid_t id);
-static int kern_sem_wait(struct thread *td, semid_t id, int tryflag,
-    struct timespec *abstime);
-static int kern_sem_init(struct thread *td, int dir, unsigned int value,
-    semid_t *idp);
-static int kern_sem_open(struct thread *td, int dir, const char *name,
-    int oflag, mode_t mode, unsigned int value, semid_t *idp);
-static int kern_sem_unlink(struct thread *td, const char *name);
+/*
+ * TODO
+ *
+ * - Resource limits?
+ * - Update fstat(1)
+ * - Replace global sem_lock with mtx_pool locks?
+ * - Add a MAC check_create() hook for creating new named semaphores.
+ */
 
 #ifndef SEM_MAX
 #define	SEM_MAX	30
 #endif
-
-#define	SEM_MAX_NAMELEN	14
-
-#define	SEM_TO_ID(x)	((intptr_t)(x))
-#define	ID_TO_SEM(x)	id_to_sem(x)
-
-/*
- * Available semaphores go here, this includes sem_init and any semaphores
- * created via sem_open that have not yet been unlinked.
- */
-LIST_HEAD(, ksem) ksem_head = LIST_HEAD_INITIALIZER(&ksem_head);
-
-/*
- * Semaphores still in use but have been sem_unlink()'d go here.
- */
-LIST_HEAD(, ksem) ksem_deadhead = LIST_HEAD_INITIALIZER(&ksem_deadhead);
-
-static struct mtx sem_lock;
-static MALLOC_DEFINE(M_SEM, "sems", "semaphore data");
-
-static int nsems = 0;
-SYSCTL_DECL(_p1003_1b);
-SYSCTL_INT(_p1003_1b, OID_AUTO, nsems, CTLFLAG_RD, &nsems, 0, "");
-
-static eventhandler_tag sem_exit_tag, sem_exec_tag, sem_fork_tag;
 
 #ifdef SEM_DEBUG
 #define	DP(x)	printf x
@@ -124,499 +85,548 @@ static eventhandler_tag sem_exit_tag, sem_exec_tag, sem_fork_tag;
 #define	DP(x)
 #endif
 
-static __inline void
-sem_ref(struct ksem *ks)
+struct ksem_mapping {
+	char		*km_path;
+	Fnv32_t		km_fnv;
+	struct ksem	*km_ksem;
+	LIST_ENTRY(ksem_mapping) km_link;
+};
+
+static MALLOC_DEFINE(M_KSEM, "ksem", "semaphore file descriptor");
+static LIST_HEAD(, ksem_mapping) *ksem_dictionary;
+static struct sx ksem_dict_lock;
+static struct mtx ksem_count_lock;
+static struct mtx sem_lock;
+static u_long ksem_hash;
+static int ksem_dead;
+
+#define	KSEM_HASH(fnv)	(&ksem_dictionary[(fnv) & ksem_hash])
+
+static int nsems = 0;
+SYSCTL_DECL(_p1003_1b);
+SYSCTL_INT(_p1003_1b, OID_AUTO, nsems, CTLFLAG_RD, &nsems, 0,
+    "Number of active kernel POSIX semaphores");
+
+static int	kern_sem_wait(struct thread *td, semid_t id, int tryflag,
+		    struct timespec *abstime);
+static int	ksem_access(struct ksem *ks, struct ucred *ucred);
+static struct ksem *ksem_alloc(struct ucred *ucred, mode_t mode,
+		    unsigned int value);
+static int	ksem_create(struct thread *td, const char *path,
+		    semid_t *semidp, mode_t mode, unsigned int value,
+		    int flags);
+static void	ksem_drop(struct ksem *ks);
+static int	ksem_get(struct thread *td, semid_t id, struct file **fpp);
+static struct ksem *ksem_hold(struct ksem *ks);
+static void	ksem_insert(char *path, Fnv32_t fnv, struct ksem *ks);
+static struct ksem *ksem_lookup(char *path, Fnv32_t fnv);
+static void	ksem_module_destroy(void);
+static int	ksem_module_init(void);
+static int	ksem_remove(char *path, Fnv32_t fnv, struct ucred *ucred);
+static int	sem_modload(struct module *module, int cmd, void *arg);
+
+static fo_rdwr_t	ksem_read;
+static fo_rdwr_t	ksem_write;
+static fo_truncate_t	ksem_truncate;
+static fo_ioctl_t	ksem_ioctl;
+static fo_poll_t	ksem_poll;
+static fo_kqfilter_t	ksem_kqfilter;
+static fo_stat_t	ksem_stat;
+static fo_close_t	ksem_closef;
+
+/* File descriptor operations. */
+static struct fileops ksem_ops = {
+	.fo_read = ksem_read,
+	.fo_write = ksem_write,
+	.fo_truncate = ksem_truncate,
+	.fo_ioctl = ksem_ioctl,
+	.fo_poll = ksem_poll,
+	.fo_kqfilter = ksem_kqfilter,
+	.fo_stat = ksem_stat,
+	.fo_close = ksem_closef,
+	.fo_flags = DFLAG_PASSABLE
+};
+
+FEATURE(posix_sem, "POSIX semaphores");
+
+static int
+ksem_read(struct file *fp, struct uio *uio, struct ucred *active_cred,
+    int flags, struct thread *td)
 {
 
-	mtx_assert(&sem_lock, MA_OWNED);
-	ks->ks_ref++;
-	DP(("sem_ref: ks = %p, ref = %d\n", ks, ks->ks_ref));
-}
-
-static __inline void
-sem_rel(struct ksem *ks)
-{
-
-	mtx_assert(&sem_lock, MA_OWNED);
-	DP(("sem_rel: ks = %p, ref = %d\n", ks, ks->ks_ref - 1));
-	if (--ks->ks_ref == 0)
-		sem_free(ks);
-}
-
-static __inline
-struct ksem *
-id_to_sem(semid_t id)
-{
-	struct ksem *ks;
-
-	mtx_assert(&sem_lock, MA_OWNED);
-	DP(("id_to_sem: id = %0x,%p\n", id, (struct ksem *)id));
-	LIST_FOREACH(ks, &ksem_head, ks_entry) {
-		DP(("id_to_sem: ks = %p\n", ks));
-		if (ks == (struct ksem *)id)
-			return (ks);
-	}
-	return (NULL);
-}
-
-static struct ksem *
-sem_lookup_byname(const char *name)
-{
-	struct ksem *ks;
-
-	mtx_assert(&sem_lock, MA_OWNED);
-	LIST_FOREACH(ks, &ksem_head, ks_entry)
-		if (ks->ks_name != NULL && strcmp(ks->ks_name, name) == 0)
-			return (ks);
-	return (NULL);
+	return (EOPNOTSUPP);
 }
 
 static int
-sem_create(struct thread *td, const char *name, struct ksem **ksret,
-    mode_t mode, unsigned int value)
+ksem_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
+    int flags, struct thread *td)
 {
-	struct ksem *ret;
-	struct proc *p;
-	struct ucred *uc;
-	size_t len;
+
+	return (EOPNOTSUPP);
+}
+
+static int
+ksem_truncate(struct file *fp, off_t length, struct ucred *active_cred,
+    struct thread *td)
+{
+
+	return (EINVAL);
+}
+
+static int
+ksem_ioctl(struct file *fp, u_long com, void *data,
+    struct ucred *active_cred, struct thread *td)
+{
+
+	return (EOPNOTSUPP);
+}
+
+static int
+ksem_poll(struct file *fp, int events, struct ucred *active_cred,
+    struct thread *td)
+{
+
+	return (EOPNOTSUPP);
+}
+
+static int
+ksem_kqfilter(struct file *fp, struct knote *kn)
+{
+
+	return (EOPNOTSUPP);
+}
+
+static int
+ksem_stat(struct file *fp, struct stat *sb, struct ucred *active_cred,
+    struct thread *td)
+{
+	struct ksem *ks;
+#ifdef MAC
+	int error;
+#endif
+
+	ks = fp->f_data;
+
+#ifdef MAC
+	error = mac_posixsem_check_stat(active_cred, fp->f_cred, ks);
+	if (error)
+		return (error);
+#endif
+	
+	/*
+	 * Attempt to return sanish values for fstat() on a semaphore
+	 * file descriptor.
+	 */
+	bzero(sb, sizeof(*sb));
+	sb->st_mode = S_IFREG | ks->ks_mode;		/* XXX */
+
+	sb->st_atimespec = ks->ks_atime;
+	sb->st_ctimespec = ks->ks_ctime;
+	sb->st_mtimespec = ks->ks_mtime;
+	sb->st_birthtimespec = ks->ks_birthtime;	
+	sb->st_uid = ks->ks_uid;
+	sb->st_gid = ks->ks_gid;
+
+	return (0);
+}
+
+static int
+ksem_closef(struct file *fp, struct thread *td)
+{
+	struct ksem *ks;
+
+	ks = fp->f_data;
+	fp->f_data = NULL;
+	ksem_drop(ks);
+
+	return (0);
+}
+
+/*
+ * ksem object management including creation and reference counting
+ * routines.
+ */
+static struct ksem *
+ksem_alloc(struct ucred *ucred, mode_t mode, unsigned int value)
+{
+	struct ksem *ks;
+
+	mtx_lock(&ksem_count_lock);
+	if (nsems == p31b_getcfg(CTL_P1003_1B_SEM_NSEMS_MAX) || ksem_dead) {
+		mtx_unlock(&ksem_count_lock);
+		return (NULL);
+	}
+	nsems++;
+	mtx_unlock(&ksem_count_lock);
+	ks = malloc(sizeof(*ks), M_KSEM, M_WAITOK | M_ZERO);
+	ks->ks_uid = ucred->cr_uid;
+	ks->ks_gid = ucred->cr_gid;
+	ks->ks_mode = mode;
+	ks->ks_value = value;
+	cv_init(&ks->ks_cv, "ksem");
+	vfs_timestamp(&ks->ks_birthtime);
+	ks->ks_atime = ks->ks_mtime = ks->ks_ctime = ks->ks_birthtime;
+	refcount_init(&ks->ks_ref, 1);
+#ifdef MAC
+	mac_posixsem_init(ks);
+	mac_posixsem_create(ucred, ks);
+#endif
+
+	return (ks);
+}
+
+static struct ksem *
+ksem_hold(struct ksem *ks)
+{
+
+	refcount_acquire(&ks->ks_ref);
+	return (ks);
+}
+
+static void
+ksem_drop(struct ksem *ks)
+{
+
+	if (refcount_release(&ks->ks_ref)) {
+#ifdef MAC
+		mac_posixsem_destroy(ks);
+#endif
+		cv_destroy(&ks->ks_cv);
+		free(ks, M_KSEM);
+		mtx_lock(&ksem_count_lock);
+		nsems--;
+		mtx_unlock(&ksem_count_lock);
+	}
+}
+
+/*
+ * Determine if the credentials have sufficient permissions for read
+ * and write access.
+ */
+static int
+ksem_access(struct ksem *ks, struct ucred *ucred)
+{
 	int error;
 
-	DP(("sem_create\n"));
-	p = td->td_proc;
-	uc = td->td_ucred;
-	if (value > SEM_VALUE_MAX)
-		return (EINVAL);
-	ret = malloc(sizeof(*ret), M_SEM, M_WAITOK | M_ZERO);
-	if (name != NULL) {
-		len = strlen(name);
-		if (len > SEM_MAX_NAMELEN) {
-			free(ret, M_SEM);
-			return (ENAMETOOLONG);
-		}
-
-		/* Name must start with a '/' but not contain one. */
-		if (*name != '/' || len < 2 || index(name + 1, '/') != NULL) {
-			free(ret, M_SEM);
-			return (EINVAL);
-		}
-		ret->ks_name = malloc(len + 1, M_SEM, M_WAITOK);
-		strcpy(ret->ks_name, name);
-	} else {
-		ret->ks_name = NULL;
-	}
-	ret->ks_mode = mode;
-	ret->ks_value = value;
-	ret->ks_ref = 1;
-	ret->ks_waiters = 0;
-	ret->ks_uid = uc->cr_uid;
-	ret->ks_gid = uc->cr_gid;
-	ret->ks_onlist = 0;
-	cv_init(&ret->ks_cv, "sem");
-	LIST_INIT(&ret->ks_users);
-#ifdef MAC
-	mac_posixsem_init(ret);
-	mac_posixsem_create(uc, ret);
-#endif
-	if (name != NULL)
-		sem_enter(td->td_proc, ret);
-	*ksret = ret;
-	mtx_lock(&sem_lock);
-	nsems++;
-	if (nsems > p31b_getcfg(CTL_P1003_1B_SEM_NSEMS_MAX)) {
-		sem_leave(td->td_proc, ret);
-		sem_free(ret);
-		error = ENFILE;
-	} else
-		error = 0;
-	mtx_unlock(&sem_lock);
+	error = vaccess(VREG, ks->ks_mode, ks->ks_uid, ks->ks_gid,
+	    VREAD | VWRITE, ucred, NULL);
+	if (error)
+		error = priv_check_cred(ucred, PRIV_SEM_WRITE, 0);
 	return (error);
 }
 
+/*
+ * Dictionary management.  We maintain an in-kernel dictionary to map
+ * paths to semaphore objects.  We use the FNV hash on the path to
+ * store the mappings in a hash table.
+ */
+static struct ksem *
+ksem_lookup(char *path, Fnv32_t fnv)
+{
+	struct ksem_mapping *map;
+
+	LIST_FOREACH(map, KSEM_HASH(fnv), km_link) {
+		if (map->km_fnv != fnv)
+			continue;
+		if (strcmp(map->km_path, path) == 0)
+			return (map->km_ksem);
+	}
+
+	return (NULL);
+}
+
+static void
+ksem_insert(char *path, Fnv32_t fnv, struct ksem *ks)
+{
+	struct ksem_mapping *map;
+
+	map = malloc(sizeof(struct ksem_mapping), M_KSEM, M_WAITOK);
+	map->km_path = path;
+	map->km_fnv = fnv;
+	map->km_ksem = ksem_hold(ks);
+	LIST_INSERT_HEAD(KSEM_HASH(fnv), map, km_link);
+}
+
+static int
+ksem_remove(char *path, Fnv32_t fnv, struct ucred *ucred)
+{
+	struct ksem_mapping *map;
+	int error;
+
+	LIST_FOREACH(map, KSEM_HASH(fnv), km_link) {
+		if (map->km_fnv != fnv)
+			continue;
+		if (strcmp(map->km_path, path) == 0) {
+#ifdef MAC
+			error = mac_posixsem_check_unlink(ucred, map->km_ksem);
+			if (error)
+				return (error);
+#endif
+			error = ksem_access(map->km_ksem, ucred);
+			if (error)
+				return (error);
+			LIST_REMOVE(map, km_link);
+			ksem_drop(map->km_ksem);
+			free(map->km_path, M_KSEM);
+			free(map, M_KSEM);
+			return (0);
+		}
+	}
+
+	return (ENOENT);
+}
+
+/* Other helper routines. */
+static int
+ksem_create(struct thread *td, const char *name, semid_t *semidp, mode_t mode,
+    unsigned int value, int flags)
+{
+	struct filedesc *fdp;
+	struct ksem *ks;
+	struct file *fp;
+	char *path;
+	semid_t semid;
+	Fnv32_t fnv;
+	int error, fd;
+
+	if (value > SEM_VALUE_MAX)
+		return (EINVAL);
+
+	fdp = td->td_proc->p_fd;
+	mode = (mode & ~fdp->fd_cmask) & ACCESSPERMS;
+	error = falloc(td, &fp, &fd);
+	if (error) {
+		if (name == NULL)
+			error = ENOSPC;
+		return (error);
+	}
+
+	/*
+	 * Go ahead and copyout the file descriptor now.  This is a bit
+	 * premature, but it is a lot easier to handle errors as opposed
+	 * to later when we've possibly created a new semaphore, etc.
+	 */
+	semid = fd;
+	error = copyout(&semid, semidp, sizeof(semid));
+	if (error) {
+		fdclose(fdp, fp, fd, td);
+		fdrop(fp, td);
+		return (error);
+	}
+
+	if (name == NULL) {
+		/* Create an anonymous semaphore. */
+		ks = ksem_alloc(td->td_ucred, mode, value);
+		if (ks == NULL)
+			error = ENOSPC;
+		else
+			ks->ks_flags |= KS_ANONYMOUS;
+	} else {
+		path = malloc(MAXPATHLEN, M_KSEM, M_WAITOK);
+		error = copyinstr(name, path, MAXPATHLEN, NULL);
+
+		/* Require paths to start with a '/' character. */
+		if (error == 0 && path[0] != '/')
+			error = EINVAL;
+		if (error) {
+			fdclose(fdp, fp, fd, td);
+			fdrop(fp, td);
+			free(path, M_KSEM);
+			return (error);
+		}
+
+		fnv = fnv_32_str(path, FNV1_32_INIT);
+		sx_xlock(&ksem_dict_lock);
+		ks = ksem_lookup(path, fnv);
+		if (ks == NULL) {
+			/* Object does not exist, create it if requested. */
+			if (flags & O_CREAT) {
+				ks = ksem_alloc(td->td_ucred, mode, value);
+				if (ks == NULL)
+					error = ENFILE;
+				else {
+					ksem_insert(path, fnv, ks);
+					path = NULL;
+				}
+			} else
+				error = ENOENT;
+		} else {
+			/*
+			 * Object already exists, obtain a new
+			 * reference if requested and permitted.
+			 */
+			if ((flags & (O_CREAT | O_EXCL)) ==
+			    (O_CREAT | O_EXCL))
+				error = EEXIST;
+			else {
+#ifdef MAC
+				error = mac_posixsem_check_open(td->td_ucred,
+				    ks);
+				if (error == 0)
+#endif
+				error = ksem_access(ks, td->td_ucred);
+			}
+			if (error == 0)
+				ksem_hold(ks);
+#ifdef INVARIANTS
+			else
+				ks = NULL;
+#endif
+		}
+		sx_xunlock(&ksem_dict_lock);
+		if (path)
+			free(path, M_KSEM);
+	}
+
+	if (error) {
+		KASSERT(ks == NULL, ("ksem_create error with a ksem"));
+		fdclose(fdp, fp, fd, td);
+		fdrop(fp, td);
+		return (error);
+	}
+	KASSERT(ks != NULL, ("ksem_create w/o a ksem"));
+
+	finit(fp, FREAD | FWRITE, DTYPE_SEM, ks, &ksem_ops);
+
+	FILEDESC_XLOCK(fdp);
+	if (fdp->fd_ofiles[fd] == fp)
+		fdp->fd_ofileflags[fd] |= UF_EXCLOSE;
+	FILEDESC_XUNLOCK(fdp);
+	fdrop(fp, td);
+
+	return (0);
+}
+
+static int
+ksem_get(struct thread *td, semid_t id, struct file **fpp)
+{
+	struct ksem *ks;
+	struct file *fp;
+	int error;
+
+	error = fget(td, id, &fp);
+	if (error)
+		return (EINVAL);
+	if (fp->f_type != DTYPE_SEM) {
+		fdrop(fp, td);
+		return (EINVAL);
+	}
+	ks = fp->f_data;
+	if (ks->ks_flags & KS_DEAD) {
+		fdrop(fp, td);
+		return (EINVAL);
+	}
+	*fpp = fp;
+	return (0);
+}
+
+/* System calls. */
 #ifndef _SYS_SYSPROTO_H_
 struct ksem_init_args {
-	unsigned int value;
-	semid_t *idp;
+	unsigned int	value;
+	semid_t		*idp;
 };
-int ksem_init(struct thread *td, struct ksem_init_args *uap);
 #endif
 int
 ksem_init(struct thread *td, struct ksem_init_args *uap)
 {
 
-	return (kern_sem_init(td, UIO_USERSPACE, uap->value, uap->idp));
-}
-
-static int
-kern_sem_init(struct thread *td, int dir, unsigned int value, semid_t *idp)
-{
-	struct ksem *ks;
-	semid_t id;
-	int error;
-
-	error = sem_create(td, NULL, &ks, S_IRWXU | S_IRWXG, value);
-	if (error)
-		return (error);
-	id = SEM_TO_ID(ks);
-	if (dir == UIO_USERSPACE) {
-		error = copyout(&id, idp, sizeof(id));
-		if (error) {
-			mtx_lock(&sem_lock);
-			sem_rel(ks);
-			mtx_unlock(&sem_lock);
-			return (error);
-		}
-	} else {
-		*idp = id;
-	}
-	mtx_lock(&sem_lock);
-	LIST_INSERT_HEAD(&ksem_head, ks, ks_entry);
-	ks->ks_onlist = 1;
-	mtx_unlock(&sem_lock);
-	return (error);
+	return (ksem_create(td, NULL, uap->idp, S_IRWXU | S_IRWXG, uap->value,
+	    0));
 }
 
 #ifndef _SYS_SYSPROTO_H_
 struct ksem_open_args {
-	char *name;
-	int oflag;
-	mode_t mode;
-	unsigned int value;
-	semid_t *idp;	
+	char		*name;
+	int		oflag;
+	mode_t		mode;
+	unsigned int	value;
+	semid_t		*idp;	
 };
-int ksem_open(struct thread *td, struct ksem_open_args *uap);
 #endif
 int
 ksem_open(struct thread *td, struct ksem_open_args *uap)
 {
-	char name[SEM_MAX_NAMELEN + 1];
-	size_t done;
-	int error;
 
-	error = copyinstr(uap->name, name, SEM_MAX_NAMELEN + 1, &done);
-	if (error)
-		return (error);
-	DP((">>> sem_open start\n"));
-	error = kern_sem_open(td, UIO_USERSPACE,
-	    name, uap->oflag, uap->mode, uap->value, uap->idp);
-	DP(("<<< sem_open end\n"));
-	return (error);
-}
-
-static int
-kern_sem_open(struct thread *td, int dir, const char *name, int oflag,
-    mode_t mode, unsigned int value, semid_t *idp)
-{
-	struct ksem *ksnew, *ks;
-	int error;
-	semid_t id;
-
-	ksnew = NULL;
-	mtx_lock(&sem_lock);
-	ks = sem_lookup_byname(name);
-
-	/*
-	 * If we found it but O_EXCL is set, error.
-	 */
-	if (ks != NULL && (oflag & O_EXCL) != 0) {
-		mtx_unlock(&sem_lock);
-		return (EEXIST);
-	}
-
-	/*
-	 * If we didn't find it...
-	 */
-	if (ks == NULL) {
-		/*
-		 * didn't ask for creation? error.
-		 */
-		if ((oflag & O_CREAT) == 0) {
-			mtx_unlock(&sem_lock);
-			return (ENOENT);
-		}
-
-		/*
-		 * We may block during creation, so drop the lock.
-		 */
-		mtx_unlock(&sem_lock);
-		error = sem_create(td, name, &ksnew, mode, value);
-		if (error != 0)
-			return (error);
-		id = SEM_TO_ID(ksnew);
-		if (dir == UIO_USERSPACE) {
-			DP(("about to copyout! %d to %p\n", id, idp));
-			error = copyout(&id, idp, sizeof(id));
-			if (error) {
-				mtx_lock(&sem_lock);
-				sem_leave(td->td_proc, ksnew);
-				sem_rel(ksnew);
-				mtx_unlock(&sem_lock);
-				return (error);
-			}
-		} else {
-			DP(("about to set! %d to %p\n", id, idp));
-			*idp = id;
-		}
-
-		/*
-		 * We need to make sure we haven't lost a race while
-		 * allocating during creation.
-		 */
-		mtx_lock(&sem_lock);
-		ks = sem_lookup_byname(name);
-		if (ks != NULL) {
-			/* we lost... */
-			sem_leave(td->td_proc, ksnew);
-			sem_rel(ksnew);
-			/* we lost and we can't loose... */
-			if ((oflag & O_EXCL) != 0) {
-				mtx_unlock(&sem_lock);
-				return (EEXIST);
-			}
-		} else {
-			DP(("sem_create: about to add to list...\n"));
-			LIST_INSERT_HEAD(&ksem_head, ksnew, ks_entry); 
-			DP(("sem_create: setting list bit...\n"));
-			ksnew->ks_onlist = 1;
-			DP(("sem_create: done, about to unlock...\n"));
-		}
-	} else {
-#ifdef MAC
-		error = mac_posixsem_check_open(td->td_ucred, ks);
-		if (error)
-			goto err_open;
-#endif
-		/*
-		 * if we aren't the creator, then enforce permissions.
-		 */
-		error = sem_perm(td, ks);
-		if (error)
-			goto err_open;
-		sem_ref(ks);
-		mtx_unlock(&sem_lock);
-		id = SEM_TO_ID(ks);
-		if (dir == UIO_USERSPACE) {
-			error = copyout(&id, idp, sizeof(id));
-			if (error) {
-				mtx_lock(&sem_lock);
-				sem_rel(ks);
-				mtx_unlock(&sem_lock);
-				return (error);
-			}
-		} else {
-			*idp = id;
-		}
-		sem_enter(td->td_proc, ks);
-		mtx_lock(&sem_lock);
-		sem_rel(ks);
-	}
-err_open:
-	mtx_unlock(&sem_lock);
-	return (error);
-}
-
-static int
-sem_perm(struct thread *td, struct ksem *ks)
-{
-	struct ucred *uc;
-
-	/*
-	 * XXXRW: This permission routine appears to be incorrect.  If the
-	 * user matches, we shouldn't go on to the group if the user
-	 * permissions don't allow the action?  Not changed for now.  To fix,
-	 * change from a series of if (); if (); to if () else if () else...
-	 */
-	uc = td->td_ucred;
-	DP(("sem_perm: uc(%d,%d) ks(%d,%d,%o)\n",
-	    uc->cr_uid, uc->cr_gid,
-	     ks->ks_uid, ks->ks_gid, ks->ks_mode));
-	if ((uc->cr_uid == ks->ks_uid) && (ks->ks_mode & S_IWUSR) != 0)
-		return (0);
-	if ((uc->cr_gid == ks->ks_gid) && (ks->ks_mode & S_IWGRP) != 0)
-		return (0);
-	if ((ks->ks_mode & S_IWOTH) != 0)
-		return (0);
-	return (priv_check(td, PRIV_SEM_WRITE));
-}
-
-static void
-sem_free(struct ksem *ks)
-{
-
-#ifdef MAC
-	mac_posixsem_destroy(ks);
-#endif
-	nsems--;
-	if (ks->ks_onlist)
-		LIST_REMOVE(ks, ks_entry);
-	if (ks->ks_name != NULL)
-		free(ks->ks_name, M_SEM);
-	cv_destroy(&ks->ks_cv);
-	free(ks, M_SEM);
-}
-
-static __inline struct kuser *
-sem_getuser(struct proc *p, struct ksem *ks)
-{
-	struct kuser *k;
-
-	LIST_FOREACH(k, &ks->ks_users, ku_next)
-		if (k->ku_pid == p->p_pid)
-			return (k);
-	return (NULL);
-}
-
-static int
-sem_hasopen(struct thread *td, struct ksem *ks)
-{
-	
-	return ((ks->ks_name == NULL && sem_perm(td, ks) == 0)
-	    || sem_getuser(td->td_proc, ks) != NULL);
-}
-
-static int
-sem_leave(struct proc *p, struct ksem *ks)
-{
-	struct kuser *k;
-
-	DP(("sem_leave: ks = %p\n", ks));
-	k = sem_getuser(p, ks);
-	DP(("sem_leave: ks = %p, k = %p\n", ks, k));
-	if (k != NULL) {
-		LIST_REMOVE(k, ku_next);
-		sem_rel(ks);
-		DP(("sem_leave: about to free k\n"));
-		free(k, M_SEM);
-		DP(("sem_leave: returning\n"));
-		return (0);
-	}
-	return (EINVAL);
-}
-
-static void
-sem_enter(struct proc *p, struct ksem *ks)
-{
-	struct kuser *ku, *k;
-
-	ku = malloc(sizeof(*ku), M_SEM, M_WAITOK);
-	ku->ku_pid = p->p_pid;
-	mtx_lock(&sem_lock);
-	k = sem_getuser(p, ks);
-	if (k != NULL) {
-		mtx_unlock(&sem_lock);
-		free(ku, M_TEMP);
-		return;
-	}
-	LIST_INSERT_HEAD(&ks->ks_users, ku, ku_next);
-	sem_ref(ks);
-	mtx_unlock(&sem_lock);
+	if ((uap->oflag & ~(O_CREAT | O_EXCL)) != 0)
+		return (EINVAL);
+	return (ksem_create(td, uap->name, uap->idp, uap->mode, uap->value,
+	    uap->oflag));
 }
 
 #ifndef _SYS_SYSPROTO_H_
 struct ksem_unlink_args {
-	char *name;
+	char		*name;
 };
-int ksem_unlink(struct thread *td, struct ksem_unlink_args *uap);
 #endif
 int
 ksem_unlink(struct thread *td, struct ksem_unlink_args *uap)
 {
-	char name[SEM_MAX_NAMELEN + 1];
-	size_t done;
+	char *path;
+	Fnv32_t fnv;
 	int error;
 
-	error = copyinstr(uap->name, name, SEM_MAX_NAMELEN + 1, &done);
-	return (error ? error :
-	    kern_sem_unlink(td, name));
-}
-
-static int
-kern_sem_unlink(struct thread *td, const char *name)
-{
-	struct ksem *ks;
-	int error;
-
-	mtx_lock(&sem_lock);
-	ks = sem_lookup_byname(name);
-	if (ks != NULL) {
-#ifdef MAC
-		error = mac_posixsem_check_unlink(td->td_ucred, ks);
-		if (error) {
-			mtx_unlock(&sem_lock);
-			return (error);
-		}
-#endif
-		error = sem_perm(td, ks);
-	} else
-		error = ENOENT;
-	DP(("sem_unlink: '%s' ks = %p, error = %d\n", name, ks, error));
-	if (error == 0) {
-		LIST_REMOVE(ks, ks_entry);
-		LIST_INSERT_HEAD(&ksem_deadhead, ks, ks_entry); 
-		sem_rel(ks);
+	path = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
+	error = copyinstr(uap->name, path, MAXPATHLEN, NULL);
+	if (error) {
+		free(path, M_TEMP);
+		return (error);
 	}
-	mtx_unlock(&sem_lock);
+
+	fnv = fnv_32_str(path, FNV1_32_INIT);
+	sx_xlock(&ksem_dict_lock);
+	error = ksem_remove(path, fnv, td->td_ucred);
+	sx_xunlock(&ksem_dict_lock);
+	free(path, M_TEMP);
+
 	return (error);
 }
 
 #ifndef _SYS_SYSPROTO_H_
 struct ksem_close_args {
-	semid_t id;
+	semid_t		id;
 };
-int ksem_close(struct thread *td, struct ksem_close_args *uap);
 #endif
 int
 ksem_close(struct thread *td, struct ksem_close_args *uap)
 {
-
-	return (kern_sem_close(td, uap->id));
-}
-
-static int
-kern_sem_close(struct thread *td, semid_t id)
-{
 	struct ksem *ks;
+	struct file *fp;
 	int error;
 
-	error = EINVAL;
-	mtx_lock(&sem_lock);
-	ks = ID_TO_SEM(id);
-
-	/*
-	 * This is not a valid operation for unnamed sems.
-	 */
-	if (ks != NULL && ks->ks_name != NULL)
-		error = sem_leave(td->td_proc, ks);
-	mtx_unlock(&sem_lock);
+	error = ksem_get(td, uap->id, &fp);
+	if (error)
+		return (error);
+	ks = fp->f_data;
+	if (ks->ks_flags & KS_ANONYMOUS) {
+		fdrop(fp, td);
+		return (EINVAL);
+	}
+	error = kern_close(td, uap->id);
+	fdrop(fp, td);
 	return (error);
 }
 
 #ifndef _SYS_SYSPROTO_H_
 struct ksem_post_args {
-	semid_t id;
+	semid_t	id;
 };
-int ksem_post(struct thread *td, struct ksem_post_args *uap);
 #endif
 int
 ksem_post(struct thread *td, struct ksem_post_args *uap)
 {
-
-	return (kern_sem_post(td, uap->id));
-}
-
-static int
-kern_sem_post(struct thread *td, semid_t id)
-{
+	struct file *fp;
 	struct ksem *ks;
 	int error;
 
+	error = ksem_get(td, uap->id, &fp);
+	if (error)
+		return (error);
+	ks = fp->f_data;
+
 	mtx_lock(&sem_lock);
-	ks = ID_TO_SEM(id);
-	if (ks == NULL || !sem_hasopen(td, ks)) {
-		error = EINVAL;
-		goto err;
-	}
 #ifdef MAC
-	error = mac_posixsem_check_post(td->td_ucred, ks);
+	error = mac_posixsem_check_post(td->td_ucred, fp->f_cred, ks);
 	if (error)
 		goto err;
 #endif
@@ -628,16 +638,17 @@ kern_sem_post(struct thread *td, semid_t id)
 	if (ks->ks_waiters > 0)
 		cv_signal(&ks->ks_cv);
 	error = 0;
+	vfs_timestamp(&ks->ks_ctime);
 err:
 	mtx_unlock(&sem_lock);
+	fdrop(fp, td);
 	return (error);
 }
 
 #ifndef _SYS_SYSPROTO_H_
 struct ksem_wait_args {
-	semid_t id;
+	semid_t		id;
 };
-int ksem_wait(struct thread *td, struct ksem_wait_args *uap);
 #endif
 int
 ksem_wait(struct thread *td, struct ksem_wait_args *uap)
@@ -648,10 +659,9 @@ ksem_wait(struct thread *td, struct ksem_wait_args *uap)
 
 #ifndef _SYS_SYSPROTO_H_
 struct ksem_timedwait_args {
-	semid_t id;
+	semid_t		id;
 	const struct timespec *abstime;
 };
-int ksem_timedwait(struct thread *td, struct ksem_timedwait_args *uap);
 #endif
 int
 ksem_timedwait(struct thread *td, struct ksem_timedwait_args *uap)
@@ -678,9 +688,8 @@ ksem_timedwait(struct thread *td, struct ksem_timedwait_args *uap)
 
 #ifndef _SYS_SYSPROTO_H_
 struct ksem_trywait_args {
-	semid_t id;
+	semid_t		id;
 };
-int ksem_trywait(struct thread *td, struct ksem_trywait_args *uap);
 #endif
 int
 ksem_trywait(struct thread *td, struct ksem_trywait_args *uap)
@@ -695,31 +704,25 @@ kern_sem_wait(struct thread *td, semid_t id, int tryflag,
 {
 	struct timespec ts1, ts2;
 	struct timeval tv;
+	struct file *fp;
 	struct ksem *ks;
 	int error;
 
 	DP((">>> kern_sem_wait entered!\n"));
+	error = ksem_get(td, id, &fp);
+	if (error)
+		return (error);
+	ks = fp->f_data;
 	mtx_lock(&sem_lock);
-	ks = ID_TO_SEM(id);
-	if (ks == NULL) {
-		DP(("kern_sem_wait ks == NULL\n"));
-		error = EINVAL;
-		goto err;
-	}
-	sem_ref(ks);
-	if (!sem_hasopen(td, ks)) {
-		DP(("kern_sem_wait hasopen failed\n"));
-		error = EINVAL;
-		goto err;
-	}
 #ifdef MAC
-	error = mac_posixsem_check_wait(td->td_ucred, ks);
+	error = mac_posixsem_check_wait(td->td_ucred, fp->f_cred, ks);
 	if (error) {
 		DP(("kern_sem_wait mac failed\n"));
 		goto err;
 	}
 #endif
 	DP(("kern_sem_wait value = %d, tryflag %d\n", ks->ks_value, tryflag));
+	vfs_timestamp(&ks->ks_atime);
 	if (ks->ks_value == 0) {
 		ks->ks_waiters++;
 		if (tryflag != 0)
@@ -749,208 +752,159 @@ kern_sem_wait(struct thread *td, semid_t id, int tryflag,
 	ks->ks_value--;
 	error = 0;
 err:
-	if (ks != NULL)
-		sem_rel(ks);
 	mtx_unlock(&sem_lock);
+	fdrop(fp, td);
 	DP(("<<< kern_sem_wait leaving, error = %d\n", error));
 	return (error);
 }
 
 #ifndef _SYS_SYSPROTO_H_
 struct ksem_getvalue_args {
-	semid_t id;
-	int *val;
+	semid_t		id;
+	int		*val;
 };
-int ksem_getvalue(struct thread *td, struct ksem_getvalue_args *uap);
 #endif
 int
 ksem_getvalue(struct thread *td, struct ksem_getvalue_args *uap)
 {
+	struct file *fp;
 	struct ksem *ks;
 	int error, val;
 
+	error = ksem_get(td, uap->id, &fp);
+	if (error)
+		return (error);
+	ks = fp->f_data;
+
 	mtx_lock(&sem_lock);
-	ks = ID_TO_SEM(uap->id);
-	if (ks == NULL || !sem_hasopen(td, ks)) {
-		mtx_unlock(&sem_lock);
-		return (EINVAL);
-	}
 #ifdef MAC
-	error = mac_posixsem_check_getvalue(td->td_ucred, ks);
+	error = mac_posixsem_check_getvalue(td->td_ucred, fp->f_cred, ks);
 	if (error) {
 		mtx_unlock(&sem_lock);
+		fdrop(fp, td);
 		return (error);
 	}
 #endif
 	val = ks->ks_value;
+	vfs_timestamp(&ks->ks_atime);
 	mtx_unlock(&sem_lock);
+	fdrop(fp, td);
 	error = copyout(&val, uap->val, sizeof(val));
 	return (error);
 }
 
 #ifndef _SYS_SYSPROTO_H_
 struct ksem_destroy_args {
-	semid_t id;
+	semid_t		id;
 };
-int ksem_destroy(struct thread *td, struct ksem_destroy_args *uap);
 #endif
 int
 ksem_destroy(struct thread *td, struct ksem_destroy_args *uap)
 {
+	struct file *fp;
 	struct ksem *ks;
 	int error;
 
-	mtx_lock(&sem_lock);
-	ks = ID_TO_SEM(uap->id);
-	if (ks == NULL || !sem_hasopen(td, ks) ||
-	    ks->ks_name != NULL) {
-		error = EINVAL;
-		goto err;
+	error = ksem_get(td, uap->id, &fp);
+	if (error)
+		return (error);
+	ks = fp->f_data;
+	if (!(ks->ks_flags & KS_ANONYMOUS)) {
+		fdrop(fp, td);
+		return (EINVAL);
 	}
+	mtx_lock(&sem_lock);
 	if (ks->ks_waiters != 0) {
+		mtx_unlock(&sem_lock);
 		error = EBUSY;
 		goto err;
 	}
-	sem_rel(ks);
-	error = 0;
-err:
+	ks->ks_flags |= KS_DEAD;
 	mtx_unlock(&sem_lock);
+
+	error = kern_close(td, uap->id);
+err:
+	fdrop(fp, td);
 	return (error);
 }
 
-/*
- * Count the number of kusers associated with a proc, so as to guess at how
- * many to allocate when forking.
- */
+#define	SYSCALL_DATA(syscallname)				\
+static int syscallname##_syscall = SYS_##syscallname;		\
+static int syscallname##_registered;				\
+static struct sysent syscallname##_old_sysent;			\
+MAKE_SYSENT(syscallname);
+
+#define	SYSCALL_REGISTER(syscallname) do {				\
+	error = syscall_register(& syscallname##_syscall,		\
+	    & syscallname##_sysent, & syscallname##_old_sysent);	\
+	if (error)							\
+		return (error);						\
+	syscallname##_registered = 1;					\
+} while(0)
+
+#define	SYSCALL_DEREGISTER(syscallname) do {				\
+	if (syscallname##_registered) {					\
+		syscallname##_registered = 0;				\
+		syscall_deregister(& syscallname##_syscall,		\
+		    & syscallname##_old_sysent);			\
+	}								\
+} while(0)
+
+SYSCALL_DATA(ksem_init);
+SYSCALL_DATA(ksem_open);
+SYSCALL_DATA(ksem_unlink);
+SYSCALL_DATA(ksem_close);
+SYSCALL_DATA(ksem_post);
+SYSCALL_DATA(ksem_wait);
+SYSCALL_DATA(ksem_timedwait);
+SYSCALL_DATA(ksem_trywait);
+SYSCALL_DATA(ksem_getvalue);
+SYSCALL_DATA(ksem_destroy);
+
 static int
-sem_count_proc(struct proc *p)
+ksem_module_init(void)
 {
-	struct ksem *ks;
-	struct kuser *ku;
-	int count;
+	int error;
 
-	mtx_assert(&sem_lock, MA_OWNED);
+	mtx_init(&sem_lock, "sem", NULL, MTX_DEF);
+	mtx_init(&ksem_count_lock, "ksem count", NULL, MTX_DEF);
+	sx_init(&ksem_dict_lock, "ksem dictionary");
+	ksem_dictionary = hashinit(1024, M_KSEM, &ksem_hash);
+	p31b_setcfg(CTL_P1003_1B_SEM_NSEMS_MAX, SEM_MAX);
+	p31b_setcfg(CTL_P1003_1B_SEM_VALUE_MAX, SEM_VALUE_MAX);
 
-	count = 0;
-	LIST_FOREACH(ks, &ksem_head, ks_entry) {
-		LIST_FOREACH(ku, &ks->ks_users, ku_next) {
-			if (ku->ku_pid == p->p_pid)
-				count++;
-		}
-	}
-	LIST_FOREACH(ks, &ksem_deadhead, ks_entry) {
-		LIST_FOREACH(ku, &ks->ks_users, ku_next) {
-			if (ku->ku_pid == p->p_pid)
-				count++;
-		}
-	}
-	return (count);
-}
-
-/*
- * When a process forks, the child process must gain a reference to each open
- * semaphore in the parent process, whether it is unlinked or not.  This
- * requires allocating a kuser structure for each semaphore reference in the
- * new process.  Because the set of semaphores in the parent can change while
- * the fork is in progress, we have to handle races -- first we attempt to
- * allocate enough storage to acquire references to each of the semaphores,
- * then we enter the semaphores and release the temporary references.
- */
-static void
-sem_forkhook(void *arg, struct proc *p1, struct proc *p2, int flags)
-{
-	struct ksem *ks, **sem_array;
-	int count, i, new_count;
-	struct kuser *ku;
-
-	mtx_lock(&sem_lock);
-	count = sem_count_proc(p1);
-	if (count == 0) {
-		mtx_unlock(&sem_lock);
-		return;
-	}
-race_lost:
-	mtx_assert(&sem_lock, MA_OWNED);
-	mtx_unlock(&sem_lock);
-	sem_array = malloc(sizeof(struct ksem *) * count, M_TEMP, M_WAITOK);
-	mtx_lock(&sem_lock);
-	new_count = sem_count_proc(p1);
-	if (count < new_count) {
-		/* Lost race, repeat and allocate more storage. */
-		free(sem_array, M_TEMP);
-		count = new_count;
-		goto race_lost;
-	}
-
-	/*
-	 * Given an array capable of storing an adequate number of semaphore
-	 * references, now walk the list of semaphores and acquire a new
-	 * reference for any semaphore opened by p1.
-	 */
-	count = new_count;
-	i = 0;
-	LIST_FOREACH(ks, &ksem_head, ks_entry) {
-		LIST_FOREACH(ku, &ks->ks_users, ku_next) {
-			if (ku->ku_pid == p1->p_pid) {
-				sem_ref(ks);
-				sem_array[i] = ks;
-				i++;
-				break;
-			}
-		}
-	}
-	LIST_FOREACH(ks, &ksem_deadhead, ks_entry) {
-		LIST_FOREACH(ku, &ks->ks_users, ku_next) {
-			if (ku->ku_pid == p1->p_pid) {
-				sem_ref(ks);
-				sem_array[i] = ks;
-				i++;
-				break;
-			}
-		}
-	}
-	mtx_unlock(&sem_lock);
-	KASSERT(i == count, ("sem_forkhook: i != count (%d, %d)", i, count));
-
-	/*
-	 * Now cause p2 to enter each of the referenced semaphores, then
-	 * release our temporary reference.  This is pretty inefficient.
-	 * Finally, free our temporary array.
-	 */
-	for (i = 0; i < count; i++) {
-		sem_enter(p2, sem_array[i]);
-		mtx_lock(&sem_lock);
-		sem_rel(sem_array[i]);
-		mtx_unlock(&sem_lock);
-	}
-	free(sem_array, M_TEMP);
+	SYSCALL_REGISTER(ksem_init);
+	SYSCALL_REGISTER(ksem_open);
+	SYSCALL_REGISTER(ksem_unlink);
+	SYSCALL_REGISTER(ksem_close);
+	SYSCALL_REGISTER(ksem_post);
+	SYSCALL_REGISTER(ksem_wait);
+	SYSCALL_REGISTER(ksem_timedwait);
+	SYSCALL_REGISTER(ksem_trywait);
+	SYSCALL_REGISTER(ksem_getvalue);
+	SYSCALL_REGISTER(ksem_destroy);
+	return (0);
 }
 
 static void
-sem_exechook(void *arg, struct proc *p, struct image_params *imgp __unused)
+ksem_module_destroy(void)
 {
-   	sem_exithook(arg, p);   	
-}
 
-static void
-sem_exithook(void *arg, struct proc *p)
-{
-	struct ksem *ks, *ksnext;
+	SYSCALL_DEREGISTER(ksem_init);
+	SYSCALL_DEREGISTER(ksem_open);
+	SYSCALL_DEREGISTER(ksem_unlink);
+	SYSCALL_DEREGISTER(ksem_close);
+	SYSCALL_DEREGISTER(ksem_post);
+	SYSCALL_DEREGISTER(ksem_wait);
+	SYSCALL_DEREGISTER(ksem_timedwait);
+	SYSCALL_DEREGISTER(ksem_trywait);
+	SYSCALL_DEREGISTER(ksem_getvalue);
+	SYSCALL_DEREGISTER(ksem_destroy);
 
-	mtx_lock(&sem_lock);
-	ks = LIST_FIRST(&ksem_head);
-	while (ks != NULL) {
-		ksnext = LIST_NEXT(ks, ks_entry);
-		sem_leave(p, ks);
-		ks = ksnext;
-	}
-	ks = LIST_FIRST(&ksem_deadhead);
-	while (ks != NULL) {
-		ksnext = LIST_NEXT(ks, ks_entry);
-		sem_leave(p, ks);
-		ks = ksnext;
-	}
-	mtx_unlock(&sem_lock);
+	hashdestroy(ksem_dictionary, M_KSEM, ksem_hash);
+	sx_destroy(&ksem_dict_lock);
+	mtx_destroy(&ksem_count_lock);
+	mtx_destroy(&sem_lock);
 }
 
 static int
@@ -960,26 +914,21 @@ sem_modload(struct module *module, int cmd, void *arg)
 
         switch (cmd) {
         case MOD_LOAD:
-		mtx_init(&sem_lock, "sem", "semaphore", MTX_DEF);
-		p31b_setcfg(CTL_P1003_1B_SEM_NSEMS_MAX, SEM_MAX);
-		p31b_setcfg(CTL_P1003_1B_SEM_VALUE_MAX, SEM_VALUE_MAX);
-		sem_exit_tag = EVENTHANDLER_REGISTER(process_exit,
-		    sem_exithook, NULL, EVENTHANDLER_PRI_ANY);
-		sem_exec_tag = EVENTHANDLER_REGISTER(process_exec,
-		    sem_exechook, NULL, EVENTHANDLER_PRI_ANY);
-		sem_fork_tag = EVENTHANDLER_REGISTER(process_fork,
-		    sem_forkhook, NULL, EVENTHANDLER_PRI_ANY);
+		error = ksem_module_init();
+		if (error)
+			ksem_module_destroy();
                 break;
 
         case MOD_UNLOAD:
+		mtx_lock(&ksem_count_lock);
 		if (nsems != 0) {
 			error = EOPNOTSUPP;
+			mtx_unlock(&ksem_count_lock);
 			break;
 		}
-		EVENTHANDLER_DEREGISTER(process_exit, sem_exit_tag);
-		EVENTHANDLER_DEREGISTER(process_exec, sem_exec_tag);
-		EVENTHANDLER_DEREGISTER(process_fork, sem_fork_tag);
-		mtx_destroy(&sem_lock);
+		ksem_dead = 1;
+		mtx_unlock(&ksem_count_lock);
+		ksem_module_destroy();
                 break;
 
         case MOD_SHUTDOWN:
@@ -996,17 +945,6 @@ static moduledata_t sem_mod = {
         &sem_modload,
         NULL
 };
-
-SYSCALL_MODULE_HELPER(ksem_init);
-SYSCALL_MODULE_HELPER(ksem_open);
-SYSCALL_MODULE_HELPER(ksem_unlink);
-SYSCALL_MODULE_HELPER(ksem_close);
-SYSCALL_MODULE_HELPER(ksem_post);
-SYSCALL_MODULE_HELPER(ksem_wait);
-SYSCALL_MODULE_HELPER(ksem_timedwait);
-SYSCALL_MODULE_HELPER(ksem_trywait);
-SYSCALL_MODULE_HELPER(ksem_getvalue);
-SYSCALL_MODULE_HELPER(ksem_destroy);
 
 DECLARE_MODULE(sem, sem_mod, SI_SUB_SYSV_SEM, SI_ORDER_FIRST);
 MODULE_VERSION(sem, 1);

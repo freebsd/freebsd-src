@@ -46,6 +46,10 @@
  *     worry about the bits on disk if the page is swapped out or will the
  *     swapper zero the parts of a page that are invalid if the page is
  *     swapped back in for us?
+ *
+ * (6) Add MAC support in mac_biba(4) and mac_mls(4).
+ *
+ * (7) Add a MAC check_create() hook for creating new named objects.
  */
 
 #include <sys/cdefs.h>

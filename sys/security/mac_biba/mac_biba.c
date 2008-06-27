@@ -1504,7 +1504,7 @@ biba_pipe_relabel(struct ucred *cred, struct pipepair *pp,
 }
 
 static int
-biba_posixsem_check_write(struct ucred *cred, struct ksem *ks,
+biba_posixsem_check_openunlink(struct ucred *cred, struct ksem *ks,
     struct label *kslabel)
 {
 	struct mac_biba *subj, *obj;
@@ -1522,15 +1522,33 @@ biba_posixsem_check_write(struct ucred *cred, struct ksem *ks,
 }
 
 static int
-biba_posixsem_check_rdonly(struct ucred *cred, struct ksem *ks,
-    struct label *kslabel)
+biba_posixsem_check_write(struct ucred *active_cred, struct ucred *file_cred,
+    struct ksem *ks, struct label *kslabel)
 {
 	struct mac_biba *subj, *obj;
 
 	if (!biba_enabled)
 		return (0);
 
-	subj = SLOT(cred->cr_label);
+	subj = SLOT(active_cred->cr_label);
+	obj = SLOT(kslabel);
+
+	if (!biba_dominate_effective(subj, obj))
+		return (EACCES);
+
+	return (0);
+}
+
+static int
+biba_posixsem_check_rdonly(struct ucred *active_cred, struct ucred *file_cred,
+    struct ksem *ks, struct label *kslabel)
+{
+	struct mac_biba *subj, *obj;
+
+	if (!biba_enabled)
+		return (0);
+
+	subj = SLOT(active_cred->cr_label);
 	obj = SLOT(kslabel);
 
 	if (!biba_dominate_effective(obj, subj))
@@ -3335,9 +3353,10 @@ static struct mac_policy_ops mac_biba_ops =
 	.mpo_pipe_relabel = biba_pipe_relabel,
 
 	.mpo_posixsem_check_getvalue = biba_posixsem_check_rdonly,
-	.mpo_posixsem_check_open = biba_posixsem_check_write,
+	.mpo_posixsem_check_open = biba_posixsem_check_openunlink,
 	.mpo_posixsem_check_post = biba_posixsem_check_write,
-	.mpo_posixsem_check_unlink = biba_posixsem_check_write,
+	.mpo_posixsem_check_stat = biba_posixsem_check_rdonly,
+	.mpo_posixsem_check_unlink = biba_posixsem_check_openunlink,
 	.mpo_posixsem_check_wait = biba_posixsem_check_write,
 	.mpo_posixsem_create = biba_posixsem_create,
 	.mpo_posixsem_destroy_label = biba_destroy_label,

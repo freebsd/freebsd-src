@@ -189,11 +189,16 @@ void	mac_pipe_init(struct pipepair *);
 int	mac_pipe_label_set(struct ucred *cred, struct pipepair *pp,
 	    struct label *label);
 
-int	mac_posixsem_check_getvalue(struct ucred *cred,struct ksem *ks);
+int	mac_posixsem_check_getvalue(struct ucred *active_cred,
+	    struct ucred *file_cred, struct ksem *ks);
 int	mac_posixsem_check_open(struct ucred *cred, struct ksem *ks);
-int	mac_posixsem_check_post(struct ucred *cred, struct ksem *ks);
+int	mac_posixsem_check_post(struct ucred *active_cred,
+	    struct ucred *file_cred, struct ksem *ks);
+int	mac_posixsem_check_stat(struct ucred *active_cred,
+	    struct ucred *file_cred, struct ksem *ks);
 int	mac_posixsem_check_unlink(struct ucred *cred, struct ksem *ks);
-int	mac_posixsem_check_wait(struct ucred *cred, struct ksem *ks);
+int	mac_posixsem_check_wait(struct ucred *active_cred,
+	    struct ucred *file_cred, struct ksem *ks);
 void 	mac_posixsem_create(struct ucred *cred, struct ksem *ks);
 void	mac_posixsem_destroy(struct ksem *);
 void	mac_posixsem_init(struct ksem *);
