@@ -39,7 +39,10 @@ __FBSDID("$FreeBSD$");
 #include "libi386.h"
 #include "btxv86.h"
 
-static struct bios_smap smap;
+static struct {
+	struct bios_smap _smap_entry;
+	char pad[8];		/* Bad BIOS writer, no cookie! */
+} smap;
 
 static struct bios_smap *smapbase;
 static int smaplen;
