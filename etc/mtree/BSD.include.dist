@@ -48,6 +48,10 @@
         ..
         iicbus
         ..
+        mpt
+            mpilib
+            ..
+        ..
         ofw
         ..
         pbio
