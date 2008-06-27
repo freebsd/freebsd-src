@@ -1223,6 +1223,7 @@ product EPSON 4800		0x0819	CX4800 MP scanner
 product EPSON 4200		0x0820	CX4200 MP scanner
 product EPSON 5000		0x082b  DX-50x0 MFP scanner
 product EPSON 6000		0x082e  DX-60x0 MFP scanner
+product EPSON DX7400		0x0838	DX7400/CX7300 scanner
 product EPSON DX8400		0x0839	DX8400 scanner
 
 /* e-TEK Labs products */
