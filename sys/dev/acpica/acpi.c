@@ -1533,18 +1533,31 @@ acpi_probe_children(device_t bus)
 static int
 acpi_probe_order(ACPI_HANDLE handle, int *order)
 {
+    ACPI_OBJECT_TYPE type;
+    u_int addr;
 
     /*
      * 1. I/O port and memory system resource holders
      * 2. Embedded controllers (to handle early accesses)
      * 3. PCI Link Devices
+     * 11 - 266. Host-PCI bridges sorted by _ADR
+     * 280. CPUs
      */
+    AcpiGetType(handle, &type);
     if (acpi_MatchHid(handle, "PNP0C01") || acpi_MatchHid(handle, "PNP0C02"))
 	*order = 1;
     else if (acpi_MatchHid(handle, "PNP0C09"))
 	*order = 2;
     else if (acpi_MatchHid(handle, "PNP0C0F"))
 	*order = 3;
+    else if (acpi_MatchHid(handle, "PNP0A03")) {
+	if (ACPI_SUCCESS(acpi_GetInteger(handle, "_ADR", &addr)))
+	    *order = 11 + ACPI_ADR_PCI_SLOT(addr) * (PCI_FUNCMAX + 1) +
+	       ACPI_ADR_PCI_FUNC(addr);
+	else
+	    *order = 11;
+    } else if (type == ACPI_TYPE_PROCESSOR)
+	*order = 280;
     return (0);
 }
 
@@ -1591,14 +1604,17 @@ acpi_probe_child(ACPI_HANDLE handle, UINT32 level, void *context, void **status)
 		break;
 
 	    /* 
-	     * Create a placeholder device for this node.  Sort the placeholder
-	     * so that the probe/attach passes will run breadth-first.  Orders
-	     * less than ACPI_DEV_BASE_ORDER are reserved for special objects
-	     * (i.e., system resources).  Larger values are used for all other
-	     * devices.
+	     * Create a placeholder device for this node.  Sort the
+	     * placeholder so that the probe/attach passes will run
+	     * breadth-first.  Orders less than ACPI_DEV_BASE_ORDER
+	     * are reserved for special objects (i.e., system
+	     * resources).  Orders between ACPI_DEV_BASE_ORDER and 300
+	     * are used for Host-PCI bridges (and effectively all
+	     * their children) and CPUs.  Larger values are used for
+	     * all other devices.
 	     */
 	    ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "scanning '%s'\n", handle_str));
-	    order = (level + 1) * ACPI_DEV_BASE_ORDER;
+	    order = level * 10 + 300;
 	    acpi_probe_order(handle, &order);
 	    child = BUS_ADD_CHILD(bus, order, NULL, -1);
 	    if (child == NULL)
