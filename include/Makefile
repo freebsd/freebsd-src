@@ -52,12 +52,14 @@ LSUBDIRS=	cam/scsi \
 	security/mac_mls security/mac_partition \
 	ufs/ffs ufs/ufs
 
+LSUBSUBDIRS=	dev/mpt/mpilib
+
 .if !defined(NO_GPIB)
 _dev_ieee488=	dev/ieee488
 .endif
 
 .if !defined(NO_BLUETOOTH)
-LSUBSUBDIRS=	netgraph/bluetooth/include
+LSUBSUBDIRS+=	netgraph/bluetooth/include
 .endif
 
 # Define SHARED to indicate whether you want symbolic links to the system

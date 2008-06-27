@@ -766,6 +766,9 @@ struct mpt_softc {
 	/* Shutdown Event Handler. */
 	eventhandler_tag         eh;
 
+	/* Userland management interface. */
+	struct cdev		*cdev;
+
 	TAILQ_ENTRY(mpt_softc)	links;
 };
 
