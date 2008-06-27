@@ -59,6 +59,8 @@ LSUBDIRS=	cam/scsi \
 	ufs/ffs ufs/ufs
 #LSUBDIRS+=	netatm/ipatm netatm/sigpvc netatm/spans netatm/uni
 
+LSUBSUBDIRS=	dev/mpt/mpilib
+
 .if ${MACHINE_ARCH} == "powerpc"
 _dev_powermac_nvram=	dev/powermac_nvram
 .endif
@@ -72,7 +74,7 @@ INCS+=	hesiod.h
 .endif
 
 .if ${MK_BLUETOOTH} != "no"
-LSUBSUBDIRS=	netgraph/bluetooth/include
+LSUBSUBDIRS+=	netgraph/bluetooth/include
 .endif
 
 # XXX unconditionally needed by <netsmb/netbios.h>
