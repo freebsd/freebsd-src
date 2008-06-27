@@ -249,9 +249,27 @@ main(int argc, char **argv)
 static void
 get_srcdir(void)
 {
+	struct stat lg, phy;
+	char *p, *pwd;
+	int i;
 
 	if (realpath("../..", srcdir) == NULL)
 		errx(2, "Unable to find root of source tree");
+	if ((pwd = getenv("PWD")) != NULL && *pwd == '/' &&
+	    (pwd = strdup(pwd)) != NULL) {
+		/* Remove the last two path components. */
+		for (i = 0; i < 2; i++) {
+			if ((p = strrchr(pwd, '/')) == NULL) {
+				free(pwd);
+				return;
+			}
+			*p = '\0';
+		}
+		if (stat(pwd, &lg) != -1 && stat(srcdir, &phy) != -1 &&
+		    lg.st_dev == phy.st_dev && lg.st_ino == phy.st_ino)
+			strlcpy(srcdir, pwd, MAXPATHLEN);
+		free(pwd);
+	}
 }
 
 static void
