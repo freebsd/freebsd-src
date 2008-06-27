@@ -78,6 +78,7 @@ extern Boolean	beVerbose;	/* True if should print extra cruft */
 extern Boolean	noExecute;	/* True if should execute nothing */
 extern Boolean	allPrecious;	/* True if every target is precious */
 extern Boolean	is_posix;	/* .POSIX target seen */
+extern Boolean	mfAutoDeps;	/* .MAKEFILEDEPS target seen */
 
 /* True if should continue on unaffected portions of the graph
  * when have an error in one portion */

@@ -168,6 +168,7 @@ typedef enum {
 	ExPath,		/* .PATH */
 	Phony,		/* .PHONY */
 	Posix,		/* .POSIX */
+	MakefileDeps,	/* .MAKEFILEDEPS */
 	Precious,	/* .PRECIOUS */
 	ExShell,	/* .SHELL */
 	Silent,		/* .SILENT */
@@ -213,6 +214,7 @@ static const struct keyword {
 	{ ".LIBS",		Libs,		0 },
 	{ ".MAIN",		Main,		0 },
 	{ ".MAKE",		Attribute,	OP_MAKE },
+	{ ".MAKEFILEDEPS",	MakefileDeps,	0 },
 	{ ".MAKEFLAGS",		MFlags,		0 },
 	{ ".MFLAGS",		MFlags,		0 },
 	{ ".NOTMAIN",		Attribute,	OP_NOTMAIN },
@@ -1068,6 +1070,9 @@ ParseDoDependency(char *line)
 		  case ExPath:
 			LST_FOREACH(ln, &paths)
 			Path_Clear(Lst_Datum(ln));
+			break;
+		  case MakefileDeps:
+			mfAutoDeps = TRUE;
 			break;
 		  case Posix:
 			is_posix = TRUE;
