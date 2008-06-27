@@ -91,7 +91,7 @@ struct ichss_softc {
 	(bus_space_write_1(rman_get_bustag((reg)), 	\
 	    rman_get_bushandle((reg)), 0, (val)))
 
-static int	ichss_pci_probe(device_t dev);
+static void	ichss_identify(driver_t *driver, device_t parent);
 static int	ichss_probe(device_t dev);
 static int	ichss_attach(device_t dev);
 static int	ichss_detach(device_t dev);
@@ -103,6 +103,7 @@ static int	ichss_type(device_t dev, int *type);
 
 static device_method_t ichss_methods[] = {
 	/* Device interface */
+	DEVMETHOD(device_identify,	ichss_identify),
 	DEVMETHOD(device_probe,		ichss_probe),
 	DEVMETHOD(device_attach,	ichss_attach),
 	DEVMETHOD(device_detach,	ichss_detach),
@@ -120,15 +121,7 @@ static driver_t ichss_driver = {
 static devclass_t ichss_devclass;
 DRIVER_MODULE(ichss, cpu, ichss_driver, ichss_devclass, 0, 0);
 
-static device_method_t ichss_pci_methods[] = {
-	DEVMETHOD(device_probe,		ichss_pci_probe),
-	{0, 0}
-};
-static driver_t ichss_pci_driver = {
-	"ichss_pci", ichss_pci_methods, 0
-};
-static devclass_t ichss_pci_devclass;
-DRIVER_MODULE(ichss_pci, pci, ichss_pci_driver, ichss_pci_devclass, 0, 0);
+static device_t ich_device;
 
 #if 0
 #define DPRINT(x...)	printf(x)
@@ -136,70 +129,69 @@ DRIVER_MODULE(ichss_pci, pci, ichss_pci_driver, ichss_pci_devclass, 0, 0);
 #define DPRINT(x...)
 #endif
 
-/*
- * We detect the chipset by looking for its LPC bus ID during the PCI
- * scan and reading its config registers during the probe.  However,
- * we add the ichss child under the cpu device since even though the
- * chipset provides the control, it really affects the cpu only.
- *
- * XXX This approach does not work if the module is loaded after boot.
- */
-static int
-ichss_pci_probe(device_t dev)
+static void
+ichss_identify(driver_t *driver, device_t parent)
 {
-	device_t child, parent;
+	device_t child;
 	uint32_t pmbase;
 
+	if (resource_disabled("ichss", 0))
+		return;
+
 	/*
+	 * It appears that ICH SpeedStep only requires a single CPU to
+	 * set the value (since the chipset is shared by all CPUs.)
+	 * Thus, we only add a child to cpu 0.
+	 */
+	if (device_get_unit(parent) != 0)
+		return;
+
+	/* Avoid duplicates. */
+	if (device_find_child(parent, "ichss", -1))
+		return;
+
+	/*
+	 * ICH2/3/4-M I/O Controller Hub is at bus 0, slot 1F, function 0.
+	 * E.g. see Section 6.1 "PCI Devices and Functions" and table 6.1 of
+	 * Intel(r) 82801BA I/O Controller Hub 2 (ICH2) and Intel(r) 82801BAM
+	 * I/O Controller Hub 2 Mobile (ICH2-M).
+	 *
 	 * TODO: add a quirk to disable if we see the 82815_MC along
 	 * with the 82801BA and revision < 5.
 	 */
-	if (pci_get_vendor(dev) != PCI_VENDOR_INTEL ||
-	    (pci_get_device(dev) != PCI_DEV_82801BA &&
-	    pci_get_device(dev) != PCI_DEV_82801CA &&
-	    pci_get_device(dev) != PCI_DEV_82801DB))
-		return (ENXIO);
-
-	/* Only one CPU is supported for this hardware. */
-	if (devclass_get_device(ichss_devclass, 0))
-		return (ENXIO);
-
-	/*
-	 * Add a child under the CPU parent.  It appears that ICH SpeedStep
-	 * only requires a single CPU to set the value (since the chipset
-	 * is shared by all CPUs.)  Thus, we only add a child to cpu 0.
-	 */
-	parent = devclass_get_device(devclass_find("cpu"), 0);
-	KASSERT(parent != NULL, ("cpu parent is NULL"));
-	child = BUS_ADD_CHILD(parent, 0, "ichss", 0);
-	if (child == NULL) {
-		device_printf(parent, "add SpeedStep child failed\n");
-		return (ENXIO);
-	}
+	ich_device = pci_find_bsf(0, 0x1f, 0);
+	if (ich_device == NULL ||
+	    pci_get_vendor(ich_device) != PCI_VENDOR_INTEL ||
+	    (pci_get_device(ich_device) != PCI_DEV_82801BA &&
+	    pci_get_device(ich_device) != PCI_DEV_82801CA &&
+	    pci_get_device(ich_device) != PCI_DEV_82801DB))
+		return;
 
 	/* Find the PMBASE register from our PCI config header. */
-	pmbase = pci_read_config(dev, ICHSS_PMBASE_OFFSET, sizeof(pmbase));
+	pmbase = pci_read_config(ich_device, ICHSS_PMBASE_OFFSET,
+	    sizeof(pmbase));
 	if ((pmbase & ICHSS_IO_REG) == 0) {
 		printf("ichss: invalid PMBASE memory type\n");
-		return (ENXIO);
+		return;
 	}
 	pmbase &= ICHSS_PMBASE_MASK;
 	if (pmbase == 0) {
 		printf("ichss: invalid zero PMBASE address\n");
-		return (ENXIO);
+		return;
 	}
 	DPRINT("ichss: PMBASE is %#x\n", pmbase);
+
+	child = BUS_ADD_CHILD(parent, 0, "ichss", 0);
+	if (child == NULL) {
+		device_printf(parent, "add SpeedStep child failed\n");
+		return;
+	}
 
 	/* Add the bus master arbitration and control registers. */
 	bus_set_resource(child, SYS_RES_IOPORT, 0, pmbase + ICHSS_BM_OFFSET,
 	    1);
 	bus_set_resource(child, SYS_RES_IOPORT, 1, pmbase + ICHSS_CTRL_OFFSET,
 	    1);
-
-	/* Attach the new CPU child now. */
-	device_probe_and_attach(child);
-
-	return (ENXIO);
 }
 
 static int
@@ -207,10 +199,6 @@ ichss_probe(device_t dev)
 {
 	device_t est_dev, perf_dev;
 	int error, type;
-	uint16_t ss_en;
-
-	if (resource_disabled("ichss", 0))
-		return (ENXIO);
 
 	/*
 	 * If the ACPI perf driver has attached and is not just offering
@@ -227,14 +215,6 @@ ichss_probe(device_t dev)
 	if (est_dev && device_is_attached(est_dev))
 		return (ENXIO);
 
-	/* Activate SpeedStep control if not already enabled. */
-	ss_en = pci_read_config(dev, ICHSS_PMCFG_OFFSET, sizeof(ss_en));
-	if ((ss_en & ICHSS_ENABLE) == 0) {
-		printf("ichss: enabling SpeedStep support\n");
-		pci_write_config(dev, ICHSS_PMCFG_OFFSET,
-		    ss_en | ICHSS_ENABLE, sizeof(ss_en));
-	}
-
 	device_set_desc(dev, "SpeedStep ICH");
 	return (-1000);
 }
@@ -243,6 +223,7 @@ static int
 ichss_attach(device_t dev)
 {
 	struct ichss_softc *sc;
+	uint16_t ss_en;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
@@ -262,6 +243,14 @@ ichss_attach(device_t dev)
 		bus_release_resource(dev, SYS_RES_IOPORT, sc->bm_rid,
 		    sc->bm_reg);
 		return (ENXIO);
+	}
+
+	/* Activate SpeedStep control if not already enabled. */
+	ss_en = pci_read_config(ich_device, ICHSS_PMCFG_OFFSET, sizeof(ss_en));
+	if ((ss_en & ICHSS_ENABLE) == 0) {
+		device_printf(dev, "enabling SpeedStep support\n");
+		pci_write_config(ich_device, ICHSS_PMCFG_OFFSET,
+		    ss_en | ICHSS_ENABLE, sizeof(ss_en));
 	}
 
 	/* Setup some defaults for our exported settings. */
