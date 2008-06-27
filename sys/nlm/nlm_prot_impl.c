@@ -1380,7 +1380,10 @@ nlm_server_main(int addr_count, char **addrs)
 	struct nlm_waiting_lock *nw;
 	vop_advlock_t *old_nfs_advlock;
 	vop_reclaim_t *old_nfs_reclaim;
-	int v4_used, v6_used;
+	int v4_used;
+#ifdef INET6
+	int v6_used;
+#endif
 
 	if (nlm_socket) {
 		printf("NLM: can't start server - it appears to be running already\n");
