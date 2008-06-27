@@ -101,21 +101,37 @@ mac_posixsem_check_open(struct ucred *cred, struct ksem *ks)
 }
 
 int
-mac_posixsem_check_getvalue(struct ucred *cred, struct ksem *ks)
+mac_posixsem_check_getvalue(struct ucred *active_cred, struct ucred *file_cred,
+    struct ksem *ks)
 {
 	int error;
 
-	MAC_CHECK(posixsem_check_getvalue, cred, ks, ks->ks_label);
+	MAC_CHECK(posixsem_check_getvalue, active_cred, file_cred, ks,
+	    ks->ks_label);
 
 	return (error);
 }
 
 int
-mac_posixsem_check_post(struct ucred *cred, struct ksem *ks)
+mac_posixsem_check_post(struct ucred *active_cred, struct ucred *file_cred,
+    struct ksem *ks)
 {
 	int error;
 
-	MAC_CHECK(posixsem_check_post, cred, ks, ks->ks_label);
+	MAC_CHECK(posixsem_check_post, active_cred, file_cred, ks,
+	    ks->ks_label);
+
+	return (error);
+}
+
+int
+mac_posixsem_check_stat(struct ucred *active_cred, struct ucred *file_cred,
+    struct ksem *ks)
+{
+	int error;
+
+	MAC_CHECK(posixsem_check_stat, active_cred, file_cred, ks,
+	    ks->ks_label);
 
 	return (error);
 }
@@ -131,11 +147,13 @@ mac_posixsem_check_unlink(struct ucred *cred, struct ksem *ks)
 }
 
 int
-mac_posixsem_check_wait(struct ucred *cred, struct ksem *ks)
+mac_posixsem_check_wait(struct ucred *active_cred, struct ucred *file_cred,
+    struct ksem *ks)
 {
 	int error;
 
-	MAC_CHECK(posixsem_check_wait, cred, ks, ks->ks_label);
+	MAC_CHECK(posixsem_check_wait, active_cred, file_cred, ks,
+	    ks->ks_label);
 
 	return (error);
 }

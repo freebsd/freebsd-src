@@ -61,6 +61,7 @@ struct socket;
 #define	DTYPE_CRYPTO	6	/* crypto */
 #define	DTYPE_MQUEUE	7	/* posix message queue */
 #define	DTYPE_SHM	8	/* swap-backed shared memory */
+#define	DTYPE_SEM	9	/* posix semaphore */
 
 #ifdef _KERNEL
 

@@ -523,8 +523,8 @@ stub_pipe_relabel(struct ucred *cred, struct pipepair *pp,
 }
 
 static int
-stub_posixsem_check_getvalue(struct ucred *cred, struct ksem *ks,
-    struct label *kslabel)
+stub_posixsem_check_getvalue(struct ucred *active_cred, struct ucred *file_cred,
+    struct ksem *ks, struct label *kslabel)
 {
 
 	return (0);
@@ -539,8 +539,16 @@ stub_posixsem_check_open(struct ucred *cred, struct ksem *ks,
 }
 
 static int
-stub_posixsem_check_post(struct ucred *cred, struct ksem *ks,
-    struct label *kslabel)
+stub_posixsem_check_post(struct ucred *active_cred, struct ucred *file_cred,
+    struct ksem *ks, struct label *kslabel)
+{
+
+	return (0);
+}
+
+static int
+stub_posixsem_check_stat(struct ucred *active_cred, struct ucred *file_cred,
+    struct ksem *ks, struct label *kslabel)
 {
 
 	return (0);
@@ -555,8 +563,8 @@ stub_posixsem_check_unlink(struct ucred *cred, struct ksem *ks,
 }
 
 static int
-stub_posixsem_check_wait(struct ucred *cred, struct ksem *ks,
-    struct label *kslabel)
+stub_posixsem_check_wait(struct ucred *active_cred, struct ucred *file_cred,
+    struct ksem *ks, struct label *kslabel)
 {
 
 	return (0);
@@ -1582,6 +1590,7 @@ static struct mac_policy_ops stub_ops =
 	.mpo_posixsem_check_getvalue = stub_posixsem_check_getvalue,
 	.mpo_posixsem_check_open = stub_posixsem_check_open,
 	.mpo_posixsem_check_post = stub_posixsem_check_post,
+	.mpo_posixsem_check_stat = stub_posixsem_check_stat,
 	.mpo_posixsem_check_unlink = stub_posixsem_check_unlink,
 	.mpo_posixsem_check_wait = stub_posixsem_check_wait,
 	.mpo_posixsem_create = stub_posixsem_create,
