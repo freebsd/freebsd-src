@@ -32,7 +32,7 @@
 .\"	@(#)make.1	8.8 (Berkeley) 6/13/95
 .\" $FreeBSD$
 .\"
-.Dd April 8, 2006
+.Dd March 24, 2008
 .Dt MAKE 1
 .Os
 .Sh NAME
@@ -1234,6 +1234,12 @@ explicitly, or implicitly when
 .Nm
 selects the default target, to give the user a way to refer to the default
 target on the command line.
+.It Ic .MAKEFILEDEPS
+Enable the
+.Dq Remaking Makefiles
+functionality, as explained in the
+.Sx REMAKING MAKEFILES
+section below.
 .It Ic .MAKEFLAGS
 This target provides a way to specify flags for
 .Nm
@@ -1303,6 +1309,12 @@ Apply the
 attribute to any specified sources.
 Targets with this attribute are always
 considered to be out of date.
+.It Ic .POSIX
+Adjust
+.Nm Ap s
+behavior to match the applicable
+.Tn POSIX
+specifications.
 .It Ic .PRECIOUS
 Apply the
 .Ic .PRECIOUS
@@ -1466,6 +1478,13 @@ Several flags can be specified on a single
 target by seperating them with blanks.
 .El
 .Sh REMAKING MAKEFILES
+If the special target
+.Ic .MAKEFILEDEPS
+exists in the Makefile,
+.Nm
+enables the
+.Dq Remaking Makefiles
+feature.
 After reading Makefile and all the files that are included using
 .Ic .include
 or
@@ -1555,7 +1574,9 @@ used
 .Ev MAKE
 instead of
 .Ev MAKEFLAGS .
-This was removed for POSIX compatibility.
+This was removed for
+.Tn POSIX
+compatibility.
 The internal variable
 .Va MAKE
 is set to the same value as
