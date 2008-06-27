@@ -1102,12 +1102,12 @@ est_acpi_info(device_t dev, freq_info **freqs)
 		error = ENOMEM;
 		goto out;
 	}
+	est_get_id16(&saved_id16);
 	for (i = 0, j = 0; i < count; i++) {
 		/*
 		 * Confirm id16 value is correct.
 		 */
 		if (sets[i].freq > 0) {
-			est_get_id16(&saved_id16);
 			error = est_set_id16(dev, sets[i].spec[0], 1);
 			if (error != 0) {
 				if (bootverbose) 
@@ -1120,10 +1120,10 @@ est_acpi_info(device_t dev, freq_info **freqs)
 				table[j].power = sets[i].power;
 				++j;
 			}
-			/* restore saved setting */
-			est_set_id16(dev, sets[i].spec[0], 0);
 		}
 	}
+	/* restore saved setting */
+	est_set_id16(dev, saved_id16, 0);
 
 	/* Mark end of table with a terminator. */
 	bzero(&table[j], sizeof(freq_info));
