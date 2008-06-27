@@ -15,7 +15,7 @@ name="statd"
 rcvar=rpc_statd_enable
 command="/usr/sbin/rpc.${name}"
 start_precmd='statd_precmd'
-stop_precmd='checkyesno nfs_server_enable || checkyesno nfsclient_enable'
+stop_precmd='checkyesno nfs_server_enable || checkyesno nfs_client_enable'
 status_precmd=$stop_precmd
 
 # Make sure that we are either an NFS client or server, and that we get
@@ -26,7 +26,7 @@ statd_precmd()
 	local ret
 	ret=0
 
-	if ! checkyesno nfs_server_enable && ! checkyesno nfsclient_enable
+	if ! checkyesno nfs_server_enable && ! checkyesno nfs_client_enable
 	then
 		ret=1
 	fi
