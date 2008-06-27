@@ -2249,6 +2249,15 @@ bge_attach(device_t dev)
 	sc->bge_asicrev = BGE_ASICREV(sc->bge_chipid);
 	sc->bge_chiprev = BGE_CHIPREV(sc->bge_chipid);
 
+	/*
+	 * Don't enable Ethernet@WireSpeed for the 5700 or the
+	 * 5705 A0 and A1 chips.
+	 */
+	if (sc->bge_asicrev != BGE_ASICREV_BCM5700 &&
+	    sc->bge_chipid != BGE_CHIPID_BCM5705_A0 &&
+	    sc->bge_chipid != BGE_CHIPID_BCM5705_A1)
+		sc->bge_flags |= BGE_FLAG_WIRESPEED;
+
 	if (bge_has_eeprom(sc))
 		sc->bge_flags |= BGE_FLAG_EEPROM;
 
