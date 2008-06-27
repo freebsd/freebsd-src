@@ -916,13 +916,7 @@ brgphy_reset(struct mii_softc *sc)
 
 		brgphy_jumbo_settings(sc, ifp->if_mtu);
 
-		/*
-		 * Don't enable Ethernet@WireSpeed for the 5700 or the
-		 * 5705 A1 and A2 chips.
-		 */
-		if (bge_sc->bge_asicrev != BGE_ASICREV_BCM5700 &&
-		    bge_sc->bge_chipid != BGE_CHIPID_BCM5705_A1 &&
-		    bge_sc->bge_chipid != BGE_CHIPID_BCM5705_A2)
+		if (bge_sc->bge_flags & BGE_FLAG_WIRESPEED)
 			brgphy_ethernet_wirespeed(sc);
 
 		/* Enable Link LED on Dell boxes */
