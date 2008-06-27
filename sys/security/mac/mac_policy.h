@@ -288,16 +288,22 @@ typedef int	(*mpo_pipe_internalize_label_t)(struct label *label,
 typedef void	(*mpo_pipe_relabel_t)(struct ucred *cred, struct pipepair *pp,
 		    struct label *oldlabel, struct label *newlabel);
 
-typedef int	(*mpo_posixsem_check_getvalue_t)(struct ucred *cred,
-		    struct ksem *ks, struct label *kslabel);
+typedef int	(*mpo_posixsem_check_getvalue_t)(struct ucred *active_cred,
+		    struct ucred *file_cred, struct ksem *ks,
+		    struct label *kslabel);
 typedef int	(*mpo_posixsem_check_open_t)(struct ucred *cred,
 		    struct ksem *ks, struct label *kslabel);
-typedef int	(*mpo_posixsem_check_post_t)(struct ucred *cred,
-		    struct ksem *ks, struct label *kslabel);
+typedef int	(*mpo_posixsem_check_post_t)(struct ucred *active_cred,
+		    struct ucred *file_cred, struct ksem *ks,
+		    struct label *kslabel);
+typedef int	(*mpo_posixsem_check_stat_t)(struct ucred *active_cred,
+		    struct ucred *file_cred, struct ksem *ks,
+		    struct label *kslabel);
 typedef int	(*mpo_posixsem_check_unlink_t)(struct ucred *cred,
 		    struct ksem *ks, struct label *kslabel);
-typedef int	(*mpo_posixsem_check_wait_t)(struct ucred *cred,
-		    struct ksem *ks, struct label *kslabel);
+typedef int	(*mpo_posixsem_check_wait_t)(struct ucred *active_cred,
+		    struct ucred *file_cred, struct ksem *ks,
+		    struct label *kslabel);
 typedef void	(*mpo_posixsem_create_t)(struct ucred *cred,
 		    struct ksem *ks, struct label *kslabel);
 typedef void    (*mpo_posixsem_destroy_label_t)(struct label *label);
@@ -742,6 +748,7 @@ struct mac_policy_ops {
 	mpo_posixsem_check_getvalue_t		mpo_posixsem_check_getvalue;
 	mpo_posixsem_check_open_t		mpo_posixsem_check_open;
 	mpo_posixsem_check_post_t		mpo_posixsem_check_post;
+	mpo_posixsem_check_stat_t		mpo_posixsem_check_stat;
 	mpo_posixsem_check_unlink_t		mpo_posixsem_check_unlink;
 	mpo_posixsem_check_wait_t		mpo_posixsem_check_wait;
 	mpo_posixsem_create_t			mpo_posixsem_create;

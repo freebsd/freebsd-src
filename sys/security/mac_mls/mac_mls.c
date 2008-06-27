@@ -1400,7 +1400,7 @@ mls_pipe_relabel(struct ucred *cred, struct pipepair *pp,
 }
 
 static int
-mls_posixsem_check_rdonly(struct ucred *cred, struct ksem *ks,
+mls_posixsem_check_openunlink(struct ucred *cred, struct ksem *ks,
     struct label *kslabel)
 {
 	struct mac_mls *subj, *obj;
@@ -1411,6 +1411,24 @@ mls_posixsem_check_rdonly(struct ucred *cred, struct ksem *ks,
 	subj = SLOT(cred->cr_label);
 	obj = SLOT(kslabel);
 
+	if (!mls_dominate_effective(obj, subj))
+		return (EACCES);
+
+	return (0);
+}
+
+static int
+mls_posixsem_check_rdonly(struct ucred *active_cred, struct ucred *file_cred,
+    struct ksem *ks, struct label *kslabel)
+{
+	struct mac_mls *subj, *obj;
+
+	if (!mls_enabled)
+		return (0);
+
+	subj = SLOT(active_cred->cr_label);
+	obj = SLOT(kslabel);
+
 	if (!mls_dominate_effective(subj, obj))
 		return (EACCES);
 
@@ -1418,15 +1436,15 @@ mls_posixsem_check_rdonly(struct ucred *cred, struct ksem *ks,
 }
 
 static int
-mls_posixsem_check_write(struct ucred *cred, struct ksem *ks,
-    struct label *kslabel)
+mls_posixsem_check_write(struct ucred *active_cred, struct ucred *file_cred,
+    struct ksem *ks, struct label *kslabel)
 {
 	struct mac_mls *subj, *obj;
 
 	if (!mls_enabled)
 		return (0);
 
-	subj = SLOT(cred->cr_label);
+	subj = SLOT(active_cred->cr_label);
 	obj = SLOT(kslabel);
 
 	if (!mls_dominate_effective(obj, subj))
@@ -2958,9 +2976,10 @@ static struct mac_policy_ops mls_ops =
 	.mpo_pipe_relabel = mls_pipe_relabel,
 
 	.mpo_posixsem_check_getvalue = mls_posixsem_check_rdonly,
-	.mpo_posixsem_check_open = mls_posixsem_check_write,
+	.mpo_posixsem_check_open = mls_posixsem_check_openunlink,
 	.mpo_posixsem_check_post = mls_posixsem_check_write,
-	.mpo_posixsem_check_unlink = mls_posixsem_check_write,
+	.mpo_posixsem_check_stat = mls_posixsem_check_rdonly,
+	.mpo_posixsem_check_unlink = mls_posixsem_check_openunlink,
 	.mpo_posixsem_check_wait = mls_posixsem_check_write,
 	.mpo_posixsem_create = mls_posixsem_create,
 	.mpo_posixsem_destroy_label = mls_destroy_label,

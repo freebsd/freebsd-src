@@ -1012,11 +1012,12 @@ test_pipe_relabel(struct ucred *cred, struct pipepair *pp,
 
 COUNTER_DECL(posixsem_check_getvalue);
 static int
-test_posixsem_check_getvalue(struct ucred *cred, struct ksem *ks,
-    struct label *kslabel)
+test_posixsem_check_getvalue(struct ucred *active_cred, struct ucred *file_cred,
+    struct ksem *ks, struct label *kslabel)
 {
 
-	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
+	LABEL_CHECK(active_cred->cr_label, MAGIC_CRED);
+	LABEL_CHECK(file_cred->cr_label, MAGIC_CRED);
 	LABEL_CHECK(kslabel, MAGIC_POSIX_SEM);
 	COUNTER_INC(posixsem_check_getvalue);
 
@@ -1038,14 +1039,28 @@ test_posixsem_check_open(struct ucred *cred, struct ksem *ks,
 
 COUNTER_DECL(posixsem_check_post);
 static int
-test_posixsem_check_post(struct ucred *cred, struct ksem *ks,
-    struct label *kslabel)
+test_posixsem_check_post(struct ucred *active_cred, struct ucred *file_cred,
+    struct ksem *ks, struct label *kslabel)
 {
 
-	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
+	LABEL_CHECK(active_cred->cr_label, MAGIC_CRED);
+	LABEL_CHECK(file_cred->cr_label, MAGIC_CRED);
 	LABEL_CHECK(kslabel, MAGIC_POSIX_SEM);
 	COUNTER_INC(posixsem_check_post);
 
+	return (0);
+}
+
+COUNTER_DECL(posixsem_check_stat);
+static int
+test_posixsem_check_stat(struct ucred *active_cred,
+    struct ucred *file_cred, struct ksem *ks, struct label *kslabel)
+{
+
+	LABEL_CHECK(active_cred->cr_label, MAGIC_CRED);
+	LABEL_CHECK(file_cred->cr_label, MAGIC_CRED);
+	LABEL_CHECK(kslabel, MAGIC_POSIX_SEM);
+	COUNTER_INC(posixsem_check_stat);
 	return (0);
 }
 
@@ -1064,11 +1079,12 @@ test_posixsem_check_unlink(struct ucred *cred, struct ksem *ks,
 
 COUNTER_DECL(posixsem_check_wait);
 static int
-test_posixsem_check_wait(struct ucred *cred, struct ksem *ks,
-    struct label *kslabel)
+test_posixsem_check_wait(struct ucred *active_cred, struct ucred *file_cred,
+    struct ksem *ks, struct label *kslabel)
 {
 
-	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
+	LABEL_CHECK(active_cred->cr_label, MAGIC_CRED);
+	LABEL_CHECK(file_cred->cr_label, MAGIC_CRED);
 	LABEL_CHECK(kslabel, MAGIC_POSIX_SEM);
 	COUNTER_INC(posixsem_check_wait);
 
@@ -2881,6 +2897,7 @@ static struct mac_policy_ops test_ops =
 	.mpo_posixsem_check_getvalue = test_posixsem_check_getvalue,
 	.mpo_posixsem_check_open = test_posixsem_check_open,
 	.mpo_posixsem_check_post = test_posixsem_check_post,
+	.mpo_posixsem_check_stat = test_posixsem_check_stat,
 	.mpo_posixsem_check_unlink = test_posixsem_check_unlink,
 	.mpo_posixsem_check_wait = test_posixsem_check_wait,
 	.mpo_posixsem_create = test_posixsem_create,
