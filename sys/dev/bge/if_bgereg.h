@@ -2082,6 +2082,11 @@ struct bge_status_block {
 #define	APPLE_DEVICE_BCM5701		0x1645
 
 /*
+ * Sun PCI vendor ID
+ */
+#define	SUN_VENDORID			0x108e
+
+/*
  * Offset of MAC address inside EEPROM.
  */
 #define	BGE_EE_MAC_OFFSET		0x7C
@@ -2456,6 +2461,7 @@ struct bge_softc {
 	uint32_t		bge_flags;
 #define	BGE_FLAG_TBI		0x00000001
 #define	BGE_FLAG_JUMBO		0x00000002
+#define	BGE_FLAG_EEPROM		0x00000004
 #define	BGE_FLAG_MSI		0x00000100
 #define	BGE_FLAG_PCIX		0x00000200
 #define	BGE_FLAG_PCIE		0x00000400
