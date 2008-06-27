@@ -85,7 +85,7 @@ in_addword(u_short sum, u_short b)
 	    "addcc %0, %1, %0\n"
 	    "srl %0, 16, %0\n"
 	    "addc %0, 0, %0\n"
-	    : "=&r" (__ret), "=&r" (__tmp) : "r" (sum), "r" (b));
+	    : "=&r" (__ret), "=&r" (__tmp) : "r" (sum), "r" (b) : "cc");
 	return (__ret);
 }
 
@@ -102,7 +102,7 @@ in_pseudo(u_int sum, u_int b, u_int c)
 	    "addcc %0, %1, %0\n"
 	    "srl %0, 16, %0\n"
 	    "addc %0, 0, %0\n"
-	    : "=r" (sum), "=&r" (__tmp) : "0" (sum), "r" (b), "r" (c));
+	    : "=r" (sum), "=&r" (__tmp) : "0" (sum), "r" (b), "r" (c) : "cc");
 	return (sum);
 }
 
@@ -159,7 +159,7 @@ in_cksum_hdr(struct ip *ip)
 	    "sll %0, 16, %0\n"
 	    "srl %0, 16, %0\n"
 	    : "=&r" (__ret), "=r" (__tmp1), "=&r" (__tmp2), "=&r" (__tmp3),
-		"=&r" (__tmp4) : "1" (ip));
+	    "=&r" (__tmp4) : "1" (ip) : "cc");
 #undef __LD_ADD
 	return (__ret);
 }
