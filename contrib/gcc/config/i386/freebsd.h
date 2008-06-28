@@ -54,7 +54,7 @@ Boston, MA 02110-1301, USA.  */
 /* Reset our STARTFILE_SPEC which was properly set in config/freebsd.h
    but trashed by config/<cpu>/<file.h>. */
 
-#undef STARTFILE_SPEC
+#undef  STARTFILE_SPEC
 #define STARTFILE_SPEC FBSD_STARTFILE_SPEC
 
 /* Provide an ENDFILE_SPEC appropriate for FreeBSD/i386.  */
@@ -84,7 +84,7 @@ Boston, MA 02110-1301, USA.  */
 
 #define TARGET_VERSION	fprintf (stderr, " (i386 FreeBSD/ELF)");
 
-#define TARGET_ELF			1
+#define TARGET_ELF	1
 
 /* This goes away when the math emulator is fixed.  */
 #undef  TARGET_SUBTARGET_DEFAULT
@@ -101,7 +101,7 @@ Boston, MA 02110-1301, USA.  */
 
 /* FreeBSD sets the rounding precision of the FPU to 53 bits.  Let the
    compiler get the contents of <float.h> and std::numeric_limits correct.  */
-#undef TARGET_96_ROUND_53_LONG_DOUBLE
+#undef  TARGET_96_ROUND_53_LONG_DOUBLE
 #define TARGET_96_ROUND_53_LONG_DOUBLE (!TARGET_64BIT)
 
 /* Tell final.c that we don't need a label passed to mcount.  */
@@ -110,7 +110,7 @@ Boston, MA 02110-1301, USA.  */
 /* Output assembler code to FILE to begin profiling of the current function.
    LABELNO is an optional label.  */
 
-#undef MCOUNT_NAME
+#undef  MCOUNT_NAME
 #define MCOUNT_NAME ".mcount"
 
 /* Output assembler code to FILE to end profiling of the current function.  */
@@ -145,7 +145,7 @@ Boston, MA 02110-1301, USA.  */
 	else								\
 	  fprintf ((FILE), "%s", xname);				\
       }									\
-    else 								\
+    else								\
       {									\
 	  if (xname[0] == '%')						\
 	    xname += 2;							\
@@ -191,7 +191,7 @@ Boston, MA 02110-1301, USA.  */
    uninitialized global data will be output in the data section if
    `-fno-common' is passed, otherwise `ASM_OUTPUT_COMMON' will be
    used.  */
-#undef BSS_SECTION_ASM_OP
+#undef  BSS_SECTION_ASM_OP
 #define BSS_SECTION_ASM_OP "\t.section\t.bss"
 
 /* Like `ASM_OUTPUT_BSS' except takes the required alignment as a
@@ -202,7 +202,7 @@ Boston, MA 02110-1301, USA.  */
 
    Try to use function `asm_output_aligned_bss' defined in file
    `varasm.c' when defining this macro.  */
-#undef ASM_OUTPUT_ALIGNED_BSS
+#undef  ASM_OUTPUT_ALIGNED_BSS
 #define ASM_OUTPUT_ALIGNED_BSS(FILE, DECL, NAME, SIZE, ALIGN) \
   asm_output_aligned_bss (FILE, DECL, NAME, SIZE, ALIGN)
 
@@ -230,7 +230,7 @@ Boston, MA 02110-1301, USA.  */
     assemble_name (asm_out_file, NAME);					\
         fputc ('-', asm_out_file);					\
         assemble_name (asm_out_file,					\
-	      	 XSTR (XEXP (DECL_RTL (current_function_decl), 0), 0));	\
+		 XSTR (XEXP (DECL_RTL (current_function_decl), 0), 0));	\
     fprintf (asm_out_file, "\n");					\
   } while (0)
 
