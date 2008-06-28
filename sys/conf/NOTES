@@ -1718,7 +1718,7 @@ device		puc
 # MII bus support is required for some PCI 10/100 ethernet NICs,
 # namely those which use MII-compliant transceivers or implement
 # transceiver control interfaces that operate like an MII. Adding
-# "device miibus0" to the kernel config pulls in support for
+# "device miibus" to the kernel config pulls in support for
 # the generic miibus API and all of the PHY drivers, including a
 # generic one for PHYs that aren't specifically handled by an
 # individual driver.
