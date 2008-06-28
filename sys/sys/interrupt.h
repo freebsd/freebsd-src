@@ -73,6 +73,7 @@ struct intr_event {
 	void		*ie_source;	/* Cookie used by MD code. */
 	struct intr_thread *ie_thread;	/* Thread we are connected to. */
 	void		(*ie_enable)(void *);
+	int		(*ie_assign_cpu)(void *, u_char);
 #ifdef INTR_FILTER
 	void		(*ie_eoi)(void *);
 	void		(*ie_disab)(void *);
@@ -81,6 +82,7 @@ struct intr_event {
 	int		ie_count;	/* Loop counter. */
 	int		ie_warncnt;	/* Rate-check interrupt storm warns. */
 	struct timeval	ie_warntm;
+	u_char		ie_cpu;		/* CPU this event is bound to. */
 };
 
 /* Interrupt event flags kept in ie_flags. */
@@ -127,15 +129,18 @@ u_char	intr_priority(enum intr_type flags);
 int	intr_event_add_handler(struct intr_event *ie, const char *name,
 	    driver_filter_t filter, driver_intr_t handler, void *arg, 
 	    u_char pri, enum intr_type flags, void **cookiep);	    
+int	intr_event_bind(struct intr_event *ie, u_char cpu);
 #ifndef INTR_FILTER
 int	intr_event_create(struct intr_event **event, void *source,
-	    int flags, void (*enable)(void *), const char *fmt, ...)
-	    __printflike(5, 6);
+	    int flags, void (*enable)(void *),
+	    int (*assign_cpu)(void *, u_char), const char *fmt, ...)
+	    __printflike(6, 7);
 #else
 int	intr_event_create(struct intr_event **event, void *source,
 	    int flags, void (*enable)(void *), void (*eoi)(void *), 
-	    void (*disab)(void *), const char *fmt, ...)
-	    __printflike(7, 8);
+	    void (*disab)(void *), int (*assign_cpu)(void *, u_char),
+	    const char *fmt, ...)
+	    __printflike(8, 9);
 #endif
 int	intr_event_destroy(struct intr_event *ie);
 int	intr_event_remove_handler(void *cookie);

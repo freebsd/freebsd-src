@@ -113,6 +113,7 @@ static int assign_cpu;
 static void intr_assign_next_cpu(struct intr_vector *iv);
 #endif
 
+static int intr_assign_cpu(void *arg, u_char cpu);
 static void intr_execute_handlers(void *);
 static void intr_stray_level(struct trapframe *);
 static void intr_stray_vector(void *);
@@ -241,6 +242,33 @@ intr_init2()
 	mtx_init(&intrcnt_lock, "intrcnt", NULL, MTX_SPIN);
 }
 
+static int
+intr_assign_cpu(void *arg, u_char cpu)
+{
+#ifdef SMP
+	struct pcpu *pc;
+	struct intr_vector *iv;
+
+	/*
+	 * Don't do anything during early boot.  We will pick up the
+	 * assignment once the APs are started.
+	 */
+	if (assign_cpu && cpu != NOCPU) {
+		pc = pcpu_find(cpu);
+		if (pc == NULL)
+			return (EINVAL);
+		iv = arg;
+		sx_xlock(&intr_table_lock);
+		iv->iv_mid = pc->pc_mid;
+		iv->iv_ic->ic_assign(iv);
+		sx_xunlock(&intr_table_lock);
+	}
+	return (0);
+#else
+	return (EOPNOTSUPP);
+#endif
+}
+
 static void
 intr_execute_handlers(void *cookie)
 {
@@ -317,9 +345,9 @@ intr_controller_register(int vec, const struct intr_controller *ic,
 		return (EEXIST);
 	error = intr_event_create(&ie, iv, 0, ic->ic_clear,
 #ifdef INTR_FILTER
-	    ic->ic_clear, NULL, "vec%d:", vec);
+	    ic->ic_clear, NULL, intr_assign_cpu, "vec%d:", vec);
 #else
-	    "vec%d:", vec);
+	    intr_assign_cpu, "vec%d:", vec);
 #endif
 	if (error != 0)
 		return (error);
@@ -460,6 +488,20 @@ intr_assign_next_cpu(struct intr_vector *iv)
 	} while (!(intr_cpus & (1 << current_cpu)));
 }
 
+/* Attempt to bind the specified IRQ to the specified CPU. */
+int
+intr_bind(int vec, u_char cpu)
+{
+	struct intr_vector *iv;
+
+	if (vec < 0 || vec >= IV_MAX)
+		return (EINVAL);
+	iv = &intr_vectors[vec];
+	if (iv == NULL)
+		return (EINVAL);
+	return (intr_event_bind(iv->iv_event, cpu));
+}
+
 /*
  * Add a CPU to our mask of valid CPUs that can be destinations of
  * interrupts.
@@ -483,6 +525,7 @@ intr_add_cpu(u_int cpu)
 static void
 intr_shuffle_irqs(void *arg __unused)
 {
+	struct pcpu *pc;
 	struct intr_vector *iv;
 	int i;
 
@@ -495,8 +538,19 @@ intr_shuffle_irqs(void *arg __unused)
 	assign_cpu = 1;
 	for (i = 0; i < IV_MAX; i++) {
 		iv = &intr_vectors[i];
-		if (iv != NULL && iv->iv_refcnt > 0)
-			intr_assign_next_cpu(iv);
+		if (iv != NULL && iv->iv_refcnt > 0) {
+			/*
+			 * If this event is already bound to a CPU,
+			 * then assign the source to that CPU instead
+			 * of picking one via round-robin.
+			 */
+			if (iv->iv_event->ie_cpu != NOCPU &&
+			    (pc = pcpu_find(iv->iv_event->ie_cpu)) != NULL) {
+				iv->iv_mid = pc->pc_mid;
+				iv->iv_ic->ic_assign(iv);
+			} else
+				intr_assign_next_cpu(iv);
+		}
 	}
 	sx_xunlock(&intr_table_lock);
 }
