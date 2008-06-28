@@ -344,7 +344,7 @@ ia64_setup_intr(const char *name, int irq, driver_filter_t filter,
 #ifdef INTR_FILTER
 		    ia64_intr_eoi, ia64_intr_mask,
 #endif
-		    "irq%u:", irq);
+		    NULL, "irq%u:", irq);
 		if (error) {
 			free(i, M_DEVBUF);
 			return (error);

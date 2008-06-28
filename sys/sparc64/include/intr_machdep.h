@@ -91,6 +91,7 @@ extern struct intr_vector intr_vectors[];
 #ifdef SMP
 void	intr_add_cpu(u_int cpu);
 #endif
+int	intr_bind(int vec, u_char cpu);
 void	intr_setup(int level, ih_func_t *ihf, int pri, iv_func_t *ivf,
 	    void *iva);
 void	intr_init1(void);
