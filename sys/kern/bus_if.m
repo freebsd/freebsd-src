@@ -494,6 +494,23 @@ METHOD int child_location_str {
 };
 
 /**
+ * @brief Allow drivers to request that an interrupt be bound to a specific
+ * CPU.
+ * 
+ * @param _dev		the parent device of @p _child
+ * @param _child	the device which allocated the resource
+ * @param _irq		the resource representing the interrupt
+ * @param _cpu		the CPU to bind the interrupt to
+ */
+METHOD int bind_intr {
+	device_t	_dev;
+	device_t	_child;
+	struct resource *_irq;
+	int		_cpu;
+} DEFAULT bus_generic_bind_intr;
+
+
+/**
  * @brief Allow (bus) drivers to specify the trigger mode and polarity
  * of the specified interrupt.
  * 
