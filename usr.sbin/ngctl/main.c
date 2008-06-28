@@ -69,7 +69,7 @@
 /* Internal functions */
 static int	ReadFile(FILE *fp);
 static void	ReadSockets(fd_set *);
-static int	DoParseCommand(char *line);
+static int	DoParseCommand(const char *line);
 static int	DoCommand(int ac, char **av);
 static int	DoInteractive(void);
 static const	struct ngcmd *FindCommand(const char *string);
@@ -322,7 +322,7 @@ DoInteractive(void)
 		history(hist, &hev, H_ENTER, buf);
 		pthread_kill(monitor, SIGUSR1);
 		pthread_mutex_lock(&mutex);
-		if (DoParseCommand((char *)buf) == CMDRTN_QUIT)
+		if (DoParseCommand(buf) == CMDRTN_QUIT)
 			break;
 		pthread_cond_signal(&cond);
 		pthread_mutex_unlock(&mutex);
@@ -423,13 +423,13 @@ ReadSockets(fd_set *rfds)
  * Parse a command line and execute the command
  */
 static int
-DoParseCommand(char *line)
+DoParseCommand(const char *line)
 {
 	char *av[MAX_ARGS];
 	int ac;
 
 	/* Parse line */
-	for (ac = 0, av[0] = strtok(line, WHITESPACE);
+	for (ac = 0, av[0] = strtok((char *)line, WHITESPACE);
 	    ac < MAX_ARGS - 1 && av[ac];
 	    av[++ac] = strtok(NULL, WHITESPACE));
 
