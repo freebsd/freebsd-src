@@ -78,7 +78,7 @@ Boston, MA 02110-1301, USA.  */
 #undef  WCHAR_TYPE_SIZE
 #define WCHAR_TYPE_SIZE	(TARGET_64BIT ? 32 : BITS_PER_WORD)
 
-#undef  SUBTARGET_EXTRA_SPECS  /* i386.h bogusly defines it.  */
+#undef  SUBTARGET_EXTRA_SPECS	/* i386.h bogusly defines it.  */
 #define SUBTARGET_EXTRA_SPECS \
   { "fbsd_dynamic_linker", FBSD_DYNAMIC_LINKER }
 
