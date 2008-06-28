@@ -90,7 +90,6 @@ ENTRY(__longjmp)
 	movl	12(%edx),%ebp
 	movl	16(%edx),%esi
 	movl	20(%edx),%edi
-	fninit
 	fldcw	24(%edx)
 	testl	%eax,%eax
 	jnz	1f
