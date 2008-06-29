@@ -459,18 +459,14 @@ child_process(e, u)
 			/* get name of recipient.  this is MAILTO if set to a
 			 * valid local username; USER otherwise.
 			 */
-			if (mailto) {
-				/* MAILTO was present in the environment
+			if (mailto == NULL) {
+				/* MAILTO not present, set to USER,
+				 * unless globally overriden.
 				 */
-				if (!*mailto) {
-					/* ... but it's empty. set to NULL
-					 */
-					mailto = NULL;
-				}
-			} else {
-				/* MAILTO not present, set to USER.
-				 */
-				mailto = usernm;
+				if (defmailto)
+					mailto = defmailto;
+				else
+					mailto = usernm;
 			}
 
 			/* if we are supposed to be mailing, MAILTO will
@@ -478,7 +474,7 @@ child_process(e, u)
 			 * up the mail command and subjects and stuff...
 			 */
 
-			if (mailto) {
+			if (mailto && *mailto != '\0') {
 				register char	**env;
 				auto char	mailcmd[MAX_COMMAND];
 				auto char	hostname[MAXHOSTNAMELEN];
