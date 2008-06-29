@@ -7090,7 +7090,7 @@ key_validate_ext(ext, len)
 }
 
 void
-key_init()
+key_init(void)
 {
 	int i;
 
