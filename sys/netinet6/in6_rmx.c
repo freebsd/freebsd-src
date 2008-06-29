@@ -321,8 +321,8 @@ in6_rtqkill(struct radix_node *rn, void *rock)
 }
 
 #define RTQ_TIMEOUT	60*10	/* run no less than once every ten minutes */
-static int rtq_timeout = RTQ_TIMEOUT;
-static struct callout rtq_timer;
+static int rtq_timeoutt = RTQ_TIMEOUT;
+static struct callout rtq-timer6;
 
 static void
 in6_rtqtimo(void *rock)
@@ -334,7 +334,7 @@ in6_rtqtimo(void *rock)
 
 	arg.found = arg.killed = 0;
 	arg.rnh = rnh;
-	arg.nextstop = time_uptime + rtq_timeout;
+	arg.nextstop = time_uptime + rtq_timeout6;
 	arg.draining = arg.updating = 0;
 	RADIX_NODE_HEAD_LOCK(rnh);
 	rnh->rnh_walktree(rnh, in6_rtqkill, &arg);
@@ -345,11 +345,11 @@ in6_rtqtimo(void *rock)
 	 * If there are ``too many'' routes sitting around taking up space,
 	 * then crank down the timeout, and see if we can't make some more
 	 * go away.  However, we make sure that we will never adjust more
-	 * than once in rtq_timeout seconds, to keep from cranking down too
+	 * than once in rtq_timeout6 seconds, to keep from cranking down too
 	 * hard.
 	 */
 	if ((arg.found - arg.killed > rtq_toomany)
-	   && (time_uptime - last_adjusted_timeout >= rtq_timeout)
+	   && (time_uptime - last_adjusted_timeout >= rtq_timeout6)
 	   && rtq_reallyold > rtq_minreallyold) {
 		rtq_reallyold = 2*rtq_reallyold / 3;
 		if (rtq_reallyold < rtq_minreallyold) {
@@ -370,7 +370,7 @@ in6_rtqtimo(void *rock)
 
 	atv.tv_usec = 0;
 	atv.tv_sec = arg.nextstop - time_uptime;
-	callout_reset(&rtq_timer, tvtohz(&atv), in6_rtqtimo, rock);
+	callout_reset(&rtq-timer6, tvtohz(&atv), in6_rtqtimo, rock);
 }
 
 /*
@@ -469,7 +469,7 @@ in6_inithead(void **head, int off)
 	rnh->rnh_addaddr = in6_addroute;
 	rnh->rnh_matchaddr = in6_matroute;
 	rnh->rnh_close = in6_clsroute;
-	callout_init(&rtq_timer, CALLOUT_MPSAFE);
+	callout_init(&rtq-timer6, CALLOUT_MPSAFE);
 	in6_rtqtimo(rnh);	/* kick off timeout first time */
 	callout_init(&rtq_mtutimer, CALLOUT_MPSAFE);
 	in6_mtutimo(rnh);	/* kick off timeout first time */
