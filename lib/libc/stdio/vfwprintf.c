@@ -105,6 +105,17 @@ enum typeid {
 	T_DOUBLE, T_LONG_DOUBLE, T_WINT, TP_WCHAR
 };
 
+#define STATIC_ARG_TBL_SIZE 8           /* Size of static argument table. */
+
+/* An expandable array of types. */
+struct typetable {
+	enum typeid *table; /* table of types */
+	enum typeid stattable[STATIC_ARG_TBL_SIZE];
+	int tablesize;		/* current size of type table */
+	int tablemax;		/* largest used index in table */
+	int nextarg;		/* 1-based argument index */
+};
+
 static int	__sbprintf(FILE *, const wchar_t *, va_list);
 static wint_t	__xfputwc(wchar_t, FILE *);
 static wchar_t	*__ujtoa(uintmax_t, wchar_t *, int, int, const char *, int,
@@ -113,7 +124,7 @@ static wchar_t	*__ultoa(u_long, wchar_t *, int, int, const char *, int,
 		    char, const char *);
 static wchar_t	*__mbsconv(char *, int);
 static void	__find_arguments(const wchar_t *, va_list, union arg **);
-static void	__grow_type_table(int, enum typeid **, int *);
+static void	__grow_type_table(struct typetable *);
 
 /*
  * Helper function for `fprintf to unbuffered unix file': creates a
@@ -451,8 +462,6 @@ static int exponent(wchar_t *, int, wchar_t);
  * conservative overestimate even for a 128-bit uintmax_t.
  */
 #define	BUF	100
-
-#define STATIC_ARG_TBL_SIZE 8           /* Size of static argument table. */
 
 /*
  * Flags used during conversion.
@@ -1248,6 +1257,109 @@ error:
 }
 
 /*
+ * Initialize a struct typetable.
+ */
+static inline void
+inittypes(struct typetable *types)
+{
+	int n;
+
+	types->table = types->stattable;
+	types->tablesize = STATIC_ARG_TBL_SIZE;
+	types->tablemax = 0; 
+	types->nextarg = 1;
+	for (n = 0; n < STATIC_ARG_TBL_SIZE; n++)
+		types->table[n] = T_UNUSED;
+}
+
+/*
+ * struct typetable destructor.
+ */ 
+static inline void
+freetypes(struct typetable *types)
+{
+
+	if (types->table != types->stattable)
+		free(types->table);
+}
+
+/*
+ * Add an argument type to the table, expanding if necessary.
+ */
+static inline void
+addtype(struct typetable *types, enum typeid type)
+{
+
+	if (types->nextarg >= types->tablesize)
+		__grow_type_table(types);
+	if (types->nextarg > types->tablemax)
+		types->tablemax = types->nextarg;
+	types->table[types->nextarg++] = type;
+}
+
+static inline void
+addsarg(struct typetable *types, int flags)
+{
+
+	if (flags & INTMAXT)
+		addtype(types, T_INTMAXT);
+	else if (flags & SIZET)
+		addtype(types, T_SIZET);
+	else if (flags & PTRDIFFT)
+		addtype(types, T_PTRDIFFT);
+	else if (flags & LLONGINT)
+		addtype(types, T_LLONG);
+	else if (flags & LONGINT)
+		addtype(types, T_LONG);
+	else
+		addtype(types, T_INT);
+}
+
+static inline void
+adduarg(struct typetable *types, int flags)
+{
+
+	if (flags & INTMAXT)
+		addtype(types, T_UINTMAXT);
+	else if (flags & SIZET)
+		addtype(types, T_SIZET);
+	else if (flags & PTRDIFFT)
+		addtype(types, T_PTRDIFFT);
+	else if (flags & LLONGINT)
+		addtype(types, T_U_LLONG);
+	else if (flags & LONGINT)
+		addtype(types, T_U_LONG);
+	else
+		addtype(types, T_U_INT);
+}
+
+/*
+ * Add * arguments to the type array.
+ */
+static inline void
+addaster(struct typetable *types, wchar_t **fmtp)
+{
+	wchar_t *cp;
+	int n2;
+
+	n2 = 0;
+	cp = *fmtp;
+	while (is_digit(*cp)) {
+		n2 = 10 * n2 + to_digit(*cp);
+		cp++;
+	}
+	if (*cp == '$') {
+		int hold = types->nextarg;
+		types->nextarg = n2;
+		addtype(types, T_INT);
+		types->nextarg = hold;
+		*fmtp = ++cp;
+	} else {
+		addtype(types, T_INT);
+	}
+}
+
+/*
  * Find all arguments when a positional parameter is encountered.  Returns a
  * table, indexed by argument number, of pointers to each arguments.  The
  * initial argument table should be an array of STATIC_ARG_TBL_SIZE entries.
@@ -1258,72 +1370,20 @@ __find_arguments (const wchar_t *fmt0, va_list ap, union arg **argtable)
 {
 	wchar_t *fmt;		/* format string */
 	wchar_t ch;		/* character from fmt */
-	int n, n2;		/* handy integer (short term usage) */
-	wchar_t *cp;		/* handy char pointer (short term usage) */
+	int n;			/* handy integer (short term usage) */
 	int flags;		/* flags as above */
 	int width;		/* width from format (%8d), or 0 */
-	enum typeid *typetable; /* table of types */
-	enum typeid stattypetable [STATIC_ARG_TBL_SIZE];
-	int tablesize;		/* current size of type table */
-	int tablemax;		/* largest used index in table */
-	int nextarg;		/* 1-based argument index */
+	struct typetable types;	/* table of types */
 
-	/*
-	 * Add an argument type to the table, expanding if necessary.
-	 */
-#define ADDTYPE(type) \
-	((nextarg >= tablesize) ? \
-		__grow_type_table(nextarg, &typetable, &tablesize) : (void)0, \
-	(nextarg > tablemax) ? tablemax = nextarg : 0, \
-	typetable[nextarg++] = type)
-
-#define	ADDSARG() \
-	((flags&INTMAXT) ? ADDTYPE(T_INTMAXT) : \
-		((flags&SIZET) ? ADDTYPE(T_SIZET) : \
-		((flags&PTRDIFFT) ? ADDTYPE(T_PTRDIFFT) : \
-		((flags&LLONGINT) ? ADDTYPE(T_LLONG) : \
-		((flags&LONGINT) ? ADDTYPE(T_LONG) : ADDTYPE(T_INT))))))
-
-#define	ADDUARG() \
-	((flags&INTMAXT) ? ADDTYPE(T_UINTMAXT) : \
-		((flags&SIZET) ? ADDTYPE(T_SIZET) : \
-		((flags&PTRDIFFT) ? ADDTYPE(T_PTRDIFFT) : \
-		((flags&LLONGINT) ? ADDTYPE(T_U_LLONG) : \
-		((flags&LONGINT) ? ADDTYPE(T_U_LONG) : ADDTYPE(T_U_INT))))))
-
-	/*
-	 * Add * arguments to the type array.
-	 */
-#define ADDASTER() \
-	n2 = 0; \
-	cp = fmt; \
-	while (is_digit(*cp)) { \
-		n2 = 10 * n2 + to_digit(*cp); \
-		cp++; \
-	} \
-	if (*cp == '$') { \
-		int hold = nextarg; \
-		nextarg = n2; \
-		ADDTYPE (T_INT); \
-		nextarg = hold; \
-		fmt = ++cp; \
-	} else { \
-		ADDTYPE (T_INT); \
-	}
 	fmt = (wchar_t *)fmt0;
-	typetable = stattypetable;
-	tablesize = STATIC_ARG_TBL_SIZE;
-	tablemax = 0; 
-	nextarg = 1;
-	for (n = 0; n < STATIC_ARG_TBL_SIZE; n++)
-		typetable[n] = T_UNUSED;
+	inittypes(&types);
 
 	/*
 	 * Scan the format for conversions (`%' character).
 	 */
 	for (;;) {
-		for (cp = fmt; (ch = *fmt) != '\0' && ch != '%'; fmt++)
-			/* void */;
+		while ((ch = *fmt) != '\0' && ch != '%')
+			fmt++;
 		if (ch == '\0')
 			goto done;
 		fmt++;		/* skip over '%' */
@@ -1337,7 +1397,7 @@ reswitch:	switch (ch) {
 		case '#':
 			goto rflag;
 		case '*':
-			ADDASTER ();
+			addaster(&types, &fmt);
 			goto rflag;
 		case '-':
 		case '+':
@@ -1345,7 +1405,7 @@ reswitch:	switch (ch) {
 			goto rflag;
 		case '.':
 			if ((ch = *fmt++) == '*') {
-				ADDASTER ();
+				addaster(&types, &fmt);
 				goto rflag;
 			}
 			while (is_digit(ch)) {
@@ -1362,7 +1422,7 @@ reswitch:	switch (ch) {
 				ch = *fmt++;
 			} while (is_digit(ch));
 			if (ch == '$') {
-				nextarg = n;
+				types.nextarg = n;
 				goto rflag;
 			}
 			width = n;
@@ -1403,16 +1463,16 @@ reswitch:	switch (ch) {
 			/*FALLTHROUGH*/
 		case 'c':
 			if (flags & LONGINT)
-				ADDTYPE(T_WINT);
+				addtype(&types, T_WINT);
 			else
-				ADDTYPE(T_INT);
+				addtype(&types, T_INT);
 			break;
 		case 'D':
 			flags |= LONGINT;
 			/*FALLTHROUGH*/
 		case 'd':
 		case 'i':
-			ADDSARG();
+			addsarg(&types, flags);
 			break;
 #ifndef NO_FLOATING_POINT
 		case 'a':
@@ -1423,46 +1483,46 @@ reswitch:	switch (ch) {
 		case 'g':
 		case 'G':
 			if (flags & LONGDBL)
-				ADDTYPE(T_LONG_DOUBLE);
+				addtype(&types, T_LONG_DOUBLE);
 			else
-				ADDTYPE(T_DOUBLE);
+				addtype(&types, T_DOUBLE);
 			break;
 #endif /* !NO_FLOATING_POINT */
 		case 'n':
 			if (flags & INTMAXT)
-				ADDTYPE(TP_INTMAXT);
+				addtype(&types, TP_INTMAXT);
 			else if (flags & PTRDIFFT)
-				ADDTYPE(TP_PTRDIFFT);
+				addtype(&types, TP_PTRDIFFT);
 			else if (flags & SIZET)
-				ADDTYPE(TP_SIZET);
+				addtype(&types, TP_SIZET);
 			else if (flags & LLONGINT)
-				ADDTYPE(TP_LLONG);
+				addtype(&types, TP_LLONG);
 			else if (flags & LONGINT)
-				ADDTYPE(TP_LONG);
+				addtype(&types, TP_LONG);
 			else if (flags & SHORTINT)
-				ADDTYPE(TP_SHORT);
+				addtype(&types, TP_SHORT);
 			else if (flags & CHARINT)
-				ADDTYPE(TP_SCHAR);
+				addtype(&types, TP_SCHAR);
 			else
-				ADDTYPE(TP_INT);
+				addtype(&types, TP_INT);
 			continue;	/* no output */
 		case 'O':
 			flags |= LONGINT;
 			/*FALLTHROUGH*/
 		case 'o':
-			ADDUARG();
+			adduarg(&types, flags);
 			break;
 		case 'p':
-			ADDTYPE(TP_VOID);
+			addtype(&types, TP_VOID);
 			break;
 		case 'S':
 			flags |= LONGINT;
 			/*FALLTHROUGH*/
 		case 's':
 			if (flags & LONGINT)
-				ADDTYPE(TP_WCHAR);
+				addtype(&types, TP_WCHAR);
 			else
-				ADDTYPE(TP_CHAR);
+				addtype(&types, TP_CHAR);
 			break;
 		case 'U':
 			flags |= LONGINT;
@@ -1470,7 +1530,7 @@ reswitch:	switch (ch) {
 		case 'u':
 		case 'X':
 		case 'x':
-			ADDUARG();
+			adduarg(&types, flags);
 			break;
 		default:	/* "%?" prints ?, unless ? is NUL */
 			if (ch == '\0')
@@ -1482,14 +1542,14 @@ done:
 	/*
 	 * Build the argument table.
 	 */
-	if (tablemax >= STATIC_ARG_TBL_SIZE) {
+	if (types.tablemax >= STATIC_ARG_TBL_SIZE) {
 		*argtable = (union arg *)
-		    malloc (sizeof (union arg) * (tablemax + 1));
+		    malloc (sizeof (union arg) * (types.tablemax + 1));
 	}
 
 	(*argtable) [0].intarg = 0;
-	for (n = 1; n <= tablemax; n++) {
-		switch (typetable [n]) {
+	for (n = 1; n <= types.tablemax; n++) {
+		switch (types.table[n]) {
 		    case T_UNUSED: /* whoops! */
 			(*argtable) [n].intarg = va_arg (ap, int);
 			break;
@@ -1572,23 +1632,22 @@ done:
 		}
 	}
 
-	if ((typetable != NULL) && (typetable != stattypetable))
-		free (typetable);
+	freetypes(&types);
 }
 
 /*
  * Increase the size of the type table.
  */
 static void
-__grow_type_table (int nextarg, enum typeid **typetable, int *tablesize)
+__grow_type_table(struct typetable *types)
 {
-	enum typeid *const oldtable = *typetable;
-	const int oldsize = *tablesize;
+	enum typeid *const oldtable = types->table;
+	const int oldsize = types->tablesize;
 	enum typeid *newtable;
 	int n, newsize = oldsize * 2;
 
-	if (newsize < nextarg + 1)
-		newsize = nextarg + 1;
+	if (newsize < types->nextarg + 1)
+		newsize = types->nextarg + 1;
 	if (oldsize == STATIC_ARG_TBL_SIZE) {
 		if ((newtable = malloc(newsize * sizeof(enum typeid))) == NULL)
 			abort();			/* XXX handle better */
@@ -1601,8 +1660,8 @@ __grow_type_table (int nextarg, enum typeid **typetable, int *tablesize)
 	for (n = oldsize; n < newsize; n++)
 		newtable[n] = T_UNUSED;
 
-	*typetable = newtable;
-	*tablesize = newsize;
+	types->table = newtable;
+	types->tablesize = newsize;
 }
 
 
