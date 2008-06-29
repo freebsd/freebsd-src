@@ -130,7 +130,8 @@ static inline int
 addtype(struct typetable *types, enum typeid type)
 {
 
-	_ensurespace(types);
+	if (_ensurespace(types))
+		return (-1);
 	types->table[types->nextarg++] = type;
 	return (0);
 }
@@ -186,8 +187,6 @@ addaster(struct typetable *types, char **fmtp)
 	char *cp;
 	int n2;
 
-	if (_ensurespace(types))
-		return (-1);
 	n2 = 0;
 	cp = *fmtp;
 	while (is_digit(*cp)) {
@@ -197,11 +196,13 @@ addaster(struct typetable *types, char **fmtp)
 	if (*cp == '$') {
 		int hold = types->nextarg;
 		types->nextarg = n2;
-		types->table[types->nextarg++] = T_INT;
+		if (addtype(types, T_INT))
+			return (-1);
 		types->nextarg = hold;
 		*fmtp = ++cp;
 	} else {
-		types->table[types->nextarg++] = T_INT;
+		if (addtype(types, T_INT))
+			return (-1);
 	}
 	return (0);
 }
@@ -212,8 +213,6 @@ addwaster(struct typetable *types, wchar_t **fmtp)
 	wchar_t *cp;
 	int n2;
 
-	if (_ensurespace(types))
-		return (-1);
 	n2 = 0;
 	cp = *fmtp;
 	while (is_digit(*cp)) {
@@ -223,11 +222,13 @@ addwaster(struct typetable *types, wchar_t **fmtp)
 	if (*cp == '$') {
 		int hold = types->nextarg;
 		types->nextarg = n2;
-		types->table[types->nextarg++] = T_INT;
+		if (addtype(types, T_INT))
+			return (-1);
 		types->nextarg = hold;
 		*fmtp = ++cp;
 	} else {
-		types->table[types->nextarg++] = T_INT;
+		if (addtype(types, T_INT))
+			return (-1);
 	}
 	return (0);
 }
@@ -575,6 +576,8 @@ reswitch:	switch (ch) {
 				error = addtype(&types, TP_SCHAR);
 			else
 				error = addtype(&types, TP_INT);
+			if (error)
+				goto error;
 			continue;	/* no output */
 		case 'O':
 			flags |= LONGINT;
