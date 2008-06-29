@@ -292,7 +292,7 @@ cpuset_modify(struct cpuset *set, cpuset_t *mask)
 	struct cpuset *root;
 	int error;
 
-	error = suser(curthread);
+	error = priv_check(curthread, PRIV_SCHED_CPUSET);
 	if (error)
 		return (error);
 	/*
