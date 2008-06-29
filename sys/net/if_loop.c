@@ -42,7 +42,6 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/module.h>
 #include <machine/bus.h>
@@ -89,12 +88,6 @@
 #define LOMTU	16384
 #endif
 
-#define LONAME	"lo"
-
-struct lo_softc {
-	struct	ifnet *sc_ifp;
-};
-
 int		loioctl(struct ifnet *, u_long, caddr_t);
 static void	lortrequest(int, struct rtentry *, struct rt_addrinfo *);
 int		looutput(struct ifnet *ifp, struct mbuf *m,
@@ -104,16 +97,11 @@ static void	lo_clone_destroy(struct ifnet *);
 
 struct ifnet *loif = NULL;			/* Used externally */
 
-static MALLOC_DEFINE(M_LO, LONAME, "Loopback Interface");
-
 IFC_SIMPLE_DECLARE(lo, 1);
 
 static void
 lo_clone_destroy(struct ifnet *ifp)
 {
-	struct lo_softc *sc;
-	
-	sc = ifp->if_softc;
 
 	/* XXX: destroying lo0 will lead to panics. */
 	KASSERT(loif != ifp, ("%s: destroying lo0", __func__));
@@ -121,21 +109,16 @@ lo_clone_destroy(struct ifnet *ifp)
 	bpfdetach(ifp);
 	if_detach(ifp);
 	if_free(ifp);
-	free(sc, M_LO);
 }
 
 static int
 lo_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 {
 	struct ifnet *ifp;
-	struct lo_softc *sc;
 
-	MALLOC(sc, struct lo_softc *, sizeof(*sc), M_LO, M_WAITOK | M_ZERO);
-	ifp = sc->sc_ifp = if_alloc(IFT_LOOP);
-	if (ifp == NULL) {
-		free(sc, M_LO);
+	ifp = if_alloc(IFT_LOOP);
+	if (ifp == NULL)
 		return (ENOSPC);
-	}
 
 	if_initname(ifp, ifc->ifc_name, unit);
 	ifp->if_mtu = LOMTU;
@@ -143,7 +126,6 @@ lo_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	ifp->if_ioctl = loioctl;
 	ifp->if_output = looutput;
 	ifp->if_snd.ifq_maxlen = ifqmaxlen;
-	ifp->if_softc = sc;
 	if_attach(ifp);
 	bpfattach(ifp, DLT_NULL, sizeof(u_int32_t));
 	if (loif == NULL)
