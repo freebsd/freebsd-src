@@ -90,5 +90,5 @@ union arg {
 };
 
 /* Handle positional parameters. */
-void	__find_arguments(const char *, va_list, union arg **);
-void	__find_warguments(const wchar_t *, va_list, union arg **);
+int	__find_arguments(const char *, va_list, union arg **);
+int	__find_warguments(const wchar_t *, va_list, union arg **);
