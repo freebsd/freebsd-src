@@ -111,12 +111,11 @@
 
 /* Initial number of kernel page tables. */
 #ifndef NKPT
-/* 240 page tables needed to map 16G (120B "struct vm_page", 2M page tables). */
-#define	NKPT		240
+#define	NKPT		2288
 #endif
 
 #define NKPML4E		1		/* number of kernel PML4 slots */
-#define NKPDPE		1		/* number of kernel PDP slots */
+#define NKPDPE		5		/* number of kernel PDP slots */
 #define	NKPDE		(NKPDPE*NPDEPG)	/* number of kernel PD slots */
 
 #define	NUPML4E		(NPML4EPG/2)	/* number of userland PML4 pages */
@@ -133,7 +132,7 @@
 #define	KPML4I		(NPML4EPG-1)	/* Top 512GB for KVM */
 #define	DMPML4I		(KPML4I-1)	/* Next 512GB down for direct map */
 
-#define	KPDPI		(NPDPEPG-2)	/* kernbase at -2GB */
+#define	KPDPI		(NPDPEPG-6)	/* kernel map starts at -6GB */
 
 /*
  * XXX doesn't really belong here I guess...
