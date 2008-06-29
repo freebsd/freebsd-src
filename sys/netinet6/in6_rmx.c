@@ -321,8 +321,8 @@ in6_rtqkill(struct radix_node *rn, void *rock)
 }
 
 #define RTQ_TIMEOUT	60*10	/* run no less than once every ten minutes */
-static int rtq_timeoutt = RTQ_TIMEOUT;
-static struct callout rtq-timer6;
+static int rtq_timeout6 = RTQ_TIMEOUT;
+static struct callout rtq_timer6;
 
 static void
 in6_rtqtimo(void *rock)
@@ -370,7 +370,7 @@ in6_rtqtimo(void *rock)
 
 	atv.tv_usec = 0;
 	atv.tv_sec = arg.nextstop - time_uptime;
-	callout_reset(&rtq-timer6, tvtohz(&atv), in6_rtqtimo, rock);
+	callout_reset(&rtq_timer6, tvtohz(&atv), in6_rtqtimo, rock);
 }
 
 /*
@@ -469,7 +469,7 @@ in6_inithead(void **head, int off)
 	rnh->rnh_addaddr = in6_addroute;
 	rnh->rnh_matchaddr = in6_matroute;
 	rnh->rnh_close = in6_clsroute;
-	callout_init(&rtq-timer6, CALLOUT_MPSAFE);
+	callout_init(&rtq_timer6, CALLOUT_MPSAFE);
 	in6_rtqtimo(rnh);	/* kick off timeout first time */
 	callout_init(&rtq_mtutimer, CALLOUT_MPSAFE);
 	in6_mtutimo(rnh);	/* kick off timeout first time */
