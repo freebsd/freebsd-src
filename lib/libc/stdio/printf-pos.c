@@ -84,6 +84,7 @@ struct typetable {
 };
 
 static void	__grow_type_table(struct typetable *);
+static void	build_arg_table (struct typetable *, va_list, union arg **);
 
 /*
  * Initialize a struct typetable.
@@ -391,99 +392,7 @@ reswitch:	switch (ch) {
 		}
 	}
 done:
-	/*
-	 * Build the argument table.
-	 */
-	if (types.tablemax >= STATIC_ARG_TBL_SIZE) {
-		*argtable = (union arg *)
-		    malloc (sizeof (union arg) * (types.tablemax + 1));
-	}
-
-	(*argtable) [0].intarg = 0;
-	for (n = 1; n <= types.tablemax; n++) {
-		switch (types.table[n]) {
-		    case T_UNUSED: /* whoops! */
-			(*argtable) [n].intarg = va_arg (ap, int);
-			break;
-		    case TP_SCHAR:
-			(*argtable) [n].pschararg = va_arg (ap, signed char *);
-			break;
-		    case TP_SHORT:
-			(*argtable) [n].pshortarg = va_arg (ap, short *);
-			break;
-		    case T_INT:
-			(*argtable) [n].intarg = va_arg (ap, int);
-			break;
-		    case T_U_INT:
-			(*argtable) [n].uintarg = va_arg (ap, unsigned int);
-			break;
-		    case TP_INT:
-			(*argtable) [n].pintarg = va_arg (ap, int *);
-			break;
-		    case T_LONG:
-			(*argtable) [n].longarg = va_arg (ap, long);
-			break;
-		    case T_U_LONG:
-			(*argtable) [n].ulongarg = va_arg (ap, unsigned long);
-			break;
-		    case TP_LONG:
-			(*argtable) [n].plongarg = va_arg (ap, long *);
-			break;
-		    case T_LLONG:
-			(*argtable) [n].longlongarg = va_arg (ap, long long);
-			break;
-		    case T_U_LLONG:
-			(*argtable) [n].ulonglongarg = va_arg (ap, unsigned long long);
-			break;
-		    case TP_LLONG:
-			(*argtable) [n].plonglongarg = va_arg (ap, long long *);
-			break;
-		    case T_PTRDIFFT:
-			(*argtable) [n].ptrdiffarg = va_arg (ap, ptrdiff_t);
-			break;
-		    case TP_PTRDIFFT:
-			(*argtable) [n].pptrdiffarg = va_arg (ap, ptrdiff_t *);
-			break;
-		    case T_SIZET:
-			(*argtable) [n].sizearg = va_arg (ap, size_t);
-			break;
-		    case TP_SIZET:
-			(*argtable) [n].psizearg = va_arg (ap, size_t *);
-			break;
-		    case T_INTMAXT:
-			(*argtable) [n].intmaxarg = va_arg (ap, intmax_t);
-			break;
-		    case T_UINTMAXT:
-			(*argtable) [n].uintmaxarg = va_arg (ap, uintmax_t);
-			break;
-		    case TP_INTMAXT:
-			(*argtable) [n].pintmaxarg = va_arg (ap, intmax_t *);
-			break;
-		    case T_DOUBLE:
-#ifndef NO_FLOATING_POINT
-			(*argtable) [n].doublearg = va_arg (ap, double);
-#endif
-			break;
-		    case T_LONG_DOUBLE:
-#ifndef NO_FLOATING_POINT
-			(*argtable) [n].longdoublearg = va_arg (ap, long double);
-#endif
-			break;
-		    case TP_CHAR:
-			(*argtable) [n].pchararg = va_arg (ap, char *);
-			break;
-		    case TP_VOID:
-			(*argtable) [n].pvoidarg = va_arg (ap, void *);
-			break;
-		    case T_WINT:
-			(*argtable) [n].wintarg = va_arg (ap, wint_t);
-			break;
-		    case TP_WCHAR:
-			(*argtable) [n].pwchararg = va_arg (ap, wchar_t *);
-			break;
-		}
-	}
-
+	build_arg_table(&types, ap, argtable);
 	freetypes(&types);
 }
 
@@ -662,17 +571,55 @@ reswitch:	switch (ch) {
 		}
 	}
 done:
-	/*
-	 * Build the argument table.
-	 */
-	if (types.tablemax >= STATIC_ARG_TBL_SIZE) {
+	build_arg_table(&types, ap, argtable);
+	freetypes(&types);
+}
+
+/*
+ * Increase the size of the type table.
+ */
+static void
+__grow_type_table(struct typetable *types)
+{
+	enum typeid *const oldtable = types->table;
+	const int oldsize = types->tablesize;
+	enum typeid *newtable;
+	int n, newsize = oldsize * 2;
+
+	if (newsize < types->nextarg + 1)
+		newsize = types->nextarg + 1;
+	if (oldsize == STATIC_ARG_TBL_SIZE) {
+		if ((newtable = malloc(newsize * sizeof(enum typeid))) == NULL)
+			abort();			/* XXX handle better */
+		bcopy(oldtable, newtable, oldsize * sizeof(enum typeid));
+	} else {
+		newtable = reallocf(oldtable, newsize * sizeof(enum typeid));
+		if (newtable == NULL)
+			abort();			/* XXX handle better */
+	}
+	for (n = oldsize; n < newsize; n++)
+		newtable[n] = T_UNUSED;
+
+	types->table = newtable;
+	types->tablesize = newsize;
+}
+
+/*
+ * Build the argument table from the completed type table.
+ */
+static void
+build_arg_table(struct typetable *types, va_list ap, union arg **argtable)
+{
+	int n;
+
+	if (types->tablemax >= STATIC_ARG_TBL_SIZE) {
 		*argtable = (union arg *)
-		    malloc (sizeof (union arg) * (types.tablemax + 1));
+		    malloc (sizeof (union arg) * (types->tablemax + 1));
 	}
 
 	(*argtable) [0].intarg = 0;
-	for (n = 1; n <= types.tablemax; n++) {
-		switch (types.table[n]) {
+	for (n = 1; n <= types->tablemax; n++) {
+		switch (types->table[n]) {
 		    case T_UNUSED: /* whoops! */
 			(*argtable) [n].intarg = va_arg (ap, int);
 			break;
@@ -755,34 +702,4 @@ done:
 		}
 	}
 
-	freetypes(&types);
-}
-
-/*
- * Increase the size of the type table.
- */
-static void
-__grow_type_table(struct typetable *types)
-{
-	enum typeid *const oldtable = types->table;
-	const int oldsize = types->tablesize;
-	enum typeid *newtable;
-	int n, newsize = oldsize * 2;
-
-	if (newsize < types->nextarg + 1)
-		newsize = types->nextarg + 1;
-	if (oldsize == STATIC_ARG_TBL_SIZE) {
-		if ((newtable = malloc(newsize * sizeof(enum typeid))) == NULL)
-			abort();			/* XXX handle better */
-		bcopy(oldtable, newtable, oldsize * sizeof(enum typeid));
-	} else {
-		newtable = reallocf(oldtable, newsize * sizeof(enum typeid));
-		if (newtable == NULL)
-			abort();			/* XXX handle better */
-	}
-	for (n = oldsize; n < newsize; n++)
-		newtable[n] = T_UNUSED;
-
-	types->table = newtable;
-	types->tablesize = newsize;
 }
