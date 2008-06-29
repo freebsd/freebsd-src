@@ -492,7 +492,7 @@ try_nconf:
 
 #if 0
 	static struct netconfig *loopnconf;
-	static char *hostname;
+	static char *localhostname;
 
 /* VARIABLES PROTECTED BY loopnconf_lock: loopnconf */
 	mutex_lock(&loopnconf_lock);
@@ -527,9 +527,9 @@ try_nconf:
 				_close(fd);
 				tmpnconf = nconf;
 				if (!strcmp(nconf->nc_protofmly, NC_INET))
-					hostname = IN4_LOCALHOST_STRING;
+					localhostname = IN4_LOCALHOST_STRING;
 				else
-					hostname = IN6_LOCALHOST_STRING;
+					localhostname = IN6_LOCALHOST_STRING;
 			}
 		}
 		if (tmpnconf == NULL) {
@@ -542,7 +542,7 @@ try_nconf:
 		endnetconfig(nc_handle);
 	}
 	mutex_unlock(&loopnconf_lock);
-	client = getclnthandle(hostname, loopnconf, NULL);
+	client = getclnthandle(localhostname, loopnconf, NULL);
 	return (client);
 #else
 	return (NULL);
