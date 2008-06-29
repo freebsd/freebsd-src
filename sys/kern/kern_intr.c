@@ -352,11 +352,9 @@ intr_setaffinity(int irq, void *m)
 	struct intr_event *ie;
 	cpuset_t *mask;
 	u_char cpu;
-	int error;
 	int n;
 
 	mask = m;
-	error = 0;
 	cpu = NOCPU;
 	/*
 	 * If we're setting all cpus we can unbind.  Otherwise make sure
@@ -375,7 +373,7 @@ intr_setaffinity(int irq, void *m)
 	if (ie == NULL)
 		return (ESRCH);
 	intr_event_bind(ie, cpu);
-	return (error);
+	return (0);
 }
 
 int
