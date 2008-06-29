@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-TESTS=	test-perror test-printfloat test-scanfloat
+TESTS=	test-perror test-print-positional test-printfloat test-scanfloat
 CFLAGS+= -lm
 
 .PHONY: tests
