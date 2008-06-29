@@ -559,7 +559,10 @@ __vfwprintf(FILE *fp, const wchar_t *fmt0, va_list ap)
 		int hold = nextarg; \
 		if (argtable == NULL) { \
 			argtable = statargtable; \
-			__find_warguments (fmt0, orgap, &argtable); \
+			if (__find_warguments (fmt0, orgap, &argtable)) { \
+				ret = EOF; \
+				goto error; \
+			} \
 		} \
 		nextarg = n2; \
 		val = GETARG (int); \
@@ -683,8 +686,11 @@ reswitch:	switch (ch) {
 				nextarg = n;
 				if (argtable == NULL) {
 					argtable = statargtable;
-					__find_warguments (fmt0, orgap,
-					    &argtable);
+					if (__find_warguments (fmt0, orgap,
+							       &argtable)) {
+						ret = EOF;
+						goto error;
+					}
 				}
 				goto rflag;
 			}
