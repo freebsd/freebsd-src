@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
 #include <netinet/ip.h>
+#include <netinet/ip6.h>
 #include <netinet/in_pcb.h>
 #include <netinet/ip_var.h>
 #include <netinet/ip_options.h>
@@ -127,7 +128,7 @@ ip6_ipsec_fwd(struct mbuf *m)
 	KEY_FREESP(&sp);
 	splx(s);
 	if (error) {
-		ipstat.ips_cantforward++;
+		ip6stat.ips_cantforward++;
 		return 1;
 	}
 #endif /* IPSEC */
