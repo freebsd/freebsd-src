@@ -1,4 +1,4 @@
-.\" Copyright (c) 2003-2007 Joseph Koshy
+.\" Copyright (c) 2003-2008 Joseph Koshy
 .\" Copyright (c) 2007 The FreeBSD Foundation
 .\" All rights reserved.
 .\"
@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 23, 2007
+.Dd June 29, 2008
 .Os
 .Dt PMCSTAT 8
 .Sh NAME
@@ -338,6 +338,40 @@ To print a system-wide profile with callgraphs to file
 use:
 .Dl "pmcstat -R /tmp/sample.out -G foo.graph"
 .Sh DIAGNOSTICS
+If option
+.Fl v
+is specified,
+.Nm
+may issue the following diagnostic messages:
+.Bl -diag -width indent
+.It "#callchain/dubious-frames"
+The number of callchain records that had an
+.Dq impossible
+value for a return address.
+.It "#exec handling errors"
+The number of
+.Xr exec 2
+events in the log file that named executables that could not be
+analyzed.
+.It "#exec/elf"
+The number of
+.Xr exec 2
+events that named ELF executables.
+.It "#exec/unknown"
+The number of
+.Xr exec 2
+events that named executables with unrecognized formats.
+.It "#samples/total"
+The total number of samples in the log file.
+.It "#samples/unclaimed"
+The number of samples that could not be correlated to a known
+executable object (i.e., to an executable, shared library, the
+kernel or the runtime loader).
+.It "#samples/unknown-object"
+The number of samples that were associated with an executable
+with an unrecognized object format.
+.El
+.Pp
 .Ex -std
 .Sh COMPATIBILITY
 Due to the limitations of the
