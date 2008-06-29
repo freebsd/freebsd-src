@@ -152,7 +152,7 @@
  * messy at times, but hey, we'll do anything to save a page :-)
  */
 
-#define	VM_MAX_KERNEL_ADDRESS	KVADDR(KPML4I, NPDPEPG-1, NKPDE-1, NPTEPG-1)
+#define	VM_MAX_KERNEL_ADDRESS	KVADDR(KPML4I, NPDPEPG-1, NPDEPG-1, NPTEPG-1)
 #define	VM_MIN_KERNEL_ADDRESS	KVADDR(KPML4I, KPDPI, 0, 0)
 
 #define	DMAP_MIN_ADDRESS	KVADDR(DMPML4I, 0, 0, 0)
