@@ -116,7 +116,6 @@
 
 #define NKPML4E		1		/* number of kernel PML4 slots */
 #define NKPDPE		5		/* number of kernel PDP slots */
-#define	NKPDE		(NKPDPE*NPDEPG)	/* number of kernel PD slots */
 
 #define	NUPML4E		(NPML4EPG/2)	/* number of userland PML4 pages */
 #define	NUPDPE		(NUPML4E*NPDPEPG)/* number of userland PDP pages */
