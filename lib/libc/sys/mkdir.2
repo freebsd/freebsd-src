@@ -32,7 +32,7 @@
 .\"     @(#)mkdir.2	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd December 11, 1993
+.Dd June 26, 2008
 .Dt MKDIR 2
 .Os
 .Sh NAME
@@ -79,6 +79,9 @@ on the parent directory of the directory to be created.
 Too many symbolic links were encountered in translating the pathname.
 .It Bq Er EROFS
 The named file resides on a read-only file system.
+.It Bq Er EMLINK
+The new directory cannot be created because the parent directory contains
+too many subdirectories.
 .It Bq Er EEXIST
 The named file exists.
 .It Bq Er ENOSPC
