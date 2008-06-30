@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 8, 2008
+.Dd June 30, 2008
 .Dt UNZIP 1
 .Os
 .Sh NAME
@@ -33,7 +33,7 @@
 .Nd extract files from a ZIP archive
 .Sh SYNOPSIS
 .Nm
-.Op Fl ajLlnoqu
+.Op Fl ajLlnoqtu
 .Op Fl d Ar dir
 .Ar zipfile
 .Sh DESCRIPTION
@@ -65,6 +65,9 @@ already exists on disk, the existing file is replaced with the file
 from the zipfile.
 .It Fl q
 Quiet: print less information while extracting.
+.It Fl t
+Test: do not extract anything, but verify the checksum of every file
+in the archive.
 .It Fl u
 Update.
 When extacting a file from the zipfile, if a file with the same name
