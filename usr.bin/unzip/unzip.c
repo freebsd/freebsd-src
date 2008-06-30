@@ -58,6 +58,7 @@ static int		 l_opt;		/* list */
 static int		 n_opt;		/* never overwrite */
 static int		 o_opt;		/* always overwrite */
 static int		 q_opt;		/* quiet */
+static int		 t_opt;		/* test */
 static int		 u_opt;		/* update */
 
 /* time when unzip started */
@@ -68,6 +69,9 @@ static int		 unzip_debug;
 
 /* running on tty? */
 static int		 tty;
+
+/* error flag for -t */
+static int		 test_failed;
 
 /* convenience macro */
 /* XXX should differentiate between ARCHIVE_{WARN,FAIL,RETRY} */
@@ -331,7 +335,7 @@ make_dir(const char *path, int mode)
  * Ensure that all directories leading up to (but not including) the
  * specified path exist.
  *
- * XXX inefficient.
+ * XXX inefficient + modifies the file in-place
  */
 static void
 make_parent(char *path)
@@ -626,6 +630,32 @@ list(struct archive *a, struct archive_entry *e)
 }
 
 /*
+ * Extract to memory to check CRC
+ */
+static void
+test(struct archive *a, struct archive_entry *e)
+{
+	ssize_t len;
+
+	if (S_ISDIR(archive_entry_filetype(e)))
+		return;
+
+	info("%s ", archive_entry_pathname(e));
+	while ((len = archive_read_data(a, buffer, sizeof buffer)) > 0)
+		/* nothing */;
+	if (len < 0) {
+		info("%s\n", archive_error_string(a));
+		++test_failed;
+	} else {
+		info("OK\n");
+	}
+
+	/* shouldn't be necessary, but it doesn't hurt */
+	ac(archive_read_data_skip(a));
+}
+
+
+/*
  * Main loop: open the zipfile, iterate over its contents and decide what
  * to do with each entry.
  */
@@ -648,7 +678,9 @@ unzip(const char *fn)
 		if (ret == ARCHIVE_EOF)
 			break;
 		ac(ret);
-		if (l_opt)
+		if (t_opt)
+			test(a, e);
+		else if (l_opt)
 			list(a, e);
 		else
 			extract(a, e);
@@ -658,13 +690,16 @@ unzip(const char *fn)
 	(void)archive_read_finish(a);
 	if (close(fd) != 0)
 		error("%s", fn);
+
+	if (t_opt && test_failed)
+		errorx("%d checksum error(s) found.", test_failed);
 }
 
 static void
 usage(void)
 {
 
-	fprintf(stderr, "usage: unzip [-ajLlnoqu] [-d dir] zipfile\n");
+	fprintf(stderr, "usage: unzip [-ajLlnoqtu] [-d dir] zipfile\n");
 	exit(1);
 }
 
@@ -674,7 +709,7 @@ getopts(int argc, char *argv[])
 	int opt;
 
 	optreset = optind = 1;
-	while ((opt = getopt(argc, argv, "ad:jLlnoqux:")) != -1)
+	while ((opt = getopt(argc, argv, "ad:jLlnoqtux:")) != -1)
 		switch (opt) {
 		case 'a':
 			a_opt = 1;
@@ -699,6 +734,9 @@ getopts(int argc, char *argv[])
 			break;
 		case 'q':
 			q_opt = 1;
+			break;
+		case 't':
+			t_opt = 1;
 			break;
 		case 'u':
 			u_opt = 1;
