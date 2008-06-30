@@ -187,7 +187,7 @@ nfssvc_addsock(struct file *fp, struct sockaddr *mynam, struct thread *td)
 	int siz;
 	struct nfssvc_sock *slp;
 	struct socket *so;
-	int error, s;
+	int error;
 
 	so = fp->f_data;
 #if 0
@@ -267,18 +267,13 @@ nfssvc_addsock(struct file *fp, struct sockaddr *mynam, struct thread *td)
 	slp->ns_nam = mynam;
 	fhold(fp);
 	slp->ns_fp = fp;
-	/*
-	 * XXXRW: Socket locking here?
-	 */
-	s = splnet();
+	SOCKBUF_LOCK(&so->so_rcv);
 	so->so_upcallarg = (caddr_t)slp;
 	so->so_upcall = nfsrv_rcv;
-	SOCKBUF_LOCK(&so->so_rcv);
 	so->so_rcv.sb_flags |= SB_UPCALL;
 	SOCKBUF_UNLOCK(&so->so_rcv);
 	slp->ns_flag = (SLP_VALID | SLP_NEEDQ);
 	nfsrv_wakenfsd(slp);
-	splx(s);
 	NFSD_UNLOCK();
 	return (0);
 }
@@ -597,9 +592,9 @@ nfsrv_zapsock(struct nfssvc_sock *slp)
 		so = slp->ns_so;
 		SOCKBUF_LOCK(&so->so_rcv);
 		so->so_rcv.sb_flags &= ~SB_UPCALL;
-		SOCKBUF_UNLOCK(&so->so_rcv);
 		so->so_upcall = NULL;
 		so->so_upcallarg = NULL;
+		SOCKBUF_UNLOCK(&so->so_rcv);
 		soshutdown(so, SHUT_RDWR);
 		closef(fp, NULL);
 		NFSD_LOCK();
