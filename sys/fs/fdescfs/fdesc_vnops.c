@@ -56,18 +56,15 @@
 
 #include <fs/fdescfs/fdesc.h>
 
-#define FDL_WANT	0x01
-#define FDL_LOCKED	0x02
-static int fdcache_lock;
-
 #define	NFDCACHE 4
 #define FD_NHASH(ix) \
 	(&fdhashtbl[(ix) & fdhash])
 static LIST_HEAD(fdhashhead, fdescnode) *fdhashtbl;
 static u_long fdhash;
 
+struct mtx fdesc_hashmtx;
+
 static vop_getattr_t	fdesc_getattr;
-static vop_inactive_t	fdesc_inactive;
 static vop_lookup_t	fdesc_lookup;
 static vop_open_t	fdesc_open;
 static vop_readdir_t	fdesc_readdir;
@@ -79,7 +76,6 @@ static struct vop_vector fdesc_vnodeops = {
 
 	.vop_access =		VOP_NULL,
 	.vop_getattr =		fdesc_getattr,
-	.vop_inactive =		fdesc_inactive,
 	.vop_lookup =		fdesc_lookup,
 	.vop_open =		fdesc_open,
 	.vop_pathconf =		vop_stdpathconf,
@@ -87,6 +83,9 @@ static struct vop_vector fdesc_vnodeops = {
 	.vop_reclaim =		fdesc_reclaim,
 	.vop_setattr =		fdesc_setattr,
 };
+
+static void fdesc_insmntque_dtr(struct vnode *, void *);
+static void fdesc_remove_entry(struct fdescnode *);
 
 /*
  * Initialise cache headers
@@ -96,79 +95,154 @@ fdesc_init(vfsp)
 	struct vfsconf *vfsp;
 {
 
+	mtx_init(&fdesc_hashmtx, "fdescfs_hash", NULL, MTX_DEF);
 	fdhashtbl = hashinit(NFDCACHE, M_CACHE, &fdhash);
 	return (0);
 }
 
+/*
+ * Uninit ready for unload.
+ */
 int
-fdesc_allocvp(ftype, ix, mp, vpp, td)
+fdesc_uninit(vfsp)
+	struct vfsconf *vfsp;
+{
+
+	hashdestroy(fdhashtbl, M_CACHE, fdhash);
+	mtx_destroy(&fdesc_hashmtx);
+	return (0);
+}
+
+/*
+ * If allocating vnode fails, call this.
+ */
+static void
+fdesc_insmntque_dtr(struct vnode *vp, void *arg)
+{
+
+	vgone(vp);
+	vput(vp);
+}
+
+/*
+ * Remove an entry from the hash if it exists.
+ */
+static void
+fdesc_remove_entry(struct fdescnode *fd)
+{
+	struct fdhashhead *fc;
+	struct fdescnode *fd2;
+
+	fc = FD_NHASH(fd->fd_ix);
+	mtx_lock(&fdesc_hashmtx);
+	LIST_FOREACH(fd2, fc, fd_hash) {
+		if (fd == fd2) {
+			LIST_REMOVE(fd, fd_hash);
+			break;
+		}
+	}
+	mtx_unlock(&fdesc_hashmtx);
+}
+
+int
+fdesc_allocvp(ftype, fd_fd, ix, mp, vpp, td)
 	fdntype ftype;
+	unsigned fd_fd;
 	int ix;
 	struct mount *mp;
 	struct vnode **vpp;
 	struct thread *td;
 {
+	struct fdescmount *fmp;
 	struct fdhashhead *fc;
-	struct fdescnode *fd;
+	struct fdescnode *fd, *fd2;
+	struct vnode *vp, *vp2;
 	int error = 0;
 
 	fc = FD_NHASH(ix);
 loop:
+	mtx_lock(&fdesc_hashmtx);
+	/*
+	 * If a forced unmount is progressing, we need to drop it. The flags are
+	 * protected by the hashmtx.
+	 */
+	fmp = (struct fdescmount *)mp->mnt_data;
+	if (fmp == NULL || fmp->flags & FMNT_UNMOUNTF) {
+		mtx_unlock(&fdesc_hashmtx);
+		return (-1);
+	}
+
 	LIST_FOREACH(fd, fc, fd_hash) {
 		if (fd->fd_ix == ix && fd->fd_vnode->v_mount == mp) {
-			if (vget(fd->fd_vnode, 0, td))
+			/* Get reference to vnode in case it's being free'd */
+			vp = fd->fd_vnode;
+			VI_LOCK(vp);
+			mtx_unlock(&fdesc_hashmtx);
+			if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, td))
 				goto loop;
-			*vpp = fd->fd_vnode;
+			*vpp = vp;
+			return (0);
+		}
+	}
+	mtx_unlock(&fdesc_hashmtx);
+
+	MALLOC(fd, struct fdescnode *, sizeof(struct fdescnode), M_TEMP, M_WAITOK);
+
+	error = getnewvnode("fdescfs", mp, &fdesc_vnodeops, &vp);
+	if (error) {
+		FREE(fd, M_TEMP);
+		return (error);
+	}
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	vp->v_data = fd;
+	fd->fd_vnode = vp;
+	fd->fd_type = ftype;
+	fd->fd_fd = fd_fd;
+	fd->fd_ix = ix;
+	error = insmntque1(vp, mp, fdesc_insmntque_dtr, NULL);
+	if (error != 0) {
+		*vpp = NULLVP;
+		return (error);
+	}
+
+	/* Make sure that someone didn't beat us when inserting the vnode. */
+	mtx_lock(&fdesc_hashmtx);
+	/*
+	 * If a forced unmount is progressing, we need to drop it. The flags are
+	 * protected by the hashmtx.
+	 */
+	fmp = (struct fdescmount *)mp->mnt_data;
+	if (fmp == NULL || fmp->flags & FMNT_UNMOUNTF) {
+		mtx_unlock(&fdesc_hashmtx);
+		vgone(vp);
+		vput(vp);
+		*vpp = NULLVP;
+		return (-1);
+	}
+
+	LIST_FOREACH(fd2, fc, fd_hash) {
+		if (fd2->fd_ix == ix && fd2->fd_vnode->v_mount == mp) {
+			/* Get reference to vnode in case it's being free'd */
+			vp2 = fd2->fd_vnode;
+			VI_LOCK(vp2);
+			mtx_unlock(&fdesc_hashmtx);
+			error = vget(vp2, LK_EXCLUSIVE | LK_INTERLOCK, td);
+			/* Someone beat us, dec use count and wait for reclaim */
+			vgone(vp);
+			vput(vp);
+			/* If we didn't get it, return no vnode. */
+			if (error)
+				vp2 = NULLVP;
+			*vpp = vp2;
 			return (error);
 		}
 	}
 
-	/*
-	 * otherwise lock the array while we call getnewvnode
-	 * since that can block.
-	 */
-	if (fdcache_lock & FDL_LOCKED) {
-		fdcache_lock |= FDL_WANT;
-		(void) tsleep( &fdcache_lock, PINOD, "fdalvp", 0);
-		goto loop;
-	}
-	fdcache_lock |= FDL_LOCKED;
-
-	/*
-	 * Do the MALLOC before the getnewvnode since doing so afterward
-	 * might cause a bogus v_data pointer to get dereferenced
-	 * elsewhere if MALLOC should block.
-	 */
-	MALLOC(fd, struct fdescnode *, sizeof(struct fdescnode), M_TEMP, M_WAITOK);
-
-	error = getnewvnode("fdesc", mp, &fdesc_vnodeops, vpp);
-	if (error) {
-		FREE(fd, M_TEMP);
-		goto out;
-	}
-	(*vpp)->v_data = fd;
-	fd->fd_vnode = *vpp;
-	fd->fd_type = ftype;
-	fd->fd_fd = -1;
-	fd->fd_ix = ix;
-	/* XXX: vnode should be locked here */
-	error = insmntque(*vpp, mp); /* XXX: Too early for mpsafe fs */
-	if (error != 0) {
-		free(fd, M_TEMP);
-		*vpp = NULLVP;
-		goto out;
-	}
+	/* If we came here, we can insert it safely. */
 	LIST_INSERT_HEAD(fc, fd, fd_hash);
-
-out:
-	fdcache_lock &= ~FDL_LOCKED;
-
-	if (fdcache_lock & FDL_WANT) {
-		fdcache_lock &= ~FDL_WANT;
-		wakeup( &fdcache_lock);
-	}
-
-	return (error);
+	mtx_unlock(&fdesc_hashmtx);
+	*vpp = vp;
+	return (0);
 }
 
 /*
@@ -228,13 +302,43 @@ fdesc_lookup(ap)
 	if ((error = fget(td, fd, &fp)) != 0)
 		goto bad;
 
-	error = fdesc_allocvp(Fdesc, FD_DESC+fd, dvp->v_mount, &fvp, td);
-	fdrop(fp, td);
+	/* Check if we're looking up ourselves. */
+	if (VTOFDESC(dvp)->fd_ix == FD_DESC + fd) {
+		/*
+		 * In case we're holding the last reference to the file, the dvp
+		 * will be re-acquired.
+		 */
+		vhold(dvp);
+		VOP_UNLOCK(dvp, 0, td);
+		fdrop(fp, td);
+
+		/* Re-aquire the lock afterwards. */
+		vn_lock(dvp, LK_RETRY | LK_EXCLUSIVE, td);
+		vdrop(dvp);
+		fvp = dvp;
+	} else {
+		/*
+		 * Unlock our root node (dvp) when doing this, since we might
+		 * deadlock since the vnode might be locked by another thread
+		 * and the root vnode lock will be obtained afterwards (in case
+		 * we're looking up the fd of the root vnode), which will be the
+		 * opposite lock order. Vhold the root vnode first so we don't
+		 * loose it.
+		 */
+		vhold(dvp);
+		VOP_UNLOCK(dvp, 0, td);
+		error = fdesc_allocvp(Fdesc, fd, FD_DESC + fd, dvp->v_mount,
+		    &fvp, td);
+		fdrop(fp, td);
+		/*
+		 * The root vnode must be locked last to prevent deadlock condition.
+		 */
+		vn_lock(dvp, LK_RETRY | LK_EXCLUSIVE, td);
+		vdrop(dvp);
+	}
+	
 	if (error)
 		goto bad;
-	VTOFDESC(fvp)->fd_fd = fd;
-	if (fvp != dvp)
-		vn_lock(fvp, LK_EXCLUSIVE | LK_RETRY, td);
 	*vpp = fvp;
 	return (0);
 
@@ -503,34 +607,18 @@ done:
 }
 
 static int
-fdesc_inactive(ap)
-	struct vop_inactive_args /* {
-		struct vnode *a_vp;
-		struct thread *a_td;
-	} */ *ap;
-{
-	struct vnode *vp = ap->a_vp;
-
-	/*
-	 * Clear out the v_type field to avoid
-	 * nasty things happening in vgone().
-	 */
-	vp->v_type = VNON;
-	return (0);
-}
-
-static int
 fdesc_reclaim(ap)
 	struct vop_reclaim_args /* {
 		struct vnode *a_vp;
 	} */ *ap;
 {
-	struct vnode *vp = ap->a_vp;
-	struct fdescnode *fd = VTOFDESC(vp);
+	struct vnode *vp;
+	struct fdescnode *fd;
 
-	LIST_REMOVE(fd, fd_hash);
+ 	vp = ap->a_vp;
+ 	fd = VTOFDESC(vp);
+	fdesc_remove_entry(fd);
 	FREE(vp->v_data, M_TEMP);
-	vp->v_data = 0;
-
+	vp->v_data = NULL;
 	return (0);
 }
