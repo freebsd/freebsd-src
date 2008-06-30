@@ -530,7 +530,8 @@ archive_read_format_zip_read_data(struct archive_read *a,
 			/* Check computed CRC against header */
 			if (zip->crc32 != zip->entry_crc32) {
 				archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-				    "ZIP data CRC error");
+				    "ZIP bad CRC: 0x%lx should be 0x%lx",
+				    zip->entry_crc32, zip->crc32);
 				return (ARCHIVE_WARN);
 			}
 			/* End-of-entry cleanup done. */
