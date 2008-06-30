@@ -337,6 +337,7 @@ typedef struct _cx_chan_t {
 
 	void *sys;
 	int debug;
+	int debug_shadow;
 	void *attach [2];
 	char *received_data;
 	int received_len;
