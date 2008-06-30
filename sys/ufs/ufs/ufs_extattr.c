@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/dirent.h>
 #include <sys/extattr.h>
+#include <sys/sx.h>
 #include <sys/sysctl.h>
 
 #include <vm/uma.h>
@@ -95,23 +96,23 @@ static int	ufs_extattr_rm(struct vnode *vp, int attrnamespace,
 
 /*
  * Per-FS attribute lock protecting attribute operations.
- * XXX Right now there is a lot of lock contention due to having a single
- * lock per-FS; really, this should be far more fine-grained.
+ *
+ * XXXRW: Perhaps something more fine-grained would be appropriate, but at
+ * the end of the day we're going to contend on the vnode lock for the
+ * backing file anyway.
  */
 static void
 ufs_extattr_uepm_lock(struct ufsmount *ump, struct thread *td)
 {
 
-	/* Ideally, LK_CANRECURSE would not be used, here. */
-	lockmgr(&ump->um_extattr.uepm_lock, LK_EXCLUSIVE | LK_RETRY |
-	    LK_CANRECURSE, 0, td);
+	sx_xlock(&ump->um_extattr.uepm_lock);
 }
 
 static void
 ufs_extattr_uepm_unlock(struct ufsmount *ump, struct thread *td)
 {
 
-	lockmgr(&ump->um_extattr.uepm_lock, LK_RELEASE, 0, td);
+	sx_xunlock(&ump->um_extattr.uepm_lock);
 }
 
 /*-
@@ -143,6 +144,8 @@ ufs_extattr_find_attr(struct ufsmount *ump, int attrnamespace,
 {
 	struct ufs_extattr_list_entry *search_attribute;
 
+	sx_assert(&ump->um_extattr.uepm_lock, SA_XLOCKED);
+
 	for (search_attribute = LIST_FIRST(&ump->um_extattr.uepm_list);
 	    search_attribute != NULL;
 	    search_attribute = LIST_NEXT(search_attribute, uele_entries)) {
@@ -165,10 +168,8 @@ ufs_extattr_uepm_init(struct ufs_extattr_per_mount *uepm)
 {
 
 	uepm->uepm_flags = 0;
-
 	LIST_INIT(&uepm->uepm_list);
-	/* XXX is PVFS right, here? */
-	lockinit(&uepm->uepm_lock, PVFS, "extattr", 0, 0);
+	sx_init(&uepm->uepm_lock, "ufs_extattr_sx");
 	uepm->uepm_flags |= UFS_EXTATTR_UEPM_INITIALIZED;
 }
 
@@ -192,7 +193,7 @@ ufs_extattr_uepm_destroy(struct ufs_extattr_per_mount *uepm)
 	 * during unmount, and with vfs_busy().
 	 */
 	uepm->uepm_flags &= ~UFS_EXTATTR_UEPM_INITIALIZED;
-	lockdestroy(&uepm->uepm_lock);
+	sx_destroy(&uepm->uepm_lock);
 }
 
 /*
