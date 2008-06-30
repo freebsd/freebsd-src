@@ -276,6 +276,15 @@ print_ifconfig (int fd __unused)
 	system (buf);
 }
 
+static void
+set_debug_ifconfig (int on)
+{
+	char buf [64];
+	sprintf (buf, "ifconfig %s %sdebug 2>/dev/null", chan_name,
+		 on ? "" : "-");
+	system (buf);
+}
+
 static char *
 format_long (unsigned long val)
 {
@@ -724,6 +733,7 @@ setup_chan (int fd, int argc, char **argv)
 	int i, mode, loop, nrzi, dpll, invclk, phony, use16, crc4, unfram, ami;
 	int higain, clk, keepalive, debug, port, dlci, invrclk, invtclk;
 	int monitor, dir, scrambler, rloop, cablen;
+	int mode_valid;
 	long baud, timeslots, mtu, rqlen;
 
 	for (i=0; i<argc; ++i) {
@@ -792,7 +802,17 @@ setup_chan (int fd, int argc, char **argv)
 			ioctl (fd, SERIAL_SETPROTO, "zaptel\0");
 		} else if (strncasecmp ("debug=", argv[i], 6) == 0) {
 			debug = strtol (argv[i]+6, 0, 10);
-			ioctl (fd, SERIAL_SETDEBUG, &debug);
+			mode_valid = ioctl (fd, SERIAL_GETMODE, &mode) >= 0;
+			if (!mode_valid || mode != SERIAL_ASYNC) {
+				if (debug == 0) {
+					set_debug_ifconfig(0);
+				} else {
+					ioctl (fd, SERIAL_SETDEBUG, &debug);
+					set_debug_ifconfig(1);
+				}
+			} else {
+				ioctl (fd, SERIAL_SETDEBUG, &debug);
+			}
 		} else if (strncasecmp ("loop=", argv[i], 5) == 0) {
 			loop = (strcasecmp ("on", argv[i] + 5) == 0);
 			ioctl (fd, SERIAL_SETLOOP, &loop);
