@@ -28,7 +28,7 @@
 .\"     @(#)mkdir.2	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd December 9, 2006
+.Dd June 26, 2008
 .Dt MKDIR 2
 .Os
 .Sh NAME
@@ -80,6 +80,9 @@ see the
 manual page for more information.
 .It Bq Er EROFS
 The named directory would reside on a read-only file system.
+.It Bq Er EMLINK
+The new directory cannot be created because the parent directory contains
+too many subdirectories.
 .It Bq Er EEXIST
 The named file exists.
 .It Bq Er ENOSPC
