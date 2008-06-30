@@ -28,7 +28,7 @@
 .\"     @(#)exports.5	8.3 (Berkeley) 3/29/95
 .\" $FreeBSD$
 .\"
-.Dd March 29, 1995
+.Dd June 30, 2008
 .Dt EXPORTS 5
 .Os
 .Sh NAME
@@ -83,9 +83,9 @@ option is used on
 .Xr mountd 8 .
 The pathnames must not have any symbolic links in them and should not have
 any
-.Dq .
+.Dq Pa \&.
 or
-.Dq ..
+.Dq Pa ..
 components.
 Mount points for a file system may appear on multiple lines each with
 different sets of hosts and export options.
@@ -93,13 +93,13 @@ different sets of hosts and export options.
 The second component of a line specifies how the file system is to be
 exported to the host set.
 The option flags specify whether the file system
-is exported read-only or read-write and how the client uid is mapped to
+is exported read-only or read-write and how the client UID is mapped to
 user credentials on the server.
 .Pp
 Export options are specified as follows:
 .Pp
 .Sm off
-.Fl maproot No = Sy user
+.Fl maproot No Li = Sy user
 .Sm on
 The credential of the specified user is used for remote access by root.
 The credential includes all the groups to which the user is a member
@@ -108,7 +108,7 @@ on the local machine (see
 The user may be specified by name or number.
 .Pp
 .Sm off
-.Fl maproot No = Sy user:group1:group2:...
+.Fl maproot No Li = Sy user:group1:group2:...
 .Sm on
 The colon separated list is used to specify the precise credential
 to be used for remote access by root.
@@ -117,13 +117,13 @@ Note that user: should be used to distinguish a credential containing
 no groups from a complete credential for that user.
 .Pp
 .Sm off
-.Fl mapall No = Sy user
+.Fl mapall No Li = Sy user
 .Sm on
 or
 .Sm off
-.Fl mapall No = Sy user:group1:group2:...
+.Fl mapall No Li = Sy user:group1:group2:...
 .Sm on
-specifies a mapping for all client uids (including root)
+specifies a mapping for all client UIDs (including root)
 using the same semantics as
 .Fl maproot .
 .Pp
@@ -165,7 +165,7 @@ be done with the
 .Fl public
 flag.
 However, this flag in itself allows r/w access to all files in
-the file system, not requiring reserved ports and not remapping uids.
+the file system, not requiring reserved ports and not remapping UIDs.
 It
 is only provided to conform to the spec, and should normally not be used.
 For a
@@ -220,7 +220,9 @@ The first way is to list the host name(s) separated by white space.
 addresses may be used in place of names.)
 The second way is to specify a
 .Dq netgroup
-as defined in the netgroup file (see
+as defined in the
+.Pa netgroup
+file (see
 .Xr netgroup 5 ) .
 The third way is to specify an Internet subnetwork using a network and
 network mask that is defined as the set of all hosts with addresses within
@@ -239,7 +241,7 @@ Using the full domain specification for a hostname can normally
 circumvent the problem of a host that has the same name as a netgroup.
 The third case is specified by the flag
 .Sm off
-.Fl network No = Sy netname Op No / Ar prefixlength
+.Fl network No Li = Sy netname Op No Li / Ar prefixlength
 .Sm on
 and optionally
 .Sm off
@@ -262,8 +264,12 @@ section below.
 Scoped IPv6 address must carry scope identifier as documented in
 .Xr inet6 4 .
 For example,
-.Dq fe80::%ne2/10
-is used to specify fe80::/10 on ne2 interface.
+.Dq Li fe80::%re2/10
+is used to specify
+.Li fe80::/10
+on
+.Li re2
+interface.
 .Pp
 The
 .Xr mountd 8
@@ -303,18 +309,20 @@ the default remote mount-point file
 .Pp
 Given that
 .Pa /usr ,
-.Pa /u
+.Pa /u ,
+.Pa /a
 and
 .Pa /u2
 are
 local file system mount points, the above example specifies the following:
 .Pp
+The file system rooted at
 .Pa /usr
 is exported to hosts
 .Em friends
 where friends is specified in the netgroup file
 with users mapped to their remote credentials and
-root mapped to uid 0 and group 10.
+root mapped to UID 0 and group 10.
 It is exported read-write and the hosts in
 .Dq friends
 can mount either
@@ -332,17 +340,19 @@ it is exported to the rest of the world as read-only with
 all users mapped to the user and groups associated with
 .Dq nobody .
 .Pp
+The file system rooted at
 .Pa /u
 is exported to all hosts on the subnetwork
 .Em 131.104.48
-with root mapped to the uid for
+with root mapped to the UID for
 .Dq bin
 and with no group access.
 .Pp
+The file system rooted at
 .Pa /u2
 is exported to the hosts in
 .Dq friends
-with root mapped to uid and groups
+with root mapped to UID and groups
 associated with
 .Dq root ;
 it is exported to all hosts on network
@@ -350,22 +360,31 @@ it is exported to all hosts on network
 allowing mounts at any
 directory within /u2.
 .Pp
+The file system rooted at
 .Pa /a
 is exported to the network 192.168.0.0, with a netmask of 255.255.255.0.
-However, the netmask length in the entry for /a is not specified through
-a -mask option, but through the /prefix notation.
-.Pp
+However, the netmask length in the entry for
 .Pa /a
-is also exported to the IPv6 network 3ffe:1ce1:1:fe80:: address, using
-the upper 64 bits as the prefix.
+is not specified through a
+.Fl mask
+option, but through the
+.Li / Ns Ar prefix
+notation.
+.Pp
+The file system rooted at
+.Pa /a
+is also exported to the IPv6 network
+.Li 3ffe:1ce1:1:fe80::
+address, using the upper 64 bits as the prefix.
 Note that, unlike with IPv4 network addresses, the specified network
 address must be complete, and not just contain the upper bits.
-With IPv6 addresses, the -mask option must not
-be used.
+With IPv6 addresses, the
+.Fl mask
+option must not be used.
 .Pp
 The file system rooted at
 .Pa /cdrom
-will exported read-only to the entire network 192.168.33.0/24, including
+will be exported read-only to the entire network 192.168.33.0/24, including
 all its subdirectories.
 Since
 .Pa /cdrom
