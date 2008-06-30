@@ -69,6 +69,8 @@ union aac_statrequest {
 
 #define FSACTL_LNX_SENDFIB		CTL_CODE(FILE_DEVICE_CONTROLLER, 2050, \
 					METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSACTL_LNX_SEND_RAW_SRB		CTL_CODE(FILE_DEVICE_CONTROLLER, 2067, \
+					METHOD_BUFFERED, FILE_ANY_ACCESS)
 #define FSACTL_LNX_GET_COMM_PERF_DATA	CTL_CODE(FILE_DEVICE_CONTROLLER, 2084, \
 					METHOD_BUFFERED, FILE_ANY_ACCESS)
 #define FSACTL_LNX_OPENCLS_COMM_PERF_DATA CTL_CODE(FILE_DEVICE_CONTROLLER, \
@@ -93,6 +95,10 @@ union aac_statrequest {
 					METHOD_NEITHER, FILE_ANY_ACCESS)
 #define FSACTL_LNX_AIF_THREAD		CTL_CODE(FILE_DEVICE_CONTROLLER, 2127, \
 					METHOD_NEITHER, FILE_ANY_ACCESS)
+#define FSACTL_LNX_SEND_LARGE_FIB	CTL_CODE(FILE_DEVICE_CONTROLLER, 2138, \
+					METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define	FSACTL_LNX_GET_FEATURES		CTL_CODE(FILE_DEVICE_CONTROLLER, 2139, \
+					METHOD_BUFFERED, FILE_ANY_ACCESS)
 
 /* Why these don't follow the previous convention, I don't know */
 #define FSACTL_LNX_NULL_IO_TEST		0x43
@@ -116,6 +122,7 @@ union aac_statrequest {
  * command number.  9 is used for the odd overflow case.
  */
 #define FSACTL_SENDFIB			_IO('8', 2)
+#define FSACTL_SEND_RAW_SRB		_IO('8', 19)
 #define FSACTL_GET_COMM_PERF_DATA	_IO('8', 36)
 #define FSACTL_OPENCLS_COMM_PERF_DATA	_IO('8', 37)
 #define FSACTL_OPEN_GET_ADAPTER_FIB	_IO('8', 52)
@@ -128,6 +135,8 @@ union aac_statrequest {
 #define FSACTL_GET_PCI_INFO		_IO('8', 71)
 #define FSACTL_FORCE_DELETE_DISK	_IO('8', 72)
 #define FSACTL_AIF_THREAD		_IO('8', 79)
+#define FSACTL_SEND_LARGE_FIB		_IO('8', 90)
+#define	FSACTL_GET_FEATURES		_IO('8', 91)
 
 #define FSACTL_NULL_IO_TEST		_IO('8', 67)
 #define FSACTL_SIM_IO_TEST		_IO('8', 83)
@@ -176,4 +185,21 @@ struct aac_query_disk {
 	char		diskDeviceName[10];
 	u_int32_t	UnMapped;
 };
+
+/* Features, asked from the tools to know if the driver
+ * supports drives >2TB
+ */
+typedef union {
+	struct {
+		u_int32_t largeLBA  : 1;	/* disk support greater 2TB */
+		u_int32_t fReserved : 31;
+	} fBits;
+	u_int32_t fValue;
+} featuresState;
+
+struct aac_features {
+	featuresState feat;
+	u_int32_t data[31];
+	u_int32_t reserved[32];
+} __packed;
 #endif

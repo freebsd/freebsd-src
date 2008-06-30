@@ -1140,6 +1140,7 @@ struct aac_mntobj {
 		u_int32_t	pad[8];
 	} ObjExtension;
 	u_int32_t			AlterEgoId;
+	u_int32_t			CapacityHigh;
 } __packed;
 
 struct aac_mntinfo {
