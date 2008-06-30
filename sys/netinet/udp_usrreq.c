@@ -195,7 +195,7 @@ udp_append(struct inpcb *inp, struct ip *ip, struct mbuf *n, int off,
 	struct sockaddr_in6 udp_in6;
 #endif
 
-	INP_WLOCK_ASSERT(inp);
+	INP_RLOCK_ASSERT(inp);
 
 #ifdef IPSEC
 	/* Check AH/ESP integrity. */
@@ -407,7 +407,7 @@ udp_input(struct mbuf *m, int off)
 			    inp->inp_fport != uh->uh_sport)
 				continue;
 
-			INP_WLOCK(inp);
+			INP_RLOCK(inp);
 
 			/*
 			 * Handle socket delivery policy for any-source
@@ -464,7 +464,7 @@ udp_input(struct mbuf *m, int off)
 					}
 				}
 				if (blocked != 0) {
-					INP_WUNLOCK(inp);
+					INP_RUNLOCK(inp);
 					continue;
 				}
 			}
@@ -475,7 +475,7 @@ udp_input(struct mbuf *m, int off)
 				if (n != NULL)
 					udp_append(last, ip, n, iphlen +
 					    sizeof(struct udphdr), &udp_in);
-				INP_WUNLOCK(last);
+				INP_RUNLOCK(last);
 			}
 			last = inp;
 			/*
@@ -502,7 +502,7 @@ udp_input(struct mbuf *m, int off)
 		}
 		udp_append(last, ip, m, iphlen + sizeof(struct udphdr),
 		    &udp_in);
-		INP_WUNLOCK(last);
+		INP_RUNLOCK(last);
 		INP_INFO_RUNLOCK(&udbinfo);
 		return;
 	}
@@ -541,17 +541,17 @@ udp_input(struct mbuf *m, int off)
 	/*
 	 * Check the minimum TTL for socket.
 	 */
-	INP_WLOCK(inp);
+	INP_RLOCK(inp);
 	if (inp->inp_ip_minttl && inp->inp_ip_minttl > ip->ip_ttl)
 		goto badheadlocked;
 	udp_append(inp, ip, m, iphlen + sizeof(struct udphdr), &udp_in);
-	INP_WUNLOCK(inp);
+	INP_RUNLOCK(inp);
 	INP_INFO_RUNLOCK(&udbinfo);
 	return;
 
 badheadlocked:
 	if (inp)
-		INP_WUNLOCK(inp);
+		INP_RUNLOCK(inp);
 	INP_INFO_RUNLOCK(&udbinfo);
 badunlocked:
 	m_freem(m);
