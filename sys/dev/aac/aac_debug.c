@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/aac/aacvar.h>
 
 #ifdef AAC_DEBUG
+int	aac_debug_enable = 0;
 void	aac_printstate0(void);
 
 /*
