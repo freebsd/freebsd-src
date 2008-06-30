@@ -225,6 +225,11 @@ virstor_ctl_stop(struct gctl_req *req, struct g_class *cp)
 
 		sprintf(param, "arg%d", i);
 		name = gctl_get_asciiparam(req, param);
+		if (name == NULL) {
+			gctl_error(req, "No 'arg%d' argument", i);
+			g_topology_unlock();
+			return;
+		}
 		sc = virstor_find_geom(cp, name);
 		LOG_MSG(LVL_INFO, "Stopping %s by the userland command",
 		    sc->geom->name);
