@@ -2612,6 +2612,7 @@ fork_privchld(int fd, int fd2)
 
 	setproctitle("%s [priv]", ifi->name);
 
+	setsid();
 	dup2(nullfd, STDIN_FILENO);
 	dup2(nullfd, STDOUT_FILENO);
 	dup2(nullfd, STDERR_FILENO);
