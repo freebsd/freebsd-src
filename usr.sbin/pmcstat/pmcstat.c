@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003-2007, Joseph Koshy
+ * Copyright (c) 2003-2008, Joseph Koshy
  * Copyright (c) 2007 The FreeBSD Foundation
  * All rights reserved.
  *
@@ -1144,7 +1144,7 @@ main(int argc, char **argv)
 		err(EX_OSERR, "ERROR: Cannot retrieve driver statistics");
 
 	/* Attach process pmcs to the target process. */
-	if (args.pa_flags & FLAG_HAS_TARGET) {
+	if (args.pa_flags & (FLAG_HAS_TARGET | FLAG_HAS_COMMANDLINE)) {
 		if (SLIST_EMPTY(&args.pa_targets))
 			errx(EX_DATAERR, "ERROR: No matching target "
 			    "processes.");
