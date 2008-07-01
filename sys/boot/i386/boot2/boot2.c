@@ -472,7 +472,7 @@ parse()
 		dsk.slice = WHOLE_DISK_SLICE;
 		if (arg[1] == ',') {
 		    dsk.slice = *arg - '0' + 1;
-		    if (dsk.slice > NDOSPART)
+		    if (dsk.slice > NDOSPART + 1)
 			return -1;
 		    arg += 2;
 		}
