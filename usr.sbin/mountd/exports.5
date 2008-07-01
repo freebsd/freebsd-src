@@ -99,7 +99,7 @@ user credentials on the server.
 Export options are specified as follows:
 .Pp
 .Sm off
-.Fl maproot No Li = Sy user
+.Fl maproot Li = Sy user
 .Sm on
 The credential of the specified user is used for remote access by root.
 The credential includes all the groups to which the user is a member
@@ -108,7 +108,7 @@ on the local machine (see
 The user may be specified by name or number.
 .Pp
 .Sm off
-.Fl maproot No Li = Sy user:group1:group2:...
+.Fl maproot Li = Sy user:group1:group2:...
 .Sm on
 The colon separated list is used to specify the precise credential
 to be used for remote access by root.
@@ -117,11 +117,11 @@ Note that user: should be used to distinguish a credential containing
 no groups from a complete credential for that user.
 .Pp
 .Sm off
-.Fl mapall No Li = Sy user
+.Fl mapall Li = Sy user
 .Sm on
 or
 .Sm off
-.Fl mapall No Li = Sy user:group1:group2:...
+.Fl mapall Li = Sy user:group1:group2:...
 .Sm on
 specifies a mapping for all client UIDs (including root)
 using the same semantics as
@@ -241,7 +241,7 @@ Using the full domain specification for a hostname can normally
 circumvent the problem of a host that has the same name as a netgroup.
 The third case is specified by the flag
 .Sm off
-.Fl network No Li = Sy netname Op No Li / Ar prefixlength
+.Fl network Li = Sy netname Op Li / Ar prefixlength
 .Sm on
 and optionally
 .Sm off
@@ -308,9 +308,7 @@ the default remote mount-point file
 .Ed
 .Pp
 Given that
-.Pa /usr ,
-.Pa /u ,
-.Pa /a
+.Pa /usr , /u , /a
 and
 .Pa /u2
 are
