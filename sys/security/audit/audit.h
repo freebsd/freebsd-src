@@ -185,7 +185,7 @@ void	 audit_thread_free(struct thread *td);
  * audit_enabled flag before performing the actual call.
  */
 #define	AUDIT_ARG(op, args...)	do {					\
-	if (audit_enabled)						\
+	if (td->td_ar != NULL)						\
 		audit_arg_ ## op (args);				\
 } while (0)
 
