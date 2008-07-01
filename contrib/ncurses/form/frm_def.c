@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -32,7 +32,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: frm_def.c,v 1.20 2006/11/04 16:57:15 tom Exp $")
+MODULE_ID("$Id: frm_def.c,v 1.22 2007/10/13 19:31:17 tom Exp $")
 
 /* this can't be readonly */
 static FORM default_form =
@@ -186,8 +186,9 @@ Connect_Fields(FORM *form, FIELD **fields)
     RETURN(E_BAD_ARGUMENT);
 
   /* allocate page structures */
-  if ((pg = (_PAGE *) malloc(page_nr * sizeof(_PAGE))) != (_PAGE *) 0)
+  if ((pg = typeMalloc(_PAGE, page_nr)) != (_PAGE *) 0)
     {
+      T((T_CREATE("_PAGE %p"), pg));
       form->page = pg;
     }
   else
@@ -290,11 +291,12 @@ new_form(FIELD **fields)
 {
   int err = E_SYSTEM_ERROR;
 
-  FORM *form = (FORM *)malloc(sizeof(FORM));
+  FORM *form = typeMalloc(FORM, 1);
 
   T((T_CALLED("new_form(%p)"), fields));
   if (form)
     {
+      T((T_CREATE("form %p"), form));
       *form = *_nc_Default_Form;
       if ((err = Associate_Fields(form, fields)) != E_OK)
 	{

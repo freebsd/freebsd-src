@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2002,2006 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -39,7 +39,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_window.c,v 1.22 2006/05/27 19:21:19 tom Exp $")
+MODULE_ID("$Id: lib_window.c,v 1.24 2008/04/12 22:40:21 tom Exp $")
 
 NCURSES_EXPORT(void)
 _nc_synchook(WINDOW *win)
@@ -149,7 +149,7 @@ wsyncdown(WINDOW *win)
 		/* left and right character in child coordinates */
 		int left = pp->_line[win->_pary + y].firstchar - win->_parx;
 		int right = pp->_line[win->_pary + y].lastchar - win->_parx;
-		/* The change maybe outside the childs range */
+		/* The change may be outside the child's range */
 		if (left < 0)
 		    left = 0;
 		if (right > win->_maxx)
@@ -186,6 +186,7 @@ dupwin(WINDOW *win)
 
     if (win != 0) {
 
+	_nc_lock_window(win);
 	if (win->_flags & _ISPAD) {
 	    nwin = newpad(win->_maxy + 1,
 			  win->_maxx + 1);
@@ -243,6 +244,7 @@ dupwin(WINDOW *win)
 		nwin->_line[i].lastchar = win->_line[i].lastchar;
 	    }
 	}
+	_nc_unlock_window(win);
     }
     returnWin(nwin);
 }

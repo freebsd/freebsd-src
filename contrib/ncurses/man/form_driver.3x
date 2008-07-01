@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998-2002,2006 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: form_driver.3x,v 1.12 2006/11/04 18:51:00 tom Exp $
+.\" $Id: form_driver.3x,v 1.15 2007/06/02 22:56:49 tom Exp $
 .TH form_driver 3X ""
 .SH NAME
 \fBform_driver\fR - command-processing loop of the form system
@@ -38,7 +38,7 @@ int form_driver(FORM *form, int c);
 .SH DESCRIPTION
 Once a form has been posted (displayed), you should funnel input events to it
 through \fBform_driver\fR.  This routine has two major input cases; either
-the input is a form navigation request or it's a printable ASCII character.
+the input is a form navigation request or it is a printable ASCII character.
 The form driver requests are as follows:
 .TP 5
 REQ_NEXT_PAGE
@@ -221,6 +221,57 @@ Display previous field choice.
 If the second argument is a printable ASCII character, the driver places it
 in the current position in the current field.  If it is one of the forms
 requests listed above, that request is executed.
+.SS MOUSE HANDLING
+.PP
+If the second argument is the KEY_MOUSE special key, the associated
+mouse event is translated into one of the above pre-defined requests.
+Currently only clicks in the user window (e.g. inside the form display
+area or the decoration window) are handled.
+.PP
+If you click above the display region of the form:
+.RS
+.TP
+a REQ_PREV_FIELD is generated for a single click,
+.TP
+a REQ_PREV_PAGE is generated for a double-click and
+.TP
+a REQ_FIRST_FIELD is generated for a triple-click.
+.RE
+.PP
+If you click below the display region of the form:
+.RS
+.TP
+a REQ_NEXT_FIELD is generated for a single click,
+.TP
+a REQ_NEXT_PAGE is generated for a double-click and
+.TP
+a REQ_LAST_FIELD is generated for a triple-click.
+.RE
+.PP
+If you click at an field inside the display area of the form:
+.RS
+.TP 3
+-
+the form cursor is positioned to that field.
+.TP 3
+-
+If you double-click a field,
+the form cursor is positioned to that field
+and \fBE_UNKNOWN_COMMAND\fR is returned.
+This return value makes sense,
+because a double click usually means that an field-specific action should
+be returned.
+It is exactly the purpose of this return value to signal that an
+application specific command should be executed.
+.TP 3
+-
+If a translation
+into a request was done, \fBform_driver\fR returns the result of this request.
+.RE
+.PP
+If you clicked outside the user window or the mouse event couldn't be translated
+into a form request an \fBE_REQUEST_DENIED\fR is returned.
+.SS APPLICATION-DEFINED COMMANDS
 .PP
 If the second argument is neither printable ASCII nor one of the above
 pre-defined form requests, the driver assumes it is an application-specific

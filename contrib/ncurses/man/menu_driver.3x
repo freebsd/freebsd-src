@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998-2003,2006 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: menu_driver.3x,v 1.12 2006/11/04 17:13:50 tom Exp $
+.\" $Id: menu_driver.3x,v 1.14 2007/06/02 22:50:09 tom Exp $
 .TH menu_driver 3X ""
 .SH NAME
 \fBmenu_driver\fR - command-processing loop of the menu system
@@ -38,7 +38,7 @@ int menu_driver(MENU *menu, int c);
 .SH DESCRIPTION
 Once a menu has been posted (displayed), you should funnel input events to it
 through \fBmenu_driver\fR.  This routine has three major input cases; either
-the input is a menu navigation request, it's a printable ASCII character or it
+the input is a menu navigation request, it is a printable ASCII character or it
 is the KEY_MOUSE special key associated with an mouse event.
 The menu driver requests are as follows:
 .TP 5
@@ -100,25 +100,56 @@ the new pattern.  If there is no such match, \fBmenu_driver\fR returns
 .PP
 If the second argument is one of the above pre-defined requests, the
 corresponding action is performed.
+.SS MOUSE HANDLING
 .PP
 If the second argument is the KEY_MOUSE special key, the associated
 mouse event is translated into one of the above pre-defined requests.
 Currently only clicks in the user window (e.g. inside the menu display
-area or the decoration window) are handled. If you click above the
-display region of the menu, a REQ_SCR_ULINE is generated, if you
-doubleclick a REQ_SCR_UPAGE is generated and if you tripleclick a
-REQ_FIRST_ITEM is generated. If you click below the display region of
-the menu, a REQ_SCR_DLINE is generated, if you doubleclick a REQ_SCR_DPAGE
-is generated and if you tripleclick a REQ_LAST_ITEM is generated. If you
-click at an item inside the display area of the menu, the menu cursor
-is positioned to that item. If you double-click at an item a REQ_TOGGLE_ITEM
-is generated and \fBE_UNKNOWN_COMMAND\fR is returned. This return value makes
-sense, because a double click usually means that an item-specific action should
-be returned. It's exactly the purpose of this return value to signal that an
-application specific command should be executed. If a translation
+area or the decoration window) are handled.
+.PP
+If you click above the display region of the menu:
+.RS
+.TP
+a REQ_SCR_ULINE is generated for a single click,
+.TP
+a REQ_SCR_UPAGE is generated for a double-click and
+.TP
+a REQ_FIRST_ITEM is generated for a triple-click.
+.RE
+.PP
+If you click below the display region of the menu:
+.RS
+.TP
+a REQ_SCR_DLINE is generated for a single click,
+.TP
+a REQ_SCR_DPAGE is generated for a double-click and
+.TP
+a REQ_LAST_ITEM is generated for a triple-click.
+.RE
+.PP
+If you click at an item inside the display area of the menu:
+.RS
+.TP 3
+-
+the menu cursor is positioned to that item.
+.TP 3
+-
+If you double-click an item a REQ_TOGGLE_ITEM
+is generated and \fBE_UNKNOWN_COMMAND\fR is returned.
+This return value makes sense,
+because a double click usually means that an item-specific action should
+be returned.
+It is exactly the purpose of this return value to signal that an
+application specific command should be executed.
+.TP 3
+-
+If a translation
 into a request was done, \fBmenu_driver\fR returns the result of this request.
+.RE
+.PP
 If you clicked outside the user window or the mouse event couldn't be translated
 into a menu request an \fBE_REQUEST_DENIED\fR is returned.
+.SS APPLICATION-DEFINED COMMANDS
 .PP
 If the second argument is neither printable ASCII nor one of the above
 pre-defined menu requests or KEY_MOUSE, the drive assumes it is an application-specific

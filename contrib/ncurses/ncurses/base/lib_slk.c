@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2004,2005 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2005,2008 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -45,7 +45,7 @@
 #include <ctype.h>
 #include <term.h>		/* num_labels, label_*, plab_norm */
 
-MODULE_ID("$Id: lib_slk.c,v 1.30 2005/01/08 21:56:36 tom Exp $")
+MODULE_ID("$Id: lib_slk.c,v 1.31 2008/01/12 20:21:00 tom Exp $")
 
 /*
  * We'd like to move these into the screen context structure, but cannot,
@@ -56,7 +56,6 @@ _nc_slk_format = 0;		/* one more than format specified in slk_init() */
 
 /*
  * Paint the info line for the PC style SLK emulation.
- *
  */
 static void
 slk_paint_info(WINDOW *win)
@@ -119,12 +118,12 @@ _nc_slk_initialize(WINDOW *stwin, int cols)
 
     SP->_slk->maxlab = ((num_labels > 0)
 			? num_labels
-			: MAX_SKEY(_nc_slk_format));
+			: MAX_SKEY(_nc_globals.slk_format));
     SP->_slk->maxlen = ((num_labels > 0)
 			? label_width * label_height
-			: MAX_SKEY_LEN(_nc_slk_format));
-    SP->_slk->labcnt = ((SP->_slk->maxlab < MAX_SKEY(_nc_slk_format))
-			? MAX_SKEY(_nc_slk_format)
+			: MAX_SKEY_LEN(_nc_globals.slk_format));
+    SP->_slk->labcnt = ((SP->_slk->maxlab < MAX_SKEY(_nc_globals.slk_format))
+			? MAX_SKEY(_nc_globals.slk_format)
 			: SP->_slk->maxlab);
 
     if (SP->_slk->maxlen <= 0
@@ -148,7 +147,7 @@ _nc_slk_initialize(WINDOW *stwin, int cols)
 	memset(SP->_slk->ent[i].form_text, ' ', max_length);
 	SP->_slk->ent[i].visible = (i < SP->_slk->maxlab);
     }
-    if (_nc_slk_format >= 3) {	/* PC style */
+    if (_nc_globals.slk_format >= 3) {	/* PC style */
 	int gap = (cols - 3 * (3 + 4 * max_length)) / 2;
 
 	if (gap < 1)
@@ -161,7 +160,7 @@ _nc_slk_initialize(WINDOW *stwin, int cols)
 	}
 	slk_paint_info(stwin);
     } else {
-	if (_nc_slk_format == 2) {	/* 4-4 */
+	if (_nc_globals.slk_format == 2) {	/* 4-4 */
 	    int gap = cols - (SP->_slk->maxlab * max_length) - 6;
 
 	    if (gap < 1)
@@ -172,7 +171,7 @@ _nc_slk_initialize(WINDOW *stwin, int cols)
 		x += (i == 3) ? gap : 1;
 	    }
 	} else {
-	    if (_nc_slk_format == 1) {	/* 1 -> 3-2-3 */
+	    if (_nc_globals.slk_format == 1) {	/* 1 -> 3-2-3 */
 		int gap = (cols - (SP->_slk->maxlab * max_length) - 5)
 		/ 2;
 
@@ -196,8 +195,8 @@ _nc_slk_initialize(WINDOW *stwin, int cols)
      * per default no SLK keys and may call slk_init again to
      * define a new layout. (juergen 03-Mar-1999)
      */
-    SP->slk_format = _nc_slk_format;
-    _nc_slk_format = 0;
+    SP->slk_format = _nc_globals.slk_format;
+    _nc_globals.slk_format = 0;
     returnCode(res);
 }
 

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -34,7 +34,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: fty_int.c,v 1.20 2006/04/22 21:33:05 tom Exp $")
+MODULE_ID("$Id: fty_int.c,v 1.22 2007/10/13 19:32:40 tom Exp $")
 
 #if USE_WIDEC_SUPPORT
 #define isDigit(c) (iswdigit((wint_t)(c)) || isdigit(UChar(c)))
@@ -63,10 +63,11 @@ thisARG;
 static void *
 Make_This_Type(va_list *ap)
 {
-  thisARG *argp = (thisARG *) malloc(sizeof(thisARG));
+  thisARG *argp = typeMalloc(thisARG, 1);
 
   if (argp)
     {
+      T((T_CREATE("thisARG %p"), argp));
       argp->precision = va_arg(*ap, int);
       argp->low = va_arg(*ap, long);
       argp->high = va_arg(*ap, long);
@@ -90,9 +91,12 @@ Copy_This_Type(const void *argp)
 
   if (argp)
     {
-      result = (thisARG *) malloc(sizeof(thisARG));
+      result = typeMalloc(thisARG, 1);
       if (result)
-	*result = *ap;
+	{
+	  T((T_CREATE("thisARG %p"), result));
+	  *result = *ap;
+	}
     }
   return (void *)result;
 }

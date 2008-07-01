@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2003,2004 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2004,2007 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -32,7 +32,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: fld_dup.c,v 1.10 2004/12/25 22:24:10 tom Exp $")
+MODULE_ID("$Id: fld_dup.c,v 1.12 2007/10/13 19:30:21 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnform
@@ -56,8 +56,9 @@ dup_field(FIELD *field, int frow, int fcol)
   T((T_CALLED("dup_field(%p,%d,%d)"), field, frow, fcol));
   if (field && (frow >= 0) && (fcol >= 0) &&
       ((err = E_SYSTEM_ERROR) != 0) &&	/* trick : this resets the default error */
-      (New_Field = (FIELD *)malloc(sizeof(FIELD))))
+      (New_Field = typeMalloc(FIELD, 1)))
     {
+      T((T_CREATE("field %p"), New_Field));
       *New_Field = *_nc_Default_Field;
       New_Field->frow = frow;
       New_Field->fcol = fcol;

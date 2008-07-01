@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2001-2002,2003 Free Software Foundation, Inc.              *
+ * Copyright (c) 2001-2003,2007 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -34,7 +34,7 @@
 
 #include <ctype.h>
 
-MODULE_ID("$Id: varargs.c,v 1.4 2003/05/24 21:10:28 tom Exp $")
+MODULE_ID("$Id: varargs.c,v 1.6 2007/07/14 15:51:27 tom Exp $")
 
 #ifdef TRACE
 
@@ -49,6 +49,9 @@ typedef enum {
 #define VA_PTR(type) pval = (char *)va_arg(ap, type)
 #define VA_STR(type) sval = va_arg(ap, type)
 
+#define MyBuffer _nc_globals.tracearg_buf
+#define MyLength _nc_globals.tracearg_used
+
 /*
  * Returns a string that represents the parameter list of a printf-style call.
  */
@@ -56,8 +59,6 @@ NCURSES_EXPORT(char *)
 _nc_varargs(const char *fmt, va_list ap)
 {
     static char dummy[] = "";
-    static char *result_buf;
-    static size_t result_len;
 
     char buffer[BUFSIZ];
     const char *param;
@@ -65,11 +66,11 @@ _nc_varargs(const char *fmt, va_list ap)
 
     if (fmt == 0 || *fmt == '\0')
 	return dummy;
-    if (result_len == 0)
-	result_buf = typeMalloc(char, result_len = BUFSIZ);
-    if (result_buf == 0)
+    if (MyLength == 0)
+	MyBuffer = typeMalloc(char, MyLength = BUFSIZ);
+    if (MyBuffer == 0)
 	return dummy;
-    *result_buf = '\0';
+    *MyBuffer = '\0';
 
     while (*fmt != '\0') {
 	if (*fmt == '%') {
@@ -159,13 +160,14 @@ _nc_varargs(const char *fmt, va_list ap)
 			case atString:
 			    param = _nc_visbuf2(1, sval);
 			    break;
+			case atUnknown:
 			default:
 			    strcpy(buffer, "?");
 			    break;
 			}
-			result_len += strlen(param) + 2;
-			result_buf = typeRealloc(char, result_len, result_buf);
-			sprintf(result_buf + strlen(result_buf), ", %s", param);
+			MyLength += strlen(param) + 2;
+			MyBuffer = typeRealloc(char, MyLength, MyBuffer);
+			sprintf(MyBuffer + strlen(MyBuffer), ", %s", param);
 		    }
 		}
 		used = atUnknown;
@@ -175,7 +177,7 @@ _nc_varargs(const char *fmt, va_list ap)
 	}
     }
 
-    return (result_buf);
+    return (MyBuffer);
 }
 #else
 empty_module(_nc_varargs)
