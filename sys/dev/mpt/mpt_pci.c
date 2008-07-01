@@ -688,7 +688,7 @@ mpt_pci_detach(device_t dev)
 		mpt_free_bus_resources(mpt);
 		mpt_raid_free_mem(mpt);
 		if (mpt->eh != NULL) {
-                        EVENTHANDLER_DEREGISTER(shutdown_final, mpt->eh);
+                        EVENTHANDLER_DEREGISTER(shutdown_post_sync, mpt->eh);
 		}
 	}
 	return(0);
