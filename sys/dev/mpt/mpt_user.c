@@ -47,6 +47,13 @@ struct mpt_user_raid_action_result {
 	uint16_t	action_status;
 };
 
+struct mpt_page_memory {
+	bus_dma_tag_t	tag;
+	bus_dmamap_t	map;
+	bus_addr_t	paddr;
+	void		*vaddr;
+};
+
 static mpt_probe_handler_t	mpt_user_probe;
 static mpt_attach_handler_t	mpt_user_attach;
 static mpt_enable_handler_t	mpt_user_enable;
@@ -180,6 +187,56 @@ mpt_close(struct cdev *dev, int flags, int fmt, d_thread_t *td)
 }
 
 static int
+mpt_alloc_buffer(struct mpt_softc *mpt, struct mpt_page_memory *page_mem,
+    size_t len)
+{
+	struct mpt_map_info mi;
+	int error;
+
+	page_mem->vaddr = NULL;
+
+	/* Limit requests to 16M. */
+	if (len > 16 * 1024 * 1024)
+		return (ENOSPC);
+	error = mpt_dma_tag_create(mpt, mpt->parent_dmat, 1, 0,
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
+	    len, 1, len, 0, &page_mem->tag);
+	if (error)
+		return (error);
+	error = bus_dmamem_alloc(page_mem->tag, &page_mem->vaddr,
+	    BUS_DMA_NOWAIT, &page_mem->map);
+	if (error) {
+		bus_dma_tag_destroy(page_mem->tag);
+		return (error);
+	}
+	mi.mpt = mpt;
+	error = bus_dmamap_load(page_mem->tag, page_mem->map, page_mem->vaddr,
+	    len, mpt_map_rquest, &mi, BUS_DMA_NOWAIT);
+	if (error == 0)
+		error = mi.error;
+	if (error) {
+		bus_dmamem_free(page_mem->tag, page_mem->vaddr, page_mem->map);
+		bus_dma_tag_destroy(page_mem->tag);
+		page_mem->vaddr = NULL;
+		return (error);
+	}
+	page_mem->paddr = mi.phys;
+	return (0);
+}
+
+static void
+mpt_free_buffer(struct mpt_page_memory *page_mem)
+{
+
+	if (page_mem->vaddr == NULL)
+		return;
+	bus_dmamap_unload(page_mem->tag, page_mem->map);
+	bus_dmamem_free(page_mem->tag, page_mem->vaddr, page_mem->map);
+	bus_dma_tag_destroy(page_mem->tag);
+	page_mem->vaddr = NULL;
+}
+
+static int
 mpt_user_read_cfg_header(struct mpt_softc *mpt,
     struct mpt_cfg_page_req *page_req)
 {
@@ -225,7 +282,7 @@ mpt_user_read_cfg_header(struct mpt_softc *mpt,
 
 static int
 mpt_user_read_cfg_page(struct mpt_softc *mpt, struct mpt_cfg_page_req *page_req,
-    void *mpt_page)
+    struct mpt_page_memory *mpt_page)
 {
 	CONFIG_PAGE_HEADER *hdr;
 	request_t    *req;
@@ -238,15 +295,14 @@ mpt_user_read_cfg_page(struct mpt_softc *mpt, struct mpt_cfg_page_req *page_req,
 		return (ENOMEM);
 	}
 
-	hdr = mpt_page;
+	hdr = mpt_page->vaddr;
 	params.Action = MPI_CONFIG_ACTION_PAGE_READ_CURRENT;
 	params.PageVersion = hdr->PageVersion;
 	params.PageLength = hdr->PageLength;
 	params.PageNumber = hdr->PageNumber;
 	params.PageType = hdr->PageType & MPI_CONFIG_PAGETYPE_MASK;
 	params.PageAddress = page_req->page_address;
-	error = mpt_issue_cfg_req(mpt, req, &params,
-				  req->req_pbuf + MPT_RQSL(mpt),
+	error = mpt_issue_cfg_req(mpt, req, &params, mpt_page->paddr,
 				  page_req->len, TRUE, 5000);
 	if (error != 0) {
 		mpt_prt(mpt, "mpt_user_read_cfg_page timed out\n");
@@ -254,12 +310,9 @@ mpt_user_read_cfg_page(struct mpt_softc *mpt, struct mpt_cfg_page_req *page_req,
 	}
 
 	page_req->ioc_status = req->IOCStatus;
-	if ((req->IOCStatus & MPI_IOCSTATUS_MASK) == MPI_IOCSTATUS_SUCCESS) {
-		bus_dmamap_sync(mpt->request_dmat, mpt->request_dmap,
+	if ((req->IOCStatus & MPI_IOCSTATUS_MASK) == MPI_IOCSTATUS_SUCCESS)
+		bus_dmamap_sync(mpt_page->tag, mpt_page->map,
 		    BUS_DMASYNC_POSTREAD);
-		memcpy(mpt_page, ((uint8_t *)req->req_vbuf)+MPT_RQSL(mpt),
-		    page_req->len);
-	}
 	mpt_free_request(mpt, req);
 	return (0);
 }
@@ -315,7 +368,7 @@ mpt_user_read_extcfg_header(struct mpt_softc *mpt,
 
 static int
 mpt_user_read_extcfg_page(struct mpt_softc *mpt,
-    struct mpt_ext_cfg_page_req *ext_page_req, void *mpt_page)
+    struct mpt_ext_cfg_page_req *ext_page_req, struct mpt_page_memory *mpt_page)
 {
 	CONFIG_EXTENDED_PAGE_HEADER *hdr;
 	request_t    *req;
@@ -328,7 +381,7 @@ mpt_user_read_extcfg_page(struct mpt_softc *mpt,
 		return (ENOMEM);
 	}
 
-	hdr = mpt_page;
+	hdr = mpt_page->vaddr;
 	params.Action = MPI_CONFIG_ACTION_PAGE_READ_CURRENT;
 	params.PageVersion = hdr->PageVersion;
 	params.PageLength = 0;
@@ -337,8 +390,7 @@ mpt_user_read_extcfg_page(struct mpt_softc *mpt,
 	params.PageAddress = ext_page_req->page_address;
 	params.ExtPageType = hdr->ExtPageType;
 	params.ExtPageLength = hdr->ExtPageLength;
-	error = mpt_issue_cfg_req(mpt, req, &params,
-				  req->req_pbuf + MPT_RQSL(mpt),
+	error = mpt_issue_cfg_req(mpt, req, &params, mpt_page->paddr,
 				  ext_page_req->len, TRUE, 5000);
 	if (error != 0) {
 		mpt_prt(mpt, "mpt_user_read_extcfg_page timed out\n");
@@ -346,19 +398,16 @@ mpt_user_read_extcfg_page(struct mpt_softc *mpt,
 	}
 
 	ext_page_req->ioc_status = req->IOCStatus;
-	if ((req->IOCStatus & MPI_IOCSTATUS_MASK) == MPI_IOCSTATUS_SUCCESS) {
-		bus_dmamap_sync(mpt->request_dmat, mpt->request_dmap,
+	if ((req->IOCStatus & MPI_IOCSTATUS_MASK) == MPI_IOCSTATUS_SUCCESS)
+		bus_dmamap_sync(mpt_page->tag, mpt_page->map,
 		    BUS_DMASYNC_POSTREAD);
-		memcpy(mpt_page, ((uint8_t *)req->req_vbuf)+MPT_RQSL(mpt),
-		    ext_page_req->len);
-	}
 	mpt_free_request(mpt, req);
 	return (0);
 }
 
 static int
 mpt_user_write_cfg_page(struct mpt_softc *mpt,
-    struct mpt_cfg_page_req *page_req, void *mpt_page)
+    struct mpt_cfg_page_req *page_req, struct mpt_page_memory *mpt_page)
 {
 	CONFIG_PAGE_HEADER *hdr;
 	request_t    *req;
@@ -366,7 +415,7 @@ mpt_user_write_cfg_page(struct mpt_softc *mpt,
 	u_int	      hdr_attr;
 	int	      error;
 
-	hdr = mpt_page;
+	hdr = mpt_page->vaddr;
 	hdr_attr = hdr->PageType & MPI_CONFIG_PAGEATTR_MASK;
 	if (hdr_attr != MPI_CONFIG_PAGEATTR_CHANGEABLE &&
 	    hdr_attr != MPI_CONFIG_PAGEATTR_PERSISTENT) {
@@ -386,8 +435,7 @@ mpt_user_write_cfg_page(struct mpt_softc *mpt,
 	if (req == NULL)
 		return (ENOMEM);
 
-	memcpy(((caddr_t)req->req_vbuf) + MPT_RQSL(mpt), mpt_page,
-	    page_req->len);
+	bus_dmamap_sync(mpt_page->tag, mpt_page->map, BUS_DMASYNC_PREWRITE);
 
 	/*
 	 * There isn't any point in restoring stripped out attributes
@@ -406,8 +454,7 @@ mpt_user_write_cfg_page(struct mpt_softc *mpt,
 #else
 	params.PageType = hdr->PageType;
 #endif
-	error = mpt_issue_cfg_req(mpt, req, &params,
-				  req->req_pbuf + MPT_RQSL(mpt),
+	error = mpt_issue_cfg_req(mpt, req, &params, mpt_page->paddr,
 				  page_req->len, TRUE, 5000);
 	if (error != 0) {
 		mpt_prt(mpt, "mpt_write_cfg_page timed out\n");
@@ -466,7 +513,7 @@ mpt_user_reply_handler(struct mpt_softc *mpt, request_t *req,
  */
 static int
 mpt_user_raid_action(struct mpt_softc *mpt, struct mpt_raid_action *raid_act,
-	void *buf)
+	struct mpt_page_memory *mpt_page)
 {
 	request_t *req;
 	struct mpt_user_raid_action_result *res;
@@ -486,12 +533,10 @@ mpt_user_raid_action(struct mpt_softc *mpt, struct mpt_raid_action *raid_act,
 	rap->VolumeBus = raid_act->volume_bus;
 	rap->PhysDiskNum = raid_act->phys_disk_num;
 	se = (SGE_SIMPLE32 *)&rap->ActionDataSGE;
-	if (buf != 0 && raid_act->len != 0) {
-		memcpy(((caddr_t)req->req_vbuf) + MPT_RQSL(mpt) +
-		    sizeof(struct mpt_user_raid_action_result), buf,
-		    raid_act->len);
-		se->Address = req->req_pbuf + MPT_RQSL(mpt) +
-		    sizeof(struct mpt_user_raid_action_result);
+	if (mpt_page->vaddr != NULL && raid_act->len != 0) {
+		bus_dmamap_sync(mpt_page->tag, mpt_page->map,
+		    BUS_DMASYNC_PREWRITE);
+		se->Address = mpt_page->paddr;
 		MPI_pSGE_SET_LENGTH(se, raid_act->len);
 		MPI_pSGE_SET_FLAGS(se, (MPI_SGE_FLAGS_SIMPLE_ELEMENT |
 		    MPI_SGE_FLAGS_LAST_ELEMENT | MPI_SGE_FLAGS_END_OF_BUFFER |
@@ -526,9 +571,9 @@ mpt_user_raid_action(struct mpt_softc *mpt, struct mpt_raid_action *raid_act,
 	raid_act->action_status = res->action_status;
 	bcopy(res->action_data, raid_act->action_data,
 	    sizeof(res->action_data));
-	if (buf != NULL)
-		memcpy(buf, ((uint8_t *)req->req_vbuf) + MPT_RQSL(mpt) +
-		    sizeof(struct mpt_user_raid_action_result), raid_act->len);
+	if (mpt_page->vaddr != NULL)
+		bus_dmamap_sync(mpt_page->tag, mpt_page->map,
+		    BUS_DMASYNC_POSTREAD);
 	mpt_free_request(mpt, req);
 	return (0);
 }
@@ -545,6 +590,7 @@ mpt_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
 	struct mpt_cfg_page_req *page_req;
 	struct mpt_ext_cfg_page_req *ext_page_req;
 	struct mpt_raid_action *raid_act;
+	struct mpt_page_memory mpt_page;
 #ifdef __amd64__
 	struct mpt_cfg_page_req32 *page_req32;
 	struct mpt_cfg_page_req page_req_swab;
@@ -553,14 +599,13 @@ mpt_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
 	struct mpt_raid_action32 *raid_act32;
 	struct mpt_raid_action raid_act_swab;
 #endif
-	void *mpt_page;
 	int error;
 
 	mpt = dev->si_drv1;
 	page_req = (void *)arg;
 	ext_page_req = (void *)arg;
 	raid_act = (void *)arg;
-	mpt_page = NULL;
+	mpt_page.vaddr = NULL;
 
 #ifdef __amd64__
 	/* Convert 32-bit structs to native ones. */
@@ -619,21 +664,19 @@ mpt_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
 	case MPTIO_READ_CFG_PAGE32:
 #endif
 	case MPTIO_READ_CFG_PAGE:
-		if (page_req->len > (MPT_REQUEST_AREA - MPT_RQSL(mpt))) {
-			error = EINVAL;
+		error = mpt_alloc_buffer(mpt, &mpt_page, page_req->len);
+		if (error)
 			break;
-		}
-		mpt_page = malloc(page_req->len, M_MPTUSER, M_WAITOK);
-		error = copyin(page_req->buf, mpt_page,
+		error = copyin(page_req->buf, mpt_page.vaddr,
 		    sizeof(CONFIG_PAGE_HEADER));
 		if (error)
 			break;
 		MPT_LOCK(mpt);
-		error = mpt_user_read_cfg_page(mpt, page_req, mpt_page);
+		error = mpt_user_read_cfg_page(mpt, page_req, &mpt_page);
 		MPT_UNLOCK(mpt);
 		if (error)
 			break;
-		error = copyout(mpt_page, page_req->buf, page_req->len);
+		error = copyout(mpt_page.vaddr, page_req->buf, page_req->len);
 		break;
 #ifdef __amd64__
 	case MPTIO_READ_EXT_CFG_HEADER32:
@@ -647,36 +690,33 @@ mpt_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
 	case MPTIO_READ_EXT_CFG_PAGE32:
 #endif
 	case MPTIO_READ_EXT_CFG_PAGE:
-		if (ext_page_req->len > (MPT_REQUEST_AREA - MPT_RQSL(mpt))) {
-			error = EINVAL;
+		error = mpt_alloc_buffer(mpt, &mpt_page, ext_page_req->len);
+		if (error)
 			break;
-		}
-		mpt_page = malloc(ext_page_req->len, M_MPTUSER, M_WAITOK);
-		error = copyin(ext_page_req->buf, mpt_page,
+		error = copyin(ext_page_req->buf, mpt_page.vaddr,
 		    sizeof(CONFIG_EXTENDED_PAGE_HEADER));
 		if (error)
 			break;
 		MPT_LOCK(mpt);
-		error = mpt_user_read_extcfg_page(mpt, ext_page_req, mpt_page);
+		error = mpt_user_read_extcfg_page(mpt, ext_page_req, &mpt_page);
 		MPT_UNLOCK(mpt);
 		if (error)
 			break;
-		error = copyout(mpt_page, ext_page_req->buf, ext_page_req->len);
+		error = copyout(mpt_page.vaddr, ext_page_req->buf,
+		    ext_page_req->len);
 		break;
 #ifdef __amd64__
 	case MPTIO_WRITE_CFG_PAGE32:
 #endif
 	case MPTIO_WRITE_CFG_PAGE:
-		if (page_req->len > (MPT_REQUEST_AREA - MPT_RQSL(mpt))) {
-			error = EINVAL;
+		error = mpt_alloc_buffer(mpt, &mpt_page, page_req->len);
+		if (error)
 			break;
-		}
-		mpt_page = malloc(page_req->len, M_MPTUSER, M_WAITOK);
-		error = copyin(page_req->buf, mpt_page, page_req->len);
+		error = copyin(page_req->buf, mpt_page.vaddr, page_req->len);
 		if (error)
 			break;
 		MPT_LOCK(mpt);
-		error = mpt_user_write_cfg_page(mpt, page_req, mpt_page);
+		error = mpt_user_write_cfg_page(mpt, page_req, &mpt_page);
 		MPT_UNLOCK(mpt);
 		break;
 #ifdef __amd64__
@@ -684,31 +724,29 @@ mpt_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
 #endif
 	case MPTIO_RAID_ACTION:
 		if (raid_act->buf != NULL) {
-			if (raid_act->len >
-			    (MPT_REQUEST_AREA - MPT_RQSL(mpt) -
-			    sizeof(struct mpt_user_raid_action_result))) {
-				error = EINVAL;
+			error = mpt_alloc_buffer(mpt, &mpt_page, raid_act->len);
+			if (error)
 				break;
-			}
-			mpt_page = malloc(raid_act->len, M_MPTUSER, M_WAITOK);
-			error = copyin(raid_act->buf, mpt_page, raid_act->len);
+			error = copyin(raid_act->buf, mpt_page.vaddr,
+			    raid_act->len);
 			if (error)
 				break;
 		}
 		MPT_LOCK(mpt);
-		error = mpt_user_raid_action(mpt, raid_act, mpt_page);
+		error = mpt_user_raid_action(mpt, raid_act, &mpt_page);
 		MPT_UNLOCK(mpt);
 		if (error)
 			break;
-		error = copyout(mpt_page, raid_act->buf, raid_act->len);
+		if (raid_act->buf != NULL)
+			error = copyout(mpt_page.vaddr, raid_act->buf,
+			    raid_act->len);
 		break;
 	default:
 		error = ENOIOCTL;
 		break;
 	}
 
-	if (mpt_page != NULL)
-		free(mpt_page, M_MPTUSER);
+	mpt_free_buffer(&mpt_page);
 
 	if (error)
 		return (error);
