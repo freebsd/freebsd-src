@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: ncurses.3x,v 1.81 2006/12/02 19:23:11 tom Exp $
+.\" $Id: ncurses.3x,v 1.89 2007/09/01 18:57:29 tom Exp $
 .hy 0
 .TH ncurses 3X ""
 .ds n 5
@@ -39,18 +39,26 @@
 .br
 .SH DESCRIPTION
 The \fBncurses\fR library routines give the user a terminal-independent method
-of updating character screens with reasonable optimization.  This
-implementation is ``new curses'' (ncurses) and is the approved replacement for
+of updating character screens with reasonable optimization.
+This implementation is ``new curses'' (ncurses) and
+is the approved replacement for
 4.4BSD classic curses, which has been discontinued.
 This describes \fBncurses\fR
 version @NCURSES_MAJOR@.@NCURSES_MINOR@ (patch @NCURSES_PATCH@).
 .PP
-The \fBncurses\fR routines emulate the \fBcurses\fR(3X) library of System V
-Release 4 UNIX, and the XPG4 curses standard (XSI curses) but the \fBncurses\fR
-library is freely redistributable in source form.  Differences from the SVr4
+The \fBncurses\fR library emulates the \fBcurses\fR(3X) library of
+System V Release 4 UNIX,
+and XPG4 (X/Open Portability Guide) curses (also known as XSI curses).
+XSI stands for X/Open System Interfaces Extension.
+The \fBncurses\fR library is freely redistributable in source form.
+Differences from the SVr4
 curses are summarized under the \fBEXTENSIONS\fP and \fBPORTABILITY\fP sections below and
 described in detail in the respective \fBEXTENSIONS\fP, \fBPORTABILITY\fP and \fBBUGS\fP sections
 of individual man pages.
+.PP
+The \fBncurses\fR library also provides many useful extensions,
+i.e., features which cannot be implemented by a simple add-on library
+but which require access to the internals of the library.
 .PP
 A program using these routines must be linked with the \fB-lncurses\fR option,
 or (if it has been generated) with the debugging library \fB-lncurses_g\fR.
@@ -68,8 +76,9 @@ and access to low-level terminal-manipulation routines.
 .PP
 To initialize the routines, the routine \fBinitscr\fR or \fBnewterm\fR
 must be called before any of the other routines that deal with windows
-and screens are used.  The routine \fBendwin\fR must be called before
-exiting.  To get character-at-a-time input without echoing (most
+and screens are used.
+The routine \fBendwin\fR must be called before exiting.
+To get character-at-a-time input without echoing (most
 interactive, screen oriented programs want this), the following
 sequence should be used:
 .sp
@@ -82,60 +91,72 @@ Most programs would additionally use the sequence:
       \fBkeypad(stdscr, TRUE);\fR
 .sp
 Before a \fBcurses\fR program is run, the tab stops of the terminal
-should be set and its initialization strings, if defined, must be
-output.  This can be done by executing the \fBtput init\fR command
+should be set and its initialization strings, if defined, must be output.
+This can be done by executing the \fBtput init\fR command
 after the shell environment variable \fBTERM\fR has been exported.
 \fBtset(1)\fR is usually responsible for doing this.
 [See \fBterminfo\fR(\*n) for further details.]
 .PP
 The \fBncurses\fR library permits manipulation of data structures,
 called \fIwindows\fR, which can be thought of as two-dimensional
-arrays of characters representing all or part of a CRT screen.  A
-default window called \fBstdscr\fR, which is the size of the terminal
-screen, is supplied.  Others may be created with \fBnewwin\fR.
+arrays of characters representing all or part of a CRT screen.
+A default window called \fBstdscr\fR, which is the size of the terminal
+screen, is supplied.
+Others may be created with \fBnewwin\fR.
 .PP
 Note that \fBcurses\fR does not handle overlapping windows, that's done by
-the \fBpanel\fR(3X) library. This means that you can either use
+the \fBpanel\fR(3X) library.
+This means that you can either use
 \fBstdscr\fR or divide the screen into tiled windows and not using
-\fBstdscr\fR at all. Mixing the two will result in unpredictable, and
-undesired, effects.
+\fBstdscr\fR at all.
+Mixing the two will result in unpredictable, and undesired, effects.
 .PP
 Windows are referred to by variables declared as \fBWINDOW *\fR.
 These data structures are manipulated with routines described here and
-elsewhere in the \fBncurses\fR manual pages.  Among those, the most basic
-routines are \fBmove\fR and \fBaddch\fR.  More general versions of
+elsewhere in the \fBncurses\fR manual pages.
+Among those, the most basic
+routines are \fBmove\fR and \fBaddch\fR.
+More general versions of
 these routines are included with names beginning with \fBw\fR,
-allowing the user to specify a window.  The routines not beginning
+allowing the user to specify a window.
+The routines not beginning
 with \fBw\fR affect \fBstdscr\fR.
 .PP
 After using routines to manipulate a window, \fBrefresh\fR is called,
 telling \fBcurses\fR to make the user's CRT screen look like
-\fBstdscr\fR.  The characters in a window are actually of type
+\fBstdscr\fR.
+The characters in a window are actually of type
 \fBchtype\fR, (character and attribute data) so that other information
 about the character may also be stored with each character.
 .PP
-Special windows called \fIpads\fR may also be manipulated.  These are windows
+Special windows called \fIpads\fR may also be manipulated.
+These are windows
 which are not constrained to the size of the screen and whose contents need not
-be completely displayed.  See \fBcurs_pad\fR(3X) for more information.
+be completely displayed.
+See \fBcurs_pad\fR(3X) for more information.
 .PP
 In addition to drawing characters on the screen, video attributes and colors
 may be supported, causing the characters to show up in such modes as
 underlined, in reverse video, or in color on terminals that support such
-display enhancements.  Line drawing characters may be specified to be output.
+display enhancements.
+Line drawing characters may be specified to be output.
 On input, \fBcurses\fR is also able to translate arrow and function keys that
-transmit escape sequences into single values.  The video attributes, line
+transmit escape sequences into single values.
+The video attributes, line
 drawing characters, and input values use names, defined in \fB<curses.h>\fR,
 such as \fBA_REVERSE\fR, \fBACS_HLINE\fR, and \fBKEY_LEFT\fR.
 .PP
 If the environment variables \fBLINES\fR and \fBCOLUMNS\fR are set, or if the
 program is executing in a window environment, line and column information in
-the environment will override information read by \fIterminfo\fR.  This would
-effect a program running in an AT&T 630 layer, for example, where the size of a
+the environment will override information read by \fIterminfo\fR.
+This would affect a program running in an AT&T 630 layer,
+for example, where the size of a
 screen is changeable (see \fBENVIRONMENT\fR).
 .PP
 If the environment variable \fBTERMINFO\fR is defined, any program using
 \fBcurses\fR checks for a local terminal definition before checking in the
-standard place.  For example, if \fBTERM\fR is set to \fBatt4424\fR, then the
+standard place.
+For example, if \fBTERM\fR is set to \fBatt4424\fR, then the
 compiled terminal definition is found in
 .sp
       \fB\*d/a/att4424\fR.
@@ -155,43 +176,100 @@ permission in \fB\*d\fR is not available.
 .PP
 The integer variables \fBLINES\fR and \fBCOLS\fR are defined in
 \fB<curses.h>\fR and will be filled in by \fBinitscr\fR with the size of the
-screen.  The constants \fBTRUE\fR and \fBFALSE\fR have the values \fB1\fR and
+screen.
+The constants \fBTRUE\fR and \fBFALSE\fR have the values \fB1\fR and
 \fB0\fR, respectively.
 .PP
 The \fBcurses\fR routines also define the \fBWINDOW *\fR variable \fBcurscr\fR
 which is used for certain low-level operations like clearing and redrawing a
-screen containing garbage.  The \fBcurscr\fR can be used in only a few
-routines.
-.
+screen containing garbage.
+The \fBcurscr\fR can be used in only a few routines.
+.\"
 .SS Routine and Argument Names
-Many \fBcurses\fR routines have two or more versions.  The routines prefixed
-with \fBw\fR require a window argument.  The routines prefixed with \fBp\fR
-require a pad argument.  Those without a prefix generally use \fBstdscr\fR.
+Many \fBcurses\fR routines have two or more versions.
+The routines prefixed with \fBw\fR require a window argument.
+The routines prefixed with \fBp\fR require a pad argument.
+Those without a prefix generally use \fBstdscr\fR.
 .PP
 The routines prefixed with \fBmv\fR require a \fIy\fR and \fIx\fR
-coordinate to move to before performing the appropriate action.  The
-\fBmv\fR routines imply a call to \fBmove\fR before the call to the
-other routine.  The coordinate \fIy\fR always refers to the row (of
-the window), and \fIx\fR always refers to the column.  The upper
-left-hand corner is always (0,0), not (1,1).
+coordinate to move to before performing the appropriate action.
+The \fBmv\fR routines imply a call to \fBmove\fR before the call to the
+other routine.
+The coordinate \fIy\fR always refers to the row (of
+the window), and \fIx\fR always refers to the column.
+The upper left-hand corner is always (0,0), not (1,1).
 .PP
 The routines prefixed with \fBmvw\fR take both a window argument and
-\fIx\fR and \fIy\fR coordinates.  The window argument is always
-specified before the coordinates.
+\fIx\fR and \fIy\fR coordinates.
+The window argument is always specified before the coordinates.
 .PP
 In each case, \fIwin\fR is the window affected, and \fIpad\fR is the
 pad affected; \fIwin\fR and \fIpad\fR are always pointers to type
 \fBWINDOW\fR.
 .PP
 Option setting routines require a Boolean flag \fIbf\fR with the value
-\fBTRUE\fR or \fBFALSE\fR; \fIbf\fR is always of type \fBbool\fR.  The
-variables \fIch\fR and \fIattrs\fR below are always of type
-\fBchtype\fR.  The types \fBWINDOW\fR, \fBSCREEN\fR, \fBbool\fR, and
-\fBchtype\fR are defined in \fB<curses.h>\fR.  The type \fBTERMINAL\fR
-is defined in \fB<term.h>\fR.  All other arguments are integers.
+\fBTRUE\fR or \fBFALSE\fR; \fIbf\fR is always of type \fBbool\fR.
+Most of the data types used in the library routines,
+such as \fBWINDOW\fR, \fBSCREEN\fR, \fBbool\fR, and \fBchtype\fR
+are defined in \fB<curses.h>\fR.
+Types used for the terminfo routines such as
+\fBTERMINAL\fR are defined in \fB<term.h>\fR.
+.PP
+This manual page describes functions which may appear in any configuration
+of the library.
+There are two common configurations of the library:
+.RS
+.TP 5
+ncurses
+the "normal" library, which handles 8-bit characters.
+The normal (8-bit) library stores characters combined with attributes
+in \fBchtype\fP data.
+.IP
+Attributes alone (no corresponding character) may be stored in \fBchtype\fP
+or the equivalent \fBattr_t\fP data.
+In either case, the data is stored in something like an integer.
+.IP
+Each cell (row and column) in a \fBWINDOW\fP is stored as a \fBchtype\fP.
+.TP 5
+ncursesw
+the so-called "wide" library, which handles multibyte characters
+(See the section on \fBALTERNATE CONFIGURATIONS\fP).
+The "wide" library includes all of the calls from the "normal" library.
+It adds about one third more calls using data types which store
+multibyte characters:
+.RS
+.TP 5
+.B cchar_t
+corresponds to \fBchtype\fP.
+However it is a structure, because more data is stored than can fit into
+an integer.
+The characters are large enough to require a full integer value - and there
+may be more than one character per cell.
+The video attributes and color are stored in separate fields of the structure.
+.IP
+Each cell (row and column) in a \fBWINDOW\fP is stored as a \fBcchar_t\fP.
+.TP 5
+.B wchar_t
+stores a "wide" character.
+Like \fBchtype\fP, this may be an integer.
+.TP 5
+.B wint_t
+stores a \fBwchar_t\fP or \fBWEOF\fP - not the same, though both may have
+the same size.
+.RE
+.IP
+The "wide" library provides new functions which are analogous to
+functions in the "normal" library.
+There is a naming convention which relates many of the normal/wide variants:
+a "_w" is inserted into the name.
+For example, \fBwaddch\fP becomes \fBwadd_wch\fP.
+.RE
+.PP
+.\"
 .SS Routine Name Index
 The following table lists each \fBcurses\fR routine and the name of
-the manual page on which it is described.  Routines flagged with `*'
+the manual page on which it is described.
+Routines flagged with `*'
 are ncurses-specific, not described by XPG4 or present in SVr4.
 .PP
 .TS
@@ -275,15 +353,24 @@ flash/\fBcurs_beep\fR(3X)
 flushinp/\fBcurs_util\fR(3X)
 get_wch/\fBcurs_get_wch\fR(3X)
 get_wstr/\fBcurs_get_wstr\fR(3X)
+getattrs/\fBcurs_attr\fR(3X)
+getbegx/\fBcurs_legacy\fR(3X)*
+getbegy/\fBcurs_legacy\fR(3X)*
 getbegyx/\fBcurs_getyx\fR(3X)
 getbkgd/\fBcurs_bkgd\fR(3X)
 getbkgrnd/\fBcurs_bkgrnd\fR(3X)
 getcchar/\fBcurs_getcchar\fR(3X)
 getch/\fBcurs_getch\fR(3X)
+getcurx/\fBcurs_legacy\fR(3X)*
+getcury/\fBcurs_legacy\fR(3X)*
+getmaxx/\fBcurs_legacy\fR(3X)*
+getmaxy/\fBcurs_legacy\fR(3X)*
 getmaxyx/\fBcurs_getyx\fR(3X)
 getmouse/\fBcurs_mouse\fR(3X)*
 getn_wstr/\fBcurs_get_wstr\fR(3X)
 getnstr/\fBcurs_getstr\fR(3X)
+getparx/\fBcurs_legacy\fR(3X)*
+getpary/\fBcurs_legacy\fR(3X)*
 getparyx/\fBcurs_getyx\fR(3X)
 getstr/\fBcurs_getstr\fR(3X)
 getsyx/\fBcurs_kernel\fR(3X)
@@ -321,7 +408,18 @@ insstr/\fBcurs_insstr\fR(3X)
 instr/\fBcurs_instr\fR(3X)
 intrflush/\fBcurs_inopts\fR(3X)
 inwstr/\fBcurs_inwstr\fR(3X)
+is_cleared/\fBcurs_opaque\fR(3X)*
+is_idcok/\fBcurs_opaque\fR(3X)*
+is_idlok/\fBcurs_opaque\fR(3X)*
+is_immedok/\fBcurs_opaque\fR(3X)*
+is_keypad/\fBcurs_opaque\fR(3X)*
+is_leaveok/\fBcurs_opaque\fR(3X)*
 is_linetouched/\fBcurs_touch\fR(3X)
+is_nodelay/\fBcurs_opaque\fR(3X)*
+is_notimeout/\fBcurs_opaque\fR(3X)*
+is_scrollok/\fBcurs_opaque\fR(3X)*
+is_syncok/\fBcurs_opaque\fR(3X)*
+is_term_resized/\fBresizeterm\fR(3X)*
 is_wintouched/\fBcurs_touch\fR(3X)
 isendwin/\fBcurs_initscr\fR(3X)
 key_defined/\fBkey_defined\fR(3X)*
@@ -431,6 +529,7 @@ nl/\fBcurs_outopts\fR(3X)
 nocbreak/\fBcurs_inopts\fR(3X)
 nodelay/\fBcurs_inopts\fR(3X)
 noecho/\fBcurs_inopts\fR(3X)
+nofilter/\fBcurs_util\fR(3X)*
 nonl/\fBcurs_outopts\fR(3X)
 noqiflush/\fBcurs_inopts\fR(3X)
 noraw/\fBcurs_inopts\fR(3X)
@@ -519,6 +618,7 @@ untouchwin/\fBcurs_touch\fR(3X)
 use_default_colors/\fBdefault_colors\fR(3X)*
 use_env/\fBcurs_util\fR(3X)
 use_extended_names/\fBcurs_extend\fR(3X)*
+use_legacy_coding/\fBlegacy_coding\fR(3X)*
 vid_attr/\fBcurs_terminfo\fR(3X)
 vid_puts/\fBcurs_terminfo\fR(3X)
 vidattr/\fBcurs_terminfo\fR(3X)
@@ -617,16 +717,16 @@ integer value other than \fBERR\fR upon successful completion, unless
 otherwise noted in the routine descriptions.
 .PP
 All macros return the value of the \fBw\fR version, except \fBsetscrreg\fR,
-\fBwsetscrreg\fR, \fBgetyx\fR, \fBgetbegyx\fR, and \fBgetmaxyx\fR.  The return
-values of \fBsetscrreg\fR, \fBwsetscrreg\fR, \fBgetyx\fR, \fBgetbegyx\fR, and
+\fBwsetscrreg\fR, \fBgetyx\fR, \fBgetbegyx\fR, and \fBgetmaxyx\fR.
+The return values of \fBsetscrreg\fR, \fBwsetscrreg\fR, \fBgetyx\fR, \fBgetbegyx\fR, and
 \fBgetmaxyx\fR are undefined (i.e., these should not be used as the
 right-hand side of assignment statements).
 .PP
 Routines that return pointers return \fBNULL\fR on error.
 .SH ENVIRONMENT
 The following environment symbols are useful for customizing the
-runtime behavior of the \fBncurses\fR library.  The most important
-ones have been already discussed in detail.
+runtime behavior of the \fBncurses\fR library.
+The most important ones have been already discussed in detail.
 .TP 5
 BAUDRATE
 The debugging library checks this environment symbol when the application
@@ -722,7 +822,7 @@ If it is not specified, \fBncurses\fR uses 132.
 NCURSES_ASSUMED_COLORS
 Override the compiled-in assumption that the
 terminal's default colors are white-on-black
-(see \fBassume_default_colors\fR(3X)).
+(see \fBdefault_colors\fR(3X)).
 You may set the foreground and background color values with this environment
 variable by proving a 2-element list: foreground,background.
 For example, to tell ncurses to not assume anything
@@ -739,7 +839,7 @@ You can also adjust your \fBstty\fP settings to avoid the problem.
 .TP 5
 NCURSES_NO_MAGIC_COOKIES
 Some terminals use a magic-cookie feature which requires special handling
-to make highlighting and other video attributes display properly. 
+to make highlighting and other video attributes display properly.
 You can suppress the highlighting entirely for these terminals by
 setting this environment variable.
 .TP 5
@@ -761,18 +861,21 @@ is for your program to do this by pausing after
 operations that the terminal does slowly, such as clearing the display.
 .IP
 As a result, many terminal descriptions (including the vt100)
-have delay times embedded.  You may wish to use these descriptions,
+have delay times embedded.
+You may wish to use these descriptions,
 but not want to pay the performance penalty.
 .IP
 Set the NCURSES_NO_PADDING symbol to disable all but mandatory
-padding.  Mandatory padding is used as a part of special control
+padding.
+Mandatory padding is used as a part of special control
 sequences such as \fIflash\fR.
 .TP 5
 NCURSES_NO_SETBUF
 Normally \fBncurses\fR enables buffered output during terminal initialization.
 This is done (as in SVr4 curses) for performance reasons.
 For testing purposes, both of \fBncurses\fR and certain applications,
-this feature is made optional.  Setting the NCURSES_NO_SETBUF variable
+this feature is made optional.
+Setting the NCURSES_NO_SETBUF variable
 disables output buffering, leaving the output in the original (usually
 line buffered) mode.
 .TP 5
@@ -944,12 +1047,14 @@ descriptions.
 .SH EXTENSIONS
 The \fBncurses\fR library can be compiled with an option (\fB-DUSE_GETCAP\fR)
 that falls back to the old-style /etc/termcap file if the terminal setup code
-cannot find a terminfo entry corresponding to \fBTERM\fR.  Use of this feature
+cannot find a terminfo entry corresponding to \fBTERM\fR.
+Use of this feature
 is not recommended, as it essentially includes an entire termcap compiler in
 the \fBncurses\fR startup code, at significant cost in core and startup cycles.
 .PP
 The \fBncurses\fR library includes facilities for capturing mouse events on
-certain terminals (including xterm). See the \fBcurs_mouse\fR(3X)
+certain terminals (including xterm).
+See the \fBcurs_mouse\fR(3X)
 manual page for details.
 .PP
 The \fBncurses\fR library includes facilities for responding to window
@@ -974,38 +1079,48 @@ control over color contrasts.
 See the \fBdefault_colors\fR(3X) manual page for details.
 .PP
 The \fBncurses\fR library includes a function for directing application output
-to a printer attached to the terminal device.  See the \fBcurs_print\fR(3X)
-manual page for details.
+to a printer attached to the terminal device.
+See the \fBcurs_print\fR(3X) manual page for details.
 .SH PORTABILITY
-The \fBncurses\fR library is intended to be BASE-level conformant with the XSI
-Curses standard.  The EXTENDED XSI Curses functionality
+The \fBncurses\fR library is intended to be BASE-level conformant with XSI
+Curses.
+The EXTENDED XSI Curses functionality
 (including color support) is supported.
 .PP
 A small number of local differences (that is, individual differences between
 the XSI Curses and \fBncurses\fR calls) are described in \fBPORTABILITY\fR
 sections of the library man pages.
 .PP
-The routine \fBhas_key\fR is not part of XPG4, nor is it present in SVr4.  See
-the \fBcurs_getch\fR(3X) manual page for details.
+This implementation also contains several extensions:
+.RS 5
 .PP
-The routine \fBslk_attr\fR is not part of XPG4, nor is it present in SVr4.  See
-the \fBcurs_slk\fR(3X) manual page for details.
+The routine \fBhas_key\fR is not part of XPG4, nor is it present in SVr4.
+See the \fBcurs_getch\fR(3X) manual page for details.
+.PP
+The routine \fBslk_attr\fR is not part of XPG4, nor is it present in SVr4.
+See the \fBcurs_slk\fR(3X) manual page for details.
 .PP
 The routines \fBgetmouse\fR, \fBmousemask\fR, \fBungetmouse\fR,
 \fBmouseinterval\fR, and \fBwenclose\fR relating to mouse interfacing are not
-part of XPG4, nor are they present in SVr4.  See the \fBcurs_mouse\fR(3X)
-manual page for details.
+part of XPG4, nor are they present in SVr4.
+See the \fBcurs_mouse\fR(3X) manual page for details.
 .PP
-The routine \fBmcprint\fR was not present in any previous curses
-implementation.  See the \fBcurs_print\fR(3X) manual page for details.
+The routine \fBmcprint\fR was not present in any previous curses implementation.
+See the \fBcurs_print\fR(3X) manual page for details.
 .PP
-The routine \fBwresize\fR is not part of XPG4, nor is it present in SVr4.  See
-the \fBwresize\fR(3X) manual page for details.
+The routine \fBwresize\fR is not part of XPG4, nor is it present in SVr4.
+See the \fBwresize\fR(3X) manual page for details.
+.PP
+The WINDOW structure's internal details can be hidden from application
+programs.
+See \fBcurs_opaque\fR(3X) for the discussion of \fBis_scrollok\fR, etc.
+.RE
 .PP
 In historic curses versions, delays embedded in the capabilities \fBcr\fR,
 \fBind\fR, \fBcub1\fR, \fBff\fR and \fBtab\fR activated corresponding delay
-bits in the UNIX tty driver.  In this implementation, all padding is done by
-NUL sends.  This method is slightly more expensive, but narrows the interface
+bits in the UNIX tty driver.
+In this implementation, all padding is done by sending NUL bytes.
+This method is slightly more expensive, but narrows the interface
 to the UNIX kernel significantly and increases the package's portability
 correspondingly.
 .SH NOTES
@@ -1013,8 +1128,8 @@ The header file \fB<curses.h>\fR automatically includes the header files
 \fB<stdio.h>\fR and \fB<unctrl.h>\fR.
 .PP
 If standard output from a \fBncurses\fR program is re-directed to something
-which is not a tty, screen updates will be directed to standard error.  This
-was an undocumented feature of AT&T System V Release 3 curses.
+which is not a tty, screen updates will be directed to standard error.
+This was an undocumented feature of AT&T System V Release 3 curses.
 .SH AUTHORS
 Zeyd M. Ben-Halim, Eric S. Raymond, Thomas E. Dickey.
 Based on pcurses by Pavel Curtis.

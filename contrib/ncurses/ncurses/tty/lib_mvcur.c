@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -155,7 +155,7 @@
 #include <term.h>
 #include <ctype.h>
 
-MODULE_ID("$Id: lib_mvcur.c,v 1.107 2006/11/25 22:31:59 tom Exp $")
+MODULE_ID("$Id: lib_mvcur.c,v 1.110 2007/08/11 16:15:57 tom Exp $")
 
 #define WANT_CHAR(y, x)	SP->_newscr->_line[y].text[x]	/* desired state */
 #define BAUDRATE	cur_term->_baudrate	/* bits per second */
@@ -959,6 +959,7 @@ NCURSES_EXPORT_VAR(int) _nc_optimize_enable = OPTIMIZE_ALL;
 
 #include <tic.h>
 #include <dump_entry.h>
+#include <time.h>
 
 NCURSES_EXPORT_VAR(const char *) _nc_progname = "mvcur";
 
@@ -1017,7 +1018,7 @@ roll(int n)
 int
 main(int argc GCC_UNUSED, char *argv[]GCC_UNUSED)
 {
-    (void) strcpy(tname, termname());
+    strcpy(tname, getenv("TERM"));
     load_term();
     _nc_setupscreen(lines, columns, stdout, FALSE, 0);
     baudrate();
@@ -1088,7 +1089,7 @@ main(int argc GCC_UNUSED, char *argv[]GCC_UNUSED)
 	    load_term();
 	} else if (sscanf(buf, "d %s", capname) == 1) {
 	    struct name_table_entry const *np = _nc_find_entry(capname,
-							       _nc_info_hash_table);
+							       _nc_get_hash_table(FALSE));
 
 	    if (np == NULL)
 		(void) printf("No such capability as \"%s\"\n", capname);
@@ -1116,7 +1117,7 @@ main(int argc GCC_UNUSED, char *argv[]GCC_UNUSED)
 	    }
 	} else if (buf[0] == 'i') {
 	    dump_init((char *) NULL, F_TERMINFO, S_TERMINFO, 70, 0, FALSE);
-	    dump_entry(&cur_term->type, FALSE, TRUE, 0, 0, 0);
+	    dump_entry(&cur_term->type, FALSE, TRUE, 0, 0);
 	    putchar('\n');
 	} else if (buf[0] == 'o') {
 	    if (_nc_optimize_enable & OPTIMIZE_MVCUR) {

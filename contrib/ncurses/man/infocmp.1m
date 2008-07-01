@@ -27,14 +27,14 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: infocmp.1m,v 1.43 2006/05/13 15:14:01 tom Exp $
-.TH infocmp 1M ""
+.\" $Id: infocmp.1m,v 1.44 2006/12/24 18:16:31 tom Exp $
+.TH @INFOCMP@ 1M ""
 .ds n 5
 .ds d @TERMINFO@
 .SH NAME
-\fBinfocmp\fR - compare or print out \fIterminfo\fR descriptions
+\fB@INFOCMP@\fR - compare or print out \fIterminfo\fR descriptions
 .SH SYNOPSIS
-\fBinfocmp\fR [\fB-\
+\fB@INFOCMP@\fR [\fB-\
 1\
 C\
 E\
@@ -66,7 +66,7 @@ x\
 .br
       [\fItermname\fR...]
 .SH DESCRIPTION
-\fBinfocmp\fR can be used to compare a binary \fBterminfo\fR entry with other
+\fB@INFOCMP@\fR can be used to compare a binary \fBterminfo\fR entry with other
 terminfo entries, rewrite a \fBterminfo\fR description to take advantage of the
 \fBuse=\fR terminfo field, or print out a \fBterminfo\fR description from the
 binary file (\fBterm\fR) in a variety of formats.  In all cases, the boolean
@@ -77,7 +77,7 @@ If no options are specified and zero or one \fItermnames\fR are specified, the
 \fB-I\fR option will be assumed.  If more than one \fItermname\fR is specified,
 the \fB-d\fR option will be assumed.
 .SS Comparison Options [-d] [-c] [-n]
-\fBinfocmp\fR compares the \fBterminfo\fR description of the first terminal
+\fB@INFOCMP@\fR compares the \fBterminfo\fR description of the first terminal
 \fItermname\fR with each of the descriptions given by the entries for the other
 terminal's \fItermnames\fR.  If a capability is defined for only one of the
 terminals, the value returned will depend on the type of the capability:
@@ -114,7 +114,7 @@ used for the terminal name.
 .PP
 The source produced by the \fB-C\fR option may be used directly as a
 \fBtermcap\fR entry, but not all parameterized strings can be changed to
-the \fBtermcap\fR format.  \fBinfocmp\fR will attempt to convert most of the
+the \fBtermcap\fR format.  \fB@INFOCMP@\fR will attempt to convert most of the
 parameterized information, and anything not converted will be plainly marked in
 the output and commented out.  These should be edited by hand.
 .PP
@@ -162,7 +162,7 @@ analyzing the differences between the first \fItermname\fR and the other
 other terminals.  In this manner, it is possible to retrofit generic terminfo
 entries into a terminal's description.  Or, if two similar terminals exist, but
 were coded at different times or by different people so that each description
-is a full description, using \fBinfocmp\fR will show what can be done to change
+is a full description, using \fB@INFOCMP@\fR will show what can be done to change
 one description to be relative to the other.
 .PP
 A capability will get printed with an at-sign (@) if it no longer exists in the
@@ -176,18 +176,18 @@ The order of the other \fItermname\fR entries is significant.  Since the
 terminfo compiler \fBtic\fR does a left-to-right scan of the capabilities,
 specifying two \fBuse=\fR entries that contain differing entries for the same
 capabilities will produce different results depending on the order that the
-entries are given in.  \fBinfocmp\fR will flag any such inconsistencies between
+entries are given in.  \fB@INFOCMP@\fR will flag any such inconsistencies between
 the other \fItermname\fR entries as they are found.
 .PP
 Alternatively, specifying a capability \fIafter\fR a \fBuse=\fR entry that
 contains that capability will cause the second specification to be ignored.
-Using \fBinfocmp\fR to recreate a description can be a useful check to make
+Using \fB@INFOCMP@\fR to recreate a description can be a useful check to make
 sure that everything was specified correctly in the original source
 description.
 .PP
 Another error that does not cause incorrect compiled files, but will slow down
 the compilation time, is specifying extra \fBuse=\fR fields that are
-superfluous.  \fBinfocmp\fR will flag any other \fItermname use=\fR fields that
+superfluous.  \fB@INFOCMP@\fR will flag any other \fItermname use=\fR fields that
 were not needed.
 .SS Changing Databases [-A \fIdirectory\fR] [-B \fIdirectory\fR]
 The location of the compiled \fBterminfo\fR database is taken from the
@@ -208,7 +208,7 @@ the fields will be printed several to a line to a maximum width
 of 60 characters.
 .TP
 \fB-a\fR
-tells \fBinfocmp\fP to retain commented-out capabilities rather than discarding
+tells \fB@INFOCMP@\fP to retain commented-out capabilities rather than discarding
 them.  Capabilities are commented by prefixing them with a period.
 .TP 5
 \fB-E\fR
@@ -367,9 +367,9 @@ Normally when translating from terminfo to termcap,
 untranslatable capabilities are commented-out.
 .TP 5
 \fB-U\fR
-tells \fBinfocmp\fP to not post-process the data after parsing the source file.
+tells \fB@INFOCMP@\fP to not post-process the data after parsing the source file.
 This feature helps when comparing the actual contents of two source files,
-since it excludes the inferences that \fBinfocmp\fP makes to fill in missing
+since it excludes the inferences that \fB@INFOCMP@\fP makes to fill in missing
 data.
 .TP 5
 \fB-V\fR
@@ -413,7 +413,7 @@ The \fB-r\fR option's notion of `termcap' capabilities is System V Release 4's.
 Actual BSD curses versions will have a more restricted set.  To see only the
 4.4BSD set, use \fB-r\fR \fB-RBSD\fR.
 .SH BUGS
-The \fB-F\fR option of \fBinfocmp\fR(1M) should be a \fBtoe\fR(1M) mode.
+The \fB-F\fR option of \fB@INFOCMP@\fR(1M) should be a \fB@TOE@\fR(1M) mode.
 .SH SEE ALSO
 \fB@CAPTOINFO@\fR(1M),
 \fB@INFOTOCAP@\fR(1M),

@@ -26,8 +26,8 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: terminfo.head,v 1.13 2006/05/13 15:35:45 tom Exp $
-.TH TERMINFO 5 "" "" "File Formats"
+.\" $Id: terminfo.head,v 1.16 2007/03/04 00:09:46 tom Exp $
+.TH terminfo 5 "" "" "File Formats"
 .ds n 5
 .ds d @TERMINFO@
 .SH NAME
@@ -51,7 +51,7 @@ version @NCURSES_MAJOR@.@NCURSES_MINOR@ (patch @NCURSES_PATCH@).
 Entries in
 .I terminfo
 consist of a sequence of `,' separated fields (embedded commas may be
-escaped with a backslash or notated as \e054).
+escaped with a backslash or notated as \\054).
 White space after the `,' separator is ignored.
 The first entry for each terminal gives the names which are known for the
 terminal, separated by `|' characters.
@@ -62,14 +62,14 @@ All names but the last should be in lower case and contain no blanks;
 the last name may well contain upper case and blanks for readability.
 .PP
 Lines beginning with a `#' in the first column are treated as comments.
-While comment lines are legal at any point, the output of \fIcaptoinfo\fP
-and \fIinfotocap\fP (aliases for \fItic\fP)
+While comment lines are legal at any point, the output of \fB@CAPTOINFO@\fP
+and \fB@INFOTOCAP@\fP (aliases for \fB@TIC@\fP)
 will move comments so they occur only between entries.
 .PP
 Newlines and leading tabs may be used for formatting entries for readability.
 These are removed from parsed entries.
-The \fIinfocmp\ -f\fP option relies on this to format if-then-else expressions:
-the result can be read by \fItic\fP.
+The \fB@INFOCMP@\ -f\fP option relies on this to format if-then-else expressions:
+the result can be read by \fB@TIC@\fP.
 .PP
 Terminal names (except for the last, verbose entry) should
 be chosen using the following conventions.

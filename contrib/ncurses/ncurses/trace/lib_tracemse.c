@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2002,2005 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2005,2007 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -38,30 +38,23 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_tracemse.c,v 1.12 2005/06/11 19:53:50 tom Exp $")
+MODULE_ID("$Id: lib_tracemse.c,v 1.13 2007/04/21 21:23:00 tom Exp $")
 
 #ifdef TRACE
+
+#define my_buffer _nc_globals.tracemse_buf
 
 NCURSES_EXPORT(char *)
 _tracemouse(MEVENT const *ep)
 {
-    /*
-     * hmm - format is no longer than 80 columns, there are 5 numbers that
-     * could at most have 10 digits, and the mask contains no more than 32 bits
-     * with each bit representing less than 15 characters.  Usually the whole
-     * string is less than 80 columns, but this buffer size is an absolute
-     * limit.
-     */
-    static char buf[80 + (5 * 10) + (32 * 15)];
-
-    (void) sprintf(buf, "id %2d  at (%2d, %2d, %2d) state %4lx = {",
+    (void) sprintf(my_buffer, TRACEMSE_FMT,
 		   ep->id,
 		   ep->x,
 		   ep->y,
 		   ep->z,
 		   (unsigned long) ep->bstate);
 
-#define SHOW(m, s) if ((ep->bstate & m) == m) strcat(strcat(buf, s), ", ")
+#define SHOW(m, s) if ((ep->bstate & m) == m) strcat(strcat(my_buffer, s), ", ")
 
     SHOW(BUTTON1_RELEASED, "release-1");
     SHOW(BUTTON1_PRESSED, "press-1");
@@ -115,10 +108,10 @@ _tracemouse(MEVENT const *ep)
 
 #undef SHOW
 
-    if (buf[strlen(buf) - 1] == ' ')
-	buf[strlen(buf) - 2] = '\0';
-    (void) strcat(buf, "}");
-    return (buf);
+    if (my_buffer[strlen(my_buffer) - 1] == ' ')
+	my_buffer[strlen(my_buffer) - 2] = '\0';
+    (void) strcat(my_buffer, "}");
+    return (my_buffer);
 }
 
 #else /* !TRACE */

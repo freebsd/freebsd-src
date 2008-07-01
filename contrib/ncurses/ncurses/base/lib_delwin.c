@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,2000,2001 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -40,7 +40,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_delwin.c,v 1.13 2001/08/26 00:40:20 tom Exp $")
+MODULE_ID("$Id: lib_delwin.c,v 1.16 2008/05/03 14:13:51 tom Exp $")
 
 static bool
 cannot_delete(WINDOW *win)
@@ -48,7 +48,7 @@ cannot_delete(WINDOW *win)
     WINDOWLIST *p;
     bool result = TRUE;
 
-    for (p = _nc_windows; p != 0; p = p->next) {
+    for (each_window(p)) {
 	if (&(p->win) == win) {
 	    result = FALSE;
 	} else if ((p->win._flags & _SUBWIN) != 0
@@ -63,16 +63,27 @@ cannot_delete(WINDOW *win)
 NCURSES_EXPORT(int)
 delwin(WINDOW *win)
 {
+    int result = ERR;
+
     T((T_CALLED("delwin(%p)"), win));
 
-    if (win == 0
-	|| cannot_delete(win))
-	returnCode(ERR);
+    if (_nc_try_global(windowlist) == 0) {
+	_nc_lock_window(win);
+	if (win == 0
+	    || cannot_delete(win)) {
+	    result = ERR;
+	    _nc_unlock_window(win);
+	} else {
 
-    if (win->_flags & _SUBWIN)
-	touchwin(win->_parent);
-    else if (curscr != 0)
-	touchwin(curscr);
+	    if (win->_flags & _SUBWIN)
+		touchwin(win->_parent);
+	    else if (curscr != 0)
+		touchwin(curscr);
 
-    returnCode(_nc_freewin(win));
+	    _nc_unlock_window(win);
+	    result = _nc_freewin(win);
+	}
+	_nc_unlock_global(windowlist);
+    }
+    returnCode(result);
 }

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -44,7 +44,7 @@
 #include <term.h>		/* cur_term */
 #include <tic.h>
 
-MODULE_ID("$Id: lib_set_term.c,v 1.91 2006/05/20 14:58:02 tom Exp $")
+MODULE_ID("$Id: lib_set_term.c,v 1.108 2008/05/03 22:42:43 tom Exp $")
 
 NCURSES_EXPORT(SCREEN *)
 set_term(SCREEN *screenp)
@@ -53,22 +53,39 @@ set_term(SCREEN *screenp)
 
     T((T_CALLED("set_term(%p)"), screenp));
 
+    _nc_lock_global(set_SP);
+
     oldSP = SP;
     _nc_set_screen(screenp);
 
-    set_curterm(SP->_term);
-    curscr = SP->_curscr;
-    newscr = SP->_newscr;
-    stdscr = SP->_stdscr;
-    COLORS = SP->_color_count;
-    COLOR_PAIRS = SP->_pair_count;
+    if (SP != 0) {
+	set_curterm(SP->_term);
+#if !USE_REENTRANT
+	curscr = SP->_curscr;
+	newscr = SP->_newscr;
+	stdscr = SP->_stdscr;
+	COLORS = SP->_color_count;
+	COLOR_PAIRS = SP->_pair_count;
+#endif
+    } else {
+	set_curterm(0);
+#if !USE_REENTRANT
+	curscr = 0;
+	newscr = 0;
+	stdscr = 0;
+	COLORS = 0;
+	COLOR_PAIRS = 0;
+#endif
+    }
+
+    _nc_unlock_global(set_SP);
 
     T((T_RETURN("%p"), oldSP));
     return (oldSP);
 }
 
 static void
-_nc_free_keytry(struct tries *kt)
+_nc_free_keytry(TRIES * kt)
 {
     if (kt != 0) {
 	_nc_free_keytry(kt->child);
@@ -77,94 +94,110 @@ _nc_free_keytry(struct tries *kt)
     }
 }
 
+static bool
+delink_screen(SCREEN *sp)
+{
+    SCREEN *last = 0;
+    SCREEN *temp;
+    bool result = FALSE;
+
+    for (each_screen(temp)) {
+	if (temp == sp) {
+	    if (last)
+		last = sp->_next_screen;
+	    else
+		_nc_screen_chain = sp->_next_screen;
+	    result = TRUE;
+	    break;
+	}
+	last = temp;
+    }
+    return result;
+}
+
 /*
  * Free the storage associated with the given SCREEN sp.
  */
 NCURSES_EXPORT(void)
 delscreen(SCREEN *sp)
 {
-    SCREEN **scan = &_nc_screen_chain;
     int i;
 
     T((T_CALLED("delscreen(%p)"), sp));
 
-    while (*scan) {
-	if (*scan == sp) {
-	    *scan = sp->_next_screen;
-	    break;
-	}
-	scan = &(*scan)->_next_screen;
-    }
+    _nc_lock_global(set_SP);
+    if (delink_screen(sp)) {
 
-    (void) _nc_freewin(sp->_curscr);
-    (void) _nc_freewin(sp->_newscr);
-    (void) _nc_freewin(sp->_stdscr);
+	(void) _nc_freewin(sp->_curscr);
+	(void) _nc_freewin(sp->_newscr);
+	(void) _nc_freewin(sp->_stdscr);
 
-    if (sp->_slk != 0) {
-	if (sp->_slk->ent != 0) {
-	    for (i = 0; i < sp->_slk->labcnt; ++i) {
-		FreeIfNeeded(sp->_slk->ent[i].ent_text);
-		FreeIfNeeded(sp->_slk->ent[i].form_text);
+	if (sp->_slk != 0) {
+	    if (sp->_slk->ent != 0) {
+		for (i = 0; i < sp->_slk->labcnt; ++i) {
+		    FreeIfNeeded(sp->_slk->ent[i].ent_text);
+		    FreeIfNeeded(sp->_slk->ent[i].form_text);
+		}
+		free(sp->_slk->ent);
 	    }
-	    free(sp->_slk->ent);
+	    free(sp->_slk);
+	    sp->_slk = 0;
 	}
-	free(sp->_slk);
-	sp->_slk = 0;
+
+	_nc_free_keytry(sp->_keytry);
+	sp->_keytry = 0;
+
+	_nc_free_keytry(sp->_key_ok);
+	sp->_key_ok = 0;
+
+	FreeIfNeeded(sp->_current_attr);
+
+	FreeIfNeeded(sp->_color_table);
+	FreeIfNeeded(sp->_color_pairs);
+
+	FreeIfNeeded(sp->oldhash);
+	FreeIfNeeded(sp->newhash);
+	FreeIfNeeded(sp->hashtab);
+
+	FreeIfNeeded(sp->_acs_map);
+	FreeIfNeeded(sp->_screen_acs_map);
+
+	del_curterm(sp->_term);
+
+	/*
+	 * If the associated output stream has been closed, we can discard the
+	 * set-buffer.  Limit the error check to EBADF, since fflush may fail
+	 * for other reasons than trying to operate upon a closed stream.
+	 */
+	if (sp->_ofp != 0
+	    && sp->_setbuf != 0
+	    && fflush(sp->_ofp) != 0
+	    && errno == EBADF) {
+	    free(sp->_setbuf);
+	}
+
+	free(sp);
+
+	/*
+	 * If this was the current screen, reset everything that the
+	 * application might try to use (except cur_term, which may have
+	 * multiple references in different screens).
+	 */
+	if (sp == SP) {
+#if !USE_REENTRANT
+	    curscr = 0;
+	    newscr = 0;
+	    stdscr = 0;
+	    COLORS = 0;
+	    COLOR_PAIRS = 0;
+#endif
+	    _nc_set_screen(0);
+	}
     }
+    _nc_unlock_global(set_SP);
 
-    _nc_free_keytry(sp->_keytry);
-    sp->_keytry = 0;
-
-    _nc_free_keytry(sp->_key_ok);
-    sp->_key_ok = 0;
-
-    FreeIfNeeded(sp->_current_attr);
-
-    FreeIfNeeded(sp->_color_table);
-    FreeIfNeeded(sp->_color_pairs);
-
-    FreeIfNeeded(sp->oldhash);
-    FreeIfNeeded(sp->newhash);
-    FreeIfNeeded(sp->hashtab);
-
-    FreeIfNeeded(sp->_acs_map);
-    FreeIfNeeded(sp->_screen_acs_map);
-
-    del_curterm(sp->_term);
-
-    /*
-     * If the associated output stream has been closed, we can discard the
-     * set-buffer.  Limit the error check to EBADF, since fflush may fail
-     * for other reasons than trying to operate upon a closed stream.
-     */
-    if (sp->_ofp != 0
-	&& sp->_setbuf != 0
-	&& fflush(sp->_ofp) != 0
-	&& errno == EBADF) {
-	free(sp->_setbuf);
-    }
-
-    free(sp);
-
-    /*
-     * If this was the current screen, reset everything that the
-     * application might try to use (except cur_term, which may have
-     * multiple references in different screens).
-     */
-    if (sp == SP) {
-	curscr = 0;
-	newscr = 0;
-	stdscr = 0;
-	COLORS = 0;
-	COLOR_PAIRS = 0;
-	_nc_set_screen(0);
-    }
     returnVoid;
 }
-
-static ripoff_t rippedoff[5];
-static ripoff_t *rsp = rippedoff;
-#define N_RIPS SIZEOF(SP->_rippedoff)
 
 static bool
 no_mouse_event(SCREEN *sp GCC_UNUSED)
@@ -216,15 +249,16 @@ extract_fgbg(char *src, int *result)
 
 /* OS-independent screen initializations */
 NCURSES_EXPORT(int)
-_nc_setupscreen(int slines,
-		int scolumns,
+_nc_setupscreen(int slines GCC_UNUSED,
+		int scolumns GCC_UNUSED,
 		FILE *output,
 		bool filtered,
 		int slk_format)
 {
+    char *env;
     int bottom_stolen = 0;
-    int i;
     bool support_cookies = USE_XMC_SUPPORT;
+    ripoff_t *rop;
 
     T((T_CALLED("_nc_setupscreen(%d, %d, %p, %d, %d)"),
        slines, scolumns, output, filtered, slk_format));
@@ -243,12 +277,20 @@ _nc_setupscreen(int slines,
     if ((SP->_current_attr = typeCalloc(NCURSES_CH_T, 1)) == 0)
 	returnCode(ERR);
 
+    /*
+     * We should always check the screensize, just in case.
+     */
+    _nc_get_screensize(SP, &slines, &scolumns);
+    SET_LINES(slines);
+    SET_COLS(scolumns);
+    T((T_CREATE("screen %s %dx%d"), termname(), LINES, COLS));
+
     SP->_filtered = filtered;
 
     /* implement filter mode */
     if (filtered) {
-	slines = LINES = 1;
-
+	slines = 1;
+	SET_LINES(slines);
 	clear_screen = 0;
 	cursor_down = parm_down_cursor = 0;
 	cursor_address = 0;
@@ -257,18 +299,6 @@ _nc_setupscreen(int slines,
 
 	cursor_home = carriage_return;
 	T(("filter screensize %dx%d", LINES, COLS));
-    }
-
-    /* If we must simulate soft labels, grab off the line to be used.
-       We assume that we must simulate, if it is none of the standard
-       formats (4-4  or 3-2-3) for which there may be some hardware
-       support. */
-    if (num_labels <= 0 || !SLK_STDFMT(slk_format)) {
-	if (slk_format) {
-	    if (ERR == _nc_ripoffline(-SLK_LINES(slk_format),
-				      _nc_slk_initialize))
-		returnCode(ERR);
-	}
     }
 #ifdef __DJGPP__
     T(("setting output mode to binary"));
@@ -484,37 +514,45 @@ _nc_setupscreen(int slines,
     }
 
     /* initialize normal acs before wide, since we use mapping in the latter */
+#if !USE_WIDEC_SUPPORT
+    if (_nc_unicode_locale() && _nc_locale_breaks_acs()) {
+	acs_chars = NULL;
+	ena_acs = NULL;
+	enter_alt_charset_mode = NULL;
+	exit_alt_charset_mode = NULL;
+	set_attributes = NULL;
+    }
+#endif
     _nc_init_acs();
 #if USE_WIDEC_SUPPORT
     _nc_init_wacs();
 
     SP->_screen_acs_fix = (_nc_unicode_locale() && _nc_locale_breaks_acs());
-    {
-	char *env = _nc_get_locale();
-	SP->_legacy_coding = ((env == 0)
-			      || !strcmp(env, "C")
-			      || !strcmp(env, "POSIX"));
-    }
 #endif
+    env = _nc_get_locale();
+    SP->_legacy_coding = ((env == 0)
+			  || !strcmp(env, "C")
+			  || !strcmp(env, "POSIX"));
+    T(("legacy-coding %d", SP->_legacy_coding));
 
     _nc_idcok = TRUE;
     _nc_idlok = FALSE;
-
-    _nc_windows = 0;		/* no windows yet */
 
     SP->oldhash = 0;
     SP->newhash = 0;
 
     T(("creating newscr"));
-    if ((newscr = newwin(slines, scolumns, 0, 0)) == 0)
+    if ((SP->_newscr = newwin(slines, scolumns, 0, 0)) == 0)
 	returnCode(ERR);
 
     T(("creating curscr"));
-    if ((curscr = newwin(slines, scolumns, 0, 0)) == 0)
+    if ((SP->_curscr = newwin(slines, scolumns, 0, 0)) == 0)
 	returnCode(ERR);
 
-    SP->_newscr = newscr;
-    SP->_curscr = curscr;
+#if !USE_REENTRANT
+    newscr = SP->_newscr;
+    curscr = SP->_curscr;
+#endif
 #if USE_SIZECHANGE
     SP->_resize = resizeterm;
 #endif
@@ -525,46 +563,65 @@ _nc_setupscreen(int slines,
     def_shell_mode();
     def_prog_mode();
 
-    for (i = 0, rsp = rippedoff; rsp->line && (i < (int) N_RIPS); rsp++, i++) {
-	T(("ripping off line %d at %s", i, rsp->line < 0 ? "bottom" : "top"));
-	SP->_rippedoff[i] = rippedoff[i];
-	if (rsp->hook) {
-	    int count = (rsp->line < 0) ? -rsp->line : rsp->line;
+    for (rop = ripoff_stack;
+	 rop != ripoff_sp && (rop - ripoff_stack) < N_RIPS;
+	 rop++) {
 
-	    SP->_rippedoff[i].w = newwin(count,
-					 scolumns,
-					 ((rsp->line < 0)
-					  ? SP->_lines_avail - count
-					  : 0),
-					 0);
-	    if (SP->_rippedoff[i].w != 0)
-		SP->_rippedoff[i].hook(SP->_rippedoff[i].w, scolumns);
-	    else
+	/* If we must simulate soft labels, grab off the line to be used.
+	   We assume that we must simulate, if it is none of the standard
+	   formats (4-4 or 3-2-3) for which there may be some hardware
+	   support. */
+	if (rop->hook == _nc_slk_initialize)
+	    if (!(num_labels <= 0 || !SLK_STDFMT(slk_format)))
+		continue;
+	if (rop->hook) {
+	    int count;
+	    WINDOW *w;
+
+	    count = (rop->line < 0) ? -rop->line : rop->line;
+	    T(("ripping off %i lines at %s", count,
+	       ((rop->line < 0)
+		? "bottom"
+		: "top")));
+
+	    w = newwin(count, scolumns,
+		       ((rop->line < 0)
+			? SP->_lines_avail - count
+			: 0),
+		       0);
+	    if (w) {
+		rop->win = w;
+		rop->hook(w, scolumns);
+	    } else {
 		returnCode(ERR);
-	    if (rsp->line < 0)
+	    }
+	    if (rop->line < 0)
 		bottom_stolen += count;
 	    else
 		SP->_topstolen += count;
 	    SP->_lines_avail -= count;
 	}
-	rsp->line = 0;
     }
-    SP->_rip_count = i;
     /* reset the stack */
-    rsp = rippedoff;
+    ripoff_sp = ripoff_stack;
 
     T(("creating stdscr"));
     assert((SP->_lines_avail + SP->_topstolen + bottom_stolen) == slines);
-    if ((stdscr = newwin(LINES = SP->_lines_avail, scolumns, 0, 0)) == 0)
+    if ((SP->_stdscr = newwin(SP->_lines_avail, scolumns, 0, 0)) == 0)
 	returnCode(ERR);
-    SP->_stdscr = stdscr;
+
+    SET_LINES(SP->_lines_avail);
+#if !USE_REENTRANT
+    stdscr = SP->_stdscr;
+#endif
 
     returnCode(OK);
 }
 
-/* The internal implementation interprets line as the number of
-   lines to rip off from the top or bottom.
-   */
+/*
+ * The internal implementation interprets line as the number of lines to rip
+ * off from the top or bottom.
+ */
 NCURSES_EXPORT(int)
 _nc_ripoffline(int line, int (*init) (WINDOW *, int))
 {
@@ -572,13 +629,14 @@ _nc_ripoffline(int line, int (*init) (WINDOW *, int))
 
     if (line != 0) {
 
-	if (rsp >= rippedoff + N_RIPS)
+	if (ripoff_sp == 0)
+	    ripoff_sp = ripoff_stack;
+	if (ripoff_sp >= ripoff_stack + N_RIPS)
 	    returnCode(ERR);
 
-	rsp->line = line;
-	rsp->hook = init;
-	rsp->w = 0;
-	rsp++;
+	ripoff_sp->line = line;
+	ripoff_sp->hook = init;
+	ripoff_sp++;
     }
 
     returnCode(OK);
@@ -587,6 +645,7 @@ _nc_ripoffline(int line, int (*init) (WINDOW *, int))
 NCURSES_EXPORT(int)
 ripoffline(int line, int (*init) (WINDOW *, int))
 {
+    START_TRACE();
     T((T_CALLED("ripoffline(%d,%p)"), line, init));
 
     if (line == 0)

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1999,2000,2001 Free Software Foundation, Inc.              *
+ * Copyright (c) 1999-2006,2007 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -35,25 +35,27 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: trace_tries.c,v 1.10 2001/10/20 22:42:51 tom Exp $")
+MODULE_ID("$Id: trace_tries.c,v 1.12 2007/04/21 21:55:41 tom Exp $")
 
 #ifdef TRACE
-static unsigned char *buffer;
-static unsigned len;
+#define my_buffer _nc_globals.tracetry_buf
+#define my_length _nc_globals.tracetry_used
 
 static void
-recur_tries(struct tries *tree, unsigned level)
+recur_tries(TRIES * tree, unsigned level)
 {
-    if (level > len)
-	buffer = (unsigned char *) realloc(buffer, len = (level + 1) * 4);
+    if (level > my_length) {
+	my_length = (level + 1) * 4;
+	my_buffer = (unsigned char *) realloc(my_buffer, my_length);
+    }
 
     while (tree != 0) {
-	if ((buffer[level] = tree->ch) == 0)
-	    buffer[level] = 128;
-	buffer[level + 1] = 0;
+	if ((my_buffer[level] = tree->ch) == 0)
+	    my_buffer[level] = 128;
+	my_buffer[level + 1] = 0;
 	if (tree->value != 0) {
 	    _tracef("%5d: %s (%s)", tree->value,
-		    _nc_visbuf((char *) buffer), keyname(tree->value));
+		    _nc_visbuf((char *) my_buffer), keyname(tree->value));
 	}
 	if (tree->child)
 	    recur_tries(tree->child, level + 1);
@@ -62,13 +64,13 @@ recur_tries(struct tries *tree, unsigned level)
 }
 
 NCURSES_EXPORT(void)
-_nc_trace_tries(struct tries *tree)
+_nc_trace_tries(TRIES * tree)
 {
-    buffer = typeMalloc(unsigned char, len = 80);
+    my_buffer = typeMalloc(unsigned char, my_length = 80);
     _tracef("BEGIN tries %p", tree);
     recur_tries(tree, 0);
     _tracef(". . . tries %p", tree);
-    free(buffer);
+    free(my_buffer);
 }
 
 #else

@@ -29,7 +29,7 @@
 #
 # Author: Thomas E. Dickey <dickey@clark.net> 1996
 #
-# $Id: shlib,v 1.10 2005/06/25 22:41:17 tom Exp $
+# $Id: shlib,v 1.11 2007/01/13 17:09:52 tom Exp $
 # Use this script as a wrapper when running executables linked to shared
 # libraries on systems that use the $LD_LIBRARY_PATH variable and don't embed
 # the soname's path within the linked executable (such as IRIX), e.g,
@@ -81,6 +81,7 @@ for p in lib ../lib ../../lib ../../../lib
 do
 	if test -d $p; then
 		q=`cd $p; pwd`
+		break
 	elif test -f configure && test ! -d ../$p ; then
 		break
 	fi

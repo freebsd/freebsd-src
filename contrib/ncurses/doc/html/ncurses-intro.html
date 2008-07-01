@@ -1,8 +1,8 @@
 <!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 3.0//EN">
 <!--
-  $Id: ncurses-intro.html,v 1.41 2005/12/24 15:47:05 tom Exp $
+  $Id: ncurses-intro.html,v 1.43 2007/03/03 19:31:50 tom Exp $
   ****************************************************************************
-  * Copyright (c) 1998-2004,2005 Free Software Foundation, Inc.              *
+  * Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
   * copy of this software and associated documentation files (the            *
@@ -914,15 +914,14 @@ Here is some sample code for shellout:
 
 <H3><A NAME="xterm">Using NCURSES under XTERM</A></H3>
 
-A resize operation in X sends SIGWINCH to the application running under xterm.
-The <CODE>ncurses</CODE> library provides an experimental signal
-handler, but in general does not catch this signal, because it cannot
-know how you want the screen re-painted.  You will usually have to write the
-SIGWINCH handler yourself.  Ncurses can give you some help. <P>
+A resize operation in X sends <CODE>SIGWINCH</CODE> to the application running
+under xterm.
 
-The easiest way to code your SIGWINCH handler is to have it do an
-<CODE>endwin</CODE>, followed by an <CODE>refresh</CODE> and a screen repaint you code
-yourself.  The <CODE>refresh</CODE> will pick up the new screen size from the
+The easiest way to handle <CODE>SIGWINCH</CODE>
+is to do an <CODE>endwin</CODE>,
+followed by an <CODE>refresh</CODE> and a screen repaint you code
+yourself.
+The <CODE>refresh</CODE> will pick up the new screen size from the
 xterm's environment. <P>
 
 That is the standard way, of course (it even works with some vendor's curses
@@ -934,8 +933,17 @@ not resize subwindows which must be shrunk.
 are limited to the new screen dimensions, and pads <CODE>stdscr</CODE>
 with blanks if the screen is larger. <P>
 
-Finally, ncurses can be configured to provide its own SIGWINCH handler,
-based on <CODE>resizeterm</CODE>.
+The <CODE>ncurses</CODE> library provides a SIGWINCH signal handler,
+which pushes a <CODE>KEY_RESIZE</CODE> via the wgetch() calls.
+When <CODE>ncurses</CODE> returns that code,
+it calls <code>resizeterm</CODE>
+to update the size of the standard screen's window, repainting that
+(filling with blanks or truncating as needed).
+It also resizes other windows,
+but its effect may be less satisfactory because it cannot
+know how you want the screen re-painted.
+You will usually have to write special-purpose code to handle
+<CODE>KEY_RESIZE</CODE> yourself.
 
 <H3><A NAME="screens">Handling Multiple Terminal Screens</A></H3>
 
@@ -2184,7 +2192,7 @@ These requests treat the list as cyclic; that is, <CODE>REQ_NEXT_PAGE</CODE>
 from the last page goes to the first, and <CODE>REQ_PREV_PAGE</CODE> from
 the first page goes to the last.
 
-<H3><A NAME="#ffield">Inter-Field Navigation Requests</A></H3>
+<H3><A NAME="ffield">Inter-Field Navigation Requests</A></H3>
 
 These requests handle navigation between fields on the same page.
 
@@ -2238,7 +2246,7 @@ of B and C to the right of B.  A <CODE>REQ_MOVE_RIGHT</CODE> from A will
 go to B only if A, B, and C <EM>all</EM> share the same first line;
 otherwise it will skip over B to C.
 
-<H3><A NAME="#fifield">Intra-Field Navigation Requests</A></H3>
+<H3><A NAME="fifield">Intra-Field Navigation Requests</A></H3>
 
 These requests drive movement of the edit cursor within the currently
 selected field.

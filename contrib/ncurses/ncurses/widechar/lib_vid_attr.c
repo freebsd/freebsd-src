@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2002-2005,2006 Free Software Foundation, Inc.              *
+ * Copyright (c) 2002-2006,2007 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -33,7 +33,7 @@
 #include <curses.priv.h>
 #include <term.h>
 
-MODULE_ID("$Id: lib_vid_attr.c,v 1.4 2006/11/26 00:26:00 tom Exp $")
+MODULE_ID("$Id: lib_vid_attr.c,v 1.5 2007/06/30 22:03:02 tom Exp $")
 
 #define doPut(mode) TPUTS_TRACE(#mode); tputs(mode, 1, outc)
 
@@ -72,6 +72,7 @@ vid_puts(attr_t newmode, short pair, void *opts GCC_UNUSED, int (*outc) (int))
 #define fix_pair0 FALSE
 #endif
 
+    newmode &= A_ATTRIBUTES;
     T((T_CALLED("vid_puts(%s,%d)"), _traceattr(newmode), pair));
 
     /* this allows us to go on whether or not newterm() has been called */
