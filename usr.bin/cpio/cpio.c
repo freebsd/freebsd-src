@@ -535,16 +535,23 @@ entry_to_archive(struct cpio *cpio, struct archive_entry *entry)
 		fprintf(stderr,"%s", destpath);
 
 	/*
-	 * Obviously, this only gets invoked in pass mode.
+	 * Obviously, this only gets invoked in pass mode, since
+	 * option_link is nonsense otherwise.  Note that we can't
+	 * hardlink dirs, and that if a link operation fails (because
+	 * of cross-device restrictions), we'll fall back to copy mode
+	 * for that entry.
 	 */
-	if (cpio->option_link) {
+	if (cpio->option_link
+	    && archive_entry_filetype(entry) != AE_IFDIR)
+	{
 		struct archive_entry *t;
 		/* Save the original entry in case we need it later. */
 		t = archive_entry_clone(entry);
 		if (t == NULL)
 			cpio_errc(1, ENOMEM, "Can't create link");
 		/* Note: link(2) doesn't create parent directories,
-		 * so we use archive_write_header() instead. */
+		 * so we use archive_write_header() instead as a
+		 * convenience. */
 		archive_entry_set_hardlink(t, srcpath);
 		/* This is a straight link that carries no data. */
 		archive_entry_set_size(t, 0);
