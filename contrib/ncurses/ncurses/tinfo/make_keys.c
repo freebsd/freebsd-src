@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2000,2005 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2005,2007 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -39,7 +39,7 @@
 #define USE_TERMLIB 1
 #include <curses.priv.h>
 
-MODULE_ID("$Id: make_keys.c,v 1.12 2005/08/20 19:58:18 tom Exp $")
+MODULE_ID("$Id: make_keys.c,v 1.13 2007/01/07 00:00:14 tom Exp $")
 
 #include <names.c>
 
@@ -113,7 +113,7 @@ main(int argc, char *argv[])
 	"#if BROKEN_LINKER",
 	"static",
 	"#endif",
-	"struct tinfo_fkeys _nc_tinfo_fkeys[] = {",
+	"const struct tinfo_fkeys _nc_tinfo_fkeys[] = {",
 	0
     };
     static const char *suffix[] =

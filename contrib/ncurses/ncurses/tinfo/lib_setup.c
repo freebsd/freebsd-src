@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,7 +29,7 @@
 /****************************************************************************
  *  Author: Zeyd M. Ben-Halim <zmbenhal@netcom.com> 1992,1995               *
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
- *     and: Thomas E. Dickey 1996-2003                                      *
+ *     and: Thomas E. Dickey                        1996-on                 *
  ****************************************************************************/
 
 /*
@@ -53,7 +53,7 @@
 
 #include <term.h>		/* lines, columns, cur_term */
 
-MODULE_ID("$Id: lib_setup.c,v 1.95 2006/07/28 22:58:13 tom Exp $")
+MODULE_ID("$Id: lib_setup.c,v 1.105 2008/05/03 22:41:42 tom Exp $")
 
 /****************************************************************************
  *
@@ -99,55 +99,74 @@ MODULE_ID("$Id: lib_setup.c,v 1.95 2006/07/28 22:58:13 tom Exp $")
 # endif
 #endif
 
+/*
+ * Wrap global variables in this module.
+ */
+#if USE_REENTRANT
+NCURSES_EXPORT(char *)
+NCURSES_PUBLIC_VAR(ttytype) (void)
+{
+    static char empty[] = "";
+    return cur_term ? cur_term->type.term_names : empty;
+}
+NCURSES_EXPORT(int)
+NCURSES_PUBLIC_VAR(LINES) (void)
+{
+    return (SP ? SP->_LINES : _nc_prescreen._LINES);
+}
+NCURSES_EXPORT(int)
+NCURSES_PUBLIC_VAR(COLS) (void)
+{
+    return SP ? SP->_COLS : _nc_prescreen._COLS;
+}
+NCURSES_EXPORT(int)
+NCURSES_PUBLIC_VAR(TABSIZE) (void)
+{
+    return SP ? SP->_TABSIZE : 8;
+}
+#else
 NCURSES_EXPORT_VAR(char) ttytype[NAMESIZE] = "";
 NCURSES_EXPORT_VAR(int) LINES = 0;
 NCURSES_EXPORT_VAR(int) COLS = 0;
 NCURSES_EXPORT_VAR(int) TABSIZE = 0;
+#endif
 
-static int _use_env = TRUE;
+#if NCURSES_EXT_FUNCS
+NCURSES_EXPORT(int)
+set_tabsize(int value)
+{
+    int code = OK;
+#if USE_REENTRANT
+    if (SP) {
+	SP->_TABSIZE = value;
+    } else {
+	code = ERR;
+    }
+#else
+    TABSIZE = value;
+#endif
+    return code;
+}
+#endif
 
 #if USE_SIGWINCH
-int
-_nc_handle_sigwinch(int enable)
+/*
+ * If we have a pending SIGWINCH, set the flag in each screen.
+ */
+NCURSES_EXPORT(int)
+_nc_handle_sigwinch(SCREEN *sp)
 {
-    static int have_sigwinch = 0;	/* initially no SIGWINCH's */
-    static int can_resizeall = 1;	/* initially enabled */
     SCREEN *scan;
-    int result;
 
-    switch (enable) {
-    default:
-	/* record a SIGWINCH */
-	have_sigwinch = 1;
-	break;
-    case 0:
-	/* temporarily disable the next block */
-	--can_resizeall;
-	break;
-    case 1:
-	/* temporarily enable the next block */
-	++can_resizeall;
-	break;
-    }
+    if (_nc_globals.have_sigwinch) {
+	_nc_globals.have_sigwinch = 0;
 
-    /*
-     * If we have a pending SIGWINCH, set the flag in each screen.
-     * But do this only if the block is enabled.
-     */
-    if (can_resizeall-- >= 0) {	/* test and disable */
-	if (have_sigwinch) {
-	    scan = _nc_screen_chain;
-	    while (scan) {
-		scan->_sig_winch = TRUE;
-		scan = scan->_next_screen;
-	    }
-	    have_sigwinch = 0;
+	for (each_screen(scan)) {
+	    scan->_sig_winch = TRUE;
 	}
     }
-    result = can_resizeall + 1;	/* reenable (unless disables are nested) */
-    can_resizeall = result;
 
-    return result;
+    return (sp ? sp->_sig_winch : 0);
 }
 
 #endif
@@ -156,19 +175,20 @@ NCURSES_EXPORT(void)
 use_env(bool f)
 {
     T((T_CALLED("use_env()")));
-    _use_env = f;
+    _nc_prescreen.use_env = f;
     returnVoid;
 }
 
-static void
-_nc_get_screensize(int *linep, int *colp)
+NCURSES_EXPORT(void)
+_nc_get_screensize(SCREEN *sp, int *linep, int *colp)
 /* Obtain lines/columns values from the environment and/or terminfo entry */
 {
+    int my_tabsize;
+
     /* figure out the size of the screen */
     T(("screen size: terminfo lines = %d columns = %d", lines, columns));
 
-    _nc_handle_sigwinch(0);
-    if (!_use_env) {
+    if (!_nc_prescreen.use_env) {
 	*linep = (int) lines;
 	*colp = (int) columns;
     } else {			/* usually want to query LINES and COLUMNS from environment */
@@ -214,7 +234,7 @@ _nc_get_screensize(int *linep, int *colp)
 		 * environment variable.
 		 */
 		if (*linep <= 0)
-		    *linep = (SP != 0 && SP->_filtered) ? 1 : WINSIZE_ROWS(size);
+		    *linep = (sp != 0 && sp->_filtered) ? 1 : WINSIZE_ROWS(size);
 		if (*colp <= 0)
 		    *colp = WINSIZE_COLS(size);
 	    }
@@ -246,38 +266,44 @@ _nc_get_screensize(int *linep, int *colp)
 	lines = (short) (*linep);
 	columns = (short) (*colp);
     }
-    _nc_handle_sigwinch(1);
 
     T(("screen size is %dx%d", *linep, *colp));
 
     if (VALID_NUMERIC(init_tabs))
-	TABSIZE = (int) init_tabs;
+	my_tabsize = (int) init_tabs;
     else
-	TABSIZE = 8;
+	my_tabsize = 8;
+
+#if USE_REENTRANT
+    if (sp != 0)
+	sp->_TABSIZE = my_tabsize;
+#else
+    TABSIZE = my_tabsize;
+#endif
     T(("TABSIZE = %d", TABSIZE));
 }
 
 #if USE_SIZECHANGE
 NCURSES_EXPORT(void)
-_nc_update_screensize(void)
+_nc_update_screensize(SCREEN *sp)
 {
     int old_lines = lines;
     int new_lines;
     int old_cols = columns;
     int new_cols;
 
-    _nc_get_screensize(&new_lines, &new_cols);
+    _nc_get_screensize(sp, &new_lines, &new_cols);
 
     /*
      * See is_term_resized() and resizeterm().
      * We're doing it this way because those functions belong to the upper
      * ncurses library, while this resides in the lower terminfo library.
      */
-    if (SP != 0
-	&& SP->_resize != 0) {
+    if (sp != 0
+	&& sp->_resize != 0) {
 	if ((new_lines != old_lines) || (new_cols != old_cols))
-	    SP->_resize(new_lines, new_cols);
-	SP->_sig_winch = FALSE;
+	    sp->_resize(new_lines, new_cols);
+	sp->_sig_winch = FALSE;
     }
 }
 #endif
@@ -536,8 +562,10 @@ _nc_setupterm(NCURSES_CONST char *tname, int Filedes, int *errret, bool reuse)
 	if (command_character && getenv("CC"))
 	    do_prototype();
 
+#if !USE_REENTRANT
 	strncpy(ttytype, cur_term->type.term_names, NAMESIZE - 1);
 	ttytype[NAMESIZE - 1] = '\0';
+#endif
 
 	cur_term->Filedes = Filedes;
 	cur_term->_termname = strdup(tname);
@@ -557,12 +585,16 @@ _nc_setupterm(NCURSES_CONST char *tname, int Filedes, int *errret, bool reuse)
     /*
      * We should always check the screensize, just in case.
      */
-    _nc_get_screensize(&LINES, &COLS);
+#if USE_REENTRANT
+    _nc_get_screensize(SP,
+		       SP ? &(SP->_LINES) : &(_nc_prescreen._LINES),
+		       SP ? &(SP->_COLS) : &(_nc_prescreen._COLS));
+#else
+    _nc_get_screensize(SP, &LINES, &COLS);
+#endif
 
     if (errret)
 	*errret = TGETENT_YES;
-
-    T((T_CREATE("screen %s %dx%d"), tname, LINES, COLS));
 
     if (generic_type) {
 	ret_error(TGETENT_NO, "'%s': I need something more specific.\n", tname);

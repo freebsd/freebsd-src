@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2004,2005 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2005,2008 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -43,7 +43,7 @@
 #include <curses.priv.h>
 #include <ctype.h>
 
-MODULE_ID("$Id: lib_insch.c,v 1.24 2005/02/26 19:27:28 tom Exp $")
+MODULE_ID("$Id: lib_insch.c,v 1.25 2008/02/03 00:14:37 tom Exp $")
 
 /*
  * Insert the given character, updating the current location to simplify
@@ -95,7 +95,8 @@ _nc_insert_ch(WINDOW *win, chtype ch)
 	} else if (is8bits(ChCharOf(ch)) && iscntrl(ChCharOf(ch))) {
 	    s = unctrl(ChCharOf(ch));
 	    while (*s != '\0') {
-		if ((code = _nc_insert_ch(win, ChAttrOf(ch) | UChar(*s))) != OK)
+		code = _nc_insert_ch(win, ChAttrOf(ch) | UChar(*s));
+		if (code != OK)
 		    break;
 		++s;
 	    }
@@ -107,8 +108,23 @@ _nc_insert_ch(WINDOW *win, chtype ch)
 	     */
 	    SetChar2(wch, ch);
 	    wch = _nc_render(win, wch);
-	    if (_nc_build_wch(win, &wch) >= 0)
+	    count = _nc_build_wch(win, &wch);
+	    if (count > 0) {
 		code = wins_wch(win, &wch);
+	    } else if (count == -1) {
+		/* handle EILSEQ */
+		if (is8bits(ch)) {
+		    s = unctrl(ChCharOf(ch));
+		    while (*s != '\0') {
+			code = _nc_insert_ch(win, ChAttrOf(ch) | UChar(*s));
+			if (code != OK)
+			    break;
+			++s;
+		    }
+		} else {
+		    code = ERR;
+		}
+	    }
 	}
 #endif
 	break;

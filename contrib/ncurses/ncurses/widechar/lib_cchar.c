@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2001-2004,2005 Free Software Foundation, Inc.              *
+ * Copyright (c) 2001-2005,2007 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -35,7 +35,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_cchar.c,v 1.11 2005/01/29 21:29:16 tom Exp $")
+MODULE_ID("$Id: lib_cchar.c,v 1.12 2007/05/12 19:03:06 tom Exp $")
 
 /* 
  * The SuSv2 description leaves some room for interpretation.  We'll assume wch
@@ -54,8 +54,9 @@ setcchar(cchar_t *wcval,
     int len;
     int code = OK;
 
-    TR(TRACE_CCALLS, (T_CALLED("setcchar(%p,%s,%ld,%d,%p)"),
-		      wcval, _nc_viswbuf(wch), attrs, color_pair, opts));
+    TR(TRACE_CCALLS, (T_CALLED("setcchar(%p,%s,%lu,%d,%p)"),
+		      wcval, _nc_viswbuf(wch),
+		      (unsigned long) attrs, color_pair, opts));
 
     len = wcslen(wch);
     if (opts != NULL

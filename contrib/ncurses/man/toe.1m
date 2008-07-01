@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998-2004,2006 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2006,2008 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,8 +26,8 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: toe.1m,v 1.18 2006/05/13 15:14:01 tom Exp $
-.TH toe 1M ""
+.\" $Id: toe.1m,v 1.21 2008/01/05 20:57:16 tom Exp $
+.TH @TOE@ 1M ""
 .ds n 5
 .ds d @TERMINFO@
 .SH NAME
@@ -37,10 +37,14 @@
 .br
 .SH DESCRIPTION
 .PP
-With no options, \fBtoe\fR lists all available terminal types by primary name
-with descriptions.  File arguments specify the directories to be scanned; if no
-such arguments are given, your default terminfo directory is scanned.  If you
-also specify the \fB-h\fR option, a directory header will be issued as each
+With no options,
+\fBtoe\fR lists all available terminal types by primary name
+with descriptions.
+File arguments specify the directories to be scanned; if no
+such arguments are given,
+your default terminfo directory is scanned.
+If you also specify the \fB-h\fR option,
+a directory header will be issued as each
 directory is entered.
 .PP
 There are other options intended for use by terminfo file maintainers:
@@ -50,16 +54,25 @@ report on all of the terminal databases which ncurses would search,
 rather than only the first one that it finds.
 .TP
 \fB-u\fR \fIfile\fR
-says to issue a report on dependencies in the given file. This report condenses
-the `use' relation: each line consists of the primary name of a terminal that
-has use capabilities, followed by a colon, followed by the
+says to write a report to the standard output,
+listing dependencies in the given terminfo/termcap source file.
+The report condenses the `use' relation:
+each line consists of the primary name of a terminal that
+has use capabilities,
+followed by a colon,
+followed by the
 whitespace-separated primary names of all terminals which occur in those use
-capabilities, followed by a newline
+capabilities,
+followed by a newline
 .TP
 \fB-U\fR \fIfile\fR
-says to issue a report on reverse dependencies in the given file. This report
-reverses the `use' relation: each line consists of the primary name of a
-terminal that occurs in use capabilities, followed by a colon, followed by the
+says to write a report to the standard output,
+listing reverse dependencies in the given terminfo/termcap source file.
+The report reverses the `use' relation:
+each line consists of the primary name of a
+terminal that occurs in use capabilities,
+followed by a colon,
+followed by the
 whitespace-separated primary names of all terminals which depend on it,
 followed by a newline.
 .TP
@@ -67,10 +80,11 @@ followed by a newline.
 specifies that (verbose) output be written to standard error,
 showing \fBtoe\fR's progress.
 The optional parameter \fIn\fR is a number from 1 to 10,
-interpreted as for \fBtic\fR(1).
+interpreted as for \fB@TIC@\fR(1M).
 .TP
 \fB-V\fR
-reports the version of ncurses which was used in this program, and exits.
+reports the version of ncurses which was used in this program,
+and exits.
 .SH FILES
 .TP 5
 \fB\*d/?/*\fR

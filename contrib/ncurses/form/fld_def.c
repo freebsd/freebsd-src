@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2004,2005 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2005,2007 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -32,7 +32,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: fld_def.c,v 1.33 2005/04/16 17:31:17 tom Exp $")
+MODULE_ID("$Id: fld_def.c,v 1.36 2007/10/13 19:29:58 tom Exp $")
 
 /* this can't be readonly */
 static FIELD default_field =
@@ -93,7 +93,7 @@ _nc_Make_Argument(const FIELDTYPE *typ, va_list *ap, int *err)
       assert(err != 0 && ap != (va_list *)0);
       if ((typ->status & _LINKED_TYPE) != 0)
 	{
-	  p = (TypeArgument *)malloc(sizeof(TypeArgument));
+	  p = typeMalloc(TypeArgument, 1);
 
 	  if (p != 0)
 	    {
@@ -141,7 +141,7 @@ _nc_Copy_Argument(const FIELDTYPE *typ, const TypeArgument *argp, int *err)
       assert(err != 0 && argp != 0);
       if ((typ->status & _LINKED_TYPE) != 0)
 	{
-	  p = (TypeArgument *)malloc(sizeof(TypeArgument));
+	  p = typeMalloc(TypeArgument, 1);
 
 	  if (p != 0)
 	    {
@@ -289,8 +289,9 @@ new_field(int rows, int cols, int frow, int fcol, int nrow, int nbuf)
       nrow >= 0 &&
       nbuf >= 0 &&
       ((err = E_SYSTEM_ERROR) != 0) &&	/* trick: this resets the default error */
-      (New_Field = (FIELD *)malloc(sizeof(FIELD))) != 0)
+      (New_Field = typeMalloc(FIELD, 1)) != 0)
     {
+      T((T_CREATE("field %p"), New_Field));
       *New_Field = default_field;
       New_Field->rows = rows;
       New_Field->cols = cols;
@@ -304,7 +305,7 @@ new_field(int rows, int cols, int frow, int fcol, int nrow, int nbuf)
 
 #if USE_WIDEC_SUPPORT
       New_Field->working = newpad(1, Buffer_Length(New_Field) + 1);
-      New_Field->expanded = (char **)calloc(1 + (unsigned)rows, sizeof(char *));
+      New_Field->expanded = typeCalloc(char *, 1 + (unsigned)nbuf);
 #endif
 
       if (_nc_Copy_Type(New_Field, &default_field))

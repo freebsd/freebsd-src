@@ -1,5 +1,5 @@
 -------------------------------------------------------------------------------
--- Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.               --
+-- Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.               --
 --                                                                           --
 -- Permission is hereby granted, free of charge, to any person obtaining a   --
 -- copy of this software and associated documentation files (the             --
@@ -25,7 +25,7 @@
 -- sale, use or other dealings in this Software without prior written        --
 -- authorization.                                                            --
 -------------------------------------------------------------------------------
--- $Id: TO-DO,v 1.48 2006/10/28 19:49:16 tom Exp $
+-- $Id: TO-DO,v 1.49 2007/02/03 16:29:17 tom Exp $
 -------------------------------------------------------------------------------
 
 SHORT-TERM TO-DO ITEMS:
@@ -58,9 +58,6 @@ Known Problems:
 + The window classes defined in the c++ subdirectory need documentation.  Some
   C++ programmer could earn a lot of good karma by doing this...
 
-+ The resizeterm() function does not handle ripped-off lines such as that done
-  for the slk_XXX functions.
-
 + vid_attr() should support the set_a_attributes (sgr1) string, but does not. 
   There appear to be no terminals that require that functionality.
 
@@ -75,19 +72,19 @@ Portability (or lack thereof):
   ncurses/tty/lib_tstp.c .
 
 + In theory, vwprintw and vwscanf are supposed to use the older varargs.h
-  interface for handling variadic argument lists.  Linux doesn't have
-  varargs.h, it has the newer X/Open-standard stdargs.h equivalent.  So these
-  functions use stdargs instead.  This is unlikely to be a problem unless
-  you're building ncurses on a System V old enough to only have varargs.h. 
-  (Solaris 2.5.1 uses the stdarg.h binding as well).
+  interface for handling variadic argument lists (and are deprecated by X/Open
+  for that reason).  Linux doesn't have varargs.h, it has the newer
+  X/Open-standard stdargs.h equivalent.  So these functions use stdargs
+  instead.  This is unlikely to be a problem unless you're building ncurses on
+  a System V old enough to only have varargs.h.  (Solaris 2.5.1 used the
+  stdarg.h binding as well).
 
 + If you're using a BSD earlier than 4.4BSD, or a Linux old enough not to have
   a native vsscanf(3) in its library, vwscanw() will not work.  You lose.  (It
   should work on any System V, however).  If you want to fix this, add an
   implementation to ncurses/vsscanf.c.
 
-+ The C++ binding fails to build with a few C++ compilers, mainly with
-  configure script problems with vsscanf().
++ The C++ binding fails to build with a few C++ compilers.
 
 + terminfo.5 does not format with the SunOS (and most other platform's) tbl
   utility because it relies on a diversion for each table entry.  Get the
@@ -106,7 +103,7 @@ LONGER-TERM TO-DO ITEMS:
 
 1. Extended COSE conformance
 
-There is an XPG4 standard recently released which describes a superset
+There is an XPG4 standard released in 1996 which describes a superset
 of the SVr4 API.  The library is BASE conformant with this standard.
 We would like to make ncurses fully conformant at the EXTENDED level
 supporting internationalization.

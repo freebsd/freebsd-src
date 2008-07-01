@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2002,2006 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -35,7 +35,7 @@
 #include <curses.priv.h>
 #include <term.h>		/* cur_term */
 
-MODULE_ID("$Id: lib_tracebits.c,v 1.13 2006/12/10 01:33:00 tom Exp $")
+MODULE_ID("$Id: lib_tracebits.c,v 1.15 2007/06/30 16:14:20 tom Exp $")
 
 #if SVR4_TERMIO && !defined(_POSIX_SOURCE)
 #define _POSIX_SOURCE
@@ -53,8 +53,25 @@ MODULE_ID("$Id: lib_tracebits.c,v 1.13 2006/12/10 01:33:00 tom Exp $")
 #ifndef TOSTOP
 #define TOSTOP 0
 #endif
+
 #ifndef IEXTEN
 #define IEXTEN 0
+#endif
+
+#ifndef ONLCR
+#define ONLCR 0
+#endif
+
+#ifndef OCRNL
+#define OCRNL 0
+#endif
+
+#ifndef ONOCR
+#define ONOCR 0
+#endif
+
+#ifndef ONLRET
+#define ONLRET 0
 #endif
 
 #ifdef TRACE
@@ -108,8 +125,12 @@ _nc_trace_ttymode(TTY * tty)
     {
 	{OPOST, "OPOST"},
 	{OFLAGS_TABS, "XTABS"},
+	{ONLCR, "ONLCR"},
+	{OCRNL, "OCRNL"},
+	{ONOCR, "ONOCR"},
+	{ONLRET, "ONLRET"},
 	{0, NULL}
-#define ALLOUT	(OPOST)
+#define ALLOUT	(OPOST|OFLAGS_TABS|ONLCR|OCRNL|ONOCR|ONLRET)
     }, cflags[] =
     {
 	{CLOCAL, "CLOCAL"},

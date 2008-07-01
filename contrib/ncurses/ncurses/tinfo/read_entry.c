@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -42,7 +42,7 @@
 #include <tic.h>
 #include <term_entry.h>
 
-MODULE_ID("$Id: read_entry.c,v 1.99 2006/08/19 15:58:50 tom Exp $")
+MODULE_ID("$Id: read_entry.c,v 1.100 2007/11/17 23:56:50 tom Exp $")
 
 #define TYPE_CALLOC(type,elts) typeCalloc(type, (unsigned)(elts))
 
@@ -409,7 +409,7 @@ _nc_read_tic_entry(char *filename,
 	unsigned need = 4 + strlen(path) + strlen(name);
 
 	if (need <= limit) {
-	    (void) sprintf(filename, "%s/%c/%s", path, *name, name);
+	    (void) sprintf(filename, "%s/" LEAF_FMT "/%s", path, *name, name);
 	    result = _nc_read_file_entry(filename, tp);
 	}
     }

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2004,2006 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -34,7 +34,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: fty_regex.c,v 1.19 2006/04/22 21:33:05 tom Exp $")
+MODULE_ID("$Id: fty_regex.c,v 1.21 2007/10/13 19:33:50 tom Exp $")
 
 #if HAVE_REGEX_H_FUNCS		/* We prefer POSIX regex */
 #include <regex.h>
@@ -105,15 +105,17 @@ Make_RegularExpression_Type(va_list *ap)
   char *rx = va_arg(*ap, char *);
   RegExp_Arg *preg;
 
-  preg = (RegExp_Arg *)malloc(sizeof(RegExp_Arg));
+  preg = typeMalloc(RegExp_Arg, 1);
 
   if (preg)
     {
-      if (((preg->pRegExp = (regex_t *) malloc(sizeof(regex_t))) != 0)
+      T((T_CREATE("RegExp_Arg %p"), preg));
+      if (((preg->pRegExp = typeMalloc(regex_t, 1)) != 0)
 	  && !regcomp(preg->pRegExp, rx,
 		      (REG_EXTENDED | REG_NOSUB | REG_NEWLINE)))
 	{
-	  preg->refCount = (unsigned long *)malloc(sizeof(unsigned long));
+	  T((T_CREATE("regex_t %p"), preg->pRegExp));
+	  preg->refCount = typeMalloc(unsigned long, 1);
 
 	  *(preg->refCount) = 1;
 	}
@@ -130,20 +132,21 @@ Make_RegularExpression_Type(va_list *ap)
   char *rx = va_arg(*ap, char *);
   RegExp_Arg *pArg;
 
-  pArg = (RegExp_Arg *)malloc(sizeof(RegExp_Arg));
+  pArg = typeMalloc(RegExp_Arg, 1);
 
   if (pArg)
     {
       int blen = RX_INCREMENT;
 
+      T((T_CREATE("RegExp_Arg %p"), pArg));
       pArg->compiled_expression = NULL;
-      pArg->refCount = (unsigned long *)malloc(sizeof(unsigned long));
+      pArg->refCount = typeMalloc(unsigned long, 1);
 
       *(pArg->refCount) = 1;
 
       do
 	{
-	  char *buf = (char *)malloc(blen);
+	  char *buf = typeMalloc(char, blen);
 
 	  if (buf)
 	    {

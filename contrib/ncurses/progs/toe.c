@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -40,13 +40,11 @@
 
 #include <sys/stat.h>
 
-#include <dump_entry.h>
-
 #if USE_HASHED_DB
 #include <hashed_db.h>
 #endif
 
-MODULE_ID("$Id: toe.c,v 1.41 2006/08/19 18:18:09 tom Exp $")
+MODULE_ID("$Id: toe.c,v 1.48 2008/01/05 20:41:26 tom Exp $")
 
 #define isDotname(name) (!strcmp(name, ".") || !strcmp(name, ".."))
 
@@ -59,8 +57,7 @@ static void
 ExitProgram(int code)
 {
     _nc_free_entries(_nc_head);
-    _nc_leaks_dump_entry();
-    _nc_free_and_exit(code);
+    _nc_free_tic(code);
 }
 #endif
 
@@ -319,6 +316,7 @@ main(int argc, char *argv[])
     bool direct_dependencies = FALSE;
     bool invert_dependencies = FALSE;
     bool header = FALSE;
+    char *report_file = 0;
     int i;
     int code;
     int this_opt, last_opt = '?';
@@ -326,7 +324,7 @@ main(int argc, char *argv[])
 
     _nc_progname = _nc_rootname(argv[0]);
 
-    while ((this_opt = getopt(argc, argv, "0123456789ahuvUV")) != EOF) {
+    while ((this_opt = getopt(argc, argv, "0123456789ahu:vU:V")) != -1) {
 	/* handle optional parameter */
 	if (isdigit(this_opt)) {
 	    switch (last_opt) {
@@ -352,12 +350,14 @@ main(int argc, char *argv[])
 	    break;
 	case 'u':
 	    direct_dependencies = TRUE;
+	    report_file = optarg;
 	    break;
 	case 'v':
 	    v_opt = 1;
 	    break;
 	case 'U':
 	    invert_dependencies = TRUE;
+	    report_file = optarg;
 	    break;
 	case 'V':
 	    puts(curses_version());
@@ -368,15 +368,15 @@ main(int argc, char *argv[])
     }
     set_trace_level(v_opt);
 
-    if (direct_dependencies || invert_dependencies) {
-	if (freopen(argv[optind], "r", stdin) == 0) {
+    if (report_file != 0) {
+	if (freopen(report_file, "r", stdin) == 0) {
 	    (void) fflush(stdout);
-	    fprintf(stderr, "%s: can't open %s\n", _nc_progname, argv[optind]);
+	    fprintf(stderr, "%s: can't open %s\n", _nc_progname, report_file);
 	    ExitProgram(EXIT_FAILURE);
 	}
 
 	/* parse entries out of the source file */
-	_nc_set_source(argv[optind]);
+	_nc_set_source(report_file);
 	_nc_read_entry_source(stdin, 0, FALSE, FALSE, NULLHOOK);
     }
 

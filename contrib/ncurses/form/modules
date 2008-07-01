@@ -1,6 +1,6 @@
-# $Id: modules,v 1.14 2004/12/25 23:29:22 tom Exp $
+# $Id: modules,v 1.15 2006/12/24 00:52:58 tom Exp $
 ##############################################################################
-# Copyright (c) 1998,2004 Free Software Foundation, Inc.                     #
+# Copyright (c) 1998-2004,2006 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -27,7 +27,7 @@
 # authorization.                                                             #
 ##############################################################################
 #
-# Author: Thomas E. Dickey
+# Author: Thomas E. Dickey	1995-on
 #
 
 @ base
@@ -72,3 +72,5 @@ fty_int		lib		$(srcdir)	$(FORM_PRIV_H)
 fty_ipv4	lib		$(srcdir)	$(FORM_PRIV_H)
 fty_num		lib		$(srcdir)	$(FORM_PRIV_H)
 fty_regex	lib		$(srcdir)	$(FORM_PRIV_H)
+
+# vile:makemode
