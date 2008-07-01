@@ -2998,6 +2998,7 @@ static int
 aac_poll(struct cdev *dev, int poll_events, d_thread_t *td)
 {
 	struct aac_softc *sc;
+	struct aac_fib_context *ctx;
 	int revents;
 
 	sc = dev->si_drv1;
@@ -3005,8 +3006,12 @@ aac_poll(struct cdev *dev, int poll_events, d_thread_t *td)
 
 	mtx_lock(&sc->aac_aifq_lock);
 	if ((poll_events & (POLLRDNORM | POLLIN)) != 0) {
-		if (sc->aifq_idx != 0 || sc->aifq_filled)
-			revents |= poll_events & (POLLIN | POLLRDNORM);
+		for (ctx = sc->fibctx; ctx; ctx = ctx->next) {
+			if (ctx->ctx_idx != sc->aifq_idx || ctx->ctx_wrap) {
+				revents |= poll_events & (POLLIN | POLLRDNORM);
+				break;
+			}
+		}
 	}
 	mtx_unlock(&sc->aac_aifq_lock);
 
