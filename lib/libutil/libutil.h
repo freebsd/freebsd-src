@@ -71,6 +71,7 @@ void	clean_environment(const char * const *_white,
 int	extattr_namespace_to_string(int _attrnamespace, char **_string);
 int	extattr_string_to_namespace(const char *_string, int *_attrnamespace);
 int	flopen(const char *_path, int _flags, ...);
+void	hexdump(const void *ptr, int length, const char *hdr, int flags);
 void	login(struct utmp *_ut);
 int	login_tty(int _fd);
 int	logout(const char *_line);
@@ -170,5 +171,12 @@ __END_DECLS
 
 #define HN_GETSCALE		0x10
 #define HN_AUTOSCALE		0x20
+
+/* hexdump(3) */
+#define	HD_COLUMN_MASK		0xff
+#define	HD_DELIM_MASK		0xff00
+#define	HD_OMIT_COUNT		(1 << 16)
+#define	HD_OMIT_HEX		(1 << 17)
+#define	HD_OMIT_CHARS		(1 << 18)
 
 #endif /* !_LIBUTIL_H_ */
