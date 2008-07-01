@@ -40,6 +40,7 @@
 #include <sys/proc.h>
 #include <sys/queue.h>
 #include <sys/stat.h>
+#include <sys/sx.h>
 #include <sys/sysctl.h>
 #include <sys/time.h>
 #include <sys/vnode.h>
@@ -58,9 +59,8 @@
 #include <fs/smbfs/smbfs_subr.h>
 
 #define	SMBFS_NOHASH(smp, hval)	(&(smp)->sm_hash[(hval) & (smp)->sm_hashlen])
-#define	smbfs_hash_lock(smp, td)	lockmgr(&smp->sm_hashlock, LK_EXCLUSIVE, NULL, td)
-#define	smbfs_hash_unlock(smp, td)	lockmgr(&smp->sm_hashlock, LK_RELEASE, NULL, td)
-
+#define	smbfs_hash_lock(smp, td)	sx_xlock(&smp->sm_hashlock)
+#define	smbfs_hash_unlock(smp, td)	sx_xunlock(&smp->sm_hashlock)
 
 extern struct vop_vector smbfs_vnodeops;	/* XXX -> .h file */
 
@@ -308,7 +308,6 @@ smbfs_reclaim(ap)
         } */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
-	struct thread *td = ap->a_td;
 	struct vnode *dvp;
 	struct smbnode *np = VTOSMB(vp);
 	struct smbmount *smp = VTOSMBFS(vp);
