@@ -55,6 +55,8 @@ __FBSDID("$FreeBSD$");
 #define ACPI_ASUS_METHOD_BRN	1
 #define ACPI_ASUS_METHOD_DISP	2
 #define ACPI_ASUS_METHOD_LCD	3
+#define ACPI_ASUS_METHOD_CAMERA	4
+#define ACPI_ASUS_METHOD_CARDRD 5
 
 #define _COMPONENT	ACPI_OEM
 ACPI_MODULE_NAME("ASUS")
@@ -79,6 +81,14 @@ struct acpi_asus_model {
 
 	char	*disp_get;
 	char	*disp_set;
+
+	char	*cam_get;
+	char	*cam_set;
+
+	char	*crd_get;
+	char	*crd_set;
+
+	void	(*n_func)(ACPI_HANDLE, UINT32, void *);
 };
 
 struct acpi_asus_led {
@@ -114,6 +124,8 @@ struct acpi_asus_softc {
 	int			s_brn;
 	int			s_disp;
 	int			s_lcd;
+	int			s_cam;
+	int			s_crd;
 };
 
 /*
@@ -375,6 +387,8 @@ static struct acpi_asus_model acpi_samsung_models[] = {
 	{ .name = NULL }
 };
 
+static void	acpi_asus_eeepc_notify(ACPI_HANDLE h, UINT32 notify, void *context);
+
 /*
  * EeePC have an Asus ASUS010 gadget interface,
  * but they can't be probed quite the same way as Asus laptops.
@@ -383,7 +397,12 @@ static struct acpi_asus_model acpi_eeepc_models[] = {
 	{
 		.name		= "EEE",
 		.brn_get	= "\\_SB.ATKD.PBLG",
-		.brn_set	= "\\_SB.ATKD.PBLS"
+		.brn_set	= "\\_SB.ATKD.PBLS",
+		.cam_get	= "\\_SB.ATKD.CAMG",
+		.cam_set	= "\\_SB.ATKD.CAMS",
+		.crd_set	= "\\_SB.ATKD.CRDS",
+		.crd_get	= "\\_SB.ATKD.CRDG",
+		.n_func		= acpi_asus_eeepc_notify
 	},
 
 	{ .name = NULL }
@@ -393,21 +412,37 @@ static struct {
 	char	*name;
 	char	*description;
 	int	method;
+	int	flags;
 } acpi_asus_sysctls[] = {
 	{
 		.name		= "lcd_backlight",
 		.method		= ACPI_ASUS_METHOD_LCD,
-		.description	= "state of the lcd backlight"
+		.description	= "state of the lcd backlight",
+		.flags 		= CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_ANYBODY
 	},
 	{
 		.name		= "lcd_brightness",
 		.method		= ACPI_ASUS_METHOD_BRN,
-		.description	= "brightness of the lcd panel"
+		.description	= "brightness of the lcd panel",
+		.flags 		= CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_ANYBODY
 	},
 	{
 		.name		= "video_output",
 		.method		= ACPI_ASUS_METHOD_DISP,
-		.description	= "display output state"
+		.description	= "display output state",
+		.flags 		= CTLTYPE_INT | CTLFLAG_RW
+	},
+	{
+		.name		= "camera",
+		.method		= ACPI_ASUS_METHOD_CAMERA,
+		.description	= "internal camera state",  
+		.flags 		= CTLTYPE_INT | CTLFLAG_RW
+	},
+	{
+		.name		= "cardreader",
+		.method		= ACPI_ASUS_METHOD_CARDRD,
+		.description	= "internal card reader state",
+		.flags 		= CTLTYPE_INT | CTLFLAG_RW
 	},
 
 	{ .name = NULL }
@@ -647,7 +682,7 @@ acpi_asus_attach(device_t dev)
 		SYSCTL_ADD_PROC(&sc->sysctl_ctx,
 		    SYSCTL_CHILDREN(sc->sysctl_tree), OID_AUTO,
 		    acpi_asus_sysctls[i].name,
-		    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_ANYBODY,
+		    acpi_asus_sysctls[i].flags,
 		    sc, i, acpi_asus_sysctl, "I",
 		    acpi_asus_sysctls[i].description);
 	}
@@ -708,8 +743,11 @@ acpi_asus_attach(device_t dev)
 	AcpiEvaluateObject(sc->handle, "BSTS", NULL, NULL);
 
 	/* Handle notifies */
+	if (sc->model->n_func == NULL)
+		sc->model->n_func = acpi_asus_notify;
+
 	AcpiInstallNotifyHandler(sc->handle, ACPI_SYSTEM_NOTIFY,
-	    acpi_asus_notify, dev);
+	    sc->model->n_func, dev);
 
 	return (0);
 }
@@ -862,6 +900,12 @@ acpi_asus_sysctl_get(struct acpi_asus_softc *sc, int method)
 	case ACPI_ASUS_METHOD_LCD:
 		val = sc->s_lcd;
 		break;
+	case ACPI_ASUS_METHOD_CAMERA:
+		val = sc->s_cam;
+		break;
+	case ACPI_ASUS_METHOD_CARDRD:
+		val = sc->s_crd;
+		break;
 	}
 
 	return (val);
@@ -921,6 +965,26 @@ acpi_asus_sysctl_set(struct acpi_asus_softc *sc, int method, int arg)
 		if (ACPI_SUCCESS(status))
 			sc->s_lcd = arg;
 
+		break;
+	case ACPI_ASUS_METHOD_CAMERA:
+		if (arg < 0 || arg > 1)
+			return (EINVAL);
+
+		status = AcpiEvaluateObject(sc->handle,
+		    sc->model->cam_set, NULL, NULL);
+
+		if (ACPI_SUCCESS(status))
+			sc->s_cam = arg;
+		break;
+	case ACPI_ASUS_METHOD_CARDRD:
+		if (arg < 0 || arg > 1)
+			return (EINVAL);
+
+		status = AcpiEvaluateObject(sc->handle,
+		    sc->model->crd_set, NULL, NULL);
+
+		if (ACPI_SUCCESS(status))
+			sc->s_crd = arg;
 		break;
 	}
 
@@ -1016,6 +1080,22 @@ acpi_asus_sysctl_init(struct acpi_asus_softc *sc, int method)
 			}
 		}
 		return (FALSE);
+	case ACPI_ASUS_METHOD_CAMERA:
+		if (sc->model->cam_get) {
+			status = acpi_GetInteger(sc->handle,
+			    sc->model->cam_get, &sc->s_cam);
+			if (ACPI_SUCCESS(status))
+				return (TRUE);
+		}
+		return (FALSE);
+	case ACPI_ASUS_METHOD_CARDRD:
+		if (sc->model->crd_get) {
+			status = acpi_GetInteger(sc->handle,
+			    sc->model->crd_get, &sc->s_crd);
+			if (ACPI_SUCCESS(status))
+				return (TRUE);
+		}
+		return (FALSE);
 	}
 	return (FALSE);
 }
@@ -1047,6 +1127,29 @@ acpi_asus_notify(ACPI_HANDLE h, UINT32 notify, void *context)
 	} else {
 		/* Notify devd(8) */
 		acpi_UserNotify("ASUS", h, notify);
+	}
+	ACPI_SERIAL_END(asus);
+}
+
+static void
+acpi_asus_eeepc_notify(ACPI_HANDLE h, UINT32 notify, void *context)
+{
+	struct acpi_asus_softc	*sc;
+	struct acpi_softc	*acpi_sc;
+
+	ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
+
+	sc = device_get_softc((device_t)context);
+	acpi_sc = acpi_device_get_parent_softc(sc->dev);
+
+	ACPI_SERIAL_BEGIN(asus);
+	if ((notify & ~0x20) <= 15) {
+		sc->s_brn = notify & ~0x20;
+		ACPI_VPRINT(sc->dev, acpi_sc,
+		    "Brightness increased/decreased\n");
+	} else {
+		/* Notify devd(8) */
+		acpi_UserNotify("ASUS-Eee", h, notify);
 	}
 	ACPI_SERIAL_END(asus);
 }
