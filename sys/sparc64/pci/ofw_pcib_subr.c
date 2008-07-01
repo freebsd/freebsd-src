@@ -108,8 +108,8 @@ ofw_pcib_gen_route_interrupt(device_t bridge, device_t dev, int intpin)
 		return (pcib_route_interrupt(bridge, dev, intpin));
 	}
 	/* Try at the parent. */
-	return (PCIB_ROUTE_INTERRUPT(device_get_parent(bridge), bridge,
-	    intpin));
+	return (PCIB_ROUTE_INTERRUPT(device_get_parent(device_get_parent(
+	    bridge)), bridge, intpin));
 }
 
 phandle_t
