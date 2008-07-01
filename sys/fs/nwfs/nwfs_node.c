@@ -40,6 +40,7 @@
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/queue.h>
+#include <sys/sx.h>
 #include <sys/sysctl.h>
 #include <sys/time.h>
 #include <sys/vnode.h>
@@ -62,7 +63,7 @@
 
 static LIST_HEAD(nwnode_hash_head,nwnode) *nwhashtbl;
 static u_long nwnodehash;
-static struct lock nwhashlock;
+static struct sx nwhashlock;
 
 static MALLOC_DEFINE(M_NWNODE, "nwfs_node", "NWFS vnode private part");
 static MALLOC_DEFINE(M_NWFSHASH, "nwfs_hash", "NWFS has table");
@@ -77,12 +78,12 @@ SYSCTL_PROC(_vfs_nwfs, OID_AUTO, vnprint, CTLFLAG_WR|CTLTYPE_OPAQUE,
 void
 nwfs_hash_init(void) {
 	nwhashtbl = hashinit(desiredvnodes, M_NWFSHASH, &nwnodehash);
-	lockinit(&nwhashlock, PVFS, "nwfshl", 0, 0);
+	sx_init(&nwhashlock, "nwfshl");
 }
 
 void
 nwfs_hash_free(void) {
-	lockdestroy(&nwhashlock);
+	sx_destroy(&nwhashlock);
 	free(nwhashtbl, M_NWFSHASH);
 }
 
@@ -118,6 +119,8 @@ nwfs_hashlookup(struct nwmount *nmp, ncpfid fid, struct nwnode **npp)
 	struct nwnode *np;
 	struct nwnode_hash_head *nhpp;
 
+	sx_assert(&nwhashlock, SA_XLOCKED);
+
 	nhpp = NWNOHASH(fid);
 	LIST_FOREACH(np, nhpp, n_hash) {
 		if (nmp != np->n_mount || !NWCMPF(&fid, &np->n_fid))
@@ -145,12 +148,12 @@ nwfs_allocvp(struct mount *mp, ncpfid fid, struct nw_entry_info *fap,
 	int error;
 
 loop:
-	lockmgr(&nwhashlock, LK_EXCLUSIVE, NULL, td);
+	sx_xlock(&nwhashlock);
 rescan:
 	if (nwfs_hashlookup(nmp, fid, &np) == 0) {
 		vp = NWTOV(np);
 		mtx_lock(&vp->v_interlock);
-		lockmgr(&nwhashlock, LK_RELEASE, NULL, td);
+		sx_xunlock(&nwhashlock);
 		if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, td))
 			goto loop;
 		if (fap)
@@ -158,7 +161,7 @@ rescan:
 		*vpp = vp;
 		return(0);
 	}
-	lockmgr(&nwhashlock, LK_RELEASE, NULL, td);
+	sx_xunlock(&nwhashlock);
 
 	if (fap == NULL || ((fap->attributes & aDIR) == 0 && dvp == NULL))
 		panic("nwfs_allocvp: fap = %p, dvp = %p\n", fap, dvp);
@@ -190,7 +193,7 @@ rescan:
 		np->n_parent = VTONW(dvp)->n_fid;
 	}
 	vp->v_vnlock->lk_flags |= LK_CANRECURSE;
-	lockmgr(&nwhashlock, LK_EXCLUSIVE, NULL, td);
+	sx_xlock(&nwhashlock);
 	/*
 	 * Another process can create vnode while we blocked in malloc() or
 	 * getnewvnode(). Rescan list again.
@@ -206,7 +209,7 @@ rescan:
 	nhpp = NWNOHASH(fid);
 	LIST_INSERT_HEAD(nhpp, np, n_hash);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
-	lockmgr(&nwhashlock, LK_RELEASE, NULL, td);
+	sx_xunlock(&nwhashlock);
 	
 	ASSERT_VOP_LOCKED(dvp, "nwfs_allocvp");
 	if (vp->v_type == VDIR && dvp && (dvp->v_vflag & VV_ROOT) == 0) {
@@ -239,9 +242,9 @@ nwfs_lookupnp(struct nwmount *nmp, ncpfid fid, struct thread *td,
 {
 	int error;
 
-	lockmgr(&nwhashlock, LK_EXCLUSIVE, NULL, td);
+	sx_xlock(&nwhashlock);
 	error = nwfs_hashlookup(nmp, fid, npp);
-	lockmgr(&nwhashlock, LK_RELEASE, NULL, td);
+	sx_xunlock(&nwhashlock);
 	return error;
 }
 
@@ -274,9 +277,9 @@ nwfs_reclaim(ap)
 			NCPVNDEBUG("%s: has no parent ?\n",np->n_name);
 		}
 	}
-	lockmgr(&nwhashlock, LK_EXCLUSIVE, NULL, td);
+	sx_xlock(&nwhashlock);
 	LIST_REMOVE(np, n_hash);
-	lockmgr(&nwhashlock, LK_RELEASE, NULL, td);
+	sx_xunlock(&nwhashlock);
 	if (nmp->n_root == np) {
 		nmp->n_root = NULL;
 	}
