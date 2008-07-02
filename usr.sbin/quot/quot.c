@@ -106,17 +106,14 @@ union dinode {
 	(dp)->dp1.field : (dp)->dp2.field)
 
 static union dinode *
-get_inode(fd,super,ino)
-	int fd;
-	struct fs *super;
-	ino_t ino;
+get_inode(int fd, struct fs *super, ino_t ino)
 {
 	static caddr_t ipbuf;
 	static struct cg *cgp;
 	static ino_t last;
 	static int cg;
 	struct ufs2_dinode *di2;
-	
+
 	if (fd < 0) {		/* flush cache */
 		if (ipbuf) {
 			free(ipbuf);
@@ -128,7 +125,7 @@ get_inode(fd,super,ino)
 		}
 		return 0;
 	}
-	
+
 	if (!ipbuf || ino < last || ino >= last + INOCNT(super)) {
 		if (super->fs_magic == FS_UFS2_MAGIC &&
 		    (!cgp || cg != ino_to_cg(super, ino))) {
@@ -150,7 +147,7 @@ get_inode(fd,super,ino)
 		    || read(fd, ipbuf, INOSZ(super)) != (ssize_t)INOSZ(super))
 			err(1, "read inodes");
 	}
-	
+
 	if (super->fs_magic == FS_UFS1_MAGIC)
 		return ((union dinode *)
 		    &((struct ufs1_dinode *)ipbuf)[ino % INOCNT(super)]);
@@ -167,12 +164,10 @@ get_inode(fd,super,ino)
 #define	actualblocks(fs, dp)	DIP(fs, dp, di_blocks)
 #endif
 
-static int virtualblocks(super, dp)
-	struct fs *super;
-	union dinode *dp;
+static int virtualblocks(struct fs *super, union dinode *dp)
 {
-	register off_t nblk, sz;
-	
+	off_t nblk, sz;
+
 	sz = DIP(super, dp, di_size);
 #ifdef	COMPAT
 	if (lblkno(super,sz) >= NDADDR) {
@@ -180,11 +175,11 @@ static int virtualblocks(super, dp)
 		if (sz == nblk)
 			nblk += super->fs_bsize;
 	}
-	
+
 	return sz / 1024;
-	
+
 #else	/* COMPAT */
-	
+
 	if (lblkno(super,sz) >= NDADDR) {
 		nblk = blkroundup(super,sz);
 		sz = lblkno(super,nblk);
@@ -196,20 +191,18 @@ static int virtualblocks(super, dp)
 		}
 	} else
 		nblk = fragroundup(super,sz);
-	
+
 	return nblk / 512;
 #endif	/* COMPAT */
 }
 
 static int
-isfree(super, dp)
-	struct fs *super;
-	union dinode *dp;
+isfree(struct fs *super, union dinode *dp)
 {
 #ifdef	COMPAT
 	return (DIP(super, dp, di_mode) & IFMT) == 0;
 #else	/* COMPAT */
-	
+
 	switch (DIP(super, dp, di_mode) & IFMT) {
 	case IFIFO:
 	case IFLNK:		/* should check FASTSYMLINK? */
@@ -240,11 +233,11 @@ static struct user {
 static int nusers;
 
 static void
-inituser()
+inituser(void)
 {
-	register int i;
-	register struct user *usr;
-	
+	int i;
+	struct user *usr;
+
 	if (!nusers) {
 		nusers = 8;
 		if (!(users =
@@ -259,12 +252,12 @@ inituser()
 }
 
 static void
-usrrehash()
+usrrehash(void)
 {
-	register int i;
-	register struct user *usr, *usrn;
+	int i;
+	struct user *usr, *usrn;
 	struct user *svusr;
-	
+
 	svusr = users;
 	nusers <<= 1;
 	if (!(users = (struct user *)calloc(nusers,sizeof(struct user))))
@@ -280,19 +273,18 @@ usrrehash()
 }
 
 static struct user *
-user(uid)
-	uid_t uid;
+user(uid_t uid)
 {
-	register struct user *usr;
-	register int i;
+	struct user *usr;
+	int i;
 	struct passwd *pwd;
-	
+
 	while (1) {
 		for (usr = users + (uid&(nusers - 1)), i = nusers; --i >= 0;
 		    usr--) {
 			if (!usr->name) {
 				usr->uid = uid;
-				
+
 				if (!(pwd = getpwuid(uid))) {
 					if ((usr->name = (char *)malloc(7)))
 						sprintf(usr->name,"#%d",uid);
@@ -303,9 +295,9 @@ user(uid)
 				}
 				if (!usr->name)
 					errx(1, "allocate users");
-				
+
 				return usr;
-				
+
 			} else if (usr->uid == uid)
 				return usr;
 
@@ -317,8 +309,7 @@ user(uid)
 }
 
 static int
-cmpusers(v1,v2)
-	const void *v1, *v2;
+cmpusers(const void *v1, const void *v2)
 {
 	const struct user *u1, *u2;
 	u1 = (const struct user *)v1;
@@ -331,21 +322,18 @@ cmpusers(v1,v2)
 				    cmpusers))
 
 static void
-uses(uid,blks,act)
-	uid_t uid;
-	daddr_t blks;
-	time_t act;
+uses(uid_t uid, daddr_t blks, time_t act)
 {
 	static time_t today;
-	register struct user *usr;
-	
+	struct user *usr;
+
 	if (!today)
 		time(&today);
-	
+
 	usr = user(uid);
 	usr->count++;
 	usr->space += blks;
-	
+
 	if (today - act > 90L * 24L * 60L * 60L)
 		usr->spc90 += blks;
 	if (today - act > 60L * 24L * 60L * 60L)
@@ -367,11 +355,11 @@ struct fsizes {
 } *fsizes;
 
 static void
-initfsizes()
+initfsizes(void)
 {
-	register struct fsizes *fp;
-	register int i;
-	
+	struct fsizes *fp;
+	int i;
+
 	for (fp = fsizes; fp; fp = fp->fsz_next) {
 		for (i = FSZCNT; --i >= 0;) {
 			fp->fsz_count[i] = 0;
@@ -381,17 +369,14 @@ initfsizes()
 }
 
 static void
-dofsizes(fd, super, name)
-	int fd;
-	struct fs *super;
-	char *name;
+dofsizes(int fd, struct fs *super, char *name)
 {
 	ino_t inode, maxino;
 	union dinode *dp;
 	daddr_t sz, ksz;
 	struct fsizes *fp, **fsp;
-	register int i;
-	
+	int i;
+
 	maxino = super->fs_ncg * super->fs_ipg - 1;
 #ifdef	COMPAT
 	if (!(fsizes = (struct fsizes *)malloc(sizeof(struct fsizes))))
@@ -456,16 +441,13 @@ dofsizes(fd, super, name)
 }
 
 static void
-douser(fd, super, name)
-	int fd;
-	struct fs *super;
-	char *name;
+douser(int fd, struct fs *super, char *name)
 {
 	ino_t inode, maxino;
 	struct user *usr, *usrs;
 	union dinode *dp;
-	register int n;
-	
+	int n;
+
 	maxino = super->fs_ncg * super->fs_ipg - 1;
 	for (inode = 0; inode < maxino; inode++) {
 		errno = 0;
@@ -499,16 +481,13 @@ douser(fd, super, name)
 }
 
 static void
-donames(fd, super, name)
-	int fd;
-	struct fs *super;
-	char *name;
+donames(int fd, struct fs *super, char *name)
 {
 	int c;
 	ino_t inode;
 	ino_t maxino;
 	union dinode *dp;
-	
+
 	maxino = super->fs_ncg * super->fs_ipg - 1;
 	/* first skip the name of the filesystem */
 	while ((c = getchar()) != EOF && (c < '0' || c > '9'))
@@ -544,7 +523,7 @@ donames(fd, super, name)
 }
 
 static void
-usage()
+usage(void)
 {
 #ifdef	COMPAT
 	fprintf(stderr,"usage: quot [-nfcvha] [filesystem ...]\n");
@@ -561,12 +540,11 @@ static int sblock_try[] = SBLOCKSEARCH;
 static char superblock[SBLOCKSIZE];
 
 void
-quot(name,mp)
-	char *name, *mp;
+quot(char *name, char *mp)
 {
 	int i, fd;
 	struct fs *fs;
-	
+
 	get_inode(-1, NULL, 0);		/* flush cache */
 	inituser();
 	initfsizes();
@@ -606,9 +584,7 @@ quot(name,mp)
 }
 
 int
-main(argc,argv)
-	int argc;
-	char **argv;
+main(int argc, char *argv[])
 {
 	char all = 0;
 	struct statfs *mp;
@@ -616,7 +592,7 @@ main(argc,argv)
 	char dev[MNAMELEN + 1];
 	char *nm;
 	int cnt;
-	
+
 	func = douser;
 #ifndef	COMPAT
 	header = getbsize(&headerlen,&blocksize);

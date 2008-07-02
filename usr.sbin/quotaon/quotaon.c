@@ -75,7 +75,7 @@ static void usage(void);
 int
 main(int argc, char **argv)
 {
-	register struct fstab *fs;
+	struct fstab *fs;
 	char *qfnp, *whoami;
 	long argnum, done = 0;
 	int ch, i, offmode = 0, errs = 0;
@@ -142,7 +142,7 @@ main(int argc, char **argv)
 }
 
 static void
-usage()
+usage(void)
 {
 
 	fprintf(stderr, "%s\n%s\n%s\n%s\n",
@@ -186,11 +186,9 @@ quotaonoff(fs, offmode, type, qfpathname)
  * Check to see if target appears in list of size cnt.
  */
 int
-oneof(target, list, cnt)
-	register char *target, *list[];
-	int cnt;
+oneof(char *target, char *list[], int cnt)
 {
-	register int i;
+	int i;
 
 	for (i = 0; i < cnt; i++)
 		if (strcmp(target, list[i]) == 0)
@@ -202,10 +200,7 @@ oneof(target, list, cnt)
  * Check to see if a particular quota is to be enabled.
  */
 int
-hasquota(fs, type, qfnamep)
-	struct fstab *fs;
-	int type;
-	char **qfnamep;
+hasquota(struct fstab *fs, int type, char **qfnamep)
 {
 	char *opt;
 	char *cp;
@@ -254,8 +249,7 @@ hasquota(fs, type, qfnamep)
  * Verify filesystem is mounted and not readonly.
  */
 int
-readonly(fs)
-	register struct fstab *fs;
+readonly(struct fstab *fs)
 {
 	struct statfs fsbuf;
 
