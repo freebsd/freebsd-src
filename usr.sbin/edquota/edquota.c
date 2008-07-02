@@ -98,7 +98,7 @@ int writetimes(struct quotause *, int, int);
 int writeprivs(struct quotause *, int, char *, int);
 
 int
-main(int argc, char **argv)
+main(int argc, char *argv[])
 {
 	struct quotause *qup, *protoprivs, *curprivs;
 	long id, protoid;
@@ -245,7 +245,7 @@ main(int argc, char **argv)
 						    curprivs->fsname);
 					}
 				}
-				putprivs(id, quotatype, protoprivs);						
+				putprivs(id, quotatype, protoprivs);
 			}
 		}
 		exit(0);
@@ -279,7 +279,7 @@ main(int argc, char **argv)
 }
 
 static void
-usage()
+usage(void)
 {
 	fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
 		"usage: edquota [-u] [-f fspath] [-p username] username ...",
@@ -299,9 +299,7 @@ usage()
  * getinoquota as to the interpretation of quota types.
  */
 int
-getentry(name, quotatype)
-	const char *name;
-	int quotatype;
+getentry(const char *name, int quotatype)
 {
 	struct passwd *pw;
 	struct group *gr;
@@ -331,13 +329,10 @@ getentry(name, quotatype)
  * Collect the requested quota information.
  */
 struct quotause *
-getprivs(id, quotatype, fspath)
-	register long id;
-	int quotatype;
-	char *fspath;
+getprivs(long id, int quotatype, char *fspath)
 {
-	register struct fstab *fs;
-	register struct quotause *qup, *quptail;
+	struct fstab *fs;
+	struct quotause *qup, *quptail;
 	struct quotause *quphead;
 	int qcmd, qupsize, fd;
 	char *qfpathname;
@@ -358,7 +353,7 @@ getprivs(id, quotatype, fspath)
 		if ((qup = (struct quotause *)malloc(qupsize)) == NULL)
 			errx(2, "out of memory");
 		if (quotactl(fs->fs_file, qcmd, id, &qup->dqblk) != 0) {
-	    		if (errno == EOPNOTSUPP && !warned) {
+			if (errno == EOPNOTSUPP && !warned) {
 				warned++;
 		warnx("warning: quotas are not compiled into this kernel");
 				sleep(3);
@@ -421,12 +416,9 @@ getprivs(id, quotatype, fspath)
  * Store the requested quota information.
  */
 void
-putprivs(id, quotatype, quplist)
-	long id;
-	int quotatype;
-	struct quotause *quplist;
+putprivs(long id, int quotatype, struct quotause *quplist)
 {
-	register struct quotause *qup;
+	struct quotause *qup;
 	int qcmd, fd;
 	struct dqblk dqbuf;
 
@@ -463,7 +455,7 @@ putprivs(id, quotatype, quplist)
 		/*
 		 * Reset time limit if have a soft limit and were
 		 * previously under it, but are now over it
-		 * or if there previously was no soft limit, but 
+		 * or if there previously was no soft limit, but
 		 * now have one and are over it.
 		 */
 		if (dqbuf.dqb_bsoftlimit && id != 0 &&
@@ -499,8 +491,7 @@ putprivs(id, quotatype, quplist)
  * Take a list of priviledges and get it edited.
  */
 int
-editit(tmpf)
-	char *tmpf;
+editit(char *tmpf)
 {
 	long omask;
 	int pid, status;
@@ -521,7 +512,7 @@ editit(tmpf)
 		return (0);
 	}
 	if (pid == 0) {
-		register const char *ed;
+		const char *ed;
 
 		sigsetmask(omask);
 		setgid(getgid());
@@ -542,13 +533,9 @@ editit(tmpf)
  * Convert a quotause list to an ASCII file.
  */
 int
-writeprivs(quplist, outfd, name, quotatype)
-	struct quotause *quplist;
-	int outfd;
-	char *name;
-	int quotatype;
+writeprivs(struct quotause *quplist, int outfd, char *name, int quotatype)
 {
-	register struct quotause *qup;
+	struct quotause *qup;
 	FILE *fd;
 
 	ftruncate(outfd, 0);
@@ -576,16 +563,14 @@ writeprivs(quplist, outfd, name, quotatype)
  * Merge changes to an ASCII file into a quotause list.
  */
 int
-readprivs(quplist, inname)
-	struct quotause *quplist;
-	char *inname;
+readprivs(struct quotause *quplist, char *inname)
 {
-	register struct quotause *qup;
+	struct quotause *qup;
 	FILE *fd;
 	unsigned long bhardlimit, bsoftlimit, curblocks;
 	unsigned long ihardlimit, isoftlimit, curinodes;
 	int cnt;
-	register char *cp;
+	char *cp;
 	struct dqblk dqblk;
 	char *fsp, line1[BUFSIZ], line2[BUFSIZ];
 
@@ -686,12 +671,9 @@ readprivs(quplist, inname)
  * Convert a quotause list to an ASCII file of grace times.
  */
 int
-writetimes(quplist, outfd, quotatype)
-	struct quotause *quplist;
-	int outfd;
-	int quotatype;
+writetimes(struct quotause *quplist, int outfd, int quotatype)
 {
-	register struct quotause *qup;
+	struct quotause *qup;
 	FILE *fd;
 
 	ftruncate(outfd, 0);
@@ -715,14 +697,12 @@ writetimes(quplist, outfd, quotatype)
  * Merge changes of grace times in an ASCII file into a quotause list.
  */
 int
-readtimes(quplist, inname)
-	struct quotause *quplist;
-	char *inname;
+readtimes(struct quotause *quplist, char *inname)
 {
-	register struct quotause *qup;
+	struct quotause *qup;
 	FILE *fd;
 	int cnt;
-	register char *cp;
+	char *cp;
 	time_t itime, btime, iseconds, bseconds;
 	long l_itime, l_btime;
 	char *fsp, bunits[10], iunits[10], line1[BUFSIZ];
@@ -788,8 +768,7 @@ readtimes(quplist, inname)
  * Convert seconds to ASCII times.
  */
 char *
-cvtstoa(secs)
-	time_t secs;
+cvtstoa(time_t secs)
 {
 	static char buf[20];
 
@@ -811,10 +790,7 @@ cvtstoa(secs)
  * Convert ASCII input times to seconds.
  */
 int
-cvtatos(period, units, seconds)
-	time_t period;
-	char *units;
-	time_t *seconds;
+cvtatos(time_t period, char *units, time_t *seconds)
 {
 
 	if (bcmp(units, "second", 6) == 0)
@@ -837,10 +813,9 @@ cvtatos(period, units, seconds)
  * Free a list of quotause structures.
  */
 void
-freeprivs(quplist)
-	struct quotause *quplist;
+freeprivs(struct quotause *quplist)
 {
-	register struct quotause *qup, *nextqup;
+	struct quotause *qup, *nextqup;
 
 	for (qup = quplist; qup; qup = nextqup) {
 		nextqup = qup->next;
@@ -852,10 +827,9 @@ freeprivs(quplist)
  * Check whether a string is completely composed of digits.
  */
 int
-alldigits(s)
-	register const char *s;
+alldigits(const char *s)
 {
-	register int c;
+	int c;
 
 	c = *s++;
 	do {
@@ -869,10 +843,7 @@ alldigits(s)
  * Check to see if a particular quota is to be enabled.
  */
 int
-hasquota(fs, type, qfnamep)
-	struct fstab *fs;
-	int type;
-	char **qfnamep;
+hasquota(struct fstab *fs, int type, char **qfnamep)
 {
 	char *opt;
 	char *cp;
