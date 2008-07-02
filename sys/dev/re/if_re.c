@@ -2646,7 +2646,7 @@ re_ioctl(ifp, command, data)
 		if ((ifp->if_flags & IFF_UP) != 0) {
 			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
 				if (((ifp->if_flags ^ sc->rl_if_flags)
-				    & IFF_PROMISC) != 0)
+				    & (IFF_PROMISC | IFF_ALLMULTI)) != 0)
 					re_setmulti(sc);
 			} else
 				re_init_locked(sc);
