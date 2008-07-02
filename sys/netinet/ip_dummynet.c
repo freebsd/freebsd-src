@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -2123,6 +2124,10 @@ ip_dn_ctl(struct sockopt *sopt)
 {
     int error = 0 ;
     struct dn_pipe *p, tmp_pipe;
+
+    error = priv_check(sopt->sopt_td, PRIV_NETINET_DUMMYNET);
+    if (error)
+	return (error);
 
     /* Disallow sets in really-really secure mode. */
     if (sopt->sopt_dir == SOPT_SET) {
