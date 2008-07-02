@@ -364,6 +364,7 @@ spx_input(struct mbuf *m, struct ipxpcb *ipxp)
 		cb->s_flags |= SF_ACKNOW;
 		soisconnected(so);
 		cb->s_state = TCPS_ESTABLISHED;
+
 		/*
 		 * Use roundtrip time of connection request for initial rtt.
 		 */
@@ -427,7 +428,7 @@ drop:
 
 /*
  * This is structurally similar to the tcp reassembly routine but its
- * function is somewhat different:  It merely queues packets up, and
+ * function is somewhat different: it merely queues packets up, and
  * suppresses duplicates.
  */
 static int
@@ -444,6 +445,7 @@ spx_reass(struct spxpcb *cb, struct spx *si)
 
 	if (si == SI(0))
 		goto present;
+
 	/*
 	 * Update our news from them.
 	 */
@@ -454,6 +456,7 @@ spx_reass(struct spxpcb *cb, struct spx *si)
 	if (SSEQ_LEQ(si->si_ack, cb->s_rack)) {
 		if ((si->si_cc & SPX_SP) && cb->s_rack != (cb->s_smax + 1)) {
 			spxstat.spxs_rcvdupack++;
+
 			/*
 			 * If this is a completely duplicate ack and other
 			 * conditions hold, we assume a packet has been
@@ -650,6 +653,7 @@ update_window:
 		}
 	}
 	insque(si, q->si_prev);
+
 	/*
 	 * If this packet is urgent, inform process
 	 */
@@ -905,8 +909,8 @@ again:
 
 	/*
 	 * If in persist timeout with window of 0, send a probe.  Otherwise,
-	 * if window is small but nonzero and timer expired, send what we can
-	 * and go into transmit state.
+	 * if window is small but non-zero and timer expired, send what we
+	 * can and go into transmit state.
 	 */
 	if (cb->s_force == 1 + SPXT_PERSIST) {
 		if (win != 0) {
@@ -981,7 +985,7 @@ again:
 	 * If send window is too small, there is data to transmit, and no
 	 * retransmit or persist is pending, then go to persist state.  If
 	 * nothing happens soon, send when timer expires: if window is
-	 * nonzero, transmit what we can, otherwise send a probe.
+	 * non-zero, transmit what we can, otherwise send a probe.
 	 */
 	if (so->so_snd.sb_cc && cb->s_timer[SPXT_REXMT] == 0 &&
 	    cb->s_timer[SPXT_PERSIST] == 0) {
@@ -1069,6 +1073,7 @@ send:
 			spx_trace(SA_OUTPUT, cb->s_state, cb, si, 0);
 		return (0);
 	}
+
 	/*
 	 * Stuff checksum and output datagram.
 	 */
@@ -1426,6 +1431,7 @@ spx_attach(struct socket *so, int proto, struct thread *td)
 	cb->s_cwnd = sbspace(sb) * CUNIT / cb->s_mtu;
 	cb->s_ssthresh = cb->s_cwnd;
 	cb->s_cwmx = sbspace(sb) * CUNIT / (2 * sizeof(struct spx));
+
 	/*
 	 * Above is recomputed when connecting to account for changed
 	 * buffering or mtu's.
@@ -1547,6 +1553,7 @@ spx_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	spx_template(cb);
 	cb->s_timer[SPXT_KEEP] = SPXTV_KEEP;
 	cb->s_force = 1 + SPXTV_KEEP;
+
 	/*
 	 * Other party is required to respond to the port I send from, but he
 	 * is not required to answer from where I am sending to, so allow
@@ -1838,10 +1845,16 @@ spx_template(struct spxpcb *cb)
 	SPX_UNLOCK();
 	cb->s_alo = 1;
 	cb->s_cwnd = (sbspace(sb) * CUNIT) / cb->s_mtu;
-	/* Try to expand fast to full complement of large packets. */
+
+	/*
+	 * Try to expand fast to full complement of large packets.
+	 */
 	cb->s_ssthresh = cb->s_cwnd;
 	cb->s_cwmx = (sbspace(sb) * CUNIT) / (2 * sizeof(struct spx));
-	/* But allow for lots of little packets as well. */
+
+	/*
+	 * But allow for lots of little packets as well.
+	 */
 	cb->s_cwmx = max(cb->s_cwmx, cb->s_cwnd);
 }
 
