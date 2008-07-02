@@ -1391,12 +1391,12 @@ re_detach(dev)
 	ifp = sc->rl_ifp;
 	KASSERT(mtx_initialized(&sc->rl_mtx), ("re mutex not initialized"));
 
-#ifdef DEVICE_POLLING
-	if (ifp->if_capenable & IFCAP_POLLING)
-		ether_poll_deregister(ifp);
-#endif
 	/* These should only be active if attach succeeded */
 	if (device_is_attached(dev)) {
+#ifdef DEVICE_POLLING
+		if (ifp->if_capenable & IFCAP_POLLING)
+			ether_poll_deregister(ifp);
+#endif
 		RL_LOCK(sc);
 #if 0
 		sc->suspended = 1;
