@@ -807,8 +807,12 @@ struct rl_softc {
 	struct task		rl_inttask;
 
 	int			rl_txstart;
-	int			rl_link;
-	int			rl_msi;
+	uint32_t		rl_flags;
+#define	RL_FLAG_MSI		0x0001
+#define	RL_FLAG_INVMAR		0x0004
+#define	RL_FLAG_PHYWAKE		0x0008
+#define	RL_FLAG_NOJUMBO		0x0010
+#define	RL_FLAG_LINK		0x8000
 };
 
 #define	RL_LOCK(_sc)		mtx_lock(&(_sc)->rl_mtx)
