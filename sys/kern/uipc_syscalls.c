@@ -761,7 +761,11 @@ kern_sendit(td, s, mp, flags, control, segflg)
 
 #ifdef MAC
 	SOCK_LOCK(so);
-	error = mac_check_socket_send(td->td_ucred, so);
+	if (mp->msg_name != NULL)
+		error = mac_check_socket_connect(td->td_ucred, so,
+		    mp->msg_name);
+	if (error == 0)
+		error = mac_check_socket_send(td->td_ucred, so);
 	SOCK_UNLOCK(so);
 	if (error)
 		goto bad;
