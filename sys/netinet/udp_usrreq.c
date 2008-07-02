@@ -1164,6 +1164,7 @@ struct pr_usrreqs udp_usrreqs = {
 	.pru_disconnect =	udp_disconnect,
 	.pru_peeraddr =		in_getpeeraddr,
 	.pru_send =		udp_send,
+	.pru_soreceive =	soreceive_dgram,
 	.pru_sosend =		sosend_dgram,
 	.pru_shutdown =		udp_shutdown,
 	.pru_sockaddr =		in_getsockaddr,
