@@ -605,7 +605,6 @@ re_setmulti(sc)
 	struct ifmultiaddr	*ifma;
 	u_int32_t		rxfilt;
 	int			mcnt = 0;
-	u_int32_t		hwrev;
 
 	RL_LOCK_ASSERT(sc);
 
@@ -662,21 +661,12 @@ re_setmulti(sc)
 	 * order for those devices.
 	 */
 
-	hwrev = CSR_READ_4(sc, RL_TXCFG) & RL_TXCFG_HWREV;
-
-	switch (hwrev) {
-	case RL_HWREV_8100E:
-	case RL_HWREV_8101E:
-	case RL_HWREV_8168_SPIN1:
-	case RL_HWREV_8168_SPIN2:
-	case RL_HWREV_8168_SPIN3:
+	if ((sc->rl_flags & RL_FLAG_INVMAR) != 0) {
 		CSR_WRITE_4(sc, RL_MAR0, bswap32(hashes[1]));
 		CSR_WRITE_4(sc, RL_MAR4, bswap32(hashes[0]));
-		break;
-	default:
+	} else {
 		CSR_WRITE_4(sc, RL_MAR0, hashes[0]);
 		CSR_WRITE_4(sc, RL_MAR4, hashes[1]);
-		break;
 	}
 }
 
@@ -757,7 +747,7 @@ re_diag(sc)
 	sc->rl_testmode = 1;
 	re_reset(sc);
 	re_init_locked(sc);
-	sc->rl_link = 1;
+	sc->rl_flags |= RL_FLAG_LINK;
 	if (sc->rl_type == RL_8169)
 		phyaddr = 1;
 	else
@@ -868,7 +858,7 @@ done:
 	/* Turn interface off, release resources */
 
 	sc->rl_testmode = 0;
-	sc->rl_link = 0;
+	sc->rl_flags &= ~RL_FLAG_LINK;
 	ifp->if_flags &= ~IFF_PROMISC;
 	re_stop(sc);
 	if (m0 != NULL)
@@ -1169,7 +1159,7 @@ re_attach(dev)
 			if (msic == RL_MSI_MESSAGES) {
 				device_printf(dev, "Using %d MSI messages\n",
 				    msic);
-				sc->rl_msi = 1;
+				sc->rl_flags |= RL_FLAG_MSI;
 				/* Explicitly set MSI enable bit. */
 				CSR_WRITE_1(sc, RL_EECMD, RL_EE_MODE);
 				cfg = CSR_READ_1(sc, RL_CFG2);
@@ -1182,7 +1172,7 @@ re_attach(dev)
 	}
 
 	/* Allocate interrupt */
-	if (sc->rl_msi == 0) {
+	if ((sc->rl_flags & RL_FLAG_MSI) == 0) {
 		rid = 0;
 		sc->rl_irq[0] = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 		    RF_SHAREABLE | RF_ACTIVE);
@@ -1225,6 +1215,27 @@ re_attach(dev)
 		goto fail;
 	}
 
+	switch (hw_rev->rl_rev) {
+	case RL_HWREV_8139CPLUS:
+		sc->rl_flags |= RL_FLAG_NOJUMBO;
+		break;
+	case RL_HWREV_8100E:
+	case RL_HWREV_8101E:
+		sc->rl_flags |= RL_FLAG_INVMAR | RL_FLAG_PHYWAKE;
+		break;
+	case RL_HWREV_8168_SPIN1:
+	case RL_HWREV_8168_SPIN2:
+	case RL_HWREV_8168_SPIN3:
+		sc->rl_flags |= RL_FLAG_INVMAR | RL_FLAG_PHYWAKE;
+		break;
+	case RL_HWREV_8169_8110SB:
+	case RL_HWREV_8169_8110SC:
+		sc->rl_flags |= RL_FLAG_PHYWAKE;
+		break;
+	default:
+		break;
+	}
+
 	sc->rl_eewidth = RL_9356_ADDR_LEN;
 	re_read_eeprom(sc, (caddr_t)&re_did, 0, 1);
 	if (re_did != 0x8129)
@@ -1263,35 +1274,18 @@ re_attach(dev)
 		goto fail;
 	}
 
+	/* Take PHY out of power down mode. */
+	if ((sc->rl_flags & RL_FLAG_PHYWAKE) != 0) {
+		re_gmii_writereg(dev, 1, 0x1f, 0);
+		re_gmii_writereg(dev, 1, 0x0e, 0);
+	}
+
 	/* Do MII setup */
 	if (mii_phy_probe(dev, &sc->rl_miibus,
 	    re_ifmedia_upd, re_ifmedia_sts)) {
 		device_printf(dev, "MII without any phy!\n");
 		error = ENXIO;
 		goto fail;
-	}
-
-	/* Take PHY out of power down mode. */
-	if (sc->rl_type == RL_8169) {
-		uint32_t rev;
-
-		rev = CSR_READ_4(sc, RL_TXCFG);
-		/* HWVERID 0, 1 and 2 :  bit26-30, bit23 */
-		rev &= 0x7c800000;
-		if (rev != 0) {
-			/* RTL8169S single chip */
-			switch (rev) {
-			case RL_HWREV_8169_8110SB:
-			case RL_HWREV_8169_8110SC:
-			case RL_HWREV_8168_SPIN2:
-			case RL_HWREV_8168_SPIN3:
-				re_gmii_writereg(dev, 1, 0x1f, 0);
-				re_gmii_writereg(dev, 1, 0x0e, 0);
-				break;
-			default:
-				break;
-			}
-		}
 	}
 
 	ifp->if_softc = sc;
@@ -1352,7 +1346,7 @@ re_attach(dev)
 #endif
 
 	/* Hook interrupt last to avoid having to lock softc */
-	if (sc->rl_msi == 0)
+	if ((sc->rl_flags & RL_FLAG_MSI) == 0)
 		error = bus_setup_intr(dev, sc->rl_irq[0],
 		    INTR_TYPE_NET | INTR_MPSAFE, re_intr, NULL, sc,
 		    &sc->rl_intrhand[0]);
@@ -1445,7 +1439,7 @@ re_detach(dev)
 	}
 	if (ifp != NULL)
 		if_free(ifp);
-	if (sc->rl_msi == 0) {
+	if ((sc->rl_flags & RL_FLAG_MSI) == 0) {
 		if (sc->rl_irq[0] != NULL) {
 			bus_release_resource(dev, SYS_RES_IRQ, 0,
 			    sc->rl_irq[0]);
@@ -1968,13 +1962,13 @@ re_tick(xsc)
 
 	mii = device_get_softc(sc->rl_miibus);
 	mii_tick(mii);
-	if (sc->rl_link) {
+	if ((sc->rl_flags & RL_FLAG_LINK) != 0) {
 		if (!(mii->mii_media_status & IFM_ACTIVE))
-			sc->rl_link = 0;
+			sc->rl_flags &= ~RL_FLAG_LINK;
 	} else {
 		if (mii->mii_media_status & IFM_ACTIVE &&
 		    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE) {
-			sc->rl_link = 1;
+			sc->rl_flags |= RL_FLAG_LINK;
 			if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 				taskqueue_enqueue_fast(taskqueue_fast,
 				    &sc->rl_txtask);
@@ -2322,7 +2316,7 @@ re_start(ifp)
 	RL_LOCK(sc);
 
 	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
-	    IFF_DRV_RUNNING || sc->rl_link == 0) {
+	    IFF_DRV_RUNNING || (sc->rl_flags & RL_FLAG_LINK) == 0) {
 		RL_UNLOCK(sc);
 		return;
 	}
@@ -2575,7 +2569,7 @@ re_init_locked(sc)
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
-	sc->rl_link = 0;
+	sc->rl_flags &= ~RL_FLAG_LINK;
 	sc->rl_watchdog_timer = 0;
 	callout_reset(&sc->rl_stat_callout, hz, re_tick, sc);
 }
@@ -2637,7 +2631,7 @@ re_ioctl(ifp, command, data)
 			error = EINVAL;
 			break;
 		}
-		if (sc->rl_type == RL_8139CPLUS &&
+		if ((sc->rl_flags & RL_FLAG_NOJUMBO) != 0 &&
 		    ifr->ifr_mtu > RL_MAX_FRAMELEN) {
 			error = EINVAL;
 			break;
