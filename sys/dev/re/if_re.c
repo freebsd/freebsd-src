@@ -1195,6 +1195,17 @@ re_attach(dev)
 		}
 	}
 
+	if ((sc->rl_flags & RL_FLAG_MSI) == 0) {
+		CSR_WRITE_1(sc, RL_EECMD, RL_EE_MODE);
+		cfg = CSR_READ_1(sc, RL_CFG2);
+		if ((cfg & RL_CFG2_MSI) != 0) {
+			device_printf(dev, "turning off MSI enable bit.\n");
+			cfg &= ~RL_CFG2_MSI;
+			CSR_WRITE_1(sc, RL_CFG2, cfg);
+		}
+		CSR_WRITE_1(sc, RL_EECMD, RL_EEMODE_OFF);
+	}
+
 	/* Reset the adapter. */
 	RL_LOCK(sc);
 	re_reset(sc);
