@@ -57,17 +57,17 @@ __RCSID("$NetBSD: preen.c,v 1.18 1998/07/26 20:02:36 mycroft Exp $");
 
 struct partentry {
 	TAILQ_ENTRY(partentry)	 p_entries;
-	char		  	*p_devname;	/* device name */
+	char			*p_devname;	/* device name */
 	char			*p_mntpt;	/* mount point */
-	char		  	*p_type;	/* file system type */
+	char			*p_type;	/* file system type */
 	struct quotaname	*p_quota;	/* quota file info ptr */
 };
 
 TAILQ_HEAD(part, partentry) badh;
 
 struct diskentry {
-	TAILQ_ENTRY(diskentry) 	    d_entries;
-	char		       	   *d_name;	/* disk base name */
+	TAILQ_ENTRY(diskentry)	    d_entries;
+	char			   *d_name;	/* disk base name */
 	TAILQ_HEAD(prt, partentry)  d_part;	/* list of partitions on disk */
 	int			    d_pid;	/* 0 or pid of fsck proc */
 };
@@ -82,7 +82,7 @@ extern void *emalloc(size_t);
 extern char *estrdup(const char *);
 
 int
-checkfstab()
+checkfstab(void)
 {
 	struct fstab *fs;
 	struct diskentry *d, *nextdisk;
@@ -120,7 +120,7 @@ checkfstab()
 				if (sumstatus)
 					return (sumstatus);
 				continue;
-			} 
+			}
 			if (name == NULL) {
 				(void) fprintf(stderr,
 				    "BAD DISK NAME %s\n", fs->fs_spec);
@@ -139,7 +139,7 @@ checkfstab()
 		}
 
 		while ((pid = wait(&status)) != -1) {
-			TAILQ_FOREACH(d, &diskh, d_entries) 
+			TAILQ_FOREACH(d, &diskh, d_entries)
 				if (d->d_pid == pid)
 					break;
 
@@ -226,7 +226,7 @@ finddisk(const char *name)
 	if (len == 0)
 		len = strlen(name);
 
-	TAILQ_FOREACH(d, &diskh, d_entries) 
+	TAILQ_FOREACH(d, &diskh, d_entries)
 		if (strncmp(d->d_name, name, len) == 0 && d->d_name[len] == 0)
 			return d;
 
