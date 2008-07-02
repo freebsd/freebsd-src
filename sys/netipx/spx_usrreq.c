@@ -413,7 +413,7 @@ dropwithreset:
 		soabort(so);
 	}
 	IPX_LIST_UNLOCK();
-	m_freem(dtom(si));
+	m_freem(m);
 	return;
 
 drop:
