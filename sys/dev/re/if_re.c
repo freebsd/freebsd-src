@@ -1212,7 +1212,10 @@ re_attach(dev)
 	RL_UNLOCK(sc);
 
 	hw_rev = re_hwrevs;
-	hwrev = CSR_READ_4(sc, RL_TXCFG) & RL_TXCFG_HWREV;
+	hwrev = CSR_READ_4(sc, RL_TXCFG);
+	device_printf(dev, "Chip rev. 0x%08x\n", hwrev & 0x7c800000);
+	device_printf(dev, "MAC rev. 0x%08x\n", hwrev & 0x00700000);
+	hwrev &= RL_TXCFG_HWREV;
 	while (hw_rev->rl_desc != NULL) {
 		if (hw_rev->rl_rev == hwrev) {
 			sc->rl_type = hw_rev->rl_type;
@@ -1221,7 +1224,7 @@ re_attach(dev)
 		hw_rev++;
 	}
 	if (hw_rev->rl_desc == NULL) {
-		device_printf(dev, "Unknown H/W revision: %08x\n", hwrev);
+		device_printf(dev, "Unknown H/W revision: 0x%08x\n", hwrev);
 		error = ENXIO;
 		goto fail;
 	}
