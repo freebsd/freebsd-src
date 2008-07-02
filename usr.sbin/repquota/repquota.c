@@ -102,11 +102,11 @@ char *timeprt(time_t);
 static void usage(void);
 
 int
-main(int argc, char **argv)
+main(int argc, char *argv[])
 {
-	register struct fstab *fs;
-	register struct passwd *pw;
-	register struct group *gr;
+	struct fstab *fs;
+	struct passwd *pw;
+	struct group *gr;
 	int ch, gflag = 0, uflag = 0, errs = 0;
 	long i, argnum, done = 0;
 	char *qfnp;
@@ -181,7 +181,7 @@ main(int argc, char **argv)
 }
 
 static void
-usage()
+usage(void)
 {
 	fprintf(stderr, "%s\n%s\n",
 		"usage: repquota [-v] [-g] [-n] [-u] -a",
@@ -190,12 +190,9 @@ usage()
 }
 
 int
-repquota(fs, type, qfpathname)
-	register struct fstab *fs;
-	int type;
-	char *qfpathname;
+repquota(struct fstab *fs, int type, char *qfpathname)
 {
-	register struct fileusage *fup;
+	struct fileusage *fup;
 	FILE *qf;
 	u_long id;
 	struct dqblk dqbuf;
@@ -272,11 +269,9 @@ repquota(fs, type, qfpathname)
  * Check to see if target appears in list of size cnt.
  */
 int
-oneof(target, list, cnt)
-	register char *target, *list[];
-	int cnt;
+oneof(char *target, char *list[], int cnt)
 {
-	register int i;
+	int i;
 
 	for (i = 0; i < cnt; i++)
 		if (strcmp(target, list[i]) == 0)
@@ -288,10 +283,7 @@ oneof(target, list, cnt)
  * Check to see if a particular quota is to be enabled.
  */
 int
-hasquota(fs, type, qfnamep)
-	struct fstab *fs;
-	int type;
-	char **qfnamep;
+hasquota(struct fstab *fs, int type, char **qfnamep)
 {
 	char *opt;
 	char *cp;
@@ -342,11 +334,9 @@ hasquota(fs, type, qfnamep)
  * Lookup an id of a specific type.
  */
 struct fileusage *
-lookup(id, type)
-	u_long id;
-	int type;
+lookup(u_long id, int type)
 {
-	register struct fileusage *fup;
+	struct fileusage *fup;
 
 	for (fup = fuhead[type][id & (FUHASH-1)]; fup != 0; fup = fup->fu_next)
 		if (fup->fu_id == id)
@@ -358,10 +348,7 @@ lookup(id, type)
  * Add a new file usage id if it does not already exist.
  */
 struct fileusage *
-addid(id, type, name)
-	u_long id;
-	int type;
-	char *name;
+addid(u_long id, int type, char *name)
 {
 	struct fileusage *fup, **fhp;
 	int len;
@@ -392,8 +379,7 @@ addid(id, type, name)
  * Calculate the grace period and return a printable string for it.
  */
 char *
-timeprt(seconds)
-	time_t seconds;
+timeprt(time_t seconds)
 {
 	time_t hours, minutes;
 	static char buf[20];

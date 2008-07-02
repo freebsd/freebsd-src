@@ -133,9 +133,7 @@ int	 update(char *, char *, int);
 void	 usage(void);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	struct fstab *fs;
 	struct passwd *pw;
@@ -216,17 +214,16 @@ main(argc, argv)
 }
 
 void
-usage()
+usage(void)
 {
-	(void)fprintf(stderr, "%s\n%s\n", 
+	(void)fprintf(stderr, "%s\n%s\n",
 		"usage: quotacheck [-guv] [-l maxrun] -a",
 		"       quotacheck [-guv] filesystem ...");
 	exit(1);
 }
 
 struct quotaname *
-needchk(fs)
-	struct fstab *fs;
+needchk(struct fstab *fs)
 {
 	struct quotaname *qnp;
 	char *qfnp;
@@ -260,9 +257,7 @@ static int sblock_try[] = SBLOCKSEARCH;
  * Scan the specified file system to check quota(s) present on it.
  */
 int
-chkquota(fsname, mntpt, qnp)
-	char *fsname, *mntpt;
-	struct quotaname *qnp;
+chkquota(char *fsname, char *mntpt, struct quotaname *qnp)
 {
 	struct fileusage *fup;
 	union dinode *dp;
@@ -363,7 +358,7 @@ chkquota(fsname, mntpt, qnp)
 			 * to be negative to prevent generating 100GB+
 			 * quota files.
 			 */
-			if ((int)DIP(dp, di_uid) < 0 || 
+			if ((int)DIP(dp, di_uid) < 0 ||
 			    (int)DIP(dp, di_gid) < 0) {
 				if (vflag) {
 					if (aflag)
@@ -375,7 +370,7 @@ chkquota(fsname, mntpt, qnp)
 				continue;
 			}
 
-			/* 
+			/*
 			 * Do not account for file system snapshot files
 			 * or the actual quota data files to be consistent
 			 * with how they are handled inside the kernel.
@@ -419,9 +414,7 @@ chkquota(fsname, mntpt, qnp)
  * Update a specified quota file.
  */
 int
-update(fsname, quotafile, type)
-	char *fsname, *quotafile;
-	int type;
+update(char *fsname, char *quotafile, int type)
 {
 	struct fileusage *fup;
 	FILE *qfi, *qfo;
@@ -475,7 +468,7 @@ update(fsname, quotafile, type)
 		lastid = (sb.st_size / sizeof(struct dqblk)) - 1;
 	else
 		lastid = 0;
-	for (id = 0, offset = 0; id <= lastid; 
+	for (id = 0, offset = 0; id <= lastid;
 	    id++, offset += sizeof(struct dqblk)) {
 		if (fread((char *)&dqbuf, sizeof(struct dqblk), 1, qfi) == 0)
 			dqbuf = zerodqbuf;
@@ -542,7 +535,7 @@ update(fsname, quotafile, type)
 			}
 			fwrite((char *)&dqbuf, sizeof(struct dqblk), 1, qfo);
 			(void) quotactl(fsname, QCMD(Q_SETUSE, type), id,
-		    	    (caddr_t)&dqbuf);
+			    (caddr_t)&dqbuf);
 			fup->fu_curinodes = 0;
 			fup->fu_curblocks = 0;
 		}
@@ -559,9 +552,7 @@ update(fsname, quotafile, type)
  * Check to see if target appears in list of size cnt.
  */
 int
-oneof(target, list, cnt)
-	char *target, *list[];
-	int cnt;
+oneof(char *target, char *list[], int cnt)
 {
 	int i;
 
@@ -575,7 +566,7 @@ oneof(target, list, cnt)
  * Determine the group identifier for quota files.
  */
 int
-getquotagid()
+getquotagid(void)
 {
 	struct group *gr;
 
@@ -588,10 +579,7 @@ getquotagid()
  * Check to see if a particular quota is to be enabled.
  */
 int
-hasquota(fs, type, qfnamep)
-	struct fstab *fs;
-	int type;
-	char **qfnamep;
+hasquota(struct fstab *fs, int type, char **qfnamep)
 {
 	char *opt;
 	char *cp;
@@ -642,9 +630,7 @@ hasquota(fs, type, qfnamep)
  * Lookup an id of a specific type.
  */
 struct fileusage *
-lookup(id, type)
-	u_long id;
-	int type;
+lookup(u_long id, int type)
 {
 	struct fileusage *fup;
 
@@ -658,11 +644,7 @@ lookup(id, type)
  * Add a new file usage id if it does not already exist.
  */
 struct fileusage *
-addid(id, type, name, fsname)
-	u_long id;
-	int type;
-	char *name;
-	char *fsname;
+addid(u_long id, int type, char *name, char *fsname)
 {
 	struct fileusage *fup, **fhp;
 	int len;
@@ -686,7 +668,7 @@ addid(id, type, name, fsname)
 		if (vflag) {
 			if (aflag && fsname != NULL)
 				(void)printf("%s: ", fsname);
-			printf("unknown %cid: %lu\n", 
+			printf("unknown %cid: %lu\n",
 			    type == USRQUOTA ? 'u' : 'g', id);
 		}
 	}
@@ -773,7 +755,7 @@ setinodebuf(ino_t inum)
  * Free up data structures used to scan inodes.
  */
 void
-freeinodebuf()
+freeinodebuf(void)
 {
 
 	if (inodebuf != NULL)
@@ -785,10 +767,7 @@ freeinodebuf()
  * Read specified disk blocks.
  */
 void
-bread(bno, buf, cnt)
-	ufs2_daddr_t bno;
-	char *buf;
-	long cnt;
+bread(ufs2_daddr_t bno, char *buf, long cnt)
 {
 
 	if (lseek(fi, (off_t)bno * dev_bsize, SEEK_SET) < 0 ||
@@ -800,12 +779,8 @@ bread(bno, buf, cnt)
  * Display updated block and i-node counts.
  */
 void
-printchanges(fsname, type, dp, fup, id)
-	char *fsname;
-	int type;
-	struct dqblk *dp;
-	struct fileusage *fup;
-	u_long id;
+printchanges(char *fsname, int type, struct dqblk *dp,
+    struct fileusage *fup, u_long id)
 {
 	if (!vflag)
 		return;
@@ -833,7 +808,7 @@ printchanges(fsname, type, dp, fup, id)
 		(void)printf("\tinodes %lu -> %lu", (u_long)dp->dqb_curinodes,
 		    (u_long)fup->fu_curinodes);
 	if (dp->dqb_curblocks != fup->fu_curblocks)
-		(void)printf("\tblocks %lu -> %lu", 
+		(void)printf("\tblocks %lu -> %lu",
 		    (u_long)dp->dqb_curblocks,
 		    (u_long)fup->fu_curblocks);
 	(void)printf("\n");
