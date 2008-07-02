@@ -180,7 +180,7 @@ ip6_init(void)
 
 	ip6intrq.ifq_maxlen = ip6qmaxlen;
 	mtx_init(&ip6intrq.ifq_mtx, "ip6_inq", NULL, MTX_DEF);
-	netisr_register(NETISR_IPV6, ip6_input, &ip6intrq, 0);
+	netisr_register(NETISR_IPV6, ip6_input, &ip6intrq, NETISR_MPSAFE);
 	scope6_init();
 	addrsel_policy_init();
 	nd6_init();
