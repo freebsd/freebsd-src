@@ -775,6 +775,8 @@ struct rl_softc {
 	bus_space_tag_t		rl_btag;	/* bus space tag */
 	device_t		rl_dev;
 	struct resource		*rl_res;
+	int			rl_res_id;
+	int			rl_res_type;
 	struct resource		*rl_irq[RL_MSI_MESSAGES];
 	void			*rl_intrhand[RL_MSI_MESSAGES];
 	device_t		rl_miibus;
