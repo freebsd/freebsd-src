@@ -259,7 +259,7 @@ fail_enospc:
 	 * space, or ENOSPC returned by the vnode write call.
 	 */
 	if (audit_fail_stop) {
-		VOP_LOCK(vp, LK_DRAIN | LK_INTERLOCK, curthread);
+		VOP_LOCK(vp, LK_EXCLUSIVE | LK_RETRY, curthread);
 		(void)VOP_FSYNC(vp, MNT_WAIT, curthread);
 		VOP_UNLOCK(vp, 0, curthread);
 		panic("Audit log space exhausted and fail-stop set.");
@@ -274,7 +274,7 @@ fail:
 	 * lost, which may require an immediate system halt.
 	 */
 	if (audit_panic_on_write_fail) {
-		VOP_LOCK(vp, LK_DRAIN | LK_INTERLOCK, curthread);
+		VOP_LOCK(vp, LK_EXCLUSIVE | LK_RETRY, curthread);
 		(void)VOP_FSYNC(vp, MNT_WAIT, curthread);
 		VOP_UNLOCK(vp, 0, curthread);
 		panic("audit_worker: write error %d\n", error);
