@@ -1266,11 +1266,6 @@ re_attach(dev)
 		sc->rl_ldata.rl_tx_desc_cnt = RL_8139_TX_DESC_CNT;
 		sc->rl_ldata.rl_rx_desc_cnt = RL_8139_RX_DESC_CNT;
 	}
-	if (hw_rev->rl_desc == NULL) {
-		device_printf(dev, "Unsupported revision : 0x%08x\n", hwrev);
-		error = ENXIO;
-		goto fail;
-	}
 
 	error = re_allocmem(dev, sc);
 	if (error)
