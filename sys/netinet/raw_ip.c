@@ -381,13 +381,6 @@ rip_ctloutput(struct socket *so, struct sockopt *sopt)
 		case IP_FW_TABLE_LIST:
 		case IP_FW_NAT_GET_CONFIG:
 		case IP_FW_NAT_GET_LOG:
-			/*
-			 * XXXRW: Isn't this checked one layer down?  Yes, it
-			 * is.
-			 */
-			error = priv_check(curthread, PRIV_NETINET_IPFW);
-			if (error != 0)
-				return (error);
 			if (ip_fw_ctl_ptr != NULL)
 				error = ip_fw_ctl_ptr(sopt);
 			else
@@ -395,9 +388,6 @@ rip_ctloutput(struct socket *so, struct sockopt *sopt)
 			break;
 
 		case IP_DUMMYNET_GET:
-			error = priv_check(curthread, PRIV_NETINET_DUMMYNET);
-			if (error != 0)
-				return (error);
 			if (ip_dn_ctl_ptr != NULL)
 				error = ip_dn_ctl_ptr(sopt);
 			else
@@ -452,12 +442,6 @@ rip_ctloutput(struct socket *so, struct sockopt *sopt)
 		case IP_FW_TABLE_FLUSH:
 		case IP_FW_NAT_CFG:
 		case IP_FW_NAT_DEL:
-			/*
-			 * XXXRW: Isn't this checked one layer down?
-			 */
-			error = priv_check(curthread, PRIV_NETINET_IPFW);
-			if (error != 0)
-				return (error);
 			if (ip_fw_ctl_ptr != NULL)
 				error = ip_fw_ctl_ptr(sopt);
 			else
@@ -467,9 +451,6 @@ rip_ctloutput(struct socket *so, struct sockopt *sopt)
 		case IP_DUMMYNET_CONFIGURE:
 		case IP_DUMMYNET_DEL:
 		case IP_DUMMYNET_FLUSH:
-			error = priv_check(curthread, PRIV_NETINET_DUMMYNET);
-			if (error != 0)
-				return (error);
 			if (ip_dn_ctl_ptr != NULL)
 				error = ip_dn_ctl_ptr(sopt);
 			else
