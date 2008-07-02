@@ -161,6 +161,9 @@
 #define RL_HWREV_8101E		0x34000000
 #define RL_HWREV_8168_SPIN2	0x38000000
 #define RL_HWREV_8168_SPIN3	0x38400000
+#define RL_HWREV_8168C		0x3C000000
+#define RL_HWREV_8168C_SPIN2	0x3C400000
+#define RL_HWREV_8168CP		0x3C800000
 #define RL_HWREV_8139		0x60000000
 #define RL_HWREV_8139A		0x70000000
 #define RL_HWREV_8139AG		0x70800000
@@ -442,6 +445,15 @@
 #define RL_CPLUSCMD_PCI_DAC	0x0010	/* PCI dual-address cycle only */
 #define RL_CPLUSCMD_RXCSUM_ENB	0x0020	/* enable RX checksum offload */
 #define RL_CPLUSCMD_VLANSTRIP	0x0040	/* enable VLAN tag stripping */
+#define	RL_CPLUSCMD_MACSTAT_DIS	0x0080	/* 8168B/C/CP */
+#define	RL_CPLUSCMD_ASF		0x0100	/* 8168C/CP */
+#define	RL_CPLUSCMD_DBG_SEL	0x0200	/* 8168C/CP */
+#define	RL_CPLUSCMD_FORCE_TXFC	0x0400	/* 8168C/CP */
+#define	RL_CPLUSCMD_FORCE_RXFC	0x0800	/* 8168C/CP */
+#define	RL_CPLUSCMD_FORCE_HDPX	0x1000	/* 8168C/CP */
+#define	RL_CPLUSCMD_NORMAL_MODE	0x2000	/* 8168C/CP */
+#define	RL_CPLUSCMD_DBG_ENB	0x4000	/* 8168C/CP */
+#define	RL_CPLUSCMD_BIST_ENB	0x8000	/* 8168C/CP */
 
 /* C+ early transmit threshold */
 
@@ -598,6 +610,10 @@ struct rl_desc {
 
 #define RL_TDESC_VLANCTL_TAG	0x00020000	/* Insert VLAN tag */
 #define RL_TDESC_VLANCTL_DATA	0x0000FFFF	/* TAG data */
+/* RTL8168C/RTL8168CP/RTL8111C/RTL8111CP */
+#define	RL_TDESC_CMD_UDPCSUMV2	0x80000000
+#define	RL_TDESC_CMD_TCPCSUMV2	0x40000000	
+#define	RL_TDESC_CMD_IPCSUMV2	0x20000000	
 
 /*
  * Error bits are valid only on the last descriptor of a frame
@@ -635,6 +651,8 @@ struct rl_desc {
 #define RL_RDESC_STAT_RUNT	0x00080000	/* runt packet received */
 #define RL_RDESC_STAT_CRCERR	0x00040000	/* CRC error */
 #define RL_RDESC_STAT_PROTOID	0x00030000	/* Protocol type */
+#define	RL_RDESC_STAT_UDP	0x00020000	/* UDP, 8168C/CP, 8111C/CP */
+#define	RL_RDESC_STAT_TCP	0x00010000	/* TCP, 8168C/CP, 8111C/CP */
 #define RL_RDESC_STAT_IPSUMBAD	0x00008000	/* IP header checksum bad */
 #define RL_RDESC_STAT_UDPSUMBAD	0x00004000	/* UDP checksum bad */
 #define RL_RDESC_STAT_TCPSUMBAD	0x00002000	/* TCP checksum bad */
@@ -646,6 +664,9 @@ struct rl_desc {
 #define RL_RDESC_VLANCTL_TAG	0x00010000	/* VLAN tag available
 						   (rl_vlandata valid)*/
 #define RL_RDESC_VLANCTL_DATA	0x0000FFFF	/* TAG data */
+/* RTL8168C/RTL8168CP/RTL8111C/RTL8111CP */
+#define	RL_RDESC_IPV6		0x80000000
+#define	RL_RDESC_IPV4		0x40000000
 
 #define RL_PROTOID_NONIP	0x00000000
 #define RL_PROTOID_TCPIP	0x00010000
@@ -812,6 +833,9 @@ struct rl_softc {
 #define	RL_FLAG_INVMAR		0x0004
 #define	RL_FLAG_PHYWAKE		0x0008
 #define	RL_FLAG_NOJUMBO		0x0010
+#define	RL_FLAG_PAR		0x0020
+#define	RL_FLAG_DESCV2		0x0040
+#define	RL_FLAG_MACSTAT		0x0080
 #define	RL_FLAG_LINK		0x8000
 };
 
