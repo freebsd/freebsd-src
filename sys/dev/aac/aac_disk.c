@@ -183,9 +183,6 @@ aac_disk_strategy(struct bio *bp)
 
 /*
  * Map the S/G elements for doing a dump.
- *
- * XXX This does not handle >4GB of RAM.  Fixing it is possible except on
- *     adapters that cannot do 64bit s/g lists.
  */
 static void
 aac_dump_map_sg(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
@@ -212,6 +209,31 @@ aac_dump_map_sg(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 }
 
 /*
+ * Map the S/G elements for doing a dump on 64-bit capable devices.
+ */
+static void
+aac_dump_map_sg64(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
+{
+	struct aac_fib *fib;
+	struct aac_blockwrite64 *bw;
+	struct aac_sg_table64 *sg;
+	int i;
+
+	fib = (struct aac_fib *)arg;
+	bw = (struct aac_blockwrite64 *)&fib->data[0];
+	sg = &bw->SgMap64;
+
+	if (sg != NULL) {
+		sg->SgCount = nsegs;
+		for (i = 0; i < nsegs; i++) {
+			sg->SgEntry64[i].SgAddress = segs[i].ds_addr;
+			sg->SgEntry64[i].SgByteCount = segs[i].ds_len;
+		}
+		fib->Header.Size = nsegs * sizeof(struct aac_sg_entry64);
+	}
+}
+
+/*
  * Dump memory out to an array
  *
  * Send out one command at a time with up to AAC_MAXIO of data.
@@ -222,12 +244,13 @@ aac_disk_dump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size
 	struct aac_disk *ad;
 	struct aac_softc *sc;
 	struct aac_fib *fib;
-	struct aac_blockwrite *bw;
 	size_t len;
 	int size;
 	static bus_dmamap_t dump_datamap;
 	static int first = 0;
 	struct disk *dp;
+	bus_dmamap_callback_t *callback;
+	u_int32_t command;
 
 	dp = arg;
 	ad = dp->d_drv1;
@@ -247,15 +270,33 @@ aac_disk_dump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size
 
 	/* Skip aac_alloc_sync_fib().  We don't want to mess with sleep locks */
 	fib = &sc->aac_common->ac_sync_fib;
-	bw = (struct aac_blockwrite *)&fib->data[0];
 
 	while (length > 0) {
 		len = (length > AAC_MAXIO) ? AAC_MAXIO : length;
-		bw->Command = VM_CtBlockWrite;
-		bw->ContainerId = ad->ad_container->co_mntobj.ObjectId;
-		bw->BlockNumber = offset / AAC_BLOCK_SIZE;
-		bw->ByteCount = len;
-		bw->Stable = CUNSTABLE;
+		if ((sc->flags & AAC_FLAGS_SG_64BIT) == 0) {
+			struct aac_blockwrite *bw;
+			bw = (struct aac_blockwrite *)&fib->data[0];
+			bw->Command = VM_CtBlockWrite;
+			bw->ContainerId = ad->ad_container->co_mntobj.ObjectId;
+			bw->BlockNumber = offset / AAC_BLOCK_SIZE;
+			bw->ByteCount = len;
+			bw->Stable = CUNSTABLE;
+			command = ContainerCommand;
+			callback = aac_dump_map_sg;
+			size = sizeof(struct aac_blockwrite);
+		} else {
+			struct aac_blockwrite64 *bw;
+			bw = (struct aac_blockwrite64 *)&fib->data[0];
+			bw->Command = VM_CtHostWrite64;
+			bw->ContainerId = ad->ad_container->co_mntobj.ObjectId;
+			bw->BlockNumber = offset / AAC_BLOCK_SIZE;
+			bw->SectorCount = len / AAC_BLOCK_SIZE;
+			bw->Pad = 0;
+			bw->Flags = 0;
+			command = ContainerCommand64;
+			callback = aac_dump_map_sg64;
+			size = sizeof(struct aac_blockwrite64);
+		}
 
 		/*
 		 * There really isn't any way to recover from errors or
@@ -264,16 +305,16 @@ aac_disk_dump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size
 		 * is too much required context.
 		 */
 		if (bus_dmamap_load(sc->aac_buffer_dmat, dump_datamap, virtual,
-		    len, aac_dump_map_sg, fib, BUS_DMA_NOWAIT) != 0)
+		    len, callback, fib, BUS_DMA_NOWAIT) != 0)
 			return (ENOMEM);
 
 		bus_dmamap_sync(sc->aac_buffer_dmat, dump_datamap,
 		    BUS_DMASYNC_PREWRITE);
 
 		/* fib->Header.Size is set in aac_dump_map_sg */
-		size = fib->Header.Size + sizeof(struct aac_blockwrite);
+		size += fib->Header.Size;
 
-		if (aac_sync_fib(sc, ContainerCommand, 0, fib, size)) {
+		if (aac_sync_fib(sc, command, 0, fib, size)) {
 			printf("Error dumping block 0x%jx\n",
 			       (uintmax_t)physical);
 			return (EIO);
