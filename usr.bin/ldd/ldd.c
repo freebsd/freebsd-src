@@ -47,13 +47,28 @@ __FBSDID("$FreeBSD$");
 
 #include "extern.h"
 
-static void
-usage(void)
-{
+static int	is_executable(const char *fname, int fd, int *is_shlib,
+		    int *type);
+static void	usage(void);
 
-	fprintf(stderr, "usage: ldd [-a] [-v] [-f format] program ...\n");
-	exit(1);
-}
+#define	TYPE_UNKNOWN	0
+#define	TYPE_AOUT	1
+#define	TYPE_ELF	2	/* Architecture default */
+
+#define	ENV_OBJECTS		0
+#define	ENV_OBJECTS_FMT1	1
+#define	ENV_OBJECTS_FMT2	2
+#define	ENV_OBJECTS_PROGNAME	3
+#define	ENV_OBJECTS_ALL		4
+#define	ENV_LAST		5
+
+const char	*envdef[ENV_LAST] = {
+	"LD_TRACE_LOADED_OBJECTS",
+	"LD_TRACE_LOADED_OBJECTS_FMT1",
+	"LD_TRACE_LOADED_OBJECTS_FMT2",
+	"LD_TRACE_LOADED_OBJECTS_PROGNAME",
+	"LD_TRACE_LOADED_OBJECTS_ALL",
+};
 
 int
 main(int argc, char *argv[])
@@ -104,95 +119,35 @@ main(int argc, char *argv[])
 	}
 #endif
 
-	/* ld.so magic */
-	setenv("LD_TRACE_LOADED_OBJECTS", "yes", 1);
-	if (fmt1 != NULL)
-		setenv("LD_TRACE_LOADED_OBJECTS_FMT1", fmt1, 1);
-	if (fmt2 != NULL)
-		setenv("LD_TRACE_LOADED_OBJECTS_FMT2", fmt2, 1);
-
 	rval = 0;
 	for (; argc > 0; argc--, argv++) {
-		int fd, n, status, file_ok, is_shlib;
-		union {
-			struct exec aout;
-			Elf_Ehdr elf;
-		} hdr;
+		int fd, status, is_shlib, rv, type;
+		const char **env;
+
+		env = envdef;	/* Temporary placeholder */
 
 		if ((fd = open(*argv, O_RDONLY, 0)) < 0) {
 			warn("%s", *argv);
 			rval |= 1;
 			continue;
 		}
-		if ((n = read(fd, &hdr, sizeof(hdr))) == -1) {
-			warn("%s: can't read program header", *argv);
-			close(fd);
-			rval |= 1;
-			continue;
-		}
-
-		file_ok = 1;
-		is_shlib = 0;
-		if ((size_t)n >= sizeof(hdr.aout) && !N_BADMAG(hdr.aout)) {
-			/* a.out file */
-			if ((N_GETFLAG(hdr.aout) & EX_DPMASK) != EX_DYNAMIC
-#if 1 /* Compatibility */
-			    || hdr.aout.a_entry < __LDPGSZ
-#endif
-				) {
-				warnx("%s: not a dynamic executable", *argv);
-				file_ok = 0;
-			}
-		} else if ((size_t)n >= sizeof(hdr.elf) && IS_ELF(hdr.elf)) {
-			Elf_Ehdr ehdr;
-			Elf_Phdr phdr;
-			int dynamic, i;
-
-			dynamic = 0;
-
-			if (lseek(fd, 0, SEEK_SET) == -1 ||
-			    read(fd, &ehdr, sizeof(ehdr)) != sizeof(ehdr) ||
-			    lseek(fd, ehdr.e_phoff, SEEK_SET) == -1) {
-				warnx("%s: can't read program header", *argv);
-				file_ok = 0;
-			} else {
-				for (i = 0; i < ehdr.e_phnum; i++) {
-					if (read(fd, &phdr, ehdr.e_phentsize)
-					   != sizeof(phdr)) {
-						warnx("%s: can't read program header",
-						    *argv);
-						file_ok = 0;
-						break;
-					}
-					if (phdr.p_type == PT_DYNAMIC)
-						dynamic = 1;
-				}
-			}
-			if (!dynamic) {
-				warnx("%s: not a dynamic executable", *argv);
-				file_ok = 0;
-			} else if (hdr.elf.e_type == ET_DYN) {
-				if (hdr.elf.e_ident[EI_OSABI] & ELFOSABI_FREEBSD) {
-					is_shlib = 1;
-				} else {
-					warnx("%s: not a FreeBSD ELF shared "
-					      "object", *argv);
-					file_ok = 0;
-				}
-			}
-		} else {
-			warnx("%s: not a dynamic executable", *argv);
-			file_ok = 0;
-		}
+		rv = is_executable(*argv, fd, &is_shlib, &type);
 		close(fd);
-		if (!file_ok) {
+		if (rv == 0) {
 			rval |= 1;
 			continue;
 		}
 
-		setenv("LD_TRACE_LOADED_OBJECTS_PROGNAME", *argv, 1);
+		/* ld.so magic */
+		setenv(env[ENV_OBJECTS], "yes", 1);
+		if (fmt1 != NULL)
+			setenv(env[ENV_OBJECTS_FMT1], fmt1, 1);
+		if (fmt2 != NULL)
+			setenv(env[ENV_OBJECTS_FMT2], fmt2, 1);
+
+		setenv(env[ENV_OBJECTS_PROGNAME], *argv, 1);
 		if (aflag)
-			setenv("LD_TRACE_LOADED_OBJECTS_ALL", "1", 1);
+			setenv(env[ENV_OBJECTS_ALL], "1", 1);
 		else if (fmt1 == NULL && fmt2 == NULL)
 			/* Default formats */
 			printf("%s:\n", *argv);
@@ -229,4 +184,88 @@ main(int argc, char *argv[])
 	}
 
 	return rval;
+}
+
+static void
+usage(void)
+{
+
+	fprintf(stderr, "usage: ldd [-a] [-v] [-f format] program ...\n");
+	exit(1);
+}
+
+static int
+is_executable(const char *fname, int fd, int *is_shlib, int *type)
+{
+	union {
+		struct exec aout;
+		Elf_Ehdr elf;
+	} hdr;
+	int n;
+
+	*is_shlib = 0;
+	*type = TYPE_UNKNOWN;
+
+	if ((n = read(fd, &hdr, sizeof(hdr))) == -1) {
+		warn("%s: can't read program header", fname);
+		return (0);
+	}
+
+	if ((size_t)n >= sizeof(hdr.aout) && !N_BADMAG(hdr.aout)) {
+		/* a.out file */
+		if ((N_GETFLAG(hdr.aout) & EX_DPMASK) != EX_DYNAMIC
+#if 1 /* Compatibility */
+		    || hdr.aout.a_entry < __LDPGSZ
+#endif
+			) {
+			warnx("%s: not a dynamic executable", fname);
+			return (0);
+		}
+		*type = TYPE_AOUT;
+		return (1);
+	}
+
+	if ((size_t)n >= sizeof(hdr.elf) && IS_ELF(hdr.elf) &&
+	    hdr.elf.e_ident[EI_CLASS] == ELF_TARG_CLASS) {
+		/* Handle default ELF objects on this architecture */
+		Elf_Phdr phdr;
+		int dynamic, i;
+
+		dynamic = 0;
+		*type = TYPE_ELF;
+
+		if (lseek(fd, hdr.elf.e_phoff, SEEK_SET) == -1) {
+			warnx("%s: header too short", fname);
+			return (0);
+		}
+		for (i = 0; i < hdr.elf.e_phnum; i++) {
+			if (read(fd, &phdr, hdr.elf.e_phentsize)
+			   != sizeof(phdr)) {
+				warnx("%s: can't read program header", fname);
+				return (0);
+			}
+			if (phdr.p_type == PT_DYNAMIC) {
+				dynamic = 1;
+				break;
+			}
+		}
+
+		if (!dynamic) {
+			warnx("%s: not a dynamic ELF executable", fname);
+			return (0);
+		}
+		if (hdr.elf.e_type == ET_DYN) {
+			if (hdr.elf.e_ident[EI_OSABI] & ELFOSABI_FREEBSD) {
+				*is_shlib = 1;
+				return (1);
+			}
+			warnx("%s: not a FreeBSD ELF shared object", fname);
+			return (0);
+		}
+
+		return (1);
+	}
+
+	warnx("%s: not a dynamic executable", fname);
+	return (0);
 }
