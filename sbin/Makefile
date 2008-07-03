@@ -9,7 +9,7 @@ SUBDIR=	adjkerntz \
 	atacontrol \
 	${_atm} \
 	badsect \
-	bsdlabel \
+	${_bsdlabel} \
 	camcontrol \
 	ccdconfig \
 	clri \
@@ -113,6 +113,10 @@ _ping6=		ping6
 _rtsol=		rtsol
 .endif
 
+.if ${MACHINE_ARCH} != "ia64"
+_bsdlabel=	bsdlabel
+.endif
+
 .if ${MACHINE_ARCH} == "i386"
 .if ${MACHINE} == "i386"
 _fdisk=		fdisk
@@ -131,7 +135,6 @@ _fdisk=		fdisk
 .endif
 
 .if ${MACHINE_ARCH} == "ia64"
-_fdisk=		fdisk
 _mca=		mca
 .endif
 
