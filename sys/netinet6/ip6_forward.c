@@ -106,7 +106,7 @@ ip6_forward(struct mbuf *m, int srcrt)
 #endif
 	char ip6bufs[INET6_ADDRSTRLEN], ip6bufd[INET6_ADDRSTRLEN];
 
-	GIANT_REQUIRED; /* XXX bz: ip6_forward_rt */
+	/* GIANT_REQUIRED; */ /* XXX bz: ip6_forward_rt */
 
 #ifdef IPSEC
 	/*
