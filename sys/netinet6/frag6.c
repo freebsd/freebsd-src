@@ -683,10 +683,6 @@ frag6_slowtimo(void)
 {
 	struct ip6q *q6;
 
-#if 0
-	GIANT_REQUIRED;	/* XXX bz: ip6_forward_rt */
-#endif
-
 	IP6Q_LOCK();
 	q6 = ip6q.ip6q_next;
 	if (q6)
