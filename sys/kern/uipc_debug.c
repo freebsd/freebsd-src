@@ -225,11 +225,11 @@ db_print_indent(int indent)
 }
 
 static void
-db_print_domain(struct domain *d, const char *domainname, int indent)
+db_print_domain(struct domain *d, const char *domain_name, int indent)
 {
 
 	db_print_indent(indent);
-	db_printf("%s at %p\n", domainname, d);
+	db_printf("%s at %p\n", domain_name, d);
 
 	indent += 2;
 
