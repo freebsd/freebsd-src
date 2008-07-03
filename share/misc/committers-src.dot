@@ -70,6 +70,7 @@ brueffer [label="Christian Brueffer\nbrueffer@FreeBSD.org\n2006/02/28"]
 bruno [label="Bruno Ducrot\nbruno@FreeBSD.org\n2005/07/18"]
 bz [label="Bjoern A. Zeeb\nbz@FreeBSD.org\n2004/07/27"]
 ceri [label="Ceri Davies\nceri@FreeBSD.org\n2006/11/07"]
+cokane [label="Coleman Kane\ncokane@FreeBSD.org\n2000/06/19"]
 cperciva [label="Colin Percival\ncperciva@FreeBSD.org\n2004/01/20"]
 csjp [label="Christian S.J. Peron\ncsjp@FreeBSD.org\n2004/05/04"]
 davidxu [label="David Xu\ndavidxu@FreeBSD.org\n2002/09/02"]
@@ -318,6 +319,7 @@ mlaier -> dhartmei
 mlaier -> thompsa
 mlaier -> eri
 
+msmith -> cokane
 msmith -> scottl
 
 murray -> delphij
