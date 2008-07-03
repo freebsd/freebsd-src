@@ -87,8 +87,6 @@ struct bm_softc {
 	device_t		sc_dev;		/* back ptr to dev */
 	struct resource		*sc_memr;	/* macio bus mem resource */
 	int			sc_memrid;
-	bus_space_handle_t	sc_bhandle;
-	bus_space_tag_t		sc_btag;
 	device_t		sc_miibus;
 
 	struct mii_data		*sc_mii;
