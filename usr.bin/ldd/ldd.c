@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <a.out.h>
 #include <dlfcn.h>
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -54,6 +55,9 @@ static void	usage(void);
 #define	TYPE_UNKNOWN	0
 #define	TYPE_AOUT	1
 #define	TYPE_ELF	2	/* Architecture default */
+#if __ELF_WORD_SIZE > 32
+#define	TYPE_ELF32	3	/* Explicit 32 bits on architectures >32 bits */
+#endif
 
 #define	ENV_OBJECTS		0
 #define	ENV_OBJECTS_FMT1	1
@@ -69,6 +73,15 @@ const char	*envdef[ENV_LAST] = {
 	"LD_TRACE_LOADED_OBJECTS_PROGNAME",
 	"LD_TRACE_LOADED_OBJECTS_ALL",
 };
+#if __ELF_WORD_SIZE > 32
+const char	*env32[ENV_LAST] = {
+	"LD_32_TRACE_LOADED_OBJECTS",
+	"LD_32_TRACE_LOADED_OBJECTS_FMT1",
+	"LD_32_TRACE_LOADED_OBJECTS_FMT2",
+	"LD_32_TRACE_LOADED_OBJECTS_PROGNAME",
+	"LD_32_TRACE_LOADED_OBJECTS_ALL",
+};
+#endif
 
 int
 main(int argc, char *argv[])
@@ -124,8 +137,6 @@ main(int argc, char *argv[])
 		int fd, status, is_shlib, rv, type;
 		const char **env;
 
-		env = envdef;	/* Temporary placeholder */
-
 		if ((fd = open(*argv, O_RDONLY, 0)) < 0) {
 			warn("%s", *argv);
 			rval |= 1;
@@ -136,6 +147,25 @@ main(int argc, char *argv[])
 		if (rv == 0) {
 			rval |= 1;
 			continue;
+		}
+
+		switch (type) {
+		case TYPE_ELF:
+		case TYPE_AOUT:
+			env = envdef;
+			break;
+#if __ELF_WORD_SIZE > 32
+		case TYPE_ELF32:
+			env = env32;
+			break;
+#endif
+		case TYPE_UNKNOWN:
+		default:
+			/*
+			 * This shouldn't happen unless is_executable()
+			 * is broken.
+			 */
+			errx(EDOOFUS, "unknown executable type");
 		}
 
 		/* ld.so magic */
@@ -199,6 +229,7 @@ is_executable(const char *fname, int fd, int *is_shlib, int *type)
 {
 	union {
 		struct exec aout;
+		Elf32_Ehdr elf32;
 		Elf_Ehdr elf;
 	} hdr;
 	int n;
@@ -224,6 +255,49 @@ is_executable(const char *fname, int fd, int *is_shlib, int *type)
 		*type = TYPE_AOUT;
 		return (1);
 	}
+
+#if __ELF_WORD_SIZE > 32
+	if ((size_t)n >= sizeof(hdr.elf32) && IS_ELF(hdr.elf32) &&
+	    hdr.elf32.e_ident[EI_CLASS] == ELFCLASS32) {
+		/* Handle 32 bit ELF objects */
+		Elf32_Phdr phdr;
+		int dynamic, i;
+
+		dynamic = 0;
+		*type = TYPE_ELF32;
+
+		if (lseek(fd, hdr.elf32.e_phoff, SEEK_SET) == -1) {
+			warnx("%s: header too short", fname);
+			return (0);
+		}
+		for (i = 0; i < hdr.elf32.e_phnum; i++) {
+			if (read(fd, &phdr, hdr.elf32.e_phentsize) !=
+			    sizeof(phdr)) {
+				warnx("%s: can't read program header", fname);
+				return (0);
+			}
+			if (phdr.p_type == PT_DYNAMIC) {
+				dynamic = 1;
+				break;
+			}
+		}
+
+		if (!dynamic) {
+			warnx("%s: not a dynamic ELF executable", fname);
+			return (0);
+		}
+		if (hdr.elf32.e_type == ET_DYN) {
+			if (hdr.elf32.e_ident[EI_OSABI] & ELFOSABI_FREEBSD) {
+				*is_shlib = 1;
+				return (1);
+			}
+			warnx("%s: not a FreeBSD ELF shared object", fname);
+			return (0);
+		}
+
+		return (1);
+	}
+#endif
 
 	if ((size_t)n >= sizeof(hdr.elf) && IS_ELF(hdr.elf) &&
 	    hdr.elf.e_ident[EI_CLASS] == ELF_TARG_CLASS) {
