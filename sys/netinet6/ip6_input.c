@@ -222,8 +222,6 @@ ip6_input(struct mbuf *m)
 	struct in6_addr odst;
 	int srcrt = 0;
 
-	GIANT_REQUIRED;			/* XXX for now */
-
 #ifdef IPSEC
 	/*
 	 * should the inner packet be considered authentic?
