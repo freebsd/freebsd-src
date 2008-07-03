@@ -163,9 +163,13 @@ __FBSDID("$FreeBSD$");
 #endif
 
 /*
- * List of capabilities to mask on the member interface.
+ * List of capabilities to possibly mask on the member interface.
  */
-#define	BRIDGE_IFCAPS_MASK		IFCAP_TXCSUM
+#define	BRIDGE_IFCAPS_MASK		(IFCAP_TOE|IFCAP_TSO|IFCAP_TXCSUM)
+/*
+ * List of capabilities to disable on the member interface.
+ */
+#define	BRIDGE_IFCAPS_STRIP		IFCAP_LRO
 
 /*
  * Bridge interface list entry.
@@ -175,7 +179,7 @@ struct bridge_iflist {
 	struct ifnet		*bif_ifp;	/* member if */
 	struct bstp_port	bif_stp;	/* STP state */
 	uint32_t		bif_flags;	/* member if flags */
-	int			bif_mutecap;	/* member muted caps */
+	int			bif_savedcaps;	/* saved capabilities */
 	uint32_t		bif_addrmax;	/* max # of addresses */
 	uint32_t		bif_addrcnt;	/* cur. # of addresses */
 	uint32_t		bif_addrexceeded;/* # of address violations */
@@ -230,7 +234,9 @@ static int	bridge_clone_create(struct if_clone *, int, caddr_t);
 static void	bridge_clone_destroy(struct ifnet *);
 
 static int	bridge_ioctl(struct ifnet *, u_long, caddr_t);
-static void	bridge_mutecaps(struct bridge_iflist *, int);
+static void	bridge_mutecaps(struct bridge_softc *);
+static void	bridge_set_ifcap(struct bridge_softc *, struct bridge_iflist *,
+		    int);
 static void	bridge_ifdetach(void *arg __unused, struct ifnet *);
 static void	bridge_init(void *);
 static void	bridge_dummynet(struct mbuf *, struct ifnet *);
@@ -777,32 +783,49 @@ bridge_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
  *	Clear or restore unwanted capabilities on the member interface
  */
 static void
-bridge_mutecaps(struct bridge_iflist *bif, int mute)
+bridge_mutecaps(struct bridge_softc *sc)
+{
+	struct bridge_iflist *bif;
+	int enabled, mask;
+
+	/* Initial bitmask of capabilities to test */
+	mask = BRIDGE_IFCAPS_MASK;
+
+	LIST_FOREACH(bif, &sc->sc_iflist, bif_next) {
+		/* Every member must support it or its disabled */
+		mask &= bif->bif_savedcaps;
+	}
+
+	LIST_FOREACH(bif, &sc->sc_iflist, bif_next) {
+		enabled = bif->bif_ifp->if_capenable;
+		enabled &= ~BRIDGE_IFCAPS_STRIP;
+		/* strip off mask bits and enable them again if allowed */
+		enabled &= ~BRIDGE_IFCAPS_MASK;
+		enabled |= mask;
+
+		bridge_set_ifcap(sc, bif, enabled);
+	}
+
+}
+
+static void
+bridge_set_ifcap(struct bridge_softc *sc, struct bridge_iflist *bif, int set)
 {
 	struct ifnet *ifp = bif->bif_ifp;
 	struct ifreq ifr;
 	int error;
 
-	if (ifp->if_ioctl == NULL)
-		return;
-
 	bzero(&ifr, sizeof(ifr));
-	ifr.ifr_reqcap = ifp->if_capenable;
+	ifr.ifr_reqcap = set;
 
-	if (mute) {
-		/* mask off and save capabilities */
-		bif->bif_mutecap = ifr.ifr_reqcap & BRIDGE_IFCAPS_MASK;
-		if (bif->bif_mutecap != 0)
-			ifr.ifr_reqcap &= ~BRIDGE_IFCAPS_MASK;
-	} else
-		/* restore muted capabilities */
-		ifr.ifr_reqcap |= bif->bif_mutecap;
-
-
-	if (bif->bif_mutecap != 0) {
+	if (ifp->if_capenable != set) {
 		IFF_LOCKGIANT(ifp);
 		error = (*ifp->if_ioctl)(ifp, SIOCSIFCAP, (caddr_t)&ifr);
 		IFF_UNLOCKGIANT(ifp);
+		if (error)
+			if_printf(sc->sc_ifp,
+			    "error setting interface capabilities on %s\n",
+			    ifp->if_xname);
 	}
 }
 
@@ -870,7 +893,6 @@ bridge_delete_member(struct bridge_softc *sc, struct bridge_iflist *bif,
 			 * Take the interface out of promiscuous mode.
 			 */
 			(void) ifpromisc(ifs, 0);
-			bridge_mutecaps(bif, 0);
 			break;
 
 		case IFT_GIF:
@@ -882,6 +904,8 @@ bridge_delete_member(struct bridge_softc *sc, struct bridge_iflist *bif,
 #endif
 			break;
 		}
+		/* reneable any interface capabilities */
+		bridge_set_ifcap(sc, bif, bif->bif_savedcaps);
 	}
 
 	if (bif->bif_flags & IFBIF_STP)
@@ -908,6 +932,7 @@ bridge_delete_member(struct bridge_softc *sc, struct bridge_iflist *bif,
 		}
 	}
 
+	bridge_mutecaps(sc);	/* recalcuate now this interface is removed */
 	bridge_rtdelete(sc, ifs, IFBF_FLUSHALL);
 	KASSERT(bif->bif_addrcnt == 0,
 	    ("%s: %d bridge routes referenced", __func__, bif->bif_addrcnt));
@@ -946,6 +971,8 @@ bridge_ioctl_add(struct bridge_softc *sc, void *arg)
 	ifs = ifunit(req->ifbr_ifsname);
 	if (ifs == NULL)
 		return (ENOENT);
+	if (ifs->if_ioctl == NULL)	/* must be supported */
+		return (EINVAL);
 
 	/* If it's in the span list, it can't be a member. */
 	LIST_FOREACH(bif, &sc->sc_spanlist, bif_next)
@@ -975,6 +1002,7 @@ bridge_ioctl_add(struct bridge_softc *sc, void *arg)
 
 	bif->bif_ifp = ifs;
 	bif->bif_flags = IFBIF_LEARNING | IFBIF_DISCOVER;
+	bif->bif_savedcaps = ifs->if_capenable;
 
 	switch (ifs->if_type) {
 	case IFT_ETHER:
@@ -985,8 +1013,6 @@ bridge_ioctl_add(struct bridge_softc *sc, void *arg)
 		error = ifpromisc(ifs, 1);
 		if (error)
 			goto out;
-
-		bridge_mutecaps(bif, 1);
 		break;
 
 	case IFT_GIF:
@@ -1015,6 +1041,8 @@ bridge_ioctl_add(struct bridge_softc *sc, void *arg)
 	 */
 	LIST_INSERT_HEAD(&sc->sc_iflist, bif, bif_next);
 
+	/* Set interface capabilities to the intersection set of all members */
+	bridge_mutecaps(sc);
 out:
 	if (error) {
 		if (bif != NULL)
