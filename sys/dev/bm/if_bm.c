@@ -101,7 +101,6 @@ static int bm_add_rxbuf_dma	(struct bm_softc *sc, int i);
 static void bm_enable_interrupts (struct bm_softc *sc);
 static void bm_disable_interrupts (struct bm_softc *sc);
 static void bm_tick		(void *xsc);
-static int  bm_watchdog		(struct bm_softc *sc);
 
 static int bm_ifmedia_upd	(struct ifnet *);
 static void bm_ifmedia_sts	(struct ifnet *, struct ifmediareq *);
@@ -240,8 +239,6 @@ bm_mii_readreg(struct bm_softc *sc, struct bm_mii_frame *frame)
 {
 	int i, ack, bit;
 
-	BM_LOCK(sc);
-
 	/*
 	 * Set up frame for RX.
 	 */
@@ -284,8 +281,6 @@ bm_mii_readreg(struct bm_softc *sc, struct bm_mii_frame *frame)
 	bm_mii_writebit(sc, 0);
 	bm_mii_writebit(sc, 0);
 
-	BM_UNLOCK(sc);
-
 	return ((ack) ? 1 : 0);
 }
 
@@ -295,8 +290,6 @@ bm_mii_readreg(struct bm_softc *sc, struct bm_mii_frame *frame)
 static int
 bm_mii_writereg(struct bm_softc *sc, struct bm_mii_frame *frame)
 {
-	BM_LOCK(sc);
-
 	/*
 	 * Set up frame for tx
 	 */
@@ -320,8 +313,6 @@ bm_mii_writereg(struct bm_softc *sc, struct bm_mii_frame *frame)
 	 * Idle bit.
 	 */
 	bm_mii_writebit(sc, 0);
-
-	BM_UNLOCK(sc);
 
 	return (0);
 }
@@ -464,7 +455,7 @@ bm_attach(device_t dev)
 
 	error = 0;
 	mtx_init(&sc->sc_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
-	    MTX_DEF | MTX_RECURSE);
+	    MTX_DEF);
 	callout_init_mtx(&sc->sc_tick_ch, &sc->sc_mtx, 0);
 
 	/* Check for an improved version of Paddington */
@@ -483,9 +474,6 @@ bm_attach(device_t dev)
 		device_printf(dev, "Could not alloc chip registers!\n");
 		return (ENXIO);
 	}
-
-	sc->sc_btag = rman_get_bustag(sc->sc_memr);
-	sc->sc_bhandle = rman_get_bushandle(sc->sc_memr);
 
 	sc->sc_txdmarid = BM_TXDMA_REGISTERS;
 	sc->sc_rxdmarid = BM_RXDMA_REGISTERS;
@@ -627,8 +615,6 @@ bm_attach(device_t dev)
 
 	/* Attach the interface. */
 	ether_ifattach(ifp, sc->sc_enaddr);
-
-	ifp->if_data.ifi_hdrlen = sizeof(struct ether_header);
 	ifp->if_hwassist = 0;
 
 	return (0);
@@ -639,10 +625,14 @@ bm_detach(device_t dev)
 {
 	struct bm_softc *sc = device_get_softc(dev);
 
-	callout_drain(&sc->sc_tick_ch);
-
 	BM_LOCK(sc);
 	bm_stop(sc);
+	BM_UNLOCK(sc);
+
+	callout_drain(&sc->sc_tick_ch);
+	ether_ifdetach(sc->sc_ifp);
+	bus_teardown_intr(dev, sc->sc_txdmairq, sc->sc_txihtx);
+	bus_teardown_intr(dev, sc->sc_rxdmairq, sc->sc_rxih);
 
 	dbdma_free_channel(sc->sc_txdma);
 	dbdma_free_channel(sc->sc_rxdma);
@@ -653,15 +643,13 @@ bm_detach(device_t dev)
 	bus_release_resource(dev, SYS_RES_MEMORY, sc->sc_rxdmarid,
 	    sc->sc_rxdmar);
 
-	bus_teardown_intr(dev, sc->sc_txdmairq, sc->sc_txihtx);
-	bus_teardown_intr(dev, sc->sc_rxdmairq, sc->sc_rxih);
 	bus_release_resource(dev, SYS_RES_IRQ, sc->sc_txdmairqid,
 	    sc->sc_txdmairq);
 	bus_release_resource(dev, SYS_RES_IRQ, sc->sc_rxdmairqid,
 	    sc->sc_rxdmairq);
-	BM_UNLOCK(sc);
 
 	mtx_destroy(&sc->sc_mtx);
+	if_free(sc->sc_ifp);
 
 	return (0);
 }
@@ -669,7 +657,13 @@ bm_detach(device_t dev)
 static void
 bm_shutdown(device_t dev)
 {
-	bm_stop(device_get_softc(dev));
+	struct bm_softc *sc;
+	
+	sc = device_get_softc(dev);
+
+	BM_LOCK(sc);
+	bm_stop(sc);
+	BM_UNLOCK(sc);
 }
 
 static void
@@ -1205,6 +1199,7 @@ bm_stop(struct bm_softc *sc)
 	/* And we're down */
 	sc->sc_ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 	sc->sc_wdog_timer = 0;
+	callout_stop(&sc->sc_tick_ch);
 }
 
 static void
@@ -1370,22 +1365,15 @@ bm_tick(void *arg)
 	mii_tick(sc->sc_mii);
 	bm_miibus_statchg(sc->sc_dev);
 
-	if (bm_watchdog(sc) == EJUSTRETURN)
+	if (sc->sc_wdog_timer == 0 || --sc->sc_wdog_timer != 0) {
+		callout_reset(&sc->sc_tick_ch, hz, bm_tick, sc);
 		return;
+	}
 
-	callout_reset(&sc->sc_tick_ch, hz, bm_tick, sc);
-}
-
-static int
-bm_watchdog(struct bm_softc *sc)
-{
-	if (sc->sc_wdog_timer == 0 || --sc->sc_wdog_timer != 0)
-		return (0);
-
+	/* Problems */
 	device_printf(sc->sc_dev, "device timeout\n");
 
 	bm_init_locked(sc);
-	return (EJUSTRETURN);
 }
 
 static int
