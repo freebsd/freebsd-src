@@ -161,16 +161,16 @@
  * register space access macros
  */
 #define	CSR_WRITE_4(sc, reg, val)	\
-	bus_space_write_4(sc->sc_btag, sc->sc_bhandle, reg, val)
+	bus_write_4(sc->sc_memr, reg, val)
 #define	CSR_WRITE_2(sc, reg, val)	\
-	bus_space_write_2(sc->sc_btag, sc->sc_bhandle, reg, val)
+	bus_write_2(sc->sc_memr, reg, val)
 #define CSR_WRITE_1(sc, reg, val)	\
-	bus_space_write_1(sc->sc_btag, sc->sc_bhandle, reg, val)
+	bus_write_1(sc->sc_memr, reg, val)
 
 #define CSR_READ_4(sc, reg)		\
-	bus_space_read_4(sc->sc_btag, sc->sc_bhandle, reg)
+	bus_read_4(sc->sc_memr, reg)
 #define CSR_READ_2(sc, reg)		\
-	bus_space_read_2(sc->sc_btag, sc->sc_bhandle, reg)
+	bus_read_2(sc->sc_memr, reg)
 #define	CSR_READ_1(sc, reg)		\
-	bus_space_read_1(sc->sc_btag, sc->sc_bhandle, reg)
+	bus_read_1(sc->sc_memr, reg)
 
