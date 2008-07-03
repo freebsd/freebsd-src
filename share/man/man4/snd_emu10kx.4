@@ -143,7 +143,7 @@ This is actually 48kHz/16bit/32 channels on SB Live! cards and
 the sound subsystem does not support such an amount of PCM channels.
 This device can not be opened for read, thus confusing many applications.
 .Pp
-Within a multichannel stream , thefirst half (0-15 or 0-31) is a copy of all DSP
+Within a multichannel stream, the first half (0-15 or 0-31) is a copy of all DSP
 outputs, the second half (15-30 or 32-63) is a copy of some DSP inputs.
 On Live! cards the last substream (31) is used as a sync stream and is always
 set to 0xc0de.
@@ -193,7 +193,7 @@ mixer control for the PCM playback volume.
 It controls only front output
 volume in multichannel mode and all output volume in single channel mode.
 .It Qq rec
-mixer control acts very different on EMU10K1 and other cards.
+mixer control acts very differently on EMU10K1 and other cards.
 On EMU10K1 cards it controls the AC97 codec recording level.
 On non-EMU10K1 cards it controls the amount of AC97
 .Dq stereo mix
