@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 static void
 usage(void)
 {
+
 	fprintf(stderr, "usage: ldd [-a] [-v] [-f format] program ...\n");
 	exit(1);
 }
@@ -57,43 +58,42 @@ usage(void)
 int
 main(int argc, char *argv[])
 {
-	char		*fmt1 = NULL, *fmt2 = NULL;
-	int		rval;
-	int		c;
-	int		aflag, vflag;
+	char *fmt1, *fmt2;
+	int rval, c, aflag, vflag;
 
 	aflag = vflag = 0;
+	fmt1 = fmt2 = NULL;
 
-	while ((c = getopt(argc, argv, "avf:")) != -1) {
+	while ((c = getopt(argc, argv, "af:v")) != -1) {
 		switch (c) {
 		case 'a':
 			aflag++;
 			break;
-		case 'v':
-			vflag++;
-			break;
 		case 'f':
-			if (fmt1) {
-				if (fmt2)
+			if (fmt1 != NULL) {
+				if (fmt2 != NULL)
 					errx(1, "too many formats");
 				fmt2 = optarg;
 			} else
 				fmt1 = optarg;
 			break;
+		case 'v':
+			vflag++;
+			break;
 		default:
 			usage();
-			/*NOTREACHED*/
+			/* NOTREACHED */
 		}
 	}
 	argc -= optind;
 	argv += optind;
 
-	if (vflag && fmt1)
+	if (vflag && fmt1 != NULL)
 		errx(1, "-v may not be used with -f");
 
 	if (argc <= 0) {
 		usage();
-		/*NOTREACHED*/
+		/* NOTREACHED */
 	}
 
 #ifdef __i386__
@@ -106,38 +106,34 @@ main(int argc, char *argv[])
 
 	/* ld.so magic */
 	setenv("LD_TRACE_LOADED_OBJECTS", "yes", 1);
-	if (fmt1)
+	if (fmt1 != NULL)
 		setenv("LD_TRACE_LOADED_OBJECTS_FMT1", fmt1, 1);
-	if (fmt2)
+	if (fmt2 != NULL)
 		setenv("LD_TRACE_LOADED_OBJECTS_FMT2", fmt2, 1);
 
 	rval = 0;
-	for ( ;  argc > 0;  argc--, argv++) {
-		int	fd;
+	for (; argc > 0; argc--, argv++) {
+		int fd, n, status, file_ok, is_shlib;
 		union {
 			struct exec aout;
 			Elf_Ehdr elf;
 		} hdr;
-		int	n;
-		int	status;
-		int	file_ok;
-		int	is_shlib;
 
 		if ((fd = open(*argv, O_RDONLY, 0)) < 0) {
 			warn("%s", *argv);
 			rval |= 1;
 			continue;
 		}
-		if ((n = read(fd, &hdr, sizeof hdr)) == -1) {
+		if ((n = read(fd, &hdr, sizeof(hdr))) == -1) {
 			warn("%s: can't read program header", *argv);
-			(void)close(fd);
+			close(fd);
 			rval |= 1;
 			continue;
 		}
 
 		file_ok = 1;
 		is_shlib = 0;
-		if ((size_t)n >= sizeof hdr.aout && !N_BADMAG(hdr.aout)) {
+		if ((size_t)n >= sizeof(hdr.aout) && !N_BADMAG(hdr.aout)) {
 			/* a.out file */
 			if ((N_GETFLAG(hdr.aout) & EX_DPMASK) != EX_DYNAMIC
 #if 1 /* Compatibility */
@@ -147,21 +143,22 @@ main(int argc, char *argv[])
 				warnx("%s: not a dynamic executable", *argv);
 				file_ok = 0;
 			}
-		} else if ((size_t)n >= sizeof hdr.elf && IS_ELF(hdr.elf)) {
+		} else if ((size_t)n >= sizeof(hdr.elf) && IS_ELF(hdr.elf)) {
 			Elf_Ehdr ehdr;
 			Elf_Phdr phdr;
-			int dynamic = 0, i;
+			int dynamic, i;
+
+			dynamic = 0;
 
 			if (lseek(fd, 0, SEEK_SET) == -1 ||
-			    read(fd, &ehdr, sizeof ehdr) != sizeof ehdr ||
-			    lseek(fd, ehdr.e_phoff, SEEK_SET) == -1
-			   ) {
+			    read(fd, &ehdr, sizeof(ehdr)) != sizeof(ehdr) ||
+			    lseek(fd, ehdr.e_phoff, SEEK_SET) == -1) {
 				warnx("%s: can't read program header", *argv);
 				file_ok = 0;
 			} else {
 				for (i = 0; i < ehdr.e_phnum; i++) {
 					if (read(fd, &phdr, ehdr.e_phentsize)
-					   != sizeof phdr) {
+					   != sizeof(phdr)) {
 						warnx("%s: can't read program header",
 						    *argv);
 						file_ok = 0;
@@ -187,18 +184,18 @@ main(int argc, char *argv[])
 			warnx("%s: not a dynamic executable", *argv);
 			file_ok = 0;
 		}
-		(void)close(fd);
+		close(fd);
 		if (!file_ok) {
 			rval |= 1;
 			continue;
 		}
 
 		setenv("LD_TRACE_LOADED_OBJECTS_PROGNAME", *argv, 1);
-		if (aflag) setenv("LD_TRACE_LOADED_OBJECTS_ALL", "1", 1);
+		if (aflag)
+			setenv("LD_TRACE_LOADED_OBJECTS_ALL", "1", 1);
 		else if (fmt1 == NULL && fmt2 == NULL)
 			/* Default formats */
 			printf("%s:\n", *argv);
-
 		fflush(stdout);
 
 		switch (fork()) {
@@ -210,12 +207,12 @@ main(int argc, char *argv[])
 				warn("wait");
 				rval |= 1;
 			} else if (WIFSIGNALED(status)) {
-				fprintf(stderr, "%s: signal %d\n",
-						*argv, WTERMSIG(status));
+				fprintf(stderr, "%s: signal %d\n", *argv,
+				    WTERMSIG(status));
 				rval |= 1;
 			} else if (WIFEXITED(status) && WEXITSTATUS(status)) {
-				fprintf(stderr, "%s: exit status %d\n",
-						*argv, WEXITSTATUS(status));
+				fprintf(stderr, "%s: exit status %d\n", *argv,
+				    WEXITSTATUS(status));
 				rval |= 1;
 			}
 			break;
