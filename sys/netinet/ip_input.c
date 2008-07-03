@@ -1363,7 +1363,6 @@ ip_forward(struct mbuf *m, int srcrt)
 	 * the ICMP_UNREACH_NEEDFRAG "Next-Hop MTU" field described in RFC1191.
 	 */
 	bzero(&ro, sizeof(ro));
-	rtalloc_ign_fib(&ro, RTF_CLONING, M_GETFIB(m));
 
 	error = ip_output(m, NULL, &ro, IP_FORWARDING, NULL, NULL);
 
