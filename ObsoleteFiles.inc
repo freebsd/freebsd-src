@@ -14,6 +14,14 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20080703: bsdlabel & fdisk removed on ia64
+.if ${TARGET_ARCH} == "ia64"
+OLD_FILES+=sbin/bsdlabel
+OLD_FILES+=usr/share/man/man8/bsdlabel.8.gz
+OLD_FILES+=usr/share/man/man8/disklabel.8.gz
+OLD_FILES+=sbin/fdisk
+OLD_FILES+=usr/share/man/man8/fdisk.8.gz
+.endif
 # 20080701: wpa_supplicant.conf moved to share/examples/etc/
 OLD_FILES+=usr/share/examples/wpa_supplicant/wpa_supplicant.conf
 OLD_DIRS+=usr/share/examples/wpa_supplicant
