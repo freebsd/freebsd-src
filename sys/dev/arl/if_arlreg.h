@@ -282,8 +282,8 @@ struct arl_sigcache {
 #ifdef _KERNEL
 struct arl_softc {
 	struct ifnet		*arl_ifp;
+	device_t		arl_dev;
 
-	int			arl_unit;
 	struct arl_private *	arl_mem;	/* arlan data */
 
 	struct arl_cfg_param	arl_cfg;	/* arlan vars in our mem */
@@ -304,7 +304,13 @@ struct arl_softc {
 	struct arl_sigcache	arl_sigcache[MAXARLCACHE];
 #endif
 	struct ifmedia		arl_ifmedia;
+	struct callout		arl_timer;
+	struct mtx		arl_lock;
 };
+
+#define	ARL_LOCK(sc)		mtx_lock(&(sc)->arl_lock)
+#define	ARL_UNLOCK(sc)		mtx_unlock(&(sc)->arl_lock)
+#define	ARL_LOCK_ASSERT(sc)	mtx_assert(&(sc)->arl_lock, MA_OWNED)
 #endif
 
 #define	ARLAN_SIGN		"TELESYSTEM"
