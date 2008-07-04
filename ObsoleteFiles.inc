@@ -14,6 +14,12 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20080704: arl(4) removed
+.if ${TARGET_ARCH} == "i386"
+OLD_FILES+=usr/sbin/arlcontrol
+OLD_FILES+=usr/share/man/man4/arl.4.gz
+OLD_FILES+=usr/share/man/man8/arlcontrol.8.gz
+.endif
 # 20080703: sunlabel only for sparc64
 .if ${TARGET_ARCH} != "sparc64"
 OLD_FILES+=sbin/sunlabel

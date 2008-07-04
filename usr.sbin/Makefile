@@ -12,7 +12,6 @@ SUBDIR=	ac \
 	ancontrol \
 	${_apm} \
 	${_apmd} \
-	${_arlcontrol} \
 	arp \
 	${_asf} \
 	${_atm} \
@@ -317,7 +316,6 @@ _zzz=		zzz
 .if ${MK_ACPI} != "no"
 _acpi=		acpi
 .endif
-_arlcontrol=	arlcontrol
 _boot0cfg=	boot0cfg
 _wlconfig=	wlconfig
 .elif ${MACHINE} == "pc98"
