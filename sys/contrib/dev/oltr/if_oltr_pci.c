@@ -145,15 +145,11 @@ oltr_pci_probe(device_t dev)
 static int
 oltr_pci_attach(device_t dev)
 {
-        int 			i, s, scratch_size;
+        int 			i, scratch_size;
 	u_long 			command;
 	char 			PCIConfigHeader[64];
 	struct oltr_softc		*sc = device_get_softc(dev);
 
-        s = splimp();
-
-       	bzero(sc, sizeof(struct oltr_softc));
-	sc->unit = device_get_unit(dev);
 	sc->state = OL_UNKNOWN;
 
 	for (i = 0; i < sizeof(PCIConfigHeader); i++)
@@ -220,12 +216,10 @@ oltr_pci_attach(device_t dev)
 	if (oltr_attach(dev) == -1)
 		goto config_failed;
 
-        splx(s);
         return(0);
 
 config_failed:
 
-        splx(s);
         return(ENXIO);
 }
 
@@ -234,18 +228,18 @@ oltr_pci_detach(device_t dev)
 {
 	struct oltr_softc	*sc = device_get_softc(dev);
 	struct ifnet		*ifp = sc->ifp;
-	int s, i;
+	int i;
 
 	device_printf(dev, "driver unloading\n");
 
-	s = splimp();
-
 	iso88025_ifdetach(ifp, ISO88025_BPF_SUPPORTED);
+	OLTR_LOCK(sc);
 	if (sc->state > OL_CLOSED)
 		oltr_stop(sc);
+	OLTR_UNLOCK(sc);
 
-	untimeout(oltr_poll, (void *)sc, sc->oltr_poll_ch);
-	/*untimeout(oltr_stat, (void *)sc, sc->oltr_stat_ch);*/
+	callout_drain(&sc->oltr_poll_timer);
+	/*callout_drain(&sc->oltr_stat_timer);*/
 
 	bus_teardown_intr(dev, sc->irq_res, sc->oltr_intrhand);
 	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq_res);
@@ -261,8 +255,7 @@ oltr_pci_detach(device_t dev)
 		free(sc->work_memory, M_DEVBUF);
 	free(sc->TRlldAdapter, M_DEVBUF);
 
-	(void)splx(s);
-
+	mtx_destroy(&sc->oltr_lock);
 	return(0);
 }
 
@@ -273,8 +266,10 @@ oltr_pci_shutdown(device_t dev)
 
 	device_printf(dev, "oltr_pci_shutdown called\n");
 
+	OLTR_LOCK(sc);
 	if (sc->state > OL_CLOSED)
 		oltr_stop(sc);
+	OLTR_UNLOCK(sc);
 
 	return;
 }

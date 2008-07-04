@@ -47,13 +47,6 @@
 #include <net/if_types.h>
 #include <net/bpf.h>
 
-#ifndef BPF_MTAP
-#define	BPF_MTAP(_ifp, _m) do {				\
-	if ((_ifp)->if_bpf)				\
-		bpf_mtap((_ifp), (_m));			\
-} while (0)
-#endif
-
 #include <vm/vm.h>              /* for vtophys */
 #include <vm/pmap.h>            /* for vtophys */
 
@@ -117,8 +110,10 @@ TRlldDriver_t LldDriver = {
 
 
 static void oltr_start		__P((struct ifnet *));
+static void oltr_start_locked	__P((struct ifnet *));
 static void oltr_close		__P((struct oltr_softc *));
 static void oltr_init		__P((void *));
+static void oltr_init_locked	__P((struct oltr_softc *));
 static int oltr_ioctl		__P((struct ifnet *, u_long, caddr_t));
 static void oltr_intr		__P((void *));
 static int oltr_ifmedia_upd	__P((struct ifnet *));
@@ -135,16 +130,20 @@ oltr_attach(device_t dev)
 	int		rc = 0;
 	int		media = IFM_TOKEN|IFM_TOK_UTP16;
 
+	mtx_init(&sc->oltr_lock, device_get_nameunit(dev), MTX_NETWORK_LOCK,
+	    MTX_DEF);
+	callout_init_mtx(&sc->oltr_poll_timer, &sc->oltr_lock, 0);
+	/*callout_init_mtx(&sc->oltr_stat_timer, &sc->oltr_lock, 0);*/
 	ifp = sc->ifp = if_alloc(IFT_ISO88025);
 	if (ifp == NULL) {
 		device_printf(dev, "couldn't if_alloc()");
+		mtx_destroy(&sc->oltr_lock);
 		return (-1);
 	}
 	
 	/*
-	 * Allocate interrupt and DMA channel
+	 * Allocate interrupt
 	 */
-
 	sc->irq_rid = 0;
 	sc->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &sc->irq_rid,
 		(sc->config.mode & TRLLD_MODE_SHARE_INTERRUPT) ?
@@ -152,14 +151,8 @@ oltr_attach(device_t dev)
 	if (sc->irq_res == NULL) {
 		device_printf(dev, "couldn't map interrupt\n");
 		if_free(ifp);
+		mtx_destroy(&sc->oltr_lock);
 		return (-1);
-	}
-	if (bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET, NULL, oltr_intr,
-			sc, &sc-> oltr_intrhand)) {
-		device_printf(dev, "couldn't setup interrupt\n");
-                bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq_res);
-		if_free(ifp);
-                return (-1);
 	}
 
 	/*
@@ -170,8 +163,8 @@ oltr_attach(device_t dev)
 	ifp->if_init	= oltr_init;
 	ifp->if_start	= oltr_start;
 	ifp->if_ioctl	= oltr_ioctl;
-	ifp->if_flags	= IFF_BROADCAST | IFF_NEEDSGIANT;
-	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
+	ifp->if_flags	= IFF_BROADCAST;
+	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
 
 	/*
 	 * Do ifmedia setup.
@@ -203,6 +196,16 @@ oltr_attach(device_t dev)
 
 	iso88025_ifattach(ifp, sc->config.macaddress, ISO88025_BPF_SUPPORTED);
 
+	if (bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET | INTR_MPSAFE, NULL,
+			oltr_intr, sc, &sc->oltr_intrhand)) {
+		device_printf(dev, "couldn't setup interrupt\n");
+		iso88025_ifdetach(ifp, ISO88025_BPF_SUPPORTED);
+                bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq_res);
+		if_free(ifp);
+		mtx_destroy(&sc->oltr_lock);
+                return (-1);
+	}
+
 	return(0);
 }
 
@@ -212,10 +215,12 @@ oltr_intr(void *xsc)
 {
 	struct oltr_softc		*sc = (struct oltr_softc *)xsc;
 
+	OLTR_LOCK(sc);
 	if (DEBUG_MASK & DEBUG_INT)
 		printf("I");
 
 	TRlldInterruptService(sc->TRlldAdapter);
+	OLTR_UNLOCK(sc);
 
 	return;
 }
@@ -224,8 +229,18 @@ static void
 oltr_start(struct ifnet *ifp)
 {
 	struct oltr_softc 	*sc = ifp->if_softc;
+
+	OLTR_LOCK(sc);
+	oltr_start_locked(ifp);
+	OLTR_UNLOCK(sc);
+}
+
+static void
+oltr_start_locked(struct ifnet *ifp)
+{
+	struct oltr_softc 	*sc = ifp->if_softc;
 	struct mbuf		*m0, *m;
-	int			copy_len, buffer, frame, fragment, rc, s;
+	int			copy_len, buffer, frame, fragment, rc;
 	
 	/*
 	 * Check to see if output is already active
@@ -239,7 +254,7 @@ outloop:
 	 * Make sure we have buffers to transmit with
 	 */
 	if (sc->tx_avail <= 0) {
-		printf("oltr%d: tx queue full\n", sc->unit);
+		if_printf(ifp, "tx queue full\n");
 		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 		return;
 	}
@@ -273,12 +288,10 @@ outloop:
 		buffer = RING_BUFFER((buffer + 1));
 	}
 
-	s = splimp();
 	rc = TRlldTransmitFrame(sc->TRlldAdapter, &sc->frame_ring[frame], (void *)&sc->frame_ring[frame]);
-	(void)splx(s);
 
 	if (rc != TRLLD_TRANSMIT_OK) {
-		printf("oltr%d: TRlldTransmitFrame returned %d\n", sc->unit, rc);
+		if_printf(ifp, "TRlldTransmitFrame returned %d\n", rc);
 		ifp->if_oerrors++;
 		goto bad;
 	}
@@ -297,7 +310,7 @@ bad:
 
 nobuffers:
 
-	printf("oltr%d: queue full\n", sc->unit);
+	if_printf(ifp, "queue full\n");
 	ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 	ifp->if_oerrors++;
 	/*m_freem(m0);*/
@@ -309,11 +322,11 @@ nobuffers:
 static void
 oltr_close(struct oltr_softc *sc)
 {
-	/*printf("oltr%d: oltr_close\n", sc->unit);*/
+	/*if_printf(sc->ifp, "oltr_close\n");*/
 
 	oltr_stop(sc);
 
-	tsleep(sc, PWAIT, "oltrclose", 30*hz);
+	mtx_sleep(sc, &sc->oltr_lock, PWAIT, "oltrclose", 30*hz);
 }
 
 void
@@ -321,32 +334,40 @@ oltr_stop(struct oltr_softc *sc)
 {
 	struct ifnet 		*ifp = sc->ifp;
 
-	/*printf("oltr%d: oltr_stop\n", sc->unit);*/
+	/*if_printf(ifp, "oltr_stop\n");*/
 
-	ifp->if_flags &= ~IFF_UP;
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 	TRlldClose(sc->TRlldAdapter, 0);
 	sc->state = OL_CLOSING;
+	callout_stop(&sc->oltr_poll_timer);
+	/*callout_stop(&sc->oltr_stat_timer);*/
 }
 
 static void
 oltr_init(void * xsc)
 {
 	struct oltr_softc 	*sc = (struct oltr_softc *)xsc;
+
+	OLTR_LOCK(sc);
+	oltr_init_locked(sc);
+	OLTR_UNLOCK(sc);
+}
+
+static void
+oltr_init_locked(struct oltr_softc *sc)
+{
 	struct ifnet		*ifp = sc->ifp;
 	struct ifmedia		*ifm = &sc->ifmedia;
-	int			poll = 0, i, rc = 0, s;
+	int			poll = 0, i, rc = 0;
 	int			work_size;
 
 	/*
 	 * Check adapter state, don't allow multiple inits
 	 */
 	if (sc->state > OL_CLOSED) {
-		printf("oltr%d: adapter not ready\n", sc->unit);
+		if_printf(ifp, "adapter not ready\n");
 		return;
 	}
-
-	s = splimp();
 
 	/*
 	 * Initialize Adapter
@@ -355,19 +376,19 @@ oltr_init(void * xsc)
 	    (void *)sc, &sc->config)) != TRLLD_INIT_OK) {
 		switch(rc) {
 		case TRLLD_INIT_NOT_FOUND:
-			printf("oltr%d: adapter not found\n", sc->unit);
+			if_printf(ifp, "adapter not found\n");
 			break;
 		case TRLLD_INIT_UNSUPPORTED:
-			printf("oltr%d: adapter not supported by low level driver\n", sc->unit);
+			if_printf(ifp, "adapter not supported by low level driver\n");
 			break;
 		case TRLLD_INIT_PHYS16:
-			printf("oltr%d: adapter memory block above 16M cannot DMA\n", sc->unit);
+			if_printf(ifp, "adapter memory block above 16M cannot DMA\n");
 			break;
 		case TRLLD_INIT_VERSION:
-			printf("oltr%d: low level driver version mismatch\n", sc->unit);
+			if_printf(ifp, "low level driver version mismatch\n");
 			break;
 		default:
-			printf("oltr%d: unknown init error %d\n", sc->unit, rc);
+			if_printf(ifp, "unknown init error %d\n", rc);
 			break;
 		}
 		goto init_failed;
@@ -387,7 +408,7 @@ oltr_init(void * xsc)
 
 	if (work_size) {
 		if ((sc->work_memory = malloc(work_size, M_DEVBUF, M_NOWAIT)) == NULL) {
-			printf("oltr%d: failed to allocate work memory (%d octets).\n", sc->unit, work_size);
+			if_printf(ifp, "failed to allocate work memory (%d octets).\n", work_size);
 		} else {
 		TRlldAddMemory(sc->TRlldAdapter, sc->work_memory,
 		    vtophys(sc->work_memory), work_size);
@@ -413,7 +434,7 @@ oltr_init(void * xsc)
 	 * Download adapter micro-code
 	 */
 	if (bootverbose)
-		printf("oltr%d: Downloading adapter microcode: ", sc->unit);
+		if_printf(ifp, "Downloading adapter microcode: ");
 
 	switch(sc->config.mactype) {
 	case TRLLD_MAC_TMS:
@@ -450,7 +471,7 @@ oltr_init(void * xsc)
 		if (bootverbose)
 			printf(" - failed\n");
 		else
-			printf("oltr%d: adapter microcode download failed\n", sc->unit);
+			if_printf(ifp, "adapter microcode download failed\n");
 		goto init_failed;
 		break;
 	case TRLLD_STATE:
@@ -473,15 +494,14 @@ oltr_init(void * xsc)
 	}
 
 	if (sc->state != OL_CLOSED) {
-		printf("oltr%d: self-test failed\n", sc->unit);
+		if_printf(ifp, "self-test failed\n");
 		goto init_failed;
 	}
 
 	/*
 	 * Set up adapter poll
 	 */
-	callout_handle_init(&sc->oltr_poll_ch);
-	sc->oltr_poll_ch = timeout(oltr_poll, (void *)sc, 1);
+	callout_reset(&sc->oltr_poll_timer, 1, oltr_poll, sc);
 
 	sc->state = OL_OPENING;
 
@@ -494,20 +514,16 @@ oltr_init(void * xsc)
 		case TRLLD_OPEN_OK:
 			break;
 		case TRLLD_OPEN_STATE:
-			printf("oltr%d: adapter not ready for open\n", sc->unit);
-			(void)splx(s);
+			if_printf(ifp, "adapter not ready for open\n");
 			return;
 		case TRLLD_OPEN_ADDRESS_ERROR:
-			printf("oltr%d: illegal MAC address\n", sc->unit);
-			(void)splx(s);
+			if_printf(ifp, "illegal MAC address\n");
 			return;
 		case TRLLD_OPEN_MODE_ERROR:
-			printf("oltr%d: illegal open mode\n", sc->unit);
-			(void)splx(s);
+			if_printf(ifp, "illegal open mode\n");
 			return;
 		default:
-			printf("oltr%d: unknown open error (%d)\n", sc->unit, rc);
-			(void)splx(s);
+			if_printf(ifp, "unknown open error (%d)\n", rc);
 			return;
 	}
 
@@ -520,7 +536,7 @@ oltr_init(void * xsc)
 	/*
 	 * Block on the ring insert and set a timeout
 	 */
-	tsleep(sc, PWAIT, "oltropen", 30*hz);
+	mtx_sleep(sc, &sc->oltr_lock, PWAIT, "oltropen", 30*hz);
 
 	/*
 	 * Set up receive buffer ring
@@ -529,7 +545,7 @@ oltr_init(void * xsc)
 		rc = TRlldReceiveFragment(sc->TRlldAdapter, (void *)sc->rx_ring[i].data,
 			sc->rx_ring[i].address, RX_BUFFER_LEN, (void *)sc->rx_ring[i].index);
 		if (rc != TRLLD_RECEIVE_OK) {
-			printf("oltr%d: adapter refused receive fragment %d (rc = %d)\n", sc->unit, i, rc);
+			if_printf(ifp, "adapter refused receive fragment %d (rc = %d)\n", i, rc);
 			break;
 		}	
 	}
@@ -546,15 +562,12 @@ oltr_init(void * xsc)
 	/*
 	 * Set up adapter statistics poll
 	 */
-	/*callout_handle_init(&sc->oltr_stat_ch);*/
-	/*sc->oltr_stat_ch = timeout(oltr_stat, (void *)sc, 1*hz);*/
+	/*callout_reset(&sc->oltr_stat_timer, 1*hz, oltr_stat, sc);*/
 
-	(void)splx(s);
 	return;
 
 init_failed:
 	sc->state = OL_DEAD;
-	(void)splx(s);
 	return;
 }
 
@@ -563,9 +576,7 @@ oltr_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 {
 	struct oltr_softc 	*sc = ifp->if_softc;
 	struct ifreq		*ifr = (struct ifreq *)data;
-	int 			error = 0, s;
-
-	s = splimp();
+	int 			error = 0;
 
 	switch(command) {
 	case SIOCSIFADDR:
@@ -575,13 +586,15 @@ oltr_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		break;
 
 	case SIOCSIFFLAGS:
+		OLTR_LOCK(sc);
 		if (ifp->if_flags & IFF_UP) {
-			oltr_init(sc);
+			oltr_init_locked(sc);
 		} else {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 				oltr_close(sc);
 			}
 		}
+		OLTR_UNLOCK(sc);
 		break;
 	case SIOCGIFMEDIA:
 	case SIOCSIFMEDIA:
@@ -592,8 +605,6 @@ oltr_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		break;
 	}
 
-	(void)splx(s);	
-
 	return(error);
 }
 
@@ -602,16 +613,12 @@ void
 oltr_poll(void *arg)
 {
 	struct oltr_softc *sc = (struct oltr_softc *)arg;
-	int s;
-
-	s = splimp();
 
 	if (DEBUG_MASK & DEBUG_POLL) printf("P");
 
 	/* Set up next adapter poll */
-	sc->oltr_poll_ch = timeout(oltr_poll, (void *)sc, (TRlldPoll(sc->TRlldAdapter) * hz / 1000));
-
-	(void)splx(s);
+	callout_reset(&sc->oltr_poll_timer,
+	    (TRlldPoll(sc->TRlldAdapter) * hz / 1000), oltr_poll, sc);
 }
 
 #ifdef NOTYET
@@ -619,18 +626,13 @@ void
 oltr_stat(void *arg)
 {
 	struct oltr_softc	*sc = (struct oltr_softc *)arg;
-	int			s;
-
-	s = splimp();
 
 	/* Set up next adapter poll */
-	sc->oltr_stat_ch = timeout(oltr_stat, (void *)sc, 1*hz);
+	callout_reset(&sc->oltr_stat_timer, 1*hz, oltr_stat, sc);
 	if (TRlldGetStatistics(sc->TRlldAdapter, &sc->current, 0) != 0) {
-		/*printf("oltr%d: statistics available immediately...\n", sc->unit);*/
+		/*if_printf(sc->ifp, "statistics available immediately...\n");*/
 		DriverStatistics((void *)sc, &sc->current);
 	}
-
-	(void)splx(s);
 }
 #endif
 static int
@@ -643,6 +645,7 @@ oltr_ifmedia_upd(struct ifnet *ifp)
 	if (IFM_TYPE(ifm->ifm_media) != IFM_TOKEN)
 		return(EINVAL);
 
+	OLTR_LOCK(sc);
 	switch(IFM_SUBTYPE(ifm->ifm_media)) {
 	case IFM_AUTO:
 		rc = TRlldSetSpeed(sc->TRlldAdapter, 0); /* TRLLD_SPEED_AUTO */
@@ -657,11 +660,12 @@ oltr_ifmedia_upd(struct ifnet *ifp)
 		rc = TRlldSetSpeed(sc->TRlldAdapter, TRLLD_SPEED_100MBPS);
 		break;
 	default:
-		return(EINVAL);
+		rc = EINVAL;
 		break;
 	}
+	OLTR_UNLOCK(sc);
 
-	return(0);
+	return(rc);
 
 }
 
@@ -671,10 +675,11 @@ oltr_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 	struct oltr_softc	*sc = ifp->if_softc;
 	struct ifmedia		*ifm = &sc->ifmedia;
 
-	/*printf("oltr%d: oltr_ifmedia_sts\n", sc->unit);*/
+	/*if_printf(ifp, "oltr_ifmedia_sts\n");*/
 
+	OLTR_LOCK(sc);
 	ifmr->ifm_active = IFM_TYPE(ifm->ifm_media)|IFM_SUBTYPE(ifm->ifm_media);
-
+	OLTR_UNLOCK(sc);
 }
 
 /*
@@ -688,49 +693,49 @@ DriverStatistics(void *DriverHandle, TRlldStatistics_t *statistics)
 	struct oltr_softc		*sc = (struct oltr_softc *)DriverHandle;
 
 	if (sc->statistics.LineErrors != statistics->LineErrors)
-		printf("oltr%d: Line Errors %lu\n", sc->unit,
+		if_printf(ifp, "Line Errors %lu\n",
 		    statistics->LineErrors);
 	if (sc->statistics.InternalErrors != statistics->InternalErrors)
-		printf("oltr%d: Internal Errors %lu\n", sc->unit,
+		if_printf(ifp, "Internal Errors %lu\n",
 		    statistics->InternalErrors);
 	if (sc->statistics.BurstErrors != statistics->BurstErrors)
-		printf("oltr%d: Burst Errors %lu\n", sc->unit,
+		if_printf(ifp, "Burst Errors %lu\n",
 		    statistics->BurstErrors);
 	if (sc->statistics.AbortDelimiters != statistics->AbortDelimiters)
-		printf("oltr%d: Abort Delimiters %lu\n", sc->unit,
+		if_printf(ifp, "Abort Delimiters %lu\n",
 		    statistics->AbortDelimiters);
 	if (sc->statistics.ARIFCIErrors != statistics->ARIFCIErrors)
-		printf("oltr%d: ARIFCI Errors %lu\n", sc->unit,
+		if_printf(ifp, "ARIFCI Errors %lu\n",
 		    statistics->ARIFCIErrors);
 	if (sc->statistics.LostFrames != statistics->LostFrames)
-		printf("oltr%d: Lost Frames %lu\n", sc->unit,
+		if_printf(ifp, "Lost Frames %lu\n",
 		    statistics->LostFrames);
 	if (sc->statistics.CongestionErrors != statistics->CongestionErrors)
-		printf("oltr%d: Congestion Errors %lu\n", sc->unit,
+		if_printf(ifp, "Congestion Errors %lu\n",
 		    statistics->CongestionErrors);
 	if (sc->statistics.FrequencyErrors != statistics->FrequencyErrors)
-		printf("oltr%d: Frequency Errors %lu\n", sc->unit,
+		if_printf(ifp, "Frequency Errors %lu\n",
 		    statistics->FrequencyErrors);
 	if (sc->statistics.TokenErrors != statistics->TokenErrors)
-		printf("oltr%d: Token Errors %lu\n", sc->unit,
+		if_printf(ifp, "Token Errors %lu\n",
 		    statistics->TokenErrors);
 	if (sc->statistics.DMABusErrors != statistics->DMABusErrors)
-		printf("oltr%d: DMA Bus Errors %lu\n", sc->unit,
+		if_printf(ifp, "DMA Bus Errors %lu\n",
 		    statistics->DMABusErrors);
 	if (sc->statistics.DMAParityErrors != statistics->DMAParityErrors)
-		printf("oltr%d: DMA Parity Errors %lu\n", sc->unit,
+		if_printf(ifp, "DMA Parity Errors %lu\n",
 		    statistics->DMAParityErrors);
 	if (sc->statistics.ReceiveLongFrame != statistics->ReceiveLongFrame)
-		printf("oltr%d: Long frames received %lu\n", sc->unit,
+		if_printf(ifp, "Long frames received %lu\n",
 		    statistics->ReceiveLongFrame);
 	if (sc->statistics.ReceiveCRCErrors != statistics->ReceiveCRCErrors)
-		printf("oltr%d: Receive CRC Errors %lu\n", sc->unit,
+		if_printf(ifp, "Receive CRC Errors %lu\n",
 		    statistics->ReceiveCRCErrors);
 	if (sc->statistics.ReceiveOverflow != statistics->ReceiveOverflow)
-		printf("oltr%d: Recieve overflows %lu\n", sc->unit,
+		if_printf(ifp, "Recieve overflows %lu\n",
 		    statistics->ReceiveOverflow);
 	if (sc->statistics.TransmitUnderrun != statistics->TransmitUnderrun)
-		printf("oltr%d: Frequency Errors %lu\n", sc->unit,
+		if_printf(ifp, "Frequency Errors %lu\n",
 		    statistics->TransmitUnderrun);
 	bcopy(statistics, &sc->statistics, sizeof(TRlldStatistics_t));
 #endif
@@ -755,11 +760,12 @@ DriverStatus(void *DriverHandle, TRlldStatus_t *Status)
 	char *Timeout[]  = { /* 0 */ "command",
 			     /* 1 */ "transmit",
 			     /* 2 */ "interrupt" };
-	
+
+	OLTR_ASSERT_LOCKED(sc);
 	switch (Status->Type) {
 
 	case TRLLD_STS_ON_WIRE:
-		printf("oltr%d: ring insert (%d Mbps - %s)\n", sc->unit,
+		if_printf(ifp, "ring insert (%d Mbps - %s)\n",
 		    Status->Specification.OnWireInformation.Speed,
 		    Protocol[Status->Specification.OnWireInformation.AccessProtocol]);
 		sc->state = OL_OPEN;
@@ -769,15 +775,15 @@ DriverStatus(void *DriverHandle, TRlldStatus_t *Status)
 		if (Status->Specification.SelftestStatus == TRLLD_ST_OK) {
 			sc->state = OL_CLOSED;
 			if (bootverbose)
-				printf("oltr%d: self test complete\n", sc->unit);
+				if_printf(ifp, "self test complete\n");
 		}
 		if (Status->Specification.SelftestStatus & TRLLD_ST_ERROR) {
-			printf("oltr%d: Adapter self test error %d", sc->unit,
+			if_printf(ifp, "Adapter self test error %d",
 			Status->Specification.SelftestStatus & ~TRLLD_ST_ERROR);
 			sc->state = OL_DEAD;
 		}
 		if (Status->Specification.SelftestStatus & TRLLD_ST_TIMEOUT) {
-			printf("oltr%d: Adapter self test timed out.\n", sc->unit);
+			if_printf(ifp, "Adapter self test timed out.\n");
 			sc->state = OL_DEAD;
 		}
 		break;
@@ -786,16 +792,16 @@ DriverStatus(void *DriverHandle, TRlldStatus_t *Status)
 			oltr_stop(sc);
 			ifmedia_set(&sc->ifmedia, IFM_TOKEN|IFM_TOK_UTP16);
 			TRlldSetSpeed(sc->TRlldAdapter, TRLLD_SPEED_16MBPS);
-			oltr_init(sc);
+			oltr_init_locked(sc);
 			break;
 		}
-		printf("oltr%d: adapter init failure 0x%03x\n", sc->unit,
+		if_printf(ifp, "adapter init failure 0x%03x\n",
 		    Status->Specification.InitStatus);
 		oltr_stop(sc);
 		break;
 	case TRLLD_STS_RING_STATUS:
 		if (Status->Specification.RingStatus) {
-			printf("oltr%d: Ring status change: ", sc->unit);
+			if_printf(ifp, "Ring status change: ");
 			if (Status->Specification.RingStatus &
 			    TRLLD_RS_SIGNAL_LOSS)
 				printf(" [Signal Loss]");
@@ -830,7 +836,7 @@ DriverStatus(void *DriverHandle, TRlldStatus_t *Status)
 		}
 		break;
 	case TRLLD_STS_ADAPTER_CHECK:
-		printf("oltr%d: adapter check (%04x %04x %04x %04x)\n", sc->unit,
+		if_printf(ifp, "adapter check (%04x %04x %04x %04x)\n",
 		    Status->Specification.AdapterCheck[0],
 		    Status->Specification.AdapterCheck[1],
 		    Status->Specification.AdapterCheck[2],
@@ -839,7 +845,7 @@ DriverStatus(void *DriverHandle, TRlldStatus_t *Status)
 		oltr_stop(sc);
 		break;
 	case TRLLD_STS_PROMISCUOUS_STOPPED:
-		printf("oltr%d: promiscuous mode ", sc->unit);
+		if_printf(ifp, "promiscuous mode ");
 		if (Status->Specification.PromRemovedCause == 1)
 			printf("remove received.");
 		if (Status->Specification.PromRemovedCause == 2)
@@ -850,7 +856,7 @@ DriverStatus(void *DriverHandle, TRlldStatus_t *Status)
 		ifp->if_flags &= ~IFF_PROMISC;
 		break;
 	case TRLLD_STS_LLD_ERROR:
-		printf("oltr%d: low level driver internal error ", sc->unit);
+		if_printf(ifp, "low level driver internal error ");
 		printf("(%04x %04x %04x %04x).\n",
 		    Status->Specification.InternalError[0],
 		    Status->Specification.InternalError[1],
@@ -860,11 +866,11 @@ DriverStatus(void *DriverHandle, TRlldStatus_t *Status)
 		oltr_stop(sc);
 		break;
 	case TRLLD_STS_ADAPTER_TIMEOUT:
-		printf("oltr%d: adapter %s timeout.\n", sc->unit,
+		if_printf(ifp, "adapter %s timeout.\n",
 		    Timeout[Status->Specification.AdapterTimeout]);
 		break;
 	default:
-		printf("oltr%d: driver status Type = %d\n", sc->unit, Status->Type);
+		if_printf(ifp, "driver status Type = %d\n", Status->Type);
 		break;
 
 	}
@@ -879,8 +885,9 @@ static void
 DriverCloseCompleted(void *DriverHandle)
 {
 	struct oltr_softc		*sc = (struct oltr_softc *)DriverHandle;
-	
-	printf("oltr%d: adapter closed\n", sc->unit);
+
+	OLTR_ASSERT_LOCKED(sc);
+	if_printf(sc->ifp, "adapter closed\n");
 	wakeup(sc);
 	sc->state = OL_CLOSED;
 }
@@ -892,11 +899,12 @@ DriverTransmitFrameCompleted(void *DriverHandle, void *FrameHandle, int Transmit
 	struct ifnet		*ifp = sc->ifp;
 	TRlldTransmit_t		*frame = (TRlldTransmit_t *)FrameHandle;
 	
-	/*printf("oltr%d: DriverTransmitFrameCompleted\n", sc->unit);*/
+	/*if_printf(ifp, "DriverTransmitFrameCompleted\n");*/
 
+	OLTR_ASSERT_LOCKED(sc);
 	if (TransmitStatus != TRLLD_TRANSMIT_OK) {
 		ifp->if_oerrors++;
-		printf("oltr%d: transmit error %d\n", sc->unit, TransmitStatus);
+		if_printf(ifp, "transmit error %d\n", TransmitStatus);
 	} else {
 		ifp->if_opackets++;
 	}
@@ -904,9 +912,9 @@ DriverTransmitFrameCompleted(void *DriverHandle, void *FrameHandle, int Transmit
 	sc->tx_avail += frame->FragmentCount;
 
 	if (ifp->if_drv_flags & IFF_DRV_OACTIVE) {
-		printf("oltr%d: queue restart\n", sc->unit);
+		if_printf(ifp, "queue restart\n");
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-		oltr_start(ifp);
+		oltr_start_locked(ifp);
 	}
 
 
@@ -918,10 +926,11 @@ DriverReceiveFrameCompleted(void *DriverHandle, int ByteCount, int FragmentCount
 	struct oltr_softc 	*sc = (struct oltr_softc *)DriverHandle;
 	struct ifnet		*ifp = sc->ifp;
 	struct mbuf		*m0, *m1, *m;
-	int			frame_len = ByteCount, i = (int)FragmentHandle, rc, s;
+	int			frame_len = ByteCount, i = (int)FragmentHandle, rc;
 	int			mbuf_offset, mbuf_size, frag_offset, copy_length;
 	char			*fragment = sc->rx_ring[RING_BUFFER(i)].data;
 	
+	OLTR_ASSERT_LOCKED(sc);
 	if (sc->state > OL_CLOSED) {
 		if (ReceiveStatus == TRLLD_RCV_OK) {
 			MGETHDR(m0, M_DONTWAIT, MT_DATA);
@@ -987,17 +996,18 @@ DriverReceiveFrameCompleted(void *DriverHandle, int ByteCount, int FragmentCount
 					m->m_len = 0;
 				}
 			}
+			OLTR_UNLOCK(sc);
 			iso88025_input(ifp, m0);
+			OLTR_LOCK(sc);
 		} else {	/* Receiver error */
 			if (ReceiveStatus != TRLLD_RCV_NO_DATA) {
-				printf("oltr%d: receive error %d\n", sc->unit,
+				if_printf(ifp, "receive error %d\n",
 				    ReceiveStatus);
 				ifp->if_ierrors++;
 			}
 		}
 
 dropped:
-		s = splimp();
 		i = (int)FragmentHandle;
 		while (FragmentCount--) {
 			rc = TRlldReceiveFragment(sc->TRlldAdapter,
@@ -1005,12 +1015,11 @@ dropped:
 			    sc->rx_ring[RING_BUFFER(i)].address,
 			    RX_BUFFER_LEN, (void *)sc->rx_ring[RING_BUFFER(i)].index);
 			if (rc != TRLLD_RECEIVE_OK) {
-				printf("oltr%d: adapter refused receive fragment %d (rc = %d)\n", sc->unit, i, rc);
+				if_printf(ifp, "adapter refused receive fragment %d (rc = %d)\n", i, rc);
 				break;
 			}
 			i++;
 		}
-		(void)splx(s);
 	}
 }
 

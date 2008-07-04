@@ -143,12 +143,8 @@ oltr_isa_attach(dev)
 	int			buffer_size;
 	int			iobase;
 	int			success;
-	int			s, i;
+	int			i;
 
-	s = splimp();
-
-	bzero(sc, sizeof(struct oltr_softc));
-	sc->unit = device_get_unit(dev);
 	sc->state = OL_UNKNOWN;
 
 	iobase = bus_get_resource_start(dev, SYS_RES_IOPORT, 0);
@@ -244,7 +240,6 @@ oltr_isa_attach(dev)
 	if (oltr_attach(dev) != 0)
 		goto config_failed;
 
-	splx(s);
 	return (0);
 
 config_failed:
@@ -295,7 +290,6 @@ config_failed:
 		sc->bus_tag = NULL;
 	}
 
-	splx(s);
 	return (ENXIO);
 }
 

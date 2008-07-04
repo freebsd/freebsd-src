@@ -70,8 +70,6 @@ struct oltr_tx_buf {
 struct oltr_softc {
 	struct ifnet		*ifp;
 	struct ifmedia		ifmedia;
-	bus_space_handle_t	oltr_bhandle;
-	bus_space_tag_t		oltr_btag;
 	void			*oltr_intrhand;
 	int			irq_rid;
 	struct resource		*irq_res;
@@ -84,7 +82,6 @@ struct oltr_softc {
 	bus_dmamap_t		mem_map;
 	bus_addr_t		queue_phys;
 	char *			queue_addr;
-	int			unit;
 	int 			state;
 #define OL_UNKNOWN	0
 #define OL_INIT		1
@@ -108,15 +105,21 @@ struct oltr_softc {
 	u_short			AdapterMode;
 	u_long			GroupAddress;
 	u_long			FunctionalAddress;
-	struct callout_handle	oltr_poll_ch;
-	/*struct callout_handle	oltr_stat_ch;*/
+	struct mtx		oltr_lock;
+	struct callout		oltr_poll_timer;
+	/*struct callout	oltr_stat_timer;*/
 	void			*work_memory;
 };
 
 #define SELF_TEST_POLLS	32
+
+#define	OLTR_LOCK(sc)		mtx_lock(&(sc)->oltr_lock)
+#define	OLTR_UNLOCK(sc)		mtx_unlock(&(sc)->oltr_lock)
+#define	OLTR_ASSERT_LOCKED(sc)	mtx_assert(&(sc)->oltr_lock, MA_OWNED)
 
 void oltr_poll 			__P((void *));
 /*void oltr_stat 		__P((void *));*/
 
 int oltr_attach			__P((device_t dev));
 void oltr_stop			__P((struct oltr_softc *));
+
