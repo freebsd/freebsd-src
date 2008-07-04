@@ -292,7 +292,6 @@ MAN=	aac.4 \
 	safe.4 \
 	sbp.4 \
 	sbp_targ.4 \
-	sbsh.4 \
 	scc.4 \
 	sched_4bsd.4 \
 	sched_ule.4 \
@@ -505,7 +504,6 @@ MLINKS+=re.4 if_re.4
 MLINKS+=rl.4 if_rl.4
 MLINKS+=rue.4 if_rue.4
 MLINKS+=rum.4 if_rum.4
-MLINKS+=sbsh.4 if_sbsh.4
 MLINKS+=scsi.4 CAM.4 \
 	scsi.4 cam.4 \
 	scsi.4 scbus.4 \

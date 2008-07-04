@@ -236,7 +236,6 @@ SUBDIR=	${_3dfx} \
 	rum \
 	${_s3} \
 	${_safe} \
-	sbsh \
 	scc \
 	scd \
 	${_scsi_low} \
