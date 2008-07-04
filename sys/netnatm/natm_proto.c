@@ -105,7 +105,7 @@ natm_init(void)
 	natmintrq.ifq_maxlen = natmqmaxlen;
 	NATM_LOCK_INIT();
 	mtx_init(&natmintrq.ifq_mtx, "natm_inq", NULL, MTX_DEF);
-	netisr_register(NETISR_NATM, natmintr, &natmintrq, NETISR_MPSAFE);
+	netisr_register(NETISR_NATM, natmintr, &natmintrq, 0);
 }
 
 DOMAIN_SET(natm);

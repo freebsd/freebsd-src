@@ -77,6 +77,8 @@ netisr_register(int num, netisr_t *handler, struct ifqueue *inq, int flags)
 	
 	KASSERT(!(num < 0 || num >= (sizeof(netisrs)/sizeof(*netisrs))),
 	    ("bad isr %d", num));
+	KASSERT(flags == 0 || flags == NETISR_FORCEQUEUE,
+	    ("netisr_register: bad flags 0x%x\n", flags));
 	netisrs[num].ni_handler = handler;
 	netisrs[num].ni_queue = inq;
 	netisrs[num].ni_flags = flags;
@@ -161,27 +163,18 @@ netisr_dispatch(int num, struct mbuf *m)
 		m_freem(m);
 		return;
 	}
+
 	/*
-	 * Do direct dispatch only for MPSAFE netisrs (and
-	 * only when enabled).  Note that when a netisr is
-	 * marked MPSAFE we permit multiple concurrent instances
-	 * to run.  We guarantee only the order in which
-	 * packets are processed for each "dispatch point" in
-	 * the system (i.e. call to netisr_dispatch or
-	 * netisr_queue).  This insures ordering of packets
-	 * from an interface but does not guarantee ordering
-	 * between multiple places in the system (e.g. IP
-	 * dispatched from interfaces vs. IP queued from IPSec).
+	 * Unless NETISR_FORCEQUEUE is set on the netisr (generally
+	 * indicating that the handler still requires Giant, which cannot be
+	 * acquired in arbitrary order with respect to a caller), directly
+	 * dispatch handling of this packet.  Source ordering is maintained
+	 * by virtue of callers consistently calling one of queued or direct
+	 * dispatch, and the forcequeue flag being immutable after
+	 * registration.
 	 */
-	if (netisr_direct && (ni->ni_flags & NETISR_MPSAFE)) {
+	if (netisr_direct && !(ni->ni_flags & NETISR_FORCEQUEUE)) {
 		isrstat.isrs_directed++;
-		/*
-		 * NB: We used to drain the queue before handling
-		 * the packet but now do not.  Doing so here will
-		 * not preserve ordering so instead we fallback to
-		 * guaranteeing order only from dispatch points
-		 * in the system (see above).
-		 */
 		ni->ni_handler(m);
 	} else {
 		isrstat.isrs_deferred++;
@@ -242,19 +235,10 @@ swi_net(void *dummy)
 				printf("swi_net: unregistered isr %d.\n", i);
 				continue;
 			}
-			if ((ni->ni_flags & NETISR_MPSAFE) == 0) {
-				mtx_lock(&Giant);
-				if (ni->ni_queue == NULL)
-					ni->ni_handler(NULL);
-				else
-					netisr_processqueue(ni);
-				mtx_unlock(&Giant);
-			} else {
-				if (ni->ni_queue == NULL)
-					ni->ni_handler(NULL);
-				else
-					netisr_processqueue(ni);
-			}
+			if (ni->ni_queue == NULL)
+				ni->ni_handler(NULL);
+			else
+				netisr_processqueue(ni);
 		}
 	} while (polling);
 }
