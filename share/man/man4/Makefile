@@ -50,7 +50,6 @@ MAN=	aac.4 \
 	ciss.4 \
 	cm.4 \
 	cmx.4 \
-	cnw.4 \
 	coda.4 \
 	${_coretemp.4} \
 	cpufreq.4 \
@@ -442,7 +441,6 @@ MLINKS+=bce.4 if_bce.4
 MLINKS+=bfe.4 if_bfe.4
 MLINKS+=bge.4 if_bge.4
 MLINKS+=bktr.4 brooktree.4
-MLINKS+=cnw.4 if_cnw.4
 MLINKS+=crypto.4 cryptodev.4
 MLINKS+=cue.4 if_cue.4
 MLINKS+=dc.4 if_dc.4

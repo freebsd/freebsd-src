@@ -1737,7 +1737,6 @@ device		miibus
 #	the embedded gigE NICs on Dell PowerEdge 2550 servers.
 # cm:	Arcnet SMC COM90c26 / SMC COM90c56
 #	(and SMC COM90c66 in '56 compatibility mode) adapters.
-# cnw:  Xircom CNW/Netware Airsurfer PC Card adapter
 # dc:   Support for PCI fast ethernet adapters based on the DEC/Intel 21143
 #       and various workalikes including:
 #       the ADMtek AL981 Comet and AN985 Centaur, the ASIX Electronics
@@ -1864,7 +1863,6 @@ hint.sn.0.at="isa"
 hint.sn.0.port="0x300"
 hint.sn.0.irq="10"
 device		an
-device		cnw
 device		wi
 device		xe
 
