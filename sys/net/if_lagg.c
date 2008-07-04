@@ -1581,14 +1581,10 @@ lagg_lb_start(struct lagg_softc *sc, struct mbuf *m)
 	struct lagg_lb *lb = (struct lagg_lb *)sc->sc_psc;
 	struct lagg_port *lp = NULL;
 	uint32_t p = 0;
-	int idx;
 
 	p = lagg_hashmbuf(m, lb->lb_key);
-	if ((idx = p % sc->sc_count) >= LAGG_MAX_PORTS) {
-		m_freem(m);
-		return (EINVAL);
-	}
-	lp = lb->lb_ports[idx];
+	p %= sc->sc_count;
+	lp = lb->lb_ports[p];
 
 	/*
 	 * Check the port's link state. This will return the next active
