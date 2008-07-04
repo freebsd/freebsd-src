@@ -85,7 +85,7 @@ SUBDIR=	adjkerntz \
 	slattach \
 	spppcontrol \
 	startslip \
-	sunlabel \
+	${_sunlabel} \
 	swapon \
 	sysctl \
 	tunefs \
@@ -136,6 +136,10 @@ _fdisk=		fdisk
 
 .if ${MACHINE_ARCH} == "ia64"
 _mca=		mca
+.endif
+
+.if ${MACHINE_ARCH} == "sparc64"
+_sunlabel=	sunlabel
 .endif
 
 .include <bsd.subdir.mk>
