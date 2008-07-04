@@ -85,7 +85,6 @@ sbni_probe_isa(device_t dev)
 		return (error);
 
 	sc = device_get_softc(dev);
-	bzero(sc, sizeof(struct sbni_softc));
 
  	sc->io_res = bus_alloc_resource(dev, SYS_RES_IOPORT, &sc->io_rid,
 					0ul, ~0ul, SBNI_PORTS, RF_ACTIVE);
@@ -95,12 +94,11 @@ sbni_probe_isa(device_t dev)
 	}
 
 	if (sbni_probe(sc) != 0) {
-		bus_release_resource(dev, SYS_RES_IOPORT,
-				     sc->io_rid, sc->io_res);
+		sbni_release_resources(sc);
 		return (ENXIO);
 	}
 
-	device_quiet(dev);
+	device_set_desc(dev, "Granch SBNI12/ISA adapter");
 	return (0);
 }
 
@@ -113,50 +111,32 @@ sbni_attach_isa(device_t dev)
 	int error;
    
 	sc = device_get_softc(dev);
+	sc->dev = dev;
 
-	printf("sbni%d: <Granch SBNI12/ISA adapter> port 0x%lx",
-	       next_sbni_unit, rman_get_start(sc->io_res));
 	sc->irq_res = bus_alloc_resource_any(
 	    dev, SYS_RES_IRQ, &sc->irq_rid, RF_ACTIVE);
 
-	if (sc->irq_res) {
-		printf(" irq %ld\n", rman_get_start(sc->irq_res));
-		error = bus_setup_intr(
-		    dev, sc->irq_res, INTR_TYPE_NET,
-		    NULL, sbni_intr, sc, &sc->irq_handle);
-		if (error) {
-			printf("sbni%d: bus_setup_intr\n", next_sbni_unit);
-			bus_release_resource(
-			    dev, SYS_RES_IOPORT, sc->io_rid, sc->io_res);
-			bus_release_resource(
-			    dev, SYS_RES_IRQ, sc->irq_rid, sc->irq_res);
-			return (error);
-		}
-
 #ifndef SBNI_DUAL_COMPOUND
 
-	} else {
-		printf("\nsbni%d: irq conflict!\n", next_sbni_unit);
-		bus_release_resource(dev, SYS_RES_IOPORT,
-				     sc->io_rid, sc->io_res);
+	if (sc->irq_res == NULL) {
+		device_printf(dev, "irq conflict!\n");
+		sbni_release_resources(sc);
 		return (ENOENT);
 	}
 
 #else	/* SBNI_DUAL_COMPOUND */
 
-		sc->link = sbni_headlist;
-		sbni_headlist = sc;
+	if (sc->irq_res) {
+		sbni_add(sc);
 	} else {
 		struct sbni_softc  *master;
 
 		if ((master = connect_to_master(sc)) == 0) {
-			printf("\nsbni%d: failed to alloc irq\n",
-			       next_sbni_unit);
-			bus_release_resource(
-			    dev, SYS_RES_IOPORT, sc->io_rid, sc->io_res);
+			device_printf(dev, "failed to alloc irq\n");
+			sbni_release_resources(sc);
 			return (ENXIO);
 		} else {
-			printf(" shared irq with %s\n",
+			device_printf(dev, "shared irq with %s\n",
 			       master->ifp->if_xname);
 		}
 	} 
@@ -164,6 +144,24 @@ sbni_attach_isa(device_t dev)
 
 	*(u_int32_t*)&flags = device_get_flags(dev);
 
-	sbni_attach(sc, next_sbni_unit++, flags);
+	error = sbni_attach(sc, device_get_unit(dev) * 2, flags);
+	if (error) {
+		device_printf(dev, "cannot initialize driver\n");
+		sbni_release_resources(sc);
+		return (error);
+	}
+
+	if (sc->irq_res) {
+		error = bus_setup_intr(
+		    dev, sc->irq_res, INTR_TYPE_NET | INTR_MPSAFE,
+		    NULL, sbni_intr, sc, &sc->irq_handle);
+		if (error) {
+			device_printf(dev, "bus_setup_intr\n");
+			sbni_detach(sc);
+			sbni_release_resources(sc);
+			return (error);
+		}
+	}
+
 	return (0);
 }
