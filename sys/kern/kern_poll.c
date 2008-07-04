@@ -262,10 +262,8 @@ init_device_poll(void)
 {
 
 	mtx_init(&poll_mtx, "polling", NULL, MTX_DEF);
-	netisr_register(NETISR_POLL, (netisr_t *)netisr_poll, NULL,
-	    NETISR_MPSAFE);
-	netisr_register(NETISR_POLLMORE, (netisr_t *)netisr_pollmore, NULL,
-	    NETISR_MPSAFE);
+	netisr_register(NETISR_POLL, (netisr_t *)netisr_poll, NULL, 0);
+	netisr_register(NETISR_POLLMORE, (netisr_t *)netisr_pollmore, NULL, 0);
 }
 SYSINIT(device_poll, SI_SUB_CLOCKS, SI_ORDER_MIDDLE, init_device_poll, NULL);
 
