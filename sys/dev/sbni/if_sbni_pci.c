@@ -51,11 +51,13 @@ __FBSDID("$FreeBSD$");
 
 static int	sbni_pci_probe(device_t);
 static int	sbni_pci_attach(device_t);
+static int	sbni_pci_detach(device_t);
 
 static device_method_t sbni_pci_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,	sbni_pci_probe),
 	DEVMETHOD(device_attach, sbni_pci_attach),
+	DEVMETHOD(device_detach, sbni_pci_detach),
 	{ 0, 0 }
 };
 
@@ -75,14 +77,13 @@ sbni_pci_probe(device_t dev)
 {
 	struct sbni_softc  *sc;
 	u_int32_t  ports;
-   
+ 
 	ports = SBNI_PORTS;
 	if (pci_get_vendor(dev) != SBNI_PCI_VENDOR ||
 	    pci_get_device(dev) != SBNI_PCI_DEVICE)
 		return (ENXIO);
 
 	sc = device_get_softc(dev);
-	bzero(sc, sizeof(struct sbni_softc));
 	if (pci_get_subdevice(dev) == 2) {
 		ports <<= 1;
 		sc->slave_sc = malloc(sizeof(struct sbni_softc),
@@ -97,7 +98,7 @@ sbni_pci_probe(device_t dev)
  	sc->io_res = bus_alloc_resource(dev, SYS_RES_IOPORT, &sc->io_rid,
 					0ul, ~0ul, ports, RF_ACTIVE);
 	if (!sc->io_res) {
-		printf("sbni: cannot allocate io ports!\n");
+		device_printf(dev, "cannot allocate io ports!\n");
 		if (sc->slave_sc)
 			free(sc->slave_sc, M_DEVBUF);
 		return (ENOENT);
@@ -108,14 +109,12 @@ sbni_pci_probe(device_t dev)
 		sc->slave_sc->io_off = 4;
 	}
 	if (sbni_probe(sc) != 0) {
-		bus_release_resource(dev, SYS_RES_IOPORT,
-				     sc->io_rid, sc->io_res);
+		sbni_release_resources(sc);
 		if (sc->slave_sc)
 			free(sc->slave_sc, M_DEVBUF);
 		return (ENXIO);
 	}
 
-	device_quiet(dev);
 	return (0);
 }
 
@@ -127,41 +126,66 @@ sbni_pci_attach(device_t dev)
 	int error;
 
 	sc = device_get_softc(dev);
+	sc->dev = dev;
 
-	printf("sbni%d: <Granch SBNI12/PCI%sadapter> port 0x%lx",
-	       next_sbni_unit, sc->slave_sc ? " Dual " : " ",
-	       rman_get_start(sc->io_res));
 	sc->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &sc->irq_rid,
 					     RF_SHAREABLE);
 
-	if (sc->irq_res) {
-		printf(" irq %ld\n", rman_get_start(sc->irq_res));
-		error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET,
-				       NULL, sbni_intr, sc, &sc->irq_handle);
-		if (error) {
-			printf("sbni%d: bus_setup_intr\n", next_sbni_unit);
-			goto attach_failed;
-		}
-	} else {
-		printf("\nsbni%d: cannot claim irq!\n", next_sbni_unit);
+	if (sc->irq_res == NULL) {
+		device_printf(dev, "cannot claim irq!\n");
 		error = ENOENT;
 		goto attach_failed;
 	}
 
 	*(u_int32_t*)&flags = 0;
 
-	sbni_attach(sc, next_sbni_unit++, flags);
-	if (sc->slave_sc)
-		sbni_attach(sc->slave_sc, next_sbni_unit++, flags);
+	error = sbni_attach(sc, device_get_unit(dev) * 2, flags);
+	if (error) {
+		device_printf(dev, "cannot initialize driver\n");
+		goto attach_failed;
+	}
+	if (sc->slave_sc) {
+		error = sbni_attach(sc->slave_sc, device_get_unit(dev) * 2 + 1,
+		    flags);
+		if (error) {
+			device_printf(dev, "cannot initialize slave\n");
+			sbni_detach(sc);
+			goto attach_failed;
+		}
+	}
+
+	if (sc->irq_res) {
+		error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET |
+		    INTR_MPSAFE, NULL, sbni_intr, sc, &sc->irq_handle);
+		if (error) {
+			device_printf(dev, "bus_setup_intr\n");
+			sbni_detach(sc);
+			if (sc->slave_sc)
+				sbni_detach(sc);
+			goto attach_failed;
+		}
+	}
 	return (0);
 
 attach_failed:
-	bus_release_resource(dev, SYS_RES_IOPORT, sc->io_rid, sc->io_res);
-	if (sc->irq_res) {
-		bus_release_resource(
-		    dev, SYS_RES_IRQ, sc->irq_rid, sc->irq_res);
-	}
+	sbni_release_resources(sc);
 	if (sc->slave_sc)
 		free(sc->slave_sc, M_DEVBUF);
 	return (error);
+}
+
+static int
+sbni_pci_detach(device_t dev)
+{
+	struct sbni_softc *sc;
+
+	sc = device_get_softc(dev);
+	sbni_detach(sc);
+	if (sc->slave_sc)
+		sbni_detach(sc);
+	
+	sbni_release_resources(sc);
+	if (sc->slave_sc)
+		free(sc->slave_sc, M_DEVBUF);
+	return (0);
 }
