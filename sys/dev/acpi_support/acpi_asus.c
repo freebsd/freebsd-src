@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #define ACPI_ASUS_METHOD_LCD	3
 #define ACPI_ASUS_METHOD_CAMERA	4
 #define ACPI_ASUS_METHOD_CARDRD	5
+#define ACPI_ASUS_METHOD_WLAN	6
 
 #define _COMPONENT	ACPI_OEM
 ACPI_MODULE_NAME("ASUS")
@@ -87,6 +88,9 @@ struct acpi_asus_model {
 
 	char	*crd_get;
 	char	*crd_set;
+
+	char	*wlan_get;
+	char	*wlan_set;
 
 	void	(*n_func)(ACPI_HANDLE, UINT32, void *);
 };
@@ -126,6 +130,7 @@ struct acpi_asus_softc {
 	int			s_lcd;
 	int			s_cam;
 	int			s_crd;
+	int			s_wlan;
 };
 
 /*
@@ -402,6 +407,8 @@ static struct acpi_asus_model acpi_eeepc_models[] = {
 		.cam_set	= "\\_SB.ATKD.CAMS",
 		.crd_set	= "\\_SB.ATKD.CRDS",
 		.crd_get	= "\\_SB.ATKD.CRDG",
+		.wlan_get	= "\\_SB.ATKD.WLDG",
+		.wlan_set	= "\\_SB.ATKD.WLDS",
 		.n_func		= acpi_asus_eeepc_notify
 	},
 
@@ -443,6 +450,12 @@ static struct {
 		.method		= ACPI_ASUS_METHOD_CARDRD,
 		.description	= "internal card reader state",
 		.flags 		= CTLTYPE_INT | CTLFLAG_RW
+	},
+	{
+		.name		= "wlan",
+		.method		= ACPI_ASUS_METHOD_WLAN,
+		.description	= "wireless lan state",
+		.flags		= CTLTYPE_INT | CTLFLAG_RW
 	},
 
 	{ .name = NULL }
@@ -906,6 +919,9 @@ acpi_asus_sysctl_get(struct acpi_asus_softc *sc, int method)
 	case ACPI_ASUS_METHOD_CARDRD:
 		val = sc->s_crd;
 		break;
+	case ACPI_ASUS_METHOD_WLAN:
+		val = sc->s_wlan;
+		break;
 	}
 
 	return (val);
@@ -914,10 +930,17 @@ acpi_asus_sysctl_get(struct acpi_asus_softc *sc, int method)
 static int
 acpi_asus_sysctl_set(struct acpi_asus_softc *sc, int method, int arg)
 {
-	ACPI_STATUS	status = AE_OK;
+	ACPI_STATUS		status = AE_OK;
+	ACPI_OBJECT_LIST 	acpiargs;
+	ACPI_OBJECT		acpiarg[0];
 
 	ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 	ACPI_SERIAL_ASSERT(asus);
+
+	acpiargs.Count = 1;
+	acpiargs.Pointer = acpiarg;
+	acpiarg[0].Type = ACPI_TYPE_INTEGER;
+	acpiarg[0].Integer.Value = arg;
 
 	switch (method) {
 	case ACPI_ASUS_METHOD_BRN:
@@ -971,7 +994,7 @@ acpi_asus_sysctl_set(struct acpi_asus_softc *sc, int method, int arg)
 			return (EINVAL);
 
 		status = AcpiEvaluateObject(sc->handle,
-		    sc->model->cam_set, NULL, NULL);
+		    sc->model->cam_set, &acpiargs, NULL);
 
 		if (ACPI_SUCCESS(status))
 			sc->s_cam = arg;
@@ -981,10 +1004,20 @@ acpi_asus_sysctl_set(struct acpi_asus_softc *sc, int method, int arg)
 			return (EINVAL);
 
 		status = AcpiEvaluateObject(sc->handle,
-		    sc->model->crd_set, NULL, NULL);
+		    sc->model->crd_set, &acpiargs, NULL);
 
 		if (ACPI_SUCCESS(status))
 			sc->s_crd = arg;
+		break;
+	case ACPI_ASUS_METHOD_WLAN:
+		if (arg < 0 || arg > 1)
+			return (EINVAL);
+
+		status = AcpiEvaluateObject(sc->handle,
+		    sc->model->wlan_set, &acpiargs, NULL);
+
+		if (ACPI_SUCCESS(status))
+			sc->s_wlan = arg;
 		break;
 	}
 
@@ -1092,6 +1125,14 @@ acpi_asus_sysctl_init(struct acpi_asus_softc *sc, int method)
 		if (sc->model->crd_get) {
 			status = acpi_GetInteger(sc->handle,
 			    sc->model->crd_get, &sc->s_crd);
+			if (ACPI_SUCCESS(status))
+				return (TRUE);
+		}
+		return (FALSE);
+	case ACPI_ASUS_METHOD_WLAN:
+		if (sc->model->wlan_get) {
+			status = acpi_GetInteger(sc->handle,
+			    sc->model->wlan_get, &sc->s_wlan);
 			if (ACPI_SUCCESS(status))
 				return (TRUE);
 		}
