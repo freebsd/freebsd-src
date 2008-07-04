@@ -191,14 +191,14 @@ init_param2(long physpages)
 }
 
 /*
- * Boot time overrides that are scaled against the kernel map
+ * Boot time overrides that are scaled against the kmem map
  */
 void
 init_param3(long kmempages)
 {
 
 	/*
-	 * The default for maxpipekva is max(5% of the kernel map, 512KB).
+	 * The default for maxpipekva is max(5% of the kmem map, 512KB).
 	 * See sys_pipe.c for more details.
 	 */
 	maxpipekva = (kmempages / 20) * PAGE_SIZE;
