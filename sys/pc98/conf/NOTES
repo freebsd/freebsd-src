@@ -379,9 +379,6 @@ hint.mse.0.irq="13"
 #       (requires miibus)
 # ie:   AT&T StarLAN 10 and EN100; 3Com 3C507; unknown NI5210;
 #       Intel EtherExpress
-# oltr: Olicom ISA token-ring adapters OC-3115, OC-3117, OC-3118 and OC-3133.
-#       Olicom PCI token-ring adapters OC-3136, OC-3137, OC-3139, OC-3140,
-#       OC-3141, OC-3540 and OC-3250.
 # ral:	Ralink Technology IEEE 802.11 wireless adapter
 # sbni: Granch SBNI12-xx ISA and PCI adapters
 # sr:   RISCom/N2 hdlc sync 1/2 port V.35/X.21 serial driver (requires sppp)
@@ -407,7 +404,6 @@ hint.ie.2.maddr="0xd0000"
 hint.le.0.at="isa"
 hint.le.0.port="0x03d0"
 hint.le.0.irq="6"
-device		oltr
 device		ral
 device		sbni
 hint.sbni.0.at="isa"

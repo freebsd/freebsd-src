@@ -46,11 +46,6 @@ ukbdmap.h			optional	ukbd_dflt_keymap	\
 	no-obj no-implicit-rule before-depend				\
 	clean		"ukbdmap.h"
 #
-trlld.o				optional	oltr			\
-	dependency	"$S/contrib/dev/oltr/i386-elf.trlld.o.uu"	\
-	compile-with	"uudecode < $S/contrib/dev/oltr/i386-elf.trlld.o.uu"	\
-	no-implicit-rule
-#
 hal.o				optional	ath_hal			\
 	dependency	"$S/contrib/dev/ath/public/i386-elf.hal.o.uu"	\
 	compile-with	"uudecode < $S/contrib/dev/ath/public/i386-elf.hal.o.uu" \
@@ -124,12 +119,6 @@ compat/svr4/svr4_sysent.c	optional compat_svr4
 compat/svr4/svr4_sysvec.c	optional compat_svr4
 compat/svr4/svr4_termios.c	optional compat_svr4
 compat/svr4/svr4_ttold.c	optional compat_svr4
-contrib/dev/oltr/if_oltr.c	optional oltr
-contrib/dev/oltr/if_oltr_isa.c	optional oltr isa
-contrib/dev/oltr/if_oltr_pci.c	optional oltr pci
-contrib/dev/oltr/trlldbm.c	optional oltr
-contrib/dev/oltr/trlldhm.c	optional oltr
-contrib/dev/oltr/trlldmac.c	optional oltr
 bf_enc.o			optional crypto | ipsec	\
 	dependency	"$S/crypto/blowfish/arch/i386/bf_enc.S $S/crypto/blowfish/arch/i386/bf_enc_586.S $S/crypto/blowfish/arch/i386/bf_enc_686.S" \
 	compile-with	"${CC} -c -I$S/crypto/blowfish/arch/i386 ${ASM_CFLAGS} ${WERROR} ${.IMPSRC}" \
