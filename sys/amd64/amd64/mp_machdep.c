@@ -79,7 +79,6 @@ int	mcount_lock;
 
 int	mp_naps;		/* # of Applications processors */
 int	boot_cpu_id = -1;	/* designated BSP */
-extern	int nkpt;
 
 extern  struct pcpu __pcpu[];
 
