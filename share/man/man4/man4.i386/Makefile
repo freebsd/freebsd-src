@@ -12,7 +12,6 @@ MAN=	acpi_aiboost.4 \
 	amdpm.4 \
 	apm.4 \
 	ar.4 \
-	arl.4 \
 	ce.4 \
 	cp.4 \
 	CPU_ELAN.4 \
