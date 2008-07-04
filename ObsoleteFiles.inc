@@ -14,6 +14,11 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20080703: sunlabel only for sparc64
+.if ${TARGET_ARCH} != "sparc64"
+OLD_FILES+=sbin/sunlabel
+OLD_FILES+=usr/share/man/man8/sunlabel.8.gz
+.endif
 # 20080703: bsdlabel & fdisk removed on ia64
 .if ${TARGET_ARCH} == "ia64"
 OLD_FILES+=sbin/bsdlabel
