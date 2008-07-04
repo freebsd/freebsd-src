@@ -274,7 +274,8 @@ ppp_modevent(module_t mod, int type, void *data)
 		LIST_INIT(&ppp_softc_list);
 		if_clone_attach(&ppp_cloner);
 
-		netisr_register(NETISR_PPP, (netisr_t *)pppintr, NULL, 0);
+		netisr_register(NETISR_PPP, (netisr_t *)pppintr, NULL,
+		    NETISR_FORCEQUEUE);
 		/*
 		 * XXX layering violation - if_ppp can work over any lower
 		 * level transport that cares to attach to it.
@@ -1212,8 +1213,7 @@ pppintr()
     int s;
     struct mbuf *m;
 
-    GIANT_REQUIRED;
-
+    mtx_lock(&Giant);
     PPP_LIST_LOCK();
     LIST_FOREACH(sc, &ppp_softc_list, sc_list) {
 	s = splimp();
@@ -1237,6 +1237,7 @@ pppintr()
 	}
     }
     PPP_LIST_UNLOCK();
+    mtx_unlock(&Giant);
 }
 
 #ifdef PPP_COMPRESS

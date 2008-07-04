@@ -267,7 +267,7 @@ ip_init(void)
 	ip_id = time_second & 0xffff;
 	ipintrq.ifq_maxlen = ipqmaxlen;
 	mtx_init(&ipintrq.ifq_mtx, "ip_inq", NULL, MTX_DEF);
-	netisr_register(NETISR_IP, ip_input, &ipintrq, NETISR_MPSAFE);
+	netisr_register(NETISR_IP, ip_input, &ipintrq, 0);
 }
 
 void
