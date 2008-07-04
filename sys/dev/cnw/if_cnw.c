@@ -213,9 +213,17 @@ struct cnw_softc {
 
 	struct timeval sc_txlast;           /* When the last xmit was made */
 	int sc_active;                      /* Currently xmitting a packet */
+	struct mtx	sc_lock;
+	struct callout	sc_timer;
+	int		sc_tx_timeout;
 };
 
+#define	CNW_LOCK(sc)		mtx_lock(&(sc)->sc_lock)
+#define	CNW_UNLOCK(sc)		mtx_unlock(&(sc)->sc_lock)
+#define	CNW_ASSERT_LOCKED(sc)	mtx_assert(&(sc)->sc_lock, MA_OWNED)
+
 static void cnw_freebsd_init	(void *);
+static void cnw_freebsd_init_locked(struct cnw_softc *);
 static void cnw_stop		(struct cnw_softc *);
 
 static int cnw_pccard_probe	(device_t);
@@ -249,12 +257,13 @@ MODULE_DEPEND(cnw, ether, 1, 1, 1);
 void cnw_reset(struct cnw_softc *);
 void cnw_init(struct cnw_softc *);
 void cnw_start(struct ifnet *);
+void cnw_start_locked(struct ifnet *);
 void cnw_transmit(struct cnw_softc *, struct mbuf *);
 struct mbuf *cnw_read(struct cnw_softc *);
 void cnw_recv(struct cnw_softc *);
 void cnw_intr(void *arg);
 int cnw_ioctl(struct ifnet *, u_long, caddr_t);
-void cnw_watchdog(struct ifnet *);
+void cnw_watchdog(void *);
 static int cnw_setdomain(struct cnw_softc *, int);
 static int cnw_setkey(struct cnw_softc *, int);
 
@@ -364,8 +373,8 @@ cnw_reset(sc)
 	struct cnw_softc *sc;
 {
 #ifdef CNW_DEBUG
-	if (sc->sc_ethercom.ec_if.if_flags & IFF_DEBUG)
-		printf("%s: resetting\n", sc->sc_dev.dv_xname);
+	if (ifp->if_flags & IFF_DEBUG)
+		if_printf(ifp, "resetting\n");
 #endif
 	wait_WOC(sc, 0);
 #ifndef MEMORY_MAPPED
@@ -451,6 +460,17 @@ cnw_start(ifp)
 	struct ifnet *ifp;
 {
 	struct cnw_softc *sc = ifp->if_softc;
+
+	CNW_LOCK(sc);
+	cnw_start_locked(ifp);
+	CNW_UNLOCK(sc);
+}
+
+void
+cnw_start_locked(ifp)
+	struct ifnet *ifp;
+{
+	struct cnw_softc *sc = ifp->if_softc;
 	struct mbuf *m0;
 	int lif;
 	int asr;
@@ -459,10 +479,10 @@ cnw_start(ifp)
 #endif
 
 #ifdef CNW_DEBUG
-	if (sc->sc_ethercom.ec_if.if_flags & IFF_DEBUG)
-		printf("%s: cnw_start\n", ifp->if_xname);
+	if (ifp->if_flags & IFF_DEBUG)
+		if_printf(ifp, "cnw_start\n");
 	if (ifp->if_drv_flags & IFF_DRV_OACTIVE)
-		printf("%s: cnw_start reentered\n", ifp->if_xname);
+		if_printf(ifp, "cnw_start reentered\n");
 #endif
 
 	if (sc->cnw_gone)
@@ -504,8 +524,8 @@ cnw_start(ifp)
 		    sc->sc_memoff + CNW_EREG_LIF);
 		if (lif == 0) {
 #ifdef CNW_DEBUG
-			if (sc->sc_ethercom.ec_if.if_flags & IFF_DEBUG)
-				printf("%s: link integrity %d\n", lif);
+			if (ifp->if_flags & IFF_DEBUG)
+				if_printf(ifp, "link integrity %d\n", lif);
 #endif
 			break;
 		}
@@ -520,8 +540,8 @@ cnw_start(ifp)
 #endif
 		if (!(asr & CNW_ASR_TXBA)) {
 #ifdef CNW_DEBUG
-			if (sc->sc_ethercom.ec_if.if_flags & IFF_DEBUG)
-				printf("%s: no buffer space\n", ifp->if_xname);
+			if (ifp->if_flags & IFF_DEBUG)
+				if_printf(ifp, "no buffer space\n");
 #endif
 			break;
 		}
@@ -536,7 +556,7 @@ cnw_start(ifp)
 		
 		cnw_transmit(sc, m0);
 		++ifp->if_opackets;
-		ifp->if_timer = 3; /* start watchdog timer */
+		sc->sc_tx_timeout = 3;
 
 		microtime(&sc->sc_txlast);
 		sc->sc_active = 1;
@@ -561,9 +581,9 @@ cnw_transmit(sc, m)
 	bufsize = read16(sc, CNW_EREG_TDP + 2);
 	bufoffset = read16(sc, CNW_EREG_TDP + 4);
 #ifdef CNW_DEBUG
-	if (sc->sc_ethercom.ec_if.if_flags & IFF_DEBUG)
-		printf("%s: cnw_transmit b=0x%x s=%d o=0x%x\n",
-		    sc->sc_dev.dv_xname, buffer, bufsize, bufoffset);
+	if (ifp->if_flags & IFF_DEBUG)
+		if_printf(ifp, "cnw_transmit b=0x%x s=%d o=0x%x\n",
+		    buffer, bufsize, bufoffset);
 #endif
 
 	/* Copy data from mbuf chain to card buffers */
@@ -580,9 +600,9 @@ cnw_transmit(sc, m)
 				bufptr = sc->sc_memoff + buffer + bufoffset;
 				bufspace = bufsize;
 #ifdef CNW_DEBUG
-				if (sc->sc_ethercom.ec_if.if_flags & IFF_DEBUG)
-					printf("%s:   next buffer @0x%x\n",
-					    sc->sc_dev.dv_xname, buffer);
+				if (ifp->if_flags & IFF_DEBUG)
+					if_printf(ifp, "   next buffer @0x%x\n",
+					    buffer);
 #endif
 			}
 			n = mbytes <= bufspace ? mbytes : bufspace;
@@ -615,8 +635,8 @@ cnw_read(sc)
 	WAIT_WOC(sc);
 	totbytes = read16(sc, CNW_EREG_RDP);
 #ifdef CNW_DEBUG
-	if (sc->sc_ethercom.ec_if.if_flags & IFF_DEBUG)
-		printf("%s: recv %d bytes\n", sc->sc_dev.dv_xname, totbytes);
+	if (ifp->if_flags & IFF_DEBUG)
+		if_printf(ifp, "recv %d bytes\n", totbytes);
 #endif
 	buffer = CNW_EREG_RDP + 2;
 	bufbytes = 0;
@@ -665,9 +685,9 @@ cnw_read(sc)
 				bufptr = sc->sc_memoff + buffer +
 				    read16(sc, buffer + 4);
 #ifdef CNW_DEBUG
-				if (sc->sc_ethercom.ec_if.if_flags & IFF_DEBUG)
-					printf("%s:   %d bytes @0x%x+0x%x\n",
-					    sc->sc_dev.dv_xname, bufbytes,
+				if (ifp->if_flags & IFF_DEBUG)
+					if_printf(ifp, "   %d bytes @0x%x+0x%x\n",
+					    bufbytes,
 					    buffer, bufptr - buffer -
 					    sc->sc_memoff);
 #endif
@@ -699,6 +719,7 @@ cnw_recv(sc)
 	struct ifnet *ifp = sc->sc_ifp;
 	struct mbuf *m;
 
+	CNW_ASSERT_LOCKED(sc);
 	for (;;) {
 		WAIT_WOC(sc);
 		rser = bus_space_read_1(sc->sc_memt, sc->sc_memh,
@@ -720,7 +741,9 @@ cnw_recv(sc)
 		++ifp->if_ipackets;
 
 		/* Pass the packet up. */
+		CNW_UNLOCK(sc);
 		(*ifp->if_input)(ifp, m);
+		CNW_LOCK(sc);
 	}
 }
 
@@ -739,7 +762,8 @@ cnw_intr(arg)
 
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 		return;
-	ifp->if_timer = 0;	/* stop watchdog timer */
+	CNW_LOCK(sc);
+	sc->sc_tx_timeout = 0;		/* stop watchdog timer */
 
 	ret = 0;
 	for (;;) {
@@ -755,6 +779,7 @@ cnw_intr(arg)
 		if (!(status & 0x02)) {
 			if (ret == 0)
 				device_printf(sc->dev, "spurious interrupt\n");
+			CNW_UNLOCK(sc);
 			return;
 		}
 		ret = 1;
@@ -845,10 +870,11 @@ cnw_intr(arg)
 			ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 			/* Continue to send packets from the queue */
-			cnw_start(ifp);
+			cnw_start_locked(ifp);
 		}
 				
 	}
+	CNW_UNLOCK(sc);
 }
 
 
@@ -863,13 +889,11 @@ cnw_ioctl(ifp, cmd, data)
 {
 	struct cnw_softc *sc = ifp->if_softc;
 	struct ifreq *ifr = (struct ifreq *)data;
-	int s, error = 0;
+	int error = 0;
 	struct thread *td = curthread;	/* XXX */
 
-	s = splnet();
-
+	
 	if (sc->cnw_gone) {
-		splx(s);
 		return(ENODEV);
 	}
 
@@ -880,16 +904,17 @@ cnw_ioctl(ifp, cmd, data)
 		break;
 
 	case SIOCSIFFLAGS:
+		CNW_LOCK(sc);
 		if (ifp->if_flags & IFF_UP) {
-				cnw_freebsd_init(sc);
+				cnw_freebsd_init_locked(sc);
 		} else {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 				cnw_stop(sc);
 			} else {
-				cnw_freebsd_init(sc);
+				cnw_freebsd_init_locked(sc);
 			}
 		}
-		
+		CNW_UNLOCK(sc);
 		break;
 
 	case SIOCADDMULTI:
@@ -899,47 +924,58 @@ cnw_ioctl(ifp, cmd, data)
 		break;
 
 	case SIOCGCNWDOMAIN:
+		CNW_LOCK(sc);
 		((struct ifreq *)data)->ifr_domain = sc->sc_domain;
+		CNW_UNLOCK(sc);
 		break;
 
 	case SIOCSCNWDOMAIN:
 		error = priv_check(td, PRIV_DRIVER);
 		if (error)
 			break;
+		CNW_LOCK(sc);
 		error = cnw_setdomain(sc, ifr->ifr_domain);
+		CNW_UNLOCK(sc);
 		break;
 
 	case SIOCSCNWKEY:
 		error = priv_check(td, PRIV_DRIVER);
 		if (error)
 			break;
+		CNW_LOCK(sc);
 		error = cnw_setkey(sc, (int)ifr->ifr_key);
+		CNW_UNLOCK(sc);
 		break;
 
 	case SIOCGCNWSTATUS:
 		error = priv_check(td, PRIV_DRIVER);
 		if (error)
 			break;
-		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+		CNW_LOCK(sc);
+		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
+			CNW_UNLOCK(sc);
 			break;
+		}
 		bus_space_read_region_1(sc->sc_memt, sc->sc_memh,
 		    sc->sc_memoff + CNW_EREG_CB,
 		    ((struct cnwstatus *)data)->data,
 		    sizeof(((struct cnwstatus *)data)->data));
+		CNW_UNLOCK(sc);
 		break;
 
 	case SIOCGCNWSTATS:
+		CNW_LOCK(sc);
 		bcopy((void *)&sc->sc_stats,
 		    (void *)&(((struct cnwistats *)data)->stats),
 		    sizeof(struct cnwstats));
-			break;
+		CNW_UNLOCK(sc);
+		break;
 
 	default:
 		error = EINVAL;
 		break;
 	}
 
-	splx(s);
 	return (error);
 }
 
@@ -949,14 +985,17 @@ cnw_ioctl(ifp, cmd, data)
  * generate an interrupt after a transmit has been started on it.
  */
 void
-cnw_watchdog(ifp)
-	struct ifnet *ifp;
+cnw_watchdog(void *arg)
 {
-	struct cnw_softc *sc = ifp->if_softc;
+	struct cnw_softc *sc = arg;
 
-	device_printf(sc->dev, "device timeout; card reset\n");
-	++ifp->if_oerrors;
-	cnw_freebsd_init(sc);
+	CNW_ASSERT_LOCKED(sc);
+	if (sc->sc_tx_timeout && --sc->sc_tx_timeout == 0) {
+		device_printf(sc->dev, "device timeout; card reset\n");
+		++sc->sc_ifp->if_oerrors;
+		cnw_freebsd_init_locked(sc);
+	}
+	callout_reset(&sc->sc_timer, hz, cnw_watchdog, sc);
 }
 
 int
@@ -964,14 +1003,11 @@ cnw_setdomain(sc, domain)
 	struct cnw_softc *sc;
 	int domain;
 {
-	int s;
 
 	if (domain & ~0x1ff)
 		return EINVAL;
 
-	s = splnet();
 	CNW_CMD2(sc, CNW_CMD_SMD, domain, domain >> 8);
-	splx(s);
 
 	sc->sc_domain = domain;
 	return 0;
@@ -982,14 +1018,11 @@ cnw_setkey(sc, key)
 	struct cnw_softc *sc;
 	int key;
 {
-	int s;
 
 	if (key & ~0xffff)
 		return EINVAL;
 
-	s = splnet();
 	CNW_CMD2(sc, CNW_CMD_SSK, key, key >> 8);
-	splx(s);
 
 	sc->sc_skey = key;
 	return 0;
@@ -1000,13 +1033,20 @@ cnw_freebsd_init(xsc)
 	void	*xsc;
 {
 	struct cnw_softc	*sc = xsc;
+
+	CNW_LOCK(sc);
+	cnw_freebsd_init_locked(sc);
+	CNW_UNLOCK(sc);
+}
+
+static void
+cnw_freebsd_init_locked(struct cnw_softc *sc)
+{
 	struct ifnet *ifp = sc->sc_ifp;
-	int s;
 
 	if (sc->cnw_gone)
 		return;
 
-	s = splimp();
 	cnw_init(sc);
 
 #if 0
@@ -1016,12 +1056,11 @@ cnw_freebsd_init(xsc)
 
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	callout_reset(&sc->sc_timer, hz, cnw_watchdog, sc);
 
 /*	sc->cnw_stat_ch = timeout(cnw_inquire, sc, hz * 60); */
 
-	cnw_start(ifp);
-
-	splx(s);
+	cnw_start_locked(ifp);
 
 	return;
 }
@@ -1035,6 +1074,8 @@ cnw_stop(sc)
 	if (sc->cnw_gone)
 		return;
 
+	sc->sc_tx_timeout = 0;
+	callout_stop(&sc->sc_timer);
 	cnw_reset(sc);
 
 	ifp = sc->sc_ifp;
@@ -1069,11 +1110,6 @@ cnw_pccard_detach(dev)
 {
 	struct cnw_softc	*sc;
 	struct ifnet		*ifp;
-#if 0
-	int			s;
-
-	s = splimp();
-#endif
 
 	sc = device_get_softc(dev);
 	ifp = sc->sc_ifp;
@@ -1083,16 +1119,18 @@ cnw_pccard_detach(dev)
 		return(ENODEV);
 	}
 
+	CNW_LOCK(sc);
 	cnw_stop(sc);
+	CNW_UNLOCK(sc);
 
+	callout_drain(&sc->sc_timer);
 	ether_ifdetach(ifp);
+	bus_teardown_intr(dev, sc->irq, sc->cnw_intrhand);
 	cnw_free(dev);
 	if_free(ifp);
+	mtx_destroy(&sc->sc_lock);
 	sc->cnw_gone = 1;
 
-#if 0
-	splx(s);
-#endif
 	return(0);
 }
 
@@ -1119,15 +1157,9 @@ cnw_pccard_attach(device_t dev)
 		return (error);
 	}
 
-	error = bus_setup_intr(dev, sc->irq, INTR_TYPE_NET, NULL,
-			       cnw_intr, sc, &sc->cnw_intrhand);
-
-	if (error) {
-		device_printf(dev, "bus_setup_intr() failed! (%d)\n", error);
-		cnw_free(dev);
-		if_free(ifp);
-		return (error);
-	}
+	mtx_init(&sc->sc_lock, device_get_nameunit(dev), MTX_NETWORK_LOCK,
+	    MTX_DEF);
+	callout_init_mtx(&sc->sc_timer, &sc->sc_lock, 0);
 
 	/* Set initial values */
 	sc->sc_domain = cnw_domain;
@@ -1144,20 +1176,18 @@ cnw_pccard_attach(device_t dev)
 
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-	ifp->if_timer = 0;
 	ifp->if_mtu = ETHERMTU;
-	ifp->if_flags = (IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST
-	    | IFF_NEEDSGIANT);
+	ifp->if_flags = (IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
 	ifp->if_ioctl = cnw_ioctl;
 	ifp->if_start = cnw_start;
-/*	ifp->if_watchdog = 0; */
-	ifp->if_watchdog = cnw_watchdog;
 	ifp->if_init = cnw_freebsd_init;
 	ifp->if_baudrate = 1 * 1000* 1000;
-	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
+	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
 
-	cnw_freebsd_init(sc);
+	CNW_LOCK(sc);
+	cnw_freebsd_init_locked(sc);
 	cnw_stop(sc);
+	CNW_UNLOCK(sc);
 
 	/*
 	 * Call MI attach routine.
@@ -1165,6 +1195,16 @@ cnw_pccard_attach(device_t dev)
 	ether_ifattach(ifp, eaddr);
 /*	callout_handle_init(&sc->cnw_stat_ch); */
 
+	error = bus_setup_intr(dev, sc->irq, INTR_TYPE_NET | INTR_MPSAFE, NULL,
+			       cnw_intr, sc, &sc->cnw_intrhand);
+
+	if (error) {
+		device_printf(dev, "bus_setup_intr() failed! (%d)\n", error);
+		mtx_destroy(&sc->sc_lock);
+		cnw_free(dev);
+		if_free(ifp);
+		return (error);
+	}
 	return(0);
 }
 
@@ -1175,7 +1215,9 @@ cnw_shutdown(dev)
 	struct cnw_softc	*sc;
 
 	sc = device_get_softc(dev);
+	CNW_LOCK(sc);
 	cnw_stop(sc);
+	CNW_UNLOCK(sc);
 
 	return;
 }
@@ -1239,7 +1281,6 @@ cnw_free(dev)
 		sc->mem_res = 0;
 	}
 	if (sc->irq != NULL) {
-		bus_teardown_intr(dev, sc->irq, sc->cnw_intrhand);
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq);
 		sc->irq = 0;
 	}
