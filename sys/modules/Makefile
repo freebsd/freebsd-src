@@ -204,7 +204,6 @@ SUBDIR=	${_3dfx} \
 	${_nvram} \
 	${_nwfs} \
 	${_nxge} \
-	${_oltr} \
 	${_opensolaris} \
 	${_padlock} \
 	patm \
@@ -419,7 +418,6 @@ _nsp=		nsp
 .if ${MK_NCP} != "no"
 _nwfs=		nwfs
 .endif
-_oltr=		oltr
 .if ${MK_CDDL} != "no" || defined(ALL_MODULES)
 _opensolaris=	opensolaris
 .endif
@@ -583,7 +581,7 @@ _zfs=		zfs
 .if ${MACHINE_ARCH} == "ia64"
 # Modules not enabled on ia64 (as compared to i386) include:
 #	aac acpi aout apm atspeaker drm ibcs2 linprocfs linux ncv
-#	nsp oltr s3 sbni stg vesa
+#	nsp s3 sbni stg vesa
 # acpi is not enabled because it is broken as a module on ia64
 _aic=		aic
 #_ar=		ar	not 64-bit clean
