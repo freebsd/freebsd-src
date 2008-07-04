@@ -214,7 +214,7 @@ gre_input2(struct mbuf *m ,int hlen, u_char proto)
 
 	m->m_pkthdr.rcvif = GRE2IFP(sc);
 
-	netisr_dispatch(isr, m);
+	netisr_queue(isr, m);
 
 	/* Packet is done, no further processing needed. */
 	return (NULL);
@@ -298,7 +298,7 @@ gre_mobile_input(struct mbuf *m, int hlen)
 
 	m->m_pkthdr.rcvif = GRE2IFP(sc);
 
-	netisr_dispatch(NETISR_IP, m);
+	netisr_queue(NETISR_IP, m);
 }
 
 /*
