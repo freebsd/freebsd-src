@@ -31,7 +31,6 @@ MAN=	acpi_aiboost.4 \
 	mse.4 \
 	ndis.4 \
 	npx.4 \
-	oltr.4 \
 	padlock.4 \
 	pae.4 \
 	pbio.4 \
@@ -54,7 +53,6 @@ MAN=	acpi_aiboost.4 \
 
 MLINKS=	CPU_ELAN.4 CPU_SOEKRIS.4
 MLINKS+=ndis.4 if_ndis.4
-MLINKS+=oltr.4 if_oltr.4
 MLINKS+=pae.4 PAE.4
 MLINKS+=sbni.4 if_sbni.4
 
