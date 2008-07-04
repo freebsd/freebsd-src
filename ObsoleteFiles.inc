@@ -14,6 +14,9 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20080704: sbsh(4) removed
+OLD_FILES+=usr/share/man/man4/if_sbsh.4.gz
+OLD_FILES+=usr/share/man/man4/sbsh.4.gz
 # 20080704: sbni(4) removed
 .if ${TARGET_ARCH} == "i386"
 OLD_FILES+=usr/share/man/man4/i386/if_sbni.4.gz
