@@ -76,7 +76,7 @@ __FBSDID("$FreeBSD$");
 
 /*#define DEBUG */
 #ifdef DEBUG
-#define D(x)	{printf("arl%d: ", sc->arl_unit); printf x; }
+#define D(x)	{device_printf(sc->arl_dev, "%s", ""); printf x; }
 #else
 #define D(x)
 #endif
@@ -98,30 +98,19 @@ __FBSDID("$FreeBSD$");
 #define GET_ARL_PARAM(name) (arcfg.name = ar->name)
 #define SET_ARL_PARAM(name) (ar->name = arcfg.name)
 
-#ifndef BPF_MTAP
-#define BPF_MTAP(_ifp,_m)					\
-	do {							\
-		if ((_ifp)->if_bpf)				\
-			bpf_mtap((_ifp), (_m));			\
-	} while (0)
-#endif
-
-#if __FreeBSD_version < 500100
-#define BROADCASTADDR	(etherbroadcastaddr)
-#define _ARL_CURPROC	(curproc)
-#else
 #define BROADCASTADDR	(sc->arl_ifp->if_broadcastaddr)
 #define _ARL_CURPROC	(curthread)
-#endif
 
 static void	arl_hwreset	(struct arl_softc *);
 static void	arl_reset	(struct arl_softc *);
 static int	arl_ioctl	(struct ifnet *, u_long, caddr_t);
 static void	arl_init	(void *);
+static void	arl_init_locked	(struct arl_softc *);
 static void	arl_start	(struct ifnet *);
+static void	arl_start_locked(struct ifnet *);
 
-static void	arl_watchdog	(struct ifnet *);
-static void	arl_waitreg	(struct ifnet *);
+static void	arl_watchdog	(void *);
+static void	arl_waitreg	(void *);
 
 static void	arl_enable	(struct arl_softc *);
 static void	arl_config	(struct arl_softc *);
@@ -190,7 +179,7 @@ arl_attach(dev)
 {
 	struct arl_softc* sc = device_get_softc(dev);
 	struct ifnet *ifp;
-	int		attached, configured = 0;
+	int		configured = 0, error;
 
 	D(("attach\n"));
 
@@ -198,8 +187,11 @@ arl_attach(dev)
 	if (ifp == NULL)
 		return (ENOSPC);
 
+	mtx_init(&sc->arl_lock, device_get_nameunit(dev), MTX_NETWORK_LOCK,
+	    MTX_DEF);
+	callout_init_mtx(&sc->arl_timer, &sc->arl_lock, 0);
+	ARL_LOCK(sc);
 	configured = ar->configuredStatusFlag;
-	attached = (ifp->if_softc != 0);
 
 	if (!configured && bootverbose)
 		device_printf(dev, "card is not configured\n");
@@ -211,25 +203,18 @@ arl_attach(dev)
 	/* Read config for default values if card was not configured */
 	if (!configured)
 		arl_read_config(sc);
+	ARL_UNLOCK(sc);
 
 	/* Initialize ifnet structure. */
 	ifp->if_softc = sc;
-#if __FreeBSD_version < 502000
-	ifp->if_unit = sc->arl_unit;
-	ifp->if_name = "arl";
-#else
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-#endif
 	ifp->if_mtu = ETHERMTU;
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST |
-	    IFF_NEEDSGIANT;
+	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_start = arl_start;
 	ifp->if_ioctl = arl_ioctl;
-	ifp->if_watchdog = arl_watchdog;
 	ifp->if_init = arl_init;
-	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
+	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
 	ifp->if_baudrate = 2000000;
-	ifp->if_timer = 0;
 
 	ifmedia_init(&sc->arl_ifmedia, 0, arl_media_change, arl_media_status);
 #define ADD(s, o)	ifmedia_add(&sc->arl_ifmedia, \
@@ -249,12 +234,16 @@ arl_attach(dev)
 	/*
 	 * Attach the interface
 	 */
-	if (!attached) {
-#if __FreeBSD_version < 500100
-		ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
-#else
-		ether_ifattach(ifp, ar->lanCardNodeId);
-#endif
+	ether_ifattach(ifp, ar->lanCardNodeId);
+
+	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET | INTR_MPSAFE,
+			       NULL, arl_intr, sc, &sc->irq_handle);
+	if (error) {
+		ether_ifdetach(ifp);
+		mtx_destroy(&sc->arl_lock);
+		if_free(sc->arl_ifp);
+		arl_release_resources(dev);
+		return (error);
 	}
 
 	return (0);
@@ -270,6 +259,7 @@ arl_hwreset(sc)
 {
 	D(("hw reset\n"));
 
+	ARL_LOCK_ASSERT(sc);
 	ar->controlRegister = 1;
 	DELAY(ARDELAY1);
 
@@ -328,6 +318,7 @@ arl_reset(sc)
 	struct arl_softc *sc;
 {
 	D(("reset\n"));
+	ARL_LOCK_ASSERT(sc);
 	arl_hwreset(sc);
 
 	ar->resetFlag1 = 1;
@@ -351,7 +342,7 @@ arl_reset(sc)
 			DELAY(delay);
 
 		if (cnt == 0) {
-			printf("arl%d: reset timeout\n", sc->arl_unit);
+			if_printf(sc->arl_ifp, "reset timeout\n");
 			return;
 		}
 
@@ -360,7 +351,7 @@ arl_reset(sc)
 #endif
 
 	if (ar->diagnosticInfo != 0xff) {
-		printf("arl%d: reset error\n", sc->arl_unit);
+		if_printf(sc->arl_ifp, "reset error\n");
 		return;
 	}
 	arl_config(sc);
@@ -438,14 +429,15 @@ arl_ioctl(ifp, cmd, data)
 	struct ieee80211req *ireq = (struct ieee80211req *)data;
 	d_thread_t *td = _ARL_CURPROC;
 	struct arl_req arlan_io;
-	int count, s, error = 0;
+	int error = 0;
+	struct arl_sigcache *arl_cache;
+	struct arl_stats *arl_stats;
 	u_int8_t tmpstr[IEEE80211_NWID_LEN*2];
+	u_int8_t tmpname[ARLAN_NAME_SIZE];
 	u_int8_t *tmpptr;
 	u_int32_t newsid;
-	caddr_t user;
 
 	D(("ioctl %lx\n", cmd));
-	s = splimp();
 
 	switch (cmd) {
 	case SIOCSIFADDR:
@@ -455,13 +447,15 @@ arl_ioctl(ifp, cmd, data)
 		break;
 
 	case SIOCSIFFLAGS:
+		ARL_LOCK(sc);
 		if (ifp->if_flags & IFF_UP) {
 			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
-				arl_init(sc);
+				arl_init_locked(sc);
 		} else {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 				arl_stop(sc);
 		}
+		ARL_UNLOCK(sc);
 		break;
 	case SIOCSIFMEDIA:
 	case SIOCGIFMEDIA:
@@ -476,27 +470,35 @@ arl_ioctl(ifp, cmd, data)
 				break;
 			}
 			bzero(tmpstr, IEEE80211_NWID_LEN);
+			ARL_LOCK(sc);
 			snprintf(tmpstr, IEEE80211_NWID_LEN - 1, "0x%08x",
 					*(int *)arcfg.sid);
+			ARL_UNLOCK(sc);
 			ireq->i_len = IEEE80211_NWID_LEN;
 			error = copyout(tmpstr, ireq->i_data,
 				IEEE80211_NWID_LEN);
 			break;
 		case IEEE80211_IOC_STATIONNAME:
 			ireq->i_len = sizeof(arcfg.name);
+			ARL_LOCK(sc);
 			tmpptr = arcfg.name;
 			bzero(tmpstr, IEEE80211_NWID_LEN);
 			bcopy(tmpptr, tmpstr, ireq->i_len);
+			ARL_UNLOCK(sc);
 			error = copyout(tmpstr, ireq->i_data,
 				IEEE80211_NWID_LEN);
 			break;
 		case IEEE80211_IOC_CHANNEL:
+			ARL_LOCK(sc);
 			ireq->i_val = arcfg.channelNumber;
+			ARL_UNLOCK(sc);
 			break;
 		case IEEE80211_IOC_POWERSAVE:
+			ARL_LOCK(sc);
 			ireq->i_val = (arcfg.registrationMode == 2 ?
 				IEEE80211_POWERSAVE_PSP :
 				IEEE80211_POWERSAVE_OFF);
+			ARL_UNLOCK(sc);
 			break;
 		default:
 			error = EINVAL;
@@ -527,6 +529,7 @@ arl_ioctl(ifp, cmd, data)
 				break;
 			}
 
+			ARL_LOCK(sc);
 			bcopy(&newsid, arcfg.sid, sizeof(arcfg.sid));
 			break;
 		case IEEE80211_IOC_STATIONNAME:
@@ -534,24 +537,31 @@ arl_ioctl(ifp, cmd, data)
 				error = EINVAL;
 				break;
 			}
+			error = copyin(ireq->i_data, tmpname, ireq->i_len);
+			if (error)
+				break;
+			ARL_LOCK(sc);
 			bzero(arcfg.name, ARLAN_NAME_SIZE);
-			error = copyin(ireq->i_data, arcfg.name, ireq->i_len);
+			bcopy(tmpname, arcfg.name, ireq->i_len);
 			break;
 		case IEEE80211_IOC_CHANNEL:
 			if (ireq->i_val < 0 || ireq->i_val > 5) {
 				error = EINVAL;
 				break;
 			}
+			ARL_LOCK(sc);
 			arcfg.channelNumber = ireq->i_val;
 			break;
 		case IEEE80211_IOC_POWERSAVE:
 			switch (ireq->i_val) {
 			case IEEE80211_POWERSAVE_OFF:
+				ARL_LOCK(sc);
 				if (arcfg.registrationMode == 2)
 					arcfg.registrationMode = 1;
 				break;
 			case IEEE80211_POWERSAVE_ON:
 			case IEEE80211_POWERSAVE_PSP:
+				ARL_LOCK(sc);
 				arcfg.registrationMode = 2;
 				break;
 			default:
@@ -564,8 +574,16 @@ arl_ioctl(ifp, cmd, data)
 			break;
 		}
 
-		if (!error)
+		if (!error) {
+			/*
+			 * XXX: Somewhat gross: we require that if the
+			 * clauses in the switch statement above
+			 * didn't encounter an error they leave the
+			 * softc locked.
+			 */
 			arl_config(sc);
+			ARL_UNLOCK(sc);
+		}
 
 		break;
 
@@ -578,6 +596,7 @@ arl_ioctl(ifp, cmd, data)
 	}
 	case SIOCGARLALL:
 		bzero(&arlan_io, sizeof(arlan_io));
+		ARL_LOCK(sc);
 		if (!priv_check(td, PRIV_DRIVER)) {
 			bcopy(ar->systemId, arlan_io.cfg.sid, 4);
 		}
@@ -596,11 +615,9 @@ arl_ioctl(ifp, cmd, data)
 		GET_PARAM(priority);
 		GET_PARAM(receiveMode);
 		GET_PARAM(txRetry);
+		ARL_UNLOCK(sc);
 
-		user = (void *)ifr->ifr_data;
-		for (count = 0; count < sizeof(arlan_io); count++)
-			if (subyte(user + count, ((char *)&arlan_io)[count]))
-				return (EFAULT);
+		error = copyout(&arlan_io, ifr->ifr_data, sizeof(arlan_io));
 		break;
 
 #define SET_PARAM(name)							\
@@ -620,17 +637,14 @@ arl_ioctl(ifp, cmd, data)
 		if (priv_check(td, PRIV_DRIVER))
 			break;
 
-		user = (void *)ifr->ifr_data;
-		for (count = 0; count < sizeof(arlan_io); count++) {
-			if (fubyte(user + count) < 0)
-				return (EFAULT);
-		}
-
-		bcopy(user, (char *)&arlan_io, sizeof(arlan_io));
+		error = copyin(ifr->ifr_data, &arlan_io, sizeof(arlan_io));
+		if (error)
+			break;
 
 		D(("need set 0x%04x\n", arlan_io.what_set));
 
 		if (arlan_io.what_set) {
+			ARL_LOCK(sc);
 			SET_COPY_PARAM(name);
 			SET_COPY_PARAM(sid);
 			SET_COPY_PARAM(specifiedRouter);
@@ -644,6 +658,7 @@ arl_ioctl(ifp, cmd, data)
 			SET_PARAM(txRetry);
 
 			arl_config(sc);
+			ARL_UNLOCK(sc);
 		}
 #undef SET_COPY_PARAM
 #undef SET_PARAM
@@ -652,33 +667,34 @@ arl_ioctl(ifp, cmd, data)
 		break;
 #ifdef ARLCACHE
 	case SIOCGARLQLT:
-		user = (void *)ifr->ifr_data;
-		for (count = 0; count < sizeof(sc->arl_sigcache); count++) {
-			if (fubyte(user + count) < 0)
-				return (EFAULT);
-		}
+		arl_cache = malloc(sizeof(sc->arl_sigcache), M_DEVBUF,
+		    M_WAITOK);
+		ARL_LOCK(sc);
 		while (ar->interruptInProgress) ; /* wait */
-		bcopy(&(sc->arl_sigcache), (void *)ifr->ifr_data, sizeof(sc->arl_sigcache));
+		bcopy(&(sc->arl_sigcache), arl_cache, sizeof(sc->arl_sigcache));
+		ARL_UNLOCK(sc);
+		error = copyout(arl_cache, ifr->ifr_data,
+		    sizeof(sc->arl_sigcache));
+		free(arl_cache, M_DEVBUF);
 		break;
 #endif
 	case SIOCGARLSTB:
-		user = (void *)ifr->ifr_data;
-		for (count = 0; count < sizeof(struct arl_stats); count++) {
-			if (fubyte(user + count) < 0)
-				return (EFAULT);
-		}
-
+		arl_stats = malloc(sizeof(struct arl_stats), M_DEVBUF,
+		    M_WAITOK);
+		ARL_LOCK(sc);
 		while (ar->lancpuLock) ;
 		ar->hostcpuLock = 1;
-		bcopy(&(ar->stat), (void *)ifr->ifr_data, sizeof(struct arl_stats));
+		bcopy(&(ar->stat), arl_stats, sizeof(struct arl_stats));
 		ar->hostcpuLock  = 0;
+		ARL_UNLOCK(sc);
+		error = copyout(arl_stats, ifr->ifr_data,
+		    sizeof(struct arl_stats));
+		free(arl_stats, M_DEVBUF);
 		break;
 
 	default:
 		error = EINVAL;
 	}
-
-	splx(s);
 
 	return (error);
 }
@@ -687,24 +703,22 @@ arl_ioctl(ifp, cmd, data)
  * Wait registration
  */
 static void
-arl_waitreg(ifp)
-	struct ifnet		*ifp;
+arl_waitreg(void *arg)
 {
-	struct arl_softc	*sc = ifp->if_softc;
+	struct arl_softc	*sc = arg;
 
 	D(("wait reg\n"));
 
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+	ARL_LOCK_ASSERT(sc);
+	if (sc->arl_ifp->if_drv_flags & IFF_DRV_RUNNING) {
 		if (ARL_CHECKREG(sc)) {
 			/* wait registration */
 			D(("wait registration\n"));
-			ifp->if_watchdog = arl_waitreg;
-			ifp->if_timer = 2;
+			callout_reset(&sc->arl_timer, hz * 2, arl_waitreg, sc);
 		} else {
 			/* registration restored */
 			D(("registration restored\n"));
-			ifp->if_timer = 0;
-			arl_init(sc);
+			arl_init_locked(sc);
 		}
 	}
 }
@@ -713,12 +727,12 @@ arl_waitreg(ifp)
  * Handle transmit timeouts.
  */
 static void
-arl_watchdog(ifp)
-	struct ifnet		*ifp;
+arl_watchdog(void *arg)
 {
-	struct arl_softc        *sc = ifp->if_softc;
+	struct arl_softc        *sc = arg;
 
-	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
+	ARL_LOCK_ASSERT(sc);
+	if (!(sc->arl_ifp->if_drv_flags & IFF_DRV_RUNNING))
 		return;
 
 	D(("device timeout\n"));
@@ -726,8 +740,7 @@ arl_watchdog(ifp)
 	if (ARL_CHECKREG(sc)) {
 		/* Lost registratoin */
 		D(("timeout lost registration\n"));
-		ifp->if_watchdog = arl_waitreg;
-		ifp->if_timer = 2;
+		callout_reset(&sc->arl_timer, hz * 2, arl_waitreg, sc);
 	}
 }
 
@@ -739,12 +752,18 @@ arl_init(xsc)
 	void *xsc;
 {
 	struct arl_softc *sc = xsc;
+
+	ARL_LOCK(sc);
+	arl_init_locked(sc);
+	ARL_UNLOCK(sc);
+}
+
+static void
+arl_init_locked(struct arl_softc *sc)
+{
 	struct ifnet *ifp = sc->arl_ifp;
-	int s;
 
 	D(("init\n"));
-
-	s = splimp();
 
 	if (ARL_CHECKREG(sc))
 		arl_reset(sc);
@@ -756,9 +775,8 @@ arl_init(xsc)
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
-	arl_start(ifp);
+	arl_start_locked(ifp);
 
-	splx(s);
 	D(("init done\n"));
 }
 
@@ -818,6 +836,18 @@ arl_start(ifp)
 	struct ifnet		*ifp;
 {
 	struct arl_softc	*sc;
+
+	sc = ifp->if_softc;
+	ARL_LOCK(sc);
+	arl_start_locked(ifp);
+	ARL_UNLOCK(sc);
+}
+
+static void
+arl_start_locked(ifp)
+	struct ifnet		*ifp;
+{
+	struct arl_softc	*sc;
 	struct mbuf		*m;
 	struct mbuf		*m0 = NULL;
 
@@ -859,10 +889,10 @@ arl_start(ifp)
 		m_freem(m0);
 
 		/* Now transmit the datagram */
-		ifp->if_timer = 1;        /* wait 1 sec */
-
-		ifp->if_watchdog = arl_watchdog;
 		arl_put(sc);
+
+		/* wait 1 sec */
+		callout_reset(&sc->arl_timer, hz * 1, arl_watchdog, sc);
 	}
 }
 
@@ -874,21 +904,16 @@ arl_stop(sc)
 	struct arl_softc *sc;
 {
 	struct ifnet	*ifp;
-	int		s;
-
-	s = splimp();
 
 	ifp = sc->arl_ifp;
 
-	ifp->if_timer = 0;        /* disable timer */
+	callout_stop(&sc->arl_timer);        /* disable timer */
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING|IFF_DRV_OACTIVE);
 	/*  arl_hwreset(unit);  */
 	sc->rx_len = 0;
 	sc->tx_len = 0;
 	/* disable interrupt */
 	ar->controlRegister = 0;
-
-	splx(s);
 }
 
 /*
@@ -998,10 +1023,6 @@ arl_read(sc, buf, len)
 	/*
 	 * Pull packet off interface.
 	 */
-#if __FreeBSD_version < 500100
-	buf += sizeof(struct ether_header);
-	len -= sizeof(struct ether_header);
-#endif
 	m = arl_get(buf, len, 0, ifp);
 	if (m == 0)
 		return;
@@ -1011,11 +1032,9 @@ arl_read(sc, buf, len)
 			(ar->rxQuality & 0xf0) >> 4, ARLCACHE_RX);
 #endif
 
-#if __FreeBSD_version < 500100
-	ether_input(ifp, eh, m);
-#else
+	ARL_UNLOCK(sc);
 	(*ifp->if_input)(ifp, m);
-#endif
+	ARL_LOCK(sc);
 }
 
 /*
@@ -1056,6 +1075,7 @@ arl_intr(arg)
 	register struct arl_softc *sc = (struct arl_softc *) arg;
 	struct ifnet *ifp = sc->arl_ifp;
 
+	ARL_LOCK(sc);
 	/* enable interrupt */
 	ar->controlRegister = (sc->arl_control & ~ARL_CLEAR_INTERRUPT);
 	ar->controlRegister = (sc->arl_control | ARL_CLEAR_INTERRUPT);
@@ -1063,9 +1083,9 @@ arl_intr(arg)
 	if (ar->txStatusVector) {
 		if (ar->txStatusVector != 1)
 			sc->arl_ifp->if_collisions++;
-		ifp->if_timer = 0;     /* disable timer */
+		callout_stop(&sc->arl_timer);     /* disable timer */
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-		arl_start(ifp);
+		arl_start_locked(ifp);
 		ar->txStatusVector = 0;
 #ifdef ARLCACHE
 		arl_cache_store(sc,
@@ -1089,6 +1109,7 @@ arl_intr(arg)
 		if (arl_command(sc))
 			ifp->if_ierrors++;
 	}
+	ARL_UNLOCK(sc);
 
 	return;
 }
@@ -1113,7 +1134,7 @@ arl_wait_reset(sc, cnt, delay)
 	D(("reset done. %d cycles left\n", cnt));
 
 	if (cnt == 0)
-		printf("arl%d: reset failed\n", sc->arl_unit);
+		if_printf(sc->arl_ifp, "reset failed\n");
 
 	return (cnt == 0);
 }
@@ -1235,6 +1256,7 @@ arl_media_change(ifp)
 	int orate = arcfg.spreadingCode;
 	int nrate, i;
 
+	ARL_LOCK(sc);
 	nrate = IFM_SUBTYPE(sc->arl_ifmedia.ifm_cur->ifm_media);
 
 	for(i = 1; i <= 4; i++) {
@@ -1242,8 +1264,10 @@ arl_media_change(ifp)
 			break;
 	}
 
-	if (i == 5)
+	if (i == 5) {
+		ARL_UNLOCK(sc);
 		return (EINVAL);
+	}
 
 	arcfg.spreadingCode = i;
 
@@ -1256,6 +1280,7 @@ arl_media_change(ifp)
 	if (otype != arcfg.registrationMode ||
 	    orate != arcfg.spreadingCode)
 		arl_config(sc);
+	ARL_UNLOCK(sc);
 
 	return (0);
 }
@@ -1269,6 +1294,7 @@ arl_media_status(ifp, imr)
 
 	imr->ifm_active = IFM_IEEE80211;
 
+	ARL_LOCK(sc);
 	if (arcfg.registrationMode == 0)
 		imr->ifm_active |= IFM_IEEE80211_ADHOC;
 
@@ -1277,4 +1303,5 @@ arl_media_status(ifp, imr)
 	imr->ifm_status = IFM_AVALID;
 	if (!ARL_CHECKREG(sc))
 		imr->ifm_status |= IFM_ACTIVE;
+	ARL_UNLOCK(sc);
 }

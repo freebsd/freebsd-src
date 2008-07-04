@@ -214,12 +214,9 @@ arl_isa_probe (device_t dev)
 	if (isa_get_vendorid(dev))
 		return (ENXIO);
 
+	sc->arl_dev = dev;
 	if (bootverbose)
 		device_printf(dev, "in probe\n");
-
-	bzero(sc, sizeof(struct arl_softc));
-
-	sc->arl_unit = device_get_unit(dev);
 
 	error = arl_alloc_memory(dev, 0, ARL_BASE_STEP);
 	if (error) {
@@ -294,24 +291,13 @@ static int
 arl_isa_attach (device_t dev)
 {
 	struct arl_softc *sc = device_get_softc(dev);
-	int error;
 
+	sc->arl_dev = dev;
 	if (bootverbose)
 		device_printf(dev, "in attach\n");
 
 	arl_alloc_memory(dev, sc->mem_rid, ARL_BASE_STEP);
 	arl_alloc_irq(dev, sc->irq_rid, 0);
-
-	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET,
-			       NULL, arl_intr, sc, &sc->irq_handle);
-	if (error) {
-		arl_release_resources(dev);
-		return (error);
-	}
-
-#if __FreeBSD_version < 502108
-	device_printf(dev, "Ethernet address %6D\n", IFP2ENADDR(sc->arl_ifp), ":");
-#endif
 
 	return arl_attach(dev);
 }
@@ -321,16 +307,16 @@ arl_isa_detach(device_t dev)
 {
 	struct arl_softc *sc = device_get_softc(dev);
 
+	ARL_LOCK(sc);
 	arl_stop(sc);
+	ARL_UNLOCK(sc);
+	callout_drain(&sc->arl_timer);
+	ether_ifdetach(sc->arl_ifp);
 	ifmedia_removeall(&sc->arl_ifmedia);
 	bus_teardown_intr(dev, sc->irq_res, sc->irq_handle);
-#if __FreeBSD_version < 500100
-	ether_ifdetach(sc->arl_ifp, ETHER_BPF_SUPPORTED);
-#else
-	ether_ifdetach(sc->arl_ifp);
 	if_free(sc->arl_ifp);
-#endif
 	arl_release_resources(dev);
+	mtx_destroy(&sc->arl_lock);
 
 	return (0);
 }
