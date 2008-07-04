@@ -636,6 +636,7 @@ dev/em/e1000_phy.c		optional em | igb \
 	compile-with "${NORMAL_C} -I$S/dev/em"
 dev/em/e1000_osdep.c		optional em | igb \
 	compile-with "${NORMAL_C} -I$S/dev/em"
+dev/et/if_et.c			optional et
 dev/en/if_en_pci.c		optional en pci
 dev/en/midway.c			optional en
 dev/ep/if_ep.c			optional ep
@@ -814,6 +815,7 @@ dev/mii/rlswitch.c		optional rlswitch
 dev/mii/ruephy.c		optional miibus | ruephy
 dev/mii/tdkphy.c		optional miibus | tdkphy
 dev/mii/tlphy.c			optional miibus | tlphy
+dev/mii/truephy.c		optional miibus | truephy
 dev/mii/ukphy.c			optional miibus | mii
 dev/mii/ukphy_subr.c		optional miibus | mii
 dev/mii/xmphy.c			optional miibus | xmphy

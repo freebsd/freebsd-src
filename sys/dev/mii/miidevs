@@ -49,6 +49,7 @@ $FreeBSD$
  * mangled accordingly to compensate.
  */
 
+oui AGERE			0x00a0bc	Agere Systems
 oui ALTIMA			0x0010a9	Altima Communications
 oui AMD				0x00001a	Advanced Micro Devices
 oui ATHEROS			0x001374	Atheros Communications
@@ -103,6 +104,9 @@ oui xxREALTEK			0x000732
 /*
  * List of known models.  Grouped by oui.
  */
+
+/* Agere Systems PHYs */
+model AGERE ET1011C		0x0004 ET1011C 10/100/1000baseT PHY
 
 /* Altima Communications PHYs */
 model xxALTIMA AC101		0x0021 AC101 10/100 media interface
