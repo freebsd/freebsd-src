@@ -53,7 +53,6 @@ SUBDIR=	${_3dfx} \
 	${_ciss} \
 	${_cm} \
 	${_cmx} \
-	${_cnw} \
 	coda \
 	coda5 \
 	${_coff} \
@@ -455,7 +454,6 @@ _bios=		bios
 _ciss=		ciss
 _cm=		cm
 _cmx=		cmx
-_cnw=		cnw
 _coretemp=	coretemp
 _ctau=		ctau
 _cx=		cx
