@@ -98,6 +98,7 @@ struct cx28975_cmdarea {
 
 struct sbsh_softc {
 	struct ifnet	*ifp;
+	struct mtx	lock;
 
 	struct resource	*mem_res;
 	struct resource	*irq_res;
@@ -123,7 +124,12 @@ struct sbsh_softc {
 	/* the descriptors mapped onto the first buffers in xq and rq */
 	unsigned	head_tdesc, head_rdesc;
 	u_int8_t	state;
+	int		loading_firmware;
 };
+
+#define	SBSH_LOCK(sc)		mtx_lock(&(sc)->lock)
+#define	SBSH_UNLOCK(sc)		mtx_unlock(&(sc)->lock)
+#define	SBSH_ASSERT_LOCKED(sc)	mtx_assert(&(sc)->lock, MA_OWNED)
 
 struct cx28975_cfg {
 	u_int8_t   *firmw_image;
@@ -159,10 +165,11 @@ static int	sbsh_ioctl(struct ifnet	*, u_long, caddr_t);
 static void	sbsh_shutdown(device_t);
 static int	sbsh_suspend(device_t);
 static int	sbsh_resume(device_t);
-static void	sbsh_watchdog(struct ifnet *);
 
 static void	sbsh_start(struct ifnet *);
+static void	sbsh_start_locked(struct ifnet *);
 static void	sbsh_init(void *);
+static void	sbsh_init_locked(struct sbsh_softc *);
 static void	sbsh_stop(struct sbsh_softc *);
 static void	init_card(struct sbsh_softc *);
 static void	sbsh_intr(void *);
@@ -222,20 +229,17 @@ sbsh_attach(device_t dev)
 {
 	struct sbsh_softc	*sc;
 	struct ifnet		*ifp;
-	int			unit, error = 0, rid, s;
+	int			error = 0, rid;
 	u_char			eaddr[6];
 
-	s = splimp();
-
 	sc = device_get_softc(dev);
-	unit = device_get_unit(dev);
 
 	rid = PCIR_BAR(1);
 	sc->mem_res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
-					0, ~0, 4096, RF_ACTIVE);
+					0ul, ~0ul, 4096, RF_ACTIVE);
 
 	if (sc->mem_res == NULL) {
-		printf ("sbsh%d: couldn't map memory\n", unit);
+		device_printf(dev, "couldn't map memory\n");
 		error = ENXIO;
 		goto fail;
 	}
@@ -245,9 +249,7 @@ sbsh_attach(device_t dev)
 						RF_SHAREABLE | RF_ACTIVE);
 
 	if (sc->irq_res == NULL) {
-		printf("sbsh%d: couldn't map interrupt\n", unit);
-		bus_release_resource(dev, SYS_RES_MEMORY,
-					PCIR_BAR(1), sc->mem_res);
+		device_printf(dev, "couldn't map interrupt\n");
 		error = ENXIO;
 		goto fail;
 	}
@@ -255,45 +257,46 @@ sbsh_attach(device_t dev)
 	sc->mem_base = rman_get_virtual(sc->mem_res);
 	init_card(sc);
 
-	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET,
-				NULL, sbsh_intr, sc, &sc->intr_hand);
-	if (error) {
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq_res);
-		bus_release_resource(dev, SYS_RES_MEMORY,
-					PCIR_BAR(1), sc->mem_res);
-		printf("sbsh%d: couldn't set up irq\n", unit);
-		goto fail;
-	}
-
 	/* generate ethernet MAC address */
 	*(u_int32_t *)eaddr = htonl(0x00ff0192);
 	read_random(eaddr + 4, 2);
 
 	ifp = sc->ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL) {
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq_res);
-		bus_release_resource(dev, SYS_RES_MEMORY,
-					PCIR_BAR(1), sc->mem_res);
-		bus_teardown_intr(dev, sc->irq_res, sc->intr_hand);
-		printf("sbsh%d: can not if_alloc()\n", unit);
+		device_printf(dev, "can not if_alloc()\n");
 		goto fail;
 	}
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_mtu = ETHERMTU;
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST |
-	    IFF_NEEDSGIANT;
+	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = sbsh_ioctl;
 	ifp->if_start = sbsh_start;
-	ifp->if_watchdog = sbsh_watchdog;
 	ifp->if_init = sbsh_init;
 	ifp->if_baudrate = 4600000;
-	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
+	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
 
+	mtx_init(&sc->lock, device_get_nameunit(dev), MTX_NETWORK_LOCK,
+	    MTX_DEF);
 	ether_ifattach(ifp, eaddr);
 
+	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET | INTR_MPSAFE,
+				NULL, sbsh_intr, sc, &sc->intr_hand);
+	if (error) {
+		ether_ifdetach(ifp);
+		mtx_destroy(&sc->lock);
+		device_printf(dev, "couldn't set up irq\n");
+		goto fail;
+	}
+
 fail:
-	splx(s);
+	if (sc->ifp)
+		if_free(sc->ifp);
+	if (sc->irq_res)
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq_res);
+	if (sc->mem_res)
+		bus_release_resource(dev, SYS_RES_MEMORY,
+					PCIR_BAR(1), sc->mem_res);
 	return (error);
 }
 
@@ -302,14 +305,13 @@ sbsh_detach(device_t dev)
 {
 	struct sbsh_softc	*sc;
 	struct ifnet		*ifp;
-	int			s;
-
-	s = splimp();
 
 	sc = device_get_softc(dev);
 	ifp = sc->ifp;
 
+	SBSH_LOCK(sc);
 	sbsh_stop(sc);
+	SBSH_UNLOCK(sc);
 	ether_ifdetach(ifp);
 
 	bus_teardown_intr(dev, sc->irq_res, sc->intr_hand);
@@ -317,39 +319,50 @@ sbsh_detach(device_t dev)
 	bus_release_resource(dev, SYS_RES_MEMORY, PCIR_BAR(1), sc->mem_res);
 
 	if_free(ifp);
+	mtx_destroy(&sc->lock);
 
-	splx(s);
 	return (0);
 }
-
 
 static void
 sbsh_start(struct ifnet *ifp)
 {
 	struct sbsh_softc  *sc = ifp->if_softc;
-	int  s;
+
+	SBSH_LOCK(sc);
+	sbsh_start_locked(ifp);
+	SBSH_UNLOCK(sc);
+}
+
+static void
+sbsh_start_locked(struct ifnet *ifp)
+{
+	struct sbsh_softc  *sc = ifp->if_softc;
 
 	if (sc->state != ACTIVE)
 		return;
 
-	s = splimp();
 	start_xmit_frames(ifp->if_softc);
-	splx(s);
 }
-
 
 static void
 sbsh_init(void *xsc)
 {
 	struct sbsh_softc	*sc = xsc;
+
+	SBSH_LOCK(sc);
+	sbsh_init_locked(sc);
+	SBSH_UNLOCK(sc);
+}
+
+static void
+sbsh_init_locked(struct sbsh_softc *sc)
+{
 	struct ifnet		*ifp = sc->ifp;
-	int			s;
 	u_int8_t		t;
 
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) || sc->state == NOT_LOADED)
 		return;
-
-	s = splimp();
 
 	bzero(&sc->in_stats, sizeof(struct sbni16_stats));
 	sc->head_xq = sc->tail_xq = sc->head_rq = sc->tail_rq = 0;
@@ -364,18 +377,15 @@ sbsh_init(void *xsc)
 		ifp->if_drv_flags |= IFF_DRV_RUNNING;
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	}
-
-	splx(s);
 }
 
 
 static void
 sbsh_stop(struct sbsh_softc *sc)
 {
-	int  s;
 	u_int8_t  t;
 
-	s = splimp();
+	SBSH_ASSERT_LOCKED(sc);
 	sc->regs->IMR = EXT;
 
 	t = 0;
@@ -391,7 +401,7 @@ sbsh_stop(struct sbsh_softc *sc)
 
 	sc->regs->IMR = 0;
 	sc->state = DOWN;
-	splx(s);
+	sc->ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 }
 
 
@@ -416,21 +426,26 @@ sbsh_ioctl(struct ifnet	*ifp, u_long cmd, caddr_t data)
 	struct sbsh_softc	*sc = ifp->if_softc;
 	struct ifreq		*ifr = (struct ifreq *) data;
 	struct cx28975_cfg	cfg;
+	struct sbni16_stats	stats;
 	struct dsl_stats	ds;
 
-	int			s, error = 0;
+	int			error = 0;
 	u_int8_t		t;
-
-	s = splimp();
 
 	switch(cmd) {
 	case SIOCLOADFIRMW:
 		if ((error = priv_check(curthread, PRIV_DRIVER)) != 0)
 			break;
-		if (ifp->if_flags & IFF_UP)
+		error = copyin(ifr->ifr_data, &cfg, sizeof(cfg));
+		if (error)
+			break;
+		SBSH_LOCK(sc);
+		if (ifp->if_flags & IFF_UP || sc->loading_firmware) {
 			error = EBUSY;
-
-		bcopy((caddr_t)ifr->ifr_data, (caddr_t)&cfg, sizeof cfg);
+			SBSH_UNLOCK(sc);
+			break;
+		}
+		sc->loading_firmware = 1;
 		if (start_cx28975(sc, cfg) == 0) {
 			static char  *modstr[] = {
 				"TCPAM32", "TCPAM16", "TCPAM8", "TCPAM4" };
@@ -442,12 +457,15 @@ sbsh_ioctl(struct ifnet	*ifp, u_long cmd, caddr_t data)
 				"unable to load firmware\n");
 			error = EIO;
 		}
+		sc->loading_firmware = 0;
+		SBSH_UNLOCK(sc);
 		break;
 
 	case  SIOCGETSTATS :
 		if ((error = priv_check(curthread, PRIV_DRIVER)) != 0)
 			break;
 
+		SBSH_LOCK(sc);
 		t = 0;
 		if (issue_cx28975_cmd(sc, _DSL_FAR_END_ATTEN, &t, 1))
 			error = EIO;
@@ -472,36 +490,43 @@ sbsh_ioctl(struct ifnet	*ifp, u_long cmd, caddr_t data)
 
 		ds.status_1 = ((volatile u_int8_t *)sc->cmdp)[0x3c0];
 		ds.status_3 = ((volatile u_int8_t *)sc->cmdp)[0x3c2];
+		bcopy(&sc->in_stats, &stats, sizeof(struct sbni16_stats));
+		SBSH_UNLOCK(sc);
 
-		bcopy(&sc->in_stats, ifr->ifr_data, sizeof(struct sbni16_stats));
-		bcopy(&ds, ifr->ifr_data + sizeof(struct sbni16_stats),
-		    sizeof(struct dsl_stats));
+		error = copyout(&stats, ifr->ifr_data,
+		    sizeof(struct sbni16_stats));
+		if (error)
+			break;
+		error = copyout(&ds, ifr->ifr_data +
+		    sizeof(struct sbni16_stats), sizeof(struct dsl_stats));
 		break;
 
 	case  SIOCCLRSTATS :
 		if (!(error = priv_check(curthread, PRIV_DRIVER))) {
+			SBSH_LOCK(sc);
 			bzero(&sc->in_stats, sizeof(struct sbni16_stats));
 			t = 2;
 			if (issue_cx28975_cmd(sc, _DSL_CLEAR_ERROR_CTRS, &t, 1))
 				error = EIO;
+			SBSH_UNLOCK(sc);
 		}
 		break;
 
 	case SIOCSIFFLAGS:
+		SBSH_LOCK(sc);
 		if (ifp->if_flags & IFF_UP) {
 			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 				if (sc->state == NOT_LOADED) {
 					if_printf(ifp, "firmware wasn't loaded\n");
 					error = EBUSY;
 				} else
-					sbsh_init(sc);
+					sbsh_init_locked(sc);
 			}
 		} else {
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 				sbsh_stop(sc);
-				ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
-			}
 		}
+		SBSH_UNLOCK(sc);
 		break;
 
 	case SIOCADDMULTI:
@@ -514,7 +539,6 @@ sbsh_ioctl(struct ifnet	*ifp, u_long cmd, caddr_t data)
 		break;
 	}
 
-	splx(s);
 	return (error);
 }
 
@@ -524,18 +548,19 @@ sbsh_shutdown(device_t dev)
 {
 	struct sbsh_softc	*sc = device_get_softc(dev);
 
+	SBSH_LOCK(sc);
 	sbsh_stop(sc);
+	SBSH_UNLOCK(sc);
 }
 
 static int
 sbsh_suspend(device_t dev)
 {
 	struct sbsh_softc	*sc = device_get_softc(dev);
-	int			s;
 
-	s = splimp();
+	SBSH_LOCK(sc);
 	sbsh_stop(sc);
-	splx(s);
+	SBSH_UNLOCK(sc);
 
 	return (0);
 }
@@ -545,31 +570,14 @@ sbsh_resume(device_t dev)
 {
 	struct sbsh_softc	*sc = device_get_softc(dev);
 	struct ifnet		*ifp;
-	int			s;
 
-	s = splimp();
+	SBSH_LOCK(sc);
 	ifp = sc->ifp;
-
 	if (ifp->if_flags & IFF_UP)
-		sbsh_init(sc);
+		sbsh_init_locked(sc);
+	SBSH_UNLOCK(sc);
 
-	splx(s);
 	return (0);
-}
-
-
-static void
-sbsh_watchdog(struct ifnet *ifp)
-{
-	struct sbsh_softc	*sc = ifp->if_softc;
-
-	if_printf(ifp, "transmit timeout\n");
-
-	if (sc->regs->SR & TXS) {
-		sc->regs->SR = TXS;
-		if_printf(ifp, "interrupt posted but not delivered\n");
-	}
-	free_sent_buffers(sc);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -578,10 +586,14 @@ static void
 sbsh_intr(void *arg)
 {
 	struct sbsh_softc  *sc = (struct sbsh_softc *)arg;
-	u_int8_t  status = sc->regs->SR;
+	u_int8_t  status;
 
-	if (status == 0)
+	SBSH_LOCK(sc);
+	status = sc->regs->SR;
+	if (status == 0) {
+		SBSH_UNLOCK(sc);
 		return;
+	}
 
 	if (status & EXT) {
 		cx28975_interrupt(sc);
@@ -617,6 +629,7 @@ sbsh_intr(void *arg)
 		++sc->ifp->if_ierrors;
 		sc->regs->SR = OFL;
 	}
+	SBSH_UNLOCK(sc);
 }
 
 /*
@@ -817,11 +830,13 @@ indicate_frames(struct sbsh_softc *sc)
 				sc->rbd[sc->head_rdesc].length & 0x7ff;
 		m->m_pkthdr.rcvif = sc->ifp;
 
-		(*sc->ifp->if_input)(sc->ifp, m);
 		++sc->in_stats.rcvd_pkts;
 		++sc->ifp->if_ipackets;
 
 		sc->head_rdesc = (sc->head_rdesc + 1) & 0x7f;
+		SBSH_UNLOCK(sc);
+		(*sc->ifp->if_input)(sc->ifp, m);
+		SBSH_LOCK(sc);
 	}
 }
 
@@ -943,14 +958,14 @@ start_cx28975(struct sbsh_softc *sc, struct cx28975_cfg cfg)
 	if (cfg.wburst)
 		sc->regs->CRB |= WTBE;
 
-	tsleep(sc, PWAIT, "sbsh", 0);
+	mtx_sleep(sc, &sc->lock, PWAIT, "sbsh", 0);
 	if ((p->out_ack & 0x1f) != _ACK_BOOT_WAKE_UP)
 		return (-1);
 
 	if (download_firmware(sc, cfg.firmw_image, cfg.firmw_len))
 		return (-1);
 
-	tsleep(sc, PWAIT, "sbsh", 0);
+	mtx_sleep(sc, &sc->lock, PWAIT, "sbsh", 0);
 	if ((p->out_ack & 0x1f) != _ACK_OPER_WAKE_UP)
 		return (-1);
 
@@ -1059,7 +1074,11 @@ issue_cx28975_cmd(struct sbsh_softc *sc, u_int8_t cmd,
 	p->out_ack	= _ACK_NOT_COMPLETE;
 	p->intr_8051	= 0xfe;
 
-	if (tsleep(sc, PWAIT, "sbsh", hz << 3))
+	/*
+	 * XXX: Sleeping here probably breaks lots of things.  This should
+	 * probably be doing a spin loop with a DELAY or some such.
+	 */
+	if (mtx_sleep(sc, &sc->lock, PWAIT, "sbsh", hz << 3))
 		return (-1);
 
 	while (p->out_ack == _ACK_NOT_COMPLETE)
