@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
  
 
 #include <sys/param.h>
+#include <sys/bus.h>
 #include <sys/systm.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
@@ -89,9 +90,10 @@ __FBSDID("$FreeBSD$");
 #define ASM_CRC 1
 
 static void	sbni_init(void *);
+static void	sbni_init_locked(struct sbni_softc *);
 static void	sbni_start(struct ifnet *);
+static void	sbni_start_locked(struct ifnet *);
 static int	sbni_ioctl(struct ifnet *, u_long, caddr_t);
-static void	sbni_watchdog(struct ifnet *);
 static void	sbni_stop(struct sbni_softc *);
 static void	handle_channel(struct sbni_softc *);
 
@@ -125,10 +127,10 @@ static __inline void	sbni_outsb(struct sbni_softc *, u_char *, u_int);
 static u_int32_t crc32tab[];
 
 #ifdef SBNI_DUAL_COMPOUND
-struct sbni_softc *sbni_headlist;
+static struct mtx headlist_lock;
+MTX_SYSINIT(headlist_lock, &headlist_lock, "sbni headlist", MTX_DEF);
+static struct sbni_softc *sbni_headlist;
 #endif
-
-u_int32_t next_sbni_unit;
 
 /* -------------------------------------------------------------------------- */
 
@@ -217,7 +219,7 @@ sbni_probe(struct sbni_softc *sc)
 /*
  * Install interface into kernel networking data structures
  */
-void
+int
 sbni_attach(struct sbni_softc *sc, int unit, struct sbni_flags flags)
 {
 	struct ifnet *ifp;
@@ -225,27 +227,27 @@ sbni_attach(struct sbni_softc *sc, int unit, struct sbni_flags flags)
    
 	ifp = sc->ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL)
-		panic("sbni%d: can not if_alloc()", unit);
+		return (ENOMEM);
 	sbni_outb(sc, CSR0, 0);
 	set_initial_values(sc, flags);
 
-	callout_handle_init(&sc->wch);
 	/* Initialize ifnet structure */
 	ifp->if_softc	= sc;
 	if_initname(ifp, "sbni", unit);
 	ifp->if_init	= sbni_init;
 	ifp->if_start	= sbni_start;
 	ifp->if_ioctl	= sbni_ioctl;
-	ifp->if_watchdog	= sbni_watchdog;
-	ifp->if_snd.ifq_maxlen	= IFQ_MAXLEN;
+	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
 
 	/* report real baud rate */
 	csr0 = sbni_inb(sc, CSR0);
 	ifp->if_baudrate =
 		(csr0 & 0x01 ? 500000 : 2000000) / (1 << flags.rate);
 
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST |
-	    IFF_NEEDSGIANT;
+	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
+
+	mtx_init(&sc->lock, ifp->if_xname, MTX_NETWORK_LOCK, MTX_DEF);
+	callout_init_mtx(&sc->wch, &sc->lock, 0);
 	ether_ifattach(ifp, sc->enaddr);
 	/* device attach does transition from UNCONFIGURED to IDLE state */
 
@@ -254,6 +256,34 @@ sbni_attach(struct sbni_softc *sc, int unit, struct sbni_flags flags)
 		printf("auto\n");
 	else
 		printf("%d (fixed)\n", sc->cur_rxl_index);
+	return (0);
+}
+
+void
+sbni_detach(struct sbni_softc *sc)
+{
+
+	SBNI_LOCK(sc);
+	sbni_stop(sc);
+	SBNI_UNLOCK(sc);
+	callout_drain(&sc->wch);
+	ether_ifdetach(sc->ifp);
+	if (sc->irq_handle)
+		bus_teardown_intr(sc->dev, sc->irq_res, sc->irq_handle);
+	mtx_destroy(&sc->lock);
+	if_free(sc->ifp);
+}
+
+void
+sbni_release_resources(struct sbni_softc *sc)
+{
+
+	if (sc->irq_res)
+		bus_release_resource(sc->dev, SYS_RES_IRQ, sc->irq_rid,
+		    sc->irq_res);
+	if (sc->io_res && sc->io_off == 0)
+		bus_release_resource(sc->dev, SYS_RES_IOPORT, sc->io_rid,
+		    sc->io_res);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -262,10 +292,18 @@ static void
 sbni_init(void *xsc)
 {
 	struct sbni_softc *sc;
-	struct ifnet *ifp;
-	int  s;
 
 	sc = (struct sbni_softc *)xsc;
+	SBNI_LOCK(sc);
+	sbni_init_locked(sc);
+	SBNI_UNLOCK(sc);
+}
+
+static void
+sbni_init_locked(struct sbni_softc *sc)
+{
+	struct ifnet *ifp;
+
 	ifp = sc->ifp;
 
 	/*
@@ -275,24 +313,31 @@ sbni_init(void *xsc)
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 		return;
 
-	s = splimp();
-	ifp->if_timer = 0;
 	card_start(sc);
-	sc->wch = timeout(sbni_timeout, sc, hz/SBNI_HZ);
+	callout_reset(&sc->wch, hz/SBNI_HZ, sbni_timeout, sc);
 
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	/* attempt to start output */
-	sbni_start(ifp);
-	splx(s);
+	sbni_start_locked(ifp);
 }
-
 
 static void
 sbni_start(struct ifnet *ifp)
 {
 	struct sbni_softc *sc = ifp->if_softc;
+
+	SBNI_LOCK(sc);
+	sbni_start_locked(ifp);
+	SBNI_UNLOCK(sc);
+}
+
+static void
+sbni_start_locked(struct ifnet *ifp)
+{
+	struct sbni_softc *sc = ifp->if_softc;
+
 	if (sc->tx_frameno == 0)
 		prepare_to_send(sc);
 }
@@ -309,8 +354,8 @@ sbni_stop(struct sbni_softc *sc)
 		sc->rx_buf_p = NULL;
 	}
 
-	untimeout(sbni_timeout, sc, sc->wch);
-	sc->wch.callout = NULL;
+	callout_stop(&sc->wch);
+	sc->ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -340,14 +385,20 @@ sbni_intr(void *arg)
 
 	do {
 		repeat = 0;
+		SBNI_LOCK(sc);
 		if (sbni_inb(sc, CSR0) & (RC_RDY | TR_RDY)) {
 			handle_channel(sc);
 			repeat = 1;
 		}
-		if (sc->slave_sc && 	/* second channel present */
-		    (sbni_inb(sc->slave_sc, CSR0) & (RC_RDY | TR_RDY))) {
-			handle_channel(sc->slave_sc);
-			repeat = 1;
+		SBNI_UNLOCK(sc);
+		if (sc->slave_sc) {
+			/* second channel present */
+			SBNI_LOCK(sc->slave_sc);
+			if (sbni_inb(sc->slave_sc, CSR0) & (RC_RDY | TR_RDY)) {
+				handle_channel(sc->slave_sc);
+				repeat = 1;
+			}
+			SBNI_UNLOCK(sc->slave_sc);
 		}
 	} while (repeat);
 }
@@ -378,7 +429,7 @@ handle_channel(struct sbni_softc *sc)
 		 */
 		csr0 = sbni_inb(sc, CSR0);
 		if ((csr0 & TR_RDY) == 0 || (csr0 & RC_RDY) != 0)
-			printf("sbni: internal error!\n");
+			if_printf(sc->ifp, "internal error!\n");
 
 		/* if state & FL_NEED_RESEND != 0 then tx_frameno != 0 */
 		if (req_ans || sc->tx_frameno != 0)
@@ -856,9 +907,11 @@ indicate_pkt(struct sbni_softc *sc)
 	m = sc->rx_buf_p;
 	m->m_pkthdr.rcvif = ifp;
 	m->m_pkthdr.len   = m->m_len = sc->inppos;
-
-	(*ifp->if_input)(ifp, m);
 	sc->rx_buf_p = NULL;
+
+	SBNI_UNLOCK(sc);
+	(*ifp->if_input)(ifp, m);
+	SBNI_LOCK(sc);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -872,11 +925,10 @@ static void
 sbni_timeout(void *xsc)
 {
 	struct sbni_softc *sc;
-	int s;
 	u_char csr0;
 
 	sc = (struct sbni_softc *)xsc;
-	s = splimp();
+	SBNI_ASSERT_LOCKED(sc);
 
 	csr0 = sbni_inb(sc, CSR0);
 	if (csr0 & RC_CHK) {
@@ -895,9 +947,8 @@ sbni_timeout(void *xsc)
 		}
 	}
 
-	sbni_outb(sc, CSR0, csr0 | RC_CHK); 
-	sc->wch = timeout(sbni_timeout, sc, hz/SBNI_HZ);
-	splx(s);
+	sbni_outb(sc, CSR0, csr0 | RC_CHK);
+	callout_reset(&sc->wch, hz/SBNI_HZ, sbni_timeout, sc);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -917,19 +968,6 @@ card_start(struct sbni_softc *sc)
 }
 
 /* -------------------------------------------------------------------------- */
-
-/*
- * Device timeout/watchdog routine. Entered if the device neglects to
- *	generate an interrupt after a transmit has been started on it.
- */
-
-static void
-sbni_watchdog(struct ifnet *ifp)
-{
-	log(LOG_ERR, "%s: device timeout\n", ifp->if_xname);
-	ifp->if_oerrors++;
-}
-
 
 static u_char rxl_tab[] = {
 	0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x08,
@@ -971,12 +1009,22 @@ set_initial_values(struct sbni_softc *sc, struct sbni_flags flags)
 
 
 #ifdef SBNI_DUAL_COMPOUND
+void
+sbni_add(struct sbni_softc *sc)
+{
+
+	mtx_lock(&headlist_lock);
+	sc->link = sbni_headlist;
+	sbni_headlist = sc;
+	mtx_unlock(&headlist_lock);
+}
 
 struct sbni_softc *
 connect_to_master(struct sbni_softc *sc)
 {
 	struct sbni_softc *p, *p_prev;
 
+	mtx_lock(&headlist_lock);
 	for (p = sbni_headlist, p_prev = NULL; p; p_prev = p, p = p->link) {
 		if (rman_get_start(p->io_res) == rman_get_start(sc->io_res) + 4 ||
 		    rman_get_start(p->io_res) == rman_get_start(sc->io_res) - 4) {
@@ -985,9 +1033,11 @@ connect_to_master(struct sbni_softc *sc)
 				p_prev->link = p->link;
 			else
 				sbni_headlist = p->link;
+			mtx_unlock(&headlist_lock);
 			return p;
 		}
 	}
+	mtx_unlock(&headlist_lock);
 
 	return (NULL);
 }
@@ -1049,14 +1099,12 @@ sbni_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	struct thread *td;
 	struct sbni_in_stats *in_stats;
 	struct sbni_flags flags;
-	int error, s;
+	int error;
 
 	sc = ifp->if_softc;
 	ifr = (struct ifreq *)data;
 	td = curthread;
 	error = 0;
-
-	s = splimp();
 
 	switch (command) {
 	case SIOCSIFFLAGS:
@@ -1064,15 +1112,16 @@ sbni_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		 * If the interface is marked up and stopped, then start it.
 		 * If it is marked down and running, then stop it.
 		 */
+		SBNI_LOCK(sc);
 		if (ifp->if_flags & IFF_UP) {
 			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
-				sbni_init(sc);
+				sbni_init_locked(sc);
 		} else {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 				sbni_stop(sc);
-				ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			}
 		}
+		SBNI_UNLOCK(sc);
 		break;
 
 	case SIOCADDMULTI:
@@ -1086,29 +1135,29 @@ sbni_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			error = EAFNOSUPPORT; */
 		break;
 
-	case SIOCSIFMTU:
-		if (ifr->ifr_mtu > ETHERMTU)
-			error = EINVAL;
-		else
-			ifp->if_mtu = ifr->ifr_mtu;
-		break;
-
 		/*
 		 * SBNI specific ioctl
 		 */
 	case SIOCGHWFLAGS:	/* get flags */
+		SBNI_LOCK(sc);
 		bcopy((caddr_t)IF_LLADDR(sc->ifp)+3, (caddr_t) &flags, 3);
 		flags.rxl = sc->cur_rxl_index;
 		flags.rate = sc->csr1.rate;
 		flags.fixed_rxl = (sc->delta_rxl == 0);
 		flags.fixed_rate = 1;
+		SBNI_UNLOCK(sc);
 		ifr->ifr_data = *(caddr_t*) &flags;
 		break;
 
 	case SIOCGINSTATS:
-		in_stats = (struct sbni_in_stats *)ifr->ifr_data;
-		bcopy((void *)(&(sc->in_stats)), (void *)in_stats,
-		      sizeof(struct sbni_in_stats));
+		in_stats = malloc(sizeof(struct sbni_in_stats), M_DEVBUF,
+		    M_WAITOK);
+		SBNI_LOCK(sc);
+		bcopy(&sc->in_stats, in_stats, sizeof(struct sbni_in_stats));
+		SBNI_UNLOCK(sc);
+		error = copyout(ifr->ifr_data, in_stats,
+		    sizeof(struct sbni_in_stats));
+		free(in_stats, M_DEVBUF);
 		break;
 
 	case SIOCSHWFLAGS:	/* set flags */
@@ -1117,6 +1166,7 @@ sbni_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		if (error)
 			break;
 		flags = *(struct sbni_flags*)&ifr->ifr_data;
+		SBNI_LOCK(sc);
 		if (flags.fixed_rxl) {
 			sc->delta_rxl = 0;
 			sc->cur_rxl_index = flags.rxl;
@@ -1132,11 +1182,14 @@ sbni_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 
 		/* Don't be afraid... */
 		sbni_outb(sc, CSR1, *(char*)(&sc->csr1) | PR_RES);
+		SBNI_UNLOCK(sc);
 		break;
 
 	case SIOCRINSTATS:
+		SBNI_LOCK(sc);
 		if (!(error = priv_check(td, PRIV_DRIVER)))	/* root only */
 			bzero(&sc->in_stats, sizeof(struct sbni_in_stats));
+		SBNI_UNLOCK(sc);
 		break;
 
 	default:
@@ -1144,7 +1197,6 @@ sbni_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		break;
 	}
 
-	splx(s);
 	return (error);
 }
 

@@ -68,6 +68,7 @@ struct sbni_flags {
 
 struct sbni_softc {
 	struct	ifnet *ifp;
+	device_t dev;
 	u_char	enaddr[6];
 
 	int	io_rid;
@@ -111,7 +112,8 @@ struct sbni_softc {
 	struct	sbni_csr1 csr1;			/* current value of CSR1 */
 	struct	sbni_in_stats in_stats; 	/* internal statistics */ 
 
-	struct	callout_handle wch;
+	struct	callout wch;
+	struct	mtx lock;
 
 	struct	sbni_softc *slave_sc;
 
@@ -120,15 +122,20 @@ struct sbni_softc {
 #endif
 };
 
+#define	SBNI_LOCK(sc)		mtx_lock(&(sc)->lock)
+#define	SBNI_UNLOCK(sc)		mtx_unlock(&(sc)->lock)
+#define	SBNI_ASSERT_LOCKED(sc)	mtx_assert(&(sc)->lock, MA_OWNED)
+
 void	sbni_intr(void *);
 int	sbni_probe(struct sbni_softc *);
-void	sbni_attach(struct sbni_softc *, int, struct sbni_flags);
+int	sbni_attach(struct sbni_softc *, int, struct sbni_flags);
+void	sbni_detach(struct sbni_softc *);
+void	sbni_release_resources(struct sbni_softc *);
 
 extern u_int32_t next_sbni_unit;
 
 #ifdef SBNI_DUAL_COMPOUND
-extern struct sbni_softc *sbni_headlist;
-
+void			sbni_add(struct sbni_softc *);
 struct sbni_softc	*connect_to_master(struct sbni_softc *);
 #endif
 #endif	/* _KERNEL */
