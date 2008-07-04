@@ -1083,7 +1083,6 @@ dev/rp/rp.c			optional rp
 dev/rp/rp_isa.c			optional rp isa
 dev/rp/rp_pci.c			optional rp pci
 dev/safe/safe.c			optional safe
-dev/sbsh/if_sbsh.c		optional sbsh
 dev/scc/scc_if.m		optional scc
 dev/scc/scc_bfe_ebus.c		optional scc ebus
 dev/scc/scc_bfe_quicc.c		optional scc quicc

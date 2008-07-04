@@ -1799,7 +1799,6 @@ device		miibus
 #       card which is 32-bit.
 # sis:  Support for NICs based on the Silicon Integrated Systems SiS 900,
 #       SiS 7016 and NS DP83815 PCI fast ethernet controller chips.
-# sbsh:	Support for Granch SBNI16 SHDSL modem PCI adapters
 # sk:   Support for the SysKonnect SK-984x series PCI gigabit ethernet NICs.
 #       This includes the SK-9841 and SK-9842 single port cards (single mode
 #       and multimode fiber) and the SK-9843 and SK-9844 dual port cards
@@ -1885,7 +1884,6 @@ device		nge		# NatSemi DP83820 gigabit Ethernet
 device		rl		# RealTek 8129/8139
 device		pcn		# AMD Am79C97x PCI 10/100 NICs
 device		sf		# Adaptec AIC-6915 (``Starfire'')
-device		sbsh		# Granch SBNI16 SHDSL modem
 device		sis		# Silicon Integrated Systems SiS 900/SiS 7016
 device		sk		# SysKonnect SK-984x & SK-982x gigabit Ethernet
 device		ste		# Sundance ST201 (D-Link DFE-550TX)
