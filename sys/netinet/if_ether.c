@@ -1040,6 +1040,6 @@ arp_init(void)
 
 	arpintrq.ifq_maxlen = 50;
 	mtx_init(&arpintrq.ifq_mtx, "arp_inq", NULL, MTX_DEF);
-	netisr_register(NETISR_ARP, arpintr, &arpintrq, NETISR_MPSAFE);
+	netisr_register(NETISR_ARP, arpintr, &arpintrq, 0);
 }
 SYSINIT(arp, SI_SUB_PROTO_DOMAIN, SI_ORDER_ANY, arp_init, 0);

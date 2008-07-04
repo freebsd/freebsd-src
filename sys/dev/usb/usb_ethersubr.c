@@ -82,6 +82,8 @@ usbintr(void)
 	struct usb_qdat		*q;
 	struct ifnet		*ifp;
 
+	mtx_lock(&Giant);
+
 	/* Check the RX queue */
 	while(1) {
 		IF_DEQUEUE(&usbq_rx, m);
@@ -109,6 +111,8 @@ usbintr(void)
 			(*ifp->if_start)(ifp);
 	}
 
+	mtx_unlock(&Giant);
+
 	return;
 }
 
@@ -117,7 +121,8 @@ usb_register_netisr(void)
 {
 	if (mtx_inited)
 		return;
-	netisr_register(NETISR_USB, (netisr_t *)usbintr, NULL, 0);
+	netisr_register(NETISR_USB, (netisr_t *)usbintr, NULL,
+	    NETISR_FORCEQUEUE);
 	mtx_init(&usbq_tx.ifq_mtx, "usbq_tx_mtx", NULL, MTX_DEF);
 	mtx_init(&usbq_rx.ifq_mtx, "usbq_rx_mtx", NULL, MTX_DEF);
 	mtx_inited++;
