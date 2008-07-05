@@ -212,7 +212,7 @@ _praudit=	praudit
 .endif
 
 .if !defined(NO_BIND)
-.if !defined(NO_BIND_DNSSEC) && !defined(NO_CRYPT)
+.if !defined(NO_BIND_DNSSEC) && !defined(NO_CRYPT) && !defined(NO_OPENSSL)
 _dnssec-keygen=		dnssec-keygen
 _dnssec-signzone=	dnssec-signzone
 .endif
