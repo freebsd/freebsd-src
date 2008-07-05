@@ -105,8 +105,10 @@ get_rand_ifid(struct ifnet *ifp, struct in6_addr *in6)
 {
 	MD5_CTX ctxt;
 	u_int8_t digest[16];
-	int hostnamelen	= strlen(hostname);
+	int hostnamelen;
 
+	mtx_lock(&hostname_mtx);
+	hostnamelen = strlen(hostname);
 #if 0
 	/* we need at least several letters as seed for ifid */
 	if (hostnamelen < 3)
@@ -117,6 +119,7 @@ get_rand_ifid(struct ifnet *ifp, struct in6_addr *in6)
 	bzero(&ctxt, sizeof(ctxt));
 	MD5Init(&ctxt);
 	MD5Update(&ctxt, hostname, hostnamelen);
+	mtx_unlock(&hostname_mtx);
 	MD5Final(digest, &ctxt);
 
 	/* assumes sizeof(digest) > sizeof(ifid) */

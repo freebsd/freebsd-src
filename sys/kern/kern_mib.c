@@ -208,6 +208,13 @@ SYSCTL_STRING(_hw, HW_MACHINE_ARCH, machine_arch, CTLFLAG_RD,
 
 char hostname[MAXHOSTNAMELEN];
 
+/*
+ * This mutex is used to protect the hostname and domainname variables, and
+ * perhaps in the future should also protect hostid, hostuid, and others.
+ */
+struct mtx hostname_mtx;
+MTX_SYSINIT(hostname_mtx, &hostname_mtx, "hostname", MTX_DEF);
+
 static int
 sysctl_hostname(SYSCTL_HANDLER_ARGS)
 {
@@ -240,9 +247,18 @@ sysctl_hostname(SYSCTL_HANDLER_ARGS)
 			bcopy(tmphostname, pr->pr_host, MAXHOSTNAMELEN);
 			mtx_unlock(&pr->pr_mtx);
 		}
-	} else
-		error = sysctl_handle_string(oidp,
-		    hostname, sizeof hostname, req);
+	} else {
+		mtx_lock(&hostname_mtx);
+		bcopy(hostname, tmphostname, MAXHOSTNAMELEN);
+		mtx_unlock(&hostname_mtx);
+		error = sysctl_handle_string(oidp, tmphostname,
+		    sizeof tmphostname, req);
+		if (req->newptr != NULL && error == 0) {
+			mtx_lock(&hostname_mtx);
+			bcopy(tmphostname, hostname, MAXHOSTNAMELEN);
+			mtx_unlock(&hostname_mtx);
+		}
+	}
 	return (error);
 }
 
@@ -328,9 +344,29 @@ SYSCTL_PROC(_kern, OID_AUTO, conftxt, CTLTYPE_STRING|CTLFLAG_RW,
     0, 0, sysctl_kern_config, "", "Kernel configuration file");
 #endif
 
-char domainname[MAXHOSTNAMELEN];
-SYSCTL_STRING(_kern, KERN_NISDOMAINNAME, domainname, CTLFLAG_RW,
-    &domainname, sizeof(domainname), "Name of the current YP/NIS domain");
+char domainname[MAXHOSTNAMELEN];	/* Protected by hostname_mtx. */
+
+static int
+sysctl_domainname(SYSCTL_HANDLER_ARGS)
+{
+	char tmpdomainname[MAXHOSTNAMELEN];
+	int error;
+
+	mtx_lock(&hostname_mtx);
+	bcopy(domainname, tmpdomainname, MAXHOSTNAMELEN);
+	mtx_unlock(&hostname_mtx);
+	error = sysctl_handle_string(oidp, tmpdomainname,
+	    sizeof tmpdomainname, req);
+	if (req->newptr != NULL && error == 0) {
+		mtx_lock(&hostname_mtx);
+		bcopy(tmpdomainname, domainname, MAXHOSTNAMELEN);
+		mtx_unlock(&hostname_mtx);
+	}
+	return (error);
+}
+
+SYSCTL_PROC(_kern, KERN_NISDOMAINNAME, domainname, CTLTYPE_STRING|CTLFLAG_RW,
+       0, 0, sysctl_domainname, "A", "NAme of the current YP/NIS domain");
 
 u_long hostid;
 SYSCTL_ULONG(_kern, KERN_HOSTID, hostid, CTLFLAG_RW, &hostid, 0, "Host ID");

@@ -475,8 +475,11 @@ getcredhostname(struct ucred *cred, char *buf, size_t size)
 		mtx_lock(&cred->cr_prison->pr_mtx);
 		strlcpy(buf, cred->cr_prison->pr_host, size);
 		mtx_unlock(&cred->cr_prison->pr_mtx);
-	} else
+	} else {
+		mtx_lock(&hostname_mtx);
 		strlcpy(buf, hostname, size);
+		mtx_unlock(&hostname_mtx);
+	}
 }
 
 /*

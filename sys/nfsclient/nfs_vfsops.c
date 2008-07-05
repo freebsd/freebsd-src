@@ -506,11 +506,13 @@ nfs_mountroot(struct mount *mp, struct thread *td)
 	 * set hostname here and then let the "/etc/rc.xxx" files
 	 * mount the right /var based upon its preset value.
 	 */
+	mtx_lock(&hostname_mtx);
 	bcopy(nd->my_hostnam, hostname, MAXHOSTNAMELEN);
 	hostname[MAXHOSTNAMELEN - 1] = '\0';
 	for (i = 0; i < MAXHOSTNAMELEN; i++)
 		if (hostname[i] == '\0')
 			break;
+	mtx_unlock(&hostname_mtx);
 	inittodr(ntohl(nd->root_time));
 	return (0);
 }
