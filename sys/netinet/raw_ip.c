@@ -156,7 +156,7 @@ rip_init(void)
 static struct	sockaddr_in ripsrc = { sizeof(ripsrc), AF_INET };
 
 static int
-raw_append(struct inpcb *last, struct ip *ip, struct mbuf *n)
+rip_append(struct inpcb *last, struct ip *ip, struct mbuf *n)
 {
 	int policyfail = 0;
 
@@ -238,14 +238,14 @@ rip_input(struct mbuf *m, int off)
 
 			n = m_copy(m, 0, (int)M_COPYALL);
 			if (n != NULL)
-				(void) raw_append(last, ip, n);
+				(void) rip_append(last, ip, n);
 			/* XXX count dropped packet */
 			INP_RUNLOCK(last);
 		}
 		last = inp;
 	}
 	if (last != NULL) {
-		if (raw_append(last, ip, m) != 0)
+		if (rip_append(last, ip, m) != 0)
 			ipstat.ips_delivered--;
 		INP_RUNLOCK(last);
 	} else {
