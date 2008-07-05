@@ -57,6 +57,9 @@
  * $FreeBSD$
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
@@ -73,10 +76,10 @@
  * This routine is very heavily used in the network
  * code and should be modified for each CPU to be as fast as possible.
  *
- * This implementation is a sparc64 version. Most code was taken over and
- * adapted from the i386. Some optimizations were changed to achieve (hopefully)
- * better performance.
- * This uses 64 bit loads, but 32 bit additions due to the lack of a 64-bit
+ * This implementation is a sparc64 version.  Most code was taken over
+ * and adapted from the i386.  Some optimizations were changed to achieve
+ * (hopefully) better performance.
+ * This uses 64-bit loads, but 32-bit additions due to the lack of a 64-bit
  * add-with-carry operation.
  */
 
@@ -84,28 +87,28 @@
  * REDUCE() is actually not used that frequently... maybe a C implementation
  * would suffice.
  */
-#define REDUCE(sum, tmp) __asm __volatile( \
-	"sll %2, 16, %1\n" \
-	"addcc %2, %1, %0\n" \
-	"srl %0, 16, %0\n" \
+#define	REDUCE(sum, tmp) __asm __volatile(				\
+	"sll %2, 16, %1\n"						\
+	"addcc %2, %1, %0\n"						\
+	"srl %0, 16, %0\n"						\
 	"addc %0, 0, %0" : "=r" (sum), "=r" (tmp) : "0" (sum))
 
 /*
- * Note that some of these macros depend on the flags being preserved between
- * calls, so they should not be intermixed with other C statements.
+ * Note that some of these macros depend on the flags being preserved
+ * between calls, so they should not be intermixed with other C statements.
  */
-#define LD64_ADD32(sum, tmp, addr, n, mod) __asm __volatile( \
-	"ldx [%3 + " #n "], %1\n" \
-	"add" #mod " %2, %1, %0\n" \
-	"srlx %1, 32, %1\n" \
+#define	LD64_ADD32(sum, tmp, addr, n, mod) __asm __volatile(		\
+	"ldx [%3 + " #n "], %1\n"					\
+	"add" #mod " %2, %1, %0\n"					\
+	"srlx %1, 32, %1\n"						\
 	"addccc %0, %1, %0" : "=r" (sum), "=r" (tmp) : "0" (sum), "r" (addr))
 
-#define LD32_ADD32(sum, tmp, addr, n, mod) __asm __volatile( \
-	"lduw [%3 + " #n "], %1\n" \
-	"add" #mod " %2, %1, %0\n" \
+#define	LD32_ADD32(sum, tmp, addr, n, mod) __asm __volatile(		\
+	"lduw [%3 + " #n "], %1\n"					\
+	"add" #mod " %2, %1, %0\n"					\
 	: "=r" (sum), "=r" (tmp) : "0" (sum), "r" (addr))
 
-#define MOP(sum) __asm __volatile( \
+#define	MOP(sum) __asm __volatile(					\
 	"addc %1, 0, %0" : "=r" (sum) : "0" (sum))
 
 u_short
@@ -229,7 +232,7 @@ skip_start:
 		} else if (mlen == -1) {
 			/*
 			 * This mbuf has odd number of bytes.
-			 * There could be a word split betwen
+			 * There could be a word split between
 			 * this mbuf and the next mbuf.
 			 * Save the last byte (to prepend to next mbuf).
 			 */
@@ -240,8 +243,10 @@ skip_start:
 	if (len)
 		printf("%s: out of data by %d\n", __func__, len);
 	if (mlen == -1) {
-		/* The last mbuf has odd # of bytes. Follow the
-		   standard (the odd byte is shifted left by 8 bits) */
+		/*
+		 * The last mbuf has odd # of bytes.  Follow the
+		 * standard (the odd byte is shifted left by 8 bits).
+		 */
 		sum += su & 0xff00;
 	}
 	REDUCE(sum, tmp);
