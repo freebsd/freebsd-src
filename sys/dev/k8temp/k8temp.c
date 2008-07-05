@@ -54,6 +54,7 @@ struct k8temp_softc {
 	int		sc_ntemps;
 	struct sysctl_oid *sc_oid;
 	struct sysctl_oid *sc_sysctl_cpu[2];
+	struct intr_config_hook sc_ich;
 };
 
 #define VENDORID_AMD		0x1022
@@ -91,6 +92,7 @@ typedef enum {
 static void 	k8temp_identify(driver_t *driver, device_t parent);
 static int	k8temp_probe(device_t dev);
 static int	k8temp_attach(device_t dev);
+static void	k8temp_intrhook(void *arg);
 static int	k8temp_detach(device_t dev);
 static int 	k8temp_match(device_t dev);
 static int32_t	k8temp_gettemp(device_t dev, k8sensor_t sensor);
@@ -173,32 +175,19 @@ k8temp_probe(device_t dev)
 static int
 k8temp_attach(device_t dev)
 {
-	device_t nexus, acpi, cpu;
 	struct k8temp_softc *sc = device_get_softc(dev);
-	int i;
 	struct sysctl_ctx_list *sysctlctx;
 	struct sysctl_oid *sysctlnode;
 
+
 	/*
-	 * dev.cpu.N.temperature.
+	 * Setup intrhook function to create dev.cpu sysctl entries. This is
+	 * needed because the cpu driver may be loaded late on boot, before
+	 * us.
 	 */
-	nexus = device_find_child(root_bus, "nexus", 0);
-	acpi = device_find_child(nexus, "acpi", 0);
-
-	for (i = 0; i < 2; i++) {
-		cpu = device_find_child(acpi, "cpu",
-		    device_get_unit(dev) * 2 + i);
-		if (cpu) {
-			sysctlctx = device_get_sysctl_ctx(cpu);
-
-			sc->sc_sysctl_cpu[i] = SYSCTL_ADD_PROC(sysctlctx,
-			    SYSCTL_CHILDREN(device_get_sysctl_tree(cpu)),
-			    OID_AUTO, "temperature", CTLTYPE_INT | CTLFLAG_RD,
-			    dev, CORE0, k8temp_sysctl, "I",
-			    "Max of sensor 0 / 1");
-		}
-	}
-
+	sc->sc_ich.ich_func = k8temp_intrhook;
+	sc->sc_ich.ich_arg = dev;
+	
 	/*
 	 * dev.k8temp.N tree.
 	 */
@@ -236,6 +225,39 @@ k8temp_attach(device_t dev)
 	    "Sensor 1 / Core 1 temperature");
 
 	return (0);
+}
+
+void
+k8temp_intrhook(void *arg)
+{
+	int i;
+	device_t nexus, acpi, cpu;
+	device_t dev = (device_t) arg;
+	struct k8temp_softc *sc;
+	struct sysctl_ctx_list *sysctlctx;
+
+	sc = device_get_softc(dev);
+	
+	/*
+	 * dev.cpu.N.temperature.
+	 */
+	nexus = device_find_child(root_bus, "nexus", 0);
+	acpi = device_find_child(nexus, "acpi", 0);
+
+	for (i = 0; i < 2; i++) {
+		cpu = device_find_child(acpi, "cpu",
+		    device_get_unit(dev) * 2 + i);
+		if (cpu) {
+			sysctlctx = device_get_sysctl_ctx(cpu);
+
+			sc->sc_sysctl_cpu[i] = SYSCTL_ADD_PROC(sysctlctx,
+			    SYSCTL_CHILDREN(device_get_sysctl_tree(cpu)),
+			    OID_AUTO, "temperature", CTLTYPE_INT | CTLFLAG_RD,
+			    dev, CORE0, k8temp_sysctl, "I",
+			    "Max of sensor 0 / 1");
+		}
+	}
+	config_intrhook_disestablish(&sc->sc_ich);
 }
 
 int
