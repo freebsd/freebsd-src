@@ -79,6 +79,9 @@ __FBSDID("$FreeBSD$");
 #include "bsdtar.h"
 #include "tree.h"
 
+/* Size of buffer for holding file data prior to writing. */
+#define FILEDATABUFLEN	65536
+
 /* Fixed size of uname/gname caches. */
 #define	name_cache_size 101
 
@@ -434,6 +437,10 @@ write_archive(struct archive *a, struct bsdtar *bsdtar)
 	const char *arg;
 	struct archive_entry *entry, *sparse_entry;
 
+	/* Allocate a buffer for file data. */
+	if ((bsdtar->buff = malloc(FILEDATABUFLEN)) == NULL)
+		bsdtar_errc(bsdtar, 1, 0, "cannot allocate memory");
+
 	if ((bsdtar->resolver = archive_entry_linkresolver_new()) == NULL)
 		bsdtar_errc(bsdtar, 1, 0, "cannot create link resolver");
 	archive_entry_linkresolver_set_strategy(bsdtar->resolver,
@@ -484,6 +491,9 @@ write_archive(struct archive *a, struct bsdtar *bsdtar)
 		bsdtar_warnc(bsdtar, 0, "%s", archive_error_string(a));
 		bsdtar->return_value = 1;
 	}
+
+	/* Free file data buffer. */
+	free(bsdtar->buff);
 }
 
 /*
@@ -615,22 +625,23 @@ append_archive(struct bsdtar *bsdtar, struct archive *a, struct archive *ina)
 static int
 copy_file_data(struct bsdtar *bsdtar, struct archive *a, struct archive *ina)
 {
-	char	buff[64*1024];
 	ssize_t	bytes_read;
 	ssize_t	bytes_written;
 	off_t	progress = 0;
 
-	bytes_read = archive_read_data(ina, buff, sizeof(buff));
+	bytes_read = archive_read_data(ina, bsdtar->buff, FILEDATABUFLEN);
 	while (bytes_read > 0) {
 		siginfo_printinfo(bsdtar, progress);
 
-		bytes_written = archive_write_data(a, buff, bytes_read);
+		bytes_written = archive_write_data(a, bsdtar->buff,
+		    bytes_read);
 		if (bytes_written < bytes_read) {
 			bsdtar_warnc(bsdtar, 0, "%s", archive_error_string(a));
 			return (-1);
 		}
 		progress += bytes_written;
-		bytes_read = archive_read_data(ina, buff, sizeof(buff));
+		bytes_read = archive_read_data(ina, bsdtar->buff,
+		    FILEDATABUFLEN);
 	}
 
 	return (0);
@@ -956,24 +967,21 @@ abort:
 }
 
 
-/* Helper function to copy file to archive, with stack-allocated buffer. */
+/* Helper function to copy file to archive. */
 static int
 write_file_data(struct bsdtar *bsdtar, struct archive *a,
     struct archive_entry *entry, int fd)
 {
-	char	buff[64*1024];
 	ssize_t	bytes_read;
 	ssize_t	bytes_written;
 	off_t	progress = 0;
 
-	/* XXX TODO: Allocate buffer on heap and store pointer to
-	 * it in bsdtar structure; arrange cleanup as well. XXX */
-
-	bytes_read = read(fd, buff, sizeof(buff));
+	bytes_read = read(fd, bsdtar->buff, FILEDATABUFLEN);
 	while (bytes_read > 0) {
 		siginfo_printinfo(bsdtar, progress);
 
-		bytes_written = archive_write_data(a, buff, bytes_read);
+		bytes_written = archive_write_data(a, bsdtar->buff,
+		    FILEDATABUFLEN);
 		if (bytes_written < 0) {
 			/* Write failed; this is bad */
 			bsdtar_warnc(bsdtar, 0, "%s", archive_error_string(a));
@@ -987,7 +995,7 @@ write_file_data(struct bsdtar *bsdtar, struct archive *a,
 			return (0);
 		}
 		progress += bytes_written;
-		bytes_read = read(fd, buff, sizeof(buff));
+		bytes_read = read(fd, bsdtar->buff, FILEDATABUFLEN);
 	}
 	return 0;
 }
