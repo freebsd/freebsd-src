@@ -79,7 +79,7 @@ in_addword(u_short sum, u_short b)
 {
 	u_long __ret, __tmp;
 
-	__asm __volatile(
+	__asm(
 	    "sll %2, 16, %0\n"
 	    "sll %3, 16, %1\n"
 	    "addcc %0, %1, %0\n"
@@ -94,7 +94,7 @@ in_pseudo(u_int sum, u_int b, u_int c)
 {
 	u_long __tmp;
 
-	__asm __volatile(
+	__asm(
 	    "addcc %0, %3, %0\n"
 	    "addccc %0, %4, %0\n"
 	    "addc %0, 0, %0\n"
@@ -112,7 +112,7 @@ in_cksum_hdr(struct ip *ip)
 	u_long __ret, __tmp1, __tmp2, __tmp3, __tmp4;
 
 	/*
-	 * Use 32 bit memory accesses and additions - addition with carry only
+	 * Use 32-bit memory accesses and additions - addition with carry only
 	 * works for 32 bits, and fixing up alignment issues for 64 is probably
 	 * more trouble than it's worth.
 	 * This may read outside of the ip header, but does not cross a page
@@ -125,7 +125,7 @@ in_cksum_hdr(struct ip *ip)
     "lduw [" #addr " + " #offs "], " #tmp "\n"				\
     "add" # mod " " #sum ", " #tmp ", " #sum "\n"
 
-	__asm __volatile(
+	__asm(
 	    "and %5, 3, %3\n"
 	    "andn %5, 3, %1\n"
 	    "brz,pt %3, 0f\n"
