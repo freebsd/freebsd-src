@@ -64,9 +64,6 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_LINUX_FS_H
 #include <linux/fs.h>	/* for Linux file flags */
 #endif
-#ifdef HAVE_LINUX_EXT2_FS_H
-#include <linux/ext2_fs.h>	/* for Linux file flags */
-#endif
 #ifdef HAVE_LIMITS_H
 #include <limits.h>
 #endif
