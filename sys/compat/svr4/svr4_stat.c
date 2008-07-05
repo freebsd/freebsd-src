@@ -454,6 +454,7 @@ svr4_sys_systeminfo(td, uap)
 		break;
 
 	case SVR4_SI_SRPC_DOMAIN:
+		/* XXXRW: locking? */
 		str = domainname;
 		break;
 

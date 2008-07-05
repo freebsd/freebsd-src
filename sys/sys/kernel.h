@@ -55,6 +55,7 @@
 /* Global variables for the kernel. */
 
 /* 1.1 */
+extern struct mtx hostname_mtx;
 extern unsigned long hostid;
 extern char hostuuid[64];
 extern char hostname[MAXHOSTNAMELEN];

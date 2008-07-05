@@ -245,16 +245,17 @@ getdomainname(td, uap)
 	struct thread *td;
 	struct getdomainname_args *uap;
 {
+	char tmpdomainname[MAXHOSTNAMELEN];
 	int domainnamelen;
-	int error;
 
-	mtx_lock(&Giant);
-	domainnamelen = strlen(domainname) + 1;
+	mtx_lock(&hostname_mtx);
+	bcopy(domainname, tmpdomainname, sizeof(tmpdomainname));
+	mtx_unlock(&hostname_mtx);
+
+	domainnamelen = strlen(tmpdomainname) + 1;
 	if ((u_int)uap->len > domainnamelen)
 		uap->len = domainnamelen;
-	error = copyout(domainname, uap->domainname, uap->len);
-	mtx_unlock(&Giant);
-	return (error);
+	return (copyout(tmpdomainname, uap->domainname, uap->len));
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -269,20 +270,21 @@ setdomainname(td, uap)
 	struct thread *td;
 	struct setdomainname_args *uap;
 {
+	char tmpdomainname[MAXHOSTNAMELEN];
 	int error, domainnamelen;
 
 	error = priv_check(td, PRIV_SETDOMAINNAME);
 	if (error)
 		return (error);
-	mtx_lock(&Giant);
-	if ((u_int)uap->len > sizeof (domainname) - 1) {
-		error = EINVAL;
-		goto done2;
-	}
+	if ((u_int)uap->len > sizeof(tmpdomainname) - 1)
+		return (EINVAL);
 	domainnamelen = uap->len;
-	error = copyin(uap->domainname, domainname, uap->len);
-	domainname[domainnamelen] = 0;
-done2:
-	mtx_unlock(&Giant);
+	error = copyin(uap->domainname, tmpdomainname, uap->len);
+	if (error == 0) {
+		tmpdomainname[domainnamelen] = 0;
+		mtx_lock(&hostname_mtx);
+		bcopy(tmpdomainname, domainname, sizeof(domainname));
+		mtx_unlock(&hostname_mtx);
+	}
 	return (error);
 }

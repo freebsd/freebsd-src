@@ -761,7 +761,9 @@ linux_newuname(struct thread *td, struct linux_newuname_args *args)
 #else /* something other than i386 or amd64 - assume we and Linux agree */
 	strlcpy(utsname.machine, machine, LINUX_MAX_UTSNAME);
 #endif /* __i386__ */
+	mtx_lock(&hostname_mtx);
 	strlcpy(utsname.domainname, domainname, LINUX_MAX_UTSNAME);
+	mtx_unlock(&hostname_mtx);
 
 	return (copyout(&utsname, args->buf, sizeof(utsname)));
 }

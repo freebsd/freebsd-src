@@ -696,6 +696,7 @@ icmp6_input(struct mbuf **mp, int *offp, int proto)
 			n->m_pkthdr.rcvif = NULL;
 			n->m_len = 0;
 			maxhlen = M_TRAILINGSPACE(n) - maxlen;
+			mtx_lock(&hostname_mtx);
 			if (maxhlen > hostnamelen)
 				maxhlen = hostnamelen;
 			/*
@@ -708,6 +709,7 @@ icmp6_input(struct mbuf **mp, int *offp, int proto)
 			p = (u_char *)(nicmp6 + 1);
 			bzero(p, 4);
 			bcopy(hostname, p + 4, maxhlen); /* meaningless TTL */
+			mtx_unlock(&hostname_mtx);
 			noff = sizeof(struct ip6_hdr);
 			n->m_pkthdr.len = n->m_len = sizeof(struct ip6_hdr) +
 				sizeof(struct icmp6_hdr) + 4 + maxhlen;
@@ -1296,7 +1298,9 @@ ni6_input(struct mbuf *m, int off)
 			 *   wildcard match, if gethostname(3) side has
 			 *   truncated hostname.
 			 */
+			mtx_lock(&hostname_mtx);
 			n = ni6_nametodns(hostname, hostnamelen, 0);
+			mtx_unlock(&hostname_mtx);
 			if (!n || n->m_next || n->m_len == 0)
 				goto bad;
 			IP6_EXTHDR_GET(subj, char *, m,
@@ -1420,7 +1424,9 @@ ni6_input(struct mbuf *m, int off)
 		/*
 		 * XXX do we really have FQDN in variable "hostname"?
 		 */
+		mtx_lock(&hostname_mtx);
 		n->m_next = ni6_nametodns(hostname, hostnamelen, oldfqdn);
+		mtx_unlock(&hostname_mtx);
 		if (n->m_next == NULL)
 			goto bad;
 		/* XXX we assume that n->m_next is not a chain */
