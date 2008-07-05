@@ -279,3 +279,28 @@ i386_memio_subregion(bus_space_tag_t t, bus_space_handle_t pbsh,
 	*tbshp = bsh;
 	return error;
 }
+
+int
+i386_memio_compare(bus_space_tag_t t1, bus_space_handle_t bsh1,
+		   bus_space_tag_t t2, bus_space_handle_t bsh2)
+{
+	int i;
+
+	if (t1->bs_tag != t2->bs_tag)
+		return (1);
+	if (bsh1->bsh_base != bsh2->bsh_base)
+		return (1);
+	if (bsh1->bsh_sz != bsh2->bsh_sz)
+		return (1);
+	if (bsh1->bsh_bam.bs_read_1 != bsh2->bsh_bam.bs_read_1)	/* XXX */
+		return (1);
+
+	if (bsh1->bsh_iatsz != bsh2->bsh_iatsz)
+		return (1);
+	for (i = 0; i < bsh1->bsh_iatsz; i++) {
+		if (bsh1->bsh_iat[i] != bsh2->bsh_iat[i])
+			return (1);
+	}
+
+	return (0);
+}
