@@ -60,22 +60,26 @@ struct rawcb {
 extern LIST_HEAD(rawcb_list_head, rawcb) rawcb_list;
 extern struct mtx rawcb_mtx;
 
-/* protosw entries */
+/*
+ * Generic protosw entries for raw socket protocols.
+ */
 pr_ctlinput_t	raw_ctlinput;
 pr_init_t	raw_init;
 
-/* usrreq entries */
+/*
+ * Library routines for raw socket usrreq functions; will always be wrapped
+ * so that protocol-specific functions can be handled.
+ */
 int	 raw_attach(struct socket *, int);
 void	 raw_detach(struct rawcb *);
 void	 raw_disconnect(struct rawcb *);
+void	 raw_input(struct mbuf *, struct sockproto *, struct sockaddr *,
+	    struct sockaddr *);
 
-#if 0 /* what the ??? */
-pr_input_t	raw_input;
-#else
-void	 raw_input(struct mbuf *,
-	    struct sockproto *, struct sockaddr *, struct sockaddr *);
-#endif
-
+/*
+ * Generic pr_usrreqs entries for raw socket protocols, usually wrapped so
+ * that protocol-specific functions can be handled.
+ */
 extern	struct pr_usrreqs raw_usrreqs;
 #endif
 
