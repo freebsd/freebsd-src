@@ -22,11 +22,15 @@ nfsclient_start()
 	#
 
 	if [ -n "${nfs_access_cache}" ]; then
-		echo "NFS access cache time=${nfs_access_cache}"
-		sysctl vfs.nfs.access_cache_timeout=${nfs_access_cache} >/dev/null
+		[ -z "${rc_quiet}" ] && echo "NFS access cache time=${nfs_access_cache}"
+		if ! sysctl vfs.nfs.access_cache_timeout=${nfs_access_cache} >/dev/null; then
+			warn "failed to set access cache timeout"
+		fi
 	fi
 	if [ -n "${nfs_bufpackets}" ]; then
-		 sysctl vfs.nfs.bufpackets=${nfs_bufpackets} > /dev/null
+		if ! sysctl vfs.nfs.bufpackets=${nfs_bufpackets} > /dev/null; then
+			warn "failed to set vfs.nfs.bufpackets"
+		fi
 	fi
 
 	unmount_all
