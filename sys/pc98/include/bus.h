@@ -252,6 +252,15 @@ void i386_memio_free(bus_space_tag_t t, bus_space_handle_t bsh,
 	i386_memio_free((t), (h), (s))
 
 /*
+ *      int bus_space_compare (bus_space_tag_t t1, bus_space_handle_t bsh1,
+ *          bus_space_tag_t t2, bus_space_handle_t bsh2);
+ *
+ * Compare two resources.
+ */
+int i386_memio_compare(bus_space_tag_t t1, bus_space_handle_t bsh1,
+		       bus_space_tag_t t2, bus_space_handle_t bsh2);
+
+/*
  * Access methods for bus resources and address space.
  */
 #define	_BUS_ACCESS_METHODS_PROTO(TYPE,BWN) \
