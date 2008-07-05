@@ -535,14 +535,16 @@ entry_to_archive(struct cpio *cpio, struct archive_entry *entry)
 		fprintf(stderr,"%s", destpath);
 
 	/*
-	 * Obviously, this only gets invoked in pass mode, since
-	 * option_link is nonsense otherwise.  Note that we can't
-	 * hardlink dirs, and that if a link operation fails (because
-	 * of cross-device restrictions), we'll fall back to copy mode
-	 * for that entry.
+	 * Option_link only makes sense in pass mode and for
+	 * regular files.  Also note: if a link operation fails
+	 * because of cross-device restrictions, we'll fall back
+	 * to copy mode for that entry.
+	 *
+	 * TODO: Test other cpio implementations to see if they
+	 * hard-link anything other than regular files here.
 	 */
 	if (cpio->option_link
-	    && archive_entry_filetype(entry) != AE_IFDIR)
+	    && archive_entry_filetype(entry) == AE_IFREG)
 	{
 		struct archive_entry *t;
 		/* Save the original entry in case we need it later. */
