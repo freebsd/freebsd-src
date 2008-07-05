@@ -610,8 +610,8 @@ _archive_write_finish_entry(struct archive *_a)
 	/* Restore metadata. */
 
 	/*
-	 * Look up the "real" UID only if we're going to need it.  We
-	 * need this for TODO_SGID because chown() requires both.
+	 * Look up the "real" UID only if we're going to need it.
+	 * TODO: the TODO_SGID condition can be dropped here, can't it?
 	 */
 	if (a->todo & (TODO_OWNER | TODO_SUID | TODO_SGID)) {
 		a->uid = a->lookup_uid(a->lookup_uid_data,
@@ -619,6 +619,7 @@ _archive_write_finish_entry(struct archive *_a)
 		    archive_entry_uid(a->entry));
 	}
 	/* Look up the "real" GID only if we're going to need it. */
+	/* TODO: the TODO_SUID condition can be dropped here, can't it? */
 	if (a->todo & (TODO_OWNER | TODO_SGID | TODO_SUID)) {
 		a->gid = a->lookup_gid(a->lookup_gid_data,
 		    archive_entry_gname(a->entry),
@@ -1020,7 +1021,10 @@ create_filesystem_object(struct archive_write_disk *a)
 			a->deferred |= (a->todo & TODO_TIMES);
 			a->todo &= ~TODO_TIMES;
 			/* Never use an immediate chmod(). */
-			if (mode != final_mode)
+			/* We can't avoid the chmod() entirely if EXTRACT_PERM
+			 * because of SysV SGID inheritance. */
+			if ((mode != final_mode)
+			    || (a->flags & ARCHIVE_EXTRACT_PERM))
 				a->deferred |= (a->todo & TODO_MODE);
 			a->todo &= ~TODO_MODE;
 		}
@@ -1562,8 +1566,8 @@ create_dir(struct archive_write_disk *a, char *path)
 /*
  * Note: Although we can skip setting the user id if the desired user
  * id matches the current user, we cannot skip setting the group, as
- * many systems set the gid bit based on the containing directory.  So
- * we have to perform a chown syscall if we want to restore the SGID
+ * many systems set the gid based on the containing directory.  So
+ * we have to perform a chown syscall if we want to set the SGID
  * bit.  (The alternative is to stat() and then possibly chown(); it's
  * more efficient to skip the stat() and just always chown().)  Note
  * that a successful chown() here clears the TODO_SGID_CHECK bit, which
