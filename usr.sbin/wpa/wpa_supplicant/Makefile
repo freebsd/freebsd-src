@@ -16,7 +16,7 @@ SRCS=	config.c eloop.c common.c md5.c rc4.c sha1.c aes_wrap.c \
 MAN=	wpa_supplicant.8 wpa_supplicant.conf.5
 
 .if ${MK_EXAMPLES} != "no"
-FILESDIR= ${SHAREDIR}/examples/wpa_supplicant
+FILESDIR= ${SHAREDIR}/examples/etc
 FILES=	wpa_supplicant.conf
 .endif
 
