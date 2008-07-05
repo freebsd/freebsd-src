@@ -53,8 +53,6 @@
  *	from tahoe:	in_cksum.c	1.2	86/01/05
  *	from:		@(#)in_cksum.c	1.3 (Berkeley) 1/19/91
  * 	from: FreeBSD: src/sys/i386/i386/in_cksum.c,v 1.22 2000/11/25
- *
- * $FreeBSD$
  */
 
 #include <sys/cdefs.h>
@@ -87,29 +85,29 @@ __FBSDID("$FreeBSD$");
  * REDUCE() is actually not used that frequently... maybe a C implementation
  * would suffice.
  */
-#define	REDUCE(sum, tmp) __asm __volatile(				\
+#define	REDUCE(sum, tmp) __asm(						\
 	"sll %2, 16, %1\n"						\
 	"addcc %2, %1, %0\n"						\
 	"srl %0, 16, %0\n"						\
-	"addc %0, 0, %0" : "=r" (sum), "=r" (tmp) : "0" (sum))
+	"addc %0, 0, %0" : "=r" (sum), "=&r" (tmp) : "0" (sum) : "cc")
 
 /*
  * Note that some of these macros depend on the flags being preserved
- * between calls, so they should not be intermixed with other C statements.
+ * between calls, thus they have to be used within a single __asm().
  */
-#define	LD64_ADD32(sum, tmp, addr, n, mod) __asm __volatile(		\
+#define	LD64_ADD32(n, mod)						\
 	"ldx [%3 + " #n "], %1\n"					\
 	"add" #mod " %2, %1, %0\n"					\
 	"srlx %1, 32, %1\n"						\
-	"addccc %0, %1, %0" : "=r" (sum), "=r" (tmp) : "0" (sum), "r" (addr))
+	"addccc %0, %1, %0\n"
 
-#define	LD32_ADD32(sum, tmp, addr, n, mod) __asm __volatile(		\
+#define	LD32_ADD32(n, mod)						\
 	"lduw [%3 + " #n "], %1\n"					\
-	"add" #mod " %2, %1, %0\n"					\
-	: "=r" (sum), "=r" (tmp) : "0" (sum), "r" (addr))
+	"add" #mod " %2, %1, %0\n"
 
-#define	MOP(sum) __asm __volatile(					\
-	"addc %1, 0, %0" : "=r" (sum) : "0" (sum))
+#define	MOP(sum, tmp, addr)						\
+	"addc %2, 0, %0"						\
+	: "=r" (sum), "=&r" (tmp) : "0" (sum), "r" (addr) : "cc"
 
 u_short
 in_cksum_skip(struct mbuf *m, int len, int skip)
@@ -172,8 +170,10 @@ skip_start:
 				mlen -= 2;
 			}
 			if (((u_long)w & 4) != 0 && mlen >= 4) {
-				LD32_ADD32(sum, tmp, w, 0, cc);
-				MOP(sum);
+				__asm(
+				    LD32_ADD32(0, cc)
+				    MOP(sum, tmp, w)
+				);
 				w += 2;
 				mlen -= 4;
 			}
@@ -184,36 +184,44 @@ skip_start:
 		 * branches &c small.
 		 */
 		for (; mlen >= 64; mlen -= 64) {
-			LD64_ADD32(sum, tmp, w, 0, cc);
-			LD64_ADD32(sum, tmp, w, 8, ccc);
-			LD64_ADD32(sum, tmp, w, 16, ccc);
-			LD64_ADD32(sum, tmp, w, 24, ccc);
-			LD64_ADD32(sum, tmp, w, 32, ccc);
-			LD64_ADD32(sum, tmp, w, 40, ccc);
-			LD64_ADD32(sum, tmp, w, 48, ccc);
-			LD64_ADD32(sum, tmp, w, 56, ccc);
-			MOP(sum);
+			__asm(
+			    LD64_ADD32(0, cc)
+			    LD64_ADD32(8, ccc)
+			    LD64_ADD32(16, ccc)
+			    LD64_ADD32(24, ccc)
+			    LD64_ADD32(32, ccc)
+			    LD64_ADD32(40, ccc)
+			    LD64_ADD32(48, ccc)
+			    LD64_ADD32(56, ccc)
+			    MOP(sum, tmp, w)
+			);
 			w += 32;
 		}
 		if (mlen >= 32) {
-			LD64_ADD32(sum, tmp, w, 0, cc);
-			LD64_ADD32(sum, tmp, w, 8, ccc);
-			LD64_ADD32(sum, tmp, w, 16, ccc);
-			LD64_ADD32(sum, tmp, w, 24, ccc);
-			MOP(sum);
+			__asm(
+			    LD64_ADD32(0, cc)
+			    LD64_ADD32(8, ccc)
+			    LD64_ADD32(16, ccc)
+			    LD64_ADD32(24, ccc)
+			    MOP(sum, tmp, w)
+			);
 			w += 16;
 			mlen -= 32;
 		}
 		if (mlen >= 16) {
-			LD64_ADD32(sum, tmp, w, 0, cc);
-			LD64_ADD32(sum, tmp, w, 8, ccc);
-			MOP(sum);
+			__asm(
+			    LD64_ADD32(0, cc)
+			    LD64_ADD32(8, ccc)
+			    MOP(sum, tmp, w)
+			);
 			w += 8;
 			mlen -= 16;
 		}
 		if (mlen >= 8) {
-			LD64_ADD32(sum, tmp, w, 0, cc);
-			MOP(sum);
+			__asm(
+			    LD64_ADD32(0, cc)
+			    MOP(sum, tmp, w)
+			);
 			w += 4;
 			mlen -= 8;
 		}
