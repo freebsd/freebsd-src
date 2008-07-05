@@ -111,7 +111,7 @@
 
 /* Initial number of kernel page tables. */
 #ifndef NKPT
-#define	NKPT		2288
+#define	NKPT		2688
 #endif
 
 #define NKPML4E		1		/* number of kernel PML4 slots */
@@ -131,7 +131,7 @@
 #define	KPML4I		(NPML4EPG-1)	/* Top 512GB for KVM */
 #define	DMPML4I		(KPML4I-1)	/* Next 512GB down for direct map */
 
-#define	KPDPI		(NPDPEPG-6)	/* kernel map starts at -6GB */
+#define	KPDPI		(NPDPEPG-7)	/* kernel map starts at -7GB */
 
 /*
  * XXX doesn't really belong here I guess...
