@@ -51,7 +51,9 @@ ipfw_start()
 
 	# Enable the firewall
 	#
-	${SYSCTL_W} net.inet.ip.fw.enable=1
+	if ! ${SYSCTL_W} net.inet.ip.fw.enable=1 1>/dev/null 2>&1; then
+		warn "failed to enable firewall"
+	fi
 }
 
 ipfw_stop()
