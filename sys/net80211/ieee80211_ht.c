@@ -1852,7 +1852,7 @@ ieee80211_send_action(struct ieee80211_node *ni,
 		case IEEE80211_ACTION_BA_DELBA:
 			/* XXX */
 			baparamset = SM(args[0], IEEE80211_DELBAPS_TID)
-				   | SM(args[1], IEEE80211_DELBAPS_INIT)
+				   | args[1]
 				   ;
 			ADDSHORT(frm, baparamset);
 			ADDSHORT(frm, args[2]);	/* reason code */
