@@ -187,6 +187,7 @@ k8temp_attach(device_t dev)
 	 */
 	sc->sc_ich.ich_func = k8temp_intrhook;
 	sc->sc_ich.ich_arg = dev;
+	config_intrhook_establish(&sc->sc_ich);
 	
 	/*
 	 * dev.k8temp.N tree.
