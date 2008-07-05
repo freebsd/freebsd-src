@@ -950,7 +950,8 @@ abort:
 	if (fd >= 0)
 		close(fd);
 
-	archive_entry_free(entry);
+	if (entry != NULL)
+		archive_entry_free(entry);
 }
 
 
