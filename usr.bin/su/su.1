@@ -32,7 +32,7 @@
 .\"	@(#)su.1	8.2 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd September 13, 2006
+.Dd July 1, 2008
 .Dt SU 1
 .Os
 .Sh NAME
@@ -59,11 +59,11 @@ In particular, by default only users in the
 .Dq Li wheel
 group can switch to UID 0
 .Pq Dq Li root .
-This group requirement may be changed by modifying the 
+This group requirement may be changed by modifying the
 .Dq Li pam_group
-section of 
+section of
 .Pa /etc/pam.d/su .
-See 
+See
 .Xr pam_group 8
 for details on how to modify this setting.
 .Pp
@@ -196,13 +196,18 @@ PAM configuration for
 .El
 .Sh EXAMPLES
 .Bl -tag -width 5n -compact
-.It Li "su man -c catman"
+.It Li "su -m man -c catman"
 Runs the command
 .Li catman
 as user
 .Li man .
 You will be asked for man's password unless your real UID is 0.
-.It Li "su man -c 'catman /usr/share/man /usr/local/man /usr/X11R6/man'"
+Note that the
+.Fl m
+option is required since user
+.Dq man
+does not have a valid shell by default.
+.It Li "su -m man -c 'catman /usr/share/man /usr/local/man'"
 Same as above, but the target command consists of more than a
 single word and hence is quoted for use with the
 .Fl c
@@ -210,7 +215,7 @@ option being passed to the shell.
 (Most shells expect the argument to
 .Fl c
 to be a single word).
-.It Li "su -c staff man -c 'catman /usr/share/man /usr/local/man /usr/X11R6/man'"
+.It Li "su -m -c staff man -c 'catman /usr/share/man /usr/local/man'"
 Same as above, but the target command is run with the resource limits of
 the login class
 .Dq staff .
