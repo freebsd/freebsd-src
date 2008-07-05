@@ -410,6 +410,24 @@ bpf_zerocopy_bufheld(struct bpf_d *d)
 }
 
 /*
+ * Notification from the BPF framework that the free buffer has been been
+ * re-assigned.  This happens when the user ackknowledges the buffer.
+ */
+void
+bpf_zerocopy_buf_reclaimed(struct bpf_d *d)
+{
+	struct zbuf *zb;
+
+	KASSERT(d->bd_bufmode == BPF_BUFMODE_ZBUF,
+	    ("bpf_zerocopy_reclaim_buf: not in zbuf mode"));
+
+	KASSERT(d->bd_fbuf != NULL,
+	    ("bpf_zerocopy_buf_reclaimed: NULL free buff"));
+	zb = (struct zbuf *)d->bd_fbuf;
+	zb->zb_flags &= ~ZBUF_FLAG_IMMUTABLE;
+}
+
+/*
  * Query from the BPF framework regarding whether the buffer currently in the
  * held position can be moved to the free position, which can be indicated by
  * the user process making their generation number equal to the kernel

@@ -200,6 +200,28 @@ bpf_append_mbuf(struct bpf_d *d, caddr_t buf, u_int offset, void *src,
 }
 
 /*
+ * This function gets called when the free buffer is re-assigned.
+ */
+static void
+bpf_buf_reclaimed(struct bpf_d *d)
+{
+
+	BPFD_LOCK_ASSERT(d);
+
+	switch (d->bd_bufmode) {
+	case BPF_BUFMODE_BUFFER:
+		return;
+
+	case BPF_BUFMODE_ZBUF:
+		bpf_zerocopy_buf_reclaimed(d);
+		return;
+
+	default:
+		panic("bpf_buf_reclaimed");
+	}
+}
+
+/*
  * If the buffer mechanism has a way to decide that a held buffer can be made
  * free, then it is exposed via the bpf_canfreebuf() interface.  (1) is
  * returned if the buffer can be discarded, (0) is returned if it cannot.
@@ -744,6 +766,7 @@ bpfread(struct cdev *dev, struct uio *uio, int ioflag)
 	d->bd_fbuf = d->bd_hbuf;
 	d->bd_hbuf = NULL;
 	d->bd_hlen = 0;
+	bpf_buf_reclaimed(d);
 	BPFD_UNLOCK(d);
 
 	return (error);
@@ -887,6 +910,7 @@ reset_d(struct bpf_d *d)
 		/* Free the hold buffer. */
 		d->bd_fbuf = d->bd_hbuf;
 		d->bd_hbuf = NULL;
+		bpf_buf_reclaimed(d);
 	}
 	d->bd_slen = 0;
 	d->bd_hlen = 0;
@@ -1717,6 +1741,7 @@ catchpacket(struct bpf_d *d, u_char *pkt, u_int pktlen, u_int snaplen,
 		d->bd_fbuf = d->bd_hbuf;
 		d->bd_hbuf = NULL;
 		d->bd_hlen = 0;
+		bpf_buf_reclaimed(d);
 	}
 
 	/*
