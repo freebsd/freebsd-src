@@ -1159,8 +1159,10 @@ in6_update_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
 			delay = arc4random() %
 			    (MAX_RTR_SOLICITATION_DELAY * hz);
 		}
+		mtx_lock(&hostname_mtx);
 		if (in6_nigroup(ifp, hostname, hostnamelen, &mltaddr.sin6_addr)
 		    == 0) {
+			mtx_unlock(&hostname_mtx);
 			imm = in6_joingroup(ifp, &mltaddr.sin6_addr, &error,
 			    delay); /* XXX jinmei */
 			if (!imm) {
@@ -1174,7 +1176,8 @@ in6_update_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
 				LIST_INSERT_HEAD(&ia->ia6_memberships,
 				    imm, i6mm_chain);
 			}
-		}
+		} else
+			mtx_unlock(&hostname_mtx);
 #undef hostnamelen
 
 		/*

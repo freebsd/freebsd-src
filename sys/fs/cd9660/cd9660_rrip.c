@@ -170,6 +170,7 @@ cd9660_rrip_slink(p,ana)
 			break;
 
 		case ISO_SUSP_CFLAG_HOST:
+			/* XXXRW: locking. */
 			/* Inserting hostname i.e. "kurt.tools.de" */
 			inbuf = hostname;
 			wlen = strlen(hostname);
@@ -242,6 +243,7 @@ cd9660_rrip_altname(p,ana)
 		break;
 
 	case ISO_SUSP_CFLAG_HOST:
+		/* XXXRW: locking. */
 		/* Inserting hostname i.e. "kurt.tools.de" */
 		inbuf = hostname;
 		wlen = strlen(hostname);

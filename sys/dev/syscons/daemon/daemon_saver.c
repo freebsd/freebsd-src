@@ -350,6 +350,8 @@ daemon_saver(video_adapter_t *adp, int blank)
 static int
 daemon_init(video_adapter_t *adp)
 {
+
+	/* XXXRW: Locking -- these can change! */
 	messagelen = strlen(hostname) + 3 + strlen(ostype) + 1 + 
 	    strlen(osrelease);
 	message = malloc(messagelen + 1, M_DEVBUF, M_WAITOK);

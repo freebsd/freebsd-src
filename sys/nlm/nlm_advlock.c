@@ -230,7 +230,9 @@ nlm_advlock_internal(struct vnode *vp, void *id, int op, struct flock *fl,
 	sa = nmp->nm_nam;
 	memcpy(&ss, sa, sa->sa_len);
 	sa = (struct sockaddr *) &ss;
+	mtx_lock(&hostname_mtx);
 	strcpy(servername, nmp->nm_hostname);
+	mtx_unlock(&hostname_mtx);
 	fhlen = np->n_fhsize;
 	memcpy(&fh.fh_bytes, np->n_fhp, fhlen);
 	timo.tv_sec = nmp->nm_timeo / NFS_HZ;
@@ -1218,7 +1220,9 @@ nlm_init_lock(struct flock *fl, int flags, int svid,
 			return (EOVERFLOW);
 	}
 
+	mtx_lock(&hostname_mtx);
 	snprintf(oh_space, 32, "%d@%s", svid, hostname);
+	mtx_unlock(&hostname_mtx);
 	oh_len = strlen(oh_space);
 
 	memset(lock, 0, sizeof(*lock));

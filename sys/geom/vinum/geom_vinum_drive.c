@@ -62,7 +62,9 @@ gv_config_new_drive(struct gv_drive *d)
 	vhdr->magic = GV_MAGIC;
 	vhdr->config_length = GV_CFG_LEN;
 
+	mtx_lock(&hostname_mtx);
 	bcopy(hostname, vhdr->label.sysname, GV_HOSTNAME_LEN);
+	mtx_unlock(&hostname_mtx);
 	strncpy(vhdr->label.name, d->name, GV_MAXDRIVENAME);
 	microtime(&vhdr->label.date_of_birth);
 

@@ -1569,8 +1569,10 @@ bootpc_decode_reply(struct nfsv3_diskless *nd, struct bootpc_ifcontext *ifctx,
 			printf("hostname %s (ignored) ", p);
 		} else {
 			strcpy(nd->my_hostnam, p);
+			mtx_lock(&hostname_mtx);
 			strcpy(hostname, p);
 			printf("hostname %s ", hostname);
+			mtx_unlock(&hostname_mtx);
 			gctx->sethostname = ifctx;
 		}
 	}

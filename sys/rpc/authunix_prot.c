@@ -45,6 +45,8 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/systm.h>
 #include <sys/ucred.h>
 
@@ -67,6 +69,7 @@ xdr_authunix_parms(XDR *xdrs, uint32_t *time, struct xucred *cred)
 	uint32_t ngroups, i;
 	uint32_t junk;
 
+	mtx_lock(&hostname_mtx);
 	if (xdrs->x_op == XDR_ENCODE) {
 		/*
 		 * Restrict name length to 255 according to RFC 1057.
@@ -92,6 +95,7 @@ xdr_authunix_parms(XDR *xdrs, uint32_t *time, struct xucred *cred)
 	} else {
 		xdr_setpos(xdrs, xdr_getpos(xdrs) + RNDUP(namelen));
 	}
+	mtx_unlock(&hostname_mtx);
 
 	if (!xdr_uint32_t(xdrs, &cred->cr_uid))
 		return (FALSE);
