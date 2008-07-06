@@ -5,10 +5,10 @@
 # which are believed to be devices we have drivers for
 # which just need to be tweaked for attachment to an SSB system bus.
 
-mips/mips32/sentry5/s5_machdep.c		standard
+mips/sentry5/s5_machdep.c		standard
 dev/siba/siba.c					optional siba
 dev/siba/siba_pcib.c				optional siba pci
-mips/mips32/sentry5/siba_cc.c			optional siba
+mips/sentry5/siba_cc.c			optional siba
 
 # notyet
-#mips/mips32/sentry5/siba_mips.c			optional siba
+#mips/sentry5/siba_mips.c			optional siba
