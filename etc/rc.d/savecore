@@ -17,11 +17,6 @@ stop_cmd=":"
 
 savecore_prestart()
 {
-	#	${DUMPDIR} should be a directory or a symbolic link
-	#	to the crash directory if core dumps are to be saved.
-	#
-	DUMPDIR="${dumpdir:-/var/crash}"
-
 	# Quit if we have no dump device
 	case ${dumpdev} in
 	[Nn][Oo] | '')
@@ -69,7 +64,7 @@ savecore_start()
 	esac
 
 	if savecore -C "${dumpdir}" "${dev}" >/dev/null; then
-		savecore ${savecore_flags} ${DUMPDIR} ${dumpdev}
+		savecore ${savecore_flags} ${dumpdir} ${dumpdev}
 	else
 		[ -z "${rc_quiet}" ] && echo "No core dumps found"
 	fi
